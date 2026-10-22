@@ -172,6 +172,9 @@
           }
         ]
       },
+      "hunt_density": {
+        "mill_cellar": 1
+      },
       "hunt_settings": {
         "preset": 0,
         "presets": [
@@ -311,7 +314,6 @@
           null,
           null
         ],
-        "density": 1,
         "gather_share": 0,
         "gather_inert": true,
         "stop_rules": [],

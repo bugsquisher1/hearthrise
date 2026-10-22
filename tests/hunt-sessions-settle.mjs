@@ -116,6 +116,16 @@
 //              item (value_over), kills (kills_over), the world's size, shape and
 //              swing, the store without consent (store_off), the lane caps
 //              (too_many_uses), an unsold id (not_for_sale).
+//   DENSITY    P0 #57: a Level-2 club hero at Mill Cellar density 8 (the real ground),
+//              nothing landed since it opened and Leave pressed, ends through its own
+//              settle with the browser closed (tick) and viewed (player's settle), both
+//              with the density the server froze on the instance at hunt start (a later
+//              setup change moves neither the bound nor what the engine plays) and with
+//              none frozen (an instance opened before the freeze: the bound reads the ceiling).
+//   FORFEIT    the sixth refused commit in a row forfeits the window: ended `left`
+//              (Leave pressed) or `server` (browser closed) at the last accepted
+//              boundary, purse unmoved, one window_forfeit row, bag home; a landed
+//              commit starts the count over.
 //   REPLAY     the same keys re-committed answer replayed and move nothing; a
 //              stale proposal answers session_moved.
 //   SETTINGS   the hero's stored options reach its unit in the persisted world.
@@ -239,7 +249,8 @@ const mixedRow = () => {
 };
 /* The DB arms' settles play the ground installGround last put in the catalogue. */
 let fixtureRow = groundRow;
-const groundsOf = (M) => ({ mill_cellar: { ground: fixtureRow(), grid: gridOf(M) } });
+/* null = the REAL ground (hunt-ground.js huntGroundOf) and the chain's own catalogue row (the DENSITY arm). */
+const groundsOf = (M) => (fixtureRow ? { mill_cellar: { ground: fixtureRow(), grid: gridOf(M) } } : {});
 const deadlyOf = (M) => ({ ground: deadlyRow(), grid: gridOf(M) });
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -919,9 +930,10 @@ async function installGround(db, row = groundRow) {
   const GEN = await import(pathToFileURL(join(ROOT, 'tools', 'gen-hunt-sessions.mjs')).href);
   const { rows, spawns } = GEN.groundRows({ h1_fixture: row() });
   for (const g of rows) {
-    await db.query(`insert into public.hr_hunt_grounds (hunt_id, ground_id, pockets, spawns, respawn_ms, seats) values ($1,$2,$3,$4,$5,$6)
+    await db.query(`insert into public.hr_hunt_grounds (hunt_id, ground_id, pockets, spawns, respawn_ms, seats, density_max) values ($1,$2,$3,$4,$5,$6,$7::int[])
                     on conflict (hunt_id) do update set ground_id = excluded.ground_id, pockets = excluded.pockets, spawns = excluded.spawns,
-                      respawn_ms = excluded.respawn_ms, seats = excluded.seats`, [g.hunt, g.ground, g.pockets, g.spawns, g.respawn, g.seats]);
+                      respawn_ms = excluded.respawn_ms, seats = excluded.seats, density_max = excluded.density_max`,
+                    [g.hunt, g.ground, g.pockets, g.spawns, g.respawn, g.seats, g.dmax]);
     await db.query('delete from public.hr_hunt_ground_spawns where hunt_id = $1', [g.hunt]);
   }
   for (const s of spawns) await db.query('insert into public.hr_hunt_ground_spawns (hunt_id, monster_id, n) values ($1,$2,$3) on conflict do nothing', [s.hunt, s.monster, s.n]);
@@ -961,6 +973,12 @@ async function character(db, M, uid, o) {
     const r = await one(db, 'select public.hr_action_set_options(0, 0, $1::jsonb, $2::uuid)', [JSON.stringify(o.options), idem()]);
     if (!r || r.ok !== true) throw new Error('options refused: ' + JSON.stringify(r));
   }
+  /* The density pick on the hunter's ground (hunt_density, 2026-11-17-hunt-density-home.sql: per ground, never a setup). */
+  if (o.density != null) {
+    await asUser(db, uid);
+    const r = await one(db, `select public.hr_hunt_density_set(0, 'mill_cellar', $1::int, $2::uuid)`, [o.density, idem()]);
+    if (!r || r.ok !== true) throw new Error('density refused: ' + JSON.stringify(r));
+  }
   if (o.premium) await db.query(`select public.hr_premium_grant($1, 0, now() + interval '30 days', 's1 probe')`, [uid]);
   if (o.lastActivity) {
     await db.query('update public.player_state set last_activity_kind = $2, last_activity_id = $3 where user_id = $1 and slot = 0',
@@ -975,7 +993,7 @@ async function character(db, M, uid, o) {
 
 /* A hunter: one character (or, with o.party, every character of a party) on mill_cellar `minutesAgo` minutes ago. */
 async function hunter(db, M, o) {
-  await installGround(db, o.row || (o.deadly ? deadlyRow : groundRow));
+  if (o.realGround) fixtureRow = null; else await installGround(db, o.row || (o.deadly ? deadlyRow : groundRow));
   await db.query('update public.hr_hunt_config set enabled = true where id');
   const who = o.party ? o.party : [o];
   for (let i = 0; i < who.length; i++) await character(db, M, UIDS[i], who[i]);
@@ -1458,6 +1476,124 @@ const DB_ARMS = {
     if (soloEnv !== null) problems.push(`a character with no hunt and no party has a party section: ${JSON.stringify(soloEnv).slice(0, 200)}`);
     return problems;
   }),
+  /* P0 bug report #57 (v0.2.26): a Level-2 club hero picked density 8 at Mill Cellar; the kill bound counted
+     the ground's as-built spawns, refused the engine's own kills (22 in a 50 s window against 15), and every
+     later, longer window more so: the instance never moved and the Leave never landed. Here is that instance:
+     the real ground, nothing landed since it opened, Leave pressed. It must end through its own settle, with
+     the browser closed (the tick) and with the hunt viewed (the player's settle). */
+  DENSITY: async (db, M) => inTx(db, async () => {
+    const problems = [];
+    try {
+      const h = await hunter(db, M, { realGround: true, minutesAgo: 22, level: 2, density: 8,
+        inv: { cooked_shrimp: 30 }, bag: [{ item: 'cooked_shrimp', qty: 25 }], gold: 1000 });
+      /* Hank's weapon: the club's cleave clears a full pack at once. */
+      await db.query("delete from public.player_equipment where user_id = $1 and slot = 0 and equip_slot in ('shield', 'weapon')", [UID]);
+      await db.query("insert into public.player_equipment (user_id, slot, equip_slot, item_id) values ($1, 0, 'weapon', 'practice_club')", [UID]);
+      await asUser(db, UID);
+      const lv = await one(db, 'select public.hr_hunt_leave(0, $1::uuid)', [idem()]);
+      await db.query("select set_config('request.jwt.claim.sub', '', true)");
+      if (!lv || lv.ok !== true) return ['CONTROL: the leave was refused: ' + JSON.stringify(lv)];
+      /* Pressed two minutes ago (the arm's clock is one transaction's now()). */
+      await db.query('update public.hunt_sessions set leave_at = to_timestamp($2::bigint / 1000.0) where id = $1', [h.sid, h.from + 20 * 60000]);
+      const exec = makeExec(db);
+      /* The server froze the pick on the instance when the hunt opened (2026-11-16-hunt-density-bounds.sql). */
+      const frozen = await one(db, 'select density from public.hunt_instances where id = $1', [h.inst]);
+      if (frozen !== 8) problems.push(`the instance froze density ${frozen} at hunt start, want 8`);
+      /* A density key left on the action set (the hero has no row until a setup is saved): what an engine read before 2026-11-17. */
+      const staleKey = (n) => db.query(`insert into public.player_action_sets as a (user_id, slot, preset, name, slots, options)
+        values ($1, 0, 0, 'Preset 1', '[]'::jsonb, jsonb_build_object('density', $2::int))
+        on conflict (user_id, slot, preset) do update set options = a.options || excluded.options`, [UID, n]);
+      await db.query('savepoint density');
+      for (const [variant, door] of [['frozen', 'tick'], ['frozen', 'settle'], ['opened before the freeze', 'tick'], ['opened before the freeze', 'settle']]) {
+        if (variant === 'frozen') {
+          /* A pick changed after Enter (or a stale key on an action-set row) moves neither the bound nor what the engine plays. */
+          await db.query(`update public.hunt_density set density = 1 where user_id = $1 and slot = 0`, [UID]);
+          await staleKey(1);
+          const first = await settleTo(db, M, h.from + 60000);
+          const w = await one(db, 'select world from public.hunt_instances where id = $1', [h.inst]);
+          const played = first.res && first.res.ok === true && w ? M.WS.decode(JSON.parse(w)).density : null;
+          if (played !== 8) problems.push(`${variant}/${door}: after a setup change the engine played density ${played}, not the frozen 8`);
+        } else {
+          /* Hank's 32c99ffe: opened before the freeze existed, so its row holds none (the bound reads the ceiling). */
+          await db.query('update public.hunt_instances set density = null where id = $1', [h.inst]);
+          /* ...and its engine read the pick off the action set then (the key 2026-11-17 strips): it plays 8 against the ceiling. */
+          await staleKey(8);
+        }
+        let r = null;
+        for (let i = 0; i < 4; i++) {
+          r = await M.HS.settleHunt({ exec, user: UID, slot: 0, mode: door, grounds: groundsOf(M),
+            ...(door === 'tick' ? { session: h.sid } : { minWindowMs: 0 }) });
+          if (!r || r.outcome !== 'paid' || r.ended) break;
+        }
+        const s = await snapshot(db, h.sid);
+        if (!r || r.outcome === 'refused') problems.push(`${variant}/${door}: the stuck density-8 hunt was refused ${r && r.reason}: ${JSON.stringify(r && r.body && r.body.detail).slice(0, 300)}`);
+        else if (!s.session.ended_at || !['left', 'died'].includes(s.session.end_reason)) {
+          problems.push(`${variant}/${door}: the stuck hunt did not end through its own settle (${s.session.end_reason}; ${r.outcome}/${r.reason})`);
+        }
+        /* CONTROL: a landed window carried more kills than the as-built bound allowed (density is under test). */
+        const over = await one(db, `select count(*) from public.player_ledger l, public.hr_hunt_grounds g
+          where l.session_id = $1 and l.kind <> 'hunt' and g.hunt_id = 'mill_cellar' and jsonb_typeof(l.meta->'kills') = 'number'
+            and (l.meta->>'kills')::bigint > g.spawns * ((l.meta->>'ms')::bigint / g.respawn_ms + 2)`, [h.sid]);
+        if (!(Number(over) > 0) && !problems.length) problems.push(`CONTROL ${variant}/${door}: no landed window exceeded the as-built kill bound`);
+        await db.query('rollback to savepoint density');
+      }
+    } finally { fixtureRow = groundRow; }
+    return problems;
+  }),
+  /* A REFUSED WINDOW NEVER TRAPS A HERO (2026-11-16-hunt-density-bounds.sql): the sixth refused commit in a row
+     forfeits the pending window. Nothing of it is paid; every session ends at the last accepted boundary, `left`
+     when its hero asked to leave, `server` otherwise, journalled once. A landed commit starts the count over. */
+  FORFEIT: async (db, M) => inTx(db, async () => {
+    const problems = [];
+    const h = await hunter(db, M, { ...STRONG, minutesAgo: 10 });
+    await settleTo(db, M, h.from + 60000);
+    const gold = async () => Number(await one(db, 'select gold from public.player_state where user_id = $1 and slot = 0', [UID]));
+    const g0 = await gold();
+    const at0 = Number(await one(db, 'select floor(extract(epoch from settled_to) * 1000)::bigint from public.hunt_instances where id = $1', [h.inst]));
+    const forged = (c) => { c.members[0].delta.journal.meta.kills = 100000; };
+    const refuse = async (n, toMs = h.from + 120000) => {
+      let r = null;
+      for (let i = 0; i < n; i++) {
+        r = await settleTo(db, M, toMs, { tamper: forged });
+        if (!r.res) throw new Error(`refusal ${i + 1} of ${n} was not offered: ${JSON.stringify(r).slice(0, 200)}`);
+      }
+      return r;
+    };
+    const open = async () => (await one(db, 'select count(*) from public.hunt_sessions where id = $1 and ended_at is null', [h.sid])) > 0;
+    await db.query('savepoint forfeit');
+    /* Consecutive: five refusals, a landed window, five more: the hunt never forfeits. */
+    let r = await refuse(5);
+    if (!r.res || r.res.error !== 'kills_over' || r.res.forfeit || !(await open())) problems.push(`five refusals answered ${JSON.stringify(r.res).slice(0, 200)}`);
+    const honest = await settleTo(db, M, h.from + 120000, { raw: true });
+    if (!honest.res || honest.res.ok !== true) problems.push(`a landed window after five refusals answered ${JSON.stringify(honest.res).slice(0, 200)}`);
+    r = await refuse(5, h.from + 180000);
+    if (r.res.forfeit || !(await open())) problems.push('five refusals after a landed window forfeited the hunt (the count did not start over)');
+    await db.query('rollback to savepoint forfeit');
+    for (const [label, leave, want] of [['hunt viewed, Leave pressed', true, 'left'], ['browser closed, no Leave', false, 'server']]) {
+      if (leave) {
+        await asUser(db, UID);
+        const lv = await one(db, 'select public.hr_hunt_leave(0, $1::uuid)', [idem()]);
+        await db.query("select set_config('request.jwt.claim.sub', '', true)");
+        if (!lv || lv.ok !== true) problems.push(`${label}: the leave was refused`);
+      }
+      r = await refuse(6);
+      const s = await snapshot(db, h.sid);
+      if (!r.res || !r.res.forfeit) problems.push(`${label}: the sixth refusal answered ${JSON.stringify(r.res).slice(0, 200)}`);
+      if (s.session.end_reason !== want || Date.parse(s.session.ended_at) !== at0) {
+        problems.push(`${label}: the hunt ended ${s.session.end_reason} at ${s.session.ended_at}, want ${want} at ${new Date(at0).toISOString()}`);
+      }
+      if (await gold() !== g0) problems.push(`${label}: the forfeit moved gold ${g0} -> ${await gold()}`);
+      const rows = await q(db, `select gold, meta->>'code' code from public.player_ledger where session_id = $1 and intent = 'window_forfeit' and kind = 'hunt'`, [h.sid]);
+      if (rows.length !== 1 || Number(rows[0].gold) !== 0 || rows[0].code !== 'kills_over') problems.push(`${label}: the forfeit journalled ${JSON.stringify(rows)}`);
+      if (Object.values(s.bag || {}).some((b) => b[1] !== 0)) problems.push(`${label}: the bag did not go home ${JSON.stringify(s.bag)}`);
+      const inst = (await q(db, 'select world, refusals from public.hunt_instances where id = $1', [h.inst]))[0];
+      if (inst.world !== null || inst.refusals !== 0) problems.push(`${label}: the instance kept a world or a count`);
+      const next = await settleTo(db, M, h.from + 180000);
+      if (next.skipped !== 'no_hunt') problems.push(`${label}: a settle after the forfeit answered ${JSON.stringify(next).slice(0, 200)}`);
+      await db.query('rollback to savepoint forfeit');
+    }
+    return problems;
+  }),
   VALUE: async (db, M) => inTx(db, async () => {
     const problems = [];
     const { from } = await hunter(db, M, { ...STRONG, options: { on_empty: 'end', supply_source: 'mine' },
@@ -1483,12 +1619,15 @@ const DB_ARMS = {
       ['an id the store does not sell', (c) => { m0(c).hunt.buys = { dragon_scale: 1 }; }, 'not_for_sale'],
       ['two hundred meals in one minute (the bag holds them)', (c) => { m0(c).hunt.uses = { cooked_shrimp: 200 }; }, 'too_many_uses'],
     ];
+    /* Each forgery is judged alone (its own savepoint): six refusals in a row forfeit the window (FORFEIT). */
     for (const [label, tamper, code] of cases) {
+      await db.query('savepoint value_case');
       const x = await settleTo(db, M, from + 120000, { tamper });
       const got = x.res && x.res.error;
       if (code ? got !== code : !(x.res && x.res.ok === false)) problems.push(`${label} answered ${JSON.stringify(x.res).slice(0, 200)}, want ${code || 'a refusal'}`);
       const g = Number(await one(db, 'select gold from public.player_state where user_id = $1 and slot = 0', [UID]));
       if (g !== g0) problems.push(`${label} moved gold ${g0} -> ${g}`);
+      await db.query('rollback to savepoint value_case');
     }
     const honest = await settleTo(db, M, from + 120000, { raw: true });
     if (!honest.res || honest.res.ok !== true) problems.push(`an honest settle answered ${JSON.stringify(honest.res).slice(0, 200)}`);
@@ -1830,6 +1969,7 @@ const MUTANTS = [
 const AM = 'public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)';
 const AI = 'public.hr_hunt_apply_instance(uuid,bigint,jsonb,jsonb,uuid,integer)';
 const SS = 'public.hr_hunt_settle_session(uuid,integer,uuid,jsonb)';
+const SR = 'public.hr_hunt_settle_refused(uuid,bigint,jsonb,jsonb)';
 const DB_MUTANTS = [
   { arm: 'NO-DODGE', name: 'a leave closes the hunt at once again (the foreseen death is dodged)', fn: 'public.hr_hunt_leave(integer,uuid)',
     find: '    update public.hunt_sessions set leave_at = public.hr_hunt_live_horizon_at(v_s.settled_to), version = version + 1 where id = v_s.id;',
@@ -1840,6 +1980,19 @@ const DB_MUTANTS = [
     find: '             select max(coalesce((b.drops->>e.key)::numeric, 0)) from public.hr_hunt_kill_bounds b', replace: '             select 1000000 from public.hr_hunt_kill_bounds b' },
   { arm: 'VALUE', name: '[FRESH respawn x6] the kill bound is lifted', fn: AM,
     find: '  if v_kills > v_kmax then', replace: '  if v_kills > v_kmax * 1000 then' },
+  { arm: 'DENSITY', name: '[#57] the kill bound counts the as-built spawns again', fn: AM,
+    find: '  v_kmax := v_pass * (greatest(v_win, 0) / v_ground.respawn_ms + 2);',
+    replace: '  v_kmax := v_ground.spawns::bigint * (greatest(v_win, 0) / v_ground.respawn_ms + 2);' },
+  { arm: 'DENSITY', name: '[#57] the engine plays today\'s action-set density, not the frozen one', fn: 'public.hr_hunt_instance_read(uuid,integer)',
+    find: "|| jsonb_build_object('density', v_i.density)) end,", replace: "|| '{}'::jsonb) end," },
+  { arm: 'DENSITY', name: '[#57] the density is never frozen at hunt start', fn: 'public.hr_hunt_density_freeze()',
+    find: '   where id = new.instance_id and density is null;', replace: '   where false;' },
+  { arm: 'FORFEIT', name: '[#57] a refused window is never forfeited (the hero is trapped)', fn: SR,
+    find: '  if v_n >= c_forfeit_after then', replace: '  if false then' },
+  { arm: 'FORFEIT', name: 'a landed commit keeps the refusal count', fn: AI,
+    find: 'settled_to = v_to, next_swing_at = v_to, refusals = 0, version = version + 1', replace: 'settled_to = v_to, next_swing_at = v_to, version = version + 1' },
+  { arm: 'FORFEIT', name: 'a forfeit ends the hunt now instead of at the last accepted boundary', fn: 'public.hr_hunt_forfeit(uuid,text,jsonb)',
+    find: "    perform public.hr_hunt_close(v_s.id, v_end, v_i.settled_to, true);", replace: "    perform public.hr_hunt_close(v_s.id, v_end, now(), true);" },
   { arm: 'VALUE', name: 'the world byte bound is not asked', fn: AI,
     find: "    if octet_length(v_world) > public.hr_hunt_limit('world_max_bytes') then", replace: '    if false then' },
   { arm: 'VALUE', name: 'a world of any shape is stored', fn: AI,
@@ -1856,7 +2009,8 @@ const DB_MUTANTS = [
   { arm: 'STORE', name: 'a store use is not journalled', fn: AM,
     find: "        values (p_user, p_slot, 'hunt', 'supply_buy', -v_cost, -v_units,", replace: "        values (p_user, p_slot, 'hunt', 'supply_bought', -v_cost, -v_units," },
   { arm: 'PARTY', name: 'a settle of some members lands', fn: AI,
-    find: "    return jsonb_build_object('ok', false, 'error', 'member_set');", replace: "    null;" },
+    /* (re-anchored on 2026-11-16-hunt-density-bounds.sql: every refusal after the lock is counted) */
+    find: "    return public.hr_hunt_settle_refused(p_instance, p_world_from, v_first, jsonb_build_object('ok', false, 'error', 'member_set'));", replace: "    null;" },
   { arm: 'PARTY-VIEW', name: 'the party section keeps the old seats key for HP max', fn: 'public.hr_hunt_party_view(uuid,integer)',
     find: "'hp_max', case when", replace: "'max_hp', case when" },
   { arm: 'PARTY-VIEW', name: 'the party section does not name the world unit', fn: 'public.hr_hunt_party_view(uuid,integer)',

@@ -33,7 +33,9 @@
 //   hr_hunt_roles          hunt-roles.js HUNT_ROLES: each role's ability discipline
 //   hr_hunt_set_options    hunt-sessions.js ACTION_SET_OPTIONS (target / limit / enum / bool)
 //   hr_hunt_grounds        hunt-grounds.js HUNT_GROUNDS: per hunt, its ground, seats,
-//   hr_hunt_ground_spawns  pockets, respawn and every spawn (the settle's kill bound)
+//   hr_hunt_ground_spawns  pockets, respawn and every spawn (the settle's kill bound),
+//                          and density_max per party size (densityFor: the per-ground
+//                          density pick's ceiling, hr_hunt_density_set)
 //   hr_hunt_world_shape    world-state.js WORLD_VERSION + SHAPE (a world encoded under
 //                          any other field list is refused by the settle) + FIELDS as
 //                          name -> column index, so SQL reads a unit's field by name
@@ -82,14 +84,18 @@
 // world's shape) start 2026-11-05-hunt-sessions-catalogue.generated.sql (history
 // once written); the Challenge hold (lane/a-combat-bugs: holdMs replaces chalMs in
 // the world's shape) starts 2026-11-06-hunt-sessions-catalogue.generated.sql (APPLIED
-// 2026-10-21 with v0.2.24). THE PLAYER PICKS THE STORE ITEM (Tyler 2026-10-19;
-// lane b-supplies-bury): the store rows carry no `tiers`, hr_hunt_travel no `tier`
-// and the Plain Fire Rune joins the store, once 2026-11-07-store-by-slot.sql (applied
-// FIRST) restates their readers: 2026-11-07-hunt-sessions-catalogue.generated.sql; the four-slot drop tables
-// (lane/c-loot-loop: the imbuement items, one junk row per monster) start
-// 2026-11-08-hunt-sessions-catalogue.generated.sql, after both 2026-11-07 files; Mosslight Glade's five monsters
-// (lane c-ground-16-31: their kill bounds, vendor values and training rows; the glade itself is STAGED, so no
-// hunt, travel or ground row) start 2026-11-12-hunt-sessions-catalogue.generated.sql, after the 11-08 pair.
+// 2026-10-21 with v0.2.24, history). The next forward file is
+// 2026-11-18-hunt-sessions-catalogue.generated.sql, ONE file for every lane staged
+// since (the v0.2.28 integration collapsed the never-applied 11-07, 11-08, 11-12
+// and 11-17 files into it): THE PLAYER PICKS THE STORE ITEM (lane b-supplies-bury:
+// the store rows carry no `tiers`, hr_hunt_travel no `tier`, the Plain Fire Rune
+// joins the store; apply after 2026-11-07-store-by-slot.sql, which restates their
+// readers); the four-slot drop tables (lane c-loot-loop: the imbuement items, one
+// junk row per monster; after 2026-11-18-loot-catalogue.generated.sql, which
+// carries the items); Mosslight Glade's five monsters (lane c-ground-16-31: kill
+// bounds, vendor values, training rows; the glade is STAGED, so no hunt, travel or
+// ground row); density's own home (lane c-density-home: no density option, every
+// ground's density_max; apply right before 2026-11-17-hunt-density-home.sql).
 //
 //   Regenerate:  node tools/gen-hunt-sessions.mjs
 //   Verify:      node tools/gen-hunt-sessions.mjs --check     (exit 1 on drift)
@@ -120,7 +126,7 @@ import { CONSUMABLE_RULES } from '../src/data/consumables.js';
 import { ABILITIES, ABILITY_LANES, ABILITY_RULES } from '../src/data/abilities.js';
 import { HUNT_ROLES, WEAPON_ROLES, roleWeaponOf } from '../src/data/hunt-roles.js';
 import { HUNT_XP } from '../src/data/hunt-xp.js';
-import { OPEN_GROUNDS, DENSITY_PICK } from '../src/data/hunt-grounds.js';
+import { OPEN_GROUNDS, DENSITY_PICK, PARTY_SCALE, densityFor } from '../src/data/hunt-grounds.js';
 import { HUNT_TUNING } from '../src/data/hunt-tuning.js';
 import { PARTY } from '../src/data/party.js';
 import { SESSION_CONFIG } from '../src/session/config.js';
@@ -139,7 +145,7 @@ export const WORLD_FIELDS_READ = Object.freeze({
     'role', 'dist', 'chase', 'tmode', 'stance']),
   world: Object.freeze(['leader']),
 });
-export const OUT_NAME = '2026-11-12-hunt-sessions-catalogue.generated.sql';
+export const OUT_NAME = '2026-11-18-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -168,7 +174,13 @@ export function groundRows(grounds, refs = {}) {
       counts[s.monster] = (counts[s.monster] || 0) + 1; n++;
     }
     if (!n) throw new Error(`ground ${id} spawns nothing`);
-    rows.push({ hunt: g.hunt, ground: id, pockets: g.pockets.length, spawns: n, respawn: g.respawnMs, seats: g.start.length });
+    /* THE MOST A HERO MAY PICK here, per party size 1..PARTY_SCALE.maxHeroes (densityFor's clamp, the one
+       rule): hr_hunt_density_set refuses a pick over the largest, the instance's freeze clamps to it. */
+    const dmax = Array.from({ length: PARTY_SCALE.maxHeroes }, (_, i) => densityFor(g, i + 1, DENSITY_PICK.max));
+    if (!dmax.every((v, i) => whole(v) && v >= 0 && v <= DENSITY_PICK.max && (i === 0 || v >= dmax[i - 1]))) {
+      throw new Error(`ground ${id} density max ${dmax} is not 0..${DENSITY_PICK.max}, never falling as the party grows`);
+    }
+    rows.push({ hunt: g.hunt, ground: id, pockets: g.pockets.length, spawns: n, respawn: g.respawnMs, seats: g.start.length, dmax });
     for (const m of Object.keys(counts).sort()) spawns.push({ hunt: g.hunt, monster: m, n: counts[m] });
   }
   return { rows, spawns };
@@ -488,7 +500,7 @@ export function render(src) {
   const resumeList = r.resumable.map(sq).join(', ');
   const abilityValues = r.abilities.map((a) => `  (${sq(a.id)}, array[${a.disciplines.map(sq).join(', ')}]::text[], ${sq(a.lane)}, ${a.cd}, `
     + `${a.mana}, ${a.rune ? sq(a.rune) : 'null'}, ${a.ammo}, ${a.active}, ${a.ord})`).join(',\n');
-  const groundValues = r.grounds.map((g) => `  (${sq(g.hunt)}, ${sq(g.ground)}, ${g.pockets}, ${g.spawns}, ${g.respawn}, ${g.seats})`).join(',\n');
+  const groundValues = r.grounds.map((g) => `  (${sq(g.hunt)}, ${sq(g.ground)}, ${g.pockets}, ${g.spawns}, ${g.respawn}, ${g.seats}, '{${g.dmax.join(',')}}'::int[])`).join(',\n');
   const weaponValues = r.weapons.map((w) => `  (${sq(w.id)}, ${sq(w.t)})`).join(',\n');
   const weaponRoleValues = r.weaponRoles.map((w) => `  (${sq(w.t)}, array[${w.roles.map(sq).join(', ')}]::text[])`).join(',\n');
   const groundSpawnValues = r.groundSpawns.map((s) => `  (${sq(s.hunt)}, ${sq(s.monster)}, ${s.n})`).join(',\n');
@@ -520,14 +532,19 @@ export function render(src) {
 --   ${r.lanes.length} lanes, ${r.abilities.length} abilities, ${r.setOptions.length} action-set options, ${r.grounds.length} hunt grounds
 --
 -- SUPERSEDES 2026-11-06-hunt-sessions-catalogue.generated.sql (applied; history,
--- never regenerated): every table below is rewritten wholesale. THE PLAYER PICKS
--- THE STORE ITEM (Tyler 2026-10-19; lane b-supplies-bury, 2026-10-21): the store
--- rows carry no \`tiers\` and hr_hunt_travel no \`tier\` (no hunt tier picks a
--- store row: the bar slot names it), and the Plain Fire Rune joins the store
--- (designer 2026-10-21: 8 g a cast, so Flame Strike and Flame Volley cast once
--- the carried Fire Runes are gone). Every other row is the 11-06 file's.
--- Apply after 2026-11-07-store-by-slot.sql (it restates the tier's last readers;
--- the precondition below refuses this file until it has).
+-- never regenerated): every table below is rewritten wholesale, from the data of
+-- every lane staged since (one file; the never-applied 11-07/11-08/11-12/11-17
+-- catalogue files were collapsed into it in the v0.2.28 integration).
+-- THE PLAYER PICKS THE STORE ITEM (Tyler 2026-10-19; lane b-supplies-bury): the
+-- store rows carry no \`tiers\` and hr_hunt_travel no \`tier\`, and the Plain Fire
+-- Rune joins the store (8 g a cast). The four-slot drop tables (lane c-loot-loop)
+-- and Mosslight Glade's monsters (lane c-ground-16-31; the glade itself STAGED, so
+-- no hunt, travel or ground row). Density's own home (lane c-density-home, rulings
+-- H4): density is the hero's pick PER GROUND, so hr_hunt_set_options loses its
+-- density row and every hr_hunt_grounds row gains density_max (hunt-grounds.js
+-- densityFor). ORDER: after 2026-11-07-store-by-slot.sql (the precondition below
+-- refuses this file until it has) and 2026-11-18-loot-catalogue.generated.sql;
+-- right before 2026-11-17-hunt-density-home.sql.
 
 -- ── PRECONDITION: nothing still reads the columns this file drops ──
 do $$
@@ -675,6 +692,14 @@ create table if not exists public.hr_hunt_grounds (
   respawn_ms int  not null check (respawn_ms between 1000 and 600000),
   seats      int  not null check (seats between 1 and 5)
 );
+-- THE MOST DENSITY A HERO MAY PICK HERE, one entry per party size 1..n (hunt-grounds.js densityFor):
+-- hr_hunt_density_set refuses a pick over the largest; the instance's freeze clamps to it. Every row
+-- carries it (the check block below); an existing table learns the column.
+alter table public.hr_hunt_grounds add column if not exists density_max int[];
+alter table public.hr_hunt_grounds drop constraint if exists hr_hunt_grounds_density_max_ck;
+alter table public.hr_hunt_grounds add constraint hr_hunt_grounds_density_max_ck check (density_max is null
+  or (cardinality(density_max) between 1 and 8 and array_position(density_max, null) is null
+      and 0 <= all (density_max) and ${DENSITY_PICK.max} >= all (density_max)));
 create table if not exists public.hr_hunt_ground_spawns (
   hunt_id    text not null references public.hr_hunt_grounds (hunt_id) on delete cascade,
   monster_id text not null check (monster_id ~ '^[a-z0-9_]{1,64}$'),
@@ -742,7 +767,7 @@ insert into public.hr_hunt_abilities (ability_id, disciplines, lane, cd_ms, mana
 ${abilityValues};
 delete from public.hr_hunt_ground_spawns;
 delete from public.hr_hunt_grounds;
-${r.grounds.length ? `insert into public.hr_hunt_grounds (hunt_id, ground_id, pockets, spawns, respawn_ms, seats) values
+${r.grounds.length ? `insert into public.hr_hunt_grounds (hunt_id, ground_id, pockets, spawns, respawn_ms, seats, density_max) values
 ${groundValues};
 insert into public.hr_hunt_ground_spawns (hunt_id, monster_id, n) values
 ${groundSpawnValues};` : '-- (no hunt ground ships yet: every hunt answers no_ground until the content lane adds one)'}
@@ -818,6 +843,7 @@ begin
      or (select count(*) from public.hr_hunt_kill_bounds) <> ${r.killBounds.length}
      or (select count(*) from public.hr_hunt_abilities) <> ${r.abilities.length}
      or (select count(*) from public.hr_hunt_grounds) <> ${r.grounds.length}
+     or (select count(*) from public.hr_hunt_grounds where density_max is null) <> 0
      or (select count(*) from public.hr_hunt_ground_spawns) <> ${r.groundSpawns.length}
      or (select count(*) from public.hr_hunt_world_shape) <> 1
      or (select count(*) from public.hr_premium_login_reward) <> 1

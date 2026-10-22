@@ -132,6 +132,9 @@ export const REFUSAL_WORDS = Object.freeze({
   /* Naming, saving and removing a setup (2026-11-15-preset-names.sql). */
   bad_preset_name: 'Names are 1 to 24 characters, and some words are not allowed.',
   setup_in_use: 'That setup is in use. Put another one on first.',
+  /* The density pick per ground (hr_hunt_density_set, 2026-11-17-hunt-density-home.sql). */
+  bad_hunt: 'That hunt has no monsters to set a number for.',
+  bad_density: 'That is more monsters than this hunt allows.',
   unknown_supply: 'One of the things packed is not a hunt supply.',
   bad_bag: 'The packed supplies were not valid, so nothing was sent.',
   too_many_lines: 'Too many kinds of supplies packed.',

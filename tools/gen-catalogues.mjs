@@ -53,10 +53,10 @@ const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'))
    APPLIED history (sixteen armour rows gained their armour_weight; its self-check asserts no armour-slot
    armour row is weightless). The eleven imbuement items (src/data/imbuements.js) land in this forward file,
    which applies AFTER it and carries those weights: the same full delete+insert replace. */
-/* MOSSLIGHT GLADE (lane c-ground-16-31, 2026-10-21): 2026-11-08-loot-catalogue.generated.sql is history (STAGED before it);
-   the glade's five imbuement items and Rook's Whistle (hr_items), and its five monsters' activities, land in this forward
-   file, after it and carrying the same armour weights: the same full delete+insert replace. */
-const OUT = join(ROOT, 'supabase', 'migrations', '2026-11-12-loot-catalogue.generated.sql');
+/* MOSSLIGHT GLADE (lane c-ground-16-31, 2026-10-21): the glade's five imbuement items and Rook's Whistle (hr_items),
+   and its five monsters' activities. THE v0.2.28 INTEGRATION collapsed the never-applied 11-08 and 11-12 files into
+   ONE forward file after the APPLIED 11-09, carrying its armour weights: the same full delete+insert replace. */
+const OUT = join(ROOT, 'supabase', 'migrations', '2026-11-18-loot-catalogue.generated.sql');
 /* THE SECOND GENERATED FILE (2026-09-13). hr_item_buffs is emitted as its own
    migration rather than into OUT above, and that is a deliberate operational
    call: OUT is the FOURTH file in tests/schema-apply-order.json and is already

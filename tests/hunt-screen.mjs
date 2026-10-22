@@ -39,7 +39,8 @@
 //         numbers the server's) IF My HP % below 60 - ONE intent; the density step on the hunt picker answers on
 //         the press (Tyler 10-20, "incredibly laggy"): four quick + presses show
 //         the new number at once, marked Saving..., send ONE intent with the last
-//         value, and the server's answer replaces it; the line's facts say the
+//         value (hr_hunt_density_set, that ground only: every other line keeps its
+//         own pick), and the server's answer replaces it; the line's facts say the
 //         pull size at the pick ("6 packs of 5"); a refused save shows the server's
 //         value again and why; after a reload both come back
 //   HS-9  the Hunts window follows the server's hunt: once the hero is hunting
@@ -54,7 +55,7 @@
 //   HS-13 no two hunt panels overlap at 1440x900 or on a narrower desktop, nor with a window docked
 //   HS-14 THE LEADER CHOOSES (Tyler 2026-10-20): a party member's hunt picker shows
 //         the leader's density read-only ("Set by Fingerguns: 7 each", the server's
-//         leader_density) with no step and sends nothing; the leader keeps its step
+//         leader_densities, per ground) with no step and sends nothing; the leader keeps its step
 //   HS-15 LEAVE HUNT: the press answers at once ("Leaving…" beside the button, which is off, sent
 //         once); a number shows within about a second (from the leave's own answer, the settle after
 //         it still out): "Leaving in Ns" to the SERVER's leave_at on the server's clock (3 h ahead of
@@ -172,10 +173,10 @@ async function drive(page, { maxMs, pred = null, arg, step = 50, onStep = null }
 
 /** A scripted server: `env` is what hr_load and hr-accrue answer (version bumped each call). */
 function scripted() {
-  const s = { env: clone(FIXTURE), version: 1, calls: [], optionsReply: { ok: true }, optionsDelayMs: 300, waiting: {} };
+  const s = { env: clone(FIXTURE), version: 1, calls: [], optionsReply: { ok: true }, optionsDelayMs: 300, densityReply: { ok: true }, waiting: {} };
   /* answer every held reply of a kind, and stop holding that kind */
   s.release = (kind) => {
-    if (kind === 'accrue') s.holdAccrue = false; else s.holdOptions = false;
+    if (kind === 'accrue') s.holdAccrue = false; else if (kind === 'density') s.holdDensity = false; else s.holdOptions = false;
     for (const go of (s.waiting[kind] || []).splice(0)) go();
   };
   s.sent = (name) => s.calls.filter((c) => c.name === name);
@@ -217,6 +218,12 @@ async function stub(page, s) {
       /* the server saves what it confirms at the moment it answers (never before the gesture) */
       if (s.onOptions && s.optionsReply.ok) s.onOptions(body.p_opts);
       return json(s.optionsReply);
+    }
+    /* The density pick per ground (hr_hunt_density_set): held or answered like a settings save. */
+    if (name === 'hr_hunt_density_set') {
+      if (s.holdDensity) await hold(page, r, s, 'density'); else await sleep(s.optionsDelayMs);
+      if (s.onDensity && s.densityReply.ok) s.onDensity(body);
+      return json(s.densityReply.ok ? Object.assign({ hunt: body.p_hunt, density: body.p_density }, s.densityReply) : s.densityReply);
     }
     if (name === 'hr_hunt_leave' && s.onLeave) { await sleep(400); const out = s.onLeave(); await json(out); s.leaveAnswered = true; return undefined; }
     /* `keepResidue`: the server keeps what hr_put_client_state sends and hands it back in every envelope (as hr_state_of does). */
@@ -1335,11 +1342,11 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       if (shots) await page.screenshot({ path: join(shots, 'town-' + tag + '-configure-action.png') });
       const want = { action: { type: 'consume', id: 'salted_trout' }, conditions: [{ metric: 'self_hp_pct', op: 'lt', value: 60 }], join: 'and' };
       /* The server saves at its answer (never before the press, where a live re-read could show it early):
-         the slot as sent; a density it answers with 4, not the 5 asked, so what shows after is the server's. */
+         the slot as sent; a density it saves as 4 on that ground, not the 5 asked, so what shows after is the server's. */
       s.onOptions = (o) => {
         if (o.slots && o.slots[5]) s.env.hunt_settings.slots[5] = Object.assign({ usable: true, count: 0 }, want);
-        if ('density' in o) s.env.hunt_settings.density = 4;
       };
+      s.onDensity = (b) => { s.env.hunt_density = Object.assign({}, s.env.hunt_density, { [b.p_hunt]: 4 }); };
       await page.click('.hc-foot [data-x="save"]');
       await until(() => s.sent('hr_action_set_options').length >= 1);
       const sent = s.calls.filter((c) => c.name === 'hr_action_set_options').map((c) => c.body.p_opts);
@@ -1360,13 +1367,22 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         return { v: v.textContent, pending: v.getAttribute('data-pending'), msg: document.querySelector('.hw-hunts .hh-intent-msg').textContent,
           facts: document.querySelector('.hw-hunt.is-picked .hw-hunt-facts').textContent };
       });
+      /* The pick is PER GROUND (rulings H4): the picked line reads its own ground's pick, every other line its own. */
+      const picked = await page.evaluate(() => document.querySelector('.hw-hunt.is-picked').getAttribute('data-hunt'));
+      const otherFacts = () => page.evaluate(() => [...document.querySelectorAll('.hw-hunt:not(.is-picked)')]
+        .map((li) => li.getAttribute('data-hunt') + ': ' + li.querySelector('.hw-hunt-facts').textContent).join(' | '));
+      /* The server's pick of 1 on the picked ground only (whichever the picker recommends for this hero). */
+      s.env.hunt_density = { [picked]: 1 };
+      await pushEnvelope(page, s);
+      await wait(page, () => (document.querySelector('.hw-hunt.is-picked .hw-density .hh-step-val') || {}).textContent === '1 each', null);
+      const others0 = await otherFacts();
       const d0 = await dRead();
       if (d0.v !== '1 each') fails.push('HS-8 the density does not show the server’s pick of 1: ' + d0.v);
       if (!/ packs? of 1[ ,]/.test(d0.facts)) fails.push('HS-8 the facts line does not say the pull size at the server’s pick of 1: ' + d0.facts);
-      /* the save answers 4 (not the 5 asked, s.onOptions): what shows afterwards is the server's. The answer
+      /* the save answers 4 (not the 5 asked, s.onDensity): what shows afterwards is the server's. The answer
          is held while the unsaved draft is read, so a slow box cannot let it land first. */
-      s.holdOptions = true;
-      const sentBefore = s.calls.filter((c) => c.name === 'hr_action_set_options').length;
+      s.holdDensity = true;
+      const sentBefore = s.calls.filter((c) => c.name === 'hr_hunt_density_set').length;
       const plusOn = await page.evaluate(() => {
         const b = document.querySelector('.hw-hunt.is-picked .hw-density [data-by="1"]');
         if (b.disabled) return false;
@@ -1377,22 +1393,27 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       const dMid = await dRead();
       if (dMid.v !== '5 each' || dMid.pending !== 'true' || !/Saving/.test(dMid.msg)) fails.push('HS-8 four quick presses did not show 5 at once, marked unsaved: ' + JSON.stringify(dMid));
       if (!/ packs? of 5[ ,]/.test(dMid.facts)) fails.push('HS-8 the facts line does not follow the pick: ' + dMid.facts);
-      await until(() => s.sent('hr_action_set_options').length > sentBefore);
-      s.release('options');
+      const othersMid = await otherFacts();
+      if (othersMid !== others0) fails.push('HS-8 an unsaved pick on ' + picked + ' shows on another ground: ' + others0 + ' -> ' + othersMid);
+      await until(() => s.sent('hr_hunt_density_set').length > sentBefore);
+      s.release('density');
       if (!(await wait(page, () => { const v = document.querySelector('.hw-hunt.is-picked .hw-density .hh-step-val'); return v.textContent === '4 each' && v.getAttribute('data-pending') === 'false'; }, null))) fails.push('HS-8 the density did not show the server’s answer of 4 after the save: ' + JSON.stringify(await dRead()));
-      const dSent = s.calls.filter((c) => c.name === 'hr_action_set_options').map((c) => c.body.p_opts).slice(sentBefore);
-      if (JSON.stringify(dSent) !== '[{"density":5}]') fails.push('HS-8 four quick density presses sent ' + JSON.stringify(dSent) + ' (want ONE intent with 5)');
+      const dSent = s.calls.filter((c) => c.name === 'hr_hunt_density_set').map((c) => ({ hunt: c.body.p_hunt, density: c.body.p_density })).slice(sentBefore);
+      if (JSON.stringify(dSent) !== JSON.stringify([{ hunt: picked, density: 5 }])) fails.push('HS-8 four quick density presses sent ' + JSON.stringify(dSent) + ' (want ONE intent: ' + picked + ' at 5)');
+      if (s.calls.some((c) => c.name === 'hr_action_set_options' && c.body.p_opts && 'density' in c.body.p_opts)) fails.push('HS-8 a density went out as a setup option');
       const dAfter = await dRead();
       if (!/ packs? of 4[ ,]/.test(dAfter.facts) || /Saving/.test(dAfter.msg)) fails.push('HS-8 after the save the line does not read the server’s 4: ' + JSON.stringify(dAfter));
+      const others1 = await otherFacts();
+      if (others1 !== others0) fails.push('HS-8 a pick on ' + picked + ' moved another ground: ' + others0 + ' -> ' + others1);
       if (shots) await page.screenshot({ path: join(shots, 'town-' + tag + '-hunts-density.png') });
       /* A refused save: the server's value shows again, with the reason in words. */
-      s.optionsReply = { ok: false, error: 'rate_limited' };
+      s.densityReply = { ok: false, error: 'rate_limited' };
       await page.evaluate(() => { const b = document.querySelector('.hw-hunt.is-picked .hw-density [data-by="1"]'); if (!b.disabled) b.click(); });
       const refused = await wait(page, () => { const v = document.querySelector('.hw-hunt.is-picked .hw-density .hh-step-val');
         const m = document.querySelector('.hw-hunts .hh-intent-msg').textContent;
         return v.textContent === '4 each' && v.getAttribute('data-pending') === 'false' && m && !/Saving/.test(m); }, null);
       if (!refused) fails.push('HS-8 a refused density save does not show the server’s 4 and why: ' + JSON.stringify(await dRead()));
-      s.optionsReply = { ok: true };
+      s.densityReply = { ok: true };
       /* Reload: the slot and the density come back from the server, nothing from the browser. */
       await page.reload({ waitUntil: BOOTED });
       const back = await signInAndPlay(page, '', true);
@@ -1414,10 +1435,16 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       if (up) {
         const seat = (n, name, weapon) => ({ unit: null, seat: n, hunting: false, name, level: 20, weapon });
         s.env.party = { id: '0a47c0de-0000-4000-a000-00000000aa01', hunt: null, max: 4, open: true, listed: false, leader: null, self: null,
-          leader_seat: 1, self_seat: 0, leader_density: 7, members: [seat(0, 'Tyler', 'shield'), seat(1, 'Fingerguns', 'bow')] };
+          leader_seat: 1, self_seat: 0, leader_densities: {}, members: [seat(0, 'Tyler', 'shield'), seat(1, 'Fingerguns', 'bow')] };
         await pushEnvelope(page, s);
         await page.keyboard.press('h');
-        const shown = await wait(page, () => { const v = document.querySelector('.hw-hunt.is-picked .hw-density.is-on .hh-step-val'); return v && /Set by/.test(v.textContent); }, null);
+        /* The leader's picks, per ground: 7 on the line the picker chose, 2 on another. */
+        await wait(page, () => document.querySelector('.hw-hunt.is-picked'), null);
+        const picked = await page.evaluate(() => document.querySelector('.hw-hunt.is-picked').getAttribute('data-hunt'));
+        const other = picked === 'meadowbrook_thicket' ? 'mill_cellar' : 'meadowbrook_thicket';
+        s.env.party = Object.assign({}, s.env.party, { leader_densities: { [picked]: 7, [other]: 2 } });
+        await pushEnvelope(page, s);
+        const shown = await wait(page, () => { const v = document.querySelector('.hw-hunt.is-picked .hw-density.is-on .hh-step-val'); return v && /Set by .*: 7 each/.test(v.textContent); }, null);
         const m = await page.evaluate(() => {
           const d = document.querySelector('.hw-hunt.is-picked .hw-density');
           const steps = [...d.querySelectorAll('[data-by]')];
@@ -1427,10 +1454,14 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         if (!shown || m.v !== 'Set by Fingerguns: 7 each') fails.push('HS-14 a member does not see the leader\'s density read-only: ' + JSON.stringify(m));
         if (m.visible !== 0) fails.push('HS-14 a member\'s picker still shows ' + m.visible + ' density step(s)');
         if (!/ packs? of 7[ ,]/.test(m.facts)) fails.push('HS-14 a member\'s facts line does not say the leader\'s pull: ' + m.facts);
-        const before = s.calls.filter((c) => c.name === 'hr_action_set_options').length;
+        /* The leader's pick is per ground too: another line reads the leader's pick THERE (2 on the Thicket). */
+        const there = await page.evaluate((h) => (document.querySelector('.hw-hunt[data-hunt="' + h + '"] .hw-hunt-facts') || {}).textContent || '', other);
+        if (!/ packs? of 2[ ,]/.test(there)) fails.push('HS-14 ' + other + ' does not read the leader\'s pick there: ' + there);
+        const asks = () => s.calls.filter((c) => c.name === 'hr_hunt_density_set' || c.name === 'hr_action_set_options').length;
+        const before = asks();
         await page.evaluate(() => { for (const b of document.querySelectorAll('.hw-hunt.is-picked .hw-density [data-by]')) b.click(); });
         await page.waitForTimeout(500);
-        if (s.calls.filter((c) => c.name === 'hr_action_set_options').length !== before) fails.push('HS-14 a member\'s density press sent an intent');
+        if (asks() !== before) fails.push('HS-14 a member\'s density press sent an intent');
         /* The leader (the crown passes to seat 0): its own pick and its step are back. */
         s.env.party = Object.assign({}, s.env.party, { leader_seat: 0 });
         await pushEnvelope(page, s);
@@ -1592,21 +1623,24 @@ const MUTANTS = [
   ['the Training tab drops each skill\'s next level in', 'src/shell/widgets/analyzer.js', "text(li.querySelector('.ha-eta'), it.nextMs === null ? '' : 'next level in ' + hoursMinutes(it.nextMs));", ''],
   ['a maxed skill reads next level in 0:00h', 'src/session/hunt-sections.js', 'return h !== null && h > 0 ? Math.round(h * 3600000) : null;', 'return h !== null ? Math.round(h * 3600000) : null;'],
   ['the analyzer keeps the last numbers when the section goes', 'src/session/hunt-sections.js', "  const a = section(cs, 'hunt_analyzer');\n", "  const a = section(cs, 'hunt_analyzer') || globalThis.__lastA;\n  globalThis.__lastA = a;\n"],
-  ['the metric picker is a hard-coded list', 'src/shell/windows/configure-action.js', "aria-label=\"Test ' + (i + 1) + '\">' + options(METRICS.map((m) => [m.id, m.label]))", "aria-label=\"Test ' + (i + 1) + '\">' + options([['self_hp_pct', 'My HP %'], ['self_mana_pct', 'My mana %']])"],
+  ['the metric picker is a hard-coded list', 'src/shell/windows/configure-action.js', "options(METRICS.map((m) => [m.id, m.say]))", "options([['self_hp_pct', 'My HP %'], ['self_mana_pct', 'My mana %']])"],
   ['the controls stay on while a bar intent is in flight', 'src/shell/windows/configure-action.js', '  const off = s.pending;', '  const off = false;'],
   ['a server validation error is not shown inline', 'src/shell/bar-draft.js', '  else { s.error = r;', '  else { s.error = null;'],
   ['the bar hides in town', 'src/data/hud-widgets.js', "removable: true, when: 'always',\n    phone: Object.freeze({ dy: 2 }),", "removable: true, when: 'hunt',\n    phone: Object.freeze({ dy: 2 }),"],
   ['the Food run is sorted by name, not gold per point', 'src/shell/action-table.js', "const byValue = (a, b) => ((a.per === null) - (b.per === null)) || ((a.per || 0) - (b.per || 0))", "const byValue = (a, b) => 0 || 0"],
   ['the comparison never shows', 'src/shell/windows/configure-action.js', '  const cmp = hover && picked && hover !== picked ? compareLines(hover, picked) : [];', '  const cmp = [];'],
-  ['the density step sends no intent', 'src/shell/windows/hunts.js', '    try { r = await cs.setHuntOptions(d.preset, { density: d.n }); } catch (e) { r = null; }', '    try { r = { ok: true }; } catch (e) { r = null; }'],
+  ['the store price is not shown on a store food', 'src/shell/action-facts.js', "out.push('Bought from the store at ' + st.price + ' g each, paid as used.');", "out.push('Bought from the store.');"],
+  ['the density step sends no intent', 'src/shell/windows/hunts.js', '    try { r = await cs.setHuntDensity(d.hunt, d.n); } catch (e) { r = null; }', '    try { r = { ok: true }; } catch (e) { r = null; }'],
+  ['one density pick shows on every ground (the old one-pick-per-setup model)', 'src/shell/windows/hunts.js', '  const pick = Number.isInteger(picks[hunt]) ? picks[hunt] : 0;', '  const pick = Number.isInteger(picks.mill_cellar) ? picks.mill_cellar : 0;'],
+  ['a ground\'s draft shows on every ground', 'src/shell/windows/hunts.js', '  if (!dn || !sc.draft || sc.draft.hunt !== hunt) return dn;', '  if (!dn || !sc.draft) return dn;'],
   ['every density press sends its own intent', 'src/shell/windows/hunts.js', '      sc.timer = setTimeout(() => saveDensity(cs, sc, repaint), DENSITY_SAVE_MS);', '      saveDensity(cs, sc, repaint);'],
-  ['the density waits for the server before it moves', 'src/shell/windows/hunts.js', '  if (!dn || !sc.draft) return dn;', '  if (dn) return dn;'],
+  ['the density waits for the server before it moves', 'src/shell/windows/hunts.js', '  if (!dn || !sc.draft || sc.draft.hunt !== hunt) return dn;', '  if (dn) return dn;'],
   ['the density draft outlives the server answer', 'src/shell/windows/hunts.js', '    if (sc.draft === d) { sc.draft = null;', '    if (sc.draft === d) { sc.draft = r.ok ? d : null;'],
   ['the facts line ignores the density pick', 'src/shell/windows/hunts.js', "densityWords(r, dn ? dn.now : null)", "densityWords(r, null)"],
-  ['the density shows the ground max, not the server pick', 'src/shell/windows/hunts.js', '  return { now: densityFor(g, size, set.density), max };', '  return { now: max, max };'],
-  ['a party member steps its own density', 'src/shell/windows/hunts.js', "  if (party && !party.isLeader) return densityOf(Number.isInteger(party.density) ? { density: party.density } : null, hunt, size);\n", ''],
+  ['the density shows the ground max, not the server pick', 'src/shell/windows/hunts.js', '  return { now: densityFor(g, size, pick), max: densityFor(g, size, DENSITY_PICK.max) };', '  return { now: densityFor(g, size, DENSITY_PICK.max), max: densityFor(g, size, DENSITY_PICK.max) };'],
+  ['a party member steps its own density', 'src/shell/windows/hunts.js', "  if (party && !party.isLeader) return densityOf(party.densities, hunt, size);\n", ''],
   ['a party member keeps the density step', 'src/shell/windows/hunts.js', "prop(b, 'hidden', follower);", "prop(b, 'hidden', false);"],
-  ['a blocked slot is not flagged', 'src/shell/action-facts.js', '      if (same || kind) {', '      if (false) {'],
+  ['a blocked slot is not flagged', 'src/shell/action-facts.js', "      if (a.action.type === b.action.type && a.action.id === b.action.id) {", "      if (false) {"],
   ['the modal docks instead of centring', 'src/shell/window-manager.js', "  const isModal = (id) => rows.get(id).modal === true;", "  const isModal = () => false;"],
   ['Hunt prep tells a player to buy first', 'src/shell/readiness.js', '      const st = storeOn ? storeOf(sl.action, s.store) : null;', '      const st = null;'],
   ['the mana gauge hides for a hero with no pool', 'src/shell/widgets/vitals-hub.js', "  fill(el.querySelector('.hb-arc.is-mana'), share(v.mana, v.manaMax));", "  fill(el.querySelector('.hb-arc.is-mana'), share(v.mana, v.manaMax));\n  el.querySelector('.hb-read.is-mana').style.display = v.manaMax > 0 ? '' : 'none';"],
@@ -1614,8 +1648,8 @@ const MUTANTS = [
   ['the HP arc does not follow the server', 'src/shell/widgets/vitals-hub.js', "  fill(el.querySelector('.hb-arc.is-hp'), share(v.hp, v.hpMax));", "  fill(el.querySelector('.hb-arc.is-hp'), 1);"],
   ['a drop onto an action moves it without asking', 'src/shell/widgets/action-bar.js', '    else openDropMenu(ctx, el, t, from, to, bar);', '    else runDrop(ctx, el, (b) => swapPlan(b, from, to));'],
   ['insert shifts past the first empty slot', 'src/shell/bar-draft.js', '  while (k < SLOTS && out[k]) k++;', '  k = SLOTS - 1;'],
-  ['the status line stays after a drop', 'src/shell/widgets/action-bar.js', ".then((r) => { text(msg, r.ok ? '' : refusalWords(r.error));", ".then((r) => { text(msg, r.ok ? 'Moving it…' : refusalWords(r.error));"],
-  ['a refused drop leaves the line on Moving it', 'src/shell/widgets/action-bar.js', ".then((r) => { text(msg, r.ok ? '' : refusalWords(r.error));", ".then((r) => { text(msg, r.ok ? '' : 'Moving it…');"],
+  ['the status line stays after a drop', 'src/shell/widgets/action-bar.js', ".then((r) => { text(msg, r.ok ? '' : refusalWords(r.error)); renderActionBar.patch(el, ctx); });", ".then((r) => { text(msg, r.ok ? 'Moving it…' : refusalWords(r.error)); renderActionBar.patch(el, ctx); });"],
+  ['a refused drop leaves the line on Moving it', 'src/shell/widgets/action-bar.js', ".then((r) => { text(msg, r.ok ? '' : refusalWords(r.error)); renderActionBar.patch(el, ctx); });", ".then((r) => { text(msg, r.ok ? '' : 'Moving it…'); renderActionBar.patch(el, ctx); });"],
   ['a drop the server never answers stays pending', 'src/shell/bar-draft.js', '  return Promise.race([sent, late])', '  return Promise.race([sent])'],
   /* The record is deep-frozen (envelope.js), so an optimistic move can only be a client-side overlay the bar paints from. */
   ['a drop moves the bar before the server answers', 'src/shell/widgets/action-bar.js', [
@@ -1625,7 +1659,7 @@ const MUTANTS = [
   ['the hub prints the server’s per-minute mana regen as /s', 'src/shell/widgets/vitals-hub.js', "regen(hero.manaPerS) : ''", "regen(hero.manaPerS * 60) : ''"],
   ['the hub prints regen with two decimals', 'src/shell/widgets/vitals-hub.js', "'+' + r.toFixed(1)", "'+' + r.toFixed(2)"],
   ['a struck slot carries no glyph', 'src/shell/widgets/action-bar.js', "g.innerHTML = why ? glyphSvg(ctx.glyphs, why.glyph) : '';", "g.innerHTML = why && !why.strike ? glyphSvg(ctx.glyphs, why.glyph) : '';"],
-  ['a server-refused slot is not struck', 'src/shell/action-facts.js', "  if (sl.usable === false) return { code: 'server', text: 'The server says this cannot fire now.', glyph: 'uiLock', strike: true };\n  const n =", '  const n ='],
+  ['a server-refused slot is not struck', 'src/shell/action-facts.js', "  if (sl.usable === false) return { code: 'server', text: 'The server says this cannot fire now.', glyph: 'uiLock', strike: true };\n  if (a.type === 'consume') return null;", "  if (a.type === 'consume') return null;"],
   ['the panel’s chase sends nothing', 'src/shell/widgets/settings-intent.js', "  if (key === 'chase') return s.chase === null ? null : { chase: !s.chase };", "  if (key === 'chase') return null;"],
   ['a slot short of its rune says nothing', 'src/shell/action-facts.js', '    if (r.rune && !((bag', '    if (false && r.rune && !((bag'],
   ['the hub keeps an ended hunt’s in-fight regen', 'src/shell/widgets/vitals-hub.js', '  const hero = h && !h.ended ? h.hero : null;', '  const hero = h ? h.hero : null;'],

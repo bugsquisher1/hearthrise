@@ -132,8 +132,8 @@ export function settingsOf(cs) {
     foodPct: int(s.food_pct), drinkPct: int(s.drink_pct), supplySource: str(s.supply_source), onEmpty: str(s.on_empty),
     /* The gold the store never spends below (hunt_settings.gold_floor; null until hr_hunt_settings_view projects it). */
     goldFloor: int(s.gold_floor),
-    /* Monster density (the pick; the settle clamps it to the ground) and the gathering share (INERT until gathering lands). */
-    density: int(s.density), gatherShare: int(s.gather_share), gatherInert: s.gather_inert === true,
+    /* The gathering share (INERT until gathering lands). Density is no setting: huntDensityOf, per ground. */
+    gatherShare: int(s.gather_share), gatherInert: s.gather_inert === true,
     stopRules: list(s.stop_rules, (r) => (isObj(r) && Array.isArray(r.conditions) ? { conditions: list(r.conditions, conditionOf, 4), join: JOIN.test(String(r.join)) ? r.join : 'and', forMs: int(r.forMs) || 0 } : null), 3),
     grounds: list(s.grounds, (g) => str(g), 32),
     slots: Array.isArray(s.slots) ? s.slots.slice(0, 20).map(slotOf) : [],
@@ -274,6 +274,26 @@ export function huntBestsOf(cs) {
     }
   }
   return { minMs: b.min_ms, grounds };
+}
+
+/**
+ * A DENSITY MAP as the server projects it ({ [hunt]: pick }, a whole number of monsters per pull, 0 = as
+ * built), or null when it is not one. This hero's `hunt_density` and the party's `leader_densities`.
+ */
+export function densityMapOf(v) {
+  if (!isObj(v)) return null;
+  const out = {};
+  for (const [hunt, n] of Object.entries(v).slice(0, 256)) if (str(hunt) && int(n) !== null && n >= 0) out[hunt] = n;
+  return out;
+}
+
+/**
+ * `hunt_density` (hr_hunt_density_view, 2026-11-17-hunt-density-home.sql): THIS hero's density pick on
+ * each ground (rulings H4: chosen with the hunt, remembered per ground). A ground with no key is 0 (as
+ * built); null = the server sent no section, and the picker shows no number.
+ */
+export function huntDensityOf(cs) {
+  return densityMapOf(section(cs, 'hunt_density'));
 }
 
 /** `hunt_analyzer`: the server's session stats, hero and party. Null for a free character or no hunt. */

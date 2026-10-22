@@ -18,9 +18,9 @@
 --     the current one (its `grounds` claim is not copied); refused while a hunt
 --     is open (hunt_open), as Use already is: setups change in town.
 --   hr_hunt_preset_apply  UNCHANGED (wears the gear, switches player_hunt_active).
---   hr_hunt_settings_view RESTATED (2026-10-28-consume-defaults.sql body, two
---     lines): out of a hunt it reads the CURRENT set (hr_hunt_active_set), not
---     set 0; a set's name is its setup's name when it has one.
+--   hr_hunt_settings_view RESTATED (2026-11-07-store-by-slot.sql body, applied
+--     before this file; v0.2.28 integration): out of a hunt it reads the CURRENT
+--     set (hr_hunt_active_set), not set 0; a set's name is its setup's name.
 --   hr_hunt_preset_rename(slot, N, name, idem)  renames setup N and set N.
 --   hr_hunt_preset_delete(slot, N, idem)  removes setup N and its bar (set N).
 --     The setup the hero is on is refused (setup_in_use: switch first), and so
@@ -41,8 +41,9 @@
 --
 -- REVERSIBILITY: drop the four new functions and the three baseline rows;
 -- re-apply hr_hunt_preset_save from 2026-10-25-hunt-presets.sql §3 and
--- hr_hunt_settings_view from 2026-10-28-consume-defaults.sql §1.
--- ORDER: after 2026-11-10-hunt-xp-split.sql (no object in common). No begin/commit.
+-- hr_hunt_settings_view from 2026-11-07-store-by-slot.sql.
+-- ORDER: after 2026-11-07-store-by-slot.sql (it restates hr_hunt_settings_view on top of
+-- that file's body; §0 refuses any other image). No begin/commit.
 -- ════════════════════════════════════════════════════════════════════════
 
 -- ── §0 PINS (the live shapes this file reads) ────────────────────────────────
@@ -58,6 +59,10 @@ begin
      or to_regprocedure('public.hr_hunt_settings_view(uuid,integer)') is null
      or to_regprocedure('public.hr_hunt_preset_save(integer,integer,text,uuid)') is null then
     raise exception 'PIN: hr_name_blocked / hr_hunt_presets_view / hr_hunt_lock / hr_hunt_limit / hr_intent_replay / hr_hunt_active_set / hr_hunt_settings_view / hr_hunt_preset_save are missing'; end if;
+  -- hr_hunt_settings_view is restated on top of store-by-slot's body: refuse any other image
+  -- (this file's own carries both markers, so a re-apply passes).
+  if strpos((select prosrc from pg_proc where oid = 'public.hr_hunt_settings_view(uuid,integer)'::regprocedure), 'STORE-BY-SLOT') = 0 then
+    raise exception 'PIN: hr_hunt_settings_view is not 2026-11-07-store-by-slot.sql''s image: apply that file first'; end if;
   -- A setup owns the set of its own number: the two ranges must agree.
   if public.hr_hunt_limit('presets') <> 5 then raise exception 'PIN: hr_hunt_limit(presets) is %, the sets table holds 0..4', public.hr_hunt_limit('presets'); end if;
 end $mig$;
@@ -74,7 +79,7 @@ end $$;
 revoke execute on function public.hr_setup_name(text) from public, anon, authenticated, service_role;
 
 -- ── §2 THE BAR IS THE CURRENT SETUP'S (hr_hunt_settings_view, restated) ──────
--- 2026-10-28-consume-defaults.sql §1 byte-for-byte but for v_preset (the current
+-- 2026-11-07-store-by-slot.sql's body byte-for-byte but for v_preset (the current
 -- set out of a hunt) and the set names (the setup's name when it has one).
 create or replace function public.hr_hunt_settings_view(p_user uuid, p_slot int)
 returns jsonb language plpgsql stable security definer set search_path = public, pg_catalog as $$
@@ -102,6 +107,9 @@ declare
   v_o     record;
   v_val   jsonb;
   v_ab    public.hr_hunt_abilities%rowtype;
+  v_n     bigint;
+  v_own   boolean;
+  v_on    boolean;
 begin
   select * into s from public.hunt_sessions h where h.user_id = p_user and h.slot = p_slot and h.ended_at is null
    order by h.entered_at desc limit 1;
@@ -150,33 +158,47 @@ begin
                   where e->'action'->>'type' = 'ability' and v_disc = any (ab.disciplines)) then
     select coalesce(jsonb_agg(r.slot order by r.ord), '[]'::jsonb) into v_def from public.hr_hunt_role_rules r where r.role = v_role;
   end if;
-  if not exists (select 1 from jsonb_array_elements(v_list) e where e->'action'->>'type' = 'consume') then
-    -- EAT-AT BEFORE DRINK-AT (2026-10-28): food and drink always fire under ONE 2 s
-    -- cooldown, so a drink first would take every cooldown while mana stays low.
-    v_def := v_def || jsonb_build_array(
-      jsonb_build_object('id', 'd_food', 'action', jsonb_build_object('type', 'consume', 'id', 'food'), 'join', 'and',
-        'conditions', jsonb_build_array(jsonb_build_object('metric', 'self_hp_pct', 'op', 'lt', 'value', v_eff->'food_below_pct'))),
-      jsonb_build_object('id', 'd_drink', 'action', jsonb_build_object('type', 'consume', 'id', 'drink'), 'join', 'and',
-        'conditions', jsonb_build_array(jsonb_build_object('metric', 'self_mana_pct', 'op', 'lt', 'value', v_eff->'drink_below_pct'))));
+  -- STORE-BY-SLOT (2026-11-04): NO default food or drink (Tyler 2026-10-21: the game never picks a
+  -- supply). A NEW hero, whose stored bar holds nothing at all, gets the start kit's bar
+  -- (src/data/start-kit.js START_BAR, pinned by tests/hunt-core/conditions.mjs): its own Cooked
+  -- Shrimp, then the store's Salted Shrimp, then Thin Turnip Juice.
+  if not exists (select 1 from jsonb_array_elements(v_list) e where jsonb_typeof(e) = 'object') then
+    -- ⟦starter-bar⟧
+    v_def := v_def || '[{"id": "d_food", "action": {"type": "consume", "id": "cooked_shrimp"}, "conditions": [{"metric": "self_hp_pct", "op": "lt", "value": 60}], "join": "and"}, {"id": "d_food_store", "action": {"type": "consume", "id": "salted_shrimp"}, "conditions": [{"metric": "self_hp_pct", "op": "lt", "value": 60}], "join": "and"}, {"id": "d_drink", "action": {"type": "consume", "id": "thin_turnip_juice"}, "conditions": [{"metric": "self_mana_pct", "op": "lt", "value": 30}], "join": "and"}]'::jsonb;
+    -- ⟦/starter-bar⟧
   end if;
   for v_d in select value from jsonb_array_elements(v_def) loop
     select min(n - 1) into v_pos from jsonb_array_elements(v_list) with ordinality x(e, n) where jsonb_typeof(x.e) = 'null';
     if v_pos is null then v_list := v_list || jsonb_build_array(v_d);
     else v_list := jsonb_set(v_list, array[v_pos::text], v_d); end if;
   end loop;
-  -- The display fields: an ability's mana and whether it can fire (active, of the discipline,
-  -- its rune held); an item's count in the inventory.
+  -- The display fields, THE SERVER'S STRUCK STATE (the browser never counts its own): an ability's
+  -- mana and whether it can fire (active, of the discipline, its rune held, or STORE-BY-SLOT: its slot
+  -- names the rune's store row and the hero's setting lets the store supply); a food or drink's
+  -- count (the open hunt's bag, else the inventory) and why it cannot fire (`why`): a crafted item
+  -- with none left is `none_left`, a store item under the hero's "end the hunt" is `store_off`.
+  v_on := v_eff->>'supply_source' = 'store' or v_eff->>'on_empty' = 'switch';
   for v_e in select value from jsonb_array_elements(v_list) loop
     if jsonb_typeof(v_e) = 'null' then v_slots := v_slots || jsonb_build_array(v_e); continue; end if;
     if v_e->'action'->>'type' = 'ability' then
       select * into v_ab from public.hr_hunt_abilities ab where ab.ability_id = v_e->'action'->>'id';
       v_slots := v_slots || jsonb_build_array(v_e || jsonb_build_object('mana', v_ab.mana,
         'usable', coalesce(v_ab.active, false) and v_disc = any (v_ab.disciplines) and (v_ab.rune is null or exists (
-          select 1 from public.player_inventory pi where pi.user_id = p_user and pi.slot = p_slot and pi.item_id = v_ab.rune and pi.qty > 0))));
+          select 1 from public.player_inventory pi where pi.user_id = p_user and pi.slot = p_slot and pi.item_id = v_ab.rune and pi.qty > 0)
+          or (v_on and exists (
+          select 1 from public.hr_hunt_basic_supplies q where q.basic_id = v_e->'action'->>'store' and q.partner = v_ab.rune)))));
+    elsif v_e->'action'->>'type' = 'consume'
+          and exists (select 1 from public.hr_hunt_basic_supplies q where q.basic_id = v_e->'action'->>'id') then
+      v_slots := v_slots || jsonb_build_array(v_e || jsonb_build_object('usable', v_on, 'count', null,
+        'why', case when v_on then null else 'store_off' end));
     else
-      v_slots := v_slots || jsonb_build_array(v_e || jsonb_build_object('usable', true,
-        'count', (select coalesce(sum(pi.qty), 0) from public.player_inventory pi
-                   where pi.user_id = p_user and pi.slot = p_slot and pi.item_id = v_e->'action'->>'id')));
+      v_n := case when s.id is not null
+                  then (select coalesce(sum(b.qty_left), 0) from public.hunt_bag b where b.session_id = s.id and b.item_id = v_e->'action'->>'id')
+                  else (select coalesce(sum(pi.qty), 0) from public.player_inventory pi
+                         where pi.user_id = p_user and pi.slot = p_slot and pi.item_id = v_e->'action'->>'id') end;
+      v_own := v_e->'action'->>'type' = 'consume';
+      v_slots := v_slots || jsonb_build_array(v_e || jsonb_build_object('usable', not v_own or v_n > 0, 'count', v_n,
+        'why', case when v_own and v_n = 0 then 'none_left' end));
     end if;
   end loop;
   select coalesce(jsonb_agg(jsonb_build_object('preset', x.preset, 'name', coalesce(hp.name, x.name), 'grounds', coalesce(x.options->'grounds', '[]'::jsonb))
@@ -197,6 +219,10 @@ begin
     'density', v_eff->'density', 'gather_share', v_eff->'gather_share', 'gather_inert', true,
     'stop_rules', coalesce(v_opt->'stop_rules', '[]'::jsonb), 'grounds', coalesce(v_opt->'grounds', '[]'::jsonb),
     'slots', v_slots,
+    -- THE STORE at the server's price (the Configure action table's numbers: never a client copy).
+    'store', coalesce((select jsonb_agg(jsonb_build_object('id', q.basic_id, 'kind', q.kind, 'partner', q.partner,
+                                                             'heals', q.heals, 'mana', q.mana, 'price', q.price) order by q.kind, q.price, q.basic_id)
+                         from public.hr_hunt_basic_supplies q), '[]'::jsonb),
     'bar', coalesce(a.slots, '[]'::jsonb), 'options', v_opt);
 end $$;
 revoke execute on function public.hr_hunt_settings_view(uuid, int) from public, anon, authenticated, service_role;

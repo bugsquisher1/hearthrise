@@ -36,11 +36,11 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_INDEX } from './hunts.js?v=0.2.29';
-import { HUNT_GROUNDS } from './hunt-grounds.js?v=0.2.29';
-import { END_ORDER } from './hunt-sessions.js?v=0.2.29';
-import { nextUnlock } from './skill-unlocks.js?v=0.2.29';
-import { SKILLS_DEF } from './skills.js?v=0.2.29';
+import { HUNT_INDEX } from './hunts.js?v=0.2.30';
+import { HUNT_GROUNDS } from './hunt-grounds.js?v=0.2.30';
+import { END_ORDER } from './hunt-sessions.js?v=0.2.30';
+import { nextUnlock } from './skill-unlocks.js?v=0.2.30';
+import { SKILLS_DEF } from './skills.js?v=0.2.30';
 
 /* The surfaces a card may point at, and where each is specified. */
 export const TUTORIAL_ANCHORS = Object.freeze({

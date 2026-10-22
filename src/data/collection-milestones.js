@@ -30,8 +30,8 @@
 // PURE ESM. No DOM, no window, no I/O. Imports cleanly in Node and Deno.
 // ════════════════════════════════════════════════════════════════════════
 
-import { MONSTERS } from './monsters.js?v=0.2.29';
-import { STAGED_ONLY_MONSTERS } from './hunt-grounds.js?v=0.2.29';
+import { MONSTERS } from './monsters.js?v=0.2.30';
+import { STAGED_ONLY_MONSTERS } from './hunt-grounds.js?v=0.2.30';
 
 /* The monster catalogue size — the `hunterAll` threshold. Kept in lockstep with
    the SQL CASE by tests/collection-renown-claim-drift.mjs. */

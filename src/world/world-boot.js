@@ -21,27 +21,27 @@
 // one record of where this body stands in town (placeOn: a switch is not a move).
 // A fight on a hunt no map renders shows town or home with a slim banner offering the mapped hunt.
 // ════════════════════════════════════════════════════════════════════════
-import { BUILD } from '../build-info.js?v=0.2.29';
-import { MATERIALS, OPEN_CLASSES, LIGHTS } from '../data/world/terrain.js?v=0.2.29';
-import { WORLD_MAPS } from '../data/world/maps/index.js?v=0.2.29';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.29';
-import { MONSTERS } from '../data/monsters.js?v=0.2.29';
-import { compileMap } from './core/map-compile.js?v=0.2.29';
-import { STUB_SPRITE } from './core/book.js?v=0.2.29';
-import { fpsFor, MOBILE_QUERY } from './core/camera.js?v=0.2.29';
-import { heroBuilding, roofTargets, stepAlpha } from './core/roofs.js?v=0.2.29';
-import { readScene, setChoice, heroPosOn, notePos, forgetPos } from './store.js?v=0.2.29';
-import { loadAtlases } from './atlas.js?v=0.2.29';
-import { createCanvasBackend } from './render/canvas-backend.js?v=0.2.29';
-import { huntOfMap } from './hunt-maps.js?v=0.2.29';
-import { createHuntScene } from './hunt-scene.js?v=0.2.29';
-import { liveSceneOf, endLiveScene } from '../hunt-view/scene.js?v=0.2.29';
-import { huntOf } from '../session/hunt-sections.js?v=0.2.29';
-import { createWalkScene } from './walk-scene.js?v=0.2.29';
-import { homeMapFor } from './home-scene.js?v=0.2.29';
-import { runAction } from './steer-local.js?v=0.2.29';
-import { heroSprite } from '../session/hero-look.js?v=0.2.29';
-import { keyBelongsToField } from '../utils/dom.js?v=0.2.29';
+import { BUILD } from '../build-info.js?v=0.2.30';
+import { MATERIALS, OPEN_CLASSES, LIGHTS } from '../data/world/terrain.js?v=0.2.30';
+import { WORLD_MAPS } from '../data/world/maps/index.js?v=0.2.30';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.30';
+import { MONSTERS } from '../data/monsters.js?v=0.2.30';
+import { compileMap } from './core/map-compile.js?v=0.2.30';
+import { STUB_SPRITE } from './core/book.js?v=0.2.30';
+import { fpsFor, MOBILE_QUERY } from './core/camera.js?v=0.2.30';
+import { heroBuilding, roofTargets, stepAlpha } from './core/roofs.js?v=0.2.30';
+import { readScene, setChoice, heroPosOn, notePos, forgetPos } from './store.js?v=0.2.30';
+import { loadAtlases } from './atlas.js?v=0.2.30';
+import { createCanvasBackend } from './render/canvas-backend.js?v=0.2.30';
+import { huntOfMap } from './hunt-maps.js?v=0.2.30';
+import { createHuntScene } from './hunt-scene.js?v=0.2.30';
+import { liveSceneOf, endLiveScene } from '../hunt-view/scene.js?v=0.2.30';
+import { huntOf } from '../session/hunt-sections.js?v=0.2.30';
+import { createWalkScene } from './walk-scene.js?v=0.2.30';
+import { homeMapFor } from './home-scene.js?v=0.2.30';
+import { runAction } from './steer-local.js?v=0.2.30';
+import { heroSprite } from '../session/hero-look.js?v=0.2.30';
+import { keyBelongsToField } from '../utils/dom.js?v=0.2.30';
 
 /* THE KEYS (desktop): WASD and the arrows, by physical key (e.code, so a
    non-QWERTY layout walks with the same hand). Two held at once walk the

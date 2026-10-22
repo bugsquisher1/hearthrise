@@ -86,8 +86,9 @@ export function roleWeaponOf(item) {
    at most once per the `challenge` ability's cdMs (src/data/abilities.js, the one
    cooldown). No player input. The hold EQUALS the cooldown (designer 2026-10-21): a
    lone tank's pack is never free between two Challenges (a 6 s hold left it 2 s in
-   every 8 to turn on the Healer), and two tanks still trade the pack every cooldown
-   (each takes it the instant the other's hold runs out). */
+   every 8 to turn on the Healer). With two or more tanks ONE holds a lap
+   (src/core/hunt/targeting.js holderTank: designer 2026-10-21, Option A); the others
+   take only what is on a hero that is not a tank. */
 export const CHALLENGE = Object.freeze({ radius: 6, holdMs: 8000 });
 
 /* THE RANGED SPOT (spec §3.1 #10, §5 #4, ASSUMED). A spot is valid while its

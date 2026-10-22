@@ -41,18 +41,18 @@
 // server's `leader_density`) with no step, and the server refuses a member's
 // density (hr_action_set_options `not_leader`).
 // ════════════════════════════════════════════════════════════════════════
-import { huntOf, settingsOf } from '../../session/hunt-sections.js?v=0.2.24';
-import { bagOf } from '../../session/item-sections.js?v=0.2.24';
-import { levelOf as levelRowOf } from '../../session/character-sections.js?v=0.2.24';
-import { huntName, partyMembershipOf } from '../../session/party-sections.js?v=0.2.24';
-import { startPartyHunt, settleTownActivity } from '../../session/party-intents.js?v=0.2.24';
-import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.24';
-import { whole } from '../../render/format.js?v=0.2.24';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.24';
-import { itemName } from '../widgets/bits.js?v=0.2.24';
-import { runIntent, refusalText } from '../intent-words.js?v=0.2.24';
-import { HUNT_GROUNDS, densityFor, DENSITY_PICK } from '../../data/hunt-grounds.js?v=0.2.24';
-import { huntRows, densityWords, bandWords, rangeWords, groupWords, recommendedHunt, heroWords, packFor, partyNote, ABOVE_LEVEL_WORDS } from '../hunt-list.js?v=0.2.24';
+import { huntOf, settingsOf } from '../../session/hunt-sections.js?v=0.2.25';
+import { bagOf } from '../../session/item-sections.js?v=0.2.25';
+import { levelOf as levelRowOf } from '../../session/character-sections.js?v=0.2.25';
+import { huntName, partyMembershipOf } from '../../session/party-sections.js?v=0.2.25';
+import { startPartyHunt, settleTownActivity } from '../../session/party-intents.js?v=0.2.25';
+import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.25';
+import { whole } from '../../render/format.js?v=0.2.25';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.25';
+import { itemName } from '../widgets/bits.js?v=0.2.25';
+import { runIntent, refusalText } from '../intent-words.js?v=0.2.25';
+import { HUNT_GROUNDS, densityFor, DENSITY_PICK } from '../../data/hunt-grounds.js?v=0.2.25';
+import { huntRows, densityWords, bandWords, rangeWords, groupWords, recommendedHunt, heroWords, packFor, partyNote, ABOVE_LEVEL_WORDS } from '../hunt-list.js?v=0.2.25';
 
 const SCRATCH = new WeakMap();
 /* `draft` is the density shown before the server has it ({ n, preset }), `timer` its coalescing

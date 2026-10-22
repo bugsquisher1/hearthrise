@@ -111,8 +111,10 @@
 //              (too_many_uses), an unsold id (not_for_sale).
 //   DENSITY    P0 #57: a Level-2 club hero at Mill Cellar density 8 (the real ground),
 //              nothing landed since it opened and Leave pressed, ends through its own
-//              settle with the browser closed (tick) and viewed (player's settle); the
-//              kill bound counts what the ground presents at the density ceiling.
+//              settle with the browser closed (tick) and viewed (player's settle), both
+//              with the density the server froze on the instance at hunt start (a later
+//              setup change moves neither the bound nor what the engine plays) and with
+//              none frozen (an instance opened before the freeze: the bound reads the ceiling).
 //   FORFEIT    the sixth refused commit in a row forfeits the window: ended `left`
 //              (Leave pressed) or `server` (browser closed) at the last accepted
 //              boundary, purse unmoved, one window_forfeit row, bag home; a landed
@@ -1347,8 +1349,22 @@ const DB_ARMS = {
       /* Pressed two minutes ago (the arm's clock is one transaction's now()). */
       await db.query('update public.hunt_sessions set leave_at = to_timestamp($2::bigint / 1000.0) where id = $1', [h.sid, h.from + 20 * 60000]);
       const exec = makeExec(db);
+      /* The server froze the pick on the instance when the hunt opened (2026-11-16-hunt-density-bounds.sql). */
+      const frozen = await one(db, 'select density from public.hunt_instances where id = $1', [h.inst]);
+      if (frozen !== 8) problems.push(`the instance froze density ${frozen} at hunt start, want 8`);
       await db.query('savepoint density');
-      for (const door of ['tick', 'settle']) {
+      for (const [variant, door] of [['frozen', 'tick'], ['frozen', 'settle'], ['opened before the freeze', 'tick'], ['opened before the freeze', 'settle']]) {
+        if (variant === 'frozen') {
+          /* A setup changed after Enter (or a stale action-set row) moves neither the bound nor what the engine plays. */
+          await db.query(`update public.player_action_sets set options = options || '{"density": 1}'::jsonb where user_id = $1 and slot = 0`, [UID]);
+          const first = await settleTo(db, M, h.from + 60000);
+          const w = await one(db, 'select world from public.hunt_instances where id = $1', [h.inst]);
+          const played = first.res && first.res.ok === true && w ? M.WS.decode(JSON.parse(w)).density : null;
+          if (played !== 8) problems.push(`${variant}/${door}: after a setup change the engine played density ${played}, not the frozen 8`);
+        } else {
+          /* Hank's 32c99ffe: opened before the freeze existed, so its row holds none (the bound reads the ceiling). */
+          await db.query('update public.hunt_instances set density = null where id = $1', [h.inst]);
+        }
         let r = null;
         for (let i = 0; i < 4; i++) {
           r = await M.HS.settleHunt({ exec, user: UID, slot: 0, mode: door, grounds: groundsOf(M),
@@ -1356,15 +1372,15 @@ const DB_ARMS = {
           if (!r || r.outcome !== 'paid' || r.ended) break;
         }
         const s = await snapshot(db, h.sid);
-        if (!r || r.outcome === 'refused') problems.push(`${door}: the stuck density-8 hunt was refused ${r && r.reason}: ${JSON.stringify(r && r.body && r.body.detail).slice(0, 300)}`);
+        if (!r || r.outcome === 'refused') problems.push(`${variant}/${door}: the stuck density-8 hunt was refused ${r && r.reason}: ${JSON.stringify(r && r.body && r.body.detail).slice(0, 300)}`);
         else if (!s.session.ended_at || !['left', 'died'].includes(s.session.end_reason)) {
-          problems.push(`${door}: the stuck hunt did not end through its own settle (${s.session.end_reason}; ${r.outcome}/${r.reason})`);
+          problems.push(`${variant}/${door}: the stuck hunt did not end through its own settle (${s.session.end_reason}; ${r.outcome}/${r.reason})`);
         }
         /* CONTROL: a landed window carried more kills than the as-built bound allowed (density is under test). */
         const over = await one(db, `select count(*) from public.player_ledger l, public.hr_hunt_grounds g
           where l.session_id = $1 and l.kind <> 'hunt' and g.hunt_id = 'mill_cellar' and jsonb_typeof(l.meta->'kills') = 'number'
             and (l.meta->>'kills')::bigint > g.spawns * ((l.meta->>'ms')::bigint / g.respawn_ms + 2)`, [h.sid]);
-        if (!(Number(over) > 0) && !problems.length) problems.push(`CONTROL ${door}: no landed window exceeded the as-built kill bound`);
+        if (!(Number(over) > 0) && !problems.length) problems.push(`CONTROL ${variant}/${door}: no landed window exceeded the as-built kill bound`);
         await db.query('rollback to savepoint density');
       }
     } finally { fixtureRow = groundRow; }
@@ -1801,6 +1817,10 @@ const DB_MUTANTS = [
   { arm: 'DENSITY', name: '[#57] the kill bound counts the as-built spawns again', fn: AM,
     find: '  v_kmax := v_pass * (greatest(v_win, 0) / v_ground.respawn_ms + 2);',
     replace: '  v_kmax := v_ground.spawns::bigint * (greatest(v_win, 0) / v_ground.respawn_ms + 2);' },
+  { arm: 'DENSITY', name: '[#57] the engine plays today\'s action-set density, not the frozen one', fn: 'public.hr_hunt_instance_read(uuid,integer)',
+    find: "|| jsonb_build_object('density', v_i.density)) end,", replace: "|| '{}'::jsonb) end," },
+  { arm: 'DENSITY', name: '[#57] the density is never frozen at hunt start', fn: 'public.hr_hunt_density_freeze()',
+    find: '   where id = new.instance_id and density is null;', replace: '   where false;' },
   { arm: 'FORFEIT', name: '[#57] a refused window is never forfeited (the hero is trapped)', fn: SR,
     find: '  if v_n >= c_forfeit_after then', replace: '  if false then' },
   { arm: 'FORFEIT', name: 'a landed commit keeps the refusal count', fn: AI,
@@ -1823,7 +1843,8 @@ const DB_MUTANTS = [
   { arm: 'STORE', name: 'a store use is not journalled', fn: AM,
     find: "        values (p_user, p_slot, 'hunt', 'supply_buy', -v_cost, -v_units,", replace: "        values (p_user, p_slot, 'hunt', 'supply_bought', -v_cost, -v_units," },
   { arm: 'PARTY', name: 'a settle of some members lands', fn: AI,
-    find: "    return jsonb_build_object('ok', false, 'error', 'member_set');", replace: "    null;" },
+    /* (re-anchored on 2026-11-16-hunt-density-bounds.sql: every refusal after the lock is counted) */
+    find: "    return public.hr_hunt_settle_refused(p_instance, p_world_from, v_first, jsonb_build_object('ok', false, 'error', 'member_set'));", replace: "    null;" },
   { arm: 'PARTY-VIEW', name: 'the party section keeps the old seats key for HP max', fn: 'public.hr_hunt_party_view(uuid,integer)',
     find: "'hp_max', case when", replace: "'max_hp', case when" },
   { arm: 'PARTY-VIEW', name: 'the party section does not name the world unit', fn: 'public.hr_hunt_party_view(uuid,integer)',

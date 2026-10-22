@@ -18,19 +18,30 @@
 -- on a settle that never lands.
 --
 -- ── WHAT ─────────────────────────────────────────────────────────────────────
--- §1 hunt_instances.refusals: the instance's CONSECUTIVE refused commits (0
---    after every commit that lands). Server-only, like the rest of the row.
+-- §1 THE INSTANCE'S DENSITY, FROZEN AT HUNT START. NEW hunt_instances.density:
+--    written ONCE by the server when the instance's first session opens
+--    (AFTER INSERT trigger hr_hunt_density_freeze on hunt_sessions, through
+--    hr_hunt_density_pick): the pick the engine would play at that moment, the
+--    party LEADER's (hunt_parties.leader_*, its open session's preset, else 0)
+--    for a party instance, the hero's own (its session's preset) for a solo one,
+--    clamped to 0..density_max (the catalogue's ceiling, src/data/hunt-grounds.js
+--    DENSITY_PICK.max; the engine further clamps to the ground's densityMax for
+--    the party's size). Never moved after: a setup changed mid-hunt, or a stale
+--    action-set row, cannot widen or narrow the bound for windows already played.
+--    NULL only on instances opened before this file (the live 32c99ffe among
+--    them): their bound reads the ceiling, so they recover through their own settle.
+--    hr_hunt_instance_read RESTATED WHOLE (2026-11-01-party-leader-density.sql
+--    image, md5-pinned) overlays the frozen value on every member's
+--    options.density, so the engine (hunt-settle.js memberInput -> heroSetup ->
+--    partyPick -> densityFor) plays exactly what the bound counts. No edge change.
+--    NEW hunt_instances.refusals: the instance's CONSECUTIVE refused commits (0
+--    after every commit that lands). Both columns server-only, like the row.
 -- §2 hr_hunt_apply_member RESTATED WHOLE (2026-10-27-core-bodies.sql image,
 --    md5-pinned): every bound that counts what the ground can present uses
---    v_pass = spawns + pockets x density_max, the catalogue's own ceiling on any
---    pick (hr_hunt_limit density_max = src/data/hunt-grounds.js DENSITY_PICK.max,
---    generated; never a client or edge number): the kill bound, the Defense
---    bound's foes-at-once and the XP bound's carry-over. Why the ceiling and not
---    the stored pick: the pick is the player's to move up to the ceiling at any
---    time, mid-hunt included (hr_action_set_options), so a pack spawned at the
---    old pick can die in a window settled under the new one; a bound on today's
---    pick would refuse it and freeze the hunt again. Gold, Level XP and item
---    bounds stay per JOURNALLED kill (unchanged).
+--    v_pass = spawns + pockets x the instance's frozen density (as built when 0;
+--    the catalogue ceiling when NULL): the kill bound, the Defense bound's
+--    foes-at-once and the XP bound's carry-over. Never a client or edge number.
+--    Gold, Level XP and item bounds stay per JOURNALLED kill (unchanged).
 -- §3 THE REFUSED-WINDOW RULE (hr_hunt_apply_instance restated whole, the
 --    2026-10-23-hunt-world-state.sql image, md5-pinned): every refusal after the
 --    instance lock is counted (hr_hunt_settle_refused) and recorded with its own
@@ -51,17 +62,20 @@
 -- session's character lock is taken after, in the same order).
 --
 -- ── EXPLOIT SURFACE ─────────────────────────────────────────────────────────
--- The kill bound loosens to what the ground physically presents at the
--- largest pick any player may make (Mill Cellar 5 -> 37 a pass): no more than
--- an honest hunt at the ceiling. A forfeit credits NOTHING and cannot be
+-- The kill bound grows only with the density the SERVER froze for the hunt
+-- (Mill Cellar at 8: 5 -> 21 a pass; at 0 unchanged), read from the instance
+-- row, never from the request; the freeze reads only server rows (validated
+-- 0..16 by hr_action_set_options) and clamps again. A forfeit credits NOTHING and cannot be
 -- triggered by a client: every settle input is server-held; it ends the hunt
 -- at a boundary the server already accepted. No grant changes: the two new
 -- helpers are owner-only, hr_hunt_apply_instance stays hr_engine-only.
 --
 -- ── REVERSIBILITY ───────────────────────────────────────────────────────────
--- Re-apply hr_hunt_apply_member from 2026-10-27-core-bodies.sql and
--- hr_hunt_apply_instance from 2026-10-23-hunt-world-state.sql (their pins
--- accept those images), drop the two helpers; the column may stay (inert).
+-- Re-apply hr_hunt_apply_member from 2026-10-27-core-bodies.sql,
+-- hr_hunt_apply_instance from 2026-10-23-hunt-world-state.sql and
+-- hr_hunt_instance_read from 2026-11-01-party-leader-density.sql (their pins
+-- accept those images), drop the trigger and the four helpers; the two
+-- columns may stay (inert).
 -- ORDER: after 2026-11-07-players-online.sql (last APPLIED); depends on no
 -- STAGED file. No begin/commit (CLAUDE.md §2).
 -- ════════════════════════════════════════════════════════════════════════
@@ -78,16 +92,108 @@ begin
   select prosrc into v_src from pg_proc where oid = 'public.hr_hunt_apply_instance(uuid,bigint,jsonb,jsonb,uuid,integer)'::regprocedure;
   if md5(v_src) <> 'c55424ccbda12a4867b89e604c5b071a' and strpos(v_src, 'DENSITY-BOUNDS (2026-11-16') = 0 then
     raise exception 'PIN: hr_hunt_apply_instance moved (md5 %)', md5(v_src); end if;
+  select prosrc into v_src from pg_proc where oid = 'public.hr_hunt_instance_read(uuid,integer)'::regprocedure;
+  if md5(v_src) <> '5ba7a6b49fea7af3cae590a601478464' and strpos(v_src, 'DENSITY-BOUNDS (2026-11-16') = 0 then
+    raise exception 'PIN: hr_hunt_instance_read moved (md5 %)', md5(v_src); end if;
 end $mig$;
 
--- ── §1 THE CONSECUTIVE-REFUSAL COUNT ────────────────────────────────────────
+-- ── §1 THE FROZEN DENSITY AND THE CONSECUTIVE-REFUSAL COUNT ──────────────────
+alter table public.hunt_instances add column if not exists density int;
 alter table public.hunt_instances add column if not exists refusals int not null default 0;
 do $mig$
 begin
+  if not exists (select 1 from pg_constraint where conrelid = 'public.hunt_instances'::regclass and conname = 'hunt_instances_density_ck') then
+    alter table public.hunt_instances add constraint hunt_instances_density_ck check (density is null or density >= 0);
+  end if;
   if not exists (select 1 from pg_constraint where conrelid = 'public.hunt_instances'::regclass and conname = 'hunt_instances_refusals_ck') then
     alter table public.hunt_instances add constraint hunt_instances_refusals_ck check (refusals >= 0);
   end if;
 end $mig$;
+
+-- THE PICK THE ENGINE WOULD PLAY when the instance opens (owner only): a party instance's
+-- leader's (hunt-grounds.js partyPick), else the opening hero's own; clamped to the ceiling.
+create or replace function public.hr_hunt_density_pick(p_instance uuid, p_user uuid, p_slot int, p_preset int)
+returns int language sql stable set search_path = public, pg_catalog as $$
+  -- DENSITY-BOUNDS (2026-11-16-hunt-density-bounds.sql).
+  select greatest(0, least(coalesce(public.hr_hunt_limit('density_max'), 0)::int, coalesce((
+    select case when jsonb_typeof(a.options->'density') = 'number' and (a.options->>'density') ~ '^[0-9]{1,4}$'
+                then (a.options->>'density')::int end
+      from public.player_action_sets a
+      left join public.hunt_parties p on p.id = p_instance and p.closed_at is null
+     where a.user_id = coalesce(p.leader_user, p_user) and a.slot = coalesce(p.leader_slot, p_slot)
+       and a.preset = case
+             when p.id is null or (p.leader_user = p_user and p.leader_slot = p_slot) then coalesce(p_preset, 0)
+             else coalesce((select h.preset from public.hunt_sessions h
+                             where h.user_id = p.leader_user and h.slot = p.leader_slot and h.ended_at is null
+                               and h.instance_id = p_instance limit 1), 0) end), 0)))
+$$;
+revoke execute on function public.hr_hunt_density_pick(uuid, uuid, int, int) from public;
+revoke execute on function public.hr_hunt_density_pick(uuid, uuid, int, int) from anon, authenticated, service_role, hr_engine, hr_tick;
+
+-- THE FREEZE: the instance's first session writes its density; nothing writes it again.
+create or replace function public.hr_hunt_density_freeze()
+returns trigger language plpgsql security definer set search_path = public, pg_catalog as $$
+begin
+  -- DENSITY-BOUNDS (2026-11-16-hunt-density-bounds.sql).
+  update public.hunt_instances
+     set density = public.hr_hunt_density_pick(new.instance_id, new.user_id, new.slot, new.preset)
+   where id = new.instance_id and density is null;
+  return null;
+end $$;
+revoke execute on function public.hr_hunt_density_freeze() from public;
+revoke execute on function public.hr_hunt_density_freeze() from anon, authenticated, service_role, hr_engine, hr_tick;
+drop trigger if exists hr_hunt_density_freeze on public.hunt_sessions;
+create trigger hr_hunt_density_freeze after insert on public.hunt_sessions
+  for each row execute function public.hr_hunt_density_freeze();
+
+-- THE ENGINE'S READ: every member plays the frozen density (options.density overlaid).
+CREATE OR REPLACE FUNCTION public.hr_hunt_instance_read(p_user uuid, p_slot integer)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public', 'pg_catalog'
+AS $function$
+declare
+  v_role text;
+  v_s    public.hunt_sessions%rowtype;
+  v_i    public.hunt_instances%rowtype;
+begin
+  -- PARTY-LEADER (2026-11-01-party-leader-density.sql): each member says whether it leads the instance's party.
+  -- DENSITY-BOUNDS (2026-11-16-hunt-density-bounds.sql): every member plays the density frozen on the instance
+  -- (its options.density overlaid), the one the settle bounds count; NULL (opened before the freeze) = as stored.
+  v_role := coalesce(nullif(current_setting('role', true), 'none'), session_user);
+  if v_role in ('anon', 'authenticated', 'service_role') then
+    raise exception 'hr_hunt_instance_read: not callable by %', v_role using errcode = '42501';
+  end if;
+  if p_user is null or p_slot is null then return null; end if;
+  select * into v_s from public.hunt_sessions h where h.user_id = p_user and h.slot = p_slot and h.ended_at is null;
+  if not found then return jsonb_build_object('open', false); end if;
+  select * into v_i from public.hunt_instances i where i.id = v_s.instance_id;
+  if not found then return jsonb_build_object('open', false); end if;
+  return jsonb_build_object(
+    'open', true,
+    'instance', jsonb_build_object(
+      'id', v_i.id, 'hunt', v_i.hunt_id, 'kind', v_i.kind, 'world', v_i.world, 'world_swing', v_i.world_swing,
+      'density', v_i.density,
+      'settled_to_ms', ceil(extract(epoch from v_i.settled_to) * 1000)::bigint,
+      'next_swing_at_ms', ceil(extract(epoch from v_i.next_swing_at) * 1000)::bigint,
+      'enabled', coalesce((select c.enabled from public.hr_hunt_config c where c.id), false),
+      -- THE INSTANCE'S KEYED SEED SECRET (hunt-seed.js): reachable by the engine only.
+      'secret', public.hr_seed(null, 0, 'hunt:' || v_i.id::text)::text),
+    'members', coalesce((select jsonb_agg(jsonb_build_object(
+                 'user', h.user_id, 'slot', h.slot, 'seat', h.seat, 'unit_id', h.unit_id,
+                 -- THE PARTY LEADER (hunt_parties.leader_*; a party instance's id is its party's): its density sets the pull.
+                 'leads', exists (select 1 from public.hunt_parties p where p.id = v_i.id and p.closed_at is null
+                                    and p.leader_user = h.user_id and p.leader_slot = h.slot),
+                 'session', case when v_i.density is null then mr.r
+                                 else jsonb_set(mr.r, '{options}', coalesce(mr.r->'options', '{}'::jsonb) || jsonb_build_object('density', v_i.density)) end,
+                 'state', public.hr_state_of(h.user_id, h.slot))
+                 order by h.user_id, h.slot)
+               from public.hunt_sessions h cross join lateral (select public.hr_hunt_member_read(h) as r) mr
+              where h.instance_id = v_i.id and h.ended_at is null), '[]'::jsonb),
+    'now_ms', floor(extract(epoch from now()) * 1000)::bigint);
+end $function$;
+revoke execute on function public.hr_hunt_instance_read(uuid, int) from public, anon, authenticated, service_role;
 
 -- ── §2 THE MEMBER SETTLE: THE DENSITY-AWARE BOUNDS ──────────────────────────
 CREATE OR REPLACE FUNCTION public.hr_hunt_apply_member(p_instance uuid, p_user uuid, p_slot integer, p_session uuid, p_intent uuid, p_delta jsonb, p_hunt jsonb, p_analyzer jsonb)
@@ -204,11 +310,13 @@ begin
     perform public.hr_reject('bad_analyzer'); end if;
   select * into v_ground from public.hr_hunt_grounds g where g.hunt_id = v_s.hunt_id;
   if not found then perform public.hr_reject('no_ground', jsonb_build_object('hunt', v_s.hunt_id)); end if;
-  -- DENSITY-BOUNDS (2026-11-16-hunt-density-bounds.sql): what the ground can present at once is every pocket's
-  -- pull at the largest density ANY hunt may pick (the catalogue's density_max, src/data/hunt-grounds.js
-  -- DENSITY_PICK.max; never a client or edge number) plus its as-built rows. Not the stored pick: the player
-  -- may move it up to the ceiling mid-hunt, and a pack spawned at the old pick still dies in a later window.
-  v_dmax := public.hr_hunt_limit('density_max');
+  -- DENSITY-BOUNDS (2026-11-16-hunt-density-bounds.sql): what the ground can present at once is its as-built
+  -- rows plus every pocket's pull at the density the SERVER froze for this instance when it opened
+  -- (hunt_instances.density, hr_hunt_density_freeze; the engine plays exactly it, hr_hunt_instance_read).
+  -- An instance opened before the freeze existed reads the catalogue's ceiling (density_max). Never a
+  -- client or edge number, never today's action-set row.
+  v_dmax := coalesce((select i.density from public.hunt_instances i where i.id = p_instance)::bigint,
+                     public.hr_hunt_limit('density_max'));
   if v_dmax is null or v_dmax < 0 then perform public.hr_reject('catalogue_missing', jsonb_build_object('limit', 'density_max')); end if;
   v_pass := v_ground.spawns::bigint + v_ground.pockets::bigint * v_dmax;
   select coalesce(jsonb_object_agg(skill_id, xp), '{}'::jsonb) into v_xp0
@@ -736,7 +844,8 @@ grant  execute on function public.hr_hunt_apply_instance(uuid, bigint, jsonb, js
 
 -- ── §4 SELF-CHECK (CLAUDE.md §4), EXECUTED, ROLLED BACK ──────────────────────
 -- A probe hero at Mill Cellar density 8 (the report's ground and pick), its windows
--- committed through hr_hunt_apply_instance itself: (a) a window with more kills than
+-- committed through hr_hunt_apply_instance itself: (0) the instance froze 8 at hunt start and a
+-- later setup change moves neither it nor the engine's read; (a) a window with more kills than
 -- the as-built bound allowed lands; (b) a window over the density-scaled bound is
 -- refused and moves nothing; (c) a landed commit resets the count; (d) after Leave,
 -- five refused windows keep the hunt open and the sixth forfeits it: ended `left`
@@ -756,9 +865,9 @@ begin
   select * into v_g from public.hr_hunt_grounds where hunt_id = v_hunt;
   if not found then raise exception 'VERIFY: the % ground is not in the catalogue', v_hunt; end if;
   v_tick := public.hr_hunt_limit('swing_interval_ms');
-  -- The bounds over one 50 s window: the as-built one (the old body) and this file's.
+  -- The bounds over one 50 s window: the as-built one (the old body) and this file's at the frozen 8.
   v_old := v_g.spawns::bigint * (50000 / v_g.respawn_ms + 2);
-  v_new := (v_g.spawns::bigint + v_g.pockets::bigint * public.hr_hunt_limit('density_max')) * (50000 / v_g.respawn_ms + 2);
+  v_new := (v_g.spawns::bigint + v_g.pockets::bigint * 8) * (50000 / v_g.respawn_ms + 2);
   if not (v_new > v_old + 1) then raise exception 'VERIFY: the density bound (%) does not exceed the as-built one (%)', v_new, v_old; end if;
   begin
     execute $f$
@@ -801,6 +910,15 @@ begin
     v_at := date_trunc('second', now() - interval '10 minutes');
     update public.hunt_sessions set entered_at = v_at - interval '1 minute', hunt_from = v_at, settled_to = v_at, next_swing_at = v_at where id = v_sid;
     update public.hunt_instances set settled_to = v_at, next_swing_at = v_at where id = v_inst;
+    -- (0) the server froze the pick on the instance at hunt start; a later setup change does not move it,
+    --     and the engine's read plays the frozen value.
+    if (select density from public.hunt_instances where id = v_inst) is distinct from 8 then
+      raise exception 'VERIFY(0): the instance froze density % (want 8)', (select density from public.hunt_instances where id = v_inst); end if;
+    update public.player_action_sets set options = options || '{"density": 1}'::jsonb where user_id = v_u and slot = 0;
+    if (select density from public.hunt_instances where id = v_inst) is distinct from 8
+       or (public.hr_hunt_instance_read(v_u, 0)->'members'->0->'session'->'options'->>'density') is distinct from '8' then
+      raise exception 'VERIFY(0): a setup change moved the frozen density or the engine read (%)',
+        public.hr_hunt_instance_read(v_u, 0)->'members'->0->'session'->'options'; end if;
     -- (a) a density-8 window with one kill more than the as-built bound allowed: it lands.
     v := pg_temp.hr_dens_probe(v_u, v_old + 1, 50000);
     if coalesce(v->>'ok', '') <> 'true' then raise exception 'VERIFY(a): a density-8 window of % kills (as-built bound %) answered %', v_old + 1, v_old, v; end if;
@@ -856,7 +974,16 @@ begin
   end loop;
   if not has_function_privilege('hr_engine', 'public.hr_hunt_apply_instance(uuid,bigint,jsonb,jsonb,uuid,integer)', 'execute') then
     raise exception 'VERIFY(e): hr_engine lost the instance settle'; end if;
+  foreach v_role in array array['anon', 'authenticated', 'service_role'] loop
+    if has_function_privilege(v_role, 'public.hr_hunt_instance_read(uuid,integer)', 'execute') then
+      raise exception 'VERIFY(e): % reaches the engine read', v_role; end if;
+  end loop;
+  if not has_function_privilege('hr_engine', 'public.hr_hunt_instance_read(uuid,integer)', 'execute') then
+    raise exception 'VERIFY(e): hr_engine lost the engine read'; end if;
   foreach v_role in array array['anon', 'authenticated', 'service_role', 'hr_engine', 'hr_tick'] loop
+    if has_function_privilege(v_role, 'public.hr_hunt_density_pick(uuid,uuid,integer,integer)', 'execute')
+       or has_function_privilege(v_role, 'public.hr_hunt_density_freeze()', 'execute') then
+      raise exception 'VERIFY(e): % reaches the density freeze', v_role; end if;
     if has_function_privilege(v_role, 'public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)', 'execute')
        or has_function_privilege(v_role, 'public.hr_hunt_forfeit(uuid,text,jsonb)', 'execute')
        or has_function_privilege(v_role, 'public.hr_hunt_settle_refused(uuid,bigint,jsonb,jsonb)', 'execute') then

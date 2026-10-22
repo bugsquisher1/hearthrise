@@ -112,7 +112,8 @@ export function checkClient({ cells = heroCells, text = refusalText, shop = shop
 
 // ── H-S ─────────────────────────────────────────────────────────────────────
 /* A mutant also trips the file's own §6; it is skipped so THIS guard is what must see the defect. */
-const SILENCE_SELF_CHECK = ["begin\n  loop\n    v_n1 := 'Zh'", "begin\n  return;\n  loop\n    v_n1 := 'Zh'"];
+const SILENCE_SELF_CHECK = ["begin\n  -- The probe names are drawn until hr_create_hero would ACCEPT them",
+  "begin\n  return;\n  -- The probe names are drawn until hr_create_hero would ACCEPT them"];
 const SQL_MUTANTS = {
   no_name_gate: { why: 'hr_load lets an unnamed character into the world', pairs: [
     ["  if exists (select 1 from public.player_state where user_id = v_uid and slot = coalesce(p_slot, 0))\n     and not exists", "  if false and not exists"]] },

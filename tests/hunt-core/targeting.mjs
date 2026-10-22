@@ -157,6 +157,26 @@ const cases = {
     M.targeting.chooseTargets(inst, sc2(M, 1, 50100));
     return a.target === 2 ? null : 'lap 1: with both Challenges ready an overflow went to ' + a.target + ', not the holder';
   },
+  /* A MUCH WEAKER TANK NEVER HOLDS (designer 2026-10-21: an L9 + L19 pair at Sewer density 7 died in 2 min,
+     the L9 leading and holding every other lap). L9 in bronze plate = 251 max HP, L19 in iron = 330
+     (vitals.js maxHpFor); 251 is under CHALLENGE.holderMinHpPm of 330, so the L19 holds every lap even
+     though the L9 leads, and takes the pack off the L9 the moment its Challenge is ready. A tank at the
+     floor still rotates. */
+  'weak-tank-never-holds': (M) => {
+    const weak = H(M, 1, 11, 3, 'tank', { hp: 251, maxHp: 251 }); const strong = H(M, 2, 13, 5, 'tank', { hp: 330, maxHp: 330 });
+    const a = E(M, 3, 0, 12, 3, 1); const b = E(M, 4, 0, 12, 4, 1);
+    const inst = fight(M, [weak, strong, a, b], { leader: 1, runs: 0 });
+    for (let runs = 0; runs < 6; runs++) {
+      inst.world.runs = runs;
+      if (M.targeting.holderTank(inst) !== strong) return 'lap ' + runs + ': the L9 tank (251 max HP beside 330) holds';
+    }
+    inst.world.runs = 0;
+    M.targeting.chooseTargets(inst, sc2(M, 1, 0));
+    if (a.target !== 2 || b.target !== 2) return 'the L19 did not take the pack off the leading L9 (targets ' + a.target + ',' + b.target + ')';
+    const floor = Math.ceil(330 * M.roleData.CHALLENGE.holderMinHpPm / 1000);
+    weak.maxHp = floor; weak.hp = floor; inst.world.runs = 0;
+    return M.targeting.holderTank(inst) === weak ? null : 'a leading tank at the floor (' + floor + ' of 330) did not hold its lap';
+  },
   /* TG-01 ties (Andy 2026-10-21: "Strongest and follow player both seem to just target the first creature"):
      monsters a mode cannot tell apart fall to the NEARER, not to the first spawned. */
   'mode-ties-fall-to-nearest': (M) => {
@@ -204,6 +224,10 @@ const mutants = [
   { name: 'any role Challenges', case: 'challenge-when-monster-off-tank', edits: [[T, 'if (!isTank(k) || !k.alive) return [];', 'if (!roleOf(k) || !k.alive) return [];']] },
   { name: 'a Challenge holds nothing', case: 'one-holder-a-lap', edits: [[T, 'm.queued = false; m.holdMs = CHALLENGE.holdMs; }', 'm.queued = false; }']] },
   { name: 'a non-holder steals from the holder (live v0.2.24)', case: 'one-holder-a-lap', edits: [[T, ' && (holds || onNonTank(m)));', ');']] },
+  { name: 'a much weaker tank holds its turn (live v0.2.25 lane: L9 + L19 died)', case: 'weak-tank-never-holds',
+    edits: [[T, '(u) => u.maxHp * 1000 >= top * CHALLENGE.holderMinHpPm', '() => true']] },
+  { name: 'the weak-tank floor is strict', case: 'weak-tank-never-holds',
+    edits: [[T, 'u.maxHp * 1000 >= top * CHALLENGE.holderMinHpPm', 'u.maxHp * 1000 > top * CHALLENGE.holderMinHpPm']] },
   { name: 'the holder never rotates', case: 'one-holder-a-lap', edits: [[T, 'return tanks[(first + runs) % tanks.length];', 'return tanks[first];']] },
   { name: 'an overflow goes to whichever tank comes first by id', case: 'one-holder-a-lap',
     edits: [[T, 'for (const k of h ? [h, ...inst.world.units.filter((u) => u !== h)] : inst.world.units) {', 'for (const k of inst.world.units) {']] },

@@ -256,7 +256,9 @@ export function simulateHuntInstance(inst, ctx) {
       seen();
       for (const t of r.track) track.push(t);
       for (const e of r.events) worldEvents.push(e);
-      const deaths = rewardSwing(byUnit, r.events, world, { rng: createRng(seedOf(ctx, 'r', sw)), monsters: ctx.monsters, hearthfind: ctx.hearthfind });
+      /* The rewards' own events (a party's rare roll) follow the swing's, on the server-only `r` stream. */
+      const deaths = rewardSwing(byUnit, r.events, world, { rng: createRng(seedOf(ctx, 'r', sw)), monsters: ctx.monsters, hearthfind: ctx.hearthfind,
+        emit: (e) => worldEvents.push(e) });
       for (const f of deaths) {
         const m = byUnit.get(f.unit);
         const o = out.get(m.key);

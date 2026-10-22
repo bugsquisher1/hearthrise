@@ -52,6 +52,7 @@ import { createTimeline } from '../hunt-view/timeline.js?v=0.2.25';
 import { LiveLink } from './live-link.js?v=0.2.25';
 import { RESIDUE_FIELDS, sanitizeResidueField } from './residue.js?v=0.2.25';
 import { SESSION_CONFIG } from './config.js?v=0.2.25';
+import { SERVER_ONLY_EVENTS } from '../core/hunt/events.js?v=0.2.25';
 import { edgeBody } from './edge-intents.js?v=0.2.25';
 import { leaveAskOf, pendingLeaveAt, leaveCountdown, closeInMs } from './hunt-leave.js?v=0.2.25';
 import { HuntPoll, pollDelayMs } from './hunt-poll.js?v=0.2.25';
@@ -214,7 +215,9 @@ export class CharacterSession {
     if (this.live.running() || this.live.stalled()) {
       const ms = Number.isSafeInteger(body.hunt_server_now_ms) ? body.hunt_server_now_ms
         : typeof body.now === 'string' ? Math.floor(Date.parse(body.now)) : NaN;
-      if (Number.isSafeInteger(ms)) this.timeline.ingest({ serverNowMs: ms }, this._now());
+      /* ...but the server-only events (a party's rare roll), which the prediction cannot draw, still come from it. */
+      const own = Array.isArray(body.hunt_events) ? body.hunt_events.filter((e) => e && SERVER_ONLY_EVENTS.includes(e.type)) : [];
+      if (Number.isSafeInteger(ms) || own.length) this.timeline.ingest({ serverNowMs: ms, events: own }, this._now());
       return;
     }
     if (Array.isArray(body.hunt_track) || Array.isArray(body.hunt_events)) {

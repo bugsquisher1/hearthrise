@@ -188,6 +188,16 @@ async function rules(M) {
     ok('LOG-1', byKey['i:s1:2'] && byKey['i:s1:2'].type === 'taken', 'a monster hit is damage taken');
     ok('LOG-1', byKey['i:s1:4'] && byKey['i:s1:4'].type === 'loot' && /Slime Gel/.test(byKey['i:s1:4'].text), 'a kill with loot names the loot: ' + JSON.stringify(byKey['i:s1:4']));
   }
+
+  { // LOG-2: the party's rare roll (Tyler L8) reads in plain words: each roll, a tie's re-roll, the winner.
+    const n = { name: (u) => ({ 1: 'Tyler', 2: 'Andy' })[u] || 'Someone', isHero: () => true };
+    const roll = M.L.lineOf({ key: 'k1', type: 'rare_roll', atMs: 1, u: 1, item: 'crown_shard', rolls: { 1: 87, 2: 40 } }, n);
+    ok('LOG-2', roll && roll.type === 'loot' && roll.text === 'Rare roll for the Crown Shard: Tyler 87, Andy 40. Tyler wins it.', 'a rare roll reads ' + JSON.stringify(roll));
+    const tie = M.L.lineOf({ key: 'k2', type: 'rare_roll', atMs: 1, u: 2, item: 'crown_shard', rolls: { 1: 50, 2: 50 }, reroll: { 1: 12, 2: 61 } }, n);
+    ok('LOG-2', tie && tie.text === 'Rare roll for the Crown Shard: Tyler 50, Andy 50. Tie, so they roll again: Tyler 12, Andy 61. Andy wins it.', 'a tie reads ' + JSON.stringify(tie));
+    const turn = M.L.lineOf({ key: 'k3', type: 'rare_roll', atMs: 1, u: 2, item: 'crown_shard', rolls: {} }, n);
+    ok('LOG-2', turn && /^Andy takes the Crown Shard: everyone else in the party has won a rare/.test(turn.text), 'the rotation\'s turn reads ' + JSON.stringify(turn));
+  }
   return fails;
 }
 

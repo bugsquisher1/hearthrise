@@ -35,6 +35,7 @@ import * as status from './status.js?v=0.2.25';
 import * as consumables from './consumables.js?v=0.2.25';
 import * as xpShare from './xp-share.js?v=0.2.25';
 import * as conditions from './conditions.js?v=0.2.25';
+import * as partySplit from '../party-split.js?v=0.2.25';
 
 export const WORLD_VERSION = 1;
 
@@ -45,7 +46,8 @@ const BASE = Object.freeze({
   pack: [['aggro', 'bool'], ['holder', 'int?']],
 });
 const MODULES = [BASE, movement.PERSISTED, targeting.PERSISTED, roles.PERSISTED, pullCycle.PERSISTED,
-  damage.PERSISTED, abilities.PERSISTED, status.PERSISTED, consumables.PERSISTED, xpShare.PERSISTED, conditions.PERSISTED];
+  damage.PERSISTED, abilities.PERSISTED, status.PERSISTED, consumables.PERSISTED, xpShare.PERSISTED, conditions.PERSISTED,
+  partySplit.PERSISTED];
 
 function compose(part) {
   const out = []; const seen = new Set();

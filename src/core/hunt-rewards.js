@@ -19,16 +19,19 @@
 //          (a miss on a shield-holder) paying COMBAT_XP.blockMult times more
 //   cast   Magic XP for the mana an ability spent (xp-share.js magicXpFor)
 //   kill   of a MONSTER: its gold and drops on the instance's `r` stream —
-//          gold split evenly, items round-robin (party-split.js, the one
-//          split) — and every kill counter, for each hero in the instance;
-//          then the Hearthfind roll for the hero who landed it
+//          gold split evenly, common items round-robin, each rare to the
+//          party's rare roll (party-split.js, the one split; a `rare_roll`
+//          event through ctx.emit) — and every kill counter, for each hero in
+//          the instance; then the Hearthfind roll for the hero who landed it
 //   kill   of a HERO: a death, answered to the caller (the span ends that
 //          hero's hunt and prices the death)
 //
 // DICE: only kills draw, from `ctx.rng` (seed domain `r`, one stream per
 // swing, so a window cut anywhere draws the same numbers — TICK-1), in event
 // order and, per kill, in this order: gold, each drop row, the round-robin
-// offset (only with two or more heroes), the Hearthfind.
+// offset (only with two or more heroes), each rare unit's roll (only with two or
+// more heroes, in drop order), the Hearthfind. The `r` stream is the server's
+// alone: the browser's prediction runs it on a constant (live-engine.js).
 //
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
@@ -41,7 +44,8 @@ import { COMBAT_XP } from '../data/core-model.js?v=0.2.25';
 import { FAMILY_SKILL, DAMAGE_XP_FAMILIES } from '../data/skills.js?v=0.2.25';
 import { resolveHearthfind } from './hearthfind.js?v=0.2.25';
 import { magicXpFor } from './hunt/xp-share.js?v=0.2.25';
-import { splitEven, itemOwner } from './party-split.js?v=0.2.25';
+import { splitEven, itemOwner, rareRoll } from './party-split.js?v=0.2.25';
+import { makeEvent } from './hunt/events.js?v=0.2.25';
 
 const call = (fx, name, ...args) => (fx && typeof fx[name] === 'function' ? fx[name](...args) : undefined);
 
@@ -66,8 +70,9 @@ function countKill(m, kind) {
 }
 
 /* A monster kill's gold and drops, split across `present` (members in unit-id
-   order), and the Hearthfind for `killer`. */
-function payKill(present, killer, kind, ctx, yieldPm) {
+   order; `ids` their unit ids), and the Hearthfind for `killer`. A rare unit
+   goes to the rare roll, its rotation kept on `world.rareWon`. */
+function payKill(present, ids, killer, kind, ctx, yieldPm, world, atMs) {
   const row = (ctx.monsters || MONSTERS)[kind];
   if (!row) return;
   const rng = ctx.rng;
@@ -83,12 +88,23 @@ function payKill(present, killer, kind, ctx, yieldPm) {
   const lead = killer || present[0];
   const rolled = rollDropTable(row.drops, { dropMult: lead.weakness(row).dropMult, dropBuff: lead.bonus('dropRate'), yieldMult: y }, rng);
   const offset = present.length > 1 && rolled.events.length ? rng.int(0, present.length - 1) : 0;
-  rolled.events.forEach((ev, k) => {
-    const m = present[itemOwner(k, present.length, offset)];
+  let k = 0;
+  for (const ev of rolled.events) {
+    let m;
+    if (ev.rare && present.length > 1) {
+      const roll = rareRoll(ids, world.rareWon, rng);
+      world.rareWon = roll.won;
+      m = present[ids.indexOf(roll.winner)];
+      if (typeof ctx.emit === 'function') {
+        ctx.emit(makeEvent('rare_roll', atMs, { u: roll.winner, item: ev.id, rolls: roll.rolls, ...(roll.reroll ? { reroll: roll.reroll } : {}) }));
+      }
+    } else {
+      m = present[itemOwner(k++, present.length, offset)];
+    }
     call(m.fx, 'addItem', ev.id, 1);
     if (ev.rare) { m.state.stats = m.state.stats || {}; m.state.stats.rareDrops = (m.state.stats.rareDrops || 0) + 1; }
     call(m.fx, 'onDrop', ev);
-  });
+  }
   for (const m of present) countKill(m, kind);
   /* THE HEARTHFIND: LAST, after every other draw this kill makes, for the hero
      who landed it. The grant is hr_apply's, from its own catalogue. */
@@ -106,13 +122,13 @@ function payKill(present, killer, kind, ctx, yieldPm) {
  *   { state, hs, fx, family (the weapon family), armoured, shield, bonus(key),
  *     weakness(monsterRow) → { dropMult } }.
  * `world` is the instance world AFTER the swing (a corpse is still a unit).
- * `ctx` = { rng (the swing's `r` stream), monsters?, hearthfind? (the indexed table; the catalogue's when absent) }.
+ * `ctx` = { rng (the swing's `r` stream), monsters?, hearthfind? (the indexed table; the catalogue's when absent),
+ *   emit?(event) (the instance's world events: a party's `rare_roll`) }.
  * Answers the swing's deaths: [{ unit, atMs, monster }], in event order.
  */
 export function rewardSwing(members, events, world, ctx) {
   const unitOf = (id) => world.units.find((u) => u.id === id) || null;
-  const present = () => world.units.filter((u) => u.side === 'hero' && members.has(u.id))
-    .sort((a, b) => a.id - b.id).map((u) => members.get(u.id));
+  const presentIds = () => world.units.filter((u) => u.side === 'hero' && members.has(u.id)).map((u) => u.id).sort((a, b) => a - b);
   const deaths = [];
   for (const ev of events) {
     switch (ev.type) {
@@ -149,8 +165,8 @@ export function rewardSwing(members, events, world, ctx) {
         const t = unitOf(ev.t);
         if (!t) break;
         if (t.side === 'mon') {
-          const heroes = present();
-          if (heroes.length) payKill(heroes, members.get(ev.u) || null, t.kind, ctx, yieldOf(t));
+          const ids = presentIds();
+          if (ids.length) payKill(ids.map((id) => members.get(id)), ids, members.get(ev.u) || null, t.kind, ctx, yieldOf(t), world, ev.atMs);
         } else if (members.has(ev.t)) {
           const k = unitOf(ev.u);
           deaths.push({ unit: ev.t, atMs: ev.atMs, monster: k && k.side === 'mon' ? k.kind : '' });

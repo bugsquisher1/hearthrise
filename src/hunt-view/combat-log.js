@@ -55,6 +55,14 @@ export function lineOf(ev, n) {
     case 'status_off': return line('status', b + (ev.status === 'bleed' ? ' stops bleeding.' : ' is free of ' + ev.status + '.'));
     case 'death': return line('death', (n.isHero(ev.u) ? a : 'Your hero') + ' was killed by ' + monsterName(ev.monster) + '.');
     case 'rare_drop': return line('loot', 'Rare drop: ' + itemName(ev.item) + '!');
+    case 'rare_roll': {
+      /* the party's rare roll (party-split.js rareRoll): every eligible hero's roll, a tie's re-roll, the winner */
+      const said = (r) => Object.entries(r && typeof r === 'object' ? r : {}).map(([u, roll]) => n.name(Number(u)) + ' ' + roll).join(', ');
+      const first = said(ev.rolls);
+      if (!first) return line('loot', a + ' takes the ' + itemName(ev.item) + ': everyone else in the party has won a rare since ' + a + ' last did.');
+      const tie = ev.reroll ? ' Tie, so they roll again: ' + said(ev.reroll) + '.' : '';
+      return line('loot', 'Rare roll for the ' + itemName(ev.item) + ': ' + first + '.' + tie + ' ' + a + ' wins it.');
+    }
     case 'kill': {
       if (n.isHero(ev.t)) return line('death', b + ' dies.');
       const loot = ev.loot && typeof ev.loot === 'object' ? Object.entries(ev.loot) : [];

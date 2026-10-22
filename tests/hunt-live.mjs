@@ -49,6 +49,10 @@
 //         never the hunt): a tank with no food of its own and an "Any food" slot naming
 //         Salted Trout buys Salted Trout and nothing else, on the server's commits (the
 //         browser closed) and in the browser's prediction (viewed), every commit matching.
+//   LV-RR THE PARTY'S RARE ROLL IS THE SERVER'S (Tyler L8; rulings: loot rolls use a server-only
+//         stream): with every monster carrying rare rows, the server's commits roll rares
+//         (`rare_roll`, each Crown Shard to its winner) and the browser's prediction, which
+//         runs the loot stream on a constant, never feeds a `rare_roll` of its own.
 //   LV-R  RECONCILE: a prediction forced off the server's world is judged
 //         `diverged` at the next commit, and the reseed eases every unit onto its true
 //         tile with no frame moving a unit more than one tile.
@@ -118,7 +122,7 @@ function server(M, mis, o) {
     commit(to) {
       const r = M.AC.accrueHunt({ instance: { id: inst.id, nextSwingAtMs: inst.next_swing_at_ms, world: inst.world, worldSwing: inst.world_swing },
         window: { fromMs: inst.settled_to_ms, toMs: to }, secret: SECRET, ground: where.ground, grid: where.grid,
-        items: M.ITEMS, monsters: M.MONSTERS, members: mis });
+        items: M.ITEMS, monsters: (o && o.monsters) || M.MONSTERS, members: mis });
       if (!r.accrued) return null;
       const tl = M.HT.huntTimeline(r.track, r.events, inst.settled_to_ms, r.settledTo, to, r.units);
       for (const p of r.members) {
@@ -142,7 +146,7 @@ function server(M, mis, o) {
 function run(M, mis, spanMs, opt) {
   const o = opt || {};
   const srv = server(M, mis, o.server);
-  const E = M.LE.createLiveEngine({ items: M.ITEMS, monsters: M.MONSTERS });
+  const E = M.LE.createLiveEngine({ items: M.ITEMS, monsters: (o.server && o.server.monsters) || M.MONSTERS });
   E.seed(srv.live(mis[0].user));
   const fed = { steps: [], events: [] };
   const heroesSeen = new Map();
@@ -433,6 +437,19 @@ function rules(M) {
     }
   }
 
+  { // LV-RR: the party's rare roll is drawn on the server's loot stream only
+    const rareCat = Object.fromEntries(Object.entries(M.MONSTERS).map(([id, m]) => [id,
+      { ...m, drops: [...(m.drops || []), ...Array.from({ length: 10 }, () => ({ id: 'crown_shard', ch: 0.05 }))] }]));
+    const mis = [memberOf(M, 'a', 0, 'tank', 6), memberOf(M, 'b', 1, 'melee_dps', 6)];
+    const r = run(M, mis, 160000, { server: { monsters: rareCat } });
+    const srvRolls = r.verdicts.flatMap((x) => x.tl.hunt_events.filter((e) => e.type === 'rare_roll'));
+    const fedRolls = r.fed.events.filter((e) => e.type === 'rare_roll');
+    console.log(`  LV-RR: the server rolled ${srvRolls.length} rare(s) over ${r.verdicts.length} commits; the browser fed ${fedRolls.length} roll(s) of its own; crown shards paid ${r.srv.drops.crown_shard || 0}`);
+    ok('LV-RR', srvRolls.length > 0, 'CONTROL: the server rolled no rare in 160 s with ten 5% rows on every monster');
+    ok('LV-RR', fedRolls.length === 0, `the browser's prediction fed ${fedRolls.length} rare roll(s) drawn on its constant loot stream`);
+    ok('LV-RR', (r.srv.drops.crown_shard || 0) >= srvRolls.length, `the server paid ${r.srv.drops.crown_shard || 0} Crown Shards for ${srvRolls.length} rolls`);
+  }
+
   { // LV-W: a RESTARTED instance (no world, its swing counter kept: hr_hunt_start) runs live from its first swing
     const mis = [memberOf(M, 'a', 0, 'tank', 6)];
     const srv = server(M, mis);
@@ -575,6 +592,7 @@ const sorted = (o) => Object.fromEntries(Object.entries(o).sort());
 
 const MUTANTS = [
   ['drops rolled on the combat stream (LV-L)', 'src/core/combat-sim.js', "rng: createRng(seedOf(ctx, 'r', sw))", "rng: createRng(seedOf(ctx, 's', sw))", /^LV-L/],
+  ['the prediction shows its own rare rolls (LV-RR)', 'src/hunt-view/live-engine.js', 'sim.events.filter(predicted)', 'sim.events', /^LV-RR/],
   ['the reseed teleports (LV-R)', 'src/hunt-view/timeline.js', 'const dur = Math.max(easeMs || 250, Math.ceil(dist * EASE_MS_PER_TILE));', 'const dur = 1;', /^LV-R/],
   ['every commit reads as a match (LV-R)', 'src/hunt-view/live-engine.js', "return h === hc.world_hash ? 'match' : 'diverged';", "return 'match';", /^LV-R/],
   ['a melee hero beside its target steps to another side every repath (LV-M)', 'src/core/hunt/roles.js',

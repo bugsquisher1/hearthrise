@@ -49,9 +49,14 @@
 //              purse; sell-to-cover sells junk only, cheapest first, above the floor.
 //   ECON-1     a fresh melee hero (0 gold, the kit's food) hunts a T1 hour on store
 //              drinks without gold_out; its kill coins pay every drink.
-//   SPLIT      party-split.js: gold even with the remainder to the first, items
+//   SPLIT      party-split.js: gold even with the remainder to the first, common items
 //              round-robin; a two-hero hunt pays both, neither more than its
-//              share plus the remainders.
+//              share plus the remainders. THE RARE ROLL (Tyler L8): a rare unit goes to
+//              the highest 1-100 roll, a tie re-rolls among the tied, a winner waits
+//              until everyone in the instance has won (a leaver dropped, a joiner
+//              eligible), solo draws no die, commons keep the round-robin; a party's
+//              rares go to the same heroes however the windows are cut (the
+//              rotation rides the world), each with its `rare_roll` event.
 //   DEATH      a killed hero DIES (Tyler 2026-10-19): one death row, no recovery
 //              line, the hunt ends `died` at its next boundary, the hero walks home
 //              at full HP, the death is priced on its Level and combat skills; the
@@ -175,6 +180,7 @@ async function loadEdge(root) {
     CS: await import(u('src/core/combat-sim.js')),
     SPAWN: await import(u('src/core/hunt-spawn.js')),
     PS: await import(u('src/core/party-split.js')),
+    HR: await import(u('src/core/hunt-rewards.js')),
     WS: await import(u('src/core/hunt/world-state.js')),
     GRID: await import(u('src/core/hunt/grid.js')),
     VIT: await import(u('src/core/vitals.js')),
@@ -301,6 +307,58 @@ function runCut(M, mk, spanMs, cuts, over) {
     }
   }
   return { outs, members, world };
+}
+
+/* THE RARE ROLL (Tyler L8), on scripted dice: party-split.js rareRoll, then the one reward path
+   (hunt-rewards.js rewardSwing) for a kill that drops two commons and one rare. */
+function rareRollRules(M) {
+  const problems = [];
+  const { rareRoll } = M.PS;
+  const dice = (list) => {
+    const q = list.slice();
+    return { int: (a, b) => { if (a === b) return a; if (!q.length) throw new Error('an unscripted draw ' + a + '..' + b); return q.shift(); },
+      chance: () => true, next: () => 0.99, left: () => q.length };
+  };
+  const say = (r) => canon({ winner: r.winner, rolls: r.rolls, reroll: r.reroll, won: r.won });
+  let r = rareRoll([1, 2, 3], null, dice([40, 90, 12]));
+  if (say(r) !== canon({ winner: 2, rolls: { 1: 40, 2: 90, 3: 12 }, reroll: null, won: [2] })) problems.push('the highest roll does not win: ' + say(r));
+  let d = dice([90, 90, 12, 30, 70]);
+  r = rareRoll([1, 2, 3], null, d);
+  if (say(r) !== canon({ winner: 2, rolls: { 1: 90, 2: 90, 3: 12 }, reroll: { 1: 30, 2: 70 }, won: [2] }) || d.left()) problems.push('a tie is not re-rolled among the tied: ' + say(r));
+  r = rareRoll([1, 2, 3], [2], dice([50, 60]));
+  if (say(r) !== canon({ winner: 3, rolls: { 1: 50, 3: 60 }, reroll: null, won: [2, 3] })) problems.push('a winner rolls again before everyone has won: ' + say(r));
+  d = dice([]);
+  r = rareRoll([1, 2, 3], [2, 3], d);
+  if (say(r) !== canon({ winner: 1, rolls: {}, reroll: null, won: [2, 3, 1] })) problems.push('the last hero without a win does not take it: ' + say(r));
+  r = rareRoll([1, 2, 3], [2, 3, 1], dice([10, 20, 30]));
+  if (say(r) !== canon({ winner: 3, rolls: { 1: 10, 2: 20, 3: 30 }, reroll: null, won: [3] })) problems.push('the rotation does not start over once everyone has won: ' + say(r));
+  r = rareRoll([1, 2, 4], [2, 3], dice([5, 9]));
+  if (say(r) !== canon({ winner: 4, rolls: { 1: 5, 4: 9 }, reroll: null, won: [2, 4] })) problems.push('a leaver is kept or a joiner is not eligible: ' + say(r));
+
+  /* The reward path: commons a, b round-robin from the offset (1: unit 2 then unit 1), the rare r to the roll. */
+  const monsters = { x: { gp: [0, 0], drops: [{ id: 'a', ch: 1 }, { id: 'b', ch: 1 }, { id: 'r', ch: 0.01 }] } };
+  const kill = (heroes, script, rareWon) => {
+    const got = []; const events = [];
+    const world = { units: [...heroes.map((id) => ({ id, side: 'hero' })), { id: 9, side: 'mon', kind: 'x' }], rareWon: rareWon ?? null };
+    const members = new Map(heroes.map((id) => [id, { unitId: id, state: {}, hs: { tally: { kills: 0 } }, bonus: () => 0, weakness: () => ({ dropMult: 1 }),
+      fx: { addItem: (item) => got.push(item + '>' + id) } }]));
+    const rng = dice(script);
+    M.HR.rewardSwing(members, [{ type: 'kill', u: heroes[0], t: 9, atMs: 5000 }], world,
+      { rng, monsters, hearthfind: false, emit: (e) => events.push(e) });
+    return { got: got.join(' '), events, world, left: rng.left() };
+  };
+  const two = kill([1, 2], [1, 70, 30]);
+  if (two.got !== 'a>2 b>1 r>1') problems.push(`a party kill paid ${two.got}, want the commons round-robin (a>2 b>1) and the rare to the 70 (r>1)`);
+  const ev = two.events[0];
+  if (two.events.length !== 1 || !ev || ev.type !== 'rare_roll' || ev.u !== 1 || ev.item !== 'r' || canon(ev.rolls) !== canon({ 1: 70, 2: 30 }) || ev.atMs !== 5000) {
+    problems.push('the rare roll event is ' + canon(two.events));
+  }
+  if (canon(two.world.rareWon) !== '[1]' || two.left) problems.push(`the world's rotation is ${canon(two.world.rareWon)} (want [1]), ${two.left} draws unspent`);
+  const next = kill([1, 2], [1], [1]);
+  if (next.got !== 'a>2 b>1 r>2' || canon(next.events[0] && next.events[0].rolls) !== '{}') problems.push(`the next rare went ${next.got} (the winner must wait: r>2, no dice)`);
+  const solo = kill([1], []);
+  if (solo.got !== 'a>1 b>1 r>1' || solo.events.length || solo.world.rareWon !== null) problems.push(`a solo kill paid ${solo.got} with ${solo.events.length} roll events (the hero takes all, no die, no rotation)`);
+  return problems;
 }
 
 const ENGINE_ARMS = {
@@ -654,6 +712,7 @@ const ENGINE_ARMS = {
       }
     }
     if ([0, 1, 2, 3, 4].map((k) => itemOwner(k, 3, 2)).join() !== '2,0,1,2,0') problems.push('items do not go round-robin from the offset');
+    problems.push(...rareRollRules(M));
     /* Two heroes: both are paid, and neither more than its share plus the remainders (one a kill). */
     const out = runCut(M, () => [memberIn(M, 'a', { unitId: null, seat: 0, partyRoles: ['melee_dps', 'melee_dps'] }),
       memberIn(M, 'b', { unitId: null, seat: 1, partyRoles: ['melee_dps', 'melee_dps'] })], 900000, []);
@@ -668,6 +727,34 @@ const ENGINE_ARMS = {
     if (!(g.a > 0 && g.b > 0) || Math.abs(g.a - g.b) > kills) problems.push(`gold split ${JSON.stringify(g)} over ${kills} kills is not even`);
     if (!(items.a > 0 && items.b > 0)) problems.push(`loot went to one hero only: ${JSON.stringify(items)}`);
     if (ms.filter((x) => x.key === 'b').reduce((a, x) => a + x.delta.journal.meta.kills, 0) !== kills) problems.push('the two heroes journalled different kill counts for one instance');
+    /* THE RARE ROLL, BOTH PATHS: the cellar's rats carry ten 5% Crown Shard rows (each a rare). One span (the browser
+       closed) and the same hunt cut at odd instants (viewed) roll the same rares to the same heroes, each Crown Shard
+       is the roll winner's, and with two heroes the rotation alternates: a roll, then the other hero's without dice. */
+    const rat = M.MONSTERS.rat;
+    const rareCat = { ...M.MONSTERS, rat: { ...rat, drops: [...rat.drops, ...Array.from({ length: 10 }, () => ({ id: 'crown_shard', ch: 0.05 }))] } };
+    const pair = () => [memberIn(M, 'a', { unitId: null, seat: 0, partyRoles: ['melee_dps', 'melee_dps'] }),
+      memberIn(M, 'b', { unitId: null, seat: 1, partyRoles: ['melee_dps', 'melee_dps'] })];
+    const rareRun = (cuts) => {
+      const o = runCut(M, pair, 900000, cuts, { monsters: rareCat });
+      const rolls = o.outs.flatMap((x) => x.events.filter((e) => e.type === 'rare_roll'));
+      const shards = { a: 0, b: 0 };
+      for (const x of o.outs.flatMap((y) => y.members)) shards[x.key] += (x.delta.items || {}).crown_shard || 0;
+      const unitOf = Object.fromEntries(o.outs.flatMap((y) => y.members).filter((x) => Number.isInteger(x.hunt.unit_id)).map((x) => [x.hunt.unit_id, x.key]));
+      return { rolls, shards, unitOf };
+    };
+    const span = rareRun([]);
+    const viewed = rareRun([T0 + 7001, T0 + 33333, T0 + 101101, T0 + 250007, T0 + 499999, T0 + 777777]);
+    const won = { a: 0, b: 0 };
+    for (const e of span.rolls) won[span.unitOf[e.u]] = (won[span.unitOf[e.u]] || 0) + 1;
+    if (!(span.rolls.length >= 4)) problems.push(`CONTROL: the pair rolled for ${span.rolls.length} rares in 15 minutes`);
+    if (canon(won) !== canon(span.shards)) problems.push(`the Crown Shards went ${canon(span.shards)} but the rolls were won ${canon(won)}`);
+    span.rolls.forEach((e, i) => {
+      const odd = i % 2 === 1;
+      if (odd && (e.u === span.rolls[i - 1].u || canon(e.rolls) !== '{}')) problems.push(`rare roll ${i} went to ${e.u} with ${canon(e.rolls)} after ${span.rolls[i - 1].u} won (the other hero, no dice)`);
+      if (!odd && Object.keys(e.rolls).length !== 2) problems.push(`rare roll ${i} rolled ${canon(e.rolls)} (a fresh rotation: both heroes roll)`);
+    });
+    const sig = (r) => canon({ rolls: r.rolls.map((e) => [e.atMs, e.u, e.item, e.rolls, e.reroll || null]), shards: r.shards });
+    if (sig(span) !== sig(viewed)) problems.push(`the viewed cut rolled differently from one span ${firstDiff(sig(span), sig(viewed))}`);
     return problems;
   },
 
@@ -1621,6 +1708,14 @@ const MUTANTS = [
     from: '  out[0] += t - each * k;', to: '' },
   { arm: 'SPLIT', name: 'every item goes to the first hero', file: 'src/core/party-split.js',
     from: '  return (((o + Math.floor(Number(k))) % m) + m) % m;', to: '  return 0;' },
+  { arm: 'SPLIT', name: 'a rare goes round-robin like a common (no rare roll)', file: 'src/core/hunt-rewards.js',
+    from: '    if (ev.rare && present.length > 1) {', to: '    if (false) {' },
+  { arm: 'SPLIT', name: 'a winner may win again before everyone has', file: 'src/core/party-split.js',
+    from: '  if (ids.every((id) => had.includes(id))) had = [];', to: '  had = [];' },
+  { arm: 'SPLIT', name: 'a tie goes to the lowest unit (no re-roll)', file: 'src/core/party-split.js',
+    from: '      if (tied.length === 1 || round + 1 >= maxRounds) { winner = tied[0]; break; }', to: '      { winner = tied[0]; break; }' },
+  { arm: 'SPLIT', name: 'the rotation is not carried across a settle cut', file: 'src/core/party-split.js',
+    from: "world: Object.freeze([['rareWon', 'json']])", to: 'world: Object.freeze([])' },
   { arm: 'SPLIT', name: 'only the killer counts the kill', file: 'src/core/hunt-rewards.js',
     from: '  for (const m of present) countKill(m, kind);', to: '  countKill(lead, kind);' },
   { arm: 'DEATH', name: 'a death does not end the hunt', file: 'src/core/action-rules.js',

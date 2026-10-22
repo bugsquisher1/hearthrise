@@ -42,7 +42,7 @@ export function renderHuntPrep() {
   return '<div class="hw-prep">'
     + '<h3 class="hw-ledger-head is-on">Ready to hunt?</h3><ul class="hw-ready"></ul>'
     + '<h3 class="hw-ledger-head is-on">Saved setups</h3>'
-    + '<p class="hs-note">A setup is a whole loadout: its own action bar and the gear it wears. The bar always shows the setup in use, and changing the bar changes that setup.</p>'
+    + '<p class="hs-note">A setup is a whole loadout: its own action bar and the gear it wears. The bar always shows the setup in use, and changing the bar changes that setup. To make another, save what you have on as a new setup, then change it.</p>'
     + '<ul class="hw-ledger hw-presets"></ul><p class="hh-empty hw-presets-none"></p>'
     + '<p class="hs-note hw-town-only">Setups change in town. This hunt keeps the bar it set off with.</p>'
     + '<div class="hw-add"><input type="text" class="hh-num hw-preset-name" maxlength="24" placeholder="Name this setup" aria-label="Setup name" data-hs-act="preset-name">'

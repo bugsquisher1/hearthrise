@@ -56,9 +56,6 @@ import {
   COLLECTION_KEY_PREFIX, COLLECTION_ID_RE,
   lootKey, makeCollectionCounter, collectionProgressOps,
 } from '../src/core/goals.js';
-/* W0: quest types that read a server STATE (not an ev: counter) — client-only, so
-   they live in the data catalogue rather than the edge-packed goals module. */
-import { STATE_GOAL_TYPES, QUEST_REWARDS } from '../src/data/goal-catalogue.js';
 import { MONSTERS } from '../src/data/monsters.js';
 import { ITEMS } from '../src/data/items.js';
 import { TREES, ROCKS, FISH_SPOTS } from '../src/data/gathering.js';
@@ -83,12 +80,6 @@ let engineMod = null;
 let goalsMod = { GOAL_EVENTS, UNCOUNTED_EVENTS, MAX_GOAL_ADD, utcDayKey, makeGoalCounter, goalProgressOps,
   BESTIARY_EVENT, BESTIARY_KEY_PREFIX, BESTIARY_ID_RE, bestiaryKey, makeBestiaryCounter, bestiaryProgressOps,
   COLLECTION_KEY_PREFIX, COLLECTION_ID_RE, lootKey, makeCollectionCounter, collectionProgressOps };
-
-/* The STATE goal types G2(b) exempts, read from src/data/goal-catalogue.js on EVERY
-   path (plain, --mutate, HR_MUTANT_CONTROL). Held apart from goalsMod because a
-   goals/accrual mutant rebinds goalsMod to a goals.js copy that never carried them;
-   only the catalogue mutant (M14) swaps this one. */
-let stateGoalTypes = STATE_GOAL_TYPES;
 
 let problems = [];
 const ok = (cond, msg) => { if (!cond) problems.push(msg); };
@@ -301,31 +292,11 @@ async function runOn(db, patches) {
         + 'moves. See src/core/goals.js.');
     }
 
-    /* The authored side: the server catalogue the claims grade against
-       (src/data/goal-catalogue.js QUEST_REWARDS checkKey). It was the old client's
-       QUEST_DEFS until the client reset (2026-10-17); the dailies left with the
-       2026-10-14 demolition. The catalogue is the only authored copy now. */
-    const authored = [
-      ['QUEST_REWARDS', Object.values(QUEST_REWARDS).map((r) => String(r.checkKey || ''))],
-    ];
-    const stateTypes = (stateGoalTypes && typeof stateGoalTypes === 'object') ? stateGoalTypes : {};
-    for (const [name, keys] of authored) {
-      ok(keys.length >= 4, `G2 CONTROL: ${name} yielded ${keys.length} authored goals, expected at least 4`);
-      for (const k of keys) {
-        const t = k.startsWith('ev:') ? k.slice(3) : k;
-        const isState = Object.prototype.hasOwnProperty.call(stateTypes, t);
-        ok(G.GOAL_EVENTS.includes(t) || isState,
-          `G2(b): ${name} authors a goal counted by '${k}', which is NOT in GOAL_EVENTS — the server `
-          + 'can never mint a counter for it, so that goal would sit at 0 forever on an away '
-          + 'night. Add it to src/core/goals.js (and check an emit site exists).');
-      }
-    }
-    // No authored goal may be target-scoped: the counter key carries no target.
-    for (const [id, r] of Object.entries(QUEST_REWARDS)) {
-      ok(!('target' in r),
-        `G2(c): '${id}' authors a goal with a \`target\` — the counter key shape is 'ev:<type>' and `
-        + 'carries no target, so that goal would read a count of EVERY kill. Extend the key shape first.');
-    }
+    /* The authored side (G2(b), G2(c)) left with the last authored goal catalogue: the
+       quests were cut with every old-client reward (Tyler 2026-10-22; the dailies went
+       in the 2026-10-14 demolition, the goal board on 2026-10-16). The counters stay
+       (the Bestiary, the collection read and the edge read them); a revived reward
+       catalogue is red in tests/old-rewards-gone.mjs. */
     // The negative control: an unknown counter must not pass as a goal event.
     ok(!G.GOAL_EVENTS.includes('hr353_negative_control_this_type_is_not_authored'),
       'G2 NEGATIVE CONTROL: a sentinel matched GOAL_EVENTS — the check cannot see a failure');
@@ -1034,8 +1005,8 @@ const MUTATIONS = [
   /* (M14, the STATE goal-type mutant, retired with the client on 2026-10-17: the only
      state goal — the property step — was authored by the old client, so no authored
      goal reads a STATE type and the exemption pins nothing.) */
-  /* G2(b) still bites for an EVENT goal: drop 'harvest' from GOAL_EVENTS and the
-     authored farmhand step (type 'harvest', not a STATE type) must be caught. */
+  /* An emitted event type dropped from GOAL_EVENTS (core's farm harvest emit) must be
+     caught by G2(a): the authored side that also caught it left with the quests. */
   { name: 'M15 goals: an authored event type (harvest) is missing from GOAL_EVENTS',
     file: 'goals', from: "  'harvest',    // farm\n", to: "" },
   { name: 'M13 combat: the collection ops never reach the delta',
@@ -1062,19 +1033,6 @@ async function loadMutant(m) {
   const fnUrl = pathToFileURL(join(ROOT, 'supabase', 'functions', 'hr-accrue', 'x')).href.replace(/x$/, '');
   const stamp = `${process.pid}-${Date.now()}`;
 
-  /* A catalogue mutant swaps ONLY STATE_GOAL_TYPES into the real goals bundle: the
-     catalogue is pure ESM with no imports, so a temp copy loads as-is. */
-  if (m.file === 'catalogue') {
-    let src = await readFile(join(ROOT, 'src', 'data', 'goal-catalogue.js'), 'utf8');
-    if (!src.includes(m.from)) throw new Error(`MUTATION HARNESS: ${m.name} — anchor not found in goal-catalogue.js`);
-    if (!CONTROL) src = src.replace(m.from, m.to);
-    const f = join(tmpdir(), `hr-goal-catalogue-mutant-${stamp}.mjs`);
-    await writeFile(f, src, 'utf8');
-    try {
-      const cm = await import(pathToFileURL(f).href);
-      return { engine: computeAccrualFn, goals: goalsMod, stateTypes: cm.STATE_GOAL_TYPES };
-    } finally { await unlink(f).catch(() => {}); }
-  }
   let goalsSrc = await readFile(GOALS_PATH, 'utf8');
   let engineSrc = await readFile(ENGINE_PATH, 'utf8');
   let memberSrc = await readFile(MEMBER_PATH, 'utf8');
@@ -1136,10 +1094,9 @@ async function mutate() {
     computeAccrualFn = loaded.engine;
     engineMod = loaded.mod || null;
     goalsMod = loaded.goals;
-    if (loaded.stateTypes) stateGoalTypes = loaded.stateTypes;
     try { await run(null); }
     catch (e) { problems.push(`threw: ${String(e?.message || e).split('\n')[0]}`); }
-    finally { computeAccrualFn = realEngine; engineMod = null; goalsMod = realGoals; stateGoalTypes = STATE_GOAL_TYPES; }
+    finally { computeAccrualFn = realEngine; engineMod = null; goalsMod = realGoals; }
     const rssMb = process.memoryUsage().rss / 1048576;
     if (rssMb > RUN_RSS_CEILING_MB) {
       escapes.push(`RSS ${rssMb.toFixed(0)} MB after ${m.name.split(' ')[0]} exceeds ${RUN_RSS_CEILING_MB} MB — an arm is leaking its database`);

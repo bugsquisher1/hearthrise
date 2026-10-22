@@ -27,7 +27,7 @@ import { SHOP_LISTED_OFFER_IDS } from '../data/supply-basics.js?v=0.2.29';
 
 const skillName = (id) => (SKILLS_DEF[id] && SKILLS_DEF[id].name) || id;
 const RARITY = Object.freeze({ common: 'Common', uncommon: 'Uncommon', rare: 'Rare', epic: 'Epic', legendary: 'Legendary', mythic: 'Mythic', unique: 'Unique' });
-const TYPE = Object.freeze({ weapon: 'Weapon', armor: 'Armour', jewelry: 'Jewellery', tool: 'Tool', companion: 'Companion', trophy: 'Trophy' });
+const TYPE = Object.freeze({ weapon: 'Weapon', armor: 'Armour', jewelry: 'Jewellery', tool: 'Tool', trophy: 'Trophy' });
 
 /** "A, B and C", or "A, B, C and 4 more" past `max`. */
 export function listWords(names, max = 3) {

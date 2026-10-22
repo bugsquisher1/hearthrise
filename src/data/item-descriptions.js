@@ -193,7 +193,6 @@ export const ITEM_DESC = {
   'field_ration': 'A dense travel loaf packed for the march, refined food the castle accepts',
   /* "Deep Seam" — the nine verdite rows (alphabetical, like the rest). */
   'flux_salt': 'Bitter grey crust scraped from a deep pocket, the flux that makes verdite pour clean',
-  'fox_companion': 'A loyal fox at your side, lending a little strength and lore',
   'frostfin': 'A pale fish from ice-water depths, raw and chill, steadies you when cooked',
   'goblin_ear': 'A severed goblin ear, grisly proof of the kill, worth a few coins',
   'goblin_totem': 'A crude idol carved by goblin shamans, a warcamp trophy',

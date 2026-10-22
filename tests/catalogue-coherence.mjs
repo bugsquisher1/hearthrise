@@ -102,7 +102,6 @@ export const PENDING_SOURCE = Object.freeze({
   apprentice_wand:   'cut: a stat copy of the bound Practice Wand (merge rung 1 into the practice kit), systems-engineer',
   apprentice_primer: 'cut: a stat copy of the bound Practice Spellbook (merge rung 1 into the practice kit), systems-engineer',
   stone_maul:        'cut: a stat copy of the bound Practice Club (merge rung 1 into the practice kit), systems-engineer',
-  fox_companion:     'Tyler: cut the stat companion slot (designer recommends the cut)',
 });
 export const PENDING_CONSUMER = Object.freeze({
   prayer: 'w0e — Prayer does something in a fight (audit top-10 #8)',
@@ -164,7 +163,7 @@ export function check({ read = realRead, unreachable = UNREACHABLE } = {}) {
     for (const g of o.grant || []) {
       const it = ITEMS[g.id] || {};
       if (EQUIP_TYPES[it.type] && Number(it.tier) >= 2) loud.push(`${o.id} (tier ${it.tier})`);
-      if (EQUIP_TYPES[it.type] && Number(it.reqLv) > 1 && it.type !== 'companion') loud.push(`${o.id} (req ${it.reqSkill} ${it.reqLv})`);
+      if (EQUIP_TYPES[it.type] && Number(it.reqLv) > 1) loud.push(`${o.id} (req ${it.reqSkill} ${it.reqLv})`);
     }
   }
   if (loud.length) fails.push(`C6 the Local Shop sells past-starter gear, undercutting Smithing/Crafting: ${loud.join(', ')}`);
@@ -335,7 +334,7 @@ function mutate() {
     return { restore: () => { for (const id of was) SHOP_LISTED_OFFER_IDS.add(id); } };
   });
   run('a stale PENDING_SOURCE row (the cut item gains a source)', 'C1', () => {
-    MONSTERS.slime.drops.push({ id: 'fox_companion', ch: 0.001 });
+    MONSTERS.slime.drops.push({ id: 'stone_maul', ch: 0.001 });
     return { restore: () => { MONSTERS.slime.drops.pop(); } };
   });
   run('a dropped item with no use', 'C2', () => {

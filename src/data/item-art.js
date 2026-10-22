@@ -165,7 +165,7 @@ export const SHIPPED = Object.freeze({
     'duskwood_log', 'earth_rune', 'elderscale_heart', 'ember_bar',
     'emberfang_blade', 'emberstone_ore', 'fang_studs', 'fangdart_recurve',
     'field_cookbook', 'field_ration', 'fine_rune_blank', 'fire_rune',
-    'fox_companion', 'goblin_ear',
+    'goblin_ear',
     'goblin_totem', 'gold_amulet', 'gold_bar', 'gold_ore', 'gold_ring',
     'grave_dust', 'hearth_token', 'hell_ember', 'hollow_sigil',
     'hollow_sigil_ring', 'houndskin_cloak', 'hunter_necklace', 'iron_bar', 'iron_fitting',

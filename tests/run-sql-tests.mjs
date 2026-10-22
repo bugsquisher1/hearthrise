@@ -1183,7 +1183,9 @@ const CLIENT_CALLABLE = new Map([
      creation, which is why they stay listed). Their replacement is the one
      read of the server's period counters for the daily-quest sheet and Home's
      Your week card: own character only, rate-gated (hr_tally_state 120/min),
-     baselined, NOT granted to hr_engine. */
+     baselined, NOT granted to hr_engine. 2026-12-02-old-rewards-cut.sql drops it
+     at the chain end with the daily goals (Tyler 2026-10-22); its creating files
+     still grant it, so it stays listed like the two above. */
   ['hr_tally_state', ['authenticated']],
   /* 2026-08-23-trait-buy.sql — the permanent-TRAIT purchase. The caller sends a
      trait id and a slot and NOTHING else: price, currency and prerequisite are

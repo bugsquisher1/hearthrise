@@ -28,7 +28,7 @@ import { ABILITIES } from '../../data/abilities.js?v=0.2.27';
 import { CONSUME_KINDS, ATTACK_KINDS } from '../../data/condition-metrics.js?v=0.2.27';
 import { huntOf, settingsOf, wireSlot } from '../../session/hunt-sections.js?v=0.2.27';
 import { bagOf } from '../../session/item-sections.js?v=0.2.27';
-import { text, cls, attr, element, keyedChild } from '../../render/paint.js?v=0.2.27';
+import { text, cls, attr, prop, element, keyedChild } from '../../render/paint.js?v=0.2.27';
 import { whole } from '../../render/format.js?v=0.2.27';
 import { glyphSvg } from '../launcher.js?v=0.2.27';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.27';
@@ -40,6 +40,8 @@ import { resetConfigureView } from '../windows/configure-action.js?v=0.2.27';
 import { assignToBar, barKind } from '../bar-assign.js?v=0.2.27';
 import { DRAG_TYPE } from '../windows/inventory/actions.js?v=0.2.27';
 import { refusalWords } from '../intent-words.js?v=0.2.27';
+import { nameEditorHtml, openNameEditor, nameKey } from '../inline-name.js?v=0.2.27';
+import { renameActionSet } from '../../session/preset-intents.js?v=0.2.27';
 import { targetOptionsHtml, stanceButtonsHtml, distanceHtml, goldFloorHtml, patchControls, sendOption } from './settings-intent.js?v=0.2.27';
 
 const SLOTS = BAR_SLOTS.rows * BAR_SLOTS.cols;
@@ -50,6 +52,7 @@ const PRESS = new WeakMap();   // the bar element -> { timer, held }
 const DROP = new WeakMap();    // the bar element -> { from, to, off } while the drop menu is open
 const PANEL = new WeakMap();   // the bar element -> the open sheet's listener cleanup (phone)
 const CASTS = new WeakMap();   // the bar element -> { cs, off, at: Map(ability -> client ms of the hero's last cast) }
+const RENAMING = new WeakSet(); // the bar elements whose set rename is with the server (its name control stays off)
 
 /* THE COOLDOWN EMBER (the sim's, Tyler 10-19): when the server's timeline plays the viewed hero's
    `cast` of an ability, its slot cools for that ability's catalogue cooldown (cdMs, the clock the
@@ -106,7 +109,8 @@ export function renderActionBar(ctx) {
     + hubHtml(g)
     + '<ol class="hb-slots" aria-label="Slots 6 to 10 and 16 to 20">' + side(true) + '</ol>'
     + '<div class="hb-plaque">'
-    + '<div class="hb-pl-row"><span class="hb-label">Action set</span><b class="hb-set"></b>'
+    /* The set's name renames in place (inline-name.js; ONE hr_action_set_rename, ruling C4). */
+    + '<div class="hb-pl-row"><span class="hb-label">Action set</span><span class="hb-set">' + nameEditorHtml('set-rename', '', 'New name for this action set') + '</span>'
     + '<button type="button" class="hh-tool" data-hs-act="setups" aria-label="Saved setups: switch or save">' + glyphSvg(g, 'uiCheck') + '</button>'
     /* On a phone the rest of the panel is a slide-out sheet (hunt.css): this opens it. */
     + '<button type="button" class="hh-tool hb-more" data-hs-act="panel" aria-expanded="false" aria-label="Fight settings">' + glyphSvg(g, 'uiSettings') + '</button></div>'
@@ -202,7 +206,9 @@ renderActionBar.patch = function patchActionBar(el, ctx) {
     patchCooldown(li, sl, casts, now);
   }
   const set = s && s.presets.find((p) => p.preset === s.preset);
-  text(el.querySelector('.hb-set'), set ? set.name : s ? 'Set ' + (s.preset + 1) : '–');
+  const nm = el.querySelector('.hb-set');
+  text(nm.querySelector('.hs-name-t'), set ? set.name : s ? 'Set ' + (s.preset + 1) : '–');
+  for (const c of nm.querySelectorAll('button, input')) prop(c, 'disabled', !s || RENAMING.has(el));
   patchControls(el.querySelector('.hb-plaque'), cs);
   const tip = el.querySelector('.hb-tip.is-on');
   if (tip) { const i = tip.getAttribute('data-for'); attr(tip, 'data-for', null); const li = el.querySelector('.hb-slot[data-slot="' + i + '"]'); if (li) showTip(el, li, ctx); }
@@ -299,6 +305,27 @@ function closeDropMenu(el) {
   cls(el.querySelector('.hb-drop'), 'is-on', false);
 }
 
+/* A key in the set's name field: Enter sends ONE rename of the set the bar shows (the server's preset) and the
+   field closes; the plaque keeps the old name until the re-read carries the new one. Escape puts it back. */
+function renameSet(ctx, el, ev, t) {
+  const k = nameKey(ev);
+  if (!k) return false;
+  const nm = el.querySelector('.hb-set'), name = t.value.trim(), s = settingsOf(ctx.character);
+  cls(nm, 'is-naming', false);
+  t.blur();
+  if (k !== 'commit' || !s || !name || name === nm.querySelector('.hs-name-t').textContent) return true;
+  const msg = el.querySelector('.hb-plaque .hh-intent-msg');
+  RENAMING.add(el);
+  text(msg, 'Renaming…');
+  renderActionBar.patch(el, ctx);
+  answerWithin(() => renameActionSet(ctx.account, ctx.character, s.preset, name)).then((r) => {
+    RENAMING.delete(el);
+    text(msg, r.ok ? '' : r.error === 'timeout' ? barRefusalWords(r.error) : refusalWords(r.error));
+    renderActionBar.patch(el, ctx);
+  });
+  return true;
+}
+
 function openOn(ctx, i) {
   openSlot(ctx.character, i);
   resetConfigureView(ctx.character);
@@ -314,6 +341,13 @@ renderActionBar.act = function actActionBar(ctx, el, action, ev, t) {
     sendOption(ctx, el.querySelector('.hb-plaque'), t, () => renderActionBar.patch(el, ctx));
     return;
   }
+  if (action === 'set-rename' && ev.type === 'click') {
+    const s = settingsOf(ctx.character);
+    const nm = el.querySelector('.hb-set');
+    if (s && !RENAMING.has(el)) openNameEditor(nm, nm.querySelector('.hs-name-t').textContent, () => cls(nm, 'is-naming', false));
+    return;
+  }
+  if (action === 'set-rename-key') return renameSet(ctx, el, ev, t);
   if (action === 'setups' && ev.type === 'click') { ctx.show('hunt-prep'); return; }
   if (action === 'panel' && ev.type === 'click') { setPanel(ctx, el, !PANEL.has(el)); return; }
   if (action === 'drop' && ev.type === 'click') {

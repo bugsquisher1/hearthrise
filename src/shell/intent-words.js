@@ -68,6 +68,8 @@ const WORDS = Object.freeze({
   activity_running: 'Your hero is busy with something else (burying, say). Stop it in the Inventory first.',
   unknown_hunt: 'The server does not know that hunt.',
   unknown_preset: 'That action set is gone. Pick another under Saved setups.',
+  /* Naming a saved setup or an action set (2026-11-15-preset-names.sql). */
+  bad_preset_name: 'Names are 1 to 24 characters, and some words are not allowed.',
   unknown_supply: 'One of the things packed is not a hunt supply.',
   bad_bag: 'The packed supplies were not valid, so nothing was sent.',
   too_many_lines: 'Too many kinds of supplies packed.',

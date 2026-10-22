@@ -304,6 +304,11 @@
 .hw-checks { margin: 4px 0 0; padding: 0 0 0 14px; font-size: var(--t-micro); color: var(--ink-2); }
 .hw-check.is-short { color: var(--red); }
 .hw-use { color: var(--gold-2); }
+/* A setup's Delete asks once: "Delete it?" in red with Keep beside it, in the place Save here and Use stood. */
+.hw-keep { display: none; }
+.hw-setup.is-arming .hw-keep { display: inline-block; }
+.hw-setup.is-arming .hw-del { color: var(--red); }
+.hw-setup.is-arming [data-hs-act="save-over"], .hw-setup.is-arming .hw-use { display: none; }
 
 /* ── Phone, landscape: the one sheet; the same density, tighter rhythm ── */
 @media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {

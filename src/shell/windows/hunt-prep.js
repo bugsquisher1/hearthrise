@@ -8,7 +8,10 @@
 //              the worn gear. Use = ONE hr_hunt_preset_apply (the server wears
 //              the gear from the bag and switches the set); Save here = ONE hr_hunt_preset_save of what the
 //              character has now (the server snapshots its own state, the
-//              client sends a slot number and a name).
+//              client sends a slot number and a name). The name renames in
+//              place (inline-name.js: ONE hr_hunt_preset_rename); Delete asks
+//              once on the same button, then sends ONE hr_hunt_preset_delete
+//              (src/session/preset-intents.js; ruling C4).
 //   Ready?     every open character's checklist (src/shell/readiness.js), with
 //              what is short in one line. Supplies are never bought here: the
 //              action bar pays the store per use (Tyler 2026-10-20).
@@ -16,13 +19,16 @@
 // flight, and changes show only from the re-read envelope.
 // ════════════════════════════════════════════════════════════════════════
 import { presetsOf } from '../../session/item-sections.js?v=0.2.27';
+import { renameSetup, deleteSetup } from '../../session/preset-intents.js?v=0.2.27';
 import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.27';
 import { runIntent } from '../intent-words.js?v=0.2.27';
+import { nameEditorHtml, openNameEditor, nameKey } from '../inline-name.js?v=0.2.27';
 import { readinessOf, readinessLine } from '../readiness.js?v=0.2.27';
 
 const MAX_PRESETS = 8;
 const SCRATCH = new WeakMap();
-const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { pending: false, msg: '' }; SCRATCH.set(cs, s); } return s; };
+/* `naming`: the setup whose name field is open; `arming`: the setup whose Delete asked "Delete it?". */
+const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { pending: false, msg: '', naming: null, arming: null }; SCRATCH.set(cs, s); } return s; };
 
 /** The skeleton (built once per opening). */
 export function renderHuntPrep() {
@@ -38,6 +44,15 @@ export function renderHuntPrep() {
 
 function readyRow(ctx) {
   return element(ctx.doc, '<li class="hw-ready-row"><p class="hw-ready-line"><b></b></p><ul class="hw-checks"></ul></li>');
+}
+
+function setupRow(ctx, p) {
+  const at = ' data-preset="' + p.preset + '"';
+  return element(ctx.doc, '<li class="hw-line hw-setup"><span class="hw-line-name">' + nameEditorHtml('rename', at, 'New name for this setup') + '<small></small></span>'
+    + '<button type="button" class="hh-tool" data-hs-act="save-over"' + at + '>Save here</button>'
+    + '<button type="button" class="hh-tool hw-use" data-hs-act="apply"' + at + '>Use</button>'
+    + '<button type="button" class="hh-tool hw-del" data-hs-act="delete"' + at + '>Delete</button>'
+    + '<button type="button" class="hh-tool hw-keep" data-hs-act="keep"' + at + '>Keep</button></li>');
 }
 
 renderHuntPrep.patch = function patchHuntPrep(body, ctx) {
@@ -62,14 +77,17 @@ renderHuntPrep.patch = function patchHuntPrep(body, ctx) {
   const presets = presetsOf(cs);
   rows(root.querySelector('.hw-presets'), presets || [], {
     key: (p) => String(p.preset),
-    build: (p) => element(ctx.doc, '<li class="hw-line"><span class="hw-line-name"><b></b><small></small></span>'
-      + '<button type="button" class="hh-tool" data-hs-act="save-over" data-preset="' + p.preset + '">Save here</button>'
-      + '<button type="button" class="hh-tool hw-use" data-hs-act="apply" data-preset="' + p.preset + '">Use</button></li>'),
+    build: (p) => setupRow(ctx, p),
     patch: (li, p) => {
-      text(li.querySelector('b'), p.name);
+      text(li.querySelector('.hs-name-t'), p.name);
       const gearN = Object.keys(p.gear).length;
       text(li.querySelector('small'), (p.actionSet !== null ? 'Action set ' + (p.actionSet + 1) + ' · ' : '') + gearN + (gearN === 1 ? ' piece' : ' pieces') + ' of gear');
-      for (const b of li.querySelectorAll('button')) prop(b, 'disabled', sc.pending);
+      cls(li, 'is-naming', sc.naming === p.preset);
+      /* Delete asks once on the same button ("Delete it?", with Keep beside it); the second press sends. */
+      const armed = sc.arming === p.preset;
+      cls(li, 'is-arming', armed);
+      text(li.querySelector('.hw-del'), armed ? 'Delete it?' : 'Delete');
+      for (const b of li.querySelectorAll('button, input')) prop(b, 'disabled', sc.pending);
     },
   });
   const none = root.querySelector('.hw-presets-none');
@@ -81,14 +99,32 @@ renderHuntPrep.patch = function patchHuntPrep(body, ctx) {
 };
 
 renderHuntPrep.act = function actHuntPrep(ctx, body, action, ev, t) {
-  if (ev.type !== 'click') return false;
   const cs = ctx.character;
   const sc = scratchOf(cs);
   const repaint = () => renderHuntPrep.patch(body, ctx);
-  if (action === 'apply') { runIntent(sc, repaint, () => cs.applyPreset(Number(t.getAttribute('data-preset'))), 'Putting the setup on…', () => 'Setup on.'); return true; }
+  if (action === 'rename-key') return renameKey(ctx, ev, t, sc, repaint);
+  if (ev.type !== 'click') return false;
+  const preset = Number(t.getAttribute('data-preset'));
+  const setup = (presetsOf(cs) || []).find((x) => x.preset === preset);
+  if (action !== 'delete' && sc.arming !== null) { sc.arming = null; repaint(); }
+  if (action === 'rename') {
+    if (!setup || sc.pending) return true;
+    sc.naming = setup.preset;
+    repaint();
+    openNameEditor(t.closest('.hw-setup'), setup.name, () => { if (sc.naming === setup.preset) { sc.naming = null; repaint(); } });
+    return true;
+  }
+  if (action === 'keep') return true;
+  if (action === 'delete') {
+    if (!setup) return true;
+    if (sc.arming !== setup.preset) { sc.arming = setup.preset; repaint(); return true; }
+    sc.arming = null;
+    runIntent(sc, repaint, () => deleteSetup(ctx.account, cs, setup.preset), 'Deleting…', () => 'Deleted ' + setup.name + '.');
+    return true;
+  }
+  if (action === 'apply') { runIntent(sc, repaint, () => cs.applyPreset(preset), 'Putting the setup on…', () => 'Setup on.'); return true; }
   if (action === 'save-over') {
-    const p = (presetsOf(cs) || []).find((x) => x.preset === Number(t.getAttribute('data-preset')));
-    if (p) runIntent(sc, repaint, () => cs.savePreset(p.preset, p.name), 'Saving…', () => 'Saved over ' + p.name + '.');
+    if (setup) runIntent(sc, repaint, () => cs.savePreset(setup.preset, setup.name), 'Saving…', () => 'Saved over ' + setup.name + '.');
     return true;
   }
   if (action === 'save-new') {
@@ -103,3 +139,21 @@ renderHuntPrep.act = function actHuntPrep(ctx, body, action, ev, t) {
   }
   return false;
 };
+renderHuntPrep.events = Object.freeze(['keydown']);
+
+/* A key in a setup's name field: Enter sends ONE rename (the field closes; the new name shows from the
+   re-read), Escape puts the name back. Any other key is the player typing. */
+function renameKey(ctx, ev, t, sc, repaint) {
+  const k = nameKey(ev);
+  if (!k) return false;
+  const preset = Number(t.getAttribute('data-preset'));
+  const name = t.value;
+  sc.naming = null;
+  repaint();
+  t.blur();
+  const setup = (presetsOf(ctx.character) || []).find((x) => x.preset === preset);
+  if (k === 'commit' && setup && name.trim() && name.trim() !== setup.name) {
+    runIntent(sc, repaint, () => renameSetup(ctx.account, ctx.character, preset, name), 'Renaming…', () => 'Renamed to ' + name.trim() + '.');
+  }
+  return true;
+}

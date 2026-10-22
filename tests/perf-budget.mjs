@@ -357,8 +357,7 @@ async function scenario(o) {
     await page.click('[data-app="play"][data-slot="0"]');
     await page.waitForSelector('.hs-launchers');
     const showAnalyzer = async () => { if (await page.$('.ha-analyzer') === null || !(await page.isVisible('.ha-analyzer'))) {
-      const b = await page.$('[data-hs-act="details"]'); if (b) await b.click({ timeout: 5000 }).catch((e) => errors.push('analyzer: ' + e.message.split('
-')[0])); } };
+      const b = await page.$('[data-hs-act="details"]'); if (b) await b.click({ timeout: 5000 }).catch((e) => errors.push('analyzer: ' + e.message.split('\n')[0])); } };
     /* a phone shows one sheet at a time: there the analyzer is the one open (the combat log is the desktop's second window) */
     const phone = o.width <= 1024 && o.height <= 540;
     /* the combat log open on its tab (players watch it fight): its lines are the page's longest list */

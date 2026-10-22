@@ -63,7 +63,8 @@
 //         sticking"): with the Inventory open, the menu a right-click on a chat name opens
 //         is still open after the bag's display ticks, until Esc
 //   CW-7  [page] CHAT (Tyler 2026-10-22): on desktop it opens floating at the World's
-//         bottom-left (12 px in, 44 px up, clear of Players online), see-through
+//         bottom-left (12 px in, 44 px up, clear of Players online; 12 px above the action
+//         bar where its column crosses the bar, never over it), see-through
 //         (background alpha under .9) with lines at 12 px or more; its grip makes it 80 px
 //         wider and 60 px taller with its bottom-left corner still, that size is ONE
 //         residue put (winSize.chat) and comes back after a reload; on a phone it is the
@@ -505,7 +506,12 @@ async function pageRules(overrides, shots) {
         const sh = document.querySelector('[data-hs-shell]').getBoundingClientRect(), r = w.getBoundingClientRect();
         const bg = getComputedStyle(w).backgroundColor, m = bg.match(/\/\s*([\d.]+)\)$/) || bg.match(/rgba\([^,]+,[^,]+,[^,]+,\s*([\d.]+)\)/);
         const line = w.querySelector('.hc-log.is-talk.is-on .hc-line'), grip = w.querySelector('.hs-grip');
-        return { left: Math.round(r.left - sh.left), right: Math.round(sh.right - r.right), bottom: Math.round(sh.bottom - r.bottom), w: Math.round(r.width), h: Math.round(r.height),
+        /* where it belongs: 44 px up, or 12 px above the action bar where its column crosses the bar */
+        const bar = document.querySelector('[data-hs-widget="action-bar"]'), q = bar && bar.getBoundingClientRect();
+        const crosses = q && q.width && r.left < q.right + 12 && q.left < r.right + 12;
+        const home = crosses ? Math.round(sh.bottom - q.top + 12) : 44;
+        const overBar = !!(q && q.width && r.left < q.right && q.left < r.right && r.top < q.bottom && q.top < r.bottom);
+        return { left: Math.round(r.left - sh.left), right: Math.round(sh.right - r.right), bottom: Math.round(sh.bottom - r.bottom), home, overBar, w: Math.round(r.width), h: Math.round(r.height),
           alpha: m ? Number(m[1]) : 1, px: line ? parseFloat(getComputedStyle(line).fontSize) : 0, floating: w.classList.contains('is-floating'), grip: !!(grip && grip.offsetWidth) };
       });
       await closeAll();
@@ -517,7 +523,7 @@ async function pageRules(overrides, shots) {
       else if (phone) {
         if (c0.floating || c0.right !== 0 || c0.grip) fails.push('CW-7 [' + tag + '] the phone chat is not the right-hand sheet: ' + JSON.stringify(c0));
       } else {
-        if (!c0.floating || c0.left !== 12 || c0.bottom !== 44) fails.push('CW-7 [' + tag + '] the chat did not open at the bottom-left: ' + JSON.stringify(c0));
+        if (!c0.floating || c0.left !== 12 || c0.bottom !== c0.home || c0.overBar) fails.push('CW-7 [' + tag + '] the chat did not open at the bottom-left, clear of the bar: ' + JSON.stringify(c0));
         if (!(c0.alpha < 0.9 && c0.alpha > 0.3) || !(c0.px >= 12)) fails.push('CW-7 [' + tag + '] the chat is not see-through and readable: ' + JSON.stringify(c0));
         const g = c0.grip && await page.locator('[data-hs-win="chat"] .hs-grip').boundingBox();
         if (!g) fails.push('CW-7 [' + tag + '] the chat has no grip');
@@ -542,7 +548,7 @@ async function pageRules(overrides, shots) {
           await wait(page, () => document.querySelector('[data-hs-win="chat"]:not(.is-leaving)'), null, 3000);
           await page.waitForTimeout(300);
           const c2 = await chatBox();
-          if (!c2 || c2.w !== c1.w || c2.h !== c1.h || c2.left !== 12 || c2.bottom !== 44) fails.push('CW-7 [' + tag + '] after a reload the chat is ' + JSON.stringify(c2) + ', not ' + JSON.stringify(c1));
+          if (!c2 || c2.w !== c1.w || c2.h !== c1.h || c2.left !== 12 || c2.bottom !== c2.home || c2.overBar) fails.push('CW-7 [' + tag + '] after a reload the chat is ' + JSON.stringify(c2) + ', not ' + JSON.stringify(c1));
         }
       }
       if (shots) await page.screenshot({ path: join(shots, 'chat-home-' + tag + '.png') });

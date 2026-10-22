@@ -42,8 +42,8 @@
 import { MOBILE_QUERY } from '../world/core/camera.js?v=0.2.29';
 import { SHELL_WINDOWS } from '../data/shell-windows.js?v=0.2.29';
 import { HUD_WIDGETS } from '../data/hud-widgets.js?v=0.2.29';
-import { createWindowManager, DOCK_EDGE } from './window-manager.js?v=0.2.29';
-import { createHud, residueStore, placeWidget, hudInsetOf, clearOfEdges, clearOfDock, stageOf, dockCap } from './hud.js?v=0.2.29';
+import { createWindowManager, DOCK_EDGE, HOME_BOTTOM } from './window-manager.js?v=0.2.29';
+import { createHud, residueStore, placeWidget, hudInsetOf, clearOfEdges, clearOfDock, stageOf, dockCap, homeAboveBar } from './hud.js?v=0.2.29';
 import { keyLabel, glyphSvg } from './launcher.js?v=0.2.29';
 import { WINDOW_RENDERERS, WIDGET_RENDERERS } from './renderers.js?v=0.2.29';
 import { mountContextMenu } from './context-menu.js?v=0.2.29';
@@ -256,7 +256,8 @@ export function mountShell(root, o) {
       .filter((q) => q.width > 0 && q.height > 0);
   }
   /* Desktop: a docked window whose column crosses the bottom bar's home ends above it (hud.js dockCap), so a window
-     that grows (a Settings tab) never moves the bar. The phone's sheet is full height; the bar clears it as before. */
+     that grows (a Settings tab) never moves the bar, and the home window (Chat) stands above it. The phone's sheet is
+     full height; the bar clears it as before. */
   function capDock() {
     const b = shell.getBoundingClientRect();
     const bars = phoneMq.matches ? [] : Array.from(worldHud.querySelectorAll('[data-hs-widget]'))
@@ -265,6 +266,13 @@ export function mountShell(root, o) {
     for (const w of layer.querySelectorAll('.hs-win:not(.is-floating):not(.is-modal)')) {
       const cap = bars.length ? dockCap({ left: w.offsetLeft, top: w.offsetTop, width: w.offsetWidth, height: w.offsetHeight }, bars, DOCK_EDGE) : null;
       const v = cap === null ? '' : cap + 'px';
+      if (w.style.maxHeight !== v) w.style.maxHeight = v;
+    }
+    /* The home window (Chat) stands above the bar where its column crosses it, never over it (hud.js homeAboveBar). */
+    for (const w of layer.querySelectorAll('.hs-win.is-home')) {
+      const at = homeAboveBar({ left: w.offsetLeft, width: w.offsetWidth }, bars, DOCK_EDGE, HOME_BOTTOM, b.height);
+      if (w.style.bottom !== at.bottom + 'px') w.style.bottom = at.bottom + 'px';
+      const v = at.max === null ? '' : at.max + 'px';
       if (w.style.maxHeight !== v) w.style.maxHeight = v;
     }
   }

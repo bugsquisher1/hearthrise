@@ -485,6 +485,8 @@
 /* ── Phone, landscape: compact bar, one swipeable slot row, plaque to the editor ── */
 @keyframes ca-sheet { from { transform: translateX(16px); opacity: 0; } to { transform: none; opacity: 1; } }
 @media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
+  /* The phone keeps its sheet as it was: opaque, so nothing of the bar under it reads through (see-through is desktop only). */
+  .hs-win[data-hs-win="chat"] { background: var(--modal-bg); }
   .hp-party { width: 200px; }
   .hp-portrait { width: 28px; height: 28px; }
   .hp-role { display: none; }

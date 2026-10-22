@@ -122,6 +122,95 @@ Of Tyler's workbook creatures, the Mischief Sprite, the Pixie Trickster and the 
 | 6 | Crafting → Normal Plank, 8 min | 125 Normal Log, Crafting 1 | 125 Normal Plank, Crafting 4 | second input for 7 |
 | 7 | Smithing → Forge Bronze Pickaxe, Stop after the first | Bronze Bar + Normal Plank, Smithing 5 ≥ 3 | a Bronze Pickaxe (the Shop sells it for 120 gp); faster mining from then on | the first tool you made yourself |
 
+**2026-10-22: Hunts, Hunt prep and the Party finder (designer plan, from Tyler 10-22: "Hunt prep kind of seems useless or clunky", "Party finder could use a lot of work, other games do this way better", "the 'Hunts' page could use some work").** Evidence is code and data on v0.2.30 (origin/main 48b89744). It is unplayed in the pane this pass: the harness refused the Play press on a QA hero, so no screenshots were taken. Look and layout belong to the Art Director (Charcoal & Gold; a list of lines plus one detail page, never a wall of cards). This entry rules the function. Lane B = client only. Lane C = migration/RPC first (§3.3), then its client half rides B.
+
+*Ruling: Hunt prep is merged away and its window is cut.* Choosing a setup belongs to the moment you choose a hunt, so it moves to the Hunts detail. Managing setups belongs where a setup is edited, so it moves to the action-bar plaque, which already shows and renames the setup. That frees one launcher icon and the P key. Density stays per ground on the picker (rulings H4), and the setup becomes per ground beside it.
+
+**A. Hunt prep** (`src/shell/windows/hunt-prep.js`, `src/shell/readiness.js`)
+- *Purpose:* go hunting in the right loadout and know nothing will stop the hunt early. That is a step of going hunting, not a task of its own, so the screen fails the purpose test.
+- *Wrong today:*
+  1. It sits off the path. To hunt as another setup: plaque button → Hunt prep → Use → Hunts (H) → pick → Enter. That is two windows and five presses. Enter sends whichever setup is in use (`hunts.js:292`, `s.preset`), so if you skip the detour you hunt the Sewer on your Thicket setup.
+  2. Nothing is remembered per ground, so you repeat the same switch every trip, which breaks the first principle.
+  3. The readiness check almost always says "ready". Every hero wears a weapon from the kit (`start-kit.js START_EQUIPMENT`), any store-backed slot counts as stocked (`readiness.js:65`), and the only telling figure, "about N h of gold", is computed only from a running hunt's analyzer (`readiness.js:78-80`). That is exactly when setups are locked and prep cannot act on it. The check also ignores the ground: no level band, no party need.
+  4. Setups look alike. A row is a name, "N pieces of gear" and four buttons (`hunt-prep.js:58-65,99`). "Save here" overwrites a setup in one press with no confirm (`:149-151`).
+  5. Gear is not live. The bar edits the setup in use as you go, but gear changes need "Save here", so a new helmet left unsaved comes back off on the next Use. That is a hidden repeated decision.
+- *Good looks like:* RuneScape 3's bank presets and Destiny 2's loadouts (mechanics only). You know a loadout by its weapon and key-item icons, you put it on with one press from where you are going, and you save it from what you wear.
+
+| # | Build | Server reads / writes | Lane |
+|---|---|---|---|
+| 1 | **"Go as" on the Hunts detail.** The picked ground lists your setups as lines: weapon/role glyph, name, the bar's first four icons. Enter = `hr_hunt_preset_apply` (only if the setup differs from the one in use) then `hr_hunt_enter`, one press, chained as `settleTownActivity` is today. Default: the setup in use. | `presetsOf`, `settingsOf().preset` (both exist) | B |
+| 2 | **Remember the setup per ground.** `hr_hunt_enter_for` / `hr_hunt_party_start` write the accepted `p_preset` to a new `hunt_density.preset` column (same row as the density pick, 2026-11-17-hunt-density-home.sql). The `hunt_density` section carries it, and #1 pre-picks it. No new intent. | new column + section field | C → B |
+| 3 | **Setup management on the plaque.** The plaque's ✓ opens a small menu anchored to it, not a window: switch (town only), Save as new, Delete (asks once, as now), rename stays inline. Then delete the `hunt-prep` row in `shell-windows.js` and its renderer and launcher icon. Art Director designs it. | `presetsOf`; existing preset intents | B |
+| 4 | **Gear follows the setup live**, as the bar does. While on a setup, equip/unequip writes that setup's gear on the server. "Save here" and its one-press overwrite are gone. | equip RPC writes `player_action_sets.gear` for the preset in use | C → B |
+| 5 | **"Before you go" lines on the picked ground**, replacing the readiness checklist. One line per bar supply in slot order ("Food: 20 Cooked Shrimp of yours, then Salted Shrimp from the store, 14 gp each"), stamina left, gold. For a party you lead, one line per seat (see C #5). A line shows only when it informs; the all-clear is one line. | bag, `settingsOf`, `staminaOf`, `goldOf` (exist) | B |
+| 6 | **Gold runway per ground:** "about 6 h of gold at your best pace here". `hunt_bests` gains the best run's supply spend per hour, and the line hides when there is no best. | `hunt_bests.supply_h` (new) | C → B |
+
+**B. Hunts** (`src/shell/windows/hunts.js`, `src/shell/hunt-list.js`)
+- *Purpose:* choose where the next hours go: what pays what I want (Level XP, gold, a rare), at my level, alone or in a party. Then go in one press.
+- *Wrong today:*
+  1. A line is a stack of up to 10 small text runs in one micro size (`hunts.js:145-157`, `windows.css:256-259`). It carries engine facts ("6 packs of 2 to 3 · back in 60 s") and leaves out what decides a hunt.
+  2. **A ruling is not met.** "Hunt card and bestiary show roughly how common each is" (Tyler 10-18), but the card never names a creature. `hunt-list.js` reads MONSTERS only to find the boss for `partyNote`.
+  3. The chase is invisible. No rare is named: Old Grayjaw's Alpha Fang (0.3%) and the Rat King's Crown Shard (1.4%) sit in `monsters.js` drops and nowhere on screen.
+  4. A fresh hero reads "Best alone: No hunt of 10 min yet" and "Best in a party: No hunt of 10 min yet" on all 4 grounds: 8 lines that say nothing.
+  5. The recommended ground is pre-picked (`hunts.js:172`) but never labelled. A note shows only when nothing fits.
+  6. A party ground leads nowhere. The Sewer says "Best with a party of 2–4" (`hunt-list.js:146`) and offers no next step.
+  7. The setup is not chosen here (see A).
+- *Good looks like:* Monster Hunter World's quest board, a master-detail view: a compact list, then the picked quest's page with its target monsters, rewards and conditions and one Depart. Also Melvor Idle's combat areas, where each creature's level and drops are one look away. Mechanics only.
+
+| # | Build | Server reads / writes | Lane |
+|---|---|---|---|
+| 1 | **Master-detail.** The list rows become lines: name, band against your level (in / above / far above, in words plus the token colour), a solo/party glyph, your best Level XP/h or "New", and "Fits your level" on `recommendation()`'s row. The detail page holds the theme, **who lives here** (each creature with common / uncommon / rare from its share of `HUNT_GROUNDS` spawn points), **the rare and its carrier**, your bests (one "Not hunted yet" when there are none), density, then A #1 and A #5, then Enter. On a phone, the list then the detail as a sheet. Creature pictures use the style-1 world idle frame at integer scale until the approved style-1 bestiary portraits land (Thicket wolves and Warrens goblins have no portrait row in `monster-art.js`; no style mixing). | data rows + `hunt_bests`, `hunt_density`, level (exist) | B |
+| 2 | **Hunt prep absorbed:** A #1, #3 and #5 land here. | as A | B |
+| 3 | **A party path from the card.** A party ground's detail (or any ground while you lead) shows "Find a party" (opens the finder filtered to this ground and your weapon) and "Bring your heroes" (your other characters not already in a party, one press each; own characters join at once, ruling 10-19). | `partyMembershipOf`, open sessions (exist); finder ground filter (C #1) | B |
+| 4 | **The setup remembered per ground:** A #2. | as A #2 | C → B |
+| 5 | **Seat readiness before Start with party.** Each seat says ready, or names the reason (no stamina, hunting elsewhere, away), from the same predicate that makes `hr_hunt_party_start` refuse `not_ready`. Strangers' readiness is not in the envelope today. | party view seat `ready` + reason code (new) | C → B |
+| 6 | **"Heroes at your level made about N Level XP/h here."** A server median from every character's `hunt_bests` by ground and level bracket, no names, hidden under 5 samples, so an unvisited ground has evidence and not a guess. Last on the list: with 3 players it stays hidden. | read RPC `hr_hunt_ground_stats` (new, aggregate only) | C → B |
+
+**C. Party finder** (`src/shell/windows/party-finder.js`, the Party window's second tab)
+- *Purpose:* "I want to hunt a party ground now with heroes near my level who need my weapon." Find them or be found in one press, then be in the hunt.
+- *Wrong today:*
+  1. **A lone player cannot be found.** Listing needs a party (`hr_hunt_party_list` → `no_party`), and a party exists only after a first invite (PARTY_SPEC §1.1). The client has no other way to make one. So the players who need the finder most can only browse, and two lone browsers never meet.
+  2. **A row lacks the three facts every group decision uses.** The read returns `{id, hunt, max, seats:{seat, weapon, name}}` (2026-10-29-party-security.sql:298-310): no levels, no destination, no leader. `hunt_id` is the last ground hunted, so a row reads "Last hunted X" or "Party of N" (`party-finder.js:89`). The server already accepts `p_hunt`, but the client sends null (`:113`).
+  3. It is a snapshot. Search is one press into window scratch (`:109-118`): no refresh, no count, and stale rows get Join refused.
+  4. It is buried: the second tab, behind Invites (`party.js` TABS), with no link from the ground that needs a party.
+  5. The leader side is a bare on/off "Show in the finder" (`:76-81`): no ground, so a listed party says nothing about where it goes.
+  6. The empty state is the common state in a closed game, and it never mentions your own heroes, the quickest party there is (up to 4 at once, free).
+- *Good looks like:* FFXIV's Party Finder (a listing is a destination, open role slots shown as role icons, and a short line; you join for a role) and WoW's Premade Group Finder (a lone player lists themselves with a role and leaders invite them; filter by activity). Mechanics only. Join stays one press with no leader approval (PARTY_SPEC, ruled 10-19).
+
+| # | Build | Server reads / writes | Lane |
+|---|---|---|---|
+| 1 | **Listings carry a ground and levels.** `hr_hunt_party_list` gains `p_hunt` (the ground the party is listed for, stored in `hunt_parties.hunt_id`; the leader's Hunts window pre-picks it at Start). The finder returns each seat's level and the leader flag, and the client sends the ground filter the RPC already takes. | `hr_hunt_party_list(p_hunt)`, finder seat `level`/`leader` | C → B |
+| 2 | **"Look for a party here" for a lone hero.** One switch lists this hero for a ground, with its weapon and its server level. Leaders see "Heroes looking" under their listing and press Invite (the existing invite and toast). The entry ends on join, hunt start, sign-out or 30 min. Social surface, so it is in the reopen Security review. | `party_seekers` table + `hr_party_seek(p_slot,p_hunt,p_on,p_idem)` + seekers in the finder read | C → B |
+| 3 | **Rows that decide.** Each row shows the ground, a level range (lowest to highest seat), the open seats as the roles still missing (from the weapon filter's own map), the leader's name and how long it has been listed. Join is the primary on rows that fit. Rows above your band are dimmed and say why (the floor stays a warning). | C #1 | B |
+| 4 | **Live, and counted.** Re-read every 15 s while the tab is open (inside `hr_rpc_gate('party_hunt_view')`). The Hunts list line shows "2 parties listed" for a ground. The Party window opens on Find when no invite is waiting. | existing read | B |
+| 5 | **Entry from the ground (= B #3):** "Find a party" on the Hunts detail opens this tab on that ground and your weapon. | C #1 | B |
+| 6 | **An empty state that leads somewhere:** "No party for the Sewer right now. Look for one here (#2), or bring your own heroes: Brannoc and Wrenna are free." The free heroes come from your open character sessions. | open sessions (exist) | B |
+
+*Walk-through 1, a fresh hero (kit: practice sword + shield worn, 20 Cooked Shrimp, 50 Bronze Arrows, practice bow in the bag, 500 gold, START_BAR):*
+
+| # | Step | Holds / reaches from earlier rows + kit | Proof in data / code |
+|---|---|---|---|
+| 1 | H opens Hunts on Mill Cellar, "Fits your level" | Level 1 | `recommendation(1,1)`: only Mill Cellar (1-8, both) holds 1; Thicket starts at 5 |
+| 2 | Detail: Giant Rat common, Slime and Hive Wasp uncommon | nothing needed | `HUNT_GROUNDS.mill_cellar` spawn points 3 / 1 / 1 |
+| 3 | Go as "Set 1" (in use) | every hero is on one setup | `hunt_settings.preset` (ruling 2026-10-22) |
+| 4 | Before you go: "Food: 20 Cooked Shrimp of yours, then Salted Shrimp, 14 gp each · Drink: Thin Turnip Juice, 10 gp each · 500 gold" | kit + START_BAR | `start-kit.js:125-134`, `supply-basics.js:70,75` |
+| 5 | Enter: one `hr_hunt_enter`, preset 0, no apply | rows 3-4 | `hunts.js:292` |
+| 6 | Level 5, in town: plaque menu → Save as new "Bow", then wear the practice bow and add an arrow slot (edits "Bow", live) | bow + 50 Bronze Arrows from the kit | A #3, A #4; `ACTION_SET_LIMITS.presets` = 5 |
+| 7 | Thicket (5-15, solo) → Go as "Bow" → Enter = apply, then enter; the server stores Thicket → Bow | rows 6 | A #1, A #2 |
+| 8 | Next trip: Thicket picks Bow and Mill Cellar picks Set 1. No decision repeated | row 7 | `hunt_density.preset` |
+
+*Walk-through 2, a lone Level 12 hero wearing the practice staff (Healer) wants the Sewer:*
+
+| # | Step | Holds / reaches | Proof |
+|---|---|---|---|
+| 1 | Hunts → The Sewer (8-25): "Best with a party of 2–4", the Rat King's party note, Find a party / Bring your heroes | Level 12 in band | `huntRows` groupFit 'party' (minParty pocket); `partyNote` |
+| 2 | Find a party → Find tab, ground = Sewer, filter "No staff yet (Healer)" | own weapon from `role` | `party-finder.js:67-69`; rulings: Healer = staff |
+| 3a | A row "The Sewer · Levels 10–14 · needs Healer · led by X" → Join | a listed party | `hr_hunt_party_join` (listed only) + C #1, #3 |
+| 3b | No rows → Look for a party here → a leader presses Invite → toast Join | C #2 | invite toast exists (PARTY_SPEC §1.3) |
+| 4 | The leader's Hunts opens on the Sewer (the listed ground) → seat lines all "ready" → Start with party | rows 3a/3b | B #5; `hr_hunt_party_start` |
+
+*Not ruled here (left open):* leader approval on join (ruled out on 10-19); a level gate on listings (the band floor stays a warning only); pushing finder updates over the presence channel instead of the 15 s re-read (later, Systems).
+
 ## Fresh-hero play report 2026-10-22 (live v0.2.26, designer, played)
 Played as a blind newcomer (never played an MMO or an idle game) on https://hearthrise.net/play.html, the QA account, a new hero **Brannoc** (slot 2), desktop 1350×862, 05:48 to 08:18 UTC (live v0.2.26; v0.2.27 shipped while I was away, so the +2 h return ran on it). Every number below was read off the page and, where marked "server", checked against the live tables (read-only). Not done: the phone-landscape look (the pane had no resize tool); the second hero (the 40,000-gold slot purchase was refused by the harness permission check, so "Two new heroes together" is discoverability only).
 

@@ -236,6 +236,8 @@ export function simulateHuntInstance(inst, ctx) {
         m.hs.staminaMs = staminaStep(m.hs.staminaMs, tick, true, m.hs.staminaMaxMs);
       }
       m.hs.tally.paidMs += tick; m.hs.tally.swings += 1; o.ticks += 1;
+      /* The whetstone wears on this swing (member.js wear), so the snapshot below already drops a spent one. */
+      if (typeof m.wear === 'function') m.wear(atMs);
       if (u) syncUnit(u, m);
       byUnit.set(m.unitId, m);
     }

@@ -87,6 +87,28 @@ export function runsOf(recipe, inv) {
   return n === Infinity ? 0 : n;
 }
 
+/* ── "MAKE N" (lane c-work-fixes 2026-10-22; 2026-11-29-bench-count.sql) ──
+   A bench run can be told how many to make: the count rides the ONE set_activity and the
+   server stops the bench after that many actions (player_state.active_left, projected as the
+   `bench_run` section). The choices are 1, 5 or All; the default is 1 for something you WEAR
+   or wield (a tool, a weapon, armour: you rarely want two) and All for everything else
+   (bars, food, runes, ammo, whetstones: stock you use up). */
+export const BENCH_COUNTS = Object.freeze([1, 5, 'all']);
+
+/** The amount a bench row starts on: 1 for gear and tools, 'all' for stock. */
+export function defaultCount(w) {
+  const out = w && w.kind === 'artisan' ? productOf(w) : null;
+  const def = out ? ITEMS[out] : null;
+  const gear = !!def && (def.type === 'tool' || (typeof def.slot === 'string' && def.slot !== 'ammo'));
+  return gear ? 1 : 'all';
+}
+
+/** Actions left on the hero's bench run, from the server (`bench_run.left`), or null (until the bag runs out). */
+export function leftOf(cs) {
+  const b = cs && typeof cs.read === 'function' ? cs.read('bench_run') : null;
+  return b && Number.isInteger(b.left) && b.left > 0 ? b.left : null;
+}
+
 /** One action's time in ms, for the tool the server says the hero holds (perks only make it shorter). */
 export function actionMs(cs, w) {
   const st = { inventory: invOf(cs), equipment: eqOf(cs) };
@@ -140,16 +162,20 @@ const skillRefusal = (r) => (r && !r.ok && r.error === 'activity_locked' ? Objec
  * Start (or switch to) a work row: ONE set_activity. `send(fn, busy, done)` is the window's runIntent;
  * `repaint` repaints it when the armed stop fires while something else is in flight. Returns send's promise.
  */
-export function startWork(cs, w, send, repaint, words) {
+export function startWork(cs, w, send, repaint, words, count) {
   const run = runOf(cs);
-  return send(() => cs.edgeIntent('set_activity', { activity: { kind: w.kind, id: w.id } }).then(skillRefusal), 'Starting…', () => {
+  /* A whole count only on a bench row; anything else (All, a gathering node) runs until stopped or out. */
+  const n = w.kind === 'artisan' && Number.isInteger(count) && count > 0 ? count : null;
+  const activity = n === null ? { kind: w.kind, id: w.id } : { kind: w.kind, id: w.id, count: n };
+  return send(() => cs.edgeIntent('set_activity', { activity }).then(skillRefusal), 'Starting…', () => {
     clearTimeout(run.timer);
     run.timer = null;
     const bag = invOf(cs);
     const out = productOf(w);
     run.from = { id: w.id, xp: xpOf(cs, w.skill), skill: w.skill, out, made: out ? bag[out] || 0 : 0, burnt: bag[BURNT] || 0 };
     if (w.kind === 'artisan') {
-      const endAt = Date.now() + runsOf(w.row, bag) * actionMs(cs, w) + SLACK_MS;
+      const runs = n === null ? runsOf(w.row, bag) : Math.min(n, runsOf(w.row, bag));
+      const endAt = Date.now() + runs * actionMs(cs, w) + SLACK_MS;
       const arm = () => { run.timer = setTimeout(fire, Math.max(0, Math.min(MAX_WAIT_MS, endAt - Date.now()))); };
       /* At the end: stop (it collects). On a long run, every MAX_WAIT_MS: one settle (hello) so the bag and XP move. */
       const fire = () => {

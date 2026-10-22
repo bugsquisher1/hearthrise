@@ -317,6 +317,10 @@
 .hw-work-why:empty { display: none; }
 .hw-work-row.is-on .hw-line-name b, .hw-work-row.is-on .hw-work-why { color: var(--gold-2); }
 .hw-work-row.is-locked .hw-ico { opacity: .5; }
+/* "Make N": the amount sits under the row's words, a quiet well (hunt.css .hh-segs); a locked row has none. */
+.hw-work-n { align-self: flex-start; margin-top: 4px; }
+.hw-work-n .hh-seg { min-width: 32px; min-height: 24px; padding: 0 6px; }
+.hw-work-row.is-locked .hw-work-n { display: none; }
 
 /* ── The shop and hunt prep ── */
 .hw-qty { width: 64px; }
@@ -356,7 +360,7 @@
   .hw-skill-next { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
   .hw-mi { min-height: 40px; }
   .hw-tip { width: 240px; }
-  .hw-work-row .hh-tool, .hw-work-head .hh-tool, .hw-work-now .hh-tool { min-height: 40px; }
+  .hw-work-row .hh-tool, .hw-work-head .hh-tool, .hw-work-now .hh-tool, .hw-work-n .hh-seg { min-height: 40px; }
   .hw-work-hint { display: none; }
 }
 

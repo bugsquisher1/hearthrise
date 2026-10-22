@@ -118,7 +118,12 @@ export function validateDeclaration(a) {
       detail: { why: kind === 'idle' ? 'idle takes no id' : 'this kind requires an id' },
     };
   }
-  return { ok: true, kind, id: kind === 'idle' ? null : id };
+  /* "MAKE N" (2026-11-29-bench-count.sql): only a bench run takes a count, and an unreadable
+     one is refused by name (request.js reads it as null) instead of running unbounded. */
+  if (a.count !== undefined && (kind !== 'artisan' || a.count === null)) {
+    return { ok: false, error: INTENT_ERRORS.BAD_ACTIVITY, detail: { why: kind !== 'artisan' ? 'only a bench run takes a count' : 'count is a whole number 1..100000' } };
+  }
+  return { ok: true, kind, id: kind === 'idle' ? null : id, ...(a.count !== undefined ? { count: a.count } : {}) };
 }
 
 /**
@@ -131,12 +136,15 @@ export function validateDeclaration(a) {
  * pointing at the previous activity's start, and accrual.js's fail-closed
  * precondition would then refuse to pay a brand-new character at all.
  */
-export function activityDelta(kind, id, from) {
+export function activityDelta(kind, id, from, count) {
+  /* "MAKE N": a bench run's count rides the statement; hr_apply stores it as player_state.active_left. */
+  const n = kind === 'artisan' && Number.isInteger(count) ? count : null;
   return {
     activity: {
       kind,
       id: kind === 'idle' ? null : id,
       restart: true,
+      ...(n !== null ? { count: n } : {}),
     },
     journal: {
       /* `admin`, not the activity's own kind. A declaration MOVES NO VALUE, and
@@ -150,7 +158,7 @@ export function activityDelta(kind, id, from) {
       /* Small, and genuinely useful: it records the TRANSITION, which no other
          row does. The window that was paid on the way here has its own ledger
          row with its own `ms`, so nothing is duplicated. */
-      meta: { from_kind: (from && from.kind) || null, from_id: (from && from.id) || null },
+      meta: { from_kind: (from && from.kind) || null, from_id: (from && from.id) || null, ...(n !== null ? { count: n } : {}) },
     },
   };
 }
@@ -436,7 +444,7 @@ export async function runSetActivity(o) {
   /* (3) THE SWITCH. The version is the one the COLLECT left behind, because a
          collect that paid has already bumped it. */
   const version = gate.version ?? env.version;
-  const delta = activityDelta(decl.kind, decl.id, { kind: st.active_kind, id: st.active_id });
+  const delta = activityDelta(decl.kind, decl.id, { kind: st.active_kind, id: st.active_id }, decl.count);
   const [applied] = await exec(APPLY_SQL, [user, slot, version, intentId, JSON.stringify(delta)]);
   const res = applied && applied.res;
 

@@ -156,7 +156,11 @@ export const STONECRAFT_ITEMS = {
      is stated in the item copy rather than hidden.
 
      `strB` only — see the stat-curve note above. */
-  coarse_whetstone:  { n: 'Coarse Whetstone',   icon: '🪨', v: 0,   type: 'ammo', slot: 'ammo', tier: 1, rarity: AMMO_RARITY[0], reqSkill: 'melee', reqLv: AMMO_REQ_LV[0], strB: AMMO_STAT[0], ammoPerShot: FREE },
+  /* THE COARSE STONE WEARS TOO (lane c-work-fixes, 2026-10-22). It was the free rung (FREE above), and
+     a whetstone is a CEILING, not a floor (R5): melee loses nothing when it is gone, so there is no new
+     player to protect and a free stone was a free +2 strB forever. 0.02 like its ladder: one stone per
+     fifty swings. The arrow and rune first rungs stay FREE: an empty quiver or staff IS a penalty. */
+  coarse_whetstone:  { n: 'Coarse Whetstone',   icon: '🪨', v: 0,   type: 'ammo', slot: 'ammo', tier: 1, rarity: AMMO_RARITY[0], reqSkill: 'melee', reqLv: AMMO_REQ_LV[0], strB: AMMO_STAT[0], ammoPerShot: 0.02 },
   copper_whetstone:  { n: 'Copper Whetstone',   icon: '🪨', v: 15,  type: 'ammo', slot: 'ammo', tier: 2, rarity: AMMO_RARITY[1], reqSkill: 'melee', reqLv: AMMO_REQ_LV[1], strB: AMMO_STAT[1], ammoPerShot: 0.02 },
   iron_whetstone:    { n: 'Iron Whetstone',     icon: '🪨', v: 48,  type: 'ammo', slot: 'ammo', tier: 3, rarity: AMMO_RARITY[2], reqSkill: 'melee', reqLv: AMMO_REQ_LV[2], strB: AMMO_STAT[2], ammoPerShot: 0.02 },
   steel_whetstone:   { n: 'Steel Whetstone',    icon: '🪨', v: 108, type: 'ammo', slot: 'ammo', tier: 4, rarity: AMMO_RARITY[3], reqSkill: 'melee', reqLv: AMMO_REQ_LV[3], strB: AMMO_STAT[3], ammoPerShot: 0.02 },

@@ -59,6 +59,9 @@ const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'))
 /* THE START KIT'S PLOTS (v0.2.30 integration, designer 2026-10-22): 2026-11-18 is the v0.2.29 chain (history once
    applied); the kit's farm_plots 4 -> 2, the Camp's cap (homestead-tiers.js PROPERTY_TIERS[0].plots; catalogue-
    coherence C9), lands in this forward file: the same full delete+insert replace. */
+/* COAL AT ANY LEVEL (lane c-work-fixes, 2026-10-22): 2026-11-09-armour-class-catalogue.generated.sql is APPLIED
+   history; hr_activities.coal_rock opens at Mining 1 (Tyler 2026-10-14: first tiers, coal included, at any
+   level). Same full delete+insert replace. */
 const OUT = join(ROOT, 'supabase', 'migrations', '2026-11-23-loot-catalogue.generated.sql');
 /* THE SECOND GENERATED FILE (2026-09-13). hr_item_buffs is emitted as its own
    migration rather than into OUT above, and that is a deliberate operational

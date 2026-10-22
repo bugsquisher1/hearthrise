@@ -224,6 +224,28 @@ export function ammoPerShot(itemDef) {
   return Number.isFinite(n) && n > 0 ? n : 0;
 }
 
+/* ── THE HONE: THE AMMO-SLOT ITEM A SWING WEARS INSTEAD OF SHOOTING (lane c-work-fixes, 2026-10-22) ──
+   The hunt engine spends arrows and runes per SHOT (hunt/abilities.js payBasic), but a whetstone is
+   never shot, so the one engine wore none: any whetstone, any tier, was +strB forever for nothing.
+   A whetstone (an ammo item whose own `reqSkill` is melee) is now worn by the hunting hero's swing
+   clock: `honeWornAt(i, p)` stones at member swing index i, i.e. floor(i·p) − floor((i−1)·p), so 0.02
+   is one stone every fiftieth swing. Keyed by the session's PERSISTED swing index, it needs no carry
+   column and lands on the same swing however the settles are cut (TICK-1), on both paths. When the
+   hunt's stock is spent the stone's bonus stops at that swing (src/core/member.js wear). */
+export function honeOf(equipment, items) {
+  const id = equipment && typeof equipment.ammo === 'string' ? equipment.ammo : null;
+  const def = id && items ? items[id] : null;
+  return def && def.reqSkill === 'melee' && ammoPerShot(def) > 0 ? id : null;
+}
+
+/** Whole hones worn at the member's swing `index` (the swing index after it counts this swing). */
+export function honeWornAt(index, perShot) {
+  const i = Math.floor(Number(index) || 0);
+  const p = Number(perShot);
+  if (!(i > 0) || !(p > 0)) return 0;
+  return Math.floor(i * p + 1e-9) - Math.floor((i - 1) * p + 1e-9);
+}
+
 /* ── R3: BURN IS A PURE FUNCTION OF TIME ──────────────────────────────
    An arrow is spent on the SWING, hit or miss — never on the hit, never on the
    kill, never on a drop roll. This is the property that makes every number

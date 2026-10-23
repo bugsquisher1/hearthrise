@@ -19,7 +19,8 @@ import { ATTACK_KINDS } from '../data/condition-metrics.js?v=0.2.35';
 import { ABILITIES } from '../data/abilities.js?v=0.2.35';
 import { CONSUMABLES, CONSUMABLE_RULES } from '../data/consumables.js?v=0.2.35';
 import { STATUSES } from '../data/statuses.js?v=0.2.35';
-import { HUNT_ROLES, WEAPON_ROLES } from '../data/hunt-roles.js?v=0.2.35';
+import { HUNT_ROLES, WEAPON_ROLES, shootsItem } from '../data/hunt-roles.js?v=0.2.35';
+import { ITEMS } from '../data/items.js?v=0.2.35';
 import { WEAPON_WORDS } from '../data/hunt-hud.js?v=0.2.35';
 import { defaultConditions } from '../core/hunt/conditions.js?v=0.2.35';
 import { itemName, abilityName } from './widgets/bits.js?v=0.2.35';
@@ -44,16 +45,41 @@ export function actionName(a) {
   return own(ATTACK_KINDS, a.id) ? 'The loaded ammo' : itemName(a.id);
 }
 
-/* The weapons that give a discipline, in words ("Sword or Shield"). */
+/* The weapons that play any of `roles`, in words ("Shield or Sword"), each word once. */
+function weaponsOf(roles) {
+  const seen = new Set();
+  const w = [];
+  for (const k of Object.keys(WEAPON_ROLES)) {
+    if (!WEAPON_ROLES[k].some((r) => roles.includes(r))) continue;
+    for (const word of String(WEAPON_WORDS[k] || k).split(' or ')) {
+      if (!seen.has(word.toLowerCase())) { seen.add(word.toLowerCase()); w.push(word.charAt(0).toUpperCase() + word.slice(1)); }
+    }
+  }
+  return w.join(' or ');
+}
+/* The weapons that give a discipline, in words. */
 function weaponsFor(disc) {
-  const roles = Object.keys(HUNT_ROLES).filter((r) => HUNT_ROLES[r].discipline === disc);
-  const w = Object.keys(WEAPON_ROLES).filter((k) => WEAPON_ROLES[k].some((r) => roles.includes(r))).map((k) => WEAPON_WORDS[k] || k);
-  return w.length ? w.join(' or ') : disc;
+  return weaponsOf(Object.keys(HUNT_ROLES).filter((r) => HUNT_ROLES[r].discipline === disc)) || disc;
 }
 
-/** "Your weapon can’t cast this. The slot stays struck until you wield a Sword or Shield." for a spell the
-    hero's weapon (the server's role) cannot cast; '' otherwise. A warning, never a refusal (art spec §8). */
+/* WHAT THE WORN WEAPON CAN SHOOT, in words: the engine's own rule (hunt-roles.js shootsItem; damage.js pickShot
+   passes over any other item, Andy 2026-10-23: a bow loosed Copper Whetstones from an attack slot). '' when the
+   hero's weapon (the server's role) can shoot the slot's item, or the slot is no item attack. */
+function shotProblem(a, role) {
+  if (!a || a.type !== 'attack_with_item' || own(ATTACK_KINDS, a.id)) return '';
+  const it = ITEMS[a.id];
+  if (shootsItem(role, it)) return '';
+  if (it && it.reqSkill === 'melee') return 'A whetstone is not a shot: it sharpens a Melee weapon worn in the ammo slot. No weapon shoots it, so this slot never fires.';
+  const by = weaponsOf(Object.keys(HUNT_ROLES).filter((r) => shootsItem(r, it)));
+  if (!by) return 'No weapon shoots this, so this slot never fires.';
+  return (role && HUNT_ROLES[role] ? 'Your weapon can’t shoot this' : 'No weapon worn') + '. The slot stays struck until you wield a ' + by + '.';
+}
+
+/** "Your weapon can’t cast this. The slot stays struck until you wield a Shield or Sword." for a spell the
+    hero's weapon (the server's role) cannot cast, or the same for an attack item it cannot shoot; '' otherwise.
+    A warning, never a refusal (art spec §8): the bar is configured for whichever weapon the hero wields next. */
 export function weaponWarning(a, role) {
+  if (a && a.type === 'attack_with_item') return shotProblem(a, role);
   const r = a && a.type === 'ability' ? ABILITIES[a.id] : null;
   const disc = role && HUNT_ROLES[role] ? HUNT_ROLES[role].discipline : null;
   if (!r || (disc && r.disciplines.includes(disc))) return '';
@@ -224,6 +250,9 @@ export function reasonOf(sl, set, bag, hero) {
     if (sl.why === 'none_left') return { code: 'none_left', text: 'None left: you carry no ' + itemName(a.id) + '. The next food or drink slot fires instead.', glyph: 'uiChest', strike: true };
     if (sl.why === 'store_off') return { code: 'store_off', text: 'This hero is set to end the hunt rather than buy from the store.', glyph: 'uiChest', strike: true };
   }
+  /* An attack item the worn weapon cannot shoot never fires (the engine passes it over: damage.js pickShot). */
+  const shot = shotProblem(a, set && set.role);
+  if (shot) return { code: 'weapon', text: shot, glyph: 'uiLock', strike: true };
   if (sl.usable === false) return { code: 'server', text: 'The server says this cannot fire now.', glyph: 'uiLock', strike: true };
   if (a.type === 'consume') return null;
   const n = Number.isInteger(sl.count) && !own(ATTACK_KINDS, a.id) ? sl.count : carried(a, bag);

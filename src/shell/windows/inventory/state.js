@@ -13,6 +13,10 @@
 //                     menu, the open doll slot and the confirmation, an intent
 //                     in flight. Display only: nothing reads it but this
 //                     window, nothing spends it.
+//   the town ticker   what running town work has certainly done since the
+//                     server's watermark (`tick`, town-work.js tickOf): the
+//                     pockets show it as pending; `items` and `qty`, which every
+//                     action reads, stay the server's.
 // ════════════════════════════════════════════════════════════════════════
 import { bagOf, bagCapOf, goldOf, rulesOf, shopOf, equipmentOf, huntLootOf } from '../../../session/item-sections.js?v=0.2.33';
 import { settingsOf, analyzerOf } from '../../../session/hunt-sections.js?v=0.2.33';
@@ -21,6 +25,7 @@ import { barKind, barIndexOf } from '../../bar-assign.js?v=0.2.33';
 import { itemName } from '../../widgets/bits.js?v=0.2.33';
 import { buryRecipeOf, buryLabel } from './bury.js?v=0.2.33';
 import { upgradeOf } from '../../widgets/upgrade-line.js?v=0.2.33';
+import { tickOf } from '../../town-work.js?v=0.2.33';
 
 const SCRATCH = new WeakMap();
 const CAT_IDS = new Set(BAG_CATS.map(([id]) => id));
@@ -73,7 +78,9 @@ export function stateOf(ctx) {
   return { cs, items: list, loaded: !!items, cap: bagCapOf(cs), gold: goldOf(cs), rules: rulesOf(cs), shop, eq: equipmentOf(cs) || {},
     bar: settingsOf(cs), prefs, sc, seen, unmarked: !stored, shown, qty: new Map(list.map((r) => [r.id, r.qty])),
     /* What "Equip upgrades" would put on (src/shell/upgrade-plan.js), from the same server sections. */
-    upgrade: upgradeOf(cs) };
+    upgrade: upgradeOf(cs),
+    /* Display only: the pockets' pending counts (grid.js). Never read by an action. */
+    tick: tickOf(cs) };
 }
 
 /** This hunt's pickups: the server's hunt loot, else the analyzer's loot list, else null. */

@@ -9,7 +9,7 @@
 // in place. Display only.
 // ════════════════════════════════════════════════════════════════════════
 import { kindOf, rarityOf } from '../../bag-model.js?v=0.2.33';
-import { text } from '../../../render/paint.js?v=0.2.33';
+import { text, cls } from '../../../render/paint.js?v=0.2.33';
 import { whole, short } from '../../../render/format.js?v=0.2.33';
 import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.33';
 import { glyphSvg } from '../../launcher.js?v=0.2.33';
@@ -26,7 +26,10 @@ export function pocketHtml(id, glyphs, act) {
     + '<b class="hw-count"></b><i class="hw-new" aria-hidden="true"></i><span class="hw-lock">' + glyphSvg(glyphs, 'uiLock') + '</span><small class="hw-barkey"></small></li>';
 }
 
-/** The count in the corner: nothing for a single item, short above ten thousand. */
-export function patchCount(li, qty) {
-  text(li.querySelector('.hw-count'), qty > 1 ? (qty >= 10000 ? short(qty) : whole(qty)) : '');
+/** The count in the corner: nothing for a single item, short above ten thousand. `ahead` (town-ticker.js): the count
+    includes work the server has not paid yet, so it is always written and reads as pending. */
+export function patchCount(li, qty, ahead) {
+  const el = li.querySelector('.hw-count');
+  text(el, ahead || qty > 1 ? (qty >= 10000 ? short(qty) : whole(qty)) : '');
+  cls(el, 'is-ahead', !!ahead);
 }

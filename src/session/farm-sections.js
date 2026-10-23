@@ -25,7 +25,9 @@ const count = (v) => (Number.isSafeInteger(v) && v >= 0 ? v : null);
 const nameOf = (v) => (typeof v === 'string' && v.length > 0 && v.length <= 32 ? v : null);
 const MAX_PLOTS = 128;   // the server's index fuse (account_farm_plots.plot_idx 0..127)
 
-/* One parse per envelope: the record's section object is frozen and replaced whole by each envelope. */
+/* One parse per envelope: the record's section object is frozen and replaced whole by each envelope.
+   PARSED holds the clock-free field; SEEN the window's view of it, stamped with the clock that first read it. */
+const PARSED = new WeakMap();
 const SEEN = new WeakMap();
 
 function read(cs, key) {
@@ -48,8 +50,31 @@ export function farmLandOf(cs, nowMs) {
   if (!isObj(raw)) return null;
   const had = SEEN.get(raw);
   if (had) return had;
+  const field = parse(raw);
+  if (!field) return null;
+  const out = Object.freeze({ ...field, seenAt: Number.isFinite(nowMs) ? nowMs : 0 });
+  SEEN.set(raw, out);
+  return out;
+}
+
+/**
+ * The same field with no clock: { cap, plotLevel, deeds, upgrade, plots }, or null. For a reader that shows no
+ * countdown (the coach's "What next" line): it never stamps `seenAt`, so it cannot shift the Farm window's.
+ */
+export function farmFieldOf(cs) {
+  return parse(read(cs, 'farm_land'));
+}
+
+function parse(raw) {
+  if (!isObj(raw)) return null;
+  if (PARSED.has(raw)) return PARSED.get(raw);
   const cap = count(raw.cap), plotLevel = count(raw.plot_level), deeds = count(raw.deeds);
-  if (cap === null || plotLevel === null || plotLevel < 1) return null;
+  const field = cap === null || plotLevel === null || plotLevel < 1 ? null : fieldOf(raw, cap, plotLevel, deeds);
+  PARSED.set(raw, field);
+  return field;
+}
+
+function fieldOf(raw, cap, plotLevel, deeds) {
   const plots = new Map();
   for (const p of Array.isArray(raw.plots) ? raw.plots.slice(0, MAX_PLOTS) : []) {
     if (!isObj(p) || !Number.isInteger(p.i) || p.i < 0 || p.i >= MAX_PLOTS || !ID.test(String(p.crop))) continue;
@@ -60,10 +85,7 @@ export function farmLandOf(cs, nowMs) {
       by: count(p.by), byName: nameOf(p.by_name), extra: p.extra === true,
     });
   }
-  const out = Object.freeze({ cap: Math.min(cap, MAX_PLOTS), plotLevel, deeds: deeds || 0, upgrade: priceOf(raw.upgrade), plots,
-    seenAt: Number.isFinite(nowMs) ? nowMs : 0 });
-  SEEN.set(raw, out);
-  return out;
+  return Object.freeze({ cap: Math.min(cap, MAX_PLOTS), plotLevel, deeds: deeds || 0, upgrade: priceOf(raw.upgrade), plots });
 }
 
 /** Milliseconds until a plot is ready, as the display shows it: the server's seconds less the time since it said so. */

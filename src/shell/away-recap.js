@@ -8,7 +8,9 @@
 //
 // HOW. While a character's hunt runs on screen, its last-seen SERVER numbers are
 // stamped into the display-only residue field `awaySeen` (src/session/residue.js):
-// the hunt session, the server clock, Level XP, gold and the session's kills, at
+// the hunt session, the server clock, Level XP, the coins THIS hero's hunt has taken
+// (the analyzer's, never the purse: gold is the account's, 2026-12-15-account-gold.sql,
+// so the purse moves with every hero) and the session's kills, at
 // most once a minute. On the next visit the first envelope is compared with that
 // stamp: if at least AWAY_MIN_MS of server time has passed, one alert line says
 // what changed (src/shell/alerts.js, kind `away`), once (its id carries the
@@ -17,7 +19,7 @@
 // ════════════════════════════════════════════════════════════════════════
 import { levelOf } from '../session/character-sections.js?v=0.2.33';
 import { huntOf, analyzerOf, serverNowOf } from '../session/hunt-sections.js?v=0.2.33';
-import { goldOf, nameOf } from '../session/item-sections.js?v=0.2.33';
+import { nameOf } from '../session/item-sections.js?v=0.2.33';
 import { huntName } from '../session/party-sections.js?v=0.2.33';
 import { charLevelFromXp } from '../core/xp.js?v=0.2.33';
 import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.33';
@@ -41,16 +43,19 @@ function awayWords(ms) {
 }
 const signed = (n, unit) => (n >= 0 ? '+' : '−') + whole(Math.abs(n)) + ' ' + unit;
 
+/* The coins this hero's hunt has taken (the analyzer's session tally), or null. */
+const coinsOf = (a) => (a && a.hero && Number.isSafeInteger(a.hero.gold) && a.hero.gold >= 0 ? a.hero.gold : null);
+
 /** The numbers to stamp now (server's), or null when no hunt runs or the server has not said yet. */
 function awayStampOf(cs) {
   const h = huntOf(cs);
   const lv = levelOf(cs);
-  const gold = goldOf(cs);
   const now = serverNowOf(cs);
-  if (!h || h.ended || !lv || gold === null || !Number.isFinite(now)) return null;
+  if (!h || h.ended || !lv || !Number.isFinite(now)) return null;
   const a = analyzerOf(cs);
   const kills = a && a.hero && Number.isFinite(a.hero.kills) ? Math.floor(a.hero.kills) : null;
-  return { s: h.sessionId, at: Math.floor(now), xp: lv.xp, gold, ...(kills !== null ? { kills } : {}) };
+  const gold = coinsOf(a);
+  return { s: h.sessionId, at: Math.floor(now), xp: lv.xp, ...(gold !== null ? { gold } : {}), ...(kills !== null ? { kills } : {}) };
 }
 
 /**
@@ -61,17 +66,17 @@ export function awayRecapOf(cs) {
   const was = stampOf(cs);
   const h = huntOf(cs);
   const lv = levelOf(cs);
-  const gold = goldOf(cs);
   const now = serverNowOf(cs);
-  if (!was || !h || h.sessionId !== was.s || !lv || gold === null || !Number.isFinite(now)) return null;
+  if (!was || !h || h.sessionId !== was.s || !lv || !Number.isFinite(now)) return null;
   const gone = now - was.at;
   if (gone < AWAY_MIN_MS) return null;
   const parts = [];
   const from = charLevelFromXp(was.xp);
   if (lv.level > from) parts.push('Level ' + from + ' to ' + lv.level);
   if (lv.xp > was.xp) parts.push(signed(lv.xp - was.xp, 'Level XP'));
-  if (Number.isSafeInteger(was.gold) && gold !== was.gold) parts.push(signed(gold - was.gold, 'gold'));
   const a = analyzerOf(cs);
+  const gold = coinsOf(a);
+  if (Number.isSafeInteger(was.gold) && gold !== null && gold > was.gold) parts.push(signed(gold - was.gold, 'gold'));
   const kills = a && a.hero && Number.isFinite(a.hero.kills) && Number.isSafeInteger(was.kills) ? Math.floor(a.hero.kills) - was.kills : null;
   if (kills !== null && kills > 0) parts.push(whole(kills) + ' kills');
   const name = nameOf(cs) || 'Your hero';

@@ -148,8 +148,18 @@ export const HUNT_MAX_DEGRADE = 3;
    fire, up to accrual.js HUNT_MAX_WINDOW_MS (6 h), twice per fire on a retry,
    until the worker's CPU budget kills the whole tick and every hunt in it. */
 export const HUNT_SETTLE_SPAN_MS = 15 * 60000;
-/* Refusals that mean "someone else moved the instance under us". */
-const RETRYABLE = Object.freeze(['session_moved', 'version_conflict']);
+/* Refusals that mean "someone else moved the instance under us" — or, with ONE purse per account
+   (2026-12-15-account-gold.sql), "another hero of the account moved the purse under us": a store bill
+   the purse no longer pays (gold_short) or a gold_out end it no longer proves (another hero's coins
+   arrived). The server never clamps a bill the engine already spent; it refuses the window, and this
+   re-reads at once so the window re-runs on the fresh purse. */
+const RETRYABLE = Object.freeze(['session_moved', 'version_conflict', 'gold_short']);
+export function retryableSettle(v) {
+  if (!v || v.outcome !== 'refused') return false;
+  if (RETRYABLE.includes(v.reason)) return true;
+  const d = v.body && v.body.detail && v.body.detail.detail;
+  return v.reason === 'end_not_proven' && !!d && d.reason === 'gold_out';
+}
 
 /* THE READ. One statement: the gate is its first term on a player door (D3:
    a call that settles nothing still spends budget), absent on the tick's. */
@@ -238,7 +248,7 @@ export async function settleHunt(o) {
   let last = null;
   for (let attempt = 0; attempt < 2; attempt++) {
     const v = await settleOnce(o, mode);
-    if (v.outcome !== 'refused' || !RETRYABLE.includes(v.reason)) return v;
+    if (!retryableSettle(v)) return v;
     last = v;
   }
   return last;

@@ -19,8 +19,12 @@
 //   slotOffer     the next hero slot the server sells this account ({ slotId, cost,
 //                 max }, from the envelope's `account.hero_slot_offer`), null at the
 //                 cap or before the roster has read it
-//   buySlot(slotId, paySlot)  ONE intent (hr_buy_hero_slot): buy that slot with the
-//                 gold of the hero in paySlot; the server prices, checks and debits
+//   buySlot(slotId, slot)  ONE intent (hr_buy_hero_slot): buy that slot with the ACCOUNT's
+//                 gold (one purse, 2026-12-15-account-gold.sql); `slot` is the acting hero the
+//                 journal names. The server prices, checks and debits
+//   purse()       the account's gold as the newest answer any open hero read says it
+//                 ({ gold, v }: state.gold at wallet version state.gold_v), or null; a newer
+//                 one re-renders every other open hero (CharacterSession.notePurse)
 //   create(slot, name, colors)  ask the server to make the hero in an owned slot:
 //                 ONE intent (hr_create_hero) with its name and four dye indices;
 //                 a slot holding an unnamed character (roster `unnamed`) is named by it
@@ -47,6 +51,7 @@ import { TownPresence } from './town-presence.js?v=0.2.33';
 import { WORLD_MAPS, SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.33';
 import { charLevelFromXp } from '../core/xp.js?v=0.2.33';
 import { createIntentLedger } from './intent-ledger.js?v=0.2.33';
+import { purseOf, newerPurse } from './item-sections.js?v=0.2.33';
 
 /** This tab's session id: made once per tab, kept across a reload, new for a new tab. */
 export function tabSessionId(tab, cfg = SESSION_CONFIG, make) {
@@ -65,14 +70,16 @@ export function accountLimitOf(read) {
 }
 
 /** A roster row's hero, from one hr_load answer: its name, Level (the server's state.level_xp on the
-    shared curve, CORE_MODEL.md §1) and gold (state.gold), or nulls. Pure. */
+    shared curve, CORE_MODEL.md §1) and the ACCOUNT purse it read (state.gold at version state.gold_v:
+    the same gold on every hero), or nulls. Pure. */
 export function heroOf(body) {
-  if (!body || body.ok !== true) return { name: null, level: null, gold: null };
+  if (!body || body.ok !== true) return { name: null, level: null, gold: null, goldV: null };
   const name = typeof body.name === 'string' && body.name.trim() ? body.name.trim().slice(0, 40) : null;
   const st = body.state && typeof body.state === 'object' ? body.state : {};
   const lx = st.level_xp;
   return { name, level: Number.isSafeInteger(lx) && lx >= 0 ? charLevelFromXp(lx) : null,
-    gold: Number.isSafeInteger(st.gold) && st.gold >= 0 ? st.gold : null };
+    gold: Number.isSafeInteger(st.gold) && st.gold >= 0 ? st.gold : null,
+    goldV: Number.isSafeInteger(st.gold_v) && st.gold_v >= 0 ? st.gold_v : null };
 }
 
 /** The next hero slot the server sells, from an `account` section: { slotId, cost, max }, or null
@@ -131,7 +138,20 @@ export class AccountSession {
     this._limit = null;
     this.slotOffer = null;
     this.viewed = null;
+    this._purse = null;
     this.social = o.social ? o.social(this) : null;
+  }
+
+  /** The account's gold, { gold, v }: the newest purse any open hero has read, or null. */
+  purse() { return this._purse; }
+
+  /* A hero's answer stated the purse: keep it if it is newer (raise-only), and let every OTHER open hero
+     re-render with it (their own envelopes still hold the older copy until their next answer). */
+  _notePurse(cs) {
+    const next = newerPurse(this._purse, purseOf(cs));
+    if (!next || next === this._purse) return;
+    this._purse = next;
+    for (const other of this._chars.values()) if (other !== cs && typeof other.notePurse === 'function') other.notePurse();
   }
 
   get userId() { return this.auth.userId(); }
@@ -210,9 +230,10 @@ export class AccountSession {
   }
 
   /**
-   * Buy hero slot `slotId` with the gold of the hero in `paySlot`: ONE intent with its own key, an ask
-   * in the intent ledger; the server owns the price, the ladder, the cap and the debit. On a yes the
-   * paying character, if open, is re-read so its gold is the server's.
+   * Buy hero slot `slotId` with the ACCOUNT's gold: ONE intent with its own key, an ask in the intent
+   * ledger; the server owns the price, the ladder, the cap and the debit. `paySlot` is the acting hero
+   * (the journal's provenance), never a choice of whose gold. On a yes that hero, if open, is re-read:
+   * its answer carries the new purse, which every other open hero then shows.
    * { ok } or { ok:false, error, reason, shortBy }.
    */
   buySlot(slotId, paySlot) {
@@ -246,6 +267,9 @@ export class AccountSession {
       setTimer: this._timers.setTimer, clearTimer: this._timers.clearTimer });
     /* The storage is the ACCOUNT's (2026-11-27-account-depot.sql): a move on one character re-reads the others. */
     cs.onShared = (kind, from) => this._sharedChanged(kind, from);
+    /* The gold is the ACCOUNT's (2026-12-15-account-gold.sql): every hero reads the newest purse any of them has seen. */
+    cs.accountPurse = () => this._purse;
+    cs.subscribe((s) => this._notePurse(s));
     this._chars.set(slot, cs);
     cs.subscribe((s, why) => { if (why === 'closed-game') this._noteClosed({ closed: true }); });
     this._emit('opening', slot);   // watchers (the alerts) hear the first load's events too

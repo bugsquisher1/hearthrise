@@ -182,8 +182,10 @@ renderHouse.patch = function patchHouse(body, ctx) {
   cls(yes, 'is-on', !!step);
   if (step) {
     text(cf.querySelector('.hw-confirm-q'), (sc.ask.kind === 'chest' ? 'Build the ' : 'Buy the ') + step.label + '?');
-    text(cf.querySelector('.hw-confirm-note'), 'Costs ' + [gold(step.gold)].concat(step.items.map((it) => whole(it.qty) + ' ' + itemName(it.id))).join(', ')
-      + (who ? ', paid by ' + who : '') + '. All your characters share it.');
+    /* The gold is the ACCOUNT's (one purse, 2026-12-15-account-gold.sql); the materials leave this hero's own bag. */
+    const mats = step.items.map((it) => whole(it.qty) + ' ' + itemName(it.id)).join(', ');
+    text(cf.querySelector('.hw-confirm-note'), 'Costs ' + gold(step.gold) + ' of your gold'
+      + (mats ? ' and ' + mats + (who ? ' from ' + who + '\'s bag' : '') : '') + '. All your characters share it.');
     text(yes, 'Pay ' + gold(step.gold));
   }
   prop(yes, 'disabled', sc.pending);

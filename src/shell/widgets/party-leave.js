@@ -8,7 +8,7 @@
 // on the viewer's OWN row only (src/shell/widgets/party-panel.js composes it);
 // other rows show nothing of theirs. It shows the SERVER's value
 // (party-sections.js partyMembershipOf `leaveTogether`), never the press: a tick
-// puts the server's value straight back, the box goes off while the ONE intent is
+// repaints the server's value at once, the box goes off while the ONE intent is
 // in flight (party-intents.js setLeaveTogether), and the re-read envelope replaces
 // it; a refusal reads in words (refusal-words.js) and changes nothing.
 // ════════════════════════════════════════════════════════════════════════
@@ -38,14 +38,14 @@ export function patchTogether(row, m, r, pending) {
 }
 
 /**
- * A change on the box: the server's value goes straight back on screen, then ONE intent asks for the other one.
+ * A change on the box: ONE intent asks for the other value; its first repaint (runIntent) puts the server's value
+ * back, off while in flight, and the re-read envelope replaces it.
  * Answers true when `action` was the box's.
  */
 export function togetherAct(ctx, cs, sc, repaint, action, ev, box, r) {
   if (action !== 'together') return false;
   if (ev.type !== 'change') return true;
   const want = box.checked === true;
-  prop(box, 'checked', r.together === true);
   if (typeof r.together !== 'boolean' || !r.inParty || want === r.together || sc.pending) return true;
   runIntent(sc, repaint, () => setLeaveTogether(ctx.account, cs, want), 'Saving…', () => '', cs);
   return true;

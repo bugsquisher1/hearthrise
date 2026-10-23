@@ -488,7 +488,7 @@ const mutants = [
   { name: '[spell-content] Mend shields instead of healing', case: 'mend-heals-only-the-hurt',
     edits: [['src/core/hunt/abilities.js', '      if (row.heal) { healOne(u, u, scaled(roll(sc, row.heal)), sc); break; }\n', '']] },
   { name: '[spell-content] Mend is kept off a physical bar', case: 'mend-heals-only-the-hurt',
-    edits: [['src/data/abilities.js', "disciplines: ['shield', 'dual_axe', 'ranged', 'destruction', 'restoration'], universal: true,", "disciplines: ['destruction', 'restoration'], universal: true,"]] },
+    edits: [['src/data/abilities.js', 'disciplines: DISCIPLINE_IDS, universal: true,', "disciplines: ['destruction', 'restoration'], universal: true,"]] },
   { name: '[spell-content] the sickness mark adds nothing', case: 'sickness-marks-what-it-hits',
     edits: [['src/core/hunt/damage.js', ' ? target.markPm : 0) + takenPmOf(target);', ' ? target.markPm : 0);']] },
   { name: '[spell-content] an area spell marks only its aim', case: 'sickness-marks-what-it-hits',

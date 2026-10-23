@@ -21,7 +21,6 @@
 // ============================================================
 
 import { HUNT_ROLES, CHALLENGE } from '../../data/hunt-roles.js?v=0.2.34';
-import { ABILITIES } from '../../data/abilities.js?v=0.2.34';
 import { MONSTERS } from '../../data/monsters.js?v=0.2.34';
 import { DEFAULT_TARGET_MODE } from '../../data/rule-subjects.js?v=0.2.34';
 import { elementPermille } from '../combat.js?v=0.2.34';
@@ -112,11 +111,14 @@ export function peel(inst, sc, hero) {
 /* ── THE CHALLENGE (spec §3.2 #14, TG-08; Tyler 2026-10-16) ─────────────────
    "The tank holds and auto-casts Challenge whenever an engaged on-screen monster
    is not targeting him. Monsters can switch targets." ONE Challenge, for EVERY
-   tank in the party: the `challenge` ability (src/data/abilities.js: its cooldown
-   is the ability's cdMs, on the unit's `cds` clock, so the auto-cast and the bar
-   slot are one clock and never fire twice). It takes every engaged monster within
-   CHALLENGE.radius that is not on the tank and not HELD by another tank's
-   Challenge; each one it takes is held CHALLENGE.holdMs.
+   tank in the party: the `challenge` ability (src/data/abilities.js), FIRED BY THE
+   ONE ABILITY PATH (abilities.js castAbilities, roadmap p12 / audit c18): its
+   SUPPORT lane, its cooldown and its slot's conditions apply as for any ability;
+   this module only says what it may take (challengeable) and takes it
+   (challengeFrom). The tank's default bar holds it (rule-subjects.js ROLE_RULES).
+   It takes every engaged monster within CHALLENGE.radius that is not on the tank
+   and not HELD by another tank's Challenge; each one it takes is held
+   CHALLENGE.holdMs.
    ONE HOLDER A LAP (designer 2026-10-21, Option A; live v0.2.24: "monsters are
    retargeting onto the secondary member often, until the primary uses Challenge",
    the two tanks traded the pack every 8 s): the lap's HOLDING tank (holderTank)
@@ -131,8 +133,6 @@ export function peel(inst, sc, hero) {
    leader picked (world.hold) holds every lap while it stands in the hunt, whatever
    the floor below; the others take only the overflow. With no pick, or once the
    picked tank has left or fallen, the tanks still standing take turns. */
-const CHALLENGE_ROW = ABILITIES.challenge;
-const challengeReady = (k, atMs) => !(k.cds && Number.isInteger(k.cds.challenge) && k.cds.challenge > atMs);
 const isTank = (u) => !!(roleOf(u) && roleOf(u).tank);
 
 /**
@@ -181,7 +181,8 @@ export function challengeable(inst, k) {
 /**
  * THE CHALLENGE'S EFFECT, the one writer of a taunt: every monster `challengeable`
  * names turns on `k`, leaves its queue and is held. Answers how many it took.
- * Emits `target` per monster and one `challenge`; the clock is the caller's.
+ * Emits `target` per monster and one `challenge`; the cast, its clocks and its
+ * `cast` event are the ability path's (abilities.js fire).
  */
 export function challengeFrom(inst, sc, k) {
   const took = challengeable(inst, k);
@@ -190,27 +191,13 @@ export function challengeFrom(inst, sc, k) {
   return took.length;
 }
 
-/* The auto-cast: every living tank whose Challenge is ready and finds a monster, the lap's holder
-   first (an overflow monster goes to it when it can), then the others in id order.
-   It is the ability's cast (a `cast` event: the bar's cooldown, the hunt screen's "Challenge"). */
-function autoChallenge(inst, sc) {
-  const h = holderTank(inst);
-  for (const k of h ? [h, ...inst.world.units.filter((u) => u !== h)] : inst.world.units) {
-    if (!challengeReady(k, sc.atMs) || !challengeable(inst, k).length) continue;
-    sc.emit(makeEvent('cast', sc.atMs, { u: k.id, ability: CHALLENGE_ROW.id, t: k.id, mana: 0,
-      magicXpMult: CHALLENGE_ROW.magicXpMult, source: 'own', gold: 0 }));
-    challengeFrom(inst, sc, k);
-    k.cds = Object.assign({}, k.cds || {}, { [CHALLENGE_ROW.id]: sc.atMs + CHALLENGE_ROW.cdMs });
-  }
-}
-
 /* Is any engaged monster on hero `u` (it holds them: a tank's hold, a peeled healer)? */
 const holding = (inst, u) => engaged(inst).some((m) => m.target === u.id);
 
 /**
  * Phase-AI hook, every sub-step: holds run down, monsters whose target fell turn
- * on the leader (TG-05/06), every tank Challenges, then every hero with a role
- * picks its target:
+ * on the leader (TG-05/06), then every hero with a role picks its target (a
+ * tank's Challenge is cast on the attack hook, abilities.js castAbilities):
  *   a MELEE hero no monster is on (a second tank, a Melee DPS) keeps the target it
  *   stands beside until it falls, else takes its MARK, the first its Target
  *   setting names, wherever it stands (roles.js closeIn walks it there);
@@ -225,7 +212,6 @@ export function chooseTargets(inst, sc) {
     const t = unitById(inst, m.target);
     if (!t || !t.alive) { retarget(m, k && k !== t ? k.id : null, sc); m.holdMs = 0; }
   }
-  autoChallenge(inst, sc);
   const fighting = inst.world.phase === 'fight';
   const leaderMoving = !!k && k.path.length > 0;
   for (const u of inst.world.units) {

@@ -4,6 +4,20 @@ import { suite, H, E, inst2, sc2, world } from './fixtures/h2.js';
 const T = 'src/core/hunt/targeting.js';
 const ids = (list) => list.map((u) => u.id).join(',');
 const fight = (M, units, o) => inst2(M, world(M, units, Object.assign({ phase: 'fight' }, o || {})));
+/* THE CHALLENGE IS CAST BY THE ONE ABILITY PATH (abilities.js castAbilities; roadmap p12, audit c18). Each tank
+   carries a bar (default: the role rule set's bare Challenge slot) and a sub-step is the phase AI's target choice,
+   then the attack hook's casts, in world-step's order. */
+const session = (M) => M.AR.newHuntSession({ id: 'tg', huntFromMs: 0, bag: {}, basics: {}, purse: 0, goldFloor: 0, supplySource: 'mine', onEmpty: 'switch' });
+const barOf = (M, bar) => ({ hs: session(M), actionSet: 'hunt', range: 1, slots: M.conditions.heroSlots(bar, null) });
+const tankBars = (M, inst) => {
+  inst.heroes = inst.heroes || {};
+  for (const u of inst.world.units) {
+    const row = u.side === 'hero' ? M.roleData.HUNT_ROLES[u.role] : null;
+    if (row && row.tank && !inst.heroes[u.id]) inst.heroes[u.id] = barOf(M, ['challenge']);
+  }
+  return inst;
+};
+const tick = (M, inst, sc) => { tankBars(M, inst); M.targeting.chooseTargets(inst, sc); M.abilities.castAbilities(inst, sc); return sc; };
 
 const cases = {
   /* TG-01: each target mode orders the engaged monsters its own way; ties by id. */
@@ -102,24 +116,50 @@ const cases = {
     const k = H(M, 1, 11, 3, 'tank'); const r = H(M, 2, 16, 5, 'ranger');
     const near = E(M, 3, 0, 15, 5, 2); const far = E(M, 4, 0, 11 + CHALLENGE.radius + 1, 5, 2);
     const inst = fight(M, [k, r, near, far], { leader: 1 });
-    const sc = sc2(M, 1);
-    M.targeting.chooseTargets(inst, sc);
+    const sc = tick(M, inst, sc2(M, 1));
     if (near.target !== 1) return 'an on-screen monster off the tank was not Challenged';
     if (far.target !== 2) return 'a monster beyond the Challenge radius was pulled';
     if (sc.events.filter((e) => e.type === 'challenge' && e.u === 1).length !== 1) return 'expected one challenge event';
-    if (!sc.events.some((e) => e.type === 'cast' && e.u === 1 && e.ability === 'challenge')) return 'the auto-Challenge is not a cast of the challenge ability';
+    const cast = sc.events.find((e) => e.type === 'cast' && e.u === 1 && e.ability === 'challenge');
+    if (!cast || typeof cast.rule !== 'string') return 'the Challenge is not a cast of its bar slot (one path): ' + JSON.stringify(cast);
+    if (k.lanes.support !== M.abilityData.ABILITY_LANES.support || k.lanes.offense) return 'the Challenge did not lock the SUPPORT lane alone: ' + JSON.stringify(k.lanes);
     near.target = 2; near.holdMs = 0;
     const cdMs = M.abilityData.ABILITIES.challenge.cdMs;
     for (let i = 1; i < cdMs / 100; i++) {
-      M.targeting.chooseTargets(inst, sc2(M, 1, i * 100));
+      tick(M, inst, sc2(M, 1, i * 100));
       if (near.target === 1) return 'Challenged again ' + i * 100 + ' ms into an ' + cdMs + ' ms cooldown';
     }
-    M.targeting.chooseTargets(inst, sc2(M, 1, cdMs));
+    tick(M, inst, sc2(M, 1, cdMs));
     if (near.target !== 1) return 'no Challenge once the cooldown ran out';
     const dps = H(M, 1, 11, 3, 'melee_dps');
     const i2 = fight(M, [dps, H(M, 2, 16, 5, 'ranger'), E(M, 3, 0, 15, 5, 2)], { leader: 1 });
-    M.targeting.chooseTargets(i2, sc2(M, 1));
+    i2.heroes = { 1: barOf(M, ['challenge']) };
+    tick(M, i2, sc2(M, 1));
     return i2.world.units[2].target === 2 ? null : 'a leader who is not a tank Challenged';
+  },
+  /* THE CHALLENGE OBEYS ITS SLOT (audit c18): a Challenge slot's conditions bind it like any slot's (here: only
+     under half health, so a healthy tank lets the monster be), and it locks only the SUPPORT lane, so the tank's
+     Power Strike fires the very next sub-step (a Challenge on the offense lane would hold it 2 s). */
+  'challenge-obeys-its-slot': (M) => {
+    const mk = (bar) => {
+      const k = H(M, 1, 11, 3, 'tank'); const m = E(M, 3, 0, 12, 4, 2, { hp: 500, maxHp: 500 });
+      const inst = fight(M, [k, H(M, 2, 16, 5, 'ranger'), m], { leader: 1 });
+      inst.heroes = { 1: barOf(M, bar) };
+      k.mana = 100; k.maxMana = 100;
+      return { inst, k, m };
+    };
+    const low = { action: { type: 'ability', id: 'challenge' }, conditions: [{ metric: 'self_hp_pct', op: 'lt', value: 50 }], join: 'and' };
+    const a = mk([low]);
+    const sa = tick(M, a.inst, sc2(M, 1));
+    if (a.m.target !== 2 || sa.events.some((e) => e.type === 'challenge')) return 'a Challenge slot held to "my HP below 50%" fired at full health';
+    a.k.hp = 90;
+    tick(M, a.inst, sc2(M, 1, 100));
+    if (a.m.target !== 1) return 'the Challenge did not fire once its slot\'s condition held';
+    const b = mk(['challenge', 'power_strike']);
+    tick(M, b.inst, sc2(M, 1, 0));
+    const sb = tick(M, b.inst, sc2(M, 1, 100));
+    const ps = sb.events.some((e) => e.type === 'cast' && e.ability === 'power_strike');
+    return b.m.target === 1 && ps ? null : 'after a Challenge the offense lane was shut: no Power Strike the next sub-step (target ' + b.m.target + ')';
   },
   /* TG-08 with TWO tanks, ONE HOLDER A LAP (designer 2026-10-21, Option A; live v0.2.24: "monsters are
      retargeting onto the secondary member often, until the primary uses Challenge"). Lap 0: the leader holds
@@ -131,19 +171,18 @@ const cases = {
     const inst = fight(M, [k1, k2, a, b, healer], { leader: 1, runs: 0 });
     if (M.targeting.holderTank(inst) !== k1) return 'lap 0: the holder is not the leader\'s tank';
     for (let t = 0; t <= 20000; t += 100) {
-      const sc = sc2(M, 1, t);
-      M.targeting.chooseTargets(inst, sc);
+      const sc = tick(M, inst, sc2(M, 1, t));
       if (a.target !== 1 || b.target !== 1) return 'lap 0: the second tank took the leader\'s pack ' + t + ' ms in (targets ' + a.target + ',' + b.target + ')';
       if (sc.events.some((e) => e.type === 'cast' && e.u === 2)) return 'lap 0: the second tank cast Challenge on a pack already on a tank';
     }
     /* the overflow: the holder's Challenge is cooling, a monster turns on the Healer, the second tank takes it */
     k1.cds = { challenge: 999999 }; b.target = 5; b.holdMs = 0;
-    M.targeting.chooseTargets(inst, sc2(M, 1, 20100));
+    tick(M, inst, sc2(M, 1, 20100));
     if (b.target !== 2) return 'the overflow: a monster on the Healer went to ' + b.target + ', not the second tank';
     /* it stays there its hold (the second tank trains on it), though the holder's Challenge is ready again */
     k1.cds = {};
     for (let t = 20200; t < 20100 + M.roleData.CHALLENGE.holdMs; t += 100) {
-      M.targeting.chooseTargets(inst, sc2(M, 1, t));
+      tick(M, inst, sc2(M, 1, t));
       if (b.target !== 2) return 'the holder took the overflow back ' + (t - 20100) + ' ms into its hold';
     }
     /* the holder first: with both Challenges ready, an overflow goes to the holder (lap 1: the second tank) */
@@ -151,11 +190,11 @@ const cases = {
     inst.world.runs = 1; a.holdMs = 0; b.holdMs = 0; k1.cds = {}; k2.cds = {};
     if (M.targeting.holderTank(inst) !== k2) return 'lap 1: the holder is not the next tank by seat';
     for (let t = 30000; t <= 50000; t += 100) {
-      M.targeting.chooseTargets(inst, sc2(M, 1, t));
+      tick(M, inst, sc2(M, 1, t));
       if (a.target !== 2 || b.target !== 2) return 'lap 1: the pack is on ' + a.target + ',' + b.target + ' ' + (t - 30000) + ' ms in, not on the holding second tank';
     }
     a.target = 5; a.holdMs = 0; b.holdMs = 0; k1.cds = {}; k2.cds = {};
-    M.targeting.chooseTargets(inst, sc2(M, 1, 50100));
+    tick(M, inst, sc2(M, 1, 50100));
     return a.target === 2 ? null : 'lap 1: with both Challenges ready an overflow went to ' + a.target + ', not the holder';
   },
   /* A MUCH WEAKER TANK NEVER HOLDS (designer 2026-10-21: an L9 + L19 pair at Sewer density 7 died in 2 min,
@@ -172,7 +211,7 @@ const cases = {
       if (M.targeting.holderTank(inst) !== strong) return 'lap ' + runs + ': the L9 tank (251 max HP beside 330) holds';
     }
     inst.world.runs = 0;
-    M.targeting.chooseTargets(inst, sc2(M, 1, 0));
+    tick(M, inst, sc2(M, 1, 0));
     if (a.target !== 2 || b.target !== 2) return 'the L19 did not take the pack off the leading L9 (targets ' + a.target + ',' + b.target + ')';
     const floor = Math.ceil(330 * M.roleData.CHALLENGE.holderMinHpPm / 1000);
     weak.maxHp = floor; weak.hp = floor; inst.world.runs = 0;
@@ -191,11 +230,11 @@ const cases = {
       if (M.targeting.holderTank(inst) !== k2) return 'lap ' + runs + ': the picked tank (300 max HP beside 616) did not hold';
     }
     inst.world.runs = 0;
-    M.targeting.chooseTargets(inst, sc2(M, 1, 0));
+    tick(M, inst, sc2(M, 1, 0));
     if (a.target !== 2 || b.target !== 2) return 'the pick did not take the pack off the leader’s tank (targets ' + a.target + ',' + b.target + ')';
     /* its Challenge cooling, a monster turns on the Healer: the leader's tank takes that one, and nothing on the pick */
     k2.cds = { challenge: 999999 }; a.holdMs = 0; b.target = 5; b.holdMs = 0; k1.cds = {};
-    M.targeting.chooseTargets(inst, sc2(M, 1, 100));
+    tick(M, inst, sc2(M, 1, 100));
     if (a.target !== 2) return 'the leader’s tank took a monster off the picked tank';
     return b.target === 1 ? null : 'the overflow off the Healer went to ' + b.target + ', not the leader’s tank';
   },
@@ -254,7 +293,13 @@ const mutants = [
   { name: 'peel ignores the roll', case: 'peel-seeded', edits: [[T, ' || sc.rng.int(1, 1000) > row.peel) return null;', ') return null;']] },
   { name: 'every role peels', case: 'peel-seeded', edits: [[T, "if (!row || !row.peel || !k || k === hero) return null;", 'if (!row || !k || k === hero) return null;']] },
   { name: 'the Challenge has no radius', case: 'challenge-when-monster-off-tank', edits: [[T, ' && cheb(m, k) <= CHALLENGE.radius', '']] },
-  { name: 'the Challenge has no cooldown', case: 'challenge-when-monster-off-tank', edits: [[T, '[CHALLENGE_ROW.id]: sc.atMs + CHALLENGE_ROW.cdMs', '[CHALLENGE_ROW.id]: sc.atMs']] },
+  { name: 'the Challenge has no cooldown', case: 'challenge-when-monster-off-tank',
+    edits: [['src/core/hunt/abilities.js', '{ [row.id]: sc.atMs + row.cdMs }', '{ [row.id]: sc.atMs }']] },
+  { name: 'the Challenge rides the offense lane (audit c16)', case: 'challenge-obeys-its-slot',
+    edits: [['src/data/abilities.js', "disciplines: ['shield'], lane: 'support',", "disciplines: ['shield'], lane: 'offense',"]] },
+  { name: 'the auto-Challenge fires on its own path again (audit c18)', case: 'challenge-obeys-its-slot',
+    edits: [['src/core/hunt/abilities.js', '    const pick = firstUsable(inst, u, sc);\n',
+      "    if (challengeable(inst, u).length && !(u.cds && u.cds.challenge > sc.atMs)) { challengeFrom(inst, sc, u); u.cds = Object.assign({}, u.cds, { challenge: sc.atMs + 8000 }); }\n    const pick = firstUsable(inst, u, sc);\n"]] },
   { name: 'any role Challenges', case: 'challenge-when-monster-off-tank', edits: [[T, 'if (!isTank(k) || !k.alive) return [];', 'if (!roleOf(k) || !k.alive) return [];']] },
   { name: 'a Challenge holds nothing', case: 'one-holder-a-lap', edits: [[T, 'm.queued = false; m.holdMs = CHALLENGE.holdMs; }', 'm.queued = false; }']] },
   { name: 'a non-holder steals from the holder (live v0.2.24)', case: 'one-holder-a-lap', edits: [[T, ' && (holds || onNonTank(m)));', ');']] },
@@ -269,7 +314,7 @@ const mutants = [
     edits: [[T, 'u.id === id && u.alive && isTank(u)', 'u.id === id && isTank(u)']] },
   { name: 'the holder never rotates', case: 'one-holder-a-lap', edits: [[T, 'return tanks[runs % tanks.length];', 'return tanks[0];']] },
   { name: 'an overflow goes to whichever tank comes first by id', case: 'one-holder-a-lap',
-    edits: [[T, 'for (const k of h ? [h, ...inst.world.units.filter((u) => u !== h)] : inst.world.units) {', 'for (const k of inst.world.units) {']] },
+    edits: [['src/core/hunt/abilities.js', '  return k ? [k, ...units.filter((u) => u !== k)] : units;', '  return units;']] },
   { name: 'ties fall to id (live v0.2.22)', case: 'mode-ties-fall-to-nearest', edits: [[T, 'cmp(a, b) || dist2(a, unit) - dist2(b, unit) || a.id - b.id', 'cmp(a, b) || a.id - b.id']] },
   { name: 'a melee hits whatever stands beside it (live v0.2.22)', case: 'melee-takes-its-mark', edits: [[T, 'const b = marks ? null : basicTarget(inst, u);', 'const b = basicTarget(inst, u);']] },
   { name: 'a melee drops the target it stands beside', case: 'melee-takes-its-mark', edits: [[T, '(inRange(inst, u, cur) || enRoute)) continue;', 'enRoute) continue;']] },

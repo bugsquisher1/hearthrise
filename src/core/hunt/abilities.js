@@ -45,7 +45,7 @@ import { BASIC_EFFECT_SHARE } from '../../data/supply-basics.js?v=0.2.34';
 import { cheb, dist2, los } from './grid.js?v=0.2.34';
 import { makeEvent } from './events.js?v=0.2.34';
 import { landHit } from './damage.js?v=0.2.34';
-import { challengeable, challengeFrom } from './targeting.js?v=0.2.34';
+import { challengeable, challengeFrom, holderTank } from './targeting.js?v=0.2.34';
 import { applyStatus, statusRow } from './status.js?v=0.2.34';
 import { levelOf } from '../xp.js?v=0.2.34';
 import { ammoPerShot } from '../ammo.js?v=0.2.34';
@@ -87,7 +87,7 @@ function targetFor(inst, hero, h, row, sc, cx) {
   const near = mons.filter((m) => inReach(inst, hero, h.range, m) && !ignores(cx && cx.slot, m)).sort(byPreference(hero));
   const pct = (u) => (int(u.maxHp) > 0 ? (int(u.hp) * 100) / int(u.maxHp) : 100);
   switch (row.target) {
-    /* The Challenge (targeting.js): the auto-cast and this slot share the ability's clock and its reach. */
+    /* The Challenge (targeting.js challengeable): a target only while a monster in its reach is off the tank. */
     case 'taunt': return challengeable(inst, hero).length ? hero : null;
     case 'mark': {
       const t = near.slice().sort((a, b) => (int(b.hp) - int(a.hp)) || (a.id - b.id))[0];
@@ -369,9 +369,19 @@ export function payBasic(inst, hero, cost, sc) {
   return true;
 }
 
+/* THE CAST ORDER: the lap's holding tank first (targeting.js holderTank), then every other unit by id. The
+   Challenge fires through this one path (roadmap p12, audit c18: its lane, its cooldown and its slot's conditions
+   apply like any ability's); the holder going first keeps an overflow monster on the holder when both tanks'
+   Challenges are ready (a non-holder takes only what is on a non-tank, challengeable). */
+function castOrder(inst) {
+  const units = inst.world.units.slice().sort((a, b) => a.id - b.id);
+  const k = holderTank(inst);
+  return k ? [k, ...units.filter((u) => u !== k)] : units;
+}
+
 /** Attack hook: each hero fires its first usable ability. */
 export function castAbilities(inst, sc) {
-  for (const u of inst.world.units.slice().sort((a, b) => a.id - b.id)) {
+  for (const u of castOrder(inst)) {
     if (u.side !== 'hero' || !u.alive) continue;
     regenMana(u, sc.dtMs);
     if (!engaged(inst).length) continue;

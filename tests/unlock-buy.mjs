@@ -54,6 +54,9 @@ import { isMain as isEntryModule } from './_is-main.mjs';
    its arms buy through the hr_unlock_buy signature and catalogue as of there.
    (tests/schema-replay.mjs replayScopeError). The plain run is the whole chain. */
 const REPLAY_UPTO = '2026-10-22-hunt-sessions-settle.sql';
+/* hr_unlock_buy's LIVE body is 2026-12-15-account-gold.sql's (the gold is the account purse), so
+   every mutant planted in that body replays up to that file: the chain the plain run stands on. */
+const BUY_FILE = '2026-12-15-account-gold.sql';
 
 /* An UNGATED cooking recipe for the burn measurement, chosen by the PROPERTY
    that matters — cheapest inputs, so a long span never runs dry — rather than
@@ -73,7 +76,7 @@ const FN = (f) => join(ROOT, 'supabase', 'functions', 'hr-accrue', f);
 const MUTATIONS = {
   // ── THE MERGE RULE. The arm §9 of the artisan model names by hand. ──────
   merge_is_additive: {
-    migration: '2026-08-19-companion-unlocks.sql',
+    migration: BUY_FILE,
     why: 'the GREATEST merge becomes `+=` — buying rung 1 twice stands the player in rung 2, '
        + 'i.e. the 2,000g Iron Stove for 1,000 gold. THE defect this whole design exists to '
        + 'make unreachable',
@@ -81,7 +84,7 @@ const MUTATIONS = {
     repl: '      do update set value = pp.value + excluded.value, updated_at = now();',
   },
   already_owned_is_noop: {
-    migration: '2026-08-19-companion-unlocks.sql',
+    migration: BUY_FILE,
     why: 'a second purchase of an owned rung stops being refused and becomes a silent no-op that '
        + 'still charges — a refund ticket with no error anywhere',
     find: '    if v_cur >= v_off.value then',
@@ -89,13 +92,13 @@ const MUTATIONS = {
   },
   // ── THE LADDER AND THE GATE ────────────────────────────────────────────
   rung_order_off: {
-    migration: '2026-08-19-companion-unlocks.sql',
+    migration: BUY_FILE,
     why: 'the ladder stops being a ladder: rung 5 is buyable from rung 1, skipping four purchases',
     find: "    if v_cat.merge = 'max' then",
     repl: '    if false then',
   },
   prereq_tier_off: {
-    migration: '2026-08-19-companion-unlocks.sql',
+    migration: BUY_FILE,
     why: 'the homestead gate is disarmed — a rich player builds the Great Hearth from a bedroll, '
        + 'and the server is more permissive than the client it replaced',
     find: '    if coalesce(v_off.req_property_tier, 0) > 0 then',
@@ -105,13 +108,13 @@ const MUTATIONS = {
      (designer ruling §2) and no offer carries a req_item to gate on. */
   // ── VALUE ──────────────────────────────────────────────────────────────
   gold_not_debited: {
-    migration: '2026-08-19-companion-unlocks.sql',
+    migration: BUY_FILE,
     why: 'the rung is granted and the gold is not taken — a free permanent capability',
-    find: '       set gold = gold - v_off.gold,',
-    repl: '       set gold = gold,',
+    find: '      v_purse := public.hr_purse_move(v_uid, -v_off.gold, 0);',
+    repl: '      v_purse := public.hr_purse_of(v_uid);',
   },
   items_not_debited: {
-    migration: '2026-08-19-companion-unlocks.sql',
+    migration: BUY_FILE,
     why: 'the material cost is not consumed, so every room in the game costs gold only — and '
        + '`insufficient_item` becomes unreachable with it',
     find: '      if v_n <= 0 then continue; end if;',
@@ -119,17 +122,23 @@ const MUTATIONS = {
   },
   // ── CONCURRENCY + IDEMPOTENCY ──────────────────────────────────────────
   version_check_off: {
-    migration: '2026-08-19-companion-unlocks.sql',
+    migration: BUY_FILE,
     why: 'optimistic concurrency is gone: a caller acting on a stale read commits anyway',
-    find: '    if p_version is null or p_version <> v_st.version then',
-    repl: '    if false then',
+    find: '    -- (a) OPTIMISTIC CONCURRENCY — MANDATORY. A missing version IS a conflict.\n'
+        + '    if p_version is null or p_version <> v_st.version then',
+    repl: '    -- (a) OPTIMISTIC CONCURRENCY — MANDATORY. A missing version IS a conflict.\n'
+        + '    if false then',
   },
   replay_pays_twice: {
-    migration: '2026-08-19-companion-unlocks.sql',
+    migration: BUY_FILE,
     why: 'a replayed intent id re-runs the purchase instead of returning the first decision — '
        + 'exactly-once becomes at-least-once, and the second run charges again',
-    find: '  if found then\n    if v_prev_intent is distinct from v_intent',
-    repl: '  if false then\n    if v_prev_intent is distinct from v_intent',
+    find: "  v_intent := 'unlock_buy:' || v_off.offer_id || ':' || v_off.value;\n"
+        + '  select result, intent, slot into v_prev, v_prev_intent, v_prev_slot\n'
+        + '    from public.player_intents\n   where user_id = v_uid and intent_id = p_intent_id;\n  if found then\n',
+    repl: "  v_intent := 'unlock_buy:' || v_off.offer_id || ':' || v_off.value;\n"
+        + '  select result, intent, slot into v_prev, v_prev_intent, v_prev_slot\n'
+        + '    from public.player_intents\n   where user_id = v_uid and intent_id = p_intent_id;\n  if false then\n',
   },
   // ── THE PRICE IS THE SERVER'S ──────────────────────────────────────────
   price_from_the_edge: {
@@ -140,7 +149,7 @@ const MUTATIONS = {
     repl: 'const BUY_SQL = `\n  select public.hr_unlock_buy($1::uuid, $2::int, $3::bigint, $4::uuid, $5::text, $6::jsonb) as res`;',
   },
   partial_debit_not_rolled_back: {
-    migration: '2026-08-19-companion-unlocks.sql',
+    migration: BUY_FILE,
     why: 'S2, reintroduced: the insufficient_item refusal RETURNS instead of raising, so every item '
        + 'line the loop had already debited stays debited and the player pays materials for a '
        + 'purchase that did not happen',
@@ -336,12 +345,13 @@ const uuid = () => crypto.randomUUID();
 
 async function boot(mutate) {
   const patchedJs = new Map();
-  let sqlPatches;
+  let sqlPatches, replayTo = REPLAY_UPTO;
   if (mutate) {
     const m = MUTATIONS[mutate];
     if (!m) { const e = new Error(`unknown mutation "${mutate}"`); e.harness = true; throw e; }
     if (m.migration) {
       sqlPatches = new Map([[m.migration, [[m.find, m.repl]]]]);
+      replayTo = m.migration === BUY_FILE ? BUY_FILE : REPLAY_UPTO;
     } else {
       const src = (await readFile(m.file, 'utf8')).replace(/\r\n/g, '\n');
       const n = src.split(m.find).length - 1;
@@ -359,7 +369,7 @@ async function boot(mutate) {
 
   let db;
   try {
-    ({ db } = await bootReplay(sqlPatches ? { patches: sqlPatches, upTo: REPLAY_UPTO } : {}));
+    ({ db } = await bootReplay(sqlPatches ? { patches: sqlPatches, upTo: replayTo } : {}));
   } catch (e) {
     if (e.harness) throw e;
     /* A mutation that makes a migration REFUSE TO INSTALL is the guard working:

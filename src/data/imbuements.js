@@ -18,9 +18,9 @@
 //              below), at uncommon odds (IMBUE_DROP), tier from the monster's
 //              level (imbueTierFor). Raw, so the vendor bids a fifth of its book
 //              value: its worth is to the imbuer, not the shop.
-//   equipment  ONE row, `gear: true` (src/core/drops.js: never a rare reveal).
-//   + rare     the rare (1 per 10-20 h) and, later, the relic (1 per 100-150 h)
-//              ride ONLY on the ground's carrier (Old Grayjaw, the Rat King).
+//   equipment  ONE row, `gear: true`, never a reveal; on a loot-band ground the
+//              Scarce rows instead (src/data/loot-bands.js, the Thicket first).
+//   + rare     the Rare (1 per 10-20 h) and Trophy (bosses, 1 per 100-150 h).
 //
 // IMBUING IS NOT BUILT (L4: no server table, no station, no recipe). Until it
 // is, an imbuement item drops, stacks, trades, and the loot filter keeps it

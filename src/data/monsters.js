@@ -37,39 +37,19 @@
 //   drops        `{id, ch}` — `id` MUST exist in ITEMS. Every drop id used
 //                here already shipped; this wave invents no items (that is a
 //                separate change), so no drop can dangle.
-//   lucky        `{id, ch, lucky:true}` — a LUCKY FIND (content pack 1): a
-//                very-rare named gear drop, 4-30 expected hours at its tier.
-//                Always the LAST row of its array (an appended row leaves every
-//                earlier draw of the seeded stream where it was). The engine
-//                reads only id/ch; the flag is for the client, which never
-//                shows or credits a lucky row its own dice rolled — only the
-//                server's `rare_drop` event reveals one. Guarded by
-//                tests/lucky-finds.mjs (item rules, faucet cap, hours band).
-//   salvage      `{id, ch, salvage:true}` — FIELD SALVAGE (content pack 6): a
-//                small-slot armour piece (helm/boots/gloves/belt) of the
-//                monster's own tier, 0.5-10 expected hours. LAST row, at most
-//                one per monster, never on a monster with a lucky row. The
-//                engine reads only id/ch; the flag tells the client that only
-//                the server reveals the row (src/features/lucky-finds.js
-//                silences the client's own dice exactly as for lucky rows).
-//                Guarded by tests/field-salvage.mjs (4% faucet cap per row, 5%
-//                total gear cap per monster, hours band, both paths).
-//   band         `{id, ch, band}` — THE LOOT BANDS (designer loot redesign, Tyler
-//                2026-10-23; src/data/loot-bands.js): common | uncommon | scarce |
-//                rare | trophy on EVERY row of a converted ground, in that order,
-//                read by the roller in place of the odds. Common and uncommon are
-//                the loot line; each Scarce piece lands every 1-3 h per hero at
-//                the floor (each monster one armour slot in heavy, medium and
-//                light); each Rare item every 10-20 h and Trophy (bosses only,
-//                LAST) every 100-150 h, the only rows the server reveals and the
-//                party rolls for. tests/hunt-core/drop-tables.mjs (loot-structure,
-//                build-coverage, gear-pace, rare-pace). The Thicket is converted;
-//                the other grounds follow in batches (Phase B), on `gear` below.
-//   gear         `{id, ch, gear:true}` — THE OLD EQUIPMENT SLOT (Tyler 10-14/10-20),
-//                on the grounds not yet on bands: one per walked-ground monster,
-//                gear its band can wear, each slot about every 1.3 h per hero at
-//                a low floor; rolled as band 'gear', never a rare reveal. One
-//                monster per such ground (the RARE CARRIER) holds every rare-odds row.
+//   lucky        `{id, ch, lucky:true}` — a LUCKY FIND (content pack 1, old
+//                roster): a very-rare named gear drop, 4-30 h, the LAST row,
+//                revealed only by the server. tests/lucky-finds.mjs.
+//   salvage      `{id, ch, salvage:true}` — FIELD SALVAGE (content pack 6, old
+//                roster): an own-tier helm/boots/gloves/belt, 0.5-10 h, the LAST
+//                row, never beside a lucky row. tests/field-salvage.mjs.
+//   band         `{id, ch, band}` — THE LOOT BANDS (Tyler 2026-10-23,
+//                src/data/loot-bands.js): every row of a converted ground, in band
+//                order, read by the roller in place of the odds; only Rare and
+//                Trophy reveal. tests/hunt-core/drop-tables.mjs.
+//   gear         `{id, ch, gear:true}` — THE OLD EQUIPMENT SLOT (Tyler 10-14/10-20)
+//                of a ground not yet on bands: one per monster, never a reveal;
+//                one RARE CARRIER per such ground holds every rare-odds row.
 //
 // `neutral` IS RETIRED (DEC-NEUT-01). Every monster answers a real weapon.
 // The 7 monsters that used to opt out of the triangle earned a x1.15 drop
@@ -717,13 +697,9 @@ export const MONSTERS = {
       { id: 'iron_helm', ch: .026, gear: true }] },
 
   /* ══ Meadowbrook Thicket: the gray wolves (one family, five roles; a solo ground).
-     Names, roles and economy: the src/data/hunt-grounds.js header. THE LOOT BANDS' SAMPLE (designer 2026-10-23):
-     each wolf carries one armour slot of the ground's tier-1 set in heavy, medium and light (whelps boots, wolves
-     helmets, briarcoats legs, Dire Grays bodies), each piece about once an hour per hero at the floor (Tyler
-     2026-10-23); the den mother carries the tier-2 helmets, the Alpha Fang and her Ruff, and a Dire Gray the Studded
-     Leather Body, each about every 15 h. Odds measured on the real settle (a solo hero kills for 0.55 of a row's
-     yield: hunt-grounds.js yieldPermille), tests/hunt-core/drop-tables.mjs. PROVISIONAL (Tyler 2026-10-23): re-tuned
-     after combat balance and the economy sims. ══════════════ */
+     Names, roles and economy: the src/data/hunt-grounds.js header. THE LOOT BANDS' SAMPLE (designer 2026-10-23): one
+     tier-1 armour slot per wolf in all three weights, each piece about hourly per hero; the den mother's tier-2 helmets,
+     Alpha Fang and Ruff and the Dire Gray's Studded Leather Body about every 15 h. Odds PROVISIONAL (Tyler 10-23). ══ */
   gray_whelp: { name: 'Gray Whelp', icon: '🐺', tier: 1, level: 5, cls: 'mammal', family: 'Mammal',
     hp: 9, atk: 2, def: 0, xp: 28, gp: [1, 3], speed: 3800,
     drops: [{ id: 'raw_wolf_meat', ch: .35, band: 'common' }, { id: 'bones', ch: .4, band: 'common' }, { id: 'whelp_milk_tooth', ch: .06, band: 'uncommon' },

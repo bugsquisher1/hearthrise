@@ -103,12 +103,12 @@
 // set: x1.25, at the hunt's tier-4 store food), the Thicket and the Mill Cellar far above
 // (their coin unchanged). A Mage or Healer pays for drinks far past any coin today (the
 // Sewer's party at 8: about 9,000 g an hour each): that is the drink and ability bill, not
-// the loot (CONFLICTS.md 2026-10-20). EQUIPMENT (Tyler 10-14/10-20): every monster here
-// carries one gear row (monsters.js `gear`); each ground but the cellar covers weapon,
-// helmet, body, legs and boots, about every 1.3 h per hero at a low floor (bronze in the
-// Thicket and the Sewer's lower rooms, iron above them), the Warrens' steel about every
-// 8 h. ONE rare carrier per ground (the Rat King's Crown Shard, Old Grayjaw's Alpha Fang,
-// the Chief's War Crown, 10-20 h per hero). The coin is final in the rows (DM-16).
+// the loot (CONFLICTS.md 2026-10-20). EQUIPMENT: the Thicket is on the LOOT BANDS (Tyler
+// 2026-10-23, src/data/loot-bands.js: each tier-1 piece in three weights about hourly, Rare
+// items 10-20 h); every other ground still carries one gear row per monster (monsters.js
+// `gear`, Tyler 10-14/10-20) covering weapon, helmet, body, legs and boots, about every 1.3 h
+// at a low floor, the Warrens' steel about every 8 h, and ONE rare carrier (the Crown Shard,
+// the War Crown, Rook's Whistle, 10-20 h per hero). The coin is final in the rows (DM-16).
 //
 // PARTY SCALING (BALANCE_RULINGS 2026-10-16, the party-size test): a fixed pack
 // is trivial for four heroes and lethal at the boss for one, so a pack's HP is

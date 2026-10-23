@@ -237,6 +237,18 @@ and `DEEPWATERS-S1`/`-S2` in `tests/accrual-engine.mjs`.
 `src/data/monsters.js` → `MONSTERS`. Drops live inline:
 `drops:[{id, ch}]` (ch = 0..1 chance). Add a drop = add to the array; the id must
 exist in `ITEMS`.
+**The loot bands** (Tyler 2026-10-23): on a converted ground every row is
+`{id, ch, band}`, band common | uncommon | scarce | rare | trophy
+(`src/data/loot-bands.js`, in that order on the row list). The roller reads the
+band (`src/core/drops.js` bandOf); only Rare and Trophy reveal and go to the
+party's rare roll. Each band is a promise in hours at the floor (Scarce about one
+piece an hour, Rare 10-20 h per item, Trophy 100-150 h, bosses only), worn gear
+sells at `VENDOR_GEAR_RATE` of book, and `tests/hunt-core/drop-tables.mjs`
+measures pace, the gear faucet and total value on the real settle. Grounds not yet
+converted stay on the `gear: true` slot below (its `OLD_MODEL` list).
+The server refuses a settle naming an item no spawn's kill bound lists, so a new
+drop item ships with the regenerated hunt-sessions catalogue, applied right
+before the edge deploy.
 ⚠ **A drop row is a SERVER FAUCET** (hr-accrue mints it into a tradeable
 inventory), so it ships in lane C order: **Security GO → hr-accrue edge deploy →
 then the client**. The client must never show a drop the deployed engine cannot

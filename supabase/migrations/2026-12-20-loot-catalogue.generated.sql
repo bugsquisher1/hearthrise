@@ -6,9 +6,9 @@
 --   `node tools/gen-catalogues.mjs --check`, which is a preflight in
 --   tests/run-sql-tests.mjs. Edit src/data/*.js and regenerate.
 --
---   catalogue digest: f076077d274ca9546b17303b052c6f379ecb734ba8db0e30614530d3c67fc8c3
---   rows: 519 items (6 untradeable) ·
---         293 item-slot pairs · 14 equip slots ·
+--   catalogue digest: d2deac3878e554f2e6562ef6a1b3fb7d02dce3dda86021c84ce29d71dc78a2b1
+--   rows: 521 items (6 untradeable) ·
+--         295 item-slot pairs · 14 equip slots ·
 --         13 skills · 9 crops · 310 activities ·
 --         0 runes
 --
@@ -594,6 +594,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('steel_boots','Steel Boots',true,'armor',400,'defense',30,null,false,'heavy',false),
   ('steel_gauntlets','Steel Gauntlets',true,'armor',350,'defense',30,null,false,'heavy',false),
   ('steel_hammer','Steel Hammer',true,'tool',950,null,null,null,false,null,false),
+  ('steel_hatchets','Steel Hatchets',true,'weapon',500,'melee',30,null,false,null,true),
   ('steel_helm','Steel Helm',true,'armor',600,'defense',30,null,false,'heavy',false),
   ('steel_knife','Steel Knife',true,'tool',950,null,null,null,false,null,false),
   ('steel_needle','Steel Needle',true,'tool',950,null,null,null,false,null,false),
@@ -685,6 +686,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('whelp_milk_tooth','Whelp Milk Tooth',true,null,10,null,null,null,false,null,false),
   ('whispering_codex','Whispering Codex',true,'weapon',6500,'magic',45,null,false,null,false),
   ('widows_fang','Widow''s Fang',true,'weapon',7600,'melee',38,null,false,null,false),
+  ('willow_crossbow','Willow Crossbow',true,'weapon',500,'ranged',30,null,false,null,false),
   ('willow_log','Willow Log',true,null,40,null,null,null,false,null,false),
   ('willow_longbow','Willow Longbow',true,'weapon',525,'ranged',30,null,false,null,false),
   ('willow_plank','Willow Plank',true,null,120,null,null,null,false,null,false),
@@ -936,6 +938,7 @@ insert into public.hr_item_slots (item_id, equip_slot) values
   ('steel_belt','belt'),
   ('steel_boots','boots'),
   ('steel_gauntlets','gloves'),
+  ('steel_hatchets','weapon'),
   ('steel_helm','helmet'),
   ('steel_platebody','body'),
   ('steel_platelegs','pants'),
@@ -990,6 +993,7 @@ insert into public.hr_item_slots (item_id, equip_slot) values
   ('water_rune','ammo'),
   ('whispering_codex','weapon'),
   ('widows_fang','weapon'),
+  ('willow_crossbow','weapon'),
   ('willow_longbow','weapon'),
   ('willow_spellbook','shield'),
   ('willow_staff','weapon'),
@@ -1916,7 +1920,7 @@ insert into public.hr_feast_foods (item_id, heals) values
 on conflict (item_id) do update set heals = excluded.heals;
 
 insert into public.hr_catalogue_meta (only_row, digest, generated_at)
-  values (true, 'f076077d274ca9546b17303b052c6f379ecb734ba8db0e30614530d3c67fc8c3', now())
+  values (true, 'd2deac3878e554f2e6562ef6a1b3fb7d02dce3dda86021c84ce29d71dc78a2b1', now())
   on conflict (only_row) do update set digest = excluded.digest, generated_at = excluded.generated_at;
 
 -- ── RLS + grants. Catalogues are world-readable (the client renders from the
@@ -1944,7 +1948,7 @@ do $$
 declare v_bad int; v_n int;
 begin
   select count(*) into v_n from public.hr_items;
-  if v_n <> 519 then raise exception 'hr_items has % rows, generator emitted 519', v_n; end if;
+  if v_n <> 521 then raise exception 'hr_items has % rows, generator emitted 521', v_n; end if;
   select count(*) into v_n from public.hr_items where not tradeable;
   if v_n <> 6 then
     raise exception 'untradeable count is %, generator emitted 6', v_n;
@@ -2110,7 +2114,7 @@ begin
                   where p.item_id = i.item_id and p.equip_slot in ('helmet', 'body', 'pants', 'boots', 'gloves', 'belt'));
   if v_bad > 0 then raise exception '% armour row(s) in an armour slot carry no armour_weight', v_bad; end if;
 
-  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest f076077d274ca9546b17303b052c6f379ecb734ba8db0e30614530d3c67fc8c3',
+  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest d2deac3878e554f2e6562ef6a1b3fb7d02dce3dda86021c84ce29d71dc78a2b1',
     (select count(*) from public.hr_items), (select count(*) from public.hr_activities),
     (select count(*) from public.hr_runes);
 end $$;

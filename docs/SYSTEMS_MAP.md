@@ -243,9 +243,10 @@ exist in `ITEMS`.
 band (`src/core/drops.js` bandOf); only Rare and Trophy reveal and go to the
 party's rare roll. Each band is a promise in hours at the floor (Scarce about one
 piece an hour, Rare 10-20 h per item, Trophy 100-150 h, bosses only), worn gear
-sells at `VENDOR_GEAR_RATE` of book, and `tests/hunt-core/drop-tables.mjs`
-measures pace, the gear faucet and total value on the real settle. Grounds not yet
-converted stay on the `gear: true` slot below (its `OLD_MODEL` list).
+sells at its tier's share of book (`VENDOR_GEAR_RATES`), and
+`tests/hunt-core/drop-tables.mjs` measures pace, the gear faucet and total value on
+the real settle, for a party ground's party and lone hero alike. Every walked
+ground is banded; only the tutorial's seeded Giant Rat and Slime keep odds rows.
 The server refuses a settle naming an item no spawn's kill bound lists, so a new
 drop item ships with the regenerated hunt-sessions catalogue, applied right
 before the edge deploy.

@@ -739,7 +739,8 @@ export const MONSTERS = {
      a party ground). Names, roles and economy: the src/data/hunt-grounds.js header. THE LOOT BANDS (batch 4): the
      tier-3 set in three weights about hourly for a party of four at 32 AND a lone hero at 45. The swarm dies fastest,
      so the scavengers carry two slots (boots, legs) and the Steel Sword they pick off the spoil; the diggers the helmets
-     and the Steel Warhammer; the few skulkers, foremen and the Chief share the bodies. ══ */
+     and the Steel Warhammer; the few skulkers, foremen and the Chief share the bodies. Rares, ~13-15 h: the skulkers'
+     willow bows, the foreman's steel hatchets, the willow caster pieces in the Chief's hoard beside his War Crown. ══ */
   goblin_scavenger: { name: 'Goblin Scavenger', icon: '👺', tier: 3, level: 34, cls: 'humanoid', family: 'Humanoid', formation: true,
     hp: 150, atk: 22, def: 10, xp: 924, gp: [12, 29], speed: 3200,
     drops: [{ id: 'goblin_ear', ch: .6, band: 'common' }, { id: 'copper_ore', ch: .5, band: 'common' }, { id: 'bones', ch: .5, band: 'common' }, { id: 'coal', ch: .1, band: 'uncommon' },
@@ -748,7 +749,8 @@ export const MONSTERS = {
   goblin_skulker: { name: 'Goblin Skulker', icon: '👺', tier: 3, level: 38, cls: 'humanoid', family: 'Humanoid', formation: true,
     hp: 170, atk: 30, def: 12, xp: 1122, gp: [14, 34], speed: 4400,
     drops: [{ id: 'goblin_ear', ch: .6, band: 'common' }, { id: 'bones', ch: .5, band: 'common' }, { id: 'iron_ore', ch: .2, band: 'common' },
-      { id: 'steel_platebody', ch: .05, band: 'scarce' }, { id: 'boarhide_body', ch: .05, band: 'scarce' }, { id: 'scholar_body', ch: .05, band: 'scarce' }] },
+      { id: 'steel_platebody', ch: .05, band: 'scarce' }, { id: 'boarhide_body', ch: .05, band: 'scarce' }, { id: 'scholar_body', ch: .05, band: 'scarce' },
+      { id: 'willow_longbow', ch: .0062, band: 'rare' }, { id: 'willow_crossbow', ch: .0062, band: 'rare' }] },
   goblin_digger: { name: 'Goblin Digger', icon: '👺', tier: 3, level: 40, cls: 'humanoid', family: 'Humanoid', formation: true,
     /* one override (weapon): the copper pot over its eyes turns a blade; a hammer rings it. */
     weaponWeak: 'hammer', weaponResist: ['sword'],
@@ -758,13 +760,15 @@ export const MONSTERS = {
   hobgoblin_foreman: { name: 'Hobgoblin Foreman', icon: '👹', tier: 3, level: 46, cls: 'humanoid', family: 'Humanoid', formation: true,
     hp: 300, atk: 30, def: 22, xp: 2112, gp: [29, 67], speed: 3000,
     drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'iron_ore', ch: .6, band: 'common' }, { id: 'coal', ch: .6, band: 'common' }, { id: 'goblin_totem', ch: .08, band: 'uncommon' },
-      { id: 'steel_platebody', ch: .05, band: 'scarce' }, { id: 'boarhide_body', ch: .05, band: 'scarce' }, { id: 'scholar_body', ch: .05, band: 'scarce' }] },
+      { id: 'steel_platebody', ch: .05, band: 'scarce' }, { id: 'boarhide_body', ch: .05, band: 'scarce' }, { id: 'scholar_body', ch: .05, band: 'scarce' },
+      { id: 'steel_hatchets', ch: .0124, band: 'rare' }] },
   chief_coppercap: { name: 'Chief Coppercap', icon: '👑', tier: 3, level: 52, cls: 'humanoid', family: 'Humanoid', formation: true, boss: true,
     /* one override (element): the polished cauldron he wears for a crown sheds frost. */
     elementResist: ['frost'],
     hp: 1100, atk: 29, def: 28, xp: 7920, gp: [95, 215], speed: 2800,
     drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'gold_ore', ch: .5, band: 'common' }, { id: 'goblin_totem', ch: .3, band: 'common' },
-      { id: 'steel_platebody', ch: .05, band: 'scarce' }, { id: 'boarhide_body', ch: .05, band: 'scarce' }, { id: 'scholar_body', ch: .05, band: 'scarce' }, { id: 'war_crown', ch: .016, band: 'rare' }] },
+      { id: 'steel_platebody', ch: .05, band: 'scarce' }, { id: 'boarhide_body', ch: .05, band: 'scarce' }, { id: 'scholar_body', ch: .05, band: 'scarce' }, { id: 'war_crown', ch: .016, band: 'rare' },
+      { id: 'willow_wand', ch: .0125, band: 'rare' }, { id: 'willow_spellbook', ch: .0125, band: 'rare' }, { id: 'willow_staff', ch: .0125, band: 'rare' }] },
 
   /* ══ Mosslight Glade, levels 16-31, solo, mixed (lane c-ground-16-31): roles, junk and economy in the src/data/hunt-grounds.js header.
      THE LOOT BANDS (batch 3): the whole tier-2 set in three weights, about hourly (crows boots, poachers legs and their

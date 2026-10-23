@@ -189,8 +189,7 @@ export const UNREACHABLE = Object.freeze({
     'bronze_gauntlets', 'iron_gauntlets', 'steel_gauntlets', 'studded_gloves', 'boarhide_gloves', 'apprentice_gloves',
     'adept_gloves', 'scholar_gloves', 'leather_belt', 'iron_belt', 'steel_belt', 'studded_belt', 'boarhide_belt',
     'apprentice_belt', 'adept_belt', 'scholar_belt',
-    'willow_longbow',
-    'willow_staff', 'willow_wand', 'willow_spellbook', 'bramble_blade', 'rat_stick',
+        'bramble_blade', 'rat_stick',
     'fang_studs', 'wolfbone_torc', 'spidersilk_choker', 'banded_signet', 'tusker_charm', 'packlord_band',
     'mirewort_drops', 'ancient_fragment', 'cracked_spellstone', 'grave_dust', 'razor_claw', 'bear_pelt', 'bear_claw',
     'raw_bear_meat', 'cooked_bear_meat', 'bear_claw_pie',
@@ -226,8 +225,8 @@ export const UNREACHABLE = Object.freeze({
    `shop_gear` fates closed, 33 rows; Bronze Sword left the unlisted counter for `cut`). 140 -> 134: the style
    ladder makes six greenhaven rows (Oak Wand, Oakboard Spellbook, Iron Warhammer, Apprentice and Adept Slippers,
    Adept Robe Top); the Longbow left `staged` (made at Crafting 15 too). 134 -> 133 (lane b-loot-bands): Old Grayjaw's
-   Rare row sources the Studded Leather Coif. 133 -> 132: the Sewer's kobolds drop the Iron Boots; 132 -> 131: Rook hides the Boarhide Coif; 131 -> 129: the Warrens drop the Steel and Scholar boots. */
-export const UNREACHABLE_CEILING = 129;
+   Rare row sources the Studded Leather Coif. 133 -> 132: the Sewer's kobolds drop the Iron Boots; 132 -> 131: Rook hides the Boarhide Coif; 131 -> 129: the Warrens drop the Steel and Scholar boots.  129 -> 125: the Warrens' willow Rares. */
+export const UNREACHABLE_CEILING = 125;
 
 /**
  * id -> the first reachable door (a label). `opts` opens planned doors for C11's proof:

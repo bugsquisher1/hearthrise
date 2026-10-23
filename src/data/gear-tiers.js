@@ -111,24 +111,24 @@ export const WEAPON_FAMILIES = [
     ids:   ['apprentice_wand', 'oak_wand', 'willow_wand', 'maple_wand', 'yew_wand', 'runewood_wand'],
   },
   /* THE STYLE LADDER (designer 2026-10-22, src/data/style-gear.js). Dual axes (bleed) and the crossbow had no
-     rung above the practice kit. A `null` id is a rung the PRACTICE KIT holds (tier 1: the bound practice
-     weapon), so no tier-1 copy of it is generated. A rung ships only with a source (style-gear.js recipes);
-     the steel rungs and up wait for the next batch. Hatchets: a pair, two-handed, even accuracy and damage
+     rung above the practice kit. A `null` id is a rung the PRACTICE KIT holds (tier 1: the practice
+     weapon), so no tier-1 copy of it is generated. A rung ships only with a source: tier 2 is made (style-gear.js),
+     tier 3 a Warrens Rare (the loot bands, 2026-10-23). Hatchets: a pair, two-handed, even accuracy and damage
      (the practice pair's 4/4 shape). Crossbow: a little less accuracy and a little more damage than the
      bow of its tier (the practice crossbow's 4/4 against the bow's 5/3). */
   {
     key: 'hatchets', label: 'Hatchets', weaponType: 'axe', skill: 'smithing', mat: 'bar', twoHanded: true,
     atk: [4, 7, 12, 18, 25, 33, 42], str: [4, 7, 11, 16, 22, 29, 38],
     vmul: 100,
-    names: [null, 'Iron Hatchets'],
-    ids:   [null, 'iron_hatchets'],
+    names: [null, 'Iron Hatchets', 'Steel Hatchets'],
+    ids:   [null, 'iron_hatchets', 'steel_hatchets'],
   },
   {
     key: 'crossbow', label: 'Crossbow', weaponType: 'ranged', skill: 'crafting', mat: 'plank',   // wood-named, as the bow line is
     atk: [4, 8, 13, 19, 26, 34, 43], str: [4, 7, 11, 16, 22, 29, 37],
     vmul: 100,
-    names: [null, 'Oak Crossbow'],
-    ids:   [null, 'oak_crossbow'],
+    names: [null, 'Oak Crossbow', 'Willow Crossbow'],
+    ids:   [null, 'oak_crossbow', 'willow_crossbow'],
   },
 ];
 

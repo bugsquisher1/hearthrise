@@ -1102,7 +1102,7 @@
   },
   "hr_hunt_vendor_value": {
    "class": "seeded",
-   "replay": 499,
+   "replay": 501,
    "note": "Generated catalogue (2026-10-21-hunt-sessions-catalogue.generated.sql (tools/gen-hunt-sessions.mjs --check from src/data)): the vendor bid per item (vendorPriceOf), read only by hr_hunt_analyzer for Gold-at-vendor-value and Waste. Moves no value. Rebuilt from repo, never restored; nothing player-owned."
   },
   "hr_hunt_weapon_roles": {
@@ -1112,7 +1112,7 @@
   },
   "hr_hunt_weapons": {
    "class": "seeded",
-   "replay": 64,
+   "replay": 66,
    "note": "Generated catalogue (2026-10-23-hunt-sessions-catalogue.generated.sql, tools/gen-hunt-sessions.mjs --check from src/data): weapon item -> weapon type, the role a hero plays (hr_hunt_weapon_of). Rebuilt from repo, never restored; nothing player-owned."
   },
   "hr_hunt_world_shape": {
@@ -1137,12 +1137,12 @@
   },
   "hr_item_slots": {
    "class": "seeded",
-   "replay": 293,
+   "replay": 295,
    "note": "Generated catalogue — which items may occupy which equipment slot. 222 rows on 2026-08-15, 275 now. Rebuilt from repo, never restored."
   },
   "hr_items": {
    "class": "seeded",
-   "replay": 519,
+   "replay": 521,
    "note": "Generated catalogue — the market tradeable allowlist and every item's server-side truth. 426 rows on 2026-08-15, 515 on 2026-09-06, 519 now (+4 Hearthfind trophies, 2026-09-08). Content digest guarded by tools/gen-catalogues.mjs --check as a smoke preflight."
   },
   "hr_kill_credit_log": {

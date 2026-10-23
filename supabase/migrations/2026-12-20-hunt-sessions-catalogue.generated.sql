@@ -8,9 +8,9 @@
 --   src/data/premium.js, src/core/hunt/world-state.js and the vendor price
 --   (hr-accrue/catalogue.js). Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: 42a1360e3b58235b1312bbcf77b43107b3778443f139bb13bfe5b90e1e71a1f5
+--   digest: f8ffd0ed903717f5b0056751d16d9491051217f8fbce97b65c12b18a6d90c20c
 --   59 supplies, 121 hunts (named + training), 52 limits, 11 end reasons,
---   499 vendor values, 19 store supplies paid per use, 5 target modes,
+--   501 vendor values, 19 store supplies paid per use, 5 target modes,
 --   3 lanes, 14 abilities, 12 action-set options, 5 hunt grounds
 --
 -- SUPERSEDES 2026-12-09-hunt-sessions-catalogue.generated.sql (the v0.2.32 chain;
@@ -367,7 +367,7 @@ insert into public.hr_hunt_kill_bounds (monster_id, gold_max, xp_max, drops) val
   ('cave_wyrm', 102, 515, '{"dragon_scale":1,"iron_ore":1,"mithril_ore":1,"coal":1,"snakeskin_gloves":1}'::jsonb),
   ('centipede', 40, 188, '{"void_chitin":1,"venom_sac":1,"iron_ore":1,"coal":1}'::jsonb),
   ('chained_demon', 254, 962, '{"demon_shard":1,"hell_ember":1,"death_steel":1,"iron_fitting":1,"yew_staff":1}'::jsonb),
-  ('chief_coppercap', 215, 9570, '{"big_bones":1,"gold_ore":1,"goblin_totem":1,"steel_platebody":1,"boarhide_body":1,"scholar_body":1,"war_crown":1}'::jsonb),
+  ('chief_coppercap', 215, 9570, '{"big_bones":1,"gold_ore":1,"goblin_totem":1,"steel_platebody":1,"boarhide_body":1,"scholar_body":1,"war_crown":1,"willow_wand":1,"willow_spellbook":1,"willow_staff":1}'::jsonb),
   ('cistern_spider', 90, 839, '{"silk_thread":1,"cistern_venom_gland":1,"longbow":1,"oak_crossbow":1}'::jsonb),
   ('clay_golem', 40, 217, '{"iron_ore":1,"iron_fitting":1,"coal":1,"steel_boots":1}'::jsonb),
   ('conjurer', 118, 477, '{"magic_essence":1,"hell_ember":1,"rune_frag":1,"maple_spellbook":1,"warlock_boots":1}'::jsonb),
@@ -405,7 +405,7 @@ insert into public.hr_hunt_kill_bounds (monster_id, gold_max, xp_max, drops) val
   ('goblin_brute', 42, 207, '{"goblin_ear":1,"brute_plate":1,"steel_sword":1,"goblin_totem":1}'::jsonb),
   ('goblin_digger', 39, 1812, '{"copper_ore":1,"coal":1,"bones":1,"goblin_ear":1,"steel_helm":1,"boarhide_helmet":1,"scholar_helmet":1,"steel_warhammer":1}'::jsonb),
   ('goblin_scavenger', 29, 1149, '{"goblin_ear":1,"copper_ore":1,"bones":1,"coal":1,"steel_boots":1,"boarhide_boots":1,"scholar_boots":1,"steel_platelegs":1,"boarhide_pants":1,"scholar_pants":1,"steel_sword":1}'::jsonb),
-  ('goblin_skulker', 34, 1377, '{"goblin_ear":1,"bones":1,"iron_ore":1,"steel_platebody":1,"boarhide_body":1,"scholar_body":1}'::jsonb),
+  ('goblin_skulker', 34, 1377, '{"goblin_ear":1,"bones":1,"iron_ore":1,"steel_platebody":1,"boarhide_body":1,"scholar_body":1,"willow_longbow":1,"willow_crossbow":1}'::jsonb),
   ('goblin_sluicer', 34, 465, '{"copper_ore":1,"bones":1,"sluice_crust":1,"iron_platebody":1,"studded_body":1,"adept_body":1}'::jsonb),
   ('goblin_warlord', 100, 438, '{"brute_plate":1,"warlord_badge":1,"steel_helm":1,"warlords_torc":1}'::jsonb),
   ('grave_banshee', 286, 936, '{"wraith_veil":1,"grave_dust":1,"vamp_dust":1,"ancient_rune":1,"wraithsilk_shroud":1}'::jsonb),
@@ -416,7 +416,7 @@ insert into public.hr_hunt_kill_bounds (monster_id, gold_max, xp_max, drops) val
   ('hellhound', 130, 513, '{"demon_shard":1,"hell_ember":1,"big_bones":1,"coal":1}'::jsonb),
   ('hive_wasp', 4, 48, '{"venom_sac":1,"silk_thread":1,"small_fang":1,"bronze_helm":1,"leather_helmet":1,"apprentice_helmet":1}'::jsonb),
   ('hobgoblin', 22, 89, '{"goblin_ear":1,"iron_ore":1,"iron_sword":1,"goblin_totem":1,"rat_stick":1}'::jsonb),
-  ('hobgoblin_foreman', 67, 2562, '{"big_bones":1,"iron_ore":1,"coal":1,"goblin_totem":1,"steel_platebody":1,"boarhide_body":1,"scholar_body":1}'::jsonb),
+  ('hobgoblin_foreman', 67, 2562, '{"big_bones":1,"iron_ore":1,"coal":1,"goblin_totem":1,"steel_platebody":1,"boarhide_body":1,"scholar_body":1,"steel_hatchets":1}'::jsonb),
   ('ice_elemental', 100, 462, '{"frostfin":1,"magic_essence":1,"mithril_ore":1}'::jsonb),
   ('imp', 6, 25, '{"demon_shard":1,"coal":1,"rune_frag":1,"apprentice_boots":1}'::jsonb),
   ('iron_colossus', 544, 1852, '{"rune_bar":1,"mithril_bar":1,"keystone":1,"iron_fitting":1,"death_steel":1}'::jsonb),
@@ -615,6 +615,7 @@ insert into public.hr_hunt_weapons (item_id, weapon_type) values
   ('runewood_staff', 'staff'),
   ('runewood_wand', 'wand'),
   ('shortbow', 'ranged'),
+  ('steel_hatchets', 'axe'),
   ('steel_sword', 'sword'),
   ('steel_warhammer', 'hammer'),
   ('stone_maul', 'hammer'),
@@ -624,6 +625,7 @@ insert into public.hr_hunt_weapons (item_id, weapon_type) values
   ('wartusk_cleaver', 'sword'),
   ('whispering_codex', 'wand'),
   ('widows_fang', 'sword'),
+  ('willow_crossbow', 'ranged'),
   ('willow_longbow', 'ranged'),
   ('willow_staff', 'staff'),
   ('willow_wand', 'wand'),
@@ -1255,6 +1257,7 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('steel_boots', 48),
   ('steel_gauntlets', 42),
   ('steel_hammer', 950),
+  ('steel_hatchets', 60),
   ('steel_helm', 72),
   ('steel_knife', 950),
   ('steel_needle', 950),
@@ -1345,6 +1348,7 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('whelp_milk_tooth', 2),
   ('whispering_codex', 3250),
   ('widows_fang', 912),
+  ('willow_crossbow', 60),
   ('willow_log', 8),
   ('willow_longbow', 63),
   ('willow_plank', 120),
@@ -1382,7 +1386,7 @@ begin
      or (select count(*) from public.hr_hunt_travel) <> 121
      or (select count(*) from public.hr_hunt_limits) <> 52
      or (select count(*) from public.hr_hunt_end_reasons) <> 11
-     or (select count(*) from public.hr_hunt_vendor_value) <> 499
+     or (select count(*) from public.hr_hunt_vendor_value) <> 501
      or (select count(*) from public.hr_hunt_basic_supplies) <> 19
      or (select count(*) from public.hr_hunt_cover_items) <> 0
      or exists (select 1 from public.hr_hunt_basic_supplies where cardinality(coalesce(tiers, '{}'::int[])) > 0)
@@ -1399,7 +1403,7 @@ begin
      or (select count(*) from public.hr_hunt_roster) <> 24
      or (select count(*) from public.hr_hunt_world_shape) <> 1
      or (select count(*) from public.hr_premium_login_reward) <> 1
-     or (select count(*) from public.hr_hunt_weapons) <> 64
+     or (select count(*) from public.hr_hunt_weapons) <> 66
      or (select count(*) from public.hr_hunt_weapon_roles) <> 12
      or (select count(*) from public.hr_hunt_roles) <> 5
      or (select count(*) from public.hr_hunt_end_reasons where resumes) <> 9 then

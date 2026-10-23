@@ -96,13 +96,11 @@ export function supplyKindOf(item) {
   return null;
 }
 
-/** A RUNE: an ammo item Magic draws on (its own `reqSkill`, as src/core/ammo.js honeOf knows a
-    whetstone by melee). Its store row feeds SPELLS only (designer 2026-10-21, Bible §18; Tyler
-    2026-10-23: runes fuel spells): bought when a spell's slot names it (src/core/hunt/conditions.js
-    storeFits), never by a basic shot or an attack slot, so no screen prices one per shot. */
-export function isRune(item) {
-  return !!item && item.slot === 'ammo' && item.reqSkill === 'magic';
-}
+/** A RUNE: an item of a rune family (src/data/runes.js, the one definition). It fuels SPELLS only
+    (designer 2026-10-21, Bible §18; Tyler 2026-10-23: runes fuel spells, caster basics cost mana):
+    its store row is bought when a spell's slot names it (src/core/hunt/conditions.js storeFits),
+    never by a basic shot, and no attack slot may name a rune. */
+export { isRune } from './runes.js?v=0.2.34';
 
 /** id -> { id, kind, essential, heals, buff }. Null prototype; values from ITEMS. */
 export const SUPPLIES = Object.freeze(SUPPLY_ROWS.reduce((acc, [kind, id, essential]) => {

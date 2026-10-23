@@ -10,11 +10,20 @@
 //
 // THE ROW. { id, n, disciplines[], lane, cdMs, mana, magicXpMult (permille of
 // the mana spent, x1000), rune (an item id the cast spends) | null, ammo (shots
-// of the hero's loaded ammo) , target, effect fields, active }.
+// of the hero's loaded ammo) , target, effect fields, active, versions? }.
 //   target: taunt | mark | enemy | area | cleave | self | ally | party
 //   dmg [lo, hi], element (an elements.js id), hits, maxHits, status (a statuses.js id, H3),
 //   bonusPct + durMs (mark), shield, heal [lo, hi], whenBelowPct, minHurt,
 //   radius (party heal, tiles)
+//   versions: a RUNE spell's versions I..V (Tyler 2026-10-23, src/data/runes.js), up to five
+//     { mana, outPm }: version N is cast by spending a tier-N rune at level versionLevel(N) in
+//     the row's skill (ABILITY_SKILL), costs `mana` and lands `outPm` permille of the row's
+//     dmg / heal / shield (numbers only: never its area, targets, duration or cooldown). Mana
+//     never grows with level; it may rise between versions (designer d3-manacost). A row with
+//     no `versions` casts every version at its own mana and numbers (outPm 1000) until the
+//     designer sizes them. `whenBelowPct`, `minHurt` and ABILITY_RULES.areaMin are the
+//     conditions a NEW slot of the ability starts with (conditions.js suggestedConditions):
+//     shown on the slot, never applied behind it.
 // `active: false` holds a row whose rune is not a carried supply yet: no
 // ability may name an item a hunt bag cannot hold (spec §1.2). Rend waits on
 // the Life rune and Frost Lance on a Frost rune line (other lanes).
@@ -29,6 +38,8 @@
 import { SUPPLIES } from './supplies.js?v=0.2.34';
 import { HUNT_TUNING } from './hunt-tuning.js?v=0.2.34';
 import { isElement } from './elements.js?v=0.2.34';
+import { ITEMS } from './items.js?v=0.2.34';
+import { isRune, RUNE_TIERS } from './runes.js?v=0.2.34';
 
 /* Two ability lanes and their lockouts (Bible §9.1 PROPOSED, AB-02). Food and
    drink keep their own lane (consumables.js). */
@@ -90,6 +101,18 @@ export const ABILITIES = Object.freeze([
 const TARGETS = ['taunt', 'mark', 'enemy', 'area', 'cleave', 'self', 'ally', 'party'];
 const DISCIPLINES = ['shield', 'dual_axe', 'ranged', 'destruction', 'restoration'];
 
+/* THE SKILL A DISCIPLINE'S VERSIONS LEVEL ON (designer d3-weaponskill "own", Tyler 2026-10-23): a weapon
+   ability on its weapon's own skill, a spell on Magic. */
+export const DISCIPLINE_SKILL = Object.freeze({ shield: 'melee', dual_axe: 'melee', ranged: 'ranged', destruction: 'magic', restoration: 'magic' });
+/** The skill `row`'s versions unlock on. */
+export const abilitySkill = (row) => DISCIPLINE_SKILL[row && row.disciplines && row.disciplines[0]] || 'magic';
+
+/** Version `n` (1..5) of `row`: { mana, outPm }. A row with no `versions` row for it casts at its own mana and numbers. */
+export function versionOf(row, n) {
+  const v = row && Array.isArray(row.versions) ? row.versions[n - 1] : null;
+  return v ? { mana: v.mana, outPm: v.outPm } : { mana: row ? row.mana : 0, outPm: 1000 };
+}
+
 /** Every problem with the table, as strings. Empty = valid. */
 export function validate() {
   const out = [];
@@ -108,8 +131,19 @@ export function validate() {
     if (['ally', 'party'].includes(r.target) && !r.heal) bad('a heal target with no heal');
     /* One vocabulary (elements.js): a name outside it would match no weakness, resist or immunity. */
     if ('element' in r && !isElement(r.element)) bad('unknown element ' + r.element);
-    /* No ability may name a missing item (spec §1.2): an active rune is a carried ammo line. */
-    if (r.rune && r.active && !(SUPPLIES[r.rune] && SUPPLIES[r.rune].kind === 'ammo')) bad('rune ' + r.rune + ' is not a carried supply line');
+    /* No ability may name a missing item (spec §1.2): an active rune is a carried supply line of a rune family. */
+    if (r.rune && r.active && !(SUPPLIES[r.rune] && SUPPLIES[r.rune].kind === 'ammo' && isRune(ITEMS[r.rune]))) bad('rune ' + r.rune + ' is not a carried rune line');
+    if (new Set(r.disciplines.map((d) => DISCIPLINE_SKILL[d])).size !== 1) bad('its disciplines level on different skills');
+    if (r.versions !== undefined) {
+      const vs = r.versions;
+      if (!r.rune) bad('only a rune spell has versions');
+      if (!Array.isArray(vs) || !vs.length || vs.length > RUNE_TIERS.length) bad('versions must list 1..' + RUNE_TIERS.length);
+      else vs.forEach((v, i) => {
+        const prev = i ? vs[i - 1] : { mana: 0, outPm: 1000 };
+        if (!v || !Number.isInteger(v.mana) || !Number.isInteger(v.outPm) || v.mana < prev.mana || v.outPm < prev.outPm) bad('version ' + (i + 1) + ' must cost and land at least version ' + i + "'s (whole mana, permille)");
+      });
+      if (Array.isArray(vs) && vs[0] && vs[0].mana !== r.mana) bad("version I's mana is the row's mana");
+    }
   }
   for (const [d, n] of Object.entries(per)) if (n !== 3) out.push(d + ' has ' + n + ' abilities, not 3');
   return out;

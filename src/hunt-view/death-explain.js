@@ -36,7 +36,7 @@ const plural = (n, one, many) => n + ' ' + (n === 1 ? one : many);
 const spell = (id) => String(id).replace(/_/g, ' ');
 
 const WHY_WORDS = Object.freeze({
-  mana: 'mana', supplies: 'supplies', cooldown: 'its cooldown', range: 'range', target: 'a target',
+  mana: 'mana', supplies: 'supplies', cooldown: 'its cooldown', range: 'range', target: 'a target', level: 'a higher skill level for its rune',
 });
 const whyWords = (why) => (typeof why === 'string' && why ? (WHY_WORDS[why] || spell(why).slice(0, 40)) : null);
 

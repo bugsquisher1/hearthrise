@@ -2234,7 +2234,7 @@ const MUTANTS = [
   { arm: 'RUNE-SPEND', name: '[rune-spend] a caster whose runes are spent never swings again', file: 'src/core/hunt/damage.js',
     from: "      if (shoots && u.role !== 'ranger' && !shotLine(h, h.ammo).id) return { ammo: null, price: null, size: 1, aim: t };\n", to: '' },
   { arm: 'RUNE-SPEND', name: '[rune-spend] an unaffordable slot marks the hunt gold_out while the bar is still walked', file: 'src/core/hunt/abilities.js',
-    from: "    if (s.why) return { why: s.short ? 'gold_short' : 'no_stock' };", to: "    if (s.why) { if (s.short) h.hs.goldOut = true; return { why: s.short ? 'gold_short' : 'no_stock' }; }" },
+    from: "    if (s.why) return { why: s.short ? 'gold_short' : s.why === 'level' ? 'level' : 'no_stock' };", to: "    if (s.why) { if (s.short) h.hs.goldOut = true; return { why: s.short ? 'gold_short' : s.why === 'level' ? 'level' : 'no_stock' }; }" },
   { arm: 'BUFF', name: 'the hunt never re-measures the buff queue (a buff never pays)', file: 'src/core/combat-sim.js',
     from: "      if (typeof m.buffsAt === 'function') m.buffsAt(atMs);\n", to: '' },
   { arm: 'BUFF', name: '[C2 buff queue at the read clock] the queue is measured once, at the window start', file: 'src/core/member.js',

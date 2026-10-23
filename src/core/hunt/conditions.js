@@ -479,7 +479,8 @@ export function pickSlot(inst, u, h, rows, act, sc, lane) {
    action could not happen is reported ONCE per (lane, rule, why): the unit keeps its
    last report per lane (`ruleWait`, persisted, so a settle cut never repeats one),
    and a lane that fires clears it. Bounded: one event per change, never per sub-step. */
-export const WAIT_WHY = Object.freeze(['mana', 'cooldown', 'no_stock', 'no_target', 'out_of_range', 'gold_short']);
+/* 'level': a spell's carried rune casts a version the hero's skill has not unlocked yet (src/data/runes.js). */
+export const WAIT_WHY = Object.freeze(['mana', 'cooldown', 'no_stock', 'no_target', 'out_of_range', 'gold_short', 'level']);
 function noteWait(u, lane, wait, sc) {
   const key = wait.rule + ':' + wait.why;
   const cur = u.ruleWait && typeof u.ruleWait === 'object' ? u.ruleWait : {};

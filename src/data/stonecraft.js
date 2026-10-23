@@ -120,14 +120,22 @@ export const STONECRAFT_ITEMS = {
 
      The names are picked so PHASE TWO can hang elements on them with no
      renames — an Ice Troll weak to both arrows and fire is the target shape,
-     and none of it ships in round 2. */
-  air_rune:   { n: 'Air Rune',   icon: '🌀', v: 0,  type: 'ammo', slot: 'ammo', tier: 1, rarity: AMMO_RARITY[0], reqSkill: 'magic', reqLv: AMMO_REQ_LV[0], magicStrB: AMMO_STAT[0], ammoPerShot: FREE },
-  earth_rune: { n: 'Earth Rune', icon: '🌍', v: 1,  type: 'ammo', slot: 'ammo', tier: 2, rarity: AMMO_RARITY[1], reqSkill: 'magic', reqLv: AMMO_REQ_LV[1], magicStrB: AMMO_STAT[1], ammoPerShot: 1 },
-  water_rune: { n: 'Water Rune', icon: '💧', v: 2,  type: 'ammo', slot: 'ammo', tier: 3, rarity: AMMO_RARITY[2], reqSkill: 'magic', reqLv: AMMO_REQ_LV[2], magicStrB: AMMO_STAT[2], ammoPerShot: 1 },
-  fire_rune:  { n: 'Fire Rune',  icon: '🔥', v: 4,  type: 'ammo', slot: 'ammo', tier: 4, rarity: AMMO_RARITY[3], reqSkill: 'magic', reqLv: AMMO_REQ_LV[3], magicStrB: AMMO_STAT[3], ammoPerShot: 1 },
-  chaos_rune: { n: 'Chaos Rune', icon: '🌪️', v: 6,  type: 'ammo', slot: 'ammo', tier: 5, rarity: AMMO_RARITY[4], reqSkill: 'magic', reqLv: AMMO_REQ_LV[4], magicStrB: AMMO_STAT[4], ammoPerShot: 1 },
-  death_rune: { n: 'Death Rune', icon: '💀', v: 9,  type: 'ammo', slot: 'ammo', tier: 6, rarity: AMMO_RARITY[5], reqSkill: 'magic', reqLv: AMMO_REQ_LV[5], magicStrB: AMMO_STAT[5], ammoPerShot: 1 },
-  blood_rune: { n: 'Blood Rune', icon: '🩸', v: 12, type: 'ammo', slot: 'ammo', tier: 7, rarity: AMMO_RARITY[6], reqSkill: 'magic', reqLv: AMMO_REQ_LV[6], magicStrB: AMMO_STAT[6], ammoPerShot: 1 },
+     and none of it ships in round 2.
+
+     SPELL REAGENTS (Tyler 2026-10-23, src/data/runes.js): a rune fuels a SPELL,
+     never a basic attack, so `magicStrB` and `ammoPerShot` are read by no hunt
+     (src/core/member.js: a rune in the ammo slot adds nothing). Each row names its
+     `family` and `runeTier`. The seven are the old ammo ladder, ONE rune a family
+     until the content lane (S3) cuts them into family x tier rows and renames them
+     (Chaos, Death and Blood are the rows Ice, Poison and Rupture replace), so each
+     is its family's Chalked rune (version I) for now. */
+  air_rune:   { n: 'Air Rune',   icon: '🌀', v: 0,  type: 'ammo', slot: 'ammo', tier: 1, rarity: AMMO_RARITY[0], reqSkill: 'magic', reqLv: AMMO_REQ_LV[0], magicStrB: AMMO_STAT[0], ammoPerShot: FREE, family: 'air', runeTier: 1 },
+  earth_rune: { n: 'Earth Rune', icon: '🌍', v: 1,  type: 'ammo', slot: 'ammo', tier: 2, rarity: AMMO_RARITY[1], reqSkill: 'magic', reqLv: AMMO_REQ_LV[1], magicStrB: AMMO_STAT[1], ammoPerShot: 1, family: 'earth', runeTier: 1 },
+  water_rune: { n: 'Water Rune', icon: '💧', v: 2,  type: 'ammo', slot: 'ammo', tier: 3, rarity: AMMO_RARITY[2], reqSkill: 'magic', reqLv: AMMO_REQ_LV[2], magicStrB: AMMO_STAT[2], ammoPerShot: 1, family: 'water', runeTier: 1 },
+  fire_rune:  { n: 'Fire Rune',  icon: '🔥', v: 4,  type: 'ammo', slot: 'ammo', tier: 4, rarity: AMMO_RARITY[3], reqSkill: 'magic', reqLv: AMMO_REQ_LV[3], magicStrB: AMMO_STAT[3], ammoPerShot: 1, family: 'fire', runeTier: 1 },
+  chaos_rune: { n: 'Chaos Rune', icon: '🌪️', v: 6,  type: 'ammo', slot: 'ammo', tier: 5, rarity: AMMO_RARITY[4], reqSkill: 'magic', reqLv: AMMO_REQ_LV[4], magicStrB: AMMO_STAT[4], ammoPerShot: 1, family: 'ice', runeTier: 1 },
+  death_rune: { n: 'Death Rune', icon: '💀', v: 9,  type: 'ammo', slot: 'ammo', tier: 6, rarity: AMMO_RARITY[5], reqSkill: 'magic', reqLv: AMMO_REQ_LV[5], magicStrB: AMMO_STAT[5], ammoPerShot: 1, family: 'poison', runeTier: 1 },
+  blood_rune: { n: 'Blood Rune', icon: '🩸', v: 12, type: 'ammo', slot: 'ammo', tier: 7, rarity: AMMO_RARITY[6], reqSkill: 'magic', reqLv: AMMO_REQ_LV[6], magicStrB: AMMO_STAT[6], ammoPerShot: 1, family: 'rupture', runeTier: 1 },
 
   /* ══ WHETSTONES — melee's ammo, and the charge-not-timer ruling (R4) ═════
      Tyler asked for "sharpening stones that temporarily increase melee weapon

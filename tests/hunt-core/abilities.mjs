@@ -27,8 +27,10 @@ const melee = (M, bar, over, ctx) => {
 
 const cases = {
   'rows-validate': (M) => {
-    const bad = M.AD.validate();
+    const bad = M.AD.validate().concat(M.runes.validate(M.ITEMS));
     if (bad.length) return bad.join('; ');
+    const runes = Object.keys(M.ITEMS).filter((id) => M.runes.isRune(M.ITEMS[id]));
+    if (runes.length !== 7 || !runes.every((id) => M.runes.runeTierOf(M.ITEMS[id]) >= 1)) return 'the rune rows are not the seven family runes: ' + runes;
     const inactive = Object.values(M.AD.ABILITIES).filter((r) => !r.active).map((r) => r.id).sort();
     return JSON.stringify(inactive) === '["frost_lance","rend"]' ? null : 'held rows changed: ' + JSON.stringify(inactive);
   },
@@ -114,6 +116,64 @@ const cases = {
     M.abilities.castAbilities(x.inst, x.sc);
     return JSON.stringify(casts(x.sc)) === '["flame_volley"]' && v.tally.bought.plain_fire_rune === 1 && v.bag.iron_arrows.left === 27
       ? null : 'Flame Volley did not cast on a store rune and three own arrows: ' + JSON.stringify([casts(x.sc), v.tally, v.bag.iron_arrows]);
+  },
+  /* RUNES ARE SPELL REAGENTS (Tyler 2026-10-23, src/data/runes.js): a spell casts the VERSION of the rune it
+     SPENDS (a tier-N rune, version N), once the hero's level in the spell's skill (Flame Strike: Melee, the
+     weapon's own, designer d3-weaponskill) reaches versionLevel(N); a carried rune whose version is locked is
+     not spent and the slot waits `level`; the store's rune (only when the slot names it) is the BASIC version:
+     version I at the store's share, so the same roll lands BASIC_EFFECT_SHARE as hard. */
+  'spell-casts-the-spent-runes-version': (M) => {
+    const etched = Object.assign({}, M.ITEMS, { fire_rune: Object.assign({}, M.ITEMS.fire_rune, { runeTier: 3 }) });
+    const skill = M.AD.abilitySkill(M.AD.ABILITIES.flame_strike), need = M.runes.versionLevel(3);
+    if (skill !== 'melee' || need !== 30) return 'Flame Strike levels on ' + skill + ' and version III needs ' + need + ', want melee 30';
+    const at = (lv, store) => {
+      const hs = supplySession(M, { bag: { fire_rune: { loaded: 2 } }, shot: 'plain_fire_rune', ammo: 'fire_rune', purse: 50 });
+      const x = melee(M, [store ? storeSlot('flame_strike') : 'flame_strike'], {}, { hs, items: etched, skills: { melee: M.XP.skillXpForLevel('melee', lv) } });
+      M.abilities.castAbilities(x.inst, x.sc);
+      return { x, hs, cast: x.sc.events.find((e) => e.type === 'cast') || null };
+    };
+    const open = at(need);
+    if (!open.cast || open.cast.version !== 3 || open.cast.supply !== 'fire_rune' || open.cast.source !== 'own' || open.hs.bag.fire_rune.left !== 1) {
+      return 'a Melee-30 tank spending an Etched (tier-3) Fire Rune did not cast version III from its own rune: ' + JSON.stringify(open.cast);
+    }
+    const shut = at(need - 1);
+    if (shut.cast || shut.hs.bag.fire_rune.left !== 2) return 'a Melee-29 tank cast version III or spent the rune it cannot use: ' + JSON.stringify(shut.cast);
+    if (!shut.x.sc.events.some((e) => e.type === 'rule_wait' && e.why === 'level')) return 'the locked version was not said (rule_wait level)';
+    const basic = at(need - 1, true);
+    if (!basic.cast || basic.cast.version !== 1 || basic.cast.source !== 'store' || basic.cast.power !== Math.round(M.SB.BASIC_EFFECT_SHARE * 1000) || basic.hs.bag.fire_rune.left !== 2) {
+      return 'a locked rune with the store named did not cast the store rune at basic power: ' + JSON.stringify(basic.cast);
+    }
+    /* the same roll at the store's share: the basic version lands BASIC_EFFECT_SHARE of the crafted hit */
+    const hit = (lv, store) => {
+      const hs = supplySession(M, { bag: { fire_rune: { loaded: store ? 0 : 1 } }, shot: 'plain_fire_rune', ammo: 'fire_rune', purse: 50 });
+      const x = melee(M, [storeSlot('flame_strike')], {}, { hs, skills: { melee: M.XP.skillXpForLevel('melee', lv) } });
+      M.abilities.castAbilities(x.inst, x.sc);
+      return (x.sc.events.find((e) => e.type === 'dmg') || {}).amount;
+    };
+    const own = hit(1, false), store = hit(1, true);
+    const want = Math.max(1, Math.floor((own * Math.round(M.SB.BASIC_EFFECT_SHARE * 1000)) / 1000));
+    return own > 1 && store === want ? null : 'a store rune hit for ' + store + ' where the crafted one hit ' + own + ' (want ' + want + ')';
+  },
+  /* A VERSION RAISES NUMBERS ONLY (src/data/abilities.js versions, outPm): a cast at 1500 permille heals and
+     shields half again its row's numbers, a row with no `versions` casts every version at its own. */
+  'version-output-scales-numbers': (M) => {
+    const plain = M.AD.versionOf(M.AD.ABILITIES.flame_strike, 4);
+    if (plain.mana !== M.AD.ABILITIES.flame_strike.mana || plain.outPm !== 1000) return 'a row with no versions cast version IV at ' + JSON.stringify(plain);
+    const sized = M.AD.versionOf({ mana: 10, versions: [{ mana: 10, outPm: 1000 }, { mana: 12, outPm: 1400 }] }, 2);
+    if (sized.mana !== 12 || sized.outPm !== 1400) return 'version II of a sized row read ' + JSON.stringify(sized);
+    const mend = M.AD.ABILITIES.greater_mend;
+    const healAt = (pm) => {
+      const x = oneHero(M, { hp: 1, maxHp: 1000 }, { bar: [], range: 7 });
+      x.sc.rng = rngOf(M, 9);
+      M.abilities.fire(x.inst, x.h, { row: mend, target: x.h, lines: [], pm }, x.sc);
+      return (x.sc.events.find((e) => e.type === 'heal') || {}).amount;
+    };
+    const base = healAt(1000), more = healAt(1500);
+    if (!(base > 0) || more !== Math.floor((base * 1500) / 1000)) return 'a 1500-permille Greater Mend healed ' + more + ' where the row healed ' + base;
+    const bar = M.AD.ABILITIES.arcane_barrier;
+    const y = oneHero(M, { hp: 50 }, { bar: [], range: 7 });
+    M.abilities.fire(y.inst, y.h, { row: bar, target: y.h, lines: [], pm: 1500 }, y.sc);
+    return y.h.shield === Math.floor((bar.shield * 1500) / 1000) ? null : 'a 1500-permille Arcane Barrier shielded ' + y.h.shield + ' of a ' + bar.shield + ' row';
   },
   /* AB-11: an action set skips abilities (Mana train: runes; Boss: area). */
   /* Hunter's Mark keeps its row's promise: the marked monster takes bonusPct more from every blow for durMs. */
@@ -284,6 +344,19 @@ const cases = {
 };
 
 const mutants = [
+  { name: 'a spell casts version I whatever rune it spends', case: 'spell-casts-the-spent-runes-version',
+    edits: [['src/core/hunt/abilities.js', '    const tier = Math.max(1, runeTierOf(itemRow(h, own.id)));', '    const tier = 1;']] },
+  { name: 'a carried rune casts a version its hero has not unlocked', case: 'spell-casts-the-spent-runes-version',
+    edits: [['src/core/hunt/abilities.js', '    if (!h.skills || levelOf(h.skills, abilitySkill(row)) >= versionLevel(tier)) return { line: own, version: tier, pm: 1000 };',
+      '    return { line: own, version: tier, pm: 1000 };']] },
+  { name: 'a store rune fires at full power (r07)', case: 'spell-casts-the-spent-runes-version',
+    edits: [['src/core/hunt/abilities.js', '  return { line: s, version: 1, pm: BASIC_PM };', '  return { line: s, version: 1, pm: 1000 };']] },
+  { name: 'a hit ignores its power', case: 'spell-casts-the-spent-runes-version',
+    edits: [['src/core/hunt/abilities.js', '  const hitTag = pm === 1000 ? { id: row.id } : { id: row.id, mult: pm };', '  const hitTag = { id: row.id };']] },
+  { name: 'a heal and a shield ignore their version', case: 'version-output-scales-numbers',
+    edits: [['src/core/hunt/abilities.js', '  const scaled = (n) => (pm === 1000 ? n : Math.floor((n * pm) / 1000));', '  const scaled = (n) => n;']] },
+  { name: 'a sized version is read as the row', case: 'version-output-scales-numbers',
+    edits: [['src/data/abilities.js', '  return v ? { mana: v.mana, outPm: v.outPm } : { mana: row ? row.mana : 0, outPm: 1000 };', '  return { mana: row ? row.mana : 0, outPm: 1000 };']] },
   { name: 'the store is shut while another ammo line has uses (the starter-kit lock)', case: 'store-rune-beside-the-starter-kit',
     edits: [['src/core/action-rules.js', "  return !!hs && (hs.supplySource === 'store' || hs.onEmpty === 'switch');",
       "  return !!hs && (hs.supplySource === 'store' || (hs.onEmpty === 'switch' && !Object.keys(hs.bag || {}).some((id) => kindOf(id) === 'ammo' && leftOf(hs, id) > 0)));"]] },
@@ -292,16 +365,20 @@ const mutants = [
   { name: 'a spent rune line with no store row ends a default hunt ammo_out', case: 'spent-runes-never-end-a-default-hunt',
     edits: [['src/core/action-rules.js', "  if (kind === 'ammo' && storeAllowed(hs)) return false;\n", '']] },
   { name: 'an unaffordable slot marks the hunt gold_out while the bar is still walked', case: 'unaffordable-slot-waits',
-    edits: [['src/core/hunt/abilities.js', "    if (s.why) return { why: s.short ? 'gold_short' : 'no_stock' };",
-      "    if (s.why) { if (s.short) h.hs.goldOut = true; return { why: s.short ? 'gold_short' : 'no_stock' }; }"]] },
+    edits: [['src/core/hunt/abilities.js', "    if (s.why) return { why: s.short ? 'gold_short' : s.why === 'level' ? 'level' : 'no_stock' };",
+      "    if (s.why) { if (s.short) h.hs.goldOut = true; return { why: s.short ? 'gold_short' : s.why === 'level' ? 'level' : 'no_stock' }; }"]] },
   { name: 'a rune slot buys the store rune without naming it', case: 'rune-own-then-store',
-    edits: [['src/core/hunt/abilities.js', "    const l = resolveLine(h.hs, row.rune, typeof store === 'string' ? store : null);", '    const l = resolveLine(h.hs, row.rune);']] },
+    edits: [['src/core/hunt/abilities.js', "  const s = typeof store === 'string' ? storeLine(h.hs, row.rune, store) : { why: 'none' };", "  const s = storeLine(h.hs, row.rune, typeof store === 'string' ? store : undefined);"]] },
   { name: 'the mark is drawn but adds nothing', case: 'mark-adds-damage',
     edits: [['src/core/hunt/damage.js', '    markPm ? Object.assign({}, ability, { mult: Math.floor((base * (1000 + markPm)) / 1000) }) : ability);', '    ability);']] },
   { name: 'the mark never wears off', case: 'mark-adds-damage',
     edits: [['src/core/hunt/damage.js', ' && target.markUntil > sc.atMs ?', ' ?']] },
   { name: 'bleed lands at level 0 whatever the caster', case: 'bleed-scales-with-caster-skill',
     edits: [['src/core/hunt/abilities.js', 'skillLv: h && h.skills ? levelOf(h.skills, srow.scalesWith) : 0,', 'skillLv: 0,']] },
+  { name: 'a rune names a family that is not one of the seven', case: 'rows-validate',
+    edits: [['src/data/stonecraft.js', "family: 'rupture', runeTier: 1 }", "family: 'blood', runeTier: 1 }"]] },
+  { name: 'a rune casts a sixth tier', case: 'rows-validate',
+    edits: [['src/data/stonecraft.js', "family: 'earth', runeTier: 1 }", "family: 'earth', runeTier: 6 }"]] },
   { name: 'an active ability names a rune no bag can hold', case: 'rows-validate',
     edits: [['src/data/abilities.js', "    dmg: [2, 4], hits: 2, status: 'bleed', active: false }),", "    dmg: [2, 4], hits: 2, status: 'bleed' }),"]] },
   { name: 'the bar fires its last usable ability', case: 'first-usable-in-order',
@@ -311,7 +388,7 @@ const mutants = [
   { name: 'a cast does not set its cooldown', case: 'cd-set',
     edits: [['src/core/hunt/abilities.js', "  if (readyAt(hero.cds, row.id) > atMs) return 'cooldown';", '']] },
   { name: 'mana is not checked', case: 'no-mana-no-cast',
-    edits: [['src/core/hunt/abilities.js', "  if (int(hero.mana) < row.mana) return 'mana';", '']] },
+    edits: [['src/core/hunt/abilities.js', "  if (int(hero.mana) < row.mana) return 'mana';", ''], ['src/core/hunt/abilities.js', "    if (int(hero.mana) < v.mana) return { why: 'mana' };", '']] },
   { name: 'a rune is never taken from the bag', case: 'rune-own-then-store',
     edits: [['src/core/hunt/abilities.js', '  for (const l of pick.lines) if (!takeLine(h.hs, l, sc.atMs)) { h.hs.goldOut = true; return false; }', '']] },
   { name: 'the action set skips nothing', case: 'action-set-skips',

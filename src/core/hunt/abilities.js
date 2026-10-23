@@ -38,8 +38,10 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { ABILITIES, ABILITY_LANES, ABILITY_RULES, ACTION_SET_SKIPS } from '../../data/abilities.js?v=0.2.34';
-import { resolveLine, takeLine, canAfford, shopShotFor } from '../action-rules.js?v=0.2.34';
+import { ABILITIES, ABILITY_LANES, ABILITY_RULES, ACTION_SET_SKIPS, abilitySkill, versionOf } from '../../data/abilities.js?v=0.2.34';
+import { resolveLine, storeLine, takeLine, canAfford, shopShotFor } from '../action-rules.js?v=0.2.34';
+import { runeTierOf, versionLevel } from '../../data/runes.js?v=0.2.34';
+import { BASIC_EFFECT_SHARE } from '../../data/supply-basics.js?v=0.2.34';
 import { cheb, dist2, los } from './grid.js?v=0.2.34';
 import { makeEvent } from './events.js?v=0.2.34';
 import { landHit } from './damage.js?v=0.2.34';
@@ -107,14 +109,38 @@ function targetFor(inst, hero, h, row, sc, cx) {
   }
 }
 
-/* The supply lines one cast needs, or the reason it cannot have them. `store` is
-   the slot's chosen store rune (action.store), or none: own runes only. */
+/* THE STORE'S SHARE (supply-basics.js BASIC_EFFECT_SHARE, r07): a store rune is the basic version. */
+const BASIC_PM = Math.round(BASIC_EFFECT_SHARE * 1000);
+
+/* THE RUNE A SPELL SPENDS AND THE VERSION IT CASTS (Tyler 2026-10-23, src/data/runes.js). The carried
+   rune first, cast at ITS tier's version once the hero's level in the row's skill (abilitySkill: Magic, or
+   the weapon's own skill) has unlocked it; else, only when the slot names it (`store`), the store's rune,
+   bought per use: the BASIC version, version I at the store's share. A carried rune whose version is still
+   locked is never spent (`level`). A hero whose entry carries no skills (a peer the browser draws) is not
+   gated here: the server's commit is the truth. */
+function runeFor(h, row, store) {
+  const own = resolveLine(h.hs, row.rune, null);
+  let locked = false;
+  if (own.id && !own.why) {
+    const tier = Math.max(1, runeTierOf(itemRow(h, own.id)));
+    if (!h.skills || levelOf(h.skills, abilitySkill(row)) >= versionLevel(tier)) return { line: own, version: tier, pm: 1000 };
+    locked = true;
+  }
+  const s = typeof store === 'string' ? storeLine(h.hs, row.rune, store) : { why: 'none' };
+  if (!s.id || s.why) return { why: locked ? 'level' : 'no_rune', short: s.why === 'gold_short' };
+  return { line: s, version: 1, pm: BASIC_PM };
+}
+
+/* The supply lines one cast needs and the version it casts ({ lines, version, pm: the store's share
+   in permille }), or the reason it cannot have them. `store` is the slot's chosen store rune
+   (action.store), or none: own runes only. */
 function suppliesFor(h, row, store) {
   const lines = [];
+  let version = 1; let pm = 1000;
   if (row.rune) {
-    const l = resolveLine(h.hs, row.rune, typeof store === 'string' ? store : null);
-    if (!l.id || l.why) return { why: 'no_rune', short: l.why === 'gold_short' };
-    lines.push(l);
+    const r = runeFor(h, row, store);
+    if (r.why) return r;
+    lines.push(r.line); version = r.version; pm = r.pm;
   }
   /* The free rung (ammoPerShot 0): a loaded stack of it never depletes, so a cast needs no shot lines. */
   const freeShot = !!h.ammo && ammoPerShot(itemRow(h, h.ammo)) === 0 && int(h.hs.bag && h.hs.bag[h.ammo] && h.hs.bag[h.ammo].left) > 0;
@@ -134,7 +160,7 @@ function suppliesFor(h, row, store) {
   /* The whole cast must be payable at once: no rune is spent on a cast whose shots the purse cannot buy. */
   const cost = lines.reduce((a, l) => a + l.price, 0);
   if (cost > 0 && !canAfford(h.hs, cost)) return { why: 'no_ammo', short: true };
-  return { lines };
+  return { lines, version, pm };
 }
 
 /** Why `row` cannot fire for `hero` now, or null when it can (AB-01, 02, 11, 12). Pure. */
@@ -171,8 +197,12 @@ export function firstUsable(inst, hero, sc) {
        ends the hunt from here: out of gold ends a hunt only for the action actually taken (Tyler 10-14),
        and a slot that cannot pay is never taken (fire() pays what this answered affordable). */
     const s = suppliesFor(h, row, slot.action.store);
-    if (s.why) return { why: s.short ? 'gold_short' : 'no_stock' };
-    return { row, target: t, lines: s.lines };
+    if (s.why) return { why: s.short ? 'gold_short' : s.why === 'level' ? 'level' : 'no_stock' };
+    /* THE VERSION'S PRICE AND OUTPUT (abilities.js versionOf): its mana, and its permille of the row's
+       numbers at the rune's share (a store rune: the basic version). */
+    const v = versionOf(row, s.version);
+    if (int(hero.mana) < v.mana) return { why: 'mana' };
+    return { row, target: t, lines: s.lines, version: s.version, mana: v.mana, pm: Math.floor((v.outPm * s.pm) / 1000) };
   }, sc, 'ability');
   return got ? Object.assign(got.pick, { rule: got.rule, mask: got.mask, label: got.label }) : null;
 }
@@ -185,9 +215,14 @@ function healOne(u, t, n, sc) {
 }
 const roll = (sc, r) => sc.rng.int(r[0], r[1]);
 
-/* Apply a fired ability's effect (AB-08). */
-function effect(inst, u, row, t, sc) {
+/* Apply a fired ability's effect (AB-08). `v` = { version, pm }: the version cast (a status's rune tier,
+   r03) and its output in permille of the row's numbers (a version raises numbers only: never area,
+   targets, duration or cooldown). At 1000 a hit lands exactly as the row's (no `mult` is passed). */
+function effect(inst, u, row, t, sc, v) {
   const el = row.element || null;
+  const pm = v && Number.isInteger(v.pm) && v.pm >= 0 ? v.pm : 1000;
+  const scaled = (n) => (pm === 1000 ? n : Math.floor((n * pm) / 1000));
+  const hitTag = pm === 1000 ? { id: row.id } : { id: row.id, mult: pm };
   switch (row.target) {
     case 'taunt': challengeFrom(inst, sc, u); break;
     case 'mark':
@@ -197,54 +232,61 @@ function effect(inst, u, row, t, sc) {
       break;
     case 'enemy':
       for (let i = 0; i < (row.hits || 1); i++) {
-        landHit(inst, sc, u, t, roll(sc, row.dmg), el, { id: row.id });
-        /* The status ROW (applyStatus refuses a look-alike) and its source: the unit, and the caster's
-           level in the row's scalesWith skill (Tyler 10-16: bleed scales slowly with Melee). No rune
-           carries a status tier yet (Rend's Life rune is not a supply), so the tier is 1. */
+        landHit(inst, sc, u, t, roll(sc, row.dmg), el, hitTag);
+        /* The status ROW (applyStatus refuses a look-alike) and its source: the unit, the caster's level in
+           the row's scalesWith skill (Tyler 10-16: bleed scales slowly with Melee) and the version's rune tier. */
         if (row.status) {
           const srow = statusRow(row.status), h = inst.heroes && inst.heroes[u.id];
-          applyStatus(inst, t, srow, { u: u.id, skillLv: h && h.skills ? levelOf(h.skills, srow.scalesWith) : 0, runeTier: 1 }, sc);
+          applyStatus(inst, t, srow, { u: u.id, skillLv: h && h.skills ? levelOf(h.skills, srow.scalesWith) : 0, runeTier: (v && v.version) || 1 }, sc);
         }
       }
       break;
     case 'area':
       for (const m of engaged(inst).filter((o) => cheb(o, t) <= 1).sort((a, b) => a.id - b.id)) {
-        landHit(inst, sc, u, m, roll(sc, row.dmg), el, { id: row.id });
+        landHit(inst, sc, u, m, roll(sc, row.dmg), el, hitTag);
       }
       break;
     case 'cleave': {
       const hits = [t, ...engaged(inst).filter((m) => m !== t && cheb(m, u) <= 1).sort((a, b) => a.id - b.id)].slice(0, row.maxHits);
-      for (const m of hits) landHit(inst, sc, u, m, roll(sc, row.dmg), el, { id: row.id });
+      for (const m of hits) landHit(inst, sc, u, m, roll(sc, row.dmg), el, hitTag);
       break;
     }
     case 'self':
-      u.shield = row.shield;
-      sc.emit(makeEvent('shield', sc.atMs, { u: u.id, t: u.id, amount: row.shield }));
+      u.shield = scaled(row.shield);
+      sc.emit(makeEvent('shield', sc.atMs, { u: u.id, t: u.id, amount: u.shield }));
       break;
-    case 'ally': healOne(u, t, roll(sc, row.heal), sc); break;
+    case 'ally': healOne(u, t, scaled(roll(sc, row.heal)), sc); break;
     case 'party':
       for (const a of living(inst, 'hero').sort((x, y) => x.id - y.id)) {
-        if (a === u || dist2(a, u) <= row.radius * row.radius) healOne(u, a, roll(sc, row.heal), sc);
+        if (a === u || dist2(a, u) <= row.radius * row.radius) healOne(u, a, scaled(roll(sc, row.heal)), sc);
       }
       break;
     default: break;
   }
 }
 
-/** Fire `pick` (from firstUsable): pay, set the clocks, apply. False when a supply could not be paid. */
+/** Fire `pick` (from firstUsable): pay, set the clocks, apply. False when a supply could not be paid.
+    A pick with no `mana` / `version` / `pm` (a caller handing the row itself) casts version I at the row's numbers. */
 export function fire(inst, u, pick, sc) {
   const h = inst.heroes[u.id];
   for (const l of pick.lines) if (!takeLine(h.hs, l, sc.atMs)) { h.hs.goldOut = true; return false; }
   const row = pick.row;
-  u.mana = int(u.mana) - row.mana;
+  const mana = Number.isInteger(pick.mana) ? pick.mana : row.mana;
+  const version = Number.isInteger(pick.version) ? pick.version : 1;
+  u.mana = int(u.mana) - mana;
   u.cds = Object.assign({}, u.cds || {}, { [row.id]: sc.atMs + row.cdMs });
   u.lanes = Object.assign({}, u.lanes || {}, { [row.lane]: sc.atMs + ABILITY_LANES[row.lane] });
-  /* The tally's supply split (§3.8): any store line makes the cast 'store'; `gold` is what it cost. */
+  /* The tally's supply split (§3.8): any store line makes the cast 'store'; `gold` is what it cost. A rune
+     spell names the rune it spent (`supply`, the analyzer's supply count), the version it cast and its power
+     (permille of the row's numbers: a store rune's basic version is under 1000). */
   const gold = pick.lines.reduce((a, l) => a + l.price, 0);
   const source = pick.lines.some((l) => l.source === 'store') ? 'store' : 'own';
-  sc.emit(makeEvent('cast', sc.atMs, { u: u.id, ability: row.id, t: pick.target.id, mana: row.mana, magicXpMult: row.magicXpMult, source, gold,
+  const rune = row.rune && pick.lines.length ? pick.lines[0].id : null;
+  const pm = Number.isInteger(pick.pm) ? pick.pm : 1000;
+  sc.emit(makeEvent('cast', sc.atMs, { u: u.id, ability: row.id, t: pick.target.id, mana, magicXpMult: row.magicXpMult, source, gold,
+    ...(rune ? { supply: rune, version, power: pm } : {}),
     ...(typeof pick.rule === 'string' ? { rule: pick.rule, rule_label: pick.label, pass: pick.mask } : {}) }));
-  effect(inst, u, row, pick.target, sc);
+  effect(inst, u, row, pick.target, sc, { version, pm });
   return true;
 }
 

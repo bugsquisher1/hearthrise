@@ -589,10 +589,12 @@ const dataMutants = [
 /* Played on the monsters' copy: the expected loot on the floor hours' kills (and, with `fresh`, the fresh and party hunts). */
 const playMutants = [
   /* The Sewer's coin cut to under half (armour weights, ruling K7, left the ladder-kit Melee +119% at the floor,
-     so the old /1.8 coin clears +25% by a hair: the floor still bites at /2.2, about +11%). */
+     so the old /1.8 coin clears +25% by a hair; lane b-spell-roles' Bronze-Rimmed Shield took the floor tank to +159%,
+     so /2.2 clears it too, about +32%: the floor still bites at /2.6, about +16%). */
   { name: 'the Sewer coin cut to under half', rule: 'profit-floor: millrace_sewer', edit: (ms) => {
-    for (const id of ['drain_rat', 'sump_slime', 'culvert_bat', 'cistern_spider', 'kobold_tosher', 'rat_king']) ms[id].gp = ms[id].gp.map((v) => Math.max(1, Math.round(v / 2.2)));
+    for (const id of ['drain_rat', 'sump_slime', 'culvert_bat', 'cistern_spider', 'kobold_tosher', 'rat_king']) ms[id].gp = ms[id].gp.map((v) => Math.max(1, Math.round(v / 2.6)));
   } },
+  { name: 'the Kingsgrate at 5% (a Rare every 4 h)', rule: 'rare-pace: millrace_sewer (party of 4) rare kingsgrate', edit: (ms) => { rowOf(ms, 'rat_king', 'kingsgrate').ch = 0.05; } },
   { name: 'the Thicket\'s heavy boots five times rarer', rule: 'gear-pace: meadowbrook_thicket', edit: (ms) => { rowOf(ms, 'gray_whelp', 'bronze_boots').ch /= 5; } },
   { name: 'the Thicket\'s bodies twice as common', rule: 'gear-pace: meadowbrook_thicket', edit: (ms) => { for (const d of scarceOf(ms, 'dire_gray')) d.ch *= 2; } },
   { name: 'the Sewer\'s party bodies too slow (a party of four)', rule: 'gear-pace: millrace_sewer (party of 4)', edit: (ms) => { for (const d of scarceOf(ms, 'sump_slime')) d.ch = 0.03; } },
@@ -615,7 +617,6 @@ const playMutants = [
 const plantMutants = [
   { name: 'worn gear sells at full book again', rule: 'gear-faucet: meadowbrook_thicket', edits: [['src/data/loot-bands.js', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14]);', 'export const VENDOR_GEAR_RATES = Object.freeze([1, 1, 1]);']] },
   { name: 'tier-3 gear sells at the tier-1 rate', rule: 'gear-faucet: coppercap_warrens', edits: [['src/data/loot-bands.js', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14]);', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.5]);']] },
-  { name: 'the Kingsgrate at 5% (a Rare every 4 h)', rule: 'rare-pace: millrace_sewer (party of 4) rare kingsgrate', edits: [['src/data/monsters.js', "{ id: 'kingsgrate', ch: .017, band: 'rare' }", "{ id: 'kingsgrate', ch: .05, band: 'rare' }"]] },
   { name: 'the roller reveals nothing (a Rare credited with no hint)', rule: 'reveal-path: meadowbrook_thicket', fresh: true,
     edits: [['src/core/drops.js', 'rare: REVEAL_BANDS.includes(band) });', 'rare: false });']] },
   { name: 'a party\'s Rare skips the rare roll (round-robin instead)', rule: 'reveal-path: millrace_sewer (party of 4)', fresh: true,
@@ -642,10 +643,17 @@ const casterMutants = [
 const warrensMutants = [
   /* Store-by-slot (v0.2.30): the measured hero's bar names the guide's food (play-ground.mjs refBar), so the mutant
      puts the guide back on the tier-4 Swordfish, as a player stocking by the old guide would. */
-  { name: 'the Warrens store food back to tier 4', edits: [['src/data/supplies.js', "  coppercap_warrens: Object.freeze({ tier: 3,\n    melee: melee('cooked_lobster', 80),",
-    "  coppercap_warrens: Object.freeze({ tier: 4,\n    melee: melee('cooked_swordfish', 80),"]] },
-  { name: 'tier-3 blows back to the flat 5.4', edits: [['src/core/combat.js', 'monsterDamageScaleByTier: Object.freeze({ 3: 4.0, 4: 4.0,', 'monsterDamageScaleByTier: Object.freeze({ 4: 4.0,']] },
-  { name: 'the card offers the Warrens alone from 40', edits: [['src/data/hunt-grounds.js', '    soloFrom: 45,', '    soloFrom: 40,']] },
+  /* Since lane b-spell-roles (the floor tank behind a Coppercap Shield, guard 7; heals between pulls) the floor party's bills
+     are about a tenth of its share (tank +1340%, Mage +954%, Healer +2025% on the first seed) and the lone Melee at 45
+     buys nothing: ONE cost lever no longer reaches +25%. Measured (1 h, the two seeds): the tier-4 food alone, the flat
+     5.4 blows alone and alone-from 40 all clear it; the two old cost levers together (tank -25% on the first seed), the
+     tier-3 blows doubled (tank -68%) and the card's alone-from at the floor itself (-51%) do not. The +25% floor is
+     unchanged; the margins are a balance finding for the designer (p30/p31). */
+  { name: 'the Warrens store food back to tier 4, with tier-3 blows at the flat 5.4', edits: [['src/data/supplies.js', "  coppercap_warrens: Object.freeze({ tier: 3,\n    melee: melee('cooked_lobster', 80),",
+    "  coppercap_warrens: Object.freeze({ tier: 4,\n    melee: melee('cooked_swordfish', 80),"],
+    ['src/core/combat.js', 'monsterDamageScaleByTier: Object.freeze({ 3: 4.0, 4: 4.0,', 'monsterDamageScaleByTier: Object.freeze({ 4: 4.0,']] },
+  { name: 'tier-3 blows doubled', edits: [['src/core/combat.js', 'monsterDamageScaleByTier: Object.freeze({ 3: 4.0, 4: 4.0,', 'monsterDamageScaleByTier: Object.freeze({ 3: 8.0, 4: 4.0,']] },
+  { name: 'the card offers the Warrens alone from its floor (32)', edits: [['src/data/hunt-grounds.js', '    soloFrom: 45,', '    soloFrom: 32,']] },
 ];
 const engineMutants = [
   { name: 'the row\'s band ignored (the odds decide the reveal again)', case: 'band-is-the-reveal',

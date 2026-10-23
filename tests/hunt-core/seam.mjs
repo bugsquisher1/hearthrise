@@ -9,7 +9,8 @@ const SEAM = {
   roles: { positionHeroes: 2 },
   'pull-cycle': { respawnPacks: 2, runPhase: 2, clearCorpses: 2 },
   damage: { hurt: 6, resolveAttacks: 2 },
-  abilities: { firstUsable: 3, castAbilities: 2 },
+  /* firstUsable's 4th, `only` (lane b-spell-roles: between pulls only the heal and shield slots are walked) */
+  abilities: { firstUsable: 4, castAbilities: 2 },
   status: { applyStatus: 5, tickStatuses: 2 },
   consumables: { consume: 2 },
   'xp-share': { shareKillXp: 3 },

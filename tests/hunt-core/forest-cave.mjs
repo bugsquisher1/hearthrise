@@ -329,7 +329,8 @@ cases['thicket-solo-starter-kit'] = async (M) => {
    (supply-basics.js kind 'gear'): (a) never sell a slot a walked ground drops (the Shop never competes with a drop);
    (b) sell gloves AND a belt, each an armour piece a new hero's 500 starting gold can buy, and at least one of them
    medium (neither health nor mana: right for every way to fight); (c) played: a start-kit Melee at the Thicket floor
-   earns no Defense XP in the hour, and the same hero wearing the Shop's gloves and belt earns Defense XP, lives the
+   trains Defense through its shield (Tyler 2026-10-23: a worn shield counts as armour), the same sword with no shield
+   and no armour trains none, and the kit hero wearing the Shop's gloves and belt trains more than that, lives the
    hour and nets more than the two pieces cost (the purchase pays for itself inside the first hour). */
 cases['shop-outfits-defense'] = async (M) => {
   const imp = (p) => import(pathToFileURL(join(M.root, p)).href + V);
@@ -356,12 +357,19 @@ cases['shop-outfits-defense'] = async (M) => {
   const floor = floorOf(M, 'meadowbrook_thicket');
   const defOf = (x) => Object.values(x.heroXp).reduce((s, h) => s + (h.defense || 0), 0);
   const bare = P.run('meadowbrook_thicket', floor, ['tank'], { spanMs: 3600000, equipment: M.kit.START_EQUIPMENT, secret: STARTER_SEEDS[0] });
+  /* A WORN SHIELD COUNTS AS ARMOUR (Tyler 2026-10-23): the kit's Practice Shield trains Defense; the same sword with no
+     shield and no armour trains none (Defense needs armour, Tyler 2026-10-18). */
+  const { shield: _kitShield, ...noShield } = M.kit.START_EQUIPMENT;
+  const sword = P.run('meadowbrook_thicket', floor, ['tank'], { spanMs: 3600000, equipment: noShield, secret: STARTER_SEEDS[0] });
+  /* ...and the Shop's gloves and belt are armour of their own: the shieldless sword wearing them trains Defense */
+  const dressed = P.run('meadowbrook_thicket', floor, ['tank'], { spanMs: 3600000, equipment: { ...noShield, gloves: gl.item, belt: bt.item }, secret: STARTER_SEEDS[0] });
   const worn = P.run('meadowbrook_thicket', floor, ['tank'], { spanMs: 3600000, equipment: { ...M.kit.START_EQUIPMENT, gloves: gl.item, belt: bt.item }, secret: STARTER_SEEDS[0] });
   const cost = gl.price + bt.price;
-  console.log('    thicket L' + floor + ' start kit: Defense XP ' + defOf(bare) + ', net ' + bare.net + ' | + Shop ' + gl.item + ' + ' + bt.item + ' (' + cost + ' g): Defense XP '
+  console.log('    thicket L' + floor + ' start kit: Defense XP ' + defOf(bare) + ' (no shield: ' + defOf(sword) + ', no shield + the Shop pair: ' + defOf(dressed) + '), net ' + bare.net + ' | + Shop ' + gl.item + ' + ' + bt.item + ' (' + cost + ' g): Defense XP '
     + defOf(worn) + ', net ' + worn.net + ', deaths ' + worn.totals.falls);
-  if (defOf(bare) !== 0) bad.push('the bare start kit trained ' + defOf(bare) + ' Defense XP (the case assumes no armour in the kit)');
-  if (!(defOf(worn) > 0)) bad.push('the Shop gloves and belt trained no Defense');
+  if (!(defOf(bare) > 0)) bad.push('the start kit\'s shield trained no Defense (a worn shield counts as armour, Tyler 2026-10-23)');
+  if (defOf(sword) !== 0) bad.push('a sword with no shield and no armour trained ' + defOf(sword) + ' Defense XP');
+  if (!(defOf(dressed) > 0)) bad.push('the Shop gloves and belt trained no Defense');
   if (worn.totals.falls || worn.playedMs < 3600000) bad.push('the outfitted hero did not live the hour (' + worn.ended.join(', ') + ')');
   if (worn.net < cost) bad.push('the outfitted hour nets ' + worn.net + ' g, under the ' + cost + ' g the pieces cost');
   return bad.length ? bad.join('; ') : null;

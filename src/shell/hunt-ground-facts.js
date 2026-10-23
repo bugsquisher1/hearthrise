@@ -8,17 +8,20 @@
 //                      pockets' `spawns`, the pack as built). Tyler 10-18: "Hunt card
 //                      and bestiary show roughly how common each is": a word, never
 //                      a percentage (the mix moves with the density pick).
-//   rareOf(hunt)       THE RARE CARRIER (Tyler 10-14: only ONE monster per ground
-//                      carries the rare items) and what it carries: its drop rows at
-//                      rare odds (src/core/drops.js dropBand), never an equipment row
-//                      (`gear`, the standard slot) and never a server-revealed surprise
+//   rareOf(hunt)       THE GROUND'S CHASE: on the loot bands (Tyler 2026-10-23) several
+//                      creatures carry Rare items, so the page names one carrier's: the
+//                      boss's when it carries one, else the creature with the most Rare
+//                      rows (the rarer on a tie). A Rare row is a revealed band (src/core/
+//                      drops.js bandOf, REVEAL_BANDS), never a Scarce piece; an unbanded
+//                      seeded fixture's reads its odds; never a server-revealed surprise
 //                      (`lucky`, `salvage`). Names only: drop odds a player sees come
 //                      from the server's catalogue (ART_DIRECTION §8), so none is shown.
 // ════════════════════════════════════════════════════════════════════════
 import { HUNT_GROUNDS } from '../data/hunt-grounds.js?v=0.2.34';
 import { MONSTERS } from '../data/monsters.js?v=0.2.34';
 import { ITEMS } from '../data/items.js?v=0.2.34';
-import { dropBand } from '../core/drops.js?v=0.2.34';
+import { bandOf } from '../core/drops.js?v=0.2.34';
+import { REVEAL_BANDS } from '../data/loot-bands.js?v=0.2.34';
 
 /* How common a creature is, by its share of the ground's spawn points: at least `common` is common,
    under `rare` is rare, between is uncommon (Tyler 10-18: a common majority, some uncommon, one or two rare). */
@@ -48,17 +51,20 @@ export function residentsOf(hunt) {
   }).sort((a, b) => b.points - a.points || (a.level || 0) - (b.level || 0) || (a.name < b.name ? -1 : 1));
 }
 
-/* A drop row the rare carrier holds: rare odds, not the equipment slot, not a server-only reveal. */
-const isRare = (d) => !!d && d.gear !== true && d.lucky !== true && d.salvage !== true && d.ch < 1 && dropBand(d.ch) === 'rare';
+/* A Rare row: a revealed band (a Rare or Trophy row), not a server-only surprise. */
+const isRare = (d) => !!d && d.lucky !== true && d.salvage !== true && d.ch < 1 && REVEAL_BANDS.includes(bandOf(d));
 
 /**
- * The ground's rare carrier and what it carries: { carrier: { id, name }, items: [{ id, name }] },
- * or null when no creature there holds a rare row.
+ * The ground's chase, { carrier: { id, name }, items: [{ id, name }] }: the boss's Rare rows when it has any, else
+ * the resident with the most (the rarer on a tie, residentsOf lists the commonest first); null when none has one.
  */
 export function rareOf(hunt) {
+  let best = null;
   for (const r of residentsOf(hunt)) {
     const rows = ((MONSTERS[r.id] || {}).drops || []).filter(isRare);
-    if (rows.length) return { carrier: { id: r.id, name: r.name }, items: rows.map((d) => ({ id: d.id, name: (ITEMS[d.id] && ITEMS[d.id].n) || d.id })) };
+    if (!rows.length) continue;
+    const rank = (r.boss ? 1000 : 0) + rows.length;
+    if (!best || rank >= best.rank) best = { rank, r, rows };
   }
-  return null;
+  return best ? { carrier: { id: best.r.id, name: best.r.name }, items: best.rows.map((d) => ({ id: d.id, name: (ITEMS[d.id] && ITEMS[d.id].n) || d.id })) } : null;
 }

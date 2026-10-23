@@ -79,6 +79,20 @@ export const FIELDS = Object.freeze({ unit: compose('unit'), world: compose('wor
 /* The fingerprint of the composed field list: an encoding under any other list is refused. */
 export const SHAPE = hashSeed('world', WORLD_VERSION, JSON.stringify(FIELDS));
 
+/* THE RECONCILE VIEW of a stored world text (hunt-track.js worldHash hashes it): every SERVER-ONLY world field
+   (party-split.js SERVER_ONLY: the rare roll's rotation, drawn on the loot stream the browser runs on a constant)
+   blanked, so the server's commit and the live view are compared on what the prediction can know. A world whose
+   server-only fields are blank reads exactly as stored; any other text is returned as it is. */
+const SERVER_ONLY_AT = FIELDS.world.map(([name, kind], i) => (partySplit.SERVER_ONLY.world.includes(name) ? [i, kind] : null)).filter(Boolean);
+export function reconcileText(text) {
+  let enc;
+  try { enc = JSON.parse(text); } catch { return text; }
+  if (!enc || !Array.isArray(enc.w) || enc.w.length !== FIELDS.world.length) return text;
+  const w = enc.w.slice();
+  for (const [i, kind] of SERVER_ONLY_AT) w[i] = KINDS[kind].blank();
+  return JSON.stringify({ ...enc, w });
+}
+
 const copy = (v) => (v === null || typeof v !== 'object' ? v : JSON.parse(JSON.stringify(v)));
 function blank(part, o) {
   const out = {};

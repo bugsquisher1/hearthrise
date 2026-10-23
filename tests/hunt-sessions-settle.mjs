@@ -1504,6 +1504,16 @@ const DB_ARMS = {
       if (/beta_premium/.test(code(b.src)) && b.sig !== 'hr_premium_until(uuid,integer)') problems.push(`${b.sig} reads the beta switch past the one check`);
     }
     if (!bodies.some((b) => b.sig === 'hr_premium_until(uuid,integer)' && /beta_premium/.test(code(b.src)))) problems.push('hr_premium_until does not read the switch');
+    /* A SECOND APPLY is byte-identical and never turns back on a switch an operator turned off (the EA wipe). */
+    const image = () => one(db, `select jsonb_build_object('defs', (select jsonb_object_agg(p.oid::regprocedure::text, md5(pg_get_functiondef(p.oid)) || ':' || coalesce(p.proacl::text, ''))
+                                    from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+                                   where n.nspname = 'public' and p.proname in ('hr_premium_until', 'hr_premium_active', 'hr_premium_view', 'hr_stamina_of')),
+                                 'flags', (select jsonb_object_agg(key, enabled) from public.hr_flags))`);
+    const before = await image();
+    await db.exec(readFileSync(join(ROOT, 'supabase', 'migrations', '2026-12-17-beta-premium.sql'), 'utf8').replace(/\r\n/g, '\n'));
+    const after = await image();
+    if (canon(after) !== canon(before)) problems.push(`a second apply moved ${firstDiff(canon(before), canon(after))}`);
+    if (!before.flags || before.flags.beta_premium !== false) problems.push('CONTROL: the switch was not off before the second apply');
     return problems;
   }),
   PARTY: async (db, M) => inTx(db, async () => {

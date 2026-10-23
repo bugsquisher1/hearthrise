@@ -47,13 +47,16 @@ export function leaveCountdown(at, now) {
 
 /**
  * How soon (ms) to ask the settle that closes a pending leave: a hair after
- * leave_at; once it is past, every leaveRetryMs for a leaveLateMs, then null
- * (the ordinary poll goes on asking while the hunt is open). Null too when
- * no leave pends or the server's clock is unmeasured.
+ * leave_at; once it is past, again after leaveRetryMs or the time already past
+ * it, whichever is longer (2 s, 2.4 s, 4.8 s, 9.6 s: four asks, not eight, in
+ * every session of a leave-together party; live 10-23 a four-hero leave cost
+ * 85 calls and 18 refusals), for a leaveLateMs, then null (the ordinary poll
+ * goes on asking while the hunt is open). Null too when no leave pends or the
+ * server's clock is unmeasured.
  */
 export function closeInMs(at, now) {
   if (at === null || now === null || !Number.isFinite(now)) return null;
   const left = at - now;
   if (left > 0) return Math.ceil(left) + SESSION_CONFIG.leaveSlackMs;
-  return left > -SESSION_CONFIG.leaveLateMs ? SESSION_CONFIG.leaveRetryMs : null;
+  return left > -SESSION_CONFIG.leaveLateMs ? Math.max(SESSION_CONFIG.leaveRetryMs, Math.ceil(-left)) : null;
 }

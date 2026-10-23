@@ -40,7 +40,7 @@
 //         key), off in flight, the re-read and a reload show it, a refusal in words; the came-home lines name the
 //         member; in hunt -> a member leaves -> this ticked hero comes home -> start again, the box as set
 //   UI-1  the strip shows one tab per character with its name, what it is doing and its alert
-//         badge; a tab press shows that character and re-reads nobody
+//         badge; a tab press shows that character and asks only IT one settle (never a full read, never another)
 //   UI-2  the alert lines show each alert once, survive a re-read without repeating, and go
 //         when dismissed
 //   PI-2  THE ONE-WAY FLOW'S VERBS (src/session/party-intents.js, PARTY_SPEC 2026-10-19): Start
@@ -914,7 +914,7 @@ async function pageRules(overrides, shots) {
       /* A step that throws (a control missing from the page) is a red rule, never a crash of the run. */
       try {
       if (!(await openBoth(page, base))) { fails.push('UI-1 [' + tag + '] two characters did not open beside each other' + (errors.length ? ': ' + errors.slice(0, 2).join(' | ') : '')); await ctx.close(); continue; }
-      /* UI-1: one tab per character, its name, what it does, its badge; a press shows it and re-reads nobody. */
+      /* UI-1: one tab per character, its name, what it does, its badge; a press shows it and asks only it one settle. */
       await page.waitForTimeout(400);
       const tabs = await page.evaluate(() => Array.from(document.querySelectorAll('.char-tab[data-app="show"]')).map((b) => ({ slot: b.getAttribute('data-slot'),
         name: b.querySelector('.char-tab-name').textContent, doing: b.querySelector('.char-tab-doing').textContent, badge: b.querySelector('.char-badge').textContent, on: b.classList.contains('is-shown') })));
@@ -926,8 +926,11 @@ async function pageRules(overrides, shots) {
       await page.click('.char-tab[data-slot="0"]');
       if (!(await wait(page, () => document.querySelector('#panel-world[data-slot="0"]') && document.querySelector('.hs-launchers') && !document.querySelector('#panel-world[data-slot="1"]')))) fails.push('UI-1 [' + tag + '] the tab did not show character 0');
       await page.waitForTimeout(300);
+      /* Only the shown character streams live (lane/a-accrue-storm Part 2): the switch asks IT one settle (and its live
+         view the start point that answer lacked), never a full read, and nothing of the character left. */
       const reads = s.calls.slice(loads).filter((c) => c.name === 'hr_load' || c.name === 'hr-accrue');
-      if (reads.length) fails.push('UI-1 [' + tag + '] a switch re-read ' + reads.map((c) => c.name + ':' + (c.body.p_slot ?? c.body.slot)).join(', '));
+      if (reads.length > 2 || reads.some((c) => c.name !== 'hr-accrue' || (c.body.p_slot ?? c.body.slot) !== 0))
+        fails.push('UI-1 [' + tag + '] a switch re-read ' + reads.map((c) => c.name + ':' + (c.body.p_slot ?? c.body.slot)).join(', '));
       if (!(await page.evaluate((uid) => !!window.__hub.channels['hr:' + uid + ':1'], UID))) fails.push('UI-1 [' + tag + '] the switch left character 1’s channel');
       /* PR-8 [page]: on the party panel the viewer's own row carries the server's ticked box in words of at least
          12 px, inside its row (the phone board too); the partner's row shows none. */

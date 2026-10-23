@@ -84,7 +84,7 @@ export class TownPresence {
     this._timer = null;
     this._walkers = [];
     this._readAt = null;
-    this._reading = false;
+    this._reading = null; this._next = null;   // the read in flight, and the one asked while it is out
     this._sent = null;       // the last place the server took
     this._sentAt = -Infinity;
     this._want = null;       // the latest place the World reported
@@ -95,6 +95,7 @@ export class TownPresence {
     this._parked = false;    // not on screen, still standing in town (another character is viewed)
     this._home = null;       // where a parked body stands again once a hunt ends
     this._arrival = placeOf(o.arrival);   // the town's arrival tile (a hero back from a hunt arrives there)
+    this._drawnAt = -Infinity;            // the last frame that asked for the people (walkers())
   }
 
   subscribe(fn) { this._listeners.add(fn); return () => this._listeners.delete(fn); }
@@ -187,20 +188,27 @@ export class TownPresence {
     if (this._parked) {
       if (this._busy()) { this._home = this._arrival || this._home || this._want || this._sent; this._leave(); return; }
       if (!this._want && this._home) this._want = this._home;
-      if (this._want && this._now() - this._sentAt >= this.limits.keepaliveMs) this._flush(true);
+      if (this._want && this._now() - this._sentAt >= (this.limits.parkedKeepaliveMs || this.limits.keepaliveMs)) this._flush(true);
       return;
     }
     if (this._want && this._now() - this._sentAt >= this.limits.keepaliveMs) this._flush(true);
-    this.read();
+    /* READ ONLY WHAT IS DRAWN (perf audit 10-23: 30 reads a minute with no town on screen): a frame asked lately */
+    if (this._now() - this._drawnAt <= 2 * this.limits.pollMs) this.read();
   }
 
-  /** One hr_town_walkers read for the shown map; the list is replaced by the answer. */
-  async read() {
+  /** One hr_town_walkers read for the shown map; the list is replaced by the answer. A read asked while one is out
+      waits for it and reads once more (every such caller rides on that one), so the newest ask is never dropped. */
+  read() {
+    const again = () => { this._next = null; return this.read(); };   // after the one out, answered or failed
+    if (this._reading) return this._next || (this._next = this._reading.then(again, again));
     const map = this._map;
-    if (!map || this._reading || this._dead || this._parked) return false;
-    this._reading = true;
-    let ans;
-    try { ans = await this._server.rpc('hr_town_walkers', { p_map: map }); } finally { this._reading = false; }
+    if (!map || this._dead || this._parked) return Promise.resolve(false);
+    this._reading = this._readOnce(map).finally(() => { this._reading = null; });
+    return this._reading;
+  }
+
+  async _readOnce(map) {
+    const ans = await this._server.rpc('hr_town_walkers', { p_map: map });
     if (map !== this._map || this._dead) return false;
     const b = ans && ans.body;
     if (!ans || !ans.ok || !b || b.ok !== true) return false;
@@ -226,6 +234,10 @@ export class TownPresence {
 
   /** The people in town now, as the server last said (none when that is older than staleMs). */
   walkers() {
+    /* a frame drawing the town asks for its people; one after a pause (a hidden tab, a pane not drawn) reads at once */
+    const now = this._now();
+    if (this._map && !this._parked && now - this._drawnAt > 2 * this.limits.pollMs) this.read();
+    this._drawnAt = now;
     if (!this._map || this._readAt === null || this._now() - this._readAt > this.limits.staleMs) return [];
     return this._walkers.filter((w) => !this._hidden(w.id));
   }

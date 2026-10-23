@@ -50,7 +50,12 @@ const KNOWN_TWINS = [['crown_of_the_fallen_king', 'crown_shard'],
   /* The style ladder's two new tier-2 weapons (lane c-style-gear) wear their practice pair's icon until the Asset
      Director draws iron heads and an oak stock (no generated art in that lane). Mosslight Glade's items have their own
      icons since lane b-mosslight-art. */
-  ['iron_hatchets', 'practice_hatchets'], ['oak_crossbow', 'practice_crossbow']];
+  ['iron_hatchets', 'practice_hatchets'], ['oak_crossbow', 'practice_crossbow'],
+  /* Grayjaw's Ruff (the loot bands' Thicket sample, lane b-loot-bands) wears the Houndskin Cloak's fur cape until the
+     Asset Director draws Grayjaw's gray neck ruff (no generated art in that lane). */
+  ['grayjaws_ruff', 'houndskin_cloak'],
+  /* The Warrens' two new tier-3 Rares (loot bands batch 4) wear their tier-2 rung's icon until steel heads and a willow stock are drawn. */
+  ['steel_hatchets', 'iron_hatchets'], ['steel_hatchets', 'practice_hatchets'], ['willow_crossbow', 'oak_crossbow'], ['willow_crossbow', 'practice_crossbow']];
 
 /** Byte-identical icon files under two ids, except the listed twins. */
 export function checkDuplicates(dir, ids, twins = KNOWN_TWINS) {

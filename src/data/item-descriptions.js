@@ -45,6 +45,7 @@ export const ITEM_DESC = {
   'alpha_cloak': 'Alpha-beast pelt worn as a cape, warding blows and sharpening the strike',
   'alpha_fang': 'The great fang of a pack alpha, a rare and coveted trophy',
   'rooks_whistle': 'The bone whistle Rook calls the Mosslight crows with. A collector in town pays well for it',
+  'grayjaws_ruff': 'A cape for any fighter: more guard and a few more critical hits. Cut from the thick neck fur of Old Grayjaw, the den mother',
   'ancient_claw': 'A colossal claw from something ancient, a formidable crafting trophy',
   'ancient_fragment': 'A worn shard of some forgotten relic, sought by scholars and collectors',
   'ancient_rune': 'A rune of the old tongue, humming with power, a key arcane reagent',

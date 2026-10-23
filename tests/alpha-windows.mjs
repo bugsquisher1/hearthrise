@@ -341,9 +341,10 @@ async function huntsPure(imp) {
   const thicket = residentsOf('meadowbrook_thicket').map((m) => m.id + ':' + m.band).join();
   if (thicket !== 'gray_wolf:common,gray_whelp:common,briarcoat_wolf:uncommon,dire_gray:rare,grayjaw:rare') fails.push('AW-25 the Thicket lives as ' + thicket);
   for (const r of huntRows()) if (!residentsOf(r.hunt).some((m) => m.band === 'common')) fails.push('AW-25 ' + r.hunt + ' has no common creature');
-  /* The rare and its ONE carrier, from the drop rows (never the equipment slot). */
+  /* The ground's chase from the drop rows (the loot bands, 2026-10-23): the boss's Rares, else the creature with the most. */
   const carriers = huntRows().map((r) => { const x = rareOf(r.hunt); return r.hunt + ':' + (x ? x.carrier.id + ':' + x.items.map((i) => i.id).join('+') : '-'); }).join();
-  if (carriers !== 'mill_cellar:slime:sticky_core,meadowbrook_thicket:grayjaw:alpha_fang,millrace_sewer:rat_king:crown_shard,mosslight_glade:rook_poacher:rooks_whistle,coppercap_warrens:chief_coppercap:war_crown')
+  if (carriers !== 'mill_cellar:slime:sticky_core,meadowbrook_thicket:grayjaw:alpha_fang+iron_helm+studded_helmet+adept_helmet+grayjaws_ruff,millrace_sewer:rat_king:crown_shard,'
+    + 'mosslight_glade:rook_poacher:rooks_whistle+steel_helm+boarhide_helmet+scholar_helmet,coppercap_warrens:chief_coppercap:war_crown+willow_wand+willow_spellbook+willow_staff')
     fails.push('AW-25 the rares and carriers read ' + carriers);
   /* The list line: the band against the Level in words and a tone; the best, or New. */
   const rows = Object.fromEntries(huntRows().map((r) => [r.hunt, r]));
@@ -1593,7 +1594,7 @@ const MUTANTS = [
   ['a new player gets no pointer to Hunts', 'src/shell/launcher.js', "+ (ctx.hud && ctx.hud.isShown('hunt-topbar') ? '' : pointerFor(ctx)) + '</nav>'", "+ '</nav>'"],
   /* The Hunts window, master-detail (designer plan 2026-10-22): AW-25 .. AW-29. */
   ['AW-25 every creature reads common', 'src/shell/hunt-ground-facts.js', "  if (share >= SHARE_BANDS.common) return 'common';", "  return 'common';"],
-  ['AW-25 the rare carrier may be the equipment slot', 'src/shell/hunt-ground-facts.js', 'const isRare = (d) => !!d && d.gear !== true && ', 'const isRare = (d) => !!d && '],
+  ['AW-25 a Scarce piece reads as the ground\'s Rare (odds, not the band)', 'src/shell/hunt-ground-facts.js', 'd.ch < 1 && REVEAL_BANDS.includes(bandOf(d));', 'd.ch < 1 && d.ch <= 0.05;'],
   ['AW-25 every line says Fits your level', 'src/shell/windows/hunts.js', "fits === r.hunt ? (party ? 'Fits your party' : 'Fits your level') : ''", "(party ? 'Fits your party' : 'Fits your level')"],
   ['AW-25 the band ignores the floor', 'src/shell/hunt-list.js', '  const warn = rangeWords(r, level);', '  const warn = null;'],
   ['AW-25 a ground with no best says nothing', 'src/shell/hunt-list.js', 'none: solo || party ? null :', 'none: true ? null :'],

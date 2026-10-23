@@ -150,11 +150,10 @@ function check(monsters) {
 
   for (const [mid, m] of Object.entries(monsters)) {
     const drops = m.drops || [];
-    /* (e) an unflagged salvage-shaped row: the client's dice would show it. A walked ground's EQUIPMENT SLOT
-       (`gear: true`, Tyler 10-14/10-20) is its own rule set: tests/hunt-core/drop-tables.mjs holds it (one per
-       monster, the ground's band, the pace, the faucet; the engine rolls it as band 'gear', never a reveal). */
+    /* (e) an unflagged salvage-shaped row: the client's dice would show it. A walked ground's LOOT-BAND row (`band`,
+       src/data/loot-bands.js) is its own rule set: tests/hunt-core/drop-tables.mjs holds it (the pace, the faucet, the reveal). */
     drops.forEach((d) => {
-      if (d && !d.salvage && !d.lucky && d.gear !== true && salvageShaped(m, d)) {
+      if (d && !d.salvage && !d.lucky && !d.band && salvageShaped(m, d)) {
         ok(false, 'e', `${mid} -> ${d.id}: a salvage-shaped row without salvage:true (the client would mint it)`);
       }
     });
@@ -186,8 +185,8 @@ function check(monsters) {
       ok(!mentions(BOSSES, d.id), 'a', `${tag}: item is boss loot`);
       for (const [oid, om] of Object.entries(monsters)) {
         (om.drops || []).forEach((od, oi) => {
-          /* an equipment-slot row may share the item: its faucet is drop-tables.mjs' (pace + value cap) */
-          if (od && od.id === d.id && !(oid === mid && oi === i) && od.gear !== true) ok(false, 'a', `${tag}: item is also a drop of ${oid}[${oi}]`);
+          /* a loot-band row may share the item: its faucet is drop-tables.mjs' (pace + value cap) */
+          if (od && od.id === d.id && !(oid === mid && oi === i) && !od.band) ok(false, 'a', `${tag}: item is also a drop of ${oid}[${oi}]`);
         });
       }
       /* (b) the monster */
@@ -303,13 +302,14 @@ const MUTATIONS = {
   lucky_item:           { rule: 'a', mk: () => mutated((ms) => { lastOf(ms, 'wild_boar').id = 'wolfbone_torc'; }) },
   wrong_slot:           { rule: 'a', mk: () => mutated((ms) => { lastOf(ms, 'scarecrow').id = 'bronze_platebody'; }) },
   wrong_tier:           { rule: 'a', mk: () => mutated((ms) => { lastOf(ms, 'wild_boar').id = 'iron_belt'; }) },
-  goblin_brute_total:   { rule: 'c2', mk: () => mutated((ms) => moveSalvage(ms, 'bog_vine', 'goblin_brute')) },
+  /* worn tier-3 gear sells at 0.12 of book (loot-bands.js), so the brute's own sword is doubled to cross the 5% line */
+  goblin_brute_total:   { rule: 'c2', mk: () => mutated((ms) => { moveSalvage(ms, 'bog_vine', 'goblin_brute'); ms.goblin_brute.drops.find((d) => d.id === 'steel_sword').ch = 0.02; }) },
   salvage_first:        { rule: 'e', mk: () => mutated((ms) => { ms.wild_boar.drops.unshift(ms.wild_boar.drops.pop()); }) },
   flag_removed:         { rule: 'e', mk: () => mutated((ms) => { delete lastOf(ms, 'wild_boar').salvage; }) },
-  /* the gear exemptions stay narrow: an equipment row that loses its flag is a salvage-shaped row again, and a
-     plain (non-gear) row sharing a salvage item is still a second source */
-  gear_flag_removed:    { rule: 'e', mk: () => mutated((ms) => { delete lastOf(ms, 'drain_rat').gear; }) },
+  /* the band exemption stays narrow: a plain (unbanded) row sharing a salvage item is still a second source */
   plain_second_source:  { rule: 'a', mk: () => mutated((ms) => { ms.drain_rat.drops.push({ id: 'leather_belt', ch: 0.001 }); }) },
+  /* a loot-band row that loses its band is a salvage-shaped row again (the exemption is the band, not the ground) */
+  band_removed:         { rule: 'e', mk: () => mutated((ms) => { delete ms.gray_whelp.drops.find((d) => d.id === 'bronze_boots').band; }) },
 };
 
 const argv = process.argv.slice(2);

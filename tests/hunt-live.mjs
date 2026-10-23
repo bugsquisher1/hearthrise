@@ -118,7 +118,9 @@ function memberOf(M, user, seat, role, level) {
     skills: { melee: M.XP.skillXpForLevel('melee', L), defense: M.XP.skillXpForLevel('defense', L), ranged: M.XP.skillXpForLevel('ranged', L), magic: 0, prayer: 0 },
     levelXp: M.XP.charXpForLevel(L), xpFrac: null, hp: 1e6, gold: 500, equipment: { weapon }, inventory: {}, buffs: [], perks: null,
     deathsTodayBefore: 0, deathsLifetimeBefore: 0, hearthfindReady: false,
-    hero: M.SPAWN.heroSetup({ weaponType: role === 'ranger' ? 'ranged' : role === 'melee_dps' ? 'hammer' : 'sword', options: {}, bar: [], partyRoles: ['tank', 'melee_dps'] }),
+    /* LEAVE TOGETHER (Tyler 2026-10-22): every hero's box "Leave if anyone leaves the hunt or dies" is on, the server's
+       default (player_state.party_leave_together), so a partner's death sends this hero home (LV-Q, LV-E). */
+    hero: M.SPAWN.heroSetup({ weaponType: role === 'ranger' ? 'ranged' : role === 'melee_dps' ? 'hammer' : 'sword', options: {}, bar: [], partyRoles: ['tank', 'melee_dps'], leaveTogether: true }),
   };
 }
 

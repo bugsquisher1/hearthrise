@@ -4252,3 +4252,6 @@ guard tests/hunt-scene.mjs (SC-1..8, 13/13 mutants).
 3. *One roll breaks a floor RNG: the burn.* Its "no" is the good outcome, so a dish that can burn is `unsure` (in no stack, burn XP only); the floor RNG alone would have counted dishes the server burns.
 4. *A stateless prediction makes replace-never-merge automatic.* Nothing is stored; the memo keys on the record object and a 100 ms bucket of the server clock, so a payout or a stop changes the answer at once. The one fact the record lacks is a refusal to settle: CharacterSession.settleRefusal, tied to the version it was answered at.
 5. *Test clocks must clear the memo bucket:* +10 ms past an action boundary rounds back below it; read a boundary at +100.
+## 2026-10-22 · lane/b-hunts-detail merge of next (set/v0.2.34)
+1. *Rule ids collide silently in a 3-way merge.* Both sides named a new rule AW-24 (next: the town ticker; the lane: the Hunts page) and git merged every non-adjacent use without a hunk. The side not yet landed renumbers (the Hunts rules are now AW-25..AW-29); grep the ids per side before trusting a clean auto-merge.
+2. *Lane-only files keep the old ?v=.* Only conflicting files get looked at; new files the lane added (hunt-detail, hunt-go, hunt-ground-facts, creature-sprite) stayed at 0.2.32 until `bump-version.sh --check`.

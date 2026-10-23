@@ -27,6 +27,8 @@
 //          the asking, in town one hello is in flight and a gap storm is paced yet caught up (live 10-23)
 //   ASK-2  a four-hero leave-together: a not-due answer at the record's version is not re-read in full, the close
 //          is backed off past leave_at; no refusal, at most 7 asks and 2 full reads a hero, every hero sees its end
+//   ASK-3  a hunter's idle answer at a version its record holds WHOLE is not re-read in full; after a frame that
+//          skipped versions it is, and in town it always is (a party invite moves no version)
 //   HELLO-1 an idle settle answer ({accrued:false}) is never applied as the character: the full read follows
 //   HUNT-1 while the server holds a hunt open the character asks the hunter's settle every huntPollMs
 //          (attended): the track reaches the timeline; the envelope that says it ended stops the asking
@@ -43,8 +45,11 @@
 //   ACC-1  at most the server's concurrent limit open (within the tab's ceiling); close frees a place
 //   ACC-4  the limit is the SERVER's (account.max_concurrent): a smaller one holds, an unstated one
 //          allows one character, a larger one is capped by the tab's ceiling
-//   VIEW-2 switching the viewed character touches no CharacterSession: records, statuses, topics,
-//          listeners and the server calls of every character are exactly as before
+//   VIEW-2 switching the viewed character asks the newly viewed one ONE settle and nothing else: statuses,
+//          topics, listeners and every other character's calls are exactly as before
+//   VIEW-3 only the viewed character streams live (CLAUDE.md §6): in a four-hero party hunt the viewed one asks
+//          at most 5 a minute, an unviewed one makes at most 1 call a minute and never asks the engine; a switch
+//          shows the server's state at once; an unviewed hero's hunt end reaches its record within a minute
 //   ACC-2  the roster is the server's owned slots (hero_slots), bounded; a slot whose
 //          character has no name (hr_load needs_name) reads as unnamed, not as a hero;
 //          create is ONE hr_create_hero with the name, the four colours and an idem key
@@ -451,6 +456,32 @@ async function rules(M) {
     }
     return true;
   });
+  /* ASK-3 (the version a hunter's idle answer is checked against): a frame states only some keys, so a record
+     raised by a frame that SKIPPED versions is not whole at that version: the idle answer after it is re-read in
+     full (hr_load). After a whole read, consecutive frames keep it whole and an idle answer at their version asks
+     nothing more. */
+  await t('ASK-3', async () => {
+    const calls = [];
+    let ver = 10, ended = false;
+    const body = () => env(ver, { hunt: { session_id: 'h1', hunt_id: 'mill_cellar', ended } });
+    const srv = {
+      rpc: async (name) => { calls.push(name); return { ok: true, status: 200, body: body(), closed: false }; },
+      accrue: async () => { calls.push('accrue'); return { ok: true, status: 200, body: Object.assign(body(), { accrued: false, settled: false, reason: 'not_due' }), closed: false }; },
+    };
+    const hub = fakeHub();
+    const cs = new C.CharacterSession({ slot: 0, uid: UID, server: srv, channel: hub.channel, ...timers });
+    await cs.load(); cs.connect();
+    const topic = C.frameTopic(UID, 0);
+    const ask = async () => { calls.length = 0; await cs.hello(); await new Promise((r) => setImmediate(r)); return calls.join(','); };
+    if ((await ask()) !== 'accrue') return 'an idle answer at the version just read whole was re-read';
+    ver = 12; hub.send(topic, { t: 'delta', frame: 12, patch: { state: { gold: 12 } } });
+    if ((await ask()) !== 'accrue,hr_load') return 'an idle answer after a skipped frame was not re-read in full: ' + calls.join(',');
+    ver = 13; hub.send(topic, { t: 'delta', frame: 13, patch: { state: { gold: 13 } } });
+    if ((await ask()) !== 'accrue') return 'an idle answer after a consecutive frame was re-read: ' + calls.join(',');
+    /* in town an idle answer is always read in full (what no version moves, a party invite, still arrives) */
+    ended = true; await cs.load();
+    return (await ask()) === 'accrue,hr_load' || 'an idle answer in town was not re-read in full: ' + calls.join(',');
+  });
   await t('HELLO-1', async () => {
     const calls = [];
     const srv = {
@@ -766,18 +797,99 @@ async function rules(M) {
     const auth = { userId: () => UID, token: () => 'jwt', signOut: async () => {} };
     const acc = new A.AccountSession({ auth, server: srv, tab: memStore(), channel: hub.channel, timers });
     for (const s of [0, 1, 2]) await acc.open(s);
+    await new Promise((r) => setImmediate(r));
     const heard = [];
     for (const cs of acc.characters()) cs.subscribe((c, why) => heard.push(c.slot + ':' + why));
-    const before = acc.characters().map((cs) => [cs.slot, cs.record, cs.status, cs._listeners.size]);
+    const before = acc.characters().map((cs) => [cs.slot, cs.status, cs._listeners.size]);
     const topics = Array.from(hub.topics.keys()).sort().join();
     const calls = srv.calls.length;
     if (!acc.view(1) || acc.viewed !== 1 || !acc.view(2) || !acc.view(0) || acc.viewed !== 0) return 'view() did not move the pointer';
     if (acc.view(9)) return 'view() moved to a character that is not open';
-    const after = acc.characters().map((cs) => [cs.slot, cs.record, cs.status, cs._listeners.size]);
-    if (after.length !== 3 || after.some((a, i) => a.some((v, j) => v !== before[i][j]))) return 'a switch changed a character (record, status or listeners)';
+    await new Promise((r) => setImmediate(r));
+    const after = acc.characters().map((cs) => [cs.slot, cs.status, cs._listeners.size]);
+    if (after.length !== 3 || after.some((a, i) => a.some((v, j) => v !== before[i][j]))) return 'a switch changed a character (status or listeners)';
     if (Array.from(hub.topics.keys()).sort().join() !== topics) return 'a switch left or joined a topic';
-    if (srv.calls.length !== calls) return 'a switch sent ' + (srv.calls.length - calls) + ' server call(s)';
-    return heard.length === 0 || 'a switch made characters emit: ' + heard.join(',');
+    /* the newly viewed character asks ONE settle (the server's state at once, Part 2 of lane/a-accrue-storm); nothing else is sent */
+    const sent = JSON.stringify(srv.calls.slice(calls));
+    if (sent !== JSON.stringify([['accrue', { slot: 1 }], ['accrue', { slot: 2 }], ['accrue', { slot: 0 }]])) return 'a switch sent ' + sent + ' (one settle of the newly viewed character each)';
+    return heard.every((h) => /^[0-2]:hello$/.test(h)) || 'a switch made characters emit: ' + heard.join(',');
+  });
+  /* VIEW-3 (perf audit 10-23, Tyler: unviewed sessions off the live view; CLAUDE.md §6 "only the viewed character
+     streams live; the others keep playing on the server"). Four heroes of one account in one party hunt, slot 0
+     viewed: the viewed session asks at most 5 times a minute, an unviewed one makes at most 1 call a minute and never
+     asks the engine (a plain read); a switch asks the newly viewed hero ONE settle and shows the server's state at
+     once, and the one left goes quiet; an unviewed hero's hunt end reaches its record (the strip) within a minute. */
+  await t('VIEW-3', async () => {
+    const LAT = 800, MIN = 60000;
+    const clock = { t: 0 };
+    let tid = 0, lastSettle = -Infinity;
+    const timers = new Map(), late = [], ver = [10, 20, 30, 40], ended = [false, false, false, false];
+    const add = (fn, ms, every) => { timers.set(++tid, { fn, at: clock.t + Math.max(0, ms), every }); return tid; };
+    const tm = { setTimer: (fn, ms) => add(fn, ms, 0), clearTimer: (i) => timers.delete(i), setInterval: (fn, ms) => add(fn, ms, ms), clearInterval: (i) => timers.delete(i), now: () => clock.t };
+    const calls = [[], [], [], []];
+    const envOf = (s) => env(ver[s], { account: { max_concurrent: 4 }, hunt: { session_id: 'h' + s, hunt_id: 'mill_cellar', ended: ended[s] } });
+    const srv = {
+      calls: [],
+      rpc: async (name, args) => {
+        const s = args && Number.isInteger(args.p_slot) ? args.p_slot : 0;
+        calls[s].push({ at: clock.t, name });
+        if (name === 'hr_load') return { ok: true, status: 200, body: envOf(s), closed: false };
+        return { ok: true, status: 200, body: { ok: true }, closed: false };
+      },
+      accrue: (b) => {
+        const s = b.slot;
+        calls[s].push({ at: clock.t, name: 'accrue' });
+        return new Promise((resolve) => late.push({ at: clock.t + LAT, run: () => {
+          /* one settle moves every member twice (a gap) and pushes each other member its frame: an unviewed one asks nothing for it */
+          if (!ended[s] && clock.t - lastSettle >= 15000) { lastSettle = clock.t; for (let k = 0; k < 4; k++) { ver[k] += 2; if (k !== s) gaps.push(k); } }
+          resolve({ ok: true, status: 200, body: Object.assign({ accrued: true }, envOf(s)), closed: false });
+        } }));
+      },
+    };
+    const auth = { userId: () => UID, token: () => 'jwt', signOut: async () => {} };
+    const hub = fakeHub(), gaps = [];
+    const acc = new A.AccountSession({ auth, server: srv, tab: memStore(), channel: hub.channel, timers: tm });
+    const settle = async () => { for (let k = 0; k < 6; k++) await new Promise((r) => setImmediate(r)); };
+    const run = async (untilMs) => {
+      for (; clock.t < untilMs; clock.t += 100) {
+        await new Promise((r) => setImmediate(r));
+        for (let i = 0; i < late.length; i++) if (late[i] && late[i].at <= clock.t) { const l = late[i]; late[i] = null; l.run(); await settle(); }
+        while (gaps.length) { const k = gaps.shift(); hub.send(C.frameTopic(UID, k), { t: 'delta', frame: ver[k], patch: { state: { gold: ver[k] } } }); await settle(); }
+        for (const [i, x] of Array.from(timers)) if (x.at <= clock.t && timers.has(i)) {
+          if (x.every) x.at += x.every; else timers.delete(i);
+          x.fn(); await settle();
+        }
+      }
+    };
+    for (const s of [0, 1, 2, 3]) { const opening = acc.open(s); await run(clock.t + 2000); if (!(await opening).ok) return 'hero ' + s + ' did not open'; }
+    if (acc.viewed !== 0) return 'the first hero opened is not the viewed one';
+    const inWindow = (s, a, b) => calls[s].filter((x) => x.at >= a && x.at < b);
+    /* minutes 1 to 5 of the hunt */
+    await run(5 * MIN);
+    const viewedRate = inWindow(0, MIN, 5 * MIN).length / 4;
+    if (viewedRate > 5) return 'the viewed hero made ' + viewedRate + ' calls a minute (at most 5)';
+    for (const s of [1, 2, 3]) {
+      const c = inWindow(s, MIN, 5 * MIN);
+      if (c.length / 4 > 1) return 'unviewed hero ' + s + ' made ' + c.length / 4 + ' calls a minute (at most 1): ' + c.map((x) => x.name).slice(0, 6).join(',');
+      if (c.some((x) => x.name === 'accrue')) return 'unviewed hero ' + s + ' asked the engine (it reads itself with a plain read)';
+    }
+    /* the switch: ONE settle of the newly viewed hero, its record at the server's version at once; the one left goes quiet */
+    const at = clock.t;
+    if (!acc.view(2)) return 'view(2) refused';
+    await run(at + LAT + 200);
+    const asked = inWindow(2, at, at + LAT + 200);
+    if (asked.length !== 1 || asked[0].name !== 'accrue') return 'the switch asked ' + JSON.stringify(asked.map((x) => x.name)) + ' of the newly viewed hero (one settle)';
+    if (acc.character(2).record.version !== ver[2]) return 'the switched-to hero shows version ' + acc.character(2).record.version + ', the server ' + ver[2];
+    if (inWindow(0, at, at + LAT + 200).length || inWindow(1, at, at + LAT + 200).length) return 'the switch asked something of a hero it did not show';
+    await run(at + 3 * MIN);
+    const left = inWindow(0, at + MIN, at + 3 * MIN);
+    if (left.length / 2 > 1 || left.some((x) => x.name === 'accrue')) return 'the hero switched away from kept asking the engine (' + left.length + ' calls in 2 minutes)';
+    /* an unviewed hero's hunt ends on the server: its record says so within a minute */
+    const endAt = clock.t;
+    ended[3] = true; ver[3] += 1;
+    await run(endAt + MIN + LAT + 200);
+    const h3 = acc.character(3).record.data.hunt;
+    return (h3 && h3.ended === true) || 'an unviewed hero\'s hunt end did not reach its record within a minute';
   });
   await t('ACC-2', async () => {
     /* each hero by its server name and its Level from the server's Level XP (21,591 = Level 10, CORE_MODEL.md §2) */
@@ -1108,8 +1220,8 @@ const MUTANTS = [
   ['limit off by one', 'src/session/account-session.js', 'if (this._chars.size >= this.limit()) return', 'if (this._chars.size > this.limit()) return'],
   ['the client ceiling stands in for the server', 'src/session/account-session.js', 'return Math.min(this.config.maxConcurrentCharacters, this._limit === null ? 1 : this._limit);', 'return this.config.maxConcurrentCharacters;'],
   ['the server limit is ignored above one', 'src/session/account-session.js', 'return Math.min(this.config.maxConcurrentCharacters, this._limit === null ? 1 : this._limit);', 'return Math.min(this.config.maxConcurrentCharacters, this._limit === null ? 1 : this.config.maxConcurrentCharacters);'],
-  ['a switch re-reads the viewed character', 'src/session/account-session.js', "    this.viewed = slot;\n    this._emit('viewed', slot);", "    this.viewed = slot;\n    this._chars.get(slot).load();\n    this._emit('viewed', slot);"],
-  ['a switch closes the others', 'src/session/account-session.js', "    this.viewed = slot;\n    this._emit('viewed', slot);", "    this.viewed = slot;\n    for (const c of this._chars.values()) if (c.slot !== slot) c._leave && (c._leave(), c._leave = null);\n    this._emit('viewed', slot);"],
+  ['a switch re-reads the viewed character', 'src/session/account-session.js', "    this._chars.get(slot).setViewed(true);\n    this._emit('viewed', slot);", "    this._chars.get(slot).setViewed(true);\n    this._chars.get(slot).load();\n    this._emit('viewed', slot);"],
+  ['a switch closes the others', 'src/session/account-session.js', "    this._chars.get(slot).setViewed(true);\n    this._emit('viewed', slot);", "    this._chars.get(slot).setViewed(true);\n    for (const c of this._chars.values()) if (c.slot !== slot) c._leave && (c._leave(), c._leave = null);\n    this._emit('viewed', slot);"],
   ['sign-out keeps sb-* keys', 'src/net/auth.js', " || k.startsWith('sb-')", ''],
   ['sign-out keeps the tab id', 'src/net/auth.js', '    if (o.tab) o.tab.remove(cfg.tabKey);\n', ''],
   ['sign-out leaves characters open', 'src/session/account-session.js', '    for (const slot of Array.from(this._chars.keys())) this.close(slot);\n', ''],
@@ -1120,9 +1232,10 @@ const MUTANTS = [
   ['a join sends no hello', 'src/session/character-session.js', "if (st === 'SUBSCRIBED') { this._attempt = 0; if (!this._huntOpen()) this.hello(); return; }", "if (st === 'SUBSCRIBED') { this._attempt = 0; return; }"],
   ['a leave inside the channel callback recurses', 'src/session/character-session.js', "    const leave = this._leave;\n    this._leave = null;\n    if (leave) { try { leave(); } catch (e) { /* already gone */ } }", "    if (this._leave) { try { this._leave(); } catch (e) { /* already gone */ } this._leave = null; }"],
   ['a dropped channel is never re-joined', 'src/session/character-session.js', "this._retry = this._setTimer(() => { this._retry = null; this.connect(); }, reconnectDelay(++this._attempt));", "this._retry = null;"],
-  ['a version gap is guessed, not healed', 'src/session/character-session.js', "if (before !== null && r.record.version > before + 1) { if (this._huntOpen()) this._poll.arm(0); else this.hello(); }", ''],
+  ['a version gap is guessed, not healed', 'src/session/character-session.js', "if (before !== null && r.record.version > before + 1 && this._viewed) { if (this._huntOpen()) this._poll.arm(0); else this.hello(); }", ''],
   /* ASK-1 (live 10-23, the accrue storm): the per-frame hello, a join's hello while hunting, the budget, one in flight, the hold */
-  ['a gap frame while hunting asks a hello per frame', 'src/session/character-session.js', "if (before !== null && r.record.version > before + 1) { if (this._huntOpen()) this._poll.arm(0); else this.hello(); }", "if (before !== null && r.record.version > before + 1) this.hello();"],
+  ['a gap frame while hunting asks a hello per frame', 'src/session/character-session.js', "if (before !== null && r.record.version > before + 1 && this._viewed) { if (this._huntOpen()) this._poll.arm(0); else this.hello(); }", "if (before !== null && r.record.version > before + 1) this.hello();"],
+  ['an unviewed hero re-reads on every gap frame', 'src/session/character-session.js', ' && this._viewed) { if (this._huntOpen()) this._poll.arm(0);', ') { if (this._huntOpen()) this._poll.arm(0);'],
   ['a join while hunting asks its own hello', 'src/session/character-session.js', "{ this._attempt = 0; if (!this._huntOpen()) this.hello(); return; }", "{ this._attempt = 0; this.hello(); return; }"],
   ['a hello is sent over the budget', 'src/session/character-session.js', "    if (this._pace.waitMs() > 0) { if (!this._huntOpen()) this._pace.owe(() => this.hello()); return Promise.resolve(false); }\n", ''],
   ['an ask spends no budget', 'src/session/ask-pacer.js', '  sent() { this._fill(); this._tokens -= 1; }', '  sent() { this._fill(); }'],
@@ -1131,8 +1244,17 @@ const MUTANTS = [
   ['an ask made while one is out is lost', 'src/session/character-session.js', '{ this._again = true; return this._asking; }', '{ return this._asking; }'],
   ['a refusal is asked again at once', 'src/session/character-session.js', '{ this._pace.hold(SESSION_CONFIG.liveRefillMs); if (!this._huntOpen())', '{ if (!this._huntOpen())'],
   ['a refused gap in town is never caught up', 'src/session/character-session.js', 'if (!this._huntOpen()) this._pace.owe(() => this.hello()); }', '}'],
+  /* VIEW-3 (perf audit 10-23, Part 2: unviewed sessions off the live view) */
+  ['an unviewed hero re-reads at the live pace', 'src/session/character-session.js', 'const ms = this._viewed ? pollDelayMs(', 'const ms = true ? pollDelayMs('],
+  ['an unviewed hero asks the engine', 'src/session/character-session.js', 'const engine = this._viewed || this.leaveAt() !== null;', 'const engine = true;'],
+  ['an unviewed hero reads itself every ten minutes', 'src/session/character-session.js', 'Math.min(SESSION_CONFIG.unviewedPollMs, close ?? Infinity)', 'Math.min(10 * SESSION_CONFIG.unviewedPollMs, close ?? Infinity)'],
+  ['a switch asks nothing of the newly viewed hero', 'src/session/character-session.js', '    if (this._viewed) this.hello();\n', ''],
+  ['a switch never tells the sessions', 'src/session/account-session.js', '    if (was) was.setViewed(false);\n    this._chars.get(slot).setViewed(true);\n', ''],
   /* ASK-2 (perf audit 10-23, the leave-together storm) */
-  ['an idle answer at the record\'s version is re-read in full', 'src/session/character-session.js', "    if (Number.isSafeInteger(v) && ans.body.accrued !== true && this._record && v <= this._record.version) return false;\n", ''],
+  ['an idle answer at the record\'s version is re-read in full', 'src/session/character-session.js', "    if (Number.isSafeInteger(v) && ans.body.accrued !== true && this._huntOpen() && v <= this._wholeAt) return false;\n", ''],
+  ['a frame that skipped versions is taken as whole', 'src/session/character-session.js', "if (this._wholeAt === before && r.record.version === before + 1) this._wholeAt = before + 1;", "this._wholeAt = r.record.version;"],
+  ['a consecutive frame loses the whole mark', 'src/session/character-session.js', "if (this._wholeAt === before && r.record.version === before + 1) this._wholeAt = before + 1;", ''],
+  ['an idle answer in town is not re-read', 'src/session/character-session.js', '&& this._huntOpen() && v <= this._wholeAt)', '&& v <= this._wholeAt)'],
   ['the close is asked every 2 s past leave_at', 'src/session/hunt-leave.js', 'Math.max(SESSION_CONFIG.leaveRetryMs, Math.ceil(-left))', 'SESSION_CONFIG.leaveRetryMs'],
   ['an open hunt is never re-read', 'src/session/character-session.js', "    this._emit(why);\n    this._armHuntPoll();", "    this._emit(why);"],
   ['an ended hunt keeps re-reading', 'src/session/character-session.js', "typeof h.session_id === 'string' && h.ended !== true;", "typeof h.session_id === 'string';"],
@@ -1150,7 +1272,7 @@ const MUTANTS = [
   ['every caller refreshes on its own', 'src/net/auth.js', '    if (renewing) return renewing;\n', ''],
   ['a refused refresh keeps the dead session', 'src/net/auth.js', "    session = null;\n    tell('expired');", "    tell('expired');"],
   ['waking a hidden tab checks nothing', 'src/net/auth.js', "if (o.doc.visibilityState === 'visible') freshToken();", "if (false) freshToken();"],
-  ['a failed live ask re-arms at once, forever', 'src/session/character-session.js', 'if (!took) this.liveLink.missed();', ''],
+  ['a failed live ask re-arms at once, forever', 'src/session/character-session.js', 'if (!took && engine) this.liveLink.missed();', ''],
   ['the live ask gives up after two tries', 'src/session/live-link.js', '      this.want = true;\n      this._tries++;', '      this.want = this._tries < 2;\n      if (this.want) this._tries++;'],
   ['a storage move leaves the other characters stale', 'src/session/account-session.js', '    for (const [slot, cs] of this._chars) if (slot !== from) cs.load();\n', ''],
   ['a storage move never tells the account', 'src/session/character-session.js', "if (r && r.ok && typeof this.onShared === 'function') this.onShared('bank', this.slot); ", ''],
@@ -1175,7 +1297,7 @@ async function main() {
   if (!mutate) {
     const fails = [...await rules(await load(ROOT)), ...await viewRules(ROOT)];
     for (const f of fails) console.log('  ✗ ' + f);
-    console.log(fails.length ? 'session-core: ' + fails.length + ' rule(s) RED' : 'session-core: every session rule holds (36 rules)');
+    console.log(fails.length ? 'session-core: ' + fails.length + ' rule(s) RED' : 'session-core: every session rule holds (38 rules)');
     process.exit(fails.length ? 1 : 0);
   }
   const clean = await cleanControl(async () => rules(await load(ROOT)));

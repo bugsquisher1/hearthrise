@@ -15,8 +15,8 @@
 //          (src/shell/alerts.js) watches every open character
 //
 // Which open character is shown is AccountSession.viewed, a view pointer; a
-// switch remounts only the pane, and every other character keeps its record,
-// channel and timers. A reload signs back in from the stored session and
+// switch remounts only the pane; the shown character streams live and the others play on the server (a plain
+// read a minute, CharacterSession.setViewed). A reload signs back in from the stored session and
 // starts at the characters screen.
 //
 // THE CLOSED GAME: the server refuses a non-allowlisted account (403

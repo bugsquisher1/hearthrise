@@ -102,9 +102,9 @@ export class CharacterSession {
     this._attempt = 0;
     this._retry = null;
     this._residueTimer = null;
-    this._leaveAsk = null; this._asking = null;   // the hello in flight (hello)
+    this._leaveAsk = null; this._asking = null; this._wholeAt = -1;   // the hello in flight; the version known whole
     this._pending = {}; this._sent = {};   // residue to put; residue put and not yet seen back (residue.js unconfirmedResidue)
-    this._closed = false;
+    this._closed = false; this._viewed = o.viewed !== false;   // shown (AccountSession.view): only it streams live (setViewed)
     this.lastVerdict = null;
     this._now = o.now || (() => (globalThis.performance ? globalThis.performance.now() : Date.now()));
     this._poll = new HuntPoll({ setTimer: this._setTimer, clearTimer: this._clearTimer, now: () => this._now(), fire: () => this._huntPoll() });
@@ -141,7 +141,7 @@ export class CharacterSession {
     const r = applyEnvelope(this._record, body);
     this.lastVerdict = r.verdict;
     if (!r.applied) return false;
-    this._record = r.record;
+    this._record = r.record; this._wholeAt = r.record.version;   // a full envelope: every key known at its version
     /* A residue field set here and not yet put, or put and not yet seen back, is newer than the copy this envelope
        carried (it may predate the put): it stays until the server echoes it (the summary card never blinks out). */
     this._sent = unconfirmedResidue(this._sent, this._record.residue);
@@ -163,10 +163,23 @@ export class CharacterSession {
   /** The SERVER's clock now (ms), measured from its answers (timeline.js T3), or null before one came. */
   serverNow() { return this.timeline.serverNowAt(this._now()); }
 
-  /* THE HUNT RE-READ (hunt-poll.js), armed by every applied answer while a hunt is open. */
+  /* THE HUNT RE-READ (hunt-poll.js), armed by every applied answer while a hunt is open. UNVIEWED (CLAUDE.md §6: only the
+     viewed character streams live): no live view, a plain read every unviewedPollMs; a pending leave's close is still asked. */
   _armHuntPoll() {
     if (this._closed || !this._huntOpen()) return;
-    this._poll.arm(Math.max(this._pace.waitMs(), pollDelayMs(this.read('hunt'), this.liveLink, closeInMs(this.leaveAt(), this.serverNow()))));
+    const close = closeInMs(this.leaveAt(), this.serverNow());
+    const ms = this._viewed ? pollDelayMs(this.read('hunt'), this.liveLink, close) : Math.min(SESSION_CONFIG.unviewedPollMs, close ?? Infinity);
+    this._poll.arm(Math.max(this._pace.waitMs(), ms));
+  }
+
+  /** Shown or not (AccountSession.view). Viewed again it asks ONE settle at once (the server's state, a start point). */
+  setViewed(on) {
+    if (this._closed || this._viewed === (on !== false)) return;
+    this._viewed = on !== false;
+    this._poll.stop();
+    if (!this._viewed) this.liveLink.off();
+    this._armHuntPoll();
+    if (this._viewed) this.hello();
   }
 
   /** A PENDING LEAVE's server instant (ms): leave_at, else the leave's own answer (hunt-leave.js), or null. */
@@ -177,11 +190,12 @@ export class CharacterSession {
 
   async _huntPoll() {
     if (this._closed || !this._huntOpen()) return;
-    if (this._pace.waitMs() > 0) { this._poll.arm(this._pace.waitMs()); return; }   // over budget: asked when it fits, not a miss
+    const engine = this._viewed || this.leaveAt() !== null;   // unviewed: a plain read (hr_load's budget, not the engine's)
+    if (engine && this._pace.waitMs() > 0) { this._poll.arm(this._pace.waitMs()); return; }   // over budget: asked when it fits, not a miss
     let took = false;
-    try { took = await this.hello(); } catch (e) { /* the next ask retries */ }
+    try { took = await (engine ? this.hello() : this.load()); } catch (e) { /* the next ask retries */ }
     /* no answer (blocked, refused, offline) backs the live ask off too, never every liveAskMs */
-    if (!took) this.liveLink.missed();
+    if (!took && engine) this.liveLink.missed();
     this._armHuntPoll();
   }
 
@@ -221,7 +235,7 @@ export class CharacterSession {
   }
 
   /* THE LIVE VIEW (src/session/live-link.js): reads every answer while a hunt is open. */
-  _liveFrom(body) { if (this._huntOpen()) this.liveLink.from(body); else this.liveLink.off(); }
+  _liveFrom(body) { if (this._huntOpen() && this._viewed) this.liveLink.from(body); else this.liveLink.off(); }
 
   /** The frame loop's step: run the live engine to the server's clock now (the viewed character). */
   liveAdvance(clientNow) { return this.liveLink.advance(clientNow); }
@@ -494,26 +508,27 @@ export class CharacterSession {
        is, with the live start point (take it). A refusal to settle (refusal.js) stands until the next answer (town ticker). */
     if (ans.ok) this.settleRefusal = settleRefusalOf(ans);
     if (ans.ok && ans.body && ans.body.accrued !== true && ans.body.hunt_live && ans.body.state && this._take(ans.body, 'hello')) return true;
-    const v = ans.ok && ans.body ? ans.body.version : null;   // an idle answer at the record's version: nothing to re-read
-    if (Number.isSafeInteger(v) && ans.body.accrued !== true && this._record && v <= this._record.version) return false;
+    const v = ans.ok && ans.body ? ans.body.version : null;   // a hunter's idle answer at a version held WHOLE: no re-read
+    if (Number.isSafeInteger(v) && ans.body.accrued !== true && this._huntOpen() && v <= this._wholeAt) return false;
     if (ans.ok && ans.body && ans.body.accrued !== true) return this.load();
     if (ans.ok && this._take(ans.body, 'hello')) return true;
     this._answerFailed(ans);
     return false;
   }
 
-  /** A pushed frame, applied. A version jump means frames were missed: the whole character is re-read (hunting, the
-      armed hunt re-read is brought forward; else one hello), coalesced and paced: never one ask per frame (10-23). */
+  /** A pushed frame, applied. A version jump means frames were missed: a VIEWED character re-reads the whole of it
+      (hunting, its hunt re-read brought forward; else one hello), coalesced and paced, never one ask per frame (10-23);
+      an unviewed one waits for its minute read or its switch. */
   onFrame(msg) {
     if (this._closed) return false;
     const before = this._record ? this._record.version : null;
     const r = applyFrame(this._record, msg);
     this.lastVerdict = r.verdict;
     if (!r.applied) return false;
-    this._record = r.record;
+    this._record = r.record; if (this._wholeAt === before && r.record.version === before + 1) this._wholeAt = before + 1;   // no frame skipped
     this._emit('frame');
     this._armHuntPoll();
-    if (before !== null && r.record.version > before + 1) { if (this._huntOpen()) this._poll.arm(0); else this.hello(); }
+    if (before !== null && r.record.version > before + 1 && this._viewed) { if (this._huntOpen()) this._poll.arm(0); else this.hello(); }
     return true;
   }
 

@@ -39,6 +39,10 @@ export const SESSION_CONFIG = Object.freeze({
   /** ...and the most that may go at once from a rested budget: the live view's start-point asks (liveAskMs
       doubling up to huntPollMs, six) with a leave and its close. */
   engineAskBurst: 8,
+  /** An UNVIEWED hunting character (CLAUDE.md §6: only the viewed one streams live) reads itself this often with a
+      plain read (hr_load: never the engine's budget, no live view), so its strip and alerts learn of a hunt's end
+      within a minute; the server settles it meanwhile (the world tick, or the party's viewed member). */
+  unviewedPollMs: 60000,
   /** While the Work window or the bag is open and the hero gathers or works a bench in town, the viewed
       character asks the engine to bring it up to date this often (src/session/town-poll.js), so the bag,
       the skill XP and the run's progress move as it goes. Just over the engine's town floor

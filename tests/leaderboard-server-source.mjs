@@ -231,11 +231,12 @@ export async function guard() {
       + 'game_saves.snapshot. The board is still ranking the client-authored blob.');
   }
   // …and specifically, wealth reflects the SERVER balance.
+  /* The server balance is the ACCOUNT purse (2026-12-15-account-gold.sql: one gold purse per account). */
   const srvGold = Number((await one(
-    'select gold::text g from player_state where user_id=$1 and slot=0', [FORGER])).g);
+    'select coalesce((select w.gold from account_wallet w where w.user_id=$1), 0)::text g', [FORGER])).g);
   const wealthScore = await scoreOf('wealth', FORGER);
   ok(wealthScore === null ? srvGold === 0 : wealthScore === srvGold,
-    `LB-1: the Wealth board says ${wealthScore} but player_state.gold is ${srvGold}. The board `
+    `LB-1: the Wealth board says ${wealthScore} but the account purse is ${srvGold}. The board `
     + 'must publish the server balance and nothing else.');
 
   // ── LB-10 — THE IMPERSONATION HALF. ──────────────────────────────────────
@@ -279,9 +280,9 @@ export async function guard() {
   ok(gg && gg.ok === true, `LB-3: a legitimate gold grant was refused — ${JSON.stringify(gg)}`);
   await refresh();
   const srvGoldH = Number((await one(
-    'select gold::text g from player_state where user_id=$1 and slot=0', [HONEST])).g);
+    'select coalesce((select w.gold from account_wallet w where w.user_id=$1), 0)::text g', [HONEST])).g);
   ok(await scoreOf('wealth', HONEST) === srvGoldH,
-    `LB-3: the Wealth board says ${await scoreOf('wealth', HONEST)} and player_state.gold is `
+    `LB-3: the Wealth board says ${await scoreOf('wealth', HONEST)} and the account purse is `
     + `${srvGoldH}. A server-written balance must reach the board.`);
   /* …and the honest player now OUTRANKS the forger, whose blob claims 1e12.
      ⚠ NULL-SAFE, DELIBERATELY. The first version of this dereferenced
@@ -570,11 +571,12 @@ export async function guard() {
      MUTATION HARNESS. It edits a real migration in place and restores it
      afterwards; a suite running beside it reads the MUTATED bytes. */
 const MIG = 'supabase/migrations/2026-08-18-leaderboard-server-source.sql';
-/* The view and its revoke are RESTATED by the core rebuild (2026-10-27-core-bodies.sql §4): a mutant of the
-   view must be planted THERE, or the later file's restatement silently undoes it and the mutant proves nothing. */
-const VIEW = 'supabase/migrations/2026-10-27-core-bodies.sql';
-const BLIND_VIEW = [["  -- (a) NO LIVE BODY READS THE OLD MODEL:",
-  '  return; -- MUTATION HARNESS: §5 disabled so the BEHAVIOUR is what fails\n  -- (a) NO LIVE BODY READS THE OLD MODEL:']];
+/* The view and its revoke are RESTATED last by 2026-12-15-account-gold.sql §3d (after the core rebuild's §4):
+   `wealth` ranks the account purse. A mutant of the view must be planted in THAT body, or the later restatement
+   silently undoes it and the mutant proves nothing. Its §7 self-check is blinded so the behaviour is what fails. */
+const VIEW = 'supabase/migrations/2026-12-15-account-gold.sql';
+const BLIND_VIEW = [['  v_prev bigint; v_bad int;\nbegin\n',
+  '  v_prev bigint; v_bad int;\nbegin\n  return; -- MUTATION HARNESS: §7 disabled so the BEHAVIOUR is what fails\n']];
 /* `return` in a DO block ends it, so §6 stops before its first assertion. */
 const BLIND2 = [["  if to_regclass('public.leaderboard_ranked') is null then\n"
   + "    raise exception 'leaderboard_ranked missing';\n  end if;",

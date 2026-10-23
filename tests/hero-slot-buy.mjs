@@ -62,6 +62,7 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { bootReplay, inventory, ROOT } from './schema-replay.mjs';
+import { goldOf as purseGold, setGold as setPurse } from './_gold.mjs';
 import { isMain } from './_is-main.mjs';
 
 const MIG = '2026-09-08-hero-slot-buy.sql';
@@ -536,13 +537,14 @@ async function chainEnd(mutate) {
   z.owned = (await q('select public.hr_hero_slots_of($1) as r', [uid]))[0]?.r;
   if (z.starters.length) { await q('delete from public.hr_rate_counters'); z.createStarter = await asUser(uid, 'select public.hr_create_character($1) as r', [z.starters[0]]); }
   await q('insert into public.account_wallet (user_id, gems) values ($1, 5000) on conflict (user_id) do update set gems = 5000', [uid]);
-  const goldOf = async () => Number((await q('select gold::text g from player_state where user_id=$1 and slot=0', [uid]))[0]?.g);
+  /* The gold the buyer spends: the account purse at chain end (2026-12-15-account-gold.sql), the hero's own before. */
+  const goldOf = () => purseGold(q, uid, 0);
   const gemsOf = async () => Number((await q('select gems::text g from account_wallet where user_id=$1', [uid]))[0]?.g);
   const buy = async () => { await q('delete from public.hr_rate_counters');
     return asUser(uid, 'select public.hr_buy_hero_slot($1,$2,$3) as r', [z.paid, 0, crypto.randomUUID()]); };
-  await q('update public.player_state set gold = $2 where user_id = $1 and slot = 0', [uid, c1 - 1]);
+  await setPurse(q, uid, 0, c1 - 1);
   z.short = await buy(); z.shortGold = await goldOf();
-  await q('update public.player_state set gold = $2 where user_id = $1 and slot = 0', [uid, c1]);
+  await setPurse(q, uid, 0, c1);
   z.ok = await buy(); z.okGold = await goldOf(); z.gems = await gemsOf();
   z.ledger = await q("select gold::text gold, gold_in::text gold_in, gems_in::text gems_in, meta from player_ledger "
     + "where user_id=$1 and kind='hero_slot'", [uid]);
@@ -564,6 +566,14 @@ async function offerArm(db, q, asUser, catalogue, clean) {
     const before = JSON.stringify([await inventory(db), await bodies()]);
     try { await db.exec(`begin;\n${sqlText}\ncommit;`); } catch (e) { y.reapplyErr = String(e.message).split('\n')[0]; await db.exec('rollback').catch(() => {}); }
     y.reapplySame = before === JSON.stringify([await inventory(db), await bodies()]);
+    /* A LATER file that restates the buy body (2026-12-15-account-gold.sql: the account purse) makes this one's
+       second apply at chain end a stale restatement: it must REFUSE at its §0 pin and change nothing, never
+       install its older body over the one that ships. The later file's own re-apply is graded by its guard. */
+    const order = JSON.parse(await readFile(join(ROOT, 'tests', 'schema-apply-order.json'), 'utf8')).order;
+    for (const f of order.slice(order.indexOf(OFFER_MIG) + 1)) {
+      const t = await readFile(join(ROOT, 'supabase', 'migrations', f), 'utf8').catch(() => '');
+      if (/create\s+or\s+replace\s+function\s+public\.hr_buy_hero_slot__ungated\s*\(/i.test(t)) y.laterRestater = f;
+    }
   }
   y.paid = catalogue.filter((r) => !r.starter).map((r) => ({ slot_id: r.slot_id, cost: Number(r.cost) }));
   y.cap = Math.max(...catalogue.map((r) => r.slot_id)) + 1;
@@ -579,7 +589,7 @@ async function offerArm(db, q, asUser, catalogue, clean) {
     catch (e) { return { thrown: String(e.message).split('\n')[0] }; } };
   const rows = async () => (await q("select gold::text g from player_ledger where user_id=$1 and kind='hero_slot'", [uid])).map((r) => Number(r.g));
   const total = y.paid.reduce((s, p) => s + p.cost, 0);
-  await q('update public.player_state set gold = $2 where user_id = $1 and slot = 0', [uid, total + 3]);
+  await setPurse(q, uid, 0, total + 3);
   y.acc0 = await accountOf();
   y.keyless = await buy(y.paid[0].slot_id, null);
   const k = crypto.randomUUID();
@@ -591,7 +601,7 @@ async function offerArm(db, q, asUser, catalogue, clean) {
   y.accEnd = await accountOf();
   y.overCap = await buy(y.cap, crypto.randomUUID());
   y.owned = (await q('select public.hr_hero_slots_of($1) as r', [uid]))[0]?.r;
-  y.goldEnd = Number((await q('select gold::text g from player_state where user_id=$1 and slot=0', [uid]))[0]?.g);
+  y.goldEnd = await purseGold(q, uid, 0);
   y.rowsEnd = await rows();
   y.total = total;
   return y;
@@ -599,7 +609,13 @@ async function offerArm(db, q, asUser, catalogue, clean) {
 
 function gradeOffer(y) {
   if (!y) return;
-  ok(!y.reapplyErr && y.reapplySame !== false, `Y0: a second apply of ${OFFER_MIG} ${y.reapplyErr ? 'raised ' + y.reapplyErr : 'changed the schema, a body or a grant'}`);
+  if (y.laterRestater) {
+    ok(/PRECONDITION: hr_buy_hero_slot__ungated is not the /.test(y.reapplyErr || '') && y.reapplySame === true,
+      `Y0: ${y.laterRestater} restates the buy body, so a second apply of ${OFFER_MIG} must refuse at its pin and change `
+      + `nothing; it ${y.reapplyErr ? 'raised ' + y.reapplyErr : 'applied'}${y.reapplySame === false ? ' and changed the schema, a body or a grant' : ''}`);
+  } else {
+    ok(!y.reapplyErr && y.reapplySame !== false, `Y0: a second apply of ${OFFER_MIG} ${y.reapplyErr ? 'raised ' + y.reapplyErr : 'changed the schema, a body or a grant'}`);
+  }
   ok(y.create?.ok === true, `Y FIXTURE: hr_create_character refused: ${JSON.stringify(y.create)}`);
   const first = y.paid[0];
   ok(y.acc0?.hero_slot_offer?.slot_id === first?.slot_id && y.acc0?.hero_slot_offer?.cost_gold === first?.cost,

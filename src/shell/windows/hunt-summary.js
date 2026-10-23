@@ -25,6 +25,7 @@ import { runIntent } from '../intent-words.js?v=0.2.35';
 import { endedSessionOf, sanitizeSummaries, huntAgainOf, endWords } from '../../hunt-view/summary-model.js?v=0.2.35';
 import { observeSessions } from '../../session/character-session.js?v=0.2.35';
 import { attach, summariesOf, liveDeaths } from '../../hunt-view/summary-recorder.js?v=0.2.35';
+import { nameOf } from '../../session/item-sections.js?v=0.2.35';
 
 /* Every character the account opens is recorded from its first envelope, so no hunt event is played unseen. */
 observeSessions(attach);
@@ -86,7 +87,7 @@ renderHuntSummary.patch = function patchHuntSummary(body, ctx) {
   cls(card, 'is-on', !!cur);
   if (cur) {
     text(root.querySelector('.hsum-title'), groundName(cur) + (cur.at ? ' · ' + dayTime(cur.at) : ''));
-    text(root.querySelector('.hsum-reason'), cur.reason ? endWords(cur.reason, cur.forfeit) : 'The hunt ended.');
+    text(root.querySelector('.hsum-reason'), cur.reason ? endWords(cur.reason, cur.forfeit, cur.by, nameOf(cs)) : 'The hunt ended.');
     for (const [k, , fmt, onlySent] of STATS) {
       const dd = root.querySelector('[data-stat="' + k + '"]');
       text(dd, fmt(cur[k]));
@@ -116,7 +117,7 @@ renderHuntSummary.patch = function patchHuntSummary(body, ctx) {
       + '<button type="button" class="hh-tool" data-hs-act="pick" data-id="' + s.id.replace(/[^a-z0-9-]/gi, '') + '">Show</button></li>'),
     patch: (el, s) => {
       text(el.querySelector('b'), groundName(s));
-      text(el.querySelector('small'), [dayTime(s.at), s.kills !== null ? whole(s.kills) + ' kills' : '', s.reason ? endWords(s.reason, s.forfeit).replace(/\.$/, '') : ''].filter(Boolean).join(' · '));
+      text(el.querySelector('small'), [dayTime(s.at), s.kills !== null ? whole(s.kills) + ' kills' : '', s.reason ? endWords(s.reason, s.forfeit, s.by, nameOf(cs)).replace(/\.$/, '') : ''].filter(Boolean).join(' · '));
     },
   });
 };

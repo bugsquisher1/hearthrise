@@ -369,7 +369,7 @@ export async function readHuntSettle(o, mode) {
   for (const m of r.members) members.push(await memberInput(exec, m, inst));
   const partyRoles = members.map((m) => m._role).filter(Boolean);
   for (const m of members) {
-    m.hero = heroSetup({ weaponType: m._weaponType, options: m._options, bar: m._bar, partyRoles, lead: m._leads, hold: m._hold });
+    m.hero = heroSetup({ weaponType: m._weaponType, options: m._options, bar: m._bar, partyRoles, leaveTogether: m._leaveTogether, lead: m._leads, hold: m._hold });
     if (!m.hero) return { answer: { outcome: 'refused', reason: 'no_role', ...refusal(409, 'no_role') } };
   }
   /* Below the floor a player door that asked for the live view gets the instance's start point
@@ -426,7 +426,9 @@ async function memberInput(exec, m, inst) {
     user: String(m.user), slot: Number(m.slot), seat: Number(m.seat) || 0,
     unitId: Number.isInteger(m.unit_id) ? m.unit_id : null,
     sessionId: String(m.session.id), version: env.version, huntId: String(inst.hunt),
-    huntSession: huntSessionFromRead(m.session, inst.id),
+    /* KICKED (hr_hunt_instance_read `kicked`, 2026-12-18-party-leave-together.sql): a member the leader removed; its end
+       sends nobody home (Coordinator ruling 2026-10-23). */
+    huntSession: { ...huntSessionFromRead(m.session, inst.id), kicked: m.kicked === true },
     skills: e.skills, levelXp: e.levelXp, xpFrac: e.xpFrac, hp: e.hp, gold: e.gold,
     equipment: e.equipment, inventory: e.inventory, buffs: e.buffs,
     deathsTodayBefore: e.deathsTodayBefore, deathsLifetimeBefore: e.deathsLifetimeBefore,
@@ -441,6 +443,9 @@ async function memberInput(exec, m, inst) {
     /* WHO HOLDS THE PACK (Tyler 2026-10-22): the party's hold seat (hr_hunt_instance_read `hold_seat`, the server's
        hunt_parties.hold_seat, set by the leader's hr_party_hold_set); null = the tanks take turns. */
     _hold: Number.isInteger(inst.hold_seat) ? inst.hold_seat : null,
+    /* LEAVE TOGETHER (Tyler 2026-10-22): this member's own "Leave if anyone leaves the hunt or dies" (hr_hunt_instance_read
+       `leave_together`, the server's player_state.party_leave_together). A read without it (an older server) is off. */
+    _leaveTogether: m.leave_together === true,
   };
 }
 

@@ -119,8 +119,9 @@ function contract(R, cs, body, tl) {
     need('party', !m.length && p.self !== null && p.leader !== null, 'partyOf misses ' + m.join(', ') + ' self ' + p.self + ' leader ' + p.leader);
   }
   const pm = R.PS.partyMembershipOf(cs);
-  need('party', !!pm && pm.seats.length === 2 && pm.me !== null && pm.leader !== null && pm.isLeader && !!pm.densities && pm.densities.mill_cellar === 2,
-    'partyMembershipOf yields ' + JSON.stringify(pm && { seats: pm.seats.length, me: pm.me, leader: pm.leader, densities: pm.densities }));
+  /* LEAVE TOGETHER (2026-12-18-party-leave-together.sql): the viewer's own box, on by default (player_state.party_leave_together) */
+  need('party', !!pm && pm.seats.length === 2 && pm.me !== null && pm.leader !== null && pm.isLeader && !!pm.densities && pm.densities.mill_cellar === 2 && pm.leaveTogether === true,
+    'partyMembershipOf yields ' + JSON.stringify(pm && { seats: pm.seats.length, me: pm.me, leader: pm.leader, densities: pm.densities, leaveTogether: pm.leaveTogether }));
   // party_people: the player menu's targets, one per seat of the real party, with the server's account ids (2026-10-25-social.sql)
   const pp = R.PS.partyPeopleOf(cs);
   need('party_people', Array.isArray(body.party_people) && pp.size === body.party_people.length && !!pm && pp.size === pm.seats.length
@@ -367,6 +368,7 @@ const DB_MUTANTS = [
   ['hunt_settings', 'public.hr_hunt_settings_view(uuid,integer)', "'slots', v_slots,", "'slot_list', v_slots,"],
   ['hunt_density', 'public.hr_hunt_density_view(uuid,integer)', 'jsonb_object_agg(d.hunt_id, d.density order by d.hunt_id)', 'jsonb_object_agg(d.hunt_id, d.density::text order by d.hunt_id)'],
   ['party', 'public.hr_hunt_party_view(uuid,integer)', "'leader_densities', coalesce", "'leader_density', coalesce"],
+  ['party', 'public.hr_hunt_party_view(uuid,integer)', "'leave_together', (select ps.party_leave_together", "'leave_togther', (select ps.party_leave_together"],
   ['hunt_settings', 'public.hr_hunt_settings_view(uuid,integer)', "'gather_share', v_eff->'gather_share',", "'gather', v_eff->'gather_share',"],
   ['hunt_analyzer', 'public.hr_hunt_analyzer_of(uuid,integer,uuid)', "'hunt_ms', floor(", "'huntms', floor("],
   ['hunt_analyzer', 'public.hr_hunt_stats_of(uuid[],numeric,uuid,integer)', "'kills', v_kills", "'kill_count', v_kills"],

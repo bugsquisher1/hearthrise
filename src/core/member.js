@@ -302,6 +302,7 @@ export function memberSide(mi, ctx) {
       hero: { role: h.role, element: h.element || '', settings: h.settings || null,
         slots: h.slots || [], stopRules: h.stopRules || [], density: h.density || 0, lead: h.lead === true,
         hold: Number.isInteger(h.hold) ? h.hold : null,
+        leaveTogether: h.leaveTogether === true,
         actionSet: h.actionSet || 'hunt', range: h.range || 1, ammo: equipment.ammo || null,
         foodBelowPct: h.foodBelowPct, drinkBelowPct: h.drinkBelowPct },
     },
@@ -347,7 +348,7 @@ export function sharePurses(sides) {
    (tests/hunt-live.mjs LV-P). */
 export const FROZEN_KEYS = Object.freeze(['hp', 'maxHp', 'maxMana', 'regenPm', 'snap', 'vs', 'family', 'armoured', 'shield', 'hero', 'session']);
 export const FROZEN_SESSION_KEYS = Object.freeze(['huntFromMs', 'nextSwingAtMs', 'swingIndex', 'bag', 'basics', 'shop',
-  'supplySource', 'onEmpty', 'goldFloor', 'leaveAtMs', 'changeAtMs', 'stopAtMs']);
+  'supplySource', 'onEmpty', 'goldFloor', 'leaveAtMs', 'changeAtMs', 'stopAtMs', 'kicked']);
 const finiteOr = (v, d) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 
 /** The frozen numbers of an assembled member side at server instant `atMs`, against the monster `kinds`. */

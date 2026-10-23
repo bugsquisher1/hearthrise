@@ -39,6 +39,7 @@ import { TREES, ROCKS, FISH_SPOTS } from '../data/gathering.js?v=0.2.34';
 import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.34';
 import { ITEMS } from '../data/items.js?v=0.2.34';
 import { SKILLS_DEF } from '../data/skills.js?v=0.2.34';
+import { HUNT_TUNING } from '../data/hunt-tuning.js?v=0.2.34';
 import { indexGatherNodes, gatherIntervalMs } from '../core/skill-sim.js?v=0.2.34';
 import { indexArtisanRecipes, artisanIntervalMs } from '../core/artisan-sim.js?v=0.2.34';
 import { recipeInputs } from '../core/artisan.js?v=0.2.34';
@@ -236,13 +237,14 @@ export function stopWork(cs, send) {
 
 /* ── THE TICKER (town-ticker.js): what the server's engine has certainly done since its watermark. ── */
 const TICKS = new WeakMap();
-/* Re-predicted at most once per TICK_MS of the server's clock, at the bucket's start (rounded down, never ahead). */
-const TICK_MS = 100;
+/* Re-predicted at most once per engine sub-step (HUNT_TUNING.stepMs, the one source) of the server's clock, at the
+   bucket's start (rounded down, never ahead). */
+const STEP_MS = HUNT_TUNING.stepMs;
 
 /**
  * The town ticker for this character now ({ actions, items, xp, unsure }), or null: no town work the server holds,
  * a hunt open, no server clock yet, or a refusal to settle standing on this record (CharacterSession.settleRefusal,
- * until a newer version). Memoised per record and TICK_MS, so every surface of one display tick reads one answer.
+ * until a newer version). Memoised per record and STEP_MS, so every surface of one display tick reads one answer.
  */
 export function tickOf(cs) {
   if (!cs || typeof cs.read !== 'function' || typeof cs.serverNow !== 'function') return null;
@@ -250,7 +252,7 @@ export function tickOf(cs) {
   if (!townWorkRunning(st, cs.read('hunt'))) return null;
   const now = cs.serverNow();
   if (!Number.isFinite(now)) return null;
-  const at = Math.floor(now / TICK_MS) * TICK_MS;
+  const at = Math.floor(now / STEP_MS) * STEP_MS;
   const rec = cs.record || null;
   const no = cs.settleRefusal || null;
   const m = TICKS.get(cs);

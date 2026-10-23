@@ -1229,7 +1229,8 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         await wait(page, () => document.querySelector('[data-hs-win="hunts"] .hw-hunt[data-hunt="mill_cellar"]'), null, 4000);
         /* One ground: its list line's best, and its page's best lines (picked first, as a player would). */
         const card = async (hunt) => {
-          await page.click('[data-hs-win="hunts"] .hw-hunt[data-hunt="' + hunt + '"]');
+          /* Bounded: a picker that stops drawing is this rule's red (null below), not a harness throw. */
+          if (!(await page.click('[data-hs-win="hunts"] .hw-hunt[data-hunt="' + hunt + '"]', { timeout: 4000 }).then(() => true, () => false))) return null;
           return page.evaluate((h) => {
             const li = document.querySelector('[data-hs-win="hunts"] .hw-hunt[data-hunt="' + h + '"]');
             const shown = Array.from(document.querySelectorAll('[data-hs-win="hunts"] .hw-hunt-detail .hw-hd-best')).filter((n) => n.getClientRects().length > 0);
@@ -1768,7 +1769,9 @@ const MUTANTS = [
   ['a widget that grows after it is placed is never placed again (HS-22)', 'src/shell/shell.js', 'const sized = host.ResizeObserver ? ', 'const sized = false ? '],
   ['the bleed badge defaults on for regular monsters', 'src/data/combat-text.js', "label: 'Bleed stack count', on: on(false, true)", "label: 'Bleed stack count', on: on(true, true)"],
   ['the picker card never shows the personal best (HS-24)', 'src/shell/windows/hunt-detail.js', "['.hw-hunt-best-solo', best && best.solo]", "['.hw-hunt-best-solo', null]"],
-  ['the picker merges a best the server no longer sends (HS-24)', 'src/session/hunt-sections.js', "  const b = section(cs, 'hunt_bests');\n", "  const b = section(cs, 'hunt_bests');\n  if (b && globalThis.__hb) for (const [k, v] of Object.entries(globalThis.__hb)) b.grounds[k] = Object.assign({}, v, b.grounds[k]);\n  if (b) globalThis.__hb = b.grounds;\n"],
+  /* The merge lands on a COPY: envelope records are deep-frozen, so writing into one threw, the Hunts window stopped
+     drawing and the click timed out (run 39899899955, HARNESS) instead of the merged best being shown. */
+  ['the picker merges a best the server no longer sends (HS-24)', 'src/session/hunt-sections.js', "  const b = section(cs, 'hunt_bests');\n", "  const b0 = section(cs, 'hunt_bests');\n  const b = b0 && b0.grounds ? Object.assign({}, b0, { grounds: Object.assign({}, b0.grounds) }) : b0;\n  if (b && b.grounds && globalThis.__hb) for (const [k, v] of Object.entries(globalThis.__hb)) b.grounds[k] = Object.assign({}, v, b.grounds[k]);\n  if (b && b.grounds) globalThis.__hb = b.grounds;\n"],
   ['the summary has no balance per hour (HS-25)', 'src/hunt-view/summary-model.js', 'balanceH: ph ? ph.balance : null,', 'balanceH: null,'],
   ['a re-read that crossed the residue put drops the card (HS-25)', 'src/session/character-session.js', 'this._pending = {}; this._sent = Object.assign({}, this._sent, patch);', 'this._pending = {};'],
   ['a free summary shows raw XP per hour (HS-25)', 'src/shell/windows/hunt-summary.js', "prop(dd.parentNode, 'hidden', !!onlySent && (cur[k] === null || cur[k] === undefined));", "prop(dd.parentNode, 'hidden', false);"],

@@ -59,6 +59,7 @@ import { tmpdir } from 'node:os';
 import { pathToFileURL } from 'node:url';
 
 import { bootReplay, ROOT } from './schema-replay.mjs';
+import { setGold } from './_gold.mjs';
 import { runTick } from '../supabase/functions/hr-accrue/tick.js';
 import { sessionFromRoster, settleGatherSession, GATHER_CATALOGUES }
   from '../supabase/functions/hr-accrue/tick-gather.js';
@@ -150,12 +151,11 @@ async function seed(u, o) {
   const opt = o || {};
   await db.exec(`insert into auth.users (id) values ('${u}') on conflict do nothing;`);
   await db.exec(`
-    insert into public.player_state (user_id, slot, gold, hp, version, accrued_to,
+    insert into public.player_state (user_id, slot, hp, version, accrued_to,
                                      active_kind, active_id, active_since)
-    values ('${u}', 0, 0, 40, 1, now() - interval '95 seconds',
+    values ('${u}', 0, 40, 1, now() - interval '95 seconds',
             'gather', '${NODE}', now() - interval '2 hours')
-    on conflict (user_id, slot) do update set version = 1, gold = 0,
-      accrued_to = now() - interval '95 seconds',
+    on conflict (user_id, slot) do update set version = 1, accrued_to = now() - interval '95 seconds',
       active_kind = 'gather', active_id = '${NODE}';`);
   await db.exec(`delete from public.player_skills    where user_id = '${u}';`);
   await db.exec(`delete from public.player_inventory where user_id = '${u}';`);
@@ -198,16 +198,18 @@ async function seedFighter(u) {
   await db.exec(`delete from public.player_equipment where user_id = '${u}';`);
   await db.exec(`delete from public.player_progress  where user_id = '${u}';`);
   await db.exec(`
-    insert into public.player_state (user_id, slot, gold, hp, version, accrued_to,
+    insert into public.player_state (user_id, slot, hp, version, accrued_to,
       active_kind, active_id, active_since, tool_carry, combat_xp_accrued_to,
       fight, buffs, level_xp)
-    values ('${u}', 0, 1234, 40, 7, now() - interval '95 seconds',
+    values ('${u}', 0, 40, 7, now() - interval '95 seconds',
       'combat', '${FIGHT_MONSTER}', now() - interval '2 hours', '{}'::jsonb,
       now() - interval '3 hours',
       '{"id":"${FIGHT_MONSTER}","hp":11}'::jsonb, '[]'::jsonb, 321000)
-    on conflict (user_id, slot) do update set version = 7, hp = 40, gold = 1234, level_xp = 321000,
+    on conflict (user_id, slot) do update set version = 7, hp = 40, level_xp = 321000,
       accrued_to = now() - interval '95 seconds',
       active_kind = 'combat', active_id = '${FIGHT_MONSTER}';`);
+  /* the fighter's 1,234 gold: its ACCOUNT purse (2026-12-15-account-gold.sql) */
+  await setGold((sql, p) => db.query(sql, p).then((r) => r.rows), u, 0, 1234);
   await db.exec(`
     insert into public.player_skills (user_id, slot, skill_id, xp) values
       ('${u}', 0, 'melee',     ${XP_AT_61_COMBAT}),

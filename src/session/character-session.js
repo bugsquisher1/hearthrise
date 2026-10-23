@@ -42,24 +42,25 @@
 //   intents            the account's asks in flight (intent-ledger.js): every intent
 //                      above is tracked from its send until the re-read envelope
 //   subscribe(fn)      fn(session, why) after every applied change
+//   notePurse()        another hero read a newer ACCOUNT purse (AccountSession): re-render ('purse')
 //   close()            leave the topic, cancel timers, forget the record
 //
 // It authors no number: the record changes only from a server answer, and the
 // only things it sends of its own are the allowlisted residue and intents.
 // ════════════════════════════════════════════════════════════════════════
 
-import { applyEnvelope, applyFrame, withResidue } from './envelope.js?v=0.2.34';
-import { createTimeline } from '../hunt-view/timeline.js?v=0.2.34';
-import { LiveLink } from './live-link.js?v=0.2.34';
-import { RESIDUE_FIELDS, sanitizeResidueField, unconfirmedResidue } from './residue.js?v=0.2.34';
-import { SESSION_CONFIG } from './config.js?v=0.2.34';
-import { edgeBody } from './edge-intents.js?v=0.2.34';
-import { leaveAskOf, pendingLeaveAt, leaveCountdown, closeInMs } from './hunt-leave.js?v=0.2.34';
-import { HuntPoll, pollDelayMs } from './hunt-poll.js?v=0.2.34';
-import { createIntentLedger } from './intent-ledger.js?v=0.2.34';
-import { frameTopic, reconnectDelay } from './frame-channel.js?v=0.2.34';
-import { refusalOf, settleRefusalOf } from './refusal.js?v=0.2.34';
-import { SERVER_ONLY_EVENTS } from '../core/hunt/events.js?v=0.2.34';
+import { applyEnvelope, applyFrame, withResidue } from './envelope.js?v=0.2.35';
+import { createTimeline } from '../hunt-view/timeline.js?v=0.2.35';
+import { LiveLink } from './live-link.js?v=0.2.35';
+import { RESIDUE_FIELDS, sanitizeResidueField, unconfirmedResidue } from './residue.js?v=0.2.35';
+import { SESSION_CONFIG } from './config.js?v=0.2.35';
+import { edgeBody } from './edge-intents.js?v=0.2.35';
+import { leaveAskOf, pendingLeaveAt, leaveCountdown, closeInMs } from './hunt-leave.js?v=0.2.35';
+import { HuntPoll, pollDelayMs } from './hunt-poll.js?v=0.2.35';
+import { createIntentLedger } from './intent-ledger.js?v=0.2.35';
+import { frameTopic, reconnectDelay } from './frame-channel.js?v=0.2.35';
+import { refusalOf, settleRefusalOf } from './refusal.js?v=0.2.35';
+import { SERVER_ONLY_EVENTS } from '../core/hunt/events.js?v=0.2.35';
 
 export const FRAME_EVENT = 'frame';
 
@@ -137,10 +138,9 @@ export class CharacterSession {
   get status() { return this._status; }
   /** A top-level key of the server's last word (frozen), or undefined. */
   read(key) { return this._record ? this._record.data[key] : undefined; }
-
   subscribe(fn) { this._listeners.add(fn); return () => this._listeners.delete(fn); }
+  notePurse() { if (!this._closed) this._emit('purse'); }   // a newer ACCOUNT purse, read by another hero (goldOf)
   _emit(why) { for (const fn of Array.from(this._listeners)) { try { fn(this, why); } catch (e) { console.error('[character] a listener failed', e); } } }
-
   /** Apply a full envelope from the server; false when it was refused. */
   _take(body, why) {
     if (this._closed) return false;

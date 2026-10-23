@@ -53,6 +53,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import { bootReplay, ROOT, manifest } from './schema-replay.mjs';
+import { goldOf } from './_gold.mjs';
 
 const MIGRATION = '2026-09-09-worker-hire-price.sql';
 const FIXED = '  select least(greatest(0, coalesce(max(pp.value), 0)), c_max_crew)::int into v_cap';
@@ -135,7 +136,9 @@ async function armsOn(db, { expectUnpaidHireRefused = true } = {}) {
   await seed(db, uid);
 
   // W1 — THE UNPAID HIRE.
-  const before = await one(db, 'select gold from public.player_state where user_id=$1 and slot=0', [uid]);
+  /* the gold the hero spends: its ACCOUNT's purse (2026-12-15-account-gold.sql), or its own on an older chain */
+  const goldNow = async () => ({ gold: await goldOf((sql, p) => db.query(sql, p).then((r) => r.rows), uid, 0) });
+  const before = await goldNow();
   const { rungs } = await one(db,
     `select count(*)::int as rungs from public.player_progress
       where user_id=$1 and kind='unlock' and key='worker_hire'`, [uid]);
@@ -143,7 +146,7 @@ async function armsOn(db, { expectUnpaidHireRefused = true } = {}) {
   const { r } = await one(db, 'select public.hr_worker_hire(0, gen_random_uuid()) as r');
   const { crew } = await one(db,
     'select count(*)::int as crew from public.player_workers where user_id=$1 and slot=0', [uid]);
-  const after = await one(db, 'select gold from public.player_state where user_id=$1 and slot=0', [uid]);
+  const after = await goldNow();
 
   if (!expectUnpaidHireRefused) {
     // W4's inverted run: without the migration the hire must SUCCEED.
@@ -181,7 +184,7 @@ async function armsOn(db, { expectUnpaidHireRefused = true } = {}) {
   };
   const gold = async () => {
     await db.exec('reset role;');
-    return Number((await one(db, 'select gold from public.player_state where user_id=$1 and slot=0', [uid])).gold);
+    return Number(await goldOf((sql, p) => db.query(sql, p).then((r) => r.rows), uid, 0));
   };
   const engineApply = async (delta) => {
     await db.exec(`set role hr_engine;`);

@@ -12,7 +12,7 @@
 //   inventory  { item: qty }        the bag
 //   equipment  { equip_slot: item } the worn set
 //   skills     { skill: { xp, level } }
-//   state.gold, state.bank_cap (the bag's stack cap)
+//   state.gold, state.gold_v (the ACCOUNT purse and its version), state.bank_cap (the bag's stack cap)
 //   bank       { item: qty }        the home storage (hr_bank_move)
 //   buffs      [{ type, magnitude, until, remaining_ms }]
 // What the alpha-windows server lane adds (CONFLICTS.md, 2026-10-18; the
@@ -30,8 +30,8 @@
 // The Characters window's (2026-12-04-hero-rename.sql):
 //   rename         { price, level, per_day, today, available, why }  what a new name costs, and whether it may
 // ════════════════════════════════════════════════════════════════════════
-import { huntBagOf } from './hunt-sections.js?v=0.2.34';
-import { SHOP_SOLD_KINDS } from '../data/supply-basics.js?v=0.2.34';
+import { huntBagOf } from './hunt-sections.js?v=0.2.35';
+import { SHOP_SOLD_KINDS } from '../data/supply-basics.js?v=0.2.35';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const ID = /^[a-z0-9_]{1,64}$/;
@@ -82,10 +82,32 @@ export function skillsOf(cs) {
   return out;
 }
 
-/** The character's gold as the server says, or null. */
-export function goldOf(cs) {
+/* ── GOLD IS THE ACCOUNT'S (Tyler 2026-10-23; 2026-12-15-account-gold.sql) ──────────
+   ONE purse per account: every hero's envelope states the same `state.gold` and the
+   wallet version it was read at (`state.gold_v`). A hero that is not the one spending
+   holds an older copy until its next answer, so the newest version any open hero has
+   read wins (AccountSession keeps it, raise-only: the client never rolls a server
+   version back, CLAUDE.md §6). */
+
+/** This record's purse, { gold, v }, or null when the server did not state it. Pure. */
+export function purseOf(cs) {
   const st = read(cs, 'state');
-  return isObj(st) ? count(st.gold) : null;
+  if (!isObj(st) || count(st.gold) === null) return null;
+  return { gold: st.gold, v: count(st.gold_v) ?? 0 };
+}
+
+/** The newer of two purses (a higher wallet version; the first on a tie), or null. Pure. */
+export function newerPurse(a, b) {
+  if (!a) return b || null;
+  if (!b) return a;
+  return b.v > a.v ? b : a;
+}
+
+/** The ACCOUNT's gold as the server last said it to any open hero, or null. */
+export function goldOf(cs) {
+  const acct = cs && typeof cs.accountPurse === 'function' ? cs.accountPurse() : null;
+  const p = newerPurse(purseOf(cs), acct && count(acct.gold) !== null && count(acct.v) !== null ? acct : null);
+  return p ? p.gold : null;
 }
 
 /** The character's name: the envelope's, the hunt hero's, or null. */

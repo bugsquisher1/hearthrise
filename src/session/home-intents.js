@@ -13,7 +13,7 @@
 // other open character of the account: their `home` and `depot` sections
 // changed too. A refusal re-reads nobody and carries the server's code.
 // ════════════════════════════════════════════════════════════════════════
-import { askVia } from './intent-ledger.js?v=0.2.34';
+import { askVia } from './intent-ledger.js?v=0.2.35';
 
 const ID = /^[a-z0-9_]{1,64}$/;
 const OFFER = /^(?:property|room)\.[a-z0-9_]{1,40}(?:\.[0-9]{1,2})?$/;

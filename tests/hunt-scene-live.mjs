@@ -38,6 +38,10 @@
 //         character's (liveSceneOf): a monster drawn dead is never drawn standing again, no corpse
 //         replays its fall or turns.
 //   LV-19 A UNIT DIES ONCE (a second kill never restarts the fall) AND LIES THE WAY IT FELL.
+//   LV-23 SWITCHED AWAY LONGER THAN A CORPSE LIES (Andy a17): nothing killed meanwhile stands or falls anew on the way back.
+//   LV-24 A CORPSE NEVER MOVES (Andy a16): from its first dead frame it lies on the spot it fell on, whatever steps follow.
+//   LV-25 A LONG HUNT HOLDS ONLY WHAT IS ON SCREEN: a finished corpse is forgotten by the scene and the timeline, so the
+//         units held stay those drawn; a forgotten corpse never stands up from a restated past, and nothing still to play is lost.
 //   LV-21 A LEVEL-UP MID-HUNT RAISES THE BAR'S MAX HP: each batch's unit book re-sizes a unit (Brannoc 10-22).
 //   LV-20 EVERY PARTY MEMBER WEARS ITS OUTFIT: your other hero its session's server `outfit`, another
 //         player's hero the party section's member `outfit` (2026-11-04-party-outfits.sql), never the role's.
@@ -117,12 +121,14 @@ function envFor(nowMs, enteredMs, heroes, fromMs) {
      switchAt    [from, to] server ms: another character is viewed. Its World pane is unmounted (no frame,
                  no engine step; the polls go on) and mounted again at `to`: the scene is the one each
                  mount takes from scene.js liveSceneOf, as src/world/world-boot.js does
+     hunt        the ground the server plays (default Mill Cellar; the members' huntId must name it)
      people      the party_people section (seat -> user, slot); peers: the account's other sessions
-     outfits     { seat: outfit }: the party section's member `outfit` ({ id, colors }) by seat */
+     outfits     { seat: outfit }: the party section's member `outfit` ({ id, colors }) by seat
+     fps         frames drawn per second (default 60; a long hunt draws fewer to stay quick) */
 async function playLive(M, LM, book, mis, spanMs, onFrame, opt) {
   const o = opt || {};
   const T0 = LIVE_H.T0;
-  const srv = LIVE_H.server(LM, mis);
+  const srv = LIVE_H.server(LM, mis, o.hunt ? { hunt: o.hunt } : undefined);
   const OFF = 3000000;
   const entered = T0 - (o.travelMs ?? TRAVEL_MS);
   const viewer = o.viewer || mis[0].user;
@@ -176,7 +182,7 @@ async function playLive(M, LM, book, mis, spanMs, onFrame, opt) {
   const played = [];
   cs.timeline.subscribe((ev) => { played.push(ev.atMs); if (!o.switchAt) scene.onEvent(ev, cs.now()); });
   let away = false;
-  for (let s = entered; s < T0 + spanMs; s += 1000 / 60) {
+  for (let s = entered; s < T0 + spanMs; s += 1000 / (o.fps || 60)) {
     clock.t = s - OFF;
     if (o.otherFirst && s > T0 && s - lastCommit >= 15000) { srv.commit(s); lastCommit = s; }
     /* `hold` [from, to] (server ms): the network is gone; no poll answers until it returns */
@@ -195,7 +201,7 @@ async function playLive(M, LM, book, mis, spanMs, onFrame, opt) {
     const back = cs.takeReseeded(); if (back) scene.revive(back, clock.t);
     played.length = 0;
     cs.timeline.advance(clock.t);
-    onFrame({ s, f: scene.frame(clock.t), cs, played, T0, entered, mis, sources, srv });
+    onFrame({ s, f: scene.frame(clock.t), cs, played, T0, entered, mis, sources, srv, scene });
   }
   return cs;
 }
@@ -540,17 +546,24 @@ async function nodeRules(M) {
   { // LV-18 SWITCHED AWAY AND BACK MID-HUNT (Andy 10-21: "When you tab away to another character while
     // monsters are dead in the pull (and had disappeared), they jump back"). The World pane is remounted on
     // every switch; the scene must be the character's, so a monster drawn dead before the switch is never
-    // drawn standing after it, and no corpse plays its fall a second time.
+    // drawn standing after it, no corpse plays its fall a second time, and a corpse that has not lain its time
+    // still lies on the way back (a new scene forgot the deaths it played: the restart's a17 rule hid them all).
     const SW = [LIVE_H.T0 + 40000, LIVE_H.T0 + 46000];
     const fell = new Map();   // unit -> 'before' | 'after': first drawn dead before or after the switch
     const lies = new Map();   // unit -> { anim, frame, dir } last drawn dead
-    let rose = 0, replayed = 0, turned = 0, deadBefore = 0, framesAfter = 0;
+    const firstDead = new Map();   // unit -> the frame it was first drawn dead
+    let rose = 0, replayed = 0, turned = 0, deadBefore = 0, framesAfter = 0, lying = new Set(), kept = 0, vanished = 0;
     const roseIds = new Set();
     await playLive(M, LM, book, [LIVE_H.memberOf(LM, 'a', 0, 'tank', 6)], 70000, ({ s, f, T0 }) => {
       if (s < T0) return;
       const after = s >= SW[1];
-      if (after) framesAfter++;
       const drawn = new Map(f.units.map((d) => [d.unit, d]));
+      if (s < SW[0]) lying = new Set(f.units.filter((d) => d.under).map((d) => d.unit));
+      if (after && !framesAfter) {
+        for (const u of lying) if (firstDead.get(u) + M.S.SCENE_TIMING.corpseMs > s + 500) { if (drawn.get(u) && drawn.get(u).under) kept++; else vanished++; }
+      }
+      if (after) framesAfter++;
+      for (const d of f.units) if (d.under && !firstDead.has(d.unit)) firstDead.set(d.unit, s);
       for (const [u, when] of fell) {
         const d = drawn.get(u);
         if (d && !d.under) { rose++; roseIds.add(u + ':' + when); }
@@ -565,11 +578,150 @@ async function nodeRules(M) {
       }
     }, { switchAt: SW });
     deadBefore = [...fell.values()].filter((w) => w === 'before').length;
-    console.log(`  LV-18 switched away ${(SW[1] - SW[0]) / 1000} s mid-hunt: ${deadBefore} monster(s) dead before it, ${rose} unit-frame(s) drew a dead monster standing (${[...roseIds].slice(0, 4).join(', ')}), ${replayed} replayed a fall, ${turned} turned a corpse`);
-    ok('LV-18', deadBefore > 0 && framesAfter > 0, `CONTROL: ${deadBefore} monsters died before the switch, ${framesAfter} frames after it`);
+    console.log(`  LV-18 switched away ${(SW[1] - SW[0]) / 1000} s mid-hunt: ${deadBefore} monster(s) dead before it, ${rose} unit-frame(s) drew a dead monster standing (${[...roseIds].slice(0, 4).join(', ')}), ${replayed} replayed a fall, ${turned} turned a corpse; on the return ${kept} corpse(s) still lay, ${vanished} vanished before their time`);
+    ok('LV-18', deadBefore > 0 && framesAfter > 0 && kept + vanished > 0, `CONTROL: ${deadBefore} monsters died before the switch, ${framesAfter} frames after it, ${kept + vanished} corpse(s) young enough to still lie on the return`);
+    ok('LV-18', vanished === 0, `${vanished} corpse(s) drawn before the switch vanished on the return before their corpse time (the scene was not the character's)`);
     ok('LV-18', rose === 0, `${rose} unit-frame(s) drew a monster standing after it was drawn dead (${[...roseIds].slice(0, 4).join(', ')})`);
     ok('LV-18', replayed === 0, `${replayed} frame(s) played a corpse's fall again`);
     ok('LV-18', turned === 0, `${turned} frame(s) turned a corpse to another facing`);
+  }
+
+  { // LV-23 SWITCHED AWAY LONGER THAN A CORPSE LIES (Andy a17, live v0.2.33: "switching characters brings dead
+    // monsters back on screen"). Another character is viewed for 30 s while this one's hunt runs on (its polls go on,
+    // its scene is not drawn). On the way back the restart's world no longer holds what died meanwhile: no monster
+    // the server killed while the scene was away is drawn standing, and none plays its fall again on the way back
+    // (before: every one of them fell anew at its last tile the moment the pane came back). The switch is made on
+    // a frame that draws a monster standing which the server kills 2-20 s later (found by a first, unswitched run:
+    // the server's run is the same either way), so the one that was on screen when the player left is among them.
+    const killsOf = (srv, into) => { const commit = srv.commit; srv.commit = (to) => { const c = commit(to); if (c) for (const e of c.tl.hunt_events) if (e.type === 'kill' && !into.has(e.t)) into.set(e.t, e.atMs); return c; }; };
+    const mis = () => [LIVE_H.memberOf(LM, 'a', 0, 'tank', 6)];
+    const preKills = new Map(), firstUp = new Map();
+    let hooked = false;
+    await playLive(M, LM, book, mis(), 80000, ({ s, f, srv }) => {
+      if (!hooked) { hooked = true; killsOf(srv, preKills); }
+      if (s >= LIVE_H.T0 + 20000) for (const d of f.units) if (!d.under && !firstUp.has(d.unit)) firstUp.set(d.unit, s);
+    });
+    const pick = [...firstUp].find(([u, at]) => preKills.has(u) && preKills.get(u) - at >= 2000 && preKills.get(u) - at <= 20000);
+    const SW = pick ? [pick[1] + 1, pick[1] + 30001] : [LIVE_H.T0 + 40000, LIVE_H.T0 + 70000];
+    const killedAt = new Map();   // unit -> the server instant its kill was committed at
+    let standing = 0, fell = 0, framesAfter = 0;
+    const ids = new Set();
+    hooked = false;
+    await playLive(M, LM, book, mis(), 80000, ({ s, f, srv }) => {
+      if (!hooked) { hooked = true; killsOf(srv, killedAt); }
+      if (s < SW[1]) return;
+      framesAfter++;
+      for (const d of f.units) {
+        const k = killedAt.get(d.unit);
+        if (k === undefined || k < SW[0] || k > SW[1] - 1000) continue;   // killed while away, a second or more before the return
+        if (!d.under) { standing++; ids.add(d.unit); } else if (d.anim === 'death') { fell++; ids.add(d.unit); }
+      }
+    }, { switchAt: SW });
+    const away = [...killedAt.values()].filter((k) => k >= SW[0] && k <= SW[1] - 1000).length;
+    console.log(`  LV-23 switched away ${(SW[1] - SW[0]) / 1000} s (leaving on unit ${pick && pick[0]} standing): ${away} monster(s) killed meanwhile; after the return ${standing} unit-frame(s) drew one standing, ${fell} played its fall (${[...ids].slice(0, 6).join(', ')})`);
+    ok('LV-23', !!pick && away > 0 && framesAfter > 0, `CONTROL: no frame drew a monster standing that the server killed 2-20 s later (${!!pick}), ${away} killed while away, ${framesAfter} frames after the return`);
+    ok('LV-23', standing === 0 && fell === 0, `after the return ${standing} unit-frame(s) drew a monster killed while away standing and ${fell} played its fall again (${[...ids].slice(0, 6).join(', ')})`);
+  }
+
+  { // LV-24 A CORPSE NEVER MOVES (Andy a16, live v0.2.33: "a dead monster's corpse twitched once after death"). A
+    // Thicket duo at density 8: the wolves run, and the live engine draws a step rolling on from the end of the last
+    // one (live-engine.js timeSteps), so a step can begin after the kill in its own sub-step. From its first dead
+    // frame a corpse is drawn on ONE spot until it fades (before: one glided 1.5 tiles after the kill). CONTROL: the
+    // timeline did hold steps of a killed unit past its kill.
+    const mis = ['tank', 'melee_dps'].map((r, i) => {
+      const mi = LIVE_H.memberOf(LM, 'ab'[i], i, r, 12);
+      mi.huntId = 'meadowbrook_thicket'; mi.hero = Object.assign({}, mi.hero, { density: 8 });
+      return mi;
+    });
+    const lay = new Map(), kills = new Map();
+    let moved = 0, worst = 0, late = 0, corpses = 0, hooked = false, first = '';
+    const warn = console.warn; console.warn = () => {};
+    try {
+      await playLive(M, LM, book, mis, 150000, ({ s, f, cs, T0 }) => {
+        if (!hooked) {
+          hooked = true;
+          const ingest = cs.timeline.ingest;
+          cs.timeline.ingest = (b, t) => {
+            for (const e of (b && b.events) || []) if (e.type === 'kill' && !kills.has(e.t)) kills.set(e.t, e.atMs);
+            for (const st of (b && b.track) || []) if (kills.has(st.u) && st.atMs > kills.get(st.u)) late++;
+            return ingest(b, t);
+          };
+        }
+        for (const d of f.units) {
+          if (!d.under) { lay.delete(d.unit); continue; }
+          const l = lay.get(d.unit);
+          if (!l) { lay.set(d.unit, { x: d.x, y: d.y }); corpses++; continue; }
+          const dist = Math.hypot(d.x - l.x, d.y - l.y);
+          if (dist > 1e-6) { moved++; if (dist > worst) { worst = dist; first = d.unit + ' ' + dist.toFixed(2) + ' tiles at ' + Math.round(s - T0) + ' ms'; } }
+        }
+      }, { hunt: 'meadowbrook_thicket' });
+    } finally { console.warn = warn; }
+    console.log(`  LV-24 Thicket duo d8, 150 s: ${corpses} corpses, ${late} step(s) of a killed unit past its kill in the timeline; ${moved} frame(s) moved a corpse (worst ${first || 'none'})`);
+    ok('LV-24', corpses >= 20 && late > 0, `CONTROL: ${corpses} corpses and ${late} step(s) past a kill (want 20+ and 1+: the fixture no longer walks a dead id)`);
+    ok('LV-24', moved === 0, `${moved} frame(s) drew a corpse off the spot it fell on (worst ${first})`);
+  }
+
+  { // LV-25 A LONG HUNT HOLDS ONLY WHAT IS ON SCREEN (lane a-hunt-view-perf). The live view reads no pose, so nothing
+    // forgot a unit: a Thicket duo at density 8 held every monster it had spawned (10 min: ~320, 2 h: ~3,600) and the
+    // scene walked them all every frame (2 h: the frame's work 25 times the first minute's). A corpse that has lain its
+    // time is forgotten by the scene and the timeline (scene.js S8, timeline.js T11): past the first minute every unit
+    // held is drawn, bar the few whose first step is still to come.
+    const mis = ['tank', 'melee_dps'].map((r, i) => {
+      const mi = LIVE_H.memberOf(LM, 'ab'[i], i, r, 12);
+      mi.huntId = 'meadowbrook_thicket'; mi.hero = Object.assign({}, mi.hero, { density: 8 });
+      return mi;
+    });
+    let kills = 0, frames = 0, maxHeld = 0, maxDrawn = 0, worst = 0, worstAt = 0, maxDead = 0, maxBook = 0, hooked = false;
+    const warn = console.warn; console.warn = () => {};
+    try {
+      await playLive(M, LM, book, mis, 600000, ({ s, f, cs, T0, scene }) => {
+        if (!hooked) {
+          hooked = true;
+          const ingest = cs.timeline.ingest;
+          cs.timeline.ingest = (b, t) => { for (const e of (b && b.events) || []) if (e.type === 'kill') kills++; return ingest(b, t); };
+        }
+        if (s < T0 + 60000) return;
+        frames++;
+        const held = cs.timeline.units().length, drawn = f.units.length + (f.hero ? 1 : 0);
+        maxHeld = Math.max(maxHeld, held); maxDrawn = Math.max(maxDrawn, drawn);
+        maxDead = Math.max(maxDead, scene.stats().dead); maxBook = Math.max(maxBook, cs.timeline.held().book);
+        if (held - drawn > worst) { worst = held - drawn; worstAt = Math.round((s - T0) / 1000); }
+      }, { hunt: 'meadowbrook_thicket', fps: 10 });
+    } finally { console.warn = warn; }
+    console.log(`  LV-25 Thicket duo d8, 10 min: ${kills} kills; the timeline held at most ${maxHeld} units (book ${maxBook}) while at most ${maxDrawn} were drawn, worst ${worst} held undrawn (${worstAt} s); ${maxDead} corpses at most in the scene`);
+    ok('LV-25', kills >= 200 && frames > 0, `CONTROL: ${kills} kills in 10 min (want 200+: the fixture no longer hunts long)`);
+    ok('LV-25', worst <= 8 && maxHeld <= maxDrawn + 8 && maxBook <= maxDrawn + 8, `the timeline held ${worst} unit(s) more than it drew (${worstAt} s), at most ${maxHeld} units and ${maxBook} book rows for ${maxDrawn} drawn (a finished corpse is never forgotten)`);
+    ok('LV-25', maxDead <= maxDrawn, `the scene held ${maxDead} dead units at once, more than the ${maxDrawn} ever drawn`);
+    /* The rules on one corpse: forgotten once it has lain; a window restating its past never stands it up again; the
+       server's newer step brings it back; one with a step or an event still to play is kept until it plays. */
+    const OFF = 1000000, T = 50000, lain = M.S.SCENE_TIMING.corpseMs;
+    const tl = M.TL.createTimeline({ delayMs: 0 });
+    tl.ingest({ serverNowMs: T, units: { 7: ['rat', 20, 20], 8: ['rat', 20, 20], 9: ['rat', 20, 20] }, fromMs: T,
+      track: [{ u: 7, x: 3, y: 3, atMs: T }, { u: 7, x: 4, y: 3, atMs: T + 50 }, { u: 8, x: 6, y: 3, atMs: T }, { u: 8, x: 7, y: 3, atMs: T + 400 + lain + 1000 },
+        { u: 9, x: 9, y: 3, atMs: T }],
+      events: [{ id: 'k7', type: 'kill', u: 1, t: 7, atMs: T + 400 }, { id: 'k8', type: 'kill', u: 1, t: 8, atMs: T + 400 }, { id: 'k9', type: 'kill', u: 1, t: 9, atMs: T + 400 },
+        { id: 'h9', type: 'heal', u: 1, t: 9, amount: 5, atMs: T + 400 + lain + 1000 }] }, T - OFF);
+    const read = () => ({ units: new Map(), heroes: new Map(), people: new Map(), viewed: null, viewedShield: null, entrance: null,
+      huntName: null, huntFromMs: null, self: null, look: null, shown: () => true });
+    const sc = M.S.createHuntScene({ timeline: tl, book, read });
+    tl.subscribe((ev) => sc.onEvent(ev, T - OFF));
+    const at = (ms) => { tl.advance(T + ms - OFF); return sc.frame(T + ms - OFF); };
+    const lying = at(500).units.find((d) => d.unit === 7);
+    at(400 + lain + 100);
+    const forgot = !tl.units().includes(7);
+    tl.ingest({ serverNowMs: T + 400 + lain + 200, units: { 7: ['rat', 20, 20] }, fromMs: T, track: [{ u: 7, x: 4, y: 3, atMs: T + 50 }] }, T + 400 + lain + 200 - OFF);
+    const restated = at(400 + lain + 300).units.find((d) => d.unit === 7), heldAgain = tl.units().includes(7);
+    const late = at(400 + lain + 1100), walks = late.units.find((d) => d.unit === 8), healed = late.floats.some((x) => x.text === '+5');
+    /* a restart that finds it standing (live-link.js _restart: rebase, then the units at the instant) */
+    tl.rebase(T + 400 + lain + 1200, new Map([[7, [5, 3]]]), 250);
+    tl.ingest({ units: { 7: ['rat', 20, 20] }, fromMs: T + 400 + lain + 1200 }, T + 400 + lain + 1200 - OFF);
+    const back = at(400 + lain + 1600).units.find((d) => d.unit === 7);
+    ok('LV-25', lying && lying.under, 'CONTROL: the killed rat was not drawn lying as a corpse');
+    ok('LV-25', forgot, `a corpse that had lain ${lain} ms was still held by the timeline (a long hunt keeps every monster it spawned)`);
+    ok('LV-25', !restated && !heldAgain, `a window restating a forgotten corpse's past stood it up again (${restated ? 'drawn ' + (restated.under ? 'lying' : 'standing') : 'held'})`);
+    ok('LV-25', !!back && !back.under, `the server's newer step for a forgotten unit (a restart that finds it standing) did not bring it back (${back ? 'drawn lying' : 'gone'})`);
+    ok('LV-25', !!walks && !walks.under, `a corpse with a step still to play was forgotten before it played (${walks ? 'drawn lying' : 'gone'})`);
+    ok('LV-25', healed, 'a corpse with an event still to play was forgotten before it played (its number was never drawn)');
   }
 
   { // LV-19 A UNIT DIES ONCE, AND LIES THE WAY IT FELL (Andy 10-21: "saw a corpse twitch again once dead"):
@@ -881,10 +1033,23 @@ const MUTANTS = [
   ['a death inside a catch-up is not played (LV-12)', 'src/session/live-link.js', '    for (const ev of res.kills) {', '    for (const ev of []) {', /^LV-12/],
   ['a dropped event stays remembered (LV-12)', 'src/hunt-view/timeline.js', '{ seen.delete(queue[i].key); queue.splice(i, 1); }', '{ queue.splice(i, 1); }', /^LV-12/],
   ['a revived monster pops up (LV-13)', 'src/hunt-view/scene.js', '        if (t !== null) risen.set(u, t);\n', '', /^LV-13/],
-  ['a monster the restart no longer has keeps standing (LV-13)', 'src/hunt-view/scene.js', '      for (const u of tl.units()) if (!alive.has(u) && !dead.has(u) && !isHero(u)) dead.set(u, t);\n', '', /^LV-13/],
+  ['a monster the restart no longer has keeps standing (LV-13)', 'src/hunt-view/scene.js', '        dead.set(u, onScreen && standing.has(u) ? t : t - SCENE_TIMING.corpseMs);\n', '', /^LV-13/],
+  ['a monster drawn standing that the restart no longer has vanishes (LV-13)', 'src/hunt-view/scene.js',
+    '        dead.set(u, onScreen && standing.has(u) ? t : t - SCENE_TIMING.corpseMs);', '        dead.set(u, t - SCENE_TIMING.corpseMs);', /^LV-13/],
+  ['a monster killed while the scene was away falls anew on the way back (LV-23, Andy a17)', 'src/hunt-view/scene.js',
+    '        dead.set(u, onScreen && standing.has(u) ? t : t - SCENE_TIMING.corpseMs);', '        dead.set(u, t);', /^LV-23/],
+  ['the last frame never goes stale (LV-23)', 'src/hunt-view/scene.js',
+    'const onScreen = drawnAt !== null && t - drawnAt <= SCENE_TIMING.staleMs;', 'const onScreen = true;', /^LV-23/],
   ['each World pane makes its own live scene (LV-18)', 'src/hunt-view/scene.js', '  if (had && had.key === o.key) return had.scene;\n', '', /^LV-18/],
   ['a second kill of a corpse plays its fall again (LV-19)', 'src/hunt-view/scene.js', '        if (!isHero(ev.t) && dead.has(ev.t)) return true;\n', '', /^LV-19/],
-  ['a corpse turns to face what it last swung at (LV-19)', 'src/hunt-view/scene.js', '          ({ dir, diag } = lie.get(u));\n', '', /^LV-19/],
+  ['a corpse turns to face what it last swung at (LV-19)', 'src/hunt-view/scene.js', '          ({ dir, diag, x, y } = lie.get(u));\n', '          ({ x, y } = lie.get(u));\n', /^LV-19/],
+  ['a corpse lies where the timeline puts it now (LV-24, Andy a16)', 'src/hunt-view/scene.js', '          ({ dir, diag, x, y } = lie.get(u));\n', '          ({ dir, diag } = lie.get(u));\n', /^LV-24/],
+  ['a finished corpse is never forgotten: a long hunt holds every unit it spawned (LV-25)', 'src/hunt-view/scene.js',
+    ' && tl.forget(u, now)) for (const m of perUnit) m.delete(u);', ' && false) for (const m of perUnit) m.delete(u);', /^LV-25/],
+  ['a forgotten corpse stands up from a restated step (LV-25)', 'src/hunt-view/timeline.js',
+    '    if (!a) { if (past(u, atMs)) return false; a = []; steps.set(u, a); }', '    if (!a) { a = []; steps.set(u, a); }', /^LV-25/],
+  ['a corpse with a step still to play is forgotten (LV-25)', 'src/hunt-view/timeline.js', '    if (last.atMs + (last.dur || cfg.tileMs) > t) return false;\n', '', /^LV-25/],
+  ['a corpse with an event still to play is forgotten (LV-25)', 'src/hunt-view/timeline.js', '    for (const ev of queue) if (ev.u === u || ev.t === u) return false;\n', '', /^LV-25/],
   ['another player\'s party outfit is not read (LV-20)', 'src/session/hunt-sections.js', 'outfit: outfitIdOf(m.outfit),', 'outfit: null,', /^LV-20/],
   ['your other hero in the party wears the role\'s outfit (LV-20)', 'src/hunt-view/scene.js', 'return (m && m.look) || outfitSprite(m && m.outfit, m && m.role);', 'return outfitSprite(m && m.outfit, m && m.role);', /^LV-20/],
   ['a waiting prediction takes the server window too (LV-10)', 'src/session/character-session.js', '    if (this.live.running() || this.live.stalled()) {', '    if (this.live.running()) {', /^LV-10/],

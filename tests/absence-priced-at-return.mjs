@@ -72,6 +72,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { bootReplay, ROOT } from './schema-replay.mjs';
 import { xpForLevel } from '../src/core/xp.js';
+import { setGold } from './_gold.mjs';
 
 const FN = (f) => join(ROOT, 'supabase', 'functions', 'hr-accrue', f);
 
@@ -226,7 +227,8 @@ async function run(mutate) {
     [uid, slot, skill]))[0]?.x ?? 0);
   const row = async (uid, slot = 0) => (await q(
     `select version::text v, extract(epoch from accrued_to)*1000 as at_ms,
-            extract(epoch from now())*1000 as now_ms, gold::text g, buffs
+            extract(epoch from now())*1000 as now_ms,
+            coalesce((select w.gold from public.account_wallet w where w.user_id = $1), 0)::text g, buffs
        from public.player_state where user_id=$1 and slot=$2`, [uid, slot]))[0];
 
   /** A miner at the production shape: Mining 61, no pickaxe anywhere, on
@@ -238,7 +240,8 @@ async function run(mutate) {
       [uid, slot, xpForLevel(61)]);
     await q(`delete from public.player_inventory where user_id=$1 and slot=$2 and item_id like '%pickaxe'`,
       [uid, slot]);
-    await q(`update public.player_state set gold = 100000, buffs = '[]'::jsonb,
+    await setGold(q, uid, slot, 100000);   // the ACCOUNT purse (2026-12-15-account-gold.sql)
+    await q(`update public.player_state set buffs = '[]'::jsonb,
                active_kind = 'gather', active_id = $3,
                active_since = now() - make_interval(secs => $4),
                accrued_to   = now() - make_interval(secs => $4)
@@ -308,7 +311,7 @@ async function run(mutate) {
 
       /* A commit refused AFTER a paid settle still carries the settle's receipt (a purse that cannot pay). */
       await miner(U.g);
-      await q('update public.player_state set gold = 0 where user_id=$1 and slot=0', [U.g]);
+      await setGold(q, U.g, 0, 0);
       const ore1 = await qty(U.g, ORE);
       await clearGate();
       const poor = await mods.sb.runShopBuy({ exec, user: U.g, slot: 0, intentId: uuid(), offer: 'supply.bronze_axe', qty: 1 });

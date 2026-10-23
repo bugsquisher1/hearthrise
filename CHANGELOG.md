@@ -5,6 +5,16 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.35 — 2026-10-23 (One purse)
+
+**Your heroes share one purse.** Gold now belongs to your account: whatever any of your heroes earns or spends comes in and goes out of the same purse, shown as "Your gold". Every hero's gold was added together, nothing lost. Items still move between your heroes through Storage.
+
+**Runes stop costing you behind your back.** A basic attack no longer buys store runes on its own, running out of runes no longer ends your hunt, and a hit is now as strong as the rune it actually used. One spell you can't afford no longer ends the hunt either.
+
+**Follow means follow.** A hero set to Follow now attacks the monster its leader is fighting, and Strongest and Follow both switch to a better target when one turns up.
+
+**Fixed:** dead monsters no longer pop back when you switch heroes, corpses stay where they fell instead of sliding, and changing weapons mid-hunt now says "Not while a hunt is running." instead of half-working (setups change in town).
+
 ## v0.2.34 — 2026-10-23 (Shared land)
 
 **Your heroes share one farm.** Farm land now belongs to your account, like the house and the depot: any of your heroes can plant, water and harvest any plot, and the Farm window shows who planted what. Crops already in the ground moved over with their timers.

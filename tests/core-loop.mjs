@@ -121,6 +121,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { bootReplay, ROOT } from './schema-replay.mjs';
+import { setGold } from './_gold.mjs';
 import { ITEMS } from '../src/data/items.js';
 import { HUNTS } from '../src/data/hunts.js';
 import { START_KIT } from '../src/data/start-kit.js';
@@ -773,7 +774,8 @@ async function loop2(S, M, tag, rows) {
       await S.q('update public.player_skills set xp = $3 where user_id=$1 and slot=0 and skill_id=$2', [p.uid, sk, skillXpForLevel(sk, MID_LEVEL)]);
     }
     /* Level XP is the hunt settle's to credit; the fixture writes the column the settle would have. */
-    await S.q('update public.player_state set gold=$2, level_xp=$3, hp=100000 where user_id=$1 and slot=0', [p.uid, MID_GOLD, charXpForLevel(MID_CHAR_LEVEL)]);
+    await S.q('update public.player_state set level_xp=$2, hp=100000 where user_id=$1 and slot=0', [p.uid, charXpForLevel(MID_CHAR_LEVEL)]);
+    await setGold(S.q, p.uid, 0, MID_GOLD);   // the account purse (2026-12-15-account-gold.sql)
     for (const id of Object.values(MID_KIT)) {
       await S.q(`insert into public.player_inventory (user_id, slot, item_id, qty) values ($1,0,$2,1)
                  on conflict (user_id, slot, item_id) do update set qty = player_inventory.qty + 1`, [p.uid, id]);
@@ -988,7 +990,8 @@ async function loop5(S, M, tag, rows) {
     for (const sk of ['melee', 'defense']) {
       await S.q('update public.player_skills set xp = $3 where user_id=$1 and slot=0 and skill_id=$2', [p.uid, sk, skillXpForLevel(sk, 99)]);
     }
-    await S.q('update public.player_state set gold=$2, level_xp=$3, hp=100000 where user_id=$1 and slot=0', [p.uid, 200000, charXpForLevel(99)]);
+    await S.q('update public.player_state set level_xp=$2, hp=100000 where user_id=$1 and slot=0', [p.uid, charXpForLevel(99)]);
+    await setGold(S.q, p.uid, 0, 200000);   // the account purse (2026-12-15-account-gold.sql)
     await S.q(`insert into public.player_inventory (user_id, slot, item_id, qty) values ($1,0,'cooked_shark',1500)
                on conflict (user_id, slot, item_id) do update set qty = 1500`, [p.uid]);
     const kit = Object.fromEntries(Object.entries(KIT).filter(([, id]) => ITEMS[id]));

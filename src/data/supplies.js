@@ -31,7 +31,7 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { ITEMS, foodClassOf } from './items.js?v=0.2.34';
+import { ITEMS, foodClassOf } from './items.js?v=0.2.35';
 
 export const SUPPLY_KINDS = Object.freeze(['heal', 'mana', 'ammo', 'buff']);
 
@@ -41,11 +41,14 @@ export const SUPPLY_KINDS = Object.freeze(['heal', 'mana', 'ammo', 'buff']);
 export const COMBAT_BUFF_TYPES = Object.freeze(['damage', 'defense', 'combat_xp', 'all_xp', 'drop_rate', 'gold_find', 'damage_crit']);
 export const IDLE_BUFF_TYPES = Object.freeze(['gather_speed', 'farm_yield']);
 
-/* ESSENTIAL: when every essential line of one kind is empty, the hunt ends.
-   Heals are essential. Arrows and runes are essential because a bow or staff
-   with nothing loaded fights at a quarter of its max hit. Whetstones are NOT:
-   a sword works unsharpened (src/core/ammo.js R5), so running out of stones
-   should cost the edge, not the hunt. Buffs are never essential. */
+/* ESSENTIAL: when every essential line of one kind is empty, the hunt ends,
+   but only under the hero's own end-on-empty (hunt-sessions.js ON_EMPTY `end`):
+   under the default a hunt never stops for lack of stock (Tyler 10-16; ammo:
+   src/core/action-rules.js essentialOut). Heals are essential. Arrows and runes
+   are essential because a bow with nothing loaded cannot shoot and a staff whose
+   runes are spent swings bare. Whetstones are NOT: a sword works unsharpened
+   (src/core/ammo.js R5), so running out of stones should cost the edge, not the
+   hunt. Buffs are never essential. */
 const H = 'heal';
 const M = 'mana';
 const B = 'buff';
@@ -91,6 +94,14 @@ export function supplyKindOf(item) {
   if (cls === 'healing') return H;
   if (cls === 'buff' && item.buff && COMBAT_BUFF_TYPES.includes(item.buff.type)) return B;
   return null;
+}
+
+/** A RUNE: an ammo item Magic draws on (its own `reqSkill`, as src/core/ammo.js honeOf knows a
+    whetstone by melee). Its store row feeds SPELLS only (designer 2026-10-21, Bible §18; Tyler
+    2026-10-23: runes fuel spells): bought when a spell's slot names it (src/core/hunt/conditions.js
+    storeFits), never by a basic shot or an attack slot, so no screen prices one per shot. */
+export function isRune(item) {
+  return !!item && item.slot === 'ammo' && item.reqSkill === 'magic';
 }
 
 /** id -> { id, kind, essential, heals, buff }. Null prototype; values from ITEMS. */

@@ -135,11 +135,11 @@ try {
   // DOES to a journal meta, so the row has to come out of hr_apply itself.
   await db.exec(`insert into auth.users (id) values ('${U}') on conflict do nothing;`);
   await db.exec(`
-    insert into public.player_state (user_id, slot, gold, hp, version, accrued_to,
+    insert into public.player_state (user_id, slot, hp, version, accrued_to,
                                      active_kind, active_id, active_since)
-    values ('${U}', 0, 0, 99, 1, now() - interval '1 hour', 'combat', 'goblin',
+    values ('${U}', 0, 99, 1, now() - interval '1 hour', 'combat', 'goblin',
             now() - interval '2 hours')
-    on conflict (user_id, slot) do update set version = 1, gold = 0;`);
+    on conflict (user_id, slot) do update set version = 1;`);
 
   const apply = async (ver, key, metaSql, extraSql = '') => {
     await db.exec('begin'); await db.exec('set local role hr_engine');

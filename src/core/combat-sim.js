@@ -39,18 +39,18 @@
 // window, no timers, no Math.random.
 // ============================================================
 
-import { COMBAT_BALANCE } from './combat.js?v=0.2.34';
-import { endReasonAt, deathXpLoss, staminaStep } from './action-rules.js?v=0.2.34';
-import { createRng } from './rng.js?v=0.2.34';
-import { densityFor, partyPick } from '../data/hunt-grounds.js?v=0.2.34';
-import { stepSwing } from './hunt/world-step.js?v=0.2.34';
-import { makeEvent, trackStep } from './hunt/events.js?v=0.2.34';
-import { newHuntWorld, joinHero, leaveHero } from './hunt-spawn.js?v=0.2.34';
-import { pullLeader } from './hunt/pull-cycle.js?v=0.2.34';
-import { rewardSwing } from './hunt-rewards.js?v=0.2.34';
+import { COMBAT_BALANCE } from './combat.js?v=0.2.35';
+import { endReasonAt, deathXpLoss, staminaStep } from './action-rules.js?v=0.2.35';
+import { createRng } from './rng.js?v=0.2.35';
+import { densityFor, partyPick } from '../data/hunt-grounds.js?v=0.2.35';
+import { stepSwing } from './hunt/world-step.js?v=0.2.35';
+import { makeEvent, trackStep } from './hunt/events.js?v=0.2.35';
+import { newHuntWorld, joinHero, leaveHero } from './hunt-spawn.js?v=0.2.35';
+import { pullLeader } from './hunt/pull-cycle.js?v=0.2.35';
+import { rewardSwing } from './hunt-rewards.js?v=0.2.35';
 
 /* The engine's front door (src/core/index.js `combatSim`). */
-export { stepSwing } from './hunt/world-step.js?v=0.2.34';
+export { stepSwing } from './hunt/world-step.js?v=0.2.35';
 
 /* WHY A COMBAT SPAN STOPPED BEFORE THE WINDOW DID — the same contract
    src/core/skill-sim.js and src/core/artisan-sim.js publish under this name.
@@ -157,7 +157,8 @@ function endMember(m, why, atMs, world, out) {
  *        element, settings, slots (hunt-spawn heroSetup), stopRules, density, actionSet, range, ammo, foodBelowPct,
  *        drinkBelowPct }, snapshot(state) → { acc, maxHit, def }, family (the weapon family),
  *        armoured, shield, bonus(key), weakness(row) → { dropMult }, rollsVs?(row) → playerCombatRolls
- *        against that monster (a basic swing's accuracy and weapon weakness), fx, buffsAt?(atMs) (re-measures the timed
+ *        against that monster (a basic swing's accuracy and weapon weakness), shotRolls?(row, ammo) (the same with
+ *        the item a shot spent in the ammo slot: damage.js blow), fx, buffsAt?(atMs) (re-measures the timed
  *        buff queue the member's bonus reads, at each of its boundaries) }
  * @param ctx  { toMs, tickMs (COMBAT_BALANCE.tickMs), seed(domain, index), ground, grid, monsters?, items? (the server's item catalogue: an attack item's footprint),
  *        hearthfind? (an indexed Hearthfind table; the catalogue's when absent), xpMultOf?(unitId) }
@@ -263,7 +264,7 @@ export function simulateHuntInstance(inst, ctx) {
         if (m.left || m.unitId === null) continue;
         byUnit.set(m.unitId, m);
         heroes[m.unitId] = { hs: m.hs, slots: m.hero.slots, stopRules: m.hero.stopRules, actionSet: m.hero.actionSet,
-          range: m.hero.range, rollsVs: m.rollsVs, ammo: m.hero.ammo, items: ctx.items || null, skills: m.state.skills,
+          range: m.hero.range, rollsVs: m.rollsVs, shotRolls: m.shotRolls, ammo: m.hero.ammo, items: ctx.items || null, skills: m.state.skills,
           foodBelowPct: m.hero.foodBelowPct, drinkBelowPct: m.hero.drinkBelowPct };
       }
       /* MONSTER DENSITY for the packs that spawn from here: the party leader's pick (Tyler 2026-10-20),

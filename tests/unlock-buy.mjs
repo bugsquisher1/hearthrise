@@ -42,6 +42,7 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 import { bootReplay, chainFiles, ROOT } from './schema-replay.mjs';
+import { goldOf, setGold } from './_gold.mjs';
 import { ARTISAN_RECIPES } from '../src/data/recipes.js';
 import { ITEMS } from '../src/data/items.js';
 import { recipeInputs } from '../src/core/artisan.js';
@@ -53,6 +54,9 @@ import { isMain as isEntryModule } from './_is-main.mjs';
    its arms buy through the hr_unlock_buy signature and catalogue as of there.
    (tests/schema-replay.mjs replayScopeError). The plain run is the whole chain. */
 const REPLAY_UPTO = '2026-10-22-hunt-sessions-settle.sql';
+/* hr_unlock_buy's LIVE body is 2026-12-15-account-gold.sql's (the gold is the account purse), so
+   every mutant planted in that body replays up to that file: the chain the plain run stands on. */
+const BUY_FILE = '2026-12-15-account-gold.sql';
 
 /* An UNGATED cooking recipe for the burn measurement, chosen by the PROPERTY
    that matters — cheapest inputs, so a long span never runs dry — rather than
@@ -72,7 +76,7 @@ const FN = (f) => join(ROOT, 'supabase', 'functions', 'hr-accrue', f);
 const MUTATIONS = {
   // ── THE MERGE RULE. The arm §9 of the artisan model names by hand. ──────
   merge_is_additive: {
-    migration: '2026-08-19-companion-unlocks.sql',
+    migration: BUY_FILE,
     why: 'the GREATEST merge becomes `+=` — buying rung 1 twice stands the player in rung 2, '
        + 'i.e. the 2,000g Iron Stove for 1,000 gold. THE defect this whole design exists to '
        + 'make unreachable',
@@ -80,7 +84,7 @@ const MUTATIONS = {
     repl: '      do update set value = pp.value + excluded.value, updated_at = now();',
   },
   already_owned_is_noop: {
-    migration: '2026-08-19-companion-unlocks.sql',
+    migration: BUY_FILE,
     why: 'a second purchase of an owned rung stops being refused and becomes a silent no-op that '
        + 'still charges — a refund ticket with no error anywhere',
     find: '    if v_cur >= v_off.value then',
@@ -88,13 +92,13 @@ const MUTATIONS = {
   },
   // ── THE LADDER AND THE GATE ────────────────────────────────────────────
   rung_order_off: {
-    migration: '2026-08-19-companion-unlocks.sql',
+    migration: BUY_FILE,
     why: 'the ladder stops being a ladder: rung 5 is buyable from rung 1, skipping four purchases',
     find: "    if v_cat.merge = 'max' then",
     repl: '    if false then',
   },
   prereq_tier_off: {
-    migration: '2026-08-19-companion-unlocks.sql',
+    migration: BUY_FILE,
     why: 'the homestead gate is disarmed — a rich player builds the Great Hearth from a bedroll, '
        + 'and the server is more permissive than the client it replaced',
     find: '    if coalesce(v_off.req_property_tier, 0) > 0 then',
@@ -104,13 +108,13 @@ const MUTATIONS = {
      (designer ruling §2) and no offer carries a req_item to gate on. */
   // ── VALUE ──────────────────────────────────────────────────────────────
   gold_not_debited: {
-    migration: '2026-08-19-companion-unlocks.sql',
+    migration: BUY_FILE,
     why: 'the rung is granted and the gold is not taken — a free permanent capability',
-    find: '       set gold = gold - v_off.gold,',
-    repl: '       set gold = gold,',
+    find: '      v_purse := public.hr_purse_move(v_uid, -v_off.gold, 0);',
+    repl: '      v_purse := public.hr_purse_of(v_uid);',
   },
   items_not_debited: {
-    migration: '2026-08-19-companion-unlocks.sql',
+    migration: BUY_FILE,
     why: 'the material cost is not consumed, so every room in the game costs gold only — and '
        + '`insufficient_item` becomes unreachable with it',
     find: '      if v_n <= 0 then continue; end if;',
@@ -118,17 +122,23 @@ const MUTATIONS = {
   },
   // ── CONCURRENCY + IDEMPOTENCY ──────────────────────────────────────────
   version_check_off: {
-    migration: '2026-08-19-companion-unlocks.sql',
+    migration: BUY_FILE,
     why: 'optimistic concurrency is gone: a caller acting on a stale read commits anyway',
-    find: '    if p_version is null or p_version <> v_st.version then',
-    repl: '    if false then',
+    find: '    -- (a) OPTIMISTIC CONCURRENCY — MANDATORY. A missing version IS a conflict.\n'
+        + '    if p_version is null or p_version <> v_st.version then',
+    repl: '    -- (a) OPTIMISTIC CONCURRENCY — MANDATORY. A missing version IS a conflict.\n'
+        + '    if false then',
   },
   replay_pays_twice: {
-    migration: '2026-08-19-companion-unlocks.sql',
+    migration: BUY_FILE,
     why: 'a replayed intent id re-runs the purchase instead of returning the first decision — '
        + 'exactly-once becomes at-least-once, and the second run charges again',
-    find: '  if found then\n    if v_prev_intent is distinct from v_intent',
-    repl: '  if false then\n    if v_prev_intent is distinct from v_intent',
+    find: "  v_intent := 'unlock_buy:' || v_off.offer_id || ':' || v_off.value;\n"
+        + '  select result, intent, slot into v_prev, v_prev_intent, v_prev_slot\n'
+        + '    from public.player_intents\n   where user_id = v_uid and intent_id = p_intent_id;\n  if found then\n',
+    repl: "  v_intent := 'unlock_buy:' || v_off.offer_id || ':' || v_off.value;\n"
+        + '  select result, intent, slot into v_prev, v_prev_intent, v_prev_slot\n'
+        + '    from public.player_intents\n   where user_id = v_uid and intent_id = p_intent_id;\n  if false then\n',
   },
   // ── THE PRICE IS THE SERVER'S ──────────────────────────────────────────
   price_from_the_edge: {
@@ -139,7 +149,7 @@ const MUTATIONS = {
     repl: 'const BUY_SQL = `\n  select public.hr_unlock_buy($1::uuid, $2::int, $3::bigint, $4::uuid, $5::text, $6::jsonb) as res`;',
   },
   partial_debit_not_rolled_back: {
-    migration: '2026-08-19-companion-unlocks.sql',
+    migration: BUY_FILE,
     why: 'S2, reintroduced: the insufficient_item refusal RETURNS instead of raising, so every item '
        + 'line the loop had already debited stays debited and the player pays materials for a '
        + 'purchase that did not happen',
@@ -335,12 +345,13 @@ const uuid = () => crypto.randomUUID();
 
 async function boot(mutate) {
   const patchedJs = new Map();
-  let sqlPatches;
+  let sqlPatches, replayTo = REPLAY_UPTO;
   if (mutate) {
     const m = MUTATIONS[mutate];
     if (!m) { const e = new Error(`unknown mutation "${mutate}"`); e.harness = true; throw e; }
     if (m.migration) {
       sqlPatches = new Map([[m.migration, [[m.find, m.repl]]]]);
+      replayTo = m.migration === BUY_FILE ? BUY_FILE : REPLAY_UPTO;
     } else {
       const src = (await readFile(m.file, 'utf8')).replace(/\r\n/g, '\n');
       const n = src.split(m.find).length - 1;
@@ -358,7 +369,7 @@ async function boot(mutate) {
 
   let db;
   try {
-    ({ db } = await bootReplay(sqlPatches ? { patches: sqlPatches, upTo: REPLAY_UPTO } : {}));
+    ({ db } = await bootReplay(sqlPatches ? { patches: sqlPatches, upTo: replayTo } : {}));
   } catch (e) {
     if (e.harness) throw e;
     /* A mutation that makes a migration REFUSE TO INSTALL is the guard working:
@@ -419,8 +430,12 @@ function makeExec(db) {
   };
 }
 
-const state = async (db, uid, slot = 0) => (await db.query(
-  'select * from public.player_state where user_id = $1 and slot = $2', [uid, slot])).rows[0];
+/* The hero's row, with `gold` = the gold it spends: its ACCOUNT's purse (2026-12-15-account-gold.sql), or its own
+   on the older chain the SQL mutants stop at. */
+const state = async (db, uid, slot = 0) => {
+  const r = (await db.query('select * from public.player_state where user_id = $1 and slot = $2', [uid, slot])).rows[0];
+  return r ? { ...r, gold: await goldOf((sql, p) => db.query(sql, p).then((r) => r.rows), uid, slot) } : r;
+};
 const rungOf = async (db, uid, key, slot = 0) => Number(((await db.query(
   "select value from public.player_progress where user_id=$1 and slot=$2 and kind='unlock' "
   + "and key=$3 and period_key=''", [uid, slot, key])).rows[0] || { value: 0 }).value);
@@ -448,7 +463,7 @@ async function run(mutate) {
 
   /** Stock the character so a purchase is about the RULES, never about supply. */
   const stock = async () => {
-    await db.query('update public.player_state set gold = 5000000 where user_id = $1', [UID]);
+    await setGold((sql, p) => db.query(sql, p).then((r) => r.rows), UID, 0, 5000000);
     await db.exec(`
       insert into public.player_inventory (user_id, slot, item_id, qty)
       select distinct '${UID}'::uuid, 0, k, 10000
@@ -789,8 +804,8 @@ async function run(mutate) {
       do $$ begin
         perform set_config('request.jwt.claim.sub', '${UID2}', true);
         perform public.hr_create_character(0);
-      end $$;
-      update public.player_state set gold = 5000000 where user_id = '${UID2}';`);
+      end $$;`);
+    await setGold((sql, p) => db.query(sql, p).then((r) => r.rows), UID2, 0, 5000000);
     const doBuy2 = (o) => buy.runUnlockBuy({ exec, user: UID2, slot: 0, ...o });
 
     const r = await doBuy2({ intentId: uuid(), offer: k1.offer_id });
@@ -819,7 +834,7 @@ async function run(mutate) {
   // ── U9 · POVERTY, AND HOSTILE BODIES ───────────────────────────────────
   try {
     await clearGate();
-    await db.query('update public.player_state set gold = 1 where user_id = $1', [UID]);
+    await setGold((sql, p) => db.query(sql, p).then((r) => r.rows), UID, 0, 1);
     const k3 = (await db.query(
       "select offer_id from public.hr_unlock_offers where refusal is null "
       + "and unlock_id='room:kitchen' and value = 3")).rows[0];
@@ -827,7 +842,7 @@ async function run(mutate) {
     ok(r.body.ok === false && r.body.error === 'insufficient_gold',
       `U9: expected insufficient_gold, got ${JSON.stringify(r.body)}`);
     ok(await rungOf(db, UID, 'room:kitchen') === 2, 'U9: a refused purchase granted the rung anyway');
-    await db.query('update public.player_state set gold = 5000000 where user_id = $1', [UID]);
+    await setGold((sql, p) => db.query(sql, p).then((r) => r.rows), UID, 0, 5000000);
 
     /* HOSTILE OFFER IDS. Every one of these is a real shape an attacker sends,
        and the two that matter most are the prototype walkers: `constructor` is
@@ -1171,7 +1186,7 @@ async function run(mutate) {
       + "values ($1, 0, 'unlock', 'room:kitchen', '', $2) "
       + 'on conflict (user_id, slot, kind, key, period_key) do update set value = excluded.value',
       [UID2, Number(multi.value) - 1]);
-    await db.query('update public.player_state set gold = 5000000 where user_id = $1', [UID2]);
+    await setGold((sql, p) => db.query(sql, p).then((r) => r.rows), UID2, 0, 5000000);
     if (multi.req_item) {
       await db.query(
         'insert into public.player_inventory (user_id, slot, item_id, qty) values ($1, 0, $2, 1) '

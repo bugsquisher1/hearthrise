@@ -26,6 +26,7 @@
 // Exit: 0 green (or every mutant caught) · 1 red · 2 harness.
 // ════════════════════════════════════════════════════════════════════════
 import { bootReplay } from './schema-replay.mjs';
+import { accountGold, goldOf, setGold } from './_gold.mjs';
 import { PLOT_TIER_PRICES } from '../src/core/farm.js';
 
 const FARM = '2026-10-23-demolition-farm-catalogues.generated.sql';
@@ -66,16 +67,27 @@ async function run(db) {
      account_farm, no row = tier 1); the mutants replay to FARM, where it is the hero's
      player_state.plot_level. The fixture follows the schema; the assertions do not move. */
   const shared = !!(await db.query(`select to_regclass('public.account_farm') as t`)).rows[0].t;
-  const state = async () => (await db.query(shared
-    ? 'select gold, public.hr_farm_plot_level(user_id) as plot_level from public.player_state where user_id = $1 and slot = 0'
-    : 'select gold, plot_level from public.player_state where user_id = $1 and slot = 0', [UID])).rows[0];
+  /* and the gold is the ACCOUNT purse on the chain end (2026-12-15-account-gold.sql); the hero's before it */
+  const qq = (sql, p) => db.query(sql, p).then((r) => r.rows);
+  const purse = await accountGold(qq);
+  const state = async () => {
+    const r = (await db.query(shared
+      ? 'select public.hr_farm_plot_level(user_id) as plot_level from public.player_state where user_id = $1 and slot = 0'
+      : 'select plot_level from public.player_state where user_id = $1 and slot = 0', [UID])).rows[0];
+    return r ? { ...r, gold: await goldOf(qq, UID, 0) } : r;
+  };
   await db.exec(`insert into auth.users (id) values ('${UID}') on conflict (id) do nothing;`);
-  await db.exec(shared
+  await db.exec(purse
+    ? `insert into public.player_state (user_id, slot, version) values ('${UID}', 0, 1)
+                 on conflict (user_id, slot) do update set version = 1;
+       delete from public.account_farm where user_id = '${UID}';`
+    : shared
     ? `insert into public.player_state (user_id, slot, gold, version) values ('${UID}', 0, 1000000, 1)
                  on conflict (user_id, slot) do update set gold = 1000000, version = 1;
        delete from public.account_farm where user_id = '${UID}';`
     : `insert into public.player_state (user_id, slot, gold, version) values ('${UID}', 0, 1000000, 1)
                  on conflict (user_id, slot) do update set gold = 1000000, version = 1, plot_level = 1;`);
+  if (purse) await setGold(qq, UID, 0, 1000000);
   const low = (await asUser(db, 'select public.hr_farm_upgrade_plot(0, $1::uuid, 2) as res', [uuid()])).res;
   ok('P1', low && low.ok === false && low.error === 'farm_level_too_low',
     `a farming-1 character bought tier 2: ${JSON.stringify(low)}`);

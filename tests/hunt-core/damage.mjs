@@ -5,6 +5,21 @@ import { suite, H, E, inst2, sc2, world } from './fixtures/h2.js';
 const D = 'src/core/hunt/damage.js';
 const fight = (M, units) => inst2(M, world(M, units, { phase: 'fight', leader: 1 }));
 const src = (M, o) => H(M, 90, 1, 1, 'ranger', o);
+/* A Mage next to one sturdy def-0 monster, a session with `bag` (the store's Plain Fire Rune behind the Fire
+   Rune, 1,000 gold) and a member whose rolls depend only on the ammo they are priced with (shotRolls: Blood 40,
+   Air 20, none 5; the loaded ammo's snapshot max hit is 20). Every blow lands at its max hit (the dice). */
+function shotFixture(M, bag, ammo, stored) {
+  const id = Object.keys(M.MONSTERS).find((k) => M.C.defenceReduction(M.MONSTERS[k]) === 0 && !(M.MONSTERS[k].elementImmune || []).length);
+  const inst = fight(M, [H(M, 1, 12, 3, 'mage', { target: 2, maxHit: 20 }), E(M, 2, 0, 13, 3, 1, { kind: id, hp: 100000, maxHp: 100000 })]);
+  const hs = M.AR.newHuntSession({ id: 'dm', huntFromMs: 0, bag, purse: 1000, goldFloor: 0,
+    basics: { plain_fire_rune: { kind: 'ammo', price: 8, heals: 0, mana: 0, partner: 'fire_rune' } } });
+  const rolls = (a) => ({ accuracy: 1, critChance: 0, weak: { damageMult: 1 }, maxHit: { blood_rune: 40, air_rune: 20 }[a] || 5 });
+  inst.heroes = { 1: { hs, slots: M.conditions.heroSlots(stored, null), actionSet: 'hunt', range: 7, ammo, items: M.ITEMS,
+    rollsVs: () => rolls(ammo), shotRolls: (row, a) => rolls(a) } };
+  const sc = sc2(M, 1);
+  sc.rng = M.rng.rngFrom(() => 0.9999999);
+  return { inst, sc, hs };
+}
 
 const cases = {
   /* contract §1.5 (today's element profile): weak pays the weakness bonus, immune takes 0, neutral pays 1x. */
@@ -159,6 +174,37 @@ const cases = {
     if (mk('ranger', 12) !== 1) return 'a moving ranger did not shoot';
     return mk('melee_dps', 12) === 0 ? null : 'a moving Melee hero swung';
   },
+  /* THE ITEM A SHOT SPENDS PRICES ITS BLOW (lane a-rune-spend). A slot naming Blood Runes while Air Runes are
+     loaded spent Blood and hit at Air's strength: the blow read the loaded ammo's rolls. Every blow lands at its
+     max hit here, so the dmg is the max hit the blow was priced with (the member's shotRolls stub: 40 Blood,
+     20 Air, 5 bare). */
+  'blow-priced-by-the-item-spent': (M) => {
+    const one = (slots, ammo) => {
+      const r = shotFixture(M, { blood_rune: { loaded: 3 }, air_rune: { loaded: 1 } }, ammo, slots);
+      M.movement.occupancy(r.inst);
+      M.damage.resolveAttacks(r.inst, r.sc);
+      return { dmg: r.sc.events.filter((e) => e.type === 'dmg' && e.u === 1).map((e) => e.amount), blood: r.hs.bag.blood_rune.left };
+    };
+    const named = one([{ action: { type: 'attack_with_item', id: 'blood_rune' }, conditions: [], join: 'and' }], 'air_rune');
+    const loaded = one([], 'blood_rune'), air = one([], 'air_rune');
+    if (JSON.stringify(air.dmg) !== '[20]' || JSON.stringify(loaded.dmg) !== '[20]') return 'CONTROL: a loaded-ammo basic did not hit at the snapshot (20): ' + JSON.stringify([air, loaded]);
+    if (named.blood !== 2) return 'the Blood slot did not spend a Blood Rune: ' + named.blood + ' left of 3';
+    return JSON.stringify(named.dmg) === '[40]' ? null : 'a Blood Rune shot with Air loaded hit for ' + JSON.stringify(named.dmg) + ', want Blood\'s 40';
+  },
+  /* A CASTER WHOSE RUNES ARE SPENT KEEPS SWINGING, BARE (lane a-rune-spend; Tyler 10-16: a hunt never stops for
+     lack of stock). With its Earth Runes gone it never swung again; with a store rune behind the line (Plain Fire
+     Rune) it bought one every shot. It swings the bare weapon, priced with no rune, and buys nothing. */
+  'spent-rune-swings-bare': (M) => {
+    for (const rune of ['earth_rune', 'fire_rune']) {
+      const r = shotFixture(M, { [rune]: { loaded: 0 } }, rune, []);
+      M.movement.occupancy(r.inst);
+      M.damage.resolveAttacks(r.inst, r.sc);
+      const dmg = r.sc.events.filter((e) => e.type === 'dmg' && e.u === 1).map((e) => e.amount);
+      if (JSON.stringify(dmg) !== '[5]') return 'a caster with its ' + rune + ' spent swung ' + JSON.stringify(dmg) + ', want one bare blow of 5';
+      if (Object.keys(r.hs.tally.bought).length || r.hs.purse !== 1000 || r.hs.goldOut) return 'its bare swing bought ' + JSON.stringify(r.hs.tally.bought);
+    }
+    return null;
+  },
   /* DM-13: one swing per COMBAT_BALANCE.tickMs (the one basic-attack interval), the first as soon as the target is in reach. */
   'swing-every-interval': (M) => {
     const k = H(M, 1, 12, 3, 'tank', { hp: 100000, maxHp: 100000, target: 2 });
@@ -197,6 +243,10 @@ const mutants = [
   { name: 'dmg forgets its ability', case: 'kill-hand-off', edits: [[D, "      ability: (ability && ability.id) || 'basic', element: element || null, ...(crit ? { crit: true } : {}),", '      element: element || null, ...(crit ? { crit: true } : {}),']] },
   { name: 'a killed hero gets back up', case: 'kill-hand-off', edits: [['src/core/hunt/pull-cycle.js', "  if (u.side === 'mon') { u.deadMs = 0; return; }\n  u.spot = null;", "  if (u.side === 'mon') { u.deadMs = 0; return; }\n  u.alive = true; u.hp = 1; u.spot = null;"]] },
   { name: 'Melee swings on the move', case: 'ranged-fires-on-move', edits: [[D, '    if (!row || (row.melee && !atRest(u)) || !inRange(inst, u, t)) continue;', '    if (!row || !inRange(inst, u, t)) continue;']] },
+  { name: 'a shot is priced by the loaded ammo, not the item it spent', case: 'blow-priced-by-the-item-spent',
+    edits: [[D, "  if (h && t.side === 'mon' && price !== undefined && price !== h.ammo && typeof h.shotRolls === 'function') {", '  if (false) {']] },
+  { name: 'a caster whose runes are spent never swings again', case: 'spent-rune-swings-bare',
+    edits: [[D, "      if (shoots && u.role !== 'ranger' && !shotLine(h, h.ammo).id) return { ammo: null, price: null, size: 1, aim: t };\n", '']] },
   { name: 'no swing interval', case: 'swing-every-interval', edits: [[D, 'function restart(u) { u.swingLeftMs = COMBAT_BALANCE.tickMs; }', 'function restart(u) { u.swingLeftMs = 0; }']] },
 ];
 

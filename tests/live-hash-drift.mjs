@@ -1541,7 +1541,10 @@ const MUTATIONS = {
      exactly the shape of all seven divergences this baseline records. This guard
      is the only thing in the repository that can see it. */
   comment_edited_after_apply: {
-    file: '2026-09-02-renown-kill-faucet.sql',
+    // FINAL BODY: hr_renown_of's last author is 2026-12-15-account-gold.sql §4 (a whole restatement
+    // md5-pinned to its pre-image, so a plant in any EARLIER file trips that pin and the chain stops
+    // replaying). The plant rides the restatement; the next author of hr_renown_of must move it again.
+    file: '2026-12-15-account-gold.sql',
     what: 'a comment is edited into hr_renown_of AFTER the file was applied, so the repo stops '
         + 'describing the body production actually runs. Behaviour is unchanged, so every other '
         + 'guard in this repo stays green',

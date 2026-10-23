@@ -115,6 +115,7 @@
 // ============================================================================
 
 import { bootReplay } from './schema-replay.mjs';
+import { setGold } from './_gold.mjs';
 import {
   runTick, SEED_LABEL_EXPR, CHANNELS, UNDRIVEN_CHANNELS,
 } from '../supabase/functions/hr-accrue/tick.js';
@@ -366,12 +367,11 @@ try {
     const u = U(1);
     await db.exec(`insert into auth.users (id) values ('${u}') on conflict do nothing;`);
     await db.exec(`
-      insert into public.player_state (user_id, slot, gold, hp, version, accrued_to,
+      insert into public.player_state (user_id, slot, hp, version, accrued_to,
                                        active_kind, active_id, active_since)
-      values ('${u}', 0, 0, 10, 1, now() - interval '10 minutes',
+      values ('${u}', 0, 10, 1, now() - interval '10 minutes',
               'gather', '${ACT}', now() - interval '2 hours')
-      on conflict (user_id, slot) do update set version = 1, gold = 0,
-        accrued_to = now() - interval '10 minutes', active_kind = 'gather', active_id = '${ACT}';`);
+      on conflict (user_id, slot) do update set version = 1, accrued_to = now() - interval '10 minutes', active_kind = 'gather', active_id = '${ACT}';`);
     await db.exec(`delete from public.hr_tick_ownership where user_id = '${u}';`);
     await db.exec(`
       insert into public.hr_tick_ownership (user_id, slot, channel, owned, lease_holder, lease_until)
@@ -406,12 +406,11 @@ try {
       "select left('cron:' || coalesce(current_database(), 'db'), 64) as h")).rows[0].h;
     await db.exec(`insert into auth.users (id) values ('${u2}') on conflict do nothing;`);
     await db.exec(`
-      insert into public.player_state (user_id, slot, gold, hp, version, accrued_to,
+      insert into public.player_state (user_id, slot, hp, version, accrued_to,
                                        active_kind, active_id, active_since)
-      values ('${u2}', 0, 0, 10, 1, now() - interval '10 minutes',
+      values ('${u2}', 0, 10, 1, now() - interval '10 minutes',
               'gather', '${ACT}', now() - interval '2 hours')
-      on conflict (user_id, slot) do update set version = 1, gold = 0,
-        accrued_to = now() - interval '10 minutes', active_kind = 'gather', active_id = '${ACT}';`);
+      on conflict (user_id, slot) do update set version = 1, accrued_to = now() - interval '10 minutes', active_kind = 'gather', active_id = '${ACT}';`);
     await db.exec(`delete from public.hr_tick_ownership where user_id = '${u2}';`);
     await db.exec(`
       insert into public.hr_tick_ownership (user_id, slot, channel, owned, lease_holder, lease_until)
@@ -461,7 +460,7 @@ try {
     // that `p_version` is null and step (7) refuses a null version. That is
     // load-bearing and nothing asserts it, so assert it.
     const after = (await db.query(
-      `select gold, version, accrued_to from public.player_state where user_id = '${u}'`)).rows[0];
+      `select coalesce((select w.gold from public.account_wallet w where w.user_id = player_state.user_id), 0) gold, version, accrued_to from public.player_state where user_id = '${u}'`)).rows[0];
     const shadowRows = Number((await db.query(
       `select count(*) as n from public.hr_tick_shadow where user_id = '${u}'`)).rows[0].n);
     judge('EC-2c (control)', Number(after.gold) === 0 && Number(after.version) === 1 && shadowRows === 0,
@@ -605,16 +604,17 @@ try {
         await db.exec(`delete from public.${t} where user_id = '${u}';`);
       }
       await db.exec(`
-        insert into public.player_state (user_id, slot, gold, hp, version, accrued_to,
+        insert into public.player_state (user_id, slot, hp, version, accrued_to,
           active_kind, active_id, active_since, tool_carry, combat_xp_accrued_to,
           fight, buffs, enchant)
-        values ('${u}', 0, 1234, 99, 7, now() - interval '10 minutes',
+        values ('${u}', 0, 99, 7, now() - interval '10 minutes',
           'combat', '${FIGHT_MONSTER}', now() - interval '2 hours', '{}'::jsonb,
           now() - interval '3 hours',
           '{"id":"${FIGHT_MONSTER}","hp":11}'::jsonb, '[]'::jsonb, '{"weapon":"fire"}'::jsonb)
-        on conflict (user_id, slot) do update set version = 7, hp = 99, gold = 1234,
-          accrued_to = now() - interval '10 minutes',
+        on conflict (user_id, slot) do update set version = 7, hp = 99, accrued_to = now() - interval '10 minutes',
           active_kind = 'combat', active_id = '${FIGHT_MONSTER}';`);
+      /* the fighter's 1,234 gold: its ACCOUNT purse (2026-12-15-account-gold.sql) */
+      await setGold((sql, p) => db.query(sql, p).then((r) => r.rows), u, 0, 1234);
       await db.exec(`
         insert into public.player_skills (user_id, slot, skill_id, xp) values
           ('${u}', 0, 'attack',    ${XP_AT_61}),
@@ -695,12 +695,11 @@ try {
     const ug = U(11);
     await db.exec(`insert into auth.users (id) values ('${ug}') on conflict do nothing;`);
     await db.exec(`
-      insert into public.player_state (user_id, slot, gold, hp, version, accrued_to,
+      insert into public.player_state (user_id, slot, hp, version, accrued_to,
                                        active_kind, active_id, active_since)
-      values ('${ug}', 0, 0, 10, 1, now() - interval '10 minutes',
+      values ('${ug}', 0, 10, 1, now() - interval '10 minutes',
               'gather', '${ACT}', now() - interval '2 hours')
-      on conflict (user_id, slot) do update set version = 1, gold = 0,
-        accrued_to = now() - interval '10 minutes', active_kind = 'gather', active_id = '${ACT}';`);
+      on conflict (user_id, slot) do update set version = 1, accrued_to = now() - interval '10 minutes', active_kind = 'gather', active_id = '${ACT}';`);
     await db.exec(`delete from public.hr_tick_ownership where user_id = '${ug}';`);
     await db.exec(`
       insert into public.hr_tick_ownership (user_id, slot, channel, owned, lease_holder, lease_until)

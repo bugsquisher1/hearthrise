@@ -20,15 +20,18 @@
 //                        every stack, at most the server's line cap
 //   bestWords(b, hunt)  this hero's personal bests on the ground, alone and
 //                        in a party, from the server's `hunt_bests` section
+//                        (one "Not hunted yet" line when it has none)
+//   bestLine(b, hunt)   the list line's best Level XP an hour, or "New"
+//   fitWords(row, lv)   the list line's band against the Level, and its tone
 // Nothing here is a gate: the server checks the band, the stamina and the
 // stock when the player presses Enter, and says why it refuses.
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_GROUNDS, PARTY_SCALE } from '../data/hunt-grounds.js?v=0.2.33';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.33';
-import { MONSTERS } from '../data/monsters.js?v=0.2.33';
-import { SUPPLIES } from '../data/supplies.js?v=0.2.33';
-import { SESSION_LIMITS } from '../data/hunt-sessions.js?v=0.2.33';
-import { whole, gold } from '../render/format.js?v=0.2.33';
+import { HUNT_GROUNDS, PARTY_SCALE } from '../data/hunt-grounds.js?v=0.2.34';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.34';
+import { MONSTERS } from '../data/monsters.js?v=0.2.34';
+import { SUPPLIES } from '../data/supplies.js?v=0.2.34';
+import { SESSION_LIMITS } from '../data/hunt-sessions.js?v=0.2.34';
+import { whole, gold } from '../render/format.js?v=0.2.34';
 
 const PACK_QTY_MAX = 100000;
 const COUNT_WORDS = Object.freeze(['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight']);
@@ -149,16 +152,43 @@ export function groupWords(r, partySize) {
 
 /**
  * THIS hero's personal bests on a ground, in words, from the server's `hunt_bests` section
- * (hunt-sections.js huntBestsOf): one line alone, one in a party, each "12,400 Level XP per hour ·
- * balance 3,100 gp per hour", or "No hunt of 10 min yet" (the server's qualifying length).
- * Null when the server sent no section: nothing is invented.
+ * (hunt-sections.js huntBestsOf), for the picked ground's page: a line for each mode the hero has a
+ * best in ("Best alone: 12,400 Level XP per hour · balance 3,100 gp per hour", "Best in a party: …"),
+ * else ONE `none` line that says so and names the server's qualifying length (designer 2026-10-22:
+ * eight "No hunt of 10 min yet" lines said nothing). Null when the server sent no section.
  */
 export function bestWords(bests, hunt) {
   if (!bests) return null;
   const g = bests.grounds[hunt] || {};
-  const none = 'No hunt of ' + Math.round(bests.minMs / 60000) + ' min yet';
-  const line = (b) => (b ? whole(b.xpH) + ' Level XP per hour · balance ' + gold(b.balanceH) + ' per hour' : none);
-  return { solo: 'Best alone: ' + line(g.solo), party: 'Best in a party: ' + line(g.party) };
+  const line = (b) => whole(b.xpH) + ' Level XP per hour · balance ' + gold(b.balanceH) + ' per hour';
+  const solo = g.solo ? 'Best alone: ' + line(g.solo) : null;
+  const party = g.party ? 'Best in a party: ' + line(g.party) : null;
+  return { solo, party, none: solo || party ? null : 'Not hunted yet. A hunt of ' + Math.round(bests.minMs / 60000) + ' min or more sets your best.' };
+}
+
+/**
+ * The list line's best: this hero's higher Level XP an hour on the ground, alone or in a party
+ * ("Best 12,400 Level XP/h"), or "New" when it has none there. Null when the server sent no section.
+ */
+export function bestLine(bests, hunt) {
+  if (!bests) return null;
+  const g = bests.grounds[hunt] || {};
+  const xp = Math.max(g.solo ? g.solo.xpH : -Infinity, g.party ? g.party.xpH : -Infinity);
+  return Number.isFinite(xp) ? 'Best ' + whole(xp) + ' Level XP/h' : 'New';
+}
+
+/**
+ * Where the character's Level stands against a ground's band, for the list line: `words` and the
+ * `tone` its token colour reads from. 'in' inside the band; 'above' under the floor (a warning, the
+ * server admits it); 'far' SESSION_LIMITS.belowRangeRefuse or more under (the server refuses);
+ * 'below' over the band's top (little XP). Null when the Level is not known. Display only.
+ */
+export function fitWords(r, level) {
+  if (!Number.isInteger(level)) return null;
+  /* Under the floor: rangeWords is the ONE reader of the refuse margin. */
+  const warn = rangeWords(r, level);
+  if (warn) return warn === ABOVE_LEVEL_WORDS ? { words: 'Above your level', tone: 'above' } : { words: 'Far above your level', tone: 'far' };
+  return level > r.band[1] ? { words: 'Below your level', tone: 'below' } : { words: 'In your range', tone: 'in' };
 }
 
 /** Who may come: "One hero", "Alone or with up to 3 more", or for a party ground "A party of 2 to 4"

@@ -470,6 +470,7 @@ export async function bootReplay({ patches, seedBefore, tolerant = false, upTo, 
       // unref'd with the rest of the boot's, or it outlives the guard and
       // Windows libuv asserts at process.exit (measured 2026-10-14).
       if (!keepClosed) await openTheGame(db);
+      await premiumPerCharacter(db);
       endCapture();
       return { db, applied, failures };
     }
@@ -504,6 +505,7 @@ export async function bootReplay({ patches, seedBefore, tolerant = false, upTo, 
     if (name === upTo) break;   // validate the state AS OF this migration
   }
   if (!keepClosed) await openTheGame(db);   // before endCapture — see the prefix return above
+  await premiumPerCharacter(db);
   endCapture();
   return { db, applied, failures };
 }
@@ -525,6 +527,21 @@ async function openTheGame(db) {
       update public.hr_flags set enabled = false where key = 'closed_mode' and enabled;
     end if;
   end $open$;`);
+}
+
+/* BETA PREMIUM (supabase/migrations/2026-12-17-beta-premium.sql) lands every
+   character premium. The replay guards prove the PER-CHARACTER rules (a free
+   hero rests to 8 h, reads the basic analyzer, is refused the login reward and
+   premium outfits), so after the chain the harness turns the switch off, as the
+   EA wipe will. No schema object or row count moves. The switch itself is
+   proven by its own §4 and by tests/hunt-sessions-settle.mjs BETA, which turns
+   it on inside its transaction. */
+async function premiumPerCharacter(db) {
+  await db.exec(`do $beta$ begin
+    if to_regclass('public.hr_flags') is not null then
+      update public.hr_flags set enabled = false where key = 'beta_premium' and enabled;
+    end if;
+  end $beta$;`);
 }
 
 // ── The inventory: what a rebuilt database actually contains ───────────────

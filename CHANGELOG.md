@@ -5,6 +5,18 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.34 — 2026-10-23 (Shared land)
+
+**Your heroes share one farm.** Farm land now belongs to your account, like the house and the depot: any of your heroes can plant, water and harvest any plot, and the Farm window shows who planted what. Crops already in the ground moved over with their timers.
+
+**Town work counts up as it happens.** Items and skill XP from town work tick up one at a time between payouts, and the server's count replaces them at each payout.
+
+**A clearer Hunts window.** Pick a ground to see its details beside the list, check what you need before you go, and choose which hero to send.
+
+**Everyone is premium during the beta,** with the longer stamina pool, the full analyzer, the daily reward and premium outfits.
+
+**Fixed:** drinks you made yourself are no longer refused mid-hunt, so they can't end your hunt any more.
+
 ## v0.2.33 — 2026-10-23 (Eyes on your hero)
 
 **The hunt camera stays on your hero.** It keeps the hero you are watching in the middle of the open screen, clear of the party panel, the analyzer and the bar, and it moves to the new hero when you switch.

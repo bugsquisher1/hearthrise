@@ -7,10 +7,10 @@
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
  "generated": "2026-10-23",
- "digest": "860cae6ad0d9dd1006abdff7b1b12a5358af7c0ca1e094c17a4848ac7797b2b9",
+ "digest": "2e5c76ebc451f809dd4822ed00bfc9c6dcf5f1c888e9c60d54e92e4b194471ea",
  "counts": {
   "relations": 216,
-  "functions": 491,
+  "functions": 492,
   "policies": 117,
   "indexes": 303,
   "triggers": 46,
@@ -616,6 +616,7 @@
    "hr_players_online(p_slots integer[])",
    "hr_premium_active(p_user uuid, p_slot integer, p_at timestamp with time zone)",
    "hr_premium_grant(p_user uuid, p_slot integer, p_until timestamp with time zone, p_reason text)",
+   "hr_premium_until(p_user uuid, p_slot integer)",
    "hr_premium_view(p_user uuid, p_slot integer)",
    "hr_progress_prune(p_older interval)",
    "hr_put_client_state(p_slot integer, p_patch jsonb, p_idem uuid)",

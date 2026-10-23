@@ -13,8 +13,8 @@
 //                              decoded images): Promise<Map<id, { image, row }>>
 //   drawCreature(canvas, art, id, o)  draw it; false when no set carries the sprite
 // ════════════════════════════════════════════════════════════════════════
-import { ATLAS_SETS } from '../data/world/atlas-sets.js?v=0.2.35';
-import { loadAtlasSet } from '../world/atlas.js?v=0.2.35';
+import { ATLAS_SETS } from '../data/world/atlas-sets.js?v=0.2.36';
+import { loadAtlasSet } from '../world/atlas.js?v=0.2.36';
 
 let ART = null;
 

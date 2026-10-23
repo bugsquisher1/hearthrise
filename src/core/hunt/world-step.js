@@ -24,19 +24,19 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { HUNT_TUNING } from '../../data/hunt-tuning.js?v=0.2.35';
-import { recordTrail, followTrail, moveAll, occupancy } from './movement.js?v=0.2.35';
-import { makeUnit } from './world-state.js?v=0.2.35';
-import { holderOutside, resetPack } from './leash.js?v=0.2.35';
-import { chooseTargets } from './targeting.js?v=0.2.35';
-import { positionHeroes } from './roles.js?v=0.2.35';
-import { respawnPacks, runPhase, clearCorpses } from './pull-cycle.js?v=0.2.35';
-import { resolveAttacks } from './damage.js?v=0.2.35';
-import { castAbilities } from './abilities.js?v=0.2.35';
-import { tickStatuses } from './status.js?v=0.2.35';
-import { consume } from './consumables.js?v=0.2.35';
-import { flushXpGroup } from './xp-share.js?v=0.2.35';
-import { checkStopRules } from './conditions.js?v=0.2.35';
+import { HUNT_TUNING } from '../../data/hunt-tuning.js?v=0.2.36';
+import { recordTrail, followTrail, moveAll, occupancy } from './movement.js?v=0.2.36';
+import { makeUnit } from './world-state.js?v=0.2.36';
+import { holderOutside, resetPack } from './leash.js?v=0.2.36';
+import { chooseTargets } from './targeting.js?v=0.2.36';
+import { positionHeroes } from './roles.js?v=0.2.36';
+import { respawnPacks, runPhase, clearCorpses } from './pull-cycle.js?v=0.2.36';
+import { resolveAttacks } from './damage.js?v=0.2.36';
+import { castAbilities } from './abilities.js?v=0.2.36';
+import { tickStatuses } from './status.js?v=0.2.36';
+import { consume } from './consumables.js?v=0.2.36';
+import { flushXpGroup } from './xp-share.js?v=0.2.36';
+import { checkStopRules } from './conditions.js?v=0.2.36';
 
 /** How many sub-steps one swing of `swingMs` is; refuses a swing that is not a whole number of them. */
 export function substepsOf(swingMs) {
@@ -75,10 +75,12 @@ function stepWorld(world, swingCtx, track, events) {
   const sc = { atMs, dtMs: HUNT_TUNING.stepMs, swing: world.swing, rng: swingCtx.rng,
     ...(typeof swingCtx.xpMultOf === 'function' ? { xpMultOf: swingCtx.xpMultOf } : {}),
     emit: (ev) => { events.push(ev); }, track: (st) => { track.push(st); } };
-  /* ONE DEATH ENDS THE HUNT FOR EVERYONE (Tyler 2026-10-19): the swing stops at the sub-step a hero
-     dies. The party's hunt ends at each member's next boundary (combat-sim.js) and until then nobody
-     acts: a survivor no longer flees or fights on alone for the rest of the swing (live v0.2.23, Andy:
-     "2nd char starts to run away after death") nor dies a second death the first one already ended. */
+  /* A DEATH STOPS THE SWING (Tyler 2026-10-19): the swing stops at the sub-step a hero dies. Its hunt,
+     and every ticked member's (LEAVE TOGETHER, Tyler 2026-10-22: combat-sim.js cascadeFrom), ends at
+     the next boundary, and until then nobody acts: a leaving survivor no longer flees or fights on alone
+     for the rest of the swing (live v0.2.23, Andy: "2nd char starts to run away after death") nor dies a
+     second death the first one already ended. An unticked survivor waits out the rest of that one swing
+     (at most one swing interval) and hunts on from the next. */
   const heroes = world.units.filter((u) => u.side === 'hero' && u.alive);
   for (let i = 0; i < n; i++) {
     sc.atMs = atMs + i * HUNT_TUNING.stepMs;

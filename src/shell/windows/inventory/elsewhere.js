@@ -10,11 +10,11 @@
 // of the characters open on this page, and the list says which it is showing.
 // Read only.
 // ════════════════════════════════════════════════════════════════════════
-import { rows, text, cls, element } from '../../../render/paint.js?v=0.2.35';
-import { whole } from '../../../render/format.js?v=0.2.35';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.35';
-import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.35';
-import { nameOf } from '../../../session/item-sections.js?v=0.2.35';
+import { rows, text, cls, element } from '../../../render/paint.js?v=0.2.36';
+import { whole } from '../../../render/format.js?v=0.2.36';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.36';
+import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.36';
+import { nameOf } from '../../../session/item-sections.js?v=0.2.36';
 
 const WHERE = Object.freeze({ bag: 'in the bag', worn: 'worn' });
 const DEBOUNCE_MS = 300;

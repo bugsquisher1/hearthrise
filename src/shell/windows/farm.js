@@ -73,7 +73,7 @@ function left(ms) {
 export function renderFarm() {
   return '<div class="hw-farm">'
     + '<p class="hw-cap"><span class="hw-farm-land"></span><span class="hw-gold"></span></p>'
-    + '<p class="hs-note hw-farm-shared">Your heroes share this land. The hero you are playing plants with their own seeds and gold, and keeps the crop and the Farming XP.</p>'
+    + '<p class="hs-note hw-farm-shared">Your heroes share this land. The hero you are playing plants their own seeds and keeps the crop and the Farming XP.</p>'
     + '<ul class="hw-field" aria-label="Your plots"></ul>'
     + '<p class="hh-empty hw-farm-wait">Your field loads from the server.</p>'
     + '<section class="hw-sow"><h3 class="hw-ledger-head is-on hw-sow-head"></h3><ul class="hw-ledger hw-seeds"></ul>'

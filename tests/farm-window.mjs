@@ -206,7 +206,7 @@ const MUTANTS = [
   ['the reader invents a field', 'src/session/farm-sections.js', "  const raw = read(cs, 'farm_land');\n", "  const raw = read(cs, 'farm_land') || { cap: 2, plot_level: 1, plots: [] };\n"],
   ['plant names another plot', 'src/session/farm-intents.js', 'p_plot_idx: plot, p_crop: crop', 'p_plot_idx: plot + 1, p_crop: crop'],
   ['a refusal reads as a generic line', 'src/shell/windows/farm.js', "  plot_cap: 'Your land has no room for that plot yet.',\n", ''],
-  ['the window never says the land is shared', 'src/shell/windows/farm.js', "    + '<p class=\"hs-note hw-farm-shared\">Your heroes share this land. The hero you are playing plants with their own seeds and gold, and keeps the crop and the Farming XP.</p>'\n", ''],
+  ['the window never says the land is shared', 'src/shell/windows/farm.js', "    + '<p class=\"hs-note hw-farm-shared\">Your heroes share this land. The hero you are playing plants their own seeds and keeps the crop and the Farming XP.</p>'\n", ''],
   ['a plot never says who planted it', 'src/shell/windows/farm.js', "text(li.querySelector('.hw-plot-by'), !p ? '' :", "text(li.querySelector('.hw-plot-by'), true ? '' :"],
   ['an extra plot is not drawn', 'src/shell/windows/farm.js', '(_, i) => i).concat(extras);', '(_, i) => i);'],
   ['an extra plot is replanted', 'src/shell/windows/farm.js', "attr(harvest, 'data-hs-act', extra ? 'leave' : 'harvest');", "attr(harvest, 'data-hs-act', 'harvest');"],

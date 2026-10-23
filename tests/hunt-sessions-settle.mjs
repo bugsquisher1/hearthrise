@@ -118,6 +118,8 @@
 //              stays and starts again with every box as set.
 //   PARTY-LEAVE-DIED  a death through the chain, both paths: the ticked partner ends
 //              `party_member_died` at the same boundary, settled through it; the unticked does not.
+//   PARTY-LEAVE-IDEM  a second apply of 2026-12-18-party-leave-together.sql is byte-identical (bodies,
+//              grants, the column, the baseline row): §0 accepts its own post-images.
 //   HOLD-SEAT  "One tank holds" (Tyler 2026-10-22): the read's instance.hold_seat reaches the LEADING
 //              member's hero only, and the proposed world holds that seat's unit (at once in a world made
 //              in the window); a seat that is no member's names no unit (take turns).
@@ -1699,6 +1701,24 @@ const DB_ARMS = {
     if (canon(tick) !== canon(viewed)) problems.push(`viewed and tick wrote different rows ${firstDiff(canon(tick), canon(viewed))}`);
     return problems;
   }),
+  /* PARTY-LEAVE-IDEM: a SECOND apply of 2026-12-18-party-leave-together.sql on the replayed chain (its §0 accepts its
+     own post-images, its §3 splices skip, its §4 runs again) is byte-identical: every body it writes, the column,
+     the grants and the client baseline row. Rolled back. */
+  'PARTY-LEAVE-IDEM': async (db) => inTx(db, async () => {
+    const SIGS = ['public.hr_hunt_party_view(uuid,integer)', 'public.hr_hunt_instance_read(uuid,integer)',
+      'public.hr_hunt_settle_session(uuid,integer,uuid,jsonb)', 'public.hr_hunt_view(uuid)', 'public.hr_party_leave_together_set(integer,boolean,uuid)'];
+    const shape = async () => JSON.stringify({
+      bodies: await Promise.all(SIGS.map((s) => one(db, `select md5(replace(prosrc, chr(13), '')) || ':' || coalesce(array_to_string(proacl, ','), '') from pg_proc where oid = $1::regprocedure`, [s]))),
+      column: await q(db, `select data_type, is_nullable, column_default from information_schema.columns where table_schema = 'public' and table_name = 'player_state' and column_name = 'party_leave_together'`),
+      baseline: await q(db, `select proname, identity_args, grantee, note, approved_at from public.hr_client_rpc_baseline where proname = 'hr_party_leave_together_set'`),
+    });
+    const before = await shape();
+    if (!before.includes('"is_nullable":"NO"') || !before.includes('true')) return [`CONTROL: the replayed chain carries no box: ${before.slice(0, 200)}`];
+    const sql = readFileSync(join(ROOT, 'supabase', 'migrations', '2026-12-18-party-leave-together.sql'), 'utf8').replace(/\r\n/g, '\n');
+    try { await db.exec(sql); } catch (e) { return [`the second apply RAISED: ${String(e.message).split('\n')[0]}`]; }
+    const after = await shape();
+    return after === before ? [] : [`the second apply moved ${firstDiff(before, after)}`];
+  }),
   /* HOLD-SEAT (Tyler 2026-10-22, the party's "One tank holds"; lane/b-tank-choice). hr_hunt_instance_read carries
      the party's hunt_parties.hold_seat at instance.hold_seat (lane/c-hunt-screens-server, 2026-12-08-party-hold.sql,
      in the replayed chain; the arm sets the column as hr_party_hold_set would, rolled back). The door and the tick
@@ -2462,6 +2482,10 @@ const DB_MUTANTS = [
   { arm: 'PARTY-LEAVE', name: '[leave together] one player\'s set writes every hero in that slot', fn: 'public.hr_party_leave_together_set(integer,boolean,uuid)',
     find: '  update public.player_state set party_leave_together = p_on where user_id = v_uid and slot = p_slot;',
     replace: '  update public.player_state set party_leave_together = p_on where slot = p_slot;' },
+  { arm: 'PARTY-LEAVE-IDEM', name: '[leave together] a second apply rewrites a body the file owns', fn: 'public.hr_party_leave_together_set(integer,boolean,uuid)',
+    find: "hr_rpc_gate('party')", replace: "hr_rpc_gate('chat')" },
+  { arm: 'PARTY-LEAVE-IDEM', name: '[leave together] §0 takes a spliced body another file moved', fn: 'public.hr_hunt_view(uuid)',
+    find: "'end_by', case when", replace: "'end_by', /* moved */ case when" },
   { arm: 'PARTY-LEAVE', name: '[leave together] a cascaded hero is closed where its window began (its stretch unsettled)', fn: SS,
     find: '    perform public.hr_hunt_close(p_session, v_end, v_end_at, true);',
     replace: "    perform public.hr_hunt_close(p_session, v_end, case when v_end like 'party_member_%' then v_s.settled_to else v_end_at end, true);" },

@@ -124,7 +124,8 @@
 //         refused apply enters nothing and says why in words
 //   AW-27 BEFORE YOU GO: one line per supply kind in slot order from the server's bar,
 //         bag, stamina and gold (the designer's walk-through starter bar word for word);
-//         the next envelope replaces every number; a line that stops the hunt is marked
+//         the next envelope replaces every number; a line that stops the hunt is marked;
+//         a rune SHOT buys nothing from the store (only a spell slot naming its store rune does)
 //   AW-28 THE PARTY PATH: a party ground's page offers Find a party (the Party window's
 //         finder on that ground and this hero's weapon: ONE read with p_hunt) and Bring
 //         your heroes (open heroes in no party); a solo ground's page offers neither
@@ -934,10 +935,19 @@ async function checks(overrides, shots) {
         if (g0 !== '0:true:Hunt:Melee (shield) · on now:4:iron_sword.png|1:false:Bow:Ranger:0:shortbow.png') fails.push('AW-26 Go as reads ' + JSON.stringify(g0));
         /* AW-27 BEFORE YOU GO: what the bar spends, in slot order, from the server's bar, bag and gold. */
         const before = () => page.evaluate((w) => Array.from(document.querySelectorAll(w + '.hw-before-line')).map((li) => (li.classList.contains('is-short') ? '!' : '') + li.textContent).join(' | '), W);
+        /* A rune SHOT never buys from the store (runes fuel spells: supplies.js isRune, the engine's abilities.js), and
+           Flame Strike's slot names no store rune, so nothing on this bar pays the store: no store words, no gold line. */
         const b0 = await before();
-        if (b0 !== 'Runes: 40 Fire Rune of yours, then Plain Fire Rune from the store, 8 gp each | Food: 14 Wheat Bread of yours | Drink: 6 Goldenroot Tea of yours | Stamina: 30 min left, then the hunt ends. | Gold: 5,200 gp pays the store as you use it.')
+        if (b0 !== 'Runes: 40 Fire Rune of yours | Food: 14 Wheat Bread of yours | Drink: 6 Goldenroot Tea of yours | Stamina: 30 min left, then the hunt ends.')
           fails.push('AW-27 Before you go reads ' + JSON.stringify(b0));
         if (await page.evaluate(() => !!document.querySelector('[data-hs-win="hunts"] .hw-ready, [data-hs-win="hunts"] .hw-checks'))) fails.push('AW-27 the Hunts window still carries the readiness checklist');
+        /* The server's bar names the spell's store rune: that slot buys Plain Fire Runes a cast once yours are gone, and the gold pays it. */
+        s.env.hunt_settings = clone(s.env.hunt_settings);
+        s.env.hunt_settings.slots[1].action = Object.assign({}, s.env.hunt_settings.slots[1].action, { store: 'plain_fire_rune' });
+        await pushEnvelope(page, s);
+        const bs = await before();
+        if (bs !== 'Runes: 40 Fire Rune of yours, then Plain Fire Rune from the store, 8 gp a cast | Food: 14 Wheat Bread of yours | Drink: 6 Goldenroot Tea of yours | Stamina: 30 min left, then the hunt ends. | Gold: 5,200 gp pays the store as you use it.')
+          fails.push('AW-27 a spell naming its store rune reads ' + JSON.stringify(bs));
         /* The next envelope REPLACES every number (CLAUDE.md §6): fewer runes, less bread, no gold (that line now stops the hunt). */
         s.env.inventory = Object.assign({}, s.env.inventory, { fire_rune: 3 });
         s.env.hunt_settings = clone(s.env.hunt_settings);
@@ -945,7 +955,7 @@ async function checks(overrides, shots) {
         s.env.state = Object.assign({}, s.env.state, { gold: 0 });
         await pushEnvelope(page, s);
         const b1 = await before();
-        if (b1 !== 'Runes: 3 Fire Rune of yours, then Plain Fire Rune from the store, 8 gp each | Food: 2 Wheat Bread of yours | Drink: 6 Goldenroot Tea of yours | Stamina: 30 min left, then the hunt ends. | !No gold for the store: the hunt ends when your own supplies run out.')
+        if (b1 !== 'Runes: 3 Fire Rune of yours, then Plain Fire Rune from the store, 8 gp a cast | Food: 2 Wheat Bread of yours | Drink: 6 Goldenroot Tea of yours | Stamina: 30 min left, then the hunt ends. | !No gold for the store: the hunt ends when your own supplies run out.')
           fails.push('AW-27 Before you go kept a number the server replaced: ' + JSON.stringify(b1));
         /* The page's own modules (a planted defect in them is what is served): a fresh hero's starter bar (the designer's
            walk-through row 4) and Bring your heroes (this account's other open heroes in no party). */
@@ -1608,6 +1618,7 @@ const MUTANTS = [
   ['AW-26 a missing piece reads as a bare refusal', 'src/data/refusal-words.js', "  missing_item: 'A piece of that setup’s gear is not in your bag, so nothing was put on.',\n", ''],
   ['AW-26 Go as offers a set the server cannot put on', 'src/shell/hunt-go.js', '  const ids = new Set(saved.map((p) => p.preset).concat([s.preset]));', '  const ids = new Set(s.presets.map((p) => p.preset).concat([s.preset]));'],
   ['AW-27 the store behind a slot is not said', 'src/shell/hunt-go.js', "  const store = st && st.price !== null ? { name: st.name, price: st.price, each: a.type === 'ability' ? 'a cast' : 'each' } : null;", '  const store = null;'],
+  ['AW-27 a rune shot is priced from the store again', 'src/shell/bar-draft.js', "  if (a.type === 'attack_with_item' && isRune(ITEMS[a.id])) return null;\n", ''],
   ['AW-27 the gold line never shows', 'src/shell/hunt-go.js', '  if (paysStore && gp !== null) {', '  if (false) {'],
   ['AW-27 low stamina is not said', 'src/shell/hunt-go.js', '  else if (st && st.msLeft < STAMINA_SAY_MS) {', '  else if (false) {'],
   ['AW-27 a line that stops the hunt is not marked', 'src/shell/windows/hunt-detail.js', "cls(li, 'is-short', l.short);", "cls(li, 'is-short', false);"],

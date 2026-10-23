@@ -53,6 +53,10 @@ import { charLevelFromXp } from '../core/xp.js?v=0.2.33';
 import { createIntentLedger } from './intent-ledger.js?v=0.2.33';
 import { purseOf, newerPurse } from './item-sections.js?v=0.2.33';
 
+/* What the account's characters share: the depot (2026-11-27-account-depot.sql) and the
+   farm land (2026-12-14-shared-farm.sql). A change to one re-reads the others. */
+const SHARED_KINDS = new Set(['bank', 'farm']);
+
 /** This tab's session id: made once per tab, kept across a reload, new for a new tab. */
 export function tabSessionId(tab, cfg = SESSION_CONFIG, make) {
   const have = tab && tab.get(cfg.tabKey);
@@ -333,10 +337,11 @@ export class AccountSession {
     return { ok: true, rows };
   }
 
-  /* ACCOUNT state one character changed (the depot, 'bank'): every OTHER open character re-reads, so
-     no screen keeps a storage the server no longer holds (CLAUDE.md §6). One hr_load each, rarely. */
+  /* ACCOUNT state one character changed (the depot 'bank', the farm land 'farm'): every OTHER open
+     character re-reads, so no screen keeps a storage or a field the server no longer holds
+     (CLAUDE.md §6). One hr_load each, rarely. */
   _sharedChanged(kind, from) {
-    if (kind !== 'bank') return;
+    if (!SHARED_KINDS.has(kind)) return;
     for (const [slot, cs] of this._chars) if (slot !== from) cs.load();
   }
 

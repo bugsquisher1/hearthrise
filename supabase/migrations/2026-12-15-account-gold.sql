@@ -28,8 +28,8 @@
 --     hr_hunt_settle_session   the gold_out end proof (a read).
 --     hr_hunt_loot_rules       the loot filter's sale (journal kind -> 'hunt', session-stamped).
 --     hr_buy_hero_slot__ungated  hero slots (the client's "Paid from <hero>").
---     hr_farm_harvest_replant  one seed at the Shop's price.
---     hr_farm_upgrade_plot     plot tiers (gold, or deeds).
+--     hr_farm_purse_pay        THE FARM'S ONE PURSE (2026-12-14-shared-farm.sql): plot tiers and the
+--                              replant seed (hr_farm_upgrade_plot, hr_farm_harvest_replant) pay through it.
 --     hr_unlock_buy            Shop offers through the edge unlock-buy.js: house deeds
 --                              and rooms (2026-11-29-house-home.sql), gold ladders, tools.
 --     hr_create_character      the start kit's 500 gold.
@@ -165,8 +165,8 @@
 --   reproduces them byte for byte), drop the helpers, the trigger and the columns.
 --   Which hero held what before the fold is in the fold rows' meta.carry.
 --
--- ORDER: after 2026-12-11-hunt-deploy-no-forfeit.sql (leaves 12-12..12-14 for lanes
---   that land first; a later lane that restates a body pinned here re-derives it).
+-- ORDER: after 2026-12-14-shared-farm.sql (its hr_state_of / hr_create_character / hr_apply splices
+--   are the pinned pre-images here; a later lane that restates a body pinned here re-derives it).
 -- AFTER APPLYING: live-hash-drift wants the 14 restated bodies + hr_apply + the helpers;
 --   deploy hr-accrue (the shared purse + the retry); the client half rides the next release.
 -- ════════════════════════════════════════════════════════════════════════
@@ -184,12 +184,11 @@ begin
   if to_regprocedure('public.hr_reject(text,jsonb)') is null or to_regprocedure('public.hr_wallet_ensure(uuid)') is null then
     raise exception 'PRECONDITION: hr_reject / hr_wallet_ensure absent'; end if;
   for r in select * from (values
-    ('public.hr_state_of(uuid,integer)', '9c717e178a19b222c8295fae65d96683', '9d1f395500f5196c9efb1bfe732ece9f'),
+    ('public.hr_state_of(uuid,integer)', '0bda8ab35a0f4d0330a8955fb2a2f37b', '0506754710c98788248a27b230168e59'),
     ('public.hr_renown_of(uuid,integer)', '31c65df856055839e4311516c099db7e', '45e723cbfa0d9339c04098b562b60018'),
-    ('public.hr_create_character(integer)', 'ab74d27c05d17bc42e24686122df4b4f', '5dc67bb57c4fc28e62d50c63bc3dcaba'),
+    ('public.hr_create_character(integer)', '5be6cc15ed35bc74be9b229134b09110', '6cfec25bf4f82ec0a9e5927960aa6603'),
     ('public.hr_buy_hero_slot__ungated(integer,integer,uuid)', '746516d5b7ec73c53b59f3dd667a3d78', 'edf5a7aa9f1efeef02f2f8f1ca5156e4'),
-    ('public.hr_farm_harvest_replant(integer,integer,uuid)', '7385e211809cbcb7d1bf6e3f31a77a84', '2bc03684231a2c0558ce0b075d6ed626'),
-    ('public.hr_farm_upgrade_plot(integer,uuid,integer)', '310c436780a77f34e98b3247248b7e02', 'c10edc1210b62a826492fba2d1921f5b'),
+    ('public.hr_farm_purse_pay(uuid,integer,bigint)', '0ccc182aad4bf1ed2223aecf2f935d35', 'a8d70b18926e10157c873126aab36fdb'),
     ('public.hr_trait_buy__ungated(text,integer,uuid)', 'baff89cd94b662677fe4cbf30c31a74e', 'ca4ab8c1965afc46378f5cee229d010b'),
     ('public.clan_contribute__ungated(uuid,bigint,integer)', '1787a3471b2d52d0977f4225edfe714f', '40aacafcceb1c814fad203054055eff4'),
     ('public.hr_unlock_buy(uuid,integer,bigint,uuid,text)', '8bee328f72b0dde9b43c3663b680fa19', '560e254057af74da83dee08b013c0b48'),
@@ -198,7 +197,7 @@ begin
     ('public.hr_hunt_settle_session(uuid,integer,uuid,jsonb)', 'd457034c7b81d082ee3c2ecc522d2764', 'bcf7ae2eb8802ddd20824d08a5b97ec2'),
     ('public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)', '1ced9ef2c45f893c892245982e570f36', 'a0bbf22528611f9c5d939783cb211c9e'),
     ('public.hr_hunt_apply_instance(uuid,bigint,jsonb,jsonb,uuid,integer)', '465885606fde6e457bef4e45977c2615', '0badf6bfafe9a9cc85fe059fc9f35497'),
-    ('public.hr_apply(uuid,integer,bigint,uuid,jsonb)', '9183c09d311f9593b0fe6675b12a5d16', 'b78513a8439bf1cafec83806f29ade85')
+    ('public.hr_apply(uuid,integer,bigint,uuid,jsonb)', '466bde57a7bf2ca516266fdd9c4f339a', '34291a5ae8e42247255c416ae02aacdb')
   ) p(sig, pre, post) loop
     select md5(replace(prosrc, chr(13), '')) into v_md5 from pg_proc where oid = to_regprocedure(r.sig);
     if v_md5 is null then raise exception 'PIN: % is missing', r.sig; end if;
@@ -299,16 +298,20 @@ returns text language sql immutable set search_path = public as $$
 $$;
 -- THE LEDGER STATES THE TRUE PURSE. Fires after hr_ledger_session_stamp (BEFORE triggers run in
 -- name order: 'hr_ledger_se…' < 'hr_ledger_st…'), so a hunt row's session_id is already stamped.
+-- A writer that STATES the purse (every body this file restates) is held to the locked wallet; one that
+-- does not (2026-12-14-shared-farm.sql's farm rows, written right after hr_farm_purse_pay) has it
+-- filled from the same wallet row, which its own move locked to commit.
 create or replace function public.hr_ledger_stamp_purse()
 returns trigger language plpgsql set search_path = public, pg_catalog as $$
 declare v bigint;
 begin
   if coalesce(new.gold, 0) = 0 and new.purse is null then return new; end if;
   select w.gold into v from public.account_wallet w where w.user_id = new.user_id;
-  if new.purse is null or v is null or new.purse <> v then
+  if v is null or (new.purse is not null and new.purse <> v) then
     perform public.hr_reject('ledger_purse', jsonb_build_object('gold', new.gold, 'purse', new.purse, 'wallet', v,
       'intent', left(coalesce(new.intent, ''), 64)));
   end if;
+  new.purse := v;
   new.gold_kind := coalesce(new.gold_kind, public.hr_gold_kind(new.kind, new.intent, new.session_id));
   return new;
 end $$;
@@ -723,7 +726,8 @@ begin
       -- quoted the wrong tier's price. The client NEVER computes this.
       -- ── state.plot_level — the SERVER-owned farm plot tier ──
       --    introduced by 2026-09-06-state-of-farm-projection.sql
-      'plot_level', v_st.plot_level,
+      -- SHARED-FARM (2026-12-14-shared-farm.sql): the ACCOUNT's plot tier (account_farm), the same on every hero.
+      'plot_level', public.hr_farm_plot_level(p_user),
       -- ── state.streak_day_key — the streak’s UTC day key ──
       --    introduced by 2026-08-21-streak-state.sql
       -- ── state.streak_day_key — CLOSES `state` (the combat style left with the core rebuild) ──
@@ -795,7 +799,10 @@ begin
                                           -- json null the client would have to special-case.
                                           'waterings', coalesce(to_jsonb(waterings), '[]'::jsonb))
                        order by plot_idx)
-        from public.player_farm where user_id = p_user and slot = v_st.slot), '[]'::jsonb),
+        -- SHARED-FARM (2026-12-14-shared-farm.sql): the ACCOUNT's planted plots, the same on every
+        -- hero; watered_at is the last watering (the array is the record).
+        from (select af.*, (select max(w) from unnest(af.waterings) w) as watered_at
+                from public.account_farm_plots af where af.user_id = p_user) f), '[]'::jsonb),
     -- ── progress / progress_truncated — capped at 1000 rows, and it SAYS when it capped ──
     --    introduced by 2026-08-11-apply-engine.sql
     'progress', coalesce((
@@ -1243,10 +1250,8 @@ begin
   -- one place in the system that legitimately creates items from nothing, and
   -- it must create each of them exactly once.
 
-  if v_kit.farm_plots > 0 then
-    insert into public.player_farm (user_id, slot, plot_idx)
-      select v_uid, v_slot, g from generate_series(0, v_kit.farm_plots - 1) g;
-  end if;
+  -- SHARED-FARM (2026-12-14-shared-farm.sql): no starter plot rows. The field is the
+  -- ACCOUNT's (account_farm_plots holds planted plots only); its size is hr_farm_plot_cap.
 
   -- ONE ledger row, not one per grant. (Journal rule 6: game_events reached
   -- 1.6M rows / 229 MB from six players in four days by journalling per-event.)
@@ -1430,235 +1435,29 @@ begin
   return v_result;
 end $function$;
 
--- ── public.hr_farm_harvest_replant(integer,integer,uuid) ──
-CREATE OR REPLACE FUNCTION public.hr_farm_harvest_replant(p_slot integer, p_plot_idx integer, p_idem uuid)
+-- ── public.hr_farm_purse_pay(uuid,integer,bigint) ──
+CREATE OR REPLACE FUNCTION public.hr_farm_purse_pay(p_user uuid, p_slot integer, p_gold bigint)
  RETURNS jsonb
  LANGUAGE plpgsql
  SECURITY DEFINER
  SET search_path TO 'public', 'pg_temp'
 AS $function$
-declare
-  v_uid    uuid := auth.uid();
-  v_cached jsonb;
-  v_crop   text;
-  v_seed   text;
-  v_have   bigint;
-  v_price  bigint;
-  v_offer  text;
-  v_gold   bigint;
-  v_bought bigint := 0;
-  v_h      jsonb;
-  v_rep    jsonb;
-  v_out    jsonb;
+declare v_gold bigint;
 begin
-  if v_uid is null then
-    return public.hr_note_rejection('farm_replant', p_slot, jsonb_build_object('ok', false, 'error', 'not_signed_in')); end if;
-  if p_idem is null or p_slot is null or p_plot_idx is null or p_plot_idx < 0 or p_plot_idx >= 64 then
-    return public.hr_note_rejection('farm_replant', p_slot, jsonb_build_object('ok', false, 'error', 'bad_intent')); end if;
-  select public.hr_intent_replay(v_uid, p_slot, p_idem, 'farm_replant') into v_cached;
-  if v_cached ->> 'error' = 'intent_mismatch' then return public.hr_note_rejection('farm_replant', p_slot, v_cached); end if;
-  if v_cached is not null then return v_cached; end if;
-  -- the harvest's own bucket (closed-mode check first); the inner harvest spends one more
-  if not public.hr_rpc_gate('farm_harvest') then
-    return public.hr_note_rejection('farm_replant', p_slot, jsonb_build_object('ok', false, 'error', 'rate_limited')); end if;
-
-  -- THE PLOT REMEMBERS ITS CROP: read before the harvest clears the row.
-  select crop_id into v_crop from public.player_farm
-   where user_id = v_uid and slot = p_slot and plot_idx = p_plot_idx;
-
-  -- The harvest, unchanged: its own gates, roll, perks, budget and journal. It
-  -- locks the character row (for update); this transaction keeps that lock.
-  v_h := public.hr_farm_harvest(p_slot, p_plot_idx, md5(p_idem::text || ':farm_replant:harvest')::uuid);
-  if coalesce(v_h ->> 'ok', '') <> 'true' then return v_h; end if;   -- refused (and noted) by the harvest: nothing moved
-
-  if coalesce(v_h ->> 'regrew', '') = 'true' or v_crop is null then
-    v_rep := jsonb_build_object('ok', true, 'kept', true);           -- a regrowing crop is still in the ground
-  else
-    select seed_item into v_seed from public.hr_crops where crop_id = v_crop;
-    select coalesce(qty, 0) into v_have from public.player_inventory
-     where user_id = v_uid and slot = p_slot and item_id = v_seed;
-    if coalesce(v_have, 0) < 1 then
-      -- ONE SEED AT THE SHOP'S OWN PRICE: the listed `seed` row shop_buy sells.
-      select o.price, o.offer_id into v_price, v_offer from public.hr_shop_supply_offers o
-       where o.kind = 'seed' and o.item_id = v_seed order by o.price limit 1;
-      if v_price is null or v_price <= 0 then
-        v_rep := jsonb_build_object('ok', false, 'error', 'no_seed_for_sale', 'seed', v_seed);
-      else
-        -- THE ACCOUNT PURSE pays (2026-12-15-account-gold.sql), under its row lock, never below 0.
-        v_gold := public.hr_purse_move(v_uid, -v_price, 0);
-        if v_gold is null then
-          v_rep := jsonb_build_object('ok', false, 'error', 'cannot_afford', 'seed', v_seed, 'price', v_price,
-            'have', public.hr_purse_of(v_uid));
-        else
-          update public.player_state set version = version + 1, updated_at = now()
-           where user_id = v_uid and slot = p_slot;
-          insert into public.player_inventory as inv (user_id, slot, item_id, qty)
-            values (v_uid, p_slot, v_seed, 1)
-            on conflict (user_id, slot, item_id) do update set qty = inv.qty + 1;
-          insert into public.player_ledger (user_id, slot, kind, intent, item_id, qty, gold, gold_in, xp_in, qty_in, purse, meta)
-            values (v_uid, p_slot, 'shop', 'farm_replant_seed', v_seed, 1, -v_price, 0, 0, 0, v_gold,
-                    jsonb_build_object('offer', v_offer, 'qty', 1, 'unit_gold', v_price, 'plot', p_plot_idx, 'crop', v_crop));
-          v_bought := v_price;
-        end if;
-      end if;
+  if p_gold is null or p_gold < 0 then
+    raise exception 'hr_farm_purse_pay: a price is a whole number >= 0, got %', p_gold; end if;
+  -- ACCOUNT GOLD (2026-12-15-account-gold.sql): the farm's one purse is the ACCOUNT's. hr_purse_move takes
+  -- the purse's row lock LAST (after the hero row, hr_farm_lock and the field) and lands the debit only
+  -- when the purse stays >= 0; `gold` is the account purse after (or as it stands on a refusal). The
+  -- acting hero's version still moves on a paid debit (its envelope's gold changed).
+  v_gold := public.hr_purse_move(p_user, -p_gold, 0);
+  if v_gold is not null then
+    if p_gold > 0 then
+      update public.player_state set version = version + 1, updated_at = now() where user_id = p_user and slot = p_slot;
     end if;
-    if v_rep is null then
-      v_rep := public.hr_farm_plant(p_slot, p_plot_idx, v_crop, md5(p_idem::text || ':farm_replant:plant')::uuid)
-               || jsonb_build_object('bought', v_bought);
-    end if;
+    return jsonb_build_object('ok', true, 'purse', 'account', 'paid', p_gold, 'gold', v_gold);
   end if;
-
-  v_out := v_h || jsonb_build_object('replant', v_rep);
-  insert into public.player_intents (user_id, intent_id, slot, intent, result, at)
-    values (v_uid, p_idem, p_slot, 'farm_replant', v_out, now())
-    on conflict (user_id, intent_id) do nothing;
-  return v_out;
-end $function$;
-
--- ── public.hr_farm_upgrade_plot(integer,uuid,integer) ──
-CREATE OR REPLACE FUNCTION public.hr_farm_upgrade_plot(p_slot integer, p_idem uuid, p_expect_level integer DEFAULT NULL::integer)
- RETURNS jsonb
- LANGUAGE plpgsql
- SECURITY DEFINER
- SET search_path TO 'public', 'pg_temp'
-AS $function$
-declare
-  c_deed constant text := 'farm_deed';
-  v_uid   uuid := auth.uid();
-  v_state public.player_state%rowtype;
-  v_next  int;
-  v_cost  int;
-  v_gold  bigint;
-  v_reqlv int;
-  v_farmlv int;
-  v_xp    bigint;
-  v_have  bigint;
-  v_pay   text;
-  v_cached jsonb;
-  v_purse bigint;
-begin
-  if v_uid is null then return public.hr_note_rejection('farm_upgrade_plot', p_slot, jsonb_build_object('ok', false, 'error', 'not_signed_in')); end if;
-  -- IDEMPOTENCY IS PER (KEY, INTENT, SLOT), NOT PER KEY — and it is checked
-  -- BEFORE the expected level: a retry of a gesture that already landed must
-  -- get its own cached answer back, not a stale_level for the rung it bought.
-  select public.hr_intent_replay(v_uid, p_slot, p_idem, 'farm_upgrade_plot') into v_cached;
-  if v_cached ->> 'error' = 'intent_mismatch' then return public.hr_note_rejection('farm_upgrade_plot', p_slot, v_cached); end if;
-  if v_cached is not null then return v_cached; end if;
-
-  if not public.hr_rpc_gate('farm_plant') then
-    return public.hr_note_rejection('farm_upgrade_plot', p_slot, jsonb_build_object('ok', false, 'error', 'rate_limited'));
-  end if;
-
-  -- THE EXPECTED RUNG IS REQUIRED. Before the lock: a call that cannot be
-  -- judged must not first serialise the character behind it.
-  if p_expect_level is null then
-    return public.hr_note_rejection('farm_upgrade_plot', p_slot, jsonb_build_object('ok', false, 'error', 'missing_expect'));
-  end if;
-
-  select * into v_state from public.player_state
-    where user_id = v_uid and slot = p_slot for update;
-  if v_state.user_id is null then return public.hr_note_rejection('farm_upgrade_plot', p_slot, jsonb_build_object('ok', false, 'error', 'no_character')); end if;
-
-  -- A SECOND INTENT FOR THE SAME RUNG IS STALE (2026-10-04). Read under the
-  -- row lock, so the first of two concurrent intents lands and the second
-  -- sees its write. `plot_level` here is the server's CURRENT level — the
-  -- number the client must adopt — not the rung being bought.
-  if p_expect_level <> v_state.plot_level + 1 then
-    return public.hr_note_rejection('farm_upgrade_plot', p_slot, jsonb_build_object('ok', false, 'error', 'stale_level',
-      'plot_level', v_state.plot_level, 'expect_level', p_expect_level));
-  end if;
-
-  v_next := v_state.plot_level + 1;
-  select deed_cost, gold_cost, req_farm_level into v_cost, v_gold, v_reqlv
-    from public.hr_plot_tier where plot_level = v_next;
-  if v_cost is null then
-    return public.hr_note_rejection('farm_upgrade_plot', p_slot, jsonb_build_object('ok', false, 'error', 'max_plot_level', 'plot_level', v_state.plot_level));
-  end if;
-  -- FAIL CLOSED ON AN UNPRICED RUNG. Both price columns were added with
-  -- `default 0` and req_farm_level `default 1`; a rung above the starting
-  -- level that costs nothing in either currency is a mistake, never an offer.
-  if v_next > 1 and coalesce(v_gold, 0) = 0 and coalesce(v_cost, 0) = 0 then
-    return public.hr_note_rejection('farm_upgrade_plot', p_slot, jsonb_build_object('ok', false, 'error', 'tier_unpriced', 'plot_level', v_next));
-  end if;
-
-  -- THE PACING GATE. Farming level re-derived from the server's own XP.
-  select coalesce(xp, 0) into v_xp from public.player_skills
-    where user_id = v_uid and slot = p_slot and skill_id = 'farming';
-  v_farmlv := public.hr_level_from_xp(coalesce(v_xp, 0));
-  if v_farmlv < coalesce(v_reqlv, 1) then
-    return public.hr_note_rejection('farm_upgrade_plot', p_slot, jsonb_build_object('ok', false, 'error', 'farm_level_too_low',
-      'need', v_reqlv, 'have', v_farmlv, 'plot_level', v_next));
-  end if;
-
-  -- THE PAYMENT DECISION. Gold first; deeds are the fallback, never the default.
-  -- The gold is the ACCOUNT purse (2026-12-15-account-gold.sql), read under its row lock.
-  select coalesce(qty, 0) into v_have from public.player_inventory
-    where user_id = v_uid and slot = p_slot and item_id = c_deed;
-  v_have := coalesce(v_have, 0);
-  v_purse := public.hr_purse_lock(v_uid);
-  if v_purse >= coalesce(v_gold, 0) then
-    v_pay := 'gold';
-  elsif v_have >= v_cost then
-    v_pay := 'deeds';
-  else
-    return public.hr_note_rejection('farm_upgrade_plot', p_slot, jsonb_build_object('ok', false, 'error', 'cannot_afford',
-      'need_gold', coalesce(v_gold, 0), 'have_gold', v_purse,
-      'need_deeds', v_cost, 'have_deeds', v_have, 'plot_level', v_next));
-  end if;
-
-  if v_pay = 'deeds' and v_cost > 0 then
-    -- THE DEBIT VERIFIES THE QUANTITY IN EVERY BRANCH (qty > 0 is a CHECK, so
-    -- the last deed is DELETEd, predicated on qty = v_cost).
-    update public.player_inventory set qty = qty - v_cost
-      where user_id = v_uid and slot = p_slot and item_id = c_deed and qty > v_cost;
-    if not found then
-      delete from public.player_inventory
-        where user_id = v_uid and slot = p_slot and item_id = c_deed and qty = v_cost;
-      if not found then
-        return public.hr_note_rejection('farm_upgrade_plot', p_slot, jsonb_build_object('ok', false, 'error', 'cannot_afford',
-          'need_gold', coalesce(v_gold, 0), 'have_gold', v_purse,
-          'need_deeds', v_cost, 'have_deeds', v_have, 'plot_level', v_next));
-      end if;
-    end if;
-  end if;
-
-  if v_pay = 'gold' and coalesce(v_gold, 0) > 0 then
-    v_purse := public.hr_purse_move(v_uid, -v_gold, 0);
-    if v_purse is null then   -- unreachable under the lock above; refused, never negative
-      return public.hr_note_rejection('farm_upgrade_plot', p_slot, jsonb_build_object('ok', false, 'error', 'cannot_afford',
-        'need_gold', coalesce(v_gold, 0), 'have_gold', public.hr_purse_of(v_uid), 'plot_level', v_next));
-    end if;
-  else
-    v_purse := public.hr_purse_of(v_uid);
-  end if;
-  update public.player_state
-     set plot_level = v_next,
-         version = version + 1,
-         updated_at = now()
-   where user_id = v_uid and slot = p_slot;
-  v_gold := v_purse;
-
-  -- THE JOURNAL. One row per upgrade; gold spent negative, deeds negative qty.
-  insert into public.player_ledger (user_id, slot, kind, intent, item_id, qty, gold, purse, meta)
-    values (v_uid, p_slot, 'farm', 'farm_upgrade_plot',
-            case when v_pay = 'deeds' then c_deed else null end,
-            case when v_pay = 'deeds' then -v_cost else 0 end,
-            case when v_pay = 'gold'  then -(select gold_cost from public.hr_plot_tier where plot_level = v_next) else 0 end,
-            case when v_pay = 'gold' and (select gold_cost from public.hr_plot_tier where plot_level = v_next) <> 0 then v_purse end,
-            jsonb_build_object('plot_level', v_next, 'paid_with', v_pay,
-                               'farm_level', v_farmlv));
-
-  v_cached := jsonb_build_object('ok', true, 'plot_level', v_next,
-    'paid_with', v_pay,
-    'deeds_spent', case when v_pay = 'deeds' then v_cost else 0 end,
-    'gold_spent',  case when v_pay = 'gold'
-                        then (select gold_cost from public.hr_plot_tier where plot_level = v_next)
-                        else 0 end,
-    'gold', v_gold);
-  insert into public.player_intents (user_id, intent_id, slot, intent, result, at)
-    values (v_uid, p_idem, p_slot, 'farm_upgrade_plot', v_cached, now())
-    on conflict (user_id, intent_id) do nothing;
-  return v_cached;
+  return jsonb_build_object('ok', false, 'purse', 'account', 'paid', 0, 'gold', public.hr_purse_of(p_user));
 end $function$;
 
 -- ── public.hr_trait_buy__ungated(text,integer,uuid) ──
@@ -3975,10 +3774,7 @@ grant execute on function public.hr_renown_of(uuid, integer) to hr_engine;
 revoke all on function public.hr_create_character(integer) from public, anon, service_role;
 grant execute on function public.hr_create_character(integer) to authenticated;
 revoke all on function public.hr_buy_hero_slot__ungated(integer, integer, uuid) from public, anon, authenticated, service_role;
-revoke all on function public.hr_farm_harvest_replant(integer, integer, uuid) from public, anon, service_role;
-grant execute on function public.hr_farm_harvest_replant(integer, integer, uuid) to authenticated;
-revoke all on function public.hr_farm_upgrade_plot(integer, uuid, integer) from public, anon, service_role;
-grant execute on function public.hr_farm_upgrade_plot(integer, uuid, integer) to authenticated;
+revoke all on function public.hr_farm_purse_pay(uuid, integer, bigint) from public, anon, authenticated, service_role;
 revoke all on function public.hr_trait_buy__ungated(text, integer, uuid) from public, anon, authenticated, service_role;
 revoke all on function public.clan_contribute__ungated(uuid, bigint, integer) from public, anon, authenticated;
 grant execute on function public.clan_contribute__ungated(uuid, bigint, integer) to service_role;
@@ -4079,15 +3875,16 @@ begin
        or (select count(*) from public.player_ledger where user_id = v_u2 and gold_kind = 'vendor_sale' and slot = 1) <> 1
        or (select count(*) from public.player_ledger where user_id = v_u2 and gold_kind = 'shop' and slot = 0) <> 1 then
       raise exception 'VERIFY(f): the gold kinds are %', (select jsonb_agg(jsonb_build_array(user_id, slot, gold, gold_kind)) from public.player_ledger where user_id in (v_u, v_u2)); end if;
-    -- (g) THE TRIGGER REFUSES A GOLD ROW THAT LIES ABOUT THE PURSE, OR STATES NONE.
+    -- (g) THE TRIGGER REFUSES A GOLD ROW THAT LIES ABOUT THE PURSE, AND STATES IT FOR ONE THAT SAID NONE.
     begin
       insert into public.player_ledger (user_id, slot, kind, intent, gold, purse) values (v_u2, 0, 'admin', 'probe_lie', 5, 999);
       raise exception 'VERIFY(g): a gold row stating purse 999 (the purse is %) was journalled', public.hr_purse_of(v_u2);
     exception when sqlstate 'HR000' then null; end;
-    begin
-      insert into public.player_ledger (user_id, slot, kind, intent, gold) values (v_u2, 0, 'admin', 'probe_none', 5);
-      raise exception 'VERIFY(g): a gold row with no purse was journalled';
-    exception when sqlstate 'HR000' then null; end;
+    v_g := public.hr_purse_move(v_u2, 5, 0);
+    insert into public.player_ledger (user_id, slot, kind, intent, gold) values (v_u2, 0, 'farm', 'farm_upgrade_plot', 5);
+    if (select purse from public.player_ledger where user_id = v_u2 and intent = 'farm_upgrade_plot') is distinct from v_g
+       or (select gold_kind from public.player_ledger where user_id = v_u2 and intent = 'farm_upgrade_plot') is distinct from 'farm' then
+      raise exception 'VERIFY(g): a gold row that stated no purse reads %', (select to_jsonb(l) from public.player_ledger l where user_id = v_u2 and intent = 'farm_upgrade_plot'); end if;
     -- (h) NO HERO ROW HOLDS GOLD; the projection is the purse.
     if exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'player_state' and column_name = 'gold') then
       raise exception 'VERIFY(h): player_state.gold still exists - a second copy of the purse'; end if;

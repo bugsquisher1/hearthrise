@@ -12,14 +12,16 @@
 //   upgradePlot(account, cs, level)       hr_farm_upgrade_plot: the next plot tier, gold
 //                                         first and Farmer's Deeds when gold is short
 // On ok the character is RE-READ, so the field changes only from the server's
-// envelope; the answer's body comes back for the window's one line ("Harvested 3
-// Turnip"). Each is one ask in the account's intent ledger (askVia), so the
-// pressed control waits on it.
+// envelope, and the account is told (`onShared('farm')`): the field is shared by
+// every hero (2026-12-14-shared-farm.sql), so the account re-reads the others too.
+// The answer's body comes back for the window's one line ("Harvested 3 Turnip").
+// Each is one ask in the account's intent ledger (askVia), so the pressed control
+// waits on it.
 // ════════════════════════════════════════════════════════════════════════
 import { askVia } from './intent-ledger.js?v=0.2.33';
 
 const CROP = /^[a-z_]{1,32}$/;
-const MAX_PLOT = 63;
+const MAX_PLOT = 127;   // the server's index fuse (an extra plot may sit past 63)
 const newIdem = () => globalThis.crypto.randomUUID();
 const plotOk = (i) => Number.isInteger(i) && i >= 0 && i <= MAX_PLOT;
 const usable = (account, cs) => !!account && !!account.server && !!cs && cs.status !== 'closed' && Number.isInteger(cs.slot);
@@ -39,6 +41,7 @@ async function settled(ans, cs) {
   const b = ans && ans.body && typeof ans.body === 'object' && !Array.isArray(ans.body) ? ans.body : {};
   if (ans && ans.ok && b.ok === true) {
     if (typeof cs.load === 'function') await cs.load();
+    if (typeof cs.onShared === 'function') cs.onShared('farm', cs.slot);
     return { ok: true, body: factsOf(b) };
   }
   return { ok: false, error: (typeof b.error === 'string' && b.error) || (ans && ans.error) || 'refused', body: factsOf(b) };

@@ -443,10 +443,26 @@ async function chainArms(mutate, M) {
   try { await d.q("insert into public.player_ledger (user_id, slot, kind, intent, gold, purse) values ($1, 0, 'admin', 'g7_lie', 5, 999999)", [a]); }
   catch (e) { lie = String(e.message); }
   ok(lie && /ledger_purse/.test(lie), `G7: a gold row stating purse 999,999 was ${lie ? 'refused: ' + lie.slice(0, 80) : 'journalled'}`);
-  let none = null;
-  try { await d.q("insert into public.player_ledger (user_id, slot, kind, intent, gold) values ($1, 0, 'admin', 'g7_none', 5)", [a]); }
-  catch (e) { none = String(e.message); }
-  ok(none !== null, 'G7: a gold row stating no purse was journalled');
+  /* a writer that states no purse (the farm's rows, 2026-12-14-shared-farm.sql) has it filled from the wallet */
+  await d.q('update public.account_wallet set gold = gold + 5 where user_id = $1', [a]);
+  await d.q("insert into public.player_ledger (user_id, slot, kind, intent, gold) values ($1, 0, 'admin', 'g7_none', 5)", [a]);
+  const filled = await d.q("select gold::text g, purse::text p, gold_kind k from public.player_ledger where user_id = $1 and intent = 'g7_none' and gold <> 0", [a]);
+  ok(filled.length === 1 && Number(filled[0].p) === await d.purse(a) && filled[0].k === 'other', `G7: a gold row stating no purse reads ${JSON.stringify(filled)} (purse ${await d.purse(a)})`);
+  // G7's farm half: a plot upgrade through hr_farm_purse_pay (2026-12-14-shared-farm.sql) pays from the ACCOUNT purse.
+  {
+    const u = await d.newAccount();
+    const tier = (await d.q("select gold_cost::text g, req_farm_level l from public.hr_plot_tier where plot_level = 2"))[0];
+    if (ok(tier && Number(tier.g) > 0, `G7: no priced plot tier 2 (${JSON.stringify(tier)})`)) {
+      await d.q("update public.player_skills set xp = 100000000 where user_id = $1 and skill_id = 'farming'", [u]);
+      await d.seedPurse(u, Number(tier.g) + 3);
+      await d.as(u); await d.gate();
+      const up = await d.one('select public.hr_farm_upgrade_plot(1, gen_random_uuid(), 2)');
+      const c = await chain(d, u);
+      ok(up && up.ok === true && up.paid_with === 'gold' && await d.purse(u) === 3 && !c.bad.length && c.end === 3
+        && c.rows.some((r) => r.intent === 'farm_upgrade_plot' && r.k === 'farm' && Number(r.slot) === 1),
+        `G7: slot 1's plot upgrade answered ${JSON.stringify(up)}; purse ${await d.purse(u)}; chain ${JSON.stringify(c.bad)}`);
+    }
+  }
 
   // G8 NO BODY READS A PER-HERO PURSE.
   const bodies = await d.q(`select p.oid::regprocedure::text sig, p.prosrc src from pg_proc p join pg_namespace n on n.oid = p.pronamespace

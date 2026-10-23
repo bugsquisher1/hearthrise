@@ -42,7 +42,7 @@ const PERK_WORDS = Object.freeze({
   prayerSpeed: (v) => 'prayer offerings ' + pc(v) + '% faster',
   runeSpeed: (v) => 'rune binding ' + pc(v) + '% faster',
   buffDuration: (v) => 'food and drink effects last ' + pc(v) + '% longer',
-  farmPlots: (v) => v + ' more farm ' + (v === 1 ? 'bed' : 'beds') + ' for each of your characters',
+  farmPlots: (v) => v + ' more farm ' + (v === 1 ? 'bed' : 'beds') + ' on the land your heroes share',
   trophyMounts: (v) => 'a trophy wall with room for ' + v + ' bestiary trophies',
 });
 function perkText(room, level) {

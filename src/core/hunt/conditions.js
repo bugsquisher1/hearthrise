@@ -21,9 +21,10 @@
 // slot starts with (suggestedConditions: an ability's own trigger, food under
 // CONSUMABLE_RULES.foodBelowPct, drink under drinkBelowPct) are written ON the slot,
 // where the player sees and edits them; the old per-hero eat-at / drink-at settings
-// are retired. A slot switched Off (`enabled: false`) never fires; a slot with
-// ignored monsters never fires AT one of them, nor while the hero's own target is
-// one. Each lane with no slot of its own takes its defaults: the role's rule set
+// are retired. A slot switched Off (`enabled: false`) never fires; a slot that
+// aims at monsters (an attack, or an ability at a monster) with ignored monsters
+// never fires AT one of them, nor while the hero's own target is one; a food,
+// drink, heal or shield slot is never held back by them. Each lane with no slot of its own takes its defaults: the role's rule set
 // (src/data/rule-subjects.js ROLE_RULES, its triggers written as real conditions)
 // for abilities and the loaded ammo for the basic attack. Food and drink have NONE
 // (Tyler 2026-10-21: the game never picks a supply): a new hero, whose stored bar
@@ -103,6 +104,18 @@ export function normalizeSlot(s) {
 
 /** Does slot `slot` ignore monster unit `m` (its kind is on the slot's ignore list)? */
 export const ignores = (slot, m) => !!(slot && Array.isArray(slot.ignore) && slot.ignore.length && m && m.side === 'mon' && slot.ignore.includes(m.kind));
+
+/* The ability targets that are MONSTERS (abilities.js TARGETS): the only ones an ignore list can mean. */
+const MONSTER_TARGETS = Object.freeze(['taunt', 'mark', 'enemy', 'area', 'cleave']);
+/** Does `slot` aim at monsters (an attack item, or an ability whose target is a monster)? An IGNORE LIST
+    binds only these (Coordinator 2026-10-23): a food, a drink, a heal or a shield aims at a hero, so a hero
+    fighting an ignored monster still eats, drinks and heals. */
+export function aimsAtMonsters(slot) {
+  const a = slot && slot.action;
+  if (!a) return false;
+  if (a.type === 'attack_with_item') return true;
+  return a.type === 'ability' && !!ABILITIES[a.id] && MONSTER_TARGETS.includes(ABILITIES[a.id].target);
+}
 
 /* ── VALIDATION (the server's hr_hunt_bar_check / hr_hunt_stop_rules_check, mirrored) ── */
 
@@ -470,12 +483,14 @@ export function suggestedConditions(action) {
  * { pass, mask (bit i = condition i held), cx } — `cx.aim` / `cx.ally` are the
  * aim and the ally its conditions found, which the action then uses. Every
  * condition is evaluated (no short-circuit), so `mask` is the whole truth. A slot
- * that IGNORES the monster its hero is fighting does not pass (its other targets
- * are filtered where it aims: abilities.js targetFor, bestAim).
+ * that aims at monsters (aimsAtMonsters) and IGNORES the monster its hero is
+ * fighting does not pass (its other targets are filtered where it aims:
+ * abilities.js targetFor, bestAim). A food, drink, heal or shield slot is never
+ * held back by its ignore list.
  */
 export function testSlot(inst, u, h, slot) {
   const cx = { inst, u, h, slot, aim: null, ally: null };
-  if (Array.isArray(slot.ignore) && slot.ignore.length && Number.isInteger(u.target)) {
+  if (Array.isArray(slot.ignore) && slot.ignore.length && Number.isInteger(u.target) && aimsAtMonsters(slot)) {
     const t = inst.world.units.find((x) => x.id === u.target);
     if (ignores(slot, t)) return { pass: false, mask: 0, cx };
   }

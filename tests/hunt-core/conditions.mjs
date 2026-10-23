@@ -382,7 +382,14 @@ const cases = {
     const ign = Object.assign(ab('power_strike'), { ignore: ['rat'] });
     if (fight([ign, ab('cleave')], [[10, 13, 3, 'rat']], 10) !== 'cleave@10') return 'Power Strike ignoring rats fired at a rat: ' + fight([ign, ab('cleave')], [[10, 13, 3, 'rat']], 10);
     if (fight([ign, ab('cleave')], [[10, 13, 3, 'slime']], 10) !== 'power_strike@10') return 'Power Strike ignoring rats did not fire at a slime';
-    /* a slot that aims at nobody (a food) ignoring rats does not fire while its hero fights a rat */
+    /* while its hero fights a rat, Power Strike ignoring rats waits even with a slime beside it (it fires at the
+       slime once the slime is the hero's target) */
+    const pair = [[10, 13, 3, 'rat'], [11, 13, 4, 'slime']];
+    if (fight([ign], pair, 10) !== '') return 'Power Strike ignoring rats fired while its hero fought a rat: ' + fight([ign], pair, 10);
+    if (fight([ign], pair, 11) !== 'power_strike@11') return 'CONTROL: Power Strike ignoring rats did not fire at the slime it fights: ' + fight([ign], pair, 11);
+    /* AN IGNORE LIST BINDS ONLY A SLOT THAT AIMS AT MONSTERS (Coordinator 2026-10-23): a hero hit by an ignored
+       monster still eats, drinks and heals. A food slot and a Greater Mend slot each ignoring rats fire while their
+       hero fights a rat exactly as while it fights a slime. */
     const eat = (kind) => {
       const h = hero(M, 1, 12, 3, { hp: 40, maxHp: 100, mana: 100, maxMana: 100, target: 10 });
       const inst = instOf(M, world(M, [h, mon(M, 10, 0, 13, 3, { target: 1, kind, hp: 500, maxHp: 500 })]));
@@ -392,7 +399,16 @@ const cases = {
       M.consumables.consume(inst, sc);
       return sc.events.filter((e) => e.type === 'eat').length;
     };
-    if (eat('rat') !== 0 || eat('slime') !== 1) return 'a food slot ignoring rats ate ' + eat('rat') + ' fighting a rat and ' + eat('slime') + ' fighting a slime';
+    if (eat('rat') !== 1 || eat('slime') !== 1) return 'a food slot ignoring rats ate ' + eat('rat') + ' fighting a rat and ' + eat('slime') + ' fighting a slime (want 1 and 1)';
+    const mend = (kind) => {
+      const h = hero(M, 1, 12, 3, { role: 'healer', hp: 40, maxHp: 100, mana: 300, maxMana: 300, target: 10 });
+      const inst = instOf(M, world(M, [h, mon(M, 10, 0, 13, 3, { target: 1, kind, hp: 500, maxHp: 500 })]));
+      inst.heroes = { 1: heroRow(M, { range: 7, slots: M.cond.heroSlots([Object.assign(ab('greater_mend', [c('ally_hp_pct', 'lt', 70, 'lowest')]), { ignore: ['rat'] })], 'healer') }) };
+      const sc = subStep(0); sc.rng = M.rng.createRng(9);
+      M.abilities.castAbilities(inst, sc);
+      return sc.events.filter((e) => e.type === 'cast' && e.ability === 'greater_mend').length;
+    };
+    if (mend('rat') !== 1 || mend('slime') !== 1) return 'a Greater Mend slot ignoring rats cast ' + mend('rat') + ' fighting a rat and ' + mend('slime') + ' fighting a slime (want 1 and 1)';
     /* the hero's own target (a slime) is out of reach and a rat stands next to it: the rat is no target for this slot */
     if (fight([ign], [[10, 13, 3, 'rat'], [11, 16, 3, 'slime']], 11) !== '') return 'Power Strike ignoring rats took the rat beside it: ' + fight([ign], [[10, 13, 3, 'rat'], [11, 16, 3, 'slime']], 11);
     /* an area slot ignoring rats aims at the lone slime, never the pack of rats */
@@ -825,6 +841,9 @@ const mutants = [
   { name: 'a food with nothing to restore is eaten anyway', case: 'consume-slot', edits: [['src/core/hunt/consumables.js', "  if (int(u[stat]) >= int(u[MAX_OF[stat]])) return null;\n", '']] },
   { name: 'a slot switched Off still fires', case: 'slot-switch-and-ignore', edits: [['src/core/hunt/conditions.js', '  list.forEach((s, at) => { if (keep(s) && s.enabled !== false) out.push({ rule: s.id, slot: s, at }); });', '  list.forEach((s, at) => { if (keep(s)) out.push({ rule: s.id, slot: s, at }); });']] },
   { name: 'a slot fires while its hero fights an ignored monster', case: 'slot-switch-and-ignore', edits: [['src/core/hunt/conditions.js', '    if (ignores(slot, t)) return { pass: false, mask: 0, cx };\n', '']] },
+  { name: 'an ignore list holds back a food or a heal slot (S1a)', case: 'slot-switch-and-ignore', edits: [['src/core/hunt/conditions.js', ' && Number.isInteger(u.target) && aimsAtMonsters(slot)) {', ' && Number.isInteger(u.target)) {']] },
+  { name: 'an ignore list holds back a food slot', case: 'slot-switch-and-ignore', edits: [['src/core/hunt/conditions.js', "  if (a.type === 'attack_with_item') return true;\n", "  if (a.type === 'attack_with_item' || a.type === 'consume') return true;\n"]] },
+  { name: 'an ignore list holds back an ally heal', case: 'slot-switch-and-ignore', edits: [['src/core/hunt/conditions.js', "const MONSTER_TARGETS = Object.freeze(['taunt', 'mark', 'enemy', 'area', 'cleave']);", "const MONSTER_TARGETS = Object.freeze(['taunt', 'mark', 'enemy', 'area', 'cleave', 'ally']);"]] },
   { name: 'an area slot aims at an ignored monster', case: 'slot-switch-and-ignore', edits: [['src/core/hunt/conditions.js', '  const cand = mons.filter((m) => reaches(inst, hero, range, m) && !ignores(slot, m))', '  const cand = mons.filter((m) => reaches(inst, hero, range, m))']] },
   { name: 'an ignored monster may be a single-target ability\'s target', case: 'slot-switch-and-ignore', edits: [['src/core/hunt/abilities.js', '  const near = mons.filter((m) => inReach(inst, hero, h.range, m) && !ignores(cx && cx.slot, m)).sort(byPreference(hero));', '  const near = mons.filter((m) => inReach(inst, hero, h.range, m)).sort(byPreference(hero));']] },
   { name: 'an unknown monster may be ignored', case: 'validation', edits: [['src/core/hunt/conditions.js', "  if (!s.ignore.every((id) => typeof id === 'string' && Object.prototype.hasOwnProperty.call(MONSTERS, id)) || new Set(s.ignore).size !== s.ignore.length) return { error: 'bad_ignore' };\n", '']] },

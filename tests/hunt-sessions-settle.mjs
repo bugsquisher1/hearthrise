@@ -71,6 +71,8 @@
 //              default hunt and the caster swings on, bare; a slot naming Blood
 //              Runes with Air loaded lands Blood-loaded's blows; an unaffordable
 //              store-rune spell never ends the hunt; one span == cut windows.
+//   IGNORE-AIMS  a food or heal slot ignoring every monster still fires (the same
+//              hunt as no ignore list); an attack ignoring them never does.
 //   WORLD-BOUND  a four-hero party's world stays inside world_max_bytes on the
 //              compact form; world-state refuses one past it.
 //   FENCE      a hunter is never priced by the old path (hunt_open), a combat
@@ -1013,6 +1015,36 @@ const ENGINE_ARMS = {
     if (ended(broke)) problems.push(`an unaffordable store-rune spell ended the hunt ${canon(ended(broke))} while Power Strike could cast`);
     if (!(casts(broke, 'power_strike') > 0)) problems.push('CONTROL: Power Strike never cast');
     if (casts(broke, 'flame_strike')) problems.push(`Flame Strike cast ${casts(broke, 'flame_strike')} times on a store rune the purse could not pay`);
+    return problems;
+  },
+
+  /* AN IGNORE LIST BINDS ONLY A SLOT THAT AIMS AT MONSTERS (Coordinator 2026-10-23, lane b-spell-content), BOTH
+     PATHS (one span = the browser closed, cut at odd instants = viewed). A Healer whose food slot and Greater Mend slot
+     each ignore every monster at the ground still eats and heals: the hunt settles exactly as the same bar with no
+     ignore list. A Power Strike slot ignoring them all never casts (the control: the list still binds an attack). */
+  'IGNORE-AIMS': async (M) => {
+    const problems = [];
+    const span = 600000;
+    const cuts = [T0 + 7001, T0 + 133333, T0 + 299999, T0 + 450001];
+    /* every monster kind the fixture ground spawns */
+    const all = [...new Set(groundsOf(M).mill_cellar.ground.pockets.flatMap((p) => p.spawns.map((s) => s.monster)))].sort();
+    const ms = (o) => o.outs.flatMap((x) => x.members);
+    const sum = (o, k) => ms(o).reduce((a, x) => { for (const [id, n] of Object.entries(x.hunt[k] || {})) a[id] = (a[id] || 0) + n; return a; }, {});
+    const count = (o, type, ab) => o.outs.reduce((a, x) => a + x.events.filter((e) => e.type === type && (!ab || e.ability === ab)).length, 0);
+    const sig = (o) => canon({ mend: count(o, 'cast', 'greater_mend'), heals: count(o, 'heal'), eats: count(o, 'eat'), uses: sum(o, 'uses'), buys: sum(o, 'buys'),
+      hp: o.members.map((x) => x.hp) });
+    const bar = (ign) => [Object.assign({ action: { type: 'consume', id: 'salted_shrimp' }, conditions: [{ metric: 'self_hp_pct', op: 'lt', value: 60 }], join: 'and' }, ign ? { ignore: all } : {}),
+      Object.assign({ action: { type: 'ability', id: 'greater_mend' }, conditions: [{ metric: 'ally_hp_pct', op: 'lt', value: 90, subject: 'lowest' }], join: 'and' }, ign ? { ignore: all } : {})];
+    const mk = (ign) => () => [memberIn(M, 'a', { role: 'healer', level: 3, gold: 5000, bar: bar(ign) })];
+    const one = runCut(M, mk(true), span, []);
+    const cut = runCut(M, mk(true), span, cuts);
+    if (sig(one) !== sig(cut)) problems.push(`the viewed cut settled differently from one span ${firstDiff(sig(one), sig(cut))}`);
+    const plain = runCut(M, mk(false), span, []);
+    if (!(count(plain, 'cast', 'greater_mend') > 0) || !(count(plain, 'eat') > 0)) problems.push(`CONTROL: the Healer cast ${count(plain, 'cast', 'greater_mend')} Greater Mends and ate ${count(plain, 'eat')} times with no ignore list`);
+    if (sig(one) !== sig(plain)) problems.push(`ignoring every monster held back a food or heal slot ${firstDiff(sig(plain), sig(one))}`);
+    const strike = runCut(M, () => [memberIn(M, 'a', { role: 'tank', level: 20, gold: 5000,
+      bar: [{ action: { type: 'ability', id: 'power_strike' }, conditions: [], join: 'and', ignore: all }] })], span, []);
+    if (count(strike, 'cast', 'power_strike')) problems.push(`a Power Strike ignoring every monster cast ${count(strike, 'cast', 'power_strike')} times`);
     return problems;
   },
 
@@ -2279,6 +2311,8 @@ const MUTANTS = [
     from: '  if (!e.ammo || !isRune(items && items[e.ammo])) return e;', to: '  return e;' },
   { arm: 'RUNE-SPEND', name: '[rune-spend] an unaffordable slot marks the hunt gold_out while the bar is still walked', file: 'src/core/hunt/abilities.js',
     from: "    if (s.why) return { why: s.short ? 'gold_short' : s.why === 'level' ? 'level' : 'no_stock' };", to: "    if (s.why) { if (s.short) h.hs.goldOut = true; return { why: s.short ? 'gold_short' : s.why === 'level' ? 'level' : 'no_stock' }; }" },
+  { arm: 'IGNORE-AIMS', name: '[spell-content] an ignore list holds back a food or heal slot', file: 'src/core/hunt/conditions.js',
+    from: ' && Number.isInteger(u.target) && aimsAtMonsters(slot)) {', to: ' && Number.isInteger(u.target)) {' },
   { arm: 'BUFF', name: 'the hunt never re-measures the buff queue (a buff never pays)', file: 'src/core/combat-sim.js',
     from: "      if (typeof m.buffsAt === 'function') m.buffsAt(atMs);\n", to: '' },
   { arm: 'BUFF', name: '[C2 buff queue at the read clock] the queue is measured once, at the window start', file: 'src/core/member.js',

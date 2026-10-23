@@ -1,7 +1,7 @@
 // src/data/world/art-budget.js — the scale budget of the pixel world, and the
 // atlas manifest every world renderer reads.
 //
-// One grid: T = 32 art px per tile, drawn at an integer zoom (×3 on desktop).
+// One grid: T = 32 art px per tile, drawn at an integer zoom (×2, ×3 only above 2400 CSS px).
 // Every sprite belongs to a CLASS; the class fixes its body size (±TOLERANCE), its
 // frame, how it touches the ground (contact), its shadow and its draw layer.
 // tests/world-assets.mjs enforces this table on every committed atlas, so relative

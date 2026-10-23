@@ -19,6 +19,7 @@
 // ════════════════════════════════════════════════════════════════════════
 
 import { ABILITIES, suggestedTrigger } from './abilities.js?v=0.2.34';
+import { BASIC_SUPPLIES } from './supply-basics.js?v=0.2.34';
 
 /* WHICH FOE A HERO TAKES FIRST (spec §3.2 #11; src/core/hunt/targeting.js
    ORDER implements each). `follow` takes the leader's target; in a party of
@@ -63,19 +64,36 @@ export const ROLE_DEFAULTS = Object.freeze({
    suggestedTrigger: a self-shield under its whenBelowPct, an ally heal under it for
    the lowest ally, an area at areaMin monsters, a party heal at minHurt allies),
    unless the row names its own. The HEALER attacks only when nobody needs healing
-   (Tyler P1, the solo healer): Nature's Wrath waits while any ally in reach is
+   (Tyler P1, the solo healer): Green Sickness waits while any ally in reach is
    under 70%, so its mana goes to Greater Mend first; its basic attack never waits.
+   A role's CORE rune spell (STORE_CORE: the one its role cannot work without) names
+   its family's store rune (`action.store`, written on the slot like its trigger; Tyler
+   2026-10-23: with the spell unlocked and no rune in the bag, the game charges gold
+   per cast, like food and drink), so a new hero with no runes still casts it, its own
+   runes first. Every other default rune slot casts the hero's OWN runes only: a default
+   bar buys no supply the role does not need (designer 2026-10-21), and the player turns
+   the store on per slot in the Configure action (a new rune slot starts with it on).
+   MEASURED on the real settle (lane b-spell-content): with a store rune on every default
+   rune slot the Sewer party's runes and the drinks they cost took its net under the
+   Thicket's (forest-cave first-grounds-net-chain) and the Warrens floor tank under +25%.
    The server projects these as the default bar (hr_hunt_role_rules, restated by
-   2026-12-21-slot-truth.sql, pinned equal by tests/hunt-core/conditions.mjs). */
-const slot = (id, conditions, join) => Object.freeze({ id: 'd_' + id, action: Object.freeze({ type: 'ability', id }),
+   2026-12-22-spell-content.sql, pinned equal by tests/hunt-core/conditions.mjs). */
+const STORE_CORE = Object.freeze(['fireball', 'greater_mend']);
+const storeOf = (id) => { const r = ABILITIES[id]; const b = r && r.rune && STORE_CORE.includes(id) ? BASIC_SUPPLIES.find((x) => x.partner === r.rune) : null; return b ? b.id : null; };
+const slot = (id, conditions, join) => Object.freeze({ id: 'd_' + id,
+  action: Object.freeze(Object.assign({ type: 'ability', id }, storeOf(id) ? { store: storeOf(id) } : {})),
   conditions: Object.freeze((conditions || suggestedTrigger(ABILITIES[id])).map((c) => Object.freeze(c))), join: join || 'and' });
+/* SPARE MANA: the Mage's single-target Frost Lance casts only while it holds half its mana or more, so Fireball, its
+   core area spell, always has the mana it needs (measured: unconditioned, Frost Lance cast every 6 s and its drinks
+   took the floor Mage under its +25%, drop-tables caster-floor). */
+const SPARE_MANA = Object.freeze([{ metric: 'self_mana_pct', op: 'gte', value: 50 }]);
 export const ROLE_RULES = Object.freeze({
   tank: Object.freeze([slot('challenge'), slot('flame_strike'), slot('power_strike')]),
   melee_dps: Object.freeze([slot('power_strike'), slot('cleave'), slot('rend')]),
   ranger: Object.freeze([slot('hunters_mark'), slot('flame_volley'), slot('precision_shot')]),
-  mage: Object.freeze([slot('fireball'), slot('frost_lance'), slot('arcane_barrier')]),
+  mage: Object.freeze([slot('fireball'), slot('frost_lance', SPARE_MANA), slot('arcane_barrier')]),
   healer: Object.freeze([slot('greater_mend'), slot('circle_of_renewal'),
-    slot('natures_wrath', [{ metric: 'ally_hp_pct', op: 'gte', value: 70, subject: 'lowest' }])]),
+    slot('green_sickness', [{ metric: 'ally_hp_pct', op: 'gte', value: 70, subject: 'lowest' }])]),
 });
 
 /* An action set: up to `presets` per character, each a bar of up to `slots`

@@ -41,7 +41,7 @@ const cases = {
     const loose = runes.filter((id) => !M.SC.CRAFTED_RUNE_FAMILIES.includes(M.ITEMS[id].family));
     if (new Set(loose.map((id) => M.ITEMS[id].family)).size !== loose.length || !loose.every((id) => M.runes.runeTierOf(M.ITEMS[id]) === 1)) return 'an uncrafted family has more than its one old rune: ' + loose;
     const inactive = Object.values(M.AD.ABILITIES).filter((r) => !r.active).map((r) => r.id).sort();
-    return JSON.stringify(inactive) === '["frost_lance","rend"]' ? null : 'held rows changed: ' + JSON.stringify(inactive);
+    return JSON.stringify(inactive) === '[]' ? null : 'held rows changed: ' + JSON.stringify(inactive);
   },
   /* AB-10: the first usable ability in bar order fires, one per lane. */
   'first-usable-in-order': (M) => {
@@ -206,7 +206,9 @@ const cases = {
     const lo = at(1), hi = at(60);
     if (lo.cast.mana !== fs.mana || hi.cast.mana !== fs.mana) return 'version I cost ' + lo.cast.mana + ' mana at 1 and ' + hi.cast.mana + ' at 60 (want ' + fs.mana + ' both)';
     if (lo.cast.power !== 1000 || hi.cast.power !== M.AD.outputPm(fs, 1, 60)) return 'the casts landed ' + lo.cast.power + ' / ' + hi.cast.power + ' permille';
-    return hi.dmg > 3 * lo.dmg && lo.dmg > 0 ? null : 'the same roll hit for ' + lo.dmg + ' at Melee 1 and ' + hi.dmg + ' at Melee 60';
+    /* the same roll lands about power/1000 as hard (the stances' floors take a point at most) */
+    return lo.dmg > 0 && hi.dmg > lo.dmg && hi.dmg * 1000 >= lo.dmg * (hi.cast.power - 100) ? null
+      : 'the same roll hit for ' + lo.dmg + ' at Melee 1 and ' + hi.dmg + ' at Melee 60 (power ' + hi.cast.power + ')';
   },
   /* A VERSION RAISES NUMBERS ONLY (src/data/abilities.js versions, outPm): a cast at 1500 permille heals and
      shields half again its row's numbers, a row with no `versions` casts every version at its own. */
@@ -441,13 +443,13 @@ const mutants = [
   { name: 'the mark never wears off', case: 'mark-adds-damage',
     edits: [['src/core/hunt/damage.js', ' && target.markUntil > sc.atMs ?', ' ?']] },
   { name: 'bleed lands at level 0 whatever the caster', case: 'bleed-scales-with-caster-skill',
-    edits: [['src/core/hunt/abilities.js', 'skillLv: h && h.skills ? levelOf(h.skills, srow.scalesWith) : 0,', 'skillLv: 0,']] },
+    edits: [['src/core/hunt/abilities.js', 'skillLv: h && h.skills && srow.scalesWith ? levelOf(h.skills, srow.scalesWith) : 0,', 'skillLv: 0,']] },
   { name: 'a rune names a family that is not one of the seven', case: 'rows-validate',
-    edits: [['src/data/stonecraft.js', "family: 'rupture', runeTier: 1 }", "family: 'blood', runeTier: 1 }"]] },
+    edits: [['src/data/stonecraft.js', 'ammoPerShot: 1, family, runeTier: t.tier });', "ammoPerShot: 1, family: family === 'rupture' ? 'blood' : family, runeTier: t.tier });"]] },
   { name: 'a rune casts a sixth tier', case: 'rows-validate',
     edits: [['src/data/stonecraft.js', "family: 'earth', runeTier: 1 }", "family: 'earth', runeTier: 6 }"]] },
   { name: 'an active ability names a rune no bag can hold', case: 'rows-validate',
-    edits: [['src/data/abilities.js', "    dmg: [2, 4], hits: 2, status: 'bleed', active: false }),", "    dmg: [2, 4], hits: 2, status: 'bleed' }),"]] },
+    edits: [['src/data/abilities.js', "rune: 'chalked_rupture_rune', target: 'enemy',", "rune: 'life_rune', target: 'enemy',"]] },
   { name: 'the bar fires its last usable ability', case: 'first-usable-in-order',
     edits: [['src/core/hunt/abilities.js', "  const rows = slotsFor(h, 'ability').filter(", "  const rows = slotsFor(h, 'ability').reverse().filter("]] },
   { name: 'a cast does not lock its lane', case: 'lane-blocks-second-cast',

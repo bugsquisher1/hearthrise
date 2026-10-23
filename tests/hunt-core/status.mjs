@@ -60,9 +60,10 @@ const cases = {
   /* ST-03: tick = base x (1 + Melee x 0.004) x tier (1.00/1.10/1.20), fixed when the stack lands. */
   'scales-with-melee-and-tier': (M) => {
     const S = (lv, tier) => M.status.stackScale(bleed(M), { skillLv: lv, runeTier: tier });
-    const want = [[0, 1, 1000], [50, 1, 1200], [50, 3, 1440], [99, 2, 1535], [0, null, 1000]];
+    /* five rune tiers (src/data/runes.js): a Graven Rupture Rune's bleed is the fifth step */
+    const want = [[0, 1, 1000], [50, 1, 1200], [50, 3, 1440], [99, 2, 1535], [0, 5, 1400], [0, null, 1000]];
     for (const [lv, tier, s] of want) if (S(lv, tier) !== s) return 'scale(' + lv + ', ' + tier + ') = ' + S(lv, tier) + ', want ' + s;
-    for (const bad of [[0, 4], [-1, 1], [1.5, 1]]) {
+    for (const bad of [[0, 6], [-1, 1], [1.5, 1]]) {
       try { S(...bad); return 'scale(' + bad + ') was accepted'; } catch { /* refused, never clamped */ }
     }
     if (M.status.tickAmount(3, 1440) !== 4 || M.status.tickAmount(1, 1000) !== 1) return 'tickAmount rounds wrong';

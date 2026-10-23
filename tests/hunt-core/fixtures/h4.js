@@ -14,6 +14,9 @@ export function supplySession(M, o) {
       [STORE_FOOD]: { kind: 'heal', price: 15, heals: 6, mana: 0, partner: 'cooked_shrimp' },
       [STORE_DRINK]: { kind: 'mana', price: 15, heals: 0, mana: 6, partner: 'turnip_juice' },
       ...(x.shot ? { [x.shot]: { kind: 'ammo', price: 2, heals: 0, mana: 0, partner: x.ammo } } : {}),
+      /* `runes`: every store rune (one a family, supply-basics.js), for a bar whose rune spells name theirs */
+      ...(x.runes ? Object.fromEntries(M.SB.BASIC_SUPPLIES.filter((b) => b.kind === 'ammo' && /_rune$/.test(b.id))
+        .map((b) => [b.id, { kind: 'ammo', price: b.price, heals: 0, mana: 0, partner: b.partner }])) : {}),
     },
     purse: x.purse ?? 100000, goldFloor: x.goldFloor ?? 0,
     supplySource: x.supplySource || 'mine', onEmpty: x.onEmpty || 'switch',

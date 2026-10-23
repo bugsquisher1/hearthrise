@@ -31,8 +31,8 @@
 //     conditions a NEW slot of the ability starts with (conditions.js suggestedConditions):
 //     shown on the slot, never applied behind it.
 // `active: false` holds a row whose rune is not a carried supply yet: no
-// ability may name an item a hunt bag cannot hold (spec §1.2). Rend waits on
-// the Life rune and Frost Lance on a Frost rune line (other lanes).
+// ability may name an item a hunt bag cannot hold (spec §1.2). None is held
+// since the rune families landed (Rend on Rupture, Frost Lance on Ice, 2026-10-23).
 //
 // Numbers: designer ruling 2026-10-15 via the hunt sim (combat-data.js, a
 // SPEC — never source); names and every number are the Game Designer's to
@@ -75,38 +75,44 @@ const ab = (o) => Object.freeze({ rune: null, ammo: 0, magicXpMult: 0, active: t
    PROVISIONAL: the designer re-tunes every number in the balance phase (p30/p31). The Bible gives none but the
    designer's Greater Mend example (25/30/36/43/52 mana), so each spell's `versions` ([mana, outPm] pairs) follow it:
      mana    x1.2 a version (rounded), version I = the row's mana;
-     outPm   1000 / 1300 / 1650 / 2000 / 2350, and `lvPm` 40 (+4% of the row's numbers a level above 1),
+     outPm   1000 / 1600 / 2230 / 2870 / 3510, and `lvPm` 20 (+2% of the row's numbers a level above 1),
    sized so version N at its unlock level lands N's share of a same-level hero's HP scale (vitals: 150 + 10 a Level,
-   1.00 / 1.88 / 2.81 / 3.75 / 4.69 of Level 1's): II at 15 = 1860, III at 30 = 2810, IV at 45 = 3760, V at 60 =
-   4710. Version I keeps scaling (3360 at 60), the incentive to bind the deeper rune. */
-const LV_PM = 40;
+   1.00 / 1.88 / 2.81 / 3.75 / 4.69 of Level 1's): II at 15 = 1880, III at 30 = 2810, IV at 45 = 3750, V at 60 =
+   4690. Version I keeps scaling, more slowly (2180 at 60): the deeper rune is the way up. MEASURED on the real
+   settle (lane b-spell-content): +4% a level put the Warrens' boss under its rare pace (more kills an hour). */
+const LV_PM = 10;
 
 export const ABILITIES = Object.freeze([
   /* shield — the tank's Melee */
   ab({ id: 'challenge', n: 'Challenge', disciplines: ['shield'], lane: 'offense', cdMs: 8000, mana: 0, target: 'taunt' }),
   ab({ id: 'flame_strike', n: 'Flame Strike', disciplines: ['shield'], lane: 'offense', cdMs: 8000, mana: 10, rune: 'chalked_fire_rune',
     target: 'enemy', dmg: [8, 14], element: 'ember', magicXpMult: 250,
-    versions: [[10, 1000], [12, 1300], [14, 1650], [17, 2000], [21, 2350]], lvPm: LV_PM }),
+    versions: [[10, 1000], [12, 1740], [14, 2520], [17, 3310], [21, 4100]], lvPm: LV_PM }),
   ab({ id: 'power_strike', n: 'Power Strike', disciplines: ['shield', 'dual_axe'], lane: 'offense', cdMs: 6000, mana: 6,
     target: 'enemy', dmg: [7, 13] }),
   /* dual axes — Melee DPS */
   ab({ id: 'cleave', n: 'Cleave', disciplines: ['dual_axe'], lane: 'offense', cdMs: 6000, mana: 8, target: 'cleave', dmg: [6, 11], maxHits: 3 }),
-  ab({ id: 'rend', n: 'Rend', disciplines: ['dual_axe'], lane: 'offense', cdMs: 6000, mana: 8, rune: 'life_rune', target: 'enemy',
-    dmg: [2, 4], hits: 2, status: 'bleed', active: false }),
+  /* Rend spends the RUPTURE family (Tyler 2026-10-23: its old Life rune is the Rupture rune); a deeper rune also
+     bleeds harder (statuses.js bleed tierPermille). */
+  ab({ id: 'rend', n: 'Rend', disciplines: ['dual_axe'], lane: 'offense', cdMs: 6000, mana: 8, rune: 'chalked_rupture_rune', target: 'enemy',
+    dmg: [2, 4], hits: 2, status: 'bleed', versions: [[8, 1000], [10, 1740], [12, 2520], [14, 3310], [17, 4100]], lvPm: LV_PM }),
   /* bow / crossbow — Ranger */
   ab({ id: 'hunters_mark', n: "Hunter's Mark", disciplines: ['ranged'], lane: 'offense', cdMs: 12000, mana: 8, target: 'mark',
     bonusPct: 20, durMs: 8000 }),
   ab({ id: 'flame_volley', n: 'Flame Volley', disciplines: ['ranged'], lane: 'offense', cdMs: 10000, mana: 15, rune: 'chalked_fire_rune', ammo: 3,
-    target: 'area', dmg: [5, 9], element: 'ember', magicXpMult: 250 }),
+    target: 'area', dmg: [5, 9], element: 'ember', magicXpMult: 250,
+    versions: [[15, 1000], [18, 1740], [22, 2520], [26, 3310], [31, 4100]], lvPm: LV_PM }),
   ab({ id: 'precision_shot', n: 'Precision Shot', disciplines: ['ranged'], lane: 'offense', cdMs: 6000, mana: 6, ammo: 1,
     target: 'enemy', dmg: [7, 12] }),
   /* staff — Mage (destruction) */
-  /* Fireball spends mana only (designer 2026-10-21): the Mage's one damage spell must cast with no
-     Runecrafting; Flame Strike and Flame Volley keep the Fire Rune as their crafted upgrade. */
-  ab({ id: 'fireball', n: 'Fireball', disciplines: ['destruction'], lane: 'offense', cdMs: 8000, mana: 25,
-    target: 'area', dmg: [7, 12], element: 'ember', magicXpMult: 1600 }),
-  ab({ id: 'frost_lance', n: 'Frost Lance', disciplines: ['destruction'], lane: 'offense', cdMs: 6000, mana: 20, rune: 'frost_rune',
-    target: 'enemy', dmg: [12, 18], element: 'frost', magicXpMult: 1600, active: false }),
+  /* Fireball is a FIRE rune spell (Tyler 2026-10-23, the approved spell map: "gold per cast covers heroes without
+     runes"): a hero with no Fire Rune casts it on the store's, which the Mage's default slot names (rule-subjects.js). */
+  ab({ id: 'fireball', n: 'Fireball', disciplines: ['destruction'], lane: 'offense', cdMs: 8000, mana: 25, rune: 'chalked_fire_rune',
+    target: 'area', dmg: [7, 12], element: 'ember', magicXpMult: 1600,
+    versions: [[25, 1000], [30, 1740], [36, 2520], [43, 3310], [52, 4100]], lvPm: LV_PM }),
+  ab({ id: 'frost_lance', n: 'Frost Lance', disciplines: ['destruction'], lane: 'offense', cdMs: 6000, mana: 20, rune: 'chalked_ice_rune',
+    target: 'enemy', dmg: [12, 18], element: 'frost', magicXpMult: 1600,
+    versions: [[20, 1000], [24, 1740], [29, 2520], [35, 3310], [41, 4100]], lvPm: LV_PM }),
   ab({ id: 'arcane_barrier', n: 'Arcane Barrier', disciplines: ['destruction'], lane: 'heal', cdMs: 20000, mana: 30, target: 'self',
     shield: 40, whenBelowPct: 85, magicXpMult: 1600 }),
   /* staff — Healer (restoration) */
@@ -114,8 +120,12 @@ export const ABILITIES = Object.freeze([
     heal: [40, 60], whenBelowPct: 70, magicXpMult: 1600 }),
   ab({ id: 'circle_of_renewal', n: 'Circle of Renewal', disciplines: ['restoration'], lane: 'heal', cdMs: 12000, mana: 50, target: 'party',
     heal: [20, 30], whenBelowPct: 80, minHurt: 2, radius: 8, magicXpMult: 1600 }),
-  ab({ id: 'natures_wrath', n: "Nature's Wrath", disciplines: ['restoration'], lane: 'offense', cdMs: 10000, mana: 20, target: 'area',
-    dmg: [3, 6], magicXpMult: 1600 }),
+  /* GREEN SICKNESS (was Nature's Wrath; Tyler 2026-10-23: a POISON rune spell, its element poison): Restoration's
+     lower-power area spell, and every monster it hits takes more from every blow for a while (statuses.js sickness,
+     Bible §17: a fixed, non-stacking vulnerability that no rune tier raises). */
+  ab({ id: 'green_sickness', n: 'Green Sickness', disciplines: ['restoration'], lane: 'offense', cdMs: 10000, mana: 20, rune: 'chalked_poison_rune',
+    target: 'area', dmg: [3, 6], element: 'poison', status: 'sickness', magicXpMult: 1600,
+    versions: [[20, 1000], [24, 1740], [29, 2520], [35, 3310], [41, 4100]], lvPm: LV_PM }),
 ].reduce((acc, r) => { acc[r.id] = r; return acc; }, Object.create(null)));
 
 const TARGETS = ['taunt', 'mark', 'enemy', 'area', 'cleave', 'self', 'ally', 'party'];

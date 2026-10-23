@@ -28,7 +28,8 @@
 //   caster-floor     the Sewer's party of four (Melee tank, Ranger, Mage with wand + book, Healer) at its floor in the
 //                    ladder kit plays the full hour with 0 deaths, the Mage casts, and EVERY role clears +25% on the
 //                    even income share against its own store bill (designer pass 2026-10-21: drinks x12 with the mana
-//                    pools, store drinks x5/3, Fireball rune-free; before it the party wiped in 12.9 min)
+//                    pools, store drinks x5/3; before it the party wiped in 12.9 min). Since lane b-spell-content its
+//                    rune spells cast on the store's runes their default slots name (Tyler 2026-10-23: gold per cast)
 //
 // Prints the per-ground table (gold/h, store/h, margin, gear pieces per hour by slot) every run: the evidence.
 import { join } from 'node:path';
@@ -357,9 +358,11 @@ const casterMutants = [
     ['src/data/supply-basics.js', "'goldenroot_tea', 396, 138)", "'goldenroot_tea', 33, 138)"],
     ['src/data/supply-basics.js', "'emberfruit_cordial', 480, 233)", "'emberfruit_cordial', 40, 233)"],
     ['src/data/drinks.js', "v: 6, mana: 96 ", "v: 6, mana: 8 "]] },
-  { name: 'Fireball spends a Fire Rune again (the Mage casts nothing)', edits: [
-    ['src/data/abilities.js', "id: 'fireball', n: 'Fireball', disciplines: ['destruction'], lane: 'offense', cdMs: 8000, mana: 25,",
-      "id: 'fireball', n: 'Fireball', disciplines: ['destruction'], lane: 'offense', cdMs: 8000, mana: 25, rune: 'fire_rune',"]] },
+  /* Fireball is a Fire rune spell (Tyler 2026-10-23): a Mage with no runes casts it on the store's rune its default
+     slot names. With no store rune on the default slots the floor Mage casts nothing. */
+  { name: 'the default rune spells name no store rune (the Mage casts nothing)', edits: [
+    ['src/data/rule-subjects.js', "  action: Object.freeze(Object.assign({ type: 'ability', id }, storeOf(id) ? { store: storeOf(id) } : {})),",
+      "  action: Object.freeze({ type: 'ability', id }),"]] },
 ];
 /* The Warrens floor's levers (src/data + the tier table in src/core/combat.js): each plays on a planted copy. */
 const warrensMutants = [

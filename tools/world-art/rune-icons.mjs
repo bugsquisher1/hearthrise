@@ -12,8 +12,15 @@
 // in gold, outlined in shadow, in the bottom-right corner. Only palette colours are
 // written, with binary alpha, so the output stays inside the locked palette.
 //
-//   node tools/world-art/rune-icons.mjs           write the deeper tiers of every crafted family
-//   node tools/world-art/rune-icons.mjs --check   exit 1 when a written icon differs from a fresh one
+// THE STORE'S RUNE (supply-basics.js, one a family) is the Chalked tablet in plain stone: every
+// colour mapped by its lightness onto the shadow and stone ramps, so the basic rune reads as the
+// crafted one without its colour. Written only when the family has none (plain_fire_rune.png was
+// drawn by hand before this tool and is kept).
+// The Ice and Poison Chalked tablets were recoloured once from the old Chaos and Death Rune tablets
+// (frost and venom ramps on the mark); every other Chalked tablet is its family's old rune icon.
+//
+//   node tools/world-art/rune-icons.mjs           write the deeper tiers (and any missing store rune) of every crafted family
+//   node tools/world-art/rune-icons.mjs --check   exit 1 when a written tier icon differs from a fresh one
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
@@ -54,15 +61,36 @@ export function stamp(base, n) {
   return out;
 }
 
+/* The plain stone the store's rune is cut from: the shadow and stone ramps, dark -> light. */
+const PLAIN = Object.freeze(['#0b0a0c', '#17141a', '#231d1f', '#2f2723', '#3a3a3e', '#4f4e52', '#6a6865', '#8a867d', '#aaa49a'].map(rgb));
+const lum = (d, i) => 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+
+/** `base` in plain stone: every opaque pixel onto PLAIN by its lightness among the tablet's own colours. */
+export function plain(base) {
+  const out = { width: base.width, height: base.height, data: Uint8Array.from(base.data) };
+  let lo = Infinity, hi = -Infinity;
+  for (let i = 0; i < out.data.length; i += 4) if (out.data[i + 3]) { const l = lum(out.data, i); lo = Math.min(lo, l); hi = Math.max(hi, l); }
+  for (let i = 0; i < out.data.length; i += 4) {
+    if (!out.data[i + 3]) continue;
+    const k = hi > lo ? Math.round(((lum(out.data, i) - lo) / (hi - lo)) * (PLAIN.length - 1)) : 0;
+    [out.data[i], out.data[i + 1], out.data[i + 2]] = PLAIN[k];
+  }
+  return out;
+}
+
 async function main() {
   const { RUNE_TIERS, runeId } = await import(pathToFileURL(join(ROOT, 'src/data/runes.js')).href);
   const { CRAFTED_RUNE_FAMILIES } = await import(pathToFileURL(join(ROOT, 'src/data/stonecraft.js')).href);
+  const { BASIC_SUPPLIES } = await import(pathToFileURL(join(ROOT, 'src/data/supply-basics.js')).href);
   const check = process.argv.includes('--check');
   let stale = 0;
   for (const f of CRAFTED_RUNE_FAMILIES) {
     const src = join(DIR, runeId(f, 1) + '.png');
     if (!existsSync(src)) throw new Error('rune-icons: ' + f + ' has no Chalked icon (' + runeId(f, 1) + '.png), the source of its tiers');
     const base = decodePNG(readFileSync(src));
+    const store = BASIC_SUPPLIES.find((b) => b.partner === runeId(f, 1));
+    const storeFile = store ? join(ROOT, 'assets', 'icons-bundle', 'pixel', 'supplies', store.id + '.png') : null;
+    if (!check && storeFile && !existsSync(storeFile)) { writeFileSync(storeFile, encodePNG(plain(base))); console.log('wrote supplies/' + store.id + '.png'); }
     for (const t of RUNE_TIERS.slice(1)) {
       const file = join(DIR, runeId(f, t.tier) + '.png');
       const png = encodePNG(stamp(base, t.tier));

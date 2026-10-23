@@ -262,15 +262,11 @@ const SUPPLY_CHAINS = Object.fromEntries([
   /* ITEM-PLAN-04 · the graded blanks, cut at Runecrafting. (Quarried stone,
      blocks and ashlar were deleted with Stonemason in the 2026-10-14 demolition.) */
   ['rune_blank',      { n: 'Blank Rune',      icon: '⬜', v: 5,  tier: 1, pendingSkill: 'runecrafting' }],
-  ['fine_rune_blank', { n: 'Fine Blank Rune', icon: '⬜', v: 24, tier: 3, pendingSkill: 'runecrafting' }],
-  ['deep_rune_blank', { n: 'Deep Blank Rune', icon: '⬜', v: 60, tier: 5, pendingSkill: 'runecrafting' }],
 
   /* ITEM-PLAN-02 · the bound rune ladder (§6.2). Rune values equal arrow values
      exactly, which is what makes magic's and ranged's supply cost comparable. */
   rune('air_rune',   'Air Rune',   0), rune('earth_rune', 'Earth Rune', 1),
   rune('water_rune', 'Water Rune', 2),
-  rune('chaos_rune', 'Chaos Rune', 4), rune('death_rune', 'Death Rune', 5),
-  rune('blood_rune', 'Blood Rune', 6),
 
   /* ITEM-PLAN-03 · the whetstone ladder (§6.3). Values are the Designer's
      derived band — the steel rung at 130 gives 10 × 130 / 660 = 1.97×, just
@@ -324,8 +320,6 @@ export const LIB2_DESC = {
 
   rune_essence: 'Pale humming stone off the essence face, the raw stuff every blank rune is cut out of',
   rune_blank: 'A blank stone chip, cut square and waiting for a mark',
-  fine_rune_blank: 'A finely cut blank of granite, smooth enough to take a small and complicated mark',
-  deep_rune_blank: 'A basalt blank cut deep, for marks that must not wear away',
 
   /* ── STAFF RUNES: SAY THE MECHANIC, THEN THE FLAVOUR (b432) ──────────────
      These were pure atmosphere, on the one screen where a player is looking at
@@ -345,9 +339,6 @@ export const LIB2_DESC = {
   air_rune: 'Socketed in a staff for a first thread of Magic strength, and it never runs out — a student\'s whole arsenal',
   earth_rune: 'Socketed for Magic strength and spent one per cast; a stone rune heavy in the palm out of all proportion to its size',
   water_rune: 'Socketed for Magic strength; a rune that beads with moisture in a dry room',
-  chaos_rune: 'Socketed for Magic strength; its mark will not stay quite the same shape between glances',
-  death_rune: 'Socketed for Magic strength; cold, and cut on a blank taken from beneath a barrow',
-  blood_rune: 'The deepest binding a staff will take — deep-cut, dark in the groove, and never quite dry',
 
   coarse_whetstone: 'A rough field stone that puts an edge on anything and a good edge on nothing',
   copper_whetstone: 'A copper-bound stone, the first one worth keeping in the pack',

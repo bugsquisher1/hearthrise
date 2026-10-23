@@ -95,11 +95,11 @@ const AMMO_RARITY = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'legenda
    rune costs BASIC_AMMO_PREMIUM x the Chalked rune's (supply-basics.js), 2 g a cast.
    Air is a family with no rows: it is hidden until a spell spends it (Tyler 10-23), and an item with no
    source and no use is not authored (tests/catalogue-coherence.mjs C1, the W0 rule). */
-const RUNE_VALUE = [1, 2, 4, 6, 9];
+const RUNE_VALUE = [0, 2, 4, 6, 9];
 const RUNE_GLYPH = Object.freeze({ fire: '🔥', earth: '🌍', water: '💧', ice: '❄️', poison: '🧪', rupture: '🩸' });
 /* The families bound into family x tier rows so far (§10: the Fire family is the sample; the others follow in
    batches of 20 rows or fewer). A family not listed still rides its old ladder row below. */
-export const CRAFTED_RUNE_FAMILIES = Object.freeze(['fire']);
+export const CRAFTED_RUNE_FAMILIES = Object.freeze(['fire', 'ice', 'poison', 'rupture']);
 const runeRow = (family, t) => ({ n: runeName(family, t.tier), icon: RUNE_GLYPH[family], v: RUNE_VALUE[t.tier - 1], type: 'ammo', slot: 'ammo',
   tier: t.tier, rarity: AMMO_RARITY[t.tier - 1], reqSkill: 'magic', reqLv: t.level, ammoPerShot: 1, family, runeTier: t.tier });
 const RUNE_ROWS = Object.fromEntries(CRAFTED_RUNE_FAMILIES.flatMap((f) => RUNE_TIERS.map((t) => [runeId(f, t.tier), runeRow(f, t)])));
@@ -150,8 +150,6 @@ export const STONECRAFT_ITEMS = {
      v 15 keeps the essence->blank cuts at 3.0x/3.3x vendor, 1.0x/1.1x book. */
   rune_essence:    { n: 'Rune Essence',    icon: '🪨', v: 15, tier: 1, rarity: 'common' },
   rune_blank:      { n: 'Blank Rune',      icon: '⬜', v: 3,  tier: 1, rarity: 'common' },
-  fine_rune_blank: { n: 'Fine Blank Rune', icon: '🔲', v: 28, tier: 3, rarity: 'uncommon' },
-  deep_rune_blank: { n: 'Deep Blank Rune', icon: '🔳', v: 60, tier: 5, rarity: 'rare' },
 
   /* ══ RUNES — magic's ammo. The staff has a socket; you load a bound rune ══
      Values are IDENTICAL to the arrow ladder at every tier (1/1/2/4/6/9/12).
@@ -175,9 +173,6 @@ export const STONECRAFT_ITEMS = {
   air_rune:   { n: 'Air Rune',   icon: '🌀', v: 0,  type: 'ammo', slot: 'ammo', tier: 1, rarity: AMMO_RARITY[0], reqSkill: 'magic', reqLv: AMMO_REQ_LV[0], magicStrB: AMMO_STAT[0], ammoPerShot: FREE, family: 'air', runeTier: 1 },
   earth_rune: { n: 'Earth Rune', icon: '🌍', v: 1,  type: 'ammo', slot: 'ammo', tier: 2, rarity: AMMO_RARITY[1], reqSkill: 'magic', reqLv: AMMO_REQ_LV[1], magicStrB: AMMO_STAT[1], ammoPerShot: 1, family: 'earth', runeTier: 1 },
   water_rune: { n: 'Water Rune', icon: '💧', v: 2,  type: 'ammo', slot: 'ammo', tier: 3, rarity: AMMO_RARITY[2], reqSkill: 'magic', reqLv: AMMO_REQ_LV[2], magicStrB: AMMO_STAT[2], ammoPerShot: 1, family: 'water', runeTier: 1 },
-  chaos_rune: { n: 'Chaos Rune', icon: '🌪️', v: 6,  type: 'ammo', slot: 'ammo', tier: 5, rarity: AMMO_RARITY[4], reqSkill: 'magic', reqLv: AMMO_REQ_LV[4], magicStrB: AMMO_STAT[4], ammoPerShot: 1, family: 'ice', runeTier: 1 },
-  death_rune: { n: 'Death Rune', icon: '💀', v: 9,  type: 'ammo', slot: 'ammo', tier: 6, rarity: AMMO_RARITY[5], reqSkill: 'magic', reqLv: AMMO_REQ_LV[5], magicStrB: AMMO_STAT[5], ammoPerShot: 1, family: 'poison', runeTier: 1 },
-  blood_rune: { n: 'Blood Rune', icon: '🩸', v: 12, type: 'ammo', slot: 'ammo', tier: 7, rarity: AMMO_RARITY[6], reqSkill: 'magic', reqLv: AMMO_REQ_LV[6], magicStrB: AMMO_STAT[6], ammoPerShot: 1, family: 'rupture', runeTier: 1 },
 
   /* ══ WHETSTONES — melee's ammo, and the charge-not-timer ruling (R4) ═════
      Tyler asked for "sharpening stones that temporarily increase melee weapon
@@ -251,17 +246,7 @@ export const STONECRAFT_RECIPES = {
     { id: 'deepbind_water',     name: 'Deepbind Water Runes', icon: '💧', inputs: { rune_blank: 7, coal: 1 },     output: 'water_rune', outputQty: 60, xp: 330, req: 39, ms: 3800 },
     /* The family x tier binds (BIND_RECIPES above): one a rune, the Blank Rune in. */
     ...BIND_RECIPES,
-    { id: 'bind_chaos_runes',   name: 'Bind Chaos Runes',     icon: '🌪️', inputs: { fine_rune_blank: 6 },         output: 'chaos_rune', outputQty: 54, xp: 940, req: 60, ms: 4000 },
-    { id: 'deepbind_chaos',     name: 'Deepbind Chaos Runes', icon: '🌪️', inputs: { fine_rune_blank: 7 },         output: 'chaos_rune', outputQty: 64, xp: 1400, req: 69, ms: 4200 },
-    { id: 'bind_death_runes',   name: 'Bind Death Runes',     icon: '💀', inputs: { deep_rune_blank: 6 },         output: 'death_rune', outputQty: 56, xp: 1500, req: 75, ms: 4200 },
-    { id: 'bind_blood_runes',   name: 'Bind Blood Runes',     icon: '🩸', inputs: { deep_rune_blank: 6 },         output: 'blood_rune', outputQty: 58, xp: 2200,req: 88, ms: 4400 },
-    { id: 'deepbind_blood',     name: 'Deepbind Blood Runes', icon: '🩸', inputs: { deep_rune_blank: 7 },         output: 'blood_rune', outputQty: 68, xp: 2900,req: 93, ms: 4600 },
-
-    /* ── THE GRADED BLANKS (designer ruling, demolition 2026-10-14). The
-       Stonemason bench was cut, so the fine and deep blanks are cut here from
-       Rune Essence like the base blank. `magic_essence` still enters at the
-       DEEP blank and nowhere below it. Numbers UNVERIFIED until a sim run. */
-    { id: 'cut_fine_blanks',    name: 'Cut Fine Blank Runes', icon: '🔲', inputs: { rune_essence: 6, coal: 3 },                     output: 'fine_rune_blank', outputQty: 14, xp: 400,  req: 38, ms: 3400 },
-    { id: 'cut_deep_blanks',    name: 'Cut Deep Blank Runes', icon: '🔳', inputs: { fine_rune_blank: 14, coal: 4, magic_essence: 2 }, output: 'deep_rune_blank', outputQty: 20, xp: 1500, req: 74, ms: 4000 },
+    /* (The Fine and Deep Blank Runes and their cuts left with the family x tier runes, 2026-10-23: every tier is
+       bound from the one Blank Rune, the designer's d3-tiers.) */
   ],
 };

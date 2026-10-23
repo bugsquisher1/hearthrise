@@ -9,7 +9,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { loadCore, plant, makeReport, ROOT } from './fixtures/h1.js';
-import { oneHero, rngOf, loadData } from './fixtures/h4.js';
+import { oneHero, rngOf, loadData, supplySession } from './fixtures/h4.js';
 
 async function load(root) {
   const M = await loadCore(root);
@@ -58,7 +58,7 @@ const cases = {
     const red = M.C.defenceReduction(rk);
     const hits = [];
     for (let seed = 1; seed <= 12; seed++) {
-      const y = oneHero(M, {}, { bar: ['fireball'], range: 7 },
+      const y = oneHero(M, {}, { bar: ['fireball'], range: 7, hs: supplySession(M, { bag: { chalked_fire_rune: { loaded: 1 } } }) },
         [{ kind: 'rat_king', x: 14, y: 3, hp: 5000, maxHp: 5000 }, { kind: 'rat_king', x: 15, y: 3, hp: 5000, maxHp: 5000 }]);
       y.sc.rng = rngOf(M, seed);
       M.abilities.castAbilities(y.inst, y.sc);

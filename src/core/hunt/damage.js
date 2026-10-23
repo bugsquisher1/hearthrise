@@ -25,6 +25,7 @@
 // ============================================================
 
 import { MONSTERS } from '../../data/monsters.js?v=0.2.34';
+import { STATUSES } from '../../data/statuses.js?v=0.2.34';
 import { HUNT_STANCES, DEFAULT_STANCE } from '../../data/rule-subjects.js?v=0.2.34';
 import { COMBAT_BALANCE, rollAttack, rollCrit, applyCrit, defenceReduction, monsterAccuracy, monsterMaxHit } from '../combat.js?v=0.2.34';
 import { cheb } from './grid.js?v=0.2.34';
@@ -49,6 +50,17 @@ export const PERSISTED = Object.freeze({
   world: Object.freeze([]),
   pack: Object.freeze([]),
 });
+
+/* How much more a unit takes from its MARKING statuses (statuses.js takenPm), permille: the strongest live stack's
+   (a marking status never stacks past its row's maxStacks, and two marks of one kind never add). */
+function takenPmOf(u) {
+  let best = 0;
+  for (const st of Array.isArray(u.statuses) ? u.statuses : []) {
+    const row = st && Object.prototype.hasOwnProperty.call(STATUSES, st.s) ? STATUSES[st.s] : null;
+    if (row && Number.isInteger(row.takenPm) && row.takenPm > best && st.left > 0) best = row.takenPm;
+  }
+  return best;
+}
 
 /** The permille of its row's kill yield a monster pays (pull-cycle.js spawnPack stamps it; unstamped = all). */
 export const yieldOf = (m) => (Number.isInteger(m && m.yieldPm) && m.yieldPm > 0 ? m.yieldPm : 1000);
@@ -100,8 +112,9 @@ export function landHit(inst, sc, source, target, amount, element, ability, crit
     return { dmg: 0, absorbed: 0, killed: false, dodged: true };
   }
   /* A MARKED target (abilities.js: Hunter's Mark) takes markPm permille more from every blow until
-     markUntil, folded into the one multiplier hurt applies (`ability.mult`). */
-  const markPm = Number.isInteger(target.markPm) && target.markPm > 0 && target.markUntil > sc.atMs ? target.markPm : 0;
+     markUntil, and a target under a MARKING status (statuses.js takenPm: Green Sickness) its takenPm more,
+     added together and folded into the one multiplier hurt applies (`ability.mult`). */
+  const markPm = (Number.isInteger(target.markPm) && target.markPm > 0 && target.markUntil > sc.atMs ? target.markPm : 0) + takenPmOf(target);
   const base = ability && Number.isInteger(ability.mult) ? ability.mult : 1000;
   const r = hurt(inst, target, amount, source, element,
     markPm ? Object.assign({}, ability, { mult: Math.floor((base * (1000 + markPm)) / 1000) }) : ability);

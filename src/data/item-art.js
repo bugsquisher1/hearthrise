@@ -153,18 +153,18 @@ export const SHIPPED = Object.freeze({
     'abyssal_greaves', 'abyssal_pearl', 'air_rune', 'alpha_cloak', 'alpha_fang',
     'ancient_claw', 'ancient_fragment', 'ancient_rune',
     'ashcrown_greatsword', 'banded_signet', 'bat_wing',
-    'bear_claw', 'bear_pelt', 'big_bones', 'blood_rune', 'bone_chips', 'bones',
-    'bronze_bar', 'brute_plate', 'captain_medal', 'captains_ribblade', 'chalked_fire_rune', 'chaos_rune',
+    'bear_claw', 'bear_pelt', 'big_bones', 'bone_chips', 'bones',
+    'bronze_bar', 'brute_plate', 'captain_medal', 'captains_ribblade', 'chalked_fire_rune', 'chalked_ice_rune', 'chalked_poison_rune', 'chalked_rupture_rune',
     'chitinweave_cloak', 'choirbone', 'choirbone_gauntlets', 'coal', 'coarse_whetstone',
     'copper_ring', 'copper_studs', 'copper_whetstone', 'cracked_spellstone',
     'crown_of_the_fallen_king', 'dark_sigil', 'dawn_bar', 'dawn_whetstone', 'dawnbound_amulet',
-    'dawnforged_signet', 'dawnlit_mantle', 'dawnstone_ore', 'death_rune', 'death_steel',
-    'deep_rune_blank', 'demon_shard', 'dire_fang', 'dragon_bones', 'dragon_gem',
+    'dawnforged_signet', 'dawnlit_mantle', 'dawnstone_ore', 'death_steel',
+    'demon_shard', 'dire_fang', 'dragon_bones', 'dragon_gem',
     'dragon_gem_earrings', 'dragon_relic', 'dragon_scale', 'dragonfang_pike',
     'dragonrend_greatblade',
     'duskwood_log', 'earth_rune', 'elderscale_heart', 'ember_bar',
     'emberfang_blade', 'emberstone_ore', 'fang_studs', 'fangdart_recurve',
-    'field_cookbook', 'field_ration', 'fine_rune_blank',
+    'field_cookbook', 'field_ration',
     'goblin_ear',
     'goblin_totem', 'gold_amulet', 'gold_bar', 'gold_ore', 'gold_ring',
     'grave_dust', 'hearth_token', 'hell_ember', 'hollow_sigil',
@@ -344,7 +344,7 @@ export const PIXEL_DIR = 'assets/icons-bundle/pixel/items/';
    the same 32 px grid as the items). An ability without art shows its glyph. */
 export const ABILITY_DIR = 'assets/icons-bundle/pixel/abilities/';
 export const ABILITY_ART = Object.freeze(['challenge', 'flame_strike', 'power_strike', 'cleave', 'hunters_mark', 'flame_volley', 'precision_shot',
-  'fireball', 'frost_lance', 'arcane_barrier', 'greater_mend', 'circle_of_renewal', 'natures_wrath']);
+  'fireball', 'frost_lance', 'arcane_barrier', 'greater_mend', 'circle_of_renewal', 'green_sickness']);
 
 /* THE SHOP'S BASIC SUPPLIES (salted food, thin drinks, plain ammo) are not items, so they are not under
    items/: one 32x32 pixel icon per row of src/data/supply-basics.js BASIC_SUPPLIES, <id>.png, same

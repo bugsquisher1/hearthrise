@@ -95,7 +95,10 @@ export const BASIC_SUPPLIES = Object.freeze([
   /* THE STORE RUNES (Tyler 2026-10-23): ONE a family, the basic power (version I at BASIC_EFFECT_SHARE), bought per
      cast only when the spell's slot names it; partnered to the family's Chalked rune, priced BASIC_AMMO_PREMIUM x its
      book value (stonecraft.js RUNE_VALUE, PROVISIONAL). */
-  shot('plain_fire_rune', 'Plain Fire Rune', 'chalked_fire_rune', 2),
+  shot('plain_fire_rune', 'Plain Fire Rune', 'chalked_fire_rune', 1),
+  shot('plain_ice_rune', 'Plain Ice Rune', 'chalked_ice_rune', 1),
+  shot('plain_poison_rune', 'Plain Poison Rune', 'chalked_poison_rune', 1),
+  shot('plain_rupture_rune', 'Plain Rupture Rune', 'chalked_rupture_rune', 1),
 ]);
 
 /** Null-prototype index by id. */
@@ -117,7 +120,7 @@ export const NO_STORE_PARTNER = Object.freeze(Object.assign(Object.create(null),
   cooked_copper_crab: BY_SLOT, wheat_bread: BY_SLOT, cooked_silverfin: BY_SLOT, baked_potato: BY_SLOT, cooked_goldgill: BY_SLOT,
   cooked_bear_meat: BY_SLOT, river_chowder: BY_SLOT, cooked_frostfin: BY_SLOT, cooked_moonfish: BY_SLOT,
   bronze_arrows: FREE_RUNG, air_rune: FREE_RUNG,
-  earth_rune: NO_SPELL, water_rune: NO_SPELL, chaos_rune: NO_SPELL, death_rune: NO_SPELL, blood_rune: NO_SPELL,
+  earth_rune: NO_SPELL, water_rune: NO_SPELL,
   coarse_whetstone: HONE, copper_whetstone: HONE, iron_whetstone: HONE, steel_whetstone: HONE, mithril_whetstone: HONE,
   rune_whetstone: HONE, dawn_whetstone: HONE,
   /* every rune above the Chalked tier of every crafted family (stonecraft.js CRAFTED_RUNE_FAMILIES) */

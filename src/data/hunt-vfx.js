@@ -54,7 +54,7 @@ export const HIT_FX = Object.freeze({
   ability: Object.freeze({
     power_strike: 'fx_power_strike', flame_strike: 'fx_flame_volley_puff', cleave: 'fx_melee_slash', rend: 'fx_x_slash',
     precision_shot: 'fx_crossbow_bolt_impact', flame_volley: 'fx_flame_volley_puff',
-    fireball: 'fx_fire_rune_burst', frost_lance: 'fx_frost_lance_shatter', natures_wrath: 'fx_natures_wrath',
+    fireball: 'fx_fire_rune_burst', frost_lance: 'fx_frost_lance_shatter', green_sickness: 'fx_natures_wrath',
   }),
   element: Object.freeze({ ember: 'fx_flame_volley_puff', frost: 'fx_frost_lance_shatter', poison: 'fx_natures_wrath' }),
   role: Object.freeze({
@@ -71,7 +71,7 @@ export const HIT_FX = Object.freeze({
    spells land where they are aimed; their burst is the hit. */
 const BOLT = Object.freeze({ ranger: 'fx_crossbow_bolt_projectile', mage: 'fx_wand_bolt', healer: 'fx_staff_bolt' });
 export const PROJECTILE = Object.freeze({
-  ability: Object.freeze({ cleave: null, fireball: null, natures_wrath: null }),
+  ability: Object.freeze({ cleave: null, fireball: null, green_sickness: null }),
   role: BOLT,
   flightMs: 220,
   lift: CHEST,

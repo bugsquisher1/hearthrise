@@ -5,9 +5,15 @@
 // it knows stacks, ticks, refresh and expiry, never a status by name. A new
 // status (poison, burn) is a row here, not code.
 //
-// ROW SHAPE
+// ROW SHAPE: a status either TICKS (a damage over time) or MARKS its unit (it takes more
+// damage while the status lasts).
 //   { id, name, tick, everyMs, durationMs, maxStacks, scalesWith,
-//     skillPermillePerLevel, tierPermille, damageType }
+//     skillPermillePerLevel, tierPermille, damageType }        a ticking status
+//   { id, name, durationMs, maxStacks, takenPm }                  a marking status
+//     takenPm                permille MORE damage its unit takes from every blow while
+//                            it lasts (damage.js landHit, beside Hunter's Mark); fixed:
+//                            never scaled by skill or rune tier (Bible §17), never
+//                            stacked past its maxStacks
 //     tick                   [min, max] base damage of one tick, inclusive
 //     everyMs                one tick every this long (a whole number of sub-steps)
 //     durationMs             a stack lasts this long; reapplying refreshes EVERY stack
@@ -33,14 +39,19 @@
 import { HUNT_TUNING } from './hunt-tuning.js?v=0.2.34';
 import { PHYSICAL, isElement } from './elements.js?v=0.2.34';
 
+/* The five rune tiers (src/data/runes.js): Rend's bleed lands +10% a tier above Chalked (ASSUMED, the designer
+   re-tunes in the balance phase), so a Graven Rupture Rune's bleed ticks 1.4x a Chalked one's. */
 export const STATUSES = Object.freeze({
   bleed: Object.freeze({
     id: 'bleed', name: 'Bleed',
     tick: Object.freeze([1, 3]), everyMs: 1000, durationMs: 6000, maxStacks: 5,
     scalesWith: 'melee', skillPermillePerLevel: 4,
-    tierPermille: Object.freeze([1000, 1100, 1200]),
+    tierPermille: Object.freeze([1000, 1100, 1200, 1300, 1400]),
     damageType: 'physical',
   }),
+  /* GREEN SICKNESS's mark (Bible §17 Restoration: "lower-power AoE plus a fixed, non-stacking ~10% damage-taken
+     vulnerability for a short duration"; lane b-spell-content, PROVISIONAL): one stack, 6 s, +10% from every blow. */
+  sickness: Object.freeze({ id: 'sickness', name: 'Sickness', durationMs: 6000, maxStacks: 1, takenPm: 100 }),
 });
 
 const ID = /^[a-z0-9_]{1,32}$/;
@@ -54,6 +65,14 @@ export function validateStatus(row) {
   const posInt = (k) => { if (!Number.isInteger(row[k]) || row[k] <= 0) out.push(at + k + ' must be a positive integer, got ' + row[k]); };
   if (typeof row.id !== 'string' || !ID.test(row.id)) out.push('status id ' + row.id + ' is not [a-z0-9_]');
   if (typeof row.name !== 'string' || !row.name) out.push(at + 'needs a name');
+  if (row.takenPm !== undefined) {
+    /* A MARKING status: how much more its unit takes, how long, how many; nothing that ticks or scales. */
+    if (!Number.isInteger(row.takenPm) || row.takenPm <= 0 || row.takenPm > 1000) out.push(at + 'takenPm must be an integer 1..1000');
+    for (const k of ['durationMs', 'maxStacks']) posInt(k);
+    if (Number.isInteger(row.durationMs) && row.durationMs % HUNT_TUNING.stepMs !== 0) out.push(at + 'durationMs ' + row.durationMs + ' is not a whole number of ' + HUNT_TUNING.stepMs + ' ms sub-steps');
+    for (const k of ['tick', 'everyMs', 'scalesWith', 'skillPermillePerLevel', 'tierPermille', 'damageType']) if (row[k] !== undefined) out.push(at + 'a marking status has no ' + k);
+    return out;
+  }
   if (!Array.isArray(row.tick) || row.tick.length !== 2 || !row.tick.every((n) => Number.isInteger(n) && n >= 1) || row.tick[0] > row.tick[1]) {
     out.push(at + 'tick must be [min, max], integers >= 1, min <= max');
   }

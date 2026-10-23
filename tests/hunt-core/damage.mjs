@@ -236,7 +236,7 @@ const cases = {
     /* a loaded rune adds nothing to the real member's blow (the sheet and the snapshot read the same set) */
     const mi = (ammo) => ({ key: 'a', equipment: { weapon: 'oak_staff', ...(ammo ? { ammo } : {}) }, skills: { magic: M.XP.skillXpForLevel('magic', 40) }, levelXp: 0, hp: 100, hero: { role: 'healer' } });
     const snap = (ammo) => { const s = M.member.memberSide(mi(ammo), { items: M.ITEMS }); return [s.member.snapshot(s.state).maxHit, s.member.hero.ammo]; };
-    return JSON.stringify(snap('blood_rune')) === JSON.stringify(snap(null)) ? null : 'a loaded Blood Rune changed the staff\'s blow: ' + JSON.stringify([snap('blood_rune'), snap(null)]);
+    return JSON.stringify(snap('graven_rupture_rune')) === JSON.stringify(snap(null)) ? null : 'a loaded Graven Rupture Rune changed the staff\'s blow: ' + JSON.stringify([snap('graven_rupture_rune'), snap(null)]);
   },
   /* DM-13: one swing per COMBAT_BALANCE.tickMs (the one basic-attack interval), the first as soon as the target is in reach. */
   'swing-every-interval': (M) => {

@@ -69,7 +69,7 @@ const PARTY = [
   { role: 'tank', maxHit: 9, element: '', bar: ['challenge', 'flame_strike', 'power_strike'], disc: 'shield' },
   { role: 'ranger', maxHit: 8, element: '', bar: ['hunters_mark', 'flame_volley', 'precision_shot'], ammo: 'iron_bolts' },
   { role: 'mage', maxHit: 7, element: '', bar: ['fireball', 'arcane_barrier'] },
-  { role: 'healer', maxHit: 5, element: 'poison', bar: ['greater_mend', 'circle_of_renewal', 'natures_wrath'] },
+  { role: 'healer', maxHit: 5, element: 'poison', bar: ['greater_mend', 'circle_of_renewal', 'green_sickness'] },
 ];
 
 function session(M, p) {

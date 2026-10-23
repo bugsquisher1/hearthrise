@@ -46,6 +46,9 @@ const STORE_MIGRATION = 'supabase/migrations/2026-11-07-store-by-slot.sql';
 /* The limits (+ max_ignored), the action ids (no rune is an attack item) and the role rule sets (their triggers
    written as real conditions) moved forward: lane b-spell-core, Tyler 2026-10-23. */
 const SLOT_MIGRATION = 'supabase/migrations/2026-12-21-slot-truth.sql';
+/* The metrics (Green Sickness's mark, the heal aimed at yourself) and the role rule sets (a rune spell's slot names its
+   store rune) moved forward again: lane b-spell-content, Tyler 2026-10-23. */
+const CONTENT_MIGRATION = 'supabase/migrations/2026-12-22-spell-content.sql';
 
 async function load(root) {
   const M = await loadCore(root);
@@ -416,7 +419,7 @@ const cases = {
     const aimed = (bar) => {
       const h = hero(M, 1, 9, 3, { role: 'mage', hp: 100, maxHp: 100, mana: 300, maxMana: 300, target: 13 });
       const inst = instOf(M, world(M, [h, ...[[10, 15, 2, 'rat'], [11, 15, 3, 'rat'], [12, 15, 4, 'rat'], [13, 14, 6, 'slime']].map(([id, x, y, kind]) => mon(M, id, 0, x, y, { target: 1, kind, hp: 5000, maxHp: 5000 }))]));
-      inst.heroes = { 1: heroRow(M, { range: 7, slots: M.cond.heroSlots(bar, 'mage') }) };
+      inst.heroes = { 1: heroRow(M, { range: 7, slots: M.cond.heroSlots(bar, 'mage'), session: { bag: { chalked_fire_rune: { loaded: 5 } } } }) };
       const sc = subStep(0); sc.rng = M.rng.createRng(9);
       M.abilities.castAbilities(inst, sc);
       return sc.events.filter((e) => e.type === 'cast').map((e) => e.ability + '@' + e.t).join();
@@ -702,7 +705,8 @@ const cases = {
     return null;
   },
   /* The SETTLE clamps an over-max pick (the stored 4) to the ground's solo max (the sewer's 2): its first pocket spawns twice. */
-  /* Tyler P1: the Healer's default rule set (an empty bar) heals first and attacks only when nobody needs healing. */
+  /* Tyler P1: the Healer's default rule set (an empty bar) heals first and attacks only when nobody needs healing.
+     (Its attack, Green Sickness, casts the hero's own Poison runes: the default names no store for it, rule-subjects.js.) */
   'healer-default-rules': (M) => {
     const setup = M.heroSetup({ weaponType: M.roleWeaponOf(M.ITEMS.apprentice_staff), options: { role: 'healer' }, bar: [], partyRoles: [] });
     const run = (allyHp) => {
@@ -710,13 +714,13 @@ const cases = {
       const k = hero(M, 2, 8, 3, { role: 'tank', hp: allyHp, maxHp: 100 });
       const ms = [[9, 3], [10, 3]].map(([x, y], i) => mon(M, 10 + i, 0, x, y, { target: 2, hp: 500, maxHp: 500 }));
       const inst = instOf(M, world(M, [d, k, ...ms]));
-      inst.heroes = { 1: heroRow(M, { range: 7, slots: setup.slots }) };
+      inst.heroes = { 1: heroRow(M, { range: 7, slots: setup.slots, session: { runes: true, bag: { chalked_poison_rune: { loaded: 5 } } } }) };
       const sc = subStep(0); sc.rng = M.rng.createRng(5);
       M.abilities.castAbilities(inst, sc);
       return sc.events.filter((e) => e.type === 'cast').map((e) => e.ability).join();
     };
     const safe = run(95); const hurt = run(60);
-    return safe === 'natures_wrath' && hurt === 'greater_mend' ? null : 'with the tank at 95% the healer cast ' + (safe || 'nothing') + '; at 60% ' + (hurt || 'nothing');
+    return safe === 'green_sickness' && hurt === 'greater_mend' ? null : 'with the tank at 95% the healer cast ' + (safe || 'nothing') + '; at 60% ' + (hurt || 'nothing');
   },
   'density-settle': (M) => {
     const out = freshHealer(M, 'millrace_sewer', 1, 1, { density: 16 });
@@ -792,7 +796,9 @@ const cases = {
     try { truth = readFileSync(join(M.root, SLOT_MIGRATION), 'utf8'); } catch { return SLOT_MIGRATION + ' is missing'; }
     let store;
     try { store = readFileSync(join(M.root, STORE_MIGRATION), 'utf8'); } catch { return STORE_MIGRATION + ' is missing'; }
-    const from = { limits: truth, 'action-ids': truth, 'role-rules': truth };
+    let content;
+    try { content = readFileSync(join(M.root, CONTENT_MIGRATION), 'utf8'); } catch { return CONTENT_MIGRATION + ' is missing'; }
+    const from = { limits: truth, 'action-ids': truth, 'role-rules': content, metrics: content };
     for (const [tag, want] of [['metrics', metricRowsSql(M)], ['action-ids', actionIdRowsSql(M)], ['role-rules', roleRuleRowsSql(M)], ['limits', limitRowsSql(M)]]) {
       const got = between(from[tag] || sql, tag);
       if (got !== want) return 'the migration\'s ' + tag + ' block is stale (node tests/hunt-core/conditions.mjs --print)';
@@ -867,7 +873,7 @@ const mutants = [
   { name: 'an attack slot ignores its conditions', case: 'party-acceptance', edits: [['src/core/hunt/damage.js', '  return pickSlot(inst, u, h, rows, (slot, cx) => {', '  return pickSlot(inst, u, h, rows.map((r) => ({ rule: r.rule, slot: Object.assign({}, r.slot, { conditions: [] }) })), (slot, cx) => {']] },
   { name: 'the stop-rule hold is not persisted (a cut resets it)', case: 'stop-rule-span', edits: [['src/core/hunt/conditions.js', "  unit: Object.freeze([['ruleHold', 'json'], ['ruleWait', 'json']]),", "  unit: Object.freeze([['ruleWait', 'json']]),"]] },
   { name: 'the healer\'s default rule set has no attack-when-safe rule', case: 'healer-default-rules',
-    edits: [['src/data/rule-subjects.js', "    slot('natures_wrath', [{ metric: 'ally_hp_pct', op: 'gte', value: 70, subject: 'lowest' }])]),", '  ]),']] },
+    edits: [['src/data/rule-subjects.js', "    slot('green_sickness', [{ metric: 'ally_hp_pct', op: 'gte', value: 70, subject: 'lowest' }])]),", '  ]),']] },
   { name: 'monsters do not fill the diagonal tiles of the box', case: 'full-box', edits: [['src/core/hunt/roles.js', '      if ((!dx && !dy) || !walkable(inst.grid, x, y)', '      if ((!dx && !dy) || (dx && dy) || !walkable(inst.grid, x, y)']] },
   { name: 'the smallest pick sets the pull (the rule before Tyler 10-20)', case: 'density-pull',
     edits: [['src/data/hunt-grounds.js', "  const lead = list.find((h) => h.lead === true)\n    || list", "  const lead = list.filter((h) => h.density > 0).sort((a, b) => a.density - b.density)[0]\n    || list"]] },

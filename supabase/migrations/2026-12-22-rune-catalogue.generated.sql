@@ -6,10 +6,10 @@
 --   `node tools/gen-catalogues.mjs --check`, which is a preflight in
 --   tests/run-sql-tests.mjs. Edit src/data/*.js and regenerate.
 --
---   catalogue digest: 7591cd43716765360de197f7a21b67eeb8cd747c38f8c2fec80351c51e9772a5
---   rows: 522 items (24 untradeable) ·
---         296 item-slot pairs · 14 equip slots ·
---         13 skills · 9 crops · 314 activities ·
+--   catalogue digest: bb47afcea9023bd305dd2954b57acd2588c378bf7cfea0d96d703a279d9cf290
+--   rows: 532 items (24 untradeable) ·
+--         308 item-slot pairs · 14 equip slots ·
+--         13 skills · 9 crops · 322 activities ·
 --         0 runes
 --
 -- APPLY ORDER: 2026-08-11-player-state.sql → THIS FILE → 2026-08-11-apply-engine.sql
@@ -235,7 +235,6 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('bear_claw_pie','Bear Claw Pie',true,null,280,null,null,384,false,null,false),
   ('bear_pelt','Bear Pelt',true,null,260,null,null,null,false,null,false),
   ('big_bones','Big Bones',true,null,3,null,null,null,false,null,false),
-  ('blood_rune','Blood Rune',true,'ammo',12,'magic',88,null,false,null,false),
   ('boarhide_belt','Boarhide Belt',true,'armor',280,'defense',30,null,false,'medium',false),
   ('boarhide_body','Boarhide Body',true,'armor',1050,'defense',30,null,false,'medium',false),
   ('boarhide_boots','Boarhide Boots',true,'armor',280,'defense',30,null,false,'medium',false),
@@ -269,8 +268,13 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('carrot_seed','Carrot Seed',true,null,10,null,null,null,false,null,false),
   ('carrot_stew','Carrot Stew',true,null,200,null,null,288,false,null,false),
   ('carved_fire_rune','Carved Fire Rune',true,'ammo',6,'magic',45,null,false,null,false),
-  ('chalked_fire_rune','Chalked Fire Rune',true,'ammo',1,'magic',1,null,false,null,false),
-  ('chaos_rune','Chaos Rune',true,'ammo',6,'magic',60,null,false,null,false),
+  ('carved_ice_rune','Carved Ice Rune',true,'ammo',6,'magic',45,null,false,null,false),
+  ('carved_poison_rune','Carved Poison Rune',true,'ammo',6,'magic',45,null,false,null,false),
+  ('carved_rupture_rune','Carved Rupture Rune',true,'ammo',6,'magic',45,null,false,null,false),
+  ('chalked_fire_rune','Chalked Fire Rune',true,'ammo',0,'magic',1,null,false,null,false),
+  ('chalked_ice_rune','Chalked Ice Rune',true,'ammo',0,'magic',1,null,false,null,false),
+  ('chalked_poison_rune','Chalked Poison Rune',true,'ammo',0,'magic',1,null,false,null,false),
+  ('chalked_rupture_rune','Chalked Rupture Rune',true,'ammo',0,'magic',1,null,false,null,false),
   ('chief_blade','Chief''s Blade',true,'weapon',900,'melee',15,null,false,null,false),
   ('chitin_belt','Chitin Belt',true,'armor',840,'defense',45,null,false,'medium',false),
   ('chitin_body','Chitin Body',true,'armor',3150,'defense',45,null,false,'medium',false),
@@ -329,9 +333,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('dawnpoint_arrows','Dawnpoint Arrows',true,'ammo',12,'ranged',88,null,false,null,false),
   ('dawnsteel_rod','Dawnsteel Rod',true,'tool',58000,null,null,null,false,null,false),
   ('dawnstone_ore','Dawnstone Ore',true,null,1400,null,null,null,false,null,false),
-  ('death_rune','Death Rune',true,'ammo',9,'magic',75,null,false,null,false),
   ('death_steel','Death Steel',true,null,550,null,null,null,false,null,false),
-  ('deep_rune_blank','Deep Blank Rune',true,null,60,null,null,null,false,null,false),
   ('deepvein_lodestar','Deepvein Lodestar',false,'trophy',0,null,null,null,false,null,false),
   ('demon_shard','Demon Shard',true,null,200,null,null,null,false,null,false),
   ('demoncaller_staff','Demoncaller',true,'weapon',13600,'magic',68,null,false,null,false),
@@ -380,11 +382,13 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('emberheart','Emberheart',false,'trophy',0,null,null,null,false,null,false),
   ('emberstone_ore','Emberstone Ore',true,null,520,null,null,null,false,null,false),
   ('etched_fire_rune','Etched Fire Rune',true,'ammo',4,'magic',30,null,false,null,false),
+  ('etched_ice_rune','Etched Ice Rune',true,'ammo',4,'magic',30,null,false,null,false),
+  ('etched_poison_rune','Etched Poison Rune',true,'ammo',4,'magic',30,null,false,null,false),
+  ('etched_rupture_rune','Etched Rupture Rune',true,'ammo',4,'magic',30,null,false,null,false),
   ('fang_studs','Fang Studs',true,'jewelry',130,'defense',18,null,false,null,false),
   ('fangdart_recurve','Fangdart Recurve',true,'weapon',7200,'ranged',36,null,false,null,false),
   ('field_cookbook','Field Cookbook',true,null,0,null,null,null,false,null,false),
   ('field_ration','Field Ration',true,null,90,null,null,null,false,null,false),
-  ('fine_rune_blank','Fine Blank Rune',true,null,28,null,null,null,false,null,false),
   ('fishers_pie','Fisher''s Pie',true,null,520,null,null,408,false,null,false),
   ('flux_salt','Fluxsalt',true,null,45,null,null,null,false,null,false),
   ('frostfin','Raw Frostfin',true,null,520,null,null,216,true,null,false),
@@ -401,6 +405,9 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('goldgill','Raw Goldgill',true,null,71,null,null,132,true,null,false),
   ('grave_dust','Grave Dust',true,null,95,null,null,null,false,null,false),
   ('graven_fire_rune','Graven Fire Rune',true,'ammo',9,'magic',60,null,false,null,false),
+  ('graven_ice_rune','Graven Ice Rune',true,'ammo',9,'magic',60,null,false,null,false),
+  ('graven_poison_rune','Graven Poison Rune',true,'ammo',9,'magic',60,null,false,null,false),
+  ('graven_rupture_rune','Graven Rupture Rune',true,'ammo',9,'magic',60,null,false,null,false),
   ('gray_dewclaw','Gray Dewclaw',true,null,16,null,null,null,false,null,false),
   ('grayjaw_whisker','Grayjaw Whisker',true,null,30,null,null,null,false,null,false),
   ('heartgarnet','Heartgarnet',true,null,200,null,null,null,false,null,false),
@@ -559,6 +566,9 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('scholar_helmet','Scholar Hat',true,'armor',420,'defense',30,null,false,'light',false),
   ('scholar_pants','Scholar Robe Bottom',true,'armor',770,'defense',30,null,false,'light',false),
   ('scored_fire_rune','Scored Fire Rune',true,'ammo',2,'magic',15,null,false,null,false),
+  ('scored_ice_rune','Scored Ice Rune',true,'ammo',2,'magic',15,null,false,null,false),
+  ('scored_poison_rune','Scored Poison Rune',true,'ammo',2,'magic',15,null,false,null,false),
+  ('scored_rupture_rune','Scored Rupture Rune',true,'ammo',2,'magic',15,null,false,null,false),
   ('shadow_pelt','Shadow Pelt',true,null,480,null,null,null,false,null,false),
   ('shadow_thread','Shadow Thread',true,null,320,null,null,null,false,null,false),
   ('shadowsilk_cape','Shadowsilk Cape',true,'armor',10800,'defense',63,null,false,null,false),
@@ -749,7 +759,6 @@ insert into public.hr_item_slots (item_id, equip_slot) values
   ('banded_signet','ring2'),
   ('barbed_arrows','ammo'),
   ('barrowking_mantle','cape'),
-  ('blood_rune','ammo'),
   ('boarhide_belt','belt'),
   ('boarhide_body','body'),
   ('boarhide_boots','boots'),
@@ -767,8 +776,13 @@ insert into public.hr_item_slots (item_id, equip_slot) values
   ('bronze_sword','weapon'),
   ('captains_ribblade','weapon'),
   ('carved_fire_rune','ammo'),
+  ('carved_ice_rune','ammo'),
+  ('carved_poison_rune','ammo'),
+  ('carved_rupture_rune','ammo'),
   ('chalked_fire_rune','ammo'),
-  ('chaos_rune','ammo'),
+  ('chalked_ice_rune','ammo'),
+  ('chalked_poison_rune','ammo'),
+  ('chalked_rupture_rune','ammo'),
   ('chief_blade','weapon'),
   ('chitin_belt','belt'),
   ('chitin_body','body'),
@@ -798,7 +812,6 @@ insert into public.hr_item_slots (item_id, equip_slot) values
   ('dawnforged_signet','ring2'),
   ('dawnlit_mantle','cape'),
   ('dawnpoint_arrows','ammo'),
-  ('death_rune','ammo'),
   ('demoncaller_staff','weapon'),
   ('dragon_gem_earrings','earrings'),
   ('dragonfang_pike','weapon'),
@@ -825,12 +838,18 @@ insert into public.hr_item_slots (item_id, equip_slot) values
   ('emberfang_blade','weapon'),
   ('emberhead_arrows','ammo'),
   ('etched_fire_rune','ammo'),
+  ('etched_ice_rune','ammo'),
+  ('etched_poison_rune','ammo'),
+  ('etched_rupture_rune','ammo'),
   ('fang_studs','earrings'),
   ('fangdart_recurve','weapon'),
   ('gold_amulet','necklace'),
   ('gold_ring','ring1'),
   ('gold_ring','ring2'),
   ('graven_fire_rune','ammo'),
+  ('graven_ice_rune','ammo'),
+  ('graven_poison_rune','ammo'),
+  ('graven_rupture_rune','ammo'),
   ('heartgarnet_maul','weapon'),
   ('hollow_sigil_ring','ring1'),
   ('hollow_sigil_ring','ring2'),
@@ -919,6 +938,9 @@ insert into public.hr_item_slots (item_id, equip_slot) values
   ('scholar_helmet','helmet'),
   ('scholar_pants','pants'),
   ('scored_fire_rune','ammo'),
+  ('scored_ice_rune','ammo'),
+  ('scored_poison_rune','ammo'),
+  ('scored_rupture_rune','ammo'),
   ('shadowsilk_cape','cape'),
   ('shortbow','weapon'),
   ('slagheart_platebody','body'),
@@ -1060,16 +1082,28 @@ insert into public.hr_crops (crop_id, seed_item, prod_item, base_hours, req_lv, 
 
 insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp, is_boss, level) values
   ('artisan','banish_demon_shard','prayer',65,null,false,null),
-  ('artisan','bind_blood_runes','runecrafting',88,null,false,null),
   ('artisan','bind_carved_fire_runes','runecrafting',45,null,false,null),
+  ('artisan','bind_carved_ice_runes','runecrafting',45,null,false,null),
+  ('artisan','bind_carved_poison_runes','runecrafting',45,null,false,null),
+  ('artisan','bind_carved_rupture_runes','runecrafting',45,null,false,null),
   ('artisan','bind_chalked_fire_runes','runecrafting',1,null,false,null),
-  ('artisan','bind_chaos_runes','runecrafting',60,null,false,null),
-  ('artisan','bind_death_runes','runecrafting',75,null,false,null),
+  ('artisan','bind_chalked_ice_runes','runecrafting',1,null,false,null),
+  ('artisan','bind_chalked_poison_runes','runecrafting',1,null,false,null),
+  ('artisan','bind_chalked_rupture_runes','runecrafting',1,null,false,null),
   ('artisan','bind_earth_runes','runecrafting',1,null,false,null),
   ('artisan','bind_etched_fire_runes','runecrafting',30,null,false,null),
+  ('artisan','bind_etched_ice_runes','runecrafting',30,null,false,null),
+  ('artisan','bind_etched_poison_runes','runecrafting',30,null,false,null),
+  ('artisan','bind_etched_rupture_runes','runecrafting',30,null,false,null),
   ('artisan','bind_graven_fire_runes','runecrafting',60,null,false,null),
+  ('artisan','bind_graven_ice_runes','runecrafting',60,null,false,null),
+  ('artisan','bind_graven_poison_runes','runecrafting',60,null,false,null),
+  ('artisan','bind_graven_rupture_runes','runecrafting',60,null,false,null),
   ('artisan','bind_oak_spellbook','crafting',15,null,false,null),
   ('artisan','bind_scored_fire_runes','runecrafting',15,null,false,null),
+  ('artisan','bind_scored_ice_runes','runecrafting',15,null,false,null),
+  ('artisan','bind_scored_poison_runes','runecrafting',15,null,false,null),
+  ('artisan','bind_scored_rupture_runes','runecrafting',15,null,false,null),
   ('artisan','bind_water_runes','runecrafting',30,null,false,null),
   ('artisan','brew_pumpkin_cider','cooking',45,null,false,null),
   ('artisan','bury_big','prayer',15,null,false,null),
@@ -1118,11 +1152,7 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp, 
   ('artisan','craft_iron_arrows','crafting',20,null,false,null),
   ('artisan','craft_keystone','crafting',60,null,false,null),
   ('artisan','craft_timber_beam','crafting',25,null,false,null),
-  ('artisan','cut_deep_blanks','runecrafting',74,null,false,null),
-  ('artisan','cut_fine_blanks','runecrafting',38,null,false,null),
   ('artisan','cut_rune_blanks','runecrafting',1,null,false,null),
-  ('artisan','deepbind_blood','runecrafting',93,null,false,null),
-  ('artisan','deepbind_chaos','runecrafting',69,null,false,null),
   ('artisan','deepbind_earth','runecrafting',24,null,false,null),
   ('artisan','deepbind_water','runecrafting',39,null,false,null),
   ('artisan','fletch_barbed_arrows','crafting',18,null,false,null),
@@ -1926,7 +1956,7 @@ insert into public.hr_feast_foods (item_id, heals) values
 on conflict (item_id) do update set heals = excluded.heals;
 
 insert into public.hr_catalogue_meta (only_row, digest, generated_at)
-  values (true, '7591cd43716765360de197f7a21b67eeb8cd747c38f8c2fec80351c51e9772a5', now())
+  values (true, 'bb47afcea9023bd305dd2954b57acd2588c378bf7cfea0d96d703a279d9cf290', now())
   on conflict (only_row) do update set digest = excluded.digest, generated_at = excluded.generated_at;
 
 -- ── RLS + grants. Catalogues are world-readable (the client renders from the
@@ -1954,13 +1984,13 @@ do $$
 declare v_bad int; v_n int;
 begin
   select count(*) into v_n from public.hr_items;
-  if v_n <> 522 then raise exception 'hr_items has % rows, generator emitted 522', v_n; end if;
+  if v_n <> 532 then raise exception 'hr_items has % rows, generator emitted 532', v_n; end if;
   select count(*) into v_n from public.hr_items where not tradeable;
   if v_n <> 24 then
     raise exception 'untradeable count is %, generator emitted 24', v_n;
   end if;
   select count(*) into v_n from public.hr_activities;
-  if v_n <> 314 then raise exception 'hr_activities has % rows, expected 314', v_n; end if;
+  if v_n <> 322 then raise exception 'hr_activities has % rows, expected 322', v_n; end if;
 
   -- MONSTER HP. The count is asserted for the same reason auto_eatable's is: a
   -- re-apply against a database that created hr_activities before the column
@@ -2120,7 +2150,7 @@ begin
                   where p.item_id = i.item_id and p.equip_slot in ('helmet', 'body', 'pants', 'boots', 'gloves', 'belt'));
   if v_bad > 0 then raise exception '% armour row(s) in an armour slot carry no armour_weight', v_bad; end if;
 
-  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 7591cd43716765360de197f7a21b67eeb8cd747c38f8c2fec80351c51e9772a5',
+  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest bb47afcea9023bd305dd2954b57acd2588c378bf7cfea0d96d703a279d9cf290',
     (select count(*) from public.hr_items), (select count(*) from public.hr_activities),
     (select count(*) from public.hr_runes);
 end $$;

@@ -237,6 +237,14 @@ function effect(inst, u, row, t, sc, v) {
   const pm = v && Number.isInteger(v.pm) && v.pm >= 0 ? v.pm : 1000;
   const scaled = (n) => (pm === 1000 ? n : Math.floor((n * pm) / 1000));
   const hitTag = pm === 1000 ? { id: row.id } : { id: row.id, mult: pm };
+  /* The row's status on `m` after a hit (applyStatus refuses a look-alike) and its source: the unit, the caster's
+     level in the row's scalesWith skill (Tyler 10-16: bleed scales slowly with Melee) and the version's rune tier.
+     A marking status (Green Sickness) reads neither. */
+  const afflict = (m) => {
+    if (!row.status) return;
+    const srow = statusRow(row.status), h = inst.heroes && inst.heroes[u.id];
+    applyStatus(inst, m, srow, { u: u.id, skillLv: h && h.skills && srow.scalesWith ? levelOf(h.skills, srow.scalesWith) : 0, runeTier: (v && v.version) || 1 }, sc);
+  };
   switch (row.target) {
     case 'taunt': challengeFrom(inst, sc, u); break;
     case 'mark':
@@ -247,17 +255,13 @@ function effect(inst, u, row, t, sc, v) {
     case 'enemy':
       for (let i = 0; i < (row.hits || 1); i++) {
         landHit(inst, sc, u, t, roll(sc, row.dmg), el, hitTag);
-        /* The status ROW (applyStatus refuses a look-alike) and its source: the unit, the caster's level in
-           the row's scalesWith skill (Tyler 10-16: bleed scales slowly with Melee) and the version's rune tier. */
-        if (row.status) {
-          const srow = statusRow(row.status), h = inst.heroes && inst.heroes[u.id];
-          applyStatus(inst, t, srow, { u: u.id, skillLv: h && h.skills ? levelOf(h.skills, srow.scalesWith) : 0, runeTier: (v && v.version) || 1 }, sc);
-        }
+        afflict(t);
       }
       break;
     case 'area':
       for (const m of engaged(inst).filter((o) => cheb(o, t) <= 1).sort((a, b) => a.id - b.id)) {
         landHit(inst, sc, u, m, roll(sc, row.dmg), el, hitTag);
+        afflict(m);
       }
       break;
     case 'cleave': {

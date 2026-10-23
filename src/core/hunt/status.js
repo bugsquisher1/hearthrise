@@ -45,8 +45,10 @@ export function statusRow(id) {
   return row;
 }
 
-/** The permille scale a stack of `row` lands with, from its source's level and rune tier. Refuses, never clamps. */
+/** The permille scale a stack of `row` lands with, from its source's level and rune tier. Refuses, never clamps.
+    A MARKING status (takenPm) is never scaled: 1000. */
 export function stackScale(row, source) {
+  if (row.takenPm !== undefined) return 1000;
   const lv = source && source.skillLv !== undefined && source.skillLv !== null ? source.skillLv : 0;
   const tier = source && source.runeTier !== undefined && source.runeTier !== null ? source.runeTier : 1;
   if (!Number.isInteger(lv) || lv < 0) throw new Error('status: source skillLv must be an integer >= 0, got ' + lv);
@@ -78,7 +80,7 @@ export function applyStatus(inst, unit, row, source, sc) {
   const before = countOf({ statuses: list }, row.id);
   if (before < row.maxStacks) {
     const src = source && Number.isSafeInteger(source.u) ? source.u : null;
-    list.push({ s: row.id, src, left: row.durationMs, next: row.everyMs, scale });
+    list.push({ s: row.id, src, left: row.durationMs, next: row.tick ? row.everyMs : 0, scale });
   }
   unit.statuses = list;
   const stacks = countOf(unit, row.id);
@@ -95,9 +97,11 @@ export function tickStatuses(inst, sc) {
     if (unit.alive !== true) { dropAll(unit, sc); continue; }
     for (const st of list) {
       st.left -= sc.dtMs;
+      const row = statusRow(st.s);
+      /* A MARKING status (takenPm) never ticks: it only wears off (damage.js landHit reads it). */
+      if (!row.tick) continue;
       st.next -= sc.dtMs;
       if (st.next > 0 || st.left < 0) continue;
-      const row = statusRow(st.s);
       st.next += row.everyMs;
       const roll = row.tick[0] === row.tick[1] ? row.tick[0] : sc.rng.int(row.tick[0], row.tick[1]);
       const amount = tickAmount(roll, st.scale);

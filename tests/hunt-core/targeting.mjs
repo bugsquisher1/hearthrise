@@ -78,7 +78,8 @@ const cases = {
   'peel-seeded': (M) => {
     const mk = (role) => {
       const k = H(M, 1, 12, 3, 'tank');
-      const h = H(M, 2, 16, 3, role, { target: 3 });
+      /* (a caster's basic costs mana since lane b-spell-core: the Healer has some to swing with) */
+      const h = H(M, 2, 16, 3, role, { target: 3, mana: 100, maxMana: 100 });
       const m = E(M, 3, 0, 14, 3, 1, { queued: true });
       return { inst: fight(M, [k, h, m], { leader: 1 }), m };
     };

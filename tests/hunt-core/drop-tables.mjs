@@ -267,12 +267,19 @@ async function plays(M, P, monsters, R, print, only) {
    (ruling 10-16), so each role's margin is its share of coin + commons over its own bill. */
 function casterFloor(M, P, R, print) {
   const gid = 'millrace_sewer', floor = M.HUNTS[M.G.HUNT_GROUNDS[gid].hunt].band[0];
-  const x = P.run(gid, floor, PARTY, { spanMs: H });
+  /* the Mage's SPELLS, counted from the casts (its mana basic trains Magic too since lane b-spell-core) */
+  const spells = {};
+  const onWindow = (out) => {
+    const keyOf = {};
+    for (const p of out.members) keyOf[p.hunt.unit_id] = p.key;
+    for (const e of out.events) if (e.type === 'cast' && keyOf[e.u]) spells[keyOf[e.u]] = (spells[keyOf[e.u]] || 0) + 1;
+  };
+  const x = P.run(gid, floor, PARTY, { spanMs: H, onWindow });
   const T = x.totals, h = x.playedMs / H || 1, share = (T.coin + T.commons) / h / PARTY.length;
   R.ok(x.playedMs >= H && T.falls === 0, 'caster-floor: the ' + gid + ' party of four (ladder kit) ended after ' + (x.playedMs / 60000).toFixed(1)
     + ' min with ' + T.falls + ' death(s) (' + T.ended.join(', ') + ')');
   const mage = x.heroes.find((k) => k.startsWith('mage'));
-  R.ok(((x.heroXp[mage] || {}).magic || 0) > 0, 'caster-floor: the Mage (wand + book) cast no spell in ' + (x.playedMs / 60000).toFixed(1) + ' min');
+  R.ok((spells[mage] || 0) > 0, 'caster-floor: the Mage (wand + book) cast no spell in ' + (x.playedMs / 60000).toFixed(1) + ' min');
   const bills = x.heroes.map((k) => [k, Object.entries(T.buys[k] || {}).reduce((s, [id, q]) => s + q * ((P.basics[id] || {}).price || 0), 0) / h]);
   for (const [k, bill] of bills) {
     const m = bill > 0 ? (share / bill - 1) * 100 : Infinity;

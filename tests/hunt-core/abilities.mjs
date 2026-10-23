@@ -218,7 +218,7 @@ const cases = {
     const hs = supplySession(M, { bag: { barbed_arrows: { loaded: 1 } }, shot: 'plain_barbed_arrows', ammo: 'barbed_arrows', purse: 3 });
     const b = oneHero(M, {}, { hs, ammo: 'barbed_arrows' });
     const shots = [0, 1, 2].map(() => M.abilities.payBasic(b.inst, b.h, { ammo: 1 }, b.sc));
-    if (JSON.stringify(shots) !== '[true,true,false]') return 'own, store, then a dry purse shot ' + JSON.stringify(shots);
+    if (JSON.stringify(shots.map(Boolean)) !== '[true,true,false]' || shots[0].source !== 'own' || shots[1].source !== 'store') return 'own, store, then a dry purse shot ' + JSON.stringify(shots);
     return hs.tally.supplies.barbed_arrows === 1 && hs.tally.bought.plain_barbed_arrows === 1 && hs.goldOut === true
       ? null : 'the shots were not split own/store, or the dry purse ended nothing: ' + JSON.stringify(hs.tally);
   },
@@ -230,7 +230,7 @@ const cases = {
     const hs = supplySession(M, { bag: { fire_rune: { loaded: 1 } }, shot: 'plain_fire_rune', ammo: 'fire_rune', purse: 50 });
     const b = oneHero(M, { role: 'healer' }, { hs, ammo: 'fire_rune', range: 7 });
     const shots = [0, 1, 2].map(() => M.abilities.payBasic(b.inst, b.h, { ammo: true }, b.sc));
-    if (JSON.stringify(shots) !== '[true,false,false]') return 'own, then no rune (never the store) shot ' + JSON.stringify(shots);
+    if (JSON.stringify(shots.map(Boolean)) !== '[true,false,false]') return 'own, then no rune (never the store) shot ' + JSON.stringify(shots);
     if (hs.purse !== 50 || Object.keys(hs.tally.bought).length || hs.goldOut) return 'a basic shot bought a store rune: ' + JSON.stringify([hs.tally.bought, hs.purse, hs.goldOut]);
     const line = M.abilities.shotLine(b.inst.heroes[1], 'fire_rune');
     if (line.id) return 'the spent Fire Rune line still answers ' + JSON.stringify(line);
@@ -239,15 +239,18 @@ const cases = {
     const a = M.abilities.shotLine({ hs: arrows }, 'barbed_arrows');
     return a.id === 'plain_barbed_arrows' && a.source === 'store' ? null : 'a spent arrow line no longer falls to its plain partner: ' + JSON.stringify(a);
   },
-  /* THE CLIENT SAYS WHAT THE ENGINE BUYS (lane a-rune-spend; CLAUDE.md §6): with no rune bought for a shot, the
-     Configure action's Ammo run prices no Fire Rune a shot and the bar's store line names no store behind a Fire
-     Rune attack slot (both showed Plain Fire Rune, 8 g); an arrow keeps its plain partner's price, and a spell slot
-     that names the store rune keeps it. */
+  /* THE CLIENT SAYS WHAT THE ENGINE DOES (lane a-rune-spend; CLAUDE.md §6; Tyler 2026-10-23: runes fuel spells
+     only): the Configure action's Ammo run offers no rune at all (no attack slot may name one) and the bar's store
+     line names no store behind a rune attack slot; an arrow keeps its plain partner's price, and a spell slot that
+     names the store rune keeps it. The engine refuses a rune attack slot too (conditions.js slotProblem). */
   'client-prices-no-rune-a-shot': (M) => {
     const store = M.SB.BASIC_SUPPLIES.map((b) => ({ id: b.id, kind: b.kind, partner: b.partner, amount: 0, price: b.price }));
     const run = SHELL.table.tableOf('items', { store, bag: [] }).runs.find((r) => r.kind === 'ammo');
     const row = (id) => (run && run.rows.find((r) => r.action.id === id)) || null;
-    if (!row('fire_rune') || row('fire_rune').price !== null) return 'the Ammo run prices a Fire Rune a shot: ' + JSON.stringify(row('fire_rune'));
+    const runes = run ? run.rows.filter((r) => M.runes.isRune(M.ITEMS[r.action.id])).map((r) => r.action.id) : [];
+    if (runes.length) return 'the Ammo run offers runes as basic ammo: ' + runes;
+    const refused = M.conditions.slotProblem({ action: { type: 'attack_with_item', id: 'fire_rune' }, conditions: [], join: 'and' });
+    if (!refused || refused.error !== 'bad_action') return 'the engine accepts a Fire Rune attack slot: ' + JSON.stringify(refused);
     if (!row('barbed_arrows') || row('barbed_arrows').price !== M.SB.BASIC_INDEX.plain_barbed_arrows.price) return 'the Ammo run lost the Barbed Arrows\' store price: ' + JSON.stringify(row('barbed_arrows'));
     const slot = SHELL.draft.storeOf({ type: 'attack_with_item', id: 'fire_rune' }, store);
     if (slot !== null) return 'the bar says a Fire Rune attack slot buys ' + JSON.stringify(slot);

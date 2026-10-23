@@ -49,7 +49,7 @@
 import { METRICS, OPERATORS, MAX_CONDITIONS, MAX_STOP_RULES, STOP_HOLD_MS, ACTION_TYPES, ATTACK_KINDS, EFFECT_IDS } from '../../data/condition-metrics.js?v=0.2.34';
 import { ABILITIES, ABILITY_RULES } from '../../data/abilities.js?v=0.2.34';
 import { CONSUMABLES, CONSUMABLE_RULES } from '../../data/consumables.js?v=0.2.34';
-import { SUPPLIES } from '../../data/supplies.js?v=0.2.34';
+import { SUPPLIES, isRune } from '../../data/supplies.js?v=0.2.34';
 import { ITEMS } from '../../data/items.js?v=0.2.34';
 import { MONSTERS } from '../../data/monsters.js?v=0.2.34';
 import { ROLE_RULES } from '../../data/rule-subjects.js?v=0.2.34';
@@ -100,8 +100,13 @@ function actionKnown(type, id) {
   if (type === 'ability') return !!ABILITIES[id];
   /* ONE item, crafted or a store row (Tyler 2026-10-21: the game never picks; no "Any food"). */
   if (type === 'consume') return Object.prototype.hasOwnProperty.call(CONSUMABLES, id);
-  if (type === 'attack_with_item') return Object.prototype.hasOwnProperty.call(ATTACK_KINDS, id) || !!(SUPPLIES[id] && SUPPLIES[id].kind === 'ammo');
+  /* An attack item is a carried ammo line that is no rune: a rune fuels spells only (Tyler 2026-10-23). */
+  if (type === 'attack_with_item') return Object.prototype.hasOwnProperty.call(ATTACK_KINDS, id) || attackItem(id);
   return false;
+}
+/** May an attack slot name item `id`? A carried ammo line that is no rune (the server's hr_hunt_action_ids, pinned). */
+export function attackItem(id) {
+  return !!(SUPPLIES[id] && SUPPLIES[id].kind === 'ammo' && !isRune(ITEMS[id]));
 }
 
 /** THE STORE RUNE A SPELL SLOT MAY NAME (`action.store`): a rune spell's slot opts into

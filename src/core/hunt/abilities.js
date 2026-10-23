@@ -315,8 +315,10 @@ export function shotLine(h, id) {
 
 /**
  * The basic attack's cost (AB-12), for damage.js (H2) to ask before a basic
- * swing: a wand or staff basic spends `mana`, a bow or crossbow basic one shot
- * of the loaded ammo (own first, then the store: shotLine). True when it may swing.
+ * swing: a caster's basic spends `mana` (hunt-roles.js `basic`), a bow or crossbow
+ * basic one shot of the loaded ammo (own first, then the store: shotLine). Answers
+ * false when it may not swing, else true, or the supply line the shot spent ({ id,
+ * source, price }: a `store` line is the partner's basic version, damage.js blow).
  */
 export function payBasic(inst, hero, cost, sc) {
   const c = cost || {};
@@ -329,11 +331,13 @@ export function payBasic(inst, hero, cost, sc) {
     /* `ammo`: true = the loaded ammo; an id = the attack item a slot chose (one unit a shot). */
     const id = typeof c.ammo === 'string' ? c.ammo : (h && h.ammo);
     const l = h && id ? shotLine(h, id) : { why: 'none' };
+    /* OUT OF GOLD FOR A BASIC SUPPLY ENDS THE HUNT (Tyler 10-14): the shot the hero takes cannot be paid. */
     if (!l.id || l.why) { if (l.why === 'gold_short') h.hs.goldOut = true; return false; }
     /* THE FREE RUNG (src/core/ammo.js ammoPerShot 0, the tier-1 rung of every
        ladder): a loaded stack of it looses its shot and never depletes. */
-    if (l.source === 'own' && ammoPerShot(itemRow(h, l.id)) === 0) return true;
+    if (l.source === 'own' && ammoPerShot(itemRow(h, l.id)) === 0) return l;
     if (!takeLine(h.hs, l, sc.atMs)) { h.hs.goldOut = true; return false; }
+    return l;
   }
   return true;
 }

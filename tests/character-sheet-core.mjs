@@ -117,7 +117,7 @@ async function rules(root) {
 const MUTANTS = [
   ['grantXp drops the combat part', 'src/core/progression.js', 'const combat = COMBAT_XP_SKILLS.indexOf(skillId) >= 0 ? parts.combat : 0;', 'const combat = 0;'],
   ['the sheet prices its own XP split', SHEET, "perks: round(lasting.all, 4)", "perks: round(lasting.all + now.combat, 4)"],
-  ['the sheet reads a key its fingerprint misses', SHEET, "  const equipment = isObj(env.equipment) ? env.equipment : {};", "  const equipment = isObj(env.equipment) ? env.equipment : {}; void env.enchant;"],
+  ['the sheet reads a key its fingerprint misses', SHEET, "  const equipment = combatWorn(isObj(env.equipment) ? env.equipment : {}, ITEMS);", "  const equipment = combatWorn(isObj(env.equipment) ? env.equipment : {}, ITEMS); void env.enchant;"],
   ['the fingerprint stops covering the buffs', BODIES, "    'buffs', coalesce((select jsonb_agg(jsonb_build_object('type', b.v->>'type',", "    'bufs', coalesce((select jsonb_agg(jsonb_build_object('type', b.v->>'type',"],
   ['the sheet prices armour at Level 1', SHEET, "heroSnapshot({ skills, levelXp }, {", "heroSnapshot({ skills }, {"],
   ['the sheet drops the ward', SHEET, "    ward: snap.mit.ward,", "    ward: 0,"],

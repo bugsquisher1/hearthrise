@@ -164,7 +164,9 @@ export function rewardSwing(members, events, world, ctx) {
         if (d > 0) call(aimed.fx, 'addXp', 'defense', d);
         break;
       }
-      case 'cast': {
+      case 'cast':
+      /* A caster's basic (damage.js: a `shot` that spent mana, Tyler 10-15 K3): Magic XP for that mana, the same rule. */
+      case 'shot': {
         const m = members.get(ev.u);
         const n = m && ev.mana > 0 && ev.magicXpMult > 0 ? magicXpFor(ev.mana, ev.magicXpMult / 1000) : 0;
         if (n > 0) call(m.fx, 'addXp', 'magic', n);

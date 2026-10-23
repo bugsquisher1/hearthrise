@@ -37,7 +37,7 @@ import { playerCombatRolls } from '../../../src/core/combat.js';
 import { vitalsOf } from '../../../src/core/vitals.js';
 import { buffQueueFromServer } from '../../../src/core/buffs.js';
 import { xpMultiplierParts } from '../../../src/core/progression.js';
-import { heroSnapshot, loadoutOf, bonusFor, liveBuffHost } from '../../../src/core/member.js';
+import { heroSnapshot, loadoutOf, bonusFor, liveBuffHost, combatWorn } from '../../../src/core/member.js';
 import { INTENT_ERRORS } from './intents.js';
 import { PAYLOAD_SHA256 } from './payload-hash.js';
 
@@ -78,7 +78,8 @@ const round = (v, dp) => Math.round((Number(v) || 0) * 10 ** dp) / 10 ** dp;
 export function characterSheetOf(env, perks, nowMs) {
   const skills = {};
   if (isObj(env.skills)) for (const [k, cell] of Object.entries(env.skills)) skills[k] = Number(cell && cell.xp) || 0;
-  const equipment = isObj(env.equipment) ? env.equipment : {};
+  /* The set a fight is priced by (member.js combatWorn: a loaded rune adds nothing, runes fuel spells only). */
+  const equipment = combatWorn(isObj(env.equipment) ? env.equipment : {}, ITEMS);
   const levelXp = isObj(env.state) ? Number(env.state.level_xp) || 0 : 0;
   const { eq, setBonus, profile } = loadoutOf(equipment, ITEMS);
   const vit = vitalsOf({ levelXp, skills, equipment, items: ITEMS });

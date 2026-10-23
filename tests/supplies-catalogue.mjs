@@ -29,6 +29,10 @@
 //      Fire Rune; Tyler 10-15 "runes and ammo: carried first, then the store");
 //      no store row names a hunt tier (Tyler 2026-10-19: the player's slot picks
 //      the store item, never the hunt)
+//   B5 every packed heal, drink and ammo line has a store row behind it, or is
+//      listed in supply-basics.js NO_STORE_PARTNER with its reason, never both
+//      (Tyler 2026-10-23: "like anything else the arrows should then be bought
+//      from the store"; Iron Arrows had none)
 //   L1 ONE food-and-drink cooldown at 2 s (Tyler 2026-10-19, consumables.js
 //      laneMs, the one source); the ability lanes are abilities.js's
 //   B4 no GOLD offer on a counter (src/data/shops.js) sells a heal or a drink
@@ -59,7 +63,7 @@ import {
   SUPPLY_KINDS, COMBAT_BUFF_TYPES, IDLE_BUFF_TYPES, SUPPLY_ROWS, MANA_SUPPLY_ROWS, SUPPLIES, HEAL_ORDER,
   supplyKindOf, BAG_TARGET_HOURS, BAG_GUIDE_BY_HUNT, BAG_GUIDE_BY_TIER, bagGuideFor,
 } from '../src/data/supplies.js';
-import { BASIC_SUPPLIES, BASIC_EFFECT_SHARE, BASIC_AMMO_PREMIUM } from '../src/data/supply-basics.js';
+import { BASIC_SUPPLIES, BASIC_EFFECT_SHARE, BASIC_AMMO_PREMIUM, NO_STORE_PARTNER } from '../src/data/supply-basics.js';
 import { FOOD_HEAL_SCALE } from '../src/data/core-model.js';
 import { DRINK_ITEMS, DRINK_RECIPES, DRINK_DESC } from '../src/data/drinks.js';
 import { TARGET_MODES, HUNT_STANCES, ROLE_DEFAULTS, ACTION_SET_LIMITS } from '../src/data/rule-subjects.js';
@@ -199,7 +203,8 @@ function checkBasics(d, f) {
       if (!(b.price / b[key] > partnerUnit(p, b.kind))) f('B1', `'${b.id}' costs ${(b.price / b[key]).toFixed(1)} g a point, not more than '${b.partner}' at ${partnerUnit(p, b.kind).toFixed(1)}`);
     } else {
       const abilityRune = p.reqSkill === 'magic' && d.runesSpent.has(b.partner);
-      if (!abilityRune && (!(p.tier >= 2) || p.reqSkill !== 'ranged')) f('B1', `'${b.id}' partner '${b.partner}' is not a tier-2+ arrow or a rune an ability spends`);
+      /* A shot the store sells stands behind an arrow a shot SPENDS (the free rung never runs out). */
+      if (!abilityRune && (!(Number(p.ammoPerShot) > 0) || p.reqSkill !== 'ranged')) f('B1', `'${b.id}' partner '${b.partner}' is not a spent arrow or a rune an ability spends`);
       if (b.price < BASIC_AMMO_PREMIUM * partnerUnit(p, 'ammo')) f('B1', `'${b.id}' costs ${b.price} g a shot, under ${BASIC_AMMO_PREMIUM}x '${b.partner}'`);
     }
   }
@@ -213,6 +218,15 @@ function checkBasics(d, f) {
     if (kind === 'ammo' && it.reqSkill === 'magic' && d.runesSpent.has(id) && !partnered.has(id)) f('B2', `rune '${id}' is spent by an ability and has no shop version: the ability cannot cast once the carried runes are gone`);
   }
   for (const b of d.basics) if ('tiers' in b || 'tier' in b) f('B2', `store row '${b.id}' names a hunt tier: the slot picks the store item, never the hunt`);
+  /* B5 EVERY SUPPLY A HUNT SPENDS HAS A STORE FALLBACK (Tyler 2026-10-23: food, drink, a slot-named spell rune,
+     arrows), or is listed with its reason (supply-basics.js NO_STORE_PARTNER) — and a listed line has none. */
+  for (const [kind, id] of d.rows) {
+    if (!['heal', 'mana', 'ammo'].includes(kind)) continue;
+    const why = Object.prototype.hasOwnProperty.call(d.noPartner, id) ? d.noPartner[id] : null;
+    if (!partnered.has(id) && !(typeof why === 'string' && why.length > 20)) f('B5', `${kind} '${id}' has no store row to fall back on and no reason listed (NO_STORE_PARTNER)`);
+    if (partnered.has(id) && why !== null) f('B5', `'${id}' is listed as needing no store row, yet one stands behind it`);
+  }
+  for (const id of Object.keys(d.noPartner)) if (!d.rows.some((r) => r[1] === id)) f('B5', `NO_STORE_PARTNER lists '${id}', which is no packed supply`);
   for (const k of ['heal', 'mana']) {
     const key = k === 'heal' ? 'heals' : 'mana';
     const ladder = d.basics.filter((b) => b.kind === k).sort((a, b) => a[key] - b[key]);
@@ -343,6 +357,7 @@ const REAL = () => ({
   hunts: HUNTS, guides: BAG_GUIDE_BY_HUNT,
   runesSpent: new Set(Object.values(ABILITIES).filter((a) => a.active && a.rune).map((a) => a.rune)),
   limits: SESSION_LIMITS, endOrder: END_ORDER, endCopy: END_REASON_COPY, checkValues: true, offers: SHOP_OFFERS,
+  noPartner: NO_STORE_PARTNER,
 });
 
 const withBasic = (d, id, patch) => { d.basics = d.basics.map((b) => (b.id === id ? { ...b, ...patch } : b)); };
@@ -364,6 +379,10 @@ function selftest() {
     ['B1', 'a shop supply that is also an item', (d) => { withBasic(d, 'salted_shrimp', { id: 'cooked_trout' }); }],
     ['B1', 'a shop arrow under twice the crafted arrow per shot', (d) => { withBasic(d, 'plain_mithril_arrows', { price: 4 }); }],
     ['B2', 'a crafted arrow with no shop version', (d) => { d.basics = d.basics.filter((b) => b.id !== 'plain_dawnpoint_arrows'); }],
+    ['B5', 'Iron Arrows with no store row again (live 10-23: the Ranger hunted on with no basic)', (d) => { d.basics = d.basics.filter((b) => b.id !== 'plain_iron_arrows'); }],
+    ['B5', 'a food listed as needing no store row while one stands behind it', (d) => { d.noPartner = { ...d.noPartner, cooked_trout: 'a stale reason that is long enough' }; }],
+    ['B5', 'a reason for a line that is no supply', (d) => { d.noPartner = { ...d.noPartner, not_a_supply: 'a reason for an item nobody packs' }; }],
+    ['B1', 'a store row behind the free rung', (d) => { d.basics = d.basics.concat([{ id: 'plain_bronze_arrows', kind: 'ammo', n: 'Plain Bronze Arrows', partner: 'bronze_arrows', price: 2 }]); }],
     ['B2', 'a shop rune no ability spends', (d) => { d.basics = d.basics.concat([{ id: 'plain_earth_rune', kind: 'ammo', n: 'Plain Earth Rune', partner: 'earth_rune', price: 24 }]); }],
     ['B2', 'Flame Strike\'s rune with no store row (live 10-21: Flame Strike unusable)', (d) => { d.basics = d.basics.filter((b) => b.id !== 'plain_fire_rune'); }],
     ['B2', 'a store food served by hunt tier again', (d) => { withBasic(d, 'salted_shrimp', { tiers: [1] }); }],

@@ -214,6 +214,8 @@ async function loadEdge(root) {
     SPAWN: await import(u('src/core/hunt-spawn.js')),
     PS: await import(u('src/core/party-split.js')),
     HR: await import(u('src/core/hunt-rewards.js')),
+    ROLES: await import(u('src/data/hunt-roles.js')),
+    XS: await import(u('src/core/hunt/xp-share.js')),
     WS: await import(u('src/core/hunt/world-state.js')),
     GRID: await import(u('src/core/hunt/grid.js')),
     VIT: await import(u('src/core/vitals.js')),
@@ -924,12 +926,15 @@ const ENGINE_ARMS = {
     return problems;
   },
 
-  /* THE RUNE SPEND (lane a-rune-spend, 2026-10-23 audit), BOTH PATHS: every case settles the same in one span
-     (the browser closed) and cut at odd instants (viewed). (1) A staff's basic never buys the store's Plain Fire
-     Rune once its Fire Runes are spent (live: 8 g a shot, ~14,400 g an hour), and it swings on, bare. (2) Spent
-     Earth Runes never end a default hunt ammo_out (live: at four minutes), and the wand keeps hitting. (3) A slot
-     naming Blood Runes while Air Runes are loaded lands exactly Blood-loaded's blows (it hit at Air's strength).
-     (4) An unaffordable store-rune Flame Strike above Power Strike never ends the hunt (it ended gold_out at once). */
+  /* THE RUNE SPEND (lane a-rune-spend, 2026-10-23 audit; lane b-spell-core: runes fuel SPELLS only, a caster's basic
+     costs mana and trains Magic, arrows fall back to the store), BOTH PATHS: every case settles the same in one span
+     (the browser closed) and cut at odd instants (viewed). (1) A Healer's staff with Fire Runes loaded and the store's
+     Plain Fire Rune behind them never spends or buys a rune for a basic: each basic spends the role's mana and pays its
+     Magic XP. (2) A Mage's wand with Earth Runes loaded never spends one and never ends ammo_out. (3) A slot naming
+     Barbed Arrows while Bronze are loaded lands exactly Barbed-loaded's blows (it hit at the loaded ammo's strength).
+     (4) An unaffordable store-rune Flame Strike above Power Strike never ends the hunt (it ended gold_out at once).
+     (5) A Ranger's 50 Iron Arrows run out and the store's Plain Iron Arrows carry the hunt on (Tyler 10-23: it hunted
+     on with no basic attack); with no gold to buy one the hunt ends gold_out (Tyler 10-14). */
   'RUNE-SPEND': async (M) => {
     const problems = [];
     const span = 600000;
@@ -938,9 +943,11 @@ const ENGINE_ARMS = {
     const unitOf = (o) => (ms(o).find((x) => Number.isInteger(x.hunt.unit_id)) || { hunt: {} }).hunt.unit_id;
     const hits = (o) => { const id = unitOf(o); return o.outs.flatMap((x) => x.events.filter((e) => e.type === 'dmg' && e.ability === 'basic' && e.u === id).map((e) => [e.atMs, e.t, e.amount])); };
     const sum = (o, k) => ms(o).reduce((a, x) => { for (const [id, n] of Object.entries(x.hunt[k] || {})) a[id] = (a[id] || 0) + n; return a; }, {});
+    const xp = (o, k) => ms(o).reduce((a, x) => a + ((x.delta.xp || {})[k] || 0), 0);
     const ended = (o) => (ms(o).find((x) => x.hunt.ended) || { hunt: {} }).hunt.ended || null;
     const casts = (o, ab) => o.outs.reduce((a, x) => a + x.events.filter((e) => e.type === 'cast' && e.ability === ab).length, 0);
-    const sig = (o) => canon({ hits: hits(o), bought: sum(o, 'buys'), uses: sum(o, 'uses'), ended: ended(o) });
+    const basicMana = (o) => { const id = unitOf(o); return o.outs.reduce((a, x) => a + x.events.filter((e) => e.type === 'shot' && e.u === id).reduce((n, e) => n + (e.mana || 0), 0), 0); };
+    const sig = (o) => canon({ hits: hits(o), bought: sum(o, 'buys'), uses: sum(o, 'uses'), ended: ended(o), magic: xp(o, 'magic'), mana: basicMana(o) });
     const both = (label, mk) => {
       const one = runCut(M, mk, span, []);
       const cut = runCut(M, mk, span, cuts);
@@ -950,25 +957,56 @@ const ENGINE_ARMS = {
     /* (1) a Healer's staff with three Fire Runes loaded and the store's Plain Fire Rune behind them */
     const fire = both('fire', () => [memberIn(M, 'a', { role: 'healer', level: 50, gold: 5000, bag: { fire_rune: { loaded: 3, left: 3 } },
       equipment: { weapon: 'maple_staff', ammo: 'fire_rune' } })]);
+    const cost = M.ROLES.HUNT_ROLES.healer.basic.mana;
     if (sum(fire, 'buys').plain_fire_rune) problems.push(`a staff's basics bought ${sum(fire, 'buys').plain_fire_rune} Plain Fire Runes the bar never named`);
-    if (sum(fire, 'uses').fire_rune !== 3) problems.push(`the staff spent ${sum(fire, 'uses').fire_rune} of its 3 Fire Runes`);
-    if (!(hits(fire).length > 3)) problems.push(`the staff landed ${hits(fire).length} basics: it stopped once its Fire Runes were spent`);
-    /* (2) a Mage's wand with twenty Earth Runes (no store row behind them), the default supply setting */
+    if (sum(fire, 'uses').fire_rune) problems.push(`the staff's basics spent ${sum(fire, 'uses').fire_rune} Fire Runes (runes fuel spells only)`);
+    if (!(hits(fire).length > 3)) problems.push(`the staff landed ${hits(fire).length} basics`);
+    const swings = fire.outs.reduce((a, x) => a + x.events.filter((e) => (e.type === 'dmg' || e.type === 'miss' || e.type === 'immune') && e.u === unitOf(fire) && (e.ability || 'basic') === 'basic').length, 0);
+    if (basicMana(fire) !== swings * cost) problems.push(`the staff's ${swings} basics spent ${basicMana(fire)} mana, want ${cost} each`);
+    /* Magic XP is exactly the mana every cast AND every basic spent, at its multiplier (hunt-rewards.js) */
+    const paid = fire.outs.reduce((a, x) => a + x.events.filter((e) => (e.type === 'cast' || e.type === 'shot') && e.u === unitOf(fire) && e.mana > 0 && e.magicXpMult > 0)
+      .reduce((n, e) => n + M.XS.magicXpFor(e.mana, e.magicXpMult / 1000), 0), 0);
+    if (!(basicMana(fire) > 0) || xp(fire, 'magic') !== paid) problems.push(`the staff trained ${xp(fire, 'magic')} Magic for ${paid} XP of casts and basics`);
+    /* a loaded rune adds nothing to the blow: the same staff with no rune at all lands the same blows */
+    const bare = runCut(M, () => [memberIn(M, 'a', { role: 'healer', level: 50, gold: 5000, equipment: { weapon: 'maple_staff' } })], span, []);
+    if (canon(hits(bare)) !== canon(hits(fire))) problems.push(`a loaded Fire Rune changed the staff's basics ${firstDiff(canon(hits(bare)), canon(hits(fire)))}`);
+    /* (2) a Mage's wand with twenty Earth Runes loaded (no store row behind them), the default supply setting */
     const earth = both('earth', () => [memberIn(M, 'a', { role: 'mage', level: 20, bag: { earth_rune: { loaded: 20, left: 20, essential: true } },
       equipment: { weapon: 'oak_wand', shield: 'oak_spellbook', ammo: 'earth_rune' } })]);
-    if (ended(earth)) problems.push(`spent Earth Runes ended a default hunt ${canon(ended(earth))}`);
-    if (sum(earth, 'uses').earth_rune !== 20) problems.push(`the wand spent ${sum(earth, 'uses').earth_rune} of its 20 Earth Runes`);
-    if (!(hits(earth).length > 30)) problems.push(`the wand landed ${hits(earth).length} basics in ten minutes: it stopped once its runes were spent`);
-    /* (3) the same Mage (and bar, but for the attack slot) with Blood named on the bar and Air loaded, or Blood loaded */
+    if (ended(earth)) problems.push(`Earth Runes ended a default hunt ${canon(ended(earth))}`);
+    if (sum(earth, 'uses').earth_rune) problems.push(`the wand's basics spent ${sum(earth, 'uses').earth_rune} Earth Runes`);
+    if (!(hits(earth).length > 30)) problems.push(`the wand landed ${hits(earth).length} basics in ten minutes`);
+    /* (3) a Ranger with Steel named on the bar and Bronze loaded, or Steel loaded (its one ability looses no shot,
+       so every arrow spent is a basic's) */
     const food = { action: { type: 'consume', id: 'salted_shrimp' }, conditions: [{ metric: 'self_hp_pct', op: 'lt', value: 50 }], join: 'and' };
-    const mage = (ammo, bar) => () => [memberIn(M, 'a', { role: 'mage', level: 20, gold: 5000, bar, bag: { blood_rune: { loaded: 2000, left: 2000 }, air_rune: { loaded: 1, left: 1 } },
-      equipment: { weapon: 'oak_wand', shield: 'oak_spellbook', ammo } })];
-    const named = both('blood named', mage('air_rune', [{ action: { type: 'attack_with_item', id: 'blood_rune' }, conditions: [], join: 'and' }, food]));
-    const loaded = both('blood loaded', mage('blood_rune', [food]));
-    const air = runCut(M, mage('air_rune', [food]), span, []);
-    if (!(hits(loaded).length > 30) || canon(hits(loaded)) === canon(hits(air))) problems.push('CONTROL: Blood loaded and Air loaded landed the same blows (the arm cannot see the ammo)');
-    if (canon(hits(named)) !== canon(hits(loaded))) problems.push(`a Blood Rune slot with Air loaded did not land Blood-loaded's blows ${firstDiff(canon(hits(loaded)), canon(hits(named)))}`);
-    if (sum(named, 'uses').blood_rune !== sum(loaded, 'uses').blood_rune) problems.push(`the Blood slot spent ${sum(named, 'uses').blood_rune} Blood Runes, Blood loaded ${sum(loaded, 'uses').blood_rune}`);
+    const ranger = (ammo, bar, bag, o) => () => [memberIn(M, 'a', Object.assign({ role: 'ranger', level: 30, gold: 5000, bar: ['hunters_mark'].concat(bar), bag,
+      equipment: { weapon: 'shortbow', ammo } }, o || {}))];
+    const quiver = { steel_arrows: { loaded: 2000, left: 2000 }, bronze_arrows: { loaded: 1, left: 1 } };
+    const named = both('steel named', ranger('bronze_arrows', [{ action: { type: 'attack_with_item', id: 'steel_arrows' }, conditions: [], join: 'and' }, food], quiver));
+    const loaded = both('steel loaded', ranger('steel_arrows', [food], quiver));
+    const bronze = runCut(M, ranger('bronze_arrows', [food], quiver), span, []);
+    if (!(hits(loaded).length > 30) || canon(hits(loaded)) === canon(hits(bronze))) problems.push('CONTROL: Steel loaded and Bronze loaded landed the same blows (the arm cannot see the ammo)');
+    if (canon(hits(named)) !== canon(hits(loaded))) problems.push(`a Steel slot with Bronze loaded did not land Steel-loaded's blows ${firstDiff(canon(hits(loaded)), canon(hits(named)))}`);
+    if (sum(named, 'uses').steel_arrows !== sum(loaded, 'uses').steel_arrows) problems.push(`the Steel slot spent ${sum(named, 'uses').steel_arrows} Steel Arrows, Steel loaded ${sum(loaded, 'uses').steel_arrows}`);
+    /* (5) fifty Iron Arrows, then the store; and with no gold the hunt ends gold_out (the fixture's cut keeps a
+       hunt that ended settling on, so the two paths are compared up to the window it ends in) */
+    const iron = both('iron', ranger('iron_arrows', [food], { iron_arrows: { loaded: 50, left: 50, essential: true } }, { level: 10 }));
+    if (sum(iron, 'uses').iron_arrows !== 50 || !(sum(iron, 'buys').plain_iron_arrows > 0) || ended(iron)) {
+      problems.push(`50 Iron Arrows did not fall to the store: uses ${canon(sum(iron, 'uses'))}, buys ${canon(sum(iron, 'buys'))}, ended ${canon(ended(iron))}`);
+    }
+    const toEnd = (o) => {
+      const b = {};
+      for (const x of o.outs) {
+        for (const p of x.members) for (const [id, n] of Object.entries(p.hunt.buys || {})) b[id] = (b[id] || 0) + n;
+        if (x.members.some((p) => p.hunt.ended)) break;
+      }
+      return canon({ b, e: ended(o) });
+    };
+    /* (no food slot: the arrow alone must end it) */
+    const broke0 = ranger('iron_arrows', [], { iron_arrows: { loaded: 5, left: 5, essential: true } }, { level: 10, gold: 0 });
+    const poor = runCut(M, broke0, span, []), poorCut = runCut(M, broke0, span, cuts);
+    if (toEnd(poor) !== toEnd(poorCut)) problems.push(`iron, no gold: the viewed cut ended differently ${firstDiff(toEnd(poor), toEnd(poorCut))}`);
+    if (!ended(poor) || ended(poor).reason !== 'gold_out') problems.push(`a Ranger out of arrows and gold hunted on: ended ${canon(ended(poor))}`);
     /* (4) a tank whose first slot is Flame Strike on the store's rune it cannot pay (the gold floor), then Power Strike */
     const broke = both('broke', () => [memberIn(M, 'a', { role: 'tank', level: 30, floor: 100000,
       bar: [{ action: { type: 'ability', id: 'flame_strike', store: 'plain_fire_rune' }, conditions: [], join: 'and' }, 'power_strike'] })]);
@@ -2223,16 +2261,22 @@ const MUTANTS = [
     from: "      if (typeof m.wear === 'function') m.wear(atMs);\n", to: '' },
   { arm: 'HONE', name: 'a spent whetstone keeps paying its bonus', file: 'src/core/member.js',
     from: '    if (honeLeft() <= 0) unhone();\n  };', to: '  };' },
-  { arm: 'RUNE-SPEND', name: '[rune-spend] a basic shot buys the store rune behind a spent rune line', file: 'src/core/hunt/abilities.js',
-    from: '  return resolveLine(h && h.hs, id, isRune(itemRow(h, id)) ? null : undefined);', to: '  return resolveLine(h && h.hs, id);' },
+  { arm: 'RUNE-SPEND', name: '[spell-core] a spent arrow line never falls to its store row (Iron Arrows, 10-23)', file: 'src/core/hunt/abilities.js',
+    from: '  return resolveLine(h && h.hs, id, isRune(itemRow(h, id)) ? null : undefined);', to: '  return resolveLine(h && h.hs, id, null);' },
+  { arm: 'RUNE-SPEND', name: '[spell-core] a basic supply the purse cannot buy never ends the hunt', file: 'src/core/hunt/abilities.js',
+    from: "    if (!l.id || l.why) { if (l.why === 'gold_short') h.hs.goldOut = true; return false; }", to: '    if (!l.id || l.why) return false;' },
+  { arm: 'RUNE-SPEND', name: '[spell-core] a caster\'s basic swings free (no mana)', file: 'src/core/hunt/damage.js',
+    from: '      if (row.basic) {', to: '      if (false) {' },
+  { arm: 'RUNE-SPEND', name: '[spell-core] a caster\'s basic mana trains no Magic', file: 'src/core/hunt-rewards.js',
+    from: "      case 'shot': {", to: "      case 'shot_': {" },
   { arm: 'RUNE-SPEND', name: '[rune-spend] a shot is priced by the loaded ammo, not the item it spent', file: 'src/core/hunt/damage.js',
-    from: "  if (h && t.side === 'mon' && price !== undefined && price !== h.ammo && typeof h.shotRolls === 'function') {", to: '  if (false) {' },
+    from: "  if (h && t.side === 'mon' && price !== undefined && (price !== h.ammo || basic) && typeof h.shotRolls === 'function') {", to: '  if (false) {' },
   { arm: 'RUNE-SPEND', name: '[rune-spend] the member prices every shot with the loaded ammo', file: 'src/core/member.js',
     from: '      if (k) e.ammo = k; else delete e.ammo;', to: '' },
   { arm: 'RUNE-SPEND', name: '[rune-spend] spent runes end a default hunt ammo_out', file: 'src/core/action-rules.js',
     from: "  if (kind === 'ammo' && storeAllowed(hs)) return false;\n", to: '' },
-  { arm: 'RUNE-SPEND', name: '[rune-spend] a caster whose runes are spent never swings again', file: 'src/core/hunt/damage.js',
-    from: "      if (shoots && u.role !== 'ranger' && !shotLine(h, h.ammo).id) return { ammo: null, price: null, size: 1, aim: t };\n", to: '' },
+  { arm: 'RUNE-SPEND', name: '[spell-core] a loaded rune still prices the caster\'s blow', file: 'src/core/member.js',
+    from: '  if (!e.ammo || !isRune(items && items[e.ammo])) return e;', to: '  return e;' },
   { arm: 'RUNE-SPEND', name: '[rune-spend] an unaffordable slot marks the hunt gold_out while the bar is still walked', file: 'src/core/hunt/abilities.js',
     from: "    if (s.why) return { why: s.short ? 'gold_short' : s.why === 'level' ? 'level' : 'no_stock' };", to: "    if (s.why) { if (s.short) h.hs.goldOut = true; return { why: s.short ? 'gold_short' : s.why === 'level' ? 'level' : 'no_stock' }; }" },
   { arm: 'BUFF', name: 'the hunt never re-measures the buff queue (a buff never pays)', file: 'src/core/combat-sim.js',
@@ -2331,11 +2375,11 @@ const MUTANTS = [
   { arm: 'PARTY-DEATH', name: 'a party death leaves the survivor hunting', file: 'src/core/combat-sim.js',
     from: '        for (const other of members) if (other !== m && !other.left && !other.hs.died) other.hs.partyDied = true;\n', to: '' },
   { arm: 'QUIVER', name: '[C2 ammoGuard] a shot is loosed but its arrow is never taken from the bag', file: 'src/core/hunt/abilities.js',
-    from: '    if (!takeLine(h.hs, l, sc.atMs)) { h.hs.goldOut = true; return false; }\n  }\n  return true;', to: '  }\n  return true;' },
+    from: '    if (!takeLine(h.hs, l, sc.atMs)) { h.hs.goldOut = true; return false; }\n    return l;', to: '    return l;' },
   { arm: 'QUIVER', name: 'the free rung is spent like a paid one', file: 'src/core/hunt/abilities.js',
-    from: "    if (l.source === 'own' && ammoPerShot(itemRow(h, l.id)) === 0) return true;\n", to: '' },
+    from: "    if (l.source === 'own' && ammoPerShot(itemRow(h, l.id)) === 0) return l;\n", to: '' },
   { arm: 'QUIVER', name: 'a ranged basic swings without a shot', file: 'src/core/hunt/damage.js',
-    from: '    if (shot.pick.ammo !== null && !payBasic(inst, u, { ammo: shot.pick.ammo }, sc)) continue;', to: '' },
+    from: '    const paid = cost ? payBasic(inst, u, cost, sc) : true;', to: '    const paid = true;' },
   { arm: 'QUIVER', name: '[C2 skipFoodDebit] a carried use is not debited', file: 'src/core/action-rules.js',
     from: '  l.left = int(l.left, 0) - 1;', to: '  l.left = int(l.left, 0);' },
   { arm: 'WORLD-BOUND', name: 'the world bound is lifted', file: 'src/data/hunt-tuning.js',

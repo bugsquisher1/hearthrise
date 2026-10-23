@@ -27,7 +27,6 @@ import { storeOf, storeWords, conditionWords } from './bar-draft.js?v=0.2.34';
 
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 const secs = (ms) => (ms % 1000 ? (ms / 1000).toFixed(1) : String(ms / 1000));
-const isRune = (id) => /_rune$/.test(id);
 
 /** The three tabs of the Configure action window: spells, the spells that spend a rune, and items. */
 export const TABS = Object.freeze([['spells', 'Spells'], ['runes', 'Runes'], ['items', 'Items']]);
@@ -97,7 +96,8 @@ export function factsOf(a) {
       effect: ['Restores ' + r.amount + (r.kind === 'drink' ? ' mana.' : ' health.'), spread], requires: null };
   }
   if (own(ATTACK_KINDS, a.id)) return { type: 'Ammo: your attacks use whatever you have loaded.', cost: null, cooldown: null, effect: [], requires: null };
-  return { type: (isRune(a.id) ? 'Rune' : 'Ammo') + ': your attacks use it, one per shot.', cost: null, cooldown: null, effect: [], requires: null };
+  /* (A rune is no ammo: it fuels spells only, Tyler 2026-10-23, so no attack slot names one.) */
+  return { type: 'Ammo: your attacks use it, one per shot.', cost: null, cooldown: null, effect: [], requires: null };
 }
 
 /** How many of an action's ONE item the bag holds, from the server's inventory; null = not counted (a spell, the loaded ammo, a store item). */

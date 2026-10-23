@@ -54,12 +54,12 @@ function supplyRow(c, store, bag) {
     unpriced: c.source === 'store' ? price === null : false, none: c.source !== 'store' && !(carry > 0) };
 }
 
-/* An ammo row: own stock first, then an arrow's plain partner per shot (the server's price). A rune's
-   store row feeds spells only, never a shot (supplies.js isRune), so a rune's row is own stock only. */
+/* An ammo row: own stock first, then its plain partner per shot (the server's price; Tyler 2026-10-23:
+   arrows are bought from the store like anything else). A rune is no ammo (tableOf leaves it out). */
 function ammoRow(id, store, bag) {
   if (own(ATTACK_KINDS, id)) return { action: { type: 'attack_with_item', id }, kind: 'ammo', name: 'The loaded ammo', store: false, amount: null, price: null, per: null, carry: null, unpriced: false, none: false };
   const it = ITEMS[id] || {};
-  const p = isRune(it) ? null : partnerRow(store, id);
+  const p = partnerRow(store, id);
   const carry = countOf(bag, id);
   return { action: { type: 'attack_with_item', id }, kind: 'ammo', name: itemName(id), store: false,
     amount: Number(it.rangeStrB || it.magicStrB || it.strB) || 0, price: p ? p.price : null, per: p ? p.price : null, carry,
@@ -98,7 +98,8 @@ export function tableOf(tab, ctx) {
     const rows = Object.values(CONSUMABLES).filter((x) => x.kind === kind).map((x) => supplyRow(x, c.store, c.bag)).sort(byValue);
     if (rows.length) runs.push({ kind, label: RUN_LABEL[kind], cols: RUN_COLUMNS[kind], rows });
   }
-  const ammo = Object.keys(ATTACK_KINDS).concat(Object.values(SUPPLIES).filter((r) => r.kind === 'ammo').map((r) => r.id))
+  /* No rune: a rune fuels spells only (Tyler 2026-10-23), so no attack slot may name one (conditions.js). */
+  const ammo = Object.keys(ATTACK_KINDS).concat(Object.values(SUPPLIES).filter((r) => r.kind === 'ammo' && !isRune(ITEMS[r.id])).map((r) => r.id))
     .map((id) => ammoRow(id, c.store, c.bag));
   const loaded = ammo.filter((r) => own(ATTACK_KINDS, r.action.id));
   runs.push({ kind: 'ammo', label: RUN_LABEL.ammo, cols: RUN_COLUMNS.ammo, rows: loaded.concat(ammo.filter((r) => !own(ATTACK_KINDS, r.action.id)).sort(byValue)) });

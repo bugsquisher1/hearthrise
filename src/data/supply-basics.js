@@ -78,6 +78,10 @@ export const BASIC_SUPPLIES = Object.freeze([
   mana('thin_pumpkin_cider', 'Thin Pumpkin Cider', 'pumpkin_cider', 288, 80),
   mana('thin_goldenroot_tea', 'Thin Goldenroot Tea', 'goldenroot_tea', 396, 138),
   mana('thin_emberfruit_cordial', 'Thin Emberfruit Cordial', 'emberfruit_cordial', 480, 233),
+  /* (Tyler 2026-10-23: "like anything else the arrows should then be bought from the store".) Iron Arrows ran out
+     with no store row and the Ranger hunted on with no basic attack; priced by the rule, BASIC_AMMO_PREMIUM x its
+     partner's book value (1 g). */
+  shot('plain_iron_arrows', 'Plain Iron Arrows', 'iron_arrows', 2),
   shot('plain_barbed_arrows', 'Plain Barbed Arrows', 'barbed_arrows', 2),
   shot('plain_iron_bolts', 'Plain Iron Bolts', 'iron_bolts', 2),
   shot('plain_steel_arrows', 'Plain Steel Arrows', 'steel_arrows', 4),
@@ -91,6 +95,25 @@ export const BASIC_SUPPLIES = Object.freeze([
 /** Null-prototype index by id. */
 export const BASIC_INDEX = Object.freeze(BASIC_SUPPLIES.reduce((acc, b) => { acc[b.id] = b; return acc; },
   Object.create(null)));
+
+/* EVERY SUPPLY A HUNT SPENDS HAS A STORE FALLBACK (Tyler 2026-10-23: food, drink, a spell's rune when its slot
+   names it, arrows: bought with gold per use once the carried stock runs out; out of gold for a basic supply
+   still ends the hunt, 10-14). A packed heal, drink or ammo line (src/data/supplies.js SUPPLY_ROWS) is the
+   partner of a store row above, or it is listed here with the reason it needs none. tests/supplies-catalogue.mjs
+   B5 holds both directions: an unlisted line with no partner is red, and so is a listed one that has a partner. */
+const BY_SLOT = 'a food or drink slot names ONE item (Tyler 2026-10-21): when it runs out the next slot fires, and any store food or drink can stand there';
+const FREE_RUNG = 'the free tier-1 rung (ammoPerShot 0): a shot never spends it, so it never runs out';
+const HONE = 'a whetstone is melee\'s ceiling, not its swing (R5): when the last one wears the sword swings on unsharpened';
+const NO_SPELL = 'no active spell spends it yet (runes fuel spells only, Tyler 2026-10-23): it gets its store row with the spell that names its family (S3)';
+export const NO_STORE_PARTNER = Object.freeze(Object.assign(Object.create(null), {
+  turnip_mash: BY_SLOT, cooked_herring: BY_SLOT, cooked_wolf_meat: BY_SLOT, cooked_panther_meat: BY_SLOT, cooked_pikeperch: BY_SLOT,
+  cooked_copper_crab: BY_SLOT, wheat_bread: BY_SLOT, cooked_silverfin: BY_SLOT, baked_potato: BY_SLOT, cooked_goldgill: BY_SLOT,
+  cooked_bear_meat: BY_SLOT, river_chowder: BY_SLOT, cooked_frostfin: BY_SLOT, cooked_moonfish: BY_SLOT,
+  bronze_arrows: FREE_RUNG, air_rune: FREE_RUNG,
+  earth_rune: NO_SPELL, water_rune: NO_SPELL, chaos_rune: NO_SPELL, death_rune: NO_SPELL, blood_rune: NO_SPELL,
+  coarse_whetstone: HONE, copper_whetstone: HONE, iron_whetstone: HONE, steel_whetstone: HONE, mithril_whetstone: HONE,
+  rune_whetstone: HONE, dawn_whetstone: HONE,
+}));
 
 
 // ── THE SUPPLY PRICE LIST (lane S2, 2026-10-18; Coordinator ruling: the designer's prices) ──

@@ -24,14 +24,21 @@
    tank      true = holds, and Challenges what is not on him (spec §3.2 #2, #14)
    peel      permille: a basic attack of this role draws a queued monster onto it (TG-07, ASSUMED)
    discipline the src/data/abilities.js discipline whose three abilities the role's bar holds
+   basic     a CASTER's basic attack (Tyler 10-15 K3, 10-23: a wand or staff basic costs a little mana and
+             trains Magic; runes fuel spells only): { mana it spends a swing (no mana, no swing: AB-12),
+             magicXpMult (the abilities.js scale: permille of the mana spent, x1000) }. PROVISIONAL
+             (lane b-spell-core): 1 mana, so regeneration alone carries it at every Level, at the staff
+             spells' 1600; the designer retunes both (balance p30/p31). A role with no `basic` swings free.
    A role sets no HP or mana: those come from the character's Level and armour
    (src/core/vitals.js, CORE_MODEL.md §3). */
 export const HUNT_ROLES = Object.freeze({
   tank: Object.freeze({ label: 'Melee (shield)', discipline: 'shield', melee: true, range: 1, tank: true, speed: 3200, peel: 0 }),
   melee_dps: Object.freeze({ label: 'Melee', discipline: 'dual_axe', melee: true, range: 1, tank: false, speed: 3200, peel: 0 }),
   ranger: Object.freeze({ label: 'Ranger', discipline: 'ranged', melee: false, range: 7, tank: false, speed: 3200, peel: 0 }),
-  mage: Object.freeze({ label: 'Mage', discipline: 'destruction', melee: false, range: 7, tank: false, speed: 3200, peel: 0 }),
-  healer: Object.freeze({ label: 'Healer', discipline: 'restoration', melee: false, range: 7, tank: false, speed: 3200, peel: 180 }),
+  mage: Object.freeze({ label: 'Mage', discipline: 'destruction', melee: false, range: 7, tank: false, speed: 3200, peel: 0,
+    basic: Object.freeze({ mana: 1, magicXpMult: 1600 }) }),
+  healer: Object.freeze({ label: 'Healer', discipline: 'restoration', melee: false, range: 7, tank: false, speed: 3200, peel: 180,
+    basic: Object.freeze({ mana: 1, magicXpMult: 1600 }) }),
 });
 
 /* WHO LEADS THE PULL (spec §3.2 #3, ASSUMED): the first hero in this order, ties by unit id. */
@@ -142,6 +149,8 @@ export function validate() {
     if (!Number.isInteger(r.speed) || r.speed <= 0) out.push(id + ': speed must be a positive integer');
     if (!Number.isInteger(r.peel) || r.peel < 0 || r.peel > 1000) out.push(id + ': peel is permille 0..1000');
     if (!['shield', 'dual_axe', 'ranged', 'destruction', 'restoration'].includes(r.discipline)) out.push(id + ': unknown discipline ' + r.discipline);
+    if (r.basic !== undefined && !(r.basic && Number.isInteger(r.basic.mana) && r.basic.mana > 0 && Number.isInteger(r.basic.magicXpMult)
+      && r.basic.magicXpMult >= 0 && !r.melee)) out.push(id + ': a basic costs whole mana > 0 at a whole magicXpMult >= 0, and only a ranged role casts one');
   }
   for (const [w, roles] of Object.entries(WEAPON_ROLES)) {
     if (!roles.length || !roles.every((r) => HUNT_ROLES[r])) out.push('weapon ' + w + ' names an unknown role');

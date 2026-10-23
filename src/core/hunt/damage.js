@@ -37,6 +37,10 @@ import { payBasic, shotLine } from './abilities.js?v=0.2.34';
 import { slotsFor, pickSlot, bestAim, footprintOf, inFootprint, DEFAULT_ATTACK_ROW } from './conditions.js?v=0.2.34';
 import { elementWithFloor } from '../../data/hunt-grounds.js?v=0.2.34';
 import { mitigate } from '../mitigation.js?v=0.2.34';
+import { BASIC_EFFECT_SHARE } from '../../data/supply-basics.js?v=0.2.34';
+
+/* A store shot's share of its partner's ammo bonus, permille. */
+const BASIC_SHOT_PM = Math.round(BASIC_EFFECT_SHARE * 1000);
 
 /* stance: the hero's setting. acc (permille), maxHit, def, element: its combat snapshot.
    swingLeftMs: ms until the unit may swing again. */
@@ -155,28 +159,34 @@ export function resolveAttacks(inst, sc) {
     if (!row || (row.melee && !atRest(u)) || !inRange(inst, u, t)) continue;
     /* THE ATTACK LANE, ONE PATH (conditions.js). The first attack slot whose
        conditions pass and that has a shot picks the item and, by its footprint, the
-       aim; the lane's last slot is its default, d_attack: the LOADED ammo at the
-       target. A ranged basic looses one shot of it and a caster's basic burns one
-       of the rune in its ammo slot (W0: runes are the mage's ammo, spec §3.4 #8),
-       own first then, for an arrow, the store (abilities.shotLine, the one supply
-       resolver; a rune is never bought for a shot): a bow with no shot does not
-       swing. A caster with no rune loaded or none left, and any melee hero, swings
-       with nothing to pay (a hunt never stops for lack of stock, Tyler 10-16). A
-       bare fixture unit (no settle entry) runs the default with no supplies at
-       all. ONE unit a shot, whatever it hits, and the blow is priced by the item
-       it spent (blow below), never by the ammo merely loaded. */
+       aim; the lane's last slot is its default, d_attack: the basic attack at the
+       target. A ranged basic looses one shot of the LOADED ammo, own first then the
+       store's partner arrow, bought per use (abilities.shotLine, the one supply
+       resolver; Tyler 10-23: arrows are bought from the store like anything else):
+       a bow with no shot does not swing. A CASTER's basic spends its role's mana
+       (hunt-roles.js `basic`; Tyler 10-15 K3, 10-23: runes fuel spells only, never a
+       basic) and trains Magic from it: no mana, no swing (AB-12). A melee hero swings
+       with nothing to pay. A bare fixture unit (no settle entry) runs the default with
+       no supplies at all. ONE unit a shot, whatever it hits, and the blow is priced
+       by the item it spent (blow below), never by the ammo merely loaded. */
     const h = (inst.heroes && inst.heroes[u.id]) || null;
     const shot = pickShot(inst, u, h, t, sc);
     if (!shot) continue;
-    if (shot.pick.ammo !== null && !payBasic(inst, u, { ammo: shot.pick.ammo }, sc)) continue;
+    const cost = shot.pick.mana > 0 ? { mana: shot.pick.mana } : shot.pick.ammo !== null ? { ammo: shot.pick.ammo } : null;
+    const paid = cost ? payBasic(inst, u, cost, sc) : true;
+    if (!paid) continue;
+    /* A STORE SHOT is its crafted partner's BASIC version (supply-basics.js BASIC_EFFECT_SHARE). */
+    const sharePm = paid !== true && paid.source === 'store' ? BASIC_SHOT_PM : undefined;
     const aim = shot.pick.aim;
     const hits = [aim].concat(engaged(inst).filter((m) => m !== aim && inFootprint(aim, shot.pick.size, m)).sort((a, b) => a.id - b.id));
-    /* The decision event: only a player's (or role) slot, never the default swing every 2 s. */
-    if (shot.rule !== DEFAULT_ATTACK_ROW.rule) {
-      sc.emit(makeEvent('shot', sc.atMs, { u: u.id, t: aim.id, item: shot.pick.ammo || '', rule: shot.rule, rule_label: shot.label, pass: shot.mask, hits: hits.length }));
+    /* The decision event: a player's (or role) slot, and every swing that spent mana (its Magic XP is
+       paid from it: hunt-rewards.js), never a free default swing every 2 s. */
+    if (shot.rule !== DEFAULT_ATTACK_ROW.rule || shot.pick.mana > 0) {
+      sc.emit(makeEvent('shot', sc.atMs, { u: u.id, t: aim.id, item: shot.pick.ammo || '', rule: shot.rule, rule_label: shot.label, pass: shot.mask, hits: hits.length,
+        ...(shot.pick.mana > 0 ? { mana: shot.pick.mana, magicXpMult: shot.pick.magicXpMult } : {}) }));
     }
     restart(u);
-    for (const m of hits) if (m.alive) blow(inst, sc, u, h, m, shot.pick.price);
+    for (const m of hits) if (m.alive) blow(inst, sc, u, h, m, shot.pick.price, sharePm);
     if (inst.world.leader === u.id) inst.world.leaderLast = aim.id;
     peel(inst, sc, u);
   }
@@ -186,15 +196,17 @@ export function resolveAttacks(inst, sc) {
    playerCombatRolls): the accuracy over its defence with the weapon weakness, and
    the weakness's damage factor on the unit's max hit (its defence is hurt()'s,
    once). A bare fixture unit swings on its snapshot.
-   PRICED BY THE ITEM SPENT: `price` is the item the shot spent in the ammo slot
-   (null = nothing: a caster's bare swing), undefined = the loadout as worn (melee:
-   its whetstone). When it is not the loaded ammo, the member prices the blow with
-   it there instead (member.js shotRolls: a slot naming Blood Runes while Air Runes
-   are loaded hits at Blood's strength). A peer the browser draws has no shotRolls
-   and swings on its frozen numbers until the server's commit lands. */
-function blow(inst, sc, u, h, t, price) {
-  if (h && t.side === 'mon' && price !== undefined && price !== h.ammo && typeof h.shotRolls === 'function') {
-    const base = h.shotRolls(null, price), spent = h.shotRolls(MONSTERS[t.kind], price);
+   PRICED BY THE ITEM SPENT: `price` is the item the shot spent in the ammo slot,
+   undefined = the loadout as worn (melee: its whetstone; a caster: no ammo at all).
+   When it is not the loaded ammo, or it came from the store (`sharePm` under 1000:
+   the store's basic version, a share of its partner's bonus), the member prices the
+   blow with it there instead (member.js shotRolls: a slot naming Barbed Arrows while
+   Bronze are loaded hits at Barbed's strength). A peer the browser draws has no
+   shotRolls and swings on its frozen numbers until the server's commit lands. */
+function blow(inst, sc, u, h, t, price, sharePm) {
+  const basic = Number.isInteger(sharePm) && sharePm < 1000;
+  if (h && t.side === 'mon' && price !== undefined && (price !== h.ammo || basic) && typeof h.shotRolls === 'function') {
+    const base = h.shotRolls(null, price, sharePm), spent = h.shotRolls(MONSTERS[t.kind], price, sharePm);
     return roll(inst, sc, u, t, spent.accuracy, Math.max(1, Math.floor(Math.max(1, base.maxHit) * ((spent.weak && spent.weak.damageMult) || 1))),
       Number(spent.critChance) || 0);
   }
@@ -205,9 +217,9 @@ function blow(inst, sc, u, h, t, price) {
 }
 
 /* The attack slot a hero's swing takes now: { pick: { ammo (an item id, or null =
-   nothing to pay), price (the item the blow is priced with: blow above), size, aim },
-   rule, mask, label } or null. An item slot is a ranged hero's or a caster's; one
-   with no stock or no aim falls back to the next. */
+   nothing to pay), price (the item the blow is priced with: blow above), size, aim,
+   mana? + magicXpMult? (a caster's basic) }, rule, mask, label } or null. An item slot
+   is a shooter's; one with no stock or no aim falls back to the next. */
 function pickShot(inst, u, h, t, sc) {
   const row = roleOf(u);
   if (!row) return null;
@@ -215,19 +227,24 @@ function pickShot(inst, u, h, t, sc) {
   return pickSlot(inst, u, h, rows, (slot, cx) => {
     const id = slot.action.id;
     if (id === 'loaded') {
-      const shoots = !!h && (u.role === 'ranger' || ((u.role === 'mage' || u.role === 'healer') && !!h.ammo));
+      /* THE CASTER'S MANA BASIC: never a rune (a loaded rune adds nothing: member.js combatWorn), its
+         role's mana a swing; with too little it waits (`mana`) while the pool regenerates. */
+      if (row.basic) {
+        return (Number(u.mana) || 0) >= row.basic.mana ? { ammo: null, price: undefined, size: 1, aim: t, mana: row.basic.mana, magicXpMult: row.basic.magicXpMult } : { why: 'mana' };
+      }
+      const shoots = !!h && u.role === 'ranger';
       /* A bow or crossbow with nothing loaded has no shot: no swing (the lane waits, no_stock). */
       if (shoots && !h.ammo) return { why: 'no_stock' };
-      /* A CASTER WHOSE LOADED RUNE IS SPENT swings the bare weapon, as with none loaded: a staff
-         needs no rune, and running out never stops a hunt (Tyler 10-16). Before, it never swung again. */
-      if (shoots && u.role !== 'ranger' && !shotLine(h, h.ammo).id) return { ammo: null, price: null, size: 1, aim: t };
       return { ammo: shoots ? h.ammo : null, price: shoots ? h.ammo : undefined, size: 1, aim: t };
     }
-    if (row.melee || !h) return null;
+    /* An item attack slot is a shooter's (a caster's basic spends mana, a melee hero's spends nothing). */
+    if (row.melee || row.basic || !h) return null;
     const l = shotLine(h, id);
     if (!l.id || l.why) return { why: l.why === 'gold_short' ? 'gold_short' : 'no_stock' };
     const size = footprintOf(slot, h);
-    const aim = cx.aim && cx.aim.alive ? cx.aim : (bestAim(inst, u, row.range, size) || {}).aim;
+    /* A ONE-TARGET item shoots the swing's own target, as the loaded ammo does (a pull's first shot at a pack
+       that holds no target yet fell to the loaded ammo); an area item takes its best aim. */
+    const aim = cx.aim && cx.aim.alive ? cx.aim : size <= 1 ? t : (bestAim(inst, u, row.range, size) || {}).aim;
     return aim && inRange(inst, u, aim) ? { ammo: id, price: id, size, aim } : { why: 'out_of_range' };
   }, sc, 'attack');
 }

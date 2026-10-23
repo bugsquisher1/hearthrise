@@ -26,6 +26,7 @@ import { HUNT_ROLES } from '../data/hunt-roles.js?v=0.2.34';
 import { MONSTERS } from '../data/monsters.js?v=0.2.34';
 import { honeOf, honeWornAt, ammoPerShot } from './ammo.js?v=0.2.34';
 import { mitigationFor, NO_MITIGATION } from './mitigation.js?v=0.2.34';
+import { isRune } from '../data/runes.js?v=0.2.34';
 
 /* A finite, non-negative number or the fallback (every number that crosses in from a row). */
 function nat(v, fallback) {
@@ -118,11 +119,22 @@ export function heroSnapshot(state, c) {
   return { acc: Math.round(roll.accuracy * 1000), maxHit: Math.max(1, Math.floor(roll.maxHit)), def, mit };
 }
 
+/* THE SET A FIGHT IS PRICED BY (Tyler 2026-10-23: runes fuel SPELLS only, caster basics cost mana): the
+   worn set with a RUNE in the ammo slot taken out, so a loaded rune adds nothing to any blow, the snapshot
+   or the character sheet (src/data/runes.js isRune). Every other occupant stays. */
+export function combatWorn(equipment, items) {
+  const e = equipment || {};
+  if (!e.ammo || !isRune(items && items[e.ammo])) return e;
+  const o = Object.assign({}, e);
+  delete o.ammo;
+  return o;
+}
+
 /* THE LOADOUT a hero fights with: the worn set's stats, its armour-set bonus
    and the stat profile its weapon family reads, from server state. One assembly
    for the hunt member and the character sheet (./character-sheet.js), so the
-   sheet shows the numbers a fight is priced by. There is no combat style to
-   pick: the weapon family is the style (CORE_MODEL.md §4). */
+   sheet shows the numbers a fight is priced by (both pass combatWorn's set). There
+   is no combat style to pick: the weapon family is the style (CORE_MODEL.md §4). */
 export function loadoutOf(equipment, items) {
   const eq = equipmentStats(equipment, items);
   return { eq, setBonus: armorSetBonus(equipment, items), profile: deriveProfile(eq.weaponType) };
@@ -141,8 +153,9 @@ function applyVitals(state, equipment, items) {
    flows through (tests/goal-counters.mjs anchors them). */
 export function memberSide(mi, ctx) {
   const items = ctx.items;
-  /* `let`: a spent whetstone swaps the loadout mid-hunt (the hone, below); the seam reads these live. */
-  let equipment = mi.equipment || {};
+  /* `let`: a spent whetstone swaps the loadout mid-hunt (the hone, below); the seam reads these live.
+     The set a fight prices: a loaded rune is no ammo (combatWorn), so the hero's `ammo` is never a rune. */
+  let equipment = combatWorn(mi.equipment, items);
   let { eq, setBonus, profile } = loadoutOf(equipment, items);
   const skills0 = {};
   for (const k in (mi.skills || {})) skills0[k] = nat(mi.skills[k], 0);
@@ -263,8 +276,10 @@ export function memberSide(mi, ctx) {
      the ammo slot instead of the loaded one (null = none: a caster's bare swing once its runes are
      spent). `m` null = the neutral foe, the snapshot's max hit. One loadout per ammo id, rebuilt when the
      worn set changes (a spent whetstone, unhone above); skills and buffs are read live, as rollsVs reads them. */
+  /* `sharePm` (permille, default 1000): the share of the ammo's bonus the shot gets — a STORE shot is its
+     crafted partner's basic version (supply-basics.js BASIC_EFFECT_SHARE; combat.js ammoShare). */
   let shotSet = null; let shotLoadouts = null;
-  const shotRolls = (m, ammo) => {
+  const shotRolls = (m, ammo, sharePm) => {
     if (shotSet !== equipment) { shotSet = equipment; shotLoadouts = new Map(); }
     const k = typeof ammo === 'string' ? ammo : '';
     let l = shotLoadouts.get(k);
@@ -274,7 +289,8 @@ export function memberSide(mi, ctx) {
       l = Object.assign({ equipment: e }, loadoutOf(e, items));
       shotLoadouts.set(k, l);
     }
-    return playerCombatRolls(m || NEUTRAL_FOE, { eq: l.eq, equipment: l.equipment, items, skills: state.skills, bonus, setBonus: l.setBonus, profile: l.profile });
+    const share = Number.isInteger(sharePm) && sharePm >= 0 && sharePm < 1000 ? { ammoShare: sharePm / 1000 } : {};
+    return playerCombatRolls(m || NEUTRAL_FOE, Object.assign({ eq: l.eq, equipment: l.equipment, items, skills: state.skills, bonus, setBonus: l.setBonus, profile: l.profile }, share));
   };
   return {
     mi, hs, state, fx, eq, skills0, levelXp0, levelGained: () => levelGained, xpFrac0, catalogue: items, goals, bestiary, collection, itemDelta, events, xpGained, finds,

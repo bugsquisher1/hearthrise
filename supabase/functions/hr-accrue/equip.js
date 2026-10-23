@@ -84,6 +84,7 @@ import {
 import { refusalBody } from './envelope.js';
 import { EQUIP_SLOT_INDEX, ITEM_EQUIP_SLOTS } from './catalogue.js';
 import { READ_SQL, APPLY_SQL, collectCurrentWindow } from './set-activity.js';
+import { huntOpenOf } from './hunt-settle.js';
 
 /** The verb's own name, used to build `journal.intent`. */
 export const VERB = 'equip';
@@ -201,6 +202,23 @@ export async function runEquip(o) {
     return { status: 409, body: { ok: false, error: (env && env.error) || INTENT_ERRORS.NO_CHARACTER } };
   }
   const st = env.state;
+
+  /* (1a) ON A HUNT? SETUPS CHANGE IN TOWN. The worn set is the setup's gear (hr_setup_gear_follow), and a setup is
+         switched only in town (hr_hunt_preset_apply answers `hunt_open`); the engine places a hero with the role its
+         weapon gave it at the join (hunt-spawn.js heroUnit), and the bar reads that role off the instance's world
+         (hr_hunt_settings_view). An equip mid-hunt was taken anyway: the weapon changed, the bar kept the old
+         weapon's spells until the hunt ended (Andy a23, v0.2.33). Refused here, after the read and BEFORE the
+         collect, the same way set_activity refuses a hunter, so nothing is settled for a swap that cannot happen. */
+  if (st && st.active_kind === 'combat' && await huntOpenOf(exec, user, slot)) {
+    return {
+      status: 409,
+      body: await refusalBody({
+        exec, verb: VERB, user, slot, decorate: decorateEquipment,
+        refusal: { error: INTENT_ERRORS.HUNT_OPEN },
+        fallback: env,
+      }),
+    };
+  }
 
   /* (2) ⚠ COLLECT BEFORE EQUIP. See the header for why the ORDER — not merely
          the fact — is the thing that closes §12(1). `collectsFirst` is read

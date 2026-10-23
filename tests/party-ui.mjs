@@ -1009,10 +1009,10 @@ async function pageRules(overrides, shots) {
         /* UI-5 (Tyler 10-19): the party note is the PICKED ground's, from its row. */
         for (const hunt of ['millrace_sewer', 'coppercap_warrens', 'millrace_sewer']) {
           await page.click(W + '.hw-hunt[data-hunt="' + hunt + '"] .hw-hunt-name');
-          const got = await page.evaluate((q) => { const n = document.querySelector(q); return n && !n.hidden ? n.textContent : ''; }, W + '.hw-hunt[data-hunt="' + hunt + '"] .hw-hunt-party');
+          const got = await page.evaluate((q) => { const n = document.querySelector(q); return n && !n.hidden ? n.textContent : ''; }, W + '.hw-hunt-detail .hw-hunt-party');
           if (got !== PARTY_NOTES[hunt]) fails.push('UI-5 [' + tag + '] with ' + hunt + ' picked the note reads ' + JSON.stringify(got) + ', want ' + JSON.stringify(PARTY_NOTES[hunt]));
         }
-        const go = W + '.hw-hunt[data-hunt="millrace_sewer"] [data-hs-act="enter"]';
+        const go = W + '.hw-hunt-detail [data-hs-act="enter"]';
         const label = await page.evaluate((q) => document.querySelector(q).textContent, go);
         if (label !== 'Start with party') fails.push('UI-3 [' + tag + '] the leader’s button reads ' + JSON.stringify(label));
         await shot('hunts-leader');
@@ -1080,7 +1080,7 @@ async function pageRules(overrides, shots) {
         s.env[1].party = Object.assign(clone(s.env[0].party), { self_seat: 1, leader_seat: 0 });
         await pushEnvelope(page, s, 1);
         if (await openWin(page, 'h', 'hunts')) {
-          const b = await page.evaluate(() => { const e = document.querySelector('[data-hs-win="hunts"] .hw-hunt.is-picked [data-hs-act="enter"]'); return e && { off: e.disabled, text: e.textContent }; });
+          const b = await page.evaluate(() => { const e = document.querySelector('[data-hs-win="hunts"] .hw-hunt-detail [data-hs-act="enter"]'); return e && { off: e.disabled, text: e.textContent }; });
           if (!b || !b.off || b.text !== 'Enter') fails.push('UI-3 [' + tag + '] a member’s Enter reads ' + JSON.stringify(b));
         } else fails.push('UI-3 [' + tag + '] H did not open the Hunts window for character 1');
       } else fails.push('UI-3 [' + tag + '] the Party window did not open for character 1');
@@ -1165,8 +1165,8 @@ const PURE_MUTANTS = [
   ['not ready names nobody', 'src/shell/intent-words.js', "    return 'Nobody went in: ' + seats.map((x) => x.name + ' ' + (x.error === 'hunt_open' && x.hunt && HUNT_INDEX[x.hunt]\n      ? 'is still hunting in ' + HUNT_INDEX[x.hunt].name : SEAT_WORDS[x.error] || 'is not ready')).join('; ') + '.';", "    return 'Not everyone in the party is ready.';"],
 ];
 const PAGE_MUTANTS = [
-  ['Start with party stays on while in flight', 'src/shell/windows/hunts.js', "for (const b of li.querySelectorAll('button')) prop(b, 'disabled', sc.pending || !!now);", "for (const b of li.querySelectorAll('button')) prop(b, 'disabled', !!now);"],
-  ['a member may press Start', 'src/shell/windows/hunts.js', '      if (follower) prop(enter, \'disabled\', true);\n', ''],
+  ['Start with party stays on while in flight', 'src/shell/windows/hunts.js', "for (const b of det.querySelectorAll('.hw-hd-foot button, .hw-density button')) prop(b, 'disabled', sc.pending || !!now);", "for (const b of det.querySelectorAll('.hw-hd-foot button, .hw-density button')) prop(b, 'disabled', !!now);"],
+  ['a member may press Start', 'src/shell/windows/hunts.js', '  if (follower) prop(enter, \'disabled\', true);\n', ''],
   ['the strip tab is no menu target', 'src/app/character-strip.js', '  markPlayer(b, uid ? { id: uid, name: x.name, slot: x.slot } : null);', '  markPlayer(b, null);'],
   ['the invite toast cannot answer', 'src/shell/widgets/alerts.js', "  if (a.action === 'join') { if (a.invite) await settle(ctx, el, a, (cs) => cs.answerInvite(a.invite, action === 'alert-do')); return; }", "  if (a.action === 'join') return;"],
   ['the rare line hides its Share', 'src/shell/widgets/alerts.js', "prop(share, 'hidden', !cardFacts(a) || !a.share);", "prop(share, 'hidden', true);"],
@@ -1177,7 +1177,7 @@ const PAGE_MUTANTS = [
   ['the Party window opens on the finder with an invite waiting', 'src/shell/windows/party.js', "  const tab = sc.tab || (inv.length ? 'invites' : 'find');", "  const tab = sc.tab || 'find';"],
   ['a tab press re-reads the character', 'src/app/boot.js', "    else if (what === 'show') goTo(slot, null);", "    else if (what === 'show') { goTo(slot, null); account.character(slot).load(); }"],
   ['the strip shows no badge', 'src/app/character-strip.js', "  text(badge, x.alerts ? String(x.alerts) : '');", "  text(badge, '');"],
-  ['the finder ignores this character’s weapon', 'src/shell/windows/party-finder.js', "sc.weapon = mine && mine.weapon && WEAPON_ROLES[mine.weapon] ? mine.weapon : '';", "sc.weapon = '';"],
+  ['the finder ignores this character’s weapon', 'src/shell/windows/party-finder.js', "  return mine && mine.weapon && WEAPON_ROLES[mine.weapon] ? mine.weapon : '';", "  return '';"],
   ['the party note ignores the picked ground', 'src/shell/hunt-list.js', '  const g = Object.values(HUNT_GROUNDS).find((r) => r.hunt === hunt);', "  const g = HUNT_GROUNDS.millrace_sewer; void hunt;"],
 ];
 

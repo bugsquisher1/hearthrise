@@ -17,10 +17,10 @@
 --    through the shared check) ─────────────────────────────────────────────────
 --   READ THE COLUMN DIRECTLY before this file (restated here):
 --     hr_premium_active     2026-10-23-character-premium.sql:69     the boolean check
---     hr_stamina_of         2026-10-23-character-premium.sql:110    piecewise rest read ps.premium_until
+--     hr_stamina_of         2026-10-23-character-premium.sql:120    piecewise rest read ps.premium_until
 --     hr_premium_view       2026-10-23-character-premium.sql:171    `premium` section: active + perks
 --   ALREADY THROUGH hr_premium_active (unchanged; they follow):
---     hr_stamina_cap        2026-10-23-character-premium.sql:89     the 8 h / 12 h cap
+--     hr_stamina_cap        2026-10-23-character-premium.sql:107    the 8 h / 12 h cap
 --       -> hr_stamina_view (envelope `stamina.max_ms`), hr_stamina_refill_quote
 --          (2026-10-25-stamina-refill.sql:61-62, the refill's headroom),
 --          hr_hunt_member_read (2026-11-07-store-by-slot.sql:461-462: the EDGE's

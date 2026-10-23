@@ -51,7 +51,7 @@ const cases = {
     const r = M.damage.hurt(inst, slime, 7, u, 'ember', null);
     return r.immune && r.dmg === 0 && slime.hp === 1 ? null : 'the immune slime took ' + r.dmg;
   },
-  /* TG-04: the leader's last target is remembered; a follower's "follow" puts it first. */
+  /* TG-04: the leader's last target is remembered; a follower's "follow" puts it first while the leader is between targets. */
   'follow-uses-leader-last': (M) => {
     const k = H(M, 1, 12, 3, 'tank', { target: 3 });
     const f = H(M, 2, 16, 4, 'ranger', { tmode: 'follow' });
@@ -59,7 +59,54 @@ const cases = {
     M.movement.occupancy(inst);
     M.damage.resolveAttacks(inst, sc2(M, 1));
     if (inst.world.leaderLast !== 3) return 'the leader hit 3; leaderLast is ' + inst.world.leaderLast;
-    return M.targeting.pickTargets(inst, f)[0].id === 3 ? null : 'follow did not put the leader\'s target first';
+    k.target = null;
+    return M.targeting.pickTargets(inst, f)[0].id === 3 ? null : 'follow did not put the leader\'s last target first (the leader between targets)';
+  },
+  /* TG-04 (Andy a08, v0.2.33: "Follow seems to just target the first creature"): a follower takes the monster
+     the leader is on NOW, not the one its last blow hit (at a pull that one lay dead in the pack before, so the
+     follower opened on its own nearest); a leader on a fallen monster or on none falls back to its last blow's. */
+  'follow-takes-the-leaders-target-now': (M) => {
+    const k = H(M, 1, 12, 3, 'tank', { target: 4 });
+    const f = H(M, 2, 14, 3, 'ranger', { tmode: 'follow' });
+    /* f's nearest is 3; the leader is on 4; its last blow hit 6; 5 lies dead */
+    const near = E(M, 3, 0, 15, 3, 1); const on = E(M, 4, 0, 16, 5, 1); const last = E(M, 6, 0, 17, 2, 1);
+    const gone = E(M, 5, 0, 13, 4, 1, { alive: false });
+    const inst = fight(M, [k, f, near, on, gone, last], { leader: 1, leaderLast: 6 });
+    const first = () => M.targeting.pickTargets(inst, f)[0].id;
+    if (first() !== 4) return 'the leader is on 4 and its last blow hit 6: follow put ' + first() + ' first, not 4';
+    k.target = 5;
+    if (first() !== 6) return 'the leader is on a fallen monster: follow put ' + first() + ' first, not its last blow\'s 6';
+    k.target = null;
+    return first() === 6 ? null : 'the leader is on no one: follow put ' + first() + ' first, not its last blow\'s 6';
+  },
+  /* THE STEADY MODES (Andy a08): a melee hero beside the monster it fights turns to its mark when "Strongest"
+     ranks a stronger kind ahead or "Follow" names the leader's other monster, once its re-aim clock is due; never
+     on a tie, and never under the modes every blow reorders (nearest, lowest HP, highest %). */
+  'steady-mode-turns-to-a-better-mark': (M) => {
+    const mk = (tmode, leadMode, o) => {
+      const lead = H(M, 1, 11, 3, 'ranger', { tmode: leadMode || 'nearest' });
+      const d = H(M, 2, 14, 4, 'melee_dps', Object.assign({ tmode, target: 3 }, o || {}));
+      const whelp = E(M, 3, 0, 13, 4, 1, { hp: 9, maxHp: 9 });
+      const wolf = E(M, 4, 0, 16, 6, 1, { hp: 40, maxHp: 40 });
+      const hurt = E(M, 5, 0, 14, 5, 1, { hp: 2, maxHp: 9 });
+      const inst = fight(M, [lead, d, whelp, wolf, hurt], { leader: 1 });
+      M.targeting.chooseTargets(inst, sc2(M, 1));
+      return { d, lead };
+    };
+    let r = mk('strongest');
+    if (r.d.target !== 4) return '"Strongest": beside a whelp with a wolf engaged, it kept ' + r.d.target + ', not the wolf 4';
+    r = mk('strongest', null, { aiMs: 300 });
+    if (r.d.target !== 3) return '"Strongest": it left the whelp before its re-aim clock was due (to ' + r.d.target + ')';
+    r = mk('follow', 'strongest');
+    if (r.lead.target !== 4) return 'fixture: the leading ranger is on ' + r.lead.target + ', not the wolf';
+    if (r.d.target !== 4) return '"Follow": the leader is on the wolf, the follower kept ' + r.d.target;
+    r = mk('follow');
+    if (r.lead.target !== 3 || r.d.target !== 3) return '"Follow": the leader is on the whelp (' + r.lead.target + '), the follower moved to ' + r.d.target;
+    for (const mode of ['nearest', 'weakest', 'highest_pct']) {
+      r = mk(mode);
+      if (r.d.target !== 3) return mode + ': it left the whelp it fights for ' + r.d.target + ' (a mode the fight reorders keeps its target)';
+    }
+    return null;
   },
   /* TG-05 / TG-06: a monster whose target fell turns on the leader; with no leader standing, on no one. */
   'monster-retargets-on-death': (M) => {
@@ -232,16 +279,29 @@ const cases = {
     M.movement.occupancy(inst);
     M.targeting.chooseTargets(inst, sc2(M, 1));
     if (d.target !== 4) return '"Strongest" took ' + d.target + ' (the monster beside it), not its mark 4';
+    /* beside its mark, one as strong and nearer (a tie under "Strongest") never moves it */
     d.x = 14; d.y = 4; d.fx = 14; d.fy = 4;
-    inst.world.units.push(E(M, 5, 0, 17, 2, 1, { hp: 100, maxHp: 100 }));
+    inst.world.units.push(E(M, 5, 0, 15, 4, 1, { hp: 60, maxHp: 60 }));
     M.targeting.chooseTargets(inst, sc2(M, 1));
-    return d.target === 4 ? null : 'beside its mark it switched to ' + d.target;
+    return d.target === 4 ? null : 'beside its mark it switched to ' + d.target + ' (as strong, only nearer)';
   },
 };
 
 const mutants = [
   { name: 'every mode is nearest', case: 'mode-order-each', edits: [[T, '(ORDER[mode] || ORDER[DEFAULT_TARGET_MODE])', 'ORDER[DEFAULT_TARGET_MODE]']] },
-  { name: 'follow forgets the leader', case: 'mode-order-each', edits: [[T, "const lt = inst.world.leader !== u.id ? inst.world.leaderLast : null;", 'const lt = null;']] },
+  { name: 'follow forgets the leader', case: 'mode-order-each', edits: [[T, 'const lt = followed(inst, u);', 'const lt = null;']] },
+  { name: 'follow reads only the leader\'s last blow (live v0.2.33, Andy a08)', case: 'follow-takes-the-leaders-target-now',
+    edits: [[T, "return on && on.alive && on.side === 'mon' ? on.id : inst.world.leaderLast;", 'return inst.world.leaderLast;']] },
+  { name: 'follow takes a fallen monster the leader was on', case: 'follow-takes-the-leaders-target-now',
+    edits: [[T, "return on && on.alive && on.side === 'mon' ? on.id : inst.world.leaderLast;", 'return on ? on.id : inst.world.leaderLast;']] },
+  { name: 'no mode turns a melee hero off the monster it fights (live v0.2.33, Andy a08)', case: 'steady-mode-turns-to-a-better-mark',
+    edits: [[T, "const STEADY_MODES = Object.freeze(['strongest', 'follow']);", 'const STEADY_MODES = Object.freeze([]);']] },
+  { name: 'every mode turns a melee hero to its mark', case: 'steady-mode-turns-to-a-better-mark',
+    edits: [[T, 'if (u.aiMs > 0 || !STEADY_MODES.includes(u.tmode)) return false;', 'if (u.aiMs > 0) return false;']] },
+  { name: 'the turn ignores the re-aim clock', case: 'steady-mode-turns-to-a-better-mark',
+    edits: [[T, 'if (u.aiMs > 0 || !STEADY_MODES.includes(u.tmode)) return false;', 'if (!STEADY_MODES.includes(u.tmode)) return false;']] },
+  { name: 'a tie turns a melee hero', case: 'melee-takes-its-mark',
+    edits: [[T, 'return engaged(inst).some((m) => m !== cur && cmp(m, cur) < 0);', 'return engaged(inst).some((m) => m !== cur && cmp(m, cur) <= 0);']] },
   { name: 'ranged ignores line of sight', case: 'in-range', edits: [[T, ' && los(inst.grid, u, m);', ';']] },
   { name: 'the basic target ignores the element', case: 'immune-target-still-hit-when-only-one',
     edits: [[T, 'return inR.find((m) => elementOn(m, u.element) > 0) || inR[0] || null;', 'return inR[0] || null;']] },
@@ -271,7 +331,7 @@ const mutants = [
     edits: [[T, 'for (const k of h ? [h, ...inst.world.units.filter((u) => u !== h)] : inst.world.units) {', 'for (const k of inst.world.units) {']] },
   { name: 'ties fall to id (live v0.2.22)', case: 'mode-ties-fall-to-nearest', edits: [[T, 'cmp(a, b) || dist2(a, unit) - dist2(b, unit) || a.id - b.id', 'cmp(a, b) || a.id - b.id']] },
   { name: 'a melee hits whatever stands beside it (live v0.2.22)', case: 'melee-takes-its-mark', edits: [[T, 'const b = marks ? null : basicTarget(inst, u);', 'const b = basicTarget(inst, u);']] },
-  { name: 'a melee drops the target it stands beside', case: 'melee-takes-its-mark', edits: [[T, '(inRange(inst, u, cur) || enRoute)) continue;', 'enRoute) continue;']] },
+  { name: 'a melee drops the target it stands beside', case: 'melee-takes-its-mark', edits: [[T, '(inRange(inst, u, cur) || enRoute) && !outranked', 'enRoute && !outranked']] },
 ];
 
 await suite('hunt-core/targeting', cases, mutants);

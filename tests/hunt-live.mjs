@@ -66,6 +66,9 @@
 //         point's next swing (it runs none) still gives every unit it places a kind and a bar.
 //   LV-PULL THE HOLDER PULLS (bug #61, Andy's party): under Take turns the lap's holder, under "One tank
 //         holds" the pick, switched only when the lap ends; no tank yanks a pack, browser closed and viewed.
+//   LV-TGT "STRONGEST" AND "FOLLOW" ON A MIXED PACK (Andy a08): a follower stands on the leader's monster, a
+//         Strongest hero on the strongest kind engaged, browser closed (the server's boundaries) and viewed (every
+//         commit matches; the browser plays their blows as the server's commits hold them).
 //   LV-R  RECONCILE: a prediction forced off the server's world is judged
 //         `diverged` at the next commit, and the reseed eases every unit onto its true
 //         tile with no frame moving a unit more than one tile.
@@ -554,6 +557,64 @@ function rules(M) {
     }
   }
 
+  { // LV-TGT: "STRONGEST" AND "FOLLOW" ON A MIXED PACK, BOTH PATHS (Andy a08, live v0.2.33: "Strongest and Follow
+    // both seem to just target the first creature"). A Glade trio at density 8 (crows, poachers, vines, a sluicer: their
+    // max HP differ): `a` the tank leads on Nearest, `b` a Melee DPS on "Follow", `c` a Melee DPS on "Strongest".
+    // BROWSER CLOSED: at the server's swing boundaries with 2+ monsters engaged, b stands on the leader's monster at 85%+
+    // of them (before: 56%; it took the leader's LAST blow's monster, at a pull one of the pack before, so it opened on its
+    // own nearest and kept it), and c on a strongest-kind monster at 80%+ of the mixed ones, 30+ points above the Nearest
+    // leader (the control). VIEWED: b's browser (a and c its peers) predicts every commit and plays b's and c's blows
+    // exactly as the server's commits hold them.
+    const hunt = 'mosslight_glade', SPAN = 300000;
+    const mk = () => [['a', 'tank', null], ['b', 'melee_dps', 'follow'], ['c', 'melee_dps', 'strongest']].map(([user, role, mode], i) => {
+      const mi = memberOf(M, user, i, role, 30);
+      mi.huntId = hunt;
+      mi.hero = Object.assign({}, M.SPAWN.heroSetup({ weaponType: role === 'tank' ? 'sword' : 'hammer', options: mode ? { target_mode: mode } : {},
+        bar: [], partyRoles: ['tank', 'melee_dps', 'melee_dps'], lead: i === 0 }), { density: 8 });
+      return mi;
+    });
+    const mis = mk();
+    const srv = server(M, mis, { hunt });
+    const n = { lead: 0, onLead: 0, mixed: 0, onTop: 0, leaderOnTop: 0 };
+    let ended = null;
+    for (let t = T0 + M.CB.tickMs; t <= T0 + SPAN; t += M.CB.tickMs) {
+      const c = srv.commit(t);
+      if (!c || !srv.inst.world) { ended = t - T0; break; }
+      const w = M.WS.decode(JSON.parse(srv.inst.world));
+      const eng = w.units.filter((u) => u.side === 'mon' && u.alive && Number.isInteger(u.target));
+      if (eng.length < 2) continue;
+      const [A, B, C] = mis.map((m) => w.units.find((u) => u.id === m.unitId));
+      if (!A || !B || !C) continue;
+      const on = (h) => eng.find((m) => m.id === h.target) || null;
+      if (w.leader === A.id && on(A)) { n.lead++; if (B.target === A.target) n.onLead++; }
+      const top = Math.max(...eng.map((m) => m.maxHp));
+      if (new Set(eng.map((m) => m.maxHp)).size > 1) {
+        n.mixed++;
+        if (on(C) && on(C).maxHp === top) n.onTop++;
+        if (on(A) && on(A).maxHp === top) n.leaderOnTop++;
+      }
+    }
+    const pct = (a, b) => (b ? Math.round((100 * a) / b) : 0);
+    console.log(`  LV-TGT closed (Glade trio, d8, ${SPAN / 1000} s): Follow on the leader's monster at ${n.onLead}/${n.lead} boundaries; Strongest on the strongest kind at ${n.onTop}/${n.mixed} mixed ones (the Nearest leader ${n.leaderOnTop})`);
+    ok('LV-TGT', ended === null, `closed: the trio's hunt ended ${ended} ms in (a death or a refusal; the rule needs the whole span)`);
+    ok('LV-TGT', n.lead >= 40 && pct(n.onLead, n.lead) >= 85, `closed: "Follow" stood on the leader's monster at ${n.onLead} of ${n.lead} boundaries (want 40+ boundaries, 85%+)`);
+    ok('LV-TGT', n.mixed >= 40 && pct(n.onTop, n.mixed) >= 80 && pct(n.onTop, n.mixed) >= pct(n.leaderOnTop, n.mixed) + 30,
+      `closed: "Strongest" stood on the strongest kind at ${n.onTop} of ${n.mixed} mixed boundaries, the Nearest leader at ${n.leaderOnTop} (want 40+, 80%+, 30+ points above)`);
+    /* viewed: b's browser */
+    const vm = mk();
+    const v = run(M, [vm[1], vm[0], vm[2]], SPAN, { server: { hunt } });
+    const ids = [vm[1].unitId, vm[2].unitId];
+    const last = v.verdicts.length ? v.verdicts[v.verdicts.length - 1].t : T0;
+    const blows = (evs) => evs.filter((e) => (e.type === 'dmg' || e.type === 'miss') && ids.includes(e.u) && e.atMs < last)
+      .map((e) => e.atMs + ':' + e.type + ':' + e.u + '>' + e.t).sort();
+    const srvBlows = blows(v.verdicts.flatMap((x) => x.tl.hunt_events)), fedBlows = blows(v.fed.events);
+    const unmatched = v.verdicts.filter((x) => x.v !== 'match').length;
+    const same = srvBlows.length === fedBlows.length && srvBlows.every((x, i) => x === fedBlows[i]);
+    console.log(`  LV-TGT viewed: ${unmatched} of ${v.verdicts.length} commits off the prediction; b's and c's blows: server ${srvBlows.length}, browser ${fedBlows.length}, same ${same}`);
+    ok('LV-TGT', v.verdicts.length >= 15 && unmatched === 0 && srvBlows.length > 50 && same,
+      `viewed: ${unmatched} of ${v.verdicts.length} commits off, ${srvBlows.length} server blows vs ${fedBlows.length} predicted (same ${same}); want 15+ commits, 0 off, 50+ blows, the same`);
+  }
+
   { // LV-Q: ONE DEATH STOPS THE WHOLE PARTY AT ONCE (Tyler 2026-10-19; live v0.2.23, Andy: "2nd char starts to run
     // away after death"). A Sewer duo at density 8 whose tank falls: from the sub-step the tank dies nobody acts again
     // (the party's hunt ends at each member's next boundary). Before: the ranger, alone and targeted, kited 5 tiles
@@ -916,6 +977,11 @@ const MUTANTS = [
   ['the assembled hero loses the hold pick (LV-HOLD)', 'src/core/member.js', '        hold: Number.isInteger(h.hold) ? h.hold : null,\n', '', /^LV-HOLD/],
   ['the browser drops the hold pick of a peer (LV-HOLD)', 'src/core/member.js', '    hero: f.hero || {},', '    hero: Object.assign({}, f.hero, { hold: null }),', /^LV-HOLD/],
   ['the settle drops hr_hunt_instance_read hold_seat (LV-HOLD)', 'supabase/functions/hr-accrue/hunt-settle.js', 'lead: m._leads, hold: m._hold });', 'lead: m._leads });', /^LV-HOLD/],
+  ["Follow reads only the leader's last blow (LV-TGT, Andy a08)", 'src/core/hunt/targeting.js',
+    "return on && on.alive && on.side === 'mon' ? on.id : inst.world.leaderLast;", 'return inst.world.leaderLast;', /^LV-TGT: closed: "Follow"/],
+  ['a melee follower keeps the monster it fights (LV-TGT, Andy a08)', 'src/core/hunt/targeting.js',
+    "const STEADY_MODES = Object.freeze(['strongest', 'follow']);", 'const STEADY_MODES = Object.freeze([]);', /^LV-TGT: closed: "Follow"/],
+  ['"Strongest" ranks nothing (LV-TGT)', 'src/core/hunt/targeting.js', '  strongest: () => (a, b) => b.maxHp - a.maxHp,', '  strongest: () => () => 0,', /^LV-TGT: closed: "Strongest"/],
 ];
 
 async function mutate() {

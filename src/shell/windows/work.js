@@ -17,20 +17,24 @@
 //   locked      the next two rows above the level, "Needs Smithing 15"
 // Buttons are off while a press is in flight and when the server's numbers say
 // no (a hunt running, the level, the materials); the server re-checks all of it.
+// While the work runs, the line and the skill's bar under its title also count
+// what the server's engine has certainly done since its last payout
+// (src/shell/town-ticker.js), as pending; the rows' numbers stay the server's.
 // Farming has no door here: it is grown in plots, which this window does not run.
 // ════════════════════════════════════════════════════════════════════════
-import { SKILLS_DEF } from '../../data/skills.js?v=0.2.33';
-import { SKILL_GUIDE } from '../../data/skill-guide.js?v=0.2.33';
-import { recipeInputs, burnPct } from '../../core/artisan.js?v=0.2.33';
-import { skillsOf } from '../../session/item-sections.js?v=0.2.33';
-import { huntOf } from '../../session/hunt-sections.js?v=0.2.33';
-import { text, cls, prop, attr, rows, element } from '../../render/paint.js?v=0.2.33';
-import { whole } from '../../render/format.js?v=0.2.33';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.33';
-import { itemName, itemIconHtml } from '../widgets/bits.js?v=0.2.33';
-import { runIntent } from '../intent-words.js?v=0.2.33';
-import { renderTradeSkills } from './skills.js?v=0.2.33';
-import { GATHER_INDEX, BENCH_INDEX, workRow, workOf, productOf, yieldOf, runsOf, actionMs, xpEach, workBlock, startWork, stopWork, nowLine, BENCH_COUNTS, defaultCount, leftOf } from '../town-work.js?v=0.2.33';
+import { SKILLS_DEF } from '../../data/skills.js?v=0.2.34';
+import { SKILL_GUIDE } from '../../data/skill-guide.js?v=0.2.34';
+import { recipeInputs, burnPct } from '../../core/artisan.js?v=0.2.34';
+import { skillsOf } from '../../session/item-sections.js?v=0.2.34';
+import { huntOf } from '../../session/hunt-sections.js?v=0.2.34';
+import { text, cls, prop, attr, rows, element } from '../../render/paint.js?v=0.2.34';
+import { whole } from '../../render/format.js?v=0.2.34';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.34';
+import { itemName, itemIconHtml } from '../widgets/bits.js?v=0.2.34';
+import { runIntent } from '../intent-words.js?v=0.2.34';
+import { renderTradeSkills, skillBarHtml, patchSkillProgress } from './skills.js?v=0.2.34';
+import { GATHER_INDEX, BENCH_INDEX, workRow, workOf, productOf, yieldOf, runsOf, actionMs, xpEach, workBlock, startWork, stopWork, nowParts, tickOf, BENCH_COUNTS, defaultCount, leftOf } from '../town-work.js?v=0.2.34';
+import { aheadXp, paintLine } from '../town-ticker.js?v=0.2.34';
 
 /* How many rows above the level a skill shows: the next things to aim at. */
 const AHEAD = 2;
@@ -125,7 +129,7 @@ export function renderWork() {
     + '<div class="hw-burying hw-work-now" role="status"><span class="hw-burying-q"></span><button type="button" class="hh-tool" data-hs-act="work-stop">Stop</button></div>'
     + '<div class="hw-trade-ledger"><p class="hs-note hw-work-hint">Press a skill to gather or make something with it.</p>' + renderTradeSkills() + '</div>'
     + '<section class="hw-work"><div class="hw-work-head"><button type="button" class="hh-tool" data-hs-act="work-back">‹ All skills</button>'
-    + '<b class="hw-work-title"></b><b class="hw-skill-lv"></b></div>'
+    + '<b class="hw-work-title"></b>' + skillBarHtml('Skill') + '<small class="hw-skill-xp"></small><b class="hw-skill-lv"></b></div>'
     + '<p class="hs-note hw-work-use"></p><ul class="hw-ledger hw-work-rows"></ul></section>'
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></div>';
 }
@@ -137,11 +141,11 @@ renderWork.patch = function patchWork(body, ctx) {
   const on = workOf(cs);
   const h = huntOf(cs);
   const hunting = !!(h && !h.ended);
-  /* The line: what runs now, from the server's pointer, with its Stop. */
-  const line = nowLine(cs);
+  /* The line: what runs now, from the server's pointer, with its Stop (its pending part marked: town-ticker.js). */
+  const line = nowParts(cs);
   const now = root.querySelector('.hw-work-now');
-  cls(now, 'is-on', !!line);
-  text(now.querySelector('.hw-burying-q'), line);
+  cls(now, 'is-on', line.length > 0);
+  paintLine(now.querySelector('.hw-burying-q'), line, ctx.doc);
   prop(now.querySelector('button'), 'disabled', sc.pending);
   /* The ledger, each skill with a door pressable. */
   const ledger = root.querySelector('.hw-trade-ledger');
@@ -163,8 +167,13 @@ renderWork.patch = function patchWork(body, ctx) {
   if (skill) {
     const sk = skillsOf(cs);
     const lv = sk && sk[skill] ? sk[skill].level : null;
+    const head = view.querySelector('.hw-work-head');
     text(view.querySelector('.hw-work-title'), SKILLS_DEF[skill].name);
-    text(view.querySelector('.hw-skill-lv'), lv === null ? '' : String(lv));
+    text(head.querySelector('.hw-skill-lv'), lv === null ? '' : String(lv));
+    /* The skill's own bar beside its title: the server's XP, and what the running work has earned since the payout. */
+    cls(head, 'has-xp', lv !== null);
+    attr(head.querySelector('.hw-skill-bar'), 'aria-label', SKILLS_DEF[skill].name + ' progress');
+    if (lv !== null) patchSkillProgress(head, skill, sk[skill], aheadXp(tickOf(cs), skill));
     const guide = SKILL_GUIDE[skill];
     const how = SKILLS_DEF[skill].cat === 'gather'
       ? 'Pick what to gather. Your hero keeps at it while you are away, until you stop it or start a hunt.'

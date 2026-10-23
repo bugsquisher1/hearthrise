@@ -14,17 +14,22 @@
 // recipe, node or gear requirement above the current level, from the catalogues). What the
 // skill is for and where it is trained (src/data/skill-guide.js) is the
 // entry's tooltip. Every level and XP number is the envelope's `skills`,
-// replaced on each envelope; the windows send nothing.
+// replaced on each envelope; the windows send nothing. While town work runs, a
+// bar also shows the XP the server's engine has certainly earned since its last
+// payout (src/shell/town-ticker.js) as a pending segment: the level stays the
+// server's and the bar fills no further than its level.
 // ════════════════════════════════════════════════════════════════════════
-import { SKILLS_DEF } from '../../data/skills.js?v=0.2.33';
-import { SKILL_GUIDE } from '../../data/skill-guide.js?v=0.2.33';
-import { skillXpForLevel, skillCapOf } from '../../core/xp.js?v=0.2.33';
-import { nextUnlock } from '../../data/skill-unlocks.js?v=0.2.33';
-import { skillsOf } from '../../session/item-sections.js?v=0.2.33';
-import { rows, text, cls, style, attr, element } from '../../render/paint.js?v=0.2.33';
-import { whole } from '../../render/format.js?v=0.2.33';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.33';
-import { glyphSvg } from '../launcher.js?v=0.2.33';
+import { SKILLS_DEF } from '../../data/skills.js?v=0.2.34';
+import { SKILL_GUIDE } from '../../data/skill-guide.js?v=0.2.34';
+import { skillXpForLevel, skillCapOf } from '../../core/xp.js?v=0.2.34';
+import { nextUnlock } from '../../data/skill-unlocks.js?v=0.2.34';
+import { skillsOf } from '../../session/item-sections.js?v=0.2.34';
+import { rows, text, cls, style, attr, element } from '../../render/paint.js?v=0.2.34';
+import { whole } from '../../render/format.js?v=0.2.34';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.34';
+import { glyphSvg } from '../launcher.js?v=0.2.34';
+import { tickOf } from '../town-work.js?v=0.2.34';
+import { aheadXp } from '../town-ticker.js?v=0.2.34';
 
 /* Is `level` the skill's last (a capped skill at its cap)? Combat skills have none. */
 const mastered = (id, level) => { const cap = skillCapOf(id); return cap !== null && level >= cap; };
@@ -36,6 +41,33 @@ function levelProgress(id, xp, level) {
   return hi > lo ? Math.max(0, Math.min(1, (xp - lo) / (hi - lo))) : 0;
 }
 
+const pct = (f) => (Math.round(f * 1000) / 10) + '%';
+
+/** The bar's markup: the server's fill and, after it, the pending segment (town-ticker.js). */
+export function skillBarHtml(label) {
+  return '<span class="hw-skill-bar" role="meter" aria-label="' + esc(label) + ' progress" aria-valuemin="0" aria-valuemax="100">'
+    + '<i class="hw-skill-fill"></i><i class="hw-skill-ahead"></i></span>';
+}
+
+/**
+ * One skill's progress inside `el` (its .hw-skill-bar and .hw-skill-xp) from the server's { xp, level }, plus the
+ * XP running town work has certainly earned and the server has not paid yet (`ahead`): a pending segment after the
+ * fill and the "XP to" words counting down, marked `is-ahead`. The level is the server's: the segment stops at it.
+ */
+export function patchSkillProgress(el, id, r, ahead) {
+  const a = mastered(id, r.level) ? 0 : Math.max(0, Number(ahead) || 0);
+  const f = levelProgress(id, r.xp, r.level);
+  const g = a ? levelProgress(id, r.xp + a, r.level) : f;
+  style(el.querySelector('.hw-skill-fill'), 'width', pct(f));
+  const seg = el.querySelector('.hw-skill-ahead');
+  style(seg, 'left', pct(f));
+  style(seg, 'width', pct(g - f));
+  attr(el.querySelector('.hw-skill-bar'), 'aria-valuenow', Math.round(f * 100));
+  const xp = el.querySelector('.hw-skill-xp');
+  text(xp, mastered(id, r.level) ? 'Mastered' : whole(Math.max(0, skillXpForLevel(id, r.level + 1) - r.xp - a)) + ' XP to ' + (r.level + 1));
+  cls(xp, 'is-ahead', a > 0);
+}
+
 /* One entry (built once per skill by rows(), keyed by skill id); the guide is its tooltip. */
 function entryHtml(g, id) {
   const guide = SKILL_GUIDE[id];
@@ -43,7 +75,7 @@ function entryHtml(g, id) {
   return '<li class="hw-skill"' + (guide ? ' title="' + esc(name + ': ' + guide.use + ' ' + guide.where) + '"' : '') + '>'
     + '<span class="hw-skill-top"><span class="hw-skill-glyph">' + glyphSvg(g, guide ? guide.glyph : 'uiStar') + '</span>'
     + '<b class="hw-skill-name">' + esc(name) + '</b><b class="hw-skill-lv"></b></span>'
-    + '<span class="hw-skill-mid"><span class="hw-skill-bar" role="meter" aria-label="' + esc(name) + ' progress" aria-valuemin="0" aria-valuemax="100"><i class="hw-skill-fill"></i></span>'
+    + '<span class="hw-skill-mid">' + skillBarHtml(name)
     + '<small class="hw-skill-xp"></small></span><small class="hw-skill-next"></small></li>';
 }
 
@@ -59,6 +91,7 @@ function skillsWindow(groups) {
   };
   render.patch = function patchSkills(body, ctx) {
     const sk = skillsOf(ctx.character);
+    const tick = tickOf(ctx.character);
     const root = body.querySelector('.hw-skills');
     cls(root.querySelector('.hw-skill-none'), 'is-on', !sk);
     for (const [cat] of groups) {
@@ -69,10 +102,7 @@ function skillsWindow(groups) {
         patch: (li, id) => {
           const r = sk[id] || { xp: 0, level: 1 };
           text(li.querySelector('.hw-skill-lv'), String(r.level));
-          const f = levelProgress(id, r.xp, r.level);
-          style(li.querySelector('.hw-skill-fill'), 'width', (Math.round(f * 1000) / 10) + '%');
-          attr(li.querySelector('.hw-skill-bar'), 'aria-valuenow', Math.round(f * 100));
-          text(li.querySelector('.hw-skill-xp'), mastered(id, r.level) ? 'Mastered' : whole(Math.max(0, skillXpForLevel(id, r.level + 1) - r.xp)) + ' XP to ' + (r.level + 1));
+          patchSkillProgress(li, id, r, aheadXp(tick, id));
           const next = nextUnlock(id, r.level);
           const nx = li.querySelector('.hw-skill-next');
           text(nx, next);

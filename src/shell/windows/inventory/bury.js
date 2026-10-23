@@ -29,16 +29,17 @@
 // The engine spends the WHOLE stack: it has no "this many" for a recipe, so a
 // partial run would be a client guess at the server's clock. It is not offered.
 // ════════════════════════════════════════════════════════════════════════
-import { ARTISAN_RECIPES } from '../../../data/recipes.js?v=0.2.33';
-import { SKILLS_DEF } from '../../../data/skills.js?v=0.2.33';
-import { recipeInputs } from '../../../core/artisan.js?v=0.2.33';
-import { whole } from '../../../render/format.js?v=0.2.33';
-import { itemName } from '../../widgets/bits.js?v=0.2.33';
-import { riteOf, cookOf } from '../../bag-model.js?v=0.2.33';
-import { skillsOf } from '../../../session/item-sections.js?v=0.2.33';
-import { huntOf } from '../../../session/hunt-sections.js?v=0.2.33';
-import { townActivityWords } from '../../../session/party-sections.js?v=0.2.33';
-import { startWork, stopWork, workRow, workOf, runProgress } from '../../town-work.js?v=0.2.33';
+import { ARTISAN_RECIPES } from '../../../data/recipes.js?v=0.2.34';
+import { SKILLS_DEF } from '../../../data/skills.js?v=0.2.34';
+import { recipeInputs } from '../../../core/artisan.js?v=0.2.34';
+import { whole } from '../../../render/format.js?v=0.2.34';
+import { itemName } from '../../widgets/bits.js?v=0.2.34';
+import { riteOf, cookOf } from '../../bag-model.js?v=0.2.34';
+import { skillsOf } from '../../../session/item-sections.js?v=0.2.34';
+import { huntOf } from '../../../session/hunt-sections.js?v=0.2.34';
+import { townActivityWords } from '../../../session/party-sections.js?v=0.2.34';
+import { startWork, stopWork, workRow, workOf, runParts } from '../../town-work.js?v=0.2.34';
+import { lineParts, lineText } from '../../town-ticker.js?v=0.2.34';
 
 /** The bench entry that spends a whole stack of `id` ({ skill, recipe, input, need }), or null. */
 export function buryRecipeOf(id) { return riteOf(id) || cookOf(id); }
@@ -108,19 +109,19 @@ export function stopBury(cs, sc, send) {
 }
 
 /**
- * The "Burying…" / "Cooking…" line's words, or '' when the hero is free. Every
+ * The "Burying…" / "Cooking…" line as parts (town-ticker.js paintLine), or [] when the hero is free. Every
  * other town activity the server holds (gathering, a workbench, training: a
  * resumed one the player never started here) is named too, with the same Stop,
  * so nothing runs unseen (live v0.2.11). A hunt's start ends it on the server anyway.
  */
-export function buryLine(cs) {
+export function buryParts(cs) {
   const e = buryingOf(cs);
-  /* How far it has got, from the server's bag (town-work.js runProgress); the open bag settles it as it goes. */
-  if (e) {
-    const how = runProgress(cs, workOf(cs));
-    return buryingWord(e) + ' ' + itemName(e.input) + (how ? ': ' + how : '') + '. Your bag and ' + skillName(e.skill) + ' XP update as it goes.';
-  }
+  /* How far it has got: the server's bag and the ticker's pending part (town-work.js runParts); the open bag settles it as it goes. */
+  if (e) return lineParts(buryingWord(e) + ' ' + itemName(e.input), runParts(cs, workOf(cs)), '. Your bag and ' + skillName(e.skill) + ' XP update as it goes.');
   const s = cs && typeof cs.read === 'function' ? cs.read('state') : null;
   const words = townActivityWords(s);
-  return words ? 'Your hero is ' + words + '. Starting a hunt ends it, or stop it here.' : '';
+  return words ? [{ key: 'lead', text: 'Your hero is ' + words + '. Starting a hunt ends it, or stop it here.' }] : [];
 }
+
+/** The same line as words, or '' when the hero is free. */
+export function buryLine(cs) { return lineText(buryParts(cs)); }

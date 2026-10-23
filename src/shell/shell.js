@@ -39,19 +39,19 @@
 //
 // Mounted by src/app/world-pane.js over one character's World.
 // ════════════════════════════════════════════════════════════════════════
-import { MOBILE_QUERY } from '../world/core/camera.js?v=0.2.33';
-import { SHELL_WINDOWS } from '../data/shell-windows.js?v=0.2.33';
-import { HUD_WIDGETS } from '../data/hud-widgets.js?v=0.2.33';
-import { createWindowManager, DOCK_EDGE, HOME_BOTTOM, RESIZE_MIN } from './window-manager.js?v=0.2.33';
-import { createHud, residueStore, placeWidget, hudInsetOf, clearOfEdges, clearOfDock, stageOf, dockCap, homeAt } from './hud.js?v=0.2.33';
-import { keyLabel, glyphSvg } from './launcher.js?v=0.2.33';
-import { WINDOW_RENDERERS, WIDGET_RENDERERS } from './renderers.js?v=0.2.33';
-import { mountContextMenu } from './context-menu.js?v=0.2.33';
-import { menuProvidersOf } from './menu-providers.js?v=0.2.33';
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.33';
-import { followDeaths } from './death-popup.js?v=0.2.33';
-import { sizeStore, gripHtml, pressGrip } from './window-sizes.js?v=0.2.33';
-import { watchTown } from '../session/town-poll.js?v=0.2.33';
+import { MOBILE_QUERY } from '../world/core/camera.js?v=0.2.34';
+import { SHELL_WINDOWS } from '../data/shell-windows.js?v=0.2.34';
+import { HUD_WIDGETS } from '../data/hud-widgets.js?v=0.2.34';
+import { createWindowManager, DOCK_EDGE, HOME_BOTTOM, RESIZE_MIN } from './window-manager.js?v=0.2.34';
+import { createHud, residueStore, placeWidget, hudInsetOf, clearOfEdges, clearOfDock, stageOf, dockCap, homeAt } from './hud.js?v=0.2.34';
+import { keyLabel, glyphSvg } from './launcher.js?v=0.2.34';
+import { WINDOW_RENDERERS, WIDGET_RENDERERS } from './renderers.js?v=0.2.34';
+import { mountContextMenu } from './context-menu.js?v=0.2.34';
+import { menuProvidersOf } from './menu-providers.js?v=0.2.34';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.34';
+import { followDeaths } from './death-popup.js?v=0.2.34';
+import { sizeStore, gripHtml, pressGrip } from './window-sizes.js?v=0.2.34';
+import { watchTown } from '../session/town-poll.js?v=0.2.34';
 
 /* The components' display clock: session timers and the timeline's due events (parity SH-05, DOM 4 Hz). */
 const DISPLAY_TICK_MS = 250;

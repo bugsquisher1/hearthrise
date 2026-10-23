@@ -13,8 +13,8 @@
 // A setup owns the action set of its own number (designer ruling 2026-10-22), so
 // both names are one name on the server: either verb renames both.
 // ════════════════════════════════════════════════════════════════════════
-import { askVia } from './intent-ledger.js?v=0.2.33';
-import { ACTION_SET_LIMITS } from '../data/rule-subjects.js?v=0.2.33';
+import { askVia } from './intent-ledger.js?v=0.2.34';
+import { ACTION_SET_LIMITS } from '../data/rule-subjects.js?v=0.2.34';
 
 /* Setups saved before the one-model rule (numbers 5 to 7) can still be renamed or deleted. */
 const MAX_SETUP = 7;

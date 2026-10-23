@@ -48,18 +48,18 @@
 // only things it sends of its own are the allowlisted residue and intents.
 // ════════════════════════════════════════════════════════════════════════
 
-import { applyEnvelope, applyFrame, withResidue } from './envelope.js?v=0.2.33';
-import { createTimeline } from '../hunt-view/timeline.js?v=0.2.33';
-import { LiveLink } from './live-link.js?v=0.2.33';
-import { RESIDUE_FIELDS, sanitizeResidueField, unconfirmedResidue } from './residue.js?v=0.2.33';
-import { SESSION_CONFIG } from './config.js?v=0.2.33';
-import { edgeBody } from './edge-intents.js?v=0.2.33';
-import { leaveAskOf, pendingLeaveAt, leaveCountdown, closeInMs } from './hunt-leave.js?v=0.2.33';
-import { HuntPoll, pollDelayMs } from './hunt-poll.js?v=0.2.33';
-import { createIntentLedger } from './intent-ledger.js?v=0.2.33';
-import { frameTopic, reconnectDelay } from './frame-channel.js?v=0.2.33';
-import { refusalOf } from './refusal.js?v=0.2.33';
-import { SERVER_ONLY_EVENTS } from '../core/hunt/events.js?v=0.2.33';
+import { applyEnvelope, applyFrame, withResidue } from './envelope.js?v=0.2.34';
+import { createTimeline } from '../hunt-view/timeline.js?v=0.2.34';
+import { LiveLink } from './live-link.js?v=0.2.34';
+import { RESIDUE_FIELDS, sanitizeResidueField, unconfirmedResidue } from './residue.js?v=0.2.34';
+import { SESSION_CONFIG } from './config.js?v=0.2.34';
+import { edgeBody } from './edge-intents.js?v=0.2.34';
+import { leaveAskOf, pendingLeaveAt, leaveCountdown, closeInMs } from './hunt-leave.js?v=0.2.34';
+import { HuntPoll, pollDelayMs } from './hunt-poll.js?v=0.2.34';
+import { createIntentLedger } from './intent-ledger.js?v=0.2.34';
+import { frameTopic, reconnectDelay } from './frame-channel.js?v=0.2.34';
+import { refusalOf, settleRefusalOf } from './refusal.js?v=0.2.34';
+import { SERVER_ONLY_EVENTS } from '../core/hunt/events.js?v=0.2.34';
 
 export const FRAME_EVENT = 'frame';
 
@@ -122,7 +122,7 @@ export class CharacterSession {
        point, prediction only; `live` is its engine (the scene reads its heroes). */
     this.liveLink = new LiveLink({ timeline: this.timeline, now: () => this._now(), emit: (why) => this._emit(why) });
     this.live = this.liveLink.engine;
-    this.receivedAt = null;
+    this.receivedAt = null; this.settleRefusal = null;   // the engine's last refusal to settle (hello), or null
     /** The hunt session the timeline holds (a new one clears it: _play). */
     this._huntSid = null;
     for (const fn of Array.from(OBSERVERS)) fn(this);   // e.g. the hunt summary's recorder: it must hear the timeline from the first event
@@ -507,9 +507,9 @@ export class CharacterSession {
     if (this._closed) return false;
     const ans = await this._server.accrue({ slot: this.slot });
     if (this._closed) return false;
-    /* An idle settle answers {accrued:false} without restating the character:
-       the full read is hr_load's, so read it rather than apply less. */
-    /* The floor's answer to a hunter carries the whole character and the live start point: take it. */
+    /* An idle settle's {accrued:false} is not the character (read it in full: hr_load); the floor's answer to a hunter
+       is, with the live start point (take it). A refusal to settle (refusal.js) stands until the next answer (town ticker). */
+    if (ans.ok) this.settleRefusal = settleRefusalOf(ans);
     if (ans.ok && ans.body && ans.body.accrued !== true && ans.body.hunt_live && ans.body.state) {
       if (this._take(ans.body, 'hello')) return true;
     }

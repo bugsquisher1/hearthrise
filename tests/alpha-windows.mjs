@@ -4,10 +4,13 @@
 //
 //   node tests/alpha-windows.mjs                the rules
 //   node tests/alpha-windows.mjs --mutate       every planted defect must turn a rule RED
+//   node tests/alpha-windows.mjs --pure         the pure rules only (no browser)
+//   node tests/alpha-windows.mjs --mutate --only=ticker:   just the mutants named so (the town
+//                                               ticker's run on a temp copy of src, in seconds)
 //   node tests/alpha-windows.mjs --shots <dir>  also write the visual-gate screenshots
 //                                               (1440x900 and 922x423)
 //
-// mutant-anchors: src/session/character-session.js src/shell/widgets/amount.js src/shell/windows/inventory/bury.js src/shell/windows/inventory/state.js src/shell/windows/float-menu.js src/shell/bag-model.js src/session/item-sections.js src/shell/windows/inventory/grid.js src/shell/windows/inventory/actions.js src/shell/windows/shop.js src/shell/windows/inventory/doll.js src/session/edge-intents.js src/world/world-boot.js src/world/core/camera.js src/shell/windows/hunts.js src/shell/windows/storage.js src/shell/hunt-list.js src/shell/windows/skills.js src/shell/launcher.js src/shell/upgrade-plan.js src/shell/widgets/upgrade-line.js src/shell/intent-words.js src/shell/town-work.js src/shell/windows/work.js
+// mutant-anchors: src/shell/town-ticker.js src/session/refusal.js src/session/character-session.js src/shell/widgets/amount.js src/shell/windows/inventory/bury.js src/shell/windows/inventory/state.js src/shell/windows/float-menu.js src/shell/bag-model.js src/session/item-sections.js src/shell/windows/inventory/grid.js src/shell/windows/inventory/actions.js src/shell/windows/shop.js src/shell/windows/inventory/doll.js src/session/edge-intents.js src/world/world-boot.js src/world/core/camera.js src/shell/windows/hunts.js src/shell/windows/storage.js src/shell/hunt-list.js src/shell/windows/skills.js src/shell/launcher.js src/shell/upgrade-plan.js src/shell/widgets/upgrade-line.js src/shell/intent-words.js src/shell/town-work.js src/shell/windows/work.js src/shell/hunt-ground-facts.js src/shell/windows/hunt-detail.js src/shell/hunt-go.js src/shell/windows/party-finder.js src/data/refusal-words.js src/styles/windows.css
 //
 // play.html with supabase-js and the REST paths stubbed (tests/_client-harness.mjs);
 // the character's envelope is tests/fixtures/alpha-envelope.json.
@@ -83,13 +86,56 @@
 //         reload; Stop is ONE idle and says what the server made; a bench row's amount
 //         (1 / 5 / All; a tool starts on 1, stock on All) rides the Start as `count` and
 //         the running row says the server's "N left"
+//   AW-24 TOWN WORK COUNTS UP BETWEEN PAYOUTS (Tyler 2026-10-23; src/shell/town-ticker.js runs the
+//         server's own span loop on the envelope's numbers, display only). Pure rules:
+//         TK-1  one action at a time on the engine's interval: the logs and XP, and the line
+//               marks the pending count
+//         TK-2  a payout REPLACES: the count restarts from the new watermark, nothing counted twice
+//         TK-3  never spent: the bag's stacks, the sale and the primary read the server's count;
+//               "Makes up to N" reads the server's bag
+//         TK-4  the stop's envelope clears it at once
+//         TK-5  a payout under the prediction snaps down to the server's word
+//         TK-6  nothing ticks idle, in a hunt, without a server clock, or past the horizon
+//         TK-7  a refused settle clears it until a newer record; the character keeps the
+//               refusal from its settle until the next answer
+//         TK-8  a bench counts its inputs down with the engine's own stop, within "N left"
+//         TK-9  a dish that can burn is a roll: inputs and the burn's XP are certain, no stack moves
+//         TK-10 ROUNDED DOWN: against the engine as the server runs it (perks, a real roll, its
+//               tool carry and XP remainder) it never shows an action, item or XP not paid
+//         In the page: Start → the line, the skill bar and the bag tick, pending → never sold
+//         → a payout replaces → a lower payout snaps down → a reload restarts from the
+//         server's watermark → Stop → nothing ticks.
 //   AW-17 the skills are two ledgers (the combat one inside the Character window,
 //         tests/character-window.mjs) and Gathering and crafting does not scroll at
 //         922x423; a character that has never fought sees the pointer to Hunts
+// THE HUNTS WINDOW, master-detail (designer plan 2026-10-22, PRIORITY_BOARD "Hunts, Hunt
+// prep and the Party finder"), a Level 1 hero in town:
+//   AW-25 the list is one line a ground: the band in words with its tone (in range /
+//         above / far above), the solo / party glyph, the best or "New", "Fits your
+//         level" on the recommendation's line only; the picked ground's page draws who
+//         lives there from the world's style-1 idle frames at x2, standing on one ground
+//         line, common / uncommon / rare from the spawn points, the rare and its ONE
+//         carrier, the bests (one "Not hunted yet" line when none, the server's best
+//         replacing it); on the phone the list, then the page as the sheet, then back
+//   AW-26 GO AS: the setups as lines (weapon, role, the bar's first four on the setup
+//         on now; a set with no setup row is not offered); Enter as the setup on now is
+//         ONE hr_hunt_enter; as another it is ONE hr_hunt_preset_apply then ONE
+//         hr_hunt_enter naming it, from one press, every control off in flight; a
+//         refused apply enters nothing and says why in words
+//   AW-27 BEFORE YOU GO: one line per supply kind in slot order from the server's bar,
+//         bag, stamina and gold (the designer's walk-through starter bar word for word);
+//         the next envelope replaces every number; a line that stops the hunt is marked
+//   AW-28 THE PARTY PATH: a party ground's page offers Find a party (the Party window's
+//         finder on that ground and this hero's weapon: ONE read with p_hunt) and Bring
+//         your heroes (open heroes in no party); a solo ground's page offers neither
+//   AW-29 the round trip: pick a ground, Enter, hunting, back in town: Hunts still holds
+//         that ground, after a close and reopen too
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
 import { leaseBrowser } from './_chrome.mjs';
 import { readFile, mkdir } from 'node:fs/promises';
+import { mkdtempSync, cpSync, writeFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { ROOT, UID, serve, SDK_STUB } from './_client-harness.mjs';
@@ -107,6 +153,19 @@ const PANE_SRC = await readFile(join(ROOT, PANE), 'utf8');
 if (!PANE_SRC.includes('    runtime.sync();\n')) throw new Error('alpha-windows: the world-pane hook anchor moved');
 const HOOK = { [PANE]: PANE_SRC.replace('    runtime.sync();\n', '    runtime.sync();\n    window.__world = runtime;\n') };
 const clone = (o) => JSON.parse(JSON.stringify(o));
+/* The hunt rows (each ground's theme) the Hunts page draws. */
+const HUNTS = (await import(pathToFileURL(join(ROOT, 'src/data/hunts.js')).href)).HUNT_INDEX;
+/* A Level 1 hero in town (no hunt, no party, no bests yet), 30 min of stamina, two setups the server can put
+   on and a third set it cannot (no setup row): the Hunts window's fresh hero (AW-25 .. AW-29). */
+function levelOne(e) {
+  for (const k of ['hunt', 'hunt_analyzer', 'hunt_track', 'hunt_events', 'party']) delete e[k];
+  e.state = Object.assign({}, e.state, { active_kind: 'idle', active_id: null, level_xp: 0 });
+  e.hunt_bests = { min_ms: 600000, grounds: {} };
+  e.stamina = { ms: 1800000, at: e.now, max_ms: 28800000, hunting: false };
+  e.hunt_presets = [{ preset: 0, name: 'Cellar rats', action_set: 0, gear: { weapon: 'iron_sword' }, restock: {} },
+    { preset: 1, name: 'Bow', action_set: 1, gear: { weapon: 'shortbow' }, restock: {} }];
+  e.hunt_settings = Object.assign({}, e.hunt_settings, { presets: [{ preset: 0, name: 'Hunt' }, { preset: 1, name: 'Bow' }, { preset: 2, name: 'Bare set' }] });
+}
 const wait = (page, fn, arg, ms = 8000) => page.waitForFunction(fn, arg, { timeout: ms }).then(() => true, () => false);
 const ITEM_RPCS = ['hr_item_lock', 'hr_loot_rule_set', 'hr_hunt_preset_save', 'hr_hunt_preset_apply', 'hr_action_set_options', 'hr_hunt_enter', 'hr_bank_move'];
 /* The windows a player opens from the launcher row, with their keys (src/data/shell-windows.js). */
@@ -266,6 +325,247 @@ async function pure() {
     workBlock(wcs(1, {}), workRow('artisan', 'forge_bronze_axe'), false), workBlock(wcs(1, { copper_ore: 2 }), bronze, false), String(runsOf(bronze.row, { copper_ore: 11 })),
     workBlock(wcs(1, {}), bronze, false)];
   if (said.join('|') !== 'Needs 2 Copper Ore (you have 1).|Not while a hunt is running.|Needs Smithing 3.||5|No Copper Ore in your bag.') fails.push('AW-22 the work rows say ' + JSON.stringify(said));
+  return fails.concat(await huntsPure(imp), await tickerRules(ROOT));
+}
+
+/* AW-25 .. AW-28 PURE: the Hunts page's facts from the data rows and its lines from the server's sections. */
+async function huntsPure(imp) {
+  const fails = [];
+  const { residentsOf, rareOf } = await imp('src/shell/hunt-ground-facts.js');
+  const { huntRows, fitWords, bestLine, bestWords } = await imp('src/shell/hunt-list.js');
+  const { setupsOf, beforeLines, freeHeroes } = await imp('src/shell/hunt-go.js');
+  const STORE = FIXTURE.hunt_settings.store;
+  /* Who lives here: each creature's share of the ground's spawn points (Tyler 10-18: a common majority, some uncommon, a rare). */
+  const cellar = residentsOf('mill_cellar').map((m) => m.id + ':' + m.band + ':' + m.level).join();
+  if (cellar !== 'rat:common:2,slime:uncommon:2,hive_wasp:uncommon:4') fails.push('AW-25 the Mill Cellar lives as ' + cellar);
+  const thicket = residentsOf('meadowbrook_thicket').map((m) => m.id + ':' + m.band).join();
+  if (thicket !== 'gray_wolf:common,gray_whelp:common,briarcoat_wolf:uncommon,dire_gray:rare,grayjaw:rare') fails.push('AW-25 the Thicket lives as ' + thicket);
+  for (const r of huntRows()) if (!residentsOf(r.hunt).some((m) => m.band === 'common')) fails.push('AW-25 ' + r.hunt + ' has no common creature');
+  /* The rare and its ONE carrier, from the drop rows (never the equipment slot). */
+  const carriers = huntRows().map((r) => { const x = rareOf(r.hunt); return r.hunt + ':' + (x ? x.carrier.id + ':' + x.items.map((i) => i.id).join('+') : '-'); }).join();
+  if (carriers !== 'mill_cellar:slime:sticky_core,meadowbrook_thicket:grayjaw:alpha_fang,millrace_sewer:rat_king:crown_shard,mosslight_glade:rook_poacher:rooks_whistle,coppercap_warrens:chief_coppercap:war_crown')
+    fails.push('AW-25 the rares and carriers read ' + carriers);
+  /* The list line: the band against the Level in words and a tone; the best, or New. */
+  const rows = Object.fromEntries(huntRows().map((r) => [r.hunt, r]));
+  const fits = [[rows.mill_cellar, 1], [rows.meadowbrook_thicket, 1], [rows.mosslight_glade, 1], [rows.mill_cellar, 20], [rows.mill_cellar, null]].map(([r, lv]) => { const f = fitWords(r, lv); return f ? f.tone + ':' + f.words : '-'; }).join('|');
+  if (fits !== 'in:In your range|above:Above your level|far:Far above your level|below:Below your level|-') fails.push('AW-25 the band words read ' + fits);
+  const bests = { minMs: 600000, grounds: { mill_cellar: { solo: { xpH: 7141, balanceH: 1859 }, party: { xpH: 9000, balanceH: 10 } } } };
+  const lines = [bestLine(null, 'mill_cellar'), bestLine(bests, 'mill_cellar'), bestLine(bests, 'millrace_sewer')].join('|');
+  if (lines !== '|Best 9,000 Level XP/h|New') fails.push('AW-25 the list bests read ' + lines);
+  const none = bestWords({ minMs: 600000, grounds: {} }, 'mill_cellar');
+  if (none.solo || none.party || none.none !== 'Not hunted yet. A hunt of 10 min or more sets your best.') fails.push('AW-25 a ground with no best reads ' + JSON.stringify(none));
+  /* A session over plain sections, the way the envelope projects them. */
+  const slot = (type, id, count) => ({ action: { type, id }, conditions: [], join: 'and', usable: true, count });
+  const START = [slot('ability', 'power_strike'), slot('consume', 'cooked_shrimp', 20), slot('consume', 'salted_shrimp', null), slot('consume', 'thin_turnip_juice', null)];
+  const sess = (o) => { const e = Object.assign({ hunt_settings: { preset: 0, presets: [{ preset: 0, name: 'Set 1' }], slots: START, store: STORE },
+    state: { gold: 500 }, inventory: { cooked_shrimp: 20 }, stamina: { ms: 28800000, at: '2026-10-22T00:00:00Z', max_ms: 28800000 }, equipment: { weapon: 'practice_sword' } }, o); return { read: (k) => e[k] }; };
+  const say = (cs, o) => beforeLines(cs, o).map((l) => (l.short ? '!' : '') + l.text).join(' | ');
+  /* (A fresh hero's starter bar and Bring your heroes are read on the page's own modules, AW-27 / AW-28 in checks.) */
+  const bare = say(sess({ hunt_settings: { preset: 0, presets: [], slots: [slot('consume', 'cooked_shrimp', 0)], store: STORE }, state: { gold: 0 }, stamina: { ms: 0, max_ms: 28800000 } }));
+  if (bare !== '!Food: no Cooked Shrimp left. Nothing will be eaten | !No stamina left: rest in town before you go.') fails.push('AW-27 an empty bar and no stamina read ' + JSON.stringify(bare));
+  /* A rune spell with no rune and no store behind it loses that spell only (named, not a stop); no food is said. */
+  const spell = say(sess({ hunt_settings: { preset: 0, presets: [], slots: [slot('ability', 'flame_strike', 0)], store: STORE } }));
+  if (spell !== 'Runes: no Fire Rune left. Flame Strike will not fire | Your bar eats and drinks nothing: HP and mana come back only between fights.') fails.push('AW-27 a spell with no rune reads ' + JSON.stringify(spell));
+  const poor = say(sess({ state: { gold: 0 }, stamina: { ms: 30 * 60000, max_ms: 28800000 } }));
+  if (!/\| Stamina: 30 min left, then the hunt ends\. \| !No gold for the store: the hunt ends when your own supplies run out\.$/.test(poor)) fails.push('AW-27 low stamina and no gold read ' + JSON.stringify(poor));
+  const other = say(sess({}), { other: 'Bow' });
+  if (!/^Supplies: as Bow’s own bar sets them/.test(other)) fails.push('AW-27 another setup\'s supplies read ' + JSON.stringify(other));
+  /* Go as: the setups the server can put on, plus the one in use (its bar's first four); a set with no setup row is not offered. */
+  const setups = setupsOf(sess({ hunt_settings: { preset: 0, presets: [{ preset: 0, name: 'Hunt' }, { preset: 1, name: 'Bow' }, { preset: 2, name: 'Bare set' }], slots: FIXTURE.hunt_settings.slots, store: STORE },
+    hunt_presets: [{ preset: 1, name: 'Bow', action_set: 1, gear: { weapon: 'shortbow' } }], equipment: { weapon: 'iron_sword' } }))
+    .map((p) => [p.preset, p.name, p.inUse, p.weapon, p.roleWords, p.bar ? p.bar.length : '-'].join(':')).join('|');
+  if (setups !== '0:Hunt:true:iron_sword:Melee (shield):4|1:Bow:false:shortbow:Ranger:-') fails.push('AW-26 Go as offers ' + setups);
+  /* A closed session is no hero to bring (the open one in a party is checked on the page, AW-28). */
+  const me = { slot: 0, status: 'ready', read: () => null };
+  if (freeHeroes(me, [me, { slot: 3, status: 'closed', read: (k) => (k === 'name' ? 'Wrenna' : null) }]).length) fails.push('AW-28 Bring your heroes offers a closed session');
+  return fails;
+}
+
+/* AW-25 TOWN WORK COUNTS UP BETWEEN PAYOUTS (Tyler 2026-10-23), the pure rules: src/shell/town-ticker.js runs the
+   server's own span loop on the envelope's numbers. `base` is the repo, or a temp copy of src a ticker mutant was
+   planted into (TICKER_MUTANTS below). */
+async function tickerRules(base) {
+  const fails = [];
+  const imp = (p) => import(pathToFileURL(join(base, p)).href);
+  const TW = await imp('src/shell/town-work.js');
+  const TK = await imp('src/shell/town-ticker.js');
+  const { stateOf, primaryOf } = await imp('src/shell/windows/inventory/state.js');
+  const { sellPlan } = await imp('src/shell/bag-model.js');
+  const { buryParts } = await imp('src/shell/windows/inventory/bury.js');
+  const { settleRefusalOf } = await imp('src/session/refusal.js');
+  const { simulateSkillSpan } = await imp('src/core/skill-sim.js');
+  const { simulateArtisanSpan } = await imp('src/core/artisan-sim.js');
+  const { grantXp } = await imp('src/core/progression.js');
+  const { createRng } = await imp('src/core/rng.js');
+  const { ITEMS } = await imp('src/data/items.js');
+  const T0 = Date.UTC(2026, 9, 23, 12, 0, 0);
+  const iso = (ms) => new Date(ms).toISOString();
+  const SKILLS = { woodcutting: { xp: 1500, level: 12 }, mining: { xp: 800, level: 8 }, smithing: { xp: 0, level: 1 }, prayer: { xp: 120, level: 2 },
+    cooking: { xp: 1200, level: 11 }, runecrafting: { xp: 0, level: 1 } };
+  const envOf = (kind, id, inv, more) => Object.assign({ state: { active_kind: kind, active_id: id, active_since: iso(T0), accrued_to: iso(T0) },
+    skills: SKILLS, inventory: inv, equipment: {}, shop: { offers: [], bids: { normal_log: 3, bones: 1 } } }, more || {});
+  /* A character as the client holds it: its record (replaced whole by each envelope) and the server's clock. */
+  const hero = (env, v = 1) => { const cs = { clock: T0, settleRefusal: null, record: { version: v, data: env, residue: {} },
+    read: (k) => cs.record.data[k], serverNow: () => cs.clock, now: () => 0 }; return cs; };
+  const pay = (cs, env) => { cs.record = { version: cs.record.version + 1, data: env, residue: {} }; };
+  const tree = TW.workRow('gather', 'normal_tree');
+  const step = TW.actionMs(hero(envOf('gather', 'normal_tree', {})), tree);
+  const each = TW.xpEach(tree);
+
+  /* TK-1: one action at a time, on the engine's interval for the tool the server says the hero holds. */
+  const cs1 = hero(envOf('gather', 'normal_tree', { normal_log: 40 }));
+  const seen = [];
+  for (const k of [1, 2, 3]) for (const t of [k * step - 1, k * step]) {
+    cs1.clock = T0 + t;
+    const tk = TW.tickOf(cs1);
+    seen.push((tk ? TK.aheadQty(tk, 'normal_log') + '/' + TK.aheadXp(tk, 'woodcutting') : 'none'));
+  }
+  const want1 = [0, 1, 1, 2, 2, 3].map((n) => n + '/' + n * each).join();
+  if (seen.join() !== want1) fails.push('TK-1 the logs and XP do not rise one action at a time (' + step + ' ms): ' + seen.join() + ', want ' + want1);
+  cs1.clock = T0 + 2 * step + 100;
+  const line1 = TW.nowParts(cs1);
+  const ahead1 = line1.filter((p) => p.ahead).map((p) => p.text).join('|');
+  if (ahead1 !== '42 in your bag') fails.push('TK-1 the work line marks ' + JSON.stringify(ahead1) + ' as pending, want "42 in your bag"');
+
+  /* TK-2: a payout REPLACES: the server's bag and watermark, and the count restarts from them (no double count). */
+  pay(cs1, envOf('gather', 'normal_tree', { normal_log: 42 }, { state: { active_kind: 'gather', active_id: 'normal_tree', active_since: iso(T0), accrued_to: iso(T0 + 2 * step) } }));
+  const after = TW.tickOf(cs1);
+  const shown2 = TK.shownQty(after, 'normal_log', 42);
+  if (shown2.qty !== 42 || shown2.ahead !== 0) fails.push('TK-2 after a payout of the same two logs the bag shows ' + JSON.stringify(shown2) + ', want 42 with nothing pending');
+  cs1.clock = T0 + 3 * step;
+  if (TK.shownQty(TW.tickOf(cs1), 'normal_log', 42).qty !== 43) fails.push('TK-2 the next action after a payout does not count from the new watermark');
+
+  /* TK-5: a payout LOWER than the prediction snaps down: the server's word, nothing pending until its next action. */
+  cs1.clock = T0 + 4 * step + 100;   // predicted 44
+  pay(cs1, envOf('gather', 'normal_tree', { normal_log: 42 }, { state: { active_kind: 'gather', active_id: 'normal_tree', active_since: iso(T0), accrued_to: iso(T0 + 4 * step) } }));
+  const low = TK.shownQty(TW.tickOf(cs1), 'normal_log', 42);
+  if (low.qty !== 42 || low.ahead !== 0) fails.push('TK-5 a payout under the prediction shows ' + JSON.stringify(low) + ', want the server\'s 42');
+
+  /* TK-3: NEVER SPENT. With two logs pending, every control reads the server's 40: the bag's stacks, the sale's
+     lines, the primary; the pocket alone shows 42, as pending. */
+  const cs3 = hero(envOf('gather', 'normal_tree', { normal_log: 40, bones: 8 }));
+  cs3.clock = T0 + 2 * step + 100;
+  const st3 = stateOf({ character: cs3 });
+  const plan3 = sellPlan(st3.items, ['normal_log'], { bids: new Map([['normal_log', 3]]) });
+  const sale = plan3.lines.map((l) => l.item + '×' + l.qty).join();
+  const shown3 = TK.shownQty(st3.tick, 'normal_log', st3.qty.get('normal_log'));
+  if (st3.qty.get('normal_log') !== 40 || sale !== 'normal_log×40' || !primaryOf(st3, 'normal_log') || shown3.qty !== 42 || shown3.ahead !== 2)
+    fails.push('TK-3 the pending logs reach a control: qty ' + st3.qty.get('normal_log') + ', sale ' + sale + ', shown ' + JSON.stringify(shown3));
+  const csB = hero(envOf('artisan', 'smelt_bronze', { copper_ore: 10 }));
+  csB.clock = T0 + 30000;
+  const rows = (await imp('src/shell/windows/work.js')).rowsFor('smithing', 1, csB.read('inventory'));
+  if (TW.runsOf(TW.workRow('artisan', 'smelt_bronze').row, csB.read('inventory')) !== 5 || !rows.length) fails.push('TK-3 "Makes up to" does not read the server\'s ore');
+
+  /* TK-4 / TK-6: nothing ticks with nothing running, in a hunt, with no server clock, or a watermark past the horizon;
+     the stop's envelope clears it at once. */
+  const idle = hero(envOf('idle', null, { normal_log: 40 }));
+  idle.clock = T0 + 60000;
+  const hunt = hero(envOf('gather', 'normal_tree', { normal_log: 40 }, { hunt: { session_id: 'h1', ended: false } }));
+  hunt.clock = T0 + 3 * step;
+  const stale = hero(envOf('gather', 'normal_tree', { normal_log: 40 }));
+  stale.clock = T0 + TK.horizonMs(step) + 200;   // past it by more than the 100 ms bucket the ticker rounds down to
+  const blind = hero(envOf('gather', 'normal_tree', { normal_log: 40 }));
+  blind.serverNow = () => null;
+  const quiet = [['idle', idle], ['hunting', hunt], ['past the horizon', stale], ['no server clock', blind]].filter(([, c]) => TW.tickOf(c) !== null).map(([n]) => n);
+  if (quiet.length) fails.push('TK-6 it ticks with ' + quiet.join(', '));
+  const cs4 = hero(envOf('gather', 'normal_tree', { normal_log: 40 }));
+  cs4.clock = T0 + 2 * step + 100;
+  const was = TW.tickOf(cs4);
+  pay(cs4, envOf('idle', null, { normal_log: 42 }, { state: { active_kind: 'idle', active_id: null, active_since: null, accrued_to: iso(cs4.clock) } }));
+  if (!was || TW.tickOf(cs4) !== null || TW.nowParts(cs4).length) fails.push('TK-4 the stop did not clear the ticking');
+
+  /* TK-7: a settle the engine REFUSED (it will not pay this pointer) clears it at once, until a newer record. */
+  const no = settleRefusalOf({ ok: true, body: { ok: true, accrued: false, reason: 'unknown_node', version: 1 } });
+  const waits = ['below_min_span', 'nothing_accrued', 'replayed', 'idle'].filter((r) => settleRefusalOf({ ok: true, body: { ok: true, accrued: false, reason: r, version: 1 } }));
+  const cs7 = hero(envOf('gather', 'normal_tree', { normal_log: 40 }));
+  cs7.clock = T0 + 2 * step + 100;
+  cs7.settleRefusal = no;
+  const refusedNow = TW.tickOf(cs7);
+  pay(cs7, envOf('gather', 'normal_tree', { normal_log: 40 }));
+  const newer = TW.tickOf(cs7);
+  if (!no || no.version !== 1 || waits.length || refusedNow !== null || !newer || newer.actions !== 2)
+    fails.push('TK-7 a refused settle: ' + JSON.stringify({ no, waits, refusedNow, newer: newer && newer.actions }));
+  /* ...and the character keeps the engine's word from its settle (hello) until the next answer says otherwise. */
+  const { CharacterSession } = await imp('src/session/character-session.js');
+  const answers = [{ ok: true, body: { ok: true, accrued: false, reason: 'unpayable_bench', version: 3 } }, { ok: false, error: 'offline' },
+    { ok: true, body: { ok: true, accrued: false, reason: 'below_min_span', version: 3 } }];
+  const loaded = Object.assign(envOf('gather', 'normal_tree', { normal_log: 40 }), { ok: true, version: 3, now: iso(T0) });
+  const real = new CharacterSession({ slot: 0, uid: 'u', server: { accrue: async () => answers.shift(), rpc: async () => ({ ok: true, body: loaded }) } });
+  const said = [];
+  for (let i = 0; i < 3; i++) { await real.hello(); said.push(real.settleRefusal ? real.settleRefusal.reason + '@' + real.settleRefusal.version : 'none'); }
+  real.close();
+  if (said.join() !== 'unpayable_bench@3,unpayable_bench@3,none') fails.push('TK-7 the character keeps the settle refusal as ' + said.join() + ' (want it from the refusal, kept through a lost answer, gone at the next)');
+
+  /* TK-8: a bench counts its inputs down with the engine's own stop: never past the bag, never past the run's "N left". */
+  const bury = TW.workRow('artisan', 'bury_bones');
+  const bstep = TW.actionMs(hero(envOf('artisan', 'bury_bones', {})), bury);
+  const csb = hero(envOf('artisan', 'bury_bones', { bones: 8 }));
+  csb.clock = T0 + 3 * bstep + 100;
+  const b3 = TW.tickOf(csb);
+  csb.clock = T0 + 20 * bstep;
+  const ball = TW.tickOf(csb);
+  const csl = hero(envOf('artisan', 'bury_bones', { bones: 8 }, { bench_run: { left: 2 } }));
+  csl.clock = T0 + 20 * bstep;
+  const bleft = TW.tickOf(csl);
+  const bline = TK.lineText(buryParts(csb));
+  if (!b3 || b3.items.bones !== -3 || TK.aheadXp(b3, 'prayer') !== 3 * TW.xpEach(bury) || !ball || ball.items.bones !== -8 || !bleft || bleft.items.bones !== -2 || !/^Burying Bones: 0 Bones left\./.test(bline))
+    fails.push('TK-8 the bench count: ' + JSON.stringify({ b3, all: ball && ball.items, left2: bleft && bleft.items, bline }));
+
+  /* TK-9: a dish that can burn is a roll: the inputs and the burn's XP are certain, the dish is not (no stack moves). */
+  const cook = TW.workRow('artisan', 'cook_shrimp');
+  const cstep = TW.actionMs(hero(envOf('artisan', 'cook_shrimp', {})), cook);
+  const csc = hero(envOf('artisan', 'cook_shrimp', { shrimp: 6 }));
+  csc.clock = T0 + 2 * cstep + 100;
+  const c2 = TW.tickOf(csc);
+  const fire = TW.nowParts(csc).filter((p) => p.ahead).map((p) => p.text).join('|');
+  const sure = hero(envOf('artisan', 'cook_shrimp', { shrimp: 6 }, { skills: Object.assign({}, SKILLS, { cooking: { xp: 13034431, level: 99 } }) }));
+  sure.clock = T0 + 2 * cstep + 100;
+  const s2 = TW.tickOf(sure);
+  if (!c2 || c2.unsure !== 2 || 'cooked_shrimp' in c2.items || 'burnt_food' in c2.items || c2.items.shrimp !== -2 || !/2 more on the fire/.test(fire)
+    || TK.aheadXp(c2, 'cooking') > 2 * TW.xpEach(cook) || !s2 || s2.unsure !== 0 || s2.items.cooked_shrimp !== 2)
+    fails.push('TK-9 a dish that can burn: ' + JSON.stringify({ c2, fire, s2 }));
+
+  /* TK-10: ROUNDED DOWN. Against the engine as the SERVER runs it (its perks, a real roll, its tool carry and XP
+     remainder), over many windows, the ticker never shows an action, an item or an XP the server did not pay. */
+  const perks = { gatherSpeed: 0.2, smithSpeed: 0.2, prayerSpeed: 0.2, cookSpeed: 0.2, runeSpeed: 0.2, allXP: 0.1, craftSave: 0.3, yield_smithing: 0.2, noBurn: 0.1 };
+  const bonus = (k) => perks[k] || 0;
+  /* The best axe there is: its speed, its XP and its double-yield carry (the server's carry starts at 0.7, the ticker's at 0). */
+  const axe = Object.keys(ITEMS).filter((k) => ITEMS[k].type === 'tool' && ITEMS[k].toolSkill === 'woodcutting').sort((a, b) => (ITEMS[b].toolTier || 0) - (ITEMS[a].toolTier || 0))[0];
+  const cases = [['gather', 'normal_tree', { normal_log: 3 }], ['gather', 'normal_tree', { [axe]: 1 }], ['gather', 'rich_coal_rock', {}], ['artisan', 'smelt_bronze', { copper_ore: 40 }],
+    ['artisan', 'bury_bones', { bones: 50 }], ['artisan', 'cook_shrimp', { shrimp: 30 }]];
+  const rune = Object.keys(TW.BENCH_INDEX).find((id) => TW.BENCH_INDEX[id].skill === 'runecrafting' && (TW.BENCH_INDEX[id].recipe.outputQty || 1) > 1);
+  if (rune) cases.push(['artisan', rune, Object.fromEntries(Object.entries(TW.workRow('artisan', rune).row.inputs || {}).map(([i, n]) => [i, n * 40]))]);
+  const rich = Object.assign({}, SKILLS, { mining: { xp: 13034431, level: 99 }, runecrafting: { xp: 13034431, level: 99 } });
+  let over = null;
+  for (const [kind, id, inv] of cases) {
+    const w = TW.workRow(kind, id);
+    if (!w) { over = 'no work row ' + id; break; }
+    const reach = TK.horizonMs(TW.actionMs(hero(envOf(kind, id, inv, { skills: rich })), w)) - 100;
+    for (let i = 0; i < 24 && !over; i++) {
+      const span = Math.floor(((i * 7919) % 997) / 997 * reach);
+      const st = { skillTargetId: id, skills: Object.fromEntries(Object.entries(rich).map(([k, r]) => [k, r.xp])), xpFrac: { [w.skill]: 0.9 },
+        inventory: Object.assign({}, inv), equipment: {}, toolCarry: { [w.skill]: 0.7 }, stats: {}, buffs: [], unlockedRecipes: {} };
+      const got = {};
+      const fx = { addXp: (s, amt) => grantXp(st, s, amt, { bonus, restedQuantum: 0, authored: false }),
+        addItem: (it, n) => { got[it] = (got[it] || 0) + n; st.inventory[it] = (st.inventory[it] || 0) + n; },
+        removeItem: (it, n) => { st.inventory[it] = (st.inventory[it] || 0) - n; } };
+      const one = Object.create(null);
+      const ctx = { fromMs: T0, toMs: T0 + span, items: ITEMS, rng: createRng(i * 31 + 7), bonus, away: true, fx };
+      const x0 = Object.assign({}, st.skills);
+      const sum = kind === 'gather' ? (one[id] = { skill: w.skill, node: w.row }, simulateSkillSpan(st, Object.assign(ctx, { nodes: one })))
+        : (one[id] = { skill: w.skill, recipe: w.row }, simulateArtisanSpan(st, Object.assign(ctx, { recipes: one })));
+      const csP = hero(envOf(kind, id, inv, { skills: rich }));
+      csP.clock = T0 + span;
+      const p = TW.tickOf(csP);
+      if (!p) { over = id + ' predicted nothing at ' + span + ' ms'; break; }
+      const xs = w.row.xpSkill || w.skill;
+      if (p.actions > sum.ticks) over = id + ' at ' + span + ' ms: ' + p.actions + ' actions > the server\'s ' + sum.ticks;
+      for (const [it, n] of Object.entries(p.items)) if (n > 0 && n > (got[it] || 0)) over = id + ' at ' + span + ' ms: +' + n + ' ' + it + ' > the server\'s ' + (got[it] || 0);
+      if (TK.aheadXp(p, xs) > (st.skills[xs] || 0) - (x0[xs] || 0)) over = id + ' at ' + span + ' ms: +' + TK.aheadXp(p, xs) + ' XP > the server\'s ' + ((st.skills[xs] || 0) - (x0[xs] || 0));
+    }
+    if (over) break;
+  }
+  if (over) fails.push('TK-10 the ticker shows more than the server paid: ' + over);
   return fails;
 }
 
@@ -556,7 +856,7 @@ async function checks(overrides, shots) {
         if (!opened) fails.push('AW-14 a click on the mill hatch did not open Hunts on the Mill Cellar');
         else {
           if (shots) await shot(page, 'alpha-1440x900-hunts');
-          await page.click('[data-hs-win="hunts"] .hw-hunt.is-picked .hw-hunt-enter');
+          await page.click('[data-hs-win="hunts"] .hw-hunt-detail .hw-hunt-enter');
           await page.waitForTimeout(700);
           const enter = sent(s, 'hr_hunt_enter');
           const b = enter[0] && enter[0].body;
@@ -583,6 +883,188 @@ async function checks(overrides, shots) {
         if (!/Next at level \d+: .*Bronze Axe \(woodcutting tool\)/.test(smith) || /and 1 more/.test(smith)) fails.push('AW-17 the smithing unlock does not say what it is: ' + JSON.stringify(smith));
       }
       if (errors.length) fails.push('AW-13 console errors in town: ' + errors.slice(0, 3).join(' | '));
+      await ctx.close();
+    }
+
+    { // AW-25 .. AW-28: the Hunts window, master-detail (designer plan 2026-10-22), a Level 1 hero in town
+      const { ctx, page, errors, s, up } = await open({ mutateEnv: levelOne });
+      const W = '[data-hs-win="hunts"] ';
+      if (!up || !(await openWin(page, 'h', 'hunts'))) fails.push('AW-25 the Hunts window did not open for a Level 1 hero');
+      else {
+        const drawn = await wait(page, (w) => document.querySelectorAll(w + '.hw-hd-mon.is-drawn').length === 3, W, 8000);
+        const list = await page.evaluate((w) => Array.from(document.querySelectorAll(w + '.hw-hunt')).map((li) => [li.dataset.hunt, li.classList.contains('is-picked') ? 'picked' : '',
+          li.querySelector('.hw-hunt-lv').textContent, li.querySelector('.hw-hunt-fit').getAttribute('data-tone'), li.querySelector('.hw-hunt-fit').textContent,
+          li.querySelector('.hw-hunt-fits').textContent, li.querySelector('.hw-hunt-bestline').textContent, li.querySelector('.hw-hunt-glyph').title].join(':')), W);
+        const want = ['mill_cellar:picked:Level 1–8:in:In your range:Fits your level:New:Built for one hero',
+          'meadowbrook_thicket::Level 5–15:above:Above your level::New:Built for one hero',
+          'millrace_sewer::Level 8–25:above:Above your level::New:Built for a party',
+          'mosslight_glade::Level 16–31:far:Far above your level::New:Built for one hero',
+          'coppercap_warrens::Level 32–50:far:Far above your level::New:Built for a party'];
+        if (list.join('|') !== want.join('|')) fails.push('AW-25 the list lines read ' + JSON.stringify(list));
+        /* The picked ground's page: who lives here as the world draws them, at a whole-number scale on one ground line. */
+        const page1 = () => page.evaluate((w) => {
+          const d = document.querySelector(w + '.hw-hunt-detail');
+          const vis = (q) => { const n = d.querySelector(q); return n && n.getClientRects().length ? n.textContent : null; };
+          return { name: vis('.hw-hd-name'), theme: vis('.hw-hd-theme'), rare: vis('.hw-hd-rare-name'), by: vis('.hw-hd-rare-by'),
+            mons: Array.from(d.querySelectorAll('.hw-hd-mon')).map((li) => { const c = li.querySelector('canvas'), b = c.getBoundingClientRect(), st = li.querySelector('.hw-hd-stand').getBoundingClientRect();
+              return { id: li.dataset.monster, how: li.querySelector('.hw-hd-mon-how').textContent, drawn: li.classList.contains('is-drawn'), carrier: li.classList.contains('is-carrier'),
+                w: c.width, h: c.height, cw: b.width, ch: b.height, ground: Math.round(st.bottom), inside: b.top >= st.top - 0.5 }; }),
+            bests: Array.from(d.querySelectorAll('.hw-hd-best')).filter((n) => n.getClientRects().length).map((n) => n.textContent) };
+        }, W);
+        const p = await page1();
+        /* x2: every side even, and shown at the canvas's own size (no CSS scaling; layout may land it on a sub-pixel). */
+        if (!drawn || p.mons.some((m) => !m.drawn || !m.w || m.w % 2 || m.h % 2 || Math.abs(m.cw - m.w) > 0.5 || Math.abs(m.ch - m.h) > 0.5)) fails.push('AW-25 the creatures are not drawn at x2 from the world art: ' + JSON.stringify(p.mons));
+        if (new Set(p.mons.map((m) => m.ground)).size !== 1 || p.mons.some((m) => !m.inside)) fails.push('AW-25 the creatures do not stand on one ground line, inside it: ' + JSON.stringify(p.mons.map((m) => [m.ground, m.inside])));
+        const mons = p.mons.map((m) => m.id + ':' + m.how + (m.carrier ? ':carrier' : '')).join('|');
+        if (p.name !== 'Mill Cellar' || p.theme !== HUNTS.mill_cellar.theme || mons !== 'rat:Level 2 · common|slime:Level 2 · uncommon:carrier|hive_wasp:Level 4 · uncommon')
+          fails.push('AW-25 the Mill Cellar page reads ' + JSON.stringify({ name: p.name, theme: p.theme, mons }));
+        if (p.rare !== 'Sticky Core' || p.by !== 'Rare drop. Carrier: Slime') fails.push('AW-25 the rare line reads ' + JSON.stringify([p.rare, p.by]));
+        if (p.bests.join('|') !== 'Not hunted yet. A hunt of 10 min or more sets your best.') fails.push('AW-25 with no best the page reads ' + JSON.stringify(p.bests));
+        if (shots) await shot(page, 'hunts-1440x900-cellar-level1');
+        /* The server's best arrives: the line and the page take it (replaced, never kept from before). */
+        s.env.hunt_bests = { min_ms: 600000, grounds: { mill_cellar: { solo: { xp_h: 7141, balance_h: 1859 } } } };
+        await pushEnvelope(page, s);
+        const best = await page.evaluate((w) => document.querySelector(w + '.hw-hunt[data-hunt="mill_cellar"] .hw-hunt-bestline').textContent, W);
+        const p2 = await page1();
+        if (best !== 'Best 7,141 Level XP/h' || p2.bests.join('|') !== 'Best alone: 7,141 Level XP per hour · balance 1,859 gp per hour') fails.push('AW-25 the server\'s best reads ' + JSON.stringify([best, p2.bests]));
+        /* AW-26 GO AS: the setups as lines, the one on now chosen; Enter as it is ONE hr_hunt_enter and no apply. */
+        const goAs = () => page.evaluate((w) => Array.from(document.querySelectorAll(w + '.hw-go')).map((b) => [b.dataset.preset, b.getAttribute('aria-checked'), b.querySelector('.hw-go-name').textContent,
+          b.querySelector('.hw-go-what').textContent, b.querySelectorAll('.hw-go-bar .hh-icon').length, (b.querySelector('.hw-go-weapon img') || {}).src ? b.querySelector('.hw-go-weapon img').getAttribute('src').split('/').pop() : ''].join(':')), W);
+        const g0 = (await goAs()).join('|');
+        if (g0 !== '0:true:Hunt:Melee (shield) · on now:4:iron_sword.png|1:false:Bow:Ranger:0:shortbow.png') fails.push('AW-26 Go as reads ' + JSON.stringify(g0));
+        /* AW-27 BEFORE YOU GO: what the bar spends, in slot order, from the server's bar, bag and gold. */
+        const before = () => page.evaluate((w) => Array.from(document.querySelectorAll(w + '.hw-before-line')).map((li) => (li.classList.contains('is-short') ? '!' : '') + li.textContent).join(' | '), W);
+        const b0 = await before();
+        if (b0 !== 'Runes: 40 Fire Rune of yours, then Plain Fire Rune from the store, 8 gp each | Food: 14 Wheat Bread of yours | Drink: 6 Goldenroot Tea of yours | Stamina: 30 min left, then the hunt ends. | Gold: 5,200 gp pays the store as you use it.')
+          fails.push('AW-27 Before you go reads ' + JSON.stringify(b0));
+        if (await page.evaluate(() => !!document.querySelector('[data-hs-win="hunts"] .hw-ready, [data-hs-win="hunts"] .hw-checks'))) fails.push('AW-27 the Hunts window still carries the readiness checklist');
+        /* The next envelope REPLACES every number (CLAUDE.md §6): fewer runes, less bread, no gold (that line now stops the hunt). */
+        s.env.inventory = Object.assign({}, s.env.inventory, { fire_rune: 3 });
+        s.env.hunt_settings = clone(s.env.hunt_settings);
+        s.env.hunt_settings.slots[2].count = 2;
+        s.env.state = Object.assign({}, s.env.state, { gold: 0 });
+        await pushEnvelope(page, s);
+        const b1 = await before();
+        if (b1 !== 'Runes: 3 Fire Rune of yours, then Plain Fire Rune from the store, 8 gp each | Food: 2 Wheat Bread of yours | Drink: 6 Goldenroot Tea of yours | Stamina: 30 min left, then the hunt ends. | !No gold for the store: the hunt ends when your own supplies run out.')
+          fails.push('AW-27 Before you go kept a number the server replaced: ' + JSON.stringify(b1));
+        /* The page's own modules (a planted defect in them is what is served): a fresh hero's starter bar (the designer's
+           walk-through row 4) and Bring your heroes (this account's other open heroes in no party). */
+        const own = await page.evaluate(async (STORE) => {
+          const m = await import('/src/shell/hunt-go.js?v=0.1.0');
+          const slot = (type, id, count) => ({ action: { type, id }, conditions: [], join: 'and', usable: true, count });
+          const sec = { hunt_settings: { preset: 0, presets: [], store: STORE, slots: [slot('ability', 'power_strike'), slot('consume', 'cooked_shrimp', 20), slot('consume', 'salted_shrimp', null), slot('consume', 'thin_turnip_juice', null)] },
+            state: { gold: 500 }, inventory: { cooked_shrimp: 20 }, equipment: {} };
+          const party = { id: '0a47c0de-0000-4000-a000-00000000aa01', members: [{ seat: 0, name: 'Mira' }], self_seat: 0, leader_seat: 0 };
+          const hero = (slot, n, p) => ({ slot, status: 'ready', read: (k) => (k === 'name' ? n : k === 'party' && p ? party : null) });
+          const me = hero(0, 'Tyler');
+          return { fresh: m.beforeLines({ read: (k) => sec[k] }).map((l) => l.text).join(' | '), free: m.freeHeroes(me, [me, hero(1, 'Mira', true), hero(2, 'Brannoc')]).map((h) => h.name).join() };
+        }, FIXTURE.hunt_settings.store);
+        if (own.fresh !== 'Food: 20 Cooked Shrimp of yours, then Salted Shrimp from the store, 14 gp each | Drink: Thin Turnip Juice from the store, 10 gp each | Gold: 500 gp pays the store as you use it.')
+          fails.push('AW-27 a fresh hero\'s Before you go reads ' + JSON.stringify(own.fresh));
+        if (own.free !== 'Brannoc') fails.push('AW-28 Bring your heroes offers ' + JSON.stringify(own.free));
+        const enters = () => sent(s, 'hr_hunt_enter').length;
+        const applies = () => sent(s, 'hr_hunt_preset_apply').length;
+        let e0 = enters(), a0 = applies();
+        await page.click(W + '.hw-hunt-detail .hw-hunt-enter');
+        for (let i = 0; i < 30 && enters() === e0; i++) await page.waitForTimeout(100);
+        await page.waitForTimeout(300);
+        const asIs = sent(s, 'hr_hunt_enter').slice(e0);
+        if (asIs.length !== 1 || asIs[0].body.p_preset !== 0 || asIs[0].body.p_hunt !== 'mill_cellar' || applies() !== a0) fails.push('AW-26 Enter as the setup on now sent ' + JSON.stringify(s.calls.slice(-3).map((c) => c.name + ':' + JSON.stringify(c.body.p_preset))));
+        /* Another setup: ONE apply, then ONE enter as it, one press; every control off while it is in flight. */
+        await page.click(W + '.hw-go[data-preset="1"]');
+        const note = await page.evaluate((w) => document.querySelector(w + '.hw-go-note').textContent, W);
+        if (note !== 'Enter puts Bow on first: its gear and its bar.' || !/^Supplies: as Bow’s own bar sets them/.test(await before())) fails.push('AW-26 choosing Bow says ' + JSON.stringify([note, await before()]));
+        e0 = enters(); a0 = applies();
+        const mark = s.calls.length;
+        await page.click(W + '.hw-hunt-detail .hw-hunt-enter');
+        const off = await page.evaluate((w) => ({ enter: document.querySelector(w + '.hw-hunt-detail .hw-hunt-enter').disabled, go: Array.from(document.querySelectorAll(w + '.hw-go')).every((b) => b.disabled) }), W);
+        if (!off.enter || !off.go) fails.push('AW-26 Enter or Go as stayed on while the press was in flight: ' + JSON.stringify(off));
+        for (let i = 0; i < 40 && enters() === e0; i++) await page.waitForTimeout(100);
+        await page.waitForTimeout(300);
+        const order = s.calls.slice(mark).filter((c) => c.name === 'hr_hunt_preset_apply' || c.name === 'hr_hunt_enter').map((c) => c.name + ':' + c.body.p_preset);
+        if (order.join() !== 'hr_hunt_preset_apply:1,hr_hunt_enter:1') fails.push('AW-26 Enter as Bow sent ' + JSON.stringify(order));
+        /* A refused apply stops there, in words: nothing is entered. */
+        s.reply = { ok: false, error: 'missing_item' };
+        await page.click(W + '.hw-go[data-preset="1"]');
+        e0 = enters();
+        await page.click(W + '.hw-hunt-detail .hw-hunt-enter');
+        for (let i = 0; i < 30 && !(await page.evaluate((w) => /not in your bag/.test(document.querySelector(w + '.hh-intent-msg').textContent), W)); i++) await page.waitForTimeout(100);
+        const said = await page.evaluate((w) => document.querySelector(w + '.hh-intent-msg').textContent, W);
+        if (enters() !== e0 || said !== 'A piece of that setup’s gear is not in your bag, so nothing was put on.') fails.push('AW-26 a refused apply entered or said ' + JSON.stringify([enters() - e0, said]));
+        s.reply = { ok: true };
+        /* AW-28 THE PARTY PATH: a party ground's page leads to a party; a solo ground's does not. */
+        const party = () => page.evaluate((w) => { const b = document.querySelector(w + '.hw-hd-party'); return b && !b.hidden ? [b.querySelector('.hw-hd-party-why').textContent, b.querySelector('.hw-find-here').textContent, b.querySelector('.hw-bring-none').textContent] : null; }, W);
+        if (await party()) fails.push('AW-28 the Mill Cellar page offers a party path');
+        await page.click(W + '.hw-hunt[data-hunt="millrace_sewer"]');
+        await wait(page, (w) => document.querySelectorAll(w + '.hw-hd-mon.is-drawn').length === 6, W, 4000);
+        const sewer = await page1();
+        if (sewer.name !== 'The Sewer' || sewer.rare !== 'Crown Shard' || !sewer.mons.some((m) => m.id === 'rat_king' && m.carrier && m.how === 'Level 25 · boss')) fails.push('AW-25 the Sewer page reads ' + JSON.stringify({ name: sewer.name, rare: sewer.rare, mons: sewer.mons.map((m) => m.id + ':' + m.how) }));
+        const pp = await party();
+        if (!pp || pp[0] !== 'Best with a party of 2–4.' || pp[1] !== 'Find a party' || !/^Your other heroes can come too/.test(pp[2])) fails.push('AW-28 the Sewer page\'s party path reads ' + JSON.stringify(pp));
+        if (shots) { await page.evaluate((w) => { const b = document.querySelector(w + '.hs-win-body'); b.scrollTop = 0; }, W); await shot(page, 'hunts-1440x900-sewer'); }
+        if (shots) { await page.evaluate((w) => { const b = document.querySelector(w + '.hs-win-body'); b.scrollTop = b.scrollHeight; }, W); await shot(page, 'hunts-1440x900-sewer-foot'); }
+        /* Find a party: the Party window, on its finder, on this ground and this hero's weapon: ONE read with p_hunt. */
+        const f0 = sent(s, 'hr_hunt_party_finder').length;
+        await page.click(W + '.hw-find-here');
+        const opened = await wait(page, () => document.querySelector('[data-hs-win="hunt-party"] [data-hs-built]'), null, 3000);
+        for (let i = 0; i < 30 && sent(s, 'hr_hunt_party_finder').length === f0; i++) await page.waitForTimeout(100);
+        const fq = sent(s, 'hr_hunt_party_finder').slice(f0).map((c) => c.body.p_hunt + ':' + c.body.p_weapon);
+        const tab = await page.evaluate(() => { const P = document.querySelector('[data-hs-win="hunt-party"]'); return P && [(P.querySelector('.hw-tab[aria-selected="true"]') || {}).dataset?.tab, P.querySelector('[data-hs-act="find-ground"]').value, P.querySelector('[data-hs-act="find-weapon"]').value].join(':'); });
+        if (!opened || fq.join() !== 'millrace_sewer:sword' || tab !== 'find:millrace_sewer:sword') fails.push('AW-28 Find a party opened ' + JSON.stringify({ opened, fq, tab }));
+      }
+      if (errors.length) fails.push('AW-25 console errors: ' + errors.slice(0, 3).join(' | '));
+      await ctx.close();
+    }
+
+    { // AW-25b the phone: the list, then the ground's page as the sheet, with the way back
+      const { ctx, page, up } = await open({ viewport: { width: 922, height: 423 }, mutateEnv: levelOne });
+      const W = '[data-hs-win="hunts"] ';
+      if (!up || !(await openWin(page, 'h', 'hunts'))) fails.push('AW-25 the Hunts sheet did not open at 922x423');
+      else {
+        const seen = () => page.evaluate((w) => { const on = (q) => { const n = document.querySelector(w + q); return !!n && n.getClientRects().length > 0; };
+          const b = document.querySelector(w + '.hs-win-body'); return [on('.hw-hunt-list'), on('.hw-hunt-detail'), on('.hw-hd-back'), b.scrollWidth <= b.clientWidth + 1].join(); }, W);
+        /* A press as the shell routes it (a DOM click): a control a mutant leaves off-screen is a rule's red, not a harness timeout. */
+        const press = (q) => page.evaluate((sel) => { const n = document.querySelector(sel); if (n) n.click(); return !!n; }, W + q);
+        const s0 = await seen();
+        if (shots) await shot(page, 'hunts-922x423-list');
+        await press('.hw-hunt[data-hunt="millrace_sewer"]');
+        await page.waitForTimeout(300);
+        const s1 = await seen();
+        if (shots) await shot(page, 'hunts-922x423-sewer');
+        await press('.hw-hd-back');
+        await page.waitForTimeout(200);
+        const s2 = await seen();
+        if (s0 !== 'true,false,false,true' || s1 !== 'false,true,true,true' || s2 !== 'true,false,false,true') fails.push('AW-25 the phone sheet shows (list, page, back, fits) ' + JSON.stringify([s0, s1, s2]));
+      }
+      await ctx.close();
+    }
+
+    { // AW-29 THE ROUND TRIP: open Hunts, pick a ground, Enter, hunt, back in town: Hunts shows the same pick
+      const { ctx, page, s, up } = await open({ mutateEnv: levelOne });
+      const W = '[data-hs-win="hunts"] ';
+      if (!up || !(await openWin(page, 'h', 'hunts'))) fails.push('AW-29 the Hunts window did not open');
+      else {
+        await page.click(W + '.hw-hunt[data-hunt="meadowbrook_thicket"]');
+        await page.click(W + '.hw-hunt-detail .hw-hunt-enter');
+        for (let i = 0; i < 30 && !sent(s, 'hr_hunt_enter').length; i++) await page.waitForTimeout(100);
+        const go = sent(s, 'hr_hunt_enter').map((c) => c.body.p_hunt);
+        /* The server's answer: the hero is hunting there. */
+        s.env.hunt = Object.assign(clone(FIXTURE.hunt), { hunt_id: 'meadowbrook_thicket' });
+        s.env.state = Object.assign({}, s.env.state, { active_kind: 'combat', active_id: 'meadowbrook_thicket' });
+        await pushEnvelope(page, s);
+        const hunting = await wait(page, (w) => /You are hunting in Meadowbrook Thicket/.test(document.querySelector(w + '.hw-hunts-now').textContent)
+          && document.querySelector(w + '.hw-hunt-detail .hw-hunt-enter').disabled, W, 4000);
+        /* Back in town (the hunt ended): the window still holds the Thicket, ready to go again; after a close and reopen too. */
+        s.env.hunt = Object.assign({}, s.env.hunt, { ended: true });
+        s.env.state = Object.assign({}, s.env.state, { active_kind: 'idle', active_id: null });
+        await pushEnvelope(page, s);
+        /* (The hunt's end may bring its summary forward; the Hunts window is opened again as a player would.) */
+        await openWin(page, 'h', 'hunts');
+        const back = await wait(page, (w) => /^Pick a hunt/.test(document.querySelector(w + '.hw-hunts-now').textContent), W, 4000);
+        const after = await page.evaluate((w) => [(document.querySelector(w + '.hw-hunt.is-picked') || {}).dataset?.hunt, document.querySelector(w + '.hw-hd-name').textContent,
+          document.querySelector(w + '.hw-hunt-detail .hw-hunt-enter').disabled].join(':'), W);
+        if (go.join() !== 'meadowbrook_thicket' || !hunting || !back || after !== 'meadowbrook_thicket:Meadowbrook Thicket:false') fails.push('AW-29 the round trip reads ' + JSON.stringify({ go, hunting, back, after }));
+      }
       await ctx.close();
     }
 
@@ -922,6 +1404,113 @@ async function checks(overrides, shots) {
       }
     }
 
+    { // AW-24 TOWN WORK COUNTS UP BETWEEN PAYOUTS (Tyler 2026-10-23), the transition: Start → it ticks, pending →
+      // a payout replaces it → a lower payout snaps it down → a reload restarts it from the server's watermark (no
+      // double count) → Stop → nothing ticks. The stub pays like the engine: a settle pays the whole actions since its
+      // watermark and moves the watermark by exactly those (the rest deferred); its clock is the real one.
+      const TWm = await import(pathToFileURL(join(ROOT, 'src/shell/town-work.js')).href);
+      const tree = TWm.workRow('gather', 'normal_tree');
+      const STEP = TWm.actionMs({ read: (k) => FIXTURE[k] }, tree);
+      const XP = TWm.xpEach(tree);
+      /* The start is stamped LEAD before its answer, so the first action is due ~400 ms after it (a short test). */
+      const LEAD = STEP - 400;
+      const town = (e) => {
+        for (const k of ['hunt', 'hunt_analyzer', 'hunt_track', 'hunt_events', 'party']) delete e[k];
+        e.state = Object.assign({}, e.state, { active_kind: 'idle', active_id: null });
+        /* XP inside its level on the curve (the fixture's 1500 sits under Woodcutting 12's 1584): the bar has room to fill. */
+        e.skills = Object.assign({}, e.skills, { woodcutting: { xp: 1700, level: 12, frac: 0 } });
+        Object.defineProperty(e, 'now', { get: () => new Date().toISOString(), enumerable: true, configurable: true });
+      };
+      const { ctx, page, errors, s, up } = await open({ mutateEnv: town });
+      const st = () => s.env.state;
+      const from = () => Math.max(Date.parse(st().accrued_to), Date.parse(st().active_since));
+      const due = () => (st().active_kind === 'gather' ? Math.max(0, Math.floor((Date.now() - from()) / STEP)) : 0);
+      const settle = (short) => {
+        const n = due();
+        if (!n) return;
+        s.env.inventory.normal_log += short ? n - 1 : n;
+        s.env.skills.woodcutting.xp += n * XP;
+        st().accrued_to = new Date(from() + n * STEP).toISOString();
+      };
+      s.onCall = (name, b) => {
+        if (name !== 'hr-accrue') return;
+        if (b.verb === 'set_activity') {
+          if (b.activity.kind === 'gather') { const t = new Date(Date.now() - LEAD).toISOString(); Object.assign(st(), { active_kind: 'gather', active_id: b.activity.id, active_since: t, accrued_to: t }); }
+          else { settle(false); Object.assign(st(), { active_kind: 'idle', active_id: null }); }
+        } else if (!b.verb) { settle(s.short === true); s.short = false; }
+      };
+      const W = '[data-hs-win="skills-trade"]';
+      const pocket = () => page.evaluate(() => { const c = document.querySelector('[data-hs-win="inventory"] .hw-pocket[data-item="normal_log"] .hw-count'); return c ? { n: Number(c.textContent), ahead: c.classList.contains('is-ahead') } : null; });
+      /* A read at least 600 ms from an action boundary, so it can never straddle one. */
+      const calm = async () => { for (let i = 0; i < 80; i++) { const ph = (Date.now() - from()) % STEP; if (ph > 600 && ph < STEP - 600) return; await page.waitForTimeout(100); } };
+      const want = () => ({ n: s.env.inventory.normal_log + due(), ahead: due() > 0 });
+      const same = (a, b) => !!a && a.n === b.n && a.ahead === b.ahead;
+      if (!up) fails.push('AW-24 the town did not mount');
+      else {
+        await openWin(page, 'g', 'skills-trade');
+        await page.click(W + ' .hw-skill[data-skill="woodcutting"]');
+        await page.waitForTimeout(300);
+        await page.click(W + ' .hw-work-row[data-id="normal_tree"] .hw-work-go');
+        /* It ticks: the line's count and the skill's XP move one action on, marked pending. */
+        const ticked = await wait(page, (w) => document.querySelector(w + ' .hw-work-now .hw-burying-q .is-ahead'), W, 4000);
+        const work = await page.evaluate((w) => ({ line: document.querySelector(w + ' .hw-work-now .hw-burying-q').textContent,
+          ahead: Array.from(document.querySelectorAll(w + ' .hw-work-now .hw-burying-q .is-ahead')).map((e) => e.textContent).join('|'),
+          xp: !!document.querySelector(w + ' .hw-work-head.has-xp .hw-skill-xp.is-ahead'), seg: (document.querySelector(w + ' .hw-work-head .hw-skill-ahead') || {}).style.width }), W);
+        if (!ticked || !/^Chopping the Normal Tree: \d+ chopped so far\./.test(work.line) || !/^\d+ chopped so far$/.test(work.ahead) || !work.xp || !work.seg || work.seg === '0%')
+          fails.push('AW-24 the Work window did not tick between payouts: ' + JSON.stringify(work));
+        if (shots) await shot(page, 'ticker-1440x900-work');
+        await openWin(page, 'b', 'inventory');
+        await calm();
+        const p1 = await pocket(), w1 = want();
+        if (!same(p1, w1) || !p1.ahead) fails.push('AW-24 the bag does not count the work in progress, pending: shows ' + JSON.stringify(p1) + ', the server holds ' + s.env.inventory.normal_log + ' and its engine has done ' + due() + ' more');
+        /* Never spent: the picked stack, the sale and its total are the server's count. */
+        await page.click('[data-hs-win="inventory"] .hw-pocket[data-item="normal_log"]');
+        await page.waitForTimeout(200);
+        const pick = await page.evaluate(() => document.querySelector('[data-hs-win="inventory"] .hw-pick small').textContent);
+        await page.click('[data-hs-win="inventory"] .hw-pick [data-hs-act="primary"]');
+        await page.waitForTimeout(300);
+        const ask = await page.evaluate(() => document.querySelector('[data-hs-win="inventory"] .hw-confirm-q').textContent);
+        if (shots) await shot(page, 'ticker-1440x900-bag');
+        await page.click('[data-hs-win="inventory"] [data-hs-act="confirm-no"]');
+        if (!pick.startsWith('×' + s.env.inventory.normal_log + ' · ') || !/more on the way/.test(pick) || ask !== 'Sell Normal Log ×' + s.env.inventory.normal_log + '?')
+          fails.push('AW-24 the pending logs reach a control: the pick reads ' + JSON.stringify(pick) + ' and the sale asks ' + JSON.stringify(ask));
+        if (sent(s, 'hr-accrue', 'vendor_sell_many').length) fails.push('AW-24 a sale was sent while checking it');
+        /* A payout replaces it: the server's bag, the count restarted from its new watermark. */
+        const held = s.env.inventory.normal_log;
+        await pushEnvelope(page, s);
+        await calm();
+        const p2 = await pocket(), w2 = want();
+        if (s.env.inventory.normal_log <= held || !same(p2, w2)) fails.push('AW-24 after a payout the bag shows ' + JSON.stringify(p2) + ', want ' + JSON.stringify(w2) + ' (the server paid ' + (s.env.inventory.normal_log - held) + ')');
+        /* A payout under the prediction snaps it down to the server's word. */
+        await wait(page, () => { const c = document.querySelector('[data-hs-win="inventory"] .hw-pocket[data-item="normal_log"] .hw-count'); return c && c.classList.contains('is-ahead'); }, null, STEP + 1500);
+        await calm();
+        const shown = await pocket();
+        s.short = true;
+        await pushEnvelope(page, s);
+        const p3 = await pocket(), w3 = want();
+        if (!shown || !same(p3, w3) || p3.n >= shown.n) fails.push('AW-24 a payout under the prediction shows ' + JSON.stringify(p3) + ' after ' + JSON.stringify(shown) + ', want the server\'s ' + JSON.stringify(w3));
+        /* A reload mid-window: the count starts again from the server's watermark, nothing counted twice. */
+        await wait(page, () => { const c = document.querySelector('[data-hs-win="inventory"] .hw-pocket[data-item="normal_log"] .hw-count'); return c && c.classList.contains('is-ahead'); }, null, STEP + 1500);
+        if (!(await reloadAndPlay(page))) fails.push('AW-24 the reload did not come back');
+        else {
+          await openWin(page, 'b', 'inventory');
+          await calm();
+          const p4 = await pocket(), w4 = want();
+          if (!same(p4, w4)) fails.push('AW-24 after a reload mid-window the bag shows ' + JSON.stringify(p4) + ', want ' + JSON.stringify(w4) + ' (from the server\'s watermark)');
+          /* Stop: the server collects; nothing ticks after it. */
+          await page.click('[data-hs-win="inventory"] [data-hs-act="bury-stop"]');
+          await page.waitForTimeout(800);
+          const p5 = await pocket();
+          await page.waitForTimeout(STEP + 400);
+          const p6 = await pocket();
+          const stopped = { n: s.env.inventory.normal_log, ahead: false };
+          if (st().active_kind !== 'idle' || !same(p5, stopped) || !same(p6, stopped)) fails.push('AW-24 after Stop the bag shows ' + JSON.stringify(p5) + ' then ' + JSON.stringify(p6) + ', want the server\'s ' + JSON.stringify(stopped) + ' and nothing ticking');
+        }
+      }
+      if (errors.length) fails.push('AW-24 console errors: ' + errors.slice(0, 3).join(' | '));
+      await ctx.close();
+    }
+
     { // AW-17 the skills are two windows and neither scrolls, on the phone too; the first-minute pointer
       /* A character that has killed nothing: Level XP 0 (the core rebuild: Level comes from kills only). */
       const fresh = (e) => { for (const k of Object.keys(e.skills)) if (['melee', 'defense', 'prayer', 'magic', 'ranged'].includes(k)) e.skills[k] = { xp: 0, level: 1 }; for (const k of ['hunt', 'hunt_analyzer', 'hunt_track', 'hunt_events', 'party']) delete e[k]; e.state = Object.assign({}, e.state, { active_kind: 'idle', active_id: null, level_xp: 0 }); };
@@ -995,32 +1584,89 @@ const MUTANTS = [
   ['the client cannot declare gathering', 'src/session/edge-intents.js', "(v.kind === 'artisan' || v.kind === 'gather')", "v.kind === 'artisan'"],
   ['a work row ignores the server level', 'src/shell/town-work.js', "  if (lv < (w.row.req || 1)) return 'Needs '", "  if (false) return 'Needs '"],
   ['the running row offers no Stop', 'src/shell/windows/work.js', "text(b, running ? 'Stop' : 'Start');", "text(b, 'Start');"],
-  ['the Burying line ignores the server pointer', 'src/shell/windows/inventory/bury.js', "    return buryingWord(e) + ' ' + itemName(e.input) + (how ? ': ' + how : '') + '. Your bag and ' + skillName(e.skill) + ' XP update as it goes.';", "    return '';"],
-  ['the work line says nothing of how far it has got', 'src/shell/town-work.js', "  return words.charAt(0).toUpperCase() + words.slice(1) + (how ? ': ' + how : '') + '. ' + tail;", "  return words.charAt(0).toUpperCase() + words.slice(1) + '. ' + tail;"],
+  ['the Burying line ignores the server pointer', 'src/shell/windows/inventory/bury.js', "  if (e) return lineParts(buryingWord(e) + ' ' + itemName(e.input), runParts(cs, workOf(cs)), '. Your bag and ' + skillName(e.skill) + ' XP update as it goes.');", '  if (e) return [];'],
+  ['the work line says nothing of how far it has got', 'src/shell/town-work.js', "  return lineParts(words.charAt(0).toUpperCase() + words.slice(1), how, '. ' + tail);", "  return lineParts(words.charAt(0).toUpperCase() + words.slice(1), [], '. ' + tail);"],
   ['a watched bench is never re-read', 'src/shell/shell.js', "(wm.isOpen('skills-trade') || wm.isOpen('inventory'))) watchTown(ctx.character);", "false) watchTown(ctx.character);"],
   ['raw food offers no Cook all', 'src/shell/bag-model.js', "      if (!r || !r.output || r.gated || kindOf(r.output) !== 'food') continue;", '      continue;'],
   ['the bench ignores the server level', 'src/shell/windows/inventory/bury.js', "  if (lv < e.recipe.req) return 'Needs '", "  if (false) return 'Needs '"],
   ['the skills are one window again', 'src/shell/windows/skills.js', "export const renderTradeSkills = skillsWindow([['gather', 'Gathering'], ['artisan', 'Crafting']]);", "export const renderTradeSkills = skillsWindow([['combat', 'Combat'], ['gather', 'Gathering'], ['artisan', 'Crafting']]);"],
   ['a new player gets no pointer to Hunts', 'src/shell/launcher.js', "+ (ctx.hud && ctx.hud.isShown('hunt-topbar') ? '' : pointerFor(ctx)) + '</nav>'", "+ '</nav>'"],
+  /* The Hunts window, master-detail (designer plan 2026-10-22): AW-25 .. AW-29. */
+  ['AW-25 every creature reads common', 'src/shell/hunt-ground-facts.js', "  if (share >= SHARE_BANDS.common) return 'common';", "  return 'common';"],
+  ['AW-25 the rare carrier may be the equipment slot', 'src/shell/hunt-ground-facts.js', 'const isRare = (d) => !!d && d.gear !== true && ', 'const isRare = (d) => !!d && '],
+  ['AW-25 every line says Fits your level', 'src/shell/windows/hunts.js', "fits === r.hunt ? (party ? 'Fits your party' : 'Fits your level') : ''", "(party ? 'Fits your party' : 'Fits your level')"],
+  ['AW-25 the band ignores the floor', 'src/shell/hunt-list.js', '  const warn = rangeWords(r, level);', '  const warn = null;'],
+  ['AW-25 a ground with no best says nothing', 'src/shell/hunt-list.js', 'none: solo || party ? null :', 'none: true ? null :'],
+  ['AW-25 the page shows the first ground, not the pick', 'src/shell/windows/hunts.js', '  const r = list.find((x) => x.hunt === sc.pick) || null;', '  const r = list[0] || null;'],
+  ['AW-25 the creatures are never drawn', 'src/shell/windows/hunt-detail.js', '  const ok = drawCreature(c, ART, id, { scale: SPRITE_SCALE });', '  const ok = false;'],
+  ['AW-25 each creature stands at its own height', 'src/shell/windows/hunt-detail.js', "  style(lineup, '--stand-h', tallest ? tallest + 'px' : null);\n", ''],
+  ['AW-25 the phone shows the list and the page at once', 'src/styles/windows.css', '  .hw-hunts.is-paged .hw-hunt-list, .hw-hunts.is-paged .hw-hunts-now.is-hint { display: none; }\n', '  .hw-hunts.is-paged .hw-hunts-now.is-hint { display: none; }\n'],
+  ['AW-26 the chosen setup is never put on', 'src/shell/windows/hunts.js', '  if (s && Number.isInteger(want) && want !== s.preset) {', '  if (false) {'],
+  ['AW-26 the setup on now is put on again', 'src/shell/windows/hunts.js', '  if (s && Number.isInteger(want) && want !== s.preset) {', '  if (s && Number.isInteger(want)) {'],
+  ['AW-26 a refused apply still enters', 'src/shell/windows/hunts.js', "    if (!a || !a.ok) return a || { ok: false, error: 'network' };\n", ''],
+  ['AW-26 Go as stays on while in flight', 'src/shell/windows/hunt-detail.js', "      prop(b, 'disabled', v.off);", "      prop(b, 'disabled', false);"],
+  ['AW-26 a missing piece reads as a bare refusal', 'src/data/refusal-words.js', "  missing_item: 'A piece of that setup’s gear is not in your bag, so nothing was put on.',\n", ''],
+  ['AW-26 Go as offers a set the server cannot put on', 'src/shell/hunt-go.js', '  const ids = new Set(saved.map((p) => p.preset).concat([s.preset]));', '  const ids = new Set(s.presets.map((p) => p.preset).concat([s.preset]));'],
+  ['AW-27 the store behind a slot is not said', 'src/shell/hunt-go.js', "  const store = st && st.price !== null ? { name: st.name, price: st.price, each: a.type === 'ability' ? 'a cast' : 'each' } : null;", '  const store = null;'],
+  ['AW-27 the gold line never shows', 'src/shell/hunt-go.js', '  if (paysStore && gp !== null) {', '  if (false) {'],
+  ['AW-27 low stamina is not said', 'src/shell/hunt-go.js', '  else if (st && st.msLeft < STAMINA_SAY_MS) {', '  else if (false) {'],
+  ['AW-27 a line that stops the hunt is not marked', 'src/shell/windows/hunt-detail.js', "cls(li, 'is-short', l.short);", "cls(li, 'is-short', false);"],
+  ['AW-28 Find a party searches every ground', 'src/shell/windows/party-finder.js', '  const hunt = sc.ground || null, weapon = sc.weapon || null;', '  const hunt = null, weapon = sc.weapon || null;'],
+  ['AW-28 the party path shows on every ground', 'src/shell/windows/hunts.js', "    partyBlock: !follower && (r.groupFit === 'party' || (party && party.isLeader)) ? {", '    partyBlock: !follower ? {'],
+  ['AW-28 Bring your heroes offers a hero already in a party', 'src/shell/hunt-go.js', ' && Number.isInteger(o.slot) && !partyMembershipOf(o))', ' && Number.isInteger(o.slot))'],
+  ['AW-29 the pick resets after a hunt', 'src/shell/windows/hunts.js', '  if (!sc.pick && list.length) sc.pick = rec.row ? rec.row.hunt : list[0].hunt;', '  if ((!sc.pick || (h && h.ended)) && list.length) sc.pick = rec.row ? rec.row.hunt : list[0].hunt;'],
   ['edgeBody lets an unlisted field through', 'src/session/edge-intents.js', '  for (const k of Object.keys(fields)) if (!allowed.includes(k)) return null;\n', ''],
+  /* AW-24 in the page: the bag's pocket is where the ticker shows, so these two are judged by the page rules. */
+  ['the bag shows only the server\'s count while town work runs', 'src/shell/windows/inventory/grid.js', '  patchCount(li, shown.qty, shown.ahead !== 0);', '  patchCount(li, r.qty);'],
+  ['a pending count reads as final', 'src/shell/windows/inventory/pockets.js', "  cls(el, 'is-ahead', !!ahead);\n", ''],
+  /* AW-24 the town ticker. `ticker:` mutants are judged by the pure rules on a temp copy of src (tickerMutant). */
+  ['ticker: it counts an action before the engine has done it', 'src/shell/town-ticker.js', 'const ctx = { fromMs: win.fromMs, toMs: win.toMs,', 'const ctx = { fromMs: win.fromMs, toMs: win.toMs + stepMs,'],
+  ['ticker: the line does not mark the pending count', 'src/shell/town-work.js', "parts.push({ key: 'bag', text: whole(s.qty) + ' in your bag', ahead: s.ahead !== 0 });", "parts.push({ key: 'bag', text: whole(s.qty) + ' in your bag', ahead: false });"],
+  ['ticker: a payout does not restart the count (the old record is kept)', 'src/shell/town-work.js', '  if (m && m.rec === rec && m.at === at && m.no === no) return m.tick;', '  if (m && m.at === at && m.no === no) return m.tick;'],
+  ['ticker: a payout under the prediction never snaps down (merged upward)', 'src/shell/town-ticker.js', '  const d = aheadQty(tick, id);\n  return { qty: Math.max(0, (Number(qty) || 0) + d), ahead: d };',
+    '  const d = aheadQty(tick, id);\n  const q = Math.max(HIGH[id] || 0, (Number(qty) || 0) + d);\n  HIGH[id] = q;\n  return { qty: q, ahead: q - (Number(qty) || 0) };'],
+  ['ticker: the pending logs can be sold', 'src/shell/windows/inventory/state.js', '  const list = items || [];', '  const t0 = tickOf(cs);\n  const list = (items || []).map((r) => ({ id: r.id, qty: r.qty + ((t0 && t0.items[r.id]) || 0) }));'],
+  ['ticker: a stop keeps the last count ticking', 'src/shell/town-work.js', "  if (!townWorkRunning(st, cs.read('hunt'))) return null;\n", "  if (!townWorkRunning(st, cs.read('hunt'))) { const k = TICKS.get(cs); return k ? k.tick : null; }\n"],
+  ['ticker: it ticks long after the server stopped settling', 'src/shell/town-ticker.js', '  if (win.capped) return null;\n', ''],
+  ['ticker: a hunter\'s town work ticks', 'src/shell/town-work.js', "  if (!townWorkRunning(st, cs.read('hunt'))) return null;\n", "  if (!st || (st.active_kind !== 'gather' && st.active_kind !== 'artisan')) return null;\n"],
+  ['ticker: a refused settle still ticks', 'src/shell/town-work.js', '  const refused = !!no && !(rec && no.version !== null && rec.version > no.version);', '  const refused = false;'],
+  ['ticker: "too soon for one action" reads as a refusal', 'src/session/refusal.js', "const SETTLE_WAITS = Object.freeze(['below_min_span', 'nothing_accrued', 'replayed', 'idle']);", "const SETTLE_WAITS = Object.freeze(['below_min_span', 'replayed', 'idle']);"],
+  ['ticker: the character forgets the settle refusal', 'src/session/character-session.js', '    if (ans.ok) this.settleRefusal = settleRefusalOf(ans);\n', ''],
+  ['ticker: a bench runs past its "N left"', 'src/shell/town-ticker.js', 'maxActions: count(o.left) || null', 'maxActions: null'],
+  ['ticker: a bench spends inputs the bag does not hold', 'src/shell/town-ticker.js', "    removeItem(id, n) { const take = Math.min(n, bag[id] || 0); bag[id] = (bag[id] || 0) - take; move(id, -take); },", '    removeItem(id, n) { move(id, -n); },'],
+  ['ticker: a dish that may burn is counted as cooked', 'src/shell/town-ticker.js', "  const burnable = !gather && w.skill === 'cooking' && !!w.row.output && burnChance(w.row, levelOf(skills, 'cooking'), 0) > 0;", '  const burnable = false;'],
+  ['ticker: a yield range is read at its top', 'src/shell/town-ticker.js', '  int: (lo) => Math.ceil(Number(lo) || 0),', '  int: (lo, hi) => Math.floor(Number(hi) || 0),'],
 ];
 /* The doll mutant needs the want set where an equip is asked: plant it beside the intent. */
-const COMPANION = { 'the doll wears the item before the server confirms': ['src/shell/windows/inventory/actions.js', '    if (slot) wear(st, repaint, slot, id);', '    if (slot) globalThis.__want = id;\n    if (slot) wear(st, repaint, slot, id);'] };
+const COMPANION = { 'the doll wears the item before the server confirms': ['src/shell/windows/inventory/actions.js', '    if (slot) wear(st, repaint, slot, id);', '    if (slot) globalThis.__want = id;\n    if (slot) wear(st, repaint, slot, id);'],
+  /* The high-water mark the merged-upward ticker keeps (module scope: one per planted tree). */
+  'ticker: a payout under the prediction never snaps down (merged upward)': ['src/shell/town-ticker.js', 'const own = (o, k) =>', 'const HIGH = {};\nconst own = (o, k) =>'] };
 
 async function main() {
   const at = process.argv.indexOf('--shots');
   const shots = at > 0 ? resolve(process.argv[at + 1] || 'alpha-shots') : null;
   if (shots) await mkdir(shots, { recursive: true });
+  if (process.argv.includes('--pure') && !process.argv.includes('--mutate')) {
+    const fails = await pure();
+    for (const f of fails) console.log('  ✗ ' + f);
+    console.log(fails.length ? 'alpha-windows --pure: ' + fails.length + ' rule(s) RED' : 'alpha-windows --pure: the pure rules hold (AW-0, AW-19..AW-22, AW-24 the town ticker, AW-25..AW-28 the Hunts page)');
+    process.exit(fails.length ? 1 : 0);
+  }
   if (!process.argv.includes('--mutate')) {
     const fails = await checks(null, shots);
     for (const f of fails) console.log('  ✗ ' + f);
     console.log(fails.length ? 'alpha-windows: ' + fails.length + ' rule(s) RED'
-      : 'alpha-windows: the windows open; patch in place; the server’s counts win; intents only; locks hold; totals first; no supplies in the Shop; Hunts from the hatch in two presses; window presses and focus never steal the World; no void; storage from town; store any amount; storage sorts and filters; bury and cook pay from the server; skills split' + (shots ? ' (shots in ' + shots + ')' : ''));
+      : 'alpha-windows: the windows open; patch in place; the server’s counts win; intents only; locks hold; totals first; no supplies in the Shop; Hunts from the hatch in two presses; Hunts is lines and a page (who lives there, go as, before you go, the party path, the round trip); window presses and focus never steal the World; no void; storage from town; store any amount; storage sorts and filters; bury and cook pay from the server; skills split' + (shots ? ' (shots in ' + shots + ')' : ''));
     process.exit(fails.length ? 1 : 0);
   }
-  const mine = shardOf(MUTANTS);
-  if (!mine) { console.log('  ✗ HARNESS: bad --shard (want --shard=K/N with 1 <= K <= N)'); process.exit(2); }
-  const clean = await cleanControl(() => checks(null, null));
+  /* --only=<prefix>: just the mutants whose name starts with it (`--only=ticker:` re-proves the town ticker in seconds:
+     its clean control is the pure rules, which are all that judge those mutants). */
+  const only = (process.argv.find((x) => x.startsWith('--only=')) || '').slice(7);
+  const sharded = shardOf(MUTANTS);
+  const mine = sharded && only ? sharded.filter(([n]) => n.startsWith(only)) : sharded;
+  if (!mine || !mine.length) { console.log('  ✗ HARNESS: bad --shard (want --shard=K/N with 1 <= K <= N) or no mutant matches --only'); process.exit(2); }
+  const pureOnly = mine.every(([n]) => n.startsWith('ticker:'));
+  const clean = await cleanControl(() => (pureOnly ? pure() : checks(null, null)));
   console.log(clean.line);
   if (clean.code) process.exit(clean.code);
   const counts = { caught: 0, harness: 0, escaped: 0 };
@@ -1034,15 +1680,15 @@ async function main() {
       over[f] = text.replace(x, y);
     }
     if (missing) { console.log('  ✗ ' + name + ' — HARNESS: anchor not found in ' + missing); counts.harness++; continue; }
-    const v = await judge(() => (name.startsWith('edgeBody') ? pureMutant(over[file]) : checks(over, null)));
+    const v = await judge(() => (name.startsWith('edgeBody') ? pureMutant(over[file]) : name.startsWith('ticker:') ? tickerMutant(over) : checks(over, null)));
     console.log(report(name, v, counts));
   }
-  console.log(exitOf(counts) ? 'alpha-windows --mutate: ' + counts.escaped + ' escaped, ' + counts.harness + ' HARNESS (not catches)' : 'alpha-windows --mutate: ' + mine.length + '/' + mine.length + ' mutants caught, each by a named rule' + (mine === MUTANTS ? '' : ' (shard of ' + MUTANTS.length + ')'));
+  console.log(exitOf(counts) ? 'alpha-windows --mutate: ' + counts.escaped + ' escaped, ' + counts.harness + ' HARNESS (not catches)' : 'alpha-windows --mutate: ' + mine.length + '/' + mine.length + ' mutants caught, each by a named rule' + (mine === MUTANTS ? '' : ' (' + (only ? '--only=' + only + ', ' : '') + 'of ' + MUTANTS.length + ')'));
   process.exit(exitOf(counts));
 }
 
 /* --shard=K/N: every Nth mutant from the Kth. Each mutant re-runs the whole check suite (~63 s on a runner), so CI
-   splits the --mutate over N jobs (smoke.yml in-page-10 / in-page-11; ci-shape registers each shard, so a dropped
+   splits the --mutate over N jobs (smoke.yml in-page-10 / 11 / 12; ci-shape registers each shard, so a dropped
    one goes red there). Null for a malformed shard. */
 function shardOf(list) {
   const a = process.argv.find((x) => x.startsWith('--shard='));
@@ -1050,6 +1696,17 @@ function shardOf(list) {
   const m = /^--shard=(\d+)\/(\d+)$/.exec(a);
   const k = m ? +m[1] : 0, n = m ? +m[2] : 0;
   return k >= 1 && k <= n ? list.filter((_, i) => i % n === k - 1) : null;
+}
+
+/* A ticker mutant is judged by the pure AW-24 rules, run from a temp copy of src (minus the vendored SDK) with the
+   planted files written in: the working tree is never touched, and each copy is a fresh module graph. */
+async function tickerMutant(over) {
+  const tmp = mkdtempSync(join(tmpdir(), 'hr-ticker-'));
+  try {
+    cpSync(join(ROOT, 'src'), join(tmp, 'src'), { recursive: true, filter: (p) => !/[\\/]vendor([\\/]|$)/.test(p.slice(ROOT.length)) });
+    for (const [f, text] of Object.entries(over)) writeFileSync(join(tmp, f), text);
+    return await tickerRules(tmp);
+  } finally { rmSync(tmp, { recursive: true, force: true }); }
 }
 
 /* The edge-body mutant is a pure module: run AW-0 against the planted text. */

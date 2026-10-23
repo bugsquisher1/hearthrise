@@ -24,10 +24,10 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-10-23",
- "replay_ms": 3005,
+ "replay_ms": 36643,
  "counts": {
-  "tracked_names": 155,
-  "entries": 108
+  "tracked_names": 173,
+  "entries": 126
  },
  "functions": [
   {
@@ -221,17 +221,18 @@
     "2026-10-22-hunt-sessions-delete-away.sql",
     "2026-10-25-settle-hooks.sql",
     "2026-10-27-core-bodies.sql",
-    "2026-12-01-bench-count.sql"
+    "2026-12-01-bench-count.sql",
+    "2026-12-14-shared-farm.sql"
    ],
    "live": {
-    "md5": "c900caba8cc80b89e37c1207b3b8f040",
-    "norm_len": 133684,
+    "md5": "ae7673a1dbd149d626777a46bfcbd6c7",
+    "norm_len": 132429,
     "measured": "2026-10-23",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "c900caba8cc80b89e37c1207b3b8f040",
-    "norm_len": 133684,
+    "md5": "ae7673a1dbd149d626777a46bfcbd6c7",
+    "norm_len": 132429,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -560,17 +561,18 @@
     "2026-10-19-account-wallet.sql",
     "2026-10-22-closed-mode-ungated-rpcs.sql",
     "2026-10-22-hunt-sessions-delete-away.sql",
-    "2026-10-27-core-bodies.sql"
+    "2026-10-27-core-bodies.sql",
+    "2026-12-14-shared-farm.sql"
    ],
    "live": {
-    "md5": "d0d297a42f1497bfcffb12d4b8217732",
-    "norm_len": 8808,
+    "md5": "25b55c31366894f2cec451ab31d03c4f",
+    "norm_len": 8815,
     "measured": "2026-10-23",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "d0d297a42f1497bfcffb12d4b8217732",
-    "norm_len": 8808,
+    "md5": "25b55c31366894f2cec451ab31d03c4f",
+    "norm_len": 8815,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -708,17 +710,86 @@
     "2026-09-03-intent-mismatch-class.sql",
     "2026-09-12-hr-rejections-journal.sql",
     "2026-09-28-settle-before-mutate.sql",
-    "2026-12-03-daily-claims-cut.sql"
+    "2026-12-03-daily-claims-cut.sql",
+    "2026-12-14-shared-farm.sql"
    ],
    "live": {
-    "md5": "f49b89c151ef1553effc7356245440ca",
-    "norm_len": 7842,
+    "md5": "72e72c96d053bcbf5921f3e24f29fe8c",
+    "norm_len": 8198,
     "measured": "2026-10-23",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "f49b89c151ef1553effc7356245440ca",
-    "norm_len": 7842,
+    "md5": "72e72c96d053bcbf5921f3e24f29fe8c",
+    "norm_len": 8198,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_farm_harvest_replant(p_slot integer, p_plot_idx integer, p_idem uuid)",
+   "name": "hr_farm_harvest_replant",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-11-26-farm-window.sql",
+    "2026-12-14-shared-farm.sql"
+   ],
+   "live": {
+    "md5": "dfd0ac7f997f0f8f0744ab73f696f4eb",
+    "norm_len": 4657,
+    "measured": "2026-10-23",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "dfd0ac7f997f0f8f0744ab73f696f4eb",
+    "norm_len": 4657,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_farm_land_view(p_user uuid, p_slot integer)",
+   "name": "hr_farm_land_view",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-11-26-farm-window.sql",
+    "2026-12-14-shared-farm.sql"
+   ],
+   "live": {
+    "md5": "b9b2c28a3d314fa6949c2f8f8cf1e54d",
+    "norm_len": 2429,
+    "measured": "2026-10-23",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "b9b2c28a3d314fa6949c2f8f8cf1e54d",
+    "norm_len": 2429,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_farm_lock(p_user uuid)",
+   "name": "hr_farm_lock",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-12-14-shared-farm.sql"
+   ],
+   "live": {
+    "md5": "222e3503302bdbb5d500cfc2de9b695e",
+    "norm_len": 245,
+    "measured": "2026-10-23",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "222e3503302bdbb5d500cfc2de9b695e",
+    "norm_len": 245,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -738,17 +809,85 @@
     "2026-09-07-farm-plant-lifetime-counter.sql",
     "2026-09-12-hr-rejections-journal.sql",
     "2026-12-01-garden-beds.sql",
-    "2026-12-03-daily-claims-cut.sql"
+    "2026-12-03-daily-claims-cut.sql",
+    "2026-12-14-shared-farm.sql"
    ],
    "live": {
-    "md5": "e00e4a70942e349b655221e7e9c5f140",
-    "norm_len": 7078,
+    "md5": "3e89fa6a7fc24a7f96200720eb9bd24c",
+    "norm_len": 6685,
     "measured": "2026-10-23",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "e00e4a70942e349b655221e7e9c5f140",
-    "norm_len": 7078,
+    "md5": "3e89fa6a7fc24a7f96200720eb9bd24c",
+    "norm_len": 6685,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_farm_plot_cap(p_user uuid)",
+   "name": "hr_farm_plot_cap",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-12-01-garden-beds.sql",
+    "2026-12-14-shared-farm.sql"
+   ],
+   "live": {
+    "md5": "0a2379612768241126a4228687b318ad",
+    "norm_len": 655,
+    "measured": "2026-10-23",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "0a2379612768241126a4228687b318ad",
+    "norm_len": 655,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_farm_plot_level(p_user uuid)",
+   "name": "hr_farm_plot_level",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-12-14-shared-farm.sql"
+   ],
+   "live": {
+    "md5": "94a3a65af5fa22154aef411e0547228c",
+    "norm_len": 271,
+    "measured": "2026-10-23",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "94a3a65af5fa22154aef411e0547228c",
+    "norm_len": 271,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_farm_purse_pay(p_user uuid, p_slot integer, p_gold bigint)",
+   "name": "hr_farm_purse_pay",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-12-14-shared-farm.sql"
+   ],
+   "live": {
+    "md5": "6a078e22d7d421f3fee0e7de542939d7",
+    "norm_len": 893,
+    "measured": "2026-10-23",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "6a078e22d7d421f3fee0e7de542939d7",
+    "norm_len": 893,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -765,17 +904,18 @@
     "2026-09-03-intent-mismatch-class.sql",
     "2026-09-06-plot-tier-reachable.sql",
     "2026-09-12-hr-rejections-journal.sql",
-    "2026-10-04-expected-level-idempotency.sql"
+    "2026-10-04-expected-level-idempotency.sql",
+    "2026-12-14-shared-farm.sql"
    ],
    "live": {
-    "md5": "599ff5364f1691b23491a26ab2cd4cc1",
-    "norm_len": 6262,
+    "md5": "c8e836c669ffa9abce787c85060cc0f3",
+    "norm_len": 7011,
     "measured": "2026-10-23",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "599ff5364f1691b23491a26ab2cd4cc1",
-    "norm_len": 6262,
+    "md5": "c8e836c669ffa9abce787c85060cc0f3",
+    "norm_len": 7011,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -789,17 +929,40 @@
    "touched_by": [
     "2026-08-22-server-farming-complete.sql",
     "2026-09-03-intent-mismatch-class.sql",
-    "2026-09-12-hr-rejections-journal.sql"
+    "2026-09-12-hr-rejections-journal.sql",
+    "2026-12-14-shared-farm.sql"
    ],
    "live": {
-    "md5": "926570772cc4eb9cabc081a17acc8c6c",
-    "norm_len": 4438,
+    "md5": "3ed65252c82ef8d8b6662c528088e873",
+    "norm_len": 4355,
     "measured": "2026-10-23",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "926570772cc4eb9cabc081a17acc8c6c",
-    "norm_len": 4438,
+    "md5": "3ed65252c82ef8d8b6662c528088e873",
+    "norm_len": 4355,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_flag_on(p_key text)",
+   "name": "hr_flag_on",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-09-13-town-presence.sql"
+   ],
+   "live": {
+    "md5": "75edd6d0a61da6aef547d8b7cb7389bf",
+    "norm_len": 257,
+    "measured": "2026-10-23",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "75edd6d0a61da6aef547d8b7cb7389bf",
+    "norm_len": 257,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -941,6 +1104,29 @@
    "replay": {
     "md5": "2ec9d3cd95f6732bedd13ce4a37b784e",
     "norm_len": 1271,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_hunt_analyzer_view(p_user uuid, p_slot integer)",
+   "name": "hr_hunt_analyzer_view",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-10-23-hunt-analyzer-v2.sql",
+    "2026-10-26-hunt-analyzer-basic.sql"
+   ],
+   "live": {
+    "md5": "206c1c4ea38adc3d40da6e68f6d362ae",
+    "norm_len": 492,
+    "measured": "2026-10-23",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "206c1c4ea38adc3d40da6e68f6d362ae",
+    "norm_len": 492,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -1489,17 +1675,18 @@
     "2026-10-23-hunt-supply-ledger.sql",
     "2026-10-25-action-conditions.sql",
     "2026-10-27-core-bodies.sql",
-    "2026-11-07-store-by-slot.sql"
+    "2026-11-07-store-by-slot.sql",
+    "2026-12-16-own-drinks-settle.sql"
    ],
    "live": {
-    "md5": "675e1c7f605d91d0c7bf8af65cc006d3",
-    "norm_len": 17602,
+    "md5": "042ce1a658a57ffe30a8af86ec12da03",
+    "norm_len": 17824,
     "measured": "2026-10-23",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "675e1c7f605d91d0c7bf8af65cc006d3",
-    "norm_len": 17602,
+    "md5": "042ce1a658a57ffe30a8af86ec12da03",
+    "norm_len": 17824,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -1698,6 +1885,50 @@
    "agree": true
   },
   {
+   "sig": "hr_login_claim(p_slot integer, p_idem uuid)",
+   "name": "hr_login_claim",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-10-23-premium-login-reward.sql"
+   ],
+   "live": {
+    "md5": "b8d869bec3af9e2a2c9f6186a81330f6",
+    "norm_len": 3592,
+    "measured": "2026-10-23",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "b8d869bec3af9e2a2c9f6186a81330f6",
+    "norm_len": 3592,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_login_view(p_user uuid, p_slot integer)",
+   "name": "hr_login_view",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-10-23-premium-login-reward.sql"
+   ],
+   "live": {
+    "md5": "07601c66f351bb4d6518403a19a64c74",
+    "norm_len": 715,
+    "measured": "2026-10-23",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "07601c66f351bb4d6518403a19a64c74",
+    "norm_len": 715,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
    "sig": "hr_market_buy(p_user uuid, p_slot integer, p_version bigint, p_intent_id uuid, p_listing_id uuid, p_qty bigint)",
    "name": "hr_market_buy",
    "tracked_by": [
@@ -1785,6 +2016,28 @@
    "replay": {
     "md5": "807506a8f149cc089f0716a30d80034a",
     "norm_len": 2139,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_outfit_owned(p_user uuid, p_slot integer)",
+   "name": "hr_outfit_owned",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-10-25-character-sheet.sql"
+   ],
+   "live": {
+    "md5": "8f9ef15cc97ee75dcffe87618381f27e",
+    "norm_len": 339,
+    "measured": "2026-10-23",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "8f9ef15cc97ee75dcffe87618381f27e",
+    "norm_len": 339,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -1928,6 +2181,96 @@
    "replay": {
     "md5": "abe004d3ba1bc85dcaa555659a8afd23",
     "norm_len": 5999,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_premium_active(p_user uuid, p_slot integer, p_at timestamp with time zone)",
+   "name": "hr_premium_active",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-10-23-character-premium.sql",
+    "2026-12-17-beta-premium.sql"
+   ],
+   "live": {
+    "md5": "6c63eab723ed219480cd91dcc8c8c757",
+    "norm_len": 460,
+    "measured": "2026-10-23",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "6c63eab723ed219480cd91dcc8c8c757",
+    "norm_len": 460,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_premium_grant(p_user uuid, p_slot integer, p_until timestamp with time zone, p_reason text)",
+   "name": "hr_premium_grant",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-10-23-character-premium.sql"
+   ],
+   "live": {
+    "md5": "6925322ce2dc76a9aa3122bf498a1689",
+    "norm_len": 1220,
+    "measured": "2026-10-23",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "6925322ce2dc76a9aa3122bf498a1689",
+    "norm_len": 1220,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_premium_until(p_user uuid, p_slot integer)",
+   "name": "hr_premium_until",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-12-17-beta-premium.sql"
+   ],
+   "live": {
+    "md5": "66e25a9b462ce6516a02bea85f931bb9",
+    "norm_len": 670,
+    "measured": "2026-10-23",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "66e25a9b462ce6516a02bea85f931bb9",
+    "norm_len": 670,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_premium_view(p_user uuid, p_slot integer)",
+   "name": "hr_premium_view",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-10-23-character-premium.sql",
+    "2026-12-17-beta-premium.sql"
+   ],
+   "live": {
+    "md5": "ed630fc3682133a1b1057205e8abed59",
+    "norm_len": 653,
+    "measured": "2026-10-23",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "ed630fc3682133a1b1057205e8abed59",
+    "norm_len": 653,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -2208,6 +2551,29 @@
    "agree": true
   },
   {
+   "sig": "hr_seed(p_user uuid, p_slot integer, p_label text)",
+   "name": "hr_seed",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-08-11-player-state.sql",
+    "2026-12-14-shared-farm.sql"
+   ],
+   "live": {
+    "md5": "81fe49d53c31f2cdfb4dadcac0b66ee5",
+    "norm_len": 454,
+    "measured": "2026-10-23",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "81fe49d53c31f2cdfb4dadcac0b66ee5",
+    "norm_len": 454,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
    "sig": "hr_set_presence_quiet__ungated(p_slot integer, p_quiet boolean)",
    "name": "hr_set_presence_quiet__ungated",
    "tracked_by": [
@@ -2238,7 +2604,8 @@
     "pin"
    ],
    "touched_by": [
-    "2026-09-28-settle-before-mutate.sql"
+    "2026-09-28-settle-before-mutate.sql",
+    "2026-12-14-shared-farm.sql"
    ],
    "live": {
     "md5": "b7ec5c00f2402e749e443e52795269ba",
@@ -2325,6 +2692,53 @@
    "agree": true
   },
   {
+   "sig": "hr_stamina_cap(p_user uuid, p_slot integer, p_at timestamp with time zone)",
+   "name": "hr_stamina_cap",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-10-23-character-premium.sql"
+   ],
+   "live": {
+    "md5": "530ab67a5b6ed912770e8098676f129c",
+    "norm_len": 392,
+    "measured": "2026-10-23",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "530ab67a5b6ed912770e8098676f129c",
+    "norm_len": 392,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_stamina_of(p_user uuid, p_slot integer, p_at timestamp with time zone)",
+   "name": "hr_stamina_of",
+   "tracked_by": [
+    "chain",
+    "pin"
+   ],
+   "touched_by": [
+    "2026-10-22-hunt-sessions-settle.sql",
+    "2026-10-23-character-premium.sql",
+    "2026-12-17-beta-premium.sql"
+   ],
+   "live": {
+    "md5": "650478d60ba651c40b0f1e72ee8d2b77",
+    "norm_len": 1414,
+    "measured": "2026-10-23",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "650478d60ba651c40b0f1e72ee8d2b77",
+    "norm_len": 1414,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
    "sig": "hr_state_of(p_user uuid, p_slot integer)",
    "name": "hr_state_of",
    "tracked_by": [
@@ -2380,17 +2794,18 @@
     "2026-10-22-hunt-sessions-settle.sql",
     "2026-10-23-character-premium.sql",
     "2026-10-27-core-bodies.sql",
-    "2026-11-27-account-depot.sql"
+    "2026-11-27-account-depot.sql",
+    "2026-12-14-shared-farm.sql"
    ],
    "live": {
-    "md5": "2e8af14f4cbeef340249849cce09b05a",
-    "norm_len": 30098,
+    "md5": "00246d22c43cdf33928411acea00b522",
+    "norm_len": 30457,
     "measured": "2026-10-23",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "2e8af14f4cbeef340249849cce09b05a",
-    "norm_len": 30098,
+    "md5": "00246d22c43cdf33928411acea00b522",
+    "norm_len": 30457,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -2685,7 +3100,8 @@
    ],
    "touched_by": [
     "2026-08-16-artisan-progress-model.sql",
-    "2026-11-29-house-home.sql"
+    "2026-11-29-house-home.sql",
+    "2026-12-14-shared-farm.sql"
    ],
    "live": {
     "md5": "1586b40ead4186bd20654b4c29b472e6",

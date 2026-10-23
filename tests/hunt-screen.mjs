@@ -93,10 +93,11 @@
 //         it hides at a safe threshold and for a solo hero (who skips the King's hall)
 //   HS-21 THE COOLDOWN EMBER: the hero's played cast cools that ability's slot for its
 //         catalogue cooldown; the ember rises and the seconds fall as it runs out
-//   HS-24 THE PICKER'S PERSONAL BESTS (designer 2026-10-21): each ground's card shows the
-//         server's hunt_bests for this hero, alone and in a party ("12,400 Level XP per hour ·
-//         balance 3,100 gp per hour"), "No hunt of 10 min yet" where there is none, >= 12 px,
-//         and the next envelope REPLACES them (never merged)
+//   HS-24 THE PICKER'S PERSONAL BESTS (designer 2026-10-21, master-detail 2026-10-22): each
+//         ground's list line shows the server's best Level XP an hour ("Best 12,400 Level XP/h")
+//         or "New"; its page a line per mode ("Best alone: 12,400 Level XP per hour · balance
+//         3,100 gp per hour") or ONE "Not hunted yet", >= 12 px, and the next envelope REPLACES
+//         them (never merged)
 //   HS-25 THE HUNT SUMMARY shows the server's balance per hour to every character, and raw
 //         XP per hour only when the server sent it (premium)
 // ════════════════════════════════════════════════════════════════════════
@@ -706,9 +707,9 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         s.env.state = Object.assign({}, s.env.state, { active_kind: 'idle', active_id: null });
         await pushEnvelope(page, s);
         await page.keyboard.press('h');
-        await wait(page, () => document.querySelector('[data-hs-win="hunts"] .hw-hunt.is-picked .hw-hunt-enter'));
+        await wait(page, () => document.querySelector('[data-hs-win="hunts"] .hw-hunt-detail .hw-hunt-enter'));
         s.env = hunting;   // the server's answer to Enter: the hero is hunting
-        await page.click('[data-hs-win="hunts"] .hw-hunt.is-picked .hw-hunt-enter');
+        await page.click('[data-hs-win="hunts"] .hw-hunt-detail .hw-hunt-enter');
         await page.waitForTimeout(900);
         await pushEnvelope(page, s);
         await wait(page, () => !/On the way/.test(document.querySelector('[data-hs-win="hunts"] .hh-intent-msg').textContent)
@@ -1218,31 +1219,36 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       await ctx.close();
     }
 
-    { // HS-24 THE PICKER'S PERSONAL BESTS are the server's (hunt_bests), replaced by each envelope; empty = "No hunt of 10 min yet"
+    { // HS-24 THE PICKER'S PERSONAL BESTS are the server's (hunt_bests), replaced by each envelope: the list line's best
+      // (or "New") and the ground's page (a line per mode, or ONE "Not hunted yet", designer plan 2026-10-22 B #1)
       const { ctx, page, s, errors, up } = await open({ town: true, prep: (sc) => {
         sc.env.hunt_bests = { min_ms: 600000, grounds: { mill_cellar: { solo: { xp_h: 12400, balance_h: 3100 } } } };
       } });
       if (up) {
         await page.keyboard.press('h');
-        const card = (hunt) => page.evaluate((h) => {
-          const li = document.querySelector('[data-hs-win="hunts"] .hw-hunt[data-hunt="' + h + '"]');
-          const t = (q) => { const n = li && li.querySelector(q); return n && n.getClientRects().length > 0 ? n.textContent : null; };
-          const px = li && li.querySelector('.hw-hunt-best-solo') ? parseFloat(getComputedStyle(li.querySelector('.hw-hunt-best-solo')).fontSize) : 0;
-          return li ? { solo: t('.hw-hunt-best-solo'), party: t('.hw-hunt-best-party'), px } : null;
-        }, hunt);
-        await wait(page, () => document.querySelector('[data-hs-win="hunts"] .hw-hunt[data-hunt="mill_cellar"] .hw-hunt-best-solo'), null, 4000);
+        await wait(page, () => document.querySelector('[data-hs-win="hunts"] .hw-hunt[data-hunt="mill_cellar"]'), null, 4000);
+        /* One ground: its list line's best, and its page's best lines (picked first, as a player would). */
+        const card = async (hunt) => {
+          /* Bounded: a picker that stops drawing is this rule's red (null below), not a harness throw. */
+          if (!(await page.click('[data-hs-win="hunts"] .hw-hunt[data-hunt="' + hunt + '"]', { timeout: 4000 }).then(() => true, () => false))) return null;
+          return page.evaluate((h) => {
+            const li = document.querySelector('[data-hs-win="hunts"] .hw-hunt[data-hunt="' + h + '"]');
+            const shown = Array.from(document.querySelectorAll('[data-hs-win="hunts"] .hw-hunt-detail .hw-hd-best')).filter((n) => n.getClientRects().length > 0);
+            return li ? { line: li.querySelector('.hw-hunt-bestline').textContent, page: shown.map((n) => n.textContent), px: Math.min(...shown.map((n) => parseFloat(getComputedStyle(n).fontSize))) } : null;
+          }, hunt);
+        };
         const a = await card('mill_cellar');
-        if (!a || a.solo !== 'Best alone: 12,400 Level XP per hour · balance 3,100 gp per hour' || a.party !== 'Best in a party: No hunt of 10 min yet' || !(a.px >= 12)) {
-          fails.push('HS-24 the picker card does not show the server’s personal bests: ' + JSON.stringify(a));
+        if (!a || a.line !== 'Best 12,400 Level XP/h' || a.page.join('|') !== 'Best alone: 12,400 Level XP per hour · balance 3,100 gp per hour' || !(a.px >= 12)) {
+          fails.push('HS-24 the picker does not show the server’s personal bests: ' + JSON.stringify(a));
         }
-        const other = await page.evaluate(() => Array.from(document.querySelectorAll('[data-hs-win="hunts"] .hw-hunt:not([data-hunt="mill_cellar"]) .hw-hunt-best-solo')).map((n) => n.textContent));
-        if (!other.length || other.some((x) => x !== 'Best alone: No hunt of 10 min yet')) fails.push('HS-24 a ground with no best does not say so: ' + JSON.stringify(other.slice(0, 3)));
+        const none = await card('meadowbrook_thicket');
+        if (!none || none.line !== 'New' || none.page.join('|') !== 'Not hunted yet. A hunt of 10 min or more sets your best.') fails.push('HS-24 a ground with no best does not say so once: ' + JSON.stringify(none));
         /* The next envelope REPLACES the bests (a better party hunt landed, the solo one is gone from this read). */
         s.env.hunt_bests = { min_ms: 600000, grounds: { mill_cellar: { party: { xp_h: 20500, balance_h: -450 } } } };
         await pushEnvelope(page, s);
         const b = await card('mill_cellar');
-        if (!b || b.solo !== 'Best alone: No hunt of 10 min yet' || b.party !== 'Best in a party: 20,500 Level XP per hour · balance -450 gp per hour') {
-          fails.push('HS-24 the picker card is not replaced by the next envelope: ' + JSON.stringify(b));
+        if (!b || b.line !== 'Best 20,500 Level XP/h' || b.page.join('|') !== 'Best in a party: 20,500 Level XP per hour · balance -450 gp per hour') {
+          fails.push('HS-24 the picker is not replaced by the next envelope: ' + JSON.stringify(b));
         }
         if (errors.length) fails.push('HS-24 console errors: ' + errors.slice(0, 3).join(' | '));
       } else fails.push('HS-24 the screen did not mount in town');
@@ -1430,20 +1436,28 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       await page.keyboard.press('p');
       /* Density on the hunt picker: the press answers at once, a run of presses is ONE intent, the server's answer replaces the draft. */
       await page.keyboard.press('h');
-      await wait(page, () => document.querySelector('.hw-hunt.is-picked .hw-density.is-on'), null);
+      await wait(page, () => document.querySelector('.hw-hunt-detail .hw-density.is-on'), null);
       const dRead = () => page.evaluate(() => {
-        const v = document.querySelector('.hw-hunt.is-picked .hw-density .hh-step-val');
+        const v = document.querySelector('.hw-hunt-detail .hw-density .hh-step-val');
         return { v: v.textContent, pending: v.getAttribute('data-pending'), msg: document.querySelector('.hw-hunts .hh-intent-msg').textContent,
-          facts: document.querySelector('.hw-hunt.is-picked .hw-hunt-facts').textContent };
+          facts: document.querySelector('.hw-hunt-detail .hw-hunt-facts').textContent };
       });
-      /* The pick is PER GROUND (rulings H4): the picked line reads its own ground's pick, every other line its own. */
+      /* The pick is PER GROUND (rulings H4): the picked ground's page reads its own pick, every other ground's page its own
+         (master-detail: each other ground is picked in turn, its page read, then the first is picked again). */
       const picked = await page.evaluate(() => document.querySelector('.hw-hunt.is-picked').getAttribute('data-hunt'));
-      const otherFacts = () => page.evaluate(() => [...document.querySelectorAll('.hw-hunt:not(.is-picked)')]
-        .map((li) => li.getAttribute('data-hunt') + ': ' + li.querySelector('.hw-hunt-facts').textContent).join(' | '));
+      const otherFacts = async () => {
+        const out = [];
+        for (const h of await page.evaluate(() => [...document.querySelectorAll('.hw-hunt:not(.is-picked)')].map((li) => li.getAttribute('data-hunt')))) {
+          await page.click('.hw-hunt[data-hunt="' + h + '"]');
+          out.push(h + ': ' + await page.evaluate(() => document.querySelector('.hw-hunt-detail .hw-hunt-facts').textContent));
+        }
+        await page.click('.hw-hunt[data-hunt="' + picked + '"]');
+        return out.join(' | ');
+      };
       /* The server's pick of 1 on the picked ground only (whichever the picker recommends for this hero). */
       s.env.hunt_density = { [picked]: 1 };
       await pushEnvelope(page, s);
-      await wait(page, () => (document.querySelector('.hw-hunt.is-picked .hw-density .hh-step-val') || {}).textContent === '1 each', null);
+      await wait(page, () => (document.querySelector('.hw-hunt-detail .hw-density .hh-step-val') || {}).textContent === '1 each', null);
       const others0 = await otherFacts();
       const d0 = await dRead();
       if (d0.v !== '1 each') fails.push('HS-8 the density does not show the server’s pick of 1: ' + d0.v);
@@ -1453,9 +1467,9 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       s.holdDensity = true;
       const sentBefore = s.calls.filter((c) => c.name === 'hr_hunt_density_set').length;
       const plusOn = await page.evaluate(() => {
-        const b = document.querySelector('.hw-hunt.is-picked .hw-density [data-by="1"]');
+        const b = document.querySelector('.hw-hunt-detail .hw-density [data-by="1"]');
         if (b.disabled) return false;
-        for (let i = 0; i < 4; i++) document.querySelector('.hw-hunt.is-picked .hw-density [data-by="1"]').click();
+        for (let i = 0; i < 4; i++) document.querySelector('.hw-hunt-detail .hw-density [data-by="1"]').click();
         return true;
       });
       if (!plusOn) fails.push('HS-8 the density + is off below the ground’s most');
@@ -1466,7 +1480,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       if (othersMid !== others0) fails.push('HS-8 an unsaved pick on ' + picked + ' shows on another ground: ' + others0 + ' -> ' + othersMid);
       await until(() => s.sent('hr_hunt_density_set').length > sentBefore);
       s.release('density');
-      if (!(await wait(page, () => { const v = document.querySelector('.hw-hunt.is-picked .hw-density .hh-step-val'); return v.textContent === '4 each' && v.getAttribute('data-pending') === 'false'; }, null))) fails.push('HS-8 the density did not show the server’s answer of 4 after the save: ' + JSON.stringify(await dRead()));
+      if (!(await wait(page, () => { const v = document.querySelector('.hw-hunt-detail .hw-density .hh-step-val'); return v.textContent === '4 each' && v.getAttribute('data-pending') === 'false'; }, null))) fails.push('HS-8 the density did not show the server’s answer of 4 after the save: ' + JSON.stringify(await dRead()));
       const dSent = s.calls.filter((c) => c.name === 'hr_hunt_density_set').map((c) => ({ hunt: c.body.p_hunt, density: c.body.p_density })).slice(sentBefore);
       if (JSON.stringify(dSent) !== JSON.stringify([{ hunt: picked, density: 5 }])) fails.push('HS-8 four quick density presses sent ' + JSON.stringify(dSent) + ' (want ONE intent: ' + picked + ' at 5)');
       if (s.calls.some((c) => c.name === 'hr_action_set_options' && c.body.p_opts && 'density' in c.body.p_opts)) fails.push('HS-8 a density went out as a setup option');
@@ -1477,8 +1491,8 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       if (shots) await page.screenshot({ path: join(shots, 'town-' + tag + '-hunts-density.png') });
       /* A refused save: the server's value shows again, with the reason in words. */
       s.densityReply = { ok: false, error: 'rate_limited' };
-      await page.evaluate(() => { const b = document.querySelector('.hw-hunt.is-picked .hw-density [data-by="1"]'); if (!b.disabled) b.click(); });
-      const refused = await wait(page, () => { const v = document.querySelector('.hw-hunt.is-picked .hw-density .hh-step-val');
+      await page.evaluate(() => { const b = document.querySelector('.hw-hunt-detail .hw-density [data-by="1"]'); if (!b.disabled) b.click(); });
+      const refused = await wait(page, () => { const v = document.querySelector('.hw-hunt-detail .hw-density .hh-step-val');
         const m = document.querySelector('.hw-hunts .hh-intent-msg').textContent;
         return v.textContent === '4 each' && v.getAttribute('data-pending') === 'false' && m && !/Saving/.test(m); }, null);
       if (!refused) fails.push('HS-8 a refused density save does not show the server’s 4 and why: ' + JSON.stringify(await dRead()));
@@ -1494,7 +1508,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         if (!slot || !cond) fails.push('HS-8 after a reload the slot or its condition is not the server’s');
         await page.keyboard.press('Escape');
         await page.keyboard.press('h');
-        if (!(await wait(page, () => { const v = document.querySelector('.hw-hunt.is-picked .hw-density .hh-step-val'); return v && v.textContent === '4 each'; }, null))) fails.push('HS-8 after a reload the density is not the server’s');
+        if (!(await wait(page, () => { const v = document.querySelector('.hw-hunt-detail .hw-density .hh-step-val'); return v && v.textContent === '4 each'; }, null))) fails.push('HS-8 after a reload the density is not the server’s');
       }
       await ctx.close();
     }
@@ -1513,28 +1527,30 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         const other = picked === 'meadowbrook_thicket' ? 'mill_cellar' : 'meadowbrook_thicket';
         s.env.party = Object.assign({}, s.env.party, { leader_densities: { [picked]: 7, [other]: 2 } });
         await pushEnvelope(page, s);
-        const shown = await wait(page, () => { const v = document.querySelector('.hw-hunt.is-picked .hw-density.is-on .hh-step-val'); return v && /Set by .*: 7 each/.test(v.textContent); }, null);
+        const shown = await wait(page, () => { const v = document.querySelector('.hw-hunt-detail .hw-density.is-on .hh-step-val'); return v && /Set by .*: 7 each/.test(v.textContent); }, null);
         const m = await page.evaluate(() => {
-          const d = document.querySelector('.hw-hunt.is-picked .hw-density');
+          const d = document.querySelector('.hw-hunt-detail .hw-density');
           const steps = [...d.querySelectorAll('[data-by]')];
           return { v: d.querySelector('.hh-step-val').textContent, visible: steps.filter((b) => b.offsetParent !== null).length,
-            facts: document.querySelector('.hw-hunt.is-picked .hw-hunt-facts').textContent };
+            facts: document.querySelector('.hw-hunt-detail .hw-hunt-facts').textContent };
         });
         if (!shown || m.v !== 'Set by Fingerguns: 7 each') fails.push('HS-14 a member does not see the leader\'s density read-only: ' + JSON.stringify(m));
         if (m.visible !== 0) fails.push('HS-14 a member\'s picker still shows ' + m.visible + ' density step(s)');
         if (!/ packs? of 7[ ,]/.test(m.facts)) fails.push('HS-14 a member\'s facts line does not say the leader\'s pull: ' + m.facts);
-        /* The leader's pick is per ground too: another line reads the leader's pick THERE (2 on the Thicket). */
-        const there = await page.evaluate((h) => (document.querySelector('.hw-hunt[data-hunt="' + h + '"] .hw-hunt-facts') || {}).textContent || '', other);
+        /* The leader's pick is per ground too: another ground's page reads the leader's pick THERE (2 on the Thicket). */
+        await page.click('.hw-hunt[data-hunt="' + other + '"]');
+        const there = await page.evaluate(() => (document.querySelector('.hw-hunt-detail .hw-hunt-facts') || {}).textContent || '');
+        await page.click('.hw-hunt[data-hunt="' + picked + '"]');
         if (!/ packs? of 2[ ,]/.test(there)) fails.push('HS-14 ' + other + ' does not read the leader\'s pick there: ' + there);
         const asks = () => s.calls.filter((c) => c.name === 'hr_hunt_density_set' || c.name === 'hr_action_set_options').length;
         const before = asks();
-        await page.evaluate(() => { for (const b of document.querySelectorAll('.hw-hunt.is-picked .hw-density [data-by]')) b.click(); });
+        await page.evaluate(() => { for (const b of document.querySelectorAll('.hw-hunt-detail .hw-density [data-by]')) b.click(); });
         await page.waitForTimeout(500);
         if (asks() !== before) fails.push('HS-14 a member\'s density press sent an intent');
         /* The leader (the crown passes to seat 0): its own pick and its step are back. */
         s.env.party = Object.assign({}, s.env.party, { leader_seat: 0 });
         await pushEnvelope(page, s);
-        const lead = await wait(page, () => { const d = document.querySelector('.hw-hunt.is-picked .hw-density.is-on');
+        const lead = await wait(page, () => { const d = document.querySelector('.hw-hunt-detail .hw-density.is-on');
           return d && !/Set by/.test(d.querySelector('.hh-step-val').textContent) && [...d.querySelectorAll('[data-by]')].every((b) => b.offsetParent !== null); }, null);
         if (!lead) fails.push('HS-14 the leader does not get its density step back');
       } else fails.push('HS-14 the town did not mount');
@@ -1752,8 +1768,10 @@ const MUTANTS = [
   ['the fight settings sheet starts at the top of the screen (HS-22)', 'src/shell/widgets/action-bar.js', "    sheet.style.top = Math.round(Math.max(box.top, hb ? hb.bottom + 4 : box.top)) + 'px';", "    sheet.style.top = '0px';"],
   ['a widget that grows after it is placed is never placed again (HS-22)', 'src/shell/shell.js', 'const sized = host.ResizeObserver ? ', 'const sized = false ? '],
   ['the bleed badge defaults on for regular monsters', 'src/data/combat-text.js', "label: 'Bleed stack count', on: on(false, true)", "label: 'Bleed stack count', on: on(true, true)"],
-  ['the picker card never shows the personal best (HS-24)', 'src/shell/windows/hunts.js', "text(li.querySelector('.hw-hunt-best-solo'), best ? best.solo : '');", "text(li.querySelector('.hw-hunt-best-solo'), '');"],
-  ['the picker merges a best the server no longer sends (HS-24)', 'src/session/hunt-sections.js', "  const b = section(cs, 'hunt_bests');\n", "  const b = section(cs, 'hunt_bests');\n  if (b && globalThis.__hb) for (const [k, v] of Object.entries(globalThis.__hb)) b.grounds[k] = Object.assign({}, v, b.grounds[k]);\n  if (b) globalThis.__hb = b.grounds;\n"],
+  ['the picker card never shows the personal best (HS-24)', 'src/shell/windows/hunt-detail.js', "['.hw-hunt-best-solo', best && best.solo]", "['.hw-hunt-best-solo', null]"],
+  /* The merge lands on a COPY: envelope records are deep-frozen, so writing into one threw, the Hunts window stopped
+     drawing and the click timed out (run 39899899955, HARNESS) instead of the merged best being shown. */
+  ['the picker merges a best the server no longer sends (HS-24)', 'src/session/hunt-sections.js', "  const b = section(cs, 'hunt_bests');\n", "  const b0 = section(cs, 'hunt_bests');\n  const b = b0 && b0.grounds ? Object.assign({}, b0, { grounds: Object.assign({}, b0.grounds) }) : b0;\n  if (b && b.grounds && globalThis.__hb) for (const [k, v] of Object.entries(globalThis.__hb)) b.grounds[k] = Object.assign({}, v, b.grounds[k]);\n  if (b && b.grounds) globalThis.__hb = b.grounds;\n"],
   ['the summary has no balance per hour (HS-25)', 'src/hunt-view/summary-model.js', 'balanceH: ph ? ph.balance : null,', 'balanceH: null,'],
   ['a re-read that crossed the residue put drops the card (HS-25)', 'src/session/character-session.js', 'this._pending = {}; this._sent = Object.assign({}, this._sent, patch);', 'this._pending = {};'],
   ['a free summary shows raw XP per hour (HS-25)', 'src/shell/windows/hunt-summary.js', "prop(dd.parentNode, 'hidden', !!onlySent && (cur[k] === null || cur[k] === undefined));", "prop(dd.parentNode, 'hidden', false);"],

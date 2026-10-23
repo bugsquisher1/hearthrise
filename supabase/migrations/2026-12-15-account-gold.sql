@@ -166,8 +166,9 @@
 --   reproduces them byte for byte), drop the helpers, the trigger and the columns.
 --   Which hero held what before the fold is in the fold rows' meta.carry.
 --
--- ORDER: after 2026-12-14-shared-farm.sql (its hr_state_of / hr_create_character / hr_apply splices
---   are the pinned pre-images here; a later lane that restates a body pinned here re-derives it).
+-- ORDER: after 2026-12-16-own-drinks-settle.sql (applied first, though dated later: its hr_hunt_settle_session
+--   07d806dc is the pinned pre-image) and 2026-12-14-shared-farm.sql (its hr_state_of / hr_create_character /
+--   hr_apply splices are). A later lane that restates a body pinned here re-derives it.
 -- AFTER APPLYING: live-hash-drift wants the 14 restated bodies + hr_apply + the helpers;
 --   deploy hr-accrue (the shared purse + the retry); the client half rides the next release.
 -- ════════════════════════════════════════════════════════════════════════
@@ -195,7 +196,7 @@ begin
     ('public.hr_unlock_buy(uuid,integer,bigint,uuid,text)', '8bee328f72b0dde9b43c3663b680fa19', '560e254057af74da83dee08b013c0b48'),
     ('public.hr_market_buy(uuid,integer,bigint,uuid,uuid,bigint)', '9b33cfeb4986d3d9861ce1d9eaa09276', '97e38b8e3c7185487d0447111b9e3c64'),
     ('public.hr_hunt_loot_rules(uuid,integer,uuid,uuid,jsonb,timestamp with time zone)', 'effca80aec36c617539fcbcdecc6fc0e', 'bf314f41f2ae45588d212e62ee2c7ce6'),
-    ('public.hr_hunt_settle_session(uuid,integer,uuid,jsonb)', 'd457034c7b81d082ee3c2ecc522d2764', 'bcf7ae2eb8802ddd20824d08a5b97ec2'),
+    ('public.hr_hunt_settle_session(uuid,integer,uuid,jsonb)', '07d806dc20d0aec69469eab02984cc8e', '446456a4c99e80763279b3c463b5cd29'),
     ('public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)', '1ced9ef2c45f893c892245982e570f36', 'a0bbf22528611f9c5d939783cb211c9e'),
     ('public.hr_hunt_apply_instance(uuid,bigint,jsonb,jsonb,uuid,integer)', '465885606fde6e457bef4e45977c2615', '0badf6bfafe9a9cc85fe059fc9f35497'),
     ('public.hr_apply(uuid,integer,bigint,uuid,jsonb)', '466bde57a7bf2ca516266fdd9c4f339a', '34291a5ae8e42247255c416ae02aacdb')
@@ -2809,7 +2810,9 @@ begin
        where b.session_id = p_session and b.item_id = v_k;
       if v_left is null then perform public.hr_reject('not_in_bag', jsonb_build_object('item', left(v_k, 64))); end if;
       if v_n > v_left then perform public.hr_reject('bag_short', jsonb_build_object('item', v_k, 'left', v_left)); end if;
-      if v_n > 0 and v_kind is distinct from 'heal' and v_kind is distinct from 'ammo' then
+      -- OWN-DRINKS (2026-12-16-own-drinks-settle.sql): a drink (`mana`) is spent from the bag exactly as food is,
+      -- the kinds the member applier's lane caps count; a feast (`buff`) never is.
+      if v_n > 0 and v_kind is distinct from 'heal' and v_kind is distinct from 'mana' and v_kind is distinct from 'ammo' then
         perform public.hr_reject('kind_not_used', jsonb_build_object('item', v_k, 'kind', v_kind)); end if;
       v_left := null; v_kind := null;
     end loop;

@@ -63,8 +63,14 @@
 //              line, the hunt ends `died` at its next boundary, the hero walks home
 //              at full HP, the death is priced on its Level and combat skills; the
 //              same death cut into windows (ATTENDED) as in one span (AWAY).
-//   PARTY-DEATH  one member dies: every other member ends `party_member_died` at its
-//              own boundary and pays nothing for it.
+//   PARTY-DEATH  one member dies: every other member with its box on ends `party_member_died`
+//              at its own boundary and pays nothing for it.
+//   PARTY-LEAVE-RULE  LEAVE TOGETHER (Tyler 2026-10-22): a member leaves; every ticked other
+//              ends `party_member_left` at its boundary (keyed before it or after), paid to it;
+//              an unticked one hunts on; an own end keeps its reason; two ticked heroes end
+//              once each; the same however the windows are cut; a read with no box is off.
+//   PARTY-LEAVE-DEATH  a death sends the ticked partner home `party_member_died`, never the
+//              unticked one; a leave at the same boundary does not rename it.
 //   QUIVER     every ranged basic looses one shot of the loaded ammo; a
 //              40-arrow bag under `end` fires 40 and ends ammo_out.
 //   WORLD-BOUND  a four-hero party's world stays inside world_max_bytes on the
@@ -104,6 +110,14 @@
 //              paid, kills journalled each, gold split; a settle missing a
 //              member is refused member_set.
 //   PARTY-RESTART  a restarted instance (no world, a kept swing counter) settles on from it.
+//   PARTY-LEAVE  LEAVE TOGETHER through the chain, BOTH PATHS (tick windows = browser closed,
+//              a player's instants = viewed, the same rows): the box on by default, set only
+//              on the caller's own hero, read into every hero; a forged cascade end for an
+//              unticked hero refused; the leaver `left`, the ticked `party_member_left` at its
+//              boundary, settled through it, named by end_by; the unticked hunts on; the party
+//              stays and starts again with every box as set.
+//   PARTY-LEAVE-DIED  a death through the chain, both paths: the ticked partner ends
+//              `party_member_died` at the same boundary, settled through it; the unticked does not.
 //   HOLD-SEAT  "One tank holds" (Tyler 2026-10-22): the read's instance.hold_seat reaches the LEADING
 //              member's hero only, and the proposed world holds that seat's unit (at once in a world made
 //              in the window); a seat that is no member's names no unit (take turns).
@@ -938,11 +952,23 @@ const ENGINE_ARMS = {
     if (!e.a || e.a.reason !== 'died') return [`CONTROL: the weak member ended ${JSON.stringify(e.a)}`];
     if (!e.b || e.b.reason !== 'party_member_died' || e.b.at !== e.a.at) problems.push(`the ticked survivor ended ${JSON.stringify(e.b)}, not party_member_died at ${e.a.at}`);
     if (e.c && e.c.at === e.a.at) problems.push(`the unticked survivor went home with the death: ${JSON.stringify(e.c)}`);
-    /* c leaves at the very boundary a's death ends: b still ends for the death (the first end names it) */
-    const D = Date.parse(e.a.at);
-    const f = ends(runCut(M, mk(D - 1), 600000, [], deadlyOf(M)));
-    if (!f.a || f.a.at !== e.a.at || !f.c || f.c.reason !== 'left' || f.c.at !== e.a.at) return [...problems, `CONTROL: the leave at the death's boundary ended ${canon(f)}`];
-    if (!f.b || f.b.reason !== 'party_member_died') problems.push(`a leave at the death's boundary renamed the ticked survivor's end: ${JSON.stringify(f.b)}`);
+    /* the death comes first: a hero keyed BEFORE the fallen one leaves at the very boundary its death ends, and the
+       ticked survivor still ends for the death (it fell inside the swing; the leave lands at the boundary) */
+    const mk2 = (leaveAt) => () => {
+      /* keyed last, the party's only Melee hero: it pulls (roles.js pickLeader), so the ghouls reach it */
+      const mixed = ['mage', 'mage', 'melee_dps'];
+      const ms = [memberIn(M, 'a', { seat: 0, level: 60, role: 'mage', partyRoles: mixed }),
+        memberIn(M, 'b', { seat: 1, level: 60, role: 'mage', partyRoles: mixed, together: true }),
+        memberIn(M, 'c', { seat: 2, level: 1, skills: {}, hp: 5, empty: 'end', partyRoles: mixed })];
+      if (leaveAt) ms[0].huntSession.leaveAtMs = leaveAt;
+      return ms;
+    };
+    const g = ends(runCut(M, mk2(null), 600000, [], deadlyOf(M)));
+    if (!g.c || g.c.reason !== 'died') return [...problems, `CONTROL: the frail member keyed last ended ${JSON.stringify(g.c)}`];
+    const D = Date.parse(g.c.at);
+    const f = ends(runCut(M, mk2(D - 1), 600000, [], deadlyOf(M)));
+    if (!f.c || f.c.at !== g.c.at || !f.a || f.a.reason !== 'left' || f.a.at !== g.c.at) return [...problems, `CONTROL: the leave at the death's boundary ended ${canon(f)}`];
+    if (!f.b || f.b.reason !== 'party_member_died' || f.b.at !== g.c.at) problems.push(`a leave at the death's boundary renamed the ticked survivor's end: ${JSON.stringify(f.b)}`);
     return problems;
   },
 
@@ -2327,7 +2353,32 @@ const MUTANTS = [
   { arm: 'DEATH', name: 'a dead hero gets back up (the hunt goes on)', file: 'src/core/hunt/pull-cycle.js',
     from: "  if (u.side === 'mon') { u.deadMs = 0; return; }\n  u.spot = null;", to: "  if (u.side === 'mon') { u.deadMs = 0; return; }\n  u.alive = true; u.hp = 1; u.spot = null;" },
   { arm: 'PARTY-DEATH', name: 'a party death leaves the survivor hunting', file: 'src/core/combat-sim.js',
+    from: "    if (o.hero && o.hero.leaveTogether === true) o.hs.partyEnd = why === 'died' ? 'died' : 'left';",
+    to: "    if (o.hero && o.hero.leaveTogether === true && why !== 'died') o.hs.partyEnd = 'left';" },
+  { arm: 'PARTY-LEAVE-DEATH', name: '[leave together] a death is named only at the boundary (a leave keyed before the fallen hero renames it)', file: 'src/core/combat-sim.js',
     from: "        cascadeFrom(m, 'died', members, null);\n", to: '' },
+  /* LEAVE TOGETHER (Tyler 2026-10-22): each rule of the box goes red on its own defect. */
+  { arm: 'PARTY-LEAVE-RULE', name: '[leave together] the cascade reaches an unticked hero', file: 'src/core/combat-sim.js',
+    from: "    if (o.hero && o.hero.leaveTogether === true) o.hs.partyEnd = why === 'died' ? 'died' : 'left';",
+    to: "    o.hs.partyEnd = why === 'died' ? 'died' : 'left';" },
+  { arm: 'PARTY-LEAVE-RULE', name: '[leave together] a leave sends nobody home (only a death does)', file: 'src/core/combat-sim.js',
+    from: '    for (const [m, why] of own) cascadeFrom(m, why, members, own);\n', to: '' },
+  { arm: 'PARTY-LEAVE-RULE', name: '[leave together] the cascade is decided in key order (a hero keyed before the leaver hunts one more swing)', file: 'src/core/combat-sim.js',
+    from: '    for (const [m, why] of own) cascadeFrom(m, why, members, own);\n    // (1) Each member at this boundary: the end checks, then a paid interval.\n    const here = [];\n    for (const m of members) {\n      if (m.left || m.hs.nextSwingAtMs > atMs) continue;\n      const why = endReasonAt(m.hs, atMs);\n      if (why) { endMember(m, why, atMs, world, out.get(m.key)); continue; }',
+    to: '    const here = [];\n    for (const m of members) {\n      if (m.left || m.hs.nextSwingAtMs > atMs) continue;\n      const why = endReasonAt(m.hs, atMs);\n      if (why) { endMember(m, why, atMs, world, out.get(m.key)); cascadeFrom(m, why, members, own); continue; }' },
+  { arm: 'PARTY-LEAVE-RULE', name: '[leave together] a hero with its own end at the boundary is renamed by the cascade', file: 'src/core/combat-sim.js',
+    from: ' || o.hs.partyEnd || (own && own.has(o))) continue;', to: ' || o.hs.partyEnd) continue;' },
+  { arm: 'PARTY-LEAVE-RULE', name: '[leave together] the assembled hero drops its box', file: 'src/core/member.js',
+    from: '        leaveTogether: h.leaveTogether === true,\n', to: '' },
+  { arm: 'PARTY-LEAVE-RULE', name: '[leave together] a read with no box is on (the deploy-order fuse)', file: 'src/core/hunt-spawn.js',
+    from: '    leaveTogether: o.leaveTogether === true,', to: '    leaveTogether: o.leaveTogether !== false,' },
+  { arm: 'PARTY-LEAVE-DEATH', name: '[leave together] a death sends home an unticked survivor (one death ends everyone again)', file: 'src/core/combat-sim.js',
+    from: "        cascadeFrom(m, 'died', members, null);\n",
+    to: "        for (const other of members) if (other !== m && !other.left && !other.hs.died) other.hs.partyEnd = 'died';\n" },
+  { arm: 'PARTY-LEAVE-DEATH', name: '[leave together] a later end at the same boundary renames the cascade', file: 'src/core/combat-sim.js',
+    from: ' || o.hs.died || o.hs.partyEnd || (own && own.has(o))) continue;', to: ' || o.hs.died || (own && own.has(o))) continue;' },
+  { arm: 'PARTY-LEAVE', name: '[leave together] the settle never reads the box', file: join(FN, 'hunt-settle.js'),
+    from: '    _leaveTogether: m.leave_together === true,', to: '    _leaveTogether: false,' },
   { arm: 'QUIVER', name: '[C2 ammoGuard] a shot is loosed but its arrow is never taken from the bag', file: 'src/core/hunt/abilities.js',
     from: '    if (!takeLine(h.hs, l, sc.atMs)) { h.hs.goldOut = true; return false; }\n  }\n  return true;', to: '  }\n  return true;' },
   { arm: 'QUIVER', name: 'the free rung is spent like a paid one', file: 'src/core/hunt/abilities.js',
@@ -2397,6 +2448,23 @@ const AI = 'public.hr_hunt_apply_instance(uuid,bigint,jsonb,jsonb,uuid,integer)'
 const SS = 'public.hr_hunt_settle_session(uuid,integer,uuid,jsonb)';
 const SR = 'public.hr_hunt_settle_refused(uuid,bigint,jsonb,jsonb)';
 const DB_MUTANTS = [
+  /* LEAVE TOGETHER (2026-12-12-party-leave-together.sql): each server rule goes red on its own defect. */
+  { arm: 'PARTY-LEAVE', name: '[leave together] a cascade end is proven for an unticked hero', fn: SS,
+    find: "      when 'party_member_left' then coalesce((select ps.party_leave_together from public.player_state ps\n                                               where ps.user_id = p_user and ps.slot = p_slot), false)",
+    replace: "      when 'party_member_left' then true or coalesce((select ps.party_leave_together from public.player_state ps\n                                               where ps.user_id = p_user and ps.slot = p_slot), false)" },
+  { arm: 'PARTY-LEAVE', name: '[leave together] the engine read carries no box', fn: 'public.hr_hunt_instance_read(uuid,integer)',
+    find: "                 'leave_together', (select ps.party_leave_together from public.player_state ps where ps.user_id = h.user_id and ps.slot = h.slot),\n", replace: '' },
+  { arm: 'PARTY-LEAVE', name: '[leave together] the party section shows a box that is not the hero\'s', fn: 'public.hr_hunt_party_view(uuid,integer)',
+    find: "    'leave_together', (select ps.party_leave_together from public.player_state ps where ps.user_id = p_user and ps.slot = p_slot));",
+    replace: "    'leave_together', true);" },
+  { arm: 'PARTY-LEAVE', name: '[leave together] a cascaded hero names another cascaded hero as the one who left', fn: 'public.hr_hunt_view(uuid)',
+    find: "         and o.end_reason not in ('party_member_died', 'party_member_left')\n", replace: '' },
+  { arm: 'PARTY-LEAVE', name: '[leave together] one player\'s set writes every hero in that slot', fn: 'public.hr_party_leave_together_set(integer,boolean,uuid)',
+    find: '  update public.player_state set party_leave_together = p_on where user_id = v_uid and slot = p_slot;',
+    replace: '  update public.player_state set party_leave_together = p_on where slot = p_slot;' },
+  { arm: 'PARTY-LEAVE', name: '[leave together] a cascaded hero is closed where its window began (its stretch unsettled)', fn: SS,
+    find: '    perform public.hr_hunt_close(p_session, v_end, v_end_at, true);',
+    replace: "    perform public.hr_hunt_close(p_session, v_end, case when v_end like 'party_member_%' then v_s.settled_to else v_end_at end, true);" },
   { arm: 'NO-DODGE', name: 'a leave closes the hunt at once again (the foreseen death is dodged)', fn: 'public.hr_hunt_leave(integer,uuid)',
     find: '    update public.hunt_sessions set leave_at = public.hr_hunt_live_horizon_at(v_s.settled_to), version = version + 1 where id = v_s.id;',
     replace: "    perform public.hr_hunt_close(v_s.id, 'left', now(), true);" },
@@ -2499,6 +2567,24 @@ const DB_MUTANTS = [
 /* SQL mutants: planted in a migration's TEXT; its own §4 must refuse each. The
    C2 settle file's are kept verbatim (its self-check is the proof that applied it). */
 const SQL_MUTANTS = [
+  /* LEAVE TOGETHER: the file's own §4 refuses each. */
+  { file: '2026-12-12-party-leave-together.sql', name: '[leave together] the box defaults off',
+    find: 'add column if not exists party_leave_together boolean not null default true;', replace: 'add column if not exists party_leave_together boolean not null default false;' },
+  { file: '2026-12-12-party-leave-together.sql', name: '[leave together] the set is not rate-gated',
+    find: "  if not public.hr_rpc_gate('party') then return jsonb_build_object('ok', false, 'error', 'rate_limited'); end if;\n  update public.player_state set party_leave_together",
+    replace: '  update public.player_state set party_leave_together' },
+  { file: '2026-12-12-party-leave-together.sql', name: '[leave together] a replayed key sets the box again (not idempotent)',
+    find: '  v_r := public.hr_intent_replay(v_uid, p_slot, p_idem, c_verb);\n  if v_r is not null then return public.hr_note_rejection(c_verb, p_slot, v_r); end if;\n  if not public.hr_rpc_gate',
+    replace: '  if not public.hr_rpc_gate' },
+  { file: '2026-12-12-party-leave-together.sql', name: '[leave together] the set is not journalled',
+    find: "  insert into public.player_intents (user_id, intent_id, slot, intent, result, at)\n    values (v_uid, p_idem, p_slot, c_verb, v_r, now()) on conflict (user_id, intent_id) do nothing;\n  return v_r;\nend $$;\nrevoke execute on function public.hr_party_leave_together_set(int, boolean, uuid) from public;",
+    replace: "  return v_r;\nend $$;\nrevoke execute on function public.hr_party_leave_together_set(int, boolean, uuid) from public;" },
+  { file: '2026-12-12-party-leave-together.sql', name: '[leave together] a cascade end is proven on any box',
+    find: "      when 'party_member_left' then coalesce((select ps.party_leave_together from public.player_state ps\n                                               where ps.user_id = p_user and ps.slot = p_slot), false)",
+    replace: "      when 'party_member_left' then true" },
+  { file: '2026-12-12-party-leave-together.sql', name: '[leave together] a death is proven on any box',
+    find: "      when 'party_member_died' then coalesce((select ps.party_leave_together from public.player_state ps\n                                               where ps.user_id = p_user and ps.slot = p_slot), false)",
+    replace: "      when 'party_member_died' then true" },
   { file: '2026-10-22-hunt-sessions-settle.sql', name: '[C2 §10] the value half is not stamped with the session', find: "    perform set_config('hr.hunt_session', p_session::text, true);\n    v_a := public.hr_apply(", replace: '    v_a := public.hr_apply(' },
   { file: '2026-10-22-hunt-sessions-settle.sql', name: '[C2 §10] a refused session half leaves the value half written', find: "  exception when sqlstate 'HR000' then\n    get stacked diagnostics", replace: "  exception when sqlstate 'XX999' then\n    get stacked diagnostics" },
   { file: '2026-10-22-hunt-sessions-settle.sql', name: '[C2 §10] the fence guards only combat accrue rows', find: "  for each row when (new.intent = 'accrue' and new.kind <> 'worker')", replace: "  for each row when (new.kind = 'combat' and new.intent = 'accrue')" },

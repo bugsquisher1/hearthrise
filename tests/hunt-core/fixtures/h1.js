@@ -141,7 +141,7 @@ export function member(M, key, o) {
     fx: x.fx || {},
     /* THE BAR SHORTHAND (fixtures only): ability ids, each a slot with no conditions, through the engine's heroSlots. */
     hero: { role: x.role || 'melee_dps', element: '', settings: null, slots: M.conditions.heroSlots(x.bar || [], null), actionSet: 'hunt', range: 1,
-      ammo: null },
+      ammo: null, leaveTogether: x.together === true },
   };
 }
 

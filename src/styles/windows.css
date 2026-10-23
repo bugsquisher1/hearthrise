@@ -468,6 +468,9 @@
 .hw-plot-say b { color: var(--ink); font-weight: 700; }
 .hw-plot-say b:empty { display: none; }
 .hw-plot.is-ready .hw-plot-say span { color: var(--gold-2); font-weight: 700; }
+.hw-plot-by { font-size: var(--t-micro); color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hw-plot-by:empty { display: none; }
+.hw-plot.is-extra .hw-plot-by { white-space: normal; color: var(--gold-2); }
 .hw-plot .hh-tool { white-space: normal; }
 .hw-harvest { display: none; }
 .hw-harvest.is-on { display: block; }

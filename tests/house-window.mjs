@@ -131,8 +131,9 @@ async function checks(overrides) {
         const by = (n) => rooms.find((r) => r.t.startsWith(n)) || { t: '', btn: '?' };
         if (!/Hearthstone, 1 of 5: cooking 2% faster/.test(by('Kitchen').t) || by('Kitchen').btn !== 'on' || !/2,000 gp/.test(by('Kitchen').t)) fails.push('HW-3 the Kitchen reads ' + JSON.stringify(by('Kitchen')));
         if (!/Opens with the Fieldworth Farmstead/.test(by('Cellar').t) || by('Cellar').btn !== 'none') fails.push('HW-3 the Cellar reads ' + JSON.stringify(by('Cellar')));
-        // The Garden has a purpose (game-designer ruling 2026-10-22): its rung is offered and says what it builds.
-        if (!/Not built yet\. Next: Kitchen Garden, 1 more farm bed for each of your characters/.test(by('Garden').t) || by('Garden').btn === 'none') fails.push('HW-3 the Garden reads ' + JSON.stringify(by('Garden')));
+        // The Garden has a purpose (game-designer ruling 2026-10-22): its rung is offered and says what it builds,
+        // on the ONE field the account's heroes share (Tyler 2026-10-23, 2026-12-14-shared-farm.sql).
+        if (!/Not built yet\. Next: Kitchen Garden, 1 more farm bed on the land your heroes share/.test(by('Garden').t) || by('Garden').btn === 'none') fails.push('HW-3 the Garden reads ' + JSON.stringify(by('Garden')));
         // HW-4
         const chests = await lines(page, '.hw-chests');
         if (chests.length !== 3 || !/Built/.test(chests[0].t) || chests[0].btn !== 'none' || chests[1].btn !== 'on' || chests[2].btn !== 'none'

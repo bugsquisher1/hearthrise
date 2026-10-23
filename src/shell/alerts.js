@@ -44,9 +44,9 @@ import { itemName } from './widgets/bits.js?v=0.2.34';
 import { CONSUMABLES } from '../data/consumables.js?v=0.2.34';
 import { deathSeen } from './death-popup.js?v=0.2.34';
 import { awayRecapOf, stampAway } from './away-recap.js?v=0.2.34';
-import { tallyOf } from '../session/tally-sections.js?v=0.2.34';
+import { tallyOf, pickWords } from '../session/tally-sections.js?v=0.2.34';
 import { tallyTask } from '../data/tally-tasks.js?v=0.2.34';
-import { gold, whole } from '../render/format.js?v=0.2.34';
+import { gold } from '../render/format.js?v=0.2.34';
 
 const tallyLabel = (task) => { const t = tallyTask(task); return t ? t.label : 'a tally'; };
 
@@ -106,8 +106,7 @@ function candidatesOf(cs, viewed) {
   /* Tamsin's payments (the server's claims of the last day, `tally.recent`): one line each, ever. */
   for (const p of (tallyOf(cs) || { recent: [] }).recent) {
     out.push({ id: 'tally:' + p.claim, kind: 'tally', session: null, item: p.item,
-      text: 'Tamsin paid ' + who(cs) + ' ' + gold(p.gold) + ' and ' + (p.pick === 'piece' ? 'a ' + itemName(p.item) : whole(p.qty) + ' ' + itemName(p.item))
-        + ' for ' + tallyLabel(p.task) + '.' });
+      text: 'Tamsin paid ' + who(cs) + ' ' + gold(p.gold) + ' and ' + pickWords(p, itemName) + ' for ' + tallyLabel(p.task) + '.' });
   }
   const h = huntOf(cs);
   if (!h) return out;

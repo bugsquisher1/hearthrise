@@ -77,6 +77,14 @@ export function tallyLine(h) {
   return label + ' ' + h.kills + '/' + h.target;
 }
 
+/** Her pick in words: "an Apprentice Hat", "4 Slime Gel" (`nameOf` names an item id). */
+export function pickWords(pick, nameOf) {
+  if (!pick || !pick.item) return '';
+  const n = nameOf(pick.item);
+  if (pick.kind === 'piece' || pick.pick === 'piece') return (/^[aeiou]/i.test(n) ? 'an ' : 'a ') + n;
+  return pick.qty + ' ' + n;
+}
+
 /**
  * Why a DONE task is not paid yet, in the words the board and the HUD use.
  * @param {object} t        tallyOf()

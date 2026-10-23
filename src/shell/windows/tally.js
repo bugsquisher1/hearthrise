@@ -16,7 +16,7 @@
 // (hr_tally_view). Every control is off while an intent is in flight; the window
 // changes only from the re-read envelope and her next answer.
 // ════════════════════════════════════════════════════════════════════════
-import { tallyOf, tallyLine, waitWords } from '../../session/tally-sections.js?v=0.2.34';
+import { tallyOf, tallyLine, waitWords, pickWords } from '../../session/tally-sections.js?v=0.2.34';
 import { tallyBoard, takeTask, dropTask, setTally, collectTally } from '../../session/tally-intents.js?v=0.2.34';
 import { huntOf } from '../../session/hunt-sections.js?v=0.2.34';
 import { huntName } from '../../session/party-sections.js?v=0.2.34';
@@ -39,7 +39,8 @@ const scratchOf = (cs) => {
 const WEIGHT_WORDS = Object.freeze({ heavy: 'Heavy', medium: 'Medium', light: 'Light' });
 const SLOT_WORDS = Object.freeze({ helmet: 'Head', body: 'Body', pants: 'Legs', boots: 'Feet', gloves: 'Hands', belt: 'Waist' });
 const labelOf = (task) => { const t = tallyTask(task); return t ? t.label.charAt(0).toUpperCase() + t.label.slice(1) : task; };
-const pickWords = (p) => (!p ? '' : p.kind === 'piece' ? 'a ' + itemName(p.item) : whole(p.qty) + ' ' + itemName(p.item));
+/* "120 Giant Rats"; one named creature reads "The Rat King, 5 times". */
+const titleOf = (task, n) => { const t = tallyTask(task); return t && /^the /.test(t.label) ? labelOf(task) + ', ' + whole(n) + ' times' : whole(n) + ' ' + labelOf(task); };
 
 /** The skeleton (built once per opening): her board is asked for afresh. */
 export function renderTally(ctx) {
@@ -80,7 +81,7 @@ function patchHeld(li, h, st) {
   style(li.querySelector('.ht-stick i'), 'width', pct + '%');
   attr(li.querySelector('.ht-stick'), 'aria-valuenow', pct);
   cls(li, 'is-done', h.done);
-  text(li.querySelector('small'), h.done ? waitWords(st.t, h, st.hunting) : 'In ' + huntName(h.hunt) + ', counted by the server as you hunt');
+  text(li.querySelector('small'), h.done ? waitWords(st.t, h, st.hunting) : 'Counts in ' + huntName(h.hunt) + ', even while you are away.');
   const keep = li.querySelector('[data-hs-act="keep"]');
   prop(keep, 'checked', h.keep);
   prop(keep, 'disabled', st.sc.pending);
@@ -89,9 +90,9 @@ function patchHeld(li, h, st) {
 
 function patchOffer(li, r, st) {
   const t = tallyTask(r.task);
-  text(li.querySelector('b'), whole(r.target) + ' ' + labelOf(r.task).replace(/^The /, 'the '));
+  text(li.querySelector('b'), titleOf(r.task, r.target));
   const where = huntName(r.hunt) + (r.bandMin ? ' (Level ' + r.bandMin + ' ground)' : '') + (t && t.party ? ', best with a party' : '');
-  text(li.querySelector('small'), where + ' · ' + gold(r.gold) + (r.pick ? ' + ' + pickWords(r.pick) : ''));
+  text(li.querySelector('small'), where + ' · ' + gold(r.gold) + (r.pick ? ' + ' + pickWords(r.pick, itemName) : ''));
   const btn = li.querySelector('button');
   const why = r.held ? 'Held' : st.t && st.t.held.length >= st.t.heldMax ? 'Full' : '';
   text(btn, why || 'Take');
@@ -168,7 +169,12 @@ renderTally.act = function actTally(ctx, body, action, ev, t) {
     return true;
   }
   if (ev.type !== 'click') return false;
-  if (action === 'take') { run(() => takeTask(ctx.account, cs, task, null), 'Taking it…', () => labelOf(task) + ': taken. The server counts every kill on that ground.'); return true; }
+  if (action === 'take') {
+    const row = tallyTask(task);
+    run(() => takeTask(ctx.account, cs, task, null), 'Taking it…',
+      () => 'Taken. Every kill in ' + (row ? huntName(row.hunt) : 'that hunt') + ' counts, even while you are away.');
+    return true;
+  }
   if (action === 'drop') { run(() => dropTask(ctx.account, cs, task), 'Giving it up…', () => labelOf(task) + ': given up. Its count is gone.'); return true; }
   if (action === 'weight') {
     const w = t.getAttribute('data-weight');

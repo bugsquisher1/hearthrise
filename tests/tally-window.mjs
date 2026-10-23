@@ -107,9 +107,9 @@ async function checks(overrides) {
         await wait(page, () => document.querySelectorAll('[data-hs-win="tally"] .ht-offer').length === 3, null, 4000);
         if (errors.length) fails.push('TW-1 console errors: ' + errors.join(' | ').slice(0, 300));
         const lines = await page.evaluate(() => [...document.querySelectorAll('[data-hs-win="tally"] .ht-tally')].map((li) => li.querySelector('b').textContent + '|' + li.querySelector('small').textContent));
-        if (lines.length !== 2 || lines[0] !== 'Gray Wolves 112/200|In Meadowbrook Thicket, counted by the server as you hunt' || !/^Giant Rats 120\/120\|Done\./.test(lines[1])) fails.push('TW-1 her tallies read ' + JSON.stringify(lines));
+        if (lines.length !== 2 || lines[0] !== 'Gray Wolves 112/200|Counts in Meadowbrook Thicket, even while you are away.' || !/^Giant Rats 120\/120\|Done\./.test(lines[1])) fails.push('TW-1 her tallies read ' + JSON.stringify(lines));
         const offer = await txt(page, W + '.ht-offer[data-task="glade_poachers"] small');
-        if (!/^Mosslight Glade \(Level 16 ground\) · 920 gp \+ a /.test(offer || '')) fails.push('TW-1 the board line reads ' + JSON.stringify(offer));
+        if (!/^Mosslight Glade \(Level 16 ground\) · 920 gp \+ an Adept /.test(offer || '')) fails.push('TW-1 the board line reads ' + JSON.stringify(offer));
         // TW-2: the visit hands the done task in, once
         await idle(page);
         const cl = sent(s, 'hr_tally_collect');

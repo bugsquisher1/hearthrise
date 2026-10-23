@@ -11,7 +11,9 @@
 //   load()             hr_load(p_slot) — the full read; REPLACES the record
 //   connect()          subscribe to the push topic; on every join one `hello`
 //                      (hr-accrue {slot}) re-reads the whole state, so a gap
-//                      while disconnected is closed; frames apply E2/E3
+//                      while disconnected is closed; a frame is the whole
+//                      character at a commit (envelope.js E2): it replaces the
+//                      record like a load and never asks the engine
 //   setResidue(f, v)   a display preference: the record's residue changes at
 //                      once, one hr_put_client_state follows per burst
 //   setHuntOptions(p, o) the hunt settings INTENT (hr_action_set_options); the
@@ -34,8 +36,10 @@
 //   saveOutfit(o, c)   the outfit INTENT (hr_outfit_set), re-read the same way
 //   findParties        the party finder, a read whose rows are never the record
 //   hunt re-read       while a hunt is open, one hello per src/session/hunt-poll.js
-//                      (the hunter's settle answers state, track and events;
-//                      frames never carry `hunt`) until the envelope says it ended
+//                      (the hunter's settle answers state, track and events)
+//                      until the envelope says it ended; a frame (another
+//                      member's settle, the world tick) pushes it a whole poll
+//                      later, so the re-read is the fallback, not the feed
 //   timeline           the settle responses' visual timeline (src/hunt-view/
 //                      timeline.js): tracks and events, never the record
 //   now()              the display clock the timeline plays on
@@ -49,7 +53,7 @@
 // only things it sends of its own are the allowlisted residue and intents.
 // ════════════════════════════════════════════════════════════════════════
 
-import { applyEnvelope, applyFrame, withResidue } from './envelope.js?v=0.2.36';
+import { applyEnvelope, frameEnvelope, withResidue } from './envelope.js?v=0.2.36';
 import { createTimeline } from '../hunt-view/timeline.js?v=0.2.36';
 import { LiveLink } from './live-link.js?v=0.2.36';
 import { RESIDUE_FIELDS, sanitizeResidueField, unconfirmedResidue } from './residue.js?v=0.2.36';
@@ -156,7 +160,7 @@ export class CharacterSession {
     this.receivedAt = this._now();
     this._play(body);
     this._emit(why);
-    this._armHuntPoll();
+    this._armHuntPoll(why === FRAME_EVENT);
     return true;
   }
 
@@ -169,10 +173,13 @@ export class CharacterSession {
   /** The SERVER's clock now (ms), measured from its answers (timeline.js T3), or null before one came. */
   serverNow() { return this.timeline.serverNowAt(this._now()); }
 
-  /* THE HUNT RE-READ (hunt-poll.js), armed by every applied answer while a hunt is open. */
-  _armHuntPoll() {
+  /* THE HUNT RE-READ (hunt-poll.js), armed by every applied answer while a hunt is open. A pushed frame is news the
+     re-read would only have repeated (41-45 % of polls did, 10-23 audit), so it DEFERS the re-read a whole delay from
+     now: the poll is the fallback for a settle nobody else pays, never a second feed. */
+  _armHuntPoll(deferred) {
     if (this._closed || !this._huntOpen()) return;
-    this._poll.arm(pollDelayMs(this.read('hunt'), this.liveLink, closeInMs(this.leaveAt(), this.serverNow())));
+    const ms = pollDelayMs(this.read('hunt'), this.liveLink, closeInMs(this.leaveAt(), this.serverNow()));
+    if (deferred) this._poll.defer(ms); else this._poll.arm(ms);
   }
 
   /** A PENDING LEAVE's server instant (ms): leave_at, else the leave's own answer (hunt-leave.js), or null. */
@@ -519,18 +526,13 @@ export class CharacterSession {
     return false;
   }
 
-  /** A pushed frame. A version jump means frames were missed: one hello closes the gap. */
+  /** A pushed frame: the whole character the server committed (envelope.js E2), applied like a load. It never asks
+      the engine: a version gap is closed by the frame itself, which restates every key. */
   onFrame(msg) {
     if (this._closed) return false;
-    const before = this._record ? this._record.version : null;
-    const r = applyFrame(this._record, msg);
-    this.lastVerdict = r.verdict;
-    if (!r.applied) return false;
-    this._record = r.record;
-    this._emit('frame');
-    this._armHuntPoll();
-    if (before !== null && r.record.version > before + 1) this.hello();
-    return true;
+    const f = frameEnvelope(this._record, msg);
+    this.lastVerdict = f.verdict;
+    return f.env !== null && this._take(f.env, FRAME_EVENT);
   }
 
   /** Join the character's push topic (and re-join after a drop, with backoff). */

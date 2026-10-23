@@ -10,8 +10,10 @@
 //
 //   ENV-1  a full envelope REPLACES the record: a key the new one lacks is gone
 //   ENV-2  an older envelope is refused; the same version restates
-//   ENV-3  a frame replaces each key it states WHOLE and leaves the rest
-//   ENV-4  frames: not before the first load, never duplicate/reorder, no partial bag
+//   ENV-3  a frame is the whole character (2026-12-25-frame-push-revive.sql): it REPLACES the record like
+//          a load (a key it lacks is gone) and carries the residue its envelope holds
+//   ENV-4  frames: not before the first load, never duplicate/reorder, never a frame whose number is not
+//          its envelope's version
 //   ENV-5  malformed / not ok / no `state` answers change nothing
 //   ENV-6  the record is frozen and never aliases the server's object
 //   RES-1  the residue is an allowlist: unknown client_state fields never arrive
@@ -21,7 +23,9 @@
 //          channel is left and re-joined after a backoff
 //   CHAN-3 a leave from inside the channel's own status callback (removeChannel echoes CLOSED)
 //          leaves once and schedules one reconnect, never recursing (live v0.2.6)
-//   CHAN-2 a frame that skips versions asks for one hello (the gap is closed, not guessed)
+//   CHAN-2 a frame never asks the engine, not even across a version gap: the frame IS the state
+//   HUNT-3 a frame while a hunt is open DEFERS the re-read a whole delay (the poll is the fallback): a
+//          character fed by frames sends no hello while the frames come
 //   HELLO-1 an idle settle answer ({accrued:false}) is never applied as the character: the full read follows
 //   HUNT-1 while the server holds a hunt open the character asks the hunter's settle every huntPollMs
 //          (attended): the track reaches the timeline; the envelope that says it ended stops the asking
@@ -89,6 +93,8 @@ async function load(base) {
 
 const UID = '11111111-2222-3333-4444-555555555555';
 const env = (version, extra) => Object.assign({ ok: true, version, state: { gold: 1 } }, extra || {});
+/** A pushed frame as hr_frame_payload sends it: the whole envelope at its own version. */
+const sframe = (version, extra) => ({ t: 'state', frame: version, env: env(version, extra) });
 
 function memStore() {
   const m = new Map();
@@ -146,21 +152,25 @@ async function rules(M) {
     const same = E.applyEnvelope(a, env(5, { state: { gold: 7 } }));
     return (same.applied && same.record.data.state.gold === 7) || 'the same version did not restate';
   });
-  await t('ENV-3', () => {
-    const a = E.applyEnvelope(null, env(1, { skills: { mining: 5, attack: 3 }, equipment: { head: 'x' } })).record;
-    const f = E.applyFrame(a, { t: 'delta', frame: 2, patch: { skills: { attack: 4 } } });
-    if (!f.applied) return 'a fresh frame was refused: ' + f.verdict;
-    if ('mining' in f.record.data.skills) return 'a frame merged inside a key';
-    if (!f.record.data.equipment || f.record.data.equipment.head !== 'x') return 'a key the frame did not state was lost';
-    return f.record.version === 2 || 'frame version not taken';
+  await t('ENV-3', async () => {
+    const hud = { hudLayout: { desktop: { vitals: { visible: false } } } };
+    const srv = fakeServer({ 0: env(1, { skills: { mining: 5, attack: 3 }, equipment: { head: 'x' } }) });
+    const hub = fakeHub();
+    const cs = new C.CharacterSession({ slot: 0, uid: UID, server: srv, channel: hub.channel, ...timers });
+    await cs.load(); cs.connect();
+    hub.send(C.frameTopic(UID, 0), sframe(2, { skills: { attack: 4 }, client_state: hud }));
+    if (cs.record.version !== 2) return 'a fresh frame was refused: ' + cs.lastVerdict;
+    if ('mining' in cs.read('skills')) return 'a frame merged inside a key';
+    if ('equipment' in cs.record.data) return 'a key the whole-character frame lacks survived (merged, not replaced)';
+    return (cs.record.residue.hudLayout && cs.record.residue.hudLayout.desktop.vitals.visible === false) || 'the frame\'s residue was not taken';
   });
   await t('ENV-4', () => {
-    if (E.applyFrame(null, { t: 'delta', frame: 1, patch: { state: {} } }).verdict !== 'not_loaded') return 'a frame applied before the first load';
+    if (E.frameEnvelope(null, sframe(1)).verdict !== 'not_loaded') return 'a frame applied before the first load';
     const a = E.applyEnvelope(null, env(5)).record;
-    if (E.applyFrame(a, { t: 'delta', frame: 5, patch: { state: {} } }).verdict !== 'duplicate') return 'duplicate applied';
-    if (E.applyFrame(a, { t: 'delta', frame: 4, patch: { state: {} } }).verdict !== 'reorder') return 'reorder applied';
-    if (E.applyFrame(a, { t: 'delta', frame: 6, patch: { inventory: { ore: 1 } } }).verdict !== 'bag_incomplete') return 'a partial bag applied';
-    return E.applyFrame(a, { t: 'delta', frame: 6, patch: { inventory: { ore: 1 }, inventory_complete: true } }).applied || 'a complete bag was refused';
+    if (E.frameEnvelope(a, sframe(5)).verdict !== 'duplicate') return 'duplicate applied';
+    if (E.frameEnvelope(a, sframe(4)).verdict !== 'reorder') return 'reorder applied';
+    if (E.frameEnvelope(a, { t: 'state', frame: 7, env: env(6) }).env) return 'a frame whose number is not its envelope\'s version was taken';
+    return E.frameEnvelope(a, sframe(6)).env !== null || 'a fresh frame was refused';
   });
   await t('ENV-5', () => {
     const a = E.applyEnvelope(null, env(2)).record;
@@ -169,8 +179,9 @@ async function rules(M) {
       const r = E.applyEnvelope(a, bad);
       if (r.applied || r.record !== a) return 'applied a bad answer: ' + JSON.stringify(bad);
     }
-    for (const bad of [{ t: 'delta', frame: 3, patch: { gold: 1 } }, { t: 'x', frame: 3, patch: { state: {} } }, { t: 'delta', frame: -1, patch: { state: {} } }]) {
-      if (E.applyFrame(a, bad).applied) return 'applied a bad frame: ' + JSON.stringify(bad);
+    for (const bad of [{ t: 'delta', frame: 3, patch: { state: {} } }, { t: 'x', frame: 3, env: env(3) }, { t: 'state', frame: -1, env: env(-1) },
+      { t: 'state', frame: 3, env: { ok: true, version: 3 } }, { t: 'state', frame: 3, env: { ok: false, version: 3, state: {} } }, { t: 'state', frame: 3 }]) {
+      if (E.frameEnvelope(a, bad).env) return 'took a bad frame: ' + JSON.stringify(bad);
     }
     return true;
   });
@@ -212,7 +223,7 @@ async function rules(M) {
     const a = new C.CharacterSession({ slot: 0, uid: UID, server: srv, channel: hub.channel, ...timers });
     const b = new C.CharacterSession({ slot: 1, uid: UID, server: srv, channel: hub.channel, ...timers });
     await a.load(); await b.load(); a.connect(); b.connect();
-    hub.send(C.frameTopic(UID, 0), { t: 'delta', frame: 2, patch: { state: { gold: 50 } } });
+    hub.send(C.frameTopic(UID, 0), sframe(2, { state: { gold: 50 } }));
     return (a.read('state').gold === 50 && b.read('state').gold === 1 && b.record.version === 1) || 'a frame for one character moved the other';
   });
 
@@ -255,11 +266,34 @@ async function rules(M) {
     const hub = fakeHub();
     const cs = new C.CharacterSession({ slot: 0, uid: UID, server: srv, channel: hub.channel, ...timers });
     await cs.load(); cs.connect();
-    hub.send(C.frameTopic(UID, 0), { t: 'delta', frame: 2, patch: { state: { gold: 2 } } });
-    if (srv.calls.some((c) => c[0] === 'accrue')) return 'a next-version frame asked for a hello';
-    hub.send(C.frameTopic(UID, 0), { t: 'delta', frame: 5, patch: { state: { gold: 5 } } });
+    const n0 = srv.calls.length;
+    hub.send(C.frameTopic(UID, 0), sframe(2, { state: { gold: 2 } }));
+    if (srv.calls.length !== n0) return 'a next-version frame asked the server';
+    hub.send(C.frameTopic(UID, 0), sframe(5, { state: { gold: 5 } }));
     await new Promise((r) => setImmediate(r));
-    return srv.calls.filter((c) => c[0] === 'accrue').length === 1 || 'a version gap did not ask for one hello';
+    if (srv.calls.length !== n0) return 'a version gap asked the server: ' + srv.calls.slice(n0).map((c) => c[0]).join(',');
+    return (cs.record.version === 5 && cs.read('state').gold === 5) || 'the frame past the gap was not applied whole';
+  });
+  /* HUNT-3 (2026-12-25-frame-push-revive.sql): a frame while a hunt is open is the settle the re-read would have
+     fetched (another member's hello, the world tick), so the re-read waits a whole delay from the frame. */
+  await t('HUNT-3', async () => {
+    const open = (v) => env(v, { hunt: { session_id: 'h1', hunt_id: 'mill_cellar', ended: false } });
+    const srv = fakeServer({ 0: open(1) });
+    const hub = fakeHub();
+    let clock = 0, seq = 0;
+    const armed = new Map();
+    const cs = new C.CharacterSession({ slot: 0, uid: UID, server: srv, channel: hub.channel, now: () => clock,
+      setTimer: (fn, ms) => { armed.set(++seq, { fn, at: clock + ms }); return seq; }, clearTimer: (id) => { armed.delete(id); } });
+    await cs.load(); cs.connect();
+    const due = () => Math.min(...Array.from(armed.values()).map((a) => a.at));
+    const first = due();
+    if (armed.size !== 1 || !Number.isFinite(first)) return 'an open hunt armed ' + armed.size + ' re-reads';
+    clock = first - 1;
+    hub.send(C.frameTopic(UID, 0), { t: 'state', frame: 2, env: open(2) });
+    if (cs.record.version !== 2) return 'the frame was not applied: ' + cs.lastVerdict;
+    if (armed.size !== 1) return 'a frame left ' + armed.size + ' re-reads armed (one timer per session)';
+    if (!(due() > first)) return 'a frame did not defer the re-read (still due at ' + due() + ', armed for ' + first + ')';
+    return srv.calls.filter((c) => c[0] === 'accrue').length === 0 || 'a frame asked the engine';
   });
   await t('HELLO-1', async () => {
     const calls = [];
@@ -904,8 +938,10 @@ const MUTANTS = [
   ['every intent answer is taken as the envelope', 'src/session/character-session.js', '_settled(await send(), carries === true)', '_settled(await send(), true)'],
   ['merge, not replace', 'src/session/envelope.js', '  const data = {};\n  for (const k of Object.keys(env))', '  const data = Object.assign({}, current ? current.data : {});\n  for (const k of Object.keys(env))'],
   ['stale accepted', 'src/session/envelope.js', "if (current && env.version < current.version) return keep('stale');", ''],
-  ['frame merges inside a key', 'src/session/envelope.js', 'data[k] = copy(f.patch[k]);', 'data[k] = copy(Object.assign({}, current.data[k], f.patch[k]));'],
-  ['partial bag accepted', 'src/session/envelope.js', "&& f.patch.inventory_complete !== true) return keep('bag_incomplete');", "&& false) return keep('bag_incomplete');"],
+  ['a frame merges into the record', 'src/session/character-session.js', 'return f.env !== null && this._take(f.env, FRAME_EVENT);', 'return f.env !== null && this._take(Object.assign({}, this._record.data, f.env), FRAME_EVENT);'],
+  ['a reordered frame is taken', 'src/session/envelope.js', "  if (msg.frame < current.version) return { verdict: 'reorder', env: null };\n", ''],
+  ['a frame not stamped with its own version is taken', 'src/session/envelope.js', '    || msg.env.version !== msg.frame || msg.env.ok !== true', '    || msg.env.ok !== true'],
+  ['a frame before the first load is taken', 'src/session/envelope.js', "  if (!current) return { verdict: 'not_loaded', env: null };\n", "  if (!current) return { verdict: 'fresh', env: msg.env };\n"],
   ['no state accepted', 'src/session/envelope.js', "if (!isObj(env.state)) return keep('incomplete');", ''],
   ['residue unfiltered', 'src/session/residue.js', '  for (const f of RESIDUE_FIELDS) if (Object.prototype.hasOwnProperty.call(bag, f)) out[f] = sanitizeResidueField(f, bag[f]);', '  Object.assign(out, bag);'],
   ['one topic for every slot', 'src/session/frame-channel.js', "return 'hr:' + uid.toLowerCase() + ':' + slot;", "return 'hr:' + uid.toLowerCase();"],
@@ -930,8 +966,10 @@ const MUTANTS = [
   ['a join sends no hello', 'src/session/character-session.js', "if (st === 'SUBSCRIBED') { this._attempt = 0; this.hello(); return; }", "if (st === 'SUBSCRIBED') { this._attempt = 0; return; }"],
   ['a leave inside the channel callback recurses', 'src/session/character-session.js', "    const leave = this._leave;\n    this._leave = null;\n    if (leave) { try { leave(); } catch (e) { /* already gone */ } }", "    if (this._leave) { try { this._leave(); } catch (e) { /* already gone */ } this._leave = null; }"],
   ['a dropped channel is never re-joined', 'src/session/character-session.js', "this._retry = this._setTimer(() => { this._retry = null; this.connect(); }, reconnectDelay(++this._attempt));", "this._retry = null;"],
-  ['a version gap is guessed, not healed', 'src/session/character-session.js', "if (before !== null && r.record.version > before + 1) this.hello();", ""],
-  ['an open hunt is never re-read', 'src/session/character-session.js', "    this._emit(why);\n    this._armHuntPoll();", "    this._emit(why);"],
+  ['a version gap asks the engine', 'src/session/character-session.js', '    return f.env !== null && this._take(f.env, FRAME_EVENT);', '    if (f.env && this._record && f.env.version > this._record.version + 1) this.hello();\n    return f.env !== null && this._take(f.env, FRAME_EVENT);'],
+  ['a frame does not defer the re-read', 'src/session/character-session.js', '    if (deferred) this._poll.defer(ms); else this._poll.arm(ms);', '    this._poll.arm(ms);'],
+  ['the defer keeps the earlier re-read', 'src/session/hunt-poll.js', '    this.stop();\n    this.arm(ms);', '    this.arm(ms);'],
+  ['an open hunt is never re-read', 'src/session/character-session.js', "    this._emit(why);\n    this._armHuntPoll(why === FRAME_EVENT);", "    this._emit(why);"],
   ['an ended hunt keeps re-reading', 'src/session/character-session.js', "typeof h.session_id === 'string' && h.ended !== true;", "typeof h.session_id === 'string';"],
   ['a pending leave waits for the world tick', 'src/session/character-session.js', "      if (!(await this.hello()) && !this._closed) await this.load();", "      await this.load();"],
   ['a refused settle leaves the leave unseen', 'src/session/character-session.js', "      if (!(await this.hello()) && !this._closed) await this.load();", "      await this.hello();"],
@@ -972,7 +1010,7 @@ async function main() {
   if (!mutate) {
     const fails = [...await rules(await load(ROOT)), ...await viewRules(ROOT)];
     for (const f of fails) console.log('  ✗ ' + f);
-    console.log(fails.length ? 'session-core: ' + fails.length + ' rule(s) RED' : 'session-core: every session rule holds (34 rules)');
+    console.log(fails.length ? 'session-core: ' + fails.length + ' rule(s) RED' : 'session-core: every session rule holds (35 rules)');
     process.exit(fails.length ? 1 : 0);
   }
   const clean = await cleanControl(async () => rules(await load(ROOT)));

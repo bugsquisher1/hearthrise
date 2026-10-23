@@ -886,13 +886,11 @@ async function quietHuntPoll(s, slot, clearMs = 1500) {
   }
 }
 
-/* A new full envelope, the way the live game gets one: a frame that skips a version makes the client re-read. */
+/* A new full envelope, the way the live game gets one: a pushed frame carrying the whole character at the next
+   version (2026-12-25-frame-push-revive.sql), applied like a load. */
 async function pushEnvelope(page, s, slot) {
-  const frame = s.version + 2;
-  s.version = frame;
-  const before = sent(s, 'hr-accrue').length;
-  await page.evaluate(([t, f, st]) => window.__hub.send(t, { t: 'delta', frame: f, patch: { state: st } }), ['hr:' + UID + ':' + slot, frame, s.env[slot].state]);
-  for (let i = 0; i < 60 && sent(s, 'hr-accrue').length <= before; i++) await page.waitForTimeout(50);
+  const e = s.next(slot);
+  await page.evaluate(([t, env]) => window.__hub.send(t, { t: 'state', frame: env.version, env }), ['hr:' + UID + ':' + slot, e]);
   await page.waitForTimeout(300);
 }
 

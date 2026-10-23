@@ -163,6 +163,13 @@ async function executed(db) {
     [U, O, act]);
     /* the 1,000 gold each started with: its ACCOUNT purse (2026-12-15-account-gold.sql), or its own on an older chain */
     for (const u of [U, O]) await setGold((sql, p) => db.query(sql, p).then((r) => r.rows), u, 0, 1000);
+    /* OPEN IN A CLIENT: the presence the gate reads since 2026-12-25-frame-push-revive.sql (character_presence, the
+       rebuilt client's stamp); an older chain (the negative control below) has no such table and gates HTTP on nothing. */
+    const hasPresence = (await one("select to_regclass('public.character_presence') is not null as x")).x;
+    const open = async (u, on) => { if (!hasPresence) return;
+      if (on) await db.query('insert into public.character_presence (user_id, slot, seen_at) values ($1, 0, now()) on conflict (user_id, slot) do update set seen_at = now()', [u]);
+      else await db.query('delete from public.character_presence where user_id = $1', [u]); };
+    await open(U, true); await open(O, true);
     await db.query(`insert into public.hr_tick_ownership (user_id, slot, channel, owned, lease_holder, lease_until)
       values ($1, 0, 'gather', true, 'guard-selfecho', now() + interval '5 minutes')`, [U]);
     await db.exec(`update public.hr_tick_config set enabled = true,
@@ -198,7 +205,9 @@ async function executed(db) {
     ok(await step(U, () => tick('20 minutes', '16 minutes', '00000000-0000-4000-8000-0000000f5d03')) === 1, 'F4', '★ a WORLD-TICK settle for the requester (online) was not pushed — the marker silenced a tick frame');
     /* AWAY: offline → no tick frame, marker or not (the 10-07 rule, unchanged). */
     await db.query('update public.player_state set last_seen_at = null where user_id = $1 and slot = 0', [U]);
-    ok(await step(U, () => tick('16 minutes', '12 minutes', '00000000-0000-4000-8000-0000000f5d04')) === 0, 'F4', 'an OFFLINE tick settle pushed a frame (the 10-07 online-only rule regressed)');
+    await open(U, false);
+    ok(await step(U, () => tick('16 minutes', '12 minutes', '00000000-0000-4000-8000-0000000f5d04')) === 0, 'F4', 'an OFFLINE tick settle pushed a frame (the online-only rule regressed)');
+    await open(U, true);
 
     /* ★ FORGED: client-shaped request (JWT claims present) and an owner session. */
     await db.query("select set_config('request.jwt.claims', $1, true)", [JSON.stringify({ sub: U, role: 'authenticated' })]);

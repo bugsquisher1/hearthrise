@@ -141,8 +141,9 @@ async function checks(overrides) {
       if (!(await wait(page, () => document.querySelectorAll('[data-app="play"]').length === 2))) fails.push('B-2 the characters screen did not list the two owned slots');
       await page.click('[data-app="play"][data-slot="0"]');
       if (!(await wait(page, () => document.querySelector('#panel-world[data-slot="0"] .world-stage canvas') && document.querySelector('.hs-shell')))) fails.push('B-3 the World pane or the shell did not mount');
-      const pushed = await page.evaluate((uid) => { const t = 'hr:' + uid + ':0'; if (!window.__hub.channels[t]) return 'no topic ' + t;
-        window.__hub.send(t, { t: 'delta', frame: 3, patch: { state: { active_kind: 'idle', gold: 5 } } }); return 'ok'; }, UID);
+      const pushed = await page.evaluate((uid) => { const t = 'hr:' + uid + ':0'; const c = window.__hub.channels[t];
+        if (!c) return 'no topic ' + t;
+        return c.events && c.events.frame && c.status ? 'ok' : 'topic ' + t + ' has no frame handler or status callback'; }, UID);
       if (pushed !== 'ok') fails.push('B-3 ' + pushed);
       await page.click('[data-app="characters"]');
       if (!(await wait(page, () => document.querySelector('[data-app="play"][data-slot="1"]')))) fails.push('B-4 no way back to the characters screen');
@@ -282,8 +283,8 @@ async function checks(overrides) {
       await wait(page, () => document.querySelector('#panel-world[data-slot="0"]'));
       await page.waitForTimeout(300);
       o.revoked = true;
-      /* a frame that skips versions makes the character ask the engine (hr-accrue) */
-      await page.evaluate((uid) => { window.__refuseRefresh = true; window.__hub.send('hr:' + uid + ':0', { t: 'delta', frame: 9, patch: { state: { active_kind: 'idle', gold: 9 } } }); }, UID);
+      /* a re-join of the push topic makes the character ask the engine (one hello per join; a frame never does) */
+      await page.evaluate((uid) => { window.__refuseRefresh = true; window.__hub.join('hr:' + uid + ':0'); }, UID);
       const out = await wait(page, () => document.querySelector('form[data-auth="sign-in"]') && /You were signed out\. Sign in again\./.test(document.body.innerText));
       if (!out) fails.push('B-10 a refused refresh did not land on sign-in with "You were signed out. Sign in again."');
       await page.waitForTimeout(1500);

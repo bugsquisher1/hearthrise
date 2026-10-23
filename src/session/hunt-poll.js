@@ -5,8 +5,10 @@
 // hunter's settle) on this timer, re-armed by every applied answer. One timer
 // per session, never two: a re-arm moves an armed re-read EARLIER, never
 // later, so a pending leave's close (hunt-leave.js closeInMs) ends the hunt on
-// screen at the server's leave_at instead of a whole poll after it. Timing
-// only: nothing here is read as owned or spent.
+// screen at the server's leave_at instead of a whole poll after it. A pushed
+// frame DEFERS it (a whole delay from now, closeMs still honoured by the delay
+// it is given): the push is the feed, this timer the fallback. Timing only:
+// nothing here is read as owned or spent.
 // ════════════════════════════════════════════════════════════════════════
 import { SESSION_CONFIG } from './config.js?v=0.2.36';
 
@@ -47,6 +49,13 @@ export class HuntPoll {
     }
     this._due = due;
     this._timer = this._set(() => { this._timer = null; this._due = null; this._fire(); }, ms);
+  }
+
+  /** Arm the re-read `ms` from now even when that is LATER than the armed one: the news it would have
+      fetched arrived pushed (a frame), so it waits a whole delay again and stays the fallback. */
+  defer(ms) {
+    this.stop();
+    this.arm(ms);
   }
 
   stop() {

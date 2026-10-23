@@ -124,12 +124,11 @@ const lines = (page) => page.evaluate(() => {
   }
   return out;
 });
-/* A new full envelope, the way the live game gets one: a skipped frame makes the client re-read. */
+/* A new full envelope, the way the live game gets one: a pushed frame carrying the whole character at the next
+   version (2026-12-25-frame-push-revive.sql), applied like a load. */
 async function push(page, s) {
-  const before = s.calls.length;
-  await page.evaluate(([uid, f, st]) => window.__hub.send('hr:' + uid + ':0', { t: 'delta', frame: f, patch: { state: st } }), [UID, s.version + 2, s.env.state]);
-  s.version += 2;
-  for (let i = 0; i < 60 && s.calls.length <= before; i++) await page.waitForTimeout(50);
+  const e = s.next();
+  await page.evaluate(([uid, env]) => window.__hub.send('hr:' + uid + ':0', { t: 'state', frame: env.version, env }), [UID, e]);
   await page.waitForTimeout(500);
 }
 /* Until this opening's ask has answered and the damage line is drawn (or 5 s). */
@@ -277,12 +276,10 @@ async function checks(overrides, shots) {
           if (want && r.tab.level !== want) fails.push('CW-8 ' + when + ': the Level reads ' + r.tab.level + ', the server Level XP makes ' + want);
         });
         await same('in a hunt', '21');
-        /* A frame restates `state` only (hr_tick_config.frame_keys): the hunt hero's `level` it does not touch. */
+        /* A frame (the whole character, 2026-12-25-frame-push-revive.sql) with a new Level XP: both read the server's Level. */
         s.env.state = Object.assign({}, s.env.state, { level_xp: 450000 });
-        s.version += 1;
-        await page.evaluate(([uid, f, st]) => window.__hub.send('hr:' + uid + ':0', { t: 'delta', frame: f, patch: { state: st } }), [UID, s.version, s.env.state]);
-        await page.waitForTimeout(600);
-        await same('after a state-only frame', '23');
+        await push(page, s);
+        await same('after a pushed frame', '23');
         /* Back in town: the character's own vitals on both. */
         s.env.hunt = Object.assign({}, s.env.hunt, { ended: true });
         s.env.state = Object.assign({}, s.env.state, { hp: 280, max_hp: 300 });

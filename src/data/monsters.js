@@ -112,8 +112,9 @@ export const MONSTERS = {
     /* one override (weapon): it flies, so the T1 bow finally has a target. */
     weaponWeak: 'ranged', weaponResist: [],
     hp: 8, atk: 4, def: 0, xp: 36, gp: [1, 4],
-    drops: [{ id: 'venom_sac', ch: .35 }, { id: 'silk_thread', ch: .15 }, { id: 'small_fang', ch: .1 },
-      { id: 'leather_helmet', ch: .02, gear: true }] },
+    /* the loot bands (batch 1): the tutorial's first helmet in all three weights, each about hourly at the floor */
+    drops: [{ id: 'venom_sac', ch: .35, band: 'common' }, { id: 'silk_thread', ch: .15, band: 'uncommon' }, { id: 'small_fang', ch: .1, band: 'uncommon' },
+      { id: 'bronze_helm', ch: .02, band: 'scarce' }, { id: 'leather_helmet', ch: .02, band: 'scarce' }, { id: 'apprentice_helmet', ch: .02, band: 'scarce' }] },
   wild_boar: { name: 'Wild Boar', icon: '🐗', tier: 1, cls: 'mammal', family: 'Mammal',
     hp: 13, atk: 4, def: 1, xp: 11, gp: [2, 6],
     drops: [{ id: 'wolf_pelt', ch: .3 }, { id: 'bones', ch: 1 }, { id: 'raw_wolf_meat', ch: .45 }, { id: 'small_fang', ch: .14 },

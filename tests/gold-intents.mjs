@@ -119,7 +119,7 @@ const MUTATIONS = {
     file: FN('catalogue.js'),
     why: 'the loot bands\' gear sell rate vanishes (Tyler 2026-10-23), so every dropped piece sells at full book and '
        + 'the hour\'s gear value runs past the caps the drop odds were measured against',
-    find: '  const v = VENDOR_GEAR_TYPES.includes(it.type) ? Math.max(1, Math.floor(book * VENDOR_GEAR_RATE)) : book;',
+    find: '  const v = VENDOR_GEAR_TYPES.includes(it.type) ? Math.max(1, Math.floor(book * gearSaleRate(it))) : book;',
     repl: '  const v = book;',
   },
   vendor_ignores_shop_cap: {
@@ -577,8 +577,8 @@ async function run(mutate) {
     ok(cat.SHOP_BUYBACK_RATE === 0.5,
       `G1: the server caps buy-back at ${cat.SHOP_BUYBACK_RATE} of the shop price; the ruling (b565) is 0.5`);
     const LB = await import('../src/data/loot-bands.js');
-    ok(LB.VENDOR_GEAR_RATE === 0.5,
-      `G1: the trader pays worn gear ${LB.VENDOR_GEAR_RATE} of book value; the ruling (Tyler 2026-10-23, loot bands) is 0.5`);
+    ok(JSON.stringify(LB.VENDOR_GEAR_RATES) === '[0.5,0.5,0.12]',
+      `G1: the trader pays worn gear ${JSON.stringify(LB.VENDOR_GEAR_RATES)} of book value by tier; the ruling (Tyler 2026-10-23, loot bands) is [0.5, 0.5, 0.12]`);
     const { ITEMS } = await import('../src/data/items.js');
     /* THE RULING'S NUMBERS, per unit, as the server pays them. */
     const BUYBACK_EXPECT = {
@@ -625,8 +625,8 @@ async function run(mutate) {
       + 'being applied to everything, which the comparison above would not distinguish');
     /* worn gear at the gear rate: sampled at v >= 10 and off the shop list, so neither floor nor cap can hide it */
     const gear = Object.keys(ITEMS).filter((id) => LB.VENDOR_GEAR_TYPES.includes(ITEMS[id].type) && Number(ITEMS[id].v) >= 10 && unshopped(id));
-    ok(gear.length > 20 && gear.slice(0, 5).every((id) => cat.vendorPriceOf(ITEMS, id) === Math.floor(Number(ITEMS[id].v) * LB.VENDOR_GEAR_RATE)),
-      `G1-CONTROL: worn gear is not bid at ${LB.VENDOR_GEAR_RATE} of book (${gear.slice(0, 5).map((id) => id + ' ' + cat.vendorPriceOf(ITEMS, id) + '/' + ITEMS[id].v).join(', ')})`);
+    ok(gear.length > 20 && gear.slice(0, 5).every((id) => cat.vendorPriceOf(ITEMS, id) === Math.max(1, Math.floor(Number(ITEMS[id].v) * LB.gearSaleRate(ITEMS[id])))),
+      `G1-CONTROL: worn gear is not bid at its tier's share of book (${gear.slice(0, 5).map((id) => id + ' ' + cat.vendorPriceOf(ITEMS, id) + '/' + ITEMS[id].v).join(', ')})`);
     ok(cat.vendorPriceOf({}, 'constructor') === 0,
       'G1: vendorPriceOf priced a prototype member — `ITEMS[\'constructor\']` must not resolve');
   }

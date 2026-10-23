@@ -47,9 +47,19 @@ export const BAND_TARGETS = Object.freeze({
 });
 
 /* WHAT WORN GEAR SELLS FOR (Tyler 2026-10-23: keep the Scarce pace and meet the value caps through what dropped gear
-   sells for). The trader pays this share of a weapon's, armour's, off-hand's or jewel's book value (`v`), floored at 1,
-   one price per item wherever it came from; the shop buy-back cap still applies on top
-   (supabase/functions/hr-accrue/catalogue.js vendorPriceOf). Book value itself is untouched. Measured against the caps
-   (gear at most half the coin, total value at most +25%) by tests/hunt-core/drop-tables.mjs. PROVISIONAL. */
-export const VENDOR_GEAR_RATE = 0.5;
+   sells for). The trader pays a share of a weapon's, armour's, off-hand's or jewel's book value (`v`), floored at 1,
+   by the piece's TIER, one price per item wherever it came from; the shop buy-back cap still applies on top
+   (supabase/functions/hr-accrue/catalogue.js vendorPriceOf). Book value itself is untouched. By tier because the pace is
+   the same on every ground (about a piece an hour per slot per weight) while book value climbs 2-4x a tier and coin
+   barely moves (DM-16): tier 3 sells at 0.12 so the Warrens' gear stays under half its coin, as tiers 1-2 do at 0.5.
+   A tier above the table (no ground drops one yet) sells at its last rate; a piece with no tier at tier 1's. Measured
+   against the caps by tests/hunt-core/drop-tables.mjs. PROVISIONAL. */
+export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.12]);
 export const VENDOR_GEAR_TYPES = Object.freeze(['weapon', 'armor', 'offhand', 'jewelry']);
+
+/** The share of book value the trader pays for `item` if it is worn gear, else 1. */
+export function gearSaleRate(item) {
+  if (!item || !VENDOR_GEAR_TYPES.includes(item.type)) return 1;
+  const t = Math.max(1, Math.floor(Number(item.tier) || 1));
+  return VENDOR_GEAR_RATES[Math.min(t, VENDOR_GEAR_RATES.length) - 1];
+}

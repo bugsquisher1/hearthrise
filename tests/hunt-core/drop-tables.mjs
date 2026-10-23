@@ -71,7 +71,7 @@ const TOTAL_RISE_MAX = 0.25;    // THE BANDS (Tyler 2026-10-23): total value up 
    on next b7af6a9db before any ground converted. A conversion is held to +25% over its ground's row; never re-pinned. */
 const TOTAL_TODAY = Object.freeze({ mill_cellar: 1869, millrace_sewer: 3822, meadowbrook_thicket: 2285, coppercap_warrens: 4588, mosslight_glade: 3834 });
 /* THE OLD MODEL'S GROUNDS. SHRINK-ONLY: a ground leaves the day every row of its roster names a band, and never returns. */
-const OLD_MODEL = Object.freeze(['mill_cellar', 'millrace_sewer', 'coppercap_warrens', 'mosslight_glade']);
+const OLD_MODEL = Object.freeze(['millrace_sewer', 'coppercap_warrens', 'mosslight_glade']);
 const banded = (gid) => !OLD_MODEL.includes(gid);
 const SLOTS = Object.freeze(['weapon', 'helmet', 'body', 'pants', 'boots']);
 const BUILD_SLOTS = Object.freeze(['helmet', 'body', 'pants', 'boots']);
@@ -102,6 +102,18 @@ const REFERENCE = Object.freeze({
   mosslight_glade: { roles: ['tank'], full: false },
 });
 const GEAR_RUNS = Object.freeze(['meadowbrook_thicket', 'millrace_sewer', 'mosslight_glade']);   // the fresh-hero grounds
+/* THE PARTY GROUNDS' SECOND GROUP (the brief: a party ground is measured for a party at the floor AND solo): the Sewer's
+   party of four at its floor in the full set, and the Warrens' lone hero at the card's soloFrom. `today` is that group's
+   own pinned value (TOTAL_TODAY's method, next b7af6a9db). */
+const BAND_ALT = Object.freeze({
+  millrace_sewer: Object.freeze({ roles: PARTY, full: true, at: 'floor', today: 3422 }),
+  coppercap_warrens: Object.freeze({ roles: Object.freeze(['tank']), full: true, at: 'soloFrom', today: 5226 }),
+});
+/* The party grounds whose Rare units must go through the party's rare roll (a GEAR_HOURS hunt at the floor). */
+const PARTY_REVEAL = Object.freeze({
+  millrace_sewer: Object.freeze({ roles: PARTY, full: true }),
+  coppercap_warrens: Object.freeze({ roles: PARTY, full: true }),
+});
 /* The fresh hunt's seeds for reveal-path: the default first, then searched in this fixed order until a Rare drops. */
 const FRESH_SEEDS = Object.freeze(['1234567890123', '987654321987', '424242424242']);
 
@@ -164,6 +176,11 @@ const cases = {
           if (drops.some((d) => d.band !== undefined)) return tag + ' names a band on an OLD_MODEL ground (a half conversion)';
           continue;
         }
+        /* the tutorial cellar's seeded fixtures keep their tables (TUTORIAL), unbanded, read by the odds */
+        if (gid === TUTORIAL.ground && TUTORIAL.fixtures.includes(id)) {
+          if (drops.some((d) => d.band !== undefined)) return tag + ' is a seeded fixture and names a band (its table stays as it is)';
+          continue;
+        }
         if (!(Array.isArray(m.gp) && m.gp[1] > 0)) return tag + ' pays no gold';
         let last = -1, commons = 0, uncommons = 0, trophies = 0;
         const armour = [];
@@ -193,14 +210,15 @@ const cases = {
           }
           if (M.LB.REVEAL_BANDS.includes(d.band)) { const why = revealWhy(M, tag, id, m, d); if (why) return why; }
         }
-        if (commons < 1 || commons > 2) return tag + ' has ' + commons + ' Common rows, the rule is 1-2';
-        if (uncommons !== 1) return tag + ' has ' + uncommons + ' Uncommon rows, the rule is one (its imbuement item)';
+        /* the four slots' counts (one junk + at most one bones; one imbuement item) wait on a ground's imbuement batch */
+        if (!IMBUE_PENDING.includes(gid) && (commons < 1 || commons > 2)) return tag + ' has ' + commons + ' Common rows, the rule is 1-2';
+        if (!IMBUE_PENDING.includes(gid) && uncommons !== 1) return tag + ' has ' + uncommons + ' Uncommon rows, the rule is one (its imbuement item)';
         if (trophies > 1) return tag + ' has ' + trophies + ' Trophy rows, the rule is one per boss';
-        if (armour.length) {
-          const slots = new Set(armour.map((it) => it.slot)), weights = armour.map((it) => weightOf(M, it)).sort().join(', ');
-          if (slots.size !== 1 || weights !== [...WEIGHTS].sort().join(', ')) {
-            return tag + ' Scarce armour is ' + [...slots].map((s) => SLOT_WORD[s]).join(' + ') + ' in ' + weights + ': the rule is one slot in heavy, medium and light';
-          }
+        /* every slot a monster carries comes in heavy, medium AND light, once each (one slot where the kills allow it;
+           a fast-dying swarm may carry two, a slow trio may share one, to hold the hourly pace: drop-tables gear-pace) */
+        for (const slot of new Set(armour.map((it) => it.slot))) {
+          const weights = armour.filter((it) => it.slot === slot).map((it) => weightOf(M, it)).sort().join(', ');
+          if (weights !== [...WEIGHTS].sort().join(', ')) return tag + ' Scarce ' + SLOT_WORD[slot] + ' come in ' + weights + ': the rule is heavy, medium and light, once each';
         }
       }
     }
@@ -220,7 +238,8 @@ const cases = {
   },
   'build-coverage'(M) {
     for (const [gid, ground] of Object.entries(M.G.HUNT_GROUNDS)) {
-      if (!banded(gid)) continue;
+      /* the tutorial room teaches the pull with one slot (the Hive Wasp's helmets, designer 2026-10-23) */
+      if (!banded(gid) || gid === TUTORIAL.ground) continue;
       const have = new Set();
       for (const id of rosterOf(ground)) for (const d of M.MONSTERS[id].drops || []) {
         const w = d.band === 'scarce' && weightOf(M, M.ITEMS[d.id]);
@@ -349,23 +368,23 @@ function expectedLoot(M, P, monsters, x, n) {
   return out;
 }
 
-/* THE BANDS' RULES on one played floor hour. Answers the printed evidence. */
-function bandRules(M, P, monsters, R, gid, x, n) {
-  const E = expectedLoot(M, P, monsters, x, n), list = Object.values(E.items);
+/* THE BANDS' RULES on one played floor hour (`label` names a party ground's second group). Answers the evidence. */
+function bandRules(M, P, monsters, R, gid, x, n, today, label) {
+  const E = expectedLoot(M, P, monsters, x, n), list = Object.values(E.items), at = gid + (label ? ' (' + label + ')' : '');
   const range = (band) => list.filter((p) => p.band === band).map((p) => 1 / p.perH);
   for (const band of HOUR_BANDS) {
     const [lo, hi] = M.LB.BAND_TARGETS[band].hours, rule = band === 'scarce' ? 'gear-pace' : band === 'rare' ? 'rare-pace' : 'trophy-pace';
     for (const p of list.filter((q) => q.band === band)) {
       const h = 1 / p.perH;
-      R.ok(h >= lo && h <= hi, rule + ': ' + gid + ' ' + band + ' ' + p.id + ' (' + p.from.join(', ') + ') every ' + h.toFixed(2) + ' h per hero, outside ' + lo + '-' + hi + ' h');
+      R.ok(h >= lo && h <= hi, rule + ': ' + at + ' ' + band + ' ' + p.id + ' (' + p.from.join(', ') + ') every ' + h.toFixed(2) + ' h per hero, outside ' + lo + '-' + hi + ' h');
     }
   }
-  R.ok(E.gear <= FAUCET_BANDED * E.coin, 'gear-faucet: ' + gid + ' equipment sells for ' + Math.round(E.gear) + ' g/h, over ' + FAUCET_BANDED + ' of the coin (' + Math.round(E.coin) + ' g/h)');
-  const total = E.coin + E.commons + E.gear + E.other, today = TOTAL_TODAY[gid];
-  R.ok(today > 0 && total <= (1 + TOTAL_RISE_MAX) * today, 'total-value: ' + gid + ' pays ' + Math.round(total) + ' g per hero-hour, over +' + Math.round(TOTAL_RISE_MAX * 100) + '% on today\'s ' + today);
-  /* THE SELL FACTOR the caps allow, measured: the largest share of book the equipment could sell at with both caps met. */
+  R.ok(E.gear <= FAUCET_BANDED * E.coin, 'gear-faucet: ' + at + ' equipment sells for ' + Math.round(E.gear) + ' g/h, over ' + FAUCET_BANDED + ' of the coin (' + Math.round(E.coin) + ' g/h)');
+  const total = E.coin + E.commons + E.gear + E.other;
+  R.ok(today > 0 && total <= (1 + TOTAL_RISE_MAX) * today, 'total-value: ' + at + ' pays ' + Math.round(total) + ' g per hero-hour, over +' + Math.round(TOTAL_RISE_MAX * 100) + '% on today\'s ' + today);
+  /* THE SELL FACTOR the caps allow, measured: the largest share of book this ground's equipment could sell at. */
   const fmax = E.gearBook > 0 ? Math.min(FAUCET_BANDED * E.coin, (1 + TOTAL_RISE_MAX) * today - E.coin - E.commons - E.other) / E.gearBook : Infinity;
-  return { E, total, today, fmax, scarce: range('scarce'), rare: range('rare'), trophy: range('trophy') };
+  return { E, total, today, fmax, label: label || '', scarce: range('scarce'), rare: range('rare'), trophy: range('trophy'), pieces: list };
 }
 
 /* THE FRESH HERO, banded: all four slots of each weight within GEAR_HOURS (realized on the real settle). */
@@ -378,15 +397,35 @@ function freshWeights(M, R, gid, x) {
   }
   return WEIGHTS.map((w) => w + ' ' + BUILD_SLOTS.filter((s) => have[w] && have[w].has(s)).length + '/4').join(', ');
 }
-/* REVEAL-PATH: a fresh hunt on the real settle (seeds searched in a fixed order until a Rare item is credited). */
-function revealPath(M, P, monsters, R, gid, first) {
-  const ground = M.G.HUNT_GROUNDS[gid], floor = M.HUNTS[ground.hunt].band[0];
+/* What a ground reveals: `only` the items only Rare / Trophy rows drop, `never` the items only standard rows drop. */
+function revealSets(M, monsters, gid) {
   const reveal = new Set(), plain = new Set(), scarce = new Set();
-  for (const id of rosterOf(ground)) for (const d of monsters[id].drops || []) {
+  for (const id of rosterOf(M.G.HUNT_GROUNDS[gid])) for (const d of monsters[id].drops || []) {
     (M.LB.REVEAL_BANDS.includes(d.band) ? reveal : plain).add(d.id);
     if (d.band === 'scarce') scarce.add(d.id);
   }
-  const only = [...reveal].filter((id) => !plain.has(id)), never = [...plain].filter((id) => !reveal.has(id));
+  return { reveal, scarce, only: [...reveal].filter((id) => !plain.has(id)), never: [...plain].filter((id) => !reveal.has(id)) };
+}
+/* REVEAL-PATH, A PARTY (Tyler 2026-10-14: the party's rare roll): every Rare unit a party of four is credited in a
+   GEAR_HOURS hunt at the floor went through the rare roll and rides its winner's rare-drop hint; no standard drop does. */
+function partyReveal(M, P, monsters, R, gid, L, roles, full) {
+  const S = revealSets(M, monsters, gid), at = gid + ' (party of ' + roles.length + ')';
+  const x = P.run(gid, L, roles, { spanMs: GEAR_HOURS * H, fullSet: full, monsters });
+  const got = {}, hints = [];
+  for (const k of x.heroes) { for (const [id, q] of Object.entries(x.heroItems[k] || {})) got[id] = (got[id] || 0) + q; hints.push(...(x.heroRares[k] || [])); }
+  const count = (list, id) => list.filter((h) => h === id).length;
+  R.ok(S.only.some((id) => got[id] > 0), 'reveal-path: ' + at + ' credited no Rare item in a ' + GEAR_HOURS + ' h hunt');
+  for (const id of S.only) {
+    R.ok((got[id] || 0) === count(hints, id), 'reveal-path: ' + at + ' credited ' + (got[id] || 0) + ' ' + id + ' with ' + count(hints, id) + ' rare-drop hint(s)');
+    R.ok((got[id] || 0) === count(x.rareRolls, id), 'reveal-path: ' + at + ' credited ' + (got[id] || 0) + ' ' + id + ' through ' + count(x.rareRolls, id) + ' rare roll(s)');
+  }
+  for (const id of S.never) R.ok(count(hints, id) === 0 && count(x.rareRolls, id) === 0, 'reveal-path: ' + at + ' revealed or rolled ' + id + ', a standard drop');
+  return S.only.filter((id) => got[id] > 0).map((id) => id + ' x' + got[id]).join(', ') + ' (' + x.rareRolls.length + ' rare rolls)';
+}
+/* REVEAL-PATH: a fresh hunt on the real settle (seeds searched in a fixed order until a Rare item is credited). */
+function revealPath(M, P, monsters, R, gid, first) {
+  const floor = M.HUNTS[M.G.HUNT_GROUNDS[gid].hunt].band[0];
+  const { reveal, scarce, only, never } = revealSets(M, monsters, gid);
   const gotOf = (x) => x.heroItems[x.heroes[0]] || {};
   let x = first, n = 1;
   for (const secret of FRESH_SEEDS) {
@@ -420,7 +459,17 @@ async function plays(M, P, monsters, R, print, only, fresh = !only) {
       R.ok(x.playedMs >= H, 'profit-floor: ' + gid + ' ended after ' + (x.playedMs / 60000).toFixed(0) + ' min at its floor (' + T.ended.join(', ') + ')');
       R.ok(m >= MARGIN_MIN, 'profit-floor: ' + gid + ' at level ' + floor + ' earns ' + pct(m) + ' over its store bill, under +' + MARGIN_MIN + '%');
     }
-    if (banded(gid)) { row.bands = bandRules(M, P, monsters, R, gid, x, n); continue; }
+    if (banded(gid)) {
+      row.bands = bandRules(M, P, monsters, R, gid, x, n, TOTAL_TODAY[gid], '');
+      /* A PARTY GROUND's second group (the Sewer's party at the floor, the Warrens' lone hero at soloFrom) holds the bands too. */
+      const alt = BAND_ALT[gid];
+      if (alt) {
+        const lv = alt.at === 'soloFrom' ? M.G.HUNT_GROUNDS[gid].soloFrom : floor;
+        const xa = P.run(gid, lv, alt.roles, { spanMs: H, fullSet: alt.full, monsters });
+        row.alt = bandRules(M, P, monsters, R, gid, xa, alt.roles.length, alt.today, alt.roles.length > 1 ? 'party of ' + alt.roles.length : 'alone at ' + lv);
+      }
+      continue;
+    }
     /* the EXPECTED sale value of the equipment rows at this run's kills (one lucky body would swing a realized count) */
     row.gearValue = Object.entries(x.killsBy).reduce((s, [id, k]) => { const g = gearRowOf(monsters[id] || {}); return s + (g ? k * g.ch * M.G.yieldPermille(n) / 1000 * P.vendorPriceOf(M.ITEMS, g.id) : 0); }, 0) / h / n;
     row.rates = slotRates({ ...M, MONSTERS: monsters }, M.G, x, n);
@@ -437,8 +486,12 @@ async function plays(M, P, monsters, R, print, only, fresh = !only) {
     }
   }
   /* THE FRESH HERO: a solo Melee in the ladder kit at the floor, GEAR_HOURS long; the hero levels as it plays. */
-  const fresh5 = {}, freshB = {};
+  const fresh5 = {}, freshB = {}, partyB = {};
   if (fresh) {
+    for (const [gid, pr] of Object.entries(PARTY_REVEAL)) {
+      if ((only && !only.includes(gid)) || !banded(gid)) continue;
+      partyB[gid] = partyReveal(M, P, monsters, R, gid, M.HUNTS[M.G.HUNT_GROUNDS[gid].hunt].band[0], pr.roles, pr.full);
+    }
     for (const gid of GEAR_RUNS) {
       if (only && !only.includes(gid)) continue;
       const x = P.run(gid, M.HUNTS[M.G.HUNT_GROUNDS[gid].hunt].band[0], ['tank'], { spanMs: GEAR_HOURS * H, monsters });
@@ -471,13 +524,14 @@ async function plays(M, P, monsters, R, print, only, fresh = !only) {
       console.log(head + String(Math.round(r.gearValue)).padStart(6) + '   ' + SLOTS.map((s) => (r.rates[s] || 0).toFixed(2).padStart(5)).join(' ')
         + '   ' + (Number.isFinite(r.rare.hours) ? r.rare.hours.toFixed(1) + ' h (' + r.rare.carrier + ')' : '-'));
     }
-    for (const r of rows.filter((q) => q.bands)) {
-      const B = r.bands, E = B.E, someRare = B.rare.length ? 1 / B.rare.reduce((s, hh) => s + 1 / hh, 0) : Infinity;
-      console.log('  LOOT BANDS ' + r.gid + ' L' + r.floor + ' (expected, per hero-hour): Scarce piece every ' + span(B.scarce) + ' (' + B.scarce.length + ' pieces)'
+    for (const B of rows.filter((q) => q.bands).flatMap((q) => [Object.assign(q.bands, { gid: q.gid, floor: q.floor }), q.alt && Object.assign(q.alt, { gid: q.gid, floor: q.floor })]).filter(Boolean)) {
+      const E = B.E, someRare = B.rare.length ? 1 / B.rare.reduce((s, hh) => s + 1 / hh, 0) : Infinity;
+      const weight = (w) => w + ' ' + span(B.pieces.filter((pc) => pc.band === 'scarce' && weightOf(M, M.ITEMS[pc.id]) === w).map((pc) => 1 / pc.perH));
+      console.log('  LOOT BANDS ' + B.gid + ' L' + B.floor + (B.label ? ' ' + B.label : ' (reference)') + ', expected per hero-hour: Scarce piece every ' + span(B.scarce) + ' (' + B.scarce.length + ' pieces: ' + WEIGHTS.map(weight).join(', ') + ')'
         + ' | Rare item every ' + span(B.rare) + ' (' + B.rare.length + ' items; some Rare every ' + someRare.toFixed(1) + ' h)' + (B.trophy.length ? ' | Trophy every ' + span(B.trophy) : '')
         + ' | coin ' + Math.round(E.coin) + ' commons ' + Math.round(E.commons) + ' gear ' + Math.round(E.gear) + ' (' + Math.round(100 * E.gear / E.coin) + '% of coin) other ' + Math.round(E.other)
         + ' | total ' + Math.round(B.total) + ' vs today ' + B.today + ' (' + pct((B.total / B.today - 1) * 100) + ')'
-        + ' | gear sells at ' + M.LB.VENDOR_GEAR_RATE + ' of book; both caps hold up to ' + B.fmax.toFixed(2));
+        + ' | gear sells at ' + JSON.stringify(M.LB.VENDOR_GEAR_RATES) + ' of book by tier; this ground\'s caps hold up to ' + B.fmax.toFixed(2));
     }
     for (const { gid, sp, spr } of party) {
       console.log('  ' + gid.padEnd(20) + ' L' + M.HUNTS[M.G.HUNT_GROUNDS[gid].hunt].band[0] + '  party of 4 (full set): ' + pct(marginOf(sp)) + ', rare every ' + spr.hours.toFixed(1)
@@ -485,6 +539,7 @@ async function plays(M, P, monsters, R, print, only, fresh = !only) {
     }
     for (const [gid, b] of Object.entries(fresh5)) console.log('  fresh solo hero, ' + gid + ', ' + GEAR_HOURS + ' h: ' + SLOTS.map((s) => SLOT_WORD[s] + ' ' + (b[s] || 0)).join(', '));
     for (const [gid, b] of Object.entries(freshB)) console.log('  fresh solo hero, ' + gid + ', ' + GEAR_HOURS + ' h: slots held ' + b.held + ' | reveals on the settle: ' + b.reveal);
+    for (const [gid, b] of Object.entries(partyB)) console.log('  party of four, ' + gid + ', ' + GEAR_HOURS + ' h at the floor: Rare units ' + b);
   }
 }
 
@@ -597,9 +652,9 @@ const playMutants = [
   } },
   { name: 'the Sewer boots five times rarer (old model)', rule: 'gear-pace: millrace_sewer', edit: (ms) => { gearOf(ms, 'drain_rat').ch /= 5; } },
   { name: 'Rook\'s Whistle at 1% (old model)', rule: 'rare-pace: mosslight_glade', edit: (ms) => { ms.rook_poacher.drops.find((d) => d.id === 'rooks_whistle').ch = 0.01; } },
-  /* half price for worn gear (loot-bands.js VENDOR_GEAR_RATE) halved the old faucet: every Warrens piece at 5% bites */
+  /* worn tier-3 gear sells at 0.12 of book (loot-bands.js VENDOR_GEAR_RATES): only a cartload (half the kills) bites */
   { name: 'the Warrens gear by the cartload (old model)', rule: 'gear-faucet: coppercap_warrens', edit: (ms) => {
-    for (const id of ['goblin_scavenger', 'goblin_skulker', 'goblin_digger', 'hobgoblin_foreman', 'chief_coppercap']) gearOf(ms, id).ch = 0.05;
+    for (const id of ['goblin_scavenger', 'goblin_skulker', 'goblin_digger', 'hobgoblin_foreman', 'chief_coppercap']) gearOf(ms, id).ch = 0.5;
   } },
   { name: 'the Thicket\'s heavy boots five times rarer', rule: 'gear-pace: meadowbrook_thicket', edit: (ms) => { rowOf(ms, 'gray_whelp', 'bronze_boots').ch /= 5; } },
   { name: 'the Thicket\'s bodies twice as common', rule: 'gear-pace: meadowbrook_thicket', edit: (ms) => { for (const d of ms.dire_gray.drops) if (d.band === 'scarce') d.ch *= 2; } },
@@ -611,7 +666,7 @@ const playMutants = [
 ];
 /* Planted trees (src/data, src/core, the settle), played on the Thicket. */
 const plantMutants = [
-  { name: 'worn gear sells at full book again', rule: 'gear-faucet: meadowbrook_thicket', edits: [['src/data/loot-bands.js', 'export const VENDOR_GEAR_RATE = 0.5;', 'export const VENDOR_GEAR_RATE = 1;']] },
+  { name: 'worn gear sells at full book again', rule: 'gear-faucet: meadowbrook_thicket', edits: [['src/data/loot-bands.js', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.12]);', 'export const VENDOR_GEAR_RATES = Object.freeze([1, 1, 1]);']] },
   { name: 'the roller reveals nothing (a Rare credited with no hint)', rule: 'reveal-path: meadowbrook_thicket', fresh: true,
     edits: [['src/core/drops.js', 'rare: REVEAL_BANDS.includes(band) });', 'rare: false });']] },
 ];

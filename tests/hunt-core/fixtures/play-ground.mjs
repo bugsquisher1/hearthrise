@@ -19,7 +19,7 @@ const COMBAT = ['melee', 'ranged', 'magic', 'defense'];
 /** THE RUNNER, reusable (tests/hunt-core/drop-tables.mjs): `run(huntId, L, roles, opts)` plays one ground
     on the real settle and answers the totals, per hour and per hero, plus `items` (id -> count, the whole
     party's credit), `heroItems` and `heroXp` (per hero key: item / skill -> amount), `heroRares` (per hero key: the
-    settle's rare-drop hints, item ids in order) and `killsBy` (monster -> kills).
+    settle's rare-drop hints, item ids in order), `rareRolls` (the party's rare-roll events, item ids) and `killsBy`.
     opts: { spanMs (default thirty minutes), secret (the hunt seed), monsters (a drop-table fixture), fullSet,
     equipment (one worn set every hero wears, e.g. the start kit's; or a function (role, seat, L) -> set, one per hero) }. */
 /** The trees loadPlay reads beyond src/core and src/data: a planted copy (h1.js plant) needs them too. */
@@ -124,7 +124,7 @@ export async function loadPlay(root) {
     for (const p of ground.pockets) for (const s of p.spawns) for (const d of monsters[s.monster].drops) if (commonRow(d)) common.add(d.id);
     let world = null, next = T0, played = 0;
     const T = { xp: 0, levelXp: 0, coin: 0, commons: 0, rares: 0, store: 0, falls: 0, kills: 0, ended: [], buys: {} };
-    const items = {}, heroItems = {}, killsBy = {}, heroXp = {}, heroRares = {};
+    const items = {}, heroItems = {}, killsBy = {}, heroXp = {}, heroRares = {}, rareRolls = [];
     for (let t = T0; t < T0 + span; t += 600000) {
       const out = AC.accrueHunt({ instance: { id: IID, nextSwingAtMs: next, world }, window: { fromMs: t, toMs: Math.min(T0 + span, t + 600000) },
         secret, ground, grid, items: ITEMS, monsters, members });
@@ -132,6 +132,8 @@ export async function loadPlay(root) {
       /* opts.onWindow(out, members): an observer of each settled window's events and members (party-defense.mjs) */
       if (typeof opts.onWindow === 'function') opts.onWindow(out, members);
       world = out.world; next = out.settledTo; played = next - T0;
+      /* a party's rare roll (hunt-rewards.js payKill: each revealed unit, two or more heroes) */
+      for (const e of out.events || []) if (e && e.type === 'rare_roll') rareRolls.push(e.item);
       for (const p of out.members) {
         const m = members.find((x) => x.key === p.key), h = p.hunt;
         if (p.key === members[0].key) {
@@ -173,7 +175,7 @@ export async function loadPlay(root) {
     const per = 3600000 / span / roles.length;
     const r = (n) => Math.round(n * per);
     const income = r(T.coin + T.commons), store = r(T.store);
-    return { spanMs: span, playedMs: played, totals: T, items, heroItems, heroXp, heroRares, killsBy, heroes: members.map((m) => m.key),
+    return { spanMs: span, playedMs: played, totals: T, items, heroItems, heroXp, heroRares, rareRolls, killsBy, heroes: members.map((m) => m.key),
       kills: Math.round(T.kills * 3600000 / span), falls: T.falls, xp: r(T.xp), levelXp: r(T.levelXp), coin: r(T.coin), commons: r(T.commons), rares: r(T.rares), store, income,
       margin: store ? Math.round((income / store - 1) * 100) + '%' : 'no store spend', net: income + r(T.rares) - store, ended: T.ended };
   };

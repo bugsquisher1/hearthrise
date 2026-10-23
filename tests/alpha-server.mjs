@@ -50,6 +50,7 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { bootReplay, inventory, LAST_PATCHED, ROOT } from './schema-replay.mjs';
 import { isMain } from './_is-main.mjs';
+import { goldOf } from './_gold.mjs';
 
 const MUTATE = process.argv.includes('--mutate');
 const FN = join('supabase', 'functions', 'hr-accrue');
@@ -80,7 +81,8 @@ async function asAuth(db, uid, sql, params) {
   try { const r = (await db.query(sql, params)).rows[0]; return r ? Object.values(r)[0] : undefined; }
   finally { await db.exec('reset role'); }
 }
-const gold = async (H, db, uid) => Number(await H.one(db, 'select gold from public.player_state where user_id = $1 and slot = 0', [uid]));
+/* The gold the hero spends: its ACCOUNT's purse (2026-12-15-account-gold.sql), or its own on an older chain. */
+const gold = async (H, db, uid) => goldOf((sql, p) => db.query(sql, p).then((r) => r.rows), uid, 0);
 const qty = async (H, db, uid, item) => Number(await H.one(db, 'select coalesce((select qty from public.player_inventory where user_id = $1 and slot = 0 and item_id = $2), 0)', [uid, item]));
 
 // ═══════════════════════════════════════════════════════════════════════

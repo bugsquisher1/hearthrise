@@ -13,19 +13,19 @@
 // PURE ESM, Node + Deno + browser.
 // ============================================================================
 
-import { DEFAULT_PROFILE, equipmentStats, armorSetBonus, playerCombatRolls, weaknessInfo } from './combat.js?v=0.2.34';
-import { makeBonus, EMPTY_PERKS } from './perks.js?v=0.2.34';
-import { companionBonus } from './companion-perk.js?v=0.2.34';
-import { buffQueueFromServer, buffBonusFor } from './buffs.js?v=0.2.34';
-import { grantXp, normaliseXpFrac } from './progression.js?v=0.2.34';
-import { charLevelFromXp, levelsOf } from './xp.js?v=0.2.34';
-import { vitalsOf, wearsArmour } from './vitals.js?v=0.2.34';
-import { newHuntSession, takeLine } from './action-rules.js?v=0.2.34';
-import { makeGoalCounter, makeBestiaryCounter, makeCollectionCounter } from './goals.js?v=0.2.34';
-import { HUNT_ROLES } from '../data/hunt-roles.js?v=0.2.34';
-import { MONSTERS } from '../data/monsters.js?v=0.2.34';
-import { honeOf, honeWornAt, ammoPerShot } from './ammo.js?v=0.2.34';
-import { mitigationFor, NO_MITIGATION } from './mitigation.js?v=0.2.34';
+import { DEFAULT_PROFILE, equipmentStats, armorSetBonus, playerCombatRolls, weaknessInfo } from './combat.js?v=0.2.35';
+import { makeBonus, EMPTY_PERKS } from './perks.js?v=0.2.35';
+import { companionBonus } from './companion-perk.js?v=0.2.35';
+import { buffQueueFromServer, buffBonusFor } from './buffs.js?v=0.2.35';
+import { grantXp, normaliseXpFrac } from './progression.js?v=0.2.35';
+import { charLevelFromXp, levelsOf } from './xp.js?v=0.2.35';
+import { vitalsOf, wearsArmour } from './vitals.js?v=0.2.35';
+import { newHuntSession, takeLine } from './action-rules.js?v=0.2.35';
+import { makeGoalCounter, makeBestiaryCounter, makeCollectionCounter } from './goals.js?v=0.2.35';
+import { HUNT_ROLES } from '../data/hunt-roles.js?v=0.2.35';
+import { MONSTERS } from '../data/monsters.js?v=0.2.35';
+import { honeOf, honeWornAt, ammoPerShot } from './ammo.js?v=0.2.35';
+import { mitigationFor, NO_MITIGATION } from './mitigation.js?v=0.2.35';
 
 /* A finite, non-negative number or the fallback (every number that crosses in from a row). */
 function nat(v, fallback) {
@@ -259,6 +259,23 @@ export function memberSide(mi, ctx) {
   const rollsVs = (m) => playerCombatRolls(m, { eq, equipment, items, skills: state.skills, bonus, setBonus, profile });
   const weakness = (m) => weaknessInfo(m, eq);
   /* ⟦end engine seam⟧ */
+  /* THE ITEM A SHOT SPENT PRICES ITS BLOW (src/core/hunt/damage.js blow): the same rolls with `ammo` in
+     the ammo slot instead of the loaded one (null = none: a caster's bare swing once its runes are
+     spent). `m` null = the neutral foe, the snapshot's max hit. One loadout per ammo id, rebuilt when the
+     worn set changes (a spent whetstone, unhone above); skills and buffs are read live, as rollsVs reads them. */
+  let shotSet = null; let shotLoadouts = null;
+  const shotRolls = (m, ammo) => {
+    if (shotSet !== equipment) { shotSet = equipment; shotLoadouts = new Map(); }
+    const k = typeof ammo === 'string' ? ammo : '';
+    let l = shotLoadouts.get(k);
+    if (!l) {
+      const e = Object.assign({}, equipment);
+      if (k) e.ammo = k; else delete e.ammo;
+      l = Object.assign({ equipment: e }, loadoutOf(e, items));
+      shotLoadouts.set(k, l);
+    }
+    return playerCombatRolls(m || NEUTRAL_FOE, { eq: l.eq, equipment: l.equipment, items, skills: state.skills, bonus, setBonus: l.setBonus, profile: l.profile });
+  };
   return {
     mi, hs, state, fx, eq, skills0, levelXp0, levelGained: () => levelGained, xpFrac0, catalogue: items, goals, bestiary, collection, itemDelta, events, xpGained, finds,
     member: {
@@ -271,7 +288,7 @@ export function memberSide(mi, ctx) {
       armoured: wearsArmour(equipment, items),
       shield: !!(HUNT_ROLES[h.role] && HUNT_ROLES[h.role].discipline === 'shield'),
       buffsAt: (atMs) => { state.buffs = buffQueueFromServer(buffRows, atMs); },
-      bonus, weakness, rollsVs,
+      bonus, weakness, rollsVs, shotRolls,
       /* THE RELIC MULTIPLIER (lane c-bestiary): the member's OWN account_bestiary.relic_mult
          { monster kind: mult } (mi.relicMults, server-side only: drops are never rolled for the
          browser), read by hunt-rewards.js as lead.relicMult(kind); 1 when absent, clamped to
@@ -292,6 +309,32 @@ export function memberSide(mi, ctx) {
   };
 }
 
+
+/* ── ONE PURSE PER ACCOUNT (Tyler 2026-10-23; 2026-12-15-account-gold.sql) ──────
+   Gold is the ACCOUNT's, so the heroes of one account in one instance spend ONE purse,
+   in time order: the coins any of them loots, a sale any of them makes and a store use
+   any of them buys move the same gold, and each use keeps the purse at its OWN hero's
+   floor (action-rules.js floorOf). The settle reads every member's state in one
+   statement, so their start purses agree; the first side's is kept. The database pays
+   the window's store bills after every member's credits (hr_hunt_apply_instance), which
+   this time order keeps payable. Links each grouped side's session purse to one box. */
+export function sharePurses(sides) {
+  const byUser = new Map();
+  for (const s of sides || []) {
+    const u = s && s.mi && s.mi.user != null ? String(s.mi.user) : null;
+    if (u === null || !s.hs) continue;
+    if (!byUser.has(u)) byUser.set(u, []);
+    byUser.get(u).push(s);
+  }
+  for (const group of byUser.values()) {
+    if (group.length < 2) continue;
+    const box = { gold: Math.max(0, Math.floor(Number(group[0].hs.purse) || 0)) };
+    for (const s of group) {
+      Object.defineProperty(s.hs, 'purse', { get: () => box.gold, set: (v) => { box.gold = v; }, enumerable: true, configurable: true });
+    }
+  }
+  return sides;
+}
 
 /* ── A PARTY MEMBER AS THE VIEWER'S BROWSER SEES IT (Tyler 2026-10-20) ──────────
    hunt_live gives the viewer its OWN member's full setup, but every OTHER member only

@@ -73,6 +73,10 @@
 //              unticked one; a leave at the same boundary does not rename it.
 //   QUIVER     every ranged basic looses one shot of the loaded ammo; a
 //              40-arrow bag under `end` fires 40 and ends ammo_out.
+//   RUNE-SPEND a staff's basic never buys a store rune; spent runes never end a
+//              default hunt and the caster swings on, bare; a slot naming Blood
+//              Runes with Air loaded lands Blood-loaded's blows; an unaffordable
+//              store-rune spell never ends the hunt; one span == cut windows.
 //   WORLD-BOUND  a four-hero party's world stays inside world_max_bytes on the
 //              compact form; world-state refuses one past it.
 //   FENCE      a hunter is never priced by the old path (hunt_open), a combat
@@ -194,6 +198,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createHmac } from 'node:crypto';
 import { SHIM_CRYPTO, SHIM_VAULT, SHIM_NET } from './world-tick-token-shims.mjs';
 import { isMain } from './_is-main.mjs';
+import { setGold } from './_gold.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const MUTATE = process.argv.includes('--mutate');
@@ -1040,6 +1045,60 @@ const ENGINE_ARMS = {
     return problems;
   },
 
+  /* THE RUNE SPEND (lane a-rune-spend, 2026-10-23 audit), BOTH PATHS: every case settles the same in one span
+     (the browser closed) and cut at odd instants (viewed). (1) A staff's basic never buys the store's Plain Fire
+     Rune once its Fire Runes are spent (live: 8 g a shot, ~14,400 g an hour), and it swings on, bare. (2) Spent
+     Earth Runes never end a default hunt ammo_out (live: at four minutes), and the wand keeps hitting. (3) A slot
+     naming Blood Runes while Air Runes are loaded lands exactly Blood-loaded's blows (it hit at Air's strength).
+     (4) An unaffordable store-rune Flame Strike above Power Strike never ends the hunt (it ended gold_out at once). */
+  'RUNE-SPEND': async (M) => {
+    const problems = [];
+    const span = 600000;
+    const cuts = [T0 + 7001, T0 + 133333, T0 + 299999, T0 + 450001];
+    const ms = (o) => o.outs.flatMap((x) => x.members);
+    const unitOf = (o) => (ms(o).find((x) => Number.isInteger(x.hunt.unit_id)) || { hunt: {} }).hunt.unit_id;
+    const hits = (o) => { const id = unitOf(o); return o.outs.flatMap((x) => x.events.filter((e) => e.type === 'dmg' && e.ability === 'basic' && e.u === id).map((e) => [e.atMs, e.t, e.amount])); };
+    const sum = (o, k) => ms(o).reduce((a, x) => { for (const [id, n] of Object.entries(x.hunt[k] || {})) a[id] = (a[id] || 0) + n; return a; }, {});
+    const ended = (o) => (ms(o).find((x) => x.hunt.ended) || { hunt: {} }).hunt.ended || null;
+    const casts = (o, ab) => o.outs.reduce((a, x) => a + x.events.filter((e) => e.type === 'cast' && e.ability === ab).length, 0);
+    const sig = (o) => canon({ hits: hits(o), bought: sum(o, 'buys'), uses: sum(o, 'uses'), ended: ended(o) });
+    const both = (label, mk) => {
+      const one = runCut(M, mk, span, []);
+      const cut = runCut(M, mk, span, cuts);
+      if (sig(one) !== sig(cut)) problems.push(`${label}: the viewed cut settled differently from one span ${firstDiff(sig(one), sig(cut))}`);
+      return one;
+    };
+    /* (1) a Healer's staff with three Fire Runes loaded and the store's Plain Fire Rune behind them */
+    const fire = both('fire', () => [memberIn(M, 'a', { role: 'healer', level: 50, gold: 5000, bag: { fire_rune: { loaded: 3, left: 3 } },
+      equipment: { weapon: 'maple_staff', ammo: 'fire_rune' } })]);
+    if (sum(fire, 'buys').plain_fire_rune) problems.push(`a staff's basics bought ${sum(fire, 'buys').plain_fire_rune} Plain Fire Runes the bar never named`);
+    if (sum(fire, 'uses').fire_rune !== 3) problems.push(`the staff spent ${sum(fire, 'uses').fire_rune} of its 3 Fire Runes`);
+    if (!(hits(fire).length > 3)) problems.push(`the staff landed ${hits(fire).length} basics: it stopped once its Fire Runes were spent`);
+    /* (2) a Mage's wand with twenty Earth Runes (no store row behind them), the default supply setting */
+    const earth = both('earth', () => [memberIn(M, 'a', { role: 'mage', level: 20, bag: { earth_rune: { loaded: 20, left: 20, essential: true } },
+      equipment: { weapon: 'oak_wand', shield: 'oak_spellbook', ammo: 'earth_rune' } })]);
+    if (ended(earth)) problems.push(`spent Earth Runes ended a default hunt ${canon(ended(earth))}`);
+    if (sum(earth, 'uses').earth_rune !== 20) problems.push(`the wand spent ${sum(earth, 'uses').earth_rune} of its 20 Earth Runes`);
+    if (!(hits(earth).length > 30)) problems.push(`the wand landed ${hits(earth).length} basics in ten minutes: it stopped once its runes were spent`);
+    /* (3) the same Mage (and bar, but for the attack slot) with Blood named on the bar and Air loaded, or Blood loaded */
+    const food = { action: { type: 'consume', id: 'salted_shrimp' }, conditions: [{ metric: 'self_hp_pct', op: 'lt', value: 50 }], join: 'and' };
+    const mage = (ammo, bar) => () => [memberIn(M, 'a', { role: 'mage', level: 20, gold: 5000, bar, bag: { blood_rune: { loaded: 2000, left: 2000 }, air_rune: { loaded: 1, left: 1 } },
+      equipment: { weapon: 'oak_wand', shield: 'oak_spellbook', ammo } })];
+    const named = both('blood named', mage('air_rune', [{ action: { type: 'attack_with_item', id: 'blood_rune' }, conditions: [], join: 'and' }, food]));
+    const loaded = both('blood loaded', mage('blood_rune', [food]));
+    const air = runCut(M, mage('air_rune', [food]), span, []);
+    if (!(hits(loaded).length > 30) || canon(hits(loaded)) === canon(hits(air))) problems.push('CONTROL: Blood loaded and Air loaded landed the same blows (the arm cannot see the ammo)');
+    if (canon(hits(named)) !== canon(hits(loaded))) problems.push(`a Blood Rune slot with Air loaded did not land Blood-loaded's blows ${firstDiff(canon(hits(loaded)), canon(hits(named)))}`);
+    if (sum(named, 'uses').blood_rune !== sum(loaded, 'uses').blood_rune) problems.push(`the Blood slot spent ${sum(named, 'uses').blood_rune} Blood Runes, Blood loaded ${sum(loaded, 'uses').blood_rune}`);
+    /* (4) a tank whose first slot is Flame Strike on the store's rune it cannot pay (the gold floor), then Power Strike */
+    const broke = both('broke', () => [memberIn(M, 'a', { role: 'tank', level: 30, floor: 100000,
+      bar: [{ action: { type: 'ability', id: 'flame_strike', store: 'plain_fire_rune' }, conditions: [], join: 'and' }, 'power_strike'] })]);
+    if (ended(broke)) problems.push(`an unaffordable store-rune spell ended the hunt ${canon(ended(broke))} while Power Strike could cast`);
+    if (!(casts(broke, 'power_strike') > 0)) problems.push('CONTROL: Power Strike never cast');
+    if (casts(broke, 'flame_strike')) problems.push(`Flame Strike cast ${casts(broke, 'flame_strike')} times on a store rune the purse could not pay`);
+    return problems;
+  },
+
   'WORLD-BOUND': async (M) => {
     const problems = [];
     const roles = ['melee_dps', 'ranger', 'mage', 'healer'];
@@ -1137,7 +1196,8 @@ async function character(db, M, uid, o) {
   }
   if (o.skillsXp) await admin(db, uid, { xp: o.skillsXp });
   if (o.gold != null) {
-    await db.query('update public.player_state set gold = $2 where user_id = $1 and slot = 0', [uid, o.gold]);
+    /* GOLD IS THE ACCOUNT'S (2026-12-15-account-gold.sql): one purse; every probe here is its account's only hero. */
+    await setGold((sql, p) => db.query(sql, p).then((r) => r.rows), uid, 0, o.gold);
   }
   if (o.hp) await db.query('update public.player_state set hp = $2 where user_id = $1 and slot = 0', [uid, o.hp]);
   if (o.options) {
@@ -1248,7 +1308,7 @@ async function run(db, M, from, cuts, o) {
 async function snapshot(db, sid, uid = UID) {
   return one(db, `
     select jsonb_build_object(
-      'gold', ps.gold, 'hp', ps.hp, 'level_xp', ps.level_xp,
+      'gold', coalesce((select w.gold from public.account_wallet w where w.user_id = $1), 0), 'hp', ps.hp, 'level_xp', ps.level_xp,
       'active', ps.active_kind || ':' || coalesce(ps.active_id, ''), 'stamina', ps.stamina_ms, 'stamina_at', ps.stamina_at,
       'skills', (select jsonb_object_agg(skill_id, jsonb_build_array(xp, xp_frac)) from public.player_skills where user_id = $1 and slot = 0),
       'inv', (select jsonb_object_agg(item_id, qty) from public.player_inventory where user_id = $1 and slot = 0),
@@ -1422,10 +1482,10 @@ const DB_ARMS = {
     await db.query('rollback'); await db.query('begin');
     const k = await hunter(db, M, { ...STRONG, minutesAgo: 6, options: { slots: bar },
       inv: { cooked_shrimp: 30, turnip_juice: 3 }, bag: [{ item: 'cooked_shrimp', qty: 25 }, { item: 'turnip_juice', qty: 3 }] });
-    const g0 = Number(await one(db, 'select gold from public.player_state where user_id = $1 and slot = 0', [UID]));
+    const g0 = Number(await one(db, 'select coalesce((select w.gold from public.account_wallet w where w.user_id = $1), 0)', [UID]));
     const x = await settleTo(db, M, k.from + 60000, { tamper: (c) => { c.members[0].hunt.uses = { ...(c.members[0].hunt.uses || {}), turnip_juice: 4 }; } });
     if (!x.res || x.res.error !== 'bag_short') problems.push(`a drink past the bag answered ${JSON.stringify(x.res).slice(0, 200)}, want bag_short`);
-    if (Number(await one(db, 'select gold from public.player_state where user_id = $1 and slot = 0', [UID])) !== g0
+    if (Number(await one(db, 'select coalesce((select w.gold from public.account_wallet w where w.user_id = $1), 0)', [UID])) !== g0
         || Number(await one(db, `select qty_left from public.hunt_bag where session_id = $1 and item_id = 'turnip_juice'`, [k.sid])) !== 3) {
       problems.push('a drink past the bag moved the purse or the bag');
     }
@@ -2026,7 +2086,7 @@ const DB_ARMS = {
     const problems = [];
     const h = await hunter(db, M, { ...STRONG, minutesAgo: 10 });
     await settleTo(db, M, h.from + 60000);
-    const gold = async () => Number(await one(db, 'select gold from public.player_state where user_id = $1 and slot = 0', [UID]));
+    const gold = async () => Number(await one(db, 'select coalesce((select w.gold from public.account_wallet w where w.user_id = $1), 0)', [UID]));
     const g0 = await gold();
     const at0 = Number(await one(db, 'select floor(extract(epoch from settled_to) * 1000)::bigint from public.hunt_instances where id = $1', [h.inst]));
     const forged = (c) => { c.members[0].delta.journal.meta.kills = 100000; };
@@ -2203,7 +2263,7 @@ const DB_ARMS = {
     const { from } = await hunter(db, M, { ...STRONG, options: { on_empty: 'end', supply_source: 'mine' },
       inv: { cooked_shrimp: 300 }, bag: [{ item: 'cooked_shrimp', qty: 300, essential: true }] });
     await settleTo(db, M, from + 60000);
-    const g0 = Number(await one(db, 'select gold from public.player_state where user_id = $1 and slot = 0', [UID]));
+    const g0 = Number(await one(db, 'select coalesce((select w.gold from public.account_wallet w where w.user_id = $1), 0)', [UID]));
     const back = (c) => { const w = JSON.parse(c.settle.world); c.settle.world_swing = c.worldSwingFrom - 1; w.w[1] = c.settle.world_swing; c.settle.world = JSON.stringify(w); };
     const endAt = (why) => (c) => { m0(c).hunt.ended = { reason: why, at: m0(c).hunt.to }; };
     const m0 = (c) => c.members[0];
@@ -2229,7 +2289,7 @@ const DB_ARMS = {
       const x = await settleTo(db, M, from + 120000, { tamper });
       const got = x.res && x.res.error;
       if (code ? got !== code : !(x.res && x.res.ok === false)) problems.push(`${label} answered ${JSON.stringify(x.res).slice(0, 200)}, want ${code || 'a refusal'}`);
-      const g = Number(await one(db, 'select gold from public.player_state where user_id = $1 and slot = 0', [UID]));
+      const g = Number(await one(db, 'select coalesce((select w.gold from public.account_wallet w where w.user_id = $1), 0)', [UID]));
       if (g !== g0) problems.push(`${label} moved gold ${g0} -> ${g}`);
       await db.query('rollback to savepoint value_case');
     }
@@ -2365,7 +2425,7 @@ const DB_ARMS = {
     const problems = [];
     const { sid } = await hunter(db, M, STRONG);
     const exec = makeExec(db);
-    const value = async () => canon(await one(db, `select jsonb_build_object('gold', ps.gold,
+    const value = async () => canon(await one(db, `select jsonb_build_object('gold', coalesce((select w.gold from public.account_wallet w where w.user_id = $1), 0),
         'skills', (select jsonb_object_agg(skill_id, xp) from public.player_skills where user_id = $1 and slot = 0),
         'inv', (select jsonb_object_agg(item_id, qty) from public.player_inventory where user_id = $1 and slot = 0),
         'tally', (select jsonb_build_object('coins', t.coins, 'kills', t.kills, 'loot', t.loot) from public.hunt_session_tally t where t.session_id = $2))
@@ -2423,6 +2483,18 @@ const MUTANTS = [
     from: "      if (typeof m.wear === 'function') m.wear(atMs);\n", to: '' },
   { arm: 'HONE', name: 'a spent whetstone keeps paying its bonus', file: 'src/core/member.js',
     from: '    if (honeLeft() <= 0) unhone();\n  };', to: '  };' },
+  { arm: 'RUNE-SPEND', name: '[rune-spend] a basic shot buys the store rune behind a spent rune line', file: 'src/core/hunt/abilities.js',
+    from: '  return resolveLine(h && h.hs, id, isRune(itemRow(h, id)) ? null : undefined);', to: '  return resolveLine(h && h.hs, id);' },
+  { arm: 'RUNE-SPEND', name: '[rune-spend] a shot is priced by the loaded ammo, not the item it spent', file: 'src/core/hunt/damage.js',
+    from: "  if (h && t.side === 'mon' && price !== undefined && price !== h.ammo && typeof h.shotRolls === 'function') {", to: '  if (false) {' },
+  { arm: 'RUNE-SPEND', name: '[rune-spend] the member prices every shot with the loaded ammo', file: 'src/core/member.js',
+    from: '      if (k) e.ammo = k; else delete e.ammo;', to: '' },
+  { arm: 'RUNE-SPEND', name: '[rune-spend] spent runes end a default hunt ammo_out', file: 'src/core/action-rules.js',
+    from: "  if (kind === 'ammo' && storeAllowed(hs)) return false;\n", to: '' },
+  { arm: 'RUNE-SPEND', name: '[rune-spend] a caster whose runes are spent never swings again', file: 'src/core/hunt/damage.js',
+    from: "      if (shoots && u.role !== 'ranger' && !shotLine(h, h.ammo).id) return { ammo: null, price: null, size: 1, aim: t };\n", to: '' },
+  { arm: 'RUNE-SPEND', name: '[rune-spend] an unaffordable slot marks the hunt gold_out while the bar is still walked', file: 'src/core/hunt/abilities.js',
+    from: "    if (s.why) return { why: s.short ? 'gold_short' : 'no_stock' };", to: "    if (s.why) { if (s.short) h.hs.goldOut = true; return { why: s.short ? 'gold_short' : 'no_stock' }; }" },
   { arm: 'BUFF', name: 'the hunt never re-measures the buff queue (a buff never pays)', file: 'src/core/combat-sim.js',
     from: "      if (typeof m.buffsAt === 'function') m.buffsAt(atMs);\n", to: '' },
   { arm: 'BUFF', name: '[C2 buff queue at the read clock] the queue is measured once, at the window start', file: 'src/core/member.js',
@@ -2684,8 +2756,10 @@ const DB_MUTANTS = [
     replace: "v_kind is distinct from 'heal' and v_kind is distinct from 'ammo' then" },
   { arm: 'STORE', name: '[C2 one gold] the applier prices a use at one gold', fn: AM,
     find: '      v_cost := v_cost + v_n * v_price;', replace: '      v_cost := v_cost + v_n;' },
-  { arm: 'STORE', name: 'a store use is not journalled', fn: AM,
-    find: "        values (p_user, p_slot, 'hunt', 'supply_buy', -v_cost, -v_units,", replace: "        values (p_user, p_slot, 'hunt', 'supply_bought', -v_cost, -v_units," },
+  /* ACCOUNT GOLD (2026-12-15-account-gold.sql): the store bill is journalled by the instance, after every member's coins. */
+  { arm: 'STORE', name: 'a store use is not journalled', fn: AI,
+    find: "        values ((v_p->>'user')::uuid, (v_p->>'slot')::int, 'hunt', 'supply_buy', -(v_p->>'cost')::bigint, -(v_p->>'units')::bigint,",
+    replace: "        values ((v_p->>'user')::uuid, (v_p->>'slot')::int, 'hunt', 'supply_bought', -(v_p->>'cost')::bigint, -(v_p->>'units')::bigint," },
   { arm: 'PARTY', name: 'a settle of some members lands', fn: AI,
     /* (re-anchored on 2026-11-16-hunt-density-bounds.sql: every refusal after the lock is counted) */
     find: "    return public.hr_hunt_settle_refused(p_instance, p_world_from, v_first, jsonb_build_object('ok', false, 'error', 'member_set'));", replace: "    null;" },

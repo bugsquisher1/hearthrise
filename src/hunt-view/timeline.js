@@ -39,6 +39,13 @@
 //   T5 bounded: at most `maxSteps` per unit and `maxEvents` remembered ids, and
 //      a unit the snapshot's pose no longer lists is forgotten once its last step
 //      is `forgetMs` behind the pose (a corpse has lain; a respawn is a new id).
+//   T11 FORGET (the live view, which reads no pose): forget(u) drops a unit the scene has
+//      finished drawing (its corpse has lain), steps and book, once nothing it holds is still
+//      to play (no step rolling or ahead of the instant shown, no queued event naming it).
+//      Kept, a long hunt held every unit it ever spawned and the scene walked them all every
+//      frame. A step or book row for it at or before the instant it was forgotten at is the
+//      past restated and is refused (a finished corpse never stands up again); a newer one is
+//      the server saying it stands, and is taken.
 //
 // Rendering, simulation and persistence run on independent clocks: the caller
 // asks positionAt()/advance() with its own frame clock; the server ticks at its
@@ -69,6 +76,9 @@ export function createTimeline(o) {
   const listeners = new Set();
   const arrivals = new Set();        // told of each NEW event at ingest (the alerts), before playback
   const book = new Map();            // unit -> { kind, maxHp, maxAt, bases: [[atMs, hp, maxHp]], deltas: [[atMs, d]] } (T6)
+  const gone = new Map();            // T11: unit -> the server instant it was forgotten at (bounded: maxEvents)
+  /* T11: is this (unit, server instant) the past of a unit already forgotten? */
+  const past = (u, atMs) => gone.has(u) && atMs <= gone.get(u);
 
   function measure(serverNowMs, clientNowMs) {
     if (!isInt(serverNowMs) || !Number.isFinite(clientNowMs)) return;
@@ -100,7 +110,7 @@ export function createTimeline(o) {
   function addStep(u, x, y, atMs, dur) {
     if (![u, x, y, atMs].every(isInt)) return false;
     let a = steps.get(u);
-    if (!a) { a = []; steps.set(u, a); }
+    if (!a) { if (past(u, atMs)) return false; a = []; steps.set(u, a); }
     if (a.some((s) => s.atMs === atMs)) return false;
     let i = a.length;
     while (i > 0 && a[i - 1].atMs > atMs) i--;
@@ -128,6 +138,7 @@ export function createTimeline(o) {
       const u = Number(k);
       if (!isInt(u) || !Array.isArray(v) || typeof v[0] !== 'string' || !isInt(v[1]) || v[1] <= 0) continue;
       let r = book.get(u);
+      if (!r && past(u, fromMs)) continue;
       if (!r) { r = { kind: v[0], maxHp: v[1], maxAt: fromMs, bases: [], deltas: [] }; book.set(u, r); }
       /* Max HP is each batch's, never the first one's: a Level-up mid-hunt raises it (Brannoc 10-22:
          150/150 in the hunt through Level 5 while the server held 190). The newest batch sizes the bar. */
@@ -258,6 +269,25 @@ export function createTimeline(o) {
     return n;
   }
 
+  /**
+   * T11: forget unit `u` (the scene has finished drawing it) at client time `now`, unless something
+   * it holds is still to play. Answers whether it was forgotten.
+   */
+  function forget(u, now) {
+    const a = steps.get(u);
+    const t = serverAt(now);
+    if (!a || t === null) return false;
+    const last = a[a.length - 1];
+    if (last.atMs + (last.dur || cfg.tileMs) > t) return false;
+    for (const ev of queue) if (ev.u === u || ev.t === u) return false;
+    steps.delete(u);
+    book.delete(u);
+    gone.delete(u);
+    gone.set(u, t);
+    if (gone.size > cfg.maxEvents) gone.delete(gone.keys().next().value);
+    return true;
+  }
+
   /** The unit's kind from the book (T6), or null. */
   function kindOf(u) { const r = book.get(u); return r ? r.kind : null; }
   /** { hp, maxHp } of a booked unit at the server instant shown at client time `now` (T6), or null. */
@@ -277,16 +307,18 @@ export function createTimeline(o) {
 
   /** T10: a new hunt session is a new instance whose unit ids start again at 1: forget every step,
       queued event and book entry (the clock offset is kept: it is the server's, not the hunt's). */
-  function clear() { steps.clear(); queue.length = 0; book.clear(); }
+  function clear() { steps.clear(); queue.length = 0; book.clear(); gone.clear(); }
 
   return {
-    ingest, reconcile, advance, positionAt, clientAt, kindOf, hpAt, serverNowAt, rebase, clear,
+    ingest, reconcile, advance, positionAt, clientAt, kindOf, hpAt, serverNowAt, rebase, clear, forget,
     /** T9: play `ms` behind the server from now on. */
     setDelay(ms) { if (Number.isFinite(ms) && ms >= 0) cfg.delayMs = ms; },
     delayMs: () => cfg.delayMs,
     /** How long a unit takes to roll one tile (ms): the walk speed the playback assumes. */
     tileMs: cfg.tileMs,
     units: () => Array.from(steps.keys()),
+    /** For tests: how many units the steps and the book hold. */
+    held: () => ({ steps: steps.size, book: book.size }),
     pending: () => queue.length,
     subscribe(fn) { listeners.add(fn); return () => listeners.delete(fn); },
     /** fn(event) once per NEW event as it ARRIVES (T1 de-duplicated), whether or not anything plays it. */

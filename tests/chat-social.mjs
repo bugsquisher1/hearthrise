@@ -264,15 +264,17 @@ async function pureRules(M) {
     if (topics !== 'chat:global,chat:system,chat:local:town,chat:inbox:' + UID + ',chat:local:a') fail('RT-2 the joins are ' + topics);
     if (chans.some((c) => !c.opts || !c.opts.config || c.opts.config.private !== true)) fail('RT-2 a chat topic was joined as a PUBLIC channel');
     if (chans.some((c) => Object.keys(c.events).some((k) => !/^broadcast:(line|whisper)$/.test(k)))) fail('RT-2 a join listens to something other than broadcast line/whisper: ' + JSON.stringify(chans.map((c) => Object.keys(c.events))));
-    chans[0].events['broadcast:line']({ payload: { t: 'line', line: { id: 'g1' } } });
-    chans[3].events['broadcast:line']({ payload: { t: 'line', line: { id: 'p1' } } });
-    if (got.map((x) => x && x.id).join(',') !== 'g1,p1') fail('RT-2 the pushed lines handed on ' + JSON.stringify(got));
-    chans[0].status('SUBSCRIBED'); chans[3].status('SUBSCRIBED'); chans[0].status('CHANNEL_ERROR');
+    const on = (topic, event) => { const c = chans.find((x) => x.topic === topic && !x.gone); return (c && c.events['broadcast:' + event]) || (() => {}); };
+    const inboxCh = chans.find((x) => x.topic === 'chat:inbox:' + UID && !x.gone);
+    on('chat:global', 'line')({ payload: { t: 'line', line: { id: 'g1' } } });
+    on('chat:inbox:' + UID, 'line')({ payload: { t: 'line', line: { id: 'p1' } } });
+    if (got.map((x) => x && x.id).join(',') !== 'g1,p1') fail('RT-2 the pushed lines (global, the party through the inbox) handed on ' + JSON.stringify(got));
+    if (inboxCh && chans[0].status) { chans[0].status('SUBSCRIBED'); inboxCh.status('SUBSCRIBED'); chans[0].status('CHANNEL_ERROR'); }
     if (joins !== 2) fail('RT-2 two (re)joins told onJoin ' + joins + ' times');
     const wgot = [];
     r.whispers(UID, (row) => wgot.push(row));
     if (live() !== cap) fail('RT-1 a whisper subscription past the cap took a join (' + live() + ')');
-    chans[3].events['broadcast:whisper']({ payload: { t: 'whisper', line: { id: 'w1' } } });
+    on('chat:inbox:' + UID, 'whisper')({ payload: { t: 'whisper', line: { id: 'w1' } } });
     if (wgot.map((x) => x && x.id).join(',') !== 'w1' || got.length !== 2) fail('RT-2 a whisper reached ' + JSON.stringify({ wgot, got }));
     leave();
     if (live() !== 1 || r.bindings() !== 1 || chans.filter((c) => !c.gone)[0].topic !== 'chat:inbox:' + UID) fail('RT-1 after leaving the chat, the inbox did not stay alone for the whispers (' + live() + ')');
@@ -314,7 +316,8 @@ async function pureRules(M) {
     // whispers
     const wr0 = calls.filter((c) => c.name === 'hr_whispers_recent').length;
     answers.hr_whispers_recent = { ok: true, lines: [row({ channel: undefined, to_id: UID, to_name: 'Me', body: 'whisper missed while down' })] };
-    rt.joinW();
+    if (typeof rt.joinW !== 'function') fail('RC-1 the whispers subscription gave no (re)join callback, so a blip loses the whispers');
+    else rt.joinW();
     await tick(); await tick();
     if (calls.filter((c) => c.name === 'hr_whispers_recent').length !== wr0 + 1) fail('RC-1 an inbox (re)join did not re-read the whispers once');
     if (!soc.whispers.conversations().length) fail('RC-1 a whisper missed while the socket was down did not come back');

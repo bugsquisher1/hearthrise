@@ -132,11 +132,13 @@
 -- ORDER: after 2026-12-18-party-leave-together.sql (the last APPLIED file; the
 -- hr_hunt_apply_instance image pinned in §0 is 12-15 account-gold's, which
 -- 12-18 did not touch). No begin/commit (CLAUDE.md §2).
--- AFTER APPLYING (Coordinator): tests/live-hash-drift.mjs wants FOUR entries
--- (replay hr_frame_send, hr_frame_wanted, hr_hunt_apply_instance; replay-
--- missing hr_frame_payload(p_env jsonb, p_keys text[])) plus two untracked
--- (hr_frame_payload(p_env jsonb), hr_realtime_policies()) if the sweep tracks
--- them; re-seed with --live --write and flip this note to APPLIED.
+-- AFTER APPLYING (Coordinator): tests/live-hash-drift.mjs is red with SEVEN
+-- entries for this file and 2026-12-26 together (measured on the branch,
+-- credential-free, exit 1): replay hr_frame_send, hr_frame_wanted,
+-- hr_hunt_apply_instance; replay-missing hr_frame_payload(p_env jsonb, p_keys
+-- text[]); replay-extra hr_frame_payload(p_env jsonb); untracked hr_frame_topic
+-- and hr_realtime_policies. Re-seed with --live --write once both are applied
+-- and flip this note to APPLIED.
 -- ════════════════════════════════════════════════════════════════════════
 
 -- ── §0 PRECONDITIONS AND THE PINS ────────────────────────────────────────────

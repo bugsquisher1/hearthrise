@@ -125,8 +125,8 @@ function suppliesFor(h, row, store) {
     const own = Math.min(row.ammo, Math.max(0, int(line && line.left)));
     for (let i = 0; i < own; i++) lines.push({ id: h.ammo, source: 'own', price: 0 });
     if (own < row.ammo) {
-      /* (The store is asked only once the carried line is empty.) */
-      const shot = shopShotFor(h.hs, h.ammo);
+      /* (The store is asked only once the carried line is empty; a rune is never bought as a shot: shotLine.) */
+      const shot = isRune(itemRow(h, h.ammo)) ? null : shopShotFor(h.hs, h.ammo);
       if (!shot) return { why: 'no_ammo' };
       for (let i = own; i < row.ammo; i++) lines.push({ id: shot.id, source: 'store', price: shot.price });
     }

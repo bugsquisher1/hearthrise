@@ -59,10 +59,6 @@ export const GOLD_FLOOR = Object.freeze({ min: 0, max: 100000, default: 300 });
 export const SUPPLY_SOURCE = Object.freeze({ modes: Object.freeze(['mine', 'store']), default: 'mine' });
 export const ON_EMPTY = Object.freeze({ modes: Object.freeze(['switch', 'end']), default: 'switch' });
 
-/* The food / drink threshold range a hero may set, in percent of its pool
-   (spec §3.4 #4; the defaults are consumables.js CONSUMABLE_RULES). */
-export const THRESHOLD_PCT = Object.freeze({ min: 1, max: 99 });
-
 /* THE GATHERING SHARE (Tyler 2026-10-18): the percent of a hunt's time a hero spends
    gathering on the ground (0 = fight only). STORED AND VALIDATED ONLY: INERT until the
    gathering engine lands (a later lane); no engine reads it yet (heroSetup carries it
@@ -94,8 +90,9 @@ export const ACTION_SET_OPTIONS = Object.freeze({
      roles, so every weapon ignores it (roleForWeapon); the option and its role_pick plumbing are a cut
      still owed (CORE_MODEL.md §11). */
   role: Object.freeze({ kind: 'enum', values: WEAPON_ROLES.staff }),
-  food_below_pct: Object.freeze({ kind: 'limit', limit: 'threshold_pct' }),
-  drink_below_pct: Object.freeze({ kind: 'limit', limit: 'threshold_pct' }),
+  /* (food_below_pct / drink_below_pct, the old eat-at and drink-at, are RETIRED (Tyler 2026-10-23, audit c24): when
+     to eat or drink is the slot's own conditions, one source; a new food or drink slot starts at
+     consumables.js CONSUMABLE_RULES' thresholds, written on it.) */
   supply_source: Object.freeze({ kind: 'enum', values: SUPPLY_SOURCE.modes, default: SUPPLY_SOURCE.default }),
   on_empty: Object.freeze({ kind: 'enum', values: ON_EMPTY.modes, default: ON_EMPTY.default }),
   gold_floor: Object.freeze({ kind: 'limit', limit: 'gold_floor' }),

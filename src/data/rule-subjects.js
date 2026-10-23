@@ -18,6 +18,8 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
+import { ABILITIES, suggestedTrigger } from './abilities.js?v=0.2.34';
+
 /* WHICH FOE A HERO TAKES FIRST (spec §3.2 #11; src/core/hunt/targeting.js
    ORDER implements each). `follow` takes the leader's target; in a party of
    one there is no leader to follow and it reads as the hero's own nearest. */
@@ -55,15 +57,18 @@ export const ROLE_DEFAULTS = Object.freeze({
 
 /* THE ROLE DEFAULT RULE SETS (the action engine, Tyler 2026-10-18): the ability
    slots a hero fights with while its bar holds none of its own, in priority
-   order, in the slot wire shape (src/data/condition-metrics.js). A slot with no
-   conditions takes its ability's own trigger (src/core/hunt/conditions.js
-   defaultConditions). The HEALER attacks only when nobody needs healing (Tyler
-   P1, the solo healer): Nature's Wrath waits while any ally in reach is under
-   70%, so its mana goes to Greater Mend first; its free basic attack never
-   waits. The server projects these as the default bar (hr_hunt_role_rules,
-   2026-10-25-action-conditions.sql, pinned equal by tests/hunt-core/conditions.mjs). */
+   order, in the slot wire shape (src/data/condition-metrics.js). Each slot's
+   trigger is WRITTEN ON IT as real conditions (Tyler 2026-10-23, c21: the screen
+   shows what the engine does): its ability's suggested trigger (abilities.js
+   suggestedTrigger: a self-shield under its whenBelowPct, an ally heal under it for
+   the lowest ally, an area at areaMin monsters, a party heal at minHurt allies),
+   unless the row names its own. The HEALER attacks only when nobody needs healing
+   (Tyler P1, the solo healer): Nature's Wrath waits while any ally in reach is
+   under 70%, so its mana goes to Greater Mend first; its basic attack never waits.
+   The server projects these as the default bar (hr_hunt_role_rules, restated by
+   2026-12-21-slot-truth.sql, pinned equal by tests/hunt-core/conditions.mjs). */
 const slot = (id, conditions, join) => Object.freeze({ id: 'd_' + id, action: Object.freeze({ type: 'ability', id }),
-  conditions: Object.freeze((conditions || []).map((c) => Object.freeze(c))), join: join || 'and' });
+  conditions: Object.freeze((conditions || suggestedTrigger(ABILITIES[id])).map((c) => Object.freeze(c))), join: join || 'and' });
 export const ROLE_RULES = Object.freeze({
   tank: Object.freeze([slot('challenge'), slot('flame_strike'), slot('power_strike')]),
   melee_dps: Object.freeze([slot('power_strike'), slot('cleave'), slot('rend')]),

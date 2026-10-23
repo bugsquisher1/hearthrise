@@ -20,10 +20,12 @@ export function supplySession(M, o) {
   });
 }
 
-/** The fixture's supply slots for a session's bag: own foods, the store food, own drinks, the store drink. */
+/** The fixture's supply slots for a session's bag: own foods, the store food, own drinks, the store drink, each
+    with the conditions a new slot starts with (eat under 50% HP, drink under 30% mana), WRITTEN on it: a slot
+    with none fires whenever it is ready (Tyler 2026-10-23). */
 export function supplyBar(M, hs) {
   const own = (kind) => Object.keys((hs && hs.bag) || {}).sort().filter((id) => M.CD.CONSUMABLES[id] && M.CD.CONSUMABLES[id].source === 'own' && M.CD.CONSUMABLES[id].kind === kind);
-  const slot = (id) => ({ action: { type: 'consume', id }, conditions: [], join: 'and' });
+  const slot = (id) => ({ action: { type: 'consume', id }, conditions: M.conditions.suggestedConditions({ type: 'consume', id }), join: 'and' });
   return own('food').map(slot).concat([slot(STORE_FOOD)], own('drink').map(slot), [slot(STORE_DRINK)]);
 }
 

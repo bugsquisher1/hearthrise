@@ -17,6 +17,15 @@ import { plant, makeReport, ROOT } from './fixtures/h1.js';
 
 /* Fields a player reads, not the engine. */
 const DISPLAY = Object.freeze({ ability: ['n'], status: ['name'] });
+/* THE SUGGESTED TRIGGER (Tyler 2026-10-23, c21): fields that never act behind a slot; abilities.js suggestedTrigger reads
+   them into the conditions a role's default slot and a player's new slot start with, WRITTEN on the slot. Their reader
+   is that function (the data copy under test), not the engine. */
+const SUGGEST = Object.freeze({ ability: ['whenBelowPct', 'minHurt'], ABILITY_RULES: ['areaMin'] });
+const suggestText = (root) => {
+  const src = readFileSync(join(root, 'src/data/abilities.js'), 'utf8');
+  const at = src.indexOf('export function suggestedTrigger(');
+  return at < 0 ? '' : strip(src.slice(at, src.indexOf('\n}\n', at) + 2));
+};
 const ENGINE_DIRS = ['src/core', 'supabase/functions/hr-accrue'];
 const CLIENT_DIRS = ['src/shell', 'src/hunt-view', 'src/session'];
 
@@ -52,16 +61,17 @@ const cases = {
     /* The engine copy under test (a planted root has src/core + src/data; the edge is read from the repo). */
     const engine = textOf(M.root, ['src/core'], null) + '\n' + textOf(ROOT, ['supabase/functions/hr-accrue'], null);
     const client = textOf(ROOT, CLIENT_DIRS, null);
+    const suggest = suggestText(M.root);
     const dead = [];
-    const check = (kind, keys, display) => {
+    const check = (kind, keys, display, suggested) => {
       for (const k of keys) {
         if (k === 'id') continue;
-        const ok = display.includes(k) ? reads(client, k) : reads(engine, k);
+        const ok = display.includes(k) ? reads(client, k) : (suggested || []).includes(k) ? reads(suggest, k) : reads(engine, k);
         if (!ok) dead.push(kind + '.' + k);
       }
     };
-    check('ability', [...new Set(Object.values(M.AD.ABILITIES).flatMap((r) => Object.keys(r)))], DISPLAY.ability);
-    check('ABILITY_RULES', Object.keys(M.AD.ABILITY_RULES), []);
+    check('ability', [...new Set(Object.values(M.AD.ABILITIES).flatMap((r) => Object.keys(r)))], DISPLAY.ability, SUGGEST.ability);
+    check('ABILITY_RULES', Object.keys(M.AD.ABILITY_RULES), [], SUGGEST.ABILITY_RULES);
     check('status', [...new Set(Object.values(M.ST.STATUSES).flatMap((r) => Object.keys(r)))], DISPLAY.status);
     return dead.length ? 'written, never read: ' + dead.join(', ') : null;
   },
@@ -85,6 +95,12 @@ const mutants = [
     edits: [['src/core/hunt/abilities.js', 't.markPm = row.bonusPct * 10;', 't.markPm = 200;']] },
   { name: 'bleed stops scaling with its skill', case: 'every-row-field-has-a-reader',
     edits: [['src/core/hunt/abilities.js', 'levelOf(h.skills, srow.scalesWith)', "levelOf(h.skills, 'melee')"]] },
+  { name: 'the suggested trigger stops reading the heal thresholds (a row promises a trigger no slot starts with)', case: 'every-row-field-has-a-reader',
+    edits: [['src/data/abilities.js', "  if (row.target === 'self') return [{ metric: 'self_hp_pct', op: 'lt', value: row.whenBelowPct }];\n", ''],
+      ['src/data/abilities.js', "  if (row.target === 'ally') return [{ metric: 'ally_hp_pct', op: 'lt', value: row.whenBelowPct, subject: 'lowest' }];\n", ''],
+      ['src/data/abilities.js', "  if (row.target === 'party') return [{ metric: 'allies_below', op: 'gte', value: row.minHurt, subject: 'under_' + row.whenBelowPct }];\n", '']] },
+  { name: 'the area minimum is read by nothing', case: 'every-row-field-has-a-reader',
+    edits: [['src/data/abilities.js', "  if (row.target === 'area') return [{ metric: 'enemies_in_aoe', op: 'gte', value: ABILITY_RULES.areaMin }];\n", '']] },
   { name: 'a persisted unit field nothing reads', case: 'every-persisted-unit-field-is-read',
     edits: [['src/core/hunt/abilities.js', "['markUntil', 'int']]),", "['markUntil', 'int'], ['slowUntil', 'int']]),"]] },
 ];

@@ -48,7 +48,8 @@ export const ABILITY_LANES = Object.freeze({ offense: 2000, heal: 1000 });
 export const ABILITY_RULES = Object.freeze({
   /* Mana regenerates 25% of max a minute (designer ruling 2026-10-15, AB-13). */
   manaRegenPctPerMin: 25,
-  /* An area ability needs at least this many monsters it can hurt (AB-03). */
+  /* An area ability's suggested trigger: at least this many monsters in its footprint (AB-03; a NEW slot's
+     starting condition, suggestedTrigger, never a hidden one). */
   areaMin: 2,
 });
 
@@ -106,6 +107,18 @@ const DISCIPLINES = ['shield', 'dual_axe', 'ranged', 'destruction', 'restoration
 export const DISCIPLINE_SKILL = Object.freeze({ shield: 'melee', dual_axe: 'melee', ranged: 'ranged', destruction: 'magic', restoration: 'magic' });
 /** The skill `row`'s versions unlock on. */
 export const abilitySkill = (row) => DISCIPLINE_SKILL[row && row.disciplines && row.disciplines[0]] || 'magic';
+
+/** THE TRIGGER A NEW SLOT OF `row` STARTS WITH, as conditions written ON the slot (the role rule sets,
+    rule-subjects.js ROLE_RULES, and a slot the player adds: conditions.js suggestedConditions). Never
+    applied behind a slot: one with no conditions fires whenever it is ready (Tyler 2026-10-23, c21). */
+export function suggestedTrigger(row) {
+  if (!row) return [];
+  if (row.target === 'self') return [{ metric: 'self_hp_pct', op: 'lt', value: row.whenBelowPct }];
+  if (row.target === 'ally') return [{ metric: 'ally_hp_pct', op: 'lt', value: row.whenBelowPct, subject: 'lowest' }];
+  if (row.target === 'area') return [{ metric: 'enemies_in_aoe', op: 'gte', value: ABILITY_RULES.areaMin }];
+  if (row.target === 'party') return [{ metric: 'allies_below', op: 'gte', value: row.minHurt, subject: 'under_' + row.whenBelowPct }];
+  return [];
+}
 
 /** Version `n` (1..5) of `row`: { mana, outPm }. A row with no `versions` row for it casts at its own mana and numbers. */
 export function versionOf(row, n) {

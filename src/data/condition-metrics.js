@@ -13,11 +13,14 @@
 // A SLOT (hunt_settings.slots[i], player_action_sets.slots):
 //   { action: { type: 'ability'|'consume'|'attack_with_item', id },
 //     conditions: [ { metric, op, value, subject? } ]   (at most MAX_CONDITIONS)
-//     join: 'and' }   (all must match; only a stop rule may join 'or')
+//     join: 'and',   (all must match; only a stop rule may join 'or')
+//     enabled?: false,   (switched Off: it never fires; absent = On)
+//     ignore?: [monster ids] }   (at most MAX_IGNORED: it never fires at one of them)
 // Slot order IS priority: the first slot whose conditions pass AND whose action
 // can happen fires; the next one is the fallback. A slot with no conditions
-// takes its action's DEFAULT conditions (an ability's own trigger, the hero's
-// eat-at / drink-at for food and drink: src/core/hunt/conditions.js).
+// fires whenever it is ready: nothing hidden stands behind it (Tyler 2026-10-23;
+// a NEW slot starts with its action's suggested conditions, written on it:
+// src/core/hunt/conditions.js suggestedConditions).
 //
 // A STOP RULE (player_action_sets.options.stop_rules[i]):
 //   { conditions: [ … ], join, forMs }
@@ -48,6 +51,9 @@ import { STATUSES } from './statuses.js?v=0.2.34';
    "any"). The `pass` bitmask is one bit a condition. Server: 2026-10-26-bar-three-conditions.sql. */
 export const MAX_CONDITIONS = 3;
 export const MAX_STOP_RULES = 3;
+/* A slot's IGNORED MONSTERS (Tyler 2026-10-19 Configure action: "Ignored monsters"; lane b-spell-core): the
+   monster ids it never fires at, at most this many. A bound, not a balance value. Server: hr_hunt_condition_limits. */
+export const MAX_IGNORED = 8;
 /* A stop rule's hold, in ms: whole sub-steps, at most ten minutes. */
 export const STOP_HOLD_MS = Object.freeze({ min: 0, max: 600000, step: 100 });
 

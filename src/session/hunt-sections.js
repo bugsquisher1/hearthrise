@@ -104,18 +104,24 @@ function slotOf(s) {
     /* `store`: the store row the PLAYER chose to back this slot (Tyler 2026-10-19), when it names one. */
     action: Object.assign({ type: s.action.type, id: s.action.id }, str(s.action.store) ? { store: s.action.store } : {}),
     conditions, join: JOIN.test(String(s.join)) ? s.join : 'and',
-    usable: s.usable !== false, mana: int(s.mana), count: int(s.count),
+    /* ON / OFF and the monsters it IGNORES (the slot format, Tyler 2026-10-19; the server's stored values):
+       a slot switched Off never fires, so it shows struck. */
+    enabled: s.enabled !== false, ignore: list(s.ignore, (m) => str(m), 16),
+    usable: s.usable !== false && s.enabled !== false, mana: int(s.mana), count: int(s.count),
     /* WHY THE SERVER STRUCK IT (hr_hunt_settings_view): none_left (own stock gone) | store_off; null when it can fire. */
     why: str(s.why),
   };
 }
 
-/** A slot back in the wire shape (null = empty), for an intent that restates the bar. */
+/** A slot back in the wire shape (null = empty), for an intent that restates the bar (Off and the ignored
+    monsters ride along, so an edit never drops them). */
 export function wireSlot(s) {
   if (!s || s.empty) return null;
   return { action: Object.assign({ type: s.action.type, id: s.action.id }, s.action.store ? { store: s.action.store } : {}),
     conditions: s.conditions.map((c) => Object.assign({ metric: c.metric, op: c.op, value: c.value }, c.subject ? { subject: c.subject } : {})),
-    join: s.join };
+    join: s.join,
+    ...(s.enabled === false ? { enabled: false } : {}),
+    ...(Array.isArray(s.ignore) && s.ignore.length ? { ignore: s.ignore.slice() } : {}) };
 }
 
 /**
@@ -145,7 +151,8 @@ export function settingsOf(cs) {
     presets: list(s.presets, (p) => (isObj(p) && int(p.preset) !== null && str(p.name) ? { preset: p.preset, name: p.name } : null), 8),
     targetMode: str(s.target_mode), stance: str(s.stance), distance: int(s.distance),
     chase: typeof s.chase === 'boolean' ? s.chase : null,
-    foodPct: int(s.food_pct), drinkPct: int(s.drink_pct), supplySource: str(s.supply_source), onEmpty: str(s.on_empty),
+    /* (the old eat-at / drink-at percentages are retired, Tyler 2026-10-23: a slot's own conditions decide) */
+    supplySource: str(s.supply_source), onEmpty: str(s.on_empty),
     /* The gold the store never spends below (hunt_settings.gold_floor; null until hr_hunt_settings_view projects it). */
     goldFloor: int(s.gold_floor),
     /* The gathering share (INERT until gathering lands). Density is no setting: huntDensityOf, per ground. */

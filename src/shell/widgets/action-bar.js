@@ -177,7 +177,7 @@ function tipHtml(i, ctx) {
   return '<b>' + esc(actionName(s.action)) + '</b><small class="hb-tip-n">Slot ' + (i + 1) + '</small>'
     + (why ? '<p class="' + (why.quiet ? 'is-why' : 'is-warn is-why') + '">' + esc(why.text) + '</p>' : '')
     + lines.map((l) => '<p>' + esc(l) + '</p>').join('')
-    + '<hr><p class="is-setup">' + esc(setupWords(w, set)) + '</p>'
+    + '<hr><p class="is-setup">' + esc(setupWords(w)) + '</p>'
     + (shared ? '<p class="is-setup">' + esc(shared) + '</p>' : '')
     + (conflict ? '<p class="is-warn">' + esc(conflict.why) + '</p>' : '');
 }

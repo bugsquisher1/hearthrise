@@ -17,7 +17,7 @@
 //   hr_hunt_resumable_kinds hunt-sessions.js RESUMABLE_KINDS ('training' reserved)
 //   hr_hunt_limits         rule-subjects.js ACTION_SET_LIMITS + HERO_DISTANCE,
 //                          hunt-sessions.js SESSION_LIMITS + STAMINA_LOW_MIN +
-//                          SESSIONS_KEPT + KNOCKOUT_MS + GOLD_FLOOR + THRESHOLD_PCT +
+//                          SESSIONS_KEPT + KNOCKOUT_MS + GOLD_FLOOR +
 //                          STAMINA_MAX_MS { free, premium } (as `stamina_free_min` /
 //                          `stamina_premium_min`) + DEATH_XP_LOSS (`death_xp_permille`)
 //                          + VALUE_HEADROOM, COMBAT_BALANCE.tickMs (`swing_interval_ms`),
@@ -125,7 +125,7 @@ import { DRINK_ITEMS } from '../src/data/drinks.js';
 import { ACTION_SET_LIMITS, TARGET_MODES, DEFAULT_TARGET_MODE, HERO_DISTANCE } from '../src/data/rule-subjects.js';
 import { SESSION_LIMITS, END_ORDER, STAMINA_LOW_MIN, SESSIONS_KEPT, DEATH_XP_LOSS, DEATH_XP_BASE, STAMINA_MAX_MS,
   RESUMABLE_KINDS, RESUME_AFTER_END, GOLD_FLOOR, SUPPLY_SOURCE, ON_EMPTY, ACTION_SET_OPTIONS, VALUE_HEADROOM,
-  DEFAULT_RESUME, EVENT_COPY, THRESHOLD_PCT, GATHER_SHARE, coverSellable } from '../src/data/hunt-sessions.js';
+  DEFAULT_RESUME, EVENT_COPY, GATHER_SHARE, coverSellable } from '../src/data/hunt-sessions.js';
 import { CONSUMABLE_RULES } from '../src/data/consumables.js';
 import { ABILITIES, ABILITY_LANES, ABILITY_RULES } from '../src/data/abilities.js';
 import { HUNT_ROLES, WEAPON_ROLES, roleWeaponOf } from '../src/data/hunt-roles.js';
@@ -158,7 +158,10 @@ export const WORLD_FIELDS_READ = Object.freeze({
 /* v0.2.31 integration: ONE forward file per generator after the newest APPLIED (2026-11-20): the roster, the open glade and the style ladder's weapons
    (2026-11-23, now history). WHO HOLDS THE PACK (lane/b-tank-choice, Tyler 2026-10-22): the world gains `hold` / `holdNext`
    (targeting.js), so hr_hunt_world_shape changes: ONE forward file after the v0.2.32 sequence (its newest file is 2026-12-08-party-hold.sql). */
-export const OUT_NAME = '2026-12-09-hunt-sessions-catalogue.generated.sql';
+/* lane/b-spell-core (2026-10-23): the store's Plain Iron Arrows (hr_hunt_basic_supplies), the retired eat-at / drink-at
+   options (hr_hunt_set_options) and their threshold limits, and the casters' mana basic in the magic bound
+   (magic_xp_mult_max): ONE forward file after the v0.2.34 sequence (its newest applied file is 2026-12-17-beta-premium.sql). */
+export const OUT_NAME = '2026-12-21-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -204,7 +207,7 @@ export function catalogueRows(src = {}) {
   const S = {
     /* the OPEN hunts and grounds only: a staged one (hunts.js `staged`) is not served, so hr_hunt_enter refuses it */
     hunts: OPEN_HUNTS, monsters: MONSTERS, items: ITEMS, supplies: SUPPLIES, buffTypes: COMBAT_BUFF_TYPES,
-    setLimits: ACTION_SET_LIMITS, distance: HERO_DISTANCE, thresholds: THRESHOLD_PCT,
+    setLimits: ACTION_SET_LIMITS, distance: HERO_DISTANCE,
     sessionLimits: SESSION_LIMITS, endOrder: END_ORDER,
     staminaLow: STAMINA_LOW_MIN, kept: SESSIONS_KEPT, deathXpLoss: DEATH_XP_LOSS, stamina: STAMINA_MAX_MS,
     floor: GOLD_FLOOR, supplySource: SUPPLY_SOURCE, onEmpty: ON_EMPTY, setOptions: ACTION_SET_OPTIONS,
@@ -212,7 +215,7 @@ export function catalogueRows(src = {}) {
     basics: BASIC_SUPPLIES, drinks: DRINK_ITEMS,
     targetModes: TARGET_MODES, defaultTarget: DEFAULT_TARGET_MODE,
     resumable: RESUMABLE_KINDS, resumeAfter: RESUME_AFTER_END,
-    consumableLaneMs: CONSUMABLE_RULES.laneMs, foodBelowPct: CONSUMABLE_RULES.foodBelowPct, drinkBelowPct: CONSUMABLE_RULES.drinkBelowPct, abilityLanes: ABILITY_LANES, abilities: ABILITIES,
+    consumableLaneMs: CONSUMABLE_RULES.laneMs, abilityLanes: ABILITY_LANES, abilities: ABILITIES,
     grounds: OPEN_GROUNDS, worldMaxBytes: HUNT_TUNING.worldMaxBytes, partyMax: PARTY.maxSize,
     maxConcurrent: SESSION_CONFIG.maxConcurrentCharacters, maxSlot: SESSION_CONFIG.maxSlot,
     loginReward: PREMIUM_LOGIN_REWARD, worldVersion: WORLD_VERSION, worldShape: SHAPE, worldFields: WORLD_FIELDS,
@@ -306,7 +309,6 @@ export function catalogueRows(src = {}) {
     death_xp_base: { total: 0, level: 1 }[DEATH_XP_BASE],
     stamina_free_min: staminaFree, stamina_premium_min: staminaPremium,
     distance_min: S.distance.min, distance_max: S.distance.max,
-    threshold_pct_min: S.thresholds.min, threshold_pct_max: S.thresholds.max,
     density_min: DENSITY_PICK.min, density_max: DENSITY_PICK.max,
     gather_share_min: GATHER_SHARE.min, gather_share_max: GATHER_SHARE.max,
     party_max: S.partyMax,
@@ -325,8 +327,10 @@ export function catalogueRows(src = {}) {
     drink_mana_per_min_max: Math.floor(60000 / S.consumableLaneMs) * Math.max(0, ...Object.values(S.drinks).map((d) => d.mana),
       ...[...S.basics].filter((b) => b.kind === 'mana').map((b) => b.mana)),
     magic_xp_permille: S.magicXpPermille,
-    /* The largest ability Magic-XP multiplier (permille; abilities.js magicXpMult): the magic bound's top. */
-    magic_xp_mult_max: Math.max(1000, ...Object.values(S.abilities).map((a) => a.magicXpMult || 0)),
+    /* The largest Magic-XP multiplier (permille): an ability's (abilities.js magicXpMult) or a caster's mana basic
+       (hunt-roles.js `basic`, lane b-spell-core), the magic bound's top. The basic spends the same pool. */
+    magic_xp_mult_max: Math.max(1000, ...Object.values(S.abilities).map((a) => a.magicXpMult || 0),
+      ...Object.values(S.roles).map((r) => (r.basic && r.basic.magicXpMult) || 0)),
     /* THE CORE MODEL (src/data/core-model.js; CORE_MODEL.md): the curves and the
        vitals the server derives Level, skill levels, max HP / mana and the regen
        rate from (hr_char_level, hr_skill_level, hr_vitals_of), and the combat XP
@@ -350,9 +354,6 @@ export function catalogueRows(src = {}) {
     throw new Error(`STAMINA_MAX_MS ${JSON.stringify(st)} is not whole minutes with premium >= free > 0`);
   }
   if (!(lim.distance_min >= 1 && lim.distance_min <= lim.distance_max)) throw new Error(`HERO_DISTANCE ${JSON.stringify(S.distance)}`);
-  if (!(lim.threshold_pct_min >= 1 && lim.threshold_pct_min <= lim.threshold_pct_max && lim.threshold_pct_max <= 99)) {
-    throw new Error(`THRESHOLD_PCT ${JSON.stringify(S.thresholds)}`);
-  }
   if (!(whole(lim.below_range_refuse) && lim.below_range_refuse >= 1 && lim.below_range_refuse <= 100)) {
     throw new Error(`SESSION_LIMITS.belowRangeRefuse ${S.sessionLimits.belowRangeRefuse} is not 1..100`);
   }
@@ -403,10 +404,9 @@ export function catalogueRows(src = {}) {
   if (!(whole(lim.swing_interval_ms) && lim.swing_interval_ms >= 600)) {
     throw new Error(`the swing interval ${S.swingIntervalMs} is not a whole number of ms >= 600`);
   }
-  /* The default a setting takes when the hero never set it: the data row's own, else the
-     engine's (consumables.js thresholds); null = the role's default for its party (roles.js). */
-  const THRESHOLD_DEFAULT = { food_below_pct: S.foodBelowPct, drink_below_pct: S.drinkBelowPct };
-  const dfltOf = (k, o) => (o.default !== undefined ? o.default : own(THRESHOLD_DEFAULT, k) ? THRESHOLD_DEFAULT[k] : null);
+  /* The default a setting takes when the hero never set it: the data row's own; null = the role's default for
+     its party (roles.js). (The eat-at / drink-at thresholds are retired, Tyler 2026-10-23: a slot's conditions.) */
+  const dfltOf = (k, o) => (o.default !== undefined ? o.default : null);
   const setOptions = Object.keys(S.setOptions).sort().map((k) => ({ ...setOption(k, S.setOptions[k]), dflt: dfltOf(k, S.setOptions[k]) }));
   function setOption(k, o) {
     if (!ID.test(k)) throw new Error(`action-set option ${k} is not [a-z0-9_]{1,64}`);

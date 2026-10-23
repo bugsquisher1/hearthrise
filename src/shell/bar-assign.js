@@ -4,20 +4,24 @@
 // One intent: the whole bar restated (hr_action_set_options { slots }, the
 // same wire the slot editor sends) with the item in the chosen slot, or the
 // first empty one. A food slot starts as "eat when my HP is below 50%", a
-// drink "when my mana is below 30%" (bar-draft.js supplyDefault), ammo with no test; the
+// drink "when my mana is below 30%" (bar-draft.js startConditions), ammo with no test; the
 // slot editor changes any of it. The bar on screen changes only when the
 // server's re-read envelope says so.
 // ════════════════════════════════════════════════════════════════════════
 import { BAR_SLOTS } from '../data/hunt-hud.js?v=0.2.34';
+import { ITEMS } from '../data/items.js?v=0.2.34';
+import { isRune } from '../data/supplies.js?v=0.2.34';
 import { settingsOf, wireSlot } from '../session/hunt-sections.js?v=0.2.34';
 import { kindOf } from './bag-model.js?v=0.2.34';
-import { supplyDefault } from './bar-draft.js?v=0.2.34';
+import { startConditions } from './bar-draft.js?v=0.2.34';
 
 const SLOTS = BAR_SLOTS.rows * BAR_SLOTS.cols;
 
 /** Can this item go on a bar slot at all? */
 export function barKind(id) {
   const k = kindOf(id);
+  /* A rune is no ammo (Tyler 2026-10-23: runes fuel spells only, chosen on a spell's slot): it has no bar slot of its own. */
+  if (k === 'ammo' && isRune(ITEMS[id])) return null;
   return k === 'food' || k === 'drink' || k === 'ammo' ? k : null;
 }
 
@@ -50,6 +54,6 @@ export async function assignToBar(cs, id, at) {
   const i = Number.isInteger(at) && at >= 0 && at < SLOTS ? at : wire.findIndex((w) => !w);
   if (i < 0) return { ok: false, error: 'bar_full' };
   const action = { type: kind === 'ammo' ? 'attack_with_item' : 'consume', id };
-  wire[i] = { action, conditions: supplyDefault(action), join: 'and' };
+  wire[i] = { action, conditions: startConditions(action), join: 'and' };
   return cs.setHuntOptions(s.preset, { slots: wire });
 }

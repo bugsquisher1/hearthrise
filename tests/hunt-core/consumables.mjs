@@ -226,7 +226,8 @@ const cases = {
     if (R.drinkBelowPct !== 30 || R.foodBelowPct !== 50) return 'defaults are ' + R.drinkBelowPct + '/' + R.foodBelowPct + ', the spec says 30/50';
     const at = (hp, ctx) => { const x = oneHero(M, { hp, mana: 100 }, ctx); M.consumables.consume(x.inst, x.sc); return eats(x.sc).length; };
     if (at(50) !== 0 || at(49) !== 1) return 'food fires at 50% HP or not under it';
-    if (at(60, { foodBelowPct: 61 }) !== 1 || at(40, { foodBelowPct: 39 }) !== 0) return 'the per-hero food threshold is ignored';
+    /* The per-hero eat-at is RETIRED (Tyler 2026-10-23, c24): only the slot's own condition decides. */
+    if (at(60, { foodBelowPct: 61 }) !== 0 || at(40, { foodBelowPct: 39 }) !== 1) return 'a retired per-hero food threshold still moves the slot';
     const dr = (mana) => { const x = oneHero(M, { mana }); M.consumables.consume(x.inst, x.sc); return drinks(x.sc).length; };
     return dr(30) === 0 && dr(29) === 1 ? null : 'drink fires at 30% mana or not under it';
   },
@@ -368,7 +369,7 @@ const mutants = [
     edits: [['src/data/start-kit.js', "  startSlot('d_food', 'cooked_shrimp', 'self_hp_pct', 60),\n", ''],
       ['src/data/start-kit.js', "  startSlot('d_drink', 'thin_turnip_juice', 'self_mana_pct', 30),\n", "  startSlot('d_drink', 'thin_turnip_juice', 'self_mana_pct', 30),\n  startSlot('d_food', 'cooked_shrimp', 'self_hp_pct', 60),\n"]] },
   { name: 'a drink waits for its running over-time half', case: 'drink-never-starves-food',
-    edits: [['src/core/hunt/consumables.js', "  if (!kind) return { why: 'none' };\n  const line = resolveLine(hero.hs, action.id);", "  if (!kind) return { why: 'none' };\n  if (kind === 'drink' && u.otMana) return { kind, why: 'ticking' };\n  const line = resolveLine(hero.hs, action.id);"]] },
+    edits: [['src/core/hunt/consumables.js', "  if (int(u[stat]) >= int(u[MAX_OF[stat]])) return null;\n  const line = resolveLine(hero.hs, action.id);", "  if (int(u[stat]) >= int(u[MAX_OF[stat]])) return null;\n  if (kind === 'drink' && u.otMana) return { kind, why: 'ticking' };\n  const line = resolveLine(hero.hs, action.id);"]] },
   { name: 'a ticking drink keeps its bar place (food starves)', case: 'food-while-a-drink-ticks',
     edits: [['src/core/hunt/consumables.js', '  if (!Array.isArray(u.otMana)) return rows;', '  return rows;']] },
   { name: 'the shared cooldown back at 1 s', case: 'one-shared-lane',
@@ -388,11 +389,11 @@ const mutants = [
   { name: 'the over-time ticks are not credited', case: 'tally-healed-is-hp-restored',
     edits: [['src/core/hunt/consumables.js', "      if (stat === 'hp') healed(u, landed, item, sc);\n", '']] },
   { name: 'food waits for the running over-time half', case: 'food-during-over-time',
-    edits: [['src/core/hunt/consumables.js', "  if (!kind) return { why: 'none' };\n  const line = resolveLine(hero.hs, action.id);", "  if (!kind) return { why: 'none' };\n  if (kind === 'food' && u.otHp) return { kind, why: 'ticking' };\n  const line = resolveLine(hero.hs, action.id);"]] },
+    edits: [['src/core/hunt/consumables.js', "  if (int(u[stat]) >= int(u[MAX_OF[stat]])) return null;\n  const line = resolveLine(hero.hs, action.id);", "  if (int(u[stat]) >= int(u[MAX_OF[stat]])) return null;\n  if (kind === 'food' && u.otHp) return { kind, why: 'ticking' };\n  const line = resolveLine(hero.hs, action.id);"]] },
   { name: 'a second over-time half stacks on the first', case: 'food-during-over-time',
     edits: [['src/core/hunt/consumables.js', '  u[OT_KEY[stat]] = later > 0 ? [later,', '  u[OT_KEY[stat]] = later > 0 ? [later + (Array.isArray(u[OT_KEY[stat]]) ? u[OT_KEY[stat]][0] : 0),']] },
   { name: 'food waits after an ability heal', case: 'eat-right-after-a-heal',
-    edits: [['src/core/hunt/consumables.js', "  if (!kind) return { why: 'none' };\n  const line = resolveLine(hero.hs, action.id);", "  if (!kind) return { why: 'none' };\n  if (kind === 'food' && Number.isInteger(u.healedAt)) return { kind, why: 'healed' };\n  const line = resolveLine(hero.hs, action.id);"]] },
+    edits: [['src/core/hunt/consumables.js', "  if (int(u[stat]) >= int(u[MAX_OF[stat]])) return null;\n  const line = resolveLine(hero.hs, action.id);", "  if (int(u[stat]) >= int(u[MAX_OF[stat]])) return null;\n  if (kind === 'food' && Number.isInteger(u.healedAt)) return { kind, why: 'healed' };\n  const line = resolveLine(hero.hs, action.id);"]] },
   { name: 'the over-time half is not persisted', case: 'over-time-survives-a-cut',
     edits: [['src/core/hunt/consumables.js', "  unit: Object.freeze([['laneAt', 'int'], ['otHp', 'json'], ['otMana', 'json']]),",
       "  unit: Object.freeze([['laneAt', 'int'], ['otMana', 'json']]),"]] },

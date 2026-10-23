@@ -154,8 +154,8 @@ function endMember(m, why, atMs, world, out) {
  *        m = { key, seat, unitId (int or null: not in the world yet), hs
  *        (action-rules.js newHuntSession), state { skills, levelXp, playerHp,
  *        playerMaxHp, playerMaxMana, regenPm, stats, gold (a delta) }, hero { role,
- *        element, settings, slots (hunt-spawn heroSetup), stopRules, density, actionSet, range, ammo, foodBelowPct,
- *        drinkBelowPct }, snapshot(state) → { acc, maxHit, def }, family (the weapon family),
+ *        element, settings, slots (hunt-spawn heroSetup), stopRules, density, actionSet, range, ammo },
+ *        snapshot(state) → { acc, maxHit, def }, family (the weapon family),
  *        armoured, shield, bonus(key), weakness(row) → { dropMult }, rollsVs?(row) → playerCombatRolls
  *        against that monster (a basic swing's accuracy and weapon weakness), shotRolls?(row, ammo) (the same with
  *        the item a shot spent in the ammo slot: damage.js blow), fx, buffsAt?(atMs) (re-measures the timed
@@ -264,8 +264,7 @@ export function simulateHuntInstance(inst, ctx) {
         if (m.left || m.unitId === null) continue;
         byUnit.set(m.unitId, m);
         heroes[m.unitId] = { hs: m.hs, slots: m.hero.slots, stopRules: m.hero.stopRules, actionSet: m.hero.actionSet,
-          range: m.hero.range, rollsVs: m.rollsVs, shotRolls: m.shotRolls, ammo: m.hero.ammo, items: ctx.items || null, skills: m.state.skills,
-          foodBelowPct: m.hero.foodBelowPct, drinkBelowPct: m.hero.drinkBelowPct };
+          range: m.hero.range, rollsVs: m.rollsVs, shotRolls: m.shotRolls, ammo: m.hero.ammo, items: ctx.items || null, skills: m.state.skills };
       }
       /* MONSTER DENSITY for the packs that spawn from here: the party leader's pick (Tyler 2026-10-20),
          clamped to the ground for the party's size (hunt-grounds.js partyPick, densityFor). */

@@ -46,8 +46,8 @@ export function heroSetup(o) {
   return {
     role,
     /* THE BAR as the engine runs it (conditions.js heroSlots): the stored slots the
-       hero's discipline can act on, then each empty lane's defaults (ROLE_RULES,
-       eat-at then drink-at). */
+       hero's discipline can act on, then an empty ability lane's role rule set
+       (ROLE_RULES) and, for a hero whose bar holds nothing, the start kit's bar. */
     slots: heroSlots(o.bar, role, (id) => allowed.includes(id)),
     stopRules: heroStopRules(stops),
     /* MONSTER DENSITY: the stored pick; the span clamps it to the ground (hunt-grounds.js densityFor). In a
@@ -64,8 +64,6 @@ export function heroSetup(o) {
     element: '',
     settings: { dist: pick('distance', d.dist), chase: pick('chase', d.chase), tmode: pick('target_mode', d.tmode),
       stance: pick('stance', d.stance) },
-    foodBelowPct: pick('food_below_pct', undefined),
-    drinkBelowPct: pick('drink_below_pct', undefined),
   };
 }
 

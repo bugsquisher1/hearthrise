@@ -21,7 +21,6 @@ import { CONSUMABLES, CONSUMABLE_RULES } from '../data/consumables.js?v=0.2.34';
 import { STATUSES } from '../data/statuses.js?v=0.2.34';
 import { HUNT_ROLES, WEAPON_ROLES } from '../data/hunt-roles.js?v=0.2.34';
 import { WEAPON_WORDS } from '../data/hunt-hud.js?v=0.2.34';
-import { defaultConditions } from '../core/hunt/conditions.js?v=0.2.34';
 import { itemName, abilityName } from './widgets/bits.js?v=0.2.34';
 import { storeOf, storeWords, conditionWords } from './bar-draft.js?v=0.2.34';
 
@@ -126,18 +125,11 @@ export function supplyLines(a, set, bag) {
   return out;
 }
 
-/** A slot's setup in words: its conditions, or its own trigger when it has none. */
-export function setupWords(w, set) {
-  if (!w.conditions.length) {
-    const d = defaultConditions(w, { foodBelowPct: set && set.foodPct, drinkBelowPct: set && set.drinkPct });
-    return d.length ? 'No conditions: fires when ' + d.map(conditionWords).join(' and ') + '.' : 'Always (no conditions).';
-  }
+/** A slot's setup in words: its conditions, exactly as the engine tests them (none: whenever it is ready,
+    Tyler 2026-10-23: nothing hidden stands behind a slot). */
+export function setupWords(w) {
+  if (!w.conditions.length) return 'Always: whenever it is ready (no conditions).';
   return (w.conditions.length > 1 ? (w.join === 'or' ? 'Any of: ' : 'All of: ') : 'When ') + w.conditions.map(conditionWords).join('; ') + '.';
-}
-
-/* A slot's conditions as the engine tests them: its own, else its action's defaults. */
-function effective(w, set) {
-  return w.conditions.length ? w.conditions : defaultConditions(w, { foodBelowPct: set && set.foodPct, drinkBelowPct: set && set.drinkPct });
 }
 
 /* A slot that heals its own hero: a food, or a self spell that heals. */
@@ -148,22 +140,26 @@ function healsSelf(a) {
 
 /**
  * THE HEAL WARNING (designer ruling 2026-10-21, Andy's Sewer death): a heal slot whose HP % (its
- * own "My HP % below" test, else the default) is fewer HP than the biggest blow the hunt can land,
+ * own "My HP % below" test) is fewer HP than the biggest blow the hunt can land,
  * so one hit can kill before it fires. `blow` is pull-cycle.js biggestBlowOn, `hpMax` the server's.
  * '' when it is safe or a number is unknown.
  */
 export function healWarning(w, set, blow, hpMax) {
   if (!w || !w.action || !w.action.id || !blow || !(hpMax > 0) || !healsSelf(w.action)) return '';
-  const c = effective(w, set).find((x) => x.metric === 'self_hp_pct' && (x.op === 'lt' || x.op === 'lte') && Number.isFinite(x.value));
+  const c = w.conditions.find((x) => x.metric === 'self_hp_pct' && (x.op === 'lt' || x.op === 'lte') && Number.isFinite(x.value));
   if (!c) return '';
   const at = Math.floor((hpMax * c.value) / 100);
   return at < blow.hit ? 'The ' + blow.name + ' can hit for ' + blow.hit + '. At ' + c.value + '% you have ' + at + ' HP, so one hit can kill you before you '
     + (w.action.type === 'consume' ? 'eat' : 'heal') + '.' : '';
 }
 const condKey = (c) => JSON.stringify([c.metric, c.op, c.value, c.subject || null]);
-/* A passes whenever B passes: A's conditions are all among B's (both "all of"), or A has none. */
-function weaker(a, b, set) {
-  const ca = effective(a, set), cb = effective(b, set);
+/* A passes whenever B passes: A is On, ignores no monster B fights, and A's conditions are all among B's
+   (both "all of"), or A has none. */
+function weaker(a, b) {
+  if (a.enabled === false) return false;
+  const bIgnores = new Set(Array.isArray(b.ignore) ? b.ignore : []);
+  if (Array.isArray(a.ignore) && a.ignore.some((m) => !bIgnores.has(m))) return false;
+  const ca = a.conditions, cb = b.conditions;
   if (!ca.length) return true;
   if ((ca.length > 1 && a.join === 'or') || (cb.length > 1 && b.join === 'or')) return false;
   const keys = new Set(cb.map(condKey));
@@ -176,13 +172,13 @@ function weaker(a, b, set) {
  * act (conditions.js pickSlot), so a later slot never fires when an earlier one
  * does the same action under conditions it always meets.
  */
-export function conflictsOf(wires, set) {
+export function conflictsOf(wires) {
   const out = new Map();
   wires.forEach((b, j) => {
     if (!b) return;
     for (let i = 0; i < j; i++) {
       const a = wires[i];
-      if (!a || !weaker(a, b, set)) continue;
+      if (!a || !weaker(a, b)) continue;
       if (a.action.type === b.action.type && a.action.id === b.action.id) {
         out.set(j, { by: i, why: 'Blocked by ' + actionName(a.action) + ' (slot ' + (i + 1) + '): the same action, and it fires first whenever this one could.' });
         break;

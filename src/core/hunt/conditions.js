@@ -4,7 +4,8 @@
 // ONE deterministic condition system for every combat action a hero takes:
 // an ability (abilities.js), a food or a drink (consumables.js), and the ammo
 // a basic attack looses (damage.js). Not a scripting language: a slot is
-//   { action: { type, id }, conditions: [≤ MAX_CONDITIONS { metric, op, value, subject? }], join }
+//   { action: { type, id }, conditions: [≤ MAX_CONDITIONS { metric, op, value, subject? }], join,
+//     enabled?: false (switched Off), ignore?: [≤ MAX_IGNORED monster ids] }
 // and the hero's BAR is a list of slots. Slot order IS priority: when an
 // action lane is free, its slots are walked in order and the first one whose
 // conditions pass AND whose action can happen fires; the next is the fallback
@@ -14,15 +15,19 @@
 // the stored bar; every decision event carries it (`rule`) and which
 // conditions passed (`pass`, a bit per condition, so it is bounded).
 //
-// DEFAULT CONDITIONS. A slot with no conditions takes its action's defaults:
-// an ability its own trigger (a self-shield under its row's whenBelowPct, an
-// ally heal under it for the lowest ally, an area at ABILITY_RULES.areaMin
-// monsters); food the hero's eat-at (self_hp_pct below food_below_pct) and
-// drink its drink-at. Each lane with no slot of its own takes its defaults:
-// the role's rule set (src/data/rule-subjects.js ROLE_RULES) for abilities and
-// the loaded ammo for the basic attack. Food and drink have NONE (Tyler
-// 2026-10-21: the game never picks a supply): a new hero, whose stored bar holds
-// nothing, runs the start kit's bar (src/data/start-kit.js START_BAR).
+// A SLOT DOES EXACTLY WHAT THE SCREEN SAYS (Tyler 2026-10-23, audit c21/c23/c24).
+// A slot with no conditions fires whenever it is ready ("whenever it is ready", the
+// Configure action's words): nothing hidden stands behind it. The conditions a NEW
+// slot starts with (suggestedConditions: an ability's own trigger, food under
+// CONSUMABLE_RULES.foodBelowPct, drink under drinkBelowPct) are written ON the slot,
+// where the player sees and edits them; the old per-hero eat-at / drink-at settings
+// are retired. A slot switched Off (`enabled: false`) never fires; a slot with
+// ignored monsters never fires AT one of them, nor while the hero's own target is
+// one. Each lane with no slot of its own takes its defaults: the role's rule set
+// (src/data/rule-subjects.js ROLE_RULES, its triggers written as real conditions)
+// for abilities and the loaded ammo for the basic attack. Food and drink have NONE
+// (Tyler 2026-10-21: the game never picks a supply): a new hero, whose stored bar
+// holds nothing, runs the start kit's bar (src/data/start-kit.js START_BAR).
 //
 // THE AREA FOOTPRINT (enemies_in_aoe; the area a shot or a cast hits). A
 // footprint is an n x n square of tiles placed on a candidate AIM: every
@@ -41,13 +46,13 @@
 // INJECTED (inst.heroes[unitId]): `slots` (the bar, normalised) or the
 // shorthand `bar` (ability ids, each a slot with no conditions), `stopRules`,
 // `hs` (its supplies), `range`, `ammo`, `items` (the server's item catalogue;
-// the static one when absent), `foodBelowPct` / `drinkBelowPct`.
+// the static one when absent).
 //
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random. Draws nothing.
 // ============================================================
 
-import { METRICS, OPERATORS, MAX_CONDITIONS, MAX_STOP_RULES, STOP_HOLD_MS, ACTION_TYPES, ATTACK_KINDS, EFFECT_IDS } from '../../data/condition-metrics.js?v=0.2.34';
-import { ABILITIES, ABILITY_RULES } from '../../data/abilities.js?v=0.2.34';
+import { METRICS, OPERATORS, MAX_CONDITIONS, MAX_STOP_RULES, MAX_IGNORED, STOP_HOLD_MS, ACTION_TYPES, ATTACK_KINDS, EFFECT_IDS } from '../../data/condition-metrics.js?v=0.2.34';
+import { ABILITIES, suggestedTrigger } from '../../data/abilities.js?v=0.2.34';
 import { CONSUMABLES, CONSUMABLE_RULES } from '../../data/consumables.js?v=0.2.34';
 import { SUPPLIES, isRune } from '../../data/supplies.js?v=0.2.34';
 import { ITEMS } from '../../data/items.js?v=0.2.34';
@@ -79,7 +84,8 @@ export const LANE_OF = Object.freeze({ ability: 'ability', consume: 'consume', a
 /* A stable rule id: [a-z0-9_], at most 24. */
 const RULE_ID = /^[a-z0-9_]{1,24}$/;
 
-/** A stored slot in the engine's shape: an ability id is a slot with no conditions; null / junk is null. */
+/** A stored slot in the engine's shape: an ability id is a slot with no conditions; null / junk is null.
+    `enabled` false = switched Off; `ignore` = the monster ids it never fires at (slotProblem validates both). */
 export function normalizeSlot(s) {
   if (typeof s === 'string') return { id: null, action: { type: 'ability', id: s }, conditions: [], join: 'and' };
   if (!isObj(s) || !isObj(s.action)) return null;
@@ -90,8 +96,13 @@ export function normalizeSlot(s) {
     conditions: Array.isArray(s.conditions) ? s.conditions.map((c) => (isObj(c) ? { metric: c.metric, op: c.op, value: c.value,
       ...(c.subject !== undefined && c.subject !== null ? { subject: c.subject } : {}) } : null)) : [],
     join: s.join === 'or' ? 'or' : 'and',
+    ...(s.enabled === false ? { enabled: false } : {}),
+    ...(Array.isArray(s.ignore) && s.ignore.length ? { ignore: s.ignore.slice() } : {}),
   };
 }
+
+/** Does slot `slot` ignore monster unit `m` (its kind is on the slot's ignore list)? */
+export const ignores = (slot, m) => !!(slot && Array.isArray(slot.ignore) && slot.ignore.length && m && m.side === 'mon' && slot.ignore.includes(m.kind));
 
 /* ── VALIDATION (the server's hr_hunt_bar_check / hr_hunt_stop_rules_check, mirrored) ── */
 
@@ -148,11 +159,23 @@ function conditionsProblem(conds, join, stop) {
   return null;
 }
 
+/** Why a slot's On/Off and ignored monsters are refused, or null (the server's hr_hunt_slot_check, mirrored). */
+function switchProblem(s) {
+  if (s.enabled !== undefined && typeof s.enabled !== 'boolean') return { error: 'bad_enabled' };
+  if (s.ignore === undefined) return null;
+  if (!Array.isArray(s.ignore)) return { error: 'bad_ignore' };
+  if (s.ignore.length > MAX_IGNORED) return { error: 'too_many_ignored' };
+  if (!s.ignore.every((id) => typeof id === 'string' && Object.prototype.hasOwnProperty.call(MONSTERS, id)) || new Set(s.ignore).size !== s.ignore.length) return { error: 'bad_ignore' };
+  return null;
+}
+
 /** Why one stored slot is refused, or null (null itself is an empty slot). */
 export function slotProblem(s) {
   if (s === null || typeof s === 'string') return s === null || ABILITIES[s] ? null : { error: 'bad_action' };
   if (!isObj(s) || !isObj(s.action)) return { error: 'bad_action' };
-  if (Object.keys(s).some((k) => !['id', 'action', 'conditions', 'join'].includes(k))) return { error: 'bad_slot' };
+  if (Object.keys(s).some((k) => !['id', 'action', 'conditions', 'join', 'enabled', 'ignore'].includes(k))) return { error: 'bad_slot' };
+  const sw = switchProblem(s);
+  if (sw) return sw;
   if (s.id !== undefined && !(typeof s.id === 'string' && RULE_ID.test(s.id))) return { error: 'bad_slot' };
   /* The retired "Any food" / "Any drink": the player names the item (refused in plain words). */
   if (s.action.type === 'consume' && (s.action.id === 'food' || s.action.id === 'drink')) return { error: 'choose_item' };
@@ -199,7 +222,9 @@ export function stopRulesProblem(rules) {
    reaches the engine unstamped (a test fixture) takes ruleIdOf, the same rule over
    an FNV-1a content hash. Defaults carry fixed ids (d_…). */
 export function ruleIdOf(slot, prefix) {
-  const text = JSON.stringify([slot.action ? [slot.action.type, slot.action.id] : null, slot.conditions || [], slot.join || 'and', slot.forMs ?? null]);
+  /* (Its ignored monsters are its content; switching it Off is not: the id survives an Off and On.) */
+  const ign = Array.isArray(slot.ignore) && slot.ignore.length ? [slot.ignore.slice().sort()] : [];
+  const text = JSON.stringify([slot.action ? [slot.action.type, slot.action.id] : null, slot.conditions || [], slot.join || 'and', slot.forMs ?? null, ...ign]);
   let h = 0x811c9dc5;
   for (let i = 0; i < text.length; i++) { h ^= text.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
   return (prefix || 'e') + h.toString(16).padStart(8, '0');
@@ -252,8 +277,9 @@ export function heroSlots(stored, role, allowed) {
   if (!has('ability')) list = placeDefaults(list, (ROLE_RULES[role] || []).map(normalizeSlot).filter(keep));
   if (fresh) list = placeDefaults(list, START_BAR.map(normalizeSlot));
   const out = [];
-  /* `at`: the slot's place on the bar (0-based), so an event can name "slot 2". */
-  list.forEach((s, at) => { if (keep(s)) out.push({ rule: s.id, slot: s, at }); });
+  /* `at`: the slot's place on the bar (0-based), so an event can name "slot 2". A slot switched OFF still
+     holds its lane (the player set that lane up: no defaults stand in for it) but never fires. */
+  list.forEach((s, at) => { if (keep(s) && s.enabled !== false) out.push({ rule: s.id, slot: s, at }); });
   out.push(DEFAULT_ATTACK_ROW);
   return out;
 }
@@ -304,11 +330,12 @@ export function reaches(inst, hero, range, t) {
   return dist2(hero, t) <= r * r && los(inst.grid, hero, t);
 }
 
-/** The best aim for an n-footprint: { aim, count } over every reachable engaged monster, or null. */
-export function bestAim(inst, hero, range, n) {
+/** The best aim for an n-footprint: { aim, count } over every reachable engaged monster, or null. A
+    monster `slot` ignores is never the aim (it is still counted when the footprint covers it). */
+export function bestAim(inst, hero, range, n, slot) {
   const mons = engagedMons(inst);
   let best = null; let bc = -1;
-  const cand = mons.filter((m) => reaches(inst, hero, range, m))
+  const cand = mons.filter((m) => reaches(inst, hero, range, m) && !ignores(slot, m))
     .sort((a, b) => ((b.id === hero.target) - (a.id === hero.target)) || a.id - b.id);
   for (const c of cand) {
     const count = mons.filter((m) => inFootprint(c, n, m)).length;
@@ -360,7 +387,7 @@ const EVAL = Object.freeze({
   ally_hp_pct: (cx, c) => { const a = allyOf(cx, c.subject, 'hp'); if (a) cx.ally = cx.ally || a; return a ? share(a.hp, a.maxHp) : null; },
   ally_mana_pct: (cx, c) => { const a = allyOf(cx, c.subject, 'mana'); return a ? share(a.mana, a.maxMana) : null; },
   enemies_in_aoe: (cx) => {
-    const b = bestAim(cx.inst, cx.u, cx.h && cx.h.range, footprintOf(cx.slot, cx.h));
+    const b = bestAim(cx.inst, cx.u, cx.h && cx.h.range, footprintOf(cx.slot, cx.h), cx.slot);
     if (b) cx.aim = b.aim;
     return b ? b.count : 0;
   },
@@ -419,38 +446,40 @@ export function holds(cx, c) {
   return false;
 }
 
-/* ── DEFAULT CONDITIONS ───────────────────────────────────────────────── */
+/* ── THE CONDITIONS A NEW SLOT STARTS WITH ────────────────────────────── */
 
-const pctOf = (v, d) => (Number.isInteger(v) && v >= 0 && v <= 100 ? v : d);
-/** The conditions a slot with none takes (its action's own trigger; see the header). */
-export function defaultConditions(slot, h) {
-  const a = slot.action;
-  if (a.type === 'ability') {
-    const row = ABILITIES[a.id];
-    if (!row) return [];
-    if (row.target === 'self') return [{ metric: 'self_hp_pct', op: 'lt', value: row.whenBelowPct }];
-    if (row.target === 'ally') return [{ metric: 'ally_hp_pct', op: 'lt', value: row.whenBelowPct, subject: 'lowest' }];
-    if (row.target === 'area') return [{ metric: 'enemies_in_aoe', op: 'gte', value: ABILITY_RULES.areaMin }];
-    if (row.target === 'party') return [{ metric: 'allies_below', op: 'gte', value: row.minHurt, subject: 'under_' + row.whenBelowPct }];
-    return [];
-  }
-  if (a.type === 'consume') {
-    const kind = CONSUMABLES[a.id] && (CONSUMABLES[a.id].kind === 'drink' ? 'mana' : 'heal');
-    if (kind === 'mana') return [{ metric: 'self_mana_pct', op: 'lt', value: pctOf(h && h.drinkBelowPct, CONSUMABLE_RULES.drinkBelowPct) }];
-    if (kind === 'heal') return [{ metric: 'self_hp_pct', op: 'lt', value: pctOf(h && h.foodBelowPct, CONSUMABLE_RULES.foodBelowPct) }];
+/**
+ * The conditions a NEW slot of `action` starts with, written on the slot where the
+ * player sees and edits them (the Configure action, bar-draft.js startConditions):
+ * an ability's own trigger (abilities.js suggestedTrigger), a food under
+ * CONSUMABLE_RULES.foodBelowPct HP, a drink under drinkBelowPct mana. Never applied
+ * behind a slot: a slot with no conditions fires whenever it is ready.
+ */
+export function suggestedConditions(action) {
+  const a = action || {};
+  if (a.type === 'ability') return ABILITIES[a.id] ? suggestedTrigger(ABILITIES[a.id]).map((c) => Object.assign({}, c)) : [];
+  if (a.type === 'consume' && CONSUMABLES[a.id]) {
+    return CONSUMABLES[a.id].kind === 'drink' ? [{ metric: 'self_mana_pct', op: 'lt', value: CONSUMABLE_RULES.drinkBelowPct }]
+      : [{ metric: 'self_hp_pct', op: 'lt', value: CONSUMABLE_RULES.foodBelowPct }];
   }
   return [];
 }
 
 /**
- * Test a slot for hero `u`: its conditions (or its defaults), joined. Answers
+ * Test a slot for hero `u`: its own conditions, joined (none = always). Answers
  * { pass, mask (bit i = condition i held), cx } — `cx.aim` / `cx.ally` are the
  * aim and the ally its conditions found, which the action then uses. Every
- * condition is evaluated (no short-circuit), so `mask` is the whole truth.
+ * condition is evaluated (no short-circuit), so `mask` is the whole truth. A slot
+ * that IGNORES the monster its hero is fighting does not pass (its other targets
+ * are filtered where it aims: abilities.js targetFor, bestAim).
  */
 export function testSlot(inst, u, h, slot) {
   const cx = { inst, u, h, slot, aim: null, ally: null };
-  const conds = slot.conditions.length ? slot.conditions : defaultConditions(slot, h);
+  if (Array.isArray(slot.ignore) && slot.ignore.length && Number.isInteger(u.target)) {
+    const t = inst.world.units.find((x) => x.id === u.target);
+    if (ignores(slot, t)) return { pass: false, mask: 0, cx };
+  }
+  const conds = slot.conditions;
   let mask = 0;
   conds.forEach((c, i) => { if (c && holds(cx, c)) mask |= (1 << i); });
   const all = (1 << conds.length) - 1;

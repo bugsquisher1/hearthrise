@@ -101,7 +101,10 @@ function playSewer(M, party, swings, seed, groundId, level) {
   party.forEach((p, i) => {
     const u = world.units[i];
     u.mana = u.maxMana = M.vit.maxManaFor(L, ARMOUR[p.role][1]);
-    heroes[u.id] = { hs: session(M, p), slots: M.cond.heroSlots(p.bar, null), actionSet: 'hunt', range: M.roles.HUNT_ROLES[p.role].range, ammo: p.ammo || null };
+    /* Each ability slot as a player's new slot starts: its own trigger WRITTEN on it (conditions.js suggestedConditions;
+       Tyler 2026-10-23: no hidden default stands behind a slot, so a bare id would fire whenever it is ready). */
+    const bar = p.bar.map((id) => ({ action: { type: 'ability', id }, conditions: M.cond.suggestedConditions({ type: 'ability', id }), join: 'and' }));
+    heroes[u.id] = { hs: session(M, p), slots: M.cond.heroSlots(bar, null), actionSet: 'hunt', range: M.roles.HUNT_ROLES[p.role].range, ammo: p.ammo || null };
   });
   const out = { pulls: [], kills: {}, wipes: 0, falls: 0, kingDead: false, swings: 0, loops: 0 };
   let pullAt = null;

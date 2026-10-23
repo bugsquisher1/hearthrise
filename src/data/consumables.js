@@ -33,7 +33,9 @@ export const CONSUMABLE_RULES = Object.freeze({
   /* The one shared food-and-drink cooldown: 2 s (Tyler 2026-10-19: "2 second global
      cooldown for food/drink is ideal, same cooldown"). */
   laneMs: 2000,
-  /* Per-hero defaults (ASSUMED): drink under 30% mana, eat under 50% HP. */
+  /* Where a NEW food or drink slot's condition starts (ASSUMED; written on the slot, never applied behind
+     it: conditions.js suggestedConditions; the per-hero eat-at / drink-at settings are retired, Tyler 10-23):
+     drink under 30% mana, eat under 50% HP. */
   drinkBelowPct: 30,
   foodBelowPct: 50,
 });

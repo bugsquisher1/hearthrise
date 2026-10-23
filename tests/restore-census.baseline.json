@@ -980,17 +980,17 @@
   },
   "hr_hunt_action_ids": {
    "class": "seeded",
-   "replay": 60,
+   "replay": 53,
    "note": "Catalogue (2026-10-25-action-conditions.sql §1, rows pinned equal to src/data by tests/hunt-core/conditions.mjs sql-rows): the consume and attack_with_item ids a slot may name (condition-metrics.js CONSUME_KINDS, consumables.js own rows, supplies.js ammo). Rebuilt from repo, never restored; nothing player-owned. If it came back empty every conditional bar edit is refused (catalogue_missing / bad_metric), loud, never a wrong grant."
   },
   "hr_hunt_basic_supplies": {
    "class": "seeded",
-   "replay": 19,
+   "replay": 20,
    "note": "Generated catalogue (2026-10-22-hunt-sessions-catalogue.generated.sql, tools/gen-hunt-sessions.mjs --check): the store's per-use supplies (src/data/supply-basics.js). Rebuilt from repo, never restored."
   },
   "hr_hunt_condition_limits": {
    "class": "seeded",
-   "replay": 4,
+   "replay": 5,
    "note": "Catalogue (2026-10-25-action-conditions.sql §1, rows pinned equal to src/data by tests/hunt-core/conditions.mjs sql-rows): the condition / stop-rule bounds (condition-metrics.js MAX_CONDITIONS, MAX_STOP_RULES, STOP_HOLD_MS). Rebuilt from repo, never restored; nothing player-owned. If it came back empty every conditional bar edit is refused (catalogue_missing / bad_metric), loud, never a wrong grant."
   },
   "hr_hunt_condition_metrics": {
@@ -1046,7 +1046,7 @@
   },
   "hr_hunt_limits": {
    "class": "seeded",
-   "replay": 52,
+   "replay": 50,
    "note": "Generated catalogue (2026-10-21-hunt-sessions-catalogue.generated.sql (tools/gen-hunt-sessions.mjs --check from src/data)): the session limits (presets, slots, conditions, bag lines, falls and hours ranges, cooldowns, vigour_low threshold, sessions kept). Every RPC reads them; a missing key fails the RPC closed. Rebuilt from repo, never restored; nothing player-owned."
   },
   "hr_hunt_resumable_kinds": {
@@ -1071,7 +1071,7 @@
   },
   "hr_hunt_set_options": {
    "class": "seeded",
-   "replay": 12,
+   "replay": 10,
    "note": "Generated catalogue (2026-10-22-hunt-sessions-catalogue.generated.sql, tools/gen-hunt-sessions.mjs --check): the action-set option keys and their domains (hunt-sessions.js ACTION_SET_OPTIONS), read by hr_action_set_options. Rebuilt from repo, never restored."
   },
   "hr_hunt_spawns": {

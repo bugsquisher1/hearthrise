@@ -41,10 +41,11 @@ import { supplySession } from './fixtures/h4.js';
 
 const V = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(ROOT, 'src/build-info.js'), 'utf8')) || [, ''])[1];
 const MIGRATION = 'supabase/migrations/2026-10-25-action-conditions.sql';
-/* The action ids and the starter bar moved forward (Tyler 2026-10-21: a slot names ONE item; a new hero's bar). */
+/* The starter bar moved forward (Tyler 2026-10-21: a slot names ONE item; a new hero's bar). */
 const STORE_MIGRATION = 'supabase/migrations/2026-11-07-store-by-slot.sql';
-/* The limits moved forward (Tyler 10-19: three conditions, all must match). */
-const LIMITS_MIGRATION = 'supabase/migrations/2026-10-26-bar-three-conditions.sql';
+/* The limits (+ max_ignored), the action ids (no rune is an attack item) and the role rule sets (their triggers
+   written as real conditions) moved forward: lane b-spell-core, Tyler 2026-10-23. */
+const SLOT_MIGRATION = 'supabase/migrations/2026-12-21-slot-truth.sql';
 
 async function load(root) {
   const M = await loadCore(root);
@@ -205,7 +206,8 @@ export function roleRuleRowsSql(M) {
 }
 export function limitRowsSql(M) {
   return [['max_conditions', M.CM.MAX_CONDITIONS], ['max_stop_rules', M.CM.MAX_STOP_RULES],
-    ['stop_hold_max_ms', M.CM.STOP_HOLD_MS.max], ['stop_hold_step_ms', M.CM.STOP_HOLD_MS.step]].map(([k, v]) => '  (' + q(k) + ', ' + v + ')').join(',\n');
+    ['stop_hold_max_ms', M.CM.STOP_HOLD_MS.max], ['stop_hold_step_ms', M.CM.STOP_HOLD_MS.step],
+    ['max_ignored', M.CM.MAX_IGNORED]].map(([k, v]) => '  (' + q(k) + ', ' + v + ')').join(',\n');
 }
 const between = (src, tag) => {
   const a = src.indexOf('-- ⟦' + tag + '⟧\n'); const b = src.indexOf('-- ⟦/' + tag + '⟧');
@@ -244,6 +246,14 @@ const cases = {
       [slot('consume', 'cooked_shrimp'), null], [slot('consume', 'salted_shrimp'), null], [slot('consume', 'food'), 'choose_item'], [slot('consume', 'drink'), 'choose_item'],
       [slot('attack_with_item', 'iron_arrows', [c('enemies_in_aoe', 'gte', 3)]), null],
       [Object.assign(ab('power_strike'), { when: 1 }), 'bad_slot'],
+      /* Runes fuel spells only (Tyler 2026-10-23): no attack slot names one. */
+      [slot('attack_with_item', 'fire_rune'), 'bad_action'],
+      /* ON / OFF and the IGNORED MONSTERS (Tyler 2026-10-19; the server's hr_hunt_slot_check, the same refusals). */
+      [Object.assign(ab('power_strike'), { enabled: false }), null], [Object.assign(ab('power_strike'), { enabled: 'no' }), 'bad_enabled'],
+      [Object.assign(ab('fireball'), { ignore: ['rat', 'slime'] }), null],
+      [Object.assign(ab('fireball'), { ignore: ['no_such_monster'] }), 'bad_ignore'], [Object.assign(ab('fireball'), { ignore: ['rat', 'rat'] }), 'bad_ignore'],
+      [Object.assign(ab('fireball'), { ignore: 'rat' }), 'bad_ignore'],
+      [Object.assign(ab('fireball'), { ignore: Object.keys(M.MONSTERS).slice(0, M.CM.MAX_IGNORED + 1) }), 'too_many_ignored'],
     ];
     for (const [s, err] of want) {
       const p = P(s);
@@ -325,11 +335,78 @@ const cases = {
       return sc.events.filter((e) => e.type === 'eat').map((e) => e.item + '#' + e.rule).join();
     };
     const bag = { cooked_shrimp: { loaded: 3 }, cooked_trout: { loaded: 0 } };
-    if (run(85, [slot('consume', 'cooked_shrimp', [], 'and', 'sh')], bag) !== '') return 'the default eat-at (50%) ate at 85%';
+    /* NO HIDDEN EAT-AT (Tyler 2026-10-23, c21/c24): a food slot with no conditions eats whenever it is ready, so at 85%;
+       at full HP it has nothing to restore and is not ready. A slot's own condition is the only threshold. */
+    if (run(85, [slot('consume', 'cooked_shrimp', [], 'and', 'sh')], bag) !== 'cooked_shrimp#sh') return 'a food slot with no conditions did not eat at 85% (a hidden eat-at stands behind it)';
+    if (run(100, [slot('consume', 'cooked_shrimp', [], 'and', 'sh')], bag) !== '') return 'a food slot ate at full HP';
+    if (run(85, [slot('consume', 'cooked_shrimp', [c('self_hp_pct', 'lt', 50)], 'and', 'f50')], bag) !== '') return 'an eat slot at 50% ate at 85%';
     if (run(85, [slot('consume', 'cooked_shrimp', [c('self_hp_pct', 'lt', 90)], 'and', 'f90')], bag) !== 'cooked_shrimp#f90') return 'an eat slot at 90% did not eat at 85%';
     /* An empty item falls back to the next slot. */
     const fb = run(40, [slot('consume', 'cooked_trout', [], 'and', 'tr'), slot('consume', 'cooked_shrimp', [], 'and', 'sh')], bag);
     return fb === 'cooked_shrimp#sh' ? null : 'an empty trout slot fell back to ' + (fb || 'nothing');
+  },
+  /* NO HIDDEN DEFAULT ON AN ABILITY EITHER (c21): an Arcane Barrier slot with no conditions fires at 95% HP (the old hidden
+     trigger held it to under 85%); the Mage's ROLE rule set carries that trigger as a REAL condition on its slot, so the
+     default bar behaves as before and the screen shows why. A new slot starts with it written on it. */
+  'no-hidden-defaults': (M) => {
+    const cast = (bar) => {
+      const h = hero(M, 1, 12, 3, { role: 'mage', hp: 95, maxHp: 100, mana: 300, maxMana: 300 });
+      const inst = instOf(M, world(M, [h, mon(M, 10, 0, 16, 3, { target: 1, hp: 500, maxHp: 500 })]));
+      inst.heroes = { 1: heroRow(M, { range: 7, slots: bar }) };
+      const sc = subStep(0); sc.rng = M.rng.createRng(3);
+      M.abilities.castAbilities(inst, sc);
+      return sc.events.filter((e) => e.type === 'cast').map((e) => e.ability).join();
+    };
+    if (cast(rows([ab('arcane_barrier')])) !== 'arcane_barrier') return 'an Arcane Barrier slot with no conditions held back at 95% HP (a hidden trigger)';
+    const role = M.cond.heroSlots([], 'mage').find((r) => r.slot.action.id === 'arcane_barrier');
+    if (!role || JSON.stringify(role.slot.conditions) !== JSON.stringify([c('self_hp_pct', 'lt', M.AD.ABILITIES.arcane_barrier.whenBelowPct)])) return 'the Mage\'s default Arcane Barrier does not carry its trigger: ' + JSON.stringify(role && role.slot);
+    if (cast(M.cond.heroSlots([], 'mage').filter((r) => r.slot.action.id === 'arcane_barrier')) !== '') return 'the default Arcane Barrier fired at 95% HP';
+    const start = M.cond.suggestedConditions({ type: 'ability', id: 'greater_mend' });
+    return JSON.stringify(start) === JSON.stringify([c('ally_hp_pct', 'lt', M.AD.ABILITIES.greater_mend.whenBelowPct, 'lowest')]) ? null : 'a new Greater Mend slot starts with ' + JSON.stringify(start);
+  },
+  /* ON / OFF AND IGNORED MONSTERS (Tyler 2026-10-19 Configure action; c23): a slot switched Off never fires (and still holds
+     its lane: no role default stands in); a slot never fires while its hero fights a monster it ignores, never takes one as
+     a single target, and an area slot never aims at one. */
+  'slot-switch-and-ignore': (M) => {
+    const fight = (bar, mons, target) => {
+      const h = hero(M, 1, 12, 3, { role: 'tank', hp: 100, maxHp: 100, mana: 300, maxMana: 300, target });
+      const inst = instOf(M, world(M, [h, ...mons.map(([id, x, y, kind]) => mon(M, id, 0, x, y, { target: 1, kind, hp: 5000, maxHp: 5000 }))]));
+      inst.heroes = { 1: heroRow(M, { range: 1, slots: M.cond.heroSlots(bar, 'tank') }) };
+      const sc = subStep(0); sc.rng = M.rng.createRng(9);
+      M.abilities.castAbilities(inst, sc);
+      return sc.events.filter((e) => e.type === 'cast').map((e) => e.ability + '@' + e.t).join();
+    };
+    const off = Object.assign(ab('power_strike'), { enabled: false });
+    if (fight([off, ab('cleave')], [[10, 13, 3, 'rat']], 10) !== 'cleave@10') return 'an Off Power Strike above Cleave: ' + fight([off, ab('cleave')], [[10, 13, 3, 'rat']], 10);
+    if (fight([off], [[10, 13, 3, 'rat']], 10) !== '') return 'a bar whose only ability is Off cast ' + fight([off], [[10, 13, 3, 'rat']], 10) + ' (a role default stood in)';
+    const ign = Object.assign(ab('power_strike'), { ignore: ['rat'] });
+    if (fight([ign, ab('cleave')], [[10, 13, 3, 'rat']], 10) !== 'cleave@10') return 'Power Strike ignoring rats fired at a rat: ' + fight([ign, ab('cleave')], [[10, 13, 3, 'rat']], 10);
+    if (fight([ign, ab('cleave')], [[10, 13, 3, 'slime']], 10) !== 'power_strike@10') return 'Power Strike ignoring rats did not fire at a slime';
+    /* a slot that aims at nobody (a food) ignoring rats does not fire while its hero fights a rat */
+    const eat = (kind) => {
+      const h = hero(M, 1, 12, 3, { hp: 40, maxHp: 100, mana: 100, maxMana: 100, target: 10 });
+      const inst = instOf(M, world(M, [h, mon(M, 10, 0, 13, 3, { target: 1, kind, hp: 500, maxHp: 500 })]));
+      inst.heroes = { 1: heroRow(M, { slots: rows([Object.assign(slot('consume', 'cooked_shrimp', [c('self_hp_pct', 'lt', 50)], 'and', 'sh'), { ignore: ['rat'] })]),
+        session: { bag: { cooked_shrimp: { loaded: 3 } } } }) };
+      const sc = subStep(0);
+      M.consumables.consume(inst, sc);
+      return sc.events.filter((e) => e.type === 'eat').length;
+    };
+    if (eat('rat') !== 0 || eat('slime') !== 1) return 'a food slot ignoring rats ate ' + eat('rat') + ' fighting a rat and ' + eat('slime') + ' fighting a slime';
+    /* the hero's own target (a slime) is out of reach and a rat stands next to it: the rat is no target for this slot */
+    if (fight([ign], [[10, 13, 3, 'rat'], [11, 16, 3, 'slime']], 11) !== '') return 'Power Strike ignoring rats took the rat beside it: ' + fight([ign], [[10, 13, 3, 'rat'], [11, 16, 3, 'slime']], 11);
+    /* an area slot ignoring rats aims at the lone slime, never the pack of rats */
+    const fb = Object.assign(ab('fireball', [c('enemies_in_aoe', 'gte', 1)]), { ignore: ['rat'] });
+    const aimed = (bar) => {
+      const h = hero(M, 1, 9, 3, { role: 'mage', hp: 100, maxHp: 100, mana: 300, maxMana: 300, target: 13 });
+      const inst = instOf(M, world(M, [h, ...[[10, 15, 2, 'rat'], [11, 15, 3, 'rat'], [12, 15, 4, 'rat'], [13, 14, 6, 'slime']].map(([id, x, y, kind]) => mon(M, id, 0, x, y, { target: 1, kind, hp: 5000, maxHp: 5000 }))]));
+      inst.heroes = { 1: heroRow(M, { range: 7, slots: M.cond.heroSlots(bar, 'mage') }) };
+      const sc = subStep(0); sc.rng = M.rng.createRng(9);
+      M.abilities.castAbilities(inst, sc);
+      return sc.events.filter((e) => e.type === 'cast').map((e) => e.ability + '@' + e.t).join();
+    };
+    if (aimed([ab('fireball', [c('enemies_in_aoe', 'gte', 1)])]) !== 'fireball@11') return 'CONTROL: Fireball with nothing ignored did not aim at the rats\' centre: ' + aimed([ab('fireball', [c('enemies_in_aoe', 'gte', 1)])]);
+    return aimed([fb]) === 'fireball@13' ? null : 'a Fireball ignoring rats aimed ' + aimed([fb]);
   },
   'attack-item': (M) => {
     const r = runShots(M, { burst: 4 });
@@ -695,11 +772,11 @@ const cases = {
   'sql-rows': (M) => {
     let sql;
     try { sql = readFileSync(join(M.root, MIGRATION), 'utf8'); } catch { return MIGRATION + ' is missing'; }
-    let lim;
-    try { lim = readFileSync(join(M.root, LIMITS_MIGRATION), 'utf8'); } catch { return LIMITS_MIGRATION + ' is missing'; }
+    let truth;
+    try { truth = readFileSync(join(M.root, SLOT_MIGRATION), 'utf8'); } catch { return SLOT_MIGRATION + ' is missing'; }
     let store;
     try { store = readFileSync(join(M.root, STORE_MIGRATION), 'utf8'); } catch { return STORE_MIGRATION + ' is missing'; }
-    const from = { limits: lim, 'action-ids': store };
+    const from = { limits: truth, 'action-ids': truth, 'role-rules': truth };
     for (const [tag, want] of [['metrics', metricRowsSql(M)], ['action-ids', actionIdRowsSql(M)], ['role-rules', roleRuleRowsSql(M)], ['limits', limitRowsSql(M)]]) {
       const got = between(from[tag] || sql, tag);
       if (got !== want) return 'the migration\'s ' + tag + ' block is stale (node tests/hunt-core/conditions.mjs --print)';
@@ -739,15 +816,23 @@ const mutants = [
   { name: 'a slot may join or', case: 'validation', edits: [['src/core/hunt/conditions.js', "(!JOINS.includes(join) || (!stop && join !== 'and'))", '!JOINS.includes(join)']] },
   { name: 'four conditions are accepted', case: 'validation', edits: [['src/core/hunt/conditions.js', '  if (list.length > MAX_CONDITIONS) return', '  if (list.length > MAX_CONDITIONS + 1) return']] },
   { name: 'the even footprint is centred north-west', case: 'footprint', edits: [['src/core/hunt/conditions.js', ' : -(size / 2 - 1);', ' : -(size / 2);']] },
-  { name: 'enemies_in_aoe counts the 1x1 always', case: 'enemies-in-aoe', edits: [['src/core/hunt/conditions.js', '    const b = bestAim(cx.inst, cx.u, cx.h && cx.h.range, footprintOf(cx.slot, cx.h));', '    const b = bestAim(cx.inst, cx.u, cx.h && cx.h.range, 3);']] },
+  { name: 'enemies_in_aoe counts the 1x1 always', case: 'enemies-in-aoe', edits: [['src/core/hunt/conditions.js', '    const b = bestAim(cx.inst, cx.u, cx.h && cx.h.range, footprintOf(cx.slot, cx.h), cx.slot);', '    const b = bestAim(cx.inst, cx.u, cx.h && cx.h.range, 3, cx.slot);']] },
   { name: 'slots fire in reverse order', case: 'priority-fallback', edits: [['src/core/hunt/conditions.js', '  for (const row of rows) {\n    const t = testSlot', '  for (const row of rows.slice().reverse()) {\n    const t = testSlot']] },
   { name: 'or is read as and', case: 'join', edits: [['src/core/hunt/conditions.js', "(slot.join === 'or' ? mask !== 0 : mask === all)", '(mask === all)']] },
   { name: 'the ally subject is ignored (lowest is healed)', case: 'ally-subject', edits: [['src/core/hunt/abilities.js', '      if (cx && cx.ally) return ok(cx.ally) ? cx.ally : null;\n', '']] },
-  { name: 'an explicit consume slot keeps the default threshold', case: 'consume-slot', edits: [['src/core/hunt/conditions.js', '  const conds = slot.conditions.length ? slot.conditions : defaultConditions(slot, h);', '  const conds = defaultConditions(slot, h).length ? defaultConditions(slot, h) : slot.conditions;']] },
+  { name: 'a slot with no conditions takes a hidden default again (c21)', case: 'consume-slot', edits: [['src/core/hunt/conditions.js', '  const conds = slot.conditions;', '  const conds = slot.conditions.length ? slot.conditions : suggestedConditions(slot.action);']] },
+  { name: 'a slot with no conditions takes a hidden default again (c21), an ability', case: 'no-hidden-defaults', edits: [['src/core/hunt/conditions.js', '  const conds = slot.conditions;', '  const conds = slot.conditions.length ? slot.conditions : suggestedConditions(slot.action);']] },
+  { name: 'a food with nothing to restore is eaten anyway', case: 'consume-slot', edits: [['src/core/hunt/consumables.js', "  if (int(u[stat]) >= int(u[MAX_OF[stat]])) return null;\n", '']] },
+  { name: 'a slot switched Off still fires', case: 'slot-switch-and-ignore', edits: [['src/core/hunt/conditions.js', '  list.forEach((s, at) => { if (keep(s) && s.enabled !== false) out.push({ rule: s.id, slot: s, at }); });', '  list.forEach((s, at) => { if (keep(s)) out.push({ rule: s.id, slot: s, at }); });']] },
+  { name: 'a slot fires while its hero fights an ignored monster', case: 'slot-switch-and-ignore', edits: [['src/core/hunt/conditions.js', '    if (ignores(slot, t)) return { pass: false, mask: 0, cx };\n', '']] },
+  { name: 'an area slot aims at an ignored monster', case: 'slot-switch-and-ignore', edits: [['src/core/hunt/conditions.js', '  const cand = mons.filter((m) => reaches(inst, hero, range, m) && !ignores(slot, m))', '  const cand = mons.filter((m) => reaches(inst, hero, range, m))']] },
+  { name: 'an ignored monster may be a single-target ability\'s target', case: 'slot-switch-and-ignore', edits: [['src/core/hunt/abilities.js', '  const near = mons.filter((m) => inReach(inst, hero, h.range, m) && !ignores(cx && cx.slot, m)).sort(byPreference(hero));', '  const near = mons.filter((m) => inReach(inst, hero, h.range, m)).sort(byPreference(hero));']] },
+  { name: 'an unknown monster may be ignored', case: 'validation', edits: [['src/core/hunt/conditions.js', "  if (!s.ignore.every((id) => typeof id === 'string' && Object.prototype.hasOwnProperty.call(MONSTERS, id)) || new Set(s.ignore).size !== s.ignore.length) return { error: 'bad_ignore' };\n", '']] },
+  { name: 'a slot may ignore without bound', case: 'validation', edits: [['src/core/hunt/conditions.js', "  if (s.ignore.length > MAX_IGNORED) return { error: 'too_many_ignored' };\n", '']] },
   { name: 'an area shot spends one unit per monster hit', case: 'attack-item', edits: [['src/core/hunt/damage.js', '    for (const m of hits) if (m.alive) blow(inst, sc, u, h, m, shot.pick.price, sharePm);', '    for (const m of hits) { if (m !== aim && shot.pick.ammo) payBasic(inst, u, { ammo: shot.pick.ammo }, sc); if (m.alive) blow(inst, sc, u, h, m, shot.pick.price, sharePm); }']] },
   { name: 'an empty attack stack does not fall back', case: 'attack-item', edits: [['src/core/hunt/damage.js', "    if (!l.id || l.why) return { why: l.why === 'gold_short' ? 'gold_short' : 'no_stock' };\n    const size", '    if (!l.id) return { id, size: 1, aim: cx.aim || u };\n    const size']] },
   { name: 'target_is_boss reads the wrong flag', case: 'metrics-misc', edits: [['src/core/hunt/conditions.js', 'MONSTERS[t.kind].boss === true', 'MONSTERS[t.kind].formation === false']] },
-  { name: 'the id is the slot position', case: 'stable-ids', edits: [['src/core/hunt/conditions.js', '  list.forEach((s, at) => { if (keep(s)) out.push({ rule: s.id, slot: s, at }); });', '  list.forEach((s, at) => { if (keep(s)) out.push({ rule: \'p\' + at, slot: s, at }); });']] },
+  { name: 'the id is the slot position', case: 'stable-ids', edits: [['src/core/hunt/conditions.js', '  list.forEach((s, at) => { if (keep(s) && s.enabled !== false) out.push({ rule: s.id, slot: s, at }); });', '  list.forEach((s, at) => { if (keep(s) && s.enabled !== false) out.push({ rule: \'p\' + at, slot: s, at }); });']] },
   { name: 'a bar edit keeps a dropped rule\'s state', case: 'rekey', edits: [['src/core/hunt/conditions.js', '    for (const [id, ms] of Object.entries(u.ruleHold)) if (ids.has(id)) hold[id] = int(ms);', '    for (const [id, ms] of Object.entries(u.ruleHold)) hold[id] = int(ms);']] },
   { name: 'a scaled kill pays its row\'s whole XP', case: 'yield-scale', edits: [['src/core/hunt/damage.js', 'xp: Math.round((MONSTERS[target.kind].xp * yieldOf(target)) / 1000) }', 'xp: MONSTERS[target.kind].xp }']] },
   { name: 'a sure drop ignores the yield share', case: 'yield-scale', edits: [['src/core/drops.js', '  if (row.ch >= 1) return Math.min(1, row.ch * y);', '  if (row.ch >= 1) return row.ch;']] },

@@ -5,10 +5,10 @@
 //   1. its over-time halves tick (one tick a CONSUMABLE_RULES.overTimeTickMs);
 //   2. while the ONE food-and-drink lane is locked, nothing more;
 //   3. its consume SLOTS are walked in order (conditions.js): the first whose
-//      conditions pass and that has something to use fires. With no consume
-//      slot on its bar the defaults stand: eat under food_below_pct, then
-//      drink under drink_below_pct (the eat-at / drink-at options ARE these
-//      slots' values: one system).
+//      conditions pass, that has something to restore (HP below max for food,
+//      mana below max for a drink) and something to use fires. When to eat or
+//      drink is ONLY the slot's own conditions (Tyler 2026-10-23: the eat-at /
+//      drink-at settings are retired; a new slot starts with them written on it).
 // Food restores HP and drink restores mana, never both (no potions). Each use
 // lands instantPct now and the rest over overTimeMs, in whole ticks; the last
 // tick carries the remainder, so a use restores exactly its amount (capped at
@@ -18,11 +18,10 @@
 // fires whenever the ONE shared 2 s cooldown (laneMs) is free — nothing else
 // holds it (no wait for a running over-time half, no wait after an ability
 // heal). Its instant half always lands; its over-time half REPLACES what is
-// left of the same pool's (never stacked). EAT-AT STANDS BEFORE DRINK-AT in
-// the default bar (conditions.js DEFAULT_CONSUME and hr_hunt_settings_view,
-// 2026-10-28-consume-defaults.sql): a drink that always fires would otherwise
-// take every cooldown while mana stays low (a tier-1 drink lands 3 mana) and
-// starve food. A player's own bar keeps the player's order, with ONE yield
+// left of the same pool's (never stacked). FOOD STANDS BEFORE DRINK in the start
+// kit's bar (start-kit.js START_BAR): a drink that always fires would otherwise
+// take every cooldown while mana stays low and starve food. A player's own bar
+// keeps the player's order, with ONE yield
 // (Andy live 10-21, "foods usable while the regen potion is ticking"): while a
 // drink's over-time half is still landing, a matching FOOD slot goes before
 // the drink slots. A drink re-fired mid-tick only replaces what was still
@@ -41,7 +40,7 @@
 // with nothing to eat simply keeps fighting: running out never stops a hunt.
 //
 // INJECTED, never read from a global: `inst.heroes[unitId]` (from the settle's
-// swingCtx.heroes) = { hs, slots, foodBelowPct, drinkBelowPct } — `hs` is that
+// swingCtx.heroes) = { hs, slots } — `hs` is that
 // member's hunt session (bag, shop, purse, tally; the server's rows). A hero
 // with no entry has no supplies and eats nothing.
 //
@@ -130,6 +129,10 @@ const kindOfAction = (id) => (Object.prototype.hasOwnProperty.call(CONSUMABLES, 
 function slotWants(u, hero, action) {
   const kind = kindOfAction(action.id);
   if (!kind) return { why: 'none' };
+  /* NOTHING TO RESTORE, NOTHING EATEN: a slot with no conditions fires whenever it is ready (conditions.js),
+     and a food at full HP (a drink at full mana) is not ready — it would only throw the use away. */
+  const stat = CONSUMABLE_KINDS[kind].stat;
+  if (int(u[stat]) >= int(u[MAX_OF[stat]])) return null;
   const line = resolveLine(hero.hs, action.id);
   return line.id && !line.why ? { kind, line } : Object.assign({ kind }, line);
 }
@@ -157,8 +160,8 @@ function consumeOrder(u, rows) {
 
 /**
  * Consumable hook: while the ONE food-and-drink lane is free, each hero walks its
- * consume slots in order (conditions.js; its defaults are eat-at, then drink-at)
- * and uses the first whose conditions pass and that has something to use.
+ * consume slots in order (conditions.js; no hidden default: a slot's own conditions)
+ * and uses the first whose conditions pass and that has something to restore and to use.
  */
 export function consume(inst, sc) {
   const heroes = inst.heroes || null;
@@ -171,6 +174,7 @@ export function consume(inst, sc) {
     let starved = false;
     const got = pickSlot(inst, u, hero, consumeOrder(u, slotsFor(hero, 'consume')), (slot) => {
       const w = slotWants(u, hero, slot.action);
+      if (!w) return null;   // nothing to restore: not ready, and no wait to report
       if (w.why === 'gold_short') { if (w.kind === 'food') starved = true; return { why: 'gold_short' }; }
       if (w.line) return w;
       return { why: 'no_stock' };

@@ -244,7 +244,7 @@ function pickShot(inst, u, h, t, sc) {
     const size = footprintOf(slot, h);
     /* A ONE-TARGET item shoots the swing's own target, as the loaded ammo does (a pull's first shot at a pack
        that holds no target yet fell to the loaded ammo); an area item takes its best aim. */
-    const aim = cx.aim && cx.aim.alive ? cx.aim : size <= 1 ? t : (bestAim(inst, u, row.range, size) || {}).aim;
+    const aim = cx.aim && cx.aim.alive ? cx.aim : size <= 1 ? t : (bestAim(inst, u, row.range, size, slot) || {}).aim;
     return aim && inRange(inst, u, aim) ? { ammo: id, price: id, size, aim } : { why: 'out_of_range' };
   }, sc, 'attack');
 }

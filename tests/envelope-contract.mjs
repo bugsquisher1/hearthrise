@@ -85,7 +85,7 @@ function contract(R, cs, body, tl) {
   const s = R.HS.settingsOf(cs);
   need('hunt_settings', !!s, 'settingsOf reads nothing: ' + JSON.stringify(body.hunt_settings).slice(0, 240));
   if (s) {
-    const m = missing(s, ['preset', 'targetMode', 'stance', 'distance', 'chase', 'foodPct', 'drinkPct', 'supplySource', 'onEmpty', 'gatherShare']);
+    const m = missing(s, ['preset', 'targetMode', 'stance', 'distance', 'chase', 'supplySource', 'onEmpty', 'gatherShare']);
     need('hunt_settings', !m.length && Array.isArray(s.slots) && s.slots.length > 0 && s.presets.length > 0, 'settingsOf misses ' + m.join(', ') + (s.slots.length ? '' : ' slots') + (s.presets.length ? '' : ' presets'));
     /* The action engine (2026-10-25): every slot in the wire shape, the gathering share marked inert; density is no setting (hunt_density). */
     need('hunt_settings', s.slots.every((x) => x.empty || (x.action && Array.isArray(x.conditions) && (x.join === 'and' || x.join === 'or')))
@@ -297,7 +297,7 @@ async function readers(root) {
 
 /* The real body: a premium two-hero party, six minutes settled, then ONE player-door settle. */
 async function realBody(db, M, H) {
-  const P = { ...H.STRONG, premium: true, density: 2, options: { food_below_pct: 40, gather_share: 10,
+  const P = { ...H.STRONG, premium: true, density: 2, options: { gather_share: 10,
     stop_rules: [{ conditions: [{ metric: 'self_hp_pct', op: 'lt', value: 1 }], join: 'and', forMs: 60000 }] } };
   /* The named setup is saved in TOWN, before the hunt opens: hr_hunt_preset_save refuses an open hunt (hunt_open). */
   const h = await H.hunter(db, M, { party: [{ ...P }, { ...P }], beforeEnter: async () => {

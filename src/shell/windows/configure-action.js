@@ -29,7 +29,7 @@ import { carriedOf } from '../../session/item-sections.js?v=0.2.34';
 import { rows, text, attr, prop, cls, element } from '../../render/paint.js?v=0.2.34';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.34';
 import { actionIconHtml } from '../widgets/bits.js?v=0.2.34';
-import { SLOTS, draftOf, openSlot, closeSlot, conditionFor, blankCondition, saveOpen, emptyOpen, moveSlot, supplyDefault, storeChoices, storeChoiceWords, storeDefault } from '../bar-draft.js?v=0.2.34';
+import { SLOTS, draftOf, openSlot, closeSlot, conditionFor, blankCondition, saveOpen, emptyOpen, moveSlot, startConditions, storeChoices, storeChoiceWords, storeDefault } from '../bar-draft.js?v=0.2.34';
 import { TABS, tabOf, factsOf, carried, healWarning, weaponWarning } from '../action-facts.js?v=0.2.34';
 import { glyphSvg } from '../launcher.js?v=0.2.34';
 import { tableOf, rowIn, cellsOf, sentenceOf, compareLines, wasteLine, sourceLine, effectLine } from '../action-table.js?v=0.2.34';
@@ -283,8 +283,9 @@ renderConfigureAction.act = function actConfigureAction(ctx, body, action, ev, t
       LAST_TAB.set(cs, tabOf(d.action));
       const st = storeDefault(d.action, (settingsOf(cs) || {}).store);
       if (st) d.action.store = st;
-      /* A food or drink slot with no condition yet starts at HP below 50% / mana below 30%. */
-      if (!d.conditions.length) d.conditions = supplyDefault(d.action);
+      /* A slot with no condition yet starts with its action's own, written on it: food at HP below 50%, drink at
+         mana below 30%, a heal or a shield under its threshold, an area at two monsters (nothing hidden behind it). */
+      if (!d.conditions.length) d.conditions = startConditions(d.action);
     }
     else if (x === 'find') {
       /* The item token names the pick: bring its row into view. */

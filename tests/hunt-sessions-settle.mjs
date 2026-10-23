@@ -1264,7 +1264,7 @@ async function compareRuns(db, M, fixture, cutsA, cutsB) {
 const SPAN_MS = 20 * 60000;
 const ticksOf = (stepMs, spanMs) => (from) => Array.from({ length: Math.ceil(spanMs / stepMs) }, (_, i) => Math.min(from + (i + 1) * stepMs, from + spanMs));
 const STRONG = { minutesAgo: 25, level: 25, inv: { cooked_shrimp: 30 }, bag: [{ item: 'cooked_shrimp', qty: 25 }], gold: 100000 };
-const WEAK = { minutesAgo: 25, inv: {}, bag: [], gold: 0, hp: 20, options: { on_empty: 'end', food_below_pct: 99 },
+const WEAK = { minutesAgo: 25, inv: {}, bag: [], gold: 0, hp: 20, options: { on_empty: 'end' },
   level: 10 };
 /* A Level-5 hero part-way into its Level and skills, on the ghoul ground: it dies, and the death has a price. */
 const DOOMED = { ...WEAK, deadly: true, level: 5, levelXpOver: 800, skillsXp: { melee: 400, defense: 400 } };
@@ -1323,7 +1323,7 @@ const DB_ARMS = {
   }),
   PARITY: async (db, M) => inTx(db, async () => {
     const problems = [];
-    const { sid } = await hunter(db, M, { ...STRONG, minutesAgo: 10, options: { stance: 'defensive', distance: 3, food_below_pct: 90 } });
+    const { sid } = await hunter(db, M, { ...STRONG, minutesAgo: 10, options: { stance: 'defensive', distance: 3 } });
     const exec = makeExec(db);
     await db.query('savepoint parity');
     const runs = {};
@@ -1343,7 +1343,7 @@ const DB_ARMS = {
   }),
   OWN: async (db, M) => inTx(db, async () => {
     const problems = [];
-    const { sid, from } = await hunter(db, M, { ...WEAK, options: { supply_source: 'mine', on_empty: 'switch', food_below_pct: 99 }, gold: 100000,
+    const { sid, from } = await hunter(db, M, { ...WEAK, options: { supply_source: 'mine', on_empty: 'switch' }, gold: 100000,
       inv: { cooked_shrimp: 40 }, bag: [{ item: 'cooked_shrimp', qty: 40 }] });
     await run(db, M, from, ticksOf(90000, SPAN_MS));
     const s = await snapshot(db, sid);
@@ -1548,7 +1548,7 @@ const DB_ARMS = {
   }),
   TALLY: async (db, M) => inTx(db, async () => {
     const problems = [];
-    const { sid, from } = await hunter(db, M, { ...STRONG, options: { food_below_pct: 99 } });
+    const { sid, from } = await hunter(db, M, { ...STRONG });
     await run(db, M, from, ticksOf(90000, SPAN_MS));
     const t = await one(db, `select to_jsonb(t) from public.hunt_session_tally t where session_id = $1`, [sid]);
     const l = await one(db, `select jsonb_build_object(

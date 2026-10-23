@@ -51,7 +51,7 @@ import { levelOf } from '../xp.js?v=0.2.34';
 import { ammoPerShot } from '../ammo.js?v=0.2.34';
 import { ITEMS } from '../../data/items.js?v=0.2.34';
 import { isRune } from '../../data/supplies.js?v=0.2.34';
-import { slotsFor, pickSlot, bestAim, itemRow } from './conditions.js?v=0.2.34';
+import { slotsFor, pickSlot, bestAim, itemRow, ignores } from './conditions.js?v=0.2.34';
 
 export const PERSISTED = Object.freeze({
   unit: Object.freeze([['mana', 'int'], ['maxMana', 'int'], ['manaMilli', 'int'], ['regenPm', 'int'], ['lanes', 'json'], ['cds', 'json'],
@@ -77,13 +77,14 @@ export function inReach(inst, hero, range, t) {
 const byPreference = (hero) => (a, b) => ((b.id === hero.target) - (a.id === hero.target))
   || (dist2(a, hero) - dist2(b, hero)) || (a.id - b.id);
 
-/* The target an ability would take now, or null (AB-03). Pure. Its trigger
-   (whenBelowPct, areaMin) is the slot's DEFAULT CONDITION (conditions.js), so
-   here a self-shield only needs a wound, an ally heal the ally its conditions
-   named (else the lowest wounded one in reach) and an area its best aim. */
+/* The target an ability would take now, or null (AB-03). Pure. Its trigger is the
+   slot's own conditions (a slot with none fires whenever it is ready: conditions.js),
+   so here a self-shield only needs a wound, an ally heal the ally its conditions
+   named (else the lowest wounded one in reach) and an area its best aim. A monster
+   the slot IGNORES is never its target or aim. */
 function targetFor(inst, hero, h, row, sc, cx) {
   const mons = engaged(inst);
-  const near = mons.filter((m) => inReach(inst, hero, h.range, m)).sort(byPreference(hero));
+  const near = mons.filter((m) => inReach(inst, hero, h.range, m) && !ignores(cx && cx.slot, m)).sort(byPreference(hero));
   const pct = (u) => (int(u.maxHp) > 0 ? (int(u.hp) * 100) / int(u.maxHp) : 100);
   switch (row.target) {
     /* The Challenge (targeting.js): the auto-cast and this slot share the ability's clock and its reach. */
@@ -95,7 +96,7 @@ function targetFor(inst, hero, h, row, sc, cx) {
     case 'enemy': case 'cleave': return near[0] || null;
     case 'area': {
       if (cx && cx.aim && cx.aim.alive) return cx.aim;
-      const b = bestAim(inst, hero, h.range, 3);
+      const b = bestAim(inst, hero, h.range, 3, cx && cx.slot);
       return b && b.count >= 1 ? b.aim : null;
     }
     case 'self': return pct(hero) < 100 && !(int(hero.shield) > 0) ? hero : null;

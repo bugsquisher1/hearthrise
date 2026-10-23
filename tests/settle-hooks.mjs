@@ -48,7 +48,7 @@ async function asAuth(db, uid, sql, params) {
 
 /* The settle harness's mixed ground: the rats and wolf of pockets 0-1 pay the pickups, the ghouls of pocket 2
    kill a Level-5 hero part-way into its Level and skills (so the death has a price), all inside one window. */
-const FALLER = { minutesAgo: 25, inv: {}, bag: [], gold: 0, hp: 20, options: { on_empty: 'end', food_below_pct: 99 },
+const FALLER = { minutesAgo: 25, inv: {}, bag: [], gold: 0, hp: 20, options: { on_empty: 'end' },
   level: 5, levelXpOver: 800, skillsXp: { melee: 400, defense: 400 } };
 /* Measured: buys store food from a 100 g purse until it runs short, and sell-to-cover then
    sells its bones (bones flagged a cover item by the arm, at 1 g). Dice rewound per arm (runArms). */

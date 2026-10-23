@@ -1192,8 +1192,8 @@ function analyzerOf(sim, unitIds, unitId) {
  * @param inp.worldMaxBytes  TEST SEAM: a TIGHTER world bound, never a looser one
  *        (production passes none; the bound is HUNT_TUNING.worldMaxBytes)
  * @param inp.members  [{ key, user, slot, seat, unitId, session (engine shape
- *        input), hero { role, settings, bar, actionSet, range, element,
- *        foodBelowPct, drinkBelowPct }, + the envelope inputs (skills, levelXp,
+ *        input), hero { role, settings, bar, actionSet, range, element },
+ *        + the envelope inputs (skills, levelXp,
  *        xpFrac, hp, gold, equipment, inventory, deathsTodayBefore,
  *        deathsLifetimeBefore, perks, hearthfindReady) }]
  * @returns { accrued, reason?, world, worldSwingFrom, worldSwingTo, settledTo,

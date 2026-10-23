@@ -27,7 +27,7 @@ import { STYLE_LADDER, CLOTH_LADDER, STYLE_GEAR_RECIPES } from '../src/data/styl
 import { recipeCategory } from '../src/data/recipes.js';
 import { START_EQUIPMENT, START_INVENTORY } from '../src/data/start-kit.js';
 /* ITEMS and ARTISAN_RECIPES are the SAME identities reachableSources reads (its re-export), so a plant reaches it. */
-import { reachableSources, recipeInputs, ITEMS, ARTISAN_RECIPES } from '../src/data/catalogue-coherence.js';
+import { reachableSources, recipeInputs, ITEMS, ARTISAN_RECIPES, MONSTERS } from '../src/data/catalogue-coherence.js';
 import { roleWeaponOf } from '../src/data/hunt-roles.js';
 import { vendorPriceOf } from '../supabase/functions/hr-accrue/catalogue.js';
 
@@ -107,12 +107,16 @@ function mutate() {
   if (control.length) { console.error('MUTATE CONTROL: the tree is not clean:\n  ' + control.join('\n  ')); process.exit(2); }
   const setField = (id, k, v) => { const had = Object.prototype.hasOwnProperty.call(ITEMS[id], k); const was = ITEMS[id][k]; ITEMS[id][k] = v; return () => { if (had) ITEMS[id][k] = was; else delete ITEMS[id][k]; }; };
   const unbench = (skill, rid) => { const list = ARTISAN_RECIPES[skill]; const at = list.findIndex((x) => x.id === rid); const [row] = list.splice(at, 1); return () => list.splice(at, 0, row); };
-  run('the wand rung loses its recipe (a style with no reachable upgrade)', 'SG-1', () => unbench('crafting', 'carve_oak_wand'));
+  /* a rung has two doors since the loot bands (made, and a Sewer Rare): a style loses its upgrade only when both close */
+  const undrop = (mid, item) => { const m = MONSTERS[mid]; const was = m.drops; m.drops = was.filter((d) => d.id !== item); return () => { m.drops = was; }; };
+  run('the wand rung loses its recipe and its drop (a style with no reachable upgrade)', 'SG-1', () => { const a = unbench('crafting', 'carve_oak_wand'); const b = undrop('sump_slime', 'oak_wand'); return () => { b(); a(); }; });
+  run('the wand\'s tier-3 rung loses its one drop (the Chief\'s hoard)', 'SG-1', () => undrop('chief_coppercap', 'willow_wand'));
   run('the hatchets rung worn only at Melee 30', 'SG-2', () => setField('iron_hatchets', 'reqLv', 30));
   run('the crossbow rung no stronger than the practice crossbow', 'SG-2', () => { const a = setField('oak_crossbow', 'rangeAtkB', 4); const b = setField('oak_crossbow', 'rangeStrB', 4); return () => { b(); a(); }; });
   run('the club rung one-handed again', 'SG-2', () => setField('iron_warhammer', 'twoHanded', false));
   run('an adept robe that is plate', 'SG-3', () => setField('adept_body', 'armourClass', 'plate'));
-  run('the Longbow back at its legacy 400 g', 'SG-4', () => setField('longbow', 'v', 400));
+  /* worn gear sells at half book (loot-bands.js): a 600 g Longbow sells for 300, over the 275 its planks and thread cost */
+  run('the Longbow at 600 g (it sells for more than its inputs)', 'SG-4', () => setField('longbow', 'v', 600));
   run('a rung worn before its recipe opens (Melee 10, made at Smithing 15)', 'SG-5', () => setField('iron_hatchets', 'reqLv', 10));
   run('a made rung from an input no player can reach', 'SG-5', () => {
     const was = ITEMS.silk_thread; delete ITEMS.silk_thread;

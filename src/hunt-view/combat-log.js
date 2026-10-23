@@ -12,9 +12,10 @@
 // Names: heroes from the `party` section, monsters from the hunt pose's unit
 // kinds (src/session/hunt-sections.js). An unknown unit reads "Someone".
 // ════════════════════════════════════════════════════════════════════════
-import { LOG_MAX_LINES } from '../data/combat-text.js?v=0.2.36';
-import { huntOf, partyOf } from '../session/hunt-sections.js?v=0.2.36';
-import { monsterName, itemName, abilityName, skillName } from '../shell/widgets/bits.js?v=0.2.36';
+import { LOG_MAX_LINES } from '../data/combat-text.js?v=0.2.37';
+import { huntOf, partyOf } from '../session/hunt-sections.js?v=0.2.37';
+import { monsterName, itemName, abilityName, skillName } from '../shell/widgets/bits.js?v=0.2.37';
+import { tallyOf, tallyLine } from '../session/tally-sections.js?v=0.2.37';
 
 const LOGS = new WeakMap();
 
@@ -80,13 +81,26 @@ export function logFor(cs) {
   if (log) return log;
   const lines = [];
   let version = 0;
-  cs.timeline.subscribe((ev) => {
-    const l = lineOf(ev, namer(cs));
-    if (!l) return;
+  const push = (l) => {
     lines.push(Object.freeze(l));
     if (lines.length > LOG_MAX_LINES) lines.splice(0, lines.length - LOG_MAX_LINES);
     version++;
-  });
+  };
+  cs.timeline.subscribe((ev) => { const l = lineOf(ev, namer(cs)); if (l) push(l); });
+  /* TAMSIN'S TALLY DONE: the server's count reached its target in a settle (the `tally` section). Logged
+     once, as the change arrives; a task already done when this page first read it is not news. */
+  let done = null;
+  if (typeof cs.subscribe === 'function') {
+    cs.subscribe(() => {
+      const t = tallyOf(cs);
+      if (!t) return;
+      const now = t.held.filter((x) => x.done).map((x) => [x.task + '@' + x.doneAt, x]);
+      const h = huntOf(cs);
+      const me = h && Number.isInteger(h.hero.unit) ? [h.hero.unit] : [];
+      if (done) for (const [k, x] of now) if (!done.has(k)) push({ key: 'tally:' + k, type: 'tally', units: me, text: 'Tally done: ' + tallyLine(x) + '. Tamsin pays when you are back in town.' });
+      done = new Set([...(done || []), ...now.map(([k]) => k)]);
+    });
+  }
   log = { lines: () => lines, version: () => version };
   LOGS.set(cs, log);
   return log;

@@ -37,28 +37,16 @@
 //   drops        `{id, ch}` — `id` MUST exist in ITEMS. Every drop id used
 //                here already shipped; this wave invents no items (that is a
 //                separate change), so no drop can dangle.
-//   lucky        `{id, ch, lucky:true}` — a LUCKY FIND (content pack 1): a
-//                very-rare named gear drop, 4-30 expected hours at its tier.
-//                Always the LAST row of its array (an appended row leaves every
-//                earlier draw of the seeded stream where it was). The engine
-//                reads only id/ch; the flag is for the client, which never
-//                shows or credits a lucky row its own dice rolled — only the
-//                server's `rare_drop` event reveals one. Guarded by
-//                tests/lucky-finds.mjs (item rules, faucet cap, hours band).
-//   salvage      `{id, ch, salvage:true}` — FIELD SALVAGE (content pack 6): a
-//                small-slot armour piece (helm/boots/gloves/belt) of the
-//                monster's own tier, 0.5-10 expected hours. LAST row, at most
-//                one per monster, never on a monster with a lucky row. The
-//                engine reads only id/ch; the flag tells the client that only
-//                the server reveals the row (src/features/lucky-finds.js
-//                silences the client's own dice exactly as for lucky rows).
-//                Guarded by tests/field-salvage.mjs (4% faucet cap per row, 5%
-//                total gear cap per monster, hours band, both paths).
-//   gear         `{id, ch, gear:true}` — THE EQUIPMENT SLOT (Tyler 10-14/10-20):
-//                one per walked-ground monster, gear its band can wear, each
-//                slot about every 1.3 h per hero at a low floor; rolled as band
-//                'gear', never a rare reveal. One monster per ground (the RARE
-//                CARRIER) holds every rare-odds row. tests/hunt-core/drop-tables.mjs.
+//   lucky        `{id, ch, lucky:true}` — a LUCKY FIND (content pack 1, old
+//                roster): a very-rare named gear drop, 4-30 h, the LAST row,
+//                revealed only by the server. tests/lucky-finds.mjs.
+//   salvage      `{id, ch, salvage:true}` — FIELD SALVAGE (content pack 6, old
+//                roster): an own-tier helm/boots/gloves/belt, 0.5-10 h, the LAST
+//                row, never beside a lucky row. tests/field-salvage.mjs.
+//   band         `{id, ch, band}` — THE LOOT BANDS (Tyler 2026-10-23,
+//                src/data/loot-bands.js): every row of every walked ground, in
+//                band order, read by the roller in place of the odds; only Rare
+//                and Trophy reveal. tests/hunt-core/drop-tables.mjs.
 //
 // `neutral` IS RETIRED (DEC-NEUT-01). Every monster answers a real weapon.
 // The 7 monsters that used to opt out of the triangle earned a x1.15 drop
@@ -75,8 +63,8 @@
 // FAMILY_ALIAS folds the historical counts rather than stranding them.
 // ════════════════════════════════════════════════════════════════════════
 
-import { applyClassProfiles } from './monster-classes.js?v=0.2.36';
-import { MONSTER_LEVEL_BY_TIER } from './core-model.js?v=0.2.36';
+import { applyClassProfiles } from './monster-classes.js?v=0.2.37';
+import { MONSTER_LEVEL_BY_TIER } from './core-model.js?v=0.2.37';
 
 /* HUNT SPEED (HUNT_SCREEN_SPEC §3.1 #4): a row's `speed` is MILLITILES per second
    (src/data/hunt-tuning.js units; the sewer roster's values are the sim's, ASSUMED).
@@ -106,7 +94,7 @@ export const MONSTERS = {
     elementWeak: null, elementImmune: ['ember', 'frost', 'poison'],
     dropBonus: 1.15,
     hp: 8, atk: 2, def: 0, xp: 22, gp: [1, 3], speed: 2400,
-    drops: [{ id: 'slime_gel', ch: .8 }, { id: 'bones', ch: .25 }, { id: 'sticky_core', ch: .02 }] },
+    drops: [{ id: 'slime_gel', ch: .8, band: 'common' }, { id: 'bones', ch: .25, band: 'common' }, { id: 'sticky_core', ch: .08, band: 'uncommon' }] },
   /* FOLD-02 / FOLD-31 (combat-screen-rework.md §7): `barn_rat` merged INTO this
      row via MONSTER_ALIAS. Two Tier-1 Vermin rats with the same weakness and the
      same role were adjacent in the same list — there was no reading of the game
@@ -116,13 +104,15 @@ export const MONSTERS = {
      so nothing the merged monster offered is lost. */
   rat: { name: 'Giant Rat', icon: '🐀', tier: 1, level: 2, cls: 'vermin', family: 'Vermin',
     hp: 9, atk: 2, def: 0, xp: 27, gp: [1, 4], speed: 3400,
-    drops: [{ id: 'rat_tail', ch: .7 }, { id: 'small_fang', ch: .12 }, { id: 'wheat', ch: .3 }, { id: 'bones', ch: .35 }] },
+    drops: [{ id: 'rat_tail', ch: .7, band: 'common' }, { id: 'small_fang', ch: .16, band: 'common' }, { id: 'wheat', ch: .3, band: 'common' }, { id: 'bones', ch: .35, band: 'common' },
+      { id: 'giant_rat_hide', ch: .08, band: 'uncommon' }] },
   hive_wasp: { name: 'Hive Wasp', icon: '🐝', tier: 1, level: 4, cls: 'vermin', family: 'Vermin',
     /* one override (weapon): it flies, so the T1 bow finally has a target. */
     weaponWeak: 'ranged', weaponResist: [],
     hp: 8, atk: 4, def: 0, xp: 36, gp: [1, 4],
-    drops: [{ id: 'venom_sac', ch: .35 }, { id: 'silk_thread', ch: .15 }, { id: 'small_fang', ch: .1 },
-      { id: 'leather_helmet', ch: .02, gear: true }] },
+    /* the loot bands (batch 1): the tutorial's first helmet in all three weights, each about hourly at the floor */
+    drops: [{ id: 'venom_sac', ch: .35, band: 'common' }, { id: 'silk_thread', ch: .16, band: 'common' }, { id: 'hive_wasp_stinger', ch: .08, band: 'uncommon' },
+      { id: 'bronze_helm', ch: .02, band: 'scarce' }, { id: 'leather_helmet', ch: .02, band: 'scarce' }, { id: 'apprentice_helmet', ch: .02, band: 'scarce' }] },
   wild_boar: { name: 'Wild Boar', icon: '🐗', tier: 1, cls: 'mammal', family: 'Mammal',
     hp: 13, atk: 4, def: 1, xp: 11, gp: [2, 6],
     drops: [{ id: 'wolf_pelt', ch: .3 }, { id: 'bones', ch: 1 }, { id: 'raw_wolf_meat', ch: .45 }, { id: 'small_fang', ch: .14 },
@@ -186,7 +176,7 @@ export const MONSTERS = {
     /* one override (element): immune to every element — the pure triangle check. */
     elementWeak: null, elementImmune: ['ember', 'frost', 'poison'],
     hp: 33, atk: 7, def: 3, xp: 31, gp: [5, 14],
-    drops: [{ id: 'slime_gel', ch: .85 }, { id: 'sticky_core', ch: .04 }, { id: 'bone_chips', ch: .3 },
+    drops: [{ id: 'slime_gel', ch: .85 }, { id: 'bone_chips', ch: .3 },
       { id: 'iron_boots', ch: .0036, salvage: true }] },
   stag: { name: 'Stag', icon: '🦌', tier: 2, cls: 'mammal', family: 'Mammal',
     hp: 26, atk: 9, def: 1, xp: 32, gp: [5, 14],
@@ -675,113 +665,141 @@ export const MONSTERS = {
       { id: 'jarls_rimetorc', ch: .0048, champion: true }] },
 
   /* ══ The Millrace Sewer: FORMATION rows (a party of up to four, FORMATION_BANDS).
-     Numbers, names and economy: the src/data/hunt-grounds.js header. ══════════ */
+     Numbers, names and economy: the src/data/hunt-grounds.js header. THE LOOT BANDS (batch 2, designer ladder 10-23):
+     the lower rooms share the Thicket's tier-1 legs (rats) and bodies (slimes), the upper rooms give the tier-2 helmets
+     (bats) and boots (kobolds), every piece in three weights about hourly for a solo hero AND a party of four at the
+     floor; the Rares are the made tier-2 weapons, so each has a drop door too: the slimes' sunk caster pieces, the
+     spiders' webbed bows, the kobolds' scrap hatchets and club. The Rat King keeps his Crown Shard (and his Kingsgrate
+     shield, 4%, joins when the spell-roles lane makes it). ══════════ */
   drain_rat: { name: 'Drain Rat', icon: '🐀', tier: 1, level: 10, cls: 'vermin', family: 'Vermin', formation: true,
     hp: 45, atk: 5, def: 0, xp: 154, gp: [4, 18], speed: 3400,
-    drops: [{ id: 'rat_tail', ch: .9 }, { id: 'bones', ch: .35 }, { id: 'rat_incisor', ch: .08 },
-      { id: 'bronze_boots', ch: .024, gear: true }] },
+    drops: [{ id: 'rat_tail', ch: .9, band: 'common' }, { id: 'bones', ch: .35, band: 'common' }, { id: 'rat_incisor', ch: .08, band: 'uncommon' },
+      { id: 'bronze_platelegs', ch: .03, band: 'scarce' }, { id: 'leather_pants', ch: .03, band: 'scarce' }, { id: 'apprentice_pants', ch: .03, band: 'scarce' }] },
   sump_slime: { name: 'Sump Slime', icon: '🟢', tier: 1, level: 10, cls: 'vermin', family: 'Vermin', formation: true,
     /* one override (element): the sump shrugs off every element. */
     elementWeak: null, elementImmune: ['ember', 'frost', 'poison'],
     hp: 50, atk: 4, def: 0, xp: 141, gp: [4, 14], speed: 2400,
-    drops: [{ id: 'slime_gel', ch: .95 }, { id: 'sump_membrane', ch: .08 }, { id: 'bronze_helm', ch: .032, gear: true }] },
+    drops: [{ id: 'slime_gel', ch: .95, band: 'common' }, { id: 'sump_membrane', ch: .08, band: 'uncommon' },
+      { id: 'bronze_platebody', ch: .05, band: 'scarce' }, { id: 'leather_body', ch: .05, band: 'scarce' }, { id: 'apprentice_body', ch: .05, band: 'scarce' },
+      { id: 'oak_wand', ch: .0036, band: 'rare' }, { id: 'oak_spellbook', ch: .0036, band: 'rare' }, { id: 'oak_staff', ch: .0036, band: 'rare' }] },
   culvert_bat: { name: 'Culvert Bat', icon: '🦇', tier: 1, level: 15, cls: 'vermin', family: 'Vermin', formation: true,
     hp: 70, atk: 9, def: 1, xp: 288, gp: [14, 38], speed: 4400,
-    drops: [{ id: 'bat_wing', ch: .7 }, { id: 'bones', ch: .5 }, { id: 'culvert_bat_fang', ch: .08 }, { id: 'iron_platelegs', ch: .024, gear: true }] },
+    drops: [{ id: 'bat_wing', ch: .7, band: 'common' }, { id: 'bones', ch: .5, band: 'common' }, { id: 'culvert_bat_fang', ch: .08, band: 'uncommon' },
+      { id: 'iron_helm', ch: .04, band: 'scarce' }, { id: 'studded_helmet', ch: .04, band: 'scarce' }, { id: 'adept_helmet', ch: .04, band: 'scarce' }] },
   cistern_spider: { name: 'Cistern Spider', icon: '🕷️', tier: 1, level: 20, cls: 'vermin', family: 'Vermin', formation: true,
     /* one override (element): venomous, so poison is a resist, not an immunity. */
     elementResist: ['poison'], elementImmune: [],
     hp: 90, atk: 9, def: 6, xp: 704, gp: [36, 90], speed: 3600,
-    drops: [{ id: 'silk_thread', ch: .3 }, { id: 'cistern_venom_gland', ch: .1 }, { id: 'iron_sword', ch: .048, gear: true }] },
+    drops: [{ id: 'silk_thread', ch: .3, band: 'common' }, { id: 'cistern_venom_gland', ch: .1, band: 'uncommon' }, { id: 'longbow', ch: .0055, band: 'rare' }, { id: 'oak_crossbow', ch: .0055, band: 'rare' }] },
   kobold_tosher: { name: 'Kobold Tosher', icon: '🦎', tier: 1, level: 13, cls: 'humanoid', family: 'Humanoid', formation: true,
     hp: 55, atk: 7, def: 1, xp: 192, gp: [9, 25], speed: 3200,
     /* junk: the Bone Chips it sifts out of the outfalls (the reachable source of Iron Fitting's and Prayer's chips) */
-    drops: [{ id: 'bones', ch: 1 }, { id: 'bone_chips', ch: .5 }, { id: 'kobold_scale', ch: .08 },
-      { id: 'bronze_platebody', ch: .032, gear: true }] },
+    drops: [{ id: 'bones', ch: 1, band: 'common' }, { id: 'bone_chips', ch: .5, band: 'common' }, { id: 'kobold_scale', ch: .08, band: 'uncommon' },
+      { id: 'iron_boots', ch: .05, band: 'scarce' }, { id: 'studded_boots', ch: .05, band: 'scarce' }, { id: 'adept_boots', ch: .05, band: 'scarce' }, { id: 'iron_sword', ch: .05, band: 'scarce' },
+      { id: 'iron_hatchets', ch: .0037, band: 'rare' }, { id: 'iron_warhammer', ch: .0037, band: 'rare' }] },
   rat_king: { name: 'Rat King', icon: '👑', tier: 1, level: 25, cls: 'vermin', family: 'Vermin', formation: true, boss: true,
     /* one override (element): fire glances off the knot; frost is the exam's answer. */
     elementResist: ['ember'],
     hp: 600, atk: 14, def: 4, xp: 3840, gp: [119, 238], speed: 2800,
-    drops: [{ id: 'rat_tail', ch: 1 }, { id: 'bones', ch: 1 }, { id: 'knotted_tails', ch: .15 }, { id: 'crown_shard', ch: .014 },
-      { id: 'iron_helm', ch: .026, gear: true }] },
+    drops: [{ id: 'rat_tail', ch: 1, band: 'common' }, { id: 'bones', ch: 1, band: 'common' }, { id: 'knotted_tails', ch: .15, band: 'uncommon' }, { id: 'crown_shard', ch: .014, band: 'rare' }, { id: 'rat_kings_crown', ch: .0014, band: 'trophy' }] },
 
   /* ══ Meadowbrook Thicket: the gray wolves (one family, five roles; a solo ground).
-     Names, roles and economy: the src/data/hunt-grounds.js header. ══════════════ */
+     Names, roles and economy: the src/data/hunt-grounds.js header. THE LOOT BANDS' SAMPLE (designer 2026-10-23): one
+     tier-1 armour slot per wolf in all three weights, each piece about hourly per hero; the den mother's tier-2 helmets,
+     Alpha Fang and Ruff and the Dire Gray's Studded Leather Body about every 15 h. Odds PROVISIONAL (Tyler 10-23). ══ */
   gray_whelp: { name: 'Gray Whelp', icon: '🐺', tier: 1, level: 5, cls: 'mammal', family: 'Mammal',
     hp: 9, atk: 2, def: 0, xp: 28, gp: [1, 3], speed: 3800,
-    drops: [{ id: 'raw_wolf_meat', ch: .35 }, { id: 'bones', ch: .4 }, { id: 'whelp_milk_tooth', ch: .06 }, { id: 'leather_boots', ch: .0087, gear: true }] },
+    drops: [{ id: 'raw_wolf_meat', ch: .35, band: 'common' }, { id: 'bones', ch: .4, band: 'common' }, { id: 'whelp_milk_tooth', ch: .06, band: 'uncommon' },
+      { id: 'bronze_boots', ch: .011, band: 'scarce' }, { id: 'leather_boots', ch: .011, band: 'scarce' }, { id: 'apprentice_boots', ch: .011, band: 'scarce' }] },
   /* gp [2, 5] -> [3, 5] (lane b-supplies-bury; designer 2026-10-21, c-loot-loop: KEPT). Eating at 60% (Tyler 10-21) doubles a fresh
      Thicket hero's Salted Shrimp; with only the four-slot pelts (Grayjaw always, Briarcoat 30%) the Thicket nets 1,714 g/h vs the
      Cellar's 1,738 (forest-cave, 6-seed median), with this coin 1,777.5. Coin is the lever: the bill is coin, the Gray Wolf the most killed. */
   gray_wolf: { name: 'Gray Wolf', icon: '🐺', tier: 1, level: 8, cls: 'mammal', family: 'Mammal',
     hp: 14, atk: 4, def: 1, xp: 52, gp: [3, 5], speed: 4200,
-    drops: [{ id: 'raw_wolf_meat', ch: .5 }, { id: 'bones', ch: .5 }, { id: 'gray_dewclaw', ch: .08 },
-      { id: 'leather_helmet', ch: .0071, gear: true }] },
+    drops: [{ id: 'raw_wolf_meat', ch: .5, band: 'common' }, { id: 'bones', ch: .5, band: 'common' }, { id: 'gray_dewclaw', ch: .08, band: 'uncommon' },
+      { id: 'bronze_helm', ch: .009, band: 'scarce' }, { id: 'leather_helmet', ch: .009, band: 'scarce' }, { id: 'apprentice_helmet', ch: .009, band: 'scarce' }] },
   briarcoat_wolf: { name: 'Briarcoat Wolf', icon: '🐺', tier: 1, level: 10, cls: 'mammal', family: 'Mammal',
     /* one override (weapon): arrows snag in the burrs; a club knocks them loose. */
     weaponWeak: 'hammer', weaponResist: ['ranged'],
     hp: 16, atk: 3, def: 2, xp: 61, gp: [2, 5], speed: 2800,
-    drops: [{ id: 'wolf_pelt', ch: .3 }, { id: 'bones', ch: .5 }, { id: 'briar_burr', ch: .08 }, { id: 'leather_pants', ch: .0173, gear: true }] },
+    drops: [{ id: 'wolf_pelt', ch: .3, band: 'common' }, { id: 'bones', ch: .5, band: 'common' }, { id: 'briar_burr', ch: .08, band: 'uncommon' },
+      { id: 'bronze_platelegs', ch: .022, band: 'scarce' }, { id: 'leather_pants', ch: .022, band: 'scarce' }, { id: 'apprentice_pants', ch: .022, band: 'scarce' }] },
   dire_gray: { name: 'Dire Gray', icon: '🐺', tier: 2, level: 13, cls: 'mammal', family: 'Mammal',
     hp: 28, atk: 7, def: 3, xp: 179, gp: [5, 14], speed: 3600,
-    drops: [{ id: 'raw_wolf_meat', ch: .7 }, { id: 'bones', ch: 1 }, { id: 'dire_hackle', ch: .08 }, { id: 'leather_body', ch: .0346, gear: true }] },
+    drops: [{ id: 'raw_wolf_meat', ch: .7, band: 'common' }, { id: 'bones', ch: 1, band: 'common' }, { id: 'dire_hackle', ch: .08, band: 'uncommon' },
+      { id: 'bronze_platebody', ch: .044, band: 'scarce' }, { id: 'leather_body', ch: .044, band: 'scarce' }, { id: 'apprentice_body', ch: .044, band: 'scarce' },
+      { id: 'studded_body', ch: .003, band: 'rare' }] },
   grayjaw: { name: 'Old Grayjaw', icon: '🐺', tier: 2, level: 15, cls: 'mammal', family: 'Mammal',
     /* the den mother under the hollow oak: the top of tier 2, the wood's hardest bite. */
     hp: 35, atk: 10, def: 4, xp: 258, gp: [6, 16], speed: 3200,
-    drops: [{ id: 'wolf_pelt', ch: 1 }, { id: 'bones', ch: 1 }, { id: 'grayjaw_whisker', ch: .15 }, { id: 'alpha_fang', ch: .003 },
-      { id: 'shortbow', ch: .0355, gear: true }] },
+    drops: [{ id: 'wolf_pelt', ch: 1, band: 'common' }, { id: 'bones', ch: 1, band: 'common' }, { id: 'grayjaw_whisker', ch: .15, band: 'uncommon' },
+      { id: 'alpha_fang', ch: .003, band: 'rare' }, { id: 'iron_helm', ch: .003, band: 'rare' }, { id: 'studded_helmet', ch: .003, band: 'rare' },
+      { id: 'adept_helmet', ch: .003, band: 'rare' }, { id: 'grayjaws_ruff', ch: .003, band: 'rare' }] },
 
   /* ══ Coppercap Warrens: the goblins of the copper diggings (one family, five roles;
-     a party ground). Names, roles and economy: the src/data/hunt-grounds.js header. ══ */
+     a party ground). Names, roles and economy: the src/data/hunt-grounds.js header. THE LOOT BANDS (batch 4): the
+     tier-3 set in three weights about hourly for a party of four at 32 AND a lone hero at 45. The swarm dies fastest,
+     so the scavengers carry two slots (boots, legs) and the Steel Sword they pick off the spoil; the diggers the helmets
+     and the Steel Warhammer; the few skulkers, foremen and the Chief share the bodies. Rares, ~13-15 h: the skulkers'
+     willow bows, the foreman's steel hatchets, the willow caster pieces in the Chief's hoard beside his War Crown. ══ */
   goblin_scavenger: { name: 'Goblin Scavenger', icon: '👺', tier: 3, level: 34, cls: 'humanoid', family: 'Humanoid', formation: true,
     hp: 150, atk: 22, def: 10, xp: 924, gp: [12, 29], speed: 3200,
-    drops: [{ id: 'goblin_ear', ch: .6 }, { id: 'copper_ore', ch: .5 }, { id: 'bones', ch: .5 }, { id: 'coal', ch: .1 },
-      { id: 'boarhide_boots', ch: .0028, gear: true }] },
+    drops: [{ id: 'goblin_ear', ch: .6, band: 'common' }, { id: 'copper_ore', ch: .5, band: 'common' }, { id: 'bones', ch: .5, band: 'common' }, { id: 'glowing_copper_fleck', ch: .08, band: 'uncommon' },
+      { id: 'steel_boots', ch: .02, band: 'scarce' }, { id: 'boarhide_boots', ch: .02, band: 'scarce' }, { id: 'scholar_boots', ch: .02, band: 'scarce' },
+      { id: 'steel_platelegs', ch: .02, band: 'scarce' }, { id: 'boarhide_pants', ch: .02, band: 'scarce' }, { id: 'scholar_pants', ch: .02, band: 'scarce' }, { id: 'steel_sword', ch: .02, band: 'scarce' }] },
   goblin_skulker: { name: 'Goblin Skulker', icon: '👺', tier: 3, level: 38, cls: 'humanoid', family: 'Humanoid', formation: true,
     hp: 170, atk: 30, def: 12, xp: 1122, gp: [14, 34], speed: 4400,
-    drops: [{ id: 'goblin_ear', ch: .6 }, { id: 'bones', ch: .5 }, { id: 'iron_ore', ch: .2 }, { id: 'steel_sword', ch: .0125, gear: true }] },
+    drops: [{ id: 'goblin_ear', ch: .6, band: 'common' }, { id: 'bones', ch: .5, band: 'common' }, { id: 'iron_ore', ch: .2, band: 'common' }, { id: 'skulkers_shiv', ch: .08, band: 'uncommon' },
+      { id: 'steel_platebody', ch: .05, band: 'scarce' }, { id: 'boarhide_body', ch: .05, band: 'scarce' }, { id: 'scholar_body', ch: .05, band: 'scarce' },
+      { id: 'willow_longbow', ch: .0062, band: 'rare' }, { id: 'willow_crossbow', ch: .0062, band: 'rare' }] },
   goblin_digger: { name: 'Goblin Digger', icon: '👺', tier: 3, level: 40, cls: 'humanoid', family: 'Humanoid', formation: true,
     /* one override (weapon): the copper pot over its eyes turns a blade; a hammer rings it. */
     weaponWeak: 'hammer', weaponResist: ['sword'],
     hp: 240, atk: 26, def: 20, xp: 1452, gp: [16, 39], speed: 2600,
-    drops: [{ id: 'copper_ore', ch: .8 }, { id: 'coal', ch: .4 }, { id: 'bones', ch: .5 }, { id: 'goblin_ear', ch: .4 },
-      { id: 'steel_helm', ch: .005, gear: true }] },
+    drops: [{ id: 'copper_ore', ch: .8, band: 'common' }, { id: 'coal', ch: .4, band: 'common' }, { id: 'bones', ch: .5, band: 'common' }, { id: 'goblin_ear', ch: .4, band: 'common' }, { id: 'dented_copper_pot', ch: .08, band: 'uncommon' },
+      { id: 'steel_helm', ch: .035, band: 'scarce' }, { id: 'boarhide_helmet', ch: .035, band: 'scarce' }, { id: 'scholar_helmet', ch: .035, band: 'scarce' }, { id: 'steel_warhammer', ch: .035, band: 'scarce' }] },
   hobgoblin_foreman: { name: 'Hobgoblin Foreman', icon: '👹', tier: 3, level: 46, cls: 'humanoid', family: 'Humanoid', formation: true,
     hp: 300, atk: 30, def: 22, xp: 2112, gp: [29, 67], speed: 3000,
-    drops: [{ id: 'big_bones', ch: 1 }, { id: 'iron_ore', ch: .6 }, { id: 'coal', ch: .6 }, { id: 'goblin_totem', ch: .08 },
-      { id: 'steel_platelegs', ch: .025, gear: true }] },
+    drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'iron_ore', ch: .6, band: 'common' }, { id: 'coal', ch: .6, band: 'common' }, { id: 'foremans_lash', ch: .08, band: 'uncommon' },
+      { id: 'steel_platebody', ch: .05, band: 'scarce' }, { id: 'boarhide_body', ch: .05, band: 'scarce' }, { id: 'scholar_body', ch: .05, band: 'scarce' },
+      { id: 'steel_hatchets', ch: .0124, band: 'rare' }] },
   chief_coppercap: { name: 'Chief Coppercap', icon: '👑', tier: 3, level: 52, cls: 'humanoid', family: 'Humanoid', formation: true, boss: true,
     /* one override (element): the polished cauldron he wears for a crown sheds frost. */
     elementResist: ['frost'],
     hp: 1100, atk: 29, def: 28, xp: 7920, gp: [95, 215], speed: 2800,
-    drops: [{ id: 'big_bones', ch: 1 }, { id: 'gold_ore', ch: .5 }, { id: 'goblin_totem', ch: .3 }, { id: 'war_crown', ch: .018 },
-      { id: 'steel_platebody', ch: .025, gear: true }] },
+    drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'gold_ore', ch: .5, band: 'common' }, { id: 'goblin_totem', ch: .3, band: 'common' }, { id: 'coppercaps_tallow', ch: .15, band: 'uncommon' },
+      { id: 'steel_platebody', ch: .05, band: 'scarce' }, { id: 'boarhide_body', ch: .05, band: 'scarce' }, { id: 'scholar_body', ch: .05, band: 'scarce' }, { id: 'war_crown', ch: .016, band: 'rare' },
+      { id: 'willow_wand', ch: .0125, band: 'rare' }, { id: 'willow_spellbook', ch: .0125, band: 'rare' }, { id: 'willow_staff', ch: .0125, band: 'rare' },
+      { id: 'coppercaps_cauldron', ch: .0013, band: 'trophy' }] },
 
-  /* ══ Mosslight Glade, levels 16-31, solo, mixed (lane c-ground-16-31): roles, junk and economy in the src/data/hunt-grounds.js header. ══ */
+  /* ══ Mosslight Glade, levels 16-31, solo, mixed (lane c-ground-16-31): roles, junk and economy in the src/data/hunt-grounds.js header.
+     THE LOOT BANDS (batch 3): the whole tier-2 set in three weights, about hourly (crows boots, poachers legs and their
+     Longbow, vines helmets, sluicers bodies); Rook keeps his Whistle and hides the tier-3 helmets, about every 15 h. ══ */
   carrion_crow: { name: 'Carrion Crow', icon: '🐦', tier: 2, level: 16, cls: 'vermin', family: 'Vermin',
     /* one override (weapon): a bird in the open, so an arrow brings it down and a club swings at air. */
     weaponWeak: 'ranged', weaponResist: [],
     hp: 30, atk: 10, def: 1, xp: 165, gp: [4, 12], speed: 4400,
-    drops: [{ id: 'bone_chips', ch: .5 }, { id: 'crow_quill', ch: .08 }, { id: 'studded_boots', ch: .0062, gear: true }] },
+    drops: [{ id: 'bone_chips', ch: .5, band: 'common' }, { id: 'crow_quill', ch: .08, band: 'uncommon' }, { id: 'iron_boots', ch: .0095, band: 'scarce' }, { id: 'studded_boots', ch: .0095, band: 'scarce' }, { id: 'adept_boots', ch: .0095, band: 'scarce' }] },
   glade_poacher: { name: 'Glade Poacher', icon: '🏹', tier: 2, level: 19, cls: 'human', family: 'Human',
     /* glass that hits like a cart: the ground's hardest blow before the sluice */
     hp: 32, atk: 12, def: 2, xp: 225, gp: [6, 18], speed: 3400,
-    drops: [{ id: 'wolf_pelt', ch: .3 }, { id: 'bones', ch: .5 }, { id: 'snare_wire', ch: .08 }, { id: 'longbow', ch: .0186, gear: true }] },
+    drops: [{ id: 'wolf_pelt', ch: .3, band: 'common' }, { id: 'bones', ch: .5, band: 'common' }, { id: 'snare_wire', ch: .08, band: 'uncommon' },
+      { id: 'iron_platelegs', ch: .028, band: 'scarce' }, { id: 'studded_pants', ch: .028, band: 'scarce' }, { id: 'adept_pants', ch: .028, band: 'scarce' }, { id: 'longbow', ch: .028, band: 'scarce' }] },
   walking_vine: { name: 'Walking Vine', icon: '🌿', tier: 2, level: 22, cls: 'plant', family: 'Plant',
     /* the tank: slow and woody; a blade cuts it, an arrow sticks, fire takes it */
     hp: 35, atk: 9, def: 4, xp: 260, gp: [4, 12], speed: 2400,
-    drops: [{ id: 'magic_essence', ch: .25 }, { id: 'mosslight_tendril', ch: .08 }, { id: 'iron_helm', ch: .0126, gear: true }] },
+    drops: [{ id: 'magic_essence', ch: .25, band: 'common' }, { id: 'mosslight_tendril', ch: .08, band: 'uncommon' }, { id: 'iron_helm', ch: .019, band: 'scarce' }, { id: 'studded_helmet', ch: .019, band: 'scarce' }, { id: 'adept_helmet', ch: .019, band: 'scarce' }] },
   goblin_sluicer: { name: 'Goblin Sluicer', icon: '👺', tier: 3, level: 26, cls: 'humanoid', family: 'Humanoid',
     /* one override (element): soaked from the spring run, so fire hisses off it. */
     elementResist: ['ember'],
     hp: 70, atk: 18, def: 10, xp: 360, gp: [14, 34], speed: 3000,
-    drops: [{ id: 'copper_ore', ch: .6 }, { id: 'bones', ch: .5 }, { id: 'sluice_crust', ch: .08 },
-      { id: 'iron_platebody', ch: .038, gear: true }] },
+    drops: [{ id: 'copper_ore', ch: .6, band: 'common' }, { id: 'bones', ch: .5, band: 'common' }, { id: 'sluice_crust', ch: .08, band: 'uncommon' },
+      { id: 'iron_platebody', ch: .05, band: 'scarce' }, { id: 'studded_body', ch: .05, band: 'scarce' }, { id: 'adept_body', ch: .05, band: 'scarce' }] },
   rook_poacher: { name: 'Rook the Poacher', icon: '🏹', tier: 3, level: 29, cls: 'human', family: 'Human',
     /* the poachers' chief, camped in the ruined spring-house; the crows know his whistle. The rare carrier. */
     hp: 78, atk: 18, def: 11, xp: 520, gp: [16, 40], speed: 3200,
-    drops: [{ id: 'raw_wolf_meat', ch: .7 }, { id: 'bones', ch: 1 }, { id: 'rooks_moss_charm', ch: .15 }, { id: 'rooks_whistle', ch: .0038 },
-      { id: 'studded_pants', ch: .038, gear: true }] },
+    drops: [{ id: 'raw_wolf_meat', ch: .7, band: 'common' }, { id: 'bones', ch: 1, band: 'common' }, { id: 'rooks_moss_charm', ch: .15, band: 'uncommon' }, { id: 'rooks_whistle', ch: .0038, band: 'rare' },
+      { id: 'steel_helm', ch: .0038, band: 'rare' }, { id: 'boarhide_helmet', ch: .0038, band: 'rare' }, { id: 'scholar_helmet', ch: .0038, band: 'rare' }] },
 };
 
 /* SEAL: write each class's profile onto its members, so `m.weaponWeak` is a

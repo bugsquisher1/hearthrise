@@ -42,6 +42,8 @@ export const LOG_TYPES = Object.freeze([
   Object.freeze({ id: 'supply', label: 'Supplies', events: Object.freeze(['eat', 'drink']) }),
   Object.freeze({ id: 'death', label: 'Deaths', events: Object.freeze(['fall', 'kill']) }),
   Object.freeze({ id: 'status', label: 'Effects', events: Object.freeze(['status_on', 'status_off']) }),
+  /* Tamsin's tally done (the server's count reached its target in a settle: src/hunt-view/combat-log.js). */
+  Object.freeze({ id: 'tally', label: 'Tally', events: Object.freeze(['tally_done']) }),
 ]);
 
 /** Most lines the Combat tab keeps (older lines fall off; the analyzer holds the totals). */

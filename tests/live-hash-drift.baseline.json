@@ -24,10 +24,10 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-10-23",
- "replay_ms": 5245,
+ "replay_ms": 6894,
  "counts": {
-  "tracked_names": 181,
-  "entries": 134
+  "tracked_names": 193,
+  "entries": 146
  },
  "functions": [
   {
@@ -1071,17 +1071,18 @@
     "pin"
    ],
    "touched_by": [
-    "2026-12-15-account-gold.sql"
+    "2026-12-15-account-gold.sql",
+    "2026-12-23-tally-tasks.sql"
    ],
    "live": {
-    "md5": "4e74f2a03b6d5cc865e9e633f61d0688",
-    "norm_len": 1045,
+    "md5": "3312a15e36525ede425224db0a4a9d16",
+    "norm_len": 1092,
     "measured": "2026-10-23",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "4e74f2a03b6d5cc865e9e633f61d0688",
-    "norm_len": 1045,
+    "md5": "3312a15e36525ede425224db0a4a9d16",
+    "norm_len": 1092,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -1193,17 +1194,18 @@
     "2026-10-23-hunt-world-state.sql",
     "2026-11-16-hunt-density-bounds.sql",
     "2026-12-11-hunt-deploy-no-forfeit.sql",
-    "2026-12-15-account-gold.sql"
+    "2026-12-15-account-gold.sql",
+    "2026-12-23-tally-tasks.sql"
    ],
    "live": {
-    "md5": "33d4296a8a3e5f3ce45ecdc31b12f985",
-    "norm_len": 13021,
+    "md5": "399ee00e5bd830af4a0a90664f31151a",
+    "norm_len": 14120,
     "measured": "2026-10-23",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "33d4296a8a3e5f3ce45ecdc31b12f985",
-    "norm_len": 13021,
+    "md5": "399ee00e5bd830af4a0a90664f31151a",
+    "norm_len": 14120,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -1361,6 +1363,28 @@
    "replay": {
     "md5": "c455bda9abb929fd172efb1c0970002c",
     "norm_len": 3933,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_hunt_lock(p_user uuid, p_slot integer)",
+   "name": "hr_hunt_lock",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-10-21-hunt-sessions.sql"
+   ],
+   "live": {
+    "md5": "33398d6b4133468d0ab820bef1a2fb03",
+    "norm_len": 541,
+    "measured": "2026-10-23",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "33398d6b4133468d0ab820bef1a2fb03",
+    "norm_len": 541,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -2979,6 +3003,248 @@
    "replay": {
     "md5": "93c489717c26fa67a36b382b8650cf27",
     "norm_len": 30955,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_tally_accept(p_slot integer, p_task text, p_weight text, p_idem uuid)",
+   "name": "hr_tally_accept",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-12-23-tally-tasks.sql"
+   ],
+   "live": {
+    "md5": "5cb30fa4d1a9e81a3df1e6bba6932d9f",
+    "norm_len": 4061,
+    "measured": "2026-10-23",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "5cb30fa4d1a9e81a3df1e6bba6932d9f",
+    "norm_len": 4061,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_tally_claim(p_user uuid, p_slot integer, p_session uuid)",
+   "name": "hr_tally_claim",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-12-23-tally-tasks.sql"
+   ],
+   "live": {
+    "md5": "d9f1e058f43d91cce6cabdd913f3e21d",
+    "norm_len": 4055,
+    "measured": "2026-10-23",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "d9f1e058f43d91cce6cabdd913f3e21d",
+    "norm_len": 4055,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_tally_claims_immutable()",
+   "name": "hr_tally_claims_immutable",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-12-23-tally-tasks.sql"
+   ],
+   "live": {
+    "md5": "1b27670d92c98aa977e48c548a3e62c3",
+    "norm_len": 389,
+    "measured": "2026-10-23",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "1b27670d92c98aa977e48c548a3e62c3",
+    "norm_len": 389,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_tally_collect(p_slot integer, p_idem uuid)",
+   "name": "hr_tally_collect",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-12-23-tally-tasks.sql"
+   ],
+   "live": {
+    "md5": "324858a737abe8d1e39e55065b9a9565",
+    "norm_len": 2069,
+    "measured": "2026-10-23",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "324858a737abe8d1e39e55065b9a9565",
+    "norm_len": 2069,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_tally_count(p_user uuid, p_slot integer, p_session uuid, p_meta jsonb)",
+   "name": "hr_tally_count",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-12-23-tally-tasks.sql"
+   ],
+   "live": {
+    "md5": "ec3e80e0c02763750b5023a1da0fb34e",
+    "norm_len": 2079,
+    "measured": "2026-10-23",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "ec3e80e0c02763750b5023a1da0fb34e",
+    "norm_len": 2079,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_tally_drop(p_slot integer, p_task text, p_idem uuid)",
+   "name": "hr_tally_drop",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-12-23-tally-tasks.sql"
+   ],
+   "live": {
+    "md5": "7e00fec4ec3ce79c2357d2086543d2e4",
+    "norm_len": 2259,
+    "measured": "2026-10-23",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "7e00fec4ec3ce79c2357d2086543d2e4",
+    "norm_len": 2259,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_tally_journal(p_user uuid, p_slot integer, p_intent text, p_meta jsonb)",
+   "name": "hr_tally_journal",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-12-23-tally-tasks.sql"
+   ],
+   "live": {
+    "md5": "05e628b57d366566c51fac8ba3ff87f7",
+    "norm_len": 459,
+    "measured": "2026-10-23",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "05e628b57d366566c51fac8ba3ff87f7",
+    "norm_len": 459,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_tally_pick(p_user uuid, p_slot integer, p_task text)",
+   "name": "hr_tally_pick",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-12-23-tally-tasks.sql"
+   ],
+   "live": {
+    "md5": "a638b11730b6aa9683b8f964d9decc26",
+    "norm_len": 1920,
+    "measured": "2026-10-23",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "a638b11730b6aa9683b8f964d9decc26",
+    "norm_len": 1920,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_tally_section(p_user uuid, p_slot integer)",
+   "name": "hr_tally_section",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-12-23-tally-tasks.sql"
+   ],
+   "live": {
+    "md5": "1d33907529df94d95ac9a5724f3c0dd9",
+    "norm_len": 1667,
+    "measured": "2026-10-23",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "1d33907529df94d95ac9a5724f3c0dd9",
+    "norm_len": 1667,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_tally_set(p_slot integer, p_task text, p_keep boolean, p_weight text, p_order text[], p_idem uuid)",
+   "name": "hr_tally_set",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-12-23-tally-tasks.sql"
+   ],
+   "live": {
+    "md5": "68e3fa160932842757d5a473e2ae11ac",
+    "norm_len": 3649,
+    "measured": "2026-10-23",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "68e3fa160932842757d5a473e2ae11ac",
+    "norm_len": 3649,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_tally_view(p_slot integer)",
+   "name": "hr_tally_view",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-12-23-tally-tasks.sql"
+   ],
+   "live": {
+    "md5": "d6f2647bd4751bdb346f5e8f598ce6bd",
+    "norm_len": 1530,
+    "measured": "2026-10-23",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "d6f2647bd4751bdb346f5e8f598ce6bd",
+    "norm_len": 1530,
     "source": "computed-from-replay"
    },
    "agree": true

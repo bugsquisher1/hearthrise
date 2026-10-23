@@ -20,7 +20,8 @@
 //                       seeds; prints the practice-sword-and-Thicket-leather graduate beside it (evidence)
 //   glade-between       at each floor (6-seed median per hero-hour): the Sewer's party < the glade solo < the Warrens'
 //                       party, in net gold AND Level XP, and the glade clears +25% over its bill (the H11 gap, 16-31)
-//   shop-outfits-defense  the Shop's gear (designer 2026-10-22) sells no slot a walked ground drops, has gloves and
+//   shop-outfits-defense  the Shop's gear (designer 2026-10-22) sells no slot a walked ground's regular gear drops (a Rare
+//                       named piece may share a slot with a Shop basic), has gloves and
 //                       a belt a new hero can afford (one medium), and a start-kit Melee at the Thicket floor who buys them
 //                       trains Defense (0 without), lives the hour and nets more than the pair cost
 //   thicket-solo-starter-kit  a new hero alone at the Thicket's floor (the solo-first ground, band 5-15), wearing
@@ -338,8 +339,12 @@ cases['shop-outfits-defense'] = async (M) => {
   const gear = SUPPLY_SHOP_OFFERS.filter((o) => o.kind === 'gear');
   const bad = [];
   const dropped = new Map();
+  /* A ground's REGULAR gear competes with the Shop: an old-model equipment row, or a loot-band row below Rare. A Rare
+     or Trophy named piece (Grayjaw's Ruff, about every 15 h) is the better prize above the Shop's basic, the pattern
+     Tyler ruled for shields (2026-10-23: a basic at the Shop, better ones made and dropped). */
+  const regular = (d) => !(d.band === 'rare' || d.band === 'trophy');
   for (const g of Object.values(M.grounds.HUNT_GROUNDS)) for (const p of g.pockets) for (const s of p.spawns) {
-    for (const d of (M.MONSTERS[s.monster] || {}).drops || []) if (ITEMS[d.id] && ITEMS[d.id].slot) dropped.set(ITEMS[d.id].slot, d.id + ' (' + s.monster + ')');
+    for (const d of (M.MONSTERS[s.monster] || {}).drops || []) if (ITEMS[d.id] && ITEMS[d.id].slot && regular(d)) dropped.set(ITEMS[d.id].slot, d.id + ' (' + s.monster + ')');
   }
   for (const o of gear) if (dropped.has(ITEMS[o.item].slot)) bad.push(o.item + ': the Shop sells a ' + ITEMS[o.item].slot + ', which ' + dropped.get(ITEMS[o.item].slot) + ' drops');
   const armour = (o) => !!ARMOUR_WEIGHT[ITEMS[o.item].armourClass] || Number(ITEMS[o.item].defB) > 0;

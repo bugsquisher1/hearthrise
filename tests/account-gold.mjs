@@ -73,12 +73,25 @@ import { HARNESS } from './hunt-sessions-settle.mjs';
 
 const MIG = '2026-12-15-account-gold.sql';
 const PREV = await (async () => { const o = (await manifest()).order; return o[o.indexOf(MIG) - 1]; })();
+/* THE HUNT ARMS (G4-G7 and G10's lock order) drive the real engine over today's src/data, so they stand on the
+   WHOLE chain: the catalogues bounding the engine's drops (2026-12-20 loot + hunt-sessions; run 40020854780: on a
+   chain cut at this file every settle was refused unknown_item giant_rat_hide) and the bodies that RUN.
+   hr_hunt_apply_instance is restated last by 2026-12-23-tally-tasks.sql, so its mutants are planted THERE
+   (staleAnchors refuses a plant in a body a later file restates). The purse arms (G2, G3, G8-G12) judge this
+   file as of itself, where its re-apply (G9) is defined. */
+const TALLY = '2026-12-23-tally-tasks.sql';
+const CHAIN_END = (await manifest()).order.at(-1);
 
 /* §0's pins (G9 re-applies the MUTATED file, whose own bodies are not its pinned post-images) and §7's
    self-check are blinded so the arms below, not the migration, judge each mutant. */
 const SELFCHECK_BLIND = [
   ["declare v_md5 text; r record;\nbegin\n", "declare v_md5 text; r record;\nbegin\n  if true then return; end if;   -- selftest: §0 pins short-circuited\n"],
   ["  v_prev bigint; v_bad int;\nbegin\n", "  v_prev bigint; v_bad int;\nbegin\n  if true then return; end if;   -- selftest: §7 short-circuited\n"],
+];
+/* A mutant planted in 2026-12-23-tally-tasks.sql blinds ITS §8 the same way (its §0 pins the pre-images, untouched). */
+const TALLY_BLIND = [
+  ["  v_cell text := 'mill_cellar'; v_pick jsonb; v_first text; v_cap int;\nbegin\n",
+    "  v_cell text := 'mill_cellar'; v_pick jsonb; v_first text; v_cap int;\nbegin\n  if true then return; end if;   -- selftest: §8 short-circuited\n"],
 ];
 const SQL_MUTANTS = {
   per_hero_read: {
@@ -92,10 +105,12 @@ const SQL_MUTANTS = {
       ['    alter table public.account_wallet add constraint account_wallet_gold_check check (gold >= 0);', '    null;']],
   },
   bills_before_credits: {
+    file: TALLY,
     why: 'each member\'s store bill is paid before the next member\'s coins: one account\'s party is refused for gold its own heroes earned',
     pairs: [["      if v_h ? '_purse' then\n", "      if v_h ? '_purse' then\n        perform public.hr_purse_lock((v_m->>'user')::uuid);\n        if public.hr_purse_of((v_m->>'user')::uuid) < (v_h->'_purse'->>'cost')::bigint + (v_h->'_purse'->>'floor')::bigint then\n          perform public.hr_reject('gold_short', jsonb_build_object('why', 'member'));\n        end if;\n"]],
   },
   floor_ignored: {
+    file: TALLY,
     why: 'the window\'s end purse is not held to the floor: a hero spends below its "Keep at least"',
     pairs: [["      if public.hr_purse_of(v_u) < v_f then\n        perform public.hr_reject('gold_short', jsonb_build_object('why', 'floor', 'gold', public.hr_purse_of(v_u), 'floor', v_f));",
       "      if false then\n        perform public.hr_reject('gold_short', jsonb_build_object('why', 'floor', 'gold', public.hr_purse_of(v_u), 'floor', v_f));"]],
@@ -162,11 +177,24 @@ const say = (...a) => { if (VERBOSE) console.log('   ', ...a); };
 const ok = (cond, msg) => { if (!cond) problems.push(msg); return !!cond; };
 const harness = (msg) => { const e = new Error(msg); e.harness = true; return e; };
 
+const fileOf = (m) => m.file || MIG;
+/** This file's patch pairs for a mutant planted in it (none for one planted in a later file). */
 function sqlPairs(mutate) {
   const m = mutate && MUTATIONS[mutate];
-  if (!m || m.kind !== 'sql') return [];
+  if (!m || m.kind !== 'sql' || fileOf(m) !== MIG) return [];
   /* A pins mutant plants INTO §0, so §0 stays live (G11 judges it); every other one blinds §0 and §7. */
   return [...m.pairs, ...SELFCHECK_BLIND.filter((_, i) => !(m.pins && i === 0))];
+}
+/** The whole chain's patch map for a mutant: this file's pairs, or 2026-12-23-tally-tasks.sql's with its §8 blinded. */
+function chainPatches(mutate) {
+  const m = mutate && MUTATIONS[mutate];
+  if (!m || m.kind !== 'sql') return undefined;
+  return fileOf(m) === MIG ? new Map([[MIG, sqlPairs(mutate)]]) : new Map([[fileOf(m), [...m.pairs, ...TALLY_BLIND]]]);
+}
+/** Each SQL mutant's anchors, as staleAnchors (tests/alpha-server.mjs) reads them: a plant in a body a later file
+    restates never runs, so it must move to the body's last author. */
+function mutantAnchors() {
+  return Object.entries(SQL_MUTANTS).flatMap(([id, m]) => m.pairs.map(([find]) => ({ arm: id, file: fileOf(m), find })));
 }
 async function migrationText(mutate) {
   let sql = (await readFile(join(ROOT, 'supabase', 'migrations', MIG), 'utf8')).replace(/\r\n/g, '\n');
@@ -383,8 +411,8 @@ async function pinsArm(mutate) {
   }
 }
 
-// ── G2-G10 on the whole chain ────────────────────────────────────────────────
-async function chainArms(mutate, M) {
+// ── G2, G3, G7 (the purse half), G8-G12: this file as of itself (its re-apply, G9, is defined here) ──
+async function purseArms(mutate) {
   const { db } = await bootReplay({ patches: sqlPairs(mutate).length ? new Map([[MIG, sqlPairs(mutate)]]) : undefined, upTo: MIG });
   const d = drivers(db);
 
@@ -406,6 +434,98 @@ async function chainArms(mutate, M) {
   const r2 = await d.apply(b, 0, -150, 'shop_buy:g3:4');
   ok(r && r.ok === true && r2 && r2.error === 'insufficient_gold' && await d.purse(b) === 100,
     `G3: the other order answered ${JSON.stringify([r && r.error, r2 && r2.error])} (purse ${await d.purse(b)})`);
+
+  // G7 THE LEDGER BALANCES.
+  for (const u of [a, b]) {
+    const c = await chain(d, u);
+    ok(!c.bad.length && c.end === c.purse, `G7: account ${u.slice(0, 8)}: ${JSON.stringify(c.bad)}; chain ends ${c.end}, purse ${c.purse}`);
+  }
+  let lie = null;
+  try { await d.q("insert into public.player_ledger (user_id, slot, kind, intent, gold, purse) values ($1, 0, 'admin', 'g7_lie', 5, 999999)", [a]); }
+  catch (e) { lie = String(e.message); }
+  ok(lie && /ledger_purse/.test(lie), `G7: a gold row stating purse 999,999 was ${lie ? 'refused: ' + lie.slice(0, 80) : 'journalled'}`);
+  /* a writer that states no purse (the farm's rows, 2026-12-14-shared-farm.sql) has it filled from the wallet */
+  await d.q('update public.account_wallet set gold = gold + 5 where user_id = $1', [a]);
+  await d.q("insert into public.player_ledger (user_id, slot, kind, intent, gold) values ($1, 0, 'admin', 'g7_none', 5)", [a]);
+  const filled = await d.q("select gold::text g, purse::text p, gold_kind k from public.player_ledger where user_id = $1 and intent = 'g7_none' and gold <> 0", [a]);
+  ok(filled.length === 1 && Number(filled[0].p) === await d.purse(a) && filled[0].k === 'other', `G7: a gold row stating no purse reads ${JSON.stringify(filled)} (purse ${await d.purse(a)})`);
+  // G7's farm half: a plot upgrade through hr_farm_purse_pay (2026-12-14-shared-farm.sql) pays from the ACCOUNT purse.
+  {
+    const u = await d.newAccount();
+    const tier = (await d.q("select gold_cost::text g, req_farm_level l from public.hr_plot_tier where plot_level = 2"))[0];
+    if (ok(tier && Number(tier.g) > 0, `G7: no priced plot tier 2 (${JSON.stringify(tier)})`)) {
+      await d.q("update public.player_skills set xp = 100000000 where user_id = $1 and skill_id = 'farming'", [u]);
+      await d.seedPurse(u, Number(tier.g) + 3);
+      await d.as(u); await d.gate();
+      const up = await d.one('select public.hr_farm_upgrade_plot(1, gen_random_uuid(), 2)');
+      const c = await chain(d, u);
+      ok(up && up.ok === true && up.paid_with === 'gold' && await d.purse(u) === 3 && !c.bad.length && c.end === 3
+        && c.rows.some((r) => r.intent === 'farm_upgrade_plot' && r.k === 'farm' && Number(r.slot) === 1),
+        `G7: slot 1's plot upgrade answered ${JSON.stringify(up)}; purse ${await d.purse(u)}; chain ${JSON.stringify(c.bad)}`);
+    }
+  }
+
+  // G8 NO BODY READS A PER-HERO PURSE.
+  const bodies = await d.q(`select p.oid::regprocedure::text sig, p.prosrc src from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+                              where n.nspname = 'public' and p.prolang in (select oid from pg_language where lanname in ('plpgsql', 'sql'))`);
+  const stale = [];
+  for (const f of bodies) for (const hit of perHeroGold(f.src)) stale.push(`${f.sig}: ${hit}`);
+  ok(!stale.length, `G8: bodies still read per-hero gold: ${stale.slice(0, 6).join(' | ')}`);
+  const views = await d.q(`select c.relname, pg_get_viewdef(c.oid, true) def from pg_class c where c.relnamespace = 'public'::regnamespace and c.relkind in ('v', 'm')`);
+  const staleViews = views.filter((v) => perHeroGold(v.def).length);
+  ok(!staleViews.length, `G8: a view reads player_state gold: ${staleViews.map((v) => v.relname + ' ' + perHeroGold(v.def).join(','))}`);
+
+  // G10 THE ACL, and the lock order in the installed bodies.
+  for (const sig of ['public.hr_purse_of(uuid)', 'public.hr_purse_lock(uuid)', 'public.hr_purse_move(uuid,bigint,bigint)', 'public.hr_gold_kind(text,text,uuid)']) {
+    for (const role of ['anon', 'authenticated', 'service_role', 'hr_engine']) {
+      ok(!(await d.one(`select has_function_privilege($1, $2, 'execute')`, [role, sig])), `G10: ${role} can execute ${sig}`);
+    }
+  }
+  for (const role of ['anon', 'authenticated', 'service_role']) {
+    ok(!(await d.one(`select has_table_privilege($1, 'public.account_wallet', 'insert,update,delete,truncate')`, [role])), `G10: ${role} writes account_wallet`);
+  }
+  const mv = (await d.one("select prosrc from pg_proc where oid = to_regprocedure('public.hr_purse_move(uuid,bigint,bigint)')"));
+  ok(/v := public\.hr_purse_lock\(p_user\);[\s\S]*update public\.account_wallet/.test(mv), 'G10: hr_purse_move does not lock the purse before it moves it');
+
+  // G12 A READ NEVER WRITES.
+  const readers = await d.q(`select p.oid::regprocedure::text as f, p.pronargs::int as n,
+        p.prosrc ~ 'hr_purse_move|hr_purse_lock|hr_wallet_ensure' as writes
+      from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public' and p.prokind = 'f' and p.provolatile in ('s', 'i')
+       and p.prosrc ~ 'account_wallet|hr_purse_|hr_wallet_' order by 1`);
+  ok(readers.some((r) => r.f === 'hr_purse_of(uuid)'), 'G12 CONTROL: the scan found no STABLE purse reader (hr_purse_of is one)');
+  for (const r of readers) ok(!r.writes, `G12: STABLE ${r.f} calls a purse writer`);
+  const nobody = await d.one('select gen_random_uuid()');
+  for (const r of readers) {
+    const call = r.n === 1 ? `select public.${r.f.replace(/\(.*$/, '')}($1::uuid)` : r.n === 2 ? `select public.${r.f.replace(/\(.*$/, '')}($1::uuid, 0)` : null;
+    if (!call) { ok(false, `G12: no read-only call shape for ${r.f}`); continue; }
+    await db.exec('begin read only');
+    let err = null, v;
+    try { v = await d.one(call, [nobody]); } catch (e) { err = String(e.message).split('\n')[0]; }
+    await db.exec('rollback');
+    ok(err === null, `G12: ${r.f} raised in a READ ONLY transaction: ${err}`);
+    if (r.f === 'hr_purse_of(uuid)') ok(Number(v) === 0, `G12: a missing purse reads ${v}, not 0`);
+  }
+  ok(!(await d.one('select exists (select 1 from public.account_wallet where user_id = $1)', [nobody])), 'G12: a read made a purse row');
+
+  // G9 RE-APPLY IS A NO-OP.
+  const fp = JSON.stringify(await inventory(db));
+  const purses = JSON.stringify(await d.q('select user_id::text, gold::text, version::text from public.account_wallet order by 1'));
+  await d.as('');
+  let again = null;
+  try { await db.exec('begin;\n' + await migrationText(mutate) + '\ncommit;'); }
+  catch (e) { again = String(e.message).split('\n')[0]; await db.exec('rollback').catch(() => {}); }
+  if (ok(again === null, 'G9: a second apply was refused: ' + again)) {
+    ok(JSON.stringify(await inventory(db)) === fp, 'G9: a second apply changed the schema fingerprint');
+    ok(JSON.stringify(await d.q('select user_id::text, gold::text, version::text from public.account_wallet order by 1')) === purses, 'G9: a second apply moved a purse');
+  }
+  await db.close?.();
+}
+
+// ── G4-G6, G7 (the hunt half) and G10's lock order: the real engine on the WHOLE chain ─────────
+async function huntArms(mutate, M) {
+  const { db } = await bootReplay({ patches: chainPatches(mutate), upTo: CHAIN_END });
+  const d = drivers(db);
 
   // G4 TWO HUNTS RACE ON ONE PURSE — both doors.
   for (const door of ['tick', 'settle']) {
@@ -510,99 +630,17 @@ async function chainArms(mutate, M) {
       ok(res && res.ok === true && await d.purse(u) >= 80, `G6: a bill that keeps the floor answered ${JSON.stringify(res && res.error)} (purse ${await d.purse(u)})`);
     }
   }
-
-  // G7 THE LEDGER BALANCES.
-  for (const u of [a, b]) {
-    const c = await chain(d, u);
-    ok(!c.bad.length && c.end === c.purse, `G7: account ${u.slice(0, 8)}: ${JSON.stringify(c.bad)}; chain ends ${c.end}, purse ${c.purse}`);
-  }
+  // G7 THE LEDGER BALANCES: every hunt gold row carries its session.
   const hunts = await d.q(`select intent, gold_kind k, count(*)::int n, count(session_id)::int s from public.player_ledger
                              where coalesce(gold, 0) <> 0 and (session_id is not null or intent in ('supply_buy', 'vendor_cover', 'loot_sell')) group by 1, 2`);
   ok(hunts.length > 0 && hunts.every((h) => h.n === h.s) && hunts.some((h) => h.k === 'hunt_supply') && hunts.some((h) => h.k === 'hunt_loot')
     && hunts.some((h) => h.intent === 'loot_sell' && h.k === 'hunt_sale'),
     `G7: the hunt gold rows are ${JSON.stringify(hunts)} (every one with its session; coins, loot sold on pickup and store bills present)`);
-  let lie = null;
-  try { await d.q("insert into public.player_ledger (user_id, slot, kind, intent, gold, purse) values ($1, 0, 'admin', 'g7_lie', 5, 999999)", [a]); }
-  catch (e) { lie = String(e.message); }
-  ok(lie && /ledger_purse/.test(lie), `G7: a gold row stating purse 999,999 was ${lie ? 'refused: ' + lie.slice(0, 80) : 'journalled'}`);
-  /* a writer that states no purse (the farm's rows, 2026-12-14-shared-farm.sql) has it filled from the wallet */
-  await d.q('update public.account_wallet set gold = gold + 5 where user_id = $1', [a]);
-  await d.q("insert into public.player_ledger (user_id, slot, kind, intent, gold) values ($1, 0, 'admin', 'g7_none', 5)", [a]);
-  const filled = await d.q("select gold::text g, purse::text p, gold_kind k from public.player_ledger where user_id = $1 and intent = 'g7_none' and gold <> 0", [a]);
-  ok(filled.length === 1 && Number(filled[0].p) === await d.purse(a) && filled[0].k === 'other', `G7: a gold row stating no purse reads ${JSON.stringify(filled)} (purse ${await d.purse(a)})`);
-  // G7's farm half: a plot upgrade through hr_farm_purse_pay (2026-12-14-shared-farm.sql) pays from the ACCOUNT purse.
-  {
-    const u = await d.newAccount();
-    const tier = (await d.q("select gold_cost::text g, req_farm_level l from public.hr_plot_tier where plot_level = 2"))[0];
-    if (ok(tier && Number(tier.g) > 0, `G7: no priced plot tier 2 (${JSON.stringify(tier)})`)) {
-      await d.q("update public.player_skills set xp = 100000000 where user_id = $1 and skill_id = 'farming'", [u]);
-      await d.seedPurse(u, Number(tier.g) + 3);
-      await d.as(u); await d.gate();
-      const up = await d.one('select public.hr_farm_upgrade_plot(1, gen_random_uuid(), 2)');
-      const c = await chain(d, u);
-      ok(up && up.ok === true && up.paid_with === 'gold' && await d.purse(u) === 3 && !c.bad.length && c.end === 3
-        && c.rows.some((r) => r.intent === 'farm_upgrade_plot' && r.k === 'farm' && Number(r.slot) === 1),
-        `G7: slot 1's plot upgrade answered ${JSON.stringify(up)}; purse ${await d.purse(u)}; chain ${JSON.stringify(c.bad)}`);
-    }
-  }
 
-  // G8 NO BODY READS A PER-HERO PURSE.
-  const bodies = await d.q(`select p.oid::regprocedure::text sig, p.prosrc src from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-                              where n.nspname = 'public' and p.prolang in (select oid from pg_language where lanname in ('plpgsql', 'sql'))`);
-  const stale = [];
-  for (const f of bodies) for (const hit of perHeroGold(f.src)) stale.push(`${f.sig}: ${hit}`);
-  ok(!stale.length, `G8: bodies still read per-hero gold: ${stale.slice(0, 6).join(' | ')}`);
-  const views = await d.q(`select c.relname, pg_get_viewdef(c.oid, true) def from pg_class c where c.relnamespace = 'public'::regnamespace and c.relkind in ('v', 'm')`);
-  const staleViews = views.filter((v) => perHeroGold(v.def).length);
-  ok(!staleViews.length, `G8: a view reads player_state gold: ${staleViews.map((v) => v.relname + ' ' + perHeroGold(v.def).join(','))}`);
-
-  // G10 THE ACL, and the lock order in the installed bodies.
-  for (const sig of ['public.hr_purse_of(uuid)', 'public.hr_purse_lock(uuid)', 'public.hr_purse_move(uuid,bigint,bigint)', 'public.hr_gold_kind(text,text,uuid)']) {
-    for (const role of ['anon', 'authenticated', 'service_role', 'hr_engine']) {
-      ok(!(await d.one(`select has_function_privilege($1, $2, 'execute')`, [role, sig])), `G10: ${role} can execute ${sig}`);
-    }
-  }
-  for (const role of ['anon', 'authenticated', 'service_role']) {
-    ok(!(await d.one(`select has_table_privilege($1, 'public.account_wallet', 'insert,update,delete,truncate')`, [role])), `G10: ${role} writes account_wallet`);
-  }
+  // G10 the lock order in the body that RUNS (2026-12-23-tally-tasks.sql restates hr_hunt_apply_instance last).
   const inst = (await d.one("select prosrc from pg_proc where oid = to_regprocedure('public.hr_hunt_apply_instance(uuid,bigint,jsonb,jsonb,uuid,integer)')")).replace(/--[^\n]*/g, '');
   const iChar = inst.indexOf('perform public.hr_hunt_lock('), iPurse = inst.indexOf('perform public.hr_purse_lock(v_u)'), iMember = inst.indexOf('public.hr_hunt_apply_member(');
   ok(iChar > 0 && iPurse > iChar && iMember > iPurse, `G10: lock order in hr_hunt_apply_instance is characters ${iChar} -> purses ${iPurse} -> members ${iMember}`);
-  const mv = (await d.one("select prosrc from pg_proc where oid = to_regprocedure('public.hr_purse_move(uuid,bigint,bigint)')"));
-  ok(/v := public\.hr_purse_lock\(p_user\);[\s\S]*update public\.account_wallet/.test(mv), 'G10: hr_purse_move does not lock the purse before it moves it');
-
-  // G12 A READ NEVER WRITES.
-  const readers = await d.q(`select p.oid::regprocedure::text as f, p.pronargs::int as n,
-        p.prosrc ~ 'hr_purse_move|hr_purse_lock|hr_wallet_ensure' as writes
-      from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-     where n.nspname = 'public' and p.prokind = 'f' and p.provolatile in ('s', 'i')
-       and p.prosrc ~ 'account_wallet|hr_purse_|hr_wallet_' order by 1`);
-  ok(readers.some((r) => r.f === 'hr_purse_of(uuid)'), 'G12 CONTROL: the scan found no STABLE purse reader (hr_purse_of is one)');
-  for (const r of readers) ok(!r.writes, `G12: STABLE ${r.f} calls a purse writer`);
-  const nobody = await d.one('select gen_random_uuid()');
-  for (const r of readers) {
-    const call = r.n === 1 ? `select public.${r.f.replace(/\(.*$/, '')}($1::uuid)` : r.n === 2 ? `select public.${r.f.replace(/\(.*$/, '')}($1::uuid, 0)` : null;
-    if (!call) { ok(false, `G12: no read-only call shape for ${r.f}`); continue; }
-    await db.exec('begin read only');
-    let err = null, v;
-    try { v = await d.one(call, [nobody]); } catch (e) { err = String(e.message).split('\n')[0]; }
-    await db.exec('rollback');
-    ok(err === null, `G12: ${r.f} raised in a READ ONLY transaction: ${err}`);
-    if (r.f === 'hr_purse_of(uuid)') ok(Number(v) === 0, `G12: a missing purse reads ${v}, not 0`);
-  }
-  ok(!(await d.one('select exists (select 1 from public.account_wallet where user_id = $1)', [nobody])), 'G12: a read made a purse row');
-
-  // G9 RE-APPLY IS A NO-OP.
-  const fp = JSON.stringify(await inventory(db));
-  const purses = JSON.stringify(await d.q('select user_id::text, gold::text, version::text from public.account_wallet order by 1'));
-  await d.as('');
-  let again = null;
-  try { await db.exec('begin;\n' + await migrationText(mutate) + '\ncommit;'); }
-  catch (e) { again = String(e.message).split('\n')[0]; await db.exec('rollback').catch(() => {}); }
-  if (ok(again === null, 'G9: a second apply was refused: ' + again)) {
-    ok(JSON.stringify(await inventory(db)) === fp, 'G9: a second apply changed the schema fingerprint');
-    ok(JSON.stringify(await d.q('select user_id::text, gold::text, version::text from public.account_wallet order by 1')) === purses, 'G9: a second apply moved a purse');
-  }
   await db.close?.();
 }
 
@@ -661,7 +699,9 @@ async function run(mutate) {
     if (m && m.pins) { await pinsArm(mutate); return [...problems]; }
     if (!m || m.kind === 'sql' || m.kind === 'js') {
       const M = await HARNESS.loadEdge(tree.root);
-      await chainArms(m && m.kind === 'sql' ? mutate : null, M);
+      const sqlMutate = m && m.kind === 'sql' ? mutate : null;
+      await purseArms(sqlMutate);
+      await huntArms(sqlMutate, M);
     }
     if (!m) { await foldArm(null); await pinsArm(null); }
   } finally { await tree.done(); }
@@ -676,6 +716,11 @@ try {
   }
   const single = argv.find((x) => x.startsWith('--mutate='));
   if (argv.includes('--selftest') || single) {
+    /* A plant in a body a later file restates never runs (v0.2.37: 2026-12-23-tally-tasks.sql restated
+       hr_hunt_apply_instance): refuse it up front, as tests/alpha-server.mjs does. */
+    const { staleAnchors } = await import('./alpha-server.mjs');
+    const stale = staleAnchors(mutantAnchors());
+    if (stale.length) { for (const s of stale) console.log('  ✗ ANCHOR ' + s); process.exit(1); }
     const ids = single ? [single.slice('--mutate='.length)] : Object.keys(MUTATIONS);
     let slipped = 0;
     for (const id of ids) {

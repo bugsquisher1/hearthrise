@@ -15,15 +15,15 @@
 // Every control is off while an intent is in flight; counts and gold change
 // only from the re-read envelope.
 // ════════════════════════════════════════════════════════════════════════
-import { shopOf, bagOf, rulesOf, goldOf } from '../../session/item-sections.js?v=0.2.36';
-import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.36';
-import { whole, gold } from '../../render/format.js?v=0.2.36';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.36';
-import { itemIconHtml, itemName } from '../widgets/bits.js?v=0.2.36';
-import { kindOf, sellPlan, lootToSell } from '../bag-model.js?v=0.2.36';
-import { runIntent } from '../intent-words.js?v=0.2.36';
-import { showTip, hideTip } from './item-tip.js?v=0.2.36';
-import { upgradeOf, upgradeLineHtml, patchUpgradeLine, equipUpgrades } from '../widgets/upgrade-line.js?v=0.2.36';
+import { shopOf, bagOf, rulesOf, goldOf } from '../../session/item-sections.js?v=0.2.37';
+import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.37';
+import { whole, gold } from '../../render/format.js?v=0.2.37';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.37';
+import { itemIconHtml, itemName } from '../widgets/bits.js?v=0.2.37';
+import { kindOf, sellPlan, lootToSell } from '../bag-model.js?v=0.2.37';
+import { runIntent } from '../intent-words.js?v=0.2.37';
+import { showTip, hideTip } from './item-tip.js?v=0.2.37';
+import { upgradeOf, upgradeLineHtml, patchUpgradeLine, equipUpgrades } from '../widgets/upgrade-line.js?v=0.2.37';
 
 const TABS = Object.freeze([['buy', 'Buy'], ['sell', 'Sell']]);
 const QTYS = Object.freeze([1, 5, 10, 25, 50, 100]);

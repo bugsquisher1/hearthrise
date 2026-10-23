@@ -3,14 +3,14 @@
 // voice, original IP. Surfaced in the item detail/tooltip (the "what is it" line).
 // SAFE TO EXTEND: an item with no entry here just shows no flavour line — nothing breaks.
 
-import { WAVE3_DESC } from './wave3-uniques.js?v=0.2.36';
-import { SLOT_DESC } from './slot-ladders.js?v=0.2.36';
-import { LIB2_DESC } from './library2-items.js?v=0.2.36';
-import { BOSS_FORGE_DESC } from './boss-forge.js?v=0.2.36';
-import { CHAMPION_DESC } from './champions.js?v=0.2.36';
-import { DRINK_DESC } from './drinks.js?v=0.2.36';
-import { IMBUE_DESC } from './imbuements.js?v=0.2.36';
-import { STYLE_GEAR_DESC } from './style-gear.js?v=0.2.36';
+import { WAVE3_DESC } from './wave3-uniques.js?v=0.2.37';
+import { SLOT_DESC } from './slot-ladders.js?v=0.2.37';
+import { LIB2_DESC } from './library2-items.js?v=0.2.37';
+import { BOSS_FORGE_DESC } from './boss-forge.js?v=0.2.37';
+import { CHAMPION_DESC } from './champions.js?v=0.2.37';
+import { DRINK_DESC } from './drinks.js?v=0.2.37';
+import { IMBUE_DESC } from './imbuements.js?v=0.2.37';
+import { STYLE_GEAR_DESC } from './style-gear.js?v=0.2.37';
 
 export const ITEM_DESC = {
   /* Mage = wand + spellbook; Healer = staff (Tyler 2026-10-19). */
@@ -45,6 +45,9 @@ export const ITEM_DESC = {
   'alpha_cloak': 'Alpha-beast pelt worn as a cape, warding blows and sharpening the strike',
   'alpha_fang': 'The great fang of a pack alpha, a rare and coveted trophy',
   'rooks_whistle': 'The bone whistle Rook calls the Mosslight crows with. A collector in town pays well for it',
+  'rat_kings_crown': 'The Rat King\'s whole crown, hammered from the Millrace\'s drain grates. Few hunters ever lift it off him',
+  'coppercaps_cauldron': 'The polished cauldron Chief Coppercap wears for a crown, dented from every fight in the Warrens',
+  'grayjaws_ruff': 'A cape for any fighter: more guard and a few more critical hits. Cut from the thick neck fur of Old Grayjaw, the den mother',
   'ancient_claw': 'A colossal claw from something ancient, a formidable crafting trophy',
   'ancient_fragment': 'A worn shard of some forgotten relic, sought by scholars and collectors',
   'ancient_rune': 'A rune of the old tongue, humming with power, a key arcane reagent',
@@ -355,7 +358,7 @@ export const ITEM_DESC = {
   'steel_platelegs': 'Tempered steel legguards for a fighter who means to hold the line',
   'steel_sword': 'Tempered steel blade that holds its edge through a hard fight',
   'steel_warhammer': 'Tempered steel warhammer, brutal crushing power for a strong arm',
-  'sticky_core': 'The gluey core of a giant slime that binds crafting compounds together',
+  'sticky_core': 'The gluey core of a cellar slime, for the imbuer who wards gear against the elements',
   'stone_maul': 'Crude stone-headed maul that crushes what it cannot cut',
   'studded_belt': 'A stud-riveted leather belt, a sturdier brace for a ranger climbing past the basics',
   'studded_body': 'A stud-riveted leather jerkin, tougher cover that still lets the bowstring sing',

@@ -46,23 +46,25 @@
 // server's `leader_densities`) with no step, and the server refuses a member's
 // pick (hr_hunt_density_set `not_leader`).
 // ════════════════════════════════════════════════════════════════════════
-import { huntOf, huntBagOf, settingsOf, huntBestsOf, huntDensityOf } from '../../session/hunt-sections.js?v=0.2.36';
-import { bagOf } from '../../session/item-sections.js?v=0.2.36';
-import { levelOf as levelRowOf } from '../../session/character-sections.js?v=0.2.36';
-import { huntName, partyMembershipOf } from '../../session/party-sections.js?v=0.2.36';
-import { startPartyHunt, settleTownActivity } from '../../session/party-intents.js?v=0.2.36';
-import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.36';
-import { whole } from '../../render/format.js?v=0.2.36';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.36';
-import { itemName } from '../widgets/bits.js?v=0.2.36';
-import { glyphSvg } from '../launcher.js?v=0.2.36';
-import { runIntent, refusalText } from '../intent-words.js?v=0.2.36';
-import { HUNT_GROUNDS, densityFor, DENSITY_PICK } from '../../data/hunt-grounds.js?v=0.2.36';
-import { huntRows, densityWords, rangeWords, groupWords, heroWords, packFor, bestLine, fitWords, ABOVE_LEVEL_WORDS, recommendation } from '../hunt-list.js?v=0.2.36';
-import { detailHtml, patchGround, goHtml, patchGo } from './hunt-detail.js?v=0.2.36';
-import { setupsOf, beforeLines, freeHeroes } from '../hunt-go.js?v=0.2.36';
-import { inviteOwn } from '../../session/party-intents.js?v=0.2.36';
-import { openFinderOn } from './party-finder.js?v=0.2.36';
+import { huntOf, huntBagOf, settingsOf, huntBestsOf, huntDensityOf } from '../../session/hunt-sections.js?v=0.2.37';
+import { bagOf, equipmentOf } from '../../session/item-sections.js?v=0.2.37';
+import { wornWeightOf } from '../hunt-ground-facts.js?v=0.2.37';
+import { levelOf as levelRowOf } from '../../session/character-sections.js?v=0.2.37';
+import { huntName, partyMembershipOf } from '../../session/party-sections.js?v=0.2.37';
+import { startPartyHunt, settleTownActivity } from '../../session/party-intents.js?v=0.2.37';
+import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.37';
+import { whole } from '../../render/format.js?v=0.2.37';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.37';
+import { itemName } from '../widgets/bits.js?v=0.2.37';
+import { glyphSvg } from '../launcher.js?v=0.2.37';
+import { runIntent, refusalText } from '../intent-words.js?v=0.2.37';
+import { HUNT_GROUNDS, densityFor, DENSITY_PICK } from '../../data/hunt-grounds.js?v=0.2.37';
+import { huntRows, densityWords, rangeWords, groupWords, heroWords, packFor, bestLine, fitWords, ABOVE_LEVEL_WORDS, recommendation } from '../hunt-list.js?v=0.2.37';
+import { detailHtml, patchGround, goHtml, patchGo } from './hunt-detail.js?v=0.2.37';
+import { setupsOf, beforeLines, freeHeroes } from '../hunt-go.js?v=0.2.37';
+import { inviteOwn } from '../../session/party-intents.js?v=0.2.37';
+import { openFinderOn } from './party-finder.js?v=0.2.37';
+import { tallyOf, heldOn, tallyLine } from '../../session/tally-sections.js?v=0.2.37';
 
 const SCRATCH = new WeakMap();
 /* `draft` is the density shown before the server has it ({ hunt, n }), `timer` its coalescing
@@ -189,7 +191,8 @@ function lineHtml(r, glyphs) {
     + '<span class="hw-hunt-glyph" title="' + (party ? 'Built for a party' : 'Built for one hero') + '">' + glyphSvg(glyphs, party ? 'uiPeople' : 'navProfile') + '</span>'
     + '<span class="hw-hunt-main"><b class="hw-hunt-name">' + esc(r.name) + '</b>'
     + '<small class="hw-hunt-band"><span class="hw-hunt-lv">Level ' + r.band[0] + '–' + r.band[1] + '</span><span class="hw-hunt-fit"></span></small>'
-    + '<small class="hw-hunt-sub"><span class="hw-hunt-fits"></span><span class="hw-hunt-bestline"></span></small></span></li>';
+    + '<small class="hw-hunt-sub"><span class="hw-hunt-fits"></span><span class="hw-hunt-bestline"></span></small>'
+    + '<small class="hw-hunt-tally"></small></span></li>';
 }
 
 renderHunts.patch = function patchHunts(body, ctx) {
@@ -208,6 +211,7 @@ renderHunts.patch = function patchHunts(body, ctx) {
   if (!sc.pick && list.length) sc.pick = rec.row ? rec.row.hunt : list[0].hunt;
   /* This hero's personal bests, the server's (hunt_bests); null = the server sent none, the lines stay empty. */
   const bests = huntBestsOf(cs);
+  const tally = tallyOf(cs);
   /* "On the way to …" is the intent's answer, not the hunt's state: once the server's hunt section
      says the hero is hunting (or the hunt is over), the line below speaks for it (Tyler 10-19). */
   if (sc.msg && sc.msg === sc.enterMsg && (now || (h && h.ended))) { sc.msg = ''; sc.enterMsg = null; }
@@ -238,6 +242,8 @@ renderHunts.patch = function patchHunts(body, ctx) {
       attr(band, 'data-tone', fit ? fit.tone : null);
       text(li.querySelector('.hw-hunt-fits'), fits === r.hunt ? (party ? 'Fits your party' : 'Fits your level') : '');
       text(li.querySelector('.hw-hunt-bestline'), bestLine(bests, r.hunt) || '');
+      /* Tamsin's tallies held on this ground, the server's count ("Gray Wolves 112/200"). */
+      text(li.querySelector('.hw-hunt-tally'), heldOn(tally, r.hunt).map(tallyLine).join(' · '));
     },
   });
   const r = list.find((x) => x.hunt === sc.pick) || null;
@@ -255,7 +261,7 @@ renderHunts.patch = function patchHunts(body, ctx) {
 function patchPage(det, ctx, sc, v) {
   const { r, level, size, party, follower, now } = v;
   const cs = ctx.character;
-  patchGround(det, ctx, r, { level, size, bests: v.bests, repaint: () => ctx.refresh('hunts') });
+  patchGround(det, ctx, r, { level, size, bests: v.bests, worn: wornWeightOf(equipmentOf(cs) || {}), repaint: () => ctx.refresh('hunts') });
   /* the floor is a warning (Tyler 10-18): words only, Enter stays the server's to refuse */
   text(det.querySelector('.hw-hunt-warn'), rangeWords(r, level) || '');
   /* While a hunt runs, its own page says what its hunt bag holds (in town, Before you go says what the bar spends). */

@@ -38,17 +38,18 @@
 // PURE ESM, data only. Spread into ARTISAN_RECIPES by recipes.js.
 // ════════════════════════════════════════════════════════════════════════
 
-/* style -> the practice weapon, the rungs this batch ships (each item's door is its recipe or drop row),
-   and what the next batch adds. A style is a ROLE weapon key (hunt-roles.js WEAPON_ROLES). */
+/* style -> the practice weapon, the rungs that ship (each item's door is its recipe or drop row: tier 2 made here,
+   tier 3 a Warrens drop, src/data/monsters.js, the loot bands 2026-10-23), and what comes next. A style is a ROLE
+   weapon key (hunt-roles.js WEAPON_ROLES). */
 export const STYLE_LADDER = Object.freeze({
   sword:     Object.freeze({ practice: 'practice_sword',     rungs: Object.freeze(['iron_sword', 'steel_sword']), next: '' }),
-  dual_axe:  Object.freeze({ practice: 'practice_hatchets',  rungs: Object.freeze(['iron_hatchets']),  next: 'Steel Hatchets (Smithing 30, Warrens iron and coal)' }),
-  club:      Object.freeze({ practice: 'practice_club',      rungs: Object.freeze(['iron_warhammer']), next: 'Steel Warhammer (Smithing 30)' }),
-  bow:       Object.freeze({ practice: 'practice_bow',       rungs: Object.freeze(['longbow']),        next: 'Willow Longbow (Crafting 30)' }),
-  crossbow:  Object.freeze({ practice: 'practice_crossbow',  rungs: Object.freeze(['oak_crossbow']),   next: 'Willow Crossbow (Crafting 30)' }),
-  wand:      Object.freeze({ practice: 'practice_wand',      rungs: Object.freeze(['oak_wand']),       next: 'Willow Wand (Crafting 30)' }),
-  spellbook: Object.freeze({ practice: 'practice_spellbook', rungs: Object.freeze(['oak_spellbook']),  next: 'Willowleaf Spellbook (Crafting 30)' }),
-  staff:     Object.freeze({ practice: 'practice_staff',     rungs: Object.freeze(['oak_staff']),      next: 'Willow Staff (Crafting 30)' }),
+  dual_axe:  Object.freeze({ practice: 'practice_hatchets',  rungs: Object.freeze(['iron_hatchets', 'steel_hatchets']),  next: '' }),
+  club:      Object.freeze({ practice: 'practice_club',      rungs: Object.freeze(['iron_warhammer', 'steel_warhammer']), next: '' }),
+  bow:       Object.freeze({ practice: 'practice_bow',       rungs: Object.freeze(['longbow', 'willow_longbow']),        next: '' }),
+  crossbow:  Object.freeze({ practice: 'practice_crossbow',  rungs: Object.freeze(['oak_crossbow', 'willow_crossbow']),  next: '' }),
+  wand:      Object.freeze({ practice: 'practice_wand',      rungs: Object.freeze(['oak_wand', 'willow_wand']),          next: '' }),
+  spellbook: Object.freeze({ practice: 'practice_spellbook', rungs: Object.freeze(['oak_spellbook', 'willow_spellbook']), next: '' }),
+  staff:     Object.freeze({ practice: 'practice_staff',     rungs: Object.freeze(['oak_staff', 'willow_staff']),        next: '' }),
 });
 
 /* The light line, made: tier 1 (Apprentice, Defense 1) and tier 2 (Adept, Defense 15); helmet, body, legs, boots.
@@ -85,8 +86,10 @@ export const STYLE_GEAR_RECIPES = Object.freeze({
   ]),
 });
 
-/* The two new weapons' flavour lines (item-descriptions.js spreads them). */
+/* The style ladder's new weapons' flavour lines (item-descriptions.js spreads them): tier 2 made, tier 3 dropped. */
 export const STYLE_GEAR_DESC = Object.freeze({
   iron_hatchets: 'A matched pair of iron hatchets on oak hafts, made to open a wound and keep it bleeding',
   oak_crossbow: 'An oak crossbow strung with spider silk, slower to draw than a bow and harder where it lands',
+  steel_hatchets: 'Steel hatchets for a fighter who bleeds a foe, the pair a Coppercap foreman keeps for splitting pit props',
+  willow_crossbow: 'A willow crossbow for a ranger who keeps a shield up, the kind the goblin skulkers shoot down the galleries',
 });

@@ -53,7 +53,9 @@
 //   LV-RR THE PARTY'S RARE ROLL IS THE SERVER'S (Tyler L8; rulings: loot rolls use a server-only
 //         stream): with every monster carrying rare rows, the server's commits roll rares
 //         (`rare_roll`, each Crown Shard to its winner) and the browser's prediction, which
-//         runs the loot stream on a constant, never feeds a `rare_roll` of its own.
+//         runs the loot stream on a constant, never feeds a `rare_roll` of its own; and every
+//         commit still matches the prediction (the roll's rotation is server-only: world-state.js
+//         reconcileText leaves it out of the reconcile key, so an hourly party Rare never re-seeds).
 //   LV-G  A LONG HUNT COSTS WHAT A SHORT ONE DOES: per settle, the server's input, stored world
 //         and engine work in a 40-min hunt's last 10 min stay within 2x its first 10 min's; the
 //         browser holds at most 2x the look-ahead in combat seeds (they grew with the hunt's age).
@@ -732,6 +734,8 @@ function rules(M) {
     ok('LV-RR', srvRolls.length > 0, 'CONTROL: the server rolled no rare in 160 s with ten 5% rows on every monster');
     ok('LV-RR', fedRolls.length === 0, `the browser's prediction fed ${fedRolls.length} rare roll(s) drawn on its constant loot stream`);
     ok('LV-RR', (r.srv.drops.crown_shard || 0) >= srvRolls.length, `the server paid ${r.srv.drops.crown_shard || 0} Crown Shards for ${srvRolls.length} rolls`);
+    const off = r.verdicts.filter((x) => x.v !== 'match').length;
+    ok('LV-RR', off === 0, `${off} of ${r.verdicts.length} commits off the prediction over ${srvRolls.length} server rare rolls (the rotation re-seeded the live view)`);
   }
 
   { // LV-G: A LONG HUNT COSTS WHAT A SHORT ONE DOES (2026-10-21, a 260-min party hunt read "freezing"). Per settle, the
@@ -934,6 +938,7 @@ const MUTANTS = [
     '  advance(clientNow) {\n    this.__n = (this.__n || 0) + 1;\n    if (this.__n % 100 === 0) { const t = performance.now(); while (performance.now() - t < 60); }\n', /^LV-E: a frame step took/],
   ['drops rolled on the combat stream (LV-L)', 'src/core/combat-sim.js', "rng: createRng(seedOf(ctx, 'r', sw))", "rng: createRng(seedOf(ctx, 's', sw))", /^LV-L/],
   ['the prediction shows its own rare rolls (LV-RR)', 'src/hunt-view/live-engine.js', 'sim.events.filter(predicted)', 'sim.events', /^LV-RR/],
+  ['the rare roll\'s rotation back in the reconcile key (LV-RR)', 'src/core/hunt/world-state.js', '  for (const [i, kind] of SERVER_ONLY_AT) w[i] = KINDS[kind].blank();\n', '', /^LV-RR/],
   ['the reseed teleports (LV-R)', 'src/hunt-view/timeline.js', 'const dur = Math.max(easeMs || 250, Math.ceil(dist * EASE_MS_PER_TILE));', 'const dur = 1;', /^LV-R/],
   ['a restart before the next swing places units with no kind (LV-N, Andy 10-22)', 'src/hunt-view/live-engine.js', '      hp[u.id] = [u.kind, u.maxHp, u.hp];\n', '', /^LV-N/],
   ['every commit reads as a match (LV-R)', 'src/hunt-view/live-engine.js', "return h === hc.world_hash ? 'match' : 'diverged';", "return 'match';", /^LV-R/],

@@ -29,6 +29,22 @@
 .hs-online { display: flex; align-items: center; gap: 6px; margin: 0; padding: 2px 8px; background: var(--bg-1); font-size: var(--t-micro); color: var(--ink-2); white-space: nowrap; font-variant-numeric: lining-nums tabular-nums; }
 .hs-online-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
 
+/* ── Tamsin's tally (widgets/tally-hud.js): each held kill task's server count on a notched stick ── */
+.hs-tally { display: flex; flex-direction: column; gap: 4px; padding: 6px 8px; background: var(--bg-1); }
+.hs-widget.is-tally.is-quiet { display: none; }
+.hs-tally-open { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 0; border: 0; background: none; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+.hs-tally-open b { font-family: var(--f-label); font-weight: 700; font-size: var(--t-micro); letter-spacing: .04em; color: var(--gold-2); }
+.hs-tally-open:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: 2px; }
+.hs-tally-none { font-size: var(--t-micro); color: var(--ink-2); }
+.hs-tally-none:empty { display: none; }
+.hs-tally-list { margin: 0; padding: 0; list-style: none; }
+.hs-tally-row { font-size: var(--t-micro); color: var(--ink); white-space: nowrap; font-variant-numeric: lining-nums tabular-nums; }
+/* The split tally stick: a notch every tenth of the count, the server's kills as the cut part; gold once done. */
+.ht-stick { display: block; height: 6px; margin: 3px 0 2px; background-color: var(--bg-0);
+  background-image: repeating-linear-gradient(90deg, transparent 0 calc(10% - 1px), var(--line-soft) calc(10% - 1px) 10%); }
+.ht-stick i { display: block; height: 100%; background: var(--ink-2); }
+.is-done > .ht-stick i, .is-done .ht-stick i { background: var(--gold); }
+
 /* ── The launcher row: icons only, a tooltip with label and key, the open one lit gold ── */
 .hs-launchers { display: flex; align-items: stretch; height: 40px; padding-left: 10px; background: var(--bg-1); border-left: 1px solid var(--line-soft); }
 .hs-launch { position: relative; width: 40px; height: 100%; padding: 0; display: grid; place-items: center; border: 0; background: none; cursor: pointer; color: var(--ink-3); font: inherit; }

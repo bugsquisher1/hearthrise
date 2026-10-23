@@ -110,13 +110,14 @@ export const CUT_RPCS = ['hr_claim_quest', 'hr_claim_milestone', 'hr_claim_rank'
   'raid_claim', 'world_event_claim', 'clan_board_claim', ...WORLD_ACTION_RPCS];
 export const DELETED_FILES = ['src/data/goal-catalogue.js', 'src/data/collection-milestones.js', 'src/data/rewards.js',
   'supabase/functions/hr-accrue/goal-period.js'];
-/* OR-6: the daily writers 2026-12-03-daily-claims-cut.sql restated whole. */
+/* OR-6: the daily writers 2026-12-03-daily-claims-cut.sql restated whole (and 2026-12-14-shared-farm.sql again):
+   only the CHAIN-END body ships, so the check and its plants both read the last restatement. */
 export const CLEAN_READERS = ['hr_farm_harvest', 'hr_farm_plant'];
 const ENGINE_DIRS = ['src/core/', 'supabase/functions/'];
 const DAILY_OP = /\bkind\s*:\s*(['"`])daily\1/;
 
-/** The body of the LAST create of public.<name>( in one SQL text, or null. */
-export function lastBody(sql, name) {
+/** Where the body of the LAST create of public.<name>( sits in one SQL text ({ code, from, to }, LF-normalised), or null. */
+function lastBodySpan(sql, name) {
   const code = sql.replace(/\r\n/g, '\n');
   const re = new RegExp('create\\s+(?:or\\s+replace\\s+)?function\\s+public\\.' + name + '\\s*\\(', 'gi');
   let at = -1;
@@ -126,7 +127,13 @@ export function lastBody(sql, name) {
   if (!as) return null;
   const from = at + as.index + as[0].length;
   const to = code.indexOf(as[1], from);
-  return to < 0 ? null : code.slice(from, to);
+  return to < 0 ? null : { code, from, to };
+}
+
+/** The body of the LAST create of public.<name>( in one SQL text, or null. */
+export function lastBody(sql, name) {
+  const s = lastBodySpan(sql, name);
+  return s ? s.code.slice(s.from, s.to) : null;
 }
 
 const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -223,6 +230,24 @@ function selftest(w) {
   const cutFile = (x, fn) => { const i = x.sql.findIndex(([f]) => f === '2026-12-02-old-rewards-cut.sql'); x.sql[i] = [x.sql[i][0], fn(x.sql[i][1])]; };
   const cut2 = (x, fn) => { const i = x.sql.findIndex(([f]) => f === '2026-12-03-daily-claims-cut.sql'); const b = x.sql[i][1]; const a = fn(b); if (a === b) throw new Error('cut2 plant did not change the file'); x.sql[i] = [x.sql[i][0], a]; };
   const cut3 = (x, fn) => { const i = x.sql.findIndex(([f]) => f === '2026-12-04-world-actions-cut.sql'); if (i < 0) throw new Error('cut3: the third cut file is not in the apply order'); const b = x.sql[i][1].replace(/\r\n/g, '\n'); const a = fn(b); if (a === b) throw new Error('cut3 plant did not change the file'); x.sql[i] = [x.sql[i][0], a]; };
+  /* OR-6 plants land where the defect would SHIP: the chain-end body of `name`, in whichever file restated it last
+     (2026-12-14-shared-farm.sql today). Planting in a superseded body tests nothing: the next restatement masks it. */
+  const atEnd = (x, name, fn) => {
+    let i = -1;
+    x.sql.forEach(([, t], k) => { if (lastBody(t, name) !== null) i = k; });
+    if (i < 0) throw new Error(`atEnd: no migration creates ${name}`);
+    const s = lastBodySpan(x.sql[i][1], name), b = s.code.slice(s.from, s.to), a = fn(b);
+    if (a === b) throw new Error(`atEnd plant did not change the chain-end ${name} (${x.sql[i][0]})`);
+    x.sql[i] = [x.sql[i][0], s.code.slice(0, s.from) + a + s.code.slice(s.to)];
+  };
+  const superseded = (x, name, fn) => {
+    const at = []; x.sql.forEach(([, t], k) => { if (lastBody(t, name) !== null) at.push(k); });
+    if (at.length < 2) throw new Error(`superseded: ${name} has no superseded body`);
+    const i = at[at.length - 2], s = lastBodySpan(x.sql[i][1], name), b = s.code.slice(s.from, s.to), a = fn(b);
+    if (a === b) throw new Error(`superseded plant did not change ${name} (${x.sql[i][0]})`);
+    x.sql[i] = [x.sql[i][0], s.code.slice(0, s.from) + a + s.code.slice(s.to)];
+  };
+  const dailyHarvest = (s) => s.replace("values (v_uid, p_slot, 'stat', 'ev:harvest'", "values (v_uid, p_slot, 'daily', 'ev:harvest'");
   const arms = [
     ['the quest catalogue comes back in the data (QUEST_REWARDS)', 'OR-1', (x) => { x.files.set('src/data/quests.js', 'export const QUEST_REWARDS = {};\n'); }],
     ['a screen calls the milestone claim again', 'OR-1', (x) => { x.files.set('src/shell/x.js', "rpc('hr_claim_milestone', { p_slot: 0 });\n"); }],
@@ -242,7 +267,8 @@ function selftest(w) {
     ['the second cut file forgets world_event_claim__ungated', 'OR-4', (x) => { cut2(x, (t) => t.replace('drop function if exists public.world_event_claim__ungated(text, integer);\n', '')); }],
     ['the engine proposes a kind:daily op again', 'OR-5', (x) => { x.files.set('supabase/functions/hr-accrue/accrual.js', (x.files.get('supabase/functions/hr-accrue/accrual.js') || '') + "\nprogress.push({ kind: 'daily', key: 'ev:kill_any', period: day, add: 1 });\n"); }],
     ['a later migration restates hr_farm_plant writing a daily row', 'OR-6', (x) => { later(x, "create or replace function public.hr_farm_plant(p_slot int, p_plot_idx int, p_crop text, p_idem uuid)\nreturns jsonb language plpgsql as $$ begin insert into public.player_progress (kind) values ('daily'); return null; end $$;\n"); }],
-    ['the second cut file keeps the daily harvest row', 'OR-6', (x) => { cut2(x, (s) => s.replace("values (v_uid, p_slot, 'stat', 'ev:harvest'", "values (v_uid, p_slot, 'daily', 'ev:harvest'")); }],
+    ['the chain-end hr_farm_harvest writes the daily harvest row again', 'OR-6', (x) => { atEnd(x, 'hr_farm_harvest', dailyHarvest); }],
+    ['the chain-end hr_farm_plant writes a daily plant row again', 'OR-6', (x) => { atEnd(x, 'hr_farm_plant', (s) => s.replace("values (v_uid, p_slot, 'stat', 'ev:planted'", "values (v_uid, p_slot, 'daily', 'ev:planted'")); }],
     // the third cut
     ['a screen calls world_event_join again', 'OR-1', (x) => { x.files.set('src/shell/events.js', "rpc('world_event_join', { p_event_key: k });\n"); }],
     ['a later migration restates raid_strike__ungated', 'OR-4', (x) => { later(x, 'create or replace function public.raid_strike__ungated(p_clan_id uuid, p_week text, p_boss text, p_max_hp bigint, p_damage bigint)\nreturns jsonb language sql as $$ select null::jsonb $$;\n'); }],
@@ -262,6 +288,7 @@ function selftest(w) {
     ['a SQL comment that says create function hr_claim_quest(', (x) => { later(x, '-- create or replace function public.hr_claim_quest( was the old body\nselect 1;\n'); }],
     ['a longer identifier (hr_claim_quest_log)', (x) => { x.files.set('src/data/z.js', 'export const hr_claim_quest_log = 1;\n'); }],
     ["a client (not engine) file naming kind: 'daily'", (x) => { x.files.set('src/shell/z.js', "export const row = { kind: 'daily' };\n"); }],
+    ["a SUPERSEDED hr_farm_harvest body (restated later) naming kind 'daily'", (x) => { superseded(x, 'hr_farm_harvest', dailyHarvest); }],
     ["an SQL comment in a clean reader naming kind 'daily'", (x) => { later(x, "create or replace function public.hr_farm_plant(p_slot int, p_plot_idx int, p_crop text, p_idem uuid)\nreturns jsonb language sql as $$\n-- the 'daily' plant row was cut\nselect null::jsonb $$;\n"); }],
     ['a kept clan door (clan_work_post) called from code', (x) => { x.files.set('src/shell/z.js', "rpc('clan_work_post', { p_clan_id: c });\n"); }],
     ['a later migration restating a KEPT clan body (clan_seat_read)', (x) => { later(x, 'create or replace function public.clan_seat_read(p_clan_id uuid)\nreturns jsonb language sql as $$ select null::jsonb $$;\n'); }],

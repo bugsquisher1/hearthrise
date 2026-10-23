@@ -118,7 +118,7 @@ import { SUPPLIES } from '../../../src/data/supplies.js';
 import { seederFor } from './hunt-seed.js';
 /* THE MEMBER ASSEMBLY, the bonus chain and the weapon profile (src/core/member.js): shared with the
    browser's live view of a hunt (option B, 2026-10-19). */
-import { memberSide, bonusFor, liveBuffHost } from '../../../src/core/member.js';
+import { memberSide, sharePurses, bonusFor, liveBuffHost } from '../../../src/core/member.js';
 /* THE INSTANCE WORLD a settle resumes and leaves (src/core/hunt/world-state.js),
    and the analyzer's tally of what each hero dealt, took and healed. */
 import { encode as encodeWorldRow, decodeStored as decodeWorldRow } from '../../../src/core/hunt/world-state.js';
@@ -1208,6 +1208,8 @@ export function accrueHunt(inp) {
   const tickMs = COMBAT_BALANCE.tickMs;
   const ctx = { items: inp.items || {}, monsters: inp.monsters || {} };
   const sides = (inp.members || []).slice().sort((a, b) => (a.key < b.key ? -1 : 1)).map((mi) => memberSide(mi, ctx));
+  /* ONE PURSE PER ACCOUNT (2026-12-15-account-gold.sql): an account's heroes in this instance spend the same gold. */
+  sharePurses(sides);
   if (!sides.length) return { accrued: false, reason: SKIP.NOTHING };
   const world0 = inp.instance && inp.instance.world ? decodeWorld(inp.instance.world) : null;
   /* No world (a new or restarted instance): the instance's stored counter, which the commit's CAS holds. */

@@ -292,6 +292,32 @@ export function memberSide(mi, ctx) {
 }
 
 
+/* ── ONE PURSE PER ACCOUNT (Tyler 2026-10-23; 2026-12-15-account-gold.sql) ──────
+   Gold is the ACCOUNT's, so the heroes of one account in one instance spend ONE purse,
+   in time order: the coins any of them loots, a sale any of them makes and a store use
+   any of them buys move the same gold, and each use keeps the purse at its OWN hero's
+   floor (action-rules.js floorOf). The settle reads every member's state in one
+   statement, so their start purses agree; the first side's is kept. The database pays
+   the window's store bills after every member's credits (hr_hunt_apply_instance), which
+   this time order keeps payable. Links each grouped side's session purse to one box. */
+export function sharePurses(sides) {
+  const byUser = new Map();
+  for (const s of sides || []) {
+    const u = s && s.mi && s.mi.user != null ? String(s.mi.user) : null;
+    if (u === null || !s.hs) continue;
+    if (!byUser.has(u)) byUser.set(u, []);
+    byUser.get(u).push(s);
+  }
+  for (const group of byUser.values()) {
+    if (group.length < 2) continue;
+    const box = { gold: Math.max(0, Math.floor(Number(group[0].hs.purse) || 0)) };
+    for (const s of group) {
+      Object.defineProperty(s.hs, 'purse', { get: () => box.gold, set: (v) => { box.gold = v; }, enumerable: true, configurable: true });
+    }
+  }
+  return sides;
+}
+
 /* ── A PARTY MEMBER AS THE VIEWER'S BROWSER SEES IT (Tyler 2026-10-20) ──────────
    hunt_live gives the viewer its OWN member's full setup, but every OTHER member only
    the numbers the engine needs to simulate and draw it, frozen at the block's boundary:

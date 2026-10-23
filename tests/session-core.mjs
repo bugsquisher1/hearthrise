@@ -81,6 +81,7 @@ async function load(base) {
     NB: await import(u('src/net/supabase-bootstrap.js')),
     CFG: await import(u('src/session/config.js')),
     TP: await import(u('src/session/town-poll.js')),
+    I: await import(u('src/session/item-sections.js')),
     FI: await import(u('src/session/farm-intents.js')),
     FS: await import(u('src/session/farm-sections.js')),
   };
@@ -129,7 +130,7 @@ const timers = { setTimer: () => 0, clearTimer: () => {} };
 async function rules(M) {
   const fails = [];
   const t = async (id, fn) => { try { const r = await fn(); if (r !== true) fails.push(id + ': ' + r); } catch (e) { fails.push(harnessFail(id, e)); } };
-  const { E, R, C, A, S, AU, NB, CFG, TP, FI, FS } = M;
+  const { E, R, C, A, S, AU, NB, CFG, TP, I, FI, FS } = M;
 
   await t('ENV-1', () => {
     const a = E.applyEnvelope(null, env(3, { skills: { mining: 5 }, buffs: [1] })).record;
@@ -590,12 +591,13 @@ async function rules(M) {
   });
   await t('ACC-2', async () => {
     /* each hero by its server name and its Level from the server's Level XP (21,591 = Level 10, CORE_MODEL.md §2) */
-    const srv = fakeServer({ 0: env(1, { hero_slots: [0, 2, 3, 99, -1, 'x'], name: 'Tester', state: { gold: 1, level_xp: 21591 } }), 2: env(1),
+    /* gold is the ACCOUNT purse each hero's answer states, with the wallet version it was read at (goldV) */
+    const srv = fakeServer({ 0: env(1, { hero_slots: [0, 2, 3, 99, -1, 'x'], name: 'Tester', state: { gold: 1, gold_v: 4, level_xp: 21591 } }), 2: env(1),
       3: { ok: false, error: 'needs_name', hero_slots: [0, 2, 3] } });
     const acc = mkAccount(srv);
     const r = await acc.roster();
-    if (JSON.stringify(r) !== JSON.stringify([{ slot: 0, exists: true, unnamed: false, name: 'Tester', level: 10, gold: 1 }, { slot: 2, exists: true, unnamed: false, name: null, level: null, gold: 1 },
-      { slot: 3, exists: false, unnamed: true, name: null, level: null, gold: null }])) return 'roster was ' + JSON.stringify(r);
+    if (JSON.stringify(r) !== JSON.stringify([{ slot: 0, exists: true, unnamed: false, name: 'Tester', level: 10, gold: 1, goldV: 4 }, { slot: 2, exists: true, unnamed: false, name: null, level: null, gold: 1, goldV: null },
+      { slot: 3, exists: false, unnamed: true, name: null, level: null, gold: null, goldV: null }])) return 'roster was ' + JSON.stringify(r);
     srv.calls.length = 0;
     const ok = await acc.create(3, 'Fennick', { head: 1, body: 2, legs: 3, feet: 4 });
     const no = await acc.create(3, 'Taken', { head: 1, body: 2, legs: 3, feet: 4 });
@@ -663,6 +665,38 @@ async function rules(M) {
     const take = await again.character(1).moveStorage('rat_tail', 3, 'withdraw');
     if (!take.ok || JSON.stringify(again.character(1).read('inventory')) !== '{"rat_tail":3}') return 'slot 1 could not take out what slot 0 put away: ' + JSON.stringify([take, again.character(1).read('inventory')]);
     return true;
+  });
+  await t('ACC-GOLD', async () => {
+    /* GOLD IS THE ACCOUNT'S (Tyler 2026-10-23; 2026-12-15-account-gold.sql): ONE purse, which every hero's
+       envelope states at a wallet version (state.gold, state.gold_v). Hero A earns -> hero B, NOT re-read,
+       shows the same gold and re-renders; B spends -> A shows it; an older answer never rolls it back. */
+    let purse = 500, gv = 3, ver = 1;
+    const lag = { 0: null, 1: null };   // a hero whose next answer states an older purse (a raced read)
+    const answer = (body) => ({ ok: true, status: 200, body, closed: false });
+    const srv = fakeServer({});
+    const base = srv.rpc;
+    srv.rpc = async (name, args) => {
+      if (name !== 'hr_load') return base(name, args);
+      srv.calls.push([name, args]);
+      const l = lag[args.p_slot];
+      return answer(env(++ver, Object.assign({ name: 'H' + args.p_slot, state: l ? { gold: l.gold, gold_v: l.v } : { gold: purse, gold_v: gv } }, said(4))));
+    };
+    const acc = mkAccount(srv);
+    await acc.open(0); await acc.open(1);
+    const a = acc.character(0), b = acc.character(1);
+    if (!a || !b) return 'two heroes did not open';
+    if (I.goldOf(a) !== 500 || I.goldOf(b) !== 500) return 'two heroes of one account read ' + [I.goldOf(a), I.goldOf(b)];
+    let painted = 0;
+    b.subscribe((s, why) => { if (why === 'purse') painted++; });
+    purse = 800; gv = 4; await a.load();   // A earns 300 on its own answer
+    if (I.goldOf(b) !== 800 || painted < 1) return 'after hero A earned, hero B shows ' + I.goldOf(b) + ' (re-rendered ' + painted + ' times)';
+    purse = 150; gv = 5; await b.load();   // B spends 650 on its own answer
+    if (I.goldOf(a) !== 150) return 'after hero B spent, hero A shows ' + I.goldOf(a);
+    lag[0] = { gold: 800, v: 4 }; await a.load();   // A's next answer is an OLDER copy
+    if (I.goldOf(a) !== 150 || I.goldOf(b) !== 150) return 'an older answer rolled the purse back: ' + [I.goldOf(a), I.goldOf(b)];
+    if (I.newerPurse({ gold: 1, v: 5 }, { gold: 2, v: 4 }).gold !== 1 || I.newerPurse({ gold: 1, v: 4 }, { gold: 2, v: 5 }).gold !== 2)
+      return 'newerPurse does not keep the higher wallet version';
+    return JSON.stringify(acc.purse()) === '{"gold":150,"v":5}' || 'the account purse reads ' + JSON.stringify(acc.purse());
   });
   await t('ACC-FARM', async () => {
     /* The farm land is the ACCOUNT's (2026-12-14-shared-farm.sql): hero 0 plants and hero 1, open
@@ -878,6 +912,9 @@ const MUTANTS = [
   ['the slot offer is made up on this side', 'src/session/account-session.js', '    || !Number.isSafeInteger(o.cost_gold) || o.cost_gold < 1) return null;', '    || false) return null;'],
   ['a slot purchase sends a price', 'src/session/account-session.js', "{ p_slot_id: slotId, p_slot: paySlot, p_idem: newIdem() }", "{ p_slot_id: slotId, p_slot: paySlot, p_price: this.slotOffer && this.slotOffer.cost, p_idem: newIdem() }"],
   ['the paying hero keeps its old gold', 'src/session/account-session.js', '      if (cs) await cs.load();\n', ''],
+  ['a hero shows its own copy of the account purse', 'src/session/account-session.js', '    cs.accountPurse = () => this._purse;\n', ''],
+  ['the purse is the last answer, not the newest version', 'src/session/item-sections.js', '  return b.v > a.v ? b : a;', '  return b;'],
+  ['another hero is not re-rendered for a new purse', 'src/session/account-session.js', "if (other !== cs && typeof other.notePurse === 'function') other.notePurse();", 'void other;'],
   ['limit off by one', 'src/session/account-session.js', 'if (this._chars.size >= this.limit()) return', 'if (this._chars.size > this.limit()) return'],
   ['the client ceiling stands in for the server', 'src/session/account-session.js', 'return Math.min(this.config.maxConcurrentCharacters, this._limit === null ? 1 : this._limit);', 'return this.config.maxConcurrentCharacters;'],
   ['the server limit is ignored above one', 'src/session/account-session.js', 'return Math.min(this.config.maxConcurrentCharacters, this._limit === null ? 1 : this._limit);', 'return Math.min(this.config.maxConcurrentCharacters, this._limit === null ? 1 : this.config.maxConcurrentCharacters);'],

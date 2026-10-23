@@ -3083,6 +3083,22 @@ jobs:
           node tests/shared-farm.mjs
           node tools/mutant-gate.mjs node tests/shared-farm.mjs --selftest
 
+      # ONE GOLD PURSE PER ACCOUNT (Tyler 2026-10-23: "it should just be account gold").
+      # Real RPCs and the real hunt settle on a replayed chain (PGlite, no credentials), the
+      # real Mill Cellar ground: the fold of per-hero gold (replayed to the file BEFORE) is
+      # the exact sum; two heroes read one purse at one version; two heroes spending it are
+      # refused in either order; two hunts of one account racing on it re-run on both doors
+      # (tick and the player's settle); a party of one account pays its store bills after
+      # every member's coins; the floor holds on the account purse; every gold row states the
+      # purse after it (chain balances); no body reads per-hero gold; re-apply a no-op; the
+      # helpers are owner-only. 10 mutations (SQL + engine + edge), the migration's own checks
+      # short-circuited.
+      - name: Account gold — one purse for every hero of an account
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/account-gold.mjs
+          node tools/mutant-gate.mjs node tests/account-gold.mjs --selftest
+
       # THE DEPOT'S SPACE (Tyler 2026-10-22): the account's base + the storage chests it
       # built. The catalogue is generated from src/data/homestead-tiers.js (--check, its
       # refusals --selftest); the guard drives the real hr_storage_chest_build and

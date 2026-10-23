@@ -40,6 +40,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { pathToFileURL } from 'node:url';
 import { bootReplay, ROOT } from './schema-replay.mjs';
+import { goldOf } from './_gold.mjs';
 import { runMutationProof } from './mutation-proof.mjs';
 
 const FN = (f) => join(ROOT, 'supabase', 'functions', 'hr-accrue', f);
@@ -242,7 +243,8 @@ async function behaviour(db, m, ITEMS) {
   const uid = await newCharacter(db);
   const q1 = async (sql, p) => (await db.query(sql, p)).rows[0];
   const version = async () => Number((await q1('select version::text v from player_state where user_id=$1 and slot=0', [uid])).v);
-  const gold = async () => Number((await q1('select gold::text g from player_state where user_id=$1 and slot=0', [uid])).g);
+  /* the gold the hero spends: its ACCOUNT's purse (2026-12-15-account-gold.sql), or its own on an older chain */
+  const gold = async () => Number(await goldOf((sql, p) => db.query(sql, p).then((r) => r.rows), uid, 0));
   const inv = async (id) => Number((await q1(
     'select qty::text q from player_inventory where user_id=$1 and slot=0 and item_id=$2', [uid, id]))?.q ?? 0);
   const ledgerN = async () => Number((await q1('select count(*)::int n from player_ledger where user_id=$1', [uid])).n);

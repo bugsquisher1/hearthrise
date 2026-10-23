@@ -845,7 +845,7 @@ async function checks(overrides, shots) {
           fails.push('AW-16 with the Inventory docked the camera shows past the map: map ' + JSON.stringify([tl.x - half, tl.y - half, br.x + half, br.y + half].map(Math.round)) + ' vs canvas ' + JSON.stringify([box.left, box.top, box.right, box.bottom].map(Math.round)));
         /* The capacity bar and the gold under the two columns. */
         const foot = await page.evaluate(() => ({ cap: document.querySelector('.hw-captext').textContent, gold: document.querySelector('.hw-gold').textContent }));
-        if (!/ of 40 spaces$/.test(foot.cap) || foot.gold !== '5,200 gp') fails.push('AW-14 the Inventory foot reads ' + JSON.stringify(foot));
+        if (!/ of 40 spaces$/.test(foot.cap) || foot.gold !== 'Your gold 5,200 gp') fails.push('AW-14 the Inventory foot reads ' + JSON.stringify(foot));
         if (shots) await shot(page, 'alpha-1440x900-inventory-town');
         /* AW-14 going hunting is two presses from town: the mill hatch opens Hunts on the Mill Cellar, Enter goes. */
         await page.keyboard.press('Escape');

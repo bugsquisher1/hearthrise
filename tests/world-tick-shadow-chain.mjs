@@ -48,6 +48,7 @@
 
 import { readFile } from 'node:fs/promises';
 import { bootReplay, LAST_PATCHED } from './schema-replay.mjs';
+import { goldOf } from './_gold.mjs';
 import { applyShadowState, SHADOW_STATE_V } from '../supabase/functions/hr-accrue/tick-contract.js';
 
 /* ── THE MUTATION PROOF (Security S-2, 2026-09-23) ──────────────────────────
@@ -77,12 +78,12 @@ let ACT = null;
 async function makeChar(db, u) {
   await db.exec(`insert into auth.users (id) values ('${u}') on conflict do nothing;`);
   await db.exec(`
-    insert into public.player_state (user_id, slot, gold, hp, version, accrued_to,
+    insert into public.player_state (user_id, slot, hp, version, accrued_to,
                                      active_kind, active_id, active_since)
-    values ('${u}', 0, 0, 10, 1, now() - interval '30 minutes',
+    values ('${u}', 0, 10, 1, now() - interval '30 minutes',
             'gather', '${ACT}', now() - interval '2 hours')
     on conflict (user_id, slot) do update
-      set version = 1, gold = 0, accrued_to = now() - interval '30 minutes',
+      set version = 1, accrued_to = now() - interval '30 minutes',
           active_kind = 'gather', active_id = '${ACT}';`);
   await db.exec(`delete from public.hr_tick_ownership where user_id = '${u}';`);
   await db.exec(`
@@ -290,8 +291,9 @@ async function runSuite({ patches, tickSource, allowReplayFailure = false } = {}
 
     // ── SC-5: e15 still holds. NOTHING a player owns moved.
     const ps1 = (await db.query(
-      'select gold, version, accrued_to from public.player_state where user_id = $1 and slot = 0',
+      'select version, accrued_to from public.player_state where user_id = $1 and slot = 0',
       [U4])).rows[0];
+    ps1.gold = await goldOf((sql, p) => db.query(sql, p).then((r) => r.rows), U4, 0);   // the ACCOUNT purse (2026-12-15-account-gold.sql), or the hero's on an older chain
     judge('SC-5', Number(ps1.gold) === 0 && Number(ps1.version) === 1
           && new Date(ps1.accrued_to).getTime() === new Date(mark0).getTime(),
       'the shadow settle that stored a carrier still paid NOTHING — gold, version and '
@@ -334,8 +336,7 @@ async function runSuite({ patches, tickSource, allowReplayFailure = false } = {}
     //        built in the other mode gets believed by the writer.
     await db.exec('update public.hr_tick_config set armed_channels = channels where id;');
     const armedWithState = await settle(t2, plus(mark0, 270), KEY(43), ST2);
-    const goldAfter = Number((await db.query(
-      'select gold from public.player_state where user_id = $1 and slot = 0', [U4])).rows[0].gold);
+    const goldAfter = Number(await goldOf((sql, p) => db.query(sql, p).then((r) => r.rows), U4, 0));
     judge('SC-9', armedWithState.error === 'shadow_state_while_armed' && goldAfter === 0,
       'an ARMED settle REFUSES a carrier before hr_apply is reached, and pays nothing',
       `the armed branch accepted or mispriced a carrier: ${JSON.stringify(armedWithState)} `
@@ -357,8 +358,7 @@ async function runSuite({ patches, tickSource, allowReplayFailure = false } = {}
     const armedClean = await settle(t2, plus(mark0, 270), KEY(44), null);
     await db.exec('commit;');
     const own4 = await ownRow();
-    const paidGold = Number((await db.query(
-      'select gold from public.player_state where user_id = $1 and slot = 0', [U4])).rows[0].gold);
+    const paidGold = Number(await goldOf((sql, p) => db.query(sql, p).then((r) => r.rows), U4, 0));
     judge('SC-10', armedClean.ok === true && armedClean.paid === true && paidGold > 0
           && own4.shadow_state == null && own4.shadow_accrued_to == null,
       `an armed payment landed (gold ${paidGold}) and cleared the shadow mark AND the `
@@ -401,8 +401,7 @@ async function runSuite({ patches, tickSource, allowReplayFailure = false } = {}
                    'meta', jsonb_build_object('src','tick','qty',7,'ticks',3))),
                $5::jsonb) as r`,
       [U5, new Date(m0).toISOString(), plus(m0, 90), KEY(51), JSON.stringify(MARKER)])).rows[0].r;
-    const gold5 = Number((await db.query(
-      'select gold from public.player_state where user_id = $1 and slot = 0', [U5])).rows[0].gold);
+    const gold5 = Number(await goldOf((sql, p) => db.query(sql, p).then((r) => r.rows), U5, 0));
     /* ...and read back over a session it must not disturb. The marker names no
        field, so every number stays the session's own and `_chain` opens empty —
        which IS the restart `carried === null` already meant. */

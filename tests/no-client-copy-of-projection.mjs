@@ -101,8 +101,10 @@ async function executedProjection() {
   const { db } = await bootReplay();
   const A = '11111111-1111-1111-1111-111111111111';
   await db.exec(`insert into auth.users (id) values ('${A}') on conflict do nothing;`);
-  await db.exec(`insert into public.player_state (user_id, slot, gold, version)
-                 values ('${A}', 0, 10, 1) on conflict (user_id, slot) do nothing;`);
+  /* gold is the ACCOUNT's purse (2026-12-15-account-gold.sql), not a hero column */
+  await db.exec(`insert into public.player_state (user_id, slot, version)
+                 values ('${A}', 0, 1) on conflict (user_id, slot) do nothing;
+                 insert into public.account_wallet (user_id, gold) values ('${A}', 10) on conflict (user_id) do nothing;`);
   const env = (await db.query('select public.hr_state_of($1::uuid, 0) as env', [A])).rows[0].env;
   if (!env || env.ok !== true) throw new Error('hr_state_of refused the probe character: ' + JSON.stringify(env));
   return { top: Object.keys(env).sort(), state: Object.keys(env.state || {}).sort() };

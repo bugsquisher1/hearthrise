@@ -151,9 +151,12 @@ async function boot(mutate, gateBlind) {
    able to make this projection guard vacuous or falsely red. */
 async function seed(db, uid, deeds, farmXp) {
   await db.exec(`insert into auth.users (id) values ('${uid}') on conflict (id) do nothing;`);
-  await db.exec(`insert into public.player_state (user_id, slot, gold, version)
-                 values ('${uid}', 0, 1000000, 1)
-                 on conflict (user_id, slot) do update set gold=1000000, version=1;`);
+  /* the gold is the ACCOUNT purse (2026-12-15-account-gold.sql) */
+  await db.exec(`insert into public.player_state (user_id, slot, version)
+                 values ('${uid}', 0, 1)
+                 on conflict (user_id, slot) do update set version=1;
+                 insert into public.account_wallet as w (user_id, gold) values ('${uid}', 1000000)
+                 on conflict (user_id) do update set gold = 1000000, version = w.version + 1;`);
   await db.exec(`insert into public.player_inventory (user_id, slot, item_id, qty)
                  values ('${uid}', 0, 'farm_deed', ${deeds})
                  on conflict (user_id, slot, item_id) do update set qty=${deeds};`);

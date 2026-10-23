@@ -4,10 +4,13 @@
 //
 //   node tests/alpha-windows.mjs                the rules
 //   node tests/alpha-windows.mjs --mutate       every planted defect must turn a rule RED
+//   node tests/alpha-windows.mjs --pure         the pure rules only (no browser)
+//   node tests/alpha-windows.mjs --mutate --only=ticker:   just the mutants named so (the town
+//                                               ticker's run on a temp copy of src, in seconds)
 //   node tests/alpha-windows.mjs --shots <dir>  also write the visual-gate screenshots
 //                                               (1440x900 and 922x423)
 //
-// mutant-anchors: src/session/character-session.js src/shell/widgets/amount.js src/shell/windows/inventory/bury.js src/shell/windows/inventory/state.js src/shell/windows/float-menu.js src/shell/bag-model.js src/session/item-sections.js src/shell/windows/inventory/grid.js src/shell/windows/inventory/actions.js src/shell/windows/shop.js src/shell/windows/inventory/doll.js src/session/edge-intents.js src/world/world-boot.js src/world/core/camera.js src/shell/windows/hunts.js src/shell/windows/storage.js src/shell/hunt-list.js src/shell/windows/skills.js src/shell/launcher.js src/shell/upgrade-plan.js src/shell/widgets/upgrade-line.js src/shell/intent-words.js src/shell/town-work.js src/shell/windows/work.js
+// mutant-anchors: src/shell/town-ticker.js src/session/refusal.js src/session/character-session.js src/shell/widgets/amount.js src/shell/windows/inventory/bury.js src/shell/windows/inventory/state.js src/shell/windows/float-menu.js src/shell/bag-model.js src/session/item-sections.js src/shell/windows/inventory/grid.js src/shell/windows/inventory/actions.js src/shell/windows/shop.js src/shell/windows/inventory/doll.js src/session/edge-intents.js src/world/world-boot.js src/world/core/camera.js src/shell/windows/hunts.js src/shell/windows/storage.js src/shell/hunt-list.js src/shell/windows/skills.js src/shell/launcher.js src/shell/upgrade-plan.js src/shell/widgets/upgrade-line.js src/shell/intent-words.js src/shell/town-work.js src/shell/windows/work.js
 //
 // play.html with supabase-js and the REST paths stubbed (tests/_client-harness.mjs);
 // the character's envelope is tests/fixtures/alpha-envelope.json.
@@ -83,6 +86,25 @@
 //         reload; Stop is ONE idle and says what the server made; a bench row's amount
 //         (1 / 5 / All; a tool starts on 1, stock on All) rides the Start as `count` and
 //         the running row says the server's "N left"
+//   AW-24 TOWN WORK COUNTS UP BETWEEN PAYOUTS (Tyler 2026-10-23; src/shell/town-ticker.js runs the
+//         server's own span loop on the envelope's numbers, display only). Pure rules:
+//         TK-1  one action at a time on the engine's interval: the logs and XP, and the line
+//               marks the pending count
+//         TK-2  a payout REPLACES: the count restarts from the new watermark, nothing counted twice
+//         TK-3  never spent: the bag's stacks, the sale and the primary read the server's count;
+//               "Makes up to N" reads the server's bag
+//         TK-4  the stop's envelope clears it at once
+//         TK-5  a payout under the prediction snaps down to the server's word
+//         TK-6  nothing ticks idle, in a hunt, without a server clock, or past the horizon
+//         TK-7  a refused settle clears it until a newer record; the character keeps the
+//               refusal from its settle until the next answer
+//         TK-8  a bench counts its inputs down with the engine's own stop, within "N left"
+//         TK-9  a dish that can burn is a roll: inputs and the burn's XP are certain, no stack moves
+//         TK-10 ROUNDED DOWN: against the engine as the server runs it (perks, a real roll, its
+//               tool carry and XP remainder) it never shows an action, item or XP not paid
+//         In the page: Start → the line, the skill bar and the bag tick, pending → never sold
+//         → a payout replaces → a lower payout snaps down → a reload restarts from the
+//         server's watermark → Stop → nothing ticks.
 //   AW-17 the skills are two ledgers (the combat one inside the Character window,
 //         tests/character-window.mjs) and Gathering and crafting does not scroll at
 //         922x423; a character that has never fought sees the pointer to Hunts
@@ -1112,6 +1134,113 @@ async function checks(overrides, shots) {
       }
     }
 
+    { // AW-24 TOWN WORK COUNTS UP BETWEEN PAYOUTS (Tyler 2026-10-23), the transition: Start → it ticks, pending →
+      // a payout replaces it → a lower payout snaps it down → a reload restarts it from the server's watermark (no
+      // double count) → Stop → nothing ticks. The stub pays like the engine: a settle pays the whole actions since its
+      // watermark and moves the watermark by exactly those (the rest deferred); its clock is the real one.
+      const TWm = await import(pathToFileURL(join(ROOT, 'src/shell/town-work.js')).href);
+      const tree = TWm.workRow('gather', 'normal_tree');
+      const STEP = TWm.actionMs({ read: (k) => FIXTURE[k] }, tree);
+      const XP = TWm.xpEach(tree);
+      /* The start is stamped LEAD before its answer, so the first action is due ~400 ms after it (a short test). */
+      const LEAD = STEP - 400;
+      const town = (e) => {
+        for (const k of ['hunt', 'hunt_analyzer', 'hunt_track', 'hunt_events', 'party']) delete e[k];
+        e.state = Object.assign({}, e.state, { active_kind: 'idle', active_id: null });
+        /* XP inside its level on the curve (the fixture's 1500 sits under Woodcutting 12's 1584): the bar has room to fill. */
+        e.skills = Object.assign({}, e.skills, { woodcutting: { xp: 1700, level: 12, frac: 0 } });
+        Object.defineProperty(e, 'now', { get: () => new Date().toISOString(), enumerable: true, configurable: true });
+      };
+      const { ctx, page, errors, s, up } = await open({ mutateEnv: town });
+      const st = () => s.env.state;
+      const from = () => Math.max(Date.parse(st().accrued_to), Date.parse(st().active_since));
+      const due = () => (st().active_kind === 'gather' ? Math.max(0, Math.floor((Date.now() - from()) / STEP)) : 0);
+      const settle = (short) => {
+        const n = due();
+        if (!n) return;
+        s.env.inventory.normal_log += short ? n - 1 : n;
+        s.env.skills.woodcutting.xp += n * XP;
+        st().accrued_to = new Date(from() + n * STEP).toISOString();
+      };
+      s.onCall = (name, b) => {
+        if (name !== 'hr-accrue') return;
+        if (b.verb === 'set_activity') {
+          if (b.activity.kind === 'gather') { const t = new Date(Date.now() - LEAD).toISOString(); Object.assign(st(), { active_kind: 'gather', active_id: b.activity.id, active_since: t, accrued_to: t }); }
+          else { settle(false); Object.assign(st(), { active_kind: 'idle', active_id: null }); }
+        } else if (!b.verb) { settle(s.short === true); s.short = false; }
+      };
+      const W = '[data-hs-win="skills-trade"]';
+      const pocket = () => page.evaluate(() => { const c = document.querySelector('[data-hs-win="inventory"] .hw-pocket[data-item="normal_log"] .hw-count'); return c ? { n: Number(c.textContent), ahead: c.classList.contains('is-ahead') } : null; });
+      /* A read at least 600 ms from an action boundary, so it can never straddle one. */
+      const calm = async () => { for (let i = 0; i < 80; i++) { const ph = (Date.now() - from()) % STEP; if (ph > 600 && ph < STEP - 600) return; await page.waitForTimeout(100); } };
+      const want = () => ({ n: s.env.inventory.normal_log + due(), ahead: due() > 0 });
+      const same = (a, b) => !!a && a.n === b.n && a.ahead === b.ahead;
+      if (!up) fails.push('AW-24 the town did not mount');
+      else {
+        await openWin(page, 'g', 'skills-trade');
+        await page.click(W + ' .hw-skill[data-skill="woodcutting"]');
+        await page.waitForTimeout(300);
+        await page.click(W + ' .hw-work-row[data-id="normal_tree"] .hw-work-go');
+        /* It ticks: the line's count and the skill's XP move one action on, marked pending. */
+        const ticked = await wait(page, (w) => document.querySelector(w + ' .hw-work-now .hw-burying-q .is-ahead'), W, 4000);
+        const work = await page.evaluate((w) => ({ line: document.querySelector(w + ' .hw-work-now .hw-burying-q').textContent,
+          ahead: Array.from(document.querySelectorAll(w + ' .hw-work-now .hw-burying-q .is-ahead')).map((e) => e.textContent).join('|'),
+          xp: !!document.querySelector(w + ' .hw-work-head.has-xp .hw-skill-xp.is-ahead'), seg: (document.querySelector(w + ' .hw-work-head .hw-skill-ahead') || {}).style.width }), W);
+        if (!ticked || !/^Chopping the Normal Tree: \d+ chopped so far\./.test(work.line) || !/^\d+ chopped so far$/.test(work.ahead) || !work.xp || !work.seg || work.seg === '0%')
+          fails.push('AW-24 the Work window did not tick between payouts: ' + JSON.stringify(work));
+        if (shots) await shot(page, 'ticker-1440x900-work');
+        await openWin(page, 'b', 'inventory');
+        await calm();
+        const p1 = await pocket(), w1 = want();
+        if (!same(p1, w1) || !p1.ahead) fails.push('AW-24 the bag does not count the work in progress, pending: shows ' + JSON.stringify(p1) + ', the server holds ' + s.env.inventory.normal_log + ' and its engine has done ' + due() + ' more');
+        /* Never spent: the picked stack, the sale and its total are the server's count. */
+        await page.click('[data-hs-win="inventory"] .hw-pocket[data-item="normal_log"]');
+        await page.waitForTimeout(200);
+        const pick = await page.evaluate(() => document.querySelector('[data-hs-win="inventory"] .hw-pick small').textContent);
+        await page.click('[data-hs-win="inventory"] .hw-pick [data-hs-act="primary"]');
+        await page.waitForTimeout(300);
+        const ask = await page.evaluate(() => document.querySelector('[data-hs-win="inventory"] .hw-confirm-q').textContent);
+        if (shots) await shot(page, 'ticker-1440x900-bag');
+        await page.click('[data-hs-win="inventory"] [data-hs-act="confirm-no"]');
+        if (!pick.startsWith('×' + s.env.inventory.normal_log + ' · ') || !/more on the way/.test(pick) || ask !== 'Sell Normal Log ×' + s.env.inventory.normal_log + '?')
+          fails.push('AW-24 the pending logs reach a control: the pick reads ' + JSON.stringify(pick) + ' and the sale asks ' + JSON.stringify(ask));
+        if (sent(s, 'hr-accrue', 'vendor_sell_many').length) fails.push('AW-24 a sale was sent while checking it');
+        /* A payout replaces it: the server's bag, the count restarted from its new watermark. */
+        const held = s.env.inventory.normal_log;
+        await pushEnvelope(page, s);
+        await calm();
+        const p2 = await pocket(), w2 = want();
+        if (s.env.inventory.normal_log <= held || !same(p2, w2)) fails.push('AW-24 after a payout the bag shows ' + JSON.stringify(p2) + ', want ' + JSON.stringify(w2) + ' (the server paid ' + (s.env.inventory.normal_log - held) + ')');
+        /* A payout under the prediction snaps it down to the server's word. */
+        await wait(page, () => { const c = document.querySelector('[data-hs-win="inventory"] .hw-pocket[data-item="normal_log"] .hw-count'); return c && c.classList.contains('is-ahead'); }, null, STEP + 1500);
+        await calm();
+        const shown = await pocket();
+        s.short = true;
+        await pushEnvelope(page, s);
+        const p3 = await pocket(), w3 = want();
+        if (!shown || !same(p3, w3) || p3.n >= shown.n) fails.push('AW-24 a payout under the prediction shows ' + JSON.stringify(p3) + ' after ' + JSON.stringify(shown) + ', want the server\'s ' + JSON.stringify(w3));
+        /* A reload mid-window: the count starts again from the server's watermark, nothing counted twice. */
+        await wait(page, () => { const c = document.querySelector('[data-hs-win="inventory"] .hw-pocket[data-item="normal_log"] .hw-count'); return c && c.classList.contains('is-ahead'); }, null, STEP + 1500);
+        if (!(await reloadAndPlay(page))) fails.push('AW-24 the reload did not come back');
+        else {
+          await openWin(page, 'b', 'inventory');
+          await calm();
+          const p4 = await pocket(), w4 = want();
+          if (!same(p4, w4)) fails.push('AW-24 after a reload mid-window the bag shows ' + JSON.stringify(p4) + ', want ' + JSON.stringify(w4) + ' (from the server\'s watermark)');
+          /* Stop: the server collects; nothing ticks after it. */
+          await page.click('[data-hs-win="inventory"] [data-hs-act="bury-stop"]');
+          await page.waitForTimeout(800);
+          const p5 = await pocket();
+          await page.waitForTimeout(STEP + 400);
+          const p6 = await pocket();
+          const stopped = { n: s.env.inventory.normal_log, ahead: false };
+          if (st().active_kind !== 'idle' || !same(p5, stopped) || !same(p6, stopped)) fails.push('AW-24 after Stop the bag shows ' + JSON.stringify(p5) + ' then ' + JSON.stringify(p6) + ', want the server\'s ' + JSON.stringify(stopped) + ' and nothing ticking');
+        }
+      }
+      if (errors.length) fails.push('AW-24 console errors: ' + errors.slice(0, 3).join(' | '));
+      await ctx.close();
+    }
+
     { // AW-17 the skills are two windows and neither scrolls, on the phone too; the first-minute pointer
       /* A character that has killed nothing: Level XP 0 (the core rebuild: Level comes from kills only). */
       const fresh = (e) => { for (const k of Object.keys(e.skills)) if (['melee', 'defense', 'prayer', 'magic', 'ranged'].includes(k)) e.skills[k] = { xp: 0, level: 1 }; for (const k of ['hunt', 'hunt_analyzer', 'hunt_track', 'hunt_events', 'party']) delete e[k]; e.state = Object.assign({}, e.state, { active_kind: 'idle', active_id: null, level_xp: 0 }); };
@@ -1193,6 +1322,9 @@ const MUTANTS = [
   ['the skills are one window again', 'src/shell/windows/skills.js', "export const renderTradeSkills = skillsWindow([['gather', 'Gathering'], ['artisan', 'Crafting']]);", "export const renderTradeSkills = skillsWindow([['combat', 'Combat'], ['gather', 'Gathering'], ['artisan', 'Crafting']]);"],
   ['a new player gets no pointer to Hunts', 'src/shell/launcher.js', "+ (ctx.hud && ctx.hud.isShown('hunt-topbar') ? '' : pointerFor(ctx)) + '</nav>'", "+ '</nav>'"],
   ['edgeBody lets an unlisted field through', 'src/session/edge-intents.js', '  for (const k of Object.keys(fields)) if (!allowed.includes(k)) return null;\n', ''],
+  /* AW-24 in the page: the bag's pocket is where the ticker shows, so these two are judged by the page rules. */
+  ['the bag shows only the server\'s count while town work runs', 'src/shell/windows/inventory/grid.js', '  patchCount(li, shown.qty, shown.ahead !== 0);', '  patchCount(li, r.qty);'],
+  ['a pending count reads as final', 'src/shell/windows/inventory/pockets.js', "  cls(el, 'is-ahead', !!ahead);\n", ''],
   /* AW-24 the town ticker. `ticker:` mutants are judged by the pure rules on a temp copy of src (tickerMutant). */
   ['ticker: it counts an action before the engine has done it', 'src/shell/town-ticker.js', 'const ctx = { fromMs: win.fromMs, toMs: win.toMs,', 'const ctx = { fromMs: win.fromMs, toMs: win.toMs + stepMs,'],
   ['ticker: the line does not mark the pending count', 'src/shell/town-work.js', "parts.push({ key: 'bag', text: whole(s.qty) + ' in your bag', ahead: s.ahead !== 0 });", "parts.push({ key: 'bag', text: whole(s.qty) + ' in your bag', ahead: false });"],

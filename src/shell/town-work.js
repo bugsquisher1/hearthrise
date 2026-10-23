@@ -47,7 +47,7 @@ import { whole } from '../render/format.js?v=0.2.33';
 import { itemName } from './widgets/bits.js?v=0.2.33';
 import { skillsOf } from '../session/item-sections.js?v=0.2.33';
 import { townWorkRunning } from '../session/town-poll.js?v=0.2.33';
-import { predictTown, aheadQty, shownQty, lineParts, lineText } from './town-ticker.js?v=0.2.33';
+import { predictTown, aheadQty, shownQty, lineParts } from './town-ticker.js?v=0.2.33';
 
 /** Every gathering node the engine runs, by id: { skill, node }. The same index the server builds (hr-accrue catalogue.js). */
 export const GATHER_INDEX = indexGatherNodes({ woodcutting: TREES, mining: ROCKS, fishing: FISH_SPOTS });
@@ -200,7 +200,7 @@ export function startWork(cs, w, send, repaint, words, count) {
       };
       arm();
     }
-    /* The work line already says what runs (nowLine); a caller with its own words (the bag's Bury all) passes them. */
+    /* The work line already says what runs (nowParts); a caller with its own words (the bag's Bury all) passes them. */
     return words || '';
   });
 }
@@ -307,6 +307,3 @@ export function nowParts(cs) {
   const tail = w.kind === 'gather' ? 'It keeps going while you are away. A hunt stops it.' : 'It stops when they run out.';
   return lineParts(words.charAt(0).toUpperCase() + words.slice(1), how, '. ' + tail);
 }
-
-/** The same line as words, or '' when nothing runs. */
-export function nowLine(cs) { return lineText(nowParts(cs)); }

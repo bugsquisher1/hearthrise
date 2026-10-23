@@ -4260,3 +4260,9 @@ guard tests/hunt-scene.mjs (SC-1..8, 13/13 mutants).
 2. *Retiring a hidden default moves every fixture that leaned on it.* The h4 supply bar, the sewer party and the drop-table caster check all fired bare slots; each now writes the suggested conditions on its slots, as a player's new slot does.
 3. *A re-anchored mutant can silently weaken.* "A ranged basic swings without a shot" moved onto `if (!paid) continue` and survived (the hunt still ended ammo_out); anchoring it on the payment itself restored the catch.
 4. *An item attack slot aimed by bestAim missed every pull's first shot* (the pack held no target yet) and fell to the loaded ammo: a one-target item now shoots the swing's own target.
+
+## 2026-10-23 · lane/b-spell-content (S3: rune families x tiers, spell versions, Mend, Protective Ward, Sickness)
+1. *Balance pins couple to the default bars.* A store rune on every default rune slot sank the Sewer floor net under the Thicket and the Warrens floor tank under +25%; the fix was policy (only a role's core spell names the store), not numbers. Measure the floor parties on the real settle before raising per-level output.
+2. *A filter layered on another hides its mutant.* The ignore near-filter was redundant with the aim check, so its mutant survived; the test pairs a slot that aims with one that does not, against the same monster.
+3. *Marking statuses need their own shape.* A takenPm row must not tick or scale by stacks, and its mutant must be "marks nothing": a one-stack status is never recast, so a stacking mutant is invisible.
+4. *Git Bash heredocs eat backslashes and commit messages run backticks.* Write scripts with the Write tool and run node on them; keep commit messages free of backticks.

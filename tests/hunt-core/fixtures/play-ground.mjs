@@ -18,7 +18,8 @@ const COMBAT = ['melee', 'ranged', 'magic', 'defense'];
 
 /** THE RUNNER, reusable (tests/hunt-core/drop-tables.mjs): `run(huntId, L, roles, opts)` plays one ground
     on the real settle and answers the totals, per hour and per hero, plus `items` (id -> count, the whole
-    party's credit), `heroItems` and `heroXp` (per hero key: item / skill -> amount) and `killsBy` (monster -> kills).
+    party's credit), `heroItems` and `heroXp` (per hero key: item / skill -> amount), `heroRares` (per hero key: the
+    settle's rare-drop hints, item ids in order) and `killsBy` (monster -> kills).
     opts: { spanMs (default thirty minutes), secret (the hunt seed), monsters (a drop-table fixture), fullSet,
     equipment (one worn set every hero wears, e.g. the start kit's; or a function (role, seat, L) -> set, one per hero) }. */
 /** The trees loadPlay reads beyond src/core and src/data: a planted copy (h1.js plant) needs them too. */
@@ -115,13 +116,15 @@ export async function loadPlay(root) {
     const members = roles.map((r, i) => hero(huntId, r, i, Array.isArray(L) ? L[i] : L, roles, opts.fullSet === true, opts.equipment || null, opts.bar || null));
     /* opts.density: the party's monster density pick (the settle clamps it to the ground) */
     if (Number.isInteger(opts.density)) for (const m of members) m.hero = Object.assign({}, m.hero, { density: opts.density });
-    /* common vs rare by the hunt's own drop rows: a drop at 5% or more anywhere here is a common, unless it is a
-       trophy worth 100 g or more (a boss's chase item: the Crown Shard, the Alpha Fang), which is upside */
+    /* common vs rare by the hunt's own drop rows: a loot-band row (src/data/loot-bands.js) is a common in the common and
+       uncommon bands; an old-model drop at 5% or more anywhere here is a common, unless it is a trophy worth 100 g or more
+       (a boss's chase item: the Crown Shard, the Alpha Fang), which is upside */
+    const commonRow = (d) => (d.band ? d.band === 'common' || d.band === 'uncommon' : d.ch >= 0.05 && CAT.vendorPriceOf(ITEMS, d.id) < 100);
     const common = new Set();
-    for (const p of ground.pockets) for (const s of p.spawns) for (const d of monsters[s.monster].drops) if (d.ch >= 0.05 && CAT.vendorPriceOf(ITEMS, d.id) < 100) common.add(d.id);
+    for (const p of ground.pockets) for (const s of p.spawns) for (const d of monsters[s.monster].drops) if (commonRow(d)) common.add(d.id);
     let world = null, next = T0, played = 0;
     const T = { xp: 0, levelXp: 0, coin: 0, commons: 0, rares: 0, store: 0, falls: 0, kills: 0, ended: [], buys: {} };
-    const items = {}, heroItems = {}, killsBy = {}, heroXp = {};
+    const items = {}, heroItems = {}, killsBy = {}, heroXp = {}, heroRares = {};
     for (let t = T0; t < T0 + span; t += 600000) {
       const out = AC.accrueHunt({ instance: { id: IID, nextSwingAtMs: next, world }, window: { fromMs: t, toMs: Math.min(T0 + span, t + 600000) },
         secret, ground, grid, items: ITEMS, monsters, members });
@@ -154,6 +157,8 @@ export async function loadPlay(root) {
           const bk = T.buys[p.key] = T.buys[p.key] || {};
           bk[id] = (bk[id] || 0) + n;
         }
+        /* the settle's rare-drop hints (accrual.js huntProposal): the reveals the database journals as rare_drop events */
+        for (const rd of (h.hints && h.hints.rare_drop) || []) (heroRares[p.key] = heroRares[p.key] || []).push(rd.item);
         if (h.ended && !m.ended) T.ended.push(p.key + ' ' + h.ended.reason);
         m.huntSession = Object.assign({}, m.huntSession, { swingIndex: h.swing_to, nextSwingAtMs: Date.parse(h.next_swing_at), staminaMs: h.stamina,
           bag: Object.fromEntries(Object.entries(m.huntSession.bag).map(([id, l]) => [id, { ...l, left: (l.left ?? l.loaded) - (h.uses[id] || 0) }])) });
@@ -168,7 +173,7 @@ export async function loadPlay(root) {
     const per = 3600000 / span / roles.length;
     const r = (n) => Math.round(n * per);
     const income = r(T.coin + T.commons), store = r(T.store);
-    return { spanMs: span, playedMs: played, totals: T, items, heroItems, heroXp, killsBy, heroes: members.map((m) => m.key),
+    return { spanMs: span, playedMs: played, totals: T, items, heroItems, heroXp, heroRares, killsBy, heroes: members.map((m) => m.key),
       kills: Math.round(T.kills * 3600000 / span), falls: T.falls, xp: r(T.xp), levelXp: r(T.levelXp), coin: r(T.coin), commons: r(T.commons), rares: r(T.rares), store, income,
       margin: store ? Math.round((income / store - 1) * 100) + '%' : 'no store spend', net: income + r(T.rares) - store, ended: T.ended };
   };

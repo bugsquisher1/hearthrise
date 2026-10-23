@@ -54,11 +54,22 @@
 //                silences the client's own dice exactly as for lucky rows).
 //                Guarded by tests/field-salvage.mjs (4% faucet cap per row, 5%
 //                total gear cap per monster, hours band, both paths).
-//   gear         `{id, ch, gear:true}` — THE EQUIPMENT SLOT (Tyler 10-14/10-20):
-//                one per walked-ground monster, gear its band can wear, each
-//                slot about every 1.3 h per hero at a low floor; rolled as band
-//                'gear', never a rare reveal. One monster per ground (the RARE
-//                CARRIER) holds every rare-odds row. tests/hunt-core/drop-tables.mjs.
+//   band         `{id, ch, band}` — THE LOOT BANDS (designer loot redesign, Tyler
+//                2026-10-23; src/data/loot-bands.js): common | uncommon | scarce |
+//                rare | trophy on EVERY row of a converted ground, in that order,
+//                read by the roller in place of the odds. Common and uncommon are
+//                the loot line; each Scarce piece lands every 1-3 h per hero at
+//                the floor (each monster one armour slot in heavy, medium and
+//                light); each Rare item every 10-20 h and Trophy (bosses only,
+//                LAST) every 100-150 h, the only rows the server reveals and the
+//                party rolls for. tests/hunt-core/drop-tables.mjs (loot-structure,
+//                build-coverage, gear-pace, rare-pace). The Thicket is converted;
+//                the other grounds follow in batches (Phase B), on `gear` below.
+//   gear         `{id, ch, gear:true}` — THE OLD EQUIPMENT SLOT (Tyler 10-14/10-20),
+//                on the grounds not yet on bands: one per walked-ground monster,
+//                gear its band can wear, each slot about every 1.3 h per hero at
+//                a low floor; rolled as band 'gear', never a rare reveal. One
+//                monster per such ground (the RARE CARRIER) holds every rare-odds row.
 //
 // `neutral` IS RETIRED (DEC-NEUT-01). Every monster answers a real weapon.
 // The 7 monsters that used to opt out of the triangle earned a x1.15 drop
@@ -706,30 +717,41 @@ export const MONSTERS = {
       { id: 'iron_helm', ch: .026, gear: true }] },
 
   /* ══ Meadowbrook Thicket: the gray wolves (one family, five roles; a solo ground).
-     Names, roles and economy: the src/data/hunt-grounds.js header. ══════════════ */
+     Names, roles and economy: the src/data/hunt-grounds.js header. THE LOOT BANDS' SAMPLE (designer 2026-10-23):
+     each wolf carries one armour slot of the ground's tier-1 set in heavy, medium and light (whelps boots, wolves
+     helmets, briarcoats legs, Dire Grays bodies), each piece about once an hour per hero at the floor (Tyler
+     2026-10-23); the den mother carries the tier-2 helmets, the Alpha Fang and her Ruff, and a Dire Gray the Studded
+     Leather Body, each about every 15 h. Odds measured on the real settle (a solo hero kills for 0.55 of a row's
+     yield: hunt-grounds.js yieldPermille), tests/hunt-core/drop-tables.mjs. PROVISIONAL (Tyler 2026-10-23): re-tuned
+     after combat balance and the economy sims. ══════════════ */
   gray_whelp: { name: 'Gray Whelp', icon: '🐺', tier: 1, level: 5, cls: 'mammal', family: 'Mammal',
     hp: 9, atk: 2, def: 0, xp: 28, gp: [1, 3], speed: 3800,
-    drops: [{ id: 'raw_wolf_meat', ch: .35 }, { id: 'bones', ch: .4 }, { id: 'whelp_milk_tooth', ch: .06 }, { id: 'leather_boots', ch: .0087, gear: true }] },
+    drops: [{ id: 'raw_wolf_meat', ch: .35, band: 'common' }, { id: 'bones', ch: .4, band: 'common' }, { id: 'whelp_milk_tooth', ch: .06, band: 'uncommon' },
+      { id: 'bronze_boots', ch: .011, band: 'scarce' }, { id: 'leather_boots', ch: .011, band: 'scarce' }, { id: 'apprentice_boots', ch: .011, band: 'scarce' }] },
   /* gp [2, 5] -> [3, 5] (lane b-supplies-bury; designer 2026-10-21, c-loot-loop: KEPT). Eating at 60% (Tyler 10-21) doubles a fresh
      Thicket hero's Salted Shrimp; with only the four-slot pelts (Grayjaw always, Briarcoat 30%) the Thicket nets 1,714 g/h vs the
      Cellar's 1,738 (forest-cave, 6-seed median), with this coin 1,777.5. Coin is the lever: the bill is coin, the Gray Wolf the most killed. */
   gray_wolf: { name: 'Gray Wolf', icon: '🐺', tier: 1, level: 8, cls: 'mammal', family: 'Mammal',
     hp: 14, atk: 4, def: 1, xp: 52, gp: [3, 5], speed: 4200,
-    drops: [{ id: 'raw_wolf_meat', ch: .5 }, { id: 'bones', ch: .5 }, { id: 'gray_dewclaw', ch: .08 },
-      { id: 'leather_helmet', ch: .0071, gear: true }] },
+    drops: [{ id: 'raw_wolf_meat', ch: .5, band: 'common' }, { id: 'bones', ch: .5, band: 'common' }, { id: 'gray_dewclaw', ch: .08, band: 'uncommon' },
+      { id: 'bronze_helm', ch: .009, band: 'scarce' }, { id: 'leather_helmet', ch: .009, band: 'scarce' }, { id: 'apprentice_helmet', ch: .009, band: 'scarce' }] },
   briarcoat_wolf: { name: 'Briarcoat Wolf', icon: '🐺', tier: 1, level: 10, cls: 'mammal', family: 'Mammal',
     /* one override (weapon): arrows snag in the burrs; a club knocks them loose. */
     weaponWeak: 'hammer', weaponResist: ['ranged'],
     hp: 16, atk: 3, def: 2, xp: 61, gp: [2, 5], speed: 2800,
-    drops: [{ id: 'wolf_pelt', ch: .3 }, { id: 'bones', ch: .5 }, { id: 'briar_burr', ch: .08 }, { id: 'leather_pants', ch: .0173, gear: true }] },
+    drops: [{ id: 'wolf_pelt', ch: .3, band: 'common' }, { id: 'bones', ch: .5, band: 'common' }, { id: 'briar_burr', ch: .08, band: 'uncommon' },
+      { id: 'bronze_platelegs', ch: .022, band: 'scarce' }, { id: 'leather_pants', ch: .022, band: 'scarce' }, { id: 'apprentice_pants', ch: .022, band: 'scarce' }] },
   dire_gray: { name: 'Dire Gray', icon: '🐺', tier: 2, level: 13, cls: 'mammal', family: 'Mammal',
     hp: 28, atk: 7, def: 3, xp: 179, gp: [5, 14], speed: 3600,
-    drops: [{ id: 'raw_wolf_meat', ch: .7 }, { id: 'bones', ch: 1 }, { id: 'dire_hackle', ch: .08 }, { id: 'leather_body', ch: .0346, gear: true }] },
+    drops: [{ id: 'raw_wolf_meat', ch: .7, band: 'common' }, { id: 'bones', ch: 1, band: 'common' }, { id: 'dire_hackle', ch: .08, band: 'uncommon' },
+      { id: 'bronze_platebody', ch: .044, band: 'scarce' }, { id: 'leather_body', ch: .044, band: 'scarce' }, { id: 'apprentice_body', ch: .044, band: 'scarce' },
+      { id: 'studded_body', ch: .003, band: 'rare' }] },
   grayjaw: { name: 'Old Grayjaw', icon: '🐺', tier: 2, level: 15, cls: 'mammal', family: 'Mammal',
     /* the den mother under the hollow oak: the top of tier 2, the wood's hardest bite. */
     hp: 35, atk: 10, def: 4, xp: 258, gp: [6, 16], speed: 3200,
-    drops: [{ id: 'wolf_pelt', ch: 1 }, { id: 'bones', ch: 1 }, { id: 'grayjaw_whisker', ch: .15 }, { id: 'alpha_fang', ch: .003 },
-      { id: 'shortbow', ch: .0355, gear: true }] },
+    drops: [{ id: 'wolf_pelt', ch: 1, band: 'common' }, { id: 'bones', ch: 1, band: 'common' }, { id: 'grayjaw_whisker', ch: .15, band: 'uncommon' },
+      { id: 'alpha_fang', ch: .003, band: 'rare' }, { id: 'iron_helm', ch: .003, band: 'rare' }, { id: 'studded_helmet', ch: .003, band: 'rare' },
+      { id: 'adept_helmet', ch: .003, band: 'rare' }, { id: 'grayjaws_ruff', ch: .003, band: 'rare' }] },
 
   /* ══ Coppercap Warrens: the goblins of the copper diggings (one family, five roles;
      a party ground). Names, roles and economy: the src/data/hunt-grounds.js header. ══ */

@@ -9,6 +9,8 @@
 // PURE ESM. No DOM, no window, no timers, no Math.random.
 // ============================================================
 
+import { LOOT_BANDS, REVEAL_BANDS } from '../data/loot-bands.js?v=0.2.33';
+
 export const DROP_BAND_MAX = { rare: 0.05, uncommon: 0.15, common: 1.0 };
 
 export function dropBand(ch) {
@@ -16,6 +18,16 @@ export function dropBand(ch) {
   if (ch <= DROP_BAND_MAX.rare) return 'rare';
   if (ch <= DROP_BAND_MAX.uncommon) return 'uncommon';
   return 'common';
+}
+
+/**
+ * A row's band. A converted ground's row names its own (`band`, src/data/loot-bands.js); a row on a
+ * ground still on the old model is 'gear' for its equipment slot (`gear: true`, never a reveal), else
+ * its odds' band (dropBand). The old model retires ground by ground (tests/hunt-core/drop-tables.mjs).
+ */
+export function bandOf(row) {
+  if (row && LOOT_BANDS.includes(row.band)) return row.band;
+  return row && row.gear === true ? 'gear' : dropBand(row ? row.ch : 0);
 }
 
 /* Below this a percentage stops meaning anything ('0.0%' for a .0004 lucky
@@ -71,10 +83,10 @@ export function rollDropTable(drops, mods, rng) {
     const chance = effectiveDropChance(d, mods);
     if (!rng.chance(chance)) continue;
     dropped[d.id] = (dropped[d.id] || 0) + 1;
-    /* THE EQUIPMENT SLOT (`gear: true`, src/data/monsters.js): a standard drop at any odds, never a
-       rare reveal — only the hunt's rare carrier earns the "Rare drop" moment (Tyler 10-14/10-20). */
-    const band = d.gear === true ? 'gear' : dropBand(d.ch);
-    events.push({ type: 'drop', id: d.id, band, rare: band === 'rare' });
+    /* Only a Rare or Trophy row earns the "Rare drop" moment and the party's rare roll (REVEAL_BANDS);
+       a Scarce piece or an old-model equipment slot is a standard drop at any odds. */
+    const band = bandOf(d);
+    events.push({ type: 'drop', id: d.id, band, rare: REVEAL_BANDS.includes(band) });
   }
   return { dropped, events };
 }

@@ -43,6 +43,7 @@ export const SHOP_LISTED_OFFERS = SHOP_LISTED_OFFER_IDS;
 import { ITEMS } from '../../../src/data/items.js';
 import { catalogueGet } from './intents.js';
 import { cheapestShopUnitPrice } from '../../../src/core/shop-buyback.js';
+import { VENDOR_GEAR_RATE, VENDOR_GEAR_TYPES } from '../../../src/data/loot-bands.js';
 
 /**
  * `{ [nodeId]: { skill, node } }` over all 23 gathering nodes.
@@ -338,8 +339,10 @@ export const SHOP_UNIT_PRICE = cheapestShopUnitPrice([...SHOP_OFFERS, ...SUPPLY_
 export function vendorPriceOf(items, id) {
   const it = catalogueGet(items, id);
   if (!it || typeof it !== 'object') return 0;
-  const v = Number(it.v) || 0;
-  if (!(v > 0)) return 0;
+  const book = Number(it.v) || 0;
+  if (!(book > 0)) return 0;
+  /* WORN GEAR sells at VENDOR_GEAR_RATE of its book value (src/data/loot-bands.js, Tyler 2026-10-23), floored at 1. */
+  const v = VENDOR_GEAR_TYPES.includes(it.type) ? Math.max(1, Math.floor(book * VENDOR_GEAR_RATE)) : book;
   /* Floored at 1: a raw worth anything at all is still worth something, and a
      0g bid reads as "this item is broken" rather than "this is cheap". */
   const bid = it.raw ? Math.max(1, Math.floor(v * VENDOR_RAW_RATE)) : v;

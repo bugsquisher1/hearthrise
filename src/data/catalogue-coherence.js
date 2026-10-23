@@ -114,7 +114,7 @@ export const AWAITING_ROSTER = Object.freeze([
   'archmage_belt', 'archmage_body', 'archmage_helmet',
   'archmage_pants', 'ashcrown_greatsword', 'boarhide_body', 'boarhide_pants', 'bone_needle',
   'bronze_hammer', 'bronze_knife',
-  'bronze_platelegs', 'chitin_belt', 'chitin_body',
+  'chitin_belt', 'chitin_body',
   'chitin_boots', 'chitin_gloves', 'chitin_helmet', 'chitin_pants', 'choirbone',
   'choirbone_gauntlets', 'crown_of_the_fallen_king', 'dawn_belt',
   'dawn_boots', 'dawn_gauntlets', 'dawn_helm', 'dawn_platebody',
@@ -137,7 +137,7 @@ export const AWAITING_ROSTER = Object.freeze([
   'snakeskin_helmet', 'snakeskin_pants', 'sorcerer_body', 'sorcerer_helmet', 'sorcerer_pants',
   'spellstone_ring', 'spidereye_studs', 'steel_hammer', 'steel_knife',
   'steel_needle', 'steel_warhammer',
-  'studded_body', 'verdite_blade', 'verdite_helm', 'verdite_platebody',
+  'verdite_blade', 'verdite_helm', 'verdite_platebody',
   'verdite_platelegs', 'void_essence', 'voidheart_robe', 'voidhide_belt', 'voidhide_body',
   'voidhide_boots', 'voidhide_gloves', 'voidhide_helmet', 'voidhide_pants', 'voidmaw_scepter',
   'voidweave_belt', 'voidweave_body', 'voidweave_boots', 'voidweave_gloves',
@@ -189,7 +189,7 @@ export const UNREACHABLE = Object.freeze({
     'bronze_gauntlets', 'iron_gauntlets', 'steel_gauntlets', 'studded_gloves', 'boarhide_gloves', 'apprentice_gloves',
     'adept_gloves', 'scholar_gloves', 'leather_belt', 'iron_belt', 'steel_belt', 'studded_belt', 'boarhide_belt',
     'apprentice_belt', 'adept_belt', 'scholar_belt', 'iron_boots', 'steel_boots',
-    'scholar_boots', 'studded_helmet', 'boarhide_helmet', 'willow_longbow',
+    'scholar_boots', 'boarhide_helmet', 'willow_longbow',
     'willow_staff', 'willow_wand', 'willow_spellbook', 'bramble_blade', 'rat_stick',
     'fang_studs', 'wolfbone_torc', 'spidersilk_choker', 'banded_signet', 'tusker_charm', 'packlord_band',
     'mirewort_drops', 'ancient_fragment', 'cracked_spellstone', 'grave_dust', 'razor_claw', 'bear_pelt', 'bear_claw',
@@ -217,7 +217,7 @@ export const UNREACHABLE = Object.freeze({
     'rune_frag', 'ruby', 'night_fang', 'dark_sigil', 'spider_eye', 'brute_plate', 'dire_fang', 'plague_ichor',
     'swarm_heart', 'warlord_badge', 'hell_ember', 'shadow_thread', 'captain_medal', 'shadow_pelt', 'death_steel',
     'hollow_sigil', 'abyssal_pearl',
-    /* A copy of the bound Practice Sword, stat for stat (designer 2026-10-22: the rung-1 copies of the practice kit are cut). */
+    /* A copy of the Practice Sword, stat for stat (designer 2026-10-22: the rung-1 copies of the practice kit are cut). */
     'bronze_sword',
   ]),
 });
@@ -225,8 +225,9 @@ export const UNREACHABLE = Object.freeze({
 /* 172 -> 140 (lane/c-style-gear's merge, 2026-10-22): the seed counter and the outfitter landed (the `farming` and
    `shop_gear` fates closed, 33 rows; Bronze Sword left the unlisted counter for `cut`). 140 -> 134: the style
    ladder makes six greenhaven rows (Oak Wand, Oakboard Spellbook, Iron Warhammer, Apprentice and Adept Slippers,
-   Adept Robe Top); the Longbow left `staged` (made at Crafting 15 too). */
-export const UNREACHABLE_CEILING = 134;
+   Adept Robe Top); the Longbow left `staged` (made at Crafting 15 too). 134 -> 133 (lane b-loot-bands): Old Grayjaw's
+   Rare row sources the Studded Leather Coif. */
+export const UNREACHABLE_CEILING = 133;
 
 /**
  * id -> the first reachable door (a label). `opts` opens planned doors for C11's proof:

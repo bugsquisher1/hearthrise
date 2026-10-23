@@ -2,6 +2,11 @@
 
 _Open conflicts — code, design, asset, gameplay, architecture, integration. **Never silently resolve a meaningful conflict.** Log it, route it to the owners, resolve with evidence, then move it to Resolved._
 
+## 2026-10-23 · SYSTEMS (lane: `lane/a-andy-hunt-bugs`, Andy a08) → GAME DESIGNER · **"Follow <party leader>" follows the PULL leader**
+- The Target select names the PARTY leader ("Follow Eddie", `src/shell/widgets/settings-intent.js` patchControls), but the engine's "follow" reads `world.leader`, the PULL leader: the lap's holder under "Take turns" (`src/core/hunt/pull-cycle.js` pullLeader, bug #61). With two tanks taking turns, "Follow Eddie" follows the other tank on alternate laps; with a non-tank party leader it never follows them. Not changed in this lane.
+- **Designer to rule:** (a) follow the tank holding the pack (the engine as built; the label becomes "Follow the tank holding the pack"), or (b) follow the party leader (the engine reads the leading member's unit: a world-step change and an edge deploy).
+- Also found (perf, client): while the live view runs, `CharacterSession._play` skips `timeline.reconcile(pose)`, the only place the timeline forgets a unit, so `tl.units()` keeps every monster of the hunt and the scene's per-frame loop and `revive` walk all of them. Owed to the hunt-view lane.
+
 ## 2026-10-22 · SYSTEMS (lane: `lane/a-hunt-camera`) → GAME DESIGNER + ART DIRECTOR · **the hunt camera vs NO VOID (Tyler 10-18)**
 
 1. **OPEN (designer + art director): a sliver of void can show beside a docked hunt panel at a room's edge.** The Coordinator's 10-22 ruling (camera on the viewed hero, clamped only at the room's edges) replaces NO VOID in hunt rooms only (`camera.js frameView`, map kind `hunt`); town and home keep it (world-core C8). NO VOID held the WHOLE view on the room, so a hero within half the uncovered World plus a panel's width of the edge (17 tiles at 2000 px) slid to the analyzer's edge. Now the uncovered part stops at the room's edge, and the strip under the analyzer (shorter than the World) can show the void past column 59 of Coppercap Warrens while the party fights at the Tool Store. Fix in data/art, not the camera: a wider rock/tree ring around each hunt map, or past-edge fill drawn as the edge material.

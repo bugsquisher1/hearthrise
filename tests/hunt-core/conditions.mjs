@@ -49,6 +49,9 @@ const SLOT_MIGRATION = 'supabase/migrations/2026-12-21-slot-truth.sql';
 /* The metrics (Green Sickness's mark, the heal aimed at yourself) and the role rule sets (a rune spell's slot names its
    store rune) moved forward again: lane b-spell-content, Tyler 2026-10-23. */
 const CONTENT_MIGRATION = 'supabase/migrations/2026-12-22-spell-content.sql';
+/* The role rule sets (the Melee damage set gains the sword's Flame Strike) and the settings view that places the starter
+   bar (restated: the role key's discipline) moved forward again: lane b-spell-roles, Tyler 2026-10-23. */
+const ROLES_MIGRATION = 'supabase/migrations/2026-12-24-spell-roles.sql';
 
 async function load(root) {
   const M = await loadCore(root);
@@ -825,13 +828,16 @@ const cases = {
     try { store = readFileSync(join(M.root, STORE_MIGRATION), 'utf8'); } catch { return STORE_MIGRATION + ' is missing'; }
     let content;
     try { content = readFileSync(join(M.root, CONTENT_MIGRATION), 'utf8'); } catch { return CONTENT_MIGRATION + ' is missing'; }
-    const from = { limits: truth, 'action-ids': truth, 'role-rules': content, metrics: content };
+    let roles;
+    try { roles = readFileSync(join(M.root, ROLES_MIGRATION), 'utf8'); } catch { return ROLES_MIGRATION + ' is missing'; }
+    const from = { limits: truth, 'action-ids': truth, 'role-rules': roles, metrics: content };
     for (const [tag, want] of [['metrics', metricRowsSql(M)], ['action-ids', actionIdRowsSql(M)], ['role-rules', roleRuleRowsSql(M)], ['limits', limitRowsSql(M)]]) {
       const got = between(from[tag] || sql, tag);
       if (got !== want) return 'the migration\'s ' + tag + ' block is stale (node tests/hunt-core/conditions.mjs --print)';
     }
     /* THE STARTER BAR the server places for a new hero is the start kit's (src/data/start-kit.js START_BAR). */
-    const sb = /-- ⟦starter-bar⟧\n\s*v_def := v_def \|\| '([^\n]*)'::jsonb;\n\s*-- ⟦\/starter-bar⟧/.exec(store);
+    /* the chain end's settings view (2026-12-24-spell-roles.sql restates it, the 2026-11-07 placement block unchanged) */
+    const sb = /-- ⟦starter-bar⟧\n\s*v_def := v_def \|\| '([^\n]*)'::jsonb;\n\s*-- ⟦\/starter-bar⟧/.exec(roles);
     let bar = null;
     try { bar = sb ? JSON.parse(sb[1].replace(/''/g, "'")) : null; } catch { bar = null; }
     if (JSON.stringify(bar) !== JSON.stringify(M.kit.START_BAR)) return 'the server\'s starter bar is not the start kit\'s: ' + (sb ? sb[1].slice(0, 120) : 'no ⟦starter-bar⟧ block');

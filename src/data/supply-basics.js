@@ -182,7 +182,8 @@ export const NO_STORE_PARTNER = Object.freeze(Object.assign(Object.create(null),
 export const SHOP_PREMIUM = 2;
 /* The kinds the Shop's Buy tab lists and `shop_buy` sells; every other row is a price only. */
 export const SHOP_SOLD_KINDS = Object.freeze(['tool', 'gear', 'seed']);
-/* The slots the Shop may sell gear for: the ones no walked ground drops. */
+/* The slots the Shop may sell gear for: the ones no walked ground's regular gear drops (a Rare named piece, such as
+   Grayjaw's Ruff, may share a slot with a Shop basic: tests/hunt-core/forest-cave.mjs shop-outfits-defense). */
 export const SHOP_GEAR_SLOTS = Object.freeze(['gloves', 'belt', 'cape', 'earrings', 'ring', 'necklace', 'shield']);
 const sell = (item, kind, basic, price) => Object.freeze({ offer: 'supply.' + item, item, kind, basic, price });
 

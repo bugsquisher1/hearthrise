@@ -112,24 +112,24 @@ export const WEAPON_FAMILIES = [
     ids:   ['apprentice_wand', 'oak_wand', 'willow_wand', 'maple_wand', 'yew_wand', 'runewood_wand'],
   },
   /* THE STYLE LADDER (designer 2026-10-22, src/data/style-gear.js). Dual axes (bleed) and the crossbow had no
-     rung above the practice kit. A `null` id is a rung the PRACTICE KIT holds (tier 1: the bound practice
-     weapon), so no tier-1 copy of it is generated. A rung ships only with a source (style-gear.js recipes);
-     the steel rungs and up wait for the next batch. Hatchets: a pair, two-handed, even accuracy and damage
+     rung above the practice kit. A `null` id is a rung the PRACTICE KIT holds (tier 1: the practice
+     weapon), so no tier-1 copy of it is generated. A rung ships only with a source: tier 2 is made (style-gear.js),
+     tier 3 a Warrens Rare (the loot bands, 2026-10-23). Hatchets: a pair, two-handed, even accuracy and damage
      (the practice pair's 4/4 shape). Crossbow: a little less accuracy and a little more damage than the
      bow of its tier (the practice crossbow's 4/4 against the bow's 5/3). */
   {
     key: 'hatchets', label: 'Hatchets', weaponType: 'axe', skill: 'smithing', mat: 'bar', twoHanded: true,
     atk: [4, 7, 12, 18, 25, 33, 42], str: [4, 7, 11, 16, 22, 29, 38],
     vmul: 100,
-    names: [null, 'Iron Hatchets'],
-    ids:   [null, 'iron_hatchets'],
+    names: [null, 'Iron Hatchets', 'Steel Hatchets'],
+    ids:   [null, 'iron_hatchets', 'steel_hatchets'],
   },
   {
     key: 'crossbow', label: 'Crossbow', weaponType: 'ranged', skill: 'crafting', mat: 'plank',   // wood-named, as the bow line is
     atk: [4, 8, 13, 19, 26, 34, 43], str: [4, 7, 11, 16, 22, 29, 37],
     vmul: 100,
-    names: [null, 'Oak Crossbow'],
-    ids:   [null, 'oak_crossbow'],
+    names: [null, 'Oak Crossbow', 'Willow Crossbow'],
+    ids:   [null, 'oak_crossbow', 'willow_crossbow'],
   },
 ];
 
@@ -280,8 +280,21 @@ export const GEAR_ITEMS = (() => {
   return out;
 })();
 
-/* Demolition D2 (2026-10-14): the gear RECIPES and their ladders were deleted
-   with crafted gear. GEAR_ITEMS above stays until the new roster replaces the
-   catalogue. GEAR_LADDERS is empty only because src/main.js still publishes it;
-   lane D1 removes that import, and this export goes with it. */
-export const GEAR_LADDERS = Object.freeze([]);
+/* THE LADDERS, tier by tier (the loot bands, 2026-10-23): each armour line x slot, each weapon family and the
+   spellbook, as item ids from tier 1 up (null: a rung the practice kit holds). tests/hunt-core/drop-tables.mjs
+   sale-ladder walks them (a piece never sells for less than its lower-tier twin). The recipe ladders that once
+   lived here went with crafted gear (demolition D2, 2026-10-14). */
+export const GEAR_LADDERS = Object.freeze([
+  ...ARMOUR_LINES.flatMap((line) => ARMOUR_SLOTS.map((s) => Object.freeze({ key: line.key + ':' + s.slot,
+    ids: Object.freeze(MATERIAL_TIERS.map((mat, i) => line.id(mat, s, line, i))) }))),
+  ...WEAPON_FAMILIES.map((f) => Object.freeze({ key: 'weapon:' + f.key, ids: Object.freeze(f.ids.slice()) })),
+  Object.freeze({ key: 'spellbook', ids: Object.freeze(SPELLBOOKS.ids.slice()) }),
+]);
+
+/** An armour line's word at a tier, for a page that names a set: 'Iron', 'Studded', 'Adept' (null off the ladder). */
+export function armourLineWord(armourClass, tier) {
+  const i = Math.floor(Number(tier)) - 1;
+  const line = ARMOUR_LINES.find((l) => l.key === armourClass);
+  if (!line || !(i >= 0 && i < MATERIAL_TIERS.length)) return null;
+  return (line.tierNames ? line.tierNames[i] : MATERIAL_TIERS[i].name).split(' ')[0];
+}

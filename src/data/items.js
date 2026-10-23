@@ -91,7 +91,7 @@ export const ITEMS={
   lich_soul:{n:'Lich Soul',icon:'☠️',v:800},magic_essence:{n:'Magic Essence',icon:'✨',v:50},
   rune_frag:{n:'Rune Fragment',icon:'🔷',v:30},ancient_rune:{n:'Ancient Rune',icon:'🔮',v:300},
   dragon_gem:{n:'Dragon Gem',icon:'💎',v:2000},ruby:{n:'Ruby',icon:'❤️',v:400},
-  sticky_core:{n:'Sticky Core',icon:'🟢',v:35},rat_tail:{n:'Rat Tail',icon:'🐀',v:6},
+  rat_tail:{n:'Rat Tail',icon:'🐀',v:6},
   /* The Rat King's shard (15%, ~3 an hour for a full party): sold, the sewer's profit; offered, Prayer XP. */
   crown_shard:{n:'Crown Shard',icon:'👑',v:150},small_fang:{n:'Small Fang',icon:'🦷',v:15},
   bone_chips:{n:'Bone Chips',icon:'🦴',v:10},ancient_fragment:{n:'Ancient Fragment',icon:'🏺',v:85},goblin_totem:{n:'Goblin Totem',icon:'🗿',v:120},
@@ -100,6 +100,12 @@ export const ITEMS={
   dire_fang:{n:'Dire Fang',icon:'🦷',v:150},alpha_fang:{n:'Alpha Fang',icon:'🦷',v:450},grave_dust:{n:'Grave Dust',icon:'⚱️',v:95},
   /* Mosslight Glade's rare (lane c-ground-16-31): Rook the Poacher, the ground's one carrier. */
   rooks_whistle:{n:'Rook\'s Whistle',icon:'🎶',v:500},
+  /* The bosses' Trophies (designer 2026-10-23): each boss's one named prize, about every 140 h, tradeable. */
+  rat_kings_crown:{n:'Rat King\'s Crown',icon:'👑',v:4000,type:'trophy',tag:'trophy',rarity:'legendary'},
+  coppercaps_cauldron:{n:'Coppercap\'s Cauldron',icon:'🥘',v:7500,type:'trophy',tag:'trophy',rarity:'legendary'},
+  /* Old Grayjaw's Rare (loot redesign 2026-10-23): a cape for any build, more guard than the Traveler Cape and a
+     little crit, at the Woollen Cloak's gate, short of the Houndskin Cloak (slot-ladders.js); the tier-2 cape value. */
+  grayjaws_ruff:{n:'Grayjaw\'s Ruff',icon:'🦸',v:310,type:'armor',slot:'cape',armourClass:'cape',defB:3,critB:.01,tier:2,rarity:'uncommon',reqSkill:'defense',reqLv:12},
   cracked_spellstone:{n:'Cracked Spellstone',icon:'🔮',v:260},plague_ichor:{n:'Plague Ichor',icon:'🧪',v:180},swarm_heart:{n:'Swarm Heart',icon:'💚',v:650},
   warlord_badge:{n:'Warlord Badge',icon:'🎖️',v:350},bear_pelt:{n:'Bear Pelt',icon:'🐻',v:260},bear_claw:{n:'Bear Claw',icon:'爪',v:180},
   wraith_veil:{n:'Wraith Veil',icon:'👻',v:420},hell_ember:{n:'Hell Ember',icon:'🔥',v:600},shadow_thread:{n:'Shadow Thread',icon:'🧵',v:320},
@@ -115,7 +121,8 @@ export const ITEMS={
   razor_claw:{n:'Razor Claw',icon:'爪',v:360},death_steel:{n:'Death Steel',icon:'⚙️',v:550},captains_ribblade:{n:"Captain's Ribblade",icon:'🗡️',v:1800,type:'weapon',slot:'weapon',weaponType:'sword',atkB:19,strB:15,reqSkill:'melee',reqLv:30},
   hollow_sigil:{n:'Hollow Sigil',icon:'🔯',v:1400},void_core:{n:'Void Core',icon:'⚫',v:2200},war_crown:{n:'War Crown',icon:'👑',v:2500},
   ancient_claw:{n:'Ancient Claw',icon:'爪',v:1600},chief_blade:{n:"Chief's Blade",icon:'🗡️',v:900,type:'weapon',slot:'weapon',weaponType:'sword',atkB:13,strB:11,reqSkill:'melee',reqLv:15},alpha_cloak:{n:'Alpha Cloak',icon:'🦸',v:1500,type:'armor',slot:'cape',defB:5,atkB:2,reqSkill:'defense',reqLv:30},
-  leather_boots:{n:'Leather Boots',icon:'🥾',v:90,type:'armor',slot:'boots',defB:2},
+  /* v 90 -> 35, its ladder value (gear-tiers.js leather boots, tier 1): at 90 it outsold the tier-2 Studded Boots (75). */
+  leather_boots:{n:'Leather Boots',icon:'🥾',v:35,type:'armor',slot:'boots',defB:2},
   /* THE SEVEN LAST UNGATED EQUIPPABLES. The 2026-09-12 sweep closed the 34 rows that
      carried a `tier`; these seven carry none, so neither reader had anything to
      gate on — `gearWieldReq` returned null AND `hr_items.req_lv` was NULL, which
@@ -145,6 +152,9 @@ export const ITEMS={
   gold_amulet:{n:'Gold Amulet',icon:'📿',v:1100,type:'jewelry',slot:'necklace',atkB:4,defB:2,reqSkill:'defense',reqLv:30},
   leather_gloves:{n:'Leather Gloves',icon:'🧤',v:80,type:'armor',slot:'gloves',atkB:1,defB:1},
   bronze_belt:{n:'Bronze Belt',icon:'🟫',v:110,type:'armor',slot:'belt',defB:2},
+  /* No piece sells under its lower-tier twin (drop-tables sale-ladder): the outfitter's belt and gloves carry their Shop book,
+     so these undropped twins are lifted to match (ladder 105 / 65 / 245); the backfill below fills their other fields. */
+  iron_belt:{n:'Iron Belt',icon:'🛡️',v:110},studded_gloves:{n:'Studded Leather Vambraces',icon:'🎽',v:80},boarhide_gloves:{n:'Boarhide Vambraces',icon:'🎽',v:290},
   /* ⚠ v:1, NOT v:60 — DO NOT "RESTORE" THE OLD NUMBER (2026-08-18, reported as
      "you get 500-ish arrows per craft"; the arrows were fine, this was not).
 
@@ -195,23 +205,23 @@ export const ITEMS={
   wheat_seed:{n:'Wheat Seed',icon:'🌱',v:15,seed:'wheat'},potato_seed:{n:'Potato Seed',icon:'🌱',v:20,seed:'potato'},
   tomato_seed:{n:'Tomato Seed',icon:'🌱',v:30,seed:'tomato'},pumpkin_seed:{n:'Pumpkin Seed',icon:'🌱',v:50,seed:'pumpkin'},
   bronze_sword:{n:'Bronze Sword',icon:'⚔️',v:50,type:'weapon',slot:'weapon',weaponType:'sword',atkB:4,strB:3},
-  // The premium login reward (premium.js): weaker than Bronze, bop + v:0 so it mints no gold.
-  oak_practice_blade:{n:'Oak Practice Blade',icon:'🗡️',v:0,bop:true,type:'weapon',slot:'weapon',weaponType:'sword',atkB:2,strB:1},
+  // The premium login reward (premium.js): weaker than Bronze, v:0 so it mints no gold (no gear binds: Tyler 2026-10-23).
+  oak_practice_blade:{n:'Oak Practice Blade',icon:'🗡️',v:0,type:'weapon',slot:'weapon',weaponType:'sword',atkB:2,strB:1},
   /* THE PRACTICE KIT (Tyler 2026-10-20: every new hero starts with all six starter sets, so
      every role can be tried on day one). Granted ONLY by the start kit (src/data/start-kit.js).
-     Bound and worth nothing (bop, v:0): a fresh hero cannot sell its kit, so a new character
-     mints no gold. Stats are the tier-1 rung of each family (Bronze Sword, Stone Maul,
+     Worth nothing (v:0): a fresh hero's kit sells for no gold, so a new character mints none.
+     Not bound (Tyler 2026-10-23: no gear binds). Stats are the tier-1 rung of each family (Bronze Sword, Stone Maul,
      Shortbow, Apprentice Wand / Primer / Staff), so the first purchase is a sidegrade with a
      sell value, never a downgrade. The role is the weapon's (hunt-roles.js WEAPON_ROLES). */
-  practice_sword:{n:'Practice Sword',icon:'⚔️',v:0,bop:true,type:'weapon',slot:'weapon',weaponType:'sword',atkB:4,strB:3,tier:1,rarity:'common',reqSkill:'melee',reqLv:1},
-  practice_shield:{n:'Practice Shield',icon:'🛡️',v:0,bop:true,type:'offhand',slot:'shield',offhand:'shield',defB:2,tier:1,rarity:'common',reqSkill:'defense',reqLv:1},
-  practice_hatchets:{n:'Practice Hatchets',icon:'🪓',v:0,bop:true,type:'weapon',slot:'weapon',weaponType:'axe',twoHanded:true,atkB:4,strB:4,tier:1,rarity:'common',reqSkill:'melee',reqLv:1},
-  practice_club:{n:'Practice Club',icon:'🏏',v:0,bop:true,type:'weapon',slot:'weapon',weaponType:'hammer',twoHanded:true,atkB:3,strB:7,tier:1,rarity:'common',reqSkill:'melee',reqLv:1},
-  practice_bow:{n:'Practice Bow',icon:'🏹',v:0,bop:true,type:'weapon',slot:'weapon',weaponType:'ranged',twoHanded:true,atkB:5,strB:3,rangeAtkB:5,rangeStrB:3,tier:1,rarity:'common',reqSkill:'ranged',reqLv:1},
-  practice_crossbow:{n:'Practice Crossbow',icon:'🏹',v:0,bop:true,type:'weapon',slot:'weapon',weaponType:'ranged',atkB:4,strB:4,rangeAtkB:4,rangeStrB:4,tier:1,rarity:'common',reqSkill:'ranged',reqLv:1},
-  practice_wand:{n:'Practice Wand',icon:'🪄',v:0,bop:true,type:'weapon',slot:'weapon',weaponType:'magic',discipline:'destruction',atkB:4,strB:4,magicAtkB:4,magicStrB:4,tier:1,rarity:'common',reqSkill:'magic',reqLv:1},
-  practice_spellbook:{n:'Practice Spellbook',icon:'📕',v:0,bop:true,type:'offhand',slot:'shield',offhand:'spellbook',discipline:'destruction',magicAtkB:1,magicStrB:2,defB:1,tier:1,rarity:'common',reqSkill:'magic',reqLv:1},
-  practice_staff:{n:'Practice Staff',icon:'🔮',v:0,bop:true,type:'weapon',slot:'weapon',weaponType:'magic',discipline:'restoration',twoHanded:true,atkB:3,strB:5,magicAtkB:3,magicStrB:5,tier:1,rarity:'common',reqSkill:'magic',reqLv:1},
+  practice_sword:{n:'Practice Sword',icon:'⚔️',v:0,type:'weapon',slot:'weapon',weaponType:'sword',atkB:4,strB:3,tier:1,rarity:'common',reqSkill:'melee',reqLv:1},
+  practice_shield:{n:'Practice Shield',icon:'🛡️',v:0,type:'offhand',slot:'shield',offhand:'shield',defB:2,tier:1,rarity:'common',reqSkill:'defense',reqLv:1},
+  practice_hatchets:{n:'Practice Hatchets',icon:'🪓',v:0,type:'weapon',slot:'weapon',weaponType:'axe',twoHanded:true,atkB:4,strB:4,tier:1,rarity:'common',reqSkill:'melee',reqLv:1},
+  practice_club:{n:'Practice Club',icon:'🏏',v:0,type:'weapon',slot:'weapon',weaponType:'hammer',twoHanded:true,atkB:3,strB:7,tier:1,rarity:'common',reqSkill:'melee',reqLv:1},
+  practice_bow:{n:'Practice Bow',icon:'🏹',v:0,type:'weapon',slot:'weapon',weaponType:'ranged',twoHanded:true,atkB:5,strB:3,rangeAtkB:5,rangeStrB:3,tier:1,rarity:'common',reqSkill:'ranged',reqLv:1},
+  practice_crossbow:{n:'Practice Crossbow',icon:'🏹',v:0,type:'weapon',slot:'weapon',weaponType:'ranged',atkB:4,strB:4,rangeAtkB:4,rangeStrB:4,tier:1,rarity:'common',reqSkill:'ranged',reqLv:1},
+  practice_wand:{n:'Practice Wand',icon:'🪄',v:0,type:'weapon',slot:'weapon',weaponType:'magic',discipline:'destruction',atkB:4,strB:4,magicAtkB:4,magicStrB:4,tier:1,rarity:'common',reqSkill:'magic',reqLv:1},
+  practice_spellbook:{n:'Practice Spellbook',icon:'📕',v:0,type:'offhand',slot:'shield',offhand:'spellbook',discipline:'destruction',magicAtkB:1,magicStrB:2,defB:1,tier:1,rarity:'common',reqSkill:'magic',reqLv:1},
+  practice_staff:{n:'Practice Staff',icon:'🔮',v:0,type:'weapon',slot:'weapon',weaponType:'magic',discipline:'restoration',twoHanded:true,atkB:3,strB:5,magicAtkB:3,magicStrB:5,tier:1,rarity:'common',reqSkill:'magic',reqLv:1},
   iron_sword:{n:'Iron Sword',icon:'⚔️',v:200,type:'weapon',slot:'weapon',weaponType:'sword',atkB:7,strB:6},
   steel_sword:{n:'Steel Sword',icon:'⚔️',v:800,type:'weapon',slot:'weapon',weaponType:'sword',atkB:12,strB:10},
   rune_sword:{n:'Rune Sword',icon:'⚔️',v:5000,type:'weapon',slot:'weapon',weaponType:'sword',atkB:25,strB:20},
@@ -689,11 +699,12 @@ export const ITEMS={
      Every solo dungeon has a named end-boss (see src/dungeons.js DUNGEONS[id].boss)
      and 1-2 original signature drops that only fall from that boss.
 
-     Tyler's rule (2026-08-09): signature GEAR (weapons/armour) is BIND-ON-PICKUP
-     — it is the prestige reward for clearing the fight yourself, not a market
-     flip. Signature COSMETICS / trophies / materials stay TRADEABLE so the boss
-     feeds the player economy without letting the best gear be bought. No
-     signature item ever touches hearth_token (mint-leak guard).
+     NO BOUND GEAR (Tyler 2026-10-23: "Nah no bound gear in this game"): signature
+     gear trades like every other piece, ground drops, named pieces, boss-forge and
+     dungeon gear alike. It supersedes the 2026-08-09 rule that made signature gear
+     bind-on-pickup. Only the non-gear Hearthfind trophies stay bound (bop + v:0,
+     their no-tradeable-value guard, below). No signature item ever touches
+     hearth_token (mint-leak guard).
 
      Weapon reqLv is set explicitly to the dungeon's combat-level gate (no `tier`,
      so gearWieldReq reads reqLv directly). Stats slot each weapon between the
@@ -701,24 +712,24 @@ export const ITEMS={
      strength, Codex = magic+crit, etc.) so they read as a reward, not a reskin. */
 
   // goblin_warcamp — Grimtusk, the Broken-Tusk Warlord (Lv 35)
-  wartusk_cleaver:  {n:'Wartusk Cleaver',  icon:'🪓', v:4500,  bop:true, type:'weapon', slot:'weapon', weaponType:'sword', atkB:20, strB:24, critB:.02, reqSkill:'melee', reqLv:35, rarity:'unique'},
+  wartusk_cleaver:  {n:'Wartusk Cleaver',  icon:'🪓', v:4500,  type:'weapon', slot:'weapon', weaponType:'sword', atkB:20, strB:24, critB:.02, reqSkill:'melee', reqLv:35, rarity:'unique'},
   warboss_standard: {n:'Warboss Standard', icon:'🚩', v:1200,  type:'trophy', tag:'cosmetic', rarity:'epic'},
 
   // haunted_archive — The Pale Archivist (Lv 45)
-  whispering_codex: {n:'Whispering Codex', icon:'📖', v:6500,  bop:true, type:'weapon', slot:'weapon', weaponType:'magic', discipline:'destruction', atkB:15, strB:14, magicAtkB:18, magicStrB:20, critB:.04, reqSkill:'magic', reqLv:45, rarity:'unique'},
+  whispering_codex: {n:'Whispering Codex', icon:'📖', v:6500,  type:'weapon', slot:'weapon', weaponType:'magic', discipline:'destruction', atkB:15, strB:14, magicAtkB:18, magicStrB:20, critB:.04, reqSkill:'magic', reqLv:45, rarity:'unique'},
   lexarch_seal:     {n:'Archivist Seal',   icon:'🔖', v:2200,  type:'trophy', tag:'cosmetic', rarity:'epic'},
 
   // obsidian_keep — The Ashen King (Lv 65)
-  ashcrown_greatsword: {n:'Ashcrown Greatsword', icon:'🗡️', v:40000, bop:true, type:'weapon', slot:'weapon', weaponType:'sword', atkB:34, strB:40, critB:.03, reqSkill:'melee', reqLv:65, rarity:'unique'},
+  ashcrown_greatsword: {n:'Ashcrown Greatsword', icon:'🗡️', v:40000, type:'weapon', slot:'weapon', weaponType:'sword', atkB:34, strB:40, critB:.03, reqSkill:'melee', reqLv:65, rarity:'unique'},
 
   // voidbringer — The Riftmaw (Lv 80)
-  voidmaw_scepter:  {n:'Voidmaw Scepter',  icon:'🔱', v:65000, bop:true, type:'weapon', slot:'weapon', weaponType:'magic', discipline:'destruction', atkB:32, strB:30, magicAtkB:40, magicStrB:46, critB:.06, reqSkill:'magic', reqLv:80, rarity:'unique'},
+  voidmaw_scepter:  {n:'Voidmaw Scepter',  icon:'🔱', v:65000, type:'weapon', slot:'weapon', weaponType:'magic', discipline:'destruction', atkB:32, strB:30, magicAtkB:40, magicStrB:46, critB:.06, reqSkill:'magic', reqLv:80, rarity:'unique'},
   voidwoven_sigil:  {n:'Voidwoven Sigil',  icon:'🕸️', v:5000,  type:'trophy', tag:'cosmetic', rarity:'legendary'},
   riftmaw_husk:     {n:'Riftmaw Husk',     icon:'🐚', v:4200,  tag:'crafting-mat', rarity:'epic'},
 
 
   // ancient_wyrm — Elderscale, the Great Wyrm (Lv 95 capstone)
-  dragonfang_pike:  {n:'Dragonfang Pike',  icon:'🐉', v:130000, bop:true, type:'weapon', slot:'weapon', weaponType:'sword', atkB:48, strB:46, critB:.06, reqSkill:'melee', reqLv:95, rarity:'legendary'},
+  dragonfang_pike:  {n:'Dragonfang Pike',  icon:'🐉', v:130000, type:'weapon', slot:'weapon', weaponType:'sword', atkB:48, strB:46, critB:.06, reqSkill:'melee', reqLv:95, rarity:'legendary'},
   elderscale_heart: {n:'Elderscale Heart', icon:'💠', v:9000,  tag:'crafting-mat', rarity:'legendary'},
 
 

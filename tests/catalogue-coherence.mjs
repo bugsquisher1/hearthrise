@@ -98,10 +98,12 @@ export const PENDING_USE = Object.freeze({
    row whose id gained a source or left ITEMS fails; no id may be added without a ruling and an owner. They are the
    items the hidden shop rows used to "source" (lane/b-orphan-sources, 2026-10-22, PRIORITY_BOARD backlog). */
 export const PENDING_SOURCE = Object.freeze({
-  apprentice_staff:  'cut: a stat copy of the bound Practice Staff (merge rung 1 into the practice kit), systems-engineer',
-  apprentice_wand:   'cut: a stat copy of the bound Practice Wand (merge rung 1 into the practice kit), systems-engineer',
-  apprentice_primer: 'cut: a stat copy of the bound Practice Spellbook (merge rung 1 into the practice kit), systems-engineer',
-  stone_maul:        'cut: a stat copy of the bound Practice Club (merge rung 1 into the practice kit), systems-engineer',
+  apprentice_staff:  'cut: a stat copy of the Practice Staff (merge rung 1 into the practice kit), systems-engineer',
+  apprentice_wand:   'cut: a stat copy of the Practice Wand (merge rung 1 into the practice kit), systems-engineer',
+  apprentice_primer: 'cut: a stat copy of the Practice Spellbook (merge rung 1 into the practice kit), systems-engineer',
+  stone_maul:        'cut: a stat copy of the Practice Club (merge rung 1 into the practice kit), systems-engineer',
+  /* The loot bands took its one source, Old Grayjaw's equipment row (designer loot redesign 2026-10-23, lane b-loot-bands). */
+  shortbow:          'cut: a stat copy of the Practice Bow (merge rung 1 into the practice kit), systems-engineer',
 });
 export const PENDING_CONSUMER = Object.freeze({
   prayer: 'w0e — Prayer does something in a fight (audit top-10 #8)',

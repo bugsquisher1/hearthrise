@@ -47,7 +47,8 @@
 // pick (hr_hunt_density_set `not_leader`).
 // ════════════════════════════════════════════════════════════════════════
 import { huntOf, huntBagOf, settingsOf, huntBestsOf, huntDensityOf } from '../../session/hunt-sections.js?v=0.2.34';
-import { bagOf } from '../../session/item-sections.js?v=0.2.34';
+import { bagOf, equipmentOf } from '../../session/item-sections.js?v=0.2.34';
+import { wornWeightOf } from '../hunt-ground-facts.js?v=0.2.34';
 import { levelOf as levelRowOf } from '../../session/character-sections.js?v=0.2.34';
 import { huntName, partyMembershipOf } from '../../session/party-sections.js?v=0.2.34';
 import { startPartyHunt, settleTownActivity } from '../../session/party-intents.js?v=0.2.34';
@@ -255,7 +256,7 @@ renderHunts.patch = function patchHunts(body, ctx) {
 function patchPage(det, ctx, sc, v) {
   const { r, level, size, party, follower, now } = v;
   const cs = ctx.character;
-  patchGround(det, ctx, r, { level, size, bests: v.bests, repaint: () => ctx.refresh('hunts') });
+  patchGround(det, ctx, r, { level, size, bests: v.bests, worn: wornWeightOf(equipmentOf(cs) || {}), repaint: () => ctx.refresh('hunts') });
   /* the floor is a warning (Tyler 10-18): words only, Enter stays the server's to refuse */
   text(det.querySelector('.hw-hunt-warn'), rangeWords(r, level) || '');
   /* While a hunt runs, its own page says what its hunt bag holds (in town, Before you go says what the bar spends). */

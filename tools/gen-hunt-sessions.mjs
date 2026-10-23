@@ -30,7 +30,11 @@
 //                          and abilities.js ABILITY_LANES (`offense`, `heal`)
 //   hr_hunt_abilities      abilities.js ABILITIES (the bar's vocabulary; `ord` = its order there,
 //                          the default bar's order)
-//   hr_hunt_roles          hunt-roles.js HUNT_ROLES: each role's ability discipline
+//   hr_hunt_weapon_roles   hunt-roles.js ROLE_KEYS: each role key's roles, ability discipline
+//                          and shield arm (the key a worn shield turns it into: SHIELD_ARM)
+//   hr_hunt_shields        shields.js isShield over ITEMS: the off-hands that make a shield arm
+//   (hr_hunt_roles         RETIRED 2026-12-24: a role no longer names one discipline; kept
+//                          empty, as applied history's bodies name it)
 //   hr_hunt_set_options    hunt-sessions.js ACTION_SET_OPTIONS (target / limit / enum / bool)
 //   hr_hunt_grounds        hunt-grounds.js HUNT_GROUNDS: per hunt, its ground, seats,
 //   hr_hunt_ground_spawns  pockets, respawn and every spawn (the settle's kill bound),
@@ -128,7 +132,8 @@ import { SESSION_LIMITS, END_ORDER, STAMINA_LOW_MIN, SESSIONS_KEPT, DEATH_XP_LOS
   DEFAULT_RESUME, EVENT_COPY, GATHER_SHARE, coverSellable } from '../src/data/hunt-sessions.js';
 import { CONSUMABLE_RULES } from '../src/data/consumables.js';
 import { ABILITIES, ABILITY_LANES, ABILITY_RULES } from '../src/data/abilities.js';
-import { HUNT_ROLES, WEAPON_ROLES, roleWeaponOf } from '../src/data/hunt-roles.js';
+import { HUNT_ROLES, ROLE_KEYS, SHIELD_ARM, roleWeaponOf } from '../src/data/hunt-roles.js';
+import { isShield } from '../src/data/shields.js';
 import { HUNT_XP } from '../src/data/hunt-xp.js';
 import { OPEN_GROUNDS, DENSITY_PICK, PARTY_SCALE, densityFor, reachableOf } from '../src/data/hunt-grounds.js';
 import { HUNT_TUNING } from '../src/data/hunt-tuning.js';
@@ -164,7 +169,15 @@ export const WORLD_FIELDS_READ = Object.freeze({
 /* lane/b-spell-content (2026-10-23): the family x tier runes (hr_hunt_supplies), one store rune a family
    (hr_hunt_basic_supplies), each spell's family rune and Rend / Frost Lance on (hr_hunt_abilities): ONE forward file
    after S1a's staged 2026-12-21 (applied after 2026-12-22-rune-catalogue.generated.sql: hr_items first). */
-export const OUT_NAME = '2026-12-22-hunt-sessions-catalogue.generated.sql';
+/* THE LOOT BANDS (lane b-loot-bands, designer + Tyler 2026-10-23): 2026-12-09 is the v0.2.32 chain (APPLIED, history). The
+   Thicket's banded drop rows (hr_hunt_kill_bounds: the settle refuses an item no spawn's bound names), Grayjaw's Ruff and
+   worn gear at half book (hr_hunt_vendor_value, catalogue.js vendorPriceOf) land in ONE forward file, applied after
+   2026-12-20-loot-catalogue (hr_items first), immediately before the hr-accrue deploy that drops them. */
+/* lane/b-spell-roles (Tyler 2026-10-23, roadmap p12/p15): the SUPPORT lane (hr_hunt_lanes; the Challenge, the Mark and the
+   shields on it, hr_hunt_abilities), the role keys' disciplines and shield arms (hr_hunt_weapon_roles), the shields
+   (hr_hunt_shields, which hr_hunt_weapon_of reads) and hr_hunt_roles retired (its last reader restated by
+   2026-12-24-spell-roles.sql, applied right after this file): ONE forward file after the staged 12-20 and 12-22. */
+export const OUT_NAME = '2026-12-24-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -222,7 +235,7 @@ export function catalogueRows(src = {}) {
     grounds: OPEN_GROUNDS, worldMaxBytes: HUNT_TUNING.worldMaxBytes, partyMax: PARTY.maxSize,
     maxConcurrent: SESSION_CONFIG.maxConcurrentCharacters, maxSlot: SESSION_CONFIG.maxSlot,
     loginReward: PREMIUM_LOGIN_REWARD, worldVersion: WORLD_VERSION, worldShape: SHAPE, worldFields: WORLD_FIELDS,
-    roles: HUNT_ROLES, weaponRoles: WEAPON_ROLES, manaRegenPct: ABILITY_RULES.manaRegenPctPerMin, magicXpPermille: HUNT_XP.magicXpPermillePerMana, ...src,
+    roles: HUNT_ROLES, roleKeys: ROLE_KEYS, shieldArm: SHIELD_ARM, manaRegenPct: ABILITY_RULES.manaRegenPctPerMin, magicXpPermille: HUNT_XP.magicXpPermillePerMana, ...src,
   };
   /* THE STORE (Tyler 2026-10-14): each row is gold per use, never an item. */
   const basicSeen = new Set();
@@ -476,20 +489,26 @@ export function catalogueRows(src = {}) {
      The party finder filters on the type; the party view shows the role. */
   const weapons = Object.keys(S.items).sort().filter((id) => S.items[id].slot === 'weapon').map((id) => {
     const t = roleWeaponOf(S.items[id]);   // a magic weapon by its discipline: wand (Mage) / staff (Healer)
-    if (!ID.test(String(t)) || !own(S.weaponRoles, t)) throw new Error(`weapon ${id} has type ${t}, which plays no role (hunt-roles.js WEAPON_ROLES)`);
+    if (!ID.test(String(t)) || !own(S.roleKeys, t)) throw new Error(`weapon ${id} has type ${t}, which plays no role (hunt-roles.js ROLE_KEYS)`);
     return { id, t };
   });
-  const weaponRoles = Object.keys(S.weaponRoles).sort().map((t) => {
-    const roles = [...S.weaponRoles[t]];
+  /* EACH ROLE KEY (hunt-roles.js ROLE_KEYS): the roles it plays, the ability discipline its bar holds (a role no
+     longer names one: a sword alone and a club both play Melee DPS on their own lists) and its SHIELD ARM, the key a
+     shield worn beside it turns it into (hr_hunt_weapon_of reads it; Tyler 2026-10-23: the SHIELD makes the tank). */
+  const weaponRoles = Object.keys(S.roleKeys).sort().map((t) => {
+    const k = S.roleKeys[t];
+    const roles = [...k.roles];
     if (!ID.test(t) || !roles.length || !roles.every((x) => own(S.roles, x))) throw new Error(`weapon type ${t} names an unknown role`);
-    return { t, roles };
+    if (!ID.test(String(k.discipline)) || !abilities.some((x) => x.disciplines.includes(k.discipline))) throw new Error(`weapon type ${t} plays discipline ${k.discipline}, which no ability holds`);
+    const arm = own(S.shieldArm, t) ? S.shieldArm[t] : null;
+    if (arm !== null && !own(S.roleKeys, arm)) throw new Error(`weapon type ${t} turns ${arm} with a shield, which is no role key`);
+    return { t, roles, d: k.discipline, arm };
   });
-  if (!own(S.weaponRoles, 'neutral')) throw new Error('WEAPON_ROLES has no neutral row (an unarmed hero)');
-  const roleRows = Object.keys(S.roles).sort().map((role) => {
-    const d = S.roles[role].discipline;
-    if (!ID.test(role) || !ID.test(String(d)) || !abilities.some((a) => a.disciplines.includes(d))) throw new Error(`role ${role} has discipline ${d}, which no ability holds`);
-    return { role, d };
-  });
+  if (!own(S.roleKeys, 'neutral')) throw new Error('ROLE_KEYS has no neutral row (an unarmed hero)');
+  if (!weaponRoles.some((w) => w.arm !== null)) throw new Error('no role key has a shield arm: no worn set could play the tank');
+  /* THE SHIELDS (shields.js isShield): the off-hands a shield arm reads. */
+  const shields = Object.keys(S.items).sort().filter((id) => isShield(S.items[id]));
+  if (!shields.length) throw new Error('no item is a shield: no worn set could play the tank');
   const lr = S.loginReward || {};
   if (lr.item !== null && !(ID.test(String(lr.item)) && own(S.items, lr.item))) throw new Error(`PREMIUM_LOGIN_REWARD.item ${lr.item} is no item`);
   if (!(whole(lr.qty) && lr.qty >= 1 && lr.qty <= 10)) throw new Error(`PREMIUM_LOGIN_REWARD.qty ${lr.qty} is not 1..10`);
@@ -500,7 +519,7 @@ export function catalogueRows(src = {}) {
   for (const n of WORLD_FIELDS_READ.world) if (!own(worldFields.world, n)) throw new Error(`world field ${n} (read by the party section) is not persisted`);
   return { supplySource, onEmpty, lanes, setOptions, killBounds, supplies, travel, lim, ends, vendor, targets, resumable, basics,
     cover, resume, eventTypes, abilities, grounds, groundSpawns, roster, world: { v: S.worldVersion, shape: S.worldShape, fields: worldFields },
-    login: { item: lr.item ?? null, qty: lr.qty }, weapons, weaponRoles, roleRows,
+    login: { item: lr.item ?? null, qty: lr.qty }, weapons, weaponRoles, shields,
     defaultTarget: S.defaultTarget, slotsMax: S.setLimits.slots };
 }
 
@@ -515,14 +534,14 @@ export function render(src) {
   const laneValues = r.lanes.map((x) => `  (${sq(x.l)}, ${x.ms}, true)`).join(',\n');
   const optionValues = r.setOptions.map((x) => `  (${sq(x.k)}, ${sq(x.kind)}, ${x.limit ? sq(x.limit) : 'null'}, `
     + `${x.values ? `array[${x.values.map(sq).join(', ')}]::text[]` : 'null'}, ${x.dflt === null ? 'null' : sq(JSON.stringify(x.dflt)) + '::jsonb'})`).join(',\n');
-  const roleValues = r.roleRows.map((x) => `  (${sq(x.role)}, ${sq(x.d)})`).join(',\n');
   const targetValues = r.targets.map((x) => `  (${sq(x.m)})`).join(',\n');
   const resumeList = r.resumable.map(sq).join(', ');
   const abilityValues = r.abilities.map((a) => `  (${sq(a.id)}, array[${a.disciplines.map(sq).join(', ')}]::text[], ${sq(a.lane)}, ${a.cd}, `
     + `${a.mana}, ${a.rune ? sq(a.rune) : 'null'}, ${a.ammo}, ${a.active}, ${a.ord})`).join(',\n');
   const groundValues = r.grounds.map((g) => `  (${sq(g.hunt)}, ${sq(g.ground)}, ${g.pockets}, ${g.spawns}, ${g.respawn}, ${g.seats}, '{${g.dmax.join(',')}}'::int[])`).join(',\n');
   const weaponValues = r.weapons.map((w) => `  (${sq(w.id)}, ${sq(w.t)})`).join(',\n');
-  const weaponRoleValues = r.weaponRoles.map((w) => `  (${sq(w.t)}, array[${w.roles.map(sq).join(', ')}]::text[])`).join(',\n');
+  const weaponRoleValues = r.weaponRoles.map((w) => `  (${sq(w.t)}, array[${w.roles.map(sq).join(', ')}]::text[], ${sq(w.d)}, ${w.arm === null ? 'null' : sq(w.arm)})`).join(',\n');
+  const shieldValues = r.shields.map((id) => `  (${sq(id)})`).join(',\n');
   const groundSpawnValues = r.groundSpawns.map((s) => `  (${sq(s.hunt)}, ${sq(s.monster)}, ${s.n})`).join(',\n');
   const travelValues = r.travel.map((t) => `  (${sq(t.id)}, ${t.s}, ${t.training})`).join(',\n');
   const limValues = Object.entries(r.lim).sort(([a], [b]) => (a < b ? -1 : 1)).map(([k, v]) => `  (${sq(k)}, ${v})`).join(',\n');
@@ -534,7 +553,7 @@ export function render(src) {
   const CATALOGUE = ['hr_hunt_supplies', 'hr_hunt_travel', 'hr_hunt_limits', 'hr_hunt_end_reasons', 'hr_hunt_vendor_value',
     'hr_hunt_target_modes', 'hr_hunt_resumable_kinds', 'hr_hunt_basic_supplies', 'hr_hunt_cover_items', 'hr_hunt_lanes',
     'hr_hunt_set_options', 'hr_hunt_kill_bounds', 'hr_hunt_abilities', 'hr_hunt_grounds', 'hr_hunt_ground_spawns',
-    'hr_hunt_world_shape', 'hr_premium_login_reward', 'hr_hunt_roster', 'hr_hunt_weapons', 'hr_hunt_weapon_roles', 'hr_hunt_roles'];
+    'hr_hunt_world_shape', 'hr_premium_login_reward', 'hr_hunt_roster', 'hr_hunt_weapons', 'hr_hunt_weapon_roles', 'hr_hunt_roles', 'hr_hunt_shields'];
   const tableList = CATALOGUE.map(sq).join(', ');
   return `-- ════════════════════════════════════════════════════════════════════════
 -- Hearthrise — THE HUNT SESSION CATALOGUE  (GENERATED — DO NOT EDIT)
@@ -551,9 +570,24 @@ export function render(src) {
 --   ${r.vendor.length} vendor values, ${r.basics.length} store supplies paid per use, ${r.targets.length} target modes,
 --   ${r.lanes.length} lanes, ${r.abilities.length} abilities, ${r.setOptions.length} action-set options, ${r.grounds.length} hunt grounds
 --
--- SUPERSEDES 2026-11-23-hunt-sessions-catalogue.generated.sql (the v0.2.31 chain;
--- history once applied, never regenerated): every table below is rewritten wholesale.
--- NEW SINCE 11-23 (lane b-tank-choice, Tyler 2026-10-22 "One tank holds"): the
+-- SUPERSEDES 2026-12-09-hunt-sessions-catalogue.generated.sql (the v0.2.32 chain;
+-- APPLIED, history, never regenerated) and the STAGED 12-20, 12-21 and 12-22 files:
+-- every table below is rewritten wholesale. NEW SINCE 12-22 (lane b-spell-roles, Tyler
+-- 2026-10-23, roadmap p12 / p15): the SUPPORT lane (hr_hunt_lanes) carries the Challenge,
+-- the Hunter's Mark and the shields (hr_hunt_abilities); a universal row may name every
+-- discipline (no cap of five); each role key names its discipline and shield arm
+-- (hr_hunt_weapon_roles), the shields are hr_hunt_shields, and hr_hunt_roles is RETIRED
+-- (empty). ORDER: after 2026-12-24-shields-catalogue (hr_items: the five shields), right
+-- before 2026-12-24-spell-roles.sql (hr_hunt_weapon_of and hr_hunt_settings_view read
+-- the new columns; between the two the old view finds no role discipline).
+-- Carried from 12-20 (lane b-loot-bands, designer + Tyler 2026-10-23, the loot bands):
+-- the Thicket's five monsters carry the banded drop tables (hr_hunt_kill_bounds: every
+-- Scarce and Rare item a kill may pay), Grayjaw's Ruff is a vendor value, and worn gear
+-- sells at half its book value (hr_hunt_vendor_value from catalogue.js vendorPriceOf,
+-- src/data/loot-bands.js VENDOR_GEAR_RATE). ORDER: after 2026-12-20-loot-catalogue
+-- (hr_items), and the hr-accrue deploy follows AT ONCE: until it does, an old edge's
+-- Shortbow from Old Grayjaw is over the bound and that settle is refused.
+-- Carried from 12-09: NEW SINCE 11-23 (lane b-tank-choice, Tyler 2026-10-22 "One tank holds"): the
 -- world's shape gains hold / holdNext (src/core/hunt/targeting.js), so
 -- hr_hunt_world_shape is rewritten; the hr-accrue edge carrying that world deploys
 -- with this file, which applies LAST, after 2026-12-08-party-hold.sql (the hold seat
@@ -694,7 +728,7 @@ alter table public.hr_hunt_set_options add constraint hr_hunt_set_options_kind_c
 -- THE BAR'S VOCABULARY (abilities.js): what an action set's bar may hold.
 create table if not exists public.hr_hunt_abilities (
   ability_id  text primary key check (ability_id ~ '^[a-z0-9_]{1,64}$'),
-  disciplines text[] not null check (cardinality(disciplines) between 1 and 5),
+  disciplines text[] not null check (cardinality(disciplines) >= 1),
   lane        text not null check (lane ~ '^[a-z0-9_]{1,64}$'),
   cd_ms       int  not null check (cd_ms > 0),
   mana        int  not null check (mana >= 0),
@@ -704,7 +738,13 @@ create table if not exists public.hr_hunt_abilities (
   ord         int  not null default 0 check (ord >= 0)
 );
 alter table public.hr_hunt_abilities add column if not exists ord int not null default 0;
--- EACH ROLE'S ABILITY DISCIPLINE (hunt-roles.js HUNT_ROLES): the default bar.
+-- A universal row (the self-heal Mend) names every discipline (abilities.js DISCIPLINES, seven since the club and the
+-- sword alone have their own lists): no fixed cap on how many disciplines share a row.
+alter table public.hr_hunt_abilities drop constraint if exists hr_hunt_abilities_disciplines_check;
+alter table public.hr_hunt_abilities add constraint hr_hunt_abilities_disciplines_check check (cardinality(disciplines) >= 1);
+-- RETIRED (lane b-spell-roles, 2026-12-24): a role named ONE ability discipline. A role is now played by several role
+-- keys on their own lists (hr_hunt_weapon_roles.discipline); 2026-12-24-spell-roles.sql restates its last reader,
+-- hr_hunt_settings_view. Kept, EMPTY, because applied history's §0 checks and bodies name it.
 create table if not exists public.hr_hunt_roles (
   role       text primary key check (role ~ '^[a-z0-9_]{1,64}$'),
   discipline text not null check (discipline ~ '^[a-z0-9_]{1,64}$')
@@ -765,6 +805,19 @@ create table if not exists public.hr_hunt_weapon_roles (
   weapon_type text primary key check (weapon_type ~ '^[a-z0-9_]{1,32}$'),
   roles       text[] not null check (cardinality(roles) between 1 and 5)
 );
+-- EACH KEY'S ABILITY DISCIPLINE (abilities.js DISCIPLINES) and SHIELD ARM (hunt-roles.js SHIELD_ARM: the key a worn
+-- shield turns it into, null = it keeps its own and gains only the shield's guard). Every row carries a discipline (the
+-- self-check below); an existing table learns both columns.
+alter table public.hr_hunt_weapon_roles add column if not exists discipline text;
+alter table public.hr_hunt_weapon_roles add column if not exists with_shield text;
+alter table public.hr_hunt_weapon_roles drop constraint if exists hr_hunt_weapon_roles_discipline_ck;
+alter table public.hr_hunt_weapon_roles add constraint hr_hunt_weapon_roles_discipline_ck check (discipline is null or discipline ~ '^[a-z0-9_]{1,64}$');
+alter table public.hr_hunt_weapon_roles drop constraint if exists hr_hunt_weapon_roles_with_shield_ck;
+alter table public.hr_hunt_weapon_roles add constraint hr_hunt_weapon_roles_with_shield_ck check (with_shield is null or with_shield ~ '^[a-z0-9_]{1,32}$');
+-- THE SHIELDS (shields.js isShield): the off-hand items a shield arm reads (hr_hunt_weapon_of).
+create table if not exists public.hr_hunt_shields (
+  item_id text primary key check (item_id ~ '^[a-z0-9_]{1,64}$')
+);
 do $$
 declare v_t text;
 begin
@@ -811,11 +864,12 @@ delete from public.hr_hunt_weapons;
 insert into public.hr_hunt_weapons (item_id, weapon_type) values
 ${weaponValues};
 delete from public.hr_hunt_weapon_roles;
-insert into public.hr_hunt_weapon_roles (weapon_type, roles) values
+insert into public.hr_hunt_weapon_roles (weapon_type, roles, discipline, with_shield) values
 ${weaponRoleValues};
+delete from public.hr_hunt_shields;
+insert into public.hr_hunt_shields (item_id) values
+${shieldValues};
 delete from public.hr_hunt_roles;
-insert into public.hr_hunt_roles (role, discipline) values
-${roleValues};
 delete from public.hr_hunt_world_shape;
 insert into public.hr_hunt_world_shape (id, version, shape, fields) values (true, ${r.world.v}, ${r.world.shape}, ${sq(JSON.stringify(r.world.fields))}::jsonb);
 delete from public.hr_premium_login_reward;
@@ -886,7 +940,11 @@ begin
      or (select count(*) from public.hr_premium_login_reward) <> 1
      or (select count(*) from public.hr_hunt_weapons) <> ${r.weapons.length}
      or (select count(*) from public.hr_hunt_weapon_roles) <> ${r.weaponRoles.length}
-     or (select count(*) from public.hr_hunt_roles) <> ${r.roleRows.length}
+     or (select count(*) from public.hr_hunt_roles) <> 0
+     or (select count(*) from public.hr_hunt_shields) <> ${r.shields.length}
+     or exists (select 1 from public.hr_hunt_weapon_roles where discipline is null)
+     or exists (select 1 from public.hr_hunt_weapon_roles w where w.with_shield is not null
+                 and not exists (select 1 from public.hr_hunt_weapon_roles k where k.weapon_type = w.with_shield))
      or (select count(*) from public.hr_hunt_end_reasons where resumes) <> ${r.ends.filter((e) => e.resumes).length} then
     raise exception 'hunt-session catalogue row counts moved from the generator''s'; end if;
   -- The world fields the party section reads by name are all there, at the generator's positions.
@@ -984,6 +1042,9 @@ function selftest() {
       pockets: [{ room: [0, 0, 4, 4], spawns: [{ monster: 'dragon_of_nowhere', x: 2, y: 2 }] }] } } }),
     'a party of six': () => ({ partyMax: 6 }),
     'a login reward that is no item': () => ({ loginReward: { item: 'not_an_item', qty: 1 } }),
+    'a role key playing a discipline no ability holds': () => ({ roleKeys: { ...ROLE_KEYS, club: { roles: ['melee_dps'], discipline: 'crush' } } }),
+    'a shield arm to no role key': () => ({ shieldArm: { ...SHIELD_ARM, sword: 'buckler' } }),
+    'no shield arm (no worn set plays the tank)': () => ({ shieldArm: {} }),
   };
   /* The fixture ground itself must pass (the arm proves the ground path is live). */
   catalogueRows({ grounds: fixtureGround });

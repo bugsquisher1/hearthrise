@@ -60,7 +60,9 @@ export function checkData({ items = ITEMS, inv = START_INVENTORY, eq = START_EQU
       if (!owned.has(id)) out.push(`H-D2 ${set}: ${id} is not in the start kit`);
       const it = items[id];
       if (!it) { out.push(`H-D2 ${set}: ${id} is not an item`); continue; }
-      if (!it.bop || vendorPriceOf(items, id) !== 0) out.push(`H-D3 ${id} sells for ${vendorPriceOf(items, id)} or trades (bop ${!!it.bop})`);
+      /* A new character mints no gold: the kit is worth nothing to the trader. It is not bound (Tyler 2026-10-23: no
+         gear binds), so a kit piece may move through Storage like any gear; the reopen Security review lists it. */
+      if (Number(it.v) !== 0 || vendorPriceOf(items, id) !== 0) out.push(`H-D3 ${id} is worth ${it.v} and sells for ${vendorPriceOf(items, id)}`);
     }
     const weapon = ids.map((id) => items[id]).find((it) => it && it.slot === 'weapon');
     /* the set's off-hand worn beside its weapon (Tyler 2026-10-23: the SHIELD makes the tank) */

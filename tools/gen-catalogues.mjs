@@ -69,7 +69,14 @@ const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'))
 /* THE RUNE FAMILIES x TIERS (lane b-spell-content, Tyler 2026-10-23): 2026-11-22-loot-catalogue.generated.sql is APPLIED
    history; the family x tier runes (hr_items), their bind recipes (hr_activities) and the start kit without its Air Runes
    (hr_start_inventory) land in this forward file, after 2026-12-21-slot-truth.sql: the same full delete+insert replace. */
-const OUT = join(ROOT, 'supabase', 'migrations', '2026-12-22-rune-catalogue.generated.sql');
+/* THE LOOT BANDS (lane b-loot-bands, Tyler 2026-10-23): 2026-11-22 is APPLIED history. No gear binds ("Nah no bound gear
+   in this game"): the practice kit, the premium Oak Practice Blade, the dungeon signature weapons and the boss-forge
+   bodies turn tradeable (hr_items.tradeable; the Hearthfind trophies stay bound), and Grayjaw's Ruff joins hr_items.
+   ONE forward file, the same full delete+insert replace, applied before 2026-12-20-hunt-sessions-catalogue. */
+/* THE SHIELDS (lane b-spell-roles, Tyler 2026-10-23): the five shields (hr_items, hr_item_slots: shield), their three
+   Smithing recipes (hr_activities artisan rows) and every bow two-handed (hr_items.two_handed: a bow carries no shield).
+   ONE forward file after the staged 12-20 (loot bands) and 12-22 (rune families), carrying both: the same full replace. */
+const OUT = join(ROOT, 'supabase', 'migrations', '2026-12-24-shields-catalogue.generated.sql');
 /* THE SECOND GENERATED FILE (2026-09-13). hr_item_buffs is emitted as its own
    migration rather than into OUT above, and that is a deliberate operational
    call: OUT is the FOURTH file in tests/schema-apply-order.json and is already

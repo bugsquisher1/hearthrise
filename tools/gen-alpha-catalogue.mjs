@@ -43,7 +43,10 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
    in ONE forward file (the v0.2.30 integration collapsed the never-applied 11-20 and 11-21 files into it), the same
    full delete+insert replace, with the kind check widened to 'seed'. */
 /* v0.2.31 integration: ONE forward file per generator after the newest APPLIED (2026-11-20). */
-export const OUT_NAME = '2026-11-22-alpha-catalogue.generated.sql';
+/* THE FIRST SHIELD (lane b-spell-roles, Tyler 2026-10-23: a basic shield at the Shop outfitter): 2026-11-22 is APPLIED
+   history; the Bronze-Rimmed Shield joins the outfitter's gear rows (hr_shop_supply_offers) in ONE forward file, applied
+   after 2026-12-24-shields-catalogue.generated.sql (hr_items first): the same full delete+insert replace. */
+export const OUT_NAME = '2026-12-24-alpha-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 /* The shop's word for a supply kind (what the Shop window files it under). */
@@ -137,7 +140,11 @@ export function render(offers = supplyRows(), r = rules()) {
 -- Server-only: RLS on, NO policy, no client grant (the client reads src/data and
 -- the envelope's quotes). Idempotent: delete + insert; nothing references these
 -- rows by foreign key. Any hand edit FAILS \`node tools/gen-alpha-catalogue.mjs --check\`.
--- SUPERSEDES 2026-11-03-alpha-catalogue.generated.sql (applied history): the
+-- SUPERSEDES 2026-11-22-alpha-catalogue.generated.sql (applied history): the
+-- Bronze-Rimmed Shield joins the outfitter at 140 g (lane b-spell-roles, Tyler
+-- 2026-10-23: a basic shield at the Shop; src/data/shields.js). ORDER: after
+-- 2026-12-24-shields-catalogue.generated.sql (the shield in hr_items). Carried from
+-- 11-22, which superseded 2026-11-03-alpha-catalogue.generated.sql: the
 -- outfitter's six gear rows (lane/b-gold-sinks) and the seed counter's nine rows
 -- (designer ruling 2026-10-22, lane/b-orphan-sources: every crop's seed, one per
 -- unit, at the counter's unit price, so no vendor bid moves) join the tools; one

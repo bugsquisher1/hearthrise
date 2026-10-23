@@ -17,10 +17,10 @@
 //      real upgrade and never a sidegrade. Expected clears to one piece, from
 //      the chest rows: heart 1 at 25% ≈ 4, husk 3 at 0.30×1.5 ≈ 7, essence 2 at
 //      25% ≈ 8 — a week or two of runs, which is the point.
-//      BIND-ON-PICKUP (Tyler's rule, 2026-08-09): boss GEAR is the reward for
-//      clearing the fight yourself; the MATERIALS stay as tradeable as they
-//      already were (Void Essence was already BoP), so a crafter can still buy
-//      a husk or a heart and the market keeps its role.
+//      TRADEABLE (Tyler 2026-10-23: no gear binds; it supersedes the 2026-08-09
+//      bind-on-pickup rule for boss gear). The MATERIALS stay as they already
+//      were (Void Essence is bound), so a crafter can still buy a husk or a
+//      heart and the market keeps its role.
 //      Values sit at the twin's value × 1.1 — inside the existing gear value
 //      curve, so no new vendor route opens (a non-raw item vendors at `v`).
 //
@@ -40,19 +40,19 @@
 
 export const BOSS_FORGE_ITEMS = {
   elderscale_platebody: {
-    n: 'Elderscale Platebody', icon: '🛡️', v: 118800, bop: true,
+    n: 'Elderscale Platebody', icon: '🛡️', v: 118800,
     type: 'armor', slot: 'body', armourClass: 'plate',
     defB: 104, strB: 4, rangeAtkB: -26, magicAtkB: -52,
     rarity: 'unique', reqSkill: 'defense', reqLv: 95,
   },
   riftmaw_carapace: {
-    n: 'Riftmaw Carapace', icon: '🎽', v: 83160, bop: true,
+    n: 'Riftmaw Carapace', icon: '🎽', v: 83160,
     type: 'armor', slot: 'body', armourClass: 'leather',
     defB: 56, rangeAtkB: 52, critB: 0.035, magicAtkB: -15,
     rarity: 'unique', reqSkill: 'defense', reqLv: 90,
   },
   voidheart_robe: {
-    n: 'Voidheart Robe', icon: '🧥', v: 83160, bop: true,
+    n: 'Voidheart Robe', icon: '🧥', v: 83160,
     type: 'armor', slot: 'body', armourClass: 'cloth',
     defB: 30, magicAtkB: 62, magicStrB: 42, atkB: -23, rangeAtkB: -18,
     rarity: 'unique', reqSkill: 'defense', reqLv: 90,

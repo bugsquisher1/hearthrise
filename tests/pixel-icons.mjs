@@ -50,7 +50,21 @@ const KNOWN_TWINS = [['crown_of_the_fallen_king', 'crown_shard'],
   /* The style ladder's two new tier-2 weapons (lane c-style-gear) wear their practice pair's icon until the Asset
      Director draws iron heads and an oak stock (no generated art in that lane). Mosslight Glade's items have their own
      icons since lane b-mosslight-art. */
-  ['iron_hatchets', 'practice_hatchets'], ['oak_crossbow', 'practice_crossbow']];
+  ['iron_hatchets', 'practice_hatchets'], ['oak_crossbow', 'practice_crossbow'],
+  /* Grayjaw's Ruff (the loot bands' Thicket sample, lane b-loot-bands) wears the Houndskin Cloak's fur cape until the
+     Asset Director draws Grayjaw's gray neck ruff (no generated art in that lane). */
+  ['grayjaws_ruff', 'houndskin_cloak'],
+  /* The Warrens' two new tier-3 Rares (loot bands batch 4) wear their tier-2 rung's icon until steel heads and a willow stock are drawn. */
+  ['steel_hatchets', 'iron_hatchets'], ['steel_hatchets', 'practice_hatchets'], ['willow_crossbow', 'oak_crossbow'], ['willow_crossbow', 'practice_crossbow'],
+  /* The Cellar's and the Warrens' imbuement items and the two boss Trophies (loot bands phase C) wear a near item's
+     icon until their own are drawn: a hide, a stinger, a copper fleck, a shiv, a pot, a lash, tallow, two crowns. */
+  ['giant_rat_hide', 'wolf_pelt'], ['hive_wasp_stinger', 'venom_sac'], ['glowing_copper_fleck', 'copper_ore'], ['skulkers_shiv', 'bronze_knife'],
+  ['dented_copper_pot', 'copper_bar'], ['foremans_lash', 'snare_wire'], ['coppercaps_tallow', 'slime_gel'],
+  ['rat_kings_crown', 'crown_of_the_fallen_king'], ['rat_kings_crown', 'crown_shard'], ['coppercaps_cauldron', 'war_crown'],
+  /* The five shields (src/data/shields.js, lane b-spell-roles) wear the Practice Shield's icon until the Asset Director
+     draws each: a bronze rim, iron bands on oak, the Rat King's drain grate, a copper cap on steel, a steel grate. */
+  ...['practice_shield', 'bronze_rimmed_shield', 'ironbound_shield', 'kingsgrate', 'coppercap_shield', 'steelgrate']
+    .flatMap((a, i, l) => l.slice(i + 1).map((b) => [a, b]))];
 
 /** Byte-identical icon files under two ids, except the listed twins. */
 export function checkDuplicates(dir, ids, twins = KNOWN_TWINS) {

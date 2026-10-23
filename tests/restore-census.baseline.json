@@ -782,7 +782,7 @@
   },
   "hr_activities": {
    "class": "seeded",
-   "replay": 328,
+   "replay": 331,
    "note": "Generated from src/data/*.js by tools/gen-catalogues.mjs; content guarded by --check as a smoke preflight. 344 rows on 2026-08-15, 508 now. Rebuilt from repo, never restored."
   },
   "hr_blessing_rule": {
@@ -1041,7 +1041,7 @@
   },
   "hr_hunt_lanes": {
    "class": "seeded",
-   "replay": 3,
+   "replay": 4,
    "note": "Generated catalogue (2026-10-22-hunt-sessions-catalogue.generated.sql, tools/gen-hunt-sessions.mjs --check): the cooldown lanes (rule-subjects.js COOLDOWN_LANES: consumable active, offense / heal_spell reserved). Rebuilt from repo, never restored."
   },
   "hr_hunt_limits": {
@@ -1056,13 +1056,13 @@
   },
   "hr_hunt_role_rules": {
    "class": "seeded",
-   "replay": 15,
+   "replay": 16,
    "note": "Catalogue (2026-10-25-action-conditions.sql §1, rows pinned equal to src/data by tests/hunt-core/conditions.mjs sql-rows): the role default rule sets the settings view projects (src/data/rule-subjects.js ROLE_RULES). Rebuilt from repo, never restored; nothing player-owned. If it came back empty every conditional bar edit is refused (catalogue_missing / bad_metric), loud, never a wrong grant."
   },
   "hr_hunt_roles": {
    "class": "seeded",
-   "replay": 5,
-   "note": "Generated catalogue (2026-10-23-hunt-sessions-catalogue.generated.sql, tools/gen-hunt-sessions.mjs --check from src/data): role -> ability discipline (src/data/hunt-roles.js HUNT_ROLES), the default bar of hr_hunt_settings_view. Rebuilt from repo, never restored; nothing player-owned."
+   "replay": 0,
+   "note": "RETIRED 2026-12-24 (lane b-spell-roles): written EMPTY by the hunt-sessions catalogue; a role no longer names one discipline (hr_hunt_weapon_roles.discipline does, per role key) and 2026-12-24-spell-roles.sql restates its last reader. Kept because applied history names it. Nothing player-owned."
   },
   "hr_hunt_roster": {
    "class": "seeded",
@@ -1073,6 +1073,11 @@
    "class": "seeded",
    "replay": 10,
    "note": "Generated catalogue (2026-10-22-hunt-sessions-catalogue.generated.sql, tools/gen-hunt-sessions.mjs --check): the action-set option keys and their domains (hunt-sessions.js ACTION_SET_OPTIONS), read by hr_action_set_options. Rebuilt from repo, never restored."
+  },
+  "hr_hunt_shields": {
+   "class": "seeded",
+   "replay": 6,
+   "note": "Generated catalogue (2026-12-24-hunt-sessions-catalogue.generated.sql, tools/gen-hunt-sessions.mjs --check from src/data/shields.js isShield): the off-hand items that turn a shield arm into the tank (hr_hunt_weapon_of). Empty = no worn set plays the tank. Rebuilt from repo, never restored; nothing player-owned."
   },
   "hr_hunt_spawns": {
    "class": "seeded",
@@ -1102,17 +1107,17 @@
   },
   "hr_hunt_vendor_value": {
    "class": "seeded",
-   "replay": 514,
+   "replay": 531,
    "note": "Generated catalogue (2026-10-21-hunt-sessions-catalogue.generated.sql (tools/gen-hunt-sessions.mjs --check from src/data)): the vendor bid per item (vendorPriceOf), read only by hr_hunt_analyzer for Gold-at-vendor-value and Waste. Moves no value. Rebuilt from repo, never restored; nothing player-owned."
   },
   "hr_hunt_weapon_roles": {
    "class": "seeded",
    "replay": 12,
-   "note": "Generated catalogue (2026-10-23-hunt-sessions-catalogue.generated.sql, tools/gen-hunt-sessions.mjs --check from src/data): weapon type -> role (src/data/hunt-roles.js WEAPON_ROLES). Rebuilt from repo, never restored; nothing player-owned."
+   "note": "Generated catalogue (2026-10-23-hunt-sessions-catalogue.generated.sql, tools/gen-hunt-sessions.mjs --check from src/data): role key -> roles, its ability discipline and its shield arm (src/data/hunt-roles.js ROLE_KEYS, SHIELD_ARM; discipline and with_shield since 2026-12-24). Rebuilt from repo, never restored; nothing player-owned."
   },
   "hr_hunt_weapons": {
    "class": "seeded",
-   "replay": 64,
+   "replay": 66,
    "note": "Generated catalogue (2026-10-23-hunt-sessions-catalogue.generated.sql, tools/gen-hunt-sessions.mjs --check from src/data): weapon item -> weapon type, the role a hero plays (hr_hunt_weapon_of). Rebuilt from repo, never restored; nothing player-owned."
   },
   "hr_hunt_world_shape": {
@@ -1137,12 +1142,12 @@
   },
   "hr_item_slots": {
    "class": "seeded",
-   "replay": 315,
+   "replay": 323,
    "note": "Generated catalogue — which items may occupy which equipment slot. 222 rows on 2026-08-15, 275 now. Rebuilt from repo, never restored."
   },
   "hr_items": {
    "class": "seeded",
-   "replay": 539,
+   "replay": 556,
    "note": "Generated catalogue — the market tradeable allowlist and every item's server-side truth. 426 rows on 2026-08-15, 515 on 2026-09-06, 519 now (+4 Hearthfind trophies, 2026-09-08). Content digest guarded by tools/gen-catalogues.mjs --check as a smoke preflight."
   },
   "hr_kill_credit_log": {
@@ -1265,7 +1270,7 @@
   },
   "hr_shop_supply_offers": {
    "class": "seeded",
-   "replay": 35,
+   "replay": 36,
    "note": "Generated catalogue (2026-10-25-alpha-catalogue.generated.sql, tools/gen-alpha-catalogue.mjs --check from src/data/supply-basics.js): the shop's packable supplies and their prices. Rebuilt from repo, never restored."
   },
   "hr_skill_curve": {

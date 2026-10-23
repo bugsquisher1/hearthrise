@@ -161,7 +161,8 @@ function check(monsters) {
     ok(!!pathFor(d.id), 'a', `${tag}: item has no art in item-art.js`);
     for (const [oid, om] of Object.entries(monsters)) {
       (om.drops || []).forEach((od, oi) => {
-        if (od && od.id === d.id && !(oid === mid && oi === i)) {
+        /* a walked ground's loot-band row (src/data/loot-bands.js) may name it: the band rules are drop-tables.mjs' */
+        if (od && od.id === d.id && !(oid === mid && oi === i) && !od.band) {
           ok(false, 'a', `${tag}: item is also a drop of ${oid}[${oi}]`);
         }
       });
@@ -280,6 +281,8 @@ const MUTATIONS = {
   crown_fallen_king:{ rule: 'a', mk: () => withRow(null, (ms) => { lastOf(ms, 'draconia').id = 'crown_of_the_fallen_king'; }) },
   widows_fang:      { rule: 'f', mk: () => withRow(null, (ms) => { lastOf(ms, 'giant_spider').id = 'widows_fang'; }) },
   lucky_first:      { rule: 'e', mk: () => withRow(null, (ms) => { ms.zombie.drops.unshift(ms.zombie.drops.pop()); }) },
+  /* the loot-band exemption stays narrow: a plain (unbanded) second row of a lucky item is still a shortcut source */
+  plain_second_source: { rule: 'a', mk: () => withRow(null, (ms) => { ms.drain_rat.drops.push({ id: 'wolfbone_torc', ch: 0.001 }); }) },
 };
 
 const argv = process.argv.slice(2);

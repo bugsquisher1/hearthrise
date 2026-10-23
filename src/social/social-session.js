@@ -32,7 +32,7 @@ export class SocialSession {
    * @param {object} o
    * @param {object} o.account    the AccountSession
    * @param {object} [o.realtime] createSocialRealtime(...) (src/social/realtime.js)
-   * @param {{setTimer?: Function, clearTimer?: Function}} [o.timers]
+   * @param {{setTimer?: Function, clearTimer?: Function, later?: Function}} [o.timers]  `later`: the chat's catch-up timer
    */
   constructor(o) {
     this._account = o.account;
@@ -42,7 +42,9 @@ export class SocialSession {
     this.inspected = null;
     this.wanted = null;
     const reread = () => this.reread();
-    this.chat = new ChatStore({ account: o.account, realtime: o.realtime });
+    /* A public topic's pushed line from a player this account blocked is dropped by the chat (realtime.js). */
+    this.chat = new ChatStore({ account: o.account, realtime: o.realtime, later: this._timers.later,
+      blocked: (id) => !!this.blocks && this.blocks.has(id) });
     this.whispers = new WhisperStore({ account: o.account, realtime: o.realtime });
     this.friends = new FriendStore({ account: o.account, reread });
     this.blocks = new BlockStore({ account: o.account, reread,

@@ -86,6 +86,9 @@
 //              the same rows for one window.
 //   OWN        own food is eaten first: one supply_own row a settle, gold 0, the
 //              bag debited by exactly the units used; the store untouched.
+//   OWN-DRINK  an own crafted drink is spent the same way, with the browser closed
+//              (the tick's door) and the hunt viewed (the player's door); one past the
+//              bag is refused bag_short.
 //   STORE      an empty bag under the default switch buys from the store: every
 //              unit journalled supply_buy at the catalogue price, the gold
 //              moved = coins − store gold, the tally's Waste carries it; under
@@ -1258,6 +1261,56 @@ const DB_ARMS = {
     if (heals && s.bag.cooked_shrimp[1] > 0) problems.push(`the store sold ${heals} food while own food was left`);
     return problems;
   }),
+  /* OWN DRINKS (lane c-own-drinks-settle): a crafted drink is packed (src/shell/hunt-list.js packFor) and
+     spent from the bag exactly like own food. The session half once admitted only heal / ammo uses, so
+     every window that drank one was refused kind_not_used and the sixth in a row forfeited the hunt
+     (2026-12-16-own-drinks-settle.sql admits `mana`). BOTH PATHS: the browser closed (the world
+     tick's door, 90 s windows) and the hunt viewed (the player's settle door, project + live). */
+  'OWN-DRINK': async (db, M) => inTx(db, async () => {
+    const problems = [];
+    const bar = [
+      { action: { type: 'consume', id: 'cooked_shrimp' }, conditions: [{ metric: 'self_hp_pct', op: 'lt', value: 60 }], join: 'and' },
+      { action: { type: 'consume', id: 'turnip_juice' }, conditions: [{ metric: 'self_mana_pct', op: 'lte', value: 100 }], join: 'and' }];
+    const h = await hunter(db, M, { ...STRONG, minutesAgo: 6, options: { slots: bar },
+      inv: { cooked_shrimp: 30, turnip_juice: 400 }, bag: [{ item: 'cooked_shrimp', qty: 25 }, { item: 'turnip_juice', qty: 400 }] });
+    const exec = makeExec(db);
+    const to = h.from + 5 * 60000;
+    const doors = {
+      closed: { mode: 'tick', session: h.sid, cuts: ticksOf(90000, to - h.from)(h.from) },
+      viewed: { mode: 'settle', bucket: null, project: true, live: true, cuts: [h.from + 12345, h.from + 95000, h.from + 181111, to] },
+    };
+    await db.query('savepoint own_drink');
+    for (const [path, d] of Object.entries(doors)) {
+      const { cuts, ...door } = d;
+      for (const t of cuts) {
+        const r = await M.HS.settleHunt({ exec, user: UID, slot: 0, grounds: groundsOf(M), atMs: t, ...door });
+        if (!r || r.outcome !== 'paid') { problems.push(`${path}: the window to +${t - h.from} ms answered ${r && r.outcome}/${r && r.reason} ${JSON.stringify(r && r.body).slice(0, 200)}`); break; }
+      }
+      const s = await snapshot(db, h.sid);
+      const drunk = s.bag.turnip_juice[0] - s.bag.turnip_juice[1];
+      const eaten = s.bag.cooked_shrimp[0] - s.bag.cooked_shrimp[1];
+      const own = s.ledger && s.ledger.supply_own;
+      if (!(drunk > 0)) problems.push(`${path}: CONTROL: the hero drank nothing from its bag`);
+      if (Date.parse(s.session.settled_to) !== to) problems.push(`${path}: the hunt settled to ${s.session.settled_to}, not +${to - h.from} ms`);
+      if (s.tally.supplies.turnip_juice !== drunk) problems.push(`${path}: the tally's own drinks ${JSON.stringify(s.tally.supplies)} are not the ${drunk} drunk`);
+      if (!own || Number(own[0]) !== 0 || Number(own[1]) !== -(drunk + eaten)) problems.push(`${path}: supply_own rows ${JSON.stringify(own)} do not journal ${drunk + eaten} units at no gold`);
+      const bought = await one(db, `select count(*)::int from public.player_ledger where session_id = $1 and intent = 'supply_buy'`, [h.sid]);
+      if (bought) problems.push(`${path}: the store sold ${bought} time(s) while own stock was left`);
+      await db.query('rollback to savepoint own_drink');
+    }
+    /* One drink past the bag (inside the window's lane cap) is refused and moves nothing. */
+    await db.query('rollback'); await db.query('begin');
+    const k = await hunter(db, M, { ...STRONG, minutesAgo: 6, options: { slots: bar },
+      inv: { cooked_shrimp: 30, turnip_juice: 3 }, bag: [{ item: 'cooked_shrimp', qty: 25 }, { item: 'turnip_juice', qty: 3 }] });
+    const g0 = Number(await one(db, 'select gold from public.player_state where user_id = $1 and slot = 0', [UID]));
+    const x = await settleTo(db, M, k.from + 60000, { tamper: (c) => { c.members[0].hunt.uses = { ...(c.members[0].hunt.uses || {}), turnip_juice: 4 }; } });
+    if (!x.res || x.res.error !== 'bag_short') problems.push(`a drink past the bag answered ${JSON.stringify(x.res).slice(0, 200)}, want bag_short`);
+    if (Number(await one(db, 'select gold from public.player_state where user_id = $1 and slot = 0', [UID])) !== g0
+        || Number(await one(db, `select qty_left from public.hunt_bag where session_id = $1 and item_id = 'turnip_juice'`, [k.sid])) !== 3) {
+      problems.push('a drink past the bag moved the purse or the bag');
+    }
+    return problems;
+  }),
   STORE: async (db, M) => inTx(db, async () => {
     const problems = [];
     const { sid, from } = await hunter(db, M, { ...WEAK, options: { supply_source: 'mine', on_empty: 'switch', gold_floor: 0 }, gold: 5000 });
@@ -2322,6 +2375,9 @@ const DB_MUTANTS = [
   { arm: 'VALUE', name: '[C2 two lanes] the food lane cap admits ten times its uses', fn: AM,
     /* (the line restated in 2026-10-25-settle-hooks.sql, own drinks on the same lane) */
     find: "(v_ukind->>'mana')::bigint, 0) > v_win / v_cons + 1", replace: "(v_ukind->>'mana')::bigint, 0) > 10 * v_win / v_cons + 1" },
+  { arm: 'OWN-DRINK', name: '[own drinks] the session half admits only heal and ammo uses again', fn: SS,
+    find: "v_kind is distinct from 'heal' and v_kind is distinct from 'mana' and v_kind is distinct from 'ammo' then",
+    replace: "v_kind is distinct from 'heal' and v_kind is distinct from 'ammo' then" },
   { arm: 'STORE', name: '[C2 one gold] the applier prices a use at one gold', fn: AM,
     find: '      v_cost := v_cost + v_n * v_price;', replace: '      v_cost := v_cost + v_n;' },
   { arm: 'STORE', name: 'a store use is not journalled', fn: AM,

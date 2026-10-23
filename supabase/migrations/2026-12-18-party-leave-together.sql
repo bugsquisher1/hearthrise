@@ -386,7 +386,7 @@ begin
       raise exception 'VERIFY(c): the engine reads the boxes %', public.hr_hunt_instance_read(v_b, 0)->'members'; end if;
     v_at := date_trunc('second', now() - interval '10 minutes');
     update public.hunt_sessions set entered_at = v_at - interval '1 minute', hunt_from = v_at, settled_to = v_at, next_swing_at = v_at
-     where instance_id = v_pid and ended_at is null;
+     where user_id = any (v_u) and instance_id = v_pid and ended_at is null;
     update public.hunt_instances set settled_to = v_at, next_swing_at = v_at where id = v_pid;
     -- (c) A0 LEAVES. The live horizon puts its end at or after now; every member walks the same swings to it.
     v := public.hr_hunt_leave(0, (k || '5ea70121')::uuid);
@@ -453,7 +453,7 @@ begin
     select id into v_sb  from public.hunt_sessions where user_id = v_b and slot = 0 and ended_at is null;
     v_at := date_trunc('second', now() - interval '5 minutes');
     update public.hunt_sessions set entered_at = v_at - interval '1 minute', hunt_from = v_at, settled_to = v_at, next_swing_at = v_at
-     where instance_id = v_pid and ended_at is null;
+     where user_id = any (v_u) and instance_id = v_pid and ended_at is null;
     update public.hunt_instances set settled_to = v_at, next_swing_at = v_at where id = v_pid;
     -- the probe's clock moved back, so its stamina is measured from the hunt's (backdated) start
     update public.player_state set stamina_at = v_at where user_id = any (v_u);

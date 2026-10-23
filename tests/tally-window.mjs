@@ -163,6 +163,9 @@ async function checks(overrides) {
         await page.waitForTimeout(600);
         if (await page.evaluate(() => document.querySelectorAll('[data-hs-win="tally"] .ht-tally').length) !== 0) fails.push('TW-7 tallies were invented');
         if (!(await off(page, W + '.ht-offer[data-task="glade_poachers"] button'))) fails.push('TW-7 Take is on with no tally from the server');
+        if (!(await off(page, W + '[data-hs-act="weight"]'))) fails.push('TW-7 a weight can be chosen with no tally from the server');
+        const today = await txt(page, W + '.ht-today');
+        if (today) fails.push('TW-7 the day\'s count reads ' + JSON.stringify(today) + ' with no tally from the server');
         if (sent(s, 'hr_tally_collect').length) fails.push('TW-7 a visit was sent with no tally from the server');
       }
       await ctx.close();
@@ -196,14 +199,16 @@ async function main() {
   const clean = await checks(null);
   if (clean.length) { console.log('  ✗ clean control RED: ' + clean.join('; ')); process.exit(1); }
   let bad = 0;
-  for (const [name, file, from, to] of MUTANTS) {
+  const pick = (process.argv.find((a) => a.startsWith('--mutant=')) || '').slice(9);
+  const list = MUTANTS.filter((m) => !pick || m[0].includes(pick));
+  for (const [name, file, from, to] of list) {
     const text = (await readFile(join(ROOT, file), 'utf8')).replace(/\r\n/g, '\n');
     if (!text.includes(from)) { console.log('  ✗ ' + name + ' — anchor not found in ' + file); bad++; continue; }
     const fails = await checks({ [file]: text.replace(from, () => to) });
     if (fails.length) console.log('  ✓ ' + name + ' — caught (' + fails[0].split(' ')[0] + ')');
     else { console.log('  ✗ ' + name + ' — NOT caught'); bad++; }
   }
-  console.log(bad ? 'tally-window --mutate: ' + bad + ' escaped' : 'tally-window --mutate: ' + MUTANTS.length + '/' + MUTANTS.length + ' mutants caught');
+  console.log(bad ? 'tally-window --mutate: ' + bad + ' escaped' : 'tally-window --mutate: ' + list.length + '/' + list.length + ' mutants caught');
   process.exit(bad ? 1 : 0);
 }
 

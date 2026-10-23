@@ -18,7 +18,7 @@
 // ════════════════════════════════════════════════════════════════════════
 import { ABILITIES } from '../data/abilities.js?v=0.2.33';
 import { CONSUMABLES, CONSUMABLE_RULES } from '../data/consumables.js?v=0.2.33';
-import { SUPPLIES } from '../data/supplies.js?v=0.2.33';
+import { SUPPLIES, isRune } from '../data/supplies.js?v=0.2.33';
 import { ITEMS } from '../data/items.js?v=0.2.33';
 import { HUNT_ROLES } from '../data/hunt-roles.js?v=0.2.33';
 import { ATTACK_KINDS } from '../data/condition-metrics.js?v=0.2.33';
@@ -54,11 +54,12 @@ function supplyRow(c, store, bag) {
     unpriced: c.source === 'store' ? price === null : false, none: c.source !== 'store' && !(carry > 0) };
 }
 
-/* An ammo row: own stock first, then its plain partner per shot (the server's price). */
+/* An ammo row: own stock first, then an arrow's plain partner per shot (the server's price). A rune's
+   store row feeds spells only, never a shot (supplies.js isRune), so a rune's row is own stock only. */
 function ammoRow(id, store, bag) {
   if (own(ATTACK_KINDS, id)) return { action: { type: 'attack_with_item', id }, kind: 'ammo', name: 'The loaded ammo', store: false, amount: null, price: null, per: null, carry: null, unpriced: false, none: false };
   const it = ITEMS[id] || {};
-  const p = partnerRow(store, id);
+  const p = isRune(it) ? null : partnerRow(store, id);
   const carry = countOf(bag, id);
   return { action: { type: 'attack_with_item', id }, kind: 'ammo', name: itemName(id), store: false,
     amount: Number(it.rangeStrB || it.magicStrB || it.strB) || 0, price: p ? p.price : null, per: p ? p.price : null, carry,

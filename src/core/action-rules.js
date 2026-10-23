@@ -215,13 +215,18 @@ export function lineAmount(hs, line) {
    may not carry on instead. Under the default `switch` (or `store`) a line
    with a store row behind it never runs out: the hunt keeps going until the
    purse runs dry, and then it ends `gold_out`, not `heals_out` / `ammo_out`.
-   So these two ends are reachable only under the hero's explicit `end`. */
+   AMMO never runs a hunt out there at all, store row or not (Tyler 10-16: a
+   hunt never stops for lack of stock): a caster whose runes are spent swings
+   the bare staff (damage.js pickShot). Before, a spent Earth Rune line ended the
+   hunt `ammo_out` under the default. So these two ends are reachable only under
+   the hero's explicit `end`. */
 function essentialOut(hs, kind) {
+  if (kind === 'ammo' && storeAllowed(hs)) return false;
   let any = false;
   for (const id of Object.keys(hs.bag || {})) {
     if (kindOf(id) !== kind || !isEssential(id, hs.bag[id])) continue;
     any = true;
-    if (leftOf(hs, id) > 0 || (kind === 'ammo' && shopShotFor(hs, id))) return false;
+    if (leftOf(hs, id) > 0) return false;
   }
   if (any && kind === 'heal' && storeAllowed(hs) && Object.keys(hs.basics || {}).some((id) => (basicOf(hs, id) || {}).kind === 'heal')) return false;
   return any;

@@ -260,6 +260,20 @@ const commit = (M, d, p) => M.HS.commitHuntSettle(d.exec, { ...p.commit, project
 const memberOf = (p, uid, slot) => p.commit.members.find((m) => String(m.user) === String(uid) && Number(m.slot) === slot);
 /* A bill the purse cannot pay however much a window sells on pickup (well under the food lane's 361 uses a window). */
 const OVER = 2000;
+/* WHAT A MEMBER'S WINDOW ALREADY MOVES besides the planted bill: its coins, the loot it sold to cover a use (+) and
+   the store uses the ENGINE bought itself (-), priced from the server's own catalogue. A sized bill is planted ON
+   TOP of these, so it is sized against this net. */
+let PRICES = null, UNITS = null;
+async function netOf(d, m) {
+  if (!PRICES) {
+    PRICES = Object.fromEntries((await d.q('select basic_id, price::int p from public.hr_hunt_basic_supplies')).map((r) => [r.basic_id, r.p]));
+    UNITS = Object.fromEntries((await d.q('select item_id, unit::int u from public.hr_hunt_cover_items')).map((r) => [r.item_id, r.u]));
+  }
+  let net = Number((m && m.delta && m.delta.gold) || 0);
+  for (const [id, n] of Object.entries((m && m.hunt && m.hunt.buys) || {})) net -= Number(n) * (PRICES[id] || 0);
+  for (const [id, n] of Object.entries((m && m.hunt && m.hunt.cover) || {})) net += Number(n) * (UNITS[id] || 0);
+  return net;
+}
 const addBuys = (m, n) => { m.hunt.buys = Object.assign({}, m.hunt.buys || {}, { salted_shrimp: ((m.hunt.buys || {}).salted_shrimp || 0) + n }); };
 
 /* THE LEDGER CHAIN of one account: every gold row states purse = previous + gold, carries a gold_kind;
@@ -339,7 +353,7 @@ async function chainArms(mutate, M) {
     await d.seedPurse(u, 500);
     await hunting(d, u, [0, 1]);
     const p0 = await propose(M, d, u, 0), p1 = await propose(M, d, u, 1);
-    const c0 = Number(memberOf(p0, u, 0).delta.gold || 0), c1 = Number(memberOf(p1, u, 1).delta.gold || 0);
+    const c0 = await netOf(d, memberOf(p0, u, 0)), c1 = await netOf(d, memberOf(p1, u, 1));
     addBuys(memberOf(p1, u, 1), Math.floor((500 + c1 - 20) / 14));       // slot 1's bill leaves < 20
     const r1 = await commit(M, d, p1);
     ok(r1 && r1.ok === true, `G4 ${door}: slot 1's window answered ${JSON.stringify(r1).slice(0, 300)}`);
@@ -386,7 +400,7 @@ async function chainArms(mutate, M) {
     const from = Number(await d.one('select floor(extract(epoch from i.settled_to) * 1000)::bigint::text from public.hunt_instances i join public.hunt_sessions h on h.instance_id = i.id where h.user_id = $1 and h.slot = 0', [u]));
     const p = await propose(M, d, u, 0, from + 6 * 60000);
     const m0 = memberOf(p, u, 0), m1 = memberOf(p, u, 1);
-    const c0 = Number((m0 && m0.delta.gold) || 0), c1 = Number((m1 && m1.delta.gold) || 0);
+    const c0 = await netOf(d, m0), c1 = await netOf(d, m1);
     const n = Math.floor((c0 + c1) / 14);
     if (ok(m0 && m1 && n * 14 > c0, `G5: the window's coins (${c0} + ${c1}) cannot make a bill slot 0 pays only with slot 1's coins`)) {
       addBuys(m0, n);                                             // slot 0 (applied first) spends both heroes' coins
@@ -415,13 +429,13 @@ async function chainArms(mutate, M) {
     await hunting(d, u, [0]);
     let p = await propose(M, d, u, 0);
     let m = memberOf(p, u, 0);
-    let c0 = Number(m.delta.gold || 0);
+    let c0 = await netOf(d, m);
     addBuys(m, Math.floor((100 + c0 - 80) / 14) + 1);            // would leave the purse under 80
     let res = await commit(M, d, p);
     if (ok(res && res.ok === false && res.error === 'gold_short' && res.detail && res.detail.why === 'floor',
       `G6: a bill under the floor answered ${JSON.stringify(res).slice(0, 300)}`)) {
       p = await propose(M, d, u, 0);
-      m = memberOf(p, u, 0); c0 = Number(m.delta.gold || 0);
+      m = memberOf(p, u, 0); c0 = await netOf(d, m);
       const n = Math.floor((100 + c0 - 80) / 14);
       if (n > 0) addBuys(m, n);
       res = await commit(M, d, p);

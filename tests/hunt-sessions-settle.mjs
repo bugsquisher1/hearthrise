@@ -1298,10 +1298,10 @@ const DB_ARMS = {
     await db.query('rollback'); await db.query('begin');
     const k = await hunter(db, M, { ...STRONG, minutesAgo: 6, options: { slots: bar },
       inv: { cooked_shrimp: 30, turnip_juice: 3 }, bag: [{ item: 'cooked_shrimp', qty: 25 }, { item: 'turnip_juice', qty: 3 }] });
-    const g0 = Number(await one(db, 'select gold from public.player_state where user_id = $1 and slot = 0', [UID]));
+    const g0 = Number(await one(db, 'select coalesce((select w.gold from public.account_wallet w where w.user_id = $1), 0)', [UID]));
     const x = await settleTo(db, M, k.from + 60000, { tamper: (c) => { c.members[0].hunt.uses = { ...(c.members[0].hunt.uses || {}), turnip_juice: 4 }; } });
     if (!x.res || x.res.error !== 'bag_short') problems.push(`a drink past the bag answered ${JSON.stringify(x.res).slice(0, 200)}, want bag_short`);
-    if (Number(await one(db, 'select gold from public.player_state where user_id = $1 and slot = 0', [UID])) !== g0
+    if (Number(await one(db, 'select coalesce((select w.gold from public.account_wallet w where w.user_id = $1), 0)', [UID])) !== g0
         || Number(await one(db, `select qty_left from public.hunt_bag where session_id = $1 and item_id = 'turnip_juice'`, [k.sid])) !== 3) {
       problems.push('a drink past the bag moved the purse or the bag');
     }

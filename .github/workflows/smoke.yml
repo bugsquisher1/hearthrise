@@ -2377,7 +2377,8 @@ jobs:
   #     mutate cold (2 s + 6 s template-warm). Job total NOT re-measured here.
   db-replay-6:
     runs-on: ubuntu-latest
-    timeout-minutes: 21
+    # 21 + frame-push-revive and chat-broadcast (2026-10-23: ~3 min measured locally, x2 = 6, rounded to 25 with slack)
+    timeout-minutes: 25
 
     steps:
       - uses: actions/checkout@v4
@@ -2499,6 +2500,30 @@ jobs:
         run: |
           node tests/frame-self-echo.mjs
           node tools/mutant-gate.mjs node tests/frame-self-echo.mjs --mutate
+
+      # THE PUSH CHANNEL, REVIVED (2026-12-25-frame-push-revive.sql). A committed
+      # settle and an accepted write each push the WHOLE character once to a
+      # character open in a client, never the requester's echo; the RLS lets only
+      # the owner receive its topic and no client write one. Catalog checks on the
+      # chain's final state; --mutate plants 12 defects the file's §6 must refuse
+      # by name. MEASURED locally 2026-10-23: ~5 s plain (template warm) + 31 s mutate.
+      - name: Frame push revive — settles and writes push the whole character once, to an open client (base + mutate)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/frame-push-revive.mjs
+          node tools/mutant-gate.mjs node tests/frame-push-revive.mjs --mutate
+
+      # CHAT ON PRIVATE BROADCAST (2026-12-26-chat-broadcast.sql + -27-chat-
+      # unpublish.sql). Every stored line and whisper is broadcast once to exactly
+      # who may hear it (public topics, the account inbox for party lines and
+      # whispers, never a blocker), no client can send, and the chat tables are
+      # unpublished. --mutate plants 12 defects the file's §5 must refuse by name.
+      # MEASURED locally 2026-10-23: ~5 s plain + 139 s mutate.
+      - name: Chat broadcast — every line and whisper to exactly who may hear it (base + mutate)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/chat-broadcast.mjs
+          node tools/mutant-gate.mjs node tests/chat-broadcast.mjs --mutate
 
   # db-replay-7 (same origin as db-replay-6, above). MEASURED locally
   # 2026-10-07: intent-mismatch 123 + goal-counters 117 + goal-gold-retune 56

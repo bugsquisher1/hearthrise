@@ -84,12 +84,10 @@ export const ALLOW = {
   // client entries (net/accrue, combat-screens, death-sheet, hunt-panel) left
   // with the old client (2026-10-17 client reset); play.html is the page now.
   'supabase/functions/hr-accrue/intents.js': ['enchant'],
-  // The new client's frame-key allowlist mirrors hr_frame_send's CHECK
-  // (2026-09-22-frame-push-channel.sql frame_keys), which still names 'enchant';
-  // it leaves when the server's enchant block does.
-  'src/session/envelope.js': ['enchant'],
+  // (src/session/envelope.js's frame-key allowlist left with the key-subset frame: a frame is the whole
+  // character since 2026-12-25-frame-push-revive.sql, which also dropped hr_tick_config.frame_keys.)
 };
-export const ALLOW_MAX = 2;    // 24 -> 6 (C2, 2026-10-15) -> 2: the old client's reads left with it (2026-10-17)
+export const ALLOW_MAX = 1;    // 24 -> 6 (C2, 2026-10-15) -> 2: the old client's reads left with it (2026-10-17) -> 1 (2026-12-25)
 
 /* ── Comments out, strings kept (a verb is a string) ──────────────────── */
 export function stripComments(t) {

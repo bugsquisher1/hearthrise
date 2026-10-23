@@ -524,7 +524,13 @@ async function purseArms(mutate) {
 
 // ── G4-G6, G7 (the hunt half) and G10's lock order: the real engine on the WHOLE chain ─────────
 async function huntArms(mutate, M) {
-  const { db } = await bootReplay({ patches: chainPatches(mutate), upTo: CHAIN_END });
+  /* A mutant planted in the tally file's hr_hunt_apply_instance replays only TO that file (REPLAY SCOPE): a later
+     file that splices the body under an md5 pin (2026-12-25-frame-push-revive.sql, the settle frames) rightly refuses
+     a planted image at its §0, which would read as "caught" for the wrong reason. The arms need nothing newer; the
+     plain run still judges the whole chain's final body. */
+  const m = mutate && MUTATIONS[mutate];
+  const end = m && m.kind === 'sql' && fileOf(m) === TALLY ? TALLY : CHAIN_END;
+  const { db } = await bootReplay({ patches: chainPatches(mutate), upTo: end });
   const d = drivers(db);
 
   // G4 TWO HUNTS RACE ON ONE PURSE — both doors.

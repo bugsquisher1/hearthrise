@@ -578,3 +578,45 @@ connection ceiling, which is the whole scale budget.
 **Not in that lane, and not in any lane yet:** intents over the socket
 (`WORLD_TICK_DESIGN.md` §7.3 — one transport for reads, one for writes), presence,
 peers, and anything that makes the socket an authority.
+
+---
+
+## 11. Frame v2 — the push channel revived (2026-10-23, `2026-12-25-frame-push-revive.sql`)
+
+**Root cause of the dead channel** (production `realtime.messages` held 0 rows): `hr_tick_config.frame_push`
+was never armed (every `hr_frame_send` returned at its first line); the one settle
+(`hr_hunt_apply_instance` → `hr_hunt_apply_member` → `hr_apply`) would have sent from INSIDE its member loop,
+before the session, instance, resume and purse writes land; and the online gate read
+`player_state.last_seen_at`, which only the scrapped old client stamped.
+
+| Item | Value |
+|---|---|
+| Topic | `hr:<uid>:<slot>` (`hr_frame_topic`), private, event `frame` |
+| Payload | `{ t: 'state', frame: <env.version>, env: <hr_state_of envelope> }` (`hr_frame_payload(jsonb)`); the key-subset `delta` and `hr_tick_config.frame_keys` are retired |
+| Who sends | `hr_apply`'s call site (one per accepted write) and `hr_hunt_apply_instance` at its commit point (one per member, after every write of the settle); `hr.frame_defer` silences `hr_apply`'s site inside the member loop |
+| Gate (`hr_frame_wanted`) | the character is open in a client: `character_presence.seen_at` within 75 s and not in the future (stamped by `hr_players_online` on every social poll); never the engine requester's own echo (`hr.frame_self`, the 2026-10-09 rule unchanged) |
+| Ceiling | a frame over 250,000 bytes is not sent (the poll heals it) |
+| Kill switch | `update public.hr_tick_config set frame_push = false;` |
+| RLS | `hr_frame_receive_own_topic` (owner only, slot 0-5, three segments, broadcast); no write policy; installed by `hr_realtime_policies()` |
+| Client (`envelope.js` E2-E4) | a frame strictly newer than the record, stamped with its envelope's own version, replaces the record like a load; it never asks the engine (a gap needs no fill); an applied frame defers the hunt re-read a whole delay (`hunt-poll.js` `defer`), so the 16 s poll is the fallback |
+
+**Error taxonomy.** No new client-visible error: every failure of the push path (switch off, transport absent,
+not open, over the ceiling, a raise) is "no frame", healed by the client's re-read. The client refuses a frame as
+`malformed`, `not_loaded`, `duplicate` or `reorder` and changes nothing.
+
+## 12. Chat on private Broadcast (2026-10-23, `2026-12-26-chat-broadcast.sql`, `2026-12-27-chat-unpublish.sql`)
+
+postgres_changes on `chat_messages` / `chat_whispers` cost 38.6 % of all database time (the WAL poller). Live
+delivery moves to Broadcast; history stays a table read.
+
+| Item | Value |
+|---|---|
+| Public topics | `chat:global`, `chat:system`, `chat:local:<zone>` (`hr_chat_topic`), event `line`, payload `{ t: 'line', line: hr_chat_row(row) }` |
+| Inbox | `chat:inbox:<uid>` (`hr_chat_inbox_topic`), one per account: whispers TO it (event `whisper`, `{ t: 'whisper', line: hr_whisper_row(row) }`) and its party's lines (event `line`) |
+| Senders | AFTER INSERT triggers `hr_chat_broadcast` / `hr_whisper_broadcast` cover every writer (player lines, world notices); a party line goes to each audience member's inbox except the sender and anyone who blocked the sender; a whisper never to a blocker; a push failure never fails the insert |
+| RLS | `hr_chat_receive`: an admitted player receives the public topics and only `chat:inbox:<own uid>` (whole-topic equality); no write policy |
+| Client (`src/social/realtime.js`) | private joins (at most 4 of `realtimeBindingsMax` 5); every (re)join re-reads `hr_chat_recent` / `hr_whispers_recent` once per burst and ADDS what the socket missed; a public line from a blocked player is dropped client-side |
+| Order | apply 12-26 any time (the publication stays, so the old client keeps postgres_changes); ship the client; THEN apply 12-27 (unpublish) |
+
+**Moved to the client:** the per-subscriber `hr_chat_hide_blocked` filter for PUBLIC lines (a public topic is
+authorized per join, not per row). Blocks stay server-enforced for whispers, party lines and every history read.

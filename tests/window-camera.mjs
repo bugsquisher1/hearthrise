@@ -205,12 +205,13 @@ async function stubSlots(page, s) {
     return json({ ok: true });
   });
 }
-/* Both slots answer `spot` (a hunt spot, or 'town') from now on, and both re-read (each character keeps its push topic). */
+/* Both slots answer `spot` (a hunt spot, or 'town') from now on, and each gets it pushed: a frame on its own topic
+   carrying the whole character (2026-12-25-frame-push-revive.sql), applied like a load. */
 async function moveBoth(page, s, spot) {
   for (const slot of [0, 1]) s.env[slot] = spot === 'town' ? townEnvFor(slot) : huntEnvFor(slot, spot);
   for (const slot of [0, 1]) {
-    s.version += 2;
-    await page.evaluate(([topic, f, st]) => window.__hub.send(topic, { t: 'delta', frame: f, patch: { state: st } }), ['hr:' + UID + ':' + slot, s.version, s.env[slot].state]);
+    const e = Object.assign(clone(s.env[slot]), { version: ++s.version });
+    await page.evaluate(([topic, env]) => window.__hub.send(topic, { t: 'state', frame: env.version, env }), ['hr:' + UID + ':' + slot, e]);
   }
 }
 /* The World as it stands: the scene, the unit the camera follows, the viewed hero's tile on screen, the part of

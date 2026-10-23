@@ -51,6 +51,8 @@
 //         account row meant each character overwrote the other)
 //   TW-15 WHERE THE BODY STANDS: placeOn is the body's place across a park and a show (a pane shown
 //         again starts its hero there); a parked body that went hunting stands at the arrival tile
+//   TW-17 READ ONLY WHAT IS DRAWN (perf audit 10-23): a shown town reads its people on the poll only while a
+//         frame asks for them; not drawn it reads nothing, and the first frame after a pause reads at once
 //   TW-16 A PEER WEARS ITS OWN LOOK (Tyler live v0.2.31: "Just defaults to the paladin"): the chain's
 //         last hr_town_walkers names a walker's role with the character's own `role` section function
 //         (the worn weapon's role), never the retired action-set pick; another player who appears is
@@ -291,15 +293,41 @@ async function pureRules(M) {
     tp.publish(at(12, 9)); await settle();
     sent.length = 0;
     if (typeof tp.park === 'function') tp.park(); else tp.show(null);   // the World pane switched to another character
-    for (now = 1000; now <= 3 * L.keepaliveMs; now += L.pollMs) { if (tick10) tick10(); await settle(); }
+    const parked = L.parkedKeepaliveMs || L.keepaliveMs;
+    for (now = 1000; now <= 3 * parked; now += L.pollMs) { if (tick10) tick10(); await settle(); }
     const moves = sent.filter((c) => c.name === 'hr_town_move');
     if (moves.some((c) => c.args.p_map === null) || moves.length < 2)
       fail('TW-10 an unviewed character left town or stopped its keepalive: ' + JSON.stringify(moves.map((c) => c.args.p_map)));
+    /* perf audit 10-23: a parked body keeps alive at parkedKeepaliveMs (inside the server's 30 s), not the walking pace */
+    if (moves.length > 3 || !(parked > L.keepaliveMs && parked < 30000)) fail('TW-10 a parked body kept alive ' + moves.length + ' times in ' + 3 * parked + ' ms (every ' + parked + ' ms)');
     if (sent.some((c) => c.name === 'hr_town_walkers')) fail('TW-10 an unviewed character still reads the walkers');
     sent.length = 0; hunting = true;
     if (tick10) tick10(); await settle();
     const gone = sent.filter((c) => c.name === 'hr_town_move');
     if (gone.length !== 1 || gone[0].args.p_map !== null) fail('TW-10 an unviewed character that starts a hunt did not leave town: ' + JSON.stringify(gone.map((c) => c.args)));
+    tp.destroy();
+  }
+  // TW-17 (perf audit 10-23: hr_town_walkers 30 a minute with no town drawn): a shown town reads its people on
+  // the poll only while a frame asks for them (walkers()); not drawn (a hidden tab, a pane not drawing) it reads
+  // nothing, and the first frame after the pause reads at once
+  {
+    const sent = [];
+    let now = 0, tick = null;
+    const server = { rpc: (name, args) => { sent.push({ name, args }); return Promise.resolve({ ok: true, body: { ok: true, stamped: true, walkers: [] } }); } };
+    const tp = new M.town.TownPresence({ server, slot: 0, self: () => TYLER,
+      timers: { setTimer: (fn) => { tick = fn; return 1; }, clearTimer: () => {} }, now: () => now });
+    tp.show('town_common'); await settle();
+    const reads = () => sent.filter((c) => c.name === 'hr_town_walkers').length;
+    for (now = 100; now <= 20000; now += L.pollMs) { tp.walkers(); tick(); await settle(); }
+    const drawn = reads();
+    if (drawn < 20000 / L.pollMs - 1) fail('TW-17 a drawn town read its people ' + drawn + ' times in 20 s (every pollMs)');
+    /* the last frame drew at 20 s; two polls of grace, then nothing while nobody draws */
+    for (now = 20100; now <= 20000 + 2 * L.pollMs; now += L.pollMs) { tick(); await settle(); }
+    const quiet = reads();
+    for (; now <= 60000; now += L.pollMs) { tick(); await settle(); }
+    if (reads() !== quiet) fail('TW-17 a town nobody draws read its people ' + (reads() - quiet) + ' times in 40 s');
+    tp.walkers(); await settle();
+    if (reads() !== quiet + 1) fail('TW-17 the first frame after a pause did not read the people at once');
     tp.destroy();
   }
   // TW-11 (Tyler 2026-10-20 "can't see my other character in town"): a fresh boot / reload with two
@@ -738,7 +766,10 @@ const PURE_MUTANTS = [
   ['the list is merged, not replaced', 'src/session/town-presence.js', 'this._walkers = b.off ? [] : list;', 'this._walkers = this._walkers.concat(list);'],
   ['the walkers are not capped', 'src/session/town-presence.js', '      if (list.length >= this.limits.cap) break;\n', ''],
   ['viewing another character leaves town', 'src/session/town-presence.js', '    if (!this._map) { this.stand(); return; }\n    this._parked = true;\n', '    if (!this._map) { this.stand(); return; }\n    this.show(null); return;\n'],
-  ['a parked character never keeps alive', 'src/session/town-presence.js', '      if (this._want && this._now() - this._sentAt >= this.limits.keepaliveMs) this._flush(true);\n      return;', '      return;'],
+  ['a parked character never keeps alive', 'src/session/town-presence.js', '      if (this._want && this._now() - this._sentAt >= (this.limits.parkedKeepaliveMs || this.limits.keepaliveMs)) this._flush(true);\n      return;', '      return;'],
+  ['a parked body keeps alive at the walking pace', 'src/session/town-presence.js', '(this.limits.parkedKeepaliveMs || this.limits.keepaliveMs)', 'this.limits.keepaliveMs'],
+  ['a town nobody draws keeps reading', 'src/session/town-presence.js', '    if (this._now() - this._drawnAt <= 2 * this.limits.pollMs) this.read();', '    this.read();'],
+  ['a town drawn again waits for the poll', 'src/session/town-presence.js', '    if (this._map && !this._parked && now - this._drawnAt > 2 * this.limits.pollMs) this.read();\n', ''],
   ['a parked character that hunts stays in town', 'src/session/town-presence.js', '      if (this._busy()) { this._home = this._arrival || this._home || this._want || this._sent; this._leave(); return; }\n', ''],
   ['back from a hunt a parked body stands where it stood before', 'src/session/town-presence.js', 'this._home = this._arrival || this._home || this._want || this._sent;', 'this._home = this._home || this._want || this._sent;'],
   ['a shown-again body has no place', 'src/session/town-presence.js', '    return p ? [p.x, p.y] : null;\n', '    return null;\n'],

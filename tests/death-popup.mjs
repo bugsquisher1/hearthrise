@@ -114,12 +114,11 @@ async function play(page) {
   if (!(await page.$('.hs-launchers'))) await page.click('[data-app="play"][data-slot="0"]');
   return wait(page, () => document.querySelector('#panel-world[data-slot="0"]') && document.querySelector('.hs-launchers'));
 }
+/* A new full envelope, the way the live game gets one: a pushed frame carrying the whole character at the next
+   version (2026-12-25-frame-push-revive.sql), applied like a load. */
 async function pushEnvelope(page, s, slot) {
-  const frame = s.version + 2;
-  s.version = frame;
-  const before = s.calls.filter((c) => c.name === 'hr-accrue').length;
-  await page.evaluate(([t, f, st]) => window.__hub.send(t, { t: 'delta', frame: f, patch: { state: st } }), ['hr:' + UID + ':' + slot, frame, s.env[slot].state]);
-  for (let i = 0; i < 60 && s.calls.filter((c) => c.name === 'hr-accrue').length <= before; i++) await page.waitForTimeout(50);
+  const e = s.next(slot);
+  await page.evaluate(([t, env]) => window.__hub.send(t, { t: 'state', frame: env.version, env }), ['hr:' + UID + ':' + slot, e]);
   await page.waitForTimeout(300);
 }
 const POP = '[data-hs-win="death"]:not(.is-leaving)';

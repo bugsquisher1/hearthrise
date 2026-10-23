@@ -12,7 +12,9 @@
 //                         server refuses across a block, either way, as
 //                         `unavailable` (it never says who blocked whom)
 //   load()                hr_whispers_recent once, on sign-in
-// Incoming whispers arrive pushed (src/social/realtime.js, to_id = this account).
+// Incoming whispers arrive pushed to this account's private inbox topic
+// (src/social/realtime.js); every (re)join of it re-reads hr_whispers_recent and
+// ADDS what the socket missed, so a blip loses nothing.
 // ════════════════════════════════════════════════════════════════════════
 import { WHISPER, CHAT_LIMITS } from '../data/chat-channels.js?v=0.2.37';
 import { lineOf, bodyOf } from './chat-lines.js?v=0.2.37';
@@ -39,6 +41,7 @@ export class WhisperStore {
     this._screen = { tab: null, open: false, at: 0 };
     this._leave = null;
     this._me = null;
+    this._busy = false; this._again = false; this._dead = false;
   }
 
   subscribe(fn) { this._listeners.add(fn); return () => this._listeners.delete(fn); }
@@ -49,13 +52,32 @@ export class WhisperStore {
     const me = this._account.userId;
     if (!me || this._me === me) return false;
     this._me = me;
-    if (this._rt) this._leave = this._rt.whispers(me, (row) => { if (this._take(row, true)) this._changed(); });
+    if (this._rt) this._leave = this._rt.whispers(me, (row) => { if (this._take(row, true)) this._changed(); }, () => this._catchUp());
+    return this._read(true);
+  }
+
+  /* The recent whispers, ADDED to what is held (a line already held is skipped by id). `told`: tell the
+     listeners even when nothing was added (the sign-in read). `live`: the lines are news the socket missed
+     (a catch-up after a join), so one to this account opens its conversation as a pushed one does. */
+  async _read(told, live) {
     const ans = await this._account.server.rpc('hr_whispers_recent', {});
     const b = ans.body;
     if (!ans.ok || !b || b.ok !== true || !Array.isArray(b.lines)) return false;
-    for (const row of b.lines) this._take(row, false);
-    this._changed();
+    let any = false;
+    for (const row of b.lines) if (this._take(row, live === true)) any = true;
+    if (any || told) this._changed();
     return true;
+  }
+
+  /* The inbox (re)joined: one re-read at a time; a join while one is out asks for one more. */
+  async _catchUp() {
+    if (this._dead) return;
+    if (this._busy) { this._again = true; return; }
+    this._busy = true;
+    try { await this._read(false, true); } catch (e) { /* the next join asks again */ } finally {
+      this._busy = false;
+      if (this._again) { this._again = false; this._catchUp(); }
+    }
   }
 
   _conv(id, name) {
@@ -157,5 +179,5 @@ export class WhisperStore {
     this._changed();
   }
 
-  destroy() { if (this._leave) this._leave(); this._listeners.clear(); }
+  destroy() { this._dead = true; if (this._leave) this._leave(); this._listeners.clear(); }
 }

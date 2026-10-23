@@ -232,13 +232,14 @@ async function signInAndPlay(page, base) {
   return wait(page, () => document.querySelector('.hs-launchers'));
 }
 
-/* A new full envelope, the way the live game gets one: a skipped frame makes the client re-read. */
+/* A new full envelope, the way the live game gets one: a settle the SERVER committed (the world tick, another
+   member's hello) pushed as a frame carrying the whole character at the next version (2026-12-25-frame-push-
+   revive.sql), applied like a load. The stub's settle hook runs as for a plain settle (`s.onCall`, no verb), but no
+   call is logged: the client asked for nothing. */
 async function pushEnvelope(page, s) {
-  const frame = s.version + 2;
-  s.version = frame;
-  const before = s.calls.filter((c) => c.name === 'hr-accrue').length;
-  await page.evaluate(([uid, f, st]) => window.__hub.send('hr:' + uid + ':0', { t: 'delta', frame: f, patch: { state: st } }), [UID, frame, s.env.state]);
-  for (let i = 0; i < 60 && s.calls.filter((c) => c.name === 'hr-accrue').length <= before; i++) await page.waitForTimeout(50);
+  if (s.onCall) s.onCall('hr-accrue', {});
+  const e = s.next();
+  await page.evaluate(([uid, env]) => window.__hub.send('hr:' + uid + ':0', { t: 'state', frame: env.version, env }), [UID, e]);
   await page.waitForTimeout(250);
 }
 

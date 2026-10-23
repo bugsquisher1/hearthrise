@@ -10,8 +10,10 @@
 //
 //   ENV-1  a full envelope REPLACES the record: a key the new one lacks is gone
 //   ENV-2  an older envelope is refused; the same version restates
-//   ENV-3  a frame replaces each key it states WHOLE and leaves the rest
-//   ENV-4  frames: not before the first load, never duplicate/reorder, no partial bag
+//   ENV-3  a frame is the whole character (2026-12-25-frame-push-revive.sql): it REPLACES the record like
+//          a load (a key it lacks is gone) and carries the residue its envelope holds
+//   ENV-4  frames: not before the first load, never duplicate/reorder, never a frame whose number is not
+//          its envelope's version
 //   ENV-5  malformed / not ok / no `state` answers change nothing
 //   ENV-6  the record is frozen and never aliases the server's object
 //   RES-1  the residue is an allowlist: unknown client_state fields never arrive
@@ -21,7 +23,17 @@
 //          channel is left and re-joined after a backoff
 //   CHAN-3 a leave from inside the channel's own status callback (removeChannel echoes CLOSED)
 //          leaves once and schedules one reconnect, never recursing (live v0.2.6)
-//   CHAN-2 a frame that skips versions asks for one hello (the gap is closed, not guessed)
+//   CHAN-2 a frame never asks the engine, not even across a version gap: the frame IS the state
+//   HUNT-3 a frame while a hunt is open DEFERS the re-read a whole delay (the poll is the fallback): a
+//          character fed by frames sends no hello while the frames come
+//   ASK-1  one character sustains at most 6 engine asks a minute (the accrue budget is the ACCOUNT's 30): a
+//          frame never asks (it is the whole character) and a re-join while hunting asks nothing (the armed
+//          re-read restates it), a refusal holds the asking, in town one hello is in flight and a re-join storm
+//          is paced yet caught up (live 10-23)
+//   ASK-2  a four-hero leave-together: a not-due answer at the record's version is not re-read in full, the close
+//          is backed off past leave_at; no refusal, at most 7 asks and 2 full reads a hero, every hero sees its end
+//   ASK-3  a hunter's idle answer at a version its record holds WHOLE (a load, a settle answer, or ANY pushed frame:
+//          a frame is the whole character) is not re-read in full; in town it always is (a party invite moves no version)
 //   HELLO-1 an idle settle answer ({accrued:false}) is never applied as the character: the full read follows
 //   HUNT-1 while the server holds a hunt open the character asks the hunter's settle every huntPollMs
 //          (attended): the track reaches the timeline; the envelope that says it ended stops the asking
@@ -38,8 +50,11 @@
 //   ACC-1  at most the server's concurrent limit open (within the tab's ceiling); close frees a place
 //   ACC-4  the limit is the SERVER's (account.max_concurrent): a smaller one holds, an unstated one
 //          allows one character, a larger one is capped by the tab's ceiling
-//   VIEW-2 switching the viewed character touches no CharacterSession: records, statuses, topics,
-//          listeners and the server calls of every character are exactly as before
+//   VIEW-2 switching the viewed character asks the newly viewed one ONE settle and nothing else: statuses,
+//          topics, listeners and every other character's calls are exactly as before
+//   VIEW-3 only the viewed character streams live (CLAUDE.md §6): in a four-hero party hunt the viewed one asks
+//          at most 5 a minute, an unviewed one makes at most 1 call a minute and never asks the engine; a switch
+//          shows the server's state at once; an unviewed hero's hunt end reaches its record within a minute
 //   ACC-2  the roster is the server's owned slots (hero_slots), bounded; a slot whose
 //          character has no name (hr_load needs_name) reads as unnamed, not as a hero;
 //          create is ONE hr_create_hero with the name, the four colours and an idem key
@@ -89,6 +104,8 @@ async function load(base) {
 
 const UID = '11111111-2222-3333-4444-555555555555';
 const env = (version, extra) => Object.assign({ ok: true, version, state: { gold: 1 } }, extra || {});
+/** A pushed frame as hr_frame_payload sends it: the whole envelope at its own version. */
+const sframe = (version, extra) => ({ t: 'state', frame: version, env: env(version, extra) });
 
 function memStore() {
   const m = new Map();
@@ -146,21 +163,25 @@ async function rules(M) {
     const same = E.applyEnvelope(a, env(5, { state: { gold: 7 } }));
     return (same.applied && same.record.data.state.gold === 7) || 'the same version did not restate';
   });
-  await t('ENV-3', () => {
-    const a = E.applyEnvelope(null, env(1, { skills: { mining: 5, attack: 3 }, equipment: { head: 'x' } })).record;
-    const f = E.applyFrame(a, { t: 'delta', frame: 2, patch: { skills: { attack: 4 } } });
-    if (!f.applied) return 'a fresh frame was refused: ' + f.verdict;
-    if ('mining' in f.record.data.skills) return 'a frame merged inside a key';
-    if (!f.record.data.equipment || f.record.data.equipment.head !== 'x') return 'a key the frame did not state was lost';
-    return f.record.version === 2 || 'frame version not taken';
+  await t('ENV-3', async () => {
+    const hud = { hudLayout: { desktop: { vitals: { visible: false } } } };
+    const srv = fakeServer({ 0: env(1, { skills: { mining: 5, attack: 3 }, equipment: { head: 'x' } }) });
+    const hub = fakeHub();
+    const cs = new C.CharacterSession({ slot: 0, uid: UID, server: srv, channel: hub.channel, ...timers });
+    await cs.load(); cs.connect();
+    hub.send(C.frameTopic(UID, 0), sframe(2, { skills: { attack: 4 }, client_state: hud }));
+    if (cs.record.version !== 2) return 'a fresh frame was refused: ' + cs.lastVerdict;
+    if ('mining' in cs.read('skills')) return 'a frame merged inside a key';
+    if ('equipment' in cs.record.data) return 'a key the whole-character frame lacks survived (merged, not replaced)';
+    return (cs.record.residue.hudLayout && cs.record.residue.hudLayout.desktop.vitals.visible === false) || 'the frame\'s residue was not taken';
   });
   await t('ENV-4', () => {
-    if (E.applyFrame(null, { t: 'delta', frame: 1, patch: { state: {} } }).verdict !== 'not_loaded') return 'a frame applied before the first load';
+    if (E.frameEnvelope(null, sframe(1)).verdict !== 'not_loaded') return 'a frame applied before the first load';
     const a = E.applyEnvelope(null, env(5)).record;
-    if (E.applyFrame(a, { t: 'delta', frame: 5, patch: { state: {} } }).verdict !== 'duplicate') return 'duplicate applied';
-    if (E.applyFrame(a, { t: 'delta', frame: 4, patch: { state: {} } }).verdict !== 'reorder') return 'reorder applied';
-    if (E.applyFrame(a, { t: 'delta', frame: 6, patch: { inventory: { ore: 1 } } }).verdict !== 'bag_incomplete') return 'a partial bag applied';
-    return E.applyFrame(a, { t: 'delta', frame: 6, patch: { inventory: { ore: 1 }, inventory_complete: true } }).applied || 'a complete bag was refused';
+    if (E.frameEnvelope(a, sframe(5)).verdict !== 'duplicate') return 'duplicate applied';
+    if (E.frameEnvelope(a, sframe(4)).verdict !== 'reorder') return 'reorder applied';
+    if (E.frameEnvelope(a, { t: 'state', frame: 7, env: env(6) }).env) return 'a frame whose number is not its envelope\'s version was taken';
+    return E.frameEnvelope(a, sframe(6)).env !== null || 'a fresh frame was refused';
   });
   await t('ENV-5', () => {
     const a = E.applyEnvelope(null, env(2)).record;
@@ -169,8 +190,9 @@ async function rules(M) {
       const r = E.applyEnvelope(a, bad);
       if (r.applied || r.record !== a) return 'applied a bad answer: ' + JSON.stringify(bad);
     }
-    for (const bad of [{ t: 'delta', frame: 3, patch: { gold: 1 } }, { t: 'x', frame: 3, patch: { state: {} } }, { t: 'delta', frame: -1, patch: { state: {} } }]) {
-      if (E.applyFrame(a, bad).applied) return 'applied a bad frame: ' + JSON.stringify(bad);
+    for (const bad of [{ t: 'delta', frame: 3, patch: { state: {} } }, { t: 'x', frame: 3, env: env(3) }, { t: 'state', frame: -1, env: env(-1) },
+      { t: 'state', frame: 3, env: { ok: true, version: 3 } }, { t: 'state', frame: 3, env: { ok: false, version: 3, state: {} } }, { t: 'state', frame: 3 }]) {
+      if (E.frameEnvelope(a, bad).env) return 'took a bad frame: ' + JSON.stringify(bad);
     }
     return true;
   });
@@ -212,7 +234,7 @@ async function rules(M) {
     const a = new C.CharacterSession({ slot: 0, uid: UID, server: srv, channel: hub.channel, ...timers });
     const b = new C.CharacterSession({ slot: 1, uid: UID, server: srv, channel: hub.channel, ...timers });
     await a.load(); await b.load(); a.connect(); b.connect();
-    hub.send(C.frameTopic(UID, 0), { t: 'delta', frame: 2, patch: { state: { gold: 50 } } });
+    hub.send(C.frameTopic(UID, 0), sframe(2, { state: { gold: 50 } }));
     return (a.read('state').gold === 50 && b.read('state').gold === 1 && b.record.version === 1) || 'a frame for one character moved the other';
   });
 
@@ -255,11 +277,258 @@ async function rules(M) {
     const hub = fakeHub();
     const cs = new C.CharacterSession({ slot: 0, uid: UID, server: srv, channel: hub.channel, ...timers });
     await cs.load(); cs.connect();
-    hub.send(C.frameTopic(UID, 0), { t: 'delta', frame: 2, patch: { state: { gold: 2 } } });
-    if (srv.calls.some((c) => c[0] === 'accrue')) return 'a next-version frame asked for a hello';
-    hub.send(C.frameTopic(UID, 0), { t: 'delta', frame: 5, patch: { state: { gold: 5 } } });
+    const n0 = srv.calls.length;
+    hub.send(C.frameTopic(UID, 0), sframe(2, { state: { gold: 2 } }));
+    if (srv.calls.length !== n0) return 'a next-version frame asked the server';
+    hub.send(C.frameTopic(UID, 0), sframe(5, { state: { gold: 5 } }));
     await new Promise((r) => setImmediate(r));
-    return srv.calls.filter((c) => c[0] === 'accrue').length === 1 || 'a version gap did not ask for one hello';
+    if (srv.calls.length !== n0) return 'a version gap asked the server: ' + srv.calls.slice(n0).map((c) => c[0]).join(',');
+    return (cs.record.version === 5 && cs.read('state').gold === 5) || 'the frame past the gap was not applied whole';
+  });
+  /* HUNT-3 (2026-12-25-frame-push-revive.sql): a frame while a hunt is open is the settle the re-read would have
+     fetched (another member's hello, the world tick), so the re-read waits a whole delay from the frame. */
+  await t('HUNT-3', async () => {
+    const open = (v) => env(v, { hunt: { session_id: 'h1', hunt_id: 'mill_cellar', ended: false } });
+    const srv = fakeServer({ 0: open(1) });
+    const hub = fakeHub();
+    let clock = 0, seq = 0;
+    const armed = new Map();
+    const cs = new C.CharacterSession({ slot: 0, uid: UID, server: srv, channel: hub.channel, now: () => clock,
+      setTimer: (fn, ms) => { armed.set(++seq, { fn, at: clock + ms }); return seq; }, clearTimer: (id) => { armed.delete(id); } });
+    await cs.load(); cs.connect();
+    const due = () => Math.min(...Array.from(armed.values()).map((a) => a.at));
+    const first = due();
+    if (armed.size !== 1 || !Number.isFinite(first)) return 'an open hunt armed ' + armed.size + ' re-reads';
+    clock = first - 1;
+    hub.send(C.frameTopic(UID, 0), { t: 'state', frame: 2, env: open(2) });
+    if (cs.record.version !== 2) return 'the frame was not applied: ' + cs.lastVerdict;
+    if (armed.size !== 1) return 'a frame left ' + armed.size + ' re-reads armed (one timer per session)';
+    if (!(due() > first)) return 'a frame did not defer the re-read (still due at ' + due() + ', armed for ' + first + ')';
+    return srv.calls.filter((c) => c[0] === 'accrue').length === 0 || 'a frame asked the engine';
+  });
+  /* ASK-1 (live 10-23, Andy's four-hero party: 1,906 `rate_limited` refusals in a day). hr_rate_gate's accrue
+     budget, 30 a minute, is the ACCOUNT's (hr_rate_counters is keyed on user and bucket), so ONE character
+     sustains at most 6 asks a minute (ask-pacer.js: a bucket of a minute's asks), whoever asks. HUNTING, four
+     sessions of one account in one party for 10 simulated minutes: every settle moves each member's version by 2
+     and pushes the gap frame to the other three, every channel re-joins each 20 s, a second device spends 20 a
+     minute of the same budget and the gate refuses past 30. Each hero stays <= 6 a minute; a gap or a join asks
+     nothing (the armed re-read restates the whole character within one poll); a refusal holds the asking and
+     shows nothing. TOWN: a gap asks one hello, one in flight however many frames come; a gap frame every 2 s for
+     5 minutes costs at most a minute's burst plus 6 a minute, and the last gap is still caught up. */
+  await t('ASK-1', async () => {
+    const PER = 6, BURST = 8, LAT = 800, MIN = 60000, POLL = CFG.SESSION_CONFIG.huntPollMs, HOLD = CFG.SESSION_CONFIG.liveRefillMs;
+    if (CFG.SESSION_CONFIG.engineAsksPerMin > PER || CFG.SESSION_CONFIG.engineAskBurst > BURST || PER * CFG.SESSION_CONFIG.maxConcurrentCharacters >= 30) return 'four heroes may ask past the account\'s 30 a minute';
+    const clock = { t: 0 };
+    let tid = 0, from = 'timer', hunting = true, lastSettle = -Infinity;
+    const timers = new Map(), late = [], frames = [], rejoins = [], ver = [10, 20, 30, 40], errors = [];
+    const tm = { setTimer: (fn, ms) => { timers.set(++tid, { fn, at: clock.t + Math.max(0, ms) }); return tid; }, clearTimer: (i) => timers.delete(i), now: () => clock.t };
+    const gate = { start: -Infinity, n: 0 };
+    const spend = () => { if (gate.start + MIN <= clock.t) { gate.start = clock.t; gate.n = 0; } return ++gate.n <= 30; };
+    const asks = [[], [], [], []], refused = [[], [], [], []], restated = [[], [], [], []];
+    const envOf = (s) => env(ver[s], { hunt: { session_id: 'h' + s, hunt_id: 'mill_cellar', ended: !hunting } });
+    const srvFor = (s) => ({
+      rpc: async () => ({ ok: true, status: 200, body: envOf(s), closed: false }),
+      accrue: () => {
+        asks[s].push({ at: clock.t, from, hunting });
+        const snap = envOf(s);   // the server reads the character as the ask arrives
+        const ok = spend();
+        return new Promise((resolve) => late.push({ at: clock.t + LAT, run: () => {
+          if (!ok) { refused[s].push(clock.t); return resolve({ ok: false, status: 429, body: { ok: false, error: 'rate_limited' }, closed: false }); }
+          let body = snap;
+          if (hunting && clock.t - lastSettle >= 15000) {   // the party settle: every member's version moves twice; the others get a frame
+            lastSettle = clock.t;
+            for (let k = 0; k < 4; k++) ver[k] += 2;
+            for (let k = 0; k < 4; k++) if (k !== s) frames.push({ at: clock.t + 150, k, v: ver[k] });
+            body = envOf(s);
+          }
+          restated[s].push(clock.t);
+          resolve({ ok: true, status: 200, body: Object.assign({ accrued: true }, body), closed: false });
+        } }));
+      },
+    });
+    const joins = [];
+    const css = [0, 1, 2, 3].map((s) => new C.CharacterSession({ slot: s, uid: UID, server: srvFor(s), ...tm,
+      channel: (topic, onMessage, onStatus) => { joins[s] = { onMessage, onStatus }; return () => {}; } }));
+    const settle = async () => { for (let k = 0; k < 6; k++) await new Promise((r) => setImmediate(r)); };
+    const run = async (untilMs, o) => {
+      for (; clock.t < untilMs; clock.t += 100) {
+        await new Promise((r) => setImmediate(r));   // what the last tick started runs at its own instant
+        for (let i = 0; i < late.length; i++) if (late[i] && late[i].at <= clock.t) { const l = late[i]; late[i] = null; l.run(); await settle(); }
+        /* the server moves hero 1 with no frame (a party invite, another device) and it re-joins its topic: a hello */
+        if (o.rejoinEvery && clock.t % o.rejoinEvery === 0) { ver[1] += 2; rejoins.push({ at: clock.t }); }
+        for (let i = 0; i < rejoins.length; i++) if (rejoins[i] && rejoins[i].at <= clock.t) {
+          rejoins[i] = null; from = 'join'; if (joins[1]) joins[1].onStatus('SUBSCRIBED'); from = 'timer'; await settle();
+        }
+        /* a pushed frame is the WHOLE character (2026-12-25-frame-push-revive.sql): a restatement that asks nothing */
+        for (let i = 0; i < frames.length; i++) if (frames[i] && frames[i].at <= clock.t) {
+          const f = frames[i]; frames[i] = null; from = 'frame';
+          if (joins[f.k] && joins[f.k].onMessage({ t: 'state', frame: f.v, env: Object.assign(envOf(f.k), { version: f.v }) })) restated[f.k].push(clock.t);
+          from = 'timer'; await settle();
+        }
+        if (o.joins && clock.t % 20000 === 0) for (const j of joins) { from = 'join'; j.onStatus('SUBSCRIBED'); from = 'timer'; await settle(); }
+        if (o.other && clock.t % Math.floor(MIN / o.other) === 0) spend();
+        for (const [i, x] of Array.from(timers)) if (x.at <= clock.t && timers.has(i)) { timers.delete(i); x.fn(); await settle(); }
+      }
+    };
+    /* the most asks of `list` in any window of `w` ms */
+    const most = (list, w) => Math.max(0, ...list.map((x) => list.filter((y) => y.at >= x.at && y.at < x.at + w).length));
+    /* the heroes open 4.1 s apart (a player opens them one by one), so their asks are not in lockstep */
+    for (const cs of css) { cs.subscribe((c, why) => { if (why === 'error') errors.push(c.slot); }); await cs.load(); cs.connect(); await run(clock.t + 4100, {}); }
+    /* five minutes on our own. Past the first minute (four live views backing off from no start point may
+       meet the gate there once: a burst, held) the gate never refuses and every gap is restated by the next poll */
+    await run(5 * MIN, { joins: true });
+    for (let s = 0; s < 4; s++) for (let i = 1; i < restated[s].length; i++) {
+      const w = restated[s][i] - restated[s][i - 1];
+      if (restated[s][i - 1] >= MIN && w > POLL + LAT + 1000) return 'hero ' + s + ' went ' + w + ' ms without a whole restatement while hunting (a gap waits past one poll)';
+    }
+    if (refused.some((r) => r.some((x) => x >= MIN))) return 'four heroes of one account met the account gate on their own';
+    /* five more with a second device on the same budget: the gate refuses, and each refusal holds the asking */
+    await run(10 * MIN, { joins: true, other: 20 });
+    for (let s = 0; s < 4; s++) {
+      const a = asks[s].filter((x) => x.hunting);
+      if (a.length > PER * 10) return 'hero ' + s + ' asked the engine ' + a.length + ' times in 10 minutes of a party hunt (budget ' + PER + ' a minute)';
+      const extra = a.filter((x) => x.from !== 'timer');
+      if (extra.length) return 'hunting, hero ' + s + ' asked ' + extra.length + ' hellos of its own for a ' + extra[0].from + ' (the armed re-read restates it)';
+      for (const r of refused[s]) { const again = asks[s].find((x) => x.at > r && x.at < r + HOLD); if (again) return 'hero ' + s + ' asked again ' + (again.at - r) + ' ms after a refusal (hold ' + HOLD + ')'; }
+    }
+    if (!refused.some((r) => r.length)) return 'the harness never met the account gate (the hold is untested)';
+    if (errors.length) return 'a refusal showed the player an error (heroes ' + errors.join(',') + ')';
+    /* TOWN: the hunt ends. A minute later six FRAMES ask nothing (each is the whole character, applied as it
+       stands); six RE-JOINS inside one round trip (the server moved hero 1 with no frame) ask ONE hello in flight
+       and ONE after it */
+    hunting = false;
+    await run(12 * MIN, {});
+    let mark = asks[1].length;
+    for (let i = 0; i < 6; i++) { ver[1] += 2; frames.push({ at: clock.t + 100 * i, k: 1, v: ver[1] }); }
+    await run(clock.t + 2000, {});
+    if (asks[1].length !== mark) return 'six frames in town asked ' + (asks[1].length - mark) + ' hellos (a frame is the whole character)';
+    if (css[1].record.version !== ver[1]) return 'the last of six frames in town was not applied whole (' + css[1].record.version + ' of ' + ver[1] + ')';
+    mark = asks[1].length;
+    for (let i = 0; i < 6; i++) { ver[1] += 2; rejoins.push({ at: clock.t + 100 * i }); }
+    await run(clock.t + POLL, {});
+    const burst = asks[1].slice(mark);
+    if (burst.length !== 2 || burst[0].from !== 'join') return 'six re-joins in town asked ' + burst.length + ' hellos (one in flight, one after it)';
+    /* the first answer predates the last five moves; the one after it restates the whole character at the server's version */
+    const rec = css[1].record;
+    if (rec.version !== ver[1] || rec.data.state.gold !== 1) return 'the re-join burst was not restated by a whole answer at the server\'s version (' + rec.version + ' of ' + ver[1] + ')';
+    /* a re-join every 2 s for 5 minutes while a second device spends 40 a minute: a minute's burst, then 6 a
+       minute, each refusal held; then the last move is still restated by a whole answer (owed, never dropped) */
+    const from5 = asks[1].length, held = refused[1].length;
+    await run(clock.t + 5 * MIN, { rejoinEvery: 2000, other: 40 });
+    const storm = asks[1].slice(from5), lastGap = clock.t - 2000;
+    if (storm.length > BURST + PER * 5 || most(storm, MIN) > BURST + PER) return 'a re-join every 2 s asked ' + storm.length + ' hellos in 5 minutes (' + most(storm, MIN) + ' in one minute)';
+    await run(clock.t + 2 * MIN, {});
+    if (!restated[1].some((x) => x > lastGap)) return 'the last move of the storm was never caught up by a whole answer';
+    /* the account's minute filled by the other device: a re-join's hello is refused, held, owed and asked again until it lands */
+    await run(clock.t + 16000, { other: 120 });
+    const gapAt = clock.t;
+    ver[1] += 2; rejoins.push({ at: gapAt });
+    await run(clock.t + 30000, { other: 120 });
+    await run(clock.t + 2 * MIN, {});
+    if (!refused[1].some((x) => x > gapAt)) return 'the full gate never refused the re-join\'s hello (the catch-up is untested)';
+    if (!restated[1].some((x) => x > gapAt)) return 'a re-join whose hello was refused was never caught up';
+    /* a full gate with the hero's own budget rested: every refusal holds the asking (never re-asked at once) */
+    await run(clock.t + 30000, { rejoinEvery: 3000, other: 120 });
+    const townRefused = refused[1].slice(held);
+    if (!townRefused.length) return 'the town never met the account gate (the hold is untested there)';
+    for (const r of townRefused) { const again = asks[1].find((x) => x.at > r && x.at < r + HOLD); if (again) return 'in town hero 1 asked again ' + (again.at - r) + ' ms after a refusal (hold ' + HOLD + ')'; }
+    return true;
+  });
+  /* ASK-2 (perf audit 10-23: a four-hero leave-together cost 37 s, 85 calls and 18 refusals). Four sessions of
+     one account leave their party hunt at once; the server closes the instance late (15 s past leave_at, inside
+     leaveLateMs). Every not-due answer carries the record's own version, so it is NOT re-read in full (hr_load);
+     the close is asked a hair after leave_at and then backed off (2, 2.4, 4.8, 9.6 s), so the leave meets no
+     refusal, costs each hero at most 7 engine asks and 2 full reads, and every hero sees its hunt end. */
+  await t('ASK-2', async () => {
+    const S0 = Date.parse('2031-01-01T00:00:00Z'), LAT = 800, MIN = 60000, LEAVE_IN = 7000, CLOSE_LATE = 15000;
+    const clock = { t: 0 };
+    let tid = 0, leaveAt = null, closed = false;
+    const timers = new Map(), late = [], ver = [10, 20, 30, 40];
+    const tm = { setTimer: (fn, ms) => { timers.set(++tid, { fn, at: clock.t + Math.max(0, ms) }); return tid; }, clearTimer: (i) => timers.delete(i), now: () => clock.t };
+    const gate = { start: -Infinity, n: 0 };
+    const spend = () => { if (gate.start + MIN <= clock.t) { gate.start = clock.t; gate.n = 0; } return ++gate.n <= 30; };
+    const calls = [[], [], [], []], refused = [];
+    const iso = (ms) => new Date(ms).toISOString();
+    const huntOf = (s) => ({ session_id: 'h' + s, hunt_id: 'mill_cellar', ended: closed,
+      session: { id: 'h' + s, leave_at: leaveAt === null || closed ? null : iso(leaveAt), phase: leaveAt === null ? 'hunting' : 'leaving' } });
+    const envOf = (s) => env(ver[s], { now: iso(S0 + clock.t), hunt: huntOf(s) });
+    const srvFor = (s) => ({
+      rpc: async (name) => {
+        calls[s].push({ at: clock.t, name });
+        if (name === 'hr_hunt_leave') {
+          if (leaveAt === null) leaveAt = S0 + clock.t + LEAVE_IN;
+          return { ok: true, status: 200, body: { ok: true, pending: true, session: { id: 'h' + s, leave_at: iso(leaveAt) } }, closed: false };
+        }
+        return { ok: true, status: 200, body: envOf(s), closed: false };
+      },
+      accrue: () => {
+        calls[s].push({ at: clock.t, name: 'accrue' });
+        const ok = spend();
+        return new Promise((resolve) => late.push({ at: clock.t + LAT, run: () => {
+          if (!ok) { refused.push({ s, at: clock.t }); return resolve({ ok: false, status: 429, body: { ok: false, error: 'rate_limited' }, closed: false }); }
+          /* the close: the first ask CLOSE_LATE past leave_at ends every member (each version moves) */
+          if (!closed && leaveAt !== null && S0 + clock.t >= leaveAt + CLOSE_LATE) {
+            closed = true;
+            for (let k = 0; k < 4; k++) ver[k] += 1;
+            return resolve({ ok: true, status: 200, body: Object.assign({ accrued: true }, envOf(s)), closed: false });
+          }
+          /* the hunt closed by another member's settle: a town answer at the new version (no state) */
+          if (closed) return resolve({ ok: true, status: 200, body: { ok: true, accrued: false, reason: 'idle', version: ver[s], now: iso(S0 + clock.t) }, closed: false });
+          /* still open: the settle is not due, the record's own version and state */
+          resolve({ ok: true, status: 200, body: Object.assign(envOf(s), { accrued: false, settled: false, reason: 'not_due' }), closed: false });
+        } }));
+      },
+    });
+    const css = [0, 1, 2, 3].map((s) => new C.CharacterSession({ slot: s, uid: UID, server: srvFor(s), ...tm }));
+    for (const cs of css) await cs.load();
+    const settle = async () => { for (let k = 0; k < 6; k++) await new Promise((r) => setImmediate(r)); };
+    const run = async (untilMs) => {
+      for (; clock.t < untilMs; clock.t += 100) {
+        await new Promise((r) => setImmediate(r));   // what the last tick started runs at its own instant
+        for (let i = 0; i < late.length; i++) if (late[i] && late[i].at <= clock.t) { const l = late[i]; late[i] = null; l.run(); await settle(); }
+        for (const [i, x] of Array.from(timers)) if (x.at <= clock.t && timers.has(i)) { timers.delete(i); x.fn(); await settle(); }
+      }
+    };
+    await run(2 * MIN);
+    const from = clock.t;
+    const leaving = css.map((cs) => cs.leaveHunt());
+    await run(from + LEAVE_IN + CLOSE_LATE + CFG.SESSION_CONFIG.leaveLateMs);
+    if ((await Promise.all(leaving)).some((r) => !r.ok)) return 'a pending leave was refused';
+    const met = refused.filter((r) => r.at >= from);
+    if (met.length) return 'the leave met ' + met.length + ' refusals of the account gate';
+    for (let s = 0; s < 4; s++) {
+      const c = calls[s].filter((x) => x.at >= from);
+      const asks = c.filter((x) => x.name === 'accrue').length, reads = c.filter((x) => x.name === 'hr_load').length;
+      if (asks > 7 || reads > 2) return 'hero ' + s + '\'s leave cost ' + asks + ' engine asks and ' + reads + ' full reads (at most 7 and 2)';
+      if (!(css[s].record.data.hunt && css[s].record.data.hunt.ended === true)) return 'hero ' + s + ' never saw its hunt end';
+    }
+    return true;
+  });
+  /* ASK-3 (the version a hunter's idle answer is checked against): a frame is the WHOLE character
+     (2026-12-25-frame-push-revive.sql), so a record raised by any frame, one that skipped versions included, is
+     whole at its version and an idle answer at it asks nothing more (no hr_load). In town it always is re-read. */
+  await t('ASK-3', async () => {
+    const calls = [];
+    let ver = 10, ended = false;
+    const body = () => env(ver, { hunt: { session_id: 'h1', hunt_id: 'mill_cellar', ended } });
+    const srv = {
+      rpc: async (name) => { calls.push(name); return { ok: true, status: 200, body: body(), closed: false }; },
+      accrue: async () => { calls.push('accrue'); return { ok: true, status: 200, body: Object.assign(body(), { accrued: false, settled: false, reason: 'not_due' }), closed: false }; },
+    };
+    const hub = fakeHub();
+    const cs = new C.CharacterSession({ slot: 0, uid: UID, server: srv, channel: hub.channel, ...timers });
+    await cs.load(); cs.connect();
+    const topic = C.frameTopic(UID, 0);
+    const ask = async () => { calls.length = 0; await cs.hello(); await new Promise((r) => setImmediate(r)); return calls.join(','); };
+    if ((await ask()) !== 'accrue') return 'an idle answer at the version just read whole was re-read';
+    ver = 12; hub.send(topic, { t: 'state', frame: 12, env: body() });
+    if (cs.record.version !== 12) return 'the frame that skipped a version was not applied: ' + cs.lastVerdict;
+    if ((await ask()) !== 'accrue') return 'an idle answer after a (whole) frame that skipped a version was re-read: ' + calls.join(',');
+    ver = 13; hub.send(topic, { t: 'state', frame: 13, env: body() });
+    if ((await ask()) !== 'accrue') return 'an idle answer after a consecutive frame was re-read: ' + calls.join(',');
+    /* in town an idle answer is always read in full (what no version moves, a party invite, still arrives) */
+    ended = true; await cs.load();
+    return (await ask()) === 'accrue,hr_load' || 'an idle answer in town was not re-read in full: ' + calls.join(',');
   });
   await t('HELLO-1', async () => {
     const calls = [];
@@ -576,18 +845,112 @@ async function rules(M) {
     const auth = { userId: () => UID, token: () => 'jwt', signOut: async () => {} };
     const acc = new A.AccountSession({ auth, server: srv, tab: memStore(), channel: hub.channel, timers });
     for (const s of [0, 1, 2]) await acc.open(s);
+    await new Promise((r) => setImmediate(r));
     const heard = [];
     for (const cs of acc.characters()) cs.subscribe((c, why) => heard.push(c.slot + ':' + why));
-    const before = acc.characters().map((cs) => [cs.slot, cs.record, cs.status, cs._listeners.size]);
+    const before = acc.characters().map((cs) => [cs.slot, cs.status, cs._listeners.size]);
     const topics = Array.from(hub.topics.keys()).sort().join();
     const calls = srv.calls.length;
     if (!acc.view(1) || acc.viewed !== 1 || !acc.view(2) || !acc.view(0) || acc.viewed !== 0) return 'view() did not move the pointer';
     if (acc.view(9)) return 'view() moved to a character that is not open';
-    const after = acc.characters().map((cs) => [cs.slot, cs.record, cs.status, cs._listeners.size]);
-    if (after.length !== 3 || after.some((a, i) => a.some((v, j) => v !== before[i][j]))) return 'a switch changed a character (record, status or listeners)';
+    await new Promise((r) => setImmediate(r));
+    const after = acc.characters().map((cs) => [cs.slot, cs.status, cs._listeners.size]);
+    if (after.length !== 3 || after.some((a, i) => a.some((v, j) => v !== before[i][j]))) return 'a switch changed a character (status or listeners)';
     if (Array.from(hub.topics.keys()).sort().join() !== topics) return 'a switch left or joined a topic';
-    if (srv.calls.length !== calls) return 'a switch sent ' + (srv.calls.length - calls) + ' server call(s)';
-    return heard.length === 0 || 'a switch made characters emit: ' + heard.join(',');
+    /* the newly viewed character asks ONE settle (the server's state at once, Part 2 of lane/a-accrue-storm); nothing else is sent */
+    const sent = JSON.stringify(srv.calls.slice(calls));
+    if (sent !== JSON.stringify([['accrue', { slot: 1 }], ['accrue', { slot: 2 }], ['accrue', { slot: 0 }]])) return 'a switch sent ' + sent + ' (one settle of the newly viewed character each)';
+    return heard.every((h) => /^[0-2]:hello$/.test(h)) || 'a switch made characters emit: ' + heard.join(',');
+  });
+  /* VIEW-3 (perf audit 10-23, Tyler: unviewed sessions off the live view; CLAUDE.md §6 "only the viewed character
+     streams live; the others keep playing on the server"). Four heroes of one account in one party hunt, slot 0
+     viewed: the viewed session asks at most 5 times a minute, an unviewed one makes at most 1 call a minute and never
+     asks the engine (a plain read); a switch asks the newly viewed hero ONE settle and shows the server's state at
+     once, and the one left goes quiet; an unviewed hero's hunt end reaches its record (the strip) within a minute.
+     All of that with the push channel DOWN (the fallback reads); then with it UP (2026-12-25-frame-push-revive.sql)
+     an unviewed hero fed by frames makes no call at all and holds the server's version. */
+  await t('VIEW-3', async () => {
+    const LAT = 800, MIN = 60000;
+    const clock = { t: 0 };
+    let tid = 0, lastSettle = -Infinity, pushUp = false;
+    const timers = new Map(), late = [], ver = [10, 20, 30, 40], ended = [false, false, false, false];
+    const add = (fn, ms, every) => { timers.set(++tid, { fn, at: clock.t + Math.max(0, ms), every }); return tid; };
+    const tm = { setTimer: (fn, ms) => add(fn, ms, 0), clearTimer: (i) => timers.delete(i), setInterval: (fn, ms) => add(fn, ms, ms), clearInterval: (i) => timers.delete(i), now: () => clock.t };
+    const calls = [[], [], [], []];
+    const envOf = (s) => env(ver[s], { account: { max_concurrent: 4 }, hunt: { session_id: 'h' + s, hunt_id: 'mill_cellar', ended: ended[s] } });
+    const srv = {
+      calls: [],
+      rpc: async (name, args) => {
+        const s = args && Number.isInteger(args.p_slot) ? args.p_slot : 0;
+        calls[s].push({ at: clock.t, name });
+        if (name === 'hr_load') return { ok: true, status: 200, body: envOf(s), closed: false };
+        return { ok: true, status: 200, body: { ok: true }, closed: false };
+      },
+      accrue: (b) => {
+        const s = b.slot;
+        calls[s].push({ at: clock.t, name: 'accrue' });
+        return new Promise((resolve) => late.push({ at: clock.t + LAT, run: () => {
+          /* one settle moves every member twice (a gap) and pushes each other member its frame: an unviewed one asks nothing for it */
+          if (!ended[s] && clock.t - lastSettle >= 15000) { lastSettle = clock.t; for (let k = 0; k < 4; k++) { ver[k] += 2; if (k !== s) gaps.push(k); } }
+          resolve({ ok: true, status: 200, body: Object.assign({ accrued: true }, envOf(s)), closed: false });
+        } }));
+      },
+    };
+    const auth = { userId: () => UID, token: () => 'jwt', signOut: async () => {} };
+    const hub = fakeHub(), gaps = [];
+    const acc = new A.AccountSession({ auth, server: srv, tab: memStore(), channel: hub.channel, timers: tm });
+    const settle = async () => { for (let k = 0; k < 6; k++) await new Promise((r) => setImmediate(r)); };
+    const run = async (untilMs) => {
+      for (; clock.t < untilMs; clock.t += 100) {
+        await new Promise((r) => setImmediate(r));
+        for (let i = 0; i < late.length; i++) if (late[i] && late[i].at <= clock.t) { const l = late[i]; late[i] = null; l.run(); await settle(); }
+        while (gaps.length) { const k = gaps.shift(); if (pushUp) { hub.send(C.frameTopic(UID, k), { t: 'state', frame: ver[k], env: envOf(k) }); await settle(); } }
+        for (const [i, x] of Array.from(timers)) if (x.at <= clock.t && timers.has(i)) {
+          if (x.every) x.at += x.every; else timers.delete(i);
+          x.fn(); await settle();
+        }
+      }
+    };
+    for (const s of [0, 1, 2, 3]) { const opening = acc.open(s); await run(clock.t + 2000); if (!(await opening).ok) return 'hero ' + s + ' did not open'; }
+    if (acc.viewed !== 0) return 'the first hero opened is not the viewed one';
+    const inWindow = (s, a, b) => calls[s].filter((x) => x.at >= a && x.at < b);
+    /* minutes 1 to 5 of the hunt */
+    await run(5 * MIN);
+    const viewedRate = inWindow(0, MIN, 5 * MIN).length / 4;
+    if (viewedRate > 5) return 'the viewed hero made ' + viewedRate + ' calls a minute (at most 5)';
+    for (const s of [1, 2, 3]) {
+      const c = inWindow(s, MIN, 5 * MIN);
+      if (c.length / 4 > 1) return 'unviewed hero ' + s + ' made ' + c.length / 4 + ' calls a minute (at most 1): ' + c.map((x) => x.name).slice(0, 6).join(',');
+      if (c.some((x) => x.name === 'accrue')) return 'unviewed hero ' + s + ' asked the engine (it reads itself with a plain read)';
+    }
+    /* the switch: ONE settle of the newly viewed hero, its record at the server's version at once; the one left goes quiet */
+    const at = clock.t;
+    if (!acc.view(2)) return 'view(2) refused';
+    await run(at + LAT + 200);
+    const asked = inWindow(2, at, at + LAT + 200);
+    if (asked.length !== 1 || asked[0].name !== 'accrue') return 'the switch asked ' + JSON.stringify(asked.map((x) => x.name)) + ' of the newly viewed hero (one settle)';
+    if (acc.character(2).record.version !== ver[2]) return 'the switched-to hero shows version ' + acc.character(2).record.version + ', the server ' + ver[2];
+    if (inWindow(0, at, at + LAT + 200).length || inWindow(1, at, at + LAT + 200).length) return 'the switch asked something of a hero it did not show';
+    await run(at + 3 * MIN);
+    const left = inWindow(0, at + MIN, at + 3 * MIN);
+    if (left.length / 2 > 1 || left.some((x) => x.name === 'accrue')) return 'the hero switched away from kept asking the engine (' + left.length + ' calls in 2 minutes)';
+    /* an unviewed hero's hunt ends on the server: its record says so within a minute */
+    const endAt = clock.t;
+    ended[3] = true; ver[3] += 1;
+    await run(endAt + MIN + LAT + 200);
+    const h3 = acc.character(3).record.data.hunt;
+    if (!(h3 && h3.ended === true)) return 'an unviewed hero\'s hunt end did not reach its record within a minute';
+    /* THE PUSH CHANNEL UP: each settle of the viewed hero (2) reaches every other member as a whole frame, so an
+       unviewed hero makes NO call while the frames come (its read is deferred, the fallback) and is at the server's version */
+    pushUp = true;
+    const upAt = clock.t;
+    await run(upAt + 3 * MIN);
+    for (const s of [0, 1]) {
+      const c = inWindow(s, upAt + MIN, upAt + 3 * MIN);
+      if (c.length) return 'unviewed hero ' + s + ' fed by frames still made ' + c.length + ' calls in 2 minutes: ' + c.map((x) => x.name).slice(0, 4).join(',');
+      if (acc.character(s).record.version !== ver[s]) return 'unviewed hero ' + s + ' fed by frames shows version ' + acc.character(s).record.version + ', the server ' + ver[s];
+    }
+    return true;
   });
   await t('ACC-2', async () => {
     /* each hero by its server name and its Level from the server's Level XP (21,591 = Level 10, CORE_MODEL.md §2) */
@@ -904,8 +1267,10 @@ const MUTANTS = [
   ['every intent answer is taken as the envelope', 'src/session/character-session.js', '_settled(await send(), carries === true)', '_settled(await send(), true)'],
   ['merge, not replace', 'src/session/envelope.js', '  const data = {};\n  for (const k of Object.keys(env))', '  const data = Object.assign({}, current ? current.data : {});\n  for (const k of Object.keys(env))'],
   ['stale accepted', 'src/session/envelope.js', "if (current && env.version < current.version) return keep('stale');", ''],
-  ['frame merges inside a key', 'src/session/envelope.js', 'data[k] = copy(f.patch[k]);', 'data[k] = copy(Object.assign({}, current.data[k], f.patch[k]));'],
-  ['partial bag accepted', 'src/session/envelope.js', "&& f.patch.inventory_complete !== true) return keep('bag_incomplete');", "&& false) return keep('bag_incomplete');"],
+  ['a frame merges into the record', 'src/session/character-session.js', 'return f.env !== null && this._take(f.env, FRAME_EVENT);', 'return f.env !== null && this._take(Object.assign({}, this._record.data, f.env), FRAME_EVENT);'],
+  ['a reordered frame is taken', 'src/session/envelope.js', "  if (msg.frame < current.version) return { verdict: 'reorder', env: null };\n", ''],
+  ['a frame not stamped with its own version is taken', 'src/session/envelope.js', '    || msg.env.version !== msg.frame || msg.env.ok !== true', '    || msg.env.ok !== true'],
+  ['a frame before the first load is taken', 'src/session/envelope.js', "  if (!current) return { verdict: 'not_loaded', env: null };\n", "  if (!current) return { verdict: 'fresh', env: msg.env };\n"],
   ['no state accepted', 'src/session/envelope.js', "if (!isObj(env.state)) return keep('incomplete');", ''],
   ['residue unfiltered', 'src/session/residue.js', '  for (const f of RESIDUE_FIELDS) if (Object.prototype.hasOwnProperty.call(bag, f)) out[f] = sanitizeResidueField(f, bag[f]);', '  Object.assign(out, bag);'],
   ['one topic for every slot', 'src/session/frame-channel.js', "return 'hr:' + uid.toLowerCase() + ':' + slot;", "return 'hr:' + uid.toLowerCase();"],
@@ -918,8 +1283,8 @@ const MUTANTS = [
   ['limit off by one', 'src/session/account-session.js', 'if (this._chars.size >= this.limit()) return', 'if (this._chars.size > this.limit()) return'],
   ['the client ceiling stands in for the server', 'src/session/account-session.js', 'return Math.min(this.config.maxConcurrentCharacters, this._limit === null ? 1 : this._limit);', 'return this.config.maxConcurrentCharacters;'],
   ['the server limit is ignored above one', 'src/session/account-session.js', 'return Math.min(this.config.maxConcurrentCharacters, this._limit === null ? 1 : this._limit);', 'return Math.min(this.config.maxConcurrentCharacters, this._limit === null ? 1 : this.config.maxConcurrentCharacters);'],
-  ['a switch re-reads the viewed character', 'src/session/account-session.js', "    this.viewed = slot;\n    this._emit('viewed', slot);", "    this.viewed = slot;\n    this._chars.get(slot).load();\n    this._emit('viewed', slot);"],
-  ['a switch closes the others', 'src/session/account-session.js', "    this.viewed = slot;\n    this._emit('viewed', slot);", "    this.viewed = slot;\n    for (const c of this._chars.values()) if (c.slot !== slot) c._leave && (c._leave(), c._leave = null);\n    this._emit('viewed', slot);"],
+  ['a switch re-reads the viewed character', 'src/session/account-session.js', "    this._chars.get(slot).setViewed(true);\n    this._emit('viewed', slot);", "    this._chars.get(slot).setViewed(true);\n    this._chars.get(slot).load();\n    this._emit('viewed', slot);"],
+  ['a switch closes the others', 'src/session/account-session.js', "    this._chars.get(slot).setViewed(true);\n    this._emit('viewed', slot);", "    this._chars.get(slot).setViewed(true);\n    for (const c of this._chars.values()) if (c.slot !== slot) c._leave && (c._leave(), c._leave = null);\n    this._emit('viewed', slot);"],
   ['sign-out keeps sb-* keys', 'src/net/auth.js', " || k.startsWith('sb-')", ''],
   ['sign-out keeps the tab id', 'src/net/auth.js', '    if (o.tab) o.tab.remove(cfg.tabKey);\n', ''],
   ['sign-out leaves characters open', 'src/session/account-session.js', '    for (const slot of Array.from(this._chars.keys())) this.close(slot);\n', ''],
@@ -927,11 +1292,33 @@ const MUTANTS = [
   ['the engine runs in the players\' region', 'src/session/server.js', "post('/functions/v1/hr-accrue?forceFunctionRegion=' + SUPABASE_CONFIG.functionRegion, body)", "post('/functions/v1/hr-accrue', body)"],
   ['the region is not the database\'s', 'src/net/supabase-bootstrap.js', "functionRegion: 'us-west-2',", "functionRegion: 'us-east-2',"],
   ['closed game ignored', 'src/session/server.js', "return status === CLOSED_STATUS && !!body", "return false && !!body"],
-  ['a join sends no hello', 'src/session/character-session.js', "if (st === 'SUBSCRIBED') { this._attempt = 0; this.hello(); return; }", "if (st === 'SUBSCRIBED') { this._attempt = 0; return; }"],
+  ['a join sends no hello', 'src/session/character-session.js', "if (st === 'SUBSCRIBED') { this._attempt = 0; if (!this._huntOpen()) this.hello(); return; }", "if (st === 'SUBSCRIBED') { this._attempt = 0; return; }"],
   ['a leave inside the channel callback recurses', 'src/session/character-session.js', "    const leave = this._leave;\n    this._leave = null;\n    if (leave) { try { leave(); } catch (e) { /* already gone */ } }", "    if (this._leave) { try { this._leave(); } catch (e) { /* already gone */ } this._leave = null; }"],
   ['a dropped channel is never re-joined', 'src/session/character-session.js', "this._retry = this._setTimer(() => { this._retry = null; this.connect(); }, reconnectDelay(++this._attempt));", "this._retry = null;"],
-  ['a version gap is guessed, not healed', 'src/session/character-session.js', "if (before !== null && r.record.version > before + 1) this.hello();", ""],
-  ['an open hunt is never re-read', 'src/session/character-session.js', "    this._emit(why);\n    this._armHuntPoll();", "    this._emit(why);"],
+  ['a version gap asks the engine', 'src/session/character-session.js', '    return f.env !== null && this._take(f.env, FRAME_EVENT);', '    if (f.env && this._record && f.env.version > this._record.version + 1) this.hello();\n    return f.env !== null && this._take(f.env, FRAME_EVENT);'],
+  ['a frame does not defer the re-read', 'src/session/character-session.js', '    if (deferred) this._poll.defer(ms); else this._poll.arm(ms);', '    this._poll.arm(ms);'],
+  ['the defer keeps the earlier re-read', 'src/session/hunt-poll.js', '    this.stop();\n    this.arm(ms);', '    this.arm(ms);'],
+  ['an open hunt is never re-read', 'src/session/character-session.js', "    this._emit(why);\n    this._armHuntPoll(why === FRAME_EVENT);", "    this._emit(why);"],
+  ['a frame does not mark the record whole', 'src/session/character-session.js', 'this._record = r.record; this._wholeAt = r.record.version;', 'this._record = r.record; if (why !== FRAME_EVENT) this._wholeAt = r.record.version;'],
+  /* ASK-1 (live 10-23, the accrue storm): the per-frame hello, a join's hello while hunting, the budget, one in flight, the hold */
+  ['a join while hunting asks its own hello', 'src/session/character-session.js', "{ this._attempt = 0; if (!this._huntOpen()) this.hello(); return; }", "{ this._attempt = 0; this.hello(); return; }"],
+  ['a hello is sent over the budget', 'src/session/character-session.js', "    if (this._pace.waitMs() > 0) { if (!this._huntOpen()) this._pace.owe(() => this.hello()); return Promise.resolve(false); }\n", ''],
+  ['an ask spends no budget', 'src/session/ask-pacer.js', '  sent() { this._fill(); this._tokens -= 1; }', '  sent() { this._fill(); }'],
+  ['an ask over the budget is dropped, never owed', 'src/session/ask-pacer.js', '    this._owed = this._set(() => { this._owed = null; fn(); }, this.waitMs());', '    void fn;'],
+  ['two hellos in flight', 'src/session/character-session.js', '    if (this._asking) { this._again = true; return this._asking; }', ''],
+  ['an ask made while one is out is lost', 'src/session/character-session.js', '{ this._again = true; return this._asking; }', '{ return this._asking; }'],
+  ['a refusal is asked again at once', 'src/session/character-session.js', '{ this._pace.hold(SESSION_CONFIG.liveRefillMs); if (!this._huntOpen())', '{ if (!this._huntOpen())'],
+  ['a refused gap in town is never caught up', 'src/session/character-session.js', 'if (!this._huntOpen()) this._pace.owe(() => this.hello()); }', '}'],
+  /* VIEW-3 (perf audit 10-23, Part 2: unviewed sessions off the live view) */
+  ['an unviewed hero re-reads at the live pace', 'src/session/character-session.js', 'this._viewed ? pollDelayMs(', 'true ? pollDelayMs('],
+  ['an unviewed hero asks the engine', 'src/session/character-session.js', 'const engine = this._viewed || this.leaveAt() !== null;', 'const engine = true;'],
+  ['an unviewed hero reads itself every ten minutes', 'src/session/character-session.js', 'Math.min(SESSION_CONFIG.unviewedPollMs, close ?? Infinity)', 'Math.min(10 * SESSION_CONFIG.unviewedPollMs, close ?? Infinity)'],
+  ['a switch asks nothing of the newly viewed hero', 'src/session/character-session.js', '    if (this._viewed) this.hello();\n', ''],
+  ['a switch never tells the sessions', 'src/session/account-session.js', '    if (was) was.setViewed(false);\n    this._chars.get(slot).setViewed(true);\n', ''],
+  /* ASK-2 (perf audit 10-23, the leave-together storm) */
+  ['an idle answer at the record\'s version is re-read in full', 'src/session/character-session.js', "    if (Number.isSafeInteger(v) && ans.body.accrued !== true && this._huntOpen() && v <= this._wholeAt) return false;\n", ''],
+  ['an idle answer in town is not re-read', 'src/session/character-session.js', '&& this._huntOpen() && v <= this._wholeAt)', '&& v <= this._wholeAt)'],
+  ['the close is asked every 2 s past leave_at', 'src/session/hunt-leave.js', 'Math.max(SESSION_CONFIG.leaveRetryMs, Math.ceil(-left))', 'SESSION_CONFIG.leaveRetryMs'],
   ['an ended hunt keeps re-reading', 'src/session/character-session.js', "typeof h.session_id === 'string' && h.ended !== true;", "typeof h.session_id === 'string';"],
   ['a pending leave waits for the world tick', 'src/session/character-session.js', "      if (!(await this.hello()) && !this._closed) await this.load();", "      await this.load();"],
   ['a refused settle leaves the leave unseen', 'src/session/character-session.js', "      if (!(await this.hello()) && !this._closed) await this.load();", "      await this.hello();"],
@@ -947,7 +1334,7 @@ const MUTANTS = [
   ['every caller refreshes on its own', 'src/net/auth.js', '    if (renewing) return renewing;\n', ''],
   ['a refused refresh keeps the dead session', 'src/net/auth.js', "    session = null;\n    tell('expired');", "    tell('expired');"],
   ['waking a hidden tab checks nothing', 'src/net/auth.js', "if (o.doc.visibilityState === 'visible') freshToken();", "if (false) freshToken();"],
-  ['a failed live ask re-arms at once, forever', 'src/session/character-session.js', 'if (!took) this.liveLink.missed();', ''],
+  ['a failed live ask re-arms at once, forever', 'src/session/character-session.js', 'if (!took && engine) this.liveLink.missed();', ''],
   ['the live ask gives up after two tries', 'src/session/live-link.js', '      this.want = true;\n      this._tries++;', '      this.want = this._tries < 2;\n      if (this.want) this._tries++;'],
   ['a storage move leaves the other characters stale', 'src/session/account-session.js', '    for (const [slot, cs] of this._chars) if (slot !== from) cs.load();\n', ''],
   ['a storage move never tells the account', 'src/session/character-session.js', "if (r && r.ok && typeof this.onShared === 'function') this.onShared('bank', this.slot); ", ''],
@@ -972,7 +1359,7 @@ async function main() {
   if (!mutate) {
     const fails = [...await rules(await load(ROOT)), ...await viewRules(ROOT)];
     for (const f of fails) console.log('  ✗ ' + f);
-    console.log(fails.length ? 'session-core: ' + fails.length + ' rule(s) RED' : 'session-core: every session rule holds (34 rules)');
+    console.log(fails.length ? 'session-core: ' + fails.length + ' rule(s) RED' : 'session-core: every session rule holds (39 rules)');
     process.exit(fails.length ? 1 : 0);
   }
   const clean = await cleanControl(async () => rules(await load(ROOT)));

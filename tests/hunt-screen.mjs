@@ -284,19 +284,18 @@ async function signInAndPlay(page, base, town) {
 }
 
 /**
- * A new full envelope for the shown character, the way the live game gets one:
- * a pushed frame that skips a version makes the client re-read (hello), and
- * the scripted server answers with `s.env`. Resolves when it has been applied.
+ * A new full envelope for the shown character, the way the live game gets one: a pushed frame
+ * (2026-12-25-frame-push-revive.sql) that carries the WHOLE character at the next version, applied
+ * like a load (envelope.js E2). Resolves when it has been applied.
  */
 async function pushEnvelope(page, s) {
-  const frame = s.version + 2;
-  s.version = frame;
-  await page.evaluate(([uid, f, st]) => window.__hub.send('hr:' + uid + ':0', { t: 'delta', frame: f, patch: { state: st } }), [UID, frame, s.env.state]);
-  /* Applied = the page has parsed an answer at least as new as the re-read this frame asks for (every
-     answer from here on carries s.env as it is now), then its own tasks after that have run. */
+  const env = s.next();
+  /* The hub delivers synchronously, so the page holds the envelope when this returns; noted like a parsed answer. */
+  await page.evaluate(([uid, e]) => { window.__hub.send('hr:' + uid + ':0', { t: 'state', frame: e.version, env: e });
+    window.__hsSeen = Math.max(window.__hsSeen || 0, e.version); }, [UID, env]);
   const c = CLOCKS.get(page);
-  if (c && c.paused) { await drive(page, { maxMs: 2000, pred: (v) => (window.__hsSeen || 0) >= v, arg: frame + 1 }); return; }
-  await wait(page, (v) => (window.__hsSeen || 0) >= v, frame + 1);
+  if (c && c.paused) { await drive(page, { maxMs: 2000, pred: (v) => (window.__hsSeen || 0) >= v, arg: env.version }); return; }
+  await wait(page, (v) => (window.__hsSeen || 0) >= v, env.version);
   await page.evaluate(() => new Promise((ok) => setTimeout(() => setTimeout(ok, 0), 0)));
 }
 

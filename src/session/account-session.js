@@ -30,7 +30,7 @@
 //                 a slot holding an unnamed character (roster `unnamed`) is named by it
 //   open(slot)    a CharacterSession for the slot: loaded, then connected
 //   close(slot)   leave and forget one character
-//   view(slot)    show another open character (viewed); nothing else moves
+//   view(slot)    show another open character (viewed): only it streams live; it asks one settle, the one left goes quiet
 //   limit()       how many may play at once, as the server says
 //   findItems(q)  where an item is across this account's characters
 //                 (hr_account_items: bags and worn sets by character, and the
@@ -180,7 +180,11 @@ export class AccountSession {
   /** Show another open character. Only the pointer moves; every CharacterSession is left exactly as it was. */
   view(slot) {
     if (!this._chars.has(slot) || this.viewed === slot) return this.viewed === slot;
+    const was = this._chars.get(this.viewed);
     this.viewed = slot;
+    /* the one left goes quiet (no live view, a plain read a minute); the one shown asks ONE settle at once */
+    if (was) was.setViewed(false);
+    this._chars.get(slot).setViewed(true);
     this._emit('viewed', slot);
     return true;
   }
@@ -269,7 +273,7 @@ export class AccountSession {
     const uid = this.userId;
     if (!uid) return { ok: false, reason: 'signed_out' };
     const cs = new CharacterSession({ slot, uid, server: this.server, intents: this.intents, channel: this._channel,
-      setTimer: this._timers.setTimer, clearTimer: this._timers.clearTimer });
+      setTimer: this._timers.setTimer, clearTimer: this._timers.clearTimer, now: this._timers.now, viewed: this.viewed === null || this.viewed === slot });
     /* The storage is the ACCOUNT's (2026-11-27-account-depot.sql): a move on one character re-reads the others. */
     cs.onShared = (kind, from) => this._sharedChanged(kind, from);
     /* The gold is the ACCOUNT's (2026-12-15-account-gold.sql): every hero reads the newest purse any of them has seen. */
@@ -295,6 +299,7 @@ export class AccountSession {
       timers: this._timers.setInterval ? { setTimer: this._timers.setInterval, clearTimer: this._timers.clearInterval } : null }));
     this._towns.get(slot).stand();
     if (this.viewed === null) this.viewed = slot;
+    cs.setViewed(this.viewed === slot);   // only the viewed character streams live (CLAUDE.md §6)
     this._emit('opened', slot);
     if (this.social) this.social.start();
     return { ok: true, session: cs };
@@ -352,7 +357,7 @@ export class AccountSession {
     const town = this._towns.get(slot);
     if (town) { this._towns.delete(slot); town.destroy(); }
     cs.close();
-    if (this.viewed === slot) this.viewed = this._chars.size ? this.characters()[0].slot : null;
+    if (this.viewed === slot) { this.viewed = this._chars.size ? this.characters()[0].slot : null; if (this.viewed !== null) this._chars.get(this.viewed).setViewed(true); }
     this._emit('closed', slot);
     return true;
   }

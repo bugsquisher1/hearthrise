@@ -84,9 +84,9 @@ import { isMain as isEntryModule } from './_is-main.mjs';
    like Huntera"); `gold_out` follows the bag's own ends (Tyler, same day: a
    shop supply the purse cannot pay ends the hunt). `rule` (Tyler 2026-10-18, the
    conditional action engine): one of the hero's own stop rules held. */
-/* Core rebuild (Tyler 2026-10-19): a death ends the hunt (`died`), and one party member's death ends it for the
-   party (`party_member_died`); there is no falls limit. */
-const RULING_END_ORDER = ['died', 'party_member_died', 'heals_out', 'ammo_out', 'gold_out', 'rule', 'stamina', 'hours', 'left', 'changed', 'server'];
+/* Core rebuild (Tyler 2026-10-19): a death ends the hunt (`died`); there is no falls limit. LEAVE TOGETHER (Tyler
+   2026-10-22): another member's end sends a ticked hero home, `party_member_died` after a death, else `party_member_left`. */
+const RULING_END_ORDER = ['died', 'party_member_died', 'party_member_left', 'heals_out', 'ammo_out', 'gold_out', 'rule', 'stamina', 'hours', 'left', 'changed', 'server'];
 /* vigour_low -> stamina_low (master plan row 4); `cover` = sell-to-cover (row 3). */
 const RULING_EVENTS = ['entered', 'level_up', 'rare_drop', 'death', 'slot_dry', 'stamina_low', 'cover', 'ended'];
 const PER_USE_KINDS = ['heal', 'mana', 'ammo'];   // buff is parked

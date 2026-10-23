@@ -26,7 +26,8 @@ export { sanitizeSummaries };
 /** Why a hunt ended, as a sentence (one per END_ORDER name; a guard in tests/hunt-summary.mjs keeps them equal). */
 export const END_WORDS = Object.freeze({
   died: 'Your hero died and returned to town.',
-  party_member_died: 'A party member died, so the party returned to town.',
+  party_member_died: 'A party member fell, so your hero came home too.',
+  party_member_left: 'A party member left the hunt, so your hero came home too.',
   heals_out: 'You ran out of healing supplies.',
   ammo_out: 'You ran out of ammunition.',
   gold_out: 'Ran out of gold for supplies, returned to town.',

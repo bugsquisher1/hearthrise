@@ -75,10 +75,12 @@ function stepWorld(world, swingCtx, track, events) {
   const sc = { atMs, dtMs: HUNT_TUNING.stepMs, swing: world.swing, rng: swingCtx.rng,
     ...(typeof swingCtx.xpMultOf === 'function' ? { xpMultOf: swingCtx.xpMultOf } : {}),
     emit: (ev) => { events.push(ev); }, track: (st) => { track.push(st); } };
-  /* ONE DEATH ENDS THE HUNT FOR EVERYONE (Tyler 2026-10-19): the swing stops at the sub-step a hero
-     dies. The party's hunt ends at each member's next boundary (combat-sim.js) and until then nobody
-     acts: a survivor no longer flees or fights on alone for the rest of the swing (live v0.2.23, Andy:
-     "2nd char starts to run away after death") nor dies a second death the first one already ended. */
+  /* A DEATH STOPS THE SWING (Tyler 2026-10-19): the swing stops at the sub-step a hero dies. Its hunt,
+     and every ticked member's (LEAVE TOGETHER, Tyler 2026-10-22: combat-sim.js cascadeFrom), ends at
+     the next boundary, and until then nobody acts: a leaving survivor no longer flees or fights on alone
+     for the rest of the swing (live v0.2.23, Andy: "2nd char starts to run away after death") nor dies a
+     second death the first one already ended. An unticked survivor waits out the rest of that one swing
+     (at most one swing interval) and hunts on from the next. */
   const heroes = world.units.filter((u) => u.side === 'hero' && u.alive);
   for (let i = 0; i < n; i++) {
     sc.atMs = atMs + i * HUNT_TUNING.stepMs;

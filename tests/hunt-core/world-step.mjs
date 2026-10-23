@@ -107,7 +107,7 @@ const mutants = [
   { name: 'a death costs no XP', case: 'death-ends-the-hunt',
     edits: [['src/core/combat-sim.js', "    if (k === 'level') m.state.levelXp = (Number(m.state.levelXp) || 0) - xpLost[k];", "    if (k === 'level') m.state.levelXp = Number(m.state.levelXp) || 0;"]] },
   { name: 'a party death leaves the survivor hunting', case: 'party-death-ends-everyone',
-    edits: [['src/core/combat-sim.js', '        for (const other of members) if (other !== m && !other.left && !other.hs.died) other.hs.partyDied = true;\n', '']] },
+    edits: [['src/core/combat-sim.js', "        cascadeFrom(m, 'died', members, null);\n", '']] },
   { name: 'the swing seed is indexed per window', case: 'split-parity',
     edits: [['src/core/combat-sim.js', "rng: createRng(seedOf(ctx, 's', sw))", "rng: createRng(seedOf(ctx, 's', swings))"]] },
   { name: 'the world steps once more after its last member ended', case: 'death-split-parity',

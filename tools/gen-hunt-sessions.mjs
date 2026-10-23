@@ -158,7 +158,9 @@ export const WORLD_FIELDS_READ = Object.freeze({
 /* v0.2.31 integration: ONE forward file per generator after the newest APPLIED (2026-11-20): the roster, the open glade and the style ladder's weapons
    (2026-11-23, now history). WHO HOLDS THE PACK (lane/b-tank-choice, Tyler 2026-10-22): the world gains `hold` / `holdNext`
    (targeting.js), so hr_hunt_world_shape changes: ONE forward file after the v0.2.32 sequence (its newest file is 2026-12-08-party-hold.sql). */
-export const OUT_NAME = '2026-12-09-hunt-sessions-catalogue.generated.sql';
+/* LEAVE TOGETHER (lane/b-party-leave-together, Tyler 2026-10-22): END_ORDER gains `party_member_left`; 2026-12-09 is APPLIED
+   (v0.2.32, history), so ONE forward file applied right before 2026-12-12-party-leave-together.sql. */
+export const OUT_NAME = '2026-12-12-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -548,9 +550,14 @@ export function render(src) {
 --   ${r.vendor.length} vendor values, ${r.basics.length} store supplies paid per use, ${r.targets.length} target modes,
 --   ${r.lanes.length} lanes, ${r.abilities.length} abilities, ${r.setOptions.length} action-set options, ${r.grounds.length} hunt grounds
 --
--- SUPERSEDES 2026-11-23-hunt-sessions-catalogue.generated.sql (the v0.2.31 chain;
--- history once applied, never regenerated): every table below is rewritten wholesale.
--- NEW SINCE 11-23 (lane b-tank-choice, Tyler 2026-10-22 "One tank holds"): the
+-- SUPERSEDES 2026-12-09-hunt-sessions-catalogue.generated.sql (the v0.2.32 chain,
+-- APPLIED, history: never regenerated): every table below is rewritten wholesale.
+-- NEW SINCE 12-09 (lane b-party-leave-together, Tyler 2026-10-22 "Leave if anyone
+-- leaves the hunt or dies"): END_ORDER gains \`party_member_left\` (a ticked hero sent
+-- home by another member's end; RESUME_AFTER_END too), so hr_hunt_end_reasons and
+-- hunt_sessions.end_reason's CHECK are rewritten; the world's shape is unchanged.
+-- Applies right BEFORE 2026-12-12-party-leave-together.sql (which proves the end).
+-- Carried from 12-09 (lane b-tank-choice, Tyler 2026-10-22 "One tank holds"): the
 -- world's shape gains hold / holdNext (src/core/hunt/targeting.js), so
 -- hr_hunt_world_shape is rewritten; the hr-accrue edge carrying that world deploys
 -- with this file, which applies LAST, after 2026-12-08-party-hold.sql (the hold seat

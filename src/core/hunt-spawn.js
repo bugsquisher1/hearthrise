@@ -31,7 +31,8 @@ const disciplineBar = (d) => Object.values(ABILITIES).filter((a) => a.discipline
  * Null when the weapon has no role.
  *
  * @param o { weaponType, options (player_action_sets.options), bar (the stored slots), partyRoles, lead (leads its party),
- *            hold (the party's hold seat: hunt_parties.hold_seat, null = take turns) }
+ *            hold (the party's hold seat: hunt_parties.hold_seat, null = take turns),
+ *            leaveTogether (the hero's "Leave if anyone leaves the hunt or dies") }
  */
 export function heroSetup(o) {
   const opt = (o && o.options && typeof o.options === 'object') ? o.options : {};
@@ -57,6 +58,11 @@ export function heroSetup(o) {
     /* WHO HOLDS THE PACK (Tyler 2026-10-22): the seat whose tank holds every lap, the leader's pick (only a
        leading hero carries it; combat-sim.js holdPick); null = the tanks take turns. */
     hold: o.lead === true && Number.isInteger(o.hold) && o.hold >= 0 ? o.hold : null,
+    /* LEAVE TOGETHER (Tyler 2026-10-22): the hero's own box "Leave if anyone leaves the hunt or dies", the
+       server's player_state.party_leave_together (default on) read by the settle (hr_hunt_instance_read
+       `leave_together`); anything but an explicit true is off, so an engine reading a server that does not
+       carry it yet sends nobody home (combat-sim.js cascadeFrom). */
+    leaveTogether: o.leaveTogether === true,
     /* THE GATHERING SHARE: stored, INERT until the gathering engine lands (hunt-sessions.js GATHER_SHARE). */
     gatherShare: Number.isInteger(opt.gather_share) ? opt.gather_share : 0, gatherInert: true,
     actionSet: pick('action_set', 'hunt'),

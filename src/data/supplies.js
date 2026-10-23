@@ -45,8 +45,9 @@ export const IDLE_BUFF_TYPES = Object.freeze(['gather_speed', 'farm_yield']);
    but only under the hero's own end-on-empty (hunt-sessions.js ON_EMPTY `end`):
    under the default a hunt never stops for lack of stock (Tyler 10-16; ammo:
    src/core/action-rules.js essentialOut). Heals are essential. Arrows and runes
-   are essential because a bow with nothing loaded cannot shoot and a staff whose
-   runes are spent swings bare. Whetstones are NOT: a sword works unsharpened
+   are essential because a bow with nothing loaded cannot shoot and a spell with no
+   rune cannot cast (Tyler 2026-10-23: runes fuel spells only; a caster's basic
+   costs mana, never a rune). Whetstones are NOT: a sword works unsharpened
    (src/core/ammo.js R5), so running out of stones should cost the edge, not the
    hunt. Buffs are never essential. */
 const H = 'heal';

@@ -4255,3 +4255,8 @@ guard tests/hunt-scene.mjs (SC-1..8, 13/13 mutants).
 ## 2026-10-22 · lane/b-hunts-detail merge of next (set/v0.2.34)
 1. *Rule ids collide silently in a 3-way merge.* Both sides named a new rule AW-24 (next: the town ticker; the lane: the Hunts page) and git merged every non-adjacent use without a hunk. The side not yet landed renumbers (the Hunts rules are now AW-25..AW-29); grep the ids per side before trusting a clean auto-merge.
 2. *Lane-only files keep the old ?v=.* Only conflicting files get looked at; new files the lane added (hunt-detail, hunt-go, hunt-ground-facts, creature-sprite) stayed at 0.2.32 until `bump-version.sh --check`.
+## 2026-10-23 · lane/b-spell-core (S1a: runes as spell reagents, mana basics, slots that do what they say)
+1. *A field that only feeds suggestions still has a reader.* whenBelowPct / minHurt / areaMin left the engine for abilities.js suggestedTrigger; effect-readers checks them there (SUGGEST) with a mutant, rather than being loosened.
+2. *Retiring a hidden default moves every fixture that leaned on it.* The h4 supply bar, the sewer party and the drop-table caster check all fired bare slots; each now writes the suggested conditions on its slots, as a player's new slot does.
+3. *A re-anchored mutant can silently weaken.* "A ranged basic swings without a shot" moved onto `if (!paid) continue` and survived (the hunt still ended ammo_out); anchoring it on the payment itself restored the catch.
+4. *An item attack slot aimed by bestAim missed every pull's first shot* (the pack held no target yet) and fell to the loaded ammo: a one-target item now shoots the swing's own target.

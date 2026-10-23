@@ -14,7 +14,7 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { MAX_CONDITIONS } from './condition-metrics.js?v=0.2.34';
+import { MAX_CONDITIONS, MAX_IGNORED } from './condition-metrics.js?v=0.2.34';
 
 export const REFUSAL_FALLBACK = 'That did not go through, so nothing was changed. Try again in a moment.';
 
@@ -131,6 +131,9 @@ export const REFUSAL_WORDS = Object.freeze({
   none_left: 'None left: the next food or drink slot fires instead.',
   too_many_slots: 'The bar is full.',
   too_many_conditions: 'A slot takes at most ' + MAX_CONDITIONS + ' conditions.',
+  bad_enabled: 'A slot is either on or off.',
+  bad_ignore: 'Pick each monster to ignore once, from the ones in the game.',
+  too_many_ignored: 'A slot ignores at most ' + MAX_IGNORED + ' monsters.',
   store_off: 'This hero is set to end the hunt rather than buy from the store.',
   /* Hunts. */
   hunt_open: 'Not while a hunt is running.',

@@ -71,7 +71,7 @@ const TOTAL_RISE_MAX = 0.25;    // THE BANDS (Tyler 2026-10-23): total value up 
    on next b7af6a9db before any ground converted. A conversion is held to +25% over its ground's row; never re-pinned. */
 const TOTAL_TODAY = Object.freeze({ mill_cellar: 1869, millrace_sewer: 3822, meadowbrook_thicket: 2285, coppercap_warrens: 4588, mosslight_glade: 3834 });
 /* THE OLD MODEL'S GROUNDS. SHRINK-ONLY: a ground leaves the day every row of its roster names a band, and never returns. */
-const OLD_MODEL = Object.freeze(['coppercap_warrens', 'mosslight_glade']);
+const OLD_MODEL = Object.freeze(['coppercap_warrens']);
 const banded = (gid) => !OLD_MODEL.includes(gid);
 const SLOTS = Object.freeze(['weapon', 'helmet', 'body', 'pants', 'boots']);
 const BUILD_SLOTS = Object.freeze(['helmet', 'body', 'pants', 'boots']);
@@ -603,13 +603,13 @@ const rowOf = (ms, id, item) => ms[id].drops.find((d) => d.id === item);
 const dataMutants = [
   /* THE OLD MODEL (on its own grounds) */
   { name: 'an equipment row dropped', case: 'slot-structure', edit: (ms) => { ms.goblin_scavenger.drops = ms.goblin_scavenger.drops.filter((d) => !isGear(d)); } },
-  { name: 'a second equipment row', case: 'slot-structure', edit: (ms) => { ms.carrion_crow.drops.push({ id: 'bronze_helm', ch: 0.01, gear: true }); } },
-  { name: 'equipment nobody in range can wear', case: 'slot-structure', edit: (ms) => { gearOf(ms, 'carrion_crow').id = 'mithril_platebody'; } },
-  { name: 'equipment as a common', case: 'slot-structure', edit: (ms) => { gearOf(ms, 'walking_vine').ch = 0.2; } },
-  { name: 'the salvage row kept beside it', case: 'slot-structure', edit: (ms) => { ms.walking_vine.drops.push({ id: 'bronze_gauntlets', ch: 0.002, salvage: true }); } },
-  { name: 'the equipment flag lost (a rare reveal again)', case: 'one-rare-carrier', edit: (ms) => { delete gearOf(ms, 'glade_poacher').gear; ms.glade_poacher.drops.push({ id: 'bronze_sword', ch: 0.01, gear: true }); } },
+  { name: 'a second equipment row', case: 'slot-structure', edit: (ms) => { ms.goblin_digger.drops.push({ id: 'bronze_helm', ch: 0.01, gear: true }); } },
+  { name: 'equipment nobody in range can wear', case: 'slot-structure', edit: (ms) => { gearOf(ms, 'goblin_digger').id = 'rune_platebody'; } },
+  { name: 'equipment as a common', case: 'slot-structure', edit: (ms) => { gearOf(ms, 'goblin_digger').ch = 0.2; } },
+  { name: 'the salvage row kept beside it', case: 'slot-structure', edit: (ms) => { ms.goblin_digger.drops.push({ id: 'steel_gauntlets', ch: 0.002, salvage: true }); } },
+  { name: 'the equipment flag lost (a rare reveal again)', case: 'one-rare-carrier', edit: (ms) => { delete gearOf(ms, 'goblin_skulker').gear; ms.goblin_skulker.drops.push({ id: 'bronze_sword', ch: 0.01, gear: true }); } },
   { name: 'a second rare carrier', case: 'one-rare-carrier', edit: (ms) => { ms.goblin_digger.drops.splice(2, 0, { id: 'spider_eye', ch: 0.035 }); } },
-  { name: 'two helmets, no boots', case: 'slot-coverage', edit: (ms) => { gearOf(ms, 'carrion_crow').id = 'studded_helmet'; } },
+  { name: 'two helmets, no boots', case: 'slot-coverage', edit: (ms) => { gearOf(ms, 'goblin_scavenger').id = 'boarhide_helmet'; } },
   /* BOTH MODELS: the four slots */
   { name: 'the imbuement row dropped', case: 'four-slots', edit: (ms) => { ms.drain_rat.drops = ms.drain_rat.drops.filter((d) => d.id !== 'rat_incisor'); } },
   { name: 'one imbuement item on two monsters', case: 'four-slots', edit: (ms) => { ms.sump_slime.drops.find((d) => d.id === 'sump_membrane').id = 'rat_incisor'; } },
@@ -621,7 +621,7 @@ const dataMutants = [
   { name: 'a band row loses its band', case: 'loot-structure', edit: (ms) => { delete rowOf(ms, 'gray_wolf', 'bones').band; } },
   { name: 'a misspelt band', case: 'loot-structure', edit: (ms) => { rowOf(ms, 'gray_whelp', 'bronze_boots').band = 'scarse'; } },
   { name: 'an old-model flag on a banded row', case: 'loot-structure', edit: (ms) => { rowOf(ms, 'briarcoat_wolf', 'leather_pants').gear = true; } },
-  { name: 'a band on an old-model ground (half converted)', case: 'loot-structure', edit: (ms) => { rowOf(ms, 'carrion_crow', 'bone_chips').band = 'common'; } },
+  { name: 'a band on an old-model ground (half converted)', case: 'loot-structure', edit: (ms) => { rowOf(ms, 'goblin_digger', 'coal').band = 'common'; } },
   { name: 'a band on a seeded fixture', case: 'loot-structure', edit: (ms) => { rowOf(ms, 'rat', 'bones').band = 'common'; } },
   { name: 'the Sewer\'s light boots gone (coverage)', case: 'build-coverage', edit: (ms) => { rowOf(ms, 'kobold_tosher', 'adept_boots').id = 'adept_helmet'; rowOf(ms, 'kobold_tosher', 'studded_boots').id = 'studded_helmet'; rowOf(ms, 'kobold_tosher', 'iron_boots').id = 'iron_helm'; } },
   { name: 'rows out of band order', case: 'loot-structure', edit: (ms) => { const d = ms.gray_whelp.drops; d.push(d.splice(2, 1)[0]); } },
@@ -652,10 +652,12 @@ const playMutants = [
   { name: 'the Sewer coin cut to under half', rule: 'profit-floor: millrace_sewer', edit: (ms) => {
     for (const id of ['drain_rat', 'sump_slime', 'culvert_bat', 'cistern_spider', 'kobold_tosher', 'rat_king']) ms[id].gp = ms[id].gp.map((v) => Math.max(1, Math.round(v / 2.2)));
   } },
-  { name: 'the Glade boots five times rarer (old model)', rule: 'gear-pace: mosslight_glade', edit: (ms) => { gearOf(ms, 'carrion_crow').ch /= 5; } },
+  { name: 'the Warrens boots five times rarer (old model)', rule: 'gear-pace: coppercap_warrens', edit: (ms) => { gearOf(ms, 'goblin_scavenger').ch /= 5; } },
+  { name: 'the War Crown at 4% (old model)', rule: 'rare-pace: coppercap_warrens', edit: (ms) => { ms.chief_coppercap.drops.find((d) => d.id === 'war_crown').ch = 0.04; } },
+  { name: 'the Glade\'s bodies off its sluicers (too slow)', rule: 'gear-pace: mosslight_glade', edit: (ms) => { for (const r of ms.goblin_sluicer.drops) if (r.band === 'scarce') r.ch = 0.02; } },
   { name: 'the Sewer\'s party bodies too slow (a party of four)', rule: 'gear-pace: millrace_sewer (party of 4)', edit: (ms) => { for (const d of ms.sump_slime.drops) if (d.band === 'scarce') d.ch = 0.03; } },
   { name: 'the Sewer\'s bows too common for a solo hero', rule: 'rare-pace: millrace_sewer rare longbow', edit: (ms) => { for (const d of ms.cistern_spider.drops) if (d.band === 'rare') d.ch = 0.02; } },
-  { name: 'Rook\'s Whistle at 1% (old model)', rule: 'rare-pace: mosslight_glade', edit: (ms) => { ms.rook_poacher.drops.find((d) => d.id === 'rooks_whistle').ch = 0.01; } },
+  { name: 'Rook\'s Whistle at 1%', rule: 'rare-pace: mosslight_glade rare rooks_whistle', edit: (ms) => { rowOf(ms, 'rook_poacher', 'rooks_whistle').ch = 0.01; } },
   /* worn tier-3 gear sells at 0.12 of book (loot-bands.js VENDOR_GEAR_RATES): only a cartload (half the kills) bites */
   { name: 'the Warrens gear by the cartload (old model)', rule: 'gear-faucet: coppercap_warrens', edit: (ms) => {
     for (const id of ['goblin_scavenger', 'goblin_skulker', 'goblin_digger', 'hobgoblin_foreman', 'chief_coppercap']) gearOf(ms, id).ch = 0.5;

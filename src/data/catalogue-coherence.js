@@ -133,7 +133,7 @@ export const AWAITING_ROSTER = Object.freeze([
   'riftmaw_carapace', 'riftmaw_husk', 'ruby_signet', 'rubyfire_studs',
   'rune_hammer', 'rune_helm', 'rune_knife', 'rune_needle', 'rune_platebody',
   'rune_platelegs', 'rune_warhammer', 'runewood_bow', 'runewood_rod', 'scholar_body',
-  'scholar_helmet', 'scholar_pants', 'slagheart_core', 'slagheart_platebody', 'snakeskin_body',
+  'scholar_pants', 'slagheart_core', 'slagheart_platebody', 'snakeskin_body',
   'snakeskin_helmet', 'snakeskin_pants', 'sorcerer_body', 'sorcerer_helmet', 'sorcerer_pants',
   'spellstone_ring', 'spidereye_studs', 'steel_hammer', 'steel_knife',
   'steel_needle', 'steel_warhammer',
@@ -189,7 +189,7 @@ export const UNREACHABLE = Object.freeze({
     'bronze_gauntlets', 'iron_gauntlets', 'steel_gauntlets', 'studded_gloves', 'boarhide_gloves', 'apprentice_gloves',
     'adept_gloves', 'scholar_gloves', 'leather_belt', 'iron_belt', 'steel_belt', 'studded_belt', 'boarhide_belt',
     'apprentice_belt', 'adept_belt', 'scholar_belt', 'steel_boots',
-    'scholar_boots', 'boarhide_helmet', 'willow_longbow',
+    'scholar_boots', 'willow_longbow',
     'willow_staff', 'willow_wand', 'willow_spellbook', 'bramble_blade', 'rat_stick',
     'fang_studs', 'wolfbone_torc', 'spidersilk_choker', 'banded_signet', 'tusker_charm', 'packlord_band',
     'mirewort_drops', 'ancient_fragment', 'cracked_spellstone', 'grave_dust', 'razor_claw', 'bear_pelt', 'bear_claw',
@@ -226,8 +226,8 @@ export const UNREACHABLE = Object.freeze({
    `shop_gear` fates closed, 33 rows; Bronze Sword left the unlisted counter for `cut`). 140 -> 134: the style
    ladder makes six greenhaven rows (Oak Wand, Oakboard Spellbook, Iron Warhammer, Apprentice and Adept Slippers,
    Adept Robe Top); the Longbow left `staged` (made at Crafting 15 too). 134 -> 133 (lane b-loot-bands): Old Grayjaw's
-   Rare row sources the Studded Leather Coif. 133 -> 132: the Sewer's kobolds drop the Iron Boots. */
-export const UNREACHABLE_CEILING = 132;
+   Rare row sources the Studded Leather Coif. 133 -> 132: the Sewer's kobolds drop the Iron Boots; 132 -> 131: Rook hides the Boarhide Coif. */
+export const UNREACHABLE_CEILING = 131;
 
 /**
  * id -> the first reachable door (a label). `opts` opens planned doors for C11's proof:

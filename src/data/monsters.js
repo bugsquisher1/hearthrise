@@ -764,31 +764,34 @@ export const MONSTERS = {
     drops: [{ id: 'big_bones', ch: 1 }, { id: 'gold_ore', ch: .5 }, { id: 'goblin_totem', ch: .3 }, { id: 'war_crown', ch: .018 },
       { id: 'steel_platebody', ch: .025, gear: true }] },
 
-  /* ══ Mosslight Glade, levels 16-31, solo, mixed (lane c-ground-16-31): roles, junk and economy in the src/data/hunt-grounds.js header. ══ */
+  /* ══ Mosslight Glade, levels 16-31, solo, mixed (lane c-ground-16-31): roles, junk and economy in the src/data/hunt-grounds.js header.
+     THE LOOT BANDS (batch 3): the whole tier-2 set in three weights, about hourly (crows boots, poachers legs and their
+     Longbow, vines helmets, sluicers bodies); Rook keeps his Whistle and hides the tier-3 helmets, about every 15 h. ══ */
   carrion_crow: { name: 'Carrion Crow', icon: '🐦', tier: 2, level: 16, cls: 'vermin', family: 'Vermin',
     /* one override (weapon): a bird in the open, so an arrow brings it down and a club swings at air. */
     weaponWeak: 'ranged', weaponResist: [],
     hp: 30, atk: 10, def: 1, xp: 165, gp: [4, 12], speed: 4400,
-    drops: [{ id: 'bone_chips', ch: .5 }, { id: 'crow_quill', ch: .08 }, { id: 'studded_boots', ch: .0062, gear: true }] },
+    drops: [{ id: 'bone_chips', ch: .5, band: 'common' }, { id: 'crow_quill', ch: .08, band: 'uncommon' }, { id: 'iron_boots', ch: .0095, band: 'scarce' }, { id: 'studded_boots', ch: .0095, band: 'scarce' }, { id: 'adept_boots', ch: .0095, band: 'scarce' }] },
   glade_poacher: { name: 'Glade Poacher', icon: '🏹', tier: 2, level: 19, cls: 'human', family: 'Human',
     /* glass that hits like a cart: the ground's hardest blow before the sluice */
     hp: 32, atk: 12, def: 2, xp: 225, gp: [6, 18], speed: 3400,
-    drops: [{ id: 'wolf_pelt', ch: .3 }, { id: 'bones', ch: .5 }, { id: 'snare_wire', ch: .08 }, { id: 'longbow', ch: .0186, gear: true }] },
+    drops: [{ id: 'wolf_pelt', ch: .3, band: 'common' }, { id: 'bones', ch: .5, band: 'common' }, { id: 'snare_wire', ch: .08, band: 'uncommon' },
+      { id: 'iron_platelegs', ch: .028, band: 'scarce' }, { id: 'studded_pants', ch: .028, band: 'scarce' }, { id: 'adept_pants', ch: .028, band: 'scarce' }, { id: 'longbow', ch: .028, band: 'scarce' }] },
   walking_vine: { name: 'Walking Vine', icon: '🌿', tier: 2, level: 22, cls: 'plant', family: 'Plant',
     /* the tank: slow and woody; a blade cuts it, an arrow sticks, fire takes it */
     hp: 35, atk: 9, def: 4, xp: 260, gp: [4, 12], speed: 2400,
-    drops: [{ id: 'magic_essence', ch: .25 }, { id: 'mosslight_tendril', ch: .08 }, { id: 'iron_helm', ch: .0126, gear: true }] },
+    drops: [{ id: 'magic_essence', ch: .25, band: 'common' }, { id: 'mosslight_tendril', ch: .08, band: 'uncommon' }, { id: 'iron_helm', ch: .019, band: 'scarce' }, { id: 'studded_helmet', ch: .019, band: 'scarce' }, { id: 'adept_helmet', ch: .019, band: 'scarce' }] },
   goblin_sluicer: { name: 'Goblin Sluicer', icon: '👺', tier: 3, level: 26, cls: 'humanoid', family: 'Humanoid',
     /* one override (element): soaked from the spring run, so fire hisses off it. */
     elementResist: ['ember'],
     hp: 70, atk: 18, def: 10, xp: 360, gp: [14, 34], speed: 3000,
-    drops: [{ id: 'copper_ore', ch: .6 }, { id: 'bones', ch: .5 }, { id: 'sluice_crust', ch: .08 },
-      { id: 'iron_platebody', ch: .038, gear: true }] },
+    drops: [{ id: 'copper_ore', ch: .6, band: 'common' }, { id: 'bones', ch: .5, band: 'common' }, { id: 'sluice_crust', ch: .08, band: 'uncommon' },
+      { id: 'iron_platebody', ch: .05, band: 'scarce' }, { id: 'studded_body', ch: .05, band: 'scarce' }, { id: 'adept_body', ch: .05, band: 'scarce' }] },
   rook_poacher: { name: 'Rook the Poacher', icon: '🏹', tier: 3, level: 29, cls: 'human', family: 'Human',
     /* the poachers' chief, camped in the ruined spring-house; the crows know his whistle. The rare carrier. */
     hp: 78, atk: 18, def: 11, xp: 520, gp: [16, 40], speed: 3200,
-    drops: [{ id: 'raw_wolf_meat', ch: .7 }, { id: 'bones', ch: 1 }, { id: 'rooks_moss_charm', ch: .15 }, { id: 'rooks_whistle', ch: .0038 },
-      { id: 'studded_pants', ch: .038, gear: true }] },
+    drops: [{ id: 'raw_wolf_meat', ch: .7, band: 'common' }, { id: 'bones', ch: 1, band: 'common' }, { id: 'rooks_moss_charm', ch: .15, band: 'uncommon' }, { id: 'rooks_whistle', ch: .0038, band: 'rare' },
+      { id: 'steel_helm', ch: .0038, band: 'rare' }, { id: 'boarhide_helmet', ch: .0038, band: 'rare' }, { id: 'scholar_helmet', ch: .0038, band: 'rare' }] },
 };
 
 /* SEAL: write each class's profile onto its members, so `m.weaponWeak` is a

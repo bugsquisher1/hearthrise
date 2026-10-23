@@ -448,16 +448,19 @@ async function blessArm(db, { H, M }, attended) {
 /* Each mutant: the file, its [find, replace], the arm that must go red. The file's own
    self-check is turned into an uncalled function so the defect reaches the arm. */
 const MUTANTS = [
-  { arm: 'A-LOCK', file: '2026-10-27-core-bodies.sql', why: 'hr_apply no longer refuses a locked sale',
-    find: "        if v_n < 0 and coalesce(v_this_intent, '') ~ '^vendor_sell(_many)?(:|$)' and public.hr_item_locked(v_uid, v_slot, k) then",
-    repl: "        if false and coalesce(v_this_intent, '') ~ '^vendor_sell(_many)?(:|$)' and public.hr_item_locked(v_uid, v_slot, k) then" },
-  /* hr_hunt_apply_member is RESTATED last by 2026-11-16-hunt-density-bounds.sql (after the core rebuild):
-     their mutants are planted in the bodies that run. */
-  { arm: 'A-LOOT-AWAY', file: '2026-11-16-hunt-density-bounds.sql', why: 'the settle no longer runs the loot filter',
+  /* hr_apply's LAST author is 2026-12-15-account-gold.sql §5 (four anchored edits of the installed text, md5-pinned to
+     its pre-image, so a plant in an earlier file trips that pin): the defect rides §5 as a fifth edit of the body it
+     installs. */
+  { arm: 'A-LOCK', file: '2026-12-15-account-gold.sql', why: 'hr_apply no longer refuses a locked sale',
+    find: '  v_new := replace(v_new, a4, r4);\n  execute v_new;',
+    repl: '  v_new := replace(v_new, a4, r4);\n  v_new := replace(v_new, $l$        if v_n < 0 and coalesce(v_this_intent, \'\') ~ \'^vendor_sell(_many)?(:|$)\' and public.hr_item_locked(v_uid, v_slot, k) then$l$,\n    $l$        if false and coalesce(v_this_intent, \'\') ~ \'^vendor_sell(_many)?(:|$)\' and public.hr_item_locked(v_uid, v_slot, k) then$l$);\n  execute v_new;' },
+  /* hr_hunt_apply_member and hr_hunt_loot_rules are RESTATED last by 2026-12-15-account-gold.sql (the account
+     purse, md5-pinned to their pre-images): their mutants are planted in the bodies that run. */
+  { arm: 'A-LOOT-AWAY', file: '2026-12-15-account-gold.sql', why: 'the settle no longer runs the loot filter',
     find: "  v_loot := public.hr_hunt_loot_rules(p_user, p_slot, p_session, p_intent, p_delta->'items', v_to);", repl: '  v_loot := null;' },
-  { arm: 'A-LOOT-ATTENDED', file: '2026-10-25-bag-rules.sql', why: 'a sale pays twice the vendor bid',
+  { arm: 'A-LOOT-ATTENDED', file: '2026-12-15-account-gold.sql', why: 'a sale pays twice the vendor bid',
     find: '      v_gold := v_gold + v_q * v_r.unit;', repl: '      v_gold := v_gold + 2 * v_q * v_r.unit;' },
-  { arm: 'A-LOOT-AWAY', file: '2026-10-25-bag-rules.sql', why: 'the loot filter ignores a lock',
+  { arm: 'A-LOOT-AWAY', file: '2026-12-15-account-gold.sql', why: 'the loot filter ignores a lock',
     find: "       and r.loot_rule in ('sell', 'ignore') and not r.locked", repl: "       and r.loot_rule in ('sell', 'ignore')" },
   /* hr_shop_view is RESTATED last by 2026-11-25-shop-seeds.sql: its mutants are planted in the body that runs. */
   { arm: 'A-NO-SUPPLY', file: '2026-11-25-shop-seeds.sql', why: 'the shop section lists the supplies again',
@@ -484,8 +487,8 @@ const MUTANTS = [
   { arm: 'A-STAMINA', file: '2026-10-25-stamina-refill.sql', why: 'the refill charges and never writes the pool',
     find: "   where user_id = v_uid and slot = p_slot;\n  return jsonb_build_object('ok', true, 'version', v_a->'version', 'gold', -p_price,",
     repl: "   where false;\n  return jsonb_build_object('ok', true, 'version', v_a->'version', 'gold', -p_price," },
-  /* hr_hunt_apply_member is RESTATED last by 2026-11-16-hunt-density-bounds.sql: the hook call is planted in the body that runs. */
-  { arm: 'A-BLESS-AWAY', file: '2026-11-16-hunt-density-bounds.sql', why: 'the death no longer applies blessings',
+  /* hr_hunt_apply_member is RESTATED last by 2026-12-15-account-gold.sql: the hook call is planted in the body that runs. */
+  { arm: 'A-BLESS-AWAY', file: '2026-12-15-account-gold.sql', why: 'the death no longer applies blessings',
     find: '    v_bless := public.hr_blessing_take(p_user, p_slot, p_session, v_dx, v_s.settled_to);', repl: '    v_bless := null;' },
   /* ('every fall of the window is protected, not the first' RETIRED with the core rebuild: a hunt holds one death,
      so there is no second death for the mutant to protect.) */

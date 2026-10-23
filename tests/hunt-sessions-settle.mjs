@@ -131,6 +131,8 @@
 //              stays and starts again with every box as set.
 //   PARTY-LEAVE-DIED  a death through the chain, both paths: the ticked partner ends
 //              `party_member_died` at the same boundary, settled through it; the unticked does not.
+//   PARTY-LEAVE-KICK  a kick sends nobody home (Coordinator ruling 2026-10-23), both paths: the read flags only
+//              the removed seat; it ends `left`, the ticked leader and seat 1 hunt on.
 //   PARTY-LEAVE-IDEM  a second apply of 2026-12-18-party-leave-together.sql is byte-identical (bodies,
 //              grants, the column, the baseline row): §0 accepts its own post-images.
 //   HOLD-SEAT  "One tank holds" (Tyler 2026-10-22): the read's instance.hold_seat reaches the LEADING
@@ -945,6 +947,37 @@ const ENGINE_ARMS = {
     if (!both.a || both.a.reason !== 'left' || !both.c || both.c.reason !== 'left' || !both.b || both.b.reason !== 'party_member_left') {
       problems.push(`two leavers and one ticked hero ended ${canon(both)} (each leaver keeps its own reason)`);
     }
+    /* A KICK SENDS NOBODY HOME (Coordinator ruling 2026-10-23): c, removed by the leader (the read's `kicked`), leaves;
+       a and b, both ticked, hunt on */
+    const kickedParty = () => party(['a', 'b'], ['c'])().map((m) => { if (m.key === 'c') m.huntSession.kicked = true; return m; });
+    const kick = endsOf(runCut(M, kickedParty, SPAN, []));
+    if (!kick.c || kick.c.reason !== 'left' || kick.a || kick.b) problems.push(`a kicked member's leave ended ${canon(kick)} (want c left, a and b hunting on)`);
+    /* WALKING IN (the gap closed 2026-10-23): every hero walks in until W and c leaves on the road, so its hunt ends on
+       arrival; the ticked a, arriving beside it, goes home at that instant too; the unticked b joins and hunts. The
+       same however the windows are cut around the arrival. */
+    const W = T0 + 30000;
+    const walk = (cuts) => runCut(M, () => party(['a'], ['c'])().map((m) => {
+      m.huntSession.huntFromMs = W; m.huntSession.nextSwingAtMs = W;
+      if (m.key === 'c') m.huntSession.leaveAtMs = T0 + 10000;
+      return m;
+    }), SPAN, cuts);
+    const wk = endsOf(walk([]));
+    if (!wk.c || wk.c.reason !== 'left' || !wk.a || wk.a.reason !== 'party_member_left' || wk.a.at !== wk.c.at || wk.b) {
+      problems.push(`a leave on the walk in ended ${canon(wk)} (want c left and a party_member_left on arrival, b hunting)`);
+    }
+    for (const cuts of [[W - 1], [W], [W + 1], [T0 + 15000, W + tick]]) {
+      const cw = endsOf(walk(cuts));
+      if (canon(cw) !== canon(wk)) problems.push(`walk in cut at ${cuts.map((t) => t - T0)} ms: ends ${canon(cw)}, one span ${canon(wk)}`);
+    }
+    /* a hero still on the road when the end lands (one restarting into the hunt later) is decided the same however the
+       windows are cut (it is not sent home: it was not there when the end landed) */
+    const ARRIVE = LEAVE + 5 * tick + 7;
+    const road = (cuts) => canon(endsOf(runCut(M, () => party(['a'], ['c'])().map((m) => {
+      if (m.key === 'a') { m.huntSession.huntFromMs = ARRIVE; m.huntSession.nextSwingAtMs = ARRIVE; }
+      return m;
+    }), SPAN, cuts)));
+    const r0 = road([]);
+    for (const cuts of [[LEAVE + tick], [ARRIVE - 1]]) if (road(cuts) !== r0) problems.push(`a hero on the road ended ${road(cuts)} cut at ${cuts.map((t) => t - T0)} ms, ${r0} in one span`);
     /* the deploy-order fuse: a hero whose read carries no box is never sent home */
     if (M.SPAWN.heroSetup({ weaponType: 'sword', options: {}, bar: [], partyRoles: [] }).leaveTogether !== false) problems.push('a hero with no box in its read is on');
     return problems;
@@ -968,6 +1001,19 @@ const ENGINE_ARMS = {
     if (!e.a || e.a.reason !== 'died') return [`CONTROL: the weak member ended ${JSON.stringify(e.a)}`];
     if (!e.b || e.b.reason !== 'party_member_died' || e.b.at !== e.a.at) problems.push(`the ticked survivor ended ${JSON.stringify(e.b)}, not party_member_died at ${e.a.at}`);
     if (e.c && e.c.at === e.a.at) problems.push(`the unticked survivor went home with the death: ${JSON.stringify(e.c)}`);
+    /* a ticked hero walking in that arrives at the very instant the death ends the hunt goes home on arrival, however
+       the windows fall around it (a window ending between the death and that instant included) */
+    const B = Date.parse(e.a.at);
+    const withWalker = () => {
+      const ms = mk(null)();
+      const d = memberIn(M, 'd', { seat: 3, level: 60, partyRoles: roles, together: true });
+      d.huntSession.huntFromMs = B; d.huntSession.nextSwingAtMs = B;
+      return [...ms, d];
+    };
+    for (const cuts of [[], [B - 1]]) {
+      const wd = ends(runCut(M, withWalker, 600000, cuts, deadlyOf(M)));
+      if (!wd.d || wd.d.reason !== 'party_member_died' || wd.d.at !== e.a.at) problems.push(`a ticked hero arriving as the death ends the hunt (cut at ${cuts.map((t) => t - T0)} ms) ended ${JSON.stringify(wd.d)}`);
+    }
     /* a hero keyed AFTER the fallen one leaves at the very boundary its death ends: the end the death named stays */
     const late = ends(runCut(M, mk(Date.parse(e.a.at) - 1), 600000, [], deadlyOf(M)));
     if (!late.a || late.a.at !== e.a.at || !late.c || late.c.reason !== 'left' || late.c.at !== e.a.at) problems.push(`CONTROL: the leave keyed after the death ended ${canon(late)}`);
@@ -1908,6 +1954,34 @@ const DB_ARMS = {
   /* PARTY-LEAVE-IDEM: a SECOND apply of 2026-12-18-party-leave-together.sql on the replayed chain (its §0 accepts its
      own post-images, its §3 splices skip, its §4 runs again) is byte-identical: every body it writes, the column,
      the grants and the client baseline row. Rolled back. */
+  /* PARTY-LEAVE-KICK (Coordinator ruling 2026-10-23: a kick sends nobody home), through the replayed chain, BOTH PATHS:
+     a party of three on the default box; the leader removes the hunting seat 2 (hr_hunt_party_kick). The read flags
+     only seat 2 kicked; the tick's windows and a player's instants write the same rows: seat 2 ends `left` at its
+     leave, the leader and seat 1 (both ticked) hunt on. */
+  'PARTY-LEAVE-KICK': async (db, M) => inTx(db, async () => {
+    const problems = [];
+    const h = await hunter(db, M, { party: [{ ...STRONG }, { ...STRONG }, { ...STRONG }] });
+    const seat2 = await one(db, 'select seat from public.hunt_party_members where party_id = $1 and user_id = $2 and slot = 0', [h.party, UIDS[2]]);
+    await asUser(db, UIDS[0]);
+    await db.query('delete from public.hr_rate_counters');
+    const k = await one(db, 'select public.hr_hunt_party_kick(0, $1, $2::uuid)', [seat2, idem()]);
+    await db.query("select set_config('request.jwt.claim.sub', '', true)");
+    if (!k || k.ok !== true || k.leaving !== true) return [`CONTROL: the kick answered ${JSON.stringify(k)}`];
+    const [rd] = await makeExec(db)('select public.hr_hunt_instance_read($1::uuid, 0) as r', [UIDS[0]]);
+    const flags = UIDS.slice(0, 3).map((u) => String(((rd && rd.r && rd.r.members) || []).find((m) => m.user === u)?.kicked)).join();
+    if (flags !== 'false,false,true') problems.push(`the read flags kicked ${flags}, want false,false,true`);
+    const LEAVE = h.from + 75000;
+    await db.query('update public.hunt_sessions set leave_at = to_timestamp($2::double precision / 1000) where id = $1', [h.sids[2], LEAVE]);
+    await db.query('savepoint party_kick');
+    const go = async (cuts) => { await run(db, M, h.from, cuts, { user: UIDS[0] }); return Promise.all(h.sids.map((sid, i) => snapshot(db, sid, UIDS[i]))); };
+    const tick = await go(ticksOf(90000, 6 * 60000));
+    await db.query('rollback to savepoint party_kick');
+    const viewed = await go((from) => [from + 7001, LEAVE - 1500, LEAVE + 1500, from + 6 * 60000]);
+    const ends = tick.map((s) => (s.session.end_reason || 'open'));
+    if (ends.join() !== 'open,open,left') problems.push(`after the kick the ends are ${ends.join()}, want open,open,left (a kick sends nobody home)`);
+    if (canon(tick) !== canon(viewed)) problems.push(`viewed and tick wrote different rows ${firstDiff(canon(tick), canon(viewed))}`);
+    return problems;
+  }),
   'PARTY-LEAVE-IDEM': async (db) => inTx(db, async () => {
     const SIGS = ['public.hr_hunt_party_view(uuid,integer)', 'public.hr_hunt_instance_read(uuid,integer)',
       'public.hr_hunt_settle_session(uuid,integer,uuid,jsonb)', 'public.hr_hunt_view(uuid)', 'public.hr_party_leave_together_set(integer,boolean,uuid)'];
@@ -2592,16 +2666,16 @@ const MUTANTS = [
     from: "    if (o.hero && o.hero.leaveTogether === true) o.hs.partyEnd = why === 'died' ? 'died' : 'left';",
     to: "    if (o.hero && o.hero.leaveTogether === true && why !== 'died') o.hs.partyEnd = 'left';" },
   { arm: 'PARTY-LEAVE-DEATH', name: '[leave together] a death is named only at the boundary (a leave keyed before the fallen hero renames it)', file: 'src/core/combat-sim.js',
-    from: "        cascadeFrom(m, 'died', members, null);\n", to: '' },
+    from: "        cascadeFrom(m, 'died', members, null, m.hs.nextSwingAtMs);\n", to: '' },
   /* LEAVE TOGETHER (Tyler 2026-10-22): each rule of the box goes red on its own defect. */
   { arm: 'PARTY-LEAVE-RULE', name: '[leave together] the cascade reaches an unticked hero', file: 'src/core/combat-sim.js',
     from: "    if (o.hero && o.hero.leaveTogether === true) o.hs.partyEnd = why === 'died' ? 'died' : 'left';",
     to: "    o.hs.partyEnd = why === 'died' ? 'died' : 'left';" },
   { arm: 'PARTY-LEAVE-RULE', name: '[leave together] a leave sends nobody home (only a death does)', file: 'src/core/combat-sim.js',
-    from: '    for (const [m, why] of own) cascadeFrom(m, why, members, own);\n', to: '' },
+    from: '    for (const [m, why] of own) cascadeFrom(m, why, members, own, atMs);\n', to: '' },
   { arm: 'PARTY-LEAVE-RULE', name: '[leave together] the cascade is decided in key order (a hero keyed before the leaver hunts one more swing)', file: 'src/core/combat-sim.js',
-    from: '    for (const [m, why] of own) cascadeFrom(m, why, members, own);\n    // (1) Each member at this boundary: the end checks, then a paid interval.\n    const here = [];\n    for (const m of members) {\n      if (m.left || m.hs.nextSwingAtMs > atMs) continue;\n      const why = endReasonAt(m.hs, atMs);\n      if (why) { endMember(m, why, atMs, world, out.get(m.key)); continue; }',
-    to: '    const here = [];\n    for (const m of members) {\n      if (m.left || m.hs.nextSwingAtMs > atMs) continue;\n      const why = endReasonAt(m.hs, atMs);\n      if (why) { endMember(m, why, atMs, world, out.get(m.key)); cascadeFrom(m, why, members, own); continue; }' },
+    from: '    for (const [m, why] of own) cascadeFrom(m, why, members, own, atMs);\n    // (1) Each member at this boundary: the end checks, then a paid interval.\n    const here = [];\n    for (const m of members) {\n      if (m.left || m.hs.nextSwingAtMs > atMs) continue;\n      const why = endReasonAt(m.hs, atMs);\n      if (why) { endMember(m, why, atMs, world, out.get(m.key)); continue; }',
+    to: '    const here = [];\n    for (const m of members) {\n      if (m.left || m.hs.nextSwingAtMs > atMs) continue;\n      const why = endReasonAt(m.hs, atMs);\n      if (why) { endMember(m, why, atMs, world, out.get(m.key)); cascadeFrom(m, why, members, own, atMs); continue; }' },
   { arm: 'PARTY-LEAVE-RULE', name: '[leave together] a hero with its own end at the boundary is renamed by the cascade', file: 'src/core/combat-sim.js',
     from: ' || o.hs.partyEnd || (own && own.has(o))) continue;', to: ' || o.hs.partyEnd) continue;' },
   { arm: 'PARTY-LEAVE-RULE', name: '[leave together] the assembled hero drops its box', file: 'src/core/member.js',
@@ -2609,12 +2683,25 @@ const MUTANTS = [
   { arm: 'PARTY-LEAVE-RULE', name: '[leave together] a read with no box is on (the deploy-order fuse)', file: 'src/core/hunt-spawn.js',
     from: '    leaveTogether: o.leaveTogether === true,', to: '    leaveTogether: o.leaveTogether !== false,' },
   { arm: 'PARTY-LEAVE-DEATH', name: '[leave together] a death sends home an unticked survivor (one death ends everyone again)', file: 'src/core/combat-sim.js',
-    from: "        cascadeFrom(m, 'died', members, null);\n",
+    from: "        cascadeFrom(m, 'died', members, null, m.hs.nextSwingAtMs);\n",
     to: "        for (const other of members) if (other !== m && !other.left && !other.hs.died) other.hs.partyEnd = 'died';\n" },
   { arm: 'PARTY-LEAVE-DEATH', name: '[leave together] a later end at the same boundary renames the cascade', file: 'src/core/combat-sim.js',
     from: ' || o.hs.died || o.hs.partyEnd || (own && own.has(o))) continue;', to: ' || o.hs.died || (own && own.has(o))) continue;' },
   { arm: 'PARTY-LEAVE', name: '[leave together] the settle never reads the box', file: join(FN, 'hunt-settle.js'),
     from: '    _leaveTogether: m.leave_together === true,', to: '    _leaveTogether: false,' },
+  /* A KICK SENDS NOBODY HOME (Coordinator ruling 2026-10-23); a ticked hero arriving with the end goes home (the walk-in gap). */
+  { arm: 'PARTY-LEAVE-RULE', name: '[leave together] a kicked member’s end sends the ticked home', file: 'src/core/combat-sim.js',
+    from: '  if (!why || CASCADE.includes(why) || m.hs.kicked === true) return;', to: '  if (!why || CASCADE.includes(why)) return;' },
+  { arm: 'PARTY-LEAVE-RULE', name: '[leave together] the session drops the kick', file: 'src/core/action-rules.js',
+    from: '    kicked: s.kicked === true,', to: '    kicked: false,' },
+  { arm: 'PARTY-LEAVE-KICK', name: '[leave together] the settle never reads the kick', file: join(FN, 'hunt-settle.js'),
+    from: 'kicked: m.kicked === true },', to: 'kicked: false },' },
+  { arm: 'PARTY-LEAVE-RULE', name: '[leave together] a hero arriving with the end hunts on (the walk-in gap)', file: 'src/core/combat-sim.js',
+    from: '    if (o.unitId === null && !(o.hs.nextSwingAtMs <= at)) continue;', to: '    if (o.unitId === null) continue;' },
+  { arm: 'PARTY-LEAVE-RULE', name: '[leave together] a hero still on the road is flagged (a flag the window cut decides)', file: 'src/core/combat-sim.js',
+    from: '    if (o.unitId === null && !(o.hs.nextSwingAtMs <= at)) continue;\n', to: '' },
+  { arm: 'PARTY-LEAVE-DEATH', name: '[leave together] a flagged walker is left unended when the window stops', file: 'src/core/combat-sim.js',
+    from: '    if (m.left || !(stamped.has(m) || m.hs.partyEnd)) continue;', to: '    if (m.left || m.unitId === null || !(stamped.has(m) || m.hs.partyEnd)) continue;' },
   { arm: 'QUIVER', name: '[C2 ammoGuard] a shot is loosed but its arrow is never taken from the bag', file: 'src/core/hunt/abilities.js',
     from: '    if (!takeLine(h.hs, l, sc.atMs)) { h.hs.goldOut = true; return false; }\n  }\n  return true;', to: '  }\n  return true;' },
   { arm: 'QUIVER', name: 'the free rung is spent like a paid one', file: 'src/core/hunt/abilities.js',
@@ -2688,6 +2775,8 @@ const DB_MUTANTS = [
   { arm: 'PARTY-LEAVE', name: '[leave together] a cascade end is proven for an unticked hero', fn: SS,
     find: "      when 'party_member_left' then coalesce((select ps.party_leave_together from public.player_state ps\n                                               where ps.user_id = p_user and ps.slot = p_slot), false)",
     replace: "      when 'party_member_left' then true or coalesce((select ps.party_leave_together from public.player_state ps\n                                               where ps.user_id = p_user and ps.slot = p_slot), false)" },
+  { arm: 'PARTY-LEAVE-KICK', name: '[leave together] the engine read never flags the kick', fn: 'public.hr_hunt_instance_read(uuid,integer)',
+    find: "'kicked', exists (select 1 from public.hunt_parties p where p.id = v_i.id)", replace: "'kicked', false and exists (select 1 from public.hunt_parties p where p.id = v_i.id)" },
   { arm: 'PARTY-LEAVE', name: '[leave together] the engine read carries no box', fn: 'public.hr_hunt_instance_read(uuid,integer)',
     find: "'leave_together', (select ps.party_leave_together from public.player_state ps where ps.user_id = h.user_id and ps.slot = h.slot),", replace: '' },
   { arm: 'PARTY-LEAVE', name: '[leave together] the party section shows a box that is not the hero\'s', fn: 'public.hr_hunt_party_view(uuid,integer)',

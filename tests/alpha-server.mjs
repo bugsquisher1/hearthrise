@@ -43,7 +43,9 @@
 //   A-PARTY   invite by name -> accept -> the leader's one start enters both
 //             members with their OWN bags, and the instance settles them; a kicked
 //             hunter is ended `left` at its leave and the instance settles on
-//             without it (Security reopen #2, 2026-10-29-party-security.sql).
+//             without it (Security reopen #2, 2026-10-29-party-security.sql); the
+//             leader, its "Leave if anyone leaves" box on by default, is NOT sent
+//             home: a kick sends nobody home (Coordinator ruling 2026-10-23).
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -322,9 +324,9 @@ const ARMS = {
        clock, its session gets leave_at; the next settle ends it `left` there, and the instance settles on with the
        leader alone, so the kicked member is in no later split. */
     await db.query('delete from public.hr_rate_counters');
-    /* LEAVE TOGETHER (Tyler 2026-10-22): the kicked member's hunt ending would send a ticked leader home too (its box is
-       on by default; tests/hunt-sessions-settle.mjs PARTY-LEAVE), so the leader unticks its own box to hunt on alone. */
-    await ok(a, 'select public.hr_party_leave_together_set(0, false, $1::uuid)', [idem()]);
+    /* A KICK SENDS NOBODY HOME (Coordinator ruling 2026-10-23): the leader keeps its box "Leave if anyone leaves the hunt
+       or dies" at the server's default (on), and the kicked member's end does not send it home. */
+    if (await H.one(db, 'select party_leave_together from public.player_state where user_id = $1 and slot = 0', [a]) !== true) p.push('CONTROL: the leader’s box is not on by default');
     const sb = await H.one(db, 'select id from public.hunt_sessions where instance_id = $1 and user_id = $2 and ended_at is null', [pid, b]);
     const seatB = await H.one(db, 'select seat from public.hunt_party_members where party_id = $1 and user_id = $2', [pid, b]);
     const k = await ok(a, 'select public.hr_hunt_party_kick(0, $1, $2::uuid)', [seatB, idem()]);
@@ -340,7 +342,7 @@ const ARMS = {
       p.push('the kicked hunter was not ended at its leave: ' + JSON.stringify(end));
     }
     const open = await H.q(db, 'select user_id from public.hunt_sessions where instance_id = $1 and ended_at is null', [pid]);
-    if (open.length !== 1 || open[0].user_id !== a) p.push('after the kick the instance holds ' + JSON.stringify(open) + ', want the leader alone');
+    if (open.length !== 1 || open[0].user_id !== a) p.push('after the kick the instance holds ' + JSON.stringify(open) + ', want the leader alone (a ticked leader is not sent home by a kick)');
     return p;
   },
 };
@@ -495,6 +497,9 @@ const MUTANTS = [
   { arm: 'A-BLESS-ATTENDED', file: '2026-10-25-blessings.sql', why: 'a death does not use the blessings up',
     find: '  delete from public.player_blessings where user_id = p_user and slot = p_slot and tier = any (v_tiers);', repl: '  perform 1;' },
   /* hr_hunt_party_start is RESTATED last by 2026-12-07-party-finder.sql (after town-activity-yields): the mutant is planted in the body that runs. */
+  /* A KICK SENDS NOBODY HOME (Coordinator ruling 2026-10-23): the engine's read never flags the removed member. */
+  { arm: 'A-PARTY', file: '2026-12-18-party-leave-together.sql', why: "a kicked member's end sends the ticked leader home",
+    find: "'kicked', exists (select 1 from public.hunt_parties p where p.id = v_i.id)", repl: "'kicked', false and exists (select 1 from public.hunt_parties p where p.id = v_i.id)" },
   { arm: 'A-PARTY', file: '2026-12-07-party-finder.sql', why: "the shared start loads the leader's bag into every member",
     find: 'public.hr_hunt_saved_bag(v_m.user_id, v_m.slot),', repl: 'public.hr_hunt_saved_bag(v_uid, p_slot),' },
 ];

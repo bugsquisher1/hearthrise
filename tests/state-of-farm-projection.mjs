@@ -204,8 +204,14 @@ async function runAll(db) {
       'select public.hr_farm_upgrade_plot(0, $1::uuid, $2::int) as res', [uuid(), i + 2])).rows[0].res;
     ok(r && r.ok === true, `hr_farm_upgrade_plot #${i + 1} ok (got ${JSON.stringify(r && r.error)})`);
   }
-  const serverTier = Number((await db.query(
-    `select plot_level from public.player_state where user_id=$1 and slot=0`, [A])).rows[0].plot_level);
+  /* THE FIELD MOVED TO THE ACCOUNT (2026-12-14-shared-farm.sql): on the chain end the
+     tier is account_farm's and the plots are account_farm_plots'; the mutants replay to
+     ARMS_API, where both are still the hero's. The fixture follows the schema in front
+     of it; every assertion below is the same on both. */
+  const shared = !!(await db.query(`select to_regclass('public.account_farm_plots') as t`)).rows[0].t;
+  const serverTier = Number((await db.query(shared
+    ? `select public.hr_farm_plot_level($1) as plot_level`
+    : `select plot_level from public.player_state where user_id=$1 and slot=0`, [A])).rows[0].plot_level);
   ok(serverTier === 3, `the SERVER row says plot_level 3 (got ${serverTier})`);
 
   // ── Q-5: plant, then water FOUR times over a spread the growth model can see ──
@@ -230,7 +236,12 @@ async function runAll(db) {
   ok(baseH > 8, `the fixture crop needs more than the 8 effective hours the fixture produces `
      + `(${crop} base_hours ${baseH}) — pick a longer crop or retune the ages above`);
   const ago = (h) => `now() - interval '${(h * 3600).toFixed(0)} seconds'`;
-  await db.exec(`insert into public.player_farm (user_id, slot, plot_idx, crop_id, planted_at, watered_at, waterings)
+  await db.exec(shared
+    ? `insert into public.account_farm_plots (user_id, plot_idx, crop_id, planted_at, waterings, regrow_count, planted_by)
+    values ('${A}', 0, '${crop}', ${ago(4)}, array[${ago(3.5)}, ${ago(3)}, ${ago(2.5)}]::timestamptz[], 0, 0)
+    on conflict (user_id, plot_idx) do update
+      set crop_id=excluded.crop_id, planted_at=excluded.planted_at, waterings=excluded.waterings;`
+    : `insert into public.player_farm (user_id, slot, plot_idx, crop_id, planted_at, watered_at, waterings)
     values ('${A}', 0, 0, '${crop}', ${ago(4)}, ${ago(2.5)},
             array[${ago(3.5)}, ${ago(3)}, ${ago(2.5)}]::timestamptz[])
     on conflict (user_id, slot, plot_idx) do update
@@ -239,8 +250,10 @@ async function runAll(db) {
   const wr = (await asUser(db, A,
     'select public.hr_farm_water(0, 0, $1::uuid) as res', [uuid()])).rows[0].res;
   ok(wr && wr.ok === true, `hr_farm_water ok (got ${JSON.stringify(wr && wr.error)})`);
-  const row = (await db.query(
-    `select planted_at, watered_at, waterings from public.player_farm
+  const row = (await db.query(shared
+    ? `select planted_at, (select max(w) from unnest(waterings) w) as watered_at, waterings from public.account_farm_plots
+      where user_id=$1 and plot_idx=0`
+    : `select planted_at, watered_at, waterings from public.player_farm
       where user_id=$1 and slot=0 and plot_idx=0`, [A])).rows[0];
   ok(Array.isArray(row.waterings) && row.waterings.length === 4,
      `the server row holds all FOUR waterings (got ${row.waterings && row.waterings.length})`);

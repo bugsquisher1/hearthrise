@@ -226,6 +226,7 @@ export const REFUSAL_WORDS = Object.freeze({
   empty_plot: 'That plot is empty.',
   plot_occupied: 'Something is already growing there.',
   plot_unavailable: 'That plot is not open.',
+  extra_plot: 'That was an extra plot, and it is gone now.',
   plot_cap: 'You have every plot there is.',
   max_plot_level: 'That plot is at its best already.',
   still_watered: 'That plot is still watered.',

@@ -58,6 +58,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import { bootReplay, LAST_PATCHED, ROOT, manifest } from './schema-replay.mjs';
+import { setGold } from './_gold.mjs';
 import { BANK_STACKS_PER_RUNG, BANK_RUNGS, BANK_LADDER } from '../src/data/gold-ladders.js';
 import { START_CURRENCY } from '../src/data/start-kit.js';
 import { isMain } from './_is-main.mjs';
@@ -178,7 +179,8 @@ async function boot({ mutate, upTo } = {}) {
     await q('select public.hr_create_character($1)', [slot]);
   };
   await mkChar(0);
-  await q('update public.player_state set gold = 100000000 where user_id = $1', [uid]);
+  /* The gold the hero spends: the account purse from 2026-12-15-account-gold.sql on, its own before. */
+  await setGold(q, uid, 0, 100000000);
   /* A SECOND character row, seeded directly: hr_create_character(1) is gated by
      the hero-slot entitlement (2026-09-08-hero-slot-buy.sql) and buying a slot is
      not what this guard is about. It exists BEFORE the purchases below so the

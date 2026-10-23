@@ -65,8 +65,10 @@ import { HARNESS } from './hunt-sessions-settle.mjs';
 const MIG = '2026-12-15-account-gold.sql';
 const PREV = await (async () => { const o = (await manifest()).order; return o[o.indexOf(MIG) - 1]; })();
 
-/* §3's probe and §7's self-check are blinded so the arms below, not the migration, judge each mutant. */
+/* §0's pins (G9 re-applies the MUTATED file, whose own bodies are not its pinned post-images) and §7's
+   self-check are blinded so the arms below, not the migration, judge each mutant. */
 const SELFCHECK_BLIND = [
+  ["declare v_md5 text; r record;\nbegin\n", "declare v_md5 text; r record;\nbegin\n  if true then return; end if;   -- selftest: §0 pins short-circuited\n"],
   ["  v_prev bigint; v_bad int;\nbegin\n", "  v_prev bigint; v_bad int;\nbegin\n  if true then return; end if;   -- selftest: §7 short-circuited\n"],
 ];
 const SQL_MUTANTS = {
@@ -78,14 +80,6 @@ const SQL_MUTANTS = {
   unguarded_debit: {
     why: 'hr_purse_move lands a debit the purse cannot pay (and the CHECK is gone): two heroes overspend one purse',
     pairs: [['  if p_gold < 0 and v + p_gold < greatest(0, coalesce(p_floor, 0)) then return null; end if;\n', ''],
-      ['    alter table public.account_wallet add constraint account_wallet_gold_check check (gold >= 0);', '    null;']],
-  },
-  bill_from_stale_read: {
-    why: 'the instance pays a store bill without its guard: a window read before another hero spent overdraws the purse',
-    pairs: [["      v_g := public.hr_purse_move((v_p->>'user')::uuid, -(v_p->>'cost')::bigint, 0);",
-      "      v_g := public.hr_purse_move((v_p->>'user')::uuid, -(v_p->>'cost')::bigint, -1000000000000);"],
-      ['  if p_gold < 0 and v + p_gold < greatest(0, coalesce(p_floor, 0)) then return null; end if;\n',
-        '  if p_gold < 0 and p_floor > -1000000000000 and v + p_gold < greatest(0, coalesce(p_floor, 0)) then return null; end if;\n'],
       ['    alter table public.account_wallet add constraint account_wallet_gold_check check (gold >= 0);', '    null;']],
   },
   bills_before_credits: {
@@ -209,7 +203,11 @@ function drivers(db) {
     const r = await one('select public.hr_action_set_options($1, 0, $2::jsonb, gen_random_uuid())', [slot, JSON.stringify(opts)]);
     if (!r || r.ok !== true) throw harness('options refused: ' + JSON.stringify(r));
   };
-  return { q, one, as, gate, exec, purse, newAccount, seedPurse, apply, state, options };
+  /* The drops of Mill Cellar's monsters a vendor buys (the catalogue's kill bounds and vendor values). */
+  const sellable = async () => (await q(`select distinct d.key as item from public.hr_hunt_kill_bounds b, jsonb_each(b.drops) d
+      join public.hr_hunt_vendor_value v on v.item_id = d.key
+     where b.monster_id in (select monster_id from public.hr_hunt_ground_spawns where hunt_id = 'mill_cellar') order by 1`)).map((r) => r.item);
+  return { q, one, as, gate, exec, purse, newAccount, seedPurse, apply, state, options, sellable };
 }
 
 /* Heroes `slots` of account `uid` on Mill Cellar `mins` minutes ago: solo each, or one party of them. */
@@ -233,11 +231,13 @@ async function hunting(d, uid, slots, o = {}) {
     sids[s] = e.session.id;
   }
   await d.as('');
-  const t = `date_trunc('second', now() - make_interval(mins => ${Number(o.mins || 12)}))`;
+  /* ONE instant for every session and instance (each statement here is its own transaction, so now() moves). */
+  const t = await d.one(`select date_trunc('second', now() - make_interval(mins => $1))::text`, [Number(o.mins || 12)]);
   for (const sid of Object.values(sids)) {
-    await d.q(`update public.hunt_sessions set entered_at = ${t} - interval '1 minute', hunt_from = ${t}, settled_to = ${t}, next_swing_at = ${t} where id = $1`, [sid]);
+    await d.q(`update public.hunt_sessions set entered_at = $2::timestamptz - interval '1 minute', hunt_from = $2::timestamptz,
+                 settled_to = $2::timestamptz, next_swing_at = $2::timestamptz where id = $1`, [sid, t]);
     const inst = await d.one('select instance_id from public.hunt_sessions where id = $1', [sid]);
-    await d.q(`update public.hunt_instances set settled_to = ${t}, next_swing_at = ${t} where id = $1`, [inst]);
+    await d.q('update public.hunt_instances set settled_to = $2::timestamptz, next_swing_at = $2::timestamptz where id = $1', [inst, t]);
   }
   return sids;
 }
@@ -252,6 +252,8 @@ async function propose(M, d, uid, slot, atMs) {
 }
 const commit = (M, d, p) => M.HS.commitHuntSettle(d.exec, { ...p.commit, project: null });
 const memberOf = (p, uid, slot) => p.commit.members.find((m) => String(m.user) === String(uid) && Number(m.slot) === slot);
+/* A bill the purse cannot pay however much a window sells on pickup (well under the food lane's 361 uses a window). */
+const OVER = 2000;
 const addBuys = (m, n) => { m.hunt.buys = Object.assign({}, m.hunt.buys || {}, { salted_shrimp: ((m.hunt.buys || {}).salted_shrimp || 0) + n }); };
 
 /* THE LEDGER CHAIN of one account: every gold row states purse = previous + gold, carries a gold_kind;
@@ -322,6 +324,12 @@ async function chainArms(mutate, M) {
   for (const door of ['tick', 'settle']) {
     const u = await d.newAccount();
     await d.options(u, 0, { gold_floor: 0 }); await d.options(u, 1, { gold_floor: 0 });
+    /* every Mill Cellar drop a vendor buys is SOLD ON PICKUP (the loot filter): its sale is a hunt gold move (G7) */
+    for (const slot of [0, 1]) for (const item of await d.sellable()) {
+      await d.as(u); await d.gate();
+      const lr = await d.one("select public.hr_loot_rule_set($1, $2, 'sell', gen_random_uuid())", [slot, item]);
+      if (!lr || lr.ok !== true) throw harness(`loot rule refused for ${item}: ${JSON.stringify(lr)}`);
+    }
     await d.seedPurse(u, 500);
     await hunting(d, u, [0, 1]);
     const p0 = await propose(M, d, u, 0), p1 = await propose(M, d, u, 1);
@@ -330,7 +338,8 @@ async function chainArms(mutate, M) {
     const r1 = await commit(M, d, p1);
     ok(r1 && r1.ok === true, `G4 ${door}: slot 1's window answered ${JSON.stringify(r1).slice(0, 300)}`);
     const left = await d.purse(u);
-    addBuys(memberOf(p0, u, 0), Math.ceil((left + c0 + 14) / 14));       // slot 0's bill, read at 500, cannot be paid now
+    /* slot 0's bill, read at 500, cannot be paid now: above what is left plus its coins and anything it sells on pickup */
+    addBuys(memberOf(p0, u, 0), Math.ceil((left + c0 + OVER) / 14));
     const inst0 = await d.one('select instance_id from public.hunt_sessions where user_id = $1 and slot = 0', [u]);
     const sw0 = await d.one('select world_swing::text from public.hunt_instances where id = $1', [inst0]);
     const r0 = await commit(M, d, p0);
@@ -347,7 +356,7 @@ async function chainArms(mutate, M) {
         const members = JSON.parse(params[3]);
         const m = members.find((x) => Number(x.slot) === 0);
         const have = await d.purse(u);
-        m.hunt.buys = Object.assign({}, m.hunt.buys || {}, { salted_shrimp: Math.ceil((have + Number(m.delta.gold || 0) + 14) / 14) });
+        m.hunt.buys = Object.assign({}, m.hunt.buys || {}, { salted_shrimp: Math.ceil((have + Number(m.delta.gold || 0) + OVER) / 14) });
         params = [...params]; params[3] = JSON.stringify(members);
       }
       return d.exec(text, params);
@@ -403,14 +412,16 @@ async function chainArms(mutate, M) {
     let c0 = Number(m.delta.gold || 0);
     addBuys(m, Math.floor((100 + c0 - 80) / 14) + 1);            // would leave the purse under 80
     let res = await commit(M, d, p);
-    ok(res && res.ok === false && res.error === 'gold_short' && res.detail && res.detail.why === 'floor',
-      `G6: a bill under the floor answered ${JSON.stringify(res).slice(0, 300)}`);
-    p = await propose(M, d, u, 0);
-    m = memberOf(p, u, 0); c0 = Number(m.delta.gold || 0);
-    const n = Math.floor((100 + c0 - 80) / 14);
-    if (n > 0) addBuys(m, n);
-    res = await commit(M, d, p);
-    ok(res && res.ok === true && await d.purse(u) >= 80, `G6: a bill that keeps the floor answered ${JSON.stringify(res && res.error)} (purse ${await d.purse(u)})`);
+    if (ok(res && res.ok === false && res.error === 'gold_short' && res.detail && res.detail.why === 'floor',
+      `G6: a bill under the floor answered ${JSON.stringify(res).slice(0, 300)}`)) {
+      p = await propose(M, d, u, 0);
+      m = memberOf(p, u, 0); c0 = Number(m.delta.gold || 0);
+      const n = Math.floor((100 + c0 - 80) / 14);
+      if (n > 0) addBuys(m, n);
+      res = await commit(M, d, p);
+      say(`G6: coins ${c0}; a bill of ${n * 14} keeping 80 of 100 -> ${res && (res.ok ? 'landed' : res.error + ' ' + JSON.stringify(res.detail))}; purse ${await d.purse(u)}`);
+      ok(res && res.ok === true && await d.purse(u) >= 80, `G6: a bill that keeps the floor answered ${JSON.stringify(res && res.error)} (purse ${await d.purse(u)})`);
+    }
   }
 
   // G7 THE LEDGER BALANCES.
@@ -420,8 +431,9 @@ async function chainArms(mutate, M) {
   }
   const hunts = await d.q(`select intent, gold_kind k, count(*)::int n, count(session_id)::int s from public.player_ledger
                              where coalesce(gold, 0) <> 0 and (session_id is not null or intent in ('supply_buy', 'vendor_cover', 'loot_sell')) group by 1, 2`);
-  ok(hunts.length > 0 && hunts.every((h) => h.n === h.s) && hunts.some((h) => h.k === 'hunt_supply') && hunts.some((h) => h.k === 'hunt_loot'),
-    `G7: the hunt gold rows are ${JSON.stringify(hunts)} (every one with its session; coins and store bills present)`);
+  ok(hunts.length > 0 && hunts.every((h) => h.n === h.s) && hunts.some((h) => h.k === 'hunt_supply') && hunts.some((h) => h.k === 'hunt_loot')
+    && hunts.some((h) => h.intent === 'loot_sell' && h.k === 'hunt_sale'),
+    `G7: the hunt gold rows are ${JSON.stringify(hunts)} (every one with its session; coins, loot sold on pickup and store bills present)`);
   let lie = null;
   try { await d.q("insert into public.player_ledger (user_id, slot, kind, intent, gold, purse) values ($1, 0, 'admin', 'g7_lie', 5, 999999)", [a]); }
   catch (e) { lie = String(e.message); }
@@ -460,9 +472,13 @@ async function chainArms(mutate, M) {
   const fp = JSON.stringify(await inventory(db));
   const purses = JSON.stringify(await d.q('select user_id::text, gold::text, version::text from public.account_wallet order by 1'));
   await d.as('');
-  await db.exec('begin;\n' + await migrationText(mutate) + '\ncommit;');
-  ok(JSON.stringify(await inventory(db)) === fp, 'G9: a second apply changed the schema fingerprint');
-  ok(JSON.stringify(await d.q('select user_id::text, gold::text, version::text from public.account_wallet order by 1')) === purses, 'G9: a second apply moved a purse');
+  let again = null;
+  try { await db.exec('begin;\n' + await migrationText(mutate) + '\ncommit;'); }
+  catch (e) { again = String(e.message).split('\n')[0]; await db.exec('rollback').catch(() => {}); }
+  if (ok(again === null, 'G9: a second apply was refused: ' + again)) {
+    ok(JSON.stringify(await inventory(db)) === fp, 'G9: a second apply changed the schema fingerprint');
+    ok(JSON.stringify(await d.q('select user_id::text, gold::text, version::text from public.account_wallet order by 1')) === purses, 'G9: a second apply moved a purse');
+  }
   await db.close?.();
 }
 

@@ -149,7 +149,8 @@ export class AccountSession {
      re-render with it (their own envelopes still hold the older copy until their next answer). */
   _notePurse(cs) {
     const next = newerPurse(this._purse, purseOf(cs));
-    if (!next || next === this._purse) return;
+    /* Raise-only by VERSION, never by identity: two heroes re-rendering each other stop at once. */
+    if (!next || (this._purse && next.v <= this._purse.v)) return;
     this._purse = next;
     for (const other of this._chars.values()) if (other !== cs && typeof other.notePurse === 'function') other.notePurse();
   }

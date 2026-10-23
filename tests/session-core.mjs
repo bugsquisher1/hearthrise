@@ -690,6 +690,8 @@ async function rules(M) {
     if (I.goldOf(a) !== 150) return 'after hero B spent, hero A shows ' + I.goldOf(a);
     lag[0] = { gold: 800, v: 4 }; await a.load();   // A's next answer is an OLDER copy
     if (I.goldOf(a) !== 150 || I.goldOf(b) !== 150) return 'an older answer rolled the purse back: ' + [I.goldOf(a), I.goldOf(b)];
+    if (I.newerPurse({ gold: 1, v: 5 }, { gold: 2, v: 4 }).gold !== 1 || I.newerPurse({ gold: 1, v: 4 }, { gold: 2, v: 5 }).gold !== 2)
+      return 'newerPurse does not keep the higher wallet version';
     return JSON.stringify(acc.purse()) === '{"gold":150,"v":5}' || 'the account purse reads ' + JSON.stringify(acc.purse());
   });
   await t('ACC-3', async () => {

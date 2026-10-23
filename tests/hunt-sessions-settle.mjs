@@ -169,6 +169,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createHmac } from 'node:crypto';
 import { SHIM_CRYPTO, SHIM_VAULT, SHIM_NET } from './world-tick-token-shims.mjs';
 import { isMain } from './_is-main.mjs';
+import { setGold } from './_gold.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const MUTATE = process.argv.includes('--mutate');
@@ -1008,7 +1009,8 @@ async function character(db, M, uid, o) {
   }
   if (o.skillsXp) await admin(db, uid, { xp: o.skillsXp });
   if (o.gold != null) {
-    await db.query('update public.player_state set gold = $2 where user_id = $1 and slot = 0', [uid, o.gold]);
+    /* GOLD IS THE ACCOUNT'S (2026-12-15-account-gold.sql): one purse; every probe here is its account's only hero. */
+    await setGold((sql, p) => db.query(sql, p).then((r) => r.rows), uid, 0, o.gold);
   }
   if (o.hp) await db.query('update public.player_state set hp = $2 where user_id = $1 and slot = 0', [uid, o.hp]);
   if (o.options) {
@@ -1119,7 +1121,7 @@ async function run(db, M, from, cuts, o) {
 async function snapshot(db, sid, uid = UID) {
   return one(db, `
     select jsonb_build_object(
-      'gold', ps.gold, 'hp', ps.hp, 'level_xp', ps.level_xp,
+      'gold', coalesce((select w.gold from public.account_wallet w where w.user_id = $1), 0), 'hp', ps.hp, 'level_xp', ps.level_xp,
       'active', ps.active_kind || ':' || coalesce(ps.active_id, ''), 'stamina', ps.stamina_ms, 'stamina_at', ps.stamina_at,
       'skills', (select jsonb_object_agg(skill_id, jsonb_build_array(xp, xp_frac)) from public.player_skills where user_id = $1 and slot = 0),
       'inv', (select jsonb_object_agg(item_id, qty) from public.player_inventory where user_id = $1 and slot = 0),
@@ -1628,7 +1630,7 @@ const DB_ARMS = {
     const problems = [];
     const h = await hunter(db, M, { ...STRONG, minutesAgo: 10 });
     await settleTo(db, M, h.from + 60000);
-    const gold = async () => Number(await one(db, 'select gold from public.player_state where user_id = $1 and slot = 0', [UID]));
+    const gold = async () => Number(await one(db, 'select coalesce((select w.gold from public.account_wallet w where w.user_id = $1), 0)', [UID]));
     const g0 = await gold();
     const at0 = Number(await one(db, 'select floor(extract(epoch from settled_to) * 1000)::bigint from public.hunt_instances where id = $1', [h.inst]));
     const forged = (c) => { c.members[0].delta.journal.meta.kills = 100000; };
@@ -1805,7 +1807,7 @@ const DB_ARMS = {
     const { from } = await hunter(db, M, { ...STRONG, options: { on_empty: 'end', supply_source: 'mine' },
       inv: { cooked_shrimp: 300 }, bag: [{ item: 'cooked_shrimp', qty: 300, essential: true }] });
     await settleTo(db, M, from + 60000);
-    const g0 = Number(await one(db, 'select gold from public.player_state where user_id = $1 and slot = 0', [UID]));
+    const g0 = Number(await one(db, 'select coalesce((select w.gold from public.account_wallet w where w.user_id = $1), 0)', [UID]));
     const back = (c) => { const w = JSON.parse(c.settle.world); c.settle.world_swing = c.worldSwingFrom - 1; w.w[1] = c.settle.world_swing; c.settle.world = JSON.stringify(w); };
     const endAt = (why) => (c) => { m0(c).hunt.ended = { reason: why, at: m0(c).hunt.to }; };
     const m0 = (c) => c.members[0];
@@ -1831,7 +1833,7 @@ const DB_ARMS = {
       const x = await settleTo(db, M, from + 120000, { tamper });
       const got = x.res && x.res.error;
       if (code ? got !== code : !(x.res && x.res.ok === false)) problems.push(`${label} answered ${JSON.stringify(x.res).slice(0, 200)}, want ${code || 'a refusal'}`);
-      const g = Number(await one(db, 'select gold from public.player_state where user_id = $1 and slot = 0', [UID]));
+      const g = Number(await one(db, 'select coalesce((select w.gold from public.account_wallet w where w.user_id = $1), 0)', [UID]));
       if (g !== g0) problems.push(`${label} moved gold ${g0} -> ${g}`);
       await db.query('rollback to savepoint value_case');
     }
@@ -1967,7 +1969,7 @@ const DB_ARMS = {
     const problems = [];
     const { sid } = await hunter(db, M, STRONG);
     const exec = makeExec(db);
-    const value = async () => canon(await one(db, `select jsonb_build_object('gold', ps.gold,
+    const value = async () => canon(await one(db, `select jsonb_build_object('gold', coalesce((select w.gold from public.account_wallet w where w.user_id = $1), 0),
         'skills', (select jsonb_object_agg(skill_id, xp) from public.player_skills where user_id = $1 and slot = 0),
         'inv', (select jsonb_object_agg(item_id, qty) from public.player_inventory where user_id = $1 and slot = 0),
         'tally', (select jsonb_build_object('coins', t.coins, 'kills', t.kills, 'loot', t.loot) from public.hunt_session_tally t where t.session_id = $2))
@@ -2237,8 +2239,10 @@ const DB_MUTANTS = [
     find: "(v_ukind->>'mana')::bigint, 0) > v_win / v_cons + 1", replace: "(v_ukind->>'mana')::bigint, 0) > 10 * v_win / v_cons + 1" },
   { arm: 'STORE', name: '[C2 one gold] the applier prices a use at one gold', fn: AM,
     find: '      v_cost := v_cost + v_n * v_price;', replace: '      v_cost := v_cost + v_n;' },
-  { arm: 'STORE', name: 'a store use is not journalled', fn: AM,
-    find: "        values (p_user, p_slot, 'hunt', 'supply_buy', -v_cost, -v_units,", replace: "        values (p_user, p_slot, 'hunt', 'supply_bought', -v_cost, -v_units," },
+  /* ACCOUNT GOLD (2026-12-15-account-gold.sql): the store bill is journalled by the instance, after every member's coins. */
+  { arm: 'STORE', name: 'a store use is not journalled', fn: AI,
+    find: "        values ((v_p->>'user')::uuid, (v_p->>'slot')::int, 'hunt', 'supply_buy', -(v_p->>'cost')::bigint, -(v_p->>'units')::bigint,",
+    replace: "        values ((v_p->>'user')::uuid, (v_p->>'slot')::int, 'hunt', 'supply_bought', -(v_p->>'cost')::bigint, -(v_p->>'units')::bigint," },
   { arm: 'PARTY', name: 'a settle of some members lands', fn: AI,
     /* (re-anchored on 2026-11-16-hunt-density-bounds.sql: every refusal after the lock is counted) */
     find: "    return public.hr_hunt_settle_refused(p_instance, p_world_from, v_first, jsonb_build_object('ok', false, 'error', 'member_set'));", replace: "    null;" },

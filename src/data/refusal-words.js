@@ -14,7 +14,7 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { MAX_CONDITIONS } from './condition-metrics.js?v=0.2.33';
+import { MAX_CONDITIONS } from './condition-metrics.js?v=0.2.34';
 
 export const REFUSAL_FALLBACK = 'That did not go through, so nothing was changed. Try again in a moment.';
 
@@ -145,6 +145,8 @@ export const REFUSAL_WORDS = Object.freeze({
   same_hunt: 'You are already hunting there.',
   unknown_hunt: 'The server does not know that hunt.',
   unknown_preset: 'That setup is gone. Pick another under Saved setups.',
+  /* hr_hunt_preset_apply: a piece the setup wears is no longer in the bag (Go as on the Hunts window stops there). */
+  missing_item: 'A piece of that setup’s gear is not in your bag, so nothing was put on.',
   unknown_action_set: 'That action set is gone. Pick another under Saved setups.',
   /* Naming, saving and removing a setup (2026-11-15-preset-names.sql). */
   bad_preset_name: 'Names are 1 to 24 characters, and some words are not allowed.',

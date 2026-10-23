@@ -41,12 +41,12 @@
 //                 left and destroyed when it closes
 // ════════════════════════════════════════════════════════════════════════
 
-import { SESSION_CONFIG } from './config.js?v=0.2.33';
-import { CharacterSession } from './character-session.js?v=0.2.33';
-import { TownPresence } from './town-presence.js?v=0.2.33';
-import { WORLD_MAPS, SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.33';
-import { charLevelFromXp } from '../core/xp.js?v=0.2.33';
-import { createIntentLedger } from './intent-ledger.js?v=0.2.33';
+import { SESSION_CONFIG } from './config.js?v=0.2.34';
+import { CharacterSession } from './character-session.js?v=0.2.34';
+import { TownPresence } from './town-presence.js?v=0.2.34';
+import { WORLD_MAPS, SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.34';
+import { charLevelFromXp } from '../core/xp.js?v=0.2.34';
+import { createIntentLedger } from './intent-ledger.js?v=0.2.34';
 
 /* What the account's characters share: the depot (2026-11-27-account-depot.sql) and the
    farm land (2026-12-14-shared-farm.sql). A change to one re-reads the others. */

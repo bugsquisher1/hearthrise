@@ -62,13 +62,24 @@ async function run(db) {
       `tier ${lv} is ${r ? `${r.gold_cost} gold / farming ${r.req_farm_level}` : 'absent'}, authored ${p.gold} / ${p.farming}`);
   }
   // P1
+  /* The plot tier is the ACCOUNT's on the chain end (2026-12-14-shared-farm.sql:
+     account_farm, no row = tier 1); the mutants replay to FARM, where it is the hero's
+     player_state.plot_level. The fixture follows the schema; the assertions do not move. */
+  const shared = !!(await db.query(`select to_regclass('public.account_farm') as t`)).rows[0].t;
+  const state = async () => (await db.query(shared
+    ? 'select gold, public.hr_farm_plot_level(user_id) as plot_level from public.player_state where user_id = $1 and slot = 0'
+    : 'select gold, plot_level from public.player_state where user_id = $1 and slot = 0', [UID])).rows[0];
   await db.exec(`insert into auth.users (id) values ('${UID}') on conflict (id) do nothing;`);
-  await db.exec(`insert into public.player_state (user_id, slot, gold, version) values ('${UID}', 0, 1000000, 1)
+  await db.exec(shared
+    ? `insert into public.player_state (user_id, slot, gold, version) values ('${UID}', 0, 1000000, 1)
+                 on conflict (user_id, slot) do update set gold = 1000000, version = 1;
+       delete from public.account_farm where user_id = '${UID}';`
+    : `insert into public.player_state (user_id, slot, gold, version) values ('${UID}', 0, 1000000, 1)
                  on conflict (user_id, slot) do update set gold = 1000000, version = 1, plot_level = 1;`);
   const low = (await asUser(db, 'select public.hr_farm_upgrade_plot(0, $1::uuid, 2) as res', [uuid()])).res;
   ok('P1', low && low.ok === false && low.error === 'farm_level_too_low',
     `a farming-1 character bought tier 2: ${JSON.stringify(low)}`);
-  const after1 = (await db.query('select gold, plot_level from public.player_state where user_id = $1 and slot = 0', [UID])).rows[0];
+  const after1 = await state();
   ok('P1', Number(after1.gold) === 1000000 && Number(after1.plot_level) === 1, `a refused upgrade moved state: ${JSON.stringify(after1)}`);
   // P2
   const xp = (await db.query('select xp from public.hr_xp_table where level = $1', [PLOT_TIER_PRICES[2].farming])).rows[0];
@@ -77,7 +88,7 @@ async function run(db) {
                  on conflict (user_id, slot, skill_id) do update set xp = excluded.xp;`);
   const up = (await asUser(db, 'select public.hr_farm_upgrade_plot(0, $1::uuid, 2) as res', [uuid()])).res;
   ok('P2', up && up.ok === true, `the tier-2 upgrade at farming ${PLOT_TIER_PRICES[2].farming} was refused: ${JSON.stringify(up)}`);
-  const after2 = (await db.query('select gold, plot_level from public.player_state where user_id = $1 and slot = 0', [UID])).rows[0];
+  const after2 = await state();
   ok('P2', 1000000 - Number(after2.gold) === PLOT_TIER_PRICES[2].gold,
     `tier 2 cost ${1000000 - Number(after2.gold)} gold, authored ${PLOT_TIER_PRICES[2].gold}`);
   const led = (await db.query(`select gold from public.player_ledger where user_id = $1 and intent = 'farm_upgrade_plot'`, [UID])).rows;

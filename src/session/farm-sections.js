@@ -1,14 +1,17 @@
 // ════════════════════════════════════════════════════════════════════════
 // src/session/farm-sections.js — THE FIELD AS THE SERVER SEES IT, READ SAFELY.
 //
-// PURE. Reads the `farm_land` section (supabase/migrations/2026-11-26-farm-window.sql,
+// PURE. Reads the `farm_land` section (supabase/migrations/2026-12-14-shared-farm.sql,
 // hr_farm_land_view) of the record a CharacterSession holds:
 //   { cap, plot_level, deeds, upgrade: { level, gold, deeds, farming } | null,
-//     plots: [{ i, crop, ready, ready_in_s, waterable, regrows_left }] }
-// Every judgement is the server's: how many plots this hero may plant (the
-// property cap), whether a plot is ready or may be watered (by the server's
-// clock), and the next plot tier's price. Null = the server sent no field yet,
-// and the Farm window keeps every control off (CLAUDE.md §6, fail safe).
+//     plots: [{ i, crop, ready, ready_in_s, waterable, regrows_left, by, by_name, extra }] }
+// The field is the ACCOUNT's (Tyler 2026-10-23): every hero reads the same plots,
+// each naming the hero who planted it (`by` the slot, `by_name` the name); an
+// `extra` plot sits past the cap and goes once harvested. `deeds` are this hero's.
+// Every judgement is the server's: how many plots the land holds (the property
+// ladder and the Garden), whether a plot is ready or may be watered (by the
+// server's clock), and the next plot tier's price. Null = the server sent no field
+// yet, and the Farm window keeps every control off (CLAUDE.md §6, fail safe).
 //
 // The countdown is DISPLAY ONLY: `ready_in_s` was true when the envelope was
 // read, so the window subtracts the time since it first saw this envelope
@@ -19,7 +22,8 @@
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const ID = /^[a-z0-9_]{1,64}$/;
 const count = (v) => (Number.isSafeInteger(v) && v >= 0 ? v : null);
-const MAX_PLOTS = 64;
+const nameOf = (v) => (typeof v === 'string' && v.length > 0 && v.length <= 32 ? v : null);
+const MAX_PLOTS = 128;   // the server's index fuse (account_farm_plots.plot_idx 0..127)
 
 /* One parse per envelope: the record's section object is frozen and replaced whole by each envelope. */
 const SEEN = new WeakMap();
@@ -53,6 +57,7 @@ export function farmLandOf(cs, nowMs) {
       i: p.i, crop: p.crop, ready: p.ready === true, waterable: p.waterable === true,
       readyInS: count(p.ready_in_s) === null ? 0 : p.ready_in_s,
       regrowsLeft: count(p.regrows_left),
+      by: count(p.by), byName: nameOf(p.by_name), extra: p.extra === true,
     });
   }
   const out = Object.freeze({ cap: Math.min(cap, MAX_PLOTS), plotLevel, deeds: deeds || 0, upgrade: priceOf(raw.upgrade), plots,

@@ -241,6 +241,8 @@
     "node tests/bank-cap-rungs.mjs": "economy-selftests",
     "node tests/account-depot.mjs": "economy-selftests",
     "node tools/mutant-gate.mjs node tests/account-depot.mjs --selftest": "economy-selftests",
+    "node tests/shared-farm.mjs": "economy-selftests",
+    "node tools/mutant-gate.mjs node tests/shared-farm.mjs --selftest": "economy-selftests",
     "node tools/gen-storage-chests.mjs --check": "economy-selftests",
     "node tools/mutant-gate.mjs node tools/gen-storage-chests.mjs --selftest": "economy-selftests",
     "node tests/storage-chests.mjs": "economy-selftests",

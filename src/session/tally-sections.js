@@ -12,7 +12,7 @@
 // nothing kept from an older one. Null = the server sent no tally yet, and every
 // Tally control stays off (fail safe).
 // ════════════════════════════════════════════════════════════════════════
-import { tallyTask } from '../data/tally-tasks.js?v=0.2.34';
+import { tallyTask } from '../data/tally-tasks.js?v=0.2.36';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const ID = /^[a-z0-9_]{1,64}$/;

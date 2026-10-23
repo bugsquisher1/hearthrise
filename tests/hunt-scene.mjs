@@ -314,9 +314,11 @@ async function rules(M) {
     const before = cs.timeline.units().includes(101);
     clock.t = C0 + 60000;
     await cs.load();
+    /* read before the next frame: the pose's own forget (timeline.js T5), not the scene's at its next frame (scene.js S8) */
+    const held = cs.timeline.units();
     const f = v.at(at(S0 + 60000));
-    ok('SC-8', before && !cs.timeline.units().includes(101) && !f.units.some((d) => d.unit === 101) && cs.timeline.units().includes(103),
-      'a unit gone from the pose must be forgotten after its corpse time: ' + JSON.stringify(cs.timeline.units()));
+    ok('SC-8', before && !held.includes(101) && !cs.timeline.units().includes(101) && !f.units.some((d) => d.unit === 101) && cs.timeline.units().includes(103),
+      'a unit gone from the pose must be forgotten after its corpse time: ' + JSON.stringify(held));
   }
 
   { // SC-9: the viewed hero's look is the server's chosen outfit, in the hunt as in town

@@ -293,7 +293,7 @@ function memberIn(M, key, o) {
     inventory: {}, deathsTodayBefore: 0, deathsLifetimeBefore: 0, hearthfindReady: false, perks: null,
     /* The ROLE key (hunt-roles.js roleWeaponOf): a wand is the Mage, a staff the Healer (Tyler 2026-10-19). */
     hero: M.SPAWN.heroSetup({ weaponType: x.weaponType || ({ melee_dps: 'hammer', ranger: 'ranged', mage: 'wand', healer: 'staff' }[role] || 'sword'),
-      options: x.options || {}, bar: x.bar || [], partyRoles: x.partyRoles || [role] }),
+      options: x.options || {}, bar: x.bar || [], partyRoles: x.partyRoles || [role], leaveTogether: x.together === true }),
     ...(x.extra || {}),
   };
 }
@@ -308,7 +308,10 @@ function runCut(M, mk, spanMs, cuts, over) {
   let world = null; let next = T0;
   const outs = [];
   for (let i = 1; i < edges.length; i++) {
-    const out = M.AC.accrueHunt(instIn(M, members, 0, { ...(over || {}), instance: { id: IID, nextSwingAtMs: next, world },
+    /* an ended member's session is closed: the next window reads only the open ones, as the database does */
+    const open = members.filter((x) => !x.ended);
+    if (!open.length) break;
+    const out = M.AC.accrueHunt(instIn(M, open, 0, { ...(over || {}), instance: { id: IID, nextSwingAtMs: next, world },
       window: { fromMs: edges[i - 1], toMs: edges[i] } }));
     if (!out.accrued) continue;
     outs.push(out);
@@ -846,8 +849,9 @@ const ENGINE_ARMS = {
   'PARTY-DEATH': async (M) => {
     const problems = [];
     const roles = ['melee_dps', 'melee_dps'];
+    /* the survivor's box "Leave if anyone leaves the hunt or dies" is on (the server's default; PARTY-LEAVE-RULE has it off) */
     const out = runCut(M, () => [memberIn(M, 'a', { seat: 0, level: 1, skills: {}, hp: 5, empty: 'end', partyRoles: roles }),
-      memberIn(M, 'b', { seat: 1, level: 60, partyRoles: roles })], 600000, [], deadlyOf(M));
+      memberIn(M, 'b', { seat: 1, level: 60, partyRoles: roles, together: true })], 600000, [], deadlyOf(M));
     const ms = out.outs.flatMap((o) => o.members);
     const endOf = (k) => (ms.find((x) => x.key === k && x.hunt.ended) || {}).hunt;
     const a = endOf('a'); const b = endOf('b');
@@ -855,6 +859,90 @@ const ENGINE_ARMS = {
     if (!b || b.ended.reason !== 'party_member_died') problems.push(`the survivor ended ${JSON.stringify(b && b.ended)}, not party_member_died`);
     else if (b.ended.at !== a.ended.at) problems.push(`the two ends are ${a.ended.at} / ${b.ended.at}, not one boundary`);
     if (ms.some((x) => x.key === 'b' && (x.summary.deathLog.length || (x.hunt.death_xp || []).length))) problems.push('the survivor paid for a death it did not have');
+    return problems;
+  },
+
+  /* LEAVE TOGETHER (Tyler 2026-10-22): "Leave if anyone leaves the hunt or dies", each hero's own box. One
+     member leaves: every ticked other ends `party_member_left` at the leaver's boundary, paid for every swing
+     up to it; an unticked hero hunts on; a ticked hero keyed BEFORE the leaver ends there too, not a swing
+     later; a hero with its own end at that boundary keeps its own reason; two ticked heroes each end once
+     (no loop); the same ends however the windows are cut (TICK-1); a read with no box is off. */
+  'PARTY-LEAVE-RULE': async (M) => {
+    const problems = [];
+    const tick = M.C.COMBAT_BALANCE.tickMs;
+    const LEAVE = T0 + 61000;
+    const keys = ['a', 'b', 'c'];
+    const party = (together, leavers) => () => keys.map((k, i) => {
+      const m = memberIn(M, k, { seat: i, level: 40, partyRoles: ['melee_dps', 'melee_dps', 'melee_dps'], together: together.includes(k),
+        bag: { cooked_shrimp: { loaded: 50, left: 50 } } });
+      if (leavers.includes(k)) m.huntSession.leaveAtMs = LEAVE;
+      return m;
+    });
+    const rows = (out) => out.outs.flatMap((o) => o.members);
+    const endsOf = (out) => { const e = {}; for (const p of rows(out)) if (p.hunt.ended) e[p.key] = p.hunt.ended; return e; };
+    const paidOf = (out, k) => rows(out).filter((p) => p.key === k).reduce((s, p) => s + p.hunt.paid_ms, 0);
+    const killsOf = (out, k) => rows(out).filter((p) => p.key === k).reduce((s, p) => s + p.summary.kills, 0);
+    const endEvents = (out, k) => rows(out).filter((p) => p.key === k).reduce((s, p) => s + p.summary.huntEvents.filter((e) => e.type === 'ended').length, 0);
+    const SPAN = 300000;
+    /* (a) c leaves; a (keyed before it) is ticked, b is not */
+    const one = runCut(M, party(['a'], ['c']), SPAN, []);
+    const e = endsOf(one);
+    if (!e.c || e.c.reason !== 'left') return [`CONTROL: the leaver ended ${JSON.stringify(e.c)}`];
+    const L = Date.parse(e.c.at);
+    if (!e.a || e.a.reason !== 'party_member_left' || e.a.at !== e.c.at) problems.push(`the ticked hero ended ${JSON.stringify(e.a)}, not party_member_left at the leaver's ${e.c.at}`);
+    if (e.b) problems.push(`the unticked hero went home: ${JSON.stringify(e.b)}`);
+    /* (c) settled first: the cascaded hero is paid every swing up to the leaver's boundary, kills included */
+    if (paidOf(one, 'a') !== L - T0) problems.push(`the ticked hero was paid ${paidOf(one, 'a')} ms of the ${L - T0} up to its end`);
+    if (!(killsOf(one, 'a') > 0)) problems.push(`CONTROL: the ticked hero killed nothing before it left (${killsOf(one, 'a')})`);
+    /* (d) the unticked hero hunts the whole span */
+    if (paidOf(one, 'b') !== SPAN || !(killsOf(one, 'b') > killsOf(one, 'a'))) problems.push(`the unticked hero hunted ${paidOf(one, 'b')} ms of ${SPAN} (kills ${killsOf(one, 'b')})`);
+    /* TICK-1: the same ends and the same pay however the windows fall around the leaver's boundary */
+    for (const cuts of [[L - 1], [L], [L + 1], [L - tick + 1, L + tick - 1], [T0 + 30001, L - 999, L + 2001]]) {
+      const cut = runCut(M, party(['a'], ['c']), SPAN, cuts);
+      if (canon(endsOf(cut)) !== canon(e) || paidOf(cut, 'a') !== paidOf(one, 'a') || killsOf(cut, 'a') !== killsOf(one, 'a')) {
+        problems.push(`cut at ${cuts.map((t) => t - T0)} ms: ends ${canon(endsOf(cut))} / paid ${paidOf(cut, 'a')}, one span ${canon(e)} / ${paidOf(one, 'a')}`);
+      }
+    }
+    /* (e) two ticked heroes: each ends once at the leaver's boundary, and the span runs out */
+    const two = runCut(M, party(['a', 'b'], ['c']), SPAN, []);
+    const t2 = endsOf(two);
+    if (!t2.a || !t2.b || t2.a.reason !== 'party_member_left' || t2.b.reason !== 'party_member_left' || t2.a.at !== t2.c.at || t2.b.at !== t2.c.at) {
+      problems.push(`two ticked heroes ended ${canon(t2)}`);
+    }
+    for (const k of keys) if (endEvents(two, k) !== 1) problems.push(`${k} has ${endEvents(two, k)} end events with two ticked heroes`);
+    /* own reason wins: a and c both leave at the same instant, b is ticked */
+    const both = endsOf(runCut(M, party(['a', 'b'], ['a', 'c']), SPAN, []));
+    if (!both.a || both.a.reason !== 'left' || !both.c || both.c.reason !== 'left' || !both.b || both.b.reason !== 'party_member_left') {
+      problems.push(`two leavers and one ticked hero ended ${canon(both)} (each leaver keeps its own reason)`);
+    }
+    /* the deploy-order fuse: a hero whose read carries no box is never sent home */
+    if (M.SPAWN.heroSetup({ weaponType: 'sword', options: {}, bar: [], partyRoles: [] }).leaveTogether !== false) problems.push('a hero with no box in its read is on');
+    return problems;
+  },
+
+  /* LEAVE TOGETHER, A DEATH: the dying hero's ticked partner ends `party_member_died` at its boundary, the
+     unticked one hunts on, and the end the FIRST trigger named stays (a second end at the same boundary, here a
+     leave, does not rename it). */
+  'PARTY-LEAVE-DEATH': async (M) => {
+    const problems = [];
+    const roles = ['melee_dps', 'melee_dps', 'melee_dps'];
+    const mk = (leaveAt) => () => {
+      const ms = [memberIn(M, 'a', { seat: 0, level: 1, skills: {}, hp: 5, empty: 'end', partyRoles: roles }),
+        memberIn(M, 'b', { seat: 1, level: 60, partyRoles: roles, together: true }),
+        memberIn(M, 'c', { seat: 2, level: 60, partyRoles: roles })];
+      if (leaveAt) ms[2].huntSession.leaveAtMs = leaveAt;
+      return ms;
+    };
+    const ends = (out) => { const e = {}; for (const p of out.outs.flatMap((o) => o.members)) if (p.hunt.ended) e[p.key] = p.hunt.ended; return e; };
+    const e = ends(runCut(M, mk(null), 600000, [], deadlyOf(M)));
+    if (!e.a || e.a.reason !== 'died') return [`CONTROL: the weak member ended ${JSON.stringify(e.a)}`];
+    if (!e.b || e.b.reason !== 'party_member_died' || e.b.at !== e.a.at) problems.push(`the ticked survivor ended ${JSON.stringify(e.b)}, not party_member_died at ${e.a.at}`);
+    if (e.c && e.c.at === e.a.at) problems.push(`the unticked survivor went home with the death: ${JSON.stringify(e.c)}`);
+    /* c leaves at the very boundary a's death ends: b still ends for the death (the first end names it) */
+    const D = Date.parse(e.a.at);
+    const f = ends(runCut(M, mk(D - 1), 600000, [], deadlyOf(M)));
+    if (!f.a || f.a.at !== e.a.at || !f.c || f.c.reason !== 'left' || f.c.at !== e.a.at) return [...problems, `CONTROL: the leave at the death's boundary ended ${canon(f)}`];
+    if (!f.b || f.b.reason !== 'party_member_died') problems.push(`a leave at the death's boundary renamed the ticked survivor's end: ${JSON.stringify(f.b)}`);
     return problems;
   },
 
@@ -1463,6 +1551,126 @@ const DB_ARMS = {
     if (a.instance.world !== b.instance.world || a.instance.world_swing !== b.instance.world_swing) problems.push('the two members see two worlds');
     const units = new Set([a.session.unit, b.session.unit]);
     if (units.size !== 2 || units.has(null)) problems.push(`the members' units are ${[...units]}`);
+    return problems;
+  }),
+  /* PARTY-LEAVE (Tyler 2026-10-22, "Leave if anyone leaves the hunt or dies"), through the replayed chain
+     (2026-12-12-party-leave-together.sql), BOTH PATHS: a party of four, seats 0-1 on the default box, seat 2 the
+     leaver, seat 3 unticks its OWN box in town (a stranger's set moves no other hero's). The read carries every
+     box to its hero; a forged cascade end for the unticked hero is refused; then the tick's 90 s windows (the
+     browser closed) and a player's instants around the leave (viewed) write the SAME rows: the leaver ends
+     `left`, seats 0-1 `party_member_left` at its boundary, each settled through it first (paid, kills folded, the
+     session settled to the end), seat 3 hunts on; each cascaded session names the leaver (end_by). Then
+     everyone comes home and the party starts again together, every box as it was set. */
+  'PARTY-LEAVE': async (db, M) => inTx(db, async () => {
+    const problems = [];
+    const h = await hunter(db, M, { party: [{ ...STRONG }, { ...STRONG }, { ...STRONG }, { ...STRONG }], beforeEnter: async () => {
+      await asUser(db, UIDS[2]);
+      const n = await one(db, 'select public.hr_character_name_set(0, $1, $2::uuid)', ['Settle Leaver', idem()]);
+      if (!n || n.ok !== true) throw new Error('the leaver\'s name answered ' + JSON.stringify(n));
+      await asUser(db, UIDS[3]);
+      const r = await one(db, 'select public.hr_party_leave_together_set(0, false, $1::uuid)', [idem()]);
+      if (!r || r.ok !== true || r.leave_together !== false) throw new Error('the untick answered ' + JSON.stringify(r));
+    } });
+    const boxes = async () => (await q(db, 'select party_leave_together b from public.player_state where user_id = any($1::uuid[]) and slot = 0 order by array_position($1::uuid[], user_id)', [UIDS])).map((r) => r.b).join();
+    /* (g) on by default, (f) only the stranger's own box moved; each hero's party section reads its own */
+    if (await boxes() !== 'true,true,true,false') return [`the boxes read ${await boxes()}, not the default on with seat 3's own untick`];
+    const shown = [];
+    for (const u of UIDS) shown.push(await one(db, `select public.hr_state_of($1::uuid, 0)->'party'->'leave_together'`, [u]));
+    if (shown.join() !== 'true,true,true,false') problems.push(`the party sections read ${shown.join()}`);
+    const exec = makeExec(db);
+    const plan = await M.HS.readHuntSettle({ exec, user: UIDS[0], slot: 0, grounds: groundsOf(M), atMs: h.from + 60000 }, 'tick');
+    if (plan.answer) return [...problems, `CONTROL: the read answered ${JSON.stringify(plan.answer).slice(0, 200)}`];
+    const heroBoxes = UIDS.map((u) => (plan.members.find((m) => m.user === u) || { hero: {} }).hero.leaveTogether).join();
+    if (heroBoxes !== 'true,true,true,false') problems.push(`the settle's heroes carry the boxes ${heroBoxes}`);
+    /* the leaver presses Leave; its instant is fixed where the live horizon of an earlier settle would put it */
+    await asUser(db, UIDS[2]);
+    const lv = await one(db, 'select public.hr_hunt_leave(0, $1::uuid)', [idem()]);
+    await db.query("select set_config('request.jwt.claim.sub', '', true)");
+    if (!lv || lv.ok !== true) return [...problems, 'the leave was refused: ' + JSON.stringify(lv)];
+    const LEAVE = h.from + 75000;
+    const L = h.from + Math.ceil(75000 / M.C.COMBAT_BALANCE.tickMs) * M.C.COMBAT_BALANCE.tickMs;
+    await db.query('update public.hunt_sessions set leave_at = to_timestamp($2::double precision / 1000) where id = $1', [h.sids[2], LEAVE]);
+    /* a cascade end the unticked hero's box does not allow is refused, and moves nothing */
+    const forged = await settleTo(db, M, h.from + 120000, { tamper: (c) => {
+      const row = c.members.find((x) => String(x.user) === UIDS[3]);
+      if (row) row.hunt.ended = { reason: 'party_member_left', at: new Date(L).toISOString() };
+    } });
+    if (!forged.res || forged.res.error !== 'end_not_proven') problems.push(`a cascade end for the unticked hero answered ${JSON.stringify(forged.res).slice(0, 200)}`);
+    if (await one(db, 'select count(*)::int from public.hunt_sessions where id = any($1::uuid[]) and ended_at is not null', [h.sids]) !== 0) problems.push('the refused commit ended a hunt');
+    const iso = (ms) => new Date(ms).toISOString();
+    await db.query('savepoint party_leave');
+    /* the settle reads the instance through the hero that hunts on (a read through an ended one answers no_hunt) */
+    const go = async (cuts) => { await run(db, M, h.from, cuts, { user: UIDS[3] }); return Promise.all(h.sids.map((sid, i) => snapshot(db, sid, UIDS[i]))); };
+    const tick = await go(ticksOf(90000, SPAN_MS));
+    const names = await Promise.all(h.sids.map((sid) => one(db, `select public.hr_hunt_view($1::uuid)->>'end_by'`, [sid])));
+    await db.query('rollback to savepoint party_leave');
+    const viewed = await go((from) => [from + 7001, LEAVE - 1500, LEAVE + 1500, L + 1, from + 333333, from + SPAN_MS]);
+    const ends = tick.map((s) => (s.session.end_reason || 'open') + '@' + (s.session.ended_at || ''));
+    if (tick[2].session.end_reason !== 'left' || Date.parse(tick[2].session.ended_at) !== L) return [...problems, `CONTROL: the leaver ended ${ends[2]}, not left at ${iso(L)}`];
+    for (const i of [0, 1]) {
+      const s = tick[i];
+      if (s.session.end_reason !== 'party_member_left' || Date.parse(s.session.ended_at) !== L) problems.push(`ticked seat ${i} ended ${ends[i]}, not party_member_left at ${iso(L)}`);
+      /* (c) settled first: its session is settled through the end, and its kills of the stretch are folded */
+      else if (Date.parse(s.session.settled_to) !== L + 1 || !(s.tally && s.tally.kills > 0)) problems.push(`ticked seat ${i} was not settled through its end (settled_to ${s.session.settled_to}, kills ${s.tally && s.tally.kills})`);
+      if (names[i] !== 'Settle Leaver') problems.push(`ticked seat ${i}'s end names ${JSON.stringify(names[i])}, not the leaver`);
+    }
+    /* (d) the unticked hero hunts on */
+    if (tick[3].session.ended_at !== null || !(tick[3].tally.kills > tick[0].tally.kills)) problems.push(`the unticked seat ended ${ends[3]} (kills ${tick[3].tally.kills} vs ${tick[0].tally.kills})`);
+    if (names[2] !== null || names[3] !== null) problems.push(`an end of its own names ${JSON.stringify(names.slice(2))}`);
+    /* BOTH PATHS: the player's instants wrote what the tick's windows wrote */
+    if (canon(tick) !== canon(viewed)) problems.push(`viewed and tick wrote different rows ${firstDiff(canon(tick), canon(viewed))}`);
+    /* (e) no loop: the database ended exactly the three the leave named */
+    if (await one(db, 'select count(*)::int from public.hunt_sessions where id = any($1::uuid[]) and ended_at is not null', [h.sids]) !== 3) problems.push('the leave ended other than three hunts');
+    /* the transition: the last hunter comes home, the party starts again together, every box as it was set */
+    await asUser(db, UIDS[3]);
+    await one(db, 'select public.hr_hunt_leave(0, $1::uuid)', [idem()]);
+    await db.query("select set_config('request.jwt.claim.sub', '', true)");
+    await db.query('update public.hunt_sessions set leave_at = settled_to where id = $1', [h.sids[3]]);
+    await settleTo(db, M, Number(await one(db, 'select floor(extract(epoch from now()) * 1000)::bigint')), { user: UIDS[3] });
+    if (await one(db, 'select count(*)::int from public.hunt_sessions where instance_id = $1 and ended_at is null', [h.inst]) !== 0) return [...problems, 'CONTROL: the last hunter did not come home'];
+    if (await one(db, 'select count(*)::int from public.hunt_party_members where party_id = $1', [h.party]) !== 4) problems.push('the party did not stay together');
+    for (let i = 0; i < 4; i++) {
+      await db.query("update public.player_state set active_kind = 'idle', active_id = null where user_id = $1 and slot = 0", [UIDS[i]]);
+      await asUser(db, UIDS[i]);
+      const e = await one(db, `select public.hr_hunt_enter(0, 'mill_cellar', $1::jsonb, 0, null, $2::uuid)`, [JSON.stringify(STRONG.bag), idem()]);
+      if (!e || e.ok !== true) problems.push(`seat ${i} could not start again: ${JSON.stringify(e).slice(0, 160)}`);
+    }
+    await db.query("select set_config('request.jwt.claim.sub', '', true)");
+    const [again] = await exec('select public.hr_hunt_instance_read($1::uuid, 0) as r', [UIDS[0]]);
+    const read = again && again.r && Array.isArray(again.r.members) ? again.r.members : [];
+    const againBoxes = UIDS.map((u) => String((read.find((m) => m.user === u) || {}).leave_together)).join();
+    if (await boxes() !== 'true,true,true,false' || againBoxes !== 'true,true,true,false') problems.push(`after starting again the boxes read ${await boxes()} / the heroes ${againBoxes}`);
+    return problems;
+  }),
+  /* PARTY-LEAVE-DIED: a death through the replayed chain, BOTH PATHS: the doomed seat 0 dies; seat 1 (default
+     box) ends `party_member_died` at the same boundary, settled through it; seat 2 (its own untick) does not. */
+  'PARTY-LEAVE-DIED': async (db, M) => inTx(db, async () => {
+    const problems = [];
+    const STOUT = { ...STRONG, level: 60 };
+    const FRAIL = { minutesAgo: 25, inv: {}, bag: [], gold: 0, hp: 5, options: { on_empty: 'end', food_below_pct: 99 } };
+    /* every seat swings the practice club (Melee DPS): no tank holds the pack away from the frail hero */
+    const h = await hunter(db, M, { deadly: true, party: [{ ...FRAIL, keepKit: true }, { ...STOUT, keepKit: true }, { ...STOUT, keepKit: true }], beforeEnter: async () => {
+      for (const u of UIDS.slice(0, 3)) await admin(db, u, { equip: { weapon: 'practice_club', shield: null } });
+      await asUser(db, UIDS[2]);
+      const r = await one(db, 'select public.hr_party_leave_together_set(0, false, $1::uuid)', [idem()]);
+      if (!r || r.ok !== true) throw new Error('the untick answered ' + JSON.stringify(r));
+    } });
+    const SPAN = 10 * 60000;
+    await db.query('savepoint party_died');
+    const go = async (cuts) => { await run(db, M, h.from, cuts, { user: UIDS[2] }); return Promise.all(h.sids.map((sid, i) => snapshot(db, sid, UIDS[i]))); };
+    const tick = await go(ticksOf(90000, SPAN));
+    const by = await one(db, `select public.hr_hunt_view($1::uuid)->>'end_by'`, [h.sids[1]]);
+    await db.query('rollback to savepoint party_died');
+    const deathAt = Date.parse(((tick[0].events || []).find((e) => e[0] === 'death') || [])[1]);
+    if (tick[0].session.end_reason !== 'died' || !Number.isFinite(deathAt)) return [`CONTROL: the doomed seat ended ${tick[0].session.end_reason}`];
+    const D = tick[0].session.ended_at;
+    const viewed = await go((from) => [from + 7001, deathAt - 1500, deathAt + 1500, from + SPAN].filter((t) => t > from));
+    if (tick[1].session.end_reason !== 'party_member_died' || tick[1].session.ended_at !== D) problems.push(`the ticked seat ended ${tick[1].session.end_reason} at ${tick[1].session.ended_at}, not party_member_died at ${D}`);
+    else if (Date.parse(tick[1].session.settled_to) !== Date.parse(D) + 1) problems.push(`the ticked seat was not settled through its end (${tick[1].session.settled_to})`);
+    if (by !== 'Adventurer') problems.push(`the ticked seat's end names ${JSON.stringify(by)}, not the fallen seat 0`);
+    if (tick[2].session.ended_at === D) problems.push(`the unticked seat went home with the death (${tick[2].session.end_reason})`);
+    if ((tick[1].deaths || []).length || (tick[2].deaths || []).length) problems.push('a survivor paid for a death it did not have');
+    if (canon(tick) !== canon(viewed)) problems.push(`viewed and tick wrote different rows ${firstDiff(canon(tick), canon(viewed))}`);
     return problems;
   }),
   /* HOLD-SEAT (Tyler 2026-10-22, the party's "One tank holds"; lane/b-tank-choice). hr_hunt_instance_read carries

@@ -266,7 +266,7 @@ const BASELINE_MUTATIONS = {
   },
   placeholder_class_shipped: {
     what: 'the literal placeholder --write emits is committed as if it were a decision',
-    mutate: (b) => { b.tables.player_farm.class = 'UNCLASSIFIED — decide and edit'; },
+    mutate: (b) => { b.tables.account_farm.class = 'UNCLASSIFIED — decide and edit'; },
     match: /unknown class/,
   },
   restore_only_without_cutover_ruling: {

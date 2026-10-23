@@ -166,9 +166,11 @@
 --   reproduces them byte for byte), drop the helpers, the trigger and the columns.
 --   Which hero held what before the fold is in the fold rows' meta.carry.
 --
--- ORDER: after 2026-12-16-own-drinks-settle.sql (applied first, though dated later: its hr_hunt_settle_session
---   07d806dc is the pinned pre-image) and 2026-12-14-shared-farm.sql (its hr_state_of / hr_create_character /
---   hr_apply splices are). A later lane that restates a body pinned here re-derives it.
+-- ORDER: after 2026-12-17-beta-premium.sql and 2026-12-16-own-drinks-settle.sql (both applied first, though
+--   dated later: 12-16's hr_hunt_settle_session 07d806dc is the pinned pre-image; 12-17 restates none of
+--   these bodies and no body here reads premium_until or the beta switch) and 2026-12-14-shared-farm.sql
+--   (its hr_state_of / hr_create_character / hr_apply splices are). A later lane that restates a body
+--   pinned here re-derives it.
 -- AFTER APPLYING: live-hash-drift wants the 14 restated bodies + hr_apply + the helpers;
 --   deploy hr-accrue (the shared purse + the retry); the client half rides the next release.
 -- ════════════════════════════════════════════════════════════════════════

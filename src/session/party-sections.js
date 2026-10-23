@@ -30,12 +30,12 @@
 // the server's `role` is only the pick, kept when the weapon allows it.
 // ════════════════════════════════════════════════════════════════════════
 
-import { roleForWeapon, WEAPON_ROLES } from '../data/hunt-roles.js?v=0.2.36';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.36';
-import { TREES, ROCKS, FISH_SPOTS } from '../data/gathering.js?v=0.2.36';
-import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.36';
-import { huntOf, staminaOf, densityMapOf } from './hunt-sections.js?v=0.2.36';
-import { heroVitalsOf } from './character-sections.js?v=0.2.36';
+import { roleForWeapon, WEAPON_ROLES } from '../data/hunt-roles.js?v=0.2.37';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.37';
+import { TREES, ROCKS, FISH_SPOTS } from '../data/gathering.js?v=0.2.37';
+import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.37';
+import { huntOf, staminaOf, densityMapOf } from './hunt-sections.js?v=0.2.37';
+import { heroVitalsOf } from './character-sections.js?v=0.2.37';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

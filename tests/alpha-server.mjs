@@ -320,6 +320,9 @@ const ARMS = {
        clock, its session gets leave_at; the next settle ends it `left` there, and the instance settles on with the
        leader alone, so the kicked member is in no later split. */
     await db.query('delete from public.hr_rate_counters');
+    /* LEAVE TOGETHER (Tyler 2026-10-22): the kicked member's hunt ending would send a ticked leader home too (its box is
+       on by default; tests/hunt-sessions-settle.mjs PARTY-LEAVE), so the leader unticks its own box to hunt on alone. */
+    await ok(a, 'select public.hr_party_leave_together_set(0, false, $1::uuid)', [idem()]);
     const sb = await H.one(db, 'select id from public.hunt_sessions where instance_id = $1 and user_id = $2 and ended_at is null', [pid, b]);
     const seatB = await H.one(db, 'select seat from public.hunt_party_members where party_id = $1 and user_id = $2', [pid, b]);
     const k = await ok(a, 'select public.hr_hunt_party_kick(0, $1, $2::uuid)', [seatB, idem()]);

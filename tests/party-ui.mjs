@@ -931,6 +931,21 @@ async function pageRules(overrides, shots) {
       const reads = s.calls.slice(loads).filter((c) => c.name === 'hr_load' || c.name === 'hr-accrue');
       if (reads.length) fails.push('UI-1 [' + tag + '] a switch re-read ' + reads.map((c) => c.name + ':' + (c.body.p_slot ?? c.body.slot)).join(', '));
       if (!(await page.evaluate((uid) => !!window.__hub.channels['hr:' + uid + ':1'], UID))) fails.push('UI-1 [' + tag + '] the switch left character 1’s channel');
+      /* PR-8 [page]: on the party panel the viewer's own row carries the server's ticked box in words of at least
+         12 px, inside its row (the phone board too); the partner's row shows none. */
+      await wait(page, () => document.querySelectorAll('.hp-party .hp-m').length === 2, null, 3000);
+      const together = await page.evaluate(() => Array.from(document.querySelectorAll('.hp-party .hp-m')).map((r) => {
+        const l = r.querySelector('.hp-together'); const box = l && l.querySelector('input');
+        const lr = l && l.getBoundingClientRect(); const rr = r.getBoundingClientRect();
+        return { name: r.querySelector('.hp-name').textContent, shown: !!l && !l.hidden && lr.width > 0 && lr.height > 0, checked: !!box && box.checked,
+          off: !!box && box.disabled, text: l ? l.textContent : '', px: l ? parseFloat(getComputedStyle(l).fontSize) : 0,
+          inside: !!lr && lr.left >= rr.left - 0.5 && lr.right <= rr.right + 0.5 };
+      }));
+      const own = together.find((x) => x.name === 'Tyler'); const mate = together.find((x) => x.name === 'Mira');
+      if (!own || !own.shown || !own.checked || own.off || own.text !== 'Leave if anyone leaves the hunt or dies' || !(own.px >= 12) || !own.inside || !mate || mate.shown) {
+        fails.push('PR-8 [' + tag + '] the party panel’s boxes read ' + JSON.stringify(together));
+      }
+      await shot('party-panel');
       /* UI-2: each alert once; a re-read does not repeat them; dismiss removes one. */
       const lines = () => page.evaluate(() => Array.from(document.querySelectorAll('.hw-alert')).map((li) => li.getAttribute('data-kind')).sort().join(','));
       /* The town character (slot 1) has an invite waiting: its alert line rides beside the rare drop (UI-6). */

@@ -32,6 +32,13 @@ export const SESSION_CONFIG = Object.freeze({
       (hunt-settle.js HUNT_SETTLE_MIN_MS, 15 s) so each ask pays a window; the world tick only flushes a
       session owed 90 s or more, so without this an attended hunt shows nothing for a minute and a half. */
   huntPollMs: 16000,
+  /** The engine reads (hr-accrue {slot}) ONE character sends a minute, sustained (src/session/ask-pacer.js).
+      hr_rate_gate's `accrue` budget, 30 a minute, is the ACCOUNT's: maxConcurrentCharacters x this stays
+      under it (4 x 6 = 24); the hunt re-read every huntPollMs is 3.75 of it. */
+  engineAsksPerMin: 6,
+  /** ...and the most that may go at once from a rested budget: the live view's start-point asks (liveAskMs
+      doubling up to huntPollMs, six) with a leave and its close. */
+  engineAskBurst: 8,
   /** While the Work window or the bag is open and the hero gathers or works a bench in town, the viewed
       character asks the engine to bring it up to date this often (src/session/town-poll.js), so the bag,
       the skill XP and the run's progress move as it goes. Just over the engine's town floor

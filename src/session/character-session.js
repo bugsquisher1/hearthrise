@@ -10,10 +10,9 @@
 //
 //   load()             hr_load(p_slot) — the full read; REPLACES the record
 //   connect()          subscribe to the push topic; on every join one `hello`
-//                      (hr-accrue {slot}) re-reads the whole state, so a gap
-//                      while disconnected is closed; frames apply E2/E3
-//   setResidue(f, v)   a display preference: the record's residue changes at
-//                      once, one hr_put_client_state follows per burst
+//                      (hr-accrue {slot}) re-reads the whole state (hunting: the
+//                      hunt re-read does), so a gap is closed; frames apply E2/E3
+//   setResidue(f, v)   a display preference: the residue changes at once, one hr_put_client_state per burst
 //   setHuntOptions(p, o) the hunt settings INTENT (hr_action_set_options); the
 //                      new settings arrive only in the re-read envelope
 //   setHuntDensity(h, n) the density pick on one ground (hr_hunt_density_set), re-read
@@ -22,22 +21,15 @@
 //   moveStorage(i,n,d) the ACCOUNT storage INTENT (hr_bank_move), re-read; then onShared('bank', slot)
 //   edgeIntent(v, f)   an item intent through the engine (equip, sell, buy, eat;
 //                      src/session/edge-intents.js): names and counts only
-//   lockItem / setLootRule / savePreset / applyPreset
-//                      the bag rules and the hunt presets
-//                      (CONFLICTS.md 2026-10-18 alpha windows: the server lane
-//                      adds them); each is one intent, re-read the same way
-//   joinParty / leaveParty / kickSeat / inviteByName / answerInvite /
-//   restartHunt        the party and hunt-again intents, re-read the same way
-//                      (a party is made by an invite and started by
-//                      party-intents.js startPartyHunt, which re-reads every
-//                      own seat);
+//   lockItem / setLootRule / savePreset / applyPreset   the bag rules and the hunt presets: one intent each, re-read
+//   joinParty / leaveParty / kickSeat / inviteByName / answerInvite / restartHunt   the party and hunt-again
+//                      intents, re-read the same way (party-intents.js startPartyHunt re-reads every own seat)
 //   saveOutfit(o, c)   the outfit INTENT (hr_outfit_set), re-read the same way
 //   findParties        the party finder, a read whose rows are never the record
-//   hunt re-read       while a hunt is open, one hello per src/session/hunt-poll.js
-//                      (the hunter's settle answers state, track and events;
-//                      frames never carry `hunt`) until the envelope says it ended
-//   timeline           the settle responses' visual timeline (src/hunt-view/
-//                      timeline.js): tracks and events, never the record
+//   hunt re-read       while a hunt is open, one hello per src/session/hunt-poll.js (the hunter's
+//                      settle answers state, track and events) until the envelope says it ended;
+//                      every hello is paced to the character's budget (src/session/ask-pacer.js)
+//   timeline           the settle responses' visual timeline (src/hunt-view/timeline.js), never the record
 //   now()              the display clock the timeline plays on
 //   intents            the account's asks in flight (intent-ledger.js): every intent
 //                      above is tracked from its send until the re-read envelope
@@ -57,6 +49,7 @@ import { SESSION_CONFIG } from './config.js?v=0.2.35';
 import { edgeBody } from './edge-intents.js?v=0.2.35';
 import { leaveAskOf, pendingLeaveAt, leaveCountdown, closeInMs } from './hunt-leave.js?v=0.2.35';
 import { HuntPoll, pollDelayMs } from './hunt-poll.js?v=0.2.35';
+import { AskPacer } from './ask-pacer.js?v=0.2.35';
 import { createIntentLedger } from './intent-ledger.js?v=0.2.35';
 import { frameTopic, reconnectDelay } from './frame-channel.js?v=0.2.35';
 import { refusalOf, settleRefusalOf } from './refusal.js?v=0.2.35';
@@ -109,12 +102,13 @@ export class CharacterSession {
     this._attempt = 0;
     this._retry = null;
     this._residueTimer = null;
-    this._leaveAsk = null;
+    this._leaveAsk = null; this._asking = null;   // the hello in flight (hello)
     this._pending = {}; this._sent = {};   // residue to put; residue put and not yet seen back (residue.js unconfirmedResidue)
     this._closed = false;
     this.lastVerdict = null;
     this._now = o.now || (() => (globalThis.performance ? globalThis.performance.now() : Date.now()));
     this._poll = new HuntPoll({ setTimer: this._setTimer, clearTimer: this._clearTimer, now: () => this._now(), fire: () => this._huntPoll() });
+    this._pace = new AskPacer({ setTimer: this._setTimer, clearTimer: this._clearTimer, now: () => this._now() });
     /* Played a poll behind, the buffer holds two windows of steps and a unit gone from the pose must
        outlive the delay before it is forgotten (timeline.js T5). */
     this.timeline = createTimeline({ delayMs: SESSION_CONFIG.huntPlaybackDelayMs, maxSteps: 256,
@@ -172,7 +166,7 @@ export class CharacterSession {
   /* THE HUNT RE-READ (hunt-poll.js), armed by every applied answer while a hunt is open. */
   _armHuntPoll() {
     if (this._closed || !this._huntOpen()) return;
-    this._poll.arm(pollDelayMs(this.read('hunt'), this.liveLink, closeInMs(this.leaveAt(), this.serverNow())));
+    this._poll.arm(Math.max(this._pace.waitMs(), pollDelayMs(this.read('hunt'), this.liveLink, closeInMs(this.leaveAt(), this.serverNow()))));
   }
 
   /** A PENDING LEAVE's server instant (ms): leave_at, else the leave's own answer (hunt-leave.js), or null. */
@@ -183,6 +177,7 @@ export class CharacterSession {
 
   async _huntPoll() {
     if (this._closed || !this._huntOpen()) return;
+    if (this._pace.waitMs() > 0) { this._poll.arm(this._pace.waitMs()); return; }   // over budget: asked when it fits, not a miss
     let took = false;
     try { took = await this.hello(); } catch (e) { /* the next ask retries */ }
     /* no answer (blocked, refused, offline) backs the live ask off too, never every liveAskMs */
@@ -237,11 +232,8 @@ export class CharacterSession {
   /** Units the last reseed found alive (the scene revives a corpse the prediction made), once. */
   takeReseeded() { return this.liveLink.takeReseeded(); }
 
-  /**
-   * The hunt settings intent for one preset. Nothing changes on screen from the
-   * answer itself: on ok the character is re-read and hunt_settings replaces.
-   * @returns {Promise<{ok: boolean, error?: string}>}
-   */
+  /** The hunt settings intent for one preset. Nothing changes on screen from the answer itself: on ok the
+      character is re-read and hunt_settings replaces. @returns {Promise<{ok: boolean, error?: string}>} */
   async setHuntOptions(preset, opts) {
     if (this._closed) return { ok: false, error: 'closed' };
     return this.intents.track('action_set_options', async () => {
@@ -259,13 +251,9 @@ export class CharacterSession {
     return this._ask('hunt_density_set', () => this._server.rpc('hr_hunt_density_set', { p_slot: this.slot, p_hunt: hunt, p_density: density, p_idem: newIdem() }));
   }
 
-  /**
-   * Go hunting (hr_hunt_enter): this character alone (a party of one), or its
-   * party's ground when it is in one. `bag` is what to carry, [{ item, qty }] of
-   * this character's own supplies (src/shell/hunt-list.js packFor); `preset` the
-   * action set it fights with. The server checks the level band, the stamina,
-   * the stock and the activity, and the hunt shows only from the re-read.
-   */
+  /** Go hunting (hr_hunt_enter): this character alone (a party of one), or its party's ground when it is in one.
+      `bag` is what to carry, [{ item, qty }] of its own supplies (src/shell/hunt-list.js packFor); `preset` the action
+      set it fights with. The server checks the level band, the stamina, the stock and the activity; shown from the re-read. */
   async enterHunt(hunt, bag, preset) {
     const lines = Array.isArray(bag) ? bag : [];
     if (this._closed || !HUNT_ID.test(String(hunt)) || !Number.isInteger(preset) || preset < 0 || preset > 7 || lines.length > 10
@@ -281,12 +269,8 @@ export class CharacterSession {
       .then((r) => { if (r && r.ok && typeof this.onShared === 'function') this.onShared('bank', this.slot); return r; });
   }
 
-  /**
-   * Copy THIS character's hunt settings (every action set: bar, stop rules, options)
-   * onto another of the account's characters (hr_action_set_copy). The other
-   * character's own session re-reads them; nothing changes here.
-   * @returns {Promise<{ok: boolean, error?: string}>}
-   */
+  /** Copy THIS character's hunt settings (every action set: bar, stop rules, options) onto another of the account's
+      characters (hr_action_set_copy); that character's own session re-reads them. @returns {Promise<{ok, error?}>} */
   async copyHuntSettingsTo(toSlot) {
     if (this._closed) return { ok: false, error: 'closed' };
     return this._ask('action_set_copy', () => this._server.rpc('hr_action_set_copy', { p_from: this.slot, p_to: toSlot, p_idem: newIdem() }));
@@ -312,11 +296,8 @@ export class CharacterSession {
     });
   }
 
-  /**
-   * Set out on a hunt (hr_hunt_enter): ONE intent. `a` is exactly what the
-   * server takes (ground, action set, limits, bag lines of names and counts);
-   * the "Hunt again" card sends the ended hunt's own. The party is the server's.
-   */
+  /** Set out on a hunt (hr_hunt_enter): ONE intent. `a` is exactly what the server takes (ground, action set, limits,
+      bag lines of names and counts); the "Hunt again" card sends the ended hunt's own. The party is the server's. */
   async huntAgain(a) {
     if (this._closed) return { ok: false, error: 'closed' };
     if (!a || !ITEM.test(String(a.hunt)) || !Number.isInteger(a.preset) || !Array.isArray(a.bag)) return { ok: false, error: 'bad_intent' };
@@ -324,12 +305,9 @@ export class CharacterSession {
       p_hours: Number.isInteger(a.hours) ? a.hours : null, p_idem: newIdem() }));
   }
 
-  /**
-   * An item intent through the engine. The body carries names and counts only
-   * (EDGE_INTENTS); the price, the stock and the result are the server's, and
-   * the screen changes only from the server's envelope: the engine's answer IS
-   * one (hr_state_of after its commit), applied as it stands, ONE round trip (r16).
-   */
+  /** An item intent through the engine. The body carries names and counts only (EDGE_INTENTS); the price, the stock
+      and the result are the server's, and the screen changes only from the server's envelope: the engine's answer
+      IS one (hr_state_of after its commit), applied as it stands, ONE round trip (r16). */
   async edgeIntent(verb, fields) {
     if (this._closed) return { ok: false, error: 'closed' };
     const body = edgeBody(this.slot, verb, fields, newIdem());
@@ -438,11 +416,8 @@ export class CharacterSession {
     return this._ask('hero_rename', () => this._server.rpc('hr_hero_rename', { p_slot: this.slot, p_name: n, p_price: quotedPrice, p_idem: newIdem() }));
   }
 
-  /**
-   * Wear an outfit (or null: the role's own look) with a dye index per region.
-   * ONE intent (hr_outfit_set): the server checks ownership, the regions and the
-   * dyes; the window shows the new look only from the re-read envelope.
-   */
+  /** Wear an outfit (or null: the role's own look) with a dye index per region. ONE intent (hr_outfit_set): the
+      server checks ownership, the regions and the dyes; the window shows the new look only from the re-read. */
   async saveOutfit(outfit, colors) {
     if (this._closed) return { ok: false, error: 'closed' };
     if (outfit !== null && !HUNT_ID.test(String(outfit))) return { ok: false, error: 'bad_intent' };
@@ -454,11 +429,8 @@ export class CharacterSession {
     return this._ask('outfit_set', () => this._server.rpc('hr_outfit_set', { p_slot: this.slot, p_outfit: outfit, p_colors: c, p_idem: newIdem() }));
   }
 
-  /**
-   * The party finder: open parties with a free seat, optionally on one hunt and
-   * only those with no member of a weapon type ("a party that needs a bow").
-   * A READ: the rows are the server's answer, never part of the record.
-   */
+  /** The party finder: open parties with a free seat, optionally on one hunt and only those with no member of a
+      weapon type ("a party that needs a bow"). A READ: the rows are the server's answer, never the record. */
   async findParties(hunt, weaponType) {
     if (this._closed) return { ok: false, error: 'closed' };
     if ((hunt !== null && !HUNT_ID.test(String(hunt))) || (weaponType !== null && !HUNT_ID.test(String(weaponType)))) return { ok: false, error: 'bad_intent' };
@@ -502,24 +474,36 @@ export class CharacterSession {
     return false;
   }
 
-  /** One hr-accrue round trip: the server settles and restates the whole character. */
-  async hello() {
-    if (this._closed) return false;
+  /** One hr-accrue round trip: the server settles and restates the whole character. ONE in flight (every caller
+      rides on it); over the character's budget (ask-pacer.js) none is sent: the hunt re-read asks when it fits,
+      else ONE catch-up then. */
+  hello() {
+    if (this._closed) return Promise.resolve(false);
+    if (this._asking) { this._again = true; return this._asking; }   // asked while one is out: ONE more after it
+    if (this._pace.waitMs() > 0) { if (!this._huntOpen()) this._pace.owe(() => this.hello()); return Promise.resolve(false); }
+    this._pace.sent();
+    return (this._asking = this._helloOnce().finally(() => { this._asking = null; if (this._again) { this._again = false; this.hello(); } }));
+  }
+
+  async _helloOnce() {
     const ans = await this._server.accrue({ slot: this.slot });
     if (this._closed) return false;
+    /* the account's budget is spent: hold a look-ahead margin, then ONE catch-up (a hunt's own re-read retries it) */
+    if (ans.status === 429) { this._pace.hold(SESSION_CONFIG.liveRefillMs); if (!this._huntOpen()) this._pace.owe(() => this.hello()); }
     /* An idle settle's {accrued:false} is not the character (read it in full: hr_load); the floor's answer to a hunter
        is, with the live start point (take it). A refusal to settle (refusal.js) stands until the next answer (town ticker). */
     if (ans.ok) this.settleRefusal = settleRefusalOf(ans);
-    if (ans.ok && ans.body && ans.body.accrued !== true && ans.body.hunt_live && ans.body.state) {
-      if (this._take(ans.body, 'hello')) return true;
-    }
+    if (ans.ok && ans.body && ans.body.accrued !== true && ans.body.hunt_live && ans.body.state && this._take(ans.body, 'hello')) return true;
+    const v = ans.ok && ans.body ? ans.body.version : null;   // an idle answer at the record's version: nothing to re-read
+    if (Number.isSafeInteger(v) && ans.body.accrued !== true && this._record && v <= this._record.version) return false;
     if (ans.ok && ans.body && ans.body.accrued !== true) return this.load();
     if (ans.ok && this._take(ans.body, 'hello')) return true;
     this._answerFailed(ans);
     return false;
   }
 
-  /** A pushed frame. A version jump means frames were missed: one hello closes the gap. */
+  /** A pushed frame, applied. A version jump means frames were missed: the whole character is re-read (hunting, the
+      armed hunt re-read is brought forward; else one hello), coalesced and paced: never one ask per frame (10-23). */
   onFrame(msg) {
     if (this._closed) return false;
     const before = this._record ? this._record.version : null;
@@ -529,7 +513,7 @@ export class CharacterSession {
     this._record = r.record;
     this._emit('frame');
     this._armHuntPoll();
-    if (before !== null && r.record.version > before + 1) this.hello();
+    if (before !== null && r.record.version > before + 1) { if (this._huntOpen()) this._poll.arm(0); else this.hello(); }
     return true;
   }
 
@@ -553,7 +537,7 @@ export class CharacterSession {
 
   _onChannel(st) {
     if (this._closed) return;
-    if (st === 'SUBSCRIBED') { this._attempt = 0; this.hello(); return; }
+    if (st === 'SUBSCRIBED') { this._attempt = 0; if (!this._huntOpen()) this.hello(); return; }   // hunting: the armed re-read restates
     if (st === 'CHANNEL_ERROR' || st === 'TIMED_OUT' || st === 'CLOSED') {
       this._dropChannel();
       if (this._retry) return;
@@ -590,7 +574,7 @@ export class CharacterSession {
     this._dropChannel();
     if (this._retry) { this._clearTimer(this._retry); this._retry = null; }
     if (this._residueTimer) { this._clearTimer(this._residueTimer); this._residueTimer = null; }
-    this._poll.stop();
+    this._poll.stop(); this._pace.stop();
     this._record = null;
     this._pending = {}; this._sent = {};
     this._status = 'closed';

@@ -43,6 +43,11 @@
 //       writes player_state gold, through any alias.
 //   G9  RE-APPLY IS A NO-OP: the schema fingerprint and every purse are unchanged.
 //   G10 THE ACL: the helpers are owner-only; no client writes the purse or the ledger.
+//   G11 THE PINS MEET PRODUCTION. Replayed to the file before this one with
+//       clan_contribute__ungated reshaped to production's image (the repo body with its
+//       whole-line comments stripped, md5 27e05ce9, measured read-only 2026-10-23), the
+//       file applies and installs its post-image; a body moved any other way is refused
+//       at §0 and nothing lands.
 //   E1  THE ENGINE (no database): two sides of one account share ONE purse (a buy by
 //       one is gone for the other; coins either loots pay either); two accounts do not.
 //   E2  THE RETRY: retryableSettle re-reads on gold_short and on a gold_out not proven.
@@ -106,6 +111,16 @@ const SQL_MUTANTS = {
       ["  if (select coalesce(sum(w.gold), 0) from public.account_wallet w) - v_wallet0 <> v_before then\n", "  if false then\n"]],
     fold: true,
   },
+  live_image_refused: {
+    why: '§0 knows only the replay image: the apply is refused on production, whose clan_contribute__ungated is the same code without its comments',
+    pairs: [['v_md5 is distinct from r.post and v_md5 is distinct from r.live then', 'v_md5 is distinct from r.post then']],
+    pins: true,
+  },
+  pins_accept_anything: {
+    why: '§0 stops refusing: a body another lane moved is clobbered by this file\'s restatement',
+    pairs: [['    if v_md5 is distinct from r.pre and v_md5 is distinct from r.post and v_md5 is distinct from r.live then\n', '    if false then\n']],
+    pins: true,
+  },
   loot_sale_unstamped: {
     why: 'the loot filter\'s sale is journalled outside its hunt: the gold history cannot group it',
     pairs: [["    perform set_config('hr.hunt_session', p_session::text, true);\n    v_a := public.hr_apply(p_user, p_slot,", "    v_a := public.hr_apply(p_user, p_slot,"]],
@@ -141,7 +156,8 @@ const harness = (msg) => { const e = new Error(msg); e.harness = true; return e;
 function sqlPairs(mutate) {
   const m = mutate && MUTATIONS[mutate];
   if (!m || m.kind !== 'sql') return [];
-  return [...m.pairs, ...SELFCHECK_BLIND];
+  /* A pins mutant plants INTO §0, so §0 stays live (G11 judges it); every other one blinds §0 and §7. */
+  return [...m.pairs, ...SELFCHECK_BLIND.filter((_, i) => !(m.pins && i === 0))];
 }
 async function migrationText(mutate) {
   let sql = (await readFile(join(ROOT, 'supabase', 'migrations', MIG), 'utf8')).replace(/\r\n/g, '\n');
@@ -314,6 +330,48 @@ async function foldArm(mutate) {
     'G1: player_state.gold survived the fold');
   if (!mutate) console.log(`  fold (replay to ${PREV} + 3 heroes / 2 accounts): ${before} per-hero gold -> ${after} in ${rows.length} purses (1,500 + 5,000,000,000), fold rows ${rows.length}`);
   await db.close?.();
+}
+
+// ── G11 THE PINS MEET PRODUCTION (replayed to the file before this one) ───────
+const CLAN = 'public.clan_contribute__ungated(uuid,bigint,integer)';
+const LIVE_CLAN_MD5 = '27e05ce903b0f6b037eca83aacc522f8';   // production's prosrc md5, measured read-only 2026-10-23
+async function pinsArm(mutate) {
+  const text = await migrationText(mutate);
+  const row = new RegExp("\\('" + CLAN.replace(/[().]/g, '\\$&') + "', '([0-9a-f]{32})', '([0-9a-f]{32})', '([0-9a-f]{32})'\\)").exec(text);
+  if (!row) throw harness('G11: no §0 row with a production image for ' + CLAN);
+  const [, pre, post, live] = row;
+  ok(live === LIVE_CLAN_MD5, `G11: §0 pins production's ${CLAN} as ${live}, measured ${LIVE_CLAN_MD5}`);
+  const md5Of = (d) => d.one("select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = to_regprocedure($1)", [CLAN]);
+  const reshape = async (d, fn) => {
+    const def = await d.one('select pg_get_functiondef(to_regprocedure($1))', [CLAN]);
+    await d.q(fn(def.replace(/\r/g, '')));
+  };
+  /* (a) production's image: the replayed body with its whole-line comments stripped. */
+  {
+    const { db } = await bootReplay({ upTo: PREV });
+    const d = drivers(db);
+    ok(await md5Of(d) === pre, `G11: the replay builds ${CLAN} as ${await md5Of(d)}, §0 pins ${pre}`);
+    await reshape(d, (def) => def.split('\n').filter((l) => !/^\s*--/.test(l)).join('\n'));
+    ok(await md5Of(d) === LIVE_CLAN_MD5, `G11: the comment-stripped replay body is ${await md5Of(d)}, production measured ${LIVE_CLAN_MD5}`);
+    let err = null;
+    try { await db.exec('begin;\n' + text + '\ncommit;'); } catch (e) { err = String(e.message).split('\n')[0]; await db.exec('rollback').catch(() => {}); }
+    if (ok(err === null, `G11: the apply onto production's image was refused: ${err}`)) {
+      ok(await md5Of(d) === post, `G11: onto production's image the file installed ${await md5Of(d)}, its post-image is ${post}`);
+    }
+    await db.close?.();
+  }
+  /* (b) a body moved any other way: refused at §0, nothing lands. */
+  {
+    const { db } = await bootReplay({ upTo: PREV });
+    const d = drivers(db);
+    await reshape(d, (def) => def.replace('\nbegin\n', '\nbegin\n  perform 1;   -- another lane moved it\n'));
+    let err = null;
+    try { await db.exec('begin;\n' + text + '\ncommit;'); } catch (e) { err = String(e.message).split('\n')[0]; await db.exec('rollback').catch(() => {}); }
+    ok(err !== null && err.includes('PIN: ' + CLAN), `G11: a moved ${CLAN} was not refused at §0 (${err})`);
+    ok(!(await d.one("select exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'account_wallet' and column_name = 'gold')")),
+      'G11: a refused apply left the purse column behind');
+    await db.close?.();
+  }
 }
 
 // ── G2-G10 on the whole chain ────────────────────────────────────────────────
@@ -570,11 +628,12 @@ async function run(mutate) {
   try {
     await engineArms(tree.root);
     if (m && m.fold) { await foldArm(mutate); return [...problems]; }
+    if (m && m.pins) { await pinsArm(mutate); return [...problems]; }
     if (!m || m.kind === 'sql' || m.kind === 'js') {
       const M = await HARNESS.loadEdge(tree.root);
       await chainArms(m && m.kind === 'sql' ? mutate : null, M);
     }
-    if (!m) await foldArm(null);
+    if (!m) { await foldArm(null); await pinsArm(null); }
   } finally { await tree.done(); }
   return [...problems];
 }
@@ -601,7 +660,7 @@ try {
   }
   const p = await run(null);
   if (p.length) { console.log('account-gold: RED\n  ' + p.join('\n  ')); process.exit(1); }
-  console.log('account-gold: one purse per account (G1-G10, E1-E2 green): folded exactly, shared by every hero, raced spends refused both orders, hunt races re-run on both doors, a party of one account pays after its coins, the floor holds, the ledger chain balances, no per-hero read survives, re-apply a no-op, ACL closed');
+  console.log('account-gold: one purse per account (G1-G11, E1-E2 green): folded exactly, shared by every hero, raced spends refused both orders, hunt races re-run on both doors, a party of one account pays after its coins, the floor holds, the ledger chain balances, no per-hero read survives, re-apply a no-op, ACL closed, the pins accept production\'s image and refuse any other');
   process.exit(0);
 } catch (e) {
   console.error(`account-gold: HARNESS ERROR — ${e.message}`);

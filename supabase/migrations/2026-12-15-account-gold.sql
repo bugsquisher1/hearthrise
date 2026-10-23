@@ -176,9 +176,16 @@
 -- ════════════════════════════════════════════════════════════════════════
 
 -- ── §0 PRECONDITIONS AND PINS — FAIL CLOSED ────────────────────────────────
--- Each body this file restates or patches must be EXACTLY the replayed pre-image or
--- this file's own post-image (a second apply). Anything else means another lane moved
--- it in the meantime: refuse, never clobber.
+-- Each body this file restates or patches must be EXACTLY the replayed pre-image, the
+-- production image where that one differs, or this file's own post-image (a second apply).
+-- Anything else means another lane moved it in the meantime: refuse, never clobber.
+-- THE ONE PRODUCTION IMAGE (`live`): clan_contribute__ungated on production is
+-- 2026-08-27-clan-economy-sinks.sql's body with its whole-line `--` comments stripped
+-- (prosrc md5 27e05ce9; the same code byte for byte once those lines go, measured
+-- read-only by the Coordinator 2026-10-23; no repo file explains the stripped apply).
+-- The replay chain rebuilds it WITH the comments (1787a347), so both are accepted: the
+-- live one so the apply lands, the replay one so schema-drift and every PGlite guard can
+-- build this file on the repo chain.
 do $mig$
 declare v_md5 text; r record;
 begin
@@ -188,26 +195,26 @@ begin
   if to_regprocedure('public.hr_reject(text,jsonb)') is null or to_regprocedure('public.hr_wallet_ensure(uuid)') is null then
     raise exception 'PRECONDITION: hr_reject / hr_wallet_ensure absent'; end if;
   for r in select * from (values
-    ('public.hr_state_of(uuid,integer)', '0bda8ab35a0f4d0330a8955fb2a2f37b', '0506754710c98788248a27b230168e59'),
-    ('public.hr_renown_of(uuid,integer)', '31c65df856055839e4311516c099db7e', '45e723cbfa0d9339c04098b562b60018'),
-    ('public.hr_create_character(integer)', '5be6cc15ed35bc74be9b229134b09110', '6cfec25bf4f82ec0a9e5927960aa6603'),
-    ('public.hr_buy_hero_slot__ungated(integer,integer,uuid)', '746516d5b7ec73c53b59f3dd667a3d78', 'edf5a7aa9f1efeef02f2f8f1ca5156e4'),
-    ('public.hr_farm_purse_pay(uuid,integer,bigint)', '0ccc182aad4bf1ed2223aecf2f935d35', 'a8d70b18926e10157c873126aab36fdb'),
-    ('public.hr_trait_buy__ungated(text,integer,uuid)', 'baff89cd94b662677fe4cbf30c31a74e', 'ca4ab8c1965afc46378f5cee229d010b'),
-    ('public.clan_contribute__ungated(uuid,bigint,integer)', '1787a3471b2d52d0977f4225edfe714f', '40aacafcceb1c814fad203054055eff4'),
-    ('public.hr_unlock_buy(uuid,integer,bigint,uuid,text)', '8bee328f72b0dde9b43c3663b680fa19', '560e254057af74da83dee08b013c0b48'),
-    ('public.hr_market_buy(uuid,integer,bigint,uuid,uuid,bigint)', '9b33cfeb4986d3d9861ce1d9eaa09276', '97e38b8e3c7185487d0447111b9e3c64'),
-    ('public.hr_hunt_loot_rules(uuid,integer,uuid,uuid,jsonb,timestamp with time zone)', 'effca80aec36c617539fcbcdecc6fc0e', 'bf314f41f2ae45588d212e62ee2c7ce6'),
-    ('public.hr_hunt_settle_session(uuid,integer,uuid,jsonb)', '07d806dc20d0aec69469eab02984cc8e', '446456a4c99e80763279b3c463b5cd29'),
-    ('public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)', '1ced9ef2c45f893c892245982e570f36', 'a0bbf22528611f9c5d939783cb211c9e'),
-    ('public.hr_hunt_apply_instance(uuid,bigint,jsonb,jsonb,uuid,integer)', '465885606fde6e457bef4e45977c2615', '0badf6bfafe9a9cc85fe059fc9f35497'),
-    ('public.hr_apply(uuid,integer,bigint,uuid,jsonb)', '466bde57a7bf2ca516266fdd9c4f339a', '34291a5ae8e42247255c416ae02aacdb')
-  ) p(sig, pre, post) loop
+    ('public.hr_state_of(uuid,integer)', '0bda8ab35a0f4d0330a8955fb2a2f37b', '0506754710c98788248a27b230168e59', null),
+    ('public.hr_renown_of(uuid,integer)', '31c65df856055839e4311516c099db7e', '45e723cbfa0d9339c04098b562b60018', null),
+    ('public.hr_create_character(integer)', '5be6cc15ed35bc74be9b229134b09110', '6cfec25bf4f82ec0a9e5927960aa6603', null),
+    ('public.hr_buy_hero_slot__ungated(integer,integer,uuid)', '746516d5b7ec73c53b59f3dd667a3d78', 'edf5a7aa9f1efeef02f2f8f1ca5156e4', null),
+    ('public.hr_farm_purse_pay(uuid,integer,bigint)', '0ccc182aad4bf1ed2223aecf2f935d35', 'a8d70b18926e10157c873126aab36fdb', null),
+    ('public.hr_trait_buy__ungated(text,integer,uuid)', 'baff89cd94b662677fe4cbf30c31a74e', 'ca4ab8c1965afc46378f5cee229d010b', null),
+    ('public.clan_contribute__ungated(uuid,bigint,integer)', '1787a3471b2d52d0977f4225edfe714f', '40aacafcceb1c814fad203054055eff4', '27e05ce903b0f6b037eca83aacc522f8'),
+    ('public.hr_unlock_buy(uuid,integer,bigint,uuid,text)', '8bee328f72b0dde9b43c3663b680fa19', '560e254057af74da83dee08b013c0b48', null),
+    ('public.hr_market_buy(uuid,integer,bigint,uuid,uuid,bigint)', '9b33cfeb4986d3d9861ce1d9eaa09276', '97e38b8e3c7185487d0447111b9e3c64', null),
+    ('public.hr_hunt_loot_rules(uuid,integer,uuid,uuid,jsonb,timestamp with time zone)', 'effca80aec36c617539fcbcdecc6fc0e', 'bf314f41f2ae45588d212e62ee2c7ce6', null),
+    ('public.hr_hunt_settle_session(uuid,integer,uuid,jsonb)', '07d806dc20d0aec69469eab02984cc8e', '446456a4c99e80763279b3c463b5cd29', null),
+    ('public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)', '1ced9ef2c45f893c892245982e570f36', 'a0bbf22528611f9c5d939783cb211c9e', null),
+    ('public.hr_hunt_apply_instance(uuid,bigint,jsonb,jsonb,uuid,integer)', '465885606fde6e457bef4e45977c2615', '0badf6bfafe9a9cc85fe059fc9f35497', null),
+    ('public.hr_apply(uuid,integer,bigint,uuid,jsonb)', '466bde57a7bf2ca516266fdd9c4f339a', '34291a5ae8e42247255c416ae02aacdb', null)
+  ) p(sig, pre, post, live) loop
     select md5(replace(prosrc, chr(13), '')) into v_md5 from pg_proc where oid = to_regprocedure(r.sig);
     if v_md5 is null then raise exception 'PIN: % is missing', r.sig; end if;
-    if v_md5 is distinct from r.pre and v_md5 is distinct from r.post then
+    if v_md5 is distinct from r.pre and v_md5 is distinct from r.post and v_md5 is distinct from r.live then
       raise exception 'PIN: % is neither its pre-image (%) nor this file''s (%) - md5 %: another file moved it; restate from the new image',
-        r.sig, left(r.pre, 8), left(r.post, 8), v_md5; end if;
+        r.sig, left(r.pre, 8) || coalesce(' / production ' || left(r.live, 8), ''), left(r.post, 8), v_md5; end if;
   end loop;
 end $mig$;
 

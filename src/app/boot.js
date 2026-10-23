@@ -31,26 +31,26 @@
 // retried in the background.
 // ════════════════════════════════════════════════════════════════════════
 
-import { SUPABASE_CONFIG, createSupabaseClient } from '../net/supabase-bootstrap.js?v=0.2.35';
-import { createAuth, AUTH_COPY } from '../net/auth.js?v=0.2.35';
-import { SESSION_CONFIG } from '../session/config.js?v=0.2.35';
-import { createServerLink } from '../session/server.js?v=0.2.35';
-import { AccountSession } from '../session/account-session.js?v=0.2.35';
-import { FRAME_EVENT } from '../session/character-session.js?v=0.2.35';
-import { renderAuthScreen, AUTH_BRAND } from './sign-in.js?v=0.2.35';
-import { mountWorldPane } from './world-pane.js?v=0.2.35';
-import { mountCharacterStrip, stripTargetOf } from './character-strip.js?v=0.2.35';
-import { renderHeroCreate } from './hero-create.js?v=0.2.35';
-import { slotOfferHtml, slotRefusalText } from './slot-offer.js?v=0.2.35';
-import { createAlertCenter } from '../shell/alerts.js?v=0.2.35';
-import { createSocialRealtime } from '../social/realtime.js?v=0.2.35';
-import { SocialSession } from '../social/social-session.js?v=0.2.35';
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.35';
-import { startObservability, track } from '../net/observability.js?v=0.2.35';
-import { startDiagnostics } from '../net/diagnostics.js?v=0.2.35';
-import { mountPressAck } from '../shell/press-ack.js?v=0.2.35';
-import { liveOverlayWanted, mountLiveOverlay } from './live-overlay.js?v=0.2.35';
-import { mountNewVersion } from './new-version.js?v=0.2.35';
+import { SUPABASE_CONFIG, createSupabaseClient } from '../net/supabase-bootstrap.js?v=0.2.36';
+import { createAuth, AUTH_COPY } from '../net/auth.js?v=0.2.36';
+import { SESSION_CONFIG } from '../session/config.js?v=0.2.36';
+import { createServerLink } from '../session/server.js?v=0.2.36';
+import { AccountSession } from '../session/account-session.js?v=0.2.36';
+import { FRAME_EVENT } from '../session/character-session.js?v=0.2.36';
+import { renderAuthScreen, AUTH_BRAND } from './sign-in.js?v=0.2.36';
+import { mountWorldPane } from './world-pane.js?v=0.2.36';
+import { mountCharacterStrip, stripTargetOf } from './character-strip.js?v=0.2.36';
+import { renderHeroCreate } from './hero-create.js?v=0.2.36';
+import { slotOfferHtml, slotRefusalText } from './slot-offer.js?v=0.2.36';
+import { createAlertCenter } from '../shell/alerts.js?v=0.2.36';
+import { createSocialRealtime } from '../social/realtime.js?v=0.2.36';
+import { SocialSession } from '../social/social-session.js?v=0.2.36';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.36';
+import { startObservability, track } from '../net/observability.js?v=0.2.36';
+import { startDiagnostics } from '../net/diagnostics.js?v=0.2.36';
+import { mountPressAck } from '../shell/press-ack.js?v=0.2.36';
+import { liveOverlayWanted, mountLiveOverlay } from './live-overlay.js?v=0.2.36';
+import { mountNewVersion } from './new-version.js?v=0.2.36';
 
 const DISCORD = 'https://discord.gg/eJrUSUJM3M';
 

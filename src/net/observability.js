@@ -13,7 +13,9 @@
 //            main-thread hang (src/net/diagnostics.js onHang) with each open hunt's
 //            id, swing and live-engine state; release = BUILD.version; no tracing,
 //            no replay; user = the account id; URLs leave without query or fragment
-//   PostHog  identified_only profiles keyed by the account id, kept in memory only;
+//   PostHog  identified_only profiles keyed by the account id, kept in memory only,
+//            started only once the account id is known (its bootstrap distinct id: no
+//            anonymous id is ever minted or merged, nothing runs on the sign-in screen);
 //            no autocapture or pageviews; session replay only while the game
 //            screen shows, every input masked, chat text masked (.ph-mask),
 //            .ph-no-capture blocked
@@ -27,12 +29,12 @@
 // from their buttons (track). Nothing here is ever read back by the game (§1).
 // ════════════════════════════════════════════════════════════════════════
 
-import { OBSERVABILITY_CONFIG } from './observability-config.js?v=0.2.32';
-import { BUILD } from '../build-info.js?v=0.2.32';
-import { observeSessions } from '../session/character-session.js?v=0.2.32';
-import { partyOf, huntOf, huntDensityOf } from '../session/hunt-sections.js?v=0.2.32';
-import { startDiagnostics } from './diagnostics.js?v=0.2.32';
-import { endedSessionOf } from '../hunt-view/summary-model.js?v=0.2.32';
+import { OBSERVABILITY_CONFIG } from './observability-config.js?v=0.2.33';
+import { BUILD } from '../build-info.js?v=0.2.33';
+import { observeSessions } from '../session/character-session.js?v=0.2.33';
+import { partyOf, huntOf, huntDensityOf } from '../session/hunt-sections.js?v=0.2.33';
+import { startDiagnostics } from './diagnostics.js?v=0.2.33';
+import { endedSessionOf } from '../hunt-view/summary-model.js?v=0.2.33';
 
 const EARLY_MAX = 10;        // errors held while Sentry loads
 const QUEUE_MAX = 20;        // events held while PostHog loads
@@ -149,10 +151,15 @@ function sentryOptions(cfg, env, S) {
   };
 }
 
-function posthogOptions(cfg, win) {
+/* `uid` is the account id: PostHog starts only once it is known (startPostHog), so the account id is
+   its distinct id from the very first call. Nothing is stored on the device (persistence 'memory'),
+   which is why the id must be handed in: left to itself the SDK mints an anonymous id on every page
+   load and identify() merges it onto the person (the SDK's own warning, Andy's report #61). */
+function posthogOptions(cfg, win, uid) {
   return {
     api_host: cfg.posthog.host, person_profiles: 'identified_only',
-    persistence: 'memory',   // nothing on the device: the distinct id is the account id once identified
+    persistence: 'memory',
+    bootstrap: { distinctID: uid, isIdentifiedID: true },
     autocapture: false, capture_pageview: false, capture_pageleave: false, capture_dead_clicks: false, capture_heatmaps: false,
     capture_performance: false, capture_exceptions: false, rageclick: false, disable_surveys: true,
     disable_external_dependency_loading: true, save_referrer: false, mask_personal_data_properties: true,
@@ -210,7 +217,9 @@ export function startObservability(win, cfg = OBSERVABILITY_CONFIG) {
   const now = () => (win.performance ? win.performance.now() : Date.now());
   const st = { uid: null, game: false, queue: [], stalls: 0, hung: false, hang: null };
   let sentry = null;
-  let ph = null;
+  let ph = null;       // the PostHog instance, started by the first account id
+  let phSdk = null;    // window.posthog once its script has loaded: nothing runs until an account is known
+  let phUid = null;    // the account id ph is currently seeded with
 
   /* Errors before Sentry is up are held, then reported once it is. */
   const early = [];
@@ -230,16 +239,28 @@ export function startObservability(win, cfg = OBSERVABILITY_CONFIG) {
     for (const e of early.splice(0)) safe(() => S.captureException(e));
     if (st.hang) safe(() => st.hang(S));
   });
+  /* PostHog starts when its script is loaded AND the account id is known, whichever comes last, with
+     that id as its distinct id (posthogOptions): no anonymous id is ever minted, sent or merged. A
+     second sign-in in the same load re-seeds the same instance with the new id the same way. */
+  const startPostHog = () => {
+    if (!phSdk || !st.uid || phUid === st.uid) return;
+    if (!ph) ph = phSdk.init(cfg.posthog.key, posthogOptions(cfg, win, st.uid)) || phSdk;
+    else ph.reset({ bootstrap: { distinctID: st.uid, isIdentifiedID: true } });
+    phUid = st.uid;
+    if (st.game) ph.startSessionRecording();
+    for (const [n, p] of st.queue.splice(0)) safe(() => ph.capture(n, p));
+  };
   load(doc, cfg.posthog.scripts, () => {
     const P = win.posthog;
     if (!P || typeof P.init !== 'function') return;
-    ph = P.init(cfg.posthog.key, posthogOptions(cfg, win)) || P;
-    if (st.uid) ph.identify(st.uid);
-    if (st.game) ph.startSessionRecording();
-    for (const [n, p] of st.queue.splice(0)) safe(() => ph.capture(n, p));
+    phSdk = P;
+    safe(startPostHog);
   });
 
+  /* An event with no account behind it has no distinct id to carry: it is not sent, and not held for
+     whoever signs in next. */
   const send = (name, props) => {
+    if (!st.uid) return;
     const p = Object.assign({}, props || {});
     if (ph) safe(() => ph.capture(name, p)); else if (st.queue.length < QUEUE_MAX) st.queue.push([name, p]);
   };
@@ -275,12 +296,15 @@ export function startObservability(win, cfg = OBSERVABILITY_CONFIG) {
       st.uid = typeof uid === 'string' && uid ? uid : null;
       if (!st.uid) return;
       if (sentry) safe(() => sentry.setUser({ id: st.uid }));
-      if (ph) safe(() => ph.identify(st.uid));
+      safe(startPostHog);
     },
+    /* PostHog's identity is replaced at the next sign-in (startPostHog); until then `send` has no uid, so
+       nothing can leave under the old account, and a reset here would only mint an anonymous id. */
     forget() {
       st.uid = null;
+      phUid = null;
+      st.queue.length = 0;
       if (sentry) safe(() => sentry.setUser(null));
-      if (ph) safe(() => ph.reset());
     },
     /* Replay records the game screen only: never sign-in, the characters list (it names the email) or the closed notice. */
     screen(name) {

@@ -15,7 +15,7 @@
 //
 // PURE except for `residueStore`, the adapter onto one character's residue.
 // ════════════════════════════════════════════════════════════════════════
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.32';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.33';
 
 export const SIZE_CLASSES = Object.freeze(['desktop', 'phone']);
 export const OPACITY_MIN = 0.4;
@@ -186,25 +186,63 @@ export function homeAboveBar(pane, bars, gap, bottom, boxHeight) {
 }
 
 /**
+ * THE HOME WINDOW NEVER COVERS A WIDGET (v0.2.32 visual gate, 1440x900: Chat at the bottom-left ran over the
+ * foot of a four-seat party panel, its Leave party button and "Costs are personal."). Above the bar as
+ * homeAboveBar says, and `gap` below every widget in `tops` (the World's widgets not at the bottom) whose span
+ * crosses its column: it shrinks to the room between them; when that room is under `minH` (a chat too short
+ * to use) it slides right past the widgets in its way, as far as it must. If no left clears them inside
+ * `boxWidth`, it keeps its home column and the room, however small: the widget stays readable and clickable.
+ * `pane` {left, width} is the window's HOME column; rects {left, top, width, height} in the box's px.
+ * Returns {left, bottom, max} (`max` null when nothing caps it). Pure.
+ */
+export function homeAt(pane, bars, tops, gap, bottom, box, minH) {
+  const fit = (left) => {
+    const col = { left, width: pane.width };
+    const at = homeAboveBar(col, bars, gap, bottom, box.height);
+    const foot = box.height - at.bottom;
+    const over = tops.filter((q) => q.width > 0 && q.height > 0 && q.top < foot && q.left < left + pane.width + gap && left < q.left + q.width + gap);
+    if (!over.length) return Object.assign({ left, low: [] }, at);
+    const room = (q) => Math.max(0, Math.round(foot - gap - q.top - q.height));
+    const max = Math.min(...over.map(room), at.max === null ? Infinity : at.max);
+    /* `low`: the widgets that leave it under minH (only these are slid past; a bar far above it is not) */
+    return { left, low: over.filter((q) => room(q) < minH), bottom: at.bottom, max };
+  };
+  const home = fit(pane.left);
+  let at = home;
+  for (let n = 0; n <= tops.length && at.low.length; n++) {
+    const left = Math.max(...at.low.map((q) => q.left + q.width)) + gap;
+    if (left + pane.width > box.width - gap) break;
+    at = fit(left);
+  }
+  if (at.low.length) at = home;
+  return { left: at.left, bottom: at.bottom, max: at.max };
+}
+
+/**
  * The World edges the docked HUD widgets cover, so the camera frames the
  * playable area above and beside them (the bottom bar must not sit over the
  * bottom row of a hunt). Each widget is { anchor, rect } in the World box's
  * px: a bottom-anchored widget covers `bottom` up to its top edge; a top-centre
  * one covers `top` down to its bottom edge; a side-anchored one covers that
- * side to its inner edge. `right` starts from the docked windows' strip.
+ * side to its inner edge. Only the part of a widget inside the box covers it (a
+ * panel pushed below the phone's bar covers nothing), and a top-corner widget
+ * covers the top instead of its side when that strip hides less of the World
+ * (the phone's hunt bar, anchored top-right, is a bar, not a side panel).
  * @param {{anchor:string, rect:{left:number, top:number, width:number, height:number}}[]} widgets
  * @param {{width:number, height:number}} box
- * @param {number} [windowsRight]
  */
 export function hudInsetOf(widgets, box) {
   const out = { left: 0, right: 0, top: 0, bottom: 0 };
   for (const w of widgets) {
-    const v = w.anchor[0], h = w.anchor[1], r = w.rect;
-    if (!(r.width > 0 && r.height > 0)) continue;
-    if (v === 'b') out.bottom = Math.max(out.bottom, box.height - r.top);
-    else if (v === 't' && h === 'c') out.top = Math.max(out.top, r.top + r.height);
-    else if (h === 'l') out.left = Math.max(out.left, r.left + r.width);
-    else if (h === 'r') out.right = Math.max(out.right, box.width - r.left);
+    const v = w.anchor[0], h = w.anchor[1], q = w.rect;
+    const l = Math.max(0, q.left), t = Math.max(0, q.top);
+    const r = Math.min(box.width, q.left + q.width), b = Math.min(box.height, q.top + q.height);
+    if (!(r > l && b > t)) continue;
+    const side = h === 'l' ? r : box.width - l;
+    if (v === 'b') out.bottom = Math.max(out.bottom, box.height - t);
+    else if (v === 't' && (h === 'c' || box.width * b < side * box.height)) out.top = Math.max(out.top, b);
+    else if (h === 'l') out.left = Math.max(out.left, side);
+    else if (h === 'r') out.right = Math.max(out.right, side);
   }
   for (const k of Object.keys(out)) out[k] = Math.round(Math.max(0, Math.min(out[k], k === 'left' || k === 'right' ? box.width : box.height)));
   return out;

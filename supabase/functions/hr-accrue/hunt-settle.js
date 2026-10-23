@@ -58,7 +58,20 @@ import { MONSTERS } from '../../../src/data/monsters.js';
 import { roleWeaponOf } from '../../../src/data/hunt-roles.js';
 import { heroSetup } from '../../../src/core/hunt-spawn.js';
 import { memberSide, frozenOf } from '../../../src/core/member.js';
+import { WORLD_VERSION, SHAPE as WORLD_SHAPE } from '../../../src/core/hunt/world-state.js';
 import { seederFor } from './hunt-seed.js';
+
+/* A DEPLOY IN FLIGHT (2026-12-11-hunt-deploy-no-forfeit.sql). The read carries the server catalogue's
+   world shape (hr_hunt_instance_read instance.world_shape = hr_hunt_world_shape { v, s }). When it is not
+   this engine's (world-state.js WORLD_VERSION / SHAPE), the catalogue and this edge are landing seconds
+   apart, in either order, and any world proposed now is one the server cannot store: every such settle
+   would be a refusal the server caused, and the sixth in a row forfeits the hunt. So nothing is proposed:
+   no commit, no refusal, no count. The instance keeps its owed window on its unmoved settled_to and the
+   first fire after both have landed settles it whole (a stored world of the old shape restarts:
+   decodeStored). A read with no shape (a database before that file) is no deploy. */
+function worldShapePending(ws) {
+  return ws != null && typeof ws === 'object' && (Number(ws.v) !== WORLD_VERSION || Number(ws.s) !== WORLD_SHAPE);
+}
 
 /* THE LIVE VIEW (option B, Tyler 2026-10-19). The browser runs the SAME instance engine
    (src/core/combat-sim.js, the member assembly src/core/member.js) for the VIEWED character,
@@ -322,6 +335,10 @@ export async function readHuntSettle(o, mode) {
     return { answer: { outcome: 'none', reason: 'session_changed', ...refusal(409, 'session_changed') } };
   }
   const inst = r.instance;
+  if (worldShapePending(inst.world_shape)) {
+    return { answer: { outcome: 'nothing', reason: 'world_shape_pending', status: 200,
+      body: { ok: true, settled: false, reason: 'world_shape_pending', ...env } } };
+  }
   /* The server clock, floored to the engine's millisecond. */
   const nowMs = Math.floor(new Date(read.now).getTime());
   const fromMs = Number(inst.settled_to_ms);

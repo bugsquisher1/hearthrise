@@ -12,12 +12,12 @@
 //
 // Controls are marked `data-opt="<key>"`; buttons carry `data-val`.
 // ════════════════════════════════════════════════════════════════════════
-import { TARGET_MODES, HUNT_STANCES, HERO_DISTANCE } from '../../data/rule-subjects.js?v=0.2.32';
-import { GOLD_FLOOR } from '../../data/hunt-sessions.js?v=0.2.32';
-import { settingsOf, partyOf } from '../../session/hunt-sections.js?v=0.2.32';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.32';
-import { text, attr, prop, cls } from '../../render/paint.js?v=0.2.32';
-import { answerWithin } from '../bar-draft.js?v=0.2.32';
+import { TARGET_MODES, HUNT_STANCES, HERO_DISTANCE } from '../../data/rule-subjects.js?v=0.2.33';
+import { GOLD_FLOOR } from '../../data/hunt-sessions.js?v=0.2.33';
+import { settingsOf, partyOf } from '../../session/hunt-sections.js?v=0.2.33';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.33';
+import { text, attr, prop, cls } from '../../render/paint.js?v=0.2.33';
+import { answerWithin } from '../bar-draft.js?v=0.2.33';
 
 /* Words for the server's refusal codes; anything else reads as a plain "not saved". */
 const REFUSAL = Object.freeze({

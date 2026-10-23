@@ -902,6 +902,23 @@ export const ACKNOWLEDGED = {
       "raise exception 'VERIFY(fold): the account depot does not equal the summed character banks'; end if;",
     ],
   },
+  '2026-12-14-shared-farm.sql :: call :: hr_farm_fold': {
+    verdict: 'staged-backfill',
+    sites: 1,
+    why: 'Section 3b is the file\'s WORK, not a self-check: the one-time fold of every hero\'s '
+       + 'player_farm plots and player_state.plot_level into the account\'s field (Tyler 2026-10-23), '
+       + 'global by definition like the depot fold above. It only INSERTS (the account plots, the '
+       + 'account tiers above 1 and one ledger row per plot / per tier; nothing is deleted or updated), '
+       + 'runs once (player_farm and the plot_level column are dropped in the same transaction; a '
+       + 're-apply finds no player_farm and returns before it), under an ACCESS EXCLUSIVE lock on '
+       + 'player_farm, and is followed by a conservation check over every user. The self-check half '
+       + '(3a) calls the same function scoped to its own probe user and rolls back. `sites` is pinned at 1.',
+    proof: [
+      'v_n := pg_temp.hr_farm_fold(v_u);',
+      'lock table public.player_farm in access exclusive mode;',
+      "raise exception 'VERIFY(fold): % of % crops reached the accounts, or one changed on the way', v_moved, v_want; end if;",
+    ],
+  },
   '2026-12-02-old-rewards-cut.sql :: call :: hr_cut_item_holders': {
     verdict: 'staged-backfill',
     sites: 2,

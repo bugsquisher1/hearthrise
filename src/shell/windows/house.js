@@ -17,15 +17,15 @@
 // answers, and the ledger changes only from the re-read envelope. A refusal is
 // said in plain words. A room whose rungs do nothing yet offers no purchase.
 // ════════════════════════════════════════════════════════════════════════
-import { homeOf, chestsOf } from '../../session/home-sections.js?v=0.2.32';
-import { buyHome, buildChest } from '../../session/home-intents.js?v=0.2.32';
-import { bagOf, goldOf, nameOf } from '../../session/item-sections.js?v=0.2.32';
-import { PROPERTY_TIERS } from '../../data/homestead-tiers.js?v=0.2.32';
-import { ROOM_PERKS } from '../../data/perks.js?v=0.2.32';
-import { text, cls, prop, attr, rows, element } from '../../render/paint.js?v=0.2.32';
-import { whole, gold } from '../../render/format.js?v=0.2.32';
-import { itemName } from '../widgets/bits.js?v=0.2.32';
-import { runIntent } from '../intent-words.js?v=0.2.32';
+import { homeOf, chestsOf } from '../../session/home-sections.js?v=0.2.33';
+import { buyHome, buildChest } from '../../session/home-intents.js?v=0.2.33';
+import { bagOf, goldOf, nameOf } from '../../session/item-sections.js?v=0.2.33';
+import { PROPERTY_TIERS } from '../../data/homestead-tiers.js?v=0.2.33';
+import { ROOM_PERKS } from '../../data/perks.js?v=0.2.33';
+import { text, cls, prop, attr, rows, element } from '../../render/paint.js?v=0.2.33';
+import { whole, gold } from '../../render/format.js?v=0.2.33';
+import { itemName } from '../widgets/bits.js?v=0.2.33';
+import { runIntent } from '../intent-words.js?v=0.2.33';
 
 const ROMAN = Object.freeze(['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X']);
 const SCRATCH = new WeakMap();
@@ -42,7 +42,7 @@ const PERK_WORDS = Object.freeze({
   prayerSpeed: (v) => 'prayer offerings ' + pc(v) + '% faster',
   runeSpeed: (v) => 'rune binding ' + pc(v) + '% faster',
   buffDuration: (v) => 'food and drink effects last ' + pc(v) + '% longer',
-  farmPlots: (v) => v + ' more farm ' + (v === 1 ? 'bed' : 'beds') + ' for each of your characters',
+  farmPlots: (v) => v + ' more farm ' + (v === 1 ? 'bed' : 'beds') + ' on the land your heroes share',
   trophyMounts: (v) => 'a trophy wall with room for ' + v + ' bestiary trophies',
 });
 function perkText(room, level) {

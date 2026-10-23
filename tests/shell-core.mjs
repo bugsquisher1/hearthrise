@@ -303,6 +303,11 @@ async function runTests(mods) {
     const all = HUD.hudInsetOf([bar(82), { anchor: 'tc', rect: { left: 400, top: 8, width: 200, height: 40 } },
       { anchor: 'tl', rect: { left: 12, top: 12, width: 250, height: 200 } }, { anchor: 'tr', rect: { left: 700, top: 12, width: 260, height: 300 } }], box);
     eq(all, { left: 262, right: 300, top: 48, bottom: 90 }, 'top bar, party, analyzer');
+    /* The phone (922x381 World): the hunt bar is anchored top-right but is a bar, and the party panel the
+       action bar pushed below it is off the World; the camera framed the hero in a 144 px strip. */
+    const phone = HUD.hudInsetOf([{ anchor: 'bc', rect: { left: 45, top: 279, width: 832, height: 91 } },
+      { anchor: 'tr', rect: { left: 388, top: 4, width: 530, height: 42 } }, { anchor: 'tl', rect: { left: 4, top: 382, width: 240, height: 388 } }], { width: 922, height: 381 });
+    eq(phone, { left: 0, right: 0, top: 46, bottom: 102 }, 'a top-corner bar covers the top; a panel off the World covers nothing');
   });
   t('H10 a centred widget never overlaps an edge widget: it moves along its row, else they step below it', () => {
     const party = { left: 12, top: 12, width: 258, height: 250 }, an = { left: 720, top: 12, width: 285, height: 550 };
@@ -410,6 +415,15 @@ async function runTests(mods) {
     /* the home window (Chat, bottom-left): over the bar's column it stands above the bar; clear of it, at home */
     eq(HUD.homeAboveBar({ left: 12, width: 400 }, [Object.assign({}, bar, { left: 235, width: 970 })], 12, 44, 900), { bottom: 900 - 820 + 12, max: 820 - 24 }, 'at 1440 the chat stands 12 px above the bar');
     eq(HUD.homeAboveBar({ left: 12, width: 400 }, [Object.assign({}, bar, { left: 475 })], 12, 44, 1080), { bottom: 44, max: null }, 'at 1920 the bar starts past it: the chat sits at home');
+    /* ...and below the widgets over its column (v0.2.32 gate: a four-seat party panel, 448 px, top-left) */
+    const party4 = { left: 12, top: 12, width: 250, height: 448 }, hbar = { left: 432, top: 8, width: 558, height: 46 };
+    eq(HUD.homeAt({ left: 12, width: 400 }, [{ left: 229, top: 695, width: 964, height: 126 }], [party4, hbar], 12, 44, { width: 1422, height: 829 }, 160),
+      { left: 12, bottom: 146, max: 211 }, 'at 1440x900 the chat shrinks to end 12 px under the panel');
+    eq(HUD.homeAt({ left: 12, width: 400 }, [{ left: 70, top: 563, width: 964, height: 126 }], [party4, hbar], 12, 44, { width: 1348, height: 697 }, 160),
+      { left: 274, bottom: 146, max: 485 }, 'at 1366x768 the room under the panel is too short: it slides right past the panel, not the far bar');
+    eq(HUD.homeAt({ left: 12, width: 400 }, [{ left: 70, top: 563, width: 964, height: 126 }], [party4], 12, 44, { width: 600, height: 697 }, 160),
+      { left: 12, bottom: 146, max: 79 }, 'no room to slide: it stays home, under the panel, however short');
+    eq(HUD.homeAt({ left: 12, width: 400 }, [], [], 12, 44, { width: 1422, height: 829 }, 160), { left: 12, bottom: 44, max: null }, 'nothing near: home, uncapped');
   });
   t('R4 winSize is an allowlisted residue field, bounded both ways', () => {
     ok(CS.RESIDUE_FIELDS.includes('winSize'), 'winSize must be in RESIDUE_FIELDS');
@@ -478,6 +492,8 @@ const MUTANTS = [
   { test: 'W15', file: WM_FILE, from: "      w: Math.round(Math.max(RESIZE_MIN.w, Math.min(Math.max(RESIZE_MIN.w, wd.width - 2 * DOCK_EDGE), w))),", to: '      w: Math.round(w),' },
   { test: 'H12', file: HUD_FILE, from: '  return cap >= DOCK_CAP_MIN_PX ? cap : null;', to: '  return null;' },
   { test: 'H12', file: HUD_FILE, from: "  return { bottom: Math.max(bottom, Math.round(boxHeight - top + gap)), max: Math.max(0, Math.round(top - 2 * gap)) };", to: '  return { bottom, max: null };' },
+  { test: 'H12', file: HUD_FILE, from: '    if (left + pane.width > box.width - gap) break;\n    at = fit(left);', to: '    break;' },
+  { test: 'H12', file: HUD_FILE, from: '    return { left, low: over.filter((q) => room(q) < minH), bottom: at.bottom, max };', to: '    return { left, low: over, bottom: at.bottom, max };' },
   { test: 'R4', file: 'src/session/residue.js', from: '  winSize: sanitizeWinSize,', to: '  winSize: (v) => v,' },
   { test: 'W13', file: WM_FILE, from: 'else if (slot.has(id)) lastAt.set(id, { right: slot.get(id) });', to: ';' },
   { test: 'W8', file: WM_FILE, from: 'return keyBelongsToField(ev.target, ev.key);', to: 'return false;' },
@@ -491,7 +507,9 @@ const MUTANTS = [
   { test: 'H11', file: HUD_FILE, from: '  if (!dock.some((q) => hit(r.left, q))) return r.left;', to: '  return r.left;' },
   { test: 'H11', file: HUD_FILE, from: '    if (stops.some((q) => hit(x, q))) return null;\n', to: '' },
   { test: 'H11', file: HUD_FILE, from: '  const row = edges.concat(fixed).map(', to: '  const row = edges.map(' },
-  { test: 'H9', file: HUD_FILE, from: "if (v === 'b') out.bottom = Math.max(out.bottom, box.height - r.top);", to: "if (v === 'b') out.bottom = Math.max(out.bottom, 0);" },
+  { test: 'H9', file: HUD_FILE, from: "if (v === 'b') out.bottom = Math.max(out.bottom, box.height - t);", to: "if (v === 'b') out.bottom = Math.max(out.bottom, 0);" },
+  { test: 'H9', file: HUD_FILE, from: '    if (!(r > l && b > t)) continue;', to: '    if (!(q.width > 0 && q.height > 0)) continue;' },
+  { test: 'H9', file: HUD_FILE, from: "else if (v === 't' && (h === 'c' || box.width * b < side * box.height))", to: "else if (v === 't' && h === 'c')" },
   { test: 'R1', file: 'src/session/residue.js', from: "  hudLayout: sanitizeHudLayout,", to: '  hudLayout: (v) => v,' },
   { test: 'R2', file: HUD_FILE, from: "write(next) { if (character) character.setResidue('hudLayout', next); },", to: 'write(next) {},' },
   { test: 'R3', file: 'src/shell/away-recap.js', from: '  if (gone < AWAY_MIN_MS) return null;\n', to: '' },

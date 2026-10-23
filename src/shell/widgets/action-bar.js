@@ -25,26 +25,26 @@
 // Shown in town too (Tyler 10-18: set it up before leaving). Every value is
 // the server's; the bar changes only when the re-read envelope says so.
 // ════════════════════════════════════════════════════════════════════════
-import { BAR_SLOTS } from '../../data/hunt-hud.js?v=0.2.32';
-import { ABILITIES } from '../../data/abilities.js?v=0.2.32';
-import { huntOf, settingsOf, wireSlot } from '../../session/hunt-sections.js?v=0.2.32';
-import { carriedOf } from '../../session/item-sections.js?v=0.2.32';
-import { text, cls, attr, element, keyedChild, prop } from '../../render/paint.js?v=0.2.32';
-import { whole } from '../../render/format.js?v=0.2.32';
-import { glyphSvg } from '../launcher.js?v=0.2.32';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.32';
-import { actionIconHtml } from './bits.js?v=0.2.32';
-import { hubHtml, patchHub } from './vitals-hub.js?v=0.2.32';
-import { openSlot, sendPlan, movePlan, swapPlan, insertPlan, serverBar, answerWithin } from '../bar-draft.js?v=0.2.32';
-import { actionName, factsOf, carried, supplyLines, setupWords, conflictsOf, reasonOf, sharedCooldownOf } from '../action-facts.js?v=0.2.32';
-import { resetConfigureView } from '../windows/configure-action.js?v=0.2.32';
-import { assignToBar, barKind } from '../bar-assign.js?v=0.2.32';
-import { DRAG_TYPE } from '../windows/inventory/actions.js?v=0.2.32';
-import { refusalWords } from '../intent-words.js?v=0.2.32';
-import { targetOptionsHtml, stanceButtonsHtml, distanceHtml, goldFloorHtml, patchControls, sendOption } from './settings-intent.js?v=0.2.32';
-import { ATTACK_KINDS } from '../../data/condition-metrics.js?v=0.2.32';
-import { nameEditorHtml, openNameEditor, nameKey } from '../inline-name.js?v=0.2.32';
-import { renameActionSet } from '../../session/preset-intents.js?v=0.2.32';
+import { BAR_SLOTS } from '../../data/hunt-hud.js?v=0.2.33';
+import { ABILITIES } from '../../data/abilities.js?v=0.2.33';
+import { huntOf, settingsOf, wireSlot } from '../../session/hunt-sections.js?v=0.2.33';
+import { carriedOf } from '../../session/item-sections.js?v=0.2.33';
+import { text, cls, attr, element, keyedChild, prop } from '../../render/paint.js?v=0.2.33';
+import { whole } from '../../render/format.js?v=0.2.33';
+import { glyphSvg } from '../launcher.js?v=0.2.33';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.33';
+import { actionIconHtml } from './bits.js?v=0.2.33';
+import { hubHtml, patchHub } from './vitals-hub.js?v=0.2.33';
+import { openSlot, sendPlan, movePlan, swapPlan, insertPlan, serverBar, answerWithin } from '../bar-draft.js?v=0.2.33';
+import { actionName, factsOf, carried, supplyLines, setupWords, conflictsOf, reasonOf, holdingReason, sharedCooldownOf } from '../action-facts.js?v=0.2.33';
+import { resetConfigureView } from '../windows/configure-action.js?v=0.2.33';
+import { assignToBar, barKind } from '../bar-assign.js?v=0.2.33';
+import { DRAG_TYPE } from '../windows/inventory/actions.js?v=0.2.33';
+import { refusalWords } from '../intent-words.js?v=0.2.33';
+import { targetOptionsHtml, stanceButtonsHtml, distanceHtml, goldFloorHtml, patchControls, sendOption } from './settings-intent.js?v=0.2.33';
+import { ATTACK_KINDS } from '../../data/condition-metrics.js?v=0.2.33';
+import { nameEditorHtml, openNameEditor, nameKey } from '../inline-name.js?v=0.2.33';
+import { renameActionSet } from '../../session/preset-intents.js?v=0.2.33';
 
 const SLOTS = BAR_SLOTS.rows * BAR_SLOTS.cols;
 const SLOT_DRAG = 'application/x-hr-bar-slot';
@@ -88,6 +88,10 @@ function patchCooldown(li, s, casts, now) {
   li.querySelector('.hb-cd-ember').style.height = (Math.round((1 - left / r.cdMs) * 1000) / 10) + '%';
   text(li.querySelector('.hb-cd-s'), left < 10000 ? (left / 1000).toFixed(1) : String(Math.ceil(left / 1000)));
 }
+
+/* THE VIEWED TANK HOLDS THE PACK (bug #61): every engaged monster is on it in the world the live engine runs (the
+   server's start point, reconciled at every commit; live-engine.js holdsPack), so its Challenge slot reads "Holding". */
+const holdsPackNow = (cs, hero) => !!hero && !!cs && !!cs.live && typeof cs.live.holdsPack === 'function' && cs.live.holdsPack(hero.unit);
 
 function slotHtml(i) {
   return '<li class="hb-slot is-empty" data-slot="' + i + '" data-hs-act="slot" role="button" tabindex="0" aria-label="Slot ' + (i + 1) + '">'
@@ -166,11 +170,12 @@ function tipHtml(i, ctx) {
   const conflict = conflictsOf(wires, set).get(i);
   const h = huntOf(ctx.character);
   const bag = carriedOf(ctx.character);
-  const why = reasonOf(s, set, bag, h && !h.ended ? h.hero : null);
+  const hero = h && !h.ended ? h.hero : null;
+  const why = reasonOf(s, set, bag, hero) || holdingReason(s, holdsPackNow(ctx.character, hero));
   const shared = sharedCooldownOf(wires, i);
   const lines = [f.cost ? (f.cost.includes('mana') ? 'Cost: ' + f.cost : f.cost) : null, f.type, f.cooldown].concat(f.effect, supplyLines(s.action, set, bag)).filter(Boolean);
   return '<b>' + esc(actionName(s.action)) + '</b><small class="hb-tip-n">Slot ' + (i + 1) + '</small>'
-    + (why ? '<p class="is-warn is-why">' + esc(why.text) + '</p>' : '')
+    + (why ? '<p class="' + (why.quiet ? 'is-why' : 'is-warn is-why') + '">' + esc(why.text) + '</p>' : '')
     + lines.map((l) => '<p>' + esc(l) + '</p>').join('')
     + '<hr><p class="is-setup">' + esc(setupWords(w, set)) + '</p>'
     + (shared ? '<p class="is-setup">' + esc(shared) + '</p>' : '')
@@ -201,10 +206,11 @@ renderActionBar.patch = function patchActionBar(el, ctx) {
   const hero = h && !h.ended ? h.hero : null;
   const casts = watchCasts(el, ctx);
   const now = ctx.now();
+  const holding = holdsPackNow(cs, hero);
   for (const li of el.querySelectorAll('.hb-slot')) {
     const i = Number(li.getAttribute('data-slot'));
     const sl = slots[i] || { empty: true };
-    patchSlot(li, sl, wires[i], ctx, bag, conflicts.get(i), reasonOf(sl, s, bag, hero));
+    patchSlot(li, sl, wires[i], ctx, bag, conflicts.get(i), reasonOf(sl, s, bag, hero) || holdingReason(sl, holding));
     patchCooldown(li, sl, casts, now);
   }
   const set = s && s.presets.find((p) => p.preset === s.preset);

@@ -4,14 +4,14 @@
 // roll is src/core/hunt/pull-cycle.js (every pack spawns from its pocket's
 // rows): the C2 single-foe `pickSpawn` was retired with the single-foe swing
 // (HUNT_SCREEN_SPEC §1.1 one-path table; lane S1, 2026-10-17).
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.32';
-import { densityFor, partyPick } from '../data/hunt-grounds.js?v=0.2.32';
-import { HUNT_ROLES, roleForWeapon } from '../data/hunt-roles.js?v=0.2.32';
-import { ABILITIES } from '../data/abilities.js?v=0.2.32';
-import { makeUnit, makeWorld } from './hunt/world-state.js?v=0.2.32';
-import { spawnPack, PHASE } from './hunt/pull-cycle.js?v=0.2.32';
-import { pickLeader, defaultSettings } from './hunt/roles.js?v=0.2.32';
-import { heroSlots, heroStopRules, stopRulesProblem } from './hunt/conditions.js?v=0.2.32';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.33';
+import { densityFor, partyPick } from '../data/hunt-grounds.js?v=0.2.33';
+import { HUNT_ROLES, roleForWeapon } from '../data/hunt-roles.js?v=0.2.33';
+import { ABILITIES } from '../data/abilities.js?v=0.2.33';
+import { makeUnit, makeWorld } from './hunt/world-state.js?v=0.2.33';
+import { spawnPack, pullLeader, PHASE } from './hunt/pull-cycle.js?v=0.2.33';
+import { pickLeader, defaultSettings } from './hunt/roles.js?v=0.2.33';
+import { heroSlots, heroStopRules, stopRulesProblem } from './hunt/conditions.js?v=0.2.33';
 
 /** The named hunt a combat pointer names, or null (a monster id / unknown). */
 export function huntFor(activeId) {
@@ -111,26 +111,26 @@ export function newHuntWorld(ground, grid, party, o) {
 
 /**
  * A HERO JOINS A RUNNING INSTANCE at its seat's entrance tile, as the next unit
- * id (ids stay ascending: world-state.validate). The leader is re-picked by role
- * order. Answers the new unit id.
+ * id (ids stay ascending: world-state.validate). The pull leader is re-read
+ * (pull-cycle.js pullLeader). Answers the new unit id.
  */
 export function joinHero(world, ground, hero, seat) {
   const roles = world.units.filter((u) => u.side === 'hero').map((u) => u.role).concat([hero.role]);
   const id = world.nextId;
   world.nextId += 1;
   world.units.push(heroUnit(id, hero, roles, ground.start[Math.max(0, seat) % ground.start.length]));
-  world.leader = pickLeader(world.units);
+  world.leader = pullLeader({ world });
   return id;
 }
 
 /**
  * A HERO LEAVES the instance (its session ended): the unit goes, every monster on
- * it drops its target, and a pack it held loses its holder. The leader is
- * re-picked; with no hero left the party is gone and `leader` is null.
+ * it drops its target, and a pack it held loses its holder. The pull leader is
+ * re-read (pullLeader); with no hero left the party is gone and `leader` is null.
  */
 export function leaveHero(world, unitId) {
   world.units = world.units.filter((u) => u.id !== unitId);
   for (const u of world.units) if (u.target === unitId) u.target = null;
   for (const p of world.packs) if (p.holder === unitId) { p.holder = null; p.aggro = false; }
-  if (world.leader === unitId || !world.units.some((u) => u.id === world.leader)) world.leader = pickLeader(world.units);
+  if (world.leader === unitId || !world.units.some((u) => u.id === world.leader)) world.leader = pullLeader({ world });
 }

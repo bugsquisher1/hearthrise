@@ -227,7 +227,7 @@ const MUTANTS = [
   ['H4', 'the bag names its item', 'src/world/hunt-scene.js', [["units.push({ id: 'loot_bag',", "units.push({ plate: { text: o.itemOf ? o.itemOf() : '', kind: 'ambient' }, id: 'loot_bag',"]]],
   ['H9', 'the bag lands on the corpse', 'src/world/choreo.js', [['const spot = bagSpot(at);', 'const spot = at;']]],
   ['H6', 'a room that fits is pinned to its corner, not centred', 'src/world/core/camera.js', [['if (span <= u) c = lo + (span - u) / 2;', 'if (span <= u) c = lo;']]],
-  ['H6', 'a big room scrolls past its walls into the void', 'src/world/core/camera.js', [['    if (span >= v) c = hold(Math.min(hi - u - b, Math.max(lo + a, c)));\n    c = Math.min(hi - u, Math.max(lo, c));\n', '']]],
+  ['H6', 'a big room scrolls past its walls into the void', 'src/world/core/camera.js', [['    if (whole && span >= v) c = hold(Math.min(hi - u - b, Math.max(lo + a, c)));\n    c = Math.min(hi - u, Math.max(lo, c));\n', '']]],
   ['H7', 'the scene rolls its own swing', 'src/world/hunt-scene.js', [['    beat(b) { ch.beat(b, b.at); },', '    beat(b) { ch.beat(b, b.at); },\n    roll(r) { return rollAttack(r, 1, 2); },']]],
 ];
 

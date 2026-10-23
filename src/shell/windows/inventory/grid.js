@@ -17,18 +17,19 @@
 // action is ONE intent with the controls off until the server answers
 // (actions.js). Patched in place (src/render/paint.js).
 // ════════════════════════════════════════════════════════════════════════
-import { BAG_CATS, BAG_SORTS, isNew, bagValue } from '../../bag-model.js?v=0.2.32';
-import { barIndexOf, barKeyLabel } from '../../bar-assign.js?v=0.2.32';
-import { rows, text, cls, attr, prop, element } from '../../../render/paint.js?v=0.2.32';
-import { whole, gold } from '../../../render/format.js?v=0.2.32';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.32';
-import { glyphSvg } from '../../launcher.js?v=0.2.32';
-import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.32';
-import { primaryOf, junkOf, confirmWords, huntLoot } from './state.js?v=0.2.32';
-import { pocketHtml, patchCount } from './pockets.js?v=0.2.32';
-import { elsewhereHtml, patchElsewhere } from './elsewhere.js?v=0.2.32';
-import { buryLine, buryBlock, buryRecipeOf } from './bury.js?v=0.2.32';
-import { upgradeLineHtml, patchUpgradeLine } from '../../widgets/upgrade-line.js?v=0.2.32';
+import { BAG_CATS, BAG_SORTS, isNew, bagValue } from '../../bag-model.js?v=0.2.33';
+import { barIndexOf, barKeyLabel } from '../../bar-assign.js?v=0.2.33';
+import { rows, text, cls, attr, prop, element } from '../../../render/paint.js?v=0.2.33';
+import { whole, gold } from '../../../render/format.js?v=0.2.33';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.33';
+import { glyphSvg } from '../../launcher.js?v=0.2.33';
+import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.33';
+import { primaryOf, junkOf, confirmWords, huntLoot } from './state.js?v=0.2.33';
+import { pocketHtml, patchCount } from './pockets.js?v=0.2.33';
+import { elsewhereHtml, patchElsewhere } from './elsewhere.js?v=0.2.33';
+import { buryParts, buryBlock, buryRecipeOf } from './bury.js?v=0.2.33';
+import { shownQty, aheadQty, paintLine } from '../../town-ticker.js?v=0.2.33';
+import { upgradeLineHtml, patchUpgradeLine } from '../../widgets/upgrade-line.js?v=0.2.33';
 
 const RULES = Object.freeze([['keep', 'Keep'], ['sell', 'Sell at the shop'], ['ignore', 'Leave it']]);
 export const KEYS = '/ search · arrows move · Enter use · Space select · Delete sell · L lock · Ctrl+A select all';
@@ -72,18 +73,24 @@ export function toolsHtml(g) {
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p>';
 }
 
+/* "1 more on the way" / "4 being used": the pending part of a count (town-ticker.js), in words. */
+const aheadWords = (d) => whole(Math.abs(d)) + (d > 0 ? ' more on the way' : ' being used');
+
 function patchPocket(li, r, st) {
   const locked = !!(st.rules && st.rules.locked.has(r.id));
   const fresh = isNew(st.seen, r.id, r.qty);
   const bi = barIndexOf(st.cs, r.id);
-  patchCount(li, r.qty);
+  /* The server's count, plus what running town work has certainly done since its last payout (display only). */
+  const shown = shownQty(st.tick, r.id, r.qty);
+  patchCount(li, shown.qty, shown.ahead !== 0);
   cls(li, 'is-new', fresh);
   cls(li, 'is-locked', locked);
   cls(li, 'is-cur', st.sc.cursor === r.id);
   cls(li, 'is-wearing', !!st.sc.wearing && st.sc.wearing.items.includes(r.id));   // being put on (actions.js wear, Equip upgrades)
   attr(li, 'aria-selected', String(st.sc.sel.has(r.id)));
   text(li.querySelector('.hw-barkey'), bi >= 0 ? barKeyLabel(bi) : '');
-  attr(li, 'aria-label', itemName(r.id) + (r.qty > 1 ? ', ' + whole(r.qty) : '') + (locked ? ', locked' : '') + (fresh ? ', new' : ''));
+  attr(li, 'aria-label', itemName(r.id) + (shown.ahead ? ', ' + whole(shown.qty) + ' (' + aheadWords(shown.ahead) + ')' : r.qty > 1 ? ', ' + whole(r.qty) : '')
+    + (locked ? ', locked' : '') + (fresh ? ', new' : ''));
   if (fresh) st.sc.shownNew.add(r.id);
 }
 
@@ -124,7 +131,9 @@ export function patchTools(root, st, ctx) {
     pick.querySelector('.hw-pick-ico').innerHTML = cur ? itemIconHtml(ctx.glyphs, cur) : '';
   }
   text(pick.querySelector('b'), cur ? itemName(cur) : '');
-  text(pick.querySelector('small'), cur ? '×' + whole(st.qty.get(cur)) + (st.shop && st.shop.bids.has(cur) ? ' · the shop pays ' + gold(st.shop.bids.get(cur)) + ' each' : '') : '');
+  /* The count every action here spends is the server's; the ticker's pending part is named beside it. */
+  const ahead = cur ? aheadQty(st.tick, cur) : 0;
+  text(pick.querySelector('small'), cur ? '×' + whole(st.qty.get(cur)) + (ahead ? ' · ' + aheadWords(ahead) : '') + (st.shop && st.shop.bids.has(cur) ? ' · the shop pays ' + gold(st.shop.bids.get(cur)) + ' each' : '') : '');
   const prim = primaryOf(st, cur);
   const pb = pick.querySelector('[data-hs-act="primary"]');
   text(pb, prim ? prim[1] : '');
@@ -133,10 +142,10 @@ export function patchTools(root, st, ctx) {
   prop(pb, 'disabled', sc.pending || !prim);
   attr(pb, 'title', buryWhy || null);
   patchUpgradeLine(root, st.upgrade, onBag, sc.pending);
-  const line = buryLine(st.cs);
+  const line = buryParts(st.cs);
   const bl = root.querySelector('.hw-burying');
-  cls(bl, 'is-on', !!line);
-  text(bl.querySelector('.hw-burying-q'), line);
+  cls(bl, 'is-on', line.length > 0);
+  paintLine(bl.querySelector('.hw-burying-q'), line, ctx.doc);
   prop(bl.querySelector('[data-hs-act="bury-stop"]'), 'disabled', sc.pending);
   prop(pick.querySelector('.hw-more'), 'disabled', sc.pending || !cur);
 

@@ -16,13 +16,13 @@
 //   sourceLine(row, ctx)  where its uses come from
 // No DOM, no clock, no state. Nothing here gates or spends anything.
 // ════════════════════════════════════════════════════════════════════════
-import { ABILITIES } from '../data/abilities.js?v=0.2.32';
-import { CONSUMABLES, CONSUMABLE_RULES } from '../data/consumables.js?v=0.2.32';
-import { SUPPLIES } from '../data/supplies.js?v=0.2.32';
-import { ITEMS } from '../data/items.js?v=0.2.32';
-import { HUNT_ROLES } from '../data/hunt-roles.js?v=0.2.32';
-import { ATTACK_KINDS } from '../data/condition-metrics.js?v=0.2.32';
-import { itemName, abilityName } from './widgets/bits.js?v=0.2.32';
+import { ABILITIES } from '../data/abilities.js?v=0.2.33';
+import { CONSUMABLES, CONSUMABLE_RULES } from '../data/consumables.js?v=0.2.33';
+import { SUPPLIES } from '../data/supplies.js?v=0.2.33';
+import { ITEMS } from '../data/items.js?v=0.2.33';
+import { HUNT_ROLES } from '../data/hunt-roles.js?v=0.2.33';
+import { ATTACK_KINDS } from '../data/condition-metrics.js?v=0.2.33';
+import { itemName, abilityName } from './widgets/bits.js?v=0.2.33';
 
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 const secs = (ms) => (ms % 1000 ? (ms / 1000).toFixed(1) : String(ms / 1000));

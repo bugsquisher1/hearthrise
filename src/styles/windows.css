@@ -400,6 +400,17 @@
 .hw-work.is-on { display: block; }
 .hw-work-head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
 .hw-work-title { flex: 1; min-width: 0; color: var(--ink); }
+/* The open skill's own bar beside its title (the ledger's, src/shell/windows/skills.js), once the server's level is read:
+   the title keeps its own width, the bar takes what is left (up to a ledger bar's length), the level stays at the edge. */
+.hw-work-head.has-xp .hw-work-title { flex: none; white-space: nowrap; }
+.hw-work-head .hw-skill-bar { flex: 1 1 24px; max-width: 160px; }
+.hw-work-head .hw-skill-lv { margin-left: auto; }
+.hw-work-head:not(.has-xp) .hw-skill-bar, .hw-work-head:not(.has-xp) .hw-skill-xp { display: none; }
+/* TOWN WORK BETWEEN PAYOUTS (src/shell/town-ticker.js): what the server's engine has certainly done and not yet paid
+   reads as pending, never as a control: italic in a quieter ink, and a translucent segment after a bar's fill. */
+.hw-skill-ahead { position: absolute; top: 0; bottom: 0; left: 0; width: 0; background: var(--line-strong); }
+.hw-burying-q .is-ahead, .hw-count.is-ahead { font-style: italic; color: var(--ink-2); }
+.hw-skill-xp.is-ahead { font-style: italic; }
 .hw-work-row .hw-line-name small { white-space: normal; }
 .hw-work-why { color: var(--ink-3); }
 .hw-work-why:empty { display: none; }
@@ -556,6 +567,9 @@
 .hw-plot-say b { color: var(--ink); font-weight: 700; }
 .hw-plot-say b:empty { display: none; }
 .hw-plot.is-ready .hw-plot-say span { color: var(--gold-2); font-weight: 700; }
+.hw-plot-by { font-size: var(--t-micro); color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hw-plot-by:empty { display: none; }
+.hw-plot.is-extra .hw-plot-by { white-space: normal; color: var(--gold-2); }
 .hw-plot .hh-tool { white-space: normal; }
 .hw-harvest { display: none; }
 .hw-harvest.is-on { display: block; }

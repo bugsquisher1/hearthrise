@@ -15,10 +15,10 @@
 //                      (`lucky`, `salvage`). Names only: drop odds a player sees come
 //                      from the server's catalogue (ART_DIRECTION §8), so none is shown.
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_GROUNDS } from '../data/hunt-grounds.js?v=0.2.32';
-import { MONSTERS } from '../data/monsters.js?v=0.2.32';
-import { ITEMS } from '../data/items.js?v=0.2.32';
-import { dropBand } from '../core/drops.js?v=0.2.32';
+import { HUNT_GROUNDS } from '../data/hunt-grounds.js?v=0.2.33';
+import { MONSTERS } from '../data/monsters.js?v=0.2.33';
+import { ITEMS } from '../data/items.js?v=0.2.33';
+import { dropBand } from '../core/drops.js?v=0.2.33';
 
 /* How common a creature is, by its share of the ground's spawn points: at least `common` is common,
    under `rare` is rare, between is uncommon (Tyler 10-18: a common majority, some uncommon, one or two rare). */

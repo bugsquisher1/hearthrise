@@ -15,15 +15,15 @@
 //                       the first whose conditions pass AND that can act fires)
 // Display only: every number is a catalogue row or the server's projection.
 // ════════════════════════════════════════════════════════════════════════
-import { ATTACK_KINDS } from '../data/condition-metrics.js?v=0.2.32';
-import { ABILITIES } from '../data/abilities.js?v=0.2.32';
-import { CONSUMABLES, CONSUMABLE_RULES } from '../data/consumables.js?v=0.2.32';
-import { STATUSES } from '../data/statuses.js?v=0.2.32';
-import { HUNT_ROLES, WEAPON_ROLES } from '../data/hunt-roles.js?v=0.2.32';
-import { WEAPON_WORDS } from '../data/hunt-hud.js?v=0.2.32';
-import { defaultConditions } from '../core/hunt/conditions.js?v=0.2.32';
-import { itemName, abilityName } from './widgets/bits.js?v=0.2.32';
-import { storeOf, storeWords, conditionWords } from './bar-draft.js?v=0.2.32';
+import { ATTACK_KINDS } from '../data/condition-metrics.js?v=0.2.33';
+import { ABILITIES } from '../data/abilities.js?v=0.2.33';
+import { CONSUMABLES, CONSUMABLE_RULES } from '../data/consumables.js?v=0.2.33';
+import { STATUSES } from '../data/statuses.js?v=0.2.33';
+import { HUNT_ROLES, WEAPON_ROLES } from '../data/hunt-roles.js?v=0.2.33';
+import { WEAPON_WORDS } from '../data/hunt-hud.js?v=0.2.33';
+import { defaultConditions } from '../core/hunt/conditions.js?v=0.2.33';
+import { itemName, abilityName } from './widgets/bits.js?v=0.2.33';
+import { storeOf, storeWords, conditionWords } from './bar-draft.js?v=0.2.33';
 
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 const secs = (ms) => (ms % 1000 ? (ms / 1000).toFixed(1) : String(ms / 1000));
@@ -233,6 +233,18 @@ export function reasonOf(sl, set, bag, hero) {
   if (st && storeOn) return null;
   if (st) return { code: 'store_off', text: 'Out of stock, and this hero is set to end the hunt rather than buy from the store.', glyph: 'uiChest', strike: true };
   return { code: 'stock', text: 'Out of stock, and the store does not sell it.', glyph: 'uiChest', strike: true };
+}
+
+/* THE CHALLENGE SLOT READS AS WORKING (bug #61; Coordinator ruling 2026-10-22): a tank that holds every engaged
+   monster has nothing to Challenge (Tyler 10-16: it Challenges only what is not on it), so its taunt slot rests in a
+   quiet state that says so, instead of looking broken. Not a stop: it fires the moment something leaves the tank. */
+const HOLDING = Object.freeze({ code: 'holding', text: 'Holding the pack: nothing to Challenge.', glyph: 'uiShield', strike: false, quiet: true });
+
+/** The slot's quiet "Holding" state: a taunt ability's slot while `holding` (live-engine.js holdsPack), else null. */
+export function holdingReason(sl, holding) {
+  if (!holding || !sl || sl.empty || sl.action.type !== 'ability') return null;
+  const r = ABILITIES[sl.action.id];
+  return r && r.target === 'taunt' ? HOLDING : null;
 }
 
 /**

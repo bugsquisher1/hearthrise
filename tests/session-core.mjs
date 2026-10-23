@@ -46,6 +46,8 @@
 //   ACC-5  a hero slot is bought at the SERVER's offer (account.hero_slot_offer; none at the cap or
 //          unstated): ONE hr_buy_hero_slot with the slot, the paying hero and a fresh idem key, no
 //          price; a refusal comes back by name (short_by kept); a yes re-reads the open paying hero
+//   ACC-FARM the farm land is the account's: hero 0 plants and hero 1 (open beside it) sees the plot
+//          at once; hero 1 harvests it as itself (its slot) and hero 0 sees it gone
 //   ACC-3  the closed-game answer (403 hr_closed) is noticed, never retried as play
 //   NET-1  the engine is asked in the database's region (forceFunctionRegion from SUPABASE_CONFIG)
 //   OUT-1  sign-out clears every copy of the session (device + tab, sb-*, retired keys, tab id) and closes every character
@@ -79,6 +81,8 @@ async function load(base) {
     NB: await import(u('src/net/supabase-bootstrap.js')),
     CFG: await import(u('src/session/config.js')),
     TP: await import(u('src/session/town-poll.js')),
+    FI: await import(u('src/session/farm-intents.js')),
+    FS: await import(u('src/session/farm-sections.js')),
   };
 }
 
@@ -125,7 +129,7 @@ const timers = { setTimer: () => 0, clearTimer: () => {} };
 async function rules(M) {
   const fails = [];
   const t = async (id, fn) => { try { const r = await fn(); if (r !== true) fails.push(id + ': ' + r); } catch (e) { fails.push(harnessFail(id, e)); } };
-  const { E, R, C, A, S, AU, NB, CFG, TP } = M;
+  const { E, R, C, A, S, AU, NB, CFG, TP, FI, FS } = M;
 
   await t('ENV-1', () => {
     const a = E.applyEnvelope(null, env(3, { skills: { mining: 5 }, buffs: [1] })).record;
@@ -660,6 +664,48 @@ async function rules(M) {
     if (!take.ok || JSON.stringify(again.character(1).read('inventory')) !== '{"rat_tail":3}') return 'slot 1 could not take out what slot 0 put away: ' + JSON.stringify([take, again.character(1).read('inventory')]);
     return true;
   });
+  await t('ACC-FARM', async () => {
+    /* The farm land is the ACCOUNT's (2026-12-14-shared-farm.sql): hero 0 plants and hero 1, open
+       beside it, sees the plot at once (the account re-reads the other heroes); hero 1 harvests it
+       as itself and hero 0 sees it gone. The fake server keeps ONE field for both slots, as
+       hr_farm_land_view does. */
+    const field = new Map(); let ver = 1;
+    const answer = (body) => ({ ok: true, status: 200, body, closed: false });
+    const land = () => ({ cap: 2, plot_level: 1, deeds: 0, upgrade: null, plots: Array.from(field.values()) });
+    const srv = fakeServer({});
+    const base = srv.rpc;
+    srv.rpc = async (name, args) => {
+      if (name === 'hr_load') { srv.calls.push([name, args]); return answer(env(++ver, Object.assign({ name: 'H' + args.p_slot, farm_land: land() }, said(4)))); }
+      if (name === 'hr_farm_plant') {
+        srv.calls.push([name, args]);
+        if (field.has(args.p_plot_idx)) return answer({ ok: false, error: 'plot_occupied' });
+        field.set(args.p_plot_idx, { i: args.p_plot_idx, crop: args.p_crop, ready: true, ready_in_s: 0, waterable: false, regrows_left: null, by: args.p_slot, by_name: 'H' + args.p_slot, extra: false });
+        return answer({ ok: true, plot: args.p_plot_idx, crop: args.p_crop });
+      }
+      if (name === 'hr_farm_harvest') {
+        srv.calls.push([name, args]);
+        return answer(field.delete(args.p_plot_idx) ? { ok: true, plot: args.p_plot_idx, qty: 2, xp: 672, produce: 'turnip' } : { ok: false, error: 'empty_plot' });
+      }
+      return base(name, args);
+    };
+    const acc = mkAccount(srv);
+    await acc.open(0); await acc.open(1);
+    const s0 = acc.character(0), s1 = acc.character(1);
+    if (!s0 || !s1) return 'two heroes did not open: ' + acc.characters().map((c) => c.slot);
+    const put = await FI.plantCrop(acc, s0, 0, 'turnip');
+    await new Promise((r) => setTimeout(r, 0));
+    if (!put.ok) return 'hero 0 could not plant: ' + JSON.stringify(put);
+    const seen = FS.farmLandOf(s1, 0);
+    const p = seen && seen.plots.get(0);
+    if (!p || p.by !== 0 || p.byName !== 'H0') return 'hero 1 does not see the plot hero 0 planted (not re-read): ' + JSON.stringify(s1.read('farm_land'));
+    const got = await FI.harvestPlot(acc, s1, 0, false);
+    await new Promise((r) => setTimeout(r, 0));
+    const sent = srv.calls.filter((c) => c[0] === 'hr_farm_harvest');
+    if (!got.ok || sent.length !== 1 || sent[0][1].p_slot !== 1 || sent[0][1].p_plot_idx !== 0) return 'hero 1 did not harvest as itself: ' + JSON.stringify([got, sent]);
+    const back = FS.farmLandOf(s0, 0);
+    if (!back || back.plots.has(0)) return 'hero 0 still shows the plot hero 1 harvested (not re-read): ' + JSON.stringify(s0.read('farm_land'));
+    return true;
+  });
   await t('ACC-3', async () => {
     if (!S.isClosedAnswer(403, { code: 'hr_closed' }) || S.isClosedAnswer(403, { code: 'other' }) || S.isClosedAnswer(200, { code: 'hr_closed' })) return 'isClosedAnswer is wrong';
     const acc = mkAccount(fakeServer({}, { closed: true }));
@@ -868,6 +914,8 @@ const MUTANTS = [
   ['the live ask gives up after two tries', 'src/session/live-link.js', '      this.want = true;\n      this._tries++;', '      this.want = this._tries < 2;\n      if (this.want) this._tries++;'],
   ['a storage move leaves the other characters stale', 'src/session/account-session.js', '    for (const [slot, cs] of this._chars) if (slot !== from) cs.load();\n', ''],
   ['a storage move never tells the account', 'src/session/character-session.js', "if (r && r.ok && typeof this.onShared === 'function') this.onShared('bank', this.slot); ", ''],
+  ['a farm action never tells the account', 'src/session/farm-intents.js', "    if (typeof cs.onShared === 'function') cs.onShared('farm', cs.slot);\n", ''],
+  ['the account ignores a farm change', 'src/session/account-session.js', "const SHARED_KINDS = new Set(['bank', 'farm']);", "const SHARED_KINDS = new Set(['bank']);"],
   ['an idle settle replaces the character','src/session/character-session.js', "if (ans.ok && ans.body && ans.body.accrued !== true) return this.load();", ""],
   ['a watched bench waits until it is done', 'src/session/town-poll.js', "  if (!townAskDue(townWorkRunning(cs.read('state'), cs.read('hunt')), a.busy, a.at, cs.receivedAt, now)) return false;", '  return false;'],
   ['the town re-read asks every display tick', 'src/session/town-poll.js', '  return nowMs - since >= SESSION_CONFIG.townPollMs;', '  return true;'],

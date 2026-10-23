@@ -4,7 +4,7 @@
 //   node tools/char-state.local.mjs Fingerguns        by character name (case-insensitive)
 //   node tools/char-state.local.mjs 0a47ba77 1        by user-id prefix + slot
 //
-// Prints the character sheet, its hunts (open + last 3, with the instance's settle lag), party rows,
+// Prints the character sheet, its hunts (open + last 3, with the instance's settle lag), its outfit row, party rows,
 // the hunt presets, today's refusals and the last ledger rows. SELECT-only via the Management API
 // with ~/.supabase-token, inside a READ ONLY transaction. Local tool, not in CI.
 import { readFileSync } from 'node:fs';
@@ -51,7 +51,7 @@ if (sheet && sheet.sheet) { const s = typeof sheet.sheet === 'string' ? JSON.par
 const watched = (await q(WATCHED_SQL)).some((r) => r.u === String(id.user_id));
 console.log('Hunts:');
 for (const h of hunts) console.log(`  ${h.ended ? '   ' : 'NOW'} ${h.hunt_id} seat ${h.seat} unit ${h.unit_id} ${h.entered}–${h.ended || '…'} ${h.end_reason || ''}${h.leaving ? ' (leaving)' : ''}${h.ended ? '' : ` · server lag ${h.lag_s}s${(() => { const v = lagVerdict({ lagS: Number(h.lag_s), watched }); return v.code === 'ok' ? ' (' + v.note + ')' : ' ' + v.note; })()}`}`);
-for (const [label, table, where, order] of [['Party', 'hunt_party_members', W, ''], ['Hunt presets', 'player_hunt_presets', W, ''],
+for (const [label, table, where, order] of [['Outfit', 'player_outfits', W, ''], ['Party', 'hunt_party_members', W, ''], ['Hunt presets', 'player_hunt_presets', W, ''],
   ['Refusals today', 'hr_rejections', W + ' and day = current_date', 'last_at desc'], ['Ledger (last 5)', 'player_ledger', W, '1 desc']]) {
   const r = await rows(table, where, order, 5);
   console.log(`${label}: ${r.length ? '' : 'none'}`);

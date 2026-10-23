@@ -512,7 +512,8 @@
   "player_action_sets",
   "player_cosmetics",
   "player_equipment",
-  "player_farm",
+  "account_farm",
+  "account_farm_plots",
   "player_inventory",
   "player_ledger",
   "player_outfits",
@@ -604,6 +605,18 @@
    "class": "restore_only",
    "wiped_at_cutover": false,
    "note": "PLAYER VALUE — the ACCOUNT depot (Tyler 2026-10-15 / 2026-10-22: shared by every character of the account), one row per (account, item) stack, qty > 0 enforced (a stack that reaches zero is DELETEd, so an absent row is a real zero). Written ONLY by hr_bank_move (SECURITY DEFINER) under the account depot lock; own-read RLS, no client write. Replaced the per-character player_bank by 2026-11-10-account-depot.sql (summed per item; every folded stack journalled as player_ledger intent depot_fold). Same class of object as player_inventory: a rebuild returns it EMPTY.",
+   "replay": 0
+  },
+  "account_farm": {
+   "class": "restore_only",
+   "wiped_at_cutover": false,
+   "note": "PLAYER VALUE — the ACCOUNT's farm plot tier (Tyler 2026-10-23: the farm is shared by every hero of the account), one row per account that bought a tier above 1 (no row = tier 1). Written ONLY by hr_farm_upgrade_plot (SECURITY DEFINER) under the account farm lock; own-read RLS, no client write. Folded by 2026-12-14-shared-farm.sql from the per-hero player_state.plot_level (the highest any hero bought; journalled as player_ledger intent farm_fold_tier). Losing the row loses gold or deeds the account spent on the tier.",
+   "replay": 0
+  },
+  "account_farm_plots": {
+   "class": "restore_only",
+   "wiped_at_cutover": false,
+   "note": "PLAYER VALUE — the ACCOUNT's planted plots (Tyler 2026-10-23: shared by every hero), one row per growing crop: crop, planted_at, the watering history, regrow count and planted_by (the hero). Written ONLY by hr_farm_plant / hr_farm_water / hr_farm_harvest under the account farm lock; own-read RLS, no client write. Replaced the per-hero player_farm by 2026-12-14-shared-farm.sql (every crop kept, journalled as player_ledger intent farm_fold). Readiness is derived from now() against planted_at, so losing a row loses the growing crop AND the seed spent to plant it. A rebuild returns it EMPTY.",
    "replay": 0
   },
   "account_gem_grants": {
@@ -1463,6 +1476,11 @@
    "wiped_at_cutover": false,
    "note": "WHICH WORLD-TICK DRIVER IS SETTLING WHICH OPEN HUNT, UNTIL WHEN — created 2026-10-22-hunt-sessions-settle.sql, ships EMPTY, one row per open session at most (deleted with its session). Written only by hr_hunt_roster (SECURITY DEFINER, hr_tick). No player value and never authority: it spares duplicate engine work only — the per-character lock and the swing-index CAS in hr_hunt_apply decide every settle. Coming back EMPTY costs nothing: the next fire leases every due session afresh. RLS enabled, zero policies, zero grants."
   },
+  "hunt_world_shape_move": {
+   "class": "operational",
+   "wiped_at_cutover": false,
+   "note": "2026-12-11-hunt-deploy-no-forfeit.sql: ONE row, the catalogue world shape (hr_hunt_world_shape), the shape it replaced and moved_at, written only by trigger hr_hunt_world_shape_move on each catalogue apply; seeded at apply with the shape in force and nothing before it. Read only by hr_hunt_apply_instance to hold (not count) a settle of the replaced shape for 30 min after a move. A rebuild reseeds it with no previous shape, which only means no deploy-gap exemption until the next move: no player value, nothing owned, ranked or traded derives from it."
+  },
   "leaderboard_meta": {
    "class": "seeded",
    "replay": 1,
@@ -1553,11 +1571,6 @@
    "class": "restore_only",
    "wiped_at_cutover": false,
    "note": "PLAYER VALUE. What each character is wearing — 79 rows in production. Equipping is a TRANSFER (the unit leaves player_inventory to get here), so losing this table does not merely unequip everyone: it destroys the items outright, because there is no other row holding them."
-  },
-  "player_farm": {
-   "class": "restore_only",
-   "wiped_at_cutover": false,
-   "note": "PLAYER VALUE. One row per plot: crop, planted_at, watered_at. 119 rows in production. Readiness is derived from now() against planted_at, so losing the row loses the growing crop AND the seed that was spent to plant it."
   },
   "player_hunt_active": {
    "class": "restore_only",

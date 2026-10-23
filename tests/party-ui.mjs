@@ -997,7 +997,7 @@ const PURE_MUTANTS = [
   ['the server role pick is trusted over the weapon', 'src/session/party-sections.js', "role: roleForWeapon(w, pick),", "role: pick || roleForWeapon(w, null),"],
   ['a training pointer runs with no Stop line', 'src/session/party-sections.js', "gather: 'gathering', artisan: 'at a workbench', training: 'training' });", "gather: 'gathering', artisan: 'at a workbench' });"],
   ['a resumed gather is not named', 'src/session/party-sections.js', "  ...FISH_SPOTS.map((n) => ['gather:' + n.id, 'fishing at the ' + n.name]),\n", ''],
-  ['the Stop line ignores a town pointer that is not a bury', 'src/shell/windows/inventory/bury.js', "  return words ? 'Your hero is ' + words", "  return words && false ? 'Your hero is ' + words"],
+  ['the Stop line ignores a town pointer that is not a bury', 'src/shell/windows/inventory/bury.js', "  return words ? [{ key: 'lead', text: 'Your hero is ' + words", "  return words && false ? [{ key: 'lead', text: 'Your hero is ' + words"],
   ['a party start re-reads nobody', 'src/session/party-intents.js', "    await Promise.all(Array.from(new Set(reread)).filter((o) => o && o.status !== 'closed').map((o) => o.load()));\n", ''],
   ['the start does not settle a gathering own character first', 'src/session/party-intents.js', '  for (const o of peers) await settleTownActivity(o);\n', ''],
   ['an own invite names a user', 'src/session/party-intents.js', '{ p_slot: cs.slot, p_other_slot: otherSlot, p_idem: newIdem() }', '{ p_slot: cs.slot, p_other_slot: otherSlot, p_user: account.userId, p_idem: newIdem() }'],

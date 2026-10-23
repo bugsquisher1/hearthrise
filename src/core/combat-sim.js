@@ -39,17 +39,18 @@
 // window, no timers, no Math.random.
 // ============================================================
 
-import { COMBAT_BALANCE } from './combat.js?v=0.2.32';
-import { endReasonAt, deathXpLoss, staminaStep } from './action-rules.js?v=0.2.32';
-import { createRng } from './rng.js?v=0.2.32';
-import { densityFor, partyPick } from '../data/hunt-grounds.js?v=0.2.32';
-import { stepSwing } from './hunt/world-step.js?v=0.2.32';
-import { makeEvent, trackStep } from './hunt/events.js?v=0.2.32';
-import { newHuntWorld, joinHero, leaveHero } from './hunt-spawn.js?v=0.2.32';
-import { rewardSwing } from './hunt-rewards.js?v=0.2.32';
+import { COMBAT_BALANCE } from './combat.js?v=0.2.33';
+import { endReasonAt, deathXpLoss, staminaStep } from './action-rules.js?v=0.2.33';
+import { createRng } from './rng.js?v=0.2.33';
+import { densityFor, partyPick } from '../data/hunt-grounds.js?v=0.2.33';
+import { stepSwing } from './hunt/world-step.js?v=0.2.33';
+import { makeEvent, trackStep } from './hunt/events.js?v=0.2.33';
+import { newHuntWorld, joinHero, leaveHero } from './hunt-spawn.js?v=0.2.33';
+import { pullLeader } from './hunt/pull-cycle.js?v=0.2.33';
+import { rewardSwing } from './hunt-rewards.js?v=0.2.33';
 
 /* The engine's front door (src/core/index.js `combatSim`). */
-export { stepSwing } from './hunt/world-step.js?v=0.2.32';
+export { stepSwing } from './hunt/world-step.js?v=0.2.33';
 
 /* WHY A COMBAT SPAN STOPPED BEFORE THE WINDOW DID — the same contract
    src/core/skill-sim.js and src/core/artisan-sim.js publish under this name.
@@ -272,7 +273,7 @@ export function simulateHuntInstance(inst, ctx) {
       /* THE LEADER'S HOLD PICK, read every swing; it takes force at the next lap boundary (pull-cycle.js), or at once
          in a world just made (every member that enters with it has joined by now). */
       world.holdNext = holdPick(members.filter((m) => !m.left && m.unitId !== null));
-      if (fresh) { world.hold = world.holdNext; fresh = false; }
+      if (fresh) { world.hold = world.holdNext; world.leader = pullLeader({ world }); fresh = false; }
       const r = stepSwing(world, { atMs, swingMs: tick, rng: createRng(seedOf(ctx, 's', sw)),
         ground: ctx.ground, grid: ctx.grid, heroes, ...(typeof ctx.xpMultOf === 'function' ? { xpMultOf: ctx.xpMultOf } : {}) });
       seen();

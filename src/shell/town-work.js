@@ -27,22 +27,27 @@
 // while something else runs is a switch, also ONE intent (the engine collects the
 // old one first), so a player never has to stop before choosing again.
 //
-// Nothing here moves a number: every count, level and XP on screen is the
+// Nothing here moves a number: every count, level and XP a control reads is the
 // envelope's. The "Done: 37 Normal Logs, +185 Woodcutting XP." words are the
 // difference of two server envelopes. The seconds per action are the shared core's
 // interval for the tool the server says the hero holds (display only, sends nothing).
+// Between payouts the line, the bag's stacks and the skill bars also count what the
+// server's engine has certainly done since its watermark (tickOf: town-ticker.js,
+// Tyler 2026-10-23), shown as pending and never spent.
 // ════════════════════════════════════════════════════════════════════════
-import { TREES, ROCKS, FISH_SPOTS } from '../data/gathering.js?v=0.2.32';
-import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.32';
-import { ITEMS } from '../data/items.js?v=0.2.32';
-import { SKILLS_DEF } from '../data/skills.js?v=0.2.32';
-import { indexGatherNodes, gatherIntervalMs } from '../core/skill-sim.js?v=0.2.32';
-import { indexArtisanRecipes, artisanIntervalMs } from '../core/artisan-sim.js?v=0.2.32';
-import { recipeInputs } from '../core/artisan.js?v=0.2.32';
-import { pacedXp } from '../core/pacing.js?v=0.2.32';
-import { whole } from '../render/format.js?v=0.2.32';
-import { itemName } from './widgets/bits.js?v=0.2.32';
-import { skillsOf } from '../session/item-sections.js?v=0.2.32';
+import { TREES, ROCKS, FISH_SPOTS } from '../data/gathering.js?v=0.2.33';
+import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.33';
+import { ITEMS } from '../data/items.js?v=0.2.33';
+import { SKILLS_DEF } from '../data/skills.js?v=0.2.33';
+import { indexGatherNodes, gatherIntervalMs } from '../core/skill-sim.js?v=0.2.33';
+import { indexArtisanRecipes, artisanIntervalMs } from '../core/artisan-sim.js?v=0.2.33';
+import { recipeInputs } from '../core/artisan.js?v=0.2.33';
+import { pacedXp } from '../core/pacing.js?v=0.2.33';
+import { whole } from '../render/format.js?v=0.2.33';
+import { itemName } from './widgets/bits.js?v=0.2.33';
+import { skillsOf } from '../session/item-sections.js?v=0.2.33';
+import { townWorkRunning } from '../session/town-poll.js?v=0.2.33';
+import { predictTown, aheadQty, shownQty, lineParts } from './town-ticker.js?v=0.2.33';
 
 /** Every gathering node the engine runs, by id: { skill, node }. The same index the server builds (hr-accrue catalogue.js). */
 export const GATHER_INDEX = indexGatherNodes({ woodcutting: TREES, mining: ROCKS, fishing: FISH_SPOTS });
@@ -195,7 +200,7 @@ export function startWork(cs, w, send, repaint, words, count) {
       };
       arm();
     }
-    /* The work line already says what runs (nowLine); a caller with its own words (the bag's Bury all) passes them. */
+    /* The work line already says what runs (nowParts); a caller with its own words (the bag's Bury all) passes them. */
     return words || '';
   });
 }
@@ -229,38 +234,76 @@ export function stopWork(cs, send) {
   });
 }
 
+/* ── THE TICKER (town-ticker.js): what the server's engine has certainly done since its watermark. ── */
+const TICKS = new WeakMap();
+/* Re-predicted at most once per TICK_MS of the server's clock, at the bucket's start (rounded down, never ahead). */
+const TICK_MS = 100;
+
 /**
- * How far the run has got, in plain words from the SERVER's bag: "12 cooked so far, 2 burnt, 30 Raw Shrimp
- * left", "12 chopped so far". "So far" is the difference from the envelope the start answered with (this tab
- * only); after a reload a node says what the bag holds and a bench what is left. Every settle replaces it;
- * nothing spends it.
+ * The town ticker for this character now ({ actions, items, xp, unsure }), or null: no town work the server holds,
+ * a hunt open, no server clock yet, or a refusal to settle standing on this record (CharacterSession.settleRefusal,
+ * until a newer version). Memoised per record and TICK_MS, so every surface of one display tick reads one answer.
  */
-export function runProgress(cs, w) {
-  if (!w) return '';
+export function tickOf(cs) {
+  if (!cs || typeof cs.read !== 'function' || typeof cs.serverNow !== 'function') return null;
+  const st = stateOf(cs);
+  if (!townWorkRunning(st, cs.read('hunt'))) return null;
+  const now = cs.serverNow();
+  if (!Number.isFinite(now)) return null;
+  const at = Math.floor(now / TICK_MS) * TICK_MS;
+  const rec = cs.record || null;
+  const no = cs.settleRefusal || null;
+  const m = TICKS.get(cs);
+  if (m && m.rec === rec && m.at === at && m.no === no) return m.tick;
+  const refused = !!no && !(rec && no.version !== null && rec.version > no.version);
+  const tick = predictTown({ w: workOf(cs), state: st, skills: skillsOf(cs), inventory: invOf(cs), equipment: eqOf(cs),
+    left: leftOf(cs), nowMs: at, refused });
+  TICKS.set(cs, { rec, at, no, tick });
+  return tick;
+}
+
+/**
+ * How far the run has got, as the line's parts [{ key, text, ahead }]: "12 cooked so far", "2 burnt", "2 more on
+ * the fire", "30 Raw Shrimp left". Each number is the SERVER's bag plus the ticker's certain part (`ahead`: it
+ * includes some). "So far" counts from the envelope the start answered with (this tab only); after a reload a node
+ * says what the bag holds and a bench what is left. Every envelope replaces it; nothing spends it.
+ */
+export function runParts(cs, w) {
+  if (!w) return [];
   const bag = invOf(cs);
+  const tick = tickOf(cs);
   const run = RUNS.get(cs);
   const from = run && run.from && run.from.id === w.id ? run.from : null;
   const out = productOf(w);
   const parts = [];
   if (out && from) {
-    const made = Math.max(0, (bag[out] || 0) - from.made);
+    const d = aheadQty(tick, out);
+    const made = Math.max(0, (bag[out] || 0) + d - from.made);
     const burnt = Math.max(0, (bag[BURNT] || 0) - from.burnt);
-    parts.push(whole(made) + ' ' + (DONE_WORD[w.skill] || 'made') + ' so far');
-    if (burnt > 0) parts.push(whole(burnt) + ' burnt');
-  } else if (out && w.kind === 'gather') parts.push(whole(bag[out] || 0) + ' in your bag');
+    parts.push({ key: 'made', text: whole(made) + ' ' + (DONE_WORD[w.skill] || 'made') + ' so far', ahead: d !== 0 });
+    if (burnt > 0) parts.push({ key: 'burnt', text: whole(burnt) + ' burnt' });
+  } else if (out && w.kind === 'gather') {
+    const s = shownQty(tick, out, bag[out] || 0);
+    parts.push({ key: 'bag', text: whole(s.qty) + ' in your bag', ahead: s.ahead !== 0 });
+  }
+  /* A dish that may burn: the actions done, not yet cooked or burnt (the payout says which). */
+  if (tick && tick.unsure > 0) parts.push({ key: 'fire', text: whole(tick.unsure) + ' more on the fire', ahead: true });
   if (w.kind === 'artisan') {
     const first = Object.keys(recipeInputs(w.row))[0];
-    if (first) parts.push(whole(bag[first] || 0) + ' ' + itemName(first) + ' left');
+    if (first) {
+      const s = shownQty(tick, first, bag[first] || 0);
+      parts.push({ key: 'left', text: whole(s.qty) + ' ' + itemName(first) + ' left', ahead: s.ahead !== 0 });
+    }
   }
-  return parts.join(', ');
+  return parts;
 }
 
-/** The line that says what the hero is doing in town and how far it has got, or '' when nothing runs. */
-export function nowLine(cs) {
+/** The line that says what the hero is doing in town and how far it has got, as parts (town-ticker.js paintLine), or []. */
+export function nowParts(cs) {
   const w = workOf(cs);
-  if (!w) return '';
+  if (!w) return [];
   const words = workWords(w);
-  const how = runProgress(cs, w);
+  const how = runParts(cs, w);
   const tail = w.kind === 'gather' ? 'It keeps going while you are away. A hunt stops it.' : 'It stops when they run out.';
-  return words.charAt(0).toUpperCase() + words.slice(1) + (how ? ': ' + how : '') + '. ' + tail;
+  return lineParts(words.charAt(0).toUpperCase() + words.slice(1), how, '. ' + tail);
 }

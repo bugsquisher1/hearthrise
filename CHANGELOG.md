@@ -5,6 +5,10 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.36 — 2026-10-23 (Home together)
+
+**Leave together.** Your row on the party panel now has a box: "Leave if anyone leaves the hunt or dies". It starts ticked and is remembered for each hero. When a partner leaves, falls or runs out, every hero with the box ticked is paid for its time, then comes home with them, and the summary says why ("Mira fell, so Tyler came home too."). Untick it to keep hunting. Removing someone from the party never sends anyone else home.
+
 ## v0.2.35 — 2026-10-23 (One purse)
 
 **Your heroes share one purse.** Gold now belongs to your account: whatever any of your heroes earns or spends comes in and goes out of the same purse, shown as "Your gold". Every hero's gold was added together, nothing lost. Items still move between your heroes through Storage.

@@ -12,9 +12,9 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_STANCES } from './rule-subjects.js?v=0.2.35';
-import { WEAPON_ROLES } from './hunt-roles.js?v=0.2.35';
-import { ACTION_SET_SKIPS } from './abilities.js?v=0.2.35';
+import { HUNT_STANCES } from './rule-subjects.js?v=0.2.36';
+import { WEAPON_ROLES } from './hunt-roles.js?v=0.2.36';
+import { ACTION_SET_SKIPS } from './abilities.js?v=0.2.36';
 
 /* Hours is an optional limit, off by default: the bag, stamina and death
    already bound a hunt, and a timer nobody asked for is a hunt that ends for no
@@ -186,15 +186,18 @@ export const STAMINA_MAX_MS = Object.freeze({ free: 8 * 3600000, premium: 12 * 3
    Stamina sits where Vigour stood (Vigour ends no hunt — designer ruling,
    2026-10-14 loop check). `died` (Tyler 2026-10-19): the hero was killed; the
    hunt ends at the next boundary and the hero is back in town with full HP and
-   mana. `party_member_died` (Tyler 2026-10-19): another member of the party died,
-   which ends the whole party's hunt; the survivor pays nothing for it.
+   mana. `party_member_died` / `party_member_left` (LEAVE TOGETHER, Tyler
+   2026-10-22): another member's party hunt ended (it died / it ended for any other
+   reason) and this hero's box "Leave if anyone leaves the hunt or dies" is ticked
+   (player_state.party_leave_together, default on): it is paid up to that boundary
+   and goes home; an unticked hero hunts on.
    `gold_out` (Tyler, 2026-10-14): an NPC basic supply
    the purse cannot pay ends the hunt at the next boundary. `rule` (Tyler
    2026-10-18, the action engine): one of the hero's own stop rules held for its
    hold time (src/core/hunt/conditions.js checkStopRules). The server reads
    this list as hr_hunt_end_reasons and as hunt_sessions.end_reason's CHECK
    (tools/gen-hunt-sessions.mjs). */
-export const END_ORDER = Object.freeze(['died', 'party_member_died', 'heals_out', 'ammo_out', 'gold_out', 'rule', 'stamina', 'hours', 'left', 'changed', 'server']);
+export const END_ORDER = Object.freeze(['died', 'party_member_died', 'party_member_left', 'heals_out', 'ammo_out', 'gold_out', 'rule', 'stamina', 'hours', 'left', 'changed', 'server']);
 
 /* WHICH ENDS SEND THE CHARACTER BACK TO WHAT THEY WERE DOING (Tyler
    2026-10-14): every AUTOMATIC end. A hunt the player left or changed is the
@@ -203,7 +206,7 @@ export const END_ORDER = Object.freeze(['died', 'party_member_died', 'heals_out'
    (player_state.last_activity_kind / _id), if that is still allowed; else
    idle in town. A data row so Huntera-style combat training can take its
    place later without touching the settle. */
-export const RESUME_AFTER_END = Object.freeze(['died', 'party_member_died', 'heals_out', 'ammo_out', 'gold_out', 'rule', 'stamina', 'hours', 'server']);
+export const RESUME_AFTER_END = Object.freeze(['died', 'party_member_died', 'party_member_left', 'heals_out', 'ammo_out', 'gold_out', 'rule', 'stamina', 'hours', 'server']);
 
 /* The non-hunt activity kinds a character's "last activity" may name. `training`
    is RESERVED for the combat redesign (train a chosen combat skill in town while
@@ -229,8 +232,10 @@ export const END_CARD_COPY = Object.freeze({
 export const END_REASON_COPY = Object.freeze({
   /* `{name}` the character, `{ground}` the hunt's name, both from the server. */
   died: Object.freeze({ one: '{name} died in {ground} and returned to town.' }),
-  /* `{member}` the party member who died, from the server. */
-  party_member_died: Object.freeze({ one: '{member} died in {ground}, so the party returned to town.' }),
+  /* LEAVE TOGETHER (Tyler 2026-10-22): `{member}` the party member whose hunt ended first (the server's
+     hunt.session.end_by; "A party member" when it cannot say), `{name}` this hero. */
+  party_member_died: Object.freeze({ one: '{member} fell, so {name} came home too.' }),
+  party_member_left: Object.freeze({ one: '{member} left the hunt, so {name} came home too.' }),
   heals_out: Object.freeze({ one: 'You ran out of healing food, so you headed home.' }),
   ammo_out: Object.freeze({ one: 'You ran out of {item}, so you headed home.' }),
   gold_out: Object.freeze({ one: 'You ran out of gold for supplies — the hunt ended.' }),

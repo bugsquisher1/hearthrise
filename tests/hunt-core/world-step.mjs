@@ -60,10 +60,11 @@ const cases = {
     }
     return null;
   },
-  /* ONE DEATH ENDS THE PARTY (Tyler 2026-10-19): the survivor ends `party_member_died` at its boundary and pays nothing. */
+  /* A DEATH SENDS THE TICKED PARTY HOME (Tyler 2026-10-22, "Leave if anyone leaves the hunt or dies", default on): the
+     survivor ends `party_member_died` at its boundary and pays nothing. */
   'party-death-ends-everyone': (M) => {
     const fx = spanFixture(M, 7, { spanMs: 100000, members: [member(M, 'a', { unitId: 1, seat: 0, hp: 3, maxHp: 3, acc: 50, maxHit: 1, levelXp: 20000 }),
-      member(M, 'b', { unitId: 2, seat: 1, hp: 5000, maxHp: 5000, levelXp: 20000 })] });
+      member(M, 'b', { unitId: 2, seat: 1, hp: 5000, maxHp: 5000, levelXp: 20000, together: true })] });
     runSpan(M, fx, []);
     const [a, b] = fx.inst.members;
     if (a.hs.endedReason !== 'died') return 'the weak hero ended ' + a.hs.endedReason;
@@ -107,7 +108,8 @@ const mutants = [
   { name: 'a death costs no XP', case: 'death-ends-the-hunt',
     edits: [['src/core/combat-sim.js', "    if (k === 'level') m.state.levelXp = (Number(m.state.levelXp) || 0) - xpLost[k];", "    if (k === 'level') m.state.levelXp = Number(m.state.levelXp) || 0;"]] },
   { name: 'a party death leaves the survivor hunting', case: 'party-death-ends-everyone',
-    edits: [['src/core/combat-sim.js', '        for (const other of members) if (other !== m && !other.left && !other.hs.died) other.hs.partyDied = true;\n', '']] },
+    edits: [['src/core/combat-sim.js', "    if (o.hero && o.hero.leaveTogether === true) o.hs.partyEnd = why === 'died' ? 'died' : 'left';",
+      "    if (o.hero && o.hero.leaveTogether === true && why !== 'died') o.hs.partyEnd = 'left';"]] },
   { name: 'the swing seed is indexed per window', case: 'split-parity',
     edits: [['src/core/combat-sim.js', "rng: createRng(seedOf(ctx, 's', sw))", "rng: createRng(seedOf(ctx, 's', swings))"]] },
   { name: 'the world steps once more after its last member ended', case: 'death-split-parity',

@@ -17,13 +17,13 @@
 // stamp's time, and alerts remember the ids they showed). Every number in the
 // line is a difference of two server answers; nothing is predicted or spendable.
 // ════════════════════════════════════════════════════════════════════════
-import { levelOf } from '../session/character-sections.js?v=0.2.35';
-import { huntOf, analyzerOf, serverNowOf } from '../session/hunt-sections.js?v=0.2.35';
-import { nameOf } from '../session/item-sections.js?v=0.2.35';
-import { huntName } from '../session/party-sections.js?v=0.2.35';
-import { charLevelFromXp } from '../core/xp.js?v=0.2.35';
-import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.35';
-import { whole } from '../render/format.js?v=0.2.35';
+import { levelOf } from '../session/character-sections.js?v=0.2.36';
+import { huntOf, analyzerOf, serverNowOf } from '../session/hunt-sections.js?v=0.2.36';
+import { nameOf } from '../session/item-sections.js?v=0.2.36';
+import { huntName } from '../session/party-sections.js?v=0.2.36';
+import { charLevelFromXp } from '../core/xp.js?v=0.2.36';
+import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.36';
+import { whole } from '../render/format.js?v=0.2.36';
 
 /* Less time away than this is a reload or a quick look, not an absence. */
 export const AWAY_MIN_MS = 10 * 60 * 1000;
@@ -85,7 +85,7 @@ export function awayRecapOf(cs) {
   const body = parts.length ? ': ' + parts.join(', ') + '.' : '.';
   const end = h.ended
     ? ' The hunt has ended. ' + ((END_REASON_COPY[h.endReason] && END_REASON_COPY[h.endReason].one) || '')
-      .replace('{name}', name).replace('{ground}', where).replace('{member}', 'A party member').replace('{item}', 'a supply').replace('{hunt}', 'another hunt')
+      .replace('{name}', name).replace('{ground}', where).replace('{member}', h.endBy || 'A party member').replace('{item}', 'a supply').replace('{hunt}', 'another hunt')
     : ' Still hunting.';
   return { id: 'away:' + h.sessionId.replace(/[^A-Za-z0-9_:.-]/g, '_').slice(0, 64) + ':' + was.at, kind: 'away', session: h.sessionId, text: (head + body + end).trim() };
 }

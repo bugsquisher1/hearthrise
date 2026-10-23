@@ -13,19 +13,19 @@
 // PURE ESM, Node + Deno + browser.
 // ============================================================================
 
-import { DEFAULT_PROFILE, equipmentStats, armorSetBonus, playerCombatRolls, weaknessInfo } from './combat.js?v=0.2.35';
-import { makeBonus, EMPTY_PERKS } from './perks.js?v=0.2.35';
-import { companionBonus } from './companion-perk.js?v=0.2.35';
-import { buffQueueFromServer, buffBonusFor } from './buffs.js?v=0.2.35';
-import { grantXp, normaliseXpFrac } from './progression.js?v=0.2.35';
-import { charLevelFromXp, levelsOf } from './xp.js?v=0.2.35';
-import { vitalsOf, wearsArmour } from './vitals.js?v=0.2.35';
-import { newHuntSession, takeLine } from './action-rules.js?v=0.2.35';
-import { makeGoalCounter, makeBestiaryCounter, makeCollectionCounter } from './goals.js?v=0.2.35';
-import { HUNT_ROLES } from '../data/hunt-roles.js?v=0.2.35';
-import { MONSTERS } from '../data/monsters.js?v=0.2.35';
-import { honeOf, honeWornAt, ammoPerShot } from './ammo.js?v=0.2.35';
-import { mitigationFor, NO_MITIGATION } from './mitigation.js?v=0.2.35';
+import { DEFAULT_PROFILE, equipmentStats, armorSetBonus, playerCombatRolls, weaknessInfo } from './combat.js?v=0.2.36';
+import { makeBonus, EMPTY_PERKS } from './perks.js?v=0.2.36';
+import { companionBonus } from './companion-perk.js?v=0.2.36';
+import { buffQueueFromServer, buffBonusFor } from './buffs.js?v=0.2.36';
+import { grantXp, normaliseXpFrac } from './progression.js?v=0.2.36';
+import { charLevelFromXp, levelsOf } from './xp.js?v=0.2.36';
+import { vitalsOf, wearsArmour } from './vitals.js?v=0.2.36';
+import { newHuntSession, takeLine } from './action-rules.js?v=0.2.36';
+import { makeGoalCounter, makeBestiaryCounter, makeCollectionCounter } from './goals.js?v=0.2.36';
+import { HUNT_ROLES } from '../data/hunt-roles.js?v=0.2.36';
+import { MONSTERS } from '../data/monsters.js?v=0.2.36';
+import { honeOf, honeWornAt, ammoPerShot } from './ammo.js?v=0.2.36';
+import { mitigationFor, NO_MITIGATION } from './mitigation.js?v=0.2.36';
 
 /* A finite, non-negative number or the fallback (every number that crosses in from a row). */
 function nat(v, fallback) {
@@ -302,6 +302,7 @@ export function memberSide(mi, ctx) {
       hero: { role: h.role, element: h.element || '', settings: h.settings || null,
         slots: h.slots || [], stopRules: h.stopRules || [], density: h.density || 0, lead: h.lead === true,
         hold: Number.isInteger(h.hold) ? h.hold : null,
+        leaveTogether: h.leaveTogether === true,
         actionSet: h.actionSet || 'hunt', range: h.range || 1, ammo: equipment.ammo || null,
         foodBelowPct: h.foodBelowPct, drinkBelowPct: h.drinkBelowPct },
     },
@@ -347,7 +348,7 @@ export function sharePurses(sides) {
    (tests/hunt-live.mjs LV-P). */
 export const FROZEN_KEYS = Object.freeze(['hp', 'maxHp', 'maxMana', 'regenPm', 'snap', 'vs', 'family', 'armoured', 'shield', 'hero', 'session']);
 export const FROZEN_SESSION_KEYS = Object.freeze(['huntFromMs', 'nextSwingAtMs', 'swingIndex', 'bag', 'basics', 'shop',
-  'supplySource', 'onEmpty', 'goldFloor', 'leaveAtMs', 'changeAtMs', 'stopAtMs']);
+  'supplySource', 'onEmpty', 'goldFloor', 'leaveAtMs', 'changeAtMs', 'stopAtMs', 'kicked']);
 const finiteOr = (v, d) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 
 /** The frozen numbers of an assembled member side at server instant `atMs`, against the monster `kinds`. */

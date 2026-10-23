@@ -2,8 +2,15 @@
 // (spec §2 abilities; parity AB-01..AB-17). Run by run-all.mjs.
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { suiteH4, oneHero, steps, supplySession, rngOf } from './fixtures/h4.js';
-import { hero } from './fixtures/h1.js';
+import { hero, ROOT } from './fixtures/h1.js';
+
+/* THE CLIENT'S SUPPLY ROWS, read from the repo (a planted copy holds only src/core and src/data): the Configure
+   action table and the bar's store line must price what the engine buys, never more (CLAUDE.md §6). */
+const V = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(ROOT, 'src/build-info.js'), 'utf8')) || [, ''])[1];
+const shellOf = (p) => import(pathToFileURL(join(ROOT, p)).href + V);
+const SHELL = { table: await shellOf('src/shell/action-table.js'), draft: await shellOf('src/shell/bar-draft.js') };
 
 const casts = (sc) => sc.events.filter((e) => e.type === 'cast').map((e) => e.ability);
 const cast = (M) => (inst, sc) => M.abilities.castAbilities(inst, sc);
@@ -171,6 +178,21 @@ const cases = {
     const arrows = supplySession(M, { bag: { barbed_arrows: { loaded: 0 } }, shot: 'plain_barbed_arrows', ammo: 'barbed_arrows' });
     const a = M.abilities.shotLine({ hs: arrows }, 'barbed_arrows');
     return a.id === 'plain_barbed_arrows' && a.source === 'store' ? null : 'a spent arrow line no longer falls to its plain partner: ' + JSON.stringify(a);
+  },
+  /* THE CLIENT SAYS WHAT THE ENGINE BUYS (lane a-rune-spend; CLAUDE.md §6): with no rune bought for a shot, the
+     Configure action's Ammo run prices no Fire Rune a shot and the bar's store line names no store behind a Fire
+     Rune attack slot (both showed Plain Fire Rune, 8 g); an arrow keeps its plain partner's price, and a spell slot
+     that names the store rune keeps it. */
+  'client-prices-no-rune-a-shot': (M) => {
+    const store = M.SB.BASIC_SUPPLIES.map((b) => ({ id: b.id, kind: b.kind, partner: b.partner, amount: 0, price: b.price }));
+    const run = SHELL.table.tableOf('items', { store, bag: [] }).runs.find((r) => r.kind === 'ammo');
+    const row = (id) => (run && run.rows.find((r) => r.action.id === id)) || null;
+    if (!row('fire_rune') || row('fire_rune').price !== null) return 'the Ammo run prices a Fire Rune a shot: ' + JSON.stringify(row('fire_rune'));
+    if (!row('barbed_arrows') || row('barbed_arrows').price !== M.SB.BASIC_INDEX.plain_barbed_arrows.price) return 'the Ammo run lost the Barbed Arrows\' store price: ' + JSON.stringify(row('barbed_arrows'));
+    const slot = SHELL.draft.storeOf({ type: 'attack_with_item', id: 'fire_rune' }, store);
+    if (slot !== null) return 'the bar says a Fire Rune attack slot buys ' + JSON.stringify(slot);
+    const spell = SHELL.draft.storeOf({ type: 'ability', id: 'flame_strike', store: 'plain_fire_rune' }, store);
+    return spell && spell.id === 'plain_fire_rune' ? null : 'a spell slot naming the store rune lost it: ' + JSON.stringify(spell);
   },
   /* RUNNING OUT NEVER ENDS A DEFAULT HUNT (Tyler 10-16; lane a-rune-spend): a spent essential rune line with no
      store row behind it ended the hunt `ammo_out` under the default `switch`. Only the hero's explicit `end` does. */

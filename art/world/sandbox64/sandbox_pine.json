@@ -1,0 +1,35 @@
+{
+  "id": "sandbox_pine",
+  "class": "sapling",
+  "style": "s1",
+  "material": "foliage",
+  "source": "sandbox_pine.standin.png",
+  "frame": [
+    128,
+    184
+  ],
+  "anchor_px": [
+    64,
+    183
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_object_pro_flash",
+    "object": "aff6bff0-64f1-45ba-9be5-87ab20aabc80",
+    "name": "S1 pine"
+  },
+  "notes": "STAND-IN: common/pine.json nearest-neighbour x2. Ported from PixelLab object aff6bff0-64f1-45ba-9be5-87ab20aabc80 (style 1) by tools/world-art/port-pixellab.mjs: pixels unscaled, bottom-centre anchor as Map Workshop places it. Replaced by the hd64 art lane."
+}

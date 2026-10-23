@@ -1,0 +1,35 @@
+{
+  "id": "sandbox_bush",
+  "class": "bush",
+  "style": "s1",
+  "material": "foliage",
+  "source": "sandbox_bush.standin.png",
+  "frame": [
+    64,
+    56
+  ],
+  "anchor_px": [
+    32,
+    55
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_object_pro_flash",
+    "object": "79674d6c-3b33-47e2-8571-45c9767c5bb2",
+    "name": "S1 bush"
+  },
+  "notes": "STAND-IN: common/bush.json nearest-neighbour x2. Ported from PixelLab object 79674d6c-3b33-47e2-8571-45c9767c5bb2 (style 1) by tools/world-art/port-pixellab.mjs: pixels unscaled, bottom-centre anchor as Map Workshop places it. Replaced by the hd64 art lane."
+}

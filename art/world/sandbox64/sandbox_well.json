@@ -1,0 +1,35 @@
+{
+  "id": "sandbox_well",
+  "class": "fixture",
+  "style": "s1",
+  "material": "stone",
+  "source": "sandbox_well.standin.png",
+  "frame": [
+    72,
+    86
+  ],
+  "anchor_px": [
+    36,
+    85
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_image_pro_flash",
+    "image": "5cc294af-490c-5e25-acb8-a6f79dd5f016",
+    "cell": 3
+  },
+  "notes": "STAND-IN: common/well.json nearest-neighbour x2. Cell 3 of a 4x4 style-1 prop sheet (PixelLab image 5cc294af-490c-5e25-acb8-a6f79dd5f016, style image a Map Workshop prop of the kit), cut to its opaque box by tools/world-art/port-pixellab.mjs; pixels unscaled. Replaced by the hd64 art lane."
+}

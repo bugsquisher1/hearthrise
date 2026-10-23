@@ -7,7 +7,7 @@
 // pick / screenOf: a tap's client point ↔ the last frame's tiles and sprites.
 //
 // One frame:
-//   1. compose at ART resolution (T = 32) on an offscreen canvas: ground
+//   1. compose at ART resolution (the map's T) on an offscreen canvas: ground
 //      chunks (16x16 tiles, baked once per map from groundTiles()), decals,
 //      the ONE shadow mask at --world-shadow-alpha (ellipses, polygons and
 //      cast silhouettes sheared by castMatrix), the y-sorted sprites, the
@@ -19,13 +19,16 @@
 //   3. draw the nameplates, the walk mark and speech bubbles at SCREEN
 //      resolution so text stays crisp.
 // Colours come from --world-* tokens through `css` (the caller's token reader).
+// THE MAP'S ART GRID (map-compile.js map.T / map.grid): the tile size, the chunk
+// size and the zoom (camera.js zoomFor) are the map's, so a 64 px sandbox map is
+// drawn at x1 with the town's on-screen tile. The overlay sizes its marks in base
+// art px times the zoom (zs = z x T / 32), so a name reads the same on any grid.
+// setMap may hand a map its own art (book, images, tables: another grid's atlas).
 // ════════════════════════════════════════════════════════════════════════
-import { T } from '../core/grid.js?v=0.2.33';
 import { zoomFor, frameView, cleanInset } from '../core/camera.js?v=0.2.33';
 import { composeFrame, groundTiles } from '../core/compose.js?v=0.2.33';
 import { paintStub } from '../stub-atlas.js?v=0.2.33';
 
-const CHUNK = 16 * T;
 const LIGHT_BANDS = 4;   // stepped pools: pixel-art light, no airbrush
 const FLASH_ALPHA = 0.7; // a hit's silhouette over the frame
 
@@ -34,7 +37,9 @@ const FLASH_ALPHA = 0.7; // a hit's silhouette over the frame
  *          css: (token: string) => string}} o   css('--world-void') → the token's value
  */
 export function createCanvasBackend(o) {
-  const { win, doc, book, images, tables, css } = o;
+  const { win, doc, css } = o;
+  /* the art the map is drawn with: the constructor's, or the one setMap hands over (another grid's) */
+  let { book, images, tables } = o;
   const tone = (name) => css('--world-' + name);
   const layer = () => { const c = doc.createElement('canvas'); return { c, g: c.getContext('2d') }; };
   const comp = layer(), shade = layer(), lit = layer();
@@ -48,6 +53,8 @@ export function createCanvasBackend(o) {
   let host = null, canvas = null, ctx = null, ro = null, onResize = null;
   let map = null, ground = null, chunks = new Map();
   let z = 2, dpr = 1, W = 1, H = 1, dirty = true, inset = cleanInset(null);
+  /* the map's tile (art px), its ground chunk (16 x 16 tiles) and the overlay's size unit (device px per base art px) */
+  let T = 32, CHUNK = 16 * T, zs = z;
   /* Ease after an inset change (camera.js easedCam); the FIRST inset is the start, never eased (hero switch). */
   let lastCam = null, camFrom = null, insetSince = -Infinity, insetHeard = false;
   const reduceMotion = () => !!(win.matchMedia && win.matchMedia('(prefers-reduced-motion: reduce)').matches);
@@ -59,7 +66,8 @@ export function createCanvasBackend(o) {
 
   function measure() {
     dpr = win.devicePixelRatio || 1;
-    z = zoomFor(win.innerWidth, dpr);
+    z = zoomFor(win.innerWidth, dpr, map && map.grid);
+    zs = (z * T) / 32;
     const r = host.getBoundingClientRect();
     W = Math.max(1, Math.round(r.width * dpr));
     H = Math.max(1, Math.round(r.height * dpr));
@@ -284,17 +292,17 @@ export function createCanvasBackend(o) {
      nameplates on top. Sizes scale with the zoom so they track the art. */
   function overlay(list, view, plan) {
     const at = (x, y) => [Math.round((x - view.ox) * z + plan.dx), Math.round((y - view.oy) * z + plan.dy)];
-    const unitPx = Math.max(1, Math.round(z / 2));
+    const unitPx = Math.max(1, Math.round(zs / 2));
     if (list.target) {
       const [x, y] = at(list.target.x, list.target.y);
       ctx.strokeStyle = tone('target');
       ctx.lineWidth = Math.max(2, unitPx);
-      ctx.strokeRect(x, y, list.target.w * z, list.target.h * z);
+      ctx.strokeRect(x, y, list.target.w * zs, list.target.h * zs);
     }
     for (const b of list.bars || []) {
       const [x, y] = at(b.x - b.w / 2, b.y);
-      const w = b.w * z, h = Math.max(3, Math.round(1.5 * z));
-      const mh = b.mana == null ? 0 : Math.max(2, Math.round(0.75 * z));
+      const w = b.w * zs, h = Math.max(3, Math.round(1.5 * zs));
+      const mh = b.mana == null ? 0 : Math.max(2, Math.round(0.75 * zs));
       ctx.fillStyle = tone('bar-back');
       ctx.fillRect(x - 1, y - 1, w + 2, h + 2 + (mh ? mh + 1 : 0));
       ctx.fillStyle = tone(b.kind === 'hero' ? 'bar-hero' : b.kind === 'foe' ? 'bar-foe' : 'bar-' + b.kind);
@@ -304,7 +312,7 @@ export function createCanvasBackend(o) {
     /* VW-08: a bleed badge with its stack count, right of the bar. */
     for (const k of list.badges || []) {
       const [x, y] = at(k.x, k.y);
-      const px = Math.max(Math.round(4.5 * z), Math.round(11 * dpr));
+      const px = Math.max(Math.round(4.5 * zs), Math.round(11 * dpr));
       ctx.font = '800 ' + px + 'px ' + (css('--f-ui') || 'sans-serif');
       const text = '×' + k.n, w = Math.ceil(ctx.measureText(text).width) + Math.round(px * 0.6), h = px + 2;
       ctx.fillStyle = tone('bar-back');
@@ -316,13 +324,13 @@ export function createCanvasBackend(o) {
       ctx.textBaseline = 'middle';
       ctx.fillText(text, x + w / 2, y - h / 2);
     }
-    const font = (k) => Math.max(Math.round(k * z), Math.round(12 * dpr));
+    const font = (k) => Math.max(Math.round(k * zs), Math.round(12 * dpr));
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
     ctx.lineJoin = 'round';
     for (const f of list.floats || []) {
       const big = f.kind === 'kill' || f.big;
-      const px = Math.max(Math.round((big ? 9 : 8) * z), Math.round((big ? 20 : 16) * dpr));
+      const px = Math.max(Math.round((big ? 9 : 8) * zs), Math.round((big ? 20 : 16) * dpr));
       ctx.font = '800 ' + px + 'px ' + (css('--f-ui') || 'sans-serif');
       ctx.lineWidth = Math.max(2, Math.round(px / 5));
       ctx.globalAlpha = f.alpha;
@@ -338,7 +346,7 @@ export function createCanvasBackend(o) {
       ctx.strokeStyle = tone('walk-mark');
       ctx.lineWidth = Math.max(2, unitPx);
       ctx.beginPath();
-      ctx.ellipse(x, y, 9 * z, 4 * z, 0, 0, Math.PI * 2);
+      ctx.ellipse(x, y, 9 * zs, 4 * zs, 0, 0, Math.PI * 2);
       ctx.stroke();
     }
     /* Names never print over each other: yours first, then each plate that would
@@ -353,7 +361,7 @@ export function createCanvasBackend(o) {
       const [ax, y0] = at(p.x, p.y - 3);
       const half = ctx.measureText(p.text).width / 2 + px / 3;
       /* a name whose owner is (even half) on the canvas slides in from the edge rather than being cut */
-      const x = ax >= -16 * z && ax <= W + 16 * z ? Math.max(half, Math.min(W - half, ax)) : ax;
+      const x = ax >= -16 * zs && ax <= W + 16 * zs ? Math.max(half, Math.min(W - half, ax)) : ax;
       let y = y0;
       for (let k = 0; k < 6 && placed.some((q) => x - half < q.r && x + half > q.l && y - px < q.b && y > q.t); k++) y -= px + 2;
       placed.push({ l: x - half, r: x + half, t: y - px, b: y });
@@ -465,8 +473,15 @@ export function createCanvasBackend(o) {
       onResize = () => { dirty = true; };
       win.addEventListener('resize', onResize);
     },
-    setMap(m) {
+    /**
+     * Show map `m`, drawn with `art` ({book, images, tables}: another grid's atlas) or the
+     * constructor's. The zoom is measured again on the next frame (the map's grid).
+     */
+    setMap(m, art) {
       map = m;
+      if (art) ({ book, images, tables } = art); else ({ book, images, tables } = o);
+      T = m.T || 32; CHUNK = 16 * T;
+      dirty = true;
       ground = groundTiles(m, book, tables, T);
       chunks = new Map();
       last = null;

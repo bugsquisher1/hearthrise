@@ -31,15 +31,20 @@
 //   focus     [x,y] (optional) the tile a walked map's camera leans toward, so
 //             the heart of the place stays in view wherever the hero stands
 //   maskHash  hash of the collision mask (maskHash below)
+//   grid      (optional) the art grid it is drawn on (src/data/world/art-budget.js GRIDS; the
+//             base grid when absent). The compiled map carries its `T` and `grid`, and every
+//             renderer reads the tile size from the map, never from a constant.
 // PURE: no DOM, no window, no G.
 // ════════════════════════════════════════════════════════════════════════
-import { T, rectOf, onEdge, isCorner, sideOf, inRect } from './grid.js?v=0.2.33';
+import { rectOf, onEdge, isCorner, sideOf, inRect } from './grid.js?v=0.2.33';
 import { reachFrom } from './path.js?v=0.2.33';
+import { GRIDS, gridOf } from '../../data/world/art-budget.js?v=0.2.33';
 
-export const MAP_KINDS = Object.freeze(['hunt', 'town', 'home']);
+/* 'sandbox': the look-and-walk scene of another art grid (src/data/world/sandbox.js), walked like a town with nobody else in it. */
+export const MAP_KINDS = Object.freeze(['hunt', 'town', 'home', 'sandbox']);
 export const LIGHT_KINDS = Object.freeze(['cellar', 'indoor', 'day']);
 /** The kinds a player taps to walk in; a hunt's hero only walks its patrol loop. */
-export const WALKED_KINDS = Object.freeze(['town', 'home']);
+export const WALKED_KINDS = Object.freeze(['town', 'home', 'sandbox']);
 /** Outdoor maps need a tree in every window this many tiles square. */
 export const TREE_WINDOW = 12;
 
@@ -113,17 +118,18 @@ export function compileMap(row, tables) {
   }
   const faces = {};
   for (const f of row.faces || []) faces[f.x + ',' + f.y] = f.id;
+  const grid = gridOf(row.grid);
   return {
-    id: row.id, name: row.name, kind: row.kind, outdoor: !!row.outdoor, light: row.light, w, h,
+    id: row.id, name: row.name, kind: row.kind, outdoor: !!row.outdoor, light: row.light, w, h, grid, T: grid.T,
     groundTerrain: row.ground, ground, mask, maskHash: maskHash(mask, w, h), faces, objects, lights: lit, buildings,
     path: expandPath(row.path) || [], spawns: row.spawns || [], stations: row.stations || {},
     exits: row.exits || [], start: row.start, frame: row.frame ? rectOf(row.frame) : null, focus: row.focus || null,
-    overlap: bodyOverlap(w, h, objects, buildings, sprites),
+    overlap: bodyOverlap(w, h, objects, buildings, sprites, grid),
   };
 }
 
 /** A standing unit's body, art px: this wide around its tile's centre, this tall above its contact row. */
-const BODY = Object.freeze({ w: 24, h: 38 });
+const BASE_BODY = Object.freeze({ w: 24, h: 38 });
 /** bodyOverlap bits: something is drawn OVER a unit there / something is drawn UNDER it. */
 export const OVER = 1;
 const UNDER = 2;
@@ -137,8 +143,9 @@ const UNDER = 2;
  * shows it through). A building's own roof and walls do not count for a tile
  * inside it — they are lifted or seen from inside when you stand there.
  */
-function bodyOverlap(w, h, objects, buildings, sprites) {
+function bodyOverlap(w, h, objects, buildings, sprites, grid) {
   const out = new Uint8Array(w * h), boxes = [];
+  const T = grid.T, BODY = { w: BASE_BODY.w * grid.scale, h: BASE_BODY.h * grid.scale };
   const rec = (id) => { const s = sprites[id]; return s && s.frame && s.anchor ? s : null; };
   for (const o of objects) {
     const s = rec(o.id);
@@ -195,6 +202,9 @@ const WHOLE = (v) => Number.isInteger(v);
  *   L-TREES an outdoor map has a tree in every TREE_WINDOW-square window
  *   L-KIND  kind and light are known values; ground names a terrain
  *   L-HASH  maskHash matches the compiled mask
+ *   L-GRID  the grid is a GRIDS row; a map on another grid than the base one draws
+ *           nothing the engine still measures in base art px: no rock faces, no
+ *           wall-kit buildings (painted ones only), no cellar light, no hunts
  */
 export function lintMap(row, tables) {
   const out = [];
@@ -203,6 +213,13 @@ export function lintMap(row, tables) {
   if (!MAP_KINDS.includes(row.kind)) bad('L-KIND', 'kind "' + row.kind + '" is not one of ' + MAP_KINDS.join('/'));
   if (!LIGHT_KINDS.includes(row.light)) bad('L-KIND', 'light "' + row.light + '" is not one of ' + LIGHT_KINDS.join('/'));
   if (terrains && !terrains[row.ground]) bad('L-KIND', 'ground "' + row.ground + '" is not a terrain in any atlas');
+  if (row.grid != null && !GRIDS[row.grid]) bad('L-GRID', 'grid "' + row.grid + '" is not one of ' + Object.keys(GRIDS).join('/'));
+  if (gridOf(row.grid) !== GRIDS.base) {
+    if ((row.faces || []).length) bad('L-GRID', 'a map on the ' + row.grid + ' grid has rock faces (their wall height is base art px)');
+    if ((row.buildings || []).some((b) => b.painted !== true)) bad('L-GRID', 'a map on the ' + row.grid + ' grid has a wall-kit building (painted ones only)');
+    if (row.light === 'cellar') bad('L-GRID', 'a map on the ' + row.grid + ' grid has the cellar light (the hero lamp is base art px)');
+    if ((row.hunts || []).length) bad('L-GRID', 'a map on the ' + row.grid + ' grid renders a hunt (the hunt scenes are drawn on the base grid)');
+  }
   const rows = row.rows || [];
   if (!rows.length || rows.some((r) => r.length !== rows[0].length)) { bad('L-ROWS', 'rows are empty or ragged'); return out; }
   for (const [ch, id] of Object.entries(row.legend || {})) if (!materials[id]) bad('L-ROWS', 'legend "' + ch + '" names unknown material "' + id + '"');

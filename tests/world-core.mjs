@@ -46,16 +46,17 @@ const argv = process.argv.slice(2);
 
 async function load(base) {
   const imp = (p) => import(pathToFileURL(join(base, p)).href + V);
-  const [grid, zsort, roofs, shadows, camera, mapc, path, wang, route, compose, nullb, bookm, maps, terrain, hunts, sets] = await Promise.all([
+  const [grid, zsort, roofs, shadows, camera, mapc, path, wang, route, compose, nullb, bookm, maps, terrain, hunts, sets, budget] = await Promise.all([
     'src/world/core/grid.js', 'src/world/core/zsort.js', 'src/world/core/roofs.js', 'src/world/core/shadows.js',
     'src/world/core/camera.js', 'src/world/core/map-compile.js', 'src/world/core/path.js', 'src/world/core/wang.js',
     'src/world/core/scene-route.js', 'src/world/core/compose.js', 'src/world/render/null-backend.js',
     'src/world/core/book.js', 'src/data/world/maps/index.js', 'src/data/world/terrain.js', 'src/data/hunts.js',
-    'src/data/world/atlas-sets.js',
+    'src/data/world/atlas-sets.js', 'src/data/world/art-budget.js',
   ].map(imp));
   const manifests = {};
-  for (const set of sets.ATLAS_SETS) manifests[set] = JSON.parse(readFileSync(join(base, 'assets/world/atlas-' + set + '.json'), 'utf8'));
-  return { grid, zsort, roofs, shadows, camera, mapc, path, wang, route, compose, nullb, bookm, maps, terrain, hunts, manifests,
+  /* every set on any grid (atlas-sets.js LOADED_SETS): the sandbox map lints against its own grid's art */
+  for (const set of sets.LOADED_SETS) manifests[set] = JSON.parse(readFileSync(join(base, 'assets/world/atlas-' + set + '.json'), 'utf8'));
+  return { grid, zsort, roofs, shadows, camera, mapc, path, wang, route, compose, nullb, bookm, maps, terrain, hunts, budget, manifests,
     canvasSrc: readFileSync(join(base, 'src/world/render/canvas-backend.js'), 'utf8'),
     worldCss: readFileSync(join(ROOT, 'src/styles/world.css'), 'utf8') };
 }
@@ -181,10 +182,19 @@ function check(M) {
        and the phone, x3 only on a window wider than 2400; device px = density x DPR. */
     const table = [[1440, 1, 2], [1920, 1, 2], [922, 1, 2], [922, 3, 6], [1440, 2, 4], [1366, 1.5, 3], [2400, 1, 2], [2560, 1, 3], [3840, 2, 6], [0, 1, 2]];
     for (const [w, dd, z] of table) ok('C1', M.camera.zoomFor(w, dd) === z, 'zoomFor(' + w + ', ' + dd + ') is ' + M.camera.zoomFor(w, dd) + ', want ' + z);
-    /* ...and never per scene: the canvas sets z in measure() (the window) and nowhere else, and no room frame reaches it */
+    /* ONE TILE SIZE, ANY GRID: the 64 px sandbox grid (hd64) is drawn at x1, so its tile is the base
+       tile on screen (64 CSS px); above WIDE_CSS it stays x1 (96 / 64 is not whole). */
+    const hd = M.budget.GRIDS.hd64;
+    const hdTable = [[1440, 1, 1], [1920, 1, 1], [922, 1, 1], [922, 3, 3], [1440, 2, 2], [2560, 1, 1], [3840, 2, 2]];
+    for (const [w, dd, z] of hdTable) ok('C1', M.camera.zoomFor(w, dd, hd) === z, 'hd64 zoomFor(' + w + ', ' + dd + ') is ' + M.camera.zoomFor(w, dd, hd) + ', want ' + z);
+    for (const w of [922, 1440, 1920]) ok('C1', M.camera.zoomFor(w, 1, hd) * hd.T === M.camera.zoomFor(w, 1) * M.budget.GRIDS.base.T,
+      'at ' + w + ' CSS px a sandbox tile must be the base tile on screen');
+    ok('C1', M.camera.zoomFor(1440, 1, M.budget.GRIDS.base) === M.camera.zoomFor(1440, 1), 'the base grid, named or not, is the same zoom');
+    /* ...and never per scene or room: the canvas sets z in measure() from the window and the map's ART GRID
+       (nothing else of the map) and nowhere else, and no room frame reaches it */
     const draws = M.canvasSrc.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
-    ok('C6', (draws.match(/(?<!let )\bz = /g) || []).length === 1 && /z = zoomFor\(win\.innerWidth, dpr\)/.test(draws) && !/fitZoom|map\.frame/.test(draws),
-      'the canvas must take ONE zoom from the window (measure) and never a per-room or fitted one');
+    ok('C6', (draws.match(/(?<!let )\bz = /g) || []).length === 1 && /z = zoomFor\(win\.innerWidth, dpr, map && map\.grid\);/.test(draws) && !/fitZoom|map\.frame/.test(draws),
+      'the canvas must take ONE zoom from the window and the map\'s grid (measure) and never a per-room or fitted one');
     ok('C6', !('fitZoom' in M.camera) && !('frameCentre' in M.camera), 'the fitted zoom is gone (WORLD_SHELL §1: fitZoom is removed)');
     for (let z = 2; z <= 5; z++) {
       let prev = null;
@@ -268,6 +278,14 @@ function check(M) {
     /* A STAGED map (maps/index.js STAGED_MAPS: a staged hunt's, its painted ground still to come) passes every
        rule but the ground art's: lintMap without `terrains`. Opening it is tests/hunt-core/forest-cave.mjs staged-until-art. */
     const stagedTables = Object.assign({}, tables, { terrains: null });
+    /* L-GRID: a map on another grid draws nothing the engine measures in base art px (a planted face, wall kit or cellar light is red) */
+    const sand = rows.sandbox_hd64;
+    ok('L2', sand && sand.grid === 'hd64' && M.mapc.compileMap(sand, tables).T === 64, 'the sandbox map compiles on the 64 px grid');
+    for (const [what, over] of [['a rock face', { faces: [{ x: 1, y: 1, id: 'sandbox_rocks' }] }], ['the cellar light', { light: 'cellar' }],
+      ['a wall-kit building', { buildings: [{ id: 'b', rect: [20, 1, 4, 4], wall: 'timber', floor: 'plank_floor', doors: [[21, 4]], roof: { rect: [20, 1, 4, 4], kind: 'roof_wood' } }] }],
+      ['an unknown grid', { grid: 'hd96' }]]) {
+      ok('L2', M.mapc.lintMap(Object.assign({}, sand, over), tables).some((p) => p.code === 'L-GRID'), 'a sandbox row with ' + what + ' must be red on L-GRID');
+    }
     for (const m of M.maps.STAGED_MAPS) {
       ok('L0', !ids.includes(m.id), m.id + ' is both shipped and staged');
       for (const p of M.mapc.lintMap(m, stagedTables)) ok('L0', false, p.code + ' ' + p.msg);
@@ -400,11 +418,14 @@ const MUTANTS = [
   ['S4', 'hung art drawn on the floor', 'src/world/core/compose.js', [["const air = s.class === 'hanging' || s.class === 'flier' ? s.hover || 0 : 0;", 'const air = 0;']]],
   ['C1', 'the density read off device px (a DPR-3 phone drawn at x3)', 'src/world/core/camera.js', [['const css = (innerWidth || 0) > WIDE_CSS', 'const css = (innerWidth || 0) * (dpr || 1) > WIDE_CSS']]],
   ['C6', 'a per-room zoom comes back', 'src/world/render/canvas-backend.js', [['    const k = dpr / z;\n', '    z = map.frame ? z + 1 : z;\n    const k = dpr / z;\n']]],
+  ['C6', 'a zoom fitted to the map width, passed in as a grid', 'src/world/render/canvas-backend.js', [['z = zoomFor(win.innerWidth, dpr, map && map.grid);', 'z = zoomFor(win.innerWidth, dpr, map && { density: Math.max(1, Math.floor(W / (map.w * T))), wideDensity: 1 });']]],
+  ['C1', 'the sandbox grid drawn at the base density (its tile twice the town\'s)', 'src/world/core/camera.js', [['  const g = grid || GRIDS.base;', '  const g = GRIDS.base;']]],
   ['C7', 'the camera ignores the docked window', 'src/world/core/camera.js', [['const inset = cleanInset(o.inset);', 'const inset = cleanInset(null);']]],
   ['C7', 'the leaning camera lets the hero walk under the window', 'src/world/core/camera.js', [['inset, mid(o.keep), T, rule), o.sinceMs);', 'inset, null, T, rule), o.sinceMs);']]],
   ['C7', 'a small room centred in the whole stage, not the uncovered part', 'src/world/core/camera.js', [['if (span <= u) c = lo + (span - u) / 2;', 'if (span <= u) c = lo + (span - v) / 2 + a;']]],
   ['C8', 'a docked HUD panel shows the void past the map', 'src/world/core/camera.js', [['    if (whole && span >= v) c = hold(', '    if (false) c = hold(']]],
   ['C2', 'the camera rounded to art pixels', 'src/world/core/camera.js', [['const cx = Math.round(cam.x * z), cy', 'const cx = Math.round(cam.x) * z, cy']]],
+  ['L2', 'the lint lets a 64 px map keep rock faces', 'src/world/core/map-compile.js', [["    if ((row.faces || []).length) bad('L-GRID'", "    if (false) bad('L-GRID'"]]],
   ['L1', 'the lint accepts offsets', 'src/world/core/map-compile.js', [["k !== 'id' && k !== 'x' && k !== 'y'", "k !== 'id' && k !== 'x' && k !== 'y' && k !== 'ox'"]]],
   ['L0', 'a map row edited without its hash', 'src/data/world/maps/mill_cellar.js', [["    '########################',\n    '###...................##',\n", "    '########################',\n    '###.......#...........##',\n"]]],
   ['P1', 'diagonals cut corners', 'src/world/core/path.js', [['if (dx && dy) return walkable', 'if (false) return walkable']]],

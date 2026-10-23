@@ -1,0 +1,40 @@
+{
+  "id": "sandbox_hero",
+  "class": "character",
+  "style": "s1",
+  "material": "unit",
+  "source": "sandbox_hero.standin.png",
+  "anchor_px": [
+    64,
+    117
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 5,
+      "loop": true,
+      "dirs": {
+        "s": 1,
+        "e": 1,
+        "n": 1,
+        "w": 1
+      }
+    },
+    {
+      "name": "walk",
+      "fps": 8,
+      "loop": true,
+      "dirs": {
+        "s": 6,
+        "e": 6,
+        "n": 6,
+        "w": 6
+      }
+    }
+  ],
+  "notes": "STAND-IN: hunt/outfit_knight.json nearest-neighbour x2 (idle and walk, the four cardinals). Ported from prototypes/hunt-sim-assets/knight (PixelLab style-1, 2026-10-15) by tools/world-art/port-hunt-sim.mjs: eight facings, foot anchor moved onto the class anchor by whole pixels. Replaced by the hd64 art lane."
+}

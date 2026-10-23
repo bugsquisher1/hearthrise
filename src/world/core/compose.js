@@ -25,6 +25,12 @@
 // capstones, end pieces, a south stub with the doorway open); every other shows
 // its FRONT (south) face with windows and door under its roof. The roof fades
 // by `state.roofAlpha` (roofs.js) over whichever variant is showing.
+//
+// T is the map's art grid (map-compile.js `map.T`). The offsets a walked map
+// reaches (the walk mark, a bubble's lift, a float's rise) are base art px times
+// k = T / 32, so they sit where they sit on the base grid. The wall, roof, rock
+// and cellar-lamp constants are the base grid's: a map on another grid draws
+// none of them (map-compile.js L-GRID).
 // PURE: no DOM, no window, no G.
 // ════════════════════════════════════════════════════════════════════════
 import { ySort } from './zsort.js?v=0.2.33';
@@ -91,6 +97,7 @@ export function groundTiles(map, book, tables, T) {
  */
 export function composeFrame(map, book, state, view, tables, T) {
   const hero = state.hero;
+  const k = T / 32;
   const heroId = heroBuilding(map.buildings, hero);
   const near = (x, y, w, h) => x < view.ox + view.w + 2 * T && y < view.oy + view.h + 2 * T && x + w > view.ox - 2 * T && y + h > view.oy - 2 * T;
   const decals = [], shadows = [], stand = [], raised = [];
@@ -221,10 +228,10 @@ export function composeFrame(map, book, state, view, tables, T) {
     const o = map.objects.find((m) => m.x === b.x && m.y === b.y);
     if (!o) continue;
     const s = book.sprite(o.id);
-    bubbles.push({ text: b.text, x: (o.x + o.fw / 2) * T, y: (o.y + o.fh) * T - 1 - (s.height || 20) - 14 });
+    bubbles.push({ text: b.text, x: (o.x + o.fw / 2) * T, y: (o.y + o.fh) * T - 1 - (s.height || 20 * k) - 14 * k });
   }
   /* The tile a tap sent the hero to, while it walks there. */
-  const mark = state.mark ? { x: (state.mark.x + 0.5) * T, y: (state.mark.y + 1) * T - 7 } : null;
+  const mark = state.mark ? { x: (state.mark.x + 0.5) * T, y: (state.mark.y + 1) * T - 7 * k } : null;
   if (hero) {
     /* The hero is drawn in its style-1 outfit (src/session/hero-look.js); the knight's when none is named. */
     const h = unit(Object.assign({ id: OUTFITS.knight, anim: 'idle', dir: 's' }, hero, {
@@ -235,8 +242,8 @@ export function composeFrame(map, book, state, view, tables, T) {
   /* Floats rise 14 art px over their life and fade in the last third; the
      caller passes their age so the same list draws the same frame anywhere. */
   for (const f of state.floats || []) {
-    const k = Math.max(0, Math.min(1, f.age / (f.life || 1000)));
-    floats.push({ text: f.text, kind: f.kind, big: !!f.big, x: (f.x + 0.5) * T + (f.dx || 0), y: f.y * T - 6 + (f.dy || 0) - 14 * k, alpha: k < 0.66 ? 1 : (1 - k) / 0.34 });
+    const age = Math.max(0, Math.min(1, f.age / (f.life || 1000)));
+    floats.push({ text: f.text, kind: f.kind, big: !!f.big, x: (f.x + 0.5) * T + (f.dx || 0), y: f.y * T - 6 * k + (f.dy || 0) - 14 * k * age, alpha: age < 0.66 ? 1 : (1 - age) / 0.34 });
   }
   /* EFFECTS ({ id, x, y in tiles, age ms, lift, on, angle? }): a vfx clip centred at its anchor
      `lift` x the art height of sprite `on` (a flier's hover added) above the tile's foot row;

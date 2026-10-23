@@ -7,7 +7,7 @@
 //   node tests/town-walk.mjs --mutate       every planted defect must turn a rule RED
 //   node tests/town-walk.mjs --shots <dir>  also write the visual-gate screenshot (1440x900)
 //
-// mutant-anchors: src/session/town-presence.js src/session/account-session.js src/world/world-boot.js src/app/world-pane.js
+// mutant-anchors: src/session/town-presence.js src/session/account-session.js src/world/world-boot.js src/world/sandbox-scene.js src/app/world-pane.js
 // mutant-writes-tree: no — pure mutants plant into a temp copy of src/, page mutants into served overrides
 //
 // The server half (own position only, catalogue bounds, the 250 ms floor and
@@ -754,11 +754,11 @@ const PURE_MUTANTS = [
   ['a walker\'s chosen outfit is dropped', 'src/session/town-presence.js', 'OUTFIT.test(w.outfit.id) ? w.outfit.id : null', 'OUTFIT.test(w.outfit.id) ? null : null'],
 ];
 const PAGE_MUTANTS = [
-  ['the World never tells the presence it is in town', 'src/world/world-boot.js', "      town.show(map.kind === 'town' ? map.id : null);\n", ''],
+  ['the World never tells the presence it is in town', 'src/world/sandbox-scene.js', "  else town.show(map.kind === 'town' ? map.id : null);\n", ''],
   ['the pane never hands the World its presence', 'src/app/world-pane.js', 'runtime = await bootWorld(pane, { view, character, emit, town, peers: opts.peers });', 'runtime = await bootWorld(pane, { view, character, emit, peers: opts.peers });'],
   ['a switch starts the hero at the map start', 'src/world/world-boot.js', "const at = held ? town.placeOn(map.id) : heroPosOn(G, map.id);", 'const at = heroPosOn(G, map.id);'],
   ['each pane mount makes a new display scratch', 'src/app/world-pane.js', '  const scratch = scratchOf(character);', "  const scratch = { choice: 'town' };"],
-  ['the home scene stays in town', 'src/world/world-boot.js', "      town.show(map.kind === 'town' ? map.id : null);", "      if (map.kind === 'town') town.show(map.id);"],
+  ['the home scene stays in town', 'src/world/sandbox-scene.js', "  else town.show(map.kind === 'town' ? map.id : null);", "  else if (map.kind === 'town') town.show(map.id);"],
 ];
 
 function copySrc() {

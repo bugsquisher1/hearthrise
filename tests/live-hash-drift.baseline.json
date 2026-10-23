@@ -24,12 +24,37 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-10-23",
- "replay_ms": 36643,
+ "replay_ms": 47570,
  "counts": {
-  "tracked_names": 173,
-  "entries": 126
+  "tracked_names": 180,
+  "entries": 133
  },
  "functions": [
+  {
+   "sig": "clan_contribute__ungated(p_clan_id uuid, p_amount bigint, p_slot integer)",
+   "name": "clan_contribute__ungated",
+   "tracked_by": [
+    "chain",
+    "pin"
+   ],
+   "touched_by": [
+    "2026-08-13-clan-contribute-authority.sql",
+    "2026-08-27-clan-economy-sinks.sql",
+    "2026-12-15-account-gold.sql"
+   ],
+   "live": {
+    "md5": "cc1fd9dea17e7ba961852c19394a15f4",
+    "norm_len": 4140,
+    "measured": "2026-10-23",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "cc1fd9dea17e7ba961852c19394a15f4",
+    "norm_len": 4140,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
   {
    "sig": "clan_feast_call(p_clan_id uuid)",
    "name": "clan_feast_call",
@@ -222,17 +247,18 @@
     "2026-10-25-settle-hooks.sql",
     "2026-10-27-core-bodies.sql",
     "2026-12-01-bench-count.sql",
-    "2026-12-14-shared-farm.sql"
+    "2026-12-14-shared-farm.sql",
+    "2026-12-15-account-gold.sql"
    ],
    "live": {
-    "md5": "ae7673a1dbd149d626777a46bfcbd6c7",
-    "norm_len": 132429,
+    "md5": "8f26477f5ffbf61fb61ee9b49759b082",
+    "norm_len": 133008,
     "measured": "2026-10-23",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "ae7673a1dbd149d626777a46bfcbd6c7",
-    "norm_len": 132429,
+    "md5": "8f26477f5ffbf61fb61ee9b49759b082",
+    "norm_len": 133008,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -366,17 +392,18 @@
     "2026-09-08-hero-slot-buy.sql",
     "2026-10-19-account-wallet.sql",
     "2026-10-23-demolition-hero-slots-gold.sql",
-    "2026-11-03-hero-slots-gold.sql"
+    "2026-11-03-hero-slots-gold.sql",
+    "2026-12-15-account-gold.sql"
    ],
    "live": {
-    "md5": "a01ccc2bebe78b4948a14453e99853a7",
-    "norm_len": 7322,
+    "md5": "91d27e37dceac2e3634d4481de07587b",
+    "norm_len": 7402,
     "measured": "2026-10-23",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "a01ccc2bebe78b4948a14453e99853a7",
-    "norm_len": 7322,
+    "md5": "91d27e37dceac2e3634d4481de07587b",
+    "norm_len": 7402,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -562,17 +589,18 @@
     "2026-10-22-closed-mode-ungated-rpcs.sql",
     "2026-10-22-hunt-sessions-delete-away.sql",
     "2026-10-27-core-bodies.sql",
-    "2026-12-14-shared-farm.sql"
+    "2026-12-14-shared-farm.sql",
+    "2026-12-15-account-gold.sql"
    ],
    "live": {
-    "md5": "25b55c31366894f2cec451ab31d03c4f",
-    "norm_len": 8815,
+    "md5": "22d342e630c0012d03a8c68ab7ab99aa",
+    "norm_len": 9206,
     "measured": "2026-10-23",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "25b55c31366894f2cec451ab31d03c4f",
-    "norm_len": 8815,
+    "md5": "22d342e630c0012d03a8c68ab7ab99aa",
+    "norm_len": 9206,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -877,17 +905,18 @@
     "pin"
    ],
    "touched_by": [
-    "2026-12-14-shared-farm.sql"
+    "2026-12-14-shared-farm.sql",
+    "2026-12-15-account-gold.sql"
    ],
    "live": {
-    "md5": "6a078e22d7d421f3fee0e7de542939d7",
-    "norm_len": 893,
+    "md5": "56a656d9dc25fe2a95291cd5a7c0b80d",
+    "norm_len": 1190,
     "measured": "2026-10-23",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "6a078e22d7d421f3fee0e7de542939d7",
-    "norm_len": 893,
+    "md5": "56a656d9dc25fe2a95291cd5a7c0b80d",
+    "norm_len": 1190,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -1036,6 +1065,28 @@
    "agree": true
   },
   {
+   "sig": "hr_gold_kind(p_kind text, p_intent text, p_session uuid)",
+   "name": "hr_gold_kind",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-12-15-account-gold.sql"
+   ],
+   "live": {
+    "md5": "4e74f2a03b6d5cc865e9e633f61d0688",
+    "norm_len": 1045,
+    "measured": "2026-10-23",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "4e74f2a03b6d5cc865e9e633f61d0688",
+    "norm_len": 1045,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
    "sig": "hr_hero_slots_of(p_user uuid)",
    "name": "hr_hero_slots_of",
    "tracked_by": [
@@ -1135,22 +1186,24 @@
    "sig": "hr_hunt_apply_instance(p_instance uuid, p_world_from bigint, p_settle jsonb, p_members jsonb, p_project_user uuid, p_project_slot integer)",
    "name": "hr_hunt_apply_instance",
    "tracked_by": [
-    "chain"
+    "chain",
+    "pin"
    ],
    "touched_by": [
     "2026-10-23-hunt-world-state.sql",
     "2026-11-16-hunt-density-bounds.sql",
-    "2026-12-11-hunt-deploy-no-forfeit.sql"
+    "2026-12-11-hunt-deploy-no-forfeit.sql",
+    "2026-12-15-account-gold.sql"
    ],
    "live": {
-    "md5": "bc3c74773936050b38d1bb39dd5d8275",
-    "norm_len": 10416,
+    "md5": "33d4296a8a3e5f3ce45ecdc31b12f985",
+    "norm_len": 13021,
     "measured": "2026-10-23",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "bc3c74773936050b38d1bb39dd5d8275",
-    "norm_len": 10416,
+    "md5": "33d4296a8a3e5f3ce45ecdc31b12f985",
+    "norm_len": 13021,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -1166,17 +1219,18 @@
     "2026-10-23-hunt-world-state.sql",
     "2026-10-25-settle-hooks.sql",
     "2026-10-27-core-bodies.sql",
-    "2026-11-16-hunt-density-bounds.sql"
+    "2026-11-16-hunt-density-bounds.sql",
+    "2026-12-15-account-gold.sql"
    ],
    "live": {
-    "md5": "9878f3f0978f32b296e14617ee1135bf",
-    "norm_len": 29831,
+    "md5": "6dc9171dec4c7b389e8cbec894e5d3ab",
+    "norm_len": 30293,
     "measured": "2026-10-23",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "9878f3f0978f32b296e14617ee1135bf",
-    "norm_len": 29831,
+    "md5": "6dc9171dec4c7b389e8cbec894e5d3ab",
+    "norm_len": 30293,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -1317,17 +1371,18 @@
     "pin"
    ],
    "touched_by": [
-    "2026-10-25-bag-rules.sql"
+    "2026-10-25-bag-rules.sql",
+    "2026-12-15-account-gold.sql"
    ],
    "live": {
-    "md5": "9cd6ce1b0deba1d61bb385371594383c",
-    "norm_len": 2829,
+    "md5": "f3bb5c4935a20e60468807ffce848630",
+    "norm_len": 3229,
     "measured": "2026-10-23",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "9cd6ce1b0deba1d61bb385371594383c",
-    "norm_len": 2829,
+    "md5": "f3bb5c4935a20e60468807ffce848630",
+    "norm_len": 3229,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -1676,17 +1731,18 @@
     "2026-10-25-action-conditions.sql",
     "2026-10-27-core-bodies.sql",
     "2026-11-07-store-by-slot.sql",
+    "2026-12-15-account-gold.sql",
     "2026-12-16-own-drinks-settle.sql"
    ],
    "live": {
-    "md5": "042ce1a658a57ffe30a8af86ec12da03",
-    "norm_len": 17824,
+    "md5": "397ee8c1769350702d553bc8d6b593af",
+    "norm_len": 18463,
     "measured": "2026-10-23",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "042ce1a658a57ffe30a8af86ec12da03",
-    "norm_len": 17824,
+    "md5": "397ee8c1769350702d553bc8d6b593af",
+    "norm_len": 18463,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -1861,6 +1917,28 @@
    "agree": true
   },
   {
+   "sig": "hr_ledger_stamp_purse()",
+   "name": "hr_ledger_stamp_purse",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-12-15-account-gold.sql"
+   ],
+   "live": {
+    "md5": "b4c595a04208b7028c031e7efd3a47a1",
+    "norm_len": 703,
+    "measured": "2026-10-23",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "b4c595a04208b7028c031e7efd3a47a1",
+    "norm_len": 703,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
    "sig": "hr_load(p_slot integer)",
    "name": "hr_load",
    "tracked_by": [
@@ -1936,17 +2014,18 @@
    ],
    "touched_by": [
     "2026-08-17-market-v2.sql",
-    "2026-09-28-settle-before-mutate.sql"
+    "2026-09-28-settle-before-mutate.sql",
+    "2026-12-15-account-gold.sql"
    ],
    "live": {
-    "md5": "6939771758bd852e5ab4817f6540536b",
-    "norm_len": 21619,
+    "md5": "c0a5e39a47eab25b3d185639afea05fb",
+    "norm_len": 22492,
     "measured": "2026-10-23",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "6939771758bd852e5ab4817f6540536b",
-    "norm_len": 21619,
+    "md5": "c0a5e39a47eab25b3d185639afea05fb",
+    "norm_len": 22492,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -2276,6 +2355,72 @@
    "agree": true
   },
   {
+   "sig": "hr_purse_lock(p_user uuid)",
+   "name": "hr_purse_lock",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-12-15-account-gold.sql"
+   ],
+   "live": {
+    "md5": "76fb2b9b591071d65f59616378a16414",
+    "norm_len": 458,
+    "measured": "2026-10-23",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "76fb2b9b591071d65f59616378a16414",
+    "norm_len": 458,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_purse_move(p_user uuid, p_gold bigint, p_floor bigint)",
+   "name": "hr_purse_move",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-12-15-account-gold.sql"
+   ],
+   "live": {
+    "md5": "6f0ebece5e47145f595d3e5d9309de0a",
+    "norm_len": 662,
+    "measured": "2026-10-23",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "6f0ebece5e47145f595d3e5d9309de0a",
+    "norm_len": 662,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_purse_of(p_user uuid)",
+   "name": "hr_purse_of",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-12-15-account-gold.sql"
+   ],
+   "live": {
+    "md5": "8aff953cefdd2329f2b81fc38223ba52",
+    "norm_len": 262,
+    "measured": "2026-10-23",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "8aff953cefdd2329f2b81fc38223ba52",
+    "norm_len": 262,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
    "sig": "hr_put_client_state__ungated(p_slot integer, p_patch jsonb, p_idem uuid)",
    "name": "hr_put_client_state__ungated",
    "tracked_by": [
@@ -2459,17 +2604,18 @@
    "touched_by": [
     "2026-08-20-renown.sql",
     "2026-09-02-renown-kill-faucet.sql",
-    "2026-09-12-renown-high-projection.sql"
+    "2026-09-12-renown-high-projection.sql",
+    "2026-12-15-account-gold.sql"
    ],
    "live": {
-    "md5": "c583b4545f4ae41e378340e8c1b101e2",
-    "norm_len": 3922,
+    "md5": "9e848233fffaf06eccc829deee038489",
+    "norm_len": 4111,
     "measured": "2026-10-23",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "c583b4545f4ae41e378340e8c1b101e2",
-    "norm_len": 3922,
+    "md5": "9e848233fffaf06eccc829deee038489",
+    "norm_len": 4111,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -2795,17 +2941,18 @@
     "2026-10-23-character-premium.sql",
     "2026-10-27-core-bodies.sql",
     "2026-11-27-account-depot.sql",
-    "2026-12-14-shared-farm.sql"
+    "2026-12-14-shared-farm.sql",
+    "2026-12-15-account-gold.sql"
    ],
    "live": {
-    "md5": "00246d22c43cdf33928411acea00b522",
-    "norm_len": 30457,
+    "md5": "93c489717c26fa67a36b382b8650cf27",
+    "norm_len": 30955,
     "measured": "2026-10-23",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "00246d22c43cdf33928411acea00b522",
-    "norm_len": 30457,
+    "md5": "93c489717c26fa67a36b382b8650cf27",
+    "norm_len": 30955,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -3047,22 +3194,24 @@
    "sig": "hr_trait_buy__ungated(p_trait_id text, p_slot integer, p_idem uuid)",
    "name": "hr_trait_buy__ungated",
    "tracked_by": [
+    "chain",
     "pin"
    ],
    "touched_by": [
     "2026-08-23-trait-buy.sql",
     "2026-09-03-intent-mismatch-class.sql",
-    "2026-10-22-hunt-sessions-delete-away.sql"
+    "2026-10-22-hunt-sessions-delete-away.sql",
+    "2026-12-15-account-gold.sql"
    ],
    "live": {
-    "md5": "eaec519d270b9a80729ae4d707432935",
-    "norm_len": 10045,
+    "md5": "fa4ec3bf37c9b3fae3cb02ea6fd021b4",
+    "norm_len": 10296,
     "measured": "2026-10-23",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "eaec519d270b9a80729ae4d707432935",
-    "norm_len": 10045,
+    "md5": "fa4ec3bf37c9b3fae3cb02ea6fd021b4",
+    "norm_len": 10296,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -3071,23 +3220,25 @@
    "sig": "hr_unlock_buy(p_user uuid, p_slot integer, p_version bigint, p_intent_id uuid, p_offer_id text)",
    "name": "hr_unlock_buy",
    "tracked_by": [
+    "chain",
     "pin"
    ],
    "touched_by": [
     "2026-08-16-unlock-buy.sql",
     "2026-08-19-companion-unlocks.sql",
     "2026-09-28-settle-before-mutate.sql",
-    "2026-11-29-house-home.sql"
+    "2026-11-29-house-home.sql",
+    "2026-12-15-account-gold.sql"
    ],
    "live": {
-    "md5": "2852f708c7664e858a6b9535348ad616",
-    "norm_len": 21059,
+    "md5": "d9e0ebe3801adb7fdb29885f9eb6653c",
+    "norm_len": 21578,
     "measured": "2026-10-23",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "2852f708c7664e858a6b9535348ad616",
-    "norm_len": 21059,
+    "md5": "d9e0ebe3801adb7fdb29885f9eb6653c",
+    "norm_len": 21578,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -3161,6 +3312,28 @@
    "replay": {
     "md5": "69a7af7d432dfc8a6723142ab4aa638d",
     "norm_len": 808,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_wallet_ensure(p_uid uuid)",
+   "name": "hr_wallet_ensure",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-10-19-account-wallet.sql"
+   ],
+   "live": {
+    "md5": "ba0d8d4527258cb054a5544486a93360",
+    "norm_len": 252,
+    "measured": "2026-10-23",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "ba0d8d4527258cb054a5544486a93360",
+    "norm_len": 252,
     "source": "computed-from-replay"
    },
    "agree": true

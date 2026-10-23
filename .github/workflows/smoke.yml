@@ -3026,6 +3026,21 @@ jobs:
           node tests/account-depot.mjs
           node tools/mutant-gate.mjs node tests/account-depot.mjs --selftest
 
+      # ONE FIELD PER ACCOUNT (Tyler 2026-10-23: the farm is shared like the house).
+      # Real farm verbs on a replayed chain (PGlite, no credentials): hero 0 plants and
+      # hero 1 reads the same field and envelope; hero 1 harvests hero 0's crop for its
+      # own crop and XP (hero 0's seed spent); the roll is the plant's; the tier and its
+      # stale check are the account's; a seedless replant charges the acting hero only;
+      # an extra plot harvests once; the fold of per-hero farms (replayed to the file
+      # BEFORE, seeded through the OLD verbs) keeps every crop; re-apply a no-op; another
+      # account sees and touches nothing; hero -> farm lock order pinned; hr_apply has no
+      # `farm` key. 16 mutations, the migration's own checks short-circuited.
+      - name: Shared farm — one field for every hero of an account
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/shared-farm.mjs
+          node tools/mutant-gate.mjs node tests/shared-farm.mjs --selftest
+
       # THE DEPOT'S SPACE (Tyler 2026-10-22): the account's base + the storage chests it
       # built. The catalogue is generated from src/data/homestead-tiers.js (--check, its
       # refusals --selftest); the guard drives the real hr_storage_chest_build and

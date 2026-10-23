@@ -2,10 +2,15 @@
 // src/shell/windows/farm.js — THE FARM: A ROW OF SOIL PLOTS YOU TEND.
 //
 // ART_DIRECTION §12: the Farm is soil plots, not a card grid. One row of plots,
-// as many as the SERVER says this hero may plant (`farm_land.cap`: 2 at the
-// Camp), each showing what grows in it at ×2 and how long it has left. Under
-// the field, one line for the plot tier and its price, and the seed picker for
-// the plot you pressed.
+// as many as the SERVER says the land holds (`farm_land.cap`: 2 at the Camp,
+// more with the property and the Garden), each showing what grows in it at ×2,
+// how long it has left and which hero planted it. The land is the ACCOUNT's
+// (Tyler 2026-10-23, 2026-12-14-shared-farm.sql): every hero sees and tends the
+// same plots, and the window says so. The buttons act as the hero on screen: its
+// seeds and gold pay, its bag and Farming XP take the crop. An EXTRA plot (past
+// the cap) is drawn after the others and goes once harvested. Under the field,
+// one line for the plot tier and its price, and the seed picker for the plot you
+// pressed.
 //   An empty plot      press it: pick a seed you hold (the crops you cannot plant
 //                      yet say why: the Farming level or the plot tier they need;
 //                      with no seed, where to buy one) → ONE hr_farm_plant.
@@ -68,6 +73,7 @@ function left(ms) {
 export function renderFarm() {
   return '<div class="hw-farm">'
     + '<p class="hw-cap"><span class="hw-farm-land"></span><span class="hw-gold"></span></p>'
+    + '<p class="hs-note hw-farm-shared">Your heroes share this land. The hero you are playing plants their own seeds and keeps the crop and the Farming XP.</p>'
     + '<ul class="hw-field" aria-label="Your plots"></ul>'
     + '<p class="hh-empty hw-farm-wait">Your field loads from the server.</p>'
     + '<section class="hw-sow"><h3 class="hw-ledger-head is-on hw-sow-head"></h3><ul class="hw-ledger hw-seeds"></ul>'
@@ -81,6 +87,7 @@ export function renderFarm() {
 function plotHtml(i) {
   return '<li class="hw-plot" data-plot="' + i + '"><button type="button" class="hw-soil" data-hs-act="plot" data-plot="' + i + '"><span class="hw-crop"></span></button>'
     + '<span class="hw-grow" role="meter" aria-valuemin="0" aria-valuemax="100"><i></i></span><small class="hw-plot-say"><b></b><span></span></small>'
+    + '<small class="hw-plot-by"></small>'
     + '<button type="button" class="hh-tool hw-harvest" data-hs-act="harvest" data-plot="' + i + '">Harvest</button>'
     + '<button type="button" class="hh-tool hw-plot-do" data-plot="' + i + '"></button></li>';
 }
@@ -103,11 +110,18 @@ function patchPlot(li, i, st, now) {
   attr(li.querySelector('.hw-soil'), 'aria-label', p ? cropName(p.crop) + (p.ready ? ', ready' : ', growing') : 'Empty plot ' + (i + 1) + ': plant a seed');
   text(li.querySelector('.hw-plot-say b'), p ? cropName(p.crop) : '');
   text(li.querySelector('.hw-plot-say span'), !p ? 'Empty' : p.ready ? 'Ready' : ms > 0 ? left(ms) + ' left' : 'Checking…');
+  /* Who planted it (the land is shared by the account's heroes); an extra plot says it goes. */
+  const extra = !!p && p.extra;
+  cls(li, 'is-extra', extra);
+  text(li.querySelector('.hw-plot-by'), !p ? '' : (p.byName ? 'Planted by ' + p.byName : 'Planted by one of your heroes')
+    + (extra ? '. Extra plot: gone once harvested' : ''));
+  /* Harvest replants the same crop; an extra plot is only harvested (it takes no new seed). */
   const harvest = li.querySelector('.hw-harvest');
   cls(harvest, 'is-on', !!p && p.ready);
+  attr(harvest, 'data-hs-act', extra ? 'leave' : 'harvest');
   prop(harvest, 'disabled', st.sc.pending);
   const act = li.querySelector('.hw-plot-do');
-  const verb = !p ? 'plant' : p.ready ? 'leave' : p.waterable ? 'water' : '';
+  const verb = !p ? 'plant' : p.ready ? (extra ? '' : 'leave') : p.waterable ? 'water' : '';
   attr(act, 'data-hs-act', verb || null);
   cls(act, 'is-off', !verb);
   text(act, verb === 'plant' ? 'Plant' : verb === 'leave' ? 'Leave it empty' : verb === 'water' ? 'Water' : p ? 'Watered' : '');
@@ -179,8 +193,11 @@ renderFarm.patch = function patchFarm(body, ctx) {
     seeds: new Map((bagOf(cs) || []).map((r) => [r.id, r.qty])),
     prices: new Map(shop ? shop.offers.filter((o) => o.kind === 'seed').map((o) => [o.item, o.price]) : []),
   };
-  text(root.querySelector('.hw-farm-land'), 'Your land has room for ' + land.cap + (land.cap === 1 ? ' plot.' : ' plots.'));
-  const ids = Array.from({ length: land.cap }, (_, i) => i);
+  /* The land's plots, then any EXTRA plot past them (the server's `extra`), in index order. */
+  const extras = Array.from(land.plots.keys()).filter((i) => i >= land.cap).sort((a, b) => a - b);
+  text(root.querySelector('.hw-farm-land'), 'Your land has room for ' + land.cap + (land.cap === 1 ? ' plot.' : ' plots.')
+    + (extras.length ? ' ' + extras.length + (extras.length === 1 ? ' extra plot goes' : ' extra plots go') + ' once harvested.' : ''));
+  const ids = Array.from({ length: land.cap }, (_, i) => i).concat(extras);
   rows(root.querySelector('.hw-field'), ids, { key: String, build: (i) => element(ctx.doc, plotHtml(i)), patch: (li, i) => patchPlot(li, i, st, now) });
   patchSow(root, st, ctx);
   patchTier(root, st);
@@ -194,6 +211,7 @@ function harvestLine(r) {
   const b = r.body || {};
   const rep = b.replant || null;
   let s = 'Harvested ' + whole(b.qty) + ' ' + itemName(b.produce) + ' (+' + whole(b.xp) + ' Farming XP).';
+  if (b.extra) return s + ' That extra plot is gone now.';
   if (b.withered) s += ' The plant has withered.';
   else if (b.regrew) s += ' It grows back' + (Number.isInteger(b.regrows_left) ? ' (' + b.regrows_left + ' more harvests).' : '.');
   if (!rep || rep.kept) return s;

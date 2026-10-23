@@ -64,6 +64,7 @@ import { detailHtml, patchGround, goHtml, patchGo } from './hunt-detail.js?v=0.2
 import { setupsOf, beforeLines, freeHeroes } from '../hunt-go.js?v=0.2.36';
 import { inviteOwn } from '../../session/party-intents.js?v=0.2.36';
 import { openFinderOn } from './party-finder.js?v=0.2.36';
+import { tallyOf, heldOn, tallyLine } from '../../session/tally-sections.js?v=0.2.36';
 
 const SCRATCH = new WeakMap();
 /* `draft` is the density shown before the server has it ({ hunt, n }), `timer` its coalescing
@@ -190,7 +191,8 @@ function lineHtml(r, glyphs) {
     + '<span class="hw-hunt-glyph" title="' + (party ? 'Built for a party' : 'Built for one hero') + '">' + glyphSvg(glyphs, party ? 'uiPeople' : 'navProfile') + '</span>'
     + '<span class="hw-hunt-main"><b class="hw-hunt-name">' + esc(r.name) + '</b>'
     + '<small class="hw-hunt-band"><span class="hw-hunt-lv">Level ' + r.band[0] + '–' + r.band[1] + '</span><span class="hw-hunt-fit"></span></small>'
-    + '<small class="hw-hunt-sub"><span class="hw-hunt-fits"></span><span class="hw-hunt-bestline"></span></small></span></li>';
+    + '<small class="hw-hunt-sub"><span class="hw-hunt-fits"></span><span class="hw-hunt-bestline"></span></small>'
+    + '<small class="hw-hunt-tally"></small></span></li>';
 }
 
 renderHunts.patch = function patchHunts(body, ctx) {
@@ -209,6 +211,7 @@ renderHunts.patch = function patchHunts(body, ctx) {
   if (!sc.pick && list.length) sc.pick = rec.row ? rec.row.hunt : list[0].hunt;
   /* This hero's personal bests, the server's (hunt_bests); null = the server sent none, the lines stay empty. */
   const bests = huntBestsOf(cs);
+  const tally = tallyOf(cs);
   /* "On the way to …" is the intent's answer, not the hunt's state: once the server's hunt section
      says the hero is hunting (or the hunt is over), the line below speaks for it (Tyler 10-19). */
   if (sc.msg && sc.msg === sc.enterMsg && (now || (h && h.ended))) { sc.msg = ''; sc.enterMsg = null; }
@@ -239,6 +242,8 @@ renderHunts.patch = function patchHunts(body, ctx) {
       attr(band, 'data-tone', fit ? fit.tone : null);
       text(li.querySelector('.hw-hunt-fits'), fits === r.hunt ? (party ? 'Fits your party' : 'Fits your level') : '');
       text(li.querySelector('.hw-hunt-bestline'), bestLine(bests, r.hunt) || '');
+      /* Tamsin's tallies held on this ground, the server's count ("Gray Wolves 112/200"). */
+      text(li.querySelector('.hw-hunt-tally'), heldOn(tally, r.hunt).map(tallyLine).join(' · '));
     },
   });
   const r = list.find((x) => x.hunt === sc.pick) || null;

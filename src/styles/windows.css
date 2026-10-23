@@ -616,3 +616,24 @@
   .hw-estate-n { width: 20px; }
   .hw-estate > .hh-tool { min-height: 36px; }
 }
+/* ── Tamsin's tally (src/shell/windows/tally.js): a keeper's board, not a card grid. Her name, then the
+   hero's tallies as notched sticks (.ht-stick, shell.css), her pick (weight, slot order), her board. ── */
+.ht-keeper { display: flex; flex-direction: column; gap: 2px; margin: 0 2px 8px; }
+.ht-keeper b { font-family: var(--f-label); font-weight: 700; font-size: var(--t-lead); color: var(--ink); }
+.ht-keeper small { font-size: var(--t-micro); color: var(--ink-3); }
+.ht-keeper .hs-note { margin: 4px 0 0; color: var(--ink-2); }
+.ht-tally .hw-line-name small { white-space: normal; }
+.ht-tally.is-done .hw-line-name b { color: var(--gold-2); }
+.ht-keep { display: flex; align-items: center; gap: 4px; flex: none; font-size: var(--t-micro); color: var(--ink-2); white-space: nowrap; }
+.ht-weights { display: flex; gap: 2px; margin: 4px 2px; }
+.ht-order { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 2px 8px; padding: 0; list-style: none; counter-reset: ht-slot; }
+.ht-slot { display: flex; align-items: center; gap: 4px; padding: 2px 2px 2px 6px; background: var(--bg-1); box-shadow: var(--hw-well);
+  font-size: var(--t-micro); color: var(--ink-2); counter-increment: ht-slot; }
+.ht-slot::before { content: counter(ht-slot) "."; color: var(--ink-3); font-variant-numeric: lining-nums tabular-nums; }
+.ht-offer .hw-line-name small { white-space: normal; }
+.hw-hunt-tally { font-size: var(--t-micro); color: var(--gold-2); font-variant-numeric: lining-nums tabular-nums; }
+.hw-hunt-tally:empty { display: none; }
+@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
+  .ht-tally, .ht-offer { flex-wrap: wrap; }
+  .ht-tally > .hh-tool, .ht-offer > .hh-tool { min-height: 36px; }
+}

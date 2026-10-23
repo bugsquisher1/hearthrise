@@ -92,6 +92,8 @@ export function createWalkScene(map, o) {
       if (act.kind === 'walk') steer.walkTo(act.to, now, true);
       /* a station tapped: its screen opens AND the hero walks to it (next to it: the station blocks) */
       else if (act.kind === 'skill') steer.walkTo(pick.tile, now, true);
+      /* a keeper tapped (Tamsin at her board): her window opens AND the hero walks over */
+      else if (act.kind === 'window') steer.walkTo(pick.tile, now, true);
       return act;
     },
     /**

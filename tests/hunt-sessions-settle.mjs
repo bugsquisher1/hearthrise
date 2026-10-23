@@ -2453,7 +2453,7 @@ const DB_MUTANTS = [
     find: "      when 'party_member_left' then coalesce((select ps.party_leave_together from public.player_state ps\n                                               where ps.user_id = p_user and ps.slot = p_slot), false)",
     replace: "      when 'party_member_left' then true or coalesce((select ps.party_leave_together from public.player_state ps\n                                               where ps.user_id = p_user and ps.slot = p_slot), false)" },
   { arm: 'PARTY-LEAVE', name: '[leave together] the engine read carries no box', fn: 'public.hr_hunt_instance_read(uuid,integer)',
-    find: "                 'leave_together', (select ps.party_leave_together from public.player_state ps where ps.user_id = h.user_id and ps.slot = h.slot),\n", replace: '' },
+    find: "'leave_together', (select ps.party_leave_together from public.player_state ps where ps.user_id = h.user_id and ps.slot = h.slot),", replace: '' },
   { arm: 'PARTY-LEAVE', name: '[leave together] the party section shows a box that is not the hero\'s', fn: 'public.hr_hunt_party_view(uuid,integer)',
     find: "    'leave_together', (select ps.party_leave_together from public.player_state ps where ps.user_id = p_user and ps.slot = p_slot));",
     replace: "    'leave_together', true);" },

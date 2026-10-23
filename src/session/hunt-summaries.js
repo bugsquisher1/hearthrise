@@ -30,6 +30,8 @@ export function sanitizeSummary(v) {
   const reason = typeof v.reason === 'string' && REASON.test(v.reason) ? v.reason : null;
   return {
     id: v.id, hunt: id(v.hunt), at: ms(v.at), reason, forfeit: v.forfeit === true,
+    /* LEAVE TOGETHER: the member whose end sent the hero home (the server's end_by), a bounded name or null. */
+    by: typeof v.by === 'string' && v.by.trim() ? v.by.trim().slice(0, 40) : null,
     ms: num(v.ms) !== null && v.ms >= 0 ? Math.floor(v.ms) : null,
     kills: int(v.kills), xp: num(v.xp), gold: num(v.gold), lootValue: num(v.lootValue), died: int(v.died),
     /* The server's per-hour figures at the end (the analyzer's): balance for everyone, raw XP premium only. */

@@ -80,7 +80,7 @@ export function awayRecapOf(cs) {
   const body = parts.length ? ': ' + parts.join(', ') + '.' : '.';
   const end = h.ended
     ? ' The hunt has ended. ' + ((END_REASON_COPY[h.endReason] && END_REASON_COPY[h.endReason].one) || '')
-      .replace('{name}', name).replace('{ground}', where).replace('{member}', 'A party member').replace('{item}', 'a supply').replace('{hunt}', 'another hunt')
+      .replace('{name}', name).replace('{ground}', where).replace('{member}', h.endBy || 'A party member').replace('{item}', 'a supply').replace('{hunt}', 'another hunt')
     : ' Still hunting.';
   return { id: 'away:' + h.sessionId.replace(/[^A-Za-z0-9_:.-]/g, '_').slice(0, 64) + ':' + was.at, kind: 'away', session: h.sessionId, text: (head + body + end).trim() };
 }

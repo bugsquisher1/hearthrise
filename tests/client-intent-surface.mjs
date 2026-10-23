@@ -76,6 +76,7 @@ export const CLIENT_RPCS = Object.freeze({
   hr_hunt_party_invite_player: 'invite the player a menu targets by the server account id it carries (+ slot); same checks as the named invite (party-intents.js invitePlayer)',
   hr_hunt_party_list: 'the leader shows or hides its party in the finder, a yes/no (party-intents.js listParty)',
   hr_party_hold_set: 'the leader picks who holds the pack, a seat or null for take turns; the server checks leader, seat and tank (party-intents.js setHoldSeat; 2026-12-08-party-hold.sql)',
+  hr_party_leave_together_set: 'this hero\'s own "Leave if anyone leaves the hunt or dies", a yes/no; no other hero is named (party-intents.js setLeaveTogether; 2026-12-12-party-leave-together.sql)',
   hr_hunt_restart: 'go back to the hunt that just ended on that session’s own setup (CharacterSession.restartHunt)',
   /* Lane S2's Services window: each sends the server's own QUOTE (refused quote_changed otherwise), never a price of its own. */
   hr_stamina_refill: 'buy the next stamina refill at the quoted price (CharacterSession.buyStamina)',

@@ -19,6 +19,7 @@
 // section view) and, in the client fixture, flat on `hunt`. Both are read.
 // ════════════════════════════════════════════════════════════════════════
 import { sanitizeSummary, sanitizeSummaries } from '../session/hunt-summaries.js?v=0.2.33';
+import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.33';
 
 export { sanitizeSummaries };
 
@@ -54,8 +55,13 @@ export const FORFEIT_WORDS = Object.freeze({
   left: 'You left the hunt. The server could not accept its last few minutes, so nothing from them was counted.',
 });
 
-/** The plain-words end reason (`forfeit`: the server forfeited the hunt's last window); an unknown name still reads as a sentence. */
-export function endWords(reason, forfeit) {
+/** The plain-words end reason (`forfeit`: the server forfeited the hunt's last window); an unknown name still reads as a sentence.
+    LEAVE TOGETHER: a hero sent home by another member's end names that member (`by`, the server's end_by) and itself
+    (`hero`), "Mira left the hunt, so Oren came home too." (hunt-sessions.js END_REASON_COPY). */
+export function endWords(reason, forfeit, by, hero) {
+  if (typeof by === 'string' && by && (reason === 'party_member_left' || reason === 'party_member_died')) {
+    return END_REASON_COPY[reason].one.replace('{member}', by).replace('{name}', (typeof hero === 'string' && hero) || 'your hero');
+  }
   return (forfeit === true && FORFEIT_WORDS[reason]) || END_WORDS[reason] || 'The hunt ended.';
 }
 
@@ -87,6 +93,8 @@ export function endedSessionOf(cs) {
     hunt: id(s.hunt) || id(s.hunt_id) || id(h.hunt_id), reason: typeof s.end_reason === 'string' ? s.end_reason : typeof h.end_reason === 'string' ? h.end_reason : null,
     /* The server says the hunt's last window was forfeited (hr_hunt_view `forfeit`). */
     forfeit: s.forfeit === true,
+    /* LEAVE TOGETHER: the member whose end sent this hero home (hr_hunt_view `end_by`), or null. */
+    by: typeof s.end_by === 'string' && s.end_by.trim() ? s.end_by.trim().slice(0, 40) : null,
     preset: int(s.preset), hoursLimit: int(s.hours_limit),
     enteredMs: ms(s.entered_at), endedMs: ms(s.ended_at), bag,
     tally: isObj(s.tally) ? s.tally : null,
@@ -111,7 +119,7 @@ export function buildSummary(s, an, deaths) {
   const supplies = hero ? hero.supplies.filter((x) => id(x.item) && num(x.count) !== null).map((x) => [x.item, x.source, x.count])
     : countPairs(t.supplies).map(([item, n]) => [item, 'own', n]);
   return sanitizeSummary({
-    id: s.id, hunt: s.hunt, at: s.endedMs, reason: s.reason, forfeit: s.forfeit === true, ms: dur,
+    id: s.id, hunt: s.hunt, at: s.endedMs, reason: s.reason, forfeit: s.forfeit === true, by: s.by || null, ms: dur,
     /* `xp` is LEVEL XP only (the tally's `level` key), never Level plus training (Tyler 2026-10-22). */
     kills: hero ? hero.kills : int(t.kills), xp: hero ? hero.levelXp : isObj(t.xp) ? num(t.xp.level) : num(t.xp), gold: hero ? hero.gold : num(t.coins),
     /* `gold` is coin received (the server's coins); the loot's shop price is its own line (Brannoc 10-22). */

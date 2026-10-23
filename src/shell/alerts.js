@@ -108,14 +108,25 @@ function candidatesOf(cs, viewed) {
     if (!viewed && !deathSeen(cs, h.sessionId)) out.push({ id: 'death:' + h.sessionId, kind: 'death', session: h.sessionId,
       text: END_REASON_COPY.died.one.replace('{name}', who(cs)).replace('{ground}', where) });
   }
+  /* LEAVE TOGETHER (Tyler 2026-10-22): "<Name> left the hunt, so <hero> came home too." / "<Name> fell, so ..." */
   else if (h.ended && h.endReason === 'party_member_died') out.push({ id: 'death:' + h.sessionId, kind: 'death', session: h.sessionId,
-    text: 'A party member died in ' + where + ', so ' + who(cs) + '’s party returned to town.' });
+    text: cameHomeLine(h, who(cs)) });
+  else if (h.ended && h.endReason === 'party_member_left') out.push({ id: 'ended:' + h.sessionId, kind: 'ended', session: h.sessionId,
+    text: cameHomeLine(h, who(cs)) });
   else if (h.ended) out.push({ id: 'ended:' + h.sessionId, kind: 'ended', session: h.sessionId, text: who(cs) + '’s hunt in ' + where + ' has ended.' });
   else for (const l of lowItems(cs, h.hero)) {
     out.push({ id: 'low:' + h.sessionId + ':' + l.item, kind: 'low', session: h.sessionId, item: l.item,
       text: who(cs) + ' is out of ' + supplyWords(l.item) + '.' });
   }
   return out;
+}
+
+/** A ticked hero's way home (LEAVE TOGETHER): who ended first, by the server's `end_by` ("A party member" when it
+    cannot say), and this hero's name. Pure; exported for tests/party-ui.mjs. */
+export function cameHomeLine(h, hero) {
+  const copy = END_REASON_COPY[h && h.endReason];
+  if (!copy || (h.endReason !== 'party_member_died' && h.endReason !== 'party_member_left')) return '';
+  return copy.one.replace('{member}', (h.endBy && String(h.endBy)) || 'A party member').replace('{name}', hero);
 }
 
 /** The rare-drop alert for one arriving timeline event, or null. */

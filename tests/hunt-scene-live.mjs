@@ -38,6 +38,8 @@
 //         character's (liveSceneOf): a monster drawn dead is never drawn standing again, no corpse
 //         replays its fall or turns.
 //   LV-19 A UNIT DIES ONCE (a second kill never restarts the fall) AND LIES THE WAY IT FELL.
+//   LV-23 SWITCHED AWAY LONGER THAN A CORPSE LIES (Andy a17): nothing killed meanwhile stands or falls anew on the way back.
+//   LV-24 A CORPSE NEVER MOVES (Andy a16): from its first dead frame it lies on the spot it fell on, whatever steps follow.
 //   LV-21 A LEVEL-UP MID-HUNT RAISES THE BAR'S MAX HP: each batch's unit book re-sizes a unit (Brannoc 10-22).
 //   LV-20 EVERY PARTY MEMBER WEARS ITS OUTFIT: your other hero its session's server `outfit`, another
 //         player's hero the party section's member `outfit` (2026-11-04-party-outfits.sql), never the role's.
@@ -117,12 +119,13 @@ function envFor(nowMs, enteredMs, heroes, fromMs) {
      switchAt    [from, to] server ms: another character is viewed. Its World pane is unmounted (no frame,
                  no engine step; the polls go on) and mounted again at `to`: the scene is the one each
                  mount takes from scene.js liveSceneOf, as src/world/world-boot.js does
+     hunt        the ground the server plays (default Mill Cellar; the members' huntId must name it)
      people      the party_people section (seat -> user, slot); peers: the account's other sessions
      outfits     { seat: outfit }: the party section's member `outfit` ({ id, colors }) by seat */
 async function playLive(M, LM, book, mis, spanMs, onFrame, opt) {
   const o = opt || {};
   const T0 = LIVE_H.T0;
-  const srv = LIVE_H.server(LM, mis);
+  const srv = LIVE_H.server(LM, mis, o.hunt ? { hunt: o.hunt } : undefined);
   const OFF = 3000000;
   const entered = T0 - (o.travelMs ?? TRAVEL_MS);
   const viewer = o.viewer || mis[0].user;
@@ -609,6 +612,44 @@ async function nodeRules(M) {
     ok('LV-23', standing === 0 && fell === 0, `after the return ${standing} unit-frame(s) drew a monster killed while away standing and ${fell} played its fall again (${[...ids].slice(0, 6).join(', ')})`);
   }
 
+  { // LV-24 A CORPSE NEVER MOVES (Andy a16, live v0.2.33: "a dead monster's corpse twitched once after death"). A
+    // Thicket duo at density 8: the wolves run, and the live engine draws a step rolling on from the end of the last
+    // one (live-engine.js timeSteps), so a step can begin after the kill in its own sub-step. From its first dead
+    // frame a corpse is drawn on ONE spot until it fades (before: one glided 1.5 tiles after the kill). CONTROL: the
+    // timeline did hold steps of a killed unit past its kill.
+    const mis = ['tank', 'melee_dps'].map((r, i) => {
+      const mi = LIVE_H.memberOf(LM, 'ab'[i], i, r, 12);
+      mi.huntId = 'meadowbrook_thicket'; mi.hero = Object.assign({}, mi.hero, { density: 8 });
+      return mi;
+    });
+    const lay = new Map(), kills = new Map();
+    let moved = 0, worst = 0, late = 0, corpses = 0, hooked = false, first = '';
+    const warn = console.warn; console.warn = () => {};
+    try {
+      await playLive(M, LM, book, mis, 150000, ({ s, f, cs, T0 }) => {
+        if (!hooked) {
+          hooked = true;
+          const ingest = cs.timeline.ingest;
+          cs.timeline.ingest = (b, t) => {
+            for (const e of (b && b.events) || []) if (e.type === 'kill' && !kills.has(e.t)) kills.set(e.t, e.atMs);
+            for (const st of (b && b.track) || []) if (kills.has(st.u) && st.atMs > kills.get(st.u)) late++;
+            return ingest(b, t);
+          };
+        }
+        for (const d of f.units) {
+          if (!d.under) { lay.delete(d.unit); continue; }
+          const l = lay.get(d.unit);
+          if (!l) { lay.set(d.unit, { x: d.x, y: d.y }); corpses++; continue; }
+          const dist = Math.hypot(d.x - l.x, d.y - l.y);
+          if (dist > 1e-6) { moved++; if (dist > worst) { worst = dist; first = d.unit + ' ' + dist.toFixed(2) + ' tiles at ' + Math.round(s - T0) + ' ms'; } }
+        }
+      }, { hunt: 'meadowbrook_thicket' });
+    } finally { console.warn = warn; }
+    console.log(`  LV-24 Thicket duo d8, 150 s: ${corpses} corpses, ${late} step(s) of a killed unit past its kill in the timeline; ${moved} frame(s) moved a corpse (worst ${first || 'none'})`);
+    ok('LV-24', corpses >= 20 && late > 0, `CONTROL: ${corpses} corpses and ${late} step(s) past a kill (want 20+ and 1+: the fixture no longer walks a dead id)`);
+    ok('LV-24', moved === 0, `${moved} frame(s) drew a corpse off the spot it fell on (worst ${first})`);
+  }
+
   { // LV-19 A UNIT DIES ONCE, AND LIES THE WAY IT FELL (Andy 10-21: "saw a corpse twitch again once dead"):
     // a second kill of a corpse (a restart re-running a death the screen played) never restarts its fall,
     // and a corpse never turns to face the hero it last swung at as that hero walks around it.
@@ -927,7 +968,8 @@ const MUTANTS = [
     'const onScreen = drawnAt !== null && t - drawnAt <= SCENE_TIMING.staleMs;', 'const onScreen = true;', /^LV-23/],
   ['each World pane makes its own live scene (LV-18)', 'src/hunt-view/scene.js', '  if (had && had.key === o.key) return had.scene;\n', '', /^LV-18/],
   ['a second kill of a corpse plays its fall again (LV-19)', 'src/hunt-view/scene.js', '        if (!isHero(ev.t) && dead.has(ev.t)) return true;\n', '', /^LV-19/],
-  ['a corpse turns to face what it last swung at (LV-19)', 'src/hunt-view/scene.js', '          ({ dir, diag } = lie.get(u));\n', '', /^LV-19/],
+  ['a corpse turns to face what it last swung at (LV-19)', 'src/hunt-view/scene.js', '          ({ dir, diag, x, y } = lie.get(u));\n', '          ({ x, y } = lie.get(u));\n', /^LV-19/],
+  ['a corpse lies where the timeline puts it now (LV-24, Andy a16)', 'src/hunt-view/scene.js', '          ({ dir, diag, x, y } = lie.get(u));\n', '          ({ dir, diag } = lie.get(u));\n', /^LV-24/],
   ['another player\'s party outfit is not read (LV-20)', 'src/session/hunt-sections.js', 'outfit: outfitIdOf(m.outfit),', 'outfit: null,', /^LV-20/],
   ['your other hero in the party wears the role\'s outfit (LV-20)', 'src/hunt-view/scene.js', 'return (m && m.look) || outfitSprite(m && m.outfit, m && m.role);', 'return outfitSprite(m && m.outfit, m && m.role);', /^LV-20/],
   ['a waiting prediction takes the server window too (LV-10)', 'src/session/character-session.js', '    if (this.live.running() || this.live.stalled()) {', '    if (this.live.running()) {', /^LV-10/],

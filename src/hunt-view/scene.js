@@ -309,13 +309,12 @@ export function createHuntScene(o) {
       if (q && (q.x !== p.x || q.y !== p.y)) { hx = q.x - p.x; hy = q.y - p.y; }
     }
     let { dir, diag } = facingOf(hx, hy);
-    let alpha = 1, grey = 0, under = false, corpse = null;
+    let alpha = 1, grey = 0, under = false, corpse = null, x = p.x, y = p.y;
     const rose = risen.get(u);
     if (rose !== undefined) { if (now - rose >= SCENE_TIMING.riseMs) risen.delete(u); else alpha = Math.max(0, now - rose) / SCENE_TIMING.riseMs; }
     const died = dead.get(u);
     if (died !== undefined) {
-      /* a unit the server walks again is not dead; one killed mid-step (HP 0 at this instant, read as its bar
-         reads it) finishes its step dead */
+      /* a unit the server walks again is not dead (HP above 0 at this instant, read as its bar reads it) */
       const hpNow = typeof tl.hpAt === 'function' ? tl.hpAt(u, now) : null;
       const gone = hpNow ? hpNow.hp <= 0 : (read.units.get(u) || {}).hp === 0;
       if (p.moving && !gone) { dead.delete(u); lie.delete(u); } else {
@@ -323,9 +322,12 @@ export function createHuntScene(o) {
         if (age >= SCENE_TIMING.corpseMs) return null;
         if (age >= 0) {
           under = true;
-          /* S6: it lies the way it fell */
-          if (!lie.has(u)) lie.set(u, { dir, diag });
-          ({ dir, diag } = lie.get(u));
+          /* S6: it lies WHERE and the way it fell: the spot it stood on at its death instant, kept from its first
+             dead frame. A step the timeline holds past the death (a walk the live engine draws rolling on from the
+             last one, a restart dropping the steps after its instant) never moves it (Andy a16, v0.2.33: a corpse
+             glided 1.5 tiles after the kill). */
+          if (!lie.has(u)) { const at = tl.positionAt(u, died) || p; lie.set(u, { dir, diag, x: at.x, y: at.y }); }
+          ({ dir, diag, x, y } = lie.get(u));
           /* VW-05: the sprite's own death clip, then its corpse frame; only art without them greys. */
           corpse = corpseFrame(id, clips, dir, age);
           if (!corpse) grey = Math.min(1, age / SCENE_TIMING.deathFadeMs);
@@ -339,7 +341,7 @@ export function createHuntScene(o) {
     const frame = corpse ? corpse.frame : moving ? Math.floor((p.d * walk.fps * tl.tileMs) / 1000) : 0;
     const anim = corpse ? corpse.anim : moving ? 'walk' : clips.idle ? 'idle' : walk ? 'walk' : 'idle';
     const f = flash.get(u);
-    const out = { id, unit: u, x: p.x, y: p.y, anim, dir, diag, frame, alpha, grey, under,
+    const out = { id, unit: u, x, y, anim, dir, diag, frame, alpha, grey, under,
       flash: !under && f !== undefined && now >= f && now - f < SCENE_TIMING.flashMs };
     if (!under) {
       /* Every bar is the HP AT THE INSTANT SHOWN (timeline.js T6: heroes too, so it moves live), the snapshot's only as a fallback. */

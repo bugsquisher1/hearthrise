@@ -259,6 +259,23 @@ export function memberSide(mi, ctx) {
   const rollsVs = (m) => playerCombatRolls(m, { eq, equipment, items, skills: state.skills, bonus, setBonus, profile });
   const weakness = (m) => weaknessInfo(m, eq);
   /* ⟦end engine seam⟧ */
+  /* THE ITEM A SHOT SPENT PRICES ITS BLOW (src/core/hunt/damage.js blow): the same rolls with `ammo` in
+     the ammo slot instead of the loaded one (null = none: a caster's bare swing once its runes are
+     spent). `m` null = the neutral foe, the snapshot's max hit. One loadout per ammo id, rebuilt when the
+     worn set changes (a spent whetstone, unhone above); skills and buffs are read live, as rollsVs reads them. */
+  let shotSet = null; let shotLoadouts = null;
+  const shotRolls = (m, ammo) => {
+    if (shotSet !== equipment) { shotSet = equipment; shotLoadouts = new Map(); }
+    const k = typeof ammo === 'string' ? ammo : '';
+    let l = shotLoadouts.get(k);
+    if (!l) {
+      const e = Object.assign({}, equipment);
+      if (k) e.ammo = k; else delete e.ammo;
+      l = Object.assign({ equipment: e }, loadoutOf(e, items));
+      shotLoadouts.set(k, l);
+    }
+    return playerCombatRolls(m || NEUTRAL_FOE, { eq: l.eq, equipment: l.equipment, items, skills: state.skills, bonus, setBonus: l.setBonus, profile: l.profile });
+  };
   return {
     mi, hs, state, fx, eq, skills0, levelXp0, levelGained: () => levelGained, xpFrac0, catalogue: items, goals, bestiary, collection, itemDelta, events, xpGained, finds,
     member: {
@@ -271,7 +288,7 @@ export function memberSide(mi, ctx) {
       armoured: wearsArmour(equipment, items),
       shield: !!(HUNT_ROLES[h.role] && HUNT_ROLES[h.role].discipline === 'shield'),
       buffsAt: (atMs) => { state.buffs = buffQueueFromServer(buffRows, atMs); },
-      bonus, weakness, rollsVs,
+      bonus, weakness, rollsVs, shotRolls,
       /* THE RELIC MULTIPLIER (lane c-bestiary): the member's OWN account_bestiary.relic_mult
          { monster kind: mult } (mi.relicMults, server-side only: drops are never rolled for the
          browser), read by hunt-rewards.js as lead.relicMult(kind); 1 when absent, clamped to

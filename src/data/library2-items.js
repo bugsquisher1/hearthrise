@@ -268,7 +268,7 @@ const SUPPLY_CHAINS = Object.fromEntries([
   /* ITEM-PLAN-02 · the bound rune ladder (§6.2). Rune values equal arrow values
      exactly, which is what makes magic's and ranged's supply cost comparable. */
   rune('air_rune',   'Air Rune',   0), rune('earth_rune', 'Earth Rune', 1),
-  rune('water_rune', 'Water Rune', 2), rune('fire_rune',  'Fire Rune',  3),
+  rune('water_rune', 'Water Rune', 2),
   rune('chaos_rune', 'Chaos Rune', 4), rune('death_rune', 'Death Rune', 5),
   rune('blood_rune', 'Blood Rune', 6),
 
@@ -345,7 +345,6 @@ export const LIB2_DESC = {
   air_rune: 'Socketed in a staff for a first thread of Magic strength, and it never runs out — a student\'s whole arsenal',
   earth_rune: 'Socketed for Magic strength and spent one per cast; a stone rune heavy in the palm out of all proportion to its size',
   water_rune: 'Socketed for Magic strength; a rune that beads with moisture in a dry room',
-  fire_rune: 'Socketed for Magic strength; a rune warm enough to find in a dark pack',
   chaos_rune: 'Socketed for Magic strength; its mark will not stay quite the same shape between glances',
   death_rune: 'Socketed for Magic strength; cold, and cut on a blank taken from beneath a barrow',
   blood_rune: 'The deepest binding a staff will take — deep-cut, dark in the groove, and never quite dry',

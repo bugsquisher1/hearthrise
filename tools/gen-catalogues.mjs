@@ -66,7 +66,10 @@ const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'))
    Iron Hatchets and the Oak Crossbow (hr_items), the fifteen made rungs' recipes (hr_activities artisan rows), the
    club ladder two-handed and three ladder values land in this forward file, after 2026-11-29: the same full replace. */
 /* v0.2.31 integration: ONE forward file per generator after the newest APPLIED (2026-11-20): the kit's plots, coal at any level and the style ladder in one file. */
-const OUT = join(ROOT, 'supabase', 'migrations', '2026-11-22-loot-catalogue.generated.sql');
+/* THE RUNE FAMILIES x TIERS (lane b-spell-content, Tyler 2026-10-23): 2026-11-22-loot-catalogue.generated.sql is APPLIED
+   history; the family x tier runes (hr_items), their bind recipes (hr_activities) and the start kit without its Air Runes
+   (hr_start_inventory) land in this forward file, after 2026-12-21-slot-truth.sql: the same full delete+insert replace. */
+const OUT = join(ROOT, 'supabase', 'migrations', '2026-12-22-rune-catalogue.generated.sql');
 /* THE SECOND GENERATED FILE (2026-09-13). hr_item_buffs is emitted as its own
    migration rather than into OUT above, and that is a deliberate operational
    call: OUT is the FOURTH file in tests/schema-apply-order.json and is already

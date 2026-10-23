@@ -61,6 +61,8 @@
 // be removed.
 // ══════════════════════════════════════════════════════════════════════════
 
+import { RUNE_TIERS, runeId, runeName } from './runes.js?v=0.2.34';
+
 /* ── R7: ONE STAT CURVE ACROSS ALL THREE AMMO LADDERS ─────────────────
    `2 / 3 / 5 / 8 / 11 / 14 / 18` at tiers 1-7, because arrows, runes and
    whetstones are the SAME SLOT and no style may be quietly ahead. It is the
@@ -80,6 +82,46 @@
 const AMMO_STAT = [2, 3, 5, 8, 11, 14, 18];
 const AMMO_REQ_LV = [1, 15, 30, 45, 60, 75, 88];
 const AMMO_RARITY = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'legendary', 'mythic'];
+
+/* ── THE RUNES: FAMILY x TIER (Tyler 2026-10-23, rulings of record RUNE FAMILIES and COMBAT AUDIT ANSWERS;
+   src/data/runes.js is the vocabulary) ─────────────────────────────────────────────────────────────────
+   A rune fuels a SPELL, never a basic attack. Each crafted family has one rune per tier, Chalked to Graven,
+   named and keyed by runes.js (runeId / runeName: "graven_rupture_rune", "Graven Rupture Rune"), each bound
+   from the one Blank Rune at its tier's Runecrafting level (the deeper the mark, the stronger the rune). A
+   tier-N rune casts version N of its family's spells (src/data/abilities.js `versions`). The rows carry no
+   strength: nothing reads a rune in the ammo slot (src/core/member.js combatWorn), and a basic attack never
+   spends one (src/core/hunt/abilities.js shotLine); `ammoPerShot: 1` is the one rune a CAST spends.
+   VALUES are book value by tier (PROVISIONAL, the designer re-tunes in the balance phase): the store's basic
+   rune costs BASIC_AMMO_PREMIUM x the Chalked rune's (supply-basics.js), 2 g a cast.
+   Air is a family with no rows: it is hidden until a spell spends it (Tyler 10-23), and an item with no
+   source and no use is not authored (tests/catalogue-coherence.mjs C1, the W0 rule). */
+const RUNE_VALUE = [1, 2, 4, 6, 9];
+const RUNE_GLYPH = Object.freeze({ fire: '🔥', earth: '🌍', water: '💧', ice: '❄️', poison: '🧪', rupture: '🩸' });
+/* The families bound into family x tier rows so far (§10: the Fire family is the sample; the others follow in
+   batches of 20 rows or fewer). A family not listed still rides its old ladder row below. */
+export const CRAFTED_RUNE_FAMILIES = Object.freeze(['fire']);
+const runeRow = (family, t) => ({ n: runeName(family, t.tier), icon: RUNE_GLYPH[family], v: RUNE_VALUE[t.tier - 1], type: 'ammo', slot: 'ammo',
+  tier: t.tier, rarity: AMMO_RARITY[t.tier - 1], reqSkill: 'magic', reqLv: t.level, ammoPerShot: 1, family, runeTier: t.tier });
+const RUNE_ROWS = Object.fromEntries(CRAFTED_RUNE_FAMILIES.flatMap((f) => RUNE_TIERS.map((t) => [runeId(f, t.tier), runeRow(f, t)])));
+
+/* ONE BIND RECIPE A RUNE: the Blank Rune in, at the tier's Runecrafting level. A deeper mark takes more stone: a
+   higher tier spends more blanks and yields fewer runes a craft, so every rung turns its blanks into about 2.3-2.5x
+   their value at the vendor (tests/recipe-yield-guard.mjs: a batch is no faucet past 5x). XP is book value (the old
+   ladder's rungs at the same levels: 12 at 1, 185 at 30, 500 at 45, 940 at 60). Sized under the clamp like every
+   rung here (the note above). */
+const BIND = Object.freeze([
+  { blanks: 6, qty: 45, xp: 12, ms: 3400 },
+  { blanks: 12, qty: 40, xp: 60, ms: 3500 },
+  { blanks: 20, qty: 36, xp: 185, ms: 3600 },
+  { blanks: 28, qty: 32, xp: 500, ms: 3800 },
+  { blanks: 36, qty: 28, xp: 940, ms: 4000 },
+]);
+const bindRecipe = (family, t) => {
+  const b = BIND[t.tier - 1];
+  return { id: 'bind_' + runeId(family, t.tier) + 's', name: 'Bind ' + runeName(family, t.tier) + 's', icon: RUNE_GLYPH[family],
+    inputs: { rune_blank: b.blanks }, output: runeId(family, t.tier), outputQty: b.qty, xp: b.xp, req: t.level, ms: b.ms };
+};
+const BIND_RECIPES = CRAFTED_RUNE_FAMILIES.flatMap((f) => RUNE_TIERS.map((t) => bindRecipe(f, t)));
 
 /* ── THE TIER-1 RUNG IS FREE, AND IT IS A RULING ──────────────────────
    `ammoPerShot: 0` on the first rung of every ladder. The b343 ruling derived
@@ -125,14 +167,14 @@ export const STONECRAFT_ITEMS = {
      SPELL REAGENTS (Tyler 2026-10-23, src/data/runes.js): a rune fuels a SPELL,
      never a basic attack, so `magicStrB` and `ammoPerShot` are read by no hunt
      (src/core/member.js: a rune in the ammo slot adds nothing). Each row names its
-     `family` and `runeTier`. The seven are the old ammo ladder, ONE rune a family
-     until the content lane (S3) cuts them into family x tier rows and renames them
-     (Chaos, Death and Blood are the rows Ice, Poison and Rupture replace), so each
-     is its family's Chalked rune (version I) for now. */
+     `family` and `runeTier`. The rows below are the old ammo ladder, ONE rune a
+     family, until the family's batch replaces it with family x tier rows (RUNE_ROWS
+     above; Chaos, Death and Blood are the rows Ice, Poison and Rupture replace), so
+     each is its family's Chalked rune (version I) for now. */
+  ...RUNE_ROWS,
   air_rune:   { n: 'Air Rune',   icon: '🌀', v: 0,  type: 'ammo', slot: 'ammo', tier: 1, rarity: AMMO_RARITY[0], reqSkill: 'magic', reqLv: AMMO_REQ_LV[0], magicStrB: AMMO_STAT[0], ammoPerShot: FREE, family: 'air', runeTier: 1 },
   earth_rune: { n: 'Earth Rune', icon: '🌍', v: 1,  type: 'ammo', slot: 'ammo', tier: 2, rarity: AMMO_RARITY[1], reqSkill: 'magic', reqLv: AMMO_REQ_LV[1], magicStrB: AMMO_STAT[1], ammoPerShot: 1, family: 'earth', runeTier: 1 },
   water_rune: { n: 'Water Rune', icon: '💧', v: 2,  type: 'ammo', slot: 'ammo', tier: 3, rarity: AMMO_RARITY[2], reqSkill: 'magic', reqLv: AMMO_REQ_LV[2], magicStrB: AMMO_STAT[2], ammoPerShot: 1, family: 'water', runeTier: 1 },
-  fire_rune:  { n: 'Fire Rune',  icon: '🔥', v: 4,  type: 'ammo', slot: 'ammo', tier: 4, rarity: AMMO_RARITY[3], reqSkill: 'magic', reqLv: AMMO_REQ_LV[3], magicStrB: AMMO_STAT[3], ammoPerShot: 1, family: 'fire', runeTier: 1 },
   chaos_rune: { n: 'Chaos Rune', icon: '🌪️', v: 6,  type: 'ammo', slot: 'ammo', tier: 5, rarity: AMMO_RARITY[4], reqSkill: 'magic', reqLv: AMMO_REQ_LV[4], magicStrB: AMMO_STAT[4], ammoPerShot: 1, family: 'ice', runeTier: 1 },
   death_rune: { n: 'Death Rune', icon: '💀', v: 9,  type: 'ammo', slot: 'ammo', tier: 6, rarity: AMMO_RARITY[5], reqSkill: 'magic', reqLv: AMMO_REQ_LV[5], magicStrB: AMMO_STAT[5], ammoPerShot: 1, family: 'poison', runeTier: 1 },
   blood_rune: { n: 'Blood Rune', icon: '🩸', v: 12, type: 'ammo', slot: 'ammo', tier: 7, rarity: AMMO_RARITY[6], reqSkill: 'magic', reqLv: AMMO_REQ_LV[6], magicStrB: AMMO_STAT[6], ammoPerShot: 1, family: 'rupture', runeTier: 1 },
@@ -207,7 +249,8 @@ export const STONECRAFT_RECIPES = {
     { id: 'deepbind_earth',     name: 'Deepbind Earth Runes', icon: '🌍', inputs: { rune_blank: 7 },              output: 'earth_rune', outputQty: 58, xp: 105,  req: 24, ms: 3600 },
     { id: 'bind_water_runes',   name: 'Bind Water Runes',     icon: '💧', inputs: { rune_blank: 6, coal: 1 },     output: 'water_rune', outputQty: 48, xp: 185,  req: 30, ms: 3600 },
     { id: 'deepbind_water',     name: 'Deepbind Water Runes', icon: '💧', inputs: { rune_blank: 7, coal: 1 },     output: 'water_rune', outputQty: 60, xp: 330, req: 39, ms: 3800 },
-    { id: 'bind_fire_runes',    name: 'Bind Fire Runes',      icon: '🔥', inputs: { fine_rune_blank: 6, coal: 1 },output: 'fire_rune',  outputQty: 50, xp: 500, req: 45, ms: 3800 },
+    /* The family x tier binds (BIND_RECIPES above): one a rune, the Blank Rune in. */
+    ...BIND_RECIPES,
     { id: 'bind_chaos_runes',   name: 'Bind Chaos Runes',     icon: '🌪️', inputs: { fine_rune_blank: 6 },         output: 'chaos_rune', outputQty: 54, xp: 940, req: 60, ms: 4000 },
     { id: 'deepbind_chaos',     name: 'Deepbind Chaos Runes', icon: '🌪️', inputs: { fine_rune_blank: 7 },         output: 'chaos_rune', outputQty: 64, xp: 1400, req: 69, ms: 4200 },
     { id: 'bind_death_runes',   name: 'Bind Death Runes',     icon: '💀', inputs: { deep_rune_blank: 6 },         output: 'death_rune', outputQty: 56, xp: 1500, req: 75, ms: 4200 },

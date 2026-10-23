@@ -38,7 +38,7 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { ABILITIES, ABILITY_LANES, ABILITY_RULES, ACTION_SET_SKIPS, abilitySkill, versionOf } from '../../data/abilities.js?v=0.2.34';
+import { ABILITIES, ABILITY_LANES, ABILITY_RULES, ACTION_SET_SKIPS, abilitySkill, versionOf, outputPm } from '../../data/abilities.js?v=0.2.34';
 import { resolveLine, storeLine, takeLine, canAfford, shopShotFor } from '../action-rules.js?v=0.2.34';
 import { runeTierOf, versionLevel } from '../../data/runes.js?v=0.2.34';
 import { BASIC_EFFECT_SHARE } from '../../data/supply-basics.js?v=0.2.34';
@@ -113,20 +113,32 @@ function targetFor(inst, hero, h, row, sc, cx) {
 /* THE STORE'S SHARE (supply-basics.js BASIC_EFFECT_SHARE, r07): a store rune is the basic version. */
 const BASIC_PM = Math.round(BASIC_EFFECT_SHARE * 1000);
 
-/* THE RUNE A SPELL SPENDS AND THE VERSION IT CASTS (Tyler 2026-10-23, src/data/runes.js). The carried
-   rune first, cast at ITS tier's version once the hero's level in the row's skill (abilitySkill: Magic, or
-   the weapon's own skill) has unlocked it; else, only when the slot names it (`store`), the store's rune,
-   bought per use: the BASIC version, version I at the store's share. A carried rune whose version is still
-   locked is never spent (`level`). A hero whose entry carries no skills (a peer the browser draws) is not
-   gated here: the server's commit is the truth. */
+/* The hero's level in the skill `row`'s numbers grow with (abilitySkill: Magic, or the weapon's own skill); 1 for
+   a hero whose entry carries no skills (a bare fixture, a peer the browser draws: the server's commit is the truth). */
+const skillLevel = (h, row) => (h && h.skills ? levelOf(h.skills, abilitySkill(row)) : 1);
+
+/* THE RUNE A SPELL SPENDS AND THE VERSION IT CASTS (Tyler 2026-10-23, src/data/runes.js). A spell spends a
+   rune of its FAMILY (the family of its row's `rune`, the family's Chalked rune): of the runes of that family
+   the hero carries, the highest tier whose version its level in the row's skill has unlocked, cast at that
+   tier's version (a tie in tier goes to the lower item id). Until a slot names the rune it spends (the rune
+   quality picker, interface lane p40), a hero casts the best version its own bag and level allow. Else, only
+   when the slot names it (`store`), the store's rune, bought per use: the BASIC version, version I at the
+   store's share. A carried rune whose version is still locked is never spent (`level`). A hero whose entry
+   carries no skills is not gated here. */
 function runeFor(h, row, store) {
-  const own = resolveLine(h.hs, row.rune, null);
-  let locked = false;
-  if (own.id && !own.why) {
-    const tier = Math.max(1, runeTierOf(itemRow(h, own.id)));
-    if (!h.skills || levelOf(h.skills, abilitySkill(row)) >= versionLevel(tier)) return { line: own, version: tier, pm: 1000 };
-    locked = true;
+  const fam = (itemRow(h, row.rune) || {}).family;
+  const lv = h.skills ? skillLevel(h, row) : Infinity;
+  let best = null; let locked = false;
+  for (const id of Object.keys((h.hs && h.hs.bag) || {}).sort()) {
+    const it = itemRow(h, id);
+    const tier = runeTierOf(it);
+    if (!tier || it.family !== fam) continue;
+    const l = resolveLine(h.hs, id, null);
+    if (!l.id || l.why) continue;
+    if (lv < versionLevel(tier)) { locked = true; continue; }
+    if (!best || tier > best.version) best = { line: l, version: tier, pm: 1000 };
   }
+  if (best) return best;
   const s = typeof store === 'string' ? storeLine(h.hs, row.rune, store) : { why: 'none' };
   if (!s.id || s.why) return { why: locked ? 'level' : 'no_rune', short: s.why === 'gold_short' };
   return { line: s, version: 1, pm: BASIC_PM };
@@ -199,11 +211,12 @@ export function firstUsable(inst, hero, sc) {
        and a slot that cannot pay is never taken (fire() pays what this answered affordable). */
     const s = suppliesFor(h, row, slot.action.store);
     if (s.why) return { why: s.short ? 'gold_short' : s.why === 'level' ? 'level' : 'no_stock' };
-    /* THE VERSION'S PRICE AND OUTPUT (abilities.js versionOf): its mana, and its permille of the row's
-       numbers at the rune's share (a store rune: the basic version). */
+    /* THE VERSION'S PRICE AND OUTPUT (abilities.js versionOf, outputPm): its mana (never more with level), and
+       its permille of the row's numbers at the hero's level in the row's skill, at the rune's share (a store
+       rune: the basic version). */
     const v = versionOf(row, s.version);
     if (int(hero.mana) < v.mana) return { why: 'mana' };
-    return { row, target: t, lines: s.lines, version: s.version, mana: v.mana, pm: Math.floor((v.outPm * s.pm) / 1000) };
+    return { row, target: t, lines: s.lines, version: s.version, mana: v.mana, pm: Math.floor((outputPm(row, s.version, skillLevel(h, row)) * s.pm) / 1000) };
   }, sc, 'ability');
   return got ? Object.assign(got.pick, { rule: got.rule, mask: got.mask, label: got.label }) : null;
 }
@@ -304,14 +317,15 @@ function regenMana(u, dtMs) {
 
 /**
  * THE LINE ONE BASIC SHOT OF `id` COMES FROM (the one resolver, action-rules.js
- * resolveLine): the carried line first; an ARROW then its plain store partner; a
- * RUNE never the store. A store rune is bought only when a slot names it
- * (designer 2026-10-21, Bible §18) and only a spell slot can (conditions.js
- * storeFits): a staff's basic once bought the Plain Fire Rune unseen, 8 g a shot.
- * `h` is the hero's injected entry (its session and catalogue).
+ * resolveLine): the carried line first, then an ARROW's plain store partner. A
+ * RUNE is never a shot (Tyler 2026-10-23: runes fuel spells only), neither its
+ * carried line nor the store's: a store rune is bought only when a spell's slot
+ * names it (conditions.js storeFits), and a staff's basic once bought the Plain
+ * Fire Rune unseen, 8 g a shot. `h` is the hero's injected entry (its session and
+ * catalogue).
  */
 export function shotLine(h, id) {
-  return resolveLine(h && h.hs, id, isRune(itemRow(h, id)) ? null : undefined);
+  return isRune(itemRow(h, id)) ? { why: 'none' } : resolveLine(h && h.hs, id, undefined);
 }
 
 /**

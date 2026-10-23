@@ -26,6 +26,15 @@ const suggestText = (root) => {
   const at = src.indexOf('export function suggestedTrigger(');
   return at < 0 ? '' : strip(src.slice(at, src.indexOf('\n}\n', at) + 2));
 };
+/* THE VERSION LADDER (Tyler 2026-10-23; lane b-spell-content): a rune spell's `versions` and its `lvPm` are read by
+   abilities.js versionOf / outputPm (the data copy under test), which the engine calls for every cast
+   (src/core/hunt/abilities.js firstUsable). Their reader is those functions, and the engine must call both. */
+const VERSIONED = Object.freeze({ ability: ['versions', 'lvPm'] });
+const versionText = (root) => {
+  const src = readFileSync(join(root, 'src/data/abilities.js'), 'utf8');
+  const at = src.indexOf('export function versionOf('), end = src.indexOf('/** Every problem with the table', at);
+  return at < 0 || end < 0 ? '' : strip(src.slice(at, end));
+};
 const ENGINE_DIRS = ['src/core', 'supabase/functions/hr-accrue'];
 const CLIENT_DIRS = ['src/shell', 'src/hunt-view', 'src/session'];
 
@@ -62,11 +71,14 @@ const cases = {
     const engine = textOf(M.root, ['src/core'], null) + '\n' + textOf(ROOT, ['supabase/functions/hr-accrue'], null);
     const client = textOf(ROOT, CLIENT_DIRS, null);
     const suggest = suggestText(M.root);
+    const versioned = versionText(M.root);
+    const calls = /\bversionOf\(/.test(engine) && /\boutputPm\(/.test(engine);
     const dead = [];
     const check = (kind, keys, display, suggested) => {
       for (const k of keys) {
         if (k === 'id') continue;
-        const ok = display.includes(k) ? reads(client, k) : (suggested || []).includes(k) ? reads(suggest, k) : reads(engine, k);
+        const ok = display.includes(k) ? reads(client, k) : (suggested || []).includes(k) ? reads(suggest, k)
+          : (VERSIONED[kind] || []).includes(k) ? reads(versioned, k) && calls : reads(engine, k);
         if (!ok) dead.push(kind + '.' + k);
       }
     };
@@ -101,6 +113,10 @@ const mutants = [
       ['src/data/abilities.js', "  if (row.target === 'party') return [{ metric: 'allies_below', op: 'gte', value: row.minHurt, subject: 'under_' + row.whenBelowPct }];\n", '']] },
   { name: 'the area minimum is read by nothing', case: 'every-row-field-has-a-reader',
     edits: [['src/data/abilities.js', "  if (row.target === 'area') return [{ metric: 'enemies_in_aoe', op: 'gte', value: ABILITY_RULES.areaMin }];\n", '']] },
+  { name: '[spell-content] the engine stops reading the level scaling (outputPm)', case: 'every-row-field-has-a-reader',
+    edits: [['src/core/hunt/abilities.js', 'pm: Math.floor((outputPm(row, s.version, skillLevel(h, row)) * s.pm) / 1000) };', 'pm: Math.floor((v.outPm * s.pm) / 1000) };']] },
+  { name: '[spell-content] versionOf stops reading lvPm', case: 'every-row-field-has-a-reader',
+    edits: [['src/data/abilities.js', '  return versionOf(row, n).outPm + (row && Number.isInteger(row.lvPm) ? row.lvPm * (lv - 1) : 0);', '  return versionOf(row, n).outPm;']] },
   { name: 'a persisted unit field nothing reads', case: 'every-persisted-unit-field-is-read',
     edits: [['src/core/hunt/abilities.js', "['markUntil', 'int']]),", "['markUntil', 'int'], ['slowUntil', 'int']]),"]] },
 ];

@@ -131,7 +131,7 @@ function party(M, o) {
       bag: { bronze_arrows: { loaded: 50 }, [HAVOC]: { loaded: x.havoc ?? 6 }, [BURST]: { loaded: 500 } },
       slots: [slot('attack_with_item', HAVOC, [c('enemies_in_aoe', 'gte', 4)], 'and', 'havoc'), slot('attack_with_item', BURST, [c('enemies_in_aoe', 'gte', 2)], 'and', 'burst')] }),
     member(M, 'c-druid', 'healer', { seat: 2, maxHit: 2, slots: [ab('greater_mend', [c('ally_hp_pct', 'lt', 80, 'tank')])], stopRules: x.druidStop }),
-    member(M, 'd-sorc', 'mage', { seat: 3, maxHit: 2, bag: { fire_rune: { loaded: 300 } }, slots: [ab('fireball', [c('enemies_in_aoe', 'gte', 3)])] }),
+    member(M, 'd-sorc', 'mage', { seat: 3, maxHit: 2, bag: { chalked_fire_rune: { loaded: 300 } }, slots: [ab('fireball', [c('enemies_in_aoe', 'gte', 3)])] }),
   ];
 }
 /* The injected item catalogue: the 5x5 and 3x3 arrows are fixture rows over real ammo (designer data, not a ruling). */
@@ -247,7 +247,7 @@ const cases = {
       [slot('attack_with_item', 'iron_arrows', [c('enemies_in_aoe', 'gte', 3)]), null],
       [Object.assign(ab('power_strike'), { when: 1 }), 'bad_slot'],
       /* Runes fuel spells only (Tyler 2026-10-23): no attack slot names one. */
-      [slot('attack_with_item', 'fire_rune'), 'bad_action'],
+      [slot('attack_with_item', 'chalked_fire_rune'), 'bad_action'],
       /* ON / OFF and the IGNORED MONSTERS (Tyler 2026-10-19; the server's hr_hunt_slot_check, the same refusals). */
       [Object.assign(ab('power_strike'), { enabled: false }), null], [Object.assign(ab('power_strike'), { enabled: 'no' }), 'bad_enabled'],
       [Object.assign(ab('fireball'), { ignore: ['rat', 'slime'] }), null],

@@ -34,6 +34,12 @@ export const ITEM_DESC = {
   ...DRINK_DESC,      // lane S2: the six mana drinks
   ...IMBUE_DESC,      // lane c-loot-loop: the imbuement slot's items
   ...STYLE_GEAR_DESC, // lane c-style-gear: the two new tier-2 weapons
+  /* THE RUNES, family x tier (lane b-spell-content, 2026-10-23): what the rune casts, then one line of the mark. */
+  'chalked_fire_rune': 'Fuels Flame Strike, Flame Volley and Fireball at version I, one rune a cast. The flame is chalked on and smudges warm',
+  'scored_fire_rune': 'Fuels the Fire spells at version II, once their skill allows it. A flame scored into the stone with a nail',
+  'etched_fire_rune': 'Fuels the Fire spells at version III, for a practised hand. The etched flame dries out any pack it rides in',
+  'carved_fire_rune': 'Fuels the Fire spells at version IV, for a veteran hand. A carved flame you can feel through a glove',
+  'graven_fire_rune': 'Fuels the Fire spells at version V, for a master\'s hand. The flame is cut so deep its groove glows',
   'abyssal_greaves': 'Greaves quenched in abyssal pearl, warding legs beyond any forged steel',
   'abyssal_pearl': 'A cold, iridescent pearl dredged from the abyss, a rare Hunt spoil',
   'adept_belt': 'An adept\'s sash, finer cloth cinched for a caster steadier in their craft',

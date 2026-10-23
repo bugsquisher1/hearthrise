@@ -15,7 +15,7 @@ function shotFixture(M, bag, ammo, stored, o) {
   const inst = fight(M, [H(M, 1, 12, 3, x.role || 'ranger', Object.assign({ target: 2, maxHit: 20 }, x.unit || {})), E(M, 2, 0, 13, 3, 1, { kind: id, hp: 100000, maxHp: 100000 })]);
   const hs = M.AR.newHuntSession({ id: 'dm', huntFromMs: 0, bag, purse: x.purse ?? 1000, goldFloor: 0,
     basics: { plain_barbed_arrows: { kind: 'ammo', price: 2, heals: 0, mana: 0, partner: 'barbed_arrows' },
-      plain_fire_rune: { kind: 'ammo', price: 8, heals: 0, mana: 0, partner: 'fire_rune' } } });
+      plain_fire_rune: { kind: 'ammo', price: 2, heals: 0, mana: 0, partner: 'chalked_fire_rune' } } });
   const rolls = (a, share) => ({ accuracy: 1, critChance: 0, weak: { damageMult: 1 },
     maxHit: Math.floor(((({ barbed_arrows: 40, bronze_arrows: 20 })[a] || 5) * (Number.isInteger(share) ? share : 1000)) / 1000) });
   inst.heroes = { 1: { hs, slots: M.conditions.heroSlots(stored, null), actionSet: 'hunt', range: 7, ammo, items: M.ITEMS,
@@ -214,13 +214,13 @@ const cases = {
   'caster-basic-costs-mana': (M) => {
     const basic = M.huntRoles.HUNT_ROLES.mage.basic;
     if (!basic || !(basic.mana > 0) || !(basic.magicXpMult > 0)) return 'the Mage row carries no basic mana cost: ' + JSON.stringify(basic);
-    const r = shotFixture(M, { fire_rune: { loaded: 5 } }, 'fire_rune', [], { role: 'mage', unit: { mana: basic.mana, maxMana: 100 } });
+    const r = shotFixture(M, { chalked_fire_rune: { loaded: 5 } }, 'chalked_fire_rune', [], { role: 'mage', unit: { mana: basic.mana, maxMana: 100 } });
     M.movement.occupancy(r.inst);
     M.damage.resolveAttacks(r.inst, r.sc);
     const me = r.inst.world.units.find((u) => u.id === 1);
     const shot = r.sc.events.find((e) => e.type === 'shot' && e.u === 1);
     if (me.mana !== 0 || !shot || shot.mana !== basic.mana || shot.magicXpMult !== basic.magicXpMult) return 'the Mage\'s basic did not spend its ' + basic.mana + ' mana: ' + JSON.stringify([me.mana, shot]);
-    if (r.hs.bag.fire_rune.left !== 5 || Object.keys(r.hs.tally.bought).length) return 'the Mage\'s basic spent or bought a rune: ' + JSON.stringify([r.hs.bag.fire_rune, r.hs.tally.bought]);
+    if (r.hs.bag.chalked_fire_rune.left !== 5 || Object.keys(r.hs.tally.bought).length) return 'the Mage\'s basic spent or bought a rune: ' + JSON.stringify([r.hs.bag.chalked_fire_rune, r.hs.tally.bought]);
     /* the Magic XP is the shot's mana at its multiplier, through the one rewards path */
     const xp = {};
     const members = new Map([[1, { fx: { addXp: (k, n) => { xp[k] = (xp[k] || 0) + n; } }, state: {} }]]);

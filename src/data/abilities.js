@@ -9,8 +9,14 @@
 // usable ability in bar order fires (AB-10, AB-17).
 //
 // THE ROW. { id, n, disciplines[], lane, cdMs, mana, magicXpMult (permille of
-// the mana spent, x1000), rune (an item id the cast spends) | null, ammo (shots
-// of the hero's loaded ammo) , target, effect fields, active, versions? }.
+// the mana spent, x1000), rune | null, ammo (shots of the hero's loaded ammo),
+// target, effect fields, active, versions?, lvPm? }.
+//   rune: the Chalked rune of the spell's FAMILY (runes.js; version I, the item its
+//     store row partners): a cast spends one carried rune of that family, the
+//     highest tier the hero has unlocked (src/core/hunt/abilities.js runeFor), or the
+//     store's when the slot names it. The rune is the family's, never one tier's.
+//   lvPm: permille of the row's numbers added per level of its skill above 1
+//     (outputPm; the same for every version).
 //   target: taunt | mark | enemy | area | cleave | self | ally | party
 //   dmg [lo, hi], element (an elements.js id), hits, maxHits, status (a statuses.js id, H3),
 //   bonusPct + durMs (mark), shield, heal [lo, hi], whenBelowPct, minHurt,
@@ -39,7 +45,7 @@ import { SUPPLIES } from './supplies.js?v=0.2.34';
 import { HUNT_TUNING } from './hunt-tuning.js?v=0.2.34';
 import { isElement } from './elements.js?v=0.2.34';
 import { ITEMS } from './items.js?v=0.2.34';
-import { isRune, RUNE_TIERS } from './runes.js?v=0.2.34';
+import { isRune, runeTierOf, RUNE_TIERS } from './runes.js?v=0.2.34';
 
 /* Two ability lanes and their lockouts (Bible §9.1 PROPOSED, AB-02). Food and
    drink keep their own lane (consumables.js). */
@@ -61,13 +67,26 @@ export const ACTION_SET_SKIPS = Object.freeze({
 });
 
 const ab = (o) => Object.freeze({ rune: null, ammo: 0, magicXpMult: 0, active: true, ...o,
-  disciplines: Object.freeze(o.disciplines), ...(o.dmg ? { dmg: Object.freeze(o.dmg) } : {}), ...(o.heal ? { heal: Object.freeze(o.heal) } : {}) });
+  disciplines: Object.freeze(o.disciplines), ...(o.dmg ? { dmg: Object.freeze(o.dmg) } : {}), ...(o.heal ? { heal: Object.freeze(o.heal) } : {}),
+  ...(o.versions ? { versions: Object.freeze(o.versions.map(([mana, outPm]) => Object.freeze({ mana, outPm }))) } : {}) });
+
+/* ── THE VERSION LADDER (Tyler 2026-10-23: versions I-V at level 1/15/30/45/60, each on its tier's rune; mana never
+   grows with level but may rise from one version to the next, d3-manacost "perversion"; output grows with level).
+   PROVISIONAL: the designer re-tunes every number in the balance phase (p30/p31). The Bible gives none but the
+   designer's Greater Mend example (25/30/36/43/52 mana), so each spell's `versions` ([mana, outPm] pairs) follow it:
+     mana    x1.2 a version (rounded), version I = the row's mana;
+     outPm   1000 / 1300 / 1650 / 2000 / 2350, and `lvPm` 40 (+4% of the row's numbers a level above 1),
+   sized so version N at its unlock level lands N's share of a same-level hero's HP scale (vitals: 150 + 10 a Level,
+   1.00 / 1.88 / 2.81 / 3.75 / 4.69 of Level 1's): II at 15 = 1860, III at 30 = 2810, IV at 45 = 3760, V at 60 =
+   4710. Version I keeps scaling (3360 at 60), the incentive to bind the deeper rune. */
+const LV_PM = 40;
 
 export const ABILITIES = Object.freeze([
   /* shield — the tank's Melee */
   ab({ id: 'challenge', n: 'Challenge', disciplines: ['shield'], lane: 'offense', cdMs: 8000, mana: 0, target: 'taunt' }),
-  ab({ id: 'flame_strike', n: 'Flame Strike', disciplines: ['shield'], lane: 'offense', cdMs: 8000, mana: 10, rune: 'fire_rune',
-    target: 'enemy', dmg: [8, 14], element: 'ember', magicXpMult: 250 }),
+  ab({ id: 'flame_strike', n: 'Flame Strike', disciplines: ['shield'], lane: 'offense', cdMs: 8000, mana: 10, rune: 'chalked_fire_rune',
+    target: 'enemy', dmg: [8, 14], element: 'ember', magicXpMult: 250,
+    versions: [[10, 1000], [12, 1300], [14, 1650], [17, 2000], [21, 2350]], lvPm: LV_PM }),
   ab({ id: 'power_strike', n: 'Power Strike', disciplines: ['shield', 'dual_axe'], lane: 'offense', cdMs: 6000, mana: 6,
     target: 'enemy', dmg: [7, 13] }),
   /* dual axes — Melee DPS */
@@ -77,7 +96,7 @@ export const ABILITIES = Object.freeze([
   /* bow / crossbow — Ranger */
   ab({ id: 'hunters_mark', n: "Hunter's Mark", disciplines: ['ranged'], lane: 'offense', cdMs: 12000, mana: 8, target: 'mark',
     bonusPct: 20, durMs: 8000 }),
-  ab({ id: 'flame_volley', n: 'Flame Volley', disciplines: ['ranged'], lane: 'offense', cdMs: 10000, mana: 15, rune: 'fire_rune', ammo: 3,
+  ab({ id: 'flame_volley', n: 'Flame Volley', disciplines: ['ranged'], lane: 'offense', cdMs: 10000, mana: 15, rune: 'chalked_fire_rune', ammo: 3,
     target: 'area', dmg: [5, 9], element: 'ember', magicXpMult: 250 }),
   ab({ id: 'precision_shot', n: 'Precision Shot', disciplines: ['ranged'], lane: 'offense', cdMs: 6000, mana: 6, ammo: 1,
     target: 'enemy', dmg: [7, 12] }),
@@ -126,6 +145,15 @@ export function versionOf(row, n) {
   return v ? { mana: v.mana, outPm: v.outPm } : { mana: row ? row.mana : 0, outPm: 1000 };
 }
 
+/** WHAT VERSION `n` OF `row` LANDS AT LEVEL `level` in the row's skill, in permille of the row's numbers (Tyler
+    2026-10-23, d-scaling: "the first heal tier should scale up with magic level, the next tier a higher base heal,
+    same scaling"): the version's own `outPm` plus the row's `lvPm` for every level above 1. The mana never grows
+    with level (versionOf). A row with no `lvPm` lands at its version's numbers at every level. */
+export function outputPm(row, n, level) {
+  const lv = Number.isInteger(level) && level > 1 ? level : 1;
+  return versionOf(row, n).outPm + (row && Number.isInteger(row.lvPm) ? row.lvPm * (lv - 1) : 0);
+}
+
 /** Every problem with the table, as strings. Empty = valid. */
 export function validate() {
   const out = [];
@@ -146,6 +174,9 @@ export function validate() {
     if ('element' in r && !isElement(r.element)) bad('unknown element ' + r.element);
     /* No ability may name a missing item (spec §1.2): an active rune is a carried supply line of a rune family. */
     if (r.rune && r.active && !(SUPPLIES[r.rune] && SUPPLIES[r.rune].kind === 'ammo' && isRune(ITEMS[r.rune]))) bad('rune ' + r.rune + ' is not a carried rune line');
+    /* The family's version-I rune: the one its store row partners (a cast spends any tier of the family). */
+    if (r.rune && r.active && runeTierOf(ITEMS[r.rune]) !== 1) bad('rune ' + r.rune + ' is not its family\'s Chalked rune');
+    if (r.lvPm !== undefined && !(Number.isInteger(r.lvPm) && r.lvPm >= 0)) bad('lvPm must be an integer >= 0');
     if (new Set(r.disciplines.map((d) => DISCIPLINE_SKILL[d])).size !== 1) bad('its disciplines level on different skills');
     if (r.versions !== undefined) {
       const vs = r.versions;

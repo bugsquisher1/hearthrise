@@ -32,6 +32,7 @@
 // ════════════════════════════════════════════════════════════════════════
 
 import { ITEMS, foodClassOf } from './items.js?v=0.2.34';
+import { isRune as isRuneItem } from './runes.js?v=0.2.34';
 
 export const SUPPLY_KINDS = Object.freeze(['heal', 'mana', 'ammo', 'buff']);
 
@@ -72,8 +73,8 @@ export const SUPPLY_ROWS = Object.freeze([
   [A, 'bronze_arrows', true], [A, 'iron_arrows', true], [A, 'barbed_arrows', true], [A, 'iron_bolts', true],
   [A, 'steel_arrows', true], [A, 'mithril_arrows', true], [A, 'rune_arrows', true],
   [A, 'emberhead_arrows', true], [A, 'dawnpoint_arrows', true],
-  [A, 'air_rune', true], [A, 'earth_rune', true], [A, 'water_rune', true], [A, 'fire_rune', true],
-  [A, 'chaos_rune', true], [A, 'death_rune', true], [A, 'blood_rune', true],
+  /* every rune of every family and tier (src/data/runes.js isRune: derived, never a hand list) */
+  ...Object.keys(ITEMS).filter((id) => isRuneItem(ITEMS[id])).sort().map((id) => [A, id, true]),
   [A, 'coarse_whetstone', false], [A, 'copper_whetstone', false], [A, 'iron_whetstone', false],
   [A, 'steel_whetstone', false], [A, 'mithril_whetstone', false], [A, 'rune_whetstone', false],
   [A, 'dawn_whetstone', false],

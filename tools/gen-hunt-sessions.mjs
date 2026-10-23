@@ -161,7 +161,10 @@ export const WORLD_FIELDS_READ = Object.freeze({
 /* lane/b-spell-core (2026-10-23): the store's Plain Iron Arrows (hr_hunt_basic_supplies), the retired eat-at / drink-at
    options (hr_hunt_set_options) and their threshold limits, and the casters' mana basic in the magic bound
    (magic_xp_mult_max): ONE forward file after the v0.2.34 sequence (its newest applied file is 2026-12-17-beta-premium.sql). */
-export const OUT_NAME = '2026-12-21-hunt-sessions-catalogue.generated.sql';
+/* lane/b-spell-content (2026-10-23): the family x tier runes (hr_hunt_supplies), one store rune a family
+   (hr_hunt_basic_supplies), each spell's family rune and Rend / Frost Lance on (hr_hunt_abilities): ONE forward file
+   after S1a's staged 2026-12-21 (applied after 2026-12-22-rune-catalogue.generated.sql: hr_items first). */
+export const OUT_NAME = '2026-12-22-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);

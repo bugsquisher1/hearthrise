@@ -54,6 +54,9 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
+import { RUNE_TIERS, runeId } from './runes.js?v=0.2.34';
+import { CRAFTED_RUNE_FAMILIES } from './stonecraft.js?v=0.2.34';
+
 /* A basic heal or drink gives this share of its crafted partner (floored); a
    basic arrow gives this share of its partner's ammo bonus. */
 export const BASIC_EFFECT_SHARE = 0.75;
@@ -89,7 +92,10 @@ export const BASIC_SUPPLIES = Object.freeze([
   shot('plain_rune_arrows', 'Plain Rune Arrows', 'rune_arrows', 12),
   shot('plain_emberhead_arrows', 'Plain Emberhead Arrows', 'emberhead_arrows', 18),
   shot('plain_dawnpoint_arrows', 'Plain Dawnpoint Arrows', 'dawnpoint_arrows', 24),
-  shot('plain_fire_rune', 'Plain Fire Rune', 'fire_rune', 8),
+  /* THE STORE RUNES (Tyler 2026-10-23): ONE a family, the basic power (version I at BASIC_EFFECT_SHARE), bought per
+     cast only when the spell's slot names it; partnered to the family's Chalked rune, priced BASIC_AMMO_PREMIUM x its
+     book value (stonecraft.js RUNE_VALUE, PROVISIONAL). */
+  shot('plain_fire_rune', 'Plain Fire Rune', 'chalked_fire_rune', 2),
 ]);
 
 /** Null-prototype index by id. */
@@ -105,6 +111,7 @@ const BY_SLOT = 'a food or drink slot names ONE item (Tyler 2026-10-21): when it
 const FREE_RUNG = 'the free tier-1 rung (ammoPerShot 0): a shot never spends it, so it never runs out';
 const HONE = 'a whetstone is melee\'s ceiling, not its swing (R5): when the last one wears the sword swings on unsharpened';
 const NO_SPELL = 'no active spell spends it yet (runes fuel spells only, Tyler 2026-10-23): it gets its store row with the spell that names its family (S3)';
+const DEEPER_TIER = 'the store sells each family ONE basic rune, version I at the store\'s share (Tyler 2026-10-23): a deeper tier is bound at Runecrafting, never bought, and once it is gone the spell casts the next tier the hero carries, then the store\'s';
 export const NO_STORE_PARTNER = Object.freeze(Object.assign(Object.create(null), {
   turnip_mash: BY_SLOT, cooked_herring: BY_SLOT, cooked_wolf_meat: BY_SLOT, cooked_panther_meat: BY_SLOT, cooked_pikeperch: BY_SLOT,
   cooked_copper_crab: BY_SLOT, wheat_bread: BY_SLOT, cooked_silverfin: BY_SLOT, baked_potato: BY_SLOT, cooked_goldgill: BY_SLOT,
@@ -113,6 +120,8 @@ export const NO_STORE_PARTNER = Object.freeze(Object.assign(Object.create(null),
   earth_rune: NO_SPELL, water_rune: NO_SPELL, chaos_rune: NO_SPELL, death_rune: NO_SPELL, blood_rune: NO_SPELL,
   coarse_whetstone: HONE, copper_whetstone: HONE, iron_whetstone: HONE, steel_whetstone: HONE, mithril_whetstone: HONE,
   rune_whetstone: HONE, dawn_whetstone: HONE,
+  /* every rune above the Chalked tier of every crafted family (stonecraft.js CRAFTED_RUNE_FAMILIES) */
+  ...Object.fromEntries(CRAFTED_RUNE_FAMILIES.flatMap((f) => RUNE_TIERS.slice(1).map((t) => [runeId(f, t.tier), DEEPER_TIER]))),
 }));
 
 

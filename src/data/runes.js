@@ -40,6 +40,19 @@ export const RUNE_TIERS = Object.freeze([
 
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 
+/** The item id of `family`'s tier-`tier` rune ("graven_rupture_rune"), derived from the two names so an id can
+    never disagree with what it is called. */
+export function runeId(family, tier) {
+  const t = RUNE_TIERS[tier - 1];
+  return t && own(RUNE_FAMILIES, family) ? t.name.toLowerCase() + '_' + family + '_rune' : null;
+}
+
+/** A rune's player name ("Graven Rupture Rune"). */
+export function runeName(family, tier) {
+  const t = RUNE_TIERS[tier - 1];
+  return t && own(RUNE_FAMILIES, family) ? t.name + ' ' + RUNE_FAMILIES[family].label + ' Rune' : null;
+}
+
 /** A RUNE: an item that names a rune family. Its tier is `runeTier`. */
 export function isRune(item) {
   return !!item && typeof item.family === 'string' && own(RUNE_FAMILIES, item.family);

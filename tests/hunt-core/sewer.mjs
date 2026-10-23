@@ -74,7 +74,7 @@ const PARTY = [
 
 function session(M, p) {
   return M.AR.newHuntSession({
-    id: 'sewer-' + p.role, huntFromMs: 0, bag: { fire_rune: { loaded: 400 }, ...(p.ammo ? { [p.ammo]: { loaded: 2000 } } : {}) },
+    id: 'sewer-' + p.role, huntFromMs: 0, bag: { chalked_fire_rune: { loaded: 400 }, ...(p.ammo ? { [p.ammo]: { loaded: 2000 } } : {}) },
     slots: [{ item: '*heal_shop', on: true, conditions: [] }, { item: '*mana_shop', on: true, conditions: [] }],
     /* The REAL tier-1 store rows (supply-basics.js), so the supply bill is the game's. */
     basics: Object.fromEntries(['salted_shrimp', 'thin_turnip_juice', 'plain_iron_bolts'].map((id) => {
@@ -145,7 +145,7 @@ function playSewer(M, party, swings, seed, groundId, level) {
      point; food at the sim's Ham, 3 g for 70 HP): the bill the sewer's income is balanced against. */
   let ruled = 0;
   for (const h of Object.values(heroes)) {
-    for (const [id, l] of Object.entries(h.hs.bag)) ruled += (l.loaded - l.left) * (id === 'fire_rune' ? 6 : 1);
+    for (const [id, l] of Object.entries(h.hs.bag)) ruled += (l.loaded - l.left) * (id === 'chalked_fire_rune' ? 6 : 1);
   }
   for (const [id, n] of Object.entries(out.bought)) {
     const b = M.basics.BASIC_INDEX[id];

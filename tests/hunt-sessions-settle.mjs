@@ -957,11 +957,11 @@ const ENGINE_ARMS = {
       return one;
     };
     /* (1) a Healer's staff with three Fire Runes loaded and the store's Plain Fire Rune behind them */
-    const fire = both('fire', () => [memberIn(M, 'a', { role: 'healer', level: 50, gold: 5000, bag: { fire_rune: { loaded: 3, left: 3 } },
-      equipment: { weapon: 'maple_staff', ammo: 'fire_rune' } })]);
+    const fire = both('fire', () => [memberIn(M, 'a', { role: 'healer', level: 50, gold: 5000, bag: { chalked_fire_rune: { loaded: 3, left: 3 } },
+      equipment: { weapon: 'maple_staff', ammo: 'chalked_fire_rune' } })]);
     const cost = M.ROLES.HUNT_ROLES.healer.basic.mana;
     if (sum(fire, 'buys').plain_fire_rune) problems.push(`a staff's basics bought ${sum(fire, 'buys').plain_fire_rune} Plain Fire Runes the bar never named`);
-    if (sum(fire, 'uses').fire_rune) problems.push(`the staff's basics spent ${sum(fire, 'uses').fire_rune} Fire Runes (runes fuel spells only)`);
+    if (sum(fire, 'uses').chalked_fire_rune) problems.push(`the staff's basics spent ${sum(fire, 'uses').chalked_fire_rune} Fire Runes (runes fuel spells only)`);
     if (!(hits(fire).length > 3)) problems.push(`the staff landed ${hits(fire).length} basics`);
     const swings = fire.outs.reduce((a, x) => a + x.events.filter((e) => (e.type === 'dmg' || e.type === 'miss' || e.type === 'immune') && e.u === unitOf(fire) && (e.ability || 'basic') === 'basic').length, 0);
     if (basicMana(fire) !== swings * cost) problems.push(`the staff's ${swings} basics spent ${basicMana(fire)} mana, want ${cost} each`);
@@ -2294,7 +2294,7 @@ const MUTANTS = [
   { arm: 'HONE', name: 'a spent whetstone keeps paying its bonus', file: 'src/core/member.js',
     from: '    if (honeLeft() <= 0) unhone();\n  };', to: '  };' },
   { arm: 'RUNE-SPEND', name: '[spell-core] a spent arrow line never falls to its store row (Iron Arrows, 10-23)', file: 'src/core/hunt/abilities.js',
-    from: '  return resolveLine(h && h.hs, id, isRune(itemRow(h, id)) ? null : undefined);', to: '  return resolveLine(h && h.hs, id, null);' },
+    from: "  return isRune(itemRow(h, id)) ? { why: 'none' } : resolveLine(h && h.hs, id, undefined);", to: "  return isRune(itemRow(h, id)) ? { why: 'none' } : resolveLine(h && h.hs, id, null);" },
   { arm: 'RUNE-SPEND', name: '[spell-core] a basic supply the purse cannot buy never ends the hunt', file: 'src/core/hunt/abilities.js',
     from: "    if (!l.id || l.why) { if (l.why === 'gold_short') h.hs.goldOut = true; return false; }", to: '    if (!l.id || l.why) return false;' },
   { arm: 'RUNE-SPEND', name: '[spell-core] a caster\'s basic swings free (no mana)', file: 'src/core/hunt/damage.js',

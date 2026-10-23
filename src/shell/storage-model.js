@@ -14,7 +14,7 @@
 //                                stack that grew becomes the newest; null when
 //                                nothing changed (no write)
 // ════════════════════════════════════════════════════════════════════════
-import { BAG_CATS, BAG_SORTS } from './bag-model.js?v=0.2.33';
+import { BAG_CATS, BAG_SORTS } from './bag-model.js?v=0.2.34';
 
 const CAT_IDS = new Set(BAG_CATS.map(([id]) => id));
 const SORT_IDS = new Set(BAG_SORTS.map(([id]) => id));

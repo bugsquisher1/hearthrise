@@ -102,9 +102,11 @@ export function facingFor(dx, dy, trip, was) {
 /**
  * @param {{mask: Uint8Array, w: number, h: number}} map
  * @param {[number, number]} at  the tile the hero starts on
+ * @param {{speed?: number}} [o]  tiles per second (WALK_TILES_PER_S when absent: every walker but the sandbox's wanderer)
  */
-export function createSteer(map, at) {
+export function createSteer(map, at, o = {}) {
   const { w, h } = map;
+  const speed = o.speed > 0 ? o.speed : WALK_TILES_PER_S;
   let mask = map.mask;
   let x = at[0], y = at[1], dir = 's', diag = null;
   /* restSince starts at the first moment anyone asks: a hero that has just
@@ -140,7 +142,7 @@ export function createSteer(map, at) {
     const next = legs.shift() || heldStep(fx, fy);
     if (!next) { leg = null; return; }
     const dist = next[0] !== fx && next[1] !== fy ? Math.SQRT2 : 1;
-    leg = { ox: fx, oy: fy, fx, fy, tx: next[0], ty: next[1], t0: now, ms: (1000 * dist) / WALK_TILES_PER_S, dist };
+    leg = { ox: fx, oy: fy, fx, fy, tx: next[0], ty: next[1], t0: now, ms: (1000 * dist) / speed, dist };
     dir = facingFor(next[0] - fx, next[1] - fy, trip, dir);
     diag = diagonalOf(next[0] - fx, next[1] - fy);
   }
@@ -174,7 +176,7 @@ export function createSteer(map, at) {
     if (!next || (next[0] === leg.tx && next[1] === leg.ty)) return;
     walked += leg.dist * k;
     const dist = Math.hypot(next[0] - x, next[1] - y);
-    leg = { ox: leg.ox, oy: leg.oy, fx: x, fy: y, tx: next[0], ty: next[1], t0: now, ms: (1000 * dist) / WALK_TILES_PER_S, dist };
+    leg = { ox: leg.ox, oy: leg.oy, fx: x, fy: y, tx: next[0], ty: next[1], t0: now, ms: (1000 * dist) / speed, dist };
     dir = facingFor(next[0] - leg.ox, next[1] - leg.oy, trip, dir);
     diag = diagonalOf(next[0] - leg.ox, next[1] - leg.oy);
   }
@@ -256,6 +258,7 @@ function exitAction(exit, maps) {
  *   hits are the drawn things under the tap, top-most first
  * @param {{opens: object, maps: object}} o  TAP_OPENS, and map rows by id (for exits)
  * @returns {{kind: 'walk', to}|{kind: 'hunt', hunt}|{kind: 'skill', skill}|{kind: 'room', room}|{kind: 'house', room}|{kind: 'scene', choice}}
+ *   A sign naming a scene (ref.scene: the sandbox's signs, src/world/sandbox-scene.js) switches to it.
  */
 export function tapAction(map, pick, o) {
   const exitAt = (x, y) => map.exits.find((e) => e.x === x && e.y === y);
@@ -263,6 +266,7 @@ export function tapAction(map, pick, o) {
     const ref = hit.ref;
     if (ref && ref.room) return { kind: 'room', room: ref.room };
     if (ref && ref.sign) return { kind: 'house', room: ref.sign };
+    if (ref && ref.scene) return { kind: 'scene', choice: ref.scene };
     const ex = exitAt(hit.tx, hit.ty);
     const viaExit = ex && exitAction(ex, o.maps);
     if (viaExit) return viaExit;

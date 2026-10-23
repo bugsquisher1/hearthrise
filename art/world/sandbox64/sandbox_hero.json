@@ -1,0 +1,58 @@
+{
+  "id": "sandbox_hero",
+  "class": "character",
+  "style": "s1",
+  "material": "unit",
+  "source": "sandbox_hero.png",
+  "anchor_px": [
+    64,
+    117
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "overhang_px": [
+    0,
+    0,
+    1,
+    0
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": true,
+      "dirs": {
+        "s": 1,
+        "e": 1,
+        "n": 1,
+        "w": 1,
+        "se": 1,
+        "sw": 1,
+        "ne": 1,
+        "nw": 1
+      }
+    },
+    {
+      "name": "walk",
+      "fps": 10,
+      "loop": true,
+      "dirs": {
+        "s": 8,
+        "e": 8,
+        "n": 8,
+        "w": 8,
+        "se": 1,
+        "sw": 8,
+        "ne": 8,
+        "nw": 8
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_character_pro_flash",
+    "id": "0f0048b8-8bf1-44d4-9e3d-33d83862f892"
+  },
+  "notes": "SANDBOX64 round 3 final knight (provenance in _final.knight.json): each facing planted on the class anchor by whole pixels, one shift per walk facing (its lowest foot on the ground). Walk south-east is the idle view (1 frame) until its walk lands. Art finding: walk ne/3 floated more than 8 px and was lowered to 8."
+}

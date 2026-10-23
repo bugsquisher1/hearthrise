@@ -1,0 +1,34 @@
+{
+  "id": "sandbox_sign",
+  "class": "fixture",
+  "style": "s1",
+  "material": "wood",
+  "source": "sandbox_sign.png",
+  "frame": [
+    42,
+    69
+  ],
+  "anchor_px": [
+    21,
+    68
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_object_pro_flash",
+    "id": "40bedbaf-8a75-4b94-9e40-6953dd04d5a1"
+  },
+  "notes": "SANDBOX64 round 3 final signpost (provenance in _final.signpost.json), cropped to its box."
+}

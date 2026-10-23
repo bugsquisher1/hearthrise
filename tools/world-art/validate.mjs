@@ -18,7 +18,10 @@
 //   feet / hover  a unit frame leaves the shared anchor / a flier is not hovering
 //   empty         a frame with no pixels (a class with `blank` may fade through
 //                 empty frames, never be empty in all of them)
-import { CLASSES, TOLERANCE, T, WANG_KEYS, ATLAS_MAX } from '../../src/data/world/art-budget.js';
+// Every rule reads its GRID (src/data/world/art-budget.js GRIDS; the base grid by default):
+// the grid's class table and T, and every pixel tolerance times its scale k, so a sprite
+// drawn on the 64 px grid is held to exactly the base rules at twice the size.
+import { TOLERANCE, WANG_KEYS, ATLAS_MAX, GRIDS } from '../../src/data/world/art-budget.js';
 import { inPalette } from './lock.mjs';
 import { measureFrame, countBelow, contactSpans, isoCorner } from './measure.mjs';
 
@@ -60,10 +63,11 @@ export function referenceFrames(frames) {
  * sprite = { id, class, anchor:[x,y], footprint:[w,h], overhang:[t,r,b,l], hover,
  *            frames: [{ anim, dir, i, img }] } — frames already palette-locked.
  */
-export function validateSprite(sp) {
+export function validateSprite(sp, grid = GRIDS.base) {
   const out = [];
   const id = sp.id;
-  const cls = CLASSES[sp.class];
+  const k = grid.scale, T = grid.T;
+  const cls = grid.classes[sp.class];
   if (!cls) return [{ rule: 'class', id, detail: `unknown class "${sp.class}"` }];
   if (!sp.frames.length) return [{ rule: 'empty', id, detail: 'no frames' }];
   const [ax, ay] = sp.anchor;
@@ -76,7 +80,7 @@ export function validateSprite(sp) {
   const meas = new Map();
   for (const f of sp.frames) {
     colourFindings(id, f, out);
-    const m = measureFrame(f.img);
+    const m = measureFrame(f.img, k);
     meas.set(f, m);
     if (m.empty) { if (!cls.blank) out.push({ rule: 'empty', id, detail: `${label(f)} has no pixels` }); continue; }
     if (cls.contact !== 'raised') {
@@ -102,7 +106,7 @@ export function validateSprite(sp) {
     for (const f of sp.frames) {
       const m = meas.get(f);
       if (m.empty) continue;
-      const tol = f.i === 0 && f.anim === refs[0].anim ? 1 : 4;
+      const tol = (f.i === 0 && f.anim === refs[0].anim ? 1 : 4) * k;
       if (m.foot < ay - tol || m.foot > ay + over[2]) out.push({ rule: 'feet', id, detail: `${label(f)}: feet on row ${m.foot}, the shared anchor is row ${ay} (${tol} up, ${over[2]} overhang down)` });
     }
   } else if (c === 'flier') {
@@ -110,7 +114,7 @@ export function validateSprite(sp) {
     if (!cls.hover || hv < cls.hover[0] || hv > cls.hover[1]) out.push({ rule: 'hover', id, detail: `hover_px ${hv}, class ${sp.class} hovers ${cls.hover ? cls.hover.join('-') : '?'}` });
     for (const f of refs) {
       const y1 = meas.get(f).box.y1;
-      if (Math.abs(y1 - (ay - hv)) > 3) out.push({ rule: 'hover', id, detail: `${label(f)}: lowest pixel row ${y1}, expected ${ay - hv} (anchor ${ay} - hover ${hv})` });
+      if (Math.abs(y1 - (ay - hv)) > 3 * k) out.push({ rule: 'hover', id, detail: `${label(f)}: lowest pixel row ${y1}, expected ${ay - hv} (anchor ${ay} - hover ${hv})` });
     }
   } else if (c !== 'raised' && c !== 'flat') {
     for (const f of refs) {
@@ -125,12 +129,12 @@ export function validateSprite(sp) {
       // Things on legs, posts and trunks, and small clutter lying flat, meet the floor
       // at their lowest feet; a solid base on its widest row.
       const meets = c === 'legged' || c === 'post' || c === 'touch' ? m.foot : m.contact;
-      if (Math.abs(meets - ay) > 1 || ax < m.box.x0 || ax > m.box.x1) out.push({ rule: 'anchor-drift', id, detail: `${where}: declared anchor ${ax},${ay}, the pixels meet the floor on row ${meets} across x ${m.box.x0}-${m.box.x1}` });
-      const spans = contactSpans(m.profile, ay, 2).filter(([s, e]) => e >= m.box.x0 && s <= m.box.x1);
+      if (Math.abs(meets - ay) > k || ax < m.box.x0 || ax > m.box.x1) out.push({ rule: 'anchor-drift', id, detail: `${where}: declared anchor ${ax},${ay}, the pixels meet the floor on row ${meets} across x ${m.box.x0}-${m.box.x1}` });
+      const spans = contactSpans(m.profile, ay, 2 * k).filter(([s, e]) => e >= m.box.x0 && s <= m.box.x1);
       const covered = spans.reduce((n, [s, e]) => n + e - s + 1, 0);
       if (c === 'solid') {
-        if (covered < 0.4 * m.box.w) out.push({ rule: 'contact', id, detail: `${where}: ${covered}/${m.box.w} columns rest within 2px of the anchor row ${ay}; needs 40%` });
-        const iso = isoCorner(m.profile, m.box);
+        if (covered < 0.4 * m.box.w) out.push({ rule: 'contact', id, detail: `${where}: ${covered}/${m.box.w} columns rest within ${2 * k}px of the anchor row ${ay}; needs 40%` });
+        const iso = isoCorner(m.profile, m.box, k);
         if (iso.iso) out.push({ rule: 'iso-corner', id, detail: `${where}: the underside is a corner climbing ${iso.left} and ${iso.right} rows in straight stairs: drawn isometric, not top-down` });
       } else if (c === 'legged') {
         const ext = spans.length ? spans[spans.length - 1][1] - spans[0][0] + 1 : 0;
@@ -138,7 +142,7 @@ export function validateSprite(sp) {
         if (!(spans.length >= 2 && ext >= 0.6 * m.box.w) && covered < 0.6 * m.box.w) out.push({ rule: 'contact', id, detail: `${where}: ${spans.length} contact spans covering ${ext}/${m.box.w}px; legged furniture needs 2+ spans over 60%` });
       } else if (c === 'post') {
         const half = ((sp.footprint || [1, 1])[0] * T) / 2;
-        const ok = spans.some(([s, e]) => e - s + 1 >= 2 && Math.abs((s + e) / 2 - ax) <= half);
+        const ok = spans.some(([s, e]) => e - s + 1 >= 2 * k && Math.abs((s + e) / 2 - ax) <= half);
         if (!ok) out.push({ rule: 'contact', id, detail: `${where}: no post or trunk on row ${ay} within the footprint around x ${ax}` });
       } else if (c === 'touch' && !covered) {
         out.push({ rule: 'contact', id, detail: `${where}: nothing reaches the anchor row ${ay}` });
@@ -149,8 +153,9 @@ export function validateSprite(sp) {
 }
 
 /** terrain = { id, kind?, cycle?, tiles: { key: [img, …] } } — locked tiles. */
-export function validateTerrain(t) {
+export function validateTerrain(t, grid = GRIDS.base) {
   const out = [];
+  const T = grid.T;
   const need = t.kind === 'fill' ? ['1111'] : WANG_KEYS;
   for (const k of need) if (!t.tiles[k] || !t.tiles[k].length) out.push({ rule: 'wang', id: t.id, detail: `no tile for corners ${k}` });
   if (t.kind === 'fill' && t.cycle && t.cycle[0] * t.cycle[1] !== (t.tiles['1111'] || []).length) out.push({ rule: 'wang', id: t.id, detail: `cycle ${t.cycle.join('x')} needs ${t.cycle[0] * t.cycle[1]} variants, has ${(t.tiles['1111'] || []).length}` });

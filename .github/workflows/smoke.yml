@@ -4228,6 +4228,19 @@ jobs:
         if: ${{ !cancelled() }}
         run: node tests/world-town-home.mjs
 
+      # The 64 px sandbox (src/data/world/sandbox.js): in by the Common's sign,
+      # the hd64 grid drawn at x1 from its own book, the keys walk, the wanderer
+      # stays in its leash, out by the exit sign; the town presence is parked
+      # (no leave, no sandbox tile); nothing it loads reaches the hunt engine or
+      # the session; the switch closes it. --mutate plants 8 defects.
+      - name: World sandbox - mutation proof
+        if: ${{ !cancelled() }}
+        run: node tools/mutant-gate.mjs node tests/world-sandbox.mjs --mutate
+
+      - name: World sandbox - base run
+        if: ${{ !cancelled() }}
+        run: node tests/world-sandbox.mjs
+
       # The World shell (src/shell/*, not mounted until the cutover): the window
       # manager (cap of 3, 60% dock, Esc, focus, phone sheet, keys, motion, inset)
       # and the HUD contract (defaults, per-size-class layout, reset) on the pure

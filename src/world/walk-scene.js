@@ -22,8 +22,8 @@ import { TAP_OPENS } from '../data/world/stations.js?v=0.2.37';
 import { createSteer, tapAction, walkClip } from './steer-local.js?v=0.2.37';
 import { createTownCast } from './town-scene.js?v=0.2.37';
 import { furnish, maskWith } from './home-scene.js?v=0.2.37';
-import { T } from './core/grid.js?v=0.2.37';
 import { pickFacing } from './core/facing.js?v=0.2.37';
+import { GRIDS } from '../data/world/art-budget.js?v=0.2.37';
 import { OUTFITS } from '../data/hunt-outfits.js?v=0.2.37';
 
 /* How far a walked map's camera leans from the hero toward the map's `focus`:
@@ -31,16 +31,20 @@ import { OUTFITS } from '../data/hunt-outfits.js?v=0.2.37';
    in view while it idles at the edge. */
 const CAMERA_LEAN = 0.5;
 
-/** A tile coordinate on the whole art pixel the draw snaps it to. */
-const onPixel = (v) => Math.round(v * T) / T;
+/** A tile coordinate on the whole art pixel of a `T` px grid (the map's: map-compile.js map.T). */
+const onPixelOf = (T) => (v) => Math.round(v * T) / T;
 
 /**
  * @param {object} map  compileMap() output (kind 'town' or 'home')
  * @param {{at?: [number, number]|null, sprites: object, openClasses: string[], maps: object, heroSprite?: () => string}} o
  *   at: where the hero stood last on this map; maps: map rows by id (exits);
- *   heroSprite: the hero's outfit sprite id (src/session/hero-look.js), read every frame
+ *   heroSprite: the hero's outfit sprite id (src/session/hero-look.js), read every frame;
+ *   props: fixed props this scene adds to the map ([{id, x, y, ref, plate?}]: the sandbox signs,
+ *   src/world/sandbox-scene.js), drawn like a home's furniture and never blocking a step;
+ *   units(now): extra display-only units drawn with the scene's people (the sandbox's wanderer)
  */
 export function createWalkScene(map, o) {
+  const onPixel = onPixelOf(map.T || GRIDS.base.T);   // a map compiled without a grid is the base grid's
   const steer = createSteer(map, o.at || map.start);
   let propsKey = null, props = [];
   const cast = map.kind === 'town' ? createTownCast(map, { sprites: o.sprites }) : null;
@@ -65,6 +69,7 @@ export function createWalkScene(map, o) {
     frame(env, now) {
       furnishing(env);
       const units = cast ? cast.frame(env.walkers, now) : [];
+      if (o.units) units.push(...o.units(now));
       const at = steer.step(now);
       const goal = steer.goal();
       const here = steer.cell();
@@ -80,7 +85,7 @@ export function createWalkScene(map, o) {
       return {
         hero: { id: heroId, x: hx, y: hy, dir: at.dir, diag: at.diag, anim, age },
         camera: f ? { x: hx + (f[0] - hx) * CAMERA_LEAN, y: hy + (f[1] - hy) * CAMERA_LEAN } : null,
-        units, bubbles: [], props,
+        units, bubbles: [], props: o.props && o.props.length ? props.concat(o.props) : props,
         mark: goal && goal.byTap ? { x: goal.x, y: goal.y } : null,
         /* where the hero stands and is walking to, in whole tiles, for the town presence */
         place: { map: map.id, x: here[0], y: here[1], gx: goal ? goal.x : here[0], gy: goal ? goal.y : here[1], dir: at.dir },

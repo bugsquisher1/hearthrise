@@ -1,7 +1,7 @@
 // src/data/world/art-budget.js — the scale budget of the pixel world, and the
 // atlas manifest every world renderer reads.
 //
-// One grid: T = 32 art px per tile, drawn at an integer zoom (×3 on desktop).
+// One grid: T = 32 art px per tile, drawn at an integer zoom (×2, ×3 only above 2400 CSS px).
 // Every sprite belongs to a CLASS; the class fixes its body size (±TOLERANCE), its
 // frame, how it touches the ground (contact), its shadow and its draw layer.
 // tests/world-assets.mjs enforces this table on every committed atlas, so relative
@@ -97,6 +97,43 @@ export const CLASSES = Object.freeze({
 // '1111' only, its variants laid as a cycle [cols, rows] (variant index =
 // (y mod rows)·cols + (x mod cols)) so a pattern wider than a tile repeats seamlessly.
 export const WANG_KEYS = Object.freeze(Array.from({ length: 16 }, (_, i) => i.toString(2).padStart(4, '0')));
+
+// ── GRID PROFILES (one row per art grid) ─────────────────────────────────────
+// ONE TILE SIZE PER SCREEN CLASS: a tile is 64 CSS px on the desktop and the phone and 96 above
+// WIDE_CSS (src/world/core/camera.js), whatever its art grid. `base` is the world's grid (T 32 at
+// x2 / x3). `hd64` is the 64 px sandbox grid (T 64 at x1; 96 / 64 is not whole, so above WIDE_CSS it
+// stays x1 and shows more world). `scale` = T / 32: every art-px rule of a grid is the base rule
+// times it (class sizes, shadow offsets, measuring bands). A map names its grid (`grid: 'hd64'`);
+// an atlas set names its grid in art/world/<set>/_set.json. Nothing here changes the base grid.
+/* the class fields measured in art px (everything else is a name or a rule) */
+const PX_FIELDS = Object.freeze(['frame', 'body', 'hover', 'canopy', 'cap', 'maxW', 'face']);
+const px2 = (k) => (v) => (Array.isArray(v) ? Object.freeze(v.map((n) => n * k)) : typeof v === 'number' ? v * k : v);
+/** CLASSES scaled by k: sizes x k; an anchor's contact row is the scaled row's lowest pixel (k*y + k-1). */
+function scaleClasses(classes, k) {
+  const out = {};
+  for (const [name, c] of Object.entries(classes)) {
+    const r = {};
+    for (const [f, v] of Object.entries(c)) {
+      if (f === 'anchor') r[f] = Object.freeze([v[0] * k, v[1] * k + (k - 1)]);
+      else if (PX_FIELDS.includes(f)) r[f] = px2(k)(v);
+      else r[f] = v;
+    }
+    out[name] = Object.freeze(r);
+  }
+  return Object.freeze(out);
+}
+const gridRow = (id, T, density, wideDensity) => {
+  const scale = T / 32;
+  return Object.freeze({ id, T, scale, density, wideDensity,
+    classes: scale === 1 ? CLASSES : scaleClasses(CLASSES, scale),
+    shadow: scale === 1 ? SHADOW : Object.freeze(Object.assign({}, SHADOW, { dx: SHADOW.dx * scale, dy: SHADOW.dy * scale })) });
+};
+export const GRIDS = Object.freeze({
+  base: gridRow('base', T, 2, 3),
+  hd64: gridRow('hd64', 64, 1, 1),
+});
+/** The grid profile named `id` (missing or unknown: the base grid). */
+export const gridOf = (id) => GRIDS[id] || GRIDS.base;
 
 // ── THE ATLAS MANIFEST (assets/world/atlas-<set>.json) ──────────────────────
 // The contract between tools/world-art/build.mjs and the world renderer.

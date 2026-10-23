@@ -1,0 +1,80 @@
+{
+  "id": "rat",
+  "class": "vermin",
+  "style": "s1",
+  "material": "unit",
+  "source": "rat/<south|east|north|west>.png",
+  "walk": "rat_walk/<facing>/<i>.png",
+  "frame": [
+    96,
+    96
+  ],
+  "measured": {
+    "south": [
+      59,
+      75
+    ],
+    "east": [
+      75,
+      66
+    ],
+    "north": [
+      54,
+      64
+    ],
+    "west": [
+      78,
+      54
+    ]
+  },
+  "target_x2_of_today": {
+    "south": [
+      60,
+      74
+    ],
+    "east": [
+      80,
+      66
+    ]
+  },
+  "notes": "SANDBOX64 round 3 final (2026-10-23). South generated from today's rat (idle south) body x2 as the size reference; east/north/west are the tool's own rotations of it.",
+  "pixellab": {
+    "tool": "create_object_pro_flash",
+    "object_id": "80f3e2ac-8698-4c30-a464-8c1da94d802b",
+    "params": {
+      "width": 96,
+      "height": 96,
+      "n_directions": 8,
+      "view": "high top-down",
+      "seed": 1307,
+      "style_image": "upload of art/world/hunt/rat.png idle south body x2 (60x74); usage 'Keep exactly this size and silhouette; redraw it with full 64 px detail (this reference is a 2x enlargement, so do not copy its chunky pixels).'",
+      "style_options": {
+        "color_palette": true,
+        "detail": false,
+        "outline": true,
+        "shading": true
+      },
+      "palette": "hr-world-56-v2 (56 colours)",
+      "description": "A giant sewer rat facing the viewer (south) on all four feet, seen from a high top-down camera: warm grey-brown fur, pale belly, long pink tail curling up behind, small red eyes. Keep exactly this size and silhouette, redraw with full 64 px detail: clean shading in a few tones per material, single dark outline, lit from the upper left, no background, no shadow, classic MMORPG game monster."
+    },
+    "cost_generations": 7
+  },
+  "walk_pixellab": {
+    "tool": "animate_object",
+    "mode": "v3",
+    "object_id": "80f3e2ac-8698-4c30-a464-8c1da94d802b",
+    "params": {
+      "animation_description": "scurrying forward on all four legs, body low, tail swaying behind",
+      "directions": [
+        "south",
+        "east",
+        "north",
+        "west"
+      ],
+      "frame_count": 6,
+      "keep_first_frame": false,
+      "display_name": "walk"
+    },
+    "cost_generations": "see knight.json round_3"
+  }
+}

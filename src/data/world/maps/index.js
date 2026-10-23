@@ -7,8 +7,9 @@ import millraceSewer from './millrace_sewer.js?v=0.2.37';
 import meadowbrookThicket from './meadowbrook_thicket.js?v=0.2.37';
 import coppercapWarrens from './coppercap_warrens.js?v=0.2.37';
 import mosslightGlade from './mosslight_glade.js?v=0.2.37';
+import sandboxHd64 from './sandbox_hd64.js?v=0.2.37';
 
-export const WORLD_MAPS = Object.freeze([millCellar, townCommon, homeCottage, millraceSewer, meadowbrookThicket, coppercapWarrens, mosslightGlade]);
+export const WORLD_MAPS = Object.freeze([millCellar, townCommon, homeCottage, millraceSewer, meadowbrookThicket, coppercapWarrens, mosslightGlade, sandboxHd64]);
 
 /* STAGED MAPS: a staged hunt's map (src/data/hunts.js `staged`): its grid is authored and walked by the
    engine, its painted ground art is not done yet. No client draws it (src/world reads WORLD_MAPS only);
@@ -21,5 +22,5 @@ export function mapRowOf(id) {
   return WORLD_MAPS.find((m) => m.id === id) || STAGED_MAPS.find((m) => m.id === id) || null;
 }
 
-/** The map a non-hunt scene shows: the viewer's own choice of town or home. */
-export const SCENE_MAPS = Object.freeze({ town: 'town_common', home: 'home_cottage' });
+/** The map a non-hunt scene shows: the viewer's own choice of town or home (or the 64 px sandbox, src/data/world/sandbox.js). */
+export const SCENE_MAPS = Object.freeze({ town: 'town_common', home: 'home_cottage', sandbox: 'sandbox_hd64' });

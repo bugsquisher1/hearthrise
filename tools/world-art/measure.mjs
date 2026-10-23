@@ -7,6 +7,10 @@
 // contact   the CONTACT ROW: of the rows in the bottom 5 px of the box, the one the
 //           most columns bottom out on (ties to the lower row). Not the lowest
 //           pixel: a stray outline pixel below the base does not move it.
+// k         the art grid's scale (src/data/world/art-budget.js GRIDS: T / 32). Every band
+//           above is the base band times k (a 64 px grid opens 6x6 and reads 10 rows), so
+//           a sprite drawn at twice the detail measures exactly twice the size. k = 1 is
+//           the base grid and the default.
 import { ALPHA_CUT } from '../../src/data/world/palette.js';
 
 export function mask(img) {
@@ -24,11 +28,12 @@ export function bboxOf(m, w, h) {
   return x1 < 0 ? null : { x0, y0, x1, y1, w: x1 - x0 + 1, h: y1 - y0 + 1 };
 }
 
-function morph(m, w, h, keepIf) {
+/* Count the set pixels in the s×s window at offsets [lo, lo + s) around each pixel. */
+function morph(m, w, h, s, lo, keepIf) {
   const out = new Uint8Array(m.length);
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
     let n = 0;
-    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+    for (let dy = lo; dy < lo + s; dy++) for (let dx = lo; dx < lo + s; dx++) {
       const X = x + dx, Y = y + dy;
       if (X >= 0 && Y >= 0 && X < w && Y < h && m[Y * w + X]) n++;
     }
@@ -37,15 +42,16 @@ function morph(m, w, h, keepIf) {
   return out;
 }
 
-/** 3×3 opening: erode (all nine set) then dilate (any of nine set). */
-export function openMask(m, w, h) {
-  return morph(morph(m, w, h, (n) => n === 9), w, h, (n) => n > 0);
+/** (3k)×(3k) opening: erode (the whole window set) then dilate by the mirrored window (any set). */
+export function openMask(m, w, h, k = 1) {
+  const s = 3 * k, lo = -Math.floor((s - 1) / 2);
+  return morph(morph(m, w, h, s, lo, (n) => n === s * s), w, h, s, -(lo + s - 1), (n) => n > 0);
 }
 
 /** Box of the mass; a sprite too thin to survive the opening falls back to its raw box. */
-export function massBox(img) {
+export function massBox(img, k = 1) {
   const m = mask(img);
-  return bboxOf(openMask(m, img.width, img.height), img.width, img.height) || bboxOf(m, img.width, img.height);
+  return bboxOf(openMask(m, img.width, img.height, k), img.width, img.height) || bboxOf(m, img.width, img.height);
 }
 
 export function bottomProfile(m, w, h) {
@@ -54,9 +60,9 @@ export function bottomProfile(m, w, h) {
   return p;
 }
 
-export function contactRow(profile, box) {
+export function contactRow(profile, box, k = 1) {
   let best = box.y1, bestHits = -1;
-  for (let y = box.y1; y >= Math.max(box.y0, box.y1 - 4); y--) {
+  for (let y = box.y1; y >= Math.max(box.y0, box.y1 - (5 * k - 1)); y--) {
     let hits = 0;
     for (let x = box.x0; x <= box.x1; x++) if (profile[x] === y) hits++;
     if (hits > bestHits) { bestHits = hits; best = y; }
@@ -69,11 +75,11 @@ export function contactRow(profile, box) {
  * the lowest thing a standing unit has, and a one-pixel tail tip or blade point
  * is not a foot. (Props use contactRow: a chest rests on its widest base row.)
  */
-export function footRow(profile, box) {
-  for (let y = box.y1; y >= Math.max(box.y0, box.y1 - 6); y--) {
+export function footRow(profile, box, k = 1) {
+  for (let y = box.y1; y >= Math.max(box.y0, box.y1 - (7 * k - 1)); y--) {
     let hits = 0;
     for (let x = box.x0; x <= box.x1; x++) if (profile[x] === y) hits++;
-    if (hits >= 2) return y;
+    if (hits >= 2 * k) return y;
   }
   return box.y1;
 }
@@ -100,21 +106,21 @@ export function contactSpans(profile, y, tol = 2) {
 // step one row up over 1-3 columns — for at least 3 rows on BOTH sides. A 2:1 iso
 // edge is exactly that stair. A barrel's arc is not (its lowest run is long and its
 // steps lengthen); a chest on two feet is not (two runs, at the ends).
-export function isoCorner(profile, box) {
+export function isoCorner(profile, box, k = 1) {
   let tip = -1;
   for (let x = box.x0; x <= box.x1; x++) tip = Math.max(tip, profile[x]);
   const runs = contactSpans(profile, tip, 0);
   if (runs.length !== 1) return { iso: false, left: 0, right: 0 };
   const [s, e] = runs[0];
   const mid = (s + e) / 2;
-  if (e - s + 1 > 4 || mid < box.x0 + 0.3 * box.w || mid > box.x0 + 0.7 * box.w) return { iso: false, left: 0, right: 0 };
+  if (e - s + 1 > 4 * k || mid < box.x0 + 0.3 * box.w || mid > box.x0 + 0.7 * box.w) return { iso: false, left: 0, right: 0 };
   const climb = (x, dir) => {
     let y = tip, steps = 0;
     while (x >= box.x0 && x <= box.x1) {
       let run = 0;
-      while (x >= box.x0 && x <= box.x1 && profile[x] === y - 1) { run++; x += dir; }
-      if (!run || run > 3) break;
-      steps++; y--;
+      while (x >= box.x0 && x <= box.x1 && profile[x] === y - k) { run++; x += dir; }
+      if (!run || run > 3 * k) break;
+      steps++; y -= k;
     }
     return steps;
   };
@@ -123,15 +129,15 @@ export function isoCorner(profile, box) {
 }
 
 /** Everything the validator and the manifest need from one frame. */
-export function measureFrame(img) {
+export function measureFrame(img, k = 1) {
   const { width: w, height: h } = img;
   const m = mask(img);
   const box = bboxOf(m, w, h);
   if (!box) return { empty: true };
-  const mass = bboxOf(openMask(m, w, h), w, h) || box;
+  const mass = bboxOf(openMask(m, w, h, k), w, h) || box;
   const profile = bottomProfile(m, w, h);
-  const contact = contactRow(profile, box);
-  return { empty: false, box, mass, profile, contact, foot: footRow(profile, box), mask: m };
+  const contact = contactRow(profile, box, k);
+  return { empty: false, box, mass, profile, contact, foot: footRow(profile, box, k), mask: m };
 }
 
 /** Opaque pixels strictly below row y. */

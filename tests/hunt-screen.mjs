@@ -412,7 +412,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         /* HS-18 FOOD IS THE HUNT BAG'S (Brannoc 10-22: "Food ×0" while the server's hunt bag held 20 Cooked Shrimp; Enter
            moves the food out of the bag): the socket counts the open hunt's hunt bag, and the next envelope replaces it. */
         const foodK = () => page.evaluate(() => document.querySelector('.hb-socket.is-food .hb-socket-k').textContent);
-        s.env.hunt = Object.assign({}, s.env.hunt, { session: { bag: [{ item: 'cooked_shrimp', left: 20, loaded: 20, essential: true }, { item: 'air_rune', left: 50, loaded: 50, essential: true }] } });
+        s.env.hunt = Object.assign({}, s.env.hunt, { session: { bag: [{ item: 'cooked_shrimp', left: 20, loaded: 20, essential: true }, { item: 'chalked_fire_rune', left: 50, loaded: 50, essential: true }] } });
         await pushEnvelope(page, s);
         const f1 = await foodK();
         s.env.hunt.session.bag[0].left = 17;

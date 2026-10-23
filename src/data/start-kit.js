@@ -105,13 +105,13 @@ export const START_SKILL_XP = Object.freeze({});
    cut with the quests, 2026-10-22).
 
    ── W0 · EVERY STYLE STARTS SUPPLIED (coherence audit Top-10 #7, 2026-10-09) ──
-   An empty ammo slot on a bow or a staff now counts as "run dry" (x0.25 max
-   hit, src/core/ammo.js AMMO_EMPTY_SLOT_IS_DRY), so the kit carries the FREE
-   tier-1 rung of all three ladders. Each is `ammoPerShot: 0` and never
-   depletes, so the quantity is a stack that reads as a supply, not a clock:
-   whichever weapon the player picks up first, its ammo is already in the bag.
-   The same three are on the Local Shop counter (legacy.js SEED_SHOP), so a
-   player who sells them is never locked out. */
+   An empty ammo slot on a bow now counts as "run dry" (x0.25 max hit,
+   src/core/ammo.js AMMO_EMPTY_SLOT_IS_DRY), so the kit carries the FREE tier-1
+   arrow (`ammoPerShot: 0`, never depletes) and the first whetstones. It carries
+   NO rune (Tyler 2026-10-23): a rune fuels a spell, never a staff's or a wand's
+   blow (a caster's basic costs mana), and a new Mage's Fireball casts on the
+   store's rune its default slot names (src/data/rule-subjects.js). The Air Rune
+   it carried is gone with the old rune ladder. */
 /* THE STARTER BAR (Tyler 2026-10-21, designer-confirmed): the game never picks a food or
    drink, so a NEW hero's bar names its items. Slot 1 eats the kit's own 20 Cooked Shrimp;
    once they are gone slot 2 buys Salted Shrimp from the store; slot 3 buys Thin Turnip
@@ -132,7 +132,6 @@ export const START_INVENTORY = Object.freeze({
   shrimp: 10,
   cooked_shrimp: 20,
   bronze_arrows: 50,
-  air_rune: 50,
   coarse_whetstone: 10,
   /* THE PRACTICE KIT (Tyler 2026-10-20): every starter weapon set but the worn one, so a
      new hero can try every role (src/data/items.js practice_*; bound, worth nothing). */

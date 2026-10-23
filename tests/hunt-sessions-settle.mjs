@@ -973,10 +973,11 @@ const ENGINE_ARMS = {
     const bare = runCut(M, () => [memberIn(M, 'a', { role: 'healer', level: 50, gold: 5000, equipment: { weapon: 'maple_staff' } })], span, []);
     if (canon(hits(bare)) !== canon(hits(fire))) problems.push(`a loaded Fire Rune changed the staff's basics ${firstDiff(canon(hits(bare)), canon(hits(fire)))}`);
     /* (2) a Mage's wand with twenty Earth Runes loaded (no store row behind them), the default supply setting */
-    const earth = both('earth', () => [memberIn(M, 'a', { role: 'mage', level: 20, bag: { earth_rune: { loaded: 20, left: 20, essential: true } },
-      equipment: { weapon: 'oak_wand', shield: 'oak_spellbook', ammo: 'earth_rune' } })]);
+    const earth = both('earth', () => [memberIn(M, 'a', { role: 'mage', level: 20, bag: { chalked_earth_rune: { loaded: 20, left: 20, essential: true } },
+      equipment: { weapon: 'oak_wand', shield: 'oak_spellbook', ammo: 'chalked_earth_rune' } })]);
     if (ended(earth)) problems.push(`Earth Runes ended a default hunt ${canon(ended(earth))}`);
-    if (sum(earth, 'uses').earth_rune) problems.push(`the wand's basics spent ${sum(earth, 'uses').earth_rune} Earth Runes`);
+    /* (every Earth rune spent is an Arcane Barrier's, the Mage's Earth spell: none is a basic's) */
+    if ((sum(earth, 'uses').chalked_earth_rune || 0) !== casts(earth, 'arcane_barrier')) problems.push(`the wand spent ${sum(earth, 'uses').chalked_earth_rune} Earth Runes for ${casts(earth, 'arcane_barrier')} Arcane Barriers`);
     if (!(hits(earth).length > 30)) problems.push(`the wand landed ${hits(earth).length} basics in ten minutes`);
     /* (3) a Ranger with Steel named on the bar and Bronze loaded, or Steel loaded (its one ability looses no shot,
        so every arrow spent is a basic's) */
@@ -1035,7 +1036,8 @@ const ENGINE_ARMS = {
       hp: o.members.map((x) => x.hp) });
     const bar = (ign) => [Object.assign({ action: { type: 'consume', id: 'salted_shrimp' }, conditions: [{ metric: 'self_hp_pct', op: 'lt', value: 60 }], join: 'and' }, ign ? { ignore: all } : {}),
       Object.assign({ action: { type: 'ability', id: 'greater_mend' }, conditions: [{ metric: 'ally_hp_pct', op: 'lt', value: 90, subject: 'lowest' }], join: 'and' }, ign ? { ignore: all } : {})];
-    const mk = (ign) => () => [memberIn(M, 'a', { role: 'healer', level: 3, gold: 5000, bar: bar(ign) })];
+    /* (Greater Mend is a Water rune spell: the Healer carries its own) */
+    const mk = (ign) => () => [memberIn(M, 'a', { role: 'healer', level: 3, gold: 5000, bar: bar(ign), bag: { chalked_water_rune: { loaded: 500, left: 500 } } })];
     const one = runCut(M, mk(true), span, []);
     const cut = runCut(M, mk(true), span, cuts);
     if (sig(one) !== sig(cut)) problems.push(`the viewed cut settled differently from one span ${firstDiff(sig(one), sig(cut))}`);
@@ -2599,6 +2601,11 @@ const DB_MUTANTS = [
 /* SQL mutants: planted in a migration's TEXT; its own §4 must refuse each. The
    C2 settle file's are kept verbatim (its self-check is the proof that applied it). */
 const SQL_MUTANTS = [
+  /* lane b-spell-content (2026-10-23): the old rune ladder's cut journals every holding it takes, and the slot vocabulary
+     offers Green Sickness's mark. */
+  { file: '2026-12-22-rune-ladder-cut.sql', name: '[spell-content] a worn old rune is cut unjournalled', find: "  select user_id, slot, 'admin', 'item_cut', p_item, -1,\n         jsonb_build_object('from', 'equipment', 'equip_slot', equip_slot, 'why', 'rune ladder cut 2026-10-23')\n    from d;",
+    replace: "  select user_id, slot, 'admin', 'item_cut', p_item, -1,\n         jsonb_build_object('from', 'equipment', 'equip_slot', equip_slot, 'why', 'rune ladder cut 2026-10-23')\n    from d where false;" },
+  { file: '2026-12-22-spell-content.sql', name: '[spell-content] a condition cannot name Green Sickness\'s mark', find: "array['bleed', 'sickness']::text[])", replace: "array['bleed']::text[])" },
   { file: '2026-10-22-hunt-sessions-settle.sql', name: '[C2 §10] the value half is not stamped with the session', find: "    perform set_config('hr.hunt_session', p_session::text, true);\n    v_a := public.hr_apply(", replace: '    v_a := public.hr_apply(' },
   { file: '2026-10-22-hunt-sessions-settle.sql', name: '[C2 §10] a refused session half leaves the value half written', find: "  exception when sqlstate 'HR000' then\n    get stacked diagnostics", replace: "  exception when sqlstate 'XX999' then\n    get stacked diagnostics" },
   { file: '2026-10-22-hunt-sessions-settle.sql', name: '[C2 §10] the fence guards only combat accrue rows', find: "  for each row when (new.intent = 'accrue' and new.kind <> 'worker')", replace: "  for each row when (new.kind = 'combat' and new.intent = 'accrue')" },

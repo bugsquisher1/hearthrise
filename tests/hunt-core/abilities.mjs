@@ -109,7 +109,7 @@ const cases = {
     const row = M.SB.BASIC_INDEX.plain_fire_rune;
     if (!row || row.partner !== 'chalked_fire_rune' || row.kind !== 'ammo') return 'the store has no Plain Fire Rune behind the Fire Rune';
     const kit = () => {
-      const hs = supplySession(M, { bag: { bronze_arrows: { loaded: 50 }, air_rune: { loaded: 50 }, coarse_whetstone: { loaded: 10 }, iron_arrows: { loaded: 30 } }, purse: 1000 });
+      const hs = supplySession(M, { bag: { bronze_arrows: { loaded: 50 }, coarse_whetstone: { loaded: 10 }, iron_arrows: { loaded: 30 } }, purse: 1000 });
       hs.basics.plain_fire_rune = { kind: 'ammo', price: row.price, heals: 0, mana: 0, partner: 'chalked_fire_rune' };
       return hs;
     };
@@ -257,7 +257,7 @@ const cases = {
     return got.length && want > 1000 && got.every((s) => s === want) ? null : 'a level-' + lv + ' caster\'s bleed landed at ' + JSON.stringify(got) + ', want ' + want;
   },
   'action-set-skips': (M) => {
-    const hs = () => supplySession(M, { bag: { chalked_fire_rune: { loaded: 5 } } });
+    const hs = () => supplySession(M, { bag: { chalked_fire_rune: { loaded: 5 }, chalked_earth_rune: { loaded: 5 } } });
     const a = melee(M, ['flame_strike', 'power_strike'], {}, { hs: hs(), actionSet: 'mana_train' });
     M.abilities.castAbilities(a.inst, a.sc);
     const b = oneHero(M, {}, { hs: hs(), bar: ['fireball', 'arcane_barrier'], actionSet: 'boss', range: 7 },
@@ -317,7 +317,7 @@ const cases = {
   /* RUNNING OUT NEVER ENDS A DEFAULT HUNT (Tyler 10-16; lane a-rune-spend): a spent essential rune line with no
      store row behind it ended the hunt `ammo_out` under the default `switch`. Only the hero's explicit `end` does. */
   'spent-runes-never-end-a-default-hunt': (M) => {
-    for (const rune of ['earth_rune', 'chalked_fire_rune']) {
+    for (const rune of ['chalked_earth_rune', 'chalked_fire_rune']) {
       const sw = supplySession(M, { bag: { [rune]: { loaded: 0, essential: true } }, shot: 'plain_fire_rune', ammo: 'chalked_fire_rune' });
       if (M.AR.endReasonAt(sw, 2000) !== null) return 'a spent ' + rune + ' line ended a default hunt ' + M.AR.endReasonAt(sw, 2000);
       const end = supplySession(M, { bag: { [rune]: { loaded: 0, essential: true } }, onEmpty: 'end' });
@@ -357,7 +357,7 @@ const cases = {
   },
   /* AB-09: a heal is capped at the missing HP (food no longer waits on it: consumables.js ALWAYS FIRES). */
   'heal-capped': (M) => {
-    const { h, inst, sc } = oneHero(M, { hp: 65 }, { bar: ['greater_mend'], range: 7 }, [{ x: 15, y: 3 }]);
+    const { h, inst, sc } = oneHero(M, { hp: 65 }, { bar: ['greater_mend'], range: 7, hs: supplySession(M, { bag: { chalked_water_rune: { loaded: 5 } } }) }, [{ x: 15, y: 3 }]);
     sc.rng = rngOf(M, 5);
     M.abilities.castAbilities(inst, sc);
     const ev = sc.events.find((e) => e.type === 'heal');
@@ -447,7 +447,7 @@ const mutants = [
   { name: 'a rune names a family that is not one of the seven', case: 'rows-validate',
     edits: [['src/data/stonecraft.js', 'ammoPerShot: 1, family, runeTier: t.tier });', "ammoPerShot: 1, family: family === 'rupture' ? 'blood' : family, runeTier: t.tier });"]] },
   { name: 'a rune casts a sixth tier', case: 'rows-validate',
-    edits: [['src/data/stonecraft.js', "family: 'earth', runeTier: 1 }", "family: 'earth', runeTier: 6 }"]] },
+    edits: [['src/data/stonecraft.js', 'ammoPerShot: 1, family, runeTier: t.tier });', 'ammoPerShot: 1, family, runeTier: t.tier === 5 ? 6 : t.tier });']] },
   { name: 'an active ability names a rune no bag can hold', case: 'rows-validate',
     edits: [['src/data/abilities.js', "rune: 'chalked_rupture_rune', target: 'enemy',", "rune: 'life_rune', target: 'enemy',"]] },
   { name: 'the bar fires its last usable ability', case: 'first-usable-in-order',

@@ -113,13 +113,18 @@ export const ABILITIES = Object.freeze([
   ab({ id: 'frost_lance', n: 'Frost Lance', disciplines: ['destruction'], lane: 'offense', cdMs: 6000, mana: 20, rune: 'chalked_ice_rune',
     target: 'enemy', dmg: [12, 18], element: 'frost', magicXpMult: 1600,
     versions: [[20, 1000], [24, 1740], [29, 2520], [35, 3310], [41, 4100]], lvPm: LV_PM }),
-  ab({ id: 'arcane_barrier', n: 'Arcane Barrier', disciplines: ['destruction'], lane: 'heal', cdMs: 20000, mana: 30, target: 'self',
-    shield: 40, whenBelowPct: 85, magicXpMult: 1600 }),
-  /* staff — Healer (restoration) */
-  ab({ id: 'greater_mend', n: 'Greater Mend', disciplines: ['restoration'], lane: 'heal', cdMs: 2000, mana: 25, target: 'ally',
-    heal: [40, 60], whenBelowPct: 70, magicXpMult: 1600 }),
-  ab({ id: 'circle_of_renewal', n: 'Circle of Renewal', disciplines: ['restoration'], lane: 'heal', cdMs: 12000, mana: 50, target: 'party',
-    heal: [20, 30], whenBelowPct: 80, minHurt: 2, radius: 8, magicXpMult: 1600 }),
+  /* An EARTH rune spell (a shell of stone, the approved spell map). */
+  ab({ id: 'arcane_barrier', n: 'Arcane Barrier', disciplines: ['destruction'], lane: 'heal', cdMs: 20000, mana: 30, rune: 'chalked_earth_rune', target: 'self',
+    shield: 40, whenBelowPct: 85, magicXpMult: 1600,
+    versions: [[30, 1000], [36, 1740], [43, 2520], [52, 3310], [62, 4100]], lvPm: LV_PM }),
+  /* staff — Healer (restoration). Its heals are WATER rune spells (spring water closes wounds, the approved map);
+     Greater Mend's mana ladder is the designer's own example (25/30/36/43/52, d3-manacost). */
+  ab({ id: 'greater_mend', n: 'Greater Mend', disciplines: ['restoration'], lane: 'heal', cdMs: 2000, mana: 25, rune: 'chalked_water_rune', target: 'ally',
+    heal: [40, 60], whenBelowPct: 70, magicXpMult: 1600,
+    versions: [[25, 1000], [30, 1740], [36, 2520], [43, 3310], [52, 4100]], lvPm: LV_PM }),
+  ab({ id: 'circle_of_renewal', n: 'Circle of Renewal', disciplines: ['restoration'], lane: 'heal', cdMs: 12000, mana: 50, rune: 'chalked_water_rune', target: 'party',
+    heal: [20, 30], whenBelowPct: 80, minHurt: 2, radius: 8, magicXpMult: 1600,
+    versions: [[50, 1000], [60, 1740], [72, 2520], [86, 3310], [104, 4100]], lvPm: LV_PM }),
   /* GREEN SICKNESS (was Nature's Wrath; Tyler 2026-10-23: a POISON rune spell, its element poison): Restoration's
      lower-power area spell, and every monster it hits takes more from every blow for a while (statuses.js sickness,
      Bible §17: a fixed, non-stacking vulnerability that no rune tier raises). */

@@ -72,7 +72,7 @@ insert into public.hr_hunt_condition_metrics (metric, kind, ops, lo, hi, subject
 delete from public.hr_hunt_role_rules;
 insert into public.hr_hunt_role_rules (role, ord, slot) values
 -- ⟦role-rules⟧
-  ('healer', 0, '{"id":"d_greater_mend","action":{"type":"ability","id":"greater_mend"},"conditions":[{"metric":"ally_hp_pct","op":"lt","value":70,"subject":"lowest"}],"join":"and"}'::jsonb),
+  ('healer', 0, '{"id":"d_greater_mend","action":{"type":"ability","id":"greater_mend","store":"plain_water_rune"},"conditions":[{"metric":"ally_hp_pct","op":"lt","value":70,"subject":"lowest"}],"join":"and"}'::jsonb),
   ('healer', 1, '{"id":"d_circle_of_renewal","action":{"type":"ability","id":"circle_of_renewal"},"conditions":[{"metric":"allies_below","op":"gte","value":2,"subject":"under_80"}],"join":"and"}'::jsonb),
   ('healer', 2, '{"id":"d_green_sickness","action":{"type":"ability","id":"green_sickness"},"conditions":[{"metric":"ally_hp_pct","op":"gte","value":70,"subject":"lowest"}],"join":"and"}'::jsonb),
   ('mage', 0, '{"id":"d_fireball","action":{"type":"ability","id":"fireball","store":"plain_fire_rune"},"conditions":[{"metric":"enemies_in_aoe","op":"gte","value":2}],"join":"and"}'::jsonb),

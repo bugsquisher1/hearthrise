@@ -154,7 +154,8 @@ export const HEAL_ORDER = Object.freeze(SUPPLY_ROWS.filter((r) => r[0] === H).ma
    the hunt's entry level, per style. A mage's drink count is a DESIGN TARGET
    for the mana engine to meet (an entry mage drinks about one drink for every
    two heals), not a measurement. Free tier-1 ammo is not counted; tier-2 ammo
-   is sized from the shots per hour above. */
+   is sized from the shots per hour above. A magic bag's runes are its core
+   spell's (Fireball: the Fire family), about 200 casts an hour (measured). */
 export const BAG_TARGET_HOURS = 3;
 
 const melee = (heal, qty) => Object.freeze({ heal: Object.freeze({ id: heal, qty }) });
@@ -167,43 +168,44 @@ export const BAG_GUIDE_BY_HUNT = Object.freeze({
   mill_cellar: Object.freeze({ tier: 1,
     melee: melee('cooked_shrimp', 105),
     ranged: ranged('cooked_shrimp', 145, 'bronze_arrows', 0),
-    magic: magic('cooked_shrimp', 135, 'turnip_juice', 65, 'air_rune', 0) }),
+    magic: magic('cooked_shrimp', 135, 'turnip_juice', 65, 'chalked_fire_rune', 600) }),
   bramble_edge: Object.freeze({ tier: 1,
     melee: melee('cooked_shrimp', 170),
     ranged: ranged('cooked_shrimp', 235, 'bronze_arrows', 0),
-    magic: magic('cooked_shrimp', 220, 'turnip_juice', 110, 'air_rune', 0) }),
+    magic: magic('cooked_shrimp', 220, 'turnip_juice', 110, 'chalked_fire_rune', 600) }),
   goblin_warren: Object.freeze({ tier: 1,
     melee: melee('cooked_shrimp', 110),
     ranged: ranged('cooked_shrimp', 205, 'bronze_arrows', 0),
-    magic: magic('cooked_shrimp', 180, 'turnip_juice', 90, 'air_rune', 0) }),
+    magic: magic('cooked_shrimp', 180, 'turnip_juice', 90, 'chalked_fire_rune', 600) }),
   ridge_camp: Object.freeze({ tier: 2,
     melee: melee('cooked_trout', 35),
     ranged: ranged('cooked_trout', 40, 'barbed_arrows', 5100),
-    magic: magic('cooked_trout', 80, 'carrot_juice', 40, 'earth_rune', 4300) }),
+    magic: magic('cooked_trout', 80, 'carrot_juice', 40, 'chalked_fire_rune', 650) }),
   /* The Millrace Sewer (2026-10-18), MEASURED in the hunt core (tests/hunt-core/sewer.mjs
      --report, 3 seeds): a full party's Ranger fires about 700 bolts and its casters about
      700 Fire Runes an hour, and a party with a Healer eats almost nothing; a solo Melee
      hero eats about 250 heals an hour. Three hours, rounded. Iron Bolts need Ranged 15;
-     below that the free Bronze Arrows stand in. No Sewer spell spends a rune since Fireball
-     went rune-free (designer 2026-10-21), so the magic bag carries the free Air Rune rung. */
+     below that the free Bronze Arrows stand in. The magic bag carries three hours of Chalked Fire
+     Runes for the Mage's Fireball (about 200 casts an hour at the Sewer and Warrens floors, measured
+     on the real settle, lane b-spell-content 2026-10-23). */
   millrace_sewer: Object.freeze({ tier: 1,
     melee: melee('cooked_shrimp', 150),
     ranged: ranged('cooked_shrimp', 150, 'iron_bolts', 2100),
-    magic: magic('cooked_shrimp', 120, 'turnip_juice', 90, 'air_rune', 0) }),
+    magic: magic('cooked_shrimp', 120, 'turnip_juice', 90, 'chalked_fire_rune', 600) }),
   /* The Meadowbrook Thicket (2026-10-18), PLAYED once on the real settle (tests/hunt-core/forest-cave.mjs
      --play): a solo melee hero at the floor ate about 1,460 g of store heals in 30 minutes, which is about
      180 shrimp over three hours at the kit's heal; the wolves' raw meat cooks back into the same bag. */
   meadowbrook_thicket: Object.freeze({ tier: 1,
     melee: melee('cooked_shrimp', 180),
     ranged: ranged('cooked_shrimp', 200, 'bronze_arrows', 0),
-    magic: magic('cooked_shrimp', 180, 'turnip_juice', 90, 'air_rune', 0) }),
+    magic: magic('cooked_shrimp', 180, 'turnip_juice', 90, 'chalked_fire_rune', 600) }),
   /* The Coppercap Warrens: every goblin row is tier 3 (lv 34-52), so the store food is the tier-3 row
      (Salted Lobster, 180 g for 216 HP, 0.83 g an HP; the tier-4 Swordfish it named was 1.50 g an HP:
      designer 2026-10-21, CONFLICTS item 2, six seeds on the real settle, PRIORITY_BOARD Decisions). */
   coppercap_warrens: Object.freeze({ tier: 3,
     melee: melee('cooked_lobster', 80),
     ranged: ranged('cooked_lobster', 80, 'barbed_arrows', 5100),
-    magic: magic('cooked_lobster', 100, 'carrot_juice', 40, 'earth_rune', 4300) }),
+    magic: magic('cooked_lobster', 100, 'carrot_juice', 40, 'chalked_fire_rune', 650) }),
   /* Mosslight Glade (lane c-ground-16-31; STAGED), PLAYED on the real settle (tests/hunt-core/forest-cave.mjs
      glade-solo-floor, six seeds): a solo Melee at the floor in the smiths' iron eats 150-250 g of store heals an
      hour, the Thicket's leather graduate about 1,000 g; three hours of the graduate's eating in tier-2 food.
@@ -211,7 +213,7 @@ export const BAG_GUIDE_BY_HUNT = Object.freeze({
   mosslight_glade: Object.freeze({ tier: 2,
     melee: melee('cooked_trout', 90),
     ranged: ranged('cooked_trout', 100, 'bronze_arrows', 0),
-    magic: magic('cooked_trout', 100, 'carrot_juice', 45, 'air_rune', 0) }),
+    magic: magic('cooked_trout', 100, 'carrot_juice', 45, 'chalked_fire_rune', 600) }),
 });
 
 /* A single-monster fight is guided by its monster's tier (melee measured:

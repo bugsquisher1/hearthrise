@@ -95,6 +95,8 @@ export const BASIC_SUPPLIES = Object.freeze([
   /* THE STORE RUNES (Tyler 2026-10-23): ONE a family, the basic power (version I at BASIC_EFFECT_SHARE), bought per
      cast only when the spell's slot names it; partnered to the family's Chalked rune, priced BASIC_AMMO_PREMIUM x its
      book value (stonecraft.js RUNE_VALUE, PROVISIONAL). */
+  shot('plain_earth_rune', 'Plain Earth Rune', 'chalked_earth_rune', 1),
+  shot('plain_water_rune', 'Plain Water Rune', 'chalked_water_rune', 1),
   shot('plain_fire_rune', 'Plain Fire Rune', 'chalked_fire_rune', 1),
   shot('plain_ice_rune', 'Plain Ice Rune', 'chalked_ice_rune', 1),
   shot('plain_poison_rune', 'Plain Poison Rune', 'chalked_poison_rune', 1),
@@ -113,14 +115,12 @@ export const BASIC_INDEX = Object.freeze(BASIC_SUPPLIES.reduce((acc, b) => { acc
 const BY_SLOT = 'a food or drink slot names ONE item (Tyler 2026-10-21): when it runs out the next slot fires, and any store food or drink can stand there';
 const FREE_RUNG = 'the free tier-1 rung (ammoPerShot 0): a shot never spends it, so it never runs out';
 const HONE = 'a whetstone is melee\'s ceiling, not its swing (R5): when the last one wears the sword swings on unsharpened';
-const NO_SPELL = 'no active spell spends it yet (runes fuel spells only, Tyler 2026-10-23): it gets its store row with the spell that names its family (S3)';
 const DEEPER_TIER = 'the store sells each family ONE basic rune, version I at the store\'s share (Tyler 2026-10-23): a deeper tier is bound at Runecrafting, never bought, and once it is gone the spell casts the next tier the hero carries, then the store\'s';
 export const NO_STORE_PARTNER = Object.freeze(Object.assign(Object.create(null), {
   turnip_mash: BY_SLOT, cooked_herring: BY_SLOT, cooked_wolf_meat: BY_SLOT, cooked_panther_meat: BY_SLOT, cooked_pikeperch: BY_SLOT,
   cooked_copper_crab: BY_SLOT, wheat_bread: BY_SLOT, cooked_silverfin: BY_SLOT, baked_potato: BY_SLOT, cooked_goldgill: BY_SLOT,
   cooked_bear_meat: BY_SLOT, river_chowder: BY_SLOT, cooked_frostfin: BY_SLOT, cooked_moonfish: BY_SLOT,
-  bronze_arrows: FREE_RUNG, air_rune: FREE_RUNG,
-  earth_rune: NO_SPELL, water_rune: NO_SPELL,
+  bronze_arrows: FREE_RUNG,
   coarse_whetstone: HONE, copper_whetstone: HONE, iron_whetstone: HONE, steel_whetstone: HONE, mithril_whetstone: HONE,
   rune_whetstone: HONE, dawn_whetstone: HONE,
   /* every rune above the Chalked tier of every crafted family (stonecraft.js CRAFTED_RUNE_FAMILIES) */

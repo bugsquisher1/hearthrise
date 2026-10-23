@@ -185,10 +185,10 @@ async function rules(M) {
     /* SEC-4 THE HUNT BAG (Brannoc 10-22: "Food ×0" with 20 Cooked Shrimp in it): an open hunt's carried supplies are
        the server's hunt.session.bag `left`, largest first; an empty line drops; an ended hunt carries none (null). */
     body = clone(FIXTURE); body.version += 9;
-    body.hunt.session = { bag: [{ item: 'cooked_shrimp', left: 20, loaded: 20 }, { item: 'air_rune', left: 50, loaded: 50 }, { item: 'coarse_whetstone', left: 0, loaded: 10 }] };
+    body.hunt.session = { bag: [{ item: 'cooked_shrimp', left: 20, loaded: 20 }, { item: 'chalked_fire_rune', left: 50, loaded: 50 }, { item: 'coarse_whetstone', left: 0, loaded: 10 }] };
     await cs.load();
     const hb = M.H.huntBagOf(cs);
-    ok('SEC-4', JSON.stringify(hb) === JSON.stringify([{ id: 'air_rune', qty: 50 }, { id: 'cooked_shrimp', qty: 20 }]), 'the hunt bag reads ' + JSON.stringify(hb));
+    ok('SEC-4', JSON.stringify(hb) === JSON.stringify([{ id: 'chalked_fire_rune', qty: 50 }, { id: 'cooked_shrimp', qty: 20 }]), 'the hunt bag reads ' + JSON.stringify(hb));
     body = clone(body); body.version += 1; body.hunt.ended = true;
     await cs.load();
     ok('SEC-4', M.H.huntBagOf(cs) === null, 'an ended hunt still carries ' + JSON.stringify(M.H.huntBagOf(cs)));

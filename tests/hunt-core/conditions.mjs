@@ -98,6 +98,9 @@ const BLOCK = (monster) => [[15, 4], [16, 4], [17, 4], [15, 5], [16, 5], [17, 5]
 
 /* One engine-level hero row (abilities / consumables / damage read it). */
 const heroRow = (M, o) => Object.assign({ hs: supplySession(M, o && o.session), actionSet: 'hunt', range: 1 }, o || {});
+/* A healer's or a mage's own Water and Earth runes: Greater Mend, Circle of Renewal and Arcane Barrier are rune spells
+   (Tyler 2026-10-23, the approved spell map), so a fixture that heals or shields carries them. */
+const HEAL_RUNES = Object.freeze({ chalked_water_rune: { loaded: 50 }, chalked_earth_rune: { loaded: 50 } });
 
 /* ── THE SPAN MEMBER: a hero of `role` with its own slots, bag and snapshot (the one span reads it) ── */
 /* FIXTURE vitals per role (fixture data, not game data: a role sets no vitals, src/core/vitals.js does).
@@ -133,7 +136,7 @@ function party(M, o) {
     member(M, 'b-ranger', 'ranger', { seat: 1, ammo: 'bronze_arrows', maxHit: 4,
       bag: { bronze_arrows: { loaded: 50 }, [HAVOC]: { loaded: x.havoc ?? 6 }, [BURST]: { loaded: 500 } },
       slots: [slot('attack_with_item', HAVOC, [c('enemies_in_aoe', 'gte', 4)], 'and', 'havoc'), slot('attack_with_item', BURST, [c('enemies_in_aoe', 'gte', 2)], 'and', 'burst')] }),
-    member(M, 'c-druid', 'healer', { seat: 2, maxHit: 2, slots: [ab('greater_mend', [c('ally_hp_pct', 'lt', 80, 'tank')])], stopRules: x.druidStop }),
+    member(M, 'c-druid', 'healer', { seat: 2, maxHit: 2, bag: { chalked_water_rune: { loaded: 500 } }, slots: [ab('greater_mend', [c('ally_hp_pct', 'lt', 80, 'tank')])], stopRules: x.druidStop }),
     member(M, 'd-sorc', 'mage', { seat: 3, maxHit: 2, bag: { chalked_fire_rune: { loaded: 300 } }, slots: [ab('fireball', [c('enemies_in_aoe', 'gte', 3)])] }),
   ];
 }
@@ -173,10 +176,10 @@ function freshParty(M, huntId, minutes, seed, optionsList, element) {
       lead: !!(options && options.lead) });
     return { key: 'h' + (i || ''), user: 'u', slot: i, seat: i, unitId: null, sessionId: 's' + i, version: 1, huntId,
       huntSession: { id: 's' + i, instanceId: 'i', huntFromMs: from, nextSwingAtMs: from, swingIndex: 0, onEmpty: 'switch',
-        bag: { [food]: { loaded: M.kit.START_INVENTORY[food] }, air_rune: { loaded: M.kit.START_INVENTORY.air_rune } },
+        bag: { [food]: { loaded: M.kit.START_INVENTORY[food] } },
         staminaMs: 8 * 3600000, staminaMaxMs: 8 * 3600000 },
       skills: Object.assign({}, M.kit.START_SKILL_XP), levelXp: 0, hp: M.kit.START_CURRENCY.hp, gold: M.kit.START_CURRENCY.gold,
-      equipment: { weapon: 'apprentice_staff', ammo: 'air_rune' }, inventory: {}, hero: Object.assign({}, hero, { element: element || '' }) };
+      equipment: { weapon: 'apprentice_staff' }, inventory: {}, hero: Object.assign({}, hero, { element: element || '' }) };
   });
   const secret = String(BigInt.asIntN(64, BigInt(seed) * 2654435761n + 1n));
   const out = M.acc.accrueHunt({ instance: { id: '00000000-0000-4000-8000-0000000000ae', nextSwingAtMs: from, world: null },
@@ -320,7 +323,7 @@ const cases = {
       const k = hero(M, 2, 8, 3, { role: 'tank', hp: tankHp, maxHp: 100 });
       const m = hero(M, 3, 7, 4, { role: 'mage', hp: 10, maxHp: 100 });
       const inst = instOf(M, world(M, [d, k, m, mon(M, 10, 0, 9, 3, { target: 2, hp: 500, maxHp: 500 })]));
-      inst.heroes = { 1: heroRow(M, { range: 7, slots: rows([ab('greater_mend', [c('ally_hp_pct', 'lt', 80, 'tank')])]) }) };
+      inst.heroes = { 1: heroRow(M, { range: 7, slots: rows([ab('greater_mend', [c('ally_hp_pct', 'lt', 80, 'tank')])]), session: { bag: { ...HEAL_RUNES } } }) };
       const sc = subStep(0); sc.rng = M.rng.createRng(3);
       M.abilities.castAbilities(inst, sc);
       return sc.events.filter((e) => e.type === 'heal').map((e) => e.t).join();
@@ -355,7 +358,7 @@ const cases = {
     const cast = (bar) => {
       const h = hero(M, 1, 12, 3, { role: 'mage', hp: 95, maxHp: 100, mana: 300, maxMana: 300 });
       const inst = instOf(M, world(M, [h, mon(M, 10, 0, 16, 3, { target: 1, hp: 500, maxHp: 500 })]));
-      inst.heroes = { 1: heroRow(M, { range: 7, slots: bar }) };
+      inst.heroes = { 1: heroRow(M, { range: 7, slots: bar, session: { bag: { ...HEAL_RUNES } } }) };
       const sc = subStep(0); sc.rng = M.rng.createRng(3);
       M.abilities.castAbilities(inst, sc);
       return sc.events.filter((e) => e.type === 'cast').map((e) => e.ability).join();
@@ -406,7 +409,7 @@ const cases = {
     const mend = (kind) => {
       const h = hero(M, 1, 12, 3, { role: 'healer', hp: 40, maxHp: 100, mana: 300, maxMana: 300, target: 10 });
       const inst = instOf(M, world(M, [h, mon(M, 10, 0, 13, 3, { target: 1, kind, hp: 500, maxHp: 500 })]));
-      inst.heroes = { 1: heroRow(M, { range: 7, slots: M.cond.heroSlots([Object.assign(ab('greater_mend', [c('ally_hp_pct', 'lt', 70, 'lowest')]), { ignore: ['rat'] })], 'healer') }) };
+      inst.heroes = { 1: heroRow(M, { range: 7, slots: M.cond.heroSlots([Object.assign(ab('greater_mend', [c('ally_hp_pct', 'lt', 70, 'lowest')]), { ignore: ['rat'] })], 'healer'), session: { bag: { ...HEAL_RUNES } } }) };
       const sc = subStep(0); sc.rng = M.rng.createRng(9);
       M.abilities.castAbilities(inst, sc);
       return sc.events.filter((e) => e.type === 'cast' && e.ability === 'greater_mend').length;
@@ -714,7 +717,7 @@ const cases = {
       const k = hero(M, 2, 8, 3, { role: 'tank', hp: allyHp, maxHp: 100 });
       const ms = [[9, 3], [10, 3]].map(([x, y], i) => mon(M, 10 + i, 0, x, y, { target: 2, hp: 500, maxHp: 500 }));
       const inst = instOf(M, world(M, [d, k, ...ms]));
-      inst.heroes = { 1: heroRow(M, { range: 7, slots: setup.slots, session: { runes: true, bag: { chalked_poison_rune: { loaded: 5 } } } }) };
+      inst.heroes = { 1: heroRow(M, { range: 7, slots: setup.slots, session: { runes: true, bag: { chalked_poison_rune: { loaded: 5 }, ...HEAL_RUNES } } }) };
       const sc = subStep(0); sc.rng = M.rng.createRng(5);
       M.abilities.castAbilities(inst, sc);
       return sc.events.filter((e) => e.type === 'cast').map((e) => e.ability).join();

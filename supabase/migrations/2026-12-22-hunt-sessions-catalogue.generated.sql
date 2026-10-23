@@ -8,9 +8,9 @@
 --   src/data/premium.js, src/core/hunt/world-state.js and the vendor price
 --   (hr-accrue/catalogue.js). Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: dde89fe295c5aac976f44c899c64de3f6235c6d8abf352a1aa2c57c46da298b6
---   75 supplies, 121 hunts (named + training), 50 limits, 11 end reasons,
---   508 vendor values, 23 store supplies paid per use, 5 target modes,
+--   digest: 721464de6f26e7a094c2d8d70a5068e46c2163c4b2313f01dc06e4886a66531e
+--   82 supplies, 121 hunts (named + training), 50 limits, 11 end reasons,
+--   514 vendor values, 25 store supplies paid per use, 5 target modes,
 --   3 lanes, 14 abilities, 10 action-set options, 5 hunt grounds
 --
 -- SUPERSEDES 2026-11-23-hunt-sessions-catalogue.generated.sql (the v0.2.31 chain;
@@ -238,20 +238,23 @@ end $$;
 
 delete from public.hr_hunt_supplies;
 insert into public.hr_hunt_supplies (item_id, kind, essential, heals, buff_type) values
-  ('air_rune', 'ammo', true, 0, null),
   ('baked_potato', 'heal', true, 240, null),
   ('barbed_arrows', 'ammo', true, 0, null),
   ('bear_claw_pie', 'buff', false, 0, 'damage'),
   ('bronze_arrows', 'ammo', true, 0, null),
   ('carrot_juice', 'mana', false, 0, null),
+  ('carved_earth_rune', 'ammo', true, 0, null),
   ('carved_fire_rune', 'ammo', true, 0, null),
   ('carved_ice_rune', 'ammo', true, 0, null),
   ('carved_poison_rune', 'ammo', true, 0, null),
   ('carved_rupture_rune', 'ammo', true, 0, null),
+  ('carved_water_rune', 'ammo', true, 0, null),
+  ('chalked_earth_rune', 'ammo', true, 0, null),
   ('chalked_fire_rune', 'ammo', true, 0, null),
   ('chalked_ice_rune', 'ammo', true, 0, null),
   ('chalked_poison_rune', 'ammo', true, 0, null),
   ('chalked_rupture_rune', 'ammo', true, 0, null),
+  ('chalked_water_rune', 'ammo', true, 0, null),
   ('coarse_whetstone', 'ammo', false, 0, null),
   ('cooked_bear_meat', 'heal', true, 156, null),
   ('cooked_copper_crab', 'heal', true, 216, null),
@@ -272,20 +275,23 @@ insert into public.hr_hunt_supplies (item_id, kind, essential, heals, buff_type)
   ('dawn_whetstone', 'ammo', false, 0, null),
   ('dawnpoint_arrows', 'ammo', true, 0, null),
   ('dragon_stew', 'buff', false, 0, 'combat_xp'),
-  ('earth_rune', 'ammo', true, 0, null),
   ('ember_tart', 'buff', false, 0, 'combat_xp'),
   ('emberfruit_cordial', 'mana', false, 0, null),
   ('emberhead_arrows', 'ammo', true, 0, null),
+  ('etched_earth_rune', 'ammo', true, 0, null),
   ('etched_fire_rune', 'ammo', true, 0, null),
   ('etched_ice_rune', 'ammo', true, 0, null),
   ('etched_poison_rune', 'ammo', true, 0, null),
   ('etched_rupture_rune', 'ammo', true, 0, null),
+  ('etched_water_rune', 'ammo', true, 0, null),
   ('fishers_pie', 'buff', false, 0, 'damage'),
   ('goldenroot_tea', 'mana', false, 0, null),
+  ('graven_earth_rune', 'ammo', true, 0, null),
   ('graven_fire_rune', 'ammo', true, 0, null),
   ('graven_ice_rune', 'ammo', true, 0, null),
   ('graven_poison_rune', 'ammo', true, 0, null),
   ('graven_rupture_rune', 'ammo', true, 0, null),
+  ('graven_water_rune', 'ammo', true, 0, null),
   ('hunters_feast', 'buff', false, 0, 'drop_rate'),
   ('iron_arrows', 'ammo', true, 0, null),
   ('iron_bolts', 'ammo', true, 0, null),
@@ -299,10 +305,12 @@ insert into public.hr_hunt_supplies (item_id, kind, essential, heals, buff_type)
   ('river_chowder', 'heal', true, 360, null),
   ('rune_arrows', 'ammo', true, 0, null),
   ('rune_whetstone', 'ammo', false, 0, null),
+  ('scored_earth_rune', 'ammo', true, 0, null),
   ('scored_fire_rune', 'ammo', true, 0, null),
   ('scored_ice_rune', 'ammo', true, 0, null),
   ('scored_poison_rune', 'ammo', true, 0, null),
   ('scored_rupture_rune', 'ammo', true, 0, null),
+  ('scored_water_rune', 'ammo', true, 0, null),
   ('steel_arrows', 'ammo', true, 0, null),
   ('steel_whetstone', 'ammo', false, 0, null),
   ('tomato_juice', 'mana', false, 0, null),
@@ -311,12 +319,12 @@ insert into public.hr_hunt_supplies (item_id, kind, essential, heals, buff_type)
   ('turnip_mash', 'heal', true, 60, null),
   ('vegetable_stew', 'buff', false, 0, 'all_xp'),
   ('void_banquet', 'buff', false, 0, 'damage_crit'),
-  ('water_rune', 'ammo', true, 0, null),
   ('wheat_bread', 'heal', true, 216, null);
 delete from public.hr_hunt_basic_supplies;
 insert into public.hr_hunt_basic_supplies (basic_id, kind, partner, heals, mana, price) values
   ('plain_barbed_arrows', 'ammo', 'barbed_arrows', 0, 0, 2),
   ('plain_dawnpoint_arrows', 'ammo', 'dawnpoint_arrows', 0, 0, 24),
+  ('plain_earth_rune', 'ammo', 'chalked_earth_rune', 0, 0, 1),
   ('plain_emberhead_arrows', 'ammo', 'emberhead_arrows', 0, 0, 18),
   ('plain_fire_rune', 'ammo', 'chalked_fire_rune', 0, 0, 1),
   ('plain_ice_rune', 'ammo', 'chalked_ice_rune', 0, 0, 1),
@@ -327,6 +335,7 @@ insert into public.hr_hunt_basic_supplies (basic_id, kind, partner, heals, mana,
   ('plain_rune_arrows', 'ammo', 'rune_arrows', 0, 0, 12),
   ('plain_rupture_rune', 'ammo', 'chalked_rupture_rune', 0, 0, 1),
   ('plain_steel_arrows', 'ammo', 'steel_arrows', 0, 0, 4),
+  ('plain_water_rune', 'ammo', 'chalked_water_rune', 0, 0, 1),
   ('salted_lobster', 'heal', 'cooked_lobster', 216, 0, 180),
   ('salted_shark', 'heal', 'cooked_shark', 396, 0, 693),
   ('salted_shrimp', 'heal', 'cooked_shrimp', 72, 0, 14),
@@ -502,15 +511,15 @@ insert into public.hr_hunt_target_modes (mode) values
   ('weakest');
 delete from public.hr_hunt_abilities;
 insert into public.hr_hunt_abilities (ability_id, disciplines, lane, cd_ms, mana, rune, ammo, active, ord) values
-  ('arcane_barrier', array['destruction']::text[], 'heal', 20000, 30, null, 0, true, 10),
+  ('arcane_barrier', array['destruction']::text[], 'heal', 20000, 30, 'chalked_earth_rune', 0, true, 10),
   ('challenge', array['shield']::text[], 'offense', 8000, 0, null, 0, true, 0),
-  ('circle_of_renewal', array['restoration']::text[], 'heal', 12000, 50, null, 0, true, 12),
+  ('circle_of_renewal', array['restoration']::text[], 'heal', 12000, 50, 'chalked_water_rune', 0, true, 12),
   ('cleave', array['dual_axe']::text[], 'offense', 6000, 8, null, 0, true, 3),
   ('fireball', array['destruction']::text[], 'offense', 8000, 25, 'chalked_fire_rune', 0, true, 8),
   ('flame_strike', array['shield']::text[], 'offense', 8000, 10, 'chalked_fire_rune', 0, true, 1),
   ('flame_volley', array['ranged']::text[], 'offense', 10000, 15, 'chalked_fire_rune', 3, true, 6),
   ('frost_lance', array['destruction']::text[], 'offense', 6000, 20, 'chalked_ice_rune', 0, true, 9),
-  ('greater_mend', array['restoration']::text[], 'heal', 2000, 25, null, 0, true, 11),
+  ('greater_mend', array['restoration']::text[], 'heal', 2000, 25, 'chalked_water_rune', 0, true, 11),
   ('green_sickness', array['restoration']::text[], 'offense', 10000, 20, 'chalked_poison_rune', 0, true, 13),
   ('hunters_mark', array['ranged']::text[], 'offense', 12000, 8, null, 0, true, 5),
   ('power_strike', array['dual_axe', 'shield']::text[], 'offense', 6000, 6, null, 0, true, 2),
@@ -953,10 +962,12 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('carrot_juice', 11),
   ('carrot_seed', 5),
   ('carrot_stew', 200),
+  ('carved_earth_rune', 6),
   ('carved_fire_rune', 6),
   ('carved_ice_rune', 6),
   ('carved_poison_rune', 6),
   ('carved_rupture_rune', 6),
+  ('carved_water_rune', 6),
   ('chief_blade', 900),
   ('chitin_belt', 840),
   ('chitin_body', 3150),
@@ -1039,7 +1050,6 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('duskwood_plank', 2600),
   ('duskwood_rod', 23000),
   ('duskwood_staff', 36000),
-  ('earth_rune', 1),
   ('elderscale_heart', 9000),
   ('elderscale_platebody', 118800),
   ('ember_axe', 22000),
@@ -1060,10 +1070,12 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('emberfruit_seed', 150),
   ('emberhead_arrows', 9),
   ('emberstone_ore', 104),
+  ('etched_earth_rune', 4),
   ('etched_fire_rune', 4),
   ('etched_ice_rune', 4),
   ('etched_poison_rune', 4),
   ('etched_rupture_rune', 4),
+  ('etched_water_rune', 4),
   ('fang_studs', 130),
   ('fangdart_recurve', 7200),
   ('field_ration', 90),
@@ -1082,10 +1094,12 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('goldenroot_tea', 86),
   ('goldgill', 14),
   ('grave_dust', 19),
+  ('graven_earth_rune', 9),
   ('graven_fire_rune', 9),
   ('graven_ice_rune', 9),
   ('graven_poison_rune', 9),
   ('graven_rupture_rune', 9),
+  ('graven_water_rune', 9),
   ('gray_dewclaw', 3),
   ('grayjaw_whisker', 6),
   ('heartgarnet', 40),
@@ -1232,10 +1246,12 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('scholar_gloves', 245),
   ('scholar_helmet', 420),
   ('scholar_pants', 770),
+  ('scored_earth_rune', 2),
   ('scored_fire_rune', 2),
   ('scored_ice_rune', 2),
   ('scored_poison_rune', 2),
   ('scored_rupture_rune', 2),
+  ('scored_water_rune', 2),
   ('shadow_pelt', 96),
   ('shadow_thread', 64),
   ('shadowsilk_cape', 10800),
@@ -1356,7 +1372,6 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('watchknight_gloves', 3150),
   ('watchknight_helmet', 5400),
   ('watchknight_pants', 9900),
-  ('water_rune', 2),
   ('wheat', 10),
   ('wheat_bread', 120),
   ('wheat_seed', 7),
@@ -1396,12 +1411,12 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
 do $$
 declare v_role text; v_t text;
 begin
-  if (select count(*) from public.hr_hunt_supplies) <> 75
+  if (select count(*) from public.hr_hunt_supplies) <> 82
      or (select count(*) from public.hr_hunt_travel) <> 121
      or (select count(*) from public.hr_hunt_limits) <> 50
      or (select count(*) from public.hr_hunt_end_reasons) <> 11
-     or (select count(*) from public.hr_hunt_vendor_value) <> 508
-     or (select count(*) from public.hr_hunt_basic_supplies) <> 23
+     or (select count(*) from public.hr_hunt_vendor_value) <> 514
+     or (select count(*) from public.hr_hunt_basic_supplies) <> 25
      or (select count(*) from public.hr_hunt_cover_items) <> 0
      or exists (select 1 from public.hr_hunt_basic_supplies where cardinality(coalesce(tiers, '{}'::int[])) > 0)
      or exists (select 1 from public.hr_hunt_travel where tier is not null)

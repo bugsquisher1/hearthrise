@@ -235,19 +235,12 @@ const ARMOUR_SETS = {
    MATERIAL rung `emberhead_arrows` (tier 6, a different axis entirely).
    ══════════════════════════════════════════════════════════════════════════ */
 
-/* R7: the three ammo-slot ladders share ONE stat curve, because they are one
-   slot. A guard asserts this across all three at once. */
+/* R7: the ammo-slot ladders share ONE stat curve, because they are one slot (the rune ladder left it: runes
+   are spell reagents, src/data/stonecraft.js, Tyler 2026-10-23). */
 const AMMO_STR = [2, 3, 5, 8, 11, 14, 18];
-const AMMO_VALUE = [1, 1, 2, 4, 6, 9, 12];
 const AMMO_REQ = [1, 15, 30, 45, 60, 75, 88];
 const AMMO_RARITY = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'legendary', 'mythic'];
 
-const rune = (id, name, i) => [id, {
-  n: name, icon: '🔷', v: AMMO_VALUE[i], type: 'ammo', slot: 'ammo', tier: i + 1,
-  rarity: AMMO_RARITY[i], reqSkill: 'magic', reqLv: AMMO_REQ[i],
-  magicStrB: AMMO_STR[i], ammoPerShot: i === 0 ? 0 : 1,
-  pendingSkill: 'runecrafting',
-}];
 /* Whetstones burn 0.02/swing (§7.2 — charges on the consumption channel, not a
    timer) and carry `strB` ONLY: critB would leak to every style through
    equipmentStats, and spdB is closed by the b343 ruling. */
@@ -263,10 +256,8 @@ const SUPPLY_CHAINS = Object.fromEntries([
      blocks and ashlar were deleted with Stonemason in the 2026-10-14 demolition.) */
   ['rune_blank',      { n: 'Blank Rune',      icon: '⬜', v: 5,  tier: 1, pendingSkill: 'runecrafting' }],
 
-  /* ITEM-PLAN-02 · the bound rune ladder (§6.2). Rune values equal arrow values
-     exactly, which is what makes magic's and ranged's supply cost comparable. */
-  rune('air_rune',   'Air Rune',   0), rune('earth_rune', 'Earth Rune', 1),
-  rune('water_rune', 'Water Rune', 2),
+  /* ITEM-PLAN-02 · the bound rune ladder (§6.2) became the family x tier runes (src/data/stonecraft.js,
+     lane b-spell-content 2026-10-23). */
 
   /* ITEM-PLAN-03 · the whetstone ladder (§6.3). Values are the Designer's
      derived band — the steel rung at 130 gives 10 × 130 / 660 = 1.97×, just
@@ -336,9 +327,6 @@ export const LIB2_DESC = {
        surface shows the remaining count teaches the mechanic in the worst
        possible order. These seven lines are the one place the wording changes
        when that indicator lands. */
-  air_rune: 'Socketed in a staff for a first thread of Magic strength, and it never runs out — a student\'s whole arsenal',
-  earth_rune: 'Socketed for Magic strength and spent one per cast; a stone rune heavy in the palm out of all proportion to its size',
-  water_rune: 'Socketed for Magic strength; a rune that beads with moisture in a dry room',
 
   coarse_whetstone: 'A rough field stone that puts an edge on anything and a good edge on nothing',
   copper_whetstone: 'A copper-bound stone, the first one worth keeping in the pack',

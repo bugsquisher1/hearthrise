@@ -74,7 +74,7 @@ const PARTY = [
 
 function session(M, p) {
   return M.AR.newHuntSession({
-    id: 'sewer-' + p.role, huntFromMs: 0, bag: { chalked_fire_rune: { loaded: 400 }, ...(p.ammo ? { [p.ammo]: { loaded: 2000 } } : {}) },
+    id: 'sewer-' + p.role, huntFromMs: 0, bag: { chalked_fire_rune: { loaded: 400 }, chalked_water_rune: { loaded: 400 }, chalked_earth_rune: { loaded: 100 }, chalked_poison_rune: { loaded: 400 }, ...(p.ammo ? { [p.ammo]: { loaded: 2000 } } : {}) },
     slots: [{ item: '*heal_shop', on: true, conditions: [] }, { item: '*mana_shop', on: true, conditions: [] }],
     /* The REAL tier-1 store rows (supply-basics.js), so the supply bill is the game's. */
     basics: Object.fromEntries(['salted_shrimp', 'thin_turnip_juice', 'plain_iron_bolts'].map((id) => {

@@ -35,6 +35,16 @@ export const ITEM_DESC = {
   ...IMBUE_DESC,      // lane c-loot-loop: the imbuement slot's items
   ...STYLE_GEAR_DESC, // lane c-style-gear: the two new tier-2 weapons
   /* THE RUNES, family x tier (lane b-spell-content, 2026-10-23): what the rune casts, then one line of the mark. */
+  'chalked_earth_rune': 'Fuels the Earth spells at version I, the shields of stone, one rune a cast. Heavy in the palm for a chalk mark',
+  'scored_earth_rune': 'Fuels the Earth spells at version II, once their skill allows it. Grit sits in every scored line',
+  'etched_earth_rune': 'Fuels the Earth spells at version III, for a practised hand. The etched mark is cool as a cellar wall',
+  'carved_earth_rune': 'Fuels the Earth spells at version IV, for a veteran hand. It will not slide off a sloping table',
+  'graven_earth_rune': 'Fuels the Earth spells at version V, for a master\'s hand. Cut so deep it rings like a quarry face',
+  'chalked_water_rune': 'Fuels Greater Mend and Circle of Renewal at version I, one rune a cast. The chalk mark beads with damp',
+  'scored_water_rune': 'Fuels the Water spells at version II, once their skill allows it. Water gathers in the scored lines',
+  'etched_water_rune': 'Fuels the Water spells at version III, for a practised hand. The etching smells of a spring after rain',
+  'carved_water_rune': 'Fuels the Water spells at version IV, for a veteran hand. Its carved groove is never quite dry',
+  'graven_water_rune': 'Fuels the Water spells at version V, for a master\'s hand. A deep mark that runs like a stream bed',
   'chalked_fire_rune': 'Fuels Flame Strike, Flame Volley and Fireball at version I, one rune a cast. The flame is chalked on and smudges warm',
   'scored_fire_rune': 'Fuels the Fire spells at version II, once their skill allows it. A flame scored into the stone with a nail',
   'etched_fire_rune': 'Fuels the Fire spells at version III, for a practised hand. The etched flame dries out any pack it rides in',

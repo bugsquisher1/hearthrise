@@ -17,8 +17,9 @@
 //         free tier-1 rung of every ladder is in the starter kit and on the shop
 //         counter, so no new player is in the penalty state.
 //   RUNE  Runecrafting's level-1 loop closes with nothing else trained: mine
-//         Rune Essence -> cut Blank Runes -> bind EARTH runes -> spend them in a
-//         magic fight. Every step runs through computeAccrual.
+//         Rune Essence -> cut Blank Runes -> bind CHALKED FIRE runes -> a Mage's
+//         Fireball spends them in a fight (Tyler 2026-10-23: runes fuel spells,
+//         never a staff's or a wand's blow). Every step runs through computeAccrual.
 //   PRAY  RETIRED 2026-10-19 (core rebuild): Prayer wards are deleted (Tyler: Prayer
 //         is regen RATES only). Its replacement guards: tests/core-curves.mjs (the
 //         regen rate, JS = SQL) and tests/hunt-core/conditions.mjs (vitals by
@@ -55,11 +56,11 @@ const MUTATIONS = {
     find: '    dry: mult < 1,',
     repl: '    dry: styleNeedsAmmo(weaponType) && perShot > 0 && stock <= 0,',
   },
-  kit_drops_air_rune: {
-    file: 'src/data/start-kit.js',
-    why: 'a new character who picks up a staff starts in the penalty state',
-    find: '  air_rune: 50,\n',
-    repl: '',
+  free_rune_returns: {
+    file: 'src/data/stonecraft.js',
+    why: 'a rune that is never spent is back (the old free Air Rune rung): a spell would cast forever on one rune',
+    find: 'ammoPerShot: 1, family, runeTier: t.tier });',
+    repl: 'ammoPerShot: 0, family, runeTier: t.tier });',
   },
   shop_drops_bronze_arrows: {
     file: 'src/data/shops.js',
@@ -67,12 +68,12 @@ const MUTATIONS = {
     find: 'grant: [{ kind: "item", id: "bronze_arrows", amount: 50 }],',
     repl: 'grant: [{ kind: "item", id: "iron_arrows", amount: 50 }],',
   },
-  earth_back_at_15: {
-    file: 'src/data/stonecraft.js',
+  chalked_back_at_15: {
+    file: 'src/data/runes.js',
     why: 'Runecrafting\'s first rung that makes a SPENT rune is gated at 15 again, so the first '
        + 'hour makes nothing anybody burns',
-    find: "output: 'earth_rune', outputQty: 45, xp: 12,  req: 1,",
-    repl: "output: 'earth_rune', outputQty: 45, xp: 12,  req: 15,",
+    find: "Object.freeze({ tier: 1, name: 'Chalked', level: 1 }),",
+    repl: "Object.freeze({ tier: 1, name: 'Chalked', level: 15 }),",
   },
   blanks_need_stonemason: {
     file: 'src/data/stonecraft.js',
@@ -143,12 +144,11 @@ export async function runAll({ mutate } = {}) {
     const ammoIds = Object.keys(ITEMS).filter((id) => ITEMS[id] && ITEMS[id].slot === 'ammo');
     const FREE_ARROW = ammoIds.find((id) => ITEMS[id].ammoPerShot === 0 && ITEMS[id].rangeStrB);
     const PAID_ARROW = ammoIds.find((id) => ITEMS[id].ammoPerShot === 1 && ITEMS[id].rangeStrB);
-    const FREE_RUNE = ammoIds.find((id) => ITEMS[id].ammoPerShot === 0 && ITEMS[id].magicStrB);
     /* The whetstone's first rung WEARS since c-work-fixes (2026-10-22, src/data/stonecraft.js:
        a whetstone is melee's ceiling, R5, so no free stone): the fixture is the tier-1 stone. */
     const WHET = ammoIds.find((id) => ITEMS[id].tier === 1 && ITEMS[id].strB);
-    ok(!!FREE_ARROW && !!PAID_ARROW && !!FREE_RUNE && !!WHET,
-      `A0: the catalogue lost a fixture rung (free arrow ${FREE_ARROW}, paid ${PAID_ARROW}, free rune ${FREE_RUNE}, first whetstone ${WHET})`);
+    ok(!!FREE_ARROW && !!PAID_ARROW && !!WHET,
+      `A0: the catalogue lost a fixture rung (free arrow ${FREE_ARROW}, paid ${PAID_ARROW}, first whetstone ${WHET})`);
     const bestOf = (type, field) => Object.keys(ITEMS)
       .filter((id) => ITEMS[id] && ITEMS[id].weaponType === type && ITEMS[id][field])
       .sort((a, b) => (ITEMS[b][field] || 0) - (ITEMS[a][field] || 0))[0];
@@ -204,7 +204,7 @@ export async function runAll({ mutate } = {}) {
       if ((o.kind || 'combat') !== 'combat') return computeAccrual(inp);
       const bag = {};
       for (const [id, q] of Object.entries(o.inventory || {})) bag[id] = { loaded: q };
-      return huntAccrual({ ...inp, inventory: {} }, { seed: o.seed || SEED, bag, engine: ACC });
+      return huntAccrual({ ...inp, inventory: {} }, { seed: o.seed || SEED, bag, engine: ACC, bar: o.bar });
     };
 
     const RANGED = { melee: 0, defense: MAX_XP, ranged: MAX_XP, magic: 0, prayer: 0 };
@@ -249,8 +249,9 @@ export async function runAll({ mutate } = {}) {
       ok(rd({ weapon: sword }).dry === false, 'A3: an empty MELEE slot reads dry — R5, melee\'s floor is free');
       ok(rd({}).dry === false, 'A3: an unarmed fighter reads dry');
 
-      /* Every ammo-hungry style starts supplied, and can buy the free rung back. */
-      for (const [label, id] of [['ranged', FREE_ARROW], ['magic', FREE_RUNE], ['melee', WHET]]) {
+      /* Every ammo-hungry style starts supplied, and can buy the free rung back. (A caster needs none: its basic
+         costs mana and a rune fuels a spell, Tyler 2026-10-23; the kit's Air Rune left with the old ladder.) */
+      for (const [label, id] of [['ranged', FREE_ARROW], ['melee', WHET]]) {
         ok((START_INVENTORY[id] || 0) > 0, `A4: the starter kit has no ${id} — a new ${label} player starts unsupplied`);
         ok(SHOP_OFFERS.some((o) => (o.grant || []).some((g) => g.kind === 'item' && g.id === id)
           && (o.cost || []).every((c) => c.kind === 'currency' && c.id === 'gold')),
@@ -287,8 +288,7 @@ export async function runAll({ mutate } = {}) {
         }
       }
 
-      /* THE LOOP, through the engine. Runecrafting 1, Mining 1, Stonemason 0;
-         Magic 15 so the Earth rune is wearable. */
+      /* THE LOOP, through the engine. Runecrafting 1, Mining 1, Stonemason 0; a Magic-15 Mage. */
       const skills = { runecrafting: 0, mining: 0, stonemason: 0, defense: xpAt(30), magic: xpAt(15), prayer: 0 };
       const step = (id, inventory) => away({ kind: 'artisan', id, skills: { ...skills }, inventory, hp: 300 });
       const mine = away({ kind: 'gather', id: 'essence_rock', skills: { ...skills }, inventory: {}, hp: 300 });
@@ -299,19 +299,21 @@ export async function runAll({ mutate } = {}) {
       const cut = step('cut_rune_blanks', { rune_essence: ess });
       const blanks = (cut.accrued && cut.delta.items && cut.delta.items.rune_blank) || 0;
       ok(blanks > 0, `R2: ${ess} essence cut no blanks at Runecrafting 1 (${cut.reason})`);
-      const bind = step('bind_earth_runes', { rune_blank: blanks });
-      const earth = (bind.accrued && bind.delta.items && bind.delta.items.earth_rune) || 0;
-      ok(earth > 0, `R2: ${blanks} blanks bound no Earth runes at Runecrafting 1 (${bind.reason})`);
-      ok(bind.accrued && bind.delta.xp && bind.delta.xp.runecrafting > 0, 'R2: binding Earth runes paid no Runecrafting XP');
-      if (earth > 0 && STAFF) {
+      const bind = step('bind_chalked_fire_runes', { rune_blank: blanks });
+      const fire = (bind.accrued && bind.delta.items && bind.delta.items.chalked_fire_rune) || 0;
+      ok(fire > 0, `R2: ${blanks} blanks bound no Chalked Fire runes at Runecrafting 1 (${bind.reason})`);
+      ok(bind.accrued && bind.delta.xp && bind.delta.xp.runecrafting > 0, 'R2: binding Chalked Fire runes paid no Runecrafting XP');
+      if (fire > 0 && STAFF) {
         const mageSk = { ...skills, magic: xpAt(15) };
-        const supplied = away({ equipment: { weapon: STAFF, ammo: 'earth_rune' }, inventory: { earth_rune: earth }, skills: mageSk, hp: 1e6 });
-        const empty = away({ equipment: { weapon: STAFF }, skills: mageSk, hp: 1e6 });
+        /* a Fireball slot on the one foe spends the Mage's own runes (the fixture has no gold for the store's) */
+        const bar = [{ action: { type: 'ability', id: 'fireball' }, conditions: [], join: 'and' }];
+        const supplied = away({ equipment: { weapon: STAFF }, inventory: { chalked_fire_rune: fire }, skills: mageSk, hp: 1e6, bar });
+        const empty = away({ equipment: { weapon: STAFF }, skills: mageSk, hp: 1e6, bar });
         /* A hunt spends from its BAG; the window states what it used. */
-        const used = supplied.accrued ? Math.floor(Number(((supplied.hunt || {}).uses || {}).earth_rune) || 0) : 0;
-        ok(used > 0, `R2: a magic fight with ${earth} crafted Earth runes spent none — the rune is not consumed`);
+        const used = supplied.accrued ? Math.floor(Number(((supplied.hunt || {}).uses || {}).chalked_fire_rune) || 0) : 0;
+        ok(used > 0, `R2: a magic fight with ${fire} crafted Chalked Fire runes spent none — Fireball never cast on them`);
         ok(supplied.accrued && empty.accrued && supplied.summary.kills > empty.summary.kills,
-          `R2: crafted Earth runes did not out-kill an empty staff slot (${supplied.summary && supplied.summary.kills} vs ${empty.summary && empty.summary.kills})`);
+          `R2: crafted Fire runes did not out-kill a Mage with none (${supplied.summary && supplied.summary.kills} vs ${empty.summary && empty.summary.kills})`);
       }
     }
 

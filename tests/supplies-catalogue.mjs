@@ -79,7 +79,6 @@ import { BUFFS_DEF } from '../src/core/buffs.js';
 import { styleNeedsAmmo } from '../src/core/ammo.js';
 import { vendorPriceOf } from '../supabase/functions/hr-accrue/catalogue.js';
 import { SHOP_OFFERS } from '../src/data/shops.js';
-import { START_INVENTORY } from '../src/data/start-kit.js';
 import { isMain as isEntryModule } from './_is-main.mjs';
 
 /* The rulings' own lists, typed once here so the data can be held to them. */
@@ -113,13 +112,8 @@ function crafted(sources, id) {
   return (sources.get(id) || []).some((l) => l === 'shop' || l.startsWith('made by '));
 }
 
-/* A FREE KIT RUNG (the Air Rune): in the start kit, never spent (ammoPerShot 0) and bought by no vendor (the server's
-   own vendorPriceOf is 0), so it can never leave the bag and needs no second door. Before lane/b-orphan-sources the
-   hidden seed.air_rune price row stood in as its "shop", a door shop_buy refuses (not_listed). */
-function keptForever(items, id) {
-  const it = items[id];
-  return !!it && (START_INVENTORY[id] | 0) > 0 && it.ammoPerShot === 0 && vendorPriceOf(items, id) === 0;
-}
+/* (A FREE KIT RUNG once stood in for a source: the Air Rune, kit-only, never spent and worth nothing. It left with the
+   old rune ladder, 2026-10-23, so every packed supply now needs a recipe or a listed shop row: S3 has no exemption.) */
 
 /** What one point (or one shot) of a partner costs at book value. */
 function partnerUnit(p, kind) {
@@ -141,7 +135,7 @@ function checkPacked(d, f) {
     if (!SUPPLY_KINDS.includes(kind)) f('S2', `supply '${id}' has unknown kind '${kind}'`);
     const real = supplyKindOf(it);
     if (real !== kind) f('S2', `supply '${id}' is listed as '${kind}' but its item data says '${real}'`);
-    if (!crafted(sources, id) && !keptForever(d.items, id)) f('S3', `supply '${id}' has no recipe and no shop offer (sources: ${(sources.get(id) || []).join(', ') || 'none'})`);
+    if (!crafted(sources, id)) f('S3', `supply '${id}' has no recipe and no shop offer (sources: ${(sources.get(id) || []).join(', ') || 'none'})`);
     const want = kind === 'heal' ? true : (kind === 'buff' || kind === 'mana') ? false
       : styleNeedsAmmo(AMMO_FAMILY[it.reqSkill] || 'sword');
     if (essential !== want) f('S6', `supply '${id}' essential=${essential}, the rule says ${want}`);
@@ -369,9 +363,6 @@ function selftest() {
       ITEMS[PLANT] = { n: 'Planted Stew', v: 1, heals: 5, foodClass: 'healing' };
       d.rows = [...d.rows, ['heal', PLANT, true]];
     }],
-    ['S3', 'the free kit rune is worth gold (it could be sold, and no door brings it back)', (d) => {
-      d.items = { ...d.items, air_rune: { ...d.items.air_rune, v: 5 } };
-    }],
     ['S1', 'an unknown item id', (d) => { d.rows = [...d.rows, ['heal', 'not_an_item', true]]; }],
     ['K1', 'a kind with no shop supply paid per use', (d) => { d.basics = d.basics.filter((b) => b.kind !== 'mana'); }],
     ['B1', 'a shop heal cheaper per point than the cooked one', (d) => { withBasic(d, 'salted_shark', { price: 100 }); }],
@@ -383,7 +374,7 @@ function selftest() {
     ['B5', 'a food listed as needing no store row while one stands behind it', (d) => { d.noPartner = { ...d.noPartner, cooked_trout: 'a stale reason that is long enough' }; }],
     ['B5', 'a reason for a line that is no supply', (d) => { d.noPartner = { ...d.noPartner, not_a_supply: 'a reason for an item nobody packs' }; }],
     ['B1', 'a store row behind the free rung', (d) => { d.basics = d.basics.concat([{ id: 'plain_bronze_arrows', kind: 'ammo', n: 'Plain Bronze Arrows', partner: 'bronze_arrows', price: 2 }]); }],
-    ['B2', 'a shop rune no ability spends', (d) => { d.basics = d.basics.concat([{ id: 'plain_earth_rune', kind: 'ammo', n: 'Plain Earth Rune', partner: 'earth_rune', price: 24 }]); }],
+    ['B2', 'a shop rune no ability spends', (d) => { d.basics = d.basics.concat([{ id: 'plain_scored_fire_rune', kind: 'ammo', n: 'Plain Scored Fire Rune', partner: 'scored_fire_rune', price: 24 }]); }],
     ['B2', 'Flame Strike\'s rune with no store row (live 10-21: Flame Strike unusable)', (d) => { d.basics = d.basics.filter((b) => b.id !== 'plain_fire_rune'); }],
     ['B2', 'a store food served by hunt tier again', (d) => { withBasic(d, 'salted_shrimp', { tiers: [1] }); }],
     ['B4', 'the Counter sells Cooked Shrimp again (seed.cooked_shrimp, 50 g for 5: 1.25 g a point under the 2.3 g Salted Shrimp)', (d) => {

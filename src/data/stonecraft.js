@@ -61,13 +61,14 @@
 // be removed.
 // ══════════════════════════════════════════════════════════════════════════
 
-import { RUNE_TIERS, runeId, runeName } from './runes.js?v=0.2.34';
+import { RUNE_FAMILIES, RUNE_TIERS, runeId, runeName } from './runes.js?v=0.2.34';
 
-/* ── R7: ONE STAT CURVE ACROSS ALL THREE AMMO LADDERS ─────────────────
-   `2 / 3 / 5 / 8 / 11 / 14 / 18` at tiers 1-7, because arrows, runes and
-   whetstones are the SAME SLOT and no style may be quietly ahead. It is the
-   curve the shipped arrow ladder already carries; a guard asserts all three
-   at once so a future item that breaks it names itself.
+/* ── R7: ONE STAT CURVE ACROSS THE AMMO LADDERS ───────────────────────
+   `2 / 3 / 5 / 8 / 11 / 14 / 18` at tiers 1-7, because arrows and whetstones
+   are the SAME SLOT and no style may be quietly ahead (runes left the ladder:
+   they fuel spells only, Tyler 2026-10-23). It is the curve the shipped arrow
+   ladder already carries; a guard asserts them at once so a future item that
+   breaks it names itself.
 
    And what these items DELIBERATELY DO NOT CARRY:
      • no `critB`. `equipmentStats` sums crit from every slot regardless of the
@@ -77,8 +78,7 @@ import { RUNE_TIERS, runeId, runeName } from './runes.js?v=0.2.34';
      • no `spdB`. The best-in-slot spdB sum is 0.16 against the engine's 0.20
        clamp — the b343 speed ladder is CLOSED, and a new speed item would turn
        every future speed item into a null item.
-   Runes carry `magicStrB` only; whetstones carry `strB` only. Each pays the
-   one style that would ever equip it. */
+   Whetstones carry `strB` only: they pay the one style that would ever equip them. */
 const AMMO_STAT = [2, 3, 5, 8, 11, 14, 18];
 const AMMO_REQ_LV = [1, 15, 30, 45, 60, 75, 88];
 const AMMO_RARITY = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'legendary', 'mythic'];
@@ -91,15 +91,18 @@ const AMMO_RARITY = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'legenda
    tier-N rune casts version N of its family's spells (src/data/abilities.js `versions`). The rows carry no
    strength: nothing reads a rune in the ammo slot (src/core/member.js combatWorn), and a basic attack never
    spends one (src/core/hunt/abilities.js shotLine); `ammoPerShot: 1` is the one rune a CAST spends.
-   VALUES are book value by tier (PROVISIONAL, the designer re-tunes in the balance phase): the store's basic
-   rune costs BASIC_AMMO_PREMIUM x the Chalked rune's (supply-basics.js), 2 g a cast.
+   VALUES are book value by tier (PROVISIONAL, the designer re-tunes in the balance phase). The CHALKED rune
+   books at 0, like every free first rung (W0, Security #1): the store's basic rune (supply-basics.js, one a
+   family) costs 1 g a cast, and BASIC_AMMO_PREMIUM x 0 holds it. MEASURED on the real settle (lane
+   b-spell-content): at 2 g a cast (Chalked at 1) the Sewer floor party's runes took its net under the
+   Thicket's (tests/hunt-core/forest-cave.mjs first-grounds-net-chain).
    Air is a family with no rows: it is hidden until a spell spends it (Tyler 10-23), and an item with no
    source and no use is not authored (tests/catalogue-coherence.mjs C1, the W0 rule). */
 const RUNE_VALUE = [0, 2, 4, 6, 9];
 const RUNE_GLYPH = Object.freeze({ fire: '🔥', earth: '🌍', water: '💧', ice: '❄️', poison: '🧪', rupture: '🩸' });
-/* The families bound into family x tier rows so far (§10: the Fire family is the sample; the others follow in
-   batches of 20 rows or fewer). A family not listed still rides its old ladder row below. */
-export const CRAFTED_RUNE_FAMILIES = Object.freeze(['fire', 'ice', 'poison', 'rupture']);
+/* The families bound into family x tier rows: every family a spell spends (none is hidden). The sample was the
+   Fire family; the others followed in batches of 20 rows or fewer (DESIGN_STANDARDS §9). */
+export const CRAFTED_RUNE_FAMILIES = Object.freeze(Object.keys(RUNE_FAMILIES).filter((f) => !RUNE_FAMILIES[f].hidden));
 const runeRow = (family, t) => ({ n: runeName(family, t.tier), icon: RUNE_GLYPH[family], v: RUNE_VALUE[t.tier - 1], type: 'ammo', slot: 'ammo',
   tier: t.tier, rarity: AMMO_RARITY[t.tier - 1], reqSkill: 'magic', reqLv: t.level, ammoPerShot: 1, family, runeTier: t.tier });
 const RUNE_ROWS = Object.fromEntries(CRAFTED_RUNE_FAMILIES.flatMap((f) => RUNE_TIERS.map((t) => [runeId(f, t.tier), runeRow(f, t)])));
@@ -123,23 +126,6 @@ const bindRecipe = (family, t) => {
 };
 const BIND_RECIPES = CRAFTED_RUNE_FAMILIES.flatMap((f) => RUNE_TIERS.map((t) => bindRecipe(f, t)));
 
-/* ── THE TIER-1 RUNG IS FREE, AND IT IS A RULING ──────────────────────
-   `ammoPerShot: 0` on the first rung of every ladder. The b343 ruling derived
-   it for arrows and it applies identically here: a tier-1 caster fires ~13,900
-   times across an 8-hour absence and grosses ~18,600 gold doing it, so there
-   is NO integer price at which tier-1 ammo costs less than a third of the
-   income it earns. Training ammo, permanently. The supply loop starts at
-   tier 2, where the same night costs a real but bounded share of gross.
-
-   Consequence worth knowing rather than discovering (it is true of Bronze
-   Arrows today too): at `ammoPerShot: 0` a single Air Rune is a permanent
-   supply, so the batch of 42 is generous rather than necessary. That is fine —
-   it is a clean first Runecrafting action and an honest XP rung. */
-/* W0 (Security #1): the free tier-1 rungs also BOOK at v 0 — they are kit and
-   shop stock, so a vendor bid would turn every new kit and every shop bundle
-   into gold (the 1 g floor made the 50% buy-back cap unreachable). */
-const FREE = 0;
-
 /* ══════════════════════════════════════════════════════════════════════════
    ITEMS
    ══════════════════════════════════════════════════════════════════════════ */
@@ -151,28 +137,10 @@ export const STONECRAFT_ITEMS = {
   rune_essence:    { n: 'Rune Essence',    icon: '🪨', v: 15, tier: 1, rarity: 'common' },
   rune_blank:      { n: 'Blank Rune',      icon: '⬜', v: 3,  tier: 1, rarity: 'common' },
 
-  /* ══ RUNES — magic's ammo. The staff has a socket; you load a bound rune ══
-     Values are IDENTICAL to the arrow ladder at every tier (1/1/2/4/6/9/12).
-     R7's real claim is not "the numbers match" but "the gold-per-hour cost of
-     being fully supplied is the same for all three styles"; the item value is
-     an OUTPUT of that constraint, bounded by the anti-faucet rule, not a
-     number anybody chose.
-
-     The names are picked so PHASE TWO can hang elements on them with no
-     renames — an Ice Troll weak to both arrows and fire is the target shape,
-     and none of it ships in round 2.
-
-     SPELL REAGENTS (Tyler 2026-10-23, src/data/runes.js): a rune fuels a SPELL,
-     never a basic attack, so `magicStrB` and `ammoPerShot` are read by no hunt
-     (src/core/member.js: a rune in the ammo slot adds nothing). Each row names its
-     `family` and `runeTier`. The rows below are the old ammo ladder, ONE rune a
-     family, until the family's batch replaces it with family x tier rows (RUNE_ROWS
-     above; Chaos, Death and Blood are the rows Ice, Poison and Rupture replace), so
-     each is its family's Chalked rune (version I) for now. */
+  /* ══ RUNES — spell reagents, family x tier (RUNE_ROWS above; Tyler 2026-10-23,
+     src/data/runes.js). The old one-a-family ammo ladder (Air to Blood) is gone:
+     a rune fuels a spell, never a staff's blow. */
   ...RUNE_ROWS,
-  air_rune:   { n: 'Air Rune',   icon: '🌀', v: 0,  type: 'ammo', slot: 'ammo', tier: 1, rarity: AMMO_RARITY[0], reqSkill: 'magic', reqLv: AMMO_REQ_LV[0], magicStrB: AMMO_STAT[0], ammoPerShot: FREE, family: 'air', runeTier: 1 },
-  earth_rune: { n: 'Earth Rune', icon: '🌍', v: 1,  type: 'ammo', slot: 'ammo', tier: 2, rarity: AMMO_RARITY[1], reqSkill: 'magic', reqLv: AMMO_REQ_LV[1], magicStrB: AMMO_STAT[1], ammoPerShot: 1, family: 'earth', runeTier: 1 },
-  water_rune: { n: 'Water Rune', icon: '💧', v: 2,  type: 'ammo', slot: 'ammo', tier: 3, rarity: AMMO_RARITY[2], reqSkill: 'magic', reqLv: AMMO_REQ_LV[2], magicStrB: AMMO_STAT[2], ammoPerShot: 1, family: 'water', runeTier: 1 },
 
   /* ══ WHETSTONES — melee's ammo, and the charge-not-timer ruling (R4) ═════
      Tyler asked for "sharpening stones that temporarily increase melee weapon
@@ -201,10 +169,10 @@ export const STONECRAFT_ITEMS = {
      is stated in the item copy rather than hidden.
 
      `strB` only — see the stat-curve note above. */
-  /* THE COARSE STONE WEARS TOO (lane c-work-fixes, 2026-10-22). It was the free rung (FREE above), and
-     a whetstone is a CEILING, not a floor (R5): melee loses nothing when it is gone, so there is no new
-     player to protect and a free stone was a free +2 strB forever. 0.02 like its ladder: one stone per
-     fifty swings. The arrow and rune first rungs stay FREE: an empty quiver or staff IS a penalty. */
+  /* THE COARSE STONE WEARS TOO (lane c-work-fixes, 2026-10-22). It was the free rung, and a whetstone
+     is a CEILING, not a floor (R5): melee loses nothing when it is gone, so there is no new player to
+     protect and a free stone was a free +2 strB forever. 0.02 like its ladder: one stone per fifty
+     swings. The arrow's first rung stays FREE: an empty quiver IS a penalty. It books at 0 (W0). */
   coarse_whetstone:  { n: 'Coarse Whetstone',   icon: '🪨', v: 0,   type: 'ammo', slot: 'ammo', tier: 1, rarity: AMMO_RARITY[0], reqSkill: 'melee', reqLv: AMMO_REQ_LV[0], strB: AMMO_STAT[0], ammoPerShot: 0.02 },
   copper_whetstone:  { n: 'Copper Whetstone',   icon: '🪨', v: 15,  type: 'ammo', slot: 'ammo', tier: 2, rarity: AMMO_RARITY[1], reqSkill: 'melee', reqLv: AMMO_REQ_LV[1], strB: AMMO_STAT[1], ammoPerShot: 0.02 },
   iron_whetstone:    { n: 'Iron Whetstone',     icon: '🪨', v: 48,  type: 'ammo', slot: 'ammo', tier: 3, rarity: AMMO_RARITY[2], reqSkill: 'melee', reqLv: AMMO_REQ_LV[2], strB: AMMO_STAT[2], ammoPerShot: 0.02 },
@@ -228,23 +196,15 @@ export const STONECRAFT_ITEMS = {
    ══════════════════════════════════════════════════════════════════════════ */
 export const STONECRAFT_RECIPES = {
   runecrafting: [
-    /* ── THE BIND LADDER. Seven tiers, plus four "Deepbind" rungs that are
-       strictly better on BOTH axes a player cares about — more runes per
-       action AND more runes per blank. Seven rungs across 1-88 is a rung every
-       twelve levels, which reads thin; interleaved with the Deepbinds it is a
-       rung every ~8, which is the density pacing-overhaul asks for. */
     /* W0 RUNECRAFTING RULING (2026-10-09): the first rung makes a SPENT rune
-       (Earth, at 1); air runes are kit + shop only; the skill mines its own
-       essence (a bench row paid to Mining, the quarry pattern: a level-1 ROCKS
-       node would break the one-node-per-level bench gate) and cuts its own
-       blanks. */
+       (every family's Chalked rune, at 1); the skill mines its own essence (a
+       bench row paid to Mining, the quarry pattern: a level-1 ROCKS node would
+       break the one-node-per-level bench gate) and cuts its own blanks. */
     { id: 'cut_rune_blanks',    name: 'Cut Blank Runes',      icon: '⬜', inputs: { rune_essence: 4 },            output: 'rune_blank', outputQty: 12, xp: 8,   req: 1,  ms: 2800 },
-    { id: 'bind_earth_runes',   name: 'Bind Earth Runes',     icon: '🌍', inputs: { rune_blank: 6 },              output: 'earth_rune', outputQty: 45, xp: 12,  req: 1,  ms: 3400 },
     { id: 'split_rune_blanks',  name: 'Split Blank Runes',    icon: '⬜', inputs: { rune_essence: 6 },            output: 'rune_blank', outputQty: 6,  xp: 40,  req: 12, ms: 3000 },
-    { id: 'deepbind_earth',     name: 'Deepbind Earth Runes', icon: '🌍', inputs: { rune_blank: 7 },              output: 'earth_rune', outputQty: 58, xp: 105,  req: 24, ms: 3600 },
-    { id: 'bind_water_runes',   name: 'Bind Water Runes',     icon: '💧', inputs: { rune_blank: 6, coal: 1 },     output: 'water_rune', outputQty: 48, xp: 185,  req: 30, ms: 3600 },
-    { id: 'deepbind_water',     name: 'Deepbind Water Runes', icon: '💧', inputs: { rune_blank: 7, coal: 1 },     output: 'water_rune', outputQty: 60, xp: 330, req: 39, ms: 3800 },
-    /* The family x tier binds (BIND_RECIPES above): one a rune, the Blank Rune in. */
+    /* THE BIND LADDER (lane b-spell-content, Tyler 2026-10-23): one bind a rune, family x tier (BIND_RECIPES
+       above), the Blank Rune in, a new tier every 15 levels from 1 to 60. Runecrafting above 60 waits on later
+       content (Tyler 10-23: more tiers and spells later). */
     ...BIND_RECIPES,
     /* (The Fine and Deep Blank Runes and their cuts left with the family x tier runes, 2026-10-23: every tier is
        bound from the one Blank Rune, the designer's d3-tiers.) */

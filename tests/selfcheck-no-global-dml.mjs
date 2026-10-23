@@ -934,6 +934,20 @@ export const ACKNOWLEDGED = {
       "raise exception 'old-rewards-cut §4(d): a fox row is still held'; end if;",
     ],
   },
+  '2026-12-22-rune-ladder-cut.sql :: call :: hr_cut_item_holders': {
+    verdict: 'staged-backfill',
+    sites: 3,
+    why: 'Section 2 is the file\'s WORK: the one-time cut of the old rune ladder and the graded blanks from every '
+       + 'holder (Tyler 2026-10-23, the family x tier runes), global by definition and journalled row by row to '
+       + 'player_ledger / clan_ledger. The two self-check sites, (b), are scoped by proof: (a) first raises if ANY '
+       + 'holder table (bag, equipment, account bank, hunt bag, market, clan store) still carries an old rune, so '
+       + 'the (b) calls reach the probe\'s rows alone, and the block rolls back. `sites` is pinned at 3.',
+    proof: [
+      "v := public.hr_cut_item_holders('air_rune');",
+      "v := public.hr_cut_item_holders('earth_rune');",
+      "raise exception 'rune-ladder-cut §3(a): an old rune is still held'; end if;",
+    ],
+  },
   '2026-09-18-ledger-rollup-currencies.sql :: call :: hr_ledger_prune': {
     verdict: 'scoped-by-proof',
     why: 'The function under test IS the global retention prune, so the gates cannot avoid calling '

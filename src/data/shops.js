@@ -2,12 +2,13 @@
 // Hearthrise — THE PRICE CATALOGUE (HAND-AUTHORED since lane S2, 2026-10-18: gen-shops.mjs + legacy.js are gone; the `supply.*` rows spread in from supply-basics.js SUPPLY_SHOP_OFFERS, the source hr_shop_supply_offers is generated from)
 //
 //   catalogue digest: 3dd62b831e08bf6b8180fdfa08e203c68eea083199dfdb44a4082ccd36552e07
-//   86 offers · 184 cost lines · 4 prices that are formulas, not data
+//   89 offers · 187 cost lines · 4 prices that are formulas, not data
 //
 // EXTRACTED FROM
 //   room              40  src/legacy.js
 //   plot               4  src/legacy.js
-//   seed               4  src/legacy.js (9 seed rows moved to the seed counter, 2026-10-22)
+//   seed               3  src/legacy.js (9 seed rows moved to the seed counter, 2026-10-22; the Air Rune row left
+//                         with the old rune ladder, 2026-10-23)
 //   equip              8  src/legacy.js (5 rows moved to the outfitter, 2026-10-22)
 //   property           5  src/features/homestead.js
 //   worker             6  src/features/workers.js
@@ -448,13 +449,6 @@ export const SHOP_OFFERS = [
     name: "Workshop — The Master's Shop",
     cost: [{ kind: "currency", id: "gold", amount: 260000 }, { kind: "item", id: "duskwood_plank", amount: 25 }, { kind: "item", id: "keystone", amount: 2 }, { kind: "item", id: "rune_bar", amount: 6 }],
     grant: [{ kind: "unlock", id: "room:workshop", amount: 5 }],
-  },
-  {
-    id: "seed.air_rune", table: "seed",
-    name: "Air Rune",
-    cost: [{ kind: "currency", id: "gold", amount: 60 }],
-    grant: [{ kind: "item", id: "air_rune", amount: 50 }],
-    repeatable: true,
   },
   {
     id: "seed.bronze_arrows", table: "seed",

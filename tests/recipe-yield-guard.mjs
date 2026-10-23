@@ -95,16 +95,7 @@ export const QTY_ALLOW = Object.freeze({
   fletch_rune_arrows:      'arrows: as above',
   fletch_emberhead_arrows: 'arrows: as above',
   fletch_dawnpoint_arrows: 'arrows: as above, x1000 at tier 7',
-  bind_earth_runes:        'runes: one cast per swing, same per-swing burn seam as ammo',
-  deepbind_earth:          'runes: as above',
-  bind_water_runes:        'runes: as above',
-  deepbind_water:          'runes: as above',
-  bind_fire_runes:         'runes: as above',
-  bind_chaos_runes:        'runes: as above',
-  deepbind_chaos:          'runes: as above',
-  bind_death_runes:        'runes: as above',
-  bind_blood_runes:        'runes: as above',
-  deepbind_blood:          'runes: as above',
+  /* (The old rune ladder's binds left with it, 2026-10-23: every family x tier bind makes 45 or fewer.) */
 });
 
 /* ── THE BATCH FAUCET RATIO ──────────────────────────────────────────────── */

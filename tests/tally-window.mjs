@@ -5,7 +5,7 @@
 //   node tests/tally-window.mjs            the rules
 //   node tests/tally-window.mjs --mutate   every planted defect must turn a rule RED
 //
-// mutant-anchors: src/shell/windows/tally.js src/session/tally-sections.js src/session/tally-intents.js src/shell/windows/hunts.js
+// mutant-anchors: src/shell/windows/tally.js src/session/tally-sections.js src/session/tally-intents.js src/shell/windows/hunts.js src/shell/shell.js src/shell/widgets/tally-hud.js
 //
 // play.html with supabase-js and the REST paths stubbed (tests/_client-harness.mjs);
 // the character is tests/fixtures/alpha-envelope.json plus a `tally` section
@@ -22,6 +22,11 @@
 //         is handed in (the settle that brings the hero home pays)
 //   TW-6  the HUD's tally and the hunt list read the server's count ("Gray Wolves 112/200")
 //   TW-7  FAIL SAFE: with no tally section nothing is drawn and nothing can be taken
+//   TW-8  THE HUD'S PLACE (v0.2.37 run 40020854780): hunting with three tasks held, the tally
+//         overlaps no World panel at 1440x900, 1100x800 or 1024x700 (it stacks under the
+//         analyzer), nor on the phone (922x423) when the player shows it there (under the
+//         hunt bar); with nothing to show it takes no room (its empty box sat on the analyzer
+//         and pushed the town camera off the hero, window-camera WC-3)
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
 import { leaseBrowser } from './_chrome.mjs';
@@ -38,6 +43,9 @@ const TALLY = {
     { place: 2, task: 'cellar_giant_rats', hunt: 'mill_cellar', monster: 'rat', kills: 120, target: 120, keep: true, done: true, done_at: '2026-10-23T10:00:00.000Z', wait: null }],
   paid_today: 1, per_day: 3, held_max: 3, weight: 'light', order: ORDER, recent: [], day_ends_at: '2026-10-24T00:00:00.000Z',
 };
+/* TW-8: her three tasks held at once (held_max), so the HUD's tally is as tall as it gets. */
+const TALLY3 = Object.assign(clone(TALLY), { held: TALLY.held.concat([
+  { place: 3, task: 'glade_poachers', hunt: 'mosslight_glade', monster: 'glade_poacher', kills: 20, target: 60, keep: false, done: false, done_at: null, wait: null }]) });
 const BOARD = { ok: true, hunting: false, tally: TALLY, board: [
   { task: 'cellar_giant_rats', hunt: 'mill_cellar', monster: 'rat', target: 120, gold: 100, party: false, band_min: 1, held: true, pick: { pick: 'material', item: 'slime_gel', qty: 4 } },
   { task: 'thicket_gray_wolves', hunt: 'meadowbrook_thicket', monster: 'gray_wolf', target: 200, gold: 480, party: false, band_min: 5, held: true, pick: { pick: 'piece', item: 'apprentice_body', qty: 1 } },
@@ -156,6 +164,69 @@ async function checks(overrides) {
       }
       await ctx.close();
     }
+    { // TW-8 (v0.2.37 run 40020854780): with three tasks held, hunting, the HUD's tally sits on no World panel
+      const over = () => page8.evaluate(() => {
+        const els = Array.from(document.querySelectorAll('[data-hs-hud="world"] [data-hs-widget]')).map((e) => [e.getAttribute('data-hs-widget'), e.getBoundingClientRect()]);
+        const out = [];
+        for (let i = 0; i < els.length; i++) for (let j = i + 1; j < els.length; j++) {
+          const [a, p] = els[i], [b, q] = els[j];
+          if (p.width && q.width && p.left < q.right - 1 && p.right > q.left + 1 && p.top < q.bottom - 1 && p.bottom > q.top + 1) out.push(a + ' x ' + b);
+        }
+        return out;
+      });
+      const { ctx, page: page8, up } = await open({ tally: clone(TALLY3) });
+      const shown = up && await wait(page8, () => document.querySelectorAll('[data-hs-widget="tally"] .hs-tally-row').length === 3
+        && !!document.querySelector('[data-hs-hud="world"] [data-hs-widget="analyzer"]'));
+      if (!shown) fails.push('TW-8 the three held tallies and the analyzer never showed while hunting');
+      else {
+        for (const vp of [{ width: 1440, height: 900 }, { width: 1100, height: 800 }, { width: 1024, height: 700 }]) {
+          await page8.setViewportSize(vp);
+          await page8.waitForTimeout(500);
+          let o = await over();
+          for (const end = Date.now() + 3000; o.length && Date.now() < end; o = await over()) await page8.waitForTimeout(100);
+          if (o.length) fails.push('TW-8 the HUD panels overlap at ' + vp.width + 'x' + vp.height + ': ' + o.join(', '));
+        }
+      }
+      await ctx.close();
+    }
+    { // TW-8 on the phone (922x423, landscape): a player who shows the tally there (HUD layout) gets it under the hunt bar
+      const phoneLayout = { client_state: { hudLayout: { phone: { tally: { visible: true } } } } };
+      const ctx = await browser.newContext({ viewport: { width: 922, height: 423 }, hasTouch: true, isMobile: false });
+      const page = await ctx.newPage();
+      page.setDefaultTimeout(6000);
+      const s = { env: Object.assign(clone(BASE_ENV), { tally: clone(TALLY3) }, phoneLayout), version: 1, calls: [], answers: {}, board: clone(BOARD) };
+      await stub(page, s);
+      const up = await signInAndPlay(page, 'http://127.0.0.1:' + port);
+      const shown = up && await wait(page, () => document.querySelectorAll('[data-hs-widget="tally"] .hs-tally-row').length === 3
+        && !!document.querySelector('[data-hs-hud="world"] [data-hs-widget="hunt-topbar"]'));
+      if (!shown) fails.push('TW-8 the phone never showed the tally the player asked for');
+      else {
+        await page.waitForTimeout(500);
+        const o = await page.evaluate(() => {
+          const els = Array.from(document.querySelectorAll('[data-hs-hud="world"] [data-hs-widget]')).map((e) => [e.getAttribute('data-hs-widget'), e.getBoundingClientRect()]);
+          const out = [];
+          for (let i = 0; i < els.length; i++) for (let j = i + 1; j < els.length; j++) {
+            const [a, p] = els[i], [b, q] = els[j];
+            if (p.width && q.width && p.left < q.right - 1 && p.right > q.left + 1 && p.top < q.bottom - 1 && p.bottom > q.top + 1) out.push(a + ' x ' + b);
+          }
+          const t = document.querySelector('[data-hs-widget="tally"]').getBoundingClientRect();
+          if (t.bottom > innerHeight || t.right > innerWidth) out.push('tally off the screen');
+          return out;
+        });
+        if (o.length) fails.push('TW-8 the phone HUD panels overlap: ' + o.join(', '));
+      }
+      await ctx.close();
+    }
+    { // TW-8: with nothing to show (no section) the tally takes NO room: its empty box sat on the analyzer and moved the camera
+      const { ctx, page, up } = await open({});
+      if (!up || !(await wait(page, () => !!document.querySelector('[data-hs-hud="world"] [data-hs-widget="analyzer"]')))) fails.push('TW-8 the hunt HUD did not mount without a tally');
+      else {
+        await page.waitForTimeout(400);
+        const box = await page.evaluate(() => { const t = document.querySelector('[data-hs-widget="tally"]'); return t ? [t.offsetWidth, t.offsetHeight] : [0, 0]; });
+        if (box[0] || box[1]) fails.push('TW-8 the tally holds a ' + box.join('x') + ' box with nothing to show');
+      }
+      await ctx.close();
+    }
     { // TW-7
       const { ctx, page, s, up } = await open({ hunt: null }, null, { ok: true, hunting: false, tally: null, board: BOARD.board });
       if (!(up && await show(page))) fails.push('TW-7 her window did not open without the section');
@@ -186,6 +257,8 @@ const MUTANTS = [
   ['the HUD shows one more kill than the server', 'src/session/tally-sections.js', "return label + ' ' + h.kills + '/' + h.target;", "return label + ' ' + (h.kills + 1) + '/' + h.target;"],
   ['a refusal reads as a generic line', 'src/shell/windows/tally.js', "  const run = (send, busy, done) => runIntent(sc, repaint, send, busy, (r) => { sc.stale = true; return done(r); }, cs);", "  const run = (send, busy, done) => runIntent(sc, repaint, async () => { const r = await send(); if (!r.ok) r.error = 'refused'; return r; }, busy, (r) => { sc.stale = true; return done(r); }, cs);"],
   ['the hunt list drops the tally line', 'src/shell/windows/hunts.js', "text(li.querySelector('.hw-hunt-tally'), heldOn(tally, r.hunt).map(tallyLine).join(' · '));", "text(li.querySelector('.hw-hunt-tally'), '');"],
+  ['the tally sits at its anchor, over the analyzer', 'src/shell/shell.js', '      const top = stackBelow(at, above, DOCK_EDGE);', '      const top = Math.round(at.top);'],
+  ['a tally with nothing to show keeps its box', 'src/shell/widgets/tally-hud.js', "  cls(el, 'is-quiet', !t || (!held.length && hunting));", "  cls(el.querySelector('.hs-tally'), 'is-quiet', !t || (!held.length && hunting));"],
 ];
 
 async function main() {

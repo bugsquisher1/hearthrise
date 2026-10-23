@@ -31,7 +31,7 @@
 
 /* ── Tamsin's tally (widgets/tally-hud.js): each held kill task's server count on a notched stick ── */
 .hs-tally { display: flex; flex-direction: column; gap: 4px; padding: 6px 8px; background: var(--bg-1); }
-.hs-tally.is-quiet { display: none; }
+.hs-widget.is-tally.is-quiet { display: none; }
 .hs-tally-open { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 0; border: 0; background: none; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
 .hs-tally-open b { font-family: var(--f-label); font-weight: 700; font-size: var(--t-micro); letter-spacing: .04em; color: var(--gold-2); }
 .hs-tally-open:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: 2px; }

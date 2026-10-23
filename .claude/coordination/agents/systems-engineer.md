@@ -4242,3 +4242,7 @@ guard tests/hunt-scene.mjs (SC-1..8, 13/13 mutants).
 2. *A clamp that is right for one scene pins the hero in another.* NO VOID (whole view on the map) was ruled for town; in a 60-tile hunt room it pinned the hero against the analyzer anywhere within 17 tiles of the edge. The rule is per map kind in frameView, not a second camera.
 3. *Measure the inset where it arrives (the backend), not where it is computed.* Every rect looked right; the camera had {0,0,0,0}.
 4. *Anchor geometry lies on the phone.* A top-right-anchored bar was read as a full-height side panel and an off-screen panel as a left one: the inset clips to the box and picks the cheaper strip for a corner widget.
+## 2026-10-22 · lane/a-chat-overlap (v0.2.32 gate: Chat over a four-seat party panel)
+1. *Two clearance systems that never see each other leave a gap between them.* clearOfEdges kept widgets apart and clearOfDock kept docked windows off widgets, but the home window (Chat) is neither, so nothing kept it off the party panel. homeAt measures every World widget over its column.
+2. *Slide past what binds, not everything that crosses.* The first cut slid Chat past every widget over its column, the hunt bar too, which ran it off the box and fell back to a 79 px chat. Only the widgets that leave it under the resize floor move it.
+3. *Measure from the home column every time.* A slid window re-measured from where it stood would never come back when the panel shrank.

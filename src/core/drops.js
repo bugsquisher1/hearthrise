@@ -21,13 +21,12 @@ export function dropBand(ch) {
 }
 
 /**
- * A row's band. A converted ground's row names its own (`band`, src/data/loot-bands.js); a row on a
- * ground still on the old model is 'gear' for its equipment slot (`gear: true`, never a reveal), else
- * its odds' band (dropBand). The old model retires ground by ground (tests/hunt-core/drop-tables.mjs).
+ * A row's band: its own (`band`, src/data/loot-bands.js), which every walked ground's row names; an
+ * unbanded row (the old roster's lucky and salvage finds, the tutorial's seeded fixtures) reads its odds.
  */
 export function bandOf(row) {
   if (row && LOOT_BANDS.includes(row.band)) return row.band;
-  return row && row.gear === true ? 'gear' : dropBand(row ? row.ch : 0);
+  return dropBand(row ? row.ch : 0);
 }
 
 /* Below this a percentage stops meaning anything ('0.0%' for a .0004 lucky
@@ -84,7 +83,7 @@ export function rollDropTable(drops, mods, rng) {
     if (!rng.chance(chance)) continue;
     dropped[d.id] = (dropped[d.id] || 0) + 1;
     /* Only a Rare or Trophy row earns the "Rare drop" moment and the party's rare roll (REVEAL_BANDS);
-       a Scarce piece or an old-model equipment slot is a standard drop at any odds. */
+       a Scarce piece is a standard drop at any odds. */
     const band = bandOf(d);
     events.push({ type: 'drop', id: d.id, band, rare: REVEAL_BANDS.includes(band) });
   }

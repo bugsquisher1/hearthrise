@@ -18,8 +18,8 @@
 //              below), at uncommon odds (IMBUE_DROP), tier from the monster's
 //              level (imbueTierFor). Raw, so the vendor bids a fifth of its book
 //              value: its worth is to the imbuer, not the shop.
-//   equipment  ONE row, `gear: true`, never a reveal; on a loot-band ground the
-//              Scarce rows instead (src/data/loot-bands.js, the Thicket first).
+//   equipment  the Scarce rows (src/data/loot-bands.js, Tyler 2026-10-23): one
+//              armour slot in three weights about hourly, never a reveal.
 //   + rare     the Rare (1 per 10-20 h) and Trophy (bosses, 1 per 100-150 h).
 //
 // IMBUING IS NOT BUILT (L4: no server table, no station, no recipe). Until it

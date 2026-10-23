@@ -44,12 +44,9 @@
 //                roster): an own-tier helm/boots/gloves/belt, 0.5-10 h, the LAST
 //                row, never beside a lucky row. tests/field-salvage.mjs.
 //   band         `{id, ch, band}` — THE LOOT BANDS (Tyler 2026-10-23,
-//                src/data/loot-bands.js): every row of a converted ground, in band
-//                order, read by the roller in place of the odds; only Rare and
-//                Trophy reveal. tests/hunt-core/drop-tables.mjs.
-//   gear         `{id, ch, gear:true}` — THE OLD EQUIPMENT SLOT (Tyler 10-14/10-20)
-//                of a ground not yet on bands: one per monster, never a reveal;
-//                one RARE CARRIER per such ground holds every rare-odds row.
+//                src/data/loot-bands.js): every row of every walked ground, in
+//                band order, read by the roller in place of the odds; only Rare
+//                and Trophy reveal. tests/hunt-core/drop-tables.mjs.
 //
 // `neutral` IS RETIRED (DEC-NEUT-01). Every monster answers a real weapon.
 // The 7 monsters that used to opt out of the triangle earned a x1.15 drop
@@ -739,30 +736,35 @@ export const MONSTERS = {
       { id: 'adept_helmet', ch: .003, band: 'rare' }, { id: 'grayjaws_ruff', ch: .003, band: 'rare' }] },
 
   /* ══ Coppercap Warrens: the goblins of the copper diggings (one family, five roles;
-     a party ground). Names, roles and economy: the src/data/hunt-grounds.js header. ══ */
+     a party ground). Names, roles and economy: the src/data/hunt-grounds.js header. THE LOOT BANDS (batch 4): the
+     tier-3 set in three weights about hourly for a party of four at 32 AND a lone hero at 45. The swarm dies fastest,
+     so the scavengers carry two slots (boots, legs) and the Steel Sword they pick off the spoil; the diggers the helmets
+     and the Steel Warhammer; the few skulkers, foremen and the Chief share the bodies. ══ */
   goblin_scavenger: { name: 'Goblin Scavenger', icon: '👺', tier: 3, level: 34, cls: 'humanoid', family: 'Humanoid', formation: true,
     hp: 150, atk: 22, def: 10, xp: 924, gp: [12, 29], speed: 3200,
-    drops: [{ id: 'goblin_ear', ch: .6 }, { id: 'copper_ore', ch: .5 }, { id: 'bones', ch: .5 }, { id: 'coal', ch: .1 },
-      { id: 'boarhide_boots', ch: .0028, gear: true }] },
+    drops: [{ id: 'goblin_ear', ch: .6, band: 'common' }, { id: 'copper_ore', ch: .5, band: 'common' }, { id: 'bones', ch: .5, band: 'common' }, { id: 'coal', ch: .1, band: 'uncommon' },
+      { id: 'steel_boots', ch: .02, band: 'scarce' }, { id: 'boarhide_boots', ch: .02, band: 'scarce' }, { id: 'scholar_boots', ch: .02, band: 'scarce' },
+      { id: 'steel_platelegs', ch: .02, band: 'scarce' }, { id: 'boarhide_pants', ch: .02, band: 'scarce' }, { id: 'scholar_pants', ch: .02, band: 'scarce' }, { id: 'steel_sword', ch: .02, band: 'scarce' }] },
   goblin_skulker: { name: 'Goblin Skulker', icon: '👺', tier: 3, level: 38, cls: 'humanoid', family: 'Humanoid', formation: true,
     hp: 170, atk: 30, def: 12, xp: 1122, gp: [14, 34], speed: 4400,
-    drops: [{ id: 'goblin_ear', ch: .6 }, { id: 'bones', ch: .5 }, { id: 'iron_ore', ch: .2 }, { id: 'steel_sword', ch: .0125, gear: true }] },
+    drops: [{ id: 'goblin_ear', ch: .6, band: 'common' }, { id: 'bones', ch: .5, band: 'common' }, { id: 'iron_ore', ch: .2, band: 'common' },
+      { id: 'steel_platebody', ch: .05, band: 'scarce' }, { id: 'boarhide_body', ch: .05, band: 'scarce' }, { id: 'scholar_body', ch: .05, band: 'scarce' }] },
   goblin_digger: { name: 'Goblin Digger', icon: '👺', tier: 3, level: 40, cls: 'humanoid', family: 'Humanoid', formation: true,
     /* one override (weapon): the copper pot over its eyes turns a blade; a hammer rings it. */
     weaponWeak: 'hammer', weaponResist: ['sword'],
     hp: 240, atk: 26, def: 20, xp: 1452, gp: [16, 39], speed: 2600,
-    drops: [{ id: 'copper_ore', ch: .8 }, { id: 'coal', ch: .4 }, { id: 'bones', ch: .5 }, { id: 'goblin_ear', ch: .4 },
-      { id: 'steel_helm', ch: .005, gear: true }] },
+    drops: [{ id: 'copper_ore', ch: .8, band: 'common' }, { id: 'coal', ch: .4, band: 'common' }, { id: 'bones', ch: .5, band: 'common' }, { id: 'goblin_ear', ch: .4, band: 'common' },
+      { id: 'steel_helm', ch: .035, band: 'scarce' }, { id: 'boarhide_helmet', ch: .035, band: 'scarce' }, { id: 'scholar_helmet', ch: .035, band: 'scarce' }, { id: 'steel_warhammer', ch: .035, band: 'scarce' }] },
   hobgoblin_foreman: { name: 'Hobgoblin Foreman', icon: '👹', tier: 3, level: 46, cls: 'humanoid', family: 'Humanoid', formation: true,
     hp: 300, atk: 30, def: 22, xp: 2112, gp: [29, 67], speed: 3000,
-    drops: [{ id: 'big_bones', ch: 1 }, { id: 'iron_ore', ch: .6 }, { id: 'coal', ch: .6 }, { id: 'goblin_totem', ch: .08 },
-      { id: 'steel_platelegs', ch: .025, gear: true }] },
+    drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'iron_ore', ch: .6, band: 'common' }, { id: 'coal', ch: .6, band: 'common' }, { id: 'goblin_totem', ch: .08, band: 'uncommon' },
+      { id: 'steel_platebody', ch: .05, band: 'scarce' }, { id: 'boarhide_body', ch: .05, band: 'scarce' }, { id: 'scholar_body', ch: .05, band: 'scarce' }] },
   chief_coppercap: { name: 'Chief Coppercap', icon: '👑', tier: 3, level: 52, cls: 'humanoid', family: 'Humanoid', formation: true, boss: true,
     /* one override (element): the polished cauldron he wears for a crown sheds frost. */
     elementResist: ['frost'],
     hp: 1100, atk: 29, def: 28, xp: 7920, gp: [95, 215], speed: 2800,
-    drops: [{ id: 'big_bones', ch: 1 }, { id: 'gold_ore', ch: .5 }, { id: 'goblin_totem', ch: .3 }, { id: 'war_crown', ch: .018 },
-      { id: 'steel_platebody', ch: .025, gear: true }] },
+    drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'gold_ore', ch: .5, band: 'common' }, { id: 'goblin_totem', ch: .3, band: 'common' },
+      { id: 'steel_platebody', ch: .05, band: 'scarce' }, { id: 'boarhide_body', ch: .05, band: 'scarce' }, { id: 'scholar_body', ch: .05, band: 'scarce' }, { id: 'war_crown', ch: .016, band: 'rare' }] },
 
   /* ══ Mosslight Glade, levels 16-31, solo, mixed (lane c-ground-16-31): roles, junk and economy in the src/data/hunt-grounds.js header.
      THE LOOT BANDS (batch 3): the whole tier-2 set in three weights, about hourly (crows boots, poachers legs and their

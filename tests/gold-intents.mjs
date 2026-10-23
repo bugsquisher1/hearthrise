@@ -115,6 +115,13 @@ const MUTATIONS = {
     find: '  const bid = it.raw ? Math.max(1, Math.floor(v * VENDOR_RAW_RATE)) : v;',
     repl: '  const bid = v;',
   },
+  vendor_ignores_gear_rate: {
+    file: FN('catalogue.js'),
+    why: 'the loot bands\' gear sell rate vanishes (Tyler 2026-10-23), so every dropped piece sells at full book and '
+       + 'the hour\'s gear value runs past the caps the drop odds were measured against',
+    find: '  const v = VENDOR_GEAR_TYPES.includes(it.type) ? Math.max(1, Math.floor(book * gearSaleRate(it))) : book;',
+    repl: '  const v = book;',
+  },
   vendor_ignores_shop_cap: {
     file: FN('catalogue.js'),
     why: 'b565 — the shop buy-back cap vanishes, so steel_platebody round-trips at 1500/1500 again '
@@ -569,6 +576,9 @@ async function run(mutate) {
       `G1: the server pays raws at ${cat.VENDOR_RAW_RATE} of book value; the ruling (b226) is 0.20`);
     ok(cat.SHOP_BUYBACK_RATE === 0.5,
       `G1: the server caps buy-back at ${cat.SHOP_BUYBACK_RATE} of the shop price; the ruling (b565) is 0.5`);
+    const LB = await import('../src/data/loot-bands.js');
+    ok(JSON.stringify(LB.VENDOR_GEAR_RATES) === '[0.5,0.5,0.14]',
+      `G1: the trader pays worn gear ${JSON.stringify(LB.VENDOR_GEAR_RATES)} of book value by tier; the ruling (Tyler 2026-10-23, loot bands) is [0.5, 0.5, 0.14]`);
     const { ITEMS } = await import('../src/data/items.js');
     /* THE RULING'S NUMBERS, per unit, as the server pays them. */
     const BUYBACK_EXPECT = {
@@ -576,7 +586,10 @@ async function run(mutate) {
          stay the vendor price list their caps are read from, so these bids do not move. The nine crop seeds moved to
          the seed counter's listed supply.* rows at the SAME unit price (lane/b-orphan-sources): their bids hold too. */
       carrot_seed: 5, potato_seed: 10, pumpkin_seed: 25, turnip_seed: 2,
-      wheat_seed: 7, tomato_seed: 15, stone_maul: 70, shortbow: 60, apprentice_staff: 60,
+      wheat_seed: 7, tomato_seed: 15,
+      /* WORN GEAR at half book (Tyler 2026-10-23, loot-bands.js VENDOR_GEAR_RATE), under the b565 cap: maul 110 -> 55
+         (cap 70), bow 90 -> 45 (cap 60), staff 80 -> 40 (cap 60). */
+      stone_maul: 55, shortbow: 45, apprentice_staff: 40,
       rune_blank: 3, goldenroot_seed: 75, emberfruit_seed: 150,
       /* Lane S2 (Coordinator ruling, 2026-10-18): cooked food is back on the shop
          as `supply.*` offers at the designer's rate (salted price a point x the
@@ -604,11 +617,16 @@ async function run(mutate) {
         `G1-CONTROL: ${id} is raw (v=${ITEMS[id].v}) but the server bids full book value — the `
         + 'discount is not being applied at all, so "the two agree" would only mean they are both wrong');
     }
-    const plain = Object.keys(ITEMS).find((id) => !ITEMS[id].raw && Number(ITEMS[id].v) >= 10
-      && !Object.prototype.hasOwnProperty.call(cat.SHOP_UNIT_PRICE, id));
+    const unshopped = (id) => !Object.prototype.hasOwnProperty.call(cat.SHOP_UNIT_PRICE, id);
+    const plain = Object.keys(ITEMS).find((id) => !ITEMS[id].raw && Number(ITEMS[id].v) >= 10 && unshopped(id)
+      && !LB.VENDOR_GEAR_TYPES.includes(ITEMS[id].type));
     ok(plain && cat.vendorPriceOf(ITEMS, plain) === Number(ITEMS[plain].v),
       `G1-CONTROL: ${plain} is NOT raw and the server does not bid book value — the discount is `
       + 'being applied to everything, which the comparison above would not distinguish');
+    /* worn gear at the gear rate: sampled at v >= 10 and off the shop list, so neither floor nor cap can hide it */
+    const gear = Object.keys(ITEMS).filter((id) => LB.VENDOR_GEAR_TYPES.includes(ITEMS[id].type) && Number(ITEMS[id].v) >= 10 && unshopped(id));
+    ok(gear.length > 20 && gear.slice(0, 5).every((id) => cat.vendorPriceOf(ITEMS, id) === Math.max(1, Math.floor(Number(ITEMS[id].v) * LB.gearSaleRate(ITEMS[id])))),
+      `G1-CONTROL: worn gear is not bid at its tier's share of book (${gear.slice(0, 5).map((id) => id + ' ' + cat.vendorPriceOf(ITEMS, id) + '/' + ITEMS[id].v).join(', ')})`);
     ok(cat.vendorPriceOf({}, 'constructor') === 0,
       'G1: vendorPriceOf priced a prototype member — `ITEMS[\'constructor\']` must not resolve');
   }

@@ -5,6 +5,14 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.37 — 2026-10-23 (Worth the hunt)
+
+**New loot on every ground.** Each monster now drops a full spread: creature parts, a crafting material, and gear for every armour weight (heavy, medium and light), so every build finds its next upgrade about once an hour as it moves up the grounds. Rare pieces turn up every few hours with a louder moment when they drop, and the Rat King and Chief Coppercap each guard a Trophy worth chasing. No gear is bound any more: everything you find can be stored or sold. The Hunts page shows the gear each ground drops for your armour.
+
+**Meet Tamsin Reeve, the Common's tally-keeper.** Take up to three kill tasks at her board (Q), hunt, and she pays you when you're back in town: gold, plus the next piece of gear you're missing for your armour. Your progress shows on the hunt cards.
+
+**Fixed:** the farm hint no longer says nothing grows while your shared land is full of crops.
+
 ## v0.2.36 — 2026-10-23 (Home together)
 
 **Leave together.** Your row on the party panel now has a box: "Leave if anyone leaves the hunt or dies". It starts ticked and is remembered for each hero. When a partner leaves, falls or runs out, every hero with the box ticked is paid for its time, then comes home with them, and the summary says why ("Mira fell, so Tyler came home too."). Untick it to keep hunting. Removing someone from the party never sends anyone else home.

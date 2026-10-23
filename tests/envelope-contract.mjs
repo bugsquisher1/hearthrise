@@ -215,6 +215,11 @@ function contract(R, cs, body, tl) {
   const fl = R.FS.farmLandOf(cs, 0);
   need('farm_land', !!fl && fl.cap >= 2 && fl.plotLevel >= 1 && fl.plots instanceof Map && (fl.plotLevel >= 5 || (!!fl.upgrade && fl.upgrade.gold > 0 && fl.upgrade.farming > 0)),
     'farmLandOf yields ' + JSON.stringify(fl && { cap: fl.cap, plotLevel: fl.plotLevel, upgrade: fl.upgrade, plots: fl.plots.size }) + ' from ' + JSON.stringify(body.farm_land));
+  /* Tamsin's tally (2026-12-23-tally-tasks.sql): the cellar task taken in town, counted by six minutes of real settles */
+  const ta = R.TS.tallyOf(cs);
+  const tc = ta && ta.held.find((x) => x.task === 'cellar_giant_rats');
+  need('tally', !!ta && ta.perDay === 3 && ta.heldMax === 3 && ta.weight === 'light' && ta.order.length === 6 && !!tc && tc.kills > 0 && tc.kills <= tc.target,
+    'tallyOf yields ' + JSON.stringify(ta) + ' from ' + JSON.stringify(body.tally));
   return out;
 }
 
@@ -236,7 +241,7 @@ function sheetContract(R, cs, body) {
 export const CONTRACT_KEYS = Object.freeze(['hunt', 'hunt_track', 'hunt_events', 'hunt_server_now_ms', 'hunt_settings', 'hunt_analyzer',
   'party', 'party_people', 'stamina', 'premium', 'account', 'inventory', 'equipment', 'skills', 'state', 'bank', 'buffs', 'hero_slots',
   'name', 'bag_rules', 'shop', 'hunt_presets', 'role', 'party_invites', 'stamina_refill', 'blessings',
-  'character_sheet', 'outfit', 'death_log', 'vitals', 'hunt_bests', 'hunt_density', 'depot', 'home', 'now', 'farm_land', 'bench_run', 'rename']);
+  'character_sheet', 'outfit', 'death_log', 'vitals', 'hunt_bests', 'hunt_density', 'depot', 'home', 'now', 'farm_land', 'bench_run', 'rename', 'tally']);
 
 /* What lane S2's sections are seeded with before the settle (each verb through the real RPC). */
 const SEED = Object.freeze({ name: 'Contract Hero', inviter: 'Contract Inviter', lock: 'cooked_shrimp', loot: 'normal_log',
@@ -291,6 +296,7 @@ async function readers(root) {
     HS: await import(u('src/session/hunt-sections.js')), IS: await import(u('src/session/item-sections.js')),
     PS: await import(u('src/session/party-sections.js')), ACC: await import(u('src/session/account-session.js')),
     CS: await import(u('src/session/character-sections.js')), FS: await import(u('src/session/farm-sections.js')), HO: await import(u('src/session/home-sections.js')),
+    TS: await import(u('src/session/tally-sections.js')),
     CFG: await import(u('src/session/config.js')), CSN: await import(u('src/session/character-session.js')),
     M: await import(u('src/data/monsters.js')),
   };
@@ -305,6 +311,9 @@ async function realBody(db, M, H) {
     await db.query("select set_config('request.jwt.claim.sub', $1, true)", [H.UIDS[0]]);
     const r = await H.one(db, 'select public.hr_hunt_preset_save(0, $1, $2, gen_random_uuid())', [SEED.preset, SEED.presetName]);
     if (!r || r.ok !== true) throw new Error('S2 seed refused: the setup save in town -> ' + JSON.stringify(r));
+    /* Tamsin's cellar task, taken at her board in town (2026-12-23-tally-tasks.sql): the settles count its rats. */
+    const tt = await H.one(db, "select public.hr_tally_accept(0, 'cellar_giant_rats', 'light', gen_random_uuid())");
+    if (!tt || tt.ok !== true) throw new Error('S2 seed refused: the tally take in town -> ' + JSON.stringify(tt));
   } });
   /* Monsters are units only mid-pull: sample the pose after every tick so the monster path is proven. */
   const poses = [];
@@ -395,6 +404,8 @@ const DB_MUTANTS = [
   ['home', 'public.hr_home_view(uuid,integer)', "'rooms', coalesce((select jsonb_agg(", "'room_list', coalesce((select jsonb_agg("],
   ['now', 'public.hr_state_of(uuid,integer)', "'now', now(),", "'stamp', now(),"],
   ['rename', 'public.hr_hero_rename_quote(uuid,integer)', "'price', r.base + r.per_level * v_lv,", "'cost', r.base + r.per_level * v_lv,"],
+  ['tally', 'public.hr_tally_section(uuid,integer)', "'per_day', cfg.paid_per_day,", "'perday', cfg.paid_per_day,"],
+  ['tally', 'public.hr_tally_count(uuid,integer,uuid,jsonb)', "coalesce((p_meta->'km'->>v_r.monster_id)::bigint, 0)", '0::bigint'],
 ];
 const EDGE_MUTANTS = [
   ['hunt_track', 'src/core/hunt-track.js', '    hunt_track: pb.steps.map(', '    track: pb.steps.map('],

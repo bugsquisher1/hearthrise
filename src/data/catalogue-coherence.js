@@ -29,22 +29,22 @@
 // PURE ESM. No DOM. Imports cleanly in Node, Deno and the browser.
 // ============================================================
 
-import { ITEMS } from './items.js?v=0.2.36';
-import { ARTISAN_RECIPES } from './recipes.js?v=0.2.36';
-import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=0.2.36';
-import { SKILLS_DEF } from './skills.js?v=0.2.36';
-import { SHOP_OFFERS } from './shops.js?v=0.2.36';
-import { SHOP_LISTED_OFFER_IDS } from './supply-basics.js?v=0.2.36';
-import { START_INVENTORY, START_EQUIPMENT } from './start-kit.js?v=0.2.36';
-import { PREMIUM_LOGIN_REWARD } from './premium.js?v=0.2.36';
-import { HEARTHFIND_ITEMS, HEARTHFIND_TABLE } from './hearthfind.js?v=0.2.36';
-import { EFFECT_KINDS } from './item-effects.js?v=0.2.36';
-import { MONSTERS } from './monsters.js?v=0.2.36';
-import { HUNT_GROUNDS, OPEN_GROUNDS } from './hunt-grounds.js?v=0.2.36';
-import { HUNT_INDEX } from './hunts.js?v=0.2.36';
+import { ITEMS } from './items.js?v=0.2.37';
+import { ARTISAN_RECIPES } from './recipes.js?v=0.2.37';
+import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=0.2.37';
+import { SKILLS_DEF } from './skills.js?v=0.2.37';
+import { SHOP_OFFERS } from './shops.js?v=0.2.37';
+import { SHOP_LISTED_OFFER_IDS } from './supply-basics.js?v=0.2.37';
+import { START_INVENTORY, START_EQUIPMENT } from './start-kit.js?v=0.2.37';
+import { PREMIUM_LOGIN_REWARD } from './premium.js?v=0.2.37';
+import { HEARTHFIND_ITEMS, HEARTHFIND_TABLE } from './hearthfind.js?v=0.2.37';
+import { EFFECT_KINDS } from './item-effects.js?v=0.2.37';
+import { MONSTERS } from './monsters.js?v=0.2.37';
+import { HUNT_GROUNDS, OPEN_GROUNDS } from './hunt-grounds.js?v=0.2.37';
+import { HUNT_INDEX } from './hunts.js?v=0.2.37';
 import {
   gatherProductIds, cropProductIds, seedIds, combatDropIds, artisanOutputIds,
-} from './item-authority.js?v=0.2.36';
+} from './item-authority.js?v=0.2.37';
 
 /* The data identities this module reads, re-exported so a Node guard can mutate
    the SAME objects (a bare import without the ?v= query is a second module
@@ -98,6 +98,10 @@ export const VENDOR_TRASH = Object.freeze(['sticky_core', 'goblin_ear', 'goblin_
   /* Mosslight Glade's five (lane c-ground-16-31), the same promise; and Rook's Whistle, the glade's rare, a
      collector's piece like the Alpha Fang and the Crown Shard until the roster gives the rares a job. */
   'crow_quill', 'snare_wire', 'mosslight_tendril', 'sluice_crust', 'rooks_moss_charm', 'rooks_whistle',
+  /* The Cellar's and the Warrens' imbuement items (loot bands phase C, the same promise), and the two boss Trophies: collector's
+     pieces until the Trophy Room wall hangs boss trophies (it hangs Bestiary mounts only today). */
+  'giant_rat_hide', 'hive_wasp_stinger', 'glowing_copper_fleck', 'skulkers_shiv', 'dented_copper_pot', 'foremans_lash', 'coppercaps_tallow',
+  'rat_kings_crown', 'coppercaps_cauldron',
 ]);
 
 /* ── AWAITING THE ROSTER — catalogued, kept, and deliberately unobtainable ───
@@ -112,9 +116,9 @@ export const AWAITING_ROSTER = Object.freeze([
   'oak_rod',   // the road_cook reward until the 2026-10-14 re-reward; rods have no recipe yet
   'abyssal_greaves', 'alphaheart_longbow',
   'archmage_belt', 'archmage_body', 'archmage_helmet',
-  'archmage_pants', 'ashcrown_greatsword', 'boarhide_body', 'boarhide_pants', 'bone_needle',
+  'archmage_pants', 'ashcrown_greatsword', 'bone_needle',
   'bronze_hammer', 'bronze_knife',
-  'bronze_platelegs', 'chitin_belt', 'chitin_body',
+  'chitin_belt', 'chitin_body',
   'chitin_boots', 'chitin_gloves', 'chitin_helmet', 'chitin_pants', 'choirbone',
   'choirbone_gauntlets', 'crown_of_the_fallen_king', 'dawn_belt',
   'dawn_boots', 'dawn_gauntlets', 'dawn_helm', 'dawn_platebody',
@@ -132,12 +136,12 @@ export const AWAITING_ROSTER = Object.freeze([
   'nightstalker_pelt', 'plaguewarden_greaves', 'quiet_coat', 'regent_helm',
   'riftmaw_carapace', 'riftmaw_husk', 'ruby_signet', 'rubyfire_studs',
   'rune_hammer', 'rune_helm', 'rune_knife', 'rune_needle', 'rune_platebody',
-  'rune_platelegs', 'rune_warhammer', 'runewood_bow', 'runewood_rod', 'scholar_body',
-  'scholar_helmet', 'scholar_pants', 'slagheart_core', 'slagheart_platebody', 'snakeskin_body',
+  'rune_platelegs', 'rune_warhammer', 'runewood_bow', 'runewood_rod',
+  'slagheart_core', 'slagheart_platebody', 'snakeskin_body',
   'snakeskin_helmet', 'snakeskin_pants', 'sorcerer_body', 'sorcerer_helmet', 'sorcerer_pants',
   'spellstone_ring', 'spidereye_studs', 'steel_hammer', 'steel_knife',
-  'steel_needle', 'steel_warhammer',
-  'studded_body', 'verdite_blade', 'verdite_helm', 'verdite_platebody',
+  'steel_needle',
+  'verdite_blade', 'verdite_helm', 'verdite_platebody',
   'verdite_platelegs', 'void_essence', 'voidheart_robe', 'voidhide_belt', 'voidhide_body',
   'voidhide_boots', 'voidhide_gloves', 'voidhide_helmet', 'voidhide_pants', 'voidmaw_scepter',
   'voidweave_belt', 'voidweave_body', 'voidweave_boots', 'voidweave_gloves',
@@ -188,9 +192,8 @@ export const UNREACHABLE = Object.freeze({
   greenhaven: Object.freeze([
     'bronze_gauntlets', 'iron_gauntlets', 'steel_gauntlets', 'studded_gloves', 'boarhide_gloves', 'apprentice_gloves',
     'adept_gloves', 'scholar_gloves', 'leather_belt', 'iron_belt', 'steel_belt', 'studded_belt', 'boarhide_belt',
-    'apprentice_belt', 'adept_belt', 'scholar_belt', 'iron_boots', 'steel_boots',
-    'scholar_boots', 'studded_helmet', 'boarhide_helmet', 'willow_longbow',
-    'willow_staff', 'willow_wand', 'willow_spellbook', 'bramble_blade', 'rat_stick',
+    'apprentice_belt', 'adept_belt', 'scholar_belt',
+        'bramble_blade', 'rat_stick',
     'fang_studs', 'wolfbone_torc', 'spidersilk_choker', 'banded_signet', 'tusker_charm', 'packlord_band',
     'mirewort_drops', 'ancient_fragment', 'cracked_spellstone', 'grave_dust', 'razor_claw', 'bear_pelt', 'bear_claw',
     'raw_bear_meat', 'cooked_bear_meat', 'bear_claw_pie',
@@ -217,7 +220,7 @@ export const UNREACHABLE = Object.freeze({
     'rune_frag', 'ruby', 'night_fang', 'dark_sigil', 'spider_eye', 'brute_plate', 'dire_fang', 'plague_ichor',
     'swarm_heart', 'warlord_badge', 'hell_ember', 'shadow_thread', 'captain_medal', 'shadow_pelt', 'death_steel',
     'hollow_sigil', 'abyssal_pearl',
-    /* A copy of the bound Practice Sword, stat for stat (designer 2026-10-22: the rung-1 copies of the practice kit are cut). */
+    /* A copy of the Practice Sword, stat for stat (designer 2026-10-22: the rung-1 copies of the practice kit are cut). */
     'bronze_sword',
   ]),
 });
@@ -225,8 +228,9 @@ export const UNREACHABLE = Object.freeze({
 /* 172 -> 140 (lane/c-style-gear's merge, 2026-10-22): the seed counter and the outfitter landed (the `farming` and
    `shop_gear` fates closed, 33 rows; Bronze Sword left the unlisted counter for `cut`). 140 -> 134: the style
    ladder makes six greenhaven rows (Oak Wand, Oakboard Spellbook, Iron Warhammer, Apprentice and Adept Slippers,
-   Adept Robe Top); the Longbow left `staged` (made at Crafting 15 too). */
-export const UNREACHABLE_CEILING = 134;
+   Adept Robe Top); the Longbow left `staged` (made at Crafting 15 too). 134 -> 133 (lane b-loot-bands): Old Grayjaw's
+   Rare row sources the Studded Leather Coif. 133 -> 132: the Sewer's kobolds drop the Iron Boots; 132 -> 131: Rook hides the Boarhide Coif; 131 -> 129: the Warrens drop the Steel and Scholar boots.  129 -> 125: the Warrens' willow Rares. */
+export const UNREACHABLE_CEILING = 125;
 
 /**
  * id -> the first reachable door (a label). `opts` opens planned doors for C11's proof:

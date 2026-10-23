@@ -124,14 +124,17 @@
 --
 -- ── REVERSIBLE ──────────────────────────────────────────────────────────────
 -- Off: `update public.hr_tick_config set frame_push = false;` Full undo:
--- re-apply hr_hunt_apply_instance's 2026-12-15-account-gold.sql image (this
+-- re-apply hr_hunt_apply_instance's 2026-12-23-tally-tasks.sql image (this
 -- file's §4 reversed), 2026-10-07's hr_frame_send, 2026-10-09's hr_frame_wanted,
 -- 2026-09-23's hr_frame_payload(jsonb,text[]) and 09-22's frame_keys column
 -- (each file's own text), then drop hr_frame_payload(jsonb) and
 -- hr_realtime_policies().
--- ORDER: after 2026-12-18-party-leave-together.sql (the last APPLIED file; the
--- hr_hunt_apply_instance image pinned in §0 is 12-15 account-gold's, which
--- 12-18 did not touch). No begin/commit (CLAUDE.md §2).
+-- ORDER: after 2026-12-23-tally-tasks.sql (APPLIED 2026-10-23 20:38 UTC, v0.2.37):
+-- the hr_hunt_apply_instance image pinned in §0 is ITS whole restatement
+-- (c10fb329, step (4c) Tamsin's tally kept byte-for-byte; the splices touch only
+-- the declare line, the defer around the member sub-transaction, the refused exit
+-- and the final return, so the tally's count and claim land BEFORE the frames
+-- and every frame carries them). No begin/commit (CLAUDE.md §2).
 -- AFTER APPLYING (Coordinator): tests/live-hash-drift.mjs is red with SEVEN
 -- entries for this file and 2026-12-26 together (measured on the branch,
 -- credential-free, exit 1): replay hr_frame_send, hr_frame_wanted,
@@ -157,7 +160,7 @@ begin
   for r in select * from (values
     ('public.hr_frame_send(uuid,integer,jsonb)', '6995575071d68a9d72122d0ae3fababa', 'c924aed24c9e409173e03d7c91fe89c6', '2026-10-07-frame-emit-online-only.sql'),
     ('public.hr_frame_wanted(uuid,integer)', '7343102c1e300050d7374f8a07ff4800', '93d3efe939be804945bf63790704aac6', '2026-10-09-frame-self-echo.sql'),
-    ('public.hr_hunt_apply_instance(uuid,bigint,jsonb,jsonb,uuid,integer)', '0badf6bfafe9a9cc85fe059fc9f35497', '3c2a9df36db24ec808b5b9e7fc014a24', '2026-12-15-account-gold.sql')
+    ('public.hr_hunt_apply_instance(uuid,bigint,jsonb,jsonb,uuid,integer)', 'c10fb3297365cdca0efaf23aa315ad08', '1f1957170fa2149be05e1b689c5c4ef9', '2026-12-23-tally-tasks.sql')
   ) p(sig, pre, post, src) loop
     select md5(replace(prosrc, chr(13), '')) into v_md5 from pg_proc where oid = to_regprocedure(r.sig);
     if v_md5 is null then raise exception 'PIN: % is missing', r.sig; end if;
@@ -792,7 +795,7 @@ begin
       from (values
         ('public.hr_frame_send(uuid,integer,jsonb)', 'c924aed24c9e409173e03d7c91fe89c6'),
         ('public.hr_frame_wanted(uuid,integer)', '93d3efe939be804945bf63790704aac6'),
-        ('public.hr_hunt_apply_instance(uuid,bigint,jsonb,jsonb,uuid,integer)', '3c2a9df36db24ec808b5b9e7fc014a24')) p(sig, post)
+        ('public.hr_hunt_apply_instance(uuid,bigint,jsonb,jsonb,uuid,integer)', '1f1957170fa2149be05e1b689c5c4ef9')) p(sig, post)
       left join pg_proc x on x.oid = to_regprocedure(p.sig)
      where md5(replace(x.prosrc, chr(13), '')) is distinct from p.post;
     if v_txt is not null then raise exception 's6: a body is not §0''s post pin: %', v_txt; end if;

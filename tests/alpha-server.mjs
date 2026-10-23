@@ -455,8 +455,8 @@ async function blessArm(db, { H, M }, attended) {
 const MUTANTS = [
   /* hr_apply's LAST author is 2026-12-15-account-gold.sql §5 (four anchored edits of the installed text, md5-pinned to
      its pre-image, so a plant in an earlier file trips that pin): the defect rides §5 as a fifth edit of the body it
-     installs. */
-  { arm: 'A-LOCK', file: '2026-12-15-account-gold.sql', why: 'hr_apply no longer refuses a locked sale',
+     installs. The anchor sits in §5's do-block, in no function body of the text, so the mutant names its body (`fn`). */
+  { arm: 'A-LOCK', file: '2026-12-15-account-gold.sql', fn: 'hr_apply', why: 'hr_apply no longer refuses a locked sale',
     find: '  v_new := replace(v_new, a4, r4);\n  execute v_new;',
     repl: '  v_new := replace(v_new, a4, r4);\n  v_new := replace(v_new, $l$        if v_n < 0 and coalesce(v_this_intent, \'\') ~ \'^vendor_sell(_many)?(:|$)\' and public.hr_item_locked(v_uid, v_slot, k) then$l$,\n    $l$        if false and coalesce(v_this_intent, \'\') ~ \'^vendor_sell(_many)?(:|$)\' and public.hr_item_locked(v_uid, v_slot, k) then$l$);\n  execute v_new;' },
   /* hr_hunt_apply_member and hr_hunt_loot_rules are RESTATED last by 2026-12-15-account-gold.sql (the account
@@ -507,6 +507,22 @@ const MUTANTS = [
     find: 'public.hr_hunt_saved_bag(v_m.user_id, v_m.slot),', repl: 'public.hr_hunt_saved_bag(v_uid, p_slot),' },
 ];
 
+/** The function whose dollar-quoted BODY holds offset `at` of a migration's text, or null. A `create or replace
+    function` whose body closed before `at` does not hold it: an anchor in a later do-block (2026-12-15-account-gold.sql
+    §5's hr_apply edits, after its hr_hunt_apply_instance) belongs to no body in the text, so the mutant names it. */
+function enclosingFunction(text, at) {
+  let fn = null;
+  for (const m of text.slice(0, at).matchAll(/create\s+or\s+replace\s+function\s+(?:public\.)?(\w+)\s*\(/gi)) {
+    const open = /\$(\w*)\$/g;
+    open.lastIndex = m.index;
+    const o = open.exec(text);
+    if (!o || o.index >= at) continue;
+    const close = text.indexOf(o[0], o.index + o[0].length);
+    if (close < 0 || close > at) fn = m[1];
+  }
+  return fn;
+}
+
 /** Each mutant's file must be the chain's LAST author of the function its `find` sits in (mutate the caller). */
 export function staleAnchors(mutants) {
   const order = JSON.parse(readFileSync(join(ROOT, 'tests', 'schema-apply-order.json'), 'utf8')).order;
@@ -516,8 +532,7 @@ export function staleAnchors(mutants) {
     const body = text(mu.file);
     const at = body.indexOf(mu.find);
     if (at < 0) { out.push(`${mu.arm}: find not in ${mu.file}`); continue; }
-    let fn = null;
-    for (const m of body.slice(0, at).matchAll(/create\s+or\s+replace\s+function\s+(?:public\.)?(\w+)\s*\(/gi)) fn = m[1];
+    const fn = enclosingFunction(body, at) || mu.fn || null;
     if (!fn) continue;
     const re = new RegExp('create\\s+or\\s+replace\\s+function\\s+(?:public\\.)?' + fn + '\\s*\\(', 'i');
     const later = order.slice(order.indexOf(mu.file) + 1).filter((f) => re.test(text(f)));
@@ -567,6 +582,10 @@ async function main() {
      Selftest: the old party-flow anchor must be flagged, or this check is blind. */
   const probe = staleAnchors([{ arm: 'SELFTEST', file: '2026-10-28-party-flow.sql', find: 'public.hr_hunt_saved_bag(v_m.user_id, v_m.slot),' }]);
   if (!probe.length) { console.error('✗ ANCHOR selftest: a superseded party-flow anchor was not flagged'); process.exit(1); }
+  /* ...and a plant INSIDE a body a later file restates whole (12-15's hr_hunt_apply_instance, restated by
+     2026-12-23-tally-tasks.sql) must be flagged: a body's end is read from its dollar quotes, not guessed. */
+  const inBody = staleAnchors([{ arm: 'SELFTEST', file: '2026-12-15-account-gold.sql', find: '      if public.hr_purse_of(v_u) < v_f then\n' }]);
+  if (!inBody.some((s) => s.includes('hr_hunt_apply_instance'))) { console.error('✗ ANCHOR selftest: a plant in 12-15\'s superseded hr_hunt_apply_instance was not flagged'); process.exit(1); }
   const stale = staleAnchors(MUTANTS);
   for (const s of stale) console.error('✗ ANCHOR ' + s);
   let missed = stale.length;

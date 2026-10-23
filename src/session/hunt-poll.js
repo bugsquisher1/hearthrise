@@ -10,7 +10,7 @@
 // it is given): the push is the feed, this timer the fallback. Timing only:
 // nothing here is read as owned or spent.
 // ════════════════════════════════════════════════════════════════════════
-import { SESSION_CONFIG } from './config.js?v=0.2.36';
+import { SESSION_CONFIG } from './config.js?v=0.2.37';
 
 /**
  * How soon (ms) the next re-read is asked: the live view's start-point ask

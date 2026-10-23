@@ -20,11 +20,11 @@
 // ref.player so a right-click opens the shared player menu for that account.
 // PURE: no DOM, no window, no G — the caller passes the walkers and the clock.
 // ════════════════════════════════════════════════════════════════════════
-import { TOWN_PRESENCE } from '../data/town-presence.js?v=0.2.36';
-import { outfitSprite } from '../data/hunt-outfits.js?v=0.2.36';
-import { createSteer, standOn, walkClip } from './steer-local.js?v=0.2.36';
-import { pickFacing } from './core/facing.js?v=0.2.36';
-import { T } from './core/grid.js?v=0.2.36';
+import { TOWN_PRESENCE } from '../data/town-presence.js?v=0.2.37';
+import { outfitSprite } from '../data/hunt-outfits.js?v=0.2.37';
+import { createSteer, standOn, walkClip } from './steer-local.js?v=0.2.37';
+import { pickFacing } from './core/facing.js?v=0.2.37';
+import { T } from './core/grid.js?v=0.2.37';
 
 
 const onPixel = (v) => Math.round(v * T) / T;

@@ -97,7 +97,12 @@ const SQL_MUTANTS = {
   },
   fold_takes_max: {
     why: 'the fold keeps the richest hero\'s gold instead of the sum: every other hero\'s gold is lost',
-    pairs: [['  select ps.user_id, sum(ps.gold)::bigint, 1, now()\n', '  select ps.user_id, max(ps.gold)::bigint, 1, now()\n']],
+    pairs: [['  select ps.user_id, sum(ps.gold)::bigint, 1, now()\n', '  select ps.user_id, max(ps.gold)::bigint, 1, now()\n'],
+      /* §3a's probe and §3c's conservation check would refuse it at apply: blinded, so G1 judges it */
+      ["    insert into public.player_state (user_id, slot, gold) values (v_u, 0, 300), (v_u, 1, 700);\n",
+        "    raise exception using errcode = 'HR901';   -- selftest: §3a probe short-circuited\n"],
+      ["    where w.gold is distinct from s.g) then\n", "    where false) then\n"],
+      ["  if (select coalesce(sum(w.gold), 0) from public.account_wallet w) - v_wallet0 <> v_before then\n", "  if false then\n"]],
     fold: true,
   },
   loot_sale_unstamped: {

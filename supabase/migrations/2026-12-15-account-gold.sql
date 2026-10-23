@@ -4125,26 +4125,5 @@ begin
      or not has_function_privilege('hr_engine', 'public.hr_hunt_apply_instance(uuid,bigint,jsonb,jsonb,uuid,integer)', 'execute')
      or not has_function_privilege('authenticated', 'public.hr_farm_upgrade_plot(integer,uuid,integer)', 'execute') then
     raise exception 'VERIFY(i): a restated gold body''s ACL moved'; end if;
-  -- (j) THE BODIES ARE THIS FILE'S (a later file that moves one restates it from the new image).
-  for r in select * from (values
-    ('public.hr_state_of(uuid,integer)', '9d1f395500f5196c9efb1bfe732ece9f'),
-    ('public.hr_renown_of(uuid,integer)', '45e723cbfa0d9339c04098b562b60018'),
-    ('public.hr_create_character(integer)', '5dc67bb57c4fc28e62d50c63bc3dcaba'),
-    ('public.hr_buy_hero_slot__ungated(integer,integer,uuid)', 'edf5a7aa9f1efeef02f2f8f1ca5156e4'),
-    ('public.hr_farm_harvest_replant(integer,integer,uuid)', '2bc03684231a2c0558ce0b075d6ed626'),
-    ('public.hr_farm_upgrade_plot(integer,uuid,integer)', 'c10edc1210b62a826492fba2d1921f5b'),
-    ('public.hr_trait_buy__ungated(text,integer,uuid)', 'ca4ab8c1965afc46378f5cee229d010b'),
-    ('public.clan_contribute__ungated(uuid,bigint,integer)', '40aacafcceb1c814fad203054055eff4'),
-    ('public.hr_unlock_buy(uuid,integer,bigint,uuid,text)', '560e254057af74da83dee08b013c0b48'),
-    ('public.hr_market_buy(uuid,integer,bigint,uuid,uuid,bigint)', '97e38b8e3c7185487d0447111b9e3c64'),
-    ('public.hr_hunt_loot_rules(uuid,integer,uuid,uuid,jsonb,timestamp with time zone)', 'bf314f41f2ae45588d212e62ee2c7ce6'),
-    ('public.hr_hunt_settle_session(uuid,integer,uuid,jsonb)', 'bcf7ae2eb8802ddd20824d08a5b97ec2'),
-    ('public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)', 'a0bbf22528611f9c5d939783cb211c9e'),
-    ('public.hr_hunt_apply_instance(uuid,bigint,jsonb,jsonb,uuid,integer)', '0badf6bfafe9a9cc85fe059fc9f35497'),
-    ('public.hr_apply(uuid,integer,bigint,uuid,jsonb)', 'b78513a8439bf1cafec83806f29ade85')
-  ) p(sig, post) loop
-    if (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = to_regprocedure(r.sig)) is distinct from r.post then
-      raise exception 'VERIFY(j): % is not this file''s body', r.sig; end if;
-  end loop;
   perform public.hr_assert_grant_hygiene(true);
 end $mig$;

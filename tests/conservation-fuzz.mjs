@@ -18,7 +18,7 @@
 //                             + Σ market_listings.qty
 //        == opening + Σ intended mints − Σ intended burns
 //
-//   Σ player_state.gold + Σ market_sales.tax
+//   Σ account_wallet.gold (ONE purse per account, 2026-12-15-account-gold.sql) + Σ market_sales.tax
 //        == opening + Σ intended mints − Σ intended burns
 //
 // The escrow path is the one this exists for: under market v2 A LISTING IS
@@ -258,6 +258,11 @@ const INJECTION_FINAL_BODIES = Object.freeze({
      gates (gem-daily-budget §10) run long before the wallet, so the honest
      target is the body the chain ends with, scored by reconcile(). */
   'budget-final': 'public.hr_day_budget_used(uuid,integer,timestamp with time zone)',
+  /* 2026-12-15 (lane c-account-gold), the re-author rule a fourth time: 2026-12-15-account-gold.sql
+     RESTATES hr_market_buy whole (both gold moves go through the ACCOUNT purse, hr_purse_move), so the
+     two buy plants that lived in 2026-08-17-market-v2.sql would be replaced by the clean body. The
+     honest target is the body the chain ends with, scored by reconcile(). */
+  'market-buy-final': 'public.hr_market_buy(uuid,integer,bigint,uuid,uuid,bigint)',
 });
 
 // ── args ────────────────────────────────────────────────────────────────
@@ -371,26 +376,25 @@ const INJECTIONS = {
        2,000,000 gold of drift over 400 ops. A gate that can no longer fire is a
        gate that quietly downgrades a catch to a harness error — budget_kind_scoped
        says so below, and this is that note applied to itself. */
+    /* 2026-12-15: the credit lands in the ACCOUNT purse (2026-12-15-account-gold.sql §5's gold block). */
     patches: [[
-      `      v_new_gold := v_st.gold + v_n;`,
-      `      v_new_gold := v_st.gold + v_n + greatest(v_n, 0);  -- INJECTED gold_double`,
+      `        v_new_gold := public.hr_purse_move(v_uid, v_n, 0);`,
+      `        v_new_gold := public.hr_purse_move(v_uid, v_n + greatest(v_n, 0), 0);  -- INJECTED gold_double`,
     ]],
   },
 
   buy_no_debit: {
     what: 'market_buy pays the seller and delivers the goods but never debits the buyer',
-    file: 'market-v2',
+    /* 2026-12-15: hr_market_buy's last author is 2026-12-15-account-gold.sql (the ACCOUNT purse). */
+    final: 'market-buy-final',
     patches: [[
-      '    update public.player_state set gold = gold - v_gross, version = version + 1, updated_at = now()\n'
-      + '     where user_id = v_uid and slot = v_slot;',
-      '    update public.player_state set gold = gold, version = version + 1, updated_at = now()\n'
-      + '     where user_id = v_uid and slot = v_slot;',
+      '    v_bpurse := public.hr_purse_move(v_uid, -v_gross, 0);',
+      '    v_bpurse := public.hr_purse_move(v_uid, 0, 0);  -- INJECTED buy_no_debit',
     ]],
   },
 
   tax_skim: {
     what: 'market_buy destroys one extra gold per trade that no tax row accounts for (a leak, not a sink)',
-    file: 'market-v2',
     /* ⚠ THE LEAK IS PLANTED IN THE CREDIT, NOT IN `v_net`, AND THAT IS FORCED
        BY market_sales' OWN CONSTRAINT. `gold_gross = gold_net + tax` is a CHECK
        on the receipt table (market-v2 §1, "conservation, as a constraint"), so
@@ -402,12 +406,11 @@ const INJECTIONS = {
        internally consistent: one gold per trade destroyed, no tax row for it,
        and the Σgold identity is the only thing that can see it. Measured: the
        `v_net` form SLIPPED here on 400 ops. */
+    /* 2026-12-15: the seller's credit lands in the ACCOUNT purse (2026-12-15-account-gold.sql's hr_market_buy). */
+    final: 'market-buy-final',
     patches: [[
-      '    update public.player_state set gold = gold + v_net, version = version + 1, updated_at = now()\n'
-      + '     where user_id = v_row.seller_user_id and slot = v_row.seller_slot;',
-      '    update public.player_state set gold = gold + greatest(0, v_net - 1), version = version + 1,\n'
-      + '           updated_at = now()  -- INJECTED tax_skim\n'
-      + '     where user_id = v_row.seller_user_id and slot = v_row.seller_slot;',
+      '    v_spurse := public.hr_purse_move(v_row.seller_user_id, v_net, 0);',
+      '    v_spurse := public.hr_purse_move(v_row.seller_user_id, greatest(0, v_net - 1), 0);  -- INJECTED tax_skim',
     ]],
   },
 
@@ -436,8 +439,8 @@ const INJECTIONS = {
       `  if p_user is null or p_code is null then return; end if;`,
       `  if p_user is null or p_code is null then return; end if;
   -- INJECTED reject_mutates: bookkeeping that moves value
-  update public.player_state set gold = gold + 1
-   where user_id = p_user and slot = coalesce(p_slot, 0);`,
+  update public.account_wallet set gold = gold + 1
+   where user_id = p_user;`,
     ]],
   },
 
@@ -966,6 +969,11 @@ async function bootFinalBody(injectionId, signature) {
 class Books {
   constructor() {
     this.chars = new Map();     // "uid:slot" → {uid, slot, gold, inv:Map, equip:Map, version, bankCap}
+    /* GOLD IS THE ACCOUNT'S (2026-12-15-account-gold.sql): ONE purse per uid, which every character of
+       the account reads and writes as `c.gold` (an accessor, so every op below models account gold
+       without knowing it). */
+    this.purses = new Map();    // uid → gold
+    this.opened = new Set();    // the accounts whose opening purse is booked (once each)
     this.listings = new Map();  // listingId → {key, item, qty, ask, aged}
     this.tax = 0;               // Σ house tax the harness EXPECTS to have been taken
     this.mintGold = 0; this.burnGold = 0;
@@ -973,6 +981,20 @@ class Books {
     this.openGold = 0; this.openItems = new Map();
   }
   char(key) { return this.chars.get(key); }
+  /** A character of account `uid`: its own bag and gear, the ACCOUNT's gold. */
+  newChar(uid, slot) {
+    const purses = this.purses;
+    if (!purses.has(uid)) purses.set(uid, 0);
+    return { uid, slot, inv: new Map(), equip: new Map(), version: 0, bankCap: 100,
+      get gold() { return purses.get(uid) || 0; }, set gold(v) { purses.set(uid, v); } };
+  }
+  /** Book an account's opening purse ONCE, however many of its characters read it. */
+  openPurse(uid, gold) {
+    if (this.opened.has(uid)) return;
+    this.opened.add(uid);
+    this.purses.set(uid, gold);
+    this.openGold += gold;
+  }
   addItem(m, id, n) { m.set(id, (m.get(id) || 0) + n); }
   mint(id, n) { this.addItem(this.mintItems, id, n); }
   burn(id, n) { this.addItem(this.burnItems, id, n); }
@@ -991,7 +1013,7 @@ class Books {
     for (const l of this.listings.values()) this.addItem(t, l.item, l.qty);
     return t;
   }
-  goldTotal() { let g = 0; for (const c of this.chars.values()) g += c.gold; return g; }
+  goldTotal() { let g = 0; for (const v of this.purses.values()) g += v; return g; }
 }
 
 // ════════════════════════════════════════════════════════════════════════
@@ -1011,7 +1033,9 @@ async function reconcile(db, books, ctx) {
   const bad = [];
   const q = async (s) => (await db.query(s)).rows;
 
-  const stateRows = await q('select user_id::text u, slot, gold::text g, version::text v from player_state');
+  const stateRows = await q('select user_id::text u, slot, version::text v from player_state');
+  /* GOLD IS THE ACCOUNT'S (2026-12-15-account-gold.sql): every purse in the database, by account. */
+  const purseRows = await q('select user_id::text u, gold::text g from account_wallet');
   const invRows = await q('select user_id::text u, slot, item_id, qty::text q from player_inventory');
   const eqRows = await q('select user_id::text u, slot, equip_slot, item_id from player_equipment');
   const lstRows = await q('select id::text id, seller_user_id::text u, seller_slot, item_id, qty::text q, ask_each::text a from market_listings');
@@ -1020,7 +1044,8 @@ async function reconcile(db, books, ctx) {
 
   // ── (A) exact, per character ─────────────────────────────────────────
   const dbGold = new Map(); const dbVer = new Map();
-  for (const r of stateRows) { dbGold.set(`${r.u}:${r.slot}`, Number(r.g)); dbVer.set(`${r.u}:${r.slot}`, Number(r.v)); }
+  for (const r of stateRows) dbVer.set(`${r.u}:${r.slot}`, Number(r.v));
+  for (const r of purseRows) dbGold.set(r.u, Number(r.g));
   const dbInv = new Map();
   for (const r of invRows) {
     const k = `${r.u}:${r.slot}`;
@@ -1037,8 +1062,10 @@ async function reconcile(db, books, ctx) {
   if (stateRows.length !== books.chars.size) {
     bad.push(`character count: db ${stateRows.length}, model ${books.chars.size}`);
   }
+  for (const [uid, g] of books.purses) {
+    if ((dbGold.get(uid) || 0) !== g) bad.push(`purse[${uid}]: db ${dbGold.get(uid) || 0}, expected ${g}`);
+  }
   for (const [key, c] of books.chars) {
-    if (dbGold.get(key) !== c.gold) bad.push(`gold[${key}]: db ${dbGold.get(key)}, expected ${c.gold}`);
     if (dbVer.get(key) !== c.version) bad.push(`version[${key}]: db ${dbVer.get(key)}, expected ${c.version}`);
     const inv = dbInv.get(key) || new Map();
     for (const id of new Set([...inv.keys(), ...c.inv.keys()])) {
@@ -1085,7 +1112,7 @@ async function reconcile(db, books, ctx) {
   }
 
   let worldGold = 0;
-  for (const r of stateRows) worldGold += Number(r.g);
+  for (const r of purseRows) worldGold += Number(r.g);
   const expectedGold = books.openGold + books.mintGold - books.burnGold - Number(tax);
   if (worldGold !== expectedGold) {
     bad.push(`CONSERVATION gold: players hold ${worldGold}, ledger says `
@@ -1209,7 +1236,7 @@ async function runFuzz({ seed, ops, injection }) {
       if (r.ok !== true) { process.stderr.write(`HARNESS: hr_create_character failed: ${JSON.stringify(r)}\n`); process.exit(2); }
       const key = `${uid}:${s}`;
       keys.push(key);
-      books.chars.set(key, { uid, slot: s, gold: 0, inv: new Map(), equip: new Map(), version: 0, bankCap: 100 });
+      books.chars.set(key, books.newChar(uid, s));
     }
   }
 
@@ -1232,10 +1259,9 @@ async function runFuzz({ seed, ops, injection }) {
      change nothing else — which is exactly what an opening balance is for. */
   for (const key of keys) {
     const c = books.char(key);
-    const st = (await q(`select gold::text g, version::text v from player_state
-                          where user_id = '${c.uid}' and slot = ${c.slot}`))[0];
-    c.gold = Number(st.g); c.version = Number(st.v);
-    books.openGold += c.gold;
+    const st = (await q(`select coalesce((select w.gold from account_wallet w where w.user_id = '${c.uid}'), 0)::text g, version::text v
+                           from player_state where user_id = '${c.uid}' and slot = ${c.slot}`))[0];
+    books.openPurse(c.uid, Number(st.g)); c.version = Number(st.v);
     for (const r of await q(`select item_id, qty::text q from player_inventory
                               where user_id = '${c.uid}' and slot = ${c.slot}`)) {
       c.inv.set(r.item_id, Number(r.q));
@@ -2063,17 +2089,16 @@ async function budgetPhase(db, books, keys, rng, applyAs, rpc, asUser, q, ITEMS,
   if (cr.ok !== true) fail('could not create the budget probe character', JSON.stringify(cr));
   const key = `${uid}:0`;
   keys.push(key);
-  const c = { uid, slot: 0, gold: 0, inv: new Map(), equip: new Map(), version: 0, bankCap: 100 };
+  const c = books.newChar(uid, 0);
   books.chars.set(key, c);
   /* THE STARTER KIT, BOOKED AS OPENING — the same measurement the op loop makes
      for its own characters, for the same reason: `hr_create_character` grants
      gold, seeds, food and an equipped sword, and a model that assumed zero here
      would report the game's own welcome gift as a conservation drift. */
   {
-    const st0 = (await q(`select gold::text g, version::text v from player_state
-                           where user_id = '${uid}' and slot = 0`))[0];
-    c.gold = Number(st0.g); c.version = Number(st0.v);
-    books.openGold += c.gold;
+    const st0 = (await q(`select coalesce((select w.gold from account_wallet w where w.user_id = '${uid}'), 0)::text g, version::text v
+                            from player_state where user_id = '${uid}' and slot = 0`))[0];
+    books.openPurse(uid, Number(st0.g)); c.version = Number(st0.v);
     for (const r of await q(`select item_id, qty::text q from player_inventory
                               where user_id = '${uid}' and slot = 0`)) {
       c.inv.set(r.item_id, Number(r.q));
@@ -2495,7 +2520,7 @@ async function accrualPhase(db, books, keys, rng, applyAs, q, divergences) {
       c.bankCap = cap;
 
       const st = (await db.query(
-        `select gold::text gold, hp, level_xp::text level_xp, version::text version,
+        `select coalesce((select w.gold from account_wallet w where w.user_id = $1), 0)::text gold, hp, level_xp::text level_xp, version::text version,
                 extract(epoch from accrued_to)*1000 a, extract(epoch from active_since)*1000 s,
                 extract(epoch from now())*1000 n
            from player_state where user_id = $1 and slot = $2`, [c.uid, c.slot])).rows[0];

@@ -24,10 +24,10 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-10-23",
- "replay_ms": 47570,
+ "replay_ms": 5245,
  "counts": {
-  "tracked_names": 180,
-  "entries": 133
+  "tracked_names": 181,
+  "entries": 134
  },
  "functions": [
   {
@@ -1349,17 +1349,18 @@
     "2026-11-01-party-leader-density.sql",
     "2026-11-16-hunt-density-bounds.sql",
     "2026-12-08-party-hold.sql",
-    "2026-12-11-hunt-deploy-no-forfeit.sql"
+    "2026-12-11-hunt-deploy-no-forfeit.sql",
+    "2026-12-18-party-leave-together.sql"
    ],
    "live": {
-    "md5": "99bddeeb02a14a0e21210ada1699705a",
-    "norm_len": 3215,
+    "md5": "c455bda9abb929fd172efb1c0970002c",
+    "norm_len": 3933,
     "measured": "2026-10-23",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "99bddeeb02a14a0e21210ada1699705a",
-    "norm_len": 3215,
+    "md5": "c455bda9abb929fd172efb1c0970002c",
+    "norm_len": 3933,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -1603,17 +1604,18 @@
     "2026-11-04-party-outfits.sql",
     "2026-11-17-hunt-density-home.sql",
     "2026-12-07-party-finder.sql",
-    "2026-12-08-party-hold.sql"
+    "2026-12-08-party-hold.sql",
+    "2026-12-18-party-leave-together.sql"
    ],
    "live": {
-    "md5": "e891b172c3fe64417eec550d55057fc6",
-    "norm_len": 7997,
+    "md5": "db7ac5452b8571a2a31f6de73a8464bf",
+    "norm_len": 8240,
     "measured": "2026-10-23",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "e891b172c3fe64417eec550d55057fc6",
-    "norm_len": 7997,
+    "md5": "db7ac5452b8571a2a31f6de73a8464bf",
+    "norm_len": 8240,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -1732,17 +1734,18 @@
     "2026-10-27-core-bodies.sql",
     "2026-11-07-store-by-slot.sql",
     "2026-12-15-account-gold.sql",
-    "2026-12-16-own-drinks-settle.sql"
+    "2026-12-16-own-drinks-settle.sql",
+    "2026-12-18-party-leave-together.sql"
    ],
    "live": {
-    "md5": "397ee8c1769350702d553bc8d6b593af",
-    "norm_len": 18463,
+    "md5": "d829a27aeb3fd6518aa37853dd90e615",
+    "norm_len": 19036,
     "measured": "2026-10-23",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "397ee8c1769350702d553bc8d6b593af",
-    "norm_len": 18463,
+    "md5": "d829a27aeb3fd6518aa37853dd90e615",
+    "norm_len": 19036,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -1808,17 +1811,18 @@
     "2026-10-23-hunt-world-state.sql",
     "2026-10-27-core-bodies.sql",
     "2026-11-17-hunt-density-home.sql",
-    "2026-11-20-hunt-forfeit-durable.sql"
+    "2026-11-20-hunt-forfeit-durable.sql",
+    "2026-12-18-party-leave-together.sql"
    ],
    "live": {
-    "md5": "5687ada6a4c46f29ccf0e4551ceb3180",
-    "norm_len": 1877,
+    "md5": "2b02292a81c4d1f08b9c01f3bcedbc26",
+    "norm_len": 2510,
     "measured": "2026-10-23",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "5687ada6a4c46f29ccf0e4551ceb3180",
-    "norm_len": 1877,
+    "md5": "2b02292a81c4d1f08b9c01f3bcedbc26",
+    "norm_len": 2510,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -2165,6 +2169,28 @@
    "replay": {
     "md5": "545af821ac3e2f3d8add9f70f6ecec61",
     "norm_len": 287,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_party_leave_together_set(p_slot integer, p_on boolean, p_idem uuid)",
+   "name": "hr_party_leave_together_set",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-12-18-party-leave-together.sql"
+   ],
+   "live": {
+    "md5": "7c81f3ddc311446d62c03bb584a50262",
+    "norm_len": 1763,
+    "measured": "2026-10-23",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "7c81f3ddc311446d62c03bb584a50262",
+    "norm_len": 1763,
     "source": "computed-from-replay"
    },
    "agree": true

@@ -18,6 +18,8 @@
 //                                       finder or hides it (private = invite only)
 //   setHoldSeat(account, cs, seat)      the leader picks who holds the pack: a
 //                                       tank's seat, or null (take turns)
+//   setLeaveTogether(account, cs, on)   this hero's own "Leave if anyone leaves the
+//                                       hunt or dies" (any seat, its own hero only)
 //   afterLeave(account, cs, send)       a CharacterSession leave / kick, then
 //                                       the account's other partied characters
 //                                       re-read too
@@ -27,8 +29,8 @@
 // Each verb is ONE ask in the account's intent ledger (cs.intents, intent-ledger.js)
 // from its send until those re-reads are applied: the pressed control waits on it.
 // ════════════════════════════════════════════════════════════════════════
-import { partyMembershipOf } from './party-sections.js?v=0.2.35';
-import { askVia } from './intent-ledger.js?v=0.2.35';
+import { partyMembershipOf } from './party-sections.js?v=0.2.36';
+import { askVia } from './intent-ledger.js?v=0.2.36';
 
 const HUNT_ID = /^[a-z0-9_]{1,64}$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -138,6 +140,16 @@ export async function setHoldSeat(account, cs, seat) {
   if (!usable(account, cs) || !(seat === null || (Number.isInteger(seat) && seat >= 0 && seat <= 7))) return { ok: false, error: 'bad_intent', seats: [] };
   const peers = partyPeersOf(account, cs);
   return askVia(cs, 'party_hold_set', async () => settled(await account.server.rpc('hr_party_hold_set', { p_slot: cs.slot, p_seat: seat, p_idem: newIdem() }), peers));
+}
+
+/**
+ * LEAVE TOGETHER (Tyler 2026-10-22): this character's OWN "Leave if anyone leaves the hunt or dies", on or
+ * off. The server writes only the caller's own hero (no other hero is named); only this character is re-read
+ * (no other member's record shows the box).
+ */
+export async function setLeaveTogether(account, cs, on) {
+  if (!usable(account, cs) || typeof on !== 'boolean') return { ok: false, error: 'bad_intent', seats: [] };
+  return askVia(cs, 'party_leave_together', async () => settled(await account.server.rpc('hr_party_leave_together_set', { p_slot: cs.slot, p_on: on, p_idem: newIdem() }), [cs]));
 }
 
 /**

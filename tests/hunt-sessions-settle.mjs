@@ -1258,7 +1258,7 @@ const DB_ARMS = {
   /* OWN DRINKS (lane c-own-drinks-settle): a crafted drink is packed (src/shell/hunt-list.js packFor) and
      spent from the bag exactly like own food. The session half once admitted only heal / ammo uses, so
      every window that drank one was refused kind_not_used and the sixth in a row forfeited the hunt
-     (2026-12-12-own-drinks-settle.sql admits `mana`). BOTH PATHS: the browser closed (the world
+     (2026-12-16-own-drinks-settle.sql admits `mana`). BOTH PATHS: the browser closed (the world
      tick's door, 90 s windows) and the hunt viewed (the player's settle door, project + live). */
   'OWN-DRINK': async (db, M) => inTx(db, async () => {
     const problems = [];
@@ -2288,6 +2288,9 @@ const DB_MUTANTS = [
   { arm: 'VALUE', name: '[C2 two lanes] the food lane cap admits ten times its uses', fn: AM,
     /* (the line restated in 2026-10-25-settle-hooks.sql, own drinks on the same lane) */
     find: "(v_ukind->>'mana')::bigint, 0) > v_win / v_cons + 1", replace: "(v_ukind->>'mana')::bigint, 0) > 10 * v_win / v_cons + 1" },
+  { arm: 'OWN-DRINK', name: '[own drinks] the session half admits only heal and ammo uses again', fn: SS,
+    find: "v_kind is distinct from 'heal' and v_kind is distinct from 'mana' and v_kind is distinct from 'ammo' then",
+    replace: "v_kind is distinct from 'heal' and v_kind is distinct from 'ammo' then" },
   { arm: 'STORE', name: '[C2 one gold] the applier prices a use at one gold', fn: AM,
     find: '      v_cost := v_cost + v_n * v_price;', replace: '      v_cost := v_cost + v_n;' },
   { arm: 'STORE', name: 'a store use is not journalled', fn: AM,

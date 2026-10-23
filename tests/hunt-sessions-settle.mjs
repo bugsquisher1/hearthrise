@@ -954,6 +954,10 @@ const ENGINE_ARMS = {
     if (!e.a || e.a.reason !== 'died') return [`CONTROL: the weak member ended ${JSON.stringify(e.a)}`];
     if (!e.b || e.b.reason !== 'party_member_died' || e.b.at !== e.a.at) problems.push(`the ticked survivor ended ${JSON.stringify(e.b)}, not party_member_died at ${e.a.at}`);
     if (e.c && e.c.at === e.a.at) problems.push(`the unticked survivor went home with the death: ${JSON.stringify(e.c)}`);
+    /* a hero keyed AFTER the fallen one leaves at the very boundary its death ends: the end the death named stays */
+    const late = ends(runCut(M, mk(Date.parse(e.a.at) - 1), 600000, [], deadlyOf(M)));
+    if (!late.a || late.a.at !== e.a.at || !late.c || late.c.reason !== 'left' || late.c.at !== e.a.at) problems.push(`CONTROL: the leave keyed after the death ended ${canon(late)}`);
+    else if (!late.b || late.b.reason !== 'party_member_died' || late.b.at !== e.a.at) problems.push(`a leave keyed after the death renamed the ticked survivor's end: ${JSON.stringify(late.b)}`);
     /* the death comes first: a hero keyed BEFORE the fallen one leaves at the very boundary its death ends, and the
        ticked survivor still ends for the death (it fell inside the swing; the leave lands at the boundary) */
     const mk2 = (leaveAt) => () => {

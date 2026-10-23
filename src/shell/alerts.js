@@ -34,16 +34,16 @@
 // Nothing here gates or spends anything; the "Start again" button is an
 // intent (CharacterSession.restartHunt) like every other.
 // ════════════════════════════════════════════════════════════════════════
-import { ALERT_INDEX } from '../data/alerts.js?v=0.2.32';
-import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.32';
-import { ALERTS_SEEN_MAX } from '../session/residue.js?v=0.2.32';
-import { huntOf, settingsOf } from '../session/hunt-sections.js?v=0.2.32';
-import { carriedOf, nameOf } from '../session/item-sections.js?v=0.2.32';
-import { huntName, invitesOf } from '../session/party-sections.js?v=0.2.32';
-import { itemName } from './widgets/bits.js?v=0.2.32';
-import { CONSUMABLES } from '../data/consumables.js?v=0.2.32';
-import { deathSeen } from './death-popup.js?v=0.2.32';
-import { awayRecapOf, stampAway } from './away-recap.js?v=0.2.32';
+import { ALERT_INDEX } from '../data/alerts.js?v=0.2.33';
+import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.33';
+import { ALERTS_SEEN_MAX } from '../session/residue.js?v=0.2.33';
+import { huntOf, settingsOf } from '../session/hunt-sections.js?v=0.2.33';
+import { carriedOf, nameOf } from '../session/item-sections.js?v=0.2.33';
+import { huntName, invitesOf } from '../session/party-sections.js?v=0.2.33';
+import { itemName } from './widgets/bits.js?v=0.2.33';
+import { CONSUMABLES } from '../data/consumables.js?v=0.2.33';
+import { deathSeen } from './death-popup.js?v=0.2.33';
+import { awayRecapOf, stampAway } from './away-recap.js?v=0.2.33';
 
 const residueOf = (cs) => {
   const r = cs && cs.record && cs.record.residue && cs.record.residue.alerts;

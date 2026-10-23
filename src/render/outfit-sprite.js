@@ -13,8 +13,8 @@
 // shading. Until a mask ships, `hasMask` is false and the window offers no
 // colour picker.
 // ════════════════════════════════════════════════════════════════════════
-import { loadAtlasSet } from '../world/atlas.js?v=0.2.32';
-import { MASK_COLOURS } from '../data/outfits.js?v=0.2.32';
+import { loadAtlasSet } from '../world/atlas.js?v=0.2.33';
+import { MASK_COLOURS } from '../data/outfits.js?v=0.2.33';
 
 const SET = 'hunt';
 let ART = null;

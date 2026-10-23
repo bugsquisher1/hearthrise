@@ -5,6 +5,18 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.33 — 2026-10-23 (Eyes on your hero)
+
+**The hunt camera stays on your hero.** It keeps the hero you are watching in the middle of the open screen, clear of the party panel, the analyzer and the bar, and it moves to the new hero when you switch.
+
+**Tanks pull what they hold.** The tank holding the pack this lap now makes the pull, so another tank no longer takes the pack away right after it. A tank that already has every monster shows its Challenge slot as Holding.
+
+**Other heroes look like themselves in town,** in their own outfit, instead of all wearing the same knight armour.
+
+**Updates no longer end your hunt.** A hunt keeps running through an update and is paid for the time it was waiting.
+
+**Chat no longer covers the party panel.** It gets shorter or moves aside to make room.
+
 ## v0.2.32 — 2026-10-22 (Who holds the pack)
 
 **Your tanks, your call.** With two or more tanks in a party, the party panel now says who is holding the pack this lap and who holds next. The party leader chooses: tanks take turns, one lap each, or one tank holds every lap while the others guard the healer. A change starts on the next lap.

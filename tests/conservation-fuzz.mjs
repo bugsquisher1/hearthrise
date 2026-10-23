@@ -630,7 +630,8 @@ const INJECTIONS = {
   budget_market_credit_charged: {
     what: "market_buy stamps the seller's credit as progression inflow — selling a hoard burns the "
       + 'seller\'s whole day of progression',
-    file: 'market-v2',
+    /* 2026-12-15: hr_market_buy's last author is 2026-12-15-account-gold.sql (the seller's row is unchanged text). */
+    final: 'market-buy-final',
     patches: [[
       '       v_row.item_id, -p_qty, v_net, 0, 0, 0, 0,',
       '       v_row.item_id, -p_qty, v_net, v_net, 0, 0, 0,',

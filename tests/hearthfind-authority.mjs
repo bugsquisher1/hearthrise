@@ -43,6 +43,7 @@
 
 import { readFile } from 'node:fs/promises';
 import { bootReplay } from './schema-replay.mjs';
+import { goldOf } from './_gold.mjs';
 /* A mutant replays UP TO the newest file this guard stands on, never past it, so a
    newer migration's lock or self-check cannot refuse first: its arms read
    hr_world_finds_of / world_finds (PROJ). (tests/schema-replay.mjs replayScopeError).
@@ -469,8 +470,8 @@ async function runAll(db) {
       `the 4th find was paid anyway (${(await ledgerRows(db, D)).length} rows) — the daily ceiling is gone`);
     ok(await invQty(db, D, S.item_id) === 3, 'the 4th trophy was granted past the daily ceiling');
     ok(!r4.hearthfind, 'the receipt reveals a find that was never paid');
-    const gold = Number((await db.query(
-      `select gold from public.player_state where user_id=$1 and slot=0`, [D])).rows[0].gold);
+    /* the gold the hero spends: its ACCOUNT's purse (2026-12-15-account-gold.sql), or its own on an older chain */
+    const gold = Number(await goldOf((sql, p) => db.query(sql, p).then((r) => r.rows), D, 0));
     ok(gold === 1234, `the rest of the apply was rolled back with the dropped find (gold ${gold})`);
   }
 

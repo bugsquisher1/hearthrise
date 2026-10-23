@@ -50,6 +50,7 @@
 // ════════════════════════════════════════════════════════════════════════
 
 import { bootReplay, LAST_PATCHED } from './schema-replay.mjs';
+import { goldOf, setGold } from './_gold.mjs';
 
 const MIG = '2026-08-17-market-v2.sql';
 
@@ -416,9 +417,11 @@ function makeExec(db) {
    second copy of the arithmetic under test. */
 async function snapshot(db, itemId) {
   const one = async (uid) => {
-    const st = (await db.query(
-      'select gold::text gold, version::text version from public.player_state '
+    const st0 = (await db.query(
+      'select version::text version from public.player_state '
       + 'where user_id=$1 and slot=0', [uid])).rows[0];
+    /* the gold the hero spends: its ACCOUNT's purse (2026-12-15-account-gold.sql), or its own on an older chain */
+    const st = st0 ? { ...st0, gold: String(await goldOf((sql, p) => db.query(sql, p).then((r) => r.rows), uid, 0)) } : st0;
     const inv = (await db.query(
       'select coalesce(qty,0)::text q from public.player_inventory '
       + 'where user_id=$1 and slot=0 and item_id=$2', [uid, itemId])).rows[0];
@@ -495,8 +498,8 @@ async function run(mutate) {
   const ASK = 1000n;
   const QTY = 5n;
   const stock = async () => {
-    await db.query('update public.player_state set gold = 1000000 where user_id = $1', [SELLER]);
-    await db.query('update public.player_state set gold = 1000000 where user_id = $1', [BUYER]);
+    await setGold((sql, p) => db.query(sql, p).then((r) => r.rows), SELLER, 0, 1000000);
+    await setGold((sql, p) => db.query(sql, p).then((r) => r.rows), BUYER, 0, 1000000);
     await db.query(
       `insert into public.player_inventory (user_id, slot, item_id, qty) values ($1,0,$2,100)
        on conflict (user_id, slot, item_id) do update set qty = 100`, [SELLER, ITEM]);
@@ -812,7 +815,7 @@ async function run(mutate) {
   try {
     await stock();
     const l = await list({ user: SELLER, item: ITEM, qty: QTY, ask: ASK });
-    await db.query('update public.player_state set gold = 1 where user_id = $1', [BUYER]);
+    await setGold((sql, p) => db.query(sql, p).then((r) => r.rows), BUYER, 0, 1);
     const before = await snapshot(db, ITEM);
     const r = await buy({ user: BUYER, listing: l.listed.listing_id, qty: QTY });
     ok(r.ok === false && r.error === 'insufficient_gold',
@@ -932,7 +935,7 @@ async function run(mutate) {
     ok(mkSlot1 && mkSlot1.ok === true,
       `M20: hr_create_character(1) refused after granting the hero-slot entitlement: `
       + `${JSON.stringify(mkSlot1)} — the wash-trade setup cannot build the second character`);
-    await db.query('update public.player_state set gold = 1000000 where user_id=$1 and slot=1', [SELLER]);
+    await setGold((sql, p) => db.query(sql, p).then((r) => r.rows), SELLER, 1, 1000000);
     const slot1Version = () => db.query(
       'select version::text v from public.player_state where user_id=$1 and slot=1', [SELLER])
       .then((r) => r.rows[0].v);
@@ -1084,8 +1087,8 @@ async function run(mutate) {
         perform set_config('request.jwt.claim.sub', '${THIRD}', true);
         perform public.hr_create_character(0);
         perform set_config('request.jwt.claim.sub', '', true);
-      end $$;
-      update public.player_state set gold = 1000000 where user_id = '${THIRD}';`);
+      end $$;`);
+    await setGold((sql, p) => db.query(sql, p).then((r) => r.rows), THIRD, 0, 1000000);
     const r2 = await buy({ user: THIRD, listing: l2.listed.listing_id, qty: 1n });
     ok(r2.ok === false && r2.error === 'market_proceeds_daily_cap',
       `M14 SELLER SIDE: the per-day proceeds fuse did not bite: ${JSON.stringify(r2)}`);

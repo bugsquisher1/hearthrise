@@ -94,18 +94,17 @@ function armOverlapMetric() {
 async function seed(db) {
   await db.exec(`insert into auth.users (id) values ('${U}') on conflict do nothing;`);
   await db.exec(`
-    insert into public.player_state (user_id, slot, gold, hp, version, accrued_to,
+    insert into public.player_state (user_id, slot, hp, version, accrued_to,
                                      active_kind, active_id, active_since)
-    values ('${U}', 0, 0, 10, 1, now() - interval '10 minutes',
+    values ('${U}', 0, 10, 1, now() - interval '10 minutes',
             'gather', (select activity_id from public.hr_activities where kind='gather' limit 1),
             now() - interval '1 hour')
-    on conflict (user_id, slot) do update set version = 1, gold = 0,
-          accrued_to = now() - interval '10 minutes', active_kind = 'gather';
+    on conflict (user_id, slot) do update set version = 1, accrued_to = now() - interval '10 minutes', active_kind = 'gather';
   `);
 }
 
 const state = async (db) => (await db.query(
-  `select version, gold, accrued_to from public.player_state
+  `select version, coalesce((select w.gold from public.account_wallet w where w.user_id = player_state.user_id), 0) gold, accrued_to from public.player_state
     where user_id = '${U}' and slot = 0`)).rows[0];
 
 /* One hr_apply call, made AS a named role — the transition PostgREST performs

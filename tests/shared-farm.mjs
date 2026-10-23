@@ -49,6 +49,7 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { bootReplay, ROOT, inventory } from './schema-replay.mjs';
+import { goldOf, setGold as setGoldOf } from './_gold.mjs';
 
 const MIG = '2026-12-14-shared-farm.sql';
 const PREV = '2026-12-11-hunt-deploy-no-forfeit.sql';
@@ -213,8 +214,10 @@ function drivers(db) {
     ? q('insert into public.player_inventory (user_id, slot, item_id, qty) values ($1,$2,$3,$4) on conflict (user_id, slot, item_id) do update set qty = excluded.qty', [u, s, item, n])
     : q('delete from public.player_inventory where user_id=$1 and slot=$2 and item_id=$3', [u, s, item]);
   const xp = async (u, s) => Number((await one("select coalesce(sum(xp),0)::text x from public.player_skills where user_id=$1 and slot=$2 and skill_id='farming'", [u, s])).x);
-  const gold = async (u, s) => Number((await one('select gold::text g from public.player_state where user_id=$1 and slot=$2', [u, s])).g);
-  const setGold = (u, s, g) => q('update public.player_state set gold=$3 where user_id=$1 and slot=$2', [u, s, g]);
+  /* The gold a hero spends: its ACCOUNT's purse once 2026-12-15-account-gold.sql runs (one per account, the
+     slot names the acting hero only), its own player_state.gold before it. */
+  const gold = (u, s) => goldOf(q, u, s);
+  const setGold = (u, s, g) => setGoldOf(q, u, s, g);
   const ripen = (u, i) => q("update public.account_farm_plots set planted_at = now() - interval '30 hours' where user_id=$1 and plot_idx=$2", [u, i]);
   const farmXp = async (lv) => Number((await one('select xp::text x from public.hr_xp_table where level=$1', [lv])).x);
   return { q, one, as, gate, newAccount, plant, water, harvest, replant, upgrade, land, env, bag, setBag, xp, gold, setGold, ripen, farmXp };

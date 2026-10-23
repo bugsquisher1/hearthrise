@@ -90,12 +90,12 @@ let ACT = null;
 async function makeChar(db, u, { accruedMinutesAgo = 10 } = {}) {
   await db.exec(`insert into auth.users (id) values ('${u}') on conflict do nothing;`);
   await db.exec(`
-    insert into public.player_state (user_id, slot, gold, hp, version, accrued_to,
+    insert into public.player_state (user_id, slot, hp, version, accrued_to,
                                      active_kind, active_id, active_since)
-    values ('${u}', 0, 0, 10, 1, now() - interval '${accruedMinutesAgo} minutes',
+    values ('${u}', 0, 10, 1, now() - interval '${accruedMinutesAgo} minutes',
             'gather', '${ACT}', now() - interval '2 hours')
     on conflict (user_id, slot) do update
-      set version = 1, gold = 0, accrued_to = now() - interval '${accruedMinutesAgo} minutes',
+      set version = 1, accrued_to = now() - interval '${accruedMinutesAgo} minutes',
           active_kind = 'gather', active_id = '${ACT}';`);
 }
 
@@ -109,7 +109,7 @@ async function own(db, u, { holder = 'proofs', leaseMinutes = 5, owned = true } 
 const config = (db, sets) => db.exec(`update public.hr_tick_config set ${sets} where id;`);
 
 const stateOf = async (db, u) => (await db.query(
-  `select version, gold, accrued_to from public.player_state
+  `select version, coalesce((select w.gold from public.account_wallet w where w.user_id = player_state.user_id), 0) gold, accrued_to from public.player_state
     where user_id = '${u}' and slot = 0`)).rows[0];
 
 const shadowRows = async (db, u) => Number((await db.query(

@@ -33,6 +33,7 @@ import { join } from 'node:path';
 import { bootReplay, LAST_PATCHED, ROOT } from './schema-replay.mjs';
 import { isMain } from './_is-main.mjs';
 import { staleAnchors } from './alpha-server.mjs';
+import { goldOf } from './_gold.mjs';
 
 const MUTATE = process.argv.includes('--mutate');
 const HOOKS = '2026-10-25-settle-hooks.sql';
@@ -59,7 +60,8 @@ const COVERER = { minutesAgo: 25, inv: {}, bag: [], gold: 100, level: 3,
 
 async function snap(H, db, uid, sid) {
   return {
-    gold: Number(await H.one(db, 'select gold from public.player_state where user_id = $1 and slot = 0', [uid])),
+    /* the gold the hero spends: its ACCOUNT's purse (2026-12-15-account-gold.sql), or its own on an older chain */
+    gold: Number(await goldOf((sql, p) => db.query(sql, p).then((r) => r.rows), uid, 0)),
     inv: (await H.one(db, "select coalesce(jsonb_object_agg(item_id, qty), '{}') from public.player_inventory where user_id = $1 and slot = 0", [uid])) || {},
     loot: (await H.one(db, 'select loot from public.hunt_session_tally where session_id = $1', [sid])) || {},
   };

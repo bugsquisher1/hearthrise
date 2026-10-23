@@ -42,6 +42,7 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 import { bootReplay, chainFiles, ROOT } from './schema-replay.mjs';
+import { goldOf, setGold } from './_gold.mjs';
 import { ARTISAN_RECIPES } from '../src/data/recipes.js';
 import { ITEMS } from '../src/data/items.js';
 import { recipeInputs } from '../src/core/artisan.js';
@@ -419,8 +420,12 @@ function makeExec(db) {
   };
 }
 
-const state = async (db, uid, slot = 0) => (await db.query(
-  'select * from public.player_state where user_id = $1 and slot = $2', [uid, slot])).rows[0];
+/* The hero's row, with `gold` = the gold it spends: its ACCOUNT's purse (2026-12-15-account-gold.sql), or its own
+   on the older chain the SQL mutants stop at. */
+const state = async (db, uid, slot = 0) => {
+  const r = (await db.query('select * from public.player_state where user_id = $1 and slot = $2', [uid, slot])).rows[0];
+  return r ? { ...r, gold: await goldOf((sql, p) => db.query(sql, p).then((r) => r.rows), uid, slot) } : r;
+};
 const rungOf = async (db, uid, key, slot = 0) => Number(((await db.query(
   "select value from public.player_progress where user_id=$1 and slot=$2 and kind='unlock' "
   + "and key=$3 and period_key=''", [uid, slot, key])).rows[0] || { value: 0 }).value);
@@ -448,7 +453,7 @@ async function run(mutate) {
 
   /** Stock the character so a purchase is about the RULES, never about supply. */
   const stock = async () => {
-    await db.query('update public.player_state set gold = 5000000 where user_id = $1', [UID]);
+    await setGold((sql, p) => db.query(sql, p).then((r) => r.rows), UID, 0, 5000000);
     await db.exec(`
       insert into public.player_inventory (user_id, slot, item_id, qty)
       select distinct '${UID}'::uuid, 0, k, 10000
@@ -789,8 +794,8 @@ async function run(mutate) {
       do $$ begin
         perform set_config('request.jwt.claim.sub', '${UID2}', true);
         perform public.hr_create_character(0);
-      end $$;
-      update public.player_state set gold = 5000000 where user_id = '${UID2}';`);
+      end $$;`);
+    await setGold((sql, p) => db.query(sql, p).then((r) => r.rows), UID2, 0, 5000000);
     const doBuy2 = (o) => buy.runUnlockBuy({ exec, user: UID2, slot: 0, ...o });
 
     const r = await doBuy2({ intentId: uuid(), offer: k1.offer_id });
@@ -819,7 +824,7 @@ async function run(mutate) {
   // ── U9 · POVERTY, AND HOSTILE BODIES ───────────────────────────────────
   try {
     await clearGate();
-    await db.query('update public.player_state set gold = 1 where user_id = $1', [UID]);
+    await setGold((sql, p) => db.query(sql, p).then((r) => r.rows), UID, 0, 1);
     const k3 = (await db.query(
       "select offer_id from public.hr_unlock_offers where refusal is null "
       + "and unlock_id='room:kitchen' and value = 3")).rows[0];
@@ -827,7 +832,7 @@ async function run(mutate) {
     ok(r.body.ok === false && r.body.error === 'insufficient_gold',
       `U9: expected insufficient_gold, got ${JSON.stringify(r.body)}`);
     ok(await rungOf(db, UID, 'room:kitchen') === 2, 'U9: a refused purchase granted the rung anyway');
-    await db.query('update public.player_state set gold = 5000000 where user_id = $1', [UID]);
+    await setGold((sql, p) => db.query(sql, p).then((r) => r.rows), UID, 0, 5000000);
 
     /* HOSTILE OFFER IDS. Every one of these is a real shape an attacker sends,
        and the two that matter most are the prototype walkers: `constructor` is
@@ -1171,7 +1176,7 @@ async function run(mutate) {
       + "values ($1, 0, 'unlock', 'room:kitchen', '', $2) "
       + 'on conflict (user_id, slot, kind, key, period_key) do update set value = excluded.value',
       [UID2, Number(multi.value) - 1]);
-    await db.query('update public.player_state set gold = 5000000 where user_id = $1', [UID2]);
+    await setGold((sql, p) => db.query(sql, p).then((r) => r.rows), UID2, 0, 5000000);
     if (multi.req_item) {
       await db.query(
         'insert into public.player_inventory (user_id, slot, item_id, qty) values ($1, 0, $2, 1) '

@@ -866,11 +866,13 @@ async function rules(M) {
      streams live; the others keep playing on the server"). Four heroes of one account in one party hunt, slot 0
      viewed: the viewed session asks at most 5 times a minute, an unviewed one makes at most 1 call a minute and never
      asks the engine (a plain read); a switch asks the newly viewed hero ONE settle and shows the server's state at
-     once, and the one left goes quiet; an unviewed hero's hunt end reaches its record (the strip) within a minute. */
+     once, and the one left goes quiet; an unviewed hero's hunt end reaches its record (the strip) within a minute.
+     All of that with the push channel DOWN (the fallback reads); then with it UP (2026-12-25-frame-push-revive.sql)
+     an unviewed hero fed by frames makes no call at all and holds the server's version. */
   await t('VIEW-3', async () => {
     const LAT = 800, MIN = 60000;
     const clock = { t: 0 };
-    let tid = 0, lastSettle = -Infinity;
+    let tid = 0, lastSettle = -Infinity, pushUp = false;
     const timers = new Map(), late = [], ver = [10, 20, 30, 40], ended = [false, false, false, false];
     const add = (fn, ms, every) => { timers.set(++tid, { fn, at: clock.t + Math.max(0, ms), every }); return tid; };
     const tm = { setTimer: (fn, ms) => add(fn, ms, 0), clearTimer: (i) => timers.delete(i), setInterval: (fn, ms) => add(fn, ms, ms), clearInterval: (i) => timers.delete(i), now: () => clock.t };
@@ -902,7 +904,7 @@ async function rules(M) {
       for (; clock.t < untilMs; clock.t += 100) {
         await new Promise((r) => setImmediate(r));
         for (let i = 0; i < late.length; i++) if (late[i] && late[i].at <= clock.t) { const l = late[i]; late[i] = null; l.run(); await settle(); }
-        while (gaps.length) { const k = gaps.shift(); hub.send(C.frameTopic(UID, k), { t: 'state', frame: ver[k], env: envOf(k) }); await settle(); }
+        while (gaps.length) { const k = gaps.shift(); if (pushUp) { hub.send(C.frameTopic(UID, k), { t: 'state', frame: ver[k], env: envOf(k) }); await settle(); } }
         for (const [i, x] of Array.from(timers)) if (x.at <= clock.t && timers.has(i)) {
           if (x.every) x.at += x.every; else timers.delete(i);
           x.fn(); await settle();
@@ -937,7 +939,18 @@ async function rules(M) {
     ended[3] = true; ver[3] += 1;
     await run(endAt + MIN + LAT + 200);
     const h3 = acc.character(3).record.data.hunt;
-    return (h3 && h3.ended === true) || 'an unviewed hero\'s hunt end did not reach its record within a minute';
+    if (!(h3 && h3.ended === true)) return 'an unviewed hero\'s hunt end did not reach its record within a minute';
+    /* THE PUSH CHANNEL UP: each settle of the viewed hero (2) reaches every other member as a whole frame, so an
+       unviewed hero makes NO call while the frames come (its read is deferred, the fallback) and is at the server's version */
+    pushUp = true;
+    const upAt = clock.t;
+    await run(upAt + 3 * MIN);
+    for (const s of [0, 1]) {
+      const c = inWindow(s, upAt + MIN, upAt + 3 * MIN);
+      if (c.length) return 'unviewed hero ' + s + ' fed by frames still made ' + c.length + ' calls in 2 minutes: ' + c.map((x) => x.name).slice(0, 4).join(',');
+      if (acc.character(s).record.version !== ver[s]) return 'unviewed hero ' + s + ' fed by frames shows version ' + acc.character(s).record.version + ', the server ' + ver[s];
+    }
+    return true;
   });
   await t('ACC-2', async () => {
     /* each hero by its server name and its Level from the server's Level XP (21,591 = Level 10, CORE_MODEL.md §2) */

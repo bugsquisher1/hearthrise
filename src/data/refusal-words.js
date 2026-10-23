@@ -196,6 +196,16 @@ export const REFUSAL_WORDS = Object.freeze({
   too_many: 'Your list is full.',
   no_request: 'That request has gone.',
   read_only: 'Nothing can be typed here.',
+  /* Tamsin's tally (2026-12-23-tally-tasks.sql). */
+  weight_needed: 'Choose the armour weight Tamsin picks for you first.',
+  tally_full: 'You hold as many of her tasks as she gives at once. Finish or give one up first.',
+  tally_in_town: 'Tamsin\'s board is on the Common. Take a task when you are back in town.',
+  tally_pays_in_town: 'Tamsin pays when you are back in town.',
+  unknown_task: 'Tamsin has no such task.',
+  not_held: 'You do not hold that task.',
+  already_held: 'You already hold that task.',
+  bad_order: 'Put each armour slot in the order once.',
+  bad_weight: 'Pick heavy, medium or light armour.',
   /* Older features a server body can still answer with. */
   on_cooldown: 'That is cooling down. Try again shortly.',
   not_yet: 'Not yet. Try again later.',

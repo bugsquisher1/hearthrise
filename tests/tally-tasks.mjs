@@ -514,7 +514,14 @@ const ARMS = {
     return problems;
   },
 
-  'TT-11': async (db, M, X) => {
+  'TT-11': async (whole, M, X) => {
+    /* AT THE FILES' OWN POSITION (the replay-scope rule): a LATER file may legitimately restate a body these two pin
+       (2026-12-25-frame-push-revive.sql splices hr_hunt_apply_instance), and then a re-apply on the WHOLE chain is
+       refused by 12-23's own §0 pin, which is right. So the second apply is judged on the chain booted to 12-23,
+       where nothing newer has moved anything; the whole chain is used only when 12-23 is still its last file. */
+    const { bootReplay, chainFiles } = await import('./schema-replay.mjs');
+    const order = (await chainFiles()).map(([n]) => n);
+    const db = order[order.length - 1] === MIG ? whole : (await bootReplay({ upTo: MIG })).db;
     const snap = async () => one(db, `select jsonb_build_object(
       'fns', (select jsonb_object_agg(p.oid::regprocedure::text, md5(p.prosrc) || ':' || coalesce(array_to_string(p.proacl, ','), ''))
                 from pg_proc p where p.pronamespace = 'public'::regnamespace and (p.proname like 'hr_tally%' or p.proname in ('hr_hunt_apply_instance', 'hr_gold_kind'))),

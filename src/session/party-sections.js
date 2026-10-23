@@ -16,7 +16,7 @@
 //           hold_seat: who holds the pack (Tyler 2026-10-22): a tank's seat (One tank holds) or null (Take turns),
 //             hunt_parties.hold_seat, set only by the leader's hr_party_hold_set (lane/c-hunt-screens-server)
 //           leave_together: THIS hero's own "Leave if anyone leaves the hunt or dies" (Tyler 2026-10-22),
-//             player_state.party_leave_together, set only by its own hr_party_leave_together_set (2026-12-12)
+//             player_state.party_leave_together, set only by its own hr_party_leave_together_set (2026-12-18)
 //   (a solo hunt is a party of one with id null: no party membership here)
 // The finder's answer (hr_hunt_party_finder) keeps its own { seats: [{ seat, weapon, role, name }] }.
 // What this lane asks the server for (CONFLICTS.md 2026-10-18 party UI; the

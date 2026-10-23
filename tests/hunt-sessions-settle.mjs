@@ -1580,7 +1580,7 @@ const DB_ARMS = {
     return problems;
   }),
   /* PARTY-LEAVE (Tyler 2026-10-22, "Leave if anyone leaves the hunt or dies"), through the replayed chain
-     (2026-12-12-party-leave-together.sql), BOTH PATHS: a party of four, seats 0-1 on the default box, seat 2 the
+     (2026-12-18-party-leave-together.sql), BOTH PATHS: a party of four, seats 0-1 on the default box, seat 2 the
      leaver, seat 3 unticks its OWN box in town (a stranger's set moves no other hero's). The read carries every
      box to its hero; a forged cascade end for the unticked hero is refused; then the tick's 90 s windows (the
      browser closed) and a player's instants around the leave (viewed) write the SAME rows: the leaver ends
@@ -2448,7 +2448,7 @@ const AI = 'public.hr_hunt_apply_instance(uuid,bigint,jsonb,jsonb,uuid,integer)'
 const SS = 'public.hr_hunt_settle_session(uuid,integer,uuid,jsonb)';
 const SR = 'public.hr_hunt_settle_refused(uuid,bigint,jsonb,jsonb)';
 const DB_MUTANTS = [
-  /* LEAVE TOGETHER (2026-12-12-party-leave-together.sql): each server rule goes red on its own defect. */
+  /* LEAVE TOGETHER (2026-12-18-party-leave-together.sql): each server rule goes red on its own defect. */
   { arm: 'PARTY-LEAVE', name: '[leave together] a cascade end is proven for an unticked hero', fn: SS,
     find: "      when 'party_member_left' then coalesce((select ps.party_leave_together from public.player_state ps\n                                               where ps.user_id = p_user and ps.slot = p_slot), false)",
     replace: "      when 'party_member_left' then true or coalesce((select ps.party_leave_together from public.player_state ps\n                                               where ps.user_id = p_user and ps.slot = p_slot), false)" },
@@ -2568,21 +2568,21 @@ const DB_MUTANTS = [
    C2 settle file's are kept verbatim (its self-check is the proof that applied it). */
 const SQL_MUTANTS = [
   /* LEAVE TOGETHER: the file's own §4 refuses each. */
-  { file: '2026-12-12-party-leave-together.sql', name: '[leave together] the box defaults off',
+  { file: '2026-12-18-party-leave-together.sql', name: '[leave together] the box defaults off',
     find: 'add column if not exists party_leave_together boolean not null default true;', replace: 'add column if not exists party_leave_together boolean not null default false;' },
-  { file: '2026-12-12-party-leave-together.sql', name: '[leave together] the set is not rate-gated',
+  { file: '2026-12-18-party-leave-together.sql', name: '[leave together] the set is not rate-gated',
     find: "  if not public.hr_rpc_gate('party') then return jsonb_build_object('ok', false, 'error', 'rate_limited'); end if;\n  update public.player_state set party_leave_together",
     replace: '  update public.player_state set party_leave_together' },
-  { file: '2026-12-12-party-leave-together.sql', name: '[leave together] a replayed key sets the box again (not idempotent)',
+  { file: '2026-12-18-party-leave-together.sql', name: '[leave together] a replayed key sets the box again (not idempotent)',
     find: '  v_r := public.hr_intent_replay(v_uid, p_slot, p_idem, c_verb);\n  if v_r is not null then return public.hr_note_rejection(c_verb, p_slot, v_r); end if;\n  if not public.hr_rpc_gate',
     replace: '  if not public.hr_rpc_gate' },
-  { file: '2026-12-12-party-leave-together.sql', name: '[leave together] the set is not journalled',
+  { file: '2026-12-18-party-leave-together.sql', name: '[leave together] the set is not journalled',
     find: "  insert into public.player_intents (user_id, intent_id, slot, intent, result, at)\n    values (v_uid, p_idem, p_slot, c_verb, v_r, now()) on conflict (user_id, intent_id) do nothing;\n  return v_r;\nend $$;\nrevoke execute on function public.hr_party_leave_together_set(int, boolean, uuid) from public;",
     replace: "  return v_r;\nend $$;\nrevoke execute on function public.hr_party_leave_together_set(int, boolean, uuid) from public;" },
-  { file: '2026-12-12-party-leave-together.sql', name: '[leave together] a cascade end is proven on any box',
+  { file: '2026-12-18-party-leave-together.sql', name: '[leave together] a cascade end is proven on any box',
     find: "      when 'party_member_left' then coalesce((select ps.party_leave_together from public.player_state ps\n                                               where ps.user_id = p_user and ps.slot = p_slot), false)",
     replace: "      when 'party_member_left' then true" },
-  { file: '2026-12-12-party-leave-together.sql', name: '[leave together] a death is proven on any box',
+  { file: '2026-12-18-party-leave-together.sql', name: '[leave together] a death is proven on any box',
     find: "      when 'party_member_died' then coalesce((select ps.party_leave_together from public.player_state ps\n                                               where ps.user_id = p_user and ps.slot = p_slot), false)",
     replace: "      when 'party_member_died' then true" },
   { file: '2026-10-22-hunt-sessions-settle.sql', name: '[C2 §10] the value half is not stamped with the session', find: "    perform set_config('hr.hunt_session', p_session::text, true);\n    v_a := public.hr_apply(", replace: '    v_a := public.hr_apply(' },

@@ -77,8 +77,11 @@
 -- 2026-11-20 image (each this file's §3 anchor reversed); drop
 -- hr_party_leave_together_set and its baseline row; drop the column.
 -- ORDER: after 2026-12-11-hunt-deploy-no-forfeit.sql (it splices that file's
--- engine read) and right after 2026-12-12-hunt-sessions-catalogue.generated.sql
--- (END_ORDER's `party_member_left`, which §0 requires). EDGE: hr-accrue
+-- engine read), after the 12-14..12-17 files (12-14 shared-farm APPLIED; any of
+-- 12-15 account-gold / 12-16 own-drinks-settle that restates a body pinned in §0
+-- lands first and this file is re-pinned to its image), and right after
+-- 2026-12-18-hunt-sessions-catalogue.generated.sql (END_ORDER's
+-- `party_member_left`, which §0 requires). EDGE: hr-accrue
 -- redeploys with this lane (combat-sim.js, action-rules.js, hunt-spawn.js,
 -- member.js, hunt-settle.js); safe in either order: an engine reading a server
 -- without `leave_together` treats every box as off (no cascade end proposed),
@@ -93,7 +96,7 @@ declare v_src text;
 begin
   if not exists (select 1 from public.hr_hunt_end_reasons where reason = 'party_member_left')
      or not exists (select 1 from public.hr_hunt_end_reasons where reason = 'party_member_died') then
-    raise exception 'PRECONDITION: apply 2026-12-12-hunt-sessions-catalogue.generated.sql first (END_ORDER''s party_member_left)'; end if;
+    raise exception 'PRECONDITION: apply 2026-12-18-hunt-sessions-catalogue.generated.sql first (END_ORDER''s party_member_left)'; end if;
   select replace(prosrc, chr(13), '') into v_src from pg_proc where oid = 'public.hr_hunt_party_view(uuid,integer)'::regprocedure;
   if md5(v_src) <> 'e6d923becbd6ce9aaa8025b4bfde3dae' and strpos(v_src, 'LEAVE-TOGETHER') = 0 then
     raise exception 'PIN: hr_hunt_party_view is neither 2026-12-08-party-hold.sql''s image (e6d923be...) nor this file''s (md5 %)', md5(v_src); end if;
@@ -111,7 +114,7 @@ end $mig$;
 -- ── §1 THE BOX ───────────────────────────────────────────────────────────────
 alter table public.player_state add column if not exists party_leave_together boolean not null default true;
 comment on column public.player_state.party_leave_together is
-  '2026-12-12-party-leave-together.sql: this hero''s "Leave if anyone leaves the hunt or dies" (Tyler 2026-10-22), default on. '
+  '2026-12-18-party-leave-together.sql: this hero''s "Leave if anyone leaves the hunt or dies" (Tyler 2026-10-22), default on. '
   'Written only by the hero''s own hr_party_leave_together_set. Read by the engine (hr_hunt_instance_read members[].leave_together), '
   'the cascade-end proof (hr_hunt_settle_session) and the party panel (hr_hunt_party_view leave_together).';
 
@@ -122,7 +125,7 @@ declare
   c_verb constant text := 'party_leave_together';
   v_uid uuid := auth.uid(); v_r jsonb;
 begin
-  -- LEAVE-TOGETHER (2026-12-12-party-leave-together.sql): the caller's OWN hero's box; no argument names anyone else.
+  -- LEAVE-TOGETHER (2026-12-18-party-leave-together.sql): the caller's OWN hero's box; no argument names anyone else.
   if v_uid is null then return jsonb_build_object('ok', false, 'error', 'not_signed_in'); end if;
   if p_slot is null or p_slot < 0 or p_slot > 5 then
     return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'bad_slot')); end if;
@@ -147,7 +150,7 @@ delete from public.hr_client_rpc_baseline where grantee = 'authenticated' and pr
    and identity_args <> 'p_slot integer, p_on boolean, p_idem uuid';
 insert into public.hr_client_rpc_baseline (proname, identity_args, grantee, note)
 select 'hr_party_leave_together_set', 'p_slot integer, p_on boolean, p_idem uuid', 'authenticated',
-       'added 2026-12-12: the caller''s own hero''s "Leave if anyone leaves the hunt or dies" box; moves no value'
+       'added 2026-12-18: the caller''s own hero''s "Leave if anyone leaves the hunt or dies" box; moves no value'
  where not exists (select 1 from public.hr_client_rpc_baseline where grantee = 'authenticated' and proname = 'hr_party_leave_together_set');
 
 -- ── §3 FOUR ANCHORED SPLICES ─────────────────────────────────────────────────
@@ -159,7 +162,7 @@ begin
   if strpos(v_def, 'LEAVE-TOGETHER') = 0 then
     v_old := $a$'hold_seat', v_p.hold_seat);$a$;
     v_new := $a$'hold_seat', v_p.hold_seat,
-    -- LEAVE-TOGETHER (2026-12-12-party-leave-together.sql): THIS hero's own "Leave if anyone leaves the hunt or dies".
+    -- LEAVE-TOGETHER (2026-12-18-party-leave-together.sql): THIS hero's own "Leave if anyone leaves the hunt or dies".
     'leave_together', (select ps.party_leave_together from public.player_state ps where ps.user_id = p_user and ps.slot = p_slot));$a$;
     v_n := (length(v_def) - length(replace(v_def, v_old, ''))) / length(v_old);
     if v_n <> 1 then raise exception 'hr_hunt_party_view: LEAVE-TOGETHER anchor matched % times (need 1): the body moved', v_n; end if;
@@ -170,7 +173,7 @@ begin
   if strpos(v_def, 'LEAVE-TOGETHER') = 0 then
     v_old := $a$'user', h.user_id, 'slot', h.slot, 'seat', h.seat, 'unit_id', h.unit_id,$a$;
     v_new := $a$'user', h.user_id, 'slot', h.slot, 'seat', h.seat, 'unit_id', h.unit_id,
-                 -- LEAVE-TOGETHER (2026-12-12-party-leave-together.sql): the member's own box (combat-sim.js cascadeFrom).
+                 -- LEAVE-TOGETHER (2026-12-18-party-leave-together.sql): the member's own box (combat-sim.js cascadeFrom).
                  'leave_together', (select ps.party_leave_together from public.player_state ps where ps.user_id = h.user_id and ps.slot = h.slot),$a$;
     v_n := (length(v_def) - length(replace(v_def, v_old, ''))) / length(v_old);
     if v_n <> 1 then raise exception 'hr_hunt_instance_read: LEAVE-TOGETHER anchor matched % times (need 1): the body moved', v_n; end if;
@@ -183,7 +186,7 @@ begin
       -- provable only as "the instance holds another member": the end can only stop value, never mint it.
       when 'party_member_died' then exists (select 1 from public.hunt_sessions o
                                              where o.instance_id = v_s.instance_id and o.id <> v_s.id)$a$;
-    v_new := $a$      -- LEAVE-TOGETHER (2026-12-12-party-leave-together.sql): another member's end (its death:
+    v_new := $a$      -- LEAVE-TOGETHER (2026-12-18-party-leave-together.sql): another member's end (its death:
       -- party_member_died; any other: party_member_left) sends THIS hero home only through its own box
       -- (player_state.party_leave_together, written only by its own hr_party_leave_together_set) and only in an
       -- instance that holds another member: the end can only stop value, never mint it.
@@ -204,7 +207,7 @@ begin
   if strpos(v_def, 'LEAVE-TOGETHER') = 0 then
     v_old := $a$'forfeit', s.forfeit,$a$;
     v_new := $a$'forfeit', s.forfeit,
-    -- LEAVE-TOGETHER (2026-12-12-party-leave-together.sql): a cascade end names the member whose own end at the same
+    -- LEAVE-TOGETHER (2026-12-18-party-leave-together.sql): a cascade end names the member whose own end at the same
     -- instant sent this hero home (its death for party_member_died), from the server's rows; else null.
     'end_by', case when s.end_reason in ('party_member_died', 'party_member_left') then (
       select public.hr_character_name(o.user_id, o.slot) from public.hunt_sessions o

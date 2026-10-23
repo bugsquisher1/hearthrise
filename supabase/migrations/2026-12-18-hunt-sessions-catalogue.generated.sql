@@ -19,7 +19,8 @@
 -- leaves the hunt or dies"): END_ORDER gains `party_member_left` (a ticked hero sent
 -- home by another member's end; RESUME_AFTER_END too), so hr_hunt_end_reasons and
 -- hunt_sessions.end_reason's CHECK are rewritten; the world's shape is unchanged.
--- Applies right BEFORE 2026-12-12-party-leave-together.sql (which proves the end).
+-- Applies after the 12-14..12-17 files and right BEFORE 2026-12-18-party-leave-together.sql
+-- (which proves the end).
 -- Carried from 12-09 (lane b-tank-choice, Tyler 2026-10-22 "One tank holds"): the
 -- world's shape gains hold / holdNext (src/core/hunt/targeting.js), so
 -- hr_hunt_world_shape is rewritten; the hr-accrue edge carrying that world deploys

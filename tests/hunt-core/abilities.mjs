@@ -155,6 +155,51 @@ const cases = {
     return hs.tally.supplies.barbed_arrows === 1 && hs.tally.bought.plain_barbed_arrows === 1 && hs.goldOut === true
       ? null : 'the shots were not split own/store, or the dry purse ended nothing: ' + JSON.stringify(hs.tally);
   },
+  /* A BASIC SHOT NEVER BUYS A RUNE (lane a-rune-spend; designer 2026-10-21, Bible §18: a store rune is bought
+     only when a slot names it, and only a spell slot can). Live: a staff with Fire Runes loaded bought the
+     store's Plain Fire Rune for every basic once they were spent, 8 g a shot (about 14,400 g an hour). An arrow
+     still falls to its plain partner (basic-costs). */
+  'basic-shot-never-buys-a-rune': (M) => {
+    const hs = supplySession(M, { bag: { fire_rune: { loaded: 1 } }, shot: 'plain_fire_rune', ammo: 'fire_rune', purse: 50 });
+    const b = oneHero(M, { role: 'healer' }, { hs, ammo: 'fire_rune', range: 7 });
+    const shots = [0, 1, 2].map(() => M.abilities.payBasic(b.inst, b.h, { ammo: true }, b.sc));
+    if (JSON.stringify(shots) !== '[true,false,false]') return 'own, then no rune (never the store) shot ' + JSON.stringify(shots);
+    if (hs.purse !== 50 || Object.keys(hs.tally.bought).length || hs.goldOut) return 'a basic shot bought a store rune: ' + JSON.stringify([hs.tally.bought, hs.purse, hs.goldOut]);
+    const line = M.abilities.shotLine(b.inst.heroes[1], 'fire_rune');
+    if (line.id) return 'the spent Fire Rune line still answers ' + JSON.stringify(line);
+    /* the spell slot that NAMES the store rune still buys it (rune-own-then-store), the arrow its partner */
+    const arrows = supplySession(M, { bag: { barbed_arrows: { loaded: 0 } }, shot: 'plain_barbed_arrows', ammo: 'barbed_arrows' });
+    const a = M.abilities.shotLine({ hs: arrows }, 'barbed_arrows');
+    return a.id === 'plain_barbed_arrows' && a.source === 'store' ? null : 'a spent arrow line no longer falls to its plain partner: ' + JSON.stringify(a);
+  },
+  /* RUNNING OUT NEVER ENDS A DEFAULT HUNT (Tyler 10-16; lane a-rune-spend): a spent essential rune line with no
+     store row behind it ended the hunt `ammo_out` under the default `switch`. Only the hero's explicit `end` does. */
+  'spent-runes-never-end-a-default-hunt': (M) => {
+    for (const rune of ['earth_rune', 'fire_rune']) {
+      const sw = supplySession(M, { bag: { [rune]: { loaded: 0, essential: true } }, shot: 'plain_fire_rune', ammo: 'fire_rune' });
+      if (M.AR.endReasonAt(sw, 2000) !== null) return 'a spent ' + rune + ' line ended a default hunt ' + M.AR.endReasonAt(sw, 2000);
+      const end = supplySession(M, { bag: { [rune]: { loaded: 0, essential: true } }, onEmpty: 'end' });
+      if (M.AR.endReasonAt(end, 2000) !== 'ammo_out') return 'the hero\'s own end-on-empty no longer ends a spent ' + rune + ' line: ' + M.AR.endReasonAt(end, 2000);
+    }
+    return null;
+  },
+  /* AN UNAFFORDABLE SLOT WAITS, IT NEVER ENDS THE HUNT (lane a-rune-spend; Tyler 10-14: out of gold ends a hunt
+     for the action actually taken). Live: an unaffordable Flame Strike slot (store rune) marked the session
+     goldOut while the bar was still being walked, so the hunt ended gold_out though Power Strike, the next
+     slot, cast. The wait is still said (rule_wait gold_short). */
+  'unaffordable-slot-waits': (M) => {
+    const broke = () => supplySession(M, { bag: { fire_rune: { loaded: 0 } }, shot: 'plain_fire_rune', ammo: 'fire_rune', purse: 0 });
+    const hs = broke();
+    const x = melee(M, [storeSlot('flame_strike'), 'power_strike'], {}, { hs });
+    M.abilities.castAbilities(x.inst, x.sc);
+    if (JSON.stringify(casts(x.sc)) !== '["power_strike"]') return 'the slot after an unaffordable one did not cast: ' + JSON.stringify(casts(x.sc));
+    if (hs.goldOut || M.AR.endReasonAt(hs, 2000) !== null) return 'an unaffordable slot ended the hunt though the next slot cast (' + M.AR.endReasonAt(hs, 2000) + ')';
+    const alone = broke();
+    const y = melee(M, [storeSlot('flame_strike')], {}, { hs: alone });
+    M.abilities.castAbilities(y.inst, y.sc);
+    if (casts(y.sc).length || alone.goldOut) return 'an unaffordable spell alone ended the hunt (it goes without; the basic still swings)';
+    return y.sc.events.some((e) => e.type === 'rule_wait' && e.why === 'gold_short' && e.rule_label === 'flame_strike') ? null : 'the gold wait was not said';
+  },
   /* AB-06: a shot ability spends its shots of the loaded ammo, per cast. */
   'ammo-per-shot': (M) => {
     const hs = supplySession(M, { bag: { iron_arrows: { loaded: 2 } } });
@@ -220,6 +265,13 @@ const mutants = [
   { name: 'the store is shut while another ammo line has uses (the starter-kit lock)', case: 'store-rune-beside-the-starter-kit',
     edits: [['src/core/action-rules.js', "  return !!hs && (hs.supplySource === 'store' || hs.onEmpty === 'switch');",
       "  return !!hs && (hs.supplySource === 'store' || (hs.onEmpty === 'switch' && !Object.keys(hs.bag || {}).some((id) => kindOf(id) === 'ammo' && leftOf(hs, id) > 0)));"]] },
+  { name: 'a basic shot buys the store rune behind a spent rune line (8 g a shot)', case: 'basic-shot-never-buys-a-rune',
+    edits: [['src/core/hunt/abilities.js', '  return resolveLine(h && h.hs, id, isRune(itemRow(h, id)) ? null : undefined);', '  return resolveLine(h && h.hs, id);']] },
+  { name: 'a spent rune line with no store row ends a default hunt ammo_out', case: 'spent-runes-never-end-a-default-hunt',
+    edits: [['src/core/action-rules.js', "  if (kind === 'ammo' && storeAllowed(hs)) return false;\n", '']] },
+  { name: 'an unaffordable slot marks the hunt gold_out while the bar is still walked', case: 'unaffordable-slot-waits',
+    edits: [['src/core/hunt/abilities.js', "    if (s.why) return { why: s.short ? 'gold_short' : 'no_stock' };",
+      "    if (s.why) { if (s.short) h.hs.goldOut = true; return { why: s.short ? 'gold_short' : 'no_stock' }; }"]] },
   { name: 'a rune slot buys the store rune without naming it', case: 'rune-own-then-store',
     edits: [['src/core/hunt/abilities.js', "    const l = resolveLine(h.hs, row.rune, typeof store === 'string' ? store : null);", '    const l = resolveLine(h.hs, row.rune);']] },
   { name: 'the mark is drawn but adds nothing', case: 'mark-adds-damage',

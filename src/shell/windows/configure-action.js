@@ -141,7 +141,7 @@ function patchRow(el, r, picked, off) {
   cls(el, 'is-store', r.carry === 'store');
   cls(el, 'is-mana', r.kind === 'drink' || r.kind === 'spells' || r.kind === 'runes');
   cls(el, 'is-locked', !!r.locked);
-  attr(el, 'title', r.locked ? 'Your weapon can’t cast this' : '');
+  attr(el, 'title', r.locked ? (r.kind === 'ammo' ? 'Your weapon can’t shoot this' : 'Your weapon can’t cast this') : '');
   prop(el, 'disabled', off);
 }
 

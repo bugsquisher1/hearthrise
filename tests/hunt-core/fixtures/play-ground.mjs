@@ -23,7 +23,8 @@ const COMBAT = ['melee', 'ranged', 'magic', 'defense'];
     opts: { spanMs (default thirty minutes), secret (the hunt seed), monsters (a drop-table fixture), fullSet,
     equipment (one worn set every hero wears, e.g. the start kit's; or a function (role, seat, L) -> set, one per hero),
     bag ((role, seat, L) -> the hunt bag { item: { loaded } }; default: one free Bronze Arrow for a Ranger, else empty),
-    session (fields over every hero's hunt session, e.g. { goldFloor, onEmpty }) }. */
+    session (fields over every hero's hunt session, e.g. { goldFloor, onEmpty }),
+    options ((role, seat, L) -> the hero's stored bar options, player_action_sets.options: chase, stance, distance, target_mode) }. */
 /** The trees loadPlay reads beyond src/core and src/data: a planted copy (h1.js plant) needs them too. */
 export const PLAY_TREES = Object.freeze(['supabase/functions/hr-accrue', 'src/world/core', 'assets/world']);
 
@@ -96,7 +97,7 @@ export async function loadPlay(root) {
     const line = role === 'ranger' ? ['leather', 'studded', 'boarhide', 'snakeskin'] : ['apprentice', 'adept', 'scholar', 'warlock'];
     return { ...base, helmet: line[t] + '_helmet', body: line[t] + '_body', pants: line[t] + '_pants', boots: line[t] + '_boots' };
   };
-  const hero = (huntId, role, i, L, roles, fullSet, worn, bar, bag, session) => {
+  const hero = (huntId, role, i, L, roles, fullSet, worn, bar, bag, session, options) => {
     /* A hero at Level L with every combat skill at L (the designer's fit: skill ~ Level through L25). */
     const skills = Object.fromEntries(COMBAT.map((k) => [k, XP.skillXpForLevel(k, L)]));
     /* opts.equipment: a worn set given whole (the start kit, start-kit.js START_EQUIPMENT), for every hero. */
@@ -108,7 +109,7 @@ export async function loadPlay(root) {
         staminaMs: 12 * 3600000, staminaMaxMs: 12 * 3600000, basics, goldFloor: 0, supplySource: 'mine', onEmpty: 'switch', cover: {}, ...(session || {}) },
       skills, levelXp: XP.charXpForLevel(L), xpFrac: null, hp: 1e9, gold: 50000, equipment,
       inventory: {}, deathsTodayBefore: 0, deathsLifetimeBefore: 0, hearthfindReady: false, perks: null,
-      hero: SPAWN.heroSetup({ weaponType: roleWeaponOf(ITEMS[equipment.weapon]), options: role === 'healer' ? { role: 'healer' } : {},
+      hero: SPAWN.heroSetup({ weaponType: roleWeaponOf(ITEMS[equipment.weapon]), options: { ...(role === 'healer' ? { role: 'healer' } : {}), ...(options ? options(role, i, L) : {}) },
         bar: typeof bar === 'function' ? bar(role, i, L) : refBar(huntId), partyRoles: roles }),
     };
   };
@@ -116,7 +117,7 @@ export async function loadPlay(root) {
     const span = opts.spanMs || SPAN, secret = opts.secret || SECRET, monsters = opts.monsters || MONSTERS;
     const ground = G.HUNT_GROUNDS[huntId], grid = gridOf(ground.map);
     /* L: one Level for every hero, or one per hero in seat order (a mixed party: [9, 19]) */
-    const members = roles.map((r, i) => hero(huntId, r, i, Array.isArray(L) ? L[i] : L, roles, opts.fullSet === true, opts.equipment || null, opts.bar || null, opts.bag || null, opts.session || null));
+    const members = roles.map((r, i) => hero(huntId, r, i, Array.isArray(L) ? L[i] : L, roles, opts.fullSet === true, opts.equipment || null, opts.bar || null, opts.bag || null, opts.session || null, typeof opts.options === 'function' ? opts.options : null));
     /* opts.density: the party's monster density pick (the settle clamps it to the ground) */
     if (Number.isInteger(opts.density)) for (const m of members) m.hero = Object.assign({}, m.hero, { density: opts.density });
     /* common vs rare by the hunt's own drop rows: a loot-band row (src/data/loot-bands.js) is a common in the common and

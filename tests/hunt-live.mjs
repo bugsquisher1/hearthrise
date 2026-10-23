@@ -50,6 +50,9 @@
 //         never the hunt): a tank with no food of its own and an "Any food" slot naming
 //         Salted Trout buys Salted Trout and nothing else, on the server's commits (the
 //         browser closed) and in the browser's prediction (viewed), every commit matching.
+//   LV-RANGER A RANGER'S BAR (Andy 2026-10-23, Fremulon): a bow with NO ammo worn, a Copper Whetstone
+//         slot ahead of its arrows: it shoots only its arrows (never the whetstone) and Precision Shot
+//         casts on them, on the server's commits (browser closed) and in the prediction (viewed).
 //   LV-RR THE PARTY'S RARE ROLL IS THE SERVER'S (Tyler L8; rulings: loot rolls use a server-only
 //         stream): with every monster carrying rare rows, the server's commits roll rares
 //         (`rare_roll`, each Crown Shard to its winner) and the browser's prediction, which
@@ -928,6 +931,34 @@ function rules(M) {
     ok('LV-$', JSON.stringify(dry(closedEvs)) === JSON.stringify(['cooked_shrimp,salted_trout,2']), 'the server\'s run-out event read ' + JSON.stringify(dry(closedEvs)) + ', want slot 2 (Salted Trout) taking over');
     ok('LV-$', bad.length === 0, bad.length + ' commit(s) did not match the prediction');
   }
+  { /* LV-RANGER a Ranger's bar, viewed and with the browser closed (Andy 2026-10-23, Fremulon) */
+    const mi = memberOf(M, 'a', 0, 'ranger', 10);
+    mi.huntSession = Object.assign({}, mi.huntSession, { bag: { iron_arrows: { loaded: 400, left: 400 }, copper_whetstone: { loaded: 50, left: 50 },
+      cooked_shrimp: { loaded: 30, left: 30, essential: true } } });
+    const slot = (type, id) => ({ action: { type, id }, conditions: [], join: 'and' });
+    mi.hero = M.SPAWN.heroSetup({ weaponType: 'ranged', options: {}, partyRoles: ['ranger'],
+      bar: [slot('ability', 'hunters_mark'), slot('ability', 'precision_shot'), slot('attack_with_item', 'copper_whetstone'), slot('attack_with_item', 'iron_arrows')] });
+    const r = run(M, [mi], 160000);
+    const casts = (evs) => evs.filter((e) => e.type === 'cast').map((e) => e.ability);
+    const shots = (evs) => evs.filter((e) => e.type === 'shot').map((e) => e.item);
+    const closedEvs = r.verdicts.flatMap((x) => x.tl.hunt_events);
+    /* the browser runs a swing or so past the last commit: the viewed half is judged on the committed span */
+    const viewedEvs = r.fed.events.filter((e) => e.atMs < r.srv.inst.settled_to_ms);
+    const bad = r.verdicts.filter((x) => x.v !== 'match');
+    const bag = mi.huntSession.bag;
+    const n = (list, id) => list.filter((x) => x === id).length;
+    console.log(`  LV-RANGER: the server cast ${JSON.stringify(casts(closedEvs))}, shot ${shots(closedEvs).length} [${[...new Set(shots(closedEvs))].join(', ')}]; arrows ${bag.iron_arrows.left}/400, whetstones ${bag.copper_whetstone.left}/50; the browser cast ${casts(viewedEvs).length}, shot ${shots(viewedEvs).length}; ${bad.length} of ${r.verdicts.length} commits off`);
+    ok('LV-RANGER', shots(closedEvs).length >= 10, 'CONTROL: the Ranger shot ' + shots(closedEvs).length + ' time(s) in 160 s');
+    ok('LV-RANGER', shots(closedEvs).every((id) => id === 'iron_arrows') && bag.copper_whetstone.left === 50,
+      'browser closed: a bow shot a whetstone (slot 3, ahead of its arrows): shots ' + JSON.stringify([...new Set(shots(closedEvs))]) + ', ' + bag.copper_whetstone.left + ' of 50 whetstones left');
+    ok('LV-RANGER', n(casts(closedEvs), 'precision_shot') >= 3 && n(casts(closedEvs), 'hunters_mark') >= 1,
+      'browser closed: with no ammo worn the shot spells never cast on the bar\'s arrows: ' + JSON.stringify(casts(closedEvs)));
+    ok('LV-RANGER', bag.iron_arrows.left === 400 - shots(closedEvs).length - n(casts(closedEvs), 'precision_shot'),
+      'browser closed: ' + (400 - bag.iron_arrows.left) + ' arrows spent for ' + shots(closedEvs).length + ' shots + ' + n(casts(closedEvs), 'precision_shot') + ' Precision Shots');
+    ok('LV-RANGER', JSON.stringify(casts(viewedEvs)) === JSON.stringify(casts(closedEvs)) && JSON.stringify(shots(viewedEvs)) === JSON.stringify(shots(closedEvs)),
+      'viewed: the browser predicted casts ' + JSON.stringify(casts(viewedEvs)) + ' and ' + shots(viewedEvs).length + ' shots');
+    ok('LV-RANGER', bad.length === 0, bad.length + ' commit(s) did not match the prediction');
+  }
   return fails;
 }
 const sorted = (o) => Object.fromEntries(Object.entries(o).sort());
@@ -966,6 +997,10 @@ const MUTANTS = [
   ['an empty own slot buys its store partner instead of falling to slot 2 (LV-$)', 'src/core/action-rules.js',
     "  if (c && c.source === 'own') return leftOf(hs, want) > 0 ? { id: want, source: 'own', price: 0 } : { why: 'none' };",
     "  if (c && c.source === 'own' && !(leftOf(hs, want) > 0) && shopShotFor(hs, want)) return { id: shopShotFor(hs, want).id, source: 'store', price: shopShotFor(hs, want).price };\n  if (c && c.source === 'own') return leftOf(hs, want) > 0 ? { id: want, source: 'own', price: 0 } : { why: 'none' };", /^LV-\$/],
+  ['a bow shoots the whetstone an attack slot names (LV-RANGER, Andy 10-23)', 'src/core/hunt/damage.js',
+    '    if (!shootsItem(u.role, itemRow(h, id))) return null;\n', '', /^LV-RANGER/],
+  ['a shot ability reads only the worn ammo (LV-RANGER, Andy 10-23)', 'src/core/hunt/abilities.js',
+    "    const id = slot.action.id === 'loaded' ? h.ammo : slot.action.id;", '    const id = h.ammo;', /^LV-RANGER/],
   ['the browser keeps every combat seed since the hunt began (LV-G)', 'src/hunt-view/live-engine.js',
     'const keepFrom = Math.max(Math.min(st.seeds.from, from), st.world ? st.world.swing : st.worldSwing);', 'const keepFrom = Math.min(st.seeds.from, from);', /^LV-G/],
   ['corpses are never cleared from the stored world (LV-G)', 'src/core/hunt/pull-cycle.js', 'if (u.deadMs >= HUNT_TUNING.corpseMs) gone = true;', 'if (false) gone = true;', /^LV-G/],

@@ -20,7 +20,7 @@ import { ABILITIES } from '../data/abilities.js?v=0.2.37';
 import { CONSUMABLES, CONSUMABLE_RULES } from '../data/consumables.js?v=0.2.37';
 import { SUPPLIES, isRune } from '../data/supplies.js?v=0.2.37';
 import { ITEMS } from '../data/items.js?v=0.2.37';
-import { HUNT_ROLES } from '../data/hunt-roles.js?v=0.2.37';
+import { HUNT_ROLES, shootsItem } from '../data/hunt-roles.js?v=0.2.37';
 import { ATTACK_KINDS } from '../data/condition-metrics.js?v=0.2.37';
 import { itemName, abilityName } from './widgets/bits.js?v=0.2.37';
 
@@ -98,10 +98,14 @@ export function tableOf(tab, ctx) {
     const rows = Object.values(CONSUMABLES).filter((x) => x.kind === kind).map((x) => supplyRow(x, c.store, c.bag)).sort(byValue);
     if (rows.length) runs.push({ kind, label: RUN_LABEL[kind], cols: RUN_COLUMNS[kind], rows });
   }
-  const ammo = Object.keys(ATTACK_KINDS).concat(Object.values(SUPPLIES).filter((r) => r.kind === 'ammo').map((r) => r.id))
-    .map((id) => ammoRow(id, c.store, c.bag));
+  /* THE SHOTS (hunt-roles.js shootsItem, the engine's rule): only ammo some weapon can loose is offered — a
+     whetstone sharpens a Melee weapon from the ammo slot and is no one's shot (Andy 2026-10-23: a bow loosed
+     Copper Whetstones from an attack slot) — and one the worn weapon cannot shoot is listed LOCKED, as a spell is. */
+  const roles = Object.keys(HUNT_ROLES);
+  const ammo = Object.keys(ATTACK_KINDS).concat(Object.values(SUPPLIES).filter((r) => r.kind === 'ammo' && roles.some((k) => shootsItem(k, ITEMS[r.id]))).map((r) => r.id))
+    .map((id) => Object.assign(ammoRow(id, c.store, c.bag), { locked: !own(ATTACK_KINDS, id) && !shootsItem(c.role, ITEMS[id]) }));
   const loaded = ammo.filter((r) => own(ATTACK_KINDS, r.action.id));
-  runs.push({ kind: 'ammo', label: RUN_LABEL.ammo, cols: RUN_COLUMNS.ammo, rows: loaded.concat(ammo.filter((r) => !own(ATTACK_KINDS, r.action.id)).sort(byValue)) });
+  runs.push({ kind: 'ammo', label: RUN_LABEL.ammo, cols: RUN_COLUMNS.ammo, rows: loaded.concat(ammo.filter((r) => !own(ATTACK_KINDS, r.action.id)).sort((a, b) => (a.locked - b.locked) || byValue(a, b))) });
   return { runs, empty: null };
 }
 

@@ -919,7 +919,7 @@ async function checks(overrides, shots) {
           return { name: vis('.hw-hd-name'), theme: vis('.hw-hd-theme'),
             sets: Array.from(d.querySelectorAll('.hw-hd-set')).map((n) => n.textContent),
             rares: Array.from(d.querySelectorAll('.hw-hd-rare')).map((n) => n.querySelector('.hw-hd-rare-name').textContent + ' / ' + n.querySelector('.hw-hd-rare-by').textContent + (n.classList.contains('is-trophy') ? ' (trophy)' : '')),
-            raresShown: (() => { const h = d.querySelector('.hw-hd-rares'); return !!h && h.getClientRects().length > 0; })(),
+            raresShown: (() => { const h = d.querySelector('.hw-hd-rares'), head = h && h.previousElementSibling; return !!head && head.getClientRects().length > 0; })(),
             mons: Array.from(d.querySelectorAll('.hw-hd-mon')).map((li) => { const c = li.querySelector('canvas'), b = c.getBoundingClientRect(), st = li.querySelector('.hw-hd-stand').getBoundingClientRect();
               return { id: li.dataset.monster, how: li.querySelector('.hw-hd-mon-how').textContent, drawn: li.classList.contains('is-drawn'), carrier: li.classList.contains('is-carrier'),
                 w: c.width, h: c.height, cw: b.width, ch: b.height, ground: Math.round(st.bottom), inside: b.top >= st.top - 0.5 }; }),
@@ -932,7 +932,8 @@ async function checks(overrides, shots) {
         const mons = p.mons.map((m) => m.id + ':' + m.how + (m.carrier ? ':carrier' : '')).join('|');
         if (p.name !== 'Mill Cellar' || p.theme !== HUNTS.mill_cellar.theme || mons !== 'rat:Level 2 · common|slime:Level 2 · uncommon|hive_wasp:Level 4 · uncommon')
           fails.push('AW-25 the Mill Cellar page reads ' + JSON.stringify({ name: p.name, theme: p.theme, mons }));
-        if (p.sets.join('|') !== 'Bronze, Leather, Apprentice: helmets' || p.rares.length || p.raresShown) fails.push('AW-25 the Cellar\'s drops read ' + JSON.stringify([p.sets, p.rares, p.raresShown]));
+        /* the fixture hero wears Leather Boots, so the medium line reads first; the Cellar has no Rare, so no Rare heading */
+        if (p.sets.join('|') !== 'Leather, Bronze, Apprentice: helmets' || p.rares.length || p.raresShown) fails.push('AW-25 the Cellar\'s drops read ' + JSON.stringify([p.sets, p.rares, p.raresShown]));
         if (p.bests.join('|') !== 'Not hunted yet. A hunt of 10 min or more sets your best.') fails.push('AW-25 with no best the page reads ' + JSON.stringify(p.bests));
         if (shots) await shot(page, 'hunts-1440x900-cellar-level1');
         /* The server's best arrives: the line and the page take it (replaced, never kept from before). */

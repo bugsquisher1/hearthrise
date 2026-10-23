@@ -16,6 +16,7 @@
 //   removable  false: the widget can never be hidden
 //   when       'always' | 'hunt'
 //   phone      overrides of anchor/dx/dy/opacity/visible on the phone size class
+//   below      (optional) widget ids this one stacks under when it would overlap them (hud.js stackBelow)
 //
 // The player's layout is a DISPLAY preference (residue `hudLayout`, CLAUDE.md §6).
 // The hunt widgets show only while the character's envelope carries a hunt.
@@ -61,12 +62,16 @@ export const HUD_WIDGETS = Object.freeze([
     min: Object.freeze([260, 120]), opacity: 0.9, visible: true, removable: true, when: 'hunt',
     phone: Object.freeze({ visible: false, dx: 4, dy: 4 }),
   }),
-  /* Tamsin's tally (2026-12-23-tally-tasks.sql): each held kill task's server count, in town and hunting. The
-     right middle is clear of the analyzer (top right) and the bar; off by default on a phone (HUD layout shows it). */
+  /* Tamsin's tally (2026-12-23-tally-tasks.sql): each held kill task's server count, in town and hunting. It
+     STACKS under the analyzer on the right edge (`below`, src/shell/hud.js stackBelow): the analyzer grows with
+     the hunt, so a fixed right-middle spot ran under it (v0.2.37 run 40020854780, HS-13). In town it is the top
+     right corner. With nothing to show it takes no room (widgets/tally-hud.js), so it never moves the camera.
+     Off by default on a phone, where it stacks under the hunt bar (HUD layout shows it). */
   Object.freeze({
-    id: 'tally', label: 'Tally (kill tasks)', layer: 'world', anchor: 'mr', dx: 12, dy: 0,
+    id: 'tally', label: 'Tally (kill tasks)', layer: 'world', anchor: 'tr', dx: 12, dy: 12,
     min: Object.freeze([180, 32]), opacity: 0.9, visible: true, removable: true, when: 'always',
-    phone: Object.freeze({ visible: false, dx: 4 }),
+    below: Object.freeze(['analyzer', 'hunt-topbar']),
+    phone: Object.freeze({ visible: false, dx: 4, dy: 4 }),
   }),
   Object.freeze({
     /* Shown in town too, so the bar is set up before leaving (its vitals show only in a hunt). */

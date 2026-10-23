@@ -43,7 +43,7 @@ import { MOBILE_QUERY } from '../world/core/camera.js?v=0.2.37';
 import { SHELL_WINDOWS } from '../data/shell-windows.js?v=0.2.37';
 import { HUD_WIDGETS } from '../data/hud-widgets.js?v=0.2.37';
 import { createWindowManager, DOCK_EDGE, HOME_BOTTOM, RESIZE_MIN } from './window-manager.js?v=0.2.37';
-import { createHud, residueStore, placeWidget, hudInsetOf, clearOfEdges, clearOfDock, stageOf, dockCap, homeAt } from './hud.js?v=0.2.37';
+import { createHud, residueStore, placeWidget, hudInsetOf, clearOfEdges, clearOfDock, stageOf, dockCap, homeAt, stackBelow } from './hud.js?v=0.2.37';
 import { keyLabel, glyphSvg } from './launcher.js?v=0.2.37';
 import { WINDOW_RENDERERS, WIDGET_RENDERERS } from './renderers.js?v=0.2.37';
 import { mountContextMenu } from './context-menu.js?v=0.2.37';
@@ -215,6 +215,7 @@ export function mountShell(root, o) {
       el.style.left = at.left + 'px';
       el.style.top = at.top + 'px';
     }
+    stackWidgets();
     capDock();
     /* A docked window never covers a widget (hud.js clearOfDock, r11): a right-anchored World widget it
        lands on slides left of the dock but never into the middle of the fight (hud.js stageOf), else
@@ -245,7 +246,25 @@ export function mountShell(root, o) {
         for (const p of at.push) edgeEls[p.i].style.top = p.top + 'px';
       }
     }
+    stackWidgets();
     publishInset();
+  }
+
+  /* A widget that stacks (a row's `below`: the tally) sits under the widgets it names on its edge, wherever
+     they are now (hud.js stackBelow); a hidden one is in nobody's way. Run again after a step-down. */
+  function stackWidgets() {
+    for (const row of hud.rows()) {
+      if (!row.below) continue;
+      const box = row.layer === 'screen' ? screenHud : worldHud;
+      const el = box.querySelector('[data-hs-widget="' + row.id + '"]');
+      if (!el || !el.offsetWidth) continue;
+      const b = box.getBoundingClientRect();
+      const rel = (e) => { const q = e.getBoundingClientRect(); return { left: q.left - b.left, top: q.top - b.top, width: q.width, height: q.height }; };
+      const above = row.below.map((id) => box.querySelector('[data-hs-widget="' + id + '"]')).filter(Boolean).map(rel);
+      const at = rel(el);
+      const top = stackBelow(at, above, DOCK_EDGE);
+      if (top !== Math.round(at.top)) el.style.top = top + 'px';
+    }
   }
 
   /* The docked windows' boxes in the World's px (the layer and the World HUD share the shell's box);

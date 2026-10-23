@@ -23,7 +23,9 @@ renderTallyHud.patch = function patchTallyHud(el, ctx) {
   const h = huntOf(ctx.character);
   const hunting = !!h && !h.ended;
   const held = t ? t.held : [];
-  cls(el.querySelector('.hs-tally'), 'is-quiet', !t || (!held.length && hunting));
+  /* Quiet = the WHOLE widget box goes (el is the shell's widget box): an empty box still held its min size at
+     its anchor, covered the analyzer and pushed the camera off the hero (v0.2.37 run 40020854780, HS-13 / WC-3). */
+  cls(el, 'is-quiet', !t || (!held.length && hunting));
   text(el.querySelector('.hs-tally-none'), !t || held.length ? '' : 'Tamsin has work at her board on the Common.');
   rows(el.querySelector('.hs-tally-list'), held, {
     key: (x) => x.task,

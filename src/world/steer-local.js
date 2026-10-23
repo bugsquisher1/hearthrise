@@ -24,8 +24,8 @@
 // sends an intent, which is what "the mill hatch only navigates" means.
 // PURE: no DOM, no window, no G.
 // ════════════════════════════════════════════════════════════════════════
-import { findPath, walkable, reachFrom, canStep } from './core/path.js?v=0.2.36';
-import { diagonalOf } from './core/facing.js?v=0.2.36';
+import { findPath, walkable, reachFrom, canStep } from './core/path.js?v=0.2.37';
+import { diagonalOf } from './core/facing.js?v=0.2.37';
 
 export const WALK_TILES_PER_S = 3.2;
 
@@ -268,6 +268,7 @@ export function tapAction(map, pick, o) {
     if (viaExit) return viaExit;
     const opens = o.opens[hit.id];
     if (opens && opens.open === 'skill') return { kind: 'skill', skill: opens.skill };
+    if (opens && opens.open === 'window') return { kind: 'window', window: opens.window };
   }
   const ex = exitAt(pick.tile[0], pick.tile[1]);
   return (ex && exitAction(ex, o.maps)) || { kind: 'walk', to: pick.tile };
@@ -285,6 +286,7 @@ export function runAction(act, nav) {
   if (act.kind === 'walk') return nav.walk(act.to);
   if (act.kind === 'hunt') return nav.hunt(act.hunt);
   if (act.kind === 'skill') return nav.skill(act.skill);
+  if (act.kind === 'window') return nav.window(act.window);
   if (act.kind === 'room') return nav.room(act.room);
   if (act.kind === 'house') return nav.house(act.room);
   if (act.kind === 'scene') return nav.scene(act.choice);

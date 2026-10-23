@@ -30,8 +30,8 @@
 // The Characters window's (2026-12-04-hero-rename.sql):
 //   rename         { price, level, per_day, today, available, why }  what a new name costs, and whether it may
 // ════════════════════════════════════════════════════════════════════════
-import { huntBagOf } from './hunt-sections.js?v=0.2.36';
-import { SHOP_SOLD_KINDS } from '../data/supply-basics.js?v=0.2.36';
+import { huntBagOf } from './hunt-sections.js?v=0.2.37';
+import { SHOP_SOLD_KINDS } from '../data/supply-basics.js?v=0.2.37';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const ID = /^[a-z0-9_]{1,64}$/;

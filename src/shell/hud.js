@@ -15,7 +15,7 @@
 //
 // PURE except for `residueStore`, the adapter onto one character's residue.
 // ════════════════════════════════════════════════════════════════════════
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.36';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.37';
 
 export const SIZE_CLASSES = Object.freeze(['desktop', 'phone']);
 export const OPACITY_MIN = 0.4;
@@ -48,9 +48,29 @@ export function validateWidgetRows(rows) {
     if (!isObj(r.phone)) throw new Error(where + ': phone must be an object');
     for (const k of Object.keys(r.phone)) if (!PHONE_KEYS.has(k)) throw new Error(where + ': phone.' + k + ' is not overridable');
     if (r.phone.anchor !== undefined && !ANCHOR_RE.test(r.phone.anchor)) throw new Error(where + ': bad phone anchor');
+    if (r.below !== undefined && (!Array.isArray(r.below) || !r.below.every((x) => typeof x === 'string' && x !== r.id))) throw new Error(where + ': below must list other widget ids');
     byId.set(r.id, r);
   }
+  for (const r of byId.values()) for (const x of r.below || []) if (!byId.has(x)) throw new Error('hud widget ' + JSON.stringify(r.id) + ': below names no widget ' + JSON.stringify(x));
   return byId;
+}
+
+/**
+ * A widget that STACKS under others on its edge (a row's `below`: the tally under the analyzer and the
+ * phone's hunt bar): the top that clears, by `gap`, every rect of `above` it would overlap, or its own top
+ * when none is in its way. A rect with no size (a hidden widget) is in nobody's way. Pure.
+ */
+export function stackBelow(r, above, gap) {
+  let top = r.top;
+  for (let moved = true; moved;) {
+    moved = false;
+    for (const q of above) {
+      if (!(q.width > 0 && q.height > 0)) continue;
+      const across = r.left < q.left + q.width && r.left + r.width > q.left;
+      if (across && top < q.top + q.height + gap && top + r.height > q.top) { top = Math.round(q.top + q.height + gap); moved = true; }
+    }
+  }
+  return top;
 }
 
 /** The row's own layout for a size class: the desktop fields, then the phone block. */

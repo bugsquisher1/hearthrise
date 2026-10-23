@@ -18,11 +18,11 @@
 // System lines are the server's notices (channel 'system') and the account's
 // alerts (src/shell/alerts.js: rare drops, knock-outs, low supplies, ended hunts).
 // ════════════════════════════════════════════════════════════════════════
-import { CHAT_TABS, CHAT_LIMITS } from '../data/chat-channels.js?v=0.2.36';
-import { lineOf, systemLine, tabOfChannel, bodyOf, linkLabel } from './chat-lines.js?v=0.2.36';
-import { huntOf } from '../session/hunt-sections.js?v=0.2.36';
-import { partyMembershipOf } from '../session/party-sections.js?v=0.2.36';
-import { askVia } from '../session/intent-ledger.js?v=0.2.36';
+import { CHAT_TABS, CHAT_LIMITS } from '../data/chat-channels.js?v=0.2.37';
+import { lineOf, systemLine, tabOfChannel, bodyOf, linkLabel } from './chat-lines.js?v=0.2.37';
+import { huntOf } from '../session/hunt-sections.js?v=0.2.37';
+import { partyMembershipOf } from '../session/party-sections.js?v=0.2.37';
+import { askVia } from '../session/intent-ledger.js?v=0.2.37';
 
 const SERVER_TABS = Object.freeze(['global', 'local', 'party', 'system']);
 const SEND_KIND = Object.freeze(Object.fromEntries(CHAT_TABS.filter((t) => t.send).map((t) => [t.id, t.send])));

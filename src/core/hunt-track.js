@@ -30,7 +30,8 @@
 // PURE ESM, Node + Deno + browser.
 // ============================================================================
 
-import { EVENT_VERSION } from './hunt/events.js?v=0.2.36';
+import { EVENT_VERSION } from './hunt/events.js?v=0.2.37';
+import { reconcileText } from './hunt/world-state.js?v=0.2.37';
 
 export const MAX_STEPS = 4000;
 export const MAX_EVENTS = 2000;
@@ -83,15 +84,17 @@ export function huntTimeline(track, events, fromMs, toMs, serverNowMs, units) {
 
 /**
  * THE RECONCILE KEY of an instance world: FNV-1a 32 over the stored text (world-state.js encode,
- * compact JSON). The server sends it with each commit; the browser compares the hash of its own
- * predicted world at the same swing and re-seeds when they differ. Not a security digest: it only
- * detects divergence, and the server's world is always the one kept.
+ * compact JSON) with its server-only fields blanked (world-state.js reconcileText: the loot stream's
+ * state, which the prediction cannot know). The server sends it with each commit; the browser compares
+ * the hash of its own predicted world at the same swing and re-seeds when they differ. Not a security
+ * digest: it only detects divergence, and the server's world is always the one kept.
  */
 export function worldHash(text) {
   if (typeof text !== 'string') return null;
+  const t = reconcileText(text);
   let h = 0x811c9dc5;
-  for (let i = 0; i < text.length; i++) {
-    h ^= text.charCodeAt(i);
+  for (let i = 0; i < t.length; i++) {
+    h ^= t.charCodeAt(i);
     h = Math.imul(h, 0x01000193) >>> 0;
   }
   return h.toString(16).padStart(8, '0');

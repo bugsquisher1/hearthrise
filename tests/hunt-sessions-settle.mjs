@@ -107,6 +107,12 @@
 //   TALLY      tally = Σ ledger rows stamped with the session.
 //   ANALYZER   dealt / taken / healed persisted per session from the engine's
 //              tally; a free character reads no analyzer, a premium one does.
+//   BETA       the beta premium switch (2026-12-17-beta-premium.sql, Tyler 10-23):
+//              on, a FREE hero is premium in every surface (the edge's cap, the
+//              rest, the section + the client's isPremium, the analyzer, the login
+//              claim, outfits) with no premium_until written; off, the same hero is
+//              free; a real premium_until works alone; no other body reads the
+//              column or the switch past hr_premium_until / hr_premium_active.
 //   PARTY      two characters in one party hunt ONE instance: one world, both
 //              paid, kills journalled each, gold split; a settle missing a
 //              member is refused member_set.
@@ -1540,6 +1546,87 @@ const DB_ARMS = {
     }
     return problems;
   }),
+  BETA: async (db, M) => inTx(db, async () => {
+    const problems = [];
+    const cap = M.HSD.STAMINA_MAX_MS;
+    const HSEC = await import(pathToFileURL(join(ROOT, 'src', 'session', 'hunt-sections.js')).href);
+    const [HUNTER, TOWN] = UIDS;
+    const flag = (on) => db.query("update public.hr_flags set enabled = $1 where key = 'beta_premium'", [on]);
+    if (!(await one(db, "select count(*)::int from public.hr_flags where key = 'beta_premium'"))) return ['no hr_flags beta_premium row'];
+    /* TWO FREE heroes: one hunting (the edge's read, the analyzer), one in town whose pool emptied 13 h ago. */
+    const { from } = await hunter(db, M, STRONG);
+    await run(db, M, from, ticksOf(90000, 90000));
+    await character(db, M, TOWN, {});
+    await db.query(`update public.player_state set stamina_ms = 0, stamina_at = now() - interval '13 hours' where user_id = $1 and slot = 0`, [TOWN]);
+    const prem = await q(db, 'select outfit_id from public.hr_outfits where premium order by sort');
+    if (!prem.length) return ['no premium outfit to probe with'];
+    const po = prem[0].outfit_id;
+    /* Every surface, as the server answers it. */
+    const surfaces = async () => {
+      const env = await one(db, 'select public.hr_state_of($1::uuid, 0)', [HUNTER]);
+      const town = await one(db, 'select public.hr_state_of($1::uuid, 0)', [TOWN]);
+      await asUser(db, HUNTER);
+      const rpc = await one(db, 'select public.hr_hunt_analyzer(0, null)');
+      await asUser(db, TOWN);
+      const claim = await one(db, 'select public.hr_login_claim(0, $1::uuid)', [idem()]);
+      const outfit = await one(db, 'select public.hr_outfit_set(0, $1, $2::jsonb, $3::uuid)', [po, '{}', idem()]);
+      await db.query(`select set_config('request.jwt.claim.sub', '', true)`);
+      return {
+        section: env.premium && env.premium.active === true,
+        perks: !!env.premium && ['analyzer', 'outfits', 'login'].every((k) => env.premium.perks && env.premium.perks[k] === true),
+        client: HSEC.isPremium({ read: (k) => env[k] }) === true,
+        edgeCap: Number(await one(db, `select public.hr_hunt_instance_read($1::uuid, 0)->'members'->0->'session'->>'stamina_max_ms'`, [HUNTER])),
+        envCap: Number(env.stamina && env.stamina.max_ms),
+        rest: Number(town.stamina && town.stamina.ms),
+        analyzer: env.hunt_analyzer && env.hunt_analyzer.tier === 'premium',
+        analyzerRpc: !!rpc && rpc.ok === true && rpc.tier === 'premium',
+        login: town.login && town.login.premium === true,
+        claim: !!claim && claim.ok === true ? 'ok' : String(claim && claim.error),
+        owned: prem.every((r) => town.outfit && Array.isArray(town.outfit.owned) && town.outfit.owned.includes(r.outfit_id)),
+        outfit: !!outfit && outfit.ok === true ? 'ok' : String(outfit && outfit.error),
+      };
+    };
+    const want = (on) => ({ section: on, perks: on, client: on, edgeCap: on ? cap.premium : cap.free, envCap: on ? cap.premium : cap.free,
+      rest: on ? cap.premium : cap.free, analyzer: on, analyzerRpc: on, login: on, claim: on ? 'ok' : 'premium_required', owned: on,
+      outfit: on ? 'ok' : 'not_owned' });
+    const diff = (tag, got, exp) => { for (const k of Object.keys(exp)) if (got[k] !== exp[k]) problems.push(`${tag}: ${k} is ${JSON.stringify(got[k])}, want ${JSON.stringify(exp[k])}`); };
+    /* ON: every surface premium. The claim is answered before the day check, so OFF still reads premium_required. */
+    await flag(true);
+    diff('switch on, free hero', await surfaces(), want(true));
+    const own = await q(db, 'select user_id from public.player_state where user_id = any ($1::uuid[]) and premium_until is not null', [[HUNTER, TOWN]]);
+    const grants = Number(await one(db, `select count(*) from public.player_ledger where user_id = any ($1::uuid[]) and intent = 'premium_grant'`, [[HUNTER, TOWN]]));
+    if (own.length || grants) problems.push(`the switch wrote premium: ${own.length} premium_until, ${grants} premium_grant rows`);
+    /* OFF: the same heroes are free everywhere. */
+    await flag(false);
+    diff('switch off, free hero', await surfaces(), want(false));
+    /* A real premium_until works alone, and only for its hero. */
+    await db.query(`select public.hr_premium_grant($1, 0, now() + interval '1 day', 'beta probe')`, [TOWN]);
+    const mine = await one(db, 'select public.hr_state_of($1::uuid, 0)', [TOWN]);
+    if (!mine.premium || mine.premium.active !== true || Number(mine.stamina.max_ms) !== cap.premium) problems.push(`own premium with the switch off reads ${JSON.stringify(mine.premium)}`);
+    if (await one(db, 'select public.hr_premium_active($1::uuid, 0, now())', [HUNTER])) problems.push('own premium leaked to another hero');
+    /* ONE CHECK: no other body reads the column (code, comments stripped) or names the switch. A new premium
+       surface that reads premium_until itself goes red here before it can disagree with the switch. */
+    const bodies = await q(db, `select p.oid::regprocedure::text as sig, p.prosrc as src from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+                                 where n.nspname = 'public' and p.prokind = 'f' and (p.prosrc ~ 'premium_until' or p.prosrc ~ 'beta_premium')`);
+    const code = (s) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/--[^\n]*/g, '');
+    const READS_COLUMN = new Set(['hr_premium_until(uuid,integer)', 'hr_premium_grant(uuid,integer,timestamp with time zone,text)', 'hr_premium_view(uuid,integer)']);
+    for (const b of bodies) {
+      if (/(^|[^a-z0-9_])premium_until/.test(code(b.src)) && !READS_COLUMN.has(b.sig)) problems.push(`${b.sig} reads player_state.premium_until past the one check`);
+      if (/beta_premium/.test(code(b.src)) && b.sig !== 'hr_premium_until(uuid,integer)') problems.push(`${b.sig} reads the beta switch past the one check`);
+    }
+    if (!bodies.some((b) => b.sig === 'hr_premium_until(uuid,integer)' && /beta_premium/.test(code(b.src)))) problems.push('hr_premium_until does not read the switch');
+    /* A SECOND APPLY is byte-identical and never turns back on a switch an operator turned off (the EA wipe). */
+    const image = () => one(db, `select jsonb_build_object('defs', (select jsonb_object_agg(p.oid::regprocedure::text, md5(pg_get_functiondef(p.oid)) || ':' || coalesce(p.proacl::text, ''))
+                                    from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+                                   where n.nspname = 'public' and p.proname in ('hr_premium_until', 'hr_premium_active', 'hr_premium_view', 'hr_stamina_of')),
+                                 'flags', (select jsonb_object_agg(key, enabled) from public.hr_flags))`);
+    const before = await image();
+    await db.exec(readFileSync(join(ROOT, 'supabase', 'migrations', '2026-12-17-beta-premium.sql'), 'utf8').replace(/\r\n/g, '\n'));
+    const after = await image();
+    if (canon(after) !== canon(before)) problems.push(`a second apply moved ${firstDiff(canon(before), canon(after))}`);
+    if (!before.flags || before.flags.beta_premium !== false) problems.push('CONTROL: the switch was not off before the second apply');
+    return problems;
+  }),
   PARTY: async (db, M) => inTx(db, async () => {
     const problems = [];
     const h = await hunter(db, M, { party: [{ ...STRONG }, { ...STRONG }] });
@@ -2405,6 +2492,23 @@ const DB_MUTANTS = [
   { arm: 'STAMINA', name: 'the premium cap is everyone\'s', fn: 'public.hr_stamina_cap(uuid,integer,timestamp with time zone)',
     find: "               then public.hr_hunt_limit('stamina_premium_min') else public.hr_hunt_limit('stamina_free_min') end)::bigint * 60000",
     replace: "               then public.hr_hunt_limit('stamina_premium_min') else public.hr_hunt_limit('stamina_premium_min') end)::bigint * 60000" },
+  /* BETA: each premium surface bypassing the one check (reading the column itself) goes red. */
+  { arm: 'BETA', name: 'the one check ignores the beta switch', fn: 'public.hr_premium_until(uuid,integer)',
+    find: "case when public.hr_flag_on('beta_premium') then 'infinity'::timestamptz else ps.premium_until end", replace: 'ps.premium_until' },
+  { arm: 'BETA', name: 'the premium section reads the column, not the check', fn: 'public.hr_premium_view(uuid,integer)',
+    find: "'active', a.prem,", replace: "'active', coalesce(ps.premium_until > now(), false)," },
+  { arm: 'BETA', name: 'the stamina rest reads the column, not the check', fn: 'public.hr_stamina_of(uuid,integer,timestamp with time zone)',
+    find: '  v_pu := public.hr_premium_until(p_user, p_slot);',
+    replace: '  select ps.premium_until into v_pu from public.player_state ps where ps.user_id = p_user and ps.slot = p_slot;' },
+  { arm: 'BETA', name: 'premium outfits read the column, not the check', fn: 'public.hr_outfit_owned(uuid,integer)',
+    find: 'public.hr_premium_active(p_user, p_slot, now())',
+    replace: 'coalesce((select ps.premium_until > now() from public.player_state ps where ps.user_id = p_user and ps.slot = p_slot), false)' },
+  { arm: 'BETA', name: 'the login claim reads the column, not the check', fn: 'public.hr_login_claim(integer,uuid)',
+    find: '  if not public.hr_premium_active(v_uid, p_slot, now()) then',
+    replace: '  if not coalesce((select ps.premium_until > now() from public.player_state ps where ps.user_id = v_uid and ps.slot = p_slot), false) then' },
+  { arm: 'BETA', name: 'the full analyzer reads the column, not the check', fn: 'public.hr_hunt_analyzer_view(uuid,integer)',
+    find: '  select case when public.hr_premium_active(p_user, p_slot, now())',
+    replace: '  select case when coalesce((select ps.premium_until > now() from public.player_state ps where ps.user_id = p_user and ps.slot = p_slot), false)' },
   { arm: 'RESUME', name: 'an automatic end resumes nothing', fn: AM,
     find: '    if v_ok then\n      update public.player_state', replace: '    if false then\n      update public.player_state' },
   { arm: 'VALUE', name: 'a heals_out end is proven on a full bag', fn: SS,
@@ -2433,6 +2537,10 @@ const SQL_MUTANTS = [
     replace: "         or false then" },
   { file: '2026-10-23-hunt-settings-options.sql', name: 'a C2 supply slot is saved on the bar', find: "    if jsonb_typeof(v_e) <> 'string' or not exists (select 1 from public.hr_hunt_abilities a where a.ability_id = v_e #>> '{}') then",
     replace: "    if jsonb_typeof(v_e) = 'number' then" },
+  { file: '2026-12-17-beta-premium.sql', name: 'the premium section reads the column under the beta switch (install)', find: "    'active', a.prem,",
+    replace: "    'active', coalesce(ps.premium_until > now(), false)," },
+  { file: '2026-12-17-beta-premium.sql', name: 'the beta switch is client-writable', find: "on conflict (key) do nothing;\n",
+    replace: "on conflict (key) do nothing;\ngrant update on public.hr_flags to authenticated;\n" },
   { file: '2026-10-23-hunt-analyzer-v2.sql', name: 'a free character reads the analyzer (install)', find: "  if not public.hr_premium_active(v_uid, p_slot, now()) then\n    return public.hr_note_rejection('hunt_analyzer', p_slot, jsonb_build_object('ok', false, 'error', 'premium_required')); end if;",
     replace: '' },
   { file: '2026-10-23-hunt-world-state.sql', name: 'the world column has no byte bound', find: "    || 'world_swing >= 0 and (world is null or (octet_length(world) <= %s and world ~ ''^\\{'')))',",

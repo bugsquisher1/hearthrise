@@ -27,6 +27,10 @@
 //   S6 A UNIT DIES ONCE: a second kill of a unit drawn dead never restarts its fall,
 //      and a corpse lies the way it fell (it never turns to face what it last swung
 //      at: Andy 10-21 "saw a corpse twitch again once dead").
+//   S8 A FINISHED CORPSE IS FORGOTTEN: once a corpse has lain its corpseMs the scene
+//      drops it, and the timeline with it (timeline.js T11, refused while it still
+//      holds a step or an event to play), so a long hunt walks only the units on
+//      screen each frame, never every monster it ever spawned.
 // ════════════════════════════════════════════════════════════════════════
 import { EVENT_FX, LOOT_FX, HIT_FX, PROJECTILE, CAST_FX } from '../data/hunt-vfx.js?v=0.2.34';
 import { outfitSprite } from '../data/hunt-outfits.js?v=0.2.34';
@@ -148,6 +152,7 @@ export function createHuntScene(o) {
   let fx = [], floats = [];
   const flash = new Map(), dead = new Map(), swing = new Map(), bleed = new Map(), cycle = new Map(), target = new Map(), risen = new Map();
   const lie = new Map();   // S6: unit -> { dir, diag }, the facing a unit fell with
+  const perUnit = [flash, dead, swing, bleed, cycle, target, risen, lie];
   /* S7: the client instant of the last frame drawn and the units it drew standing */
   let drawnAt = null;
   const standing = new Set();
@@ -408,15 +413,20 @@ export function createHuntScene(o) {
     const units = [];
     const ids = tl.units();
     /* S4: per-unit state never outlives the unit's track (a long hunt respawns thousands). */
-    if (flash.size + dead.size + swing.size + bleed.size + cycle.size + target.size + risen.size + lie.size > PRUNE_AT) {
+    if (perUnit.reduce((n, m) => n + m.size, 0) > PRUNE_AT) {
       const live = new Set(ids);
-      for (const m of [flash, dead, swing, bleed, cycle, target, risen, lie]) for (const k of m.keys()) if (!live.has(k)) m.delete(k);
+      for (const m of perUnit) for (const k of m.keys()) if (!live.has(k)) m.delete(k);
     }
     drawnAt = now;
     standing.clear();
     for (const u of ids) {
       const d = unitAt(u, now);
-      if (!d) continue;
+      if (!d) {
+        /* S8: a corpse that has lain its time is finished: forgotten here and by the timeline */
+        const died = dead.get(u);
+        if (died !== undefined && now - died >= SCENE_TIMING.corpseMs && tl.forget(u, now)) for (const m of perUnit) m.delete(u);
+        continue;
+      }
       if (!d.under) standing.add(u);
       if (u === read.viewed) hero = d;
       else units.push(d);
@@ -480,8 +490,8 @@ export function createHuntScene(o) {
         dead.set(u, onScreen && standing.has(u) ? t : t - SCENE_TIMING.corpseMs);
       }
     },
-    /** For tests: how many effects and floats are live, and the keys played. */
-    stats: () => ({ fx: fx.length, floats: floats.length, played: keys.size }),
+    /** For tests: how many effects and floats are live, the keys played, and the units drawn dead. */
+    stats: () => ({ fx: fx.length, floats: floats.length, played: keys.size, dead: dead.size }),
   };
 }
 

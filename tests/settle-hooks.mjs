@@ -188,9 +188,10 @@ async function coverArm(db, { H, M }, forged) {
 
 /* Each mutant: file, [find, replace], the arm that must go red (the file's self-check is turned off).
    Each hook is planted in the body that RUNS, the chain's last author of its function (staleAnchors refuses any
-   other): hr_hunt_apply_member is restated last by 2026-11-16-hunt-density-bounds.sql, hr_hunt_member_read by
-   2026-11-07-store-by-slot.sql (both after the core rebuild, 2026-10-27-core-bodies.sql). */
-const MEMBER = '2026-11-16-hunt-density-bounds.sql';
+   other): hr_hunt_apply_member and hr_hunt_loot_rules are restated last by 2026-12-15-account-gold.sql (the
+   account purse, md5-pinned to their pre-images, so a plant in an earlier file trips that pin), hr_hunt_member_read
+   by 2026-11-07-store-by-slot.sql (after the core rebuild, 2026-10-27-core-bodies.sql). */
+const MEMBER = '2026-12-15-account-gold.sql';
 const READ = '2026-11-07-store-by-slot.sql';
 const MUTANTS = [
   { arm: 'H-ALL', file: MEMBER, why: 'the settle skips the loot filter',
@@ -199,7 +200,7 @@ const MUTANTS = [
     find: '    v_bless := public.hr_blessing_take(p_user, p_slot, p_session, v_dx, v_s.settled_to);', repl: '    v_bless := null;' },
   { arm: 'H-ALL', file: '2026-10-25-blessings.sql', why: 'a tier bought during the window covers it',
     find: '   where b.user_id = p_user and b.slot = p_slot and b.bought_at <= p_from', repl: '   where b.user_id = p_user and b.slot = p_slot' },
-  { arm: 'H-ALL', file: '2026-10-25-bag-rules.sql', why: 'the loot filter sells a locked item',
+  { arm: 'H-ALL', file: MEMBER, why: 'the loot filter sells a locked item',
     find: "       and r.loot_rule in ('sell', 'ignore') and not r.locked", repl: "       and r.loot_rule in ('sell', 'ignore')" },
   { arm: 'H-COVER', file: READ, why: 'the read offers a locked item to sell-to-cover',
     find: '                where not public.hr_item_locked(p_s.user_id, p_s.slot, c.item_id)), \'{}\'::jsonb))', repl: "                where true), '{}'::jsonb))" },

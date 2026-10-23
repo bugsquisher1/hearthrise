@@ -6,7 +6,7 @@
 --   hr_stamina_refill_rule  src/data/stamina-refill.js STAMINA_REFILL
 --   hr_blessing_rule        src/data/blessings.js BLESSING_RULES
 --   hr_blessing_tiers       src/data/blessings.js BLESSING_TIERS
---   digest 23a0f20e9a77990cf9944bcf2285fddd974a6dc235a63377b02831af64ae7f90
+--   digest 1c878560b5fde2f4f709b0e122aac25dfe1ce2fc5234a2e9cfb5595bff71e734
 --
 -- Server-only: RLS on, NO policy, no client grant (the client reads src/data and
 -- the envelope's quotes). Idempotent: delete + insert; nothing references these
@@ -82,13 +82,13 @@ insert into public.hr_shop_supply_offers (offer_id, item_id, kind, price) values
   ('supply.pumpkin_cider', 'pumpkin_cider', 'drink', 107),
   ('supply.goldenroot_tea', 'goldenroot_tea', 'drink', 184),
   ('supply.emberfruit_cordial', 'emberfruit_cordial', 'drink', 315),
-  ('supply.barbed_arrows', 'barbed_arrows', 'ammo', 2),
-  ('supply.iron_bolts', 'iron_bolts', 'ammo', 2),
-  ('supply.steel_arrows', 'steel_arrows', 'ammo', 4),
-  ('supply.mithril_arrows', 'mithril_arrows', 'ammo', 8),
-  ('supply.rune_arrows', 'rune_arrows', 'ammo', 12),
-  ('supply.emberhead_arrows', 'emberhead_arrows', 'ammo', 18),
-  ('supply.dawnpoint_arrows', 'dawnpoint_arrows', 'ammo', 24),
+  ('supply.barbed_arrows', 'barbed_arrows', 'ammo', 1),
+  ('supply.iron_bolts', 'iron_bolts', 'ammo', 1),
+  ('supply.steel_arrows', 'steel_arrows', 'ammo', 1),
+  ('supply.mithril_arrows', 'mithril_arrows', 'ammo', 4),
+  ('supply.rune_arrows', 'rune_arrows', 'ammo', 6),
+  ('supply.emberhead_arrows', 'emberhead_arrows', 'ammo', 9),
+  ('supply.dawnpoint_arrows', 'dawnpoint_arrows', 'ammo', 12),
   ('supply.bronze_axe', 'bronze_axe', 'tool', 120),
   ('supply.bronze_pickaxe', 'bronze_pickaxe', 'tool', 120),
   ('supply.leather_gloves', 'leather_gloves', 'gear', 160),
@@ -130,7 +130,7 @@ begin
      or (select count(*) from public.hr_stamina_refill_rule) <> 1 or (select count(*) from public.hr_blessing_rule) <> 1 then
     raise exception 'VERIFY: the alpha catalogue row counts are not the data''s'; end if;
   if (select md5(string_agg(offer_id || ':' || item_id || ':' || kind || ':' || price, ',' order by offer_id collate "C"))
-        from public.hr_shop_supply_offers) is distinct from '9f2e2782195ff2cd8488df07bb4e8c85' then
+        from public.hr_shop_supply_offers) is distinct from '4d30ac5896183fc00a54c37c5b1e641a' then
     raise exception 'VERIFY: the supply offers are not the data''s rows and prices'; end if;
   if exists (select 1 from public.hr_shop_supply_offers o
               where not exists (select 1 from public.hr_items i where i.item_id = o.item_id)

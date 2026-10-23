@@ -16,8 +16,8 @@
 // Ammo: a basic ARROW gives BASIC_EFFECT_SHARE (three quarters) of its crafted
 // partner's ammo bonus (Combat Design Bible v1.4: "Runecrafting = a better
 // rune", basic strength below crafted; applied per shot in combat.js
-// playerCombatRolls `ammoShare`) and costs at least twice its partner's book
-// value per shot. A basic RUNE is the store's version of a rune an ability
+// playerCombatRolls `ammoShare`) and costs at least BASIC_AMMO_PREMIUM x its
+// partner's book value per shot. A basic RUNE is the store's version of a rune an ability
 // spends (designer 2026-10-21: Plain Fire Rune, 8 g a cast, 2x the Fire Rune's
 // book; Tyler 10-15 "runes and ammo: carried first, then the store" replaces
 // the K10 no-basic-runes rule). The free tier-1 rungs (Bronze Arrows, Air Rune,
@@ -61,8 +61,14 @@ import { CRAFTED_RUNE_FAMILIES } from './stonecraft.js?v=0.2.34';
    basic arrow gives this share of its partner's ammo bonus. */
 export const BASIC_EFFECT_SHARE = 0.75;
 
-/* A basic shot costs at least this many times its partner's book value. */
-export const BASIC_AMMO_PREMIUM = 2;
+/* A basic shot costs at least this many times its partner's book value. ONE (designer 2026-10-23, the spell-release
+   balance, PROVISIONAL; was 2): a store shot is 1 g at tiers 1-3, then mithril 4, rune 6, emberhead 9, dawnpoint 12,
+   each its partner's book. At 2 g a shot a store-fed Ranger spent 90-180% of its coin share on shots (a crossbow and a
+   shield on store Iron Bolts: +13% at the Sewer L20 party, -30% at the Sewer and Warrens floors); at 1 g the shots are
+   48% of coin at the Sewer L20 party and 59% at the Warrens L50 (the designer's ~45-55%), +32% / +39% at the floors
+   (tests/hunt-core/drop-tables.mjs ranger-floor holds the floors at +25%). The
+   crafted arrow stays the better shot (its whole bonus, the store's is BASIC_EFFECT_SHARE of it). */
+export const BASIC_AMMO_PREMIUM = 1;
 
 const heal = (id, n, partner, heals, price) => Object.freeze({ id, kind: 'heal', n, partner, heals, price });
 const mana = (id, n, partner, restores, price) => Object.freeze({ id, kind: 'mana', n, partner, mana: restores, price });
@@ -84,14 +90,14 @@ export const BASIC_SUPPLIES = Object.freeze([
   /* (Tyler 2026-10-23: "like anything else the arrows should then be bought from the store".) Iron Arrows ran out
      with no store row and the Ranger hunted on with no basic attack; priced by the rule, BASIC_AMMO_PREMIUM x its
      partner's book value (1 g). */
-  shot('plain_iron_arrows', 'Plain Iron Arrows', 'iron_arrows', 2),
-  shot('plain_barbed_arrows', 'Plain Barbed Arrows', 'barbed_arrows', 2),
-  shot('plain_iron_bolts', 'Plain Iron Bolts', 'iron_bolts', 2),
-  shot('plain_steel_arrows', 'Plain Steel Arrows', 'steel_arrows', 4),
-  shot('plain_mithril_arrows', 'Plain Mithril Arrows', 'mithril_arrows', 8),
-  shot('plain_rune_arrows', 'Plain Rune Arrows', 'rune_arrows', 12),
-  shot('plain_emberhead_arrows', 'Plain Emberhead Arrows', 'emberhead_arrows', 18),
-  shot('plain_dawnpoint_arrows', 'Plain Dawnpoint Arrows', 'dawnpoint_arrows', 24),
+  shot('plain_iron_arrows', 'Plain Iron Arrows', 'iron_arrows', 1),
+  shot('plain_barbed_arrows', 'Plain Barbed Arrows', 'barbed_arrows', 1),
+  shot('plain_iron_bolts', 'Plain Iron Bolts', 'iron_bolts', 1),
+  shot('plain_steel_arrows', 'Plain Steel Arrows', 'steel_arrows', 1),
+  shot('plain_mithril_arrows', 'Plain Mithril Arrows', 'mithril_arrows', 4),
+  shot('plain_rune_arrows', 'Plain Rune Arrows', 'rune_arrows', 6),
+  shot('plain_emberhead_arrows', 'Plain Emberhead Arrows', 'emberhead_arrows', 9),
+  shot('plain_dawnpoint_arrows', 'Plain Dawnpoint Arrows', 'dawnpoint_arrows', 12),
   /* THE STORE RUNES (Tyler 2026-10-23): ONE a family, the basic power (version I at BASIC_EFFECT_SHARE), bought per
      cast only when the spell's slot names it; partnered to the family's Chalked rune, priced BASIC_AMMO_PREMIUM x its
      book value (stonecraft.js RUNE_VALUE, PROVISIONAL). */
@@ -199,13 +205,13 @@ export const SUPPLY_SHOP_OFFERS = Object.freeze([
   sell('pumpkin_cider', 'drink', 'thin_pumpkin_cider', 107),
   sell('goldenroot_tea', 'drink', 'thin_goldenroot_tea', 184),
   sell('emberfruit_cordial', 'drink', 'thin_emberfruit_cordial', 315),
-  sell('barbed_arrows', 'ammo', 'plain_barbed_arrows', 2),
-  sell('iron_bolts', 'ammo', 'plain_iron_bolts', 2),
-  sell('steel_arrows', 'ammo', 'plain_steel_arrows', 4),
-  sell('mithril_arrows', 'ammo', 'plain_mithril_arrows', 8),
-  sell('rune_arrows', 'ammo', 'plain_rune_arrows', 12),
-  sell('emberhead_arrows', 'ammo', 'plain_emberhead_arrows', 18),
-  sell('dawnpoint_arrows', 'ammo', 'plain_dawnpoint_arrows', 24),
+  sell('barbed_arrows', 'ammo', 'plain_barbed_arrows', 1),
+  sell('iron_bolts', 'ammo', 'plain_iron_bolts', 1),
+  sell('steel_arrows', 'ammo', 'plain_steel_arrows', 1),
+  sell('mithril_arrows', 'ammo', 'plain_mithril_arrows', 4),
+  sell('rune_arrows', 'ammo', 'plain_rune_arrows', 6),
+  sell('emberhead_arrows', 'ammo', 'plain_emberhead_arrows', 9),
+  sell('dawnpoint_arrows', 'ammo', 'plain_dawnpoint_arrows', 12),
   sell('bronze_axe', 'tool', null, 120),
   sell('bronze_pickaxe', 'tool', null, 120),
   /* The outfitter: the two armour pieces first (medium gloves for anyone, a heavy belt), then the rest. */

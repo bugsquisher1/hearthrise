@@ -8,7 +8,7 @@
 --   src/data/premium.js, src/core/hunt/world-state.js and the vendor price
 --   (hr-accrue/catalogue.js). Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: 42f06d3f4853e8e333b5751c5cb4b0752984cba7c00d3342e569c28d2e54d6d1
+--   digest: 980ee35dde2fbee796a40db6136e48f6eb4d5ebd6423a25d902449c1c1380e93
 --   82 supplies, 121 hunts (named + training), 50 limits, 11 end reasons,
 --   531 vendor values, 25 store supplies paid per use, 5 target modes,
 --   4 lanes, 16 abilities, 10 action-set options, 5 hunt grounds
@@ -356,19 +356,19 @@ insert into public.hr_hunt_supplies (item_id, kind, essential, heals, buff_type)
   ('wheat_bread', 'heal', true, 216, null);
 delete from public.hr_hunt_basic_supplies;
 insert into public.hr_hunt_basic_supplies (basic_id, kind, partner, heals, mana, price) values
-  ('plain_barbed_arrows', 'ammo', 'barbed_arrows', 0, 0, 2),
-  ('plain_dawnpoint_arrows', 'ammo', 'dawnpoint_arrows', 0, 0, 24),
+  ('plain_barbed_arrows', 'ammo', 'barbed_arrows', 0, 0, 1),
+  ('plain_dawnpoint_arrows', 'ammo', 'dawnpoint_arrows', 0, 0, 12),
   ('plain_earth_rune', 'ammo', 'chalked_earth_rune', 0, 0, 1),
-  ('plain_emberhead_arrows', 'ammo', 'emberhead_arrows', 0, 0, 18),
+  ('plain_emberhead_arrows', 'ammo', 'emberhead_arrows', 0, 0, 9),
   ('plain_fire_rune', 'ammo', 'chalked_fire_rune', 0, 0, 1),
   ('plain_ice_rune', 'ammo', 'chalked_ice_rune', 0, 0, 1),
-  ('plain_iron_arrows', 'ammo', 'iron_arrows', 0, 0, 2),
-  ('plain_iron_bolts', 'ammo', 'iron_bolts', 0, 0, 2),
-  ('plain_mithril_arrows', 'ammo', 'mithril_arrows', 0, 0, 8),
+  ('plain_iron_arrows', 'ammo', 'iron_arrows', 0, 0, 1),
+  ('plain_iron_bolts', 'ammo', 'iron_bolts', 0, 0, 1),
+  ('plain_mithril_arrows', 'ammo', 'mithril_arrows', 0, 0, 4),
   ('plain_poison_rune', 'ammo', 'chalked_poison_rune', 0, 0, 1),
-  ('plain_rune_arrows', 'ammo', 'rune_arrows', 0, 0, 12),
+  ('plain_rune_arrows', 'ammo', 'rune_arrows', 0, 0, 6),
   ('plain_rupture_rune', 'ammo', 'chalked_rupture_rune', 0, 0, 1),
-  ('plain_steel_arrows', 'ammo', 'steel_arrows', 0, 0, 4),
+  ('plain_steel_arrows', 'ammo', 'steel_arrows', 0, 0, 1),
   ('plain_water_rune', 'ammo', 'chalked_water_rune', 0, 0, 1),
   ('salted_lobster', 'heal', 'cooked_lobster', 216, 0, 180),
   ('salted_shark', 'heal', 'cooked_shark', 396, 0, 693),
@@ -1067,7 +1067,7 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('dawnbound_amulet', 10080),
   ('dawnforged_signet', 10080),
   ('dawnlit_mantle', 12096),
-  ('dawnpoint_arrows', 12),
+  ('dawnpoint_arrows', 6),
   ('dawnsteel_rod', 58000),
   ('dawnstone_ore', 280),
   ('death_steel', 110),
@@ -1114,7 +1114,7 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('emberfruit', 96),
   ('emberfruit_cordial', 157),
   ('emberfruit_seed', 150),
-  ('emberhead_arrows', 9),
+  ('emberhead_arrows', 4),
   ('emberstone_ore', 104),
   ('etched_earth_rune', 4),
   ('etched_fire_rune', 4),
@@ -1207,7 +1207,7 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('maple_staff', 210),
   ('maple_wand', 189),
   ('mirewort_drops', 112),
-  ('mithril_arrows', 4),
+  ('mithril_arrows', 2),
   ('mithril_axe', 3200),
   ('mithril_bar', 650),
   ('mithril_belt', 168),
@@ -1268,7 +1268,7 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('ruby', 400),
   ('ruby_signet', 1260),
   ('rubyfire_studs', 630),
-  ('rune_arrows', 6),
+  ('rune_arrows', 3),
   ('rune_axe', 9000),
   ('rune_bar', 1200),
   ('rune_belt', 504),
@@ -1337,7 +1337,7 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('spider_eye', 220),
   ('spidereye_studs', 70),
   ('spidersilk_choker', 140),
-  ('steel_arrows', 2),
+  ('steel_arrows', 1),
   ('steel_axe', 900),
   ('steel_bar', 150),
   ('steel_belt', 56),

@@ -22,8 +22,9 @@
 //   K1 heal, mana and ammo each have a shop supply paid per use
 //   B1 every shop supply is not an item, names a crafted partner of its kind,
 //      gives 3/4 of the partner's heal or mana (an arrow: 3/4 of its ammo bonus,
-//      applied per shot by the engine), and costs more per point or per shot
-//      than the partner's book value
+//      applied per shot by the engine), and costs more per point than the
+//      partner's book value (a shot: at least BASIC_AMMO_PREMIUM x it, 1 since
+//      the designer's spell-release balance, 2026-10-23)
 //   B2 every crafted ARROW from tier 2 up has a shop version; a RUNE has one
 //      exactly when an active ability spends it (designer 2026-10-21: Plain
 //      Fire Rune; Tyler 10-15 "runes and ammo: carried first, then the store");
@@ -368,7 +369,8 @@ function selftest() {
     ['B1', 'a shop heal cheaper per point than the cooked one', (d) => { withBasic(d, 'salted_shark', { price: 100 }); }],
     ['B1', 'a shop heal as big as the cooked one', (d) => { withBasic(d, 'salted_trout', { heals: 14 }); }],
     ['B1', 'a shop supply that is also an item', (d) => { withBasic(d, 'salted_shrimp', { id: 'cooked_trout' }); }],
-    ['B1', 'a shop arrow under twice the crafted arrow per shot', (d) => { withBasic(d, 'plain_mithril_arrows', { price: 4 }); }],
+    /* BASIC_AMMO_PREMIUM is 1 since the spell-release balance (designer 2026-10-23): a store shot at its partner's book (4 g) holds, under it is red. */
+    ['B1', 'a shop arrow under the crafted arrow book value per shot', (d) => { withBasic(d, 'plain_mithril_arrows', { price: 3 }); }],
     ['B2', 'a crafted arrow with no shop version', (d) => { d.basics = d.basics.filter((b) => b.id !== 'plain_dawnpoint_arrows'); }],
     ['B5', 'Iron Arrows with no store row again (live 10-23: the Ranger hunted on with no basic)', (d) => { d.basics = d.basics.filter((b) => b.id !== 'plain_iron_arrows'); }],
     ['B5', 'a food listed as needing no store row while one stands behind it', (d) => { d.noPartner = { ...d.noPartner, cooked_trout: 'a stale reason that is long enough' }; }],

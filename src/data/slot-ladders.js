@@ -69,7 +69,7 @@ export const SLOT_ITEMS = {
      Before that date `ammoPerShot` was inert and this block said so.  */
   bronze_arrows:    { n: 'Bronze Arrows',      icon: '🏹', v: 0,  type: 'ammo', slot: 'ammo', tier: 1, rarity: 'common',    reqSkill: 'ranged', reqLv: 1,  rangeAtkB: 2, rangeStrB: 2,  ammoPerShot: 0 },
   barbed_arrows:    { n: 'Barbed Arrows',      icon: '🏹', v: 1,  type: 'ammo', slot: 'ammo', tier: 2, rarity: 'uncommon',  reqSkill: 'ranged', reqLv: 15, rangeAtkB: 3, rangeStrB: 3,  ammoPerShot: 1 },
-  steel_arrows:     { n: 'Steel Arrows',       icon: '🏹', v: 2,  type: 'ammo', slot: 'ammo', tier: 3, rarity: 'rare',      reqSkill: 'ranged', reqLv: 30, rangeAtkB: 4, rangeStrB: 5,  critB: 0.01,  ammoPerShot: 1 },
+  steel_arrows:     { n: 'Steel Arrows',       icon: '🏹', v: 1,  type: 'ammo', slot: 'ammo', tier: 3, rarity: 'rare',      reqSkill: 'ranged', reqLv: 30, rangeAtkB: 4, rangeStrB: 5,  critB: 0.01,  ammoPerShot: 1 },
   mithril_arrows:   { n: 'Mithril Arrows',     icon: '🏹', v: 4,  type: 'ammo', slot: 'ammo', tier: 4, rarity: 'epic',      reqSkill: 'ranged', reqLv: 45,               rangeStrB: 8,  critB: 0.01,  ammoPerShot: 1 },
   rune_arrows:      { n: 'Rune Arrows',        icon: '🏹', v: 6,  type: 'ammo', slot: 'ammo', tier: 5, rarity: 'legendary', reqSkill: 'ranged', reqLv: 60,               rangeStrB: 11, critB: 0.015, ammoPerShot: 1 },
   emberhead_arrows: { n: 'Emberhead Arrows',   icon: '🏹', v: 9,  type: 'ammo', slot: 'ammo', tier: 6, rarity: 'legendary', reqSkill: 'ranged', reqLv: 75,               rangeStrB: 14, critB: 0.02,  ammoPerShot: 1 },

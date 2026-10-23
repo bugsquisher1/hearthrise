@@ -6,7 +6,7 @@
 --   `node tools/gen-catalogues.mjs --check`, which is a preflight in
 --   tests/run-sql-tests.mjs. Edit src/data/*.js and regenerate.
 --
---   catalogue digest: 4e80fd9d1f3a9403a30f5389f0e1f37ff1d0535ee96cc81058495d2cacbc714b
+--   catalogue digest: 9d2d1039df6c965ba58654f052889d74dbfca2fa481f9eee55b7179fa2f50071
 --   rows: 556 items (6 untradeable) ·
 --         323 item-slot pairs · 14 equip slots ·
 --         13 skills · 9 crops · 331 activities ·
@@ -622,7 +622,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('spider_eye','Spider Eye',true,null,220,null,null,null,false,null,false),
   ('spidereye_studs','Spider-Eye Studs',true,'jewelry',500,'defense',34,null,false,null,false),
   ('spidersilk_choker','Spidersilk Choker',true,'jewelry',1000,'defense',34,null,false,null,false),
-  ('steel_arrows','Steel Arrows',true,'ammo',2,'ranged',30,null,false,null,false),
+  ('steel_arrows','Steel Arrows',true,'ammo',1,'ranged',30,null,false,null,false),
   ('steel_axe','Steel Axe',true,'tool',900,null,null,null,false,null,false),
   ('steel_bar','Steel Bar',true,null,150,null,null,null,false,null,false),
   ('steel_belt','Steel Belt',true,'armor',400,'defense',30,null,false,'heavy',false),
@@ -2003,7 +2003,7 @@ insert into public.hr_feast_foods (item_id, heals) values
 on conflict (item_id) do update set heals = excluded.heals;
 
 insert into public.hr_catalogue_meta (only_row, digest, generated_at)
-  values (true, '4e80fd9d1f3a9403a30f5389f0e1f37ff1d0535ee96cc81058495d2cacbc714b', now())
+  values (true, '9d2d1039df6c965ba58654f052889d74dbfca2fa481f9eee55b7179fa2f50071', now())
   on conflict (only_row) do update set digest = excluded.digest, generated_at = excluded.generated_at;
 
 -- ── RLS + grants. Catalogues are world-readable (the client renders from the
@@ -2197,7 +2197,7 @@ begin
                   where p.item_id = i.item_id and p.equip_slot in ('helmet', 'body', 'pants', 'boots', 'gloves', 'belt'));
   if v_bad > 0 then raise exception '% armour row(s) in an armour slot carry no armour_weight', v_bad; end if;
 
-  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 4e80fd9d1f3a9403a30f5389f0e1f37ff1d0535ee96cc81058495d2cacbc714b',
+  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 9d2d1039df6c965ba58654f052889d74dbfca2fa481f9eee55b7179fa2f50071',
     (select count(*) from public.hr_items), (select count(*) from public.hr_activities),
     (select count(*) from public.hr_runes);
 end $$;

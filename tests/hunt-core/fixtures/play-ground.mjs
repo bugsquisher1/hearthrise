@@ -185,7 +185,10 @@ export async function loadPlay(root) {
       kills: Math.round(T.kills * 3600000 / span), falls: T.falls, xp: r(T.xp), levelXp: r(T.levelXp), coin: r(T.coin), commons: r(T.commons), rares: r(T.rares), store, income,
       margin: store ? Math.round((income / store - 1) * 100) + '%' : 'no store spend', net: income + r(T.rares) - store, ended: T.ended };
   };
-  return { run, MONSTERS, ITEMS, vendorPriceOf: CAT.vendorPriceOf, basics: SB.BASIC_INDEX };
+  /* kitFor(L, role, full): the worn set a measured hero at Level L wears (the ladder kit, or the full own-tier set), so a
+     test can wear one hero differently and the rest as measured (drop-tables.mjs ranger-floor: the crossbow and shield). */
+  const kitFor = (L, role, full) => (full ? fullKit(L, role) : kit(L, role));
+  return { run, kitFor, MONSTERS, ITEMS, vendorPriceOf: CAT.vendorPriceOf, basics: SB.BASIC_INDEX };
 }
 
 export async function play(root, only) {

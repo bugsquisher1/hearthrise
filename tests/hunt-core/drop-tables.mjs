@@ -39,6 +39,9 @@
 //                    the store bill (a MINIMUM, Tyler 10-20)
 //   warrens-floor    the Warrens' party of four at 32 and a lone own-tier Melee at the card's soloFrom clear +25% on two seeds
 //   caster-floor     the Sewer's party of four at its floor lives the hour, the Mage casts, every role clears +25%
+//   ranger-floor     a crossbow + shield Ranger on store Iron Bolts (no free bolt rung: every shot bought) in the party of four
+//                    at the Sewer and Warrens floors lives the hour and clears +25% over its own bill; in range (Sewer 20,
+//                    Warrens 50) its shot bill is printed against the coin share (the designer's ~45-55% of coin)
 //
 // Prints the per-ground tables every run: the evidence. EVERY LOOT NUMBER IS PROVISIONAL (Tyler 2026-10-23): re-tuned
 // after combat balance and the economy sims; a re-tune changes data, these rules stay.
@@ -513,6 +516,40 @@ function warrensFloor(M, P, R, print) {
   if (print) console.log('  ' + gid.padEnd(20) + ' L' + floor + '  party of 4 (ladder kit) per seed: ' + out.join(' ; '));
 }
 
+/* THE RANGER FLOOR (designer 2026-10-23, the spell-release balance, PROVISIONAL: a store shot is 1 g at tiers 1-3,
+   supply-basics.js BASIC_AMMO_PREMIUM). A crossbow takes a shield (Tyler 2026-10-23: a Ranger with guard, never a tank)
+   and has no free bolt rung, so a store-fed one buys every shot. The Ranger wears the crossbow and shield of its Level
+   (the Practice Crossbow and the Shop's Bronze-Rimmed under 15, Oak and the smiths' Ironbound under 30, then Willow and
+   the Coppercap: the fixture kit's shield steps) beside the measured party, its bag empty, its ammo slot on Iron Bolts.
+   MEASURED (1 h, the fixture seed): at 2 g a shot the floors read -30% (Sewer 8) and -30% (Warrens 32), in range +13%
+   (Sewer 20) and +4% (Warrens 50), the shots 96-180% of the coin share; at 1 g +32% / +39% at the floors and +125% /
+   +107% in range, the shots 48% / 59% of coin in range. */
+const RANGER_AT = Object.freeze({ millrace_sewer: 20, coppercap_warrens: 50 });   // in range: printed, not floored
+const crossbowSet = (L, kit) => ({ ...kit, ammo: 'iron_bolts',
+  weapon: L < 15 ? 'practice_crossbow' : L < 30 ? 'oak_crossbow' : 'willow_crossbow',
+  shield: L < 15 ? 'bronze_rimmed_shield' : L < 30 ? 'ironbound_shield' : 'coppercap_shield' });
+function rangerFloor(M, P, R, print) {
+  const out = [];
+  for (const [gid, inRange] of Object.entries(RANGER_AT)) {
+    const floor = M.HUNTS[M.G.HUNT_GROUNDS[gid].hunt].band[0];
+    for (const L of [floor, inRange]) {
+      const x = P.run(gid, L, PARTY, { spanMs: H, bag: () => ({}),
+        equipment: (role, i, LL) => (role === 'ranger' ? crossbowSet(LL, P.kitFor(LL, role, false)) : P.kitFor(LL, role, false)) });
+      const T = x.totals, h = x.playedMs / H || 1, coin = T.coin / h / PARTY.length, share = (T.coin + T.commons) / h / PARTY.length;
+      const rk = x.heroes.find((k) => k.startsWith('ranger')), buys = Object.entries(T.buys[rk] || {});
+      const gold = (rows) => rows.reduce((s, [id, q]) => s + q * ((P.basics[id] || {}).price || 0), 0) / h;
+      const bolts = buys.filter(([id]) => id === 'plain_iron_bolts'), bill = gold(buys), shots = gold(bolts), m = bill > 0 ? (share / bill - 1) * 100 : Infinity;
+      if (L === floor) {
+        R.ok(x.playedMs >= H && T.falls === 0, 'ranger-floor: the ' + gid + ' party with a crossbow + shield Ranger at ' + L + ' ended after ' + (x.playedMs / 60000).toFixed(1) + ' min, ' + T.falls + ' death(s) (' + T.ended.join(', ') + ')');
+        R.ok(bolts.length > 0, 'ranger-floor: the crossbow Ranger at the ' + gid + ' floor bought no store Iron Bolts (' + JSON.stringify(T.buys[rk] || {}) + ')');
+        R.ok(m >= MARGIN_MIN, 'ranger-floor: the crossbow + shield Ranger at the ' + gid + ' floor (' + L + ') earns ' + pct(m) + ' (share ' + Math.round(share) + ' g/h vs its bill ' + Math.round(bill) + ' g/h), under +' + MARGIN_MIN + '%');
+      }
+      out.push(gid + ' L' + L + (L === floor ? ' (floor)' : '') + ': shots ' + Math.round(shots) + ' g/h = ' + Math.round(100 * shots / coin) + '% of coin ' + Math.round(coin) + ', bill ' + Math.round(bill) + ', ' + pct(m));
+    }
+  }
+  if (print) console.log('  crossbow + shield Ranger on store Iron Bolts, party of 4, per hero per hour: ' + out.join(' ; '));
+}
+
 /* ── MUTANTS: every case and every play rule must bite ─────────────────── */
 const clone = (MONSTERS, edit) => {
   const out = {};
@@ -655,6 +692,10 @@ const warrensMutants = [
   { name: 'tier-3 blows doubled', edits: [['src/core/combat.js', 'monsterDamageScaleByTier: Object.freeze({ 3: 4.0, 4: 4.0,', 'monsterDamageScaleByTier: Object.freeze({ 3: 8.0, 4: 4.0,']] },
   { name: 'the card offers the Warrens alone from its floor (32)', edits: [['src/data/hunt-grounds.js', '    soloFrom: 45,', '    soloFrom: 32,']] },
 ];
+/* The Ranger floor's lever: the store shot's price (src/data/supply-basics.js), played on a planted copy. */
+const rangerMutants = [
+  { name: 'the store Iron Bolt back at 2 g a shot', edits: [['src/data/supply-basics.js', "shot('plain_iron_bolts', 'Plain Iron Bolts', 'iron_bolts', 1),", "shot('plain_iron_bolts', 'Plain Iron Bolts', 'iron_bolts', 2),"]] },
+];
 const engineMutants = [
   { name: 'the row\'s band ignored (the odds decide the reveal again)', case: 'band-is-the-reveal',
     edits: [['src/core/drops.js', '  if (row && LOOT_BANDS.includes(row.band)) return row.band;\n', '']] },
@@ -674,6 +715,7 @@ const P = await loadPlay(ROOT);
 await plays(M, P, M.MONSTERS, R, true);
 casterFloor(M, P, R, true);
 warrensFloor(M, P, R, true);
+rangerFloor(M, P, R, true);
 
 for (const mu of dataMutants) {
   let why = null;
@@ -720,5 +762,14 @@ for (const mu of warrensMutants) {
     if (MR.fails.length) console.log('  warrens mutant "' + mu.name + '" caught: ' + MR.fails[0].slice(0, 140));
   } finally { p.done(); }
 }
-if (!R.fails.length) console.log('  ' + Object.keys(cases).length + ' cases + the plays, ' + (dataMutants.length + engineMutants.length + playMutants.length + plantMutants.length + casterMutants.length + warrensMutants.length) + ' mutants caught');
+for (const mu of rangerMutants) {
+  const p = plant(mu.edits, PLAY_TREES);
+  try {
+    const MR = { fails: [], ok(c, msg) { if (!c) this.fails.push(msg); } };
+    rangerFloor(M, await loadPlay(p.root), MR, false);
+    R.ok(MR.fails.some((f) => f.startsWith('ranger-floor: the crossbow + shield Ranger')), 'mutant "' + mu.name + '" was NOT caught by ranger-floor (fails: ' + (MR.fails.join(' | ') || 'none') + ')');
+    if (MR.fails.length) console.log('  ranger mutant "' + mu.name + '" caught: ' + MR.fails[0].slice(0, 160));
+  } finally { p.done(); }
+}
+if (!R.fails.length) console.log('  ' + Object.keys(cases).length + ' cases + the plays, ' + (dataMutants.length + engineMutants.length + playMutants.length + plantMutants.length + casterMutants.length + warrensMutants.length + rangerMutants.length) + ' mutants caught');
 R.finish();

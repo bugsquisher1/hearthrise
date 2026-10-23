@@ -57,7 +57,7 @@ function patchFoot(root, st) {
     text(box.querySelector('.hw-captext'), whole(used) + ' of ' + whole(cap) + ' spaces');
     box.querySelector('.hw-capbar').setAttribute('aria-valuenow', String(used));
   }
-  text(root.querySelector('.hw-gold'), st.gold === null ? '' : gold(st.gold));
+  text(root.querySelector('.hw-gold'), st.gold === null ? '' : 'Your gold ' + gold(st.gold));   // the ACCOUNT's purse, every hero's
   prop(root.querySelector('[data-hs-act="advanced"]'), 'checked', st.prefs.advanced);
 }
 

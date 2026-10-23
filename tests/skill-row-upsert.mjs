@@ -55,6 +55,7 @@
 // is an upsert and not "select then insert".
 // ════════════════════════════════════════════════════════════════════════
 import { bootReplay, ROOT } from './schema-replay.mjs';
+import { goldOf as heroGold } from './_gold.mjs';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -131,8 +132,8 @@ export async function guard() {
       [UID, skill])).rows;
     return rows.length ? Number(rows[0].x) : null;
   };
-  const goldOf = async () => Number((await db.query(
-    'select gold::text g from player_state where user_id=$1 and slot=0', [UID])).rows[0].g);
+  /* the gold the hero spends: its ACCOUNT's purse (2026-12-15-account-gold.sql), or its own on an older chain */
+  const goldOf = async () => Number(await heroGold((sql, p) => db.query(sql, p).then((r) => r.rows), UID, 0));
 
   // ── SKILL-0 — THE FIXTURE PRECONDITION, FIRST AND LOUDLY. ────────────────
   // Everything below is about a MISSING row for a REAL skill. If the row is

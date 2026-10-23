@@ -41,7 +41,7 @@ export function slotRefusalText(r) {
  * The account's purse as the roster read it: the newest wallet version among its heroes' answers
  * ({ gold, v }), or null when no hero stated one. Pure.
  */
-export function rosterPurse(roster) {
+function rosterPurse(roster) {
   let best = null;
   for (const r of Array.isArray(roster) ? roster : []) {
     if (!r || !r.exists || !Number.isSafeInteger(r.gold) || r.gold < 0) continue;
@@ -52,7 +52,7 @@ export function rosterPurse(roster) {
 }
 
 /** The hero the purchase is journalled under: the lowest slot holding one, or null. Pure. */
-export function actingSlot(roster) {
+function actingSlot(roster) {
   const slots = (Array.isArray(roster) ? roster : []).filter((r) => r && r.exists && Number.isInteger(r.slot)).map((r) => r.slot);
   return slots.length ? Math.min(...slots) : null;
 }

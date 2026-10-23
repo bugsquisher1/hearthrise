@@ -50,6 +50,7 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { bootReplay, ROOT } from './schema-replay.mjs';
+import { goldOf as heroGold } from './_gold.mjs';
 import { walletFixture } from './wallet-fixture.mjs';
 import { isMain } from './_is-main.mjs';
 /* A mutant replays UP TO the newest file this guard stands on, never past it, so a
@@ -355,8 +356,8 @@ async function run(mutate) {
     ok(cr?.ok === true, `FIXTURE: hr_create_character(1) refused: ${JSON.stringify(cr)}`);
   }
 
-  const goldOf = async (slot = 0) => Number((await q(
-    'select gold::text g from player_state where user_id=$1 and slot=$2', [uid, slot]))[0].g);
+  /* the gold the hero spends: its ACCOUNT's purse (2026-12-15-account-gold.sql), or its own on an older chain */
+  const goldOf = async (slot = 0) => Number(await heroGold(q, uid, slot));
   const dayKey = (await q('select public.hr_utc_day_key(now()) as r'))[0].r;
   /* The counter a daily is graded on, stamped the way the ENGINE writes it
      (kind='daily', key='ev:<counter>', period=<utc day>).

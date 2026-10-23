@@ -15,7 +15,7 @@
 --   (account_bank, 2026-11-27-account-depot.sql) or a server-owned trade.
 --
 -- ── THE INVENTORY: EVERY GOLD READ AND WRITE (replayed chain, 2026-10-23) ────
---   SERVER, MOVES THE BALANCE (14 bodies; all repointed here):
+--   SERVER, MOVES THE BALANCE (14 bodies + 1 view; all repointed here):
 --     hr_apply                 THE gold block (delta.gold, ±50M clamp, never < 0):
 --                              hunt kill coins (edge accrual.js 'accrue'), town work,
 --                              Shop buys (edge shop-buy.js), vendor sells (vendor-sell.js),
@@ -118,9 +118,10 @@
 --     gold            the SIGNED move of the ACCOUNT purse by this row
 --     purse    (new)  the account purse AFTER this row's move. ENFORCED: the BEFORE
 --                     INSERT trigger hr_ledger_stamp_purse refuses (HR000 ledger_purse)
---                     a gold row whose purse is not exactly the locked wallet's balance at
---                     insert, so per account (rows ordered by id) every row's purse =
---                     the previous row's purse + its gold, from the fold row on.
+--                     a STATED purse that is not exactly the wallet's balance at insert
+--                     (the row lock the move took is held to commit) and FILLS an
+--                     unstated one from it (the farm's rows), so per account (rows by id)
+--                     every row's purse = the previous row's purse + its gold.
 --     gold_kind (new) a plain code (hr_gold_kind, set by the trigger when the writer did not):
 --                     hunt_loot · hunt_sale · hunt_supply · shop · house · vendor_sale ·
 --                     stamina · blessing · rename · hero_slot · storage · farm · start_kit ·
@@ -149,8 +150,8 @@
 --   Mint ceilings unchanged and per HERO (each hero's own activity mints); per-call
 --   clamps unchanged. Start-kit gold: 500 per hero created into the shared purse,
 --   bounded by the slot count (slots past the starters cost far more).
---   CLOSED: a per-hero purse read (the column is gone); a ledger gold row that does
---   not state the true purse (the trigger refuses it).
+--   CLOSED: a per-hero purse read (the column is gone); a ledger gold row that states
+--   a purse other than the true one (the trigger refuses it).
 --
 -- ── COST (100x players, ~4,400 accounts) ───────────────────────────────────
 --   account_wallet +8 bytes a row. player_ledger +2 nullable columns (~12 bytes on
@@ -3692,7 +3693,7 @@ end $function$;
 -- `public.hr_purse_move(v_uid, v_n, 0)` is this file's post-image: skipped.
 do $mig$
 declare
-  v_def text; v_new text; v_n int;
+  v_def text; v_new text; v_n int; v_a text;
   a1 text := $a$    'quest','equip','admin','iap','clan','raid','enchant','worker'];
 $a$;
   r1 text := $a$    'quest','equip','admin','iap','clan','raid','enchant','worker',
@@ -3754,12 +3755,11 @@ begin
   if position('public.hr_purse_move(v_uid, v_n, 0)' in v_def) > 0 then
     raise notice 'account-gold §5: hr_apply already moves the account purse - patch skipped'; return;
   end if;
-  v_new := v_def;
-  foreach v_def in array array[a1, a2, a3, a4] loop
-    v_n := (length(v_new) - length(replace(v_new, v_def, ''))) / length(v_def);
-    if v_n <> 1 then raise exception 'account-gold §5: an hr_apply anchor matched % times: %', v_n, left(v_def, 120); end if;
+  foreach v_a in array array[a1, a2, a3, a4] loop
+    v_n := (length(v_def) - length(replace(v_def, v_a, ''))) / length(v_a);
+    if v_n <> 1 then raise exception 'account-gold §5: an hr_apply anchor matched % times: %', v_n, left(v_a, 120); end if;
   end loop;
-  v_new := replace(v_new, a1, r1);
+  v_new := replace(v_def, a1, r1);
   v_new := replace(v_new, a2, r2);
   v_new := replace(v_new, a3, r3);
   v_new := replace(v_new, a4, r4);

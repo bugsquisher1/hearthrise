@@ -42,8 +42,7 @@
 //   intents            the account's asks in flight (intent-ledger.js): every intent
 //                      above is tracked from its send until the re-read envelope
 //   subscribe(fn)      fn(session, why) after every applied change
-//   notePurse()        the ACCOUNT purse moved on another hero (AccountSession): re-render
-//                      ('purse'); goldOf reads the newest purse through accountPurse()
+//   notePurse()        another hero read a newer ACCOUNT purse (AccountSession): re-render ('purse')
 //   close()            leave the topic, cancel timers, forget the record
 //
 // It authors no number: the record changes only from a server answer, and the
@@ -139,12 +138,9 @@ export class CharacterSession {
   get status() { return this._status; }
   /** A top-level key of the server's last word (frozen), or undefined. */
   read(key) { return this._record ? this._record.data[key] : undefined; }
-
   subscribe(fn) { this._listeners.add(fn); return () => this._listeners.delete(fn); }
-  /** Another open hero read a newer ACCOUNT purse (AccountSession._notePurse): the views re-render with it. */
-  notePurse() { if (!this._closed) this._emit('purse'); }
+  notePurse() { if (!this._closed) this._emit('purse'); }   // a newer ACCOUNT purse, read by another hero (goldOf)
   _emit(why) { for (const fn of Array.from(this._listeners)) { try { fn(this, why); } catch (e) { console.error('[character] a listener failed', e); } } }
-
   /** Apply a full envelope from the server; false when it was refused. */
   _take(body, why) {
     if (this._closed) return false;

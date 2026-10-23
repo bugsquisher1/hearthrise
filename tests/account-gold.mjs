@@ -93,7 +93,8 @@ const SQL_MUTANTS = {
   },
   ledger_lies: {
     why: 'the ledger trigger stops comparing the stated purse with the wallet: a row can misstate the balance',
-    pairs: [['  if new.purse is null or v is null or new.purse <> v then\n', '  if new.purse is null or v is null then\n']],
+    pairs: [['  if v is null or (new.purse is not null and new.purse <> v) then\n', '  if v is null then\n'],
+      ['  new.purse := v;\n', '  new.purse := coalesce(new.purse, v);\n']],
   },
   fold_takes_max: {
     why: 'the fold keeps the richest hero\'s gold instead of the sum: every other hero\'s gold is lost',

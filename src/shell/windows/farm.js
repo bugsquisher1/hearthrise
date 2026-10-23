@@ -183,7 +183,7 @@ renderFarm.patch = function patchFarm(body, ctx) {
   cls(root, 'is-pending', sc.pending);
   text(root.querySelector('.hh-intent-msg'), sc.msg);
   const purse = goldOf(cs);
-  text(root.querySelector('.hw-gold'), purse === null ? '' : gold(purse));
+  text(root.querySelector('.hw-gold'), purse === null ? '' : 'Your gold ' + gold(purse));   // the ACCOUNT's purse
   if (!land) { rows(root.querySelector('.hw-field'), [], { key: String, build: () => null, patch: () => {} }); return; }
   const sk = skillsOf(cs);
   const shop = shopOf(cs);

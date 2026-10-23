@@ -98,6 +98,10 @@ export const VENDOR_TRASH = Object.freeze(['sticky_core', 'goblin_ear', 'goblin_
   /* Mosslight Glade's five (lane c-ground-16-31), the same promise; and Rook's Whistle, the glade's rare, a
      collector's piece like the Alpha Fang and the Crown Shard until the roster gives the rares a job. */
   'crow_quill', 'snare_wire', 'mosslight_tendril', 'sluice_crust', 'rooks_moss_charm', 'rooks_whistle',
+  /* The Cellar's and the Warrens' imbuement items (loot bands phase C, the same promise), and the two boss Trophies: collector's
+     pieces until the Trophy Room wall hangs boss trophies (it hangs Bestiary mounts only today). */
+  'giant_rat_hide', 'hive_wasp_stinger', 'glowing_copper_fleck', 'skulkers_shiv', 'dented_copper_pot', 'foremans_lash', 'coppercaps_tallow',
+  'rat_kings_crown', 'coppercaps_cauldron',
 ]);
 
 /* ── AWAITING THE ROSTER — catalogued, kept, and deliberately unobtainable ───

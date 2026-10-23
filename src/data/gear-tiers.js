@@ -279,8 +279,21 @@ export const GEAR_ITEMS = (() => {
   return out;
 })();
 
-/* Demolition D2 (2026-10-14): the gear RECIPES and their ladders were deleted
-   with crafted gear. GEAR_ITEMS above stays until the new roster replaces the
-   catalogue. GEAR_LADDERS is empty only because src/main.js still publishes it;
-   lane D1 removes that import, and this export goes with it. */
-export const GEAR_LADDERS = Object.freeze([]);
+/* THE LADDERS, tier by tier (the loot bands, 2026-10-23): each armour line x slot, each weapon family and the
+   spellbook, as item ids from tier 1 up (null: a rung the practice kit holds). tests/hunt-core/drop-tables.mjs
+   sale-ladder walks them (a piece never sells for less than its lower-tier twin). The recipe ladders that once
+   lived here went with crafted gear (demolition D2, 2026-10-14). */
+export const GEAR_LADDERS = Object.freeze([
+  ...ARMOUR_LINES.flatMap((line) => ARMOUR_SLOTS.map((s) => Object.freeze({ key: line.key + ':' + s.slot,
+    ids: Object.freeze(MATERIAL_TIERS.map((mat, i) => line.id(mat, s, line, i))) }))),
+  ...WEAPON_FAMILIES.map((f) => Object.freeze({ key: 'weapon:' + f.key, ids: Object.freeze(f.ids.slice()) })),
+  Object.freeze({ key: 'spellbook', ids: Object.freeze(SPELLBOOKS.ids.slice()) }),
+]);
+
+/** An armour line's word at a tier, for a page that names a set: 'Iron', 'Studded', 'Adept' (null off the ladder). */
+export function armourLineWord(armourClass, tier) {
+  const i = Math.floor(Number(tier)) - 1;
+  const line = ARMOUR_LINES.find((l) => l.key === armourClass);
+  if (!line || !(i >= 0 && i < MATERIAL_TIERS.length)) return null;
+  return (line.tierNames ? line.tierNames[i] : MATERIAL_TIERS[i].name).split(' ')[0];
+}

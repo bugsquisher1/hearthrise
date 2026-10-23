@@ -5,24 +5,29 @@
 // EVERY WALKED GROUND IS ON THE LOOT BANDS (src/data/loot-bands.js; the Thicket the sample, Phase A, the other four in
 // batches of 20 rows or fewer, Phase B, 2026-10-23). The old one-equipment-row model retired with its last ground.
 //
-//   loot-structure   every row names a band, in band order (Trophy last); 1-2 Commons over 15%, ONE Uncommon in (5%, 15%]
-//                    (the counts wait on IMBUE_PENDING grounds' imbuement batch), every Scarce / Rare / Trophy row at 5% or
+//   loot-structure   every row names a band, in band order (Trophy last); 1-2 Commons over 15% (COMMONS_PENDING monsters
+//                    wait on the designer's trim), ONE Uncommon in (5%, 15%], every Scarce / Rare / Trophy row at 5% or
 //                    less; a monster's Scarce armour is helmet / body / legs / boots in heavy, medium AND light, once each per
 //                    slot it carries (weapons may join), wearable in the ground's band; a Trophy only on a boss. A REVEALED
 //                    item (Rare, Trophy) is live (no dormant effect), has its pixel icon, is no Hearthfind, not tier 8, not
 //                    'unique', not sold by a listed Shop row, not boss loot, of its dropper's tier or one above, and its
-//                    dropper is no Hearthfind source (the checks lucky-finds and field-salvage make for their own rows). The
-//                    tutorial cellar's Giant Rat and Slime keep their seeded tables, unbanded.
+//                    dropper is no Hearthfind source (the checks lucky-finds and field-salvage make for their own rows)
+//   slot-homes       each Scarce slot on a ground has ONE home a player can learn: one monster, or a named group of the
+//                    ground's slow monsters (loot-bands.js LOOT_GROUPS); a monster carries at most two armour slots and one
+//                    Scarce weapon (SLOT_LIMITS)
+//   pending-rows     a row parked for an item not built yet (loot-bands.js PENDING_ROWS: the Kingsgrate) names a monster
+//                    and a row it follows, sits in its band's odds, and its item does NOT exist (the day it does, the row moves)
+//   sale-ladder      every armour line, weapon family and the spellbook sells tier by tier for no less than its lower twin
 //   band-is-the-reveal  the roller (src/core/drops.js bandOf) reveals exactly the Rare and Trophy rows; Common, Uncommon and
 //                    Scarce are standard drops; an unbanded old-roster row (a lucky or salvage find) reveals by its odds
 //   build-coverage   each ground's Scarce rows cover helmet, body, legs and boots in all three weights (the tutorial excepted)
-//   four-slots       on every ground not IMBUE_PENDING each monster has EXACTLY one junk row (its own product, over 15%),
-//                    at most one bones row, and EXACTLY one imbuement row (`imbue`, no other monster drops it, (5%, 15%],
-//                    tier and book value from the dropper's Level)
+//   four-slots       each monster has a Common that is its own product (not bones), at most one bones row, and EXACTLY one
+//                    imbuement row (`imbue`, no other monster drops it, (5%, 15%], tier and book value from its Level)
 //   gear-pace        (the floor hour, expected on its kills) each Scarce piece lands about once an hour per hero
 //                    (BAND_TARGETS.scarce, Tyler 2026-10-23), for the reference group AND a party ground's second group
 //                    (BAND_ALT); a fresh solo hero at the floor holds all four slots of EACH weight within GEAR_HOURS
-//   rare-pace        each Rare item every 10-20 h per hero; trophy-pace: each Trophy item every 100-150 h
+//   rare-pace        each Rare item every 10-20 h per hero (a PENDING_ROWS row too, at the pace it will have);
+//   trophy-pace      each Trophy item every 125-150 h per hero, so a full Bestiary (x1.25) still waits 100 h
 //   gear-faucet      the equipment's expected sale value (the trader's price, loot-bands.js VENDOR_GEAR_RATES by tier) per
 //                    hero-hour is at most FAUCET of the coin
 //   total-value      coin + commons + every Scarce / Rare / Trophy row's sale value per hero-hour is at most +25% over the
@@ -59,14 +64,11 @@ const WEIGHTS = Object.freeze(['heavy', 'medium', 'light']);
 const SLOT_WORD = Object.freeze({ helmet: 'helmet', body: 'body', pants: 'legs', boots: 'boots' });
 const GEAR_TYPES = Object.freeze(['weapon', 'armor', 'offhand']);
 const HOUR_BANDS = Object.freeze(['scarce', 'rare', 'trophy']);
-/* The tutorial cellar's Giant Rat and Slime are the shared tier-1 rows the seeded fixtures pin (field-salvage /
-   lucky-finds FIXTURE_EXCLUDED; xp-frac-carry's measured slime): their tables stay, unbanded. The cellar teaches the
-   pull with one slot: its Hive Wasp's helmets in three weights. */
-const TUTORIAL = Object.freeze({ ground: 'mill_cellar', fixtures: Object.freeze(['rat', 'slime']) });
-/* THE FOUR-SLOT SAMPLE (designer 2026-10-21): the Thicket, the Sewer and the Glade carry the imbuement slot; these grounds
-   are the next batch. SHRINK-ONLY: a ground leaves this list when its monsters get their imbuement items, and never returns. */
-const IMBUE_PENDING = Object.freeze(['mill_cellar', 'coppercap_warrens']);
-const JUNK_MIN = 0.15;          // the junk row is the creature's common product (over the uncommon band)
+/* The tutorial cellar teaches the pull with one slot: its Hive Wasp's helmets in three weights (build-coverage). */
+const TUTORIAL = Object.freeze({ ground: 'mill_cellar' });
+/* MONSTERS STILL OVER TWO COMMONS (the designer's trim, 2026-10-23): the Giant Rat's wheat, the Warrens' ore, ears
+   and coal. SHRINK-ONLY: a monster leaves when its Commons are one product and at most one bones row. */
+const COMMONS_PENDING = Object.freeze(['rat', 'goblin_scavenger', 'goblin_skulker', 'goblin_digger', 'hobgoblin_foreman', 'chief_coppercap']);
 const BONES = Object.freeze(['bones', 'big_bones']);
 const STARTER = Object.freeze(['mill_cellar', 'meadowbrook_thicket']);   // keep their gold (Tyler 10-20): printed, not floored
 const PARTY = Object.freeze(['tank', 'ranger', 'mage', 'healer']);
@@ -116,6 +118,8 @@ async function load(root) {
     /* the pixel icon on disk, always read from the repo (a planted tree copies no images) */
     hasIcon: (id) => existsSync(join(ROOT, art.PIXEL_DIR + art.fileFor(id))),
     drops: await imp(root, 'src/core/drops.js'),
+    vendor: (await imp(root, 'supabase/functions/hr-accrue/catalogue.js')).vendorPriceOf,
+    ladders: (await imp(root, 'src/data/gear-tiers.js')).GEAR_LADDERS,
   };
 }
 
@@ -125,7 +129,6 @@ function rosterOf(ground) {
   for (const p of ground.pockets) for (const s of (p.pack || []).concat(p.spawns)) ids.add(s.monster);
   return [...ids].sort();
 }
-const rareOdds = (D, d) => d && d.ch < 1 && D.dropBand(d.ch) === 'rare';
 const mentions = (v, id) => v === id || (Array.isArray(v) ? v.some((x) => mentions(x, id))
   : !!v && typeof v === 'object' && Object.keys(v).some((k) => k === id || mentions(v[k], id)));
 const weightOf = (M, it) => (it && it.type === 'armor' && BUILD_SLOTS.includes(it.slot) && M.WEIGHT[it.armourClass]) || null;
@@ -150,11 +153,6 @@ const cases = {
       const band = M.HUNTS[ground.hunt].band;
       for (const id of rosterOf(ground)) {
         const m = M.MONSTERS[id], drops = m.drops || [], tag = gid + ': ' + id;
-        /* the tutorial cellar's seeded fixtures keep their tables (TUTORIAL), unbanded, read by the odds */
-        if (gid === TUTORIAL.ground && TUTORIAL.fixtures.includes(id)) {
-          if (drops.some((d) => d.band !== undefined)) return tag + ' is a seeded fixture and names a band (its table stays as it is)';
-          continue;
-        }
         if (!(Array.isArray(m.gp) && m.gp[1] > 0)) return tag + ' pays no gold';
         let last = -1, commons = 0, uncommons = 0, trophies = 0;
         const armour = [];
@@ -184,9 +182,8 @@ const cases = {
           }
           if (M.LB.REVEAL_BANDS.includes(d.band)) { const why = revealWhy(M, tag, id, m, d); if (why) return why; }
         }
-        /* the four slots' counts (one junk + at most one bones; one imbuement item) wait on a ground's imbuement batch */
-        if (!IMBUE_PENDING.includes(gid) && (commons < 1 || commons > 2)) return tag + ' has ' + commons + ' Common rows, the rule is 1-2';
-        if (!IMBUE_PENDING.includes(gid) && uncommons !== 1) return tag + ' has ' + uncommons + ' Uncommon rows, the rule is one (its imbuement item)';
+        if (commons < 1 || (commons > 2 && !COMMONS_PENDING.includes(id))) return tag + ' has ' + commons + ' Common rows, the rule is 1-2';
+        if (uncommons !== 1) return tag + ' has ' + uncommons + ' Uncommon rows, the rule is one (its imbuement item)';
         if (trophies > 1) return tag + ' has ' + trophies + ' Trophy rows, the rule is one per boss';
         /* every slot a monster carries comes in heavy, medium AND light, once each (one slot where the kills allow it;
            a fast-dying swarm may carry two, a slow trio may share one, to hold the hourly pace: gear-pace) */
@@ -224,11 +221,54 @@ const cases = {
     }
     return null;
   },
+  'slot-homes'(M) {
+    const groups = M.LB.LOOT_GROUPS, max = M.LB.SLOT_LIMITS;
+    for (const [gid, ground] of Object.entries(M.G.HUNT_GROUNDS)) {
+      const homes = {}, named = (groups[gid] || []).map((g) => [...g.monsters].sort().join());
+      for (const id of rosterOf(ground)) {
+        const rows = (M.MONSTERS[id].drops || []).filter((d) => d.band === 'scarce');
+        const slots = new Set(rows.map((d) => weightOf(M, M.ITEMS[d.id]) && M.ITEMS[d.id].slot).filter(Boolean));
+        const weapons = rows.filter((d) => M.ITEMS[d.id] && M.ITEMS[d.id].type !== 'armor').length;
+        if (slots.size > max.armourSlots) return gid + ': ' + id + ' carries ' + slots.size + ' armour slots, the rule is ' + max.armourSlots;
+        if (weapons > max.weapons) return gid + ': ' + id + ' carries ' + weapons + ' Scarce weapons, the rule is ' + max.weapons;
+        for (const sl of slots) (homes[sl] = homes[sl] || []).push(id);
+      }
+      for (const [sl, at] of Object.entries(homes)) {
+        if (at.length > 1 && !named.includes([...at].sort().join())) return gid + ': ' + SLOT_WORD[sl] + ' drop from ' + at.join(', ') + ', two homes and no named group (loot-bands.js LOOT_GROUPS)';
+      }
+      const used = new Set(Object.values(homes).filter((at) => at.length > 1).map((at) => [...at].sort().join()));
+      const stale = (groups[gid] || []).find((g) => !used.has([...g.monsters].sort().join()));
+      if (stale) return gid + ': the group "' + stale.name + '" is the home of no slot (its monsters do not carry one together)';
+    }
+    return null;
+  },
+  'pending-rows'(M) {
+    for (const r of M.LB.PENDING_ROWS) {
+      const m = M.MONSTERS[r.monster];
+      if (!m) return r.id + ': its monster ' + r.monster + ' does not exist';
+      if (M.ITEMS[r.id]) return r.id + ' exists now: move its row onto ' + r.monster + ' after ' + r.after + ' and out of PENDING_ROWS';
+      if (!(m.drops || []).some((d) => d.id === r.after)) return r.id + ': ' + r.monster + ' has no ' + r.after + ' row to follow';
+      const T = M.LB.BAND_TARGETS[r.band];
+      if (!T || !(r.ch > 0 && r.ch <= (T.oddsMax || 0))) return r.id + ': band ' + r.band + ' at ' + r.ch + ', outside its odds';
+    }
+    return null;
+  },
+  'sale-ladder'(M) {
+    for (const l of M.ladders) {
+      let prev = null;
+      for (const id of l.ids) {
+        if (!id || !M.ITEMS[id]) continue;
+        const p = M.vendor(M.ITEMS, id);
+        if (prev && p < prev.p) return l.key + ': ' + id + ' sells for ' + p + ', under its lower-tier twin ' + prev.id + ' (' + prev.p + ')';
+        prev = { id, p };
+      }
+    }
+    return null;
+  },
   'four-slots'(M) {
     const droppers = {};
     for (const [mid, m] of Object.entries(M.MONSTERS)) for (const d of m.drops || []) (droppers[d.id] = droppers[d.id] || new Set()).add(mid);
     for (const [gid, ground] of Object.entries(M.G.HUNT_GROUNDS)) {
-      if (IMBUE_PENDING.includes(gid)) continue;
       for (const id of rosterOf(ground)) {
         const m = M.MONSTERS[id], drops = m.drops || [];
         const imbue = drops.filter((d) => M.ITEMS[d.id] && M.ITEMS[d.id].imbue);
@@ -240,9 +280,7 @@ const cases = {
         if (!(d.ch > M.IMB.IMBUE_DROP.above && d.ch <= M.IMB.IMBUE_DROP.max)) return gid + ': ' + id + ' imbuement row at ' + d.ch + ', not in the uncommon band';
         if (droppers[d.id].size !== 1) return gid + ': ' + d.id + ' is dropped by ' + [...droppers[d.id]].join(', ') + ', the ruling is one monster';
         if (drops.filter((x) => BONES.includes(x.id)).length > 1) return gid + ': ' + id + ' has two bones rows';
-        const junk = drops.filter((x) => !BONES.includes(x.id) && x !== d && !rareOdds(M.drops, x));
-        if (junk.length !== 1) return gid + ': ' + id + ' has ' + junk.length + ' junk rows (' + junk.map((x) => x.id).join(', ') + '), the ruling is one';
-        if (!(junk[0].ch > JUNK_MIN)) return gid + ': ' + id + ' junk row ' + junk[0].id + ' at ' + junk[0].ch + ', not a common';
+        if (!drops.some((x) => x.band === 'common' && !BONES.includes(x.id))) return gid + ': ' + id + ' has no Common of its own (a part that sells or feeds a bench)';
       }
     }
     return null;
@@ -287,12 +325,19 @@ function expectedLoot(M, P, monsters, x, n) {
 /* THE BANDS' RULES on one played floor hour (`label` names a party ground's second group). Answers the evidence. */
 function bandRules(M, P, monsters, R, gid, x, n, today, label) {
   const E = expectedLoot(M, P, monsters, x, n), list = Object.values(E.items), at = gid + (label ? ' (' + label + ')' : '');
-  const range = (band) => list.filter((p) => p.band === band).map((p) => 1 / p.perH);
+  const range = (band) => list.filter((p) => p.band === band && !p.pending).map((p) => 1 / p.perH);
+  /* A parked row (PENDING_ROWS) is measured at the pace it will have on this run's kills. */
+  const y = M.G.yieldPermille(n) / 1000, per = 1 / n / (x.playedMs / H || 1);
+  for (const r of M.LB.PENDING_ROWS) {
+    const k = x.killsBy[r.monster] || 0;
+    if (k) list.push({ id: r.id, band: r.band, perH: k * Math.min(0.95, r.ch * y) * per, from: [r.monster + ', pending'], pending: true });
+  }
   for (const band of HOUR_BANDS) {
-    const [lo, hi] = M.LB.BAND_TARGETS[band].hours, rule = band === 'scarce' ? 'gear-pace' : band === 'rare' ? 'rare-pace' : 'trophy-pace';
+    const T = M.LB.BAND_TARGETS[band], lo = T.hours[0] * (T.boostMax || 1), hi = T.hours[1];
+    const rule = band === 'scarce' ? 'gear-pace' : band === 'rare' ? 'rare-pace' : 'trophy-pace';
     for (const p of list.filter((q) => q.band === band)) {
       const h = 1 / p.perH;
-      R.ok(h >= lo && h <= hi, rule + ': ' + at + ' ' + band + ' ' + p.id + ' (' + p.from.join(', ') + ') every ' + h.toFixed(2) + ' h per hero, outside ' + lo + '-' + hi + ' h');
+      R.ok(h >= lo && h <= hi, rule + ': ' + at + ' ' + (p.pending ? 'pending ' : '') + band + ' ' + p.id + ' (' + p.from.join(', ') + ') every ' + h.toFixed(2) + ' h per hero, outside ' + lo + '-' + hi + ' h');
     }
   }
   R.ok(E.gear <= FAUCET * E.coin, 'gear-faucet: ' + at + ' equipment sells for ' + Math.round(E.gear) + ' g/h, over ' + FAUCET + ' of the coin (' + Math.round(E.coin) + ' g/h)');
@@ -300,7 +345,8 @@ function bandRules(M, P, monsters, R, gid, x, n, today, label) {
   R.ok(today > 0 && total <= (1 + TOTAL_RISE_MAX) * today, 'total-value: ' + at + ' pays ' + Math.round(total) + ' g per hero-hour, over +' + Math.round(TOTAL_RISE_MAX * 100) + '% on today\'s ' + today);
   /* THE SELL FACTOR the caps allow, measured: the largest share of book this ground's equipment could sell at. */
   const fmax = E.gearBook > 0 ? Math.min(FAUCET * E.coin, (1 + TOTAL_RISE_MAX) * today - E.coin - E.commons - E.other) / E.gearBook : Infinity;
-  return { E, total, today, fmax, label: label || '', scarce: range('scarce'), rare: range('rare'), trophy: range('trophy'), pieces: list };
+  return { E, total, today, fmax, label: label || '', scarce: range('scarce'), rare: range('rare'), trophy: range('trophy'), pieces: list,
+    pending: list.filter((q) => q.pending).map((q) => q.id + ' ' + (1 / q.perH).toFixed(1) + ' h') };
 }
 
 /* THE FRESH HERO: all four slots of each weight within GEAR_HOURS (realized on the real settle). */
@@ -409,7 +455,7 @@ async function plays(M, P, monsters, R, print, only, fresh = !only) {
     const E = B.E, someRare = B.rare.length ? 1 / B.rare.reduce((s, hh) => s + 1 / hh, 0) : Infinity;
     const weight = (w) => w + ' ' + span(B.pieces.filter((pc) => pc.band === 'scarce' && weightOf(M, M.ITEMS[pc.id]) === w).map((pc) => 1 / pc.perH));
     console.log('  LOOT BANDS ' + B.gid + ' L' + B.floor + (B.label ? ' ' + B.label : ' (reference)') + ', expected per hero-hour: Scarce piece every ' + span(B.scarce) + ' (' + B.scarce.length + ' pieces: ' + WEIGHTS.map(weight).join(', ') + ')'
-      + ' | Rare item every ' + span(B.rare) + ' (' + B.rare.length + ' items; some Rare every ' + someRare.toFixed(1) + ' h)' + (B.trophy.length ? ' | Trophy every ' + span(B.trophy) : '')
+      + ' | Rare item every ' + span(B.rare) + ' (' + B.rare.length + ' items; some Rare every ' + someRare.toFixed(1) + ' h)' + (B.pending.length ? ' + pending ' + B.pending.join(', ') : '') + (B.trophy.length ? ' | Trophy every ' + span(B.trophy) : '')
       + ' | coin ' + Math.round(E.coin) + ' commons ' + Math.round(E.commons) + ' gear ' + Math.round(E.gear) + ' (' + Math.round(100 * E.gear / E.coin) + '% of coin) other ' + Math.round(E.other)
       + ' | total ' + Math.round(B.total) + ' vs today ' + B.today + ' (' + pct((B.total / B.today - 1) * 100) + ')'
       + ' | gear sells at ' + JSON.stringify(M.LB.VENDOR_GEAR_RATES) + ' of book by tier; this ground\'s caps hold up to ' + B.fmax.toFixed(2));
@@ -480,14 +526,14 @@ const dataMutants = [
   { name: 'the imbuement row dropped', case: 'four-slots', edit: (ms) => { ms.drain_rat.drops = ms.drain_rat.drops.filter((d) => d.id !== 'rat_incisor'); } },
   { name: 'one imbuement item on two monsters', case: 'four-slots', edit: (ms) => { ms.sump_slime.drops.find((d) => d.id === 'sump_membrane').id = 'rat_incisor'; } },
   { name: 'an imbuement row at rare odds', case: 'four-slots', edit: (ms) => { ms.gray_wolf.drops.find((d) => d.id === 'gray_dewclaw').ch = 0.02; } },
-  { name: 'a second junk row back (the old free-form list)', case: 'four-slots', edit: (ms) => { ms.gray_wolf.drops.splice(1, 0, { id: 'wolf_pelt', ch: 0.06 }); } },
+  { name: 'a third Common (the old free-form list)', case: 'loot-structure', edit: (ms) => { ms.gray_wolf.drops.splice(1, 0, { id: 'wolf_pelt', ch: 0.3, band: 'common' }); } },
+  { name: 'the Slime\'s Sticky Core back at 2% (an hourly "Rare")', case: 'four-slots', edit: (ms) => { Object.assign(rowOf(ms, 'slime', 'sticky_core'), { ch: 0.02, band: 'rare' }); } },
   { name: 'the junk row lost', case: 'four-slots', edit: (ms) => { ms.cistern_spider.drops = ms.cistern_spider.drops.filter((d) => d.id !== 'silk_thread'); } },
   { name: 'an imbuement item on a monster of the wrong tier', case: 'four-slots', edit: (ms) => { ms.rat_king.level = 30; } },
   /* the loot bands */
   { name: 'a band row loses its band', case: 'loot-structure', edit: (ms) => { delete rowOf(ms, 'gray_wolf', 'bones').band; } },
   { name: 'a misspelt band', case: 'loot-structure', edit: (ms) => { rowOf(ms, 'gray_whelp', 'bronze_boots').band = 'scarse'; } },
   { name: 'an old-model flag on a banded row', case: 'loot-structure', edit: (ms) => { rowOf(ms, 'briarcoat_wolf', 'leather_pants').gear = true; } },
-  { name: 'a band on a seeded fixture', case: 'loot-structure', edit: (ms) => { rowOf(ms, 'rat', 'bones').band = 'common'; } },
   { name: 'a Warrens row with no band', case: 'loot-structure', edit: (ms) => { delete rowOf(ms, 'goblin_digger', 'coal').band; } },
   { name: 'rows out of band order', case: 'loot-structure', edit: (ms) => { const d = ms.gray_whelp.drops; d.push(d.splice(2, 1)[0]); } },
   { name: 'a Scarce row at common odds', case: 'loot-structure', edit: (ms) => { rowOf(ms, 'briarcoat_wolf', 'leather_pants').ch = 0.2; } },
@@ -507,6 +553,23 @@ const dataMutants = [
   { name: 'a revealed item that is boss loot', case: 'loot-structure', edit: (ms) => { rowOf(ms, 'grayjaw', 'alpha_fang').id = 'warboss_standard'; } },
   { name: 'a revealed item two tiers up', case: 'loot-structure', edit: (ms) => { rowOf(ms, 'grayjaw', 'iron_helm').id = 'mithril_helm'; } },
   { name: 'a Hearthfind source that reveals', case: 'loot-structure', edit: (ms, M2) => { M2.hfSources.add('grayjaw'); } },
+  /* slot homes */
+  { name: 'a slot with two homes and no group', case: 'slot-homes', edit: (ms) => { ms.carrion_crow.drops.push(...['iron_helm', 'studded_helmet', 'adept_helmet'].map((id) => ({ id, ch: 0.01, band: 'scarce' }))); } },
+  { name: 'a monster with three armour slots', case: 'slot-homes', edit: (ms) => {
+    const moved = ms.goblin_digger.drops.filter((d) => d.band === 'scarce' && d.id !== 'steel_warhammer');
+    ms.goblin_digger.drops = ms.goblin_digger.drops.filter((d) => !moved.includes(d));
+    ms.goblin_scavenger.drops.splice(ms.goblin_scavenger.drops.findIndex((d) => d.band === 'scarce'), 0, ...moved);
+  } },
+  { name: 'two Scarce weapons on one monster', case: 'slot-homes', edit: (ms) => {
+    const hammer = rowOf(ms, 'goblin_digger', 'steel_warhammer');
+    ms.goblin_digger.drops = ms.goblin_digger.drops.filter((d) => d !== hammer);
+    ms.goblin_scavenger.drops.splice(ms.goblin_scavenger.drops.findIndex((d) => d.band === 'scarce'), 0, hammer);
+  } },
+  { name: 'the Chief\'s crew loses its foremen (the group no longer the home)', case: 'slot-homes', edit: (ms) => { ms.hobgoblin_foreman.drops = ms.hobgoblin_foreman.drops.filter((d) => d.band !== 'scarce'); } },
+  /* pending rows and the sale ladder */
+  { name: 'the Kingsgrate made but still parked', case: 'pending-rows', edit: (ms, M2) => { M2.ITEMS.kingsgrate = { n: 'Kingsgrate', v: 300, type: 'offhand', slot: 'shield', tier: 2 }; } },
+  { name: 'Leather Boots back at 90 (outselling Studded Boots)', case: 'sale-ladder', edit: (ms, M2) => { M2.ITEMS.leather_boots = { ...M2.ITEMS.leather_boots, v: 90 }; } },
+  { name: 'Steel Boots cheaper than Iron Boots', case: 'sale-ladder', edit: (ms, M2) => { M2.ITEMS.steel_boots = { ...M2.ITEMS.steel_boots, v: 300 }; } },
   /* build coverage */
   { name: 'the Dire Grays drop helmets, not bodies', case: 'build-coverage', edit: (ms) => {
     rowOf(ms, 'dire_gray', 'bronze_platebody').id = 'bronze_helm'; rowOf(ms, 'dire_gray', 'leather_body').id = 'leather_helmet'; rowOf(ms, 'dire_gray', 'apprentice_body').id = 'apprentice_helmet';
@@ -536,13 +599,15 @@ const playMutants = [
   { name: 'Rook\'s Whistle at 1%', rule: 'rare-pace: mosslight_glade rare rooks_whistle', edit: (ms) => { rowOf(ms, 'rook_poacher', 'rooks_whistle').ch = 0.01; } },
   { name: 'the War Crown at 4%', rule: 'rare-pace: coppercap_warrens rare war_crown', edit: (ms) => { rowOf(ms, 'chief_coppercap', 'war_crown').ch = 0.04; } },
   { name: 'a boss Trophy every 44 h', rule: 'trophy-pace: meadowbrook_thicket', edit: (ms) => { ms.grayjaw.boss = true; ms.grayjaw.drops.push({ id: 'war_crown', ch: 0.001, band: 'trophy' }); } },
+  { name: 'the Rat King\'s Crown at 0.2% (a full Bestiary under 100 h)', rule: 'trophy-pace: millrace_sewer (party of 4)', edit: (ms) => { rowOf(ms, 'rat_king', 'rat_kings_crown').ch = 0.002; } },
   { name: 'the den mother\'s fang a War Crown at 2% (value, not gear)', rule: 'total-value: meadowbrook_thicket', edit: (ms) => { Object.assign(rowOf(ms, 'grayjaw', 'alpha_fang'), { id: 'war_crown', ch: 0.02 }); } },
   { name: 'a fresh hero\'s heavy boots gone', rule: 'gear-pace: a fresh hero at the meadowbrook_thicket', fresh: true, edit: (ms) => { ms.gray_whelp.drops = ms.gray_whelp.drops.filter((d) => d.id !== 'bronze_boots'); } },
 ];
 /* Planted trees (src/data, src/core, the settle), played on the ground the rule names. */
 const plantMutants = [
-  { name: 'worn gear sells at full book again', rule: 'gear-faucet: meadowbrook_thicket', edits: [['src/data/loot-bands.js', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.12]);', 'export const VENDOR_GEAR_RATES = Object.freeze([1, 1, 1]);']] },
-  { name: 'tier-3 gear sells at the tier-1 rate', rule: 'gear-faucet: coppercap_warrens', edits: [['src/data/loot-bands.js', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.12]);', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.5]);']] },
+  { name: 'worn gear sells at full book again', rule: 'gear-faucet: meadowbrook_thicket', edits: [['src/data/loot-bands.js', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14]);', 'export const VENDOR_GEAR_RATES = Object.freeze([1, 1, 1]);']] },
+  { name: 'tier-3 gear sells at the tier-1 rate', rule: 'gear-faucet: coppercap_warrens', edits: [['src/data/loot-bands.js', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14]);', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.5]);']] },
+  { name: 'the parked Kingsgrate at 5% (a Rare every 4 h)', rule: 'rare-pace: millrace_sewer (party of 4) pending', edits: [['src/data/loot-bands.js', "id: 'kingsgrate', ch: 0.017,", "id: 'kingsgrate', ch: 0.05,"]] },
   { name: 'the roller reveals nothing (a Rare credited with no hint)', rule: 'reveal-path: meadowbrook_thicket', fresh: true,
     edits: [['src/core/drops.js', 'rare: REVEAL_BANDS.includes(band) });', 'rare: false });']] },
   { name: 'a party\'s Rare skips the rare roll (round-robin instead)', rule: 'reveal-path: millrace_sewer (party of 4)', fresh: true,

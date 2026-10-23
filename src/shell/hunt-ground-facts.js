@@ -8,20 +8,24 @@
 //                      pockets' `spawns`, the pack as built). Tyler 10-18: "Hunt card
 //                      and bestiary show roughly how common each is": a word, never
 //                      a percentage (the mix moves with the density pick).
-//   rareOf(hunt)       THE GROUND'S CHASE: on the loot bands (Tyler 2026-10-23) several
-//                      creatures carry Rare items, so the page names one carrier's: the
-//                      boss's when it carries one, else the creature with the most Rare
-//                      rows (the rarer on a tie). A Rare row is a revealed band (src/core/
-//                      drops.js bandOf, REVEAL_BANDS), never a Scarce piece; an unbanded
-//                      seeded fixture's reads its odds; never a server-revealed surprise
-//                      (`lucky`, `salvage`). Names only: drop odds a player sees come
-//                      from the server's catalogue (ART_DIRECTION §8), so none is shown.
+//   scarceSetOf(hunt, worn)  THE GEAR THAT DROPS ABOUT HOURLY (the loot bands, Tyler
+//                      2026-10-23): one entry a tier, its armour lines' words in each
+//                      weight (the hero's worn weight first), the slots they cover and the
+//                      tier's Scarce weapons: "Iron, Studded, Adept: helmets, boots; Iron Sword".
+//   raresOf(hunt)      every Rare and Trophy item and the creature that carries it, Rares
+//                      first. A row's band decides (src/core/drops.js bandOf, REVEAL_BANDS),
+//                      never a server-revealed surprise (`lucky`, `salvage`).
+//   wornWeightOf(eq)   the armour weight a hero wears most (heavy, medium, light), or null.
+//   Names only: drop odds a player sees come from the server's catalogue and the Bestiary
+//   (ART_DIRECTION §8), so none is shown here.
 // ════════════════════════════════════════════════════════════════════════
 import { HUNT_GROUNDS } from '../data/hunt-grounds.js?v=0.2.34';
 import { MONSTERS } from '../data/monsters.js?v=0.2.34';
 import { ITEMS } from '../data/items.js?v=0.2.34';
 import { bandOf } from '../core/drops.js?v=0.2.34';
 import { REVEAL_BANDS } from '../data/loot-bands.js?v=0.2.34';
+import { ARMOUR_WEIGHT } from '../data/core-model.js?v=0.2.34';
+import { armourLineWord } from '../data/gear-tiers.js?v=0.2.34';
 
 /* How common a creature is, by its share of the ground's spawn points: at least `common` is common,
    under `rare` is rare, between is uncommon (Tyler 10-18: a common majority, some uncommon, one or two rare). */
@@ -53,18 +57,54 @@ export function residentsOf(hunt) {
 
 /* A Rare row: a revealed band (a Rare or Trophy row), not a server-only surprise. */
 const isRare = (d) => !!d && d.lucky !== true && d.salvage !== true && d.ch < 1 && REVEAL_BANDS.includes(bandOf(d));
+const nameOf = (id) => (ITEMS[id] && ITEMS[id].n) || id;
+const WEIGHTS = Object.freeze(['heavy', 'medium', 'light']);
+const SLOT_WORDS = Object.freeze({ helmet: 'helmets', body: 'bodies', pants: 'legs', boots: 'boots' });
+
+/** The armour weight an equipment map (slot -> item id) wears most among helmet, body, legs and boots; the heavier on a tie; null for none. */
+export function wornWeightOf(eq) {
+  const n = { heavy: 0, medium: 0, light: 0 };
+  for (const slot of Object.keys(SLOT_WORDS)) {
+    const it = eq && ITEMS[eq[slot]];
+    const w = it && ARMOUR_WEIGHT[it.armourClass];
+    if (w) n[w]++;
+  }
+  const best = WEIGHTS.reduce((a, w) => (n[w] > n[a] ? w : a), 'heavy');
+  return n[best] ? best : null;
+}
 
 /**
- * The ground's chase, { carrier: { id, name }, items: [{ id, name }] }: the boss's Rare rows when it has any, else
- * the resident with the most (the rarer on a tie, residentsOf lists the commonest first); null when none has one.
+ * The ground's Scarce gear, one entry a tier (lowest first): { tier, lines: ['Iron', 'Studded', 'Adept'] (the worn
+ * weight's first), slots: ['helmets', 'boots'], weapons: ['Iron Sword'] }. [] for a ground with none.
  */
-export function rareOf(hunt) {
-  let best = null;
+export function scarceSetOf(hunt, worn) {
+  const order = worn && WEIGHTS.includes(worn) ? [worn, ...WEIGHTS.filter((w) => w !== worn)] : WEIGHTS;
+  const tiers = new Map();
+  const at = (t) => { if (!tiers.has(t)) tiers.set(t, { tier: t, weights: new Set(), slots: new Set(), weapons: [] }); return tiers.get(t); };
   for (const r of residentsOf(hunt)) {
-    const rows = ((MONSTERS[r.id] || {}).drops || []).filter(isRare);
-    if (!rows.length) continue;
-    const rank = (r.boss ? 1000 : 0) + rows.length;
-    if (!best || rank >= best.rank) best = { rank, r, rows };
+    for (const d of (MONSTERS[r.id] || {}).drops || []) {
+      const it = d && d.band === 'scarce' && ITEMS[d.id];
+      if (!it) continue;
+      const e = at(Number(it.tier) || 1), w = ARMOUR_WEIGHT[it.armourClass];
+      if (it.type === 'armor' && w && SLOT_WORDS[it.slot]) { e.weights.add(it.armourClass); e.slots.add(it.slot); }
+      else if (!e.weapons.includes(nameOf(d.id))) e.weapons.push(nameOf(d.id));
+    }
   }
-  return best ? { carrier: { id: best.r.id, name: best.r.name }, items: best.rows.map((d) => ({ id: d.id, name: (ITEMS[d.id] && ITEMS[d.id].n) || d.id })) } : null;
+  return [...tiers.values()].sort((a, b) => a.tier - b.tier).map((e) => ({
+    tier: e.tier,
+    lines: order.map((w) => [...e.weights].find((c) => ARMOUR_WEIGHT[c] === w)).filter(Boolean).map((c) => armourLineWord(c, e.tier)),
+    slots: Object.keys(SLOT_WORDS).filter((sl) => e.slots.has(sl)).map((sl) => SLOT_WORDS[sl]),
+    weapons: e.weapons,
+  }));
+}
+
+/** Every Rare and Trophy item here and its carrier, Rares first: [{ id, name, trophy, carrier: { id, name } }]. */
+export function raresOf(hunt) {
+  const out = [];
+  for (const r of residentsOf(hunt)) {
+    for (const d of ((MONSTERS[r.id] || {}).drops || []).filter(isRare)) {
+      if (!out.some((x) => x.id === d.id && x.carrier.id === r.id)) out.push({ id: d.id, name: nameOf(d.id), trophy: bandOf(d) === 'trophy', carrier: { id: r.id, name: r.name } });
+    }
+  }
+  return out.sort((a, b) => Number(a.trophy) - Number(b.trophy));
 }

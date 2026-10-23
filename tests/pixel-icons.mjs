@@ -55,7 +55,12 @@ const KNOWN_TWINS = [['crown_of_the_fallen_king', 'crown_shard'],
      Asset Director draws Grayjaw's gray neck ruff (no generated art in that lane). */
   ['grayjaws_ruff', 'houndskin_cloak'],
   /* The Warrens' two new tier-3 Rares (loot bands batch 4) wear their tier-2 rung's icon until steel heads and a willow stock are drawn. */
-  ['steel_hatchets', 'iron_hatchets'], ['steel_hatchets', 'practice_hatchets'], ['willow_crossbow', 'oak_crossbow'], ['willow_crossbow', 'practice_crossbow']];
+  ['steel_hatchets', 'iron_hatchets'], ['steel_hatchets', 'practice_hatchets'], ['willow_crossbow', 'oak_crossbow'], ['willow_crossbow', 'practice_crossbow'],
+  /* The Cellar's and the Warrens' imbuement items and the two boss Trophies (loot bands phase C) wear a near item's
+     icon until their own are drawn: a hide, a stinger, a copper fleck, a shiv, a pot, a lash, tallow, two crowns. */
+  ['giant_rat_hide', 'wolf_pelt'], ['hive_wasp_stinger', 'venom_sac'], ['glowing_copper_fleck', 'copper_ore'], ['skulkers_shiv', 'bronze_knife'],
+  ['dented_copper_pot', 'copper_bar'], ['foremans_lash', 'snare_wire'], ['coppercaps_tallow', 'slime_gel'],
+  ['rat_kings_crown', 'crown_of_the_fallen_king'], ['rat_kings_crown', 'crown_shard'], ['coppercaps_cauldron', 'war_crown']];
 
 /** Byte-identical icon files under two ids, except the listed twins. */
 export function checkDuplicates(dir, ids, twins = KNOWN_TWINS) {

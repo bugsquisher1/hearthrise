@@ -302,7 +302,7 @@ const MUTATIONS = {
   lucky_item:           { rule: 'a', mk: () => mutated((ms) => { lastOf(ms, 'wild_boar').id = 'wolfbone_torc'; }) },
   wrong_slot:           { rule: 'a', mk: () => mutated((ms) => { lastOf(ms, 'scarecrow').id = 'bronze_platebody'; }) },
   wrong_tier:           { rule: 'a', mk: () => mutated((ms) => { lastOf(ms, 'wild_boar').id = 'iron_belt'; }) },
-  /* worn tier-3 gear sells at 0.12 of book (loot-bands.js), so the brute's own sword is doubled to cross the 5% line */
+  /* worn tier-3 gear sells at 0.14 of book (loot-bands.js), so the brute's own sword is doubled to cross the 5% line */
   goblin_brute_total:   { rule: 'c2', mk: () => mutated((ms) => { moveSalvage(ms, 'bog_vine', 'goblin_brute'); ms.goblin_brute.drops.find((d) => d.id === 'steel_sword').ch = 0.02; }) },
   salvage_first:        { rule: 'e', mk: () => mutated((ms) => { ms.wild_boar.drops.unshift(ms.wild_boar.drops.pop()); }) },
   flag_removed:         { rule: 'e', mk: () => mutated((ms) => { delete lastOf(ms, 'wild_boar').salvage; }) },

@@ -577,8 +577,8 @@ async function run(mutate) {
     ok(cat.SHOP_BUYBACK_RATE === 0.5,
       `G1: the server caps buy-back at ${cat.SHOP_BUYBACK_RATE} of the shop price; the ruling (b565) is 0.5`);
     const LB = await import('../src/data/loot-bands.js');
-    ok(JSON.stringify(LB.VENDOR_GEAR_RATES) === '[0.5,0.5,0.12]',
-      `G1: the trader pays worn gear ${JSON.stringify(LB.VENDOR_GEAR_RATES)} of book value by tier; the ruling (Tyler 2026-10-23, loot bands) is [0.5, 0.5, 0.12]`);
+    ok(JSON.stringify(LB.VENDOR_GEAR_RATES) === '[0.5,0.5,0.14]',
+      `G1: the trader pays worn gear ${JSON.stringify(LB.VENDOR_GEAR_RATES)} of book value by tier; the ruling (Tyler 2026-10-23, loot bands) is [0.5, 0.5, 0.14]`);
     const { ITEMS } = await import('../src/data/items.js');
     /* THE RULING'S NUMBERS, per unit, as the server pays them. */
     const BUYBACK_EXPECT = {

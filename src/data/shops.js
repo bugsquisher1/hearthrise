@@ -637,7 +637,7 @@ export const DERIVED_PRICES = [
     "formula": "v = gear (weapon/armor/offhand/jewelry) ? max(1, floor(book * VENDOR_GEAR_RATES[tier])) : book; min(ITEMS[id].raw ? max(1, floor(v * VENDOR_RAW_RATE)) : v, max(1, floor(SHOP_BUYBACK_RATE * cheapest shop unit price)))   (cap only if the shop sells it)",
     "params": {
       "VENDOR_RAW_RATE": 0.2,
-      "VENDOR_GEAR_RATES": [0.5, 0.5, 0.12],
+      "VENDOR_GEAR_RATES": [0.5, 0.5, 0.14],
       "SHOP_BUYBACK_RATE": 0.5
     },
     "server_needs": "CLOSED — the edge prices every sale with vendorPriceOf from ITEMS and this catalogue (src/core/shop-buyback.js derives the cheapest unit price for both sides)."

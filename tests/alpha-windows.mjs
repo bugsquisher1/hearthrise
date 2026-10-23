@@ -331,7 +331,8 @@ async function pure() {
 /* AW-25 .. AW-28 PURE: the Hunts page's facts from the data rows and its lines from the server's sections. */
 async function huntsPure(imp) {
   const fails = [];
-  const { residentsOf, rareOf } = await imp('src/shell/hunt-ground-facts.js');
+  const { residentsOf, scarceSetOf, raresOf, wornWeightOf } = await imp('src/shell/hunt-ground-facts.js');
+  const { MONSTERS } = await imp('src/data/monsters.js');
   const { huntRows, fitWords, bestLine, bestWords } = await imp('src/shell/hunt-list.js');
   const { setupsOf, beforeLines, freeHeroes } = await imp('src/shell/hunt-go.js');
   const STORE = FIXTURE.hunt_settings.store;
@@ -341,11 +342,20 @@ async function huntsPure(imp) {
   const thicket = residentsOf('meadowbrook_thicket').map((m) => m.id + ':' + m.band).join();
   if (thicket !== 'gray_wolf:common,gray_whelp:common,briarcoat_wolf:uncommon,dire_gray:rare,grayjaw:rare') fails.push('AW-25 the Thicket lives as ' + thicket);
   for (const r of huntRows()) if (!residentsOf(r.hunt).some((m) => m.band === 'common')) fails.push('AW-25 ' + r.hunt + ' has no common creature');
-  /* The ground's chase from the drop rows (the loot bands, 2026-10-23): the boss's Rares, else the creature with the most. */
-  const carriers = huntRows().map((r) => { const x = rareOf(r.hunt); return r.hunt + ':' + (x ? x.carrier.id + ':' + x.items.map((i) => i.id).join('+') : '-'); }).join();
-  if (carriers !== 'mill_cellar:slime:sticky_core,meadowbrook_thicket:grayjaw:alpha_fang+iron_helm+studded_helmet+adept_helmet+grayjaws_ruff,millrace_sewer:rat_king:crown_shard,'
-    + 'mosslight_glade:rook_poacher:rooks_whistle+steel_helm+boarhide_helmet+scholar_helmet,coppercap_warrens:chief_coppercap:war_crown+willow_wand+willow_spellbook+willow_staff')
-    fails.push('AW-25 the rares and carriers read ' + carriers);
+  /* What drops (the loot bands, 2026-10-23): every Rare and Trophy row of the ground's creatures, item and carrier, the
+     Trophies last, never a Scarce piece; the hourly gear a line a tier, the worn weight's line word first. */
+  for (const r of huntRows()) {
+    const want = new Set(), got = raresOf(r.hunt);
+    for (const m of residentsOf(r.hunt)) for (const d of MONSTERS[m.id].drops || []) if (d.band === 'rare' || d.band === 'trophy') want.add(d.id + '@' + m.id);
+    const ids = got.map((x) => x.id + '@' + x.carrier.id);
+    if (ids.length !== want.size || ids.some((k) => !want.has(k))) fails.push('AW-25 ' + r.hunt + ' rares read ' + ids.join('+') + ', the rows say ' + [...want].join('+'));
+    if (got.some((x, i) => x.trophy && got.slice(i + 1).some((y) => !y.trophy))) fails.push('AW-25 ' + r.hunt + ' lists a Trophy before a Rare');
+  }
+  const sets = (h, w) => scarceSetOf(h, w).map((e) => e.lines.join(',') + ':' + e.slots.join(',') + ':' + e.weapons.join(',')).join('|');
+  if (sets('millrace_sewer', 'medium') !== 'Leather,Bronze,Apprentice:bodies,legs:|Studded,Iron,Adept:helmets,boots:Iron Sword') fails.push('AW-25 the Sewer\'s gear reads ' + sets('millrace_sewer', 'medium'));
+  if (sets('mosslight_glade', null) !== 'Iron,Studded,Adept:helmets,bodies,legs,boots:Longbow') fails.push('AW-25 the glade\'s gear for no worn weight reads ' + sets('mosslight_glade', null));
+  const worn = [wornWeightOf({ helmet: 'leather_helmet', body: 'bronze_platebody', pants: 'leather_pants' }), wornWeightOf({ weapon: 'practice_sword' }), wornWeightOf({ helmet: 'adept_helmet', body: 'iron_platebody' })].join();
+  if (worn !== 'medium,,heavy') fails.push('AW-25 the worn weight reads ' + worn);
   /* The list line: the band against the Level in words and a tone; the best, or New. */
   const rows = Object.fromEntries(huntRows().map((r) => [r.hunt, r]));
   const fits = [[rows.mill_cellar, 1], [rows.meadowbrook_thicket, 1], [rows.mosslight_glade, 1], [rows.mill_cellar, 20], [rows.mill_cellar, null]].map(([r, lv]) => { const f = fitWords(r, lv); return f ? f.tone + ':' + f.words : '-'; }).join('|');
@@ -906,7 +916,10 @@ async function checks(overrides, shots) {
         const page1 = () => page.evaluate((w) => {
           const d = document.querySelector(w + '.hw-hunt-detail');
           const vis = (q) => { const n = d.querySelector(q); return n && n.getClientRects().length ? n.textContent : null; };
-          return { name: vis('.hw-hd-name'), theme: vis('.hw-hd-theme'), rare: vis('.hw-hd-rare-name'), by: vis('.hw-hd-rare-by'),
+          return { name: vis('.hw-hd-name'), theme: vis('.hw-hd-theme'),
+            sets: Array.from(d.querySelectorAll('.hw-hd-set')).map((n) => n.textContent),
+            rares: Array.from(d.querySelectorAll('.hw-hd-rare')).map((n) => n.querySelector('.hw-hd-rare-name').textContent + ' / ' + n.querySelector('.hw-hd-rare-by').textContent + (n.classList.contains('is-trophy') ? ' (trophy)' : '')),
+            raresShown: (() => { const h = d.querySelector('.hw-hd-rares'); return !!h && h.getClientRects().length > 0; })(),
             mons: Array.from(d.querySelectorAll('.hw-hd-mon')).map((li) => { const c = li.querySelector('canvas'), b = c.getBoundingClientRect(), st = li.querySelector('.hw-hd-stand').getBoundingClientRect();
               return { id: li.dataset.monster, how: li.querySelector('.hw-hd-mon-how').textContent, drawn: li.classList.contains('is-drawn'), carrier: li.classList.contains('is-carrier'),
                 w: c.width, h: c.height, cw: b.width, ch: b.height, ground: Math.round(st.bottom), inside: b.top >= st.top - 0.5 }; }),
@@ -917,9 +930,9 @@ async function checks(overrides, shots) {
         if (!drawn || p.mons.some((m) => !m.drawn || !m.w || m.w % 2 || m.h % 2 || Math.abs(m.cw - m.w) > 0.5 || Math.abs(m.ch - m.h) > 0.5)) fails.push('AW-25 the creatures are not drawn at x2 from the world art: ' + JSON.stringify(p.mons));
         if (new Set(p.mons.map((m) => m.ground)).size !== 1 || p.mons.some((m) => !m.inside)) fails.push('AW-25 the creatures do not stand on one ground line, inside it: ' + JSON.stringify(p.mons.map((m) => [m.ground, m.inside])));
         const mons = p.mons.map((m) => m.id + ':' + m.how + (m.carrier ? ':carrier' : '')).join('|');
-        if (p.name !== 'Mill Cellar' || p.theme !== HUNTS.mill_cellar.theme || mons !== 'rat:Level 2 · common|slime:Level 2 · uncommon:carrier|hive_wasp:Level 4 · uncommon')
+        if (p.name !== 'Mill Cellar' || p.theme !== HUNTS.mill_cellar.theme || mons !== 'rat:Level 2 · common|slime:Level 2 · uncommon|hive_wasp:Level 4 · uncommon')
           fails.push('AW-25 the Mill Cellar page reads ' + JSON.stringify({ name: p.name, theme: p.theme, mons }));
-        if (p.rare !== 'Sticky Core' || p.by !== 'Rare drop. Carrier: Slime') fails.push('AW-25 the rare line reads ' + JSON.stringify([p.rare, p.by]));
+        if (p.sets.join('|') !== 'Bronze, Leather, Apprentice: helmets' || p.rares.length || p.raresShown) fails.push('AW-25 the Cellar\'s drops read ' + JSON.stringify([p.sets, p.rares, p.raresShown]));
         if (p.bests.join('|') !== 'Not hunted yet. A hunt of 10 min or more sets your best.') fails.push('AW-25 with no best the page reads ' + JSON.stringify(p.bests));
         if (shots) await shot(page, 'hunts-1440x900-cellar-level1');
         /* The server's best arrives: the line and the page take it (replaced, never kept from before). */
@@ -999,7 +1012,8 @@ async function checks(overrides, shots) {
         await page.click(W + '.hw-hunt[data-hunt="millrace_sewer"]');
         await wait(page, (w) => document.querySelectorAll(w + '.hw-hd-mon.is-drawn').length === 6, W, 4000);
         const sewer = await page1();
-        if (sewer.name !== 'The Sewer' || sewer.rare !== 'Crown Shard' || !sewer.mons.some((m) => m.id === 'rat_king' && m.carrier && m.how === 'Level 25 · boss')) fails.push('AW-25 the Sewer page reads ' + JSON.stringify({ name: sewer.name, rare: sewer.rare, mons: sewer.mons.map((m) => m.id + ':' + m.how) }));
+        if (sewer.name !== 'The Sewer' || !sewer.rares.includes('Crown Shard / Rat King') || sewer.rares[sewer.rares.length - 1] !== 'Rat King\'s Crown / Rat King (trophy)'
+          || sewer.sets.length !== 2 || !sewer.mons.some((m) => m.id === 'rat_king' && m.carrier && m.how === 'Level 25 · boss')) fails.push('AW-25 the Sewer page reads ' + JSON.stringify({ name: sewer.name, sets: sewer.sets, rares: sewer.rares, mons: sewer.mons.map((m) => m.id + ':' + m.how) }));
         const pp = await party();
         if (!pp || pp[0] !== 'Best with a party of 2–4.' || pp[1] !== 'Find a party' || !/^Your other heroes can come too/.test(pp[2])) fails.push('AW-28 the Sewer page\'s party path reads ' + JSON.stringify(pp));
         if (shots) { await page.evaluate((w) => { const b = document.querySelector(w + '.hs-win-body'); b.scrollTop = 0; }, W); await shot(page, 'hunts-1440x900-sewer'); }

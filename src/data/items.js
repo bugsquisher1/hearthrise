@@ -88,7 +88,7 @@ export const ITEMS={
   lich_soul:{n:'Lich Soul',icon:'☠️',v:800},magic_essence:{n:'Magic Essence',icon:'✨',v:50},
   rune_frag:{n:'Rune Fragment',icon:'🔷',v:30},ancient_rune:{n:'Ancient Rune',icon:'🔮',v:300},
   dragon_gem:{n:'Dragon Gem',icon:'💎',v:2000},ruby:{n:'Ruby',icon:'❤️',v:400},
-  sticky_core:{n:'Sticky Core',icon:'🟢',v:35},rat_tail:{n:'Rat Tail',icon:'🐀',v:6},
+  rat_tail:{n:'Rat Tail',icon:'🐀',v:6},
   /* The Rat King's shard (15%, ~3 an hour for a full party): sold, the sewer's profit; offered, Prayer XP. */
   crown_shard:{n:'Crown Shard',icon:'👑',v:150},small_fang:{n:'Small Fang',icon:'🦷',v:15},
   bone_chips:{n:'Bone Chips',icon:'🦴',v:10},ancient_fragment:{n:'Ancient Fragment',icon:'🏺',v:85},goblin_totem:{n:'Goblin Totem',icon:'🗿',v:120},
@@ -97,6 +97,9 @@ export const ITEMS={
   dire_fang:{n:'Dire Fang',icon:'🦷',v:150},alpha_fang:{n:'Alpha Fang',icon:'🦷',v:450},grave_dust:{n:'Grave Dust',icon:'⚱️',v:95},
   /* Mosslight Glade's rare (lane c-ground-16-31): Rook the Poacher, the ground's one carrier. */
   rooks_whistle:{n:'Rook\'s Whistle',icon:'🎶',v:500},
+  /* The bosses' Trophies (designer 2026-10-23): each boss's one named prize, about every 140 h, tradeable. */
+  rat_kings_crown:{n:'Rat King\'s Crown',icon:'👑',v:4000,type:'trophy',tag:'trophy',rarity:'legendary'},
+  coppercaps_cauldron:{n:'Coppercap\'s Cauldron',icon:'🥘',v:7500,type:'trophy',tag:'trophy',rarity:'legendary'},
   /* Old Grayjaw's Rare (loot redesign 2026-10-23): a cape for any build, more guard than the Traveler Cape and a
      little crit, at the Woollen Cloak's gate, short of the Houndskin Cloak (slot-ladders.js); the tier-2 cape value. */
   grayjaws_ruff:{n:'Grayjaw\'s Ruff',icon:'🦸',v:310,type:'armor',slot:'cape',armourClass:'cape',defB:3,critB:.01,tier:2,rarity:'uncommon',reqSkill:'defense',reqLv:12},
@@ -115,7 +118,8 @@ export const ITEMS={
   razor_claw:{n:'Razor Claw',icon:'爪',v:360},death_steel:{n:'Death Steel',icon:'⚙️',v:550},captains_ribblade:{n:"Captain's Ribblade",icon:'🗡️',v:1800,type:'weapon',slot:'weapon',weaponType:'sword',atkB:19,strB:15,reqSkill:'melee',reqLv:30},
   hollow_sigil:{n:'Hollow Sigil',icon:'🔯',v:1400},void_core:{n:'Void Core',icon:'⚫',v:2200},war_crown:{n:'War Crown',icon:'👑',v:2500},
   ancient_claw:{n:'Ancient Claw',icon:'爪',v:1600},chief_blade:{n:"Chief's Blade",icon:'🗡️',v:900,type:'weapon',slot:'weapon',weaponType:'sword',atkB:13,strB:11,reqSkill:'melee',reqLv:15},alpha_cloak:{n:'Alpha Cloak',icon:'🦸',v:1500,type:'armor',slot:'cape',defB:5,atkB:2,reqSkill:'defense',reqLv:30},
-  leather_boots:{n:'Leather Boots',icon:'🥾',v:90,type:'armor',slot:'boots',defB:2},
+  /* v 90 -> 35, its ladder value (gear-tiers.js leather boots, tier 1): at 90 it outsold the tier-2 Studded Boots (75). */
+  leather_boots:{n:'Leather Boots',icon:'🥾',v:35,type:'armor',slot:'boots',defB:2},
   /* THE SEVEN LAST UNGATED EQUIPPABLES. The 2026-09-12 sweep closed the 34 rows that
      carried a `tier`; these seven carry none, so neither reader had anything to
      gate on — `gearWieldReq` returned null AND `hr_items.req_lv` was NULL, which
@@ -145,6 +149,9 @@ export const ITEMS={
   gold_amulet:{n:'Gold Amulet',icon:'📿',v:1100,type:'jewelry',slot:'necklace',atkB:4,defB:2,reqSkill:'defense',reqLv:30},
   leather_gloves:{n:'Leather Gloves',icon:'🧤',v:80,type:'armor',slot:'gloves',atkB:1,defB:1},
   bronze_belt:{n:'Bronze Belt',icon:'🟫',v:110,type:'armor',slot:'belt',defB:2},
+  /* No piece sells under its lower-tier twin (drop-tables sale-ladder): the outfitter's belt and gloves carry their Shop book,
+     so these undropped twins are lifted to match (ladder 105 / 65 / 245); the backfill below fills their other fields. */
+  iron_belt:{n:'Iron Belt',icon:'🛡️',v:110},studded_gloves:{n:'Studded Leather Vambraces',icon:'🎽',v:80},boarhide_gloves:{n:'Boarhide Vambraces',icon:'🎽',v:290},
   /* ⚠ v:1, NOT v:60 — DO NOT "RESTORE" THE OLD NUMBER (2026-08-18, reported as
      "you get 500-ish arrows per craft"; the arrows were fine, this was not).
 

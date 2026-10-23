@@ -201,7 +201,7 @@ const MUTANTS = [
   ['SB-1', 'the walk scene drops its fixed props (no sign)', 'src/world/walk-scene.js', 'props: o.props && o.props.length ? props.concat(o.props) : props,', 'props,'],
   ['SB-2', 'the sandbox compiled on the base grid', 'src/world/core/map-compile.js', '  const grid = gridOf(row.grid);', '  const grid = gridOf(null);'],
   ['SB-4', 'the wanderer ignores its leash', 'src/world/sandbox-scene.js', '  for (let y = home[1] - row.leash; y <= home[1] + row.leash; y++) {\n    for (let x = home[0] - row.leash; x <= home[0] + row.leash; x++) {', '  for (let y = 0; y < map.h; y++) {\n    for (let x = 0; x < map.w; x++) {'],
-  ['SB-7', 'the sandbox loads the hunt engine', 'src/world/sandbox-scene.js', "import { GRIDS } from '../data/world/art-budget.js?v=0.2.33';", "import { GRIDS } from '../data/world/art-budget.js?v=0.2.33';\nimport '../core/combat-sim.js?v=0.2.33';"],
+  ['SB-7', 'the sandbox loads the hunt engine', 'src/world/sandbox-scene.js', '/* A small seeded generator', "import '../core/combat-sim.js';\n/* A small seeded generator"],
 ];
 
 async function main() {

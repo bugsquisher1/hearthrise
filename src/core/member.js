@@ -348,7 +348,7 @@ export function sharePurses(sides) {
    (tests/hunt-live.mjs LV-P). */
 export const FROZEN_KEYS = Object.freeze(['hp', 'maxHp', 'maxMana', 'regenPm', 'snap', 'vs', 'family', 'armoured', 'shield', 'hero', 'session']);
 export const FROZEN_SESSION_KEYS = Object.freeze(['huntFromMs', 'nextSwingAtMs', 'swingIndex', 'bag', 'basics', 'shop',
-  'supplySource', 'onEmpty', 'goldFloor', 'leaveAtMs', 'changeAtMs', 'stopAtMs']);
+  'supplySource', 'onEmpty', 'goldFloor', 'leaveAtMs', 'changeAtMs', 'stopAtMs', 'kicked']);
 const finiteOr = (v, d) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 
 /** The frozen numbers of an assembled member side at server instant `atMs`, against the monster `kinds`. */

@@ -159,8 +159,9 @@ export const WORLD_FIELDS_READ = Object.freeze({
    (2026-11-23, now history). WHO HOLDS THE PACK (lane/b-tank-choice, Tyler 2026-10-22): the world gains `hold` / `holdNext`
    (targeting.js), so hr_hunt_world_shape changes: ONE forward file after the v0.2.32 sequence (its newest file is 2026-12-08-party-hold.sql). */
 /* LEAVE TOGETHER (lane/b-party-leave-together, Tyler 2026-10-22): END_ORDER gains `party_member_left`; 2026-12-09 is APPLIED
-   (v0.2.32, history), so ONE forward file, dated after the 12-14..12-17 files (applied 12-14 shared-farm; staged 12-15 account-gold,
-   12-16 own-drinks-settle, 12-17 beta-premium) and applied right before 2026-12-18-party-leave-together.sql. */
+   (v0.2.32, history), so ONE forward file, dated after the APPLIED 12-14..12-17 files (shared-farm, account-gold,
+   own-drinks-settle, beta-premium) and applied right before 2026-12-18-party-leave-together.sql: the forward file the loot and
+   tally lanes regenerate on top of. */
 export const OUT_NAME = '2026-12-18-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
@@ -557,7 +558,7 @@ export function render(src) {
 -- leaves the hunt or dies"): END_ORDER gains \`party_member_left\` (a ticked hero sent
 -- home by another member's end; RESUME_AFTER_END too), so hr_hunt_end_reasons and
 -- hunt_sessions.end_reason's CHECK are rewritten; the world's shape is unchanged.
--- Applies after the 12-14..12-17 files and right BEFORE 2026-12-18-party-leave-together.sql
+-- Applies after the APPLIED 12-14..12-17 files and right BEFORE 2026-12-18-party-leave-together.sql
 -- (which proves the end).
 -- Carried from 12-09 (lane b-tank-choice, Tyler 2026-10-22 "One tank holds"): the
 -- world's shape gains hold / holdNext (src/core/hunt/targeting.js), so

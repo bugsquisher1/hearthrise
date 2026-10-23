@@ -367,6 +367,9 @@ export function newHuntSession(o) {
     died: s.died === true,
     /* Sent home by another member's end (LEAVE TOGETHER): 'died' | 'left' | null, a flag of the span. */
     partyEnd: s.partyEnd === 'died' || s.partyEnd === 'left' ? s.partyEnd : null,
+    /* The leader removed this member (the server's read: still hunting in its party's instance, no longer seated):
+       its end sends nobody home (Coordinator ruling 2026-10-23; combat-sim.js cascadeFrom). */
+    kicked: s.kicked === true,
     hoursLimit: s.hoursLimit === null || s.hoursLimit === undefined ? null : int(s.hoursLimit, null),
     /* THE STORE: the server's catalogue (the bar's slots choose the row), the
        purse it is paid from, and "a buy failed". */

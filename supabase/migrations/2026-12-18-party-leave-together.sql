@@ -13,6 +13,8 @@
 -- `party_member_left` (`party_member_died` after a death) and goes home; the
 -- party stays together. Nobody can end another hero's hunt except through that
 -- hero's own box. Leave hunt is unchanged; there is no "whole party" button.
+-- A KICK sends nobody home (Coordinator ruling 2026-10-23, the designer's call):
+-- when the leader removes a member, that member's end cascades to no one.
 --
 -- ── THE CONTRACT ────────────────────────────────────────────────────────────
 -- §1 player_state.party_leave_together boolean NOT NULL DEFAULT true (per hero:
@@ -33,8 +35,10 @@
 --        is projected), the `party` section the party panel reads.
 --    (b) hr_hunt_instance_read (the 2026-12-11-hunt-deploy-no-forfeit.sql image):
 --        each member carries `leave_together`, the engine's input
---        (hunt-settle.js memberInput -> hunt-spawn.js heroSetup leaveTogether).
---    (c) hr_hunt_settle_session (the 2026-12-16-own-drinks-settle.sql image, own heal / mana / ammo): the
+--        (hunt-settle.js memberInput -> hunt-spawn.js heroSetup leaveTogether), and
+--        `kicked`: still hunting in its party's instance but no longer seated in it
+--        (only hr_hunt_party_kick does that; its end sends nobody home).
+--    (c) hr_hunt_settle_session (the 2026-12-15-account-gold.sql image, own heal / mana / ammo kept): the
 --        two cascade ends are proven from server state: `party_member_died`
 --        (restated) and `party_member_left` (new) hold only when THIS hero's box
 --        is ticked and its instance holds another member. The end can only stop
@@ -48,7 +52,8 @@
 --    ONE instance settle every end goes through (player door and tick alike):
 --    a member's OWN end at a boundary (left, changed, stamina, hours, rule,
 --    gold, supplies, server) or its death in a swing flags every other member
---    standing in the world with the box ticked; each ends at its own next
+--    standing in the world, or walking in and arriving by that instant, with the
+--    box ticked (a kicked member's end flags nobody); each ends at its own next
 --    boundary (the same instant: the world steps in lockstep), paid for every
 --    swing up to it in the SAME settle (the value half lands before the end:
 --    hr_hunt_apply_member applies hr_apply, then hr_hunt_settle_session closes).
@@ -73,13 +78,12 @@
 --
 -- ── REVERSIBILITY ───────────────────────────────────────────────────────────
 -- Re-apply hr_hunt_party_view's 2026-12-08 image, hr_hunt_instance_read's
--- 2026-12-11 image, hr_hunt_settle_session's 2026-12-16 image and hr_hunt_view's
+-- 2026-12-11 image, hr_hunt_settle_session's 2026-12-15 image and hr_hunt_view's
 -- 2026-11-20 image (each this file's §3 anchor reversed); drop
 -- hr_party_leave_together_set and its baseline row; drop the column.
 -- ORDER: after 2026-12-11-hunt-deploy-no-forfeit.sql (it splices that file's
--- engine read), after the 12-14..12-17 files (12-14 shared-farm APPLIED; any of
--- 12-15 account-gold that restates a body pinned in §0 lands first and this file
--- is re-pinned to its image; 12-16 own-drinks-settle is APPLIED and pinned), and right after
+-- engine read), after the APPLIED 12-14..12-17 files (12-15 account-gold's settle
+-- image is the one pinned in §0), and right after
 -- 2026-12-18-hunt-sessions-catalogue.generated.sql (END_ORDER's
 -- `party_member_left`, which §0 requires). EDGE: hr-accrue
 -- redeploys with this lane (combat-sim.js, action-rules.js, hunt-spawn.js,
@@ -101,8 +105,8 @@ begin
   -- means another file moved it, and this file is re-pinned to that image before it applies.
   for r in select * from (values
     ('public.hr_hunt_party_view(uuid,integer)', 'e6d923becbd6ce9aaa8025b4bfde3dae', '58c59eb6fbb925730513c9c69aff6a12', '2026-12-08-party-hold.sql'),
-    ('public.hr_hunt_instance_read(uuid,integer)', '3d609ccfd94bc06556ca0f4d89e7fad8', '47f6e5ad85fd50efdd3f2bc81ff07020', '2026-12-11-hunt-deploy-no-forfeit.sql'),
-    ('public.hr_hunt_settle_session(uuid,integer,uuid,jsonb)', '07d806dc20d0aec69469eab02984cc8e', 'b7e101272da9290a171bf2eedcdcfce1', '2026-12-16-own-drinks-settle.sql'),
+    ('public.hr_hunt_instance_read(uuid,integer)', '3d609ccfd94bc06556ca0f4d89e7fad8', '7f2929c8a9767871ab130ca6fe71ca98', '2026-12-11-hunt-deploy-no-forfeit.sql'),
+    ('public.hr_hunt_settle_session(uuid,integer,uuid,jsonb)', '446456a4c99e80763279b3c463b5cd29', '5341d7365d12b781871382e7befd0be4', '2026-12-15-account-gold.sql'),
     ('public.hr_hunt_view(uuid)', '47f89f03cba945eb5e9766414995dbc8', 'dbca94279b409132729b9bf2c32b35da', '2026-11-20-hunt-forfeit-durable.sql')
   ) p(sig, pre, post, src) loop
     select md5(replace(prosrc, chr(13), '')) into v_md5 from pg_proc where oid = to_regprocedure(r.sig);
@@ -176,7 +180,13 @@ begin
     v_old := $a$'user', h.user_id, 'slot', h.slot, 'seat', h.seat, 'unit_id', h.unit_id,$a$;
     v_new := $a$'user', h.user_id, 'slot', h.slot, 'seat', h.seat, 'unit_id', h.unit_id,
                  -- LEAVE-TOGETHER (2026-12-18-party-leave-together.sql): the member's own box (combat-sim.js cascadeFrom).
-                 'leave_together', (select ps.party_leave_together from public.player_state ps where ps.user_id = h.user_id and ps.slot = h.slot),$a$;
+                 'leave_together', (select ps.party_leave_together from public.player_state ps where ps.user_id = h.user_id and ps.slot = h.slot),
+                 -- KICKED: still hunting in its party's instance but no longer seated in that party: only the leader's
+                 -- hr_hunt_party_kick does that (Leave party and Disband refuse while hunting, the sweep skips
+                 -- hunters). Its end sends nobody home (Coordinator ruling 2026-10-23).
+                 'kicked', exists (select 1 from public.hunt_parties p where p.id = v_i.id)
+                           and not exists (select 1 from public.hunt_party_members pm
+                                            where pm.party_id = v_i.id and pm.user_id = h.user_id and pm.slot = h.slot),$a$;
     v_n := (length(v_def) - length(replace(v_def, v_old, ''))) / length(v_old);
     if v_n <> 1 then raise exception 'hr_hunt_instance_read: LEAVE-TOGETHER anchor matched % times (need 1): the body moved', v_n; end if;
     execute replace(v_def, v_old, v_new);
@@ -231,7 +241,8 @@ end $mig$;
 -- settled and ends party_member_left at A0's boundary, B (unticked) hunts on; B claiming the cascade is refused
 -- end_not_proven; the database ends nobody on its own (no loop); end_by names A0; (d) B settles on alone;
 -- (e) a death cascades: the party starts again together (boxes as set), A0 dies, A1 ends party_member_died,
--- B's claim is refused, B hunts on; (f) the grants and the splices, each once.
+-- B's claim is refused, B hunts on; (g) the engine's read flags B kicked only once the leader removes it;
+-- (f) the grants and the splices, each once.
 do $$
 declare
   v_a  constant uuid := '000000c0-0000-4000-a000-00005ea70001';
@@ -470,6 +481,15 @@ begin
        or public.hr_hunt_view(v_sa1)->>'end_by' is distinct from 'Probe Leave A' then
       raise exception 'VERIFY(e): the death window answered % (A0 %, A1 %, B open %)', v, (select end_reason from public.hunt_sessions where id = v_sa0),
         (select end_reason from public.hunt_sessions where id = v_sa1), (select ended_at is null from public.hunt_sessions where id = v_sb); end if;
+    -- (g) THE KICK FLAG: B, still hunting, reads kicked only once its leader removes it (its end then sends nobody home).
+    if public.hr_hunt_instance_read(v_b, 0)->'members'->0->'kicked' is distinct from 'false'::jsonb then
+      raise exception 'VERIFY(g): a seated hunter reads kicked %', public.hr_hunt_instance_read(v_b, 0)->'members'; end if;
+    perform set_config('request.jwt.claim.sub', v_a::text, true);
+    delete from public.hr_rate_counters where user_id = any (v_u);
+    v := public.hr_hunt_party_kick(0, (select seat from public.hunt_party_members where party_id = v_pid and user_id = v_b and slot = 0),
+                                   (k || '5ea70150')::uuid);
+    if coalesce(v->>'leaving', '') <> 'true' or public.hr_hunt_instance_read(v_b, 0)->'members'->0->'kicked' is distinct from 'true'::jsonb then
+      raise exception 'VERIFY(g): the kick answered % and the read says kicked %', v, public.hr_hunt_instance_read(v_b, 0)->'members'->0->'kicked'; end if;
 
     -- (f) THE GRANTS.
     if not has_function_privilege('authenticated', 'public.hr_party_leave_together_set(integer,boolean,uuid)', 'execute')
@@ -486,15 +506,15 @@ begin
   perform set_config('request.jwt.claim.sub', '', true);
   if exists (select 1 from public.player_state where user_id = any (v_u)) or to_regprocedure('pg_temp.hr_plt_settle(uuid,bigint,jsonb)') is not null then
     raise exception 'VERIFY: §4 LEAKED a probe row or function'; end if;
-  -- (f) THE OWN-DRINKS RULE SURVIVES THE SPLICE: own uses may be heal, mana or ammo (2026-12-16-own-drinks-settle.sql).
+  -- (f) THE OWN-DRINKS RULE SURVIVES THE SPLICE: own uses may be heal, mana or ammo (2026-12-16-own-drinks-settle.sql, kept by 2026-12-15-account-gold.sql).
   if (select strpos(prosrc, 'OWN-DRINKS') = 0 or strpos(prosrc, 'v_kind is distinct from ''mana''') = 0
         from pg_proc where oid = 'public.hr_hunt_settle_session(uuid,integer,uuid,jsonb)'::regprocedure) then
     raise exception 'VERIFY(f): the settle lost the own-drinks (mana) rule'; end if;
   -- (f) EACH SPLICE ONCE, AND EACH BODY IS §0's POST PIN (so a second apply passes §0 and moves no body).
   for v in select jsonb_build_object('sig', p.sig, 'post', p.post) from (values
     ('public.hr_hunt_party_view(uuid,integer)', '58c59eb6fbb925730513c9c69aff6a12'),
-    ('public.hr_hunt_instance_read(uuid,integer)', '47f6e5ad85fd50efdd3f2bc81ff07020'),
-    ('public.hr_hunt_settle_session(uuid,integer,uuid,jsonb)', 'b7e101272da9290a171bf2eedcdcfce1'),
+    ('public.hr_hunt_instance_read(uuid,integer)', '7f2929c8a9767871ab130ca6fe71ca98'),
+    ('public.hr_hunt_settle_session(uuid,integer,uuid,jsonb)', '5341d7365d12b781871382e7befd0be4'),
     ('public.hr_hunt_view(uuid)', 'dbca94279b409132729b9bf2c32b35da')) p(sig, post) loop
     v_role := v->>'sig';
     if (select (length(prosrc) - length(replace(prosrc, 'LEAVE-TOGETHER', ''))) / length('LEAVE-TOGETHER')

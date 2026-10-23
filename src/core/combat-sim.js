@@ -137,16 +137,19 @@ function die(m, f, out) {
   out.events.push(makeEvent('death', f.atMs, { monster: f.monster, xpLost }));
 }
 
-/* LEAVE TOGETHER (Tyler 2026-10-22): `m`'s hunt ends `why`. A cascaded end (another member's) is never a
-   trigger, so two ticked heroes never send each other home in a loop. The cascade reaches each OTHER member
-   standing in the world (a unit: one still walking in has not joined the hunt) whose box is ticked, that has
-   not died and has no end of its own at this instant (`own`), once (the first trigger names the reason).
-   The flagged member ends at its own next boundary through END_ORDER. */
+/* LEAVE TOGETHER (Tyler 2026-10-22): `m`'s hunt ends `why` at the instant `at`. A cascaded end (another
+   member's) is never a trigger, so two ticked heroes never send each other home in a loop; nor is any end of a
+   member the leader removed (a kick sends nobody home, Coordinator ruling 2026-10-23: hs.kicked, the server's
+   read). The cascade reaches each OTHER member standing in the world, or walking in and arriving by `at` (it
+   ends on arrival, before it joins), whose box is ticked, that has not died and has no end of its own at this
+   instant (`own`), once (the first trigger names the reason). The flagged member ends at its own next
+   boundary through END_ORDER. */
 const CASCADE = Object.freeze(['party_member_died', 'party_member_left']);
-function cascadeFrom(m, why, members, own) {
-  if (!why || CASCADE.includes(why)) return;
+function cascadeFrom(m, why, members, own, at) {
+  if (!why || CASCADE.includes(why) || m.hs.kicked === true) return;
   for (const o of members) {
-    if (o === m || o.left || o.unitId === null || o.hs.died || o.hs.partyEnd || (own && own.has(o))) continue;
+    if (o === m || o.left || o.hs.died || o.hs.partyEnd || (own && own.has(o))) continue;
+    if (o.unitId === null && !(o.hs.nextSwingAtMs <= at)) continue;
     if (o.hero && o.hero.leaveTogether === true) o.hs.partyEnd = why === 'died' ? 'died' : 'left';
   }
 }
@@ -234,7 +237,7 @@ export function simulateHuntInstance(inst, ctx) {
       const why = endReasonAt(m.hs, atMs);
       if (why && !CASCADE.includes(why)) own.set(m, why);
     }
-    for (const [m, why] of own) cascadeFrom(m, why, members, own);
+    for (const [m, why] of own) cascadeFrom(m, why, members, own, atMs);
     // (1) Each member at this boundary: the end checks, then a paid interval.
     const here = [];
     for (const m of members) {
@@ -315,7 +318,7 @@ export function simulateHuntInstance(inst, ctx) {
         const o = out.get(m.key);
         if (!m.hs.died) o.deaths += 1;
         die(m, f, o);
-        cascadeFrom(m, 'died', members, null);
+        cascadeFrom(m, 'died', members, null, m.hs.nextSwingAtMs);
       }
       for (const [id, m] of byUnit) {
         const u = world.units.find((x) => x.id === id);
@@ -342,9 +345,9 @@ export function simulateHuntInstance(inst, ctx) {
       stamped.set(m, endReasonAt(m.hs, m.hs.nextSwingAtMs) || 'gold_out');
     }
   }
-  for (const [m, why] of stamped) cascadeFrom(m, why, members, stamped);
+  for (const [m, why] of stamped) cascadeFrom(m, why, members, stamped, m.hs.nextSwingAtMs);
   for (const m of members) {
-    if (m.left || m.unitId === null || !(stamped.has(m) || m.hs.partyEnd)) continue;
+    if (m.left || !(stamped.has(m) || m.hs.partyEnd)) continue;
     const next = m.hs.nextSwingAtMs;
     endMember(m, stamped.get(m) || endReasonAt(m.hs, next) || 'gold_out', next, world, out.get(m.key));
   }

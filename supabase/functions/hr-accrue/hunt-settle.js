@@ -426,7 +426,9 @@ async function memberInput(exec, m, inst) {
     user: String(m.user), slot: Number(m.slot), seat: Number(m.seat) || 0,
     unitId: Number.isInteger(m.unit_id) ? m.unit_id : null,
     sessionId: String(m.session.id), version: env.version, huntId: String(inst.hunt),
-    huntSession: huntSessionFromRead(m.session, inst.id),
+    /* KICKED (hr_hunt_instance_read `kicked`, 2026-12-18-party-leave-together.sql): a member the leader removed; its end
+       sends nobody home (Coordinator ruling 2026-10-23). */
+    huntSession: { ...huntSessionFromRead(m.session, inst.id), kicked: m.kicked === true },
     skills: e.skills, levelXp: e.levelXp, xpFrac: e.xpFrac, hp: e.hp, gold: e.gold,
     equipment: e.equipment, inventory: e.inventory, buffs: e.buffs,
     deathsTodayBefore: e.deathsTodayBefore, deathsLifetimeBefore: e.deathsLifetimeBefore,

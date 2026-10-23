@@ -53,6 +53,7 @@ export const SCENE_TIMING = Object.freeze({
   corpseFadeMs: 2000,   // it fades out over its last 2 s
   flashMs: 120,         // a hit's white flash
   riseMs: 400,          // a unit a reconcile finds alive after its drawn death fades back in, never pops up
+  staleMs: 1000,        // a scene not drawn for this long (another character viewed, a hidden tab) shows no one fall on its return
   floatMs: 1000,        // a floating number's life
   levelMs: 3000,        // "Level 6" over the hero when the server's Level rises (the earned moment)
 });
@@ -147,6 +148,9 @@ export function createHuntScene(o) {
   let fx = [], floats = [];
   const flash = new Map(), dead = new Map(), swing = new Map(), bleed = new Map(), cycle = new Map(), target = new Map(), risen = new Map();
   const lie = new Map();   // S6: unit -> { dir, diag }, the facing a unit fell with
+  /* S7: the client instant of the last frame drawn and the units it drew standing */
+  let drawnAt = null;
+  const standing = new Set();
   const fresh = () => o.read();
   let read = fresh();
 
@@ -406,9 +410,12 @@ export function createHuntScene(o) {
       const live = new Set(ids);
       for (const m of [flash, dead, swing, bleed, cycle, target, risen, lie]) for (const k of m.keys()) if (!live.has(k)) m.delete(k);
     }
+    drawnAt = now;
+    standing.clear();
     for (const u of ids) {
       const d = unitAt(u, now);
       if (!d) continue;
+      if (!d.under) standing.add(u);
       if (u === read.viewed) hero = d;
       else units.push(d);
     }
@@ -450,6 +457,10 @@ export function createHuntScene(o) {
      * drawing follows it both ways: a monster drawn dead that the server's world holds alive fades
      * back in (never pops up off its corpse), and a monster drawn STANDING that is no longer in that
      * world falls where it stands (left drawn, it stood at its last tile with an empty bar).
+     * S7 ONLY WHAT WAS ON SCREEN FALLS: "drawn standing" is the last frame's, and only while that frame
+     * is current (staleMs). A scene coming back (another character was viewed, a hidden tab) shows a
+     * monster that died meanwhile as gone, never falling anew at its last tile (Andy a17, v0.2.33:
+     * "switching characters brings dead monsters back on screen").
      */
     revive(alive, now) {
       if (!alive) return;
@@ -461,7 +472,11 @@ export function createHuntScene(o) {
         if (t !== null) risen.set(u, t);
       }
       if (t === null) return;
-      for (const u of tl.units()) if (!alive.has(u) && !dead.has(u) && !isHero(u)) dead.set(u, t);
+      const onScreen = drawnAt !== null && t - drawnAt <= SCENE_TIMING.staleMs;
+      for (const u of tl.units()) {
+        if (alive.has(u) || dead.has(u) || isHero(u)) continue;
+        dead.set(u, onScreen && standing.has(u) ? t : t - SCENE_TIMING.corpseMs);
+      }
     },
     /** For tests: how many effects and floats are live, and the keys played. */
     stats: () => ({ fx: fx.length, floats: floats.length, played: keys.size }),

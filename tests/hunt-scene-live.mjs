@@ -572,6 +572,43 @@ async function nodeRules(M) {
     ok('LV-18', turned === 0, `${turned} frame(s) turned a corpse to another facing`);
   }
 
+  { // LV-23 SWITCHED AWAY LONGER THAN A CORPSE LIES (Andy a17, live v0.2.33: "switching characters brings dead
+    // monsters back on screen"). Another character is viewed for 30 s while this one's hunt runs on (its polls go on,
+    // its scene is not drawn). On the way back the restart's world no longer holds what died meanwhile: no monster
+    // the server killed while the scene was away is drawn standing, and none plays its fall again on the way back
+    // (before: every one of them fell anew at its last tile the moment the pane came back). The switch is made on
+    // a frame that draws a monster standing which the server kills 2-20 s later (found by a first, unswitched run:
+    // the server's run is the same either way), so the one that was on screen when the player left is among them.
+    const killsOf = (srv, into) => { const commit = srv.commit; srv.commit = (to) => { const c = commit(to); if (c) for (const e of c.tl.hunt_events) if (e.type === 'kill' && !into.has(e.t)) into.set(e.t, e.atMs); return c; }; };
+    const mis = () => [LIVE_H.memberOf(LM, 'a', 0, 'tank', 6)];
+    const preKills = new Map(), firstUp = new Map();
+    let hooked = false;
+    await playLive(M, LM, book, mis(), 80000, ({ s, f, srv }) => {
+      if (!hooked) { hooked = true; killsOf(srv, preKills); }
+      if (s >= LIVE_H.T0 + 20000) for (const d of f.units) if (!d.under && !firstUp.has(d.unit)) firstUp.set(d.unit, s);
+    });
+    const pick = [...firstUp].find(([u, at]) => preKills.has(u) && preKills.get(u) - at >= 2000 && preKills.get(u) - at <= 20000);
+    const SW = pick ? [pick[1] + 1, pick[1] + 30001] : [LIVE_H.T0 + 40000, LIVE_H.T0 + 70000];
+    const killedAt = new Map();   // unit -> the server instant its kill was committed at
+    let standing = 0, fell = 0, framesAfter = 0;
+    const ids = new Set();
+    hooked = false;
+    await playLive(M, LM, book, mis(), 80000, ({ s, f, srv }) => {
+      if (!hooked) { hooked = true; killsOf(srv, killedAt); }
+      if (s < SW[1]) return;
+      framesAfter++;
+      for (const d of f.units) {
+        const k = killedAt.get(d.unit);
+        if (k === undefined || k < SW[0] || k > SW[1] - 1000) continue;   // killed while away, a second or more before the return
+        if (!d.under) { standing++; ids.add(d.unit); } else if (d.anim === 'death') { fell++; ids.add(d.unit); }
+      }
+    }, { switchAt: SW });
+    const away = [...killedAt.values()].filter((k) => k >= SW[0] && k <= SW[1] - 1000).length;
+    console.log(`  LV-23 switched away ${(SW[1] - SW[0]) / 1000} s (leaving on unit ${pick && pick[0]} standing): ${away} monster(s) killed meanwhile; after the return ${standing} unit-frame(s) drew one standing, ${fell} played its fall (${[...ids].slice(0, 6).join(', ')})`);
+    ok('LV-23', !!pick && away > 0 && framesAfter > 0, `CONTROL: no frame drew a monster standing that the server killed 2-20 s later (${!!pick}), ${away} killed while away, ${framesAfter} frames after the return`);
+    ok('LV-23', standing === 0 && fell === 0, `after the return ${standing} unit-frame(s) drew a monster killed while away standing and ${fell} played its fall again (${[...ids].slice(0, 6).join(', ')})`);
+  }
+
   { // LV-19 A UNIT DIES ONCE, AND LIES THE WAY IT FELL (Andy 10-21: "saw a corpse twitch again once dead"):
     // a second kill of a corpse (a restart re-running a death the screen played) never restarts its fall,
     // and a corpse never turns to face the hero it last swung at as that hero walks around it.
@@ -881,7 +918,13 @@ const MUTANTS = [
   ['a death inside a catch-up is not played (LV-12)', 'src/session/live-link.js', '    for (const ev of res.kills) {', '    for (const ev of []) {', /^LV-12/],
   ['a dropped event stays remembered (LV-12)', 'src/hunt-view/timeline.js', '{ seen.delete(queue[i].key); queue.splice(i, 1); }', '{ queue.splice(i, 1); }', /^LV-12/],
   ['a revived monster pops up (LV-13)', 'src/hunt-view/scene.js', '        if (t !== null) risen.set(u, t);\n', '', /^LV-13/],
-  ['a monster the restart no longer has keeps standing (LV-13)', 'src/hunt-view/scene.js', '      for (const u of tl.units()) if (!alive.has(u) && !dead.has(u) && !isHero(u)) dead.set(u, t);\n', '', /^LV-13/],
+  ['a monster the restart no longer has keeps standing (LV-13)', 'src/hunt-view/scene.js', '        dead.set(u, onScreen && standing.has(u) ? t : t - SCENE_TIMING.corpseMs);\n', '', /^LV-13/],
+  ['a monster drawn standing that the restart no longer has vanishes (LV-13)', 'src/hunt-view/scene.js',
+    '        dead.set(u, onScreen && standing.has(u) ? t : t - SCENE_TIMING.corpseMs);', '        dead.set(u, t - SCENE_TIMING.corpseMs);', /^LV-13/],
+  ['a monster killed while the scene was away falls anew on the way back (LV-23, Andy a17)', 'src/hunt-view/scene.js',
+    '        dead.set(u, onScreen && standing.has(u) ? t : t - SCENE_TIMING.corpseMs);', '        dead.set(u, t);', /^LV-23/],
+  ['the last frame never goes stale (LV-23)', 'src/hunt-view/scene.js',
+    'const onScreen = drawnAt !== null && t - drawnAt <= SCENE_TIMING.staleMs;', 'const onScreen = true;', /^LV-23/],
   ['each World pane makes its own live scene (LV-18)', 'src/hunt-view/scene.js', '  if (had && had.key === o.key) return had.scene;\n', '', /^LV-18/],
   ['a second kill of a corpse plays its fall again (LV-19)', 'src/hunt-view/scene.js', '        if (!isHero(ev.t) && dead.has(ev.t)) return true;\n', '', /^LV-19/],
   ['a corpse turns to face what it last swung at (LV-19)', 'src/hunt-view/scene.js', '          ({ dir, diag } = lie.get(u));\n', '', /^LV-19/],

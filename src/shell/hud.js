@@ -186,6 +186,39 @@ export function homeAboveBar(pane, bars, gap, bottom, boxHeight) {
 }
 
 /**
+ * THE HOME WINDOW NEVER COVERS A WIDGET (v0.2.32 visual gate, 1440x900: Chat at the bottom-left ran over the
+ * foot of a four-seat party panel, its Leave party button and "Costs are personal."). Above the bar as
+ * homeAboveBar says, and `gap` below every widget in `tops` (the World's widgets not at the bottom) whose span
+ * crosses its column: it shrinks to the room between them; when that room is under `minH` (a chat too short
+ * to use) it slides right past the widgets in its way, as far as it must. If no left clears them inside
+ * `boxWidth`, it keeps its home column and the room, however small: the widget stays readable and clickable.
+ * `pane` {left, width} is the window's HOME column; rects {left, top, width, height} in the box's px.
+ * Returns {left, bottom, max} (`max` null when nothing caps it). Pure.
+ */
+export function homeAt(pane, bars, tops, gap, bottom, box, minH) {
+  const fit = (left) => {
+    const col = { left, width: pane.width };
+    const at = homeAboveBar(col, bars, gap, bottom, box.height);
+    const foot = box.height - at.bottom;
+    const over = tops.filter((q) => q.width > 0 && q.height > 0 && q.top < foot && q.left < left + pane.width + gap && left < q.left + q.width + gap);
+    if (!over.length) return Object.assign({ left, low: [] }, at);
+    const room = (q) => Math.max(0, Math.round(foot - gap - q.top - q.height));
+    const max = Math.min(...over.map(room), at.max === null ? Infinity : at.max);
+    /* `low`: the widgets that leave it under minH (only these are slid past; a bar far above it is not) */
+    return { left, low: over.filter((q) => room(q) < minH), bottom: at.bottom, max };
+  };
+  const home = fit(pane.left);
+  let at = home;
+  for (let n = 0; n <= tops.length && at.low.length; n++) {
+    const left = Math.max(...at.low.map((q) => q.left + q.width)) + gap;
+    if (left + pane.width > box.width - gap) break;
+    at = fit(left);
+  }
+  if (at.low.length) at = home;
+  return { left: at.left, bottom: at.bottom, max: at.max };
+}
+
+/**
  * The World edges the docked HUD widgets cover, so the camera frames the
  * playable area above and beside them (the bottom bar must not sit over the
  * bottom row of a hunt). Each widget is { anchor, rect } in the World box's

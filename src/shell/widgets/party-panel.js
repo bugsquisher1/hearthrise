@@ -27,19 +27,19 @@
 // Built once; each member is a keyed row (src/render/paint.js rows), patched in
 // place. The expand toggle and the intent scratch live on the panel element.
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.34';
-import { ROLE_GLYPH } from '../../data/hunt-hud.js?v=0.2.34';
-import { partyOf, liveHpOf } from '../../session/hunt-sections.js?v=0.2.34';
-import { partyMembershipOf } from '../../session/party-sections.js?v=0.2.34';
-import { heroVitalsOf } from '../../session/character-sections.js?v=0.2.34';
-import { afterLeave, disbandParty } from '../../session/party-intents.js?v=0.2.34';
-import { runIntent } from '../intent-words.js?v=0.2.34';
-import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.34';
-import { short, whole } from '../../render/format.js?v=0.2.34';
-import { glyphSvg } from '../launcher.js?v=0.2.34';
-import { markPlayer } from '../context-menu.js?v=0.2.34';
-import { gaugeHtml, patchGauge, panelHtml } from './bits.js?v=0.2.34';
-import { turnWords, holdView, holdHtml, patchHold, holdAct } from './party-hold.js?v=0.2.34';
+import { HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.35';
+import { ROLE_GLYPH } from '../../data/hunt-hud.js?v=0.2.35';
+import { partyOf, liveHpOf } from '../../session/hunt-sections.js?v=0.2.35';
+import { partyMembershipOf } from '../../session/party-sections.js?v=0.2.35';
+import { heroVitalsOf } from '../../session/character-sections.js?v=0.2.35';
+import { afterLeave, disbandParty } from '../../session/party-intents.js?v=0.2.35';
+import { runIntent } from '../intent-words.js?v=0.2.35';
+import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.35';
+import { short, whole } from '../../render/format.js?v=0.2.35';
+import { glyphSvg } from '../launcher.js?v=0.2.35';
+import { markPlayer } from '../context-menu.js?v=0.2.35';
+import { gaugeHtml, patchGauge, panelHtml } from './bits.js?v=0.2.35';
+import { turnWords, holdView, holdHtml, patchHold, holdAct } from './party-hold.js?v=0.2.35';
 
 function memberHtml(glyphs) {
   return '<li class="hp-m">'

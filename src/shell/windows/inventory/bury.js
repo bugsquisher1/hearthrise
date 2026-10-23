@@ -29,17 +29,17 @@
 // The engine spends the WHOLE stack: it has no "this many" for a recipe, so a
 // partial run would be a client guess at the server's clock. It is not offered.
 // ════════════════════════════════════════════════════════════════════════
-import { ARTISAN_RECIPES } from '../../../data/recipes.js?v=0.2.34';
-import { SKILLS_DEF } from '../../../data/skills.js?v=0.2.34';
-import { recipeInputs } from '../../../core/artisan.js?v=0.2.34';
-import { whole } from '../../../render/format.js?v=0.2.34';
-import { itemName } from '../../widgets/bits.js?v=0.2.34';
-import { riteOf, cookOf } from '../../bag-model.js?v=0.2.34';
-import { skillsOf } from '../../../session/item-sections.js?v=0.2.34';
-import { huntOf } from '../../../session/hunt-sections.js?v=0.2.34';
-import { townActivityWords } from '../../../session/party-sections.js?v=0.2.34';
-import { startWork, stopWork, workRow, workOf, runParts } from '../../town-work.js?v=0.2.34';
-import { lineParts, lineText } from '../../town-ticker.js?v=0.2.34';
+import { ARTISAN_RECIPES } from '../../../data/recipes.js?v=0.2.35';
+import { SKILLS_DEF } from '../../../data/skills.js?v=0.2.35';
+import { recipeInputs } from '../../../core/artisan.js?v=0.2.35';
+import { whole } from '../../../render/format.js?v=0.2.35';
+import { itemName } from '../../widgets/bits.js?v=0.2.35';
+import { riteOf, cookOf } from '../../bag-model.js?v=0.2.35';
+import { skillsOf } from '../../../session/item-sections.js?v=0.2.35';
+import { huntOf } from '../../../session/hunt-sections.js?v=0.2.35';
+import { townActivityWords } from '../../../session/party-sections.js?v=0.2.35';
+import { startWork, stopWork, workRow, workOf, runParts } from '../../town-work.js?v=0.2.35';
+import { lineParts, lineText } from '../../town-ticker.js?v=0.2.35';
 
 /** The bench entry that spends a whole stack of `id` ({ skill, recipe, input, need }), or null. */
 export function buryRecipeOf(id) { return riteOf(id) || cookOf(id); }

@@ -510,7 +510,7 @@ const MUTANTS = [
 /** The function whose dollar-quoted BODY holds offset `at` of a migration's text, or null. A `create or replace
     function` whose body closed before `at` does not hold it: an anchor in a later do-block (2026-12-15-account-gold.sql
     §5's hr_apply edits, after its hr_hunt_apply_instance) belongs to no body in the text, so the mutant names it. */
-export function enclosingFunction(text, at) {
+function enclosingFunction(text, at) {
   let fn = null;
   for (const m of text.slice(0, at).matchAll(/create\s+or\s+replace\s+function\s+(?:public\.)?(\w+)\s*\(/gi)) {
     const open = /\$(\w*)\$/g;

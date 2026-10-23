@@ -1,0 +1,23 @@
+{
+  "id": "rat",
+  "class": "vermin",
+  "style": "s1",
+  "material": "unit",
+  "source": "rat_e.png",
+  "frame": [96, 96],
+  "measured": { "mass": [63, 25], "foot_row": 62 },
+  "notes": "SANDBOX64 final (2026-10-23). Facing east in true side profile; 63 on its longer side (x2 vermin 56-80). West is the tool's own west rotation (art/sandbox64/rat8/west.png), or a mirror of east (no handedness).",
+  "pixellab": {
+    "tool": "create_object_pro_flash",
+    "object_id": "4c455ae9-3827-4a98-8b2d-a8dc3940e3f0",
+    "method": "the accepted south-facing rat (art/sandbox64/rat_e.raw.png, object 00310a61) supplied as first_frame_url with n_directions 8: the first frame is kept as drawn and only the rotations are generated, so east is the same rat turned. Two text-prompted attempts had come out facing south.",
+    "params": {
+      "first_frame_url": "upload of art/sandbox64/rat_e.raw.png (96x96, south)", "first_frame_direction": "south", "n_directions": 8, "view": "high top-down", "name": "sandbox64-rat-8dir",
+      "description": "A giant sewer rat: warm grey-brown fur, pale belly, long pink tail, small red eyes, single dark outline, classic MMORPG game monster seen from a high top-down camera.",
+      "seed": "none sent (default)"
+    },
+    "cost_generations": 2,
+    "cost_note": "estimate 2 (rotations only); charged inside the round's overlapping jobs (see knight.json for the round total)",
+    "also_saved": "rat8/east.png, west.png, south.png, north.png"
+  }
+}

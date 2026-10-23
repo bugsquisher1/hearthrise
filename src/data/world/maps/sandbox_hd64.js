@@ -3,9 +3,9 @@
 // Row shape and lint: src/world/core/map-compile.js (L-GRID: no rock faces, no wall kit, no
 // hunts on another grid). Rebuild the hash with `node tests/world-core.mjs --hashes`.
 //
-// ART: STAND-IN (art/world/sandbox64/*.standin.png, x2 copies of the Common's art) until the hd64
-// art lane drops its files into the same paths. The ground is the Common's painted ground
-// widened to 30x20 tiles, so these rows follow its dirt lanes.
+// ART: the hd64 finals (art/world/sandbox64: the knight, the rat, the well, the barrel and the T1
+// grass <-> packed dirt Wang ground, laid by these rows' corners); the bush, rocks, pine and
+// sign are still x2 stand-ins (*.standin.png).
 export default Object.freeze({
   id: 'sandbox_hd64',
   name: 'The Sandbox (64 px)',
@@ -15,7 +15,7 @@ export default Object.freeze({
   outdoor: true,
   light: 'day',
   ground: 'sandbox_ground',
-  legend: Object.freeze({ '.': 'grass', ':': 'cobble' }),
+  legend: Object.freeze({ '.': 'grass', ':': 'earth' }),
   rows: Object.freeze([
     '..........:::.................',
     '..........:::.................',

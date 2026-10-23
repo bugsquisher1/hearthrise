@@ -1,16 +1,16 @@
 {
   "id": "sandbox_barrels",
-  "class": "bulky",
+  "class": "barrel",
   "style": "s1",
   "material": "wood",
-  "source": "sandbox_barrels.standin.png",
+  "source": "sandbox_barrels.png",
   "frame": [
-    96,
-    56
+    36,
+    47
   ],
   "anchor_px": [
-    48,
-    55
+    18,
+    46
   ],
   "footprint": [
     1,
@@ -28,8 +28,7 @@
   ],
   "pixellab": {
     "tool": "create_object_pro_flash",
-    "object": "5e8f62c3-8d7d-43fc-b573-c39b1512c53e",
-    "name": "S1 barrels pair"
+    "object": "eb9ef7f1-3f38-4218-be9d-db02d8afa4e7"
   },
-  "notes": "STAND-IN: sewer/barrels.json nearest-neighbour x2. Ported from PixelLab object 5e8f62c3-8d7d-43fc-b573-c39b1512c53e (style 1) by tools/world-art/port-pixellab.mjs: pixels unscaled, bottom-centre anchor as Map Workshop places it. Replaced by the hd64 art lane."
+  "notes": "SANDBOX64 final barrel (attempt B), cropped to its box. Provenance in _final.barrel.json."
 }

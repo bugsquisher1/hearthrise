@@ -1,9 +1,9 @@
 {
   "id": "sandbox_beast",
-  "class": "vermin",
+  "class": "critter",
   "style": "s1",
   "material": "unit",
-  "source": "sandbox_beast.standin.png",
+  "source": "sandbox_beast.png",
   "anchor_px": [
     48,
     81
@@ -12,10 +12,16 @@
     1,
     1
   ],
+  "overhang_px": [
+    0,
+    0,
+    4,
+    0
+  ],
   "anims": [
     {
       "name": "idle",
-      "fps": 5,
+      "fps": 0,
       "loop": true,
       "dirs": {
         "s": 1,
@@ -23,18 +29,11 @@
         "n": 1,
         "w": 1
       }
-    },
-    {
-      "name": "walk",
-      "fps": 10,
-      "loop": true,
-      "dirs": {
-        "s": 6,
-        "e": 6,
-        "n": 6,
-        "w": 6
-      }
     }
   ],
-  "notes": "STAND-IN: hunt/rat.json nearest-neighbour x2 (idle and walk, the four cardinals). Ported from prototypes/hunt-sim-assets/giant_rat (PixelLab style-1, 2026-10-15) by tools/world-art/port-hunt-sim.mjs: eight facings, foot anchor moved onto the class anchor by whole pixels. attack, death and corpse derived from this unit's own idle frames by tools/world-art/derive-combat.mjs (whole-pixel shifts, quarter turns, flips; no drawn death exists). Replaced by the hd64 art lane."
+  "pixellab": {
+    "tool": "create_object_pro_flash",
+    "object": "4c455ae9-3827-4a98-8b2d-a8dc3940e3f0"
+  },
+  "notes": "SANDBOX64 final rat (east: final/rat_e.png; south, north, west: art/sandbox64/rat8; provenance in _final.rat_e.json), planted on the hd64 vermin anchor by whole pixels. No walk frames yet: it glides in its idle view. Classed critter: the final rat measures 34-51 px of body (a 6x6-opened mass), the x2 critter band, under the x2 vermin band; its tail tip hangs up to 4 px below the feet (overhang)."
 }

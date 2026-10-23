@@ -1,0 +1,15 @@
+{
+  "id": "well",
+  "class": "fixture",
+  "style": "s1",
+  "material": "stone",
+  "source": "well.png",
+  "frame": [128, 128],
+  "measured": { "mass": [50, 64], "foot_row": 95 },
+  "notes": "SANDBOX64 final (2026-10-23): the gate-1 well (attempt A, art/sandbox64/well.json has its params; object e8b5f6af, seed 1102, 6 generations). UNDER TARGET: Tyler asked for today's size x2 (~86 on the long side); this is 64. The resize attempt B (172 canvas, seed 1202, object ab8af429, 6 generations, art/sandbox64/well-b.raw.png) came out SMALLER, 44x50, so A is kept as the closer one. No further re-roll: the round's 60 cap left no margin and canvas size did not control the prop's size.",
+  "attempt_b": {
+    "tool": "create_object_pro_flash", "object_id": "ab8af429-da51-456e-84a8-0a83a23d0ee5",
+    "params": { "width": 172, "height": 172, "n_directions": 1, "view": "high top-down", "seed": 1202, "name": "sandbox64-well-b", "style_image": "upload of art/world/common/well.png (36x43), same usage text as A", "style_options": { "color_palette": true, "detail": false, "outline": true, "shading": true }, "palette": "hr-world-56-v2", "description": "as A without the '86 pixels' clause: 'The well fills most of the canvas height, standing on the ground at the bottom.'" },
+    "measured": { "mass": [44, 50] }, "cost_generations": 6
+  }
+}

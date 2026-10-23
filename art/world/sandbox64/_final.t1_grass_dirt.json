@@ -1,0 +1,26 @@
+{
+  "id": "t1_grass_dirt",
+  "class": "terrain",
+  "kind": "wang16",
+  "style": "s1",
+  "material": "terrain",
+  "tile_px": 64,
+  "source": "t1_grass_dirt.png",
+  "metadata": "t1_grass_dirt.metadata.json",
+  "placement": "pick each tile by metadata.tileset_data.tiles[].corners (NW/NE/SW/SE = lower grass / upper dirt) and slice it by its bounding_box",
+  "notes": "SANDBOX64 final (2026-10-23). The flat re-roll of the first T1 (cb3af596, raised slab). Flat: no ledge between grass and dirt.",
+  "pixellab": {
+    "tool": "create_topdown_tileset",
+    "tileset_id": "ca241672-3bf3-49e4-803a-7f846fe16ff9",
+    "base_tile_ids": { "lower_grass": "2e8597b3-82ec-407c-b44a-9b5b6175e843", "upper_dirt": "d6697345-5f1b-491a-b640-6e4db8879f07" },
+    "params": {
+      "mode": "pro", "tile_size": { "width": 64, "height": 64 }, "view": "high top-down", "transition_size": 0, "raggedness": 0.3,
+      "lower_description": "short village grass, muted olive green, calm low contrast, small tufts",
+      "upper_description": "packed dirt path, muted warm brown, flat on the same level as the grass, calm low contrast, a few small pebbles",
+      "transition_description": "grass thinning into trodden earth with a ragged edge, flat ground, no step or ledge",
+      "palette": "hr-world-56-v2 (56 colours)", "seed": "none (tool takes no seed)"
+    },
+    "cost_generations": 25,
+    "cost_note": "tool doc: pro mode above 32 px = 25; charged inside the round's overlapping jobs (see knight.json for the round total)"
+  }
+}

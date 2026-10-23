@@ -3,7 +3,7 @@
   "class": "character",
   "style": "s1",
   "material": "unit",
-  "source": "sandbox_hero.standin.png",
+  "source": "sandbox_hero.png",
   "anchor_px": [
     64,
     117
@@ -15,26 +15,23 @@
   "anims": [
     {
       "name": "idle",
-      "fps": 5,
+      "fps": 0,
       "loop": true,
       "dirs": {
         "s": 1,
         "e": 1,
         "n": 1,
-        "w": 1
-      }
-    },
-    {
-      "name": "walk",
-      "fps": 8,
-      "loop": true,
-      "dirs": {
-        "s": 6,
-        "e": 6,
-        "n": 6,
-        "w": 6
+        "w": 1,
+        "se": 1,
+        "sw": 1,
+        "ne": 1,
+        "nw": 1
       }
     }
   ],
-  "notes": "STAND-IN: hunt/outfit_knight.json nearest-neighbour x2 (idle and walk, the four cardinals). Ported from prototypes/hunt-sim-assets/knight (PixelLab style-1, 2026-10-15) by tools/world-art/port-hunt-sim.mjs: eight facings, foot anchor moved onto the class anchor by whole pixels. Replaced by the hd64 art lane."
+  "pixellab": {
+    "tool": "create_character_pro_flash",
+    "id": "0f0048b8-8bf1-44d4-9e3d-33d83862f892"
+  },
+  "notes": "SANDBOX64 final knight (lane/art-cleanup-sample art/sandbox64/final/knight, provenance in _final.knight.json): eight still views, each planted by whole pixels so its foot row sits on the hd64 character anchor. No walk frames yet: it glides in its idle view."
 }

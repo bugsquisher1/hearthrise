@@ -1,0 +1,32 @@
+{
+  "id": "knight",
+  "class": "character",
+  "style": "s1",
+  "material": "unit",
+  "source": "knight/<direction>.png (south, south-east, east, north-east, north, north-west, west, south-west)",
+  "frame": [96, 96],
+  "measured": { "mass_height": "73-76 in all 8 views (south 42x73)", "foot_row": "83-85" },
+  "notes": "SANDBOX64 final (2026-10-23), knight D. Inside the hero spec 72-80. Plant the foot row on the 128 frame's anchor [64,116]. Learned: canvas size does not set the figure size (B 96 and C 128 both gave 55-57); the style reference's size does, unless the prompt says 'drawn big ... do not copy its size' (A 128 -> 110, D 96 -> 73-76).",
+  "pixellab": {
+    "tool": "create_character_pro_flash",
+    "character_id": "0f0048b8-8bf1-44d4-9e3d-33d83862f892",
+    "params": {
+      "width": 96, "height": 96, "view": "high top-down", "seed": 1204, "name": "sandbox64-knight-d",
+      "style_image": "upload of samples/art-diagnosis/knight-56-test.raw.png (96x96); usage 'Match this knight's design, colour palette, dark outline and shading style; the new figure is drawn larger than this reference, so do not copy its size.'",
+      "style_options": { "color_palette": true, "detail": false, "outline": true, "shading": true },
+      "palette": "hr-world-56-v2 (56 colours)",
+      "description": "A large knight hero standing idle, facing the viewer (south), drawn big: the figure fills most of the canvas height, feet near the bottom edge. Silver steel plate armour with round pauldrons, closed great helm with a visor slit and a red feather plume on top, blue cloth tabard at the waist, a gold-rimmed blue kite shield with a gold cross held on his left arm (viewer's right), a steel sword held low in his right hand (viewer's left). Single dark outline, classic MMORPG game sprite, lit from the upper left, no background, no shadow."
+    },
+    "cost_generations": 7,
+    "rejected_this_round": {
+      "knight-c": { "character_id": "4d43bd09-0a64-4528-8bab-0792a68d3cd7", "canvas": 128, "seed": 1201, "prompt": "knight B's text", "measured": "55-57 tall", "cost_generations": 8, "files": "art/sandbox64/knight-c/" }
+    }
+  },
+  "round_2_spend": {
+    "cap": 60,
+    "balance": { "before": 5360.40, "after_rat_and_first_images": 5340.40, "after_well_barrel_T1": 5313.40, "after_knight_d_first_image": 5308.40, "final": 5306.40 },
+    "total": 54,
+    "by_estimate": { "rat 8-dir": 2, "knight C": 8, "T1 flat": 25, "well B": 6, "barrel B": 6, "knight D": 7 },
+    "note": "Pro Flash charges the first image at submit and the rotations on completion, and five jobs overlapped, so per-piece costs are the tool's estimates; they sum to the measured 54."
+  }
+}

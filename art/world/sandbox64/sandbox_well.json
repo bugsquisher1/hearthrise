@@ -3,14 +3,14 @@
   "class": "fixture",
   "style": "s1",
   "material": "stone",
-  "source": "sandbox_well.standin.png",
+  "source": "sandbox_well.png",
   "frame": [
-    72,
-    86
+    51,
+    64
   ],
   "anchor_px": [
-    36,
-    85
+    25,
+    63
   ],
   "footprint": [
     1,
@@ -27,9 +27,8 @@
     }
   ],
   "pixellab": {
-    "tool": "create_image_pro_flash",
-    "image": "5cc294af-490c-5e25-acb8-a6f79dd5f016",
-    "cell": 3
+    "tool": "create_object_pro_flash",
+    "object": "ab8af429-da51-456e-84a8-0a83a23d0ee5"
   },
-  "notes": "STAND-IN: common/well.json nearest-neighbour x2. Cell 3 of a 4x4 style-1 prop sheet (PixelLab image 5cc294af-490c-5e25-acb8-a6f79dd5f016, style image a Map Workshop prop of the kit), cut to its opaque box by tools/world-art/port-pixellab.mjs; pixels unscaled. Replaced by the hd64 art lane."
+  "notes": "SANDBOX64 final well (attempt A, 64 on its long side: under the x2 target), cropped to its box. Provenance in _final.well.json."
 }

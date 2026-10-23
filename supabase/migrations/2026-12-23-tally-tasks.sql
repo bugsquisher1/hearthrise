@@ -918,8 +918,9 @@ begin
       values (gen_random_uuid(), v_a, 0, v_cell, now(), now(), now(), now(), v_inst) returning id into v_sa;
     insert into public.hunt_sessions (id, user_id, slot, hunt_id, entered_at, hunt_from, settled_to, next_swing_at, instance_id)
       values (gen_random_uuid(), v_b, 0, v_cell, now(), now(), now(), now(), v_inst) returning id into v_sb;
-    if position('perform public.hr_tally_count((v_m->>''user'')::uuid, (v_m->>''slot'')::int' in
-                (select prosrc from pg_proc where oid = 'public.hr_hunt_apply_instance(uuid,bigint,jsonb,jsonb,uuid,integer)'::regprocedure)) = 0 then
+    -- (structural: executing the instance settle needs the engine's proposal; tests/tally-tasks.mjs TT-2 runs it, both doors)
+    if position(E'    for v_m in select e.value from jsonb_array_elements(p_members) e order by (e.value->>''user'')::uuid, (e.value->>''slot'')::int loop\n      perform public.hr_tally_count((v_m->>''user'')::uuid, (v_m->>''slot'')::int'
+                in replace((select prosrc from pg_proc where oid = 'public.hr_hunt_apply_instance(uuid,bigint,jsonb,jsonb,uuid,integer)'::regprocedure), chr(13), '')) = 0 then
       raise exception 'VERIFY(b): the instance settle does not count every member''s kills'; end if;
     perform public.hr_tally_count(v_a, 0, v_sa, '{"kills": 7, "km": {"rat": 5, "slime": 2}}'::jsonb);
     perform public.hr_tally_count(v_b, 0, v_sb, '{"kills": 7, "km": {"rat": 5, "slime": 2}}'::jsonb);

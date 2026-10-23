@@ -100,6 +100,25 @@ export const MUTANTS = {
     file: [MIG, "  ('tally', 'hr_tally_section',", "  ('tally_' || md5(clock_timestamp()::text), 'hr_tally_section',"] },
 };
 
+/* THE MIGRATION'S OWN §8 MUST REFUSE TO APPLY a body that breaks its rules (each replays the chain to it). */
+export const SQL_MUTANTS = {
+  self_cap_off: { why: '§8(e): the per-day cap is never read',
+    find: '    if v_n >= v_cfg.paid_per_day then v_why := \'cap\'; exit; end if;', repl: '    null;' },
+  self_pay_twice: { why: '§8(c): a paid task stays held and pays again',
+    find: '      delete from public.hero_tally_tasks where user_id = p_user and slot = p_slot and place = v_r.place;\n', repl: '      null;\n' },
+  self_any_hero: { why: '§8(g): a drop reaches another hero\'s task',
+    pairs: [['  select * into v_t from public.hero_tally_tasks x where x.user_id = v_uid and x.slot = p_slot and x.task_id = p_task;',
+      '  select * into v_t from public.hero_tally_tasks x where x.slot = p_slot and x.task_id = p_task order by x.user_id <> v_uid limit 1;'],
+    ['  delete from public.hero_tally_tasks where user_id = v_uid and slot = p_slot and place = v_t.place;',
+      '  delete from public.hero_tally_tasks where slot = p_slot and task_id = p_task;']] },
+  self_client_write: { why: '§8(g): a client may write a held task',
+    find: "    execute format('grant select on public.%I to authenticated', v_t);",
+    repl: "    execute format('grant select, insert on public.%I to authenticated', v_t);" },
+  self_one_member: { why: '§8(b): the settle counts one member only',
+    find: "    for v_m in select e.value from jsonb_array_elements(p_members) e order by (e.value->>'user')::uuid, (e.value->>'slot')::int loop\n      perform public.hr_tally_count(",
+    repl: "    for v_m in select e.value from jsonb_array_elements(p_members) e order by (e.value->>'user')::uuid, (e.value->>'slot')::int limit 1 loop\n      perform public.hr_tally_count(" },
+};
+
 async function q(db, sql, p) { return (await db.query(sql, p)).rows; }
 async function one(db, sql, p) { const r = await q(db, sql, p); return r[0] ? Object.values(r[0])[0] : undefined; }
 const asUser = (db, uid) => db.query("select set_config('request.jwt.claim.sub', $1, true)", [uid]);
@@ -516,7 +535,11 @@ async function main() {
   const { HARNESS: H } = await import('./hunt-sessions-settle.mjs');
   const G = await import('../tools/gen-tally-tasks.mjs');
   const list = process.argv.includes('--list');
-  if (list) { for (const [id, m] of Object.entries(MUTANTS)) console.log(`${id}  [${m.arm}]  ${m.why}`); return; }
+  if (list) {
+    for (const [id, m] of Object.entries(MUTANTS)) console.log(`${id}  [${m.arm}]  ${m.why}`);
+    for (const [id, m] of Object.entries(SQL_MUTANTS)) console.log(`${id}  [${MIG} §8]  ${m.why}`);
+    return;
+  }
   let db;
   try { ({ db } = await bootReplay()); } catch (e) { console.error('✗ the chain would not replay: ' + String(e.message).slice(0, 600)); process.exit(1); }
   await H.pinDice(db);
@@ -535,10 +558,10 @@ async function main() {
     process.exit(bad ? 1 : 0);
   }
   let missed = 0;
-  const ids = pick ? [pick] : Object.keys(MUTANTS);
+  if (pick && !MUTANTS[pick] && !SQL_MUTANTS[pick]) { console.error('unknown mutant ' + pick); process.exit(2); }
+  const ids = pick ? (MUTANTS[pick] ? [pick] : []) : Object.keys(MUTANTS);
   for (const id of ids) {
     const m = MUTANTS[id];
-    if (!m) { console.error('unknown mutant ' + id); process.exit(2); }
     let p; let XX = X;
     try {
       if (m.js) {
@@ -569,7 +592,21 @@ async function main() {
     if (p.length) console.log(`✓ ${m.arm} goes red on ${id}: ${m.why}`);
     else { console.error(`✗ ${m.arm} stayed GREEN on ${id}: ${m.why}`); missed++; }
   }
-  console.log(missed ? `tally-tasks --selftest: ${missed} mutant(s) survived` : `tally-tasks --selftest: all ${ids.length} mutants killed`);
+  /* The migration's own §8: each planted body must make the file REFUSE to apply (its VERIFY, not a harness slip). */
+  const sqlIds = pick ? Object.keys(SQL_MUTANTS).filter((k) => k === pick) : Object.keys(SQL_MUTANTS);
+  for (const id of sqlIds) {
+    const m = SQL_MUTANTS[id];
+    let refused = null;
+    try { await bootReplay({ patches: new Map([[MIG, m.pairs || [[m.find, m.repl]]]]), upTo: MIG }); } catch (e) { refused = e; }
+    /* Its own VERIFY, or (the cap) the claim table's ordinal CHECK — never a syntax slip in the plant. */
+    const said = String(refused && refused.message);
+    if (refused && !refused.harness && /VERIFY\(|hero_tally_claims_ordinal_check/.test(said) && !/syntax error/.test(said)) {
+      console.log(`✓ the §8 of ${MIG} refuses ${id}: ${m.why} (${(said.match(/VERIFY\([a-z]\)[^\n]{0,60}|hero_tally_claims_ordinal_check/) || [''])[0]})`);
+    }
+    else { console.error(`✗ ${MIG} applied ${id} (${m.why})${refused ? ': ' + String(refused.message).slice(0, 200) : ''}`); missed++; }
+  }
+  const total = ids.length + sqlIds.length;
+  console.log(missed ? `tally-tasks --selftest: ${missed} of ${total} mutant(s) survived` : `tally-tasks --selftest: all ${total} mutants killed`);
   process.exit(missed ? 1 : 0);
 }
 

@@ -293,6 +293,7 @@ export async function bootWorld(panel, opts) {
     walk: () => true,
     hunt: (id) => emit('entrance', { hunt: id }),
     skill: (id) => emit('station', { skill: id }),
+    window: (id) => emit('keeper', { window: id }),
     room: (id) => emit('room', { room: id }),
     house: (id) => emit('house', { room: id }),
     scene(choice) { setChoice(view(), choice); if (running) step(0); return true; },

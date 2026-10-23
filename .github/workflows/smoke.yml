@@ -3099,6 +3099,21 @@ jobs:
           node tests/account-gold.mjs
           node tools/mutant-gate.mjs node tests/account-gold.mjs --selftest
 
+      # TAMSIN'S TALLY (designer 2026-10-23, Tyler: "build it"): kill tasks counted by the
+      # server inside the ONE instance settle, paid once in the settle that brings the hero
+      # home. The catalogue is generated from src/data/tally-tasks.js and the loot bands
+      # (--check, its refusals --selftest); the guard drives the real settle (both doors, a
+      # party) and the five RPCs on a replayed chain: count, pay, cap, retry, a forged count,
+      # her pick, keep, own hero only, refusals, the client reader, a second apply. 16 planted
+      # defects, and 5 bodies the migration's own §8 must refuse.
+      - name: Tamsin's tally — server-counted kill tasks, paid once on the way home
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/gen-tally-tasks.mjs --check
+          node tools/mutant-gate.mjs node tools/gen-tally-tasks.mjs --selftest
+          node tests/tally-tasks.mjs
+          node tools/mutant-gate.mjs node tests/tally-tasks.mjs --selftest
+
       # THE DEPOT'S SPACE (Tyler 2026-10-22): the account's base + the storage chests it
       # built. The catalogue is generated from src/data/homestead-tiers.js (--check, its
       # refusals --selftest); the guard drives the real hr_storage_chest_build and

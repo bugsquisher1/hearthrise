@@ -259,9 +259,9 @@ async function populate(db, target, realWanted) {
                        from hr_item_slots s order by s.equip_slot, s.item_id limit $3) e
        on conflict do nothing`, [lo, hi - 1, PER_CHAR.equipment]);
     await db.query(
-      `insert into player_farm(user_id, slot, plot_idx, crop_id, planted_at)
-       select ('00000000-0000-4000-a000-' || lpad(to_hex(g),12,'0'))::uuid, 0, k,
-              (select crop_id from hr_crops order by crop_id limit 1), now() - interval '1 hour'
+      `insert into account_farm_plots(user_id, plot_idx, crop_id, planted_at, planted_by)
+       select ('00000000-0000-4000-a000-' || lpad(to_hex(g),12,'0'))::uuid, k,
+              (select crop_id from hr_crops order by crop_id limit 1), now() - interval '1 hour', 0
          from generate_series($1::int, $2::int) g
          cross join generate_series(0, $3::int - 1) k
        on conflict do nothing`, [lo, hi - 1, PER_CHAR.farm]);
@@ -376,7 +376,7 @@ async function planShapes(db) {
     player_skills: 'select * from player_skills where user_id = $1 and slot = $2',
     player_inventory: 'select * from player_inventory where user_id = $1 and slot = $2',
     player_equipment: 'select * from player_equipment where user_id = $1 and slot = $2',
-    player_farm: 'select * from player_farm where user_id = $1 and slot = $2',
+    account_farm_plots: 'select * from account_farm_plots where user_id = $1 and $2::int is not null',   // the ACCOUNT's field (2026-12-14-shared-farm.sql): every hero reads it, the slot binds only
     player_progress: 'select * from player_progress where user_id = $1 and slot = $2',
     player_ledger_day: "select coalesce(sum(gold_in),0) from player_ledger where user_id = $1 and slot = $2 and at >= date_trunc('day', now())",
   };
@@ -814,7 +814,7 @@ const LIVE_SQL = {
       from pg_stat_user_tables
      where schemaname='public'
        and relname in ('player_state','player_skills','player_inventory',
-                       'player_equipment','player_farm','player_progress','player_ledger')
+                       'player_equipment','account_farm_plots','player_progress','player_ledger')
      order by relname`,
   rejections: `select code, severity, sum(n)::bigint as total, max(last_at) as last_seen
       from hr_rejections where last_at > now() - interval '7 days'

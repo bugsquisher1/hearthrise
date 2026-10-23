@@ -57,7 +57,6 @@ const FARM_WORDS = Object.freeze({
   stale_level: 'Your plots changed. Check the new price and try again.',
   max_plot_level: 'Your plots are at the top tier.',
   no_seed_for_sale: 'The Shop does not sell that seed.',
-  extra_plot: 'That was an extra plot, and it is gone now.',
 });
 const farmWords = (r) => FARM_WORDS[r && r.error] || refusalText(r);
 

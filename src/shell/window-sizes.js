@@ -10,7 +10,7 @@
 // nothing), so it comes back after a reload. Desktop only: the phone's sheet has
 // its own size and no grip (the mobile query hides it).
 // ════════════════════════════════════════════════════════════════════════
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.37';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.38';
 
 /** The residue adapter for ONE character: { read(id) -> {w, h}|null, write(id, {w, h}) }. */
 export function sizeStore(character) {

@@ -16,11 +16,11 @@
 //                                answerInvite INTENT, the same way (PARTY_SPEC
 //                                §1.3: the toast reaches a player anywhere)
 // ════════════════════════════════════════════════════════════════════════
-import { ALERTS_SHOWN } from '../../data/alerts.js?v=0.2.37';
-import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.37';
-import { glyphSvg } from '../launcher.js?v=0.2.37';
-import { refusalWords } from '../intent-words.js?v=0.2.37';
-import { cardFacts, shareCard } from '../share-card.js?v=0.2.37';
+import { ALERTS_SHOWN } from '../../data/alerts.js?v=0.2.38';
+import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.38';
+import { glyphSvg } from '../launcher.js?v=0.2.38';
+import { refusalWords } from '../intent-words.js?v=0.2.38';
+import { cardFacts, shareCard } from '../share-card.js?v=0.2.38';
 
 const OPENS = Object.freeze({ bag: 'inventory', show: null });
 /* What the line says once its card was made (src/shell/share-card.js shareCard's answer). */

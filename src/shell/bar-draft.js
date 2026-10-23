@@ -11,16 +11,16 @@
 // until the server has answered and the re-read envelope has replaced
 // hunt_settings (CLAUDE.md §6). A refusal names its slot and condition.
 // ════════════════════════════════════════════════════════════════════════
-import { METRICS, OPERATORS } from '../data/condition-metrics.js?v=0.2.37';
-import { STATUSES } from '../data/statuses.js?v=0.2.37';
-import { BAR_SLOTS, BAR_ANSWER_MS } from '../data/hunt-hud.js?v=0.2.37';
-import { BASIC_INDEX } from '../data/supply-basics.js?v=0.2.37';
-import { isRune } from '../data/supplies.js?v=0.2.37';
-import { ITEMS } from '../data/items.js?v=0.2.37';
-import { CONSUMABLES, CONSUMABLE_RULES } from '../data/consumables.js?v=0.2.37';
-import { settingsOf, wireSlot } from '../session/hunt-sections.js?v=0.2.37';
-import { ABILITIES } from '../data/abilities.js?v=0.2.37';
-import { refusalWords } from './intent-words.js?v=0.2.37';
+import { METRICS, OPERATORS } from '../data/condition-metrics.js?v=0.2.38';
+import { STATUSES } from '../data/statuses.js?v=0.2.38';
+import { BAR_SLOTS, BAR_ANSWER_MS } from '../data/hunt-hud.js?v=0.2.38';
+import { BASIC_INDEX } from '../data/supply-basics.js?v=0.2.38';
+import { isRune } from '../data/supplies.js?v=0.2.38';
+import { ITEMS } from '../data/items.js?v=0.2.38';
+import { CONSUMABLES, CONSUMABLE_RULES } from '../data/consumables.js?v=0.2.38';
+import { settingsOf, wireSlot } from '../session/hunt-sections.js?v=0.2.38';
+import { ABILITIES } from '../data/abilities.js?v=0.2.38';
+import { refusalWords } from './intent-words.js?v=0.2.38';
 
 export const SLOTS = BAR_SLOTS.rows * BAR_SLOTS.cols;
 const METRIC = new Map(METRICS.map((m) => [m.id, m]));

@@ -5,6 +5,16 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.38 — 2026-10-23 (Straight shooting)
+
+**Rangers fire their abilities.** Precision Shot and Flame Volley now fire when you pick your arrows on the bar, not only when arrows are worn in the ammo slot. A bow no longer shoots whetstones (the slot says why), and the Configure window only offers ammo your weapon can shoot.
+
+**The game updates as it happens.** Changes from the server now arrive the moment they're saved instead of on the next check, so party hunts, other heroes and the world feel live. The heroes you aren't watching ask the server far less often, which makes the game lighter to run, and leaving a hunt as a party no longer floods the server.
+
+**Chat is lighter.** Messages, whispers and party lines arrive the same way they always have (a little faster), and a dropped connection catches up on what you missed.
+
+**The Sandbox.** A "To the sandbox" sign in the Common leads to a new walking area drawn at a sharper scale. Look around; there's nothing to do there yet.
+
 ## v0.2.37 — 2026-10-23 (Worth the hunt)
 
 **New loot on every ground.** Each monster now drops a full spread: creature parts, a crafting material, and gear for every armour weight (heavy, medium and light), so every build finds its next upgrade about once an hour as it moves up the grounds. Rare pieces turn up every few hours with a louder moment when they drop, and the Rat King and Chief Coppercap each guard a Trophy worth chasing. No gear is bound any more: everything you find can be stored or sold. The Hunts page shows the gear each ground drops for your armour.

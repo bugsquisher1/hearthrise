@@ -20,11 +20,7 @@
 // text field has focus. opts.town (src/session/town-presence.js) gives the walkers and is the
 // one record of where this body stands in town (placeOn: a switch is not a move).
 // A fight on a hunt no map renders shows town or home with a slim banner offering the mapped hunt.
-//
-// THE 64 PX SANDBOX (sandbox-scene.js): a walked map on another art grid, entered from a signpost in
-// the Common. Its art loads on first entry (until then the Common stays on screen); the map is
-// compiled and drawn with that grid's art; the hero's town presence is PARKED on the entry sign
-// while it is inside (a walk there is never published and never leaves town).
+// THE 64 PX SANDBOX: another art grid, loaded on first entry; its presence rule is sandbox-scene.js.
 // ════════════════════════════════════════════════════════════════════════
 import { BUILD } from '../build-info.js?v=0.2.33';
 import { MATERIALS, OPEN_CLASSES, LIGHTS } from '../data/world/terrain.js?v=0.2.33';
@@ -145,7 +141,6 @@ export async function bootWorld(panel, opts) {
   const sprites = new Proxy(book.sprites, { get: (t, k) => t[k] || STUB_SPRITE });
   const tables = { materials: MATERIALS, sprites, openClasses: OPEN_CLASSES, lights: LIGHTS };
   const backend = createCanvasBackend({ win, doc, book, images, tables, css });
-  /* another art grid's book and tables (the sandbox), loaded on its first entry */
   const gridArt = createGridArt({ doc, version: BUILD.cache, tables, loadSet: loadAtlasSet });
   const artOf = (id) => gridArt.art(ROWS.get(id).grid);
   stage.querySelectorAll('.world-status').forEach((el) => el.remove());
@@ -236,7 +231,6 @@ export async function bootWorld(panel, opts) {
     }
     const f = walk.frame(readEnv(map.kind), now);
     if (!held) notePos(G, map.id, f.hero.x, f.hero.y);
-    /* in town: shown and published; at home: gone from town; in the sandbox: parked where it stood (sandbox-scene.js) */
     presenceFor(town, map, f.place);
     lastWalk = f;
     return f;

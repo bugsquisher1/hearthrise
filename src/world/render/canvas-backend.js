@@ -18,12 +18,7 @@
 //      offset by the camera's whole-device-pixel remainder (core/camera.js);
 //   3. draw the nameplates, the walk mark and speech bubbles at SCREEN
 //      resolution so text stays crisp.
-// Colours come from --world-* tokens through `css` (the caller's token reader).
-// THE MAP'S ART GRID (map-compile.js map.T / map.grid): the tile size, the chunk
-// size and the zoom (camera.js zoomFor) are the map's, so a 64 px sandbox map is
-// drawn at x1 with the town's on-screen tile. The overlay sizes its marks in base
-// art px times the zoom (zs = z x T / 32), so a name reads the same on any grid.
-// setMap may hand a map its own art (book, images, tables: another grid's atlas).
+// Colours: --world-* tokens via `css`. Tile, chunk, zoom: the map's grid (zs = z x T / 32).
 // ════════════════════════════════════════════════════════════════════════
 import { zoomFor, frameView, cleanInset } from '../core/camera.js?v=0.2.33';
 import { composeFrame, groundTiles } from '../core/compose.js?v=0.2.33';
@@ -38,7 +33,6 @@ const FLASH_ALPHA = 0.7; // a hit's silhouette over the frame
  */
 export function createCanvasBackend(o) {
   const { win, doc, css } = o;
-  /* the art the map is drawn with: the constructor's, or the one setMap hands over (another grid's) */
   let { book, images, tables } = o;
   const tone = (name) => css('--world-' + name);
   const layer = () => { const c = doc.createElement('canvas'); return { c, g: c.getContext('2d') }; };
@@ -53,7 +47,6 @@ export function createCanvasBackend(o) {
   let host = null, canvas = null, ctx = null, ro = null, onResize = null;
   let map = null, ground = null, chunks = new Map();
   let z = 2, dpr = 1, W = 1, H = 1, dirty = true, inset = cleanInset(null);
-  /* the map's tile (art px), its ground chunk (16 x 16 tiles) and the overlay's size unit (device px per base art px) */
   let T = 32, CHUNK = 16 * T, zs = z;
   /* Ease after an inset change (camera.js easedCam); the FIRST inset is the start, never eased (hero switch). */
   let lastCam = null, camFrom = null, insetSince = -Infinity, insetHeard = false;
@@ -473,10 +466,7 @@ export function createCanvasBackend(o) {
       onResize = () => { dirty = true; };
       win.addEventListener('resize', onResize);
     },
-    /**
-     * Show map `m`, drawn with `art` ({book, images, tables}: another grid's atlas) or the
-     * constructor's. The zoom is measured again on the next frame (the map's grid).
-     */
+    /** Show map `m`, drawn with `art` ({book, images, tables}) or the constructor's; the zoom is re-measured. */
     setMap(m, art) {
       map = m;
       if (art) ({ book, images, tables } = art); else ({ book, images, tables } = o);

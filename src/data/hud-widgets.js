@@ -61,6 +61,13 @@ export const HUD_WIDGETS = Object.freeze([
     min: Object.freeze([260, 120]), opacity: 0.9, visible: true, removable: true, when: 'hunt',
     phone: Object.freeze({ visible: false, dx: 4, dy: 4 }),
   }),
+  /* Tamsin's tally (2026-12-23-tally-tasks.sql): each held kill task's server count, in town and hunting. The
+     right middle is clear of the analyzer (top right) and the bar; off by default on a phone (HUD layout shows it). */
+  Object.freeze({
+    id: 'tally', label: 'Tally (kill tasks)', layer: 'world', anchor: 'mr', dx: 12, dy: 0,
+    min: Object.freeze([180, 32]), opacity: 0.9, visible: true, removable: true, when: 'always',
+    phone: Object.freeze({ visible: false, dx: 4 }),
+  }),
   Object.freeze({
     /* Shown in town too, so the bar is set up before leaving (its vitals show only in a hunt). */
     id: 'action-bar', label: 'Action bar (bottom)', layer: 'world', anchor: 'bc', dx: 0, dy: 8,

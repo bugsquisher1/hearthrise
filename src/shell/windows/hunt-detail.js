@@ -10,7 +10,8 @@
 //   who lives here  each creature as the world draws it (style-1 idle frame at ×2,
 //                   src/render/creature-sprite.js) on one ground line, with how
 //                   common it is (src/shell/hunt-ground-facts.js)
-//   the rare        what the ground's one rare carrier carries, named
+//   what drops      the gear that drops about hourly, a line a tier in each armour weight (the
+//                   hero's own first), then every Rare and Trophy with its carrier (no odds)
 //   your best       the server's hunt_bests, or ONE "Not hunted yet"
 // then the pull size (src/shell/windows/hunts.js) and the going-hunting part
 // (goHtml / patchGo, from src/shell/hunt-go.js): Go as (the setups as lines, the
@@ -24,7 +25,7 @@ import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.36';
 import { itemIconHtml, actionIconHtml } from '../widgets/bits.js?v=0.2.36';
 import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.36';
 import { bandWords, fitWords, heroWords, partyNote, bestWords } from '../hunt-list.js?v=0.2.36';
-import { residentsOf, rareOf } from '../hunt-ground-facts.js?v=0.2.36';
+import { residentsOf, scarceSetOf, raresOf } from '../hunt-ground-facts.js?v=0.2.36';
 import { creatureArt, drawCreature } from '../../render/creature-sprite.js?v=0.2.36';
 
 /* The world's one density (ART_DIRECTION §2): every art pixel is 2x2 screen px. */
@@ -42,7 +43,8 @@ export function detailHtml() {
     + '<p class="hw-hd-who"></p><p class="hw-hunt-warn"></p></header>'
     + '<p class="hw-hd-theme"></p>'
     + '<h4 class="hw-hd-h">Who lives here</h4><ul class="hw-hd-lineup" aria-label="Who lives here"></ul>'
-    + '<p class="hw-hd-rare"><span class="hw-ico"></span><span class="hw-hd-rare-t"><b class="hw-hd-rare-name"></b><small class="hw-hd-rare-by"></small></span></p>'
+    + '<h4 class="hw-hd-h">Gear, about every hour</h4><ul class="hw-hd-sets" aria-label="Gear, about every hour"></ul>'
+    + '<h4 class="hw-hd-h">Rare drops</h4><ul class="hw-hd-rares" aria-label="Rare drops"></ul>'
     + '<p class="hw-hunt-party" hidden></p>'
     + '<section class="hw-hd-bests" aria-label="Your best here"><h4 class="hw-hd-h">Your best here</h4>'
     + '<p class="hw-hd-best hw-hunt-best-solo"></p><p class="hw-hd-best hw-hunt-best-party"></p><p class="hw-hd-best hw-hunt-best-none"></p></section>';
@@ -146,7 +148,7 @@ export function patchGround(det, ctx, r, o) {
   text(det.querySelector('.hw-hd-who'), heroWords(r) + '.');
   text(det.querySelector('.hw-hd-theme'), (HUNT_INDEX[r.hunt] && HUNT_INDEX[r.hunt].theme) || r.theme);
   wantArt(ctx.doc, repaint);
-  const rare = rareOf(r.hunt);
+  const rares = raresOf(r.hunt), carriers = new Set(rares.map((x) => x.carrier.id));
   const lineup = det.querySelector('.hw-hd-lineup');
   rows(lineup, residentsOf(r.hunt), {
     key: (m) => r.hunt + ':' + m.id,
@@ -155,22 +157,33 @@ export function patchGround(det, ctx, r, o) {
       text(li.querySelector('.hw-hd-mon-name'), m.name);
       text(li.querySelector('.hw-hd-mon-how'), howWords(m));
       attr(li, 'data-band', m.boss ? 'boss' : m.band);
-      cls(li, 'is-carrier', !!rare && rare.carrier.id === m.id);
+      cls(li, 'is-carrier', carriers.has(m.id));
       paintSprite(li, m.id);
     },
   });
   /* One ground line: every creature stands at the height of the tallest drawn here, feet on the same row. */
   const tallest = Math.max(0, ...Array.from(lineup.querySelectorAll('.hw-hd-mon.is-drawn canvas'), (c) => c.height));
   style(lineup, '--stand-h', tallest ? tallest + 'px' : null);
-  /* The rare and its carrier, named: the chase this ground offers (odds stay the server's). */
-  const rareEl = det.querySelector('.hw-hd-rare');
-  prop(rareEl, 'hidden', !rare);
-  if (rare) {
-    const ico = rareEl.querySelector('.hw-ico');
-    if (ico.getAttribute('data-item') !== rare.items[0].id) { ico.innerHTML = itemIconHtml(ctx.glyphs, rare.items[0].id); ico.setAttribute('data-item', rare.items[0].id); }
-    text(rareEl.querySelector('.hw-hd-rare-name'), rare.items.map((i) => i.name).join(' and '));
-    text(rareEl.querySelector('.hw-hd-rare-by'), 'Rare drop. Carrier: ' + rare.carrier.name);
-  }
+  /* What drops here, named (odds stay the server's and the Bestiary's): the hourly gear a line a tier, the hero's own
+     armour weight first ("Iron, Studded, Adept: helmets, boots; Iron Sword"), then each Rare and Trophy, item and carrier. */
+  rows(det.querySelector('.hw-hd-sets'), scarceSetOf(r.hunt, o.worn || null), {
+    key: (e) => String(e.tier),
+    build: () => element(ctx.doc, '<li class="hw-hd-set"><b class="hw-hd-set-lines"></b><span class="hw-hd-set-what"></span></li>'),
+    patch: (li, e) => {
+      text(li.querySelector('.hw-hd-set-lines'), e.lines.join(', '));
+      text(li.querySelector('.hw-hd-set-what'), (e.lines.length ? ': ' : '') + [e.slots.join(', '), e.weapons.join(', ')].filter(Boolean).join('; '));
+    },
+  });
+  rows(det.querySelector('.hw-hd-rares'), rares, {
+    key: (x) => x.id + ':' + x.carrier.id,
+    build: (x) => element(ctx.doc, '<li class="hw-hd-rare" data-item="' + esc(x.id) + '"><span class="hw-ico">' + itemIconHtml(ctx.glyphs, x.id) + '</span>'
+      + '<b class="hw-hd-rare-name"></b><small class="hw-hd-rare-by"></small></li>'),
+    patch: (li, x) => {
+      text(li.querySelector('.hw-hd-rare-name'), x.name);
+      text(li.querySelector('.hw-hd-rare-by'), x.carrier.name);
+      cls(li, 'is-trophy', x.trophy);
+    },
+  });
   /* The picked ground's party rule, from ITS row (Tyler 10-19: the Rat King's note). */
   const note = det.querySelector('.hw-hunt-party');
   const said = partyNote(r.hunt);

@@ -16,8 +16,8 @@
 //          of a kill goes to heroes[(offset + k) mod n], `offset` one draw on the
 //          instance's `r` stream (src/core/hunt-rewards.js), so over a hunt every
 //          hero takes every n-th unit and no seat is favoured.
-//   RARES  a RARE unit (drops.js band 'rare': a row at 5% or less that is not the
-//          equipment slot; every rare-carrier and relic row is one) goes to THE
+//   RARES  a REVEALED unit (drops.js REVEAL_BANDS: a Rare or Trophy row, src/data/
+//          loot-bands.js; an old roster row at 5% or less) goes to THE
 //          RARE ROLL (Tyler L8, 2026-10-14): each ELIGIBLE hero rolls 1..sides
 //          (src/data/party.js PARTY.rareRoll) on the same server-only `r` stream
 //          (the browser's prediction never holds it), the highest wins, a tie
@@ -37,6 +37,9 @@ import { PARTY } from '../data/party.js?v=0.2.36';
    the unit ids of the heroes who have won a rare roll since everyone last had one. A settle
    cut anywhere carries it, so N windows and one span hand the same rares to the same heroes. */
 export const PERSISTED = Object.freeze({ unit: Object.freeze([]), world: Object.freeze([['rareWon', 'json']]), pack: Object.freeze([]) });
+/* SERVER-ONLY world fields: drawn on the loot stream the browser's prediction never holds, so the reconcile key leaves
+   them out (world-state.js reconcileText): a party's Rare, hourly on the loot bands, never re-seeds the live view. */
+export const SERVER_ONLY = Object.freeze({ world: Object.freeze(['rareWon']) });
 
 /** `total` split evenly into `n` whole shares, the remainder to share 0. */
 export function splitEven(total, n) {

@@ -18,9 +18,9 @@
 //              below), at uncommon odds (IMBUE_DROP), tier from the monster's
 //              level (imbueTierFor). Raw, so the vendor bids a fifth of its book
 //              value: its worth is to the imbuer, not the shop.
-//   equipment  ONE row, `gear: true` (src/core/drops.js: never a rare reveal).
-//   + rare     the rare (1 per 10-20 h) and, later, the relic (1 per 100-150 h)
-//              ride ONLY on the ground's carrier (Old Grayjaw, the Rat King).
+//   equipment  the Scarce rows (src/data/loot-bands.js, Tyler 2026-10-23): one
+//              armour slot in three weights about hourly, never a reveal.
+//   + rare     the Rare (1 per 10-20 h) and Trophy (bosses, 1 per 100-150 h).
 //
 // IMBUING IS NOT BUILT (L4: no server table, no station, no recipe). Until it
 // is, an imbuement item drops, stacks, trades, and the loot filter keeps it
@@ -74,6 +74,10 @@ export const IMBUE_ITEMS = Object.freeze({
   briar_burr: row('Briar Burr', '🌰', 10, 'ward'),
   dire_hackle: row('Dire Gray Hackle', '🐺', 13, 'ward'),
   grayjaw_whisker: row('Grayjaw Whisker', '〰️', 15, 'keen'),
+  /* The Mill Cellar (designer 2026-10-23): the tutorial's three, so its rows read like every other ground's */
+  sticky_core: row('Sticky Core', '🟢', 2, 'element_ward'),
+  giant_rat_hide: row('Giant Rat Hide', '🐀', 2, 'ward'),
+  hive_wasp_stinger: row('Hive Wasp Stinger', '🐝', 4, 'keen'),
   /* The Sewer */
   rat_incisor: row('Drain Rat Incisor', '🦷', 10, 'keen'),
   sump_membrane: row('Sump Membrane', '🟢', 10, 'mana_leech'),
@@ -88,6 +92,12 @@ export const IMBUE_ITEMS = Object.freeze({
   mosslight_tendril: row('Mosslight Tendril', '🌿', 22, 'mana_leech'),
   sluice_crust: row('Sluice Crust', '🟩', 26, 'ward'),
   rooks_moss_charm: row('Rook\'s Moss Charm', '🧿', 29, 'element_ward'),
+  /* Coppercap Warrens (designer 2026-10-23): tier 2, the first ground past Level 30 */
+  glowing_copper_fleck: row('Glowing Copper Fleck', '✨', 34, 'mana_leech'),
+  skulkers_shiv: row('Skulker\'s Shiv', '🗡️', 38, 'keen'),
+  dented_copper_pot: row('Dented Copper Pot', '🥘', 40, 'ward'),
+  foremans_lash: row('Foreman\'s Lash', '➰', 46, 'life_leech'),
+  coppercaps_tallow: row('Coppercap\'s Tallow', '🕯️', 52, 'element_ward'),
 });
 
 /* The flavour lines (src/data/item-descriptions.js): what it is, where it comes from. */
@@ -108,4 +118,11 @@ export const IMBUE_DESC = Object.freeze({
   mosslight_tendril: 'A tendril of the spring moss a Walking Vine drags with it. It still glows a little',
   sluice_crust: 'The green crust that dries on a Goblin Sluicer\'s pan where the copper water runs off',
   rooks_moss_charm: 'A pouch of glowing moss Rook wears round his neck against the spring water\'s green sickness',
+  giant_rat_hide: 'A scrap of tough hide off a Giant Rat from under the mill, for the imbuer who wards armour',
+  hive_wasp_stinger: 'The barbed stinger of a Hive Wasp from the mill cellar, still sharp enough to draw blood',
+  glowing_copper_fleck: 'A fleck of copper from the Warrens that still glows from the spring water, picked out by a scavenger',
+  skulkers_shiv: 'The thin blade a Goblin Skulker carries for the back of a party, sharpened on the gallery walls',
+  dented_copper_pot: 'The copper pot a Goblin Digger wears over its eyes, dented by every blade that ever rang off it',
+  foremans_lash: 'The knotted lash a Hobgoblin Foreman keeps the diggers working with',
+  coppercaps_tallow: 'The tallow Chief Coppercap rubs into his skin. It is why frost slides off him',
 });

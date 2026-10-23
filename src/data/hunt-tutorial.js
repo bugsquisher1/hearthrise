@@ -187,10 +187,26 @@ export const ROLE_SKILL = Object.freeze({ tank: 'melee', melee_dps: 'melee', ran
 const groundHunts = () => Array.from(new Set(Object.values(HUNT_GROUNDS).map((g) => g.hunt)))
   .filter((h) => HUNT_INDEX[h] && HUNT_INDEX[h].staged !== true).sort((a, b) => HUNT_INDEX[a].band[0] - HUNT_INDEX[b].band[0]);
 
+/* "5 Turnip plots", one phrase per ready crop in crop order (gathering.js CROPS), the crop name as the noun's
+   modifier so no crop name is ever pluralised by guesswork ("Potatos"). A crop this build does not know reads "crop". */
+function readyWords(ready) {
+  const order = Object.keys(CROPS);
+  const rank = (c) => (order.includes(c) ? order.indexOf(c) : order.length);
+  const crops = Object.keys(ready).filter((c) => Number.isInteger(ready[c]) && ready[c] > 0)
+    .sort((a, b) => rank(a) - rank(b) || (a < b ? -1 : 1));
+  return {
+    words: crops.map((c) => ready[c] + ' ' + (CROPS[c] ? CROPS[c].name : 'crop') + (ready[c] === 1 ? ' plot' : ' plots')),
+    plots: crops.reduce((n, c) => n + ready[c], 0),
+    ids: crops.flatMap((c) => [c, String(ready[c])]),
+  };
+}
+const listed = (words) => (words.length < 2 ? words.join('') : words.slice(0, -1).join(', ') + ' and ' + words[words.length - 1]);
+
 /**
- * The goal line after the guide, or null (nothing left to name). `facts`: { charLevel, role, skillLevel, defenseXp, farmingXp }
- * (skillLevel: the role's skill's level, or null when unknown; defenseXp / farmingXp: the server's Defense / Farming XP,
- * or null when unknown). Answers { id, title, text }; the id
+ * The goal line after the guide, or null (nothing left to name). `facts`: { charLevel, role, skillLevel, defenseXp, land }
+ * (skillLevel: the role's skill's level, or null when unknown; defenseXp: the server's Defense XP, or null when unknown;
+ * land: the account's field, { planted: plots holding a crop, ready: { crop: ready plots } }, or null when the server
+ * has not sent it). Answers { id, title, text }; the id
  * changes whenever the text does (the hunt top bar redraws on a new id).
  */
 export function nextGoal(facts) {
@@ -203,11 +219,21 @@ export function nextGoal(facts) {
     lines.push('Your Defense is not training: it rises only while you wear armour. The Shop sells gloves and belts.');
     ids.push('armour');
   }
-  /* Farming at 0 XP means nothing was ever planted (P1 2026-10-22: farming sat at zero; the kit holds 8 turnip seeds).
-     Said once: the first planting pays Farming XP and the line is gone. */
-  if (facts.farmingXp === 0) {
-    lines.push('Nothing grows on your farm yet: open the Farm (J) and plant a seed. Turnips are ready in ' + CROPS.turnip.hours + ' hours, sooner if watered.');
+  /* The land is the ACCOUNT's (2026-12-14-shared-farm), so the line reads the field, never this hero's Farming XP
+     (v0.2.35 gate: a 0-XP hero was told "nothing grows" over 5 ready turnips the others planted). Empty land asks
+     for a seed (P1 2026-10-22: farming sat at zero; the kit holds 8 turnip seeds) until any hero plants; ready
+     crops ask for the harvest (any hero may take it) until they are taken; a field that is only growing says nothing. */
+  const land = facts.land;
+  if (land && land.planted === 0) {
+    lines.push('Nothing grows on your land: open the Farm (J) and plant a seed. Turnips are ready in ' + CROPS.turnip.hours + ' hours, sooner if watered.');
     ids.push('farm');
+  } else if (land && land.ready) {
+    const ready = readyWords(land.ready);
+    if (ready.words.length) {
+      lines.push(listed(ready.words) + (ready.plots === 1 ? ' is' : ' are') + ' ready on your land: open the Farm (J) to harvest '
+        + (ready.plots === 1 ? 'it.' : 'them.'));
+      ids.push('harvest', ...ready.ids);
+    }
   }
   const next = groundHunts().find((h) => HUNT_INDEX[h].band[0] > facts.charLevel);
   if (next) {

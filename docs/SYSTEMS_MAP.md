@@ -237,6 +237,19 @@ and `DEEPWATERS-S1`/`-S2` in `tests/accrual-engine.mjs`.
 `src/data/monsters.js` → `MONSTERS`. Drops live inline:
 `drops:[{id, ch}]` (ch = 0..1 chance). Add a drop = add to the array; the id must
 exist in `ITEMS`.
+**The loot bands** (Tyler 2026-10-23): on a converted ground every row is
+`{id, ch, band}`, band common | uncommon | scarce | rare | trophy
+(`src/data/loot-bands.js`, in that order on the row list). The roller reads the
+band (`src/core/drops.js` bandOf); only Rare and Trophy reveal and go to the
+party's rare roll. Each band is a promise in hours at the floor (Scarce about one
+piece an hour, Rare 10-20 h per item, Trophy 100-150 h, bosses only), worn gear
+sells at its tier's share of book (`VENDOR_GEAR_RATES`), and
+`tests/hunt-core/drop-tables.mjs` measures pace, the gear faucet and total value on
+the real settle, for a party ground's party and lone hero alike. Every walked
+ground is banded; only the tutorial's seeded Giant Rat and Slime keep odds rows.
+The server refuses a settle naming an item no spawn's kill bound lists, so a new
+drop item ships with the regenerated hunt-sessions catalogue, applied right
+before the edge deploy.
 ⚠ **A drop row is a SERVER FAUCET** (hr-accrue mints it into a tradeable
 inventory), so it ships in lane C order: **Security GO → hr-accrue edge deploy →
 then the client**. The client must never show a drop the deployed engine cannot
@@ -256,6 +269,19 @@ because the flag is what silences the client's dice.
 The store (food, drink, runes, ammo, starter tools) is `src/data/shops.js`;
 own stock is spent first, then the store at store price. A drop that has **no** faucet will fail the
 reachability guard — wire it into a drop table, recipe, or shop.
+
+### 8. Tamsin's tally (kill tasks) — data
+`src/data/tally-tasks.js` → `TALLY_TASKS` (one row per ground + monster: `count`,
+`gold`, `label`, `party`, `materials`) and `TALLY_RULES` (3 held, 3 paid a UTC day,
+the armour weights, her slot order). **To add a task:** add a row, then
+`node tools/gen-tally-tasks.mjs` (`--check` in CI). Her PICK is not authored: it is
+every Scarce ARMOUR row (`band: 'scarce'`) of the ground's monsters, by weight and
+slot, so a ground's loot bands are its tally rewards; a ground with none refuses
+the generator. The server counts kills inside the hunt settle and pays in the
+settle that brings the hero home (`supabase/migrations/2026-12-23-tally-tasks.sql`;
+contract: `docs/design/ARCHITECTURE_CONTRACTS.md` §21; proof `tests/tally-tasks.mjs`).
+⚠ A task is a **server faucet** (gold into the account purse, a piece or materials
+into the bag): lane C order, like a drop row.
 
 ---
 

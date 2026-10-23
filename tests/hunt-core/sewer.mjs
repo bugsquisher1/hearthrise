@@ -355,11 +355,34 @@ const cases = {
       hud: { isShown: () => false }, wm: { openIds: () => [], rows: () => [], row: () => null } });
     if (!withDef(0).includes('The Shop sells gloves and belts')) return 'Defense at 0 XP: the what-next line does not point at the Shop\'s armour: ' + withDef(0);
     if (withDef(40).includes('The Shop sells gloves and belts')) return 'Defense training: the what-next line still asks for armour';
-    /* Farming at 0 XP (nothing ever planted: farming sat at zero, P1 2026-10-22) points at the Farm once; one planting ends it. */
-    const withFarm = (xp) => renderLaunchers({ character: { read: (k) => ({ ...sewerEnv, skills: { ...sewerEnv.skills, farming: { xp, level: 1 } } })[k] }, glyphs: {},
-      hud: { isShown: () => false }, wm: { openIds: () => [], rows: () => [], row: () => null } });
-    if (!withFarm(0).includes('open the Farm (J)')) return 'Farming at 0 XP: the what-next line does not point at the Farm: ' + withFarm(0);
-    if (withFarm(28).includes('open the Farm (J)')) return 'Farming started: the what-next line still asks for a planting';
+    /* THE LAND IS THE ACCOUNT'S (2026-12-14-shared-farm). v0.2.35 gate: Fingerguns, 0 Farming XP, was told "Nothing
+       grows on your farm yet" over 5 READY turnips the other heroes planted. The line reads the server's `farm_land`
+       field, never this hero's Farming XP: empty land asks for a seed (any hero), ready plots ask for the harvest
+       (any hero may take it), a field that is only growing says nothing, and no field yet says nothing (fail safe). */
+    const plot = (i, crop, ready) => ({ i, crop, ready, ready_in_s: ready ? 0 : 3600, waterable: false, regrows_left: null, by: 1, by_name: 'Andy', extra: false });
+    const field = (plots) => ({ cap: 5, plot_level: 1, deeds: 0, upgrade: null, plots });
+    const withLand = (xp, land) => {
+      const e = { ...sewerEnv, skills: { ...sewerEnv.skills, farming: { xp, level: 1 } }, ...(land ? { farm_land: land } : {}) };
+      return renderLaunchers({ character: { read: (k) => e[k] }, glyphs: {}, hud: { isShown: () => false }, wm: { openIds: () => [], rows: () => [], row: () => null } });
+    };
+    const fiveReady = field([0, 1, 2, 3, 4].map((i) => plot(i, 'turnip', true)));
+    const seen = withLand(0, fiveReady);
+    if (/Nothing grows/.test(seen)) return 'a 0-Farming-XP hero on land holding 5 ready turnips is told nothing grows: ' + seen;
+    if (!seen.includes('5 Turnip plots are ready on your land: open the Farm (J) to harvest them.')) return 'ready turnips on the shared land: no harvest line: ' + seen;
+    if (!withLand(28, field([])).includes('Nothing grows on your land: open the Farm (J)')) return 'empty land, a hero who has farmed: no plant line: ' + withLand(28, field([]));
+    if (!withLand(0, field([])).includes('Nothing grows on your land')) return 'empty land, a hero who never farmed: no plant line';
+    if (withLand(0, field([plot(0, 'turnip', false)])).includes('Farm (J)')) return 'land only growing: the what-next line still names the Farm: ' + withLand(0, field([plot(0, 'turnip', false)]));
+    if (withLand(0, null).includes('Farm (J)')) return 'no farm_land from the server yet: the what-next line claims the land';
+    const mixed = withLand(0, field([plot(0, 'potato', true), plot(1, 'carrot', true), plot(2, 'carrot', true), plot(3, 'turnip', false)]));
+    if (!mixed.includes('2 Carrot plots and 1 Potato plot are ready on your land')) return 'two ready crops: the harvest line does not name both: ' + mixed;
+    if (!withLand(0, field([plot(0, 'wheat', true)])).includes('1 Wheat plot is ready on your land: open the Farm (J) to harvest it.')) return 'one ready plot: ' + withLand(0, field([plot(0, 'wheat', true)]));
+    /* The coach reads the field with no clock: the Farm window's countdown starts from the clock that first opens it. */
+    const fs = await import(pathToFileURL(join(M.root, 'src/session/farm-sections.js')).href + V);
+    const late = field([plot(0, 'turnip', false)]);
+    const lateEnv = { ...sewerEnv, farm_land: late };
+    renderLaunchers({ character: { read: (k) => lateEnv[k] }, glyphs: {}, hud: { isShown: () => false }, wm: { openIds: () => [], rows: () => [], row: () => null } });
+    const win = fs.farmLandOf({ read: (k) => lateEnv[k] }, 5000);
+    if (!win || win.seenAt !== 5000) return 'the coach stamped the Farm window\'s countdown clock (seenAt ' + (win && win.seenAt) + ', wanted 5000)';
     return null;
   },
   'tutorial-never-backward': async (M) => {
@@ -408,8 +431,15 @@ const cases = {
 const mutants = [
   { name: 'the what-next line never sees Defense (no armour hint)', case: 'tutorial-launcher-card',
     edits: [['src/session/tutorial-sections.js', 'defenseXp: sk && sk.defense ? sk.defense.xp : null', 'defenseXp: null']] },
-  { name: 'the what-next line never sees Farming (no farm hint)', case: 'tutorial-launcher-card',
-    edits: [['src/session/tutorial-sections.js', 'farmingXp: sk && sk.farming ? sk.farming.xp : null', 'farmingXp: null']] },
+  { name: 'the farm line keys off this hero\'s Farming XP again, not the shared land (v0.2.35 "Nothing grows" over ready crops)', case: 'tutorial-launcher-card',
+    edits: [['src/session/tutorial-sections.js', 'land: landOf(cs) });',
+      'land: sk && sk.farming ? { planted: sk.farming.xp > 0 ? 1 : 0, ready: {} } : null });']] },
+  { name: 'the what-next line never sees the land (no farm hint)', case: 'tutorial-launcher-card',
+    edits: [['src/session/tutorial-sections.js', 'land: landOf(cs) });', 'land: null });']] },
+  { name: 'ready crops on the land are never named', case: 'tutorial-launcher-card',
+    edits: [['src/data/hunt-tutorial.js', '} else if (land && land.ready) {', '} else if (false) {']] },
+  { name: 'the coach stamps the Farm window\'s countdown clock', case: 'tutorial-launcher-card',
+    edits: [['src/session/farm-sections.js', '  return parse(read(cs, \'farm_land\'));\n', '  return farmLandOf(cs, 0);\n']] },
   { name: 'nothing to aim at after the guide (no what-next line)', case: 'tutorial-launcher-card',
     edits: [['src/session/tutorial-sections.js', '  if (card) return card;\n', '  return card;\n']] },
   { name: 'the launcher shows only the first card', case: 'tutorial-launcher-card',

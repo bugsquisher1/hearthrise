@@ -538,7 +538,8 @@ function slimeHunt(L, { skills, boost, sink, spanMs }) {
   ctx.fx.addItem = (id, q) => { items[id] = (items[id] || 0) + q; };
   const slime = L.MONSTERS.slime;
   const state = { skills: xs.skills, levelXp: 0, playerHp: 990, playerMaxHp: 990, playerMaxMana: 100, regenPm: 1000, stats: {}, gold: 0 };
-  const hero = L.spawn.heroSetup({ weaponType: 'sword', options: {}, bar: [], partyRoles: [] });
+  /* the tank (the shield's key since Tyler 2026-10-23; a sword alone plays Melee damage): the fight X4 pinned */
+  const hero = L.spawn.heroSetup({ weaponType: 'shield', options: {}, bar: [], partyRoles: [] });
   const member = { key: 'x', seat: 0, unitId: null, hs: huntSessionFor({ fromMs: FROM, onEmpty: 'end' }), state, fx: ctx.fx,
     family: 'sword', armoured: true, shield: false, bonus: ctx.bonus, weakness: (m) => ctx.weakness(m),
     snapshot: () => { const rr = ctx.playerRolls(slime); return { acc: Math.round(rr.accuracy * 1000), maxHit: Math.max(1, rr.maxHit), def: 99 }; },

@@ -118,9 +118,10 @@ function memberOf(M, user, seat, role, level) {
       staminaMs: 8 * 3600000, staminaMaxMs: 8 * 3600000, basics,
       goldFloor: 0, supplySource: 'mine', onEmpty: 'switch', cover: {} },
     skills: { melee: M.XP.skillXpForLevel('melee', L), defense: M.XP.skillXpForLevel('defense', L), ranged: M.XP.skillXpForLevel('ranged', L), magic: 0, prayer: 0 },
-    levelXp: M.XP.charXpForLevel(L), xpFrac: null, hp: 1e6, gold: 500, equipment: { weapon }, inventory: {}, buffs: [], perks: null,
+    levelXp: M.XP.charXpForLevel(L), xpFrac: null, hp: 1e6, gold: 500, equipment: role === 'tank' ? { weapon, shield: 'practice_shield' } : { weapon }, inventory: {}, buffs: [], perks: null,
     deathsTodayBefore: 0, deathsLifetimeBefore: 0, hearthfindReady: false,
-    hero: M.SPAWN.heroSetup({ weaponType: role === 'ranger' ? 'ranged' : role === 'melee_dps' ? 'hammer' : 'sword', options: {}, bar: [], partyRoles: ['tank', 'melee_dps'] }),
+    /* (the SHIELD makes the tank, Tyler 2026-10-23: a tank's key is the shield's, a sword alone plays Melee damage) */
+    hero: M.SPAWN.heroSetup({ weaponType: role === 'ranger' ? 'ranged' : role === 'melee_dps' ? 'hammer' : 'shield', options: {}, bar: [], partyRoles: ['tank', 'melee_dps'] }),
   };
 }
 
@@ -285,7 +286,7 @@ function rules(M) {
     // absorbs, a cloth belt wards); the server's settle lands its blows through that chain and the viewer's
     // browser, which holds only the peer's frozen numbers, predicts every commit.
     const mis = [memberOf(M, 'a', 0, 'melee_dps', 8), memberOf(M, 'b', 1, 'tank', 8)];
-    mis[1].equipment = { weapon: 'bronze_sword', helmet: 'bronze_helm', body: 'leather_body', pants: 'leather_pants', belt: 'apprentice_belt' };
+    mis[1].equipment = { weapon: 'bronze_sword', shield: 'practice_shield', helmet: 'bronze_helm', body: 'leather_body', pants: 'leather_pants', belt: 'apprentice_belt' };
     let dodges = 0, peerUnit = null;
     const r = run(M, mis, 96000, { onCommit: ({ c }) => {
       peerUnit = mis[1].unitId;
@@ -483,7 +484,8 @@ function rules(M) {
   }
 
   { // LV-PULL: THE HOLDER PULLS (bug #61, Andy 10-22 at the Warrens; Coordinator rulings 2026-10-22 within Tyler 10-16).
-    // Andy's party as live: Eddie (seat 0, L40 sword tank, leads) and Fremulon (seat 1, sword tank), Apollo (seat 2,
+    // Andy's party as live: Eddie (seat 0, L40 sword-and-shield tank, leads) and Fremulon (seat 1, sword-and-shield tank; the
+    // SHIELD makes the tank since Tyler 2026-10-23, so each carries the Practice Shield), Apollo (seat 2,
     // wand) beside them, density 5. Before: Eddie pulled every lap and the other holder's Challenge yanked the pack off
     // him (6 casts a lap). In BOTH modes the holder now makes the pull: under "Take turns" the lap's holder, under "One
     // tank holds: Fremulon" Fremulon every lap (a world opened with the pick pulls with it from its first lap).
@@ -499,8 +501,8 @@ function rules(M) {
       };
       const plate = { body: 'bronze_platebody', pants: 'steel_platelegs', boots: 'bronze_boots' };
       return [
-        row('eddie', 0, 3696348, { melee: 1212343, defense: 1166560, magic: 7056, ranged: 0, prayer: 76422 }, { weapon: 'steel_sword', helmet: 'iron_helm', ...plate }, 'sword', true),
-        row('fremulon', 1, 3370870, { melee: 965112, defense: 636093, magic: 6894, ranged: 0, prayer: 84294 }, { weapon: 'iron_sword', helmet: 'steel_helm', ...plate }, 'sword', false),
+        row('eddie', 0, 3696348, { melee: 1212343, defense: 1166560, magic: 7056, ranged: 0, prayer: 76422 }, { weapon: 'steel_sword', shield: 'practice_shield', helmet: 'iron_helm', ...plate }, 'shield', true),
+        row('fremulon', 1, 3370870, { melee: 965112, defense: 636093, magic: 6894, ranged: 0, prayer: 84294 }, { weapon: 'iron_sword', shield: 'practice_shield', helmet: 'steel_helm', ...plate }, 'shield', false),
         row('apollo', 2, 1509460, { melee: 4015, defense: 267, magic: 220560, ranged: 405, prayer: 26451 },
           { weapon: 'practice_wand', shield: 'practice_spellbook', helmet: 'leather_helmet', body: 'leather_body', boots: 'leather_boots' }, 'wand', false),
       ];

@@ -21,6 +21,7 @@
 
 import { ITEMS } from './items.js?v=0.2.34';
 import { roleWeaponOf } from './hunt-roles.js?v=0.2.34';
+import { isShield } from './shields.js?v=0.2.34';
 
 /* The ammo noun (the last word of the item's name) and what fires it. */
 const AMMO_FOR = Object.freeze({ arrows: 'bows', bolts: 'crossbows', rune: 'staves', runes: 'staves', whetstone: 'blades', whetstones: 'blades' });
@@ -44,6 +45,8 @@ export function itemUse(id) {
   if (it.type === 'weapon') return WEAPON_WORD[roleWeaponOf(it)] || 'weapon';
   /* Tyler 2026-10-19: a Mage holds a wand and a spellbook; the book is an off-hand with a discipline. */
   if (it.slot === 'shield' && it.discipline) return 'spellbook';
+  /* Tyler 2026-10-23: the shield makes the tank (src/data/shields.js) */
+  if (isShield(it)) return 'shield';
   if (it.slot) return SLOT_WORD[it.slot] || 'gear';
   if (Number(it.heals) > 0) return 'food, heals ' + it.heals;
   return 'material';

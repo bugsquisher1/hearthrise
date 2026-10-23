@@ -95,7 +95,8 @@ const PARTY = 'party:dddddddd-0000-4000-8000-0000000000c1';
 const ZONE = 'local:mill_cellar';
 let seq = 0;
 const row = (o) => Object.assign({ id: '00000000-0000-4000-8000-' + String(++seq).padStart(12, '0'), channel: 'global', from_id: OTHER,
-  from_name: 'Bramble', from_slot: 0, from_level: 34, from_weapon: 'sword', from_role: null, body: 'hello', created_at: '2026-10-18T09:05:00Z' }, o);
+  /* from_weapon is the server's ROLE KEY (hr_hunt_weapon_of): a sword and a shield send 'shield' since 2026-10-23 */
+  from_name: 'Bramble', from_slot: 0, from_level: 34, from_weapon: 'shield', from_role: null, body: 'hello', created_at: '2026-10-18T09:05:00Z' }, o);
 
 async function load(base) {
   const u = (p) => pathToFileURL(join(base, p)).href;
@@ -132,7 +133,7 @@ async function pureRules(M) {
   const { lineOf, partsOf, bodyOf } = M.lines;
   // CL-1
   const l = lineOf(row({ from_role: 'healer', created_at: '2026-10-18T09:05:00Z' }), { tz: 'utc' });
-  if (!l || l.time !== '09:05' || l.name !== 'Bramble' || l.level !== 34 || l.role !== 'tank') fail('CL-1 a sword line with a healer pick reads ' + JSON.stringify(l && { time: l.time, level: l.level, role: l.role }));
+  if (!l || l.time !== '09:05' || l.name !== 'Bramble' || l.level !== 34 || l.role !== 'tank') fail('CL-1 a shield line (the tank\'s role key, Tyler 2026-10-23) with a healer pick reads ' + JSON.stringify(l && { time: l.time, level: l.level, role: l.role }));
   const s = lineOf(row({ from_weapon: 'staff', from_role: 'healer' }));
   if (!s || s.role !== 'healer') fail('CL-1 a staff with a healer pick should be a healer');
   if (lineOf(row({ channel: 'party:not-a-party' })) || lineOf(row({ id: 'x' })) || lineOf(row({ created_at: 'never' }))) fail('CL-1 a malformed row became a line');
@@ -449,7 +450,7 @@ async function pageRules(overrides, shots) {
       if (!await wait(page, () => document.querySelector('[data-hs-win="chat"] .hc-log.is-talk.is-on li'))) { fails.push('CW-1 [' + tag + '] the chat did not open on Global with its history'); await ctx.close(); continue; }
       // CW-1
       const n = await page.evaluate(([zone]) => window.__hub.row('chat_messages', { id: '00000000-0000-4000-8000-00000000f001', channel: 'global',
-        from_id: 'aaaaaaaa-0000-4000-8000-0000000000b1', from_name: 'Bramble', from_slot: 0, from_level: 34, from_weapon: 'sword', from_role: 'healer',
+        from_id: 'aaaaaaaa-0000-4000-8000-0000000000b1', from_name: 'Bramble', from_slot: 0, from_level: 34, from_weapon: 'shield', from_role: 'healer',
         body: 'look [[item:bronze_sword]]', created_at: new Date(Date.UTC(2026, 9, 18, 9, 5)).toISOString() }) + (zone ? 0 : 0), [ZONE]);
       if (n !== 1) fails.push('CW-1 [' + tag + '] the page did not listen to Global (' + n + ' bindings took the row)');
       await page.waitForTimeout(400);
@@ -465,7 +466,7 @@ async function pageRules(overrides, shots) {
         || line.link !== '[Bronze Sword]' || !line.last) fails.push('CW-1 [' + tag + '] the line reads ' + JSON.stringify(line));
       // CW-2
       await page.evaluate(() => window.__hub.row('chat_messages', { id: '00000000-0000-4000-8000-00000000f002', channel: 'local:mill_cellar',
-        from_id: 'aaaaaaaa-0000-4000-8000-0000000000b1', from_name: 'Bramble', from_slot: 0, from_level: 34, from_weapon: 'sword', from_role: null,
+        from_id: 'aaaaaaaa-0000-4000-8000-0000000000b1', from_name: 'Bramble', from_slot: 0, from_level: 34, from_weapon: 'shield', from_role: null,
         body: 'down here', created_at: new Date().toISOString() }));
       const dot = await wait(page, () => { const b = document.querySelector('[data-hs-win="chat"] [data-tab="local"]'); return b && b.classList.contains('is-unread'); }, null, 2000);
       if (!dot) fails.push('CW-2 [' + tag + '] no unread dot on Local');

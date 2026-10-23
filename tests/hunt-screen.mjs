@@ -1170,7 +1170,8 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           return { off: li.classList.contains('is-off'), wait: li.classList.contains('is-wait'), glyph: !!li.querySelector('.hb-why svg'), text: w ? w.textContent : '' };
         }, i);
         const S = s.env.hunt_settings;
-        Object.assign(S, { role: 'tank', supply_source: 'mine', on_empty: 'end' });
+        /* the server projects the role AND the worn set's ability discipline (hr_hunt_settings_view, lane b-spell-roles) */
+        Object.assign(S, { role: 'tank', discipline: 'shield', supply_source: 'mine', on_empty: 'end' });
         s.env.hunt.hero.mana = 2;
         /* The struck state of a food or drink is the SERVER's (hr_hunt_settings_view usable + why), never a browser count. */
         S.slots[2] = Object.assign({}, S.slots[2], { count: 0, usable: false, why: 'none_left' });
@@ -1203,13 +1204,13 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           if (!re.test(w.text) || !w.glyph || w.off !== strike || w.wait !== !strike) fails.push('HS-20 the ' + label + ' slot reads ' + JSON.stringify(w));
         }
         if (shots) await page.screenshot({ path: join(shots, 'hunt-1440x900-slot-reasons.png') });
-        S.role = 'healer';
+        S.role = 'healer'; S.discipline = 'restoration';
         await pushEnvelope(page, s);
         await page.waitForTimeout(300);
         const wrong = await why(0);
         if (!/^Your weapon can’t use this\. Needs /.test(wrong.text) || !wrong.off || !wrong.glyph) fails.push('HS-20 the wrong-weapon slot reads ' + JSON.stringify(wrong));
         await sweep('the healer bar');
-        delete S.role;
+        delete S.role; delete S.discipline;
         await pushEnvelope(page, s);
         await page.waitForTimeout(300);
         const none = await why(0);

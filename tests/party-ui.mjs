@@ -134,8 +134,9 @@ function account(M, srv) {
 
 /* ── WHO HOLDS THE PACK (PR-5..7): Andy's party as live 10-22 (bug #59): Eddie L39 sword (seat 0, leader, unit 1,
    616 HP), Hank L27 hammer, Apollo L28 wand, Fremulon L38 sword (seat 3, unit 20, 604 HP). ── */
-const ANDY_SEATS = [[0, 1, 'Eddie', 39, 'sword', 616, 'tank'], [1, 7, 'Hank', 27, 'hammer', 420, 'melee_dps'],
-  [2, 13, 'Apollo', 28, 'wand', 390, 'mage'], [3, 20, 'Fremulon', 38, 'sword', 604, 'tank']];
+/* (a seat's weapon is the server's ROLE KEY: a sword and a shield is 'shield', Tyler 2026-10-23) */
+const ANDY_SEATS = [[0, 1, 'Eddie', 39, 'shield', 616, 'tank'], [1, 7, 'Hank', 27, 'hammer', 420, 'melee_dps'],
+  [2, 13, 'Apollo', 28, 'wand', 390, 'mage'], [3, 20, 'Fremulon', 38, 'shield', 604, 'tank']];
 const TURNS_NOTE = 'Your tanks take turns holding the pack, one lap each. The other tank pulls monsters off the rest of the party.';
 /** The party section the server projects (hunting or in town; `self` the viewer's seat, `hold` the hold seat, `frem` Fremulon's max HP). */
 function andyParty(o) {

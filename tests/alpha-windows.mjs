@@ -386,7 +386,8 @@ async function huntsPure(imp) {
   const setups = setupsOf(sess({ hunt_settings: { preset: 0, presets: [{ preset: 0, name: 'Hunt' }, { preset: 1, name: 'Bow' }, { preset: 2, name: 'Bare set' }], slots: FIXTURE.hunt_settings.slots, store: STORE },
     hunt_presets: [{ preset: 1, name: 'Bow', action_set: 1, gear: { weapon: 'shortbow' } }], equipment: { weapon: 'iron_sword' } }))
     .map((p) => [p.preset, p.name, p.inUse, p.weapon, p.roleWords, p.bar ? p.bar.length : '-'].join(':')).join('|');
-  if (setups !== '0:Hunt:true:iron_sword:Melee (shield):4|1:Bow:false:shortbow:Ranger:-') fails.push('AW-26 Go as offers ' + setups);
+  /* the fixture hero wears an Iron Sword ALONE: Melee damage (Tyler 2026-10-23, the shield makes the tank) */
+  if (setups !== '0:Hunt:true:iron_sword:Melee:4|1:Bow:false:shortbow:Ranger:-') fails.push('AW-26 Go as offers ' + setups);
   /* A closed session is no hero to bring (the open one in a party is checked on the page, AW-28). */
   const me = { slot: 0, status: 'ready', read: () => null };
   if (freeHeroes(me, [me, { slot: 3, status: 'closed', read: (k) => (k === 'name' ? 'Wrenna' : null) }]).length) fails.push('AW-28 Bring your heroes offers a closed session');
@@ -947,7 +948,7 @@ async function checks(overrides, shots) {
         const goAs = () => page.evaluate((w) => Array.from(document.querySelectorAll(w + '.hw-go')).map((b) => [b.dataset.preset, b.getAttribute('aria-checked'), b.querySelector('.hw-go-name').textContent,
           b.querySelector('.hw-go-what').textContent, b.querySelectorAll('.hw-go-bar .hh-icon').length, (b.querySelector('.hw-go-weapon img') || {}).src ? b.querySelector('.hw-go-weapon img').getAttribute('src').split('/').pop() : ''].join(':')), W);
         const g0 = (await goAs()).join('|');
-        if (g0 !== '0:true:Hunt:Melee (shield) · on now:4:iron_sword.png|1:false:Bow:Ranger:0:shortbow.png') fails.push('AW-26 Go as reads ' + JSON.stringify(g0));
+        if (g0 !== '0:true:Hunt:Melee · on now:4:iron_sword.png|1:false:Bow:Ranger:0:shortbow.png') fails.push('AW-26 Go as reads ' + JSON.stringify(g0));
         /* AW-27 BEFORE YOU GO: what the bar spends, in slot order, from the server's bar, bag and gold. */
         const before = () => page.evaluate((w) => Array.from(document.querySelectorAll(w + '.hw-before-line')).map((li) => (li.classList.contains('is-short') ? '!' : '') + li.textContent).join(' | '), W);
         const b0 = await before();

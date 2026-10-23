@@ -182,7 +182,8 @@ export function huntSpan(state, ctx, opts) {
      at the hero's eat-at, unless its bar already names a food. */
   const bar = (o.bar || []).slice();
   if (o.food && !bar.some((x) => x && x.action && x.action.type === 'consume')) bar.push({ action: { type: 'consume', id: o.food }, conditions: [], join: 'and' });
-  const hero = heroSetup({ weaponType: o.weaponType || 'sword', options: o.options || {}, bar, partyRoles: [] });
+  /* the TANK by default (the shield's role key since Tyler 2026-10-23; a sword alone plays Melee damage, a different fight) */
+  const hero = heroSetup({ weaponType: o.weaponType || 'shield', options: o.options || {}, bar, partyRoles: [] });
   const member = {
     key: 'fixture', seat: 0, unitId: null, hs, state, fx: ctx.fx || {}, family: ctx.family || o.weaponType || 'sword',
     bonus: ctx.bonus || (() => 0), weakness: ctx.weakness || (() => ({ dropMult: 1 })), snapshot: rolls,

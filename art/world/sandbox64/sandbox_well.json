@@ -5,12 +5,12 @@
   "material": "stone",
   "source": "sandbox_well.png",
   "frame": [
-    51,
-    64
+    71,
+    86
   ],
   "anchor_px": [
-    25,
-    63
+    35,
+    85
   ],
   "footprint": [
     1,
@@ -28,7 +28,7 @@
   ],
   "pixellab": {
     "tool": "create_object_pro_flash",
-    "object": "ab8af429-da51-456e-84a8-0a83a23d0ee5"
+    "id": "1085500e-5e7a-45cf-b80d-551ff4e67b3f"
   },
-  "notes": "SANDBOX64 final well (attempt A, 64 on its long side: under the x2 target), cropped to its box. Provenance in _final.well.json."
+  "notes": "SANDBOX64 round 3 final well (provenance in _final.well.json), cropped to its box."
 }

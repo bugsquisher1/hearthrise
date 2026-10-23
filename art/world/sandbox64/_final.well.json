@@ -4,12 +4,41 @@
   "style": "s1",
   "material": "stone",
   "source": "well.png",
-  "frame": [128, 128],
-  "measured": { "mass": [50, 64], "foot_row": 95 },
-  "notes": "SANDBOX64 final (2026-10-23): the gate-1 well (attempt A, art/sandbox64/well.json has its params; object e8b5f6af, seed 1102, 6 generations). UNDER TARGET: Tyler asked for today's size x2 (~86 on the long side); this is 64. The resize attempt B (172 canvas, seed 1202, object ab8af429, 6 generations, art/sandbox64/well-b.raw.png) came out SMALLER, 44x50, so A is kept as the closer one. No further re-roll: the round's 60 cap left no margin and canvas size did not control the prop's size.",
-  "attempt_b": {
-    "tool": "create_object_pro_flash", "object_id": "ab8af429-da51-456e-84a8-0a83a23d0ee5",
-    "params": { "width": 172, "height": 172, "n_directions": 1, "view": "high top-down", "seed": 1202, "name": "sandbox64-well-b", "style_image": "upload of art/world/common/well.png (36x43), same usage text as A", "style_options": { "color_palette": true, "detail": false, "outline": true, "shading": true }, "palette": "hr-world-56-v2", "description": "as A without the '86 pixels' clause: 'The well fills most of the canvas height, standing on the ground at the bottom.'" },
-    "measured": { "mass": [44, 50] }, "cost_generations": 6
+  "frame": [
+    80,
+    96
+  ],
+  "measured": {
+    "mass": [
+      71,
+      86
+    ]
+  },
+  "target_x2_of_today": [
+    72,
+    86
+  ],
+  "notes": "SANDBOX64 round 3 final (2026-10-23). Size reference = today's art/world/common/well.png cut to its body and scaled x2 nearest-neighbour; the reference sets the size.",
+  "pixellab": {
+    "tool": "create_object_pro_flash",
+    "object_id": "1085500e-5e7a-45cf-b80d-551ff4e67b3f",
+    "params": {
+      "width": 80,
+      "height": 96,
+      "n_directions": 1,
+      "view": "high top-down",
+      "seed": 1305,
+      "style_image": "upload of art/world/common/well.png body x2 (72x86); usage 'Keep exactly this size and silhouette; redraw it with full 64 px detail (this reference is a 2x enlargement, so do not copy its chunky pixels).'",
+      "style_options": {
+        "color_palette": true,
+        "detail": false,
+        "outline": true,
+        "shading": true
+      },
+      "palette": "hr-world-56-v2 (56 colours)",
+      "description": "A village stone well seen from a high top-down camera: round grey fieldstone wall, a wooden frame with a small shingled roof on two posts, a rope and a wooden bucket. Keep exactly this size and silhouette, redraw with full 64 px detail: clean shading in a few tones per material, single dark outline, lit from the upper left, no background, no shadow, classic MMORPG game prop."
+    },
+    "cost_generations": 5,
+    "cost_note": "tool estimate; round 3 jobs overlapped (round total in knight.json)"
   }
 }

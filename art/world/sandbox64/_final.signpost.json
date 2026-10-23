@@ -1,0 +1,45 @@
+{
+  "id": "signpost",
+  "class": "fixture",
+  "style": "s1",
+  "material": "wood",
+  "source": "signpost.png",
+  "frame": [
+    64,
+    80
+  ],
+  "measured": {
+    "mass": [
+      42,
+      69
+    ]
+  },
+  "target_x2_of_today": [
+    56,
+    72
+  ],
+  "notes": "SANDBOX64 round 3 final (2026-10-23). Size reference = today's art/world/common/signpost.png cut to its body and scaled x2 nearest-neighbour; the reference sets the size.",
+  "pixellab": {
+    "tool": "create_object_pro_flash",
+    "object_id": "40bedbaf-8a75-4b94-9e40-6953dd04d5a1",
+    "params": {
+      "width": 64,
+      "height": 80,
+      "n_directions": 1,
+      "view": "high top-down",
+      "seed": 1304,
+      "style_image": "upload of art/world/common/signpost.png body x2 (56x72); usage 'Keep exactly this size and silhouette; redraw it with full 64 px detail (this reference is a 2x enlargement, so do not copy its chunky pixels).'",
+      "style_options": {
+        "color_palette": true,
+        "detail": false,
+        "outline": true,
+        "shading": true
+      },
+      "palette": "hr-world-56-v2 (56 colours)",
+      "description": "A wooden village signpost with one blank plank board on a single post, seen from a high top-down camera; the board is blank (no text, no letters). Keep exactly this size and silhouette, redraw with full 64 px detail: clean shading in a few tones per material, single dark outline, lit from the upper left, no background, no shadow, classic MMORPG game prop."
+    },
+    "cost_generations": 5,
+    "cost_note": "tool estimate; round 3 jobs overlapped (round total in knight.json)"
+  },
+  "text": "Back to the Common (drawn by the engine; the board is blank)"
+}

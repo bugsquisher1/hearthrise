@@ -3,14 +3,14 @@
   "class": "bulky",
   "style": "s1",
   "material": "stone",
-  "source": "sandbox_rocks.standin.png",
+  "source": "sandbox_rocks.png",
   "frame": [
-    64,
-    60
+    52,
+    52
   ],
   "anchor_px": [
-    32,
-    59
+    26,
+    51
   ],
   "footprint": [
     1,
@@ -28,8 +28,7 @@
   ],
   "pixellab": {
     "tool": "create_object_pro_flash",
-    "object": "99a5ffd7-b069-42c5-a861-aca9835d7a38",
-    "name": "S1 rocks"
+    "id": "81d4814c-0d11-45f7-b504-fb5ceea35edb"
   },
-  "notes": "STAND-IN: common/rocks.json nearest-neighbour x2. Ported from PixelLab object 99a5ffd7-b069-42c5-a861-aca9835d7a38 (style 1) by tools/world-art/port-pixellab.mjs: pixels unscaled, bottom-centre anchor as Map Workshop places it. Replaced by the hd64 art lane."
+  "notes": "SANDBOX64 round 3 final rocks (provenance in _final.rocks.json), cropped to its box."
 }

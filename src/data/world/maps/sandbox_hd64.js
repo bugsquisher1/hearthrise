@@ -3,9 +3,9 @@
 // Row shape and lint: src/world/core/map-compile.js (L-GRID: no rock faces, no wall kit, no
 // hunts on another grid). Rebuild the hash with `node tests/world-core.mjs --hashes`.
 //
-// ART: the hd64 finals (art/world/sandbox64: the knight, the rat, the well, the barrel and the T1
-// grass <-> packed dirt Wang ground, laid by these rows' corners); the bush, rocks, pine and
-// sign are still x2 stand-ins (*.standin.png).
+// ART: the hd64 round 3 finals (art/world/sandbox64): the knight and the rat (idle and walk), the
+// well, barrel, pine, bush, rocks and sign, and the grass <-> packed dirt Wang ground laid by these
+// rows' corners.
 export default Object.freeze({
   id: 'sandbox_hd64',
   name: 'The Sandbox (64 px)',
@@ -44,7 +44,7 @@ export default Object.freeze({
     { id: 'sandbox_pine', x: 5, y: 4 }, { id: 'sandbox_pine', x: 16, y: 4 }, { id: 'sandbox_pine', x: 27, y: 4 },
     { id: 'sandbox_pine', x: 5, y: 15 }, { id: 'sandbox_pine', x: 16, y: 15 }, { id: 'sandbox_pine', x: 27, y: 15 },
     /* the square: the well and its stores */
-    { id: 'sandbox_well', x: 15, y: 8 }, { id: 'sandbox_barrels', x: 17, y: 6 },
+    { id: 'sandbox_well', x: 15, y: 8 }, { id: 'sandbox_barrel', x: 17, y: 6 },
     /* the edges */
     { id: 'sandbox_bush', x: 8, y: 5 }, { id: 'sandbox_bush', x: 21, y: 11 }, { id: 'sandbox_rocks', x: 7, y: 13 }, { id: 'sandbox_rocks', x: 24, y: 18 },
   ]),

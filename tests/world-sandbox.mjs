@@ -105,6 +105,12 @@ async function rules(M) {
 
   /* SB-3 WALK */
   inSand.drive([1, 0], 0);
+  /* the 64 px hero animates while it walks: the walk clip, frames from the sandbox atlas */
+  const fMid = inSand.frame({ kind: 'sandbox' }, 450);
+  const walkD = draw(sand, M.hdArt, { hero: fMid.hero }).sprites.find((d) => d.id === S.hero);
+  const idleD = heroD;
+  ok('SB-3', fMid.hero.anim === 'walk' && M.hdArt.book.frames(S.hero, 'walk', 'e') > 1 && walkD && walkD.set === 'sandbox64'
+    && (walkD.sx !== idleD.sx || walkD.sy !== idleD.sy), 'the walking hero must play its multi-frame walk clip, got ' + fMid.hero.anim + ' / ' + M.hdArt.book.frames(S.hero, 'walk', 'e') + ' frames');
   const f1 = inSand.frame({ kind: 'sandbox' }, 1000);
   inSand.drive(null, 1000);
   ok('SB-3', f1.hero.x - sand.start[0] >= 3 - 1e-9 && f1.hero.y === sand.start[1], 'held keys must walk the hero 3 tiles east in a second, got ' + f1.hero.x);
@@ -122,6 +128,7 @@ async function rules(M) {
     if (u.plate || u.ref) outside = outside || ['plate/ref'];
   }
   ok('SB-4', cells.size > 1 && anims.has('walk') && anims.has('idle'), 'the wanderer must rest and walk in 30 s (cells ' + cells.size + ', clips ' + [...anims] + ')');
+  ok('SB-4', ['s', 'e', 'n', 'w'].every((d) => M.hdArt.book.frames(S.monster.id, 'walk', d) > 1), 'the wanderer must have a multi-frame walk clip in each facing');
   ok('SB-4', !outside, 'the wanderer must stay on open ground inside its leash, display only: ' + outside);
 
   /* SB-5 OUT BY A SIGN */

@@ -46,6 +46,14 @@ const HERO_LIGHT_TILES = 4.5;
 /* A corpse sorts beneath everything standing (VW-03): its row is lowered by this many art px. */
 const UNDER = 1 << 20;
 
+/* A Wang tile's variant per cell: an integer hash, so a tile listed in several variants (the sandbox's
+   grass in its four flips) breaks its repeat instead of striping the map. */
+function cellHash(x, y) {
+  let h = Math.imul(x, 374761393) ^ Math.imul(y, 668265263);
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  return (h ^ (h >>> 16)) >>> 0;
+}
+
 /**
  * The static ground: [{ set, sx, sy, x, y }] tiles and [{ x, y }] void cells, art px.
  * @param {object} map compileMap() output
@@ -66,7 +74,7 @@ export function groundTiles(map, book, tables, T) {
     for (let x = 0; x < map.w; x++) {
       if (solid(x, y)) { voids.push({ x: x * T, y: y * T }); continue; }
       /* A fill is one periodic field cut into a cols x rows cycle: lay it in order so it tiles seamlessly. */
-      const n = fill ? (y % fill[1]) * fill[0] + (x % fill[0]) : x * 7 + y * 13;
+      const n = fill ? (y % fill[1]) * fill[0] + (x % fill[0]) : cellHash(x, y);
       const t = book.tile(map.groundTerrain, fill ? '1111' : tileKey(g, map.w, x, y), n);
       if (t) tiles.push({ set: t.set, sx: t.sx, sy: t.sy, x: x * T, y: y * T });
     }

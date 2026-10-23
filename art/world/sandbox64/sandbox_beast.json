@@ -1,6 +1,6 @@
 {
   "id": "sandbox_beast",
-  "class": "critter",
+  "class": "vermin",
   "style": "s1",
   "material": "unit",
   "source": "sandbox_beast.png",
@@ -15,7 +15,7 @@
   "overhang_px": [
     0,
     0,
-    4,
+    6,
     0
   ],
   "anims": [
@@ -29,11 +29,22 @@
         "n": 1,
         "w": 1
       }
+    },
+    {
+      "name": "walk",
+      "fps": 10,
+      "loop": true,
+      "dirs": {
+        "s": 6,
+        "e": 6,
+        "n": 6,
+        "w": 6
+      }
     }
   ],
   "pixellab": {
     "tool": "create_object_pro_flash",
-    "object": "4c455ae9-3827-4a98-8b2d-a8dc3940e3f0"
+    "id": "80f3e2ac-8698-4c30-a464-8c1da94d802b"
   },
-  "notes": "SANDBOX64 final rat (east: final/rat_e.png; south, north, west: art/sandbox64/rat8; provenance in _final.rat_e.json), planted on the hd64 vermin anchor by whole pixels. No walk frames yet: it glides in its idle view. Classed critter: the final rat measures 34-51 px of body (a 6x6-opened mass), the x2 critter band, under the x2 vermin band; its tail tip hangs up to 4 px below the feet (overhang)."
+  "notes": "SANDBOX64 round 3 final rat (provenance in _final.rat.json): each facing planted on the class anchor by whole pixels, one shift per walk facing (its lowest foot on the ground). A tail tip may hang up to 6 px below the feet (overhang)."
 }

@@ -72,6 +72,18 @@
       [
         2,
         1
+      ],
+      [
+        0,
+        4
+      ],
+      [
+        1,
+        4
+      ],
+      [
+        2,
+        4
       ]
     ],
     "0001": [
@@ -107,7 +119,7 @@
   },
   "pixellab": {
     "tool": "create_topdown_tileset",
-    "tileset": "ca241672-3bf3-49e4-803a-7f846fe16ff9"
+    "id": "312e78ac-b577-47b6-9fa1-e8ccf0c40f4b"
   },
-  "notes": "SANDBOX64 final T1 (grass <-> flat packed dirt, 64 px Wang corners; provenance in _final.t1_grass_dirt*.json). Corner keys NW NE SW SE, 1 = dirt (MATERIALS earth)."
+  "notes": "SANDBOX64 round 3 final ground (grass <-> flat packed dirt, 64 px Wang corners; provenance in _final.ground*.json). Corner keys NW NE SW SE, 1 = dirt (MATERIALS earth). The plain grass tile is listed in its 4 orientations (as is, flipX, flipY, both: the 5th row), picked per cell by compose.js cellHash."
 }

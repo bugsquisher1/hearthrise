@@ -4,20 +4,41 @@
   "style": "s1",
   "material": "wood",
   "source": "barrel.png",
-  "frame": [156, 156],
-  "measured": { "mass": [36, 47], "foot_row": 111 },
-  "notes": "SANDBOX64 final (2026-10-23), resize attempt B. Target 48-56 tall (today's x2); 47 is inside the 10% tolerance (43.2-61.6). Replaces attempt A (31x43, art/sandbox64/barrel.json). Crop the empty canvas when packing; the anchor is the foot row's centre.",
+  "frame": [
+    40,
+    68
+  ],
+  "measured": {
+    "mass": [
+      32,
+      63
+    ]
+  },
+  "target_x2_of_today": [
+    32,
+    62
+  ],
+  "notes": "SANDBOX64 round 3 final (2026-10-23). Size reference = today's art/world/sewer/barrel_stack.png cut to its body and scaled x2 nearest-neighbour; the reference sets the size.",
   "pixellab": {
     "tool": "create_object_pro_flash",
-    "object_id": "eb9ef7f1-3f38-4218-be9d-db02d8afa4e7",
+    "object_id": "c0c09185-1f39-4c52-80f5-c669cb46a462",
     "params": {
-      "width": 156, "height": 156, "n_directions": 1, "view": "high top-down", "seed": 1203, "name": "sandbox64-barrel-b",
-      "style_image": "upload of art/sandbox64/well.raw.png (128x128); usage 'Match this well's colour palette, dark outline, shading and pixel density; same village prop set.'",
-      "style_options": { "color_palette": true, "detail": true, "outline": true, "shading": true },
+      "width": 40,
+      "height": 68,
+      "n_directions": 1,
+      "view": "high top-down",
+      "seed": 1306,
+      "style_image": "upload of art/world/sewer/barrel_stack.png body x2 (32x62); usage 'Keep exactly this size and silhouette; redraw it with full 64 px detail (this reference is a 2x enlargement, so do not copy its chunky pixels).'",
+      "style_options": {
+        "color_palette": true,
+        "detail": false,
+        "outline": true,
+        "shading": true
+      },
       "palette": "hr-world-56-v2 (56 colours)",
-      "description": "A single wooden barrel standing upright, seen from a high top-down camera: oak staves bound with two dark iron hoops, a round lid on top. Standing on the ground near the bottom of the canvas. Single dark outline, classic MMORPG game prop, lit from the upper left, no background, no shadow."
+      "description": "Two wooden barrels stacked one on top of the other, oak staves with dark iron hoops, seen from a high top-down camera. Keep exactly this size and silhouette, redraw with full 64 px detail: clean shading in a few tones per material, single dark outline, lit from the upper left, no background, no shadow, classic MMORPG game prop."
     },
-    "cost_generations": 6,
-    "cost_note": "estimate 6; charged inside the round's overlapping jobs (see knight.json for the round total)"
+    "cost_generations": 5,
+    "cost_note": "tool estimate; round 3 jobs overlapped (round total in knight.json)"
   }
 }

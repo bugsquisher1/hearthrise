@@ -3,14 +3,14 @@
   "class": "fixture",
   "style": "s1",
   "material": "wood",
-  "source": "sandbox_sign.standin.png",
+  "source": "sandbox_sign.png",
   "frame": [
-    56,
-    72
+    42,
+    69
   ],
   "anchor_px": [
-    28,
-    71
+    21,
+    68
   ],
   "footprint": [
     1,
@@ -27,9 +27,8 @@
     }
   ],
   "pixellab": {
-    "tool": "create_image_pro_flash",
-    "image": "5cc294af-490c-5e25-acb8-a6f79dd5f016",
-    "cell": 5
+    "tool": "create_object_pro_flash",
+    "id": "40bedbaf-8a75-4b94-9e40-6953dd04d5a1"
   },
-  "notes": "STAND-IN: common/signpost.json nearest-neighbour x2. Cell 5 of a 4x4 style-1 prop sheet (PixelLab image 5cc294af-490c-5e25-acb8-a6f79dd5f016, style image a Map Workshop prop of the kit), cut to its opaque box by tools/world-art/port-pixellab.mjs; pixels unscaled. Replaced by the hd64 art lane."
+  "notes": "SANDBOX64 round 3 final signpost (provenance in _final.signpost.json), cropped to its box."
 }

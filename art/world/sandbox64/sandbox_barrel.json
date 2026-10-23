@@ -1,16 +1,16 @@
 {
-  "id": "sandbox_barrels",
-  "class": "barrel",
+  "id": "sandbox_barrel",
+  "class": "bulky",
   "style": "s1",
   "material": "wood",
-  "source": "sandbox_barrels.png",
+  "source": "sandbox_barrel.png",
   "frame": [
-    36,
-    47
+    32,
+    63
   ],
   "anchor_px": [
-    18,
-    46
+    16,
+    62
   ],
   "footprint": [
     1,
@@ -28,7 +28,7 @@
   ],
   "pixellab": {
     "tool": "create_object_pro_flash",
-    "object": "eb9ef7f1-3f38-4218-be9d-db02d8afa4e7"
+    "id": "c0c09185-1f39-4c52-80f5-c669cb46a462"
   },
-  "notes": "SANDBOX64 final barrel (attempt B), cropped to its box. Provenance in _final.barrel.json."
+  "notes": "SANDBOX64 round 3 final barrel (provenance in _final.barrel.json), cropped to its box."
 }

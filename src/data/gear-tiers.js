@@ -80,7 +80,8 @@ export const WEAPON_FAMILIES = [
     ids:   ['stone_maul', 'iron_warhammer', 'steel_warhammer', 'mithril_warhammer', 'rune_warhammer', 'ember_warhammer', 'dawn_warhammer'],
   },
   {
-    key: 'bow', label: 'Bow', weaponType: 'ranged', skill: 'crafting', mat: 'plank',
+    /* A BOW FILLS BOTH HANDS (Tyler 2026-10-23, SHIELDS: a bow can't carry a shield; a crossbow and a shield can). */
+    key: 'bow', label: 'Bow', weaponType: 'ranged', skill: 'crafting', mat: 'plank', twoHanded: true,
     atk: [5, 9, 14, 20, 27, 35, 45], str: [3, 6, 10, 15, 21, 28, 36],
     vmul: 105, lvOff: 5, planks: 3, thread: 2,
     names: ['Shortbow', 'Longbow', 'Willow Longbow', 'Maple Bow', 'Yew Bow', 'Runewood Bow', 'Duskwood Bow'],

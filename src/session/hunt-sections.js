@@ -146,8 +146,11 @@ export function settingsOf(cs) {
   if (!s || int(s.preset) === null) return null;
   return {
     preset: s.preset,
-    /* The hunt role the worn weapon gives (the server's; the ability list follows it). */
+    /* The hunt role the worn set gives (the server's), and the ability DISCIPLINE its role key plays
+       (hr_hunt_settings_view, hunt-roles.js ROLE_KEYS): the abilities the bar may hold follow the discipline,
+       never the role (a sword alone and a club are both Melee, on their own lists). */
     role: str(s.role),
+    discipline: str(s.discipline),
     presets: list(s.presets, (p) => (isObj(p) && int(p.preset) !== null && str(p.name) ? { preset: p.preset, name: p.name } : null), 8),
     targetMode: str(s.target_mode), stance: str(s.stance), distance: int(s.distance),
     chase: typeof s.chase === 'boolean' ? s.chase : null,

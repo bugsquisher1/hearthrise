@@ -62,12 +62,14 @@ export const rngOf = (M, seed) => M.rng.createRng(M.rng.hashSeed('h4', seed));
 
 /** The data modules this lane owns, imported as the SAME instances the core reads (the build's ?v=). */
 export async function loadData(M) {
-  const { readFileSync } = await import('node:fs');
+  const { readFileSync, existsSync } = await import('node:fs');
   const { join } = await import('node:path');
   const { pathToFileURL } = await import('node:url');
   const v = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(M.root, 'src/build-info.js'), 'utf8')) || [, ''])[1];
   const imp = (p) => import(pathToFileURL(join(M.root, p)).href + v);
-  return { CD: await imp('src/data/consumables.js'), AD: await imp('src/data/abilities.js'), SB: await imp('src/data/supply-basics.js'), kit: await imp('src/data/start-kit.js'), XP: await imp('src/core/xp.js'), runes: await imp('src/data/runes.js'), SC: await imp('src/data/stonecraft.js') };
+  /* THE BAR'S SHELL (bar-draft, action-facts), when the tree holds it: the repo, or a mutant planted with `also: ['src']`. */
+  const shell = existsSync(join(M.root, 'src/shell/bar-draft.js')) ? { draft: await imp('src/shell/bar-draft.js'), facts: await imp('src/shell/action-facts.js') } : null;
+  return { CD: await imp('src/data/consumables.js'), AD: await imp('src/data/abilities.js'), SB: await imp('src/data/supply-basics.js'), kit: await imp('src/data/start-kit.js'), XP: await imp('src/core/xp.js'), runes: await imp('src/data/runes.js'), SC: await imp('src/data/stonecraft.js'), shell };
 }
 
 /** fixtures/h1.js `suite`, with this lane's data modules on M (M.CD, M.AD). */
@@ -82,7 +84,8 @@ export async function suiteH4(name, cases, mutants) {
   }
   for (const mu of mutants || []) {
     if (!cases[mu.case]) { R.ok(false, 'mutant "' + mu.name + '" names no case ' + mu.case); continue; }
-    const p = plant(mu.edits);
+    /* `also`: more trees the mutant needs (a shell mutant plants the whole src: fixtures/h1.js plant) */
+    const p = plant(mu.edits, mu.also || []);
     try {
       let why = null;
       try { why = cases[mu.case](await load(p.root)); } catch (e) { why = 'threw ' + e.message; }

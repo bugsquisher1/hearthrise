@@ -6,8 +6,8 @@
 // (HUNT_SCREEN_SPEC §1.1 one-path table; lane S1, 2026-10-17).
 import { HUNT_INDEX } from '../data/hunts.js?v=0.2.34';
 import { densityFor, partyPick } from '../data/hunt-grounds.js?v=0.2.34';
-import { HUNT_ROLES, roleForWeapon } from '../data/hunt-roles.js?v=0.2.34';
-import { ABILITIES } from '../data/abilities.js?v=0.2.34';
+import { HUNT_ROLES, roleForWeapon, disciplineOf } from '../data/hunt-roles.js?v=0.2.34';
+import { disciplineAbilities } from '../data/abilities.js?v=0.2.34';
 import { makeUnit, makeWorld } from './hunt/world-state.js?v=0.2.34';
 import { spawnPack, pullLeader, PHASE } from './hunt/pull-cycle.js?v=0.2.34';
 import { pickLeader, defaultSettings } from './hunt/roles.js?v=0.2.34';
@@ -18,19 +18,17 @@ export function huntFor(activeId) {
   return (typeof activeId === 'string' && HUNT_INDEX[activeId]) || null;
 }
 
-/* The abilities a discipline's bar may hold, in data order (the default bar). */
-const disciplineBar = (d) => Object.values(ABILITIES).filter((a) => a.disciplines.includes(d)).map((a) => a.id);
-
 /**
  * A CHARACTER'S HERO IN A HUNT, from server-read values only (spec §3.2 #1,
- * §3.7): its role from the equipped weapon TYPE (never the outfit), a staff's
- * Mage / Healer pick from its options; its bar, the stored slots (conditions.js:
- * an ability outside its discipline is dropped; a lane the bar leaves empty
+ * §3.7): its role from the worn set's ROLE KEY (hunt-roles.js wornRoleKey: the
+ * weapon and the shield beside it; never the outfit), a staff's Mage / Healer pick
+ * from its options; its bar, the stored slots (conditions.js: an ability outside
+ * the key's discipline, hunt-roles.js ROLE_KEYS, is dropped; a lane the bar leaves empty
  * takes its defaults); its stop rules, density and settings, the stored options
  * over its role's defaults for this party (`partyRoles`, roles.defaultSettings).
  * Null when the weapon has no role.
  *
- * @param o { weaponType, options (player_action_sets.options), bar (the stored slots), partyRoles, lead (leads its party),
+ * @param o { weaponType (the role key), options (player_action_sets.options), bar (the stored slots), partyRoles, lead (leads its party),
  *            hold (the party's hold seat: hunt_parties.hold_seat, null = take turns) }
  */
 export function heroSetup(o) {
@@ -38,7 +36,7 @@ export function heroSetup(o) {
   const role = roleForWeapon(o.weaponType || 'neutral', opt.role);
   if (!role) return null;
   const row = HUNT_ROLES[role];
-  const allowed = disciplineBar(row.discipline);
+  const allowed = disciplineAbilities(disciplineOf(o.weaponType || 'neutral'));
   const roles = Array.isArray(o.partyRoles) && o.partyRoles.length ? o.partyRoles : [role];
   const d = defaultSettings(role, roles);
   const pick = (k, dv) => (opt[k] === undefined || opt[k] === null ? dv : opt[k]);

@@ -22,6 +22,7 @@ import { STONECRAFT_RECIPES } from './stonecraft.js?v=0.2.34';
 import { DRINK_RECIPES } from './drinks.js?v=0.2.34';
 import { PRAYER_BURY } from './core-model.js?v=0.2.34';
 import { STYLE_GEAR_RECIPES } from './style-gear.js?v=0.2.34';
+import { SHIELD_RECIPES } from './shields.js?v=0.2.34';
 const BASE_RECIPES = {
   cooking: [
     // Fish — original starter chain
@@ -324,8 +325,9 @@ const byReq = (list) => list.slice().sort((a, b) => (a.req || 0) - (b.req || 0))
 
 export const ARTISAN_RECIPES = {
   cooking:  byReq(BASE_RECIPES.cooking.concat(DRINK_RECIPES)),
-  /* The style ladder's made rungs (designer 2026-10-22, style-gear.js): each style's tier-2 weapon and the cloth line. */
-  smithing: byReq(BASE_RECIPES.smithing.concat(STYLE_GEAR_RECIPES.smithing)),
+  /* The style ladder's made rungs (designer 2026-10-22, style-gear.js): each style's tier-2 weapon and the cloth line;
+     the made shields (shields.js, Tyler 2026-10-23). */
+  smithing: byReq(BASE_RECIPES.smithing.concat(STYLE_GEAR_RECIPES.smithing, SHIELD_RECIPES)),
   crafting: byReq(BASE_RECIPES.crafting.concat(SLOT_RECIPES.crafting, STYLE_GEAR_RECIPES.crafting)),
   prayer:   BASE_RECIPES.prayer,
   runecrafting: byReq(STONECRAFT_RECIPES.runecrafting),
@@ -356,7 +358,7 @@ export const ARTISAN_CATEGORIES = {
     { key: 'smelting',   label: 'Smelting' },
     { key: 'tools',      label: 'Tools' },
     { key: 'whetstones', label: 'Whetstones' },
-    { key: 'weapons',    label: 'Weapons' },
+    { key: 'weapons',    label: 'Weapons & Shields' },
     { key: 'castle',     label: 'Building Materials' },
   ],
   crafting: [
@@ -402,7 +404,7 @@ export function recipeCategory(skillId, recipe, items = ITEMS) {
     if (type === 'tool') return 'tools';          // axes + pickaxes
     if (/_bar$/.test(outId)) return 'smelting';   // ore → bar
     if (type === 'ammo') return 'whetstones';     // strB stones, ammo slot
-    if (type === 'weapon') return 'weapons';      // the style ladder: hatchets, the club
+    if (type === 'weapon' || type === 'offhand') return 'weapons';   // the style ladder: hatchets, the club; the shields
     if (isCastleGood(out)) return 'castle';       // Iron Fitting
     return null;
   }

@@ -1,12 +1,15 @@
 // ════════════════════════════════════════════════════════════════════════
 // src/data/hunt-roles.js — WHAT A HERO DOES IN A HUNT (HUNT_SCREEN_SPEC §1.2, §3.2)
 //
-// Role comes from the equipped WEAPON TYPE, never the outfit (Tyler 2026-10-16;
-// RO-18). No vocation names anywhere. A role row is a function, not a spec
-// (RO-17): a shield makes a Melee tank (it pulls, holds and Challenges), two
-// axes or a club a Melee DPS (stands by the tank's target), a bow or crossbow
-// a Ranger, a wand a Mage (its spellbook rides in the off-hand), a staff a Healer
-// (Tyler 2026-10-19).
+// Role comes from the WORN SET (the weapon, and the shield beside it), never the
+// outfit (Tyler 2026-10-16; RO-18). No vocation names anywhere. A role row is a
+// function, not a spec (RO-17): THE SHIELD makes a Melee tank (Tyler 2026-10-23:
+// a one-hand melee weapon and a shield; it pulls, holds and Challenges), a sword
+// alone, two axes or a club a Melee DPS (stands by the tank's target), a bow or
+// crossbow a Ranger (a crossbow and a shield: a Ranger WITH GUARD, never a tank;
+// a bow fills both hands), a wand a Mage (its spellbook rides in the off-hand), a
+// staff a Healer (Tyler 2026-10-19). The worn set's ROLE KEY (roleKeyOf) names
+// its role and its ability discipline (ROLE_KEYS), all in data.
 //
 // UNITS (hunt-tuning.js): speed in millitiles per second, range in tiles,
 // chances in permille, clocks in integer ms.
@@ -18,12 +21,16 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
+import { DISCIPLINES } from './abilities.js?v=0.2.34';
+import { isShield } from './shields.js?v=0.2.34';
+
 /* role id → row.
    melee     true = attacks only from an adjacent tile, and only standing on it (RO-19)
    range     tiles; a ranged role also needs line of sight (TG-02)
    tank      true = holds, and Challenges what is not on him (spec §3.2 #2, #14)
    peel      permille: a basic attack of this role draws a queued monster onto it (TG-07, ASSUMED)
-   discipline the src/data/abilities.js discipline whose three abilities the role's bar holds
+   (the abilities a hero's bar may hold are its ROLE KEY's discipline, ROLE_KEYS below: a role is played by
+   several keys, a sword alone and a club both Melee DPS on their own lists)
    basic     a CASTER's basic attack (Tyler 10-15 K3, 10-23: a wand or staff basic costs a little mana and
              trains Magic; runes fuel spells only): { mana it spends a swing (no mana, no swing: AB-12),
              magicXpMult (the abilities.js scale: permille of the mana spent, x1000) }. PROVISIONAL
@@ -32,46 +39,56 @@
    A role sets no HP or mana: those come from the character's Level and armour
    (src/core/vitals.js, CORE_MODEL.md §3). */
 export const HUNT_ROLES = Object.freeze({
-  tank: Object.freeze({ label: 'Melee (shield)', discipline: 'shield', melee: true, range: 1, tank: true, speed: 3200, peel: 0 }),
-  melee_dps: Object.freeze({ label: 'Melee', discipline: 'dual_axe', melee: true, range: 1, tank: false, speed: 3200, peel: 0 }),
-  ranger: Object.freeze({ label: 'Ranger', discipline: 'ranged', melee: false, range: 7, tank: false, speed: 3200, peel: 0 }),
-  mage: Object.freeze({ label: 'Mage', discipline: 'destruction', melee: false, range: 7, tank: false, speed: 3200, peel: 0,
+  tank: Object.freeze({ label: 'Melee (shield)', melee: true, range: 1, tank: true, speed: 3200, peel: 0 }),
+  melee_dps: Object.freeze({ label: 'Melee', melee: true, range: 1, tank: false, speed: 3200, peel: 0 }),
+  ranger: Object.freeze({ label: 'Ranger', melee: false, range: 7, tank: false, speed: 3200, peel: 0 }),
+  mage: Object.freeze({ label: 'Mage', melee: false, range: 7, tank: false, speed: 3200, peel: 0,
     basic: Object.freeze({ mana: 1, magicXpMult: 1600 }) }),
-  healer: Object.freeze({ label: 'Healer', discipline: 'restoration', melee: false, range: 7, tank: false, speed: 3200, peel: 180,
+  healer: Object.freeze({ label: 'Healer', melee: false, range: 7, tank: false, speed: 3200, peel: 180,
     basic: Object.freeze({ mana: 1, magicXpMult: 1600 }) }),
 });
 
 /* WHO LEADS THE PULL (spec §3.2 #3, ASSUMED): the first hero in this order, ties by unit id. */
 export const ROLE_ORDER = Object.freeze(['tank', 'melee_dps', 'ranger', 'mage', 'healer']);
 
-/* ROLE WEAPON KEY → the roles it can play; the first is the default. The key is
-   roleWeaponOf(item): the item's weaponType, except that a magic weapon's role is its
-   `discipline` (src/data/gear-tiers.js): destruction = 'wand' (Mage), restoration =
-   'staff' (Healer). Tyler 2026-10-19: Mage = wand + spellbook, Healer = staff. */
-export const WEAPON_ROLES = Object.freeze({
-  shield: Object.freeze(['tank']),
-  dual_axe: Object.freeze(['melee_dps']),
-  club: Object.freeze(['melee_dps']),
-  bow: Object.freeze(['ranger']),
-  crossbow: Object.freeze(['ranger']),
-  staff: Object.freeze(['healer']),
-  wand: Object.freeze(['mage']),
-  /* THE WEAPON TYPES src/data/items.js SHIPS (designer 2026-10-18). This table is
-     the ONE weapon -> role source: the server (hr_hunt_weapon_roles, generated),
-     hunt-spawn heroSetup and the client (import roleForWeapon, never a copy).
-     items.js weaponType stays the COMBAT style (accuracy skill, weakness), so the
-     rows are mapped here, not renamed. A sword is a one-hand blade with a shield
-     arm: the anchor, Tank (the sewer lane's Bronze Sword ruling). A two-hand
-     hammer crushes: the club's Melee DPS. Bows and crossbows ship as `ranged`
-     until bow = AoE / crossbow = single target is ruled. A magic weapon has no
-     `magic` row: it is a wand or a staff by its discipline (roleWeaponOf). */
-  sword: Object.freeze(['tank']),
-  hammer: Object.freeze(['melee_dps']),
-  /* A pair of axes (the Practice Hatchets): weaponType 'axe', the Melee family (skills.js FAMILY_SKILL). */
-  axe: Object.freeze(['melee_dps']),
-  neutral: Object.freeze(['melee_dps']),
-  ranged: Object.freeze(['ranger']),
+/* THE ROLE KEYS: what a worn set plays. key → { roles (the first the default), discipline (the
+   src/data/abilities.js DISCIPLINES list the bar may hold) }. The key is roleKeyOf(weapon, off-hand):
+   the weapon's roleWeaponOf key (its weaponType; a magic weapon by its `discipline`, gear-tiers.js:
+   destruction = 'wand' (Mage), restoration = 'staff' (Healer), Tyler 2026-10-19), turned into its
+   SHIELD_ARM key when a shield is worn beside it. This table is the ONE weapon -> role source: the
+   server (hr_hunt_weapon_roles, generated, with the shield arm), hunt-spawn heroSetup and the client
+   (import roleForWeapon, never a copy). items.js weaponType stays the COMBAT style (accuracy skill,
+   weakness), so the rows are mapped here, not renamed. Bows and crossbows ship as `ranged` (a bow is
+   two-handed: items.js `twoHanded`, so it never wears a shield). The `bow`, `crossbow`, `dual_axe` and
+   `club` keys are the party finder's words for a weapon no item plays by that name. */
+const key = (roles, discipline) => Object.freeze({ roles: Object.freeze(roles), discipline });
+export const ROLE_KEYS = Object.freeze({
+  /* a one-hand melee weapon with a shield: the anchor, the tank (Tyler 2026-10-23: the SHIELD makes the tank) */
+  shield: key(['tank'], 'shield'),
+  /* a sword ALONE: Melee damage, the blade's own strikes (Tyler 2026-10-23) */
+  sword: key(['melee_dps'], 'sword'),
+  dual_axe: key(['melee_dps'], 'dual_axe'),
+  /* a pair of axes (the Practice Hatchets): weaponType 'axe', the Melee family (skills.js FAMILY_SKILL) */
+  axe: key(['melee_dps'], 'dual_axe'),
+  /* the club: its own discipline (roadmap p15); a two-hand hammer is a club */
+  club: key(['melee_dps'], 'club'),
+  hammer: key(['melee_dps'], 'club'),
+  /* bare hands: Melee damage on the club's blunt list (no rune spell, no bleed) */
+  neutral: key(['melee_dps'], 'club'),
+  bow: key(['ranger'], 'ranged'),
+  crossbow: key(['ranger'], 'ranged'),
+  ranged: key(['ranger'], 'ranged'),
+  staff: key(['healer'], 'restoration'),
+  wand: key(['mage'], 'destruction'),
 });
+/* ROLE KEY → the roles it can play (ROLE_KEYS' `roles`), the shape every reader takes. */
+export const WEAPON_ROLES = Object.freeze(Object.fromEntries(Object.entries(ROLE_KEYS).map(([k, r]) => [k, r.roles])));
+
+/* THE SHIELD ARM: weapon key → the key it plays with a shield worn beside it. Only a one-hand MELEE
+   weapon becomes the tank (a sword, or bare hands); a crossbow, a wand (or anything else one-handed)
+   keeps its own key and gains only the shield's guard; a two-handed weapon cannot wear one at all
+   (hr_apply refuses the pair, `two_handed`). */
+export const SHIELD_ARM = Object.freeze({ sword: 'shield', neutral: 'shield' });
 
 /* The magic disciplines' role keys (Tyler 2026-10-19). */
 const MAGIC_ROLE_WEAPON = Object.freeze({ destruction: 'wand', restoration: 'staff' });
@@ -86,6 +103,22 @@ export function roleWeaponOf(item) {
   if (item.weaponType === 'magic') return MAGIC_ROLE_WEAPON[item.discipline] || 'wand';
   return item.weaponType || 'neutral';
 }
+
+/** THE ROLE KEY a weapon item and an off-hand item play together: the weapon's key (roleWeaponOf),
+ *  or its SHIELD_ARM key when `offhand` is a shield (shields.js isShield). */
+export function roleKeyOf(weapon, offhand) {
+  const k = roleWeaponOf(weapon);
+  return isShield(offhand) && SHIELD_ARM[k] ? SHIELD_ARM[k] : k;
+}
+
+/** roleKeyOf over a worn set ({ equip slot: item id }) and an item catalogue: the weapon slot and the shield slot. */
+export function wornRoleKey(equipment, items) {
+  const e = equipment || {};
+  return roleKeyOf(items && e.weapon ? items[e.weapon] : null, items && e.shield ? items[e.shield] : null);
+}
+
+/** The ability discipline a role key plays (ROLE_KEYS), or null for no row. */
+export const disciplineOf = (k) => (ROLE_KEYS[k] ? ROLE_KEYS[k].discipline : null);
 
 /* THE TANK'S AUTO-CHALLENGE (spec §3.2 #14, ASSUMED numbers): any engaged monster
    within `radius` tiles (Chebyshev, "on screen") that is not on the tank is pulled
@@ -148,13 +181,22 @@ export function validate() {
     if (r.melee && r.range !== 1) out.push(id + ': a melee role has range 1');
     if (!Number.isInteger(r.speed) || r.speed <= 0) out.push(id + ': speed must be a positive integer');
     if (!Number.isInteger(r.peel) || r.peel < 0 || r.peel > 1000) out.push(id + ': peel is permille 0..1000');
-    if (!['shield', 'dual_axe', 'ranged', 'destruction', 'restoration'].includes(r.discipline)) out.push(id + ': unknown discipline ' + r.discipline);
     if (r.basic !== undefined && !(r.basic && Number.isInteger(r.basic.mana) && r.basic.mana > 0 && Number.isInteger(r.basic.magicXpMult)
       && r.basic.magicXpMult >= 0 && !r.melee)) out.push(id + ': a basic costs whole mana > 0 at a whole magicXpMult >= 0, and only a ranged role casts one');
   }
-  for (const [w, roles] of Object.entries(WEAPON_ROLES)) {
-    if (!roles.length || !roles.every((r) => HUNT_ROLES[r])) out.push('weapon ' + w + ' names an unknown role');
+  for (const [w, row] of Object.entries(ROLE_KEYS)) {
+    if (!/^[a-z_]{1,32}$/.test(w)) out.push('role key ' + w + ': bad id');
+    if (!row.roles.length || !row.roles.every((r) => HUNT_ROLES[r])) out.push('weapon ' + w + ' names an unknown role');
+    /* the one discipline list (abilities.js DISCIPLINES): a key naming any other plays an empty bar */
+    if (!Object.prototype.hasOwnProperty.call(DISCIPLINES, row.discipline)) out.push('weapon ' + w + ': unknown discipline ' + row.discipline);
   }
+  /* The tank's key is the shield's (Tyler 2026-10-23): only a key a shield arm leads to plays the tank. */
+  for (const [w, row] of Object.entries(ROLE_KEYS)) {
+    const tanks = row.roles.some((r) => HUNT_ROLES[r] && HUNT_ROLES[r].tank);
+    if (tanks !== Object.values(SHIELD_ARM).includes(w)) out.push('weapon ' + w + (tanks ? ' plays the tank without a shield' : ' is a shield arm that plays no tank'));
+  }
+  for (const [w, to] of Object.entries(SHIELD_ARM)) if (!ROLE_KEYS[w] || !ROLE_KEYS[to]) out.push('shield arm ' + w + ' -> ' + to + ' names an unknown key');
+  if (!ROLE_KEYS.neutral) out.push('ROLE_KEYS has no neutral row (an unarmed hero)');
   if (!Number.isInteger(CHALLENGE.radius) || CHALLENGE.radius < 1) out.push('CHALLENGE.radius must be a positive integer');
   if (!Number.isInteger(CHALLENGE.holdMs) || CHALLENGE.holdMs <= 0 || CHALLENGE.holdMs % 100 !== 0) out.push('CHALLENGE.holdMs must be a whole number of 100 ms sub-steps');
   if (!Number.isInteger(CHALLENGE.holderMinHpPm) || CHALLENGE.holderMinHpPm < 0 || CHALLENGE.holderMinHpPm > 1000) out.push('CHALLENGE.holderMinHpPm is permille 0..1000');

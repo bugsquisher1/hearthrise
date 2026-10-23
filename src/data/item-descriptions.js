@@ -11,6 +11,7 @@ import { CHAMPION_DESC } from './champions.js?v=0.2.34';
 import { DRINK_DESC } from './drinks.js?v=0.2.34';
 import { IMBUE_DESC } from './imbuements.js?v=0.2.34';
 import { STYLE_GEAR_DESC } from './style-gear.js?v=0.2.34';
+import { SHIELD_DESC } from './shields.js?v=0.2.34';
 
 export const ITEM_DESC = {
   /* Mage = wand + spellbook; Healer = staff (Tyler 2026-10-19). */
@@ -34,6 +35,7 @@ export const ITEM_DESC = {
   ...DRINK_DESC,      // lane S2: the six mana drinks
   ...IMBUE_DESC,      // lane c-loot-loop: the imbuement slot's items
   ...STYLE_GEAR_DESC, // lane c-style-gear: the two new tier-2 weapons
+  ...SHIELD_DESC,     // lane b-spell-roles: the five shields
   /* THE RUNES, family x tier (lane b-spell-content, 2026-10-23): what the rune casts, then one line of the mark. */
   'chalked_earth_rune': 'Fuels the Earth spells at version I, the shields of stone, one rune a cast. Heavy in the palm for a chalk mark',
   'scored_earth_rune': 'Fuels the Earth spells at version II, once their skill allows it. Grit sits in every scored line',

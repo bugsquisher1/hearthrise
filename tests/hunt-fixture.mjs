@@ -41,7 +41,7 @@
 import { newHuntSession } from '../src/core/action-rules.js';
 import { simulateHuntInstance } from '../src/core/combat-sim.js';
 import { heroSetup } from '../src/core/hunt-spawn.js';
-import { roleWeaponOf } from '../src/data/hunt-roles.js';
+import { wornRoleKey } from '../src/data/hunt-roles.js';
 import { makeGrid } from '../src/core/hunt/grid.js';
 
 import { COMBAT_BALANCE } from '../src/core/combat.js';
@@ -114,12 +114,13 @@ export function huntAccrual(inp, opts) {
   const toMs = Math.floor(Number(inp.nowMs) || 0);
   const monsters = inp.monsters || MONSTERS;
   const ids = monstersOf(inp.activeId, monsters);
-  /* The ROLE key, as hunt-settle.js memberInput reads it (hunt-roles.js roleWeaponOf: a magic weapon by its
-     discipline, wand = Mage, staff = Healer); no weapon fights as the sword fixture, as before. */
+  /* The ROLE key, as hunt-settle.js memberInput reads it (hunt-roles.js wornRoleKey: the weapon, a magic one by its
+     discipline, and the shield beside it: a sword alone is Melee damage, a sword and a shield the tank, Tyler
+     2026-10-23); no weapon fights as the shield fixture (the tank), as the sword fixture did before. */
   const worn = (inp.items || {})[(inp.equipment || {}).weapon];
-  const weaponType = worn ? roleWeaponOf(worn) : 'sword';
+  const weaponType = worn ? wornRoleKey(inp.equipment, inp.items) : 'shield';
   const hero = heroSetup({ weaponType, options: o.options || {}, bar: o.bar || [], partyRoles: [] })
-    || heroSetup({ weaponType: 'sword', options: {}, bar: [], partyRoles: [] });
+    || heroSetup({ weaponType: 'shield', options: {}, bar: [], partyRoles: [] });
   const member = {
     key: 'fixture', user: inp.userId || 'fixture', slot: inp.slot || 0, seat: 0, unitId: null,
     sessionId: 'fixture-hunt', version: 1, huntId: String(inp.activeId || ''),

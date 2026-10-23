@@ -360,7 +360,7 @@ function rules(M) {
     // monster beside it while one lives (was 6-50 s).
     for (const [hunt, dens] of [['meadowbrook_thicket', 0], ['millrace_sewer', 7]]) {
       const mis = [memberOf(M, 'a', 0, 'tank', 19), memberOf(M, 'b', 1, 'tank', 19)];
-      for (const m of mis) { m.huntId = hunt; m.hero = Object.assign({}, M.SPAWN.heroSetup({ weaponType: 'sword', options: {}, bar: [], partyRoles: ['tank', 'tank'] }), { density: dens }); }
+      for (const m of mis) { m.huntId = hunt; m.hero = Object.assign({}, M.SPAWN.heroSetup({ weaponType: 'shield', options: {}, bar: [], partyRoles: ['tank', 'tank'] }), { density: dens }); }
       const srv = server(M, mis, { hunt });
       const hits = {}; let away = 0, longest = 0, lap = -1, onHolder = 0, offHolder = 0;
       const heroIds = () => [mis[0].unitId, mis[1].unitId];
@@ -401,7 +401,7 @@ function rules(M) {
        the Sewer: in each lap the monsters swing at ONE tank, the leader holds the first lap and the second tank the
        next (since bug #61 the lap's holder pulls its own lap, so no Challenge yanks a pack), and every commit matches. */
     const mis = [memberOf(M, 'a', 0, 'tank', 19), memberOf(M, 'b', 1, 'tank', 19)];
-    for (const m of mis) { m.huntId = 'millrace_sewer'; m.hero = Object.assign({}, M.SPAWN.heroSetup({ weaponType: 'sword', options: {}, bar: [], partyRoles: ['tank', 'tank'] }), { density: 7 }); }
+    for (const m of mis) { m.huntId = 'millrace_sewer'; m.hero = Object.assign({}, M.SPAWN.heroSetup({ weaponType: 'shield', options: {}, bar: [], partyRoles: ['tank', 'tank'] }), { density: 7 }); }
     const v = run(M, mis, 480000, { server: { hunt: 'millrace_sewer' } });
     const ids = [mis[0].unitId, mis[1].unitId];
     const route0 = M.HG.huntGroundOf('millrace_sewer').ground.route[0];
@@ -433,7 +433,7 @@ function rules(M) {
       const mis = [memberOf(M, 'a', 0, 'tank', 19), memberOf(M, 'b', 1, 'tank', 19)];
       for (const m of mis) {
         m.huntId = 'millrace_sewer';
-        m.hero = Object.assign({}, M.SPAWN.heroSetup({ weaponType: 'sword', options: {}, bar: [], partyRoles: ['tank', 'tank'], lead: m.user === 'b', hold: 1 }), { density: 7 });
+        m.hero = Object.assign({}, M.SPAWN.heroSetup({ weaponType: 'shield', options: {}, bar: [], partyRoles: ['tank', 'tank'], lead: m.user === 'b', hold: 1 }), { density: 7 });
       }
       return mis;
     };
@@ -760,7 +760,7 @@ function rules(M) {
     srv.commit(T0 + 64000);
     const kept = E.sameSetup(srv.live('a'));
     /* the viewer's own hero (a) and a peer's (b, frozen in a's start point) change their settings */
-    mis[0].hero = M.SPAWN.heroSetup({ weaponType: 'sword', options: NEW, bar: [], partyRoles: ['tank', 'melee_dps'] });
+    mis[0].hero = M.SPAWN.heroSetup({ weaponType: 'shield', options: NEW, bar: [], partyRoles: ['tank', 'melee_dps'] });
     const ownNew = !E.sameSetup(srv.live('a'));
     E.seed(srv.live('a'));
     mis[1].hero = M.SPAWN.heroSetup({ weaponType: 'hammer', options: { stance: 'defensive' }, bar: [], partyRoles: ['tank', 'melee_dps'] });
@@ -844,7 +844,7 @@ function rules(M) {
     const mi = memberOf(M, 'a', 0, 'tank', 6);
     mi.huntSession = Object.assign({}, mi.huntSession, { bag: { cooked_shrimp: { loaded: 3, left: 3, essential: true } } });
     const at95 = [{ metric: 'self_hp_pct', op: 'lt', value: 95 }];
-    mi.hero = M.SPAWN.heroSetup({ weaponType: 'sword', options: {}, partyRoles: ['tank'],
+    mi.hero = M.SPAWN.heroSetup({ weaponType: 'shield', options: {}, partyRoles: ['tank'],
       bar: [{ action: { type: 'consume', id: 'cooked_shrimp' }, conditions: at95, join: 'and' },
         { action: { type: 'consume', id: 'salted_trout' }, conditions: at95, join: 'and' }] });
     const r = run(M, [mi], 160000);

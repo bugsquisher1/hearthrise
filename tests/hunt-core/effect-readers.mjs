@@ -116,7 +116,7 @@ const mutants = [
   { name: 'the area minimum is read by nothing', case: 'every-row-field-has-a-reader',
     edits: [['src/data/abilities.js', "  if (row.target === 'area') return [{ metric: 'enemies_in_aoe', op: 'gte', value: ABILITY_RULES.areaMin }];\n", '']] },
   { name: '[spell-content] the engine stops reading the level scaling (outputPm)', case: 'every-row-field-has-a-reader',
-    edits: [['src/core/hunt/abilities.js', 'pm: Math.floor((outputPm(row, s.version, skillLevel(h, row)) * s.pm) / 1000) };', 'pm: Math.floor((v.outPm * s.pm) / 1000) };']] },
+    edits: [['src/core/hunt/abilities.js', 'const pm = Math.floor((outputPm(row, s.version, skillLevel(h, row)) * s.pm) / 1000);', 'const pm = Math.floor((v.outPm * s.pm) / 1000);']] },
   { name: '[spell-content] versionOf stops reading lvPm', case: 'every-row-field-has-a-reader',
     edits: [['src/data/abilities.js', '  return versionOf(row, n).outPm + (row && Number.isInteger(row.lvPm) ? row.lvPm * (lv - 1) : 0);', '  return versionOf(row, n).outPm;']] },
   { name: 'a persisted unit field nothing reads', case: 'every-persisted-unit-field-is-read',

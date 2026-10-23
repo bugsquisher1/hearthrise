@@ -17,9 +17,10 @@
 // ════════════════════════════════════════════════════════════════════════
 import { ATTACK_KINDS } from '../data/condition-metrics.js?v=0.2.34';
 import { ABILITIES } from '../data/abilities.js?v=0.2.34';
+import { aimsAtMonsters } from '../core/hunt/conditions.js?v=0.2.34';
 import { CONSUMABLES, CONSUMABLE_RULES } from '../data/consumables.js?v=0.2.34';
 import { STATUSES } from '../data/statuses.js?v=0.2.34';
-import { HUNT_ROLES, WEAPON_ROLES } from '../data/hunt-roles.js?v=0.2.34';
+import { ROLE_KEYS } from '../data/hunt-roles.js?v=0.2.34';
 import { WEAPON_WORDS } from '../data/hunt-hud.js?v=0.2.34';
 import { itemName, abilityName, runeWords, familyCount } from './widgets/bits.js?v=0.2.34';
 import { storeOf, storeWords, conditionWords } from './bar-draft.js?v=0.2.34';
@@ -42,18 +43,17 @@ export function actionName(a) {
   return own(ATTACK_KINDS, a.id) ? 'The loaded ammo' : itemName(a.id);
 }
 
-/* The weapons that give a discipline, in words ("Sword or Shield"). */
+/* The worn sets that give a discipline, in words ("Shield or Bare hands"): every role key playing it (ROLE_KEYS). */
 function weaponsFor(disc) {
-  const roles = Object.keys(HUNT_ROLES).filter((r) => HUNT_ROLES[r].discipline === disc);
-  const w = Object.keys(WEAPON_ROLES).filter((k) => WEAPON_ROLES[k].some((r) => roles.includes(r))).map((k) => WEAPON_WORDS[k] || k);
+  const w = Object.keys(ROLE_KEYS).filter((k) => ROLE_KEYS[k].discipline === disc).map((k) => WEAPON_WORDS[k] || k);
   return w.length ? w.join(' or ') : disc;
 }
 
-/** "Your weapon can’t cast this. The slot stays struck until you wield a Sword or Shield." for a spell the
-    hero's weapon (the server's role) cannot cast; '' otherwise. A warning, never a refusal (art spec §8). */
-export function weaponWarning(a, role) {
+/** "Your weapon can’t cast this. The slot stays struck until you wield a Shield." for a spell the hero's worn
+    set (the server's discipline, hunt_settings.discipline) cannot cast; '' otherwise. A warning, never a refusal
+    (art spec §8). */
+export function weaponWarning(a, disc) {
   const r = a && a.type === 'ability' ? ABILITIES[a.id] : null;
-  const disc = role && HUNT_ROLES[role] ? HUNT_ROLES[role].discipline : null;
   if (!r || r.universal || (disc && r.disciplines.includes(disc))) return '';
   return 'Your weapon can’t cast this. The slot stays struck until you wield a ' + weaponsFor(r.disciplines[0]) + '.';
 }
@@ -156,11 +156,13 @@ export function healWarning(w, set, blow, hpMax) {
 }
 const condKey = (c) => JSON.stringify([c.metric, c.op, c.value, c.subject || null]);
 /* A passes whenever B passes: A is On, ignores no monster B fights, and A's conditions are all among B's
-   (both "all of"), or A has none. */
+   (both "all of"), or A has none. An ignore list binds only a slot that aims at monsters (aimsAtMonsters):
+   a food, drink, heal or shield slot never reads one. */
+const ignoresOf = (s) => (aimsAtMonsters(s) && Array.isArray(s.ignore) ? s.ignore : []);
 function weaker(a, b) {
   if (a.enabled === false) return false;
-  const bIgnores = new Set(Array.isArray(b.ignore) ? b.ignore : []);
-  if (Array.isArray(a.ignore) && a.ignore.some((m) => !bIgnores.has(m))) return false;
+  const bIgnores = new Set(ignoresOf(b));
+  if (ignoresOf(a).some((m) => !bIgnores.has(m))) return false;
   const ca = a.conditions, cb = b.conditions;
   if (!ca.length) return true;
   if ((ca.length > 1 && a.join === 'or') || (cb.length > 1 && b.join === 'or')) return false;
@@ -206,9 +208,9 @@ export function reasonOf(sl, set, bag, hero) {
     const r = ABILITIES[a.id];
     if (!r) return { code: 'unknown', text: 'The server does not know this ability.', glyph: 'uiLock', strike: true };
     if (!r.active) return { code: 'inactive', text: 'Not in the game yet: ' + abilityName(a.id) + ' waits on its rune.', glyph: 'uiLock', strike: true };
-    const role = set && set.role && HUNT_ROLES[set.role] ? HUNT_ROLES[set.role] : null;
-    if (!role) return { code: 'weapon', text: 'No weapon worn: abilities come from the weapon you wield. Needs ' + (r.universal ? 'any weapon' : weaponsFor(r.disciplines[0])) + '.', glyph: 'uiLock', strike: true };
-    if (!r.universal && !r.disciplines.includes(role.discipline)) return { code: 'weapon', text: 'Your weapon can’t use this. Needs ' + weaponsFor(r.disciplines[0]) + '.', glyph: 'uiLock', strike: true };
+    const disc = set && set.discipline ? set.discipline : null;
+    if (!disc) return { code: 'weapon', text: 'No weapon worn: abilities come from the weapon you wield. Needs ' + (r.universal ? 'any weapon' : weaponsFor(r.disciplines[0])) + '.', glyph: 'uiLock', strike: true };
+    if (!r.universal && !r.disciplines.includes(disc)) return { code: 'weapon', text: 'Your weapon can’t use this. Needs ' + weaponsFor(r.disciplines[0]) + '.', glyph: 'uiLock', strike: true };
     const storeOn = !!set && (set.supplySource === 'store' || set.onEmpty === 'switch');
     if (r.rune && !(familyCount(r.rune, bag) > 0) && !(storeOn && storeOf(a, set && set.store))) {
       return { code: 'rune', text: 'Needs a ' + runeWords(r.rune, 1) + ' for each cast: you carry none. Pick the store’s rune for this slot to buy one as used.', glyph: 'uiChest', strike: true };

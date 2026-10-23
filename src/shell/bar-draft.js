@@ -17,7 +17,7 @@ import { BAR_SLOTS, BAR_ANSWER_MS } from '../data/hunt-hud.js?v=0.2.34';
 import { BASIC_INDEX } from '../data/supply-basics.js?v=0.2.34';
 import { isRune } from '../data/supplies.js?v=0.2.34';
 import { ITEMS } from '../data/items.js?v=0.2.34';
-import { suggestedConditions } from '../core/hunt/conditions.js?v=0.2.34';
+import { suggestedConditions, aimsAtMonsters } from '../core/hunt/conditions.js?v=0.2.34';
 import { settingsOf, wireSlot } from '../session/hunt-sections.js?v=0.2.34';
 import { ABILITIES } from '../data/abilities.js?v=0.2.34';
 import { refusalWords } from './intent-words.js?v=0.2.34';
@@ -197,12 +197,24 @@ export async function sendBar(cs, bar, repaint, onOk) {
   return r;
 }
 
+/**
+ * THE SLOT AS SAVED: the draft, without an ignore list when its action never aims at a monster (a food, a drink,
+ * a heal or a shield: conditions.js aimsAtMonsters, Coordinator 2026-10-23). Such a slot never reads one, so the
+ * window hides the choice and a list carried over from an attack slot is dropped rather than kept unseen.
+ */
+export function slotForSave(d) {
+  if (!d || !Array.isArray(d.ignore) || aimsAtMonsters(d)) return d;
+  const out = Object.assign({}, d);
+  delete out.ignore;
+  return out;
+}
+
 /** Save the open slot's draft into the server's bar (one intent); the slot closes on ok. */
 export function saveOpen(cs, repaint, onOk) {
   const s = draftOf(cs);
   const bar = serverBar(cs);
   if (!bar || s.open === null || !s.draft) return;
-  bar[s.open] = s.draft;
+  bar[s.open] = slotForSave(s.draft);
   sendBar(cs, bar, repaint, () => { closeSlot(cs); if (onOk) onOk(); });
 }
 

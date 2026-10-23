@@ -1693,7 +1693,7 @@ const MUTANTS = [
   ['the struck reason of a food slot ignores the server', 'src/shell/action-facts.js', "    if (sl.why === 'none_left') return", "    if (false) return"],
   ['Configure action never warns a heal slot', 'src/shell/windows/configure-action.js', "healWarning(d, set, blow, vitalsOf(cs).hpMax)", "''"],
   ['a spell the weapon cannot cast reads like a castable one', 'src/shell/windows/configure-action.js', "  cls(el, 'is-locked', !!r.locked);", ''],
-  ['Configure action never says a locked spell stays struck', 'src/shell/windows/configure-action.js', "  text(root.querySelector('.ca-weapon'), weaponWarning(d.action, set.role));", ''],
+  ['Configure action never says a locked spell stays struck', 'src/shell/windows/configure-action.js', "  text(root.querySelector('.ca-weapon'), weaponWarning(d.action, set.discipline));", ''],
   ['the phone sheet cuts the heal warning to one line and says it nowhere whole', 'src/shell/windows/configure-action.js', "  text(root.querySelector('.ca-d-warn'), warn);", ''],
   ['the heal warning reads the whole ground whatever the party size', 'src/shell/windows/configure-action.js', 'biggestBlowOn(h.huntId, p ? p.members.length : 1)', 'biggestBlowOn(h.huntId, 4)'],
   ['the Hunts window keeps saying "On the way" while hunting', 'src/shell/windows/hunts.js', "  if (sc.msg && sc.msg === sc.enterMsg && (now || (h && h.ended))) { sc.msg = ''; sc.enterMsg = null; }\n", ''],

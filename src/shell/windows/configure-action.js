@@ -168,7 +168,7 @@ renderConfigureAction.patch = function patchConfigureAction(body, ctx) {
   const bag = carriedOf(cs);
   const v = viewOf(cs);
   const tab = v.tab || (d.action.id ? tabOf(d.action) : LAST_TAB.get(cs) || 'spells');
-  const table = tableOf(tab, { role: set.role, bag, store: set.store });
+  const table = tableOf(tab, { discipline: set.discipline, bag, store: set.store });
   const picked = rowIn(table, d.action);
   /* THE TOP LINE */
   text(root.querySelector('.ca-rank'), 'Slot ' + (s.open + 1) + (s.open === 0 ? ' · tried first' : ' · tried after slot ' + s.open));
@@ -182,7 +182,7 @@ renderConfigureAction.patch = function patchConfigureAction(body, ctx) {
   text(root.querySelector('.ca-note'), say.note ? ' ' + say.note : '');
   text(root.querySelector('.ca-ready'), d.action.id && !d.conditions.length ? ' whenever it is ready.' : '');
   root.querySelectorAll('.ca-cond').forEach((row, i) => patchCond(row, d.conditions[i], i, s, ctx.doc));
-  text(root.querySelector('.ca-weapon'), weaponWarning(d.action, set.role));
+  text(root.querySelector('.ca-weapon'), weaponWarning(d.action, set.discipline));
   /* The heal warning: the hero's hunt (running, else the last one) at the party's size, the server's max HP. */
   const h = huntOf(cs), p = partyOf(cs);
   const blow = h && h.huntId ? biggestBlowOn(h.huntId, p ? p.members.length : 1) : null;

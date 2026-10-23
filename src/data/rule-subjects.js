@@ -89,7 +89,10 @@ const slot = (id, conditions, join) => Object.freeze({ id: 'd_' + id,
 const SPARE_MANA = Object.freeze([{ metric: 'self_mana_pct', op: 'gte', value: 50 }]);
 export const ROLE_RULES = Object.freeze({
   tank: Object.freeze([slot('challenge'), slot('flame_strike'), slot('power_strike')]),
-  melee_dps: Object.freeze([slot('power_strike'), slot('cleave'), slot('rend')]),
+  /* One Melee damage set for every key that plays it (hunt-spawn heroSetup keeps the slots its discipline holds): a
+     sword alone casts Flame Strike then Power Strike, two axes Power Strike, Cleave and Rend, a club or bare hands
+     Power Strike and Cleave (roadmap p15). */
+  melee_dps: Object.freeze([slot('flame_strike'), slot('power_strike'), slot('cleave'), slot('rend')]),
   ranger: Object.freeze([slot('hunters_mark'), slot('flame_volley'), slot('precision_shot')]),
   mage: Object.freeze([slot('fireball'), slot('frost_lance', SPARE_MANA), slot('arcane_barrier')]),
   healer: Object.freeze([slot('greater_mend'), slot('circle_of_renewal'),

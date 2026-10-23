@@ -31,7 +31,7 @@ export async function loadPlay(root) {
   const AC = await import(u('supabase/functions/hr-accrue/accrual.js'));
   const CAT = await import(u('supabase/functions/hr-accrue/catalogue.js'));
   const SPAWN = await import(u('src/core/hunt-spawn.js'));
-  const { roleWeaponOf } = await import(u('src/data/hunt-roles.js'));
+  const { wornRoleKey } = await import(u('src/data/hunt-roles.js'));
   const GRID = await import(u('src/core/hunt/grid.js'));
   const XP = await import(u('src/core/xp.js'));
   const SB = await import(u('src/data/supply-basics.js'));
@@ -79,7 +79,10 @@ export async function loadPlay(root) {
     /* A Mage is wand + spellbook (since 10-19; a staff is the Healer's: hunt-roles.js roleWeaponOf). The harness's
        "mage" held a staff until 2026-10-21, so it measured a second Healer (designer pass 2026-10-21). */
     const book = role === 'mage' ? { shield: ['apprentice_primer', 'oak_spellbook', 'willow_spellbook', 'maple_spellbook'][t] } : {};
-    return { weapon, ...book, body: ['bronze_platebody', 'iron_platebody', 'steel_platebody', 'mithril_platebody'][t], helmet: ['bronze_helm', 'iron_helm', 'steel_helm', 'steel_helm'][t],
+    /* THE TANK CARRIES A SHIELD (Tyler 2026-10-23: the SHIELD makes the tank; a sword alone is Melee damage): the
+       Shop's Bronze-Rimmed, then the smiths' Ironbound and Coppercap (src/data/shields.js) at the Defense they need. */
+    const guard = role === 'tank' ? { shield: ['bronze_rimmed_shield', 'ironbound_shield', 'coppercap_shield', 'coppercap_shield'][t] } : {};
+    return { weapon, ...book, ...guard, body: ['bronze_platebody', 'iron_platebody', 'steel_platebody', 'mithril_platebody'][t], helmet: ['bronze_helm', 'iron_helm', 'steel_helm', 'steel_helm'][t],
       ...(role === 'ranger' ? { ammo: 'bronze_arrows' } : {}) };
   };
   /* THE FULL SET (opts.fullSet): the weapon above plus helmet, body, legs and boots of the hero's own armour line
@@ -107,7 +110,7 @@ export async function loadPlay(root) {
         staminaMs: 12 * 3600000, staminaMaxMs: 12 * 3600000, basics, goldFloor: 0, supplySource: 'mine', onEmpty: 'switch', cover: {}, ...(session || {}) },
       skills, levelXp: XP.charXpForLevel(L), xpFrac: null, hp: 1e9, gold: 50000, equipment,
       inventory: {}, deathsTodayBefore: 0, deathsLifetimeBefore: 0, hearthfindReady: false, perks: null,
-      hero: SPAWN.heroSetup({ weaponType: roleWeaponOf(ITEMS[equipment.weapon]), options: role === 'healer' ? { role: 'healer' } : {},
+      hero: SPAWN.heroSetup({ weaponType: wornRoleKey(equipment, ITEMS), options: role === 'healer' ? { role: 'healer' } : {},
         bar: typeof bar === 'function' ? bar(role, i, L) : refBar(huntId), partyRoles: roles }),
     };
   };

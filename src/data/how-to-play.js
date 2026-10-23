@@ -22,7 +22,7 @@
 // ════════════════════════════════════════════════════════════════════════
 
 import { ITEMS } from './items.js?v=0.2.34';
-import { HUNT_ROLES, roleForWeapon, roleWeaponOf } from './hunt-roles.js?v=0.2.34';
+import { HUNT_ROLES, roleForWeapon, roleKeyOf } from './hunt-roles.js?v=0.2.34';
 import { STARTER_SETS } from './start-kit.js?v=0.2.34';
 
 const style = (id, role, weapons, name, does, uses) => Object.freeze({ id, role, weapons: Object.freeze(weapons), name, does, uses });
@@ -82,12 +82,15 @@ export function validate() {
   for (const r of HOW_YOU_FIGHT) {
     if (!HUNT_ROLES[r.role]) out.push(r.id + ': role ' + r.role + ' is not in hunt-roles.js');
     roles.add(r.role);
+    /* the row's off-hand (a shield or a spellbook), worn beside each of its weapons: the SHIELD makes the tank */
+    const off = r.weapons.map((w) => ITEMS[w]).find((it) => it && it.slot === 'shield') || null;
     for (const w of r.weapons) {
       named.add(w);
       const it = ITEMS[w];
       if (!it) { out.push(r.id + ': ' + w + ' is not in items.js'); continue; }
-      /* The row's weapon plays the row's role, by the ONE weapon -> role table. */
-      if (it.slot === 'weapon' && roleForWeapon(roleWeaponOf(it)) !== r.role) out.push(r.id + ': ' + w + ' plays ' + roleForWeapon(roleWeaponOf(it)) + ', not ' + r.role);
+      /* The row's weapon, with the row's off-hand, plays the row's role, by the ONE weapon -> role table. */
+      const plays = roleForWeapon(roleKeyOf(it, off));
+      if (it.slot === 'weapon' && plays !== r.role) out.push(r.id + ': ' + w + ' plays ' + plays + ', not ' + r.role);
     }
     if (!r.name || !r.does || !r.uses) out.push(r.id + ': a style needs a name, what it does and what it uses');
   }

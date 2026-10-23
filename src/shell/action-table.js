@@ -20,7 +20,6 @@ import { ABILITIES } from '../data/abilities.js?v=0.2.34';
 import { CONSUMABLES, CONSUMABLE_RULES } from '../data/consumables.js?v=0.2.34';
 import { SUPPLIES, isRune } from '../data/supplies.js?v=0.2.34';
 import { ITEMS } from '../data/items.js?v=0.2.34';
-import { HUNT_ROLES } from '../data/hunt-roles.js?v=0.2.34';
 import { ATTACK_KINDS } from '../data/condition-metrics.js?v=0.2.34';
 import { itemName, abilityName, runeWords, familyCount } from './widgets/bits.js?v=0.2.34';
 
@@ -72,12 +71,12 @@ const byValue = (a, b) => ((a.per === null) - (b.per === null)) || ((a.per || 0)
 
 /**
  * The runs a tab shows: [{ kind, label, cols, rows }], plus `empty` (why there is
- * nothing to pick) when no run has a row. `ctx` = { role, bag (the server's
+ * nothing to pick) when no run has a row. `ctx` = { discipline (the server's, hunt_settings), bag (the server's
  * inventory rows), store (the server's store rows: settingsOf(cs).store) }.
  */
 export function tableOf(tab, ctx) {
   const c = ctx || {};
-  const disc = c.role && HUNT_ROLES[c.role] ? HUNT_ROLES[c.role].discipline : null;
+  const disc = c.discipline || null;
   if (tab === 'spells' || tab === 'runes') {
     const runes = tab === 'runes';
     /* Every spell in the game, the weapon's own first (castable, then the catalogue's order; runes cheapest

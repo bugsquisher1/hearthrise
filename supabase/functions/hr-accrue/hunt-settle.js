@@ -55,7 +55,7 @@ import { huntTimeline, worldHash } from '../../../src/core/hunt-track.js';
 import { ITEMS } from '../../../src/data/items.js';
 import { HUNT_TUNING } from '../../../src/data/hunt-tuning.js';
 import { MONSTERS } from '../../../src/data/monsters.js';
-import { roleWeaponOf } from '../../../src/data/hunt-roles.js';
+import { wornRoleKey } from '../../../src/data/hunt-roles.js';
 import { heroSetup } from '../../../src/core/hunt-spawn.js';
 import { memberSide, frozenOf } from '../../../src/core/member.js';
 import { WORLD_VERSION, SHAPE as WORLD_SHAPE } from '../../../src/core/hunt/world-state.js';
@@ -406,9 +406,10 @@ async function memberInput(exec, m, inst) {
   const nowMs = Math.floor(Number(m.session.settled_to_ms) || 0);
   const e = engineInputsFromEnvelope(env, nowMs);
   const perks = await readTickPerks(exec, m.user, m.slot);
-  /* The ROLE key (hunt-roles.js roleWeaponOf: a magic weapon by its discipline), the same key
-     hr_hunt_weapons holds; the combat style stays equipmentStats' weaponType in the engine. */
-  const weaponType = roleWeaponOf(ITEMS[(e.equipment || {}).weapon]) || 'neutral';
+  /* The ROLE key of the worn set (hunt-roles.js wornRoleKey: the weapon, a magic one by its discipline, and the
+     shield beside it: Tyler 2026-10-23, the SHIELD makes the tank), the same key hr_hunt_weapon_of reads; the
+     combat style stays equipmentStats' weaponType in the engine. */
+  const weaponType = wornRoleKey(e.equipment, ITEMS);
   const options = (m.session.options && typeof m.session.options === 'object') ? m.session.options : {};
   const pre = heroSetup({ weaponType, options, bar: m.session.bar, partyRoles: null });
   return {

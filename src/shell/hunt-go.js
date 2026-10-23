@@ -24,7 +24,7 @@ import { settingsOf, staminaOf } from '../session/hunt-sections.js?v=0.2.34';
 import { presetsOf, equipmentOf, goldOf, nameOf, carriedOf } from '../session/item-sections.js?v=0.2.34';
 import { partyMembershipOf } from '../session/party-sections.js?v=0.2.34';
 import { ITEMS } from '../data/items.js?v=0.2.34';
-import { HUNT_ROLES, roleWeaponOf, roleForWeapon } from '../data/hunt-roles.js?v=0.2.34';
+import { HUNT_ROLES, wornRoleKey, roleForWeapon } from '../data/hunt-roles.js?v=0.2.34';
 import { CONSUMABLES } from '../data/consumables.js?v=0.2.34';
 import { ABILITIES } from '../data/abilities.js?v=0.2.34';
 import { storeOf } from './bar-draft.js?v=0.2.34';
@@ -36,8 +36,9 @@ const SETUP_ICONS = 4;
 /* Stamina under this much is said before a hunt (the hunt will end on it soon). */
 const STAMINA_SAY_MS = 2 * 3600000;
 
-/* The role a weapon item plays (src/data/hunt-roles.js, the ONE weapon -> role source), or null. */
-const roleOfWeapon = (id) => (id && ITEMS[id] ? roleForWeapon(roleWeaponOf(ITEMS[id]), null) : null);
+/* The role a worn set plays (src/data/hunt-roles.js, the ONE weapon -> role source: the weapon and the shield
+   beside it), or null with no weapon. */
+const roleOfGear = (gear) => (gear && gear.weapon && ITEMS[gear.weapon] ? roleForWeapon(wornRoleKey(gear, ITEMS), null) : null);
 
 /**
  * "Go as": [{ preset, name, inUse, weapon, role, roleWords, bar }] in setup order, or null when the server
@@ -54,7 +55,7 @@ export function setupsOf(cs) {
     const p = saved.find((x) => x.preset === n);
     /* The setup in use wears what the hero has on now (the server's equipment); another wears its saved gear. */
     const weapon = inUse ? (equipmentOf(cs) || {}).weapon || null : (p && p.gear.weapon) || null;
-    const role = inUse && s.role && HUNT_ROLES[s.role] ? s.role : roleOfWeapon(weapon);
+    const role = inUse && s.role && HUNT_ROLES[s.role] ? s.role : roleOfGear(inUse ? equipmentOf(cs) : p && p.gear);
     return {
       preset: n, name: named(n), inUse, weapon, role, roleWords: role ? HUNT_ROLES[role].label : null,
       bar: inUse ? s.slots.filter((sl) => !sl.empty).slice(0, SETUP_ICONS).map((sl) => sl.action) : null,

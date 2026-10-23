@@ -17,6 +17,7 @@
 
 import { VITALS, ARMOUR_WEIGHT, ARMOUR_SLOTS, PRAYER_REGEN } from '../data/core-model.js?v=0.2.34';
 import { charLevelFromXp, levelOf } from './xp.js?v=0.2.34';
+import { isShield } from '../data/shields.js?v=0.2.34';
 
 const int = (v) => { const n = Math.floor(Number(v)); return Number.isFinite(n) && n > 0 ? n : 0; };
 
@@ -34,14 +35,23 @@ export function armourWeights(equipment, items) {
   return out;
 }
 
-/** Does `equipment` wear any armour piece? (Defense trains only then.) */
+/** Does `equipment` wear any armour piece? (Defense trains only then.) A worn SHIELD counts (Tyler 2026-10-23,
+    SHIELDS: it is armour for Defense XP), though it adds no armour weight (max HP and mana read ARMOUR_SLOTS only). */
 export function wearsArmour(equipment, items) {
+  if (holdsShield(equipment, items)) return true;
   for (const slot of ARMOUR_SLOTS) {
     const id = equipment && equipment[slot];
     const it = id && items ? items[id] : null;
     if (it && (ARMOUR_WEIGHT[it.armourClass] || int(it.defB) > 0)) return true;
   }
   return false;
+}
+
+/** Does `equipment` hold a shield in its off-hand (src/data/shields.js isShield)? A blow it turns aside is a BLOCK:
+    Defense trains COMBAT_XP.blockMult times over (src/core/hunt-rewards.js, Tyler 2026-10-18). */
+export function holdsShield(equipment, items) {
+  const id = equipment && equipment.shield;
+  return isShield(id && items ? items[id] : null);
 }
 
 /** Max HP at Level `level` wearing `heavy` heavy armour slots. */

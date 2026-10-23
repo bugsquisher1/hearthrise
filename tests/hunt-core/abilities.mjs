@@ -420,6 +420,85 @@ const cases = {
     M.abilities.castAbilities(inst, sc);
     return casts(sc).length === 1 ? null : 'Challenge fired with every monster already on the tank';
   },
+  /* THE LANES (roadmap p12; Tyler 2026-10-23: offense 2 s, support 2 s, healing 1 s): every row that strikes nothing
+     and heals nothing (the Challenge, the Hunter's Mark) and every SHIELD rides the support lane; a heal the heal lane;
+     the rest offense. A support cast leaves the offense lane free: Hunter's Mark, then Precision Shot the next sub-step. */
+  'support-lane': (M) => {
+    const L = M.AD.ABILITY_LANES;
+    if (L.offense !== 2000 || L.support !== 2000 || L.heal !== 1000 || Object.keys(L).length !== 3) return 'the lanes are ' + JSON.stringify(L);
+    for (const r of Object.values(M.AD.ABILITIES)) {
+      const want = r.target === 'taunt' || r.target === 'mark' || Number.isInteger(r.shield) ? 'support' : r.heal ? 'heal' : 'offense';
+      if (r.lane !== want) return r.id + ' rides ' + r.lane + ', want ' + want;
+    }
+    const hs = supplySession(M, { bag: { iron_arrows: { loaded: 50 } } });
+    const x = oneHero(M, {}, { hs, bar: ['hunters_mark', 'precision_shot'], range: 7, ammo: 'iron_arrows' }, [{ x: 15, y: 3, hp: 5000, maxHp: 5000 }]);
+    x.sc.rng = rngOf(M, 11);
+    M.abilities.castAbilities(x.inst, x.sc);
+    x.sc.atMs = 100;
+    M.abilities.castAbilities(x.inst, x.sc);
+    return JSON.stringify(casts(x.sc)) === '["hunters_mark","precision_shot"]' ? null : 'a Mark, then the next sub-step, cast ' + JSON.stringify(casts(x.sc));
+  },
+  /* HEALS AND SHIELDS BETWEEN PULLS (roadmap p16, audit c30; Tyler 2026-10-23): with no monster engaged a hurt hero's heal
+     slot fires on its own conditions and lane, and so does its shield; a full-health hero casts nothing (no Magic XP for
+     nothing); no strike slot is walked, so none reports a wait. */
+  'mends-between-pulls': (M) => {
+    const run = (hp, bar, mana) => {
+      const hs = supplySession(M, { bag: { chalked_earth_rune: { loaded: 3 } } });
+      const x = oneHero(M, { hp, maxHp: 100, mana: mana === undefined ? 100 : mana, maxMana: 100 }, { hs, bar, range: 7 });
+      x.sc.rng = rngOf(M, 12);
+      M.abilities.castAbilities(x.inst, x.sc);
+      return x;
+    };
+    const hurt = run(40, ['power_strike', 'mend']);
+    if (JSON.stringify(casts(hurt.sc)) !== '["mend"]' || !(hurt.h.hp > 40)) return 'a hurt hero between pulls cast ' + JSON.stringify(casts(hurt.sc)) + ' (HP ' + hurt.h.hp + ')';
+    const full = run(100, ['mend', 'arcane_barrier']);
+    if (casts(full.sc).length) return 'a full-health hero cast ' + JSON.stringify(casts(full.sc)) + ' between pulls';
+    const shell = run(70, ['arcane_barrier']);
+    if (JSON.stringify(casts(shell.sc)) !== '["arcane_barrier"]' || shell.h.shield !== M.AD.ABILITIES.arcane_barrier.shield) return 'a hurt hero between pulls raised no shell: ' + JSON.stringify(casts(shell.sc));
+    const idle = run(100, ['power_strike'], 0);
+    return idle.sc.events.some((e) => e.type === 'rule_wait') ? 'between pulls a strike slot reported a wait: ' + JSON.stringify(idle.sc.events) : null;
+  },
+  /* ARCANE BARRIER'S REFUND (Tyler 2026-10-23, from Andy's reports): self-only; a full shell is never recast (it would
+     add nothing); a chipped one is, and what is left of it comes back as mana at the cast's price per point. The cast
+     event carries the NET mana (Magic XP is paid on it) and the refund. A stronger version over a full shell refunds it
+     at its own price, never more than the cast costs. */
+  'barrier-recast-refunds': (M) => {
+    const row = M.AD.ABILITIES.arcane_barrier;
+    if (row.target !== 'self') return 'Arcane Barrier is no longer self-only';
+    const hs = supplySession(M, { bag: { chalked_earth_rune: { loaded: 5 } } });
+    const x = oneHero(M, { hp: 50, maxHp: 100, mana: 100, maxMana: 0 }, { hs, bar: ['arcane_barrier'], range: 7 }, [{ x: 15, y: 3, hp: 5000, maxHp: 5000 }]);
+    x.sc.rng = rngOf(M, 13);
+    M.abilities.castAbilities(x.inst, x.sc);
+    if (x.h.shield !== row.shield || x.h.mana !== 100 - row.mana) return 'the first Barrier left shield ' + x.h.shield + ', mana ' + x.h.mana;
+    x.sc.atMs = row.cdMs;
+    M.abilities.castAbilities(x.inst, x.sc);
+    if (casts(x.sc).length !== 1) return 'a full shell was recast';
+    x.h.shield = 10;
+    x.sc.atMs = row.cdMs + 100;
+    M.abilities.castAbilities(x.inst, x.sc);
+    const ev = x.sc.events.filter((e) => e.type === 'cast')[1];
+    const refund = Math.floor((10 * row.mana) / row.shield);
+    if (!ev || ev.refund !== refund || ev.mana !== row.mana - refund) return 'a recast over a 10-point shell: ' + JSON.stringify(ev) + ', want refund ' + refund;
+    if (x.h.shield !== row.shield || x.h.mana !== 100 - row.mana - (row.mana - refund)) return 'after the recast: shield ' + x.h.shield + ', mana ' + x.h.mana;
+    const R = M.abilities.shieldRefund, two = Math.floor((row.shield * 1880) / 1000);
+    if (R({ shield: 40 }, row, 36, 1880) !== Math.floor((40 * 36) / two)) return 'a stronger version over a full shell refunds ' + R({ shield: 40 }, row, 36, 1880);
+    return R({ shield: 500 }, row, 36, 1000) === 36 && R({ shield: 0 }, row, 30, 1000) === 0 && R({ shield: 9 }, M.AD.ABILITIES.mend, 15, 1000) === 0
+      ? null : 'shieldRefund is not capped at the cast, or refunds a heal';
+  },
+  /* AN IGNORE LIST BINDS ONLY WHERE IT AIMS (spell content, Coordinator 2026-10-23): a food, drink, heal or shield slot never
+     reads one, so the Configure window saves none on it (bar-draft slotForSave), and the "can never fire" check never
+     counts one there (action-facts conflictsOf): the same food below a food slot with a stray list is still blocked. */
+  'ignore-only-where-it-aims': (M) => {
+    if (!M.shell) return null;
+    const { slotForSave } = M.shell.draft, { conflictsOf } = M.shell.facts;
+    const s = (type, id, ignore) => ({ action: { type, id }, conditions: [], join: 'and', ...(ignore ? { ignore } : {}) });
+    for (const [a, keeps] of [[s('consume', 'cooked_shrimp', ['giant_rat']), false], [s('ability', 'mend', ['giant_rat']), false], [s('ability', 'arcane_barrier', ['giant_rat']), false],
+      [s('ability', 'fireball', ['giant_rat']), true], [s('attack_with_item', 'loaded', ['giant_rat']), true]]) {
+      if (Array.isArray(slotForSave(a).ignore) !== keeps) return a.action.id + (keeps ? ' lost' : ' kept') + ' its ignore list on save';
+    }
+    const c = conflictsOf([s('consume', 'cooked_shrimp', ['giant_rat']), s('consume', 'cooked_shrimp')]);
+    return c.has(1) ? null : 'a food slot\'s ignore list (never read) hid that the same food below it can never fire';
+  },
   /* AB-13: mana regenerates 25% of max a minute, exactly, in whole sub-steps. */
   'mana-regen': (M) => {
     const { h, inst, sc } = oneHero(M, { mana: 0, maxMana: 600 }, { bar: [] });
@@ -448,6 +527,26 @@ const cases = {
 };
 
 const mutants = [
+  { name: 'the Mark rides the offense lane (audit c16)', case: 'support-lane',
+    edits: [['src/data/abilities.js', "disciplines: ['ranged'], lane: 'support',", "disciplines: ['ranged'], lane: 'offense',"]] },
+  { name: 'Arcane Barrier back on the heal lane', case: 'support-lane',
+    edits: [['src/data/abilities.js', "lane: 'support', cdMs: 20000, mana: 30, rune: 'chalked_earth_rune', target: 'self',", "lane: 'heal', cdMs: 20000, mana: 30, rune: 'chalked_earth_rune', target: 'self',"]] },
+  { name: 'abilities fire only while monsters are engaged again (audit c30)', case: 'mends-between-pulls',
+    edits: [['src/core/hunt/abilities.js', '    const pick = firstUsable(inst, u, sc, engaged(inst).length ? null : mends);\n', '    if (!engaged(inst).length) continue;\n    const pick = firstUsable(inst, u, sc);\n']] },
+  { name: 'every slot is walked between pulls', case: 'mends-between-pulls',
+    edits: [['src/core/hunt/abilities.js', 'const mends = (row) => !!row && MEND_TARGETS.includes(row.target);', 'const mends = (row) => !!row;']] },
+  { name: 'a recast refunds nothing (Andy)', case: 'barrier-recast-refunds',
+    edits: [['src/core/hunt/abilities.js', '  const refund = shieldRefund(u, row, paid, pm);', '  const refund = 0;']] },
+  { name: 'a recast refunds the whole cast whatever was used', case: 'barrier-recast-refunds',
+    edits: [['src/core/hunt/abilities.js', '  return Math.min(mana, Math.floor((standing * mana) / lands));', '  return mana;']] },
+  { name: 'a full shell is recast', case: 'barrier-recast-refunds',
+    edits: [['src/core/hunt/abilities.js', "    if (row.target === 'self' && row.shield && int(hero.shield) >= landsShield(row, pm)) return { why: 'no_target' };\n", '']] },
+  { name: 'Magic XP is paid on refunded mana', case: 'barrier-recast-refunds',
+    edits: [['src/core/hunt/abilities.js', "{ u: u.id, ability: row.id, t: pick.target.id, mana, magicXpMult:", "{ u: u.id, ability: row.id, t: pick.target.id, mana: paid, magicXpMult:"]] },
+  { name: 'a food slot saves its ignore list', case: 'ignore-only-where-it-aims', also: ['src'],
+    edits: [['src/shell/bar-draft.js', '  if (!d || !Array.isArray(d.ignore) || aimsAtMonsters(d)) return d;', '  return d;']] },
+  { name: 'the blocked-slot check reads a food slot\'s ignore list', case: 'ignore-only-where-it-aims', also: ['src'],
+    edits: [['src/shell/action-facts.js', 'const ignoresOf = (s) => (aimsAtMonsters(s) && Array.isArray(s.ignore) ? s.ignore : []);', 'const ignoresOf = (s) => (Array.isArray(s.ignore) ? s.ignore : []);']] },
   { name: 'a spell casts version I whatever rune it spends', case: 'spell-casts-the-spent-runes-version',
     edits: [['src/core/hunt/abilities.js', '    if (!best || tier > best.version) best = { line: l, version: tier, pm: 1000 };', '    if (!best || tier > best.version) best = { line: l, version: 1, pm: 1000 };']] },
   { name: 'a carried rune casts a version its hero has not unlocked', case: 'spell-casts-the-spent-runes-version',
@@ -461,7 +560,7 @@ const mutants = [
   { name: '[spell-content] output ignores the level', case: 'output-grows-with-level-not-mana',
     edits: [['src/data/abilities.js', '  return versionOf(row, n).outPm + (row && Number.isInteger(row.lvPm) ? row.lvPm * (lv - 1) : 0);', '  return versionOf(row, n).outPm;']] },
   { name: '[spell-content] a cast lands at level 1 whatever its hero', case: 'output-grows-with-level-not-mana',
-    edits: [['src/core/hunt/abilities.js', 'pm: Math.floor((outputPm(row, s.version, skillLevel(h, row)) * s.pm) / 1000) };', 'pm: Math.floor((outputPm(row, s.version, 1) * s.pm) / 1000) };']] },
+    edits: [['src/core/hunt/abilities.js', 'const pm = Math.floor((outputPm(row, s.version, skillLevel(h, row)) * s.pm) / 1000);', 'const pm = Math.floor((outputPm(row, s.version, 1) * s.pm) / 1000);']] },
   { name: 'a store rune fires at full power (r07)', case: 'spell-casts-the-spent-runes-version',
     edits: [['src/core/hunt/abilities.js', '  return { line: s, version: 1, pm: BASIC_PM };', '  return { line: s, version: 1, pm: 1000 };']] },
   { name: 'a hit ignores its power', case: 'spell-casts-the-spent-runes-version',
@@ -483,8 +582,8 @@ const mutants = [
   { name: 'a rune slot buys the store rune without naming it', case: 'rune-own-then-store',
     edits: [['src/core/hunt/abilities.js', "  const s = typeof store === 'string' ? storeLine(h.hs, row.rune, store) : { why: 'none' };", "  const s = storeLine(h.hs, row.rune, typeof store === 'string' ? store : undefined);"]] },
   { name: '[spell-content] Mend casts at full health', case: 'mend-heals-only-the-hurt',
-    edits: [['src/core/hunt/abilities.js', "    case 'self': return pct(hero) < 100 && (row.heal || !(int(hero.shield) > 0)) ? hero : null;",
-      "    case 'self': return row.heal || (pct(hero) < 100 && !(int(hero.shield) > 0)) ? hero : null;"]] },
+    edits: [['src/core/hunt/abilities.js', "    case 'self': return pct(hero) < 100 ? hero : null;",
+      "    case 'self': return row.heal || pct(hero) < 100 ? hero : null;"]] },
   { name: '[spell-content] Mend shields instead of healing', case: 'mend-heals-only-the-hurt',
     edits: [['src/core/hunt/abilities.js', '      if (row.heal) { healOne(u, u, scaled(roll(sc, row.heal)), sc); break; }\n', '']] },
   { name: '[spell-content] Mend is kept off a physical bar', case: 'mend-heals-only-the-hurt',

@@ -179,6 +179,8 @@ const cases = {
     const bad = M.roleData.validate();
     if (bad.length) return bad.join('; ');
     if (f('shield') !== 'tank' || f('dual_axe') !== 'melee_dps' || f('crossbow') !== 'ranger') return 'weapon → role is wrong';
+    /* Tyler 2026-10-23: a sword ALONE plays Melee damage; the club and bare hands Melee damage too. */
+    if (f('sword') !== 'melee_dps' || f('club') !== 'melee_dps' || f('hammer') !== 'melee_dps' || f('neutral') !== 'melee_dps') return 'a sword alone, a club or bare hands play ' + [f('sword'), f('club'), f('hammer'), f('neutral')];
     /* Tyler 2026-10-19: Mage = wand (+ spellbook), Healer = staff; neither offers the other role. */
     if (f('staff') !== 'healer' || f('staff', 'mage') !== 'healer' || f('wand') !== 'mage' || f('wand', 'healer') !== 'mage') return 'the wand / staff roles are wrong';
     const RW = M.roleData.roleWeaponOf;
@@ -195,6 +197,42 @@ const cases = {
     const want = { demoncaller_staff: 'staff', void_censer: 'staff', whispering_codex: 'wand', voidmaw_scepter: 'wand' };
     for (const [id, key] of Object.entries(want)) if (RW(M.ITEMS[id]) !== key) return id + ' plays ' + RW(M.ITEMS[id]) + ', want ' + key;
     return M.ITEMS.demoncaller_staff.twoHanded === true ? null : 'the Demoncaller staff is one-handed (a staff fills both hands, Tyler 10-19)';
+  },
+  /* THE SHIELD MAKES THE TANK (Tyler 2026-10-23, SHIELDS; roadmap p15, audit c02): a one-hand melee weapon and a
+     shield play the tank, a sword alone Melee damage; a crossbow and a shield a Ranger (with guard), never a tank;
+     a spellbook beside a wand or a sword is no shield; a BOW fills both hands (every bow is two-handed, every
+     crossbow one-handed, so the server's two_handed refusal keeps a shield off a bow). The worn set's key reads both
+     hands (wornRoleKey) and heroSetup plays it: a sword alone carries no Challenge on its bar. */
+  'the-shield-makes-the-tank': (M) => {
+    const R = M.roleData, I = M.ITEMS, f = (w, o) => R.roleForWeapon(R.roleKeyOf(I[w] || null, I[o] || null));
+    const want = [['practice_sword', 'practice_shield', 'tank'], ['practice_sword', null, 'melee_dps'], ['iron_sword', 'kingsgrate', 'tank'],
+      ['practice_crossbow', 'bronze_rimmed_shield', 'ranger'], ['oak_crossbow', 'steelgrate', 'ranger'], ['practice_wand', 'practice_spellbook', 'mage'],
+      ['practice_sword', 'practice_spellbook', 'melee_dps'], [null, 'ironbound_shield', 'tank'], ['practice_wand', 'bronze_rimmed_shield', 'mage']];
+    for (const [w, o, role] of want) if (f(w, o) !== role) return w + ' with ' + o + ' plays ' + f(w, o) + ', want ' + role;
+    if (R.wornRoleKey({ weapon: 'iron_sword', shield: 'ironbound_shield' }, I) !== 'shield' || R.wornRoleKey({ weapon: 'iron_sword' }, I) !== 'sword') return 'the worn set\'s key does not read the shield slot';
+    const ranged = Object.keys(I).filter((id) => I[id].slot === 'weapon' && I[id].weaponType === 'ranged');
+    const oneHandBow = ranged.filter((id) => !/crossbow/.test(id) && I[id].twoHanded !== true);
+    const twoHandXbow = ranged.filter((id) => /crossbow/.test(id) && I[id].twoHanded === true);
+    if (oneHandBow.length || twoHandXbow.length || !ranged.some((id) => /crossbow/.test(id))) return 'a bow is one-handed (' + oneHandBow + ') or a crossbow two-handed (' + twoHandXbow + ')';
+    const tank = M.hs.heroSetup({ weaponType: 'shield', options: {}, bar: [], partyRoles: [] });
+    const sword = M.hs.heroSetup({ weaponType: 'sword', options: {}, bar: [], partyRoles: [] });
+    const acts = (h) => h.slots.filter((s) => s.slot.action.type === 'ability').map((s) => s.slot.action.id);
+    if (tank.role !== 'tank' || !acts(tank).includes('challenge')) return 'sword and shield: role ' + tank.role + ', bar ' + acts(tank);
+    if (sword.role !== 'melee_dps' || acts(sword).includes('challenge') || !acts(sword).includes('flame_strike') || !acts(sword).includes('power_strike')) return 'a sword alone: role ' + sword.role + ', bar ' + acts(sword);
+    return null;
+  },
+  /* DISCIPLINE LISTS LIVE IN DATA ONLY (roadmap p15, audit c03): the club is its own discipline (the axes' sweep,
+     never their bleed), every role key names a discipline of abilities.js DISCIPLINES, and a hero's bar holds only
+     its key's list (heroSetup). */
+  'the-club-is-its-own-discipline': (M) => {
+    const R = M.roleData, AD = M.abilityData;
+    if (R.disciplineOf('club') === R.disciplineOf('dual_axe') || R.disciplineOf('hammer') !== 'club') return 'the club plays the ' + R.disciplineOf('club') + ' list, the axes ' + R.disciplineOf('dual_axe');
+    const club = AD.disciplineAbilities('club'), axes = AD.disciplineAbilities('dual_axe');
+    if (club.includes('rend') || !axes.includes('rend') || !club.includes('cleave')) return 'the club holds ' + club + ', the axes ' + axes;
+    for (const [k, row] of Object.entries(R.ROLE_KEYS)) if (!AD.DISCIPLINES[row.discipline]) return k + ' names discipline ' + row.discipline + ', no abilities.js row';
+    const h = M.hs.heroSetup({ weaponType: 'hammer', options: {}, bar: ['rend', 'cleave'], partyRoles: [] });
+    const acts = h.slots.filter((s) => s.slot.action.type === 'ability').map((s) => s.slot.action.id);
+    return JSON.stringify(acts) === '["cleave"]' ? null : 'a club hero\'s stored Rend + Cleave bar runs ' + JSON.stringify(acts);
   },
 };
 
@@ -224,8 +262,25 @@ const mutants = [
   { name: 'the retreat may go toward the pack', case: 'kite-retreats-away-from-pack', edits: [[R, '    if (Math.hypot(x - cx, y - cy) - here <= KITE.awayMin) continue;\n', '']] },
   { name: 'no Melee does not change chase', case: 'defaults-per-role', edits: [[R, '    chase: HUNT_ROLES[role].melee ? d.chase : (noMelee ? false : d.chase),', '    chase: d.chase,']] },
   { name: 'the leader is the first hero by id', case: 'pull-leader-order', edits: [[R, "    const r = u.side === 'hero' ? ROLE_ORDER.indexOf(u.role) : -1;", "    const r = u.side === 'hero' && ROLE_ORDER.includes(u.role) ? 0 : -1;"]] },
-  { name: 'a staff offers the Mage too', case: 'role-from-weapon', edits: [['src/data/hunt-roles.js', "  staff: Object.freeze(['healer']),", "  staff: Object.freeze(['mage', 'healer']),"]] },
-  { name: 'a wand plays the Healer', case: 'role-from-weapon', edits: [['src/data/hunt-roles.js', "  wand: Object.freeze(['mage']),", "  wand: Object.freeze(['healer']),"]] },
+  { name: 'a staff offers the Mage too', case: 'role-from-weapon', edits: [['src/data/hunt-roles.js', "  staff: key(['healer'], 'restoration'),", "  staff: key(['mage', 'healer'], 'restoration'),"]] },
+  { name: 'a wand plays the Healer', case: 'role-from-weapon', edits: [['src/data/hunt-roles.js', "  wand: key(['mage'], 'destruction'),", "  wand: key(['healer'], 'destruction'),"]] },
+  { name: 'a sword alone plays the tank again (audit c02)', case: 'role-from-weapon', edits: [['src/data/hunt-roles.js', "  sword: key(['melee_dps'], 'sword'),", "  sword: key(['tank'], 'shield'),"]] },
+  { name: 'a sword and a shield play no tank', case: 'the-shield-makes-the-tank',
+    edits: [['src/data/hunt-roles.js', "export const SHIELD_ARM = Object.freeze({ sword: 'shield', neutral: 'shield' });", "export const SHIELD_ARM = Object.freeze({ neutral: 'shield' });"]] },
+  { name: 'a crossbow and a shield play the tank', case: 'the-shield-makes-the-tank',
+    edits: [['src/data/hunt-roles.js', "export const SHIELD_ARM = Object.freeze({ sword: 'shield', neutral: 'shield' });", "export const SHIELD_ARM = Object.freeze({ sword: 'shield', neutral: 'shield', ranged: 'shield' });"]] },
+  { name: 'a spellbook counts as a shield', case: 'the-shield-makes-the-tank',
+    edits: [['src/data/shields.js', "export const isShield = (item) => !!item && item.slot === 'shield' && item.offhand === 'shield';", "export const isShield = (item) => !!item && item.slot === 'shield';"]] },
+  { name: 'the worn set ignores the shield slot', case: 'the-shield-makes-the-tank',
+    edits: [['src/data/hunt-roles.js', 'items && e.shield ? items[e.shield] : null', 'null']] },
+  { name: 'a bow is one-handed again', case: 'the-shield-makes-the-tank',
+    edits: [['src/data/gear-tiers.js', "    key: 'bow', label: 'Bow', weaponType: 'ranged', skill: 'crafting', mat: 'plank', twoHanded: true,", "    key: 'bow', label: 'Bow', weaponType: 'ranged', skill: 'crafting', mat: 'plank',"]] },
+  { name: 'the club shares the axes\' list (audit c03)', case: 'the-club-is-its-own-discipline',
+    edits: [['src/data/hunt-roles.js', "  club: key(['melee_dps'], 'club'),\n  hammer: key(['melee_dps'], 'club'),", "  club: key(['melee_dps'], 'dual_axe'),\n  hammer: key(['melee_dps'], 'dual_axe'),"]] },
+  { name: 'the club bleeds', case: 'the-club-is-its-own-discipline',
+    edits: [['src/data/abilities.js', "  ab({ id: 'rend', n: 'Rend', disciplines: ['dual_axe'],", "  ab({ id: 'rend', n: 'Rend', disciplines: ['dual_axe', 'club'],"]] },
+  { name: 'a stored bar keeps an ability its discipline does not hold', case: 'the-club-is-its-own-discipline',
+    edits: [['src/core/hunt-spawn.js', 'slots: heroSlots(o.bar, role, (id) => allowed.includes(id)),', 'slots: heroSlots(o.bar, role, null),']] },
   { name: 'a magic weapon ignores its discipline', case: 'role-from-weapon', edits: [['src/data/hunt-roles.js', "  if (item.weaponType === 'magic') return MAGIC_ROLE_WEAPON[item.discipline] || 'wand';", "  if (item.weaponType === 'magic') return 'wand';"]] },
 ];
 

@@ -10,6 +10,7 @@ import { BOSS_FORGE_ITEMS } from './boss-forge.js?v=0.2.34';
 import { CHAMPION_ITEMS } from './champions.js?v=0.2.34';
 import { DRINK_ITEMS } from './drinks.js?v=0.2.34';
 import { IMBUE_ITEMS } from './imbuements.js?v=0.2.34';
+import { SHIELD_ITEMS } from './shields.js?v=0.2.34';
 
 export const ITEMS={
   /* b215: the generated tier ladder (7 material tiers × every armour slot ×
@@ -44,6 +45,8 @@ export const ITEMS={
   ...DRINK_ITEMS,
   /* The imbuement slot's items, one per monster (src/data/imbuements.js, designer 2026-10-21). New ids only. */
   ...IMBUE_ITEMS,
+  /* The five shields (src/data/shields.js, Tyler 2026-10-23): the Shop's, two made, a drop and its reforge. New ids only. */
+  ...SHIELD_ITEMS,
 
   /* ── Gathering tools (b201, SYS-3) — OSRS-style tool ladder. ──
      type:'tool' + toolSkill + toolTier + toolSpeed. The best owned tool
@@ -204,7 +207,7 @@ export const ITEMS={
   practice_shield:{n:'Practice Shield',icon:'🛡️',v:0,bop:true,type:'offhand',slot:'shield',offhand:'shield',defB:2,tier:1,rarity:'common',reqSkill:'defense',reqLv:1},
   practice_hatchets:{n:'Practice Hatchets',icon:'🪓',v:0,bop:true,type:'weapon',slot:'weapon',weaponType:'axe',twoHanded:true,atkB:4,strB:4,tier:1,rarity:'common',reqSkill:'melee',reqLv:1},
   practice_club:{n:'Practice Club',icon:'🏏',v:0,bop:true,type:'weapon',slot:'weapon',weaponType:'hammer',twoHanded:true,atkB:3,strB:7,tier:1,rarity:'common',reqSkill:'melee',reqLv:1},
-  practice_bow:{n:'Practice Bow',icon:'🏹',v:0,bop:true,type:'weapon',slot:'weapon',weaponType:'ranged',atkB:5,strB:3,rangeAtkB:5,rangeStrB:3,tier:1,rarity:'common',reqSkill:'ranged',reqLv:1},
+  practice_bow:{n:'Practice Bow',icon:'🏹',v:0,bop:true,type:'weapon',slot:'weapon',weaponType:'ranged',twoHanded:true,atkB:5,strB:3,rangeAtkB:5,rangeStrB:3,tier:1,rarity:'common',reqSkill:'ranged',reqLv:1},
   practice_crossbow:{n:'Practice Crossbow',icon:'🏹',v:0,bop:true,type:'weapon',slot:'weapon',weaponType:'ranged',atkB:4,strB:4,rangeAtkB:4,rangeStrB:4,tier:1,rarity:'common',reqSkill:'ranged',reqLv:1},
   practice_wand:{n:'Practice Wand',icon:'🪄',v:0,bop:true,type:'weapon',slot:'weapon',weaponType:'magic',discipline:'destruction',atkB:4,strB:4,magicAtkB:4,magicStrB:4,tier:1,rarity:'common',reqSkill:'magic',reqLv:1},
   practice_spellbook:{n:'Practice Spellbook',icon:'📕',v:0,bop:true,type:'offhand',slot:'shield',offhand:'spellbook',discipline:'destruction',magicAtkB:1,magicStrB:2,defB:1,tier:1,rarity:'common',reqSkill:'magic',reqLv:1},
@@ -215,8 +218,8 @@ export const ITEMS={
   apprentice_staff:{n:'Apprentice Staff',icon:'🔮',v:80,type:'weapon',slot:'weapon',weaponType:'magic',atkB:3,strB:5,magicAtkB:3,magicStrB:5},
   /* v: the ladder's generated value (designer 2026-10-22, style-gear.js SG-4: a made piece sells for no more than its inputs' book). */
   oak_staff:{n:'Oak Staff',icon:'🪄',v:130,type:'weapon',slot:'weapon',weaponType:'magic',atkB:6,strB:9,magicAtkB:6,magicStrB:9},
-  shortbow:{n:'Shortbow',icon:'🏹',v:90,type:'weapon',slot:'weapon',weaponType:'ranged',atkB:5,strB:3,rangeAtkB:5,rangeStrB:3},
-  longbow:{n:'Longbow',icon:'🏹',v:135,type:'weapon',slot:'weapon',weaponType:'ranged',atkB:9,strB:6,rangeAtkB:9,rangeStrB:6},
+  shortbow:{n:'Shortbow',icon:'🏹',v:90,type:'weapon',slot:'weapon',weaponType:'ranged',twoHanded:true,atkB:5,strB:3,rangeAtkB:5,rangeStrB:3},
+  longbow:{n:'Longbow',icon:'🏹',v:135,type:'weapon',slot:'weapon',weaponType:'ranged',twoHanded:true,atkB:9,strB:6,rangeAtkB:9,rangeStrB:6},
   stone_maul:{n:'Stone Maul',icon:'🔨',v:110,type:'weapon',slot:'weapon',weaponType:'hammer',atkB:3,strB:7},
   iron_warhammer:{n:'Iron Warhammer',icon:'🔨',v:145,type:'weapon',slot:'weapon',weaponType:'hammer',atkB:7,strB:12},
   iron_helm:{n:'Iron Helm',icon:'⛑️',v:150,type:'armor',slot:'helmet',defB:5},

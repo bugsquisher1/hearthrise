@@ -159,6 +159,10 @@ export const NO_STORE_PARTNER = Object.freeze(Object.assign(Object.create(null),
 // tier-1 gloves and belts are not sold: they are field-salvage finds (tests/field-salvage.mjs
 // (a): a salvage piece is never shop stock). Tier 1 and Level 1 only: better pieces come
 // from drops and crafting.
+// THE FIRST SHIELD (Tyler 2026-10-23, from Andy's reports: a basic shield at the Shop outfitter, better
+// shields made at Smithing, and some drops): the Bronze-Rimmed Shield (src/data/shields.js), tier 1 at
+// Defense 1, on the same rules. The shield slot joins the outfitter's: the Rat King's Kingsgrate is a
+// tier-2 Rare, never the shop's piece, so the Shop still never competes with a drop at its tier.
 // Price = SHOP_PREMIUM x book value, the tools' rule, so the vendor's buy-back (at most
 // half the shop price) pays at most what the piece cost, halved: buy-then-sell loses.
 // tools/gen-alpha-catalogue.mjs refuses a gear row off any of these rules.
@@ -179,7 +183,7 @@ export const SHOP_PREMIUM = 2;
 /* The kinds the Shop's Buy tab lists and `shop_buy` sells; every other row is a price only. */
 export const SHOP_SOLD_KINDS = Object.freeze(['tool', 'gear', 'seed']);
 /* The slots the Shop may sell gear for: the ones no walked ground drops. */
-export const SHOP_GEAR_SLOTS = Object.freeze(['gloves', 'belt', 'cape', 'earrings', 'ring', 'necklace']);
+export const SHOP_GEAR_SLOTS = Object.freeze(['gloves', 'belt', 'cape', 'earrings', 'ring', 'necklace', 'shield']);
 const sell = (item, kind, basic, price) => Object.freeze({ offer: 'supply.' + item, item, kind, basic, price });
 
 export const SUPPLY_SHOP_OFFERS = Object.freeze([
@@ -210,6 +214,7 @@ export const SUPPLY_SHOP_OFFERS = Object.freeze([
   sell('copper_studs', 'gear', null, 120),
   sell('copper_ring', 'gear', null, 240),
   sell('hunter_necklace', 'gear', null, 360),
+  sell('bronze_rimmed_shield', 'gear', null, 140),
   /* The seed counter, in crop order (src/data/gathering.js CROPS). */
   sell('turnip_seed', 'seed', null, 5),
   sell('carrot_seed', 'seed', null, 10),

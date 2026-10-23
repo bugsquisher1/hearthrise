@@ -99,8 +99,10 @@ function targetFor(inst, hero, h, row, sc, cx) {
       const b = bestAim(inst, hero, h.range, 3, cx && cx.slot);
       return b && b.count >= 1 ? b.aim : null;
     }
-    /* A self-heal (Mend) needs missing HP; a self-shield (Arcane Barrier) missing HP and no shield standing. */
-    case 'self': return pct(hero) < 100 && (row.heal || !(int(hero.shield) > 0)) ? hero : null;
+    /* A self-heal (Mend) and a self-shield (Arcane Barrier) need missing HP; a self-shield's standing shell must
+       also be under the one this cast lands (firstUsable: it needs the version's numbers), and a recast refunds
+       what is left of it (shieldRefund). */
+    case 'self': return pct(hero) < 100 ? hero : null;
     case 'ally': {
       /* An ally heal takes a wounded ally; an ally SHIELD (Protective Ward) a wounded one holding no shield. */
       const ok = (a) => !!a && a.alive && a.side === 'hero' && pct(a) < 100 && (row.heal || !(int(a.shield) > 0))
@@ -190,18 +192,44 @@ export function gateOf(hero, h, row, atMs) {
   return null;
 }
 
+/* The shield a self-shield lands at `pm` permille of its row's (effect's `scaled`). */
+const landsShield = (row, pm) => (pm === 1000 ? row.shield : Math.floor((row.shield * pm) / 1000));
+
+/**
+ * ARCANE BARRIER'S REFUND (Tyler 2026-10-23, from Andy's reports: it stays self-only, and recasting it while its
+ * shield still stands refunds the unused shield as mana). The shell left standing when a self-shield is recast comes
+ * back as mana at THIS cast's price per point (mana / the shield it lands), never more than this cast's mana: a full
+ * shell replaced by a stronger version costs nothing but its rune, a half-spent one half its mana. 0 with nothing
+ * standing. Pure.
+ */
+export function shieldRefund(u, row, mana, pm) {
+  const standing = int(u && u.shield);
+  const lands = row && row.target === 'self' && Number.isInteger(row.shield) ? landsShield(row, pm) : 0;
+  if (!(standing > 0) || !(lands > 0) || !(mana > 0)) return 0;
+  return Math.min(mana, Math.floor((standing * mana) / lands));
+}
+
+/* BETWEEN PULLS (Tyler 2026-10-23, COMBAT AUDIT ANSWERS: heals and shields fire between pulls when HP is missing;
+   roadmap p16, audit c30): with no monster engaged, only the bar's slots that heal or shield a hero are walked, on
+   their own conditions, lanes and cooldowns. Each still needs a wound (targetFor), so a hero at full health casts
+   nothing and earns no Magic XP for it. */
+const MEND_TARGETS = Object.freeze(['self', 'ally', 'party']);
+const mends = (row) => !!row && MEND_TARGETS.includes(row.target);
+
 /**
  * The first usable ability slot for `hero` (conditions.js pickSlot: slot order,
  * then the fallback): its lane, cooldown and mana open, its conditions passing,
  * a target, its supplies. Answers { row, target, lines, rule, mask } or null.
+ * `only(row)`, when given, keeps only the slots whose ability it passes (between pulls: the mends).
  */
-export function firstUsable(inst, hero, sc) {
+export function firstUsable(inst, hero, sc, only) {
   const h = hero && inst.heroes && inst.heroes[hero.id];
   if (!h || !h.hs) return null;
   /* Evaluated only while its LANE is free: a slot whose lane is shut is not even tested.
      One whose conditions pass but that waits on its cooldown, mana, stock or a target
      in reach is the lane's `rule_wait` (conditions.js noteWait). */
-  const rows = slotsFor(h, 'ability').filter((r) => gateOf(hero, h, ABILITIES[r.slot.action.id], sc.atMs) !== 'lane');
+  const rows = slotsFor(h, 'ability').filter((r) => (!only || only(ABILITIES[r.slot.action.id]))
+    && gateOf(hero, h, ABILITIES[r.slot.action.id], sc.atMs) !== 'lane');
   const got = pickSlot(inst, hero, h, rows, (slot, cx) => {
     const row = ABILITIES[slot.action.id];
     const gate = gateOf(hero, h, row, sc.atMs);
@@ -219,7 +247,11 @@ export function firstUsable(inst, hero, sc) {
        rune: the basic version). */
     const v = versionOf(row, s.version);
     if (int(hero.mana) < v.mana) return { why: 'mana' };
-    return { row, target: t, lines: s.lines, version: s.version, mana: v.mana, pm: Math.floor((outputPm(row, s.version, skillLevel(h, row)) * s.pm) / 1000) };
+    const pm = Math.floor((outputPm(row, s.version, skillLevel(h, row)) * s.pm) / 1000);
+    /* A self-shield recasts only to land MORE than its standing shell (a full shell waits; a stronger version, or a
+       chipped shell, recasts and refunds the rest: shieldRefund). */
+    if (row.target === 'self' && row.shield && int(hero.shield) >= landsShield(row, pm)) return { why: 'no_target' };
+    return { row, target: t, lines: s.lines, version: s.version, mana: v.mana, pm };
   }, sc, 'ability');
   return got ? Object.assign(got.pick, { rule: got.rule, mask: got.mask, label: got.label }) : null;
 }
@@ -297,8 +329,13 @@ export function fire(inst, u, pick, sc) {
   const h = inst.heroes[u.id];
   for (const l of pick.lines) if (!takeLine(h.hs, l, sc.atMs)) { h.hs.goldOut = true; return false; }
   const row = pick.row;
-  const mana = Number.isInteger(pick.mana) ? pick.mana : row.mana;
   const version = Number.isInteger(pick.version) ? pick.version : 1;
+  const pm = Number.isInteger(pick.pm) ? pick.pm : 1000;
+  /* THE MANA THE CAST COSTS: its version's, less a self-shield's refund of the shell it replaces (shieldRefund). The
+     cast event carries the NET (Magic XP is paid on the mana spent, xp-share.js magicXpFor: a refunded point pays none). */
+  const paid = Number.isInteger(pick.mana) ? pick.mana : row.mana;
+  const refund = shieldRefund(u, row, paid, pm);
+  const mana = paid - refund;
   u.mana = int(u.mana) - mana;
   u.cds = Object.assign({}, u.cds || {}, { [row.id]: sc.atMs + row.cdMs });
   u.lanes = Object.assign({}, u.lanes || {}, { [row.lane]: sc.atMs + ABILITY_LANES[row.lane] });
@@ -308,9 +345,9 @@ export function fire(inst, u, pick, sc) {
   const gold = pick.lines.reduce((a, l) => a + l.price, 0);
   const source = pick.lines.some((l) => l.source === 'store') ? 'store' : 'own';
   const rune = row.rune && pick.lines.length ? pick.lines[0].id : null;
-  const pm = Number.isInteger(pick.pm) ? pick.pm : 1000;
   sc.emit(makeEvent('cast', sc.atMs, { u: u.id, ability: row.id, t: pick.target.id, mana, magicXpMult: row.magicXpMult, source, gold,
     ...(rune ? { supply: rune, version, power: pm } : {}),
+    ...(refund > 0 ? { refund } : {}),
     ...(typeof pick.rule === 'string' ? { rule: pick.rule, rule_label: pick.label, pass: pick.mask } : {}) }));
   effect(inst, u, row, pick.target, sc, { version, pm });
   return true;
@@ -379,13 +416,12 @@ function castOrder(inst) {
   return k ? [k, ...units.filter((u) => u !== k)] : units;
 }
 
-/** Attack hook: each hero fires its first usable ability. */
+/** Attack hook: each hero fires its first usable ability; between pulls, its first usable heal or shield (`mends`). */
 export function castAbilities(inst, sc) {
   for (const u of castOrder(inst)) {
     if (u.side !== 'hero' || !u.alive) continue;
     regenMana(u, sc.dtMs);
-    if (!engaged(inst).length) continue;
-    const pick = firstUsable(inst, u, sc);
+    const pick = firstUsable(inst, u, sc, engaged(inst).length ? null : mends);
     if (pick) fire(inst, u, pick, sc);
   }
 }

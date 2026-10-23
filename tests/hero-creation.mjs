@@ -33,7 +33,7 @@ import { isMain } from './_is-main.mjs';
 import { ITEMS } from '../src/data/items.js';
 import { START_INVENTORY, START_EQUIPMENT, STARTER_SETS } from '../src/data/start-kit.js';
 import { BASE_REGIONS, BASE_DEFAULT_COLORS } from '../src/data/outfits.js';
-import { roleForWeapon, roleWeaponOf } from '../src/data/hunt-roles.js';
+import { roleForWeapon, roleKeyOf } from '../src/data/hunt-roles.js';
 import { vendorPriceOf } from '../supabase/functions/hr-accrue/catalogue.js';
 import { heroCells, refusalText, howYouFightHtml } from '../src/app/hero-create.js';
 import { HOW_YOU_FIGHT, validate as validateHowToPlay } from '../src/data/how-to-play.js';
@@ -63,10 +63,12 @@ export function checkData({ items = ITEMS, inv = START_INVENTORY, eq = START_EQU
       if (!it.bop || vendorPriceOf(items, id) !== 0) out.push(`H-D3 ${id} sells for ${vendorPriceOf(items, id)} or trades (bop ${!!it.bop})`);
     }
     const weapon = ids.map((id) => items[id]).find((it) => it && it.slot === 'weapon');
+    /* the set's off-hand worn beside its weapon (Tyler 2026-10-23: the SHIELD makes the tank) */
+    const off = ids.map((id) => items[id]).find((it) => it && it.slot === 'shield') || null;
     for (const id of ids) {
       const it = items[id];
       if (it && it.slot === 'weapon') {
-        const role = roleForWeapon(roleWeaponOf(it));
+        const role = roleForWeapon(roleKeyOf(it, off));
         if (role !== SET_ROLE[set]) out.push(`H-D4 ${set}: ${id} plays ${role}, not ${SET_ROLE[set]}`);
       }
     }
@@ -216,7 +218,9 @@ export async function checkServer(mutant) {
 const DATA_MUTANTS = {
   kit_missing_crossbow: { why: 'the crossbow leaves the kit', run: (sql) => checkData({ sql, inv: Object.fromEntries(Object.entries(START_INVENTORY).filter(([k]) => k !== 'practice_crossbow')) }) },
   kit_sells: { why: 'a practice item is worth gold', run: (sql) => checkData({ sql, items: Object.assign({}, ITEMS, { practice_staff: Object.assign({}, ITEMS.practice_staff, { v: 80 }) }) }) },
-  hatchets_tank: { why: 'the hatchets play the tank', run: (sql) => checkData({ sql, items: Object.assign({}, ITEMS, { practice_hatchets: Object.assign({}, ITEMS.practice_hatchets, { weaponType: 'sword' }) }) }) },
+  hatchets_tank: { why: 'the hatchets play the tank', run: (sql) => checkData({ sql, items: Object.assign({}, ITEMS, { practice_hatchets: Object.assign({}, ITEMS.practice_hatchets, { weaponType: 'shield' }) }) }) },
+  /* Tyler 2026-10-23: the SHIELD makes the tank; a kit sword read without its shield plays Melee damage */
+  sword_set_no_shield: { why: 'the sword set is read without its shield', run: (sql) => checkData({ sql, items: Object.assign({}, ITEMS, { practice_shield: Object.assign({}, ITEMS.practice_shield, { offhand: 'buckler' }) }) }) },
   regions_drift: { why: 'the server names a fifth region', run: (sql) => checkData({ sql: sql.replace("array['head', 'body', 'legs', 'feet']::text[]", "array['head', 'body', 'legs', 'feet', 'cape']::text[]") }) },
   preview_ignores_pick: { why: 'the preview paints the default colours whatever is picked', run: () => checkClient({ cells: (c, f) => heroCells(BASE_DEFAULT_COLORS, f) }) },
   shop_sells_food: { why: 'the session keeps a food offer a server still sends', run: () => checkClient({ shop: (cs) => ({ offers: cs.read('shop').offers, bids: new Map() }) }) },

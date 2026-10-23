@@ -641,7 +641,7 @@ async function nodeRules(M) {
     }, { rpc: (name, args) => {
       if (name !== 'hr_action_set_options') return undefined;
       /* the server stores the options; its next settle reads them (the stub's commits read `mis`) */
-      mis[0].hero = LM.SPAWN.heroSetup({ weaponType: 'sword', options: Object.assign({}, args.p_opts), bar: [], partyRoles: ['tank', 'melee_dps'] });
+      mis[0].hero = LM.SPAWN.heroSetup({ weaponType: 'shield', options: Object.assign({}, args.p_opts), bar: [], partyRoles: ['tank', 'melee_dps'] });
       return { ok: true, body: { ok: true, preset: 0, options: args.p_opts } };
     } });
     after = cs.liveStats();

@@ -19,10 +19,9 @@ import { companionBonus } from './companion-perk.js?v=0.2.34';
 import { buffQueueFromServer, buffBonusFor } from './buffs.js?v=0.2.34';
 import { grantXp, normaliseXpFrac } from './progression.js?v=0.2.34';
 import { charLevelFromXp, levelsOf } from './xp.js?v=0.2.34';
-import { vitalsOf, wearsArmour } from './vitals.js?v=0.2.34';
+import { vitalsOf, wearsArmour, holdsShield } from './vitals.js?v=0.2.34';
 import { newHuntSession, takeLine } from './action-rules.js?v=0.2.34';
 import { makeGoalCounter, makeBestiaryCounter, makeCollectionCounter } from './goals.js?v=0.2.34';
-import { HUNT_ROLES } from '../data/hunt-roles.js?v=0.2.34';
 import { MONSTERS } from '../data/monsters.js?v=0.2.34';
 import { honeOf, honeWornAt, ammoPerShot } from './ammo.js?v=0.2.34';
 import { mitigationFor, NO_MITIGATION } from './mitigation.js?v=0.2.34';
@@ -299,10 +298,12 @@ export function memberSide(mi, ctx) {
       /* Wears the whetstone at this member's boundary (combat-sim, before the unit re-reads its snapshot). */
       wear,
       /* THE XP ROUTE INPUTS (hunt-rewards.js): the weapon family, whether any armour
-         is worn (Defense trains only then) and whether the hero holds a shield. */
+         is worn (Defense trains only then; a shield counts) and whether the hero holds a
+         shield in its off-hand (its blocks train extra), whatever its role: a crossbow
+         Ranger behind a shield blocks too (Tyler 2026-10-23). */
       family: eq.weaponType,
       armoured: wearsArmour(equipment, items),
-      shield: !!(HUNT_ROLES[h.role] && HUNT_ROLES[h.role].discipline === 'shield'),
+      shield: holdsShield(equipment, items),
       buffsAt: (atMs) => { state.buffs = buffQueueFromServer(buffRows, atMs); },
       bonus, weakness, rollsVs, shotRolls,
       /* THE RELIC MULTIPLIER (lane c-bestiary): the member's OWN account_bestiary.relic_mult

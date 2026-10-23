@@ -87,7 +87,7 @@ const BANE_GEAR = {
   // ITEM-NEW-03 · ranged T6 · vs Dragon. Bow T6 curve (35/28) × 0.85.
   dragonrib_bow: {
     n: 'Dragonrib Bow', icon: '🏹', v: priced(105, 6), type: 'weapon', slot: 'weapon',
-    weaponType: 'ranged', atkB: 30, strB: 24, rangeAtkB: 30, rangeStrB: 24,
+    weaponType: 'ranged', twoHanded: true, atkB: 30, strB: 24, rangeAtkB: 30, rangeStrB: 24,
     tier: 6, rarity: 'legendary', reqSkill: 'ranged', reqLv: 75,
     bane: BANE('dragon'), effects: ['bane'],
   },

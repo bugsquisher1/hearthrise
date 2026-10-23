@@ -28,8 +28,8 @@
 // added with a source (this claim, catalogue-coherence.js PREMIUM_SOURCES) and a
 // use available today (it is a sword: worn in the weapon slot, Melee). It is
 // weaker than the free kit's Bronze Sword so a paid gift never out-hits free
-// play, and bop + v:0 so a daily claim mints no gold and never reaches the
-// market. The training activity (hunt-sessions.js RESUMABLE_KINDS `training`,
+// play, and v:0 so a daily claim sells to no vendor for gold. It is not bound
+// (Tyler 2026-10-23: no gear binds). The training activity (hunt-sessions.js RESUMABLE_KINDS `training`,
 // reserved) is its second use when it is built. Retuning `item` is this edit
 // plus `node tools/gen-hunt-sessions.mjs`; the claim verify prices this row.
 //

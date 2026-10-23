@@ -158,11 +158,13 @@ export const WORLD_FIELDS_READ = Object.freeze({
 /* v0.2.31 integration: ONE forward file per generator after the newest APPLIED (2026-11-20): the roster, the open glade and the style ladder's weapons
    (2026-11-23, now history). WHO HOLDS THE PACK (lane/b-tank-choice, Tyler 2026-10-22): the world gains `hold` / `holdNext`
    (targeting.js), so hr_hunt_world_shape changes: ONE forward file after the v0.2.32 sequence (its newest file is 2026-12-08-party-hold.sql). */
-/* LEAVE TOGETHER (lane/b-party-leave-together, Tyler 2026-10-22): END_ORDER gains `party_member_left`; 2026-12-09 is APPLIED
-   (v0.2.32, history), so ONE forward file, dated after the APPLIED 12-14..12-17 files (shared-farm, account-gold,
-   own-drinks-settle, beta-premium) and applied right before 2026-12-18-party-leave-together.sql: the forward file the loot and
-   tally lanes regenerate on top of. */
-export const OUT_NAME = '2026-12-18-hunt-sessions-catalogue.generated.sql';
+/* LEAVE TOGETHER (lane/b-party-leave-together, Tyler 2026-10-22): END_ORDER gains `party_member_left`; 2026-12-18 carried it
+   (APPLIED with v0.2.36, history now, never regenerated). THE LOOT BANDS (lane b-loot-bands, designer + Tyler 2026-10-23):
+   every ground's banded drop rows (hr_hunt_kill_bounds: the settle refuses an item no spawn's bound names), the Trophies
+   and the Ruff as vendor values, and dropped gear selling by tier (hr_hunt_vendor_value, catalogue.js vendorPriceOf) land
+   in ONE forward file ON TOP of the APPLIED 12-18 one, applied after 2026-12-20-loot-catalogue (hr_items first),
+   immediately before the hr-accrue deploy that drops them. */
+export const OUT_NAME = '2026-12-20-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -552,14 +554,19 @@ export function render(src) {
 --   ${r.vendor.length} vendor values, ${r.basics.length} store supplies paid per use, ${r.targets.length} target modes,
 --   ${r.lanes.length} lanes, ${r.abilities.length} abilities, ${r.setOptions.length} action-set options, ${r.grounds.length} hunt grounds
 --
--- SUPERSEDES 2026-12-09-hunt-sessions-catalogue.generated.sql (the v0.2.32 chain,
--- APPLIED, history: never regenerated): every table below is rewritten wholesale.
--- NEW SINCE 12-09 (lane b-party-leave-together, Tyler 2026-10-22 "Leave if anyone
--- leaves the hunt or dies"): END_ORDER gains \`party_member_left\` (a ticked hero sent
--- home by another member's end; RESUME_AFTER_END too), so hr_hunt_end_reasons and
--- hunt_sessions.end_reason's CHECK are rewritten; the world's shape is unchanged.
--- Applies after the APPLIED 12-14..12-17 files and right BEFORE 2026-12-18-party-leave-together.sql
--- (which proves the end).
+-- SUPERSEDES 2026-12-18-hunt-sessions-catalogue.generated.sql (APPLIED with v0.2.36,
+-- history: never regenerated): every table below is rewritten wholesale.
+-- NEW SINCE 12-18 (lane b-loot-bands, designer + Tyler 2026-10-23, the loot bands):
+-- every ground's monsters carry the banded drop tables (hr_hunt_kill_bounds: every
+-- Scarce, Rare and Trophy item a kill may pay), the Ruff and the Trophies are vendor
+-- values, and dropped gear sells by tier (hr_hunt_vendor_value from catalogue.js
+-- vendorPriceOf, src/data/loot-bands.js). ORDER: after 2026-12-20-loot-catalogue
+-- (hr_items), and the hr-accrue deploy follows AT ONCE: until it does, an old edge's
+-- drop that the new bounds no longer name is over the bound and that settle is refused.
+-- Carried from 12-18 (lane b-party-leave-together, Tyler 2026-10-22 "Leave if anyone
+-- leaves the hunt or dies"): END_ORDER's \`party_member_left\` (a ticked hero sent
+-- home by another member's end; RESUME_AFTER_END too) in hr_hunt_end_reasons and
+-- hunt_sessions.end_reason's CHECK; the world's shape is unchanged since 12-09.
 -- Carried from 12-09 (lane b-tank-choice, Tyler 2026-10-22 "One tank holds"): the
 -- world's shape gains hold / holdNext (src/core/hunt/targeting.js), so
 -- hr_hunt_world_shape is rewritten; the hr-accrue edge carrying that world deploys

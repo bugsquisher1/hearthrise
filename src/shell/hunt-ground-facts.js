@@ -8,17 +8,24 @@
 //                      pockets' `spawns`, the pack as built). Tyler 10-18: "Hunt card
 //                      and bestiary show roughly how common each is": a word, never
 //                      a percentage (the mix moves with the density pick).
-//   rareOf(hunt)       THE RARE CARRIER (Tyler 10-14: only ONE monster per ground
-//                      carries the rare items) and what it carries: its drop rows at
-//                      rare odds (src/core/drops.js dropBand), never an equipment row
-//                      (`gear`, the standard slot) and never a server-revealed surprise
-//                      (`lucky`, `salvage`). Names only: drop odds a player sees come
-//                      from the server's catalogue (ART_DIRECTION §8), so none is shown.
+//   scarceSetOf(hunt, worn)  THE GEAR THAT DROPS ABOUT HOURLY (the loot bands, Tyler
+//                      2026-10-23): one entry a tier, its armour lines' words in each
+//                      weight (the hero's worn weight first), the slots they cover and the
+//                      tier's Scarce weapons: "Iron, Studded, Adept: helmets, boots; Iron Sword".
+//   raresOf(hunt)      every Rare and Trophy item and the creature that carries it, Rares
+//                      first. A row's band decides (src/core/drops.js bandOf, REVEAL_BANDS),
+//                      never a server-revealed surprise (`lucky`, `salvage`).
+//   wornWeightOf(eq)   the armour weight a hero wears most (heavy, medium, light), or null.
+//   Names only: drop odds a player sees come from the server's catalogue and the Bestiary
+//   (ART_DIRECTION §8), so none is shown here.
 // ════════════════════════════════════════════════════════════════════════
 import { HUNT_GROUNDS } from '../data/hunt-grounds.js?v=0.2.36';
 import { MONSTERS } from '../data/monsters.js?v=0.2.36';
 import { ITEMS } from '../data/items.js?v=0.2.36';
-import { dropBand } from '../core/drops.js?v=0.2.36';
+import { bandOf } from '../core/drops.js?v=0.2.36';
+import { REVEAL_BANDS } from '../data/loot-bands.js?v=0.2.36';
+import { ARMOUR_WEIGHT } from '../data/core-model.js?v=0.2.36';
+import { armourLineWord } from '../data/gear-tiers.js?v=0.2.36';
 
 /* How common a creature is, by its share of the ground's spawn points: at least `common` is common,
    under `rare` is rare, between is uncommon (Tyler 10-18: a common majority, some uncommon, one or two rare). */
@@ -48,17 +55,56 @@ export function residentsOf(hunt) {
   }).sort((a, b) => b.points - a.points || (a.level || 0) - (b.level || 0) || (a.name < b.name ? -1 : 1));
 }
 
-/* A drop row the rare carrier holds: rare odds, not the equipment slot, not a server-only reveal. */
-const isRare = (d) => !!d && d.gear !== true && d.lucky !== true && d.salvage !== true && d.ch < 1 && dropBand(d.ch) === 'rare';
+/* A Rare row: a revealed band (a Rare or Trophy row), not a server-only surprise. */
+const isRare = (d) => !!d && d.lucky !== true && d.salvage !== true && d.ch < 1 && REVEAL_BANDS.includes(bandOf(d));
+const nameOf = (id) => (ITEMS[id] && ITEMS[id].n) || id;
+const WEIGHTS = Object.freeze(['heavy', 'medium', 'light']);
+const SLOT_WORDS = Object.freeze({ helmet: 'helmets', body: 'bodies', pants: 'legs', boots: 'boots' });
+
+/** The armour weight an equipment map (slot -> item id) wears most among helmet, body, legs and boots; the heavier on a tie; null for none. */
+export function wornWeightOf(eq) {
+  const n = { heavy: 0, medium: 0, light: 0 };
+  for (const slot of Object.keys(SLOT_WORDS)) {
+    const it = eq && ITEMS[eq[slot]];
+    const w = it && ARMOUR_WEIGHT[it.armourClass];
+    if (w) n[w]++;
+  }
+  const best = WEIGHTS.reduce((a, w) => (n[w] > n[a] ? w : a), 'heavy');
+  return n[best] ? best : null;
+}
 
 /**
- * The ground's rare carrier and what it carries: { carrier: { id, name }, items: [{ id, name }] },
- * or null when no creature there holds a rare row.
+ * The ground's Scarce gear, one entry a tier (lowest first): { tier, lines: ['Iron', 'Studded', 'Adept'] (the worn
+ * weight's first), slots: ['helmets', 'boots'], weapons: ['Iron Sword'] }. [] for a ground with none.
  */
-export function rareOf(hunt) {
+export function scarceSetOf(hunt, worn) {
+  const order = worn && WEIGHTS.includes(worn) ? [worn, ...WEIGHTS.filter((w) => w !== worn)] : WEIGHTS;
+  const tiers = new Map();
+  const at = (t) => { if (!tiers.has(t)) tiers.set(t, { tier: t, weights: new Set(), slots: new Set(), weapons: [] }); return tiers.get(t); };
   for (const r of residentsOf(hunt)) {
-    const rows = ((MONSTERS[r.id] || {}).drops || []).filter(isRare);
-    if (rows.length) return { carrier: { id: r.id, name: r.name }, items: rows.map((d) => ({ id: d.id, name: (ITEMS[d.id] && ITEMS[d.id].n) || d.id })) };
+    for (const d of (MONSTERS[r.id] || {}).drops || []) {
+      const it = d && d.band === 'scarce' && ITEMS[d.id];
+      if (!it) continue;
+      const e = at(Number(it.tier) || 1), w = ARMOUR_WEIGHT[it.armourClass];
+      if (it.type === 'armor' && w && SLOT_WORDS[it.slot]) { e.weights.add(it.armourClass); e.slots.add(it.slot); }
+      else if (!e.weapons.includes(nameOf(d.id))) e.weapons.push(nameOf(d.id));
+    }
   }
-  return null;
+  return [...tiers.values()].sort((a, b) => a.tier - b.tier).map((e) => ({
+    tier: e.tier,
+    lines: order.map((w) => [...e.weights].find((c) => ARMOUR_WEIGHT[c] === w)).filter(Boolean).map((c) => armourLineWord(c, e.tier)),
+    slots: Object.keys(SLOT_WORDS).filter((sl) => e.slots.has(sl)).map((sl) => SLOT_WORDS[sl]),
+    weapons: e.weapons,
+  }));
+}
+
+/** Every Rare and Trophy item here and its carrier, Rares first: [{ id, name, trophy, carrier: { id, name } }]. */
+export function raresOf(hunt) {
+  const out = [];
+  for (const r of residentsOf(hunt)) {
+    for (const d of ((MONSTERS[r.id] || {}).drops || []).filter(isRare)) {
+      if (!out.some((x) => x.id === d.id && x.carrier.id === r.id)) out.push({ id: d.id, name: nameOf(d.id), trophy: bandOf(d) === 'trophy', carrier: { id: r.id, name: r.name } });
+    }
+  }
+  return out.sort((a, b) => Number(a.trophy) - Number(b.trophy));
 }

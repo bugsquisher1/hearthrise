@@ -66,7 +66,11 @@ const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'))
    Iron Hatchets and the Oak Crossbow (hr_items), the fifteen made rungs' recipes (hr_activities artisan rows), the
    club ladder two-handed and three ladder values land in this forward file, after 2026-11-29: the same full replace. */
 /* v0.2.31 integration: ONE forward file per generator after the newest APPLIED (2026-11-20): the kit's plots, coal at any level and the style ladder in one file. */
-const OUT = join(ROOT, 'supabase', 'migrations', '2026-11-22-loot-catalogue.generated.sql');
+/* THE LOOT BANDS (lane b-loot-bands, Tyler 2026-10-23): 2026-11-22 is APPLIED history. No gear binds ("Nah no bound gear
+   in this game"): the practice kit, the premium Oak Practice Blade, the dungeon signature weapons and the boss-forge
+   bodies turn tradeable (hr_items.tradeable; the Hearthfind trophies stay bound), and Grayjaw's Ruff joins hr_items.
+   ONE forward file, the same full delete+insert replace, applied before 2026-12-20-hunt-sessions-catalogue. */
+const OUT = join(ROOT, 'supabase', 'migrations', '2026-12-20-loot-catalogue.generated.sql');
 /* THE SECOND GENERATED FILE (2026-09-13). hr_item_buffs is emitted as its own
    migration rather than into OUT above, and that is a deliberate operational
    call: OUT is the FOURTH file in tests/schema-apply-order.json and is already

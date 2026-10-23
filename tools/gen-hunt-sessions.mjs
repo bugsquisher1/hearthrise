@@ -158,7 +158,11 @@ export const WORLD_FIELDS_READ = Object.freeze({
 /* v0.2.31 integration: ONE forward file per generator after the newest APPLIED (2026-11-20): the roster, the open glade and the style ladder's weapons
    (2026-11-23, now history). WHO HOLDS THE PACK (lane/b-tank-choice, Tyler 2026-10-22): the world gains `hold` / `holdNext`
    (targeting.js), so hr_hunt_world_shape changes: ONE forward file after the v0.2.32 sequence (its newest file is 2026-12-08-party-hold.sql). */
-export const OUT_NAME = '2026-12-09-hunt-sessions-catalogue.generated.sql';
+/* THE LOOT BANDS (lane b-loot-bands, designer + Tyler 2026-10-23): 2026-12-09 is the v0.2.32 chain (APPLIED, history). The
+   Thicket's banded drop rows (hr_hunt_kill_bounds: the settle refuses an item no spawn's bound names), Grayjaw's Ruff and
+   worn gear at half book (hr_hunt_vendor_value, catalogue.js vendorPriceOf) land in ONE forward file, applied after
+   2026-12-20-loot-catalogue (hr_items first), immediately before the hr-accrue deploy that drops them. */
+export const OUT_NAME = '2026-12-20-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -548,9 +552,16 @@ export function render(src) {
 --   ${r.vendor.length} vendor values, ${r.basics.length} store supplies paid per use, ${r.targets.length} target modes,
 --   ${r.lanes.length} lanes, ${r.abilities.length} abilities, ${r.setOptions.length} action-set options, ${r.grounds.length} hunt grounds
 --
--- SUPERSEDES 2026-11-23-hunt-sessions-catalogue.generated.sql (the v0.2.31 chain;
--- history once applied, never regenerated): every table below is rewritten wholesale.
--- NEW SINCE 11-23 (lane b-tank-choice, Tyler 2026-10-22 "One tank holds"): the
+-- SUPERSEDES 2026-12-09-hunt-sessions-catalogue.generated.sql (the v0.2.32 chain;
+-- APPLIED, history, never regenerated): every table below is rewritten wholesale.
+-- NEW SINCE 12-09 (lane b-loot-bands, designer + Tyler 2026-10-23, the loot bands):
+-- the Thicket's five monsters carry the banded drop tables (hr_hunt_kill_bounds: every
+-- Scarce and Rare item a kill may pay), Grayjaw's Ruff is a vendor value, and worn gear
+-- sells at half its book value (hr_hunt_vendor_value from catalogue.js vendorPriceOf,
+-- src/data/loot-bands.js VENDOR_GEAR_RATE). ORDER: after 2026-12-20-loot-catalogue
+-- (hr_items), and the hr-accrue deploy follows AT ONCE: until it does, an old edge's
+-- Shortbow from Old Grayjaw is over the bound and that settle is refused.
+-- Carried from 12-09: NEW SINCE 11-23 (lane b-tank-choice, Tyler 2026-10-22 "One tank holds"): the
 -- world's shape gains hold / holdNext (src/core/hunt/targeting.js), so
 -- hr_hunt_world_shape is rewritten; the hr-accrue edge carrying that world deploys
 -- with this file, which applies LAST, after 2026-12-08-party-hold.sql (the hold seat

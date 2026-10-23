@@ -43,7 +43,7 @@
    `equipmentStats` and this module, so a fourth "element" can never leak in from
    a forged enchant or a bad rune row) are src/data/elements.js's, the one copy;
    re-exported so existing callers keep their import. */
-import { ELEMENTS, ELEMENT_PERMILLE, isElement } from '../data/elements.js?v=0.2.33';
+import { ELEMENTS, ELEMENT_PERMILLE, isElement } from '../data/elements.js?v=0.2.34';
 export { ELEMENTS, isElement };
 
 /** The flat damage factor an element match pays. Damage only — accuracy is

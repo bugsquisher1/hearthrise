@@ -34,7 +34,7 @@
 --    (b) hr_hunt_instance_read (the 2026-12-11-hunt-deploy-no-forfeit.sql image):
 --        each member carries `leave_together`, the engine's input
 --        (hunt-settle.js memberInput -> hunt-spawn.js heroSetup leaveTogether).
---    (c) hr_hunt_settle_session (the 2026-11-07-store-by-slot.sql image): the
+--    (c) hr_hunt_settle_session (the 2026-12-16-own-drinks-settle.sql image, own heal / mana / ammo): the
 --        two cascade ends are proven from server state: `party_member_died`
 --        (restated) and `party_member_left` (new) hold only when THIS hero's box
 --        is ticked and its instance holds another member. The end can only stop
@@ -73,13 +73,13 @@
 --
 -- ── REVERSIBILITY ───────────────────────────────────────────────────────────
 -- Re-apply hr_hunt_party_view's 2026-12-08 image, hr_hunt_instance_read's
--- 2026-12-11 image, hr_hunt_settle_session's 2026-11-07 image and hr_hunt_view's
+-- 2026-12-11 image, hr_hunt_settle_session's 2026-12-16 image and hr_hunt_view's
 -- 2026-11-20 image (each this file's §3 anchor reversed); drop
 -- hr_party_leave_together_set and its baseline row; drop the column.
 -- ORDER: after 2026-12-11-hunt-deploy-no-forfeit.sql (it splices that file's
 -- engine read), after the 12-14..12-17 files (12-14 shared-farm APPLIED; any of
--- 12-15 account-gold / 12-16 own-drinks-settle that restates a body pinned in §0
--- lands first and this file is re-pinned to its image), and right after
+-- 12-15 account-gold that restates a body pinned in §0 lands first and this file
+-- is re-pinned to its image; 12-16 own-drinks-settle is APPLIED and pinned), and right after
 -- 2026-12-18-hunt-sessions-catalogue.generated.sql (END_ORDER's
 -- `party_member_left`, which §0 requires). EDGE: hr-accrue
 -- redeploys with this lane (combat-sim.js, action-rules.js, hunt-spawn.js,
@@ -102,7 +102,7 @@ begin
   for r in select * from (values
     ('public.hr_hunt_party_view(uuid,integer)', 'e6d923becbd6ce9aaa8025b4bfde3dae', '58c59eb6fbb925730513c9c69aff6a12', '2026-12-08-party-hold.sql'),
     ('public.hr_hunt_instance_read(uuid,integer)', '3d609ccfd94bc06556ca0f4d89e7fad8', '47f6e5ad85fd50efdd3f2bc81ff07020', '2026-12-11-hunt-deploy-no-forfeit.sql'),
-    ('public.hr_hunt_settle_session(uuid,integer,uuid,jsonb)', 'd457034c7b81d082ee3c2ecc522d2764', '29048b000878afe69010d1bd23b32b57', '2026-11-07-store-by-slot.sql'),
+    ('public.hr_hunt_settle_session(uuid,integer,uuid,jsonb)', '07d806dc20d0aec69469eab02984cc8e', 'b7e101272da9290a171bf2eedcdcfce1', '2026-12-16-own-drinks-settle.sql'),
     ('public.hr_hunt_view(uuid)', '47f89f03cba945eb5e9766414995dbc8', 'dbca94279b409132729b9bf2c32b35da', '2026-11-20-hunt-forfeit-durable.sql')
   ) p(sig, pre, post, src) loop
     select md5(replace(prosrc, chr(13), '')) into v_md5 from pg_proc where oid = to_regprocedure(r.sig);
@@ -486,11 +486,15 @@ begin
   perform set_config('request.jwt.claim.sub', '', true);
   if exists (select 1 from public.player_state where user_id = any (v_u)) or to_regprocedure('pg_temp.hr_plt_settle(uuid,bigint,jsonb)') is not null then
     raise exception 'VERIFY: §4 LEAKED a probe row or function'; end if;
+  -- (f) THE OWN-DRINKS RULE SURVIVES THE SPLICE: own uses may be heal, mana or ammo (2026-12-16-own-drinks-settle.sql).
+  if (select strpos(prosrc, 'OWN-DRINKS') = 0 or strpos(prosrc, 'v_kind is distinct from ''mana''') = 0
+        from pg_proc where oid = 'public.hr_hunt_settle_session(uuid,integer,uuid,jsonb)'::regprocedure) then
+    raise exception 'VERIFY(f): the settle lost the own-drinks (mana) rule'; end if;
   -- (f) EACH SPLICE ONCE, AND EACH BODY IS §0's POST PIN (so a second apply passes §0 and moves no body).
   for v in select jsonb_build_object('sig', p.sig, 'post', p.post) from (values
     ('public.hr_hunt_party_view(uuid,integer)', '58c59eb6fbb925730513c9c69aff6a12'),
     ('public.hr_hunt_instance_read(uuid,integer)', '47f6e5ad85fd50efdd3f2bc81ff07020'),
-    ('public.hr_hunt_settle_session(uuid,integer,uuid,jsonb)', '29048b000878afe69010d1bd23b32b57'),
+    ('public.hr_hunt_settle_session(uuid,integer,uuid,jsonb)', 'b7e101272da9290a171bf2eedcdcfce1'),
     ('public.hr_hunt_view(uuid)', 'dbca94279b409132729b9bf2c32b35da')) p(sig, post) loop
     v_role := v->>'sig';
     if (select (length(prosrc) - length(replace(prosrc, 'LEAVE-TOGETHER', ''))) / length('LEAVE-TOGETHER')

@@ -21,7 +21,7 @@ import { CONSUMABLES, CONSUMABLE_RULES } from '../data/consumables.js?v=0.2.34';
 import { STATUSES } from '../data/statuses.js?v=0.2.34';
 import { HUNT_ROLES, WEAPON_ROLES } from '../data/hunt-roles.js?v=0.2.34';
 import { WEAPON_WORDS } from '../data/hunt-hud.js?v=0.2.34';
-import { itemName, abilityName } from './widgets/bits.js?v=0.2.34';
+import { itemName, abilityName, runeWords, familyCount } from './widgets/bits.js?v=0.2.34';
 import { storeOf, storeWords, conditionWords } from './bar-draft.js?v=0.2.34';
 
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -54,7 +54,7 @@ function weaponsFor(disc) {
 export function weaponWarning(a, role) {
   const r = a && a.type === 'ability' ? ABILITIES[a.id] : null;
   const disc = role && HUNT_ROLES[role] ? HUNT_ROLES[role].discipline : null;
-  if (!r || (disc && r.disciplines.includes(disc))) return '';
+  if (!r || r.universal || (disc && r.disciplines.includes(disc))) return '';
   return 'Your weapon can’t cast this. The slot stays struck until you wield a ' + weaponsFor(r.disciplines[0]) + '.';
 }
 
@@ -84,8 +84,10 @@ export function factsOf(a) {
     if (r.heal) effect.push('Heals ' + r.heal[0] + '–' + r.heal[1] + '.');
     if (r.shield) effect.push('A ' + r.shield + '-point shield.');
     if (r.status && STATUSES[r.status]) effect.push('Causes ' + STATUSES[r.status].name.toLowerCase() + '.');
-    const cost = [r.mana ? r.mana + ' mana' : 'No mana'].concat(r.rune ? ['1 ' + itemName(r.rune)] : [], r.ammo ? [r.ammo + ' ammo'] : []).join(' · ');
-    return { type: TARGET_LINE[r.target] || null, cost, cooldown: secs(r.cdMs) + ' s cooldown', effect, requires: 'Requires: ' + weaponsFor(r.disciplines[0]) + '.' };
+    const cost = [r.mana ? r.mana + ' mana' : 'No mana'].concat(r.rune ? ['1 ' + runeWords(r.rune, 1)] : [], r.ammo ? [r.ammo + ' ammo'] : []).join(' · ');
+    /* (an ally shield is a ward, not a heal; the universal self-heal needs no particular weapon) */
+    const type = r.target === 'ally' && r.shield ? 'Ward: shields the ally who needs it most.' : TARGET_LINE[r.target] || null;
+    return { type, cost, cooldown: secs(r.cdMs) + ' s cooldown', effect, requires: r.universal ? 'Requires: any weapon.' : 'Requires: ' + weaponsFor(r.disciplines[0]) + '.' };
   }
   if (a.type === 'consume') {
     const spread = 'Half lands at once, the rest over ' + secs(CONSUMABLE_RULES.overTimeMs) + ' s.';
@@ -111,8 +113,8 @@ export function supplyLines(a, set, bag) {
   if (a.type === 'ability') {
     const r = ABILITIES[a.id];
     if (!r || !r.rune) return [];
-    const have = (bag || []).filter((l) => l.id === r.rune).reduce((n, l) => n + l.qty, 0);
-    return ['You carry ' + have + ' ' + itemName(r.rune) + '. ' + (st ? 'Own runes first, ' + storeWords(st) + '.' : 'Carried runes only: once they are gone this slot waits.')];
+    const have = familyCount(r.rune, bag);
+    return ['You carry ' + have + ' ' + runeWords(r.rune, have) + '. ' + (st ? 'Own runes first, ' + storeWords(st) + '.' : 'Carried runes only: once they are gone this slot waits.')];
   }
   const n = carried(a, bag);
   const out = [];
@@ -205,11 +207,11 @@ export function reasonOf(sl, set, bag, hero) {
     if (!r) return { code: 'unknown', text: 'The server does not know this ability.', glyph: 'uiLock', strike: true };
     if (!r.active) return { code: 'inactive', text: 'Not in the game yet: ' + abilityName(a.id) + ' waits on its rune.', glyph: 'uiLock', strike: true };
     const role = set && set.role && HUNT_ROLES[set.role] ? HUNT_ROLES[set.role] : null;
-    if (!role) return { code: 'weapon', text: 'No weapon worn: abilities come from the weapon you wield. Needs ' + weaponsFor(r.disciplines[0]) + '.', glyph: 'uiLock', strike: true };
-    if (!r.disciplines.includes(role.discipline)) return { code: 'weapon', text: 'Your weapon can’t use this. Needs ' + weaponsFor(r.disciplines[0]) + '.', glyph: 'uiLock', strike: true };
+    if (!role) return { code: 'weapon', text: 'No weapon worn: abilities come from the weapon you wield. Needs ' + (r.universal ? 'any weapon' : weaponsFor(r.disciplines[0])) + '.', glyph: 'uiLock', strike: true };
+    if (!r.universal && !r.disciplines.includes(role.discipline)) return { code: 'weapon', text: 'Your weapon can’t use this. Needs ' + weaponsFor(r.disciplines[0]) + '.', glyph: 'uiLock', strike: true };
     const storeOn = !!set && (set.supplySource === 'store' || set.onEmpty === 'switch');
-    if (r.rune && !((bag || []).some((l) => l.id === r.rune && l.qty > 0)) && !(storeOn && storeOf(a, set && set.store))) {
-      return { code: 'rune', text: 'Needs a ' + itemName(r.rune) + ' for each cast: you carry none. Pick the store’s rune for this slot to buy one as used.', glyph: 'uiChest', strike: true };
+    if (r.rune && !(familyCount(r.rune, bag) > 0) && !(storeOn && storeOf(a, set && set.store))) {
+      return { code: 'rune', text: 'Needs a ' + runeWords(r.rune, 1) + ' for each cast: you carry none. Pick the store’s rune for this slot to buy one as used.', glyph: 'uiChest', strike: true };
     }
     if (sl.usable === false) return { code: 'server', text: 'The server says this cannot fire now.', glyph: 'uiLock', strike: true };
     if (hero && Number.isFinite(hero.mana) && r.mana > hero.mana) return { code: 'mana', text: 'Needs ' + r.mana + ' mana, you have ' + Math.floor(hero.mana) + '.', glyph: 'uiPotion', strike: false };

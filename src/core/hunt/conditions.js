@@ -364,10 +364,12 @@ const share = (v, max) => (int(max) > 0 ? { n: int(v), d: int(max) } : { n: 1, d
 const heroesOf = (inst) => inst.world.units.filter((x) => x.side === 'hero' && x.alive).sort((a, b) => a.id - b.id);
 
 /* "Whose": `lowest` = the lowest share among living heroes the hero can reach (it
-   included); a role id = the first living hero of that role. Null = nobody. */
+   included); `self` = the hero itself (a heal aimed at yourself, roadmap p23); a role
+   id = the first living hero of that role. Null = nobody. */
 function allyOf(cx, subject, stat) {
   const max = stat === 'hp' ? 'maxHp' : 'maxMana';
   const all = heroesOf(cx.inst);
+  if (subject === 'self') return cx.u.alive ? cx.u : null;
   if (subject && subject !== 'lowest') return all.find((a) => a.role === subject) || null;
   const pool = all.filter((a) => (stat === 'hp' || int(a.maxMana) > 0) && (a === cx.u || reaches(cx.inst, cx.u, cx.h && cx.h.range, a)));
   return pool.sort((a, b) => (int(a[stat]) * int(b[max]) - int(b[stat]) * int(a[max])) || a.id - b.id)[0] || null;

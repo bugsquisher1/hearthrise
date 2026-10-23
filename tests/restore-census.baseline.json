@@ -975,7 +975,7 @@
   },
   "hr_hunt_abilities": {
    "class": "seeded",
-   "replay": 14,
+   "replay": 16,
    "note": "Generated catalogue (2026-10-23-hunt-sessions-catalogue.generated.sql, tools/gen-hunt-sessions.mjs --check from src/data): the hunt abilities (lane, cooldown, mana, rune / ammo cost) the bar check and the instance settle read. Rebuilt from repo, never restored; nothing player-owned."
   },
   "hr_hunt_action_ids": {

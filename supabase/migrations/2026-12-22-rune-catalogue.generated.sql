@@ -6,7 +6,7 @@
 --   `node tools/gen-catalogues.mjs --check`, which is a preflight in
 --   tests/run-sql-tests.mjs. Edit src/data/*.js and regenerate.
 --
---   catalogue digest: 61101c0653cc2923c170f2ceacab052f089c23773cdfde750af8d2a7e4ff5e8b
+--   catalogue digest: 5324815b28d5891c4483bec4bcd494559269ce19b16315da4acc23cf7b855f51
 --   rows: 539 items (24 untradeable) ·
 --         315 item-slot pairs · 14 equip slots ·
 --         13 skills · 9 crops · 328 activities ·
@@ -339,7 +339,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('death_steel','Death Steel',true,null,550,null,null,null,false,null,false),
   ('deepvein_lodestar','Deepvein Lodestar',false,'trophy',0,null,null,null,false,null,false),
   ('demon_shard','Demon Shard',true,null,200,null,null,null,false,null,false),
-  ('demoncaller_staff','Demoncaller',true,'weapon',13600,'magic',68,null,false,null,false),
+  ('demoncaller_staff','Demoncaller',true,'weapon',13600,'magic',68,null,false,null,true),
   ('dire_fang','Dire Fang',true,null,150,null,null,null,false,null,false),
   ('dire_hackle','Dire Gray Hackle',true,null,26,null,null,null,false,null,false),
   ('dragon_bones','Dragon Bones',true,null,10,null,null,null,false,null,false),
@@ -1975,7 +1975,7 @@ insert into public.hr_feast_foods (item_id, heals) values
 on conflict (item_id) do update set heals = excluded.heals;
 
 insert into public.hr_catalogue_meta (only_row, digest, generated_at)
-  values (true, '61101c0653cc2923c170f2ceacab052f089c23773cdfde750af8d2a7e4ff5e8b', now())
+  values (true, '5324815b28d5891c4483bec4bcd494559269ce19b16315da4acc23cf7b855f51', now())
   on conflict (only_row) do update set digest = excluded.digest, generated_at = excluded.generated_at;
 
 -- ── RLS + grants. Catalogues are world-readable (the client renders from the
@@ -2169,7 +2169,7 @@ begin
                   where p.item_id = i.item_id and p.equip_slot in ('helmet', 'body', 'pants', 'boots', 'gloves', 'belt'));
   if v_bad > 0 then raise exception '% armour row(s) in an armour slot carry no armour_weight', v_bad; end if;
 
-  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 61101c0653cc2923c170f2ceacab052f089c23773cdfde750af8d2a7e4ff5e8b',
+  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 5324815b28d5891c4483bec4bcd494559269ce19b16315da4acc23cf7b855f51',
     (select count(*) from public.hr_items), (select count(*) from public.hr_activities),
     (select count(*) from public.hr_runes);
 end $$;

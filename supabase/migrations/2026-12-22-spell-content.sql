@@ -12,7 +12,9 @@
 -- ── WHAT ─────────────────────────────────────────────────────────────────────
 --   hr_hunt_condition_metrics  ⟦metrics⟧ (src/data/condition-metrics.js): the
 --                              effect ids a condition may name gain `sickness`
---                              (src/data/statuses.js, Green Sickness's mark).
+--                              (src/data/statuses.js, Green Sickness's mark), and
+--                              "whose HP" gains `self` (a heal aimed at yourself,
+--                              roadmap p23).
 --   hr_hunt_role_rules         ⟦role-rules⟧ (src/data/rule-subjects.js ROLE_RULES):
 --                              each role default RUNE spell slot names its family's
 --                              store rune (`action.store`, written on the slot, so a
@@ -58,8 +60,8 @@ insert into public.hr_hunt_condition_metrics (metric, kind, ops, lo, hi, subject
 -- ⟦metrics⟧
   ('self_hp_pct', 'pct', array['lt', 'lte', 'gt', 'gte', 'eq', 'ne']::text[], 0, 100, '{}'::text[], false, '{}'::text[]),
   ('self_mana_pct', 'pct', array['lt', 'lte', 'gt', 'gte', 'eq', 'ne']::text[], 0, 100, '{}'::text[], false, '{}'::text[]),
-  ('ally_hp_pct', 'pct', array['lt', 'lte', 'gt', 'gte', 'eq', 'ne']::text[], 0, 100, array['lowest', 'tank', 'melee_dps', 'ranger', 'mage', 'healer']::text[], false, '{}'::text[]),
-  ('ally_mana_pct', 'pct', array['lt', 'lte', 'gt', 'gte', 'eq', 'ne']::text[], 0, 100, array['lowest', 'tank', 'melee_dps', 'ranger', 'mage', 'healer']::text[], false, '{}'::text[]),
+  ('ally_hp_pct', 'pct', array['lt', 'lte', 'gt', 'gte', 'eq', 'ne']::text[], 0, 100, array['lowest', 'self', 'tank', 'melee_dps', 'ranger', 'mage', 'healer']::text[], false, '{}'::text[]),
+  ('ally_mana_pct', 'pct', array['lt', 'lte', 'gt', 'gte', 'eq', 'ne']::text[], 0, 100, array['lowest', 'self', 'tank', 'melee_dps', 'ranger', 'mage', 'healer']::text[], false, '{}'::text[]),
   ('allies_below', 'count', array['lt', 'lte', 'gt', 'gte', 'eq', 'ne']::text[], 0, 5, array['under_50', 'under_60', 'under_70', 'under_80', 'under_90']::text[], false, '{}'::text[]),
   ('enemies_in_aoe', 'count', array['lt', 'lte', 'gt', 'gte', 'eq', 'ne']::text[], 0, 25, '{}'::text[], true, '{}'::text[]),
   ('target_is_boss', 'bool', array['eq']::text[], null, null, '{}'::text[], false, '{}'::text[]),
@@ -115,6 +117,11 @@ begin
   if n < 1 then raise exception 'VERIFY(b): no default rune spell slot names a store rune'; end if;
   if exists (select 1 from public.hr_hunt_role_rules where slot->'action'->>'id' = 'natures_wrath') then
     raise exception 'VERIFY(b): a default slot still names natures_wrath'; end if;
+  -- (d) a heal may be aimed at yourself (ally_hp_pct, subject self); an unknown subject is still refused
+  v := public.hr_hunt_conds_check('[{"metric":"ally_hp_pct","op":"lt","value":70,"subject":"self"}]'::jsonb, '"and"'::jsonb, false);
+  if v is not null then raise exception 'VERIFY(d): a heal aimed at yourself was refused: %', v; end if;
+  v := public.hr_hunt_conds_check('[{"metric":"ally_hp_pct","op":"lt","value":70,"subject":"everyone"}]'::jsonb, '"and"'::jsonb, false);
+  if v is null then raise exception 'VERIFY(d): an unknown subject was accepted'; end if;
   -- (c) a default rune spell slot naming ANOTHER family's store rune is refused (the validator's partner rule)
   v := public.hr_hunt_slot_check('{"action":{"type":"ability","id":"green_sickness","store":"plain_fire_rune"},"conditions":[],"join":"and"}'::jsonb);
   if coalesce(v->>'error', '') <> 'bad_store' then raise exception 'VERIFY(c): a Fire store rune on Green Sickness answered %', v; end if;

@@ -100,7 +100,7 @@
       { "id": "plain_barbed_arrows", "kind": "ammo", "partner": "barbed_arrows", "heals": 0, "mana": 0, "price": 2 },
       { "id": "plain_iron_bolts", "kind": "ammo", "partner": "iron_bolts", "heals": 0, "mana": 0, "price": 2 },
       { "id": "plain_steel_arrows", "kind": "ammo", "partner": "steel_arrows", "heals": 0, "mana": 0, "price": 4 },
-      { "id": "plain_fire_rune", "kind": "ammo", "partner": "fire_rune", "heals": 0, "mana": 0, "price": 8 },
+      { "id": "plain_fire_rune", "kind": "ammo", "partner": "chalked_fire_rune", "heals": 0, "mana": 0, "price": 1 },
       { "id": "plain_mithril_arrows", "kind": "ammo", "partner": "mithril_arrows", "heals": 0, "mana": 0, "price": 8 },
       { "id": "plain_rune_arrows", "kind": "ammo", "partner": "rune_arrows", "heals": 0, "mana": 0, "price": 12 },
       { "id": "plain_emberhead_arrows", "kind": "ammo", "partner": "emberhead_arrows", "heals": 0, "mana": 0, "price": 18 },
@@ -185,7 +185,7 @@
       {
         "action": {
           "type": "attack_with_item",
-          "id": "fire_rune"
+          "id": "bronze_arrows"
         },
         "conditions": [
           {

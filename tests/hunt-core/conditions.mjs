@@ -331,6 +331,30 @@ const cases = {
     const a = run(75); const b = run(85);
     return a === '2' && b === '' ? null : 'tank at 75%: healed ' + (a || 'nobody') + '; tank at 85%: healed ' + (b || 'nobody');
   },
+  /* RESTORATION'S FRIEND SHIELD AND THE HEAL AIMED AT YOURSELF (roadmap p22, p23): Protective Ward shields the wounded
+     ally its conditions name (an Earth rune spell, version I's 30 at level 1) and never over a shield still standing; a
+     Greater Mend aimed at YOURSELF heals the healer at 60% though the tank is lower, and waits while the healer is
+     at 80%. */
+  'friend-shield-and-yourself': (M) => {
+    const run = (slots, hps, tankShield) => {
+      const d = hero(M, 1, 6, 3, { role: 'healer', hp: hps[0], maxHp: 100, mana: 300, maxMana: 300 });
+      const k = hero(M, 2, 8, 3, { role: 'tank', hp: hps[1], maxHp: 100, shield: tankShield || 0 });
+      const inst = instOf(M, world(M, [d, k, mon(M, 10, 0, 9, 3, { target: 2, hp: 500, maxHp: 500 })]));
+      inst.heroes = { 1: heroRow(M, { range: 7, slots: rows(slots), session: { bag: { ...HEAL_RUNES } } }) };
+      const sc = subStep(0); sc.rng = M.rng.createRng(3);
+      M.abilities.castAbilities(inst, sc);
+      return { k, ev: sc.events };
+    };
+    const ward = ab('protective_ward', [c('ally_hp_pct', 'lt', 90, 'lowest')]);
+    const a = run([ward], [100, 60]);
+    const sh = a.ev.find((e) => e.type === 'shield');
+    if (!sh || sh.u !== 1 || sh.t !== 2 || a.k.shield !== sh.amount || sh.amount !== M.AD.ABILITIES.protective_ward.shield) return 'Protective Ward did not shield the wounded tank: ' + JSON.stringify(sh);
+    if (run([ward], [100, 60], 12).ev.some((e) => e.type === 'cast')) return 'Protective Ward recast over a standing shield';
+    const self = ab('greater_mend', [c('ally_hp_pct', 'lt', 70, 'self')]);
+    const heal = run([self], [60, 30]).ev.find((e) => e.type === 'heal');
+    if (!heal || heal.t !== 1) return 'a Greater Mend aimed at yourself healed ' + (heal ? 'unit ' + heal.t : 'nobody') + ' (want the healer, 1)';
+    return run([self], [80, 30]).ev.some((e) => e.type === 'heal') ? 'a Greater Mend aimed at yourself healed while the healer stood at 80%' : null;
+  },
   'consume-slot': (M) => {
     const run = (hp, slots, bag) => {
       const h = hero(M, 1, 12, 3, { hp, maxHp: 100, mana: 100, maxMana: 100 });
@@ -851,6 +875,12 @@ const mutants = [
   { name: 'a slot switched Off still fires', case: 'slot-switch-and-ignore', edits: [['src/core/hunt/conditions.js', '  list.forEach((s, at) => { if (keep(s) && s.enabled !== false) out.push({ rule: s.id, slot: s, at }); });', '  list.forEach((s, at) => { if (keep(s)) out.push({ rule: s.id, slot: s, at }); });']] },
   { name: 'a slot fires while its hero fights an ignored monster', case: 'slot-switch-and-ignore', edits: [['src/core/hunt/conditions.js', '    if (ignores(slot, t)) return { pass: false, mask: 0, cx };\n', '']] },
   { name: 'an ignore list holds back a food or a heal slot (S1a)', case: 'slot-switch-and-ignore', edits: [['src/core/hunt/conditions.js', ' && Number.isInteger(u.target) && aimsAtMonsters(slot)) {', ' && Number.isInteger(u.target)) {']] },
+  { name: '[spell-content] Protective Ward recasts over a standing shield', case: 'friend-shield-and-yourself',
+    edits: [['src/core/hunt/abilities.js', " && pct(a) < 100 && (row.heal || !(int(a.shield) > 0))\n", ' && pct(a) < 100\n']] },
+  { name: '[spell-content] Protective Ward shields nothing', case: 'friend-shield-and-yourself',
+    edits: [['src/core/hunt/abilities.js', '      t.shield = scaled(row.shield);\n', '      t.shield = 0;\n']] },
+  { name: '[spell-content] a heal aimed at yourself finds nobody', case: 'friend-shield-and-yourself',
+    edits: [['src/core/hunt/conditions.js', "  if (subject === 'self') return cx.u.alive ? cx.u : null;\n", '']] },
   { name: 'an ignore list holds back a food slot', case: 'slot-switch-and-ignore', edits: [['src/core/hunt/conditions.js', "  if (a.type === 'attack_with_item') return true;\n", "  if (a.type === 'attack_with_item' || a.type === 'consume') return true;\n"]] },
   { name: 'an ignore list holds back an ally heal', case: 'slot-switch-and-ignore', edits: [['src/core/hunt/conditions.js', "const MONSTER_TARGETS = Object.freeze(['taunt', 'mark', 'enemy', 'area', 'cleave']);", "const MONSTER_TARGETS = Object.freeze(['taunt', 'mark', 'enemy', 'area', 'cleave', 'ally']);"]] },
   { name: 'an area slot aims at an ignored monster', case: 'slot-switch-and-ignore', edits: [['src/core/hunt/conditions.js', '  const cand = mons.filter((m) => reaches(inst, hero, range, m) && !ignores(slot, m))', '  const cand = mons.filter((m) => reaches(inst, hero, range, m))']] },

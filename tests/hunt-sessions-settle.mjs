@@ -73,6 +73,9 @@
 //              store-rune spell never ends the hunt; one span == cut windows.
 //   IGNORE-AIMS  a food or heal slot ignoring every monster still fires (the same
 //              hunt as no ignore list); an attack ignoring them never does.
+//   SPELL-CONTENT  Mend heals only the hurt, Protective Ward shields an ally,
+//              Green Sickness marks with one stack, a Greater Mend aimed at
+//              yourself heals its caster; one span == cut windows.
 //   WORLD-BOUND  a four-hero party's world stays inside world_max_bytes on the
 //              compact form; world-state refuses one past it.
 //   FENCE      a hunter is never priced by the old path (hunt_open), a combat
@@ -1047,6 +1050,53 @@ const ENGINE_ARMS = {
     const strike = runCut(M, () => [memberIn(M, 'a', { role: 'tank', level: 20, gold: 5000,
       bar: [{ action: { type: 'ability', id: 'power_strike' }, conditions: [], join: 'and', ignore: all }] })], span, []);
     if (count(strike, 'cast', 'power_strike')) problems.push(`a Power Strike ignoring every monster cast ${count(strike, 'cast', 'power_strike')} times`);
+    return problems;
+  },
+
+  /* THE SPELL CONTENT, BOTH PATHS (lane b-spell-content; roadmap p21-p23), at spiders that hurt. A Ranger whose bar
+     holds only an unconditioned Mend beside a Healer with Protective Ward and Green Sickness: Mend casts only on missing HP (each cast
+     heals its caster for something), every Ward lands a shield on the Ranger, Green Sickness marks what it hits with
+     one stack. A Healer alone with a Greater Mend aimed at YOURSELF heals itself with every cast. One span = the cut
+     windows, for both. */
+  'SPELL-CONTENT': async (M) => {
+    const problems = [];
+    const span = 600000;
+    const cuts = [T0 + 7001, T0 + 133333, T0 + 299999, T0 + 450001];
+    const slot = (id, conditions) => ({ action: { type: 'ability', id }, conditions, join: 'and' });
+    const runes = () => ({ chalked_water_rune: { loaded: 500, left: 500 }, chalked_earth_rune: { loaded: 500, left: 500 }, chalked_poison_rune: { loaded: 500, left: 500 } });
+    const over = groundWith(M, 'cistern_spider');
+    const evs = (o) => o.outs.flatMap((x) => x.events);
+    const unitOf = (o, key) => (o.outs.flatMap((x) => x.members).find((p) => p.key === key && Number.isInteger(p.hunt.unit_id)) || { hunt: {} }).hunt.unit_id;
+    const sig = (o) => canon(evs(o).filter((e) => ['cast', 'heal', 'shield', 'status_on'].includes(e.type)).map((e) => [e.type, e.atMs, e.u, e.t, e.ability || e.status || '', e.amount || e.stacks || 0]));
+    const both = (label, mk, g = over) => {
+      const one = runCut(M, mk, span, [], g), cut = runCut(M, mk, span, cuts, g);
+      if (sig(one) !== sig(cut)) problems.push(`${label}: the viewed cut settled differently from one span ${firstDiff(sig(one), sig(cut))}`);
+      return one;
+    };
+    const roles = ['ranger', 'healer'];
+    const party = both('party', () => [
+      memberIn(M, 'a', { role: 'ranger', seat: 0, level: 20, partyRoles: roles, bag: { bronze_arrows: { loaded: 1, left: 1 } }, equipment: { ammo: 'bronze_arrows' },
+        bar: [slot('mend', [])] }),
+      memberIn(M, 'b', { role: 'healer', seat: 1, level: 20, partyRoles: roles, bag: runes(),
+        bar: [slot('protective_ward', [{ metric: 'ally_hp_pct', op: 'lt', value: 90, subject: 'ranger' }]), slot('green_sickness', [])] }),
+    ]);
+    const ev = evs(party), ranger = unitOf(party, 'a'), healer = unitOf(party, 'b');
+    const casts = (list, ab) => list.filter((e) => e.type === 'cast' && e.ability === ab);
+    const mends = casts(ev, 'mend');
+    if (!mends.length) problems.push('CONTROL: the Ranger never cast Mend');
+    for (const c of mends) {
+      if (!ev.some((e) => e.type === 'heal' && e.atMs === c.atMs && e.u === ranger && e.t === ranger && e.amount > 0)) { problems.push(`a Mend at ${c.atMs - T0} ms healed its caster for nothing (cast at full health)`); break; }
+    }
+    const wards = casts(ev, 'protective_ward');
+    const warded = ev.filter((e) => e.type === 'shield' && e.u === healer && e.t === ranger && e.amount > 0);
+    if (!wards.length || warded.length !== wards.length) problems.push(`${wards.length} Protective Wards landed ${warded.length} shields on the Ranger`);
+    const marks = ev.filter((e) => e.type === 'status_on' && e.status === 'sickness');
+    if (!casts(ev, 'green_sickness').length || !marks.length || marks.some((e) => e.stacks !== 1)) problems.push(`Green Sickness left ${marks.length} marks, stacks ${canon([...new Set(marks.map((e) => e.stacks))])}`);
+    const solo = both('solo', () => [memberIn(M, 'h', { role: 'healer', level: 8, bag: runes(),
+      bar: [slot('greater_mend', [{ metric: 'ally_hp_pct', op: 'lt', value: 90, subject: 'self' }])] })], null);
+    const se = evs(solo);
+    const selfMends = casts(se, 'greater_mend');
+    if (!selfMends.length || selfMends.some((e) => e.t !== e.u)) problems.push(`a Greater Mend aimed at yourself landed on ${canon(selfMends.map((e) => [e.u, e.t]))} (caster, target)`);
     return problems;
   },
 
@@ -2315,6 +2365,15 @@ const MUTANTS = [
     from: "    if (s.why) return { why: s.short ? 'gold_short' : s.why === 'level' ? 'level' : 'no_stock' };", to: "    if (s.why) { if (s.short) h.hs.goldOut = true; return { why: s.short ? 'gold_short' : s.why === 'level' ? 'level' : 'no_stock' }; }" },
   { arm: 'IGNORE-AIMS', name: '[spell-content] an ignore list holds back a food or heal slot', file: 'src/core/hunt/conditions.js',
     from: ' && Number.isInteger(u.target) && aimsAtMonsters(slot)) {', to: ' && Number.isInteger(u.target)) {' },
+  { arm: 'SPELL-CONTENT', name: '[spell-content] Mend casts at full health', file: 'src/core/hunt/abilities.js',
+    from: "    case 'self': return pct(hero) < 100 && (row.heal || !(int(hero.shield) > 0)) ? hero : null;",
+    to: "    case 'self': return row.heal || (pct(hero) < 100 && !(int(hero.shield) > 0)) ? hero : null;" },
+  { arm: 'SPELL-CONTENT', name: '[spell-content] a heal aimed at yourself finds nobody', file: 'src/core/hunt/conditions.js',
+    from: "  if (subject === 'self') return cx.u.alive ? cx.u : null;\n", to: '' },
+  { arm: 'SPELL-CONTENT', name: '[spell-content] Protective Ward shields nothing', file: 'src/core/hunt/abilities.js',
+    from: '      t.shield = scaled(row.shield);\n', to: '      t.shield = 0;\n' },
+  { arm: 'SPELL-CONTENT', name: '[spell-content] Green Sickness marks nothing', file: 'src/core/hunt/abilities.js',
+    from: '    if (!row.status) return;', to: "    if (!row.status || row.target === 'area') return;" },
   { arm: 'BUFF', name: 'the hunt never re-measures the buff queue (a buff never pays)', file: 'src/core/combat-sim.js',
     from: "      if (typeof m.buffsAt === 'function') m.buffsAt(atMs);\n", to: '' },
   { arm: 'BUFF', name: '[C2 buff queue at the read clock] the queue is measured once, at the window start', file: 'src/core/member.js',
@@ -2606,6 +2665,8 @@ const SQL_MUTANTS = [
   { file: '2026-12-22-rune-ladder-cut.sql', name: '[spell-content] a worn old rune is cut unjournalled', find: "  select user_id, slot, 'admin', 'item_cut', p_item, -1,\n         jsonb_build_object('from', 'equipment', 'equip_slot', equip_slot, 'why', 'rune ladder cut 2026-10-23')\n    from d;",
     replace: "  select user_id, slot, 'admin', 'item_cut', p_item, -1,\n         jsonb_build_object('from', 'equipment', 'equip_slot', equip_slot, 'why', 'rune ladder cut 2026-10-23')\n    from d where false;" },
   { file: '2026-12-22-spell-content.sql', name: '[spell-content] a condition cannot name Green Sickness\'s mark', find: "array['bleed', 'sickness']::text[])", replace: "array['bleed']::text[])" },
+  { file: '2026-12-22-spell-content.sql', name: '[spell-content] a heal cannot be aimed at yourself', find: "0, 100, array['lowest', 'self', 'tank', 'melee_dps', 'ranger', 'mage', 'healer']::text[], false, '{}'::text[]),\n  ('ally_mana_pct'",
+    replace: "0, 100, array['lowest', 'tank', 'melee_dps', 'ranger', 'mage', 'healer']::text[], false, '{}'::text[]),\n  ('ally_mana_pct'" },
   { file: '2026-10-22-hunt-sessions-settle.sql', name: '[C2 §10] the value half is not stamped with the session', find: "    perform set_config('hr.hunt_session', p_session::text, true);\n    v_a := public.hr_apply(", replace: '    v_a := public.hr_apply(' },
   { file: '2026-10-22-hunt-sessions-settle.sql', name: '[C2 §10] a refused session half leaves the value half written', find: "  exception when sqlstate 'HR000' then\n    get stacked diagnostics", replace: "  exception when sqlstate 'XX999' then\n    get stacked diagnostics" },
   { file: '2026-10-22-hunt-sessions-settle.sql', name: '[C2 §10] the fence guards only combat accrue rows', find: "  for each row when (new.intent = 'accrue' and new.kind <> 'worker')", replace: "  for each row when (new.kind = 'combat' and new.intent = 'accrue')" },

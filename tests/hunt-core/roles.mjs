@@ -185,9 +185,24 @@ const cases = {
     if (RW({ weaponType: 'magic', discipline: 'restoration' }) !== 'staff' || RW({ weaponType: 'magic', discipline: 'destruction' }) !== 'wand' || RW(null) !== 'neutral') return 'roleWeaponOf does not read the magic discipline';
     return f('no_such_weapon') === null ? null : 'an unknown weapon got a role';
   },
+  /* EVERY MAGIC WEAPON NAMES ITS DISCIPLINE (roadmap p23, audit m03): none falls to the Mage by default. The four
+     hand-authored drops: the Demoncaller staff and the Void Censer heal, the Whispering Codex and the Voidmaw
+     Scepter strike. */
+  'every-magic-weapon-has-a-discipline': (M) => {
+    const RW = M.roleData.roleWeaponOf;
+    const loose = Object.keys(M.ITEMS).filter((id) => M.ITEMS[id] && M.ITEMS[id].weaponType === 'magic' && !['destruction', 'restoration'].includes(M.ITEMS[id].discipline));
+    if (loose.length) return 'magic weapons with no discipline: ' + loose.join(', ');
+    const want = { demoncaller_staff: 'staff', void_censer: 'staff', whispering_codex: 'wand', voidmaw_scepter: 'wand' };
+    for (const [id, key] of Object.entries(want)) if (RW(M.ITEMS[id]) !== key) return id + ' plays ' + RW(M.ITEMS[id]) + ', want ' + key;
+    return M.ITEMS.demoncaller_staff.twoHanded === true ? null : 'the Demoncaller staff is one-handed (a staff fills both hands, Tyler 10-19)';
+  },
 };
 
 const mutants = [
+  { name: '[spell-content] a dropped staff plays the Mage again', case: 'every-magic-weapon-has-a-discipline',
+    edits: [['src/data/wave3-uniques.js', "weaponType:'magic',discipline:'restoration',twoHanded:true,", "weaponType:'magic',twoHanded:true,"]] },
+  { name: '[spell-content] the Codex heals', case: 'every-magic-weapon-has-a-discipline',
+    edits: [['src/data/items.js', "weaponType:'magic', discipline:'destruction', atkB:15,", "weaponType:'magic', discipline:'restoration', atkB:15,"]] },
   { name: 'the tank chases with a monster on him', case: 'tank-holds',
     edits: [[R, "  if (mons.some((m) => cheb(m, h) <= 1)) { clearGoal(h); return; }\n", '']] },
   { name: 'the nearest free tile by straight line, reachable or not (live v0.2.22)', case: 'melee-reaches-a-free-tile',

@@ -1182,7 +1182,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         await page.waitForTimeout(300);
         const want = [
           [0, 'mana', /^Needs 6 mana, you have 2\.$/, false],
-          [1, 'rune', /^Needs a Fire Rune for each cast: you carry none. Pick the store’s rune/, true],
+          [1, 'rune', /^Needs a Fire rune for each cast: you carry none. Pick the store’s rune/, true],
           [2, 'none left', /^None left: you carry no Wheat Bread\. The next food or drink slot fires instead\.$/, true],
           [5, 'store off', /^This hero is set to end the hunt rather than buy from the store\.$/, true],
           [7, 'server', /^The server says this cannot fire now\.$/, true],
@@ -1748,7 +1748,7 @@ const MUTANTS = [
   ['a struck slot carries no glyph', 'src/shell/widgets/action-bar.js', "g.innerHTML = why ? glyphSvg(ctx.glyphs, why.glyph) : '';", "g.innerHTML = why && !why.strike ? glyphSvg(ctx.glyphs, why.glyph) : '';"],
   ['a server-refused slot is not struck', 'src/shell/action-facts.js', "  if (sl.usable === false) return { code: 'server', text: 'The server says this cannot fire now.', glyph: 'uiLock', strike: true };\n  if (a.type === 'consume') return null;", "  if (a.type === 'consume') return null;"],
   ['the panel’s chase sends nothing', 'src/shell/widgets/settings-intent.js', "  if (key === 'chase') return s.chase === null ? null : { chase: !s.chase };", "  if (key === 'chase') return null;"],
-  ['a slot short of its rune says nothing', 'src/shell/action-facts.js', '    if (r.rune && !((bag', '    if (false && r.rune && !((bag'],
+  ['a slot short of its rune says nothing', 'src/shell/action-facts.js', '    if (r.rune && !(familyCount(r.rune, bag) > 0)', '    if (false && r.rune && !(familyCount(r.rune, bag) > 0)'],
   ['the hub keeps an ended hunt’s in-fight regen', 'src/shell/widgets/vitals-hub.js', '  const hero = h && !h.ended ? h.hero : null;', '  const hero = h ? h.hero : null;'],
   ['the gold to keep shows the typed value before the server confirms', 'src/shell/widgets/settings-intent.js', "(pending || el.ownerDocument.activeElement !== el)", "(!pending && el.ownerDocument.activeElement !== el)"],
   ['the gold to keep sends nothing', 'src/shell/widgets/settings-intent.js', ": { gold_floor: n };", ": null;"],

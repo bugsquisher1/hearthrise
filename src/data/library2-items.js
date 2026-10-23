@@ -107,6 +107,8 @@ const BANE_GEAR = {
     n: 'Void Censer', icon: '🪔', v: priced(100, 5), type: 'weapon', slot: 'weapon',
     weaponType: 'magic', atkB: 18, strB: 25, magicAtkB: 18, magicStrB: 25,
     tier: 5, rarity: 'legendary', reqSkill: 'magic', reqLv: 60,
+    /* a censer is a healer's tool: Restoration (roadmap p23, m03) */
+    discipline: 'restoration',
     bane: BANE('extra_dimensional'), effects: ['bane'],
   },
   // ITEM-NEW-07 · hammer T3 · vs Vermin. Warhammer T3 curve (9/19) × 0.85.

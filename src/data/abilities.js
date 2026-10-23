@@ -131,16 +131,33 @@ export const ABILITIES = Object.freeze([
   ab({ id: 'green_sickness', n: 'Green Sickness', disciplines: ['restoration'], lane: 'offense', cdMs: 10000, mana: 20, rune: 'chalked_poison_rune',
     target: 'area', dmg: [3, 6], element: 'poison', status: 'sickness', magicXpMult: 1600,
     versions: [[20, 1000], [24, 1740], [29, 2520], [35, 3310], [41, 4100]], lvPm: LV_PM }),
+  /* PROTECTIVE WARD (Bible §17: Restoration's friend shield; roadmap p22; the name is the Bible's, the designer's to
+     keep): an EARTH rune spell that shields the ally its conditions name (else the lowest wounded one in reach)
+     while that ally holds no shield. PROVISIONAL numbers: a shield of 30 at version I, three quarters of Arcane
+     Barrier's self-only 40, on the heal lane. */
+  ab({ id: 'protective_ward', n: 'Protective Ward', disciplines: ['restoration'], lane: 'heal', cdMs: 12000, mana: 25, rune: 'chalked_earth_rune',
+    target: 'ally', shield: 30, whenBelowPct: 80, magicXpMult: 1600,
+    versions: [[25, 1000], [30, 1740], [36, 2520], [43, 3310], [52, 4100]], lvPm: LV_PM }),
+  /* MEND, THE UNIVERSAL SELF-HEAL (Bible §4.1 / §17 CONFIRMED; roadmap p21): every loadout heals itself with mana on
+     the heal lane, outside its three discipline abilities. It needs missing HP (a hero at full health never casts it,
+     so a full-health cast never pays Magic XP) and spends no rune: the free floor. It levels on Magic, and pays Magic
+     at the physical builds' quarter (Bible §5.1, 0.25). PROVISIONAL numbers, the designer's to set: half Greater
+     Mend's heal at a little more than half its mana, every 6 s. */
+  ab({ id: 'mend', n: 'Mend', disciplines: ['shield', 'dual_axe', 'ranged', 'destruction', 'restoration'], universal: true, skill: 'magic',
+    lane: 'heal', cdMs: 6000, mana: 15, target: 'self', heal: [20, 30], whenBelowPct: 50, magicXpMult: 250, lvPm: LV_PM }),
 ].reduce((acc, r) => { acc[r.id] = r; return acc; }, Object.create(null)));
 
 const TARGETS = ['taunt', 'mark', 'enemy', 'area', 'cleave', 'self', 'ally', 'party'];
 const DISCIPLINES = ['shield', 'dual_axe', 'ranged', 'destruction', 'restoration'];
+/* Each discipline's own abilities (Tyler 2026-10-15: three per discipline to start; Restoration's fourth is its friend
+   shield, roadmap p22). A UNIVERSAL row (every discipline's, the self-heal) counts against none. */
+const DISCIPLINE_COUNT = Object.freeze({ shield: 3, dual_axe: 3, ranged: 3, destruction: 3, restoration: 4 });
 
 /* THE SKILL A DISCIPLINE'S VERSIONS LEVEL ON (designer d3-weaponskill "own", Tyler 2026-10-23): a weapon
-   ability on its weapon's own skill, a spell on Magic. */
+   ability on its weapon's own skill, a spell on Magic. A universal row names its own `skill`. */
 export const DISCIPLINE_SKILL = Object.freeze({ shield: 'melee', dual_axe: 'melee', ranged: 'ranged', destruction: 'magic', restoration: 'magic' });
-/** The skill `row`'s versions unlock on. */
-export const abilitySkill = (row) => DISCIPLINE_SKILL[row && row.disciplines && row.disciplines[0]] || 'magic';
+/** The skill `row`'s versions and output level on. */
+export const abilitySkill = (row) => (row && row.universal && row.skill) || DISCIPLINE_SKILL[row && row.disciplines && row.disciplines[0]] || 'magic';
 
 /** THE TRIGGER A NEW SLOT OF `row` STARTS WITH, as conditions written ON the slot (the role rule sets,
     rule-subjects.js ROLE_RULES, and a slot the player adds: conditions.js suggestedConditions). Never
@@ -181,10 +198,15 @@ export function validate() {
     if (!TARGETS.includes(r.target)) bad('unknown target ' + r.target);
     if (!Number.isInteger(r.cdMs) || r.cdMs <= 0 || r.cdMs % step) bad('cdMs is not a whole number of sub-steps');
     for (const k of ['mana', 'ammo', 'magicXpMult']) if (!Number.isInteger(r[k]) || r[k] < 0) bad(k + ' must be an integer >= 0');
-    for (const d of r.disciplines) { if (!(d in per)) bad('unknown discipline ' + d); else per[d]++; }
+    for (const d of r.disciplines) { if (!(d in per)) bad('unknown discipline ' + d); else if (!r.universal) per[d]++; }
+    /* A universal row is every discipline's, on a skill it names (the self-heal: Magic). */
+    if (r.universal && (DISCIPLINES.some((d) => !r.disciplines.includes(d)) || !Object.values(DISCIPLINE_SKILL).includes(r.skill))) bad('a universal row lists every discipline and names its skill');
     for (const k of ['dmg', 'heal']) if (r[k] && !(r[k].length === 2 && r[k].every(Number.isInteger) && r[k][0] > 0 && r[k][0] <= r[k][1])) bad(k + ' must be [lo, hi]');
     if (['enemy', 'area', 'cleave'].includes(r.target) && !r.dmg) bad('a damaging target with no dmg');
-    if (['ally', 'party'].includes(r.target) && !r.heal) bad('a heal target with no heal');
+    /* A friendly target heals or shields: `heal` [lo, hi] or a whole `shield` (an ally one: the friend shield). */
+    if (['ally', 'self'].includes(r.target) && !r.heal && !(Number.isInteger(r.shield) && r.shield > 0)) bad('a friendly target with no heal and no shield');
+    if (['ally', 'self'].includes(r.target) && r.heal && r.shield !== undefined) bad('a friendly target heals or shields, never both');
+    if (r.target === 'party' && !r.heal) bad('a heal target with no heal');
     /* One vocabulary (elements.js): a name outside it would match no weakness, resist or immunity. */
     if ('element' in r && !isElement(r.element)) bad('unknown element ' + r.element);
     /* No ability may name a missing item (spec §1.2): an active rune is a carried supply line of a rune family. */
@@ -192,7 +214,7 @@ export function validate() {
     /* The family's version-I rune: the one its store row partners (a cast spends any tier of the family). */
     if (r.rune && r.active && runeTierOf(ITEMS[r.rune]) !== 1) bad('rune ' + r.rune + ' is not its family\'s Chalked rune');
     if (r.lvPm !== undefined && !(Number.isInteger(r.lvPm) && r.lvPm >= 0)) bad('lvPm must be an integer >= 0');
-    if (new Set(r.disciplines.map((d) => DISCIPLINE_SKILL[d])).size !== 1) bad('its disciplines level on different skills');
+    if (!r.universal && new Set(r.disciplines.map((d) => DISCIPLINE_SKILL[d])).size !== 1) bad('its disciplines level on different skills');
     if (r.versions !== undefined) {
       const vs = r.versions;
       if (!r.rune) bad('only a rune spell has versions');
@@ -204,6 +226,6 @@ export function validate() {
       if (Array.isArray(vs) && vs[0] && vs[0].mana !== r.mana) bad("version I's mana is the row's mana");
     }
   }
-  for (const [d, n] of Object.entries(per)) if (n !== 3) out.push(d + ' has ' + n + ' abilities, not 3');
+  for (const [d, n] of Object.entries(per)) if (n !== DISCIPLINE_COUNT[d]) out.push(d + ' has ' + n + ' abilities, not ' + DISCIPLINE_COUNT[d]);
   return out;
 }

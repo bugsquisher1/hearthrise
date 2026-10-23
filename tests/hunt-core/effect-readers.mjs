@@ -26,14 +26,16 @@ const suggestText = (root) => {
   const at = src.indexOf('export function suggestedTrigger(');
   return at < 0 ? '' : strip(src.slice(at, src.indexOf('\n}\n', at) + 2));
 };
-/* THE VERSION LADDER (Tyler 2026-10-23; lane b-spell-content): a rune spell's `versions` and its `lvPm` are read by
-   abilities.js versionOf / outputPm (the data copy under test), which the engine calls for every cast
-   (src/core/hunt/abilities.js firstUsable). Their reader is those functions, and the engine must call both. */
-const VERSIONED = Object.freeze({ ability: ['versions', 'lvPm'] });
+/* THE VERSION LADDER AND THE SKILL (Tyler 2026-10-23; lane b-spell-content): a rune spell's `versions` and `lvPm`, and a
+   universal row's `universal` and `skill`, are read by abilities.js versionOf / outputPm / abilitySkill (the data copy
+   under test), which the engine calls for every cast (src/core/hunt/abilities.js firstUsable, skillLevel). Their reader
+   is those functions, and the engine must call each. */
+const VERSIONED = Object.freeze({ ability: ['versions', 'lvPm', 'universal', 'skill'] });
 const versionText = (root) => {
   const src = readFileSync(join(root, 'src/data/abilities.js'), 'utf8');
   const at = src.indexOf('export function versionOf('), end = src.indexOf('/** Every problem with the table', at);
-  return at < 0 || end < 0 ? '' : strip(src.slice(at, end));
+  const sk = src.indexOf('export const abilitySkill = ');
+  return at < 0 || end < 0 || sk < 0 ? '' : strip(src.slice(at, end) + '\n' + src.slice(sk, src.indexOf('\n', sk)));
 };
 const ENGINE_DIRS = ['src/core', 'supabase/functions/hr-accrue'];
 const CLIENT_DIRS = ['src/shell', 'src/hunt-view', 'src/session'];
@@ -72,7 +74,7 @@ const cases = {
     const client = textOf(ROOT, CLIENT_DIRS, null);
     const suggest = suggestText(M.root);
     const versioned = versionText(M.root);
-    const calls = /\bversionOf\(/.test(engine) && /\boutputPm\(/.test(engine);
+    const calls = /\bversionOf\(/.test(engine) && /\boutputPm\(/.test(engine) && /\babilitySkill\(/.test(engine);
     const dead = [];
     const check = (kind, keys, display, suggested) => {
       for (const k of keys) {

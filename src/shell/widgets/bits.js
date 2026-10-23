@@ -6,6 +6,7 @@
 // the frame every hunt panel sits in (title, minimise). Display only.
 // ════════════════════════════════════════════════════════════════════════
 import { ITEMS } from '../../data/items.js?v=0.2.34';
+import { RUNE_FAMILIES } from '../../data/runes.js?v=0.2.34';
 import { DRINK_ITEMS } from '../../data/drinks.js?v=0.2.34';
 import { MONSTERS } from '../../data/monsters.js?v=0.2.34';
 import { ABILITIES } from '../../data/abilities.js?v=0.2.34';
@@ -40,6 +41,20 @@ const spelled = (id) => { const t = String(id).replace(/_/g, ' '); return t.char
 export function itemName(id) {
   const it = ITEMS[id] || DRINK_ITEMS[id] || BASIC_INDEX[id];
   return it && it.n ? it.n : spelled(id);
+}
+
+/* A RUNE SPELL spends any tier of its family (src/data/runes.js; src/core/hunt/abilities.js runeFor), so the screen
+   names and counts the FAMILY, never the one tier its row keys: "Fire rune", "12 Fire runes". */
+const familyOf = (id) => (ITEMS[id] && RUNE_FAMILIES[ITEMS[id].family] ? ITEMS[id].family : null);
+/** The family words of rune item `id` for `n` runes ("Fire rune" / "Fire runes"); a non-rune's item name. */
+export function runeWords(id, n) {
+  const f = familyOf(id);
+  return f ? RUNE_FAMILIES[f].label + (n === 1 ? ' rune' : ' runes') : itemName(id);
+}
+/** How many runes of `id`'s family the inventory rows `lines` ({ id, qty }) hold, every tier (the server's counts). */
+export function familyCount(id, lines) {
+  const f = familyOf(id);
+  return (lines || []).filter((l) => l && (f ? familyOf(l.id) === f : l.id === id)).reduce((n, l) => n + (Number(l.qty) || 0), 0);
 }
 
 

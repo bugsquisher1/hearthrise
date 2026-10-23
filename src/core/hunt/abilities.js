@@ -99,9 +99,12 @@ function targetFor(inst, hero, h, row, sc, cx) {
       const b = bestAim(inst, hero, h.range, 3, cx && cx.slot);
       return b && b.count >= 1 ? b.aim : null;
     }
-    case 'self': return pct(hero) < 100 && !(int(hero.shield) > 0) ? hero : null;
+    /* A self-heal (Mend) needs missing HP; a self-shield (Arcane Barrier) missing HP and no shield standing. */
+    case 'self': return pct(hero) < 100 && (row.heal || !(int(hero.shield) > 0)) ? hero : null;
     case 'ally': {
-      const ok = (a) => !!a && a.alive && a.side === 'hero' && pct(a) < 100 && (a === hero || inReach(inst, hero, h.range, a));
+      /* An ally heal takes a wounded ally; an ally SHIELD (Protective Ward) a wounded one holding no shield. */
+      const ok = (a) => !!a && a.alive && a.side === 'hero' && pct(a) < 100 && (row.heal || !(int(a.shield) > 0))
+        && (a === hero || inReach(inst, hero, h.range, a));
       if (cx && cx.ally) return ok(cx.ally) ? cx.ally : null;
       return living(inst, 'hero').filter(ok).sort((a, b) => (pct(a) - pct(b)) || (a.id - b.id))[0] || null;
     }
@@ -270,10 +273,15 @@ function effect(inst, u, row, t, sc, v) {
       break;
     }
     case 'self':
+      if (row.heal) { healOne(u, u, scaled(roll(sc, row.heal)), sc); break; }
       u.shield = scaled(row.shield);
       sc.emit(makeEvent('shield', sc.atMs, { u: u.id, t: u.id, amount: u.shield }));
       break;
-    case 'ally': healOne(u, t, scaled(roll(sc, row.heal)), sc); break;
+    case 'ally':
+      if (row.heal) { healOne(u, t, scaled(roll(sc, row.heal)), sc); break; }
+      t.shield = scaled(row.shield);
+      sc.emit(makeEvent('shield', sc.atMs, { u: u.id, t: t.id, amount: t.shield }));
+      break;
     case 'party':
       for (const a of living(inst, 'hero').sort((x, y) => x.id - y.id)) {
         if (a === u || dist2(a, u) <= row.radius * row.radius) healOne(u, a, scaled(roll(sc, row.heal)), sc);

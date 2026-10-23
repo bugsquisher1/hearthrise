@@ -365,7 +365,8 @@ async function huntsPure(imp) {
   if (bare !== '!Food: no Cooked Shrimp left. Nothing will be eaten | !No stamina left: rest in town before you go.') fails.push('AW-27 an empty bar and no stamina read ' + JSON.stringify(bare));
   /* A rune spell with no rune and no store behind it loses that spell only (named, not a stop); no food is said. */
   const spell = say(sess({ hunt_settings: { preset: 0, presets: [], slots: [slot('ability', 'flame_strike', 0)], store: STORE } }));
-  if (spell !== 'Runes: no Fire Rune left. Flame Strike will not fire | Your bar eats and drinks nothing: HP and mana come back only between fights.') fails.push('AW-27 a spell with no rune reads ' + JSON.stringify(spell));
+  /* (a rune spell spends any tier of its family, so the line names and counts the family: lane b-spell-content) */
+  if (spell !== 'Runes: no Fire runes left. Flame Strike will not fire | Your bar eats and drinks nothing: HP and mana come back only between fights.') fails.push('AW-27 a spell with no rune reads ' + JSON.stringify(spell));
   const poor = say(sess({ state: { gold: 0 }, stamina: { ms: 30 * 60000, max_ms: 28800000 } }));
   if (!/\| Stamina: 30 min left, then the hunt ends\. \| !No gold for the store: the hunt ends when your own supplies run out\.$/.test(poor)) fails.push('AW-27 low stamina and no gold read ' + JSON.stringify(poor));
   const other = say(sess({}), { other: 'Bow' });
@@ -935,17 +936,17 @@ async function checks(overrides, shots) {
         /* AW-27 BEFORE YOU GO: what the bar spends, in slot order, from the server's bar, bag and gold. */
         const before = () => page.evaluate((w) => Array.from(document.querySelectorAll(w + '.hw-before-line')).map((li) => (li.classList.contains('is-short') ? '!' : '') + li.textContent).join(' | '), W);
         const b0 = await before();
-        if (b0 !== 'Runes: 40 Fire Rune of yours, then Plain Fire Rune from the store, 8 gp each | Food: 14 Wheat Bread of yours | Drink: 6 Goldenroot Tea of yours | Stamina: 30 min left, then the hunt ends. | Gold: 5,200 gp pays the store as you use it.')
+        if (b0 !== 'Runes: 40 Fire runes of yours, then Plain Fire Rune from the store, 1 gp a cast | Food: 14 Wheat Bread of yours | Drink: 6 Goldenroot Tea of yours | Stamina: 30 min left, then the hunt ends. | Gold: 5,200 gp pays the store as you use it.')
           fails.push('AW-27 Before you go reads ' + JSON.stringify(b0));
         if (await page.evaluate(() => !!document.querySelector('[data-hs-win="hunts"] .hw-ready, [data-hs-win="hunts"] .hw-checks'))) fails.push('AW-27 the Hunts window still carries the readiness checklist');
         /* The next envelope REPLACES every number (CLAUDE.md §6): fewer runes, less bread, no gold (that line now stops the hunt). */
-        s.env.inventory = Object.assign({}, s.env.inventory, { fire_rune: 3 });
+        s.env.inventory = Object.assign({}, s.env.inventory, { chalked_fire_rune: 3 });
         s.env.hunt_settings = clone(s.env.hunt_settings);
         s.env.hunt_settings.slots[2].count = 2;
         s.env.state = Object.assign({}, s.env.state, { gold: 0 });
         await pushEnvelope(page, s);
         const b1 = await before();
-        if (b1 !== 'Runes: 3 Fire Rune of yours, then Plain Fire Rune from the store, 8 gp each | Food: 2 Wheat Bread of yours | Drink: 6 Goldenroot Tea of yours | Stamina: 30 min left, then the hunt ends. | !No gold for the store: the hunt ends when your own supplies run out.')
+        if (b1 !== 'Runes: 3 Fire runes of yours, then Plain Fire Rune from the store, 1 gp a cast | Food: 2 Wheat Bread of yours | Drink: 6 Goldenroot Tea of yours | Stamina: 30 min left, then the hunt ends. | !No gold for the store: the hunt ends when your own supplies run out.')
           fails.push('AW-27 Before you go kept a number the server replaced: ' + JSON.stringify(b1));
         /* The page's own modules (a planted defect in them is what is served): a fresh hero's starter bar (the designer's
            walk-through row 4) and Bring your heroes (this account's other open heroes in no party). */

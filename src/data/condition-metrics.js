@@ -70,8 +70,9 @@ export const OPERATORS = Object.freeze({
 });
 
 const NUM = Object.freeze(['lt', 'lte', 'gt', 'gte', 'eq', 'ne']);
-/* "Whose": the lowest ally, or the first hero of a role (by unit id). */
-const ALLY = Object.freeze(Object.assign({ lowest: 'the lowest ally' },
+/* "Whose": the lowest ally, YOURSELF (roadmap p23: a heal aimed at its own caster, ruling 10-18), or the first hero
+   of a role (by unit id). */
+const ALLY = Object.freeze(Object.assign({ lowest: 'the lowest ally', self: 'yourself' },
   Object.fromEntries(Object.entries(HUNT_ROLES).map(([id, r]) => [id, 'the ' + r.label]))));
 
 export const METRICS = Object.freeze([

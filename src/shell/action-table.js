@@ -22,7 +22,7 @@ import { SUPPLIES, isRune } from '../data/supplies.js?v=0.2.34';
 import { ITEMS } from '../data/items.js?v=0.2.34';
 import { HUNT_ROLES } from '../data/hunt-roles.js?v=0.2.34';
 import { ATTACK_KINDS } from '../data/condition-metrics.js?v=0.2.34';
-import { itemName, abilityName } from './widgets/bits.js?v=0.2.34';
+import { itemName, abilityName, runeWords, familyCount } from './widgets/bits.js?v=0.2.34';
 
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 const secs = (ms) => (ms % 1000 ? (ms / 1000).toFixed(1) : String(ms / 1000));
@@ -85,9 +85,9 @@ export function tableOf(tab, ctx) {
     const rows = Object.values(ABILITIES).filter((a) => a.active && (!runes || a.rune)).map((a) => {
       const p = a.rune ? partnerRow(c.store, a.rune) : null;
       return { action: { type: 'ability', id: a.id }, kind: runes ? 'runes' : 'spells', name: abilityName(a.id), store: false,
-        amount: a.mana, price: p ? p.price : null, per: p ? p.price : null, carry: a.rune ? countOf(c.bag, a.rune) : null,
-        cooldown: secs(a.cdMs) + ' s', rune: a.rune ? '1 ' + itemName(a.rune) : '—', unpriced: false, none: false,
-        locked: !disc || !a.disciplines.includes(disc) };
+        amount: a.mana, price: p ? p.price : null, per: p ? p.price : null, carry: a.rune ? familyCount(a.rune, c.bag) : null,
+        cooldown: secs(a.cdMs) + ' s', rune: a.rune ? '1 ' + runeWords(a.rune, 1) : '—', unpriced: false, none: false,
+        locked: !disc || !(a.universal || a.disciplines.includes(disc)) };
     });
     rows.sort((a, b) => (a.locked - b.locked) || (runes ? byValue(a, b) : 0));
     const empty = rows.length ? null : runes ? 'No rune spells in the game yet.' : 'No spells in the game yet.';
@@ -131,7 +131,7 @@ export function sentenceOf(action, store) {
     if (!a || !a.rune) return { verb: 'Cast', item: abilityName(action.id), note: '' };
     const p = action.store ? (store || []).find((r) => r.id === action.store) : null;
     return { verb: 'Cast', item: abilityName(action.id),
-      note: '(uses 1 ' + itemName(a.rune) + (p ? ', ' + p.price + ' g a cast from the store once yours are gone)' : ', carried runes only)') };
+      note: '(uses 1 ' + runeWords(a.rune, 1) + (p ? ', ' + p.price + ' g a cast from the store once yours are gone)' : ', carried runes only)') };
   }
   if (action.type === 'attack_with_item') return { verb: 'Shoot with', item: own(ATTACK_KINDS, action.id) ? 'the loaded ammo' : itemName(action.id), note: '' };
   const c = CONSUMABLES[action.id];

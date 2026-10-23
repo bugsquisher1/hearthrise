@@ -86,7 +86,7 @@
     "wheat_bread": 14,
     "cooked_shrimp": 5,
     "goldenroot_tea": 6,
-    "fire_rune": 40,
+    "chalked_fire_rune": 40,
     "bronze_arrows": 120,
     "bronze_sword": 1,
     "steel_sword": 1,
@@ -198,7 +198,7 @@
       { "id": "plain_barbed_arrows", "kind": "ammo", "partner": "barbed_arrows", "heals": 0, "mana": 0, "price": 2 },
       { "id": "plain_iron_bolts", "kind": "ammo", "partner": "iron_bolts", "heals": 0, "mana": 0, "price": 2 },
       { "id": "plain_steel_arrows", "kind": "ammo", "partner": "steel_arrows", "heals": 0, "mana": 0, "price": 4 },
-      { "id": "plain_fire_rune", "kind": "ammo", "partner": "fire_rune", "heals": 0, "mana": 0, "price": 8 },
+      { "id": "plain_fire_rune", "kind": "ammo", "partner": "chalked_fire_rune", "heals": 0, "mana": 0, "price": 1 },
       { "id": "plain_mithril_arrows", "kind": "ammo", "partner": "mithril_arrows", "heals": 0, "mana": 0, "price": 8 },
       { "id": "plain_rune_arrows", "kind": "ammo", "partner": "rune_arrows", "heals": 0, "mana": 0, "price": 12 },
       { "id": "plain_emberhead_arrows", "kind": "ammo", "partner": "emberhead_arrows", "heals": 0, "mana": 0, "price": 18 },
@@ -235,7 +235,8 @@
       {
         "action": {
           "type": "ability",
-          "id": "flame_strike"
+          "id": "flame_strike",
+          "store": "plain_fire_rune"
         },
         "conditions": [
           {
@@ -280,23 +281,7 @@
         "usable": true,
         "count": 6
       },
-      {
-        "action": {
-          "type": "attack_with_item",
-          "id": "fire_rune"
-        },
-        "conditions": [
-          {
-            "metric": "item_qty",
-            "op": "gt",
-            "value": 0,
-            "subject": "item"
-          }
-        ],
-        "join": "and",
-        "usable": true,
-        "count": 40
-      },
+      null,
       null,
       null,
       null,
@@ -590,10 +575,10 @@
         "price": 2
       },
       {
-        "offer": "supply.fire_rune",
-        "item": "fire_rune",
+        "offer": "supply.chalked_fire_rune",
+        "item": "chalked_fire_rune",
         "kind": "ammo",
-        "price": 9
+        "price": 1
       }
     ],
     "bids": {
@@ -605,7 +590,7 @@
       "wheat_bread": 24,
       "cooked_shrimp": 3,
       "goldenroot_tea": 17,
-      "fire_rune": 1,
+      "chalked_fire_rune": 0,
       "bronze_sword": 10,
       "steel_sword": 160,
       "iron_helm": 30,

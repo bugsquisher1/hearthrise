@@ -28,7 +28,7 @@ import { HUNT_ROLES, roleWeaponOf, roleForWeapon } from '../data/hunt-roles.js?v
 import { CONSUMABLES } from '../data/consumables.js?v=0.2.34';
 import { ABILITIES } from '../data/abilities.js?v=0.2.34';
 import { storeOf } from './bar-draft.js?v=0.2.34';
-import { itemName } from './widgets/bits.js?v=0.2.34';
+import { itemName, runeWords, familyCount } from './widgets/bits.js?v=0.2.34';
 import { whole, gold } from '../render/format.js?v=0.2.34';
 
 /* How many of the bar's actions a setup line shows. */
@@ -85,7 +85,9 @@ function slotSupply(sl, s, carried) {
     return { kind, own: a.id === 'loaded' ? null : { id: a.id, n: have(a.id) }, store: off ? null : store, off };
   }
   if (a.type === 'ability' && ABILITIES[a.id] && ABILITIES[a.id].rune) {
-    return { kind: 'rune', spell: ABILITIES[a.id].n, own: { id: ABILITIES[a.id].rune, n: have(ABILITIES[a.id].rune) }, store: off ? null : store, off };
+    /* a rune spell spends any tier of its family: count them all, say the family */
+    const r = ABILITIES[a.id].rune, n = familyCount(r, carried);
+    return { kind: 'rune', spell: ABILITIES[a.id].n, own: { id: r, n, name: runeWords(r, n) }, store: off ? null : store, off };
   }
   return null;
 }
@@ -101,7 +103,8 @@ function bareWords(kind, parts) {
 
 /* One part of a supply line: "20 Cooked Shrimp of yours", "no Cooked Shrimp left", "Salted Shrimp from the store, 14 gp each". */
 function partWords(p) {
-  const own = p.own ? (p.own.n > 0 ? whole(p.own.n) + ' ' + itemName(p.own.id) + ' of yours' : 'no ' + itemName(p.own.id) + ' left') : null;
+  const name = p.own ? p.own.name || itemName(p.own.id) : '';
+  const own = p.own ? (p.own.n > 0 ? whole(p.own.n) + ' ' + name + ' of yours' : 'no ' + name + ' left') : null;
   const store = p.store ? p.store.name + ' from the store, ' + p.store.price + ' gp ' + p.store.each : null;
   return [own, store].filter(Boolean).join(', then ');
 }

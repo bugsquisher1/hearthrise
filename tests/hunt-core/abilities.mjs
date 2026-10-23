@@ -244,6 +244,50 @@ const cases = {
     if (mk !== want) return 'a marked monster took ' + mk + ' of a blow the unmarked one took ' + un + ' of, want ' + want;
     return hit(marked, row.durMs) === un ? null : 'the mark outlived its ' + row.durMs + ' ms';
   },
+  /* MEND, THE UNIVERSAL SELF-HEAL (roadmap p21; Bible §17): every discipline's bar keeps it (it counts against none of
+     the three), it heals its own caster on the heal lane with mana and no rune, it needs missing HP (at full health it
+     never casts, so it never pays Magic XP for nothing), and it pays Magic at the physical builds' quarter. */
+  'mend-heals-only-the-hurt': (M) => {
+    const mend = M.AD.ABILITIES.mend;
+    for (const w of ['sword', 'axe', 'ranged', 'wand', 'staff']) {
+      const setup = M.spawn.heroSetup({ weaponType: w, options: {}, bar: [{ action: { type: 'ability', id: 'mend' }, conditions: [], join: 'and' }], partyRoles: [] });
+      if (!setup.slots.some((r) => r.slot.action.id === 'mend')) return 'a ' + w + ' hero cannot keep Mend on its bar';
+    }
+    const run = (hp) => {
+      const x = oneHero(M, { hp, maxHp: 100, mana: 100, maxMana: 100 }, { bar: ['mend'] }, [{ x: 13, y: 3, hp: 500, maxHp: 500 }]);
+      x.sc.rng = rngOf(M, 4);
+      M.abilities.castAbilities(x.inst, x.sc);
+      return { x, cast: x.sc.events.find((e) => e.type === 'cast' && e.ability === 'mend') || null, heal: x.sc.events.find((e) => e.type === 'heal') || null };
+    };
+    const full = run(100);
+    if (full.cast) return 'Mend cast at full health: ' + JSON.stringify(full.cast);
+    const hurt = run(40);
+    if (!hurt.cast || hurt.cast.mana !== mend.mana || hurt.cast.magicXpMult !== mend.magicXpMult || hurt.cast.supply) return 'a hurt hero did not cast Mend at its mana and no rune: ' + JSON.stringify(hurt.cast);
+    if (!hurt.heal || hurt.heal.u !== 1 || hurt.heal.t !== 1 || !(hurt.heal.amount >= mend.heal[0] && hurt.heal.amount <= mend.heal[1]) || hurt.x.h.hp !== 40 + hurt.heal.amount) return 'Mend did not heal its caster: ' + JSON.stringify(hurt.heal);
+    if (hurt.x.h.shield) return 'Mend left a shield (' + hurt.x.h.shield + ') instead of healing';
+    return mend.lane === 'heal' && mend.universal === true ? null : 'Mend is not a universal heal-lane row';
+  },
+  /* GREEN SICKNESS'S MARK (roadmap p22; Bible §17: a fixed, non-stacking ~10% vulnerability): every monster its area hits
+     takes `takenPm` more from every blow while the mark lasts; a second cast refreshes the one stack; it wears off. */
+  'sickness-marks-what-it-hits': (M) => {
+    const gs = M.AD.ABILITIES.green_sickness, row = M.status.statusRow(gs.status);
+    const x = oneHero(M, {}, { range: 7, hs: supplySession(M, { bag: { chalked_poison_rune: { loaded: 5 } } }) },
+      [{ x: 15, y: 3, hp: 5000, maxHp: 5000 }, { x: 15, y: 4, hp: 5000, maxHp: 5000 }, { x: 20, y: 8, hp: 5000, maxHp: 5000 }]);
+    x.sc.rng = rngOf(M, 7);
+    const [a, b, far] = x.w.units.filter((u) => u.side === 'mon');
+    M.abilities.fire(x.inst, x.h, { row: gs, target: a, lines: [] }, x.sc);
+    const sick = (u) => (u.statuses || []).filter((st) => st.s === row.id).length;
+    if (sick(a) !== 1 || sick(b) !== 1 || sick(far) !== 0) return 'Green Sickness marked ' + [sick(a), sick(b), sick(far)] + ' (want 1, 1, 0)';
+    M.abilities.fire(x.inst, x.h, { row: gs, target: a, lines: [] }, x.sc);
+    if (sick(a) !== 1) return 'a second Green Sickness stacked its mark: ' + sick(a);
+    const hit = (t) => M.damage.landHit(x.inst, x.sc, x.h, t, 100, null, null).dmg;
+    const clean = hit(far), marked = hit(a);
+    const want = Math.floor((clean * (1000 + row.takenPm)) / 1000);
+    if (marked !== want) return 'a sickened monster took ' + marked + ' of a blow the clean one took ' + clean + ' of, want ' + want;
+    for (let t = 0; t <= row.durationMs; t += 100) { x.sc.atMs = t; M.status.tickStatuses(x.inst, x.sc); }
+    if (sick(a)) return 'the mark outlived its ' + row.durationMs + ' ms';
+    return hit(a) === clean ? null : 'a monster whose mark wore off still took more';
+  },
   /* Bleed scales with the caster's level in its status row's scalesWith skill (Tyler 10-16), fixed as it lands. */
   'bleed-scales-with-caster-skill': (M) => {
     const rend = M.AD.ABILITIES.rend, bleed = M.status.statusRow(rend.status);
@@ -438,6 +482,19 @@ const mutants = [
       "    if (s.why) { if (s.short) h.hs.goldOut = true; return { why: s.short ? 'gold_short' : s.why === 'level' ? 'level' : 'no_stock' }; }"]] },
   { name: 'a rune slot buys the store rune without naming it', case: 'rune-own-then-store',
     edits: [['src/core/hunt/abilities.js', "  const s = typeof store === 'string' ? storeLine(h.hs, row.rune, store) : { why: 'none' };", "  const s = storeLine(h.hs, row.rune, typeof store === 'string' ? store : undefined);"]] },
+  { name: '[spell-content] Mend casts at full health', case: 'mend-heals-only-the-hurt',
+    edits: [['src/core/hunt/abilities.js', "    case 'self': return pct(hero) < 100 && (row.heal || !(int(hero.shield) > 0)) ? hero : null;",
+      "    case 'self': return row.heal || (pct(hero) < 100 && !(int(hero.shield) > 0)) ? hero : null;"]] },
+  { name: '[spell-content] Mend shields instead of healing', case: 'mend-heals-only-the-hurt',
+    edits: [['src/core/hunt/abilities.js', '      if (row.heal) { healOne(u, u, scaled(roll(sc, row.heal)), sc); break; }\n', '']] },
+  { name: '[spell-content] Mend is kept off a physical bar', case: 'mend-heals-only-the-hurt',
+    edits: [['src/data/abilities.js', "disciplines: ['shield', 'dual_axe', 'ranged', 'destruction', 'restoration'], universal: true,", "disciplines: ['destruction', 'restoration'], universal: true,"]] },
+  { name: '[spell-content] the sickness mark adds nothing', case: 'sickness-marks-what-it-hits',
+    edits: [['src/core/hunt/damage.js', ' ? target.markPm : 0) + takenPmOf(target);', ' ? target.markPm : 0);']] },
+  { name: '[spell-content] an area spell marks only its aim', case: 'sickness-marks-what-it-hits',
+    edits: [['src/core/hunt/abilities.js', '        landHit(inst, sc, u, m, roll(sc, row.dmg), el, hitTag);\n        afflict(m);\n', '        landHit(inst, sc, u, m, roll(sc, row.dmg), el, hitTag);\n']] },
+  { name: '[spell-content] the sickness mark never wears off', case: 'sickness-marks-what-it-hits',
+    edits: [['src/core/hunt/status.js', '      st.left -= sc.dtMs;\n      const row = statusRow(st.s);\n', '      const row = statusRow(st.s);\n      if (row.tick) st.left -= sc.dtMs;\n']] },
   { name: 'the mark is drawn but adds nothing', case: 'mark-adds-damage',
     edits: [['src/core/hunt/damage.js', '    markPm ? Object.assign({}, ability, { mult: Math.floor((base * (1000 + markPm)) / 1000) }) : ability);', '    ability);']] },
   { name: 'the mark never wears off', case: 'mark-adds-damage',

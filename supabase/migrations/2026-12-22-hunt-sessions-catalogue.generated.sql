@@ -8,10 +8,10 @@
 --   src/data/premium.js, src/core/hunt/world-state.js and the vendor price
 --   (hr-accrue/catalogue.js). Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: 721464de6f26e7a094c2d8d70a5068e46c2163c4b2313f01dc06e4886a66531e
+--   digest: 58c5ddd7193ac00a182a02426222f6c653ab10f6412a45e838b3bee44ac04a13
 --   82 supplies, 121 hunts (named + training), 50 limits, 11 end reasons,
 --   514 vendor values, 25 store supplies paid per use, 5 target modes,
---   3 lanes, 14 abilities, 10 action-set options, 5 hunt grounds
+--   3 lanes, 16 abilities, 10 action-set options, 5 hunt grounds
 --
 -- SUPERSEDES 2026-11-23-hunt-sessions-catalogue.generated.sql (the v0.2.31 chain;
 -- history once applied, never regenerated): every table below is rewritten wholesale.
@@ -522,8 +522,10 @@ insert into public.hr_hunt_abilities (ability_id, disciplines, lane, cd_ms, mana
   ('greater_mend', array['restoration']::text[], 'heal', 2000, 25, 'chalked_water_rune', 0, true, 11),
   ('green_sickness', array['restoration']::text[], 'offense', 10000, 20, 'chalked_poison_rune', 0, true, 13),
   ('hunters_mark', array['ranged']::text[], 'offense', 12000, 8, null, 0, true, 5),
+  ('mend', array['destruction', 'dual_axe', 'ranged', 'restoration', 'shield']::text[], 'heal', 6000, 15, null, 0, true, 15),
   ('power_strike', array['dual_axe', 'shield']::text[], 'offense', 6000, 6, null, 0, true, 2),
   ('precision_shot', array['ranged']::text[], 'offense', 6000, 6, null, 1, true, 7),
+  ('protective_ward', array['restoration']::text[], 'heal', 12000, 25, 'chalked_earth_rune', 0, true, 14),
   ('rend', array['dual_axe']::text[], 'offense', 6000, 8, 'chalked_rupture_rune', 0, true, 4);
 delete from public.hr_hunt_ground_spawns;
 delete from public.hr_hunt_grounds;
@@ -596,7 +598,7 @@ insert into public.hr_hunt_weapons (item_id, weapon_type) values
   ('chief_blade', 'sword'),
   ('dawn_sword', 'sword'),
   ('dawn_warhammer', 'hammer'),
-  ('demoncaller_staff', 'wand'),
+  ('demoncaller_staff', 'staff'),
   ('dragonfang_pike', 'sword'),
   ('dragonrend_greatblade', 'sword'),
   ('dragonrib_bow', 'ranged'),
@@ -639,7 +641,7 @@ insert into public.hr_hunt_weapons (item_id, weapon_type) values
   ('steel_warhammer', 'hammer'),
   ('stone_maul', 'hammer'),
   ('verdite_blade', 'sword'),
-  ('void_censer', 'wand'),
+  ('void_censer', 'staff'),
   ('voidmaw_scepter', 'wand'),
   ('wartusk_cleaver', 'sword'),
   ('whispering_codex', 'wand'),
@@ -1425,7 +1427,7 @@ begin
      or (select count(*) from public.hr_hunt_lanes) <> 3
      or (select count(*) from public.hr_hunt_set_options) <> 10
      or (select count(*) from public.hr_hunt_kill_bounds) <> 134
-     or (select count(*) from public.hr_hunt_abilities) <> 14
+     or (select count(*) from public.hr_hunt_abilities) <> 16
      or (select count(*) from public.hr_hunt_grounds) <> 5
      or (select count(*) from public.hr_hunt_grounds where density_max is null) <> 0
      or (select count(*) from public.hr_hunt_ground_spawns) <> 24

@@ -43,6 +43,10 @@
 //       writes player_state gold, through any alias.
 //   G9  RE-APPLY IS A NO-OP: the schema fingerprint and every purse are unchanged.
 //   G10 THE ACL: the helpers are owner-only; no client writes the purse or the ledger.
+//   G12 A READ NEVER WRITES: every STABLE/IMMUTABLE body that reaches the purse calls no
+//       purse writer (hr_purse_move / hr_purse_lock / hr_wallet_ensure), and each one answers
+//       inside a READ ONLY transaction (as PostgREST calls it) for an account with no purse
+//       row yet: a missing purse reads 0, it is never made on read.
 //   G11 THE PINS MEET PRODUCTION. Replayed to the file before this one with
 //       clan_contribute__ungated reshaped to production's image (the repo body with its
 //       whole-line comments stripped, md5 27e05ce9, measured read-only 2026-10-23), the
@@ -124,6 +128,11 @@ const SQL_MUTANTS = {
   loot_sale_unstamped: {
     why: 'the loot filter\'s sale is journalled outside its hunt: the gold history cannot group it',
     pairs: [["    perform set_config('hr.hunt_session', p_session::text, true);\n    v_a := public.hr_apply(p_user, p_slot,", "    v_a := public.hr_apply(p_user, p_slot,"]],
+  },
+  read_makes_the_purse: {
+    why: 'hr_purse_of makes the purse it reads: a STABLE read writes, and PostgREST\'s read-only call raises 25006',
+    pairs: [['  select coalesce((select w.gold from public.account_wallet w where w.user_id = p_user), 0)::bigint\n',
+      '  select public.hr_wallet_ensure(p_user);\n  select coalesce((select w.gold from public.account_wallet w where w.user_id = p_user), 0)::bigint\n']],
   },
   helper_client_grant: {
     why: 'authenticated may call hr_purse_move: a client moves its own purse',
@@ -562,6 +571,27 @@ async function chainArms(mutate, M) {
   const mv = (await d.one("select prosrc from pg_proc where oid = to_regprocedure('public.hr_purse_move(uuid,bigint,bigint)')"));
   ok(/v := public\.hr_purse_lock\(p_user\);[\s\S]*update public\.account_wallet/.test(mv), 'G10: hr_purse_move does not lock the purse before it moves it');
 
+  // G12 A READ NEVER WRITES.
+  const readers = await d.q(`select p.oid::regprocedure::text as f, p.pronargs::int as n,
+        p.prosrc ~ 'hr_purse_move|hr_purse_lock|hr_wallet_ensure' as writes
+      from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public' and p.prokind = 'f' and p.provolatile in ('s', 'i')
+       and p.prosrc ~ 'account_wallet|hr_purse_|hr_wallet_' order by 1`);
+  ok(readers.some((r) => r.f === 'hr_purse_of(uuid)'), 'G12 CONTROL: the scan found no STABLE purse reader (hr_purse_of is one)');
+  for (const r of readers) ok(!r.writes, `G12: STABLE ${r.f} calls a purse writer`);
+  const nobody = await d.one('select gen_random_uuid()');
+  for (const r of readers) {
+    const call = r.n === 1 ? `select public.${r.f.replace(/\(.*$/, '')}($1::uuid)` : r.n === 2 ? `select public.${r.f.replace(/\(.*$/, '')}($1::uuid, 0)` : null;
+    if (!call) { ok(false, `G12: no read-only call shape for ${r.f}`); continue; }
+    await db.exec('begin read only');
+    let err = null, v;
+    try { v = await d.one(call, [nobody]); } catch (e) { err = String(e.message).split('\n')[0]; }
+    await db.exec('rollback');
+    ok(err === null, `G12: ${r.f} raised in a READ ONLY transaction: ${err}`);
+    if (r.f === 'hr_purse_of(uuid)') ok(Number(v) === 0, `G12: a missing purse reads ${v}, not 0`);
+  }
+  ok(!(await d.one('select exists (select 1 from public.account_wallet where user_id = $1)', [nobody])), 'G12: a read made a purse row');
+
   // G9 RE-APPLY IS A NO-OP.
   const fp = JSON.stringify(await inventory(db));
   const purses = JSON.stringify(await d.q('select user_id::text, gold::text, version::text from public.account_wallet order by 1'));
@@ -660,7 +690,7 @@ try {
   }
   const p = await run(null);
   if (p.length) { console.log('account-gold: RED\n  ' + p.join('\n  ')); process.exit(1); }
-  console.log('account-gold: one purse per account (G1-G11, E1-E2 green): folded exactly, shared by every hero, raced spends refused both orders, hunt races re-run on both doors, a party of one account pays after its coins, the floor holds, the ledger chain balances, no per-hero read survives, re-apply a no-op, ACL closed, the pins accept production\'s image and refuse any other');
+  console.log('account-gold: one purse per account (G1-G12, E1-E2 green): folded exactly, shared by every hero, raced spends refused both orders, hunt races re-run on both doors, a party of one account pays after its coins, the floor holds, the ledger chain balances, no per-hero read survives, re-apply a no-op, ACL closed, no read writes, the pins accept production\'s image and refuse any other');
   process.exit(0);
 } catch (e) {
   console.error(`account-gold: HARNESS ERROR — ${e.message}`);

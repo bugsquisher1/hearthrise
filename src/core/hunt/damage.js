@@ -34,7 +34,8 @@ import { roleOf, elementOn, inRange, peel, engaged } from './targeting.js?v=0.2.
 import { fallen, partySize } from './pull-cycle.js?v=0.2.35';
 import { shareKillXp } from './xp-share.js?v=0.2.35';
 import { payBasic, shotLine } from './abilities.js?v=0.2.35';
-import { slotsFor, pickSlot, bestAim, footprintOf, inFootprint, DEFAULT_ATTACK_ROW } from './conditions.js?v=0.2.35';
+import { slotsFor, pickSlot, bestAim, footprintOf, inFootprint, itemRow, DEFAULT_ATTACK_ROW } from './conditions.js?v=0.2.35';
+import { shootsItem } from '../../data/hunt-roles.js?v=0.2.35';
 import { elementWithFloor } from '../../data/hunt-grounds.js?v=0.2.35';
 import { mitigate } from '../mitigation.js?v=0.2.35';
 
@@ -215,15 +216,20 @@ function pickShot(inst, u, h, t, sc) {
   return pickSlot(inst, u, h, rows, (slot, cx) => {
     const id = slot.action.id;
     if (id === 'loaded') {
-      const shoots = !!h && (u.role === 'ranger' || ((u.role === 'mage' || u.role === 'healer') && !!h.ammo));
+      /* Loaded ammo the worn weapon cannot shoot (hunt-roles.js shootsItem: a whetstone, a rune on a bow) is no shot. */
+      const fits = !!h && !!h.ammo && shootsItem(u.role, itemRow(h, h.ammo));
+      const shoots = !!h && (u.role === 'ranger' || ((u.role === 'mage' || u.role === 'healer') && fits));
       /* A bow or crossbow with nothing loaded has no shot: no swing (the lane waits, no_stock). */
-      if (shoots && !h.ammo) return { why: 'no_stock' };
+      if (shoots && !fits) return { why: 'no_stock' };
       /* A CASTER WHOSE LOADED RUNE IS SPENT swings the bare weapon, as with none loaded: a staff
          needs no rune, and running out never stops a hunt (Tyler 10-16). Before, it never swung again. */
       if (shoots && u.role !== 'ranger' && !shotLine(h, h.ammo).id) return { ammo: null, price: null, size: 1, aim: t };
       return { ammo: shoots ? h.ammo : null, price: shoots ? h.ammo : undefined, size: 1, aim: t };
     }
     if (row.melee || !h) return null;
+    /* AN ITEM THE WORN WEAPON CANNOT SHOOT IS NO SHOT (Andy 2026-10-23): the slot is passed over and the next
+       one fires. A bow loosed Copper Whetstones (Melee ammo), one a shot, from a slot ahead of its arrows. */
+    if (!shootsItem(u.role, itemRow(h, id))) return null;
     const l = shotLine(h, id);
     if (!l.id || l.why) return { why: l.why === 'gold_short' ? 'gold_short' : 'no_stock' };
     const size = footprintOf(slot, h);

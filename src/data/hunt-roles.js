@@ -129,6 +129,19 @@ export function roleForWeapon(weaponType, pick) {
   return pick && roles.includes(pick) ? pick : roles[0];
 }
 
+/* WHAT A ROLE'S SHOT CAN LOOSE (Andy 2026-10-23: a Ranger's bow loosed his Copper Whetstones, one
+   a shot, from an attack slot ahead of his arrows): an AMMO item whose own `reqSkill` is the role's
+   shot skill. A bow or crossbow shoots Ranged ammo (arrows, bolts); a staff or wand its Magic ammo
+   (a rune); a Melee hero shoots nothing. A whetstone is Melee ammo: it sharpens a blade worn in the
+   ammo slot (src/core/ammo.js honeOf) and is no one's shot. */
+const SHOT_SKILL = Object.freeze({ ranger: 'ranged', mage: 'magic', healer: 'magic' });
+
+/** Can a hero of `role` loose `item` (an items.js row) as a shot? */
+export function shootsItem(role, item) {
+  const skill = Object.prototype.hasOwnProperty.call(SHOT_SKILL, role) ? SHOT_SKILL[role] : null;
+  return !!skill && !!item && item.slot === 'ammo' && item.reqSkill === skill;
+}
+
 /** Every problem with the tables, as strings. Empty = valid. */
 export function validate() {
   const out = [];
@@ -146,6 +159,7 @@ export function validate() {
   for (const [w, roles] of Object.entries(WEAPON_ROLES)) {
     if (!roles.length || !roles.every((r) => HUNT_ROLES[r])) out.push('weapon ' + w + ' names an unknown role');
   }
+  for (const r of Object.keys(SHOT_SKILL)) if (!HUNT_ROLES[r] || HUNT_ROLES[r].melee) out.push('SHOT_SKILL ' + r + ': not a ranged role');
   if (!Number.isInteger(CHALLENGE.radius) || CHALLENGE.radius < 1) out.push('CHALLENGE.radius must be a positive integer');
   if (!Number.isInteger(CHALLENGE.holdMs) || CHALLENGE.holdMs <= 0 || CHALLENGE.holdMs % 100 !== 0) out.push('CHALLENGE.holdMs must be a whole number of 100 ms sub-steps');
   if (!Number.isInteger(CHALLENGE.holderMinHpPm) || CHALLENGE.holderMinHpPm < 0 || CHALLENGE.holderMinHpPm > 1000) out.push('CHALLENGE.holderMinHpPm is permille 0..1000');

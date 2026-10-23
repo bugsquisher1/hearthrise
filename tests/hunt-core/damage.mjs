@@ -205,6 +205,30 @@ const cases = {
     }
     return null;
   },
+  /* A SHOT IS AMMO THE WORN WEAPON CAN LOOSE (Andy 2026-10-23, Fremulon): a bow loosed one Copper Whetstone a shot
+     (1,012 in 43 min) from an attack slot ahead of his arrows. A slot naming an item the weapon cannot shoot is
+     passed over and the arrows behind it fire; a whetstone worn in a bow's ammo slot is no shot; a staff never
+     shoots an arrow slot (its loaded rune fires). */
+  'no-shot-the-weapon-cannot-loose': (M) => {
+    const id = Object.keys(M.MONSTERS).find((k) => M.C.defenceReduction(M.MONSTERS[k]) === 0 && !(M.MONSTERS[k].elementImmune || []).length);
+    const atk = (item) => ({ action: { type: 'attack_with_item', id: item }, conditions: [], join: 'and' });
+    const one = (role, slots, ammo, bag) => {
+      const inst = fight(M, [H(M, 1, 12, 3, role, { target: 2, maxHit: 20 }), E(M, 2, 0, 15, 3, 1, { kind: id, hp: 100000, maxHp: 100000 })]);
+      const hs = M.AR.newHuntSession({ id: 'dm', huntFromMs: 0, bag, purse: 1000, goldFloor: 0, basics: {} });
+      inst.heroes = { 1: { hs, slots: M.conditions.heroSlots(slots, null), actionSet: 'hunt', range: 7, ammo, items: M.ITEMS } };
+      const sc = sc2(M, 1);
+      M.movement.occupancy(inst);
+      M.damage.resolveAttacks(inst, sc);
+      return { shots: sc.events.filter((e) => e.type === 'shot').map((e) => e.item), swings: sc.events.filter((e) => e.u === 1 && (e.type === 'dmg' || e.type === 'miss')).length,
+        left: Object.fromEntries(Object.entries(hs.bag).map(([k, l]) => [k, l.left])) };
+    };
+    const bow = one('ranger', [atk('copper_whetstone'), atk('iron_arrows')], null, { copper_whetstone: { loaded: 5 }, iron_arrows: { loaded: 5 } });
+    if (JSON.stringify(bow) !== JSON.stringify({ shots: ['iron_arrows'], swings: 1, left: { copper_whetstone: 5, iron_arrows: 4 } })) return 'a bow with a whetstone slot ahead of its arrows: ' + JSON.stringify(bow);
+    const worn = one('ranger', [], 'copper_whetstone', { copper_whetstone: { loaded: 5 } });
+    if (worn.swings !== 0 || worn.left.copper_whetstone !== 5) return 'a bow wearing a whetstone shot it: ' + JSON.stringify(worn);
+    const staff = one('mage', [atk('iron_arrows')], 'fire_rune', { iron_arrows: { loaded: 5 }, fire_rune: { loaded: 5 } });
+    return staff.swings === 1 && staff.left.iron_arrows === 5 && staff.left.fire_rune === 4 ? null : 'a staff with an arrow slot: ' + JSON.stringify(staff);
+  },
   /* DM-13: one swing per COMBAT_BALANCE.tickMs (the one basic-attack interval), the first as soon as the target is in reach. */
   'swing-every-interval': (M) => {
     const k = H(M, 1, 12, 3, 'tank', { hp: 100000, maxHp: 100000, target: 2 });
@@ -247,6 +271,10 @@ const mutants = [
     edits: [[D, "  if (h && t.side === 'mon' && price !== undefined && price !== h.ammo && typeof h.shotRolls === 'function') {", '  if (false) {']] },
   { name: 'a caster whose runes are spent never swings again', case: 'spent-rune-swings-bare',
     edits: [[D, "      if (shoots && u.role !== 'ranger' && !shotLine(h, h.ammo).id) return { ammo: null, price: null, size: 1, aim: t };\n", '']] },
+  { name: 'a bow shoots the whetstone an attack slot names (Andy 10-23)', case: 'no-shot-the-weapon-cannot-loose',
+    edits: [[D, '    if (!shootsItem(u.role, itemRow(h, id))) return null;\n', '']] },
+  { name: 'a bow shoots the whetstone it wears', case: 'no-shot-the-weapon-cannot-loose',
+    edits: [[D, '      const fits = !!h && !!h.ammo && shootsItem(u.role, itemRow(h, h.ammo));', '      const fits = !!h && !!h.ammo;']] },
   { name: 'no swing interval', case: 'swing-every-interval', edits: [[D, 'function restart(u) { u.swingLeftMs = COMBAT_BALANCE.tickMs; }', 'function restart(u) { u.swingLeftMs = 0; }']] },
 ];
 

@@ -96,6 +96,8 @@ export const MUTANTS = {
   reader_keeps_first: { arm: 'TT-10', why: 'the client keeps the first envelope\'s tally (not replaced by the next)',
     js: ['src/session/tally-sections.js', [['const SEEN = new WeakMap();', 'const SEEN = new WeakMap();\nlet FIRST = null;'],
       ['  SEEN.set(raw, out);\n  return out;', '  SEEN.set(raw, out);\n  FIRST = FIRST || out;\n  return FIRST;']]] },
+  notice_every_page: { arm: 'TT-12', why: 'the payment notice is not keyed by the claim: every page tells it again',
+    js: ['src/shell/alerts.js', [["out.push({ id: 'tally:' + p.claim,", "out.push({ id: 'tally:' + p.claim + ':' + Math.random(),"]]] },
   reapply_dupes: { arm: 'TT-11', why: 'a second apply re-seeds the section registry under a new key',
     file: [MIG, "  ('tally', 'hr_tally_section',", "  ('tally_' || md5(clock_timestamp()::text), 'hr_tally_section',"] },
 };
@@ -454,6 +456,64 @@ const ARMS = {
     return problems;
   },
 
+  /* THE HAPPY PATH, PLAYED: take a task in town, hunt it viewed (the player's door, each answer taken by the client's
+     own CharacterSession), come home, be paid (one notice), reload (a fresh session from hr_load) — then the same
+     hunt with the browser closed (the tick's door only), seen on the next load. */
+  'TT-12': async (db, M, X) => {
+    const problems = [];
+    const H = X.H;
+    const U = H.UIDS[0];
+    const gold = await one(db, 'select gold::int from public.hr_tally_tasks where task_id = $1', [CELLAR]);
+    const session = () => new X.CSN.CharacterSession({ slot: 0, uid: U, server: {}, now: () => 1e6, setTimer: () => null, clearTimer: () => {} });
+    const load = async (cs) => cs._take(await rpc(db, U, 'select public.hr_load(0)'), 'load');
+    const h = await H.hunter(db, M, { ...H.STRONG, minutesAgo: 12, beforeEnter: async () => {
+      const n = await rpc(db, U, 'select public.hr_character_name_set(0, $1, $2::uuid)', ['Tally Hunter', idem()]);
+      if (!n || n.ok !== true) throw new Error('name refused: ' + JSON.stringify(n));
+      const r = await take(db, U, CELLAR, 'light');
+      if (!r || r.ok !== true) throw new Error('take refused: ' + JSON.stringify(r));
+    } });
+    const exec = H.makeExec(db);
+    await db.query('savepoint tt12');
+    for (const path of ['viewed', 'closed']) {
+      const cs = session();
+      const go = doorsOf(M, H, exec, U, h.sid)[path];
+      const show = async (t) => { const v = await go(t); if (path === 'viewed' && v && v.body && v.body.ok) cs._take(v.body, 'settle'); return v; };
+      if (path === 'closed' && !(await load(cs))) { problems.push('closed: CONTROL: the first load was refused ' + cs.lastVerdict); continue; }
+      let v = await show(h.from + 3 * 60000);
+      if (!v || v.outcome !== 'paid') { problems.push(`${path}: CONTROL: the first window answered ${v && v.outcome}/${v && v.reason}`); continue; }
+      if (path === 'closed') await load(cs);
+      const t1 = X.S.tallyOf(cs);
+      const k1 = t1 && t1.held[0] ? t1.held[0].kills : null;
+      const dbKills = (await heldRow(db, U, CELLAR) || {}).kills;
+      if (!(k1 > 0) || k1 !== dbKills) problems.push(`${path}: the client shows ${k1} kills, the server holds ${dbKills}`);
+      await db.query('update public.hero_tally_tasks set kills = target - 1 where user_id = $1 and task_id = $2', [U, CELLAR]);
+      await show(h.from + 6 * 60000);
+      await leaveAt(db, H, U, h.sid, h.from + 7 * 60000);
+      for (let i = 0; i < 3 && v && v.outcome === 'paid' && !v.ended; i++) v = await show(h.from + 8 * 60000);
+      const fresh = session();
+      if (!(await load(fresh))) { problems.push(`${path}: the reload was refused ${fresh.lastVerdict}`); continue; }
+      for (const [who, c] of path === 'viewed' ? [['the viewed client', cs], ['the reload', fresh]] : [['the reload', fresh]]) {
+        const t = X.S.tallyOf(c);
+        const paid = t && t.recent.find((p) => p.task === CELLAR);
+        if (!t || t.held.length || !paid || paid.gold !== gold || paid.item !== 'apprentice_helmet') problems.push(`${path}: ${who} reads ${JSON.stringify(t)}`);
+      }
+      const bag = (fresh.read('inventory') || {}).apprentice_helmet;
+      if (bag !== 1) problems.push(`${path}: the reloaded bag holds ${bag} Apprentice Hat`);
+      /* ONE notice: the alert centre fires it once, and a second scan of the same envelope adds none. */
+      const account = { viewed: 0, characters: () => [fresh], character: () => fresh, subscribe: () => () => {} };
+      const ac = X.AL.createAlertCenter(account);
+      const notes = ac.list().filter((a) => a.kind === 'tally');
+      if (notes.length !== 1 || !/Tamsin paid .* for Giant Rats\./.test(notes[0].text)) problems.push(`${path}: the payment notices read ${JSON.stringify(notes)}`);
+      ac.destroy();
+      /* The next page (the residue remembers it): the same payment is no news. */
+      const ac2 = X.AL.createAlertCenter(account);
+      if (ac2.list().some((a) => a.kind === 'tally')) problems.push(`${path}: the same payment notified again on the next page`);
+      ac2.destroy();
+      await db.query('rollback to savepoint tt12');
+    }
+    return problems;
+  },
+
   'TT-11': async (db, M, X) => {
     const snap = async () => one(db, `select jsonb_build_object(
       'fns', (select jsonb_object_agg(p.oid::regprocedure::text, md5(p.prosrc) || ':' || coalesce(array_to_string(p.proacl, ','), ''))
@@ -508,6 +568,8 @@ async function loadReaders(root) {
     T: await import(pathToFileURL(join(root, 'src', 'data', 'tally-tasks.js')).href),
     S: await import(pathToFileURL(join(root, 'src', 'session', 'tally-sections.js')).href),
     W: await import(pathToFileURL(join(root, 'src', 'data', 'refusal-words.js')).href),
+    CSN: await import(pathToFileURL(join(root, 'src', 'session', 'character-session.js')).href),
+    AL: await import(pathToFileURL(join(root, 'src', 'shell', 'alerts.js')).href),
   };
 }
 
@@ -549,12 +611,14 @@ async function main() {
   const selftest = process.argv.includes('--selftest') || !!pick;
   if (!selftest) {
     let bad = 0;
-    for (const id of Object.keys(ARMS)) {
+    const only = (process.argv.find((a) => a.startsWith('--only=')) || '').slice(7);
+    for (const id of Object.keys(ARMS).filter((k) => !only || only.split(',').includes(k))) {
       let p;
       try { p = await runArm(db, M, X, id, null); } catch (e) { p = ['threw: ' + String(e && e.stack || e).slice(0, 500)]; }
       if (p.length) { bad++; for (const m of p) console.error(`✗ ${id}: ${m}`); } else console.log(`✓ ${id}`);
     }
-    console.log(bad ? `tally-tasks: ${bad} arm(s) red` : `tally-tasks: all ${Object.keys(ARMS).length} arms green`);
+    const ran = Object.keys(ARMS).filter((k) => !only || only.split(',').includes(k)).length;
+    console.log(bad ? `tally-tasks: ${bad} arm(s) red` : `tally-tasks: all ${ran} arms green`);
     process.exit(bad ? 1 : 0);
   }
   let missed = 0;

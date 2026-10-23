@@ -667,35 +667,43 @@ export const MONSTERS = {
       { id: 'jarls_rimetorc', ch: .0048, champion: true }] },
 
   /* ══ The Millrace Sewer: FORMATION rows (a party of up to four, FORMATION_BANDS).
-     Numbers, names and economy: the src/data/hunt-grounds.js header. ══════════ */
+     Numbers, names and economy: the src/data/hunt-grounds.js header. THE LOOT BANDS (batch 2, designer ladder 10-23):
+     the lower rooms share the Thicket's tier-1 legs (rats) and bodies (slimes), the upper rooms give the tier-2 helmets
+     (bats) and boots (kobolds), every piece in three weights about hourly for a solo hero AND a party of four at the
+     floor; the Rares are the made tier-2 weapons, so each has a drop door too: the slimes' sunk caster pieces, the
+     spiders' webbed bows, the kobolds' scrap hatchets and club. The Rat King keeps his Crown Shard (and his Kingsgrate
+     shield, 4%, joins when the spell-roles lane makes it). ══════════ */
   drain_rat: { name: 'Drain Rat', icon: '🐀', tier: 1, level: 10, cls: 'vermin', family: 'Vermin', formation: true,
     hp: 45, atk: 5, def: 0, xp: 154, gp: [4, 18], speed: 3400,
-    drops: [{ id: 'rat_tail', ch: .9 }, { id: 'bones', ch: .35 }, { id: 'rat_incisor', ch: .08 },
-      { id: 'bronze_boots', ch: .024, gear: true }] },
+    drops: [{ id: 'rat_tail', ch: .9, band: 'common' }, { id: 'bones', ch: .35, band: 'common' }, { id: 'rat_incisor', ch: .08, band: 'uncommon' },
+      { id: 'bronze_platelegs', ch: .03, band: 'scarce' }, { id: 'leather_pants', ch: .03, band: 'scarce' }, { id: 'apprentice_pants', ch: .03, band: 'scarce' }] },
   sump_slime: { name: 'Sump Slime', icon: '🟢', tier: 1, level: 10, cls: 'vermin', family: 'Vermin', formation: true,
     /* one override (element): the sump shrugs off every element. */
     elementWeak: null, elementImmune: ['ember', 'frost', 'poison'],
     hp: 50, atk: 4, def: 0, xp: 141, gp: [4, 14], speed: 2400,
-    drops: [{ id: 'slime_gel', ch: .95 }, { id: 'sump_membrane', ch: .08 }, { id: 'bronze_helm', ch: .032, gear: true }] },
+    drops: [{ id: 'slime_gel', ch: .95, band: 'common' }, { id: 'sump_membrane', ch: .08, band: 'uncommon' },
+      { id: 'bronze_platebody', ch: .05, band: 'scarce' }, { id: 'leather_body', ch: .05, band: 'scarce' }, { id: 'apprentice_body', ch: .05, band: 'scarce' },
+      { id: 'oak_wand', ch: .0036, band: 'rare' }, { id: 'oak_spellbook', ch: .0036, band: 'rare' }, { id: 'oak_staff', ch: .0036, band: 'rare' }] },
   culvert_bat: { name: 'Culvert Bat', icon: '🦇', tier: 1, level: 15, cls: 'vermin', family: 'Vermin', formation: true,
     hp: 70, atk: 9, def: 1, xp: 288, gp: [14, 38], speed: 4400,
-    drops: [{ id: 'bat_wing', ch: .7 }, { id: 'bones', ch: .5 }, { id: 'culvert_bat_fang', ch: .08 }, { id: 'iron_platelegs', ch: .024, gear: true }] },
+    drops: [{ id: 'bat_wing', ch: .7, band: 'common' }, { id: 'bones', ch: .5, band: 'common' }, { id: 'culvert_bat_fang', ch: .08, band: 'uncommon' },
+      { id: 'iron_helm', ch: .04, band: 'scarce' }, { id: 'studded_helmet', ch: .04, band: 'scarce' }, { id: 'adept_helmet', ch: .04, band: 'scarce' }] },
   cistern_spider: { name: 'Cistern Spider', icon: '🕷️', tier: 1, level: 20, cls: 'vermin', family: 'Vermin', formation: true,
     /* one override (element): venomous, so poison is a resist, not an immunity. */
     elementResist: ['poison'], elementImmune: [],
     hp: 90, atk: 9, def: 6, xp: 704, gp: [36, 90], speed: 3600,
-    drops: [{ id: 'silk_thread', ch: .3 }, { id: 'cistern_venom_gland', ch: .1 }, { id: 'iron_sword', ch: .048, gear: true }] },
+    drops: [{ id: 'silk_thread', ch: .3, band: 'common' }, { id: 'cistern_venom_gland', ch: .1, band: 'uncommon' }, { id: 'longbow', ch: .0055, band: 'rare' }, { id: 'oak_crossbow', ch: .0055, band: 'rare' }] },
   kobold_tosher: { name: 'Kobold Tosher', icon: '🦎', tier: 1, level: 13, cls: 'humanoid', family: 'Humanoid', formation: true,
     hp: 55, atk: 7, def: 1, xp: 192, gp: [9, 25], speed: 3200,
     /* junk: the Bone Chips it sifts out of the outfalls (the reachable source of Iron Fitting's and Prayer's chips) */
-    drops: [{ id: 'bones', ch: 1 }, { id: 'bone_chips', ch: .5 }, { id: 'kobold_scale', ch: .08 },
-      { id: 'bronze_platebody', ch: .032, gear: true }] },
+    drops: [{ id: 'bones', ch: 1, band: 'common' }, { id: 'bone_chips', ch: .5, band: 'common' }, { id: 'kobold_scale', ch: .08, band: 'uncommon' },
+      { id: 'iron_boots', ch: .05, band: 'scarce' }, { id: 'studded_boots', ch: .05, band: 'scarce' }, { id: 'adept_boots', ch: .05, band: 'scarce' }, { id: 'iron_sword', ch: .05, band: 'scarce' },
+      { id: 'iron_hatchets', ch: .0037, band: 'rare' }, { id: 'iron_warhammer', ch: .0037, band: 'rare' }] },
   rat_king: { name: 'Rat King', icon: '👑', tier: 1, level: 25, cls: 'vermin', family: 'Vermin', formation: true, boss: true,
     /* one override (element): fire glances off the knot; frost is the exam's answer. */
     elementResist: ['ember'],
     hp: 600, atk: 14, def: 4, xp: 3840, gp: [119, 238], speed: 2800,
-    drops: [{ id: 'rat_tail', ch: 1 }, { id: 'bones', ch: 1 }, { id: 'knotted_tails', ch: .15 }, { id: 'crown_shard', ch: .014 },
-      { id: 'iron_helm', ch: .026, gear: true }] },
+    drops: [{ id: 'rat_tail', ch: 1, band: 'common' }, { id: 'bones', ch: 1, band: 'common' }, { id: 'knotted_tails', ch: .15, band: 'uncommon' }, { id: 'crown_shard', ch: .014, band: 'rare' }] },
 
   /* ══ Meadowbrook Thicket: the gray wolves (one family, five roles; a solo ground).
      Names, roles and economy: the src/data/hunt-grounds.js header. THE LOOT BANDS' SAMPLE (designer 2026-10-23): one

@@ -303,12 +303,13 @@ const MUTATIONS = {
   lucky_item:           { rule: 'a', mk: () => mutated((ms) => { lastOf(ms, 'wild_boar').id = 'wolfbone_torc'; }) },
   wrong_slot:           { rule: 'a', mk: () => mutated((ms) => { lastOf(ms, 'scarecrow').id = 'bronze_platebody'; }) },
   wrong_tier:           { rule: 'a', mk: () => mutated((ms) => { lastOf(ms, 'wild_boar').id = 'iron_belt'; }) },
-  goblin_brute_total:   { rule: 'c2', mk: () => mutated((ms) => moveSalvage(ms, 'bog_vine', 'goblin_brute')) },
+  /* worn tier-3 gear sells at 0.12 of book (loot-bands.js), so the brute's own sword is doubled to cross the 5% line */
+  goblin_brute_total:   { rule: 'c2', mk: () => mutated((ms) => { moveSalvage(ms, 'bog_vine', 'goblin_brute'); ms.goblin_brute.drops.find((d) => d.id === 'steel_sword').ch = 0.02; }) },
   salvage_first:        { rule: 'e', mk: () => mutated((ms) => { ms.wild_boar.drops.unshift(ms.wild_boar.drops.pop()); }) },
   flag_removed:         { rule: 'e', mk: () => mutated((ms) => { delete lastOf(ms, 'wild_boar').salvage; }) },
   /* the gear exemptions stay narrow: an equipment row that loses its flag is a salvage-shaped row again, and a
      plain (non-gear) row sharing a salvage item is still a second source */
-  gear_flag_removed:    { rule: 'e', mk: () => mutated((ms) => { delete lastOf(ms, 'drain_rat').gear; }) },
+  gear_flag_removed:    { rule: 'e', mk: () => mutated((ms) => { delete ms.carrion_crow.drops.find((d) => d.gear).gear; }) },
   plain_second_source:  { rule: 'a', mk: () => mutated((ms) => { ms.drain_rat.drops.push({ id: 'leather_belt', ch: 0.001 }); }) },
   /* a loot-band row that loses its band is a salvage-shaped row again (the exemption is the band, not the ground) */
   band_removed:         { rule: 'e', mk: () => mutated((ms) => { delete ms.gray_whelp.drops.find((d) => d.id === 'bronze_boots').band; }) },

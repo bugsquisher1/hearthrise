@@ -104,6 +104,8 @@ export const PENDING_SOURCE = Object.freeze({
   stone_maul:        'cut: a stat copy of the Practice Club (merge rung 1 into the practice kit), systems-engineer',
   /* The loot bands took its one source, Old Grayjaw's equipment row (designer loot redesign 2026-10-23, lane b-loot-bands). */
   shortbow:          'cut: a stat copy of the Practice Bow (merge rung 1 into the practice kit), systems-engineer',
+  /* The Sewer's bats gave up their legs row for the tier-2 helmets (loot bands batch 2); the Glade's poachers carry the tier-2 legs (batch 3). */
+  iron_platelegs:    'sourced by the Glade poachers\' Scarce legs, the loot bands\' next batch (lane b-loot-bands), systems-engineer',
 });
 export const PENDING_CONSUMER = Object.freeze({
   prayer: 'w0e — Prayer does something in a fight (audit top-10 #8)',

@@ -1,0 +1,13 @@
+/* art/review/ui-skins-2026-10-24/content.css — applied in EVERY shot (today and each skin), with content-mock.js:
+   the old drops sections give way to the "% chance per kill" lines, styled here in today's look (tokens only). */
+.hw-hd-h:has(+ .hw-hd-sets), .hw-hd-sets, .hw-hd-h:has(+ .hw-hd-rares), .hw-hd-rares { display: none; }
+.hw-hd-odds { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; }
+.hw-hd-odd { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; column-gap: 8px; align-items: center; }
+.hw-hd-odd .hw-ico { width: 36px; height: 36px; background: var(--bg-1); box-shadow: var(--hw-well); }
+.hw-hd-odd .hw-ico .hh-icon { width: 32px; height: 32px; }
+.hw-hd-odd-main { display: flex; flex-direction: column; min-width: 0; }
+.hw-hd-odd-main b { font-weight: 700; color: var(--ink); }
+.hw-hd-odd.is-rare .hw-hd-odd-main b { color: var(--rar-rare); }
+.hw-hd-odd-main small { font-size: var(--t-micro); color: var(--ink-2); }
+.hw-hd-odd-p { font-weight: 700; color: var(--ink); font-variant-numeric: lining-nums tabular-nums; }
+.hw-hd-odds-note { margin: 6px 0 0; font-size: var(--t-micro); color: var(--ink-3); }

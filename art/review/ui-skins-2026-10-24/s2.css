@@ -1,0 +1,37 @@
+@import url('https://fonts.googleapis.com/css2?family=Jersey+15&display=swap');
+/* SKIN 2 — CARVED STONE. Today's charcoal tokens; the frame is cut stone blocks with mortar joints (stone
+   ramp of the world palette), the fills a stone grain; panels, rules and the picked row are CUT INTO the
+   stone (shadow up-left, lit lip down-right); a gold chevron marks the picked ground. Headings in Jersey 15,
+   a pixel display face, at whole multiples of its 15 px grid (30 px names, 15 px section heads). */
+.hs-win[data-hs-win="hunts"] {
+  --sk-frame: url('s2-frame.png'); --sk-frame-repeat: repeat;
+  --sk-tex: url('tex-stone.png');
+  --sk-icon: url('s1-swords.png');
+  --sk-rule-mid: none;
+  --sk-btn: url('gold-btn.png'); --sk-btn-down: url('gold-btn-down.png'); --sk-arrow: url('arrow.png');
+  --sk-head: 'Jersey 15', var(--f-label); --sk-head-w: 400;
+  --sk-title-size: 30px; --sk-title-ls: .08em; --sk-name-size: 30px; --sk-name-ls: .04em; --sk-section-size: 15px;
+  --sk-line: var(--bg-0);
+  --sk-rule: var(--bg-0);
+  --sk-lit: color-mix(in srgb, var(--hl) 12%, var(--bg-1));
+  --sk-panel-line: var(--bg-0);
+  --sk-sep: var(--bg-0);
+  --sk-btn-line: var(--bg-0);
+}
+/* Cut, not drawn: every line is a groove (dark) with a lit lip under it. */
+.hs-win[data-hs-win="hunts"] .hs-win-head { box-shadow: 0 2px 0 var(--sk-lit); }
+.hw-hd-band::after, .hw-hd-h::after { box-shadow: 0 2px 0 var(--sk-lit); }
+.hw-hunt { border-bottom-color: var(--bg-0); box-shadow: 0 2px 0 var(--sk-lit); }
+.hw-hunt:last-child { box-shadow: none; }
+.hw-hunt-list, .hw-hunt-detail { border-color: var(--bg-0) var(--sk-lit) var(--sk-lit) var(--bg-0); }
+.hs-win[data-hs-win="hunts"] .hs-key, .hs-win[data-hs-win="hunts"] .hs-close { border-color: var(--sk-lit) var(--bg-0) var(--bg-0) var(--sk-lit); background: var(--f2); }
+.hs-win[data-hs-win="hunts"] .hs-win-title { font-weight: 400; }
+.hw-hd-h { font-weight: 400; }
+/* The picked ground: sunk one step (darker, shadow up-left, lit lip down-right) with the gold chevron. */
+.hw-hunt.is-picked { background: var(--f0); box-shadow: inset 2px 2px 0 var(--bg-0), inset -2px -2px 0 var(--sk-lit); }
+.hw-hunt.is-picked::before { content: ''; position: absolute; left: 2px; top: calc(50% - 7px); width: 10px; height: 14px; background: url('s2-chevron.png') 0 0 / 10px 14px no-repeat; image-rendering: pixelated; }
+.hw-hunt.is-picked .hw-hunt-name { color: var(--gold-2); }
+.hw-go.is-picked { background: var(--f0); border-left-color: var(--gold); }
+.hw-hd-odd .hw-ico { box-shadow: inset 2px 2px 0 var(--bg-0), inset -2px -2px 0 var(--sk-lit); }
+/* Jersey 15 has no small caps: the title and the section heads are set in capitals. */
+.hs-win[data-hs-win="hunts"] .hs-win-title, .hw-hd-h { text-transform: uppercase; }

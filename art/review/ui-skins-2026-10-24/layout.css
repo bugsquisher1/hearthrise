@@ -1,0 +1,108 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   art/review/ui-skins-2026-10-24/layout.css — THE ONE LAYOUT every skin shares (THROWAWAY MOCK, not in src/).
+   Tyler's "B Forged Steel" reference read onto the real Hunts window: a 60 px title bar, the list and the
+   ground's page as two panels, larger type, the ground name in Cinzel (a place name, ART_DIRECTION §10),
+   section heads in Cinzel small caps with a rule running right, the lineup in three even columns, the drops
+   as chance-per-kill lines, a substantial Enter at the foot. Body text stays Alegreya Sans (the allowed body
+   face). A skin file sets only materials: the --sk-* values and the art.
+   Opacity (Tyler 10-24: a Settings slider): --panel-alpha (1 = solid, floor .6) fades ONLY the fills and their
+   texture; the frame, the lines and the text stay fully opaque.
+   ══════════════════════════════════════════════════════════════════════════ */
+.hs-win[data-hs-win="hunts"] {
+  --panel-alpha: 1;
+  --f0: color-mix(in srgb, var(--bg-0) calc(var(--panel-alpha) * 100%), transparent);
+  --f1: color-mix(in srgb, var(--bg-1) calc(var(--panel-alpha) * 100%), transparent);
+  --f2: color-mix(in srgb, var(--bg-2) calc(var(--panel-alpha) * 100%), transparent);
+  --f3: color-mix(in srgb, var(--bg-3) calc(var(--panel-alpha) * 100%), transparent);
+  background: none; border: 12px solid transparent; border-radius: 0;
+  border-image: var(--sk-frame) 6 / 12px var(--sk-frame-repeat, stretch); image-rendering: pixelated;
+  box-shadow: 0 12px 30px color-mix(in srgb, var(--world-shadow) 55%, transparent);
+}
+/* The window's fill and its texture, one layer, faded together by the one variable. */
+.hs-win[data-hs-win="hunts"]::before {
+  content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background: var(--sk-tex) 0 0 / 64px 64px repeat, var(--bg-1); opacity: var(--panel-alpha);
+}
+.hs-win[data-hs-win="hunts"] .hs-win-head { height: 60px; padding: 0 10px 0 16px; gap: 14px; background: var(--f0); border-bottom: 2px solid var(--sk-line); }
+.hs-win[data-hs-win="hunts"] .hs-win-head > svg.hs-glyph { display: none; }
+.hs-win[data-hs-win="hunts"] .hs-win-head::before { content: ''; flex: none; width: 32px; height: 32px; background: var(--sk-icon) center / 32px 32px no-repeat; }
+.hs-win[data-hs-win="hunts"] .hs-win-title { font-family: var(--sk-head, var(--f-display)); font-weight: 700; font-size: var(--sk-title-size, 22px); letter-spacing: var(--sk-title-ls, .14em); color: var(--sk-title, var(--gold-2)); }
+.hs-win[data-hs-win="hunts"] .hs-key, .hs-win[data-hs-win="hunts"] .hs-close {
+  width: 40px; height: 40px; display: grid; place-items: center; padding: 0; margin-left: 6px; border-radius: 0;
+  border: 2px solid var(--sk-btn-line); background: var(--f1); color: var(--ink-2); font-family: var(--f-display); font-size: 16px; line-height: 1;
+}
+.hs-win[data-hs-win="hunts"] .hs-close .hs-glyph { width: 20px; height: 20px; }
+.hs-win[data-hs-win="hunts"] .hs-win-body { padding: 14px 14px 0; }
+.hw-hunts-now, .hw-hunts-reco { margin: 0 2px 12px; font-size: 16px; color: var(--ink-3); }
+.hw-hunts-cols { grid-template-columns: 300px minmax(0, 1fr); column-gap: 14px; }
+
+/* The list: a panel of rows, each a recessed row when picked, with the skin's marker. */
+.hw-hunt-list { padding: 0; background: var(--f1); border: 2px solid var(--sk-panel-line); }
+.hw-hunt { position: relative; gap: 12px; padding: 14px 12px 15px 16px; border-left: 0; border-bottom: 2px solid var(--sk-sep); }
+.hw-hunt:last-child { border-bottom: 0; }
+.hw-hunt:hover { background: var(--f2); }
+.hw-hunt-glyph { width: 28px; height: 28px; margin-top: 2px; }
+.hw-hunt-glyph .hs-glyph { width: 26px; height: 26px; }
+.hw-hunt-name { font-size: 19px; color: var(--ink); }
+.hw-hunt-band, .hw-hunt-sub { font-size: 15.5px; line-height: 1.4; }
+.hw-hunt-band { color: var(--ink-2); }
+
+/* The page: name, level line, the rule, who may come and the theme, then the sections. */
+.hw-hunt-detail { padding: 18px 22px 0; background: var(--f1); border: 2px solid var(--sk-panel-line); border-left-color: var(--sk-page-edge, var(--sk-panel-line)); }
+.hw-hd-head { margin-bottom: 0; }
+.hw-hd-name { font-family: var(--sk-head, var(--f-display)); font-weight: var(--sk-head-w, 700); font-size: var(--sk-name-size, 32px); line-height: 1.1; letter-spacing: var(--sk-name-ls, .06em); color: var(--gold-2); }
+/* The rule under the level line: a 2 px line (one art px) with the skin's centre mark sitting on it. */
+.hw-hd-band { position: relative; margin-top: 4px; padding-bottom: 26px; font-size: 17px; color: var(--ink-2); }
+.hw-hd-band::after { content: ''; position: absolute; left: -4px; right: -4px; bottom: 12px; height: var(--sk-rule-h, 2px); background: var(--sk-rule); }
+.hw-hd-band::before { content: ''; position: absolute; z-index: 1; left: calc(50% - 7px); bottom: 6px; width: 14px; height: 14px; background: var(--sk-rule-mid) center / 14px 14px no-repeat; }
+.hw-hd-who { margin-top: 10px; font-size: 17px; color: var(--ink-2); }
+.hw-hd-theme { margin-top: 2px; font-size: 17px; line-height: 1.45; color: var(--ink); }
+.hw-hd-h { display: flex; align-items: center; gap: 14px; margin: 22px 0 12px; font-family: var(--sk-section-face, var(--sk-head, var(--f-display))); font-weight: 700; font-size: var(--sk-section-size, 15px); letter-spacing: .16em; color: var(--sk-section, var(--gold)); }
+.hw-hd-h::after { content: ''; flex: 1; height: var(--sk-rule-h, 2px); background: var(--sk-rule); }
+/* Who lives here: three even columns, one ground line a row, front-facing, each on its ground shadow. */
+.hw-hd-lineup { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); row-gap: 18px; column-gap: 8px; }
+.hw-hd-mon { width: 100%; }
+.hw-hd-stand { justify-content: center; padding: 0; border-bottom: 0; }
+.hw-hd-mon-name { margin-top: 6px; font-size: 16.5px; }
+.hw-hd-mon-how { font-size: 15px; color: var(--ink-3); }
+/* Drops, chance per kill: the icon in a sunk well, the item and its carrier, the chance at the right. */
+.hw-hd-odds { gap: 6px; }
+.hw-hd-odd { grid-template-columns: 40px minmax(0, 1fr) auto; column-gap: 12px; padding-right: 4px; }
+.hw-hd-odd .hw-ico { width: 40px; height: 40px; background: var(--f0); box-shadow: inset 2px 2px 0 var(--bg-0), inset -2px -2px 0 var(--sk-sep); }
+.hw-hd-odd-main b { font-size: 16.5px; }
+.hw-hd-odd-main small { font-size: 15px; color: var(--ink-3); }
+.hw-hd-odd-p { font-size: 17px; }
+.hw-hd-odds-note, .hw-hd-best, .hw-hunt-facts, .hw-before-line, .hw-go-note, .hw-hunt-pack, .hw-density-note { font-size: 15px; }
+.hw-go-name { font-size: 16.5px; }
+.hw-go-what { font-size: 15px; }
+/* The foot: Enter, a raised gold plate with an arrow, pressed when pressed. */
+/* The foot stays solid at any opacity: the page scrolls under it, and see-through would show text under text. */
+.hw-hd-foot { bottom: 0; margin: 14px -22px 0; padding: 12px 22px 14px; background: var(--bg-1); border-top: 2px solid var(--sk-sep); }
+.hw-hd-foot .hw-primary {
+  display: inline-flex; align-items: center; gap: 12px; min-height: 52px; padding: 0 18px 0 22px;
+  border: solid transparent; border-width: 6px 6px 10px; border-radius: 0; background: none;
+  border-image: var(--sk-btn) 3 3 5 3 fill / 6px 6px 10px stretch; image-rendering: pixelated;
+  font-family: var(--sk-head, var(--f-display)); font-weight: 700; font-size: 19px; letter-spacing: .1em; color: var(--bg-0);
+}
+.hw-hd-foot .hw-primary::after { content: ''; width: 6px; height: 10px; background: var(--sk-arrow) center / 6px 10px no-repeat; }
+.hw-hd-foot .hw-primary:hover:not(:disabled) { background: none; }
+.hw-hd-foot .hw-primary:active:not(:disabled) { border-image-source: var(--sk-btn-down); padding-top: 4px; }
+
+/* Phone: the same window as the sheet, its frame down the left edge; the same type, one step smaller. */
+@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
+  .hs-win[data-hs-win="hunts"] { border-width: 0 0 0 12px; border-image: var(--sk-frame) 6 / 0 0 0 12px var(--sk-frame-repeat, stretch); box-shadow: none; }
+  .hs-win[data-hs-win="hunts"] .hs-win-head { height: 48px; }
+  .hs-win[data-hs-win="hunts"] .hs-win-head::before { width: 28px; height: 28px; background-size: 32px 32px; }
+  .hs-win[data-hs-win="hunts"] .hs-win-title { font-size: 19px; }
+  .hs-win[data-hs-win="hunts"] .hs-key, .hs-win[data-hs-win="hunts"] .hs-close { width: 36px; height: 36px; }
+  .hs-win[data-hs-win="hunts"] .hs-win-body { padding: 10px 10px 0; }
+  .hw-hunt-detail { padding: 12px 14px 0; }
+  .hw-hd-name { font-size: 26px; }
+  .hw-hd-band, .hw-hd-who, .hw-hd-theme { font-size: 16px; }
+  .hw-hd-h { margin: 16px 0 10px; font-size: 14.5px; }
+  .hw-hd-mon-name { font-size: 15px; }
+  .hw-hd-mon-how { font-size: 14.5px; }
+  .hw-hd-foot { margin: 10px -14px 0; padding: 8px 14px 10px; }
+  .hw-hd-foot .hw-primary { min-height: 44px; font-size: 17px; }
+  .hw-hunts-now, .hw-hunts-reco { margin-bottom: 8px; font-size: 14.5px; }
+}

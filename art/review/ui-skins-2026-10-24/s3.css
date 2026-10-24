@@ -1,0 +1,28 @@
+@import url('https://fonts.googleapis.com/css2?family=Almendra+SC&display=swap');
+/* SKIN 3 — TOOLED LEATHER, in grays. Today's charcoal tokens; the frame is a rolled leather edge with a light
+   stitch line and rounded corners (stone ramp of the world palette), the fills a fine grain; the rules are
+   stitched lines; the picked ground is pressed into the leather with a gold ribbon tab. Headings in Almendra SC,
+   a calligraphic book face. */
+.hs-win[data-hs-win="hunts"] {
+  --sk-frame: url('s3-frame.png'); --sk-frame-repeat: repeat;
+  --sk-tex: url('tex-leather.png');
+  --sk-icon: url('s1-swords.png');
+  --sk-rule-mid: none;
+  --sk-btn: url('gold-btn.png'); --sk-btn-down: url('gold-btn-down.png'); --sk-arrow: url('arrow.png');
+  --sk-head: 'Almendra SC', var(--f-display); --sk-head-w: 400;
+  --sk-title-size: 24px; --sk-title-ls: .06em; --sk-name-size: 32px; --sk-name-ls: .02em; --sk-section-size: 16px;
+  --sk-line: color-mix(in srgb, var(--ink-3) 22%, var(--bg-1));
+  --sk-rule: url('s3-stitch.png') 0 0 / 10px 6px repeat-x; --sk-rule-h: 6px;
+  --sk-panel-line: color-mix(in srgb, var(--ink-3) 18%, var(--bg-1));
+  --sk-sep: color-mix(in srgb, var(--ink-3) 14%, var(--bg-1));
+  --sk-btn-line: color-mix(in srgb, var(--ink-3) 35%, var(--bg-1));
+}
+.hs-win[data-hs-win="hunts"] .hs-win-head { border-bottom: 0; background: var(--f0) url('s3-stitch.png') 0 100% / 10px 6px repeat-x; padding-bottom: 6px; }
+.hs-win[data-hs-win="hunts"] .hs-win-title, .hw-hd-h { font-weight: 400; }
+.hs-win[data-hs-win="hunts"] .hs-key, .hs-win[data-hs-win="hunts"] .hs-close { border-radius: 4px; }
+.hw-hunt-list, .hw-hunt-detail { border-radius: 4px; }
+/* The picked ground: pressed into the leather (darker, a soft inner edge) with a gold ribbon tab at its left. */
+.hw-hunt.is-picked { background: var(--f0); box-shadow: inset 0 2px 0 var(--bg-0), inset 2px 0 0 var(--bg-0); }
+.hw-hunt.is-picked::before { content: ''; position: absolute; left: 4px; top: 0; width: 8px; height: 44px; background: url('s3-tab.png') 0 0 / 8px 44px no-repeat; image-rendering: pixelated; }
+.hw-hunt.is-picked .hw-hunt-name { color: var(--gold-2); }
+.hw-go.is-picked { background: var(--f0); border-left-color: var(--gold); }

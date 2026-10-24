@@ -1,0 +1,24 @@
+/* SKIN 1 — FORGED STEEL (Tyler's reference, 2026-10-24). Charcoal and gold tokens; a thin steel frame with
+   square corner studs; a dim-gold rule with a small diamond; the picked row lighter, outlined in gold, with a
+   gold bar down its left and a one-art-px recess along its top and left edges. Art: ./make-art.mjs. */
+.hs-win[data-hs-win="hunts"] {
+  --sk-frame: url('s1-frame.png');
+  --sk-tex: url('tex-steel.png');
+  --sk-icon: url('s1-swords.png');
+  --sk-rule-mid: url('s1-diamond.png');
+  --sk-btn: url('gold-btn.png');
+  --sk-btn-down: url('gold-btn-down.png');
+  --sk-arrow: url('arrow.png');
+  --sk-line: color-mix(in srgb, var(--gold-3) 55%, var(--bg-0));
+  --sk-rule: color-mix(in srgb, var(--gold-3) 45%, var(--bg-1));
+  --sk-panel-line: color-mix(in srgb, var(--ink-3) 30%, var(--bg-1));
+  --sk-page-edge: color-mix(in srgb, var(--gold-3) 55%, var(--bg-1));
+  --sk-sep: color-mix(in srgb, var(--ink-3) 18%, var(--bg-1));
+  --sk-btn-line: color-mix(in srgb, var(--ink-3) 45%, var(--bg-1));
+}
+.hw-hunt.is-picked {
+  background: var(--f3);
+  box-shadow: inset 0 0 0 2px var(--gold), inset 8px 0 0 var(--gold), inset 10px 4px 0 var(--f0);
+}
+.hw-hunt.is-picked .hw-hunt-glyph { color: var(--ink-2); }
+.hw-go.is-picked { background: var(--f3); border-left-color: var(--gold); }

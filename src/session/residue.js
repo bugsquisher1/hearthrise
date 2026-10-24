@@ -155,6 +155,16 @@ function sanitizeWinSize(v) {
   return out;
 }
 
+/* The coach line's fold (src/shell/launcher.js coachFoldOf): folded or not, and the card id the player last had in
+   front of them (a goal id joins its parts, so it may run long). Display preference: gates and spends nothing. */
+function sanitizeCoach(v) {
+  const out = {};
+  if (!isObj(v)) return out;
+  if (v.min === true) out.min = true;
+  if (typeof v.seen === 'string' && /^[a-z0-9_]{1,256}$/.test(v.seen)) out.seen = v.seen;
+  return out;
+}
+
 /** field -> sanitizer. The keys ARE the allowlist. */
 const SANITIZERS = Object.freeze({
   hudLayout: sanitizeHudLayout,     // display preference: the HUD layout; gates and spends nothing
@@ -168,6 +178,7 @@ const SANITIZERS = Object.freeze({
   huntSummaries: sanitizeSummaries, // display state: the last few hunts' summary cards (src/hunt-view/summary-model.js); gates and spends nothing
   awaySeen: sanitizeAwaySeen,       // display state: the away recap's last-seen stamp (src/shell/away-recap.js); gates and spends nothing
   winSize: sanitizeWinSize,         // display preference: a resizable window's size (src/shell/window-sizes.js); gates and spends nothing
+  coach: sanitizeCoach,             // display preference: the coach line folded to its title (src/shell/launcher.js); gates and spends nothing
 });
 
 export const RESIDUE_FIELDS = Object.freeze(Object.keys(SANITIZERS));

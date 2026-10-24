@@ -645,9 +645,13 @@ async function pageRules(overrides, shots) {
         else {
           await nb.click({ button: 'right' });
           await page.waitForTimeout(900);
+          /* Esc is pressed for the MENU only: with no menu up it closes the newest window (window-manager onEscape),
+             and the chat closed there left every later step without its window. */
           if (!await page.evaluate(() => !!document.querySelector('.hw-menu.is-on'))) fails.push('CW-6 [' + tag + '] the menu opened outside the bag closed by itself');
-          await page.keyboard.press('Escape');
-          if (await page.evaluate(() => !!document.querySelector('.hw-menu.is-on'))) fails.push('CW-6 [' + tag + '] Esc did not close the menu');
+          else {
+            await page.keyboard.press('Escape');
+            if (await page.evaluate(() => !!document.querySelector('.hw-menu.is-on'))) fails.push('CW-6 [' + tag + '] Esc did not close the menu');
+          }
         }
         await page.mouse.click(2, vp.height - 2);
         await page.keyboard.press('b');
@@ -655,9 +659,14 @@ async function pageRules(overrides, shots) {
       }
       // CW-10 (2027-01-17): a line already drawn takes the server's current name at the next read (hr_chat_row
       // renders the hero's current name; the catch-up after a re-join reads it), and its menu target with it.
-      if (!phone) {
+      /* A step whose window a mutant (or a real break) closed is a RECORDED fail naming what is open, never a
+         30 s click timeout that kills the sweep with every later mutant unjudged (v0.2.44 run 40131714242). */
+      const globalTab = !phone && await page.$('[data-hs-win="chat"]:not(.is-leaving) [data-tab="global"]');
+      if (!phone && !globalTab) fails.push('CW-10 [' + tag + '] no chat Global tab to press; open windows: '
+        + JSON.stringify(await page.evaluate(() => Array.from(document.querySelectorAll('[data-hs-win]')).map((w) => w.getAttribute('data-hs-win') + (w.classList.contains('is-leaving') ? '(leaving)' : '')))));
+      if (globalTab) {
         const R = (name) => row({ id: '00000000-0000-4000-8000-0000000c0010', from_name: name, body: 'renamed later', created_at: new Date().toISOString() });
-        await page.click('[data-hs-win="chat"] [data-tab="global"]');
+        await globalTab.click();
         s.recent = [R('Bree Hollow')];
         await page.evaluate(() => window.__hub.join('chat:global'));
         const sel = '[data-hs-win="chat"] .hc-log.is-talk.is-on li[data-key="00000000-0000-4000-8000-0000000c0010"] .hc-name';

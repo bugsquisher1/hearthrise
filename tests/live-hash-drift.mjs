@@ -1667,15 +1667,22 @@ const MUTATIONS = {
     repl: "    when 'hunt_read' then v_limit := 60;\n    when 'hr_mut_bucket' then v_limit := 9999;\n",
   },
   /* 2027-01-15: the applied hr_social_resolve fix (ONE restatement, a literal-oid md5(prosrc) pin) was invisible:
-     214 tracked names did not include it. Both plants ride its final author. Before rule `restate`, neither key
-     appears: hr_social_resolve had no baseline entry to drift from, and a body restated once is derived by nothing. */
+     214 tracked names did not include it. Before rule `restate`, neither key appears: a body tracked by `restate`
+     ALONE has no other rule to drift from, and a body created once is derived by nothing.
+     The plant needs a body rule `restate` tracks and NOTHING else (`only`, checked before the replay): 2027-01-17-
+     social-pass.sql §0 now md5-pins hr_social_resolve, so it is `pin`-tracked too and a plant there is refused at
+     replay by that pin (v0.2.44 run 40131714242), which proves nothing about this rule. hr_market_rules is restated
+     by one file (2027-01-12-market-account.sql) and pinned by none; when a later file pins it, `only` names it. */
   restated_once_untracked: {
-    file: '2027-01-15-social-resolve-character-names.sql',
-    what: 'a comment is edited into hr_social_resolve (restated by ONE migration) after it was applied, and a '
-        + 'new body is created once and never pinned: both are bodies production is believed to carry',
-    expect: ['replay hr_social_resolve(p_target text)', 'untracked hr_mut_restated_once'],
-    find: "  end\n$$;\nrevoke execute on function public.hr_social_resolve(text) from public, anon, authenticated, service_role;\n",
-    repl: "  end -- [edited after apply]\n$$;\nrevoke execute on function public.hr_social_resolve(text) from public, anon, authenticated, service_role;\n"
+    file: '2027-01-12-market-account.sql',
+    only: 'hr_market_rules',
+    what: 'a comment is edited into hr_market_rules (restated by ONE migration, pinned by none) after it was '
+        + 'applied, and a new body is created once and never pinned: both are bodies production is believed to carry',
+    expect: ['replay hr_market_rules()', 'untracked hr_mut_restated_once'],
+    find: '    from public.hr_market_config c\n$$;\n'
+        + 'revoke execute on function public.hr_market_rules() from public, anon, authenticated, service_role, hr_engine;\n',
+    repl: '    from public.hr_market_config c -- [edited after apply]\n$$;\n'
+        + 'revoke execute on function public.hr_market_rules() from public, anon, authenticated, service_role, hr_engine;\n'
         + 'create or replace function public.hr_mut_restated_once(p_slot integer) returns integer language sql stable as $m$ select p_slot $m$;\n'
         + 'revoke execute on function public.hr_mut_restated_once(integer) from public, anon, authenticated, service_role;\n',
   },
@@ -1704,6 +1711,12 @@ async function mutate() {
     try {
       /* The sweep reads the SAME mutated text the replay builds, so a planted body is derived like a real one. */
       const trackedNow = await sweep(undefined, patches);
+      if (m.only && !restateOnlyOf(trackedNow).has(m.only)) {
+        console.error(`  ✗  ${id} — ${m.only} is no longer tracked by rule \`restate\` alone (rules: `
+          + `${[...((trackedNow.get(m.only) || {}).rules || [])].join(', ') || 'none'}), so a catch would not be this rule's.\n`
+          + '     Re-plant on a body restateOnlyOf() names (one restatement, no later pin).');
+        slipped += 1; continue;
+      }
       const { rows } = await measureReplay(patches);
       got = classifyReplay(rows, base, [...trackedNow.keys()], droppedIn(trackedNow), restateOnlyOf(trackedNow)).findings;
     } catch (e) {

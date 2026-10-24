@@ -4,6 +4,14 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+## 2026-10-24 · qa-engineer · v0.2.44 release reds, all harness-side (lane a-v0244-ci, tests only)
+
+| # | Found | Affected | Action |
+|---|---|---|---|
+| 1 | P2 · account-gold `per_hero_read` planted in hr_state_of in 2026-12-15-account-gold.sql; 2027-01-18-dead-surfaces-cut.sql restates it last, so the plant never ran on production's body (staleAnchors refused it). The chain-end envelope had no one-purse check at all (G2/G8 asked only as of account-gold). | `tests/account-gold.mjs` | Done: plant in the cut file (its §4 blinded), column kept via `also` in account-gold; G2 + G8 now also run at the chain end (caught by G2 there). |
+| 2 | P2 · live-hash-drift `restated_once_untracked` planted on hr_social_resolve, which 2027-01-17-social-pass.sql §0 now md5-pins: rules restate+pin, the replay refused at that pin. | `tests/live-hash-drift.mjs` | Done: re-planted on hr_market_rules (restate-only); a new `only` pre-check names the next time the target gains a rule. |
+| 3 | P2 · chat-social: under the first page mutant (menu closes itself) CW-6 pressed Esc anyway; window-manager onEscape closed the chat, `b` closed the bag, and CW-10's page.click timed out, killing the sweep. Clean control green: not a player break. | `tests/chat-social.mjs` | Done: Esc only with a menu up; CW-10's missing tab is a recorded fail naming the open windows. |
+
 ## 2026-10-24 · qa-engineer · CI speed and three blind guards (lane b-ci-speed, tests only)
 
 | # | Found | Affected | Action |

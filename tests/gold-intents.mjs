@@ -1230,7 +1230,9 @@ async function run(mutate) {
     ok(spent.includes(it.rateBucketFor('shop_buy')),
       `G12: the call spent [${spent}] but the registry names '${it.rateBucketFor('shop_buy')}'. The `
       + 'registry does not describe the code, which means it describes nothing.');
-    ok(!spent.includes('accrue') && !spent.includes('activity'),
+    /* `accrue` is keyed per hero ('accrue:<slot>', 2027-01-01-server-perf.sql): match both forms, or a
+       shop call spending a hero's accrue budget would read as clean. */
+    ok(!spent.some((b) => b === 'accrue' || String(b).startsWith('accrue:')) && !spent.includes('activity'),
       `G12: a shop call spent [${spent}] — a shopping spree must not exhaust the budget that pays `
       + 'the player\'s night');
     /* The two gold verbs SHARE one bucket, deliberately (intents.js). Asserted so

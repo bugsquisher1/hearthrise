@@ -2554,7 +2554,8 @@ jobs:
   db-replay-6:
     runs-on: ubuntu-latest
     # 21 + frame-push-revive and chat-broadcast (2026-10-23: ~3 min measured locally, x2 = 6, rounded to 25 with slack)
-    timeout-minutes: 25
+    # + server-perf (2026-10-24: ~1.5 min measured locally, x2 = 3) = 28
+    timeout-minutes: 28
 
     steps:
       - uses: actions/checkout@v4
@@ -2700,6 +2701,19 @@ jobs:
         run: |
           node tests/chat-broadcast.mjs
           node tools/mutant-gate.mjs node tests/chat-broadcast.mjs --mutate
+
+      # SERVER PERF (2027-01-01-server-perf.sql). Each hero of an account has its
+      # own accrue budget (two heroes, 30 each: red on the old per-account gate),
+      # activity stays the account's; both hunt rosters read character_presence,
+      # never the dead last_seen_at; the cron detector keeps a week of pg_cron run
+      # history and logs its phase times. --mutate plants 15 defects the file's §4
+      # must refuse by name. MEASURED locally 2026-10-24: ~45 s plain cold (the
+      # chain boot) + 40 s mutate.
+      - name: Server perf — per-hero accrue budget, rosters on live presence, cron history kept a week (base + mutate)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/server-perf.mjs
+          node tools/mutant-gate.mjs node tests/server-perf.mjs --mutate
 
       # UTC MIDNIGHT REPLAY, SHARD 2 of 2 (2026-10-24; shard 1 and the --selftest are the
       # utc-midnight-replay job, see there). Its arms set HR_PGLITE_CACHE=0 themselves.

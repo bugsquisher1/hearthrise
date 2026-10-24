@@ -24,10 +24,10 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-10-24",
- "replay_ms": 3862,
+ "replay_ms": 56526,
  "counts": {
-  "tracked_names": 195,
-  "entries": 148
+  "tracked_names": 201,
+  "entries": 154
  },
  "functions": [
   {
@@ -195,6 +195,28 @@
    "replay": {
     "md5": "29d33ecb4c29c7a354a5a00fd3a9c73b",
     "norm_len": 5691,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_admitted(p_user uuid)",
+   "name": "hr_admitted",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-10-21-closed-mode.sql"
+   ],
+   "live": {
+    "md5": "12541f7c9cae283c2ef7901e2873d591",
+    "norm_len": 359,
+    "measured": "2026-10-24",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "12541f7c9cae283c2ef7901e2873d591",
+    "norm_len": 359,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -606,6 +628,29 @@
    "agree": true
   },
   {
+   "sig": "hr_cron_health_ex(p_window interval, p_scale numeric)",
+   "name": "hr_cron_health_ex",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-09-03-cron-health-generalized.sql",
+    "2027-01-01-server-perf.sql"
+   ],
+   "live": {
+    "md5": "44a1075d324caaa8dd47cc659fa6807d",
+    "norm_len": 15360,
+    "measured": "2026-10-24",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "44a1075d324caaa8dd47cc659fa6807d",
+    "norm_len": 15360,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
    "sig": "hr_day_budget_limits()",
    "name": "hr_day_budget_limits",
    "tracked_by": [
@@ -650,6 +695,28 @@
    "replay": {
     "md5": "04b8d369d4f14e0aa89aa98a457e405b",
     "norm_len": 1120,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_db_sample(p_top integer)",
+   "name": "hr_db_sample",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-09-03-cron-health-generalized.sql"
+   ],
+   "live": {
+    "md5": "21809bc95ca77d53360e2986f4cc511b",
+    "norm_len": 2007,
+    "measured": "2026-10-24",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "21809bc95ca77d53360e2986f4cc511b",
+    "norm_len": 2007,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -1679,17 +1746,41 @@
     "pin"
    ],
    "touched_by": [
-    "2026-10-22-hunt-sessions-settle.sql"
+    "2026-10-22-hunt-sessions-settle.sql",
+    "2027-01-01-server-perf.sql"
    ],
    "live": {
-    "md5": "a833ea1df771c5f1f96d6fa0e859f488",
-    "norm_len": 2376,
+    "md5": "25f34600ead2f045e60b1c912774322f",
+    "norm_len": 2638,
     "measured": "2026-10-24",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "a833ea1df771c5f1f96d6fa0e859f488",
-    "norm_len": 2376,
+    "md5": "25f34600ead2f045e60b1c912774322f",
+    "norm_len": 2638,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_hunt_roster_sharded(p_prefix text, p_body_max integer, p_lease_ms integer)",
+   "name": "hr_hunt_roster_sharded",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-11-04-hunt-tick-shards.sql",
+    "2027-01-01-server-perf.sql"
+   ],
+   "live": {
+    "md5": "ac4886c8f9f13ce7808985ce0a3f1c7e",
+    "norm_len": 3809,
+    "measured": "2026-10-24",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "ac4886c8f9f13ce7808985ce0a3f1c7e",
+    "norm_len": 3809,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -2560,17 +2651,62 @@
     "2026-08-15-activity-intent.sql",
     "2026-08-15-gold-intents.sql",
     "2026-08-16-claim-reward.sql",
-    "2026-10-21-closed-mode.sql"
+    "2026-10-21-closed-mode.sql",
+    "2027-01-01-server-perf.sql"
    ],
    "live": {
-    "md5": "6b6e4a8e394ed77784cf14c57f65a5ba",
-    "norm_len": 2462,
+    "md5": "4a3f33b3cebebfc84ce6f19e710f599a",
+    "norm_len": 3287,
     "measured": "2026-10-24",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "6b6e4a8e394ed77784cf14c57f65a5ba",
-    "norm_len": 2462,
+    "md5": "4a3f33b3cebebfc84ce6f19e710f599a",
+    "norm_len": 3287,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_rate_ok(p_user uuid, p_bucket text, p_limit integer, p_window interval)",
+   "name": "hr_rate_ok",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-08-11-player-state.sql"
+   ],
+   "live": {
+    "md5": "1c29c3408c156e93547c323f21b37eea",
+    "norm_len": 675,
+    "measured": "2026-10-24",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "1c29c3408c156e93547c323f21b37eea",
+    "norm_len": 675,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_rate_over(p_user uuid, p_bucket text)",
+   "name": "hr_rate_over",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-08-11-player-state.sql"
+   ],
+   "live": {
+    "md5": "ee5ac4592e6718d31df98694c7381ef0",
+    "norm_len": 305,
+    "measured": "2026-10-24",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "ee5ac4592e6718d31df98694c7381ef0",
+    "norm_len": 305,
     "source": "computed-from-replay"
    },
    "agree": true

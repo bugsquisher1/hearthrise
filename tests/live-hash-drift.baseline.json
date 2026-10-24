@@ -24,10 +24,10 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-10-24",
- "replay_ms": 2887,
+ "replay_ms": 2710,
  "counts": {
-  "tracked_names": 652,
-  "entries": 509
+  "tracked_names": 655,
+  "entries": 512
  },
  "functions": [
   {
@@ -3080,6 +3080,29 @@
    "agree": true
   },
   {
+   "sig": "hr_cron_failed_runs(p_runs regclass, p_jobs regclass, p_lo bigint, p_window interval)",
+   "name": "hr_cron_failed_runs",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-01-16-cron-health-fast.sql"
+   ],
+   "live": {
+    "md5": "df6f05b288179d11d0c1c4f05ac9bdd9",
+    "norm_len": 722,
+    "measured": "2026-10-24",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "df6f05b288179d11d0c1c4f05ac9bdd9",
+    "norm_len": 722,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
    "sig": "hr_cron_health(p_window interval)",
    "name": "hr_cron_health",
    "tracked_by": [
@@ -3106,22 +3129,70 @@
    "sig": "hr_cron_health_ex(p_window interval, p_scale numeric)",
    "name": "hr_cron_health_ex",
    "tracked_by": [
+    "chain",
     "pin",
     "restate"
    ],
    "touched_by": [
     "2026-09-03-cron-health-generalized.sql",
-    "2027-01-01-server-perf.sql"
+    "2027-01-01-server-perf.sql",
+    "2027-01-16-cron-health-fast.sql"
    ],
    "live": {
-    "md5": "44a1075d324caaa8dd47cc659fa6807d",
-    "norm_len": 15360,
+    "md5": "1db573e8a7584cccd5e7c3ba886bee2c",
+    "norm_len": 16135,
     "measured": "2026-10-24",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "44a1075d324caaa8dd47cc659fa6807d",
-    "norm_len": 15360,
+    "md5": "1db573e8a7584cccd5e7c3ba886bee2c",
+    "norm_len": 16135,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_cron_run_floor(p_runs regclass, p_window interval)",
+   "name": "hr_cron_run_floor",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-01-16-cron-health-fast.sql"
+   ],
+   "live": {
+    "md5": "8bd553a1452b03c256bc125847c21117",
+    "norm_len": 712,
+    "measured": "2026-10-24",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "8bd553a1452b03c256bc125847c21117",
+    "norm_len": 712,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_cron_stale_jobs(p_runs regclass, p_jobs regclass, p_lo bigint)",
+   "name": "hr_cron_stale_jobs",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-01-16-cron-health-fast.sql"
+   ],
+   "live": {
+    "md5": "f006362af74aff206ed5547d4a16794f",
+    "norm_len": 1059,
+    "measured": "2026-10-24",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "f006362af74aff206ed5547d4a16794f",
+    "norm_len": 1059,
     "source": "computed-from-replay"
    },
    "agree": true

@@ -16,12 +16,12 @@
 // Every control is off while an intent is in flight; nothing changes on
 // screen until the re-read envelope says so.
 // ════════════════════════════════════════════════════════════════════════
-import { staminaRefillOf, blessingsOf, goldOf } from '../../session/item-sections.js?v=0.2.40';
-import { staminaOf } from '../../session/hunt-sections.js?v=0.2.40';
-import { text, cls, prop, rows, element } from '../../render/paint.js?v=0.2.40';
-import { whole, gold } from '../../render/format.js?v=0.2.40';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.40';
-import { runIntent } from '../intent-words.js?v=0.2.40';
+import { staminaRefillOf, blessingsOf, goldOf } from '../../session/item-sections.js?v=0.2.41';
+import { staminaOf } from '../../session/hunt-sections.js?v=0.2.41';
+import { text, cls, prop, rows, element } from '../../render/paint.js?v=0.2.41';
+import { whole, gold } from '../../render/format.js?v=0.2.41';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.41';
+import { runIntent } from '../intent-words.js?v=0.2.41';
 
 const ROMAN = Object.freeze(['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX']);
 const SCRATCH = new WeakMap();

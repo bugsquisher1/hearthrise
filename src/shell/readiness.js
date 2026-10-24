@@ -10,13 +10,13 @@
 //
 //   readinessOf(cs) → { name, ready, checks: [{ id, ok, text }], short: [words] }
 // ════════════════════════════════════════════════════════════════════════
-import { settingsOf, staminaOf, analyzerOf } from '../session/hunt-sections.js?v=0.2.40';
-import { bagOf, equipmentOf, goldOf, nameOf } from '../session/item-sections.js?v=0.2.40';
-import { kindOf } from './bag-model.js?v=0.2.40';
-import { itemName } from './widgets/bits.js?v=0.2.40';
-import { storeOf } from './bar-draft.js?v=0.2.40';
-import { whole } from '../render/format.js?v=0.2.40';
-import { CONSUMABLES } from '../data/consumables.js?v=0.2.40';
+import { settingsOf, staminaOf, analyzerOf } from '../session/hunt-sections.js?v=0.2.41';
+import { bagOf, equipmentOf, goldOf, nameOf } from '../session/item-sections.js?v=0.2.41';
+import { kindOf } from './bag-model.js?v=0.2.41';
+import { itemName } from './widgets/bits.js?v=0.2.41';
+import { storeOf } from './bar-draft.js?v=0.2.41';
+import { whole } from '../render/format.js?v=0.2.41';
+import { CONSUMABLES } from '../data/consumables.js?v=0.2.41';
 
 const PLURAL = Object.freeze({ food: 'food', drink: 'drinks', ammo: 'ammo' });
 const PLURAL_CAP = Object.freeze({ food: 'Food', drink: 'Drink', ammo: 'Ammo' });

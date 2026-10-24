@@ -5,6 +5,16 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.41 — 2026-10-24 (Forged Steel)
+
+**A new look.** Every window, the HUD, and the sign-in, characters and hero creation screens are now made of forged steel: steel frames, gold headings, clearer selected rows, and a solid gold button for the main thing each window does.
+
+**Pick how see-through windows are.** Settings > Interface has a new Window opacity slider, from 60% to 100%. It stays where you left it after a reload.
+
+**The Hunts page scrolls in its own box**, so the Enter button never covers anything.
+
+**Smaller fixes.** Hero creation fits on a landscape phone, chat opens on the newest line instead of the oldest, and the death popup is clearer about what you lost.
+
 ## v0.2.40 — 2026-10-24 (No more frozen tabs)
 
 **Fixed a freeze.** With a tally task showing under the hunt analyzer, the game could lock up for good when a party hunt started, when you switched heroes, or while loading a hero (a blank page). It no longer does. Your heroes kept hunting on the server the whole time, so nothing was lost.

@@ -15,16 +15,16 @@
 // Every control is off while an intent is in flight; counts and gold change
 // only from the re-read envelope.
 // ════════════════════════════════════════════════════════════════════════
-import { shopOf, bagOf, rulesOf, goldOf } from '../../session/item-sections.js?v=0.2.40';
-import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.40';
-import { whole, gold } from '../../render/format.js?v=0.2.40';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.40';
-import { itemIconHtml, itemName } from '../widgets/bits.js?v=0.2.40';
-import { kindOf, sellPlan, lootToSell } from '../bag-model.js?v=0.2.40';
-import { runIntent } from '../intent-words.js?v=0.2.40';
-import { showTip, hideTip } from './item-tip.js?v=0.2.40';
-import { upgradeOf, upgradeLineHtml, patchUpgradeLine, equipUpgrades } from '../widgets/upgrade-line.js?v=0.2.40';
-import { gearLocked } from '../gear-gate.js?v=0.2.40';
+import { shopOf, bagOf, rulesOf, goldOf } from '../../session/item-sections.js?v=0.2.41';
+import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.41';
+import { whole, gold } from '../../render/format.js?v=0.2.41';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.41';
+import { itemIconHtml, itemName } from '../widgets/bits.js?v=0.2.41';
+import { kindOf, sellPlan, lootToSell } from '../bag-model.js?v=0.2.41';
+import { runIntent } from '../intent-words.js?v=0.2.41';
+import { showTip, hideTip } from './item-tip.js?v=0.2.41';
+import { upgradeOf, upgradeLineHtml, patchUpgradeLine, equipUpgrades } from '../widgets/upgrade-line.js?v=0.2.41';
+import { gearLocked } from '../gear-gate.js?v=0.2.41';
 
 const TABS = Object.freeze([['buy', 'Buy'], ['sell', 'Sell']]);
 const QTYS = Object.freeze([1, 5, 10, 25, 50, 100]);

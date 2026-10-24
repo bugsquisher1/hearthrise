@@ -2555,6 +2555,8 @@ jobs:
     runs-on: ubuntu-latest
     # 21 + frame-push-revive and chat-broadcast (2026-10-23: ~3 min measured locally, x2 = 6, rounded to 25 with slack)
     # + server-perf (2026-10-24: ~1.5 min measured locally, x2 = 3) = 28
+    # market-v2 --selftest grew 57 -> ~100 s locally (lane c-market-account, 2026-10-24; 22-37 s
+    # on GitHub before): worst 18.0 min of 28 (64%) on run 40069060383, ~18.3 projected (65%). Kept.
     timeout-minutes: 28
 
     steps:
@@ -3079,6 +3081,27 @@ jobs:
           node tests/hunt-live.mjs
           node tools/mutant-gate.mjs node tests/hunt-live.mjs --mutate
 
+      # MOVED HERE FROM economy-selftests 2026-10-24 (lane i-v0241): the market lane
+      # grew the fuzz (Storage + packed hunt supplies, 22 plants), --selftest ~270 ->
+      # ~370 s locally. economy-selftests ran 18.7-37.2 min of its 61 (61%) on runs
+      # 39788815419..40072613184, this step 146-351 s of it; on v0.2.38's slow runner
+      # (35.3 min, no fuzz) plus the grown fuzz (~466 s) it projected ~44 min (73%).
+      # This job ran 0.5-13.6 min of 56. economy-selftests ~36 min worst (59%), this
+      # job ~22.5 (40%, one cold chain-prefix build here). Its own PGlite chain, no browser.
+      # THE CONSERVATION FUZZ. Randomised, seeded operations across several
+      # characters against the REAL server-authority migrations, running on an
+      # in-process PostgreSQL — no database credentials, no branch, nothing to
+      # clean up. --selftest runs the clean pass AND plants known conservation
+      # violations, demanding that every one of them is caught: a fuzz that
+      # cannot fail on a planted bug is decoration, and this repo has shipped six
+      # always-null probes. Bounded op count here; soak with
+      # `npm run test:conservation:soak`.
+      - name: Conservation fuzz + injection selftest
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/conservation-fuzz.mjs --ops=400
+          node tools/mutant-gate.mjs node tests/conservation-fuzz.mjs --selftest --ops=400
+
   # ── utc-midnight-replay ── SPLIT OUT OF db-replay 2026-09-19 (b550). The
   # GitHub run on ab7572e7 (branch next) measured db-replay's own steps: PGlite
   # snapshot cache 46 s, schema drift 73 s, THIS GUARD 411 s, ledger rollup
@@ -3562,19 +3585,8 @@ jobs:
           node tests/cadence-recovery-floor.mjs
           node tools/mutant-gate.mjs node tests/cadence-recovery-floor.mjs --selftest
 
-      # THE CONSERVATION FUZZ. Randomised, seeded operations across several
-      # characters against the REAL server-authority migrations, running on an
-      # in-process PostgreSQL — no database credentials, no branch, nothing to
-      # clean up. --selftest runs the clean pass AND plants ten known
-      # conservation violations, demanding that every one of them is caught: a
-      # fuzz that cannot fail on a planted bug is decoration, and this repo has
-      # shipped six always-null probes. Bounded op count here (~25s); soak with
-      # `npm run test:conservation:soak`.
-      - name: Conservation fuzz + injection selftest
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/conservation-fuzz.mjs --ops=400
-          node tools/mutant-gate.mjs node tests/conservation-fuzz.mjs --selftest --ops=400
+      # (Conservation fuzz + injection selftest — MOVED to artisan-selftest 2026-10-24,
+      # lane i-v0241; the measurements are on the step there.)
 
       # THE PLAYER INTENTS. Both run the REAL Edge-Function modules — the same
       # bytes tools/pack-edge.mjs ships — behind their one injected `exec` seam,

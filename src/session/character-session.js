@@ -43,19 +43,19 @@
 // only things it sends of its own are the allowlisted residue and intents.
 // ════════════════════════════════════════════════════════════════════════
 
-import { applyEnvelope, frameEnvelope, withResidue } from './envelope.js?v=0.2.40';
-import { createTimeline } from '../hunt-view/timeline.js?v=0.2.40';
-import { LiveLink } from './live-link.js?v=0.2.40';
-import { RESIDUE_FIELDS, sanitizeResidueField, unconfirmedResidue } from './residue.js?v=0.2.40';
-import { SESSION_CONFIG } from './config.js?v=0.2.40';
-import { edgeBody } from './edge-intents.js?v=0.2.40';
-import { leaveAskOf, pendingLeaveAt, leaveCountdown, closeInMs } from './hunt-leave.js?v=0.2.40';
-import { HuntPoll, pollDelayMs } from './hunt-poll.js?v=0.2.40';
-import { AskPacer } from './ask-pacer.js?v=0.2.40';
-import { createIntentLedger } from './intent-ledger.js?v=0.2.40';
-import { frameTopic, reconnectDelay } from './frame-channel.js?v=0.2.40';
-import { refusalOf, settleRefusalOf } from './refusal.js?v=0.2.40';
-import { SERVER_ONLY_EVENTS } from '../core/hunt/events.js?v=0.2.40';
+import { applyEnvelope, frameEnvelope, withResidue } from './envelope.js?v=0.2.41';
+import { createTimeline } from '../hunt-view/timeline.js?v=0.2.41';
+import { LiveLink } from './live-link.js?v=0.2.41';
+import { RESIDUE_FIELDS, sanitizeResidueField, unconfirmedResidue } from './residue.js?v=0.2.41';
+import { SESSION_CONFIG } from './config.js?v=0.2.41';
+import { edgeBody } from './edge-intents.js?v=0.2.41';
+import { leaveAskOf, pendingLeaveAt, leaveCountdown, closeInMs } from './hunt-leave.js?v=0.2.41';
+import { HuntPoll, pollDelayMs } from './hunt-poll.js?v=0.2.41';
+import { AskPacer } from './ask-pacer.js?v=0.2.41';
+import { createIntentLedger } from './intent-ledger.js?v=0.2.41';
+import { frameTopic, reconnectDelay } from './frame-channel.js?v=0.2.41';
+import { refusalOf, settleRefusalOf } from './refusal.js?v=0.2.41';
+import { SERVER_ONLY_EVENTS } from '../core/hunt/events.js?v=0.2.41';
 
 export const FRAME_EVENT = 'frame';
 

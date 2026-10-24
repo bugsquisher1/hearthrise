@@ -97,7 +97,7 @@ export function logFor(cs) {
       const now = t.held.filter((x) => x.done).map((x) => [x.task + '@' + x.doneAt, x]);
       const h = huntOf(cs);
       const me = h && Number.isInteger(h.hero.unit) ? [h.hero.unit] : [];
-      if (done) for (const [k, x] of now) if (!done.has(k)) push({ key: 'tally:' + k, type: 'tally', units: me, text: 'Tally done: ' + tallyLine(x) + '. Tamsin pays when you are back in town.' });
+      if (done) for (const [k, x] of now) if (!done.has(k)) push({ key: 'tally:' + k, type: 'tally', units: me, text: 'Task done: ' + tallyLine(x) + '. Tamsin pays when you are back in town.' });
       done = new Set([...(done || []), ...now.map(([k]) => k)]);
     });
   }

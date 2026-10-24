@@ -93,7 +93,7 @@ export function pickWords(pick, nameOf) {
  */
 export function waitWords(t, h, hunting) {
   if (!h || !h.done) return '';
-  if (t.paidToday >= t.perDay) return 'Done. Tamsin pays ' + t.perDay + ' tallies a day: this one tomorrow.';
-  if (h.wait === 'bag_full') return 'Done. Make room in your bag for Tamsin\'s pick.';
+  if (t.paidToday >= t.perDay) return 'Done. Tamsin pays for ' + t.perDay + ' tasks a day: this one is paid tomorrow.';
+  if (h.wait === 'bag_full') return 'Done. Make room in your bag for what Tamsin gives you.';
   return hunting ? 'Done. Tamsin pays when you are back in town.' : 'Done. Visit Tamsin to be paid.';
 }

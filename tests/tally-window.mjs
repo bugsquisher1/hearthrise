@@ -22,6 +22,8 @@
 //         is handed in (the settle that brings the hero home pays)
 //   TW-6  the HUD's tally and the hunt list read the server's count ("Gray Wolves 112/200")
 //   TW-7  FAIL SAFE: with no tally section nothing is drawn and nothing can be taken
+//   TW-9  HER WORDS in plain English: the greeting says what happens (Tyler 2026-10-24), and no line
+//         a player reads from her keeps the old riddles ("your half of the stick", "a piece for your back")
 //   TW-8  THE HUD'S PLACE (v0.2.37 run 40020854780): hunting with three tasks held, the tally
 //         overlaps no World panel at 1440x900, 1100x800 or 1024x700 (it stacks under the
 //         analyzer), nor on the phone (922x423) when the player shows it there (under the
@@ -83,8 +85,22 @@ async function signInAndPlay(page, base) {
   return wait(page, () => document.querySelector('.hs-launchers'));
 }
 
+/* TW-9 THE WORDS (Tyler 2026-10-24: "this is weird dialogue"): her greeting says what happens, and no line a player
+   reads from her (data, window, HUD, refusals, alerts, the log) keeps the riddles it replaced. */
+const GREETING = 'Take a task from my board and go hunting. When the count is done, I pay you in town: gold, plus a piece of armour you can wear.';
+const OLD_WORDS = /half of the stick|piece for your back|tally-keeper|picks for|her pick for you|tallies a day|you hold no tally|loads from the server|Tamsin has work/i;
+const COPY_FILES = ['src/data/tally-tasks.js', 'src/shell/windows/tally.js', 'src/session/tally-sections.js', 'src/shell/widgets/tally-hud.js',
+  'src/data/refusal-words.js', 'src/data/alerts.js', 'src/shell/alerts.js', 'src/hunt-view/combat-log.js'];
+
 async function checks(overrides) {
   const fails = [];
+  for (const f of COPY_FILES) {
+    const src = overrides && overrides[f] !== undefined ? overrides[f] : await readFile(join(ROOT, f), 'utf8');
+    /* the strings only: a comment may tell her lore (the split stick she notches) */
+    const strings = src.replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, '').match(/'(?:[^'\\\n]|\\.)*'/g) || [];
+    const hit = strings.find((s) => OLD_WORDS.test(s));
+    if (hit) fails.push('TW-9 ' + f + ' still says ' + hit);
+  }
   const { server, port } = await serve(overrides);
   const browser = await leaseBrowser(chromium);
   const W = '[data-hs-win="tally"] ';
@@ -115,7 +131,12 @@ async function checks(overrides) {
         await wait(page, () => document.querySelectorAll('[data-hs-win="tally"] .ht-offer').length === 3, null, 4000);
         if (errors.length) fails.push('TW-1 console errors: ' + errors.join(' | ').slice(0, 300));
         const lines = await page.evaluate(() => [...document.querySelectorAll('[data-hs-win="tally"] .ht-tally')].map((li) => li.querySelector('b').textContent + '|' + li.querySelector('small').textContent));
-        if (lines.length !== 2 || lines[0] !== 'Gray Wolves 112/200|Counts in Meadowbrook Thicket, even while you are away.' || !/^Giant Rats 120\/120\|Done\./.test(lines[1])) fails.push('TW-1 her tallies read ' + JSON.stringify(lines));
+        if (lines.length !== 2 || lines[0] !== 'Gray Wolves 112/200|Every kill in Meadowbrook Thicket counts, even while you are away.' || !/^Giant Rats 120\/120\|Done\./.test(lines[1])) fails.push('TW-1 her tallies read ' + JSON.stringify(lines));
+        /* TW-9 her words on screen say what happens, in plain English (Tyler 2026-10-24: "this is weird dialogue") */
+        const said = await page.evaluate(() => ({ hi: (document.querySelector('[data-hs-win="tally"] .ht-keeper .hs-note') || {}).textContent,
+          all: (document.querySelector('[data-hs-win="tally"]') || {}).textContent + ' ' + (document.querySelector('.hs-tally') || {}).textContent }));
+        if (said.hi !== GREETING) fails.push('TW-9 her greeting reads ' + JSON.stringify(said.hi));
+        if (OLD_WORDS.test(said.all)) fails.push('TW-9 her window still says "' + OLD_WORDS.exec(said.all)[0] + '"');
         const offer = await txt(page, W + '.ht-offer[data-task="glade_poachers"] small');
         if (!/^Mosslight Glade \(Level 16 ground\) · 920 gp \+ an Adept /.test(offer || '')) fails.push('TW-1 the board line reads ' + JSON.stringify(offer));
         // TW-2: the visit hands the done task in, once
@@ -258,6 +279,8 @@ const MUTANTS = [
   ['a refusal reads as a generic line', 'src/shell/windows/tally.js', "  const run = (send, busy, done) => runIntent(sc, repaint, send, busy, (r) => { sc.stale = true; return done(r); }, cs);", "  const run = (send, busy, done) => runIntent(sc, repaint, async () => { const r = await send(); if (!r.ok) r.error = 'refused'; return r; }, busy, (r) => { sc.stale = true; return done(r); }, cs);"],
   ['the hunt list drops the tally line', 'src/shell/windows/hunts.js', "text(li.querySelector('.hw-hunt-tally'), heldOn(tally, r.hunt).map(tallyLine).join(' · '));", "text(li.querySelector('.hw-hunt-tally'), '');"],
   ['the tally sits at its anchor, over the analyzer', 'src/shell/shell.js', '      const top = stackBelow(at, above, DOCK_EDGE);', '      const top = Math.round(at.top);'],
+  ['her greeting is the riddle again', 'src/data/tally-tasks.js', "greeting: 'Take a task from my board and go hunting. When the count is done, I pay you in town: gold, plus a piece of armour you can wear.',",
+    "greeting: 'Bring me your half of the stick when the count is done, and I pay. Coin, and a piece for your back.',"],
   ['a tally with nothing to show keeps its box', 'src/shell/widgets/tally-hud.js', "  cls(el, 'is-quiet', !t || (!held.length && hunting));", "  cls(el.querySelector('.hs-tally'), 'is-quiet', !t || (!held.length && hunting));"],
 ];
 

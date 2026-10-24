@@ -32,11 +32,12 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-/** Who keeps the tally, and the one line her board opens with. */
+/** Who keeps the tally, and the one line her board opens with: what she does, in plain words (Tyler 2026-10-24:
+ *  "this is weird dialogue"). Client copy only: the generated catalogue holds none of it. */
 export const TALLY_KEEPER = Object.freeze({
   name: 'Tamsin Reeve',
-  title: 'The Common\'s tally-keeper',
-  greeting: 'Bring me your half of the stick when the count is done, and I pay. Coin, and a piece for your back.',
+  title: 'Gives out kill tasks on the Common',
+  greeting: 'Take a task from my board and go hunting. When the count is done, I pay you in town: gold, plus a piece of armour you can wear.',
 });
 
 /** The server's limits (hr_tally_config). */

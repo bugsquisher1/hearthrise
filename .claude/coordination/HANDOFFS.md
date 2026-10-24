@@ -6,6 +6,11 @@ Left alone because those lanes own the files (brief: action-bar.js, launcher.js,
 1. **Action bar (bar redesign):** at 667x375 the phone bar's content is ~40 px wider than the screen (slots 10/20 and the plaque cut at the right edge; `.hb-bar` max-width calc(100vw - 16px) cannot hold its min content). Measure at 667x375, not only 922x423.
 2. **Icon row and character strip (second phone lane):** at 667x375 the icon row is 710 px (16 x 44 px) and loses its last icon (Report a problem); the character strip is 726 px. lane/a-mobile-p1 clipped `.app.is-game` and `.hs-screen` (`overflow: clip`), so they no longer make the page pan sideways, but the row itself must fit.
 3. **Coach card (second phone lane):** on a phone, while the analyzer shows, the coach card under the hunt bar is hidden by hunt.css (it covered the analyzer's head and close). If the coach should instead move, that is launcher.js's placeCoach.
+### 2026-10-24 · SYSTEMS (lane/b-tutorial-fixes) → DESIGNER / lane/a-mobile-p1 · found while playing the fixed tutorial
+
+1. **(designer, balance)** The kit tank (sword + shield, no armor) the chain sends into Meadowbrook Thicket at Level 5 died 4 times there (Level 5-10, killed by a Gray Wolf, death_log) in the harness; the 10-24 playtest hero, with Shop gloves, died 0 times. The chain teaches no armor before the Thicket. Look before the phone tester's first Thicket hunt (art/review/tutorial-fixes-2026-10-24/README.md).
+2. **(lane/a-mobile-p1, hunt.css:586)** Configure action at 667x375 is 800 px wide (`max-width: none` vs the window's inline 800 px; the coach card hidden, same width): Save is off-screen, so no bar edit works at that size. `max-width: 100%` beside the existing `min-width: 100%` should fit it (shot s02 in the same folder).
+3. **(designer, copy)** "Out to the brook" said "about a quarter of an hour"; the Cellar pays ~4,100 Level XP/h, so Level 5 is ~25 min: the card now says "about 25 minutes".
 
 ### 2026-10-22 · ART DIRECTOR (lane/b-hunts-detail) → BACKEND / SYSTEMS · the Lane C half of the Hunts page
 

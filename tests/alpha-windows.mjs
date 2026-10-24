@@ -1145,6 +1145,11 @@ async function checks(overrides, shots) {
         s.env.hunt = Object.assign(clone(FIXTURE.hunt), { hunt_id: 'meadowbrook_thicket' });
         s.env.state = Object.assign({}, s.env.state, { active_kind: 'combat', active_id: 'meadowbrook_thicket' });
         await pushEnvelope(page, s);
+        /* The server says the hero is hunting: the window that sent the Enter closes (playtest 2026-10-24, HS-9b);
+           opened again while hunting, it says where the hero is. */
+        const closed = await wait(page, () => !document.querySelector('[data-hs-win="hunts"]:not(.is-leaving)'), null, 4000);
+        if (!closed) fails.push('AW-29 the Hunts window stayed over the hunt it entered');
+        await openWin(page, 'h', 'hunts');
         const hunting = await wait(page, (w) => /You are hunting in Meadowbrook Thicket/.test(document.querySelector(w + '.hw-hunts-now').textContent)
           && document.querySelector(w + '.hw-hunt-detail .hw-hunt-enter').disabled, W, 4000);
         /* Back in town (the hunt ended): the window still holds the Thicket, ready to go again; after a close and reopen too. */
@@ -1648,6 +1653,22 @@ async function checks(overrides, shots) {
         const ptr = await page.evaluate(() => { const p = document.querySelector('.hs-pointer'); return p ? p.textContent : null; });
         if (!ptr || !/Open Hunts/.test(ptr)) fails.push('AW-17 a fresh character sees no pointer to Hunts: ' + JSON.stringify(ptr));
         if (shots) await shot(page, 'alpha-922x423-first-minute');
+        /* AW-17b THE RING (designer playtest 2026-10-24: on a phone nothing said which of 16 icons is Hunts): the card's
+           control wears the gold ring, and the card goes INTO the window it points at: the Hunts icon, then (the phone
+           shows the list first) the Mill Cellar's line, with the card at the top of the sheet. */
+        const ringed = () => page.evaluate(() => Array.from(document.querySelectorAll('[data-coach-ring]')).map((e) => (e.getAttribute('data-hs-open') || e.getAttribute('data-hunt') || e.className) + (e.getClientRects().length ? '' : ':hidden')));
+        const r0 = await ringed();
+        if (r0.join() !== 'hunts') fails.push('AW-17b a fresh character\'s ring is on ' + JSON.stringify(r0) + ', wanted the Hunts icon');
+        if (await openWin(page, 'h', 'hunts')) {
+          await page.waitForTimeout(400);
+          const r1 = await ringed();
+          const inWin = await page.evaluate(() => { const p = document.querySelector('[data-hs-win="hunts"] > .hs-win-coach .hs-pointer'); return p ? p.textContent : null; });
+          if (r1.join() !== 'mill_cellar') fails.push('AW-17b with Hunts open on the phone the ring is on ' + JSON.stringify(r1) + ', wanted the Mill Cellar line');
+          if (!inWin || !/Open Hunts/.test(inWin)) fails.push('AW-17b the card is not inside the Hunts sheet: ' + JSON.stringify(inWin));
+          if (shots) await shot(page, 'alpha-922x423-first-minute-hunts');
+          await page.keyboard.press('Escape');
+          await page.waitForTimeout(300);
+        } else fails.push('AW-17b H did not open Hunts');
         for (const [key, id] of [['g', 'skills-trade']]) {
           if (!(await openWin(page, key, id))) { fails.push('AW-17 ' + id + ' did not open'); continue; }
           await page.waitForTimeout(300);
@@ -1761,6 +1782,10 @@ const MUTANTS = [
   ['the bench ignores the server level', 'src/shell/windows/inventory/bury.js', "  if (lv < e.recipe.req) return 'Needs '", "  if (false) return 'Needs '"],
   ['the skills are one window again', 'src/shell/windows/skills.js', "export const renderTradeSkills = skillsWindow([['gather', 'Gathering'], ['artisan', 'Crafting']]);", "export const renderTradeSkills = skillsWindow([['combat', 'Combat'], ['gather', 'Gathering'], ['artisan', 'Crafting']]);"],
   ['a new player gets no pointer to Hunts', 'src/shell/launcher.js', "+ (ctx.hud && ctx.hud.isShown('hunt-topbar') ? '' : pointerFor(ctx)) + '</nav>'", "+ '</nav>'"],
+  ['coach: the card leaves when its window opens (AW-17b, playtest 2026-10-24)', 'src/shell/shell.js', "placeCoach(slot, win && slot.parentElement.getAttribute('data-hs-win') === win ? coachHtml(cs, card) : '');", "placeCoach(slot, '');"],
+  ['coach: nothing inside a window is ringed (AW-17b)', 'src/shell/shell.js', '    ringCoach(ctx, card, [shell, screen], cs ? draftOf(cs).open : null);\n', ''],
+  ['coach: the ring is on a control nobody can see (AW-17b)', 'src/shell/launcher.js', "const shown = (el) => el.getClientRects().length > 0 && !el.closest('[hidden]');", 'const shown = () => true;'],
+  ['coach: the Hunts window stays over the hunt it entered (AW-29)', 'src/shell/windows/hunts.js', "  const thenClose = (r) => { if (r && r.ok) { sc.closeOnHunt = true; repaint(); } };\n", '  const thenClose = () => {};\n'],
   /* The Hunts window, master-detail (designer plan 2026-10-22): AW-25 .. AW-29. */
   ['AW-25 every creature reads common', 'src/shell/hunt-ground-facts.js', "  if (share >= SHARE_BANDS.common) return 'common';", "  return 'common';"],
   ['AW-25 a Scarce piece reads as the ground\'s Rare (odds, not the band)', 'src/shell/hunt-ground-facts.js', 'd.ch < 1 && REVEAL_BANDS.includes(bandOf(d));', 'd.ch < 1 && d.ch <= 0.05;'],

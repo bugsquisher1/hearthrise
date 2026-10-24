@@ -44,7 +44,9 @@ import { SHELL_WINDOWS } from '../data/shell-windows.js?v=0.2.43';
 import { HUD_WIDGETS } from '../data/hud-widgets.js?v=0.2.43';
 import { createWindowManager, DOCK_EDGE, HOME_BOTTOM, RESIZE_MIN } from './window-manager.js?v=0.2.43';
 import { createHud, residueStore, placeWidget, hudInsetOf, clearOfEdges, clearOfDock, stageOf, dockCap, homeAt, stackBelow } from './hud.js?v=0.2.43';
-import { keyLabel, glyphSvg } from './launcher.js?v=0.2.43';
+import { keyLabel, glyphSvg, actCoach, heldCard, coachHtml, placeCoach, ringCoach } from './launcher.js?v=0.2.43';
+import { coachWindow } from '../data/hunt-tutorial.js?v=0.2.43';
+import { draftOf } from './bar-draft.js?v=0.2.43';
 import { WINDOW_RENDERERS, WIDGET_RENDERERS } from './renderers.js?v=0.2.43';
 import { mountContextMenu } from './context-menu.js?v=0.2.43';
 import { menuProvidersOf } from './menu-providers.js?v=0.2.43';
@@ -135,6 +137,8 @@ export function mountShell(root, o) {
     el.innerHTML = '<header class="hs-win-head" data-hs-drag="' + esc(row.id) + '">' + glyphSvg(ctx.glyphs, row.glyph)
       + '<h2 class="hs-win-title">' + esc(row.label) + '</h2><kbd class="hs-key">' + esc(keyLabel(row.key)) + '</kbd>'
       + '<button type="button" class="hs-close" data-hs-close="' + esc(row.id) + '" aria-label="Close ' + esc(row.label) + '">' + glyphSvg(ctx.glyphs, 'uiClose') + '</button></header>'
+      /* the coach's card when it points into this window (coach() below), above the body: it covers nothing */
+      + '<div class="hs-win-coach"></div>'
       + '<div class="hs-win-body" data-hs-body></div>' + gripHtml(row);
     return el;
   }
@@ -333,6 +337,22 @@ export function mountShell(root, o) {
   function onWm() {
     paintWindows();
     paintWidgets();
+    coach();
+  }
+  /* The coach (launcher.js heldCard) inside the window it points into, and its gold ring (launcher.js ringCoach), after every
+     paint and on the display tick; a card that gives way on the tick (a held card read) redraws the icon row too. */
+  let coachShown = null;
+  function coach(tick) {
+    const cs = ctx.character;
+    const card = cs ? heldCard(ctx) : null;
+    const win = coachWindow(card);
+    for (const slot of layer.querySelectorAll('[data-hs-win] > .hs-win-coach')) {
+      placeCoach(slot, win && slot.parentElement.getAttribute('data-hs-win') === win ? coachHtml(cs, card) : '');
+    }
+    const id = card ? card.id : null;
+    if (tick && id !== coachShown) paintWidgets();
+    coachShown = id;
+    ringCoach(ctx, card, [shell, screen], cs ? draftOf(cs).open : null);
   }
   const offWm = wm.subscribe(onWm);
   /* A reset or a size-class reload moves every line of the HUD layout window too. */
@@ -349,6 +369,7 @@ export function mountShell(root, o) {
       if (el) render.patch(el, ctx);
     }
     for (const id of wm.openIds()) if (WINDOW_RENDERERS[id] && WINDOW_RENDERERS[id].patch) refresh(id);
+    coach(true);
   }
   const ticker = host.setInterval(patchComponents, DISPLAY_TICK_MS);
 
@@ -380,6 +401,9 @@ export function mountShell(root, o) {
 
   /* ── Input ── */
   function onClick(e) {
+    /* the coach's fold and open inside a window (the window's own renderer does not know them) */
+    const fold = e.target.closest('.hs-win-coach [data-hs-act]');
+    if (fold) { actCoach(ctx, fold.closest('.hs-win-coach'), fold.getAttribute('data-hs-act'), e); return; }
     if (onAct(e)) return;
     const t = e.target.closest('[data-hs-open],[data-hs-close],[data-hs-wreset]');
     if (!t) return;
@@ -438,6 +462,7 @@ export function mountShell(root, o) {
   phoneMq.addEventListener('change', onSizeClass);
   host.addEventListener('resize', onResize);
   paintWidgets();
+  coach();
   /* A death opens its popup (death-popup.js), on mount too: a death while away shows on return. */
   const offDeaths = followDeaths(ctx);
 
@@ -448,7 +473,7 @@ export function mountShell(root, o) {
     toggle: (id) => wm.toggle(id),
     refresh,
     /** Repaint the widgets and patch the open component windows (every applied envelope). */
-    paint() { paintWidgets(); for (const id of wm.openIds()) if (WINDOW_RENDERERS[id] && WINDOW_RENDERERS[id].patch) refresh(id); },
+    paint() { paintWidgets(); for (const id of wm.openIds()) if (WINDOW_RENDERERS[id] && WINDOW_RENDERERS[id].patch) refresh(id); coach(); },
     inset: () => insetNow(),
     /* A subscriber hears the inset as it is NOW, then every change: the mount already published it to
        nobody, and publishInset only repeats a change, so a pane mounted mid-hunt (a reload, a switch of

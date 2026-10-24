@@ -8,6 +8,8 @@
 // ════════════════════════════════════════════════════════════════════════
 import { escapeHtml as esc } from '../utils/dom.js?v=0.2.43';
 import { pointerCardOf } from '../session/tutorial-sections.js?v=0.2.43';
+import { HUNT_TUTORIAL, AUTO_KINDS, coachIcon } from '../data/hunt-tutorial.js?v=0.2.43';
+import { tallyOf } from '../session/tally-sections.js?v=0.2.43';
 
 /** The chip text for a row's shortcut key: 'b' -> 'B', 'enter' -> 'Enter'. */
 export function keyLabel(key) {
@@ -28,14 +30,55 @@ export function glyphSvg(glyphs, key, cls) {
  * and is the same after a reload. Once the guide is done it names the next goal instead ("What next":
  * the next ground and the weapon skill's next unlock, designer 2026-10-22), so a hero is never left
  * with nothing to aim at. It is drawn only while NO window is open (it would cover the
- * window's title), and not here during a hunt: the hunt top bar draws it under itself
+ * window's title; the card a window's control answers shows INSIDE that window instead, src/shell/shell.js coach),
+ * and not here during a hunt: the hunt top bar draws it under itself
  * (src/shell/widgets/hunt-topbar.js), so it never covers Leave hunt or the analyzer. Display only.
  */
 export function pointerFor(ctx) {
   const cs = ctx.character;
   if (!cs || ctx.wm.openIds().length > 0) return '';
+  const card = heldCard(ctx);
+  return card ? coachHtml(cs, card) : '';
+}
+
+/* ── LONG ENOUGH TO READ (designer playtest 2026-10-24: "Your hero fights alone" and "That's a level" were never on
+   screen; the first kill lands 3 s in) ── A card the SERVER finishes on its own (AUTO_KINDS: the first kill, a level)
+   stays up for its reading time before the next replaces it, and a card of that kind the server passed while an
+   earlier one was being read gets its turn too, in order. A card the PLAYER finishes (Enter, Save, Plant) gives way at
+   once: they did what it asked. Display scratch per CharacterSession (a reload shows the server's card at once);
+   it gates and spends nothing. No clock in the context (a test, a pure render): the server's card as it is. */
+const HELD = new WeakMap();
+const ORDER = new Map(HUNT_TUTORIAL.map((r, i) => [r.id, i]));
+const auto = (r) => !!r && !!r.done && AUTO_KINDS.includes(r.done.kind);
+
+/** How long a card stays up before a later one replaces it: about 4 words a second, 4 to 9 s. */
+export function readMs(card) {
+  const words = String(card.title + ' ' + card.text).split(/\s+/).filter(Boolean).length;
+  return Math.max(4000, Math.min(9000, 1500 + words * 250));
+}
+
+/** The card the coach shows now: the server's (pointerCardOf), or one still being read (above). */
+export function heldCard(ctx) {
+  const cs = ctx.character;
   const card = pointerCardOf(cs);
-  if (!card) return '';
+  const now = typeof ctx.now === 'function' ? ctx.now() : null;
+  if (!cs || now === null) return card;
+  const had = HELD.get(cs);
+  const show = (c, since) => { HELD.set(cs, { card: c, since }); return c; };
+  if (!card) { HELD.delete(cs); return null; }
+  if (!had || had.card.id === card.id) return show(card, had ? had.since : now);
+  /* a "What next" goal comes after every card */
+  const at = (c) => (ORDER.has(c.id) ? ORDER.get(c.id) : HUNT_TUTORIAL.length);
+  const from = at(had.card), to = at(card);
+  /* back, or a goal line after a goal line: the server's at once */
+  if (to <= from) return show(card, now);
+  if (auto(had.card) && now - had.since < readMs(had.card)) return had.card;
+  const passed = HUNT_TUTORIAL.slice(from + 1, to).find(auto);
+  return passed ? show(passed, now) : show(card, now);
+}
+
+/** The coach box for `card` (folded to its title, or open), the same wherever it is drawn. */
+export function coachHtml(cs, card) {
   const { min, fresh } = coachFoldOf(cs, card);
   /* data-coach: what the box shows (the card, folded or not, marked or not); the hunt bar redraws when it changes. */
   const head = '<p class="hs-pointer' + (min ? ' is-min' : '') + '" role="note" data-tutorial="' + esc(card.id) + '" data-coach="'
@@ -72,12 +115,12 @@ export function placeCoach(el, html) {
   if (key && !(have && have.getAttribute('data-coach') === key)) el.insertAdjacentHTML('beforeend', html);
 }
 
-/** The coach's fold and open presses, from either place it is drawn (this row, the hunt top bar). True when handled. */
+/** The coach's fold and open presses, from wherever it is drawn (this row, the hunt top bar, a window). True when handled. */
 export function actCoach(ctx, el, action, ev) {
   if (action !== 'coach-min' && action !== 'coach-open') return false;
   if (ev.type !== 'click') return true;
   const cs = ctx.character;
-  const card = cs && pointerCardOf(cs);
+  const card = cs && heldCard(ctx);
   if (!card || typeof cs.setResidue !== 'function') return true;
   const doc = el.ownerDocument;
   const hadFocus = !!doc && !!doc.activeElement && el.contains(doc.activeElement);
@@ -88,18 +131,107 @@ export function actCoach(ctx, el, action, ev) {
   return true;
 }
 
-/** The `launchers` widget body: one button per window row that has a launcher. */
+/** The `launchers` widget body: one button per window row that has a launcher. The coach's ring is drawn here when
+ *  the card's way starts at an icon (src/data/hunt-tutorial.js coachIcon), last of the button's attributes, exactly
+ *  as ringCoach (below) would set it, so a repaint never finds this row changed. */
 export function renderLaunchers(ctx) {
   const open = new Set(ctx.wm.openIds());
+  const ring = ctx.character ? coachIcon(heldCard(ctx), (id) => open.has(id)) : null;
   const buttons = ctx.wm.rows().filter((r) => r.launcher !== false).map((r) => {
     const on = open.has(r.id);
     const key = keyLabel(r.key);
     return '<button type="button" class="hs-launch' + (on ? ' is-open' : '') + '" data-hs-open="' + esc(r.id) + '"'
       + ' aria-pressed="' + on + '" aria-label="' + esc(r.label) + ' (' + esc(key) + ')"'
-      + ' data-tip="' + esc(r.label) + '" data-key="' + esc(key) + '">' + glyphSvg(ctx.glyphs, r.glyph) + '</button>';
+      + ' data-tip="' + esc(r.label) + '" data-key="' + esc(key) + '"' + (ring === r.id ? ' data-coach-ring=""' : '') + '>'
+      + glyphSvg(ctx.glyphs, r.glyph) + '</button>';
   });
   return '<nav class="hs-launchers" aria-label="Windows">' + buttons.join('') + (ctx.hud && ctx.hud.isShown('hunt-topbar') ? '' : pointerFor(ctx)) + '</nav>';
 }
 
 /* The row's own controls: the coach's fold and open (the icons are [data-hs-open], the shell's). */
 renderLaunchers.act = function actLaunchers(ctx, el, action, ev) { actCoach(ctx, el, action, ev); };
+
+/* ── THE COACH'S GOLD RING (designer playtest 2026-10-24, 5/10 desktop, 4/10 phone: no card rang a real control) ──
+   Huntera's quick start (memory `huntera-tutorial-model`, mechanics only) rings the very control the card names.
+   ONE control on screen carries `data-coach-ring` (src/styles/shell.css: a pixel gold ring, no glow): the deepest
+   step of the card's way that is on screen now, e.g. Hunts' icon -> the Mill Cellar's line -> Enter. The icon row
+   draws its own ring (renderLaunchers, coachIcon). A card whose controls live in a window shows inside it
+   (src/shell/shell.js, hunt-tutorial.js coachWindow). Display only: gates, spends and stores nothing (CLAUDE.md §6). */
+const inWin = (id, q) => '[data-hs-win="' + id + '"] ' + q;
+
+/**
+ * THE RING'S WAY: the selectors of the controls `card` names, deepest first (the first one on screen is ringed).
+ * `at`: { open(id) the window is open, configuring: the bar slot Configure action has open (or null), weight: the
+ * armor weight Tamsin pays in is chosen (the server's), or null when unknown }. Pure. [] = nothing to ring.
+ */
+export function ringPlan(card, at) {
+  if (!card) return [];
+  const g = card.ring || {};
+  const open = (id) => !!at && typeof at.open === 'function' && at.open(id);
+  const icon = coachIcon(card, open);
+  if (icon) return ['.hs-launchers [data-hs-open="' + icon + '"]'];
+  switch (card.anchor) {
+    case 'hunt_picker': {
+      const hunt = card.done && card.done.hunt;
+      /* Enter while the ground is the picked one and on screen; else its line (a phone shows the list first); on a
+         phone showing ANOTHER ground's page, the way back to the list */
+      return [inWin('hunts', '.hw-hunt-enter[data-hunt="' + hunt + '"]:not([disabled])'),
+        inWin('hunts', '.hw-hunt[data-hunt="' + hunt + '"]'), '[data-hs-win="hunts"]:not(:has(.hw-hunt-enter[data-hunt="' + hunt + '"])) .hw-hd-back'];
+    }
+    case 'hunt_topbar': return ['[data-hs-widget="hunt-topbar"] [data-hs-act="leave"]:not([disabled])'];
+    case 'action_bar': {
+      if (!Number.isInteger(card.barSlot)) return [];
+      return open('configure-action') && at.configuring === card.barSlot ? [inWin('configure-action', '[data-x="save"]:not([disabled])')]
+        : ['[data-hs-widget="action-bar"] .hb-slot[data-slot="' + card.barSlot + '"]'];
+    }
+    case 'farm':
+      return [inWin('farm', '.hw-seeds .hw-line[data-crop="' + g.crop + '"] [data-hs-act="sow"]:not([disabled])'),
+        inWin('farm', '.hw-plot.is-empty [data-hs-act="plant"]')];
+    case 'crafting':
+      /* its Start (once it runs, nothing: the card moves on with the first XP); the skill in the ledger; from ANOTHER
+         skill's page, the way back to the ledger */
+      return [inWin('skills-trade', '.hw-work.is-on .hw-work-row[data-id="' + g.work + '"] [data-hs-act="work-go"]:not([disabled])'),
+        inWin('skills-trade', '.hw-skill[data-key="' + g.skill + '"]'),
+        inWin('skills-trade', '.hw-work.is-on:not(:has(.hw-work-row[data-id="' + g.work + '"])) [data-hs-act="work-back"]')];
+    case 'tally':
+      return at.weight === false ? [inWin('tally', '.ht-weights')]
+        : [inWin('tally', '[data-hs-act="take"][data-task="' + g.task + '"]:not([disabled])')];
+    default: return [];
+  }
+}
+
+/* On screen: laid out, and not inside anything hidden. */
+const shown = (el) => el.getClientRects().length > 0 && !el.closest('[hidden]');
+
+/* A ring that lands below a window's fold (Tamsin's Take under her weight row, a ground low in the list) is scrolled
+   into view inside its window, once, as it lands: only the window's own scroll box moves, never the page or the World. */
+function reveal(el) {
+  for (let p = el.parentElement; p && !p.hasAttribute('data-hs-win'); p = p.parentElement) {
+    if (p.scrollHeight <= p.clientHeight + 1) continue;
+    const oy = p.ownerDocument.defaultView.getComputedStyle(p).overflowY;
+    if (oy !== 'auto' && oy !== 'scroll') continue;
+    const r = el.getBoundingClientRect(), b = p.getBoundingClientRect();
+    if (r.top < b.top) p.scrollTop -= b.top - r.top + 8;
+    else if (r.bottom > b.bottom) p.scrollTop += r.bottom - b.bottom + 8;
+    return;
+  }
+}
+
+/**
+ * Ring `card`'s control in `roots` (the shell's boxes: the World shell and the screen layer): the first selector of its
+ * way that is on screen gets `data-coach-ring`, and every other element loses it. `configuring`: the bar slot open in
+ * Configure action (src/shell/bar-draft.js), or null. Answers the ringed element or null.
+ */
+export function ringCoach(ctx, card, roots, configuring) {
+  const cs = ctx.character;
+  const t = cs && tallyOf(cs);
+  const plan = ringPlan(card, { open: (id) => ctx.wm.isOpen(id), configuring: Number.isInteger(configuring) ? configuring : null, weight: t ? !!t.weight : null });
+  let target = null;
+  for (const q of plan) {
+    for (const r of roots) { const el = r.querySelector(q); if (el && shown(el)) { target = el; break; } }
+    if (target) break;
+  }
+  for (const r of roots) for (const el of r.querySelectorAll('[data-coach-ring]')) if (el !== target) el.removeAttribute('data-coach-ring');
+  if (target && !target.hasAttribute('data-coach-ring')) { target.setAttribute('data-coach-ring', ''); reveal(target); }
+  return target;
+}

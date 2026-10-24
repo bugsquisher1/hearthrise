@@ -77,6 +77,21 @@
 .hs-coach-tab { display: flex; align-items: center; gap: 6px; min-height: 28px; padding: 0 10px; border: 0; background: none; font-family: var(--f-display); font-weight: 700; font-size: var(--t-micro); color: var(--gold-2); white-space: nowrap; cursor: pointer; pointer-events: auto; }
 .hs-coach-new { width: 6px; height: 6px; flex: none; background: var(--gold-2); box-shadow: 0 0 0 1px var(--bg-0); }
 .hs-coach-min:focus-visible, .hs-coach-tab:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: -2px; }
+/* The card inside the window it points into (shell.js .hs-win-coach, hunt-tutorial.js coachWindow): between the title band
+   and the body, so it covers no control; the ring shows the control, so it needs no tip. */
+.hs-win-coach { flex: none; }
+.hs-win-coach:empty { display: none; }
+.hs-win-coach > .hs-pointer { position: relative; top: auto; left: auto; z-index: auto; width: auto; margin: 8px 12px 0; box-shadow: inset 4px 0 0 var(--gold); }
+.hs-win-coach > .hs-pointer::before { display: none; }
+/* THE COACH'S RING (launcher.js ringCoach and renderLaunchers): the one control the card names, ringed in gold,
+   a pixel line clear of its edge; it blinks a few times as it lands, then holds still (no glow, never a pulse: the
+   press-ack ring below is the one that pulses). A list row or a bar slot rings inside its own edge (a list's scroll
+   box would cut an outer ring), inside the picked row's own gold outline. */
+[data-coach-ring] { outline: 2px solid var(--gold-2); outline-offset: 3px; animation: hs-coach-ring 400ms steps(1) 6; }
+:is(.hw-skill, .hb-slot)[data-coach-ring] { outline-offset: -4px; }
+.hw-hunt[data-coach-ring] { outline-offset: -6px; }
+@keyframes hs-coach-ring { 50% { outline-color: var(--world-shadow); } }
+@media (prefers-reduced-motion: reduce) { [data-coach-ring] { animation: none; } }
 .hs-launch:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: -4px; }
 .hs-launch.is-open { color: var(--gold-2); }
 .hs-launch.is-open::after { content: ''; position: absolute; left: 10px; right: 10px; bottom: 0; height: 2px; background: var(--gold); }
@@ -238,6 +253,7 @@
   .hs-pointer:not(.is-min) { padding-right: calc(var(--tap) + 4px); }
   .hs-coach-min { top: 0; right: 0; width: var(--tap); height: var(--tap); }
   .hs-coach-tab { min-height: var(--tap); padding: 0 14px; }
+  .hs-win-coach > .hs-pointer { margin: 6px 10px 0; }
   /* The sheet keeps the steel frame's spine down its left edge, a stud at each end; a phone dialog the thin frame. */
   .hs-win {
     top: 0; bottom: 0; right: 0; left: auto;

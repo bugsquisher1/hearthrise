@@ -166,8 +166,10 @@ function carriedWords(lines) {
   return 'Your hunt bag holds ' + lines.map((l) => whole(l.qty) + ' ' + itemName(l.id)).join(', ') + '.';
 }
 
-/** The skeleton (built once per opening): the notes, then the list beside the picked ground's page. */
-export function renderHunts() {
+/** The skeleton (built once per opening): the notes, then the list beside the picked ground's page. A fresh opening
+ *  forgets an Enter the player pressed in an earlier one (its close is spent or moot). */
+export function renderHunts(ctx) {
+  if (ctx && ctx.character) scratchOf(ctx.character).closeOnHunt = false;
   return '<div class="hw-hunts">'
     + '<p class="hs-note hw-hunts-now"></p><p class="hs-note hw-hunts-reco" hidden></p>'
     + '<div class="hw-hunts-cols"><ul class="hw-hunt-list" role="listbox" aria-label="Hunts"></ul>'
@@ -203,6 +205,11 @@ renderHunts.patch = function patchHunts(body, ctx) {
   const list = huntRows();
   const h = huntOf(cs);
   const now = h && !h.ended ? h : null;
+  /* THE WAY IN, CLEARED (designer playtest 2026-10-24: after Enter this window stayed over the hunt, on the phone the
+     whole sheet, and the two cards that explain the fight were never seen): once the SERVER's hunt section says the
+     hero is hunting after an Enter pressed here, the window closes and the hunt is in view. Opening it again while
+     hunting keeps it open (it says where the hero is). */
+  if (sc.closeOnHunt && now) { sc.closeOnHunt = false; queueMicrotask(() => ctx.wm.close('hunts')); }
   const level = levelOf(cs);
   const party = partyMembershipOf(cs);
   const size = party ? party.seats.length : 1;
@@ -357,17 +364,20 @@ renderHunts.act = function actHunts(ctx, body, action, ev, t) {
     if (who) runIntent(sc, repaint, () => inviteOwn(ctx.account, cs, slot), 'Bringing ' + who.name + '…', () => who.name + ' joined your party.', cs);
     return true;
   }
+  /* An Enter the server took closes this window once its hunt section shows the hunt (patchHunts). */
+  const thenClose = (r) => { if (r && r.ok) { sc.closeOnHunt = true; repaint(); } };
   if (action === 'enter' && partyMembershipOf(cs)) {
     sc.pick = hunt;
     if (!partyMembershipOf(cs).isLeader) return true;
     runIntent(sc, repaint, () => afterDensity(cs, sc, repaint, () => asChosen(cs, sc, () => startPartyHunt(ctx.account, cs, hunt))), 'Gathering the party for ' + huntName(hunt) + '…',
-      () => 'Your party is on its way to ' + huntName(hunt) + '.', cs);
+      () => 'Your party is on its way to ' + huntName(hunt) + '.', cs).then(thenClose);
     return true;
   }
   if (action === 'enter') {
     sc.pick = hunt;
     /* What the hunt carries is the bag's own supplies, read after any setup change has landed. */
-    runIntent(sc, repaint, () => afterDensity(cs, sc, repaint, () => asChosen(cs, sc, (preset) => cs.enterHunt(hunt, packFor(bagOf(cs)), preset))), 'Setting off for ' + huntName(hunt) + '…', (res) => { sc.enterMsg = 'On the way to ' + huntName(hunt) + '.' + (res && res.belowRange ? ' ' + ABOVE_LEVEL_WORDS : ''); return sc.enterMsg; }, cs);
+    runIntent(sc, repaint, () => afterDensity(cs, sc, repaint, () => asChosen(cs, sc, (preset) => cs.enterHunt(hunt, packFor(bagOf(cs)), preset))), 'Setting off for ' + huntName(hunt) + '…', (res) => { sc.enterMsg = 'On the way to ' + huntName(hunt) + '.' + (res && res.belowRange ? ' ' + ABOVE_LEVEL_WORDS : ''); return sc.enterMsg; }, cs)
+      .then(thenClose);
     return true;
   }
   return false;

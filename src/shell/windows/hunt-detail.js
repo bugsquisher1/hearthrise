@@ -26,11 +26,13 @@ import { itemIconHtml, actionIconHtml } from '../widgets/bits.js?v=0.2.38';
 import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.38';
 import { bandWords, fitWords, heroWords, partyNote, bestWords } from '../hunt-list.js?v=0.2.38';
 import { residentsOf, scarceSetOf, raresOf } from '../hunt-ground-facts.js?v=0.2.38';
-import { creatureArt, drawCreature } from '../../render/creature-sprite.js?v=0.2.38';
+import { creatureArt, drawCreature, PORTRAIT_DIR } from '../../render/creature-sprite.js?v=0.2.38';
 import { chance } from '../../render/format.js?v=0.2.38';
 
-/* The world's one density (ART_DIRECTION §2): every art pixel is 2x2 screen px. */
+/* The world's one density (ART_DIRECTION §2): every art pixel is 2x2 screen px; each creature faces the player
+   (Tyler 2026-10-24), the portrait's front pose, so the line reads as one. */
 const SPRITE_SCALE = 2;
+export const LINEUP_SPRITE = Object.freeze({ scale: SPRITE_SCALE, dir: PORTRAIT_DIR });
 const VERSION = new URL(import.meta.url).searchParams.get('v') || '';
 /* The creature art, once loaded (null until then: the line shows names, the pictures follow). */
 let ART = null;
@@ -124,7 +126,7 @@ const howWords = (m) => (Number.isInteger(m.level) ? 'Level ' + m.level + ' · '
 function paintSprite(li, id) {
   const c = li.querySelector('canvas');
   if (!ART || c.getAttribute('data-drawn') === id) return;
-  const ok = drawCreature(c, ART, id, { scale: SPRITE_SCALE });
+  const ok = drawCreature(c, ART, id, LINEUP_SPRITE);
   c.setAttribute('data-drawn', id);
   cls(li, 'is-drawn', ok);
 }

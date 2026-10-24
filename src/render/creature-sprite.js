@@ -12,9 +12,16 @@
 //   creatureArt(doc, version)  every set, loaded once (the World pane holds the same
 //                              decoded images): Promise<Map<id, { image, row }>>
 //   drawCreature(canvas, art, id, o)  draw it; false when no set carries the sprite
+// A PORTRAIT FACES THE PLAYER (Tyler 2026-10-24: "facing front though maybe?"): the idle
+// frame facing south, which every unit sprite carries (35 of 43 have all eight directions,
+// 7 only south, 1 the four sides), so a line of them is one consistent pose. Units in the
+// World turn as they move; that is the World renderer's, not this.
 // ════════════════════════════════════════════════════════════════════════
 import { ATLAS_SETS } from '../data/world/atlas-sets.js?v=0.2.38';
 import { loadAtlasSet } from '../world/atlas.js?v=0.2.38';
+
+/** The direction a creature's portrait faces: front, toward the player. */
+export const PORTRAIT_DIR = 's';
 
 let ART = null;
 
@@ -65,7 +72,7 @@ export function drawCreature(canvas, art, id, o) {
   const opt = o || {};
   const hit = art && art.get(id);
   const dirs = hit && hit.row.anims.idle.dirs;
-  const at = dirs && (dirs[opt.dir || 'e'] || dirs.s || Object.values(dirs)[0]);
+  const at = dirs && (dirs[opt.dir || PORTRAIT_DIR] || dirs.s || Object.values(dirs)[0]);
   if (!at || !at.length) return false;
   const [fw, fh] = hit.row.frame;
   const [sx, sy] = at[0];

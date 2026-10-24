@@ -21,9 +21,9 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { ITEMS } from './items.js?v=0.2.39';
-import { HUNT_ROLES, roleForWeapon, roleWeaponOf } from './hunt-roles.js?v=0.2.39';
-import { STARTER_SETS } from './start-kit.js?v=0.2.39';
+import { ITEMS } from './items.js?v=0.2.40';
+import { HUNT_ROLES, roleForWeapon, roleWeaponOf } from './hunt-roles.js?v=0.2.40';
+import { STARTER_SETS } from './start-kit.js?v=0.2.40';
 
 const style = (id, role, weapons, name, does, uses) => Object.freeze({ id, role, weapons: Object.freeze(weapons), name, does, uses });
 

@@ -39,19 +39,19 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { ABILITIES, ABILITY_LANES, ABILITY_RULES, ACTION_SET_SKIPS } from '../../data/abilities.js?v=0.2.39';
-import { resolveLine, takeLine, canAfford, shopShotFor } from '../action-rules.js?v=0.2.39';
-import { cheb, dist2, los } from './grid.js?v=0.2.39';
-import { makeEvent } from './events.js?v=0.2.39';
-import { landHit } from './damage.js?v=0.2.39';
-import { challengeable, challengeFrom } from './targeting.js?v=0.2.39';
-import { applyStatus, statusRow } from './status.js?v=0.2.39';
-import { levelOf } from '../xp.js?v=0.2.39';
-import { ammoPerShot } from '../ammo.js?v=0.2.39';
-import { ITEMS } from '../../data/items.js?v=0.2.39';
-import { isRune } from '../../data/supplies.js?v=0.2.39';
-import { slotsFor, pickSlot, bestAim, itemRow, DEFAULT_ATTACK_ROW } from './conditions.js?v=0.2.39';
-import { shootsItem } from '../../data/hunt-roles.js?v=0.2.39';
+import { ABILITIES, ABILITY_LANES, ABILITY_RULES, ACTION_SET_SKIPS } from '../../data/abilities.js?v=0.2.40';
+import { resolveLine, takeLine, canAfford, shopShotFor } from '../action-rules.js?v=0.2.40';
+import { cheb, dist2, los } from './grid.js?v=0.2.40';
+import { makeEvent } from './events.js?v=0.2.40';
+import { landHit } from './damage.js?v=0.2.40';
+import { challengeable, challengeFrom } from './targeting.js?v=0.2.40';
+import { applyStatus, statusRow } from './status.js?v=0.2.40';
+import { levelOf } from '../xp.js?v=0.2.40';
+import { ammoPerShot } from '../ammo.js?v=0.2.40';
+import { ITEMS } from '../../data/items.js?v=0.2.40';
+import { isRune } from '../../data/supplies.js?v=0.2.40';
+import { slotsFor, pickSlot, bestAim, itemRow, DEFAULT_ATTACK_ROW } from './conditions.js?v=0.2.40';
+import { shootsItem } from '../../data/hunt-roles.js?v=0.2.40';
 
 export const PERSISTED = Object.freeze({
   unit: Object.freeze([['mana', 'int'], ['maxMana', 'int'], ['manaMilli', 'int'], ['regenPm', 'int'], ['lanes', 'json'], ['cds', 'json'],

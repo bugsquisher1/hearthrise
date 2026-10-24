@@ -5,6 +5,10 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.40 — 2026-10-24 (No more frozen tabs)
+
+**Fixed a freeze.** With a tally task showing under the hunt analyzer, the game could lock up for good when a party hunt started, when you switched heroes, or while loading a hero (a blank page). It no longer does. Your heroes kept hunting on the server the whole time, so nothing was lost.
+
 ## v0.2.39 — 2026-10-24 (Clearer screens)
 
 **Fold away "What next".** A small button on the "What next" card folds it down to its title. It stays folded after a reload, and a gold mark shows when there's a new goal.

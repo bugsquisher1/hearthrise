@@ -43,18 +43,18 @@
 // window, no timers, no Math.random.
 // ============================================================
 
-import { COMBAT_BALANCE } from './combat.js?v=0.2.39';
-import { endReasonAt, deathXpLoss, staminaStep } from './action-rules.js?v=0.2.39';
-import { createRng } from './rng.js?v=0.2.39';
-import { densityFor, partyPick } from '../data/hunt-grounds.js?v=0.2.39';
-import { stepSwing } from './hunt/world-step.js?v=0.2.39';
-import { makeEvent, trackStep } from './hunt/events.js?v=0.2.39';
-import { newHuntWorld, joinHero, leaveHero } from './hunt-spawn.js?v=0.2.39';
-import { pullLeader } from './hunt/pull-cycle.js?v=0.2.39';
-import { rewardSwing } from './hunt-rewards.js?v=0.2.39';
+import { COMBAT_BALANCE } from './combat.js?v=0.2.40';
+import { endReasonAt, deathXpLoss, staminaStep } from './action-rules.js?v=0.2.40';
+import { createRng } from './rng.js?v=0.2.40';
+import { densityFor, partyPick } from '../data/hunt-grounds.js?v=0.2.40';
+import { stepSwing } from './hunt/world-step.js?v=0.2.40';
+import { makeEvent, trackStep } from './hunt/events.js?v=0.2.40';
+import { newHuntWorld, joinHero, leaveHero } from './hunt-spawn.js?v=0.2.40';
+import { pullLeader } from './hunt/pull-cycle.js?v=0.2.40';
+import { rewardSwing } from './hunt-rewards.js?v=0.2.40';
 
 /* The engine's front door (src/core/index.js `combatSim`). */
-export { stepSwing } from './hunt/world-step.js?v=0.2.39';
+export { stepSwing } from './hunt/world-step.js?v=0.2.40';
 
 /* WHY A COMBAT SPAN STOPPED BEFORE THE WINDOW DID — the same contract
    src/core/skill-sim.js and src/core/artisan-sim.js publish under this name.

@@ -15,7 +15,7 @@
 //
 // PURE except for `residueStore`, the adapter onto one character's residue.
 // ════════════════════════════════════════════════════════════════════════
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.39';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.40';
 
 export const SIZE_CLASSES = Object.freeze(['desktop', 'phone']);
 export const OPACITY_MIN = 0.4;
@@ -59,15 +59,21 @@ export function validateWidgetRows(rows) {
  * A widget that STACKS under others on its edge (a row's `below`: the tally under the analyzer and the
  * phone's hunt bar): the top that clears, by `gap`, every rect of `above` it would overlap, or its own top
  * when none is in its way. A rect with no size (a hidden widget) is in nobody's way. Pure.
+ * ALWAYS ENDS (Andy, live v0.2.38: the page froze for good at a party start and on a hero switch). Rects are
+ * the browser's fractional px: rounded, a bottom of 581.4 put the top back at 581, still above it, and the loop
+ * "moved" there for ever. The top only ever RISES, to a whole px at or below every bottom it clears (ceil), so a
+ * rect it has cleared stays cleared and each rect moves it at most once: above.length passes plus one that moves
+ * nothing. That count is also its hard cap: whatever the rects (NaN, a later change), it never spins.
  */
 export function stackBelow(r, above, gap) {
   let top = r.top;
-  for (let moved = true; moved;) {
+  for (let pass = 0, moved = true; moved && pass <= above.length; pass++) {
     moved = false;
     for (const q of above) {
       if (!(q.width > 0 && q.height > 0)) continue;
       const across = r.left < q.left + q.width && r.left + r.width > q.left;
-      if (across && top < q.top + q.height + gap && top + r.height > q.top) { top = Math.round(q.top + q.height + gap); moved = true; }
+      const under = Math.ceil(q.top + q.height + gap);
+      if (across && top < q.top + q.height + gap && top + r.height > q.top && under > top) { top = under; moved = true; }
     }
   }
   return top;

@@ -72,8 +72,8 @@ function sanitizeCombatLog(v) {
   return out;
 }
 
-import { sanitizeSummaries } from './hunt-summaries.js?v=0.2.39';
-import { DEPOT_BASE_STACKS, STORAGE_CHESTS } from '../data/homestead-tiers.js?v=0.2.39';
+import { sanitizeSummaries } from './hunt-summaries.js?v=0.2.40';
+import { DEPOT_BASE_STACKS, STORAGE_CHESTS } from '../data/homestead-tiers.js?v=0.2.40';
 
 const ITEM_ID = /^[a-z0-9_]{1,64}$/;
 export const BAG_SEEN_MAX = 512;

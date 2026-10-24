@@ -26,6 +26,7 @@ import { readFileSync, writeFileSync, mkdtempSync, mkdirSync, cpSync, rmSync } f
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { Worker } from 'node:worker_threads';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const WM_FILE = 'src/shell/window-manager.js';
@@ -365,6 +366,28 @@ async function runTests(mods) {
     try { HUD.validateWidgetRows([W({ below: ['nobody'] })]); } catch { threw = true; }
     ok(threw, 'a `below` naming no widget must be refused');
   });
+  /* H13 THE STACK ALWAYS ENDS (Andy, live v0.2.38: Chrome's "Page Unresponsive" at a party start and on a hero
+     switch). The browser's rects are fractional (the analyzer is min(560px, 100vh - 200px) or its rows, on a
+     scaled display a 1/64 px LayoutUnit): a bottom of 581.40625 was rounded back to 581, still above it, and
+     the loop moved there for ever. Run out of this thread with a deadline, so a spin is a red, not a hung run. */
+  await (async () => {
+    const id = 'H13 a widget stacks under a fractional bottom in bounded time, and never under it';
+    try {
+      const an = { left: 1143, top: 12, width: 285 }, tally = { left: 1248, top: 12, width: 180, height: 90 };
+      const cases = [];
+      for (let k = 1; k < 64; k++) cases.push({ r: tally, above: [Object.assign({ height: 557 + k / 64 }, an)], gap: 12 });
+      /* under the hunt bar and the analyzer at once, both fractional, in either order */
+      const bar = { left: 1000, top: 4.4, width: 430, height: 41.2 }, tall = Object.assign({ height: 420.3 }, an, { top: 40.1 });
+      cases.push({ r: tally, above: [bar, tall], gap: 12 }, { r: tally, above: [tall, bar], gap: 12 });
+      const got = await stackBelowOffThread(mods.HUD_URL, cases, 3000);
+      if (got === null) throw new Error('stackBelow never returned within 3 s for a fractional bottom (the loop spins: the page hangs)');
+      cases.forEach((c, i) => {
+        const bottom = Math.max(...c.above.map((q) => q.top + q.height + c.gap));
+        ok(Number.isInteger(got[i]) && got[i] >= bottom && got[i] < bottom + 1,
+          'case ' + i + ': under a bottom of ' + bottom + ' it sits at ' + got[i] + ' (want the whole px at or just below it, never over the rect)');
+      });
+    } catch (e) { fails.push(id + ': ' + e.message); }
+  })();
   t('H8 the contract is validated', () => {
     const bad = [W({ anchor: 'xx' }), W({ layer: 'sky' }), W({ opacity: 0.2 }), W({ when: 'night' }), W({ removable: false, visible: false }), W({ phone: { min: [1, 1] } })];
     for (const r of bad) { let threw = false; try { HUD.validateWidgetRows([r]); } catch (e) { threw = true; } ok(threw, 'must refuse ' + JSON.stringify(r)); }
@@ -487,9 +510,24 @@ async function runTests(mods) {
   return fails;
 }
 
+/* H13: hud.js stackBelow over `cases` in a worker of its own; its answers, or null when it has not answered by
+   `ms` (a loop that never ends must turn the test red, never hang the run). */
+function stackBelowOffThread(url, cases, ms) {
+  return new Promise((resolve) => {
+    const w = new Worker("const { parentPort, workerData } = require('node:worker_threads');\n"
+      + 'import(workerData.url).then((m) => parentPort.postMessage(workerData.cases.map((c) => m.stackBelow(c.r, c.above, c.gap))));',
+    { eval: true, workerData: { url, cases } });
+    const done = (v) => { clearTimeout(timer); w.terminate(); resolve(v); };
+    const timer = setTimeout(() => done(null), ms);
+    w.once('message', done);
+    w.once('error', () => done(null));
+  });
+}
+
 async function load(base) {
   const u = (p) => pathToFileURL(join(base, p)).href;
   return {
+    HUD_URL: u(HUD_FILE),
     WM: await import(u(WM_FILE)),
     HUD: await import(u(HUD_FILE)),
     CS: await import(u('src/session/residue.js')),
@@ -514,6 +552,12 @@ const MUTANTS = [
   { test: 'H12', file: HUD_FILE, from: '    if (left + pane.width > box.width - gap) break;\n    at = fit(left);', to: '    break;' },
   { test: 'H12', file: HUD_FILE, from: '    return { left, low: over.filter((q) => room(q) < minH), bottom: at.bottom, max };', to: '    return { left, low: over, bottom: at.bottom, max };' },
   { test: 'R4', file: 'src/session/residue.js', from: '  winSize: sanitizeWinSize,', to: '  winSize: (v) => v,' },
+  /* H13: the v0.2.38 loop itself (rounded, moved without rising, no cap): it spins on a fractional bottom */
+  { test: 'H13', file: HUD_FILE,
+    from: '  for (let pass = 0, moved = true; moved && pass <= above.length; pass++) {\n    moved = false;\n    for (const q of above) {\n      if (!(q.width > 0 && q.height > 0)) continue;\n      const across = r.left < q.left + q.width && r.left + r.width > q.left;\n      const under = Math.ceil(q.top + q.height + gap);\n      if (across && top < q.top + q.height + gap && top + r.height > q.top && under > top) { top = under; moved = true; }',
+    to: '  for (let moved = true; moved;) {\n    moved = false;\n    for (const q of above) {\n      if (!(q.width > 0 && q.height > 0)) continue;\n      const across = r.left < q.left + q.width && r.left + r.width > q.left;\n      if (across && top < q.top + q.height + gap && top + r.height > q.top) { top = Math.round(q.top + q.height + gap); moved = true; }' },
+  /* H13: rounded but capped: it ends, a fraction of a px over the rect it stacks under */
+  { test: 'H13', file: HUD_FILE, from: '      const under = Math.ceil(q.top + q.height + gap);', to: '      const under = Math.round(q.top + q.height + gap);' },
   { test: 'W13', file: WM_FILE, from: 'else if (slot.has(id)) lastAt.set(id, { right: slot.get(id) });', to: ';' },
   { test: 'W8', file: WM_FILE, from: 'return keyBelongsToField(ev.target, ev.key);', to: 'return false;' },
   { test: 'W8', file: 'src/utils/dom.js', from: "  if (tag === 'select') return /^Arrow/.test(String(key || ''));", to: "  if (tag === 'select') return true;" },

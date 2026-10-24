@@ -34,9 +34,10 @@ import { chance } from '../../render/format.js?v=0.2.38';
 const SPRITE_SCALE = 2;
 export const LINEUP_SPRITE = Object.freeze({ scale: SPRITE_SCALE, dir: PORTRAIT_DIR });
 const VERSION = new URL(import.meta.url).searchParams.get('v') || '';
-/* The creature art, once loaded (null until then: the line shows names, the pictures follow). */
+/* The creature art loaded so far (null until the first: the line shows names, the pictures follow), and the
+   creatures already asked for. */
 let ART = null;
-let loading = null;
+const asked = new Set();
 
 /** The page's skeleton: the ground's facts (this module) and the slots hunts.js fills. */
 export function detailHtml() {
@@ -122,19 +123,22 @@ export function patchGo(det, ctx, v) {
 /* "Level 2 · common"; a boss says so in place of its share. */
 const howWords = (m) => (Number.isInteger(m.level) ? 'Level ' + m.level + ' · ' : '') + (m.boss ? 'boss' : m.band);
 
-/* One creature's picture, drawn once per creature (a canvas keeps it); nothing until the art has loaded. */
+/* One creature's picture, drawn once per creature (a canvas keeps it); nothing until its art has loaded. */
 function paintSprite(li, id) {
   const c = li.querySelector('canvas');
-  if (!ART || c.getAttribute('data-drawn') === id) return;
+  if (!ART || !ART.has(id) || c.getAttribute('data-drawn') === id) return;
   const ok = drawCreature(c, ART, id, LINEUP_SPRITE);
   c.setAttribute('data-drawn', id);
   cls(li, 'is-drawn', ok);
 }
 
-/* Load the creature art once; when it lands, the open page is patched again (its pictures appear). */
-function wantArt(doc, repaint) {
-  if (ART || loading) return;
-  loading = creatureArt(doc, VERSION).then((a) => { ART = a; repaint(); }, () => { loading = null; });
+/* Load this ground's creature art (only the sheets that carry them, each once); when it lands, the open page is
+   patched again (its pictures appear). */
+function wantArt(doc, ids, repaint) {
+  const need = ids.filter((id) => !asked.has(id));
+  if (!need.length) return;
+  for (const id of need) asked.add(id);
+  creatureArt(doc, VERSION, need).then((a) => { ART = a; repaint(); }, () => { for (const id of need) asked.delete(id); });
 }
 
 /** Write the ground's facts for row `r` into the page `det` (patched in place: only what changed is written). */
@@ -150,11 +154,12 @@ export function patchGround(det, ctx, r, o) {
   attr(fitEl, 'data-tone', fit ? fit.tone : null);
   text(det.querySelector('.hw-hd-who'), heroWords(r) + '.');
   text(det.querySelector('.hw-hd-theme'), (HUNT_INDEX[r.hunt] && HUNT_INDEX[r.hunt].theme) || r.theme);
-  wantArt(ctx.doc, repaint);
+  const residents = residentsOf(r.hunt);
+  wantArt(ctx.doc, residents.map((m) => m.id), repaint);
   const size = Math.max(1, Number(o.size) || 1);
   const rares = raresOf(r.hunt, size), carriers = new Set(rares.map((x) => x.carrier.id));
   const lineup = det.querySelector('.hw-hd-lineup');
-  rows(lineup, residentsOf(r.hunt), {
+  rows(lineup, residents, {
     key: (m) => r.hunt + ':' + m.id,
     build: (m) => element(ctx.doc, monHtml(m)),
     patch: (li, m) => {

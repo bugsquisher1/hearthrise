@@ -643,6 +643,10 @@ const ALSO_LINTED = [
      the sheet's engine pair and link 20 of HR_GRANT_HYGIENE_CHAIN. */
   '2026-10-25-outfits-catalogue.generated.sql',
   '2026-10-25-character-sheet.sql',
+  /* SERVER-PERF (lane/c-server-perf, 2026-10-24): restates hr_rate_gate whole (the
+     accrue budget per hero) — HR_RATE_GATE_CHAIN's new last link — plus both hunt
+     rosters and the cron detector, each revoked from PUBLIC first. */
+  '2027-01-01-server-perf.sql',
 ];
 
 // ── THE hr_apply DERIVATION CHAIN ────────────────────────────────────────
@@ -1004,6 +1008,12 @@ const HR_RATE_GATE_CHAIN = [
   '2026-08-15-activity-intent.sql',
   '2026-08-15-gold-intents.sql',
   '2026-08-16-claim-reward.sql',
+  /* 2026-10-21-closed-mode.sql restated the gate too (claim-reward's body + the
+     admitted line, insertions only) but is not in `sources` (its format() revoke
+     loops are unreadable to the grant lints), so this link is graded against
+     claim-reward's body; the closed-mode line it carries is asserted EXECUTED by
+     the file's own §4 s1h. */
+  '2027-01-01-server-perf.sql',
 ];
 
 // Functions created only to PROVE a check works, inside that check's own
@@ -1851,6 +1861,13 @@ say(`── ${SPEC.fn} derivation chain (each body derived from the last, nothin
       // Prose only: "Server-owned, both of them" -> "all of them", once the
       // second bucket became a third.
       '  -- THE ALLOWLIST AND THE LIMITS. Server-owned, both of them. An unknown bucket',
+    ],
+    /* SERVER-PERF: the counter KEY is v_key (per hero for `accrue`), so the two
+       lines that named the counter by p_bucket change; the limit, the window,
+       the bucket arms and the sampled record's p_bucket intent are untouched. */
+    '2027-01-01-server-perf.sql': [
+      '  if public.hr_rate_ok(p_user, p_bucket, v_limit, v_window) then',
+      '  v_weight := public.hr_rate_sample_weight(public.hr_rate_over(p_user, p_bucket) - v_limit);',
     ],
 
     /* ── hr_assert_grant_hygiene's ONE replacing link (b354, Security C3) ──

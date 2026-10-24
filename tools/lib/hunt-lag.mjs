@@ -26,7 +26,7 @@ export function lagVerdict({ lagS, watched, flushS = 90, cadenceS = 10 }) {
 /* A user is WATCHING when its browser asked the `accrue` bucket in the last 2 minutes (a viewed hunt asks
    every 16 s). Per user, not per slot: hr_rate_counters keys no slot. */
 export const WATCHED_SQL = `select distinct user_id::text u from public.hr_rate_counters
-  where bucket = 'accrue' and window_start > now() - interval '2 minutes'`;
+  where (bucket = 'accrue' or bucket like 'accrue:%') and window_start > now() - interval '2 minutes'`;
 
 function selftest() {
   const cases = [

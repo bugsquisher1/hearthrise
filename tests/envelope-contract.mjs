@@ -85,7 +85,8 @@ function contract(R, cs, body, tl) {
   const s = R.HS.settingsOf(cs);
   need('hunt_settings', !!s, 'settingsOf reads nothing: ' + JSON.stringify(body.hunt_settings).slice(0, 240));
   if (s) {
-    const m = missing(s, ['preset', 'targetMode', 'stance', 'distance', 'chase', 'supplySource', 'onEmpty', 'gatherShare']);
+    /* role + discipline: the Configure window locks a spell by the server's discipline (2027-01-13-spell-roles.sql) */
+    const m = missing(s, ['preset', 'role', 'discipline', 'targetMode', 'stance', 'distance', 'chase', 'supplySource', 'onEmpty', 'gatherShare']);
     need('hunt_settings', !m.length && Array.isArray(s.slots) && s.slots.length > 0 && s.presets.length > 0, 'settingsOf misses ' + m.join(', ') + (s.slots.length ? '' : ' slots') + (s.presets.length ? '' : ' presets'));
     /* The action engine (2026-10-25): every slot in the wire shape, the gathering share marked inert; density is no setting (hunt_density). */
     need('hunt_settings', s.slots.every((x) => x.empty || (x.action && Array.isArray(x.conditions) && (x.join === 'and' || x.join === 'or')))
@@ -373,7 +374,8 @@ const DB_MUTANTS = [
   ['party', 'public.hr_hunt_party_view(uuid,integer)', "'hp_max', case when", "'max_hp', case when"],
   ['party', 'public.hr_hunt_party_view(uuid,integer)', "'self_seat', v_sseat,", "'me', v_sseat,"],
   ['stamina', 'public.hr_stamina_view(uuid,integer)', "'max_ms'", "'maxms'"],
-  ['hunt_settings', 'public.hr_hunt_settings_view(uuid,integer)', "'food_pct', v_eff", "'foodpct', v_eff"],
+  /* (food_pct / drink_pct are no reader's since the eat-at / drink-at options retired: the discipline is) */
+  ['hunt_settings', 'public.hr_hunt_settings_view(uuid,integer)', "'discipline', v_disc,", "'disc', v_disc,"],
   ['hunt_settings', 'public.hr_hunt_settings_view(uuid,integer)', "'slots', v_slots,", "'slot_list', v_slots,"],
   ['hunt_density', 'public.hr_hunt_density_view(uuid,integer)', 'jsonb_object_agg(d.hunt_id, d.density order by d.hunt_id)', 'jsonb_object_agg(d.hunt_id, d.density::text order by d.hunt_id)'],
   ['party', 'public.hr_hunt_party_view(uuid,integer)', "'leader_densities', coalesce", "'leader_density', coalesce"],

@@ -247,6 +247,8 @@ async function loadEdge(root) {
     C: await import(u('src/core/combat.js')),
     MONSTERS: (await import(u('src/data/monsters.js'))).MONSTERS,
     ITEMS: (await import(u('src/data/items.js'))).ITEMS,
+    /* the member the settle builds each hero with (its priced snapshot: RUNE-SPEND's loaded-rune check) */
+    MB: await import(u('src/core/member.js')),
     root,
   };
 }
@@ -1142,6 +1144,16 @@ const ENGINE_ARMS = {
     /* a loaded rune adds nothing to the blow: the same staff with no rune at all lands the same blows */
     const bare = runCut(M, () => [memberIn(M, 'a', { role: 'healer', level: 50, gold: 5000, equipment: { weapon: 'maple_staff' } })], span, []);
     if (canon(hits(bare)) !== canon(hits(fire))) problems.push(`a loaded Fire Rune changed the staff's basics ${firstDiff(canon(hits(bare)), canon(hits(fire)))}`);
+    /* ...nor a Graven one, where the settle builds the hero (member.js memberSide, combatWorn): the rune is no part of the
+       worn set the blow is priced with, nor the hero's loaded ammo. (The Cellar's 8-9 HP monsters die to any staff blow
+       and a rune carries no combat stat today, so blows alone cannot see a rune left in the set.) */
+    const snapOf = (ammo) => {
+      const x = M.MB.memberSide({ key: 'a', equipment: { weapon: 'maple_staff', ...(ammo ? { ammo } : {}) }, skills: { magic: M.XP.skillXpForLevel('magic', 50) },
+        levelXp: 0, hp: 100, hero: { role: 'healer' } }, { items: M.ITEMS });
+      const n = x.member.snapshot(x.state);
+      return canon({ maxHit: n.maxHit, acc: n.acc, ammo: x.member.hero.ammo });
+    };
+    if (snapOf('graven_rupture_rune') !== snapOf(null)) problems.push(`a loaded Graven Rupture Rune prices the staff's blow: ${snapOf('graven_rupture_rune')} vs bare ${snapOf(null)}`);
     /* (2) a Mage's wand with twenty Earth Runes loaded (no store row behind them), the default supply setting */
     const earth = both('earth', () => [memberIn(M, 'a', { role: 'mage', level: 20, bag: { chalked_earth_rune: { loaded: 20, left: 20, essential: true } },
       equipment: { weapon: 'oak_wand', shield: 'oak_spellbook', ammo: 'chalked_earth_rune' } })]);
@@ -2682,8 +2694,10 @@ const MUTANTS = [
     from: '    if (honeLeft() <= 0) unhone();\n  };', to: '  };' },
   { arm: 'RUNE-SPEND', name: '[spell-core] a spent arrow line never falls to its store row (Iron Arrows, 10-23)', file: 'src/core/hunt/abilities.js',
     from: "  return isRune(itemRow(h, id)) ? { why: 'none' } : resolveLine(h && h.hs, id, undefined);", to: "  return isRune(itemRow(h, id)) ? { why: 'none' } : resolveLine(h && h.hs, id, null);" },
-  { arm: 'RUNE-SPEND', name: '[spell-core] a basic supply the purse cannot buy never ends the hunt', file: 'src/core/hunt/abilities.js',
-    from: "    if (!l.id || l.why) { if (l.why === 'gold_short') h.hs.goldOut = true; return false; }", to: '    if (!l.id || l.why) return false;' },
+  /* the swing prices the worn ammo's store shot in its pick (damage.js pickShot, the shot order of Andy #63), so an
+     unpayable basic is decided there, before payBasic */
+  { arm: 'RUNE-SPEND', name: '[spell-core] a basic supply the purse cannot buy never ends the hunt', file: 'src/core/hunt/damage.js',
+    from: '  if (!got && wornShort) h.hs.goldOut = true;\n', to: '' },
   { arm: 'RUNE-SPEND', name: '[spell-core] a caster\'s basic swings free (no mana)', file: 'src/core/hunt/damage.js',
     from: '      if (row.basic) {', to: '      if (false) {' },
   { arm: 'RUNE-SPEND', name: '[spell-core] a caster\'s basic mana trains no Magic', file: 'src/core/hunt-rewards.js',

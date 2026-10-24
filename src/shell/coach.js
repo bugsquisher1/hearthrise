@@ -67,6 +67,20 @@ export function ringPlan(card, at) {
 /* On screen: laid out, and not inside anything hidden. */
 const shown = (el) => el.getClientRects().length > 0 && !el.closest('[hidden]');
 
+/* A ring that lands below a window's fold (Tamsin's Take under her weight row, a ground low in the list) is scrolled
+   into view inside its window, once, as it lands: only the window's own scroll box moves, never the page or the World. */
+function reveal(el) {
+  for (let p = el.parentElement; p && !p.hasAttribute('data-hs-win'); p = p.parentElement) {
+    if (p.scrollHeight <= p.clientHeight + 1) continue;
+    const oy = p.ownerDocument.defaultView.getComputedStyle(p).overflowY;
+    if (oy !== 'auto' && oy !== 'scroll') continue;
+    const r = el.getBoundingClientRect(), b = p.getBoundingClientRect();
+    if (r.top < b.top) p.scrollTop -= b.top - r.top + 8;
+    else if (r.bottom > b.bottom) p.scrollTop += r.bottom - b.bottom + 8;
+    return;
+  }
+}
+
 /**
  * Ring `card`'s control in `roots` (the shell's boxes: the World shell and the screen layer): the first selector of its
  * way that is on screen gets `data-coach-ring`, and every other element loses it. Answers the ringed element or null.
@@ -81,6 +95,6 @@ export function ringCoach(ctx, card, roots) {
     if (target) break;
   }
   for (const r of roots) for (const el of r.querySelectorAll('[data-coach-ring]')) if (el !== target) el.removeAttribute('data-coach-ring');
-  if (target && !target.hasAttribute('data-coach-ring')) target.setAttribute('data-coach-ring', '');
+  if (target && !target.hasAttribute('data-coach-ring')) { target.setAttribute('data-coach-ring', ''); reveal(target); }
   return target;
 }

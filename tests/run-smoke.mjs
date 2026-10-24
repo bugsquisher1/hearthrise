@@ -1939,7 +1939,7 @@ const run = async () => {
       'Core guard', 'Accrual guard', 'Auto-eat authority guard', 'Perk channel guard',
       'Artisan progress model guard', 'Goal counters guard', 'Artisan accrual guard',
       'Live settlement Phase 0', 'Equip intent (Phase 2)', 'Skill-row upsert',
-      'Unlock purchase guard', 'Market v2 guard',
+      'Unlock purchase guard', 'Market guard',
       /* 'Market intent guard' — REMOVED 2026-10-20: tests/market-intent.mjs retired with the market edge verbs
          in e634976 (2026-10-19), which left its marker here; masked on main until the native-dialog red cleared. */
       /* 'Cutover import guard' — REMOVED 2026-09-07 with tests/cutover-import.mjs, whose

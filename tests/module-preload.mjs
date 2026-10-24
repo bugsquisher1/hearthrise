@@ -15,13 +15,16 @@
 // page loads in one generated block of <link rel="modulepreload">, so all of
 // them are asked for while the HTML is parsed. A preload is fetched, never run
 // early: evaluation order stays the import graph's.
-//   MP-1  the block lists exactly the modules the page loads: the static graph
-//         of the entry (src/app/boot.js), plus every literal dynamic import()
+//   MP-1  the block lists exactly the modules the page loads: the entry
+//         (src/app/boot.js) and its static graph, plus every literal dynamic import()
 //         and ITS graph (the World pane's runtime, src/world/world-boot.js)
 //   MP-2  each at the build's cache-buster (a different ?v= is another module
 //         key: a second fetch, the preload wasted)
 //   MP-3  non-vacuity: the entry is found in play.html and its graph is deep
 //         (a reader that stopped at the first level would pass MP-1 vacuously)
+//   MP-4  the classic scripts at the end of the body (supabase-js, storage, glyphs)
+//         are preloaded too: each blocks the parser, so unpreloaded they came one
+//         round trip after another, after the modules (measured 10-24)
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
@@ -69,9 +72,18 @@ export function entryOf(html) {
   return m ? m[1] : null;
 }
 
-/** The generated block for `modules` (every one but the entry, which the page's own tag loads) at `version`. */
-export function blockFor(modules, version) {
-  return HEAD + '\n' + modules.slice(1).map((f) => '<link rel="modulepreload" href="' + f + '?v=' + version + '">').join('\n') + '\n' + END;
+/** The classic <script src> tags after the block (the body's), in page order, queries stripped. */
+export function classicOf(html) {
+  const b = html.indexOf(END);
+  return [...html.slice(b < 0 ? 0 : b).matchAll(/<script src="([^"?]+)(?:\?v=[^"]*)?"><\/script>/g)].map((m) => m[1]);
+}
+
+/** The generated block for `modules` and the body's `classic` scripts at `version`. The entry is listed too, so its own
+    fetch starts with the rest (measured: left to its tag at the end of the body it was asked for last, 0.5 s after the
+    others, and the page waited on it). */
+export function blockFor(modules, version, classic = []) {
+  return HEAD + '\n' + classic.map((f) => '<link rel="preload" as="script" href="' + f + '?v=' + version + '">')
+    .concat(modules.map((f) => '<link rel="modulepreload" href="' + f + '?v=' + version + '">')).join('\n') + '\n' + END;
 }
 
 /** Problems with `html`'s block against the graph (`read`) at `version`; [] when it holds. */
@@ -86,12 +98,19 @@ export function check(html, read, version) {
   if (a < 0 || b < a) return problems.concat(['MP-1 ' + PAGE + ' has no MODULE PRELOAD block: run node tests/module-preload.mjs --write']);
   const listed = new Map();
   for (const m of html.slice(a, b).matchAll(/<link rel="modulepreload" href="([^"?]+)\?v=([^"]*)">/g)) listed.set(m[1], m[2]);
-  const want = new Set(graph.slice(1));
+  const want = new Set(graph);
   const missing = [...want].filter((f) => !listed.has(f)), stale = [...listed.keys()].filter((f) => !want.has(f));
   if (missing.length || stale.length) {
     problems.push('MP-1 the preload block is not the module graph (' + [missing.length ? 'missing ' + missing.slice(0, 4).join(', ') + (missing.length > 4 ? ' +' + (missing.length - 4) : '') : '',
       stale.length ? 'not loaded ' + stale.slice(0, 4).join(', ') : ''].filter(Boolean).join('; ') + '): run node tests/module-preload.mjs --write');
   }
+  const scripts = new Map();
+  for (const m of html.slice(a, b).matchAll(/<link rel="preload" as="script" href="([^"?]+)\?v=([^"]*)">/g)) scripts.set(m[1], m[2]);
+  const classic = classicOf(html);
+  if (classic.join() !== [...scripts.keys()].join()) {
+    problems.push('MP-4 the classic scripts preloaded (' + [...scripts.keys()].join(', ') + ') are not the body\'s (' + classic.join(', ') + '): run node tests/module-preload.mjs --write');
+  }
+  for (const [f, v] of scripts) listed.set(f, v);
   const off = [...listed].filter(([, v]) => v !== version);
   if (off.length) problems.push('MP-2 ' + off.length + ' preload(s) not at ?v=' + version + ': ' + off.slice(0, 3).map(([f, v]) => f + '?v=' + v).join(', '));
   return problems;
@@ -108,7 +127,7 @@ if (process.argv.includes('--write')) {
   const html = readFile(PAGE), version = versionOf();
   /* the page's own line endings (a Windows checkout writes CRLF): never a file of mixed endings */
   const eol = html.includes('\r\n') ? '\r\n' : '\n';
-  const block = blockFor(graphOf(entryOf(html), readFile), version).split('\n').join(eol);
+  const block = blockFor(graphOf(entryOf(html), readFile), version, classicOf(html)).split('\n').join(eol);
   const a = html.indexOf(BEGIN), b = html.indexOf(END);
   const next = a >= 0 && b > a ? html.slice(0, a) + block + html.slice(b + END.length) : html.replace('</head>', block + eol + '</head>');
   writeFileSync(join(ROOT, PAGE), next);
@@ -133,6 +152,8 @@ if (process.argv.includes('--selftest')) {
     ['a multi-line import list the reader must follow', html, (f) => (f === 'src/app/boot.js' ? readFile(f) + "\nexport {\n  y,\n} from './never-listed.js?v=" + version + "';\n" : f === 'src/app/never-listed.js' ? '' : readFile(f)), 'MP-1'],
     ['the dynamic import not followed (the World pane)', html, (f) => (f === 'src/app/world-pane.js' ? readFile(f).replace(/import\('\.\.\/world\/world-boot\.js\?v=[^']*'\)/, "import(name)") : readFile(f)), 'MP-1'],
     ['a reader that stops at the first level', html, (f) => (f === 'src/app/boot.js' ? readFile(f) : ''), 'MP-3'],
+    ['a classic script added to the body, not preloaded', html.replace('<script type="module"', '<script src="src/platform/extra.js?v=' + version + '"></script>\n<script type="module"'), readFile, 'MP-4'],
+    ['a classic script preload dropped', html.replace(/<link rel="preload" as="script" href="[^"]*">\r?\n/, ''), readFile, 'MP-4'],
   ];
   let bad = 0;
   for (const [name, h, read, want] of cases) {

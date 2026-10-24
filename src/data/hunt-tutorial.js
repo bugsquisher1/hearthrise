@@ -10,9 +10,11 @@
 // meets it, and the solo chain hands over to "What next" (which names the
 // Sewer and how to make a party) instead of waiting behind a party gate for
 // hours (designer playtest 2026-10-24, PRIORITY_BOARD "New-player tutorial").
-// Measured pace (designer 2026-10-21/24, a solo start-kit Melee on the real
-// settle): Cellar first kill 3 s, Level 2 at 0.3 min, Level 5 (the Thicket) at
-// 15 min; Thicket Level 5 → 8 in 23 min, 0 deaths. Each step is DONE by
+// Measured pace (a solo start-kit Melee on the real settle): Cellar first kill
+// 3 s, Level 2 inside 34 s; the Cellar pays ~4,100 Level XP an hour, so Level 5
+// (the Thicket, 1,736 XP) takes ~25 min (designer playtest 2026-10-24: Level 5 at
+// 28% after 32 min; lane/b-tutorial-fixes replay: 1,121 XP in 16 min); Thicket
+// Level 5 → 8 in ~25 min, 0 deaths. Each step is DONE by
 // something the SERVER reports (an envelope change), never by a Next button,
 // and every step is real progress, never a sandbox (the Huntera quick-start
 // model, memory `huntera-tutorial-model`, mechanics only).
@@ -112,7 +114,7 @@ export const HUNT_TUTORIAL = Object.freeze([
       + CROPS.turnip.hours + ' hours.',
     'farm', { kind: 'planted' }, { ring: { crop: 'turnip' } }),
   step('earn_the_thicket', 'Out to the brook',
-    'Keep hunting here until Meadowbrook Thicket opens to you, about a quarter of an hour. You can close the game: your hero keeps hunting until its stamina runs out, and what it earns is waiting when you come back.',
+    'Keep hunting here until Meadowbrook Thicket opens to you, about 25 minutes. You can close the game: your hero keeps hunting until its stamina runs out, and what it earns is waiting when you come back.',
     'hud_vitals', { kind: 'unlock', hunt: 'meadowbrook_thicket' }),
   step('leave_cellar', 'Cash in',
     'Leave the hunt. What you looted goes to your bag when you do.',
@@ -131,7 +133,7 @@ export const HUNT_TUTORIAL = Object.freeze([
     'Pick Meadowbrook Thicket. Your hero walks from clearing to clearing by itself and fights each pack it finds.',
     'hunt_picker', { kind: 'enter', hunt: 'meadowbrook_thicket' }),
   step('tamsin_pays', 'Paid in town',
-    'When your count is done, Tamsin pays you as you come back to town: gold, plus a piece of armor you can wear. Your tally on screen shows how far along you are.',
+    'Hunt the Thicket until your count is done. Tamsin pays you as you come back to town: gold, plus a piece of armor you can wear. Your tally on screen shows how far along you are.',
     'world', { kind: 'tally_paid' }),
   step('go_below', 'Into the sewer, together',
     'The Sewer is a party hunt. Pick The Sewer and Start with party: everyone walks in together. The Rat King holds the last room and only comes out for a party.',

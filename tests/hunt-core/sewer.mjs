@@ -363,6 +363,8 @@ const cases = {
     /* A town fact the server never sent is not a wall: no skills, no land, no tally = those steps pass. */
     const blind = at(thicketBand, { skillXp: null, landPlanted: null, tally: null, foodSet: true });
     if ((M.tut.currentCard(blind) || {}).id !== 'into_the_thicket') return 'with no town sections the coach asks for ' + (M.tut.currentCard(blind) || {}).id;
+    const blindIn = { ...blind, huntId: 'meadowbrook_thicket' };
+    if (M.tut.currentCard(blindIn)) return 'with no town sections a hero in the Thicket is asked for ' + M.tut.currentCard(blindIn).id;
     /* "TELL YOUR HERO WHEN" ON THE REAL DEFAULT BAR (playtest 2026-10-24: v0.2.42 put the role's spells first, the card
        said "slot 1 is your own Cooked Shrimp" and slot 1 was Challenge). The bar the server shows a fresh start-kit hero
        is the engine's (heroSlots: the role's defaults, then the kit's START_BAR; hr_hunt_settings_view is pinned equal by

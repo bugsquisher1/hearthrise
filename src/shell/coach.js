@@ -38,9 +38,9 @@ export function ringPlan(card, at) {
     case 'hunt_picker': {
       const hunt = card.done && card.done.hunt;
       /* Enter while the ground is the picked one and on screen; else its line (a phone shows the list first); on a
-         phone showing another ground's page, the way back to the list */
+         phone showing ANOTHER ground's page, the way back to the list */
       return [inWin('hunts', '.hw-hunt-enter[data-hunt="' + hunt + '"]:not([disabled])'),
-        inWin('hunts', '.hw-hunt[data-hunt="' + hunt + '"]'), inWin('hunts', '.hw-hd-back')];
+        inWin('hunts', '.hw-hunt[data-hunt="' + hunt + '"]'), '[data-hs-win="hunts"]:not(:has(.hw-hunt-enter[data-hunt="' + hunt + '"])) .hw-hd-back'];
     }
     case 'hunt_topbar': return ['[data-hs-widget="hunt-topbar"] [data-hs-act="leave"]:not([disabled])'];
     case 'action_bar': {
@@ -52,8 +52,11 @@ export function ringPlan(card, at) {
       return [inWin('farm', '.hw-seeds .hw-line[data-crop="' + g.crop + '"] [data-hs-act="sow"]:not([disabled])'),
         inWin('farm', '.hw-plot.is-empty [data-hs-act="plant"]')];
     case 'crafting':
+      /* its Start (once it runs, nothing: the card moves on with the first XP); the skill in the ledger; from ANOTHER
+         skill's page, the way back to the ledger */
       return [inWin('skills-trade', '.hw-work.is-on .hw-work-row[data-id="' + g.work + '"] [data-hs-act="work-go"]:not([disabled])'),
-        inWin('skills-trade', '.hw-skill[data-key="' + g.skill + '"]'), inWin('skills-trade', '.hw-work.is-on [data-hs-act="work-back"]')];
+        inWin('skills-trade', '.hw-skill[data-key="' + g.skill + '"]'),
+        inWin('skills-trade', '.hw-work.is-on:not(:has(.hw-work-row[data-id="' + g.work + '"])) [data-hs-act="work-back"]')];
     case 'tally':
       return at.weight === false ? [inWin('tally', '.ht-weights')]
         : [inWin('tally', '[data-hs-act="take"][data-task="' + g.task + '"]:not([disabled])')];

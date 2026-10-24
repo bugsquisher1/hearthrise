@@ -85,8 +85,9 @@
    a pixel line clear of its edge; it blinks a few times as it lands, then holds still (no glow, never a pulse: the
    press-ack ring below is the one that pulses). A list row or a bar slot rings inside its own edge (a list's scroll
    box would cut an outer ring), inside the picked row's own gold outline. */
-[data-coach-ring] { outline: 2px solid var(--gold-2); outline-offset: 2px; animation: hs-coach-ring 400ms steps(1) 6; }
-:is(.hw-hunt, .hw-skill, .hb-slot)[data-coach-ring] { outline-offset: -4px; }
+[data-coach-ring] { outline: 2px solid var(--gold-2); outline-offset: 3px; animation: hs-coach-ring 400ms steps(1) 6; }
+:is(.hw-skill, .hb-slot)[data-coach-ring] { outline-offset: -4px; }
+.hw-hunt[data-coach-ring] { outline-offset: -6px; }
 @keyframes hs-coach-ring { 50% { outline-color: var(--world-shadow); } }
 @media (prefers-reduced-motion: reduce) { [data-coach-ring] { animation: none; } }
 .hs-launch:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: -4px; }

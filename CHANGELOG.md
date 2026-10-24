@@ -5,6 +5,14 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.45 — 2026-10-24 (Clearer sign-up)
+
+**Sign-up says what went wrong.** If an account can't be made, the form now tells you why: the password needs at least 10 characters, it's shown up in a data leak, the email can't be used, or there have been too many tries. The 10-character rule is shown under the password box before you start.
+
+**Four heroes play at once.** Up to four heroes can be hunting or working in town at the same time, on one account or across accounts on the same connection. Starting a fifth now tells you to stop one first.
+
+**What next fits on phones.** On a phone the What next card stops above your action bar, so your health and mana stay visible. Scroll the card to read the rest.
+
 ## v0.2.44 — 2026-10-24 (Friends and phones)
 
 **Add friends by their hero's name.** Typing a hero's name in Friends finds them now, in any mix of capitals and spaces. It used to say "No player by that name." even when the hero existed.

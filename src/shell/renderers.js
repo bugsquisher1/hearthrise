@@ -7,36 +7,36 @@
 // HTML. tests/shell-renderers.mjs fails the build on a row with no renderer or
 // a renderer with no row, so a launcher can never open an empty window.
 // ════════════════════════════════════════════════════════════════════════
-import { renderLaunchers } from './launcher.js?v=0.2.44';
-import { renderHudSettings } from './hud.js?v=0.2.44';
-import { renderHuntTopbar } from './widgets/hunt-topbar.js?v=0.2.44';
-import { renderPartyPanel } from './widgets/party-panel.js?v=0.2.44';
-import { renderAnalyzer } from './widgets/analyzer.js?v=0.2.44';
-import { renderActionBar } from './widgets/action-bar.js?v=0.2.44';
-import { renderConfigureAction } from './windows/configure-action.js?v=0.2.44';
-import { renderChat } from './windows/chat.js?v=0.2.44';
-import { renderFriends } from './windows/friends.js?v=0.2.44';
-import { renderInspect } from './windows/inspect.js?v=0.2.44';
-import { renderSettings } from './windows/settings.js?v=0.2.44';
-import { renderInventory } from './windows/inventory/index.js?v=0.2.44';
-import { renderWork } from './windows/work.js?v=0.2.44';
-import { renderCharacter } from './windows/character/index.js?v=0.2.44';
-import { renderHunts } from './windows/hunts.js?v=0.2.44';
-import { renderStorage } from './windows/storage.js?v=0.2.44';
-import { renderShop } from './windows/shop.js?v=0.2.44';
-import { renderServices } from './windows/services.js?v=0.2.44';
-import { renderHuntPrep } from './windows/hunt-prep.js?v=0.2.44';
-import { renderParty } from './windows/party.js?v=0.2.44';
-import { renderCharacters } from './windows/characters.js?v=0.2.44';
-import { renderAlerts } from './widgets/alerts.js?v=0.2.44';
-import { renderHuntSummary } from './windows/hunt-summary.js?v=0.2.44';
-import { renderReport } from './windows/report.js?v=0.2.44';
-import { renderDeath } from './windows/death.js?v=0.2.44';
-import { renderOnline } from './widgets/online.js?v=0.2.44';
-import { renderHouse } from './windows/house.js?v=0.2.44';
-import { renderFarm } from './windows/farm.js?v=0.2.44';
-import { renderTally } from './windows/tally.js?v=0.2.44';
-import { renderTallyHud } from './widgets/tally-hud.js?v=0.2.44';
+import { renderLaunchers } from './launcher.js?v=0.2.45';
+import { renderHudSettings } from './hud.js?v=0.2.45';
+import { renderHuntTopbar } from './widgets/hunt-topbar.js?v=0.2.45';
+import { renderPartyPanel } from './widgets/party-panel.js?v=0.2.45';
+import { renderAnalyzer } from './widgets/analyzer.js?v=0.2.45';
+import { renderActionBar } from './widgets/action-bar.js?v=0.2.45';
+import { renderConfigureAction } from './windows/configure-action.js?v=0.2.45';
+import { renderChat } from './windows/chat.js?v=0.2.45';
+import { renderFriends } from './windows/friends.js?v=0.2.45';
+import { renderInspect } from './windows/inspect.js?v=0.2.45';
+import { renderSettings } from './windows/settings.js?v=0.2.45';
+import { renderInventory } from './windows/inventory/index.js?v=0.2.45';
+import { renderWork } from './windows/work.js?v=0.2.45';
+import { renderCharacter } from './windows/character/index.js?v=0.2.45';
+import { renderHunts } from './windows/hunts.js?v=0.2.45';
+import { renderStorage } from './windows/storage.js?v=0.2.45';
+import { renderShop } from './windows/shop.js?v=0.2.45';
+import { renderServices } from './windows/services.js?v=0.2.45';
+import { renderHuntPrep } from './windows/hunt-prep.js?v=0.2.45';
+import { renderParty } from './windows/party.js?v=0.2.45';
+import { renderCharacters } from './windows/characters.js?v=0.2.45';
+import { renderAlerts } from './widgets/alerts.js?v=0.2.45';
+import { renderHuntSummary } from './windows/hunt-summary.js?v=0.2.45';
+import { renderReport } from './windows/report.js?v=0.2.45';
+import { renderDeath } from './windows/death.js?v=0.2.45';
+import { renderOnline } from './widgets/online.js?v=0.2.45';
+import { renderHouse } from './windows/house.js?v=0.2.45';
+import { renderFarm } from './windows/farm.js?v=0.2.45';
+import { renderTally } from './windows/tally.js?v=0.2.45';
+import { renderTallyHud } from './widgets/tally-hud.js?v=0.2.45';
 
 /* A renderer with `.patch` is a component: built once, then patched in place (src/shell/shell.js). */
 export const WINDOW_RENDERERS = Object.freeze({

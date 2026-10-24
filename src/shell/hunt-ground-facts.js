@@ -24,13 +24,13 @@
 //   at the kill's yield share for a party of `size` (hunt-grounds.js yieldPermille), before any
 //   hero's bonus. Never a number typed here (ART_DIRECTION §8).
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_GROUNDS, routeFor, yieldPermille } from '../data/hunt-grounds.js?v=0.2.44';
-import { MONSTERS } from '../data/monsters.js?v=0.2.44';
-import { ITEMS } from '../data/items.js?v=0.2.44';
-import { bandOf, effectiveDropChance } from '../core/drops.js?v=0.2.44';
-import { REVEAL_BANDS } from '../data/loot-bands.js?v=0.2.44';
-import { ARMOUR_WEIGHT } from '../data/core-model.js?v=0.2.44';
-import { armourLineWord } from '../data/gear-tiers.js?v=0.2.44';
+import { HUNT_GROUNDS, routeFor, yieldPermille } from '../data/hunt-grounds.js?v=0.2.45';
+import { MONSTERS } from '../data/monsters.js?v=0.2.45';
+import { ITEMS } from '../data/items.js?v=0.2.45';
+import { bandOf, effectiveDropChance } from '../core/drops.js?v=0.2.45';
+import { REVEAL_BANDS } from '../data/loot-bands.js?v=0.2.45';
+import { ARMOUR_WEIGHT } from '../data/core-model.js?v=0.2.45';
+import { armourLineWord } from '../data/gear-tiers.js?v=0.2.45';
 
 /* How common a creature is, by its share of the ground's spawn points: at least `common` is common,
    under `rare` is rare, between is uncommon (Tyler 10-18: a common majority, some uncommon, one or two rare). */

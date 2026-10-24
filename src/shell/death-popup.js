@@ -17,15 +17,15 @@
 // alert centre (alerts.js) reads the same id, so a seen death never comes back
 // as a side line. A party member's death stays an alert line.
 // ════════════════════════════════════════════════════════════════════════
-import { ALERTS_SEEN_MAX } from '../session/residue.js?v=0.2.44';
-import { huntOf } from '../session/hunt-sections.js?v=0.2.44';
-import { deathLogOf } from '../session/character-sections.js?v=0.2.44';
-import { nameOf } from '../session/item-sections.js?v=0.2.44';
-import { huntName } from '../session/party-sections.js?v=0.2.44';
-import { SKILLS_DEF } from '../data/skills.js?v=0.2.44';
-import { whole } from '../render/format.js?v=0.2.44';
-import { summariesOf } from '../hunt-view/summary-recorder.js?v=0.2.44';
-import { monsterName } from './widgets/bits.js?v=0.2.44';
+import { ALERTS_SEEN_MAX } from '../session/residue.js?v=0.2.45';
+import { huntOf } from '../session/hunt-sections.js?v=0.2.45';
+import { deathLogOf } from '../session/character-sections.js?v=0.2.45';
+import { nameOf } from '../session/item-sections.js?v=0.2.45';
+import { huntName } from '../session/party-sections.js?v=0.2.45';
+import { SKILLS_DEF } from '../data/skills.js?v=0.2.45';
+import { whole } from '../render/format.js?v=0.2.45';
+import { summariesOf } from '../hunt-view/summary-recorder.js?v=0.2.45';
+import { monsterName } from './widgets/bits.js?v=0.2.45';
 
 const seenOf = (cs) => {
   const r = cs && cs.record && cs.record.residue && cs.record.residue.alerts;

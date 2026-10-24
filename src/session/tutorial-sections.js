@@ -9,14 +9,14 @@
 // currentCard; the words of a card that names a bar slot come from the bar the
 // server shows (cardFor), so "slot 4" is the slot that holds the food.
 // ════════════════════════════════════════════════════════════════════════
-import { currentCard, cardFor, nextGoal, ROLE_SKILL } from '../data/hunt-tutorial.js?v=0.2.44';
-import { CONSUMABLES } from '../data/consumables.js?v=0.2.44';
-import { levelOf } from './character-sections.js?v=0.2.44';
-import { huntOf, settingsOf, huntBestsOf } from './hunt-sections.js?v=0.2.44';
-import { skillsOf } from './item-sections.js?v=0.2.44';
-import { farmFieldOf } from './farm-sections.js?v=0.2.44';
-import { tallyOf } from './tally-sections.js?v=0.2.44';
-import { partyMembershipOf } from './party-sections.js?v=0.2.44';
+import { currentCard, cardFor, nextGoal, ROLE_SKILL } from '../data/hunt-tutorial.js?v=0.2.45';
+import { CONSUMABLES } from '../data/consumables.js?v=0.2.45';
+import { levelOf } from './character-sections.js?v=0.2.45';
+import { huntOf, settingsOf, huntBestsOf } from './hunt-sections.js?v=0.2.45';
+import { skillsOf } from './item-sections.js?v=0.2.45';
+import { farmFieldOf } from './farm-sections.js?v=0.2.45';
+import { tallyOf } from './tally-sections.js?v=0.2.45';
+import { partyMembershipOf } from './party-sections.js?v=0.2.45';
 
 /* A stored slot that EATS (a food consumable) on a condition the player saved: what "Tell your hero when" asks for. */
 const eatsWhen = (s) => !!s && !!s.action && s.action.type === 'consume' && !!CONSUMABLES[s.action.id]

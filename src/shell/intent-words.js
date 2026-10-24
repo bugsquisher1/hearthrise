@@ -10,13 +10,13 @@
 // server's value stays on screen either way: nothing changed before it answered.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.44';
-import { ITEMS } from '../data/items.js?v=0.2.44';
-import { REFUSAL_WORDS, REFUSAL_FAMILIES, REFUSAL_FALLBACK, REFUSAL_VERB_WORDS } from '../data/refusal-words.js?v=0.2.44';
-import { skillsOf } from '../session/item-sections.js?v=0.2.44';
-import { levelOf } from '../session/character-sections.js?v=0.2.44';
-import { needOf, needWords } from './item-lore.js?v=0.2.44';
-import { whole } from '../render/format.js?v=0.2.44';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.45';
+import { ITEMS } from '../data/items.js?v=0.2.45';
+import { REFUSAL_WORDS, REFUSAL_FAMILIES, REFUSAL_FALLBACK, REFUSAL_VERB_WORDS } from '../data/refusal-words.js?v=0.2.45';
+import { skillsOf } from '../session/item-sections.js?v=0.2.45';
+import { levelOf } from '../session/character-sections.js?v=0.2.45';
+import { needOf, needWords } from './item-lore.js?v=0.2.45';
+import { whole } from '../render/format.js?v=0.2.45';
 
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 

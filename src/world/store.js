@@ -13,10 +13,10 @@
 // players there); a reload forgets it, which is correct for a view. tests/world-no-authority.mjs fails the build
 // on any other write to G.
 // ════════════════════════════════════════════════════════════════════════
-import { SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.44';
-import { SANDBOX } from '../data/world/sandbox.js?v=0.2.44';
-import { sceneFor } from './core/scene-route.js?v=0.2.44';
-import { HUNT_MAP_INDEX } from './hunt-maps.js?v=0.2.44';
+import { SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.45';
+import { SANDBOX } from '../data/world/sandbox.js?v=0.2.45';
+import { sceneFor } from './core/scene-route.js?v=0.2.45';
+import { HUNT_MAP_INDEX } from './hunt-maps.js?v=0.2.45';
 
 /** The display scratch, created on first use. The world's only write to G. */
 export function worldOf(G) {

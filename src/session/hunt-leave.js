@@ -8,8 +8,8 @@
 // (src/shell/widgets/hunt-topbar.js) and when CharacterSession asks the
 // settle that closes it. Display and timing only: nothing here is spent.
 // ════════════════════════════════════════════════════════════════════════
-import { SESSION_CONFIG } from './config.js?v=0.2.44';
-import { leaveAtOf } from './hunt-sections.js?v=0.2.44';
+import { SESSION_CONFIG } from './config.js?v=0.2.45';
+import { leaveAtOf } from './hunt-sections.js?v=0.2.45';
 
 /**
  * The leave's own answer (hr_hunt_view of the session it set leave_at on) as

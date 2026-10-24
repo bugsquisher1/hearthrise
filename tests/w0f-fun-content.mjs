@@ -16,9 +16,10 @@
 //            recipe or other monster); expected hours at the tier's
 //            loadout are in [1, 4] with no death in the measured hour; the
 //            relic adds <= 5% of the gp midpoint per kill in vendor value.
-//   (sql)    the staged migration names every new item, slot pair, activity
-//            and bounty-monster row with the values the data derives (the
-//            literal-drift half; the executed half is the migration's own §2).
+//   (sql)    the w0f migration names every activity and bounty-monster row with
+//            the values the data derives, and the server's current items
+//            catalogue (the last generated one) names each relic's hr_items row
+//            (the literal-drift half; the executed half is the migration's own §2).
 //
 // Run GREEN:  node tests/w0f-fun-content.mjs
 // Prove RED:  node tests/w0f-fun-content.mjs --selftest
@@ -49,6 +50,18 @@ import { huntSpan } from './hunt-fixture.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SQL_FILE = join(ROOT, 'supabase', 'migrations', '2026-10-16-w0f-fun-content.sql');
+/* The SERVER'S item rows today: the last generated items catalogue in apply order (a full replace of hr_items, so the
+   w0f file's own hr_items insert is history every later catalogue overwrote; gear moved to the hero's Level on
+   2026-10-24, tools/gen-catalogues.mjs). */
+function catalogueSql() {
+  const order = JSON.parse(readFileSync(join(ROOT, 'tests', 'schema-apply-order.json'), 'utf8')).order;
+  for (let i = order.length - 1; i >= 0; i--) {
+    if (!/catalogue\.generated\.sql$/.test(order[i])) continue;
+    const t = readFileSync(join(ROOT, 'supabase', 'migrations', order[i]), 'utf8');
+    if (t.includes('insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, req_lv')) return t;
+  }
+  return '';
+}
 
 let fails = [];
 const ok = (cond, rule, msg) => { if (!cond) fails.push(`(${rule}) ${msg}`); };
@@ -127,7 +140,7 @@ function checkTrophies(items, trophies = BOSS_TROPHIES) {
     `bossTrophiesHeld must count bag + depot and ignore a zero stack, got ${JSON.stringify(held)}`);
 }
 
-function checkChampions(monsters, items, sql, { measure = true } = {}) {
+function checkChampions(monsters, items, sql, { measure = true, catalogue = catalogueSql() } = {}) {
   const lines = [];
   const roster = auditRoster(monsters);
   ok(roster.length === 0, 'champ', `auditRoster: ${roster.join(' | ')}`);
@@ -165,8 +178,8 @@ function checkChampions(monsters, items, sql, { measure = true } = {}) {
     /* SQL rows. */
     ok(new RegExp(`\\["combat",\\s*"${mid}",\\s*${m.hp}\\]`).test(sql), 'sql', `${mid}: the migration has no combat row with max_hp ${m.hp}`);
     ok(new RegExp(`\\["${mid}",\\s*${t},\\s*${m.hp}\\]`).test(sql), 'sql', `${mid}: the migration has no hr_bounty_monsters row (${t}, ${m.hp})`);
-    ok(new RegExp(`\\["${last.id}",\\s*"[^"]+",\\s*"${it.type}",\\s*${it.v},\\s*"${it.reqSkill}",\\s*${it.reqLv},\\s*true\\]`).test(sql),
-      'sql', `${last.id}: the migration's hr_items row does not match the data`);
+    ok(new RegExp(`\\('${last.id}','(?:[^']|'')+',true,'${it.type}',${it.v},'${it.reqSkill}',${it.reqLv},`).test(catalogue),
+      'sql', `${last.id}: the server catalogue's hr_items row does not match the data`);
     /* HOURS, measured. */
     if (measure) {
       const got = fight(monsters, mid);
@@ -189,7 +202,7 @@ function checkAll(over = {}) {
   const sql = over.sql != null ? over.sql : readFileSync(SQL_FILE, 'utf8');
   checkCrops(crops, sql);
   checkTrophies(items, over.trophies);
-  const lines = checkChampions(monsters, items, sql, { measure: over.measure !== false });
+  const lines = checkChampions(monsters, items, sql, { measure: over.measure !== false, ...(over.catalogue != null ? { catalogue: over.catalogue } : {}) });
   return { fails: fails.slice(), lines };
 }
 
@@ -209,6 +222,7 @@ const MUTATIONS = {
   relic_not_last:     { rule: 'champ', over: () => { const ms = cloneMonsters(); ms.barrow_king.drops.unshift(ms.barrow_king.drops.pop()); return { monsters: ms, measure: false }; } },
   champion_too_strong:{ rule: 'champ', over: () => { const ms = cloneMonsters(); ms.gnoll_packlord.atk = 40; return { monsters: ms, measure: false }; } },
   champion_not_a_step:{ rule: 'champ', over: () => { const ms = cloneMonsters(); ms.old_tusker.hp = 16; return { monsters: ms, measure: false }; } },
+  sql_relic_on_a_skill: { rule: 'sql', over: () => ({ catalogue: catalogueSql().replace("'jewelry',140,'level',8,", "'jewelry',140,'defense',8,"), measure: false }) },
   sql_no_combat_row:  { rule: 'sql',   over: () => ({ sql: readFileSync(SQL_FILE, 'utf8').replace(/\["combat",\s*"frost_jarl",\s*360\]/, '["combat", "frost_jarl", 999]'), measure: false }) },
 };
 

@@ -162,6 +162,8 @@ const clone = (o) => JSON.parse(JSON.stringify(o));
 /* The hunt rows (each ground's theme) the Hunts page draws. */
 const HUNTS = (await import(pathToFileURL(join(ROOT, 'src/data/hunts.js')).href)).HUNT_INDEX;
 /* The Cellar's one gear line, alone, as the page must print it (its math is checked from the rows in huntsPure). */
+/* The Level XP a hero at Level 30 holds (src/core/xp.js): gear is worn by the hero's Level (Tyler 2026-10-24). */
+const LEVEL_30_XP = (await import(pathToFileURL(join(ROOT, 'src/core/xp.js')).href)).charXpForLevel(30);
 const CELLAR_ODDS = (await import(pathToFileURL(join(ROOT, 'src/render/format.js')).href)).chance(
   (await import(pathToFileURL(join(ROOT, 'src/shell/hunt-ground-facts.js')).href)).scarceSetOf('mill_cellar', 'medium', 1)[0].chance);
 /* A Level 1 hero in town (no hunt, no party, no bests yet), 30 min of stamina, two setups the server can put
@@ -715,12 +717,11 @@ async function checks(overrides, shots) {
         if (!after.ratNew || after.bonesNew) fails.push('AW-3 the "new" mark is wrong after the envelope (more rat tails new: ' + after.ratNew + ', fewer bones new: ' + after.bonesNew + ')');
         if (!after.same) fails.push('AW-2 a new envelope rebuilt the rat tail pocket instead of patching it');
         if (after.rat !== '40' || after.bones !== '2' || after.gel) fails.push('AW-3 the bag did not take the server’s new counts (rat ' + after.rat + ', bones ' + after.bones + ', slime gel still there: ' + after.gel + ')');
-        /* AW-4: Equip on a bag sword is one intent, off at once, and the doll waits for the server. In town with the
-           Melee the sword needs: the engine refuses an equip mid-hunt or under its requirement, and the screen never
-           offers one then (AW-21, Tyler 2026-10-24). */
+        /* AW-4: Equip on a bag sword is one intent, off at once, and the doll waits for the server. In town at the
+           Level the sword needs (gear is worn by Level, Tyler 2026-10-24): the engine refuses an equip mid-hunt or under
+           its requirement, and the screen never offers one then (AW-21, Tyler 2026-10-24). */
         for (const k of ['hunt', 'hunt_analyzer', 'hunt_track', 'hunt_events', 'party']) delete s.env[k];
-        s.env.state = Object.assign({}, s.env.state, { active_kind: 'idle', active_id: null });
-        s.env.skills.melee = { xp: 4700, level: 30, frac: 0 };
+        s.env.state = Object.assign({}, s.env.state, { active_kind: 'idle', active_id: null, level_xp: LEVEL_30_XP });
         await pushEnvelope(page, s);
         await wait(page, () => { const b = document.querySelector('.hw-pick [data-hs-act="primary"]'); return !b || !b.disabled; }, null, 3000);
         await page.click('.hw-pocket[data-item="steel_sword"]');
@@ -1315,10 +1316,10 @@ async function checks(overrides, shots) {
       // answer; a refusal in words with nothing moved; the Shop offers it right after a gear purchase; a reload agrees
       const town = (e) => {
         for (const k of ['hunt', 'hunt_analyzer', 'hunt_track', 'hunt_events', 'party']) delete e[k];
-        e.state = Object.assign({}, e.state, { active_kind: 'idle', active_id: null });
-        Object.assign(e.inventory, { leather_gloves: 1, bronze_belt: 1, copper_ring: 1, steel_helm: 1 });
-        /* Melee 30: the bag's Steel Sword is better than the worn Iron Sword, and still never put on (the weapon sets the style). */
-        e.skills.melee = { xp: 4700, level: 30, frac: 0 };
+        /* Level 30 (gear is worn by Level, Tyler 2026-10-24): the bag's Steel Sword is better than the worn Iron Sword, and
+           still never put on (the weapon sets the style); the Mithril Helm needs Level 45. */
+        e.state = Object.assign({}, e.state, { active_kind: 'idle', active_id: null, level_xp: LEVEL_30_XP });
+        Object.assign(e.inventory, { leather_gloves: 1, bronze_belt: 1, copper_ring: 1, mithril_helm: 1 });
         e.shop.offers.push({ offer: 'supply.leather_gloves', item: 'leather_gloves', kind: 'gear', price: 160 });
       };
       const { ctx, page, errors, s, up } = await open({ mutateEnv: town });
@@ -1339,17 +1340,17 @@ async function checks(overrides, shots) {
         await openWin(page, 'b', 'inventory');
         await page.waitForTimeout(250);
         const pre = await page.evaluate(() => { const l = document.querySelector('.hw-inv .hw-upgrade'); return { on: l.classList.contains('is-on'), q: l.querySelector('.hw-upgrade-q').textContent, off: l.querySelector('button').disabled }; });
-        if (!pre.on || pre.off || !/^Wear Iron Helm \(\+\d+ Defense/.test(pre.q) || /Steel/.test(pre.q)) fails.push('AW-21 the preview line is wrong before the press: ' + JSON.stringify(pre));
-        /* A REQUIREMENT THE SERVER'S NUMBERS SAY IS UNMET (Tyler 2026-10-24, "Gear swapping isn't working": Fingerguns,
-           Defense 19, was offered Equip on a Steel Helm that needs 30, and the refusal said nothing on screen): the
-           picked line's Equip is off and says why, and a press sends nothing. */
-        await page.click('.hw-pocket[data-item="steel_helm"]');
+        if (!pre.on || pre.off || !/^Wear Iron Helm \(\+\d+ Defense/.test(pre.q) || /Steel|Mithril/.test(pre.q)) fails.push('AW-21 the preview line is wrong before the press: ' + JSON.stringify(pre));
+        /* A REQUIREMENT THE SERVER'S NUMBERS SAY IS UNMET (Tyler 2026-10-24, "Gear swapping isn't working": Fingerguns
+           was offered Equip on a helm he could not wear, and the refusal said nothing on screen; gear is worn by Level
+           since): the picked line's Equip is off and says why, and a press sends nothing. */
+        await page.click('.hw-pocket[data-item="mithril_helm"]');
         await page.waitForTimeout(150);
         const need = await page.evaluate(() => ({ off: document.querySelector('.hw-inv [data-hs-act="primary"]').disabled,
           why: document.querySelector('.hw-inv .hw-pick-why').textContent }));
         await page.keyboard.press('Enter');
         await page.waitForTimeout(300);
-        if (!need.off || need.why !== 'Needs Defense 30 — you have 19.' || sent(s, 'hr-accrue', 'equip').length) fails.push('AW-21 a Steel Helm at Defense 19 reads ' + JSON.stringify(need) + ', ' + sent(s, 'hr-accrue', 'equip').length + ' equip(s) sent');
+        if (!need.off || need.why !== 'Needs Level 45 — you\'re 30.' || sent(s, 'hr-accrue', 'equip').length) fails.push('AW-21 a Mithril Helm at Level 30 reads ' + JSON.stringify(need) + ', ' + sent(s, 'hr-accrue', 'equip').length + ' equip(s) sent');
         /* A refusal (the engine's 409): nothing moves, and the words say why ON THE LINE PRESSED, in view (they sat at the
            window's foot, below the fold, so the press looked like nothing). */
         s.refuse = 'requirement_not_met';
@@ -1358,7 +1359,7 @@ async function checks(overrides, shots) {
         await wait(page, () => !document.querySelector('.hw-inv [data-hs-act="equip-upgrades"]').disabled, null, 3000);
         const said = await page.evaluate(() => { const n = document.querySelector('.hw-inv .hw-upgrade-why'), b = document.querySelector('[data-hs-win="inventory"] .hs-win-body').getBoundingClientRect();
           const q = n.getBoundingClientRect(); return { t: n.textContent, inView: n.getClientRects().length > 0 && q.top >= b.top - 1 && q.bottom <= b.bottom + 1 }; });
-        if (said.t !== 'Your skill is too low to wear that yet. Nothing was put on.' || !said.inView) fails.push('AW-21 a refused Equip upgrades says ' + JSON.stringify(said) + ' on its line (want the words, in view)');
+        if (said.t !== 'You don\'t meet that item\'s requirement yet. Nothing was put on.' || !said.inView) fails.push('AW-21 a refused Equip upgrades says ' + JSON.stringify(said) + ' on its line (want the words, in view)');
         if (await page.evaluate(() => document.querySelector('.hw-slot[data-slot="helmet"]').getAttribute('data-item'))) fails.push('AW-21 the doll changed on a refusal');
         if (shots) await shot(page, 'alpha-1440x900-equip-upgrades');
         /* The press that lands: ONE intent, every slot and stack marked until the answer. */
@@ -1401,7 +1402,8 @@ async function checks(overrides, shots) {
     { // AW-21 MID-HUNT (Tyler 2026-10-24): the engine refuses every equip while the hunt is open (equip.js hunt_open),
       // so the Inventory never offers one: Equip and Equip upgrades are off and say why, a press sends nothing, and the
       // engine's own refusal reads as what to do
-      const hunting = (e) => { Object.assign(e.inventory, { steel_helm: 1, iron_helm: 1, iron_platebody: 1 }); };
+      /* Level 30: every piece in the bag is wearable by its Level (Tyler 2026-10-24), so only the hunt turns them off. */
+      const hunting = (e) => { Object.assign(e.inventory, { steel_helm: 1, iron_helm: 1, iron_platebody: 1 }); e.state = Object.assign({}, e.state, { level_xp: LEVEL_30_XP }); };
       const { ctx, page, errors, s, up } = await open({ mutateEnv: hunting });
       if (up) {
         await openWin(page, 'b', 'inventory');

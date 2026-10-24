@@ -185,9 +185,17 @@ async function checks(overrides, shots) {
         if (!/7 of 119 creatures slain/.test(words)) fails.push('CW-2 the bestiary line is missing');
         const combatSkills = await page.evaluate(() => Array.from(document.querySelectorAll('[data-hs-win="character"] .hw-skill-name')).map((b) => b.textContent));
         if (!combatSkills.includes('Melee') || combatSkills.includes('Attack') || combatSkills.includes('Mining')) fails.push('CW-6 the Character window\'s skills are ' + combatSkills.join(','));
-        /* CW-6b (Tyler 10-19: "Oak Wand (staff)"): a wand reads (wand), a staff (staff), a spellbook (spellbook). */
+        /* CW-6b (Tyler 10-19: "Oak Wand (staff)"): a wand reads (wand), a staff (staff), a spellbook (spellbook). Gear is
+           worn by the hero's LEVEL since 2026-10-24, so the Magic line names its runes (a supply keeps its skill) and the
+           weapons are read off the Level unlocks the coach names ("What next": src/data/hunt-tutorial.js), each role's own. */
         const magic = await page.evaluate(() => Array.from(document.querySelectorAll('[data-hs-win="character"] .hw-skill')).map((li) => li.textContent).find((t) => /^\s*Magic/.test(t)) || '');
-        if (!/Oak Wand \(wand\)/.test(magic) || !/Oak Staff \(staff\)/.test(magic) || !/Spellbook \(spellbook\)/.test(magic)) fails.push('CW-6 the magic unlock words are wrong: ' + JSON.stringify(magic));
+        if (!/\(rune for staves\)/.test(magic) || /\((wand|staff|spellbook)\)/.test(magic)) fails.push('CW-6 the Magic line does not name its runes alone: ' + JSON.stringify(magic));
+        const kinds = await page.evaluate(async () => {
+          const t = await import('/src/data/hunt-tutorial.js');
+          const u = await import('/src/data/skill-unlocks.js');
+          return ['mage', 'healer'].map((r) => u.nextUnlock('level', 14, (id) => t.wornByRole(id, r))).join(' | ');
+        });
+        if (!/Oak Wand \(wand\)/.test(kinds) || !/Oak Staff \(staff\)/.test(kinds) || !/Spellbook \(spellbook\)/.test(kinds)) fails.push('CW-6 the magic unlock words are wrong: ' + JSON.stringify(kinds));
         if (sheetAsks(s).length !== 1) fails.push('CW-3 one opening asked the engine ' + sheetAsks(s).length + ' time(s), not once');
         if (shots) await shot(page, 'character-1440x900-sheet');
         /* CW-2b: a new envelope replaces the numbers on the same node. */

@@ -267,6 +267,28 @@ const DEFAULT_ATTACK = Object.freeze({ id: 'd_attack', action: Object.freeze({ t
 export const DEFAULT_ATTACK_ROW = Object.freeze({ rule: DEFAULT_ATTACK.id, slot: DEFAULT_ATTACK });
 
 /**
+ * WHICH AMMO A SHOT LOOSES (Andy #63, 2026-10-24: Bronze worn, Barbed on the bar with none carried, and every shot
+ * bought a Plain Barbed Arrow; reordering the bar changed nothing). The attack lane's rows (slotsFor) in the order a
+ * swing and a shot spell (abilities.js castShotOf) try them: a bar ammo slot WITH conditions where it stands (a rule
+ * the player wrote: area arrows at 3+ in reach), then the WORN ammo (the lane's default, d_attack), then the bar's
+ * other ammo in bar order. The caller walks it twice, carried stock only, then the store (shotPasses), so nothing is
+ * bought while anything the hero carries can shoot, and the store sells in the same order.
+ */
+export function attackOrder(rows) {
+  const ruled = [], plain = [];
+  let worn = null;
+  for (const r of rows) {
+    if (r.rule === DEFAULT_ATTACK.id && !worn) worn = r;
+    else ((r.slot.conditions || []).length ? ruled : plain).push(r);
+  }
+  return ruled.concat(worn ? [worn] : [], plain);
+}
+/* The two passes of a shot: `act(own)` answers a slot's pick on carried stock only (own = true), then with the store. */
+export function shotPasses(inst, u, h, rows, act, sc) {
+  return pickSlot(inst, u, h, rows, act(true), null, 'attack') || pickSlot(inst, u, h, rows, act(false), sc, 'attack');
+}
+
+/**
  * WHERE A LANE'S DEFAULTS STAND on the bar: each fills the first EMPTY (null)
  * position, else goes on the end — the rule the server's settings view places
  * them by (hr_hunt_settings_view), so a rule id is the tablet the player sees.

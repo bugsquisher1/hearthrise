@@ -34,8 +34,8 @@ import { makeEvent } from './events.js?v=0.2.39';
 import { roleOf, elementOn, inRange, peel, engaged } from './targeting.js?v=0.2.39';
 import { fallen, partySize } from './pull-cycle.js?v=0.2.39';
 import { shareKillXp } from './xp-share.js?v=0.2.39';
-import { payBasic, shotLine } from './abilities.js?v=0.2.39';
-import { slotsFor, pickSlot, bestAim, footprintOf, inFootprint, itemRow, DEFAULT_ATTACK_ROW } from './conditions.js?v=0.2.39';
+import { payBasic, shotLine, ownShotLine } from './abilities.js?v=0.2.39';
+import { slotsFor, shotPasses, attackOrder, bestAim, footprintOf, inFootprint, itemRow, DEFAULT_ATTACK_ROW } from './conditions.js?v=0.2.39';
 import { shootsItem } from '../../data/hunt-roles.js?v=0.2.39';
 import { elementWithFloor } from '../../data/hunt-grounds.js?v=0.2.39';
 import { mitigate } from '../mitigation.js?v=0.2.39';
@@ -233,12 +233,14 @@ function blow(inst, sc, u, h, t, price, sharePm) {
 /* The attack slot a hero's swing takes now: { pick: { ammo (an item id, or null =
    nothing to pay), price (the item the blow is priced with: blow above), size, aim,
    mana? + magicXpMult? (a caster's basic) }, rule, mask, label } or null. An item slot
-   is a shooter's; one with no stock or no aim falls back to the next. */
+   is a shooter's; one with no stock or no aim falls back to the next. THE ORDER (Andy #63; conditions.js
+   attackOrder): a bar slot with conditions, then the worn ammo, then the bar's other ammo, each first on
+   what the hero carries (`own`), and only then, in the same order, from the store. */
 function pickShot(inst, u, h, t, sc) {
   const row = roleOf(u);
   if (!row) return null;
-  const rows = h ? slotsFor(h, 'attack') : [DEFAULT_ATTACK_ROW];
-  return pickSlot(inst, u, h, rows, (slot, cx) => {
+  const rows = attackOrder(h ? slotsFor(h, 'attack') : [DEFAULT_ATTACK_ROW]);
+  return shotPasses(inst, u, h, rows, (own) => (slot, cx) => {
     const id = slot.action.id;
     if (id === 'loaded') {
       /* THE CASTER'S MANA BASIC: never a rune (a loaded rune adds nothing: member.js combatWorn), its
@@ -251,6 +253,9 @@ function pickShot(inst, u, h, t, sc) {
       const fits = !!h && !!h.ammo && shootsItem(u.role, itemRow(h, h.ammo));
       /* A bow or crossbow with nothing it can loose loaded has no shot: no swing (the lane waits, no_stock). */
       if (shoots && !fits) return { why: 'no_stock' };
+      /* The worn ammo's own shot, or (the second pass) its store partner; neither: the next row. */
+      const w = shoots ? (own ? ownShotLine(h, h.ammo) : shotLine(h, h.ammo)) : null;
+      if (w && (!w.id || w.why)) return { why: w.why === 'gold_short' ? 'gold_short' : 'no_stock' };
       return { ammo: shoots ? h.ammo : null, price: shoots ? h.ammo : undefined, size: 1, aim: t };
     }
     /* An item attack slot is a shooter's (a caster's basic spends mana, a melee hero's spends nothing). */
@@ -258,12 +263,12 @@ function pickShot(inst, u, h, t, sc) {
     /* AN ITEM THE WORN WEAPON CANNOT SHOOT IS NO SHOT (Andy 2026-10-23): the slot is passed over and the next
        one fires. A bow loosed Copper Whetstones (Melee ammo), one a shot, from a slot ahead of its arrows. */
     if (!shootsItem(u.role, itemRow(h, id))) return null;
-    const l = shotLine(h, id);
+    const l = own ? ownShotLine(h, id) : shotLine(h, id);
     if (!l.id || l.why) return { why: l.why === 'gold_short' ? 'gold_short' : 'no_stock' };
     const size = footprintOf(slot, h);
     /* A ONE-TARGET item shoots the swing's own target, as the loaded ammo does (a pull's first shot at a pack
        that holds no target yet fell to the loaded ammo); an area item takes its best aim. */
     const aim = cx.aim && cx.aim.alive ? cx.aim : size <= 1 ? t : (bestAim(inst, u, row.range, size, slot) || {}).aim;
     return aim && inRange(inst, u, aim) ? { ammo: id, price: id, size, aim } : { why: 'out_of_range' };
-  }, sc, 'attack');
+  }, sc);
 }

@@ -52,7 +52,7 @@ import { levelOf } from '../xp.js?v=0.2.39';
 import { ammoPerShot } from '../ammo.js?v=0.2.39';
 import { ITEMS } from '../../data/items.js?v=0.2.39';
 import { isRune } from '../../data/supplies.js?v=0.2.39';
-import { slotsFor, pickSlot, bestAim, itemRow, ignores, DEFAULT_ATTACK_ROW } from './conditions.js?v=0.2.39';
+import { slotsFor, pickSlot, bestAim, itemRow, ignores, DEFAULT_ATTACK_ROW, attackOrder } from './conditions.js?v=0.2.39';
 import { shootsItem } from '../../data/hunt-roles.js?v=0.2.39';
 
 export const PERSISTED = Object.freeze({
@@ -157,16 +157,19 @@ function runeFor(h, row, store) {
  * (Tyler 2026-10-21), so a cast looses what the hero's basic attack would: the first ATTACK slot, in
  * bar order, whose conditions pass and that has a shot of an item the worn weapon can loose (own
  * first, then the store's partner: shotLine); the lane's default (d_attack) is the loaded ammo.
- * Null = no shot. Pure, and it reports no wait (pickSlot with no lane).
+ * Null = no shot. Pure, and it reports no wait (pickSlot with no lane). The swing's own order and passes
+ * (conditions.js attackOrder: carried stock first, the worn ammo ahead of the bar's other ammo, the store last).
  */
 function castShotOf(inst, hero, h) {
   const rows = slotsFor(h, 'attack');
-  const got = pickSlot(inst, hero, h, rows.length ? rows : [DEFAULT_ATTACK_ROW], (slot) => {
+  const order = attackOrder(rows.length ? rows : [DEFAULT_ATTACK_ROW]);
+  const act = (own) => (slot) => {
     const id = slot.action.id === 'loaded' ? h.ammo : slot.action.id;
     if (!id || !shootsItem(hero.role, itemRow(h, id))) return null;
-    const l = shotLine(h, id);
+    const l = own ? ownShotLine(h, id) : shotLine(h, id);
     return l.id && !l.why ? { id } : null;
-  });
+  };
+  const got = pickSlot(inst, hero, h, order, act(true)) || pickSlot(inst, hero, h, order, act(false));
   return got ? got.pick.id : null;
 }
 
@@ -396,6 +399,10 @@ function regenMana(u, dtMs) {
  */
 export function shotLine(h, id) {
   return isRune(itemRow(h, id)) ? { why: 'none' } : resolveLine(h && h.hs, id, undefined);
+}
+/** shotLine's carried half: own stock only, never the store (a shot's first pass, conditions.js attackOrder). */
+export function ownShotLine(h, id) {
+  return isRune(itemRow(h, id)) ? { why: 'none' } : resolveLine(h && h.hs, id, null);
 }
 
 /**

@@ -189,7 +189,8 @@ const cases = {
       M.damage.resolveAttacks(r.inst, r.sc);
       return { dmg: r.sc.events.filter((e) => e.type === 'dmg' && e.u === 1).map((e) => e.amount), barbed: r.hs.bag.barbed_arrows.left };
     };
-    const named = one([{ action: { type: 'attack_with_item', id: 'barbed_arrows' }, conditions: [], join: 'and' }], 'bronze_arrows');
+    /* (a slot with a condition is a rule: it fires ahead of the worn ammo, conditions.js attackOrder) */
+    const named = one([{ action: { type: 'attack_with_item', id: 'barbed_arrows' }, conditions: [{ metric: 'self_hp_pct', op: 'lte', value: 100 }], join: 'and' }], 'bronze_arrows');
     const loaded = one([], 'barbed_arrows'), bronze = one([], 'bronze_arrows');
     if (JSON.stringify(bronze.dmg) !== '[20]' || JSON.stringify(loaded.dmg) !== '[20]') return 'CONTROL: a loaded-ammo basic did not hit at the snapshot (20): ' + JSON.stringify([bronze, loaded]);
     if (named.barbed !== 2) return 'the Barbed slot did not spend a Barbed Arrow: ' + named.barbed + ' left of 3';
@@ -262,6 +263,44 @@ const cases = {
     const staff = one('mage', [atk('iron_arrows')], 'chalked_fire_rune', { iron_arrows: { loaded: 5 }, chalked_fire_rune: { loaded: 5 } }, { mana: 50, maxMana: 100 });
     return staff.swings === 1 && staff.left.iron_arrows === 5 && staff.left.chalked_fire_rune === 5 ? null : 'a staff with an arrow slot: ' + JSON.stringify(staff);
   },
+  /* WHICH ARROWS A BOW LOOSES (Andy #63, build 0.2.38, Fremulon: "Bronze arrow in ammo slot ... yet game is still using
+     'default' barbed arrows"; reordering his bar changed nothing). His empty Barbed slot bought a Plain Barbed Arrow every
+     shot ahead of the Bronze he wore. Carried stock first: the worn ammo, then the bar's ammo in bar order; the store
+     only once everything carried is gone, in that same order (the worn ammo's partner first). */
+  'worn-ammo-before-the-store': (M) => {
+    const id = Object.keys(M.MONSTERS).find((k) => M.C.defenceReduction(M.MONSTERS[k]) === 0 && !(M.MONSTERS[k].elementImmune || []).length);
+    const atk = (item) => ({ action: { type: 'attack_with_item', id: item }, conditions: [], join: 'and' });
+    const store = (sid, partner) => ({ [sid]: { kind: 'ammo', price: 1, heals: 0, mana: 0, partner } });
+    /* n swings; after each, what the bag holds and the store sold (the default swing emits no shot event: stock is the record) */
+    const play = (worn, bar, bag, n) => {
+      const inst = fight(M, [H(M, 1, 12, 3, 'ranger', { target: 2, maxHit: 20 }), E(M, 2, 0, 15, 3, 1, { kind: id, hp: 1e6, maxHp: 1e6 })]);
+      const hs = M.AR.newHuntSession({ id: 'dm', huntFromMs: 0, bag, purse: 1000, goldFloor: 0,
+        basics: { ...store('plain_barbed_arrows', 'barbed_arrows'), ...store('plain_iron_arrows', 'iron_arrows') } });
+      inst.heroes = { 1: { hs, slots: M.conditions.heroSlots(bar, null), actionSet: 'hunt', range: 7, ammo: worn, items: M.ITEMS } };
+      const sc = sc2(M, 1);
+      M.movement.occupancy(inst);
+      const steps = [];
+      let swings = 0;
+      for (let i = 0; i < n; i++) {
+        sc.events.length = 0;
+        M.damage.resolveAttacks(inst, sc);
+        swings += sc.events.filter((e) => e.u === 1 && (e.type === 'dmg' || e.type === 'miss')).length;
+        steps.push(Object.entries(hs.bag).map(([k, l]) => k + ':' + l.left).concat(Object.entries(hs.tally.bought).map(([k, q]) => k + ' bought ' + q)).join(','));
+        inst.world.units.find((u) => u.id === 1).swingLeftMs = 0;
+        sc.atMs += M.C.COMBAT_BALANCE.tickMs;
+      }
+      return { swings, steps };
+    };
+    /* his case: Bronze worn (the free rung, carried), Barbed on the bar with none carried: Bronze every shot, nothing bought */
+    const andy = play('bronze_arrows', [atk('barbed_arrows')], { bronze_arrows: { loaded: 5 } }, 3);
+    if (andy.swings !== 3 || andy.steps.some((x) => /bought/.test(x))) return 'Bronze worn, Barbed on the bar (none carried): ' + JSON.stringify(andy);
+    /* the order: the worn Iron until it runs out, then the bar's carried Barbed, then the store's Plain Iron (the worn ammo's partner) */
+    const order = play('iron_arrows', [atk('barbed_arrows')], { iron_arrows: { loaded: 2 }, barbed_arrows: { loaded: 1 } }, 5);
+    const want = ['iron_arrows:1,barbed_arrows:1', 'iron_arrows:0,barbed_arrows:1', 'iron_arrows:0,barbed_arrows:0',
+      'iron_arrows:0,barbed_arrows:0,plain_iron_arrows bought 1', 'iron_arrows:0,barbed_arrows:0,plain_iron_arrows bought 2'];
+    return order.swings === 5 && JSON.stringify(order.steps) === JSON.stringify(want) ? null
+      : 'Iron worn (2), Barbed on the bar (1), 5 swings: ' + JSON.stringify(order) + ', want ' + JSON.stringify(want);
+  },
   /* DM-13: one swing per COMBAT_BALANCE.tickMs (the one basic-attack interval), the first as soon as the target is in reach. */
   'swing-every-interval': (M) => {
     const k = H(M, 1, 12, 3, 'tank', { hp: 100000, maxHp: 100000, target: 2 });
@@ -317,6 +356,10 @@ const mutants = [
     edits: [[D, '    if (!shootsItem(u.role, itemRow(h, id))) return null;\n', ''], ['src/core/hunt/conditions.js', 'SHOOTERS.some((r) => shootsItem(r, ITEMS[id]))', "!!ITEMS[id] && ITEMS[id].reqSkill !== 'magic'"]] },
   { name: 'a bow shoots the whetstone it wears', case: 'no-shot-the-weapon-cannot-loose',
     edits: [[D, '      const fits = !!h && !!h.ammo && shootsItem(u.role, itemRow(h, h.ammo));', '      const fits = !!h && !!h.ammo;']] },
+  { name: 'the store sells before carried stock is gone (Andy #63)', case: 'worn-ammo-before-the-store',
+    edits: [['src/core/hunt/conditions.js', "  return pickSlot(inst, u, h, rows, act(true), null, 'attack') || pickSlot(inst, u, h, rows, act(false), sc, 'attack');", "  return pickSlot(inst, u, h, rows, act(false), sc, 'attack');"]] },
+  { name: 'the worn ammo waits behind the bar (Andy #63)', case: 'worn-ammo-before-the-store',
+    edits: [['src/core/hunt/conditions.js', '  return ruled.concat(worn ? [worn] : [], plain);', '  return ruled.concat(plain, worn ? [worn] : []);']] },
   { name: 'no swing interval', case: 'swing-every-interval', edits: [[D, 'function restart(u) { u.swingLeftMs = COMBAT_BALANCE.tickMs; }', 'function restart(u) { u.swingLeftMs = 0; }']] },
 ];
 

@@ -137,7 +137,14 @@ export function sentenceOf(action, store) {
     return { verb: 'Cast', item: abilityName(action.id),
       note: '(uses 1 ' + runeWords(a.rune, 1) + (p ? ', ' + p.price + ' g a cast from the store once yours are gone)' : ', carried runes only)') };
   }
-  if (action.type === 'attack_with_item') return { verb: 'Shoot with', item: own(ATTACK_KINDS, action.id) ? 'the loaded ammo' : itemName(action.id), note: '' };
+  /* WHICH ARROWS FIRE (Andy #63; src/core/hunt/conditions.js attackOrder, the engine's one order): what you carry
+     first, the worn ammo ahead of the bar's other ammo unless a slot has conditions, the store last. */
+  if (action.type === 'attack_with_item') {
+    const worn = own(ATTACK_KINDS, action.id);
+    return { verb: 'Shoot with', item: worn ? 'the loaded ammo' : itemName(action.id),
+      note: worn ? '(the ammo you wear shoots first; the store sells a shot only once everything you carry is gone)'
+        : '(after the ammo you wear, unless you give this slot conditions; the store sells a shot only once everything you carry is gone)' };
+  }
   const c = CONSUMABLES[action.id];
   return { verb: c && c.kind === 'drink' ? 'Drink' : 'Eat', item: itemName(action.id), note: '' };
 }

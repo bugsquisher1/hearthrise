@@ -10,8 +10,12 @@
 //   tutorial-walk-through  each step is doable from the start kit plus the steps before it
 //   tutorial-never-backward  town -> Thicket -> town -> Sewer -> town -> Cellar, reloading between:
 //                          the pointer never moves back (#58, Andy 10-22)
+//   coach-hold             a card the server finishes stays up long enough to read; the player's own press moves it at once
+//   coach-ring             the gold ring is on the control the card names (icon, then inside its window); the icon row draws its own
 //   coach-folds            the coach minimizes to its title, stays so through a re-render and a reload,
 //                          marks the tab on a new card, opens to its full text (Tyler 2026-10-24)
+//
+//   --only a,b             run those cases and their mutants alone; --cases: the cases without mutants (CI runs everything)
 //
 // The loop case prints its measured clear times and kills (the evidence a balance claim needs).
 import { readFileSync, mkdtempSync, cpSync, writeFileSync, rmSync } from 'node:fs';
@@ -43,6 +47,10 @@ async function load(root) {
   M.art = await imp('src/data/monster-art.js');
   M.cond = await imp('src/core/hunt/conditions.js');
   M.vit = await imp('src/core/vitals.js');
+  M.gathering = await imp('src/data/gathering.js');
+  M.recipes = await imp('src/data/recipes.js');
+  M.tally = await imp('src/data/tally-tasks.js');
+  M.items = await imp('src/data/items.js');
   return M;
 }
 
@@ -245,7 +253,7 @@ const cases = {
     if (!(r.kills.rat >= 1)) return 'a fresh hero killed no rat in the cellar in two minutes';
     return r.falls ? 'a fresh hero died in the cellar' : null;
   },
-  'tutorial-walk-through': (M) => {
+  'tutorial-walk-through': async (M) => {
     const bad = M.tut.validate();
     if (bad.length) return bad.join('; ');
     const steps = M.tut.HUNT_TUTORIAL;
@@ -256,11 +264,31 @@ const cases = {
     if (!Object.keys(M.kit.START_INVENTORY).some((id) => M.supplies.SUPPLIES[id] && M.supplies.SUPPLIES[id].kind === 'heal')) {
       return 'the start kit carries no food the hunt bag can eat';
     }
+    const kit = M.kit.START_INVENTORY;
     for (const s of steps) {
       const d = s.done;
+      /* A PARTY card is never on a solo hero's way (Tyler 2026-10-21; the designer's playtest 2026-10-24: the solo
+         chain ended on "Into the sewer, together" and sat there for hours). */
+      if (s.party) continue;
       if (d.kind === 'enter') {
         if (!can.hunts.has(d.hunt)) return s.id + ': ' + d.hunt + ' is locked at this point (floor ' + H[d.hunt].band[0] + ')';
         can.inHunt = d.hunt; can.entered.add(d.hunt);
+      } else if (d.kind === 'planted') {
+        /* the kit's seed, a crop a Farming 1 hero may plant (hr_farm_plant has no hunt check: doable in the cellar wait) */
+        const crop = M.gathering.CROPS[s.ring.crop];
+        if (!crop || !(kit[crop.seed] > 0) || crop.req > 1) return s.id + ': the kit cannot plant ' + s.ring.crop;
+      } else if (d.kind === 'skill_xp') {
+        /* the kit holds the recipe's input, at level 1, and the step is in town (a bench does not run in a hunt) */
+        const r = (M.recipes.ARTISAN_RECIPES[d.skill] || []).find((x) => x.id === s.ring.work);
+        if (!r || (r.req || 1) > 1 || !(kit[r.input] > 0)) return s.id + ': the kit cannot ' + s.ring.work;
+        if (can.inHunt) return s.id + ': ' + d.skill + ' is asked for while a hunt runs';
+      } else if (d.kind === 'tally_taken') {
+        /* Tamsin takes no task while the hero hunts; hers is a solo task on a ground this chain enters next */
+        const t = M.tally.tallyTask(d.task);
+        if (can.inHunt) return s.id + ': a task is asked for while a hunt runs (Take is off)';
+        if (t.party || !steps.some((x) => !x.party && x.done.kind === 'enter' && x.done.hunt === t.hunt)) return s.id + ': ' + d.task + ' is not on the solo way';
+      } else if (d.kind === 'tally_paid') {
+        if (!steps.some((x) => x.done.kind === 'tally_taken') || !can.entered.has(M.tally.tallyTask(steps.find((x) => x.done.kind === 'tally_taken').done.task).hunt)) return s.id + ': paid for a task never hunted';
       } else if (d.kind === 'kills' || d.kind === 'level') {
         if (!can.inHunt) return s.id + ': needs a hunt in progress';
       } else if (d.kind === 'unlock') {
@@ -292,27 +320,75 @@ const cases = {
        the whole chain meets every card in order. */
     const lvl = (n) => M.xp.charXpForLevel(n);
     const thicketBand = M.HUNTS.meadowbrook_thicket.band[0], sewerBand = M.HUNTS.millrace_sewer.band[0];
-    const base = { levelXp: 0, charLevel: 1, skillLevel: 1, huntId: null, unitKinds: new Set(), barSet: false };
+    /* the server's facts of a fresh hero: every skill at 0 XP, the land empty, nothing from Tamsin, no party */
+    const sk = (more) => ({ farming: 0, cooking: 0, melee: 0, ...more });
+    const base = { levelXp: 0, charLevel: 1, skillLevel: 1, skillXp: sk(), huntId: null, unitKinds: new Set(), foodSet: false, bar: null,
+      landPlanted: false, tally: { held: 0, paid: 0, weight: false }, inParty: false };
     const at = (L, more) => ({ ...base, levelXp: lvl(L), charLevel: L, skillLevel: L, ...more });
-    /* Cellar -> Thicket (solo) -> Sewer (party): one character walked through the chain (designer 2026-10-21). */
+    const planted = { skillXp: sk({ farming: 28 }), landPlanted: true };
+    const cooked = { skillXp: sk({ farming: 28, cooking: 30 }), landPlanted: true };
+    const taken = { tally: { held: 1, paid: 0, weight: true } };
+    /* Cellar (plant in its wait) -> the town half -> Thicket (solo) -> paid -> What next: one hero, the whole chain. */
     const walk = [
       ['to_the_cellar', base],
       ['first_kill', { ...base, huntId: 'mill_cellar' }],
       ['first_level', { ...base, huntId: 'mill_cellar', levelXp: 3 }],
-      ['earn_the_thicket', { ...base, huntId: 'mill_cellar', levelXp: 40, charLevel: 2, skillLevel: 2 }],
-      ['leave_cellar', at(thicketBand, { huntId: 'mill_cellar' })],
-      ['set_the_bar', at(thicketBand)],
-      ['into_the_thicket', at(thicketBand, { barSet: true })],
-      ['earn_the_sewer', at(thicketBand, { barSet: true, huntId: 'meadowbrook_thicket' })],
-      ['go_below', at(sewerBand, { barSet: true, huntId: 'meadowbrook_thicket' })],
+      ['plant_land', { ...base, huntId: 'mill_cellar', levelXp: 40, charLevel: 2, skillLevel: 2 }],
+      ['earn_the_thicket', { ...base, huntId: 'mill_cellar', levelXp: 40, charLevel: 2, skillLevel: 2, ...planted }],
+      ['leave_cellar', at(thicketBand, { huntId: 'mill_cellar', ...planted })],
+      ['cook_catch', at(thicketBand, planted)],
+      ['set_the_bar', at(thicketBand, cooked)],
+      ['tamsins_task', at(thicketBand, { ...cooked, foodSet: true })],
+      /* her question answered (the weight) but nothing taken: still her card */
+      ['tamsins_task', at(thicketBand, { ...cooked, foodSet: true, tally: { held: 0, paid: 0, weight: true } })],
+      ['into_the_thicket', at(thicketBand, { ...cooked, foodSet: true, ...taken })],
+      ['tamsin_pays', at(thicketBand, { ...cooked, foodSet: true, ...taken, huntId: 'meadowbrook_thicket' })],
     ];
     for (const [id, facts] of walk) {
       const c = M.tut.currentCard(facts);
       if (!c || c.id !== id) return 'the card for ' + id + ' came up as ' + (c && c.id);
     }
-    /* The chain only moves forward: a hero in the Sewer is not sent back to the Thicket's card. */
-    if (M.tut.currentCard(at(sewerBand, { barSet: true, huntId: 'millrace_sewer' }))) return 'the tutorial does not end once the hero is in the sewer';
-    if (M.tut.currentCard(at(M.HUNTS.millrace_sewer.band[1] + 1, { barSet: true }))) return 'a hero past the sewer band is still coached';
+    const paid = at(sewerBand, { ...cooked, foodSet: true, tally: { held: 0, paid: 1, weight: true }, huntId: 'meadowbrook_thicket' });
+    /* NO SOLO WALL: paid, a solo hero at the Sewer's floor is done (What next), at any Level up to the Sewer's top. */
+    if (M.tut.currentCard(paid)) return 'a solo hero who was paid is still coached: ' + M.tut.currentCard(paid).id;
+    for (let L = sewerBand; L <= M.HUNTS.millrace_sewer.band[1]; L++) {
+      const c = M.tut.currentCard({ ...paid, levelXp: lvl(L), charLevel: L });
+      if (c) return 'a solo Level ' + L + ' hero meets ' + c.id + ' (the party card is a wall for a solo hero)';
+    }
+    /* A hero in a party meets the Sewer card at its floor, never below it, and not once in the sewer. */
+    if ((M.tut.currentCard({ ...paid, inParty: true }) || {}).id !== 'go_below') return 'a party hero at the Sewer floor does not meet go_below';
+    if (M.tut.currentCard({ ...paid, inParty: true, levelXp: lvl(sewerBand - 1), charLevel: sewerBand - 1 })) return 'a party hero under the Sewer floor meets go_below';
+    if (M.tut.currentCard({ ...paid, inParty: true, huntId: 'millrace_sewer' })) return 'the tutorial does not end once the party is in the sewer';
+    if (M.tut.currentCard(at(M.HUNTS.millrace_sewer.band[1] + 1, { inParty: true }))) return 'a hero past the sewer band is still coached';
+    /* A town fact the server never sent is not a wall: no skills, no land, no tally = those steps pass. */
+    const blind = at(thicketBand, { skillXp: null, landPlanted: null, tally: null, foodSet: true });
+    if ((M.tut.currentCard(blind) || {}).id !== 'into_the_thicket') return 'with no town sections the coach asks for ' + (M.tut.currentCard(blind) || {}).id;
+    /* "TELL YOUR HERO WHEN" ON THE REAL DEFAULT BAR (playtest 2026-10-24: v0.2.42 put the role's spells first, the card
+       said "slot 1 is your own Cooked Shrimp" and slot 1 was Challenge). The bar the server shows a fresh start-kit hero
+       is the engine's (heroSlots: the role's defaults, then the kit's START_BAR; hr_hunt_settings_view is pinned equal by
+       conditions.mjs). The card names and rings the slot that holds the food, and only a FOOD slot saved with a
+       condition finishes it (a Save of Challenge restates the bar but teaches nothing). */
+    const role = M.roles.roleForWeapon(M.roles.wornRoleKey({ weapon: M.kit.START_EQUIPMENT.weapon, shield: M.kit.START_EQUIPMENT.shield }, M.items.ITEMS), null);
+    const shownBar = M.cond.heroSlots([], role, null).filter((r) => r.rule !== 'd_attack').map((r) => r.slot.action);
+    const food = shownBar.findIndex((a) => a.type === 'consume' && a.id === 'cooked_shrimp');
+    const store = shownBar.findIndex((a) => a.type === 'consume' && a.id === 'salted_shrimp');
+    if (food < 0 || store < 0) return 'the default bar of a fresh ' + role + ' holds no Cooked Shrimp or Salted Shrimp slot';
+    const barCard = M.tut.cardFor(M.tut.currentCard(at(thicketBand, { ...cooked, bar: shownBar })), shownBar);
+    if (!barCard || barCard.id !== 'set_the_bar') return 'the bar card is not up for a cook who has saved no bar';
+    if (barCard.barSlot !== food) return 'the bar card rings slot ' + barCard.barSlot + ', the Cooked Shrimp is in ' + food;
+    const says = 'slot ' + (food + 1) + ' is your own Cooked Shrimp, and slot ' + (store + 1) + ' buys Salted Shrimp';
+    if (!barCard.text.includes(says) || !barCard.text.includes('Press slot ' + (food + 1) + ',') || /\{slot:/.test(barCard.text)) return 'the bar card reads "' + barCard.text + '", wanted "' + says + '"';
+    const tsb = await import(pathToFileURL(join(M.root, 'src/session/tutorial-sections.js')).href + V);
+    const wire = (a, conditions) => ({ action: a, conditions, join: 'and' });
+    const envOf = (stored) => ({ state: { level_xp: lvl(thicketBand) }, skills: { farming: { xp: 28, level: 1 }, cooking: { xp: 30, level: 1 } },
+      hunt: { session_id: 's', hunt_id: 'mill_cellar', ended: true, session: {}, hero: {}, pose: { units: [] } },
+      hunt_settings: { preset: 0, slots: shownBar.map((a) => wire(a, [])), bar: stored } });
+    const cardOn = (stored) => { const e = envOf(stored); const c = tsb.pointerCardOf({ read: (k) => e[k] }); return c && c.id; };
+    if (cardOn([]) !== 'set_the_bar') return 'the envelope of a cook with the kit bar shows ' + cardOn([]);
+    const hp = [{ metric: 'self_hp_pct', op: 'lt', value: 55 }];
+    const onlyChallenge = shownBar.map((a, i) => (i === 0 ? wire(a, [{ metric: 'self_hp_pct', op: 'gte', value: 1 }]) : wire(a, [])));
+    if (cardOn(onlyChallenge) !== 'set_the_bar') return 'a stored bar with only a spell conditioned finishes "Tell your hero when"';
+    if (cardOn(shownBar.map((a, i) => wire(a, i === food ? hp : []))) === 'set_the_bar') return 'a stored food slot with a condition does not finish "Tell your hero when"';
     /* The way down exists: the cellar map has an exit into the sewer map. */
     const cm = M.maps.WORLD_MAPS.find((m) => m.id === cellar.map);
     if (!cm.exits.some((e) => e.to === 'millrace_sewer')) return 'the cellar has no way down into the sewer';
@@ -340,8 +416,9 @@ const cases = {
     const want = 'to_the_cellar,first_kill,leave_cellar,set_the_bar';
     if (got !== want) return 'the launcher showed ' + got + ', wanted ' + want;
     /* AFTER THE GUIDE (designer 2026-10-22: at Level 12 in the Sewer nothing said what to aim at): the pointer
-       names the next ground above the hero's Level, from the data, and the weapon skill's next unlock. */
-    const L = M.HUNTS.millrace_sewer.band[0] + 4;
+       names the next ground above the hero's Level, from the data, and the weapon skill's next unlock. A hero past the
+       solo chain's last ground (the Thicket's top) is past every solo card, whatever it did in town. */
+    const L = M.HUNTS.meadowbrook_thicket.band[1] + 1;
     /* the player has set the bar (a conditioned slot, shown and stored), so the guide is done */
     const eat = { action: { type: 'consume', id: 'cooked_shrimp' }, conditions: [{ metric: 'self_hp_pct', op: 'lt', value: 60 }], join: 'and' };
     const sewerEnv = { ...env(M.xp.charXpForLevel(L), 'millrace_sewer'), hunt_settings: { preset: 1, slots: [eat], bar: [eat], role: 'tank' },
@@ -353,6 +430,13 @@ const cases = {
       .sort((a, b) => a.band[0] - b.band[0])[0];
     if (!goal.startsWith('goal_')) return 'after the guide (Level ' + L + ', in the Sewer) the pointer shows ' + (goal || 'nothing');
     if (next && !html.includes(next.name)) return 'the what-next line does not name ' + next.name + ': ' + html;
+    /* THE PARTY PITCH, NOT A PARTY WALL (playtest 2026-10-24): a solo hero hears of the party ground its Level fits and
+       how to make a party; a hero in a party does not. */
+    const pitch = 'The Sewer fits your Level with a party. Invite a friend, or make a second hero: up to four of yours can hunt at once.';
+    if (!html.includes(pitch)) return 'a solo Level ' + L + ' hero hears no party pitch: ' + html;
+    const partyEnv = { ...sewerEnv, party: { id: '0a47c0de-0000-4000-a000-00000000aa01', members: [{ seat: 0, name: 'Mira' }, { seat: 1, name: 'Tyler' }], self_seat: 0, leader_seat: 0 } };
+    const withParty = renderLaunchers({ character: { read: (k) => partyEnv[k] }, glyphs: {}, hud: { isShown: () => false }, wm: { openIds: () => [], rows: () => [], row: () => null } });
+    if (withParty.includes('make a second hero')) return 'a hero in a party is told to make a party: ' + withParty;
     if (!/Next at Melee level \d+/.test(html)) return 'the what-next line does not name the sword hero\'s next Melee unlock: ' + html;
     /* Defense at 0 XP (no armour worn: the fresh-hero play, 117 kills) points at the Shop's gloves and belts (designer
        2026-10-22, the outfitter); once Defense has XP the line is gone. */
@@ -409,7 +493,7 @@ const cases = {
     const ctxOf = (cs) => ({ character: cs, glyphs: {}, hud: { isShown: () => false }, wm: { openIds: () => [], rows: () => [], row: () => null } });
     const draw = (cs) => renderLaunchers(ctxOf(cs));
     const press = (cs, act) => renderLaunchers.act(ctxOf(cs), { ownerDocument: null, querySelector: () => null }, act, { type: 'click' });
-    const FULL = 'Open Hunts and pick the Mill Cellar.';
+    const FULL = 'Open Hunts and enter the Mill Cellar.';
     let cs = hero(env(), {});
     if (!draw(cs).includes(FULL) || !draw(cs).includes('data-hs-act="coach-min"')) return 'the coach shows no minimize control: ' + draw(cs);
     if (typeof renderLaunchers.act !== 'function') return 'the launcher row answers no coach press';
@@ -437,11 +521,98 @@ const cases = {
     if (inserts !== 2 || !node || !/:new$/.test(node.key)) return 'the hunt bar did not redraw the coach on a new card (' + inserts + ' draws, ' + (node && node.key) + ')';
     press(cs, 'coach-open');
     const open = draw(cs);
-    if (open.includes('is-min') || open.includes('hs-coach-new') || !open.includes('You do not click to attack.')) return 'opened, the coach is not its full text: ' + open;
+    if (open.includes('is-min') || open.includes('hs-coach-new') || !open.includes('Your hero walks to the rats, swings')) return 'opened, the coach is not its full text: ' + open;
     press(cs, 'coach-min');
     if (draw(cs).includes('hs-coach-new')) return 'opening did not clear the mark';
     placeCoach(bar, draw(cs));
     if (inserts !== 3 || /:new$/.test(node.key)) return 'the hunt bar kept the stale coach after a fold (' + node.key + ')';
+    return null;
+  },
+  'coach-hold': async (M) => {
+    /* The designer's playtest (2026-10-24): "Your hero fights alone" and "That's a level" were never on screen (the
+       first kill lands 3 s after Enter, Level 2 inside 34 s). A card the SERVER finishes on its own stays up long
+       enough to read; one the server passed while another was being read gets its turn, in order; a card the PLAYER
+       finished (Enter) gives way at once; a reload shows the server's card at once. On the display clock (ctx.now). */
+    const imp = (p) => import(pathToFileURL(join(M.root, p)).href + V);
+    const { pointerFor, readMs } = await imp('src/shell/launcher.js');
+    const card = (id) => M.tut.HUNT_TUTORIAL.find((s) => s.id === id);
+    let t = 1000;
+    const env = { state: { level_xp: 0 }, hunt_settings: { preset: 1, slots: [] } };
+    const hero = () => ({ read: (k) => env[k] });
+    let cs = hero();
+    const shown = (c) => (/data-tutorial="([a-z0-9_]+)"/.exec(pointerFor({ character: c || cs, glyphs: {}, now: () => t,
+      hud: { isShown: () => false }, wm: { openIds: () => [], rows: () => [], row: () => null } })) || [])[1] || null;
+    if (shown() !== 'to_the_cellar') return 'a fresh hero is shown ' + shown();
+    /* Enter: the server's first answer already holds the first kill and Level 2 (the card it says is past both) */
+    env.hunt = { session_id: 's1', hunt_id: 'mill_cellar', ended: false, session: {}, hero: {}, pose: { units: [] } };
+    env.state = { level_xp: M.xp.charXpForLevel(2) };
+    const kill = readMs(card('first_kill')), level = readMs(card('first_level'));
+    if (!(kill >= 4000 && level >= 4000)) return 'a card is held under 4 s (' + kill + ', ' + level + ')';
+    const seen = [];
+    for (const [dt, want] of [[0, 'first_kill'], [kill - 1, 'first_kill'], [1, 'first_level'], [level - 1, 'first_level'], [1, 'earn_the_thicket']]) {
+      t += dt;
+      seen.push(shown());
+      if (seen[seen.length - 1] !== want) return 'after Enter the coach shows ' + seen.join(' > ') + ' (wanted ' + want + ' at that point)';
+    }
+    if (shown(hero()) !== 'earn_the_thicket') return 'a reload replays a held card';
+    /* Cash in: the player's own press; the card gives way at once (a long-read card is never held over it) */
+    t += 600000;
+    env.state = { level_xp: M.xp.charXpForLevel(M.HUNTS.meadowbrook_thicket.band[0]) };
+    env.hunt = Object.assign({}, env.hunt, { ended: true });
+    if (shown() !== 'set_the_bar') return 'out of the cellar the coach shows ' + shown();
+    env.hunt_settings = { preset: 1, slots: [], bar: [{ action: { type: 'consume', id: 'cooked_shrimp' }, conditions: [{ metric: 'self_hp_pct', op: 'lt', value: 50 }], join: 'and' }] };
+    if (shown() !== 'into_the_thicket') return 'a saved bar is held over: ' + shown();
+    return null;
+  },
+  'coach-ring': async (M) => {
+    /* Every card rings the real control it names (the Huntera quick start; designer playtest 2026-10-24: no card rang
+       anything): the window's icon while it is closed, then the control inside it, deepest first; the bar's food slot
+       until its own Configure action is open, then Save. The icon row draws its ring itself, as the last attribute. */
+    const imp = (p) => import(pathToFileURL(join(M.root, p)).href + V);
+    const { ringPlan } = await imp('src/shell/coach.js');
+    const { renderLaunchers } = await imp('src/shell/launcher.js');
+    const { SHELL_WINDOWS } = await imp('src/data/shell-windows.js');
+    const card = (id) => M.tut.HUNT_TUTORIAL.find((s) => s.id === id);
+    for (const [a, row] of Object.entries(M.tut.TUTORIAL_ANCHORS)) {
+      const w = row.window && SHELL_WINDOWS.find((r) => r.id === row.window);
+      if (row.window && !w) return 'anchor ' + a + ' points into no window ' + row.window;
+      if (row.icon && (!w || w.launcher === false)) return 'anchor ' + a + ' starts at an icon ' + row.window + ' does not have';
+    }
+    /* a card whose controls live in a window shows inside it */
+    if (M.tut.coachWindow(card('set_the_bar')) !== 'configure-action' || M.tut.coachWindow(card('plant_land')) !== 'farm' || M.tut.coachWindow(card('first_kill')) !== null) return 'the card-in-window map is wrong';
+    const at = (open, more) => ({ open: (id) => id === open, configuring: null, weight: null, ...more });
+    const first = (id, a) => ringPlan(typeof id === 'string' ? card(id) : id, a)[0] || '';
+    const want = [
+      ['to_the_cellar', at(null), '.hs-launchers [data-hs-open="hunts"]'],
+      ['to_the_cellar', at('hunts'), '.hw-hunt-enter[data-hunt="mill_cellar"]'],
+      ['into_the_thicket', at('hunts'), '.hw-hunt-enter[data-hunt="meadowbrook_thicket"]'],
+      ['leave_cellar', at(null), '[data-hs-act="leave"]'],
+      ['plant_land', at(null), '.hs-launchers [data-hs-open="farm"]'],
+      ['plant_land', at('farm'), '[data-crop="turnip"] [data-hs-act="sow"]'],
+      ['cook_catch', at(null), '.hs-launchers [data-hs-open="skills-trade"]'],
+      ['cook_catch', at('skills-trade'), '.hw-work-row[data-id="cook_shrimp"] [data-hs-act="work-go"]'],
+      ['tamsins_task', at(null), '.hs-launchers [data-hs-open="tally"]'],
+      ['tamsins_task', at('tally', { weight: false }), '.ht-weights'],
+      ['tamsins_task', at('tally', { weight: true }), '[data-hs-act="take"][data-task="thicket_gray_wolves"]'],
+    ];
+    for (const [id, a, sel] of want) if (!first(id, a).includes(sel)) return id + ' rings ' + JSON.stringify(first(id, a)) + ', wanted ' + sel;
+    if (!ringPlan(card('to_the_cellar'), at('hunts')).some((q) => q.includes('.hw-hunt[data-hunt="mill_cellar"]'))) return 'Hunts open on a phone list: the Mill Cellar line is never ringed';
+    for (const id of ['first_kill', 'first_level', 'earn_the_thicket', 'tamsin_pays']) if (ringPlan(card(id), at(null)).length) return id + ' rings something, but names no control';
+    /* the bar card: the slot that holds the food, then Save once THAT slot's Configure action is open */
+    const bar = [{ type: 'ability', id: 'challenge' }, { type: 'ability', id: 'power_strike' }, { type: 'consume', id: 'cooked_shrimp' }];
+    const barCard = M.tut.cardFor(card('set_the_bar'), bar);
+    if (first(barCard, at(null)) !== '[data-hs-widget="action-bar"] .hb-slot[data-slot="2"]') return 'the bar card rings ' + first(barCard, at(null));
+    if (!first(barCard, at('configure-action', { configuring: 2 })).includes('[data-x="save"]')) return 'Configure action open on the food slot: Save is not ringed';
+    if (!first(barCard, at('configure-action', { configuring: 0 })).includes('.hb-slot[data-slot="2"]')) return 'Configure action open on another slot: the food slot lost its ring';
+    if (ringPlan(M.tut.cardFor(card('set_the_bar'), []), at(null)).length) return 'no food on the bar, yet a slot is ringed';
+    /* the icon row: a fresh hero's Hunts icon carries the ring (once, last attribute); with Hunts open, no icon does */
+    const env = { state: { level_xp: 0 }, hunt_settings: { preset: 1, slots: [] } };
+    const rows = SHELL_WINDOWS.filter((r) => r.launcher !== false);
+    const row = (open) => renderLaunchers({ character: { read: (k) => env[k] }, glyphs: {}, hud: { isShown: () => false },
+      wm: { openIds: () => open, rows: () => rows, row: (id) => rows.find((r) => r.id === id) } });
+    const town = row([]);
+    if ((town.match(/data-coach-ring/g) || []).length !== 1 || !/data-hs-open="hunts"[^>]*data-key="H" data-coach-ring="">/.test(town)) return 'a fresh hero\'s icon row rings ' + (town.match(/data-hs-open="[a-z-]+"[^>]*data-coach-ring/g) || []).join();
+    if (/data-coach-ring/.test(row(['hunts']))) return 'with Hunts open an icon is still ringed';
     return null;
   },
   'tutorial-never-backward': async (M) => {
@@ -452,27 +623,43 @@ const cases = {
     const imp = (p) => import(pathToFileURL(join(M.root, p)).href + V);
     const { pointerCardOf } = await imp('src/session/tutorial-sections.js');
     const eat = { action: { type: 'consume', id: 'cooked_shrimp' }, conditions: [{ metric: 'self_hp_pct', op: 'lt', value: 60 }], join: 'and' };
-    /* the server's sections: the latest hunt session (open or ended) and the personal bests (finished hunts of 10+ min) */
-    const env = (L, hunt, ended, bests) => ({ state: { level_xp: M.xp.charXpForLevel(L) },
+    /* the server's sections: the latest hunt session (open or ended), the personal bests (finished hunts of 10+ min),
+       the skills (Farming and Cooking XP: this hero planted and cooked), the shared land and Tamsin's tally */
+    const land = (n) => ({ cap: 2, plot_level: 1, deeds: 0, upgrade: null, plots: Array.from({ length: n }, (_, i) => ({ i, crop: 'turnip', ready: false, ready_in_s: 600 })) });
+    const tally = (held, paid) => ({ held: Array.from({ length: held }, (_, i) => ({ place: i + 1, task: 'thicket_gray_wolves', hunt: 'meadowbrook_thicket', monster: 'gray_wolf', kills: 40, target: 200 })),
+      recent: Array.from({ length: paid }, () => ({ claim: 'c1', at: '2026-10-24T10:00:00Z', task: 'thicket_gray_wolves', gold: 480, item: 'bronze_helm', qty: 1 })),
+      paid_today: paid, per_day: 3, held_max: 3, weight: 'heavy', order: [] });
+    const env = (L, hunt, ended, bests, more) => ({ state: { level_xp: M.xp.charXpForLevel(L) },
       ...(hunt ? { hunt: { session_id: 's-' + hunt, hunt_id: hunt, ended, session: {}, hero: {}, pose: { units: [] } } } : {}),
       hunt_bests: { min_ms: 600000, grounds: Object.fromEntries((bests || []).map((g) => [g, { solo: { xp_h: 1, balance_h: 1 } }])) },
-      hunt_settings: { preset: 1, slots: [eat], bar: [eat], role: 'tank' }, skills: { melee: { xp: 0, level: L } } });
+      hunt_settings: { preset: 1, slots: [eat], bar: [eat], role: 'tank' },
+      skills: { melee: { xp: 0, level: L }, farming: { xp: 28, level: 1 }, cooking: { xp: 30, level: 1 } },
+      farm_land: land(1), tally: tally(1, 0), ...(more || {}) });
+    const party2 = { party: { id: '0a47c0de-0000-4000-a000-00000000aa01', members: [{ seat: 0, name: 'Mira' }, { seat: 1, name: 'Tyler' }], self_seat: 0, leader_seat: 0 } };
     /* a reload reads the same server sections into a fresh session: nothing the browser held survives it */
     const cardOf = (e) => { const s = JSON.parse(JSON.stringify(e)); const c = pointerCardOf({ read: (k) => s[k] }); return c ? c.id : null; };
     const ids = M.tut.HUNT_TUTORIAL.map((s) => s.id);
-    const rank = (id) => (id && id.startsWith('goal') ? ids.length : ids.indexOf(id));
+    /* a party card stands beside "What next" (a hero who makes a party after the solo chain meets it then) */
+    const side = new Set(M.tut.HUNT_TUTORIAL.filter((s) => s.party).map((s) => s.id));
+    const rank = (id) => (id && (id.startsWith('goal') || side.has(id)) ? ids.length : ids.indexOf(id));
     const T = M.HUNTS.meadowbrook_thicket.band[0], S = M.HUNTS.millrace_sewer.band[0];
+    const TB = ['meadowbrook_thicket'];
     const walk = [
       ['town, the cellar left', env(T, 'mill_cellar', true), 'into_the_thicket'],
-      ['in the Thicket', env(T, 'meadowbrook_thicket', false), 'earn_the_sewer'],
-      ['in the Thicket, the Sewer open', env(S, 'meadowbrook_thicket', false), 'go_below'],
-      ['town, out of the Thicket', env(S, 'meadowbrook_thicket', true), 'go_below'],
-      ['reload in town', env(S, 'meadowbrook_thicket', true), 'go_below'],
-      ['in the Sewer', env(S, 'millrace_sewer', false), 'goal'],
-      ['town, out of a short Sewer hunt', env(S, 'millrace_sewer', true), 'goal'],
-      ['reload in town', env(S, 'millrace_sewer', true), 'goal'],
-      ['back in the Cellar (Thicket and Sewer bests)', env(S, 'mill_cellar', false, ['meadowbrook_thicket', 'millrace_sewer']), 'goal'],
-      ['town, out of the Cellar', env(S, 'mill_cellar', true, ['meadowbrook_thicket', 'millrace_sewer']), 'goal'],
+      ['in the Thicket', env(T, 'meadowbrook_thicket', false), 'tamsin_pays'],
+      ['in the Thicket, the Sewer open', env(S, 'meadowbrook_thicket', false), 'tamsin_pays'],
+      ['town, out of the Thicket', env(S, 'meadowbrook_thicket', true, TB), 'tamsin_pays'],
+      ['reload in town', env(S, 'meadowbrook_thicket', true, TB), 'tamsin_pays'],
+      ['paid on the way back', env(S, 'meadowbrook_thicket', true, TB, { tally: tally(0, 1) }), 'goal'],
+      ['in the Sewer', env(S, 'millrace_sewer', false, TB, { tally: tally(0, 1) }), 'goal'],
+      ['town, out of a short Sewer hunt', env(S, 'millrace_sewer', true, TB, { tally: tally(0, 1) }), 'goal'],
+      ['back in the Cellar (Thicket and Sewer bests)', env(S, 'mill_cellar', false, ['meadowbrook_thicket', 'millrace_sewer'], { tally: tally(0, 1) }), 'goal'],
+      /* a day later Tamsin's payment is out of the section and nothing is held; the harvest emptied the land */
+      ['a day later, nothing held, the land harvested', env(S, 'mill_cellar', true, TB, { tally: tally(0, 0), farm_land: land(0) }), 'goal'],
+      ['reload in town', env(S, 'mill_cellar', true, TB, { tally: tally(0, 0), farm_land: land(0) }), 'goal'],
+      ['in a party at the Sewer floor (a friend joined)', env(S, 'mill_cellar', true, TB, { tally: tally(0, 0), ...party2 }), 'go_below'],
+      ['in the Sewer with the party', env(S, 'millrace_sewer', false, TB, { tally: tally(0, 0), ...party2 }), 'goal'],
+      ['town, out of the Sewer, party kept', env(S, 'millrace_sewer', true, TB, { tally: tally(0, 0), ...party2 }), 'goal'],
     ];
     let prev = -1;
     const seen = [];
@@ -491,16 +678,16 @@ const mutants = [
   { name: 'the what-next line never sees Defense (no armour hint)', case: 'tutorial-launcher-card',
     edits: [['src/session/tutorial-sections.js', 'defenseXp: sk && sk.defense ? sk.defense.xp : null', 'defenseXp: null']] },
   { name: 'the farm line keys off this hero\'s Farming XP again, not the shared land (v0.2.35 "Nothing grows" over ready crops)', case: 'tutorial-launcher-card',
-    edits: [['src/session/tutorial-sections.js', 'land: landOf(cs) });',
-      'land: sk && sk.farming ? { planted: sk.farming.xp > 0 ? 1 : 0, ready: {} } : null });']] },
+    edits: [['src/session/tutorial-sections.js', 'land: landOf(cs),',
+      'land: sk && sk.farming ? { planted: sk.farming.xp > 0 ? 1 : 0, ready: {} } : null,']] },
   { name: 'the what-next line never sees the land (no farm hint)', case: 'tutorial-launcher-card',
-    edits: [['src/session/tutorial-sections.js', 'land: landOf(cs) });', 'land: null });']] },
+    edits: [['src/session/tutorial-sections.js', 'land: landOf(cs),', 'land: null,']] },
   { name: 'ready crops on the land are never named', case: 'tutorial-launcher-card',
     edits: [['src/data/hunt-tutorial.js', '} else if (land && land.ready) {', '} else if (false) {']] },
   { name: 'the coach stamps the Farm window\'s countdown clock', case: 'tutorial-launcher-card',
     edits: [['src/session/farm-sections.js', '  return parse(read(cs, \'farm_land\'));\n', '  return farmLandOf(cs, 0);\n']] },
   { name: 'nothing to aim at after the guide (no what-next line)', case: 'tutorial-launcher-card',
-    edits: [['src/session/tutorial-sections.js', '  if (card) return card;\n', '  return card;\n']] },
+    edits: [['src/session/tutorial-sections.js', '  if (card) return cardFor(card, f.bar);\n', '  return card && cardFor(card, f.bar);\n']] },
   { name: 'the launcher shows only the first card', case: 'tutorial-launcher-card',
     edits: [['src/shell/launcher.js', 'const card = pointerCardOf(cs);', "const card = pointerCardOf(cs) && { id: 'to_the_cellar', title: 'a', text: 'b' };"]] },
   { name: 'the pointer is drawn over an open window', case: 'tutorial-launcher-card',
@@ -532,8 +719,8 @@ const mutants = [
   { name: 'the tutorial sends a fresh character to the sewer first', case: 'tutorial-walk-through',
     edits: [['src/data/hunt-tutorial.js', "{ kind: 'enter', hunt: 'mill_cellar' }", "{ kind: 'enter', hunt: 'millrace_sewer' }"]] },
   { name: 'the party-only Rat King card is back in the solo chain', case: 'tutorial-walk-through',
-    edits: [['src/data/hunt-tutorial.js', "'hunt_picker', { kind: 'enter', hunt: 'millrace_sewer' }),",
-      "'hunt_picker', { kind: 'enter', hunt: 'millrace_sewer' }),\n  step('the_king', 'The Rat King', 'The last room is his.', 'world', { kind: 'pull', ground: 'millrace_sewer', pocket: 5 }),"]] },
+    edits: [['src/data/hunt-tutorial.js', "'hunt_picker', { kind: 'enter', hunt: 'millrace_sewer' }, { party: true }),",
+      "'hunt_picker', { kind: 'enter', hunt: 'millrace_sewer' }, { party: true }),\n  step('the_king', 'The Rat King', 'The last room is his.', 'world', { kind: 'pull', ground: 'millrace_sewer', pocket: 5 }),"]] },
   { name: 'a hero in the sewer is sent back to the Thicket card (enter judged on the current hunt only)', case: 'tutorial-walk-through',
     edits: [['src/data/hunt-tutorial.js', ' || HUNT_INDEX[h].band[0] > HUNT_INDEX[hunt].band[0]', '']] },
   { name: 'out of a hunt, the pointer forgets it was there (#58: the Thicket card came back)', case: 'tutorial-never-backward',
@@ -546,13 +733,51 @@ const mutants = [
     edits: [['src/data/hunt-tutorial.js', "{ kind: 'unlock', hunt: 'meadowbrook_thicket' }", "{ kind: 'unlock', hunt: 'millrace_sewer' }"]] },
   { name: 'the sewer opens to a fresh character', case: 'tutorial-walk-through',
     edits: [['src/data/hunts.js', 'band: [8, 25],', 'band: [1, 25],']] },
+  /* lane/b-tutorial-fixes (designer playtest 2026-10-24) */
+  { name: 'the bar card says slot 1 whatever the bar holds (v0.2.42: slot 1 was Challenge)', case: 'tutorial-walk-through',
+    edits: [['src/data/hunt-tutorial.js', "(at(id) >= 0 ? 'slot ' + (at(id) + 1)", "(at(id) >= 0 ? 'slot 1'"]] },
+  { name: 'the bar card rings no slot', case: 'tutorial-walk-through',
+    edits: [['src/data/hunt-tutorial.js', 'const barSlot = item && at(item) >= 0 ? at(item) : null;', 'const barSlot = null;']] },
+  { name: 'any Save finishes "Tell your hero when" (a spell slot restates the whole bar)', case: 'tutorial-walk-through',
+    edits: [['src/session/tutorial-sections.js', 'foodSet: !!st && st.storedBar.some(eatsWhen),',
+      'foodSet: !!st && st.storedBar.some((s) => !!s && Array.isArray(s.conditions) && s.conditions.length > 0),']] },
+  { name: 'the party card walls a solo hero again', case: 'tutorial-walk-through',
+    edits: [['src/data/hunt-tutorial.js', '(r.party ? facts.inParty === true && facts.charLevel >= HUNT_INDEX[r.done.hunt].band[0]', '(r.party ? true']] },
+  { name: 'the party card meets a party below the Sewer floor', case: 'tutorial-walk-through',
+    edits: [['src/data/hunt-tutorial.js', '(r.party ? facts.inParty === true && facts.charLevel >= HUNT_INDEX[r.done.hunt].band[0]', '(r.party ? facts.inParty === true']] },
+  { name: 'cooking is not asked for (the town half is untaught)', case: 'tutorial-walk-through',
+    edits: [['src/data/hunt-tutorial.js', "case 'skill_xp': return xpIn(facts, d.skill) === null || xpIn(facts, d.skill) > 0;", "case 'skill_xp': return true;"]] },
+  { name: 'a town section the server never sent walls the coach', case: 'tutorial-walk-through',
+    edits: [['src/data/hunt-tutorial.js', "case 'tally_paid': return !facts.tally || ", "case 'tally_paid': return !!facts.tally && "]] },
+  { name: 'a harvest brings "Plant your land" back (the land alone judges it)', case: 'tutorial-never-backward',
+    edits: [['src/data/hunt-tutorial.js', " || xpIn(facts, 'farming') > 0 || facts.landPlanted === true;", ' || facts.landPlanted === true;']] },
+  { name: 'Tamsin\'s card comes back the day after she paid', case: 'tutorial-never-backward',
+    edits: [['src/data/hunt-tutorial.js', ' || (t.weight === true && reached(facts, tallyTask(d.task).hunt))', '']] },
+  { name: 'a party never meets the Sewer card', case: 'tutorial-never-backward',
+    edits: [['src/session/tutorial-sections.js', 'inParty: !!party && party.seats.length >= 2,', 'inParty: false,']] },
+  { name: 'the town lessons are asked of a hero past the Thicket', case: 'tutorial-launcher-card',
+    edits: [['src/data/hunt-tutorial.js', ': facts.charLevel <= soloCap);', ': true);']] },
+  { name: 'a solo hero hears no way to make a party', case: 'tutorial-launcher-card',
+    edits: [['src/data/hunt-tutorial.js', "  const solo = facts.inParty !== true;\n", '  const solo = false;\n']] },
+  { name: 'a card the server finishes is replaced before it can be read', case: 'coach-hold',
+    edits: [['src/shell/launcher.js', '  if (auto(had.card) && now - had.since < readMs(had.card)) return had.card;\n', '']] },
+  { name: 'a card the server passed while another was read is never shown', case: 'coach-hold',
+    edits: [['src/shell/launcher.js', 'const passed = HUNT_TUTORIAL.slice(from + 1, to).find(auto);', 'const passed = null;']] },
+  { name: 'a card the player finished is held over (Save looks ignored)', case: 'coach-hold',
+    edits: [['src/shell/launcher.js', 'const auto = (r) => !!r && !!r.done && AUTO_KINDS.includes(r.done.kind);', 'const auto = (r) => !!r;']] },
+  { name: 'no ring on the icon a card starts at', case: 'coach-ring',
+    edits: [['src/data/hunt-tutorial.js', 'return a && a.icon && !open(a.window) ? a.window : null;', 'return null;']] },
+  { name: 'the bar ring stays on the slot while its Configure action is open', case: 'coach-ring',
+    edits: [['src/shell/coach.js', "open('configure-action') && at.configuring === card.barSlot ?", 'false ?']] },
+  { name: 'the icon row draws no ring of its own (a repaint drops it)', case: 'coach-ring',
+    edits: [['src/shell/launcher.js', "(ring === r.id ? ' data-coach-ring=\"\"' : '')", "''"]] },
 ];
 
 /* fixtures/h1.js `plant`, widened to the world engine and its manifests (the map cases read them):
    a mutant that cannot load would read as caught, so every path this file imports is copied. */
 function plant(edits) {
   const root = mkdtempSync(join(tmpdir(), 'hunt-sewer-'));
-  for (const d of ['src/core', 'src/data', 'src/world', 'src/session', 'src/shell', 'src/utils', 'assets/world', 'prototypes/hunt-sim-assets/manifest.json']) cpSync(join(ROOT, d), join(root, d), { recursive: true });
+  for (const d of ['src/core', 'src/data', 'src/world', 'src/session', 'src/shell', 'src/render', 'src/utils', 'assets/world', 'prototypes/hunt-sim-assets/manifest.json']) cpSync(join(ROOT, d), join(root, d), { recursive: true });
   cpSync(join(ROOT, 'src/build-info.js'), join(root, 'src/build-info.js'));
   for (const [file, from, to] of edits) {
     const f = join(root, file);
@@ -581,13 +806,19 @@ if (process.argv.includes('--report')) {
   }
   process.exit(0);
 }
+/* --only a,b: those cases and their mutants alone (a lane re-checking the cases it touched; CI runs them all). */
+const ONLY = process.argv.includes('--only') ? new Set(String(process.argv[process.argv.indexOf('--only') + 1] || '').split(',')) : null;
 for (const [cn, fn] of Object.entries(cases)) {
+  if (ONLY && !ONLY.has(cn)) continue;
   let why = null;
   try { why = await fn(M); } catch (e) { why = 'threw ' + (e && e.stack || e); }
   R.ok(!why, cn + ': ' + why);
 }
+let caught = 0;
 for (const mu of mutants) {
+  if ((ONLY && !ONLY.has(mu.case)) || process.argv.includes('--cases')) continue;
   if (!cases[mu.case]) { R.ok(false, 'mutant "' + mu.name + '" names no case ' + mu.case); continue; }
+  caught++;
   const p = plant(mu.edits);
   try {
     let why = null;
@@ -597,5 +828,5 @@ for (const mu of mutants) {
     R.ok(!!why, 'mutant "' + mu.name + '" was NOT caught by ' + mu.case);
   } finally { p.done(); }
 }
-if (!R.fails.length) console.log('  ' + Object.keys(cases).length + ' cases, ' + mutants.length + ' mutants caught');
+if (!R.fails.length) console.log('  ' + Object.keys(cases).filter((c) => !ONLY || ONLY.has(c)).length + ' cases, ' + caught + ' mutants caught');
 R.finish();

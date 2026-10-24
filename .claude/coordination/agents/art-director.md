@@ -2990,3 +2990,35 @@ is superseded by make-hud-bar-art.mjs): retire both in a later pass.
 Same day, plan #1 built: the fight settings fold out above the bar's end (desktop) / the sheet (phone); the bar is
 plate + sockets + medallion, 122 px (was 182). Lesson: the phone alerts dock at a FIXED 104 px over the bottom
 (hud-widgets.js phone dy), so the phone bar's height is a contract, not a free choice: 2 px of padding turned HS-22 red.
+
+## 2026-10-24 — lane/b-forged-steel (lane 1 of 3): every window in Forged Steel + the Window opacity setting
+Tyler rejected the round-1 directions (lane/d-ui-options), picked skin 1 FORGED STEEL from a same-content skins
+mock, ruled gray/gold only and asked for a Window opacity slider. Built: tools/make-ui-steel-art.mjs (--check,
+--selftest; palette, x2), tokens.css §8 (--panel-alpha, --fill-N, --steel-*), the shared pieces in shell.css (frame
++ faded floor layer, title band, square buttons, section head with rule, sunk field, gold plate primary, thin-steel
+popup, slider), the Hunts page scroller (Enter below it), Settings > Interface > Window opacity (residue panelAlpha,
+AW-30 + 3 mutants). Lessons: (1) a window's fill must be its own ::before layer so one dial fades fill and texture
+together and nothing else; (2) the window manager's inline width beats a CSS width: the phone Configure sheet
+needed min-width; (3) a "keep both" merge of two added functions ate the shared closing brace: syntax-check every
+merged JS file before running a test.
+
+## 2026-10-24 — lane/b-forged-steel-hud (lane 2 of 3): the HUD in Forged Steel
+Party, analyzer, hunt bar, coach, tally, alerts, online line, character strip, icon row + tooltip, world chrome
+(Town/Home, the idle line, which was 11 px). HUD = the thin steel frame over --hud-fill (the HUD plate at the
+opacity), Cinzel names, steel wells and separators. Lessons: (1) a HUD floor needs no ::before: color-mix of the
+HUD plate with --panel-alpha is one background, so ::before stays free (the coach's arrow, the icon tooltip);
+(2) at the 60% floor a hard 1 px text shadow (the chat's rule) keeps HUD words readable over props; (3) a red
+seen only under --shots (party-ui's phone pass) can be the harness, not the lane: run it on the base styles
+before chasing it (it was red there too).
+
+## 2026-10-24 — lane/b-forged-steel-screens (lane 3 of 3): account screens and popups in Forged Steel
+Sign-in/create/forgot/closed and Your characters as one steel card (frame + grained floor, title band, sunk
+fields, the gold plate via .hh-tool.is-primary so the shared piece stays one rule); characters as one steel list,
+the whole row the press; the slot offer on a steel button (gold is never the spend); hero creation (sunk mirror,
+sunk colour strips, a foot with Enter town); death (cost in a red-barred well, foot band, no X key cap); summary
+(place head + diamond rule, figures panel, item icons); chat tabs on the steel line. Lessons: (1) a class prefix is
+a namespace: hero creation's hc-* collided with the chat's and laid out every chat line; (2) an author `display`
+undoes the `hidden` attribute: a flex cell needs `[hidden] { display: none }` (hunt-screen HS-25 caught it);
+(3) a log must stay pinned through a resize, not only on append: the dock caps the window after the first paint;
+(4) to keep parallel lanes merge-clean, use the shared piece by its class in markup rather than adding selectors
+to shell.css's shared lists (lane 2 landed first; the merge had zero conflicts).

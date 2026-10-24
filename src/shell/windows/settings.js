@@ -10,11 +10,11 @@
 // Search filters every category by label and help text at once. Built once;
 // patched in place through paint.js, so a search or a toggle never rebuilds it.
 // ════════════════════════════════════════════════════════════════════════
-import { SETTINGS, SETTING_CATEGORIES } from '../../data/settings.js?v=0.2.39';
-import { read, write, visible, categoriesFor, search } from '../settings-model.js?v=0.2.39';
-import { keyLabel } from '../launcher.js?v=0.2.39';
-import { attr, cls, prop, text } from '../../render/paint.js?v=0.2.39';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.39';
+import { SETTINGS, SETTING_CATEGORIES } from '../../data/settings.js?v=0.2.41';
+import { read, write, visible, categoriesFor, search } from '../settings-model.js?v=0.2.41';
+import { keyLabel } from '../launcher.js?v=0.2.41';
+import { attr, cls, prop, text } from '../../render/paint.js?v=0.2.41';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.41';
 
 function control(r) {
   const sid = 'data-sid="' + esc(r.id) + '" data-hs-act="set"';
@@ -24,7 +24,9 @@ function control(r) {
     return '<input type="checkbox" ' + sid + f + ' ' + label + '>';
   }
   if (r.type === 'choice') return '<select class="st-select" ' + sid + ' ' + label + '>' + r.options.map((o) => '<option value="' + esc(o.value) + '">' + esc(o.label) + '</option>').join('') + '</select>';
-  if (r.type === 'slider') return '<input type="range" min="' + r.options.min + '" max="' + r.options.max + '" step="' + (r.options.step || 1) + '" ' + sid + ' ' + label + '>';
+  /* A slider shows its value beside it (the window opacity: "80%"). */
+  if (r.type === 'slider') return '<input type="range" min="' + r.options.min + '" max="' + r.options.max + '" step="' + (r.options.step || 1) + '" ' + sid + ' ' + label + '>'
+    + '<output class="st-val" aria-hidden="true"></output>';
   if (r.type === 'action') return '<button type="button" class="hs-quiet" data-hs-act="run" data-sid="' + esc(r.id) + '">' + esc(r.label) + '</button>';
   if (r.type === 'note') return '';
   return '<kbd class="hs-key">' + esc(keyLabel(r.key)) + '</kbd>';
@@ -73,6 +75,7 @@ renderSettings.patch = function patchSettings(body, ctx) {
     const v = read(ctx, r);
     if (r.type === 'toggle') prop(c, 'checked', v === true);
     else if (document.activeElement !== c) prop(c, 'value', String(v));
+    if (r.type === 'slider') text(el.querySelector('.st-val'), String(v) + (r.options.unit || ''));
   }
   for (const c of SETTING_CATEGORIES) {
     const page = root.querySelector('[data-page="' + c.id + '"]');
@@ -100,7 +103,9 @@ renderSettings.act = function actSettings(ctx, body, action, ev, t) {
     prop(find, 'value', '');
     attr(root, 'data-q', null);
     attr(root, 'data-view', 'list');
-  } else if (action === 'set' && ev.type === 'change') {
+  } else if (action === 'set' && (ev.type === 'change' || (ev.type === 'input' && t.type === 'range'))) {
+    /* A slider applies while it is dragged (the window opacity shows the World through at once); the residue
+       put is one per burst (character-session.js setResidue). */
     const r = SETTINGS.find((x) => x.id === t.getAttribute('data-sid'));
     if (!r) return;
     write(ctx, r, r.type === 'toggle' ? t.checked : r.type === 'slider' ? Number(t.value) : t.value);

@@ -32,8 +32,8 @@
 .hw-cs-vitals .hw-cs-line { justify-content: flex-start; flex-wrap: wrap; column-gap: 6px; min-width: 0; }
 .hw-cs-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; margin-top: 6px; }
 .hw-cs-col { min-width: 0; }
-.hw-cs-head { display: none; margin: 8px 2px 2px; font-family: var(--f-label); font-weight: 700; font-size: var(--t-micro); letter-spacing: .04em; color: var(--ink-3); }
-.hw-cs-head:first-child, .hw-cs-head.is-on { display: block; }
+/* Shown (the first, or .is-on), a head is a Forged Steel section head (shell.css): Cinzel in gold over a rule. */
+.hw-cs-head { display: none; margin: 8px 2px 2px; }
 .hw-cs-list { margin: 0; }
 .hw-cs-list .hw-cs-line { border-top: 1px solid var(--line-soft); padding: 2px 0; }
 .hw-cs-total dt { color: var(--ink-2); font-weight: 700; }

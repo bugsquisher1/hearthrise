@@ -31,26 +31,26 @@
 // retried in the background.
 // ════════════════════════════════════════════════════════════════════════
 
-import { SUPABASE_CONFIG, createSupabaseClient } from '../net/supabase-bootstrap.js?v=0.2.39';
-import { createAuth, AUTH_COPY } from '../net/auth.js?v=0.2.39';
-import { SESSION_CONFIG } from '../session/config.js?v=0.2.39';
-import { createServerLink } from '../session/server.js?v=0.2.39';
-import { AccountSession } from '../session/account-session.js?v=0.2.39';
-import { FRAME_EVENT } from '../session/character-session.js?v=0.2.39';
-import { renderAuthScreen, AUTH_BRAND } from './sign-in.js?v=0.2.39';
-import { mountWorldPane } from './world-pane.js?v=0.2.39';
-import { mountCharacterStrip, stripTargetOf } from './character-strip.js?v=0.2.39';
-import { renderHeroCreate } from './hero-create.js?v=0.2.39';
-import { slotOfferHtml, slotRefusalText } from './slot-offer.js?v=0.2.39';
-import { createAlertCenter } from '../shell/alerts.js?v=0.2.39';
-import { createSocialRealtime } from '../social/realtime.js?v=0.2.39';
-import { SocialSession } from '../social/social-session.js?v=0.2.39';
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.39';
-import { startObservability, track } from '../net/observability.js?v=0.2.39';
-import { startDiagnostics } from '../net/diagnostics.js?v=0.2.39';
-import { mountPressAck } from '../shell/press-ack.js?v=0.2.39';
-import { liveOverlayWanted, mountLiveOverlay } from './live-overlay.js?v=0.2.39';
-import { mountNewVersion } from './new-version.js?v=0.2.39';
+import { SUPABASE_CONFIG, createSupabaseClient } from '../net/supabase-bootstrap.js?v=0.2.41';
+import { createAuth, AUTH_COPY } from '../net/auth.js?v=0.2.41';
+import { SESSION_CONFIG } from '../session/config.js?v=0.2.41';
+import { createServerLink } from '../session/server.js?v=0.2.41';
+import { AccountSession } from '../session/account-session.js?v=0.2.41';
+import { FRAME_EVENT } from '../session/character-session.js?v=0.2.41';
+import { renderAuthScreen, AUTH_BRAND } from './sign-in.js?v=0.2.41';
+import { mountWorldPane } from './world-pane.js?v=0.2.41';
+import { mountCharacterStrip, stripTargetOf } from './character-strip.js?v=0.2.41';
+import { renderHeroCreate } from './hero-create.js?v=0.2.41';
+import { slotOfferHtml, slotRefusalText } from './slot-offer.js?v=0.2.41';
+import { createAlertCenter } from '../shell/alerts.js?v=0.2.41';
+import { createSocialRealtime } from '../social/realtime.js?v=0.2.41';
+import { SocialSession } from '../social/social-session.js?v=0.2.41';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.41';
+import { startObservability, track } from '../net/observability.js?v=0.2.41';
+import { startDiagnostics } from '../net/diagnostics.js?v=0.2.41';
+import { mountPressAck } from '../shell/press-ack.js?v=0.2.41';
+import { liveOverlayWanted, mountLiveOverlay } from './live-overlay.js?v=0.2.41';
+import { mountNewVersion } from './new-version.js?v=0.2.41';
 
 const DISCORD = 'https://discord.gg/eJrUSUJM3M';
 
@@ -117,7 +117,8 @@ function startApp(win) {
     obs.screen('closed');
     root.className = 'app is-auth';
     root.innerHTML = '<main class="auth">' + AUTH_BRAND + '<div class="auth-card">'
-      + '<h1 class="auth-title">Hearthrise is a new game in development. Follow Discord for the first playtest.</h1>'
+      + '<h1 class="auth-title">Playtest</h1>'
+      + '<p class="auth-lead">Hearthrise is a new game in development. Follow Discord for the first playtest.</p>'
       + '<p class="auth-lead">Your account is not on the list for this test. Discord gets the date first.</p>'
       + '<p class="auth-links"><a class="auth-link" href="' + DISCORD + '" rel="noopener">Join the Discord</a>'
       + '<button type="button" class="auth-link" data-app="sign-out">Sign out</button></p></div></main>';
@@ -179,15 +180,14 @@ function startApp(win) {
     roster = read;
     rosterSlots = roster.filter((r) => r.exists).map((r) => r.slot);
     const open = new Set(a.characters().map((c) => c.slot));
-    /* Each owned slot: its hero by name and Level (the server's), or an empty slot to create in.
-       Every account owns two (Tyler 10-17); the next one for sale is offered under the list. */
-    const rows = roster.map((r) => '<li class="char-row"><span class="char-name">'
-      + (r.exists ? esc(r.name || 'Unnamed hero') + (r.level ? ' <small class="char-level">Level ' + r.level + '</small>' : '') : r.unnamed ? 'Unnamed hero' : 'Empty slot')
-      + '</span>'
-      + (r.exists
-        ? '<button type="button" class="auth-submit" data-app="play" data-slot="' + r.slot + '">' + (open.has(r.slot) ? 'Show' : 'Play') + '</button>'
-        : '<button type="button" class="auth-submit" data-app="create" data-slot="' + r.slot + '">' + (r.unnamed ? 'Name hero' : 'Create hero') + '</button>')
-      + '</li>').join('');
+    /* Each owned slot: its hero by name and Level (the server's), or an empty slot to create in; the whole
+       row is the press. Every account owns two (Tyler 10-17); the next one for sale is offered under the list. */
+    const rows = roster.map((r) => '<li class="char-row' + (r.exists ? '' : ' is-empty') + '">'
+      + '<button type="button" class="char-pick" ' + (r.exists ? 'data-app="play"' : 'data-app="create"') + ' data-slot="' + r.slot + '">'
+      + '<span class="char-name"><b>' + (r.exists ? esc(r.name || 'Unnamed hero') : r.unnamed ? 'Unnamed hero' : 'Empty slot') + '</b>'
+      + (r.exists && r.level ? ' <small class="char-level">Level ' + r.level + '</small>' : '') + '</span> '
+      + '<span class="char-go">' + (r.exists ? (open.has(r.slot) ? 'Show' : 'Play') : r.unnamed ? 'Name hero' : 'Create hero') + '</span>'
+      + '</button></li>').join('');
     root.querySelector('.auth-card').innerHTML = '<h1 class="auth-title">Your characters</h1>'
       + '<p class="auth-lead">Signed in as ' + esc(auth.email() || 'you') + '. ' + (a.limit() > 1 ? 'Up to ' + a.limit() + ' can play at once.' : 'One can play at a time.') + '</p>'
       + '<ul class="char-list">' + (rows || '<li class="char-row">The server did not answer. Reload to try again.</li>') + '</ul>'

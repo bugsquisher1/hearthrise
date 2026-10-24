@@ -39,19 +39,20 @@
 //
 // Mounted by src/app/world-pane.js over one character's World.
 // ════════════════════════════════════════════════════════════════════════
-import { MOBILE_QUERY } from '../world/core/camera.js?v=0.2.39';
-import { SHELL_WINDOWS } from '../data/shell-windows.js?v=0.2.39';
-import { HUD_WIDGETS } from '../data/hud-widgets.js?v=0.2.39';
-import { createWindowManager, DOCK_EDGE, HOME_BOTTOM, RESIZE_MIN } from './window-manager.js?v=0.2.39';
-import { createHud, residueStore, placeWidget, hudInsetOf, clearOfEdges, clearOfDock, stageOf, dockCap, homeAt, stackBelow } from './hud.js?v=0.2.39';
-import { keyLabel, glyphSvg } from './launcher.js?v=0.2.39';
-import { WINDOW_RENDERERS, WIDGET_RENDERERS } from './renderers.js?v=0.2.39';
-import { mountContextMenu } from './context-menu.js?v=0.2.39';
-import { menuProvidersOf } from './menu-providers.js?v=0.2.39';
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.39';
-import { followDeaths } from './death-popup.js?v=0.2.39';
-import { sizeStore, gripHtml, pressGrip } from './window-sizes.js?v=0.2.39';
-import { watchTown } from '../session/town-poll.js?v=0.2.39';
+import { MOBILE_QUERY } from '../world/core/camera.js?v=0.2.41';
+import { SHELL_WINDOWS } from '../data/shell-windows.js?v=0.2.41';
+import { HUD_WIDGETS } from '../data/hud-widgets.js?v=0.2.41';
+import { createWindowManager, DOCK_EDGE, HOME_BOTTOM, RESIZE_MIN } from './window-manager.js?v=0.2.41';
+import { createHud, residueStore, placeWidget, hudInsetOf, clearOfEdges, clearOfDock, stageOf, dockCap, homeAt, stackBelow } from './hud.js?v=0.2.41';
+import { keyLabel, glyphSvg } from './launcher.js?v=0.2.41';
+import { WINDOW_RENDERERS, WIDGET_RENDERERS } from './renderers.js?v=0.2.41';
+import { mountContextMenu } from './context-menu.js?v=0.2.41';
+import { menuProvidersOf } from './menu-providers.js?v=0.2.41';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.41';
+import { followDeaths } from './death-popup.js?v=0.2.41';
+import { sizeStore, gripHtml, pressGrip } from './window-sizes.js?v=0.2.41';
+import { watchTown } from '../session/town-poll.js?v=0.2.41';
+import { applyPanelAlpha, clearPanelAlpha } from './panel-alpha.js?v=0.2.41';
 
 /* The components' display clock: session timers and the timeline's due events (parity SH-05, DOM 4 Hz). */
 const DISPLAY_TICK_MS = 250;
@@ -177,6 +178,8 @@ export function mountShell(root, o) {
 
   /* ── Widgets: shown, faded and placed from the layout ── */
   function paintWidgets() {
+    /* The window opacity follows the character's residue on every repaint (a Settings drag included). */
+    applyPanelAlpha(ctx.doc, ctx.character);
     for (const row of hud.rows()) {
       const box = row.layer === 'screen' ? screenHud : worldHud;
       let el = box.querySelector('[data-hs-widget="' + row.id + '"]');
@@ -460,6 +463,7 @@ export function mountShell(root, o) {
       doc.removeEventListener('keydown', onKey);
       phoneMq.removeEventListener('change', onSizeClass);
       host.removeEventListener('resize', onResize);
+      clearPanelAlpha(ctx.doc);
       shell.remove();
       screen.remove();
     },

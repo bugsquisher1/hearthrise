@@ -10,7 +10,7 @@
 //   node tests/alpha-windows.mjs --shots <dir>  also write the visual-gate screenshots
 //                                               (1440x900 and 922x423)
 //
-// mutant-anchors: src/shell/town-ticker.js src/session/refusal.js src/session/character-session.js src/shell/widgets/amount.js src/shell/windows/inventory/bury.js src/shell/windows/inventory/state.js src/shell/windows/float-menu.js src/shell/bag-model.js src/session/item-sections.js src/shell/windows/inventory/grid.js src/shell/windows/inventory/actions.js src/shell/windows/shop.js src/shell/windows/inventory/doll.js src/session/edge-intents.js src/world/world-boot.js src/world/core/camera.js src/shell/windows/hunts.js src/shell/windows/storage.js src/shell/hunt-list.js src/shell/windows/skills.js src/shell/launcher.js src/shell/upgrade-plan.js src/shell/widgets/upgrade-line.js src/shell/intent-words.js src/shell/town-work.js src/shell/windows/work.js src/shell/hunt-ground-facts.js src/shell/windows/hunt-detail.js src/shell/hunt-go.js src/shell/windows/party-finder.js src/data/refusal-words.js src/styles/windows.css
+// mutant-anchors: src/shell/town-ticker.js src/session/refusal.js src/session/character-session.js src/shell/widgets/amount.js src/shell/windows/inventory/bury.js src/shell/windows/inventory/state.js src/shell/windows/float-menu.js src/shell/bag-model.js src/session/item-sections.js src/shell/windows/inventory/grid.js src/shell/windows/inventory/actions.js src/shell/windows/shop.js src/shell/windows/inventory/doll.js src/session/edge-intents.js src/world/world-boot.js src/world/core/camera.js src/shell/windows/hunts.js src/shell/windows/storage.js src/shell/hunt-list.js src/shell/windows/skills.js src/shell/launcher.js src/shell/upgrade-plan.js src/shell/widgets/upgrade-line.js src/shell/intent-words.js src/shell/town-work.js src/shell/windows/work.js src/shell/hunt-ground-facts.js src/shell/windows/hunt-detail.js src/shell/hunt-go.js src/shell/windows/party-finder.js src/data/refusal-words.js src/styles/windows.css src/session/residue.js src/shell/panel-alpha.js src/styles/shell.css
 //
 // play.html with supabase-js and the REST paths stubbed (tests/_client-harness.mjs);
 // the character's envelope is tests/fixtures/alpha-envelope.json.
@@ -133,6 +133,9 @@
 //         your heroes (open heroes in no party); a solo ground's page offers neither
 //   AW-29 the round trip: pick a ground, Enter, hunting, back in town: Hunts still holds
 //         that ground, after a close and reopen too
+//   AW-30 THE WINDOW OPACITY (Tyler 2026-10-24): Settings > Interface > Window opacity at 70
+//         puts ONE residue `panelAlpha: 70`, fades a window's floor to 0.7 while its title
+//         stays solid, and after a reload the windows are still at 0.7 and the slider says 70%
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
 import { leaseBrowser } from './_chrome.mjs';
@@ -1648,6 +1651,47 @@ async function checks(overrides, shots) {
       await ctx.close();
     }
 
+    { // AW-30 the window opacity: a display preference in the residue, the fills fade, the words do not, a reload keeps it
+      const { ctx, page, s, up } = await open();
+      if (!up) fails.push('AW-30 the page did not mount');
+      else {
+        const look = () => page.evaluate(() => {
+          const w = document.querySelector('[data-hs-win="settings"]:not(.is-leaving)');
+          const title = w && w.querySelector('.hs-win-title');
+          const val = w && w.querySelector('[data-row="ui.windowOpacity"] .st-val');
+          return { root: document.documentElement.style.getPropertyValue('--panel-alpha'), floor: w ? getComputedStyle(w, '::before').opacity : null,
+            title: title ? getComputedStyle(title).opacity + '|' + getComputedStyle(title).color : null, val: val ? val.textContent : null };
+        });
+        const toInterface = async () => {
+          if (!(await openWin(page, 'Escape', 'settings'))) return false;
+          await page.click('[data-hs-win="settings"] .st-tab[data-cat="interface"]');
+          return wait(page, () => document.querySelector('[data-row="ui.windowOpacity"] input[type="range"]'), null, 3000);
+        };
+        if (!(await toInterface())) fails.push('AW-30 Settings > Interface has no Window opacity slider');
+        else {
+          const before = await look();
+          if (before.root !== '1' || before.floor !== '1' || before.val !== '100%') fails.push('AW-30 a fresh hero\'s windows are not solid at 100%: ' + JSON.stringify(before));
+          await page.evaluate(() => { const r = document.querySelector('[data-row="ui.windowOpacity"] input[type="range"]');
+            r.focus(); r.value = '70'; r.dispatchEvent(new Event('input', { bubbles: true })); r.dispatchEvent(new Event('change', { bubbles: true })); });
+          await page.waitForTimeout(300);
+          const now = await look();
+          if (now.root !== '0.7' || now.floor !== '0.7') fails.push('AW-30 the slider at 70 did not fade the window floor to 0.7: ' + JSON.stringify(now));
+          if (now.title !== before.title || !/^1\|/.test(now.title || '')) fails.push('AW-30 the window title faded with its floor: ' + JSON.stringify([before.title, now.title]));
+          /* The put is one per burst, after the residue debounce (src/session/config.js residueDebounceMs). */
+          for (let i = 0; i < 40 && !sent(s, 'hr_put_client_state').some((c) => c.body.p_patch && c.body.p_patch.panelAlpha === 70); i++) await page.waitForTimeout(100);
+          const puts = sent(s, 'hr_put_client_state').map((c) => c.body.p_patch && c.body.p_patch.panelAlpha).filter((v) => v !== undefined);
+          if (puts[puts.length - 1] !== 70) fails.push('AW-30 the opacity was not put as residue panelAlpha 70: ' + JSON.stringify(puts));
+          if (!(await reloadAndPlay(page))) fails.push('AW-30 the reload did not come back');
+          else if (!(await toInterface())) fails.push('AW-30 after a reload Settings > Interface did not open');
+          else {
+            const after = await look();
+            if (after.root !== '0.7' || after.floor !== '0.7' || after.val !== '70%') fails.push('AW-30 after a reload the windows are not at 70%: ' + JSON.stringify(after));
+          }
+        }
+      }
+      await ctx.close();
+    }
+
     if (shots) { // the phone size class
       const { ctx, page, up } = await open({ viewport: { width: 922, height: 423 } });
       if (up) {
@@ -1719,7 +1763,10 @@ const MUTANTS = [
   ['AW-25 the page shows the first ground, not the pick', 'src/shell/windows/hunts.js', '  const r = list.find((x) => x.hunt === sc.pick) || null;', '  const r = list[0] || null;'],
   ['AW-25 the creatures are never drawn', 'src/shell/windows/hunt-detail.js', '  const ok = drawCreature(c, ART, id, LINEUP_SPRITE);', '  const ok = false;'],
   ['AW-25 each creature stands at its own height', 'src/shell/windows/hunt-detail.js', "  style(lineup, '--stand-h', tallest ? tallest + 'px' : null);\n", ''],
-  ['AW-25 the phone shows the list and the page at once', 'src/styles/windows.css', '  .hw-hunts.is-paged .hw-hunt-list, .hw-hunts.is-paged .hw-hunts-now.is-hint { display: none; }\n', '  .hw-hunts.is-paged .hw-hunts-now.is-hint { display: none; }\n'],
+  ['AW-30 the window opacity is not kept in the residue', 'src/session/residue.js', '  panelAlpha: sanitizePanelAlpha,', ''],
+  ['AW-30 the windows do not follow the opacity setting', 'src/shell/panel-alpha.js', '  return Number.isInteger(v) ? v : PANEL_ALPHA.initial;', '  return globalThis.__panelAlpha ?? PANEL_ALPHA.initial;'],
+  ['AW-30 the opacity fades the whole window, words and all', 'src/styles/shell.css', '  image-rendering: pixelated; opacity: var(--panel-alpha);\n}', '  image-rendering: pixelated;\n}\n.hs-win { opacity: var(--panel-alpha); }'],
+  ['AW-25 the phone shows the list and the page at once', 'src/styles/windows.css', '  .hw-hunts.is-paged .hw-hunt-list, .hw-hunts.is-paged .hw-hunts-now, .hw-hunts.is-paged .hw-hunts-reco { display: none; }\n', '  .hw-hunts.is-paged .hw-hunts-now, .hw-hunts.is-paged .hw-hunts-reco { display: none; }\n'],
   ['AW-26 the chosen setup is never put on', 'src/shell/windows/hunts.js', '  if (s && Number.isInteger(want) && want !== s.preset) {', '  if (false) {'],
   ['AW-26 the setup on now is put on again', 'src/shell/windows/hunts.js', '  if (s && Number.isInteger(want) && want !== s.preset) {', '  if (s && Number.isInteger(want)) {'],
   ['AW-26 a refused apply still enters', 'src/shell/windows/hunts.js', "    if (!a || !a.ok) return a || { ok: false, error: 'network' };\n", ''],

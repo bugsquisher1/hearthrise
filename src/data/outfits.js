@@ -23,7 +23,7 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { OUTFITS } from './hunt-outfits.js?v=0.2.39';
+import { OUTFITS } from './hunt-outfits.js?v=0.2.41';
 
 export const OUTFIT_ROWS = Object.freeze({
   knight: Object.freeze({ label: 'Plate Harness', premium: false, regions: Object.freeze([]) }),

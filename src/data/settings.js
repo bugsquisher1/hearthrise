@@ -23,7 +23,7 @@
 //   bind         where the value lives: { store: 'float', type, target }
 //                | { store: 'hud', id } | { store: 'residue', field }
 //                | { store: 'none' } (hotkeys, actions, notes)
-//   options      choice: [{ value, label }];  slider: { min, max, step }
+//   options      choice: [{ value, label }];  slider: { min, max, step, unit? } (the unit follows the value shown)
 //   key          hotkey rows: the key;  action rows: `run` names a
 //                CharacterSession method, or `open` names the window it opens
 //                (a panel that owns its own reads and intents, e.g. Blocked players)
@@ -33,12 +33,13 @@
 // Categories are data too, in the order the window lists them. Gameplay,
 // Chat & Social and Account stay hidden until a feature registers a row there.
 // ════════════════════════════════════════════════════════════════════════
-import { FLOAT_TYPES, FLOAT_TARGETS } from './combat-text.js?v=0.2.39';
-import { HUD_WIDGETS } from './hud-widgets.js?v=0.2.39';
-import { SHELL_WINDOWS } from './shell-windows.js?v=0.2.39';
-import { HOTKEYS } from './hunt-hud.js?v=0.2.39';
-import { SOCIAL_SETTINGS } from './social-settings.js?v=0.2.39';
-import { HELP_NOTES } from './how-to-play.js?v=0.2.39';
+import { FLOAT_TYPES, FLOAT_TARGETS } from './combat-text.js?v=0.2.41';
+import { HUD_WIDGETS } from './hud-widgets.js?v=0.2.41';
+import { SHELL_WINDOWS } from './shell-windows.js?v=0.2.41';
+import { HOTKEYS } from './hunt-hud.js?v=0.2.41';
+import { SOCIAL_SETTINGS } from './social-settings.js?v=0.2.41';
+import { HELP_NOTES } from './how-to-play.js?v=0.2.41';
+import { PANEL_ALPHA } from './panel-alpha.js?v=0.2.41';
 
 export const SETTING_TYPES = Object.freeze(['toggle', 'choice', 'slider', 'hotkey', 'action', 'note']);
 export const SETTING_SCOPES = Object.freeze(['residue', 'server']);
@@ -68,6 +69,18 @@ const FLOAT_ROWS = FLOAT_TYPES.flatMap((f) => FLOAT_TARGETS.map((target) => row(
   default: f.on[target],
   bind: Object.freeze({ store: 'float', type: f.id, target }),
 })));
+
+/* ── Interface: the window opacity (Tyler 2026-10-24), a display preference kept in the character's residue ── */
+const LOOK_ROWS = [row({
+  id: 'ui.windowOpacity',
+  category: 'interface',
+  label: 'Window opacity',
+  help: 'How solid windows and panels are. Lower lets the world show through them; their text and frames stay solid.',
+  type: 'slider',
+  default: PANEL_ALPHA.initial,
+  options: Object.freeze({ min: PANEL_ALPHA.min, max: PANEL_ALPHA.max, step: PANEL_ALPHA.step, unit: '%' }),
+  bind: Object.freeze({ store: 'residue', field: 'panelAlpha' }),
+})];
 
 /* ── Interface: show or hide each HUD panel ── */
 const PANEL_ROWS = HUD_WIDGETS.filter((w) => w.removable).map((w) => row({
@@ -100,7 +113,7 @@ const HELP_ROWS = [...HELP_NOTES.map((n) => row({ id: 'help.' + n.id, category: 
   type: 'action', open: 'report',
 })];
 
-export const SETTINGS = Object.freeze([...PANEL_ROWS, ...FLOAT_ROWS, ...HOTKEY_ROWS, ...SOCIAL_SETTINGS.map(row), ...HELP_ROWS]);
+export const SETTINGS = Object.freeze([...LOOK_ROWS, ...PANEL_ROWS, ...FLOAT_ROWS, ...HOTKEY_ROWS, ...SOCIAL_SETTINGS.map(row), ...HELP_ROWS]);
 
 /** Throws on the first broken row; the guard and the window both rely on it. */
 export function validateSettings(rows = SETTINGS, cats = SETTING_CATEGORIES) {

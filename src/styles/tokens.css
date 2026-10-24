@@ -938,3 +938,38 @@ body[data-theme-palette="iron"] {
   /* The standard hero's fixed colours (src/data/hero-base.js): world palette skin and shadow. */
   --hero-skin: #dcae86; --hero-skin-shade: #b5835f; --hero-outline: #17141a;
 }
+
+
+/* ══════════════════════════════════════════════════════════════════════════
+   8 · FORGED STEEL — the one chrome for every window, HUD panel and screen
+   (Tyler approved the skin on 2026-10-24; ART_DIRECTION §9 and §10). The art is
+   assets/ui/steel-*.png and gold-plate*.png (tools/make-ui-steel-art.mjs); these
+   are the colours and the one dial between them.
+
+   --panel-alpha is THE WINDOW OPACITY SETTING (Settings > Interface, 60 to 100%;
+   src/shell/panel-alpha.js writes it on <html> from the shown character's
+   residue `panelAlpha`). It is declared on :root alone so that write reaches every
+   --fill-N below. Only fills fade: a frame, a rule, the gold and all text stay
+   solid at any setting.
+   ══════════════════════════════════════════════════════════════════════════ */
+:root {
+  --panel-alpha: 1;
+}
+:root,
+body[data-theme="hearthlight"] {
+  /* A panel's fill at the player's opacity: the window floor, a raised band, a lifted row. */
+  --fill-0: color-mix(in srgb, var(--bg-0) calc(var(--panel-alpha) * 100%), transparent);
+  --fill-1: color-mix(in srgb, var(--bg-1) calc(var(--panel-alpha) * 100%), transparent);
+  --fill-2: color-mix(in srgb, var(--bg-2) calc(var(--panel-alpha) * 100%), transparent);
+  --fill-3: color-mix(in srgb, var(--bg-3) calc(var(--panel-alpha) * 100%), transparent);
+  /* A HUD panel's floor over the World (party, analyzer, hunt bar, tally, alerts): the HUD plate at the opacity. */
+  --hud-fill: color-mix(in srgb, var(--world-hud-bg) calc(var(--panel-alpha) * 100%), transparent);
+  /* The steel's lines: a heading's gold rule (and a title band's foot), a panel's 2 px edge, a row's separator,
+     a square title button's edge. Dim, so the gold that earns its place (a title, the picked row) leads. */
+  --steel-rule: color-mix(in srgb, var(--gold-3) 50%, var(--bg-1));
+  --steel-edge: color-mix(in srgb, var(--ink-3) 30%, var(--bg-1));
+  --steel-sep: color-mix(in srgb, var(--ink-3) 18%, var(--bg-1));
+  --steel-btn: color-mix(in srgb, var(--ink-3) 45%, var(--bg-1));
+  /* A sunk well, one art px deep (2 screen px): shadow up-left, a lit lip down-right (light from the upper left). */
+  --steel-well: inset 2px 2px 0 color-mix(in srgb, var(--world-shadow) 80%, transparent), inset -2px -2px 0 color-mix(in srgb, var(--hl) 9%, transparent);
+}

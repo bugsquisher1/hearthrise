@@ -1,38 +1,74 @@
 /* ══════════════════════════════════════════════════════════════════════════
    src/styles/summary.css — the hunt summary window (QoL 8) and the death
-   popup that comes before it when a hero dies. It reuses the
-   alpha windows' ledger heads and lines (windows.css) and the one gold
-   primary (hunt.css .is-primary); this file only lays the card out.
-   Tokens only; no per-control borders, no glow, no gradient.
+   popup that comes before it when a hero dies, in FORGED STEEL (Tyler approved
+   the skin 2026-10-24; ART_DIRECTION §9, §10). The windows wear the steel frame
+   (shell.css .hs-win); the section heads, the gold plate and the ledger lines
+   are the shared pieces (shell.css, windows.css); this file only lays the two
+   cards out. Tokens only; no per-control borders, no glow, no gradient.
    ══════════════════════════════════════════════════════════════════════════ */
 .hsum-none { display: block; }
 .hsum:not(.is-empty) .hsum-none { display: none; }
 .hsum-live, .hsum-card { display: none; }
 .hsum-live.is-on, .hsum-card.is-on { display: block; }
-.hsum-title { margin: 2px 2px 2px; font-family: var(--f-label); font-size: var(--t-body); color: var(--ink); }
-.hsum-reason { margin: 0 2px 8px; font-size: var(--t-micro); color: var(--ink-2); line-height: 1.4; }
-.hsum-stats { display: flex; flex-wrap: wrap; gap: 4px 20px; margin: 0 2px 4px; }
-.hsum-stat { min-width: 64px; }
-.hsum-stats dt { font-size: var(--t-micro); color: var(--ink-3); }
-.hsum-stats dd { margin: 0; font-weight: 700; color: var(--ink); font-variant-numeric: lining-nums tabular-nums; }
+/* The card's head is named like a place (the Hunts page): the ground in Cinzel gold, when under it, then the dim
+   gold rule with the small diamond at its middle (assets/ui/steel-diamond.png, x2). */
+.hsum-head { position: relative; margin: 2px 2px 6px; padding-bottom: 20px; }
+.hsum-head::after { content: ''; position: absolute; left: -2px; right: -2px; bottom: 8px; height: 2px; background: var(--steel-rule); }
+.hsum-head::before { content: ''; position: absolute; z-index: 1; left: calc(50% - 7px); bottom: 2px; width: 14px; height: 14px;
+  background: url('../../assets/ui/steel-diamond.png') 0 0 / 14px 14px no-repeat; image-rendering: pixelated; }
+.hsum-title { margin: 0; font-family: var(--f-display); font-weight: 700; font-size: var(--t-h2); line-height: 1.15; letter-spacing: .05em; color: var(--gold-2); }
+.hsum-when { margin: 2px 0 0; font-size: var(--t-micro); color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; }
+.hsum-when:empty { display: none; }
+.hsum-reason { margin: 0 2px 10px; font-size: var(--t-small); color: var(--ink); line-height: 1.4; }
+/* What it came to: one steel panel of figures, three to a row; each label sits on its value at the foot of its
+   cell, so a label that wraps never lifts its number off the row; the long premium figure takes two cells. */
+.hsum-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px 14px; margin: 0; padding: 10px 12px 12px; background: var(--fill-1); border: 2px solid var(--steel-edge); }
+.hsum-stat { display: flex; flex-direction: column; justify-content: flex-end; min-width: 0; }
+/* A figure the server did not send (premium only) is hidden by its attribute: the flex cell must not undo that. */
+.hsum-stat[hidden] { display: none; }
+.hsum-stat:has([data-stat="rawXpH"]) { grid-column: span 2; }
+.hsum-stats dt { font-size: var(--t-micro); line-height: 1.25; color: var(--ink-2); }
+.hsum-stats dd { margin: 2px 0 0; font-size: var(--t-body); font-weight: 700; color: var(--ink); font-variant-numeric: lining-nums tabular-nums; }
 .hsum-list, .hsum-falls { margin: 0 2px 4px; padding: 0; list-style: none; font-size: var(--t-micro); color: var(--ink-2); line-height: 1.5; font-variant-numeric: lining-nums tabular-nums; }
 .hsum-falls li { margin-bottom: 4px; color: var(--ink); }
-.hsum-actions { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 2px 4px; }
+/* A loot or supply line, as the Bag shows an item: its 32 px pixel icon, its name, the count at the right. */
+.hsum-item { display: flex; align-items: center; gap: 10px; min-height: 40px; border-top: 2px solid var(--steel-sep); }
+.hsum-item:first-child { border-top: 0; }
+.hsum-ico { width: 32px; height: 32px; flex: none; display: grid; place-items: center; }
+.hsum-ico .hh-icon { width: 32px; height: 32px; image-rendering: pixelated; }
+.hsum-name { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.hsum-name b { font-size: var(--t-small); font-weight: 700; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hsum-name small { font-size: var(--t-micro); line-height: 1.2; color: var(--ink-2); }
+.hsum-name small:empty { display: none; }
+.hsum-n { flex: none; font-size: var(--t-small); font-weight: 700; color: var(--ink); }
+.hsum-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 12px 2px 4px; }
 .hsum-actions .hh-tool { min-height: 36px; }
+.hsum-actions .hh-tool.is-primary { min-height: 40px; }
 
-/* The death popup (src/shell/windows/death.js): a centred modal read top to bottom, the cost last, OK on the right. */
+/* The death popup (src/shell/windows/death.js): a centred modal read top to bottom, the cost set apart, the
+   answers in the foot with OK on the right. Its key (X) is not capped in the title band: beside the close it
+   read as a second close (the key still opens the last death). */
+.hs-win[data-hs-win="death"] .hs-key { display: none; }
 .hdeath-none { display: none; }
 .hdeath.is-empty .hdeath-none { display: block; }
 .hdeath.is-empty .hdeath-card { display: none; }
-.hdeath-title { margin: 2px 2px 6px; font-family: var(--f-label); font-size: var(--t-h2); color: var(--ink); }
+.hdeath-title { margin: 2px 2px 6px; font-family: var(--f-display); font-weight: 700; font-size: var(--t-h2); line-height: 1.2; letter-spacing: .06em; color: var(--ink); }
 .hdeath-line { display: none; margin: 0 2px 6px; font-size: var(--t-small); color: var(--ink-2); line-height: 1.45; font-variant-numeric: lining-nums tabular-nums; }
 .hdeath-line.is-on { display: block; }
 .hdeath-killed { font-weight: 700; color: var(--red); }
+/* What dying cost, in a sunk well with the cost's red bar at its left; gone when the server priced nothing. */
+.hdeath-cost { margin: 10px 0; padding: 8px 12px 2px; background: var(--bg-0); box-shadow: var(--steel-well); border-left: 4px solid var(--red); }
+.hdeath-cost:not(:has(.is-on)) { display: none; }
+.hdeath-cost .hdeath-line { margin-left: 0; }
 .hdeath-lost { color: var(--ink); }
 .hdeath-saved { color: var(--gold); }
-.hdeath-actions { justify-content: flex-end; }
+.hdeath-actions { justify-content: flex-end; margin: 12px -12px -12px; padding: 10px 12px 12px; border-top: 2px solid var(--steel-sep); }
 @media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
-  .hsum-actions .hh-tool { min-height: 44px; flex: 1 1 30%; }
+  .hsum-actions .hh-tool, .hsum-actions .hh-tool.is-primary { min-height: 44px; flex: 1 1 30%; }
+  .hsum-stats { gap: 8px 10px; padding: 8px 10px 10px; }
+  .hsum-title { font-size: var(--t-lead); }
   .hdeath-title { font-size: var(--t-lead); margin-bottom: 4px; }
   .hdeath-line { font-size: var(--t-micro); margin-bottom: 4px; }
+  .hdeath-cost { margin: 6px 0; padding: 6px 10px 1px; }
+  .hdeath-actions { margin: 8px -10px -10px; padding: 6px 10px 8px; }
 }

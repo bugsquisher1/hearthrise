@@ -15,13 +15,15 @@
 // uniqueness), the colours and the slot, and the hero enters the world only on
 // its yes. A refusal keeps the step open with the server's reason.
 //
-// PURE of globals: the document and the dye colours are handed in.
+// PURE of globals: the document and the dye colours are handed in. Its classes
+// are hero-* (src/styles/app.css), never the chat's hc-*: the two once shared
+// the prefix, and the step's .hc-body laid every chat line out (2026-10-24).
 // ════════════════════════════════════════════════════════════════════════
 
-import { HOW_YOU_FIGHT, HOW_YOU_FIGHT_LEAD } from '../data/how-to-play.js?v=0.2.39';
-import { BASE_REGIONS, BASE_DEFAULT_COLORS, DYE_COUNT, REGION_LABEL } from '../data/outfits.js?v=0.2.39';
-import { HERO_BASE_ROWS, HERO_BASE_W, HERO_BASE_H, HERO_BASE_LEGEND, HERO_SHADE_PERMILLE } from '../data/hero-base.js?v=0.2.39';
-import { refusalWords } from '../shell/intent-words.js?v=0.2.39';
+import { HOW_YOU_FIGHT, HOW_YOU_FIGHT_LEAD } from '../data/how-to-play.js?v=0.2.41';
+import { BASE_REGIONS, BASE_DEFAULT_COLORS, DYE_COUNT, REGION_LABEL } from '../data/outfits.js?v=0.2.41';
+import { HERO_BASE_ROWS, HERO_BASE_W, HERO_BASE_H, HERO_BASE_LEGEND, HERO_SHADE_PERMILLE } from '../data/hero-base.js?v=0.2.41';
+import { refusalWords } from '../shell/intent-words.js?v=0.2.41';
 
 /* The preview's integer scale: 16 x 24 cells at 8 = 128 x 192 px. */
 export const PREVIEW_SCALE = 8;
@@ -77,9 +79,9 @@ export function heroCells(colors, colorOf) {
 
 /** The "How you fight" column: the rule, then one line per way to fight. Pure. */
 export function howYouFightHtml() {
-  return '<section class="hc-how" aria-labelledby="hc-how-title"><h2 class="hc-how-title" id="hc-how-title">How you fight</h2>'
-    + '<p class="hc-how-lead">' + HOW_YOU_FIGHT_LEAD + '</p><ul class="hc-how-list">'
-    + HOW_YOU_FIGHT.map((r) => '<li data-style="' + r.id + '"><b>' + r.name + '</b> ' + r.does + ' <span class="hc-how-uses">' + r.uses + '</span></li>').join('')
+  return '<section class="hero-how" aria-labelledby="hero-how-title"><h2 class="hero-how-title hs-sub" id="hero-how-title">How you fight</h2>'
+    + '<p class="hero-how-lead">' + HOW_YOU_FIGHT_LEAD + '</p><ul class="hero-how-list">'
+    + HOW_YOU_FIGHT.map((r) => '<li data-style="' + r.id + '"><b>' + r.name + '</b> ' + r.does + ' <span class="hero-how-uses">' + r.uses + '</span></li>').join('')
     + '</ul></section>';
 }
 
@@ -107,25 +109,25 @@ export function renderHeroCreate(card, o) {
   const swatches = (g) => {
     let h = '';
     for (let i = 0; i < DYE_COUNT; i++) {
-      h += '<button type="button" class="hc-dye" data-hc-region="' + g + '" data-hc-dye="' + i + '" style="--hc-dye: var(--dye-' + i + ')"'
+      h += '<button type="button" class="hero-dye" data-hero-region="' + g + '" data-hero-dye="' + i + '" style="--hero-dye: var(--dye-' + i + ')"'
         + ' aria-label="' + REGION_LABEL[g] + ' colour ' + (i + 1) + '" aria-pressed="' + (colors[g] === i) + '"></button>';
     }
     return h;
   };
   card.innerHTML = '<h1 class="auth-title">Create your hero</h1>'
-    + '<div class="hc-body">'
-    + '<canvas class="hc-preview" width="' + HERO_BASE_W * PREVIEW_SCALE + '" height="' + HERO_BASE_H * PREVIEW_SCALE + '" role="img" aria-label="Your hero"></canvas>'
-    + '<div class="hc-form">'
-    + '<label class="auth-field">Name<input type="text" class="hc-name" maxlength="20" autocomplete="off" spellcheck="false" placeholder="3 to 20 letters"></label>'
-    + BASE_REGIONS.map((g) => '<fieldset class="hc-region"><legend>' + REGION_LABEL[g] + '</legend><div class="hc-dyes">' + swatches(g) + '</div></fieldset>').join('')
+    + '<div class="hero-body">'
+    + '<canvas class="hero-preview" width="' + HERO_BASE_W * PREVIEW_SCALE + '" height="' + HERO_BASE_H * PREVIEW_SCALE + '" role="img" aria-label="Your hero"></canvas>'
+    + '<div class="hero-form">'
+    + '<label class="auth-field">Name<input type="text" class="hero-name" maxlength="20" autocomplete="off" spellcheck="false" placeholder="3 to 20 letters"></label>'
+    + BASE_REGIONS.map((g) => '<fieldset class="hero-region"><legend>' + REGION_LABEL[g] + '</legend><div class="hero-dyes">' + swatches(g) + '</div></fieldset>').join('')
     + '</div>' + howYouFightHtml() + '</div>'
     + '<p class="auth-message" role="status" aria-live="polite"></p>'
-    + '<button type="button" class="auth-submit hc-confirm">Enter town</button>'
-    + '<p class="auth-links"><button type="button" class="auth-link hc-back">Back to your characters</button></p>';
-  const canvas = card.querySelector('.hc-preview');
-  const input = card.querySelector('.hc-name');
+    + '<div class="auth-foot"><button type="button" class="auth-link hero-back">Back to your characters</button>'
+    + '<button type="button" class="hh-tool is-primary auth-submit is-go hero-confirm">Enter town</button></div>';
+  const canvas = card.querySelector('.hero-preview');
+  const input = card.querySelector('.hero-name');
   const msg = card.querySelector('.auth-message');
-  const confirm = card.querySelector('.hc-confirm');
+  const confirm = card.querySelector('.hero-confirm');
   let busy = false;
   let gone = false;
   const repaint = () => paintPreview(canvas, colors, o.colorOf);
@@ -147,18 +149,18 @@ export function renderHeroCreate(card, o) {
   }
 
   const onClick = (e) => {
-    const sw = e.target.closest('[data-hc-dye]');
+    const sw = e.target.closest('[data-hero-dye]');
     if (sw) {
-      const g = sw.getAttribute('data-hc-region');
-      const i = Number(sw.getAttribute('data-hc-dye'));
+      const g = sw.getAttribute('data-hero-region');
+      const i = Number(sw.getAttribute('data-hero-dye'));
       if (!BASE_REGIONS.includes(g) || !Number.isInteger(i)) return;
       colors[g] = i;
-      for (const b of card.querySelectorAll('[data-hc-region="' + g + '"]')) b.setAttribute('aria-pressed', String(b === sw));
+      for (const b of card.querySelectorAll('[data-hero-region="' + g + '"]')) b.setAttribute('aria-pressed', String(b === sw));
       repaint();
       return;
     }
-    if (e.target.closest('.hc-confirm')) submit();
-    else if (e.target.closest('.hc-back')) o.back();
+    if (e.target.closest('.hero-confirm')) submit();
+    else if (e.target.closest('.hero-back')) o.back();
   };
   const onKey = (e) => { if (e.key === 'Enter' && e.target === input) submit(); };
   card.addEventListener('click', onClick);

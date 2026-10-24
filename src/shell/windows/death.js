@@ -10,19 +10,23 @@
 // Closing it any way records the dismissal (death-popup.js followDeaths). Every
 // line is the server's death row; built once, patched in place.
 // ════════════════════════════════════════════════════════════════════════
-import { text, cls } from '../../render/paint.js?v=0.2.39';
-import { deathPopupOf, deathWords } from '../death-popup.js?v=0.2.39';
-import { huntOf } from '../../session/hunt-sections.js?v=0.2.39';
-import { deathLogOf } from '../../session/character-sections.js?v=0.2.39';
+import { text, cls } from '../../render/paint.js?v=0.2.41';
+import { deathPopupOf, deathWords } from '../death-popup.js?v=0.2.41';
+import { huntOf } from '../../session/hunt-sections.js?v=0.2.41';
+import { deathLogOf } from '../../session/character-sections.js?v=0.2.41';
 
 const LINES = Object.freeze(['killed', 'what', 'lost', 'saved', 'town']);
+const line = (k) => '<p class="hdeath-line hdeath-' + k + '"></p>';
 
-/** The skeleton (built once). */
+/** The skeleton (built once): who fell where and to what, then what dying cost (and what a Blessing kept) set
+    apart in a sunk well, then back in town; the two answers in the foot. */
 export function renderDeath() {
   return '<div class="hdeath">'
     + '<p class="hs-note hdeath-none">No death to show.</p>'
     + '<section class="hdeath-card"><h3 class="hdeath-title"></h3>'
-    + LINES.map((k) => '<p class="hdeath-line hdeath-' + k + '"></p>').join('')
+    + line('killed') + line('what')
+    + '<div class="hdeath-cost">' + line('lost') + line('saved') + '</div>'
+    + line('town')
     + '<div class="hsum-actions hdeath-actions">'
     + '<button type="button" class="hh-tool" data-hs-act="death-summary">Hunt summary</button>'
     + '<button type="button" class="hh-tool is-primary" data-hs-act="death-ok">OK</button></div>'

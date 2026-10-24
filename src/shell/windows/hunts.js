@@ -46,25 +46,25 @@
 // server's `leader_densities`) with no step, and the server refuses a member's
 // pick (hr_hunt_density_set `not_leader`).
 // ════════════════════════════════════════════════════════════════════════
-import { huntOf, huntBagOf, settingsOf, huntBestsOf, huntDensityOf } from '../../session/hunt-sections.js?v=0.2.39';
-import { bagOf, equipmentOf } from '../../session/item-sections.js?v=0.2.39';
-import { wornWeightOf } from '../hunt-ground-facts.js?v=0.2.39';
-import { levelOf as levelRowOf } from '../../session/character-sections.js?v=0.2.39';
-import { huntName, partyMembershipOf } from '../../session/party-sections.js?v=0.2.39';
-import { startPartyHunt, settleTownActivity } from '../../session/party-intents.js?v=0.2.39';
-import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.39';
-import { whole } from '../../render/format.js?v=0.2.39';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.39';
-import { itemName } from '../widgets/bits.js?v=0.2.39';
-import { glyphSvg } from '../launcher.js?v=0.2.39';
-import { runIntent, refusalText } from '../intent-words.js?v=0.2.39';
-import { HUNT_GROUNDS, densityFor, DENSITY_PICK } from '../../data/hunt-grounds.js?v=0.2.39';
-import { huntRows, densityWords, rangeWords, groupWords, heroWords, packFor, bestLine, fitWords, ABOVE_LEVEL_WORDS, recommendation } from '../hunt-list.js?v=0.2.39';
-import { detailHtml, patchGround, goHtml, patchGo } from './hunt-detail.js?v=0.2.39';
-import { setupsOf, beforeLines, freeHeroes } from '../hunt-go.js?v=0.2.39';
-import { inviteOwn } from '../../session/party-intents.js?v=0.2.39';
-import { openFinderOn } from './party-finder.js?v=0.2.39';
-import { tallyOf, heldOn, tallyLine } from '../../session/tally-sections.js?v=0.2.39';
+import { huntOf, huntBagOf, settingsOf, huntBestsOf, huntDensityOf } from '../../session/hunt-sections.js?v=0.2.41';
+import { bagOf, equipmentOf } from '../../session/item-sections.js?v=0.2.41';
+import { wornWeightOf } from '../hunt-ground-facts.js?v=0.2.41';
+import { levelOf as levelRowOf } from '../../session/character-sections.js?v=0.2.41';
+import { huntName, partyMembershipOf } from '../../session/party-sections.js?v=0.2.41';
+import { startPartyHunt, settleTownActivity } from '../../session/party-intents.js?v=0.2.41';
+import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.41';
+import { whole } from '../../render/format.js?v=0.2.41';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.41';
+import { itemName } from '../widgets/bits.js?v=0.2.41';
+import { glyphSvg } from '../launcher.js?v=0.2.41';
+import { runIntent, refusalText } from '../intent-words.js?v=0.2.41';
+import { HUNT_GROUNDS, densityFor, DENSITY_PICK } from '../../data/hunt-grounds.js?v=0.2.41';
+import { huntRows, densityWords, rangeWords, groupWords, heroWords, packFor, bestLine, fitWords, ABOVE_LEVEL_WORDS, recommendation } from '../hunt-list.js?v=0.2.41';
+import { detailHtml, patchGround, goHtml, patchGo } from './hunt-detail.js?v=0.2.41';
+import { setupsOf, beforeLines, freeHeroes } from '../hunt-go.js?v=0.2.41';
+import { inviteOwn } from '../../session/party-intents.js?v=0.2.41';
+import { openFinderOn } from './party-finder.js?v=0.2.41';
+import { tallyOf, heldOn, tallyLine } from '../../session/tally-sections.js?v=0.2.41';
 
 const SCRATCH = new WeakMap();
 /* `draft` is the density shown before the server has it ({ hunt, n }), `timer` its coalescing
@@ -171,14 +171,15 @@ export function renderHunts() {
   return '<div class="hw-hunts">'
     + '<p class="hs-note hw-hunts-now"></p><p class="hs-note hw-hunts-reco" hidden></p>'
     + '<div class="hw-hunts-cols"><ul class="hw-hunt-list" role="listbox" aria-label="Hunts"></ul>'
-    + '<section class="hw-hunt-detail" aria-label="The picked hunt">' + detailHtml()
+    /* The page scrolls in its own box and Enter stands below it (windows.css), never over the lineup or the drops. */
+    + '<section class="hw-hunt-detail" aria-label="The picked hunt"><div class="hw-hd-page">' + detailHtml()
     + '<h4 class="hw-hd-h">Each pull</h4><div class="hw-pull"><p class="hw-hunt-facts"></p>'
     + '<span class="hw-density" role="group" aria-label="Monsters each pull">'
     + '<span class="hh-step"><button type="button" class="hh-seg" data-hs-act="density" data-by="-1" aria-label="Fewer monsters">−</button>'
     + '<output class="hh-step-val"></output>'
     + '<button type="button" class="hh-seg" data-hs-act="density" data-by="1" aria-label="More monsters">+</button></span></span></div>'
     + '<p class="hw-density-note"></p>'
-    + '<p class="hw-hunt-pack"></p>' + goHtml()
+    + '<p class="hw-hunt-pack"></p>' + goHtml() + '</div>'
     + '<div class="hw-hd-foot"><p class="hh-intent-msg" role="status" aria-live="polite"></p>'
     + '<button type="button" class="hw-primary is-on hw-hunt-enter" data-hs-act="enter">Enter</button></div>'
     + '</section></div></div>';
@@ -340,7 +341,8 @@ renderHunts.act = function actHunts(ctx, body, action, ev, t) {
   }
   if (action === 'pick') {
     /* Another ground's page opens at its top, not where the last one was scrolled to. */
-    if (sc.pick !== hunt && body.scrollTop) body.scrollTop = 0;
+    const page = body.querySelector('.hw-hd-page');
+    if (sc.pick !== hunt && page && page.scrollTop) page.scrollTop = 0;
     sc.pick = hunt; sc.msg = ''; sc.paged = true; repaint();
     return true;
   }

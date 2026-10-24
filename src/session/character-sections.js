@@ -21,8 +21,8 @@
 //                   its progress are read off it on the shared curve (src/core/xp.js, the
 //                   curve hr_char_level uses), never counted in the browser.
 // ════════════════════════════════════════════════════════════════════════
-import { charLevelFromXp, charXpForLevel } from '../core/xp.js?v=0.2.39';
-import { huntOf, liveHpOf } from './hunt-sections.js?v=0.2.39';
+import { charLevelFromXp, charXpForLevel } from '../core/xp.js?v=0.2.41';
+import { huntOf, liveHpOf } from './hunt-sections.js?v=0.2.41';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const ID = /^[a-z0-9_]{1,64}$/;

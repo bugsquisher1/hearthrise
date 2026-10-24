@@ -508,11 +508,11 @@ const MUTANTS = [
      so there is no second death for the mutant to protect.) */
   { arm: 'A-BLESS-ATTENDED', file: '2026-10-25-blessings.sql', why: 'a death does not use the blessings up',
     find: '  delete from public.player_blessings where user_id = p_user and slot = p_slot and tier = any (v_tiers);', repl: '  perform 1;' },
-  /* hr_hunt_party_start is RESTATED last by 2026-12-07-party-finder.sql (after town-activity-yields): the mutant is planted in the body that runs. */
+  /* hr_hunt_party_start is RESTATED last by 2027-01-19-play-cap.sql (after 2026-12-07-party-finder.sql): the mutant is planted in the body that runs. */
   /* A KICK SENDS NOBODY HOME (Coordinator ruling 2026-10-23): the engine's read never flags the removed member. */
   { arm: 'A-PARTY', file: '2026-12-18-party-leave-together.sql', why: "a kicked member's end sends the ticked leader home",
     find: "'kicked', exists (select 1 from public.hunt_parties p where p.id = v_i.id)", repl: "'kicked', false and exists (select 1 from public.hunt_parties p where p.id = v_i.id)" },
-  { arm: 'A-PARTY', file: '2026-12-07-party-finder.sql', why: "the shared start loads the leader's bag into every member",
+  { arm: 'A-PARTY', file: '2027-01-19-play-cap.sql', why: "the shared start loads the leader's bag into every member",
     find: 'public.hr_hunt_saved_bag(v_m.user_id, v_m.slot),', repl: 'public.hr_hunt_saved_bag(v_uid, p_slot),' },
 ];
 

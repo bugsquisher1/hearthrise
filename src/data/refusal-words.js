@@ -153,6 +153,10 @@ export const REFUSAL_WORDS = Object.freeze({
   activity_locked: 'Your level is too low for that hunt yet.',
   activity_running: 'Your hero is busy with something else. Stop it first.',
   same_hunt: 'You are already hunting there.',
+  /* The play cap (2027-01-19-play-cap.sql; Tyler 2026-10-17): at most four heroes play at once per account and per
+     internet connection. The number is SESSION_CONFIG.maxConcurrentCharacters (tests/play-cap.mjs holds the words to it). */
+  too_many_playing: 'Four of your heroes are already playing. Stop one first.',
+  too_many_playing_here: 'Four heroes are already playing from this internet connection. Stop one first.',
   unknown_hunt: 'The server does not know that hunt.',
   unknown_preset: 'That setup is gone. Pick another under Saved setups.',
   /* hr_hunt_preset_apply: a piece the setup wears is no longer in the bag (Go as on the Hunts window stops there). */

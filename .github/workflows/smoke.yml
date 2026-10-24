@@ -2869,6 +2869,19 @@ jobs:
           node tests/party-flow.mjs
           node tools/mutant-gate.mjs node tests/party-flow.mjs --mutate
 
+      # THE PLAY CAP (2027-01-19-play-cap.sql, Tyler 2026-10-17: up to four heroes
+      # play at once, per account and per hashed IP), on the real chain: the browser
+      # closed (the hunt door + the REAL edge set_activity refuse a fifth) and the hunt
+      # viewed (a CharacterSession's Enter is refused, its words say why), a yield /
+      # ground change / settle resume never counted twice, four on one network across
+      # accounts, and the party view's `ready` equal to what Start does. --mutate
+      # plants eleven defects on the chain end, each red on its arm.
+      - name: Play cap — four heroes at once per account and per network, every start door
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/play-cap.mjs
+          node tools/mutant-gate.mjs node tests/play-cap.mjs --mutate
+
       # THE CONTROL HALF OF A MUTATION PROOF. Every registered guard is re-run
       # with HR_MUTANT_CONTROL=1 (nothing planted, scope kept); any arm that
       # still reads "caught" is caught by something other than its mutant

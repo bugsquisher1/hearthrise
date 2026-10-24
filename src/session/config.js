@@ -10,7 +10,9 @@ export const SESSION_CONFIG = Object.freeze({
   /** The hosts the game is served from. hr-accrue's CORS allowlist (cors.js
       ALLOWED_ORIGINS) must be exactly these (tests/cors-preflight.mjs C3). */
   playerHosts: Object.freeze(['hearthrise.net', 'www.hearthrise.net', 'bugsquisher1.github.io']),
-  /** Characters one login may play at the same time (WEEK_PLAN 2026-10-17: up to 4). */
+  /** Characters one login may play at the same time (WEEK_PLAN 2026-10-17: up to 4). The SERVER enforces it, per
+      account and per network (2027-01-19-play-cap.sql, through the generated `max_concurrent` row); here it only
+      bounds the tab's connections. */
   maxConcurrentCharacters: 4,
   /** The server's slot bound: hr_load / hr-accrue clamp `slot` to 0..5 (request.js MAX_SLOT). */
   maxSlot: 5,

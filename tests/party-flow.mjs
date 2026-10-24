@@ -5,7 +5,7 @@
 //   node tests/party-flow.mjs            the guard (every arm)
 //   node tests/party-flow.mjs --mutate   every planted defect must be CAUGHT by its arm
 //
-// mutant-anchors: supabase/migrations/2026-10-28-party-flow.sql supabase/migrations/2026-10-29-party-security.sql supabase/migrations/2026-10-30-party-invite-player.sql supabase/migrations/2026-10-30-town-activity-yields.sql supabase/migrations/2026-12-05-hunt-setup-per-ground.sql supabase/migrations/2026-12-07-party-finder.sql src/shell/menu-providers.js
+// mutant-anchors: supabase/migrations/2026-10-28-party-flow.sql supabase/migrations/2026-10-29-party-security.sql supabase/migrations/2026-10-30-party-invite-player.sql supabase/migrations/2026-10-30-town-activity-yields.sql supabase/migrations/2026-12-05-hunt-setup-per-ground.sql supabase/migrations/2026-12-07-party-finder.sql supabase/migrations/2027-01-19-play-cap.sql src/shell/menu-providers.js
 // mutant-writes-tree: no — each mutant is ONE statement of its migration, patched in memory and run on the chain end inside a rolled-back transaction
 //
 // Ships with supabase/migrations/2026-10-28-party-flow.sql (PARTY_SPEC.md,
@@ -62,6 +62,8 @@ const LIVE = '2026-10-31-live-horizon.sql';
 /* The chain end's entry predicate (hr_hunt_enter_check) and party start / finder: their mutants plant there. */
 const SETUP = '2026-12-05-hunt-setup-per-ground.sql';
 const FINDER = '2026-12-07-party-finder.sql';
+/* 2027-01-19-play-cap.sql restates hr_party_seat_ready and hr_hunt_party_start last (the play cap): their mutants plant there. */
+const PLAY = '2027-01-19-play-cap.sql';
 const SRC = (f = FILE) => readFileSync(join(ROOT, 'supabase', 'migrations', f), 'utf8').replace(/\r\n/g, '\n');
 const U = ['000000c0-0000-4000-8000-0000000f1001', '000000c0-0000-4000-8000-0000000f1002', '000000c0-0000-4000-8000-0000000f1003'];
 const [A, B, C] = U;
@@ -440,17 +442,18 @@ const MUTANTS = [
   { arm: 'PF-OWN', why: 'an own character is not seated',
     find: '  perform public.hr_party_seat_into(v_pid, p_user, p_other);', repl: '  perform 1;' },
   /* Every refusal of hr_hunt_enter_for is hr_hunt_enter_check's since 2026-12-05-hunt-setup-per-ground.sql;
-     hr_hunt_party_start judges each seat by hr_party_seat_ready since 2026-12-07-party-finder.sql. */
+     hr_hunt_party_start judges each seat by hr_party_seat_ready since 2026-12-07-party-finder.sql; both are restated
+     last by 2027-01-19-play-cap.sql (the play cap), where their mutants plant. */
   { arm: 'PF-OWN', file: SETUP, why: 'a ground-less party matches any hunt',
     find: '    if v_ph is distinct from p_hunt then\n      return jsonb_build_object(\'ok\', false, \'error\', \'party_hunt_mismatch\'',
     repl: '    if v_ph <> p_hunt then\n      return jsonb_build_object(\'ok\', false, \'error\', \'party_hunt_mismatch\'' },
   { arm: 'PF-DISBAND', why: 'the party is disbanded mid-hunt',
     find: "  if exists (select 1 from public.hunt_sessions h where h.instance_id = v_pid and h.ended_at is null) then\n    return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'party_hunting')); end if;\n  delete from public.hunt_party_invites where party_id = v_pid;",
     repl: '  delete from public.hunt_party_invites where party_id = v_pid;' },
-  { arm: 'PF-START', file: FINDER, why: 'the start marches an away member in',
+  { arm: 'PF-START', file: PLAY, why: 'the start marches an away member in',
     find: '  if p_user is distinct from p_leader and public.hr_party_away(p_user, p_slot, p_joined) then',
     repl: '  if false then' },
-  { arm: 'PF-START', file: FINDER, why: 'the start never writes the leader\'s ground',
+  { arm: 'PF-START', file: PLAY, why: 'the start never writes the leader\'s ground',
     find: '    update public.hunt_parties set hunt_id = p_hunt where id = v_pid and hunt_id is distinct from p_hunt;', repl: '    perform 1;' },
   { arm: 'PF-KEEP', why: 'the sweep drops a seat the moment it is away',
     find: "returns interval language sql immutable set search_path = public, pg_catalog as $$ select interval '10 minutes' $$;",

@@ -57,6 +57,7 @@ function requirementWords(item, cs, counts) {
 const SEAT_WORDS = Object.freeze({
   away: 'is away', no_stamina: 'has no stamina left', hunt_open: 'is still hunting', activity_running: 'is busy in town',
   insufficient_item: 'is short of supplies', activity_locked: 'is too low a level for that hunt', hunts_paused: 'cannot go while hunts are paused',
+  too_many_playing: 'would be a fifth hero playing on that account', too_many_playing_here: 'would be a fifth hero playing from that connection',
 });
 
 /**

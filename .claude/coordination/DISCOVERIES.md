@@ -4,6 +4,17 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+## 2026-10-24 · backend-architect · where the client's address is known server-side (lane c-play-cap)
+PostgREST calls carry it: hr_request_ip() (cf-connecting-ip; the project answers `server: cloudflare`) keyed 246
+distinct anon rate buckets live, and one hash-matches an address GoTrue recorded in auth.sessions, so it is the
+client's address, not a gateway's. hr-accrue's statements carry NONE (direct pooler connection: no request.headers,
+no JWT GUC), so anything per-address on the engine path must read a value stored from the account's own PostgREST
+call (2027-01-19-play-cap.sql: account_play_net). auth.sessions.ip is not used as a fallback: which header GoTrue
+trusts behind Supabase's gateway is unverified, and a client-authored address there could pin a stranger's network.
+A trigger refusing through hr_reject (HR000) reaches the player cleanly from hr_apply (its handler returns
+{ok:false, error, ...detail}) but as a raw exception from an RPC without that handler: refuse in the RPC first.
+REQUIRED ACTION: a per-address rule on the edge path needs the edge to forward the address it sees, verified first.
+
 ## 2026-10-24 · qa-engineer · v0.2.44 release reds, all harness-side (lane a-v0244-ci, tests only)
 
 | # | Found | Affected | Action |

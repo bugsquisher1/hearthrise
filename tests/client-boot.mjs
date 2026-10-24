@@ -5,7 +5,7 @@
 //   node tests/client-boot.mjs           the boot checks
 //   node tests/client-boot.mjs --mutate  every planted defect must turn a check RED
 //
-// mutant-anchors: src/app/boot.js src/app/slot-offer.js src/app/world-pane.js src/net/auth.js index.html
+// mutant-anchors: src/app/boot.js src/app/slot-offer.js src/app/world-pane.js src/net/auth.js src/world/world-boot.js index.html
 //
 // The server is stubbed at the edges the client really uses: supabase-js (the
 // vendored UMD is replaced by a fake whose auth keeps its session in the
@@ -18,7 +18,12 @@
 //   B-1  play.html boots to the sign-in screen with zero console errors
 //   B-2  sign in -> the characters screen lists the server's owned slots
 //   B-3  Play -> the World pane (a canvas) and the shell mount for that character;
-//        a pushed frame reaches that character's pane without an error
+//        a pushed frame reaches that character's pane without an error; the World
+//        downloads exactly the sheets the Common draws from (src/world/scene-sets.js),
+//        never a hunting ground's (10-23: every sheet on Play, 2.32 MB)
+//   B-12 A SCENE SWITCHES WHOLE: a hero in town starts hunting the Mill Cellar while
+//        the one sheet the cellar adds is still on its way; the World keeps the
+//        Common on screen until that sheet has arrived, then shows the cellar
 //   B-4  a second character opens beside the first (two topics, one strip)
 //   B-5  sign out -> the sign-in screen, and no copy of the session is left in
 //        localStorage or sessionStorage (auth key, sb-*, the tab id)
@@ -50,6 +55,7 @@ import { chromium } from 'playwright';
 import { leaseBrowser } from './_chrome.mjs';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { ROOT, UID, serve, SDK_STUB } from './_client-harness.mjs';
 
 /* account.max_concurrent is the server's concurrent limit (AccountSession.limit): without it one character plays. */
@@ -58,6 +64,22 @@ function envelope(slot, version, extra) {
 }
 
 const HUNT = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/hunt-envelope.json'), 'utf8'));
+
+/* The sheets a scene draws from, as the client derives them (src/world/scene-sets.js over the shipped manifests). */
+async function sheetsOf(mapId) {
+  const imp = (p) => import(pathToFileURL(join(ROOT, p)).href);
+  const [{ ATLAS_SETS }, { WORLD_MAPS }, bookm, mapc, ter, ss] = await Promise.all(['src/data/world/atlas-sets.js', 'src/data/world/maps/index.js',
+    'src/world/core/book.js', 'src/world/core/map-compile.js', 'src/data/world/terrain.js', 'src/world/scene-sets.js'].map(imp));
+  const manifests = {};
+  for (const s of ATLAS_SETS) manifests[s] = JSON.parse(await readFile(join(ROOT, 'assets/world/atlas-' + s + '.json'), 'utf8'));
+  const book = bookm.createBook(manifests);
+  const tables = { materials: ter.MATERIALS, sprites: new Proxy(book.sprites, { get: (t, k) => t[k] || bookm.STUB_SPRITE }), openClasses: ter.OPEN_CLASSES, lights: ter.LIGHTS };
+  const row = WORLD_MAPS.find((m) => m.id === mapId);
+  return { sets: ss.sceneSets(mapc.compileMap(row, tables), row, book, tables), all: ATLAS_SETS };
+}
+const TOWN_SHEETS = await sheetsOf('town_common');
+const CELLAR_SHEETS = await sheetsOf('mill_cellar');
+const sheetOf = (url) => (/\/assets\/world\/atlas-([a-z0-9_]+)\.png/.exec(url) || [])[1] || null;
 
 async function stubServer(page, o) {
   await page.route('**/src/vendor/supabase-js-*.js*', (r) => r.fulfill({ contentType: 'text/javascript', body: SDK_STUB }));
@@ -133,6 +155,8 @@ async function checks(overrides) {
 
     { // B-1 .. B-5
       const { ctx, page, errors } = await fresh();
+      const sheets = new Set();
+      page.on('request', (q) => { const s = sheetOf(q.url()); if (s) sheets.add(s); });
       await page.goto(base + '/play.html', { waitUntil: 'load' });
       if (!(await wait(page, () => document.querySelector('form[data-auth="sign-in"]')))) fails.push('B-1 no sign-in screen');
       await page.fill('input[name=email]', 'qa@example.test');
@@ -145,6 +169,9 @@ async function checks(overrides) {
         if (!c) return 'no topic ' + t;
         return c.events && c.events.frame && c.status ? 'ok' : 'topic ' + t + ' has no frame handler or status callback'; }, UID);
       if (pushed !== 'ok') fails.push('B-3 ' + pushed);
+      await page.waitForTimeout(300);
+      const got = [...sheets].sort().join(), want = TOWN_SHEETS.sets.join();
+      if (got !== want || TOWN_SHEETS.sets.length >= TOWN_SHEETS.all.length) fails.push('B-3 in the Common the World downloaded the sheets ' + got + ' (it draws from ' + want + ' of ' + TOWN_SHEETS.all.length + ')');
       await page.click('[data-app="characters"]');
       if (!(await wait(page, () => document.querySelector('[data-app="play"][data-slot="1"]')))) fails.push('B-4 no way back to the characters screen');
       else {
@@ -187,6 +214,41 @@ async function checks(overrides) {
       else if (!(await wait(page, () => document.querySelectorAll('.hp-m').length === 2))) fails.push('B-8 the party board did not list the two heroes the server sent');
       await page.waitForTimeout(400);
       if (errors.length) fails.push('B-8 console errors: ' + errors.slice(0, 3).join(' | '));
+      await ctx.close();
+    }
+
+    { // B-12 a scene switches whole: the cellar shows only once the sheet it adds to the Common's has arrived
+      const o = {};
+      const { ctx, page, errors } = await fresh(o);
+      const added = CELLAR_SHEETS.sets.filter((s) => !TOWN_SHEETS.sets.includes(s));
+      let release = null, asked = 0;
+      const held = new Promise((r) => { release = r; });
+      await page.route('**/assets/world/atlas-*.png*', async (r) => {
+        if (added.includes(sheetOf(r.request().url()))) { asked++; await held; }
+        return r.continue();
+      });
+      const title = () => page.evaluate(() => (document.querySelector('#panel-world .world-title') || {}).textContent || '');
+      await page.goto(base + '/play.html', { waitUntil: 'load' });
+      await wait(page, () => document.querySelector('form[data-auth="sign-in"]'));
+      await page.fill('input[name=email]', 'qa@example.test');
+      await page.fill('input[name=password]', 'not-a-real-password');
+      await page.click('.auth-submit');
+      await wait(page, () => document.querySelector('[data-app="play"][data-slot="0"]'));
+      await page.click('[data-app="play"][data-slot="0"]');
+      const inTown = await wait(page, () => /Common/.test((document.querySelector('#panel-world .world-title') || {}).textContent || ''));
+      o.hunt = true;
+      await page.evaluate(([uid, env]) => window.__hub.send('hr:' + uid + ':0', { t: 'state', frame: 10, env }, 'frame'), [UID, Object.assign({}, HUNT, { version: 10 })]);
+      for (let i = 0; i < 60 && !asked; i++) await page.waitForTimeout(50);
+      await page.waitForTimeout(500);
+      const during = await title();
+      release();
+      const after = await wait(page, () => /Mill Cellar/.test((document.querySelector('#panel-world .world-title') || {}).textContent || ''));
+      if (!added.length) fails.push('B-12 harness: the cellar adds no sheet to the Common\'s (' + CELLAR_SHEETS.sets.join() + ')');
+      else if (!inTown) fails.push('B-12 the hero never stood in the Common');
+      else if (!asked) fails.push('B-12 the hunt in the cellar never asked for its sheet ' + added.join());
+      else if (!/Common/.test(during)) fails.push('B-12 the World showed "' + during + '" while the cellar\'s sheet (' + added.join() + ') was still on its way');
+      else if (!after) fails.push('B-12 the cellar never showed after its sheet arrived (title: ' + await title() + ')');
+      if (errors.length) fails.push('B-12 console errors: ' + errors.slice(0, 3).join(' | '));
       await ctx.close();
     }
 
@@ -329,13 +391,17 @@ const MUTANTS = [
     "else if (what === 'create') account.create(slot, 'New hero', { head: 13, body: 5, legs: 3, feet: 0 }).then(() => play(slot));"],
   ['a dead session stays in the game', 'src/app/boot.js', "else if (ev === 'signed-out' || ev === 'expired') sessionEnded();", "else if (ev === 'signed-out') sessionEnded();"],
   ['the closed answer is ignored', 'src/app/boot.js', "if (why === 'closed-game') showClosed();", "if (why === 'never') showClosed();"],
+  ['the World downloads every sheet on Play', 'src/world/world-boot.js', '  await sheets.ensure(setsFor(setsFor(first).length ? first : SCENE_MAPS.town));',
+    '  await sheets.ensure(Array.from(new Set(Object.keys(book.sprites).map((id) => book.frame(id).set))));'],
+  ['a scene shows before its sheets arrive', 'src/world/world-boot.js', "sheets.ensure(need).then(() => { waiting.delete(sc.map); if (!running) sync(); }); }\n      return null;",
+    "sheets.ensure(need).then(() => { waiting.delete(sc.map); if (!running) sync(); }); }"],
 ];
 
 async function main() {
   if (!process.argv.includes('--mutate')) {
     const fails = await checks(null);
     for (const f of fails) console.log('  ✗ ' + f);
-    console.log(fails.length ? 'client-boot: ' + fails.length + ' check(s) RED' : 'client-boot: both pages boot; sign-in, play, two characters, one hero + a named, coloured hero created in the second slot, sign-out, a dead session, reset and closed all hold');
+    console.log(fails.length ? 'client-boot: ' + fails.length + ' check(s) RED' : 'client-boot: both pages boot; sign-in, play (the Common sheets only), a scene switched whole, two characters, one hero + a named, coloured hero created in the second slot, sign-out, a dead session, reset and closed all hold');
     process.exit(fails.length ? 1 : 0);
   }
   let bad = 0;

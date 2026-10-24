@@ -4592,6 +4592,15 @@ jobs:
           node tests/client-module-size.mjs
           node tools/mutant-gate.mjs node tests/client-module-size.mjs --selftest
 
+      # play.html's generated modulepreload block IS the page's module graph, so every
+      # module is asked for at once (10-23: eight import levels, 1.61 s of a cold boot).
+      # After adding or dropping an import: node tests/module-preload.mjs --write
+      - name: Client module preload
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/module-preload.mjs
+          node tools/mutant-gate.mjs node tests/module-preload.mjs --selftest
+
       - name: Guard hygiene — no orphans, no vacuous selftests
         if: ${{ !cancelled() }}
         run: node tools/mutant-gate.mjs node tests/guard-hygiene.mjs --selftest

@@ -2,80 +2,152 @@
 -- Hearthrise — THE HOURLY HEALTH JOB READS ONLY THE RUNS IT LOOKS AT
 -- (cron jobid 18, hr-cron-health, '7 * * * *').
 -- STAGED. Game CLOSED: applies on its passing §4. Moves no value; operational
--- telemetry only (no client role can execute the detector).
+-- telemetry only (no client role can execute the detector or its readers).
 --
--- ── MEASURED (production, read-only, 2026-10-24 17:00-17:30 UTC) ─────────────
+-- ── MEASURED (production, read-only, 2026-10-24 17:00-18:30 UTC) ─────────────
 -- maintenance_log 'cron-health' phase_ms, the last 8 runs: total 2,886-3,666 ms,
 -- of which a_failed 2,657-3,479 ms; b_stale ~55, sample ~110, retention ~19.
 -- cron.job_run_details: 109,937 rows (7 days, 2027-01-01's prune), 16,790 in
 -- the 25 h window, 3 failed; heap 68 MB = 8,729 pages (79 MB with its only
 -- index, the runid pkey) for ~14 MB of live rows (avg 129 B): the space the
 -- 494,738-row prune freed stays in the file. Owner supabase_admin, so no index
--- can be added by a migration.
--- (a)'s query is a Seq Scan of all 8,729 pages. Hot it takes 31 ms (EXPLAIN
+-- can be added by a migration, and the apply role cannot write it (below).
+-- (a)'s query is a Seq Scan of all 8,729 pages. Warm it takes 31 ms (EXPLAIN
 -- ANALYZE, shared hit=8729); hourly it runs COLD (nothing else reads the old
--- pages; shared_buffers 256 MB), so the scan is ~68 MB of disk read at the
--- compute's throughput — the 3.5 s — and (b) then reads the same pages warm
--- (55 ms). The hourly read also spends the instance's disk throughput while
--- the 10 s world tick is settling hunts.
+-- pages; shared_buffers 256 MB), so the scan is ~68 MB of disk read — the
+-- 3.5 s — and (b) then reads the same pages warm (55 ms). The hourly read also
+-- spends the instance's disk throughput while the 10 s world tick settles hunts.
 -- ── WHAT ─────────────────────────────────────────────────────────────────────
---   hr_cron_health_ex  restated whole from 2027-01-01-server-perf.sql §3 (§0 pins
---                      that image, a217db06, = live) with three anchored edits:
---     1. v_run_lo: the newest run that started an hour before the longest
---        look-back (greatest(p_window, 48 h) + 1 h), by a backward walk of the
---        runid index (EXPLAIN on live: Index Scan Backward, 979 buffers,
---        10.9 ms hot). runid order is start order to within seconds (largest
---        start-before-a-lower-runid on live: 3.4 s over 110k runs), so every
---        run inside either look-back has a higher runid; §4 s2 re-proves that
---        on the live history at apply time. No such run = 0 = the whole table.
---     2. (a) failed runs: `d.runid > v_run_lo and` + the unchanged predicate
---        (Index Scan on the pkey, 889 buffers, 8.6 ms hot).
---     3. (b) stale jobs: an active job with no success in 48 h, found by NOT
---        EXISTS from v_run_lo up (Hash Anti Join over a pkey range scan, 893
---        buffers, 21 ms hot); only such a job — the alarm path, normally none
---        — reads its full history for last_success and runs_seen, so every
---        alert's text and detail are exactly what they were.
---     + the run's maintenance_log detail names cron_run_lo (after-apply check).
+--   hr_cron_run_floor    NEW reader: the newest run that STARTED at least
+--                        greatest(window, 48 h) + 1 h ago, by a backward walk
+--                        of the runid index (EXPLAIN on live: Index Scan
+--                        Backward, 980 buffers). runid order is start order to
+--                        within seconds (largest start-before-a-lower-runid on
+--                        live: 3.4 s over 110k runs), so every run inside either
+--                        look-back has a higher runid; §4 s2 re-proves that on
+--                        the live history at apply time. No such run = 0.
+--   hr_cron_failed_runs  NEW reader: (a)'s rows, `runid > floor and` + the
+--                        unchanged predicate (Index Scan on the pkey, 889
+--                        buffers, 8.6 ms warm).
+--   hr_cron_stale_jobs   NEW reader: (b)'s rows — an active job with no success
+--                        in 48 h, found by NOT EXISTS from the floor up (Hash
+--                        Anti Join over a pkey range scan, 893 buffers); only
+--                        such a job (the alarm path; none on live, 23 active
+--                        jobs all succeeded within 24 h) reads its full history
+--                        for last_success and any_run, in a MATERIALIZED step
+--                        so it never runs for a healthy job (EXPLAIN: "never
+--                        executed"). So every alert's text and detail are what
+--                        they were.
+--   hr_cron_health_ex    restated whole from 2027-01-01-server-perf.sql §3 (§0
+--                        pins that image, a217db06, = live); (a) and (b) loop
+--                        over the readers on pg_cron's tables; the run's
+--                        maintenance_log detail names cron_run_lo.
+--   The readers take the run and job tables as regclass arguments so §4 can
+--   prove them on its own TEMP probe tables: the first apply (2026-10-24) was
+--   refused at §4 by 42501 "permission denied for sequence runid_seq" — the
+--   apply role cannot write pg_cron's tables, and a self-check must not.
+--   tests/selfcheck-no-global-dml.mjs now refuses any INSERT / UPDATE / DELETE
+--   on cron.* that a self-check block executes.
 --   phase_ms keys, alert refs, severities, thresholds, the retention (h), the
 --   signature, SECURITY DEFINER, search_path and the grants are unchanged.
--- EXPECTED AFTER: ~1,000 pages (8 MB, mostly the recent, hot ones) per run
--- instead of 8,729 cold; a_failed + b_stale ~40 ms hot. MEASURE: the next
--- runs' phase_ms (a_failed, b_stale) and cron.job_run_details end-start for
--- jobid 18; detail.cron_run_lo > 0.
+-- EXPECTED AFTER: ~1,000 pages (8 MB, mostly the recent, warm ones) per run
+-- instead of 8,729 cold. MEASURE: the next runs' phase_ms (a_failed, b_stale),
+-- cron.job_run_details end-start for jobid 18, detail.cron_run_lo > 0.
 -- ── COST (10x / 100x players) ────────────────────────────────────────────────
 -- None: pg_cron's run history grows with jobs and their cadence, not players
 -- (~16k runs/day). The read is now bounded by the look-back (~33k runs), not by
 -- the history kept, so a longer retention would not slow it either.
 --
 -- ── EXPLOIT SURFACE ─────────────────────────────────────────────────────────
--- None new. SECURITY DEFINER, revoked from public, anon, authenticated and
--- service_role (restated below); reads pg_cron's tables, writes only
--- maintenance_alerts / maintenance_log / hr_db_samples and prunes run history
--- older than 7 days exactly as before. No player row, no value.
+-- None new. The detector stays SECURITY DEFINER; the three readers are
+-- SECURITY INVOKER, stable, read-only, and revoked from public, anon,
+-- authenticated and service_role like the detector, so only their owner (the
+-- detector's) runs them. Their regclass arguments are formatted with %s, which
+-- quotes and qualifies a relation name; no text reaches the SQL. No player
+-- row, no value.
 --
 -- ── REVERSIBILITY ───────────────────────────────────────────────────────────
 -- Re-apply the hr_cron_health_ex body from 2027-01-01-server-perf.sql §3 (and
--- its two revokes). Nothing else moves; no data to restore. ORDER: after
+-- its two revokes); the three readers may stay (nothing else calls them) or be
+-- dropped. No data to restore. ORDER: after
 -- 2027-01-15-social-resolve-character-names.sql (independent of it). No
 -- begin/commit (CLAUDE.md §2). No edge deploy.
 -- ════════════════════════════════════════════════════════════════════════
 
--- ── §0 PRECONDITIONS AND THE PIN ─────────────────────────────────────────────
+-- ── §0 PRECONDITIONS AND THE PINS ────────────────────────────────────────────
 do $mig$
-declare v_md5 text;
+declare r record; v_md5 text;
 begin
   if to_regclass('public.maintenance_alerts') is null or to_regclass('public.maintenance_log') is null
      or to_regclass('public.hr_db_samples') is null or to_regprocedure('public.hr_db_sample(integer)') is null
      or to_regclass('cron.job') is null then
     raise exception 'PRECONDITION: maintenance_alerts / maintenance_log / hr_db_samples / hr_db_sample / cron.job missing'; end if;
-  select md5(replace(prosrc, chr(13), '')) into v_md5 from pg_proc where oid = to_regprocedure('public.hr_cron_health_ex(interval,numeric)');
-  -- a217db06… is 2027-01-01-server-perf.sql §3 (the replay chain and live, measured 2026-10-24);
-  -- f5e680af912909c6a45d1401cbab3903 is this file's image (a re-apply).
-  if v_md5 is distinct from 'a217db065aa65cf71aea1186f50f82f0' and v_md5 is distinct from 'f5e680af912909c6a45d1401cbab3903' then
-    raise exception 'PIN: hr_cron_health_ex moved (md5 %): another file restated it; re-pin', v_md5; end if;
+  -- The detector is 2027-01-01-server-perf.sql §3's image (a217db06…, the replay chain and live,
+  -- measured 2026-10-24) or this file's; each reader is absent (a first apply) or this file's.
+  for r in select * from (values
+    ('public.hr_cron_health_ex(interval,numeric)', 'a217db065aa65cf71aea1186f50f82f0', '1bffd34fa30b95ec4b07f531516eb62c'),
+    ('public.hr_cron_run_floor(regclass,interval)', null, '5962edaa7f82a382ecde20a292301e73'),
+    ('public.hr_cron_failed_runs(regclass,regclass,bigint,interval)', null, '3c18cb3143d6eee13051d6be807e3dbb'),
+    ('public.hr_cron_stale_jobs(regclass,regclass,bigint)', null, '3e8f30f10e46bdb2bb6ceb0537e4af4e')
+  ) p(sig, pre, post) loop
+    select md5(replace(prosrc, chr(13), '')) into v_md5 from pg_proc where oid = to_regprocedure(r.sig);
+    if v_md5 is distinct from r.pre and v_md5 is distinct from r.post then
+      raise exception 'PIN: % is % (want % or this file''s %): another file moved it; re-pin',
+        r.sig, coalesce(v_md5, 'absent'), coalesce(left(r.pre, 8), 'absent'), left(r.post, 8); end if;
+  end loop;
 end $mig$;
 
--- ── §1 hr_cron_health_ex: (a) AND (b) READ FROM v_run_lo UP ─────────────────
+-- ── §1 THE THREE READERS (internal: no client role, invoker, read-only) ──────
+create or replace function public.hr_cron_run_floor(p_runs regclass, p_window interval)
+returns bigint language plpgsql stable set search_path = public, pg_catalog as $function$
+declare v bigint;
+begin
+  -- The newest run that STARTED at least an hour before the longer look-back ((a)'s window, (b)'s 48 h):
+  -- every run that started inside either has a higher runid (pg_cron numbers a run as it starts it).
+  -- max() over the pkey with this filter is a backward index walk that stops at the first match.
+  execute format('select max(d.runid) from %s d where d.start_time <= now() - greatest($1, interval ''48 hours'') - interval ''1 hour''', p_runs)
+    into v using p_window;
+  return coalesce(v, 0);
+end $function$;
+
+create or replace function public.hr_cron_failed_runs(p_runs regclass, p_jobs regclass, p_lo bigint, p_window interval)
+returns table (runid bigint, jobid bigint, jobname text, status text, return_message text, start_time timestamptz)
+language plpgsql stable set search_path = public, pg_catalog as $function$
+begin
+  -- (a): the runs that FAILED inside the window, read from the floor up.
+  return query execute format(
+    'select d.runid::bigint, d.jobid::bigint, j.jobname::text, d.status::text, d.return_message::text, d.start_time
+       from %s d left join %s j on j.jobid = d.jobid
+      where d.runid > $1 and d.status = ''failed'' and d.start_time > now() - $2', p_runs, p_jobs)
+    using p_lo, p_window;
+end $function$;
+
+create or replace function public.hr_cron_stale_jobs(p_runs regclass, p_jobs regclass, p_lo bigint)
+returns table (jobid bigint, jobname text, last_success timestamptz, any_run bigint)
+language plpgsql stable set search_path = public, pg_catalog as $function$
+begin
+  -- (b): an active job with no success in 48 h (from the floor up), then — for those jobs alone, the
+  -- MATERIALIZED step runs first — its whole history: the last success ever and how many runs it has.
+  return query execute format(
+    'with flagged as materialized (
+       select j.jobid, j.jobname from %1$s j
+        where j.active
+          and not exists (select 1 from %2$s d
+                           where d.runid > $1 and d.jobid = j.jobid and d.status = ''succeeded''
+                             and d.start_time >= now() - interval ''48 hours''))
+     select f.jobid::bigint, f.jobname::text, h.last_success, h.any_run
+       from flagged f
+       cross join lateral (select max(d.start_time) filter (where d.status = ''succeeded'') as last_success,
+                                  count(d.runid)::bigint as any_run
+                             from %2$s d where d.jobid = f.jobid) h', p_jobs, p_runs)
+    using p_lo;
+end $function$;
+
+revoke execute on function public.hr_cron_run_floor(regclass, interval) from public, anon, authenticated, service_role;
+revoke execute on function public.hr_cron_failed_runs(regclass, regclass, bigint, interval) from public, anon, authenticated, service_role;
+revoke execute on function public.hr_cron_stale_jobs(regclass, regclass, bigint) from public, anon, authenticated, service_role;
+
+-- ── §2 hr_cron_health_ex: (a) AND (b) READ FROM THE FLOOR UP ─────────────────
 create or replace function public.hr_cron_health_ex(p_window interval default '25:00:00'::interval, p_scale numeric default 1.0)
 returns integer
 language plpgsql security definer set search_path to 'public', 'pg_catalog' as $function$
@@ -120,26 +192,18 @@ declare
   v_prune_err text;
   -- CRON-HEALTH-FAST (2027-01-16-cron-health-fast.sql): (a) and (b) read the run history from this runid up.
   v_run_lo bigint;
-  v_last_ok timestamptz;
-  v_any bigint;
 begin
   -- ── (a) FAILED RUNS ─────────────────────────────────────────────────────
-  -- CRON-HEALTH-FAST (2027-01-16-cron-health-fast.sql): (a) and (b) look back at most the window or 48 h,
-  -- so they read the run history from v_run_lo up through pg_cron's only index (runid) instead of
-  -- seq-scanning all of it: after the 7-day prune the heap is still 68 MB (8,729 pages for 110k runs),
-  -- read cold once an hour (a_failed 2.7-3.5 s of a 2.9-3.7 s run, 2026-10-24). v_run_lo is the newest
-  -- run that STARTED an hour before the longest look-back. runid is pg_cron's insert order and a run
-  -- starts within seconds of its insert (largest start-before-a-lower-runid 3.4 s over 110k runs,
-  -- measured 2026-10-24), so every run that started inside the look-back has a higher runid. No run
-  -- that old (a young history) = 0 = the whole table, as before.
+  -- CRON-HEALTH-FAST (2027-01-16-cron-health-fast.sql): (a) and (b) are read by hr_cron_failed_runs and
+  -- hr_cron_stale_jobs from v_run_lo (hr_cron_run_floor) up, through pg_cron's only index (runid),
+  -- instead of a seq scan of the whole history: after the 7-day prune the heap is still 68 MB (8,729
+  -- pages for 110k runs), read cold once an hour (a_failed 2.7-3.5 s of a 2.9-3.7 s run, 2026-10-24).
+  -- The readers take the two tables as arguments only so §4 can prove them on its own probe tables
+  -- without writing pg_cron's (supabase_admin's); here they are always pg_cron's.
   if to_regclass('cron.job_run_details') is not null then
-    select max(d.runid) into v_run_lo from cron.job_run_details d
-     where d.start_time <= now() - greatest(p_window, interval '48 hours') - interval '1 hour';
-    v_run_lo := coalesce(v_run_lo, 0);
+    v_run_lo := public.hr_cron_run_floor(to_regclass('cron.job_run_details'), p_window);
     for r in
-      select d.runid, d.jobid, j.jobname, d.status, d.return_message, d.start_time
-        from cron.job_run_details d left join cron.job j on j.jobid = d.jobid
-       where d.runid > v_run_lo and d.status = 'failed' and d.start_time > now() - p_window
+      select * from public.hr_cron_failed_runs(to_regclass('cron.job_run_details'), to_regclass('cron.job'), v_run_lo, p_window)
     loop
       insert into public.maintenance_alerts (source, ref, severity, message, detail)
       values ('cron', 'cron-run:' || r.runid, 'critical',
@@ -161,21 +225,12 @@ begin
     -- the job for longer than the grace window (hr_db_samples.jobs is the only
     -- record of when — cron.job has no created_at), a job with no run history
     -- is not new, it is broken, and it escalates to 'warn' like any other.
-    -- CRON-HEALTH-FAST: an active job with no success in the last 48 h is found from v_run_lo up; only
-    -- such a job (the alarm path, normally none) reads its whole history for last_success and runs_seen,
-    -- so its alert says exactly what it said before.
+    -- CRON-HEALTH-FAST: the same rows as the old group-by (an active job with no success in 48 h, its
+    -- whole-history last_success and run count), found from v_run_lo up (hr_cron_stale_jobs).
     for r in
-      select j.jobid, j.jobname
-        from cron.job j
-       where j.active
-         and not exists (select 1 from cron.job_run_details d
-                          where d.runid > v_run_lo and d.jobid = j.jobid and d.status = 'succeeded'
-                            and d.start_time >= now() - interval '48 hours')
+      select * from public.hr_cron_stale_jobs(to_regclass('cron.job_run_details'), to_regclass('cron.job'), v_run_lo)
     loop
-      select max(d.start_time) filter (where d.status = 'succeeded'), count(d.runid)
-        into v_last_ok, v_any
-        from cron.job_run_details d where d.jobid = r.jobid;
-      if v_any = 0 then
+      if r.any_run = 0 then
         select min(s.at) into v_first from public.hr_db_samples s where s.jobs ? r.jobname;
         if v_first is not null and v_first < now() - c_never_ran_grace then
           v_sev := 'warn';
@@ -188,12 +243,12 @@ begin
       else
         v_sev := 'warn';
         v_msg := format('cron job %s has not succeeded since %s', r.jobname,
-                        coalesce(v_last_ok::text, 'never'));
+                        coalesce(r.last_success::text, 'never'));
       end if;
       insert into public.maintenance_alerts (source, ref, severity, message, detail)
       values ('cron', 'cron-stale:' || r.jobname || ':' || v_day, v_sev, v_msg,
               jsonb_build_object('jobid', r.jobid, 'jobname', r.jobname,
-                                 'last_success', v_last_ok, 'runs_seen', v_any,
+                                 'last_success', r.last_success, 'runs_seen', r.any_run,
                                  'first_seen', v_first))
       on conflict (ref) do nothing;
       if found then
@@ -385,7 +440,7 @@ begin
     'scale', case when c_scale = 1.0 then null else c_scale end,
     -- SERVER-PERF: where this run's time went, and what (h) pruned.
     'phase_ms', v_ph, 'cron_pruned', v_pruned, 'cron_prune_error', v_prune_err,
-    -- CRON-HEALTH-FAST: the runid (a) and (b) read from (0 = the whole history).
+    -- CRON-HEALTH-FAST: the runid (a) and (b) read from (0 = the whole history; null = no run history here).
     'cron_run_lo', v_run_lo));
   return v_alerts;
 end;
@@ -394,138 +449,137 @@ revoke execute on function public.hr_cron_health_ex(interval, numeric) from publ
 revoke execute on function public.hr_cron_health_ex(interval, numeric) from anon, authenticated, service_role;
 
 -- ── §4 SELF-CHECK (CLAUDE.md §4), EXECUTED, every probe rolled back ──────────
--- PROBE ROWS ONLY: run-history rows for probe jobids from 9116001 up (no pg_cron job has one) and, where
--- cron.job is writable (the PGlite replay's shim; on production it is not), probe jobs named hr-cronfast-*.
--- Where pg_cron's run history is ABSENT (the replay) a probe table with its real column shape is installed.
--- The sentinel rolls every row, alert, sample and log line back.
---   s0  no client role can execute the detector; SECURITY DEFINER and the search_path are unchanged
---   s1  ★ (a) a run that failed inside the window is raised; one that failed outside it is not; one that
---       started inside it but sits BELOW v_run_lo is not read — the scan is runid-bounded (the old full
---       scan raises it: the mutation proof)
---   s2  on the history this database holds, every run that started inside the 48 h look-back sits above
---       v_run_lo (the runid-order assumption, re-proved on production at apply time)
---   s3  ★ (b), where cron.job is writable: a job whose only success is older than 48 h and below v_run_lo
---       is raised with its FULL history (runs_seen 2, last_success that old run); one that succeeded 2 h
---       ago is not
---   s4  the run's maintenance_log row carries the complete phase_ms and the cron_run_lo it used; the body
+-- NOTHING IN cron.* IS WRITTEN, here or on production: the readers are proved on two session TEMP
+-- tables in pg_cron's column shape; pg_cron's own history is only READ (s2, s4). The sentinel rolls the
+-- temp tables, the detector's alert / sample / log rows and its retention back.
+--   s0  no client role can execute the detector or a reader; the detector is SECURITY DEFINER, the
+--       readers invoker and stable, all with the pinned search_path
+--   s1  ★ (a) on the probe history: the floor is the newest run 49 h old or more; the failed runs read
+--       are exactly the one inside the window — not the one outside it, and not the one that started
+--       inside it but sits BELOW the floor (the scan is runid-bounded: the old full scan returns it);
+--       a history with nothing that old has floor 0 (the whole table)
+--   s2  on the history this database holds, every run that started inside the 48 h look-back sits
+--       above its floor (the runid-order assumption, re-proved on production at apply time, read-only)
+--   s3  ★ (b) on the probe history: exactly the active jobs with no success in 48 h, each with its FULL
+--       history (a success 3 days old below the floor counts: any_run 2, last_success that run); a job
+--       that succeeded 2 h ago and an inactive one are not
+--   s4  the detector end to end: its maintenance_log row carries the complete phase_ms (a_failed and
+--       b_stale where pg_cron's history exists) and the floor it used (s2's, or null where there is no
+--       history); on that history every failed run its reader returns holds an alert; every body
 --       landed as §0's post pin
 do $$
 declare
-  c_job constant bigint := 9116001;
-  v_env text := 'live';
-  v_lo0 bigint; v_runlo bigint; v_f1 bigint; v_f2 bigint; v_f3 bigint; v_low bigint;
-  v_ok bigint; v_stale bigint; v_old_ok timestamptz := now() - interval '3 days';
-  v_n bigint; v_log jsonb; v_a jsonb; v_md5 text; v_jobs boolean := false;
+  v_env text := 'no run history';
+  v_lo bigint; v_real_lo bigint; v_n bigint; v_ids bigint[]; v_txt text; v_log jsonb;
+  v_old_ok timestamptz := now() - interval '3 days';
 begin
   -- ── s0: THE GRANTS AND THE SHAPE ─────────────────────────────────────────
-  if has_function_privilege('anon', 'public.hr_cron_health_ex(interval,numeric)', 'EXECUTE')
-     or has_function_privilege('authenticated', 'public.hr_cron_health_ex(interval,numeric)', 'EXECUTE')
-     or has_function_privilege('service_role', 'public.hr_cron_health_ex(interval,numeric)', 'EXECUTE')
-     or exists (select 1 from pg_proc p, aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
-                 where p.oid = 'public.hr_cron_health_ex(interval,numeric)'::regprocedure and a.grantee = 0 and a.privilege_type = 'EXECUTE') then
-    raise exception 'cron-health-fast s0a: a client role can execute hr_cron_health_ex'; end if;
+  select string_agg(f, ', ') into v_txt from (values ('public.hr_cron_health_ex(interval,numeric)'),
+    ('public.hr_cron_run_floor(regclass,interval)'), ('public.hr_cron_failed_runs(regclass,regclass,bigint,interval)'),
+    ('public.hr_cron_stale_jobs(regclass,regclass,bigint)')) v(f)
+   where has_function_privilege('anon', f, 'EXECUTE') or has_function_privilege('authenticated', f, 'EXECUTE')
+      or has_function_privilege('service_role', f, 'EXECUTE')
+      or exists (select 1 from pg_proc p, aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+                  where p.oid = to_regprocedure(f) and a.grantee = 0 and a.privilege_type = 'EXECUTE');
+  if v_txt is not null then raise exception 'cron-health-fast s0a: a client role can execute %', v_txt; end if;
   if not exists (select 1 from pg_proc p where p.oid = 'public.hr_cron_health_ex(interval,numeric)'::regprocedure
                   and p.prosecdef and p.proconfig @> array['search_path=public, pg_catalog']) then
     raise exception 'cron-health-fast s0b: hr_cron_health_ex lost SECURITY DEFINER or its search_path'; end if;
+  select string_agg(p.oid::regprocedure::text, ', ') into v_txt from pg_proc p
+   where p.oid in ('public.hr_cron_run_floor(regclass,interval)'::regprocedure,
+                   'public.hr_cron_failed_runs(regclass,regclass,bigint,interval)'::regprocedure,
+                   'public.hr_cron_stale_jobs(regclass,regclass,bigint)'::regprocedure)
+     and (p.prosecdef or p.provolatile <> 's' or not (p.proconfig @> array['search_path=public, pg_catalog']));
+  if v_txt is not null then raise exception 'cron-health-fast s0c: % is not an invoker, stable reader with the pinned search_path', v_txt; end if;
 
   begin
-    if to_regclass('cron.job_run_details') is null then
-      create table cron.job_run_details (
-        jobid bigint, runid bigserial primary key, job_pid integer, database text, username text, command text,
-        status text, return_message text, start_time timestamptz, end_time timestamptz);
-      -- an old history the bound lands in: 24 hourly runs of a probe job, 73-96 h old (runids 1000-1023)
-      insert into cron.job_run_details (runid, jobid, status, return_message, start_time, end_time)
-      select 1000 + g, c_job + 9, 'succeeded', '1 row', now() - interval '96 hours' + g * interval '1 hour',
-             now() - interval '96 hours' + g * interval '1 hour'
-        from generate_series(0, 23) g;
-      perform setval(pg_get_serial_sequence('cron.job_run_details', 'runid'), 5000);
-      v_env := 'probe';
+    -- ── THE PROBE HISTORY: session temp tables in pg_cron's column shape ──
+    create temp table hr_cf_runs (jobid bigint, runid bigint primary key, job_pid integer, database text, username text,
+      command text, status text, return_message text, start_time timestamptz, end_time timestamptz);
+    create temp table hr_cf_jobs (jobid bigint primary key, jobname text, schedule text, command text, active boolean not null);
+    insert into hr_cf_jobs (jobid, jobname, schedule, command, active) values
+      (1, 'cf-old', '0 * * * *', 'select 1', false),    -- inactive: its failures still count for (a), never stale for (b)
+      (2, 'cf-ok', '0 * * * *', 'select 1', true),      -- succeeded 2 h ago
+      (3, 'cf-stale', '0 * * * *', 'select 1', true),   -- its only success 3 days ago, numbered below the floor; failed 30 h ago
+      (4, 'cf-never', '0 * * * *', 'select 1', true);   -- active, no run at all
+    -- the old history the floor lands in: 24 hourly successes of job 1, 73-96 h old (runids 1000-1023)
+    insert into hr_cf_runs (runid, jobid, status, return_message, start_time, end_time)
+    select 1000 + g, 1, 'succeeded', '1 row', now() - interval '96 hours' + g * interval '1 hour',
+           now() - interval '96 hours' + g * interval '1 hour'
+      from generate_series(0, 23) g;
+    insert into hr_cf_runs (runid, jobid, status, return_message, start_time, end_time) values
+      (5001, 1, 'failed', 'F1', now() - interval '2 hours', now() - interval '2 hours'),     -- inside the 25 h window
+      (5002, 1, 'failed', 'F2', now() - interval '30 hours', now() - interval '30 hours'),   -- outside it
+      (999, 1, 'failed', 'F3', now() - interval '1 hour', now() - interval '1 hour'),        -- inside it, numbered BELOW the floor
+      (5003, 2, 'succeeded', '1 row', now() - interval '2 hours', now() - interval '2 hours'),
+      (998, 3, 'succeeded', '1 row', v_old_ok, v_old_ok),
+      (5004, 3, 'failed', 'S', now() - interval '30 hours', now() - interval '30 hours');
+
+    -- ── s1: ★ (a) FAILED RUNS, FROM THE FLOOR UP ────────────────────────────
+    v_lo := public.hr_cron_run_floor('hr_cf_runs'::regclass, interval '25 hours');
+    if v_lo is distinct from 1023 then
+      raise exception 'cron-health-fast s1a: the floor is % (want 1023, the newest run that started 49 h ago or more)', v_lo; end if;
+    select array_agg(f.runid order by f.runid) into v_ids
+      from public.hr_cron_failed_runs('hr_cf_runs'::regclass, 'hr_cf_jobs'::regclass, v_lo, interval '25 hours') f;
+    if v_ids is distinct from array[5001]::bigint[] then
+      raise exception 'cron-health-fast s1b: the failed runs read are % (want {5001}; 5002 failed outside the window, 999 sits below the floor: a reader that returns it scans the whole history)', v_ids; end if;
+    if (select f.jobname from public.hr_cron_failed_runs('hr_cf_runs'::regclass, 'hr_cf_jobs'::regclass, v_lo, interval '25 hours') f)
+       is distinct from 'cf-old' then
+      raise exception 'cron-health-fast s1c: the failed run lost its job''s name'; end if;
+
+    -- ── s3: ★ (b) STALE JOBS, WITH THEIR FULL HISTORY ───────────────────────
+    select string_agg(s.jobname || ':' || s.any_run || ':' || coalesce(s.last_success::text, 'never'), ', ' order by s.jobname) into v_txt
+      from public.hr_cron_stale_jobs('hr_cf_runs'::regclass, 'hr_cf_jobs'::regclass, v_lo) s;
+    if (select count(*) from public.hr_cron_stale_jobs('hr_cf_runs'::regclass, 'hr_cf_jobs'::regclass, v_lo)) <> 2
+       or not exists (select 1 from public.hr_cron_stale_jobs('hr_cf_runs'::regclass, 'hr_cf_jobs'::regclass, v_lo) s
+                       where s.jobname = 'cf-never' and s.any_run = 0 and s.last_success is null)
+       or not exists (select 1 from public.hr_cron_stale_jobs('hr_cf_runs'::regclass, 'hr_cf_jobs'::regclass, v_lo) s
+                       where s.jobname = 'cf-stale' and s.any_run = 2 and s.last_success = v_old_ok) then
+      raise exception 'cron-health-fast s3: the stale jobs are [%] (want cf-never with 0 runs and cf-stale with 2 runs, last success %: only the stale jobs, each with its FULL history)', v_txt, v_old_ok; end if;
+
+    -- s1d: a history with nothing 49 h old has floor 0, so the readers read the whole table
+    delete from hr_cf_runs where start_time <= now() - interval '49 hours';
+    if public.hr_cron_run_floor('hr_cf_runs'::regclass, interval '25 hours') is distinct from 0 then
+      raise exception 'cron-health-fast s1d: a history with no run 49 h old has floor % (want 0: the whole table)',
+        public.hr_cron_run_floor('hr_cf_runs'::regclass, interval '25 hours'); end if;
+
+    -- ── s2: THE RUNID-ORDER ASSUMPTION, ON THE HISTORY THIS DATABASE HOLDS (read-only) ──
+    if to_regclass('cron.job_run_details') is not null then
+      v_env := 'pg_cron history';
+      v_real_lo := public.hr_cron_run_floor(to_regclass('cron.job_run_details'), interval '25 hours');
+      select count(*) into v_n from cron.job_run_details where start_time > now() - interval '48 hours' and runid <= v_real_lo;
+      if v_n > 0 then
+        raise exception 'cron-health-fast s2: % run(s) started inside the 48 h look-back at or below the floor %: runid is not start order here, the bounded reads would miss them', v_n, v_real_lo; end if;
     end if;
-    select min(runid) into v_lo0 from cron.job_run_details;
-    -- the bound the detector computes for a 25 h window: greatest(25 h, 48 h) + 1 h
-    select coalesce(max(runid), 0) into v_runlo from cron.job_run_details where start_time <= now() - interval '49 hours';
-    if v_lo0 is null or v_lo0 <= 2 or v_runlo = 0 then
-      raise exception 'cron-health-fast s1-fixture: no run history below the bound (min runid %, bound %)', v_lo0, v_runlo; end if;
-    -- Two free runids below the oldest run, neither ever alerted: the "started late, numbered early" rows.
-    v_f3 := v_lo0 - 1;
-    while exists (select 1 from cron.job_run_details where runid = v_f3)
-       or exists (select 1 from public.maintenance_alerts where ref = 'cron-run:' || v_f3) loop v_f3 := v_f3 - 1; end loop;
-    v_low := v_f3 - 1;
-    while exists (select 1 from cron.job_run_details where runid = v_low) loop v_low := v_low - 1; end loop;
-    if v_low < 1 then raise exception 'cron-health-fast s1-fixture: no free runid below %', v_lo0; end if;
 
-    -- F1 failed 2 h ago, F2 failed 30 h ago (outside the window), both at pg_cron's next runids;
-    -- F3 failed 1 h ago at a runid BELOW the bound.
-    insert into cron.job_run_details (jobid, status, return_message, start_time, end_time)
-      values (c_job, 'failed', 'cron-health-fast probe F1', now() - interval '2 hours', now() - interval '2 hours')
-      returning runid into v_f1;
-    insert into cron.job_run_details (jobid, status, return_message, start_time, end_time)
-      values (c_job + 1, 'failed', 'cron-health-fast probe F2', now() - interval '30 hours', now() - interval '30 hours')
-      returning runid into v_f2;
-    insert into cron.job_run_details (runid, jobid, status, return_message, start_time, end_time)
-      values (v_f3, c_job + 2, 'failed', 'cron-health-fast probe F3', now() - interval '1 hour', now() - interval '1 hour');
-    if v_f1 <= v_runlo or v_f2 <= v_runlo or v_f3 >= v_runlo then
-      raise exception 'cron-health-fast s1-fixture: probe runids % / % / % against the bound %', v_f1, v_f2, v_f3, v_runlo; end if;
-
-    -- s3 fixture (b): two active probe jobs where cron.job takes rows (the replay's shim)
-    if has_table_privilege(current_user, 'cron.job', 'INSERT') then
-      v_jobs := true;
-      insert into cron.job (jobname, schedule, command, active) values ('hr-cronfast-ok', '0 * * * *', 'select 1', true)
-        returning jobid into v_ok;
-      insert into cron.job (jobname, schedule, command, active) values ('hr-cronfast-stale', '0 * * * *', 'select 1', true)
-        returning jobid into v_stale;
-      insert into cron.job_run_details (jobid, status, return_message, start_time, end_time)
-        values (v_ok, 'succeeded', '1 row', now() - interval '2 hours', now() - interval '2 hours');
-      -- the stale job's only success: 3 days ago at a runid below the bound; its one later run failed 30 h ago
-      insert into cron.job_run_details (runid, jobid, status, return_message, start_time, end_time)
-        values (v_low, v_stale, 'succeeded', '1 row', v_old_ok, v_old_ok);
-      insert into cron.job_run_details (jobid, status, return_message, start_time, end_time)
-        values (v_stale, 'failed', 'cron-health-fast probe S', now() - interval '30 hours', now() - interval '30 hours');
-    end if;
-
-    -- ── s2: THE RUNID-ORDER ASSUMPTION, ON THE HISTORY THIS DATABASE HOLDS ──
-    select count(*) into v_n from cron.job_run_details
-     where start_time > now() - interval '48 hours' and runid <= v_runlo and runid <> v_f3 and runid <> v_low;
-    if v_n > 0 then
-      raise exception 'cron-health-fast s2: % run(s) started inside the 48 h look-back at or below v_run_lo %: runid is not start order here, the bounded scans would miss them', v_n, v_runlo; end if;
-
+    -- ── s4: THE DETECTOR END TO END, AND THE PINS ─────────────────────────────
     perform public.hr_cron_health_ex(interval '25 hours', 1.0);
-
-    -- ── s1: ★ (a) FAILED RUNS, RUNID-BOUNDED ───────────────────────────────
-    if not exists (select 1 from public.maintenance_alerts where ref = 'cron-run:' || v_f1 and severity = 'critical'
-                    and (detail->>'jobid')::bigint = c_job) then
-      raise exception 'cron-health-fast s1a: a run that failed 2 h ago (runid %) raised no critical alert', v_f1; end if;
-    if exists (select 1 from public.maintenance_alerts where ref = 'cron-run:' || v_f2) then
-      raise exception 'cron-health-fast s1b: a run that failed 30 h ago (outside the 25 h window) raised an alert'; end if;
-    if exists (select 1 from public.maintenance_alerts where ref = 'cron-run:' || v_f3) then
-      raise exception 'cron-health-fast s1c: a run below v_run_lo (runid % < %) was read: the failed-run scan is not runid-bounded (it reads the whole history)', v_f3, v_runlo; end if;
-
-    -- ── s3: ★ (b) STALE JOBS, FULL HISTORY ON THE ALARM PATH ───────────────
-    if v_jobs then
-      select detail into v_a from public.maintenance_alerts
-       where ref = 'cron-stale:hr-cronfast-stale:' || to_char(now(), 'YYYY-MM-DD') and severity = 'warn';
-      if v_a is null then raise exception 'cron-health-fast s3a: a job with no success in 48 h raised no warn alert'; end if;
-      if (v_a->>'runs_seen')::bigint is distinct from 2 or (v_a->>'last_success')::timestamptz is distinct from v_old_ok then
-        raise exception 'cron-health-fast s3b: the stale alert read only the bounded history (runs_seen %, last_success %; want 2, %)',
-          v_a->>'runs_seen', v_a->>'last_success', v_old_ok; end if;
-      if exists (select 1 from public.maintenance_alerts where ref like 'cron-stale:hr-cronfast-ok:%') then
-        raise exception 'cron-health-fast s3c: a job that succeeded 2 h ago was raised as stale'; end if;
-    end if;
-
-    -- ── s4: THE LOG AND THE PIN ───────────────────────────────────────────────
     select detail into v_log from public.maintenance_log where job = 'cron-health' order by id desc limit 1;
+    -- (a) and (b) are timed where pg_cron's history exists (production); without it (the replay) the
+    -- detector skips them, as it always has.
     if v_log is null or jsonb_typeof(v_log->'phase_ms') is distinct from 'object'
-       or not (v_log->'phase_ms' ?& array['a_failed', 'b_stale', 'sample', 'checks', 'retention', 'total']) then
+       or not (v_log->'phase_ms' ?& array['sample', 'checks', 'retention', 'total'])
+       or (v_real_lo is not null and not (v_log->'phase_ms' ?& array['a_failed', 'b_stale'])) then
       raise exception 'cron-health-fast s4a: the run''s maintenance_log row carries no complete phase_ms (got %)', v_log->'phase_ms'; end if;
-    if (v_log->>'cron_run_lo')::bigint is distinct from v_runlo then
-      raise exception 'cron-health-fast s4b: the run logged cron_run_lo %, the bound is %', v_log->>'cron_run_lo', v_runlo; end if;
-    select md5(replace(prosrc, chr(13), '')) into v_md5 from pg_proc where oid = to_regprocedure('public.hr_cron_health_ex(interval,numeric)');
-    if v_md5 is distinct from 'f5e680af912909c6a45d1401cbab3903' then
-      raise exception 'cron-health-fast s4c: hr_cron_health_ex landed as %, not this file''s f5e680af912909c6a45d1401cbab3903', v_md5; end if;
+    if (v_log->>'cron_run_lo')::bigint is distinct from v_real_lo then
+      raise exception 'cron-health-fast s4b: the run logged cron_run_lo %, the floor is %', v_log->>'cron_run_lo', v_real_lo; end if;
+    -- the detector raised (or already held) an alert for every failed run its reader returns on pg_cron's history
+    if v_real_lo is not null and exists (
+         select 1 from public.hr_cron_failed_runs(to_regclass('cron.job_run_details'), to_regclass('cron.job'), v_real_lo, interval '25 hours') f
+          where not exists (select 1 from public.maintenance_alerts a where a.ref = 'cron-run:' || f.runid)) then
+      raise exception 'cron-health-fast s4d: a run that failed inside the window has no alert after the detector ran'; end if;
+    select string_agg(p.sig || ' landed as ' || coalesce(md5(replace(x.prosrc, chr(13), '')), 'nothing'), '; ') into v_txt
+      from (values ('public.hr_cron_health_ex(interval,numeric)', '1bffd34fa30b95ec4b07f531516eb62c'),
+                   ('public.hr_cron_run_floor(regclass,interval)', '5962edaa7f82a382ecde20a292301e73'),
+                   ('public.hr_cron_failed_runs(regclass,regclass,bigint,interval)', '3c18cb3143d6eee13051d6be807e3dbb'),
+                   ('public.hr_cron_stale_jobs(regclass,regclass,bigint)', '3e8f30f10e46bdb2bb6ceb0537e4af4e')) p(sig, post)
+      left join pg_proc x on x.oid = to_regprocedure(p.sig)
+     where md5(replace(x.prosrc, chr(13), '')) is distinct from p.post;
+    if v_txt is not null then raise exception 'cron-health-fast s4c: not this file''s image: %', v_txt; end if;
 
     raise exception 'hr0116-selfcheck-ok';
   exception when others then
     if sqlerrm <> 'hr0116-selfcheck-ok' then raise; end if;
   end;
-  raise notice 'cron-health-fast: self-check passed (cron history %), every probe rolled back', v_env;
+  raise notice 'cron-health-fast: self-check passed (%), every probe rolled back, nothing in cron.* written', v_env;
 end $$;

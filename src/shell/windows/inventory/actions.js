@@ -26,22 +26,22 @@
 // open doll slot and the "new" marks. No key here is a walk key: selling is
 // Delete, so W, A, S and D always reach the World (Tyler 10-18).
 // ════════════════════════════════════════════════════════════════════════
-import { kindOf, equipSlotFor, equipOps, markSeen } from '../../bag-model.js?v=0.2.38';
-import { assignToBar, barKind, barIndexOf, barKeyLabel } from '../../bar-assign.js?v=0.2.38';
-import { runIntent } from '../../intent-words.js?v=0.2.38';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.38';
-import { gold } from '../../../render/format.js?v=0.2.38';
-import { itemName } from '../../widgets/bits.js?v=0.2.38';
-import { showTip, hideTip } from '../item-tip.js?v=0.2.38';
-import { openFloatMenu, closeFloatMenu } from '../float-menu.js?v=0.2.38';
-import { stateOf, scratchOf, seenOf, confirmFor, junkOf, setPref } from './state.js?v=0.2.38';
-import { fitsSlot, dollTip, DRAG_WORN } from './doll.js?v=0.2.38';
-import { askElsewhere } from './elsewhere.js?v=0.2.38';
-import { skillsOf } from '../../../session/item-sections.js?v=0.2.38';
-import { buryRecipeOf, buryLabel, buryBlock, startBury, stopBury } from './bury.js?v=0.2.38';
-import { equipUpgrades } from '../../widgets/upgrade-line.js?v=0.2.38';
-import { wearBlock } from '../../gear-gate.js?v=0.2.38';
-import { levelOf } from '../../../session/character-sections.js?v=0.2.38';
+import { kindOf, equipSlotFor, equipOps, markSeen } from '../../bag-model.js?v=0.2.39';
+import { assignToBar, barKind, barIndexOf, barKeyLabel } from '../../bar-assign.js?v=0.2.39';
+import { runIntent } from '../../intent-words.js?v=0.2.39';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.39';
+import { gold } from '../../../render/format.js?v=0.2.39';
+import { itemName } from '../../widgets/bits.js?v=0.2.39';
+import { showTip, hideTip } from '../item-tip.js?v=0.2.39';
+import { openFloatMenu, closeFloatMenu } from '../float-menu.js?v=0.2.39';
+import { stateOf, scratchOf, seenOf, confirmFor, junkOf, setPref } from './state.js?v=0.2.39';
+import { fitsSlot, dollTip, DRAG_WORN } from './doll.js?v=0.2.39';
+import { askElsewhere } from './elsewhere.js?v=0.2.39';
+import { skillsOf } from '../../../session/item-sections.js?v=0.2.39';
+import { buryRecipeOf, buryLabel, buryBlock, startBury, stopBury } from './bury.js?v=0.2.39';
+import { equipUpgrades } from '../../widgets/upgrade-line.js?v=0.2.39';
+import { wearBlock } from '../../gear-gate.js?v=0.2.39';
+import { levelOf } from '../../../session/character-sections.js?v=0.2.39';
 
 const heroLevel = (cs) => { const lv = levelOf(cs); return lv ? lv.level : null; };
 

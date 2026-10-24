@@ -25,30 +25,30 @@
 // scene drawing from it shows. The first scene opens whole; a later one (a ground entered, the town after
 // a hunt) switches once its sheets have arrived, the last frame holding meanwhile.
 // ════════════════════════════════════════════════════════════════════════
-import { BUILD } from '../build-info.js?v=0.2.38';
-import { MATERIALS, OPEN_CLASSES, LIGHTS } from '../data/world/terrain.js?v=0.2.38';
-import { WORLD_MAPS, SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.38';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.38';
-import { MONSTERS } from '../data/monsters.js?v=0.2.38';
-import { compileMap } from './core/map-compile.js?v=0.2.38';
-import { createBook, STUB_SPRITE } from './core/book.js?v=0.2.38';
-import { fpsFor, MOBILE_QUERY } from './core/camera.js?v=0.2.38';
-import { heroBuilding, roofTargets, stepAlpha } from './core/roofs.js?v=0.2.38';
-import { readScene, setChoice, heroPosOn, notePos, forgetPos } from './store.js?v=0.2.38';
-import { loadManifests, createSceneImages, loadAtlasSet } from './atlas.js?v=0.2.38';
-import { sceneSets } from './scene-sets.js?v=0.2.38';
-import { createGridArt, sandboxExtras, presenceFor } from './sandbox-scene.js?v=0.2.38';
-import { createCanvasBackend } from './render/canvas-backend.js?v=0.2.38';
-import { huntOfMap } from './hunt-maps.js?v=0.2.38';
-import { createHuntScene } from './hunt-scene.js?v=0.2.38';
-import { liveSceneOf, endLiveScene } from '../hunt-view/scene.js?v=0.2.38';
-import { huntOf } from '../session/hunt-sections.js?v=0.2.38';
-import { createWalkScene } from './walk-scene.js?v=0.2.38';
-import { homeMapFor, homeEnv } from './home-scene.js?v=0.2.38';
-import { runAction } from './steer-local.js?v=0.2.38';
-import { heroSprite } from '../session/hero-look.js?v=0.2.38';
-import { keyBelongsToField } from '../utils/dom.js?v=0.2.38';
-import { homeOf } from '../session/home-sections.js?v=0.2.38';
+import { BUILD } from '../build-info.js?v=0.2.39';
+import { MATERIALS, OPEN_CLASSES, LIGHTS } from '../data/world/terrain.js?v=0.2.39';
+import { WORLD_MAPS, SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.39';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.39';
+import { MONSTERS } from '../data/monsters.js?v=0.2.39';
+import { compileMap } from './core/map-compile.js?v=0.2.39';
+import { createBook, STUB_SPRITE } from './core/book.js?v=0.2.39';
+import { fpsFor, MOBILE_QUERY } from './core/camera.js?v=0.2.39';
+import { heroBuilding, roofTargets, stepAlpha } from './core/roofs.js?v=0.2.39';
+import { readScene, setChoice, heroPosOn, notePos, forgetPos } from './store.js?v=0.2.39';
+import { loadManifests, createSceneImages, loadAtlasSet } from './atlas.js?v=0.2.39';
+import { sceneSets } from './scene-sets.js?v=0.2.39';
+import { createGridArt, sandboxExtras, presenceFor } from './sandbox-scene.js?v=0.2.39';
+import { createCanvasBackend } from './render/canvas-backend.js?v=0.2.39';
+import { huntOfMap } from './hunt-maps.js?v=0.2.39';
+import { createHuntScene } from './hunt-scene.js?v=0.2.39';
+import { liveSceneOf, endLiveScene } from '../hunt-view/scene.js?v=0.2.39';
+import { huntOf } from '../session/hunt-sections.js?v=0.2.39';
+import { createWalkScene } from './walk-scene.js?v=0.2.39';
+import { homeMapFor, homeEnv } from './home-scene.js?v=0.2.39';
+import { runAction } from './steer-local.js?v=0.2.39';
+import { heroSprite } from '../session/hero-look.js?v=0.2.39';
+import { keyBelongsToField } from '../utils/dom.js?v=0.2.39';
+import { homeOf } from '../session/home-sections.js?v=0.2.39';
 
 /* THE KEYS (desktop): WASD and the arrows, by physical key (e.code, so a
    non-QWERTY layout walks with the same hand). Two held at once walk the

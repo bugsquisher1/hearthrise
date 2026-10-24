@@ -30,6 +30,73 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 ## Decisions
 _Tyler's rulings live in rulings-of-record; designer rulings inside them are recorded here._
 
+### Hero slots 6-10 (2026-10-24)
+(game-designer, lane/d-hero-slot-sink, design only. Tyler 10-24: "add 5 more character slots per account ... with a huge gold sink I'm cool with that". Replaces the 10-17 "up to 5 total"; start 2, up to 4 playing at once, prices as config values all stay.)
+
+**Evidence: gold an hour, per hero, by band.** Real settle (`tests/hunt-core/fixtures/play-ground.mjs` `run`), 1 h, two seeds, each hero in its own-tier full set (`fullSet`), net = coin + commons at the vendor's bid + rares at the vendor's bid − store bill. The cash part (coin + commons − store) is 64-76% of it.
+
+| Band (ground, party) | Net g/h per hero (seed 1 / seed 2) | Account g/h, four heroes |
+|---|---|---|
+| L10 Meadowbrook Thicket, solo Melee | 3,107 / 3,002 | n/a |
+| L20 The Sewer, party of four | 4,444 / 5,027 | 17,776 / 20,108 |
+| L25 Mosslight Glade, solo / party of four | 6,677 / 6,644; 3,004 / 3,014 | 12,016 / 12,056 |
+| L40 Coppercap Warrens, party of four | 5,037 / 5,488 | 20,148 / 21,952 |
+| L50 Coppercap Warrens, party of four / solo | 6,492 / 6,996; 7,640 / 7,488 | 27,984 / 25,968 |
+
+Real account (Coordinator's read): the QA account holds 228,267 g at Levels 41/37/28/29 after about 10 days. If it bought slots 3 and 4 (55,000), it earned at least 283,000 g net, or about 28,000 g a day, which is about 5 hero-hours a day at these rates. An engaged account (four heroes using their free 8 h of stamina, 32 hero-hours a day) at L50 makes about 216,000 g a day. Gold is one purse per account (Tyler 10-23), so a slot is measured against the account, not one hero.
+
+**The ladder. Each slot costs twice the one before, starting at 2.5x slot 5.** Hours use the band a player is in when they want that slot: slot 6 when a five-hero roster fills (L40, 5,263 g/h, 21,050 for the account), slots 7-10 at the top band (L50, 6,744 g/h, 26,976 for the account).
+
+| Slot (id) | Price | Hero-hours in band | Account-hours (four heroes) | Engaged / QA pace | Why |
+|---|---|---|---|---|---|
+| 3 (2), today | 15,000 | ~7 h fresh | n/a | under a day | a second hero to party with |
+| 4 (3), today | 40,000 | 8.5 h at L20 | 2.8 h (three heroes) | under a day | four heroes, the play-at-once limit |
+| 5 (4), today | 120,000 | 23 h at L40 | 5.7 h | under a day / QA can buy it now | the fifth role: one hero per role, four play |
+| **6 (5)** | **300,000** | **57 h** | **14 h** | 1.8 days / ~7 days for QA after slot 5 | a hero kept at a new friend's level, or a second of the role your party leans on. The first slot that can only sit on the bench, so it's priced as a sink, not progress. |
+| **7 (6)** | **600,000** | **89 h** | **22 h** | 2.8 days / 21 days | starts a second line-up: a bench hero for each role you swap most |
+| **8 (7)** | **1,200,000** | **178 h** | **44 h** | 5.6 days / 43 days | the second line-up gets bigger |
+| **9 (8)** | **2,400,000** | **356 h** | **89 h** | 11 days / 86 days | a late chase for the richest accounts |
+| **10 (9)** | **4,800,000** | **712 h** | **178 h** | 22 days / 171 days | a full second line-up (two heroes for every role). A trophy and a pure sink, sized like the Level-200 chase. |
+
+Slots 6-10 together cost 9,300,000 g: about 1,390 hero-hours or 348 account-hours at these rates, or 43 days of an engaged account's whole income. That's the "huge" sink, and it gets less steep as new grounds above L50 pay more. **Retune rule** (prices are catalogue rows, so this is data): when a new top ground opens, re-measure it on the real settle. Keep slot 6 at 12 account-hours or more at the band where a five-hero roster fills, and slot 10 at 150 account-hours or more of the top ground's party rate. Raising a price later is fair: a bought slot gives no power, and it stays bought. Every number here is unverified against live play beyond the QA account's balance. It comes from the settle runner, not from the hunt analyzer over days.
+
+**Daily buy cap: unchanged at 5.** The price and the ladder (each slot needs the one before) are the real gate. A slot never reaches another player, so the clamp guards no shared surface. Five buys in one day from slot 6 needs 9.3M gold in hand. Lowering the cap only adds a "come back tomorrow" for a player who saved for weeks.
+
+**Ceiling: 10, not fewer.** There are five roles (tank Melee, damage Melee, Ranger, Mage, Healer) and four heroes play at once. Five slots give one hero per role, and ten give two of every role: a main line-up at your own band and a second at a friend's band, or for a later game mode. Ironman and Hardcore come after launch, and how they use slots isn't ruled yet. Eight leaves two roles with only one hero. Past ten there's no new decision, only collecting, and neither the roster screen nor the 64-function slot sweep earns it.
+
+**PRECONDITION, P1, Systems + backend (lane C, Security at the reopen): the four-at-once limit isn't held by the server.** This is read, not played. `hr_hunt_enter` → `hr_hunt_enter_for` → `hr_hunt_enter_check` (`2026-12-05-hunt-setup-per-ground.sql:130-212`) refuses only this hero's own open hunt (`hunt_open`) and a running town activity. No server body counts the account's open hunts against `max_concurrent`, which only `hr_account_view` reads, and only to display it. The gate is the client's (`src/session/account-session.js:273`, `this._chars.size >= this.limit()`). `close(slot)` leaves that hero's server hunt running, and hunts keep running after the browser closes (§1). So a five-slot account can already hunt five at once by closing one hero and opening the next. At ten slots it could hunt ten, 2.5x the ruled rate, and every slot past four would pay for itself: slot 6 in 57 h of its own hunting. That's an investment, not a sink, and the §6 class "a server capability gated on a client-held value". **Ruling: no slot past 5 goes on sale until the server refuses a fifth playing hero.** Designer reading of "play": an open hunt session OR a running town activity, counted per account at hunt entry and at town-work start, refused with a code the roster can say ("Close a character first: 4 are already playing.", boot.js:240). The mandatory 4-per-hashed-IP cap (Tyler 10-17) also has no server body that I could find. Same lane.
+
+**Other exploit review.** A slot grants no power, no tradeable value and, once the precondition lands, no throughput. Each new hero brings one-time gold: 500 g kit gold, 206 g of kit items at the vendor (`START_KIT`, measured) and 20,900 g of bestiary milestone gold (board, Milestones). That's about 21,600 g, so slot 6 costs 14x what its hero can ever repay through those grants. No hero-delete surface exists (grep: none), so there's no delete-and-recreate loop. If one is ever added, its kit and milestone gold must not pay twice (Systems).
+
+**First principle: things players set again per hero.** With up to ten heroes, per-hero setup is repetition. `hr_action_set_copy` (the bar, stop rules and options onto another hero, `character-session.js copyHuntSettingsTo`) already covers the bar. Loot rules (`setLootRule`: keep / sell / ignore per item) are per hero with no copy, so a player sets "sell wolf pelts" up to ten times. Handoff to Systems: copy loot rules alongside the bar, and offer "Copy settings from <hero>" when a hero is created. `hr_action_set_copy`'s slot bound belongs in the 7-10 sweep.
+
+**Sequencing.** (1) The precondition above. (2) Slot 6 is data only: catalogue row `hr_hero_slots` id 5 at 300,000 (a pinned migration with a §4 self-check that `hero_slots_max` = 6), `src/data/shops.js` `character_slot.5` "Character slot 6", and the `tests/hero-slot-buy.mjs` BIND. The client's `ORDINAL` already reaches 'sixth'. (3) Slots 7-10 are the sweep lane (64 server bodies at `p_slot > 5`, `src/session/config.js` maxSlot, edge `request.js` MAX_SLOT, `party-intents.js` MAX_SLOT, `frame-channel.js`, `ORDINAL` through 'tenth'; ten roster rows on a 922x423 phone are an Art Director handoff). Do it before the EA wipe, behind gameplay-first work. Nobody needs slot 7 before about 1.1M gold spent on slots 3-7, which is more than a week of engaged play after the wipe.
+
+**Characters-screen copy** (`src/app/slot-offer.js`; every number comes from the server: price from `hero_slot_offer`, the 10 from `hero_slots_max`, the 4 from `max_concurrent`, never a literal):
+
+| Where | Today | Ruled |
+|---|---|---|
+| Offer lead, slots 3-4 | "A third hero slot costs 15,000 gold, up to 5 heroes in all." | "A third hero slot costs 15,000 gold." + "You can have up to 10 heroes." (the screen's lead already says "Up to 4 can play at once.") |
+| Offer lead, slot 5 and up (bench slots) | the same sentence | "A sixth hero slot costs 300,000 gold." + "You can have up to 10 heroes, but only 4 play at once. The others wait here until you close one." + "Use it for a hero at a friend's level, or a second hero for a role." |
+| At the cap (today the block just disappears) | (nothing) | "You have all 10 hero slots." |
+| `hero_slot_daily_cap` (two different strings today) | slot-offer: "That is enough hero slots for today. Try again tomorrow." / refusal-words: "No more hero slots today. Try again tomorrow." | one string, the refusal-words one: "No more hero slots today. Try again tomorrow." |
+| `insufficient_gold` with no number | "You do not have enough gold." | "You don't have enough gold." |
+| `slot_cap` | "You have every hero slot there is." | "You have all 10 hero slots." |
+| `slot_unpriced` | "That hero slot is not for sale." | "That hero slot isn't for sale." |
+| Help, "Several heroes at once" (`how-to-play.js`) | "Your account starts with two hero slots, and up to four heroes can play at the same time." | add: "You can buy more slots with gold, up to ten heroes in all." |
+
+Button ("Buy a hero slot — 300,000 gold"), purse ("Your gold: …") and the short line ("You need … more gold.") stay as they are.
+
+**Walk-through: buying and playing slot 6** (names grepped in the live client and SQL):
+
+| Step | What the player holds or sees (from earlier steps and the real kit only) | Doable? |
+|---|---|---|
+| 1 | Owns slots 0-4 (two starters, then 3, 4 and 5 bought, ladder `requires_previous_slot`), with five heroes and at least 300,000 g in the account purse. "Your characters" lists five rows (boot.js `char-row`). | Yes, once catalogue row id 5 exists. `hr_account_view` then offers `{slot_id 5, cost_gold 300000}`, and `hero_slots_max` reads 6. |
+| 2 | The offer block shows the lead, the room line and "Buy a hero slot — 300,000 gold" (`data-app="buy-slot"`, `data-slot-id="5"`). | Yes. `hr_buy_hero_slot(5, payer, idem)`: slot 4 owned, fewer than 5 buys today, gold covers the price, then the debit and the entitlement. |
+| 3 | The roster re-reads, and the sixth row reads "Empty slot · Create hero" (`char-pick data-app="create" data-slot="5"`). | Yes. `SESSION_CONFIG.maxSlot` 5 and `ownedSlots` admit id 5. |
+| 4 | Create the hero. | Yes. The create path's ownership check (`hr_hero_slots_of @> 5`, account-gold.sql:1170) passes, and the server's `p_slot > 5` bound admits 5. |
+| 5 | Four heroes are already open. Pressing Play on the sixth reads "Close a character first: 4 are already playing." The player closes one, then plays the sixth. | The client step works today. The server step works only after the precondition, so a closed hero's still-running hunt counts toward the four. |
+
 ### New-player tutorial playtest (2026-10-24)
 (game-designer, PLAYED; lane/d-tutorial-playtest; Tyler 10-24: "scale of 1-10 how is the tutorial for a brand new player?", mobile tester joining.) **How it was played:** the real client (`play.html` at main `cab1661bc` = live v0.2.42) in headless Chromium against a local server: the replayed migration chain (PGlite) answered every `/rest/v1/rpc/*` call as `authenticated`, and the real `hr-accrue` handler (`index.ts`, type-stripped by Node 24, PGlite behind a postgres.js shim) answered every engine call. Two brand-new accounts from the sign-in screen: Brindle at 1440x900, Wrenna in a touch-emulated 922x423 phone context. Only waiting was compressed, on the scratch database: the open hunt was moved back N minutes and the real engine settled it the way the world tick does. Key screenshots: `art/review/tutorial-playtest-2026-10-24/`.
 

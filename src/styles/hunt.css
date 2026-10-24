@@ -568,7 +568,9 @@
   /* A short screen: the tooltip runs wide instead of tall, so it never climbs into the top strip. */
   .hb-tip { width: 440px; }
   /* Configure action on a phone: a full sheet (922 x 423), one 40 px top row, the list and detail side by side. */
-  .hs-win[data-hs-win="configure-action"].is-modal { top: 0; left: 0; right: 0; bottom: 0; transform: none; width: 100vw; max-width: none; height: 100%; max-height: none; border-width: 0; animation: ca-sheet 160ms ease-out both; }
+  /* min-width: the window manager writes an inline width (800 px), which a plain width here never beat: the sheet
+     stopped 120 px short of the right edge at 922 x 423. */
+  .hs-win[data-hs-win="configure-action"].is-modal { top: 0; left: 0; right: 0; bottom: 0; transform: none; width: 100vw; min-width: 100%; max-width: none; height: 100%; max-height: none; border-width: 0; animation: ca-sheet 160ms ease-out both; }
   .hs-win[data-hs-win="configure-action"] .hs-win-head { display: none; }
   .hs-win[data-hs-win="configure-action"] .hs-win-body { flex: 1; display: flex; flex-direction: column; padding: 0 8px 0; overflow: hidden; }
   .ca, .ca-form { flex: 1; min-height: 0; }

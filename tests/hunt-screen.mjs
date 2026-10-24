@@ -1758,7 +1758,7 @@ const MUTANTS = [
   ['the ember stands still', 'src/shell/widgets/action-bar.js', "style.height = (Math.round((1 - left / r.cdMs) * 1000) / 10) + '%';", "style.height = '50%';"],
   ['a slot that comes back builds a new icon', 'src/render/paint.js', '  const el = k ? (m.get(k) || build()) : null;', '  const el = k ? build() : null;'],
   ['a loot line that comes back is built again', 'src/shell/widgets/analyzer.js', '    keep: true,\n', ''],
-  ['an atlas is decoded once per caller', 'src/world/atlas.js', 'heldImage(o.doc, url(p.image)),', "heldImage(o.doc, url(p.image) + '&n=' + Math.random()),"],
+  ['an atlas is decoded once per caller', 'src/world/atlas.js', 'return heldImage(o.doc, urlOf(o, atlasPaths(set).image));', "return heldImage(o.doc, urlOf(o, atlasPaths(set).image) + '&n=' + Math.random());"],
   ['the phone bar keeps the whole panel (HS-22)', 'src/styles/hunt.css', '  .hb-pl-more { position: fixed;', '  .hb-pl-more { display: contents; } .hb-xx { position: fixed;'],
   ['the desktop bar keeps the settings form open (HS-12)', 'src/styles/hunt.css', 'transform: translateY(8px); visibility: hidden;', 'transform: translateY(8px); visibility: visible;'],
   ['the phone hub keeps the big medal (HS-22)', 'src/styles/hunt.css', '  .hb-medal, .hb-arcs { width: 64px; height: 64px; }', '  .hb-medal, .hb-arcs { width: 88px; height: 88px; }'],

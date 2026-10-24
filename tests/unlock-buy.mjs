@@ -54,9 +54,11 @@ import { isMain as isEntryModule } from './_is-main.mjs';
    its arms buy through the hr_unlock_buy signature and catalogue as of there.
    (tests/schema-replay.mjs replayScopeError). The plain run is the whole chain. */
 const REPLAY_UPTO = '2026-10-22-hunt-sessions-settle.sql';
-/* hr_unlock_buy's LIVE body is 2026-12-15-account-gold.sql's (the gold is the account purse), so
-   every mutant planted in that body replays up to that file: the chain the plain run stands on. */
-const BUY_FILE = '2026-12-15-account-gold.sql';
+/* hr_unlock_buy's LIVE body is 2027-01-10-house-from-storage.sql's (the gold is the account purse,
+   2026-12-15-account-gold.sql; the materials go through hr_materials_take, the house's from the bag
+   and then Storage, and the purse is taken last), so every mutant planted in that body replays up
+   to that file: the chain the plain run stands on. */
+const BUY_FILE = '2027-01-10-house-from-storage.sql';
 
 /* An UNGATED cooking recipe for the burn measurement, chosen by the PROPERTY
    that matters — cheapest inputs, so a long span never runs dry — rather than
@@ -117,8 +119,10 @@ const MUTATIONS = {
     migration: BUY_FILE,
     why: 'the material cost is not consumed, so every room in the game costs gold only — and '
        + '`insufficient_item` becomes unreachable with it',
-    find: '      if v_n <= 0 then continue; end if;',
-    repl: '      if true then continue; end if;',
+    /* The bag half of hr_materials_take's write pass (2027-01-10-house-from-storage.sql): the one
+       place an unlock's material cost leaves the hero's bag. */
+    find: "    if (l->>'bag')::bigint > 0 then\n      if (l->>'bag')::bigint = (l->>'bag_held')::bigint then",
+    repl: "    if false then\n      if (l->>'bag')::bigint = (l->>'bag_held')::bigint then",
   },
   // ── CONCURRENCY + IDEMPOTENCY ──────────────────────────────────────────
   version_check_off: {
@@ -150,12 +154,14 @@ const MUTATIONS = {
   },
   partial_debit_not_rolled_back: {
     migration: BUY_FILE,
-    why: 'S2, reintroduced: the insufficient_item refusal RETURNS instead of raising, so every item '
-       + 'line the loop had already debited stays debited and the player pays materials for a '
-       + 'purchase that did not happen',
-    find: "        perform public.hr_reject('insufficient_item',\n"
-        + "          jsonb_build_object('item_id', k, 'have', v_have, 'need', v_n));",
-    repl: "        return jsonb_build_object('ok', false, 'error', 'insufficient_item');",
+    /* Since 2027-01-10-house-from-storage.sql the materials are decided whole and taken FIRST and
+       the purse LAST, so the refusal that can strand a debit is the purse's: U9 holds the bag. */
+    why: 'S2, reintroduced: the insufficient_gold refusal RETURNS instead of raising, so the '
+       + 'materials already taken stay taken and the player pays materials for a purchase that '
+       + 'did not happen',
+    find: "        perform public.hr_reject('insufficient_gold',\n"
+        + "          jsonb_build_object('have', public.hr_purse_of(v_uid), 'need', v_off.gold));",
+    repl: "        return jsonb_build_object('ok', false, 'error', 'insufficient_gold');",
   },
   // ── THE CATALOGUE'S OWN LOCKDOWN (Security C1) ─────────────────────────
   catalogue_partial_revoke: {
@@ -836,12 +842,20 @@ async function run(mutate) {
     await clearGate();
     await setGold((sql, p) => db.query(sql, p).then((r) => r.rows), UID, 0, 1);
     const k3 = (await db.query(
-      "select offer_id from public.hr_unlock_offers where refusal is null "
+      "select offer_id, items from public.hr_unlock_offers where refusal is null "
       + "and unlock_id='room:kitchen' and value = 3")).rows[0];
+    const bagBefore = {};
+    for (const itemId of Object.keys(k3.items || {})) bagBefore[itemId] = await invOf(db, UID, itemId);
     const r = await doBuy({ intentId: uuid(), offer: k3.offer_id });
     ok(r.body.ok === false && r.body.error === 'insufficient_gold',
       `U9: expected insufficient_gold, got ${JSON.stringify(r.body)}`);
     ok(await rungOf(db, UID, 'room:kitchen') === 2, 'U9: a refused purchase granted the rung anyway');
+    /* The materials are taken before the purse (2027-01-10-house-from-storage.sql), so a purse
+       refusal must hand them back: the whole block rolls back, not just the gold. */
+    for (const [itemId, n] of Object.entries(bagBefore)) {
+      ok(await invOf(db, UID, itemId) === n,
+        `U9: ${itemId} went ${n} -> ${await invOf(db, UID, itemId)} on a purchase refused for gold`);
+    }
     await setGold((sql, p) => db.query(sql, p).then((r) => r.rows), UID, 0, 5000000);
 
     /* HOSTILE OFFER IDS. Every one of these is a real shape an attacker sends,

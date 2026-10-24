@@ -30,6 +30,10 @@
 //      floor is laid in its cycle order
 //   G  scene routing; missing art compiles and draws as a stub; the canvas
 //      draws the layers in the plan's order
+//   A  art by scene (src/world/scene-sets.js): every shipped scene loads every
+//      sheet it draws from (the whole map, every hero, its monsters and effects,
+//      every room's furniture), and a walked scene loads nothing more: the
+//      Common never pulls a hunting ground's sheet
 //
 // --selftest copies the module closure (and the manifests) to a temp dir,
 // plants one defect per rule family into the copy (never the tree), and
@@ -46,17 +50,21 @@ const argv = process.argv.slice(2);
 
 async function load(base) {
   const imp = (p) => import(pathToFileURL(join(base, p)).href + V);
-  const [grid, zsort, roofs, shadows, camera, mapc, path, wang, route, compose, nullb, bookm, maps, terrain, hunts, sets, budget] = await Promise.all([
+  const [grid, zsort, roofs, shadows, camera, mapc, path, wang, route, compose, nullb, bookm, maps, terrain, hunts, sets, budget,
+    sceneSets, outfits, grounds, vfx, layouts, homeScene] = await Promise.all([
     'src/world/core/grid.js', 'src/world/core/zsort.js', 'src/world/core/roofs.js', 'src/world/core/shadows.js',
     'src/world/core/camera.js', 'src/world/core/map-compile.js', 'src/world/core/path.js', 'src/world/core/wang.js',
     'src/world/core/scene-route.js', 'src/world/core/compose.js', 'src/world/render/null-backend.js',
     'src/world/core/book.js', 'src/data/world/maps/index.js', 'src/data/world/terrain.js', 'src/data/hunts.js',
     'src/data/world/atlas-sets.js', 'src/data/world/art-budget.js',
+    'src/world/scene-sets.js', 'src/data/hunt-outfits.js', 'src/data/hunt-grounds.js', 'src/data/hunt-vfx.js',
+    'src/data/world/house-layouts.js', 'src/world/home-scene.js',
   ].map(imp));
   const manifests = {};
   /* every set on any grid (atlas-sets.js LOADED_SETS): the sandbox map lints against its own grid's art */
   for (const set of sets.LOADED_SETS) manifests[set] = JSON.parse(readFileSync(join(base, 'assets/world/atlas-' + set + '.json'), 'utf8'));
   return { grid, zsort, roofs, shadows, camera, mapc, path, wang, route, compose, nullb, bookm, maps, terrain, hunts, budget, manifests,
+    sceneSets, outfits, grounds, vfx, layouts, homeScene, atlasSets: sets,
     canvasSrc: readFileSync(join(base, 'src/world/render/canvas-backend.js'), 'utf8'),
     worldCss: readFileSync(join(ROOT, 'src/styles/world.css'), 'utf8') };
 }
@@ -380,10 +388,62 @@ function check(M) {
     const pos = order.map((k) => draw.indexOf(k));
     ok('G3', pos.every((p, i) => p > 0 && (!i || pos[i - 1] < p)), 'canvas-backend draw() must paint ground, decals, shadows, sprites, raised, light, blit, screen overlay in that order (' + pos.join(',') + ')');
   });
+
+  /* A  ART BY SCENE (scene-sets.js; 10-23: every sheet loaded on Play, 2.32 MB / ~45 MB decoded): a scene loads
+        exactly the sheets it draws from. Measured here through the null backend over the WHOLE map, with
+        everything that can walk or play on it: every hero outfit; on a hunt map every monster its grounds and
+        hunts spawn and every hunt effect; at home every piece of every room, its signposts and trophy mounts. */
+  fam('A', () => {
+    const setOf = (id) => book.frame(id).set;
+    const heroes = Object.values(M.outfits.OUTFITS);
+    const drawn = (id) => {
+      const row = rows[id], m = compiled(id), at = row.start || [1, 1];
+      const units = heroes.slice();
+      if (row.kind === 'hunt') {
+        for (const g of Object.values(M.grounds.HUNT_GROUNDS)) {
+          if (g.map !== id) continue;
+          for (const p of g.pockets) for (const s of [...p.spawns, ...(p.pack || [])]) units.push(s.monster);
+        }
+        for (const h of row.hunts || []) for (const s of (M.hunts.HUNT_INDEX[h] || {}).spawns || []) units.push(s.monster);
+      }
+      const props = [];
+      const layout = M.layouts.ROOM_LAYOUTS[id];
+      if (layout) {
+        for (const def of Object.values(layout.rooms)) for (const rung of def.rungs) for (const p of rung) props.push({ id: p.id, x: p.x, y: p.y });
+        for (const s of M.homeScene.furnish(id, {}, null)) props.push(s);
+        Object.values(M.layouts.TROPHY_MOUNT_SPRITES).forEach((sid, i) => { const [x, y] = layout.trophyMounts[i % layout.trophyMounts.length]; props.push({ id: sid, x, y }); });
+      }
+      const fx = row.kind === 'hunt' ? M.vfx.effectIds().map((e) => ({ id: e, x: at[0], y: at[1], age: 0, lift: 0 })) : [];
+      const b = M.nullb.createNullBackend({ book, tables, view: { w: m.w * (m.T || T), h: m.h * (m.T || T) } });
+      b.mount(); b.setMap(m);
+      b.sync({ hero: { x: at[0], y: at[1] }, t: 0, props, fx, units: units.map((u) => ({ id: u, x: at[0], y: at[1] })) });
+      const s = b.snapshot(), out = new Set(s.ground.tiles.map((t) => t.set));
+      for (const k of ['decals', 'sprites', 'raised', 'fx']) for (const d of s.last[k] || []) out.add(d.set);
+      for (const u of units) out.add(setOf(u));
+      out.delete(''); out.delete(null); out.delete(undefined);
+      return out;
+    };
+    const base = M.maps.WORLD_MAPS.filter((r) => !r.grid || r.grid === 'base');
+    for (const row of base) {
+      const loads = new Set(M.sceneSets.sceneSets(compiled(row.id), row, book, tables));
+      const draws = drawn(row.id);
+      const miss = [...draws].filter((s) => !loads.has(s));
+      ok('A1', !miss.length, row.id + ' draws from ' + miss.join(', ') + ' but its scene does not load that sheet (a stub box until it does)');
+      if (row.kind !== 'hunt') {
+        const extra = [...loads].filter((s) => !draws.has(s));
+        ok('A2', !extra.length, row.id + ' loads ' + extra.join(', ') + ' that nothing in it draws');
+      }
+    }
+    /* non-vacuity: the Common leaves out a sheet the hunting grounds need (else A2 proves nothing about boot) */
+    const town = new Set(M.sceneSets.sceneSets(compiled('town_common'), rows.town_common, book, tables));
+    const ground = new Set(base.filter((r) => r.kind === 'hunt').flatMap((r) => M.sceneSets.sceneSets(compiled(r.id), r, book, tables)));
+    ok('A2', [...ground].some((s) => !town.has(s)) && town.size < M.atlasSets.ATLAS_SETS.length, 'the Common loads every hunting ground\'s sheet: ' + [...town].join(', '));
+  });
   return fails;
 }
 
-const COPY = ['src/world', 'src/data/world', 'src/data/hunts.js', 'src/data/hunt-outfits.js', 'src/build-info.js', 'assets/world'];
+/* src/data and src/core whole: the scene sheets (src/world/scene-sets.js) read the grounds, effects and rooms, and those their own imports */
+const COPY = ['src/world', 'src/data', 'src/core', 'src/build-info.js', 'assets/world'];
 function copyTree() {
   const dir = mkdtempSync(join(tmpdir(), 'world-core-'));
   for (const p of COPY) {
@@ -433,6 +493,9 @@ const MUTANTS = [
   ['W3', 'a fill floor hashed into seams', 'src/world/core/compose.js', [['const n = fill ? (y % fill[1]) * fill[0] + (x % fill[0]) : cellHash(x, y);', 'const n = cellHash(x, y);']]],
   ['G1', 'an unmapped monster falls into the cellar', 'src/world/core/scene-route.js', [['if (id && index[id]) return', "if (id) return { map: 'mill_cellar', kind: 'hunt' }; if (id && index[id]) return"]]],
   ['G2', 'a missing sprite resolves to nothing', 'src/world/core/book.js', [['const sprite = (id) => sprites[id] || STUB_SPRITE;', 'const sprite = (id) => sprites[id];']]],
+  ['A1', 'the scene sheets forget the heroes', 'src/world/scene-sets.js', [['  const ids = new Set(Object.values(OUTFITS));', '  const ids = new Set();']]],
+  ['A1', 'the scene sheets forget the hunt effects', 'src/world/scene-sets.js', [['    for (const id of effectIds()) ids.add(id);\n', '']]],
+  ['A1', 'the scene sheets forget the home\'s furniture', 'src/world/scene-sets.js', [['  const layout = ROOM_LAYOUTS[row.id];', '  const layout = null;']]],  ['A2', 'every scene loads every sheet', 'src/world/scene-sets.js', [['  return Array.from(sets).sort();', '  for (const id of Object.keys(book.sprites)) note(book.frame(id).set);\n  return Array.from(sets).sort();']]],
   ['G3', 'sprites drawn over the roofs', 'src/world/render/canvas-backend.js', [
     ['    for (const d of list.sprites) {\n      if (d.kind === \'unit\' && (d.flash || d.grey)) blitUnit(g, d, view);\n      else { g.globalAlpha = d.alpha == null ? 1 : d.alpha; blit(g, d, view); }\n    }\n', ''],
     ['    g.globalAlpha = 1;\n    light(g, list, view, fv);', '    for (const d of list.sprites) blit(g, d, view);\n    g.globalAlpha = 1;\n    light(g, list, view, fv);']]],
@@ -475,5 +538,5 @@ else if (argv.includes('--hashes')) {
     console.error('world-core: ' + fails.length + ' failure(s)');
     process.exit(1);
   }
-  console.log('world-core: green — y-sort, roofs, shadows, camera, map lint (' + M.maps.WORLD_MAPS.length + ' maps over ' + Object.keys(M.manifests).length + ' atlases), path, Wang, routing, stubs, layer order');
+  console.log('world-core: green — y-sort, roofs, shadows, camera, map lint (' + M.maps.WORLD_MAPS.length + ' maps over ' + Object.keys(M.manifests).length + ' atlases), path, Wang, routing, stubs, layer order, art by scene');
 }

@@ -775,7 +775,7 @@ const PURE_MUTANTS = [
   ['a shown-again body has no place', 'src/session/town-presence.js', '    return p ? [p.x, p.y] : null;\n', '    return null;\n'],
   ['an unviewed character has no body after a boot', 'src/session/account-session.js', '    this._towns.get(slot).stand();\n', ''],
   ['left mid-hunt, a character never stands in town again', 'src/session/town-presence.js', '    if (!this._map) { this.stand(); return; }\n', '    if (!this._map) return;\n'],
-  ['boot opens only the viewed character', 'src/session/account-session.js', '      await this._open(slot);\n    }\n    return this.characters()', '    }\n    return this.characters()'],
+  ['boot opens only the viewed character', 'src/session/account-session.js', '    await Promise.all(want.map((slot) => this._open(slot)));\n', '    void want;\n'],
   ['a standing body never places itself', 'src/session/town-presence.js', '      if (!this._want && this._home) this._want = this._home;\n', ''],
   ['closing a character keeps its body in town', 'src/session/account-session.js', 'if (town) { this._towns.delete(slot); town.destroy(); }', 'void town;'],
   ['a hero back from a hunt still counts as hunting', 'src/session/account-session.js', "busy: () => huntOpenIn(cs.read('hunt')),", "busy: () => !!cs.read('hunt'),"],

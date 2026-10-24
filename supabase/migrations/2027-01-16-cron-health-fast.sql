@@ -69,8 +69,8 @@
 -- ── REVERSIBILITY ───────────────────────────────────────────────────────────
 -- Re-apply the hr_cron_health_ex body from 2027-01-01-server-perf.sql §3 (and
 -- its two revokes); the three readers may stay (nothing else calls them) or be
--- dropped. No data to restore. ORDER: after
--- 2027-01-15-social-resolve-character-names.sql (independent of it). No
+-- dropped. No data to restore. ORDER: after the APPLIED
+-- 2027-01-17-social-pass.sql (independent of it: no shared object). No
 -- begin/commit (CLAUDE.md §2). No edge deploy.
 -- ════════════════════════════════════════════════════════════════════════
 

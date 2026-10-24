@@ -31,7 +31,7 @@ export const ALERT_KINDS = Object.freeze([
   /* PARTY_SPEC §1.3: an invite reaches a stranger anywhere in the game, Join / No thanks (the server's party_invites). */
   Object.freeze({ id: 'invite', label: 'Party invites', glyph: 'uiPeople', action: 'join', button: 'Join', decline: 'No thanks' }),
   /* Tamsin paid a tally (2026-12-23-tally-tasks.sql): her gold and her pick, once per payment the server made. */
-  Object.freeze({ id: 'tally', label: 'Tamsin pays a tally', glyph: 'navBounty', action: 'bag', button: 'Open your inventory' }),
+  Object.freeze({ id: 'tally', label: 'Tamsin pays for a task', glyph: 'navBounty', action: 'bag', button: 'Open your inventory' }),
 ]);
 
 export const ALERT_INDEX = Object.freeze(Object.fromEntries(ALERT_KINDS.map((k) => [k.id, k])));

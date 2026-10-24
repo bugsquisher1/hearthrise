@@ -20,15 +20,15 @@
 // answers, and the ledger changes only from the re-read envelope. A refusal is
 // said in plain words. A room whose rungs do nothing yet offers no purchase.
 // ════════════════════════════════════════════════════════════════════════
-import { homeOf, chestsOf } from '../../session/home-sections.js?v=0.2.38';
-import { buyHome, buildChest } from '../../session/home-intents.js?v=0.2.38';
-import { bagOf, bankOf, goldOf, nameOf } from '../../session/item-sections.js?v=0.2.38';
-import { PROPERTY_TIERS } from '../../data/homestead-tiers.js?v=0.2.38';
-import { ROOM_PERKS } from '../../data/perks.js?v=0.2.38';
-import { text, cls, prop, attr, rows, element } from '../../render/paint.js?v=0.2.38';
-import { whole, gold } from '../../render/format.js?v=0.2.38';
-import { itemName } from '../widgets/bits.js?v=0.2.38';
-import { runIntent } from '../intent-words.js?v=0.2.38';
+import { homeOf, chestsOf } from '../../session/home-sections.js?v=0.2.39';
+import { buyHome, buildChest } from '../../session/home-intents.js?v=0.2.39';
+import { bagOf, bankOf, goldOf, nameOf } from '../../session/item-sections.js?v=0.2.39';
+import { PROPERTY_TIERS } from '../../data/homestead-tiers.js?v=0.2.39';
+import { ROOM_PERKS } from '../../data/perks.js?v=0.2.39';
+import { text, cls, prop, attr, rows, element } from '../../render/paint.js?v=0.2.39';
+import { whole, gold } from '../../render/format.js?v=0.2.39';
+import { itemName } from '../widgets/bits.js?v=0.2.39';
+import { runIntent } from '../intent-words.js?v=0.2.39';
 
 const ROMAN = Object.freeze(['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X']);
 const SCRATCH = new WeakMap();

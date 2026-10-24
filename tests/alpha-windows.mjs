@@ -77,7 +77,10 @@
 //         cooks; Sell all loot keeps it; a level under the recipe's says so in words
 //   AW-21 EQUIP UPGRADES: ONE equip intent naming every strictly better piece (never the weapon
 //         or a piece above the hero's skill), its slots and stacks marked until the answer, a
-//         refusal in words with nothing moved, the Shop's offer after a gear purchase, a reload agrees
+//         refusal in words with nothing moved, the Shop's offer after a gear purchase, a reload agrees;
+//         the screen never offers what the server refuses (Tyler 2026-10-24): an unmet requirement
+//         (the server's numbers) or a running hunt turns Equip / Equip upgrades off with the reason
+//         beside it, and a refusal says why on the line pressed, in view
 //   AW-22 GATHERING AND CRAFTING (designer 2026-10-22: the town skills had no door):
 //         each gathering and bench skill in the ledger opens its work; a row shows what
 //         the server's level opens (and the next two, "Needs Woodcutting 15"); Start is
@@ -156,6 +159,9 @@ const HOOK = { [PANE]: PANE_SRC.replace('    runtime.sync();\n', '    runtime.sy
 const clone = (o) => JSON.parse(JSON.stringify(o));
 /* The hunt rows (each ground's theme) the Hunts page draws. */
 const HUNTS = (await import(pathToFileURL(join(ROOT, 'src/data/hunts.js')).href)).HUNT_INDEX;
+/* The Cellar's one gear line, alone, as the page must print it (its math is checked from the rows in huntsPure). */
+const CELLAR_ODDS = (await import(pathToFileURL(join(ROOT, 'src/render/format.js')).href)).chance(
+  (await import(pathToFileURL(join(ROOT, 'src/shell/hunt-ground-facts.js')).href)).scarceSetOf('mill_cellar', 'medium', 1)[0].chance);
 /* A Level 1 hero in town (no hunt, no party, no bests yet), 30 min of stamina, two setups the server can put
    on and a third set it cannot (no setup row): the Hunts window's fresh hero (AW-25 .. AW-29). */
 function levelOne(e) {
@@ -192,8 +198,13 @@ async function stub(page, s) {
     if (name === 'hr-accrue') {
       if (body.verb) {
         await new Promise((ok) => setTimeout(ok, s.delayMs));
-        /* A refusal the next intent gets (AW-21), the engine's shape: nothing moved, the code says why. */
-        if (s.refuse) { const error = s.refuse; s.refuse = null; return json({ ok: false, verb: body.verb, error }); }
+        /* A refusal the next intent gets (AW-21), the engine's shape (equip.js refusalBody): HTTP 409, nothing moved,
+           the whole character at its version riding the answer, the verb echoed, the code saying why. */
+        if (s.refuse) {
+          const error = s.refuse; s.refuse = null;
+          return r.fulfill({ status: 409, contentType: 'application/json',
+            body: JSON.stringify(Object.assign(clone(s.env), { version: s.version, ok: false, verb: body.verb, error })) });
+        }
         if (s.onEdge) s.onEdge(body);
         return json(Object.assign({ ok: true, accrued: true }, s.next()));
       }
@@ -356,6 +367,49 @@ async function huntsPure(imp) {
   const sets = (h, w) => scarceSetOf(h, w).map((e) => e.lines.join(',') + ':' + e.slots.join(',') + ':' + e.weapons.join(',')).join('|');
   if (sets('millrace_sewer', 'medium') !== 'Leather,Bronze,Apprentice:bodies,legs:|Studded,Iron,Adept:helmets,boots:Iron Sword') fails.push('AW-25 the Sewer\'s gear reads ' + sets('millrace_sewer', 'medium'));
   if (sets('mosslight_glade', null) !== 'Iron,Studded,Adept:helmets,bodies,legs,boots:Longbow') fails.push('AW-25 the glade\'s gear for no worn weight reads ' + sets('mosslight_glade', null));
+  /* THE ODDS (Tyler 2026-10-24: "a % drop chance or nothing at all"): each line's chance per kill is the engine's rows
+     (monsters.js, the catalogue hr-accrue rolls) at the yield share the settle spawns a party-scaled monster with. Worked
+     here from the rows on the Sewer (a party-only boss pocket, two tiers), alone and as four: a tier line = any piece of
+     it on one kill of the ground's mix (the pockets that party walks, as built), a Rare = per kill of its carrier (the
+     Rat King by the smallest party he meets). */
+  const { HUNT_GROUNDS, routeFor, yieldPermille } = await imp('src/data/hunt-grounds.js');
+  const { ITEMS } = await imp('src/data/items.js');
+  const { chance } = await imp('src/render/format.js');
+  const { detailHtml } = await imp('src/shell/windows/hunt-detail.js');
+  const sewer = Object.values(HUNT_GROUNDS).find((g) => g.hunt === 'millrace_sewer');
+  for (const n of [1, 4]) {
+    const y = (size) => yieldPermille(size) / 1000;
+    const pts = {};
+    for (const i of routeFor(sewer, n)) for (const s of sewer.pockets[i].spawns) pts[s.monster] = (pts[s.monster] || 0) + 1;
+    const all = Object.values(pts).reduce((t, k) => t + k, 0);
+    const tierOdds = (tier) => Object.entries(pts).reduce((t, [id, k]) => {
+      const rows = MONSTERS[id].drops.filter((d) => d.band === 'scarce' && (Number(ITEMS[d.id].tier) || 1) === tier);
+      return t + (k / all) * (1 - rows.reduce((p, d) => p * (1 - Math.min(0.95, d.ch * y(n))), 1));
+    }, 0);
+    const shown = scarceSetOf('millrace_sewer', 'medium', n).map((e) => chance(e.chance)).join('|');
+    const want = [1, 2].map((t) => chance(tierOdds(t))).join('|');
+    if (shown !== want || /under|^0%/.test(want)) fails.push('AW-25 the Sewer\'s gear odds for ' + n + ' read ' + shown + ', the rows say ' + want);
+    const rr = raresOf('millrace_sewer', n).map((x) => x.name + ' ' + chance(x.chance)).join('|');
+    const rw = residentsOf('millrace_sewer').flatMap((m) => MONSTERS[m.id].drops.filter((d) => d.band === 'rare' || d.band === 'trophy')
+      .map((d) => ({ t: d.band === 'trophy', s: ITEMS[d.id].n + ' ' + chance(Math.min(0.95, d.ch * y(Math.max(n, m.id === 'rat_king' ? 2 : 1)))) })))
+      .sort((a, b) => Number(a.t) - Number(b.t)).map((x) => x.s).join('|');
+    if (rr !== rw) fails.push('AW-25 the Sewer\'s rare odds for ' + n + ' read ' + rr + ', the rows say ' + rw);
+  }
+  const fmt = [0.0035, 0.021, 0.12, 0.00009, 0.0001].map(chance).join('|');
+  if (fmt !== '0.35%|2.1%|12%|under 0.01%|0.01%') fails.push('AW-25 the odds read ' + fmt + ' (two significant figures, "under 0.01%" below it)');
+  /* THE LINEUP FACES THE PLAYER (Tyler 2026-10-24): the page's sprite options draw each creature's idle frame facing
+     south, never the side-on east frame (a stub atlas row whose directions sit at different columns). */
+  const { LINEUP_SPRITE } = await imp('src/shell/windows/hunt-detail.js');
+  const { drawCreature } = await imp('src/render/creature-sprite.js');
+  const drewAt = [];
+  const g2d = (c) => ({ drawImage: (img, sx) => drewAt.push(sx), clearRect() {}, getImageData: () => ({ data: new Uint8ClampedArray(c.width * c.height * 4).fill(255) }) });
+  const fakeCanvas = () => { const c = { width: 0, height: 0, getContext: () => g2d(c) }; return c; };
+  const shown = Object.assign(fakeCanvas(), { ownerDocument: { createElement: fakeCanvas } });
+  const stubArt = new Map([['rat', { image: {}, row: { frame: [4, 4], anchor: [2, 3], anims: { idle: { dirs: { e: [[0, 0]], s: [[40, 0]], n: [[80, 0]] } } } } }]]);
+  if (!drawCreature(shown, stubArt, 'rat', LINEUP_SPRITE) || drewAt[drewAt.length - 1] !== 40 || shown.width !== 8)
+    fails.push('AW-25 the lineup draws frame x ' + drewAt[drewAt.length - 1] + ' at ' + shown.width + ' px, wanted the front (south) frame at x 40, x2');
+  const head = detailHtml();
+  if (!head.includes('<h4 class="hw-hd-h">Drops <small') || /about every hour|no odds/i.test(head)) fails.push('AW-25 the drops heading reads ' + (/<h4 class="hw-hd-h">([^<]*)<small class="hw-hd-per hw-hd-per-size"/.exec(head) || [, '?'])[1]);
   const worn = [wornWeightOf({ helmet: 'leather_helmet', body: 'bronze_platebody', pants: 'leather_pants' }), wornWeightOf({ weapon: 'practice_sword' }), wornWeightOf({ helmet: 'adept_helmet', body: 'iron_platebody' })].join();
   if (worn !== 'medium,,heavy') fails.push('AW-25 the worn weight reads ' + worn);
   /* The list line: the band against the Level in words and a tone; the best, or New. */
@@ -652,7 +706,14 @@ async function checks(overrides, shots) {
         if (!after.ratNew || after.bonesNew) fails.push('AW-3 the "new" mark is wrong after the envelope (more rat tails new: ' + after.ratNew + ', fewer bones new: ' + after.bonesNew + ')');
         if (!after.same) fails.push('AW-2 a new envelope rebuilt the rat tail pocket instead of patching it');
         if (after.rat !== '40' || after.bones !== '2' || after.gel) fails.push('AW-3 the bag did not take the server’s new counts (rat ' + after.rat + ', bones ' + after.bones + ', slime gel still there: ' + after.gel + ')');
-        /* AW-4: Equip on a bag sword is one intent, off at once, and the doll waits for the server. */
+        /* AW-4: Equip on a bag sword is one intent, off at once, and the doll waits for the server. In town with the
+           Melee the sword needs: the engine refuses an equip mid-hunt or under its requirement, and the screen never
+           offers one then (AW-21, Tyler 2026-10-24). */
+        for (const k of ['hunt', 'hunt_analyzer', 'hunt_track', 'hunt_events', 'party']) delete s.env[k];
+        s.env.state = Object.assign({}, s.env.state, { active_kind: 'idle', active_id: null });
+        s.env.skills.melee = { xp: 4700, level: 30, frac: 0 };
+        await pushEnvelope(page, s);
+        await wait(page, () => { const b = document.querySelector('.hw-pick [data-hs-act="primary"]'); return !b || !b.disabled; }, null, 3000);
         await page.click('.hw-pocket[data-item="steel_sword"]');
         const loadsBefore = sent(s, 'hr_load').length;
         await page.click('.hw-pick [data-hs-act="primary"]');
@@ -919,7 +980,8 @@ async function checks(overrides, shots) {
           const d = document.querySelector(w + '.hw-hunt-detail');
           const vis = (q) => { const n = d.querySelector(q); return n && n.getClientRects().length ? n.textContent : null; };
           return { name: vis('.hw-hd-name'), theme: vis('.hw-hd-theme'),
-            sets: Array.from(d.querySelectorAll('.hw-hd-set')).map((n) => n.textContent),
+            sets: Array.from(d.querySelectorAll('.hw-hd-set')).map((n) => n.firstElementChild.textContent + ' · ' + n.querySelector('.hw-hd-odds').textContent),
+            per: vis('.hw-hd-per-size'),
             rares: Array.from(d.querySelectorAll('.hw-hd-rare')).map((n) => n.querySelector('.hw-hd-rare-name').textContent + ' / ' + n.querySelector('.hw-hd-rare-by').textContent + (n.classList.contains('is-trophy') ? ' (trophy)' : '')),
             raresShown: (() => { const h = d.querySelector('.hw-hd-rares'), head = h && h.previousElementSibling; return !!head && head.getClientRects().length > 0; })(),
             mons: Array.from(d.querySelectorAll('.hw-hd-mon')).map((li) => { const c = li.querySelector('canvas'), b = c.getBoundingClientRect(), st = li.querySelector('.hw-hd-stand').getBoundingClientRect();
@@ -935,7 +997,9 @@ async function checks(overrides, shots) {
         if (p.name !== 'Mill Cellar' || p.theme !== HUNTS.mill_cellar.theme || mons !== 'rat:Level 2 · common|slime:Level 2 · uncommon|hive_wasp:Level 4 · uncommon')
           fails.push('AW-25 the Mill Cellar page reads ' + JSON.stringify({ name: p.name, theme: p.theme, mons }));
         /* the fixture hero wears Leather Boots, so the medium line reads first; the Cellar has no Rare, so no Rare heading */
-        if (p.sets.join('|') !== 'Leather, Bronze, Apprentice: helmets' || p.rares.length || p.raresShown) fails.push('AW-25 the Cellar\'s drops read ' + JSON.stringify([p.sets, p.rares, p.raresShown]));
+        /* each line with its chance per kill, alone (the engine's rows: the pure AW-25 works the math from them) */
+        if (p.sets.join('|') !== 'Leather, Bronze, Apprentice: helmets · ' + CELLAR_ODDS || p.per !== 'chance per kill, hunting alone' || p.rares.length || p.raresShown)
+          fails.push('AW-25 the Cellar\'s drops read ' + JSON.stringify([p.sets, p.per, p.rares, p.raresShown]));
         if (p.bests.join('|') !== 'Not hunted yet. A hunt of 10 min or more sets your best.') fails.push('AW-25 with no best the page reads ' + JSON.stringify(p.bests));
         if (shots) await shot(page, 'hunts-1440x900-cellar-level1');
         /* The server's best arrives: the line and the page take it (replaced, never kept from before). */
@@ -1275,12 +1339,25 @@ async function checks(overrides, shots) {
         await page.waitForTimeout(250);
         const pre = await page.evaluate(() => { const l = document.querySelector('.hw-inv .hw-upgrade'); return { on: l.classList.contains('is-on'), q: l.querySelector('.hw-upgrade-q').textContent, off: l.querySelector('button').disabled }; });
         if (!pre.on || pre.off || !/^Wear Iron Helm \(\+\d+ Defense/.test(pre.q) || /Steel/.test(pre.q)) fails.push('AW-21 the preview line is wrong before the press: ' + JSON.stringify(pre));
-        /* A refusal: nothing moves, the words say why. */
+        /* A REQUIREMENT THE SERVER'S NUMBERS SAY IS UNMET (Tyler 2026-10-24, "Gear swapping isn't working": Fingerguns,
+           Defense 19, was offered Equip on a Steel Helm that needs 30, and the refusal said nothing on screen): the
+           picked line's Equip is off and says why, and a press sends nothing. */
+        await page.click('.hw-pocket[data-item="steel_helm"]');
+        await page.waitForTimeout(150);
+        const need = await page.evaluate(() => ({ off: document.querySelector('.hw-inv [data-hs-act="primary"]').disabled,
+          why: document.querySelector('.hw-inv .hw-pick-why').textContent }));
+        await page.keyboard.press('Enter');
+        await page.waitForTimeout(300);
+        if (!need.off || need.why !== 'Needs Defense 30 — you have 19.' || sent(s, 'hr-accrue', 'equip').length) fails.push('AW-21 a Steel Helm at Defense 19 reads ' + JSON.stringify(need) + ', ' + sent(s, 'hr-accrue', 'equip').length + ' equip(s) sent');
+        /* A refusal (the engine's 409): nothing moves, and the words say why ON THE LINE PRESSED, in view (they sat at the
+           window's foot, below the fold, so the press looked like nothing). */
         s.refuse = 'requirement_not_met';
         await page.click('.hw-inv [data-hs-act="equip-upgrades"]');
         await page.waitForTimeout(50);
         await wait(page, () => !document.querySelector('.hw-inv [data-hs-act="equip-upgrades"]').disabled, null, 3000);
-        if ((await msg()) !== 'Your skill is too low to wear that yet. Nothing was put on.') fails.push('AW-21 a level refusal reads ' + JSON.stringify(await msg()));
+        const said = await page.evaluate(() => { const n = document.querySelector('.hw-inv .hw-upgrade-why'), b = document.querySelector('[data-hs-win="inventory"] .hs-win-body').getBoundingClientRect();
+          const q = n.getBoundingClientRect(); return { t: n.textContent, inView: n.getClientRects().length > 0 && q.top >= b.top - 1 && q.bottom <= b.bottom + 1 }; });
+        if (said.t !== 'Your skill is too low to wear that yet. Nothing was put on.' || !said.inView) fails.push('AW-21 a refused Equip upgrades says ' + JSON.stringify(said) + ' on its line (want the words, in view)');
         if (await page.evaluate(() => document.querySelector('.hw-slot[data-slot="helmet"]').getAttribute('data-item'))) fails.push('AW-21 the doll changed on a refusal');
         if (shots) await shot(page, 'alpha-1440x900-equip-upgrades');
         /* The press that lands: ONE intent, every slot and stack marked until the answer. */
@@ -1316,7 +1393,29 @@ async function checks(overrides, shots) {
         if (!/^Wear Copper Ring \(/.test(shopLine)) fails.push('AW-21 after a gear purchase the Shop offers ' + JSON.stringify(shopLine));
         if (shots) await shot(page, 'alpha-1440x900-shop-upgrades');
       } else fails.push('AW-21 the town character did not mount');
-      if (errors.length) fails.push('AW-21 console errors: ' + errors.slice(0, 3).join(' | '));
+      if (errors.filter((e) => !/status of 409/.test(e)).length) fails.push('AW-21 console errors: ' + errors.slice(0, 3).join(' | '));
+      await ctx.close();
+    }
+
+    { // AW-21 MID-HUNT (Tyler 2026-10-24): the engine refuses every equip while the hunt is open (equip.js hunt_open),
+      // so the Inventory never offers one: Equip and Equip upgrades are off and say why, a press sends nothing, and the
+      // engine's own refusal reads as what to do
+      const hunting = (e) => { Object.assign(e.inventory, { steel_helm: 1, iron_helm: 1, iron_platebody: 1 }); };
+      const { ctx, page, errors, s, up } = await open({ mutateEnv: hunting });
+      if (up) {
+        await openWin(page, 'b', 'inventory');
+        await page.waitForTimeout(250);
+        await page.click('.hw-pocket[data-item="iron_helm"]');
+        await page.waitForTimeout(150);
+        await page.keyboard.press('Enter');
+        await page.waitForTimeout(300);
+        const mid = await page.evaluate(() => { const q = (x) => document.querySelector('[data-hs-win="inventory"] ' + x);
+          return { equip: q('[data-hs-act="primary"]').disabled, why: q('.hw-pick-why').textContent,
+            upg: q('[data-hs-act="equip-upgrades"]').disabled, upgWhy: q('.hw-upgrade-why').textContent }; });
+        if (!mid.equip || mid.why !== 'Leave the hunt to change gear.' || !mid.upg || mid.upgWhy !== 'Leave the hunt to put these on.' || sent(s, 'hr-accrue', 'equip').length)
+          fails.push('AW-21 mid-hunt the Inventory reads ' + JSON.stringify(mid) + ', ' + sent(s, 'hr-accrue', 'equip').length + ' equip(s) sent');
+      } else fails.push('AW-21 the hunting character did not mount');
+      if (errors.length) fails.push('AW-21 mid-hunt console errors: ' + errors.slice(0, 3).join(' | '));
       await ctx.close();
     }
 
@@ -1582,7 +1681,7 @@ const MUTANTS = [
   ['a bulk sale names a locked stack', 'src/shell/bag-model.js', '    if (locked.has(id)) { kept.push(id); continue; }\n', ''],
   ['the bag keeps a count the server dropped', 'src/session/item-sections.js', '  for (const [id, n] of Object.entries(inv)) if (ID.test(id) && count(n) && n > 0) items.push({ id, qty: n });\n  return items;',
     '  for (const [id, n] of Object.entries(inv)) if (ID.test(id) && count(n) && n > 0) items.push({ id, qty: n });\n  const prev = globalThis.__bag || [];\n  for (const p of prev) { const i = items.find((x) => x.id === p.id); if (!i) items.push(p); else i.qty = Math.max(i.qty, p.qty); }\n  globalThis.__bag = items.map((x) => ({ ...x }));\n  return items;'],
-  ['bag actions stay on while an intent is in flight', 'src/shell/windows/inventory/grid.js', "prop(pb, 'disabled', sc.pending || !prim);", "prop(pb, 'disabled', !prim);"],
+  ['bag actions stay on while an intent is in flight', 'src/shell/windows/inventory/grid.js', "prop(pb, 'disabled', sc.pending || !prim || !!wearWhy);", "prop(pb, 'disabled', !prim || !!wearWhy);"],
   ['a pocket is rebuilt whenever its count changes', 'src/shell/windows/inventory/grid.js', '    key: (r) => r.id,\n    build: (r) => element(ctx.doc, pocketHtml(r.id, ctx.glyphs)),', '    key: (r) => r.id + ":" + r.qty,\n    build: (r) => element(ctx.doc, pocketHtml(r.id, ctx.glyphs)),'],
   ['a sale is sent without the confirmation', 'src/shell/windows/inventory/actions.js', '  st.sc.confirm = confirmFor(st, ids, label);\n  repaint();', '  st.sc.confirm = confirmFor(st, ids, label);\n  repaint();\n  doSell(st, repaint);'],
   ['the Shop lists supplies again', 'src/data/supply-basics.js', "export const SHOP_SOLD_KINDS = Object.freeze(['tool', 'gear', 'seed']);", "export const SHOP_SOLD_KINDS = Object.freeze(['food', 'drink', 'ammo', 'tool', 'gear', 'seed']);"],
@@ -1625,7 +1724,7 @@ const MUTANTS = [
   ['AW-25 the band ignores the floor', 'src/shell/hunt-list.js', '  const warn = rangeWords(r, level);', '  const warn = null;'],
   ['AW-25 a ground with no best says nothing', 'src/shell/hunt-list.js', 'none: solo || party ? null :', 'none: true ? null :'],
   ['AW-25 the page shows the first ground, not the pick', 'src/shell/windows/hunts.js', '  const r = list.find((x) => x.hunt === sc.pick) || null;', '  const r = list[0] || null;'],
-  ['AW-25 the creatures are never drawn', 'src/shell/windows/hunt-detail.js', '  const ok = drawCreature(c, ART, id, { scale: SPRITE_SCALE });', '  const ok = false;'],
+  ['AW-25 the creatures are never drawn', 'src/shell/windows/hunt-detail.js', '  const ok = drawCreature(c, ART, id, LINEUP_SPRITE);', '  const ok = false;'],
   ['AW-25 each creature stands at its own height', 'src/shell/windows/hunt-detail.js', "  style(lineup, '--stand-h', tallest ? tallest + 'px' : null);\n", ''],
   ['AW-25 the phone shows the list and the page at once', 'src/styles/windows.css', '  .hw-hunts.is-paged .hw-hunt-list, .hw-hunts.is-paged .hw-hunts-now.is-hint { display: none; }\n', '  .hw-hunts.is-paged .hw-hunts-now.is-hint { display: none; }\n'],
   ['AW-26 the chosen setup is never put on', 'src/shell/windows/hunts.js', '  if (s && Number.isInteger(want) && want !== s.preset) {', '  if (false) {'],
@@ -1666,7 +1765,7 @@ const MUTANTS = [
   ['ticker: a yield range is read at its top', 'src/shell/town-ticker.js', '  int: (lo) => Math.ceil(Number(lo) || 0),', '  int: (lo, hi) => Math.floor(Number(hi) || 0),'],
 ];
 /* The doll mutant needs the want set where an equip is asked: plant it beside the intent. */
-const COMPANION = { 'the doll wears the item before the server confirms': ['src/shell/windows/inventory/actions.js', '    if (slot) wear(st, repaint, slot, id);', '    if (slot) globalThis.__want = id;\n    if (slot) wear(st, repaint, slot, id);'],
+const COMPANION = { 'the doll wears the item before the server confirms': ['src/shell/windows/inventory/actions.js', "    if (slot) wear(st, repaint, slot, id, 'pick:' + id);", "    if (slot) globalThis.__want = id;\n    if (slot) wear(st, repaint, slot, id, 'pick:' + id);"],
   /* The high-water mark the merged-upward ticker keeps (module scope: one per planted tree). */
   'ticker: a payout under the prediction never snaps down (merged upward)': ['src/shell/town-ticker.js', 'const own = (o, k) =>', 'const HIGH = {};\nconst own = (o, k) =>'] };
 

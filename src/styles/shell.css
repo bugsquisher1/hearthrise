@@ -60,6 +60,16 @@
 .hs-widget > .hs-pointer { left: 0; width: min(260px, 100%); }
 .hs-pointer b { display: block; color: var(--gold-2); }
 .hs-pointer::before { content: ''; position: absolute; top: -6px; left: 14px; border: 6px solid transparent; border-top: 0; border-bottom-color: var(--gold); }
+/* The coach folds (launcher.js coachFoldOf): a dash at the card's corner folds it to its title, a tab that opens it;
+   a new card while folded marks the tab with the bag's "new" square. Only the two controls take presses. */
+.hs-pointer:not(.is-min) { padding-right: 34px; }
+.hs-coach-min { position: absolute; top: 2px; right: 2px; width: 28px; height: 28px; display: grid; place-items: center; padding: 0; border: 0; background: none; color: var(--ink-3); cursor: pointer; pointer-events: auto; }
+.hs-coach-min::after { content: ''; width: 10px; height: 2px; background: currentColor; }
+.hs-coach-min:hover, .hs-coach-tab:hover { color: var(--ink); }
+.hs-pointer.is-min, .hs-widget > .hs-pointer.is-min { width: auto; padding: 0; }
+.hs-coach-tab { display: flex; align-items: center; gap: 6px; min-height: 28px; padding: 0 10px; border: 0; background: none; font-family: var(--f-label); font-weight: 700; font-size: var(--t-micro); color: var(--gold-2); white-space: nowrap; cursor: pointer; pointer-events: auto; }
+.hs-coach-new { width: 6px; height: 6px; flex: none; background: var(--gold-2); box-shadow: 0 0 0 1px var(--bg-0); }
+.hs-coach-min:focus-visible, .hs-coach-tab:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: -2px; }
 .hs-launch:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: -4px; }
 .hs-launch.is-open { color: var(--gold-2); }
 .hs-launch.is-open::after { content: ''; position: absolute; left: 10px; right: 10px; bottom: 0; height: 2px; background: var(--gold); }
@@ -151,6 +161,9 @@
 @media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
   .hs-launch { width: 44px; }
   .hs-launchers { padding-left: 4px; }
+  .hs-pointer:not(.is-min) { padding-right: calc(var(--tap) + 4px); }
+  .hs-coach-min { top: 0; right: 0; width: var(--tap); height: var(--tap); }
+  .hs-coach-tab { min-height: var(--tap); padding: 0 14px; }
   .hs-win {
     top: 0; bottom: 0; right: 0; left: auto;
     width: min(400px, 48vw);

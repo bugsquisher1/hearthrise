@@ -12,7 +12,7 @@
 // nothing kept from an older one. Null = the server sent no tally yet, and every
 // Tally control stays off (fail safe).
 // ════════════════════════════════════════════════════════════════════════
-import { tallyTask } from '../data/tally-tasks.js?v=0.2.38';
+import { tallyTask } from '../data/tally-tasks.js?v=0.2.39';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const ID = /^[a-z0-9_]{1,64}$/;
@@ -93,7 +93,7 @@ export function pickWords(pick, nameOf) {
  */
 export function waitWords(t, h, hunting) {
   if (!h || !h.done) return '';
-  if (t.paidToday >= t.perDay) return 'Done. Tamsin pays ' + t.perDay + ' tallies a day: this one tomorrow.';
-  if (h.wait === 'bag_full') return 'Done. Make room in your bag for Tamsin\'s pick.';
+  if (t.paidToday >= t.perDay) return 'Done. Tamsin pays for ' + t.perDay + ' tasks a day: this one\'s paid tomorrow.';
+  if (h.wait === 'bag_full') return 'Done. Make room in your bag for what Tamsin gives you.';
   return hunting ? 'Done. Tamsin pays when you are back in town.' : 'Done. Visit Tamsin to be paid.';
 }

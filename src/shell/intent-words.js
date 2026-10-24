@@ -10,12 +10,13 @@
 // server's value stays on screen either way: nothing changed before it answered.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.38';
-import { ITEMS } from '../data/items.js?v=0.2.38';
-import { SKILLS_DEF } from '../data/skills.js?v=0.2.38';
-import { REFUSAL_WORDS, REFUSAL_FAMILIES, REFUSAL_FALLBACK } from '../data/refusal-words.js?v=0.2.38';
-import { skillsOf } from '../session/item-sections.js?v=0.2.38';
-import { whole } from '../render/format.js?v=0.2.38';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.39';
+import { ITEMS } from '../data/items.js?v=0.2.39';
+import { REFUSAL_WORDS, REFUSAL_FAMILIES, REFUSAL_FALLBACK, REFUSAL_VERB_WORDS } from '../data/refusal-words.js?v=0.2.39';
+import { skillsOf } from '../session/item-sections.js?v=0.2.39';
+import { levelOf } from '../session/character-sections.js?v=0.2.39';
+import { needOf } from './item-lore.js?v=0.2.39';
+import { whole } from '../render/format.js?v=0.2.39';
 
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 
@@ -28,24 +29,24 @@ function familyWords(code) {
   return null;
 }
 
-/** The plain-words reason for a refusal code: its own line, its family's, else the fallback. */
-export function refusalWords(code) {
+/** The plain-words reason for a refusal code: the verb's own line for it, the code's own line, its family's, else the fallback. */
+export function refusalWords(code, verb) {
+  const byVerb = typeof verb === 'string' && own(REFUSAL_VERB_WORDS, verb) ? REFUSAL_VERB_WORDS[verb] : null;
+  if (byVerb && typeof code === 'string' && own(byVerb, code)) return byVerb[code];
   if (typeof code === 'string' && own(REFUSAL_WORDS, code)) return REFUSAL_WORDS[code];
   return (typeof code === 'string' && familyWords(code)) || REFUSAL_FALLBACK;
 }
 
 /**
- * "Needs Defense 20 (you have 1)." for an item the server refused on its skill
- * requirement: the item's reqSkill / reqLv and, with a character, its level as
- * the server projects it. Null when the item names no requirement.
+ * "Steel Helm needs Defense 30 — you have 19." for an item the server refused on its requirement: the item the
+ * server's answer names, what its catalogue row requires (a skill, or the hero's Level: item-lore.js needOf) and,
+ * with a character, the server's own number. Null when the item names no requirement.
  */
 function requirementWords(item, cs) {
   const it = typeof item === 'string' && own(ITEMS, item) ? ITEMS[item] : null;
-  if (!it || !it.reqSkill || !Number.isInteger(it.reqLv)) return null;
-  const sk = cs ? skillsOf(cs) : null;
-  const have = sk && sk[it.reqSkill] ? sk[it.reqSkill].level : null;
-  const name = SKILLS_DEF[it.reqSkill] ? SKILLS_DEF[it.reqSkill].name : it.reqSkill;
-  return it.n + ' needs ' + name + ' ' + it.reqLv + (have !== null ? ' (you have ' + have + ').' : '.');
+  const lv = cs ? levelOf(cs) : null;
+  const need = it ? needOf(item, cs ? skillsOf(cs) : null, lv ? lv.level : null) : null;
+  return need ? it.n + ' n' + need.text.slice(1) + '.' : null;
 }
 
 /* Why one seat held the party's start back, after its name. */
@@ -79,7 +80,7 @@ export function refusalText(r, cs) {
     return 'Not enough ' + ITEMS[r.item].n + ': you have ' + whole(c.bag) + ' in your bag and ' + whole(c.storage)
       + ' in Storage, and it takes ' + whole(c.need) + '.';
   }
-  return refusalWords(r && r.error);
+  return refusalWords(r && r.error, r && r.verb);
 }
 
 /**

@@ -453,6 +453,8 @@ jobs:
   # 2026-10-21: Hunt screen moved to in-page-3 (below); this half measured
   # (39584226867) Windows 114 + Services 26 + Character 378 + Party 148 + Chat 64
   # + Town 53 = 783 s, ~14 min with setup; budget stays 36.
+  # 2026-10-24: Party UI, Chat and social and Town presence moved to in-page-13
+  # (see there); this half ~1,240 s with every --mutate run, ~22 min (61%).
   in-page-2:
     runs-on: ubuntu-latest
     timeout-minutes: 36
@@ -554,6 +556,46 @@ jobs:
           node tests/character-window.mjs
           node tools/mutant-gate.mjs node tests/character-window.mjs --mutate
 
+      # A failing run is far easier to diagnose with the page state attached.
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-failure-in-page-2
+          path: |
+            tests/**/*.png
+            tests/**/*.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # ── in-page-13 ── THE SOCIAL HALF OF in-page-2, SPLIT OUT 2026-10-24.
+  # release/v0.2.38 (run 40043808165) CANCELLED in-page-2 at its 36-min limit
+  # in Town presence: the diff touched tests/_client-harness.mjs, so the gate
+  # ran every --mutate it loads. MEASURED there: Windows 376 + Services 25 +
+  # House 27 + Farm 93 + Tally 164 + Instant press 25 + Character 529 + Party
+  # 513 + Chat 264 + Town (~230, cut at 119) = ~2,250 s, ~39 min with setup.
+  # Party UI, Chat and Town presence moved here byte for byte: ~1,010 s, ~18
+  # min with setup (50% of 36); in-page-2 keeps ~1,240 s, ~22 min (61%).
+  in-page-13:
+    runs-on: ubuntu-latest
+    timeout-minutes: 36
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Do NOT leave the token in .git/config where every later step —
+          # including npm lifecycle scripts — can read it and `git push`.
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Playwright + Chromium
+        run: |
+          npm install --no-audit --no-fund
+          npx playwright install --with-deps chromium
+
       # THE PARTY UI (2026-10-18, week plan 16 + QoL 3/7): the character strip,
       # the command centre, the Party window and the alert lines on the party
       # fixture. One alert per event id (a re-read or a reload repeats none);
@@ -591,12 +633,11 @@ jobs:
           node tests/town-walk.mjs
           node tools/mutant-gate.mjs node tests/town-walk.mjs --mutate
 
-      # A failing run is far easier to diagnose with the page state attached.
       - name: Upload failure artifacts
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: smoke-failure-in-page-2
+          name: smoke-failure-in-page-13
           path: |
             tests/**/*.png
             tests/**/*.log
@@ -624,6 +665,13 @@ jobs:
   # 18-min-a-shard cap are checked without a browser in client-guards
   # (hunt-screen --shard-plan); a new mutant that pushes a shard over 18 min
   # turns that red: add a shard there.
+  # RE-SHARDED 2026-10-24 to 10: release/v0.2.38 (run 40043808165) ran every
+  # mutant (the diff touched tests/_client-harness.mjs) and took 26-31 min a
+  # job (in-page-9 34 min, 85% of 40): the suite grew, the booking had not. A
+  # clean control is now 205 s and a booted mutant ~200 s; 88 mutants measured
+  # 9,987 s (tests/hunt-screen.mutant-times.json, re-measured from that run).
+  # 10 shards = ~16.6 min booked each: ~21 min a job (53% of 40), ~25 min here
+  # with the plain run (57% of 44). Shards 8-10 are in-page-14 / 15 / 16.
   in-page-3:
     runs-on: ubuntu-latest
     timeout-minutes: 44
@@ -654,7 +702,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/hunt-screen.mjs
-          node tools/mutant-gate.mjs node tests/hunt-screen.mjs --mutate --shard=1/7
+          node tools/mutant-gate.mjs node tests/hunt-screen.mjs --mutate --shard=1/10
 
       # A failing run is far easier to diagnose with the page state attached.
       - name: Upload failure artifacts
@@ -668,7 +716,7 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
-  # ── in-page-4 … in-page-9 ── HUNT SCREEN MUTANTS, SHARDS 2-7 (see the
+  # ── in-page-4 … in-page-9 ── HUNT SCREEN MUTANTS, SHARDS 2-7 of 10 (see the
   # note above in-page-3). Budget: ~20 min a job x2 = 40.
   in-page-4:
     runs-on: ubuntu-latest
@@ -690,10 +738,10 @@ jobs:
           npm install --no-audit --no-fund
           npx playwright install --with-deps chromium
 
-      - name: Hunt screen mutants, shard 2 of 7 (play.html)
+      - name: Hunt screen mutants, shard 2 of 10 (play.html)
         if: ${{ !cancelled() }}
         run: |
-          node tools/mutant-gate.mjs node tests/hunt-screen.mjs --mutate --shard=2/7
+          node tools/mutant-gate.mjs node tests/hunt-screen.mjs --mutate --shard=2/10
 
       - name: Upload failure artifacts
         if: failure()
@@ -726,10 +774,10 @@ jobs:
           npm install --no-audit --no-fund
           npx playwright install --with-deps chromium
 
-      - name: Hunt screen mutants, shard 3 of 7 (play.html)
+      - name: Hunt screen mutants, shard 3 of 10 (play.html)
         if: ${{ !cancelled() }}
         run: |
-          node tools/mutant-gate.mjs node tests/hunt-screen.mjs --mutate --shard=3/7
+          node tools/mutant-gate.mjs node tests/hunt-screen.mjs --mutate --shard=3/10
 
       - name: Upload failure artifacts
         if: failure()
@@ -762,10 +810,10 @@ jobs:
           npm install --no-audit --no-fund
           npx playwright install --with-deps chromium
 
-      - name: Hunt screen mutants, shard 4 of 7 (play.html)
+      - name: Hunt screen mutants, shard 4 of 10 (play.html)
         if: ${{ !cancelled() }}
         run: |
-          node tools/mutant-gate.mjs node tests/hunt-screen.mjs --mutate --shard=4/7
+          node tools/mutant-gate.mjs node tests/hunt-screen.mjs --mutate --shard=4/10
 
       - name: Upload failure artifacts
         if: failure()
@@ -798,10 +846,10 @@ jobs:
           npm install --no-audit --no-fund
           npx playwright install --with-deps chromium
 
-      - name: Hunt screen mutants, shard 5 of 7 (play.html)
+      - name: Hunt screen mutants, shard 5 of 10 (play.html)
         if: ${{ !cancelled() }}
         run: |
-          node tools/mutant-gate.mjs node tests/hunt-screen.mjs --mutate --shard=5/7
+          node tools/mutant-gate.mjs node tests/hunt-screen.mjs --mutate --shard=5/10
 
       - name: Upload failure artifacts
         if: failure()
@@ -834,10 +882,10 @@ jobs:
           npm install --no-audit --no-fund
           npx playwright install --with-deps chromium
 
-      - name: Hunt screen mutants, shard 6 of 7 (play.html)
+      - name: Hunt screen mutants, shard 6 of 10 (play.html)
         if: ${{ !cancelled() }}
         run: |
-          node tools/mutant-gate.mjs node tests/hunt-screen.mjs --mutate --shard=6/7
+          node tools/mutant-gate.mjs node tests/hunt-screen.mjs --mutate --shard=6/10
 
       - name: Upload failure artifacts
         if: failure()
@@ -870,16 +918,127 @@ jobs:
           npm install --no-audit --no-fund
           npx playwright install --with-deps chromium
 
-      - name: Hunt screen mutants, shard 7 of 7 (play.html)
+      - name: Hunt screen mutants, shard 7 of 10 (play.html)
         if: ${{ !cancelled() }}
         run: |
-          node tools/mutant-gate.mjs node tests/hunt-screen.mjs --mutate --shard=7/7
+          node tools/mutant-gate.mjs node tests/hunt-screen.mjs --mutate --shard=7/10
 
       - name: Upload failure artifacts
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: smoke-failure-in-page-9
+          path: |
+            tests/**/*.png
+            tests/**/*.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # ── in-page-14 / 15 / 16 ── HUNT SCREEN MUTANTS, SHARDS 8-10 (2026-10-24, see
+  # the note above in-page-3). Budget as in-page-4..9: 40.
+
+  in-page-14:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Do NOT leave the token in .git/config where every later step —
+          # including npm lifecycle scripts — can read it and `git push`.
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Playwright + Chromium
+        run: |
+          npm install --no-audit --no-fund
+          npx playwright install --with-deps chromium
+
+      - name: Hunt screen mutants, shard 8 of 10 (play.html)
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tests/hunt-screen.mjs --mutate --shard=8/10
+
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-failure-in-page-14
+          path: |
+            tests/**/*.png
+            tests/**/*.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+  in-page-15:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Do NOT leave the token in .git/config where every later step —
+          # including npm lifecycle scripts — can read it and `git push`.
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Playwright + Chromium
+        run: |
+          npm install --no-audit --no-fund
+          npx playwright install --with-deps chromium
+
+      - name: Hunt screen mutants, shard 9 of 10 (play.html)
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tests/hunt-screen.mjs --mutate --shard=9/10
+
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-failure-in-page-15
+          path: |
+            tests/**/*.png
+            tests/**/*.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+  in-page-16:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Do NOT leave the token in .git/config where every later step —
+          # including npm lifecycle scripts — can read it and `git push`.
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Playwright + Chromium
+        run: |
+          npm install --no-audit --no-fund
+          npx playwright install --with-deps chromium
+
+      - name: Hunt screen mutants, shard 10 of 10 (play.html)
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tests/hunt-screen.mjs --mutate --shard=10/10
+
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-failure-in-page-16
           path: |
             tests/**/*.png
             tests/**/*.log
@@ -1031,19 +1190,13 @@ jobs:
           node tools/mutant-gate.mjs node tests/schema-drift.mjs --mutate
           node tests/schema-drift.mjs --live-selftest
 
-      # THE ABSENCE IS PRICED AT THE STATE THAT EXISTED DURING IT (Security F2/F3,
-      # 2026-09-28, docs/planning/SEC_ABSENCE_PRICED_AT_RETURN_2026-09-28.md).
-      # R5: a client-direct RPC (and a non-stamping hr_apply) on a 7.25 h-stale row
-      # is refused settle_first and writes nothing; the same claim pays once the
-      # window is settled. R4: in the world-tick harness a mid-absence tool swap
-      # prices each window at its own state and the split settle equals the tick
-      # fold. S1: both migrations re-apply byte-identically. --selftest plants a
-      # 12 h threshold and a tick that skips the version re-seed; both must go RED.
-      - name: Settle before mutate — an unpaid window refuses a priced-input write
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/settle-before-mutate.mjs
-          node tools/mutant-gate.mjs node tests/settle-before-mutate.mjs --selftest
+      # MOVED TO db-replay-2 2026-10-24: Settle before mutate, Ledger rollup, Catalogue
+      # literal drift, Live-hash drift, Apply-order honesty and Client RPCs read-only.
+      # release/v0.2.38 (run 40043808165) CANCELLED this job at its 16-min limit in the
+      # read-only step: verify 166 + schema drift 496 + those six ~290 = ~950 s, 16 min
+      # with setup. What stays: verify + schema drift = 662 s, ~11.3 min (71% of 16);
+      # db-replay-2 (4.4-6.6 min of 19 on 40034325773..40043808165) takes ~290 s:
+      # ~11.4 min worst (60%). Each step there builds the snapshot or restores it.
 
       # UTC MIDNIGHT REPLAY MOVED TO ITS OWN JOB 2026-09-19 (b550). Measured on
       # the GitHub run for ab7572e7 (branch next): this step alone cost 411 s,
@@ -1051,124 +1204,6 @@ jobs:
       # already running blew past this job's `timeout-minutes: 14` — CANCELLED
       # with no failing assertion, and eleven more steps never ran. See the
       # `utc-midnight-replay` job below for the guard and its full comment.
-
-      # THE 90-DAY LEDGER ROLLUP HAS NEVER FIRED ON PRODUCTION (first real fire ~2026-11-21).
-      # This replays the chain, seeds aged ledger rows, runs hr_ledger_prune the way cron
-      # does and asserts every currency is conserved to the unit (gold, xp in AND out, qty,
-      # gems), the prune is idempotent, no per-day ceiling moves, and takes a census of every
-      # function that reads a LIFETIME fact out of a 90-day table. --mutate plants five defects.
-      - name: Ledger rollup — a prune conserves every currency and moves no ceiling
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/ledger-rollup.mjs
-          node tools/mutant-gate.mjs node tests/ledger-rollup.mjs --mutate
-
-      # ...AND DO THE ROWS THE REBUILD PRODUCES MATCH src/data?
-      # schema-drift proves the SCHEMA replays. This is the CONTENT half, and it
-      # exists because of Security finding F2 (2026-09-13, Deep Seam review):
-      # several migrations hand-restate hr_items / hr_item_slots / hr_activities
-      # rows that src/data/*.js already owns and tools/gen-catalogues.mjs already
-      # generates. `gen-catalogues --check` compares the GENERATED file to a fresh
-      # generation and is blind to those restatements — so a rebalance of
-      # ITEMS.verdite_bar.v leaves the generated catalogue correct, --check green,
-      # and a LAST-in-chain `on conflict do update` quietly reverting a tradeable
-      # item's price on every replay or re-apply.
-      #
-      # The property asserted is the only one indifferent to which file holds the
-      # stale copy: replay the whole chain, then compare the rows the database
-      # ENDS UP WITH to the rows src/data produces, field by field.
-      #
-      # --selftest plants four defects and demands each is caught: a price literal
-      # stale in a migration only, ITEMS re-valued in src/data only, a slot pair
-      # dropped from a seeding migration, and an activity authored in src/data
-      # with no migration behind it.
-      # No credentials; production untouched.
-      - name: Catalogue literal drift — the chain end must equal src/data
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/catalogue-literal-drift.mjs
-          node tools/mutant-gate.mjs node tests/catalogue-literal-drift.mjs --selftest
-
-      # ...AND DOES PRODUCTION CARRY THE BODIES THE REPO BELIEVES IT CARRIES?
-      # schema-drift fingerprints SIGNATURES; its own header names function
-      # BODIES as blind spot (C). On 2026-08-30 the renown-faucet migration ran
-      # on production while the repo went on recording it as staged for a full
-      # day, and nothing in this repository could have said so: the platform's
-      # migration ledger is frozen (applies go through execute_sql) and the
-      # migrations' own md5 pins fire only at APPLY time — they answer "may I
-      # install?", never "what is installed right now?".
-      #
-      # This is the credential-free half. It DERIVES every hash-pinned and
-      # programmatically-patched function from supabase/migrations/** — never a
-      # hand list, which would be one migration from being wrong, and the
-      # function that fell off it is the one nobody is watching — replays the
-      # chain, and fails if the repo no longer rebuilds to the body the baseline
-      # records. --selftest plants 16 defects (a mutated live hash, a deleted
-      # baseline entry, a prod-only OVERLOAD of a hash-pinned function, a STAGED
-      # migration found applied, a truncated paste, an unexplained divergence,
-      # --write's own REVIEW placeholder left in place, two unreadable patcher
-      # idioms) and requires each to be caught by the NAMED assertion written
-      # for it, after a false-positive floor check. --mutate plants three in the
-      # REAL migration text, including a comment edited into a body after it was
-      # applied — invisible to every other guard in this repo.
-      #
-      # The PRODUCTION half (--live / --live-sql / --live-compare / --codediff)
-      # is deliberately NOT here: the repository is public and this job runs npm
-      # lifecycle scripts, so no database credential belongs in it. It is an
-      # operator ritual — run it before any migration, restore or cutover step.
-      - name: Live-hash drift — the repo's belief about deployed bodies
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/live-hash-drift.mjs
-          node tools/mutant-gate.mjs node tests/live-hash-drift.mjs --selftest
-          node tools/mutant-gate.mjs node tests/live-hash-drift.mjs --mutate
-
-      # ...AND DOES THE DEPLOYMENT RECORD AGREE WITH THAT MEASUREMENT?
-      # The step above measures what production runs. tests/schema-apply-order.json
-      # is what an OPERATOR reads to decide what still has to be run — and on
-      # 2026-09-06 its `_order_notes` said "STAGED, NOT APPLIED" for FOURTEEN
-      # migrations that were measurably live, including three whose own notes
-      # predicted the post-apply hash the baseline had already measured as the
-      # LIVE one. Both records existed; nothing compared them. An operator acting
-      # on the file would have re-applied all fourteen believing they were new;
-      # every one happened to be anchor-guarded and idempotent, so they would have
-      # failed closed — the next one might not.
-      #
-      # Credential-free by construction: it reads those two JSON files and
-      # nothing else, no replay and no database, so it costs milliseconds and can
-      # sit next to the guard whose measurements it consumes. A file is called
-      # APPLIED only when it is the LAST file in the apply order touching a
-      # tracked body that production carries — "last" because a later restatement
-      # already contains an earlier file's change, so anything short of that
-      # proves nothing and the guard stays silent rather than accusing.
-      # --selftest plants both directions (a STAGED note on a live migration, an
-      # APPLIED note on a body the baseline measured as absent), a structural
-      # drift between the two files, and two NEGATIVE CONTROLS that must stay
-      # silent.
-      - name: Apply-order honesty — the deployment record vs the measurement
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/apply-order-honesty.mjs
-          node tools/mutant-gate.mjs node tests/apply-order-honesty.mjs --selftest
-
-      # MOVED HERE FROM db-replay-2, 2026-09-26 CI REBALANCE: run 36219670449
-      # (next@94767e81) was CANCELLED at db-replay-2's own 19-min timeout
-      # (ran 19.3 min) with three prior runs at 18.5/16.2/14.7 min, while this
-      # job finished ~9.9 min against its 16-min budget. Same PGlite chain
-      # replay this job already pays for; no other job installs anything this
-      # step needs. Measured locally: 31.3 s base + 2.4 s --selftest + 34.0 s
-      # --mutate = ~68 s, moving load from the tighter job to the one with
-      # headroom without raising either budget.
-      #
-      # A CLIENT RPC DECLARED STABLE/IMMUTABLE RUNS READ ONLY UNDER POSTGREST
-      # (2026-09-26, live b553: hr_party_view wrote the rate bucket and every
-      # roster read answered 405/25006). Calls the whole class read-only.
-      - name: Client RPCs declared read-only really are (PostgREST read-only transaction)
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/readonly-rpc.mjs
-          node tools/mutant-gate.mjs node tests/readonly-rpc.mjs --selftest
-          node tools/mutant-gate.mjs node tests/readonly-rpc.mjs --mutate
 
   # ── db-replay-4 ── SPLIT OUT OF db-replay 2026-09-28 (CI-SPLIT-4, see note
   # [5] above `jobs:`). Runs 36435388338 (next@d996c262) and 36435597419
@@ -1629,6 +1664,140 @@ jobs:
         run: |
           node tests/world-tick-token-leak.mjs
           node tools/mutant-gate.mjs node tests/world-tick-token-leak.mjs --selftest
+
+      # THE ABSENCE IS PRICED AT THE STATE THAT EXISTED DURING IT (Security F2/F3,
+      # 2026-09-28, docs/planning/SEC_ABSENCE_PRICED_AT_RETURN_2026-09-28.md).
+      # R5: a client-direct RPC (and a non-stamping hr_apply) on a 7.25 h-stale row
+      # is refused settle_first and writes nothing; the same claim pays once the
+      # window is settled. R4: in the world-tick harness a mid-absence tool swap
+      # prices each window at its own state and the split settle equals the tick
+      # fold. S1: both migrations re-apply byte-identically. --selftest plants a
+      # 12 h threshold and a tick that skips the version re-seed; both must go RED.
+      - name: Settle before mutate — an unpaid window refuses a priced-input write
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/settle-before-mutate.mjs
+          node tools/mutant-gate.mjs node tests/settle-before-mutate.mjs --selftest
+
+      # THE 90-DAY LEDGER ROLLUP HAS NEVER FIRED ON PRODUCTION (first real fire ~2026-11-21).
+      # This replays the chain, seeds aged ledger rows, runs hr_ledger_prune the way cron
+      # does and asserts every currency is conserved to the unit (gold, xp in AND out, qty,
+      # gems), the prune is idempotent, no per-day ceiling moves, and takes a census of every
+      # function that reads a LIFETIME fact out of a 90-day table. --mutate plants five defects.
+      - name: Ledger rollup — a prune conserves every currency and moves no ceiling
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/ledger-rollup.mjs
+          node tools/mutant-gate.mjs node tests/ledger-rollup.mjs --mutate
+
+      # ...AND DO THE ROWS THE REBUILD PRODUCES MATCH src/data?
+      # schema-drift proves the SCHEMA replays. This is the CONTENT half, and it
+      # exists because of Security finding F2 (2026-09-13, Deep Seam review):
+      # several migrations hand-restate hr_items / hr_item_slots / hr_activities
+      # rows that src/data/*.js already owns and tools/gen-catalogues.mjs already
+      # generates. `gen-catalogues --check` compares the GENERATED file to a fresh
+      # generation and is blind to those restatements — so a rebalance of
+      # ITEMS.verdite_bar.v leaves the generated catalogue correct, --check green,
+      # and a LAST-in-chain `on conflict do update` quietly reverting a tradeable
+      # item's price on every replay or re-apply.
+      #
+      # The property asserted is the only one indifferent to which file holds the
+      # stale copy: replay the whole chain, then compare the rows the database
+      # ENDS UP WITH to the rows src/data produces, field by field.
+      #
+      # --selftest plants four defects and demands each is caught: a price literal
+      # stale in a migration only, ITEMS re-valued in src/data only, a slot pair
+      # dropped from a seeding migration, and an activity authored in src/data
+      # with no migration behind it.
+      # No credentials; production untouched.
+      - name: Catalogue literal drift — the chain end must equal src/data
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/catalogue-literal-drift.mjs
+          node tools/mutant-gate.mjs node tests/catalogue-literal-drift.mjs --selftest
+
+      # ...AND DOES PRODUCTION CARRY THE BODIES THE REPO BELIEVES IT CARRIES?
+      # schema-drift fingerprints SIGNATURES; its own header names function
+      # BODIES as blind spot (C). On 2026-08-30 the renown-faucet migration ran
+      # on production while the repo went on recording it as staged for a full
+      # day, and nothing in this repository could have said so: the platform's
+      # migration ledger is frozen (applies go through execute_sql) and the
+      # migrations' own md5 pins fire only at APPLY time — they answer "may I
+      # install?", never "what is installed right now?".
+      #
+      # This is the credential-free half. It DERIVES every hash-pinned and
+      # programmatically-patched function from supabase/migrations/** — never a
+      # hand list, which would be one migration from being wrong, and the
+      # function that fell off it is the one nobody is watching — replays the
+      # chain, and fails if the repo no longer rebuilds to the body the baseline
+      # records. --selftest plants 16 defects (a mutated live hash, a deleted
+      # baseline entry, a prod-only OVERLOAD of a hash-pinned function, a STAGED
+      # migration found applied, a truncated paste, an unexplained divergence,
+      # --write's own REVIEW placeholder left in place, two unreadable patcher
+      # idioms) and requires each to be caught by the NAMED assertion written
+      # for it, after a false-positive floor check. --mutate plants three in the
+      # REAL migration text, including a comment edited into a body after it was
+      # applied — invisible to every other guard in this repo.
+      #
+      # The PRODUCTION half (--live / --live-sql / --live-compare / --codediff)
+      # is deliberately NOT here: the repository is public and this job runs npm
+      # lifecycle scripts, so no database credential belongs in it. It is an
+      # operator ritual — run it before any migration, restore or cutover step.
+      - name: Live-hash drift — the repo's belief about deployed bodies
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/live-hash-drift.mjs
+          node tools/mutant-gate.mjs node tests/live-hash-drift.mjs --selftest
+          node tools/mutant-gate.mjs node tests/live-hash-drift.mjs --mutate
+
+      # ...AND DOES THE DEPLOYMENT RECORD AGREE WITH THAT MEASUREMENT?
+      # The step above measures what production runs. tests/schema-apply-order.json
+      # is what an OPERATOR reads to decide what still has to be run — and on
+      # 2026-09-06 its `_order_notes` said "STAGED, NOT APPLIED" for FOURTEEN
+      # migrations that were measurably live, including three whose own notes
+      # predicted the post-apply hash the baseline had already measured as the
+      # LIVE one. Both records existed; nothing compared them. An operator acting
+      # on the file would have re-applied all fourteen believing they were new;
+      # every one happened to be anchor-guarded and idempotent, so they would have
+      # failed closed — the next one might not.
+      #
+      # Credential-free by construction: it reads those two JSON files and
+      # nothing else, no replay and no database, so it costs milliseconds and can
+      # sit next to the guard whose measurements it consumes. A file is called
+      # APPLIED only when it is the LAST file in the apply order touching a
+      # tracked body that production carries — "last" because a later restatement
+      # already contains an earlier file's change, so anything short of that
+      # proves nothing and the guard stays silent rather than accusing.
+      # --selftest plants both directions (a STAGED note on a live migration, an
+      # APPLIED note on a body the baseline measured as absent), a structural
+      # drift between the two files, and two NEGATIVE CONTROLS that must stay
+      # silent.
+      - name: Apply-order honesty — the deployment record vs the measurement
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/apply-order-honesty.mjs
+          node tools/mutant-gate.mjs node tests/apply-order-honesty.mjs --selftest
+
+      # (BACK IN db-replay-2 2026-10-24, with the five steps above it: see the note
+      # where they left db-replay.) MOVED TO db-replay FROM db-replay-2, 2026-09-26 CI
+      # REBALANCE: run 36219670449
+      # (next@94767e81) was CANCELLED at db-replay-2's own 19-min timeout
+      # (ran 19.3 min) with three prior runs at 18.5/16.2/14.7 min, while this
+      # job finished ~9.9 min against its 16-min budget. Same PGlite chain
+      # replay this job already pays for; no other job installs anything this
+      # step needs. Measured locally: 31.3 s base + 2.4 s --selftest + 34.0 s
+      # --mutate = ~68 s, moving load from the tighter job to the one with
+      # headroom without raising either budget.
+      #
+      # A CLIENT RPC DECLARED STABLE/IMMUTABLE RUNS READ ONLY UNDER POSTGREST
+      # (2026-09-26, live b553: hr_party_view wrote the rate bucket and every
+      # roster read answered 405/25006). Calls the whole class read-only.
+      - name: Client RPCs declared read-only really are (PostgREST read-only transaction)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/readonly-rpc.mjs
+          node tools/mutant-gate.mjs node tests/readonly-rpc.mjs --selftest
+          node tools/mutant-gate.mjs node tests/readonly-rpc.mjs --mutate
 
   # ── db-replay-3 ── SPLIT OUT OF db-replay-2 2026-09-26 (CI-SPLIT-2, see the
   # note above db-replay-2 for the two cancelled runs that forced it). Same
@@ -2359,6 +2528,13 @@ jobs:
           node tests/world-tick-token-failclosed.mjs
           node tools/mutant-gate.mjs node tests/world-tick-token-failclosed.mjs --selftest
 
+      # MOVED HERE FROM db-replay-7 2026-10-24: db-replay-7 ran 25.1-33.0 min of its 43
+      # (77%) on runs 40034325773..40043808165, this proof 200-274 s of it; this job ran
+      # 4.7-5.9 min of 20. db-replay-7 ~28.4 min worst (66%), this job ~10.5 (53%).
+      - name: Goal counters — mutation proof
+        if: ${{ !cancelled() }}
+        run: node tools/mutant-gate.mjs node tests/goal-counters.mjs --mutate
+
   # ── db-replay-6 / db-replay-7 ── MUTATION PROOFS NOTHING RAN (2026-10-07,
   # lane b564-hollow-mutants). Thirteen guards' plain bodies run in the in-page
   # job (tests/run-smoke.mjs), but their --mutate/--selftest proofs were wired
@@ -2525,6 +2701,12 @@ jobs:
           node tests/chat-broadcast.mjs
           node tools/mutant-gate.mjs node tests/chat-broadcast.mjs --mutate
 
+      # UTC MIDNIGHT REPLAY, SHARD 2 of 2 (2026-10-24; shard 1 and the --selftest are the
+      # utc-midnight-replay job, see there). Its arms set HR_PGLITE_CACHE=0 themselves.
+      - name: UTC midnight replay, shard 2 of 2 — the chain applies at every second of the day
+        if: ${{ !cancelled() }}
+        run: node tests/utc-midnight-replay.mjs --shard=2/2
+
   # db-replay-7 (same origin as db-replay-6, above). MEASURED locally
   # 2026-10-07: intent-mismatch 123 + goal-counters 117 + goal-gold-retune 56
   # + cron-health 33 + artisan-progress-model 25 + companion-grant-hardening 24
@@ -2566,9 +2748,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: node tools/mutant-gate.mjs node tests/intent-mismatch.mjs --selftest
 
-      - name: Goal counters — mutation proof
-        if: ${{ !cancelled() }}
-        run: node tools/mutant-gate.mjs node tests/goal-counters.mjs --mutate
+      # (Goal counters — mutation proof moved to db-replay-5 2026-10-24: see the note there.)
 
       - name: Cron health — mutation proof
         if: ${{ !cancelled() }}
@@ -2872,6 +3052,19 @@ jobs:
       - name: Artisan accrual — mutation proof (22 mutants, clean baseline first)
         run: node tools/mutant-gate.mjs node tests/artisan-accrual.mjs --selftest
 
+      # MOVED HERE FROM client-guards 2026-10-24: client-guards ran 20.3-20.9 min of
+      # its 24 (87%) on runs 40034325773..40043808165, this step 500-546 s of it; this
+      # job ran 2.7-3.6 min of 56. Node only, no browser, no database: any job serves.
+      # client-guards ~11.8 min (49%), this job ~12.7 min (23%).
+      # The live view (option B, 2026-10-19): the browser's swings are the server's (determinism over
+      # commits and seed refreshes, solo and party), loot is not foreseeable from what the browser
+      # holds, a divergence eases back, and a melee hero holds its tile like the sim's.
+      - name: Hunt live view
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/hunt-live.mjs
+          node tools/mutant-gate.mjs node tests/hunt-live.mjs --mutate
+
   # ── utc-midnight-replay ── SPLIT OUT OF db-replay 2026-09-19 (b550). The
   # GitHub run on ab7572e7 (branch next) measured db-replay's own steps: PGlite
   # snapshot cache 46 s, schema drift 73 s, THIS GUARD 411 s, ledger rollup
@@ -2913,10 +3106,14 @@ jobs:
       # through hr_utc_day_start(now()), so just after midnight they landed in
       # yesterday and the chain refused to apply. The guard parks the clock around the
       # boundary (in the fixture's own clock) and replays; --selftest proves it bites.
+      # SHARDED 2026-10-24: 14 replays of ~40 s plus the control were 577 s of this job's
+      # 12.1-12.2 min (87% of 14) on runs 40034325773 / 40038892149. --shard=1/2 runs the
+      # control and every 2nd arm (~330 s), --shard=2/2 (db-replay-6) the rest: ~8.5 min
+      # here with the --selftest (61%), db-replay-6 9.3 -> ~14.8 min of 25 (59%).
       - name: UTC midnight replay — the chain applies at every second of the day
         if: ${{ !cancelled() }}
         run: |
-          node tests/utc-midnight-replay.mjs
+          node tests/utc-midnight-replay.mjs --shard=1/2
           node tools/mutant-gate.mjs node tests/utc-midnight-replay.mjs --selftest
 
   # ── economy-selftests ── THE MUTATION HARNESSES. Twenty guards that each plant
@@ -4381,14 +4578,7 @@ jobs:
           node tests/hunt-scene-live.mjs --node
           node tools/mutant-gate.mjs node tests/hunt-scene-live.mjs --mutate
 
-      # The live view (option B, 2026-10-19): the browser's swings are the server's (determinism over
-      # commits and seed refreshes, solo and party), loot is not foreseeable from what the browser
-      # holds, a divergence eases back, and a melee hero holds its tile like the sim's.
-      - name: Hunt live view
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/hunt-live.mjs
-          node tools/mutant-gate.mjs node tests/hunt-live.mjs --mutate
+      # (Hunt live view moved to artisan-selftest 2026-10-24: see the note there.)
 
       - name: Client intent surface
         if: ${{ !cancelled() }}

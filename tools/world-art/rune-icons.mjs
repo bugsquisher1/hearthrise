@@ -26,6 +26,7 @@ import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { decodePNG, encodePNG } from './png.mjs';
+import { isMain } from '../../tests/_is-main.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const DIR = join(ROOT, 'assets', 'icons-bundle', 'pixel', 'items');
@@ -101,4 +102,4 @@ async function main() {
   if (check) { console.log(stale ? 'rune-icons --check: ' + stale + ' stale' : 'rune-icons --check: every tier icon is fresh'); process.exit(stale ? 1 : 0); }
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]).href) main().catch((e) => { console.error(e.message); process.exit(2); });
+if (isMain(import.meta.url)) main().catch((e) => { console.error(e.message); process.exit(2); });

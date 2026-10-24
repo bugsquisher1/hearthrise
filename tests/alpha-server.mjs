@@ -124,8 +124,13 @@ const ARMS = {
       if (!sold && (X.CAT.GOLD_OFFERS[r.offer_id] || X.CAT.OFFER_REFUSALS[r.offer_id] !== 'supplies_not_sold')) p.push(`${r.offer_id}: a supply is sold by shop_buy`);
       /* One item, one price: no other authored offer sells a tool or gear piece (the legacy equip.* rows it replaced are gone). */
       if (sold) for (const o of X.SHOPS.SHOP_OFFERS) if (o.id !== r.offer_id && (o.grant || []).some((g) => g.kind === 'item' && g.id === r.item_id)) p.push(`${r.item_id}: also sold by ${o.id}`);
+      /* The vendor never pays more than half what the Shop SELLS an item for (no buy-then-sell loop). A supply is never
+         sold (supplies_not_sold, above: a store shot is bought and spent per use, never held), so its row is only the
+         vendor's cap, half its price floored at 1 (catalogue.js vendorPriceOf: a crafted arrow is worth something),
+         which at the 1 g store shot (designer 2026-10-23) is the price itself. */
       const bid = X.CAT.vendorPriceOf(M.ITEMS, r.item_id);
-      if (bid * 2 > Number(r.price)) p.push(`${r.item_id}: the vendor bids ${bid}, more than half its shop price ${r.price}`);
+      const cap = sold ? Number(r.price) / 2 : Math.max(1, Math.floor(Number(r.price) * X.CAT.SHOP_BUYBACK_RATE));
+      if (bid > cap) p.push(`${r.item_id}: the vendor bids ${bid}, more than ${sold ? 'half its shop price' : 'its cap at the store price'} ${r.price}`);
       const sqlBid = await H.one(db, 'select unit from public.hr_hunt_vendor_value where item_id = $1', [r.item_id]);
       if (sqlBid != null && Number(sqlBid) !== bid) p.push(`${r.item_id}: SQL vendor bid ${sqlBid} vs edge ${bid}`);
     }

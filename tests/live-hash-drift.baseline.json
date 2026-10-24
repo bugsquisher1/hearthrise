@@ -24,10 +24,10 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-10-24",
- "replay_ms": 2710,
+ "replay_ms": 2709,
  "counts": {
   "tracked_names": 655,
-  "entries": 512
+  "entries": 510
  },
  "functions": [
   {
@@ -10366,17 +10366,18 @@
     "2026-10-27-core-bodies.sql",
     "2026-11-27-account-depot.sql",
     "2026-12-14-shared-farm.sql",
-    "2026-12-15-account-gold.sql"
+    "2026-12-15-account-gold.sql",
+    "2027-01-18-dead-surfaces-cut.sql"
    ],
    "live": {
-    "md5": "93c489717c26fa67a36b382b8650cf27",
-    "norm_len": 30955,
+    "md5": "e06577815a6965b771bf399854fb6868",
+    "norm_len": 28130,
     "measured": "2026-10-24",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "93c489717c26fa67a36b382b8650cf27",
-    "norm_len": 30955,
+    "md5": "e06577815a6965b771bf399854fb6868",
+    "norm_len": 28130,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -11845,58 +11846,6 @@
    "replay": {
     "md5": "ee501e88913a1ed1185be58dbadeda81",
     "norm_len": 1124,
-    "source": "computed-from-replay"
-   },
-   "agree": true
-  },
-  {
-   "sig": "hr_worker_assign(p_slot integer, p_uid text, p_skill text, p_target text, p_idem uuid)",
-   "name": "hr_worker_assign",
-   "tracked_by": [
-    "pin",
-    "restate"
-   ],
-   "touched_by": [
-    "2026-08-25-workers.sql",
-    "2026-09-03-intent-mismatch-class.sql",
-    "2026-09-12-hr-rejections-journal.sql"
-   ],
-   "live": {
-    "md5": "8daf82ea78a08b5aef51f2bb80602cce",
-    "norm_len": 4362,
-    "measured": "2026-10-24",
-    "source": "measured-live"
-   },
-   "replay": {
-    "md5": "8daf82ea78a08b5aef51f2bb80602cce",
-    "norm_len": 4362,
-    "source": "computed-from-replay"
-   },
-   "agree": true
-  },
-  {
-   "sig": "hr_worker_hire(p_slot integer, p_idem uuid)",
-   "name": "hr_worker_hire",
-   "tracked_by": [
-    "pin",
-    "restate"
-   ],
-   "touched_by": [
-    "2026-08-24-worker-hire-cap-read.sql",
-    "2026-08-25-workers.sql",
-    "2026-09-03-intent-mismatch-class.sql",
-    "2026-09-09-worker-hire-price.sql",
-    "2026-09-12-hr-rejections-journal.sql"
-   ],
-   "live": {
-    "md5": "d1d0d0289e01cc9cbef24aa7a57302ad",
-    "norm_len": 4069,
-    "measured": "2026-10-24",
-    "source": "measured-live"
-   },
-   "replay": {
-    "md5": "d1d0d0289e01cc9cbef24aa7a57302ad",
-    "norm_len": 4069,
     "source": "computed-from-replay"
    },
    "agree": true

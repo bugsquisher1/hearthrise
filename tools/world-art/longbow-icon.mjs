@@ -24,8 +24,9 @@
 // ════════════════════════════════════════════════════════════════════════
 import { writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { fileURLToPath } from 'node:url';
 import { createImage, encodePNG } from './png.mjs';
+import { isMain } from '../../tests/_is-main.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const DEFAULT_OUT = join(ROOT, 'assets', 'icons-bundle', 'pixel', 'items', 'longbow.png');
@@ -106,4 +107,4 @@ function main() {
   console.log('wrote ' + out);
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main();
+if (isMain(import.meta.url)) main();

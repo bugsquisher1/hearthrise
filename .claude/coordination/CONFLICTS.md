@@ -2,6 +2,12 @@
 
 _Open conflicts — code, design, asset, gameplay, architecture, integration. **Never silently resolve a meaningful conflict.** Log it, route it to the owners, resolve with evidence, then move it to Resolved._
 
+## 2026-10-24 · SYSTEMS (lane: `lane/b-gear-by-level`) → GAME DESIGNER + COORDINATOR · **every piece of gear is worn by Level**
+Tyler 10-24 ("all gear should just be hero level"; "Supplies/runes stick to skill level") is built: every equipment row names `reqSkill: 'level'` at its unchanged number (gear-tiers.js LEVEL_REQ), hr_apply reads it through hr_item_requirement_unmet (staged `2027-01-14-gear-by-level.sql`, then `2027-01-14-items-catalogue.generated.sql`).
+- **lane/d-danger's board section "C. Armour for every role"** still rules plate and shields on Defense and weapons on their style skill; Tyler's later ruling supersedes it (rulings-of-record). Designer: amend that section before it merges, or it re-states a dead rule.
+- **Hand-authored Levels kept their old skill numbers** (they were Defense / Melee / Magic / Ranged gates read off the stats): off the tier ladder are Tusker's Charm 8, Woollen Cloak and Grayjaw's Ruff 12, Wolfbone Torc 16, Fang Studs and Banded Signet 18, Packlord's Band 22, the Verdite set 38 / maul 42, the earrings 34/50/66/82, the uniques 35-95. Designer: confirm each as a Level, or re-rung them on 1/15/30/45/60/75/88.
+- **Above Level 30 the coach names no gear** (none is reachable until Pebblebrook Bank / the Rootcellar ship). That is the truth, not a bug.
+
 ## 2026-10-23 · SYSTEMS (lane: `lane/b-spell-content`, S3) → COORDINATOR + GAME DESIGNER + ASSET DIRECTOR + INTERFACE (p40) · **choices the rulings left open**
 Staged, in order: `2026-12-22-rune-catalogue.generated.sql`, `2026-12-22-rune-ladder-cut.sql`, `2026-12-22-hunt-sessions-catalogue.generated.sql`, `2026-12-22-spell-content.sql` (S1a's 12-21 pair applies first). Regenerate the two catalogues ONCE more if loot-bands (12-20) or party-leave (12-18) lands first.
 - **Default bars name the store rune only for a role's core spell** (Fireball; Greater Mend). Measured on the real settle: a store rune on every default rune slot took the Sewer floor party's net under the Thicket's (forest-cave `first-grounds-net-chain`) and the Warrens floor tank under +25% (drop-tables). Every other default rune slot casts the hero's own runes only; a NEW slot the player adds starts with the store on (bar-draft storeDefault), so Tyler's "gold per cast" holds for every slot a player builds. Designer: confirm, or retune income (p30/p31).

@@ -1,0 +1,37 @@
+{
+  "about": "PixelLab provenance for the hd64 bow/crossbow icon judging mock (2026-10-24 brief, run 2026-10-23). Raw outputs in raw/, cleaned keepers in hd64/.",
+  "balance": {
+    "before": { "generations_remaining": 5207.40, "credits_usd": 0.00 },
+    "after": { "generations_remaining": 5140.40, "credits_usd": 0.00 },
+    "spent": 67,
+    "cap": 80
+  },
+  "shared_params": {
+    "tool": "create_image_pro_flash",
+    "size": [64, 64],
+    "no_background": true,
+    "palette": "hr-world-56-v2 (art/world/palette.json, all 56 colours passed as the palette)",
+    "style_image": "upload of art/world/sandbox64/sandbox_barrel.png (32x63, the sandbox's own s1 Pro Flash art)",
+    "style_usage": "Copy only how this barrel is rendered: its wood-grain texture, shading tones, single dark outline and colours. Do not copy its shape or its size; the new item is drawn bigger.",
+    "style_options": { "color_palette": true, "detail": true, "outline": true, "shading": true },
+    "prompt_tail_bows": "No arrow, no stock, no crossbow parts. The bow is drawn big and lies on the diagonal from the top-right corner to the bottom-left corner, filling most of the canvas. Clean shading in a few tones per material, visible wood grain, single dark outline, lit from the upper left, no background, no shadow, classic MMORPG item icon.",
+    "prompt_tail_crossbows": "Clearly a crossbow with a stock. No arrow loaded. Drawn big, filling most of the canvas. Clean shading in a few tones per material, visible wood grain, single dark outline, lit from the upper left, no background, no shadow, classic MMORPG item icon."
+  },
+  "jobs": [
+    { "item": "longbow", "job_id": "0c673885-f87d-4732-9c84-e8224249d3c2", "image_id": "74a64d68-6d11-5f01-88f1-b6eee001b282", "seed": 2401, "cost": 5, "result": "KEPT", "subject": "plain oak stave, leather-wrapped grip, pale linen string" },
+    { "item": "longbow (pilot B)", "job_id": "5ae56c52-1948-4a91-bc80-7874b63860d7", "image_id": "9bf4aca0-f0fc-59dd-b791-c0512e8bb3e3", "seed": 2402, "cost": 5, "result": "rejected: the sandbox's size-reference method (style_image = today's 32 px longbow x2, detail off) kept the old silhouette, so the bow came out vertical, 14x52, filling a fifth of the canvas", "subject": "same text as longbow" },
+    { "item": "shortbow", "job_id": "016833a6-f493-4cf7-8015-0b594037b6ce", "image_id": "fa28b957-26c7-5159-a395-06fe6cc42aff", "seed": 2401, "cost": 5, "result": "KEPT", "subject": "short stubby C-curve, pale ash, hemp cord grip, hemp string" },
+    { "item": "maple_bow", "job_id": "81097aed-af5b-4533-8464-046432a523e5", "image_id": "c1966483-6a04-52e6-925b-2bc282eec280", "seed": 2401, "cost": 5, "result": "KEPT", "subject": "red-stained maple, dark leather grip, pale horn tips" },
+    { "item": "yew_bow", "job_id": "c4225871-337a-42d8-9a64-5d71d6b361a1", "image_id": "df8090bf-7723-53ad-a598-71c3bde3a2db", "seed": 2401, "cost": 5, "result": "KEPT", "subject": "two-tone yew (golden sapwood, orange-brown heartwood), bronze-wire grip, bone nocks" },
+    { "item": "runewood_bow", "job_id": "8c3adc2b-6811-4c75-a308-09cff4cf56d7", "image_id": "04dd0066-c8f3-5b78-b67e-4fdf846e9f1a", "seed": 2401, "cost": 5, "result": "KEPT", "subject": "dark runewood, glowing frost-blue runes, steel-banded grip, steel tips" },
+    { "item": "duskwood_bow (r1)", "job_id": "9cf07e9a-4448-4a12-8c34-36b4dc471f86", "image_id": "5d50265e-5564-5270-b26c-11c80aa55bab", "seed": 2401, "cost": 5, "result": "rejected: string broken in the middle; the near-black limbs vanish on the charcoal pocket", "subject": "near-black duskwood recurve, gold inlay, gold-wire grip, gold caps" },
+    { "item": "duskwood_bow (r2)", "job_id": "8cdefee4-bdf5-4c38-9710-3cf3c4dba735", "image_id": "348b1b48-c970-5aa4-aeec-2b80abcf0091", "seed": 2403, "cost": 5, "result": "KEPT after cleanup: the model drew no string, so a 1 px #aaa49a string was drawn tip to tip (5,58)-(59,4) on transparent pixels", "subject": "r1 text + silver-grey rim highlights + 'one continuous unbroken pale string'" },
+    { "item": "alphaheart_longbow", "job_id": "4b8878a5-e422-4b9e-afa8-00fc1f940e8b", "image_id": "bddd6228-3f39-576a-a46c-fc7a549680fb", "seed": 2401, "cost": 5, "result": "KEPT", "subject": "bone-white ash, wolf-fur grip with one jutting fang, blood-red bindings, dark red string" },
+    { "item": "practice_crossbow", "job_id": "7af5a398-866c-46d2-80e4-1bee0ffaecf9", "image_id": "26e1cca5-3c84-5cfa-85db-a21512da523a", "seed": 2410, "cost": 5, "result": "KEPT", "subject": "small plain pine stock, wooden bow arm lashed with rope, no metal" },
+    { "item": "oak_crossbow", "job_id": "1edf6a4c-9dd2-404f-8d49-23353c12594a", "image_id": "ddefcdb9-6840-5b77-b39e-da3341782141", "seed": 2410, "cost": 5, "result": "KEPT", "subject": "heavy dark oak stock, dark iron prod bound with iron bands, iron trigger" },
+    { "item": "willow_crossbow", "job_id": "0f97aa5e-646e-47f4-9692-80c3c7b946ed", "image_id": "c585479d-2323-59a9-b56d-3530a36820ac", "seed": 2410, "cost": 5, "result": "KEPT", "subject": "polished willow stock, bright steel prod, brass bands and trigger, steel foot stirrup" },
+    { "item": "experiment: pixflux longbow", "tool": "create_image_pixflux", "job_id": "ac7fc3ee-79a5-4afe-bcb0-8704ed083ae0", "asset_id": "a8873e5d-47ca-5f32-9301-017087765667", "seed": 2401, "cost": 1, "result": "failed: drew a plain stick with no string (the 1-generation route does not follow the prompt for this subject)", "params": "64x64, no_background, forced palette from a 56x1 strip, single color black outline, medium shading, highly detailed, side view" },
+    { "item": "experiment: 2x2 sheet", "tool": "create_image_pro_flash", "job_id": "92fd252c-2014-444a-a028-cc226eac5ad0", "image_id": "a5f4c9e6-4800-55fa-abb8-c9635ca6a866", "size": [128, 128], "seed": 2420, "cost": 6, "result": "worked first try: longbow, yew bow, oak crossbow and willow crossbow, one per 64x64 quarter, none touching (1.5 generations per icon). Slightly thinner and less shaded than the single-icon calls; one sample, not a verdict" }
+  ],
+  "workbench": "pixelart_workbench score on the cleaned hd64/longbow.png: 87.5 (colors 18; worst: singletons -12, banding -0.54). A tool reading, not a quality verdict."
+}

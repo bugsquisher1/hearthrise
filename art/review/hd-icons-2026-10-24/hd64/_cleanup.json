@@ -1,0 +1,112 @@
+{
+ "longbow": {
+  "source": "longbow_A_0c673885.png",
+  "snapped_px": 0,
+  "outline_px_added": 167,
+  "colours": 18,
+  "bbox": [
+   62,
+   64
+  ],
+  "fill_pct": 100
+ },
+ "shortbow": {
+  "source": "shortbow_016833a6.png",
+  "snapped_px": 0,
+  "outline_px_added": 105,
+  "colours": 19,
+  "bbox": [
+   48,
+   62
+  ],
+  "fill_pct": 97
+ },
+ "maple_bow": {
+  "source": "maple_bow_81097aed.png",
+  "snapped_px": 0,
+  "outline_px_added": 114,
+  "colours": 18,
+  "bbox": [
+   61,
+   63
+  ],
+  "fill_pct": 98
+ },
+ "yew_bow": {
+  "source": "yew_bow_c4225871.png",
+  "snapped_px": 0,
+  "outline_px_added": 103,
+  "colours": 19,
+  "bbox": [
+   61,
+   63
+  ],
+  "fill_pct": 98
+ },
+ "runewood_bow": {
+  "source": "runewood_bow_8c3adc2b.png",
+  "snapped_px": 0,
+  "outline_px_added": 160,
+  "colours": 13,
+  "bbox": [
+   64,
+   64
+  ],
+  "fill_pct": 100
+ },
+ "duskwood_bow": {
+  "source": "duskwood_bow_r2_8cdefee4.png",
+  "snapped_px": 0,
+  "outline_px_added": 103,
+  "colours": 15,
+  "bbox": [
+   64,
+   64
+  ],
+  "fill_pct": 100
+ },
+ "alphaheart_longbow": {
+  "source": "alphaheart_longbow_4b8878a5.png",
+  "snapped_px": 0,
+  "outline_px_added": 75,
+  "colours": 17,
+  "bbox": [
+   62,
+   64
+  ],
+  "fill_pct": 100
+ },
+ "practice_crossbow": {
+  "source": "practice_crossbow_7af5a398.png",
+  "snapped_px": 0,
+  "outline_px_added": 114,
+  "colours": 13,
+  "bbox": [
+   60,
+   60
+  ],
+  "fill_pct": 94
+ },
+ "oak_crossbow": {
+  "source": "oak_crossbow_1edf6a4c.png",
+  "snapped_px": 0,
+  "outline_px_added": 76,
+  "colours": 32,
+  "bbox": [
+   61,
+   63
+  ],
+  "fill_pct": 98
+ },
+ "willow_crossbow": {
+  "source": "willow_crossbow_0f97aa5e.png",
+  "snapped_px": 0,
+  "outline_px_added": 129,
+  "colours": 27,
+  "bbox": [
+   63,
+   63
+  ],
+  "fill_pct": 98
+ }
+}

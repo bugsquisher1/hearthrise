@@ -17,7 +17,7 @@
 import { refusalWords } from '../intent-words.js?v=0.2.43';
 import { huntName } from '../../session/party-sections.js?v=0.2.43';
 import { menuProvidersOf } from '../menu-providers.js?v=0.2.43';
-import { entriesFor } from '../context-menu.js?v=0.2.43';
+import { entriesFor, markPlayer, playerTargetOf } from '../context-menu.js?v=0.2.43';
 import { blocksHtml, patchBlocks, actBlocks } from './block-list.js?v=0.2.43';
 import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.43';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.43';
@@ -41,7 +41,13 @@ export function renderFriends() {
     + '<h3 class="hs-sub hf-head is-out">Your asks</h3><ul class="hf-list is-out"></ul>' + blocksHtml() + '</div>';
 }
 
-const personAttrs = (p) => ' data-hs-player data-hs-player-id="' + esc(p.id) + '" data-hs-player-name="' + esc(p.name) + '"';
+/* A row names ONE hero (the server's person: the account's current character and its slot). The name, the menu's
+   target and its slot are patched on every paint, so a rename or a switch of heroes shows at the next read. */
+const target = (p) => ({ kind: 'player', id: p.id, name: p.name, slot: Number.isInteger(p.slot) ? p.slot : null });
+function patchPerson(el, p) {
+  markPlayer(el, target(p));
+  text(el.querySelector('.hf-who'), p.name);
+}
 
 renderFriends.patch = function patchFriends(body, ctx) {
   const st = stateOf(body);
@@ -51,14 +57,14 @@ renderFriends.patch = function patchFriends(body, ctx) {
   const f = social.friends;
   rows(body.querySelector('.hf-list.is-friends'), f.friends(), {
     key: (p) => p.id,
-    build: (p) => element(ctx.doc, '<li class="hf-row"' + personAttrs(p) + '><span class="hf-dot"></span><b class="hf-who"></b><small class="hf-doing"></small>'
+    build: () => element(ctx.doc, '<li class="hf-row"><span class="hf-dot"></span><b class="hf-who"></b><small class="hf-doing"></small>'
       + '<span class="hf-acts"><button type="button" class="hh-tool" data-hs-act="run" data-entry="message">Message</button>'
       + '<button type="button" class="hh-tool" data-hs-act="run" data-entry="party-invite">Invite to party</button></span></li>'),
     patch: (el, p) => {
-      text(el.querySelector('.hf-who'), p.name);
+      patchPerson(el, p);
       text(el.querySelector('.hf-doing'), doingWords(p));
       cls(el, 'is-online', p.online);
-      const list = entriesFor({ kind: 'player', id: p.id, name: p.name, slot: null }, menuProvidersOf(ctx));
+      const list = entriesFor(target(p), menuProvidersOf(ctx));
       for (const b of el.querySelectorAll('[data-entry]')) {
         const e = list.find((x) => x.id === b.getAttribute('data-entry'));
         /* The menu's own entry, its words and state ("Party full" off); hidden where the menu hides it. */
@@ -70,16 +76,16 @@ renderFriends.patch = function patchFriends(body, ctx) {
   });
   rows(body.querySelector('.hf-list.is-in'), f.incoming(), {
     key: (p) => p.id,
-    build: (p) => element(ctx.doc, '<li class="hf-row"' + personAttrs(p) + '><b class="hf-who">' + esc(p.name) + '</b><span class="hf-acts">'
+    build: (p) => element(ctx.doc, '<li class="hf-row"><b class="hf-who"></b><span class="hf-acts">'
       + '<button type="button" class="hh-tool" data-hs-act="accept" data-id="' + esc(p.id) + '">Accept</button>'
       + '<button type="button" class="hh-tool" data-hs-act="decline" data-id="' + esc(p.id) + '">Decline</button></span></li>'),
-    patch: (el) => { for (const b of el.querySelectorAll('button')) prop(b, 'disabled', st.pending); },
+    patch: (el, p) => { patchPerson(el, p); for (const b of el.querySelectorAll('button')) prop(b, 'disabled', st.pending); },
   });
   rows(body.querySelector('.hf-list.is-out'), f.outgoing(), {
     key: (p) => p.id,
-    build: (p) => element(ctx.doc, '<li class="hf-row"' + personAttrs(p) + '><b class="hf-who">' + esc(p.name) + '</b><small class="hf-doing">Waiting for an answer</small>'
+    build: (p) => element(ctx.doc, '<li class="hf-row"><b class="hf-who"></b><small class="hf-doing">Waiting for an answer</small>'
       + '<span class="hf-acts"><button type="button" class="hh-tool" data-hs-act="withdraw" data-id="' + esc(p.id) + '">Withdraw</button></span></li>'),
-    patch: (el) => { for (const b of el.querySelectorAll('button')) prop(b, 'disabled', st.pending); },
+    patch: (el, p) => { patchPerson(el, p); for (const b of el.querySelectorAll('button')) prop(b, 'disabled', st.pending); },
   });
   cls(body.querySelector('.hf-head.is-in'), 'is-on', f.incoming().length > 0);
   cls(body.querySelector('.hf-head.is-out'), 'is-on', f.outgoing().length > 0);
@@ -91,13 +97,18 @@ renderFriends.patch = function patchFriends(body, ctx) {
 
 renderFriends.events = Object.freeze(['keydown']);
 
+/* What the server's answer to an ask means, in words: a request back to someone who asked first ACCEPTS it
+   (hr_friend_request answers state 'friends'), so it never reads as "Asked". */
+const ASK_WORDS = Object.freeze({ requested: 'Asked. They will see it in their friends list.', friends: 'You are friends now.' });
+
 async function settle(ctx, body, st, p, done) {
   st.pending = true;
   st.msg = '';
   renderFriends.patch(body, ctx);
   const r = await p;
   st.pending = false;
-  st.msg = r && r.ok === false ? refusalWords(r.error) : r && typeof r.say === 'string' ? r.say : done || '';
+  st.msg = r && r.ok === false ? refusalWords(r.error) : r && typeof r.say === 'string' ? r.say
+    : typeof done === 'function' ? done(r) || '' : done || '';
   renderFriends.patch(body, ctx);
 }
 
@@ -105,13 +116,14 @@ renderFriends.act = function actFriends(ctx, body, action, ev, t) {
   const st = stateOf(body);
   const social = ctx.account && ctx.account.social;
   if (!social || st.pending) return false;
-  if (actBlocks(ctx, body, action, ev, t)) return true;
+  /* Unblock: ONE hr_block_set; its refusal reads on this window's line. */
+  if (action === 'unblock' && ev.type === 'click') { settle(ctx, body, st, actBlocks(ctx, body, t), ''); return true; }
   const ask = () => {
     const field = body.querySelector('.hf-name');
     const name = field.value.trim();
     if (!name) { st.msg = 'Type a name first.'; renderFriends.patch(body, ctx); return; }
     settle(ctx, body, st, social.friends.request(name).then((r) => { if (r.ok) field.value = ''; return r; }),
-      'Asked. They will see it in their friends list.');
+      (r) => ASK_WORDS[r && r.state] || ASK_WORDS.requested);
   };
   if (action === 'ask-name') { if (ev.type === 'keydown' && ev.key === 'Enter') { ask(); return true; } return false; }
   if (ev.type !== 'click') return false;
@@ -121,10 +133,10 @@ renderFriends.act = function actFriends(ctx, body, action, ev, t) {
   else if (action === 'decline') settle(ctx, body, st, social.friends.answer(id, false), '');
   else if (action === 'withdraw') settle(ctx, body, st, social.friends.remove(id), '');
   else if (action === 'run') {
-    const row = t.closest('[data-hs-player]');
-    const target = { kind: 'player', id: row.getAttribute('data-hs-player-id'), name: row.getAttribute('data-hs-player-name'), slot: null };
-    const e = entriesFor(target, menuProvidersOf(ctx)).find((x) => x.id === t.getAttribute('data-entry'));
-    if (e) settle(ctx, body, st, Promise.resolve(e.run(target, { open: (w) => ctx.show(w) })), '');
+    /* The row's own hero (its patched name and slot), exactly the target its right-click menu gets. */
+    const who = playerTargetOf(t);
+    const e = who && entriesFor(who, menuProvidersOf(ctx)).find((x) => x.id === t.getAttribute('data-entry'));
+    if (e) settle(ctx, body, st, Promise.resolve(e.run(who, { open: (w) => ctx.show(w) })), '');
   } else return false;
   return true;
 };

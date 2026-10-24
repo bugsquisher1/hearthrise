@@ -23,15 +23,15 @@
 // Built once, patched in place; every control is off while an intent is in
 // flight, and changes show only from the re-read envelope.
 // ════════════════════════════════════════════════════════════════════════
-import { presetsOf } from '../../session/item-sections.js?v=0.2.43';
-import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.43';
-import { runIntent } from '../intent-words.js?v=0.2.43';
-import { readinessOf, readinessLine } from '../readiness.js?v=0.2.43';
-import { settingsOf, huntOf } from '../../session/hunt-sections.js?v=0.2.43';
-import { ACTION_SET_LIMITS } from '../../data/rule-subjects.js?v=0.2.43';
-import { renameSetup, deleteSetup } from '../../session/preset-intents.js?v=0.2.43';
-import { nameEditorHtml, openNameEditor, nameKey } from '../inline-name.js?v=0.2.43';
-import { settleTownActivity } from '../../session/party-intents.js?v=0.2.43';
+import { presetsOf } from '../../session/item-sections.js?v=0.2.44';
+import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.44';
+import { runIntent } from '../intent-words.js?v=0.2.44';
+import { readinessOf, readinessLine } from '../readiness.js?v=0.2.44';
+import { settingsOf, huntOf } from '../../session/hunt-sections.js?v=0.2.44';
+import { ACTION_SET_LIMITS } from '../../data/rule-subjects.js?v=0.2.44';
+import { renameSetup, deleteSetup } from '../../session/preset-intents.js?v=0.2.44';
+import { nameEditorHtml, openNameEditor, nameKey } from '../inline-name.js?v=0.2.44';
+import { settleTownActivity } from '../../session/party-intents.js?v=0.2.44';
 
 const MAX_PRESETS = ACTION_SET_LIMITS.presets;
 const SCRATCH = new WeakMap();

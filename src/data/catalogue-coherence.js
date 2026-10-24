@@ -29,22 +29,22 @@
 // PURE ESM. No DOM. Imports cleanly in Node, Deno and the browser.
 // ============================================================
 
-import { ITEMS } from './items.js?v=0.2.43';
-import { ARTISAN_RECIPES } from './recipes.js?v=0.2.43';
-import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=0.2.43';
-import { SKILLS_DEF } from './skills.js?v=0.2.43';
-import { SHOP_OFFERS } from './shops.js?v=0.2.43';
-import { SHOP_LISTED_OFFER_IDS } from './supply-basics.js?v=0.2.43';
-import { START_INVENTORY, START_EQUIPMENT } from './start-kit.js?v=0.2.43';
-import { PREMIUM_LOGIN_REWARD } from './premium.js?v=0.2.43';
-import { HEARTHFIND_ITEMS, HEARTHFIND_TABLE } from './hearthfind.js?v=0.2.43';
-import { EFFECT_KINDS } from './item-effects.js?v=0.2.43';
-import { MONSTERS } from './monsters.js?v=0.2.43';
-import { HUNT_GROUNDS, OPEN_GROUNDS } from './hunt-grounds.js?v=0.2.43';
-import { HUNT_INDEX } from './hunts.js?v=0.2.43';
+import { ITEMS } from './items.js?v=0.2.44';
+import { ARTISAN_RECIPES } from './recipes.js?v=0.2.44';
+import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=0.2.44';
+import { SKILLS_DEF } from './skills.js?v=0.2.44';
+import { SHOP_OFFERS } from './shops.js?v=0.2.44';
+import { SHOP_LISTED_OFFER_IDS } from './supply-basics.js?v=0.2.44';
+import { START_INVENTORY, START_EQUIPMENT } from './start-kit.js?v=0.2.44';
+import { PREMIUM_LOGIN_REWARD } from './premium.js?v=0.2.44';
+import { HEARTHFIND_ITEMS, HEARTHFIND_TABLE } from './hearthfind.js?v=0.2.44';
+import { EFFECT_KINDS } from './item-effects.js?v=0.2.44';
+import { MONSTERS } from './monsters.js?v=0.2.44';
+import { HUNT_GROUNDS, OPEN_GROUNDS } from './hunt-grounds.js?v=0.2.44';
+import { HUNT_INDEX } from './hunts.js?v=0.2.44';
 import {
   gatherProductIds, cropProductIds, seedIds, combatDropIds, artisanOutputIds,
-} from './item-authority.js?v=0.2.43';
+} from './item-authority.js?v=0.2.44';
 
 /* The data identities this module reads, re-exported so a Node guard can mutate
    the SAME objects (a bare import without the ?v= query is a second module

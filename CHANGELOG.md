@@ -5,6 +5,18 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.44 — 2026-10-24 (Friends and phones)
+
+**Add friends by their hero's name.** Typing a hero's name in Friends finds them now, in any mix of capitals and spaces. It used to say "No player by that name." even when the hero existed.
+
+**Every name is the hero you're talking to.** Your friends list, whispers and inspect show the hero your friend is playing right now, and typing a hero's name opens that hero's gear. Chat, whispers, friends and your block list all update when a hero is renamed. Asking someone who already asked you now says "You are friends now."
+
+**Better on phones.** The action setup list scrolls and its Save button stays on screen. Hunt details has its own close button and no longer covers Leave hunt. Buttons, settings rows and checkboxes are bigger to tap, tooltips fit on the screen, and holding your phone upright asks you to turn it sideways.
+
+**A clearer first hour.** Each tutorial step puts a gold ring on the real button to press. Heroes hunting alone skip the party step, the town steps teach planting, cooking and Tamsin's tasks, and Enter closes the Hunts page so you can see the next step.
+
+**Smaller fixes.** A refused unblock now says why.
+
 ## v0.2.43 — 2026-10-24 (Gear by Level)
 
 **Gear needs only your Level.** Every piece of armor, every shield, weapon and piece of jewelry now asks for your hero's Level, never a skill. A mage or ranger can wear their upgrades without tanking for Defense first. Runes, ammo, food and drinks still ask for their skill.

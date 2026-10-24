@@ -12,13 +12,13 @@
 // the hero's hunt open the button is off and the line says so (gear-gate.js):
 // the engine refuses every equip mid-hunt.
 // ════════════════════════════════════════════════════════════════════════
-import { bagOf, equipmentOf, skillsOf } from '../../session/item-sections.js?v=0.2.43';
-import { levelOf } from '../../session/character-sections.js?v=0.2.43';
-import { text, cls, prop, attr } from '../../render/paint.js?v=0.2.43';
-import { runIntent } from '../intent-words.js?v=0.2.43';
-import { upgradePlan, upgradeWords } from '../upgrade-plan.js?v=0.2.43';
-import { gearLocked, GEAR_HUNT_WORDS } from '../gear-gate.js?v=0.2.43';
-import { whyLine } from './why-line.js?v=0.2.43';
+import { bagOf, equipmentOf, skillsOf } from '../../session/item-sections.js?v=0.2.44';
+import { levelOf } from '../../session/character-sections.js?v=0.2.44';
+import { text, cls, prop, attr } from '../../render/paint.js?v=0.2.44';
+import { runIntent } from '../intent-words.js?v=0.2.44';
+import { upgradePlan, upgradeWords } from '../upgrade-plan.js?v=0.2.44';
+import { gearLocked, GEAR_HUNT_WORDS } from '../gear-gate.js?v=0.2.44';
+import { whyLine } from './why-line.js?v=0.2.44';
 
 /** This character's plan, from what the server sent (empty `ops` when nothing is better). */
 export function upgradeOf(cs) {

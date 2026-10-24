@@ -55,19 +55,19 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_INDEX } from './hunts.js?v=0.2.43';
-import { HUNT_GROUNDS } from './hunt-grounds.js?v=0.2.43';
-import { END_ORDER } from './hunt-sessions.js?v=0.2.43';
-import { nextUnlock } from './skill-unlocks.js?v=0.2.43';
-import { SKILLS_DEF } from './skills.js?v=0.2.43';
-import { CROPS } from './gathering.js?v=0.2.43';
-import { tallyTask } from './tally-tasks.js?v=0.2.43';
-import { ITEMS } from './items.js?v=0.2.43';
-import { BASIC_INDEX } from './supply-basics.js?v=0.2.43';
-import { LEVEL_REQ } from './gear-tiers.js?v=0.2.43';
-import { roleWeaponOf, WEAPON_ROLES, SHIELD_ARM } from './hunt-roles.js?v=0.2.43';
-import { isShield } from './shields.js?v=0.2.43';
-import { deriveProfile } from '../core/member.js?v=0.2.43';
+import { HUNT_INDEX } from './hunts.js?v=0.2.44';
+import { HUNT_GROUNDS } from './hunt-grounds.js?v=0.2.44';
+import { END_ORDER } from './hunt-sessions.js?v=0.2.44';
+import { nextUnlock } from './skill-unlocks.js?v=0.2.44';
+import { SKILLS_DEF } from './skills.js?v=0.2.44';
+import { CROPS } from './gathering.js?v=0.2.44';
+import { tallyTask } from './tally-tasks.js?v=0.2.44';
+import { ITEMS } from './items.js?v=0.2.44';
+import { BASIC_INDEX } from './supply-basics.js?v=0.2.44';
+import { LEVEL_REQ } from './gear-tiers.js?v=0.2.44';
+import { roleWeaponOf, WEAPON_ROLES, SHIELD_ARM } from './hunt-roles.js?v=0.2.44';
+import { isShield } from './shields.js?v=0.2.44';
+import { deriveProfile } from '../core/member.js?v=0.2.44';
 
 /* The surfaces a card may point at: `window` the shell window (src/data/shell-windows.js) its controls live in (the
    card shows INSIDE it while it is open), `icon` its way starts at that window's icon, and what the coach rings

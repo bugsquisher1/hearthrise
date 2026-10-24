@@ -253,6 +253,17 @@
   .hs-pointer:not(.is-min) { padding-right: calc(var(--tap) + 4px); }
   .hs-coach-min { top: 0; right: 0; width: var(--tap); height: var(--tap); }
   .hs-coach-tab { min-height: var(--tap); padding: 0 14px; }
+  /* A long card (a high Level's "What next") ends above the action bar: --coach-room is its host's foot to the bar's
+     top (shell.js roomForCoach), less the card's 12 px drop and an 8 px gap. The title and the dash stay; the words
+     scroll in their own box, which alone takes the thumb (the card lets presses through to the World). That box ends
+     half a line in (the room less the frame's 12, the padding's 10 and the title's line), so a cut line always says
+     there is more: a phone's scrollbar shows only while it scrolls. The card's own cap holds where round() or lh is
+     missing (tests/phone-touch.mjs PH-6). */
+  .hs-widget > .hs-pointer:not(.is-min), .hs-launchers > .hs-pointer:not(.is-min) { display: flex; flex-direction: column; max-height: calc(var(--coach-room) - 20px); }
+  .hs-pointer:not(.is-min) > .hs-coach-text {
+    min-height: 0; max-height: calc(round(down, var(--coach-room) - 42px - 1.5lh, 1lh) + .5lh); overflow-y: auto; overscroll-behavior: contain;
+    pointer-events: auto; scrollbar-width: thin; scrollbar-color: var(--ink-3) transparent;
+  }
   .hs-win-coach > .hs-pointer { margin: 6px 10px 0; }
   /* The sheet keeps the steel frame's spine down its left edge, a stud at each end; a phone dialog the thin frame. */
   .hs-win {

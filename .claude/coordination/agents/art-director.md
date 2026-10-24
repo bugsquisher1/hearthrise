@@ -3034,3 +3034,16 @@ scroll test: scrollIntoView also scrolls overflow:hidden boxes, so it "passes" a
 (2) overflow:hidden still scrolls when told to; on a phone it slid the whole game 102 px left. Use clip; (3) a
 fit-content flex bar ignores min-width:0 on its items; (4) the residue put is debounced 1.5 s: a reload test that
 waits less tests nothing; (5) at 375-423 px tall a HUD panel has ~150-200 px: drop the title band before the data.
+
+## 2026-10-24 — lane/a-coach-phone-cap: a long "What next" ran over the phone action bar
+The Coordinator's visual gate (Level 29 mage, 844x390): the coach hung 12 px under the hunt bar with no height cap,
+so a high Level's goal list (Defense, harvest, next ground, next gear, next Magic unlock) ran 188-236 px over HP / XP /
+MP. Same class in town (the card under the icon row). Fix: shell.js roomForCoach measures each coach host's foot to the
+action bar's top (--coach-room, after every repaint and resize); on the phone query the card caps to it and its words
+scroll in their own box (.hs-coach-text, takes the thumb) under the title and the fold. PH-6 + 6 mutants.
+Lessons: (1) fixture shots with short copy hide every height bug: a coach/tooltip test needs the LONGEST real text a
+hero can get (built from data: Level, role, skills, land), not the fixture's; (2) a box that scrolls on a phone shows
+no scrollbar until it moves: end the visible words part-way into a line (round(down, ..., 1lh) + .5lh) so the cut says
+"more" (at 922x423 the first cap landed on a whole line and read as the end); (3) Playwright headless hides scrollbars,
+so a shot never proves a scroll cue: assert it (PH-6's line-fraction check); (4) a fallback cap that the tighter rule
+always beats cannot have its own mutant: mutate both together and say so beside the mutant.

@@ -4,10 +4,11 @@
 //
 //   node tests/phone-touch.mjs                the rules
 //   node tests/phone-touch.mjs --mutate       every planted defect must turn a rule RED
+//   node tests/phone-touch.mjs --only PH-6    one rule's pages alone (with --shots, that rule's shots alone)
 //   node tests/phone-touch.mjs --shots <dir>  also write the visual-gate screenshots (667x375, 844x390,
 //                                             922x423, portrait 390x844 and desktop 1440x900, fonts loaded)
 //
-// mutant-anchors: src/styles/hunt.css src/styles/windows.css src/styles/shell.css src/styles/app.css play.html src/shell/windows/configure-action.js src/shell/widgets/hunt-topbar.js src/shell/widgets/analyzer.js src/shell/windows/settings.js src/data/hud-widgets.js
+// mutant-anchors: src/styles/hunt.css src/styles/windows.css src/styles/shell.css src/styles/app.css src/shell/shell.js play.html src/shell/windows/configure-action.js src/shell/widgets/hunt-topbar.js src/shell/widgets/analyzer.js src/shell/windows/settings.js src/data/hud-widgets.js
 // mutant-writes-tree: no — page mutants are served overrides
 //
 // QA's phone playtest (2026-10-24) scored mobile 4/10. play.html with supabase-js and the REST paths stubbed
@@ -32,6 +33,10 @@
 //   PH-5 TOUCH TARGETS (844x390): the Shop's Buy, the hunt bar's buttons and the analyzer's tabs are >= 40 px
 //        tall; an item's tooltip fits the screen whole (nothing cut off); with a long bag, the picked item's
 //        Equip is on screen and pressable without scrolling
+//   PH-6 A LONG COACH ENDS ABOVE THE ACTION BAR (667x375, 844x390, 922x423; under the hunt bar and under the icon
+//        row in town): a high Level's "What next" card ends above the bar's top and on screen; its words end part-way
+//        into a line (the cue they scroll) and scroll to their end under a wheel over them while its fold stays on
+//        screen, pressable, and folds it. At 1440x900 the card is never capped
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
 import { leaseBrowser } from './_chrome.mjs';
@@ -46,6 +51,7 @@ const ALPHA = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/alpha-envelop
 /* The scene plays huntPlaybackDelayMs behind the server (src/session/config.js), as tests/hunt-screen.mjs states it. */
 HUNT.hunt_server_now_ms += (await import(pathToFileURL(join(ROOT, 'src/session/config.js')).href)).SESSION_CONFIG.huntPlaybackDelayMs;
 const { ITEMS } = await import(pathToFileURL(join(ROOT, 'src/data/items.js')).href);
+const { charXpForLevel } = await import(pathToFileURL(join(ROOT, 'src/core/xp.js')).href);
 /* A long bag (the playtest's hero carried 42 stacks): thirty more stacks of plain materials. */
 const MATERIALS = Object.keys(ITEMS).filter((id) => !ITEMS[id].kind && !ITEMS[id].type && !(id in ALPHA.inventory)).slice(0, 30);
 /* The town prep: that long bag, and a tool and a piece of gear for sale (the Shop sells no supplies, AW-7). */
@@ -311,6 +317,45 @@ async function bagByTouch(page, tag, fails) {
   if (eq !== 'ok') fails.push('PH-5 [' + tag + '] with a long bag the picked item\'s Equip is not on screen (' + eq + ')');
 }
 
+/* ── PH-6 ── A high Level's "What next" (the Coordinator's 10-24 gate: a Level 29 mage at 844x390, the card ran down
+   over HP / XP / MP): the Defense line, five ripe turnips, the next ground, the next gear and the next Magic unlock. */
+function longCoach(env) {
+  env.state = Object.assign({}, env.state, { level_xp: charXpForLevel(29) + 100 });
+  env.hunt_settings = Object.assign({}, env.hunt_settings, { role: 'mage', discipline: 'staff' });
+  env.skills = { magic: { xp: 9000000, level: 44 }, defense: { xp: 0, level: 1 } };
+  env.farm_land = { cap: 6, plot_level: 1, deeds: 0, plots: [0, 1, 2, 3, 4].map((i) => ({ i, crop: 'turnip', ready: true })) };
+}
+const COACH = `(() => { const p = document.querySelector('.hs-widget .hs-pointer:not(.is-min)'); if (!p) return null;
+  const t = p.querySelector('.hs-coach-text'), dash = p.querySelector('.hs-coach-min');
+  return { card: window.__r(p), hub: window.__r('.hb-bar'), chars: (p.textContent || '').length, maxH: getComputedStyle(p).maxHeight,
+    dash: window.__onScreen(window.__r(dash)) && window.__hits(dash), text: t && window.__r(t), top: t ? t.scrollTop : 0, end: t ? t.scrollHeight - t.clientHeight : 0,
+    lines: t ? t.clientHeight / parseFloat(getComputedStyle(t).lineHeight) : 0 }; })()`;
+const coachState = (page) => page.evaluate((src) => (0, eval)(src), COACH);
+async function coachFits(page, tag, fails, phone) {
+  const c = await coachState(page);
+  if (!c) { fails.push('PH-6 [' + tag + '] CONTROL: no open coach card'); return; }
+  if (c.chars < 300) { fails.push('PH-6 [' + tag + '] CONTROL: the coach says only ' + c.chars + ' characters, so it proves nothing'); return; }
+  if (!phone) { if (c.maxH !== 'none' || c.end > 0) fails.push('PH-6 [' + tag + '] the desktop coach is capped (' + c.maxH + ', ' + c.end + ' px to scroll)'); return; }
+  if (!c.hub) { fails.push('PH-6 [' + tag + '] CONTROL: no action bar'); return; }
+  if (!window_onScreen(c.card, page.viewportSize()) || c.card.bottom > c.hub.top + 0.5) {
+    fails.push('PH-6 [' + tag + '] the coach card runs ' + Math.round(c.card.bottom - c.hub.top) + ' px over the action bar (' + Math.round(c.card.top) + '..' + Math.round(c.card.bottom) + ', the bar at ' + Math.round(c.hub.top) + ')');
+    return;
+  }
+  if (!c.dash) { fails.push('PH-6 [' + tag + '] the coach\'s fold is off screen or covered'); return; }
+  /* A phone shows its scrollbar only while it scrolls: the words' box ends part-way into a line, so the cut says "more". */
+  const part = c.lines % 1;
+  if (c.end > 0 && (part < 0.25 || part > 0.75)) { fails.push('PH-6 [' + tag + '] the coach\'s words end on a whole line (' + c.lines.toFixed(2) + ' lines shown), so nothing says they scroll'); return; }
+  /* Its words scroll to their end under a wheel (a thumb) over them, and the fold stays in reach and folds it. */
+  await page.mouse.move(c.text.left + c.text.width / 2, c.text.top + c.text.height / 2);
+  let s = c;
+  for (let i = 0; i < 20 && s.top < s.end - 1; i++) { await page.mouse.wheel(0, 120); await page.waitForTimeout(40); s = await coachState(page); }
+  if (!(c.end > 0) || s.top < s.end - 1) { fails.push('PH-6 [' + tag + '] the coach\'s words never scroll to their end (' + Math.round(s.top) + ' of ' + Math.round(s.end) + ' px)'); return; }
+  if (!s.dash) { fails.push('PH-6 [' + tag + '] the coach\'s fold scrolls away with its words'); return; }
+  if (!(await page.click('.hs-widget .hs-pointer .hs-coach-min', { timeout: 2500 }).then(() => true, () => false))) { fails.push('PH-6 [' + tag + '] the coach\'s fold cannot be pressed'); return; }
+  if (!(await wait(page, () => document.querySelector('.hs-widget .hs-pointer.is-min'), null, 3000))) fails.push('PH-6 [' + tag + '] a press on the coach\'s fold did not fold it');
+}
+function window_onScreen(r, vp) { return !!r && r.left >= -0.5 && r.top >= -0.5 && r.right <= vp.width + 0.5 && r.bottom <= vp.height + 0.5; }
+
 async function rules(overrides, shots, { stopAtFirst = false, blocks = null } = {}) {
   /* `blocks`: a mutant runs only the pages its rule reads (BLOCKS_OF), so --mutate costs seconds a mutant, not the suite. */
   const run = (b) => !blocks || blocks.includes(b);
@@ -400,7 +445,19 @@ async function rules(overrides, shots, { stopAtFirst = false, blocks = null } = 
       await shot(o.page, 'inventory-equip-' + tag);
       await done(o, tag);
     }
-    if (shots) await moreShots(open, shot);
+    /* PH-6: the card under the hunt bar in a hunt, and under the icon row in town (no hunt: the hunt bar is gone). */
+    const inTown = (env) => { longCoach(env); env.hunt = null; env.state = Object.assign({}, env.state, { active_kind: null, active_id: null }); };
+    for (const vp of run('coach') ? [...PHONES, { width: 1440, height: 900 }] : []) {
+      const tag = tagOf(vp);
+      for (const [where, fixture, prep] of [['hunt', HUNT, longCoach], ['town', ALPHA, inTown]]) {
+        const o = await open(vp, fixture, prep);
+        if (!o.up) { fails.push('PH-6 [' + tag + '] the ' + where + ' did not mount'); await o.ctx.close(); continue; }
+        await shot(o.page, 'coach-long-' + where + '-' + tag);
+        await coachFits(o.page, tag + ' ' + where, fails, vp.width < 1024);
+        await done(o, tag);
+      }
+    }
+    if (shots && !blocks) await moreShots(open, shot);
   } catch (e) {
     /* the array's own push: under stopAtFirst `fails.push` throws, and a throw here would leave rules() rejected */
     if (e !== STOP) Array.prototype.push.call(fails, 'PH threw: ' + String(e && e.stack || e).split('\n').slice(0, 3).join(' | '));
@@ -466,7 +523,7 @@ async function moreShots(open, shot) {
 
 /* The pages each rule reads: a mutant named for a rule runs those alone, or the pages its own fifth field names
    (PH-5's hunt bar and analyzer tabs are measured on the hunt pages, its Shop, tooltip and Equip in town). */
-const BLOCKS_OF = Object.freeze({ 'PH-1': ['configure'], 'PH-2': ['hunt'], 'PH-3': ['portrait'], 'PH-4': ['town'], 'PH-5': ['town'] });
+const BLOCKS_OF = Object.freeze({ 'PH-1': ['configure'], 'PH-2': ['hunt'], 'PH-3': ['portrait'], 'PH-4': ['town'], 'PH-5': ['town'], 'PH-6': ['coach'] });
 /* Each planted defect undoes one fix; each must turn a rule red. */
 const MUTANTS = [
   ['PH-1 the configure sheet\'s list does not scroll', 'src/styles/hunt.css', '  .hs-win[data-hs-win="configure-action"] .ca-mid {', '  .hs-win[data-hs-win="configure-action"] .ca-mid-x {'],
@@ -488,16 +545,28 @@ const MUTANTS = [
   ['PH-5 the tooltip runs off a short screen', 'src/styles/windows.css', '  .hw-tip { width: 460px; columns: 2;', '  .hw-tip { width: 240px; columns: 1;'],
   ['PH-5 the picked item scrolls away', 'src/styles/windows.css', '  .hw-pick.is-on { position: sticky;', '  .hw-pick.is-on { position: static;'],
   ['PH-5 the analyzer tabs are 30 px', 'src/styles/hunt.css', '  .ha-tab, .ht-bar .hh-tool { min-height: 40px; }', '  .ha-tab, .ht-bar .hh-tool { min-height: 30px; }', ['hunt']],
+  /* the card's cap is the fallback where round() or lh is missing (the words' box is the tighter cap in Chromium): undo both */
+  ['PH-6 nothing caps the phone coach', 'src/styles/shell.css', 'flex-direction: column; max-height: calc(var(--coach-room) - 20px); }\n  .hs-pointer:not(.is-min) > .hs-coach-text {\n    min-height: 0; max-height: calc(round(down, var(--coach-room) - 42px - 1.5lh, 1lh) + .5lh);',
+    'flex-direction: column; }\n  .hs-pointer:not(.is-min) > .hs-coach-text {\n    min-height: 0;'],
+  ['PH-6 the coach\'s room is never measured', 'src/shell/shell.js', '    publishInset();\n    roomForCoach();\n', '    publishInset();\n'],
+  ['PH-6 the coach\'s words take no thumb', 'src/styles/shell.css', '    pointer-events: auto; scrollbar-width: thin;', '    scrollbar-width: thin;'],
+  ['PH-6 the coach\'s words end on a whole line', 'src/styles/shell.css', 'max-height: calc(round(down, var(--coach-room) - 42px - 1.5lh, 1lh) + .5lh);', ''],
+  ['PH-6 the whole card scrolls, its fold with it', 'src/styles/shell.css', 'display: flex; flex-direction: column; max-height: calc(var(--coach-room) - 20px); }', 'max-height: calc(var(--coach-room) - 20px); overflow-y: auto; pointer-events: auto; }'],
+  ['PH-6 the coach is capped on a desktop too', 'src/styles/shell.css', '.hs-pointer:not(.is-min) { padding-right: 34px; }', '.hs-pointer:not(.is-min) { padding-right: 34px; max-height: 200px; overflow-y: auto; }'],
 ];
 
 async function main() {
   const at = process.argv.indexOf('--shots');
   const shots = at > 0 ? resolve(process.argv[at + 1] || 'phone-shots') : null;
   if (shots) await mkdir(shots, { recursive: true });
+  /* --only PH-n: that rule's pages alone (a fast loop on one rule; the gate runs them all). */
+  const oi = process.argv.indexOf('--only');
+  const blocks = oi > 0 ? BLOCKS_OF[process.argv[oi + 1]] : null;
+  if (oi > 0 && !blocks) { console.log('phone-touch: --only takes one of ' + Object.keys(BLOCKS_OF).join(' ')); process.exit(2); }
   if (!process.argv.includes('--mutate')) {
-    const fails = await rules(null, shots);
+    const fails = await rules(null, shots, { blocks });
     for (const f of fails) console.log('  ✗ ' + f);
-    console.log(fails.length ? 'phone-touch: ' + fails.length + ' rule(s) RED' : 'phone-touch: the configure sheet scrolls with Save in reach, Hunt details toggles and the analyzer closes clear of the hunt bar, portrait asks to turn, Settings and the bag answer a thumb' + (shots ? ' (shots in ' + shots + ')' : ''));
+    console.log(fails.length ? 'phone-touch: ' + fails.length + ' rule(s) RED' : 'phone-touch: the configure sheet scrolls with Save in reach, Hunt details toggles and the analyzer closes clear of the hunt bar, portrait asks to turn, Settings and the bag answer a thumb, a long coach ends above the action bar' + (shots ? ' (shots in ' + shots + ')' : ''));
     process.exit(fails.length ? 1 : 0);
   }
   const clean = await rules(null, null);

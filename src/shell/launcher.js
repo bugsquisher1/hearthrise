@@ -77,7 +77,8 @@ export function heldCard(ctx) {
   return passed ? show(passed, now) : show(card, now);
 }
 
-/** The coach box for `card` (folded to its title, or open), the same wherever it is drawn. */
+/** The coach box for `card` (folded to its title, or open), the same wherever it is drawn. Open, its words are their
+ *  own box (.hs-coach-text): on a phone a long card scrolls there, under its title and its dash (shell.css). */
 export function coachHtml(cs, card) {
   const { min, fresh } = coachFoldOf(cs, card);
   /* data-coach: what the box shows (the card, folded or not, marked or not); the hunt bar redraws when it changes. */
@@ -89,7 +90,7 @@ export function coachHtml(cs, card) {
       + (fresh ? '<i class="hs-coach-new" aria-hidden="true"></i>' : '') + '</button></p>';
   }
   return head + '<button type="button" class="hs-coach-min" data-hs-act="coach-min" aria-expanded="true" aria-label="Minimize '
-    + esc(card.title) + '" title="Minimize"></button><b>' + esc(card.title) + '</b> ' + esc(card.text) + '</p>';
+    + esc(card.title) + '" title="Minimize"></button><b>' + esc(card.title) + '</b> <span class="hs-coach-text">' + esc(card.text) + '</span></p>';
 }
 
 /**

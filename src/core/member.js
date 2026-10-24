@@ -13,19 +13,19 @@
 // PURE ESM, Node + Deno + browser.
 // ============================================================================
 
-import { DEFAULT_PROFILE, equipmentStats, armorSetBonus, playerCombatRolls, weaknessInfo } from './combat.js?v=0.2.42';
-import { makeBonus, EMPTY_PERKS } from './perks.js?v=0.2.42';
-import { companionBonus } from './companion-perk.js?v=0.2.42';
-import { buffQueueFromServer, buffBonusFor } from './buffs.js?v=0.2.42';
-import { grantXp, normaliseXpFrac } from './progression.js?v=0.2.42';
-import { charLevelFromXp, levelsOf } from './xp.js?v=0.2.42';
-import { vitalsOf, wearsArmour, holdsShield } from './vitals.js?v=0.2.42';
-import { newHuntSession, takeLine } from './action-rules.js?v=0.2.42';
-import { makeGoalCounter, makeBestiaryCounter, makeCollectionCounter } from './goals.js?v=0.2.42';
-import { MONSTERS } from '../data/monsters.js?v=0.2.42';
-import { honeOf, honeWornAt, ammoPerShot } from './ammo.js?v=0.2.42';
-import { mitigationFor, NO_MITIGATION } from './mitigation.js?v=0.2.42';
-import { isRune } from '../data/runes.js?v=0.2.42';
+import { DEFAULT_PROFILE, equipmentStats, armorSetBonus, playerCombatRolls, weaknessInfo } from './combat.js?v=0.2.43';
+import { makeBonus, EMPTY_PERKS } from './perks.js?v=0.2.43';
+import { companionBonus } from './companion-perk.js?v=0.2.43';
+import { buffQueueFromServer, buffBonusFor } from './buffs.js?v=0.2.43';
+import { grantXp, normaliseXpFrac } from './progression.js?v=0.2.43';
+import { charLevelFromXp, levelsOf } from './xp.js?v=0.2.43';
+import { vitalsOf, wearsArmour, holdsShield } from './vitals.js?v=0.2.43';
+import { newHuntSession, takeLine } from './action-rules.js?v=0.2.43';
+import { makeGoalCounter, makeBestiaryCounter, makeCollectionCounter } from './goals.js?v=0.2.43';
+import { MONSTERS } from '../data/monsters.js?v=0.2.43';
+import { honeOf, honeWornAt, ammoPerShot } from './ammo.js?v=0.2.43';
+import { mitigationFor, NO_MITIGATION } from './mitigation.js?v=0.2.43';
+import { isRune } from '../data/runes.js?v=0.2.43';
 
 /* A finite, non-negative number or the fallback (every number that crosses in from a row). */
 function nat(v, fallback) {

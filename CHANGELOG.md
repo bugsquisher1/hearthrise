@@ -5,6 +5,12 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.43 — 2026-10-24 (Gear by Level)
+
+**Gear needs only your Level.** Every piece of armor, every shield, weapon and piece of jewelry now asks for your hero's Level, never a skill. A mage or ranger can wear their upgrades without tanking for Defense first. Runes, ammo, food and drinks still ask for their skill.
+
+**"What next" points at gear you can get.** It now names the next gear at your next Level, and only pieces you can actually find.
+
 ## v0.2.42 — 2026-10-24 (Runes and roles)
 
 **Spells run on runes.** Every spell names the rune it uses, and there are six rune families, each in five versions that hit harder as they go up. When your runes run out, you choose: stop casting, or let the store sell a cast for a gold or so.

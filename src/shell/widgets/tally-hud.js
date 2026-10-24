@@ -8,9 +8,9 @@
 // opens her window. A widget the player can hide (Settings, HUD layout). Built once,
 // patched in place.
 // ════════════════════════════════════════════════════════════════════════
-import { tallyOf, tallyLine } from '../../session/tally-sections.js?v=0.2.42';
-import { huntOf } from '../../session/hunt-sections.js?v=0.2.42';
-import { rows, text, cls, style, element } from '../../render/paint.js?v=0.2.42';
+import { tallyOf, tallyLine } from '../../session/tally-sections.js?v=0.2.43';
+import { huntOf } from '../../session/hunt-sections.js?v=0.2.43';
+import { rows, text, cls, style, element } from '../../render/paint.js?v=0.2.43';
 
 /** The skeleton (built once). */
 export function renderTallyHud() {

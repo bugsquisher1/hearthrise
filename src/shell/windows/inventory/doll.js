@@ -17,19 +17,19 @@
 // `equip` intent; the doll changes only when the re-read envelope replaces
 // `equipment`.
 // ════════════════════════════════════════════════════════════════════════
-import { ITEMS } from '../../../data/items.js?v=0.2.42';
-import { EQUIP_SLOT_META, expandItemSlot } from '../../../data/gathering.js?v=0.2.42';
-import { bagOf, skillsOf, shopOf } from '../../../session/item-sections.js?v=0.2.42';
-import { rows, text, cls, attr, prop, element } from '../../../render/paint.js?v=0.2.42';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.42';
-import { glyphSvg } from '../../launcher.js?v=0.2.42';
-import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.42';
-import { compare, rarityOf } from '../../bag-model.js?v=0.2.42';
-import { needOf } from '../../item-lore.js?v=0.2.42';
-import { gearLocked, GEAR_HUNT_WORDS } from '../../gear-gate.js?v=0.2.42';
-import { whyLine } from '../../widgets/why-line.js?v=0.2.42';
-import { levelOf } from '../../../session/character-sections.js?v=0.2.42';
-import { showTip } from '../item-tip.js?v=0.2.42';
+import { ITEMS } from '../../../data/items.js?v=0.2.43';
+import { EQUIP_SLOT_META, expandItemSlot } from '../../../data/gathering.js?v=0.2.43';
+import { bagOf, skillsOf, shopOf } from '../../../session/item-sections.js?v=0.2.43';
+import { rows, text, cls, attr, prop, element } from '../../../render/paint.js?v=0.2.43';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.43';
+import { glyphSvg } from '../../launcher.js?v=0.2.43';
+import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.43';
+import { compare, rarityOf } from '../../bag-model.js?v=0.2.43';
+import { needOf } from '../../item-lore.js?v=0.2.43';
+import { gearLocked, GEAR_HUNT_WORDS } from '../../gear-gate.js?v=0.2.43';
+import { whyLine } from '../../widgets/why-line.js?v=0.2.43';
+import { levelOf } from '../../../session/character-sections.js?v=0.2.43';
+import { showTip } from '../item-tip.js?v=0.2.43';
 
 /* Body order, row by row: [slot, label, empty glyph]. */
 export const DOLL = Object.freeze([

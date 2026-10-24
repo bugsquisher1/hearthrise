@@ -17,15 +17,15 @@
 // when the session ends. Numbers come from the server's sections only.
 // Built once, patched in place (src/render/paint.js).
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.42';
-import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.42';
-import { whole, gold, clock } from '../../render/format.js?v=0.2.42';
-import { itemName, itemIconHtml } from '../widgets/bits.js?v=0.2.42';
-import { runIntent } from '../intent-words.js?v=0.2.42';
-import { endedSessionOf, sanitizeSummaries, huntAgainOf, endWords } from '../../hunt-view/summary-model.js?v=0.2.42';
-import { observeSessions } from '../../session/character-session.js?v=0.2.42';
-import { attach, summariesOf, liveDeaths } from '../../hunt-view/summary-recorder.js?v=0.2.42';
-import { nameOf } from '../../session/item-sections.js?v=0.2.42';
+import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.43';
+import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.43';
+import { whole, gold, clock } from '../../render/format.js?v=0.2.43';
+import { itemName, itemIconHtml } from '../widgets/bits.js?v=0.2.43';
+import { runIntent } from '../intent-words.js?v=0.2.43';
+import { endedSessionOf, sanitizeSummaries, huntAgainOf, endWords } from '../../hunt-view/summary-model.js?v=0.2.43';
+import { observeSessions } from '../../session/character-session.js?v=0.2.43';
+import { attach, summariesOf, liveDeaths } from '../../hunt-view/summary-recorder.js?v=0.2.43';
+import { nameOf } from '../../session/item-sections.js?v=0.2.43';
 
 /* Every character the account opens is recorded from its first envelope, so no hunt event is played unseen. */
 observeSessions(attach);

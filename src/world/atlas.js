@@ -11,12 +11,12 @@
 // ground's sheet. A manifest or an image that fails is logged and left out —
 // its sprites draw as stubs — so a slow or broken asset never blanks the pane.
 // ════════════════════════════════════════════════════════════════════════
-import { ATLAS_SETS } from '../data/world/atlas-sets.js?v=0.2.42';
-import { atlasPaths } from '../data/world/art-budget.js?v=0.2.42';
-import { createBook } from './core/book.js?v=0.2.42';
+import { ATLAS_SETS } from '../data/world/atlas-sets.js?v=0.2.43';
+import { atlasPaths } from '../data/world/art-budget.js?v=0.2.43';
+import { createBook } from './core/book.js?v=0.2.43';
 /* Each atlas image loads once per page (src/render/images.js): a remounted pane and the Character
    window's outfit preview reuse the decoded image instead of fetching it again. */
-import { heldImage } from '../render/images.js?v=0.2.42';
+import { heldImage } from '../render/images.js?v=0.2.43';
 
 /* A module specifier resolves against THIS module's URL, an image against the
    document: both are made absolute from the document so assets/ is the site's. */

@@ -17,13 +17,13 @@
 // stamp's time, and alerts remember the ids they showed). Every number in the
 // line is a difference of two server answers; nothing is predicted or spendable.
 // ════════════════════════════════════════════════════════════════════════
-import { levelOf } from '../session/character-sections.js?v=0.2.42';
-import { huntOf, analyzerOf, serverNowOf } from '../session/hunt-sections.js?v=0.2.42';
-import { nameOf } from '../session/item-sections.js?v=0.2.42';
-import { huntName } from '../session/party-sections.js?v=0.2.42';
-import { charLevelFromXp } from '../core/xp.js?v=0.2.42';
-import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.42';
-import { whole } from '../render/format.js?v=0.2.42';
+import { levelOf } from '../session/character-sections.js?v=0.2.43';
+import { huntOf, analyzerOf, serverNowOf } from '../session/hunt-sections.js?v=0.2.43';
+import { nameOf } from '../session/item-sections.js?v=0.2.43';
+import { huntName } from '../session/party-sections.js?v=0.2.43';
+import { charLevelFromXp } from '../core/xp.js?v=0.2.43';
+import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.43';
+import { whole } from '../render/format.js?v=0.2.43';
 
 /* Less time away than this is a reload or a quick look, not an absence. */
 export const AWAY_MIN_MS = 10 * 60 * 1000;

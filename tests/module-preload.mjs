@@ -125,7 +125,8 @@ if (process.argv.includes('--selftest')) {
   const cases = [
     ['the shipped page', html, readFile, null],
     ['a module the graph gained, not listed', html, (f) => (f === 'src/app/boot.js' ? readFile(f) + "\nimport { x } from './never-listed.js?v=" + version + "';\n" : f === 'src/app/never-listed.js' ? '' : readFile(f)), 'MP-1'],
-    ['a module dropped from the block', html.replace('<link rel="modulepreload" href="' + deep + '?v=' + version + '">\n', ''), readFile, 'MP-1'],
+    /* the page's own line endings (a Windows checkout is CRLF): the planted edit lands either way */
+    ['a module dropped from the block', html.replace(new RegExp('<link rel="modulepreload" href="' + deep.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&') + '\\?v=[^"]*">\\r?\\n'), ''), readFile, 'MP-1'],
     ['a module listed that nothing loads', html.replace(END, '<link rel="modulepreload" href="' + extra + '?v=' + version + '">\n' + END), readFile, 'MP-1'],
     ['a preload at another version', html.replace('href="' + deep + '?v=' + version + '"', 'href="' + deep + '?v=' + OTHER + '"'), readFile, 'MP-2'],
     ['the block deleted', html.slice(0, html.indexOf(BEGIN)) + html.slice(html.indexOf(END) + END.length), readFile, 'MP-1'],
@@ -135,6 +136,7 @@ if (process.argv.includes('--selftest')) {
   ];
   let bad = 0;
   for (const [name, h, read, want] of cases) {
+    if (want !== null && h === html && read === readFile) { console.log('✗ ' + name + ' → HARNESS: the planted edit changed nothing'); bad++; continue; }
     const got = check(h, read, version);
     const ok = want === null ? got.length === 0 : got.some((g) => g.startsWith(want));
     if (!ok) bad++;

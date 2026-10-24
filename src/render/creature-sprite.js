@@ -9,30 +9,40 @@
 // them stands on one ground line at their true relative size: a rat is small, the
 // Rat King is not.
 //
-//   creatureArt(doc, version)  every set, loaded once (the World pane holds the same
-//                              decoded images): Promise<Map<id, { image, row }>>
+//   creatureArt(doc, version, ids)  the art of those creatures: every manifest is read (small
+//                              JSON), but only the sets that carry them load their image, each
+//                              once per page (the World pane holds the same decoded images):
+//                              Promise<Map<id, { image, row }>>, one map that grows per call
 //   drawCreature(canvas, art, id, o)  draw it; false when no set carries the sprite
 // ════════════════════════════════════════════════════════════════════════
 import { ATLAS_SETS } from '../data/world/atlas-sets.js?v=0.2.38';
-import { loadAtlasSet } from '../world/atlas.js?v=0.2.38';
+import { loadAtlasManifest, loadAtlasImage } from '../world/atlas.js?v=0.2.38';
 
-let ART = null;
+const ART = new Map();
+let rows = null;   // Promise<Map<id, { set, row }>>: every unit sprite with an idle clip (the first set that carries it)
 
-/** Every unit sprite with an idle clip in the shipped sets, by id (the first set that carries it). */
-export function creatureArt(doc, version) {
-  if (!ART) {
-    ART = Promise.all(ATLAS_SETS.map((set) => loadAtlasSet({ doc, version }, set).catch(() => null))).then((sets) => {
+function unitRows(doc, version) {
+  if (!rows) {
+    rows = Promise.all(ATLAS_SETS.map((set) => loadAtlasManifest({ doc, version }, set).then((m) => [set, m], () => [set, null]))).then((all) => {
       const by = new Map();
-      for (const a of sets) {
-        const sprites = a && a.manifest && a.manifest.sprites;
-        if (!sprites) continue;
-        for (const [id, row] of Object.entries(sprites)) {
-          if (!by.has(id) && row.layer === 'unit' && row.anims && row.anims.idle) by.set(id, { image: a.image, row });
+      for (const [set, m] of all) {
+        for (const [id, row] of Object.entries((m && m.sprites) || {})) {
+          if (!by.has(id) && row.layer === 'unit' && row.anims && row.anims.idle) by.set(id, { set, row });
         }
       }
       return by;
     });
   }
+  return rows;
+}
+
+/** The art of creatures `ids` (sprite ids): loads only the sets that carry them; resolves to the shared map. */
+export async function creatureArt(doc, version, ids) {
+  const by = await unitRows(doc, version);
+  const want = (ids || []).filter((id) => !ART.has(id) && by.has(id));
+  await Promise.all(Array.from(new Set(want.map((id) => by.get(id).set))).map((set) => loadAtlasImage({ doc, version }, set).then((image) => {
+    for (const [id, r] of by) if (r.set === set) ART.set(id, { image, row: r.row });
+  }, () => null)));
   return ART;
 }
 

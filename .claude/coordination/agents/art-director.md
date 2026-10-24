@@ -3001,3 +3001,12 @@ AW-30 + 3 mutants). Lessons: (1) a window's fill must be its own ::before layer 
 together and nothing else; (2) the window manager's inline width beats a CSS width: the phone Configure sheet
 needed min-width; (3) a "keep both" merge of two added functions ate the shared closing brace: syntax-check every
 merged JS file before running a test.
+
+## 2026-10-24 — lane/b-forged-steel-hud (lane 2 of 3): the HUD in Forged Steel
+Party, analyzer, hunt bar, coach, tally, alerts, online line, character strip, icon row + tooltip, world chrome
+(Town/Home, the idle line, which was 11 px). HUD = the thin steel frame over --hud-fill (the HUD plate at the
+opacity), Cinzel names, steel wells and separators. Lessons: (1) a HUD floor needs no ::before: color-mix of the
+HUD plate with --panel-alpha is one background, so ::before stays free (the coach's arrow, the icon tooltip);
+(2) at the 60% floor a hard 1 px text shadow (the chat's rule) keeps HUD words readable over props; (3) a red
+seen only under --shots (party-ui's phone pass) can be the harness, not the lane: run it on the base styles
+before chasing it (it was red there too).

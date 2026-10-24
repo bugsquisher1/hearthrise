@@ -88,16 +88,23 @@ const SELFCHECK_BLIND = [
   ["declare v_md5 text; r record;\nbegin\n", "declare v_md5 text; r record;\nbegin\n  if true then return; end if;   -- selftest: §0 pins short-circuited\n"],
   ["  v_prev bigint; v_bad int;\nbegin\n", "  v_prev bigint; v_bad int;\nbegin\n  if true then return; end if;   -- selftest: §7 short-circuited\n"],
 ];
-/* A mutant planted in 2026-12-23-tally-tasks.sql blinds ITS §8 the same way (its §0 pins the pre-images, untouched). */
-const TALLY_BLIND = [
-  ["  v_cell text := 'mill_cellar'; v_pick jsonb; v_first text; v_cap int;\nbegin\n",
-    "  v_cell text := 'mill_cellar'; v_pick jsonb; v_first text; v_cap int;\nbegin\n  if true then return; end if;   -- selftest: §8 short-circuited\n"],
-];
+/* hr_state_of is restated last by 2027-01-18-dead-surfaces-cut.sql (v0.2.44; run 40131714242's ANCHOR red), so the
+   per-hero read is planted THERE; the column it reads is kept in this file (`also`), where it is dropped. */
+const CUT = '2027-01-18-dead-surfaces-cut.sql';
+/* A mutant planted in a later file blinds ITS self-check the same way (its §0 pins the pre-images, untouched):
+   2026-12-23-tally-tasks.sql's §8, 2027-01-18-dead-surfaces-cut.sql's §4 (it md5-checks its own hr_state_of image). */
+const LATER_BLIND = {
+  [TALLY]: [["  v_cell text := 'mill_cellar'; v_pick jsonb; v_first text; v_cap int;\nbegin\n",
+    "  v_cell text := 'mill_cellar'; v_pick jsonb; v_first text; v_cap int;\nbegin\n  if true then return; end if;   -- selftest: §8 short-circuited\n"]],
+  [CUT]: [['  v_txt  text;\n  v_code text;\nbegin\n', '  v_txt  text;\n  v_code text;\nbegin\n  if true then return; end if;   -- selftest: §4 short-circuited\n']],
+};
 const SQL_MUTANTS = {
   per_hero_read: {
+    file: CUT,
     why: 'the per-hero column stays and hr_state_of reads it: a hero shows its own gold, not the account purse',
-    pairs: [["      'slot', v_st.slot, 'gold', coalesce(v_w.gold, 0), 'gold_v'", "      'slot', v_st.slot, 'gold', v_st.gold, 'gold_v'"],
-      ['alter table public.player_state drop column if exists gold;', 'select 1;']],
+    pairs: [["      'slot', v_st.slot, 'gold', coalesce(v_w.gold, 0), 'gold_v'", "      'slot', v_st.slot, 'gold', v_st.gold, 'gold_v'"]],
+    /* [file, find, repl] planted with it: the column the read needs is kept where it is dropped */
+    also: [[MIG, 'alter table public.player_state drop column if exists gold;', 'select 1;']],
   },
   unguarded_debit: {
     why: 'hr_purse_move lands a debit the purse cannot pay (and the CHECK is gone): two heroes overspend one purse',
@@ -185,16 +192,25 @@ function sqlPairs(mutate) {
   /* A pins mutant plants INTO §0, so §0 stays live (G11 judges it); every other one blinds §0 and §7. */
   return [...m.pairs, ...SELFCHECK_BLIND.filter((_, i) => !(m.pins && i === 0))];
 }
-/** The whole chain's patch map for a mutant: this file's pairs, or 2026-12-23-tally-tasks.sql's with its §8 blinded. */
+/** The whole chain's patch map for a mutant: this file's pairs, or a later file's (plus its `also` plants), each
+    file with its own self-check blinded (this file's §0 and §7, a later file's LATER_BLIND). */
 function chainPatches(mutate) {
   const m = mutate && MUTATIONS[mutate];
   if (!m || m.kind !== 'sql') return undefined;
-  return fileOf(m) === MIG ? new Map([[MIG, sqlPairs(mutate)]]) : new Map([[fileOf(m), [...m.pairs, ...TALLY_BLIND]]]);
+  if (fileOf(m) === MIG) return new Map([[MIG, sqlPairs(mutate)]]);
+  const byFile = new Map([[fileOf(m), [...m.pairs]]]);
+  for (const [file, find, repl] of m.also || []) byFile.set(file, [...(byFile.get(file) || []), [find, repl]]);
+  return new Map([...byFile].map(([file, pairs]) => {
+    const blind = file === MIG ? SELFCHECK_BLIND : LATER_BLIND[file];
+    if (!blind) throw harness(`no self-check blind for ${file} (add it to LATER_BLIND)`);
+    return [file, [...pairs, ...blind]];
+  }));
 }
 /** Each SQL mutant's anchors, as staleAnchors (tests/alpha-server.mjs) reads them: a plant in a body a later file
     restates never runs, so it must move to the body's last author. */
 function mutantAnchors() {
-  return Object.entries(SQL_MUTANTS).flatMap(([id, m]) => m.pairs.map(([find]) => ({ arm: id, file: fileOf(m), find })));
+  return Object.entries(SQL_MUTANTS).flatMap(([id, m]) => [...m.pairs.map(([find]) => ({ arm: id, file: fileOf(m), find })),
+    ...(m.also || []).map(([file, find]) => ({ arm: id, file, find }))]);
 }
 async function migrationText(mutate) {
   let sql = (await readFile(join(ROOT, 'supabase', 'migrations', MIG), 'utf8')).replace(/\r\n/g, '\n');
@@ -411,17 +427,38 @@ async function pinsArm(mutate) {
   }
 }
 
+/* G2: two heroes of one account read ONE purse in the envelope (hr_state_of), at its version. Asked as of this
+   file and at the chain end, where hr_state_of's last author (2027-01-18-dead-surfaces-cut.sql) projects it. */
+async function onePurse(d, tag) {
+  const a = await d.newAccount();
+  await d.seedPurse(a, 1000);
+  const s0 = await d.state(a, 0), s1 = await d.state(a, 1);
+  ok(s0 && s1 && s0.state.gold === 1000 && s1.state.gold === 1000 && s0.state.gold_v === s1.state.gold_v && Number.isInteger(s0.state.gold_v),
+    `${tag}: two heroes of one account read ${JSON.stringify([s0 && s0.state.gold, s0 && s0.state.gold_v])} and ${JSON.stringify([s1 && s1.state.gold, s1 && s1.state.gold_v])} (purse 1000)`);
+  return a;
+}
+
+/* G8: no installed body or view reads player_state's gold. Asked as of this file AND at the chain end: a later
+   restatement (2027-01-18-dead-surfaces-cut.sql re-applies hr_state_of) could bring a per-hero read back. */
+async function noPerHeroRead(d, tag) {
+  const bodies = await d.q(`select p.oid::regprocedure::text sig, p.prosrc src from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+                              where n.nspname = 'public' and p.prolang in (select oid from pg_language where lanname in ('plpgsql', 'sql'))`);
+  ok(bodies.some((f) => f.sig === 'hr_state_of(uuid,integer)'), `${tag} CONTROL: the scan found no hr_state_of(uuid,integer) body`);
+  const stale = [];
+  for (const f of bodies) for (const hit of perHeroGold(f.src)) stale.push(`${f.sig}: ${hit}`);
+  ok(!stale.length, `${tag}: bodies still read per-hero gold: ${stale.slice(0, 6).join(' | ')}`);
+  const views = await d.q(`select c.relname, pg_get_viewdef(c.oid, true) def from pg_class c where c.relnamespace = 'public'::regnamespace and c.relkind in ('v', 'm')`);
+  const staleViews = views.filter((v) => perHeroGold(v.def).length);
+  ok(!staleViews.length, `${tag}: a view reads player_state gold: ${staleViews.map((v) => v.relname + ' ' + perHeroGold(v.def).join(','))}`);
+}
+
 // ── G2, G3, G7 (the purse half), G8-G12: this file as of itself (its re-apply, G9, is defined here) ──
 async function purseArms(mutate) {
   const { db } = await bootReplay({ patches: sqlPairs(mutate).length ? new Map([[MIG, sqlPairs(mutate)]]) : undefined, upTo: MIG });
   const d = drivers(db);
 
   // G2 ONE PURSE.
-  const a = await d.newAccount();
-  await d.seedPurse(a, 1000);
-  const s0 = await d.state(a, 0), s1 = await d.state(a, 1);
-  ok(s0 && s1 && s0.state.gold === 1000 && s1.state.gold === 1000 && s0.state.gold_v === s1.state.gold_v && Number.isInteger(s0.state.gold_v),
-    `G2: two heroes of one account read ${JSON.stringify([s0 && s0.state.gold, s0 && s0.state.gold_v])} and ${JSON.stringify([s1 && s1.state.gold, s1 && s1.state.gold_v])} (purse 1000)`);
+  const a = await onePurse(d, 'G2');
 
   // G3 TWO HEROES SPEND IT, BOTH ORDERS.
   let r = await d.apply(a, 0, -900, 'shop_buy:g3:1');
@@ -465,15 +502,8 @@ async function purseArms(mutate) {
     }
   }
 
-  // G8 NO BODY READS A PER-HERO PURSE.
-  const bodies = await d.q(`select p.oid::regprocedure::text sig, p.prosrc src from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-                              where n.nspname = 'public' and p.prolang in (select oid from pg_language where lanname in ('plpgsql', 'sql'))`);
-  const stale = [];
-  for (const f of bodies) for (const hit of perHeroGold(f.src)) stale.push(`${f.sig}: ${hit}`);
-  ok(!stale.length, `G8: bodies still read per-hero gold: ${stale.slice(0, 6).join(' | ')}`);
-  const views = await d.q(`select c.relname, pg_get_viewdef(c.oid, true) def from pg_class c where c.relnamespace = 'public'::regnamespace and c.relkind in ('v', 'm')`);
-  const staleViews = views.filter((v) => perHeroGold(v.def).length);
-  ok(!staleViews.length, `G8: a view reads player_state gold: ${staleViews.map((v) => v.relname + ' ' + perHeroGold(v.def).join(','))}`);
+  // G8 NO BODY READS A PER-HERO PURSE (as of this file; huntArms asks again at the chain end).
+  await noPerHeroRead(d, 'G8');
 
   // G10 THE ACL, and the lock order in the installed bodies.
   for (const sig of ['public.hr_purse_of(uuid)', 'public.hr_purse_lock(uuid)', 'public.hr_purse_move(uuid,bigint,bigint)', 'public.hr_gold_kind(text,text,uuid)']) {
@@ -524,14 +554,18 @@ async function purseArms(mutate) {
 
 // ── G4-G6, G7 (the hunt half) and G10's lock order: the real engine on the WHOLE chain ─────────
 async function huntArms(mutate, M) {
-  /* A mutant planted in the tally file's hr_hunt_apply_instance replays only TO that file (REPLAY SCOPE): a later
-     file that splices the body under an md5 pin (2026-12-25-frame-push-revive.sql, the settle frames) rightly refuses
-     a planted image at its §0, which would read as "caught" for the wrong reason. The arms need nothing newer; the
-     plain run still judges the whole chain's final body. */
+  /* A mutant planted in a later file replays only TO that file (REPLAY SCOPE): a later file that splices the body
+     under an md5 pin (2026-12-25-frame-push-revive.sql, the settle frames, after the tally file's
+     hr_hunt_apply_instance) rightly refuses a planted image at its §0, which would read as "caught" for the wrong
+     reason. The arms need nothing newer; the plain run still judges the whole chain's final body. */
   const m = mutate && MUTATIONS[mutate];
-  const end = m && m.kind === 'sql' && fileOf(m) === TALLY ? TALLY : CHAIN_END;
+  const end = m && m.kind === 'sql' && fileOf(m) !== MIG ? fileOf(m) : CHAIN_END;
   const { db } = await bootReplay({ patches: chainPatches(mutate), upTo: end });
   const d = drivers(db);
+
+  // G2 and G8 AT THE CHAIN END: the envelope's last author still projects one purse, and no body reads a per-hero one.
+  await onePurse(d, 'G2 (chain end)');
+  await noPerHeroRead(d, 'G8 (chain end)');
 
   // G4 TWO HUNTS RACE ON ONE PURSE — both doors.
   for (const door of ['tick', 'settle']) {
@@ -732,7 +766,13 @@ try {
     for (const id of ids) {
       let caught;
       try { const p = await run(id); caught = p.length ? p[0] : null; }
-      catch (e) { if (e.harness) throw e; caught = 'refused at apply: ' + String(e.message).split('\n')[0].slice(0, 160); }
+      /* A chain-end replay a later file's self-check refuses (2027-01-10-house-from-storage.sql VERIFY(d) on a
+         short purse) must not hide the arm that already caught it as of this file: name that arm first. */
+      catch (e) {
+        if (e.harness) throw e;
+        const why = String(e.message).split('\n').map((l) => l.trim()).filter(Boolean).slice(0, 2).join(' / ').slice(0, 160);
+        caught = problems.length ? `${problems[0]} (then the chain refused at apply: ${why})` : 'refused at apply: ' + why;
+      }
       if (caught) console.log(`  CAUGHT  ${id}: ${String(caught).slice(0, 220)}`);
       else { slipped++; console.log(`  SLIPPED ${id}: ${MUTATIONS[id].why}`); }
     }

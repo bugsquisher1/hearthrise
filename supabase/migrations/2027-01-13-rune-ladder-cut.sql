@@ -15,9 +15,10 @@
 -- §1 THE ONE-SHOT HELPER hr_cut_item_holders(item): deletes the item from every place
 --    an item can rest (bag, worn, account bank, hunt bag, market listing, clan store,
 --    item rules) and journals each deletion (one `admin` / `item_cut` ledger row per
---    character row; `withdraw` in clan_ledger for a clan store). An open market BUY
---    offer would carry escrowed gold, so the helper REFUSES rather than guess a refund
---    (none can exist: the market was wiped at 2026-10-27 and no old rune is on sale).
+--    character row; `withdraw` in clan_ledger for a clan store). A market listing is the
+--    ACCOUNT's since 2027-01-12-market-account.sql (APPLIED): its row is journalled against
+--    the hero that listed it (market_listings.slot). That file also cut market_buy_offers,
+--    so no escrowed buy offer can name an old rune.
 -- §2 THE CUT of the nine ids. No refund: Air Runes were kit stock and worth nothing,
 --    the rest were made from blanks at Runecrafting (wiped at EA).
 -- §3 SELF-CHECK, executed, every probe rolled back.
@@ -48,9 +49,6 @@ create or replace function public.hr_cut_item_holders(p_item text)
 returns jsonb language plpgsql set search_path = public, pg_catalog as $$
 declare v_inv int; v_eq int; v_bank int; v_bag int; v_list int; v_clan int; v_rules int;
 begin
-  if exists (select 1 from public.market_buy_offers where item_id = p_item) then
-    raise exception 'rune-ladder-cut §1: an open market buy offer names % (escrowed gold) — refund it by hand first', p_item;
-  end if;
   with d as (delete from public.player_inventory where item_id = p_item returning user_id, slot, qty)
   insert into public.player_ledger (user_id, slot, kind, intent, item_id, qty, meta)
   select user_id, slot, 'admin', 'item_cut', p_item, -qty, jsonb_build_object('from', 'inventory', 'why', 'rune ladder cut 2026-10-23')
@@ -74,9 +72,9 @@ begin
   select user_id, slot, 'admin', 'item_cut', p_item, -qty_left, jsonb_build_object('from', 'hunt_bag', 'why', 'rune ladder cut 2026-10-23'), session_id
     from d where qty_left > 0;
   get diagnostics v_bag = row_count;
-  with d as (delete from public.market_listings where item_id = p_item returning seller_user_id, seller_slot, qty)
+  with d as (delete from public.market_listings where item_id = p_item returning user_id, slot, qty)
   insert into public.player_ledger (user_id, slot, kind, intent, item_id, qty, meta)
-  select seller_user_id, seller_slot, 'admin', 'item_cut', p_item, -qty, jsonb_build_object('from', 'market_listing', 'why', 'rune ladder cut 2026-10-23')
+  select user_id, slot, 'admin', 'item_cut', p_item, -qty, jsonb_build_object('from', 'market_listing', 'why', 'rune ladder cut 2026-10-23')
     from d where qty > 0;
   get diagnostics v_list = row_count;
   with d as (delete from public.clan_stores where item_id = p_item returning clan_id, qty)

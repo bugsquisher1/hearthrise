@@ -37,7 +37,7 @@
 export const TALLY_KEEPER = Object.freeze({
   name: 'Tamsin Reeve',
   title: 'Gives out kill tasks on the Common',
-  greeting: 'Take a task from my board and go hunting. When the count is done, I pay you in town: gold, plus a piece of armour you can wear.',
+  greeting: 'Take a task from my board and go hunting. When the count\'s done, I\'ll pay you in town: gold, plus a piece of armor you can wear.',
 });
 
 /** The server's limits (hr_tally_config). */

@@ -50,12 +50,12 @@ export function renderTally(ctx) {
     + '<p class="hs-note">' + esc(TALLY_KEEPER.greeting) + '</p></header>'
     + '<p class="hw-cap"><span class="ht-today"></span><span class="hw-gold"></span></p>'
     + '<h3 class="hw-ledger-head is-on">Your tasks</h3><ul class="hw-ledger ht-held"></ul>'
-    + '<p class="hh-empty ht-none">You have no task from her yet. Take one from her board below.</p>'
-    + '<h3 class="hw-ledger-head is-on">The armour she gives you</h3>'
+    + '<p class="hh-empty ht-none">You don\'t have a task from her yet. Take one from her board below.</p>'
+    + '<h3 class="hw-ledger-head is-on">The armor she pays you in</h3>'
     + '<p class="hs-note ht-pick-note"></p>'
-    + '<div class="ht-weights" role="group" aria-label="The armour weight she gives you">'
+    + '<div class="ht-weights" role="group" aria-label="The armor weight she pays you in">'
     + TALLY_RULES.weights.map((w) => '<button type="button" class="hh-seg" data-hs-act="weight" data-weight="' + w + '" aria-pressed="false">' + WEIGHT_WORDS[w] + '</button>').join('')
-    + '</div><ol class="ht-order" aria-label="The order she gives armour slots in"></ol>'
+    + '</div><ol class="ht-order" aria-label="The order she pays armor slots in"></ol>'
     + '<h3 class="hw-ledger-head is-on">Her board</h3><ul class="hw-ledger ht-board"></ul>'
     + '<p class="hh-empty ht-wait">Loading her board…</p>'
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></div>';
@@ -81,7 +81,7 @@ function patchHeld(li, h, st) {
   style(li.querySelector('.ht-stick i'), 'width', pct + '%');
   attr(li.querySelector('.ht-stick'), 'aria-valuenow', pct);
   cls(li, 'is-done', h.done);
-  text(li.querySelector('small'), h.done ? waitWords(st.t, h, st.hunting) : 'Every kill in ' + huntName(h.hunt) + ' counts, even while you are away.');
+  text(li.querySelector('small'), h.done ? waitWords(st.t, h, st.hunting) : 'Every kill in ' + huntName(h.hunt) + ' counts, even while you\'re away.');
   const keep = li.querySelector('[data-hs-act="keep"]');
   prop(keep, 'checked', h.keep);
   prop(keep, 'disabled', st.sc.pending);
@@ -124,9 +124,9 @@ renderTally.patch = function patchTally(body, ctx) {
   text(root.querySelector('.ht-today'), t ? 'Paid today: ' + t.paidToday + ' of ' + t.perDay : '');
   rows(root.querySelector('.ht-held'), t ? t.held : [], { key: (x) => x.task, build: (x) => element(ctx.doc, heldHtml(x)), patch: (li, x) => patchHeld(li, x, st) });
   cls(root.querySelector('.ht-none'), 'is-on', !!t && !t.held.length);
-  text(root.querySelector('.ht-pick-note'), !t ? '' : !t.weight ? 'Choose heavy, medium or light armour. You can change it later.'
-    : 'Each task pays its gold and one ' + WEIGHT_WORDS[t.weight].toLowerCase() + ' armour piece from that ground she has not given you yet, in the slot order below. '
-      + 'Once you have every piece, she pays in crafting materials instead.');
+  text(root.querySelector('.ht-pick-note'), !t ? '' : !t.weight ? 'Pick the armor weight she pays you in. You can change it later.'
+    : 'Each task pays its gold and one ' + WEIGHT_WORDS[t.weight].toLowerCase() + ' armor piece from that ground she hasn\'t given you yet, in the slot order below. '
+      + 'Once you\'ve had every piece, she pays in crafting materials instead.');
   for (const b of root.querySelectorAll('[data-hs-act="weight"]')) {
     attr(b, 'aria-pressed', String(!!t && t.weight === b.getAttribute('data-weight')));
     prop(b, 'disabled', sc.pending || !t);
@@ -166,20 +166,20 @@ renderTally.act = function actTally(ctx, body, action, ev, t) {
   const task = t.getAttribute('data-task');
   if (action === 'keep' && ev.type === 'change') {
     const on = !!t.checked;
-    run(() => setTally(ctx.account, cs, { task, keep: on }), 'Saving…', () => (on ? 'You get this task again as soon as she pays for it.' : 'Once she pays for it, it will not come back by itself.'));
+    run(() => setTally(ctx.account, cs, { task, keep: on }), 'Saving…', () => (on ? 'You get this task again as soon as she pays for it.' : 'Once she pays for it, it won\'t come back by itself.'));
     return true;
   }
   if (ev.type !== 'click') return false;
   if (action === 'take') {
     const row = tallyTask(task);
     run(() => takeTask(ctx.account, cs, task, null), 'Taking it…',
-      () => 'Taken. Every kill in ' + (row ? huntName(row.hunt) : 'that hunt') + ' counts, even while you are away.');
+      () => 'Taken. Every kill in ' + (row ? huntName(row.hunt) : 'that hunt') + ' counts, even while you\'re away.');
     return true;
   }
   if (action === 'drop') { run(() => dropTask(ctx.account, cs, task), 'Giving it up…', () => labelOf(task) + ': given up. Its count is gone.'); return true; }
   if (action === 'weight') {
     const w = t.getAttribute('data-weight');
-    run(() => setTally(ctx.account, cs, { weight: w }), 'Saving…', () => 'She gives you ' + WEIGHT_WORDS[w].toLowerCase() + ' armour from now on.');
+    run(() => setTally(ctx.account, cs, { weight: w }), 'Saving…', () => 'She\'ll pay you in ' + WEIGHT_WORDS[w].toLowerCase() + ' armor from now on.');
     return true;
   }
   if (action === 'earlier') {

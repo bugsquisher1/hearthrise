@@ -5,7 +5,9 @@
 // `social.blocked` row of src/data/social-settings.js (its label and help are
 // read from there, so the words are written once). The list is the
 // account's blocks as hr_social_state answered them (src/social/blocks.js);
-// Unblock is ONE hr_block_set, off until the server answered. The server
+// Unblock is ONE hr_block_set, off until the server answered; its refusal
+// reads on the host window's line (the host awaits actBlocks). A row's name
+// is patched on every paint, so a rename shows at the next read. The server
 // enforces the block itself: their lines and whispers never reach you, and
 // their whispers, friend asks and inspects are refused.
 // ════════════════════════════════════════════════════════════════════════
@@ -26,19 +28,19 @@ export function patchBlocks(body, ctx) {
   const list = social ? social.blocks.list() : [];
   rows(body.querySelector('.hs-blocks'), list, {
     key: (p) => p.id,
-    build: (p) => element(ctx.doc, '<li class="hs-block"><b>' + esc(p.name) + '</b> <button type="button" class="hh-tool" data-hs-act="unblock" data-id="' + esc(p.id) + '">Unblock</button></li>'),
-    patch: (el) => prop(el.querySelector('button'), 'disabled', PENDING.has(body)),
+    build: (p) => element(ctx.doc, '<li class="hs-block"><b></b> <button type="button" class="hh-tool" data-hs-act="unblock" data-id="' + esc(p.id) + '">Unblock</button></li>'),
+    patch: (el, p) => { text(el.querySelector('b'), p.name); prop(el.querySelector('button'), 'disabled', PENDING.has(body)); },
   });
   cls(body.querySelector('.hs-blocks-none'), 'is-on', !list.length);
   text(body.querySelector('.hs-blocks-none'), social ? 'You have not blocked anyone.' : 'Blocks are not connected.');
 }
 
-/** Unblock. Returns true when the event was this panel's. */
-export function actBlocks(ctx, body, action, ev, t) {
+/** Unblock the pressed row's player: ONE hr_block_set. Answers the store's { ok } | { ok: false, error } for the host's line. */
+export async function actBlocks(ctx, body, t) {
   const social = ctx.account && ctx.account.social;
-  if (action !== 'unblock' || ev.type !== 'click' || !social || PENDING.has(body)) return false;
+  if (!social) return { ok: false, error: 'unavailable' };
+  if (PENDING.has(body)) return { ok: true };
   PENDING.add(body);
   patchBlocks(body, ctx);
-  social.blocks.set(t.getAttribute('data-id'), false).then(() => { PENDING.delete(body); patchBlocks(body, ctx); });
-  return true;
+  try { return await social.blocks.set(t.getAttribute('data-id'), false); } finally { PENDING.delete(body); patchBlocks(body, ctx); }
 }

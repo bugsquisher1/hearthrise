@@ -11,7 +11,7 @@
 //   node tests/live-hash-drift.mjs --live-compare r.json grade a saved result
 //   node tests/live-hash-drift.mjs --live                fetch + grade in one step
 //   node tests/live-hash-drift.mjs --codediff [name]     is a divergence only comments?
-//   node tests/live-hash-drift.mjs --write [--no-live]   re-seed the baseline
+//   node tests/live-hash-drift.mjs --write [--no-live] [--out f]   re-seed the baseline (--out: a preview file)
 //
 // ── THE FAILURE THIS EXISTS TO KILL ─────────────────────────────────────────
 // 2026-08-30: the renown-faucet migration RAN ON PRODUCTION while the repo went
@@ -57,9 +57,13 @@
 //
 // ── THE TRACKED SET IS DERIVED, NOT HAND-GUESSED ────────────────────────────
 // `sweep()` reads supabase/migrations/** and returns every function whose LIVE
-// BODY the repo has an opinion about, by three rules — see RULES below. A hand
+// BODY the repo has an opinion about, by four rules — see RULES below. A hand
 // list would be one migration away from being wrong, and the function that fell
-// off it would be exactly the one nobody was watching. The sweep additionally
+// off it would be exactly the one nobody was watching. 2027-01-15 proved it: the
+// applied hr_social_resolve fix was restated by ONE file and pinned by
+// `md5(prosrc) … where oid = '<sig>'::regprocedure`, a shape the pin rule did not
+// read, so 214 tracked names did not include it. Rule `restate` now tracks every
+// body a migration in the apply order creates or replaces. The sweep additionally
 // FAILS AS A HARNESS ERROR if a file uses pg_get_functiondef and yields no
 // signature: a new patcher idiom must be taught to the sweep loudly, never drop
 // a function silently. (The "a bug that was never planted is the same defect as
@@ -159,8 +163,11 @@ const FLOOR = {
 };
 
 const RULES = {
-  pin: 'a migration READS this body back with pg_get_functiondef — to hash-pin it '
-     + '(c_baseline/c_self/c_applied) or to patch it programmatically at an anchor',
+  restate: 'a migration in the APPLY order creates or replaces this body '
+         + '(`create [or replace] function public.<name>(`): every body the chain authors '
+         + 'is a body production is believed to carry (2027-01-15, hr_social_resolve)',
+  pin: 'a migration READS this body back with pg_get_functiondef or prosrc — to hash-pin it '
+     + '(c_baseline/c_self/c_applied, a §0 md5) or to patch it programmatically at an anchor',
   chain: 'restated by three or more migrations, so the repo alone cannot name which '
        + 'revision is installed (the b484-b487 "a later file silently deletes a '
        + 'hardening" class)',
@@ -403,9 +410,12 @@ export function anchoredPatches(sql) {
  *        from disk by default keeps the production path honest; being able to
  *        inject lets the shape guard below be PROVEN without writing to a real
  *        migration file.
+ * @param {Map<string,[string,string][]>} [patches] filename -> [[find, replace]] applied to the disk
+ *        text (LF), each anchor exactly once — the --mutate plants, so the sweep reads the same
+ *        mutated chain the replay builds.
  * @returns {Promise<Map<string,{rules:Set<string>, files:Set<string>}>>} name -> provenance
  */
-export async function sweep(sources) {
+export async function sweep(sources, patches) {
   const files = sources
     ? [...sources.keys()].sort()
     : (await readdir(MIGDIR)).filter((f) => f.endsWith('.sql')).sort();
@@ -439,19 +449,31 @@ export async function sweep(sources) {
   const dropsIn = new Map();   // name -> Set(file) that drops it
   const addTo = (map, n, f) => map.set(n, (map.get(n) || new Set()).add(f));
   /* name -> [{file, key}]: the signature-aware halves of the drop decision. */
-  const addKeyed = (map, n, f, key) => map.set(n, [...(map.get(n) || []), { file: f, key }]);
+  /* `pos`: the offset in its file, so a file that CREATES a body and later DROPS it (a self-check probe) retires it,
+     while drop-then-create (the market_v2 idiom) keeps it. A read-only pin has no offset: Infinity, the fail-closed
+     direction (it can keep a name tracked, never retire one). */
+  const addKeyed = (map, n, f, key, pos = Infinity) => map.set(n, [...(map.get(n) || []), { file: f, key, pos }]);
 
   for (const f of files) {
-    const sql = codeOnly(sources ? sources.get(f) : await readFile(join(MIGDIR, f), 'utf8'));
+    let raw = sources ? sources.get(f) : await readFile(join(MIGDIR, f), 'utf8');
+    for (const [find, repl] of (patches && patches.get(f)) || []) {
+      raw = raw.replace(/\r\n/g, '\n');
+      if (raw.split(find).length !== 2) throw harness(`sweep(): patch anchor in ${f} must match exactly once`);
+      raw = raw.replace(find, () => repl);
+    }
+    const sql = codeOnly(raw);
 
     // (chain) how many distinct migrations restate each body outright
     const authored = new Set();
-    for (const m of sql.matchAll(/create\s+or\s+replace\s+function\s+public\.([a-z_0-9]+)\s*\(/gi)) {
+    for (const m of sql.matchAll(/create\s+(?:or\s+replace\s+)?function\s+public\.([a-z_0-9]+)\s*\(/gi)) {
       authored.add(m[1]);
       const args = argsAt(sql, m.index + m[0].length - 1);
-      addKeyed(builtIn, m[1], f, args ? argKey(args) : '*');
+      addKeyed(builtIn, m[1], f, args ? argKey(args) : '*', m.index);
     }
     for (const n of authored) restated.set(n, (restated.get(n) || new Set()).add(f));
+    /* (restate) a file that APPLIES authors the body production is believed to carry. A file
+       outside the apply order (never applied) authors nothing on production, so it tracks nothing. */
+    if (ord.has(f)) for (const n of authored) note(n, 'restate', f);
 
     /* (attribution) the two shapes that RESTATE a body — see ATTRIBUTION above.
        Everything the pin rules below derive is TRACKED; only a name this
@@ -462,7 +484,7 @@ export async function sweep(sources) {
     // (drop) the one shape above — read BEFORE any early `continue`, since a
     // file may drop a function without ever reading a body back.
     let dropHits = 0;
-    for (const m of sql.matchAll(DROP_STMT)) { addKeyed(dropsIn, m[1].toLowerCase(), f, m[2] ? argKey(m[2]) : '*'); dropHits += 1; }
+    for (const m of sql.matchAll(DROP_STMT)) { addKeyed(dropsIn, m[1].toLowerCase(), f, m[2] ? argKey(m[2]) : '*', m.index); dropHits += 1; }
     dropHits += (sql.match(DROP_TEMP) || []).length;   // read, and deliberately not recorded (above)
     const dropMentions = (sql.match(DROP_ANY) || []).length;
     if (dropMentions !== dropHits) {
@@ -479,9 +501,17 @@ export async function sweep(sources) {
        pg_get_functiondef gate: such a file may mention pg_get_functiondef only
        inside a raise-message string, which codeOnly() keeps. */
     {
-      const oidReads = [...sql.matchAll(/\bprosrc\b[\s\S]{0,240}?from\s+pg_proc(?:\s+[a-z]+)?\s+where\s+(?:[a-z]+\.)?oid\s*=\s*(to_regprocedure\(\s*'([^']+)'\s*\)|to_regprocedure\(\s*([a-z_][a-z0-9_]*(?:\.[a-z_][a-z0-9_]*)?)\s*\)|([a-z_][a-z0-9_]*(?:\.[a-z_][a-z0-9_]*)?)\s*::\s*regprocedure|[a-z_][a-z0-9_]*)/gi)];
+      /* r[5], the LITERAL form `where oid = 'public.name(args)'::regprocedure` (the §0 md5(prosrc) pin of
+         2027-01-15-social-resolve-character-names.sql and 53 other files): until 2027-01-15 no alternative
+         matched it, so those pins were not reads at all — not even a harness error. */
+      const oidReads = [...sql.matchAll(/\bprosrc\b[\s\S]{0,240}?from\s+pg_proc(?:\s+[a-z]+)?\s+where\s+(?:[a-z]+\.)?oid\s*=\s*(to_regprocedure\(\s*'([^']+)'\s*\)|to_regprocedure\(\s*([a-z_][a-z0-9_]*(?:\.[a-z_][a-z0-9_]*)?)\s*\)|([a-z_][a-z0-9_]*(?:\.[a-z_][a-z0-9_]*)?)\s*::\s*regprocedure|'([^']+)'\s*::\s*regprocedure|[a-z_][a-z0-9_]*)/gi)];
       let prosrcHits = 0;
       for (const r of oidReads) {
+        if (r[5]) {
+          if (SIGLIT.test(r[5])) { const n = r[5].replace(/^public\./, '').replace(/\(.*$/s, ''); note(n, 'pin', f, restates(n), true, sigKey(r[5])); prosrcHits += 1; }
+          else shapeless.push(`${f}: reads prosrc from pg_proc where oid = '${r[5]}'::regprocedure, not a public.name(args) signature`);
+          continue;
+        }
         if (r[3] || r[4]) {
           /* LOOP-DRIVEN (2026-10-22-hunt-sessions-delete-away.sql pins four bodies
              from a `values` table; 2026-10-22-closed-mode-ungated-rpcs.sql reads
@@ -601,12 +631,14 @@ export async function sweep(sources) {
     const hits = (x, k) => x.key === '*' || k === '*' || x.key === k;
     let gone = true;
     let by = null;
+    /* (apply position, offset in the file): the later of a build and a drop decides, inside one file too. */
+    const later = (x, y) => (!y || at(x.file) > at(y.file) || (at(x.file) === at(y.file) && x.pos > y.pos) ? x : y);
     for (const k of keys) {
-      const lastDrop = drops.filter((d) => hits(d, k)).reduce((a, d) => Math.max(a, at(d.file)), -1);
-      const lastBuild = builds.filter((b) => hits(b, k)).reduce((a, b) => Math.max(a, at(b.file)), -1);
+      const lastDrop = drops.filter((d) => hits(d, k) && at(d.file) >= 0).reduce((a, d) => later(d, a), null);
+      const lastBuild = builds.filter((b) => hits(b, k) && at(b.file) >= 0).reduce((a, b) => later(b, a), null);
       // dropped only by a file that never applies, or re-created / re-patched after the drop
-      if (lastDrop < 0 || lastBuild >= lastDrop) { gone = false; break; }
-      const f = drops.find((d) => hits(d, k) && at(d.file) === lastDrop).file;
+      if (!lastDrop || (lastBuild && later(lastBuild, lastDrop) === lastBuild)) { gone = false; break; }
+      const f = lastDrop.file;
       if (!by || at(f) > at(by)) by = f;
     }
     if (gone) e.dropped = by;
@@ -617,6 +649,9 @@ export async function sweep(sources) {
 /** name -> the migration that dropped it, for the entries sweep() marked. */
 export const droppedIn = (tracked) => new Map(
   [...tracked].filter(([, t]) => t.dropped).map(([n, t]) => [n, t.dropped]));
+/** The names tracked by rule `restate` and nothing else (see classifyReplay). */
+export const restateOnlyOf = (tracked) => new Set(
+  [...tracked].filter(([, t]) => t.rules.size === 1 && t.rules.has('restate')).map(([n]) => n));
 
 // ════════════════════════════════════════════════════════════════════════
 // THE MEASUREMENT — one query shape, run on production AND on the replay
@@ -663,7 +698,7 @@ async function measureReplay(patches) {
   const { db } = await bootReplay(patches
     ? { patches, fullChain: 'the measurement is the CHAIN-END body set, compared to the live baseline' }
     : undefined);
-  const names = [...(await sweep()).keys()];
+  const names = [...(await sweep(undefined, patches)).keys()];
   const rows = (await db.query(bodyQuery(names))).rows;
   await db.close?.();
   return { rows, ms: Date.now() - t0 };
@@ -774,7 +809,7 @@ export function classifyLive(prodRows, base, dropped = new Map()) {
 }
 
 /** The repo replay vs the baseline. Credential-free; this is the CI half. */
-export function classifyReplay(replayRows, base, derivedNames, dropped = new Map()) {
+export function classifyReplay(replayRows, base, derivedNames, dropped = new Map(), restateOnly = new Set()) {
   const findings = [];
   const say = (key, detail) => findings.push({ key, detail });
   const rep = asMap(replayRows);
@@ -783,6 +818,11 @@ export function classifyReplay(replayRows, base, derivedNames, dropped = new Map
 
   for (const n of derivedNames) {
     if (byName.has(n)) continue;
+    /* Rule `restate` ALONE claims "production carries what the chain builds"; a body the chain END does not
+       build (a self-check probe created inside a block that rolls back: 2026-09-22-frame-push-channel.sql
+       hr922_probe_emit) is no such claim. Every other rule's name, and a restated body the replay does
+       build, stays loud. */
+    if (restateOnly.has(n) && !builtInReplay.has(n)) continue;
     /* Deliberately dropped, and the replay agrees it is gone: no entry is the
        CORRECT state. But the drop is believed only as far as it is measured —
        if the chain still builds a body under this name, the drop did not take
@@ -797,8 +837,8 @@ export function classifyReplay(replayRows, base, derivedNames, dropped = new Map
       continue;
     }
     say(`untracked ${n}`,
-      'the sweep derives this function as hash-pinned, programmatically patched or restated '
-      + `by ${CHAIN_AT}+ migrations, and the baseline has no entry for it. A tracked body with `
+      'the sweep derives this function as authored by a migration in the apply order, hash-pinned '
+      + 'or programmatically patched, and the baseline has no entry for it. A tracked body with '
       + 'no recorded belief is a body nobody is watching. Re-seed with --write.');
   }
 
@@ -1254,7 +1294,24 @@ async function selftest() {
   // produces findings, every case below would "pass" on the noise floor.
   censusOk(liveRows, 'synthetic live');
   const cleanLive = classifyLive(liveRows, base, gone).findings;
-  const cleanRep = classifyReplay(repRows, base, derived, gone).findings;
+  const only = restateOnlyOf(trackedNow);
+  const cleanRep = classifyReplay(repRows, base, derived, gone, only).findings;
+  /* rule `restate`, both directions, on a REAL restate-only body: its baseline entry deleted is untracked while the
+     replay builds it; a restated body the chain end does not build (a rolled-back probe) is no claim. */
+  const onlyName = [...only].sort().find((n) => base.functions.some((e) => e.name === n));
+  if (!onlyName) throw harness('--selftest: the baseline holds no restate-only body to plant on');
+  const withoutOnly = () => { const b = clone(base); b.functions = b.functions.filter((e) => e.name !== onlyName); return b; };
+  cases.restated_body_untracked = {
+    what: 'a body ONE migration restates (no pin, under the chain rule) loses its baseline entry while the chain '
+        + 'still builds it: the 2027-01-15 hr_social_resolve blind spot',
+    side: 'replay', expect: `untracked ${onlyName}`, base: withoutOnly, rows: () => repRows,
+  };
+  cases.restated_probe_never_built = {
+    what: 'a restated body the chain END does not build (2026-09-22 hr922_probe_emit, created inside a block that '
+        + 'rolls back) has no entry to want: no finding',
+    side: 'replay', expectNone: true, base: withoutOnly,
+    rows: () => repRows.filter((r) => r.sig.split('(')[0] !== onlyName),
+  };
   if (cleanLive.length || cleanRep.length) {
     throw harness('--selftest: a database identical to the baseline produced '
       + `${cleanLive.length + cleanRep.length} finding(s), so every planted defect below would `
@@ -1310,15 +1367,51 @@ async function selftest() {
       process.exitCode = 1;
     }
   }
-  // …and the same sweep must NOT cry wolf on a file that legitimately never
-  // reads a body back, or the guard becomes unrunnable and gets deleted.
+  // …and the same sweep must NOT cry wolf on a file that legitimately neither
+  // authors nor reads a body, or the guard becomes unrunnable and gets deleted.
   const quiet = await sweep(new Map([['9999-99-99-quiet.sql',
-    'create or replace function public.hr_quiet() returns int language sql as $$ select 1 $$;']]));
+    'create table if not exists public.hr_quiet (id int);\n'
+    + "comment on function public.hr_apply(uuid, integer, jsonb) is 'prose';\n"
+    + "do $$ begin if to_regprocedure('public.hr_quiet_fn(integer)') is null then raise notice 'absent'; end if; end $$;"]]));
   if (quiet.size !== Object.keys(FLOOR).length) {
-    throw harness('--selftest: sweep() reported a tracked function for a migration that reads no '
-      + 'body back — the shape guard has a false-positive floor');
+    throw harness('--selftest: sweep() reported a tracked function for a migration that neither authors '
+      + 'nor reads a body — the shape guard has a false-positive floor');
   }
   console.log(`  ok  ${'sweep_no_false_positive'.padEnd(26)} a body-free migration adds nothing`);
+
+  /* ── 2027-01-15: A BODY RESTATED ONCE, OR PINNED BY A LITERAL OID, IS TRACKED ──
+     The applied hr_social_resolve fix was invisible: ONE file restated it (under
+     the chain rule's three) and its §0 pin read `md5(prosrc) … where oid =
+     '<sig>'::regprocedure`, a shape no pin alternative matched. Each arm was red
+     before the fix (the first by the restate rule, the second by the r[5] read). */
+  const ONCE = {
+    restated_once_is_tracked: {
+      what: 'one migration creates or replaces a body and nothing pins it: production is believed to carry it',
+      sql: 'create or replace function public.hr_sel_once(p_target text) returns uuid language sql stable as $b$ select null::uuid $b$;',
+      name: 'hr_sel_once', rule: 'restate',
+    },
+    plain_create_is_tracked: {
+      what: 'a plain `create function` (no `or replace`) authors a body too',
+      sql: 'create function public.hr_sel_plain() returns int language sql as $b$ select 1 $b$;',
+      name: 'hr_sel_plain', rule: 'restate',
+    },
+    literal_oid_prosrc_pin_is_read: {
+      what: "the §0 pin of 2027-01-15-social-resolve-character-names.sql: md5(prosrc) where oid = '<sig>'::regprocedure",
+      sql: 'do $m$ declare v_md5 text; begin\n'
+         + "  select md5(prosrc) into v_md5 from pg_proc where oid = 'public.hr_sel_pinned(text)'::regprocedure;\n"
+         + "  if v_md5 <> 'x' then raise exception 'PIN'; end if;\nend $m$;",
+      name: 'hr_sel_pinned', rule: 'pin',
+    },
+  };
+  for (const [id, c] of Object.entries(ONCE)) {
+    const t = await sweep(new Map([['9999-99-99-once.sql', c.sql]]));
+    const e = t.get(c.name);
+    if (e && e.rules.has(c.rule) && !e.dropped) console.log(`  ok  ${id.padEnd(26)} ${c.name} tracked by ${c.rule}`);
+    else {
+      console.error(`  ✗  ${id} — expected ${c.name} tracked by rule ${c.rule}; got ${JSON.stringify(e ? [...e.rules] : null)}\n     ${c.what}`);
+      process.exitCode = 1; bad += 1;
+    }
+  }
 
   /* ── THE DROP GRAMMAR, PROVEN IN BOTH DIRECTIONS ────────────────────────
      A drop is the only rule in this file that REMOVES something from the
@@ -1404,6 +1497,14 @@ select pg_get_functiondef('public.${V}(p_user uuid, p_slot integer)'::regprocedu
       want: (t) => t.get(V) && t.get(V).dropped === '9000-02-drop.sql',
       why: 'expected a bare drop to retire the name',
     },
+    create_then_drop_same_file_retires: {
+      what: 'a self-check PROBE: one file creates a body and drops it a few lines later (2026-08-11-grant-hygiene.sql '
+          + 'hr__hygiene_probe). Neither side ever carries it, so with rule `restate` it must retire or it reads '
+          + '`untracked` forever',
+      files: [['9000-01-probe.sql', `${MAKE}\n${DROP}`]],
+      want: (t) => t.get(V) && t.get(V).dropped === '9000-01-probe.sql',
+      why: 'expected a create-then-drop inside one file to retire the name',
+    },
     drop_then_recreate_same_file: {
       what: 'the market_v2 idiom: one file drops a signature and re-creates it a few lines later. '
           + 'Ordering alone cannot separate them, so a build in the dropping file wins',
@@ -1479,7 +1580,7 @@ select pg_get_functiondef('public.${V}(p_user uuid, p_slot integer)'::regprocedu
     try {
       const rows = c.rows();
       if (c.side === 'live') { censusOk(rows, 'planted'); got = classifyLive(rows, b, dm).findings; }
-      else got = classifyReplay(rows, b, nm, dm).findings;
+      else got = classifyReplay(rows, b, nm, dm, only).findings;
     } catch (e) {
       if (!e.harness) throw e;
       harnessMsg = String(e.message);
@@ -1521,7 +1622,7 @@ select pg_get_functiondef('public.${V}(p_user uuid, p_slot integer)'::regprocedu
     console.error(`\n${bad} planted defect(s) were not caught by the assertion written for them.`);
     process.exit(1);
   }
-  console.log(`\nall ${Object.keys(cases).length + Object.keys(SHAPES).length
+  console.log(`\nall ${Object.keys(cases).length + Object.keys(SHAPES).length + Object.keys(ONCE).length
     + Object.keys(CHAINS).length + Object.keys(ATTRIB).length + 1} planted defects caught by their NAMED assertion`);
 }
 
@@ -1565,6 +1666,19 @@ const MUTATIONS = {
     find: "    when 'hunt_read' then v_limit := 60;\n",
     repl: "    when 'hunt_read' then v_limit := 60;\n    when 'hr_mut_bucket' then v_limit := 9999;\n",
   },
+  /* 2027-01-15: the applied hr_social_resolve fix (ONE restatement, a literal-oid md5(prosrc) pin) was invisible:
+     214 tracked names did not include it. Both plants ride its final author. Before rule `restate`, neither key
+     appears: hr_social_resolve had no baseline entry to drift from, and a body restated once is derived by nothing. */
+  restated_once_untracked: {
+    file: '2027-01-15-social-resolve-character-names.sql',
+    what: 'a comment is edited into hr_social_resolve (restated by ONE migration) after it was applied, and a '
+        + 'new body is created once and never pinned: both are bodies production is believed to carry',
+    expect: ['replay hr_social_resolve(p_target text)', 'untracked hr_mut_restated_once'],
+    find: "  end\n$$;\nrevoke execute on function public.hr_social_resolve(text) from public, anon, authenticated, service_role;\n",
+    repl: "  end -- [edited after apply]\n$$;\nrevoke execute on function public.hr_social_resolve(text) from public, anon, authenticated, service_role;\n"
+        + 'create or replace function public.hr_mut_restated_once(p_slot integer) returns integer language sql stable as $m$ select p_slot $m$;\n'
+        + 'revoke execute on function public.hr_mut_restated_once(integer) from public, anon, authenticated, service_role;\n',
+  },
   new_overload_authored: {
     file: '2026-09-02-renown-kill-faucet.sql',
     what: 'a migration grows an OVERLOAD of a hash-pinned function. Every hash pin in this repo '
@@ -1578,9 +1692,6 @@ const MUTATIONS = {
 
 async function mutate() {
   const base = await loadBaseline();
-  const trackedNow = await sweep();
-  const derived = [...trackedNow.keys()];
-  const goneNow = droppedIn(trackedNow);
   let slipped = 0;
   for (const [id, m] of Object.entries(MUTATIONS)) {
     /* LF, always. bootReplay normalises the migration it reads; .gitattributes
@@ -1591,8 +1702,10 @@ async function mutate() {
     const patches = new Map([[m.file, [[lf(m.find), lf(m.repl)]]]]);
     let got = [];
     try {
+      /* The sweep reads the SAME mutated text the replay builds, so a planted body is derived like a real one. */
+      const trackedNow = await sweep(undefined, patches);
       const { rows } = await measureReplay(patches);
-      got = classifyReplay(rows, base, derived, goneNow).findings;
+      got = classifyReplay(rows, base, [...trackedNow.keys()], droppedIn(trackedNow), restateOnlyOf(trackedNow)).findings;
     } catch (e) {
       if (e.harness && !e.replay) { console.error(`HARNESS  ${id}: ${e.message}`); process.exit(2); }
       // A file that stops APPLYING is a catch too, but not the one written down.
@@ -1601,10 +1714,12 @@ async function mutate() {
         + '     guard catching it, and proves nothing about this one.');
       slipped += 1; continue;
     }
-    const hit = got.find((f) => f.key === m.expect);
-    if (hit) console.log(`  ok  ${id.padEnd(24)} ${hit.key}\n       ${m.what}`);
+    /* `expect` may name several keys (one replay, several plants): every one must be reported. */
+    const want = [].concat(m.expect);
+    const miss = want.filter((k) => !got.some((f) => f.key === k));
+    if (!miss.length) console.log(`  ok  ${id.padEnd(24)} ${want.join(' + ')}\n       ${m.what}`);
     else {
-      console.error(`  ✗  ${id} — expected "${m.expect}"; got: ${got.map((f) => f.key).join(', ') || '(nothing)'}\n       ${m.what}`);
+      console.error(`  ✗  ${id} — expected "${miss.join('", "')}"; got: ${got.map((f) => f.key).join(', ') || '(nothing)'}\n       ${m.what}`);
       slipped += 1;
     }
   }
@@ -1670,8 +1785,8 @@ async function write() {
     _readme: [
       'WHAT THE REPO BELIEVES IS DEPLOYED, as a measured fact rather than as prose.',
       'One entry per function whose live body this repo has an opinion about — every',
-      'hash-pinned / programmatically-patched body (derived by sweep() in',
-      'tests/live-hash-drift.mjs), every body three or more migrations restate, and',
+      'body a migration in the apply order creates or replaces, every hash-pinned /',
+      'programmatically-patched body (derived by sweep() in tests/live-hash-drift.mjs), and',
       'the program floor. `live` is what production ACTUALLY had when it was last',
       'measured; `replay` is what supabase/schema.sql + supabase/migrations/**',
       'rebuild to. Both hashes are',
@@ -1693,8 +1808,13 @@ async function write() {
     counts: { tracked_names: names.length, entries: functions.length },
     functions,
   };
-  await writeFile(BASELINE, `${JSON.stringify(out, null, 1)}\n`);
-  console.log(`baseline written: ${functions.length} entries over ${names.length} tracked names`);
+  /* --out <file>: the same record written elsewhere, so an agent can show what --live --write WOULD
+     record (the baseline itself is Coordinator-only, CLAUDE.md §2). */
+  const outAt = argv.indexOf('--out');
+  const target = outAt !== -1 && argv[outAt + 1] ? argv[outAt + 1] : BASELINE;
+  await writeFile(target, `${JSON.stringify(out, null, 1)}\n`);
+  console.log(`${target === BASELINE ? 'baseline' : `preview (NOT the baseline) at ${target}`} written: `
+    + `${functions.length} entries over ${names.length} tracked names`);
   console.log(`  agree live==replay: ${functions.filter((e) => e.agree).length}`);
   console.log(`  divergent:          ${functions.filter((e) => !e.agree).length}`);
   console.log(`  absent on prod:     ${functions.filter((e) => !e.live).length}`);
@@ -1769,7 +1889,7 @@ async function main() {
   const gone = droppedIn(tracked);
   const { rows, ms } = await measureReplay();
   censusOk(rows, 'replay');
-  const { findings } = classifyReplay(rows, base, derived, gone);
+  const { findings } = classifyReplay(rows, base, derived, gone, restateOnlyOf(tracked));
 
   console.log(`live-hash-drift: ${derived.length} tracked names, ${base.functions.length} baselined `
     + `bodies, replayed in ${(ms / 1000).toFixed(1)}s`);

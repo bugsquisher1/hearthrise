@@ -74,6 +74,7 @@ import { mkdtempSync, cpSync, readFileSync, writeFileSync, rmSync, readdirSync, 
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { register } from 'node:module';
 import { ROOT, UID, serve, SDK_STUB } from './_client-harness.mjs';
 import { harnessFail, judge, report, exitOf, cleanControl } from './_mutant-verdict.mjs';
 
@@ -82,6 +83,8 @@ const clone = (o) => JSON.parse(JSON.stringify(o));
 /* UI-5: each ground's party note, read off ITS catalogue row (the pocket with minParty and the boss in it). */
 const { HUNT_GROUNDS } = await import(pathToFileURL(join(ROOT, 'src/data/hunt-grounds.js')).href);
 const { MONSTERS } = await import(pathToFileURL(join(ROOT, 'src/data/monsters.js')).href);
+/* the poll clocks quietHuntPoll models (never under mutation: page mutants override other files) */
+const { SESSION_CONFIG } = await import(pathToFileURL(join(ROOT, 'src/session/config.js')).href);
 const PARTY_NOTES = Object.fromEntries(Object.values(HUNT_GROUNDS).map((g) => {
   const p = g.pockets.find((q) => q.minParty);
   const boss = p && p.spawns.map((x) => MONSTERS[x.monster]).find((m) => m && m.boss);
@@ -110,9 +113,11 @@ function fakeServer(o = {}) {
 const timers = { setTimer: () => 0, clearTimer: () => {} };
 const memTab = () => { const m = new Map(); return { get: (k) => m.get(k) || null, set: (k, v) => m.set(k, v), remove: (k) => m.delete(k) }; };
 
-async function load(base) {
-  const u = (p) => pathToFileURL(join(base, p)).href;
+/** The modules under test from `base`; `gen` > 0 imports a FRESH graph of the one mutant copy (see GENERATIONS). */
+async function load(base, gen = 0) {
+  const u = (p) => pathToFileURL(join(base, p)).href + (gen ? '?gen=' + gen : '');
   return {
+    U: u,
     A: await import(u('src/session/account-session.js')),
     C: await import(u('src/session/character-session.js')),
     AL: await import(u('src/shell/alerts.js')),
@@ -793,7 +798,7 @@ async function pureRules(M, base) {
      Healer, the spellbook changes no role, and the server's weapon rows (hr_hunt_weapons, generated) carry
      the same key the engine and the client resolve. */
   await t('PR-2', async () => {
-    const { ITEMS } = await import(pathToFileURL(join(base, 'src/data/items.js')).href);
+    const { ITEMS } = await import(M.U('src/data/items.js'));
     const R = M.ROLES;
     const role = (id) => R.roleForWeapon(R.roleWeaponOf(ITEMS[id]), 'tank');
     const wands = Object.keys(ITEMS).filter((id) => ITEMS[id].slot === 'weapon' && ITEMS[id].discipline === 'destruction');
@@ -819,7 +824,7 @@ async function pureRules(M, base) {
 const wait = (page, fn, arg, ms = 8000) => page.waitForFunction(fn, arg, { timeout: ms }).then(() => true, () => false);
 
 function scripted() {
-  const s = { env: clone(FIXTURE.characters), version: 1, calls: [], residue: { 0: {}, 1: {} }, delayMs: 300, startReplies: [] };
+  const s = { env: clone(FIXTURE.characters), version: 1, calls: [], residue: { 0: {}, 1: {} }, delayMs: 300, startReplies: [], t0: Date.now() };
   s.next = (slot) => Object.assign(clone(s.env[slot]), { version: ++s.version, client_state: clone(s.residue[slot] || {}) });
   return s;
 }
@@ -874,17 +879,28 @@ async function openWin(page, key, id) {
 }
 const sent = (s, name) => s.calls.filter((c) => c.name === name);
 
-/* A HUNTING character re-reads on its own clock (hunt-poll.js): from liveAskMs, backing off while the stub
-   sends no live start point, never sooner than the last gap. A rule that says "this press re-read nobody"
-   waits for a moment when that clock's next re-read is at least `clearMs` off, so a re-read inside its
-   window is the press's own (a lane on 2026-10-22: the poll landed 0.47 s after the tab press, ~1 run in 2). */
-async function quietHuntPoll(s, slot, clearMs = 1500) {
+/* A HUNTING character re-reads on its own clock (hunt-poll.js). VIEWED, from liveAskMs, backing off while the
+   stub sends no live start point, never sooner than the last gap. UNVIEWED (only the viewed character streams
+   live, lane/a-accrue-storm Part 2), a plain hr_load every SESSION_CONFIG.unviewedPollMs, armed no earlier than
+   the page opened (s.t0), since setViewed(false) stops the viewed clock and arms afresh. A rule that says "this
+   press re-read nobody" waits for a moment when that clock's next re-read is at least `clearMs` off, so a
+   re-read inside its window is the press's own (a lane on 2026-10-22: the poll landed 0.47 s after the tab
+   press, ~1 run in 2). Until 2026-10-24 it modelled only the viewed clock, found no second hr-accrue for an
+   unviewed hero, and sat out its whole 20 s on every page run (15 per --mutate: 300 s of 482). It answers
+   false when no such moment comes: the caller says so as HARNESS, never proceeds silently. */
+async function quietHuntPoll(page, s, slot, clearMs = 1500) {
+  const viewed = await page.evaluate((sl) => !!document.querySelector('.char-tab[data-slot="' + sl + '"].is-shown'), String(slot));
   for (const until = Date.now() + 20000; Date.now() < until;) {
-    const p = sent(s, 'hr-accrue').filter((c) => c.body.slot === slot).map((c) => c.at);
-    const n = p.length;
-    if (n >= 2 && p[n - 1] + (p[n - 1] - p[n - 2]) - Date.now() >= clearMs) return;
+    let next = null;
+    if (viewed) {
+      const p = sent(s, 'hr-accrue').filter((c) => c.body.slot === slot).map((c) => c.at);
+      const n = p.length;
+      if (n >= 2) next = p[n - 1] + (p[n - 1] - p[n - 2]);
+    } else next = s.t0 + SESSION_CONFIG.unviewedPollMs;
+    if (next !== null && next - Date.now() >= clearMs) return true;
     await new Promise((ok) => setTimeout(ok, 25));
   }
+  return false;
 }
 
 /* A new full envelope, the way the live game gets one: a pushed frame carrying the whole character at the next
@@ -922,7 +938,7 @@ async function pageRules(overrides, shots) {
       const t0 = tabs.find((x) => x.slot === '0'), t1 = tabs.find((x) => x.slot === '1');
       if (!t0 || t0.name !== 'Tyler' || t0.doing !== 'Hunting in The Sewer' || t0.badge !== '1') fails.push('UI-1 [' + tag + '] tab 0 reads ' + JSON.stringify(t0));
       if (!t1 || t1.name !== 'Druid' || t1.doing !== 'In town, idle' || !t1.on) fails.push('UI-1 [' + tag + '] tab 1 reads ' + JSON.stringify(t1));
-      await quietHuntPoll(s, 0);
+      if (!(await quietHuntPoll(page, s, 0))) fails.push(harnessFail('[' + tag + '] UI-1’s quiet moment', new Error('no moment in 20 s with character 0’s next re-read 1.5 s off')));
       const loads = s.calls.length;
       await page.click('.char-tab[data-slot="0"]');
       if (!(await wait(page, () => document.querySelector('#panel-world[data-slot="0"]') && document.querySelector('.hs-launchers') && !document.querySelector('#panel-world[data-slot="1"]')))) fails.push('UI-1 [' + tag + '] the tab did not show character 0');
@@ -1204,6 +1220,22 @@ function copySrc() {
   return tmp;
 }
 
+/* GENERATIONS (2026-10-24, lane b-ci-speed). A pure mutant needs a module graph nobody imported before. It
+   used to get one by copying src/ afresh per mutant (5 MB, 350 files): 0.4 s to copy and ~1.5 s to import
+   files the virus scanner had never read, 61 times. Now ONE copy is made; each mutant plants its line in it,
+   imports the graph under its own `?gen=N` (this resolve hook carries N down every import inside the copy, so
+   every module is a new instance that reads the planted text), runs, and puts the line back. A later
+   generation imports in ~0.3 s. Only --mutate registers the hook; the plain run and the clean control
+   import from the tree exactly as before. */
+const GEN_HOOK = `let root;
+export async function initialize(d) { root = d.root; }
+export async function resolve(spec, ctx, next) {
+  const r = await next(spec, ctx);
+  const g = ctx.parentURL && /[?&]gen=(\\d+)/.exec(ctx.parentURL);
+  if (!g || !r.url.startsWith(root) || /[?&]gen=/.test(r.url)) return r;
+  return { ...r, url: r.url + (r.url.includes('?') ? '&' : '?') + 'gen=' + g[1] };
+}`;
+
 async function main() {
   const at = process.argv.indexOf('--shots');
   const shots = at > 0 ? resolve(process.argv[at + 1] || 'party-shots') : null;
@@ -1220,15 +1252,19 @@ async function main() {
   console.log(clean.line);
   if (clean.code) process.exit(clean.code);
   const counts = { caught: 0, harness: 0, escaped: 0 };
-  for (const [name, file, from, to] of PURE_MUTANTS) {
-    const tmp = copySrc();
-    try {
+  const tmp = copySrc();
+  register('data:text/javascript,' + encodeURIComponent(GEN_HOOK), { data: { root: pathToFileURL(tmp).href } });
+  let gen = 0;
+  try {
+    for (const [name, file, from, to] of PURE_MUTANTS) {
       const text = readFileSync(join(tmp, file), 'utf8');
       if (!text.includes(from)) { console.log('  ✗ ' + name + ' — HARNESS: anchor not found in ' + file); counts.harness++; continue; }
       writeFileSync(join(tmp, file), text.replace(from, to));
-      console.log(report(name, await judge(async () => pureRules(await load(tmp), tmp)), counts));
-    } finally { rmSync(tmp, { recursive: true, force: true }); }
-  }
+      const g = ++gen;
+      try { console.log(report(name, await judge(async () => pureRules(await load(tmp, g), tmp)), counts)); }
+      finally { writeFileSync(join(tmp, file), text); }
+    }
+  } finally { rmSync(tmp, { recursive: true, force: true }); }
   for (const [name, file, from, to] of onlyPure ? [] : PAGE_MUTANTS) {
     const text = await readFile(join(ROOT, file), 'utf8');
     if (!text.includes(from)) { console.log('  ✗ ' + name + ' — HARNESS: anchor not found in ' + file); counts.harness++; continue; }

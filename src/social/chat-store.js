@@ -172,15 +172,26 @@ export class ChatStore {
     }
   }
 
-  /* One server row into its tab. Returns true when a line was added. A pushed line from a player this account
-     blocked is dropped (a public topic reaches every socket; the server filters the reads and the private pushes). */
+  /* One server row into its tab. Returns true when a line was added (or a held one renamed). A pushed line from a
+     player this account blocked is dropped (a public topic reaches every socket; the server filters the reads and the
+     private pushes). A row already held only takes its speaker's name: hr_chat_row renders the hero's CURRENT name,
+     so a rename reaches the lines on screen at the next read. */
   _take(row, live) {
     const l = lineOf(row);
-    if (!l || this._ids.has(l.id)) return false;
+    if (!l) return false;
+    if (this._ids.has(l.id)) return this._rename(l);
     if (live && l.fromId && this._blocked(l.fromId)) return false;
     const tab = tabOfChannel(l.channel, this.zone, this.party);
     if (!tab) return false;
     this._push(tab, l, live);
+    return true;
+  }
+
+  _rename(l) {
+    const tab = l.system ? null : tabOfChannel(l.channel, this.zone, this.party);
+    const held = tab ? this.lines(tab).find((x) => x.id === l.id) : null;
+    if (!held || held.name === l.name) return false;
+    held.name = l.name;
     return true;
   }
 

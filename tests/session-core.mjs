@@ -26,6 +26,8 @@
 //   CHAN-2 a frame never asks the engine, not even across a version gap: the frame IS the state
 //   HUNT-3 a frame while a hunt is open DEFERS the re-read a whole delay (the poll is the fallback): a
 //          character fed by frames sends no hello while the frames come
+//   HUNT-4 the push is the feed: an unviewed hunter fed a frame every 10 s makes no call; a lost channel brings
+//          the re-read at once (not a whole deferral later), a flapping one asks once, a quiet one keeps its minute
 //   ASK-1  one character sustains at most 6 engine asks a minute (the accrue budget is the ACCOUNT's 30): a
 //          frame never asks (it is the whole character) and a re-join while hunting asks nothing (the armed
 //          re-read restates it), a refusal holds the asking, in town one hello is in flight and a re-join storm
@@ -58,6 +60,8 @@
 //   ACC-2  the roster is the server's owned slots (hero_slots), bounded; a slot whose
 //          character has no name (hr_load needs_name) reads as unnamed, not as a hero;
 //          create is ONE hr_create_hero with the name, the four colours and an idem key
+//   ACC-6  the roster reads every other owned slot AT ONCE after slot 0's answer (two round trips for
+//          four heroes), and the account's other heroes open at once after Play, within the limit
 //   ACC-5  a hero slot is bought at the SERVER's offer (account.hero_slot_offer; none at the cap or
 //          unstated): ONE hr_buy_hero_slot with the slot, the paying hero and a fresh idem key, no
 //          price; a refusal comes back by name (short_by kept); a yes re-reads the open paying hero
@@ -305,6 +309,50 @@ async function rules(M) {
     if (armed.size !== 1) return 'a frame left ' + armed.size + ' re-reads armed (one timer per session)';
     if (!(due() > first)) return 'a frame did not defer the re-read (still due at ' + due() + ', armed for ' + first + ')';
     return srv.calls.filter((c) => c[0] === 'accrue').length === 0 || 'a frame asked the engine';
+  });
+  /* HUNT-4 (lane a-client-load): the push is the feed, the re-read the fallback. An unviewed hunter fed a frame every
+     10 s makes no call for three minutes; when its channel is lost (an error) the re-read goes out AT ONCE, not a whole
+     deferral later (a frame may have been missed); a flapping channel asks once, not per drop; with the channel back
+     and quiet, the re-reads keep their own minute. */
+  await t('HUNT-4', async () => {
+    const MIN = CFG.SESSION_CONFIG.unviewedPollMs;
+    let ver = 1, clock = 0, seq = 0;
+    const open = (v) => env(v, { hunt: { session_id: 'h1', hunt_id: 'mill_cellar', ended: false } });
+    const calls = [];
+    const srv = { rpc: async (name) => { calls.push({ at: clock, name }); return { ok: true, status: 200, body: open(ver), closed: false }; },
+      accrue: async () => { calls.push({ at: clock, name: 'accrue' }); return { ok: true, status: 200, body: Object.assign({ accrued: true }, open(ver)), closed: false }; } };
+    const hub = fakeHub();
+    const armed = new Map();
+    const cs = new C.CharacterSession({ slot: 0, uid: UID, server: srv, channel: hub.channel, viewed: false, now: () => clock,
+      setTimer: (fn, ms) => { armed.set(++seq, { fn, at: clock + ms }); return seq; }, clearTimer: (id) => { armed.delete(id); } });
+    const until = async (to) => {
+      for (; clock <= to; clock += 100) {
+        for (const [id, a] of Array.from(armed)) if (a.at <= clock && armed.has(id)) { armed.delete(id); a.fn(); for (let k = 0; k < 4; k++) await new Promise((r) => setImmediate(r)); }
+      }
+    };
+    await cs.load(); cs.connect();
+    const topic = C.frameTopic(UID, 0);
+    calls.length = 0;
+    for (let k = 1; k <= 18; k++) { await until(k * 10000); ver++; hub.send(topic, { t: 'state', frame: ver, env: open(ver) }); }
+    if (calls.length) return 'a hunter fed a frame every 10 s made ' + calls.length + ' call(s) in three minutes: ' + calls.map((c) => c.name).join(',');
+    await until(182000);
+    const lost = clock;
+    hub.topics.get(topic).onStatus('CHANNEL_ERROR');
+    await until(lost + 500);
+    const caught = calls.filter((c) => c.at >= lost);
+    if (caught.length !== 1) return 'the lost channel brought ' + caught.length + ' re-read(s) within 0.5 s (one, at once; the deferral ran to ' + (lost - 2000 + MIN) + ')';
+    if (cs.record.version !== ver) return 'after the catch-up the record is at ' + cs.record.version + ', the server at ' + ver;
+    /* flapping: the re-join fails twice more before it holds; no further catch-up */
+    for (let k = 0; k < 2; k++) { await until(clock + 3000); const t2 = hub.topics.get(topic); if (t2) t2.onStatus('CHANNEL_ERROR'); }
+    const flaps = calls.filter((c) => c.at > lost + 500 && c.at < clock).length;
+    if (flaps) return 'a flapping channel asked ' + flaps + ' more catch-up(s)';
+    /* back and quiet: the re-reads keep their own minute */
+    await until(clock + 70000);
+    const t3 = hub.topics.get(topic); if (t3) t3.onStatus('SUBSCRIBED');
+    const back = clock;
+    await until(back + 3 * MIN);
+    const quiet = calls.filter((c) => c.at > back);
+    return (quiet.length >= 2 && quiet.length <= 4 && quiet.every((c) => c.name === 'hr_load')) || 'with the channel back and quiet the hunter read ' + quiet.length + ' time(s) in three minutes (about one a minute, plain reads): ' + quiet.map((c) => c.name + '@' + (c.at - back)).join(',');
   });
   /* ASK-1 (live 10-23, Andy's four-hero party: 1,906 `rate_limited` refusals in a day). hr_rate_gate's accrue
      budget, 30 a minute, is the ACCOUNT's (hr_rate_counters is keyed on user and bucket), so ONE character
@@ -970,6 +1018,41 @@ async function rules(M) {
       || Object.keys(sent[0]).some((k) => /price|gold|item/.test(k))) return 'create sent ' + JSON.stringify(sent) + ' -> ' + JSON.stringify([ok, no]);
     return true;
   });
+  /* ACC-6 (10-23 measure: the characters screen read four heroes one after another, 1.19 s): slot 0's answer
+     names the owned slots, then every other owned slot is read AT ONCE (two round trips for four heroes), and
+     the account's other heroes open at once after Play; the rows and the open heroes are the same either way. */
+  await t('ACC-6', async () => {
+    const held = [];
+    let out = 0, most = 0;
+    const heroes = { 0: env(1, { hero_slots: [0, 1, 2, 3], name: 'A', account: { max_concurrent: 4 } }), 1: env(1, { name: 'B' }), 2: env(1, { name: 'C' }), 3: env(1, { name: 'D' }) };
+    const srv = { calls: [], rpc: (name, args) => { srv.calls.push([name, args]); out++; most = Math.max(most, out);
+      return new Promise((ok) => held.push(() => { out--; ok({ ok: true, status: 200, body: heroes[args.p_slot] || { ok: false, error: 'no_character' }, closed: false }); })); },
+    accrue: async () => ({ ok: true, status: 200, body: { ok: true, accrued: false, version: 1 }, closed: false }) };
+    const acc = mkAccount(srv);
+    const tick = () => new Promise((r) => setImmediate(r));
+    /* answer every read in flight, one round trip at a time, until `p` settles: how many rounds it took */
+    const rounds = async (p) => {
+      let done = false, n = 0;
+      p.then(() => { done = true; });
+      while (!done && n < 20) { await tick(); if (held.length) { n++; held.splice(0).forEach((f) => f()); } await tick(); }
+      return n;
+    };
+    const ro = acc.roster();
+    const r1 = await rounds(ro);
+    const rows = await ro;
+    if (rows.map((r) => r.name).join() !== 'A,B,C,D') return 'the roster read ' + JSON.stringify(rows.map((r) => r.name));
+    if (r1 !== 2 || most !== 3) return 'four heroes took ' + r1 + ' round trips with at most ' + most + ' reads at once (two and three: slot 0, then the rest together)';
+    most = 0;
+    const first = acc.open(0);
+    await rounds(first);
+    if (!(await first).ok) return 'the first hero did not open';
+    most = 0;
+    const others = acc.openOthers([0, 1, 2, 3]);
+    const r2 = await rounds(others);
+    const open = await others;
+    if (open.join() !== '0,1,2,3') return 'the others opened as ' + JSON.stringify(open);
+    return (r2 === 1 && most === 3) || 'three other heroes opened in ' + r2 + ' round trips with at most ' + most + ' loads at once (one, three)';
+  });
   await t('ACC-5', async () => {
     const offer = (o) => ({ account: { max_concurrent: 4, hero_slot_offer: o, hero_slots_max: 5 } });
     /* the offer is the server's, bounded; none at the cap, none unstated, none malformed */
@@ -1277,7 +1360,11 @@ const MUTANTS = [
   ['the slot offer is made up on this side', 'src/session/account-session.js', '    || !Number.isSafeInteger(o.cost_gold) || o.cost_gold < 1) return null;', '    || false) return null;'],
   ['a slot purchase sends a price', 'src/session/account-session.js', "{ p_slot_id: slotId, p_slot: paySlot, p_idem: newIdem() }", "{ p_slot_id: slotId, p_slot: paySlot, p_price: this.slotOffer && this.slotOffer.cost, p_idem: newIdem() }"],
   ['the paying hero keeps its old gold', 'src/session/account-session.js', '      if (cs) await cs.load();\n', ''],
-  ['a hero shows its own copy of the account purse', 'src/session/account-session.js', '    cs.accountPurse = () => this._purse;\n', ''],
+  ['a lost channel waits out the deferral', 'src/session/character-session.js', '      if (this._fed && this._huntOpen()) { this._fed = false; this._poll.arm(this._pace.waitMs()); }\n', ''],
+  ['a frame never marks the re-read as fed', 'src/session/character-session.js', '    this._fed = deferred === true;', '    this._fed = false;'],
+  ['the roster reads its heroes one after another', 'src/session/account-session.js', "    const answers = await Promise.all(owned.map((slot) => (slot === 0 ? first : this.server.rpc('hr_load', { p_slot: slot }))));",
+    "    const answers = [];\n    for (const slot of owned) answers.push(slot === 0 ? first : await this.server.rpc('hr_load', { p_slot: slot }));"],
+  ['the other heroes open one after another', 'src/session/account-session.js', '    await Promise.all(want.map((slot) => this._open(slot)));', '    for (const slot of want) await this._open(slot);'],  ['a hero shows its own copy of the account purse', 'src/session/account-session.js', '    cs.accountPurse = () => this._purse;\n', ''],
   ['the purse is the last answer, not the newest version', 'src/session/item-sections.js', '  return b.v > a.v ? b : a;', '  return b;'],
   ['another hero is not re-rendered for a new purse', 'src/session/account-session.js', "if (other !== cs && typeof other.notePurse === 'function') other.notePurse();", 'void other;'],
   ['limit off by one', 'src/session/account-session.js', 'if (this._chars.size >= this.limit()) return', 'if (this._chars.size > this.limit()) return'],
@@ -1359,7 +1446,7 @@ async function main() {
   if (!mutate) {
     const fails = [...await rules(await load(ROOT)), ...await viewRules(ROOT)];
     for (const f of fails) console.log('  ✗ ' + f);
-    console.log(fails.length ? 'session-core: ' + fails.length + ' rule(s) RED' : 'session-core: every session rule holds (39 rules)');
+    console.log(fails.length ? 'session-core: ' + fails.length + ' rule(s) RED' : 'session-core: every session rule holds (41 rules)');
     process.exit(fails.length ? 1 : 0);
   }
   const clean = await cleanControl(async () => rules(await load(ROOT)));

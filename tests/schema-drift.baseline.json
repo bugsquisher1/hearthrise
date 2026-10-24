@@ -7,10 +7,10 @@
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
  "generated": "2026-10-24",
- "digest": "017ae988ceaa99d9e3d3178fa0b73b9af9f3064f0affe574c7bb4cba6dcb809a",
+ "digest": "112e4968e99c0ff013acbdc7497ac629200b7c511b234c26be8796165e0feede",
  "counts": {
   "relations": 224,
-  "functions": 520,
+  "functions": 521,
   "policies": 115,
   "indexes": 319,
   "triggers": 48,
@@ -579,6 +579,7 @@
    "hr_market_mine(p_user uuid, p_slot integer)",
    "hr_market_read_gate(p_user uuid, p_slot integer, p_verb text)",
    "hr_market_rules()",
+   "hr_materials_take(p_user uuid, p_slot integer, p_items jsonb, p_storage boolean)",
    "hr_max_hp(p_level integer, p_heavy integer)",
    "hr_max_mana(p_level integer, p_light integer)",
    "hr_mod_force_rename(p_user uuid, p_reason text)",

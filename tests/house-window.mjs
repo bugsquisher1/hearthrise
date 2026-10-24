@@ -5,13 +5,15 @@
 //   node tests/house-window.mjs            the rules
 //   node tests/house-window.mjs --mutate   every planted defect must turn a rule RED
 //
-// mutant-anchors: src/shell/windows/house.js src/session/home-sections.js src/session/home-intents.js
+// mutant-anchors: src/shell/windows/house.js src/session/home-sections.js src/session/home-intents.js src/session/refusal.js
 //
 // play.html with supabase-js and the REST paths stubbed (tests/_client-harness.mjs);
-// the character is tests/fixtures/alpha-envelope.json (5,200 gold, 40 normal logs,
-// 10 copper ore) plus the account's `home` and `depot` sections below.
+// the character is tests/fixtures/alpha-envelope.json (Tyler: 5,200 gold, 40 normal logs,
+// 10 copper ore) plus the account's `home` and `depot` sections and its Storage (`bank`:
+// 30 oak logs, 25 normal logs) below.
 //   HW-1  the House opens from its launcher key (E) with zero console errors and
-//         names the account's home (the server's tier name) as shared
+//         names the account's home (the server's tier name) as shared, and says who
+//         pays: the shared purse, then Tyler's bag first and then Storage
 //   HW-2  THE DEED FROM THE SERVER: held tiers say so, the next tier lists what
 //         it opens and its whole price against the bag, short lines marked, and
 //         its Buy stays off while anything is short; later tiers have no price
@@ -26,6 +28,12 @@
 //         is said in plain words
 //   HW-6  FAIL SAFE: with no home / depot sections nothing is offered and the
 //         window says it is reading the house
+//   HW-7  BAG + STORAGE (2027-01-10-house-from-storage.sql): each line says what the
+//         bag and the Storage hold ('Normal Log 60 (40 in your bag + 25 in Storage)');
+//         a rung the bag alone cannot pay but bag + Storage can is offered; one that
+//         both together cannot is short and off; the confirmation names the order
+//   HW-8  A SHORTFALL IN THE SERVER'S NUMBERS: a build refused insufficient_item says
+//         the bag and Storage counts the server sent
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
 import { leaseBrowser } from './_chrome.mjs';
@@ -44,7 +52,7 @@ const SECTIONS = {
     { room: 'kitchen', name: 'Kitchen', level: 1, rungs: 5, opens: 1, rung_name: 'Hearthstone',
       next: { offer: 'room.kitchen.2', name: 'Iron Stove', rung: 2, gold: 2000, items: { normal_log: 20 }, need: 1, item: null } },
     { room: 'garden', name: 'Garden', level: 0, rungs: 5, opens: 1, rung_name: null,
-      next: { offer: 'room.garden.1', name: 'Kitchen Garden', rung: 1, gold: 600, items: { normal_log: 5 }, need: 1, item: null } },
+      next: { offer: 'room.garden.1', name: 'Kitchen Garden', rung: 1, gold: 600, items: { normal_log: 60 }, need: 1, item: null } },
     { room: 'cellar', name: 'Cellar', level: 0, rungs: 5, opens: 2, rung_name: null,
       next: { offer: 'room.cellar.1', name: 'Root Cellar', rung: 1, gold: 1200, items: { normal_log: 60 }, need: 2, item: null } }] },
   depot: { used: 54, cap: 120, base: 100, tier: 1, chests: [
@@ -52,6 +60,8 @@ const SECTIONS = {
     { chest: 'thicketwood_chest', name: 'Thicketwood Chest', stacks: 30, tier: 1, gold: 3000, items: { normal_log: 10 }, built: false },
     { chest: 'ironbanded_strongbox', name: 'Ironbanded Strongbox', stacks: 50, tier: 2, gold: 25000, items: { iron_bar: 25 }, built: false }],
   next: { chest: 'thicketwood_chest', name: 'Thicketwood Chest', stacks: 30, tier: 1, gold: 3000, items: { normal_log: 10 }, can_build: true, why: null } },
+  /* The account's Storage (hr_state_of `bank`): the House counts it after the bag. */
+  bank: { oak_log: 30, normal_log: 25 },
 };
 const W = '[data-hs-win="house"] ';
 const wait = (page, fn, arg, ms = 8000) => page.waitForFunction(fn, arg, { timeout: ms }).then(() => true, () => false);
@@ -64,6 +74,10 @@ async function stub(page, s) {
     const body = JSON.parse(r.request().postData() || '{}');
     s.calls.push({ name, body });
     const json = (b, status = 200) => r.fulfill({ status, contentType: 'application/json', body: JSON.stringify(b) });
+    if (name === 'hr-accrue' && body.verb === 'unlock_buy' && body.offer === 'room.garden.1') {
+      return json({ ok: false, verb: 'unlock_buy', error: 'insufficient_item', stage: 'buy',
+        detail: { ok: false, error: 'insufficient_item', item_id: 'normal_log', have: 59, need: 60, bag: 40, storage: 19 } }, 409);
+    }
     if (name === 'hr-accrue' && body.verb === 'unlock_buy') {
       await new Promise((ok) => setTimeout(ok, 300));
       return json({ ok: false, verb: 'unlock_buy', error: 'prereq_property_tier', have: 1, need: 2 }, 409);
@@ -118,7 +132,8 @@ async function checks(overrides) {
       else {
         if (errors.length) fails.push('HW-1 console errors: ' + errors.join(' | ').slice(0, 300));
         const head = (await txt(page, '.hw-house-name')) + ' / ' + (await txt(page, '.hw-house-note'));
-        if (!/Hearthside Homestead/.test(head) || !/all your characters/.test(head)) fails.push('HW-1 the head reads ' + JSON.stringify(head));
+        if (!/Hearthside Homestead/.test(head) || !/all your characters/.test(head)
+          || !/Gold comes from your shared purse; materials from Tyler's bag first, then Storage\./.test(head)) fails.push('HW-1 the head reads ' + JSON.stringify(head));
         // HW-2
         const deed = await lines(page, '.hw-deed');
         if (deed.length !== 3 || !/Yours/.test(deed[0].t) || deed[0].btn !== 'none'
@@ -126,6 +141,8 @@ async function checks(overrides) {
           || deed[1].short.some((m) => /Copper/i.test(m)) || /10,000/.test(deed[2].t) || deed[2].btn !== 'none' || !/After the Fieldworth Farmstead/.test(deed[2].t)) {
           fails.push('HW-2 the deed reads ' + JSON.stringify(deed));
         }
+        /* HW-7 the Farmstead: 40 oak logs against none in the bag + 30 in Storage is short; the copper is in the bag. */
+        if (!/Oak Log 40 \(30 in Storage\)/.test(deed[1].t) || !/Copper Ore 5 \(10 in your bag\)/.test(deed[1].t)) fails.push('HW-7 the Farmstead\'s lines read ' + JSON.stringify(deed[1].t));
         // HW-3
         const rooms = await lines(page, '.hw-rooms');
         const by = (n) => rooms.find((r) => r.t.startsWith(n)) || { t: '', btn: '?' };
@@ -134,6 +151,9 @@ async function checks(overrides) {
         // The Garden has a purpose (game-designer ruling 2026-10-22): its rung is offered and says what it builds,
         // on the ONE field the account's heroes share (Tyler 2026-10-23, 2026-12-14-shared-farm.sql).
         if (!/Not built yet\. Next: Kitchen Garden, 1 more farm bed on the land your heroes share/.test(by('Garden').t) || by('Garden').btn === 'none') fails.push('HW-3 the Garden reads ' + JSON.stringify(by('Garden')));
+        /* HW-7 60 logs: 40 in the bag alone is short, 40 + 25 in Storage is not. */
+        if (!/Normal Log 60 \(40 in your bag \+ 25 in Storage\)/.test(by('Garden').t) || by('Garden').btn !== 'on' || by('Garden').short.length)
+          fails.push('HW-7 the Garden (bag + Storage) reads ' + JSON.stringify(by('Garden')));
         // HW-4
         const chests = await lines(page, '.hw-chests');
         if (chests.length !== 3 || !/Built/.test(chests[0].t) || chests[0].btn !== 'none' || chests[1].btn !== 'on' || chests[2].btn !== 'none'
@@ -155,6 +175,14 @@ async function checks(overrides) {
         const ub = sent(s, (c) => c.name === 'hr-accrue' && c.body.verb === 'unlock_buy');
         if (ub.length !== 1 || ub[0].body.offer !== 'room.kitchen.2' || Object.keys(ub[0].body).some((k) => /price|gold|cost/i.test(k))) fails.push('HW-5 Pay sent ' + JSON.stringify(ub.map((c) => c.body)));
         if (!/too small/.test(await txt(page, '.hh-intent-msg') || '')) fails.push('HW-5 the refusal reads ' + JSON.stringify(await txt(page, '.hh-intent-msg')));
+        // HW-7 the confirmation names the order; HW-8 the server's shortfall in its own numbers
+        await press(page, W + '.hw-rooms > li:nth-child(2) [data-hs-act="house-ask"]', 'HW-7');
+        const note = await txt(page, '.hw-confirm-note') || '';
+        if (!/600 gp from your shared purse, and 60 Normal Log from Tyler's bag first, then Storage\./.test(note)) fails.push('HW-7 the confirmation reads ' + JSON.stringify(note));
+        await press(page, W + '[data-hs-act="house-yes"]', 'HW-8');
+        await idle(page);
+        const short = await txt(page, '.hh-intent-msg') || '';
+        if (short !== 'Not enough Normal Log: you have 40 in your bag and 19 in Storage, and it takes 60.') fails.push('HW-8 the shortfall reads ' + JSON.stringify(short));
       }
       await ctx.close();
     }
@@ -184,6 +212,9 @@ const MUTANTS = [
   ['a room the home has not opened is offered', 'src/shell/windows/house.js', 'const buyable = open && useful && n && !gated;', 'const buyable = useful && n;'],
   ['the reader invents a home', 'src/session/home-sections.js', "  const h = read(cs, 'home');\n", "  const h = read(cs, 'home') || { tier: 0, tiers: [{ offer: 'property.homestead', name: 'Home', tier: 1, need: 0, gold: 1, items: {} }], rooms: [] };\n"],
   ['the room rung goes to the wrong verb', 'src/session/home-intents.js', "cs.edgeIntent('unlock_buy', { offer })", "cs.edgeIntent('shop_buy', { offer, qty: 1 })"],
+  ['the Storage is not counted (the bag alone pays)', 'src/shell/windows/house.js', 'const inStorage = stored ? stored.get(it.id) || 0 : null;', 'const inStorage = null;'],
+  ['the head still says the hero pays from their own gold and bag', 'src/shell/windows/house.js', "' bag first, then Storage.');", "' own gold and bag.');"],
+  ['the refusal drops the server\'s counts', 'src/session/refusal.js', '    counts: countsOf(named),\n', '    counts: null,\n'],
 ];
 
 async function main() {

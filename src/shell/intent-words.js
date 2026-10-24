@@ -5,7 +5,8 @@
 // (src/data/refusal-words.js): a code's own line, else its family's, else a
 // fallback that still says nothing was changed. A refusal that names an item
 // the hero's skill is too low for says the numbers ("Needs Defense 20 (you have
-// 1)."), from the item's requirement and the SERVER's skill levels. The
+// 1)."), from the item's requirement and the SERVER's skill levels; a house
+// build short of a material says the server's bag and Storage counts. The
 // server's value stays on screen either way: nothing changed before it answered.
 // ════════════════════════════════════════════════════════════════════════
 
@@ -14,6 +15,7 @@ import { ITEMS } from '../data/items.js?v=0.2.38';
 import { SKILLS_DEF } from '../data/skills.js?v=0.2.38';
 import { REFUSAL_WORDS, REFUSAL_FAMILIES, REFUSAL_FALLBACK } from '../data/refusal-words.js?v=0.2.38';
 import { skillsOf } from '../session/item-sections.js?v=0.2.38';
+import { whole } from '../render/format.js?v=0.2.38';
 
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 
@@ -70,6 +72,12 @@ export function refusalText(r, cs) {
   if (r && (r.error === 'requirement_not_met' || r.error === 'level_too_low') && r.item) {
     const w = requirementWords(r.item, cs);
     if (w) return w;
+  }
+  /* A house build one material short across the bag and Storage (2027-01-10-house-from-storage.sql): the server's counts. */
+  const c = r && r.error === 'insufficient_item' && r.item && own(ITEMS, r.item) ? r.counts : null;
+  if (c && c.bag !== null && c.storage !== null) {
+    return 'Not enough ' + ITEMS[r.item].n + ': you have ' + whole(c.bag) + ' in your bag and ' + whole(c.storage)
+      + ' in Storage, and it takes ' + whole(c.need) + '.';
   }
   return refusalWords(r && r.error);
 }

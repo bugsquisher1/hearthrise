@@ -6,11 +6,11 @@
   "schema change was intended — the diff of this file is the review surface.",
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
- "generated": "2026-10-23",
- "digest": "45b7a6219bdd5822b578bf0a9bcd0977a790d9f183d1cebaf2dd9487939c2c21",
+ "generated": "2026-10-24",
+ "digest": "74e8eca8dd04286023b2b19ef604d35735c0e45c584c519ed4442c089fc197e4",
  "counts": {
   "relations": 224,
-  "functions": 514,
+  "functions": 515,
   "policies": 121,
   "indexes": 318,
   "triggers": 51,
@@ -576,6 +576,7 @@
    "hr_market_offer_cap()",
    "hr_market_offer_immutable()",
    "hr_market_offer_stamp()",
+   "hr_materials_take(p_user uuid, p_slot integer, p_items jsonb, p_storage boolean)",
    "hr_max_hp(p_level integer, p_heavy integer)",
    "hr_max_mana(p_level integer, p_light integer)",
    "hr_mod_force_rename(p_user uuid, p_reason text)",

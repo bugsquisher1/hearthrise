@@ -49,10 +49,15 @@
 .hw-burying.is-on { display: flex; }
 .hw-burying-q { flex: 1; }
 /* "Equip upgrades": what the press puts on, in words, beside the button (src/shell/widgets/upgrade-line.js). */
-.hw-upgrade { display: none; align-items: center; gap: 8px; margin-top: 8px; padding: 6px 8px; background: var(--bg-1); box-shadow: var(--hw-well); }
+.hw-upgrade { display: none; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin-top: 8px; padding: 6px 8px; background: var(--bg-1); box-shadow: var(--hw-well); }
 .hw-upgrade.is-on { display: flex; }
 .hw-upgrade-q { flex: 1; min-width: 0; margin: 0; color: var(--ink-2); }
 .hw-upgrade .hw-primary { display: inline-block; flex: none; }
+/* A gear control's own words (gear-gate.js, the press's answer): on the line it was pressed on, never only at the
+   window's foot (Tyler 2026-10-24: an Equip refused off-screen read as "nothing happened"). */
+.hw-why { flex-basis: 100%; margin: 4px 0 0; font-size: var(--t-micro); color: var(--ink); }
+.hw-why:empty { display: none; }
+.hw-upgrade .hw-why { margin: 0; }
 .hw-amt { display: flex; align-items: center; gap: 4px; padding: 4px 0; }
 .hw-amt-n { width: 6em; }
 .hw-selcount { flex: 1; font-weight: 700; font-variant-numeric: lining-nums tabular-nums; }
@@ -313,9 +318,14 @@
 /* What drops here: the hourly gear a line a tier (the lines' words in ink, what they cover muted), then each Rare and
    Trophy as its own pixel icon at x1 in a sunk well, its name in its rarity colour and its carrier under it. */
 .hw-hd-sets, .hw-hd-rares { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }
-.hw-hd-set { font-size: var(--t-small); color: var(--ink-2); }
+.hw-hd-set { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 8px; align-items: baseline; font-size: var(--t-small); color: var(--ink-2); }
 .hw-hd-set-lines { font-weight: 700; color: var(--ink); }
-.hw-hd-rare { display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; column-gap: 10px; align-items: center; }
+/* The chance per kill (hunt-detail.js): one right-hand column, figures aligned. */
+.hw-hd-per { font-family: var(--f-ui); font-weight: 400; letter-spacing: 0; color: var(--ink-3); }
+.hw-hd-odds { font-size: var(--t-small); font-weight: 700; color: var(--ink); text-align: right; white-space: nowrap; font-variant-numeric: lining-nums tabular-nums; }
+.hw-hd-rare .hw-hd-odds { grid-column: 3; grid-row: 1 / 3; }
+.hw-hd-rare-name, .hw-hd-rare-by { grid-column: 2; }
+.hw-hd-rare { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-rows: auto auto; column-gap: 10px; align-items: center; }
 .hw-hd-rare .hw-ico { grid-row: 1 / 3; width: 40px; height: 40px; background: var(--bg-0); box-shadow: var(--hw-well); }
 .hw-hd-rare .hw-ico .hh-icon { width: 32px; height: 32px; }
 .hw-hd-rare-name { font-weight: 700; color: var(--rar-rare); }

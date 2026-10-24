@@ -18,8 +18,8 @@
 // read makes that ROW null, not the whole section.
 // ════════════════════════════════════════════════════════════════════════
 
-import { roleForWeapon } from '../data/hunt-roles.js?v=0.2.38';
-import { VITALS } from '../data/core-model.js?v=0.2.38';
+import { roleForWeapon } from '../data/hunt-roles.js?v=0.2.39';
+import { VITALS } from '../data/core-model.js?v=0.2.39';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null);

@@ -9,15 +9,15 @@
 // close lands, and a plain "still processing" line if it is late.
 // "Ready in" and the "»" buttons of the reference are NOT built (TB-03, TB-04: purpose unknown, Tyler 10-17).
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.38';
-import { huntOf, analyzerOf, sessionClockMs, serverNowOf } from '../../session/hunt-sections.js?v=0.2.38';
-import { text, prop, attr } from '../../render/paint.js?v=0.2.38';
-import { clock } from '../../render/format.js?v=0.2.38';
-import { takeFresh } from '../../hunt-view/summary-recorder.js?v=0.2.38';
-import { track } from '../../net/observability.js?v=0.2.38';
-import { refusalText } from '../intent-words.js?v=0.2.38';
-import { pointerFor } from '../launcher.js?v=0.2.38';
-import { deathPopupOf } from '../death-popup.js?v=0.2.38';
+import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.39';
+import { huntOf, analyzerOf, sessionClockMs, serverNowOf } from '../../session/hunt-sections.js?v=0.2.39';
+import { text, prop, attr } from '../../render/paint.js?v=0.2.39';
+import { clock } from '../../render/format.js?v=0.2.39';
+import { takeFresh } from '../../hunt-view/summary-recorder.js?v=0.2.39';
+import { track } from '../../net/observability.js?v=0.2.39';
+import { refusalText } from '../intent-words.js?v=0.2.39';
+import { pointerFor, actCoach, placeCoach } from '../launcher.js?v=0.2.39';
+import { deathPopupOf } from '../death-popup.js?v=0.2.39';
 
 /* The pending leave's line, per CharacterSession.leaveCountdown phase (null: the press is still out). */
 const LEAVING = Object.freeze({ asked: 'Leaving…', now: 'Leaving now…', late: 'Still processing your leave…' });
@@ -67,13 +67,11 @@ renderHuntTopbar.patch = function patchHuntTopbar(el, ctx) {
   prop(el.querySelector('.ht-clock'), 'hidden', over);
   /* The tutorial card hangs UNDER this bar while a hunt is open (the launcher's would cover Leave hunt). */
   const html = pointerFor(ctx);
-  const have = el.querySelector(':scope > .hs-pointer');
-  const id = (/data-tutorial="([a-z0-9_]+)"/.exec(html) || [])[1] || null;
-  if (have && have.getAttribute('data-tutorial') !== id) have.remove();
-  if (id && !(have && have.getAttribute('data-tutorial') === id)) el.insertAdjacentHTML('beforeend', html);
+  placeCoach(el, html);
 };
 
 renderHuntTopbar.act = async function actHuntTopbar(ctx, el, action, ev, btn) {
+  if (actCoach(ctx, el, action, ev)) return;
   if (ev.type !== 'click') return;
   if (action === 'summary') { ctx.show('hunt-summary'); return; }
   if (action === 'details') { ctx.show('analyzer'); return; }

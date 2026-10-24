@@ -9,11 +9,11 @@
 // Display only: it reads the catalogue (src/shell/item-lore.js) and the
 // numbers the window hands it from the envelope, and sends nothing.
 // ════════════════════════════════════════════════════════════════════════
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.38';
-import { whole, gold } from '../../render/format.js?v=0.2.38';
-import { itemName } from '../widgets/bits.js?v=0.2.38';
-import { kindWords, sourcesOf, usesOf, flavourOf, needOf } from '../item-lore.js?v=0.2.38';
-import { statLines, compare, rarityOf } from '../bag-model.js?v=0.2.38';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.39';
+import { whole, gold } from '../../render/format.js?v=0.2.39';
+import { itemName } from '../widgets/bits.js?v=0.2.39';
+import { kindWords, sourcesOf, usesOf, flavourOf, needOf } from '../item-lore.js?v=0.2.39';
+import { statLines, compare, rarityOf } from '../bag-model.js?v=0.2.39';
 
 const RULE_WORDS = Object.freeze({ keep: 'Keep', sell: 'Sell at the shop', ignore: 'Leave on the ground' });
 const GAP = 10;
@@ -41,7 +41,7 @@ function tipHtml(id, o) {
         : '<p class="hw-tip-cmp">No change.</p>';
     }
   }
-  const need = needOf(id, opt.skills);
+  const need = needOf(id, opt.skills, opt.level);
   if (need) h += '<p class="hw-tip-need' + (need.short ? ' is-short' : '') + '">' + esc(need.text) + '</p>';
   const src = sourcesOf(id, opt.offers);
   if (src.length) h += '<p class="hw-tip-line"><small>Comes from</small>' + esc(src.join('. ')) + '</p>';

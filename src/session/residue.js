@@ -11,7 +11,7 @@
 // way IN (envelope) and on the way OUT (put), so a malformed or oversized value
 // can never reach a renderer or the server.
 // ════════════════════════════════════════════════════════════════════════
-import { PANEL_ALPHA } from '../data/panel-alpha.js?v=0.2.38';
+import { PANEL_ALPHA } from '../data/panel-alpha.js?v=0.2.39';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 
@@ -72,8 +72,8 @@ function sanitizeCombatLog(v) {
   return out;
 }
 
-import { sanitizeSummaries } from './hunt-summaries.js?v=0.2.38';
-import { DEPOT_BASE_STACKS, STORAGE_CHESTS } from '../data/homestead-tiers.js?v=0.2.38';
+import { sanitizeSummaries } from './hunt-summaries.js?v=0.2.39';
+import { DEPOT_BASE_STACKS, STORAGE_CHESTS } from '../data/homestead-tiers.js?v=0.2.39';
 
 const ITEM_ID = /^[a-z0-9_]{1,64}$/;
 export const BAG_SEEN_MAX = 512;
@@ -162,6 +162,14 @@ function sanitizePanelAlpha(v) {
   if (!Number.isFinite(v)) return undefined;
   const { min, max, step } = PANEL_ALPHA;
   return Math.max(min, Math.min(max, Math.round(v / step) * step));
+/* The coach line's fold (src/shell/launcher.js coachFoldOf): folded or not, and the card id the player last had in
+   front of them (a goal id joins its parts, so it may run long). Display preference: gates and spends nothing. */
+function sanitizeCoach(v) {
+  const out = {};
+  if (!isObj(v)) return out;
+  if (v.min === true) out.min = true;
+  if (typeof v.seen === 'string' && /^[a-z0-9_]{1,256}$/.test(v.seen)) out.seen = v.seen;
+  return out;
 }
 
 /** field -> sanitizer. The keys ARE the allowlist. */
@@ -178,6 +186,7 @@ const SANITIZERS = Object.freeze({
   awaySeen: sanitizeAwaySeen,       // display state: the away recap's last-seen stamp (src/shell/away-recap.js); gates and spends nothing
   winSize: sanitizeWinSize,         // display preference: a resizable window's size (src/shell/window-sizes.js); gates and spends nothing
   panelAlpha: sanitizePanelAlpha,   // display preference: the window opacity, a percent (src/shell/panel-alpha.js); gates and spends nothing
+  coach: sanitizeCoach,             // display preference: the coach line folded to its title (src/shell/launcher.js); gates and spends nothing
 });
 
 export const RESIDUE_FIELDS = Object.freeze(Object.keys(SANITIZERS));

@@ -2990,3 +2990,14 @@ is superseded by make-hud-bar-art.mjs): retire both in a later pass.
 Same day, plan #1 built: the fight settings fold out above the bar's end (desktop) / the sheet (phone); the bar is
 plate + sockets + medallion, 122 px (was 182). Lesson: the phone alerts dock at a FIXED 104 px over the bottom
 (hud-widgets.js phone dy), so the phone bar's height is a contract, not a free choice: 2 px of padding turned HS-22 red.
+
+## 2026-10-24 — lane/b-forged-steel (lane 1 of 3): every window in Forged Steel + the Window opacity setting
+Tyler rejected the round-1 directions (lane/d-ui-options), picked skin 1 FORGED STEEL from a same-content skins
+mock, ruled gray/gold only and asked for a Window opacity slider. Built: tools/make-ui-steel-art.mjs (--check,
+--selftest; palette, x2), tokens.css §8 (--panel-alpha, --fill-N, --steel-*), the shared pieces in shell.css (frame
++ faded floor layer, title band, square buttons, section head with rule, sunk field, gold plate primary, thin-steel
+popup, slider), the Hunts page scroller (Enter below it), Settings > Interface > Window opacity (residue panelAlpha,
+AW-30 + 3 mutants). Lessons: (1) a window's fill must be its own ::before layer so one dial fades fill and texture
+together and nothing else; (2) the window manager's inline width beats a CSS width: the phone Configure sheet
+needed min-width; (3) a "keep both" merge of two added functions ate the shared closing brace: syntax-check every
+merged JS file before running a test.

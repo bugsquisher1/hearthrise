@@ -52,6 +52,7 @@ import { escapeHtml as esc } from '../utils/dom.js?v=0.2.39';
 import { followDeaths } from './death-popup.js?v=0.2.39';
 import { sizeStore, gripHtml, pressGrip } from './window-sizes.js?v=0.2.39';
 import { watchTown } from '../session/town-poll.js?v=0.2.39';
+import { applyPanelAlpha, clearPanelAlpha } from './panel-alpha.js?v=0.2.39';
 
 /* The components' display clock: session timers and the timeline's due events (parity SH-05, DOM 4 Hz). */
 const DISPLAY_TICK_MS = 250;
@@ -177,6 +178,8 @@ export function mountShell(root, o) {
 
   /* ── Widgets: shown, faded and placed from the layout ── */
   function paintWidgets() {
+    /* The window opacity follows the character's residue on every repaint (a Settings drag included). */
+    applyPanelAlpha(ctx.doc, ctx.character);
     for (const row of hud.rows()) {
       const box = row.layer === 'screen' ? screenHud : worldHud;
       let el = box.querySelector('[data-hs-widget="' + row.id + '"]');
@@ -460,6 +463,7 @@ export function mountShell(root, o) {
       doc.removeEventListener('keydown', onKey);
       phoneMq.removeEventListener('change', onSizeClass);
       host.removeEventListener('resize', onResize);
+      clearPanelAlpha(ctx.doc);
       shell.remove();
       screen.remove();
     },

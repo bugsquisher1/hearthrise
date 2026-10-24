@@ -80,7 +80,7 @@ Every clip keeps the reference identity: no gear appearing or disappearing betwe
 | Area | Rule | Today |
 |---|---|---|
 | Colour | tokens only, from `src/styles/tokens.css` (the single source, `tests/token-single-source.mjs`) | 1,708 CSS + 453 JS literals; the ratchet only goes down |
-| Frame | **pixel 9-slice** (decided 2026-10-15, below): windows and dialogs a 4-art-px iron frame with rivets, HUD widgets a 2-art-px frame; bars and slots are sunk into a frame, never framed | flat glass with a `--r-lg` radius |
+| Frame | **FORGED STEEL** (Tyler approved 2026-10-24; skin 1 of `art/review/ui-skins-2026-10-24/`): every window a thin 6-art-px steel frame with a square stud in each corner (`assets/ui/steel-frame.png`), popups, menus and phone dialogs the 3-art-px thin steel (`steel-frame-thin.png`), all drawn by `tools/make-ui-steel-art.mjs` (`--check`); a dark title band ruled in dim gold; section heads with a dim gold rule running right; the picked row lifted, outlined in gold, a gold bar at its left; fields sunk one art px; the one primary a raised gold plate (`gold-plate.png`). No rivets on panels, no gilded caps, no nameplates. Fills fade with the Window opacity setting (`--panel-alpha`, 60-100%); frames, rules, gold and text never fade. Bars and slots are sunk, never framed | windows done 2026-10-24; HUD panels, the account screens and the action bar follow |
 | Radius | 0 on framed boxes; `--r-sm 2px`, `--r 3px`, `--r-lg 5px` elsewhere. No pills except true toggles; 50% only for portraits and pips | 6 and 8 px literals dominate; 40 pills |
 | Borders | `1px solid var(--line-soft)` only where a box means something | 126 of 174 boxes bordered on the Bag |
 | Shadow / glow | depth for overlays and dialogs only; no 0-offset glow as decoration | 215 box-shadows, 81 glows |
@@ -93,8 +93,8 @@ Every clip keeps the reference identity: no gear appearing or disappearing betwe
 - **Later, optional:** a bitmap numeral set drawn at ×2 for the world floats only, if playtests ask for it.
 
 ## 10. Typography (law)
-- **One text style everywhere (Tyler, 2026-10-15): the analyzer's.** Headings are `--f-label` (Alegreya Sans SC, bold, `--t-micro`, `--ink-3`, letter-spacing .04em). Body is `--f-ui` (Alegreya Sans) at `--t-micro`/`--t-small`, with `--ink-2` labels and bold `--ink` tabular values; red/green only for cost/gain.
-- **Cinzel only for the logo and big place-name banners.** The prototype still sets the strip name and the ground widget in Cinzel (6 nodes measured); the cutover fixes that.
+- **A characterful heading over a readable body (Forged Steel, Tyler approved 2026-10-24; amends the 10-15 one-style rule).** Window titles, section heads, place names (a ground's page) and the one primary's word are `--f-display` (Cinzel, bold, letter-spaced, gold). Body is `--f-ui` (Alegreya Sans) at `--t-micro`/`--t-small`, with `--ink-2` labels and bold `--ink` tabular values; red/green only for cost/gain. Small labels inside a panel (an analyzer's column, a tooltip's "Comes from") stay `--f-label`.
+- **Cinzel is for names and heads, never for body text or numbers.** The logo, place names, window titles, section heads and primary buttons; nothing a player reads as a sentence.
 - No Inter, no monospace, no pixel font (§9). Floor 14.5 px everywhere, the phone included. Size scale `--t-micro 14.5` … `--t-h1 31` (× `--ui-scale`).
 - World plates and floats use `--f-ui` 700/800 with a `--world-plate-line` stroke, at screen resolution.
 

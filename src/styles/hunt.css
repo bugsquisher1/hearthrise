@@ -402,8 +402,7 @@
 .ca-msg.is-error { color: var(--red); }
 /* The footer stays in reach while the body scrolls (the 922 x 423 sheet is short). */
 .hc-foot { position: sticky; bottom: -12px; display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap; margin: 0 -12px -12px; padding: 6px 12px 8px; border-top: 1px solid var(--line-soft); background: var(--bg-1); }
-.hh-tool.is-primary { padding: 0 14px; background: var(--gold); color: var(--bg-0); }
-.hh-tool.is-primary:hover:not(:disabled) { background: var(--gold-2); color: var(--bg-0); }
+/* The gold plate of the one primary is shell.css's (Forged Steel). */
 
 /* ── Chat: the Combat tab ── */
 .hc-chat { display: flex; flex-direction: column; min-height: 260px; }
@@ -423,6 +422,8 @@
 /* Tyler 2026-10-22: the chat sits over the World, so the World shows through it (--chat-bg); its lines keep a
    1 px shadow so they stay readable over a bright tile. Sized (desktop), the log takes the height the player gave it. */
 .hs-win[data-hs-win="chat"] { background: var(--chat-bg); }
+/* The chat keeps its own see-through plate (Tyler 10-22), not the window floor or the opacity setting. */
+.hs-win[data-hs-win="chat"]::before { display: none; }
 .hs-win[data-hs-win="chat"] .hc-log.is-talk .hc-line { text-shadow: 0 1px 0 var(--world-shadow); }
 .hs-win.is-sized .hc-chat { flex: 1; min-height: 0; }
 .hs-win.is-sized .hc-pane.is-on { min-height: 0; }
@@ -460,7 +461,7 @@
 .hc-pill { position: absolute; left: 50%; bottom: 6px; transform: translateX(-50%); min-height: 26px; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: var(--r-sm); background: var(--bg-2); color: var(--gold-2); font-family: var(--f-label); font-size: var(--t-micro); cursor: pointer; }
 .hc-pill[hidden] { display: none; }
 .hc-input { display: flex; gap: 6px; margin-top: 6px; }
-.hc-field { flex: 1; min-width: 0; min-height: 32px; padding: 0 8px; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--bg-0); color: var(--ink); font-family: var(--f-ui); font-size: var(--t-small); }
+.hc-field { flex: 1; min-width: 0; min-height: 32px; padding: 0 8px; color: var(--ink); font-family: var(--f-ui); font-size: var(--t-small); }
 .hc-field:focus { outline: 2px solid var(--gold); outline-offset: -1px; }
 .hc-field:disabled { color: var(--ink-3); }
 .hc-field::placeholder { color: var(--ink-3); }
@@ -469,7 +470,7 @@
 
 /* ── Friends and Inspect ── */
 .hf-add { display: flex; gap: 6px; }
-.hf-name { flex: 1; min-width: 0; min-height: 30px; padding: 0 8px; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--bg-0); color: var(--ink); font-family: var(--f-ui); font-size: var(--t-small); }
+.hf-name { flex: 1; min-width: 0; min-height: 30px; padding: 0 8px; color: var(--ink); font-family: var(--f-ui); font-size: var(--t-small); }
 .hf-msg { min-height: 1em; margin: 4px 0 0; font-size: var(--t-micro); color: var(--ink-2); }
 .hf-head { display: none; }
 .hf-head.is-on { display: block; }
@@ -495,16 +496,17 @@
 .hs-block { display: flex; align-items: center; justify-content: space-between; padding: 3px 2px; color: var(--ink); }
 
 /* ── Settings ── */
-.hs-sub { margin: 12px 0 4px; font-family: var(--f-label); font-weight: 700; font-size: var(--t-micro); letter-spacing: .04em; color: var(--ink-3); }
+.hs-sub { margin: 12px 0 4px; }
 .hs-sub:first-child { margin-top: 0; }
 .st-find { margin-bottom: 8px; }
-.st-search { width: 100%; box-sizing: border-box; min-height: 36px; padding: 0 10px; border: 1px solid var(--line-soft); border-radius: var(--r); background: var(--surf-panel); color: var(--ink); font: inherit; font-size: var(--t-small); }
+.st-search { width: 100%; box-sizing: border-box; min-height: 36px; padding: 0 10px; color: var(--ink); font: inherit; font-size: var(--t-small); }
 .st-search:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: 1px; }
 .st-body { display: flex; gap: 12px; align-items: flex-start; }
-.st-tabs { flex: none; width: 124px; display: flex; flex-direction: column; border-right: 1px solid var(--line-soft); }
+.st-tabs { flex: none; width: 124px; display: flex; flex-direction: column; border-right: 2px solid var(--steel-sep); }
 .st-tab { min-height: 36px; padding: 0 10px; border: 0; border-left: 2px solid transparent; background: none; text-align: left; color: var(--ink-2); font-family: var(--f-label); font-weight: 700; font-size: var(--t-small); cursor: pointer; }
 .st-tab:hover { color: var(--ink); }
-.st-tab.is-on { color: var(--gold); border-left-color: var(--gold); }
+/* The page shown: lifted, its gold bar at the left (the Forged Steel picked row). */
+.st-tab.is-on { color: var(--gold-2); border-left: 4px solid var(--gold); background: var(--fill-3); }
 .st-tab:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: -2px; }
 .st-pages { flex: 1; min-width: 0; }
 .st-back { display: none; }
@@ -515,7 +517,7 @@
 .st-row.is-note .st-label { display: block; margin: 0; font-family: var(--f-label); font-weight: 700; color: var(--ink); }
 .st-row.is-note .st-help { display: block; color: var(--ink-2); }
 .st-row input[type="checkbox"], .st-row input[type="range"] { accent-color: var(--gold); }
-.st-select { min-height: 32px; background: var(--surf-panel); color: var(--ink); border: 1px solid var(--line-soft); border-radius: var(--r); }
+.st-select { min-height: 32px; color: var(--ink); }
 .st-help { display: none; margin: 2px 0 0; font-size: var(--t-micro); color: var(--ink-3); line-height: 1.4; }
 .st-row:hover .st-help, .st-row:focus-within .st-help { display: block; }
 
@@ -523,7 +525,7 @@
 @keyframes ca-sheet { from { transform: translateX(16px); opacity: 0; } to { transform: none; opacity: 1; } }
 @media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
   /* The phone keeps its sheet as it was: opaque, so nothing of the bar under it reads through (see-through is desktop only). */
-  .hs-win[data-hs-win="chat"] { background: var(--modal-bg); }
+  .hs-win[data-hs-win="chat"] { background: var(--bg-1); }
   .hp-party { width: 200px; }
   .hp-portrait { width: 28px; height: 28px; }
   .hp-role { display: none; }
@@ -566,7 +568,9 @@
   /* A short screen: the tooltip runs wide instead of tall, so it never climbs into the top strip. */
   .hb-tip { width: 440px; }
   /* Configure action on a phone: a full sheet (922 x 423), one 40 px top row, the list and detail side by side. */
-  .hs-win[data-hs-win="configure-action"].is-modal { top: 0; left: 0; right: 0; bottom: 0; transform: none; width: 100vw; max-width: none; height: 100%; max-height: none; border-width: 0; animation: ca-sheet 160ms ease-out both; }
+  /* min-width: the window manager writes an inline width (800 px), which a plain width here never beat: the sheet
+     stopped 120 px short of the right edge at 922 x 423. */
+  .hs-win[data-hs-win="configure-action"].is-modal { top: 0; left: 0; right: 0; bottom: 0; transform: none; width: 100vw; min-width: 100%; max-width: none; height: 100%; max-height: none; border-width: 0; animation: ca-sheet 160ms ease-out both; }
   .hs-win[data-hs-win="configure-action"] .hs-win-head { display: none; }
   .hs-win[data-hs-win="configure-action"] .hs-win-body { flex: 1; display: flex; flex-direction: column; padding: 0 8px 0; overflow: hidden; }
   .ca, .ca-form { flex: 1; min-height: 0; }

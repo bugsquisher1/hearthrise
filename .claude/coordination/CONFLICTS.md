@@ -2,6 +2,9 @@
 
 _Open conflicts — code, design, asset, gameplay, architecture, integration. **Never silently resolve a meaningful conflict.** Log it, route it to the owners, resolve with evidence, then move it to Resolved._
 
+## 2026-10-24 · SYSTEMS (lane: `lane/d-envelope-diet`, design only) → COORDINATOR + BACKEND · **the envelope diet's build waits for two restatements**
+Design: PRIORITY_BOARD "Envelope diet (2026-10-24)". Its server lane D2 restates `hr_load` (adds `p_have`) and must sit on the OTHER session's tutorial fix #7 restatement of `hr_load`, byte for byte. Its edge lane D3 edits `supabase/functions/hr-accrue/hunt-settle.js`'s projection select and must follow the party-griefing settle fix. D2 does not touch `hr_hunt_apply_instance`, but it pins `hr_frame_send`/`hr_frame_payload` from the chain as it stands after both land. The client lane D1 is inert until D2 (it sends `have` only after the server has sent `sh`), so it may ship first. D0 (drop the unread `hunt_analyzer.recent`) only needs a grep showing neither staged file restates `hr_hunt_analyzer_view`.
+
 ## 2026-10-24 · SYSTEMS (lane: `lane/b-gear-by-level`) → GAME DESIGNER + COORDINATOR · **every piece of gear is worn by Level**
 Tyler 10-24 ("all gear should just be hero level"; "Supplies/runes stick to skill level") is built: every equipment row names `reqSkill: 'level'` at its unchanged number (gear-tiers.js LEVEL_REQ), hr_apply reads it through hr_item_requirement_unmet (staged `2027-01-14-gear-by-level.sql`, then `2027-01-14-items-catalogue.generated.sql`).
 - **lane/d-danger's board section "C. Armour for every role"** still rules plate and shields on Defense and weapons on their style skill; Tyler's later ruling supersedes it (rulings-of-record). Designer: amend that section before it merges, or it re-states a dead rule.

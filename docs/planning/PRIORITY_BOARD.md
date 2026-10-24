@@ -30,6 +30,79 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 ## Decisions
 _Tyler's rulings live in rulings-of-record; designer rulings inside them are recorded here._
 
+**Envelope diet (2026-10-24)** (systems-engineer, lane/d-envelope-diet, measure + design only; pillar 1, audit item #4). **Verdict: section-level whole replacement holds, with two amendments.** (1) A section may be left out only when a per-section content hash proves the receiver already holds exactly that text. Base versions do not work for this: an HTTP answer and a frame interleave. Section versions do not work either: no writer stamps them. (2) Diet frames need a new tag, so a stale build refuses them. Measured on live, read-only: the 1,261 frames Realtime kept (`realtime.messages`, 10-23/24, 9 topics), with `node tools/envelope-sizes.local.mjs [--hunting] [--sub]` (new, mirrors `char-state`'s `q()`).
+
+*Measured: hunting frames* (606 frames on 8 topics; bytes are jsonb text, and the compact JSON on the wire is about 11% smaller; "changed" = share of consecutive frames on one topic where the section's text moved). Every reader goes through `CharacterSession.read(key)`, i.e. the record (`character-session.js:136`), never the raw answer.
+
+| Section | Mean B | Changed | Readers (src) | Note |
+|---|---|---|---|---|
+| hunt_analyzer | 12,116 | 100% | `session/hunt-sections.js` analyzerOf (hero, party, hunt_ms, session.settled_to/ended_at) | `.recent` 8,282 B (6%), **no reader anywhere** (src, edge, tests); `.session` 1,118 B duplicates `hunt.session`; `unseen`, `wall_ms` unread |
+| client_state | 10,089 | 49% | `envelope.js` residueOf (residue.js allowlist) | the client's own residue echoed back; 48% of the churn is `awaySeen` (108 B); huntSummaries 4,054 (3%), bagSeen 2,148 (3%), alerts 1,912 (6%), storeSeen 1,697 (2%) |
+| hunt_settings | 5,660 | 1% | hunt-sections, action bar, configure-action, hunt-prep, bar-draft | `.store` 2,278 B is catalogue prices, the same for every hero |
+| hunt | 5,545 | 100% | hunt-sections huntOf, world-pane, live-overlay, town-poll, character-session | `.pose` 3,438 B, the live instance |
+| home | 2,985 | 0% | home-sections, house window, world-boot | account-shared |
+| shop | 2,059 | 12% | shop/farm windows, core/member | offers 1,529 B catalogue, bids move |
+| progress | 1,541 | 95% | character-sections, skills/work windows, goals | counters |
+| party | 1,530 | 99% | party-sections, party-finder, chat-store | members' live HP/DPS |
+| farm / farm_land | 1,365 / 1,184 | 1% / 88% | farm-sections, farm window | farm_land churns on a server-computed seconds-to-ready (clock-derived) |
+| bank / depot | 1,242 / 899 | 2% / 2% | home/item-sections, storage, inventory | account-shared |
+| state | 760 | 100% | envelope.js (the "is a restatement" marker), gold, gear-gate, town-work | accrued_to, gold |
+| skills / inventory | 675 / 524 | 92% / 77% | item/hunt-sections, many shell windows | |
+| other 43 sections | 4,250 together | mostly 0-17% | | tally 17%, everything else small |
+| **whole frame** | **53,000 (51.8 KB)** | | | median 20 s apart per hunting topic (p90 100 s); 0 duplicates, 0 out of order |
+
+Not in frames: the settle answer's timeline (`hunt_track`, `hunt_events`). It is transient news, never part of the record, so the diet does not apply to it (by `src/core/hunt-track.js`'s own estimate, ~15 KB per 10 s window for a 4-hero party). Compacting it is a separate item.
+
+*Measured savings* (31 consecutive live hunting frame pairs, 8 topics; compact JSON as sent; `gzip` because PostgREST and hr-accrue answers are gzip-encoded, which was checked: `content-encoding: gzip` on both. Whether Realtime frames are compressed is UNVERIFIED and is the first check of the build).
+
+| Shape | Raw per answer/frame | Gzip | vs today |
+|---|---|---|---|
+| Today (whole envelope) | 46.2 KB | 10.9 KB | |
+| D0: dead weight out (analyzer `recent`, `unseen`, `wall_ms`; `session` cut to settled_to/ended_at) | 37.6 KB | 9.8 KB | -19% / -10% |
+| D0 + diet (sections below, hash map 0.9 KB included) | **16.0 KB** | **4.6 KB** | **-65% / -58%** |
+
+- **Per hour:** the viewed hunter's own answers at the 16 s poll (`SESSION_CONFIG.huntPollMs`; a frame defers it) are at most about 225 an hour, 2.4 MB gzip (1.0 MB after the diet). Every other open hero's frames run about 180 an hour, 8.3 MB raw each (2.9 MB after). In Andy's 4-hero party (10-24, 05:35-07:14), one browser received 443 frames on 4 topics in 99 min at a 56 KB mean: 25 MB of jsonb text, about 15 MB/h (about 13 MB/h as compact JSON, about 5 MB/h after the diet).
+- **Client:** apply + parse per answer is 0.84 ms today and 0.15 ms on the diet (node on Tyler's PC; phones are several times slower). Kept sections are reused frozen objects, so nothing is copied.
+- **Server:** hashing adds about 0.2-0.5 ms per projection (read + serialise 1.9 ms vs read + hash 2.1 ms, warm, over 200 stored frames). The projection itself is unchanged (3-10 ms).
+- **10x content:** the largest frame today is 59.6 KB, against the 250,000-byte ceiling past which `hr_frame_send` silently sends nothing. The whole frame grows with grounds, offers, rooms, bag and progress; the diet frame grows only with what changed.
+
+*Protocol.*
+- **P1 Sections.** A section is a top-level key of `hr_state_of`, except: `ok`, `version`, `now` and `state` are always sent (`state` keeps E6's "a restatement has a state object" literally true). `client_state` is cut one level, so each residue field is its own section `client_state.<field>`. A section under 64 bytes of text is always sent and never hashed.
+- **P2 Hashes, one family, in SQL.** Every projected answer and frame carries `sh: {section: left(md5(text), 16)}`, built by `hr_state_sh(env)` on the jsonb text. The edge never hashes and the client never hashes: a second serialiser would make hashes that never match.
+- **P3 Omission.** A hashed section is left out only when the receiver is known to hold that exact hash. Over HTTP, that is the client's `have` (its record's `sh`, about 1 KB up, on `hr_load` and hr-accrue bodies). For frames, it is the topic's last-sent `sh` (`hr_frame_shadow (user_id, slot) -> sh, version`, written in `hr_frame_send` under the character lock the settle or write already holds; it rolls back with them). "Left out" means absent from `env` AND present in `sh`.
+- **P4 Apply** (envelope.js E7). For every `sh` key absent from `env`, the record must hold that section with the same hash, else the WHOLE answer is refused (`gap`): never a partial apply. A key absent from both `env` and `sh` is gone (E1). The reassembled record must hold `state` (E6). The record's `sh` becomes the answer's. E3 is unchanged (an older answer is `stale`; a frame must be strictly newer). The result is byte-identical to applying the full envelope at that version. That equivalence is THE property the guards prove.
+- **P5 Frame tag** `{t:'diet', frame, env}`. A stale build's `frameEnvelope` refuses it as malformed and keeps polling. Applied as a full envelope by an old applier, a missing section would read as gone and blank its panel. `t:'state'` (whole) stays valid.
+- **P6 Resync.** `gap` → `load(have)` → if that also gaps (a frame moved the record in flight) → `load()` with no `have` = full, E1. That is at most two reads. A reload, sign-in, new session or channel rejoin starts with no `sh`, so its first answer is full. A lost channel triggers the poll's hello as today.
+- **P7 Multi-character.** Each `CharacterSession` keeps its own record, `sh` and `have`; frames and the shadow are per (user, slot). Account-shared sections (purse in `state`, bank, depot, home, farm_land) hash identically on every hero. v1 does not share kept sections across sessions.
+- **P8 Residue.** The `client_state.<field>` sections are reassembled before `residueOf`. The `_sent`/`_pending` overlay in `_take` runs after, unchanged.
+- **P9 `have` bounds.** At most 128 entries, keys `^[a-z_]{1,40}(\.[A-Za-z]{1,40})?$`, values 16 hex. Anything malformed reads as no `have` (a full answer), never an error. The client sends `have` only once it has received an `sh`, so a new client against today's server never calls a signature that does not exist (PGRST202 would raise the stale-build banner).
+
+*Risks against CLAUDE.md §6, and why each holds.* No merge upward: a section is replaced whole or kept byte-identical by proof, and leaf patches (JSON-patch) were rejected because they are merges. No mixed-version record (the 2026-09-13 class that retired the 09-23 key-subset `delta`): a frame or answer whose omitted hash does not match is refused whole. Clock-relative numbers stay correct: a kept section's text is exactly what the server would have sent at this version. A forged `have` only trims the forger's own answer, and no gate, intent or value reads it (for the reopen Security review it is a read filter, not a write). Collisions: a 64-bit hash puts a wrong keep at about 1e-19 per compare. The shadow is a cache, never authority: a missed frame on its worst day costs one `load(have)`. Old builds: they never send `have` and refuse `t:'diet'`, so they get whole answers.
+
+*Build lanes, in order:*
+
+| Lane | Files | Gate / order |
+|---|---|---|
+| **D0 server, dead weight** | new migration restating `hr_hunt_analyzer_view` (drop `recent`, `unseen`, `wall_ms`; `session` -> `{settled_to, ended_at}`); `tests/envelope-contract.mjs`, `tests/fixtures/hunt-envelope.json` | Lane C, any time, once a grep shows neither conflicting staged file below restates `hr_hunt_analyzer_view`. No client change. |
+| **D1 client, inert until D2** | `src/session/envelope.js` (E7, `t:'diet'`), `src/session/character-session.js` (`have` on load/hello/intents only after an `sh` is seen; the P6 resync), `src/session/edge-intents.js` (`have` in bodies); `tests/session-core.mjs`, `tests/envelope-contract.mjs`, `tests/no-client-copy-of-projection.mjs` | Lane B, ships FIRST (live before D2 applies) |
+| **D2 server, the protocol** | new migration: `hr_state_sh`, `hr_state_diet`, `hr_load(p_slot, p_have jsonb default null)` restated on the tutorial-fix body, `hr_frame_payload(env, shadow)` + `hr_frame_send` restated (pinned to the bodies the chain holds when D2 is authored), `hr_frame_shadow` (engine-only, RLS, no client grant), the `hr_client_rpc_baseline` row; `tests/frame-push-revive.mjs`, restore-census re-pin | Lane C, AFTER D1 is live and AFTER both conflicts below are APPLIED |
+| **D3 edge** | `supabase/functions/hr-accrue/request.js` (`have`, P9), `index.ts` + `hunt-settle.js` (select `hr_state_sh(<projection>)` beside each projection; one `dietAnswer(body, sh, have)` at the respond points), an edge test | after D2 applies and after the party-griefing `hunt-settle.js` change; one local `run-smoke` + edge deploy |
+
+Then re-measure with `tools/envelope-sizes.local.mjs --hunting`. Target: at most 17 KB raw / 5 KB gzip per hunting answer or frame.
+
+*Conflicts (sequencing).* The other session restates `hr_load` (tutorial fix #7) and the hunt settle path (party-griefing fix). D2 restates `hr_load` on top of #7's body, byte-for-byte. D3 edits `hunt-settle.js`'s projection select. Both wait until those two land. D2 leaves `hr_hunt_apply_instance` alone (the diet lives inside `hr_frame_send`), but its pins must be read from the chain after the settle fix applies.
+
+*Guards that must prove it* (each with a mutant):
+- **session-core `--mutate` (E7):** keeping a section whose hash differs; applying with a section the record lacks; dropping the `gap` refusal; losing a kept `client_state` field; applying a `diet` frame at the same version.
+- **envelope-contract:** on replayed real projections, diet-apply equals full-apply for consecutive pairs, with the diet computed by the SQL function in the replay.
+- **no-client-copy-of-projection KEEP:** extended to diet answers.
+- **frame-push-revive:** `t:'diet'`, the shadow and the ceiling; a v0.2.43 `frameEnvelope` refuses `t:'diet'`.
+- **Edge:** a test of `have` parsing, plus the mutant "trim a section whose hash differs".
+- **Server:** schema-drift replay with the §4 self-check (diet(env, sh(env)) omits exactly the hashed sections; diet(env, null) = env + sh), apply-order-honesty, grant hygiene for the new `hr_load` signature.
+- **Coordinator:** live-hash-drift.
+
+*Follow-ups (P3, not in the diet):* `farm_land` plots and `stamina*.at` carry clock-derived numbers that make them change on every settle; absolute ready-at times would make them hash-stable (about 1 KB per answer). The duplicate `hunt` / `hunt_analyzer` session (D0 cuts it). The timeline's step encoding.
+
 **Marketplace design (2026-10-24)** (game-designer, inside Tyler's 10-24 objective: "as convenient as a modern trading application while retaining the atmosphere of a classic fantasy MMORPG" and "no duping or exploiting can occur"; lane/d-market-design, design only, no code). Builds on the live market-v2 core (`2026-08-17-market-v2.sql`: escrow out of the bag, seller paid at sale time, immutable listing columns, delete-as-arbiter, idempotent intents; `hr_market_buy` on the account purse since `2026-12-15-account-gold.sql`). Production, read-only on 10-23: 0 listings, 0 sales, 2 accounts, 8 heroes, purses 182,656 and 452,942 gold.
 
 **0. Stacks, not single pieces (the answer first).** Every copy of an item id is identical, so a listing is an item id and a count and a buyer can take any part of it. Evidence: the bag is `player_inventory (user_id, slot, item_id) → qty` (`2026-08-11-player-state.sql`), worn gear is `player_equipment (user_id, slot, equip_slot) → item_id` (equipping debits one unit), Storage is `account_bank (user_id, item_id) → qty` (`2026-11-27-account-depot.sql`), a hunt's packed supplies are `hunt_bag (session_id, item_id) → qty` (`2026-10-21-hunt-sessions.sql`), and a listing is `market_listings.item_id + qty`. No table has a wear, durability, roll or per-piece column. Gear stats are fixed (Tyler 10-14). Imbuing is not built (`src/data/imbuements.js`: "no server table"). The one upgrade that exists, the weapon enchant, is `player_state.enchant {equip_slot: element}`: it sits on the hero's worn slot, not on the item. **Rule for later lanes:** any per-piece state (the L4 imbuement) lives on the worn slot, and an imbued piece cannot be taken off until its imbuement runs out or is removed. That is Tyler's 10-15 "untradable until expiry or paid removal", and it means a stack never holds a copy that differs from the rest.

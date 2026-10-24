@@ -2,16 +2,19 @@
 // src/shell/windows/house.js — THE HOUSE: THE ACCOUNT'S ESTATE LEDGER.
 //
 // One home per account, shared by every character (Tyler 2026-10-15), so any
-// character opens the same house and pays from its own gold and bag. The
-// window reads like a deed, top to bottom (ART_DIRECTION §12):
+// character opens the same house. The gold comes from the account's shared
+// purse; each material from the building hero's bag first, then the account's
+// Storage (2027-01-10-house-from-storage.sql). The window reads like a deed,
+// top to bottom (ART_DIRECTION §12):
 //   The deed           the property ladder: the tiers held, the next one with
 //                      what it opens and its full price against what this
-//                      character carries, the later ones by name only
+//                      hero's bag and the Storage hold, the later ones by name only
 //   Rooms              each room's rung and what it does now; its next rung's
 //                      price, or the tier that opens it
 //   Storage chests     the account storage's space: chests built, the next one
 //                      priced, the rest waiting on the home
-// Every price, level and gate is the server's (`home`, `depot`; CLAUDE.md §6).
+// Every price, level, gate and count is the server's (`home`, `depot`, the bag's
+// `inventory`, the Storage's `bank`; CLAUDE.md §6).
 // A purchase asks first (the full price and who pays), then sends ONE intent
 // (src/session/home-intents.js); every control is off until the server
 // answers, and the ledger changes only from the re-read envelope. A refusal is
@@ -19,7 +22,7 @@
 // ════════════════════════════════════════════════════════════════════════
 import { homeOf, chestsOf } from '../../session/home-sections.js?v=0.2.38';
 import { buyHome, buildChest } from '../../session/home-intents.js?v=0.2.38';
-import { bagOf, goldOf, nameOf } from '../../session/item-sections.js?v=0.2.38';
+import { bagOf, bankOf, goldOf, nameOf } from '../../session/item-sections.js?v=0.2.38';
 import { PROPERTY_TIERS } from '../../data/homestead-tiers.js?v=0.2.38';
 import { ROOM_PERKS } from '../../data/perks.js?v=0.2.38';
 import { text, cls, prop, attr, rows, element } from '../../render/paint.js?v=0.2.38';
@@ -53,20 +56,34 @@ function perkText(room, level) {
 const roomDoesSomething = (room) => (ROOM_PERKS[room] || []).some((m) => Object.values(m || {}).some((v) => v > 0));
 const capital = (s) => (s ? s[0].toUpperCase() + s.slice(1) : s);
 
-/* A step's cost against what the paying character carries ('Oak Log 12/40'): [{ key, label, short }] and whether all of it is there. */
-function costLines(step, purse, bag) {
+/* Where a material is, in words: '12 in your bag + 30 in Storage'. `storage` null = the server did not say. */
+function heldWords(inBag, storage) {
+  const s = storage || 0;
+  if (!inBag && !s) return storage === null ? 'none in your bag' : 'none in your bag or Storage';
+  if (!s) return whole(inBag) + ' in your bag';
+  if (!inBag) return whole(s) + ' in Storage';
+  return whole(inBag) + ' in your bag + ' + whole(s) + ' in Storage';
+}
+
+/* A step's cost against the building hero's bag and the account's Storage, which the server takes in that order
+   ('Oak Log 40 (12 in your bag + 30 in Storage)'): [{ key, label, short }] and whether all of it is there. A count
+   the server did not send is not invented: no bag means every line is short; no Storage means the bag alone. */
+function costLines(step, purse, bag, bank) {
   const held = new Map((bag || []).map((r) => [r.id, r.qty]));
+  const stored = bank ? new Map(bank.map((r) => [r.id, r.qty])) : null;
   const lines = [{ key: 'gold', label: gold(step.gold) + (purse !== null && purse < step.gold ? ' (you have ' + whole(purse) + ')' : ''), short: purse === null || purse < step.gold }];
   for (const it of step.items) {
-    const have = bag ? held.get(it.id) || 0 : null;
-    lines.push({ key: it.id, label: itemName(it.id) + ' ' + (have === null ? whole(it.qty) : whole(Math.min(have, it.qty)) + '/' + whole(it.qty)), short: have === null || have < it.qty });
+    const inBag = bag ? held.get(it.id) || 0 : null;
+    const inStorage = stored ? stored.get(it.id) || 0 : null;
+    lines.push({ key: it.id, label: itemName(it.id) + ' ' + whole(it.qty) + (inBag === null ? '' : ' (' + heldWords(inBag, inStorage) + ')'),
+      short: inBag === null || inBag + (inStorage || 0) < it.qty });
   }
   return { lines, afford: !lines.some((l) => l.short) };
 }
 
 const COST_HTML = '<ul class="hw-mats" aria-label="Cost"></ul>';
-function patchCost(ctx, ul, step, purse, bag) {
-  const c = step ? costLines(step, purse, bag) : { lines: [], afford: false };
+function patchCost(ctx, ul, step, purse, bag, bank) {
+  const c = step ? costLines(step, purse, bag, bank) : { lines: [], afford: false };
   rows(ul, c.lines, {
     key: (l) => l.key,
     build: () => element(ctx.doc, '<li class="hw-mat"></li>'),
@@ -106,13 +123,13 @@ renderHouse.patch = function patchHouse(body, ctx) {
   const sc = scratchOf(cs);
   const root = body.querySelector('.hw-house');
   const home = homeOf(cs), chests = chestsOf(cs);
-  const purse = goldOf(cs), bag = bagOf(cs);
+  const purse = goldOf(cs), bag = bagOf(cs), bank = bankOf(cs);
   const tierName = (n) => (n === 0 ? PROPERTY_TIERS[0].name : ((home && home.tiers.find((t) => t.tier === n)) || {}).name || 'tier ' + n);
   /* THE HEAD */
   text(root.querySelector('.hw-house-name'), home ? tierName(home.tier) : 'Your house');
   const who = nameOf(cs);
   text(root.querySelector('.hw-house-note'), !home ? 'Reading your house from the server…'
-    : 'One house for all your characters. ' + (who ? who + ' pays from their own gold and bag.' : 'The character you play pays from their own gold and bag.'));
+    : 'One house for all your characters. Gold comes from your shared purse; materials from ' + (who ? who + '\'s' : 'this hero\'s') + ' bag first, then Storage.');
   /* THE DEED */
   const next = home ? home.tiers.find((t) => !t.owned) : null;
   rows(root.querySelector('.hw-deed'), home ? home.tiers : [], {
@@ -125,7 +142,7 @@ renderHouse.patch = function patchHouse(body, ctx) {
       const opens = home.rooms.filter((r) => r.opens === t.tier).map((r) => r.name);
       text(li.querySelector('small'), t.owned ? 'Yours' + (t.tier === home.tier ? ', your home now' : '')
         : isNext ? (opens.length ? 'Opens the ' + opens.join(', the ') + '.' : 'The next home.') : 'After the ' + tierName(t.tier - 1) + '.');
-      const afford = patchCost(ctx, li.querySelector('.hw-mats'), isNext ? t : null, purse, bag);
+      const afford = patchCost(ctx, li.querySelector('.hw-mats'), isNext ? t : null, purse, bag, bank);
       patchAsk(li.querySelector('button'), 'home', isNext ? t.offer : null, 'Buy', isNext && afford && !sc.pending);
       cls(li, 'is-held', t.owned);
       cls(li, 'is-next', isNext);
@@ -150,7 +167,7 @@ renderHouse.patch = function patchHouse(body, ctx) {
       text(li.querySelector('b'), r.name);
       text(li.querySelector('small'), capital(line));
       const buyable = open && useful && n && !gated;
-      const afford = patchCost(ctx, li.querySelector('.hw-mats'), buyable ? n : null, purse, bag);
+      const afford = patchCost(ctx, li.querySelector('.hw-mats'), buyable ? n : null, purse, bag, bank);
       patchAsk(li.querySelector('button'), 'home', buyable ? n.offer : null, r.level ? 'Upgrade' : 'Build', buyable && afford && !sc.pending);
       cls(li, 'is-locked', !open);
     },
@@ -168,7 +185,7 @@ renderHouse.patch = function patchHouse(body, ctx) {
       const prev = chests.chests[chests.chests.indexOf(c) - 1];
       text(li.querySelector('small'), '+' + whole(c.stacks) + ' stacks. ' + (c.built ? 'Built.'
         : isNext ? (can ? 'Next to build.' : 'Needs the ' + tierName(c.tier) + '.') : 'After the ' + (prev ? prev.name : 'one before') + '.'));
-      const afford = patchCost(ctx, li.querySelector('.hw-mats'), can ? c : null, purse, bag);
+      const afford = patchCost(ctx, li.querySelector('.hw-mats'), can ? c : null, purse, bag, bank);
       patchAsk(li.querySelector('button'), 'chest', can ? c.chest : null, 'Build', can && afford && !sc.pending);
       cls(li, 'is-held', c.built);
     },
@@ -182,10 +199,11 @@ renderHouse.patch = function patchHouse(body, ctx) {
   cls(yes, 'is-on', !!step);
   if (step) {
     text(cf.querySelector('.hw-confirm-q'), (sc.ask.kind === 'chest' ? 'Build the ' : 'Buy the ') + step.label + '?');
-    /* The gold is the ACCOUNT's (one purse, 2026-12-15-account-gold.sql); the materials leave this hero's own bag. */
+    /* The gold is the ACCOUNT's (one purse, 2026-12-15-account-gold.sql); each material leaves this hero's bag first,
+       then the account's Storage (2027-01-10-house-from-storage.sql). */
     const mats = step.items.map((it) => whole(it.qty) + ' ' + itemName(it.id)).join(', ');
-    text(cf.querySelector('.hw-confirm-note'), 'Costs ' + gold(step.gold) + ' of your gold'
-      + (mats ? ' and ' + mats + (who ? ' from ' + who + '\'s bag' : '') : '') + '. All your characters share it.');
+    text(cf.querySelector('.hw-confirm-note'), 'Costs ' + gold(step.gold) + ' from your shared purse'
+      + (mats ? ', and ' + mats + ' from ' + (who ? who + '\'s' : 'this hero\'s') + ' bag first, then Storage' : '') + '.');
     text(yes, 'Pay ' + gold(step.gold));
   }
   prop(yes, 'disabled', sc.pending);

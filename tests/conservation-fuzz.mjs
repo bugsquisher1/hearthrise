@@ -16,6 +16,7 @@
 //   for every item id:
 //     Σ player_inventory.qty + Σ player_equipment (1 per row)
 //                             + Σ market_listings.qty
+//                             + Σ account_bank.qty (the ACCOUNT's Storage)
 //        == opening + Σ intended mints − Σ intended burns
 //
 //   Σ account_wallet.gold (ONE purse per account, 2026-12-15-account-gold.sql) + Σ market_sales.tax
@@ -26,6 +27,13 @@
 // listing row is the only record that they exist — so list→cancel, list→buy
 // and list→expire must each conserve EXACTLY, with no third place for a stack
 // to hide.
+//
+// STORAGE IS IN THE IDENTITY (2027-01-10-house-from-storage.sql; Security's
+// marketplace threat model 2026-10-24 #6): a house build takes its materials from
+// the building hero's bag first and then the ACCOUNT's Storage, so a stack that
+// moves between a bag and Storage, or is taken from the wrong one, is only seen
+// when Storage is counted. PHASE 4 drives that path (deposits, a withdrawal, a
+// deed, a room, two chests, a short line, a short purse, a replay) on every seed.
 //
 // ── WHERE IT RUNS ───────────────────────────────────────────────────────
 // In process, against a REAL PostgreSQL (PGlite/WASM, PG 18) with THE WHOLE
@@ -68,7 +76,7 @@
 // ── FALSIFIABILITY (report this first, not the clean run) ───────────────
 // The always-null-probe class — an assertion that passes while asserting
 // nothing — has bitten this program six times. So the harness is required to
-// prove it can fail: `--selftest` applies each of the SEVENTEEN known conservation
+// prove it can fail: `--selftest` applies each of the EIGHTEEN known conservation
 // violations in INJECTIONS as a textual patch to the real migration SQL, re-runs
 // the fuzz, and demands that every one of them is CAUGHT. (The count is stated
 // here because it used to say EIGHT while the catalogue held sixteen — a number
@@ -263,6 +271,9 @@ const INJECTION_FINAL_BODIES = Object.freeze({
      two buy plants that lived in 2026-08-17-market-v2.sql would be replaced by the clean body. The
      honest target is the body the chain ends with, scored by reconcile(). */
   'market-buy-final': 'public.hr_market_buy(uuid,integer,bigint,uuid,uuid,bigint)',
+  /* 2027-01-10 (lane c-house-from-storage): the ONE material take of a house build. Its own file's §5
+     executes it, so the plant goes in the body the chain ends with and reconcile() grades it. */
+  'house-take-final': 'public.hr_materials_take(uuid,integer,jsonb,boolean)',
 });
 
 // ── args ────────────────────────────────────────────────────────────────
@@ -639,6 +650,17 @@ const INJECTIONS = {
   },
 };
 
+/* THE HOUSE FROM STORAGE (2027-01-10-house-from-storage.sql). Storage is counted, never debited:
+   the build lands and the materials are still in Storage — a dupe only Σ account_bank can see. */
+INJECTIONS.house_storage_kept = {
+  what: 'a house build counts the account\'s Storage but never debits it — the materials exist twice',
+  final: 'house-take-final',
+  patches: [[
+    "    if (l->>'storage')::bigint > 0 then\n      if (l->>'storage')::bigint = (l->>'storage_held')::bigint then",
+    "    if false then  -- INJECTED house_storage_kept\n      if (l->>'storage')::bigint = (l->>'storage_held')::bigint then",
+  ]],
+};
+
 if (argv.includes('--list')) {
   for (const [id, inj] of Object.entries(INJECTIONS)) console.log(`${id.padEnd(22)} ${inj.what}`);
   process.exit(0);
@@ -976,6 +998,9 @@ class Books {
     this.purses = new Map();    // uid → gold
     this.opened = new Set();    // the accounts whose opening purse is booked (once each)
     this.listings = new Map();  // listingId → {key, item, qty, ask, aged}
+    /* STORAGE IS THE ACCOUNT'S (account_bank, 2026-11-27-account-depot.sql): uid → Map(item → qty). */
+    this.storage = new Map();
+    this.storageOpened = new Set();
     this.tax = 0;               // Σ house tax the harness EXPECTS to have been taken
     this.mintGold = 0; this.burnGold = 0;
     this.mintItems = new Map(); this.burnItems = new Map();
@@ -999,6 +1024,19 @@ class Books {
   addItem(m, id, n) { m.set(id, (m.get(id) || 0) + n); }
   mint(id, n) { this.addItem(this.mintItems, id, n); }
   burn(id, n) { this.addItem(this.burnItems, id, n); }
+  /** Book an account's opening Storage ONCE (rows the database already holds). */
+  openStorage(uid, rows) {
+    if (this.storageOpened.has(uid)) return;
+    this.storageOpened.add(uid);
+    for (const r of rows) { this.stoAdd(uid, r.item_id, Number(r.q)); this.addItem(this.openItems, r.item_id, Number(r.q)); }
+  }
+  stoAdd(uid, id, n) {
+    if (!this.storage.has(uid)) this.storage.set(uid, new Map());
+    const m = this.storage.get(uid);
+    const cur = (m.get(id) || 0) + n;
+    if (cur < 0) throw new Error(`model Storage went negative on ${id}`);
+    if (cur === 0) m.delete(id); else m.set(id, cur);
+  }
   invAdd(c, id, n) {
     const cur = (c.inv.get(id) || 0) + n;
     if (cur < 0) throw new Error(`model went negative on ${id}`);
@@ -1012,6 +1050,7 @@ class Books {
       for (const id of c.equip.values()) this.addItem(t, id, 1);
     }
     for (const l of this.listings.values()) this.addItem(t, l.item, l.qty);
+    for (const m of this.storage.values()) for (const [id, n] of m) this.addItem(t, id, n);
     return t;
   }
   goldTotal() { let g = 0; for (const v of this.purses.values()) g += v; return g; }
@@ -1040,6 +1079,8 @@ async function reconcile(db, books, ctx) {
   const invRows = await q('select user_id::text u, slot, item_id, qty::text q from player_inventory');
   const eqRows = await q('select user_id::text u, slot, equip_slot, item_id from player_equipment');
   const lstRows = await q('select id::text id, seller_user_id::text u, seller_slot, item_id, qty::text q, ask_each::text a from market_listings');
+  /* STORAGE, the ACCOUNT's (account_bank): exact per account in (A), counted in the world's total in (B). */
+  const stoRows = await q('select user_id::text u, item_id, qty::text q from account_bank');
   const [{ tax, gross, net }] = await q(
     'select coalesce(sum(tax),0)::text tax, coalesce(sum(gold_gross),0)::text gross, coalesce(sum(gold_net),0)::text net from market_sales');
 
@@ -1082,6 +1123,19 @@ async function reconcile(db, books, ctx) {
     }
   }
 
+  // Storage, per account
+  const dbSto = new Map();
+  for (const r of stoRows) {
+    if (!dbSto.has(r.u)) dbSto.set(r.u, new Map());
+    dbSto.get(r.u).set(r.item_id, Number(r.q));
+  }
+  for (const uid of new Set([...dbSto.keys(), ...books.storage.keys()])) {
+    const d = dbSto.get(uid) || new Map(); const m = books.storage.get(uid) || new Map();
+    for (const id of new Set([...d.keys(), ...m.keys()])) {
+      if ((d.get(id) || 0) !== (m.get(id) || 0)) bad.push(`storage[${uid}][${id}]: db ${d.get(id) || 0}, expected ${m.get(id) || 0}`);
+    }
+  }
+
   // listings (the escrow)
   const dbL = new Map(lstRows.map((r) => [r.id, r]));
   for (const id of new Set([...dbL.keys(), ...books.listings.keys()])) {
@@ -1099,6 +1153,7 @@ async function reconcile(db, books, ctx) {
   for (const r of invRows) add(r.item_id, Number(r.q));
   for (const r of eqRows) add(r.item_id, 1);
   for (const r of lstRows) add(r.item_id, Number(r.q));
+  for (const r of stoRows) add(r.item_id, Number(r.q));
 
   for (const id of new Set([...worldItems.keys(), ...books.openItems.keys(),
     ...books.mintItems.keys(), ...books.burnItems.keys()])) {
@@ -1273,6 +1328,7 @@ async function runFuzz({ seed, ops, injection }) {
       c.equip.set(r.equip_slot, r.item_id);
       books.addItem(books.openItems, r.item_id, 1);
     }
+    books.openStorage(c.uid, await q(`select item_id, qty::text q from account_bank where user_id = '${c.uid}'`));
   }
 
   // ── opening balances, minted on purpose and counted as mints ─────────
@@ -2002,10 +2058,223 @@ async function runFuzz({ seed, ops, injection }) {
   const budget = await budgetPhase(db, books, keys, rng, applyAs, rpc, asUser, q, ITEMS,
     stackables, houseTax, { list: mList, buy: mBuy });
 
+  // ── PHASE 4 — the house from Storage (its own account, its own RNG) ───
+  const house = await housePhase(db, books, seed, q, rpc, asUser, applyAs);
+
   const final = await reconcile(db, books, { i: ops, op: 'final' });
   await db.close();
   if (!final.ok) return { ok: false, seed, detail: final.detail, opsRun: ops, counts, verdicts, divergences };
-  return { ok: true, seed, opsRun: ops, counts, verdicts, divergences, accrual, budget, equip };
+  return { ok: true, seed, opsRun: ops, counts, verdicts, divergences, accrual, budget, equip, house };
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// PHASE 4 — THE HOUSE FROM STORAGE (2027-01-10-house-from-storage.sql).
+//
+// A house build (the deed, a room rung, a storage chest) takes each material
+// from the building hero's bag first and the rest from the ACCOUNT's Storage,
+// in one transaction, all or nothing, the purse last. With Storage in the
+// identity, a build that takes from the wrong place, takes twice, or leaves a
+// debit standing beside a refusal is a CONSERVATION diff; this phase makes the
+// path run on every seed (a fixed sequence of legs, PHASE 0's rule: a plant that
+// is caught on most seeds is not caught), with seed-chosen bag / Storage splits,
+// and holds every build's ONE journal row to the split the model expects
+// (meta.from). Bag + Storage + the house balance across every build: the
+// materials leave as BURNS of exactly the catalogue's cost, nothing else moves.
+//
+// Its own account and its own RNG (derived from the seed), so the walk and every
+// phase before it replay exactly as they did before this phase existed. Every
+// verdict here is constructed (one answer is honest), so a different one fails
+// the run outright, like PHASE 3.
+// ════════════════════════════════════════════════════════════════════════
+async function housePhase(db, books, seed, q, rpc, asUser, applyAs) {
+  const fail = (msg, extra) => {
+    throw Object.assign(new Error('house-from-storage violation'),
+      { detail: `HOUSE FROM STORAGE: ${msg}${extra ? `\n    ${extra}` : ''}` });
+  };
+  const rng = rngOf((seed ^ 0x40053a1d) >>> 0);
+  const stats = { ran: true, builds: 0, refusals: 0, moves: 0, fromBag: 0, fromStorage: 0 };
+  const one = async (sql, p) => (await q(sql, p))[0];
+  const costOf = (items) => Object.entries(items || {}).map(([k, v]) => [k, Number(v)]).filter(([, v]) => v > 0)
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+
+  // THE CATALOGUE ROWS, by property: the first home, a first room rung it opens, the first two chests.
+  const H = await one("select o.* from hr_unlock_offers o join hr_unlocks u on u.unlock_id = o.unlock_id where u.namespace = 'property' and o.refusal is null order by o.value limit 1");
+  if (!H) fail('the catalogue has no first home');
+  const R = await one(`select o.* from hr_unlock_offers o join hr_unlocks u on u.unlock_id = o.unlock_id
+     where u.namespace = 'room' and o.refusal is null and o.value = 1 and coalesce(o.req_property_tier, 0) <= $1
+       and o.req_item is null and o.req_skill is null order by o.offer_id limit 1`, [H.value]);
+  const [C1, C2] = await q('select * from hr_storage_chests order by ord limit 2');
+  if (!R || !C1 || !C2 || Number(C1.req_property_tier) > 0 || Number(C2.req_property_tier) > Number(H.value)) {
+    fail('the catalogue has no room rung, or no first two chests the first home opens');
+  }
+
+  // ── an account of its own, two heroes ──
+  const uid = '000000fe-0000-4000-a000-0000000000fe';
+  await db.query('insert into auth.users(id) values ($1) on conflict (id) do nothing', [uid]);
+  await db.query('insert into profiles(id, display_name) values ($1,$2) on conflict (id) do update set display_name = excluded.display_name', [uid, 'HouseProbe']);
+  await asUser(uid);
+  const hero = [];
+  for (const slot of [0, 1]) {
+    /* A slot above 0 must be owned (the main setup's rule): the flag row hr_buy_hero_slot writes, on slot 0. */
+    if (slot > 0) {
+      await q(`insert into public.player_progress (user_id, slot, kind, key, value, period_key, state, updated_at)
+               values ($1, 0, 'flag', $2, 1, '', null, now()) on conflict (user_id, slot, kind, key, period_key) do nothing`, [uid, `character_slot:${slot}`]);
+    }
+    const r = await rpc('select hr_create_character($1) r', [slot]);
+    if (r.ok !== true) fail(`could not create hero ${slot}`, JSON.stringify(r));
+  }
+  /* THE OPENING, MEASURED once both heroes exist: each start kit pays its gold into the ONE purse. */
+  for (const slot of [0, 1]) {
+    const key = `${uid}:${slot}`;
+    const c = books.newChar(uid, slot);
+    books.chars.set(key, c);
+    const st = (await q(`select coalesce((select w.gold from account_wallet w where w.user_id = '${uid}'), 0)::text g, version::text v
+                          from player_state where user_id = '${uid}' and slot = ${slot}`))[0];
+    books.openPurse(uid, Number(st.g)); c.version = Number(st.v);
+    for (const row of await q(`select item_id, qty::text q from player_inventory where user_id = '${uid}' and slot = ${slot}`)) {
+      c.inv.set(row.item_id, Number(row.q)); books.addItem(books.openItems, row.item_id, Number(row.q));
+    }
+    for (const row of await q(`select equip_slot, item_id from player_equipment where user_id = '${uid}' and slot = ${slot}`)) {
+      c.equip.set(row.equip_slot, row.item_id); books.addItem(books.openItems, row.item_id, 1);
+    }
+    hero.push(c);
+  }
+  books.openStorage(uid, await q(`select item_id, qty::text q from account_bank where user_id = '${uid}'`));
+  const rec = async (label) => {
+    const r = await reconcile(db, books, { i: `house/${label}`, op: 'house' });
+    if (!r.ok) throw Object.assign(new Error('house conservation violation'), { detail: r.detail });
+  };
+  await rec('opening');
+  const roll = () => db.query("update hr_rate_counters set window_start = now() - interval '2 hours'");
+
+  // ── the verbs, each booked from its own parameters and its verdict ──
+  const mint = async (c, gold, items) => {
+    await roll();
+    const r = await applyAs(c, c.version, uuidOf(rng), { gold, items, journal: { kind: 'admin', intent: 'seed' } });
+    if (r.ok !== true) fail(`seeding hero ${c.slot} was refused`, JSON.stringify(r).slice(0, 300));
+    c.version += 1; c.gold += gold; books.mintGold += gold;
+    for (const [id, n] of Object.entries(items)) { books.invAdd(c, id, n); books.mint(id, n); }
+  };
+  const move = async (c, id, n, dir) => {
+    await roll(); await asUser(uid);
+    const r = await rpc('select hr_bank_move($1,$2,$3,$4,$5) r', [c.slot, id, n, dir, uuidOf(rng)]);
+    if (r.ok !== true) fail(`a ${dir} of ${n}×${id} from hero ${c.slot} was refused`, JSON.stringify(r).slice(0, 300));
+    const sign = dir === 'deposit' ? 1 : -1;
+    books.invAdd(c, id, -sign * n); books.stoAdd(uid, id, sign * n); c.version += 1; stats.moves += 1;
+  };
+  const stoOf = (id) => (books.storage.get(uid) || new Map()).get(id) || 0;
+  /* What the server must take for this cost, from the MODEL: the bag first, the rest from Storage. */
+  const plan = (c, cost) => cost.map(([id, need]) => {
+    const fromBag = Math.min(c.inv.get(id) || 0, need);
+    return { id, need, fromBag, fromSto: need - fromBag, short: fromBag + stoOf(id) < need };
+  });
+  const book = (c, p, gold) => {
+    for (const l of p) {
+      books.invAdd(c, l.id, -l.fromBag); books.stoAdd(uid, l.id, -l.fromSto); books.burn(l.id, l.need);
+      stats.fromBag += l.fromBag; stats.fromStorage += l.fromSto;
+    }
+    c.gold -= gold; books.burnGold += gold; c.version += 1; stats.builds += 1;
+  };
+  const journalSays = async (intent, p) => {
+    const rows = await q('select meta from player_ledger where user_id = $1 and intent = $2', [uid, intent]);
+    const want = { bag: {}, storage: {} };
+    for (const l of p) { if (l.fromBag) want.bag[l.id] = l.fromBag; if (l.fromSto) want.storage[l.id] = l.fromSto; }
+    const norm = (o) => JSON.stringify(Object.entries(o || {}).map(([k, v]) => [k, Number(v)]).sort());
+    const got = rows.length === 1 && rows[0].meta && rows[0].meta.from;
+    if (!got || norm(got.bag) !== norm(want.bag) || norm(got.storage) !== norm(want.storage)) {
+      fail(`the journal of ${intent} does not say where its units came from`, `want ${JSON.stringify(want)}, rows ${JSON.stringify(rows.map((r) => r.meta && r.meta.from))}`);
+    }
+  };
+  const buy = async (c, offer) => {
+    await roll(); await asUser(uid);
+    await db.exec('set role hr_engine');
+    try { return (await db.query('select hr_unlock_buy($1,$2,$3,$4,$5) r', [uid, c.slot, c.version, uuidOf(rng), offer])).rows[0].r; }
+    catch (e) { return { ok: false, error: '__exception', message: e.message }; }
+    finally { await db.exec('reset role'); }
+  };
+  const chest = async (c, ch, key) => {
+    await roll(); await asUser(uid);
+    return rpc('select hr_storage_chest_build($1,$2,$3,$4) r', [c.slot, ch.chest_id, Number(ch.gold), key]);
+  };
+  const expect = (what, got, want) => {
+    const verdict = got && got.ok === true ? 'ok' : String(got && got.error);
+    if (verdict !== want) fail(`${what}: wanted "${want}", got "${verdict}"`, JSON.stringify(got).slice(0, 300));
+  };
+  /* Put a seed-chosen part of a hero's units into Storage (the bag keeps the rest). */
+  const stash = async (c, cost, { allOf } = {}) => {
+    for (const [id] of cost) {
+      const held = c.inv.get(id) || 0;
+      const n = id === allOf ? held : rng.range(0, held);
+      if (n > 0) await move(c, id, n, 'deposit');
+    }
+  };
+
+  const [h0, h1] = hero;
+  const hCost = costOf(H.items), rCost = costOf(R.items), c1Cost = costOf(C1.items), c2Cost = costOf(C2.items);
+  // The purse covers the deed, the room and the first chest, never the second one.
+  const spare = 50;
+  await mint(h0, Number(H.gold) + Number(R.gold) + Number(C1.gold) + spare, Object.fromEntries(hCost.map(([id, n]) => [id, n + rng.range(0, 6)])));
+  const left = h0.gold - Number(H.gold) - Number(R.gold) - Number(C1.gold);
+  if (left >= Number(C2.gold)) fail('the purse would pay for the second chest, so its short-purse leg proves nothing', `purse after three builds ${left}, chest ${C2.gold}`);
+
+  // LEG 1 — THE DEED FROM BAG + STORAGE: its first line all in Storage (the bag holds none), the rest seed-split.
+  await stash(h0, hCost, { allOf: hCost[0][0] });
+  await rec('leg1-stash');
+  let p = plan(h0, hCost);
+  if (p.some((l) => l.short)) fail('leg 1 was built short; the model and the seed disagree', JSON.stringify(p));
+  if (p[0].fromBag !== 0) fail('leg 1 must take its first line from Storage alone', JSON.stringify(p[0]));
+  expect(`the deed ${H.offer_id}`, await buy(h0, H.offer_id), 'ok');
+  book(h0, p, Number(H.gold));
+  await rec('leg1-deed');
+  await journalSays(`unlock_buy:${H.offer_id}:${H.value}`, p);
+
+  // LEG 2 — A ROOM ONE UNIT SHORT ACROSS BAG + STORAGE: refused, and nothing moves.
+  const last = rCost[rCost.length - 1][0];
+  /* Exactly one unit short of the last line across h1's bag + Storage (whatever the start kit holds). */
+  const lastHeld = (h1.inv.get(last) || 0) + stoOf(last), lastNeed = rCost[rCost.length - 1][1];
+  if (lastHeld > lastNeed - 1) fail(`leg 2 cannot be built short: hero 1 already holds ${lastHeld} ${last}`);
+  await mint(h1, 0, Object.fromEntries(rCost.map(([id, n]) => [id, id === last ? lastNeed - 1 - lastHeld : n + rng.range(0, 4)]).filter(([, n]) => n > 0)));
+  await stash(h1, rCost);
+  p = plan(h1, rCost);
+  if (!p.find((l) => l.id === last).short) fail('leg 2 must be one unit short', JSON.stringify(p));
+  expect(`the room ${R.offer_id} one ${last} short`, await buy(h1, R.offer_id), 'insufficient_item');
+  stats.refusals += 1;
+  await rec('leg2-short');
+
+  // LEG 3 — THE SAME ROOM, THE LAST UNIT DEPOSITED BY THE OTHER HERO: Storage a sibling filled pays.
+  await mint(h0, 0, { [last]: 1 });
+  await move(h0, last, 1, 'deposit');
+  p = plan(h1, rCost);
+  if (p.some((l) => l.short)) fail('leg 3 is still short', JSON.stringify(p));
+  expect(`the room ${R.offer_id}`, await buy(h1, R.offer_id), 'ok');
+  book(h1, p, Number(R.gold));
+  await rec('leg3-room');
+  await journalSays(`unlock_buy:${R.offer_id}:${R.value}`, p);
+
+  // LEG 4 — THE FIRST CHEST FROM BAG + STORAGE, and its key replayed (nothing moves the second time).
+  await mint(h1, 0, Object.fromEntries(c1Cost.map(([id, n]) => [id, n + rng.range(0, 5)])));
+  await stash(h1, c1Cost);
+  p = plan(h1, c1Cost);
+  const key4 = uuidOf(rng);
+  expect(`the chest ${C1.chest_id}`, await chest(h1, C1, key4), 'ok');
+  book(h1, p, Number(C1.gold));
+  await rec('leg4-chest');
+  await journalSays(`storage_chest:${C1.chest_id}`, p);
+  expect(`the chest ${C1.chest_id} replayed`, await chest(h1, C1, key4), 'ok');
+  await rec('leg4-replay');
+
+  // LEG 5 — THE SECOND CHEST, ITS MATERIALS COVERED AND THE PURSE SHORT: refused, the materials stay put;
+  //         then one line comes back out of Storage (a withdrawal) and the books still balance.
+  await mint(h0, 0, Object.fromEntries(c2Cost.map(([id, n]) => [id, n + rng.range(0, 3)])));
+  await stash(h0, c2Cost);
+  p = plan(h0, c2Cost);
+  if (p.some((l) => l.short)) fail('leg 5 must be short of gold only', JSON.stringify(p));
+  expect(`the chest ${C2.chest_id} with a short purse`, await chest(h0, C2, uuidOf(rng)), 'insufficient_gold');
+  stats.refusals += 1;
+  await rec('leg5-short-purse');
+  const back = c2Cost.find(([id]) => stoOf(id) > 0);
+  if (back) { await move(h0, back[0], stoOf(back[0]), 'withdraw'); await rec('leg5-withdraw'); }
+  return stats;
 }
 
 // ════════════════════════════════════════════════════════════════════════
@@ -2755,6 +3024,11 @@ function summarise(res) {
     const L = res.budget.limits; const U = res.budget.finalUsed;
     process.stdout.write(`  day budget : ${res.budget.checks}/7 legs · ceilings gold ${L.gold} / xp ${L.xp} / qty ${L.qty}`
       + ` · probe finished at gold ${U.gold} xp ${U.xp} qty ${U.qty} over ${U.rows} ledger rows\n`);
+  }
+  if (res.house && res.house.ran) {
+    const h = res.house;
+    process.stdout.write(`  house      : PHASE 4 ${h.builds} builds and ${h.refusals} refusals reconciled · ${h.moves} Storage moves`
+      + ` · ${h.fromBag} units from bags, ${h.fromStorage} from Storage\n`);
   }
   if (res.equip) {
     const e = res.equip;

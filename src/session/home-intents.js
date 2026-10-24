@@ -9,11 +9,14 @@
 //                                        engine's `unlock_buy` (hr_unlock_buy
 //                                        prices, gates and debits it)
 //   buildChest(account, cs, chest, gold) a storage chest: hr_storage_chest_build
-// On ok the paying character is re-read (its gold and bag), and so is every
-// other open character of the account: their `home` and `depot` sections
-// changed too. A refusal re-reads nobody and carries the server's code.
+// The server takes each material from the paying hero's bag first, then the
+// account's Storage (2027-01-10-house-from-storage.sql). On ok the paying
+// character is re-read (its gold and bag), and so is every other open
+// character of the account: their `home`, `depot` and `bank` sections changed
+// too. A refusal re-reads nobody and carries the server's code and counts.
 // ════════════════════════════════════════════════════════════════════════
 import { askVia } from './intent-ledger.js?v=0.2.38';
+import { refusalOf } from './refusal.js?v=0.2.38';
 
 const ID = /^[a-z0-9_]{1,64}$/;
 const OFFER = /^(?:property|room)\.[a-z0-9_]{1,40}(?:\.[0-9]{1,2})?$/;
@@ -44,6 +47,6 @@ export async function buildChest(account, cs, chest, quotedGold) {
       await Promise.all([cs.load(), rereadOthers(account, cs)]);
       return { ok: true };
     }
-    return { ok: false, error: (typeof b.error === 'string' && b.error) || (ans && ans.error) || 'refused' };
+    return refusalOf({ body: b, error: ans && ans.error });
   });
 }

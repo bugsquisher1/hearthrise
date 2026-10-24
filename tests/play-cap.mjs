@@ -298,18 +298,22 @@ async function main() {
     console.log(red ? `play-cap: ${red} arm(s) red` : `play-cap: ${out.length} arms green`);
     process.exit(red ? 1 : 0);
   }
+  /* tests/mutant-control.mjs's protocol: under HR_MUTANT_CONTROL=1 nothing is planted, and every arm must survive. */
+  const CONTROL = !!process.env.HR_MUTANT_CONTROL;
+  console.log(`[mutants] ${MUTANTS.length}`);
   let escaped = 0;
-  for (const m of MUTANTS) {
+  for (const [i, m] of MUTANTS.entries()) {
     await db.query('begin');
     let caught = false; let note = '';
     try {
-      await m.go(db);
+      if (!CONTROL) await m.go(db);
       const out = await runArms(db, true);
       const mine = out.find((o) => o.name === m.arm);
       caught = !!(mine && mine.problems.length && !mine.problems.some((x) => x.startsWith('HARNESS')));
       note = mine ? mine.problems.join(' | ').slice(0, 140) : 'no such arm';
     } catch (e) { note = 'PLANT FAILED: ' + String(e.message).slice(0, 140); }
     finally { await db.query('rollback'); }
+    console.log(`[mutant] PC${i + 1} ${caught ? 'caught' : 'survived'}`);
     console.log(`${caught ? '✓ caught' : '✗ ESCAPED'}  ${m.arm}  ${m.why}${caught ? '' : '  (' + note + ')'}`);
     if (!caught) escaped++;
   }

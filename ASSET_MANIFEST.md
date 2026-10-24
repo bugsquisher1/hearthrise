@@ -104,6 +104,21 @@ Drawn with the pixel scripts (no PixelLab credits spent), on the locked palette,
   `duplicate` rule (two ids with byte-identical icons) for items and supplies. One known twin remains and is listed in
   KNOWN_TWINS: `crown_shard` = `crown_of_the_fallen_king` (needs its own art).
 
+### Longbow redraw (2026-10-24, Asset Director, player note a43)
+"String Longbow sprite looks more like a larger crossbow." The Crafting recipe "String Longbow" makes the item `longbow`, whose icon
+`pixel/items/longbow.png` was a thick wooden limb over a grey stock: a crossbow silhouette. Redrawn by hand (free tooling, no
+PixelLab credits): a tall single stave leaning to the upper right like the set's swords and staves, a leather-wrapped grip, bone
+nocks, one pale straight string; no stock, no prod, no bolt. Same 32x32, dark 4-neighbour outline, top-left light, `hr-world-56-v2`.
+- Source of truth: `tools/world-art/longbow-icon.mjs` (stave rows, string runs, grip, nocks are data; `--print` shows the grid).
+  `tests/pixel-icons.mjs` rule `longbow` requires the PNG to equal what the script draws (edit the script, rerun it, never the PNG).
+- Before/after at 1x, 2x, 4x and a 4x sheet beside the other bows and crossbows: `docs/art-experiments/longbow/`.
+- No world or hunt sprite draws this item: heroes wear outfit sprites, and `outfit_ranger` holds a drawn bow that already reads as one.
+- The old painted `hearthfire/weapons/longbow.png` and `painted/gear/longbow.png` stay (the `ITEM_ART_SET = 'painted'` switch).
+- Still easy to mistake for a crossbow, NOT changed here (Art Director to rule): `maple_bow`, `yew_bow`, `runewood_bow` (the same thick
+  limb across a diagonal bow that the old longbow had), `duskwood_bow` (a small grey figure), `shortbow` (an arrow through the
+  grip). `oak_crossbow`, `willow_crossbow` and `practice_crossbow` are one picture (KNOWN_TWINS). `alphaheart_longbow` is a framed
+  square that does not read as a bow at all.
+
 ### Imbuement item icons (2026-10-21, Asset Director)
 The eleven Thicket/Sewer imbuement items (`src/data/imbuements.js`) each have their own `pixel/items/<id>.png`, drawn with a
 pixel script (no PixelLab credits): `whelp_milk_tooth` (cream baby tooth), `gray_dewclaw` (dark hooked horn, fur cuff),

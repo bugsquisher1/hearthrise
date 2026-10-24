@@ -10,8 +10,8 @@
 //   who lives here  each creature as the world draws it (style-1 idle frame at ×2,
 //                   src/render/creature-sprite.js) on one ground line, with how
 //                   common it is (src/shell/hunt-ground-facts.js)
-//   what drops      the gear that drops about hourly, a line a tier in each armour weight (the
-//                   hero's own first), then every Rare and Trophy with its carrier (no odds)
+//   what drops      the gear, a line a tier in each armour weight (the hero's own first), then
+//                   every Rare and Trophy with its carrier; each with its chance per kill
 //   your best       the server's hunt_bests, or ONE "Not hunted yet"
 // then the pull size (src/shell/windows/hunts.js) and the going-hunting part
 // (goHtml / patchGo, from src/shell/hunt-go.js): Go as (the setups as lines, the
@@ -20,20 +20,24 @@
 // Enter sits at the page's foot. This module draws; it holds no state and sends
 // nothing (hunts.js owns every press).
 // ════════════════════════════════════════════════════════════════════════
-import { rows, text, cls, prop, attr, style, element } from '../../render/paint.js?v=0.2.38';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.38';
-import { itemIconHtml, actionIconHtml } from '../widgets/bits.js?v=0.2.38';
-import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.38';
-import { bandWords, fitWords, heroWords, partyNote, bestWords } from '../hunt-list.js?v=0.2.38';
-import { residentsOf, scarceSetOf, raresOf } from '../hunt-ground-facts.js?v=0.2.38';
-import { creatureArt, drawCreature } from '../../render/creature-sprite.js?v=0.2.38';
+import { rows, text, cls, prop, attr, style, element } from '../../render/paint.js?v=0.2.39';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.39';
+import { itemIconHtml, actionIconHtml } from '../widgets/bits.js?v=0.2.39';
+import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.39';
+import { bandWords, fitWords, heroWords, partyNote, bestWords } from '../hunt-list.js?v=0.2.39';
+import { residentsOf, scarceSetOf, raresOf } from '../hunt-ground-facts.js?v=0.2.39';
+import { creatureArt, drawCreature, PORTRAIT_DIR } from '../../render/creature-sprite.js?v=0.2.39';
+import { chance } from '../../render/format.js?v=0.2.39';
 
-/* The world's one density (ART_DIRECTION §2): every art pixel is 2x2 screen px. */
+/* The world's one density (ART_DIRECTION §2): every art pixel is 2x2 screen px; each creature faces the player
+   (Tyler 2026-10-24), the portrait's front pose, so the line reads as one. */
 const SPRITE_SCALE = 2;
+export const LINEUP_SPRITE = Object.freeze({ scale: SPRITE_SCALE, dir: PORTRAIT_DIR });
 const VERSION = new URL(import.meta.url).searchParams.get('v') || '';
-/* The creature art, once loaded (null until then: the line shows names, the pictures follow). */
+/* The creature art loaded so far (null until the first: the line shows names, the pictures follow), and the
+   creatures already asked for. */
 let ART = null;
-let loading = null;
+const asked = new Set();
 
 /** The page's skeleton: the ground's facts (this module) and the slots hunts.js fills. */
 export function detailHtml() {
@@ -43,8 +47,8 @@ export function detailHtml() {
     + '<p class="hw-hd-who"></p><p class="hw-hunt-warn"></p></header>'
     + '<p class="hw-hd-theme"></p>'
     + '<h4 class="hw-hd-h">Who lives here</h4><ul class="hw-hd-lineup" aria-label="Who lives here"></ul>'
-    + '<h4 class="hw-hd-h">Gear, about every hour</h4><ul class="hw-hd-sets" aria-label="Gear, about every hour"></ul>'
-    + '<h4 class="hw-hd-h">Rare drops</h4><ul class="hw-hd-rares" aria-label="Rare drops"></ul>'
+    + '<h4 class="hw-hd-h">Drops <small class="hw-hd-per hw-hd-per-size"></small></h4><ul class="hw-hd-sets" aria-label="Drops"></ul>'
+    + '<h4 class="hw-hd-h">Rare drops <small class="hw-hd-per">chance per kill of its creature</small></h4><ul class="hw-hd-rares" aria-label="Rare drops"></ul>'
     + '<p class="hw-hunt-party" hidden></p>'
     + '<section class="hw-hd-bests" aria-label="Your best here"><h4 class="hw-hd-h">Your best here</h4>'
     + '<p class="hw-hd-best hw-hunt-best-solo"></p><p class="hw-hd-best hw-hunt-best-party"></p><p class="hw-hd-best hw-hunt-best-none"></p></section>';
@@ -119,19 +123,22 @@ export function patchGo(det, ctx, v) {
 /* "Level 2 · common"; a boss says so in place of its share. */
 const howWords = (m) => (Number.isInteger(m.level) ? 'Level ' + m.level + ' · ' : '') + (m.boss ? 'boss' : m.band);
 
-/* One creature's picture, drawn once per creature (a canvas keeps it); nothing until the art has loaded. */
+/* One creature's picture, drawn once per creature (a canvas keeps it); nothing until its art has loaded. */
 function paintSprite(li, id) {
   const c = li.querySelector('canvas');
-  if (!ART || c.getAttribute('data-drawn') === id) return;
-  const ok = drawCreature(c, ART, id, { scale: SPRITE_SCALE });
+  if (!ART || !ART.has(id) || c.getAttribute('data-drawn') === id) return;
+  const ok = drawCreature(c, ART, id, LINEUP_SPRITE);
   c.setAttribute('data-drawn', id);
   cls(li, 'is-drawn', ok);
 }
 
-/* Load the creature art once; when it lands, the open page is patched again (its pictures appear). */
-function wantArt(doc, repaint) {
-  if (ART || loading) return;
-  loading = creatureArt(doc, VERSION).then((a) => { ART = a; repaint(); }, () => { loading = null; });
+/* Load this ground's creature art (only the sheets that carry them, each once); when it lands, the open page is
+   patched again (its pictures appear). */
+function wantArt(doc, ids, repaint) {
+  const need = ids.filter((id) => !asked.has(id));
+  if (!need.length) return;
+  for (const id of need) asked.add(id);
+  creatureArt(doc, VERSION, need).then((a) => { ART = a; repaint(); }, () => { for (const id of need) asked.delete(id); });
 }
 
 /** Write the ground's facts for row `r` into the page `det` (patched in place: only what changed is written). */
@@ -147,10 +154,12 @@ export function patchGround(det, ctx, r, o) {
   attr(fitEl, 'data-tone', fit ? fit.tone : null);
   text(det.querySelector('.hw-hd-who'), heroWords(r) + '.');
   text(det.querySelector('.hw-hd-theme'), (HUNT_INDEX[r.hunt] && HUNT_INDEX[r.hunt].theme) || r.theme);
-  wantArt(ctx.doc, repaint);
-  const rares = raresOf(r.hunt), carriers = new Set(rares.map((x) => x.carrier.id));
+  const residents = residentsOf(r.hunt);
+  wantArt(ctx.doc, residents.map((m) => m.id), repaint);
+  const size = Math.max(1, Number(o.size) || 1);
+  const rares = raresOf(r.hunt, size), carriers = new Set(rares.map((x) => x.carrier.id));
   const lineup = det.querySelector('.hw-hd-lineup');
-  rows(lineup, residentsOf(r.hunt), {
+  rows(lineup, residents, {
     key: (m) => r.hunt + ':' + m.id,
     build: (m) => element(ctx.doc, monHtml(m)),
     patch: (li, m) => {
@@ -164,23 +173,29 @@ export function patchGround(det, ctx, r, o) {
   /* One ground line: every creature stands at the height of the tallest drawn here, feet on the same row. */
   const tallest = Math.max(0, ...Array.from(lineup.querySelectorAll('.hw-hd-mon.is-drawn canvas'), (c) => c.height));
   style(lineup, '--stand-h', tallest ? tallest + 'px' : null);
-  /* What drops here, named (odds stay the server's and the Bestiary's): the hourly gear a line a tier, the hero's own
-     armour weight first ("Iron, Studded, Adept: helmets, boots; Iron Sword"), then each Rare and Trophy, item and carrier. */
-  rows(det.querySelector('.hw-hd-sets'), scarceSetOf(r.hunt, o.worn || null), {
+  /* What drops here and how often (Tyler 2026-10-24: "a % drop chance or nothing at all"): the gear a line a tier, the
+     hero's own armour weight first ("Iron, Studded, Adept: helmets, boots; Iron Sword") with the chance a kill here drops
+     any piece of it, then each Rare and Trophy, item and carrier, with its chance per kill of that creature. The odds
+     are the engine's own rows at this hero's party size (hunt-ground-facts.js), never a number typed here. */
+  text(det.querySelector('.hw-hd-per-size'), 'chance per kill, ' + (size > 1 ? 'in a party of ' + size : 'hunting alone'));
+  rows(det.querySelector('.hw-hd-sets'), scarceSetOf(r.hunt, o.worn || null, size), {
     key: (e) => String(e.tier),
-    build: () => element(ctx.doc, '<li class="hw-hd-set"><b class="hw-hd-set-lines"></b><span class="hw-hd-set-what"></span></li>'),
+    build: () => element(ctx.doc, '<li class="hw-hd-set"><span><b class="hw-hd-set-lines"></b><span class="hw-hd-set-what"></span></span>'
+      + '<span class="hw-hd-odds"></span></li>'),
     patch: (li, e) => {
       text(li.querySelector('.hw-hd-set-lines'), e.lines.join(', '));
       text(li.querySelector('.hw-hd-set-what'), (e.lines.length ? ': ' : '') + [e.slots.join(', '), e.weapons.join(', ')].filter(Boolean).join('; '));
+      text(li.querySelector('.hw-hd-odds'), chance(e.chance));
     },
   });
   rows(det.querySelector('.hw-hd-rares'), rares, {
     key: (x) => x.id + ':' + x.carrier.id,
     build: (x) => element(ctx.doc, '<li class="hw-hd-rare" data-item="' + esc(x.id) + '"><span class="hw-ico">' + itemIconHtml(ctx.glyphs, x.id) + '</span>'
-      + '<b class="hw-hd-rare-name"></b><small class="hw-hd-rare-by"></small></li>'),
+      + '<b class="hw-hd-rare-name"></b><small class="hw-hd-rare-by"></small><span class="hw-hd-odds"></span></li>'),
     patch: (li, x) => {
       text(li.querySelector('.hw-hd-rare-name'), x.name);
       text(li.querySelector('.hw-hd-rare-by'), x.carrier.name);
+      text(li.querySelector('.hw-hd-odds'), chance(x.chance));
       cls(li, 'is-trophy', x.trophy);
     },
   });

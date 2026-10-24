@@ -9,30 +9,47 @@
 // them stands on one ground line at their true relative size: a rat is small, the
 // Rat King is not.
 //
-//   creatureArt(doc, version)  every set, loaded once (the World pane holds the same
-//                              decoded images): Promise<Map<id, { image, row }>>
+//   creatureArt(doc, version, ids)  the art of those creatures: every manifest is read (small
+//                              JSON), but only the sets that carry them load their image, each
+//                              once per page (the World pane holds the same decoded images):
+//                              Promise<Map<id, { image, row }>>, one map that grows per call
 //   drawCreature(canvas, art, id, o)  draw it; false when no set carries the sprite
+// A PORTRAIT FACES THE PLAYER (Tyler 2026-10-24: "facing front though maybe?"): the idle
+// frame facing south, which every unit sprite carries (35 of 43 have all eight directions,
+// 7 only south, 1 the four sides), so a line of them is one consistent pose. Units in the
+// World turn as they move; that is the World renderer's, not this.
 // ════════════════════════════════════════════════════════════════════════
-import { ATLAS_SETS } from '../data/world/atlas-sets.js?v=0.2.38';
-import { loadAtlasSet } from '../world/atlas.js?v=0.2.38';
+import { ATLAS_SETS } from '../data/world/atlas-sets.js?v=0.2.39';
+import { loadAtlasManifest, loadAtlasImage } from '../world/atlas.js?v=0.2.39';
 
-let ART = null;
+/** The direction a creature's portrait faces: front, toward the player. */
+export const PORTRAIT_DIR = 's';
 
-/** Every unit sprite with an idle clip in the shipped sets, by id (the first set that carries it). */
-export function creatureArt(doc, version) {
-  if (!ART) {
-    ART = Promise.all(ATLAS_SETS.map((set) => loadAtlasSet({ doc, version }, set).catch(() => null))).then((sets) => {
+const ART = new Map();
+let rows = null;   // Promise<Map<id, { set, row }>>: every unit sprite with an idle clip (the first set that carries it)
+
+function unitRows(doc, version) {
+  if (!rows) {
+    rows = Promise.all(ATLAS_SETS.map((set) => loadAtlasManifest({ doc, version }, set).then((m) => [set, m], () => [set, null]))).then((all) => {
       const by = new Map();
-      for (const a of sets) {
-        const sprites = a && a.manifest && a.manifest.sprites;
-        if (!sprites) continue;
-        for (const [id, row] of Object.entries(sprites)) {
-          if (!by.has(id) && row.layer === 'unit' && row.anims && row.anims.idle) by.set(id, { image: a.image, row });
+      for (const [set, m] of all) {
+        for (const [id, row] of Object.entries((m && m.sprites) || {})) {
+          if (!by.has(id) && row.layer === 'unit' && row.anims && row.anims.idle) by.set(id, { set, row });
         }
       }
       return by;
     });
   }
+  return rows;
+}
+
+/** The art of creatures `ids` (sprite ids): loads only the sets that carry them; resolves to the shared map. */
+export async function creatureArt(doc, version, ids) {
+  const by = await unitRows(doc, version);
+  const want = (ids || []).filter((id) => !ART.has(id) && by.has(id));
+  await Promise.all(Array.from(new Set(want.map((id) => by.get(id).set))).map((set) => loadAtlasImage({ doc, version }, set).then((image) => {
+    for (const [id, r] of by) if (r.set === set) ART.set(id, { image, row: r.row });
+  }, () => null)));
   return ART;
 }
 
@@ -65,7 +82,7 @@ export function drawCreature(canvas, art, id, o) {
   const opt = o || {};
   const hit = art && art.get(id);
   const dirs = hit && hit.row.anims.idle.dirs;
-  const at = dirs && (dirs[opt.dir || 'e'] || dirs.s || Object.values(dirs)[0]);
+  const at = dirs && (dirs[opt.dir || PORTRAIT_DIR] || dirs.s || Object.values(dirs)[0]);
   if (!at || !at.length) return false;
   const [fw, fh] = hit.row.frame;
   const [sx, sy] = at[0];

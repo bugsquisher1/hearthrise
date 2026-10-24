@@ -17,19 +17,21 @@
 // action is ONE intent with the controls off until the server answers
 // (actions.js). Patched in place (src/render/paint.js).
 // ════════════════════════════════════════════════════════════════════════
-import { BAG_CATS, BAG_SORTS, isNew, bagValue } from '../../bag-model.js?v=0.2.38';
-import { barIndexOf, barKeyLabel } from '../../bar-assign.js?v=0.2.38';
-import { rows, text, cls, attr, prop, element } from '../../../render/paint.js?v=0.2.38';
-import { whole, gold } from '../../../render/format.js?v=0.2.38';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.38';
-import { glyphSvg } from '../../launcher.js?v=0.2.38';
-import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.38';
-import { primaryOf, junkOf, confirmWords, huntLoot } from './state.js?v=0.2.38';
-import { pocketHtml, patchCount } from './pockets.js?v=0.2.38';
-import { elsewhereHtml, patchElsewhere } from './elsewhere.js?v=0.2.38';
-import { buryParts, buryBlock, buryRecipeOf } from './bury.js?v=0.2.38';
-import { shownQty, aheadQty, paintLine } from '../../town-ticker.js?v=0.2.38';
-import { upgradeLineHtml, patchUpgradeLine } from '../../widgets/upgrade-line.js?v=0.2.38';
+import { BAG_CATS, BAG_SORTS, isNew, bagValue } from '../../bag-model.js?v=0.2.39';
+import { barIndexOf, barKeyLabel } from '../../bar-assign.js?v=0.2.39';
+import { rows, text, cls, attr, prop, element } from '../../../render/paint.js?v=0.2.39';
+import { whole, gold } from '../../../render/format.js?v=0.2.39';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.39';
+import { glyphSvg } from '../../launcher.js?v=0.2.39';
+import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.39';
+import { primaryOf, junkOf, confirmWords, huntLoot } from './state.js?v=0.2.39';
+import { pocketHtml, patchCount } from './pockets.js?v=0.2.39';
+import { elsewhereHtml, patchElsewhere } from './elsewhere.js?v=0.2.39';
+import { buryParts, buryBlock, buryRecipeOf } from './bury.js?v=0.2.39';
+import { shownQty, aheadQty, paintLine } from '../../town-ticker.js?v=0.2.39';
+import { upgradeLineHtml, patchUpgradeLine } from '../../widgets/upgrade-line.js?v=0.2.39';
+import { wearBlock, gearLocked } from '../../gear-gate.js?v=0.2.39';
+import { whyLine } from '../../widgets/why-line.js?v=0.2.39';
 
 const RULES = Object.freeze([['keep', 'Keep'], ['sell', 'Sell at the shop'], ['ignore', 'Leave it']]);
 export const KEYS = '/ search · arrows move · Enter use · Space select · Delete sell · L lock · Ctrl+A select all';
@@ -60,6 +62,7 @@ export function toolsHtml(g) {
   return '<div class="hw-pick"><span class="hw-pick-ico"></span><span class="hw-pick-name"><b></b><small></small></span>'
     + '<button type="button" class="hw-primary" data-hs-act="primary"></button>'
     + '<button type="button" class="hh-tool hw-more" data-hs-act="more" aria-label="More for this item">' + glyphSvg(g, 'uiPlus') + '</button></div>'
+    + '<p class="hw-why hw-pick-why" role="status" aria-live="polite"></p>'
     + upgradeLineHtml()
     + '<div class="hw-burying" role="status"><span class="hw-burying-q"></span><button type="button" class="hh-tool" data-hs-act="bury-stop">Stop</button></div>'
     + '<div class="hw-bulk"><span class="hw-selcount"></span>'
@@ -139,9 +142,14 @@ export function patchTools(root, st, ctx) {
   text(pb, prim ? prim[1] : '');
   cls(pb, 'is-on', !!prim);
   const buryWhy = prim && prim[0] === 'bury' ? buryBlock(st.cs, buryRecipeOf(cur)) : '';
-  prop(pb, 'disabled', sc.pending || !prim);
-  attr(pb, 'title', buryWhy || null);
-  patchUpgradeLine(root, st.upgrade, onBag, sc.pending);
+  /* Equip the server's sections already refuse (a hunt running, a requirement unmet: gear-gate.js) is off, and says why. */
+  const wearWhy = prim && prim[0] === 'equip' ? wearBlock(st.cs, cur) : '';
+  prop(pb, 'disabled', sc.pending || !prim || !!wearWhy);
+  attr(pb, 'title', buryWhy || wearWhy || null);
+  /* The picked line's words: its last press's answer, else why its action is off. */
+  const pickSaid = !!cur && sc.msgAt === 'pick:' + cur && !!sc.msg;
+  whyLine(root.querySelector('.hw-pick-why'), !cur ? '' : (pickSaid ? sc.msg : wearWhy), pickSaid);
+  patchUpgradeLine(root, st.upgrade, onBag, sc.pending, { locked: gearLocked(st.cs), msg: sc.msgAt === 'upgrade' ? sc.msg : '' });
   const line = buryParts(st.cs);
   const bl = root.querySelector('.hw-burying');
   cls(bl, 'is-on', line.length > 0);
@@ -178,7 +186,8 @@ export function patchTools(root, st, ctx) {
     text(yes, sc.confirm.empty ? 'Nothing to sell' : 'Sell for ' + gold(sc.confirm.plan.total));
     prop(yes, 'disabled', sc.pending || sc.confirm.empty);
   }
-  text(root.querySelector('.hh-intent-msg'), sc.msg);
+  /* The window's own line: what was not pressed on a line of its own (a sale, a lock, a bury). */
+  text(root.querySelector('.hh-intent-msg'), sc.msgAt ? '' : sc.msg);
 }
 
 function patchHuntPane(root, st, ctx) {

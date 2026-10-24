@@ -167,8 +167,13 @@ async function packAndSettle(db, M, n, o = {}) {
 
 const ARMS = {
   /* The file re-applies (the Coordinator's retry, a rebuild) byte-identically: its §0 admits its own
-     body, the dial and its CHECK are not doubled, and the installed definitions and ACLs do not move. */
-  IDEM: async (db) => {
+     body, the dial and its CHECK are not doubled, and the installed definitions and ACLs do not move.
+     MEASURED AT ITS OWN POSITION (a replay up to this file), not at the chain head: a later file
+     (2027-01-01-server-perf.sql) restates hr_hunt_roster, whose image this file's §0 pins, and a re-apply
+     of THIS file after it is refused by design (it would put the dead last_seen_at predicate back). */
+  IDEM: async () => {
+    const { bootReplay } = await import('./schema-replay.mjs');
+    const { db } = await bootReplay({ upTo: MIG });
     const problems = [];
     const look = async () => JSON.stringify(await q(db, `
       select p.oid::regprocedure::text as fn, md5(pg_get_functiondef(p.oid)) as def, p.proacl::text as acl

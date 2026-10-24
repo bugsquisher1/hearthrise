@@ -21,30 +21,34 @@
 // one record of where this body stands in town (placeOn: a switch is not a move).
 // A fight on a hunt no map renders shows town or home with a slim banner offering the mapped hunt.
 // THE 64 PX SANDBOX: another art grid, loaded on first entry; its presence rule is sandbox-scene.js.
+// THE ART BY SCENE (atlas.js, scene-sets.js): every manifest on the first open, but a sheet only when a
+// scene drawing from it shows. The first scene opens whole; a later one (a ground entered, the town after
+// a hunt) switches once its sheets have arrived, the last frame holding meanwhile.
 // ════════════════════════════════════════════════════════════════════════
-import { BUILD } from '../build-info.js?v=0.2.38';
-import { MATERIALS, OPEN_CLASSES, LIGHTS } from '../data/world/terrain.js?v=0.2.38';
-import { WORLD_MAPS, SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.38';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.38';
-import { MONSTERS } from '../data/monsters.js?v=0.2.38';
-import { compileMap } from './core/map-compile.js?v=0.2.38';
-import { STUB_SPRITE } from './core/book.js?v=0.2.38';
-import { fpsFor, MOBILE_QUERY } from './core/camera.js?v=0.2.38';
-import { heroBuilding, roofTargets, stepAlpha } from './core/roofs.js?v=0.2.38';
-import { readScene, setChoice, heroPosOn, notePos, forgetPos } from './store.js?v=0.2.38';
-import { loadAtlases, loadAtlasSet } from './atlas.js?v=0.2.38';
-import { createGridArt, sandboxExtras, presenceFor } from './sandbox-scene.js?v=0.2.38';
-import { createCanvasBackend } from './render/canvas-backend.js?v=0.2.38';
-import { huntOfMap } from './hunt-maps.js?v=0.2.38';
-import { createHuntScene } from './hunt-scene.js?v=0.2.38';
-import { liveSceneOf, endLiveScene } from '../hunt-view/scene.js?v=0.2.38';
-import { huntOf } from '../session/hunt-sections.js?v=0.2.38';
-import { createWalkScene } from './walk-scene.js?v=0.2.38';
-import { homeMapFor, homeEnv } from './home-scene.js?v=0.2.38';
-import { runAction } from './steer-local.js?v=0.2.38';
-import { heroSprite } from '../session/hero-look.js?v=0.2.38';
-import { keyBelongsToField } from '../utils/dom.js?v=0.2.38';
-import { homeOf } from '../session/home-sections.js?v=0.2.38';
+import { BUILD } from '../build-info.js?v=0.2.39';
+import { MATERIALS, OPEN_CLASSES, LIGHTS } from '../data/world/terrain.js?v=0.2.39';
+import { WORLD_MAPS, SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.39';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.39';
+import { MONSTERS } from '../data/monsters.js?v=0.2.39';
+import { compileMap } from './core/map-compile.js?v=0.2.39';
+import { createBook, STUB_SPRITE } from './core/book.js?v=0.2.39';
+import { fpsFor, MOBILE_QUERY } from './core/camera.js?v=0.2.39';
+import { heroBuilding, roofTargets, stepAlpha } from './core/roofs.js?v=0.2.39';
+import { readScene, setChoice, heroPosOn, notePos, forgetPos } from './store.js?v=0.2.39';
+import { loadManifests, createSceneImages, loadAtlasSet } from './atlas.js?v=0.2.39';
+import { sceneSets } from './scene-sets.js?v=0.2.39';
+import { createGridArt, sandboxExtras, presenceFor } from './sandbox-scene.js?v=0.2.39';
+import { createCanvasBackend } from './render/canvas-backend.js?v=0.2.39';
+import { huntOfMap } from './hunt-maps.js?v=0.2.39';
+import { createHuntScene } from './hunt-scene.js?v=0.2.39';
+import { liveSceneOf, endLiveScene } from '../hunt-view/scene.js?v=0.2.39';
+import { huntOf } from '../session/hunt-sections.js?v=0.2.39';
+import { createWalkScene } from './walk-scene.js?v=0.2.39';
+import { homeMapFor, homeEnv } from './home-scene.js?v=0.2.39';
+import { runAction } from './steer-local.js?v=0.2.39';
+import { heroSprite } from '../session/hero-look.js?v=0.2.39';
+import { keyBelongsToField } from '../utils/dom.js?v=0.2.39';
+import { homeOf } from '../session/home-sections.js?v=0.2.39';
 
 /* THE KEYS (desktop): WASD and the arrows, by physical key (e.code, so a
    non-QWERTY layout walks with the same hand). Two held at once walk the
@@ -136,18 +140,38 @@ export async function bootWorld(panel, opts) {
   const chrome = panel.querySelector('.world-chrome');
   const styles = win.getComputedStyle(doc.body);
   const css = (name) => styles.getPropertyValue(name).trim();
-  const { book, images } = await loadAtlases({ doc, version: BUILD.cache });
+  /* EVERY manifest (the book: footprints and sets), but an image only when a scene drawing from it shows. */
+  const book = createBook(await loadManifests({ doc, version: BUILD.cache }));
   /* A sprite no loaded atlas carries compiles as a one-tile stub, never a crash. */
   const sprites = new Proxy(book.sprites, { get: (t, k) => t[k] || STUB_SPRITE });
   const tables = { materials: MATERIALS, sprites, openClasses: OPEN_CLASSES, lights: LIGHTS };
-  const backend = createCanvasBackend({ win, doc, book, images, tables, css });
+  const sheets = createSceneImages({ doc, version: BUILD.cache });
+  const backend = createCanvasBackend({ win, doc, book, images: sheets.images, tables, css });
   const gridArt = createGridArt({ doc, version: BUILD.cache, tables, loadSet: loadAtlasSet });
   const artOf = (id) => gridArt.art(ROWS.get(id).grid);
+  const character = opts.character || null;
+  const compiled = new Map();
+  const mapOf = (id) => {
+    if (!compiled.has(id)) compiled.set(id, compileMap(ROWS.get(id), (artOf(id) || { tables }).tables));
+    return compiled.get(id);
+  };
+  /* THE SHEETS A BASE-GRID SCENE DRAWS FROM (scene-sets.js), once per map; another grid's art is gridArt's. */
+  const needs = new Map();
+  const setsFor = (id) => {
+    const grid = ROWS.get(id).grid;
+    if (grid && grid !== 'base') return [];
+    if (!needs.has(id)) needs.set(id, sceneSets(mapOf(id), ROWS.get(id), book, tables));
+    return needs.get(id);
+  };
+  const homeNow = createHomeReader(character);
+  /* THE FIRST SCENE OPENS WHOLE: its sheets load before the first frame (another grid's scene opens on the Common
+     while its own art loads, route below). */
+  const first = readScene(view(), homeMapFor(homeNow().tier)).map;
+  await sheets.ensure(setsFor(setsFor(first).length ? first : SCENE_MAPS.town));
   stage.querySelectorAll('.world-status').forEach((el) => el.remove());
   backend.mount(stage);
 
   let hunt = null, huntMap = null, lastHunt = null;
-  const character = opts.character || null;
   /* the live hunt of `character`, while it hunts: ended here only when its hunt is over (S5) */
   function endLive() { if (character) endLiveScene(character); }
   const idle = doc.createElement('div');
@@ -156,16 +180,10 @@ export async function bootWorld(panel, opts) {
   idle.hidden = true;
   stage.appendChild(idle);
 
-  const compiled = new Map();
-  const mapOf = (id) => {
-    if (!compiled.has(id)) compiled.set(id, compileMap(ROWS.get(id), (artOf(id) || { tables }).tables));
-    return compiled.get(id);
-  };
   const mq = typeof win.matchMedia === 'function' ? win.matchMedia(MOBILE_QUERY) : null;
-  let running = false, raf = 0, last = 0, frames = 0, scene = null, roofAlpha = {};
+  let running = false, raf = 0, last = 0, frames = 0, scene = null, roofAlpha = {}, gone = false;   // gone: destroyed
   let walk = null, lastWalk = null;
   const town = opts.town || null;
-  const homeNow = createHomeReader(character);
   const readEnv = createEnvReader(homeNow, town);
 
   function paintChrome(sc) {
@@ -252,6 +270,7 @@ export async function bootWorld(panel, opts) {
      word on screen): sync() steps once on every open, tab switch and visibility
      change, and every frame routes again, so the banner follows the activity. */
   let lastBanner = null;
+  const waiting = new Set();   // the maps whose sheets are being asked for
   const monsterName = (id) => (MONSTERS[id] && MONSTERS[id].name) || id;
   function route() {
     const G = view();
@@ -261,6 +280,13 @@ export async function bootWorld(panel, opts) {
       /* ANOTHER GRID'S ART IS STILL LOADING: the Common stays on screen; a failed load sends the viewer back to it */
       gridArt.ensure(grid).then((ok) => { if (!ok) setChoice(view(), 'town'); if (!running) sync(); });
       sc = { map: SCENE_MAPS.town, kind: 'town' };
+    }
+    const need = setsFor(sc.map);
+    if (!sheets.ready(need)) {
+      /* ITS SHEETS ARE STILL LOADING (a ground entered, the town after a hunt): the frame showing stays until
+         they arrive, then the scene switches whole: no stub boxes, and never one map's units on another */
+      if (!waiting.has(sc.map)) { waiting.add(sc.map); sheets.ensure(need).then(() => { waiting.delete(sc.map); if (!running) sync(); }); }
+      return null;
     }
     if (!scene || sc.map !== scene.map || sc.kind !== scene.kind) {
       if (!scene || sc.map !== scene.map) { backend.setMap(mapOf(sc.map), artOf(sc.map) || undefined); roofAlpha = {}; }
@@ -276,6 +302,7 @@ export async function bootWorld(panel, opts) {
   function step(dt) {
     const G = view();
     const sc = route();
+    if (!sc) return;   // the next scene's sheets are loading: the last frame stays on screen
     const map = mapOf(sc.map);
     const name = G.playerName || null;
     const now = Date.now();
@@ -377,7 +404,8 @@ export async function bootWorld(panel, opts) {
        paints the change on its next frame: a second draw in the same frame was
        the whole cost of every server answer (tests/perf-budget.mjs). A throw
        here must not leave the loop state wrong, so it is reported and the loop
-       decision still runs. */
+       decision still runs. A sheet or grid art landing after destroy() draws nothing (the presence stays parked). */
+    if (gone) return;
     if (panel.classList.contains('active') && !(running && live())) {
       try { step(0); } catch (e) { console.error('[world] a frame failed', e); }
     }
@@ -425,8 +453,9 @@ export async function bootWorld(panel, opts) {
      * from the next frame on, so a window never covers the hero: drawn now only
      * when the loop is not running (sync's rule; the shell hands a new pane its inset at once).
      */
-    setInset(o) { backend.setInset(o); if (panel.classList.contains('active') && !(running && live())) step(0); },
+    setInset(o) { if (gone) return; backend.setInset(o); if (panel.classList.contains('active') && !(running && live())) step(0); },
     destroy() {
+      gone = true;
       if (raf) win.cancelAnimationFrame(raf);
       raf = 0; running = false;
       /* the live scene stays the character's (S5): shown again, it still knows every death it played */

@@ -7,10 +7,12 @@
 // later, so a pending leave's close (hunt-leave.js closeInMs) ends the hunt on
 // screen at the server's leave_at instead of a whole poll after it. A pushed
 // frame DEFERS it (a whole delay from now, closeMs still honoured by the delay
-// it is given): the push is the feed, this timer the fallback. Timing only:
+// it is given): the push is the feed, this timer the fallback. When the frames
+// stop it goes out one delay after the last; when the channel is lost (an error,
+// a time-out, a close), at once (character-session.js _onChannel). Timing only:
 // nothing here is read as owned or spent.
 // ════════════════════════════════════════════════════════════════════════
-import { SESSION_CONFIG } from './config.js?v=0.2.38';
+import { SESSION_CONFIG } from './config.js?v=0.2.39';
 
 /**
  * How soon (ms) the next re-read is asked: the live view's start-point ask

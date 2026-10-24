@@ -10,6 +10,8 @@
 //   tutorial-walk-through  each step is doable from the start kit plus the steps before it
 //   tutorial-never-backward  town -> Thicket -> town -> Sewer -> town -> Cellar, reloading between:
 //                          the pointer never moves back (#58, Andy 10-22)
+//   coach-folds            the coach minimizes to its title, stays so through a re-render and a reload,
+//                          marks the tab on a new card, opens to its full text (Tyler 2026-10-24)
 //
 // The loop case prints its measured clear times and kills (the evidence a balance claim needs).
 import { readFileSync, mkdtempSync, cpSync, writeFileSync, rmSync } from 'node:fs';
@@ -385,6 +387,60 @@ const cases = {
     if (!win || win.seenAt !== 5000) return 'the coach stamped the Farm window\'s countdown clock (seenAt ' + (win && win.seenAt) + ', wanted 5000)';
     return null;
   },
+  'coach-folds': async (M) => {
+    /* Tyler 2026-10-24 ("need an option to minimize 'whats next'"): the coach folds to its title, stays folded
+       through a re-render and a reload (the residue `coach`, through the real allowlist), marks the folded tab when
+       the card changes without opening it, and opens to the full text; the hunt bar redraws it on each change. */
+    const imp = (p) => import(pathToFileURL(join(M.root, p)).href + V);
+    const { renderLaunchers, placeCoach } = await imp('src/shell/launcher.js');
+    const { residueOf, RESIDUE_FIELDS } = await imp('src/session/residue.js');
+    if (!RESIDUE_FIELDS.includes('coach')) return 'the coach fold is not on the residue allowlist';
+    const env = (hunt) => ({ state: { level_xp: 0 }, hunt_settings: { preset: 1, slots: [] },
+      ...(hunt ? { hunt: { session_id: 's1', hunt_id: hunt, ended: false, session: {}, hero: {}, pose: { units: [] } } } : {}) });
+    /* a character as the client holds it: the envelope's sections and the residue, written through setResidue */
+    const hero = (e, residue) => {
+      const cs = { read: (k) => e[k], record: { residue: residueOf(residue) },
+        setResidue(f, v) { if (!RESIDUE_FIELDS.includes(f)) return false; cs.record = { residue: { ...cs.record.residue, ...residueOf({ [f]: v }) } }; return true; } };
+      return cs;
+    };
+    const ctxOf = (cs) => ({ character: cs, glyphs: {}, hud: { isShown: () => false }, wm: { openIds: () => [], rows: () => [], row: () => null } });
+    const draw = (cs) => renderLaunchers(ctxOf(cs));
+    const press = (cs, act) => renderLaunchers.act(ctxOf(cs), { ownerDocument: null, querySelector: () => null }, act, { type: 'click' });
+    const FULL = 'Open Hunts and pick the Mill Cellar.';
+    let cs = hero(env(), {});
+    if (!draw(cs).includes(FULL) || !draw(cs).includes('data-hs-act="coach-min"')) return 'the coach shows no minimize control: ' + draw(cs);
+    if (typeof renderLaunchers.act !== 'function') return 'the launcher row answers no coach press';
+    press(cs, 'coach-min');
+    const folded = (html) => html.includes('is-min') && html.includes('data-hs-act="coach-open"') && !html.includes(FULL);
+    if (!folded(draw(cs))) return 'minimized, the coach still shows its text: ' + draw(cs);
+    if (!folded(draw(cs))) return 'a re-render opened the folded coach';
+    if (!draw(cs).includes('>Rats in the mill</button>')) return 'the folded tab does not show the title: ' + draw(cs);
+    if (draw(cs).includes('hs-coach-new')) return 'a fresh fold already carries the new mark';
+    /* a reload: the server's residue bag read into a fresh session (JSON, through the allowlist) */
+    cs = hero(env(), JSON.parse(JSON.stringify(cs.record.residue)));
+    if (!folded(draw(cs))) return 'after a reload the coach is open again: ' + draw(cs);
+    /* the next card (the hero entered the Cellar): marked, still folded, its title on the tab */
+    const before = draw(cs);
+    cs = hero(env('mill_cellar'), cs.record.residue);
+    const marked = draw(cs);
+    if (!folded(marked) || !marked.includes('hs-coach-new') || !marked.includes('Your hero fights alone')) return 'a new card while folded: no mark, or it opened: ' + marked;
+    /* the hunt bar (built once) redraws the coach when the fold or the card changes, and only then */
+    let node = null, inserts = 0;
+    const attrOf = (h, a) => (new RegExp(a + '="([^"]+)"').exec(h) || [])[1] || null;
+    const bar = { querySelector: () => node, insertAdjacentHTML: (pos, h) => { inserts++;
+      node = { key: attrOf(h, 'data-coach'), getAttribute: (a) => attrOf(h, a), remove: () => { node = null; } }; } };
+    placeCoach(bar, before); placeCoach(bar, before);
+    placeCoach(bar, marked);
+    if (inserts !== 2 || !node || !/:new$/.test(node.key)) return 'the hunt bar did not redraw the coach on a new card (' + inserts + ' draws, ' + (node && node.key) + ')';
+    press(cs, 'coach-open');
+    const open = draw(cs);
+    if (open.includes('is-min') || open.includes('hs-coach-new') || !open.includes('You do not click to attack.')) return 'opened, the coach is not its full text: ' + open;
+    press(cs, 'coach-min');
+    if (draw(cs).includes('hs-coach-new')) return 'opening did not clear the mark';
+    placeCoach(bar, draw(cs));
+    if (inserts !== 3 || /:new$/.test(node.key)) return 'the hunt bar kept the stale coach after a fold (' + node.key + ')';
+    return null;
+  },
   'tutorial-never-backward': async (M) => {
     /* #58 (Andy 10-22): the pointer followed WHERE the hero was, not where it had been: town -> Thicket
        showed the Sewer card, back in town the Thicket card again; out of the Sewer, the Thicket card again.
@@ -448,6 +504,14 @@ const mutants = [
     edits: [['src/shell/launcher.js', 'ctx.wm.openIds().length > 0', 'ctx.wm.row(ctx.wm.openIds()[0] || "") && ctx.wm.row(ctx.wm.openIds()[0]).modal']] },
   { name: 'the launcher keeps the pointer in a hunt (over Leave hunt)', case: 'tutorial-launcher-card',
     edits: [['src/shell/launcher.js', "(ctx.hud && ctx.hud.isShown('hunt-topbar') ? '' : pointerFor(ctx))", 'pointerFor(ctx)']] },
+  { name: 'the coach fold is not kept (off the residue allowlist: open again after a reload)', case: 'coach-folds',
+    edits: [['src/session/residue.js', '  coach: sanitizeCoach,', '']] },
+  { name: 'a new card never marks the folded coach', case: 'coach-folds',
+    edits: [['src/shell/launcher.js', 'fresh: min && !!card && r.seen !== card.id', 'fresh: false']] },
+  { name: 'the hunt bar redraws the coach on a new card only (a fold in a hunt does nothing)', case: 'coach-folds',
+    edits: [['src/shell/launcher.js', '/data-coach="([a-z0-9_:]+)"/', '/data-tutorial="([a-z0-9_]+)"/'],
+      ['src/shell/launcher.js', "have.getAttribute('data-coach') !== key", "have.getAttribute('data-tutorial') !== key"],
+      ['src/shell/launcher.js', "have.getAttribute('data-coach') === key", "have.getAttribute('data-tutorial') === key"]] },
   { name: 'the card never advances past the first unmet step', case: 'tutorial-walk-through',
     edits: [['src/data/hunt-tutorial.js', 'if (!isDone(r.done, facts, openedIn)) return r;', 'return r;']] },
   { name: 'the first kill does not finish its card', case: 'tutorial-walk-through',

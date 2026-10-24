@@ -43,19 +43,19 @@
 // only things it sends of its own are the allowlisted residue and intents.
 // ════════════════════════════════════════════════════════════════════════
 
-import { applyEnvelope, frameEnvelope, withResidue } from './envelope.js?v=0.2.38';
-import { createTimeline } from '../hunt-view/timeline.js?v=0.2.38';
-import { LiveLink } from './live-link.js?v=0.2.38';
-import { RESIDUE_FIELDS, sanitizeResidueField, unconfirmedResidue } from './residue.js?v=0.2.38';
-import { SESSION_CONFIG } from './config.js?v=0.2.38';
-import { edgeBody } from './edge-intents.js?v=0.2.38';
-import { leaveAskOf, pendingLeaveAt, leaveCountdown, closeInMs } from './hunt-leave.js?v=0.2.38';
-import { HuntPoll, pollDelayMs } from './hunt-poll.js?v=0.2.38';
-import { AskPacer } from './ask-pacer.js?v=0.2.38';
-import { createIntentLedger } from './intent-ledger.js?v=0.2.38';
-import { frameTopic, reconnectDelay } from './frame-channel.js?v=0.2.38';
-import { refusalOf, settleRefusalOf } from './refusal.js?v=0.2.38';
-import { SERVER_ONLY_EVENTS } from '../core/hunt/events.js?v=0.2.38';
+import { applyEnvelope, frameEnvelope, withResidue } from './envelope.js?v=0.2.39';
+import { createTimeline } from '../hunt-view/timeline.js?v=0.2.39';
+import { LiveLink } from './live-link.js?v=0.2.39';
+import { RESIDUE_FIELDS, sanitizeResidueField, unconfirmedResidue } from './residue.js?v=0.2.39';
+import { SESSION_CONFIG } from './config.js?v=0.2.39';
+import { edgeBody } from './edge-intents.js?v=0.2.39';
+import { leaveAskOf, pendingLeaveAt, leaveCountdown, closeInMs } from './hunt-leave.js?v=0.2.39';
+import { HuntPoll, pollDelayMs } from './hunt-poll.js?v=0.2.39';
+import { AskPacer } from './ask-pacer.js?v=0.2.39';
+import { createIntentLedger } from './intent-ledger.js?v=0.2.39';
+import { frameTopic, reconnectDelay } from './frame-channel.js?v=0.2.39';
+import { refusalOf, settleRefusalOf } from './refusal.js?v=0.2.39';
+import { SERVER_ONLY_EVENTS } from '../core/hunt/events.js?v=0.2.39';
 
 export const FRAME_EVENT = 'frame';
 
@@ -104,7 +104,7 @@ export class CharacterSession {
     this._attempt = 0;
     this._retry = null;
     this._residueTimer = null;
-    this._leaveAsk = null; this._asking = null; this._wholeAt = -1;   // the hello in flight; the version known whole
+    this._leaveAsk = null; this._asking = null; this._wholeAt = -1; this._fed = false;   // the hello in flight; the version known whole; re-read last armed by a frame
     this._pending = {}; this._sent = {};   // residue to put; residue put and not yet seen back (residue.js unconfirmedResidue)
     this._closed = false; this._viewed = o.viewed !== false;   // shown (AccountSession.view): only it streams live (setViewed)
     this.lastVerdict = null;
@@ -167,9 +167,11 @@ export class CharacterSession {
 
   /* THE HUNT RE-READ (hunt-poll.js), armed by every applied answer while a hunt is open. UNVIEWED (CLAUDE.md §6: only the
      viewed character streams live): no live view, a plain read every unviewedPollMs; a pending leave's close is still asked.
-     A pushed frame is news the re-read would only repeat (41-45 % of polls did, 10-23), so it DEFERS it a whole delay. */
+     A pushed frame is news the re-read would only repeat (41-45 % of polls did, 10-23), so it DEFERS it a whole delay
+     (FED: when the frames stop, it goes out one delay after the last; when the channel is lost, at once: _onChannel). */
   _armHuntPoll(deferred) {
     if (this._closed || !this._huntOpen()) return;
+    this._fed = deferred === true;
     const close = closeInMs(this.leaveAt(), this.serverNow());
     const ms = Math.max(this._pace.waitMs(), this._viewed ? pollDelayMs(this.read('hunt'), this.liveLink, close) : Math.min(SESSION_CONFIG.unviewedPollMs, close ?? Infinity));
     if (deferred) this._poll.defer(ms); else this._poll.arm(ms);
@@ -551,6 +553,8 @@ export class CharacterSession {
     if (st === 'SUBSCRIBED') { this._attempt = 0; if (!this._huntOpen()) this.hello(); return; }   // hunting: the armed re-read restates
     if (st === 'CHANNEL_ERROR' || st === 'TIMED_OUT' || st === 'CLOSED') {
       this._dropChannel();
+      /* THE PUSH IS GONE: a re-read the frames deferred goes out at once (a frame may be lost); a flapping channel asks once */
+      if (this._fed && this._huntOpen()) { this._fed = false; this._poll.arm(this._pace.waitMs()); }
       if (this._retry) return;
       this._retry = this._setTimer(() => { this._retry = null; this.connect(); }, reconnectDelay(++this._attempt));
     }

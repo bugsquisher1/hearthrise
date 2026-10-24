@@ -23,6 +23,9 @@
 //             KNOWN_TWINS lists the pairs still waiting for their own art.
 //   wiring    bits.js no longer sends a basic supply id to SUPPLY_DIR, or an ability in
 //             ABILITY_ART has no 32x32 tile
+//   longbow   items/longbow.png is not what tools/world-art/longbow-icon.mjs draws: the old file was a
+//             thick limb over a grey stock and read as a crossbow (player note a43, 2026-10-24); the
+//             script is the source, so a hand edit or an old copy of the file is a finding
 //
 // The SAME rules (missing, orphan, size, palette, alpha, empty) also hold for the shop's
 // basic supplies: one icon per row of src/data/supply-basics.js BASIC_SUPPLIES (salted
@@ -31,7 +34,7 @@
 // --selftest plants each defect into a copy of real shipped icons and requires it
 // to be caught BY ITS NAMED RULE; the clean copy must stay silent.
 //
-// mutant-anchors: assets/icons-bundle/pixel/items/ assets/icons-bundle/pixel/supplies/ src/data/item-art.js art/world/palette.json
+// mutant-anchors: assets/icons-bundle/pixel/items/ assets/icons-bundle/pixel/supplies/ src/data/item-art.js art/world/palette.json tools/world-art/longbow-icon.mjs
 //
 // Exit: 0 green · 1 a finding or a mutant escaped · 2 harness.
 // ════════════════════════════════════════════════════════════════════════
@@ -41,6 +44,7 @@ import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { decodePNG, encodePNG, createImage } from '../tools/world-art/png.mjs';
 import { inPalette } from '../tools/world-art/lock.mjs';
+import { drawGrid, toImage } from '../tools/world-art/longbow-icon.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const DIR = 'assets/icons-bundle/pixel/items';
@@ -108,6 +112,15 @@ export function checkIcons(dir, ids) {
     if (off) out.push({ rule: 'palette', id, detail: off + ' pixels off the palette (first ' + first + ')' });
   }
   return out;
+}
+
+/** The Longbow's icon is drawn by tools/world-art/longbow-icon.mjs (a tall stave and a string, no stock); `file` must hold exactly those pixels. */
+export function checkLongbow(file) {
+  let img;
+  try { img = decodePNG(readFileSync(file)); } catch (e) { return [{ rule: 'longbow', id: 'longbow', detail: 'not a decodable PNG: ' + e.message }]; }
+  const want = toImage(drawGrid());
+  const same = img.width === want.width && img.height === want.height && Buffer.from(img.data).equals(Buffer.from(want.data));
+  return same ? [] : [{ rule: 'longbow', id: 'longbow', detail: 'longbow.png differs from what tools/world-art/longbow-icon.mjs draws (edit the script and rerun it, never the PNG)' }];
 }
 
 /** The one switch and its wiring, read from source. */
@@ -203,6 +216,17 @@ async function selftest(ids) {
     const noSeam = (await checkWiring(wroot)).some((f) => f.rule === 'wiring' && f.id === 'bits.js');
     console.log(`  ${clean2 && noTile && noSeam ? 'caught ' : 'ESCAPED'} wiring`);
     if (!(clean2 && noTile && noSeam)) escaped++; }
+  // longbow: the shipped file is silent; the old crossbow-looking art (a different image) and a one-pixel edit each trip it
+  { const clean3 = checkLongbow(join(real, 'longbow.png')).length === 0;
+    const d = mkdtempSync(join(tmp, 'lb-'));
+    copyFileSync(join(real, 'longbow.png'), join(d, 'edited.png'));
+    rewrite(d, 'edited', (img) => { const i = firstOpaque(img); img.data[i] = img.data[i] ^ 8; });
+    const onepx = checkLongbow(join(d, 'edited.png')).some((f) => f.rule === 'longbow');
+    const other = join(d, 'other.png');
+    copyFileSync(join(real, 'shortbow.png'), other);
+    const swapped = checkLongbow(other).some((f) => f.rule === 'longbow');
+    console.log(`  ${clean3 && onepx && swapped ? 'caught ' : 'ESCAPED'} longbow`);
+    if (!(clean3 && onepx && swapped)) escaped++; }
   // the switch: a source with no ITEM_ART_SET must trip 'switch'
   const sroot = mkdtempSync(join(tmp, 's-'));
   mkdirSync(join(sroot, 'src/data'), { recursive: true });
@@ -211,13 +235,13 @@ async function selftest(ids) {
   console.log(`  ${sw ? 'caught ' : 'ESCAPED'} switch`);
   if (!sw) escaped++;
   rmSync(tmp, { recursive: true, force: true });
-  console.log(escaped ? `pixel-icons --selftest: RED — ${escaped} planted defect(s) escaped` : 'pixel-icons --selftest: all 10 planted defects caught; clean control silent');
+  console.log(escaped ? `pixel-icons --selftest: RED — ${escaped} planted defect(s) escaped` : 'pixel-icons --selftest: all 11 planted defects caught; clean control silent');
   process.exit(escaped ? 1 : 0);
 }
 
 const ids = await loadIds();
 const supplyIds = await loadSupplyIds();
 if (process.argv.includes('--selftest')) await selftest(ids);
-const findings = [...checkIcons(join(ROOT, DIR), ids), ...checkDuplicates(join(ROOT, DIR), ids), ...checkSupplies(join(ROOT, SUPPLY), supplyIds), ...(await checkWiring(ROOT)), ...checkSwitch(ROOT)];
+const findings = [...checkIcons(join(ROOT, DIR), ids), ...checkDuplicates(join(ROOT, DIR), ids), ...checkSupplies(join(ROOT, SUPPLY), supplyIds), ...(await checkWiring(ROOT)), ...checkSwitch(ROOT), ...checkLongbow(join(ROOT, DIR, 'longbow.png'))];
 report(`pixel-icons: ${ids.length} items + ${supplyIds.length} supplies`, findings);
 process.exit(findings.length ? 1 : 0);

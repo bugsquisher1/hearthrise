@@ -8,9 +8,9 @@
 // opens her window. A widget the player can hide (Settings, HUD layout). Built once,
 // patched in place.
 // ════════════════════════════════════════════════════════════════════════
-import { tallyOf, tallyLine } from '../../session/tally-sections.js?v=0.2.38';
-import { huntOf } from '../../session/hunt-sections.js?v=0.2.38';
-import { rows, text, cls, style, element } from '../../render/paint.js?v=0.2.38';
+import { tallyOf, tallyLine } from '../../session/tally-sections.js?v=0.2.39';
+import { huntOf } from '../../session/hunt-sections.js?v=0.2.39';
+import { rows, text, cls, style, element } from '../../render/paint.js?v=0.2.39';
 
 /** The skeleton (built once). */
 export function renderTallyHud() {
@@ -26,7 +26,7 @@ renderTallyHud.patch = function patchTallyHud(el, ctx) {
   /* Quiet = the WHOLE widget box goes (el is the shell's widget box): an empty box still held its min size at
      its anchor, covered the analyzer and pushed the camera off the hero (v0.2.37 run 40020854780, HS-13 / WC-3). */
   cls(el, 'is-quiet', !t || (!held.length && hunting));
-  text(el.querySelector('.hs-tally-none'), !t || held.length ? '' : 'Tamsin has work at her board on the Common.');
+  text(el.querySelector('.hs-tally-none'), !t || held.length ? '' : 'Tamsin has kill tasks at her board on the Common.');
   rows(el.querySelector('.hs-tally-list'), held, {
     key: (x) => x.task,
     build: () => element(ctx.doc, '<li class="hs-tally-row"><span></span><span class="ht-stick" aria-hidden="true"><i></i></span></li>'),

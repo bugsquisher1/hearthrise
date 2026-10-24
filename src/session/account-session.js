@@ -45,13 +45,13 @@
 //                 left and destroyed when it closes
 // ════════════════════════════════════════════════════════════════════════
 
-import { SESSION_CONFIG } from './config.js?v=0.2.38';
-import { CharacterSession } from './character-session.js?v=0.2.38';
-import { TownPresence } from './town-presence.js?v=0.2.38';
-import { WORLD_MAPS, SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.38';
-import { charLevelFromXp } from '../core/xp.js?v=0.2.38';
-import { createIntentLedger } from './intent-ledger.js?v=0.2.38';
-import { purseOf, newerPurse } from './item-sections.js?v=0.2.38';
+import { SESSION_CONFIG } from './config.js?v=0.2.39';
+import { CharacterSession } from './character-session.js?v=0.2.39';
+import { TownPresence } from './town-presence.js?v=0.2.39';
+import { WORLD_MAPS, SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.39';
+import { charLevelFromXp } from '../core/xp.js?v=0.2.39';
+import { createIntentLedger } from './intent-ledger.js?v=0.2.39';
+import { purseOf, newerPurse } from './item-sections.js?v=0.2.39';
 
 /* What the account's characters share: the depot (2026-11-27-account-depot.sql) and the
    farm land (2026-12-14-shared-farm.sql). A change to one re-reads the others. */
@@ -197,7 +197,9 @@ export class AccountSession {
   }
 
   /** [{ slot, exists, unnamed, name, level }] for every slot this account owns. `unnamed`: the server
-      holds a character there that may not enter the world until it is named (hr_load needs_name). */
+      holds a character there that may not enter the world until it is named (hr_load needs_name).
+      Slot 0's read names the owned slots; the others are then read AT ONCE, so the screen waits two
+      round trips whatever the hero count (one after another, four heroes cost four: 1.19 s on 10-23). */
   async roster() {
     const first = await this.server.rpc('hr_load', { p_slot: 0 });
     this._noteClosed(first);
@@ -206,14 +208,13 @@ export class AccountSession {
     if (stated !== null) this._limit = stated;
     this.slotOffer = slotOfferOf(first.ok && first.body ? first.body.account : null, this.config);
     const owned = ownedSlots(first.ok && first.body ? first.body.hero_slots : null, this.config);
-    const out = [];
-    for (const slot of owned) {
-      const ans = slot === 0 ? first : await this.server.rpc('hr_load', { p_slot: slot });
+    const answers = await Promise.all(owned.map((slot) => (slot === 0 ? first : this.server.rpc('hr_load', { p_slot: slot }))));
+    return owned.map((slot, i) => {
+      const ans = answers[i];
       this._noteClosed(ans);
-      out.push(Object.assign({ slot, exists: !!(ans.ok && ans.body && ans.body.ok === true),
-        unnamed: !!(ans.ok && ans.body && ans.body.error === 'needs_name') }, heroOf(ans.ok ? ans.body : null)));
-    }
-    return out;
+      return Object.assign({ slot, exists: !!(ans.ok && ans.body && ans.body.ok === true),
+        unnamed: !!(ans.ok && ans.body && ans.body.error === 'needs_name') }, heroOf(ans.ok ? ans.body : null));
+    });
   }
 
   /** A player's problem report, through the bug-report bridge (it names the reporter from the token,
@@ -308,14 +309,14 @@ export class AccountSession {
   /**
    * Open the account's other characters (`slots`, the roster's existing ones) up to the server's
    * limit, never changing the viewed one: everyone the account plays stands in town after a
-   * reload or login, not only the one on screen. Returns the slots now open.
+   * reload or login, not only the one on screen. They open AT ONCE (each its own load), so the
+   * last one stands in town one round trip after the first, not one per hero. Returns the slots now open.
    */
   async openOthers(slots) {
-    for (const slot of Array.isArray(slots) ? slots : []) {
-      if (!Number.isInteger(slot) || this._chars.has(slot)) continue;
-      if (this._chars.size >= this.limit()) break;
-      await this._open(slot);
-    }
+    const want = Array.from(new Set((Array.isArray(slots) ? slots : []).filter((s) => Number.isInteger(s) && !this._chars.has(s))));
+    /* each _open takes its seat (or answers 'limit', sending nothing) before its first await, in slot-list
+       order, so the limit holds however many start together */
+    await Promise.all(want.map((slot) => this._open(slot)));
     return this.characters().map((c) => c.slot);
   }
 

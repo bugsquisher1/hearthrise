@@ -1,0 +1,101 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   UI OPTION B — QUIET (2026-10-24 design pass; THROWAWAY MOCK, not wired into src/)
+   The world is the frame; the UI is ink on it. No frames, no wells, no rules:
+   a window is one flat veil with a shadow under it, a HUD readout is stroked
+   text straight on the world (the analyzer alone keeps a veil, it is a table).
+   Type, spacing and the pixel icons carry the hierarchy; gold marks only
+   "yours / now / the one action". Place names (a ground's page, the hunt bar)
+   use the place-name face (--f-display, ART_DIRECTION §10). No art files.
+   Applied over the live page as the LAST stylesheet (inspection mock).
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Windows: one veil, no frame, a generous margin ── */
+.hs-win {
+  background: color-mix(in srgb, var(--bg-1) 97%, transparent);
+  border: 0; border-image: none;
+  box-shadow: 0 18px 44px color-mix(in srgb, var(--world-shadow) 55%, transparent);
+}
+.hs-win-head { height: 58px; padding: 0 10px 0 24px; border-bottom: 0; }
+.hs-win-head > svg.hs-glyph { display: none; }
+.hs-win-title { font-size: var(--t-h3); color: var(--ink); letter-spacing: .07em; }
+.hs-key { border: 0; color: var(--ink-3); }
+.hs-close:hover { background: none; }
+.hs-win-body { padding: 0 24px 22px; }
+
+/* Tabs and filters are words; the picked one is gold with the 2 px mark under it. */
+.hw-tabs, .ha-tabs { border-bottom: 0; gap: 22px; margin-bottom: 16px; }
+.hw-tab, .ha-tab { padding: 0; min-height: 28px; flex: none; }
+.hw-cats { background: none; box-shadow: none; gap: 2px 16px; margin-bottom: 16px; }
+.hw-cat { padding: 0; min-height: 26px; }
+.hw-cat[aria-pressed="true"] { background: none; }
+/* Fields are an underline; a select is its words and a chevron. */
+.hw-search { border: 0; border-bottom: 1px solid var(--line-soft); border-radius: 0; background: none; padding-left: 0; }
+.hh-select, .hh-num { border: 0; background: none; }
+.hw-find { margin-bottom: 14px; }
+
+/* The bag and the doll lose their trays: pockets are a faint lift of the veil, icons do the rest. */
+.hw-inv-cols { gap: 24px; }
+.hw-inv-grid, .hw-doll, .hw-store .hw-pockets { background: none; box-shadow: none; padding: 0; }
+.hw-pockets { gap: 4px; }
+.hw-pocket, .hw-slot { box-shadow: none; background: color-mix(in srgb, var(--hl) 5%, transparent); }
+.hw-pocket:hover, .hw-slot:hover { background: color-mix(in srgb, var(--hl) 10%, transparent); }
+.hw-slot.is-empty { background: color-mix(in srgb, var(--hl) 2.5%, transparent); }
+.hw-inv-foot { margin-top: 14px; }
+.hw-capbar { height: 3px; box-shadow: none; background: color-mix(in srgb, var(--hl) 10%, transparent); }
+.hw-upgrade, .hw-bulk, .hw-burying { background: none; box-shadow: none; padding: 12px 0 0; }
+.hw-primary { border-radius: var(--r-sm); }
+
+/* Hunts: the list is type; the picked ground is gold with the rule beside it; the page is set off by space. */
+.hw-hunt { padding: 8px 6px 9px 14px; }
+.hw-hunt:hover { background: none; }
+.hw-hunt.is-picked { background: none; }
+.hw-hunt.is-picked .hw-hunt-name { color: var(--gold-2); }
+.hw-hunt-detail { border-left: 0; padding-left: 32px; }
+.hw-hd-name { font-family: var(--f-display); font-size: var(--t-h2); font-weight: 600; letter-spacing: .03em; }
+.hw-hd-h { margin-top: 22px; }
+.hw-hd-stand { border-bottom-color: var(--line-soft); }
+.hw-hd-rare .hw-ico, .hw-go .hw-go-weapon, .hw-roleglyph { background: none; box-shadow: none; }
+.hw-go.is-picked { background: none; }
+.hw-go.is-picked .hw-go-name { color: var(--gold-2); }
+.hw-hd-foot { border-top: 0; background: var(--bg-1); bottom: -22px; padding-bottom: 22px; }
+
+/* ── HUD: ink on the world. Stroked text (the world's own plate rule), thin gauges, no panels ── */
+.hh-panel, .hs-tally, .hs-online { background: none; border: 0; border-image: none; }
+.hh-panel-head { border-bottom: 0; min-height: 26px; padding: 0; }
+.hh-panel-body { padding: 2px 0 0; }
+/* (-webkit-text-stroke and paint-order inherit, so the widget carries them for every line in it) */
+.hp-party, .ht-bar, .hs-tally, .hs-online { paint-order: stroke fill; -webkit-text-stroke: 3px var(--bg-0); }
+.hp-portrait { border: 0; background: none; }
+.hh-gauge { height: 14px; box-shadow: none; background: color-mix(in srgb, var(--bg-0) 75%, transparent); }
+.hh-gauge-text { line-height: 14px; }
+/* The analyzer is a table: it keeps one veil, no edge. */
+.ha-analyzer { background: color-mix(in srgb, var(--bg-0) 76%, transparent); padding: 8px 12px 6px; }
+.ha-tabs .ha-tab { flex: none; }
+.ha-sec { border-top: 0; }
+/* The hunt bar is the ground's name, as the world writes a place. */
+.ht-bar { background: none; border: 0; border-image: none; padding: 0; gap: 14px; }
+.ht-ground { font-family: var(--f-display); font-size: var(--t-lead); font-weight: 600; letter-spacing: .05em; }
+.ht-clock { border-right: 0; }
+.hs-pointer { background: color-mix(in srgb, var(--bg-0) 82%, transparent); box-shadow: none; }
+
+/* ── The action bar: no plate; the slots are lifts of one dark veil, empty ones fall away ── */
+.hb-bar { background: color-mix(in srgb, var(--bg-0) 86%, transparent); border: 0; border-image: none; padding: 10px 16px; }
+.hb-slot, .hb-socket-ico { border: 0; border-image: none; background: color-mix(in srgb, var(--hl) 7%, transparent); }
+.hb-slot:hover { background: color-mix(in srgb, var(--hl) 12%, transparent); }
+.hb-slot.is-empty { background: color-mix(in srgb, var(--hl) 3%, transparent); }
+.hb-slot.is-empty .hb-n, .hb-slot.is-empty .hb-plus { opacity: 0; }
+.hb-slot.is-empty:hover .hb-n, .hb-slot.is-empty:hover .hb-plus { opacity: 1; }
+.hb-plaque { border-left: 0; border-image: none; }
+.hb-pl-more { border: 0; border-image: none; background: color-mix(in srgb, var(--bg-1) 96%, transparent); box-shadow: 0 12px 30px color-mix(in srgb, var(--world-shadow) 50%, transparent); }
+
+/* ── The strip: no rule under it ── */
+.char-strip { border-bottom: 0; }
+
+/* ── Phone: the sheet is the same veil from the right edge, no frame ── */
+@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
+  .hs-win { border: 0; border-image: none; background: var(--bg-1); }
+  .hs-win-head { height: 46px; padding-left: 16px; }
+  .hs-win-body { padding: 0 16px 14px; }
+  .hw-inv-cols { gap: 14px; }
+  .hb-bar { border: 0; border-image: none; padding: 6px 10px; }
+}

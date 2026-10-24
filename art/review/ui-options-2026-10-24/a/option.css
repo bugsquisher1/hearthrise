@@ -1,0 +1,111 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   UI OPTION A — FORGED (2026-10-24 design pass; THROWAWAY MOCK, not wired into src/)
+   Every panel is an object made of the world's iron: a riveted case with gilded
+   corner caps, cut from slate; a nameplate hangs over each window's top edge;
+   pockets, gauges and trays are sunk into it; the picked thing is a raised plate;
+   the one primary is struck gold. HUD widgets wear a lighter riveted band.
+   Art: ./make-art.mjs (hr-world-56-v2 colours only, x2). Tokens only otherwise.
+   Applied over the live page as the LAST stylesheet (inspection mock).
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Windows: the case, the slate, the nameplate ── */
+.hs-win {
+  background: url('a-slate.png') 0 0 / 64px 64px repeat, var(--modal-bg);
+  background-clip: padding-box;
+  border: 14px solid transparent;
+  border-image: url('a-win.png') 7 / 14px stretch;
+  box-shadow: 0 12px 30px color-mix(in srgb, var(--world-shadow) 60%, transparent);
+}
+.hs-win-head { position: relative; height: 34px; padding: 0 0 0 8px; border-bottom: 0; }
+.hs-win-head > svg.hs-glyph { display: none; }
+/* The nameplate rides the case's top edge, centred; the title is struck into it in gold. */
+.hs-win-title {
+  position: absolute; left: 50%; top: -31px; transform: translateX(-50%);
+  height: 40px; padding: 0 30px; display: flex; align-items: center; white-space: nowrap;
+  border: solid transparent; border-width: 0 24px; border-image: url('a-plaque.png') 0 12 fill / 0 24px stretch;
+  image-rendering: pixelated;
+  font-size: var(--t-small); color: var(--gold-2); letter-spacing: .08em;
+}
+.hs-key { margin-left: auto; border: 0; }
+.hs-close { width: 32px; height: 32px; }
+.hs-win-body { padding: 6px 10px 10px; }
+
+/* Tabs: the picked one is a raised plate; the others are words engraved on the slate. */
+.hw-tabs, .ha-tabs { border-bottom: 0; gap: 4px; margin-bottom: 10px; }
+.hw-tab, .ha-tab { border: 6px solid transparent; border-bottom-width: 6px; padding: 0 10px; min-height: 36px; }
+.hw-tab[aria-selected="true"], .ha-tab[aria-selected="true"] {
+  border-image: url('a-btn.png') 3 / 6px stretch; background: var(--bg-3); background-clip: padding-box; color: var(--gold-2);
+}
+/* The category row is a groove cut across the slate; the picked word sits on a raised plate in it. */
+.hw-cats { padding: 2px; background: var(--bg-0); box-shadow: none; border: 4px solid transparent; border-image: url('../../../../assets/ui/bar-socket.png') 2 / 4px stretch; image-rendering: pixelated; gap: 2px; }
+.hw-cat { border: 4px solid transparent; min-height: 30px; padding: 0 3px; }
+.hw-cat[aria-pressed="true"] { border-image: url('a-btn.png') 3 / 4px stretch; background: var(--bg-3); background-clip: padding-box; }
+/* Fields are sockets, never hairlines. */
+.hw-search, .hh-select, .hh-num, .hc-field {
+  border: 4px solid transparent; border-radius: 0; border-image: url('../../../../assets/ui/bar-socket.png') 2 / 4px stretch;
+  image-rendering: pixelated; background: var(--bg-0); background-clip: padding-box;
+}
+/* The bag and the doll are trays sunk into the slate. */
+.hw-inv-grid, .hw-doll, .hw-store .hw-pockets, .ca-well {
+  background: var(--bg-0); box-shadow: none; padding: 4px;
+  border: 4px solid transparent; border-image: url('../../../../assets/ui/bar-socket.png') 2 / 4px stretch; image-rendering: pixelated;
+}
+.hw-pocket, .hw-slot { background: var(--bg-1); box-shadow: inset 2px 2px 0 var(--bg-0), inset -2px -2px 0 color-mix(in srgb, var(--hl) 9%, transparent); }
+.hw-slot.is-empty { background: var(--bg-0); }
+/* The trays a line sits in (Equip upgrades, the sale, burying) are ledges, not wells. */
+.hw-upgrade, .hw-bulk, .hw-burying { background: color-mix(in srgb, var(--bg-0) 70%, transparent); box-shadow: none; border-top: 2px solid var(--bg-0); border-bottom: 2px solid color-mix(in srgb, var(--hl) 7%, transparent); }
+.hw-capbar { height: 8px; border: 2px solid transparent; border-image: url('a-well.png') 1 / 2px stretch; box-shadow: none; background: var(--bg-0); background-clip: padding-box; image-rendering: pixelated; }
+/* The one primary is a struck-gold plate. */
+.hw-primary, .hh-tool.is-primary {
+  border: 6px solid transparent; border-radius: 0; border-image: url('a-gold.png') 3 fill / 6px stretch; image-rendering: pixelated;
+  background: none; color: var(--bg-0); min-height: 40px; padding: 0 8px;
+}
+.hw-primary:hover:not(:disabled), .hh-tool.is-primary:hover:not(:disabled) { background: none; filter: brightness(1.08); }
+/* Section heads carry a forged groove under them; a picked line is a raised plate. */
+.hw-hd-h, .hw-ledger-head.is-on, .hw-slothead { padding-bottom: 4px; border-bottom: 2px solid var(--bg-0); box-shadow: 0 2px 0 color-mix(in srgb, var(--hl) 6%, transparent); color: var(--gold-2); }
+.hw-hunt, .hw-go { border: 4px solid transparent; border-left-width: 4px; }
+.hw-hunt.is-picked, .hw-go.is-picked { border-image: url('a-btn.png') 3 / 4px stretch; background: var(--bg-3); background-clip: padding-box; }
+.hw-hunt-detail { border-left: 4px solid transparent; border-image: url('../../../../assets/ui/bar-socket.png') 2 / 0 0 0 4px stretch; image-rendering: pixelated; }
+.hw-hd-rare .hw-ico, .hw-go .hw-go-weapon, .hw-roleglyph { box-shadow: none; border: 2px solid transparent; border-image: url('a-well.png') 1 / 2px stretch; background: var(--bg-0); background-clip: padding-box; image-rendering: pixelated; }
+.hw-hd-foot { background: var(--bg-1); border-top: 2px solid var(--bg-0); box-shadow: 0 -2px 0 color-mix(in srgb, var(--hl) 6%, transparent) inset; }
+
+/* ── HUD widgets: a lighter riveted band, slate inside ── */
+.hh-panel, .ht-bar, .hs-tally {
+  background: url('a-slate.png') 0 0 / 64px 64px repeat, var(--world-hud-bg); background-clip: padding-box;
+  border: 10px solid transparent; border-image: url('a-hud.png') 5 / 10px stretch; image-rendering: pixelated;
+}
+.hh-panel-head { border-bottom: 2px solid var(--bg-0); box-shadow: 0 2px 0 color-mix(in srgb, var(--hl) 6%, transparent); }
+.hh-panel-title { color: var(--gold-2); }
+/* The hunt's name is a nameplate of its own over the stage. */
+.ht-bar { background: none; padding: 0 8px; min-height: 40px; border-width: 0 24px; border-image: url('a-plaque.png') 0 12 fill / 0 24px stretch; }
+.ht-ground { color: var(--gold-2); }
+.ht-clock { border-right: 0; }
+/* Party portraits are medals; yours is gilded. */
+.hp-portrait { width: 40px; height: 40px; border: 0; border-radius: 0; background: url('a-medal.png') center / 40px 40px no-repeat; image-rendering: pixelated; }
+.hp-m.is-self .hp-portrait { background-image: url('a-medal-self.png'); }
+.hh-gauge { border: 2px solid transparent; border-image: url('a-well.png') 1 / 2px stretch; box-shadow: none; background: var(--bg-0); background-clip: padding-box; image-rendering: pixelated; height: 20px; }
+.hh-gauge-text { line-height: 16px; }
+
+/* ── The action bar: the case's gilded corners on the plate, slate face ── */
+.hb-bar { background: url('a-slate.png') 0 0 / 64px 64px repeat, var(--bg-0); background-clip: padding-box; border: 14px solid transparent; border-image: url('a-win.png') 7 / 14px stretch; }
+.hb-hub { margin-top: -28px; }
+/* Common to all three options (de-boxing plan #4): an empty socket shows no number and no "+" until hover. */
+.hb-slot.is-empty .hb-n, .hb-slot.is-empty .hb-plus { opacity: 0; }
+.hb-slot.is-empty:hover .hb-n, .hb-slot.is-empty:hover .hb-plus { opacity: 1; }
+/* The analyzer's four tabs keep their room on raised plates. */
+.ha-tabs { gap: 0; }
+.ha-tab { padding: 0 4px; border-width: 4px; }
+.hb-pl-more { border: 14px solid transparent; border-image: url('a-win.png') 7 / 14px stretch; background: url('a-slate.png') 0 0 / 64px 64px repeat, var(--modal-bg); background-clip: padding-box; }
+
+/* ── The top strip: a forged rail along its foot ── */
+.char-strip { border-bottom: 10px solid transparent; border-image: url('a-hud.png') 5 / 0 0 10px 0 stretch; image-rendering: pixelated; }
+.hs-launch.is-open::after { height: 4px; background: var(--gold); }
+
+/* ── Phone: the sheet keeps the case's spine down its left edge and the nameplate on top ── */
+@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
+  .hs-win { border-width: 0 0 0 14px; border-image: url('a-win.png') 7 / 0 0 0 14px stretch; }
+  .hs-win-head { height: 44px; justify-content: flex-end; }
+  .hs-win-title { top: 2px; height: 36px; }
+  .hb-bar { border-width: 10px; border-image: url('a-hud.png') 5 / 10px stretch; }
+  .hb-hub { margin-top: 0; }
+}

@@ -3738,3 +3738,7 @@ diagonal rotations; only the clips and the engine are missing (R0 confirms). Cha
 replace_existing: a redone clip is a new group, and the old one is kept. animate_character v3 animates ONE
 direction per call. Pixelify Sans (OFL) at the 14.5 px floor falls off its pixel grid: a pixel face is only crisp
 at whole multiples of its grid, which is why the HUD keeps Alegreya (ART_DIRECTION §9).
+
+2026-10-24 (art director, lane/d-ui-options): once, while the QA hero went from hunting to town, the character
+strip showed "Sign out" twice (seen in one capture, gone on the next read: the DOM had one). Unconfirmed; for QA
+to watch for a strip re-render that appends its tools twice.

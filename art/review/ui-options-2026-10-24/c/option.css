@@ -1,0 +1,93 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   UI OPTION C — RAILS (2026-10-24 design pass; THROWAWAY MOCK, not wired into src/)
+   Nothing floats over the world any more: every panel is fastened to a screen
+   edge and shows the world ONE machined lip, on its free side only (c-rail.png,
+   lit where it faces up or left, shadowed where it faces down or right). The
+   strip is the top rail, the action bar the bottom rail (full width, the
+   medallion breaking its lip), windows are full-height sheets from the right
+   edge (the phone's sheet, now on every screen), the party hangs off the left
+   edge and the hunt bar off the top rail. The world runs to the edges between.
+   Inside the rails the windows are flat: the rail did the containing.
+   Applied over the live page as the LAST stylesheet (inspection mock).
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* The world to the screen's edges: no gutter, no hairline round the stage. */
+.game #panel-world { padding: 0; }
+#panel-world .world-stage { border: 0; }
+
+/* ── The top rail: the strip shows the world its shadowed lip ── */
+.char-strip { border-bottom: 6px solid transparent; border-image: url('c-rail.png') 3 / 0 0 6px 0 stretch; image-rendering: pixelated; }
+
+/* ── Windows: full-height sheets fastened to the right edge, down to the bottom rail ── */
+.hs-win:not(.is-modal):not(.is-home) {
+  top: 0 !important; right: 0 !important; bottom: 116px !important; max-height: none !important;
+  background: var(--bg-1);
+  border: 0; border-left: 6px solid transparent; border-image: url('c-rail.png') 3 / 0 0 0 6px stretch;
+  box-shadow: none;
+}
+.hs-win.is-entering { animation: none; }
+.hs-win-head { height: 48px; padding: 0 6px 0 14px; border-bottom: 0; background: var(--bg-0); }
+.hs-win-title { color: var(--gold-2); }
+.hs-key { border: 0; }
+.hs-win-body { padding: 12px 14px 14px; }
+/* Inside a sheet nothing needs a box: tabs and filters are words, trays become one value step. */
+.hw-tabs { border-bottom: 0; }
+.hw-cats { background: none; box-shadow: none; gap: 0 4px; }
+.hw-cat[aria-pressed="true"] { background: var(--bg-3); }
+.hw-search { border: 0; background: var(--bg-0); border-radius: 0; }
+.hh-select, .hh-num { border: 0; border-radius: 0; }
+.hw-inv-grid, .hw-doll, .hw-store .hw-pockets { box-shadow: none; background: var(--bg-0); }
+.hw-pocket, .hw-slot { box-shadow: none; background: var(--bg-2); }
+.hw-slot.is-empty { background: color-mix(in srgb, var(--bg-2) 45%, var(--bg-0)); }
+.hw-upgrade, .hw-bulk, .hw-burying { box-shadow: none; background: var(--bg-0); }
+.hw-capbar { box-shadow: none; background: var(--bg-0); }
+.hw-primary { border-radius: 0; }
+.hw-hunt-detail { border-left: 0; padding-left: 16px; background: var(--bg-2); }
+.hw-hunt-list { padding-right: 0; }
+.hw-hunt.is-picked { background: var(--bg-2); }
+.hw-hd-foot { background: var(--bg-2); border-top: 0; bottom: -14px; padding-bottom: 14px; }
+.hw-hd-rare .hw-ico, .hw-go .hw-go-weapon { box-shadow: none; background: var(--bg-0); }
+
+/* ── The bottom rail: the action bar runs the screen's width, its lip lit, the medallion through it ── */
+.hs-widget.is-action-bar { left: 0 !important; right: 0 !important; top: auto !important; bottom: 0 !important; }
+.hs-widget.is-action-bar > .hb-bar {
+  width: 100%; justify-content: center; gap: 18px;
+  background: var(--bg-1); border: 0; border-top: 6px solid transparent;
+  border-image: url('c-rail.png') 3 / 6px 0 0 0 stretch; padding: 8px 16px 10px;
+}
+.hb-slot, .hb-socket-ico { border: 0; border-image: none; background: var(--bg-2); }
+.hb-slot.is-empty { background: var(--bg-0); }
+/* Common to all three options (de-boxing plan #4): an empty socket shows no number and no "+" until hover. */
+.hb-slot.is-empty .hb-n, .hb-slot.is-empty .hb-plus { opacity: 0; }
+.hb-slot.is-empty:hover .hb-n, .hb-slot.is-empty:hover .hb-plus { opacity: 1; }
+.hb-plaque { position: absolute; right: 16px; top: 0; bottom: 0; border-left: 0; border-image: none; }
+.hs-widget.is-online { left: 0 !important; top: auto !important; bottom: 0 !important; z-index: 1; }
+.hs-online { background: none; padding: 6px 14px; }
+
+/* ── HUD: the party hangs off the left edge, the hunt bar off the top rail, the analyzer off the right edge ── */
+/* The analyzer and the tally share the right edge with the sheets: an open window slides over them. */
+.hs-widget.is-party { left: 0 !important; top: 0 !important; }
+.hs-widget.is-hunt-topbar { top: 0 !important; left: 50% !important; transform: translateX(-50%); }
+/* (mock only: the real hud.js would centre it over the world left free by the sheet) */
+.hs-shell:has(.hs-win[data-hs-win="inventory"]) .hs-widget.is-hunt-topbar { left: calc(250px + (100% - 702px) / 2) !important; }
+.hs-shell:has(.hs-win[data-hs-win="hunts"]) .hs-widget.is-hunt-topbar { left: calc(250px + (100% - 1050px) / 2) !important; }
+.hs-widget.is-analyzer { left: auto !important; right: 0 !important; top: 0 !important; }
+.hp-party, .ha-analyzer, .ht-bar, .hs-tally { background: var(--bg-1); border-image: none; }
+.hp-party { border: 0; border-right: 6px solid transparent; border-bottom: 6px solid transparent; border-image: url('c-rail.png') 3 / 0 6px 6px 0 stretch; }
+.ha-analyzer { border: 0; border-left: 6px solid transparent; border-bottom: 6px solid transparent; border-image: url('c-rail.png') 3 / 0 0 6px 6px stretch; }
+.ht-bar { border: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-bottom: 6px solid transparent; border-image: url('c-rail.png') 3 / 0 6px 6px stretch; padding: 4px 12px; }
+/* Tamsin's tally rises off the bottom rail instead of floating mid-screen. */
+.hs-widget.is-tally { top: auto !important; bottom: 116px !important; left: auto !important; right: 0 !important; }
+.hs-tally { border: 0; border-left: 6px solid transparent; border-top: 6px solid transparent; border-image: url('c-rail.png') 3 / 6px 0 0 6px stretch; }
+.hh-panel-head { border-bottom: 0; background: var(--bg-0); padding: 2px 8px; }
+.hh-panel-title { color: var(--gold-2); }
+.hh-gauge { box-shadow: none; background: var(--bg-0); }
+
+/* ── Phone: the sheet was always a rail; the bar runs the bottom edge too ── */
+@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
+  .hs-win:not(.is-modal):not(.is-home) { bottom: 0 !important; border-width: 0 0 0 6px; border-image: url('c-rail.png') 3 / 0 0 0 6px stretch; }
+  .hs-win-head { height: 40px; }
+  .hs-win-body { padding: 8px 10px 10px; }
+  .hs-widget.is-action-bar > .hb-bar { max-width: none; padding: 4px 8px 4px; justify-content: flex-start; }
+  .hb-plaque { position: static; }
+}

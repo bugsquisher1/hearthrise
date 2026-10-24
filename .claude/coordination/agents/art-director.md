@@ -2990,3 +2990,14 @@ is superseded by make-hud-bar-art.mjs): retire both in a later pass.
 Same day, plan #1 built: the fight settings fold out above the bar's end (desktop) / the sheet (phone); the bar is
 plate + sockets + medallion, 122 px (was 182). Lesson: the phone alerts dock at a FIXED 104 px over the bottom
 (hud-widgets.js phone dy), so the phone bar's height is a contract, not a free choice: 2 px of padding turned HS-22 red.
+
+## 2026-10-24 — lane/d-ui-options: three UI directions on the real client (design pass, no src/)
+Tyler: "I don't love how they look ... ideas/options". Mocked A Forged (iron cases, nameplates, plates, struck
+gold), B Quiet (no frames, ink on the world), C Rails (everything fastened to a screen edge) as throwaway CSS on
+the signed-in page; 16 shots + README.txt in art/review/ui-options-2026-10-24/. Pick: A for what you open or
+touch, B for what you only read. Lessons: (1) play.html's CSP blocks a <link> to another port; an inline <style>
+with data: images is allowed, so inject that. (2) The pane captures 800 px wide: shoot x2 tiles with a CSS
+transform on <html> (overflow hidden) and stitch; the world canvas re-measures on a resize, so freeze
+requestAnimationFrame while tiling or the halves disagree. (3) A HUD comparison needs one identical state:
+the hunt-screen stub (real client, fixture envelope) beats a live hunt that moves between shots. (4) A border-
+image slice must scale by a whole number: a 3-px plate on a 4-px border is 1.33x; draw a plate per width.

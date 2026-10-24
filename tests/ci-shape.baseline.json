@@ -434,6 +434,8 @@
     "node tools/mutant-gate.mjs node tests/client-intent-surface.mjs --selftest": "client-guards",
     "node tests/client-module-size.mjs": "client-guards",
     "node tools/mutant-gate.mjs node tests/client-module-size.mjs --selftest": "client-guards",
+    "node tests/module-preload.mjs": "client-guards",
+    "node tools/mutant-gate.mjs node tests/module-preload.mjs --selftest": "client-guards",
     "node tools/mutant-gate.mjs node tests/guard-hygiene.mjs --selftest": "client-guards",
     "node tests/guard-hygiene.mjs": "client-guards",
     "node tests/edge-jwt-gate.mjs --strict": "edge",

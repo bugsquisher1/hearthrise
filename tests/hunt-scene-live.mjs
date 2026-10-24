@@ -48,6 +48,8 @@
 //   LV-22 THE CHALLENGE SLOT READS AS WORKING (bug #61): a tank holding every engaged monster in the live
 //         engine's world shows its Challenge slot in the quiet Holding state ("Holding the pack: nothing to
 //         Challenge"); a monster on another hero ends it.
+//   LV-26 PUSHED FRAMES COST THE WATCHED HUNT NOTHING: a party member settles first and each settle reaches this
+//         session as a frame: the prediction never runs dry, and it asks and reads no more than with no frames.
 //   LV-4  THE PAGE (headless Chrome, the real client, the same server answers): the hunt
 //         draws, no page error, and the frame loop holds budget against the frozen sim
 //         (prototypes/hunt-sim) measured the same way.
@@ -112,6 +114,9 @@ function envFor(nowMs, enteredMs, heroes, fromMs) {
      viewer      whose start point the session is sent (the viewed member; default the first)
      otherFirst  another member's client settles the instance as soon as the floor allows, so this
                  session's polls only ever get start points (live v0.2.20: the leader's tab froze)
+     frames      with otherFirst: each of those settles also reaches this session as a pushed frame, the
+                 whole character at the commit (2026-12-25-frame-push-revive.sql; never a start point)
+     clears      a cleared timer never fires (the browser's clearTimeout); off, a cleared one still fires
      latencyMs   every hr-accrue answer lands this long after the ask (live: 0.7-1.0 s)
      seedless    (n) => true: the n-th hr-accrue answer brings no start point and no commit (a
                  refused or replayed settle: about half the answers on live v0.2.21)
@@ -162,8 +167,11 @@ async function playLive(M, LM, book, mis, spanMs, onFrame, opt) {
     }
   };
   const timers = [];
+  /* `clears`: a cleared timer is dropped, as the browser's clearTimeout does (LV-26 counts asks; the other rules
+     keep the run they were measured on, where a cleared timer still fires) */
   const cs = new M.C.CharacterSession({ slot: 0, uid: '11111111-2222-3333-4444-555555555555', server,
-    setTimer: (fn, ms) => { timers.push({ fn, at: clock.t + ms }); return timers.length; }, clearTimer: () => {}, now: () => clock.t });
+    setTimer: (fn, ms) => { timers.push({ fn, at: clock.t + ms }); return timers.length; },
+    clearTimer: (id) => { if (o.clears && Number.isInteger(id) && id >= 1) timers[id - 1] = null; }, now: () => clock.t });
   await cs.load();
   /* ONE POSITION SOURCE: a server window played into the timeline while a prediction exists (running,
      or out of seeds and waiting for its restart) is a second source writing the prediction's units. */
@@ -184,7 +192,10 @@ async function playLive(M, LM, book, mis, spanMs, onFrame, opt) {
   let away = false;
   for (let s = entered; s < T0 + spanMs; s += 1000 / (o.fps || 60)) {
     clock.t = s - OFF;
-    if (o.otherFirst && s > T0 && s - lastCommit >= 15000) { srv.commit(s); lastCommit = s; }
+    if (o.otherFirst && s > T0 && s - lastCommit >= 15000) {
+      srv.commit(s); lastCommit = s;
+      if (o.frames) { const e = env(); cs.onFrame({ t: 'state', frame: e.version, env: e }); await new Promise((r) => setImmediate(r)); }
+    }
     /* `hold` [from, to] (server ms): the network is gone; no poll answers until it returns */
     const held = o.hold && s >= o.hold[0] && s < o.hold[1];
     for (let i = 0; i < late.length; i++) if (late[i] && late[i].at <= clock.t) { const l = late[i]; late[i] = null; l.r(l.body); for (let k = 0; k < 4; k++) await new Promise((r) => setImmediate(r)); }
@@ -453,6 +464,30 @@ async function nodeRules(M) {
     console.log(`  LV-11 half the answers seedless, 850 ms latency: ${frames} frames, ${dry} with the prediction out of seeds, ${asks} asks in 120 s (cap ${cap})`);
     ok('LV-11', frames > 0 && dry === 0, `the prediction ran out of seeds for ${dry} of ${frames} frames (the hunt stood still, then caught up)`);
     ok('LV-11', asks <= cap, `the view asked ${asks} times in 120 s (cap ${cap})`);
+  }
+
+  { // LV-26 PUSHED FRAMES COST THE WATCHED HUNT NOTHING (lane a-client-load, v0.2.38 frames): a party member's
+    // client settles first and each of its settles also reaches this session as a frame (the whole character, never
+    // a start point or a commit). The frame defers the plain re-read it repeats; the live view still asks for the
+    // seeds no frame carries. Against the same run with no frames: the prediction never runs out of seeds, and the
+    // session asks the engine and reads the character no more often (measured 10-24: 9 asks and 2 reads in 120 s
+    // either way). The harness drops a cleared timer here (`clears`), as the browser does.
+    const mis = () => [LIVE_H.memberOf(LM, 'a', 0, 'tank', 6), LIVE_H.memberOf(LM, 'b', 1, 'melee_dps', 6)];
+    const run = async (frames) => {
+      let n = 0, dry = 0, asks = 0, reads = 0, liveAt = null;
+      await playLive(M, LM, book, mis(), 120000, ({ s, cs, T0 }) => {
+        if (liveAt === null && cs.live.running()) liveAt = Math.round(s - T0);
+        if (s < T0 + 2000) return;
+        n++;
+        if (cs.live.stalled()) dry++;
+      }, { viewer: 'a', otherFirst: true, frames, clears: true, latencyMs: 850, seedless: (k) => { asks = k + 1; return false; },
+        rpc: (name) => { if (name === 'hr_load') reads++; return undefined; } });
+      return { n, dry, asks, reads, liveAt };
+    };
+    const quiet = await run(false), fed = await run(true);
+    console.log(`  LV-26 a party member settles first, 850 ms latency: without frames ${quiet.asks} asks, ${quiet.reads} reads, ${quiet.dry}/${quiet.n} frames dry, live ${quiet.liveAt} ms after the first boundary; with its settles pushed ${fed.asks} asks, ${fed.reads} reads, ${fed.dry}/${fed.n} dry, live at ${fed.liveAt} ms`);
+    ok('LV-26', quiet.n > 0 && fed.n > 0 && fed.dry === 0, `with the settles pushed the prediction ran out of seeds for ${fed.dry} of ${fed.n} frames (without them ${quiet.dry})`);
+    ok('LV-26', fed.asks <= quiet.asks + 1 && fed.reads <= quiet.reads, `pushed frames made the view ask ${fed.asks} times and read ${fed.reads} (without them ${quiet.asks} and ${quiet.reads})`);
   }
 
   { // LV-12 A DEATH INSIDE A CATCH-UP IS PLAYED: the frame loop stops for 5 s (a background tab) across two
@@ -1014,6 +1049,8 @@ async function pageRules() {
 }
 
 const MUTANTS = [
+  ['a pushed frame asks the engine again (LV-26)', 'src/session/character-session.js', '    return f.env !== null && this._take(f.env, FRAME_EVENT);', '    return f.env !== null && this._take(f.env, FRAME_EVENT) && (this.hello(), true);', /^LV-26/],
+  ['a pushed frame is read again in full (LV-26)', 'src/session/character-session.js', '    return f.env !== null && this._take(f.env, FRAME_EVENT);', '    return f.env !== null && this._take(f.env, FRAME_EVENT) && (this.load(), true);', /^LV-26/],
   ['the Challenge slot never reads Holding (LV-22, bug #61)', 'src/shell/widgets/action-bar.js', '  const holding = holdsPackNow(cs, hero);', '  const holding = false;', /^LV-22/],
   ['a tank with a monster off it reads as holding (LV-22)', 'src/hunt-view/live-engine.js',
     '  return on.length > 0 && on.every((m) => m.target === unit) && challengeable(inst, u).length === 0;', '  return on.length > 0;', /^LV-22/],

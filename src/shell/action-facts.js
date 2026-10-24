@@ -73,7 +73,7 @@ function shotProblem(a, role) {
   const it = ITEMS[a.id];
   if (shootsItem(role, it)) return '';
   if (it && it.reqSkill === 'melee') return 'A whetstone is not a shot: it sharpens a Melee weapon worn in the ammo slot. No weapon shoots it, so this slot never fires.';
-  if (isRune(it)) return 'A rune is not a shot: it fuels your spells. No weapon shoots it, so this slot never fires.';
+  if (isRune(it)) return 'A rune isn’t a shot: it fuels your spells. No weapon shoots it, so this slot never fires.';
   const by = weaponsOf(Object.keys(HUNT_ROLES).filter((r) => shootsItem(r, it)));
   if (!by) return 'No weapon shoots this, so this slot never fires.';
   return (role && HUNT_ROLES[role] ? 'Your weapon can’t shoot this' : 'No weapon worn') + '. The slot stays struck until you wield a ' + by + '.';

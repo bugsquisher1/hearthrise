@@ -101,6 +101,12 @@ const PARTY_REVEAL = Object.freeze({
 });
 /* The fresh hunt's seeds for reveal-path: the default first, then searched in this fixed order until a Rare drops. */
 const FRESH_SEEDS = Object.freeze(['1234567890123', '987654321987', '424242424242']);
+/* A TROPHY'S PACE is its boss's kill rate times its chance, and a boss dies about 20 times a played hour: one hour on one
+   seed is quantized at about 5% a kill, a quarter of the band's width (the v0.2.38 merge, main's Follow fix, cost the
+   Warrens party its 21st Chief at the default seed's hour mark: 154 h there, 146.5 h on every other seed). The Trophy
+   band is judged on the boss's kills MEANED over the run's own seed and these (the same group, level and hour), never
+   on one sample. Only a ground whose roster carries a Trophy row plays them. */
+const TROPHY_SEEDS = Object.freeze(['12345', '987654321']);
 
 async function load(root) {
   const SB = await imp(root, 'src/data/supply-basics.js');
@@ -301,7 +307,7 @@ function marginOf(x) {
    and stable under any drop-row change): coin as the settle rounds each kill's roll (hunt-rewards.js payKill), each
    row at the engine's own chance (drops.js effectiveDropChance, the kill's yield share) and the trader's price.
    `items` = band:id -> pieces per hero-hour; `gearBook` = the equipment at full book (the sell factor's evidence). */
-function expectedLoot(M, P, monsters, x, n) {
+function expectedLoot(M, P, monsters, x, n, bossKills) {
   const y = M.G.yieldPermille(n) / 1000, per = 1 / n / (x.playedMs / H || 1);
   const out = { coin: 0, commons: 0, gear: 0, gearBook: 0, other: 0, items: {} };
   for (const [id, k] of Object.entries(x.killsBy)) {
@@ -317,7 +323,9 @@ function expectedLoot(M, P, monsters, x, n) {
       if (!HOUR_BANDS.includes(d.band)) { out.commons += sold; continue; }
       const key = d.band + ':' + d.id;
       out.items[key] = out.items[key] || { id: d.id, band: d.band, perH: 0, from: [] };
-      out.items[key].perH += k * c * per;
+      /* a Trophy row's pace on its boss's meaned kills (TROPHY_SEEDS), when they were played */
+      const kp = d.band === 'trophy' && bossKills && Number.isFinite(bossKills[id]) ? bossKills[id] : k;
+      out.items[key].perH += kp * c * per;
       out.items[key].from.push(id);
       if (M.LB.VENDOR_GEAR_TYPES.includes(it.type)) { out.gear += sold; out.gearBook += k * c * (Number(it.v) || 0) * per; } else out.other += sold;
     }
@@ -326,8 +334,18 @@ function expectedLoot(M, P, monsters, x, n) {
 }
 
 /* THE BANDS' RULES on one played floor hour (`label` names a party ground's second group). Answers the evidence. */
-function bandRules(M, P, monsters, R, gid, x, n, today, label) {
-  const E = expectedLoot(M, P, monsters, x, n), list = Object.values(E.items), at = gid + (label ? ' (' + label + ')' : '');
+/* THE BOSS KILLS A TROPHY IS PACED ON: each roster boss carrying a Trophy row, its kills in `x`'s played time meaned
+   with the same group's hour on each TROPHY_SEEDS seed (`rerun(secret)`), or null when the roster has no Trophy row. */
+function bossKillsOf(M, monsters, gid, x, rerun) {
+  const bosses = rosterOf(M.G.HUNT_GROUNDS[gid]).filter((id) => ((monsters[id] || {}).drops || []).some((d) => d.band === 'trophy'));
+  if (!bosses.length) return null;
+  const runs = [x, ...TROPHY_SEEDS.map((secret) => rerun(secret))];
+  const hx = x.playedMs / H || 1;
+  return Object.fromEntries(bosses.map((b) => [b, hx * runs.reduce((a, r) => a + (r.killsBy[b] || 0) / (r.playedMs / H || 1), 0) / runs.length]));
+}
+
+function bandRules(M, P, monsters, R, gid, x, n, today, label, bossKills) {
+  const E = expectedLoot(M, P, monsters, x, n, bossKills), list = Object.values(E.items), at = gid + (label ? ' (' + label + ')' : '');
   const range = (band) => list.filter((p) => p.band === band && !p.pending).map((p) => 1 / p.perH);
   /* A parked row (PENDING_ROWS) is measured at the pace it will have on this run's kills. */
   const y = M.G.yieldPermille(n) / 1000, per = 1 / n / (x.playedMs / H || 1);
@@ -424,13 +442,15 @@ async function plays(M, P, monsters, R, print, only, fresh = !only) {
       R.ok(x.playedMs >= H, 'profit-floor: ' + gid + ' ended after ' + (x.playedMs / 60000).toFixed(0) + ' min at its floor (' + T.ended.join(', ') + ')');
       R.ok(m >= MARGIN_MIN, 'profit-floor: ' + gid + ' at level ' + floor + ' earns ' + pct(m) + ' over its store bill, under +' + MARGIN_MIN + '%');
     }
-    row.bands = bandRules(M, P, monsters, R, gid, x, n, TOTAL_TODAY[gid], '');
+    const refKills = bossKillsOf(M, monsters, gid, x, (secret) => P.run(gid, Math.max(1, floor), ref.roles, { spanMs: H, fullSet: ref.full, monsters, secret }));
+    row.bands = bandRules(M, P, monsters, R, gid, x, n, TOTAL_TODAY[gid], '', refKills);
     /* A PARTY GROUND's second group (the Sewer's party at the floor, the Warrens' lone hero at soloFrom) holds the bands too. */
     const alt = BAND_ALT[gid];
     if (alt) {
       const lv = alt.at === 'soloFrom' ? M.G.HUNT_GROUNDS[gid].soloFrom : floor;
       const xa = P.run(gid, lv, alt.roles, { spanMs: H, fullSet: alt.full, monsters });
-      row.alt = bandRules(M, P, monsters, R, gid, xa, alt.roles.length, alt.today, alt.roles.length > 1 ? 'party of ' + alt.roles.length : 'alone at ' + lv);
+      const altKills = bossKillsOf(M, monsters, gid, xa, (secret) => P.run(gid, lv, alt.roles, { spanMs: H, fullSet: alt.full, monsters, secret }));
+      row.alt = bandRules(M, P, monsters, R, gid, xa, alt.roles.length, alt.today, alt.roles.length > 1 ? 'party of ' + alt.roles.length : 'alone at ' + lv, altKills);
       row.altLevel = lv;
     }
   }
@@ -647,6 +667,9 @@ const playMutants = [
   { name: 'the War Crown at 4%', rule: 'rare-pace: coppercap_warrens rare war_crown', edit: (ms) => { rowOf(ms, 'chief_coppercap', 'war_crown').ch = 0.04; } },
   { name: 'a boss Trophy every 44 h', rule: 'trophy-pace: meadowbrook_thicket', edit: (ms) => { ms.grayjaw.boss = true; ms.grayjaw.drops.push({ id: 'war_crown', ch: 0.001, band: 'trophy' }); } },
   { name: 'the Rat King\'s Crown at 0.2% (a full Bestiary under 100 h)', rule: 'trophy-pace: millrace_sewer (party of 4)', edit: (ms) => { rowOf(ms, 'rat_king', 'rat_kings_crown').ch = 0.002; } },
+  /* the Trophy pace on the Chief's meaned kills (TROPHY_SEEDS) still bites both ways */
+  { name: 'the Chief\'s Cauldron at 0.17% (a full Bestiary under 100 h)', rule: 'trophy-pace: coppercap_warrens', edit: (ms) => { rowOf(ms, 'chief_coppercap', 'coppercaps_cauldron').ch = 0.0017; } },
+  { name: 'the Chief\'s Cauldron at 0.10% (the party waits over 150 h)', rule: 'trophy-pace: coppercap_warrens', edit: (ms) => { rowOf(ms, 'chief_coppercap', 'coppercaps_cauldron').ch = 0.001; } },
   { name: 'the den mother\'s fang a War Crown at 2% (value, not gear)', rule: 'total-value: meadowbrook_thicket', edit: (ms) => { Object.assign(rowOf(ms, 'grayjaw', 'alpha_fang'), { id: 'war_crown', ch: 0.02 }); } },
   { name: 'a fresh hero\'s heavy boots gone', rule: 'gear-pace: a fresh hero at the meadowbrook_thicket', fresh: true, edit: (ms) => { ms.gray_whelp.drops = ms.gray_whelp.drops.filter((d) => d.id !== 'bronze_boots'); } },
 ];

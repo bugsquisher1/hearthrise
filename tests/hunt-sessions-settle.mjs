@@ -2047,7 +2047,7 @@ const DB_ARMS = {
   'PARTY-LEAVE-DIED': async (db, M) => inTx(db, async () => {
     const problems = [];
     const STOUT = { ...STRONG, level: 60 };
-    const FRAIL = { minutesAgo: 25, inv: {}, bag: [], gold: 0, hp: 5, options: { on_empty: 'end', food_below_pct: 99 } };
+    const FRAIL = { minutesAgo: 25, inv: {}, bag: [], gold: 0, hp: 5, options: { on_empty: 'end' } };
     /* every seat swings the practice club (Melee DPS): no tank holds the pack away from the frail hero */
     const h = await hunter(db, M, { deadly: true, party: [{ ...FRAIL, keepKit: true }, { ...STOUT, keepKit: true }, { ...STOUT, keepKit: true }], beforeEnter: async () => {
       for (const u of UIDS.slice(0, 3)) await admin(db, u, { equip: { weapon: 'practice_club', shield: null } });

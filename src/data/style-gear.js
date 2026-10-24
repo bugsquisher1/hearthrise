@@ -73,12 +73,12 @@ export const STYLE_GEAR_RECIPES = Object.freeze({
     r('carve_oak_staff',      'Carve Oak Staff',         '🔮', { oak_plank: 3, bone_chips: 3 },  'oak_staff',     110, 15, 3600),
     r('string_longbow',       'String Longbow',          '🏹', { oak_plank: 3, silk_thread: 2 }, 'longbow',       110, 15, 3600),
     r('string_oak_crossbow',  'String Oak Crossbow',     '🏹', { oak_plank: 3, silk_thread: 1 }, 'oak_crossbow',  110, 15, 3600),
-    /* Apprentice cloth (wear at Defense 1): the Cellar's silk, a first spark for a caster. */
+    /* Apprentice cloth (worn at Level 1): the Cellar's silk, a first spark for a caster. */
     r('sew_apprentice_boots',  'Sew Apprentice Slippers',    '🧵', { silk_thread: 1 }, 'apprentice_boots',  14, 1, 2800),
     r('sew_apprentice_helmet', 'Sew Apprentice Hat',         '🧵', { silk_thread: 1 }, 'apprentice_helmet', 16, 3, 2800),
     r('sew_apprentice_pants',  'Sew Apprentice Robe Bottom', '🧵', { silk_thread: 2 }, 'apprentice_pants',  28, 6, 3000),
     r('sew_apprentice_body',   'Sew Apprentice Robe Top',    '🧵', { silk_thread: 3 }, 'apprentice_body',   40, 9, 3200),
-    /* Adept cloth (wear at Defense 15): silk lined with the Culvert Bat's wing leather. */
+    /* Adept cloth (worn at Level 15): silk lined with the Culvert Bat's wing leather. */
     r('sew_adept_boots',  'Sew Adept Slippers',    '🧵', { silk_thread: 1, bat_wing: 2 }, 'adept_boots',  70,  15, 3200),
     r('sew_adept_helmet', 'Sew Adept Hat',         '🧵', { silk_thread: 2, bat_wing: 1 }, 'adept_helmet', 85,  17, 3200),
     r('sew_adept_pants',  'Sew Adept Robe Bottom', '🧵', { silk_thread: 3, bat_wing: 4 }, 'adept_pants',  120, 19, 3400),

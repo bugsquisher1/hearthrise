@@ -36,12 +36,12 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_INDEX } from './hunts.js?v=0.2.39';
-import { HUNT_GROUNDS } from './hunt-grounds.js?v=0.2.39';
-import { END_ORDER } from './hunt-sessions.js?v=0.2.39';
-import { nextUnlock } from './skill-unlocks.js?v=0.2.39';
-import { SKILLS_DEF } from './skills.js?v=0.2.39';
-import { CROPS } from './gathering.js?v=0.2.39';
+import { HUNT_INDEX } from './hunts.js?v=0.2.40';
+import { HUNT_GROUNDS } from './hunt-grounds.js?v=0.2.40';
+import { END_ORDER } from './hunt-sessions.js?v=0.2.40';
+import { nextUnlock } from './skill-unlocks.js?v=0.2.40';
+import { SKILLS_DEF } from './skills.js?v=0.2.40';
+import { CROPS } from './gathering.js?v=0.2.40';
 
 /* The surfaces a card may point at, and where each is specified. */
 export const TUTORIAL_ANCHORS = Object.freeze({

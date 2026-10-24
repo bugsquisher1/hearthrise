@@ -1,0 +1,118 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   art/review/action-bar-2026-10-24/bar.css — THROWAWAY: the action bar's interior in the Forged Steel
+   language (Tyler approved skin 1 on 2026-10-24). With mock-bar.js. Not in src/.
+   Shared by both variants: the thin steel frame and steel grain of the windows (skin 1's art, x2); empty
+   slots are quiet dark wells (no number, no "+" until hover); a filled slot is a lit well with its number;
+   slim HP and MP bars with their numbers, Level in plain gold, a thin gold XP bar; Food and Charm as two
+   labelled sockets; the setup's name with two worded buttons. Gold only on Level, the XP bar and the
+   setup's name. Tokens only.
+   v1 COLUMN: the vitals stand in a column at the bar's left, the twenty slots in one 10 x 2 grid.
+   v2 BAND:   the vitals run as one band along the top; one row of ten slots under it (the second row
+              shows once any of slots 11 to 20 is bound).
+   ══════════════════════════════════════════════════════════════════════════ */
+.hb-bar.mk {
+  gap: 0; padding: 6px 10px 8px; align-items: stretch;
+  background: url('../ui-skins-2026-10-24/tex-steel.png') 0 0 / 64px 64px repeat, var(--bg-1); background-clip: padding-box;
+  border: 12px solid transparent; border-image: url('../ui-skins-2026-10-24/s1-frame.png') 6 / 12px stretch; image-rendering: pixelated;
+  font-family: var(--f-ui);
+}
+/* The slots: one grid of ten a row, the two halves side by side. */
+.hb-bar.mk .hb-slots { gap: 4px; align-content: center; }
+.hb-bar.mk .hb-slots + .hb-slots { margin-left: 4px; }
+.hb-bar.mk .hb-slot { border: 0; border-image: none; background: var(--bg-2);
+  box-shadow: inset 2px 2px 0 var(--bg-0), inset -2px -2px 0 color-mix(in srgb, var(--hl) 10%, transparent); }
+.hb-bar.mk .hb-slot:hover { background: var(--bg-3); }
+.hb-bar.mk .hb-slot.is-empty { background: var(--bg-0); box-shadow: inset 2px 2px 0 color-mix(in srgb, var(--world-shadow) 80%, transparent); }
+.hb-bar.mk .hb-slot.is-empty .hb-n, .hb-bar.mk .hb-slot.is-empty .hb-plus { opacity: 0; }
+.hb-bar.mk .hb-slot.is-empty:hover .hb-n, .hb-bar.mk .hb-slot.is-empty:hover .hb-plus { opacity: 1; color: var(--gold-2); }
+.hb-bar.mk .hb-slot .hb-n { top: 1px; left: 2px; color: var(--ink-3); -webkit-text-stroke: 3px var(--bg-0); }
+.hb-bar.mk .hb-slot .hb-count { right: 2px; bottom: 1px; }
+
+/* The vitals. */
+.mk-vitals { display: flex; flex-direction: column; justify-content: center; gap: 4px; font-variant-numeric: lining-nums tabular-nums; }
+.mk-lv { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.mk-lv b { font-family: var(--f-display); font-weight: 700; font-size: 18px; letter-spacing: .06em; color: var(--gold-2); }
+.mk-row { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; align-items: center; column-gap: 8px; }
+.mk-k { font-family: var(--f-label); font-weight: 700; font-size: var(--t-micro); letter-spacing: .04em; color: var(--ink-3); }
+.mk-track { position: relative; display: block; height: 12px; background: var(--bg-0);
+  box-shadow: inset 2px 2px 0 color-mix(in srgb, var(--world-shadow) 80%, transparent), inset -2px -2px 0 color-mix(in srgb, var(--hl) 8%, transparent); }
+.mk-track i { position: absolute; left: 2px; top: 2px; bottom: 2px; max-width: calc(100% - 4px); }
+.mk-row.is-hp .mk-track i { background: var(--hud-fill-hp); }
+.mk-row.is-mp .mk-track i { background: var(--gem); }
+.mk-v { font-size: var(--t-micro); font-weight: 700; color: var(--ink); white-space: nowrap; }
+.mk-row.is-hp .mk-v { color: var(--hud-hp-ink); }
+.mk-row.is-mp .mk-v { color: var(--hud-mana-ink); }
+.mk-r { display: none; }
+.mk-row.is-xp .mk-track { height: 8px; }
+.mk-row.is-xp .mk-track i { background: var(--gold-3); }
+.mk-row.is-xp .mk-v { color: var(--gold-2); }
+.hb-stam.mk-stam { display: flex; align-items: center; gap: 6px; align-self: auto; font-size: var(--t-micro); color: var(--ink-2); }
+.hb-stam.mk-stam small { color: var(--ink-3); }
+.hb-stam.mk-stam .hs-glyph { width: 14px; height: 14px; color: var(--ink-3); }
+
+/* Food and Charm: two labelled sockets. */
+.mk-supplies { display: flex; align-items: center; gap: 10px; padding: 0 14px; }
+.mk-supplies .hb-socket { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.mk-supplies .hb-socket-ico { width: 40px; height: 40px; border: 0; border-image: none; background: var(--bg-2);
+  box-shadow: inset 2px 2px 0 var(--bg-0), inset -2px -2px 0 color-mix(in srgb, var(--hl) 10%, transparent); }
+.mk-supplies .hb-socket.is-charm .hb-socket-ico { background: var(--bg-0); box-shadow: inset 2px 2px 0 color-mix(in srgb, var(--world-shadow) 80%, transparent); }
+.mk-supplies .hb-socket-k { display: block; font-size: var(--t-micro); color: var(--ink-2); }
+
+/* The setup: its label, its name in gold, two worded buttons. A groove parts it from the supplies. */
+.hb-bar.mk .hb-plaque { width: auto; min-width: 170px; padding-left: 14px; border-left: 2px solid var(--bg-0); border-image: none;
+  box-shadow: inset 2px 0 0 color-mix(in srgb, var(--hl) 8%, transparent); justify-content: center; gap: 6px; }
+.hb-bar.mk .hb-plaque > .hb-pl-row:first-of-type { flex-wrap: wrap; row-gap: 6px; }
+.hb-bar.mk .hb-plaque .hb-label { font-family: var(--f-display); font-weight: 700; font-size: var(--t-micro); letter-spacing: .1em; color: var(--ink-3); }
+.hb-bar.mk .hb-set { flex: 1 1 60%; color: var(--gold-2); font-weight: 700; }
+.hb-bar.mk .hb-set .hs-name-t { color: var(--gold-2); }
+.hb-bar.mk .mk-word { display: inline-flex; align-items: center; min-height: 30px; padding: 0 10px; border: 2px solid color-mix(in srgb, var(--ink-3) 45%, var(--bg-1));
+  background: var(--bg-2); color: var(--ink); font-family: var(--f-ui); font-weight: 700; font-size: var(--t-micro); }
+.hb-bar.mk .mk-word:hover { background: var(--bg-3); }
+
+/* ── v1 COLUMN: vitals left, the 10 x 2 grid, supplies, setup ── */
+.hb-bar.mk-v1 .mk-vitals { width: 230px; padding-right: 16px; margin-right: 12px; border-right: 2px solid var(--bg-0); box-shadow: 2px 0 0 color-mix(in srgb, var(--hl) 8%, transparent); }
+
+/* ── v2 BAND: the vitals along the top, one row of slots under it ── */
+.hb-bar.mk-v2 { flex-wrap: wrap; row-gap: 8px; width: 1000px; }
+.hb-bar.mk-v2 .mk-vitals { flex: 1 0 100%; flex-direction: row; align-items: center; gap: 18px; padding-bottom: 8px;
+  border-bottom: 2px solid var(--bg-0); box-shadow: 0 2px 0 color-mix(in srgb, var(--hl) 8%, transparent); }
+.hb-bar.mk-v2 .mk-lv { flex: none; gap: 8px; }
+.hb-bar.mk-v2 .mk-row { flex: 1 1 0; }
+.hb-bar.mk-v2 .mk-row.is-xp { flex: 0 0 170px; }
+.hb-bar.mk-v2:not(:has(.hb-slots .hb-slot:nth-child(n+6):not(.is-empty))) .hb-slot:nth-child(n+6) { display: none; }
+.hb-bar.mk-v2 .hb-plaque { min-width: 0; }
+.hb-bar.mk-v2 .mk-supplies .hb-socket { flex-direction: row; gap: 8px; }
+
+/* ── Phone, landscape: the same pieces, smaller; the bar stays within 96 px (HS-22 docks the alerts at a fixed
+   104 px). Both variants show one row of slots until any of 11 to 20 is bound (WORLD_SHELL's rule). ── */
+@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
+  .hb-bar.mk { padding: 4px 8px; border-width: 10px; border-image-width: 10px; max-width: calc(100vw - 8px); }
+  .hb-bar.mk .hb-slots { grid-template-columns: repeat(5, 36px); grid-auto-rows: 36px; gap: 3px; }
+  .hb-bar.mk .hb-slots + .hb-slots { margin-left: 3px; }
+  .hb-bar.mk:not(:has(.hb-slots .hb-slot:nth-child(n+6):not(.is-empty))) .hb-slot:nth-child(n+6) { display: none; }
+  .mk-lv b { font-size: 16px; }
+  .mk-track { height: 10px; }
+  .mk-supplies { gap: 6px; padding: 0 8px; }
+  .mk-supplies .hb-socket { flex-direction: row; }
+  .mk-supplies .hb-socket-ico { width: 36px; height: 36px; }
+  .mk-supplies .hb-socket-ico .hh-icon { width: 32px; height: 32px; }
+  .mk-supplies .hb-socket-k { display: none; }
+  .hb-bar.mk .hb-plaque { width: 204px; min-width: 0; max-width: none; padding-left: 8px; }
+  .hb-bar.mk .hb-plaque > .hb-pl-row:first-of-type { row-gap: 2px; column-gap: 4px; }
+  .hb-bar.mk .hb-plaque .hb-label { display: none; }
+  .hb-bar.mk .hb-set { flex: 1 0 100%; }
+  .hb-bar.mk .mk-word { min-height: 30px; padding: 0 6px; }
+  /* The column variant: stamina moves up beside the Level so the column is four short lines. */
+  .hb-bar.mk-v1 .mk-vitals { position: relative; width: 186px; padding-right: 10px; margin-right: 8px; gap: 1px; }
+  .hb-bar.mk-v1 .mk-row { line-height: 1.15; }
+  .hb-bar.mk-v1 .hb-stam.mk-stam { position: absolute; top: 0; right: 10px; }
+  .hb-bar.mk-v1 .hb-stam.mk-stam small { display: none; }
+  .hb-bar.mk-v2 { row-gap: 4px; width: auto; }
+  .hb-bar.mk-v2 .mk-vitals { gap: 10px; padding-bottom: 4px; }
+  .hb-bar.mk-v2 .mk-row.is-xp { flex-basis: 110px; }
+  .hb-bar.mk-v2 .hb-stam.mk-stam small { display: none; }
+  /* The band variant has the width: the setup's name sits on the buttons' line, so the bar stays one row tall. */
+  .hb-bar.mk-v2 .hb-plaque { width: auto; flex: 1; }
+  .hb-bar.mk-v2 .hb-set { flex: 0 1 auto; margin-right: 6px; }
+  .hb-bar.mk-v2 .hb-plaque > .hb-pl-row:first-of-type { flex-wrap: nowrap; }
+}

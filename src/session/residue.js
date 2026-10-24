@@ -162,6 +162,8 @@ function sanitizePanelAlpha(v) {
   if (!Number.isFinite(v)) return undefined;
   const { min, max, step } = PANEL_ALPHA;
   return Math.max(min, Math.min(max, Math.round(v / step) * step));
+}
+
 /* The coach line's fold (src/shell/launcher.js coachFoldOf): folded or not, and the card id the player last had in
    front of them (a goal id joins its parts, so it may run long). Display preference: gates and spends nothing. */
 function sanitizeCoach(v) {

@@ -802,3 +802,27 @@ Full design: `docs/planning/PRIORITY_BOARD.md`, Decisions, "Marketplace design (
 review before players, systems-engineer + art-director lane 4 (window/sheet), asset-director lane 5
 (Weighhouse, Aldous Pell, icon). Systems + Art Director: the Storage window's client-only
 "Leave the hunt to use it" line conflicts with remote market reach and Quick stash.
+
+---
+
+# 2026-10-24 — HUNT DANGER, THE LEVEL-32 WALL, ARMOUR FOR EVERY ROLE (lane/d-danger)
+
+Full ruling: `docs/planning/PRIORITY_BOARD.md`, Decisions, "Hunt danger, the Level-32 wall, and armour for every role".
+
+**Learnings.**
+- Measure danger from the decoded world (true HP after each 10 s window) plus the window's events,
+  never from monster rows. Food on a 2 s cooldown is a SUSTAIN LINE: below it damage is gold, above it
+  death comes in minutes. A curve is placed by where each pull sits against that line.
+- Pull size moves pressure without moving the size of a blow; attack moves every blow (spikes).
+  Reach for pull size first.
+- What-ifs on monsters must mutate the module instance the engine imports (`monsters.js?v=<version>`);
+  the runner's `opts.monsters` only reaches drops. My first attack sweep silently measured nothing.
+- When a skill gates gear, check who can EARN that skill in each role. Defense: 0 XP for every
+  non-tank in a party, by ruling. The gate was the bug, not the XP rule.
+- Tyler's workbook (`docs/design/world-workbook/`) already holds the level ladder; read it before
+  inventing grounds.
+
+**Handoffs (in the section):** systems-engineer A1 (armour gates, now) and D2 (stagger + level gap,
+after spell-balance); qa-engineer D3 (danger-curve guard); art-director D4 (hunt card); asset-director
+P1 (Pebblebrook art, needs Tyler's spend approval); spell-balance lane: solo kiters out-earn tanks.
+Coordinator: the 08-15 "defence-only" note in gear-tiers.js is superseded for light/medium armour.

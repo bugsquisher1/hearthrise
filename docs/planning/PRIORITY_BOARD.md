@@ -30,6 +30,134 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 ## Decisions
 _Tyler's rulings live in rulings-of-record; designer rulings inside them are recorded here._
 
+**Hunt danger, the Level-32 wall, and armour for every role (2026-10-24)** (game-designer; Tyler 10-24: "have the designer take hunt danger and the level-32 solo gap", plus the player note on Defense and armour; lane/d-danger, design only; every tuning change lands after lane/b-spell-balance). **Evidence in:** vitals 10-21 to 10-23 (5, 2, then 0 deaths in about 12,400 / 17,600 / 18,900 fights); QA "tyler" L38 in Mosslight (HP never moved); Andy a01 (Cistern Spiders hit 2.6x) and a35 (Warrens boss bursts); QA mage Fingerguns, Defense 19, refused the Steel Helm ("Needs Defense 30"). **Method:** the real settle (`tests/hunt-core/fixtures/play-ground.mjs`, the edge's `accrueHunt` running `src/core/combat-sim.js`), settled in 10 s windows. After each window the probe reads the hero's true HP from the decoded world (`world-state.js decodeStored`) and walks that window's `dmg` / `heal` / `eat` / `pull` events for the low point inside it. Each row is a hero in its own-tier full set with the reference bar (eat at 60%), over 3 seeds x 1 h unless marked 12 h (6 x 2 h). The probe is scratch today; lane D3 commits it as a guard.
+
+**A. Hunt danger**
+
+*What the engine does today (measured, not read).*
+1. **Food on its 2 s cooldown is a sustain line.** While a pull's damage per 2 s stays below what one meal restores, food absorbs all of it and the only cost is gold. Once a pull crosses that line, the hero dies within minutes. Damage never kills slowly.
+2. **Every in-band default pull sits far below the line.** No hero died in any of about 40 rows. That includes 6 levels under Mosslight with the largest pull, even eating at 35% instead of 60% (52 close calls an hour, still no deaths). This matches the vitals.
+3. **In a party the back line is never hit.** Ranger, Mage and Healer took 0 blows in every party run, because the tank's Challenge holds everything (ruling 10-16).
+4. **Single blows are small:** at most 8.5-13.5% of a floor hero's HP in heavy armour, and 19-27% in cloth or leather. The worst is a Thicket wolf's blow on a Level-5 Ranger.
+5. **The "spikes" are lockstep.** Every monster swings the moment it arrives and then every 2.0 s, so a pack that arrives together hits together. At the largest pull, 72-79% of blows land in the same 100 ms step as another blow (worst single instant on today's data: 42% of HP). At a pull of 4 that share is 6%.
+
+*The curve (designer ruling).* Solo, own-tier set, the ground's starting pull. "Low point" is the lowest HP in a pull, as median / 10th percentile. A close call is HP under 30%.
+
+| Hero against the ground's band | Low point | Meals per hour | Close calls per hour | Deaths | Gold |
+|---|---|---|---|---|---|
+| 5 or more over the top | 95+ / 85+ | 0-5 | 0 | none | profit, about half the Level XP |
+| Upper half of the band | 80-90 / 60+ | 5-20 | 0 | none | profit |
+| **At the floor** | **65-80 / 50-60** | **20-60** | **at most 0.5** | **none in 12 h** | **at least +25% (Tyler's minimum)** |
+| Floor, the largest pull | 45-60 / 30-50 | 150-350 | 0.5-6 | none in 12 h; the purse is the limit | a loss, bought with +15-20% Level XP |
+| 5 under the floor | 45-55 / 35-45 | 200-300 | 1-4 | rare | heavy loss |
+| 10 under the floor | about 45 / 25 | 500+ | 15+ | about 1 per 2 h | heavy loss |
+| Under the floor, the largest pull | | | | within minutes | |
+
+Parties: the tank follows the floor row, with the healer standing in for most of the food, so the party's supply bill is the healer's drinks plus the tank's meals. While the tank holds, the back line stays safe. The two learning grounds (Mill Cellar, Meadowbrook Thicket) stay gentler at their floor (85+ median, at most 15 meals), so a solo Healer clears them with no deaths (Tyler 10-18). In words: in your band you see the danger and pay for it in food; deaths come from pushing the pull size or hunting under your level.
+
+*Today against the curve (solo tank unless marked; low point median / p10, meals per hour).*
+
+| Ground (band) | Under the floor | Floor | Mid / top | Largest pull at the floor |
+|---|---|---|---|---|
+| Mill Cellar (1-8) | | L1 96 / 91, 0 | L5 96 / 92, 0 | |
+| Meadowbrook Thicket (5-15) | L2 97 / 79, 0.3 | L5 97 / 81, 1 | L10 97 / 85; L15 99 / 92 | 6: 79 / 58, 16 |
+| Mosslight Glade (16-31) | L13 76 / 56, 34; L10 72 / 53, 48 | **L16 85 / 66, 7: too calm** | L24 93 / 78, 1; L31 99 / 94; L38 100 / 96 | 6: 54 / 47, 145 |
+| The Sewer (8-25), own pair tank + healer | | L8 tank 76 / 60, healer heals 9.1k/h | four at 15: tank 94 / 67 | four at 8, pull 8: 63 / 55 |
+| Coppercap Warrens (32-50), own pair tank + healer | four at 26: 61 / 53 | L32 tank 66 / 60, healer heals 9.4k/h | | four at 32, pull 8: 54 / 50, 86 meals + 35k heals |
+| Coppercap Warrens alone | | L32 56 / 52, 77 (-77% gold) | L40 71 / 55, 21 (break-even); L45 89 / 75, 0 | |
+
+The party grounds already sit on the curve for an own pair with a healer. The gaps are: Mosslight's floor is too calm; nothing under any band is dangerous; and the largest pull costs only gold.
+
+*a01 and a35 on the same curve.* **a01:** on the real engine a Cistern Spider's blow is 8.5% of a Level-8 tank in the full set and 10.8% in the starter kit. That equals the Culvert Bat (both have attack 9) and is 1.7-1.9x a Drain Rat, which is intended for the elite pocket. A single 2.6x blow does not reproduce. What does reproduce is the spider pocket's four monsters landing in the same step: up to 19.5% of a kit hero's HP at once. **a35:** Chief Coppercap's heaviest blow is 10% of a Level-32 tank (55 HP), and he has no burst attack. The burst is the Hall's pack landing in lockstep: the worst instant is 22% and the worst 2 s is 44% at the full box. Both are fixed by knob 4 below. The client should also name the elite pocket and the boss on the hunt card (handoff, lane D4).
+
+*The knobs, each measured, and the ruling on each.*
+
+| Knob | What it moves | Measured | Ruling |
+|---|---|---|---|
+| 1. Starting pull (the ground's default; the player's density pick moves it from there) | pressure per pull, meals, kills and XP; **not** the size of a blow | Mosslight floor, pull 2 to 4: low point 85 to 66, meals 7 to 42, Level XP +15% (55k to 63k), top blow unchanged at 9.6%, margin +72% to +150% | **the main lever**: each ground's starting pull is set so its floor lands on the curve |
+| 2. Monster damage (attack) | every blow, which means spikes | x1.4: Mosslight floor 74 / 54, 44 meals; but every blow grows 1.4x, so the 27% wolf blow on a Level-5 Ranger becomes about 38% | not used for pressure; per-ground tuning only inside the blow cap |
+| 3. Level gap (new) | danger and gold under the band | +8% monster damage per level under the floor, capped at +80%. At a pull of 4: 5 under 51 / 42, 278 meals, 1.6 close calls an hour, no deaths in 12 h; 10 under 4 deaths in 8.2 h (about 1 per 2 h); 5 under with the largest pull, 3 deaths in about 25 min | **adopt.** One sentence on the hunt card: "Under this ground's level, monsters hit harder." Inside the band nothing changes, by construction |
+| 4. Swing timing (new) | spikes into pressure | lockstep 72-79% at the largest pull, instant bursts up to 42% | **adopt**: a monster's first swing on a new target waits a seeded 0-1,900 ms from the swing stream, then every 2.0 s as ruled. Same damage per minute |
+| 5. Blow cap (rule + guard) | spikes | today's worst 27% | no single monster blow above 30% of a floor hero's HP in any armour weight; a boss's heaviest blow at most 35% and announced on screen (wind-up, a later engine feature) |
+| 6. Aggro | who takes pressure | back line 0 blows in parties | unchanged (Challenge, 10-16) |
+| 7. Regen, food and the eat line | where the sustain line sits | eating at 35% instead of 60% moves close calls from 0.3 to 31 an hour and deaths not at all | unchanged: the eat line is the player's decision; each ground's guide food sets the sustain line |
+
+*The sample (DESIGN_STANDARDS §9): Mosslight Glade's six pockets start at a pull of 4* (Crow Field and Poachers' Camp 2 to 4, the Sluice 2 to 4, the Springs 2 to 4, Rook's Hide 3 to 4, Vine Hollow 2 to 4). Each takes the next monsters already in its own pack list, so no new creature and no new art. Measured above: floor 66 / 54 with 42 meals an hour, mid 81 / 62 with 7 meals, the top blow unchanged. The kiters stay safe and rich (Mage at the floor: 103k Level XP an hour, net 7,091 gold, against the tank's 63k and 3,439), which goes to lane/b-spell-balance as a role-balance finding. Then the other grounds, in batches of 20 rows or fewer. The Thicket and the Cellar keep their starting pulls.
+
+**B. The Level-32 wall**
+
+*Evidence (real settle, full own-tier sets, per hero per hour).* Coppercap Warrens alone: Level 32 nets -8,824 gold (-77%), 36 nets -4,449, 40 nets +2,113 (break-even, -7% to +19%), 45 nets +6,811 and buys no food. Two of your own heroes at 32: tank + healer +4,282 (+434% to +902%), ranger + healer +5,165, melee + healer +17% to +23%, tank + mage -7% to +6%, tank + ranger -17% to -28%. In the Sewer every own pair clears +200%. Staying in Mosslight at 38 pays 71k Level XP an hour against 130-170k in the Warrens. On the real XP curve, Level 31 to 50 is 6.77M Level XP, about 40-48 hunting hours at Warrens rates, so all of Greenhaven (1-50) is roughly 70-80 hunting hours for a dedicated player (unverified total: today's grounds' rates).
+
+*Ruling: both, along Tyler's own ladder* (his Greenhaven Frontier list of 10-15, workbook at `docs/design/world-workbook/Hunting_Grounds.csv`: three solo grounds and two party grounds up to 50, then Thornwild Expanse 40-120).
+1. **Next ground: H-004 Pebblebrook Bank, solo, band 28-45.** The workbook says 23-42; it moves so that it overlaps Mosslight's top and reaches the Level where a lone hero can take the Warrens. The workbook's creatures are Mudskipper, River Snapper, Marsh Lizard, Forest Spider and Sporeling (families: aquatic, fungal, insectoid, reptilian). The five are the ground lane's sample. "Forest Spider" is renamed for the place (e.g. "Shingle Spider", which hunts the pebble shingle), and the region's naming voice (brook, mill, ford, croft) goes in the data header. Loot: the tier-3 set in all three weights as Scarce rows (Steel, Boarhide and Scholar, about one an hour per slot per weight: Tyler 10-23), tier-3 caster and bow weapons as Rares, and tier-4 helmets on its rare carrier (as Rook does for tier 3). It starts its pull at 4 against the curve above. Its creatures and map need paid art, which needs Tyler's fresh approval per spend (CLAUDE.md §2).
+2. **Party grounds are built for two of your own heroes.** Every account starts with two hero slots. Standing rule: at a party ground's floor, an own pair **with a healer** clears at least +25%, and the card says "Best with a healer." Today the Sewer passes for every pair and the Warrens for every healer pair. Melee + healer sits at +17% to +23% in the harness, which wears the Melee in cloth; lane D2 re-measures it in plate. A pair without a healer in the Warrens is a waste hunt, and the card says so. Warrens `soloFrom` stays 45.
+3. **Then H-006, the workbook's "Forgotten Rootcellar"** (party, 40-50, carrying the tier-4 set). Its "Forgotten" is a banned filler word; the proposed name is "Hollins Croft Rootcellar" (a founder's surname plus croft, both in the Greenhaven voice), for the ground lane to confirm. H-002 Old Mill Road (solo, 6-25) is not needed for the wall (the Thicket, the Sewer and Mosslight cover 1-31) and comes last; its "Shadowfang Wolf" is renamed (banned word).
+4. **The ladder above 50.** One region equals six grounds, three solo and three party, with bands overlapping by at least 5 levels (the workbook's shape). Standing rule: **every 10-level step has at least one solo ground in band and one party ground in band**, and a party ground counts for a lone hero only from its `soloFrom`. Thornwild as written has solo grounds up to 92 and party grounds only from 76, and nothing solo from 92 to 120. So its first build is H-007 Briarfen Marsh (solo 40-62) plus H-010 Fungalfall Hollow re-banded to 55-80 as its first party ground, and H-011 Blackroot Burrows gets a `soloFrom`. Thornwild should be ready within about two weeks of Early Access opening, since a dedicated player clears Greenhaven in roughly a week.
+
+**C. Armour for every role**
+
+*Evidence.* Every cloth, leather and plate piece needs Defense at its tier's level (`gear-tiers.js`: 1 / 15 / 30 / 45), and Defense trains only from blows taken (rulings 10-18 and 10-22). Defense XP per hero-hour:
+
+| Run | Tank | Ranger | Mage | Healer |
+|---|---|---|---|---|
+| Mosslight 24, solo | 11,039 | 1,768 | 1,182 | 1,941 |
+| Sewer 20, party of four | 9,004 | 0 | 0 | 0 |
+| Warrens 32, party of four | 29,977 | 0 | 0 | 0 |
+| Warrens 32, own pair tank + mage | 32,489 | | 0 | |
+
+Defense 19 to 30 (Fingerguns' wall) is 247,860 XP: 7.6-22.5 h for a tank, and 128-210 h of solo hunting for a Healer, Ranger or Mage, never in a party. The gate asks casters and rangers to do the one thing their role exists to avoid.
+
+*Ruling.* **Light (cloth) and medium (leather) armour need the hero's Level at the tier's level (Level 15 / 30 / 45 / 60 / 75 / 88). Heavy (plate) armour and shields keep Defense. Weapons keep their own style skill.**
+- Level rises from every kill in every role (party Level XP is split evenly, 10-22), so a Mage at Level 30 wears Scholar cloth and a Ranger at Level 30 wears Boarhide.
+- Plate stays the armour of whoever stands in front and gets hit, so its gate still means something, and it is the same rule as "the shield makes the tank" (10-23).
+- Mix-and-match survives: a Melee who wants cloth's damage needs Level, not Magic.
+- Defense stays worth training for everyone, since each Defense level lowers a monster's chance to hit by 2 points (`combat.js`).
+- Fingerguns' Steel Helm stays a plate piece (Defense 30, and it costs a Mage 5 magic accuracy); his own tier-3 hat, the Scholar Hat, opens at Level 30.
+
+*Not chosen.* A shared party Defense contradicts Tyler 10-22 ("only blows taken train Defense") and would let a back-liner wear plate without ever being hit. Gating cloth on Magic and leather on Ranged breaks mix-and-match. Defense XP from nearby blows or from heals adds a second rule to one skill.
+
+*Flag for the Coordinator:* `gear-tiers.js` carries a pre-rebuild note, "ARMOUR REQUIREMENTS ARE DEFENCE-ONLY, PERMANENTLY" (Tyler 2026-08-15). It is not in the rulings of record. This ruling keeps that note's reason (any hero can wear any weight, never gated on Magic or Ranged) and replaces its mechanism for light and medium armour. Confirm with Tyler if he holds 08-15 as live.
+
+*Second gap found.* Tier-3 cloth and leather drop only in the Warrens (plus Rook's 0.38% tier-3 helmet in Mosslight). Tier-4 cloth and leather, the Willow-tier and Maple-tier wands, staffs, spellbooks and bows have no source at all except the Warrens' Rares (Chief Coppercap 1.25%, Goblin Skulker 0.62%). No gloves or belts beyond tier 1 exist anywhere. Pebblebrook Bank (B1), the Rootcellar (B3) and the style-gear rung 2 and 3 batches (Crafting/Smithing 30 and 45, already planned on 10-22) close this.
+
+**D. Walk-throughs, Level 20 to 50** (every item, monster, chance and number grepped from `src/data/*` or measured. Rows marked "lane" become true when that lane ships).
+
+*A Mage (wand + spellbook):*
+
+| # | Level | Hunts | Wears and wields (source) | Gate today → ruled | Time |
+|---|---|---|---|---|---|
+| 1 | 20 | Mosslight Glade (16-31, solo) | Adept Hat / Robe Top / Robe Bottom / Slippers (Walking Vine 1.9%, Goblin Sluicer 5%, Glade Poacher 2.8%, Carrion Crow 0.95%; or Crafting 17 / 22 / 19 / 15); Oak Wand + Oakboard Spellbook (Crafting 15) | Defense 15 → Level 15 | |
+| 2 | 20→30 | Mosslight | Magic about 13k XP an hour, Defense 1.2k | | 928k Level XP at about 80k an hour (measured, L16 Mage) ≈ 12 h |
+| 3 | 30 | | Scholar Hat / Robe Top / Robe Bottom / Slippers: today the Warrens only (Goblin Digger 3.5%, Scavenger 2%, Skulker / Foreman / Chief 5%), Rook's hat (Mosslight, 0.38%), or the market; lane P1: Pebblebrook drops the set | Defense 30 (about 210 h solo) → **Level 30: wearable now** | |
+| 4 | 31→40 | Pebblebrook Bank (lane P1) or the Warrens with an own healer as the second hero (+434% at 32) | Willow Wand + Willowleaf Spellbook (Magic 30): Chief Coppercap 1.25% today; Crafting 30 in style-gear rung 2 | Magic 30 (unchanged) | 2.15M Level XP at about 150k an hour (Warrens pair, measured) ≈ 14 h |
+| 5 | 40→45 | the Warrens (own pair or four) | | | 1.95M ≈ 12-13 h |
+| 6 | 45 | | Warlock cloth: no source today → Pebblebrook's carrier (hats) and the Rootcellar (set), lanes P1 and P3; Maple Wand: style-gear rung 3 | Defense 45 → Level 45 | |
+| 7 | 45→50 | the Warrens or the Rootcellar | | | 2.67M ≈ 16 h |
+| 8 | 50 | next: Briarfen Marsh (Thornwild, solo 40-62) | | | |
+
+*A Ranger (bow or crossbow):*
+
+| # | Level | Hunts | Wears and wields (source) | Gate today → ruled | Time |
+|---|---|---|---|---|---|
+| 1 | 20 | Mosslight Glade | Studded Leather Coif / Body / Chaps / Boots (Culvert Bat 4% in the Sewer or Walking Vine 1.9%; Goblin Sluicer 5%; Glade Poacher 2.8%; Kobold Tosher 5% or Carrion Crow 0.95%); Longbow (Glade Poacher 2.8% Scarce, or Crafting 15) or Oak Crossbow (Crafting 15) | Defense 15 → Level 15 | |
+| 2 | 20→30 | Mosslight | Ranged about 17.7k XP an hour, Defense 1.8k | | 928k at about 73k an hour (measured, L16 Ranger) ≈ 13 h |
+| 3 | 30 | | Boarhide Coif / Body / Chaps / Boots: the Warrens only today (Digger 3.5%, Skulker / Foreman / Chief 5%, Scavenger 2%), Rook's coif, or the market; lane P1: Pebblebrook | Defense 30 (about 140 h solo) → **Level 30** | |
+| 4 | 31→40 | Pebblebrook Bank, or the Warrens with an own healer (ranger + healer +448% to +1,003% at 32) | Willow Longbow / Willow Crossbow (Ranged 30): Goblin Skulker 0.62% today; Crafting 30 in rung 2 | Ranged 30 (unchanged) | ≈ 14 h |
+| 5 | 45 | | Snakeskin and Maple Bow: no source today → lanes P1, P3, rung 3 | Defense 45 → Level 45 | |
+| 6 | 50 | next: Briarfen Marsh | | | 45→50 ≈ 16 h |
+
+**E. Lanes, in order** (combat-engine changes are batched and wait for lane/b-spell-balance; data follows the sample-then-expand rule).
+1. **A1, armour gates (systems-engineer, can ship before spell-balance: not the combat engine).** Light and medium armour get `reqSkill: 'level'` in `gear-tiers.js` and the hand rows (style-gear Apprentice and Adept). The 08-15 comment is replaced by this ruling. `hr_items.req_skill` gains 'level', which `hr_apply`'s equip check reads through `hr_level_of` (lane C, with its §4 self-check). The client says "Needs Level 30". The test: a Level-30 Mage with Defense 19 equips Scholar Hat; the same Mage is refused Steel Helm.
+2. **D1, the Mosslight sample (designer + systems, after spell-balance).** The six starting pulls, measured on the real settle against the curve; then the other grounds' starting pulls, 20 rows or fewer per batch.
+3. **D2, engine (systems-engineer, after spell-balance, one combat batch).** The staggered first swing and the level-gap term (+8% per level under the floor, cap +80%, a `hunt-tuning.js` value) in `src/core/hunt/damage.js`. Re-measure the Melee + healer pair in plate. Party scaling unchanged.
+4. **D3, guard (qa-engineer + designer).** `tests/hunt-core/danger-curve.mjs` commits the probe and asserts the curve's rows and the 30% blow cap on the real settle, with a mutation proof (the eat line at 0 must turn it red).
+5. **D4, the hunt card (art-director + systems).** One line of danger in words for your Level (Calm / Steady / Hard / Deadly, from the curve), the elite pocket and the boss named, and "Best with a healer" on party grounds.
+6. **P1, Pebblebrook Bank (designer + asset-director + systems).** Five creatures as the sample, tier-3 loot in three weights, starting pull 4. Art spend needs Tyler's approval first.
+7. **Style-gear rung 2, then rung 3** (already planned 10-22): the Crafting/Smithing 30 and 45 weapons.
+8. **P3, the Rootcellar** (party 40-50, tier 4), then H-002 Old Mill Road, then Thornwild's first pair.
+
+*Done and verified (the real settle, measured in this lane):* every number in A to D marked measured. Item sources, requirements and XP thresholds were read from `src/data/*` and `src/core/xp.js`. The workbook ladder comes from `docs/design/world-workbook/`. *Not verified:* nothing here was played in the browser; knobs 3 and 4 were approximated (the gap term as a band-relative attack multiplier; the stagger is not simulated); Pebblebrook's rates are targets; the 70-80 h Greenhaven total assumes today's rates; the harness's Melee DPS wears cloth. *Assumptions:* the client's starting density is the pocket's base pack (lane D1 checks); `hr_level_of` is callable inside the equip check.
+
 **Marketplace design (2026-10-24)** (game-designer, inside Tyler's 10-24 objective: "as convenient as a modern trading application while retaining the atmosphere of a classic fantasy MMORPG" and "no duping or exploiting can occur"; lane/d-market-design, design only, no code). Builds on the live market-v2 core (`2026-08-17-market-v2.sql`: escrow out of the bag, seller paid at sale time, immutable listing columns, delete-as-arbiter, idempotent intents; `hr_market_buy` on the account purse since `2026-12-15-account-gold.sql`). Production, read-only on 10-23: 0 listings, 0 sales, 2 accounts, 8 heroes, purses 182,656 and 452,942 gold.
 
 **0. Stacks, not single pieces (the answer first).** Every copy of an item id is identical, so a listing is an item id and a count and a buyer can take any part of it. Evidence: the bag is `player_inventory (user_id, slot, item_id) → qty` (`2026-08-11-player-state.sql`), worn gear is `player_equipment (user_id, slot, equip_slot) → item_id` (equipping debits one unit), Storage is `account_bank (user_id, item_id) → qty` (`2026-11-27-account-depot.sql`), a hunt's packed supplies are `hunt_bag (session_id, item_id) → qty` (`2026-10-21-hunt-sessions.sql`), and a listing is `market_listings.item_id + qty`. No table has a wear, durability, roll or per-piece column. Gear stats are fixed (Tyler 10-14). Imbuing is not built (`src/data/imbuements.js`: "no server table"). The one upgrade that exists, the weapon enchant, is `player_state.enchant {equip_slot: element}`: it sits on the hero's worn slot, not on the item. **Rule for later lanes:** any per-piece state (the L4 imbuement) lives on the worn slot, and an imbued piece cannot be taken off until its imbuement runs out or is removed. That is Tyler's 10-15 "untradable until expiry or paid removal", and it means a stack never holds a copy that differs from the rest.

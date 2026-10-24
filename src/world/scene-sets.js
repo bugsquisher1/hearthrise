@@ -17,7 +17,7 @@
 //            hunts spawn, their gather nodes and every hunt effect; at home
 //            every piece of furniture, its signposts and the trophy mounts; in
 //            the Common the sandbox's entry sign.
-// tests/world-assets.mjs proves it covers what each shipped scene draws.
+// tests/world-core.mjs (family A) proves it covers what each shipped scene draws, and no more.
 // PURE: no DOM, no window, no G.
 // ════════════════════════════════════════════════════════════════════════
 import { groundTiles, composeFrame } from './core/compose.js?v=0.2.38';
@@ -41,7 +41,7 @@ function groundIds(row, ids) {
 }
 
 /** Every sprite id a scene on map row `row` may draw that the map itself does not place. */
-export function actorIds(row) {
+function actorIds(row) {
   const ids = new Set(Object.values(OUTFITS));
   if (row.kind === 'hunt') {
     groundIds(row, ids);

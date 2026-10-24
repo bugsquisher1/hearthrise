@@ -16,7 +16,9 @@
 
 /* ── Layers: world widgets (shifted clear of the dock), screen widgets, windows ── */
 .hs-hud { position: absolute; top: 0; left: 0; bottom: 0; right: 0; pointer-events: none; z-index: 2; }
-.hs-screen { z-index: 6; }
+/* The screen widgets' box is the screen: clipped, so a widget wider than a phone (the icon row at 667 px) never
+   widens the page into a sideways pan. */
+.hs-screen { z-index: 6; overflow: clip; }
 .hs-launchers:empty { display: none; }
 .hs-layer { position: absolute; top: 0; left: 0; bottom: 0; right: 0; pointer-events: none; z-index: 3; }
 

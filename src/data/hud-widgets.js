@@ -57,9 +57,12 @@ export const HUD_WIDGETS = Object.freeze([
     min: Object.freeze([240, 80]), opacity: 0.9, visible: true, removable: true, when: 'hunt',
     phone: Object.freeze({ dx: 4, dy: 4 }),
   }),
+  /* On a phone it shares the top-right corner with the hunt bar, so it STACKS under it (`below`): open, it never
+     covers Hunt details, Summary or Leave hunt (QA phone playtest 10-24: one press on Hunt details hid all three). */
   Object.freeze({
     id: 'analyzer', label: 'Hunt analyzer', layer: 'world', anchor: 'tr', dx: 12, dy: 12,
     min: Object.freeze([260, 120]), opacity: 0.9, visible: true, removable: true, when: 'hunt',
+    below: Object.freeze(['hunt-topbar']),
     phone: Object.freeze({ visible: false, dx: 4, dy: 4 }),
   }),
   /* Tamsin's tally (2026-12-23-tally-tasks.sql): each held kill task's server count, in town and hunting. It

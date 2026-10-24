@@ -576,6 +576,9 @@ jobs:
   # 513 + Chat 264 + Town (~230, cut at 119) = ~2,250 s, ~39 min with setup.
   # Party UI, Chat and Town presence moved here byte for byte: ~1,010 s, ~18
   # min with setup (50% of 36); in-page-2 keeps ~1,240 s, ~22 min (61%).
+  # 2026-10-24 lane/a-mobile-p1 adds Phone touch: ~75 s plain + ~205 s --mutate
+  # on Tyler's PC (each mutant runs only its rule's pages), ~7 min at CI's pace:
+  # ~25 min (69% of 36) when every --mutate here runs.
   in-page-13:
     runs-on: ubuntu-latest
     timeout-minutes: 36
@@ -632,6 +635,21 @@ jobs:
         run: |
           node tests/town-walk.mjs
           node tools/mutant-gate.mjs node tests/town-walk.mjs --mutate
+
+      # THE PHONE (QA's phone playtest 2026-10-24 scored mobile 4/10): Configure
+      # action scrolls inside its sheet with Save and the close in reach (667x375
+      # to 922x423) and the page never pans sideways; Hunt details toggles the
+      # analyzer, which closes and never covers the hunt bar, and a pending leave
+      # keeps the bar on one line off the Party panel; a touch phone held upright
+      # is asked to turn (never a desktop or a tablet); Settings toggle by their
+      # words on 44 px lines; the Shop, the hunt bar, the analyzer tabs, the item
+      # tooltip and Equip answer a thumb. Each mutant runs only the pages its rule
+      # reads (BLOCKS_OF). --mutate plants 19.
+      - name: Phone touch (play.html)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/phone-touch.mjs
+          node tools/mutant-gate.mjs node tests/phone-touch.mjs --mutate
 
       - name: Upload failure artifacts
         if: failure()

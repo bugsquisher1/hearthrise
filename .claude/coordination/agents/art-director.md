@@ -3022,3 +3022,15 @@ undoes the `hidden` attribute: a flex cell needs `[hidden] { display: none }` (h
 (3) a log must stay pinned through a resize, not only on append: the dock caps the window after the first paint;
 (4) to keep parallel lanes merge-clean, use the shared piece by its class in markup rather than adding selectors
 to shell.css's shared lists (lane 2 landed first; the merge had zero conflicts).
+
+## 2026-10-24 — lane/a-mobile-p1: QA's phone P1s (mobile 4/10)
+Configure action is three bands on a phone (fixed top row and foot, ONE scroller for the sentence and the list, the
+detail sticky beside it; head cells carry data-c; a new tab starts at its first row); Hunt details toggles, the
+analyzer has a close, stacks under the hunt bar (`below`) and is a compact grid on a phone; the party board and the
+hunt bar fit 667x375; a touch phone held upright gets one steel card; Settings lines are labels at 44 px; Buy,
+the hunt bar and the analyzer tabs at 40 px; the item tooltip two columns; Equip pinned. tests/phone-touch.mjs
+(PH-1..PH-5, 19 mutants, each running only its rule's pages). Lessons: (1) a wheel over the list is the honest
+scroll test: scrollIntoView also scrolls overflow:hidden boxes, so it "passes" a sheet a thumb cannot scroll;
+(2) overflow:hidden still scrolls when told to; on a phone it slid the whole game 102 px left. Use clip; (3) a
+fit-content flex bar ignores min-width:0 on its items; (4) the residue put is debounced 1.5 s: a reload test that
+waits less tests nothing; (5) at 375-423 px tall a HUD panel has ~150-200 px: drop the title band before the data.

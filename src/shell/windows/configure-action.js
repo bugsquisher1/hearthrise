@@ -60,18 +60,22 @@ function condHtml(i) {
     + '<button type="button" class="hh-tool ca-drop" data-hs-act="cfg" data-x="drop" data-i="' + i + '" aria-label="Remove this condition">×</button></li>';
 }
 
-/** The skeleton (built once per opening). */
-export function renderConfigureAction() {
+/** The skeleton (built once per opening). The sentence and the list share `.ca-mid`: one box on a desktop
+ *  (display: contents), the phone sheet's one scroller between its fixed top row and foot (hunt.css). */
+export function renderConfigureAction(ctx) {
   let conds = '';
   for (let i = 0; i < MAX_CONDITIONS; i++) conds += condHtml(i);
   const move = '<span class="ca-move">' + tool('up', 'Earlier') + tool('down', 'Later') + '</span>';
+  /* The phone sheet has no title band: its close is the window's own square steel close. */
+  const close = glyphSvg(ctx && ctx.glyphs, 'uiClose') || '×';
   return '<div class="ca">'
     + '<p class="ca-loading">Your bar loads from the server…</p>'
     + '<div class="ca-form">'
     + '<div class="ca-top"><span class="ca-rank"></span>'
     + '<span class="ca-tabs" role="tablist" aria-label="Kind of action">'
     + TABS.map(([k, l]) => '<button type="button" class="ca-tab" role="tab" data-hs-act="cfg" data-x="tab" data-tab="' + k + '" aria-selected="false">' + l + '</button>').join('')
-    + '</span>' + move + '<button type="button" class="hh-tool ca-close" data-hs-act="cfg" data-x="cancel" aria-label="Close">×</button></div>'
+    + '</span>' + move + '<button type="button" class="hs-close ca-close" data-hs-act="cfg" data-x="cancel" aria-label="Close">' + close + '</button></div>'
+    + '<div class="ca-mid">'
     + '<div class="ca-sentence">'
     + '<p class="ca-lead"><span class="ca-verb"></span> <button type="button" class="ca-item" data-hs-act="cfg" data-x="find"></button>'
     + '<span class="ca-note"></span><span class="ca-ready"></span></p>'
@@ -87,7 +91,7 @@ export function renderConfigureAction() {
     + '<p class="ca-src"></p><p class="ca-eff"></p><p class="ca-req"></p><p class="ca-d-warn"></p>'
     + '<div class="ca-runestore"><p class="ca-rs-q">When your runes run out:</p><ul class="ca-rs-list" role="listbox" aria-label="Rune from the store"></ul></div>'
     + '<div class="ca-move-phone">' + tool('up', 'Earlier') + tool('down', 'Later') + '</div>'
-    + '</div></div>'
+    + '</div></div></div>'
     + '<p class="hh-intent-msg ca-msg" role="status" aria-live="polite"></p>'
     + '<div class="hc-foot ca-foot">' + tool('clear', 'Empty slot') + tool('cancel', 'Cancel') + tool('save', 'Save', ' is-primary') + '</div>'
     + '</div></div>';
@@ -194,7 +198,8 @@ renderConfigureAction.patch = function patchConfigureAction(body, ctx) {
   rows(root.querySelector('.ca-runs'), table.runs, {
     key: (run) => tab + ':' + run.kind,
     build: (run) => element(ctx.doc, '<section class="ca-run" data-run="' + esc(run.kind) + '">' + (run.label ? '<h3 class="ca-run-label">' + esc(run.label) + '</h3>' : '')
-      + '<div class="ca-head" aria-hidden="true"><span></span><span class="ca-name">Name</span>' + run.cols.map((c, i) => '<span class="ca-c' + (i === 2 ? ' ca-sort' : '') + '">' + esc(c) + '</span>').join('') + '</div>'
+      /* Each head cell carries its column's data-c, so a rule that hides a column hides its head with it. */
+      + '<div class="ca-head" aria-hidden="true"><span></span><span class="ca-name">Name</span>' + run.cols.map((c, i) => '<span class="ca-c' + (i === 2 ? ' ca-sort' : '') + '" data-c="' + i + '">' + esc(c) + '</span>').join('') + '</div>'
       + '<div class="ca-list"></div></section>'),
     patch: (sec, run) => rows(sec.querySelector('.ca-list'), run.rows, {
       key: (r) => keyOf(r.action),
@@ -241,7 +246,7 @@ renderConfigureAction.patch = function patchConfigureAction(body, ctx) {
   const msg = root.querySelector('.ca-msg');
   text(msg, s.msg);
   cls(msg, 'is-error', !!s.error);
-  for (const el of root.querySelectorAll('.ca-form select, .ca-form input, .ca-form .hh-tool, .ca-form .ca-step, .ca-item, .ca-tab')) prop(el, 'disabled', off);
+  for (const el of root.querySelectorAll('.ca-form select, .ca-form input, .ca-form .hh-tool, .ca-form .ca-step, .ca-close, .ca-item, .ca-tab')) prop(el, 'disabled', off);
   prop(root.querySelector('.ca-add'), 'disabled', off || d.conditions.length >= MAX_CONDITIONS || !d.action.id);
   for (const b of root.querySelectorAll('[data-x="up"]')) prop(b, 'disabled', off || s.open === 0);
   for (const b of root.querySelectorAll('[data-x="down"]')) prop(b, 'disabled', off || s.open === SLOTS - 1);
@@ -276,7 +281,7 @@ renderConfigureAction.act = function actConfigureAction(ctx, body, action, ev, t
   const c = d.conditions[Number(t.getAttribute('data-i'))];
   if (action === 'cfg' && ev.type === 'click') {
     const x = t.getAttribute('data-x');
-    if (x === 'tab') { v.tab = t.getAttribute('data-tab'); v.hover = null; }
+    if (x === 'tab') { v.tab = t.getAttribute('data-tab'); v.hover = null; repaint(); listToTop(body); return; }
     else if (x === 'pick') {
       d.action = { type: t.getAttribute('data-type'), id: t.getAttribute('data-id') };
       v.hover = null;
@@ -316,6 +321,16 @@ renderConfigureAction.act = function actConfigureAction(ctx, body, action, ev, t
   else if (c && f === 'effect') c.value = t.value;
   repaint();
 };
+
+/* A new tab's list starts at its first row: the desktop's well back to its top, and on a phone the sheet's one
+   scroller (.ca-mid) back to the list's top when it had scrolled past it (the sentence stays scrolled by). */
+function listToTop(body) {
+  const well = body.querySelector('.ca-well'), mid = body.querySelector('.ca-mid');
+  if (!well) return;
+  well.scrollTop = 0;
+  const past = mid ? well.getBoundingClientRect().top - mid.getBoundingClientRect().top : 0;
+  if (past < 0) mid.scrollTop += past;
+}
 
 /** Forget the tab on show (the bar opens the window on a slot's own tab). */
 export function resetConfigureView(cs) { VIEW.delete(cs); }

@@ -358,6 +358,15 @@
 </head>
 <body class="client-page">
 <div class="app" id="app"></div>
+<!-- A phone held upright (QA 2026-10-24): phones are landscape-only, so ONE card over everything asks to turn it.
+     Shown only by app.css's portrait touch-phone query; a desktop or a tablet never sees it. -->
+<div class="turn-phone" role="dialog" aria-modal="true" aria-labelledby="turn-phone-title">
+  <img class="auth-crest" src="assets/brand/hearthrise-crest.png?v=0.2.43" alt="" width="311" height="384" loading="lazy" decoding="async">
+  <div class="auth-card turn-phone-card">
+    <h1 class="auth-title" id="turn-phone-title">Turn your phone sideways</h1>
+    <p class="auth-lead">Hearthrise plays in landscape. Hold your phone on its side to carry on.</p>
+  </div>
+</div>
 <script src="src/vendor/supabase-js-2.103.0.umd.js?v=0.2.43"></script>
 <script src="src/platform/storage.js?v=0.2.43"></script>
 <script src="src/data/glyphs.js?v=0.2.43"></script>

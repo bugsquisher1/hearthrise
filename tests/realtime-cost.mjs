@@ -71,6 +71,11 @@ const UNPUBLISH = '2026-12-27-chat-unpublish.sql';
    publication was exactly chat_messages; it is judged on the publication alone
    (R1), because the client scanned is today's, not the one of that date. */
 const AT_TRIM = ['chat_messages'];
+/* The tables that must still EXIST at the end of the chain (R5's control on the plain run).
+   market_buy_offers is CUT by 2027-01-12-market-account.sql (the old client-authored buy-offer
+   table, 0 rows, the market threat model's #22): a deliberate drop by a later file, not the trim
+   dropping what it should only unpublish. At the trim (atTrim) all three must still exist. */
+const ALIVE_AT_END = ['chat_messages', 'market_listings'];
 
 /* ── A CONSUMER THAT IS COMING BACK, WITH A DATE ────────────────────────────
    A published table whose subscriber is being rebuilt may carry one dated row
@@ -239,15 +244,15 @@ async function readDatabase(sqlPatches, file) {
       where pubname = 'supabase_realtime' and schemaname = 'public'
       order by tablename`);
   const t = await db.query(
-    `select count(*)::int n from pg_class c join pg_namespace ns on ns.oid = c.relnamespace
-      where ns.nspname = 'public' and c.relname in ('market_listings','market_buy_offers','chat_messages')`);
+    `select coalesce(array_agg(c.relname::text order by c.relname), '{}') names from pg_class c join pg_namespace ns on ns.oid = c.relnamespace
+      where ns.nspname = 'public' and c.relkind = 'r' and c.relname in ('market_listings','market_buy_offers','chat_messages')`);
   /* THE SERVER HALF of chat's Broadcast path (2026-12-26-chat-broadcast.sql): both senders, enabled. */
   const s = await db.query(
     `select count(*)::int n from pg_trigger
       where not tgisinternal and tgenabled <> 'D'
         and ((tgrelid = to_regclass('public.chat_messages') and tgname = 'hr_chat_broadcast')
           or (tgrelid = to_regclass('public.chat_whispers') and tgname = 'hr_whisper_broadcast'))`);
-  return { published: r.rows.map(x => x.tablename), tablesAlive: t.rows[0].n, senders: s.rows[0].n };
+  return { published: r.rows.map(x => x.tablename), tablesAlive: t.rows[0].names.length, alive: t.rows[0].names, senders: s.rows[0].n };
 }
 
 // ── the run ─────────────────────────────────────────────────────────────
@@ -256,7 +261,7 @@ async function run(mutation) {
   const m = mutation ? MUTATIONS[mutation] : null;
   if (mutation && !m) { console.error(`unknown mutation "${mutation}"`); process.exit(2); }
 
-  const { published, tablesAlive, senders } = await readDatabase(m && m.sql, m && m.file);
+  const { published, tablesAlive, alive, senders } = await readDatabase(m && m.sql, m && m.file);
   const subs = await subscribedTables(m && m.srcExtra, m && m.srcDrop);
   /* A mutant on the TRIM file is a database of that date: judged on its publication (R1) and R5 only. */
   const atTrim = !!(m && m.sql && !m.file);
@@ -303,8 +308,9 @@ async function run(mutation) {
 
   // R5 — CONTROL. The trim must UNPUBLISH, never DROP. A migration that deleted
   // the tables would satisfy R1-R4 and destroy the market.
-  ok(tablesAlive === 3,
-    `R5 all three tables must still EXIST after the trim (unpublishing is not dropping); found ${tablesAlive}/3`);
+  ok(JSON.stringify(alive) === JSON.stringify([...ALIVE_AT_END].sort()),
+    `R5 the chain must end with [${ALIVE_AT_END.join(', ')}] still EXISTING (unpublishing is not dropping; only `
+    + `2027-01-12-market-account.sql cuts market_buy_offers); found [${alive.join(', ')}]`);
 
   return problems.slice();
 }

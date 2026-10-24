@@ -647,6 +647,9 @@ const ALSO_LINTED = [
      accrue budget per hero) — HR_RATE_GATE_CHAIN's new last link — plus both hunt
      rosters and the cron detector, each revoked from PUBLIC first. */
   '2027-01-01-server-perf.sql',
+  /* THE ACCOUNT MARKET (lane c-market-account, 2026-10-24): the market verbs re-keyed on the
+     account (engine-only), hr_bank_move restated, and link 21 of HR_GRANT_HYGIENE_CHAIN. */
+  '2027-01-12-market-account.sql',
 ];
 
 // ── THE hr_apply DERIVATION CHAIN ────────────────────────────────────────
@@ -999,8 +1002,13 @@ const HR_GRANT_HYGIENE_CHAIN = [
   // link 20 (lane character-window) — the character sheet's two engine grants
   // (hr_character_sheet_inputs, hr_character_sheet_put), INSERTED at the head of
   // c_engine_allow, so its declared-removals list stays EMPTY. Its base is link
-  // 19's TARGET. It is the new last toucher.
+  // 19's TARGET.
   '2026-10-25-character-sheet.sql',
+  // link 21 (lane c-market-account) — the account market's six engine entries (three
+  // re-keyed writers, three names-free reads), INSERTED at the head of c_engine_allow,
+  // so its declared-removals list stays EMPTY (the dropped v2 signatures keep their stale
+  // TEXT). Its base is link 20's TARGET. It is the new last toucher.
+  '2027-01-12-market-account.sql',
 ];
 
 const HR_RATE_GATE_CHAIN = [

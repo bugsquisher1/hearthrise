@@ -12,13 +12,16 @@
 // ════════════════════════════════════════════════════════════════════════
 
 import { escapeHtml as esc } from '../utils/dom.js?v=0.2.44';
-import { MIN_PASSWORD } from '../net/auth.js?v=0.2.44';
+import { AUTH_COPY } from '../net/auth.js?v=0.2.44';
+import { PASSWORD_MIN_LENGTH } from '../data/account-rules.js?v=0.2.44';
 
 const FIELD = {
   email: '<label class="auth-field"><span>Email</span><input name="email" type="email" autocomplete="email" required></label>',
   password: '<label class="auth-field"><span>Password</span><input name="password" type="password" autocomplete="current-password" required></label>',
-  newPassword: '<label class="auth-field"><span>Password</span><input name="password" type="password" autocomplete="new-password" minlength="' + MIN_PASSWORD + '" required></label>',
-  confirm: '<label class="auth-field"><span>Type it again</span><input name="confirm" type="password" autocomplete="new-password" minlength="' + MIN_PASSWORD + '" required></label>',
+  /* The auth server's rule, said before the press (src/data/account-rules.js); the server still decides. */
+  newPassword: '<label class="auth-field"><span>Password</span><input name="password" type="password" autocomplete="new-password" minlength="' + PASSWORD_MIN_LENGTH + '" aria-describedby="auth-password-rule" required></label>'
+    + '<p class="auth-lead" id="auth-password-rule">' + esc(AUTH_COPY.passwordRule) + '</p>',
+  confirm: '<label class="auth-field"><span>Type it again</span><input name="confirm" type="password" autocomplete="new-password" minlength="' + PASSWORD_MIN_LENGTH + '" required></label>',
 };
 
 /** The crest and the name over every account screen (painted art at its own 1:1 or exactly 1:2, never between). */

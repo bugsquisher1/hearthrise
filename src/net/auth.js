@@ -11,6 +11,14 @@
 // that email has an account, a link is on its way". The copy is true in every
 // case and never says which emails exist.
 //
+// A REFUSAL SAYS WHY (Tyler 10-24: a 9-character password read "try again in a
+// minute"). authErrorCopy reads supabase-js's error.code, then its status, then
+// its message, and names the AUTH_COPY line that answers it: too short, leaked,
+// address refused, too many tries, sign-ups closed, email not confirmed yet. Each
+// call takes only the answers that cannot probe an account (sign-in tells apart
+// nothing but "not confirmed yet", which the auth server says only to the right
+// password); anything unknown reads as that call's own generic line.
+//
 // SIGN-OUT CLEARS EVERY COPY: supabase-js forgets the session, then every key
 // that can hold a token on this device — the auth key in BOTH the device and
 // the tab store, any `sb-*` key, the retired pre-reset keys — and the tab's
@@ -37,19 +45,27 @@
 // ════════════════════════════════════════════════════════════════════════
 
 import { SESSION_CONFIG } from '../session/config.js?v=0.2.44';
+import { PASSWORD_MIN_LENGTH } from '../data/account-rules.js?v=0.2.44';
 
-export const MIN_PASSWORD = 8;
 /** A token closer than this to its expiry is refreshed before it is sent. */
 export const TOKEN_MARGIN_MS = 60000;
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export const AUTH_COPY = Object.freeze({
   badEmail: 'Enter the email address for your account.',
-  shortPassword: 'Use at least ' + MIN_PASSWORD + ' characters for your password.',
+  passwordRule: 'At least ' + PASSWORD_MIN_LENGTH + ' characters.',
+  shortPassword: 'Use at least ' + PASSWORD_MIN_LENGTH + ' characters.',
+  leakedPassword: 'That password has shown up in a data leak. Pick a different one.',
+  weakPassword: 'That password is too easy to guess. Pick a different one.',
+  samePassword: "That's the password you have now. Pick a new one.",
   mismatch: 'The two passwords do not match.',
   signInFailed: 'That email and password do not match an account.',
+  notConfirmed: "Your email isn't confirmed yet. Open the link we sent you, then sign in.",
   signUpSent: 'Check your email for a link to finish creating your account. If you already have an account, sign in instead.',
-  signUpFailed: 'The account could not be created. Try again in a minute.',
+  emailRefused: "That email address can't be used. Check it, or use a different one.",
+  rateLimited: "There've been too many tries just now. Try again in a minute.",
+  signUpsClosed: "New accounts can't be made right now. Sign-ups are closed.",
+  signUpFailed: "Your account couldn't be created. Try again.",
   resetSent:'If that email has an account, a link to reset your password is on its way.',
   passwordSet: 'Your new password is saved. You are signed in.',
   passwordFailed: 'That reset link has expired. Ask for a new one from the sign-in screen.',
@@ -60,6 +76,51 @@ export const AUTH_COPY = Object.freeze({
 const fail = (message) => ({ ok: false, message });
 const isNetwork = (e) => !!e && (e.status === 0 || /fetch|network/i.test(String(e.message || '')));
 const isRetryable = (e) => isNetwork(e) || (!!e && e.name === 'AuthRetryableFetchError');
+
+/* supabase-js error.code -> the AUTH_COPY line. An email that already has an account is answered
+   exactly as a new one (signUpSent: "if you already have an account, sign in"), never told apart. */
+const CODE_COPY = Object.freeze({
+  user_already_exists: 'signUpSent', email_exists: 'signUpSent',
+  email_address_invalid: 'emailRefused',
+  over_email_send_rate_limit: 'rateLimited', over_request_rate_limit: 'rateLimited',
+  signup_disabled: 'signUpsClosed',
+  email_not_confirmed: 'notConfirmed',
+  same_password: 'samePassword',
+});
+/* The same answers read from the message, for an answer without a code. */
+const MESSAGE_COPY = Object.freeze([
+  [/already (registered|exists)/i, 'signUpSent'],
+  [/password should be at least/i, 'shortPassword'],
+  [/pwned|data leak|leaked/i, 'leakedPassword'],
+  [/signups? not allowed|signups? (are )?disabled/i, 'signUpsClosed'],
+  [/invalid format|email address .*invalid/i, 'emailRefused'],
+  [/rate limit/i, 'rateLimited'],
+  [/email not confirmed/i, 'notConfirmed'],
+]);
+const WEAK_REASON_COPY = Object.freeze([['length', 'shortPassword'], ['pwned', 'leakedPassword']]);
+
+/** The AUTH_COPY key that answers a refused auth call (by error.code, then status, then message), or null when it is unknown. */
+function authErrorCopy(error) {
+  if (!error) return null;
+  if (isNetwork(error)) return 'network';
+  const code = typeof error.code === 'string' ? error.code : '';
+  const msg = String(error.message || '');
+  const fromMessage = () => { for (const [re, key] of MESSAGE_COPY) if (re.test(msg)) return key; return null; };
+  if (code === 'weak_password' || error.name === 'AuthWeakPasswordError') {
+    const why = Array.isArray(error.reasons) ? error.reasons : [];
+    for (const [reason, key] of WEAK_REASON_COPY) if (why.includes(reason)) return key;
+    return fromMessage() || 'weakPassword';
+  }
+  if (Object.prototype.hasOwnProperty.call(CODE_COPY, code)) return CODE_COPY[code];
+  if (error.status === 429) return 'rateLimited';
+  return fromMessage();
+}
+
+/* What each call may tell the player; anything else reads as the call's own generic line. */
+const SIGN_IN_SAYS = new Set(['network', 'rateLimited', 'notConfirmed']);
+const SIGN_UP_SAYS = new Set(['network', 'shortPassword', 'leakedPassword', 'weakPassword', 'emailRefused', 'rateLimited', 'signUpsClosed', 'signUpSent']);
+const NEW_PASSWORD_SAYS = new Set(['network', 'shortPassword', 'leakedPassword', 'weakPassword', 'samePassword', 'rateLimited']);
+const copyFor = (error, says, other) => { const key = authErrorCopy(error); return says.has(key) ? key : other; };
 
 /**
  * @param {object} o
@@ -162,7 +223,7 @@ export function createAuth(o) {
       if (!password) return fail(AUTH_COPY.signInFailed);
       try {
         const { data, error } = await auth.signInWithPassword({ email: e, password });
-        if (error) return fail(isNetwork(error) ? AUTH_COPY.network : AUTH_COPY.signInFailed);
+        if (error) return fail(AUTH_COPY[copyFor(error, SIGN_IN_SAYS, 'signInFailed')]);
         session = data.session || null;
         return { ok: !!session, message: session ? '' : AUTH_COPY.signInFailed };
       } catch (err) { return fail(AUTH_COPY.network); }
@@ -171,14 +232,13 @@ export function createAuth(o) {
     async signUp(email, password, confirm) {
       const e = String(email || '').trim();
       if (!EMAIL.test(e)) return fail(AUTH_COPY.badEmail);
-      if (String(password || '').length < MIN_PASSWORD) return fail(AUTH_COPY.shortPassword);
+      if (String(password || '').length < PASSWORD_MIN_LENGTH) return fail(AUTH_COPY.shortPassword);
       if (password !== confirm) return fail(AUTH_COPY.mismatch);
       try {
         const { error } = await auth.signUp({ email: e, password, options: { emailRedirectTo: o.redirectTo } });
-        if (error && isNetwork(error)) return fail(AUTH_COPY.network);
-        /* An email that already has an account gets the same words as a new one. */
-        if (error && !/already (registered|exists)/i.test(String(error.message || ''))) return fail(AUTH_COPY.signUpFailed);
-        return { ok: true, message: AUTH_COPY.signUpSent };
+        /* An email that already has an account gets the same words as a new one (CODE_COPY). */
+        const key = error ? copyFor(error, SIGN_UP_SAYS, 'signUpFailed') : 'signUpSent';
+        return key === 'signUpSent' ? { ok: true, message: AUTH_COPY.signUpSent } : fail(AUTH_COPY[key]);
       } catch (err) { return fail(AUTH_COPY.network); }
     },
 
@@ -193,11 +253,11 @@ export function createAuth(o) {
     },
 
     async setNewPassword(password, confirm) {
-      if (String(password || '').length < MIN_PASSWORD) return fail(AUTH_COPY.shortPassword);
+      if (String(password || '').length < PASSWORD_MIN_LENGTH) return fail(AUTH_COPY.shortPassword);
       if (password !== confirm) return fail(AUTH_COPY.mismatch);
       try {
         const { error } = await auth.updateUser({ password });
-        if (error) return fail(isNetwork(error) ? AUTH_COPY.network : AUTH_COPY.passwordFailed);
+        if (error) return fail(AUTH_COPY[copyFor(error, NEW_PASSWORD_SAYS, 'passwordFailed')]);
         await refresh();
         return { ok: true, message: AUTH_COPY.passwordSet };
       } catch (err) { return fail(AUTH_COPY.network); }

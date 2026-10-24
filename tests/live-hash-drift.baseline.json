@@ -24,10 +24,10 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-10-24",
- "replay_ms": 65790,
+ "replay_ms": 71480,
  "counts": {
-  "tracked_names": 203,
-  "entries": 156
+  "tracked_names": 212,
+  "entries": 165
  },
  "functions": [
   {
@@ -315,17 +315,18 @@
     "2026-10-10-world-tick-presence-horizon.sql",
     "2026-10-22-hunt-sessions-settle.sql",
     "2026-10-23-hunt-world-state.sql",
-    "2026-10-25-character-sheet.sql"
+    "2026-10-25-character-sheet.sql",
+    "2027-01-12-market-account.sql"
    ],
    "live": {
-    "md5": "9532365a3a7283d74cd28e7778f18b75",
-    "norm_len": 47909,
+    "md5": "d2f98b3c252f83dfa5e1ed46a4d89fe9",
+    "norm_len": 50244,
     "measured": "2026-10-24",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "9532365a3a7283d74cd28e7778f18b75",
-    "norm_len": 47909,
+    "md5": "d2f98b3c252f83dfa5e1ed46a4d89fe9",
+    "norm_len": 50244,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -343,17 +344,18 @@
     "2026-09-12-hr-rejections-journal.sql",
     "2026-09-28-settle-before-mutate.sql",
     "2026-11-27-account-depot.sql",
-    "2026-11-28-storage-chests.sql"
+    "2026-11-28-storage-chests.sql",
+    "2027-01-12-market-account.sql"
    ],
    "live": {
-    "md5": "719d702192fc6c5bf113355c66150d50",
-    "norm_len": 8120,
+    "md5": "9a2f4c0dfe2528f8eda1f0f7126f7c1b",
+    "norm_len": 8200,
     "measured": "2026-10-24",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "719d702192fc6c5bf113355c66150d50",
-    "norm_len": 8120,
+    "md5": "9a2f4c0dfe2528f8eda1f0f7126f7c1b",
+    "norm_len": 8200,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -628,6 +630,28 @@
    "agree": true
   },
   {
+   "sig": "hr_cron_ensure(p_name text, p_schedule text, p_command text)",
+   "name": "hr_cron_ensure",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-08-11-player-state.sql"
+   ],
+   "live": {
+    "md5": "bb3e5561f8d5e8d5f07c55d718b5461b",
+    "norm_len": 304,
+    "measured": "2026-10-24",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "bb3e5561f8d5e8d5f07c55d718b5461b",
+    "norm_len": 304,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
    "sig": "hr_cron_health_ex(p_window interval, p_scale numeric)",
    "name": "hr_cron_health_ex",
    "tracked_by": [
@@ -742,6 +766,51 @@
    "replay": {
     "md5": "39c014b29862a18f75d20b4e59abb0bc",
     "norm_len": 1620,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_depot_cap(p_user uuid)",
+   "name": "hr_depot_cap",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-11-28-storage-chests.sql"
+   ],
+   "live": {
+    "md5": "18a5132aa4f951fc481a36f4b5312906",
+    "norm_len": 415,
+    "measured": "2026-10-24",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "18a5132aa4f951fc481a36f4b5312906",
+    "norm_len": 415,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_depot_view(p_user uuid, p_slot integer)",
+   "name": "hr_depot_view",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-11-28-storage-chests.sql",
+    "2027-01-12-market-account.sql"
+   ],
+   "live": {
+    "md5": "d72032600a90a85551abeca0ed5a8938",
+    "norm_len": 1570,
+    "measured": "2026-10-24",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "d72032600a90a85551abeca0ed5a8938",
+    "norm_len": 1570,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -2154,70 +2223,120 @@
    "agree": true
   },
   {
-   "sig": "hr_market_buy(p_user uuid, p_slot integer, p_version bigint, p_intent_id uuid, p_listing_id uuid, p_qty bigint)",
+   "sig": "hr_market_buy(p_user uuid, p_slot integer, p_version bigint, p_intent_id uuid, p_listing_id uuid, p_qty bigint, p_max_each bigint, p_deliver text)",
    "name": "hr_market_buy",
    "tracked_by": [
+    "chain",
     "pin"
    ],
    "touched_by": [
     "2026-08-17-market-v2.sql",
     "2026-09-28-settle-before-mutate.sql",
-    "2026-12-15-account-gold.sql"
+    "2026-12-15-account-gold.sql",
+    "2027-01-12-market-account.sql"
    ],
    "live": {
-    "md5": "c0a5e39a47eab25b3d185639afea05fb",
-    "norm_len": 22492,
+    "md5": "1b7ce4882b6401a33cfafff1fcac085c",
+    "norm_len": 16146,
     "measured": "2026-10-24",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "c0a5e39a47eab25b3d185639afea05fb",
-    "norm_len": 22492,
+    "md5": "1b7ce4882b6401a33cfafff1fcac085c",
+    "norm_len": 16146,
     "source": "computed-from-replay"
    },
    "agree": true
   },
   {
-   "sig": "hr_market_cancel(p_user uuid, p_slot integer, p_version bigint, p_intent_id uuid, p_listing_id uuid)",
+   "sig": "hr_market_cancel(p_user uuid, p_slot integer, p_intent_id uuid, p_listing_id uuid)",
    "name": "hr_market_cancel",
    "tracked_by": [
     "pin"
    ],
    "touched_by": [
     "2026-08-17-market-v2.sql",
-    "2026-09-28-settle-before-mutate.sql"
+    "2026-09-28-settle-before-mutate.sql",
+    "2027-01-12-market-account.sql"
    ],
    "live": {
-    "md5": "6d26d16ed7fa2b38896d8c0808118b8d",
-    "norm_len": 10079,
+    "md5": "27d781e2afca47e8a44958ce531ace93",
+    "norm_len": 7293,
     "measured": "2026-10-24",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "6d26d16ed7fa2b38896d8c0808118b8d",
-    "norm_len": 10079,
+    "md5": "27d781e2afca47e8a44958ce531ace93",
+    "norm_len": 7293,
     "source": "computed-from-replay"
    },
    "agree": true
   },
   {
-   "sig": "hr_market_list(p_user uuid, p_slot integer, p_version bigint, p_intent_id uuid, p_item_id text, p_qty bigint, p_ask_each bigint)",
+   "sig": "hr_market_expire(p_limit integer, p_only uuid)",
+   "name": "hr_market_expire",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-08-17-market-v2.sql",
+    "2027-01-12-market-account.sql"
+   ],
+   "live": {
+    "md5": "8de35150a39b26ff7c3a57c09fc197b6",
+    "norm_len": 1992,
+    "measured": "2026-10-24",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "8de35150a39b26ff7c3a57c09fc197b6",
+    "norm_len": 1992,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_market_list(p_user uuid, p_slot integer, p_version bigint, p_intent_id uuid, p_source text, p_item_id text, p_qty bigint, p_ask_each bigint)",
    "name": "hr_market_list",
    "tracked_by": [
     "pin"
    ],
    "touched_by": [
-    "2026-08-17-market-v2.sql"
+    "2026-08-17-market-v2.sql",
+    "2027-01-12-market-account.sql"
    ],
    "live": {
-    "md5": "b527321e54deb4699ba20155d9b1af30",
-    "norm_len": 12598,
+    "md5": "dd883a5ff6c0167a5baff4bb16c4570a",
+    "norm_len": 12522,
     "measured": "2026-10-24",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "b527321e54deb4699ba20155d9b1af30",
-    "norm_len": 12598,
+    "md5": "dd883a5ff6c0167a5baff4bb16c4570a",
+    "norm_len": 12522,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_market_listing_immutable()",
+   "name": "hr_market_listing_immutable",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-08-17-market-v2.sql",
+    "2027-01-12-market-account.sql"
+   ],
+   "live": {
+    "md5": "c9aaa4d41fa3f62c4bdd814175f33ca7",
+    "norm_len": 975,
+    "measured": "2026-10-24",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "c9aaa4d41fa3f62c4bdd814175f33ca7",
+    "norm_len": 975,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -2240,6 +2359,29 @@
    "replay": {
     "md5": "22daba03ad46c1931f4116141125e7af",
     "norm_len": 4007,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_name_restamp()",
+   "name": "hr_name_restamp",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-10-11-name-moderation.sql",
+    "2027-01-12-market-account.sql"
+   ],
+   "live": {
+    "md5": "f6e7a1981bc52ba01b5852fcb5a5d8c2",
+    "norm_len": 459,
+    "measured": "2026-10-24",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "f6e7a1981bc52ba01b5852fcb5a5d8c2",
+    "norm_len": 459,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -2729,6 +2871,28 @@
    "replay": {
     "md5": "ee5ac4592e6718d31df98694c7381ef0",
     "norm_len": 305,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_rate_sample_weight(p_over bigint)",
+   "name": "hr_rate_sample_weight",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-08-11-player-state.sql"
+   ],
+   "live": {
+    "md5": "20c576f8b9bb7e8ff4729b6af2d4ade5",
+    "norm_len": 419,
+    "measured": "2026-10-24",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "20c576f8b9bb7e8ff4729b6af2d4ade5",
+    "norm_len": 419,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -3235,6 +3399,28 @@
    "replay": {
     "md5": "a8f779c94aeb4a8fbcab329c3927d450",
     "norm_len": 6386,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_storage_room_fits(p_user uuid, p_item text)",
+   "name": "hr_storage_room_fits",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2027-01-12-market-account.sql"
+   ],
+   "live": {
+    "md5": "75ec99abb2d0132f8de27d3489f5bdf8",
+    "norm_len": 476,
+    "measured": "2026-10-24",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "75ec99abb2d0132f8de27d3489f5bdf8",
+    "norm_len": 476,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -3815,6 +4001,28 @@
    "replay": {
     "md5": "0d0ed3b05cde0bbdac584696fb159f90",
     "norm_len": 220,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_utc_day_start(p_at timestamp with time zone)",
+   "name": "hr_utc_day_start",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-08-11-daily-budget.sql"
+   ],
+   "live": {
+    "md5": "ce348acc75e88fbbb187db35a8dd3a38",
+    "norm_len": 276,
+    "measured": "2026-10-24",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "ce348acc75e88fbbb187db35a8dd3a38",
+    "norm_len": 276,
     "source": "computed-from-replay"
    },
    "agree": true

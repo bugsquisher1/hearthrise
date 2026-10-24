@@ -14,9 +14,15 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { MAX_CONDITIONS, MAX_IGNORED } from './condition-metrics.js?v=0.2.38';
+import { MAX_CONDITIONS, MAX_IGNORED } from './condition-metrics.js?v=0.2.39';
 
 export const REFUSAL_FALLBACK = 'That did not go through, so nothing was changed. Try again in a moment.';
+
+/* A code that reads better for the verb the engine refused (its answer echoes `verb`): verb -> code -> line, checked
+   before REFUSAL_WORDS. Gear is changed in town (equip.js refuses an equip while the hero's hunt is open). */
+export const REFUSAL_VERB_WORDS = Object.freeze({
+  equip: Object.freeze({ hunt_open: 'Leave the hunt to change gear.' }),
+});
 
 export const REFUSAL_WORDS = Object.freeze({
   /* The connection and the session. */
@@ -136,7 +142,7 @@ export const REFUSAL_WORDS = Object.freeze({
   too_many_ignored: 'A slot ignores at most ' + MAX_IGNORED + ' monsters.',
   store_off: 'This hero is set to end the hunt rather than buy from the store.',
   /* Hunts. */
-  hunt_open: 'Not while a hunt is running.',
+  hunt_open: 'Not while a hunt is running.',   // an equip's own line: REFUSAL_VERB_WORDS
   hunting: 'Not while a hunt is running.',
   hunt_leaving: 'This hero is already on the way back to town.',
   no_hunt: 'There is no hunt running.',
@@ -200,14 +206,14 @@ export const REFUSAL_WORDS = Object.freeze({
   no_request: 'That request has gone.',
   read_only: 'Nothing can be typed here.',
   /* Tamsin's tally (2026-12-23-tally-tasks.sql). */
-  weight_needed: 'Choose the armour weight Tamsin picks for you first.',
-  tally_full: 'You hold as many of her tasks as she gives at once. Finish or give one up first.',
+  weight_needed: 'Pick the armor weight Tamsin pays you in first.',
+  tally_full: 'You\'ve got as many of her tasks as she gives at once. Finish one or give one up first.',
   tally_in_town: 'Tamsin\'s board is on the Common. Take a task when you are back in town.',
   tally_pays_in_town: 'Tamsin pays when you are back in town.',
   unknown_task: 'Tamsin has no such task.',
   not_held: 'You do not hold that task.',
   already_held: 'You already hold that task.',
-  bad_order: 'Put each armour slot in the order once.',
+  bad_order: 'Each armor slot can only be in the order once.',
   bad_weight: 'Pick heavy, medium or light armour.',
   /* Older features a server body can still answer with. */
   on_cooldown: 'That is cooling down. Try again shortly.',

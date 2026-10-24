@@ -17,16 +17,19 @@
 // `equip` intent; the doll changes only when the re-read envelope replaces
 // `equipment`.
 // ════════════════════════════════════════════════════════════════════════
-import { ITEMS } from '../../../data/items.js?v=0.2.38';
-import { EQUIP_SLOT_META, expandItemSlot } from '../../../data/gathering.js?v=0.2.38';
-import { bagOf, skillsOf, shopOf } from '../../../session/item-sections.js?v=0.2.38';
-import { rows, text, cls, attr, prop, element } from '../../../render/paint.js?v=0.2.38';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.38';
-import { glyphSvg } from '../../launcher.js?v=0.2.38';
-import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.38';
-import { compare, rarityOf } from '../../bag-model.js?v=0.2.38';
-import { needOf } from '../../item-lore.js?v=0.2.38';
-import { showTip } from '../item-tip.js?v=0.2.38';
+import { ITEMS } from '../../../data/items.js?v=0.2.39';
+import { EQUIP_SLOT_META, expandItemSlot } from '../../../data/gathering.js?v=0.2.39';
+import { bagOf, skillsOf, shopOf } from '../../../session/item-sections.js?v=0.2.39';
+import { rows, text, cls, attr, prop, element } from '../../../render/paint.js?v=0.2.39';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.39';
+import { glyphSvg } from '../../launcher.js?v=0.2.39';
+import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.39';
+import { compare, rarityOf } from '../../bag-model.js?v=0.2.39';
+import { needOf } from '../../item-lore.js?v=0.2.39';
+import { gearLocked, GEAR_HUNT_WORDS } from '../../gear-gate.js?v=0.2.39';
+import { whyLine } from '../../widgets/why-line.js?v=0.2.39';
+import { levelOf } from '../../../session/character-sections.js?v=0.2.39';
+import { showTip } from '../item-tip.js?v=0.2.39';
 
 /* Body order, row by row: [slot, label, empty glyph]. */
 export const DOLL = Object.freeze([
@@ -55,6 +58,7 @@ export function dollHtml(g) {
 export function slotLineHtml() {
   return '<div class="hw-slotline"><h3 class="hw-slothead"></h3>'
     + '<div class="hw-worn"><span class="hw-ico"></span><span class="hw-worn-name"></span><button type="button" class="hh-tool" data-hs-act="unequip">Take off</button></div>'
+    + '<p class="hw-why hw-slot-why" role="status" aria-live="polite"></p>'
     + '<ul class="hw-fits"></ul><p class="hh-empty hw-nofit">Nothing in your bag fits here.</p></div>';
 }
 
@@ -100,9 +104,15 @@ export function patchSlotLine(root, st, ctx) {
   cls(wr, 'is-on', !!worn);
   if (wr.getAttribute('data-item') !== (worn || '')) { attr(wr, 'data-item', worn || ''); wr.querySelector('.hw-ico').innerHTML = worn ? itemIconHtml(ctx.glyphs, worn) : ''; }
   text(wr.querySelector('.hw-worn-name'), worn ? itemName(worn) : '');
-  prop(wr.querySelector('button'), 'disabled', sc.pending || !worn);
+  /* A running hunt turns every gear press here off (gear-gate.js: the engine refuses it), and the line says why;
+     else the line holds its last press's answer. */
+  const locked = gearLocked(st.cs);
+  prop(wr.querySelector('button'), 'disabled', sc.pending || !worn || locked);
+  const said = sc.msgAt === 'slot' && !!sc.msg;
+  whyLine(line.querySelector('.hw-slot-why'), said ? sc.msg : locked ? GEAR_HUNT_WORDS.one : '', said);
   const fits = fitsFor(sc.slot, bagOf(st.cs) || [], eq);
   const skills = skillsOf(st.cs);
+  const lv = levelOf(st.cs);
   rows(line.querySelector('.hw-fits'), fits, {
     key: (f) => f.id,
     build: (f) => element(ctx.doc, '<li class="hw-fit" data-hs-act="fit-row" data-item="' + esc(f.id) + '"><span class="hw-ico">' + itemIconHtml(ctx.glyphs, f.id) + '</span>'
@@ -115,9 +125,11 @@ export function patchSlotLine(root, st, ctx) {
         attr(dl, 'data-sig', sig);
         dl.innerHTML = f.delta.length ? f.delta.map((d) => '<span class="' + (d.delta > 0 ? 'is-gain' : 'is-loss') + '">' + esc(d.text + ' ' + d.label) + '</span>').join(', ') : 'No change';
       }
-      const need = needOf(f.id, skills);
-      text(li.querySelector('.hw-fit-need'), need && need.short ? need.text : '');
-      prop(li.querySelector('button'), 'disabled', sc.pending);
+      /* a requirement the server's numbers say is unmet: the row says it, and its Wear is off */
+      const need = needOf(f.id, skills, lv ? lv.level : null);
+      const short = !!need && need.short;
+      text(li.querySelector('.hw-fit-need'), short ? need.text : '');
+      prop(li.querySelector('button'), 'disabled', sc.pending || locked || short);
     },
   });
   cls(line.querySelector('.hw-nofit'), 'is-on', !fits.length);
@@ -129,5 +141,7 @@ export function dollTip(ctx, st, t, action) {
   if (!id) return;
   const slot = action === 'slot' ? t.getAttribute('data-slot') : st.sc.slot;
   const shop = shopOf(st.cs);
-  showTip(ctx.doc, t, id, { worn: action === 'slot' ? id : (st.eq[slot] || null), skills: skillsOf(st.cs), bid: shop ? (shop.bids.has(id) ? shop.bids.get(id) : null) : undefined });
+  const lv = levelOf(st.cs);
+  showTip(ctx.doc, t, id, { worn: action === 'slot' ? id : (st.eq[slot] || null), skills: skillsOf(st.cs), level: lv ? lv.level : null,
+    bid: shop ? (shop.bids.has(id) ? shop.bids.get(id) : null) : undefined });
 }

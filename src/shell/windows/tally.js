@@ -16,17 +16,17 @@
 // (hr_tally_view). Every control is off while an intent is in flight; the window
 // changes only from the re-read envelope and her next answer.
 // ════════════════════════════════════════════════════════════════════════
-import { tallyOf, tallyLine, waitWords, pickWords } from '../../session/tally-sections.js?v=0.2.38';
-import { tallyBoard, takeTask, dropTask, setTally, collectTally } from '../../session/tally-intents.js?v=0.2.38';
-import { huntOf } from '../../session/hunt-sections.js?v=0.2.38';
-import { huntName } from '../../session/party-sections.js?v=0.2.38';
-import { goldOf } from '../../session/item-sections.js?v=0.2.38';
-import { TALLY_KEEPER, TALLY_RULES, tallyTask } from '../../data/tally-tasks.js?v=0.2.38';
-import { rows, text, cls, attr, prop, style, element } from '../../render/paint.js?v=0.2.38';
-import { whole, gold } from '../../render/format.js?v=0.2.38';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.38';
-import { itemName } from '../widgets/bits.js?v=0.2.38';
-import { runIntent, refusalText } from '../intent-words.js?v=0.2.38';
+import { tallyOf, tallyLine, waitWords, pickWords } from '../../session/tally-sections.js?v=0.2.39';
+import { tallyBoard, takeTask, dropTask, setTally, collectTally } from '../../session/tally-intents.js?v=0.2.39';
+import { huntOf } from '../../session/hunt-sections.js?v=0.2.39';
+import { huntName } from '../../session/party-sections.js?v=0.2.39';
+import { goldOf } from '../../session/item-sections.js?v=0.2.39';
+import { TALLY_KEEPER, TALLY_RULES, tallyTask } from '../../data/tally-tasks.js?v=0.2.39';
+import { rows, text, cls, attr, prop, style, element } from '../../render/paint.js?v=0.2.39';
+import { whole, gold } from '../../render/format.js?v=0.2.39';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.39';
+import { itemName } from '../widgets/bits.js?v=0.2.39';
+import { runIntent, refusalText } from '../intent-words.js?v=0.2.39';
 
 const SCRATCH = new WeakMap();
 /* `board` is her last answer (null until it comes), `asking` the read in flight, `stale` asks again,
@@ -49,15 +49,15 @@ export function renderTally(ctx) {
     + '<header class="ht-keeper"><b>' + esc(TALLY_KEEPER.name) + '</b><small>' + esc(TALLY_KEEPER.title) + '</small>'
     + '<p class="hs-note">' + esc(TALLY_KEEPER.greeting) + '</p></header>'
     + '<p class="hw-cap"><span class="ht-today"></span><span class="hw-gold"></span></p>'
-    + '<h3 class="hw-ledger-head is-on">Your tallies</h3><ul class="hw-ledger ht-held"></ul>'
-    + '<p class="hh-empty ht-none">You hold no tally. Take one from her board.</p>'
-    + '<h3 class="hw-ledger-head is-on">Her pick for you</h3>'
+    + '<h3 class="hw-ledger-head is-on">Your tasks</h3><ul class="hw-ledger ht-held"></ul>'
+    + '<p class="hh-empty ht-none">You don\'t have a task from her yet. Take one from her board below.</p>'
+    + '<h3 class="hw-ledger-head is-on">The armor she pays you in</h3>'
     + '<p class="hs-note ht-pick-note"></p>'
-    + '<div class="ht-weights" role="group" aria-label="The armour weight she picks for">'
+    + '<div class="ht-weights" role="group" aria-label="The armor weight she pays you in">'
     + TALLY_RULES.weights.map((w) => '<button type="button" class="hh-seg" data-hs-act="weight" data-weight="' + w + '" aria-pressed="false">' + WEIGHT_WORDS[w] + '</button>').join('')
-    + '</div><ol class="ht-order" aria-label="The order she picks slots in"></ol>'
+    + '</div><ol class="ht-order" aria-label="The order she pays armor slots in"></ol>'
     + '<h3 class="hw-ledger-head is-on">Her board</h3><ul class="hw-ledger ht-board"></ul>'
-    + '<p class="hh-empty ht-wait">Her board loads from the server.</p>'
+    + '<p class="hh-empty ht-wait">Loading her board…</p>'
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></div>';
 }
 
@@ -81,7 +81,7 @@ function patchHeld(li, h, st) {
   style(li.querySelector('.ht-stick i'), 'width', pct + '%');
   attr(li.querySelector('.ht-stick'), 'aria-valuenow', pct);
   cls(li, 'is-done', h.done);
-  text(li.querySelector('small'), h.done ? waitWords(st.t, h, st.hunting) : 'Counts in ' + huntName(h.hunt) + ', even while you are away.');
+  text(li.querySelector('small'), h.done ? waitWords(st.t, h, st.hunting) : 'Every kill in ' + huntName(h.hunt) + ' counts, even while you\'re away.');
   const keep = li.querySelector('[data-hs-act="keep"]');
   prop(keep, 'checked', h.keep);
   prop(keep, 'disabled', st.sc.pending);
@@ -105,7 +105,7 @@ function patchOrder(root, st) {
   rows(root.querySelector('.ht-order'), order, {
     key: String,
     build: (s) => element(st.doc, '<li class="ht-slot"><span>' + esc(SLOT_WORDS[s] || s) + '</span>'
-      + '<button type="button" class="hh-tool" data-hs-act="earlier" data-slot-name="' + esc(s) + '" aria-label="Pick ' + esc(SLOT_WORDS[s] || s) + ' earlier">Earlier</button></li>'),
+      + '<button type="button" class="hh-tool" data-hs-act="earlier" data-slot-name="' + esc(s) + '" aria-label="Move ' + esc(SLOT_WORDS[s] || s) + ' earlier">Earlier</button></li>'),
     patch: (li, s) => prop(li.querySelector('button'), 'disabled', st.sc.pending || order.indexOf(s) === 0),
   });
 }
@@ -124,8 +124,9 @@ renderTally.patch = function patchTally(body, ctx) {
   text(root.querySelector('.ht-today'), t ? 'Paid today: ' + t.paidToday + ' of ' + t.perDay : '');
   rows(root.querySelector('.ht-held'), t ? t.held : [], { key: (x) => x.task, build: (x) => element(ctx.doc, heldHtml(x)), patch: (li, x) => patchHeld(li, x, st) });
   cls(root.querySelector('.ht-none'), 'is-on', !!t && !t.held.length);
-  text(root.querySelector('.ht-pick-note'), !t ? '' : !t.weight ? 'Choose the armour weight she picks for. You can change it later.'
-    : 'Each pays its gold and the next ' + WEIGHT_WORDS[t.weight].toLowerCase() + ' piece of that ground she has not given you, slot by slot in this order. After every piece, its materials.');
+  text(root.querySelector('.ht-pick-note'), !t ? '' : !t.weight ? 'Pick the armor weight she pays you in. You can change it later.'
+    : 'Each task pays its gold and one ' + WEIGHT_WORDS[t.weight].toLowerCase() + ' armor piece from that ground she hasn\'t given you yet, in the slot order below. '
+      + 'Once you\'ve had every piece, she pays in crafting materials instead.');
   for (const b of root.querySelectorAll('[data-hs-act="weight"]')) {
     attr(b, 'aria-pressed', String(!!t && t.weight === b.getAttribute('data-weight')));
     prop(b, 'disabled', sc.pending || !t);
@@ -134,7 +135,7 @@ renderTally.patch = function patchTally(body, ctx) {
   const board = sc.board ? sc.board.board : [];
   rows(root.querySelector('.ht-board'), board, { key: (r) => r.task, build: (r) => element(ctx.doc, boardHtml(r)), patch: (li, r) => patchOffer(li, r, st) });
   cls(root.querySelector('.ht-wait'), 'is-on', !sc.board);
-  text(root.querySelector('.ht-wait'), st.hunting ? 'Her board is on the Common: take tasks when you are back in town.' : 'Her board loads from the server.');
+  text(root.querySelector('.ht-wait'), st.hunting ? 'Her board is on the Common: take tasks when you are back in town.' : 'Loading her board…');
   const repaint = () => ctx.refresh('tally');
   /* HER ANSWER, once per opening and after every intent (a read, never the record). */
   if (sc.stale && !sc.asking && ctx.account) {
@@ -150,8 +151,8 @@ renderTally.patch = function patchTally(body, ctx) {
   const key = due.map((x) => x.task + '@' + x.doneAt).join(',');
   if (due.length && sc.collected !== key && !sc.pending && ctx.account) {
     sc.collected = key;
-    runIntent(sc, repaint, () => collectTally(ctx.account, cs), 'Tamsin counts your tally…',
-      (r) => { sc.stale = true; return r.paid ? 'Tamsin paid you for ' + r.paid + (r.paid === 1 ? ' tally.' : ' tallies.') : ''; }, cs);
+    runIntent(sc, repaint, () => collectTally(ctx.account, cs), 'Tamsin checks your tasks…',
+      (r) => { sc.stale = true; return r.paid ? 'Tamsin paid you for ' + r.paid + (r.paid === 1 ? ' task.' : ' tasks.') : ''; }, cs);
   }
 };
 
@@ -165,20 +166,20 @@ renderTally.act = function actTally(ctx, body, action, ev, t) {
   const task = t.getAttribute('data-task');
   if (action === 'keep' && ev.type === 'change') {
     const on = !!t.checked;
-    run(() => setTally(ctx.account, cs, { task, keep: on }), 'Saving…', () => (on ? 'She will give you this task again the moment it pays.' : 'She will not give it again by itself.'));
+    run(() => setTally(ctx.account, cs, { task, keep: on }), 'Saving…', () => (on ? 'You get this task again as soon as she pays for it.' : 'Once she pays for it, it won\'t come back by itself.'));
     return true;
   }
   if (ev.type !== 'click') return false;
   if (action === 'take') {
     const row = tallyTask(task);
     run(() => takeTask(ctx.account, cs, task, null), 'Taking it…',
-      () => 'Taken. Every kill in ' + (row ? huntName(row.hunt) : 'that hunt') + ' counts, even while you are away.');
+      () => 'Taken. Every kill in ' + (row ? huntName(row.hunt) : 'that hunt') + ' counts, even while you\'re away.');
     return true;
   }
   if (action === 'drop') { run(() => dropTask(ctx.account, cs, task), 'Giving it up…', () => labelOf(task) + ': given up. Its count is gone.'); return true; }
   if (action === 'weight') {
     const w = t.getAttribute('data-weight');
-    run(() => setTally(ctx.account, cs, { weight: w }), 'Saving…', () => 'She picks ' + WEIGHT_WORDS[w].toLowerCase() + ' armour for you.');
+    run(() => setTally(ctx.account, cs, { weight: w }), 'Saving…', () => 'She\'ll pay you in ' + WEIGHT_WORDS[w].toLowerCase() + ' armor from now on.');
     return true;
   }
   if (action === 'earlier') {

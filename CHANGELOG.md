@@ -5,6 +5,20 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.39 — 2026-10-24 (Clearer screens)
+
+**Fold away "What next".** A small button on the "What next" card folds it down to its title. It stays folded after a reload, and a gold mark shows when there's a new goal.
+
+**Drops show their odds.** The Hunts page lists what each ground drops with its chance per kill, instead of "about every hour", and the creatures now face you.
+
+**Gear tells you why.** Equip and Equip upgrades now say why they can't be used, like "Leave the hunt to put these on" or a requirement you haven't met, instead of doing nothing.
+
+**House builds use your Storage.** Rooms, properties and storage chests take materials from your bag first, then from Storage. The House window shows both counts.
+
+**Faster to load.** The characters screen and your heroes open about twice as fast, and the world downloads far less art before you can play.
+
+**Tamsin speaks plainly**, and the longbow icon finally looks like a longbow.
+
 ## v0.2.38 — 2026-10-23 (Straight shooting)
 
 **Rangers fire their abilities.** Precision Shot and Flame Volley now fire when you pick your arrows on the bar, not only when arrows are worn in the ammo slot. A bow no longer shoots whetstones (the slot says why), and the Configure window only offers ammo your weapon can shoot.

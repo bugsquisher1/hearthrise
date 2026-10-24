@@ -1259,27 +1259,22 @@ const run = async () => {
         + 'by name with gold measured.');
     }
 
-    /* ── The market guard (market v2) ───────────────────────────────────
-       THE FIRST CROSS-PLAYER VALUE TRANSFER. Every other economy guard in this
-       suite measures ONE character, because every other verb touches one;
-       hr_market_buy is the first function that writes a row belonging to
-       somebody who is not the caller, so this one measures BOTH and states its
-       assertions as conservation identities (Σgold+Σtax, Σitems+Σescrow). The
-       whole migration chain replays here, so 2026-08-17-market-v2.sql's own
-       self-verifying blocks — §0's refuse-to-install with both scan controls
-       and §11's structural, source, cron and immutability checks — execute on
-       every suite run. `node tests/market-v2.mjs --selftest` plants seventeen
-       real defects; every one must read RED. */
+    /* ── The market guard (the ACCOUNT market, 2027-01-12-market-account.sql) ──
+       THE CROSS-ACCOUNT VALUE TRANSFER. Every purse, bag, Storage stack and the
+       escrow are measured and every assertion is a conservation identity
+       (Σpurses+Σcut+Σfees, Σbags+ΣStorage+Σescrow). The whole chain replays here,
+       so the migration's own §0 pins and §9 self-check execute on every suite run.
+       `node tests/market-v2.mjs --selftest` plants every threat-model rule's defect;
+       every one must read RED (`--no-selfcheck` proves the legs catch each alone). */
     const marketProblems = (await marketV2Guard()).failures;
     if (marketProblems.length) {
-      console.log('\nMarket v2 guard (two-player transfer) — FAILED:');
+      console.log('\nMarket guard (account market) — FAILED:');
       for (const p of marketProblems) console.log(`  x ${p}`);
       exitCode = 1;
     } else {
-      console.log('\nMarket v2 guard — a real list/buy moves gold and items between two real '
-        + 'characters exactly once; replay, stale version, self-trade, a stranger\'s cancel, a '
-        + 'double collect, a racing expiry and both per-day transfer fuses all refuse by name, '
-        + 'with BOTH sides measured and conservation held.');
+      console.log('\nMarket guard — list from a bag or Storage, buy into Storage or a bag, cancel and '
+        + 'expiry into Storage, each exactly once across three accounts; per-account caps, the listable '
+        + 'rule, same-account refusal, max price, the switch, the lock order and anonymity all hold.');
     }
 
     /* ── The market's EDGE half (b355) RETIRED 2026-10-19: the market_list / market_cancel /
@@ -1944,7 +1939,7 @@ const run = async () => {
       'Core guard', 'Accrual guard', 'Auto-eat authority guard', 'Perk channel guard',
       'Artisan progress model guard', 'Goal counters guard', 'Artisan accrual guard',
       'Live settlement Phase 0', 'Equip intent (Phase 2)', 'Skill-row upsert',
-      'Unlock purchase guard', 'Market v2 guard',
+      'Unlock purchase guard', 'Market guard',
       /* 'Market intent guard' — REMOVED 2026-10-20: tests/market-intent.mjs retired with the market edge verbs
          in e634976 (2026-10-19), which left its marker here; masked on main until the native-dialog red cleared. */
       /* 'Cutover import guard' — REMOVED 2026-09-07 with tests/cutover-import.mjs, whose

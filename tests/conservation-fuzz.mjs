@@ -15,18 +15,22 @@
 //
 //   for every item id:
 //     Σ player_inventory.qty + Σ player_equipment (1 per row)
-//                             + Σ market_listings.qty
-//                             + Σ account_bank.qty (the ACCOUNT's Storage)
+//       + Σ account_bank.qty (Storage, one per ACCOUNT)
+//       + Σ hunt_bag.qty_left (a running hunt's packed supplies)
+//       + Σ market_listings.qty (the escrow)
 //        == opening + Σ intended mints − Σ intended burns
 //
-//   Σ account_wallet.gold (ONE purse per account, 2026-12-15-account-gold.sql) + Σ market_sales.tax
+//   Σ account_wallet.gold (ONE purse per account, 2026-12-15-account-gold.sql)
+//       + Σ market_sales.tax (the cut) + Σ listing fees (market_list ledger rows)
 //        == opening + Σ intended mints − Σ intended burns
 //
-// The escrow path is the one this exists for: under market v2 A LISTING IS
-// THE ESCROW — market_list DELETEs the goods out of player_inventory and the
-// listing row is the only record that they exist — so list→cancel, list→buy
-// and list→expire must each conserve EXACTLY, with no third place for a stack
-// to hide.
+// The escrow path is the one this exists for: A LISTING IS THE ESCROW — list
+// DEBITS the goods out of a hero's bag or the account's Storage and the listing
+// row is the only record that they exist; cancel and expiry return them to
+// Storage (2027-01-12-market-account.sql) — so list→cancel, list→buy and
+// list→expire must each conserve EXACTLY. Storage and the hunt bag are counted
+// because the market threat model (2026-10-24, #6) found a dupe through either
+// would have passed this file: they were the two places it did not look.
 //
 // STORAGE IS IN THE IDENTITY (2027-01-10-house-from-storage.sql; Security's
 // marketplace threat model 2026-10-24 #6): a house build takes its materials from
@@ -76,7 +80,7 @@
 // ── FALSIFIABILITY (report this first, not the clean run) ───────────────
 // The always-null-probe class — an assertion that passes while asserting
 // nothing — has bitten this program six times. So the harness is required to
-// prove it can fail: `--selftest` applies each of the EIGHTEEN known conservation
+// prove it can fail: `--selftest` applies each of the TWENTY-TWO known conservation
 // violations in INJECTIONS as a textual patch to the real migration SQL, re-runs
 // the fuzz, and demands that every one of them is CAUGHT. (The count is stated
 // here because it used to say EIGHT while the catalogue held sixteen — a number
@@ -180,11 +184,10 @@ const INJECTION_FILES = Object.freeze({
      pointing at a real file, because a key that still resolves is a key the next
      arm will use, and using it re-creates exactly this bug. */
   'grant-hygiene': '2026-08-11-grant-hygiene.sql',
-  /* ⚠ 2026-08-17, NOT 2026-08-11. The old file is DELETED; the six market
-     injections below are re-anchored on the re-derivation, verbatim from
-     tests/market-v2.mjs's mutation catalogue so the two agree by construction
-     rather than by two people typing the same SQL. */
-  'market-v2': '2026-08-17-market-v2.sql',
+  /* 2027-01-12 (lane c-market-account): the account market's file. Its §9 refuses a sweep that
+     does not arbitrate by DELETE, which is expire_double's gate; every other market plant is a
+     `final:` one (the §9 probes would score them first). */
+  'market-account': '2027-01-12-market-account.sql',
 });
 
 /* ── THE FOURTH KIND OF TARGET: THE BODY THE CHAIN ENDS UP WITH ────────────
@@ -270,7 +273,14 @@ const INJECTION_FINAL_BODIES = Object.freeze({
      RESTATES hr_market_buy whole (both gold moves go through the ACCOUNT purse, hr_purse_move), so the
      two buy plants that lived in 2026-08-17-market-v2.sql would be replaced by the clean body. The
      honest target is the body the chain ends with, scored by reconcile(). */
-  'market-buy-final': 'public.hr_market_buy(uuid,integer,bigint,uuid,uuid,bigint)',
+  /* 2027-01-12 (lane c-market-account) re-derives every market verb on the ACCOUNT with new
+     signatures, and its §9 executes each, so every market plant targets the body the chain ends with. */
+  'market-buy-final': 'public.hr_market_buy(uuid,integer,bigint,uuid,uuid,bigint,bigint,text)',
+  'market-list-final': 'public.hr_market_list(uuid,integer,bigint,uuid,text,text,bigint,bigint)',
+  'market-cancel-final': 'public.hr_market_cancel(uuid,integer,uuid,uuid)',
+  'market-expire-final': 'public.hr_market_expire(integer,uuid)',
+  'bank-move-final': 'public.hr_bank_move(integer,text,bigint,text,uuid)',
+  'restock-final': 'public.hr_hunt_restock(integer,text,bigint,uuid)',
   /* 2027-01-10 (lane c-house-from-storage): the ONE material take of a house build. Its own file's §5
      executes it, so the plant goes in the body the chain ends with and reconcile() grades it. */
   'house-take-final': 'public.hr_materials_take(uuid,integer,jsonb,boolean)',
@@ -320,45 +330,72 @@ const SEED_ARG = argOf('seed', null);
 // `node tests/conservation-fuzz.mjs --selftest` is what proves that, arm by arm.
 // ════════════════════════════════════════════════════════════════════════
 const INJECTIONS = {
-  /* ⚠ THE SIX MARKET PLANTS ARE tests/market-v2.mjs's, PORTED VERBATIM. Two
-     guards drive the same three functions and each has to be able to fail; two
-     independently-typed copies of one anchor is two anchors, and the one nobody
-     re-ran after an edit is the one that silently stops planting. Where the
-     names differ (`cancel_vanish` here is `cancel_no_return` there) the name is
-     this file's and the SQL is that file's, byte for byte. */
+  /* ⚠ THE MARKET PLANTS MIRROR tests/market-v2.mjs's (2027-01-12-market-account.sql). Two guards
+     drive the same verbs and each has to be able to fail. They are `final:` plants: the account
+     market's own §9 executes every verb on probe accounts, so a plant in the FILE would be scored
+     by that self-check instead of by this file's identities (the rule above). */
   cancel_vanish: {
-    what: 'market_cancel deletes the listing but never returns the escrow — the stack ceases to exist',
-    file: 'market-v2',
-    /* ⚠ THE ESCROW IS NOT RETURNED AT ALL, rather than returned as ZERO — and
-       the difference decides whether this plant can be caught HERE. Returning 0
-       trips player_inventory's own `qty > 0` CHECK, which market-v2's exception
-       handler turns into a `bad_market_write` REFUSAL: nothing moves, so every
-       conservation identity holds and the plant slips. tests/market-v2.mjs
-       catches the zero form because it asserts the cancel SUCCEEDS; this
-       harness's cancel verdict is advisory (a cancel may legitimately be
-       refused for bank_full), so the plant has to let the cancel succeed and
-       destroy the stack. Measured: the zero form SLIPPED here on 400 ops. */
+    what: 'market_cancel deletes the listing but never returns the escrow to Storage — the stack ceases to exist',
+    final: 'market-cancel-final',
+    /* ⚠ THE ESCROW IS NOT RETURNED AT ALL, rather than returned as ZERO: a zero return trips
+       account_bank's own `qty > 0` CHECK, the exception handler refuses the cancel and nothing
+       moves (the plant would slip). The cancel must succeed and destroy the stack. */
     patches: [[
-      '    insert into public.player_inventory as pi (user_id, slot, item_id, qty)\n'
-      + '      values (v_uid, v_slot, v_row.item_id, v_row.qty)\n'
-      + '      on conflict (user_id, slot, item_id) do update set qty = pi.qty + excluded.qty;',
+      '    insert into public.account_bank as b (user_id, item_id, qty, updated_at)\n'
+      + '      values (v_uid, v_row.item_id, v_row.qty, now())\n'
+      + '      on conflict (user_id, item_id) do update set qty = b.qty + excluded.qty, updated_at = now();',
       '    -- INJECTED cancel_vanish: the escrow is simply not returned',
     ]],
   },
 
-  list_no_escrow: {
-    what: 'market_list posts the listing without debiting the seller — the goods exist twice',
-    file: 'market-v2',
-    /* BOTH branches, because the debit has a whole-stack form and a
-       partial-stack form and a plant that disarmed only one would be caught by
-       whichever leg happened to take the other. */
+  storage_return_keeps_listing: {
+    what: 'market_cancel returns the units to Storage but never deletes the listing — the goods exist twice '
+      + '(the threat model\'s #6 mutant: a Storage return without the delete-as-arbiter)',
+    final: 'market-cancel-final',
     patches: [[
-      '    if v_have = p_qty then\n      delete from public.player_inventory\n'
-      + '       where user_id = v_uid and slot = v_slot and item_id = p_item_id;\n    else\n'
-      + '      update public.player_inventory set qty = v_have - p_qty\n'
-      + '       where user_id = v_uid and slot = v_slot and item_id = p_item_id;\n    end if;',
-      '    if false then\n      delete from public.player_inventory\n'
-      + '       where user_id = v_uid and slot = v_slot and item_id = p_item_id;\n    end if;',
+      '    delete from public.market_listings where id = p_listing_id and user_id = v_uid returning * into v_row;',
+      '    select * into v_row from public.market_listings where id = p_listing_id and user_id = v_uid;  -- INJECTED storage_return_keeps_listing',
+    ]],
+  },
+
+  expire_keeps_listing: {
+    what: 'the expiry sweep returns the units to Storage but leaves the listing in place — the goods exist twice',
+    final: 'market-expire-final',
+    patches: [[
+      '      delete from public.market_listings where id = v_c.id returning * into v_row;',
+      '      select * into v_row from public.market_listings where id = v_c.id;  -- INJECTED expire_keeps_listing',
+    ]],
+  },
+
+  list_no_escrow: {
+    what: 'market_list posts the listing without debiting the seller\'s bag — the goods exist twice',
+    final: 'market-list-final',
+    /* BOTH branches of the bag debit, because it has a whole-stack form and a partial-stack form
+       and a plant that disarmed only one would be caught by whichever leg took the other. */
+    patches: [[
+      '      if v_have = p_qty then\n        delete from public.player_inventory where user_id = v_uid and slot = v_slot and item_id = p_item_id;\n'
+      + '      else\n        update public.player_inventory set qty = v_have - p_qty\n         where user_id = v_uid and slot = v_slot and item_id = p_item_id;\n      end if;',
+      '      null;  -- INJECTED list_no_escrow',
+    ]],
+  },
+
+  bank_deposit_no_debit: {
+    what: 'a Storage deposit credits the account\'s Storage without debiting the hero\'s bag — a dupe through Storage',
+    final: 'bank-move-final',
+    patches: [[
+      '    if v_have = p_qty then\n      delete from public.player_inventory\n        where user_id = v_uid and slot = p_slot and item_id = p_item;\n'
+      + '    else\n      update public.player_inventory set qty = qty - p_qty\n        where user_id = v_uid and slot = p_slot and item_id = p_item;\n    end if;',
+      '    null;  -- INJECTED bank_deposit_no_debit',
+    ]],
+  },
+
+  restock_no_debit: {
+    what: 'a hunt restock packs supplies into the hunt bag without debiting the hero\'s bag — a dupe through the packed bag',
+    final: 'restock-final',
+    patches: [[
+      '  if v_have = p_qty then\n    delete from public.player_inventory where user_id = v_uid and slot = p_slot and item_id = p_item;\n'
+      + '  else\n    update public.player_inventory set qty = qty - p_qty where user_id = v_uid and slot = p_slot and item_id = p_item;\n  end if;',
+      '  null;  -- INJECTED restock_no_debit',
     ]],
   },
 
@@ -396,7 +433,7 @@ const INJECTIONS = {
 
   buy_no_debit: {
     what: 'market_buy pays the seller and delivers the goods but never debits the buyer',
-    /* 2026-12-15: hr_market_buy's last author is 2026-12-15-account-gold.sql (the ACCOUNT purse). */
+    /* 2027-01-12: hr_market_buy's last author is 2027-01-12-market-account.sql (account to account). */
     final: 'market-buy-final',
     patches: [[
       '    v_bpurse := public.hr_purse_move(v_uid, -v_gross, 0);',
@@ -417,11 +454,11 @@ const INJECTIONS = {
        internally consistent: one gold per trade destroyed, no tax row for it,
        and the Σgold identity is the only thing that can see it. Measured: the
        `v_net` form SLIPPED here on 400 ops. */
-    /* 2026-12-15: the seller's credit lands in the ACCOUNT purse (2026-12-15-account-gold.sql's hr_market_buy). */
+    /* 2027-01-12: the seller's credit lands in the selling ACCOUNT's purse (2027-01-12-market-account.sql). */
     final: 'market-buy-final',
     patches: [[
-      '    v_spurse := public.hr_purse_move(v_row.seller_user_id, v_net, 0);',
-      '    v_spurse := public.hr_purse_move(v_row.seller_user_id, greatest(0, v_net - 1), 0);  -- INJECTED tax_skim',
+      '    v_spurse := public.hr_purse_move(v_row.user_id, v_net, 0);',
+      '    v_spurse := public.hr_purse_move(v_row.user_id, greatest(0, v_net - 1), 0);  -- INJECTED tax_skim',
     ]],
   },
 
@@ -516,21 +553,20 @@ const INJECTIONS = {
 
   expire_double: {
     what: 'hr_market_expire reads the listing and then deletes it, instead of letting the DELETE be '
-      + 'the arbiter — so an expiry racing a cancel returns one escrow to the bag twice',
-    file: 'market-v2',
-    /* ⚠ `gate:` — AND THIS IS THE STRONGEST OUTCOME ON THE LIST. market-v2 §11
-       scans its own installed body for the delete-as-arbiter shape and REFUSES
-       TO INSTALL without it, so the bug cannot reach a database at all. A
-       runtime catch would be weaker: it would mean the broken build shipped and
-       something noticed afterwards. Recorded as a gate rather than "fixed" by
-       finding a plant that evades the check — evading a commit gate to prove a
-       runtime detector works is testing the wrong thing. */
-    gate: /hr_market_expire does not use DELETE/,
+      + 'the arbiter — so an expiry racing a cancel returns one escrow to Storage twice',
+    file: 'market-account',
+    /* ⚠ `gate:` — AND THIS IS THE STRONGEST OUTCOME ON THE LIST. The account market's §9 (c)
+       scans its own installed sweep for the try-lock / skip-locked / delete-as-arbiter shape and
+       REFUSES TO INSTALL without it, so the bug cannot reach a database at all (one backend could
+       not race it at runtime anyway). Recorded as a gate rather than "fixed" by finding a plant
+       that evades the check — evading a commit gate to prove a runtime detector is testing the
+       wrong thing. */
+    gate: /hr_market_expire must TRY the Storage lock/,
     patches: [[
-      '    delete from public.market_listings where id = v_id returning * into v_row;\n'
-      + '    if not found then continue; end if;   -- a cancel or a buy took it first',
-      '    select * into v_row from public.market_listings where id = v_id;\n'
-      + '    delete from public.market_listings where id = v_id;',
+      '      delete from public.market_listings where id = v_c.id returning * into v_row;\n'
+      + '      if not found then continue; end if;',
+      '      select * into v_row from public.market_listings where id = v_c.id;\n'
+      + '      delete from public.market_listings where id = v_c.id;',
     ]],
   },
 
@@ -641,11 +677,11 @@ const INJECTIONS = {
   budget_market_credit_charged: {
     what: "market_buy stamps the seller's credit as progression inflow — selling a hoard burns the "
       + 'seller\'s whole day of progression',
-    /* 2026-12-15: hr_market_buy's last author is 2026-12-15-account-gold.sql (the seller's row is unchanged text). */
+    /* 2027-01-12: hr_market_buy's last author is 2027-01-12-market-account.sql (the seller's row: qty null). */
     final: 'market-buy-final',
     patches: [[
-      '       v_row.item_id, -p_qty, v_net, 0, 0, 0, 0,',
-      '       v_row.item_id, -p_qty, v_net, v_net, 0, 0, 0,',
+      '       v_row.item_id, null, v_net, 0, 0, 0, 0,',
+      '       v_row.item_id, null, v_net, v_net, 0, 0, 0,',
     ]],
   },
 };
@@ -997,11 +1033,15 @@ class Books {
        without knowing it). */
     this.purses = new Map();    // uid → gold
     this.opened = new Set();    // the accounts whose opening purse is booked (once each)
-    this.listings = new Map();  // listingId → {key, item, qty, ask, aged}
+    /* THE ACCOUNT MARKET (2027-01-12-market-account.sql): a listing is the ACCOUNT's (uid), filed
+       under the hero that listed it (key); cancel and expiry return it to the account's Storage. */
+    this.listings = new Map();  // listingId → {key, uid, item, qty, ask, fee, aged}
     /* STORAGE IS THE ACCOUNT'S (account_bank, 2026-11-27-account-depot.sql): uid → Map(item → qty). */
     this.storage = new Map();
     this.storageOpened = new Set();
+    this.huntBag = new Map();   // "uid:slot" → Map(item → qty_left): a running hunt's packed supplies
     this.tax = 0;               // Σ house tax the harness EXPECTS to have been taken
+    this.fees = 0;              // Σ listing fees the harness EXPECTS to have been burned
     this.mintGold = 0; this.burnGold = 0;
     this.mintItems = new Map(); this.burnItems = new Map();
     this.openGold = 0; this.openItems = new Map();
@@ -1042,6 +1082,14 @@ class Books {
     if (cur < 0) throw new Error(`model went negative on ${id}`);
     if (cur === 0) c.inv.delete(id); else c.inv.set(id, cur);
   }
+  /** An account's Storage, as a Map (made on first use). */
+  storeOf(uid) { if (!this.storage.has(uid)) this.storage.set(uid, new Map()); return this.storage.get(uid); }
+  /** The kinds the account's Storage ROOM counts: kinds in Storage + kinds it has listed. */
+  roomKinds(uid) {
+    const k = new Set(this.storeOf(uid).keys());
+    for (const l of this.listings.values()) if (l.uid === uid) k.add(l.item);
+    return k;
+  }
   /** Everything the world currently believes it holds, by item. */
   itemTotals() {
     const t = new Map();
@@ -1049,6 +1097,7 @@ class Books {
       for (const [id, n] of c.inv) this.addItem(t, id, n);
       for (const id of c.equip.values()) this.addItem(t, id, 1);
     }
+    for (const m of this.huntBag.values()) for (const [id, n] of m) this.addItem(t, id, n);
     for (const l of this.listings.values()) this.addItem(t, l.item, l.qty);
     for (const m of this.storage.values()) for (const [id, n] of m) this.addItem(t, id, n);
     return t;
@@ -1078,11 +1127,14 @@ async function reconcile(db, books, ctx) {
   const purseRows = await q('select user_id::text u, gold::text g from account_wallet');
   const invRows = await q('select user_id::text u, slot, item_id, qty::text q from player_inventory');
   const eqRows = await q('select user_id::text u, slot, equip_slot, item_id from player_equipment');
-  const lstRows = await q('select id::text id, seller_user_id::text u, seller_slot, item_id, qty::text q, ask_each::text a from market_listings');
+  const lstRows = await q('select id::text id, user_id::text u, slot, item_id, qty::text q, ask_each::text a, fee::text f from market_listings');
   /* STORAGE, the ACCOUNT's (account_bank): exact per account in (A), counted in the world's total in (B). */
   const stoRows = await q('select user_id::text u, item_id, qty::text q from account_bank');
+  const huntRows = await q('select user_id::text u, slot, item_id, sum(qty_left)::text q from hunt_bag group by 1, 2, 3');
   const [{ tax, gross, net }] = await q(
     'select coalesce(sum(tax),0)::text tax, coalesce(sum(gold_gross),0)::text gross, coalesce(sum(gold_net),0)::text net from market_sales');
+  /* THE LISTING FEE IS A SINK (2027-01-12-market-account.sql): one ledger row per listing, gold = -fee. */
+  const [{ fees }] = await q("select coalesce(sum(-gold),0)::text fees from player_ledger where kind = 'trade' and intent like 'market\\_list:%'");
 
   // ── (A) exact, per character ─────────────────────────────────────────
   const dbGold = new Map(); const dbVer = new Map();
@@ -1145,6 +1197,22 @@ async function reconcile(db, books, ctx) {
     if (Number(d.q) !== m.qty) bad.push(`listing ${id.slice(0, 8)} qty: db ${d.q}, expected ${m.qty}`);
     if (d.item_id !== m.item) bad.push(`listing ${id.slice(0, 8)} item: db ${d.item_id}, expected ${m.item}`);
     if (Number(d.a) !== m.ask) bad.push(`listing ${id.slice(0, 8)} ask: db ${d.a}, expected ${m.ask}`);
+    if (d.u !== m.uid) bad.push(`listing ${id.slice(0, 8)} owner: db ${d.u}, expected the account ${m.uid}`);
+    if (Number(d.f) !== m.fee) bad.push(`listing ${id.slice(0, 8)} fee: db ${d.f}, expected ${m.fee}`);
+  }
+
+  // a running hunt's packed supplies, by hero
+  const dbHunt = new Map();
+  for (const r of huntRows) {
+    const k = `${r.u}:${r.slot}`;
+    if (!dbHunt.has(k)) dbHunt.set(k, new Map());
+    dbHunt.get(k).set(r.item_id, Number(r.q));
+  }
+  for (const k of new Set([...dbHunt.keys(), ...books.huntBag.keys()])) {
+    const d = dbHunt.get(k) || new Map(); const m = books.huntBag.get(k) || new Map();
+    for (const id of new Set([...d.keys(), ...m.keys()])) {
+      if ((d.get(id) || 0) !== (m.get(id) || 0)) bad.push(`hunt_bag[${k}][${id}]: db ${d.get(id) || 0}, expected ${m.get(id) || 0}`);
+    }
   }
 
   // ── (B) CONSERVATION, from the database alone ────────────────────────
@@ -1152,6 +1220,7 @@ async function reconcile(db, books, ctx) {
   const add = (id, n) => worldItems.set(id, (worldItems.get(id) || 0) + n);
   for (const r of invRows) add(r.item_id, Number(r.q));
   for (const r of eqRows) add(r.item_id, 1);
+  for (const r of huntRows) add(r.item_id, Number(r.q));
   for (const r of lstRows) add(r.item_id, Number(r.q));
   for (const r of stoRows) add(r.item_id, Number(r.q));
 
@@ -1169,12 +1238,14 @@ async function reconcile(db, books, ctx) {
 
   let worldGold = 0;
   for (const r of purseRows) worldGold += Number(r.g);
-  const expectedGold = books.openGold + books.mintGold - books.burnGold - Number(tax);
+  const expectedGold = books.openGold + books.mintGold - books.burnGold - Number(tax) - Number(fees);
   if (worldGold !== expectedGold) {
     bad.push(`CONSERVATION gold: players hold ${worldGold}, ledger says `
       + `${books.openGold} opening + ${books.mintGold} minted - ${books.burnGold} burned `
-      + `- ${tax} house tax = ${expectedGold} (drift ${worldGold - expectedGold})`);
+      + `- ${tax} house tax - ${fees} listing fees = ${expectedGold} (drift ${worldGold - expectedGold})`);
   }
+  // …and the fees the SERVER journalled are the fees the harness computed from the asks it chose.
+  if (Number(fees) !== books.fees) bad.push(`listing fees: db ${fees}, expected ${books.fees}`);
   // The house tax the SERVER recorded must equal the tax the harness computed
   // from the prices it chose. A trade that quietly takes a different cut is a
   // conservation violation that the gold identity above would absorb, because
@@ -1205,10 +1276,15 @@ async function runFuzz({ seed, ops, injection }) {
   const asUser = async (uid) => { await db.query("select set_config('request.jwt.claim.sub',$1,false)", [uid]); };
 
   // ── the working catalogue, read from the SERVER's own generated tables ──
-  const stackables = (await q(
-    `select item_id from hr_items
-      where tradeable and item_id not in (select item_id from hr_item_slots)
-      order by item_id limit 400`)).map((r) => r.item_id);
+  /* LISTABLE stackables (2027-01-12-market-account.sql's one rule, hr_market_items): the market ops
+     trade them, so every working-set item has a floor (the shop's bid) and a ceiling to ask between. */
+  const stackRows = await q(
+    `select m.item_id, m.floor_each::text f, m.ceiling_each::text c from hr_market_items m
+      where m.listable and m.item_id not in (select item_id from hr_item_slots)
+      order by m.item_id limit 400`);
+  const stackables = stackRows.map((r) => r.item_id);
+  const PRICE = new Map(stackRows.map((r) => [r.item_id, { floor: Number(r.f), ceil: Number(r.c) }]));
+  const askOf = (id) => { const p = PRICE.get(id); return rng.range(p.floor, Math.min(p.ceil, p.floor + 400)); };
   const wearables = await q(
     `select i.item_id, s.equip_slot from hr_items i
        join hr_item_slots s using (item_id)
@@ -1216,8 +1292,15 @@ async function runFuzz({ seed, ops, injection }) {
       order by i.item_id, s.equip_slot limit 400`);
   const untradeable = (await q('select item_id from hr_items where not tradeable order by item_id limit 20')).map((r) => r.item_id);
   const activities = await q("select kind, activity_id from hr_activities where req_lv is null order by kind, activity_id limit 200");
-  const cfg = (await q('select house_tax_bp, listing_ttl_h, max_listings, max_qty from hr_market_config'))[0];
+  /* THE MARKET SHIPS OFF (2027-01-12-market-account.sql §2): the fuzz plays it, so it switches it on,
+     the operator's one UPDATE. It moves no value and no schema object. */
+  await q('update hr_market_config set enabled = true where only_row');
+  const cfg = (await q('select house_tax_bp, listing_ttl_h, max_listings, max_qty, list_fee_bp, list_fee_min from hr_market_config'))[0];
   const TAX_BP = Number(cfg.house_tax_bp);
+  const FEE_BP = Number(cfg.list_fee_bp); const FEE_MIN = Number(cfg.list_fee_min);
+  /* THE LISTING FEE ROUNDS UP and never falls under its minimum (the migration's §4a). */
+  const feeOf = (qty, ask) => Math.max(FEE_MIN, Math.ceil((qty * ask * FEE_BP) / 10000));
+  const ROOM_CAP = Number((await q('select base_stacks from hr_depot_config'))[0].base_stacks);
   /* THE HOUSE TAX ROUNDS UP, AND THE MODEL MUST ROUND THE SAME WAY.
      2026-08-17-market-v2.sql section 7(5) computes
        v_tax := ceil(v_gross_n * house_tax_bp::numeric / 10000)::bigint
@@ -1420,15 +1503,26 @@ async function runFuzz({ seed, ops, injection }) {
     await db.exec('reset role');
     return r;
   };
-  const mList = (c, item, qty, ask, version) => marketAs(c,
-    'select hr_market_list($1::uuid,$2::int,$3::bigint,$4::uuid,$5::text,$6::bigint,$7::bigint) r',
-    [c.uid, c.slot, version ?? c.version, uuidOf(rng), item, qty, ask]);
-  const mCancel = (c, listing, version) => marketAs(c,
-    'select hr_market_cancel($1::uuid,$2::int,$3::bigint,$4::uuid,$5::uuid) r',
-    [c.uid, c.slot, version ?? c.version, uuidOf(rng), listing]);
-  const mBuy = (c, listing, qty, version) => marketAs(c,
-    'select hr_market_buy($1::uuid,$2::int,$3::bigint,$4::uuid,$5::uuid,$6::bigint) r',
-    [c.uid, c.slot, version ?? c.version, uuidOf(rng), listing, qty]);
+  /* THE ACCOUNT MARKET (2027-01-12-market-account.sql): list names a SOURCE (the hero's bag or
+     the account's Storage), buy names a MAX price and a DESTINATION (Storage or the hero's bag),
+     and cancel carries no version (it touches no bag). */
+  const mList = (c, item, qty, ask, version, source = 'bag') => marketAs(c,
+    'select hr_market_list($1::uuid,$2::int,$3::bigint,$4::uuid,$5::text,$6::text,$7::bigint,$8::bigint) r',
+    [c.uid, c.slot, version ?? c.version, uuidOf(rng), source, item, qty, ask]);
+  const mCancel = (c, listing) => marketAs(c,
+    'select hr_market_cancel($1::uuid,$2::int,$3::uuid,$4::uuid) r',
+    [c.uid, c.slot, uuidOf(rng), listing]);
+  const mBuy = (c, listing, qty, maxEach, deliver = 'storage', version) => marketAs(c,
+    'select hr_market_buy($1::uuid,$2::int,$3::bigint,$4::uuid,$5::uuid,$6::bigint,$7::bigint,$8::text) r',
+    [c.uid, c.slot, version ?? c.version, uuidOf(rng), listing, qty, maxEach, deliver]);
+  /* Storage moves are the PLAYER's verb (authenticated, auth.uid()), not the engine's. */
+  const bankAs = async (c, item, qty, dir) => {
+    await asUser(c.uid);
+    await db.exec('set role authenticated');
+    const r = await rpc('select hr_bank_move($1::int,$2::text,$3::bigint,$4::text,$5::uuid) r', [c.slot, item, qty, dir, uuidOf(rng)]);
+    await db.exec('reset role');
+    return r;
+  };
   /* ⚠ THE SWEEP IS RUN AS THE OWNER, NOT AS THE ENGINE, AND THAT IS THE POINT
        OF §8. hr_market_expire is callable by NOBODY — not anon, not
        authenticated, not service_role, and NOT hr_engine. It has no grant at
@@ -1441,6 +1535,9 @@ async function runFuzz({ seed, ops, injection }) {
     await db.exec('reset role');
     return (await q(`select hr_market_expire(${Number(limit) | 0}) r`))[0].r;
   };
+  /* The listings an ACCOUNT holds (any hero), and the ones another account could buy. */
+  const openOf = (uid) => [...books.listings.values()].filter((l) => l.uid === uid).length;
+  const listedToday = Object.create(null);   // uid → successful lists this run (the day cap's count)
 
   // ── the operation table ──────────────────────────────────────────────
   // OPS WHOSE VERDICT IS NOT A MATTER OF OPINION. Each of these is constructed
@@ -1455,7 +1552,7 @@ async function runFuzz({ seed, ops, injection }) {
     'overspend_gold', 'overspend_item', 'stale_version', 'unknown_key',
     'unknown_item', 'gold_clamp', 'intent_mismatch', 'list_overqty',
     'list_untradeable', 'cancel_foreign', 'buy_own', 'buy_poor', 'replay',
-    'intent_in_flight',
+    'intent_in_flight', 'buy_over_max',
   ]);
 
   const OP_TABLE = [
@@ -1463,12 +1560,13 @@ async function runFuzz({ seed, ops, injection }) {
     [7, 'equip'], [6, 'unequip'],
     [4, 'activity_set'], [4, 'progress'],
     [12, 'market_list'], [8, 'market_cancel'], [12, 'market_buy'], [4, 'market_expire'],
+    [6, 'bank_deposit'], [5, 'bank_withdraw'],
     // rejections — every one of these must move NOTHING
     [4, 'overspend_gold'], [4, 'overspend_item'], [4, 'stale_version'],
     [3, 'unknown_key'], [3, 'unknown_item'], [3, 'gold_clamp'],
     [7, 'replay'], [3, 'intent_mismatch'], [3, 'intent_in_flight'],
     [3, 'list_overqty'], [3, 'list_untradeable'], [3, 'cancel_foreign'],
-    [3, 'buy_own'], [3, 'buy_poor'], [2, 'rate_storm'],
+    [3, 'buy_own'], [3, 'buy_poor'], [3, 'buy_over_max'], [2, 'rate_storm'],
   ];
 
   /* ── PHASE 0 — THE EQUIPMENT TRANSFER, ON EVERY SEED ──────────────────
@@ -1541,6 +1639,74 @@ async function runFuzz({ seed, ops, injection }) {
     const r1 = await reconcile(db, books, { i: -1, op: 'phase0-unequip' });
     if (!r1.ok) { await db.close(); return { ok: false, seed, detail: r1.detail, opsRun: 0, counts, verdicts, divergences }; }
     equip.leg = true;
+  }
+
+  /* ── PHASE 0b — A RUNNING HUNT'S PACKED BAG, COUNTED (market threat model #6, P5, P6) ──
+     A hunt MOVES supplies from the hero's bag into hunt_bag (enter, restock); the market and
+     Storage read only the bag, so packed supplies are unreachable. This leg packs a real hunt on a
+     hero of its own account (not in `keys`, so the walk below never acts for it, and it stays
+     hunting for the whole run: no tick runs here, so the bag never drains), then proves the
+     reach both ways and lists from the hunting hero's bag (a hunt does not stall the market).
+     Its opening is read once, like every other new character's starting gift above. */
+  const hunt = { leg: false };
+  {
+    await rollWindows();
+    const HU = '000000fd-0000-4000-a000-0000000000fd';   // not PHASE 3's (000000ff…) or PHASE 4's (000000fe…) account
+    await db.query('insert into auth.users(id) values ($1) on conflict (id) do nothing', [HU]);
+    await asUser(HU);
+    const made = await rpc('select hr_create_character(0) r', []);
+    if (made.ok !== true) { process.stderr.write(`HARNESS: PHASE 0b could not create its hunter: ${JSON.stringify(made)}\n`); process.exit(2); }
+    const hk = `${HU}:0`;
+    const h = books.newChar(HU, 0); books.chars.set(hk, h);
+    const st = (await q(`select coalesce((select w.gold from account_wallet w where w.user_id = '${HU}'), 0)::text g, version::text v
+                           from player_state where user_id = '${HU}' and slot = 0`))[0];
+    books.openPurse(HU, Number(st.g)); h.version = Number(st.v);
+    for (const r of await q(`select item_id, qty::text q from player_inventory where user_id = '${HU}' and slot = 0`)) {
+      h.inv.set(r.item_id, Number(r.q)); books.addItem(books.openItems, r.item_id, Number(r.q));
+    }
+    for (const r of await q(`select equip_slot, item_id from player_equipment where user_id = '${HU}' and slot = 0`)) {
+      h.equip.set(r.equip_slot, r.item_id); books.addItem(books.openItems, r.item_id, 1);
+    }
+    const SUP = (await q(`select s.item_id from hr_hunt_supplies s join hr_market_items m using (item_id)
+                           where m.listable and s.kind = 'heal' order by s.item_id limit 1`))[0];
+    if (!SUP) { process.stderr.write('HARNESS: PHASE 0b found no listable heal supply\n'); process.exit(2); }
+    const sup = SUP.item_id;
+    const PRICE_SUP = (await q(`select floor_each::text f from hr_market_items where item_id = '${sup}'`))[0].f;
+    const seed0 = await applyAs(h, h.version, uuidOf(rng), { items: { [sup]: 20 }, journal: { kind: 'admin', intent: 'seed' } });
+    if (seed0.ok !== true) { process.stderr.write(`HARNESS: PHASE 0b seeding refused ${JSON.stringify(seed0)}\n`); process.exit(2); }
+    h.version += 1; books.invAdd(h, sup, 20); books.mint(sup, 20);
+    const playerAs = async (sql, params) => {
+      await asUser(HU); await db.exec('set role authenticated');
+      const r = await rpc(sql, params); await db.exec('reset role'); return r;
+    };
+    const fail0b = async (detail) => { await db.close(); return { ok: false, seed, detail: `PHASE 0b ${detail}`, opsRun: 0, counts, verdicts, divergences }; };
+    const enter = await playerAs("select hr_hunt_enter(0, 'mill_cellar', $1::jsonb, 0, null, $2::uuid) r",
+      [JSON.stringify([{ item: sup, qty: 8 }]), uuidOf(rng)]);
+    if (enter.ok !== true) { process.stderr.write(`HARNESS: PHASE 0b could not enter a hunt: ${JSON.stringify(enter).slice(0, 300)}\n`); process.exit(2); }
+    h.version += 1; books.invAdd(h, sup, -8);
+    books.huntBag.set(hk, new Map([[sup, 8]]));
+    let rc = await reconcile(db, books, { i: -1, op: 'phase0b-enter' });
+    if (!rc.ok) return fail0b(rc.detail);
+    const restock = await playerAs('select hr_hunt_restock(0, $1, 3, $2::uuid) r', [sup, uuidOf(rng)]);
+    if (restock.ok !== true) return fail0b(`restock refused ${JSON.stringify(restock).slice(0, 200)}`);
+    h.version += 1; books.invAdd(h, sup, -3); books.huntBag.get(hk).set(sup, 11);
+    rc = await reconcile(db, books, { i: -1, op: 'phase0b-restock' });
+    if (!rc.ok) return fail0b(rc.detail);
+    /* P6: the bag holds 9; the 11 packed are out of reach of the market and of Storage. */
+    const held = h.inv.get(sup) || 0;
+    const over = await mList(h, sup, held + 1, Number(PRICE_SUP));
+    if (over.error !== 'insufficient_item') return fail0b(`a list reached the packed supplies: ${JSON.stringify(over).slice(0, 200)}`);
+    const dep = await bankAs(h, sup, held + 1, 'deposit');
+    if (dep.error !== 'insufficient_item') return fail0b(`a Storage deposit reached the packed supplies: ${JSON.stringify(dep).slice(0, 200)}`);
+    /* P5: the hunting hero lists from its bag (a hunt does not stall a bag verb). */
+    const lst = await mList(h, sup, 1, Number(PRICE_SUP));
+    if (lst.ok !== true) return fail0b(`a hunting hero could not list from its bag: ${JSON.stringify(lst).slice(0, 200)}`);
+    const fee = feeOf(1, Number(PRICE_SUP));
+    h.version += 1; books.invAdd(h, sup, -1); h.gold -= fee; books.fees += fee;
+    books.listings.set(lst.listed.listing_id, { key: hk, uid: HU, item: sup, qty: 1, ask: Number(PRICE_SUP), fee, aged: false });
+    rc = await reconcile(db, books, { i: -1, op: 'phase0b-list' });
+    if (!rc.ok) return fail0b(rc.detail);
+    hunt.leg = true;
   }
 
   for (let i = 0; i < ops; i++) {
@@ -1726,68 +1892,81 @@ async function runFuzz({ seed, ops, injection }) {
         break;
       }
 
-      // ── the escrow path ────────────────────────────────────────────────
+      // ── the escrow path (the ACCOUNT market, 2027-01-12-market-account.sql) ──
       case 'market_list': {
+        /* From the hero's bag or the account's Storage; the account pays the fee; the listing is
+           the account's. The verdict the model predicts follows the server's own order: the
+           per-ACCOUNT caps, then the Storage room, then the escrow, then the fee. */
+        const source = rng() < 0.7 ? 'bag' : 'storage';
         const id = rng.pick(ITEMS);
-        const have = c.inv.get(id) || 0;
+        const have = source === 'bag' ? (c.inv.get(id) || 0) : (books.storeOf(c.uid).get(id) || 0);
         const n = have > 0 ? rng.range(1, Math.min(have, 15)) : 1;
-        const ask = rng.range(1, 400);
-        const open = [...books.listings.values()].filter((l) => l.key === key).length;
-        const r = await mList(c, id, n, ask);
-        want = open >= MAX_LISTINGS ? 'too_many_listings' : (have >= n ? 'ok' : 'insufficient_item');
+        const ask = askOf(id);
+        const fee = feeOf(n, ask);
+        const room = books.roomKinds(c.uid);
+        const r = await mList(c, id, n, ask, undefined, source);
+        want = openOf(c.uid) >= MAX_LISTINGS ? 'too_many_listings'
+          : (listedToday[c.uid] || 0) >= 200 ? 'list_daily_cap'
+          : (!room.has(id) && room.size >= ROOM_CAP) ? 'storage_no_room'
+          : have < n ? 'insufficient_item'
+          : c.gold < fee ? 'insufficient_gold' : 'ok';
         if (r.ok === true) {
           c.version += 1;
-          books.invAdd(c, id, -n);
-          /* THE LISTING ID COMES OUT OF THE SERVER'S RECEIPT, not off the top of
-             the answer: v2 returns the full hr_state_of envelope with the
-             receipt under `listed`, because a client cannot retire a prediction
-             without an envelope (the F1 defect, from the server side). */
-          books.listings.set(r.listed.listing_id, { key, item: id, qty: n, ask, aged: false });
+          if (source === 'bag') books.invAdd(c, id, -n); else books.stoAdd(c.uid, id, -n);
+          c.gold -= fee; books.fees += fee;
+          listedToday[c.uid] = (listedToday[c.uid] || 0) + 1;
+          /* THE LISTING ID COMES OUT OF THE SERVER'S RECEIPT (the envelope's `listed`). */
+          books.listings.set(r.listed.listing_id, { key, uid: c.uid, item: id, qty: n, ask, fee, aged: false });
         }
-        note = `list ${n}×${id} @${ask}`;
+        note = `list ${n}×${id} @${ask} from ${source} fee ${fee}`;
         got = r.ok === true ? 'ok' : String(r.error);
         break;
       }
       case 'market_cancel': {
-        const mine = [...books.listings.entries()].filter(([, l]) => l.key === key);
+        /* ANY hero of the account cancels; the units go to the account's Storage, the fee is kept. */
+        const mine = [...books.listings.entries()].filter(([, l]) => l.uid === c.uid);
         if (!mine.length) { i--; continue; }
         const [lid, l] = rng.pick(mine);
         const r = await mCancel(c, lid);
         want = 'ok';
         if (r.ok === true) {
           c.version += 1;
-          books.invAdd(c, l.item, l.qty);
+          books.stoAdd(c.uid, l.item, l.qty);
           books.listings.delete(lid);
         }
-        note = `cancel ${l.qty}×${l.item}`;
+        note = `cancel ${l.qty}×${l.item} (listed by ${l.key === key ? 'this' : 'another'} hero) → Storage`;
         got = r.ok === true ? 'ok' : String(r.error);
         break;
       }
       case 'market_buy': {
-        const others = [...books.listings.entries()].filter(([, l]) => books.char(l.key).uid !== c.uid);
+        /* Another ACCOUNT's listing; delivered to the buyer's Storage or this hero's bag; the
+           seller's ACCOUNT is paid (its heroes are not touched, so no seller version moves). */
+        const others = [...books.listings.entries()].filter(([, l]) => l.uid !== c.uid);
         if (!others.length) { i--; continue; }
         const [lid, l] = rng.pick(others);
         const n = rng() < 0.4 ? l.qty : rng.range(1, l.qty);
+        const deliver = rng() < 0.7 ? 'storage' : 'bag';
         const gross = n * l.ask;
         const tax = houseTax(gross);
         const net = gross - tax;
-        const seller = books.char(l.key);
-        const r = await mBuy(c, lid, n);
-        want = c.gold >= gross ? 'ok' : 'insufficient_gold';
+        const room = books.roomKinds(c.uid);
+        const r = await mBuy(c, lid, n, l.ask, deliver);
+        want = (deliver === 'storage' && !room.has(l.item) && room.size >= ROOM_CAP) ? 'storage_full'
+          : c.gold >= gross ? 'ok' : 'insufficient_gold';
         if (r.ok === true) {
           c.gold -= gross; c.version += 1;
-          seller.gold += net; seller.version += 1;
+          books.purses.set(l.uid, (books.purses.get(l.uid) || 0) + net);
           books.tax += tax;
-          books.invAdd(c, l.item, n);
+          if (deliver === 'storage') books.stoAdd(c.uid, l.item, n); else books.invAdd(c, l.item, n);
           if (n === l.qty) books.listings.delete(lid); else l.qty -= n;
         }
-        note = `buy ${n}×${l.item} gross ${gross} tax ${tax} net ${net}`;
+        note = `buy ${n}×${l.item} → ${deliver} gross ${gross} tax ${tax} net ${net}`;
         got = r.ok === true ? 'ok' : String(r.error);
         break;
       }
       case 'market_expire': {
-        // Age a listing (a CLOCK move — it touches expires_at and nothing that
-        // holds value), then run the real expiry sweep as the engine role.
+        // Age a listing (a CLOCK move — expires_at only moves earlier, the trigger allows that and
+        // nothing that holds value moves), then run the real expiry sweep as cron does (the owner).
         const all = [...books.listings.entries()];
         if (!all.length) { i--; continue; }
         const [lid, l] = rng.pick(all);
@@ -1798,15 +1977,39 @@ async function runFuzz({ seed, ops, injection }) {
         if (Number(n) !== aged.length) {
           divergences.push(`op#${i} market_expire returned ${n}, harness aged ${aged.length}`);
         }
+        /* Returns go to the ACCOUNT's Storage and bump no hero (the sweep holds no hero lock). */
         for (const [id, x] of aged) {
-          const sc = books.char(x.key);
-          books.invAdd(sc, x.item, x.qty);
-          sc.version += 1;
+          books.stoAdd(x.uid, x.item, x.qty);
           books.listings.delete(id);
         }
         want = null;
-        note = `expire ${aged.length}`;
+        note = `expire ${aged.length} → Storage`;
         got = 'expire';
+        break;
+      }
+
+      // ── Storage: the account depot (2026-11-27), room counting listed kinds (2027-01-12) ──
+      case 'bank_deposit': {
+        const id = rng.pick(ITEMS); const have = c.inv.get(id) || 0;
+        const n = have > 0 ? rng.range(1, Math.min(have, 20)) : 1;
+        const room = books.roomKinds(c.uid);
+        const r = await bankAs(c, id, n, 'deposit');
+        want = have < n ? 'insufficient_item' : (!room.has(id) && room.size >= ROOM_CAP) ? 'bank_full' : 'ok';
+        if (r.ok === true) { c.version += 1; books.invAdd(c, id, -n); books.stoAdd(c.uid, id, n); }
+        note = `deposit ${n}×${id}`;
+        got = r.ok === true ? 'ok' : String(r.error);
+        break;
+      }
+      case 'bank_withdraw': {
+        const st = [...books.storeOf(c.uid).entries()];
+        if (!st.length) { i--; continue; }
+        const [id, have] = rng.pick(st);
+        const n = rng.range(1, have);
+        const r = await bankAs(c, id, n, 'withdraw');
+        want = 'ok';
+        if (r.ok === true) { c.version += 1; books.stoAdd(c.uid, id, -n); books.invAdd(c, id, n); }
+        note = `withdraw ${n}×${id}`;
+        got = r.ok === true ? 'ok' : String(r.error);
         break;
       }
 
@@ -1906,9 +2109,15 @@ async function runFuzz({ seed, ops, injection }) {
         break;
       }
       case 'list_overqty': {
+        /* More than the account's Storage holds (the Storage source carries no settle-first and no
+           version, so the only honest answers are the caps' and insufficient_item). */
         const id = rng.pick(ITEMS);
-        const r = await mList(c, id, (c.inv.get(id) || 0) + rng.range(1, 100), rng.range(1, 100));
-        want = 'insufficient_item';
+        const have = books.storeOf(c.uid).get(id) || 0;
+        const room = books.roomKinds(c.uid);
+        const r = await mList(c, id, have + rng.range(1, 100), PRICE.get(id).floor, undefined, 'storage');
+        want = openOf(c.uid) >= MAX_LISTINGS ? 'too_many_listings'
+          : (listedToday[c.uid] || 0) >= 200 ? 'list_daily_cap'
+          : (!room.has(id) && room.size >= ROOM_CAP) ? 'storage_no_room' : 'insufficient_item';
         got = r.ok === true ? 'ok' : String(r.error);
         break;
       }
@@ -1919,7 +2128,7 @@ async function runFuzz({ seed, ops, injection }) {
         break;
       }
       case 'cancel_foreign': {
-        const others = [...books.listings.entries()].filter(([, l]) => books.char(l.key).uid !== c.uid);
+        const others = [...books.listings.entries()].filter(([, l]) => l.uid !== c.uid);
         if (!others.length) { i--; continue; }
         const r = await mCancel(c, rng.pick(others)[0]);
         want = 'not_yours';
@@ -1927,48 +2136,58 @@ async function runFuzz({ seed, ops, injection }) {
         break;
       }
       case 'buy_own': {
-        /* ⚠ THE SAME (uid, SLOT), not merely the same uid. v2's self-trade guard
-           is `seller_user_id = v_uid and seller_slot = v_slot`, and that
-           narrowing is deliberate: a player's slot 0 buying from their own slot
-           2 is two different characters with two different bags and IS allowed.
-           So an own-uid-different-slot listing is a legal trade, and asking for
-           `own_listing` there would fail the run on the contract being right. */
-        const mine = [...books.listings.entries()].filter(([, l]) => l.key === key);
+        /* THE SAME ACCOUNT, ANY HERO (2027-01-12, threat model #5): Storage moves goods between
+           one's own heroes for free, so a buy from one's own account is only a fake price and is
+           refused whichever hero listed it. (Under v2 only the same (uid, slot) was refused.) */
+        const mine = [...books.listings.entries()].filter(([, l]) => l.uid === c.uid);
         if (!mine.length) { i--; continue; }
         const [lid, l] = rng.pick(mine);
-        const r = await mBuy(c, lid, Math.min(1, l.qty));
+        const r = await mBuy(c, lid, 1, l.ask, 'storage');
         want = 'own_listing';
         got = r.ok === true ? 'ok' : String(r.error);
         break;
       }
+      case 'buy_over_max': {
+        /* The buyer's confirmed price is below the ask: price_above_max, and nothing moves. */
+        const others = [...books.listings.entries()].filter(([, l]) => l.uid !== c.uid && l.ask >= 2);
+        if (!others.length) { i--; continue; }
+        const [lid, l] = rng.pick(others);
+        const r = await mBuy(c, lid, 1, l.ask - 1, 'storage');
+        want = 'price_above_max';
+        got = r.ok === true ? 'ok' : String(r.error);
+        break;
+      }
       case 'buy_poor': {
-        // A listing the buyer demonstrably cannot afford. Priced above the
-        // buyer's balance by construction, so `insufficient_gold` is the only
-        // honest answer and any movement is a leak.
-        const sellerKey = rng.pick(keys.filter((k) => books.char(k).uid !== c.uid));
-        const seller = books.char(sellerKey);
-        const id = rng.pick(ITEMS);
-        if ((seller.inv.get(id) || 0) < 1) { i--; continue; }
-        /* ⚠ BOUNDED BY max_gross, NOT BY ask_each's own ceiling. v2 refuses a
-           listing whose qty x ask exceeds the config's per-trade gross ceiling
-           (1e8) — the PRODUCT bound neither of the two separate bounds can
-           state. A buyer richer than that cannot have an unaffordable listing
-           constructed for them at qty 1, so the op steps aside rather than
-           booking `listing_too_large` as if it were the point. */
-        if (c.gold + 1 > 100000000) { i--; continue; }
-        const ask = Math.max(1, c.gold + 1);
-        const lr = await mList(seller, id, 1, ask);
-        if (lr.ok !== true) { i--; continue; }
-        seller.version += 1; books.invAdd(seller, id, -1);
-        books.listings.set(lr.listed.listing_id, { key: sellerKey, item: id, qty: 1, ask, aged: false });
-        const r = await mBuy(c, lr.listed.listing_id, 1);
+        /* A buyer that demonstrably cannot afford a whole listing: its purse is burned (through
+           hr_apply, journalled) to one gold short of the gross, the buy must answer
+           insufficient_gold and move nothing, and the burned gold is minted back afterwards so the
+           rest of the walk keeps a solvent account. */
+        const others = [...books.listings.entries()].filter(([, l]) => l.uid !== c.uid);
+        if (!others.length) { i--; continue; }
+        const [lid, l] = rng.pick(others);
+        const gross = l.qty * l.ask;
+        const room = books.roomKinds(c.uid);
+        if (!room.has(l.item) && room.size >= ROOM_CAP) { i--; continue; }
+        const burn = Math.max(0, c.gold - (gross - 1));
+        if (burn > 0) {
+          const br = await applyAs(c, c.version, uuidOf(rng), { gold: -burn, journal: { kind: 'shop', intent: 'buy_poor_burn' } });
+          if (br.ok !== true) { i--; continue; }
+          c.version += 1; c.gold -= burn; books.burnGold += burn;
+        }
+        const r = await mBuy(c, lid, l.qty, l.ask, 'storage');
         want = 'insufficient_gold';
         if (r.ok === true) {
           // Should be unreachable; model it anyway so the run continues honestly.
-          const gross = ask; const tax = houseTax(gross);
-          c.gold -= gross; c.version += 1; seller.gold += gross - tax; seller.version += 1;
-          books.tax += tax; books.invAdd(c, id, 1); books.listings.delete(lr.listed.listing_id);
+          const tax = houseTax(gross);
+          c.gold -= gross; c.version += 1;
+          books.purses.set(l.uid, (books.purses.get(l.uid) || 0) + gross - tax);
+          books.tax += tax; books.stoAdd(c.uid, l.item, l.qty); books.listings.delete(lid);
         }
+        if (burn > 0) {
+          const mr = await applyAs(c, c.version, uuidOf(rng), { gold: burn, journal: { kind: 'admin', intent: 'buy_poor_restore' } });
+          if (mr.ok === true) { c.version += 1; c.gold += burn; books.mintGold += burn; }
+        }
+        note = `gross ${gross} against a purse of ${c.gold - (burn > 0 ? burn : 0)}`;
         got = r.ok === true ? 'ok' : String(r.error);
         break;
       }
@@ -2006,16 +2225,19 @@ async function runFuzz({ seed, ops, injection }) {
            refusals reporting a limit it never reached. Measured: the first
            revision of this fix used `+ 1000000` and scored 0/260 on both
            counters, which is the always-null probe in its purest form. */
-        const overQty = (c.inv.get(stormItem) || 0) + 1000;
+        /* 2027-01-12: from STORAGE at the item's own floor (a price outside [floor, ceiling] is refused
+           before the gate, and the bag source would answer settle_first to a hero at town work), and
+           the bucket is the market's own, 60/min per ACCOUNT, no longer hr_apply's. */
+        const overQty = (books.storeOf(c.uid).get(stormItem) || 0) + 1000;
         for (let k = 0; k < 260; k++) {
-          const r = await mList(c, stormItem, overQty, 10);
+          const r = await mList(c, stormItem, overQty, PRICE.get(stormItem).floor, undefined, 'storage');
           if (r.error === 'rate_limited') limited++;
           /* Both of these are decided INSIDE the protected block, i.e. past the
              gate, and both move nothing. */
-          else if (r.error === 'insufficient_item' || r.error === 'too_many_listings') reached++;
+          else if (r.error === 'insufficient_item' || r.error === 'too_many_listings' || r.error === 'storage_no_room' || r.error === 'list_daily_cap') reached++;
         }
         if (!limited) {
-          divergences.push(`op#${i} rate_storm never tripped the apply rate limit `
+          divergences.push(`op#${i} rate_storm never tripped the market rate limit `
             + `(${reached} calls reached the protected block)`);
         }
         note = `${limited}/260 rate-limited, ${reached} reached the block`;
@@ -2056,7 +2278,7 @@ async function runFuzz({ seed, ops, injection }) {
   // Runs LAST because it deliberately saturates a character's gold ceiling,
   // which is a state nothing after it should have to reason about.
   const budget = await budgetPhase(db, books, keys, rng, applyAs, rpc, asUser, q, ITEMS,
-    stackables, houseTax, { list: mList, buy: mBuy });
+    stackables, houseTax, { list: mList, buy: mBuy, feeOf, floorOf: (id) => PRICE.get(id).floor });
 
   // ── PHASE 4 — the house from Storage (its own account, its own RNG) ───
   const house = await housePhase(db, books, seed, q, rpc, asUser, applyAs);
@@ -2064,7 +2286,7 @@ async function runFuzz({ seed, ops, injection }) {
   const final = await reconcile(db, books, { i: ops, op: 'final' });
   await db.close();
   if (!final.ok) return { ok: false, seed, detail: final.detail, opsRun: ops, counts, verdicts, divergences };
-  return { ok: true, seed, opsRun: ops, counts, verdicts, divergences, accrual, budget, equip, house };
+  return { ok: true, seed, opsRun: ops, counts, verdicts, divergences, accrual, budget, equip, hunt, house };
 }
 
 // ════════════════════════════════════════════════════════════════════════
@@ -2504,17 +2726,24 @@ async function budgetPhase(db, books, keys, rng, applyAs, rpc, asUser, q, ITEMS,
     const sr = await applyAs(b, b.version, uuidOf(rng), { accrued_to: 'now', journal: jr('accrue', 'budget_buyer_settle') });
     if (sr.ok !== true) fail('could not settle the buyer before the market leg', JSON.stringify(sr));
     b.version += 1;
-    const lr = await market.list(c, id, 5, 100);
+    /* 2027-01-12: listing from the BAG is a bag verb, so the seller's open window is settled too
+       (the same accrued_to-only settle), and the ask is the item's own floor (the shop's bid). */
+    const ss = await applyAs(c, c.version, uuidOf(rng), { accrued_to: 'now', journal: jr('accrue', 'budget_seller_settle') });
+    if (ss.ok !== true) fail('could not settle the seller before the market leg', JSON.stringify(ss));
+    c.version += 1;
+    const ask = market.floorOf(id);
+    const lr = await market.list(c, id, 5, ask);
     if (lr.ok !== true) fail(`the market leg could not list (${lr.error})`, JSON.stringify(lr));
-    c.version += 1; books.invAdd(c, id, -5);
-    books.listings.set(lr.listed.listing_id, { key, item: id, qty: 5, ask: 100, aged: false });
+    const fee = market.feeOf(5, ask);
+    c.version += 1; books.invAdd(c, id, -5); c.gold -= fee; books.fees += fee;
+    books.listings.set(lr.listed.listing_id, { key, uid: c.uid, item: id, qty: 5, ask, fee, aged: false });
 
     const before = await used();
-    const br = await market.buy(b, lr.listed.listing_id, 5);
+    const br = await market.buy(b, lr.listed.listing_id, 5, ask, 'storage');
     if (br.ok !== true) fail(`the market leg could not buy (${br.error})`, JSON.stringify(br));
-    const gross = 500; const tax = houseTax(gross);
-    b.gold -= gross; b.version += 1; c.gold += gross - tax; c.version += 1;
-    books.tax += tax; books.invAdd(b, id, 5); books.listings.delete(lr.listed.listing_id);
+    const gross = 5 * ask; const tax = houseTax(gross);
+    b.gold -= gross; b.version += 1; books.purses.set(c.uid, (books.purses.get(c.uid) || 0) + gross - tax);
+    books.tax += tax; books.stoAdd(b.uid, id, 5); books.listings.delete(lr.listed.listing_id);
 
     const after = await used();
     if (after.gold !== before.gold) {
@@ -3034,6 +3263,9 @@ function summarise(res) {
     const e = res.equip;
     process.stdout.write(`  equipment  : PHASE 0 transfer leg ${e.leg ? 'ran' : 'DID NOT RUN'}`
       + ` · ${e.worn}/${e.unequips} PHASE 1 unequips took hr_apply's return-to-bag branch\n`);
+  }
+  if (res.hunt) {
+    process.stdout.write(`  hunt bag   : PHASE 0b packed-supplies leg ${res.hunt.leg ? 'ran (enter, restock, list + Storage refused past the bag, a hunting hero listed)' : 'DID NOT RUN'}\n`);
   }
   if (res.divergences && res.divergences.length) {
     process.stdout.write('  DIVERGENCES (harness model vs server — not conservation violations):\n');

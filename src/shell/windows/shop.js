@@ -15,15 +15,16 @@
 // Every control is off while an intent is in flight; counts and gold change
 // only from the re-read envelope.
 // ════════════════════════════════════════════════════════════════════════
-import { shopOf, bagOf, rulesOf, goldOf } from '../../session/item-sections.js?v=0.2.38';
-import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.38';
-import { whole, gold } from '../../render/format.js?v=0.2.38';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.38';
-import { itemIconHtml, itemName } from '../widgets/bits.js?v=0.2.38';
-import { kindOf, sellPlan, lootToSell } from '../bag-model.js?v=0.2.38';
-import { runIntent } from '../intent-words.js?v=0.2.38';
-import { showTip, hideTip } from './item-tip.js?v=0.2.38';
-import { upgradeOf, upgradeLineHtml, patchUpgradeLine, equipUpgrades } from '../widgets/upgrade-line.js?v=0.2.38';
+import { shopOf, bagOf, rulesOf, goldOf } from '../../session/item-sections.js?v=0.2.39';
+import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.39';
+import { whole, gold } from '../../render/format.js?v=0.2.39';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.39';
+import { itemIconHtml, itemName } from '../widgets/bits.js?v=0.2.39';
+import { kindOf, sellPlan, lootToSell } from '../bag-model.js?v=0.2.39';
+import { runIntent } from '../intent-words.js?v=0.2.39';
+import { showTip, hideTip } from './item-tip.js?v=0.2.39';
+import { upgradeOf, upgradeLineHtml, patchUpgradeLine, equipUpgrades } from '../widgets/upgrade-line.js?v=0.2.39';
+import { gearLocked } from '../gear-gate.js?v=0.2.39';
 
 const TABS = Object.freeze([['buy', 'Buy'], ['sell', 'Sell']]);
 const QTYS = Object.freeze([1, 5, 10, 25, 50, 100]);
@@ -38,7 +39,7 @@ const BUY_GROUPS = Object.freeze([
 /* A piece of gear is bought one or two at a time (two rings); tools by the stack. */
 const QTYS_BY_KIND = Object.freeze({ gear: Object.freeze([1, 2]) });
 const SCRATCH = new WeakMap();
-const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { tab: 'buy', qty: {}, confirm: null, pending: false, msg: '', wear: false, wearing: null }; SCRATCH.set(cs, s); } return s; };
+const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { tab: 'buy', qty: {}, confirm: null, pending: false, msg: '', msgAt: null, wear: false, wearing: null }; SCRATCH.set(cs, s); } return s; };
 
 /** The skeleton (built once per opening). */
 export function renderShop() {
@@ -89,7 +90,8 @@ function patchBuy(root, st, ctx) {
   }
   cls(root.querySelector('.hw-buy-none'), 'is-on', !offers.length);
   /* Right after a gear purchase: put on what is now better, without four menus (designer, gold-sinks 2026-10-22). */
-  patchUpgradeLine(root, st.sc.wear ? upgradeOf(st.cs) : { picks: [] }, st.sc.wear, st.sc.pending);
+  patchUpgradeLine(root, st.sc.wear ? upgradeOf(st.cs) : { picks: [] }, st.sc.wear, st.sc.pending,
+    { locked: gearLocked(st.cs), msg: st.sc.msgAt === 'upgrade' ? st.sc.msg : '' });
 }
 
 function patchSell(root, st, ctx) {
@@ -139,7 +141,7 @@ renderShop.patch = function patchShop(body, ctx) {
   text(root.querySelector('.hw-shop-note'), st.shop ? '' : 'Prices load from the server.');
   if (st.sc.tab === 'buy') patchBuy(root, st, ctx);
   else patchSell(root, st, ctx);
-  text(root.querySelector('.hh-intent-msg'), st.sc.msg);
+  text(root.querySelector('.hh-intent-msg'), st.sc.msgAt ? '' : st.sc.msg);   // an Equip upgrades press says it on its line
   cls(root, 'is-pending', st.sc.pending);
 };
 
@@ -163,12 +165,13 @@ renderShop.act = function actShop(ctx, body, action, ev, t) {
     return false;
   }
   if (ev.type !== 'click') return false;
-  if (action === 'tab') { sc.tab = t.getAttribute('data-tab'); sc.confirm = null; sc.msg = ''; sc.wear = false; repaint(); return true; }
+  if (action === 'tab') { sc.tab = t.getAttribute('data-tab'); sc.confirm = null; sc.msg = ''; sc.msgAt = null; sc.wear = false; repaint(); return true; }
   if (action === 'buy') {
     const offer = t.getAttribute('data-offer');
     const o = shop ? shop.offers.find((x) => x.offer === offer) : null;
     const before = goldOf(cs);
     sc.wear = false;
+    sc.msgAt = null;
     runIntent(sc, repaint, () => cs.edgeIntent('shop_buy', { offer, qty: sc.qty[offer] || 1 }), 'Buying…',
       () => { sc.wear = !!o && o.kind === 'gear'; const after = goldOf(cs); return before !== null && after !== null ? 'Paid ' + gold(before - after) + '.' : 'Bought.'; });
     return true;
@@ -188,6 +191,7 @@ renderShop.act = function actShop(ctx, body, action, ev, t) {
     const lines = sc.confirm.lines;
     const before = goldOf(cs);
     sc.confirm = null;
+    sc.msgAt = null;
     runIntent(sc, repaint, () => cs.edgeIntent('vendor_sell_many', { lines }), 'Selling…',
       () => { const after = goldOf(cs); return before !== null && after !== null ? 'The shop paid ' + gold(after - before) + '.' : 'Sold.'; });
     return true;

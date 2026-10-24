@@ -544,6 +544,7 @@
   "hunt_density",
   "account_bank",
   "account_storage_chests",
+  "market_listings",
   "hero_tally",
   "hero_tally_claims",
   "hero_tally_given",
@@ -1548,20 +1549,23 @@
    "class": "operational",
    "note": "Retention and cron run log. 478 rows in production, 3 in a rebuild. It is how 'did the prune actually run last night' is answerable; losing it costs that answer for the past, never for the future."
   },
-  "market_buy_offers": {
+  "market_item_daily": {
    "class": "restore_only",
    "wiped_at_cutover": true,
-   "note": "Legacy market buy offers. 2026-08-17-market-v2.sql drops and recreates the market tables; the old economy was discarded at cutover by design. Empty in production."
+   "note": "2027-01-12-market-account.sql: the market's price history, one row per (item, UTC day) traded (trades, units, gross, low, high), written ONLY by hr_market_buy in the sale's own transaction; no client role can read it. No user_id: it holds no player's value, but it is NOT re-derivable once market_sales is pruned (180 days), so a rebuild loses the price line and the 7-day typical price older than the receipts. EA WIPE: wiped with the listings and the sales (pre-wipe prices are not this economy's).",
+   "replay": 0
   },
   "market_listings": {
    "class": "restore_only",
    "wiped_at_cutover": true,
-   "note": "⚠ UNDER MARKET V2 A LISTING ROW *IS* THE SELLER'S ESCROWED GOODS — the items left the seller's inventory to create it. Empty in production at the 2026-08-30 measurement, which is the only reason this is not already a top-priority restore target. The moment it is non-empty, losing it destroys real player property with no second copy anywhere, and wiped_at_cutover=true stops being the right reading. REVISIT this classification the first time the market carries live listings."
+   "note": "PLAYER VALUE — the ESCROW. 2027-01-12-market-account.sql re-keys it on the ACCOUNT (user_id; the listing hero as provenance): a row IS the account's goods, debited out of a hero's bag or the account's Storage to create it, and only a cancel, a buy or the expiry sweep (into Storage) ever moves them again. No client role can read it. Losing it destroys listed goods with no second copy anywhere, so it is on player_value_tables. EA WIPE (threat model #12): wiped in the SAME step as player_inventory, account_bank and account_wallet, with the hr-market-expire job paused first, or pre-wipe goods come back through a cancel or an expiry after it. Empty in production (the market has never been reachable).",
+   "replay": 0
   },
   "market_sales": {
    "class": "restore_only",
    "wiped_at_cutover": true,
-   "note": "Completed market sales, 3 rows: the receipt both parties see and the only record of what a trade actually moved. Pruned by hr-market-sales-prune."
+   "note": "Completed market sales: the receipt of what a trade moved and the ONLY place both accounts of a trade are named (2027-01-12-market-account.sql: no client role can read it; Security follows the value here). Pruned at 180 days by hr-market-sales-prune. EA WIPE: wiped with the listings and the purses.",
+   "replay": 0
   },
   "party": {
    "class": "restore_only",

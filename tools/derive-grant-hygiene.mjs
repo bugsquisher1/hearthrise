@@ -372,6 +372,19 @@ export const LINKS = [
     target: '2026-10-25-character-sheet.sql',
     patchIds: ['character_sheet'],
   },
+  /* Link 21 (lane c-market-account, 2026-10-24) — THE ACCOUNT MARKET.
+     2027-01-12-market-account.sql re-keys the market on the account: the three
+     write verbs change signature (source / max_each / deliver; cancel loses the
+     version) and three names-free reads join them. Six entries at the HEAD of
+     c_engine_allow, an INSERTION, so its declared-removals list in
+     tests/run-sql-tests.mjs PART 1f-ii is EMPTY (the dropped v2 signatures keep
+     their stale TEXT, which admits nothing that does not exist). Its base is
+     link 20's TARGET. It is the new last toucher. */
+  {
+    base: '2026-10-25-character-sheet.sql',
+    target: '2027-01-12-market-account.sql',
+    patchIds: ['market_account'],
+  },
 ];
 
 const OPEN = 'create or replace function public.hr_assert_grant_hygiene(';
@@ -405,6 +418,47 @@ export function innerBody(block) {
    already authorised for." Both justifications below re-derive that claim
    rather than asserting it — see the migration header for the long form. */
 export const PATCHES = [
+  {
+    id: 'market_account',
+    name: 'the c_engine_allow array head (link 21)',
+    find: '  c_engine_allow constant text[] := array[\n',
+    add: `    -- ── ADDED 2027-01-12 — THE ACCOUNT MARKET (lane c-market-account) ────
+    -- At the HEAD, an INSERTION: it removes nothing, so PART 1f-ii grades this
+    -- link with an EMPTY declared-removals list. The v2 entries below keep their
+    -- stale TEXT (their functions are dropped). Each claim re-derived:
+    --
+    -- SELF-VALIDATING, the v2 claim on the account: the caller names a slot, a
+    -- key, a version, a source (bag|storage), an item, a count and an ASK about
+    -- its OWN goods. Listable comes from the generated catalogues (hr_market_items),
+    -- the floor is the shop's bid, the ceiling the config's; the fee, the TTL and
+    -- every cap are server config; the per-account caps are read under the
+    -- account's Storage lock. Moves the account's own goods into escrow and burns
+    -- a fee through hr_purse_move. Target (p_user, p_slot), the hr_apply pair.
+    'hr_market_list(uuid,integer,bigint,uuid,text,text,bigint,bigint)',
+    -- SELF-VALIDATING: a listing id of the caller's OWN account (refused
+    -- not_yours otherwise); the delete is the arbiter and the units return to the
+    -- account's Storage. No price, no count, no target beyond (p_user, p_slot).
+    'hr_market_cancel(uuid,integer,uuid,uuid)',
+    -- SELF-VALIDATING, the one cross-account transfer: a listing id, a count, a
+    -- MAX price and a destination. The price comes off the LOCKED row; the same
+    -- account (any hero) is refused; both purses lock in user order, LAST; the
+    -- buyer's spend and the seller's proceeds are capped per ACCOUNT per day under
+    -- those locks; conserved (buyer -gross, seller +net, cut burned), journalled
+    -- with no counterparty in any client-readable row (market_sales holds both).
+    -- A compromised engine names both sides only inside those caps.
+    'hr_market_buy(uuid,integer,bigint,uuid,uuid,bigint,bigint,text)',
+    -- read-only in value (it spends a rate counter): per-item summaries of open
+    -- asks and sales, no account id or name; <= 50 items a call; switch-gated.
+    'hr_market_browse(uuid,integer,text[],text,integer)',
+    -- read-only in value: one item's cheapest 50 asks (listing ids only; "mine"
+    -- marks the caller's own account), its daily line and its last 10 sales.
+    'hr_market_item(uuid,integer,text)',
+    -- read-only in value: the caller's OWN account's listings, 30-day market
+    -- history from its own ledger rows and today's cap usage.
+    'hr_market_mine(uuid,integer)',
+`,
+    where: 'after',
+  },
   {
     id: 'character_sheet',
     name: 'the c_engine_allow array head (link 20)',

@@ -18,13 +18,15 @@ function countsOf(o) {
   return { have: n(o.have), need: o.need, bag: n(o.bag), storage: n(o.storage) };
 }
 
-/** { ok:false, error, slot, condition, field, item, counts, reason } from a refused answer { ok, body, error }. */
+/** { ok:false, error, verb, slot, condition, field, item, counts, reason } from a refused answer { ok, body, error }; `verb`
+ *  is the engine's echo of the intent refused (its words may differ by verb: refusal-words.js REFUSAL_VERB_WORDS). */
 export function refusalOf(ans) {
   const b = ans.body && typeof ans.body === 'object' ? ans.body : {};
   const d = b.detail && typeof b.detail === 'object' ? b.detail : {};
   const named = [d, d.detail, b].find((o) => o && typeof o === 'object' && typeof o.item_id === 'string' && ITEM.test(o.item_id)) || null;
   const item = named ? named.item_id : null;
   return { ok: false, error: (typeof b.error === 'string' && b.error) || ans.error || 'refused',
+    verb: typeof b.verb === 'string' && /^[a-z_]{1,32}$/.test(b.verb) ? b.verb : null,
     slot: Number.isInteger(b.slot) ? b.slot : null, condition: Number.isInteger(b.condition) ? b.condition : null,
     field: typeof b.field === 'string' ? b.field.slice(0, 32) : null, item,
     counts: countsOf(named),

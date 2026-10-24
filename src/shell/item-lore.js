@@ -10,20 +10,20 @@
 //   kindWords(id)   "Weapon · Tier 1 · Common", "Food · heals 18 health"
 //   sourcesOf(id)   ["Dropped by Slime and Giant Rat", "Made with Cooking"]
 //   usesOf(id)      ["Used in Cooking: Wheat Bread", "Eat to heal 18 health"]
-//   needOf(id, sk)  "Needs Melee 30 (you have 20)", against the server's level
+//   needOf(id, sk, lv)  "Needs Melee 30 — you have 20" / "Needs Level 30 — you're 28", against the server's numbers
 //   flavourOf(id)   the item's one-line description, or ''
 // ════════════════════════════════════════════════════════════════════════
-import { ITEMS } from '../data/items.js?v=0.2.38';
-import { DRINK_ITEMS, DRINK_RECIPES, DRINK_DESC } from '../data/drinks.js?v=0.2.38';
-import { MONSTERS } from '../data/monsters.js?v=0.2.38';
-import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.38';
-import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOT_META } from '../data/gathering.js?v=0.2.38';
-import { SHOP_OFFERS } from '../data/shops.js?v=0.2.38';
-import { SKILLS_DEF } from '../data/skills.js?v=0.2.38';
-import { ITEM_DESC } from '../data/item-descriptions.js?v=0.2.38';
-import { itemName, monsterName } from './widgets/bits.js?v=0.2.38';
-import { kindOf, riteOf, cookOf } from './bag-model.js?v=0.2.38';
-import { SHOP_LISTED_OFFER_IDS } from '../data/supply-basics.js?v=0.2.38';
+import { ITEMS } from '../data/items.js?v=0.2.39';
+import { DRINK_ITEMS, DRINK_RECIPES, DRINK_DESC } from '../data/drinks.js?v=0.2.39';
+import { MONSTERS } from '../data/monsters.js?v=0.2.39';
+import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.39';
+import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOT_META } from '../data/gathering.js?v=0.2.39';
+import { SHOP_OFFERS } from '../data/shops.js?v=0.2.39';
+import { SKILLS_DEF } from '../data/skills.js?v=0.2.39';
+import { ITEM_DESC } from '../data/item-descriptions.js?v=0.2.39';
+import { itemName, monsterName } from './widgets/bits.js?v=0.2.39';
+import { kindOf, riteOf, cookOf } from './bag-model.js?v=0.2.39';
+import { SHOP_LISTED_OFFER_IDS } from '../data/supply-basics.js?v=0.2.39';
 
 const skillName = (id) => (SKILLS_DEF[id] && SKILLS_DEF[id].name) || id;
 const RARITY = Object.freeze({ common: 'Common', uncommon: 'Uncommon', rare: 'Rare', epic: 'Epic', legendary: 'Legendary', mythic: 'Mythic', unique: 'Unique' });
@@ -113,15 +113,30 @@ export function usesOf(id) {
   return out;
 }
 
+/* A requirement on the hero's LEVEL names this as its `reqSkill` (Tyler 2026-10-24: equipment moves to Level gates;
+   supplies and runes keep their skills). Any other `reqSkill` is a skill id. */
+export const LEVEL_REQ = 'level';
+
 /**
- * The item's skill requirement in words, against the server's level when it is
- * known: { text, short } (short = below it), or null when it has none.
+ * A requirement in words, from what it names and the server's number (null: not known yet):
+ * "Needs Level 30 — you're 28", "Needs Magic 20 — you have 14", "Needs Defense 30".
  */
-export function needOf(id, skills) {
+export function needWords(req, lv, have) {
+  const level = req === LEVEL_REQ;
+  return 'Needs ' + (level ? 'Level' : skillName(req)) + ' ' + lv
+    + (Number.isInteger(have) ? ' — ' + (level ? 'you\'re ' : 'you have ') + have : '');
+}
+
+/**
+ * The item's requirement in words, against the server's numbers when they are known (`skills`: the server's skills
+ * section, `level`: the hero's Level): { text, short } (short = below it), or null when it has none.
+ */
+export function needOf(id, skills, level) {
   const it = ITEMS[id];
   if (!it || !it.reqSkill || !(it.reqLv > 1)) return null;
-  const have = skills && skills[it.reqSkill] ? skills[it.reqSkill].level : null;
-  return { text: 'Needs ' + skillName(it.reqSkill) + ' ' + it.reqLv + (have !== null ? ' (you have ' + have + ')' : ''), short: have !== null && have < it.reqLv };
+  const have = it.reqSkill === LEVEL_REQ ? (Number.isInteger(level) ? level : null)
+    : skills && skills[it.reqSkill] && Number.isInteger(skills[it.reqSkill].level) ? skills[it.reqSkill].level : null;
+  return { text: needWords(it.reqSkill, it.reqLv, have), short: have !== null && have < it.reqLv };
 }
 
 /** The item's description line, or ''. */

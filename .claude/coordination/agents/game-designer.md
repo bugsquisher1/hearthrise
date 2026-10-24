@@ -778,3 +778,27 @@ Full ruling and build split: `docs/planning/PRIORITY_BOARD.md`, section "2026-10
 **Handoffs raised (in the board's build split):** Security and Systems own lanes 1 and 4 (lane C).
 The Art Director owns lane 2 (banner art and the Trophy Room render). Lane 3 is data cuts. Tyler
 owns two finance items: the gem price of Premium, and dropping the Hearth Token SKU.
+
+---
+
+# 2026-10-24 — MARKETPLACE DESIGN (lane/d-market-design)
+
+Full design: `docs/planning/PRIORITY_BOARD.md`, Decisions, "Marketplace design (2026-10-24)".
+
+**Learnings.**
+- Answer "is every copy identical?" from the table keys, not the item data: bag, worn, Storage,
+  hunt bag and listing are all keyed by item_id with a qty. The one upgrade state (enchant) sits on
+  the worn SLOT. Keep future per-piece state there and stacks stay fungible.
+- Running-hunt reservation is structural: Enter moves whole supply stacks into hunt_bag, so any verb
+  that reads only player_inventory / account_bank cannot reach them. Check the table before
+  inventing a lock.
+- A return path that is "never refused" plus a capacity that a sink sells is an exploit (list 1 unit,
+  let it return, gain a stack past the cap). Fix: count pending returns as used room, in ONE
+  capacity function that every writer reads.
+- A price floor at the shop's bid is the cheap rule that stops buy-then-vend minting and caps
+  gift-listing laundering at once; check bid coverage (508/508) before relying on it.
+
+**Handoffs raised (in the section):** backend-architect lanes 1-2 (server + edge), Security the one
+review before players, systems-engineer + art-director lane 4 (window/sheet), asset-director lane 5
+(Weighhouse, Aldous Pell, icon). Systems + Art Director: the Storage window's client-only
+"Leave the hunt to use it" line conflicts with remote market reach and Quick stash.

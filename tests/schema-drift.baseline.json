@@ -7,10 +7,10 @@
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
  "generated": "2026-10-24",
- "digest": "258c6c795b42d5592c6190685b4088b964ae696897ec4a356ca2054958ad0db9",
+ "digest": "33895962f7f0365cb6b2fc06dab8d8943f2e17693cbcdebc5d886357c9bd9186",
  "counts": {
   "relations": 225,
-  "functions": 521,
+  "functions": 522,
   "policies": 115,
   "indexes": 320,
   "triggers": 48,
@@ -544,6 +544,7 @@
    "hr_intents_prune(p_older interval)",
    "hr_item_lock(p_slot integer, p_item text, p_locked boolean, p_idem uuid)",
    "hr_item_locked(p_user uuid, p_slot integer, p_item text)",
+   "hr_item_requirement_unmet(p_user uuid, p_slot integer, p_item text)",
    "hr_item_rule_put(p_user uuid, p_slot integer, p_item text, p_locked boolean, p_rule text, p_restock integer)",
    "hr_jsonb_add(p_a jsonb, p_b jsonb)",
    "hr_kill_credit_prune(p_older interval)",

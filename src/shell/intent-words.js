@@ -4,8 +4,8 @@
 // PURE. Every window says why the server refused, the same way, from ONE table
 // (src/data/refusal-words.js): a code's own line, else its family's, else a
 // fallback that still says nothing was changed. A refusal that names an item
-// the hero's skill is too low for says the numbers ("Needs Defense 20 (you have
-// 1)."), from the item's requirement and the SERVER's skill levels; a house
+// the hero is short of says the numbers ("Steel Helm needs Level 30 — you're
+// 28.": gear by Level, a supply by its skill), the SERVER's own; a house
 // build short of a material says the server's bag and Storage counts. The
 // server's value stays on screen either way: nothing changed before it answered.
 // ════════════════════════════════════════════════════════════════════════
@@ -15,7 +15,7 @@ import { ITEMS } from '../data/items.js?v=0.2.42';
 import { REFUSAL_WORDS, REFUSAL_FAMILIES, REFUSAL_FALLBACK, REFUSAL_VERB_WORDS } from '../data/refusal-words.js?v=0.2.42';
 import { skillsOf } from '../session/item-sections.js?v=0.2.42';
 import { levelOf } from '../session/character-sections.js?v=0.2.42';
-import { needOf } from './item-lore.js?v=0.2.42';
+import { needOf, needWords } from './item-lore.js?v=0.2.42';
 import { whole } from '../render/format.js?v=0.2.42';
 
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -38,12 +38,16 @@ export function refusalWords(code, verb) {
 }
 
 /**
- * "Steel Helm needs Defense 30 — you have 19." for an item the server refused on its requirement: the item the
- * server's answer names, what its catalogue row requires (a skill, or the hero's Level: item-lore.js needOf) and,
- * with a character, the server's own number. Null when the item names no requirement.
+ * "Steel Helm needs Level 30 — you're 28." for an item the server refused on its requirement: the item the
+ * server's answer names, what its catalogue row requires (the hero's Level for gear, a skill for ammo: item-lore.js
+ * needOf) and the server's own number, from the refusal itself when it says one (hr_apply's `have`, hr_item_
+ * requirement_unmet), else from the character's sections. Null when the item names no requirement.
  */
-function requirementWords(item, cs) {
+function requirementWords(item, cs, counts) {
   const it = typeof item === 'string' && own(ITEMS, item) ? ITEMS[item] : null;
+  if (it && it.reqSkill && counts && Number.isInteger(counts.have) && counts.need === it.reqLv) {
+    return it.n + ' n' + needWords(it.reqSkill, it.reqLv, counts.have).slice(1) + '.';
+  }
   const lv = cs ? levelOf(cs) : null;
   const need = it ? needOf(item, cs ? skillsOf(cs) : null, lv ? lv.level : null) : null;
   return need ? it.n + ' n' + need.text.slice(1) + '.' : null;
@@ -71,7 +75,7 @@ export function refusalText(r, cs) {
   if (r && r.error === 'bad_name' && (r.reason === 'reserved' || r.reason === 'blocked')) return refusalWords('bad_name_rule');
   if (r && r.error === 'member_hunting' && r.name) return r.name + ' is hunting. Invite them once that hunt ends.';
   if (r && (r.error === 'requirement_not_met' || r.error === 'level_too_low') && r.item) {
-    const w = requirementWords(r.item, cs);
+    const w = requirementWords(r.item, cs, r.counts);
     if (w) return w;
   }
   /* A house build one material short across the bag and Storage (2027-01-10-house-from-storage.sql): the server's counts. */

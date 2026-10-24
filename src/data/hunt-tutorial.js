@@ -42,6 +42,11 @@ import { END_ORDER } from './hunt-sessions.js?v=0.2.42';
 import { nextUnlock } from './skill-unlocks.js?v=0.2.42';
 import { SKILLS_DEF } from './skills.js?v=0.2.42';
 import { CROPS } from './gathering.js?v=0.2.42';
+import { ITEMS } from './items.js?v=0.2.42';
+import { LEVEL_REQ } from './gear-tiers.js?v=0.2.42';
+import { roleWeaponOf, WEAPON_ROLES, SHIELD_ARM } from './hunt-roles.js?v=0.2.42';
+import { isShield } from './shields.js?v=0.2.42';
+import { deriveProfile } from '../core/member.js?v=0.2.42';
 
 /* The surfaces a card may point at, and where each is specified. */
 export const TUTORIAL_ANCHORS = Object.freeze({
@@ -177,11 +182,32 @@ export function currentCard(facts, rows = HUNT_TUTORIAL) {
    was gone and nothing on screen said what to aim at. Once currentCard is null the
    pointer shows ONE goal line, read from the same server facts plus the hero's role
    and skills: the next hunting ground by Level (a hunt-grounds.js row, so a new
-   ground shows up here with no edit), and the next thing the weapon's skill opens
-   (skill-unlocks.js, the Character window's own "Next at level" line). Display only. */
+   ground shows up here with no edit), the next GEAR by Level (every piece is worn by
+   the hero's Level, Tyler 2026-10-24: skill-unlocks.js nextUnlock(LEVEL_REQ), only
+   pieces a player can get, only the ones the role wears), and the next supply the
+   weapon's skill opens (the Character window's own "Next at level" line). Display only. */
 
 /* The skill the role's weapon trains (Tyler 2026-10-14: classless Melee / Ranged / Magic). */
 export const ROLE_SKILL = Object.freeze({ tank: 'melee', melee_dps: 'melee', ranger: 'ranged', mage: 'magic', healer: 'magic' });
+
+/**
+ * Would a hero of `role` wear `id`? For the coach's NAMING only, never a gate (any hero wears any piece, Tyler
+ * 2026-10-14): a weapon the role plays (hunt-roles.js: its role key, or its shield arm's: a sword is the tank's too),
+ * a shield for the tank, a spellbook for its discipline's role, and armor or jewelry that costs the role's own style
+ * nothing (no negative accuracy or damage field for it, src/core/member.js deriveProfile: plate costs a caster and a
+ * Ranger accuracy, cloth a Melee).
+ */
+export function wornByRole(id, role) {
+  const it = ITEMS[id];
+  const skill = ROLE_SKILL[role];
+  if (!it || !it.slot || !skill) return false;
+  const plays = (k) => [k, SHIELD_ARM[k]].some((x) => x && (WEAPON_ROLES[x] || []).includes(role));
+  if (it.slot === 'weapon') return plays(roleWeaponOf(it));
+  if (isShield(it)) return role === 'tank';
+  if (it.slot === 'shield' && it.discipline) return plays(roleWeaponOf({ weaponType: 'magic', discipline: it.discipline }));
+  const p = deriveProfile(skill === 'melee' ? 'sword' : skill);
+  return !(Number(it[p.accuracyBonusField]) < 0) && !(Number(it[p.strengthBonusField]) < 0);
+}
 
 /** The playable hunts (a ground row, not `staged`: built but not open is never a goal), lowest band floor first. */
 const groundHunts = () => Array.from(new Set(Object.values(HUNT_GROUNDS).map((g) => g.hunt)))
@@ -216,7 +242,7 @@ export function nextGoal(facts) {
   /* Defense at 0 XP means no armour worn (Tyler 2026-10-18: it trains only in armour). The fresh-hero play hit 117
      kills like that; the Shop's gloves and belts are the cheapest armour (designer 2026-10-22, the outfitter). */
   if (facts.defenseXp === 0) {
-    lines.push('Your Defense is not training: it rises only while you wear armour. The Shop sells gloves and belts.');
+    lines.push('Your Defense isn\'t training: it rises only while you wear armor. The Shop sells gloves and belts.');
     ids.push('armour');
   }
   /* The land is the ACCOUNT's (2026-12-14-shared-farm), so the line reads the field, never this hero's Farming XP
@@ -242,6 +268,15 @@ export function nextGoal(facts) {
     /* The floor is a warning, not a lock (Tyler 2026-10-18), so the line names the Level it is built for. */
     lines.push('Next ground: ' + HUNT_INDEX[next].name + ', for Level ' + HUNT_INDEX[next].band[0] + ' and up' + (party ? ', with a party.' : '.'));
     ids.push(next, String(HUNT_INDEX[next].band[0]));
+  }
+  /* THE NEXT GEAR, BY LEVEL (Tyler 2026-10-24): the lowest Level above the hero's that opens a piece a player can get
+     (skill-unlocks.js: reachable only) and the role wears; with no role from the server yet, every such piece. */
+  const role = ROLE_SKILL[facts.role] ? facts.role : null;
+  const gear = nextUnlock(LEVEL_REQ, facts.charLevel, role ? (id) => wornByRole(id, role) : null);
+  const gat = /^Next at level (\d+): /.exec(gear);
+  if (gat) {
+    lines.push('Next gear at Level ' + gat[1] + ': ' + gear.slice(gat[0].length) + '.');
+    ids.push('gear', gat[1]);
   }
   const skill = ROLE_SKILL[facts.role];
   if (skill && Number.isInteger(facts.skillLevel)) {

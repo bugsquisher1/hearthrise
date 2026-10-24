@@ -78,29 +78,29 @@ export const SLOT_ITEMS = {
   /* ══ EARRINGS — the precision slot ══════════════════════════════════════
      A brand-new lane needs an identity that is not "more of what the necklace
      already does". Earrings are crit + a little ward: the smallest numbers in
-     the game, in the smallest slot, gated on Defence so every build can wear
-     them (the generated armour ladder already gates on Defence, so no build is
-     excluded by it — unlike gating on Attack, which would lock out mages).
+     the game, in the smallest slot, worn by the hero's Level like every piece
+     of gear (gear-tiers.js LEVEL_REQ, Tyler 2026-10-24), so no build is
+     excluded by it — unlike gating on a skill, which would lock out a style.
 
      Crit headroom checked: best-in-slot critB is 0.308 today and the engine cap
      (COMBAT_BALANCE.critCap) is 0.60. This lane adds at most 0.04.            */
   /* b542 — the tier-1 rung was the ONE earring in this lane with no reqSkill/reqLv,
      which read as "tier 1 needs no gate" and left hr_items.req_lv NULL on the only
      rung a new player actually reaches. reqLv 1 restricts nobody (the gate is
-     `level < req_lv`); it states the lane's skill so the column is non-NULL across
+     `level < req_lv`); it states the lane's requirement so the column is non-NULL across
      all seven rungs and the server has one shape to read. */
-  copper_studs:        { n: 'Copper Studs',        icon: '💎', v: priced(100, 1), type: 'jewelry', slot: 'earrings', tier: 1, rarity: 'common',    reqSkill: 'defense', reqLv: 1,  defB: 1, critB: 0.005 },
-  fang_studs:          { n: 'Fang Studs',          icon: '💎', v: priced(100, 2), type: 'jewelry', slot: 'earrings', tier: 2, rarity: 'uncommon',  reqSkill: 'defense', reqLv: 18, defB: 2, critB: 0.01 },
-  spidereye_studs:     { n: 'Spider-Eye Studs',    icon: '💎', v: priced(100, 3), type: 'jewelry', slot: 'earrings', tier: 3, rarity: 'rare',      reqSkill: 'defense', reqLv: 34, defB: 3, critB: 0.015, strB: 2 },
-  wraithglass_drops:   { n: 'Wraithglass Drops',   icon: '💎', v: priced(100, 4), type: 'jewelry', slot: 'earrings', tier: 4, rarity: 'epic',      reqSkill: 'defense', reqLv: 50, defB: 4, critB: 0.02,  strB: 3 },
-  rubyfire_studs:      { n: 'Rubyfire Studs',      icon: '💎', v: priced(100, 5), type: 'jewelry', slot: 'earrings', tier: 5, rarity: 'legendary', reqSkill: 'defense', reqLv: 66, defB: 5, critB: 0.025, strB: 3 },
+  copper_studs:        { n: 'Copper Studs',        icon: '💎', v: priced(100, 1), type: 'jewelry', slot: 'earrings', tier: 1, rarity: 'common',    reqSkill: 'level', reqLv: 1,  defB: 1, critB: 0.005 },
+  fang_studs:          { n: 'Fang Studs',          icon: '💎', v: priced(100, 2), type: 'jewelry', slot: 'earrings', tier: 2, rarity: 'uncommon',  reqSkill: 'level', reqLv: 18, defB: 2, critB: 0.01 },
+  spidereye_studs:     { n: 'Spider-Eye Studs',    icon: '💎', v: priced(100, 3), type: 'jewelry', slot: 'earrings', tier: 3, rarity: 'rare',      reqSkill: 'level', reqLv: 34, defB: 3, critB: 0.015, strB: 2 },
+  wraithglass_drops:   { n: 'Wraithglass Drops',   icon: '💎', v: priced(100, 4), type: 'jewelry', slot: 'earrings', tier: 4, rarity: 'epic',      reqSkill: 'level', reqLv: 50, defB: 4, critB: 0.02,  strB: 3 },
+  rubyfire_studs:      { n: 'Rubyfire Studs',      icon: '💎', v: priced(100, 5), type: 'jewelry', slot: 'earrings', tier: 5, rarity: 'legendary', reqSkill: 'level', reqLv: 66, defB: 5, critB: 0.025, strB: 3 },
   /* The capstone the code has been waiting for. `gemcutter_note` has existed as
      a recipe scroll since b145 pointing at `dragon_gem_earrings`, deliberately
      NOT dropped because "a scroll that unlocks nothing is a confusing dead
      end" (legacy.js:10976). Its own instructions: define the item in
      src/data/items.js, add the recipe with `gated:`, add the drop in
      src/data/monsters.js. All three are done. */
-  dragon_gem_earrings: { n: 'Dragon Gem Earrings', icon: '💎', v: 24000, type: 'jewelry', slot: 'earrings', tier: 8, rarity: 'unique', reqSkill: 'defense', reqLv: 82, defB: 8, critB: 0.04, strB: 4, rangeStrB: 4, magicStrB: 4 },
+  dragon_gem_earrings: { n: 'Dragon Gem Earrings', icon: '💎', v: 24000, type: 'jewelry', slot: 'earrings', tier: 8, rarity: 'unique', reqSkill: 'level', reqLv: 82, defB: 8, critB: 0.04, strB: 4, rangeStrB: 4, magicStrB: 4 },
 
   /* ══ CAPE — the holes at tiers 1/2/4/5/7 ════════════════════════════════
      DELIBERATELY HAND-AUTHORED, NOT GENERATED. Adding a `cape` row to
@@ -116,31 +116,31 @@ export const SLOT_ITEMS = {
      buckets. Note the pre-existing quirk this sidesteps: the three tiered
      capes already in the game carry no armourClass, so armorSetBonus counts
      them as PLATE today. Raised as a handoff; not changed here.             */
-  woolen_cloak:    { n: 'Woollen Cloak',   icon: '🦸', v: priced(240, 1), type: 'armor', slot: 'cape', armourClass: 'cape', tier: 1, rarity: 'common',    reqSkill: 'defense', reqLv: 12, defB: 2 },
-  houndskin_cloak: { n: 'Houndskin Cloak', icon: '🦸', v: priced(240, 2), type: 'armor', slot: 'cape', armourClass: 'cape', tier: 2, rarity: 'uncommon',  reqSkill: 'defense', reqLv: 28, defB: 4,  strB: 1 },
-  trollhide_cape:  { n: 'Trollhide Cape',  icon: '🦸', v: priced(240, 4), type: 'armor', slot: 'cape', armourClass: 'cape', tier: 4, rarity: 'epic',      reqSkill: 'defense', reqLv: 50, defB: 11, strB: 2 },
-  shadowsilk_cape: { n: 'Shadowsilk Cape', icon: '🦸', v: priced(240, 5), type: 'armor', slot: 'cape', armourClass: 'cape', tier: 5, rarity: 'legendary', reqSkill: 'defense', reqLv: 63, defB: 16, strB: 3 },
-  dawnlit_mantle:  { n: 'Dawnlit Mantle',  icon: '🦸', v: priced(240, 7), type: 'armor', slot: 'cape', armourClass: 'cape', tier: 7, rarity: 'mythic',    reqSkill: 'defense', reqLv: 88, defB: 30, strB: 3, critB: 0.01 },
+  woolen_cloak:    { n: 'Woollen Cloak',   icon: '🦸', v: priced(240, 1), type: 'armor', slot: 'cape', armourClass: 'cape', tier: 1, rarity: 'common',    reqSkill: 'level', reqLv: 12, defB: 2 },
+  houndskin_cloak: { n: 'Houndskin Cloak', icon: '🦸', v: priced(240, 2), type: 'armor', slot: 'cape', armourClass: 'cape', tier: 2, rarity: 'uncommon',  reqSkill: 'level', reqLv: 28, defB: 4,  strB: 1 },
+  trollhide_cape:  { n: 'Trollhide Cape',  icon: '🦸', v: priced(240, 4), type: 'armor', slot: 'cape', armourClass: 'cape', tier: 4, rarity: 'epic',      reqSkill: 'level', reqLv: 50, defB: 11, strB: 2 },
+  shadowsilk_cape: { n: 'Shadowsilk Cape', icon: '🦸', v: priced(240, 5), type: 'armor', slot: 'cape', armourClass: 'cape', tier: 5, rarity: 'legendary', reqSkill: 'level', reqLv: 63, defB: 16, strB: 3 },
+  dawnlit_mantle:  { n: 'Dawnlit Mantle',  icon: '🦸', v: priced(240, 7), type: 'armor', slot: 'cape', armourClass: 'cape', tier: 7, rarity: 'mythic',    reqSkill: 'level', reqLv: 88, defB: 30, strB: 3, critB: 0.01 },
 
   /* ══ NECKLACE — accuracy low, damage high ═══════════════════════════════ */
-  wolfbone_torc:     { n: 'Wolfbone Torc',     icon: '📿', v: priced(200, 2), type: 'jewelry', slot: 'necklace', tier: 2, rarity: 'uncommon', reqSkill: 'defense', reqLv: 16, atkB: 3, defB: 2 },
-  spidersilk_choker: { n: 'Spidersilk Choker', icon: '📿', v: priced(200, 3), type: 'jewelry', slot: 'necklace', tier: 3, rarity: 'rare',     reqSkill: 'defense', reqLv: 34, atkB: 5, critB: 0.01 },
-  warlords_torc:     { n: "Warlord's Torc",    icon: '📿', v: priced(200, 4), type: 'jewelry', slot: 'necklace', tier: 4, rarity: 'epic',     reqSkill: 'defense', reqLv: 52, atkB: 6, strB: 5, defB: 3 },
-  dawnbound_amulet:  { n: 'Dawnbound Amulet',  icon: '📿', v: priced(200, 7), type: 'jewelry', slot: 'necklace', tier: 7, rarity: 'mythic',   reqSkill: 'defense', reqLv: 86, atkB: 8, strB: 7, defB: 4 },
+  wolfbone_torc:     { n: 'Wolfbone Torc',     icon: '📿', v: priced(200, 2), type: 'jewelry', slot: 'necklace', tier: 2, rarity: 'uncommon', reqSkill: 'level', reqLv: 16, atkB: 3, defB: 2 },
+  spidersilk_choker: { n: 'Spidersilk Choker', icon: '📿', v: priced(200, 3), type: 'jewelry', slot: 'necklace', tier: 3, rarity: 'rare',     reqSkill: 'level', reqLv: 34, atkB: 5, critB: 0.01 },
+  warlords_torc:     { n: "Warlord's Torc",    icon: '📿', v: priced(200, 4), type: 'jewelry', slot: 'necklace', tier: 4, rarity: 'epic',     reqSkill: 'level', reqLv: 52, atkB: 6, strB: 5, defB: 3 },
+  dawnbound_amulet:  { n: 'Dawnbound Amulet',  icon: '📿', v: priced(200, 7), type: 'jewelry', slot: 'necklace', tier: 7, rarity: 'mythic',   reqSkill: 'level', reqLv: 86, atkB: 8, strB: 7, defB: 4 },
 
   /* ══ RING — the hybrid, and remember BOTH ring slots take one ═══════════
      Every number here is doubled in practice (ring1 + ring2), which is why the
      ring rungs are roughly half the necklace's.                             */
-  banded_signet:     { n: 'Banded Signet',     icon: '💍', v: priced(200, 2), type: 'jewelry', slot: 'ring', tier: 2, rarity: 'uncommon',  reqSkill: 'defense', reqLv: 18, atkB: 2, strB: 2 },
-  ruby_signet:       { n: 'Ruby Signet',       icon: '💍', v: priced(200, 5), type: 'jewelry', slot: 'ring', tier: 5, rarity: 'legendary', reqSkill: 'defense', reqLv: 52, atkB: 4, strB: 4, critB: 0.01 },
+  banded_signet:     { n: 'Banded Signet',     icon: '💍', v: priced(200, 2), type: 'jewelry', slot: 'ring', tier: 2, rarity: 'uncommon',  reqSkill: 'level', reqLv: 18, atkB: 2, strB: 2 },
+  ruby_signet:       { n: 'Ruby Signet',       icon: '💍', v: priced(200, 5), type: 'jewelry', slot: 'ring', tier: 5, rarity: 'legendary', reqSkill: 'level', reqLv: 52, atkB: 4, strB: 4, critB: 0.01 },
   /* The second scroll the code has been waiting for: `spellstone_diagram` →
      `spellstone_ring`, same b145 note, same three steps. Magic-flavoured
      because its material is a Warlock's cracked spellstone — but note it pays
      mostly in `magicAtkB`, which is a courtesy stat at that level, plus a
      modest `magicStrB`: magic is already the strongest family in the game by
      a factor of 2.26x at BiS and this lane does not widen that. */
-  spellstone_ring:   { n: 'Spellstone Ring',   icon: '💍', v: 26000,          type: 'jewelry', slot: 'ring', tier: 6, rarity: 'unique',     reqSkill: 'magic',   reqLv: 68, magicAtkB: 6, magicStrB: 4, defB: 3, critB: 0.01 },
-  dawnforged_signet: { n: 'Dawnforged Signet', icon: '💍', v: priced(200, 7), type: 'jewelry', slot: 'ring', tier: 7, rarity: 'mythic',     reqSkill: 'defense', reqLv: 84, atkB: 6, strB: 6, critB: 0.01 },
+  spellstone_ring:   { n: 'Spellstone Ring',   icon: '💍', v: 26000,          type: 'jewelry', slot: 'ring', tier: 6, rarity: 'unique',     reqSkill: 'level',   reqLv: 68, magicAtkB: 6, magicStrB: 4, defB: 3, critB: 0.01 },
+  dawnforged_signet: { n: 'Dawnforged Signet', icon: '💍', v: priced(200, 7), type: 'jewelry', slot: 'ring', tier: 7, rarity: 'mythic',     reqSkill: 'level', reqLv: 84, atkB: 6, strB: 6, critB: 0.01 },
 };
 
 /* ══════════════════════════════════════════════════════════════════════════

@@ -9,10 +9,10 @@
 //   SG-1  every style's practice weapon is in the start kit, and each of its rungs is an item a player can
 //         REACH (catalogue-coherence reachableSources: open grounds, the listed Shop, gathering, crafts from
 //         reachable inputs) playing that same style (its role weapon key)
-//   SG-2  the first rung is worn at skill 15 or below (the sword's Iron Sword rung) and beats the practice
+//   SG-2  the first rung is worn at Level 15 or below (the sword's Iron Sword rung) and beats the practice
 //         weapon on its style's accuracy + damage; a rung is two-handed exactly when its practice weapon is
 //   SG-3  the cloth line: every tier-1 and tier-2 piece is reachable light armour (armourClass cloth), tier 1
-//         worn at Defense 1 and tier 2 at 15, and each tier's set carries more magic damage than the last
+//         worn at Level 1 and tier 2 at Level 15, and each tier's set carries more magic damage than the last
 //   SG-4  a made piece never sells for more than the BOOK value of what went in (the bench is never a faucet)
 //   SG-5  every made rung opens at or below the level it is worn at, from inputs a player can reach without it
 //   SG-6  every made rung sits in a Work-window category (recipes.js recipeCategory), never uncategorized
@@ -73,7 +73,8 @@ export function check() {
       if (!it || it.armourClass !== 'cloth') { fails.push(`SG-3 tier ${tier}: ${id} is not cloth armour`); continue; }
       if (!reach.has(id)) fails.push(`SG-3 tier ${tier}: ${id} has no source a player can reach`);
       const want = Number(tier) === 1 ? 1 : 15;
-      if (it.reqSkill !== 'defense' || Number(it.reqLv) !== want) fails.push(`SG-3 tier ${tier}: ${id} is worn at ${it.reqSkill} ${it.reqLv}, want defense ${want}`);
+      /* Worn by the hero's Level (Tyler 2026-10-24: every piece of gear), never a skill. */
+      if (it.reqSkill !== 'level' || Number(it.reqLv) !== want) fails.push(`SG-3 tier ${tier}: ${id} is worn at ${it.reqSkill} ${it.reqLv}, want Level ${want}`);
       magic += (it.magicStrB || 0);
     }
     if (!(magic > lastMagic)) fails.push(`SG-3 tier ${tier}: the set carries ${magic} magic damage, not more than the tier below (${lastMagic})`);
@@ -117,7 +118,7 @@ function mutate() {
   run('an adept robe that is plate', 'SG-3', () => setField('adept_body', 'armourClass', 'plate'));
   /* worn gear sells at half book (loot-bands.js): a 600 g Longbow sells for 300, over the 275 its planks and thread cost */
   run('the Longbow at 600 g (it sells for more than its inputs)', 'SG-4', () => setField('longbow', 'v', 600));
-  run('a rung worn before its recipe opens (Melee 10, made at Smithing 15)', 'SG-5', () => setField('iron_hatchets', 'reqLv', 10));
+  run('a rung worn before its recipe opens (Level 10, made at Smithing 15)', 'SG-5', () => setField('iron_hatchets', 'reqLv', 10));
   run('a made rung from an input no player can reach', 'SG-5', () => {
     const was = ITEMS.silk_thread; delete ITEMS.silk_thread;
     return () => { ITEMS.silk_thread = was; };
@@ -137,7 +138,7 @@ if (isEntryModule(import.meta.url)) {
     if (process.argv.includes('--mutate') || process.argv.includes('--selftest')) mutate();
     const fails = check();
     if (fails.length) { console.error('style-gear: RED'); fails.forEach((f) => console.error('  ✗ ' + f)); process.exit(1); }
-    console.log(`style-gear: OK — ${Object.keys(STYLE_LADDER).length} styles each climb past the practice kit by skill 15 from a door a player can reach; `
+    console.log(`style-gear: OK — ${Object.keys(STYLE_LADDER).length} styles each climb past the practice kit by Level 15 from a door a player can reach; `
       + `the cloth line is made at tiers 1 and 2; ${Object.values(STYLE_GEAR_RECIPES).flat().length} made rungs, none sells above its inputs' book`);
   } catch (e) { console.error('style-gear: HARNESS ERROR — ' + (e && e.stack || e)); process.exit(2); }
 }

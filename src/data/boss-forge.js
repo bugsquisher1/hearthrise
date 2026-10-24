@@ -13,7 +13,7 @@
 //        Riftmaw Husk     → Riftmaw Carapace       (leather, ranged)
 //        Void Essence     → Voidheart Robe         (cloth,   magic)
 //      Each piece is its Dawnsteel-tier twin plus a modest step (about +15%
-//      on the line's own stat), gated ABOVE the twin's Defence 88, so it is a
+//      on the line's own stat), gated ABOVE the twin's Level 88, so it is a
 //      real upgrade and never a sidegrade. Expected clears to one piece, from
 //      the chest rows: heart 1 at 25% ≈ 4, husk 3 at 0.30×1.5 ≈ 7, essence 2 at
 //      25% ≈ 8 — a week or two of runs, which is the point.
@@ -43,19 +43,19 @@ export const BOSS_FORGE_ITEMS = {
     n: 'Elderscale Platebody', icon: '🛡️', v: 118800,
     type: 'armor', slot: 'body', armourClass: 'plate',
     defB: 104, strB: 4, rangeAtkB: -26, magicAtkB: -52,
-    rarity: 'unique', reqSkill: 'defense', reqLv: 95,
+    rarity: 'unique', reqSkill: 'level', reqLv: 95,
   },
   riftmaw_carapace: {
     n: 'Riftmaw Carapace', icon: '🎽', v: 83160,
     type: 'armor', slot: 'body', armourClass: 'leather',
     defB: 56, rangeAtkB: 52, critB: 0.035, magicAtkB: -15,
-    rarity: 'unique', reqSkill: 'defense', reqLv: 90,
+    rarity: 'unique', reqSkill: 'level', reqLv: 90,
   },
   voidheart_robe: {
     n: 'Voidheart Robe', icon: '🧥', v: 83160,
     type: 'armor', slot: 'body', armourClass: 'cloth',
     defB: 30, magicAtkB: 62, magicStrB: 42, atkB: -23, rangeAtkB: -18,
-    rarity: 'unique', reqSkill: 'defense', reqLv: 90,
+    rarity: 'unique', reqSkill: 'level', reqLv: 90,
   },
 };
 

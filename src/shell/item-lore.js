@@ -14,6 +14,7 @@
 //   flavourOf(id)   the item's one-line description, or ''
 // ════════════════════════════════════════════════════════════════════════
 import { ITEMS } from '../data/items.js?v=0.2.42';
+import { LEVEL_REQ } from '../data/gear-tiers.js?v=0.2.42';
 import { DRINK_ITEMS, DRINK_RECIPES, DRINK_DESC } from '../data/drinks.js?v=0.2.42';
 import { MONSTERS } from '../data/monsters.js?v=0.2.42';
 import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.42';
@@ -27,7 +28,7 @@ import { SHOP_LISTED_OFFER_IDS } from '../data/supply-basics.js?v=0.2.42';
 
 const skillName = (id) => (SKILLS_DEF[id] && SKILLS_DEF[id].name) || id;
 const RARITY = Object.freeze({ common: 'Common', uncommon: 'Uncommon', rare: 'Rare', epic: 'Epic', legendary: 'Legendary', mythic: 'Mythic', unique: 'Unique' });
-const TYPE = Object.freeze({ weapon: 'Weapon', armor: 'Armour', jewelry: 'Jewellery', tool: 'Tool', trophy: 'Trophy' });
+const TYPE = Object.freeze({ weapon: 'Weapon', armor: 'Armor', jewelry: 'Jewelry', tool: 'Tool', trophy: 'Trophy' });
 
 /** "A, B and C", or "A, B, C and 4 more" past `max`. */
 export function listWords(names, max = 3) {
@@ -113,18 +114,26 @@ export function usesOf(id) {
   return out;
 }
 
-/* A requirement on the hero's LEVEL names this as its `reqSkill` (Tyler 2026-10-24: equipment moves to Level gates;
-   supplies and runes keep their skills). Any other `reqSkill` is a skill id. */
-export const LEVEL_REQ = 'level';
-
 /**
  * A requirement in words, from what it names and the server's number (null: not known yet):
- * "Needs Level 30 — you're 28", "Needs Magic 20 — you have 14", "Needs Defense 30".
+ * "Needs Level 30 — you're 28", "Needs Magic 20 — you have 14". Every piece of gear names the hero's Level
+ * (gear-tiers.js LEVEL_REQ, Tyler 2026-10-24); a supply names its skill.
  */
 export function needWords(req, lv, have) {
   const level = req === LEVEL_REQ;
   return 'Needs ' + (level ? 'Level' : skillName(req)) + ' ' + lv
     + (Number.isInteger(have) ? ' — ' + (level ? 'you\'re ' : 'you have ') + have : '');
+}
+
+/**
+ * The server's number a requirement reads, or null when the server has not said: the hero's Level for gear
+ * (LEVEL_REQ), else that skill's level from the server's skills section. The ONE reader of "what do I have"
+ * for a requirement (the tooltip, the gear gate, the refusal words and Equip upgrades all ask it).
+ */
+export function reqHave(req, skills, level) {
+  if (req === LEVEL_REQ) return Number.isInteger(level) ? level : null;
+  const s = skills && typeof req === 'string' ? skills[req] : null;
+  return s && Number.isInteger(s.level) ? s.level : null;
 }
 
 /**
@@ -134,8 +143,7 @@ export function needWords(req, lv, have) {
 export function needOf(id, skills, level) {
   const it = ITEMS[id];
   if (!it || !it.reqSkill || !(it.reqLv > 1)) return null;
-  const have = it.reqSkill === LEVEL_REQ ? (Number.isInteger(level) ? level : null)
-    : skills && skills[it.reqSkill] && Number.isInteger(skills[it.reqSkill].level) ? skills[it.reqSkill].level : null;
+  const have = reqHave(it.reqSkill, skills, level);
   return { text: needWords(it.reqSkill, it.reqLv, have), short: have !== null && have < it.reqLv };
 }
 

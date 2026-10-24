@@ -4,20 +4,20 @@
 // and ITEM_DESC; the recipes were deleted with crafted gear (demolition, 2026-10-14).
 
 export const WAVE3_ITEMS = {
-  dragonrend_greatblade: {n:'Dragonrend',icon:'🗡️',v:17600,type:'weapon',slot:'weapon',weaponType:'sword',atkB:42,strB:42,critB:0.02,rarity:'unique',tier:8,reqSkill:'melee',reqLv:88},
-  crown_of_the_fallen_king: {n:'Crown of the Fallen King',icon:'🛡️',v:17000,type:'armor',slot:'helmet',armourClass:'plate',defB:36,strB:6,rarity:'unique',tier:7,reqSkill:'defense',reqLv:85},
-  emberfang_blade: {n:'Emberfang',icon:'🗡️',v:14400,type:'weapon',slot:'weapon',weaponType:'sword',atkB:24,strB:15,critB:0.06,rarity:'epic',tier:6,reqSkill:'melee',reqLv:72},
-  demoncaller_staff: {n:'Demoncaller',icon:'🪄',v:13600,type:'weapon',slot:'weapon',weaponType:'magic',discipline:'restoration',twoHanded:true,magicAtkB:24,magicStrB:31,atkB:24,strB:31,critB:0.05,rarity:'epic',tier:6,reqSkill:'magic',reqLv:68},
-  panthers_eye_pendant: {n:'Panther\'s Eye Pendant',icon:'📿',v:13600,type:'jewelry',slot:'necklace',critB:0.05,atkB:2,rarity:'rare',tier:5,reqSkill:'melee',reqLv:68},
-  wraithsilk_shroud: {n:'Wraithsilk Shroud',icon:'🛡️',v:10400,type:'armor',slot:'body',armourClass:'cloth',defB:20,magicAtkB:8,rarity:'epic',tier:5,reqSkill:'defense',reqLv:52},
-  widows_fang: {n:'Widow\'s Fang',icon:'🗡️',v:7600,type:'weapon',slot:'weapon',weaponType:'sword',atkB:16,strB:12,critB:0.06,rarity:'rare',tier:3,reqSkill:'melee',reqLv:38},
-  plaguewarden_greaves: {n:'Plaguewarden Greaves',icon:'🛡️',v:10800,type:'armor',slot:'pants',armourClass:'plate',defB:26,strB:4,rarity:'rare',tier:5,reqSkill:'defense',reqLv:54},
-  hollow_sigil_ring: {n:'Hollow Sigil Ring',icon:'💍',v:7000,type:'jewelry',slot:'ring',magicAtkB:5,magicStrB:3,rarity:'rare',tier:3,reqSkill:'magic',reqLv:35},
-  fangdart_recurve: {n:'Fangdart Recurve',icon:'🏹',v:7200,type:'weapon',slot:'weapon',weaponType:'ranged',twoHanded:true,rangeAtkB:15,rangeStrB:10,critB:0.04,rarity:'rare',tier:3,reqSkill:'ranged',reqLv:36},
-  alphaheart_longbow: {n:'Alphaheart Longbow',icon:'🏹',v:10000,type:'weapon',slot:'weapon',weaponType:'ranged',twoHanded:true,rangeAtkB:24,rangeStrB:18,critB:0.05,rarity:'epic',tier:4,reqSkill:'ranged',reqLv:50},
-  nightstalker_pelt: {n:'Nightstalker\'s Pelt',icon:'🛡️',v:12400,type:'armor',slot:'body',armourClass:'leather',defB:18,rangeAtkB:8,rangeStrB:6,critB:0.02,rarity:'unique',tier:5,reqSkill:'defense',reqLv:62},
-  warband_bulwark: {n:'Warband Bulwark',icon:'🛡️',v:7000,type:'armor',slot:'cape',defB:14,strB:3,rarity:'rare',tier:3,reqSkill:'defense',reqLv:35},
-  chitinweave_cloak: {n:'Chitinweave Cloak',icon:'🧥',v:15200,type:'armor',slot:'cape',defB:8,critB:0.02,rarity:'epic',tier:6,reqSkill:'defense',reqLv:76},
+  dragonrend_greatblade: {n:'Dragonrend',icon:'🗡️',v:17600,type:'weapon',slot:'weapon',weaponType:'sword',atkB:42,strB:42,critB:0.02,rarity:'unique',tier:8,reqSkill:'level',reqLv:88},
+  crown_of_the_fallen_king: {n:'Crown of the Fallen King',icon:'🛡️',v:17000,type:'armor',slot:'helmet',armourClass:'plate',defB:36,strB:6,rarity:'unique',tier:7,reqSkill:'level',reqLv:85},
+  emberfang_blade: {n:'Emberfang',icon:'🗡️',v:14400,type:'weapon',slot:'weapon',weaponType:'sword',atkB:24,strB:15,critB:0.06,rarity:'epic',tier:6,reqSkill:'level',reqLv:72},
+  demoncaller_staff: {n:'Demoncaller',icon:'🪄',v:13600,type:'weapon',slot:'weapon',weaponType:'magic',discipline:'restoration',twoHanded:true,magicAtkB:24,magicStrB:31,atkB:24,strB:31,critB:0.05,rarity:'epic',tier:6,reqSkill:'level',reqLv:68},
+  panthers_eye_pendant: {n:'Panther\'s Eye Pendant',icon:'📿',v:13600,type:'jewelry',slot:'necklace',critB:0.05,atkB:2,rarity:'rare',tier:5,reqSkill:'level',reqLv:68},
+  wraithsilk_shroud: {n:'Wraithsilk Shroud',icon:'🛡️',v:10400,type:'armor',slot:'body',armourClass:'cloth',defB:20,magicAtkB:8,rarity:'epic',tier:5,reqSkill:'level',reqLv:52},
+  widows_fang: {n:'Widow\'s Fang',icon:'🗡️',v:7600,type:'weapon',slot:'weapon',weaponType:'sword',atkB:16,strB:12,critB:0.06,rarity:'rare',tier:3,reqSkill:'level',reqLv:38},
+  plaguewarden_greaves: {n:'Plaguewarden Greaves',icon:'🛡️',v:10800,type:'armor',slot:'pants',armourClass:'plate',defB:26,strB:4,rarity:'rare',tier:5,reqSkill:'level',reqLv:54},
+  hollow_sigil_ring: {n:'Hollow Sigil Ring',icon:'💍',v:7000,type:'jewelry',slot:'ring',magicAtkB:5,magicStrB:3,rarity:'rare',tier:3,reqSkill:'level',reqLv:35},
+  fangdart_recurve: {n:'Fangdart Recurve',icon:'🏹',v:7200,type:'weapon',slot:'weapon',weaponType:'ranged',twoHanded:true,rangeAtkB:15,rangeStrB:10,critB:0.04,rarity:'rare',tier:3,reqSkill:'level',reqLv:36},
+  alphaheart_longbow: {n:'Alphaheart Longbow',icon:'🏹',v:10000,type:'weapon',slot:'weapon',weaponType:'ranged',twoHanded:true,rangeAtkB:24,rangeStrB:18,critB:0.05,rarity:'epic',tier:4,reqSkill:'level',reqLv:50},
+  nightstalker_pelt: {n:'Nightstalker\'s Pelt',icon:'🛡️',v:12400,type:'armor',slot:'body',armourClass:'leather',defB:18,rangeAtkB:8,rangeStrB:6,critB:0.02,rarity:'unique',tier:5,reqSkill:'level',reqLv:62},
+  warband_bulwark: {n:'Warband Bulwark',icon:'🛡️',v:7000,type:'armor',slot:'cape',defB:14,strB:3,rarity:'rare',tier:3,reqSkill:'level',reqLv:35},
+  chitinweave_cloak: {n:'Chitinweave Cloak',icon:'🧥',v:15200,type:'armor',slot:'cape',defB:8,critB:0.02,rarity:'epic',tier:6,reqSkill:'level',reqLv:76},
 };
 
 export const WAVE3_DESC = {

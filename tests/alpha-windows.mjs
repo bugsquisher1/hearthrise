@@ -308,7 +308,7 @@ async function pure() {
   /* AW-21 PURE: "Equip upgrades" by the core's numbers for the CURRENT style (src/shell/upgrade-plan.js). */
   const { upgradePlan, upgradeWords } = await imp('src/shell/upgrade-plan.js');
   const lv1 = { defense: { level: 1 }, melee: { level: 1 }, ranged: { level: 1 }, magic: { level: 1 } };
-  const plan = (equipment, bag, skills = lv1) => upgradePlan({ equipment, bag: bag.map(([id, qty]) => ({ id, qty: qty || 1 })), skills, level: 5 });
+  const plan = (equipment, bag, skills = lv1, level = 5) => upgradePlan({ equipment, bag: bag.map(([id, qty]) => ({ id, qty: qty || 1 })), skills, level });
   const ops = (p) => JSON.stringify(Object.fromEntries(Object.entries(p.ops).sort(([a], [b]) => (a < b ? -1 : 1))));
   /* A melee hero wears the outfitter's belt (heavy, -1 Ranged/Magic accuracy); a bow hero does not (its accuracy would drop). */
   const sword = plan({ weapon: 'bronze_sword' }, [['leather_gloves'], ['bronze_belt']]);
@@ -324,9 +324,14 @@ async function pure() {
   /* A worn piece is never traded away: the plate Bronze Belt (more Defense) never replaces a worn Leather Belt (its critical chance). */
   const worn = plan({ weapon: 'bronze_sword', belt: 'leather_belt' }, [['bronze_belt']]);
   if ('belt' in worn.ops) fails.push('AW-21 Equip upgrades traded away a worn belt: ' + ops(worn));
-  /* Unknown skills read as "cannot wear yet". */
-  const blind = plan({ weapon: 'bronze_sword' }, [['iron_helm']], null);
-  if (Object.keys(blind.ops).length) fails.push('AW-21 with no server skills Equip upgrades would put on ' + ops(blind));
+  /* Gear is worn by the hero's LEVEL (Tyler 2026-10-24): at Level 15 with every skill at 1 the Iron Helm goes on, at
+     Level 14 it does not, and a Level the server has not sent reads as "cannot wear yet". */
+  const byLevel = plan({ weapon: 'bronze_sword' }, [['iron_helm']], lv1, 15);
+  if (ops(byLevel) !== '{"helmet":"iron_helm"}') fails.push('AW-21 a Level-15 hero with Defense 1 would put on ' + ops(byLevel) + ', not the Iron Helm');
+  const under = plan({ weapon: 'bronze_sword' }, [['iron_helm']], { ...lv1, defense: { level: 99 } }, 14);
+  if (Object.keys(under.ops).length) fails.push('AW-21 a Level-14 hero (Defense 99) would put on ' + ops(under));
+  const blind = plan({ weapon: 'bronze_sword' }, [['iron_helm']], null, null);
+  if (Object.keys(blind.ops).length) fails.push('AW-21 with no server Level Equip upgrades would put on ' + ops(blind));
   /* AW-22: town work. The client may declare a gathering node (never a fight); a skill shows what its server level opens,
      then the next two; a row refuses in words from the server's level and bag. */
   if (!edgeBody(0, 'set_activity', { activity: { kind: 'gather', id: 'copper_rock' } }, 'x')) fails.push('AW-22 edgeBody refused a gathering node');
@@ -1724,10 +1729,10 @@ const MUTANTS = [
   ['the Shop lists supplies again', 'src/data/supply-basics.js', "export const SHOP_SOLD_KINDS = Object.freeze(['tool', 'gear', 'seed']);", "export const SHOP_SOLD_KINDS = Object.freeze(['food', 'drink', 'ammo', 'tool', 'gear', 'seed']);"],
   ['an equip in flight is not marked', 'src/shell/windows/inventory/actions.js', '  sc.wearing = { slots: [slot], items: id ? [id] : [] };\n', ''],
   ['Equip upgrades swaps the weapon', 'src/shell/upgrade-plan.js', "const STYLE_SLOTS = new Set(['weapon', 'shield', 'ammo']);", "const STYLE_SLOTS = new Set(['shield', 'ammo']);"],
-  ['Equip upgrades wears what the hero cannot use yet', 'src/shell/upgrade-plan.js', '  return !!s && Number.isInteger(s.level) && s.level >= it.reqLv;', '  return true;'],
+  ['Equip upgrades wears what the hero cannot use yet', 'src/shell/upgrade-plan.js', '  return have !== null && have >= it.reqLv;', '  return true;'],
   ['Equip upgrades marks nothing in flight', 'src/shell/widgets/upgrade-line.js', '  sc.wearing = { slots, items: slots.map((s) => plan.ops[s]) };\n', ''],
   ['Equip upgrades sends one intent per piece', 'src/shell/widgets/upgrade-line.js', "    try { return await cs.edgeIntent('equip', { equip: Object.assign({}, plan.ops) }); } finally { sc.wearing = null; }", "    try { let r; for (const s of slots) r = await cs.edgeIntent('equip', { equip: { [s]: plan.ops[s] } }); return r; } finally { sc.wearing = null; }"],
-  ['a level refusal reads as a bare refusal', 'src/data/refusal-words.js', "  requirement_not_met: 'Your skill is too low to wear that yet. Nothing was put on.',\n", ''],
+  ['a level refusal reads as a bare refusal', 'src/data/refusal-words.js', "  requirement_not_met: 'You don\\'t meet that item\\'s requirement yet. Nothing was put on.',\n", ''],
   ['the Shop never offers Equip upgrades', 'src/shell/windows/shop.js', "sc.wear = !!o && o.kind === 'gear';", 'sc.wear = false;'],
   ['the engine answer is re-read (two round trips)', 'src/session/character-session.js', "{ if (!(carries && this._take(ans.body, 'load'))) await this.load(); return { ok: true }; }", '{ await this.load(); return { ok: true }; }'],
   ['the doll wears the item before the server confirms', 'src/shell/windows/inventory/doll.js', '    const id = eq[s] || \'\';', "    const id = (s === 'weapon' && globalThis.__want) || eq[s] || '';"],

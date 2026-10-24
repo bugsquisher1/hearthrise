@@ -79,7 +79,12 @@ const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'))
    THE SPELL RELEASE (v0.2.39 integration): ONE forward file ON TOP of the APPLIED 2026-12-20-loot-catalogue, carrying the
    rune families and the shields (the staged 12-22 and 12-24 files collapsed into it, never applied): the same full replace,
    FIRST of the release's files (2027-01-13-rune-ladder-cut.sql and the hunt-sessions catalogue read its items). */
-const OUT = join(ROOT, 'supabase', 'migrations', '2027-01-13-items-catalogue.generated.sql');
+/* GEAR BY LEVEL (lane b-gear-by-level, Tyler 2026-10-24: "I think all gear should just be hero level"; "Supplies/runes
+   stick to skill level"): 2027-01-13-items-catalogue.generated.sql is APPLIED history (v0.2.42), never regenerated.
+   Every equipment row's hr_items.req_skill turns 'level' (gear-tiers.js LEVEL_REQ) at its tier's Level; ammo, runes,
+   food and drink keep their skill. ONE forward file, the same full delete+insert replace, applied AFTER
+   2027-01-14-gear-by-level.sql (hr_apply reads 'level' as the hero's Level only once that file has landed). */
+const OUT = join(ROOT, 'supabase', 'migrations', '2027-01-14-items-catalogue.generated.sql');
 /* THE SECOND GENERATED FILE (2026-09-13). hr_item_buffs is emitted as its own
    migration rather than into OUT above, and that is a deliberate operational
    call: OUT is the FOURTH file in tests/schema-apply-order.json and is already
@@ -134,6 +139,20 @@ const { deriveCatalogueRows } = await import('./catalogue-rows.mjs');
 const { itemIds, items, itemSlots, activities } = await deriveCatalogueRows();
 
 const equipSlots = EQUIP_SLOTS.map((s, i) => ({ equip_slot: s, ord: i }));
+
+/* GEAR IS WORN BY LEVEL (Tyler 2026-10-24, gear-tiers.js LEVEL_REQ). FAIL GENERATION, not the migration: an equipment
+   row (any slot but the ammo slot) naming a skill or nothing, a supply naming the Level, or a Level gate with no level.
+   The emitted self-check re-asserts the first two on the rows that land. */
+const { LEVEL_REQ } = await imp('src/data/gear-tiers.js');
+{
+  const gearDie = (msg) => { console.error(`gear-by-level: ${msg}`); process.exit(1); };
+  const worn = new Set(itemSlots.filter((p) => p.equip_slot !== 'ammo').map((p) => p.item_id));
+  for (const r of items) {
+    if (worn.has(r.item_id) && r.req_skill !== LEVEL_REQ) gearDie(`${r.item_id} is worn in an equip slot but names ${JSON.stringify(r.req_skill)}, not the hero's Level`);
+    if (!worn.has(r.item_id) && r.req_skill === LEVEL_REQ) gearDie(`${r.item_id} is no equipment but names the hero's Level (a supply keeps its skill)`);
+    if (r.req_skill === LEVEL_REQ && !(Number.isInteger(r.req_lv) && r.req_lv >= 1)) gearDie(`${r.item_id} names the hero's Level with req_lv ${r.req_lv}`);
+  }
+}
 
 const skills = Object.keys(SKILLS_DEF).sort().map((id) => ({
   skill_id: id, name: String(SKILLS_DEF[id].name ?? id), cat: String(SKILLS_DEF[id].cat ?? ''),
@@ -683,11 +702,28 @@ begin
    where not exists (select 1 from public.hr_equip_slots e where e.equip_slot = s.equip_slot);
   if v_bad > 0 then raise exception '% item-slot pairs name an unknown equip slot', v_bad; end if;
 
-  -- Every gear requirement must name a real skill.
+  -- Every requirement names a real skill, or the hero's Level (${q(LEVEL_REQ)}).
   select count(*) into v_bad from public.hr_items
-   where req_skill is not null
+   where req_skill is not null and req_skill <> ${q(LEVEL_REQ)}
      and not exists (select 1 from public.hr_skills k where k.skill_id = req_skill);
   if v_bad > 0 then raise exception '% items require an unknown skill', v_bad; end if;
+
+  -- GEAR IS WORN BY LEVEL (Tyler 2026-10-24: "I think all gear should just be hero level"; "Supplies/runes stick to
+  -- skill level"). Every row that fits an equip slot other than the ammo slot names the hero's Level, and no other row
+  -- does: hr_apply's equip gate (hr_item_requirement_unmet, 2027-01-14-gear-by-level.sql) reads ${q(LEVEL_REQ)} as
+  -- player_state.level_xp, so a skill here would gate a caster's armor on Defense again.
+  select count(*) into v_bad from public.hr_items i
+   where exists (select 1 from public.hr_item_slots s where s.item_id = i.item_id and s.equip_slot <> 'ammo')
+     and i.req_skill is distinct from ${q(LEVEL_REQ)};
+  if v_bad > 0 then raise exception '% equipment row(s) are not worn by the hero''s Level', v_bad; end if;
+  select count(*) into v_bad from public.hr_items i
+   where i.req_skill = ${q(LEVEL_REQ)}
+     and not exists (select 1 from public.hr_item_slots s where s.item_id = i.item_id and s.equip_slot <> 'ammo');
+  if v_bad > 0 then raise exception '% non-equipment row(s) name the hero''s Level (a supply keeps its skill)', v_bad; end if;
+  select count(*) into v_n from public.hr_items where req_skill = ${q(LEVEL_REQ)};
+  if v_n <> ${items.filter((r) => r.req_skill === LEVEL_REQ).length} then
+    raise exception 'hr_items holds % Level-gated rows, the generator emitted ${items.filter((r) => r.req_skill === LEVEL_REQ).length}', v_n;
+  end if;
 
   -- No client write policy may exist on a catalogue table.
   select count(*) into v_bad from pg_policies

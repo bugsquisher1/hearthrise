@@ -21,24 +21,36 @@
 // stats and values and old saves stay valid.
 // ============================================================
 
+/* ── GEAR IS WORN BY LEVEL (Tyler 2026-10-24: "I think all gear should just be hero level"; then "Supplies/runes
+   stick to skill level"). Every piece of equipment, armor of every weight, shields, spellbooks, weapons, capes and
+   jewelry, names the hero's LEVEL as its requirement: `reqSkill: LEVEL_REQ` with `reqLv` the Level. Never a skill:
+   a Mage or a Ranger in a party with a tank earns almost no Defense (the designer measured about 210 h for a solo
+   Mage to go from Defense 19 to 30), so a Defense gate kept them out of their own upgrades (QA mage Fingerguns,
+   Defense 19, refused the Steel Helm, "Needs Defense 30"). Classless still: any hero wears any weight; skills keep
+   driving accuracy, damage and defense. Supplies keep their skill (ammo and whetstones, runes, food, drinks). The
+   server reads the same row (hr_items.req_skill = 'level', hr_apply through hr_item_requirement_unmet, the hero's
+   Level from player_state.level_xp), so the screen and the refusal agree. */
+export const LEVEL_REQ = 'level';
+
 /* ── The material ladder ───────────────────────────────────────────────
+   level  = the hero LEVEL the tier's gear is worn at (Tyler 2026-10-24; the designer's ladder 1/15/30/45/60/75/88)
    smith  = smithing level the tier's *base* piece unlocks at
    craft  = crafting level for the wood-based families at this tier
    value  = economic multiplier; item value = slot.vmul * tier.value        */
 export const MATERIAL_TIERS = [
-  { id: 'bronze',  name: 'Bronze',      tier: 1, smith: 1,  craft: 1,  value: 0.6,
+  { id: 'bronze',  name: 'Bronze',      tier: 1, level: 1,  smith: 1,  craft: 1,  value: 0.6,
     bar: 'bronze_bar',  plank: 'normal_plank',   wood: 'normal',   rarity: 'common' },
-  { id: 'iron',    name: 'Iron',        tier: 2, smith: 15, craft: 15, value: 1.3,
+  { id: 'iron',    name: 'Iron',        tier: 2, level: 15, smith: 15, craft: 15, value: 1.3,
     bar: 'iron_bar',    plank: 'oak_plank',      wood: 'oak',      rarity: 'uncommon' },
-  { id: 'steel',   name: 'Steel',       tier: 3, smith: 30, craft: 30, value: 5,
+  { id: 'steel',   name: 'Steel',       tier: 3, level: 30, smith: 30, craft: 30, value: 5,
     bar: 'steel_bar',   plank: 'willow_plank',   wood: 'willow',   rarity: 'rare' },
-  { id: 'mithril', name: 'Mithril',     tier: 4, smith: 45, craft: 45, value: 15,
+  { id: 'mithril', name: 'Mithril',     tier: 4, level: 45, smith: 45, craft: 45, value: 15,
     bar: 'mithril_bar', plank: 'maple_plank',    wood: 'maple',    rarity: 'epic' },
-  { id: 'rune',    name: 'Rune',        tier: 5, smith: 60, craft: 60, value: 45,
+  { id: 'rune',    name: 'Rune',        tier: 5, level: 60, smith: 60, craft: 60, value: 45,
     bar: 'rune_bar',    plank: 'yew_plank',      wood: 'yew',      rarity: 'legendary' },
-  { id: 'ember',   name: 'Emberforged', tier: 6, smith: 75, craft: 75, value: 130,
+  { id: 'ember',   name: 'Emberforged', tier: 6, level: 75, smith: 75, craft: 75, value: 130,
     bar: 'ember_bar',   plank: 'runewood_plank', wood: 'runewood', rarity: 'legendary' },
-  { id: 'dawn',    name: 'Dawnsteel',   tier: 7, smith: 88, craft: 88, value: 360,
+  { id: 'dawn',    name: 'Dawnsteel',   tier: 7, level: 88, smith: 88, craft: 88, value: 360,
     bar: 'dawn_bar',    plank: 'duskwood_plank', wood: 'duskwood', rarity: 'mythic' },
 ];
 
@@ -135,9 +147,8 @@ export const WEAPON_FAMILIES = [
 
 /* ── The off-hand SPELLBOOK (Tyler 2026-10-19: Mage = wand + spellbook). Worn in the
    `shield` slot (src/data/gathering.js EQUIP_SLOTS, labelled Offhand). Fixed stats
-   (gear ruling): Magic accuracy and damage, a little defence. Gated on Magic like the
-   wand it pairs with (the defence-only gate is ARMOUR's; a book is not armour).
-   Six tiers, the same rungs as the wand. */
+   (gear ruling): Magic accuracy and damage, a little defence. Worn by Level like every
+   piece of gear (LEVEL_REQ, Tyler 2026-10-24). Six tiers, the same rungs as the wand. */
 export const SPELLBOOKS = Object.freeze({
   magicAtk: [1, 2, 4, 6, 8, 11], magicStr: [2, 3, 5, 8, 11, 15], def: [1, 2, 3, 5, 7, 9],
   vmul: 80,
@@ -149,16 +160,16 @@ const round5 = (n) => Math.max(1, Math.round(n / 5) * 5);
 
 /* ── Armour ARCHETYPES — the combat triangle (b278). ───────────────────────
 
-   ── TWO STANDING RULINGS (Tyler, 2026-08-15). DO NOT RE-LITIGATE. ─────────
-   1. ARMOUR REQUIREMENTS ARE DEFENCE-ONLY, PERMANENTLY. Every line below —
-      plate, leather AND cloth — gates on `defense` at the tier's level, and a
-      magic/ranged piece must NEVER be gated on Magic/Ranged instead. The
-      reasoning is load-bearing rather than cosmetic: defence-only gating is
-      exactly what makes MIX-AND-MATCH viable. The planned elemental /
-      enemy-type system expects a melee player to put cloth pieces on against a
-      magic-weak monster; gate cloth behind a Magic level and that whole
-      strategy dies at the requirements screen. (Raised by Xarn on the
-      Plaguewarden Greaves; ruled, and closed.)
+   ── TWO STANDING RULINGS. DO NOT RE-LITIGATE. ─────────────────────────────
+   1. ARMOR IS WORN BY THE HERO'S LEVEL, EVERY LINE (Tyler 2026-10-24: "I think
+      all gear should just be hero level"; LEVEL_REQ above). Plate, leather AND
+      cloth gate on the hero's Level at the tier's level (MATERIAL_TIERS.level),
+      never on a skill. This REPLACES the 2026-08-15 ruling "armour requirements
+      are Defence-only, permanently", and keeps its reason: a piece must never be
+      gated on Magic or Ranged, because mix-and-match (a melee hero in cloth
+      against a magic-weak monster) dies at the requirements screen otherwise.
+      Defense failed that same test for casters and rangers, who earn almost no
+      Defense behind a tank; the Level rises from every kill in every role.
    2. THE ARCHETYPES ARE TRADES, NOT TIERS. Plate buys survival; cloth buys
       DAMAGE FOR ANY WEAPON — "if someone wants crit instead of armor they can
       still use cloth with melee; cloth should give the character dps
@@ -225,9 +236,9 @@ export const GEAR_ITEMS = (() => {
           armourClass: line.key,          // heavy / leather / cloth — read by UI + item flyout
           rarity: mat.rarity,
           tier: mat.tier,
-          /* b246: armour is gated on DEFENCE at the tier's level. */
-          reqSkill: 'defense',
-          reqLv: mat.smith,
+          /* Worn by the hero's Level at the tier's level (LEVEL_REQ, Tyler 2026-10-24). */
+          reqSkill: LEVEL_REQ,
+          reqLv: mat.level,
         };
         // Fold in the archetype's per-style accuracy/damage fields (the triangle).
         const f = line.fields(slotDef.def[i], i);
@@ -252,9 +263,9 @@ export const GEAR_ITEMS = (() => {
         strB: fam.str[i],
         rarity: mat.rarity,
         tier: mat.tier,
-        /* b246: weapons are gated on their own combat style at the tier's level. */
-        reqSkill: fam.weaponType === 'ranged' ? 'ranged' : fam.weaponType === 'magic' ? 'magic' : 'melee',
-        reqLv: mat.smith,
+        /* Worn by the hero's Level at the tier's level, whatever the style (LEVEL_REQ, Tyler 2026-10-24). */
+        reqSkill: LEVEL_REQ,
+        reqLv: mat.level,
       };
       // Ranged and magic weapons carry their style's own attack/strength too,
       // so the combat engine rolls them against the right stats.
@@ -273,7 +284,7 @@ export const GEAR_ITEMS = (() => {
       n: SPELLBOOKS.names[i], icon: '📕', v: round5(SPELLBOOKS.vmul * mat.value),
       type: 'offhand', slot: 'shield', offhand: 'spellbook', discipline: 'destruction',
       magicAtkB: SPELLBOOKS.magicAtk[i], magicStrB: SPELLBOOKS.magicStr[i], defB: SPELLBOOKS.def[i],
-      rarity: mat.rarity, tier: mat.tier, reqSkill: 'magic', reqLv: mat.smith,
+      rarity: mat.rarity, tier: mat.tier, reqSkill: LEVEL_REQ, reqLv: mat.level,
     };
   });
 

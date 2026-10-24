@@ -114,6 +114,14 @@ async function grantLevel(db, version, skill, level) {
   return rows[0].r;
 }
 
+/** THE HERO'S LEVEL (Tyler 2026-10-24: every piece of gear is worn by it). Level XP is credited ONLY by the hunt
+    settle (hr_apply refuses `level_xp_outside_hunt`), so the harness sets the column itself, as
+    tests/hunt-sessions-settle.mjs and tests/alpha-server.mjs do: the realm's own curve, never a level column. */
+async function setLevel(db, level) {
+  await db.query('update player_state set level_xp = public.hr_char_xp_for_level($2) where user_id = $1 and slot = 0', [UID, level]);
+  return Number((await db.query('select public.hr_level_of($1, 0) l', [UID])).rows[0].l);
+}
+
 const versionOf = async (db) => Number((await db.query(
   'select version::text v from player_state where user_id=$1 and slot=0', [UID])).rows[0].v);
 const invOf = async (db, id) => Number((await db.query(
@@ -266,8 +274,8 @@ async function body(db, call, exec) {
     ok(g.ok === true, `E2-SETUP: the admin grant was refused — ${JSON.stringify(g)}`);
     ok(await invOf(db, 'iron_sword') === 1, 'E2-SETUP: the grant did not land');
 
-    /* ⚠ b542 — iron_sword IS GATED NOW (Melee 15 since the core rebuild; was Attack 15,
-       2026-09-12-equippable-req-lv.sql). Until that file, hr_items.req_lv was
+    /* ⚠ b542 — iron_sword IS GATED NOW (Level 15 since 2027-01-14-gear-by-level, Tyler 2026-10-24; Melee 15
+       after the core rebuild; Attack 15 in 2026-09-12-equippable-req-lv.sql). Until that file, hr_items.req_lv was
        NULL for the whole hand-authored plate ladder and this control equipped
        it at Attack 1. The fixture was measuring an ungated item, so it went red
        the moment the gate landed — correctly, and the cascade below is what a
@@ -278,14 +286,14 @@ async function body(db, call, exec) {
        gates iron_sword at 99 and one that ungates it entirely are both red. */
     const under = await call({ equip: { weapon: 'iron_sword' } });
     ok(under.status === 409 && under.body.error === 'requirement_not_met',
-      `E2a: a Melee-1 character equipping iron_sword (Melee 15) answered ${under.status} `
+      `E2a: a Level-1 character equipping iron_sword (Level 15) answered ${under.status} `
       + `${JSON.stringify(under.body).slice(0, 200)} — hr_items.req_lv is the ONLY wield `
       + 'authority; the client tier ladder is not a control');
     ok(await invOf(db, 'iron_sword') === 1 && await eqOf(db, 'weapon') === KIT_WEAPON,
       'E2a: the refused equip moved the bag or the slot — a rejection must roll back whole');
 
-    const lv = await grantLevel(db, await versionOf(db), 'melee', 15);
-    ok(lv.ok === true, `E2-SETUP: the Melee-15 XP grant was refused — ${JSON.stringify(lv)}`);
+    const lv = await setLevel(db, 15);
+    ok(lv === 15, `E2-SETUP: the hero reads Level ${lv} after the Level-15 XP, want 15`);
 
     const r = await call({ equip: { weapon: 'iron_sword' } });
     ok(r.status === 200 && r.body.ok === true,
@@ -417,6 +425,43 @@ async function body(db, call, exec) {
       `E6b: the bag's book delta (staff off, book on) was refused or half-applied — ${JSON.stringify(r.body).slice(0, 200)}`);
     r = await call({ equip: { weapon: 'iron_sword', shield: null } });
     ok(r.status === 200 && await eqOf(db, 'weapon') === 'iron_sword', 'E6b: the sword did not go back on');
+  }
+
+  // ── E2g. GEAR IS WORN BY THE HERO'S LEVEL (Tyler 2026-10-24: "I think all gear should just be hero level") ──
+  // QA mage Fingerguns, Defense 19, was refused the Steel Helm ("Needs Defense 30"): a caster behind a tank earns
+  // almost no Defense. At Level 30 with Defense 19 a hero wears the tier-3 cloth AND plate helm; at Level 28 the
+  // server refuses with the Level it read, whatever the Defense, and the screen says the server's numbers.
+  {
+    const g = await grant(db, await versionOf(db), { scholar_helmet: 1, steel_helm: 1 });
+    ok(g.ok === true, `E2g-SETUP: the admin grant was refused — ${JSON.stringify(g)}`);
+    const d = await grantLevel(db, await versionOf(db), 'defense', 19);
+    ok(d.ok === true, `E2g-SETUP: the Defense-19 XP grant was refused — ${JSON.stringify(d)}`);
+    ok(await setLevel(db, 30) === 30, 'E2g-SETUP: the hero is not Level 30');
+    let r = await call({ equip: { helmet: 'scholar_helmet' } });
+    ok(r.status === 200 && await eqOf(db, 'helmet') === 'scholar_helmet',
+      `E2g: a Level-30, Defense-19 hero was refused the Scholar Hat (tier-3 cloth, Level 30) — ${r.status} ${JSON.stringify(r.body).slice(0, 240)}`);
+    r = await call({ equip: { helmet: 'steel_helm' } });
+    ok(r.status === 200 && await eqOf(db, 'helmet') === 'steel_helm' && await invOf(db, 'scholar_helmet') === 1,
+      `E2g: a Level-30, Defense-19 hero was refused the Steel Helm (tier-3 plate, Level 30) — ${r.status} ${JSON.stringify(r.body).slice(0, 240)}`);
+    r = await call({ equip: { helmet: null } });
+    ok(r.status === 200 && await eqOf(db, 'helmet') === null, `E2g-SETUP: the helm did not come off — ${JSON.stringify(r.body).slice(0, 200)}`);
+    ok(await setLevel(db, 28) === 28, 'E2g-SETUP: the hero is not Level 28');
+    const more = await grantLevel(db, await versionOf(db), 'defense', 40);   // past the old Defense-30 gate
+    ok(more.ok === true, `E2g-SETUP: the Defense XP grant was refused — ${JSON.stringify(more)}`);
+    r = await call({ equip: { helmet: 'steel_helm' } });
+    const det = (r.body && r.body.detail) || {};
+    ok(r.status === 409 && r.body.error === 'requirement_not_met' && det.item_id === 'steel_helm'
+      && det.req === 'level' && det.need === 30 && det.have === 28,
+      `E2g: a Level-28 hero (Defense 40) putting on the Steel Helm answered ${r.status} ${JSON.stringify(r.body).slice(0, 300)}, `
+      + 'want 409 requirement_not_met naming the Level it read (req level, need 30, have 28)');
+    ok(await eqOf(db, 'helmet') === null && await invOf(db, 'steel_helm') === 1 && await invOf(db, 'scholar_helmet') === 1,
+      'E2g: the refused helm moved the slot or the bag');
+    /* The screen says the server's own numbers, through the real session reader and the real words. */
+    const { refusalOf } = await import(pathToFileURL(join(ROOT, 'src/session/refusal.js')).href);
+    const { refusalText } = await import(pathToFileURL(join(ROOT, 'src/shell/intent-words.js')).href);
+    const said = refusalText(refusalOf({ ok: false, status: r.status, body: r.body }));
+    ok(said === 'Steel Helm needs Level 30 — you\'re 28.', `E2g: the refusal reads "${said}"`);
+    ok(await setLevel(db, 15) === 15, 'E2g: the hero did not return to Level 15 for the arms after it');
   }
 
   // ── E7. THE RELEASE CLASS — a catalogue refusal must not brick the key ──

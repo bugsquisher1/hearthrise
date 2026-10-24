@@ -11,7 +11,7 @@
 //   weapon     its weapon family:          "sword", "bow", "wand", "staff" (a magic
 //              weapon by its discipline, hunt-roles.js roleWeaponOf)
 //   spellbook  an off-hand with a magic discipline: "spellbook"
-//   worn gear  its slot:                   "helmet", "body armour", "ring"
+//   worn gear  its slot:                   "helmet", "body armor", "ring"
 //   food       what it heals:              "food, heals 8"
 //   anything else with a source or use     "material"
 // A gathering node or crop is not an item: nodeUse(skill) names its kind.
@@ -26,9 +26,9 @@ import { isShield } from './shields.js?v=0.2.42';
 /* The ammo noun (the last word of the item's name) and what fires it. */
 const AMMO_FOR = Object.freeze({ arrows: 'bows', bolts: 'crossbows', rune: 'staves', runes: 'staves', whetstone: 'blades', whetstones: 'blades' });
 /* items.js weaponType → the weapon in words. */
-const WEAPON_WORD = Object.freeze({ sword: 'sword', hammer: 'hammer', ranged: 'bow', wand: 'wand', staff: 'staff', neutral: 'weapon' });
+const WEAPON_WORD = Object.freeze({ sword: 'sword', hammer: 'hammer', axe: 'axes', ranged: 'bow', wand: 'wand', staff: 'staff', neutral: 'weapon' });
 /* items.js slot → the worn piece in words. */
-const SLOT_WORD = Object.freeze({ helmet: 'helmet', body: 'body armour', pants: 'leg armour', boots: 'boots', gloves: 'gloves',
+const SLOT_WORD = Object.freeze({ helmet: 'helmet', body: 'body armor', pants: 'leg armor', boots: 'boots', gloves: 'gloves',
   cape: 'cape', shield: 'offhand', necklace: 'amulet', earrings: 'earrings', ring: 'ring', ring1: 'ring', ring2: 'ring', belt: 'belt' });
 /* A gathering skill's nodes, by kind. */
 const NODE_WORD = Object.freeze({ woodcutting: 'tree to chop', mining: 'rock to mine', fishing: 'fishing spot', farming: 'crop to grow' });

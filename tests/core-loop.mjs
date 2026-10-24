@@ -730,7 +730,8 @@ function npcUpgrades(M, env) {
   /* Every offer shop_buy sells is a row a Shop tab lists (lane/b-gold-sinks, 2026-10-22: the outfitter's gear). */
   return Object.values(M.cat.GOLD_OFFERS).filter((o) => o.grant.length === 1)
     .map((o) => ({ o, id: o.grant[0].id, it: ITEMS[o.grant[0].id] || {} }))
-    .filter((c) => c.it.slot && (!c.it.reqSkill || lvOf(env, c.it.reqSkill) >= num(c.it.reqLv)))
+    /* Gear is worn by the hero's Level (Tyler 2026-10-24, gear-tiers.js LEVEL_REQ); a supply by its skill. */
+    .filter((c) => c.it.slot && (!c.it.reqSkill || (c.it.reqSkill === 'level' ? combatOf(env) : lvOf(env, c.it.reqSkill)) >= num(c.it.reqLv)))
     /* A melee player upgrades melee: a bow or a staff is a new style, not a better sword. */
     .filter((c) => c.it.slot !== 'weapon' || !['ranged', 'magic'].includes(c.it.weaponType) || c.it.weaponType === wielded.weaponType)
     .map((c) => ({ ...c, gain: melee(c.id) - melee(env.equipment[c.it.slot]) }))

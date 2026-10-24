@@ -4,7 +4,7 @@
 // CharacterSession._settled hands every refused answer here. The server's
 // validation detail (which slot, which condition, which field) goes back to the
 // editor as sent, and so does the item a refusal names (hr_apply's detail, one
-// level down on an edge refusal): "Needs Defense 20", with the counts a
+// level down on an edge refusal): "Needs Level 30", with the counts a
 // shortfall states (a house build's bag and Storage). Nothing is decided here.
 // ════════════════════════════════════════════════════════════════════════
 

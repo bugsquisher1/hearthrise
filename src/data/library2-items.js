@@ -82,13 +82,13 @@ const BANE_GEAR = {
   lazlos_maul: {
     n: "Lazlo's Maul", icon: '🔨', v: priced(110, 4), type: 'weapon', slot: 'weapon',
     weaponType: 'hammer', atkB: 12, strB: 24, tier: 4, rarity: 'epic',
-    reqSkill: 'melee', reqLv: 45, bane: BANE('undead'), effects: ['bane'],
+    reqSkill: 'level', reqLv: 45, bane: BANE('undead'), effects: ['bane'],
   },
   // ITEM-NEW-03 · ranged T6 · vs Dragon. Bow T6 curve (35/28) × 0.85.
   dragonrib_bow: {
     n: 'Dragonrib Bow', icon: '🏹', v: priced(105, 6), type: 'weapon', slot: 'weapon',
     weaponType: 'ranged', twoHanded: true, atkB: 30, strB: 24, rangeAtkB: 30, rangeStrB: 24,
-    tier: 6, rarity: 'legendary', reqSkill: 'ranged', reqLv: 75,
+    tier: 6, rarity: 'legendary', reqSkill: 'level', reqLv: 75,
     bane: BANE('dragon'), effects: ['bane'],
   },
   // ITEM-NEW-04 · sword T2 · vs Plant. Sword T2 curve (7/6) × 0.85. Cheap and
@@ -96,7 +96,7 @@ const BANE_GEAR = {
   bramble_blade: {
     n: 'Bramble Blade', icon: '⚔️', v: priced(100, 2), type: 'weapon', slot: 'weapon',
     weaponType: 'sword', atkB: 6, strB: 5, tier: 2, rarity: 'uncommon',
-    reqSkill: 'melee', reqLv: 15, bane: BANE('plant'), effects: ['bane'],
+    reqSkill: 'level', reqLv: 15, bane: BANE('plant'), effects: ['bane'],
   },
   // ITEM-NEW-05 · magic T5 · vs Extra Dimensional. Staff T5 curve (21/29) × 0.85.
   // The review book also gives it "reveals the hidden element weakness"; that is
@@ -106,7 +106,7 @@ const BANE_GEAR = {
   void_censer: {
     n: 'Void Censer', icon: '🪔', v: priced(100, 5), type: 'weapon', slot: 'weapon',
     weaponType: 'magic', atkB: 18, strB: 25, magicAtkB: 18, magicStrB: 25,
-    tier: 5, rarity: 'legendary', reqSkill: 'magic', reqLv: 60,
+    tier: 5, rarity: 'legendary', reqSkill: 'level', reqLv: 60,
     /* a censer is a healer's tool: Restoration (roadmap p23, m03) */
     discipline: 'restoration',
     bane: BANE('extra_dimensional'), effects: ['bane'],
@@ -115,7 +115,7 @@ const BANE_GEAR = {
   rat_stick: {
     n: 'Rat Stick', icon: '🔨', v: priced(110, 3), type: 'weapon', slot: 'weapon',
     weaponType: 'hammer', atkB: 8, strB: 16, tier: 3, rarity: 'rare',
-    reqSkill: 'melee', reqLv: 30, bane: BANE('vermin'), effects: ['bane'],
+    reqSkill: 'level', reqLv: 30, bane: BANE('vermin'), effects: ['bane'],
   },
 };
 
@@ -139,14 +139,14 @@ const BANE_GEAR = {
 const chitin = (slot, base, def, vmul) => ({
   n: 'Chitin ' + slot.label, icon: '🪲', v: priced(vmul, 4, 0.70), type: 'armor',
   slot: slot.slot, defB: def, armourClass: 'leather', rarity: 'epic', tier: 4,
-  reqSkill: 'defense', reqLv: 45,
+  reqSkill: 'level', reqLv: 45,
   rangeAtkB: Math.round(base * 0.5), critB: 0.016, magicAtkB: -Math.round(base * 0.15),
 });
 /* Plate T5 (defMul 1.00, vmul 1.00). */
 const watch = (slot, base, vmul) => ({
   n: 'Watchknight ' + slot.label, icon: '🛡️', v: priced(vmul, 5), type: 'armor',
   slot: slot.slot, defB: base, armourClass: 'plate', rarity: 'legendary', tier: 5,
-  reqSkill: 'defense', reqLv: 60,
+  reqSkill: 'level', reqLv: 60,
   rangeAtkB: -Math.round(base * 0.25), magicAtkB: -Math.round(base * 0.5),
   /* The review book's set identity is "damage taken WHILE AWAY reduced". That
      needs src/core/away.js AWAY_SCOPE and is not built, so it is declared and
@@ -200,7 +200,7 @@ const ARMOUR_SETS = {
   quiet_coat: {
     n: 'Quiet Coat', icon: '🧥', v: priced(300, 6, 0.70), type: 'armor', slot: 'body',
     defB: 20, armourClass: 'cloth', rarity: 'legendary', tier: 6,
-    reqSkill: 'defense', reqLv: 75,
+    reqSkill: 'level', reqLv: 75,
     magicAtkB: 41, magicStrB: 27, atkB: -17, rangeAtkB: -14,
     awayEffect: 'first_strike_deny',
   },

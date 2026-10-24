@@ -10,6 +10,8 @@
 //   tutorial-walk-through  each step is doable from the start kit plus the steps before it
 //   tutorial-never-backward  town -> Thicket -> town -> Sewer -> town -> Cellar, reloading between:
 //                          the pointer never moves back (#58, Andy 10-22)
+//   coach-gear-by-level    "What next" names the next gear at the next Level, only pieces a player can get
+//                          and the role wears (Tyler 2026-10-24: gear is worn by the hero's Level)
 //   coach-folds            the coach minimizes to its title, stays so through a re-render and a reload,
 //                          marks the tab on a new card, opens to its full text (Tyler 2026-10-24)
 //
@@ -390,6 +392,42 @@ const cases = {
     if (!win || win.seenAt !== 5000) return 'the coach stamped the Farm window\'s countdown clock (seenAt ' + (win && win.seenAt) + ', wanted 5000)';
     return null;
   },
+  'coach-gear-by-level': async (M) => {
+    /* Tyler 2026-10-24 ("I think all gear should just be hero level"): "What next" names the next GEAR at the next
+       Level, only pieces a player can actually get (catalogue-coherence.js reachableSources: the copy audit found the
+       coach naming five unreachable items) and only the ones the role wears; the skill line keeps its supplies. */
+    const imp = (p) => import(pathToFileURL(join(M.root, p)).href + V);
+    const { reachableSources } = await imp('src/data/catalogue-coherence.js');
+    const { ITEMS } = await imp('src/data/items.js');
+    const reach = reachableSources();
+    const byName = new Map(Object.entries(ITEMS).map(([id, it]) => [it.n, id]));
+    const goal = (charLevel, role) => (M.tut.nextGoal({ charLevel, role, skillLevel: charLevel, defenseXp: 10, land: null }) || { text: '' }).text;
+    const tank = goal(12, 'tank');
+    if (!tank.includes('Next gear at Level 15: Iron Sword (sword), Ironbound Shield (shield)')) return 'a Level-12 tank is not told the Iron Sword and its shield at Level 15: ' + tank;
+    const mage = goal(12, 'mage');
+    if (!mage.includes('Next gear at Level 15: Oak Wand (wand), Oakboard Spellbook (spellbook), Adept Hat (helmet)')) return 'a Level-12 Mage is not told the Oak Wand at Level 15: ' + mage;
+    if (!/Next at Magic level 15: Scored /.test(mage)) return 'the Mage\'s skill line lost its runes (supplies keep their skill): ' + mage;
+    let named = 0;
+    for (const role of ['tank', 'melee_dps', 'ranger', 'mage', 'healer']) {
+      for (let L = 1; L <= 120; L++) {
+        const text = goal(L, role);
+        for (const [, lineLv, list] of text.matchAll(/Next (?:gear at Level|at [A-Za-z]+ level) (\d+): (.*?)\.(?: |$)/g)) {
+          for (const [, name] of list.matchAll(/(?:^|, )(.+?) \([^)]*\)/g)) {
+            const id = byName.get(name);
+            named++;
+            if (!id) return role + ' at Level ' + L + ': the coach names "' + name + '", which is no item';
+            if (!reach.has(id)) return role + ' at Level ' + L + ': the coach names ' + id + ', which no player can get: ' + text;
+            const it = ITEMS[id];
+            if (it.slot && it.slot !== 'ammo' && !text.includes('Next gear at Level ' + it.reqLv + ':')) return id + ' (gear, Level ' + it.reqLv + ') is named outside the gear line: ' + text;
+            if (it.slot && it.slot !== 'ammo' && (it.reqSkill !== 'level' || it.reqLv !== Number(lineLv) || !M.tut.wornByRole(id, role))) {
+              return role + ' at Level ' + L + ': the gear line names ' + id + ' (' + it.reqSkill + ' ' + it.reqLv + ') under Level ' + lineLv + ': ' + text;
+            }
+          }
+        }
+      }
+    }
+    return named > 100 ? null : 'the coach named only ' + named + ' items over five roles and 120 Levels (the parse broke, not the rule)';
+  },
   'coach-folds': async (M) => {
     /* Tyler 2026-10-24 ("need an option to minimize 'whats next'"): the coach folds to its title, stays folded
        through a re-render and a reload (the residue `coach`, through the real allowlist), marks the folded tab when
@@ -507,6 +545,12 @@ const mutants = [
     edits: [['src/shell/launcher.js', 'ctx.wm.openIds().length > 0', 'ctx.wm.row(ctx.wm.openIds()[0] || "") && ctx.wm.row(ctx.wm.openIds()[0]).modal']] },
   { name: 'the launcher keeps the pointer in a hunt (over Leave hunt)', case: 'tutorial-launcher-card',
     edits: [['src/shell/launcher.js', "(ctx.hud && ctx.hud.isShown('hunt-topbar') ? '' : pointerFor(ctx))", 'pointerFor(ctx)']] },
+  { name: 'the coach names gear no player can get (the copy audit\'s five)', case: 'coach-gear-by-level',
+    edits: [['src/data/skill-unlocks.js', "|| it.reqSkill === LEVEL_REQ) && reach.has(id)) add(", '|| it.reqSkill === LEVEL_REQ)) add(']] },
+  { name: 'the coach names gear the role does not wear (plate for a Mage)', case: 'coach-gear-by-level',
+    edits: [['src/data/hunt-tutorial.js', 'role ? (id) => wornByRole(id, role) : null', 'null']] },
+  { name: 'weapons stay on their style skill (the Iron Sword never reaches the Level line)', case: 'coach-gear-by-level',
+    edits: [['src/data/gear-tiers.js', "whatever the style (LEVEL_REQ, Tyler 2026-10-24). */\n        reqSkill: LEVEL_REQ,", "whatever the style (LEVEL_REQ, Tyler 2026-10-24). */\n        reqSkill: 'melee',"]] },
   { name: 'the coach fold is not kept (off the residue allowlist: open again after a reload)', case: 'coach-folds',
     edits: [['src/session/residue.js', '  coach: sanitizeCoach,', '']] },
   { name: 'a new card never marks the folded coach', case: 'coach-folds',

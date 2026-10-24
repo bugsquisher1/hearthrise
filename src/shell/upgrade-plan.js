@@ -37,6 +37,7 @@ import { ARMOUR_WEIGHT } from '../data/core-model.js?v=0.2.42';
 import { loadoutOf } from '../core/member.js?v=0.2.42';
 import { armourWeights, maxHpFor, maxManaFor } from '../core/vitals.js?v=0.2.42';
 import { itemName } from './widgets/bits.js?v=0.2.42';
+import { reqHave } from './item-lore.js?v=0.2.42';
 
 /* The slots the hands and the quiver fill: the player's own choice, never this one. */
 const STYLE_SLOTS = new Set(['weapon', 'shield', 'ammo']);
@@ -48,10 +49,12 @@ const weightOf = (it) => (it && ARMOUR_WEIGHT[it.armourClass]) || 'none';
 /* A piece whose worth the numbers do not hold (a bane, an away effect) is the player's call. */
 const unpriced = (it) => !!(it && (it.bane || it.awayEffect || (Array.isArray(it.effects) && it.effects.length)));
 
-function meets(it, skills) {
+/* The server's own number against the row's requirement (the hero's Level for gear, Tyler 2026-10-24; item-lore.js
+   reqHave, the one reader); a number the server has not sent reads as "cannot", the safe side. */
+function meets(it, skills, level) {
   if (!it.reqSkill || !(it.reqLv > 1)) return true;
-  const s = skills && skills[it.reqSkill];
-  return !!s && Number.isInteger(s.level) && s.level >= it.reqLv;
+  const have = reqHave(it.reqSkill, skills, level);
+  return have !== null && have >= it.reqLv;
 }
 
 /* The numbers a worn set fights with, for the style its weapon sets. */
@@ -100,7 +103,7 @@ function bestFor(slot, worn, left, o) {
   const better = [];
   for (const [id, n] of left) {
     const it = ITEMS[id];
-    if (n < 1 || !it || !it.slot || !expandItemSlot(it.slot).includes(slot) || unpriced(it) || !meets(it, o.skills)) continue;
+    if (n < 1 || !it || !it.slot || !expandItemSlot(it.slot).includes(slot) || unpriced(it) || !meets(it, o.skills, o.level)) continue;
     if (curIt && weightOf(it) !== weightOf(curIt)) continue;
     const after = numbersOf(Object.assign({}, worn, { [slot]: id }), o.level);
     if (dominates(after, now)) better.push({ id, after });

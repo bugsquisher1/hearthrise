@@ -39,9 +39,9 @@
 /** Is `item` a shield (an off-hand that guards, never a spellbook)? */
 export const isShield = (item) => !!item && item.slot === 'shield' && item.offhand === 'shield';
 
-/* guard = defB; atk = the attack penalty on every style's roll; wear = Defense level. */
+/* guard = defB; atk = the attack penalty on every style's roll; wear = the hero's Level (gear-tiers.js LEVEL_REQ). */
 const shield = (n, v, tier, wear, guard, atk, rarity) => Object.freeze({ n, icon: '🛡️', v, type: 'offhand', slot: 'shield', offhand: 'shield',
-  defB: guard, ...(atk ? { atkB: -atk, rangeAtkB: -atk, magicAtkB: -atk } : {}), tier, rarity, reqSkill: 'defense', reqLv: wear });
+  defB: guard, ...(atk ? { atkB: -atk, rangeAtkB: -atk, magicAtkB: -atk } : {}), tier, rarity, reqSkill: 'level', reqLv: wear });
 
 export const SHIELD_ITEMS = Object.freeze({
   bronze_rimmed_shield: shield('Bronze-Rimmed Shield', 70, 1, 1, 3, 0, 'common'),

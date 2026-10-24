@@ -4,6 +4,14 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+## 2026-10-24 · art-director · three things the Forged Steel screens shots found (lane b-forged-steel-screens)
+
+| # | Found | Affected | Action |
+|---|---|---|---|
+| 1 | Hero creation used the chat's class prefix (hc-*): its `.hc-body { display:flex; gap:18px }` laid out every chat line body (a link floated 18 px off its words; a long line could not wrap) and the chat's `.hc-name` rules hit the hero's name field. | `src/app/hero-create.js`, `src/styles/app.css`, chat lines | Done: the step is hero-*; chat-social CW-1 asserts an inline line body (mutant proves it). A class prefix is a namespace: grep the stylesheets before reusing one. |
+| 2 | Chat opened at 1440x900 on its OLDEST lines: they were written before the dock capped the window, and "at the bottom" was judged on the old geometry. | `src/shell/windows/chat.js` | Done: a log stays at its foot until the player scrolls up (chat-social CW-9). |
+| 3 | The alert stack (screen layer, anchor ml) draws over the chat's title band and the party panel's foot at 1440x900 while alerts are up (`art/review/forged-steel-screens-2026-10-24/chat-under-alerts-1440.png`). Chat's home placement (`shell.js` capDock / `hud.js` homeAt) avoids World-layer widgets only. | alerts widget, chat home placement | Open: HUD owner (alerts) decides who yields; a test like CW-8 with alerts up. |
+
 ## 2026-10-22 · art-director · the Hunts page shows what the envelope cannot yet say (lane b-hunts-detail)
 
 Building the master-detail Hunts window (designer plan 2026-10-22, B #1 / A #1 / A #5 / B #3) on v0.2.31:

@@ -3010,3 +3010,15 @@ HUD plate with --panel-alpha is one background, so ::before stays free (the coac
 (2) at the 60% floor a hard 1 px text shadow (the chat's rule) keeps HUD words readable over props; (3) a red
 seen only under --shots (party-ui's phone pass) can be the harness, not the lane: run it on the base styles
 before chasing it (it was red there too).
+
+## 2026-10-24 — lane/b-forged-steel-screens (lane 3 of 3): account screens and popups in Forged Steel
+Sign-in/create/forgot/closed and Your characters as one steel card (frame + grained floor, title band, sunk
+fields, the gold plate via .hh-tool.is-primary so the shared piece stays one rule); characters as one steel list,
+the whole row the press; the slot offer on a steel button (gold is never the spend); hero creation (sunk mirror,
+sunk colour strips, a foot with Enter town); death (cost in a red-barred well, foot band, no X key cap); summary
+(place head + diamond rule, figures panel, item icons); chat tabs on the steel line. Lessons: (1) a class prefix is
+a namespace: hero creation's hc-* collided with the chat's and laid out every chat line; (2) an author `display`
+undoes the `hidden` attribute: a flex cell needs `[hidden] { display: none }` (hunt-screen HS-25 caught it);
+(3) a log must stay pinned through a resize, not only on append: the dock caps the window after the first paint;
+(4) to keep parallel lanes merge-clean, use the shared piece by its class in markup rather than adding selectors
+to shell.css's shared lists (lane 2 landed first; the merge had zero conflicts).

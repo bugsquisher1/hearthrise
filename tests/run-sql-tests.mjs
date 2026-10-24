@@ -89,6 +89,7 @@ import * as DELETE_AWAY_REMOVALS from './chain-removals/2026-10-22-hunt-sessions
 import * as CORE_BODIES_REMOVALS from './chain-removals/2026-10-27-core-bodies.mjs';
 import * as ACCOUNT_DEPOT_REMOVALS from './chain-removals/2026-11-27-account-depot.mjs';
 import * as ACCOUNT_GOLD_REMOVALS from './chain-removals/2026-12-15-account-gold.mjs';
+import * as DEAD_SURFACES_REMOVALS from './chain-removals/2027-01-18-dead-surfaces-cut.mjs';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 const MIG = (f) => join(ROOT, 'supabase', 'migrations', f);
@@ -650,6 +651,9 @@ const ALSO_LINTED = [
   /* THE ACCOUNT MARKET (lane c-market-account, 2026-10-24): the market verbs re-keyed on the
      account (engine-only), hr_bank_move restated, and link 21 of HR_GRANT_HYGIENE_CHAIN. */
   '2027-01-12-market-account.sql',
+  /* THE DEAD SURFACES CUT (lane c-dead-surfaces, 2026-10-24): HR_STATE_OF_CHAIN's newest link; its revokes
+     (the crew doors dropped, the 23 clan doors closed) are linted here. */
+  '2027-01-18-dead-surfaces-cut.sql',
 ];
 
 // ── THE hr_apply DERIVATION CHAIN ────────────────────────────────────────
@@ -784,6 +788,10 @@ const HR_STATE_OF_CHAIN = [
   // shared-farm's) with `gold` read from the account purse and `gold_v` beside it; removals FROZEN in
   // tests/chain-removals/2026-12-15-account-gold.mjs.
   '2026-12-15-account-gold.sql',
+  // THE DEAD SURFACES CUT (2026-10-24): account-gold's body (= live, md5 05067547) minus the crew watermark, the
+  // crew array, the per-plot `farm` array and inventory_complete's crew arm; removals FROZEN in
+  // tests/chain-removals/2027-01-18-dead-surfaces-cut.mjs.
+  '2027-01-18-dead-surfaces-cut.sql',
 ];
 
 // ── THE hr_rate_gate DERIVATION CHAIN ────────────────────────────────────
@@ -1650,11 +1658,22 @@ const DERIVED_BODIES = [
   },
 ];
 
+/* THE WALK READS EVERY CHAINED FILE (2026-10-24). `sources` is the GRANT-LINT set (BUNDLE + ALSO_LINTED), and the
+   walk used to read bodies only from it: a link chained without also being linted (2026-10-27-core-bodies,
+   2026-11-27-account-depot, 2026-12-15-account-gold) failed "cannot extract" and was never graded at all. Linting
+   is a separate decision (those regexes misread some files' revoke forms), so a chained file the lints do not
+   hold is read here for the derivation only. */
+const chainSources = new Map();
+for (const SPEC of DERIVED_BODIES) for (const f of SPEC.chain) {
+  if (sources.has(f) || chainSources.has(f)) continue;
+  try { chainSources.set(f, await readFile(MIG(f), 'utf8')); } catch { /* absent: "cannot extract" names it below */ }
+}
+
 for (const SPEC of DERIVED_BODIES) {
 say(`── ${SPEC.fn} derivation chain (each body derived from the last, nothing retyped)`);
 {
   const applyBody = (file) => {
-    const sql = (sources.get(file) || '').replace(/\r\n/g, '\n');
+    const sql = (sources.get(file) || chainSources.get(file) || '').replace(/\r\n/g, '\n');
     /* Case-insensitive, and any dollar tag: a body restated from
        pg_get_functiondef reads `CREATE OR REPLACE FUNCTION … AS $function$`
        and closes `end $function$;`. Before lane C2 only the lowercase `$$`
@@ -1947,6 +1966,7 @@ say(`── ${SPEC.fn} derivation chain (each body derived from the last, nothin
       '2026-10-27-core-bodies.sql': CORE_BODIES_REMOVALS.HR_STATE_OF,
       '2026-11-27-account-depot.sql': ACCOUNT_DEPOT_REMOVALS.HR_STATE_OF,
       '2026-12-15-account-gold.sql': ACCOUNT_GOLD_REMOVALS.HR_STATE_OF,
+      '2027-01-18-dead-surfaces-cut.sql': DEAD_SURFACES_REMOVALS.HR_STATE_OF,
       /* auto-eat inserts the three auto_eat_* keys after `accrued_to` — so the
          `accrued_to)` terminator gains a comma (a real line change), and the
          "server clock" and "BOUNDED (RL4)" comment blocks were reflowed/moved as

@@ -7,10 +7,10 @@
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
  "generated": "2026-10-24",
- "digest": "33895962f7f0365cb6b2fc06dab8d8943f2e17693cbcdebc5d886357c9bd9186",
+ "digest": "b5610a272b6e337bb19e79b8287bd5b1ca70651d5fd6c79839c992c6d4291450",
  "counts": {
   "relations": 225,
-  "functions": 522,
+  "functions": 520,
   "policies": 115,
   "indexes": 320,
   "triggers": 48,
@@ -760,8 +760,6 @@
    "hr_whisper_row(w chat_whispers)",
    "hr_whisper_send(p_slot integer, p_target text, p_body text)",
    "hr_whispers_recent()",
-   "hr_worker_assign(p_slot integer, p_uid text, p_skill text, p_target text, p_idem uuid)",
-   "hr_worker_hire(p_slot integer, p_idem uuid)",
    "hr_world_finds_of(p_limit integer)",
    "hr_world_finds_of__ungated(p_limit integer)",
    "hr_world_finds_prune(p_older interval, p_keep integer, p_limit integer)",

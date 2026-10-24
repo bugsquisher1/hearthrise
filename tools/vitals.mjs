@@ -19,6 +19,12 @@
 // craft/worker/shop/quest/daily with intents farm_plant|farm_water|farm_harvest,
 // xp_credit|accrue|death, shop_buy:*, unlock_buy:room.*; the market lives in its
 // own tables (market_listings.posted_at, market_sales.at).
+// RETIRED COLUMNS (2026-10-24, lane c-dead-surfaces): `workers` (the crew doors were
+// dropped by 2027-01-18-dead-surfaces-cut.sql) and `claims` (the quest/daily claims
+// were cut 2026-10-22) count features that no longer exist, so they left the table
+// rather than reading zero forever. `pets_xp` stays a column but is not watched:
+// pets are hidden and get no work until the core game is solid (Tyler 2026-10-24),
+// so its zero is expected, not a P1.
 //
 // ── THE `refused` COLUMN (2026-09-12) ───────────────────────────────────────
 // It used to read player_intents with `result->>'ok' <> 'true'` and was
@@ -61,10 +67,8 @@ led as (
          count(*) filter (where l.kind = 'combat' and l.intent = 'death')                  as deaths,
          count(*) filter (where l.kind = 'gather')                                         as gathers,
          count(*) filter (where l.kind = 'craft')                                          as crafts,
-         count(*) filter (where l.kind = 'worker')                                         as workers,
          count(*) filter (where l.kind = 'shop'   and l.intent like 'shop_buy:%')          as buys,
          count(*) filter (where l.kind = 'shop'   and l.intent like 'unlock_buy:room.%')   as rooms,
-         count(*) filter (where l.kind in ('quest','daily'))                               as claims,
          count(distinct l.user_id)                                                         as users
   from public.player_ledger l where l.at >= now() - interval '8 days' group by 1),
 mk as (select (posted_at at time zone 'UTC')::date as day, count(*) as listings from public.market_listings where posted_at >= now() - interval '8 days' group by 1),
@@ -84,7 +88,7 @@ pet as (select (updated_at at time zone 'UTC')::date as day,
          where kind = 'stat' and key like 'companion_xp:%' and period_key = ''
            and updated_at >= now() - interval '8 days' group by 1)
 select d.day, coalesce(plants,0) plants, coalesce(waters,0) waters, coalesce(harvests,0) harvests, coalesce(fights,0) fights, coalesce(deaths,0) deaths,
-       coalesce(gathers,0) gathers, coalesce(crafts,0) crafts, coalesce(workers,0) workers, coalesce(buys,0) buys, coalesce(rooms,0) rooms, coalesce(claims,0) claims,
+       coalesce(gathers,0) gathers, coalesce(crafts,0) crafts, coalesce(buys,0) buys, coalesce(rooms,0) rooms,
        coalesce(pets_xp,0) pets_xp, coalesce(pet_xp,0) pet_xp,
        coalesce(listings,0) listings, coalesce(sales,0) sales, coalesce(refused,0) refused, coalesce(users,0) users
 from days d left join led using (day) left join mk using (day) left join ms using (day) left join rf using (day)
@@ -788,13 +792,13 @@ if (selftestMode) {
     // looks broken to anyone who checks its exit code, and looks fine to anyone
     // who only reads the table. Fall off the end instead.
   } else {
-    const cols = ['day','plants','waters','harvests','fights','deaths','gathers','crafts','workers','buys','rooms','claims','pets_xp','pet_xp','listings','sales','refused','users'];
+    const cols = ['day','plants','waters','harvests','fights','deaths','gathers','crafts','buys','rooms','pets_xp','pet_xp','listings','sales','refused','users'];
     console.log(cols.map((c) => String(c).padStart(c === 'day' ? 10 : 8)).join(' '));
     for (const row of rows) console.log(cols.map((c) => String(row[c] ?? '').padStart(c === 'day' ? 10 : 8)).join(' '));
-    // pets_xp joins the zero-watch: it is the column S-PX-2 exists for, and a
-    // feature at zero for two days is a P1 by definition (CLAUDE.md §3.4). pet_xp
-    // is the running total and does not fall back to zero, so it is not watched.
-    const zeroTwoDays = ['plants','fights','gathers','buys','claims','pets_xp'].filter((c) => rows.slice(0, 2).every((row) => Number(row[c]) === 0));
+    // The zero-watch: a feature at zero for two days is a P1 by definition (CLAUDE.md §3.4).
+    // Only LIVE features are watched. pets_xp (S-PX-2's column) is shown but not watched while
+    // the pets are hidden with no work planned (Tyler 2026-10-24); it rejoins when they return.
+    const zeroTwoDays = ['plants','fights','gathers','buys'].filter((c) => rows.slice(0, 2).every((row) => Number(row[c]) === 0));
     if (rows.length >= 2 && zeroTwoDays.length) console.log(`\nP1 by definition — zero for two days: ${zeroTwoDays.join(', ')}`);
   }
 

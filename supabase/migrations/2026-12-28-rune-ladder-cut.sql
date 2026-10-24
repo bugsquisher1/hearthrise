@@ -120,7 +120,7 @@ begin
   --     a Chalked Fire Rune beside them is untouched. Rolled back.
   begin
     insert into auth.users (id) values (v_uid) on conflict (id) do nothing;
-    insert into public.player_state (user_id, slot, gold, version) values (v_uid, 0, 0, 1)
+    insert into public.player_state (user_id, slot, version) values (v_uid, 0, 1)
       on conflict (user_id, slot) do nothing;
     insert into public.player_inventory (user_id, slot, item_id, qty) values (v_uid, 0, 'air_rune', 50), (v_uid, 0, 'chalked_fire_rune', 4);
     insert into public.player_equipment (user_id, slot, equip_slot, item_id) values (v_uid, 0, 'ammo', 'air_rune');

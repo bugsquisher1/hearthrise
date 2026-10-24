@@ -196,7 +196,7 @@ alter table public.hr_hunt_abilities add column if not exists ord int not null d
 -- sword alone have their own lists): no fixed cap on how many disciplines share a row.
 alter table public.hr_hunt_abilities drop constraint if exists hr_hunt_abilities_disciplines_check;
 alter table public.hr_hunt_abilities add constraint hr_hunt_abilities_disciplines_check check (cardinality(disciplines) >= 1);
--- RETIRED (lane b-spell-roles, 2026-12-24): a role named ONE ability discipline. A role is now played by several role
+-- RETIRED (lane b-spell-roles, 2026-12-30): a role named ONE ability discipline. A role is now played by several role
 -- keys on their own lists (hr_hunt_weapon_roles.discipline); 2026-12-31-spell-roles.sql restates its last reader,
 -- hr_hunt_settings_view. Kept, EMPTY, because applied history's §0 checks and bodies name it.
 create table if not exists public.hr_hunt_roles (

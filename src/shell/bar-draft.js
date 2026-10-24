@@ -15,6 +15,8 @@ import { METRICS, OPERATORS } from '../data/condition-metrics.js?v=0.2.38';
 import { STATUSES } from '../data/statuses.js?v=0.2.38';
 import { BAR_SLOTS, BAR_ANSWER_MS } from '../data/hunt-hud.js?v=0.2.38';
 import { BASIC_INDEX } from '../data/supply-basics.js?v=0.2.38';
+import { isRune } from '../data/supplies.js?v=0.2.38';
+import { ITEMS } from '../data/items.js?v=0.2.38';
 import { suggestedConditions, aimsAtMonsters } from '../core/hunt/conditions.js?v=0.2.38';
 import { settingsOf, wireSlot } from '../session/hunt-sections.js?v=0.2.38';
 import { ABILITIES } from '../data/abilities.js?v=0.2.38';
@@ -90,7 +92,8 @@ export function conditionFor(metric) {
  * copy: with no rows read yet the answer is null. What one use buys:
  *   a store food or drink   that row, per use (it is the slot's item)
  *   a crafted food or drink nothing: own stock only (null)
- *   an ammo line            an arrow's plain partner once yours are gone; the loaded ammo, the matching one
+ *   an ammo line            an arrow's plain partner once yours are gone; the loaded ammo, the matching one;
+ *                           a rune nothing (its store row feeds spells only: supplies.js isRune)
  *   a rune spell            the store rune the slot names; with none, carried runes only
  * { id, name, price, amount } or null.
  */
@@ -103,6 +106,7 @@ export function storeOf(a, rows) {
     return b ? row(b) : null;
   }
   if (a.type === 'attack_with_item' && a.id === 'loaded') return { id: null, name: 'the matching plain ammo', price: null, amount: 0 };
+  if (a.type === 'attack_with_item' && isRune(ITEMS[a.id])) return null;
   const b = rows.find((r) => r.partner === a.id);
   return b ? row(b) : null;
 }

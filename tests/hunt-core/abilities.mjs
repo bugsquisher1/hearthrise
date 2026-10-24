@@ -449,7 +449,7 @@ const cases = {
       if (r.lane !== want) return r.id + ' rides ' + r.lane + ', want ' + want;
     }
     const hs = supplySession(M, { bag: { iron_arrows: { loaded: 50 } } });
-    const x = oneHero(M, {}, { hs, bar: ['hunters_mark', 'precision_shot'], range: 7, ammo: 'iron_arrows' }, [{ x: 15, y: 3, hp: 5000, maxHp: 5000 }]);
+    const x = oneHero(M, { role: 'ranger' }, { hs, bar: ['hunters_mark', 'precision_shot'], range: 7, ammo: 'iron_arrows' }, [{ x: 15, y: 3, hp: 5000, maxHp: 5000 }]);
     x.sc.rng = rngOf(M, 11);
     M.abilities.castAbilities(x.inst, x.sc);
     x.sc.atMs = 100;
@@ -643,7 +643,9 @@ const mutants = [
   { name: 'a shot ability reads only the worn ammo (Andy 10-23: Precision Shot never cast)', case: 'shot-ability-looses-the-bar-arrows',
     edits: [['src/core/hunt/abilities.js', "    const id = slot.action.id === 'loaded' ? h.ammo : slot.action.id;", '    const id = h.ammo;']] },
   { name: 'a shot ability looses a whetstone from the bar', case: 'shot-ability-looses-the-bar-arrows',
-    edits: [['src/core/hunt/abilities.js', '    if (!id || !shootsItem(hero.role, itemRow(h, id))) return null;', '    if (!id) return null;']] },
+    edits: [['src/core/hunt/abilities.js', '    if (!id || !shootsItem(hero.role, itemRow(h, id))) return null;', '    if (!id) return null;'],
+      /* the bar's own door (conditions.js attackItem, Andy a41) opened too: two doors keep a whetstone from a bow */
+      ['src/core/hunt/conditions.js', 'SHOOTERS.some((r) => shootsItem(r, ITEMS[id]))', "!!ITEMS[id] && ITEMS[id].reqSkill !== 'magic'"]] },
   { name: 'a heal is not capped at the missing HP', case: 'heal-capped',
     edits: [['src/core/hunt/abilities.js', '  const got = Math.max(0, Math.min(n, int(t.maxHp) - int(t.hp)));', '  const got = Math.max(0, n);']] },
   { name: 'Challenge pulls nothing', case: 'taunt-pulls-back',

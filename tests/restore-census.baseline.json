@@ -603,7 +603,9 @@
   "character_presence": "A presence stamp, not progress: one row per character saying when its account's client last asked hr_players_online with it open. Every row is rewritten within 30 s of the player being online again, and the only thing it answers is the players-online count. Losing every row costs nobody anything.",
   "hr_character_sheets": "Derived, display-only: every row is recomputed by the hr-accrue sheet verb from the character's skills, gear, style, buffs and perks (which ARE restored), and is shown only while its input fingerprint matches. Losing every row costs one recompute each, never a value.",
   "hr_world_notices": "The rare-drop notice journal (2026-11-14-rare-broadcast.sql). It records that a System chat line was posted for a drop, never the drop itself: the item is in player_inventory and the ledger, both on the manifest. Losing it re-opens one day of the notice cap and loses who-was-announced history, nothing a player owns.",
-  "party_seekers": "A finder listing, not progress: one row per character, every row expires 30 minutes after it is written (and sooner on a join, a hunt start or sign-out), grants nothing on its own (an invite is a separate verb with its own checks). Losing every row costs each seeker one press."
+  "party_seekers": "A finder listing, not progress: one row per character, every row expires 30 minutes after it is written (and sooner on a join, a hunt start or sign-out), grants nothing on its own (an invite is a separate verb with its own checks). Losing every row costs each seeker one press.",
+  "account_play_net": "Anti-abuse stamp, not value: the play cap's record of which network an account last called from (a salted hash). A lost row costs a player nothing; the next hr_load writes it again.",
+  "hero_play_net": "Anti-abuse stamp, not value: the network a playing hero started from (a salted hash), read only to count heroes per network. A lost row costs a player nothing; it lets that hero go uncounted per network until it starts again."
  },
  "tables": {
   "account_bank": {
@@ -628,6 +630,11 @@
    "class": "restore_only",
    "wiped_at_cutover": false,
    "note": "PLAYER VALUE (a budget of grants). The once-per-ACCOUNT key of every gem credit (rank:<id>, milestone:<id>, start_kit, raid:<week>, goal:<id>:<period>, apply:<intent>), 2026-10-19-account-wallet.sql. Losing it RE-MINTS: every permanent gem reward the account already took becomes claimable again on another hero. Periodic keys expire and are pruned by the account's next credit; permanent keys are kept for life."
+  },
+  "account_play_net": {
+   "class": "operational",
+   "wiped_at_cutover": true,
+   "note": "2027-01-19-play-cap.sql, ships EMPTY. The network each account last showed on its own PostgREST call (a 32-byte salted SHA-256 of the IPv4 address / IPv6 /64, never the address), written by hr_play_net_note only when it changes and read by the per-network play cap for a start that is not the account's own call. An empty table counts such starts per account only until the account's next hr_load (the client calls it on every open and every minute per unviewed hero)."
   },
   "account_storage_chests": {
    "class": "restore_only",
@@ -779,6 +786,11 @@
    "class": "restore_only",
    "wiped_at_cutover": false,
    "note": "THE GLOBAL MONOTONIC TROPHY COUNTER (2026-09-19), one row per trophy, from which hr_apply ALLOCATES each find's nth_ever under the row lock. Not player-scoped (no user_id) but not regenerable either after a player_ledger prune: coming back empty restarts \"Nth ever found\" at 1 for every trophy. It can, however, be REBUILT FROM hearthfind_log (max(nth_ever) per item) by re-running hr_backfill_lifetime_facts(), which is raise-only — so restore hearthfind_log first and this follows. Server-only: no client role holds any privilege on it."
+  },
+  "hero_play_net": {
+   "class": "operational",
+   "wiped_at_cutover": true,
+   "note": "2027-01-19-play-cap.sql, ships EMPTY. The network each hero started playing from (hr_play_claim), counted by the per-network play cap only while the hero plays (hr_playing). At most one row per hero. An empty table under-counts the networks of heroes already playing until they start again; nothing a player earned is in it."
   },
   "hero_tally": {
    "class": "restore_only",
@@ -1280,8 +1292,8 @@
   },
   "hr_server_secrets": {
    "class": "regenerated",
-   "replay": 1,
-   "note": "A REBUILD PRODUCES ONE ROW WITH A DIFFERENT VALUE. 2026-08-11-player-state.sql seeds it with sha256(gen_random_uuid()||gen_random_uuid()||clock_timestamp()), so the 256-bit PRNG secret is FRESH on every apply. A count-based census reports this table as reconstructed; it is not. What changes if the value changes: (1) hr_seed's accrual PRNG re-rolls, so a disputed drop can no longer be replayed deterministically from player_ledger — the stated reason the seed is deterministic at all; (2) the accrual idempotency key hr_seed(user,slot,'intent:accrue:<watermark>') moves, so an in-flight accrual retried across the boundary is no longer deduplicated and can pay twice — bounded, because accrued_to is restored with it and hr_apply re-validates against the restored watermark. Neither is fatal. Both are silent. A restore from a BACKUP keeps the real value; only a repo rebuild re-rolls it."
+   "replay": 2,
+   "note": "A REBUILD PRODUCES TWO ROWS, EACH WITH A DIFFERENT VALUE (prng; play_net since 2027-01-19-play-cap.sql, the play cap's network salt: a fresh one only makes every stored network hash stale, so heroes already playing go uncounted per network until they start again and each account's stamp is rewritten on its next hr_load). 2026-08-11-player-state.sql seeds it with sha256(gen_random_uuid()||gen_random_uuid()||clock_timestamp()), so the 256-bit PRNG secret is FRESH on every apply. A count-based census reports this table as reconstructed; it is not. What changes if the value changes: (1) hr_seed's accrual PRNG re-rolls, so a disputed drop can no longer be replayed deterministically from player_ledger — the stated reason the seed is deterministic at all; (2) the accrual idempotency key hr_seed(user,slot,'intent:accrue:<watermark>') moves, so an in-flight accrual retried across the boundary is no longer deduplicated and can pay twice — bounded, because accrued_to is restored with it and hr_apply re-validates against the restored watermark. Neither is fatal. Both are silent. A restore from a BACKUP keeps the real value; only a repo rebuild re-rolls it."
   },
   "hr_settings": {
    "class": "operator_tunable",

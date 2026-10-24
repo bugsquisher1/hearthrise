@@ -4029,6 +4029,8 @@ jobs:
         run: |
           node tests/css-literal-ratchet.mjs --report
           node tools/mutant-gate.mjs node tests/css-literal-ratchet.mjs --selftest
+          node tools/make-ui-steel-art.mjs --check
+          node tools/mutant-gate.mjs node tools/make-ui-steel-art.mjs --selftest
 
 
 

@@ -171,14 +171,15 @@ export function renderHunts() {
   return '<div class="hw-hunts">'
     + '<p class="hs-note hw-hunts-now"></p><p class="hs-note hw-hunts-reco" hidden></p>'
     + '<div class="hw-hunts-cols"><ul class="hw-hunt-list" role="listbox" aria-label="Hunts"></ul>'
-    + '<section class="hw-hunt-detail" aria-label="The picked hunt">' + detailHtml()
+    /* The page scrolls in its own box and Enter stands below it (windows.css), never over the lineup or the drops. */
+    + '<section class="hw-hunt-detail" aria-label="The picked hunt"><div class="hw-hd-page">' + detailHtml()
     + '<h4 class="hw-hd-h">Each pull</h4><div class="hw-pull"><p class="hw-hunt-facts"></p>'
     + '<span class="hw-density" role="group" aria-label="Monsters each pull">'
     + '<span class="hh-step"><button type="button" class="hh-seg" data-hs-act="density" data-by="-1" aria-label="Fewer monsters">−</button>'
     + '<output class="hh-step-val"></output>'
     + '<button type="button" class="hh-seg" data-hs-act="density" data-by="1" aria-label="More monsters">+</button></span></span></div>'
     + '<p class="hw-density-note"></p>'
-    + '<p class="hw-hunt-pack"></p>' + goHtml()
+    + '<p class="hw-hunt-pack"></p>' + goHtml() + '</div>'
     + '<div class="hw-hd-foot"><p class="hh-intent-msg" role="status" aria-live="polite"></p>'
     + '<button type="button" class="hw-primary is-on hw-hunt-enter" data-hs-act="enter">Enter</button></div>'
     + '</section></div></div>';
@@ -340,7 +341,8 @@ renderHunts.act = function actHunts(ctx, body, action, ev, t) {
   }
   if (action === 'pick') {
     /* Another ground's page opens at its top, not where the last one was scrolled to. */
-    if (sc.pick !== hunt && body.scrollTop) body.scrollTop = 0;
+    const page = body.querySelector('.hw-hd-page');
+    if (sc.pick !== hunt && page && page.scrollTop) page.scrollTop = 0;
     sc.pick = hunt; sc.msg = ''; sc.paged = true; repaint();
     return true;
   }

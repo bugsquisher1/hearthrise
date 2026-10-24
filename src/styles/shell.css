@@ -1,11 +1,12 @@
 /* ══════════════════════════════════════════════════════════════════════════
    src/styles/shell.css — the World shell's windows, widgets and launcher row
    (docs/design/WORLD_SHELL.md; ART_DIRECTION.md §9 chrome, §10 type).
-   Tokens only, not one colour literal. Frames are the iron pixel 9-slices
-   (assets/ui/frame-iron*.png, 4 and 2 art px = 8 and 4 px at the x2 density),
-   so framed boxes carry radius 0. Shadow only on windows (overlays); no glow.
-   One text style: the analyzer's (--f-label headings, --f-ui body).
-   Not linked by index.html yet: the cutover lane adds it with the mount.
+   Tokens only, not one colour literal. Windows wear FORGED STEEL (2026-10-24,
+   below): the steel pixel 9-slices (assets/ui/steel-frame*.png, 6 and 3 art px =
+   12 and 6 px at the x2 density), so framed boxes carry radius 0. Shadow only on
+   windows (overlays); no glow. Type: Cinzel for window titles and section heads,
+   --f-ui for the body (ART_DIRECTION §10). The HUD widgets keep the older iron
+   frame until their lane moves them (hunt.css .hh-panel).
    ══════════════════════════════════════════════════════════════════════════ */
 
 .hs-shell { position: absolute; top: 0; right: 0; bottom: 0; left: 0; pointer-events: none; font-family: var(--f-ui); font-size: var(--t-small); color: var(--ink); }
@@ -73,19 +74,34 @@
 }
 .hs-launch:hover::before, .hs-launch:focus-visible::before { opacity: 1; }
 
+/* ══ FORGED STEEL: the one chrome (Tyler approved the skin on 2026-10-24; ART_DIRECTION §9, §10) ══
+   Every window wears one thin steel frame with a square stud in each corner (assets/ui/steel-frame.png, 6 art
+   px = 12 px; tools/make-ui-steel-art.mjs). Its fill is a charcoal floor under a steel grain, ONE layer that the
+   Window opacity setting fades (--panel-alpha, tokens.css §8); the frame, the rules, the gold and every word stay
+   solid. A dark title band ruled in dim gold carries the window's glyph and its name in Cinzel. Inside: section
+   heads in Cinzel over a rule running right; the picked row is lifted, outlined in gold with a gold bar at its
+   left; fields are sunk wells; the one primary is a raised gold plate (assets/ui/gold-plate.png). The HUD panels
+   and the account screens reuse these pieces (the shared selectors below). */
+
 /* ── Windows: one frame for all, docked right by the window manager ── */
 .hs-win {
   position: absolute; top: 12px;
   max-height: calc(100% - 24px);
   display: flex; flex-direction: column;
   pointer-events: auto;
-  background: var(--modal-bg);
-  border: 8px solid transparent;
-  border-image: url('../../assets/ui/frame-iron.png') 4 / 8px stretch;
+  isolation: isolate;
+  background: none;
+  border: 12px solid transparent;
+  border-image: url('../../assets/ui/steel-frame.png') 6 / 12px stretch;
   border-radius: 0;
-  background-clip: padding-box;
   image-rendering: pixelated;
   box-shadow: 0 10px 28px color-mix(in srgb, var(--world-shadow) 55%, transparent);
+}
+/* The floor and its grain: one layer under everything in the window, faded by the opacity setting alone. */
+.hs-win::before {
+  content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background: url('../../assets/ui/steel-grain.png') 0 0 / 64px 64px repeat, var(--bg-1);
+  image-rendering: pixelated; opacity: var(--panel-alpha);
 }
 .hs-win.is-floating { box-shadow: 0 14px 36px color-mix(in srgb, var(--world-shadow) 65%, transparent); }
 /* A modal row (Configure action): centred over the World, never docked, never moving the camera. */
@@ -100,22 +116,73 @@
 @media (prefers-reduced-motion: reduce) {
   .hs-win.is-entering, .hs-win.is-leaving, .hs-widget, .hs-launch::before { animation: none; transition: none; }
 }
+/* The title band: darker than the floor, ruled off in dim gold; the window's glyph and name in gold. */
 .hs-win-head {
-  display: flex; align-items: center; gap: 8px;
-  height: 44px; padding: 0 4px 0 10px; flex: none;
-  border-bottom: 1px solid var(--line);
-  color: var(--gold);
+  display: flex; align-items: center; gap: 10px;
+  height: 44px; padding: 0 6px 0 12px; flex: none;
+  background: var(--fill-0);
+  border-bottom: 2px solid var(--steel-rule);
+  color: var(--gold-2);
   cursor: grab; user-select: none; touch-action: none;
 }
-.hs-win-head .hs-glyph { width: 20px; height: 20px; }
-/* The analyzer's heading style (one text style, §7): no Cinzel in window heads. */
-.hs-win-title { margin: 0; flex: 1; font-family: var(--f-label); font-weight: 700; font-size: var(--t-micro); letter-spacing: .04em; color: var(--ink-3); }
-.hs-key { font-family: var(--f-ui); font-size: var(--t-micro); color: var(--ink-3); padding: 0 6px; border: 1px solid var(--line-soft); border-radius: var(--r-sm); line-height: 20px; }
-.hs-close { width: 36px; height: 36px; display: grid; place-items: center; border: 0; padding: 0; background: none; color: var(--ink-3); cursor: pointer; border-radius: var(--r); }
-.hs-close:hover { color: var(--ink); background: var(--surf-panel); }
+.hs-win-head .hs-glyph { width: 22px; height: 22px; }
+/* The window's name in Cinzel (Tyler approved Forged Steel 2026-10-24: a characterful heading over a readable body). */
+.hs-win-title { margin: 0; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-family: var(--f-display); font-weight: 700; font-size: var(--t-lead); line-height: 1.1; letter-spacing: .12em; color: var(--gold-2); }
+/* Square steel buttons: the window's key and its close; the key style also caps a hotkey in Settings. */
+.hs-key { display: inline-grid; place-items: center; min-width: 32px; height: 32px; padding: 0 6px; box-sizing: border-box;
+  border: 2px solid var(--steel-btn); border-radius: 0; background: var(--fill-1);
+  font-family: var(--f-display); font-weight: 700; font-size: var(--t-micro); line-height: 1; color: var(--ink-2); }
+.hs-close { width: 32px; height: 32px; display: grid; place-items: center; padding: 0; cursor: pointer;
+  border: 2px solid var(--steel-btn); border-radius: 0; background: var(--fill-1); color: var(--ink-2); }
+.hs-close:hover { color: var(--ink); background: var(--bg-3); }
 .hs-close:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: -2px; }
 .hs-close .hs-glyph { width: 18px; height: 18px; }
 .hs-win-body { overflow: auto; padding: 10px 12px 12px; }
+
+/* ── Forged Steel, the shared pieces (windows here; the HUD panels and the account screens add their selectors) ── */
+/* A SECTION HEAD: Cinzel in gold, letter-spaced, a dim gold rule running to the right edge. Each head keeps its
+   own margins (windows.css, character.css); line-height 1.2 keeps its height where the old face had it. */
+.hw-hd-h, .hw-ledger-head.is-on, .hw-slothead, .hw-skill-head, .hs-sub, .hw-cs-head.is-on, .hw-cs-head:first-child {
+  display: flex; align-items: center; gap: 12px;
+  font-family: var(--f-display); font-weight: 700; font-size: var(--t-micro); line-height: 1.2; letter-spacing: .14em; color: var(--gold);
+}
+.hw-hd-h::after, .hw-ledger-head.is-on::after, .hw-slothead::after, .hw-skill-head::after, .hs-sub::after, .hw-cs-head.is-on::after, .hw-cs-head:first-child::after {
+  content: ''; flex: 1; height: 2px; background: var(--steel-rule);
+}
+/* A SUNK FIELD: a well one art px deep, never a hairline box (search, selects, amounts, names, the report box). */
+.hw-search, .hs-win .hh-select, .hs-win .hh-num, .st-search, .st-select, .hf-name, .hc-field, .rp-text {
+  border: 0; border-radius: 0; background: var(--bg-0); box-shadow: var(--steel-well);
+}
+/* THE ONE PRIMARY: a raised gold plate (pixel art, a lip along its foot), pressed when pressed; its word in Cinzel. */
+.hw-primary, .hh-tool.is-primary {
+  min-height: 40px; padding: 0 14px;
+  border: solid transparent; border-width: 6px 6px 10px; border-radius: 0;
+  border-image: url('../../assets/ui/gold-plate.png') 3 3 5 3 fill / 6px 6px 10px stretch; image-rendering: pixelated;
+  background: none; color: var(--bg-0);
+  font-family: var(--f-display); font-weight: 700; font-size: var(--t-small); letter-spacing: .06em;
+}
+.hw-primary:hover:not(:disabled), .hh-tool.is-primary:hover:not(:disabled) { background: none; color: var(--bg-0); filter: brightness(1.08); }
+.hw-primary:active:not(:disabled), .hh-tool.is-primary:active:not(:disabled) { border-image-source: url('../../assets/ui/gold-plate-down.png'); }
+.hw-primary:disabled, .hh-tool.is-primary:disabled { opacity: .5; cursor: default; filter: none; }
+/* A POPUP (an item's tooltip, a right-click menu): solid, in the thin steel frame (3 art px = 6 px). */
+.hw-tip, .hw-menu {
+  background: var(--bg-2); border: 6px solid transparent; border-radius: 0;
+  border-image: url('../../assets/ui/steel-frame-thin.png') 3 / 6px stretch; image-rendering: pixelated;
+}
+/* A SLIDER (the window opacity, the HUD layout's fades): a sunk track and a small gold plate to drag, its value
+   written beside it; never the browser's own control. */
+.hs-win input[type="range"] { -webkit-appearance: none; appearance: none; height: 14px; margin: 0; padding: 0 1px; background: var(--bg-0); box-shadow: var(--steel-well); cursor: pointer; }
+.hs-win input[type="range"]::-webkit-slider-runnable-track { height: 14px; background: none; }
+.hs-win input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 12px; height: 14px; border: 0; border-radius: 0;
+  background: var(--gold-3); box-shadow: inset 2px 2px 0 var(--gold-2), inset -2px -2px 0 var(--bg-0); }
+.hs-win input[type="range"]::-moz-range-track { height: 14px; background: none; }
+.hs-win input[type="range"]::-moz-range-thumb { width: 12px; height: 14px; border: 0; border-radius: 0;
+  background: var(--gold-3); box-shadow: inset 2px 2px 0 var(--gold-2), inset -2px -2px 0 var(--bg-0); }
+.hs-win input[type="range"]:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: 2px; }
+.st-val { min-width: 44px; text-align: right; font-weight: 700; color: var(--ink); font-variant-numeric: lining-nums tabular-nums; }
+/* A CONFIRMATION in a window: a sunk well with the gold bar at its left (the picked row's mark). */
+.hw-confirm { background: var(--bg-0); box-shadow: var(--steel-well); border-left: 4px solid var(--gold); }
 /* A home window (Chat) is held to the World's bottom-left by its bottom edge; a sized one fills its frame.
    Its grip sits on the frame's top-right corner: drag right to widen, up to grow taller (window-sizes.js). */
 .hs-win.is-home { top: auto; }
@@ -151,18 +218,19 @@
 @media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
   .hs-launch { width: 44px; }
   .hs-launchers { padding-left: 4px; }
+  /* The sheet keeps the steel frame's spine down its left edge, a stud at each end; a phone dialog the thin frame. */
   .hs-win {
     top: 0; bottom: 0; right: 0; left: auto;
     width: min(400px, 48vw);
     max-height: none;
-    border-width: 0 0 0 4px;
-    border-image: url('../../assets/ui/frame-iron-thin.png') 2 / 0 0 0 4px stretch;
+    border-width: 0 0 0 12px;
+    border-image: url('../../assets/ui/steel-frame.png') 6 / 0 0 0 12px stretch;
   }
   .hs-win.is-modal {
     top: 50%; bottom: auto; left: 50%; right: auto;
     max-width: calc(100vw - 16px); max-height: calc(100% - 8px);
-    border-width: 4px;
-    border-image: url('../../assets/ui/frame-iron-thin.png') 2 / 4px stretch;
+    border-width: 6px;
+    border-image: url('../../assets/ui/steel-frame-thin.png') 3 / 6px stretch;
   }
   .hs-win-head { height: 40px; cursor: default; }
   .hs-grip { display: none; }

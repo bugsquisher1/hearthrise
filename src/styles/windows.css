@@ -10,14 +10,15 @@
    ══════════════════════════════════════════════════════════════════════════ */
 
 /* ── The window objects ── */
-.hs-win { --hw-well: inset 2px 2px 0 color-mix(in srgb, var(--world-shadow) 70%, transparent), inset -1px -1px 0 color-mix(in srgb, var(--hl) 14%, transparent); }
+/* A well inside a window is the Forged Steel well (tokens.css §8): one art px deep, shadow up-left, lit lip down-right. */
+.hs-win { --hw-well: var(--steel-well); }
 .hs-win .hh-empty.is-on { display: block; margin: 8px 2px; font-size: var(--t-micro); }
 .hw-pane { display: none; }
 .hw-pane.is-on { display: block; }
 
 /* ── Shared: tabs, the capacity line, ledgers, the primary action, confirmations ── */
-.hw-tabs { display: flex; gap: 2px; margin-bottom: 8px; border-bottom: 1px solid var(--line-soft); }
-.hw-tab { margin-bottom: -1px; border: 0; background: none; padding: 4px 10px; min-height: 32px; font-family: var(--f-label); font-weight: 700; font-size: var(--t-micro); letter-spacing: .04em; color: var(--ink-3); cursor: pointer; border-bottom: 2px solid transparent; }
+.hw-tabs { display: flex; gap: 2px; margin-bottom: 8px; border-bottom: 2px solid var(--steel-sep); }
+.hw-tab { margin-bottom: -2px; border: 0; background: none; padding: 4px 10px; min-height: 32px; font-family: var(--f-label); font-weight: 700; font-size: var(--t-micro); letter-spacing: .04em; color: var(--ink-3); cursor: pointer; border-bottom: 2px solid transparent; }
 .hw-tab:hover { color: var(--ink); }
 .hw-tab[aria-selected="true"] { color: var(--gold-2); border-bottom-color: var(--gold); }
 .hw-tab:focus-visible, .hw-cat:focus-visible, .hw-mi:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: -2px; }
@@ -27,26 +28,20 @@
 .hw-ico .hh-icon { width: 64px; height: 64px; }
 .hw-ico .hh-icon.is-glyph .hs-glyph { width: 32px; height: 32px; }
 .hw-ledger { margin: 0 0 6px; padding: 0; list-style: none; }
-.hw-ledger-head { display: none; margin: 10px 2px 4px; font-family: var(--f-label); font-weight: 700; font-size: var(--t-micro); letter-spacing: .04em; color: var(--ink-3); }
-.hw-ledger-head.is-on { display: block; }
+/* Shown (.is-on), it is a Forged Steel section head (shell.css). */
+.hw-ledger-head { display: none; margin: 10px 2px 4px; }
 .hw-cap.hw-buy-note { display: none; margin-bottom: 6px; }
 .hw-cap.hw-buy-note.is-on { display: block; }
-.hw-line { display: flex; align-items: center; gap: 8px; min-height: 52px; padding: 2px 0; border-top: 1px solid var(--line-soft); }
+.hw-line { display: flex; align-items: center; gap: 8px; min-height: 52px; padding: 2px 0; border-top: 2px solid var(--steel-sep); }
 .hw-line .hw-ico { width: 40px; height: 40px; }
 .hw-line .hw-ico .hh-icon { width: 32px; height: 32px; }
 .hw-line-name { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .hw-line-name b { font-weight: 700; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hw-line-name small { font-size: var(--t-micro); color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; }
-.hw-primary {
-  display: none; min-height: 36px; padding: 0 16px;
-  border: 0; border-radius: var(--r);
-  background: var(--gold); color: var(--bg-0);
-  font-family: var(--f-label); font-weight: 700; font-size: var(--t-small); white-space: nowrap; cursor: pointer;
-}
+/* The one primary: the gold plate (shell.css, Forged Steel). Here only when it shows. */
+.hw-primary { display: none; white-space: nowrap; cursor: pointer; }
 .hw-primary.is-on { display: inline-block; }
-.hw-primary:hover:not(:disabled) { background: var(--gold-2); }
 .hw-primary:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: 2px; }
-.hw-primary:disabled { opacity: .5; cursor: default; }
 .hw-tools, .hw-bulk { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; }
 .hw-bulk { display: none; padding: 6px 8px; background: var(--bg-1); box-shadow: var(--hw-well); }
 .hw-bulk.is-on { display: flex; }
@@ -63,7 +58,8 @@
 .hw-selcount { flex: 1; font-weight: 700; font-variant-numeric: lining-nums tabular-nums; }
 .hw-tools [data-hs-act="sell-cat"] { display: none; }
 .hw-tools [data-hs-act="sell-cat"].is-on { display: inline-block; }
-.hw-confirm { display: none; margin-top: 8px; padding: 8px 10px; background: var(--bg-1); border-left: 2px solid var(--gold); }
+/* Its well and gold bar are the Forged Steel confirmation's (shell.css). */
+.hw-confirm { display: none; margin-top: 8px; padding: 8px 10px; }
 .hw-confirm.is-on { display: block; }
 .hw-confirm-q { margin: 0; font-weight: 700; color: var(--ink); }
 .hw-confirm-note { margin: 2px 0 0; font-size: var(--t-micro); color: var(--ink-2); }
@@ -73,7 +69,8 @@
 .hw-pane:has(.hw-confirm.is-on) .hw-pick .hw-primary { display: none; }
 .hs-win .hh-intent-msg { margin-top: 6px; }
 .is-pending .hh-intent-msg { color: var(--ink-2); }
-.hw-search { flex: 1; display: flex; align-items: center; gap: 6px; padding-left: 6px; border: 1px solid var(--line-soft); border-radius: var(--r-sm); background: var(--bg-1); color: var(--ink-3); }
+/* A sunk field (shell.css, Forged Steel), its magnifier inside. */
+.hw-search { flex: 1; display: flex; align-items: center; gap: 6px; padding-left: 8px; color: var(--ink-3); }
 .hw-search .hs-glyph { width: 16px; height: 16px; }
 .hw-search .hw-q { flex: 1; width: auto; min-width: 0; border: 0; background: none; }
 
@@ -146,15 +143,15 @@
 .hw-loot-note { margin: 8px 2px 0; font-size: var(--t-micro); color: var(--ink-3); }
 
 /* ── The context menu: a plain list beside the stack ── */
+/* Its frame and floor are the Forged Steel popup's (shell.css). */
 .hw-menu {
-  display: none; position: fixed; z-index: 40; min-width: 200px; padding: 4px;
+  display: none; position: fixed; z-index: 40; min-width: 200px; padding: 2px;
   font-family: var(--f-ui); font-size: var(--t-small); color: var(--ink);
-  background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--r);
   box-shadow: 0 8px 22px color-mix(in srgb, var(--world-shadow) 55%, transparent);
 }
 .hw-menu.is-on { display: flex; flex-direction: column; }
 .hw-menu-title { padding: 4px 8px 6px; font-family: var(--f-label); font-size: var(--t-micro); letter-spacing: .04em; color: var(--ink-3); border-bottom: 1px solid var(--line-soft); }
-.hw-mi { min-height: 34px; padding: 0 10px; text-align: left; border: 0; border-radius: var(--r-sm); background: none; font-family: var(--f-ui); font-size: var(--t-small); color: var(--ink); cursor: pointer; }
+.hw-mi { min-height: 34px; padding: 0 10px; text-align: left; border: 0; border-radius: 0; background: none; font-family: var(--f-ui); font-size: var(--t-small); color: var(--ink); cursor: pointer; }
 .hw-mi:hover:not(:disabled) { background: var(--surf-panel); }
 .hw-mi:disabled { color: var(--ink-3); cursor: default; }
 .hw-mi[aria-pressed="true"] { color: var(--gold-2); }
@@ -162,9 +159,9 @@
 .hw-menu-rules { display: flex; flex-direction: column; }
 
 /* ── The tooltip ── */
+/* Its frame and floor are the Forged Steel popup's (shell.css). */
 .hw-tip {
-  display: none; position: fixed; z-index: 50; width: 280px; padding: 8px 10px; pointer-events: none;
-  background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--r);
+  display: none; position: fixed; z-index: 50; width: 280px; padding: 6px 8px; pointer-events: none;
   box-shadow: 0 8px 22px color-mix(in srgb, var(--world-shadow) 55%, transparent);
   font-family: var(--f-ui); font-size: var(--t-micro); color: var(--ink-2); line-height: 1.35;
 }
@@ -231,7 +228,7 @@
 .hw-totals dd { margin: 0; font-weight: 800; color: var(--ink); font-variant-numeric: lining-nums tabular-nums; }
 .hw-slotline { display: none; margin-top: 8px; padding-top: 6px; border-top: 1px solid var(--line-soft); }
 .hw-slotline.is-on { display: block; }
-.hw-slothead { margin: 0 2px 4px; font-family: var(--f-label); font-weight: 700; font-size: var(--t-micro); letter-spacing: .04em; color: var(--ink-3); }
+.hw-slothead { margin: 0 2px 4px; }
 .hw-worn { display: none; align-items: center; gap: 8px; min-height: 40px; }
 .hw-worn.is-on { display: flex; }
 .hw-worn .hw-ico, .hw-fit .hw-ico { width: 36px; height: 36px; }
@@ -252,22 +249,27 @@
 .hw-store-n { font-family: var(--f-ui); font-weight: 400; letter-spacing: 0; color: var(--ink-3); }
 .hw-store-note { margin: 0 2px 4px; }
 
-/* ── Hunts (src/shell/windows/hunts.js): the grounds as lines, the picked one's page beside them ── */
+/* ── Hunts (src/shell/windows/hunts.js): the grounds as lines, the picked one's page beside them ──
+   FORGED STEEL (Tyler approved 2026-10-24): two panels in steel, the list and the page. The window does not scroll:
+   the list scrolls in its panel, the page in its own (.hw-hd-page), and Enter stands at the page's foot OUTSIDE
+   that scroller, so the lineup and the drops never slide under it. */
+.hs-win[data-hs-win="hunts"] .hs-win-body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+.hw-hunts { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .hw-hunts-now, .hw-hunts-reco { margin: 0 2px 8px; }
-.hw-hunts-cols { display: grid; grid-template-columns: 276px minmax(0, 1fr); align-items: start; }
-/* The list: one line a ground, no boxes; the picked line is marked by the gold rule and a lifted ground. */
-/* The list stays in view while the picked ground's page scrolls beside it. */
-.hw-hunt-list { position: sticky; top: 0; margin: 0; padding: 0 12px 0 0; list-style: none; }
-.hw-hunt { display: flex; align-items: flex-start; gap: 8px; padding: 7px 6px 8px 8px; border-left: 2px solid transparent; cursor: pointer; }
-.hw-hunt:hover { background: var(--surf-panel); }
-.hw-hunt.is-picked { border-left-color: var(--gold); background: var(--bg-3); }
+.hw-hunts-cols { flex: 1; min-height: 0; display: grid; grid-template-columns: 286px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); column-gap: 12px; }
+/* The list: a steel panel of lines, one a ground; the picked one is lifted, outlined in gold, a gold bar at its left. */
+.hw-hunt-list { min-height: 0; overflow: auto; margin: 0; padding: 0; list-style: none; background: var(--fill-1); border: 2px solid var(--steel-edge); }
+.hw-hunt { position: relative; display: flex; align-items: flex-start; gap: 10px; padding: 10px 10px 11px 14px; border-bottom: 2px solid var(--steel-sep); cursor: pointer; }
+.hw-hunt:last-child { border-bottom: 0; }
+.hw-hunt:hover { background: var(--fill-2); }
+.hw-hunt.is-picked { background: var(--fill-3); box-shadow: inset 0 0 0 2px var(--gold), inset 6px 0 0 var(--gold), inset 8px 4px 0 var(--fill-0); }
 .hw-hunt:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: -2px; }
-.hw-hunt-glyph { flex: none; display: grid; place-items: center; width: 20px; height: 20px; margin-top: 1px; color: var(--ink-3); }
-.hw-hunt-glyph .hs-glyph { width: 18px; height: 18px; }
+.hw-hunt-glyph { flex: none; display: grid; place-items: center; width: 24px; height: 24px; margin-top: 1px; color: var(--ink-3); }
+.hw-hunt-glyph .hs-glyph { width: 22px; height: 22px; }
 .hw-hunt.is-picked .hw-hunt-glyph { color: var(--ink-2); }
 .hw-hunt-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
-.hw-hunt-name { font-weight: 700; color: var(--ink); }
-.hw-hunt-band, .hw-hd-band { font-size: var(--t-micro); color: var(--ink-3); font-variant-numeric: lining-nums tabular-nums; }
+.hw-hunt-name { font-size: var(--t-body); font-weight: 700; color: var(--ink); }
+.hw-hunt-band, .hw-hd-band { font-size: var(--t-micro); color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; }
 .hw-hunt-fit:not(:empty)::before { content: ' · '; color: var(--ink-3); }
 /* The band against the Level: words always, the tone a second cue (in range / above / far above / below). */
 .hw-hunt-fit[data-tone="in"] { color: var(--green); }
@@ -276,44 +278,52 @@
 .hw-hunt-fits { font-weight: 700; color: var(--gold-2); }
 .hw-hunt-fits:not(:empty) + .hw-hunt-bestline:not(:empty)::before { content: ' · '; font-weight: 400; color: var(--ink-3); white-space: pre; }
 .hw-hunt-fits:empty, .hw-hunt-bestline:empty { display: none; }
-/* The page: set off from the list by one hairline (the master-detail seam), never a card. */
-.hw-hunt-detail { min-width: 0; padding-left: 16px; border-left: 1px solid var(--line-soft); }
+/* The page: a steel panel, its left edge in dim gold toward the list; its text scrolls, its foot stays. */
+.hw-hunt-detail { min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--fill-1); border: 2px solid var(--steel-edge); border-left-color: var(--steel-rule); }
 .hw-hunt-detail[hidden] { display: none; }
+.hw-hd-page { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 14px 18px 12px; }
 .hw-hd-back { display: none; }
-.hw-hd-head { margin-bottom: 6px; }
-.hw-hd-name { margin: 0; font-size: var(--t-lead); font-weight: 700; color: var(--ink); }
-.hw-hd-band, .hw-hd-who { margin: 1px 0 0; }
-.hw-hd-who { font-size: var(--t-micro); color: var(--ink-2); }
+.hw-hd-head { margin-bottom: 8px; }
+/* The ground's name, as a place is named: Cinzel in gold (ART_DIRECTION §10). */
+.hw-hd-name { margin: 0; font-family: var(--f-display); font-size: calc(var(--t-h2) * 1.2); font-weight: 700; line-height: 1.15; letter-spacing: .05em; color: var(--gold-2); }
+/* Under the level line, a dim gold rule with the small diamond at its middle (assets/ui/steel-diamond.png, x2). */
+.hw-hd-band { position: relative; margin: 2px 0 0; padding-bottom: 22px; font-size: var(--t-small); }
+.hw-hd-band::after { content: ''; position: absolute; left: -2px; right: -2px; bottom: 10px; height: 2px; background: var(--steel-rule); }
+.hw-hd-band::before { content: ''; position: absolute; z-index: 1; left: calc(50% - 7px); bottom: 4px; width: 14px; height: 14px;
+  background: url('../../assets/ui/steel-diamond.png') 0 0 / 14px 14px no-repeat; image-rendering: pixelated; }
+.hw-hd-who { margin: 0; font-size: var(--t-small); color: var(--ink-2); }
 .hw-hunt-warn { margin: 1px 0 0; font-size: var(--t-micro); color: var(--red); }
 .hw-hunt-warn:empty { display: none; }
-.hw-hd-theme { margin: 0; font-size: var(--t-small); line-height: 1.35; color: var(--ink-2); }
-.hw-hd-h { margin: 14px 0 6px; font-family: var(--f-label); font-weight: 700; font-size: var(--t-micro); letter-spacing: .04em; color: var(--ink-3); }
-/* Who lives here: each creature as the world draws it (×2, its idle frame), every one standing on the same
-   ground line at the tallest one's height (--stand-h, set from the drawn art; + the 2 px foot and the 1 px line), its name and how common it is
-   under it. The ground line runs unbroken under a row. */
-.hw-hd-lineup { display: flex; flex-wrap: wrap; align-items: flex-start; row-gap: 12px; margin: 0; padding: 0; list-style: none; }
-.hw-hd-mon { display: flex; flex-direction: column; align-items: center; padding: 0; text-align: center; }
-.hw-hd-stand { display: flex; align-items: flex-end; justify-content: center; align-self: stretch; height: calc(var(--stand-h, 45px) + 3px); padding: 0 10px 2px; border-bottom: 1px solid var(--line); }
-.hw-hd-mon-name { margin-top: 4px; padding: 0 6px; font-size: var(--t-micro); font-weight: 700; line-height: 1.2; color: var(--ink); white-space: nowrap; }
-.hw-hd-mon-how { padding: 0 6px; font-size: var(--t-micro); line-height: 1.2; color: var(--ink-3); white-space: nowrap; }
+.hw-hd-theme { margin: 2px 0 0; font-size: var(--t-small); line-height: 1.45; color: var(--ink); }
+/* Each section head is a Forged Steel head (shell.css): Cinzel in gold over a rule. */
+.hw-hd-h { margin: 18px 0 10px; }
+/* Who lives here: each creature as the world draws it (x2), in even columns, all standing at the tallest one's
+   height (--stand-h, set from the drawn art) on a pixel ground shadow (assets/ui/ground-shadow.png, x2), its name
+   and how common it is under it. */
+.hw-hd-lineup { display: grid; grid-template-columns: repeat(auto-fill, minmax(124px, 1fr)); row-gap: 14px; column-gap: 6px; margin: 0; padding: 0; list-style: none; }
+.hw-hd-mon { display: flex; flex-direction: column; align-items: center; padding: 0; text-align: center; min-width: 0; }
+.hw-hd-stand { display: flex; align-items: flex-end; justify-content: center; align-self: stretch; height: calc(var(--stand-h, 45px) + 6px); padding: 0 0 4px;
+  background: url('../../assets/ui/ground-shadow.png') 50% 100% / 48px 10px no-repeat; image-rendering: pixelated; }
+.hw-hd-mon-name { margin-top: 6px; padding: 0 4px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; font-size: var(--t-small); font-weight: 700; line-height: 1.2; color: var(--ink); white-space: nowrap; }
+.hw-hd-mon-how { padding: 0 4px; font-size: var(--t-micro); line-height: 1.25; color: var(--ink-3); white-space: nowrap; }
 .hw-hd-sprite { display: block; image-rendering: pixelated; }
 .hw-hd-mon:not(.is-drawn) .hw-hd-sprite { width: 0; height: 0; }
 .hw-hd-mon[data-band="common"] .hw-hd-mon-how { color: var(--ink-2); }
 .hw-hd-mon.is-carrier .hw-hd-mon-name { color: var(--rar-rare); }
 /* What drops here: the hourly gear a line a tier (the lines' words in ink, what they cover muted), then each Rare and
-   Trophy as its own pixel icon at x1, its name in its rarity colour and its carrier under it. */
-.hw-hd-sets, .hw-hd-rares { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; }
-.hw-hd-set { font-size: var(--t-micro); color: var(--ink-2); }
+   Trophy as its own pixel icon at x1 in a sunk well, its name in its rarity colour and its carrier under it. */
+.hw-hd-sets, .hw-hd-rares { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.hw-hd-set { font-size: var(--t-small); color: var(--ink-2); }
 .hw-hd-set-lines { font-weight: 700; color: var(--ink); }
-.hw-hd-rare { display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; column-gap: 8px; align-items: center; }
-.hw-hd-rare .hw-ico { grid-row: 1 / 3; width: 36px; height: 36px; background: var(--bg-1); box-shadow: var(--hw-well); }
+.hw-hd-rare { display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; column-gap: 10px; align-items: center; }
+.hw-hd-rare .hw-ico { grid-row: 1 / 3; width: 40px; height: 40px; background: var(--bg-0); box-shadow: var(--hw-well); }
 .hw-hd-rare .hw-ico .hh-icon { width: 32px; height: 32px; }
 .hw-hd-rare-name { font-weight: 700; color: var(--rar-rare); }
 .hw-hd-rare.is-trophy .hw-hd-rare-name { color: var(--rar-legendary); }
 .hw-hd-rare-by { font-size: var(--t-micro); color: var(--ink-2); }
 .hw-hd-h:has(+ .hw-hd-sets:empty), .hw-hd-h:has(+ .hw-hd-rares:empty) { display: none; }
 .hw-hunt-party { margin: 8px 0 0; font-size: var(--t-micro); color: var(--ink-2); }
-.hw-hd-best { margin: 0; font-size: var(--t-micro); color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; }
+.hw-hd-best { margin: 0; font-size: var(--t-small); color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; }
 .hw-hd-best[hidden], .hw-hunt-party[hidden], .hw-hd-bests[hidden] { display: none; }
 /* Each pull: what the ground spawns at this pick, and the step beside it. */
 .hw-pull { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 12px; }
@@ -326,16 +336,16 @@
 .hw-density-note:empty { display: none; }
 .hw-hunt-pack { margin: 8px 0 0; font-size: var(--t-micro); color: var(--ink-2); }
 .hw-hunt-pack:empty { display: none; }
-/* Go as: the setups as lines, chosen the way a ground is (the gold rule): the weapon's own icon, the name,
-   the role it plays, and the bar's first four actions for the setup that is on. */
+/* Go as: the setups as lines, chosen the way a ground is (lifted, outlined in gold, the gold bar): the weapon's own
+   icon, the name, the role it plays, and the bar's first four actions for the setup that is on. */
 .hw-go-list { display: flex; flex-direction: column; gap: 2px; }
-.hw-go { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 48px; padding: 4px 8px 4px 6px; border: 0; border-left: 2px solid transparent; border-radius: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
-.hw-go:hover:not(:disabled) { background: var(--surf-panel); }
-.hw-go.is-picked { border-left-color: var(--gold); background: var(--bg-3); }
+.hw-go { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 48px; padding: 4px 8px 4px 12px; border: 0; border-radius: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.hw-go:hover:not(:disabled) { background: var(--fill-2); }
+.hw-go.is-picked { background: var(--fill-3); box-shadow: inset 0 0 0 2px var(--gold), inset 6px 0 0 var(--gold); }
 .hw-go:disabled { cursor: default; }
 .hw-go:disabled:not(.is-picked) { opacity: .55; }
 .hw-go:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: -2px; }
-.hw-go .hw-go-weapon { width: 36px; height: 36px; background: var(--bg-1); box-shadow: var(--hw-well); }
+.hw-go .hw-go-weapon { width: 36px; height: 36px; background: var(--bg-0); box-shadow: var(--hw-well); }
 .hw-go .hw-go-weapon .hh-icon { width: 32px; height: 32px; }
 .hw-go-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .hw-go-name { font-weight: 700; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -353,19 +363,21 @@
 .hw-hd-party[hidden] { display: none; }
 .hw-hd-party-why { margin: 0 0 6px; font-size: var(--t-micro); color: var(--ink-2); }
 .hw-hd-party-do { display: flex; flex-wrap: wrap; gap: 6px; }
-.hw-hd-party-do .hh-tool { min-height: 36px; padding: 0 10px; background: var(--bg-1); box-shadow: var(--hw-well); }
+.hw-hd-party-do .hh-tool { min-height: 36px; padding: 0 10px; background: var(--bg-0); box-shadow: var(--hw-well); }
 .hw-bring { display: contents; }
 .hw-bring-none { margin: 6px 0 0; font-size: var(--t-micro); color: var(--ink-3); }
 .hw-bring-none:empty { display: none; }
-/* The one primary, held at the page's foot however far the page scrolls; the server's answer beside it. */
-/* bottom: minus the window body's own padding, so nothing scrolls past under the bar. */
-.hw-hd-foot { position: sticky; bottom: -12px; display: flex; align-items: center; gap: 10px; margin-top: 12px; padding: 8px 0 12px; border-top: 1px solid var(--line-soft); background: var(--modal-bg); }
+/* The one primary at the page's foot, below its scroller (never over the page); the server's answer beside it.
+   Solid at any window opacity: it is the press that matters most. Enter goes somewhere: a dark arrow follows it. */
+.hw-hd-foot { flex: none; display: flex; align-items: center; gap: 10px; padding: 10px 18px 12px; border-top: 2px solid var(--steel-sep); background: var(--bg-1); }
 .hw-hd-foot .hh-intent-msg { flex: 1; min-width: 0; margin: 0; }
-.hw-hd-foot .hw-primary { flex: none; margin-left: auto; }
+.hw-hd-foot .hw-primary { flex: none; margin-left: auto; min-height: 44px; padding: 0 16px 0 20px; font-size: var(--t-body); letter-spacing: .1em; }
+.hw-hunt-enter::after { content: ''; display: inline-block; width: 6px; height: 10px; margin-left: 10px; vertical-align: 1px;
+  background: url('../../assets/ui/steel-arrow.png') 0 0 / 6px 10px no-repeat; image-rendering: pixelated; }
 
 /* ── The skills: two ledgers, two compact entries to a row ── */
 .hw-skill-group { margin-bottom: 2px; }
-.hw-skill-head { margin: 2px 2px 1px; font-family: var(--f-label); font-weight: 700; font-size: var(--t-micro); letter-spacing: .04em; color: var(--ink-3); }
+.hw-skill-head { margin: 2px 2px 1px; }
 .hw-skill-list { display: grid; grid-template-columns: 1fr; gap: 0 12px; margin: 0; padding: 0; list-style: none; }
 /* ONE LINE A SKILL, THEN ITS UNLOCK (2026-10-22: the XP to go on a line of its own cost Gathering and crafting
    ~130 px at 1440x900, where the docked window stops above the bar and must not scroll, AW-17): glyph, name, the
@@ -468,14 +480,17 @@
   .hw-work-row .hh-tool, .hw-work-head .hh-tool, .hw-work-now .hh-tool, .hw-work-n .hh-seg { min-height: 40px; }
   .hw-work-hint { display: none; }
   /* Hunts on the sheet: the list first; a pick opens the ground's page in its place, with the way back on top. */
-  .hw-hunts-cols { display: block; }
-  .hw-hunt-list { padding: 0; }
+  .hw-hunts-cols { display: flex; flex-direction: column; }
+  .hw-hunt-list { flex: 1 1 auto; }
   .hw-hunt { min-height: 44px; }
-  .hw-hunt-detail { display: none; padding-left: 0; border-left: 0; }
-  .hw-hunts.is-paged .hw-hunt-list, .hw-hunts.is-paged .hw-hunts-now.is-hint { display: none; }
-  .hw-hunts.is-paged .hw-hunt-detail:not([hidden]) { display: block; }
+  .hw-hunt-detail { display: none; }
+  /* A ground's page has the sheet to itself: the list's notes wait on the list. */
+  .hw-hunts.is-paged .hw-hunt-list, .hw-hunts.is-paged .hw-hunts-now, .hw-hunts.is-paged .hw-hunts-reco { display: none; }
+  .hw-hunts.is-paged .hw-hunt-detail:not([hidden]) { display: flex; flex: 1 1 auto; }
   .hw-hd-back { display: inline-flex; align-items: center; min-height: 40px; margin: 0 0 4px -6px; }
-  .hw-hd-foot { bottom: -10px; padding-bottom: 10px; }
+  .hw-hd-page { padding: 8px 12px 10px; }
+  .hw-hd-name { font-size: var(--t-h2); }
+  .hw-hd-foot { padding: 6px 12px 8px; }
 }
 
 /* ── The Party window (src/shell/windows/party.js): invites and the finder; role glyphs ── */
@@ -539,7 +554,7 @@
 
 /* ── Report a problem (src/shell/windows/report.js): one text box, the details ride along ── */
 .rp { display: flex; flex-direction: column; gap: 8px; }
-.rp-text { box-sizing: border-box; width: 100%; min-height: 128px; resize: vertical; padding: 8px; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--bg-0); color: var(--ink); font-family: var(--f-ui); font-size: var(--t-small); line-height: 1.4; }
+.rp-text { box-sizing: border-box; width: 100%; min-height: 128px; resize: vertical; padding: 8px; color: var(--ink); font-family: var(--f-ui); font-size: var(--t-small); line-height: 1.4; }
 .rp-text:focus { outline: 2px solid var(--gold); outline-offset: -1px; }
 .rp-text::placeholder { color: var(--ink-3); }
 .rp-shot { display: flex; align-items: center; gap: 6px; font-size: var(--t-small); color: var(--ink-2); }

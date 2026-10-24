@@ -9,7 +9,8 @@
 .hsum:not(.is-empty) .hsum-none { display: none; }
 .hsum-live, .hsum-card { display: none; }
 .hsum-live.is-on, .hsum-card.is-on { display: block; }
-.hsum-title { margin: 2px 2px 2px; font-family: var(--f-label); font-size: var(--t-body); color: var(--ink); }
+/* A card's title is named like a place (Forged Steel: Cinzel in gold). */
+.hsum-title { margin: 2px 2px 2px; font-family: var(--f-display); font-weight: 700; font-size: var(--t-body); letter-spacing: .06em; color: var(--gold-2); }
 .hsum-reason { margin: 0 2px 8px; font-size: var(--t-micro); color: var(--ink-2); line-height: 1.4; }
 .hsum-stats { display: flex; flex-wrap: wrap; gap: 4px 20px; margin: 0 2px 4px; }
 .hsum-stat { min-width: 64px; }
@@ -24,7 +25,7 @@
 .hdeath-none { display: none; }
 .hdeath.is-empty .hdeath-none { display: block; }
 .hdeath.is-empty .hdeath-card { display: none; }
-.hdeath-title { margin: 2px 2px 6px; font-family: var(--f-label); font-size: var(--t-h2); color: var(--ink); }
+.hdeath-title { margin: 2px 2px 6px; font-family: var(--f-display); font-weight: 700; font-size: var(--t-h2); letter-spacing: .06em; color: var(--ink); }
 .hdeath-line { display: none; margin: 0 2px 6px; font-size: var(--t-small); color: var(--ink-2); line-height: 1.45; font-variant-numeric: lining-nums tabular-nums; }
 .hdeath-line.is-on { display: block; }
 .hdeath-killed { font-weight: 700; color: var(--red); }

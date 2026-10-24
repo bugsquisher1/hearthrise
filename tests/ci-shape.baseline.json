@@ -337,6 +337,8 @@
     "node tools/mutant-gate.mjs node tests/w0e-ammo-runecraft-prayer.mjs --selftest": "client-guards",
     "node tests/css-literal-ratchet.mjs --report": "client-guards",
     "node tools/mutant-gate.mjs node tests/css-literal-ratchet.mjs --selftest": "client-guards",
+    "node tools/make-ui-steel-art.mjs --check": "client-guards",
+    "node tools/mutant-gate.mjs node tools/make-ui-steel-art.mjs --selftest": "client-guards",
     "node tests/breakpoint-guard.mjs --report": "client-guards",
     "node tools/mutant-gate.mjs node tests/breakpoint-guard.mjs --selftest": "client-guards",
     "node tests/https-upgrade.mjs": "client-guards",

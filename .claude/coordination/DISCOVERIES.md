@@ -4,6 +4,14 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+## 2026-10-24 · qa-engineer · CI speed and three blind guards (lane b-ci-speed, tests only)
+
+| # | Found | Affected | Action |
+|---|---|---|---|
+| 1 | P2 · `tests/party-ui.mjs` quietHuntPoll waited for a second hr-accrue from an UNVIEWED hero; since only the viewed hero streams live (a-accrue-storm Part 2) none comes, so it sat out its full 20 s timeout on every page run, silently (15 runs per --mutate = 300 s). | `tests/party-ui.mjs` | Fixed: models both poll clocks (viewed: last gap; unviewed: `unviewedPollMs` from page open) and a missed window is HARNESS, never a silent pass. Pure mutants share one src copy under `?gen=N` imports. |
+| 2 | P1 (guard blindness) · `tests/live-hash-drift.mjs` tracked 214 names; a body restated by one file was derived by nothing, and the literal §0 pin `md5(prosrc) … where oid = '<sig>'::regprocedure` (54 files) matched no pin alternative (not even a harness error). The applied hr_social_resolve fix was invisible. | `tests/live-hash-drift.mjs`, baseline (Coordinator) | Fixed: rule `restate` (every create [or replace] in the apply order) + the literal-oid read; 214 -> 650 names (138 dropped). The baseline needs `--live --write`; until then the CI half / --selftest are red by design. |
+| 3 | P2 · `tests/run-sql-tests.mjs` (not in CI) had 16 static reds, all test-side: four chain links never listed in ALSO_LINTED (derivation walk read ''), a `foreach … format('revoke … %s from public', f)` loop and `revoke all` unread, hr_outfit_set (baselined client RPC) missing from CLIENT_CALLABLE. Listing the links exposes 45 reds the old list hid. | `tests/run-sql-tests.mjs`; core-bodies, account-depot, account-gold | Fixed the 16. Route: Security — 29 restatements in core-bodies/account-depot rely on a preserved ACL (no revoke restated; each file runs `hr_assert_grant_hygiene(true)`), clan_contribute__ungated granted to service_role (account-gold §6), DELTA_KEY_CLASS lacks `level_xp` (stale `recovering_until`); Systems — core-bodies' frozen HR_APPLY removals miss 2 `hr_level_from_xp(s.xp)` lines; Backend — 6 `hr_rate_ok` refusals in core-bodies return without `hr_record_rejection` (C2/S6). Not registered in CI until those close. |
+
 ## 2026-10-24 · art-director · three things the Forged Steel screens shots found (lane b-forged-steel-screens)
 
 | # | Found | Affected | Action |

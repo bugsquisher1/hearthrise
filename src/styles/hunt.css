@@ -143,6 +143,8 @@
 
 /* ── Analyzer ── */
 .ha-analyzer { width: 290px; max-height: min(560px, calc(100vh - 200px)); }
+/* Its close is the phone's (no HUD panel carries one on a desktop, where Hunt details and HUD layout hide it). */
+.ha-close { display: none; }
 .ha-analyzer .hh-panel-body { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
 .ha-scope { display: inline-flex; gap: 2px; }
 .ha-scope .hh-tool { padding: 0 6px; }
@@ -316,6 +318,8 @@
 .ca.is-empty .ca-loading { display: block; }
 .ca.is-empty .ca-form { display: none; }
 .ca-form { display: flex; flex-direction: column; gap: 10px; }
+/* The sentence and the list: no box of their own on a desktop; the phone sheet's one scroller (below). */
+.ca-mid { display: contents; }
 .ca-top { display: flex; align-items: center; gap: 12px; min-height: 40px; border-bottom: 1px solid var(--line-soft); }
 .ca-rank { font-size: var(--t-small); color: var(--ink-3); white-space: nowrap; }
 .ca-tabs { display: flex; flex: 1; justify-content: center; }
@@ -525,6 +529,7 @@
 .st-back { display: none; }
 .st-row { padding: 6px 0; border-top: 1px solid var(--line-soft); }
 .st-line { display: flex; align-items: center; gap: 10px; min-height: 28px; }
+label.st-line { cursor: pointer; }
 .st-label { flex: 1; font-size: var(--t-small); color: var(--ink-2); }
 /* Help's notes (how the game works) are read, not set: the heading and its text always show. */
 .st-row.is-note .st-label { display: block; margin: 0; font-family: var(--f-label); font-weight: 700; color: var(--ink); }
@@ -539,7 +544,21 @@
 @media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
   /* The phone keeps its sheet as it was: opaque, so nothing of the bar under it reads through (see-through is desktop only). */
   .hs-win[data-hs-win="chat"] { background: var(--bg-1); }
+  /* SETTINGS BY TOUCH (QA 10-24: a press on the words did nothing, the boxes were 13 px, the slider 14 px tall):
+     each control's line is its label (settings.js), 44 px tall; the boxes are 20 px; the slider's own target is
+     44 px tall, its sunk 14 px track (shell.css's slider) and a larger plate drawn inside it. */
+  .st-line { min-height: var(--tap); }
+  .st-row input[type="checkbox"] { width: 20px; height: 20px; margin: 0; }
+  .st-row input[type="range"] { height: var(--tap); background: none; box-shadow: none; }
+  .st-row input[type="range"]::-webkit-slider-runnable-track { height: 14px; background: var(--bg-0); box-shadow: var(--steel-well); }
+  .st-row input[type="range"]::-moz-range-track { height: 14px; background: var(--bg-0); box-shadow: var(--steel-well); }
+  .st-row input[type="range"]::-webkit-slider-thumb { width: 16px; height: 22px; margin-top: -4px; }
+  .st-row input[type="range"]::-moz-range-thumb { width: 16px; height: 22px; }
   .hp-party { width: 200px; }
+  /* A party of two with the hold switch is 245 px tall: past the action bar's top at 390 px, so the bar pushed the
+     board below the screen. It ends above the bar (at most 100 px tall, 2 px up) and scrolls inside. */
+  .hp-party { max-height: calc(100vh - 160px); }
+  .hp-party .hh-panel-body { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
   .hp-portrait { width: 28px; height: 28px; }
   .hp-role { display: none; }
   /* The hold switch on one line in the phone's 200 px board: the short labels (party-hold.js holdHtml). */
@@ -580,37 +599,87 @@
   :root:has(.hs-win:not(.is-leaving)) .hs-widget.is-alerts { visibility: hidden; }
   /* A short screen: the tooltip runs wide instead of tall, so it never climbs into the top strip. */
   .hb-tip { width: 440px; }
-  /* Configure action on a phone: a full sheet (922 x 423), one 40 px top row, the list and detail side by side. */
-  /* min-width: the window manager writes an inline width (800 px), which a plain width here never beat: the sheet
-     stopped 120 px short of the right edge at 922 x 423. */
-  .hs-win[data-hs-win="configure-action"].is-modal { top: 0; left: 0; right: 0; bottom: 0; transform: none; width: 100vw; min-width: 100%; max-width: none; height: 100%; max-height: none; border-width: 0; animation: ca-sheet 160ms ease-out both; }
+  /* CONFIGURE ACTION ON A PHONE: the whole screen under the icon row, in three bands. The top row (the slot, the
+     tabs, the close) and the foot (Empty slot, Cancel, Save) never move; between them ONE scroller holds the sentence
+     and the list, so the list has the band's whole height once the sentence has scrolled by (QA 10-24: at 922 x 423
+     4 of 16 spells and 2 of 46 foods could be reached; at 667 x 375 Save and the close were off screen). The detail
+     pane rides beside the list (sticky): the pick and its whole heal warning stay in view (HS-23). */
+  /* width = min = max = 100%: the window manager writes an inline width (800 px) a plain width never beats, and
+     with no max the sheet ran 133 px off a 667 px screen, Save and the close with it. */
+  .hs-win[data-hs-win="configure-action"].is-modal { top: 0; left: 0; right: 0; bottom: 0; transform: none; width: 100%; min-width: 100%; max-width: 100%; height: 100%; max-height: none; border-width: 0; animation: ca-sheet 160ms ease-out both; }
   .hs-win[data-hs-win="configure-action"] .hs-win-head { display: none; }
-  .hs-win[data-hs-win="configure-action"] .hs-win-body { flex: 1; display: flex; flex-direction: column; padding: 0 8px 0; overflow: hidden; }
-  .ca, .ca-form { flex: 1; min-height: 0; }
-  .ca-form { gap: 4px; }
-  .ca-top { gap: 6px; }
+  .hs-win[data-hs-win="configure-action"] .hs-win-body { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 0 8px; overflow: hidden; }
+  .ca { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  .ca-form { flex: 1; min-height: 0; gap: 4px; }
+  .hs-win[data-hs-win="configure-action"] .ca-mid { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 4px; overflow-y: auto; overscroll-behavior: contain; }
+  .ca-top { flex: none; gap: 6px; }
   .ca-tabs { justify-content: flex-start; }
   .ca-move { display: none; }
-  .ca-close { display: inline-flex; margin-left: auto; min-width: 40px; justify-content: center; }
+  .ca-close { display: grid; flex: none; margin-left: auto; width: var(--tap); height: var(--tap); }
   .ca-move-phone { display: flex; gap: 4px; margin-top: auto; padding-top: 6px; }
-  .ca-sentence { padding-bottom: 4px; gap: 0; }
+  /* The sentence spends one line less: "+ Add a condition" stands at the end of its first line. */
+  .ca-sentence { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 0 8px; padding-bottom: 4px; }
+  .ca-sentence > * { grid-column: 1 / -1; }
+  .ca-sentence > .ca-lead { grid-column: 1; }
+  .ca-sentence > .ca-add { grid-area: 1 / 2; align-self: center; }
   .ca-lead, .ca-cond { min-height: 40px; }
   .ca-warn { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .ca-d-warn:not(:empty) { display: block; }
-  .ca-pick { flex: 1; min-height: 0; grid-template-columns: 540px minmax(0, 1fr); gap: 10px; }
-  .ca-well { max-height: none; }
-  .ca-detail { overflow-y: auto; overscroll-behavior: contain; }
+  .ca-pick { flex: none; align-items: start; grid-template-columns: minmax(0, 1fr) clamp(200px, 32%, 300px); gap: 10px; }
+  /* The well is no scroller here (its head sticks to the sheet's), and the pick is the sentence's: no pinned copy. */
+  .ca-well { max-height: none; overflow: visible; }
+  .ca-pinned.is-on { display: none; }
+  .ca-detail { position: sticky; top: 0; max-height: calc(100vh - 160px); overflow-y: auto; overscroll-behavior: contain; }
   .ca-head, .ca-row { grid-template-columns: 28px minmax(0, 1fr) 52px 56px 56px; column-gap: 8px; }
-  .ca-head { min-height: 24px; }
-  .ca-head .ca-c:nth-of-type(2), .ca-row .ca-c[data-c="1"] { display: none; }
+  /* The heads stick to the sheet's scroller while their run scrolls under them: solid, so no row reads through. */
+  .ca-head { min-height: 24px; background: var(--bg-0); }
+  .ca-head .ca-c[data-c="1"], .ca-row .ca-c[data-c="1"] { display: none; }
   .ca-ico, .ca-ico .hh-icon { width: 28px; height: 28px; }
   .ca-token, .ca-step, .ca-cfg .hh-tool, .ca-form .hh-tool { min-height: 40px; }
-  .ca-foot { min-height: 48px; }
+  .ca-foot { flex: none; position: static; min-height: 48px; margin: 0 -8px; }
   .ht-bar { gap: 6px; padding: 2px 4px; }
   /* The side sheet halves the stage: the top bar (anchored right) would run
      under the party board, so it drops the ground's name and keeps the clock
      and its two commands. The sheet's own world is the name. */
   .app:has(.hs-win:not(.is-leaving)) .ht-ground { display: none; }
   .ht-bar .hh-tool { padding: 0 8px; }
-  .ht-bar { width: fit-content; margin-left: auto; }
+  /* THE HUNT BAR ON A PHONE: one line, never over the Party panel (QA 10-24: "Leaving in 32s" ran 88 px over it).
+     It keeps the World's width less the panel's column (200 px, its 4 px inset, 20 px clear); the ground's name
+     gives way first (an ellipsis), and while a leave pends its countdown stands where Leave hunt was (the button
+     is off until the hunt ends, hunt-topbar.js). */
+  .hs-widget.is-hunt-topbar { max-width: calc(100% - 224px); }
+  /* width auto, not fit-content: a fit-content bar is never narrower than the ground's whole name, so it ran out of
+     its box instead of letting the name give way. The words sit at the bar's right end, under the icon row. */
+  .ht-bar { flex-wrap: nowrap; width: auto; justify-content: flex-end; }
+  .ht-wide { display: none; }
+  .ht-bar .hh-tool { text-transform: capitalize; }
+  .ht-bar:has(.hh-intent-msg:not(:empty)) { flex-wrap: wrap; }
+  .ht-ground { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .ht-bar:has(.ht-leaving:not([hidden])) .is-leave { display: none; }
+  /* Thumb-sized: the bar's buttons, the analyzer's tabs and its close (QA 10-24: 30 px). */
+  .ha-tab, .ht-bar .hh-tool { min-height: 40px; }
+  /* THE ANALYZER ON A PHONE: stacked under the hunt bar (hud-widgets.js `below`, its top the bar's foot, about
+     111 px down), it ends above the action bar (at most 100 px tall, 2 px up, HS-22): 150 to 200 px of screen. So
+     it spends none on a title band: the tabs are its top row with the close beside them, Next level in (premium)
+     and the hero / party switch share the second, and the numbers scroll under them. The head, the body and the
+     main box lend their children to the panel's own grid (display: contents); the desktop panel is unchanged. */
+  .ha-analyzer { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+    align-items: center; column-gap: 6px; width: 340px; max-height: calc(100vh - 224px); padding: 0 6px 4px; }
+  .ha-analyzer .hh-panel-head, .ha-analyzer .hh-panel-body, .ha-analyzer .ha-main { display: contents; }
+  .ha-analyzer .hh-panel-title { display: none; }
+  .ha-analyzer .ha-tabs { grid-area: 1 / 1 / 2 / 3; margin-bottom: 0; }
+  .ha-analyzer .ha-tab { padding: 0 6px; }
+  .ha-close { display: grid; grid-area: 1 / 3; width: var(--tap); height: var(--tap); }
+  .ha-clocks { grid-area: 2 / 1 / 3 / 2; justify-content: flex-start; margin: 4px 0; }
+  .ha-scope { grid-area: 2 / 2 / 3 / 4; justify-self: end; }
+  .ha-analyzer .ha-wait, .ha-analyzer .ha-ended { grid-area: 3 / 1 / 4 / -1; }
+  .ha-scroll { grid-area: 4 / 1 / 5 / -1; align-self: stretch; }
+  .ha-more { grid-area: 5 / 1 / 6 / -1; margin: 4px 0 0; }
+  /* The session clock is the hunt bar's own; a premium hero keeps Next level in, on one line. */
+  .ha-clocks > span:first-child { display: none; }
+  .ha-clocks:not(:has([data-premium]:not([hidden]))) { display: none; }
+  .ha-clocks small { display: inline; margin-right: 6px; }
+  /* The analyzer is the player's ask: while it shows, the coach card under the hunt bar waits (it would lie over
+     the analyzer's head and its close); it comes back when the analyzer closes. */
+  .app:has(.hs-widget.is-analyzer) .hs-widget.is-hunt-topbar > .hs-pointer:not(.is-min) { display: none; }
 }

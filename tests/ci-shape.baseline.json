@@ -44,6 +44,8 @@
     "node tools/mutant-gate.mjs node tests/chat-social.mjs --mutate": "in-page-13",
     "node tests/town-walk.mjs": "in-page-13",
     "node tools/mutant-gate.mjs node tests/town-walk.mjs --mutate": "in-page-13",
+    "node tests/phone-touch.mjs": "in-page-13",
+    "node tools/mutant-gate.mjs node tests/phone-touch.mjs --mutate": "in-page-13",
     "node tests/hunt-screen.mjs": "in-page-3",
     "node tools/mutant-gate.mjs node tests/hunt-screen.mjs --mutate --shard=1/10": "in-page-3",
     "node tools/mutant-gate.mjs node tests/hunt-screen.mjs --mutate --shard=2/10": "in-page-4",

@@ -12,7 +12,9 @@
   font-variant-numeric: lining-nums;
 }
 .app.is-auth { min-height: 100vh; display: grid; place-items: center; }
-.app.is-game { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+/* clip, never hidden: a hidden box still scrolls when told to (a focus, a scroll-into-view), and at 667 x 375 a
+   too-wide child slid the whole game 102 px off the left edge, the icon row with it (phone-touch PH-1). */
+.app.is-game { height: 100vh; display: flex; flex-direction: column; overflow: clip; }
 
 /* ── The account screens (sign-in, the characters, hero creation, the closed notice): the crest and the
    name beside ONE card in FORGED STEEL (Tyler approved the skin on 2026-10-24; ART_DIRECTION §9, §10),
@@ -234,6 +236,23 @@
   /* The phone keeps the rule beside the form (the list is in Settings > Help), so the card fits 423 px unscrolled. */
   .hero-how { min-width: 9rem; padding-left: 12px; }
   .hero-how-title, .hero-how-list { display: none; }
+}
+
+/* A PHONE HELD UPRIGHT (play.html .turn-phone; QA 2026-10-24: in portrait the cards ran off the right edge and half
+   the icon row and the bar were off screen). Phones are landscape-only (CLAUDE.md §1): a touch phone held upright
+   sees the crest and ONE steel card (the account screens' pieces, by their classes) over everything, and nothing
+   under it takes a press. The query asks for a touch-only screen at most 600 px wide, upright: a desktop window,
+   however narrow, and a tablet either way up never see it. */
+.turn-phone {
+  display: none; position: fixed; inset: 0; z-index: 100;
+  flex-direction: column; align-items: center; justify-content: center; gap: 16px;
+  padding: 24px; box-sizing: border-box; overflow: auto;
+  background: var(--bg-0);
+}
+.turn-phone-card { text-align: center; }
+.turn-phone-card .auth-title { justify-content: center; }
+@media (orientation: portrait) and (max-width: 600px) and (hover: none) and (pointer: coarse) {
+  .turn-phone { display: flex; }
 }
 
 /* ?debug=live (src/app/live-overlay.js): a read-only corner over everything, never in the way of a press. */

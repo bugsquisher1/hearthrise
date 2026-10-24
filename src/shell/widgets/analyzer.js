@@ -34,6 +34,7 @@ import { whole, gold, clock, hoursMinutes } from '../../render/format.js?v=0.2.4
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.42';
 import { panelHtml, itemIconHtml, itemName, monsterName, abilityName, elementName, skillName } from './bits.js?v=0.2.42';
 import { ANALYZER_RATE_AFTER_MS } from '../../data/hunt-sessions.js?v=0.2.42';
+import { glyphSvg } from '../launcher.js?v=0.2.42';
 
 /* Before the server's rate window the rates are null: the totals show, and this line says when the rest will. */
 const RATE_LATER = 'Per hour after ' + Math.round(ANALYZER_RATE_AFTER_MS / 60000) + ' min.';
@@ -71,11 +72,14 @@ function sectionHtml(s) {
     + '<div class="ha-sec-body">' + stats + (s.stats ? '' : '<ul class="ha-list"></ul><p class="ha-none">Nothing yet.</p>') + '</div></section>';
 }
 
-/** The skeleton (built once). */
-export function renderAnalyzer() {
+/** The skeleton (built once). Its close (shown on a phone only, hunt.css) hides the panel and Hunt details brings it
+ *  back (QA phone playtest 10-24: with no close, a phone's only way out was the 13 px box in Settings). */
+export function renderAnalyzer(ctx) {
   const tools = '<span class="ha-scope" role="group" aria-label="Whose numbers">'
     + '<button type="button" class="hh-tool" data-hs-act="scope" data-scope="hero" aria-pressed="true">This hero</button>'
-    + '<button type="button" class="hh-tool" data-hs-act="scope" data-scope="party" aria-pressed="false">Party</button></span>';
+    + '<button type="button" class="hh-tool" data-hs-act="scope" data-scope="party" aria-pressed="false">Party</button></span>'
+    + '<button type="button" class="hs-close ha-close" data-hs-act="hide" aria-label="Close the hunt analyzer" title="Close (Hunt details opens it again)">'
+    + (glyphSvg(ctx && ctx.glyphs, 'uiClose') || '×') + '</button>';
   const body = '<p class="ha-wait">The analyzer fills in once the hunt has run for a moment.</p>'
     + '<div class="ha-main">'
     + '<p class="ha-ended" role="status">Hunt ended. This is the session summary.</p>'
@@ -182,6 +186,7 @@ renderAnalyzer.patch = function patchAnalyzer(el, ctx) {
 
 renderAnalyzer.act = function actAnalyzer(ctx, el, action, ev, btn) {
   if (ev.type !== 'click') return;
+  if (action === 'hide') { ctx.hud.setVisible('analyzer', false); return; }
   const panel = el.querySelector('.ha-analyzer');
   if (action === 'scope') {
     const scope = btn.getAttribute('data-scope');

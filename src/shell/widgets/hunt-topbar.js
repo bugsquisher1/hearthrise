@@ -1,7 +1,7 @@
 // ════════════════════════════════════════════════════════════════════════
 // src/shell/widgets/hunt-topbar.js — THE HUNT'S TOP BAR (parity TB-01, TB-02).
 //
-// Hunt details (shows the analyzer panel), the session clock from the
+// Hunt details (shows or hides the analyzer panel, pressed while it shows), the session clock from the
 // analyzer's server session_ms on the server's clock (sessionClockMs), and Leave hunt — an INTENT (hr_hunt_leave),
 // the button off from the press until the hunt is over, and beside it, in
 // gold, how long is left: "Leaving…" for the one round trip of the press,
@@ -29,10 +29,11 @@ function leavingLine(cd) {
 export function renderHuntTopbar() {
   return '<div class="ht-bar" role="group" aria-label="Hunt">'
     + '<b class="ht-ground"></b><span class="ht-clock" title="Time in this hunt"></span>'
-    + '<button type="button" class="hh-tool" data-hs-act="details">Hunt details</button>'
+    /* The phone's bar has the width beside the Party panel only: "Details" and "Leave" there (hunt.css .ht-wide). */
+    + '<button type="button" class="hh-tool" data-hs-act="details" aria-label="Hunt details"><span class="ht-wide">Hunt </span>details</button>'
     + '<button type="button" class="hh-tool" data-hs-act="summary">Summary</button>'
     + '<span class="ht-leaving" role="timer" hidden></span>'
-    + '<button type="button" class="hh-tool is-leave" data-hs-act="leave">Leave hunt</button>'
+    + '<button type="button" class="hh-tool is-leave" data-hs-act="leave" aria-label="Leave hunt">Leave<span class="ht-wide"> hunt</span></button>'
     + '<span class="hh-intent-msg" role="status" aria-live="polite"></span></div>';
 }
 
@@ -63,7 +64,9 @@ renderHuntTopbar.patch = function patchHuntTopbar(el, ctx) {
   /* A hunt that is over (the hero is back in town) keeps only the way back to its summary (Tyler 10-19):
      no Leave hunt, no Hunt details, no clock. Follows the server's hunt section, replaced each envelope. */
   prop(leave, 'hidden', over && !leave.hasAttribute('data-pending'));
-  prop(el.querySelector('[data-hs-act="details"]'), 'hidden', over);
+  const details = el.querySelector('[data-hs-act="details"]');
+  prop(details, 'hidden', over);
+  attr(details, 'aria-pressed', String(!!ctx.hud && ctx.hud.isShown('analyzer')));
   prop(el.querySelector('.ht-clock'), 'hidden', over);
   /* The tutorial card hangs UNDER this bar while a hunt is open (the launcher's would cover Leave hunt). */
   const html = pointerFor(ctx);
@@ -74,7 +77,8 @@ renderHuntTopbar.act = async function actHuntTopbar(ctx, el, action, ev, btn) {
   if (actCoach(ctx, el, action, ev)) return;
   if (ev.type !== 'click') return;
   if (action === 'summary') { ctx.show('hunt-summary'); return; }
-  if (action === 'details') { ctx.show('analyzer'); return; }
+  /* A TOGGLE (QA phone playtest 10-24: one press showed the analyzer over the bar for good): shows it, or hides it. */
+  if (action === 'details') { ctx.hud.setVisible('analyzer', !ctx.hud.isShown('analyzer')); return; }
   if (action !== 'leave' || btn.hasAttribute('data-pending') || btn.hasAttribute('data-leaving')) return;
   track('leave_hunt_clicked');
   attr(btn, 'data-pending', true);

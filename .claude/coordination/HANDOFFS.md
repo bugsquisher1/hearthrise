@@ -1,5 +1,12 @@
 # Handoffs
 
+### 2026-10-24 · ART DIRECTOR (lane/a-mobile-p1) → BAR REDESIGN LANE + SECOND PHONE LANE · what 667x375 still breaks
+
+Left alone because those lanes own the files (brief: action-bar.js, launcher.js, character-strip.js):
+1. **Action bar (bar redesign):** at 667x375 the phone bar's content is ~40 px wider than the screen (slots 10/20 and the plaque cut at the right edge; `.hb-bar` max-width calc(100vw - 16px) cannot hold its min content). Measure at 667x375, not only 922x423.
+2. **Icon row and character strip (second phone lane):** at 667x375 the icon row is 710 px (16 x 44 px) and loses its last icon (Report a problem); the character strip is 726 px. lane/a-mobile-p1 clipped `.app.is-game` and `.hs-screen` (`overflow: clip`), so they no longer make the page pan sideways, but the row itself must fit.
+3. **Coach card (second phone lane):** on a phone, while the analyzer shows, the coach card under the hunt bar is hidden by hunt.css (it covered the analyzer's head and close). If the coach should instead move, that is launcher.js's placeCoach.
+
 ### 2026-10-22 · ART DIRECTOR (lane/b-hunts-detail) → BACKEND / SYSTEMS · the Lane C half of the Hunts page
 
 The client half (B #1, A #1, A #5, B #3) is built on lane/b-hunts-detail from data the envelope already carries. What it could not show needs server fields (Lane C first, then a B lane wires them):

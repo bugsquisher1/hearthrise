@@ -3746,3 +3746,12 @@ diagonal rotations; only the clips and the engine are missing (R0 confirms). Cha
 replace_existing: a redone clip is a new group, and the old one is kept. animate_character v3 animates ONE
 direction per call. Pixelify Sans (OFL) at the 14.5 px floor falls off its pixel grid: a pixel face is only crisp
 at whole multiples of its grid, which is why the HUD keeps Alegreya (ART_DIRECTION §9).
+## 2026-10-24 · art-director · four phone layout traps, each invisible from the source
+(1) A modal sheet with `min-width: 100%; max-width: none` fits a 922 px screen and runs 133 px off a 667 px one:
+the window manager's inline width (800) is only capped by a max. (2) `overflow: hidden` still scrolls when told to:
+a focus or a scroll-into-view slid the whole game 102 px left at 667x375 because the icon row (710 px) and the
+character strip (726 px) are wider than the screen; `overflow: clip` cannot be scrolled at all. (3) A fit-content
+flex bar is never narrower than its nowrap items' min-content, so `min-width: 0` on the ground's name never let it
+give way; width auto does. (4) A hidden column must hide its head too: `.ca-head .ca-c:nth-of-type(2)` counted the
+icon and Name spans and matched nothing, so four heads sat over three columns and "You carry" wrapped to a second
+row. Give the head cells the rows' data-c and hide both with one selector.

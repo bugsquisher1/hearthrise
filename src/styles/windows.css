@@ -486,7 +486,16 @@
   .hw-skill-mid { display: contents; }
   .hw-skill-next { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
   .hw-mi { min-height: 40px; }
-  .hw-tip { width: 240px; }
+  /* THE TOOLTIP ON A SHORT SCREEN (QA 10-24: an iron helm's was 411 px on a 390 px screen, its foot cut off): it
+     runs wide, in two columns, and never past the screen's height. */
+  .hw-tip { width: 460px; columns: 2; column-gap: 16px; max-height: calc(100vh - 8px); overflow: hidden; }
+  .hw-tip > * { break-inside: avoid; }
+  /* THUMB-SIZED (QA 10-24: 30 px): the Shop's Buy and its amount. */
+  .hw-line > .hh-tool { min-height: 40px; }
+  .hw-line > .hh-select { min-height: 40px; }
+  /* THE PICKED ITEM STAYS IN REACH (QA 10-24: Equip sat under 42 stacks, a scroll away): its line pins to the
+     sheet's foot while the bag scrolls, on the sheet's own floor. */
+  .hw-pick.is-on { position: sticky; bottom: -10px; z-index: 1; margin: 8px -10px 0; padding: 6px 10px 8px; background: var(--bg-1); border-top: 2px solid var(--steel-sep); }
   .hw-work-row .hh-tool, .hw-work-head .hh-tool, .hw-work-now .hh-tool, .hw-work-n .hh-seg { min-height: 40px; }
   .hw-work-hint { display: none; }
   /* Hunts on the sheet: the list first; a pick opens the ground's page in its place, with the way back on top. */

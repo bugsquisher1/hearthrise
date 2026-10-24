@@ -58,6 +58,8 @@
 //   ACC-2  the roster is the server's owned slots (hero_slots), bounded; a slot whose
 //          character has no name (hr_load needs_name) reads as unnamed, not as a hero;
 //          create is ONE hr_create_hero with the name, the four colours and an idem key
+//   ACC-6  the roster reads every other owned slot AT ONCE after slot 0's answer (two round trips for
+//          four heroes), and the account's other heroes open at once after Play, within the limit
 //   ACC-5  a hero slot is bought at the SERVER's offer (account.hero_slot_offer; none at the cap or
 //          unstated): ONE hr_buy_hero_slot with the slot, the paying hero and a fresh idem key, no
 //          price; a refusal comes back by name (short_by kept); a yes re-reads the open paying hero
@@ -970,6 +972,41 @@ async function rules(M) {
       || Object.keys(sent[0]).some((k) => /price|gold|item/.test(k))) return 'create sent ' + JSON.stringify(sent) + ' -> ' + JSON.stringify([ok, no]);
     return true;
   });
+  /* ACC-6 (10-23 measure: the characters screen read four heroes one after another, 1.19 s): slot 0's answer
+     names the owned slots, then every other owned slot is read AT ONCE (two round trips for four heroes), and
+     the account's other heroes open at once after Play; the rows and the open heroes are the same either way. */
+  await t('ACC-6', async () => {
+    const held = [];
+    let out = 0, most = 0;
+    const heroes = { 0: env(1, { hero_slots: [0, 1, 2, 3], name: 'A', account: { max_concurrent: 4 } }), 1: env(1, { name: 'B' }), 2: env(1, { name: 'C' }), 3: env(1, { name: 'D' }) };
+    const srv = { calls: [], rpc: (name, args) => { srv.calls.push([name, args]); out++; most = Math.max(most, out);
+      return new Promise((ok) => held.push(() => { out--; ok({ ok: true, status: 200, body: heroes[args.p_slot] || { ok: false, error: 'no_character' }, closed: false }); })); },
+    accrue: async () => ({ ok: true, status: 200, body: { ok: true, accrued: false, version: 1 }, closed: false }) };
+    const acc = mkAccount(srv);
+    const tick = () => new Promise((r) => setImmediate(r));
+    /* answer every read in flight, one round trip at a time, until `p` settles: how many rounds it took */
+    const rounds = async (p) => {
+      let done = false, n = 0;
+      p.then(() => { done = true; });
+      while (!done && n < 20) { await tick(); if (held.length) { n++; held.splice(0).forEach((f) => f()); } await tick(); }
+      return n;
+    };
+    const ro = acc.roster();
+    const r1 = await rounds(ro);
+    const rows = await ro;
+    if (rows.map((r) => r.name).join() !== 'A,B,C,D') return 'the roster read ' + JSON.stringify(rows.map((r) => r.name));
+    if (r1 !== 2 || most !== 3) return 'four heroes took ' + r1 + ' round trips with at most ' + most + ' reads at once (two and three: slot 0, then the rest together)';
+    most = 0;
+    const first = acc.open(0);
+    await rounds(first);
+    if (!(await first).ok) return 'the first hero did not open';
+    most = 0;
+    const others = acc.openOthers([0, 1, 2, 3]);
+    const r2 = await rounds(others);
+    const open = await others;
+    if (open.join() !== '0,1,2,3') return 'the others opened as ' + JSON.stringify(open);
+    return (r2 === 1 && most === 3) || 'three other heroes opened in ' + r2 + ' round trips with at most ' + most + ' loads at once (one, three)';
+  });
   await t('ACC-5', async () => {
     const offer = (o) => ({ account: { max_concurrent: 4, hero_slot_offer: o, hero_slots_max: 5 } });
     /* the offer is the server's, bounded; none at the cap, none unstated, none malformed */
@@ -1277,7 +1314,9 @@ const MUTANTS = [
   ['the slot offer is made up on this side', 'src/session/account-session.js', '    || !Number.isSafeInteger(o.cost_gold) || o.cost_gold < 1) return null;', '    || false) return null;'],
   ['a slot purchase sends a price', 'src/session/account-session.js', "{ p_slot_id: slotId, p_slot: paySlot, p_idem: newIdem() }", "{ p_slot_id: slotId, p_slot: paySlot, p_price: this.slotOffer && this.slotOffer.cost, p_idem: newIdem() }"],
   ['the paying hero keeps its old gold', 'src/session/account-session.js', '      if (cs) await cs.load();\n', ''],
-  ['a hero shows its own copy of the account purse', 'src/session/account-session.js', '    cs.accountPurse = () => this._purse;\n', ''],
+  ['the roster reads its heroes one after another', 'src/session/account-session.js', "    const answers = await Promise.all(owned.map((slot) => (slot === 0 ? first : this.server.rpc('hr_load', { p_slot: slot }))));",
+    "    const answers = [];\n    for (const slot of owned) answers.push(slot === 0 ? first : await this.server.rpc('hr_load', { p_slot: slot }));"],
+  ['the other heroes open one after another', 'src/session/account-session.js', '    await Promise.all(want.map((slot) => this._open(slot)));', '    for (const slot of want) await this._open(slot);'],  ['a hero shows its own copy of the account purse', 'src/session/account-session.js', '    cs.accountPurse = () => this._purse;\n', ''],
   ['the purse is the last answer, not the newest version', 'src/session/item-sections.js', '  return b.v > a.v ? b : a;', '  return b;'],
   ['another hero is not re-rendered for a new purse', 'src/session/account-session.js', "if (other !== cs && typeof other.notePurse === 'function') other.notePurse();", 'void other;'],
   ['limit off by one', 'src/session/account-session.js', 'if (this._chars.size >= this.limit()) return', 'if (this._chars.size > this.limit()) return'],
@@ -1359,7 +1398,7 @@ async function main() {
   if (!mutate) {
     const fails = [...await rules(await load(ROOT)), ...await viewRules(ROOT)];
     for (const f of fails) console.log('  ✗ ' + f);
-    console.log(fails.length ? 'session-core: ' + fails.length + ' rule(s) RED' : 'session-core: every session rule holds (39 rules)');
+    console.log(fails.length ? 'session-core: ' + fails.length + ' rule(s) RED' : 'session-core: every session rule holds (40 rules)');
     process.exit(fails.length ? 1 : 0);
   }
   const clean = await cleanControl(async () => rules(await load(ROOT)));

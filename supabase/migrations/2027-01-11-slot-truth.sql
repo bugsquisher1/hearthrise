@@ -40,7 +40,7 @@
 -- but its SLOT-TRUTH lines. The three catalogue tables are full replaces from
 -- src/data (pinned equal by tests/hunt-core/conditions.mjs sql-rows; `--print`).
 -- The retired eat-at / drink-at option rows (hr_hunt_set_options) and their
--- threshold limits leave with 2027-01-04-hunt-sessions-catalogue.generated.sql.
+-- threshold limits leave with 2027-01-11-hunt-sessions-catalogue.generated.sql.
 --
 -- ── EXPLOIT SURFACE ─────────────────────────────────────────────────────────
 -- None to value. `enabled` and `ignore` only ever STOP a slot from firing; a slot
@@ -51,9 +51,9 @@
 -- hr_hunt_role_rules (same 15 rows, new conditions): restore-census re-pinned.
 --
 -- ── ORDER ───────────────────────────────────────────────────────────────────
--- After 2027-01-03-alpha-catalogue.generated.sql and before 2027-01-04-hunt-sessions-
+-- After 2027-01-11-alpha-catalogue.generated.sql and before 2027-01-11-hunt-sessions-
 -- catalogue.generated.sql (no object in common with either; the newest applied file is
--- 2027-01-01-server-perf.sql). The
+-- 2027-01-10-house-from-storage.sql). The
 -- hr-accrue edge of this lane (it reads enabled / ignore, retires runes from
 -- basics and the eat-at / drink-at options) may deploy before or after: an old
 -- edge ignores the two keys (a slot Off still fires until it lands), the new edge
@@ -163,7 +163,7 @@ create or replace function public.hr_hunt_slot_check(p_s jsonb)
 returns jsonb language plpgsql stable set search_path = public, pg_catalog as $$
 declare
   -- STORE-BY-SLOT (2026-11-04): a slot names ONE item; a rune spell may name its store rune (action.store).
-  -- SLOT-TRUTH (2027-01-03): a slot may be switched Off (enabled) and may ignore monsters (ignore).
+  -- SLOT-TRUTH (2027-01-11): a slot may be switched Off (enabled) and may ignore monsters (ignore).
   v_type text; v_id text; v_r jsonb; v_store text; v_ign jsonb; v_max int;
 begin
   if p_s is null or jsonb_typeof(p_s) = 'null' then return jsonb_build_object('ok', true, 'slot', 'null'::jsonb); end if;

@@ -952,7 +952,7 @@ export const ACKNOWLEDGED = {
       "raise exception 'old-rewards-cut §4(d): a fox row is still held'; end if;",
     ],
   },
-  '2027-01-02-rune-ladder-cut.sql :: call :: hr_cut_item_holders': {
+  '2027-01-11-rune-ladder-cut.sql :: call :: hr_cut_item_holders': {
     verdict: 'staged-backfill',
     sites: 3,
     why: 'Section 2 is the file\'s WORK: the one-time cut of the old rune ladder and the graded blanks from every '

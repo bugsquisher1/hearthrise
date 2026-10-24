@@ -77,7 +77,7 @@ export const ROLE_DEFAULTS = Object.freeze({
    rune slot the Sewer party's runes and the drinks they cost took its net under the
    Thicket's (forest-cave first-grounds-net-chain) and the Warrens floor tank under +25%.
    The server projects these as the default bar (hr_hunt_role_rules, restated by
-   2027-01-04-spell-content.sql, pinned equal by tests/hunt-core/conditions.mjs). */
+   2027-01-11-spell-content.sql, pinned equal by tests/hunt-core/conditions.mjs). */
 const STORE_CORE = Object.freeze(['fireball', 'greater_mend']);
 const storeOf = (id) => { const r = ABILITIES[id]; const b = r && r.rune && STORE_CORE.includes(id) ? BASIC_SUPPLIES.find((x) => x.partner === r.rune) : null; return b ? b.id : null; };
 const slot = (id, conditions, join) => Object.freeze({ id: 'd_' + id,

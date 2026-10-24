@@ -23,7 +23,7 @@
 --                              d_green_sickness (was d_natures_wrath).
 -- Both are full replaces from src/data, pinned equal by tests/hunt-core/conditions.mjs
 -- sql-rows (`node tests/hunt-core/conditions.mjs --print`). No function body moves:
--- hr_hunt_slot_check (2027-01-03-slot-truth.sql) already validates a store rune
+-- hr_hunt_slot_check (2027-01-11-slot-truth.sql) already validates a store rune
 -- against its ability's rune (hr_hunt_abilities.rune = the store row's partner).
 --
 -- ── EXPLOIT SURFACE ─────────────────────────────────────────────────────────
@@ -34,11 +34,11 @@
 -- (same count, new slots).
 --
 -- ── ORDER ───────────────────────────────────────────────────────────────────
--- After 2027-01-04-hunt-sessions-catalogue.generated.sql: §3 checks every default
+-- After 2027-01-11-hunt-sessions-catalogue.generated.sql: §3 checks every default
 -- slot through hr_hunt_slot_check, which needs green_sickness in hr_hunt_abilities
 -- and the family store rows in hr_hunt_basic_supplies. The hr-accrue edge of this
 -- lane carries the same ROLE_RULES; deploy it after this file.
--- REVERSIBILITY: re-apply the two blocks from 2027-01-03-slot-truth.sql (role rules)
+-- REVERSIBILITY: re-apply the two blocks from 2027-01-11-slot-truth.sql (role rules)
 -- and 2026-10-25-action-conditions.sql (metrics). No begin/commit (CLAUDE.md §2).
 -- ════════════════════════════════════════════════════════════════════════
 
@@ -51,7 +51,7 @@ begin
   if not exists (select 1 from public.hr_hunt_abilities where ability_id = 'green_sickness')
      or not exists (select 1 from public.hr_hunt_basic_supplies b join public.hr_hunt_abilities a on a.rune = b.partner
                      where a.ability_id = 'green_sickness') then
-    raise exception 'PRECONDITION: apply 2027-01-04-hunt-sessions-catalogue.generated.sql first (green_sickness and the family store runes)'; end if;
+    raise exception 'PRECONDITION: apply 2027-01-11-hunt-sessions-catalogue.generated.sql first (green_sickness and the family store runes)'; end if;
 end $mig$;
 
 -- ── §1 THE CONDITION METRICS ─────────────────────────────────────────────────

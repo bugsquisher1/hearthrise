@@ -14,7 +14,7 @@
 -- SUPERSEDES 2026-11-22-alpha-catalogue.generated.sql (applied history): the
 -- Bronze-Rimmed Shield joins the outfitter at 140 g (lane b-spell-roles, Tyler
 -- 2026-10-23: a basic shield at the Shop; src/data/shields.js). ORDER: after
--- 2027-01-02-items-catalogue.generated.sql (the shield in hr_items). Carried from
+-- 2027-01-11-items-catalogue.generated.sql (the shield in hr_items). Carried from
 -- 11-22, which superseded 2026-11-03-alpha-catalogue.generated.sql: the
 -- outfitter's six gear rows (lane/b-gold-sinks) and the seed counter's nine rows
 -- (designer ruling 2026-10-22, lane/b-orphan-sources: every crop's seed, one per

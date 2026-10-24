@@ -5,6 +5,14 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.42 — 2026-10-24 (Runes and roles)
+
+**Spells run on runes.** Every spell names the rune it uses, and there are six rune families, each in five versions that hit harder as they go up. When your runes run out, you choose: stop casting, or let the store sell a cast for a gold or so.
+
+**Every role has its tools.** A shield makes a real tank, healers top the party up between pulls, and support spells like Arcane Barrier and Protective Ward guard the group.
+
+**Rangers shoot what they carry.** A bow uses an ammo slot you gave conditions first, then the arrows you're wearing, then the other arrows on your bar in bar order. The store sells a shot only when you've run out of all of them. Whetstones can't go in an attack slot anymore.
+
 ## v0.2.41 — 2026-10-24 (Forged Steel)
 
 **A new look.** Every window, the HUD, and the sign-in, characters and hero creation screens are now made of forged steel: steel frames, gold headings, clearer selected rows, and a solid gold button for the main thing each window does.

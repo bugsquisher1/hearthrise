@@ -39,21 +39,21 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { ABILITIES, ABILITY_LANES, ABILITY_RULES, ACTION_SET_SKIPS, abilitySkill, versionOf, outputPm } from '../../data/abilities.js?v=0.2.41';
-import { resolveLine, storeLine, takeLine, canAfford, shopShotFor } from '../action-rules.js?v=0.2.41';
-import { runeTierOf, versionLevel } from '../../data/runes.js?v=0.2.41';
-import { BASIC_EFFECT_SHARE } from '../../data/supply-basics.js?v=0.2.41';
-import { cheb, dist2, los } from './grid.js?v=0.2.41';
-import { makeEvent } from './events.js?v=0.2.41';
-import { landHit } from './damage.js?v=0.2.41';
-import { challengeable, challengeFrom, holderTank } from './targeting.js?v=0.2.41';
-import { applyStatus, statusRow } from './status.js?v=0.2.41';
-import { levelOf } from '../xp.js?v=0.2.41';
-import { ammoPerShot } from '../ammo.js?v=0.2.41';
-import { ITEMS } from '../../data/items.js?v=0.2.41';
-import { isRune } from '../../data/supplies.js?v=0.2.41';
-import { slotsFor, pickSlot, bestAim, itemRow, ignores, DEFAULT_ATTACK_ROW, attackOrder } from './conditions.js?v=0.2.41';
-import { shootsItem } from '../../data/hunt-roles.js?v=0.2.41';
+import { ABILITIES, ABILITY_LANES, ABILITY_RULES, ACTION_SET_SKIPS, abilitySkill, versionOf, outputPm } from '../../data/abilities.js?v=0.2.42';
+import { resolveLine, storeLine, takeLine, canAfford, shopShotFor } from '../action-rules.js?v=0.2.42';
+import { runeTierOf, versionLevel } from '../../data/runes.js?v=0.2.42';
+import { BASIC_EFFECT_SHARE } from '../../data/supply-basics.js?v=0.2.42';
+import { cheb, dist2, los } from './grid.js?v=0.2.42';
+import { makeEvent } from './events.js?v=0.2.42';
+import { landHit } from './damage.js?v=0.2.42';
+import { challengeable, challengeFrom, holderTank } from './targeting.js?v=0.2.42';
+import { applyStatus, statusRow } from './status.js?v=0.2.42';
+import { levelOf } from '../xp.js?v=0.2.42';
+import { ammoPerShot } from '../ammo.js?v=0.2.42';
+import { ITEMS } from '../../data/items.js?v=0.2.42';
+import { isRune } from '../../data/supplies.js?v=0.2.42';
+import { slotsFor, pickSlot, bestAim, itemRow, ignores, DEFAULT_ATTACK_ROW, attackOrder } from './conditions.js?v=0.2.42';
+import { shootsItem } from '../../data/hunt-roles.js?v=0.2.42';
 
 export const PERSISTED = Object.freeze({
   unit: Object.freeze([['mana', 'int'], ['maxMana', 'int'], ['manaMilli', 'int'], ['regenPm', 'int'], ['lanes', 'json'], ['cds', 'json'],

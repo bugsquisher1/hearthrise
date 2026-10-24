@@ -233,6 +233,14 @@ export function eventsIn(sqlText) {
 
     // 3. which variables are executed?
     const executed = new Set([...t.matchAll(/\bexecute\s+([a-z_][\w]*)\s*;/gi)].map((m) => m[1].toLowerCase()));
+    // ...and `execute replace(VAR, anchor, repl)`: the edit is the execute's own argument (2027-01-14-gear-by-level.sql),
+    // read as a mutation into a synthetic variable that is executed, so a normaliser there still counts as no edit.
+    let inlineExec = 0;
+    for (const m of t.matchAll(/\bexecute\s+(?:regexp_)?replace\s*\(\s*([a-z_][\w]*)\s*,\s*([^,]{0,80})/gi)) {
+      const dst = `#exec${inlineExec++}`;
+      mutations.push({ dst, src: m[1].toLowerCase(), normaliser: isNormaliser(m[2]) });
+      executed.add(dst);
+    }
     if (!executed.size) continue;    // a §4 self-check reads a body; it does not patch it
 
     // WHICH EDITS ACTUALLY LAND. An edit counts only if its result reaches an
@@ -592,6 +600,13 @@ function selftest() {
          v_def := replace(v_def, 'a', 'b');
          execute v_def;
        end $m$;`, { restate: [], patch: [P('hr_s')] }],
+    /* 2027-01-14-gear-by-level.sql's shape: the anchored replace() is the execute's own argument (no variable holds the
+       patched text). Read as no patch, its RESTATEMENT-DEBT-ACK looked stale and hr_apply's depth was under-counted. */
+    ['the anchored replace() is the execute\'s own argument',
+      `do $m$ declare v_def text; a1 text := 'x'; r1 text := 'y'; begin
+         v_def := replace(pg_get_functiondef('public.hr_e(int)'::regprocedure), chr(13), '');
+         execute replace(v_def, a1, r1);
+       end $m$;`, { restate: [], patch: [P('hr_e')] }],
   ];
   const refusals = [
     ['REFUSED: a §4 self-check that READS a body and never executes it',
@@ -617,6 +632,11 @@ function selftest() {
          v_def := replace(v_def, chr(13), '');
          v_norm := regexp_replace(v_def, '[[:space:]]+', ' ', 'g');
          execute v_def;
+       end $m$;`],
+    ['REFUSED: an execute of a CR-stripped body is normalisation, not an edit',
+      `do $m$ declare v_def text; begin
+         v_def := pg_get_functiondef('public.hr_x(int)'::regprocedure);
+         execute replace(v_def, chr(13), '');
        end $m$;`],
     ['REFUSED: a scratch normalisation that never reaches the execute',
       `do $m$ declare v_def text; v_hash text; begin

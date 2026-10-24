@@ -205,7 +205,7 @@ const CHAIN_END = (() => {
   const list = order.order || order.files || Object.values(order).find(Array.isArray);
   for (const f of [...list].reverse()) {
     let t; try { t = readFileSync(new URL('../supabase/migrations/' + f, import.meta.url), 'utf8'); } catch { continue; }
-    if (t.includes("('verdite_bar','Verdite Bar',true,null,320,") && t.includes("('trollhide_cape','cape')")) return f;
+    if (t.includes("('verdite_bar','Verdite Bar',true,null,320,") && t.includes("('dawnpoint_arrows','ammo')")) return f;
   }
   throw new Error('no migration seeds both arm anchors: re-anchor the selftest');
 })();
@@ -258,10 +258,15 @@ async function selftest() {
     //     catalogue, so deleting one there changes nothing at chain end (also
     //     measured — the first draft of this arm was a no-op that read as a
     //     miss). A pair only ONE file in the chain seeds is what a drop can
-    //     actually remove, and `trollhide_cape/cape` is such a pair.
+    //     actually remove, and `dawnpoint_arrows/ammo` is such a pair. It is an
+    //     AMMO pair since gear moved to the hero's Level (2027-01-14): an
+    //     armour pair dropped there leaves a Level-gated row with no equip slot,
+    //     which the catalogue's own self-check refuses (the chain would not
+    //     rebuild, a harness error, not this guard's catch); a supply keeps
+    //     its skill, so its pair can vanish and only this guard sees it.
     ['(c) a slot pair is dropped from a seeding migration', {
       patches: new Map([[CHAIN_END, [[
-        "  ('trollhide_cape','cape'),\n", '',
+        "  ('dawnpoint_arrows','ammo'),\n", '',
       ]]]]),
     }, true],
 

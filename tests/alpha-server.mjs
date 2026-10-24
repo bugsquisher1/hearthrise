@@ -459,12 +459,13 @@ async function blessArm(db, { H, M }, attended) {
 /* Each mutant: the file, its [find, replace], the arm that must go red. The file's own
    self-check is turned into an uncalled function so the defect reaches the arm. */
 const MUTANTS = [
-  /* hr_apply's LAST author is 2026-12-15-account-gold.sql §5 (four anchored edits of the installed text, md5-pinned to
-     its pre-image, so a plant in an earlier file trips that pin): the defect rides §5 as a fifth edit of the body it
-     installs. The anchor sits in §5's do-block, in no function body of the text, so the mutant names its body (`fn`). */
-  { arm: 'A-LOCK', file: '2026-12-15-account-gold.sql', fn: 'hr_apply', why: 'hr_apply no longer refuses a locked sale',
-    find: '  v_new := replace(v_new, a4, r4);\n  execute v_new;',
-    repl: '  v_new := replace(v_new, a4, r4);\n  v_new := replace(v_new, $l$        if v_n < 0 and coalesce(v_this_intent, \'\') ~ \'^vendor_sell(_many)?(:|$)\' and public.hr_item_locked(v_uid, v_slot, k) then$l$,\n    $l$        if false and coalesce(v_this_intent, \'\') ~ \'^vendor_sell(_many)?(:|$)\' and public.hr_item_locked(v_uid, v_slot, k) then$l$);\n  execute v_new;' },
+  /* hr_apply's LAST author is 2027-01-14-gear-by-level.sql §2 (one anchored edit of the installed text; its §0 pins the
+     pre-image, the live body after 2026-12-15-account-gold.sql §5, so a plant in an earlier file trips that pin): the
+     defect rides §2 as a second edit of the body it installs. The anchor sits in §2's do-block, in no function body of
+     the text, so the mutant names its body (`fn`). */
+  { arm: 'A-LOCK', file: '2027-01-14-gear-by-level.sql', fn: 'hr_apply', why: 'hr_apply no longer refuses a locked sale',
+    find: '  execute replace(v_def, a1, r1);',
+    repl: '  execute replace(replace(v_def, a1, r1), $l$        if v_n < 0 and coalesce(v_this_intent, \'\') ~ \'^vendor_sell(_many)?(:|$)\' and public.hr_item_locked(v_uid, v_slot, k) then$l$,\n    $l$        if false and coalesce(v_this_intent, \'\') ~ \'^vendor_sell(_many)?(:|$)\' and public.hr_item_locked(v_uid, v_slot, k) then$l$);' },
   /* hr_hunt_apply_member and hr_hunt_loot_rules are RESTATED last by 2026-12-15-account-gold.sql (the account
      purse, md5-pinned to their pre-images): their mutants are planted in the bodies that run. */
   { arm: 'A-LOOT-AWAY', file: '2026-12-15-account-gold.sql', why: 'the settle no longer runs the loot filter',

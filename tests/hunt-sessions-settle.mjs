@@ -1150,12 +1150,13 @@ const ENGINE_ARMS = {
     if ((sum(earth, 'uses').chalked_earth_rune || 0) !== casts(earth, 'arcane_barrier')) problems.push(`the wand spent ${sum(earth, 'uses').chalked_earth_rune} Earth Runes for ${casts(earth, 'arcane_barrier')} Arcane Barriers`);
     if (!(hits(earth).length > 30)) problems.push(`the wand landed ${hits(earth).length} basics in ten minutes`);
     /* (3) a Ranger with Steel named on the bar and Bronze loaded, or Steel loaded (its one ability looses no shot,
-       so every arrow spent is a basic's) */
+       so every arrow spent is a basic's). The Steel slot is a RULE (a condition that always holds): a rule fires ahead
+       of the worn ammo (conditions.js attackOrder, Andy #63), a plain bar slot only once the worn ammo runs out. */
     const food = { action: { type: 'consume', id: 'salted_shrimp' }, conditions: [{ metric: 'self_hp_pct', op: 'lt', value: 50 }], join: 'and' };
     const ranger = (ammo, bar, bag, o) => () => [memberIn(M, 'a', Object.assign({ role: 'ranger', level: 30, gold: 5000, bar: ['hunters_mark'].concat(bar), bag,
       equipment: { weapon: 'shortbow', ammo } }, o || {}))];
     const quiver = { steel_arrows: { loaded: 2000, left: 2000 }, bronze_arrows: { loaded: 1, left: 1 } };
-    const named = both('steel named', ranger('bronze_arrows', [{ action: { type: 'attack_with_item', id: 'steel_arrows' }, conditions: [], join: 'and' }, food], quiver));
+    const named = both('steel named', ranger('bronze_arrows', [{ action: { type: 'attack_with_item', id: 'steel_arrows' }, conditions: [{ metric: 'self_hp_pct', op: 'lte', value: 100 }], join: 'and' }, food], quiver));
     const loaded = both('steel loaded', ranger('steel_arrows', [food], quiver));
     const bronze = runCut(M, ranger('bronze_arrows', [food], quiver), span, []);
     if (!(hits(loaded).length > 30) || canon(hits(loaded)) === canon(hits(bronze))) problems.push('CONTROL: Steel loaded and Bronze loaded landed the same blows (the arm cannot see the ammo)');

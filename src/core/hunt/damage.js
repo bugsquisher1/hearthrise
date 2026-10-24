@@ -240,7 +240,10 @@ function pickShot(inst, u, h, t, sc) {
   const row = roleOf(u);
   if (!row) return null;
   const rows = attackOrder(h ? slotsFor(h, 'attack') : [DEFAULT_ATTACK_ROW]);
-  return shotPasses(inst, u, h, rows, (own) => (slot, cx) => {
+  /* OUT OF GOLD FOR THE BASIC ENDS THE HUNT (Tyler 10-14): when nothing carried can shoot and the purse cannot buy
+     the worn ammo's store shot, the swing the hero would take cannot be paid (goldOut), unless another row can. */
+  let wornShort = false;
+  const got = shotPasses(inst, u, h, rows, (own) => (slot, cx) => {
     const id = slot.action.id;
     if (id === 'loaded') {
       /* THE CASTER'S MANA BASIC: never a rune (a loaded rune adds nothing: member.js combatWorn), its
@@ -255,7 +258,10 @@ function pickShot(inst, u, h, t, sc) {
       if (shoots && !fits) return { why: 'no_stock' };
       /* The worn ammo's own shot, or (the second pass) its store partner; neither: the next row. */
       const w = shoots ? (own ? ownShotLine(h, h.ammo) : shotLine(h, h.ammo)) : null;
-      if (w && (!w.id || w.why)) return { why: w.why === 'gold_short' ? 'gold_short' : 'no_stock' };
+      if (w && (!w.id || w.why)) {
+        if (!own && w.why === 'gold_short') wornShort = true;
+        return { why: w.why === 'gold_short' ? 'gold_short' : 'no_stock' };
+      }
       return { ammo: shoots ? h.ammo : null, price: shoots ? h.ammo : undefined, size: 1, aim: t };
     }
     /* An item attack slot is a shooter's (a caster's basic spends mana, a melee hero's spends nothing). */
@@ -271,4 +277,6 @@ function pickShot(inst, u, h, t, sc) {
     const aim = cx.aim && cx.aim.alive ? cx.aim : size <= 1 ? t : (bestAim(inst, u, row.range, size, slot) || {}).aim;
     return aim && inRange(inst, u, aim) ? { ammo: id, price: id, size, aim } : { why: 'out_of_range' };
   }, sc);
+  if (!got && wornShort) h.hs.goldOut = true;
+  return got;
 }

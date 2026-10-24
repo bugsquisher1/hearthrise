@@ -108,7 +108,7 @@ export const HUNT_TUTORIAL = Object.freeze([
   step('first_level', 'That\'s a level',
     'Every kill pays experience. Keep going until a skill goes up a level.',
     'hud_vitals', { kind: 'level' }),
-  /* In the cellar wait (designer 2026-10-24: 15 dead minutes at minute 2); hr_farm_plant does not refuse a hunter. */
+  /* In the cellar wait (designer 2026-10-24: dead minutes from minute 2 to Level 5); hr_farm_plant does not refuse a hunter. */
   step('plant_land', 'Plant your land',
     'While your hero hunts, open the Farm, press an empty plot and plant a Turnip Seed. Turnips are ready in '
       + CROPS.turnip.hours + ' hours.',

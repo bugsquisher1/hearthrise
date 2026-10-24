@@ -1,5 +1,11 @@
 # Handoffs
 
+### 2026-10-24 · SYSTEMS (lane/b-tutorial-fixes) → DESIGNER / lane/a-mobile-p1 · found while playing the fixed tutorial
+
+1. **(designer, balance)** The kit tank (sword + shield, no armor) the chain sends into Meadowbrook Thicket at Level 5 died 4 times there (Level 5-10, killed by a Gray Wolf, death_log) in the harness; the 10-24 playtest hero, with Shop gloves, died 0 times. The chain teaches no armor before the Thicket. Look before the phone tester's first Thicket hunt (art/review/tutorial-fixes-2026-10-24/README.md).
+2. **(lane/a-mobile-p1, hunt.css:586)** Configure action at 667x375 is 800 px wide (`max-width: none` vs the window's inline 800 px; the coach card hidden, same width): Save is off-screen, so no bar edit works at that size. `max-width: 100%` beside the existing `min-width: 100%` should fit it (shot s02 in the same folder).
+3. **(designer, copy)** "Out to the brook" said "about a quarter of an hour"; the Cellar pays ~4,100 Level XP/h, so Level 5 is ~25 min: the card now says "about 25 minutes".
+
 ### 2026-10-22 · ART DIRECTOR (lane/b-hunts-detail) → BACKEND / SYSTEMS · the Lane C half of the Hunts page
 
 The client half (B #1, A #1, A #5, B #3) is built on lane/b-hunts-detail from data the envelope already carries. What it could not show needs server fields (Lane C first, then a B lane wires them):

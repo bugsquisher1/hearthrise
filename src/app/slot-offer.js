@@ -75,7 +75,7 @@ export function slotOfferHtml(offer, roster, o = {}) {
     + (offer.max ? ', up to ' + offer.max + ' heroes in all' : '') + '.</p>'
     + '<p class="slot-offer-purse">Your gold: ' + whole(purse.gold) + '</p>'
     + (short > 0 ? '<p class="slot-offer-short">You need ' + whole(short) + ' more gold.</p>' : '')
-    + '<button type="button" class="auth-submit slot-offer-buy" data-app="buy-slot" data-slot-id="' + offer.slotId + '" data-pay="' + actor + '"'
+    + '<button type="button" class="slot-offer-buy" data-app="buy-slot" data-slot-id="' + offer.slotId + '" data-pay="' + actor + '"'
     + (o.pending || short > 0 ? ' disabled' : '') + '>'
     + (o.pending ? 'Buying…' : 'Buy a hero slot — ' + whole(offer.cost) + ' gold') + '</button>'
     + '</section>';

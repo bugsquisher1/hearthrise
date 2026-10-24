@@ -14,9 +14,13 @@
 .app.is-auth { min-height: 100vh; display: grid; place-items: center; }
 .app.is-game { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 
-/* ── The account screens: the crest and the name beside one iron-framed form.
-   The crest is painted art: 1:1 (311x384) on desktop, exactly 1:2 on the
-   phone size class, never at a fraction between. ── */
+/* ── The account screens (sign-in, the characters, hero creation, the closed notice): the crest and the
+   name beside ONE card in FORGED STEEL (Tyler approved the skin on 2026-10-24; ART_DIRECTION §9, §10),
+   built from the pieces a window wears: the steel frame over its grained floor, a dark title band ruled in
+   dim gold with the card's name in Cinzel, sunk fields, steel rules between the parts, the one primary a
+   raised gold plate (shell.css; the button carries .hh-tool.is-primary). Nothing here fades with the Window
+   opacity setting: no World is behind these screens. The crest is painted art: 1:1 (311x384) on desktop,
+   exactly 1:2 on the phone size class, never at a fraction between. ── */
 .auth {
   width: 100%; box-sizing: border-box;
   display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 20px 56px;
@@ -32,45 +36,43 @@
 .auth-card {
   width: min(26rem, 100%); box-sizing: border-box;
   display: flex; flex-direction: column; gap: 12px;
-  padding: 18px 22px 20px;
-  background: var(--modal-bg); background-clip: padding-box;
-  border: 8px solid transparent; border-radius: 0;
-  border-image: url('../../assets/ui/frame-iron.png') 4 / 8px stretch;
+  padding: 0 20px 18px;
+  background: url('../../assets/ui/steel-grain.png') 0 0 / 64px 64px repeat, var(--bg-1); background-clip: padding-box;
+  border: 12px solid transparent; border-radius: 0;
+  border-image: url('../../assets/ui/steel-frame.png') 6 / 12px stretch;
   image-rendering: pixelated;
+  box-shadow: 0 10px 28px color-mix(in srgb, var(--world-shadow) 55%, transparent);
 }
 .auth-card > * { image-rendering: auto; }
-.auth-title { margin: 0; font-family: var(--f-label); font-weight: 700; font-size: var(--t-lead); letter-spacing: .04em; color: var(--ink); }
+/* The title band: the card's name in Cinzel gold on a dark band ruled in dim gold, edge to edge inside the frame. */
+.auth-title {
+  display: flex; align-items: center; min-height: 44px; margin: 0 -20px 2px; padding: 6px 20px; box-sizing: border-box;
+  background: var(--bg-0); border-bottom: 2px solid var(--steel-rule);
+  font-family: var(--f-display); font-weight: 700; font-size: var(--t-lead); line-height: 1.15; letter-spacing: .12em; color: var(--gold-2);
+}
 .auth-lead { margin: 0; font-size: var(--t-small); color: var(--ink-2); line-height: 1.4; }
-.auth-field { display: flex; flex-direction: column; gap: 4px; font-family: var(--f-label); font-weight: 700; font-size: var(--t-micro); letter-spacing: .04em; color: var(--ink-3); }
+.auth-field { display: flex; flex-direction: column; gap: 4px; font-family: var(--f-label); font-weight: 700; font-size: var(--t-micro); letter-spacing: .04em; color: var(--ink-2); }
+/* A sunk field: a well one art px deep (--steel-well), never a hairline box. */
 .auth-field input {
   font-family: var(--f-ui); font-weight: 400; font-size: var(--t-body); letter-spacing: 0;
   min-height: 40px; box-sizing: border-box;
   color: var(--ink);
   background: var(--bg-0);
-  border: 1px solid var(--line-soft);
-  border-radius: var(--r-sm);
-  box-shadow: var(--surf-sunken-edge);
+  border: 0;
+  border-radius: 0;
+  box-shadow: var(--steel-well);
   padding: 0 10px;
+  cursor: text;
 }
-.auth-field input:hover { border-color: var(--line); }
-.auth-field input:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
+.auth-field input::placeholder { color: var(--ink-3); }
+.auth-field input:focus-visible { outline: 2px solid var(--gold); outline-offset: 0; }
 .auth-message { margin: 0; min-height: 1.3em; font-size: var(--t-small); color: var(--red); line-height: 1.3; }
 .auth-message:empty { min-height: 0; }
 .auth-message.is-good { color: var(--green); }
-.auth-submit {
-  font-family: var(--f-ui); font-weight: 700; font-size: var(--t-body);
-  min-height: 42px;
-  color: var(--bg-0);
-  background: var(--gold);
-  border: 0;
-  border-radius: var(--r-sm);
-  padding: 0 18px;
-  cursor: pointer;
-}
-.auth-submit:hover:not(:disabled) { background: var(--gold-2); }
-.auth-submit:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
-.auth-submit:disabled { opacity: 0.6; cursor: progress; }
-.auth-links { margin: 0; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 16px; padding-top: 10px; border-top: 1px solid var(--line-soft); }
+/* The gold plate itself is shell.css's (.hh-tool.is-primary); a form's one action spans the card. */
+.auth-submit { min-height: 44px; font-size: var(--t-body); letter-spacing: .1em; }
+.auth-submit:disabled { cursor: progress; }
+.auth-links { margin: 0; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 16px; padding-top: 10px; border-top: 2px solid var(--steel-sep); }
 .auth-link {
   font-family: var(--f-ui); font-size: var(--t-small);
   color: var(--gold-2);
@@ -82,29 +84,63 @@
 }
 .auth-link:hover, .auth-link:focus-visible { text-decoration: underline; text-underline-offset: 3px; }
 .auth-link:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: 2px; }
+/* A card's foot with a way back and a way on (hero creation): back at the left, the gold plate at the right. */
+.auth-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 -20px -18px; padding: 10px 20px 12px; border-top: 2px solid var(--steel-sep); background: var(--bg-1); }
+.auth-foot .auth-submit { padding: 0 16px 0 20px; }
+/* A press that goes somewhere carries the dark steel arrow (as the Hunts window's Enter does). */
+.auth-submit.is-go::after { content: ''; display: inline-block; width: 6px; height: 10px; margin-left: 10px; vertical-align: 1px;
+  background: url('../../assets/ui/steel-arrow.png') 0 0 / 6px 10px no-repeat; image-rendering: pixelated; }
 
-/* Landscape phone: the crest (1:2) beside the form, both inside 423 px with no scroll. */
+/* Landscape phone: the crest (1:2) beside the card, both inside 423 px with no scroll. */
 @media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
   .auth { flex-wrap: nowrap; gap: 40px; padding: 8px 16px; }
   .auth-crest { width: 156px; height: 192px; }
-  .auth-card { gap: 8px; padding: 10px 18px 12px; }
+  .auth-card { gap: 8px; padding: 0 16px 12px; }
+  .auth-title { min-height: 40px; margin: 0 -16px 0; padding: 4px 16px; }
   .auth-field input { min-height: 36px; }
   .auth-submit { min-height: 40px; }
   .auth-links { padding-top: 6px; }
+  .auth-foot { margin: 0 -16px -12px; padding: 6px 16px 8px; }
 }
 
-.char-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
-.char-row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; min-height: 48px; border-top: 1px solid var(--line-soft); }
-.char-name { font-weight: 700; }
-.char-level { margin-left: .5em; font-weight: 400; color: var(--ink-2); }
-/* The next hero slot for sale (src/app/slot-offer.js): price, the account's gold, one button. */
-.slot-offer { display: flex; flex-direction: column; gap: 8px; padding-top: 10px; border-top: 1px solid var(--line-soft); }
-.slot-offer-lead, .slot-offer-purse, .slot-offer-short { margin: 0; font-size: var(--t-small); line-height: 1.4; }
-.slot-offer-lead { color: var(--ink); }
-.slot-offer-purse { color: var(--ink-2); }
+/* ── YOUR CHARACTERS: one steel list, a row per owned slot. The whole row is the press (Play, Show, Create
+   hero), its word in Cinzel gold at the right; pointed at, it lifts and takes the picked row's gold outline
+   and bar (the Hunts list). An empty slot reads quiet until pointed at. ── */
+.char-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; background: var(--bg-0); border: 2px solid var(--steel-edge); }
+.char-row + .char-row { border-top: 2px solid var(--steel-sep); }
+.char-pick {
+  width: 100%; min-height: 56px; box-sizing: border-box;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 8px 14px 8px 18px; border: 0; border-radius: 0; background: var(--bg-2); color: var(--ink);
+  font: inherit; text-align: left; cursor: pointer;
+}
+.char-pick:hover, .char-pick:focus-visible { background: var(--bg-3); box-shadow: inset 0 0 0 2px var(--gold), inset 6px 0 0 var(--gold); outline: none; }
+.char-name { display: flex; flex-direction: column; min-width: 0; }
+.char-name b { font-size: var(--t-lead); font-weight: 700; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.char-level { font-size: var(--t-micro); font-weight: 400; color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; }
+.char-go { flex: none; font-family: var(--f-display); font-weight: 700; font-size: var(--t-small); letter-spacing: .1em; color: var(--gold-2); }
+.char-row.is-empty .char-pick { background: var(--bg-1); }
+.char-row.is-empty .char-name b { font-weight: 400; color: var(--ink-3); }
+.char-row.is-empty .char-pick:hover b, .char-row.is-empty .char-pick:focus-visible b { color: var(--ink-2); }
+/* The next hero slot for sale (src/app/slot-offer.js), behind a steel rule: the price over the account's gold, a
+   steel button beside the gold. Never the gold plate: spending gold is a deliberate press, and Play is this
+   card's primary. */
+.slot-offer { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 4px 14px; padding-top: 10px; border-top: 2px solid var(--steel-sep); }
+.slot-offer-lead, .slot-offer-purse, .slot-offer-short { grid-column: 1; margin: 0; font-size: var(--t-small); line-height: 1.4; }
+.slot-offer-lead { grid-column: 1 / -1; color: var(--ink); }
+.slot-offer-purse { color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; }
 .slot-offer-short { color: var(--ink-3); }
+.slot-offer-buy {
+  grid-column: 2; grid-row: 2 / span 2; align-self: start; min-height: 40px; padding: 0 12px; white-space: nowrap;
+  border: 2px solid var(--steel-btn); border-radius: 0; background: var(--bg-2); color: var(--ink);
+  font-family: var(--f-ui); font-weight: 700; font-size: var(--t-small); line-height: 1.2; font-variant-numeric: lining-nums tabular-nums; cursor: pointer;
+}
+.slot-offer-buy:hover:not(:disabled) { background: var(--bg-3); border-color: var(--gold-3); }
+.slot-offer-buy:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: 2px; }
+.slot-offer-buy:disabled { opacity: .5; cursor: default; }
 @media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
-  .slot-offer { gap: 4px; padding-top: 6px; }
+  .char-pick { min-height: 48px; padding: 4px 12px 4px 16px; }
+  .slot-offer { gap: 2px 12px; padding-top: 6px; }
 }
 
 .char-strip {
@@ -164,33 +200,37 @@
    title row would only repeat it and cost the stage a line. */
 .app.is-game:has(.ht-bar) #panel-world .world-chrome { display: none; }
 
-/* THE CREATION STEP (src/app/hero-create.js): the hero on the left, its name and four colour rows beside it. */
+/* THE CREATION STEP (src/app/hero-create.js), in the account card: the hero in a sunk mirror on the left (drawn at
+   x4, standing on the pixel ground shadow at the same x4), its name and four colour strips beside it, then How you
+   fight; the foot holds the way back and Enter town. */
 .auth-card.is-create { width: min(60rem, 100%); }
-.hc-body { display: flex; gap: 18px; align-items: flex-start; }
-.hc-preview { flex: none; width: 128px; height: 192px; image-rendering: pixelated; background: var(--bg-0); box-shadow: var(--surf-sunken-edge); }
-.hc-form { flex: none; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
-.hc-region { margin: 0; padding: 0; border: 0; min-width: 0; }
-.hc-region legend { padding: 0 0 3px; font-family: var(--f-label); font-weight: 700; font-size: var(--t-micro); letter-spacing: .04em; color: var(--ink-3); }
-.hc-dyes { display: grid; grid-template-columns: repeat(16, 18px); gap: 2px; }
-.hc-dye { width: 18px; height: 18px; padding: 0; border: 0; border-radius: 0; background: var(--hc-dye); cursor: pointer; }
-.hc-dye[aria-pressed="true"] { outline: 2px solid var(--gold-2); outline-offset: 1px; }
-.hc-dye:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: 1px; }
-/* "How you fight" (Tyler 2026-10-22): no class to pick, the weapon is the style. A plain column beside the form. */
-.hc-how { flex: 1; min-width: 14rem; border-left: 1px solid var(--line-soft); padding-left: 16px; }
-.hc-how-title { margin: 0 0 4px; font-family: var(--f-label); font-weight: 700; font-size: var(--t-small); letter-spacing: .04em; color: var(--gold-2); }
-.hc-how-lead { margin: 0 0 6px; font-size: var(--t-micro); color: var(--ink); line-height: 1.4; }
-.hc-how-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: var(--t-micro); color: var(--ink-2); line-height: 1.35; }
-.hc-how-list b { color: var(--ink); }
-.hc-how-uses { color: var(--ink-3); }
+.hero-body { display: flex; gap: 18px; align-items: flex-start; }
+.hero-preview { flex: none; width: 128px; height: 192px; padding: 8px 8px 12px; image-rendering: pixelated;
+  background: url('../../assets/ui/ground-shadow.png') 50% calc(100% - 8px) / 96px 20px no-repeat, var(--bg-2); box-shadow: var(--steel-well); }
+.hero-form { flex: none; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.hero-region { margin: 0; padding: 0; border: 0; min-width: 0; }
+.hero-region legend { padding: 0 0 3px; font-family: var(--f-label); font-weight: 700; font-size: var(--t-micro); letter-spacing: .04em; color: var(--ink-2); }
+/* A colour strip: the swatches sunk in one well (a slot row is sunk, never framed), the picked one ringed in gold. */
+.hero-dyes { display: grid; grid-template-columns: repeat(16, 18px); gap: 2px; width: max-content; padding: 4px; background: var(--bg-0); box-shadow: var(--steel-well); }
+.hero-dye { width: 18px; height: 18px; padding: 0; border: 0; border-radius: 0; background: var(--hero-dye); cursor: pointer; }
+.hero-dye[aria-pressed="true"] { outline: 2px solid var(--gold-2); outline-offset: 1px; }
+.hero-dye:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: 1px; }
+/* "How you fight" (Tyler 2026-10-22): no class to pick, the weapon is the style. A column beside the form behind a
+   steel rule, under a Forged Steel section head (.hs-sub). */
+.hero-how { flex: 1; min-width: 14rem; border-left: 2px solid var(--steel-sep); padding-left: 16px; }
+.hero-how-title { margin: 0 0 6px; }
+.hero-how-lead { margin: 0 0 8px; font-size: var(--t-micro); color: var(--ink); line-height: 1.4; }
+.hero-how-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; font-size: var(--t-micro); color: var(--ink-2); line-height: 1.35; }
+.hero-how-list b { color: var(--ink); }
+.hero-how-uses { color: var(--ink-3); }
 @media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
-  .hc-body { gap: 12px; }
-  .hc-form { gap: 4px; }
-  .hc-dyes { grid-template-columns: repeat(16, 16px); }
-  .hc-dye { width: 16px; height: 16px; }
-  /* The phone keeps the rule (one line under the hero); the list is in Settings > Help. */
-  .hc-body { flex-wrap: wrap; }
-  .hc-how { flex-basis: 100%; border-left: 0; padding-left: 0; }
-  .hc-how-title, .hc-how-list { display: none; }
+  .hero-body { gap: 12px; }
+  .hero-form { gap: 4px; }
+  .hero-dyes { grid-template-columns: repeat(16, 16px); padding: 3px; }
+  .hero-dye { width: 16px; height: 16px; }
+  /* The phone keeps the rule beside the form (the list is in Settings > Help), so the card fits 423 px unscrolled. */
+  .hero-how { min-width: 9rem; padding-left: 12px; }
+  .hero-how-title, .hero-how-list { display: none; }
 }
 
 /* ?debug=live (src/app/live-overlay.js): a read-only corner over everything, never in the way of a press. */

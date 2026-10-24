@@ -307,15 +307,15 @@ async function checks(overrides) {
       else {
         await page.click('[data-app="create"][data-slot="1"]');
         /* The creation step: a name, four colour rows and a preview; nothing is sent before Enter town. */
-        const step = await wait(page, () => document.querySelector('.hc-name') && document.querySelectorAll('.hc-region').length === 4 && document.querySelector('.hc-preview'));
+        const step = await wait(page, () => document.querySelector('.hero-name') && document.querySelectorAll('.hero-region').length === 4 && document.querySelector('.hero-preview'));
         if (!step) fails.push('B-9 Create did not open the creation step (sent ' + JSON.stringify(o.created) + ')');
         else {
-          await page.click('.hc-dye[data-hc-region="body"][data-hc-dye="6"]');
-          await page.click('.hc-confirm');
+          await page.click('.hero-dye[data-hero-region="body"][data-hero-dye="6"]');
+          await page.click('.hero-confirm');
           const short = await page.evaluate(() => document.querySelector('.auth-message').textContent);
           if (o.created.length || !/3 letters/.test(short)) fails.push('B-9 the creation step sent ' + JSON.stringify(o.created) + ' / said "' + short + '" for an empty name');
-          await page.fill('.hc-name', 'Fennick');
-          await page.click('.hc-confirm');
+          await page.fill('.hero-name', 'Fennick');
+          await page.click('.hero-confirm');
         }
         const played = await wait(page, () => document.querySelector('#panel-world[data-slot="1"]'));
         const c = o.created[0];
@@ -426,7 +426,7 @@ const MUTANTS = [
     ['const recovering = /type=recovery/.test(win.location.hash);', 'const recovering = false;']]],
   ['the hunt panels never mount', 'src/data/hud-widgets.js', 'min: Object.freeze([320, 64]), opacity: 1, visible: true', 'min: Object.freeze([320, 64]), opacity: 1, visible: false'],
   ['every hero is "Character N" again', 'src/app/boot.js', "(r.exists ? esc(r.name || 'Unnamed hero')", "(r.exists ? 'Character ' + (r.slot + 1)"],
-  ['an empty owned slot offers no Create', 'src/app/boot.js', 'class="auth-submit" data-app="create" data-slot="', 'class="auth-submit" data-app="nothing" data-slot="'],
+  ['an empty owned slot offers no Create', 'src/app/boot.js', `: 'data-app="create"') + ' data-slot="'`, `: 'data-app="nothing"') + ' data-slot="'`],
   ['Create skips the name and colours step', 'src/app/boot.js', "else if (what === 'create') showCreate(slot);",
     "else if (what === 'create') account.create(slot, 'New hero', { head: 13, body: 5, legs: 3, feet: 0 }).then(() => play(slot));"],
   ['a dead session stays in the game', 'src/app/boot.js', "else if (ev === 'signed-out' || ev === 'expired') sessionEnded();", "else if (ev === 'signed-out') sessionEnded();"],

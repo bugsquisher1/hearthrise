@@ -49,7 +49,7 @@ export function renderAuthScreen(box, auth, mode, on) {
     + (s.lead ? '<p class="auth-lead">' + esc(s.lead) + '</p>' : '')
     + s.fields.map((f) => FIELD[f]).join('')
     + '<p class="auth-message" role="status" aria-live="polite"></p>'
-    + '<button type="submit" class="auth-submit">' + esc(s.submit) + '</button>'
+    + '<button type="submit" class="hh-tool is-primary auth-submit">' + esc(s.submit) + '</button>'
     + (s.links.length ? '<p class="auth-links">' + s.links.map(([to, label]) => '<button type="button" class="auth-link" data-auth-go="' + esc(to) + '">' + esc(label) + '</button>').join('') + '</p>' : '')
     + '</form>';
   const form = box.querySelector('form');

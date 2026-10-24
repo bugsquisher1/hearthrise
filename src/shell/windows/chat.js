@@ -100,8 +100,28 @@ function logOf(body, tab) {
     list.setAttribute('data-log', tab);
     list.setAttribute('aria-live', 'polite');
     box.appendChild(list);
+    keepPinned(list);
   }
   return list;
+}
+
+/* A LOG AT ITS FOOT STAYS AT ITS FOOT when its box changes size (2026-10-24: Chat opened at 1440x900 on its
+   oldest lines — the lines were written before the window had its height, then the dock capped it). Only the
+   player lets go of the foot, by scrolling UP; a box that shrank under a pinned log is pinned again, and reaching
+   the foot again pins it. */
+const PINNED = new WeakMap();
+const atFoot = (list) => list.scrollTop + list.clientHeight >= list.scrollHeight - 4;
+function keepPinned(list) {
+  PINNED.set(list, true);
+  let last = 0;
+  list.addEventListener('scroll', () => {
+    const top = list.scrollTop;
+    if (atFoot(list)) PINNED.set(list, true);
+    else if (top < last) PINNED.set(list, false);
+    last = top;
+  }, { passive: true });
+  const RO = list.ownerDocument.defaultView && list.ownerDocument.defaultView.ResizeObserver;
+  if (typeof RO === 'function') new RO(() => { if (PINNED.get(list)) list.scrollTop = list.scrollHeight; }).observe(list);
 }
 
 renderChat.patch = function patchChat(body, ctx) {
@@ -138,7 +158,7 @@ function patchTalk(body, ctx, social, st) {
   for (const el of body.querySelectorAll('.hc-log.is-talk')) cls(el, 'is-on', el.getAttribute('data-log') === tab);
   const list = logOf(body, tab);
   cls(list, 'is-on', true);
-  const atBottom = list.scrollTop + list.clientHeight >= list.scrollHeight - 4;
+  const atBottom = PINNED.get(list) || atFoot(list);
   const before = list.childElementCount;
   rows(list, lines, { key: (l) => l.id, build: (l) => lineEl(ctx, l), patch: () => {} });
   const added = list.childElementCount > before;

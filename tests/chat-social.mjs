@@ -7,7 +7,7 @@
 //   node tests/chat-social.mjs --mutate       every planted defect must turn a rule RED
 //   node tests/chat-social.mjs --shots <dir>  also write the visual-gate screenshots (1440x900, 922x423)
 //
-// mutant-anchors: src/social/ src/data/chat-channels.js src/data/shell-windows.js src/shell/window-sizes.js src/shell/windows/inventory/index.js src/styles/hunt.css src/shell/context-menu.js src/shell/menu-providers.js src/shell/windows/chat.js src/shell/windows/friends.js src/hunt-view/scene.js src/session/party-sections.js src/world/world-boot.js src/shell/shell.js src/shell/hud.js
+// mutant-anchors: src/social/ src/data/chat-channels.js src/data/shell-windows.js src/shell/window-sizes.js src/shell/windows/inventory/index.js src/styles/hunt.css src/styles/app.css src/shell/context-menu.js src/shell/menu-providers.js src/shell/windows/chat.js src/shell/windows/friends.js src/hunt-view/scene.js src/session/party-sections.js src/world/world-boot.js src/shell/shell.js src/shell/hud.js
 // mutant-writes-tree: no — pure mutants plant into a temp copy of src/, page mutants into served overrides
 //
 // The server half of every rule (the sender's name, level and role stamped by
@@ -50,7 +50,9 @@
 //   ON-2  [page] the counter reads the server's "3 online" at 12 px or more, on
 //         screen, overlapping no other widget; off by default on a phone
 //   CW-1  [page] a pushed line renders time + name [level, role glyph] + body, the
-//         name coloured by role; a link shows the catalogue name in its rarity
+//         name coloured by role; a link shows the catalogue name in its rarity, IN the
+//         sentence (the body is inline text: no other screen's rule lays it out — the
+//         hero creation's .hc-body once made it an 18 px-gapped flex row, 2026-10-24)
 //   CW-2  [page] an unread dot on a tab that got a line, cleared when shown
 //   CW-3  [page] typing in the field never gets past it to the World's walk keys;
 //         once blurred (Esc), W reaches the page again; Enter sends ONE intent
@@ -78,6 +80,8 @@
 //         four (a 448 px panel top-left) the open chat overlaps no World widget, the panel is wholly on
 //         screen, and a press on its foot line or its last seat reaches the panel (the chat shrinks below it,
 //         or slides right past it when the room left is under the resize floor)
+//   CW-9  [page] A LOG OPENS AT ITS FOOT (2026-10-24: Chat at 1440x900 opened on its oldest lines): with more
+//         lines than the chat shows, the open log is scrolled to its newest line after the dock has sized it
 //   CW-4  [page] the right-click menu on a name opens at page level with Inspect,
 //         Message, Add friend, Invite to party, Block (no Trade); a press on it never reaches the World;
 //         Inspect shows the worn items; zero console errors throughout
@@ -418,7 +422,7 @@ async function stub(page, s) {
     if (name === 'hr_put_client_state') { s.residue = Object.assign({}, s.residue, body.p_patch); return json({ ok: true }); }
     if (name === 'hr_load') return json(Object.assign(env(s.seats), kept(), { version: ++s.version }));
     if (name === 'hr-accrue') return json(Object.assign({ accrued: true }, env(s.seats), kept(), { version: ++s.version }));
-    if (name === 'hr_chat_recent') return json({ ok: true, zone: ZONE, party: null, lines: [row({ body: 'welcome back', created_at: '2026-10-18T08:00:00Z' })] });
+    if (name === 'hr_chat_recent') return json({ ok: true, zone: ZONE, party: null, lines: s.recent || [row({ body: 'welcome back', created_at: '2026-10-18T08:00:00Z' })] });
     if (name === 'hr_chat_send') return json({ ok: true, line: row({ from_id: UID, from_name: 'Quill', body: body.p_body, from_weapon: 'staff', from_role: 'healer' }) });
     if (name === 'hr_social_state') return json({ ok: true, friends: [], incoming: [], outgoing: [], blocks: [] });
     if (name === 'hr_players_online') return json({ ok: true, online: 3 });
@@ -438,7 +442,8 @@ async function fullParty(browser, base, shots) {
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
   page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
   try {
-    const s = { calls: [], version: 1, seats: 4 };
+    /* CW-9: more lines than the chat shows (the newest last), so the log has a foot to open at */
+    const s = { calls: [], version: 1, seats: 4, recent: Array.from({ length: 16 }, (_, i) => row({ body: 'line ' + (i + 1), created_at: new Date(Date.UTC(2026, 9, 18, 8, i)).toISOString() })) };
     await stub(page, s);
     await page.goto(base + '/play.html', { waitUntil: 'load' });
     await wait(page, () => document.querySelector('form[data-auth="sign-in"]'));
@@ -469,6 +474,8 @@ async function fullParty(browser, base, shots) {
     if (got.over.length) fails.push('CW-8 the chat (' + r(got.chat) + ') lies over ' + got.over.join(', ') + ' (party ' + r(got.panel) + ')');
     if (!got.inside) fails.push('CW-8 the party panel is not wholly on screen: ' + r(got.panel));
     if (!got.foot || !got.last) fails.push('CW-8 a press on the party panel\'s ' + (!got.foot ? 'foot' : 'last seat') + ' does not reach the panel');
+    const foot = await page.evaluate(() => { const l = document.querySelector('[data-hs-win="chat"] .hc-log.is-talk.is-on'); return l && { n: l.children.length, top: Math.round(l.scrollTop), ch: l.clientHeight, sh: l.scrollHeight }; });
+    if (!foot || foot.n < 16 || foot.sh <= foot.ch || foot.top + foot.ch < foot.sh - 4) fails.push('CW-9 the open chat log is not at its newest line: ' + JSON.stringify(foot));
     if (shots) await page.screenshot({ path: join(shots, 'chat-party4-1440x900.png') });
   } finally {
     if (errors.length) fails.push('CW-8 console errors: ' + errors.slice(0, 3).join(' | '));
@@ -533,11 +540,12 @@ async function pageRules(overrides, shots) {
         if (!li) return null;
         return { time: li.querySelector('.hc-time').textContent, name: li.querySelector('.hc-name').textContent, cls: li.querySelector('.hc-name').className,
           tag: li.querySelector('.hc-tag') && li.querySelector('.hc-tag').textContent, glyph: !!li.querySelector('.hc-role svg'),
-          link: li.querySelector('.hc-link') && li.querySelector('.hc-link').textContent, last: li === li.parentElement.lastElementChild };
+          link: li.querySelector('.hc-link') && li.querySelector('.hc-link').textContent, last: li === li.parentElement.lastElementChild,
+          body: getComputedStyle(li.querySelector('.hc-body')).display };
       });
       const hhmm = await page.evaluate(() => { const d = new Date(Date.UTC(2026, 9, 18, 9, 5)); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); });
       if (!line || line.time !== hhmm || line.name !== 'Bramble' || !/is-tank/.test(line.cls) || !/\[34/.test(line.tag || '') || !line.glyph
-        || line.link !== '[Bronze Sword]' || !line.last) fails.push('CW-1 [' + tag + '] the line reads ' + JSON.stringify(line));
+        || line.link !== '[Bronze Sword]' || !line.last || line.body !== 'inline') fails.push('CW-1 [' + tag + '] the line reads ' + JSON.stringify(line));
       // CW-2
       await page.evaluate(() => window.__hub.send('chat:local:mill_cellar', { t: 'line', line: { id: '00000000-0000-4000-8000-00000000f002', channel: 'local:mill_cellar',
         from_id: 'aaaaaaaa-0000-4000-8000-0000000000b1', from_name: 'Bramble', from_slot: 0, from_level: 34, from_weapon: 'sword', from_role: null,
@@ -750,6 +758,8 @@ const PAGE_MUTANTS = [
   ['the counter does not read the server\'s count', 'src/shell/widgets/online.js', '  const s = ctx.account && ctx.account.social;', '  const s = ctx.account;'],
   ['the chat stands over the widgets above its column (CW-8)', 'src/shell/shell.js', 'const tops = homes.length ? Array.from(', 'const tops = false ? Array.from('],
   ['the chat keeps its height under a widget (CW-8)', 'src/shell/hud.js', 'const max = Math.min(...over.map(room), at.max === null ? Infinity : at.max);', 'const max = at.max === null ? Infinity : at.max;'],
+  ['a log is not kept at its foot (CW-9)', 'src/shell/windows/chat.js', '    keepPinned(list);', '    void keepPinned;'],
+  ['another screen lays out a chat line (CW-1)', 'src/styles/app.css', '.hero-body { display: flex;', '.hc-body, .hero-body { display: flex;'],
   ['the menu is drawn inside the World', 'src/shell/windows/float-menu.js', "  doc.body.appendChild(el);\n  return el;", "  (doc.querySelector('.world-stage') || doc.body).appendChild(el);\n  return el;"],
 ];
 

@@ -117,7 +117,8 @@ function startApp(win) {
     obs.screen('closed');
     root.className = 'app is-auth';
     root.innerHTML = '<main class="auth">' + AUTH_BRAND + '<div class="auth-card">'
-      + '<h1 class="auth-title">Hearthrise is a new game in development. Follow Discord for the first playtest.</h1>'
+      + '<h1 class="auth-title">Playtest</h1>'
+      + '<p class="auth-lead">Hearthrise is a new game in development. Follow Discord for the first playtest.</p>'
       + '<p class="auth-lead">Your account is not on the list for this test. Discord gets the date first.</p>'
       + '<p class="auth-links"><a class="auth-link" href="' + DISCORD + '" rel="noopener">Join the Discord</a>'
       + '<button type="button" class="auth-link" data-app="sign-out">Sign out</button></p></div></main>';
@@ -179,15 +180,14 @@ function startApp(win) {
     roster = read;
     rosterSlots = roster.filter((r) => r.exists).map((r) => r.slot);
     const open = new Set(a.characters().map((c) => c.slot));
-    /* Each owned slot: its hero by name and Level (the server's), or an empty slot to create in.
-       Every account owns two (Tyler 10-17); the next one for sale is offered under the list. */
-    const rows = roster.map((r) => '<li class="char-row"><span class="char-name">'
-      + (r.exists ? esc(r.name || 'Unnamed hero') + (r.level ? ' <small class="char-level">Level ' + r.level + '</small>' : '') : r.unnamed ? 'Unnamed hero' : 'Empty slot')
-      + '</span>'
-      + (r.exists
-        ? '<button type="button" class="auth-submit" data-app="play" data-slot="' + r.slot + '">' + (open.has(r.slot) ? 'Show' : 'Play') + '</button>'
-        : '<button type="button" class="auth-submit" data-app="create" data-slot="' + r.slot + '">' + (r.unnamed ? 'Name hero' : 'Create hero') + '</button>')
-      + '</li>').join('');
+    /* Each owned slot: its hero by name and Level (the server's), or an empty slot to create in; the whole
+       row is the press. Every account owns two (Tyler 10-17); the next one for sale is offered under the list. */
+    const rows = roster.map((r) => '<li class="char-row' + (r.exists ? '' : ' is-empty') + '">'
+      + '<button type="button" class="char-pick" ' + (r.exists ? 'data-app="play"' : 'data-app="create"') + ' data-slot="' + r.slot + '">'
+      + '<span class="char-name"><b>' + (r.exists ? esc(r.name || 'Unnamed hero') : r.unnamed ? 'Unnamed hero' : 'Empty slot') + '</b>'
+      + (r.exists && r.level ? ' <small class="char-level">Level ' + r.level + '</small>' : '') + '</span> '
+      + '<span class="char-go">' + (r.exists ? (open.has(r.slot) ? 'Show' : 'Play') : r.unnamed ? 'Name hero' : 'Create hero') + '</span>'
+      + '</button></li>').join('');
     root.querySelector('.auth-card').innerHTML = '<h1 class="auth-title">Your characters</h1>'
       + '<p class="auth-lead">Signed in as ' + esc(auth.email() || 'you') + '. ' + (a.limit() > 1 ? 'Up to ' + a.limit() + ' can play at once.' : 'One can play at a time.') + '</p>'
       + '<ul class="char-list">' + (rows || '<li class="char-row">The server did not answer. Reload to try again.</li>') + '</ul>'

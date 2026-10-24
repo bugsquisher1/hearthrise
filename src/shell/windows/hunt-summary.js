@@ -20,7 +20,7 @@
 import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.39';
 import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.39';
 import { whole, gold, clock } from '../../render/format.js?v=0.2.39';
-import { itemName } from '../widgets/bits.js?v=0.2.39';
+import { itemName, itemIconHtml } from '../widgets/bits.js?v=0.2.39';
 import { runIntent } from '../intent-words.js?v=0.2.39';
 import { endedSessionOf, sanitizeSummaries, huntAgainOf, endWords } from '../../hunt-view/summary-model.js?v=0.2.39';
 import { observeSessions } from '../../session/character-session.js?v=0.2.39';
@@ -44,7 +44,7 @@ export function renderHuntSummary() {
     + '<p class="hs-note hsum-none">No hunts have ended yet. When one does, what it came to lands here.</p>'
     + '<section class="hsum-live"><h3 class="hw-ledger-head is-on">Just now</h3><ul class="hsum-falls hsum-live-falls"></ul></section>'
     + '<section class="hsum-card">'
-    + '<h3 class="hsum-title"></h3><p class="hsum-reason"></p>'
+    + '<header class="hsum-head"><h3 class="hsum-title"></h3><p class="hsum-when"></p></header><p class="hsum-reason"></p>'
     + '<dl class="hsum-stats">' + STATS.map(([k, label]) => '<div class="hsum-stat"><dt>' + label + '</dt><dd data-stat="' + k + '"></dd></div>').join('') + '</dl>'
     + '<div class="hsum-actions">'
     + '<button type="button" class="hh-tool is-primary" data-hs-act="again">Hunt again</button>'
@@ -67,6 +67,21 @@ function lines(host, doc, items) {
   });
 }
 
+/* A loot or supply line, as the Bag and the analyzer show an item: its pixel icon, its name (where a supply came
+   from under it), the count at the right. `items`: [{ it, n, from }]; the icon is written once per row. */
+function itemLines(host, ctx, items) {
+  rows(host, items, {
+    key: (x) => x.it + '|' + (x.from || ''),
+    build: (x) => li(ctx.doc, '<li class="hsum-item"><span class="hsum-ico">' + itemIconHtml(ctx.glyphs, x.it) + '</span>'
+      + '<span class="hsum-name"><b></b><small></small></span><span class="hsum-n"></span></li>'),
+    patch: (el, x) => {
+      text(el.querySelector('b'), itemName(x.it));
+      text(el.querySelector('small'), x.from === 'store' ? 'from the store' : x.from ? 'from your bag' : '');
+      text(el.querySelector('.hsum-n'), '×' + whole(x.n));
+    },
+  });
+}
+
 renderHuntSummary.patch = function patchHuntSummary(body, ctx) {
   const cs = ctx.character;
   const a = attach(cs);
@@ -86,19 +101,20 @@ renderHuntSummary.patch = function patchHuntSummary(body, ctx) {
   const card = root.querySelector('.hsum-card');
   cls(card, 'is-on', !!cur);
   if (cur) {
-    text(root.querySelector('.hsum-title'), groundName(cur) + (cur.at ? ' · ' + dayTime(cur.at) : ''));
+    text(root.querySelector('.hsum-title'), groundName(cur));
+    text(root.querySelector('.hsum-when'), cur.at ? dayTime(cur.at) : '');
     text(root.querySelector('.hsum-reason'), cur.reason ? endWords(cur.reason, cur.forfeit, cur.by, nameOf(cs)) : 'The hunt ended.');
     for (const [k, , fmt, onlySent] of STATS) {
       const dd = root.querySelector('[data-stat="' + k + '"]');
       text(dd, fmt(cur[k]));
       prop(dd.parentNode, 'hidden', !!onlySent && (cur[k] === null || cur[k] === undefined));
     }
-    const loot = cur.loot.map(([it, n]) => whole(n) + ' × ' + itemName(it));
+    const loot = cur.loot.map(([it, n]) => ({ it, n }));
     cls(root.querySelector('.hsum-h-loot'), 'is-on', loot.length > 0);
-    lines(root.querySelector('.hsum-loot'), ctx.doc, loot);
-    const sup = cur.supplies.map(([it, src, n]) => whole(n) + ' × ' + itemName(it) + (src === 'store' ? ' (from the store)' : ' (from your bag)'));
+    itemLines(root.querySelector('.hsum-loot'), ctx, loot);
+    const sup = cur.supplies.map(([it, src, n]) => ({ it, n, from: src === 'store' ? 'store' : 'bag' }));
     cls(root.querySelector('.hsum-h-sup'), 'is-on', sup.length > 0);
-    lines(root.querySelector('.hsum-sup'), ctx.doc, sup);
+    itemLines(root.querySelector('.hsum-sup'), ctx, sup);
     cls(root.querySelector('.hsum-h-deaths'), 'is-on', cur.deaths.length > 0);
     lines(root.querySelector('.hsum-deaths'), ctx.doc, cur.deaths);
     const again = huntAgainOf(cur);

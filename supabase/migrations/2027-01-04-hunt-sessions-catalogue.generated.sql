@@ -25,11 +25,11 @@
 -- (hr_hunt_lanes) carries the Challenge, the Hunter's Mark and the shields; each role key
 -- names its discipline and shield arm (hr_hunt_weapon_roles), the shields are
 -- hr_hunt_shields, and hr_hunt_roles is RETIRED (empty). ORDER: after
--- 2026-12-28-items-catalogue.generated.sql (hr_items: the runes and the shields) and
--- 2026-12-29-slot-truth.sql; right before 2026-12-30-spell-content.sql (its §0 needs
--- green_sickness) and 2026-12-31-spell-roles.sql (hr_hunt_weapon_of and
+-- 2027-01-02-items-catalogue.generated.sql (hr_items: the runes and the shields) and
+-- 2027-01-03-slot-truth.sql; right before 2027-01-04-spell-content.sql (its §0 needs
+-- green_sickness) and 2027-01-05-spell-roles.sql (hr_hunt_weapon_of and
 -- hr_hunt_settings_view read the new columns; between the two the old view finds no
--- role discipline); the hr-accrue deploy follows 12-31 AT ONCE.
+-- role discipline); the hr-accrue deploy follows 2027-01-05 AT ONCE.
 -- Carried from 12-20 (lane b-loot-bands, designer + Tyler 2026-10-23, the loot bands):
 -- every ground's monsters carry the banded drop tables (hr_hunt_kill_bounds: every
 -- Scarce, Rare and Trophy item a kill may pay), the Ruff and the Trophies are vendor
@@ -196,8 +196,8 @@ alter table public.hr_hunt_abilities add column if not exists ord int not null d
 -- sword alone have their own lists): no fixed cap on how many disciplines share a row.
 alter table public.hr_hunt_abilities drop constraint if exists hr_hunt_abilities_disciplines_check;
 alter table public.hr_hunt_abilities add constraint hr_hunt_abilities_disciplines_check check (cardinality(disciplines) >= 1);
--- RETIRED (lane b-spell-roles, 2026-12-30): a role named ONE ability discipline. A role is now played by several role
--- keys on their own lists (hr_hunt_weapon_roles.discipline); 2026-12-31-spell-roles.sql restates its last reader,
+-- RETIRED (lane b-spell-roles, 2027-01-04): a role named ONE ability discipline. A role is now played by several role
+-- keys on their own lists (hr_hunt_weapon_roles.discipline); 2027-01-05-spell-roles.sql restates its last reader,
 -- hr_hunt_settings_view. Kept, EMPTY, because applied history's §0 checks and bodies name it.
 create table if not exists public.hr_hunt_roles (
   role       text primary key check (role ~ '^[a-z0-9_]{1,64}$'),

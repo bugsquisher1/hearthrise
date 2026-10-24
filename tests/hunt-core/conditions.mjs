@@ -45,13 +45,13 @@ const MIGRATION = 'supabase/migrations/2026-10-25-action-conditions.sql';
 const STORE_MIGRATION = 'supabase/migrations/2026-11-07-store-by-slot.sql';
 /* The limits (+ max_ignored), the action ids (no rune and no whetstone is an attack item) and the role rule sets (their triggers
    written as real conditions) moved forward: lane b-spell-core, Tyler 2026-10-23. */
-const SLOT_MIGRATION = 'supabase/migrations/2026-12-29-slot-truth.sql';
+const SLOT_MIGRATION = 'supabase/migrations/2027-01-03-slot-truth.sql';
 /* The metrics (Green Sickness's mark, the heal aimed at yourself) and the role rule sets (a rune spell's slot names its
    store rune) moved forward again: lane b-spell-content, Tyler 2026-10-23. */
-const CONTENT_MIGRATION = 'supabase/migrations/2026-12-30-spell-content.sql';
+const CONTENT_MIGRATION = 'supabase/migrations/2027-01-04-spell-content.sql';
 /* The role rule sets (the Melee damage set gains the sword's Flame Strike) and the settings view that places the starter
    bar (restated: the role key's discipline) moved forward again: lane b-spell-roles, Tyler 2026-10-23. */
-const ROLES_MIGRATION = 'supabase/migrations/2026-12-31-spell-roles.sql';
+const ROLES_MIGRATION = 'supabase/migrations/2027-01-05-spell-roles.sql';
 
 async function load(root) {
   const M = await loadCore(root);
@@ -840,7 +840,7 @@ const cases = {
       if (got !== want) return 'the migration\'s ' + tag + ' block is stale (node tests/hunt-core/conditions.mjs --print)';
     }
     /* THE STARTER BAR the server places for a new hero is the start kit's (src/data/start-kit.js START_BAR). */
-    /* the chain end's settings view (2026-12-31-spell-roles.sql restates it, the 2026-11-07 placement block unchanged) */
+    /* the chain end's settings view (2027-01-05-spell-roles.sql restates it, the 2026-11-07 placement block unchanged) */
     const sb = /-- ⟦starter-bar⟧\n\s*v_def := v_def \|\| '([^\n]*)'::jsonb;\n\s*-- ⟦\/starter-bar⟧/.exec(roles);
     let bar = null;
     try { bar = sb ? JSON.parse(sb[1].replace(/''/g, "'")) : null; } catch { bar = null; }

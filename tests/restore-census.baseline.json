@@ -1090,7 +1090,7 @@
   "hr_hunt_roles": {
    "class": "seeded",
    "replay": 0,
-   "note": "RETIRED by 2026-12-30-hunt-sessions-catalogue (lane b-spell-roles): written EMPTY by the hunt-sessions catalogue; a role no longer names one discipline (hr_hunt_weapon_roles.discipline does, per role key) and 2026-12-31-spell-roles.sql restates its last reader. Kept because applied history names it. Nothing player-owned."
+   "note": "RETIRED by 2027-01-04-hunt-sessions-catalogue (lane b-spell-roles): written EMPTY by the hunt-sessions catalogue; a role no longer names one discipline (hr_hunt_weapon_roles.discipline does, per role key) and 2027-01-05-spell-roles.sql restates its last reader. Kept because applied history names it. Nothing player-owned."
   },
   "hr_hunt_roster": {
    "class": "seeded",
@@ -1105,7 +1105,7 @@
   "hr_hunt_shields": {
    "class": "seeded",
    "replay": 6,
-   "note": "Generated catalogue (2026-12-30-hunt-sessions-catalogue.generated.sql, tools/gen-hunt-sessions.mjs --check from src/data/shields.js isShield): the off-hand items that turn a shield arm into the tank (hr_hunt_weapon_of). Empty = no worn set plays the tank. Rebuilt from repo, never restored; nothing player-owned."
+   "note": "Generated catalogue (2027-01-04-hunt-sessions-catalogue.generated.sql, tools/gen-hunt-sessions.mjs --check from src/data/shields.js isShield): the off-hand items that turn a shield arm into the tank (hr_hunt_weapon_of). Empty = no worn set plays the tank. Rebuilt from repo, never restored; nothing player-owned."
   },
   "hr_hunt_spawns": {
    "class": "seeded",

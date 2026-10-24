@@ -3059,10 +3059,10 @@ const DB_MUTANTS = [
 const SQL_MUTANTS = [
   /* lane b-spell-content (2026-10-23): the old rune ladder's cut journals every holding it takes, and the slot vocabulary
      offers Green Sickness's mark. */
-  { file: '2026-12-28-rune-ladder-cut.sql', name: '[spell-content] a worn old rune is cut unjournalled', find: "  select user_id, slot, 'admin', 'item_cut', p_item, -1,\n         jsonb_build_object('from', 'equipment', 'equip_slot', equip_slot, 'why', 'rune ladder cut 2026-10-23')\n    from d;",
+  { file: '2027-01-02-rune-ladder-cut.sql', name: '[spell-content] a worn old rune is cut unjournalled', find: "  select user_id, slot, 'admin', 'item_cut', p_item, -1,\n         jsonb_build_object('from', 'equipment', 'equip_slot', equip_slot, 'why', 'rune ladder cut 2026-10-23')\n    from d;",
     replace: "  select user_id, slot, 'admin', 'item_cut', p_item, -1,\n         jsonb_build_object('from', 'equipment', 'equip_slot', equip_slot, 'why', 'rune ladder cut 2026-10-23')\n    from d where false;" },
-  { file: '2026-12-30-spell-content.sql', name: '[spell-content] a condition cannot name Green Sickness\'s mark', find: "array['bleed', 'sickness']::text[])", replace: "array['bleed']::text[])" },
-  { file: '2026-12-30-spell-content.sql', name: '[spell-content] a heal cannot be aimed at yourself', find: "0, 100, array['lowest', 'self', 'tank', 'melee_dps', 'ranger', 'mage', 'healer']::text[], false, '{}'::text[]),\n  ('ally_mana_pct'",
+  { file: '2027-01-04-spell-content.sql', name: '[spell-content] a condition cannot name Green Sickness\'s mark', find: "array['bleed', 'sickness']::text[])", replace: "array['bleed']::text[])" },
+  { file: '2027-01-04-spell-content.sql', name: '[spell-content] a heal cannot be aimed at yourself', find: "0, 100, array['lowest', 'self', 'tank', 'melee_dps', 'ranger', 'mage', 'healer']::text[], false, '{}'::text[]),\n  ('ally_mana_pct'",
     replace: "0, 100, array['lowest', 'tank', 'melee_dps', 'ranger', 'mage', 'healer']::text[], false, '{}'::text[]),\n  ('ally_mana_pct'" },
   /* LEAVE TOGETHER: the file's own §4 refuses each. */
   { file: '2026-12-18-party-leave-together.sql', name: '[leave together] the box defaults off',

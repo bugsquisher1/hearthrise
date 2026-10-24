@@ -106,9 +106,11 @@ const versionOf = () => (/cache:\s*'([^']+)'/.exec(readFile('src/build-info.js')
 
 if (process.argv.includes('--write')) {
   const html = readFile(PAGE), version = versionOf();
-  const block = blockFor(graphOf(entryOf(html), readFile), version);
+  /* the page's own line endings (a Windows checkout writes CRLF): never a file of mixed endings */
+  const eol = html.includes('\r\n') ? '\r\n' : '\n';
+  const block = blockFor(graphOf(entryOf(html), readFile), version).split('\n').join(eol);
   const a = html.indexOf(BEGIN), b = html.indexOf(END);
-  const next = a >= 0 && b > a ? html.slice(0, a) + block + html.slice(b + END.length) : html.replace('</head>', block + '\n</head>');
+  const next = a >= 0 && b > a ? html.slice(0, a) + block + html.slice(b + END.length) : html.replace('</head>', block + eol + '</head>');
   writeFileSync(join(ROOT, PAGE), next);
   console.log('module-preload --write: ' + (next.match(/rel="modulepreload"/g) || []).length + ' modules in ' + PAGE + ' at ?v=' + version);
   process.exit(0);

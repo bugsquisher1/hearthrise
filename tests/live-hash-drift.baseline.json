@@ -24,10 +24,10 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-10-24",
- "replay_ms": 2709,
+ "replay_ms": 5117,
  "counts": {
-  "tracked_names": 655,
-  "entries": 510
+  "tracked_names": 666,
+  "entries": 521
  },
  "functions": [
   {
@@ -5068,17 +5068,18 @@
     "2026-10-28-hunt-enter-after-stamina.sql",
     "2026-10-28-party-flow.sql",
     "2026-10-30-town-activity-yields.sql",
-    "2026-12-05-hunt-setup-per-ground.sql"
+    "2026-12-05-hunt-setup-per-ground.sql",
+    "2027-01-19-play-cap.sql"
    ],
    "live": {
-    "md5": "70b8fbedc0b9ddcfd084a6a42032507e",
-    "norm_len": 6229,
+    "md5": "66348aae99ceb9309700681674f5105c",
+    "norm_len": 7272,
     "measured": "2026-10-24",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "70b8fbedc0b9ddcfd084a6a42032507e",
-    "norm_len": 6229,
+    "md5": "66348aae99ceb9309700681674f5105c",
+    "norm_len": 7272,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -5787,17 +5788,18 @@
     "2026-10-27-core-bodies.sql",
     "2026-10-28-party-flow.sql",
     "2026-10-30-town-activity-yields.sql",
-    "2026-12-07-party-finder.sql"
+    "2026-12-07-party-finder.sql",
+    "2027-01-19-play-cap.sql"
    ],
    "live": {
-    "md5": "42844e901bcd9c6298b4f76e74ae24f8",
-    "norm_len": 4457,
+    "md5": "b3185d866250afacf0ed56fd5afbf36c",
+    "norm_len": 5393,
     "measured": "2026-10-24",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "42844e901bcd9c6298b4f76e74ae24f8",
-    "norm_len": 4457,
+    "md5": "b3185d866250afacf0ed56fd5afbf36c",
+    "norm_len": 5393,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -7165,23 +7167,25 @@
    "sig": "hr_load(p_slot integer)",
    "name": "hr_load",
    "tracked_by": [
+    "chain",
     "pin",
     "restate"
    ],
    "touched_by": [
     "2026-08-11-apply-engine.sql",
     "2026-10-22-closed-mode-ungated-rpcs.sql",
-    "2026-11-02-hero-creation.sql"
+    "2026-11-02-hero-creation.sql",
+    "2027-01-19-play-cap.sql"
    ],
    "live": {
-    "md5": "7b00b9dfd70554b36c6de7a01da4a73c",
-    "norm_len": 1675,
+    "md5": "c3d0a7b8e8a3ef42403e23eb2e757ca1",
+    "norm_len": 2112,
     "measured": "2026-10-24",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "7b00b9dfd70554b36c6de7a01da4a73c",
-    "norm_len": 1675,
+    "md5": "c3d0a7b8e8a3ef42403e23eb2e757ca1",
+    "norm_len": 2112,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -8534,17 +8538,18 @@
     "restate"
    ],
    "touched_by": [
-    "2026-12-07-party-finder.sql"
+    "2026-12-07-party-finder.sql",
+    "2027-01-19-play-cap.sql"
    ],
    "live": {
-    "md5": "3c2e3f48711a2d7644792b2aad09ea70",
-    "norm_len": 1416,
+    "md5": "5f482e36e7856efc05c35499e2478e4e",
+    "norm_len": 1929,
     "measured": "2026-10-24",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "3c2e3f48711a2d7644792b2aad09ea70",
-    "norm_len": 1416,
+    "md5": "5f482e36e7856efc05c35499e2478e4e",
+    "norm_len": 1929,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -8730,6 +8735,226 @@
    "agree": true
   },
   {
+   "sig": "hr_play_cap_guard()",
+   "name": "hr_play_cap_guard",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "2027-01-19-play-cap.sql"
+   ],
+   "live": {
+    "md5": "29b3211195b7eedeffe339dc59bb0538",
+    "norm_len": 1509,
+    "measured": "2026-10-24",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "29b3211195b7eedeffe339dc59bb0538",
+    "norm_len": 1509,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_play_claim(p_uid uuid, p_slot integer)",
+   "name": "hr_play_claim",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "2027-01-19-play-cap.sql"
+   ],
+   "live": {
+    "md5": "02f15ee98e746a257dddf505f882970e",
+    "norm_len": 909,
+    "measured": "2026-10-24",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "02f15ee98e746a257dddf505f882970e",
+    "norm_len": 909,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_play_lock(p_uid uuid, p_net bytea)",
+   "name": "hr_play_lock",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "2027-01-19-play-cap.sql"
+   ],
+   "live": {
+    "md5": "c711de24362b0143f4b19b82460ba1b4",
+    "norm_len": 602,
+    "measured": "2026-10-24",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "c711de24362b0143f4b19b82460ba1b4",
+    "norm_len": 602,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_play_lock_for(p_uid uuid)",
+   "name": "hr_play_lock_for",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "2027-01-19-play-cap.sql"
+   ],
+   "live": {
+    "md5": "306cf94884c399a84cd93935b1403d6c",
+    "norm_len": 410,
+    "measured": "2026-10-24",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "306cf94884c399a84cd93935b1403d6c",
+    "norm_len": 410,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_play_lock_key(p_kind text, p_id text)",
+   "name": "hr_play_lock_key",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "2027-01-19-play-cap.sql"
+   ],
+   "live": {
+    "md5": "4f409289b235ae0e1148516558afc69d",
+    "norm_len": 429,
+    "measured": "2026-10-24",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "4f409289b235ae0e1148516558afc69d",
+    "norm_len": 429,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_play_lock_seats(p_party uuid)",
+   "name": "hr_play_lock_seats",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "2027-01-19-play-cap.sql"
+   ],
+   "live": {
+    "md5": "95eb03ecd494ef7d2a3873a63ebf515c",
+    "norm_len": 1293,
+    "measured": "2026-10-24",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "95eb03ecd494ef7d2a3873a63ebf515c",
+    "norm_len": 1293,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_play_net_hash(p_ip text)",
+   "name": "hr_play_net_hash",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "2027-01-19-play-cap.sql"
+   ],
+   "live": {
+    "md5": "f51b559fb5adb4ee16edb1b3a7d3a5ae",
+    "norm_len": 1440,
+    "measured": "2026-10-24",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "f51b559fb5adb4ee16edb1b3a7d3a5ae",
+    "norm_len": 1440,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_play_net_note(p_uid uuid)",
+   "name": "hr_play_net_note",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "2027-01-19-play-cap.sql"
+   ],
+   "live": {
+    "md5": "c78439988934bccb8517057e989bb5bb",
+    "norm_len": 908,
+    "measured": "2026-10-24",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "c78439988934bccb8517057e989bb5bb",
+    "norm_len": 908,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_play_net_of(p_uid uuid)",
+   "name": "hr_play_net_of",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "2027-01-19-play-cap.sql"
+   ],
+   "live": {
+    "md5": "cc34d6202a5c0d931c82a17cc418583c",
+    "norm_len": 823,
+    "measured": "2026-10-24",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "cc34d6202a5c0d931c82a17cc418583c",
+    "norm_len": 823,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_play_refusal(p_uid uuid, p_slot integer, p_net bytea, p_party uuid)",
+   "name": "hr_play_refusal",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "2027-01-19-play-cap.sql"
+   ],
+   "live": {
+    "md5": "53a52ce32016c50b17472a0a2432801f",
+    "norm_len": 2456,
+    "measured": "2026-10-24",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "53a52ce32016c50b17472a0a2432801f",
+    "norm_len": 2456,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
    "sig": "hr_players_online(p_slots integer[])",
    "name": "hr_players_online",
    "tracked_by": [
@@ -8747,6 +8972,28 @@
    "replay": {
     "md5": "f9d636dfab258bef48a945f97e8992c7",
     "norm_len": 2196,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_playing(p_uid uuid, p_slot integer)",
+   "name": "hr_playing",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "2027-01-19-play-cap.sql"
+   ],
+   "live": {
+    "md5": "eaeef5dd668df49c73cc28a9a84b600e",
+    "norm_len": 608,
+    "measured": "2026-10-24",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "eaeef5dd668df49c73cc28a9a84b600e",
+    "norm_len": 608,
     "source": "computed-from-replay"
    },
    "agree": true

@@ -21,7 +21,10 @@
 //       cron.job_run_details and logs phase_ms. So a later file restating any
 //       of them from an older text is red here, not silent (the file's own §4
 //       only runs at its own position).
-//   G3  IDEMPOTENT: a second apply of the file moves no definition and no ACL.
+//   G3  IDEMPOTENT: a second apply of the file moves no definition and no ACL, judged on the chain AS OF
+//       this file (the chain before it is append-only). A later file that restates one of its pinned
+//       bodies (2027-01-16-cron-health-fast.sql: hr_cron_health_ex) is refused by this file's §0 at the
+//       chain END by design — that pin is what makes a re-apply over a moved body fail loudly.
 //   --mutate  plants fifteen defects into the migration and requires its §4
 //       to refuse each by NAME (an apply that fails for another reason is not a
 //       catch).
@@ -171,7 +174,12 @@ async function main() {
     problems.push('G1: ' + String((e && e.message) || e).slice(0, 300));
   }
   await finalState(db);
-  await idempotent(db, own);
+  let own_db;
+  try { ({ db: own_db } = await bootReplay({ upTo: OWN })); } catch (e) {
+    console.error('harness: the chain does not replay up to ' + OWN + ': ' + ((e && e.message) || e));
+    process.exit(2);
+  }
+  await idempotent(own_db, own);
 
   if (MUTATE) {
     let bad = 0;

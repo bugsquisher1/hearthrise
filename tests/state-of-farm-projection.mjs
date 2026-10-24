@@ -30,6 +30,13 @@
 // but not array-VALUED passes every "does the key exist" assertion and still
 // ships the bug.
 //
+// AT THE CHAIN END (2027-01-18-dead-surfaces-cut.sql) the per-plot `farm` array is
+// gone from hr_state_of: the rebuilt client reads the account's field through the
+// `farm_land` section, whose readiness the server judges. The clean pass there proves
+// the array stays gone and that the Farm window's countdown equals the server's growth
+// over the FULL watering history (and not a one-watering one); the mutation arms
+// still replay to ARMS_API, where the array was the field's projection.
+//
 // Run GREEN:  node tests/state-of-farm-projection.mjs
 // Prove RED:  node tests/state-of-farm-projection.mjs --selftest
 //
@@ -266,13 +273,28 @@ async function runAll(db) {
   const env = (await db.query(`select public.hr_state_of($1::uuid, 0) as env`, [A])).rows[0].env;
   ok(env && env.state && Number(env.state.plot_level) === 3,
      `hr_state_of PROJECTS state.plot_level = 3 (got ${env && env.state && env.state.plot_level})`);
-  const fp = env && Array.isArray(env.farm) ? env.farm[0] : null;
-  ok(!!fp, 'hr_state_of projects the planted plot');
-  ok(Array.isArray(fp && fp.waterings) && fp.waterings.length === 4,
-     `hr_state_of PROJECTS all four waterings (got ${fp && JSON.stringify(fp.waterings)})`);
-  ok(fp && fp.watered_at != null,
-     'watered_at is STILL projected — the splice is additive, an older client reads it');
-  ok(fp && fp.planted_at != null, 'planted_at survived the splice');
+  /* THE CHAIN END (2027-01-18-dead-surfaces-cut.sql): the per-plot `farm` array left the envelope. The
+     rebuilt client reads the field through the `farm_land` section (hr_farm_land_view, 2026-12-14-shared-
+     farm.sql), whose readiness the SERVER judges from the full watering history, so Q-5's property is
+     checked there: a lossy history would strand a ready crop behind a Water button just the same. The
+     mutation arms replay to ARMS_API (`shared` false), where the array is still the field's projection. */
+  if (shared) {
+    ok(env && !Object.prototype.hasOwnProperty.call(env, 'farm'),
+       'the cut per-plot `farm` array is back in hr_state_of — the client reads farm_land; a second copy of the field is a second truth');
+    const land = env && env.farm_land;
+    const lp = land && Array.isArray(land.plots) ? land.plots.find((p) => p && p.i === 0) : null;
+    ok(!!land && Number(land.plot_level) === 3, `farm_land carries plot_level 3 (got ${land && land.plot_level})`);
+    ok(!!lp && lp.crop === crop && lp.ready === false && Number(lp.ready_in_s) > 0,
+       `farm_land projects the planted, still-growing plot (got ${JSON.stringify(lp)})`);
+  } else {
+    const fp = env && Array.isArray(env.farm) ? env.farm[0] : null;
+    ok(!!fp, 'hr_state_of projects the planted plot');
+    ok(Array.isArray(fp && fp.waterings) && fp.waterings.length === 4,
+       `hr_state_of PROJECTS all four waterings (got ${fp && JSON.stringify(fp.waterings)})`);
+    ok(fp && fp.watered_at != null,
+       'watered_at is STILL projected — the splice is additive, an older client reads it');
+    ok(fp && fp.planted_at != null, 'planted_at survived the splice');
+  }
   ok(env && env.state && env.state.marks !== undefined,
      'the marks projection survived — this migration did not restate a stale body');
 
@@ -296,6 +318,30 @@ async function runAll(db) {
   const rec = E.applyEnvelope(null, env).record;
   ok(!!rec && rec.data.state && rec.data.state.plot_level === 3,
      `the client record carries state.plot_level 3 after a reload (got ${rec && rec.data.state && rec.data.state.plot_level})`);
+  if (shared) {
+    /* THE AGREEMENT at the chain end: the countdown the Farm window shows (src/session/farm-sections.js
+       readyInS, the server's own seconds) equals the server's growth model over ALL FOUR waterings at the
+       instant the envelope was read (env.now), and differs from what a one-watering history would say. */
+    const FS = await import(new URL('src/session/farm-sections.js', ROOT).href);
+    const field = FS.farmFieldOf({ read: (k) => rec && rec.data[k] });
+    const shown = field && field.plots.get(0);
+    const at = env.now;
+    const hoursAt = async (w) => Number((await db.query(
+      `select public.hr_farm_growth_hours($1::timestamptz, $2::timestamptz[], $3::timestamptz) as h`,
+      [row.planted_at, w, at])).rows[0].h);
+    const lastW = Math.max(...row.waterings.map((w) => Date.parse(w)));
+    const winS = Math.max(0, (lastW + 2 * 3600 * 1000 - Date.parse(at)) / 1000);
+    /* hr_farm_land_view's seconds-to-ready: a watered window grows at twice the rate, then plain hours. */
+    const readyInS = (h) => { const rem = baseH - h; if (rem <= 0) return 0;
+      return winS / 3600 * 2 >= rem ? Math.ceil(rem / 2 * 3600) : Math.ceil(winS + (rem - winS / 3600 * 2) * 3600); };
+    const want = readyInS(await hoursAt(row.waterings)), lossy = readyInS(await hoursAt([row.watered_at]));
+    ok(Math.abs(want - lossy) > 60,
+       `the fixture is NON-VACUOUS at the chain end: four waterings (${want}s) and one (${lossy}s) must differ`);
+    ok(!!shown && Math.abs(shown.readyInS - want) <= 1,
+       `the Farm window's countdown (${shown && shown.readyInS}s) AGREES with the server's growth over all four `
+       + `waterings (${want}s; one watering would say ${lossy}s) — Q-5 holds on farm_land`);
+    return;
+  }
   const p = rec && Array.isArray(rec.data.farm) ? rec.data.farm[0] : null;
   ok(!!p && Array.isArray(p.waterings) && p.waterings.length === 4,
      `the client record carries all FOUR waterings (got ${p && JSON.stringify(p.waterings)})`);

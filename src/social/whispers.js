@@ -87,10 +87,12 @@ export class WhisperStore {
     return c;
   }
 
-  /* A whisper row into its conversation (the other player is whoever is not me). */
+  /* A whisper row into its conversation (the other player is whoever is not me). A row already held only refreshes
+     its names (the server renders each hero's CURRENT name, 2027-01-17), so a rename reaches it at the next read. */
   _take(row, live) {
     const l = lineOf(row);
-    if (!l || !l.toId || this._ids.has(l.id)) return false;
+    if (!l || !l.toId) return false;
+    if (this._ids.has(l.id)) return this._rename(l);
     const mine = l.fromId === this._me;
     const other = mine ? l.toId : l.fromId;
     if (!other) return false;
@@ -106,6 +108,18 @@ export class WhisperStore {
       if (!(s.open && s.tab === whisperTab(other) && this._now() - s.at < 1000)) c.unread++;
     }
     this._trim();
+    return true;
+  }
+
+  _rename(l) {
+    const mine = l.fromId === this._me;
+    const c = this._convs.get(mine ? l.toId : l.fromId);
+    const held = c && c.lines.find((x) => x.id === l.id);
+    if (!held || (held.name === l.name && held.toName === l.toName)) return false;
+    held.name = l.name;
+    held.toName = l.toName;
+    const last = c.lines[c.lines.length - 1];
+    if (last === held) c.name = mine ? l.toName : l.name;
     return true;
   }
 

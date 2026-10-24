@@ -49,6 +49,17 @@
 // proved a payout rule of a door that no longer exists. Clan membership, clan chat
 // and the clan doors Tyler did not name are NOT guarded out.
 //
+// THE FOURTH CUT (lane c-dead-surfaces, 2027-01-18-dead-surfaces-cut.sql): what has no
+// screen and no player. The crew doors hr_worker_hire / hr_worker_assign join OR-1 and
+// OR-4 (dropped, baseline rows deleted). The 23 clan doors are CLOSED, not dropped: their
+// bodies and tables stay as a base for the guild lane (Tyler keeps guild chat for Early
+// Access), so OR-4 tracks only their client-baseline rows, and OR-1 keeps code from
+// calling a door every player is refused at. Re-opening one is a reviewed file that
+// re-inserts the baseline row and updates CLOSED_RPCS here, in the same change.
+//   OR-7  the CHAIN-END hr_state_of projects no crew (`workers`, workers_accrued_to,
+//         player_workers) and no per-plot `farm` array (the Farm window reads the
+//         `farm_land` section); comments are not code
+//
 // Pure text + two data imports, no database, no network. Exit: 0 green · 1 red · 2 harness.
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -78,6 +89,17 @@ export const NAMES = [
 export const WORLD_ACTION_RPCS = ['raid_strike', 'clan_hunt_declare', 'clan_tier_up', 'clan_work_complete',
   'clan_board_roll', 'clan_board_progress', 'world_event_join', 'world_event_contribute', 'world_event_pledge',
   'world_event_pledge_settle', 'world_event_absence_claim', 'hr_rally_pledge_state'];
+/* The fourth cut's dropped crew doors, 2027-01-18-dead-surfaces-cut.sql §1. */
+export const CREW_RPCS = ['hr_worker_hire', 'hr_worker_assign'];
+/* The fourth cut's CLOSED clan doors (2027-01-18-dead-surfaces-cut.sql §3): EXECUTE revoked from every client
+   role and the baseline rows deleted; the bodies and the clan tables stay. */
+export const CLOSED_RPCS = ['clan_contribute', 'clan_create', 'clan_deposit', 'clan_feast_call', 'clan_feast_deposit',
+  'clan_invite', 'clan_invite_revoke', 'clan_invites_list', 'clan_join', 'clan_join_policy_set', 'clan_kick',
+  'clan_leave', 'clan_rested_grant', 'clan_seat_read', 'clan_vice_set', 'clan_vote_cast', 'clan_vote_close',
+  'clan_vote_open', 'clan_vote_read', 'clan_work_labour', 'clan_work_post', 'clan_work_supply', 'hr_clan_browser'];
+/* OR-7: the envelope's chain-end body and what it must not project again. */
+export const ENVELOPE_BODY = 'hr_state_of';
+const ENVELOPE_CUT = /\bplayer_workers\b|\bworkers_accrued_to\b|'(?:farm|workers)'/;
 /* The server half: every function and table 2026-12-02-old-rewards-cut.sql drops. */
 export const CUT_FUNCTIONS = [
   'hr_claim_quest', 'hr_claim_quest__ungated', 'hr_quest_rewards_items_ok',
@@ -99,6 +121,8 @@ export const CUT_FUNCTIONS = [
   'hr_rally_refresh', 'hr_rally_points_of', 'hr_rally_point_rules', 'hr_rally_pledge_char', 'hr_rally_xp_credit',
   'hr_rally_absent_chest', 'hr_rally_chest', 'hr_rally_chest_value', 'hr_rally_day_close', 'hr_rally_day',
   'hr_rally_slot', 'hr_rally_event_for_key', 'hr_rally_event_id', 'hr_rally_pool', 'hr_rally_theme',
+  // the fourth cut (2027-01-18-dead-surfaces-cut.sql)
+  ...CREW_RPCS,
 ];
 export const CUT_TABLES = ['hr_quest_rewards', 'hr_hunt_loot_roster', 'hr_goal_rewards', 'raid_claims',
   'raid_contributions', 'clan_raids', 'clan_board', 'hr_castle_board_tasks', 'hr_hunt_bosses', 'hr_hunt_tiers',
@@ -107,7 +131,7 @@ export const CUT_TABLES = ['hr_quest_rewards', 'hr_hunt_loot_roster', 'hr_goal_r
 export const NEVER_SHIPPED = ['table:hr_hunt_loot_roster'];
 /* The client RPCs: the old client called them by name, so no code may name them either. */
 export const CUT_RPCS = ['hr_claim_quest', 'hr_claim_milestone', 'hr_claim_rank', 'hr_claim_daily', 'hr_tally_state',
-  'raid_claim', 'world_event_claim', 'clan_board_claim', ...WORLD_ACTION_RPCS];
+  'raid_claim', 'world_event_claim', 'clan_board_claim', ...WORLD_ACTION_RPCS, ...CREW_RPCS];
 export const DELETED_FILES = ['src/data/goal-catalogue.js', 'src/data/collection-milestones.js', 'src/data/rewards.js',
   'supabase/functions/hr-accrue/goal-period.js'];
 /* OR-6: the daily writers 2026-12-03-daily-claims-cut.sql restated whole (and 2026-12-14-shared-farm.sql again):
@@ -151,7 +175,7 @@ export function eventsOf(sql) {
   for (let m; (m = tbRe.exec(code));) ev.push({ at: m.index, kind: 'table', name: m[2].toLowerCase(), op: /^create/i.test(m[1]) ? 'make' : 'drop' });
   const blRe = /\b(insert\s+into|delete\s+from)\s+(?:public\.)?hr_client_rpc_baseline\b([^;]*)/gi;
   for (let m; (m = blRe.exec(code));) {
-    for (const rpc of CUT_RPCS) if (new RegExp("'" + rpc + "'").test(m[2])) ev.push({ at: m.index, kind: 'baseline', name: rpc, op: /^insert/i.test(m[1]) ? 'make' : 'drop' });
+    for (const rpc of [...CUT_RPCS, ...CLOSED_RPCS]) if (new RegExp("'" + rpc + "'").test(m[2])) ev.push({ at: m.index, kind: 'baseline', name: rpc, op: /^insert/i.test(m[1]) ? 'make' : 'drop' });
   }
   return ev.sort((a, b) => a.at - b.at);
 }
@@ -189,6 +213,7 @@ export function check(w) {
   for (const [file, text] of w.files) {
     const code = file.endsWith('.html') ? text.replace(/<!--[\s\S]*?-->/g, '') : stripComments(text);
     for (const nm of NAMES.concat(CUT_RPCS)) if (word(nm).test(code)) add('OR-1', `${file} names the cut ${nm} — that reward is gone; a new reward is a new design, not a revived row`);
+    for (const nm of CLOSED_RPCS) if (word(nm).test(code)) add('OR-1', `${file} calls the closed clan door ${nm} — every player is refused at it; a guild screen re-opens it through a reviewed file first`);
   }
   for (const f of w.exists) add('OR-2', `${f} is a cut data file and exists again`);
   if (w.slots.includes('companion')) add('OR-3', "EQUIP_SLOTS has the cut 'companion' slot again");
@@ -199,7 +224,8 @@ export function check(w) {
   }
   const last = new Map();
   for (const [file, text] of w.sql) for (const e of eventsOf(text)) last.set(e.kind + ':' + e.name, { ...e, file });
-  const want = [...CUT_FUNCTIONS.map((n) => 'fn:' + n), ...CUT_TABLES.map((n) => 'table:' + n), ...CUT_RPCS.map((n) => 'baseline:' + n)];
+  const want = [...CUT_FUNCTIONS.map((n) => 'fn:' + n), ...CUT_TABLES.map((n) => 'table:' + n),
+    ...[...CUT_RPCS, ...CLOSED_RPCS].map((n) => 'baseline:' + n)];
   for (const k of want) {
     const e = last.get(k);
     if (!e) { if (!NEVER_SHIPPED.includes(k)) add('OR-4', `no migration in the apply order ever touches ${k} — the guard's list is stale`); continue; }
@@ -216,6 +242,15 @@ export function check(w) {
     const code = body.replace(/--[^\n]*/g, '');
     if (/'daily'/.test(code)) add('OR-6', `${from} leaves ${name} naming kind 'daily' — the daily counters were cut`);
   }
+  {
+    let body = null, from = null;
+    for (const [file, text] of w.sql) { const b = lastBody(text, ENVELOPE_BODY); if (b !== null) { body = b; from = file; } }
+    if (body === null) add('OR-7', `no migration creates ${ENVELOPE_BODY} — the guard's target is stale`);
+    else {
+      const m = ENVELOPE_CUT.exec(body.replace(/--[^\n]*/g, ''));
+      if (m) add('OR-7', `${from} leaves the chain-end ${ENVELOPE_BODY} naming ${m[0]} — the crew and the per-plot farm array were cut from the envelope (the Farm window reads farm_land)`);
+    }
+  }
   return problems;
 }
 
@@ -230,6 +265,7 @@ function selftest(w) {
   const cutFile = (x, fn) => { const i = x.sql.findIndex(([f]) => f === '2026-12-02-old-rewards-cut.sql'); x.sql[i] = [x.sql[i][0], fn(x.sql[i][1])]; };
   const cut2 = (x, fn) => { const i = x.sql.findIndex(([f]) => f === '2026-12-03-daily-claims-cut.sql'); const b = x.sql[i][1]; const a = fn(b); if (a === b) throw new Error('cut2 plant did not change the file'); x.sql[i] = [x.sql[i][0], a]; };
   const cut3 = (x, fn) => { const i = x.sql.findIndex(([f]) => f === '2026-12-04-world-actions-cut.sql'); if (i < 0) throw new Error('cut3: the third cut file is not in the apply order'); const b = x.sql[i][1].replace(/\r\n/g, '\n'); const a = fn(b); if (a === b) throw new Error('cut3 plant did not change the file'); x.sql[i] = [x.sql[i][0], a]; };
+  const cut4 = (x, fn) => { const i = x.sql.findIndex(([f]) => f === '2027-01-18-dead-surfaces-cut.sql'); if (i < 0) throw new Error('cut4: the fourth cut file is not in the apply order'); const b = x.sql[i][1].replace(/\r\n/g, '\n'); const a = fn(b); if (a === b) throw new Error('cut4 plant did not change the file'); x.sql[i] = [x.sql[i][0], a]; };
   /* OR-6 plants land where the defect would SHIP: the chain-end body of `name`, in whichever file restated it last
      (2026-12-14-shared-farm.sql today). Planting in a superseded body tests nothing: the next restatement masks it. */
   const atEnd = (x, name, fn) => {
@@ -277,6 +313,16 @@ function selftest(w) {
     ['the third cut file forgets a rally helper (hr_rally_theme)', 'OR-4', (x) => { cut3(x, (t) => t.replace('drop function if exists public.hr_rally_theme(text);\n', '')); }],
     ['the third cut file forgets a catalogue table (hr_hunt_bosses)', 'OR-4', (x) => { cut3(x, (t) => t.replace('drop table if exists public.hr_hunt_bosses;\n', '')); }],
     ['the third cut file keeps the clan_work_complete baseline row', 'OR-4', (x) => { cut3(x, (t) => t.replace(" 'clan_work_complete',\n", '\n')); }],
+    // the fourth cut
+    ['a screen calls hr_worker_hire again', 'OR-1', (x) => { x.files.set('src/shell/crew.js', "rpc('hr_worker_hire', { p_slot: 0, p_idem: k });\n"); }],
+    ['a screen calls a closed clan door (clan_work_post)', 'OR-1', (x) => { x.files.set('src/shell/z.js', "rpc('clan_work_post', { p_clan_id: c });\n"); }],
+    ['a later migration restates hr_worker_assign', 'OR-4', (x) => { later(x, 'create or replace function public.hr_worker_assign(p_slot int, p_uid text, p_skill text, p_target text, p_idem uuid)\nreturns jsonb language sql as $$ select null::jsonb $$;\n'); }],
+    ['a later migration re-adds clan_deposit to the client baseline', 'OR-4', (x) => { later(x, "insert into public.hr_client_rpc_baseline (proname, identity_args, grantee, note) values\n  ('clan_deposit', 'p_clan_id uuid, p_items jsonb', 'authenticated', 'back');\n"); }],
+    ['the fourth cut file forgets the hr_worker_hire drop', 'OR-4', (x) => { cut4(x, (t) => t.replace('drop function if exists public.hr_worker_hire(integer, uuid);\n', '')); }],
+    ['the fourth cut file keeps the clan_deposit baseline row', 'OR-4', (x) => { cut4(x, (t) => t.replace(" 'clan_deposit',", '')); }],
+    ['the chain-end hr_state_of projects the per-plot farm array again', 'OR-7', (x) => { atEnd(x, 'hr_state_of', (s) => s.replace("    'enchant', coalesce(v_st.enchant, '{}'::jsonb),\n", "    'enchant', coalesce(v_st.enchant, '{}'::jsonb),\n    'farm', '[]'::jsonb,\n")); }],
+    ['the chain-end hr_state_of reads the crew again', 'OR-7', (x) => { atEnd(x, 'hr_state_of', (s) => s.replace("    'enchant', coalesce(v_st.enchant, '{}'::jsonb),\n", "    'enchant', coalesce(v_st.enchant, '{}'::jsonb),\n    'crew', (select count(*) from public.player_workers),\n")); }],
+    ['a later migration restates hr_state_of with the watermark scalar', 'OR-7', (x) => { later(x, "create or replace function public.hr_state_of(p_user uuid, p_slot integer)\nreturns jsonb language plpgsql as $function$\nbegin return jsonb_build_object('workers_accrued_to', now()); end $function$;\n"); }],
   ];
   for (const [label, want, plant] of arms) {
     const x = clone(w); plant(x);
@@ -290,8 +336,10 @@ function selftest(w) {
     ["a client (not engine) file naming kind: 'daily'", (x) => { x.files.set('src/shell/z.js', "export const row = { kind: 'daily' };\n"); }],
     ["a SUPERSEDED hr_farm_harvest body (restated later) naming kind 'daily'", (x) => { superseded(x, 'hr_farm_harvest', dailyHarvest); }],
     ["an SQL comment in a clean reader naming kind 'daily'", (x) => { later(x, "create or replace function public.hr_farm_plant(p_slot int, p_plot_idx int, p_crop text, p_idem uuid)\nreturns jsonb language sql as $$\n-- the 'daily' plant row was cut\nselect null::jsonb $$;\n"); }],
-    ['a kept clan door (clan_work_post) called from code', (x) => { x.files.set('src/shell/z.js', "rpc('clan_work_post', { p_clan_id: c });\n"); }],
     ['a later migration restating a KEPT clan body (clan_seat_read)', (x) => { later(x, 'create or replace function public.clan_seat_read(p_clan_id uuid)\nreturns jsonb language sql as $$ select null::jsonb $$;\n'); }],
+    ['a JS comment naming the closed clan_deposit', (x) => { x.files.set('src/data/z.js', '// clan_deposit was closed to clients on 2026-10-24\nexport const z = 1;\n'); }],
+    ["a SQL comment in the chain-end hr_state_of naming 'farm' and player_workers", (x) => { atEnd(x, 'hr_state_of', (s) => s.replace("    'enchant', coalesce(v_st.enchant, '{}'::jsonb),\n", "    'enchant', coalesce(v_st.enchant, '{}'::jsonb),\n    -- the 'farm' array and player_workers left on 2026-10-24\n")); }],
+    ["the chain-end hr_state_of's farm_land section (a longer identifier)", (x) => { atEnd(x, 'hr_state_of', (s) => s.replace("    'enchant', coalesce(v_st.enchant, '{}'::jsonb),\n", "    'enchant', coalesce(v_st.enchant, '{}'::jsonb),\n    'farm_land_seen', true,\n")); }],
   ];
   for (const [label, plant] of controls) {
     const x = clone(w); plant(x);
@@ -314,8 +362,9 @@ try {
   }
   console.log(`✓ old-rewards-gone: ${w.files.size} files name none of the ${NAMES.length + CUT_RPCS.length} cut names; `
     + `${DELETED_FILES.length} files stay deleted; no companion slot or fox; ${CUT_FUNCTIONS.length} functions, `
-    + `${CUT_TABLES.length} tables and ${CUT_RPCS.length} baseline rows end the ${w.sql.length}-file chain dropped; `
-    + `the engine proposes no daily op; ${CLEAN_READERS.length} restated farm writers write no daily row`);
+    + `${CUT_TABLES.length} tables and ${CUT_RPCS.length + CLOSED_RPCS.length} baseline rows end the ${w.sql.length}-file chain dropped; `
+    + `the engine proposes no daily op; ${CLEAN_READERS.length} restated farm writers write no daily row; `
+    + `the chain-end ${ENVELOPE_BODY} projects no crew and no per-plot farm array`);
 } catch (e) {
   console.error(`✗ old-rewards-gone harness error: ${e && e.stack || e}`);
   process.exit(2);

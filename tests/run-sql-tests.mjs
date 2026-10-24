@@ -89,6 +89,7 @@ import * as DELETE_AWAY_REMOVALS from './chain-removals/2026-10-22-hunt-sessions
 import * as CORE_BODIES_REMOVALS from './chain-removals/2026-10-27-core-bodies.mjs';
 import * as ACCOUNT_DEPOT_REMOVALS from './chain-removals/2026-11-27-account-depot.mjs';
 import * as ACCOUNT_GOLD_REMOVALS from './chain-removals/2026-12-15-account-gold.mjs';
+import * as DEAD_SURFACES_REMOVALS from './chain-removals/2027-01-18-dead-surfaces-cut.mjs';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 const MIG = (f) => join(ROOT, 'supabase', 'migrations', f);
@@ -650,6 +651,15 @@ const ALSO_LINTED = [
   /* THE ACCOUNT MARKET (lane c-market-account, 2026-10-24): the market verbs re-keyed on the
      account (engine-only), hr_bank_move restated, and link 21 of HR_GRANT_HYGIENE_CHAIN. */
   '2027-01-12-market-account.sql',
+  /* LINKS OF HR_APPLY_CHAIN / HR_STATE_OF_CHAIN that were never listed (2026-10-24, lane b-ci-speed):
+     the derivation walk reads `sources`, so an unlisted link read as '' and failed "cannot extract the
+     body" (4 of the 16 static reds since 2026-10-27), and the c_delta_keys lint read nothing (1 more). */
+  '2026-10-27-core-bodies.sql',
+  '2026-11-27-account-depot.sql',
+  '2026-12-15-account-gold.sql',
+  /* THE DEAD SURFACES CUT (lane c-dead-surfaces, 2026-10-24): HR_STATE_OF_CHAIN's newest link; its revokes
+     (the crew doors dropped, the 23 clan doors closed) are linted here. */
+  '2027-01-18-dead-surfaces-cut.sql',
 ];
 
 // ── THE hr_apply DERIVATION CHAIN ────────────────────────────────────────
@@ -784,6 +794,10 @@ const HR_STATE_OF_CHAIN = [
   // shared-farm's) with `gold` read from the account purse and `gold_v` beside it; removals FROZEN in
   // tests/chain-removals/2026-12-15-account-gold.mjs.
   '2026-12-15-account-gold.sql',
+  // THE DEAD SURFACES CUT (2026-10-24): account-gold's body (= live, md5 05067547) minus the crew watermark, the
+  // crew array, the per-plot `farm` array and inventory_complete's crew arm; removals FROZEN in
+  // tests/chain-removals/2027-01-18-dead-surfaces-cut.mjs.
+  '2027-01-18-dead-surfaces-cut.sql',
 ];
 
 // ── THE hr_rate_gate DERIVATION CHAIN ────────────────────────────────────
@@ -1255,12 +1269,24 @@ const CLIENT_CALLABLE = new Map([
   ['hr_hunt_party_leave', ['authenticated']],
   ['hr_hunt_party_kick', ['authenticated']],
   ['hr_hunt_party_finder', ['authenticated']],
+  /* 2026-10-25-character-sheet.sql §5 (the character window): wear an owned outfit with dye indices. The
+     caller's own character, cosmetic (no value), idempotent, rate-gated (outfit bucket), and recorded in
+     hr_client_rpc_baseline by the same file. */
+  ['hr_outfit_set', ['authenticated']],
 ]);
 
 for (const [file, sql] of code) {
   // Every `create or replace function public.NAME(` in the file.
   const created = [...sql.matchAll(/create\s+or\s+replace\s+function\s+public\.([a-z0-9_]+)\s*\(/gi)]
     .map((m) => m[1]);
+  /* THE LOOP-DRIVEN REVOKE (2026-10-25-character-sheet.sql §5): `foreach f in array array['public.x(..)', …]
+     loop execute format('revoke execute on function %s from public', f); …`. Every signature in that array
+     literal is revoked from PUBLIC; until 2026-10-24 this lint could not read it (8 false FAILs). */
+  const loopRevoked = new Set();
+  for (const m of sql.matchAll(/foreach\s+([a-z_][a-z0-9_]*)\s+in\s+array\s+array\[([^\]]*)\]\s+loop([\s\S]*?)end\s+loop/gi)) {
+    if (!new RegExp(`execute\\s+format\\(\\s*'revoke\\s+(?:execute|all)\\s+on\\s+function\\s+%s\\s+from\\s+public'\\s*,\\s*${m[1]}\\s*\\)`, 'i').test(m[3])) continue;
+    for (const s of m[2].matchAll(/'public\.([a-z0-9_]+)\(/gi)) loopRevoked.add(s[1]);
+  }
   for (const fn of new Set(created)) {
     if (PROBE.test(fn)) {
       // A probe may hold a grant; what it may NOT do is survive the migration.
@@ -1271,8 +1297,9 @@ for (const [file, sql] of code) {
       }
       continue;
     }
-    const revoked = new RegExp(
-      `revoke\\s+execute\\s+on\\s+function\\s+public\\.${fn}\\s*\\([^)]*\\)[\\s\\S]{0,200}?from[^;]*\\bpublic\\b`,
+    /* `revoke all` on a function is its one privilege, EXECUTE (2026-12-15-account-gold.sql §6). */
+    const revoked = loopRevoked.has(fn) || new RegExp(
+      `revoke\\s+(?:execute|all(?:\\s+privileges)?)\\s+on\\s+function\\s+public\\.${fn}\\s*\\([^)]*\\)[\\s\\S]{0,200}?from[^;]*\\bpublic\\b`,
       'i').test(sql);
     if (!revoked) fail(`${file}: ${fn}() is created but never revoked from PUBLIC`);
     else pass(`${file}: ${fn}() revoked from PUBLIC`);
@@ -1508,7 +1535,8 @@ say('── one owner for clan_members."join as self"');
 // ── PART 1d — the migrations must be self-verifying ──────────────────────
 say('── self-verification blocks');
 for (const [file, sql] of sources) {
-  if (/raise\s+exception/i.test(sql) && /do\s+\$\$/.test(sql)) pass(`${file}: has assertions`);
+  /* any dollar tag: core-bodies and account-gold self-check in `do $mig$` (a `$$` only lint failed them) */
+  if (/raise\s+exception/i.test(sql) && /\bdo\s+\$[a-z_]*\$/i.test(sql)) pass(`${file}: has assertions`);
   else fail(`${file}: no self-verifying do-block`);
 }
 
@@ -1947,6 +1975,7 @@ say(`── ${SPEC.fn} derivation chain (each body derived from the last, nothin
       '2026-10-27-core-bodies.sql': CORE_BODIES_REMOVALS.HR_STATE_OF,
       '2026-11-27-account-depot.sql': ACCOUNT_DEPOT_REMOVALS.HR_STATE_OF,
       '2026-12-15-account-gold.sql': ACCOUNT_GOLD_REMOVALS.HR_STATE_OF,
+      '2027-01-18-dead-surfaces-cut.sql': DEAD_SURFACES_REMOVALS.HR_STATE_OF,
       /* auto-eat inserts the three auto_eat_* keys after `accrued_to` — so the
          `accrued_to)` terminator gains a comma (a real line change), and the
          "server clock" and "BOUNDED (RL4)" comment blocks were reflowed/moved as

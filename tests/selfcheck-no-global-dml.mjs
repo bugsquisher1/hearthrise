@@ -58,6 +58,14 @@
 //         rollup-currencies.sql passes `perform public.hr_ledger_prune(20000)`
 //         inside its self-check, which on a production ledger past its first
 //         prune date reaches every player's aged rows.
+//   cron  (family E, 2026-10-24) ANY insert / update / delete / truncate / merge
+//         on a pg_cron table (cron.*) that a self-check container — a DO block,
+//         its `execute` payloads, a pg_temp function it calls — itself runs,
+//         scoped or not. supabase_admin owns those tables and the apply role has
+//         no USAGE on cron.runid_seq: 2027-01-16-cron-health-fast.sql's first §4
+//         inserted a probe run into cron.job_run_details and production refused
+//         the whole apply (42501) after the superuser replay was green. Probe a
+//         TEMP table of pg_cron's shape; only READ cron.*.
 //
 // The player-value table list is NOT maintained here. It is
 // `player_value_tables` in tests/restore-census.baseline.json — the argued,
@@ -406,6 +414,9 @@ function localsOf(body) {
 
 const DML = /\b(delete\s+from|truncate(?:\s+table)?|update)\s+(?:only\s+)?(?:public\.)?"?([a-z_][a-z0-9_]*)"?/gi;
 
+/** A write on one of pg_cron's tables (family E): insert / update / delete / truncate / merge on cron.*. */
+const CRON_DML = /\b(insert\s+into|delete\s+from|truncate(?:\s+table)?|merge\s+into|update)\s+(?:only\s+)?"?cron"?\s*\.\s*"?([a-z_][a-z0-9_]*)"?/gi;
+
 /** The balanced `( … )` group starting at `at`, parens included. A paren inside
  *  a quoted literal or a dollar-quoted body is text, not structure. */
 function balanced(s, at) {
@@ -595,7 +606,8 @@ function* installedFunctions(sql) {
     // A trigger is handed its row. `new`/`old` are the given names there, and
     // `where ps.user_id = new.user_id` is the per-row shape, not a global one.
     if (/returns\s+trigger/i.test(sql.slice(m.index, bodyAt))) { given.add('new'); given.add('old'); }
-    yield { name: m[1].toLowerCase(), at: bodyAt, body, given, params };
+    // `temp`: a pg_temp function is a self-check container by construction (family E reads its body).
+    yield { name: m[1].toLowerCase(), at: bodyAt, body, given, params, temp: /\bpg_temp\s*\./i.test(m[0]) };
   }
 }
 
@@ -719,6 +731,7 @@ export function scan(sources, playerTables) {
         body: blankNested(lexedBody),
         locals: localsOf(lexedBody),
         rawBody: rawAt(at, lexedBody.length),
+        self: true,
       });
     }
     for (const fn of installedAndCalled(sql, globalFns)) {
@@ -727,7 +740,36 @@ export function scan(sources, playerTables) {
         body: blankNested(fn.body),
         locals: fn.given,
         rawBody: rawAt(fn.at, fn.body.length),
+        self: !!fn.temp,
       });
+    }
+
+    // (family E, 2026-10-24) PG_CRON'S TABLES. supabase_admin owns them and the apply role has no USAGE
+    // on cron.runid_seq: 2027-01-16-cron-health-fast.sql's first §4 wrote a probe run into
+    // cron.job_run_details and production refused the whole apply (42501) after a replay that ran as
+    // superuser was green. So ANY write a self-check container itself executes on cron.* is reported,
+    // scoped or not, direct or through `execute`: a probe belongs in a TEMP table of pg_cron's shape. A
+    // function the block CALLS (the detector's own retention) does that function's work, and the nested
+    // text of a function the file installs is not executed by the block, so neither is read here.
+    const cronIn = (code, at, via) => {
+      for (const d of code.matchAll(CRON_DML)) {
+        const semi = code.indexOf(';', d.index);
+        const stmt = code.slice(d.index, semi < 0 ? code.length : semi);
+        findings.push({
+          file,
+          kind: 'cron',
+          subject: `${d[1].split(/\s+/)[0].toLowerCase()} cron.${d[2].toLowerCase()}`,
+          line: lineOf(text, at + (via ? 0 : d.index)),
+          detail: (via ? `${via}: ` : '') + stmt.replace(/\s+/g, ' ').trim().slice(0, 140),
+        });
+      }
+    };
+    for (const u of units) {
+      if (!u.self) continue;
+      cronIn(u.body, u.at, '');
+      for (const ex of executePayloads(u.rawBody)) {
+        if (ex.code !== null) cronIn(blankNested(blankLiterals(ex.code)), u.at + ex.at, 'execute');
+      }
     }
 
     const dmlIn = (code, locals, at, via) => {
@@ -979,6 +1021,19 @@ export const ACKNOWLEDGED = {
       'e10b: the prune deleted % ledger row(s) belonging to REAL ',
     ],
   },
+  '2027-01-01-server-perf.sql :: cron :: insert cron.job_run_details': {
+    verdict: 'applied-replay-only-branch',
+    sites: 2,
+    why: 'Family E. s3 writes its probe runs only inside `if to_regclass(\'cron.job_run_details\') is null`, '
+       + 'into the table it creates one line above: the PGlite replay, where pg_cron is absent. On '
+       + 'production the table exists, so the branch never ran there (APPLIED 2026-10-24: the live '
+       + 'hr_cron_health_ex is this file\'s a217db06). An applied file is history and is not edited. A '
+       + 'new file probes a TEMP table instead (2027-01-16-cron-health-fast.sql). `sites` is pinned at 2.',
+    proof: [
+      "    if to_regclass('cron.job_run_details') is null then\n      create table cron.job_run_details (",
+      "      v_cron := 'probe';",
+    ],
+  },
 };
 
 const keyOf = (f) => `${f.file} :: ${f.kind} :: ${f.subject}`;
@@ -1042,6 +1097,9 @@ export function verdicts(findings, srcs, acks = ACKNOWLEDGED) {
 // assertion that must catch it; the two controls must stay silent.
 const TARGET = '2026-09-19-lifetime-facts-off-the-ledger.sql';
 const IN_BLOCK = `    v_bf := public.hr_backfill_lifetime_facts(v_uid);`;
+// family E plants go into the §4 block of the file whose first apply production refused.
+const CRON_TARGET = '2027-01-16-cron-health-fast.sql';
+const CRON_IN_BLOCK = `    perform public.hr_cron_health_ex(interval '25 hours', 1.0);`;
 
 const PLANTS = [
   {
@@ -1056,6 +1114,40 @@ const PLANTS = [
     what: 'a self-check zeroing an inventory column across every character',
     by: 'open', match: /update player_inventory/,
     patch: (s) => s.replace(IN_BLOCK, `    update public.player_inventory set qty = 0;\n${IN_BLOCK}`),
+  },
+  // ── family E: pg_cron's tables (2026-10-24, the refused first apply of 2027-01-16) ──
+  {
+    name: 'cron_probe_insert',
+    what: 'the refused 2027-01-16 §4 probe itself: a failed run inserted into cron.job_run_details (42501 on cron.runid_seq)',
+    file: CRON_TARGET, by: 'open', match: /insert cron\.job_run_details/,
+    patch: (s) => s.replace(CRON_IN_BLOCK, `    insert into cron.job_run_details (jobid, status, return_message, start_time, end_time)
+      values (c_job, 'failed', 'cron-health-fast probe F1', now() - interval '2 hours', now() - interval '2 hours')
+      returning runid into v_f1;
+${CRON_IN_BLOCK}`),
+  },
+  {
+    name: 'cron_job_update',
+    what: 'a self-check switching a pg_cron job off by writing cron.job (the apply role cannot)',
+    file: CRON_TARGET, by: 'open', match: /update cron\.job$/,
+    patch: (s) => s.replace(CRON_IN_BLOCK, `    update cron.job set active = false where jobname = 'hr-cron-health';\n${CRON_IN_BLOCK}`),
+  },
+  {
+    name: 'cron_delete_via_execute',
+    what: 'the same write handed to execute as a literal: the verb whose literal IS code',
+    file: CRON_TARGET, by: 'open', match: /delete cron\.job_run_details/,
+    patch: (s) => s.replace(CRON_IN_BLOCK, `    execute 'delete from cron.job_run_details where runid = 1';\n${CRON_IN_BLOCK}`),
+  },
+  {
+    name: 'CONTROL cron_read',
+    what: 'READING pg_cron\'s history (s2 does) is not a write',
+    control: true, file: CRON_TARGET,
+    patch: (s) => s.replace(CRON_IN_BLOCK, `    select count(*) into v_n from cron.job_run_details where runid <= v_real_lo;\n${CRON_IN_BLOCK}`),
+  },
+  {
+    name: 'CONTROL temp_probe_write',
+    what: 'a write on the TEMP probe table in pg_cron\'s shape is the shape this family asks for',
+    control: true, file: CRON_TARGET,
+    patch: (s) => s.replace(CRON_IN_BLOCK, `    insert into pg_temp.hr_cf_runs (runid, jobid, status) values (7, 1, 'failed');\n${CRON_IN_BLOCK}`),
   },
   {
     name: 'session_id_bound_to_nothing_declared',
@@ -1344,6 +1436,11 @@ async function main() {
       console.error(`  ${f.countDrift}. The waiver covers the statements the security review\n`
         + '  actually read, and no others. Re-argue it and re-pin `sites`, or scope the\n'
         + '  new statement.');
+    } else if (f.kind === 'cron') {
+      console.error('  A self-check may not write pg_cron\'s tables: supabase_admin owns them, the apply\n'
+        + '  role cannot use cron.runid_seq, and production refuses the whole apply (42501,\n'
+        + '  2026-10-24) where the superuser replay was green. Prove the logic on a TEMP table\n'
+        + '  in pg_cron\'s column shape (2027-01-16-cron-health-fast.sql §4) and only READ cron.*.');
     } else {
       console.error('  This statement can reach a row the block did not create. Scope it to the\n'
         + '  probe character (user_id = v_uid, or the id of a row this block inserted), or\n'

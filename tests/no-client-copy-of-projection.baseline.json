@@ -16,7 +16,6 @@
       "dungeon_cooldowns",
       "enchant",
       "equipment",
-      "farm",
       "farm_land",
       "gem_unlocks",
       "hero_slots",
@@ -58,8 +57,7 @@
       "traits",
       "unlocked_recipes",
       "version",
-      "vitals",
-      "workers"
+      "vitals"
     ],
     "state": [
       "accrued_to",
@@ -90,9 +88,8 @@
       "slot",
       "streak_day_key",
       "streak_days",
-      "tool_carry",
-      "workers_accrued_to"
+      "tool_carry"
     ]
   },
-  "generatedAt": "2026-10-23"
+  "generatedAt": "2026-10-24"
 }

@@ -11,6 +11,16 @@ _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md
 
 ## Log
 
+### 2026-10-24 · CI speed (lane/b-ci-speed, tests only)
+- A wait helper that times out SILENTLY is a hidden 20 s tax and a dead check: party-ui's quietHuntPoll
+  modelled a poll clock the session no longer runs for an unviewed hero. Make a missed precondition HARNESS.
+- Fresh temp copies of src/ cost ~1.5 s per import on this PC (the virus scanner reads every new file);
+  one copy imported under `?gen=N` (a resolve hook carries N down) costs ~0.3 s a generation.
+- A derived tracked set is only as wide as its patterns: live-hash-drift missed the literal-oid
+  `md5(prosrc)` pin in 54 files without a harness error. Count what a regex SHOULD see before trusting it.
+- `--write --out <file>` previews the Coordinator's baseline; placing it temporarily (then restoring)
+  is how to prove --selftest / --mutate / apply-order-honesty against the re-measure before it exists.
+
 ### 2026-10-14 · the core-loop gate (lane/b-loop-gate, nightly, not per release)
 - The closest harness for "does the server loop play" is absence-priced-at-return's: `bootReplay()` +
   the real verb modules behind an `exec` seam as `hr_engine` + `collectCurrentWindow` standing in for

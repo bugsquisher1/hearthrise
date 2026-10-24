@@ -119,8 +119,9 @@ function contract(R, cs, body, tl) {
     need('party', !m.length && p.self !== null && p.leader !== null, 'partyOf misses ' + m.join(', ') + ' self ' + p.self + ' leader ' + p.leader);
   }
   const pm = R.PS.partyMembershipOf(cs);
-  need('party', !!pm && pm.seats.length === 2 && pm.me !== null && pm.leader !== null && pm.isLeader && !!pm.densities && pm.densities.mill_cellar === 2,
-    'partyMembershipOf yields ' + JSON.stringify(pm && { seats: pm.seats.length, me: pm.me, leader: pm.leader, densities: pm.densities }));
+  /* LEAVE TOGETHER (2026-12-18-party-leave-together.sql): the viewer's own box, on by default (player_state.party_leave_together) */
+  need('party', !!pm && pm.seats.length === 2 && pm.me !== null && pm.leader !== null && pm.isLeader && !!pm.densities && pm.densities.mill_cellar === 2 && pm.leaveTogether === true,
+    'partyMembershipOf yields ' + JSON.stringify(pm && { seats: pm.seats.length, me: pm.me, leader: pm.leader, densities: pm.densities, leaveTogether: pm.leaveTogether }));
   // party_people: the player menu's targets, one per seat of the real party, with the server's account ids (2026-10-25-social.sql)
   const pp = R.PS.partyPeopleOf(cs);
   need('party_people', Array.isArray(body.party_people) && pp.size === body.party_people.length && !!pm && pp.size === pm.seats.length
@@ -214,6 +215,11 @@ function contract(R, cs, body, tl) {
   const fl = R.FS.farmLandOf(cs, 0);
   need('farm_land', !!fl && fl.cap >= 2 && fl.plotLevel >= 1 && fl.plots instanceof Map && (fl.plotLevel >= 5 || (!!fl.upgrade && fl.upgrade.gold > 0 && fl.upgrade.farming > 0)),
     'farmLandOf yields ' + JSON.stringify(fl && { cap: fl.cap, plotLevel: fl.plotLevel, upgrade: fl.upgrade, plots: fl.plots.size }) + ' from ' + JSON.stringify(body.farm_land));
+  /* Tamsin's tally (2026-12-23-tally-tasks.sql): the cellar task taken in town, counted by six minutes of real settles */
+  const ta = R.TS.tallyOf(cs);
+  const tc = ta && ta.held.find((x) => x.task === 'cellar_giant_rats');
+  need('tally', !!ta && ta.perDay === 3 && ta.heldMax === 3 && ta.weight === 'light' && ta.order.length === 6 && !!tc && tc.kills > 0 && tc.kills <= tc.target,
+    'tallyOf yields ' + JSON.stringify(ta) + ' from ' + JSON.stringify(body.tally));
   return out;
 }
 
@@ -235,7 +241,7 @@ function sheetContract(R, cs, body) {
 export const CONTRACT_KEYS = Object.freeze(['hunt', 'hunt_track', 'hunt_events', 'hunt_server_now_ms', 'hunt_settings', 'hunt_analyzer',
   'party', 'party_people', 'stamina', 'premium', 'account', 'inventory', 'equipment', 'skills', 'state', 'bank', 'buffs', 'hero_slots',
   'name', 'bag_rules', 'shop', 'hunt_presets', 'role', 'party_invites', 'stamina_refill', 'blessings',
-  'character_sheet', 'outfit', 'death_log', 'vitals', 'hunt_bests', 'hunt_density', 'depot', 'home', 'now', 'farm_land', 'bench_run', 'rename']);
+  'character_sheet', 'outfit', 'death_log', 'vitals', 'hunt_bests', 'hunt_density', 'depot', 'home', 'now', 'farm_land', 'bench_run', 'rename', 'tally']);
 
 /* What lane S2's sections are seeded with before the settle (each verb through the real RPC). */
 const SEED = Object.freeze({ name: 'Contract Hero', inviter: 'Contract Inviter', lock: 'cooked_shrimp', loot: 'normal_log',
@@ -290,6 +296,7 @@ async function readers(root) {
     HS: await import(u('src/session/hunt-sections.js')), IS: await import(u('src/session/item-sections.js')),
     PS: await import(u('src/session/party-sections.js')), ACC: await import(u('src/session/account-session.js')),
     CS: await import(u('src/session/character-sections.js')), FS: await import(u('src/session/farm-sections.js')), HO: await import(u('src/session/home-sections.js')),
+    TS: await import(u('src/session/tally-sections.js')),
     CFG: await import(u('src/session/config.js')), CSN: await import(u('src/session/character-session.js')),
     M: await import(u('src/data/monsters.js')),
   };
@@ -304,6 +311,9 @@ async function realBody(db, M, H) {
     await db.query("select set_config('request.jwt.claim.sub', $1, true)", [H.UIDS[0]]);
     const r = await H.one(db, 'select public.hr_hunt_preset_save(0, $1, $2, gen_random_uuid())', [SEED.preset, SEED.presetName]);
     if (!r || r.ok !== true) throw new Error('S2 seed refused: the setup save in town -> ' + JSON.stringify(r));
+    /* Tamsin's cellar task, taken at her board in town (2026-12-23-tally-tasks.sql): the settles count its rats. */
+    const tt = await H.one(db, "select public.hr_tally_accept(0, 'cellar_giant_rats', 'light', gen_random_uuid())");
+    if (!tt || tt.ok !== true) throw new Error('S2 seed refused: the tally take in town -> ' + JSON.stringify(tt));
   } });
   /* Monsters are units only mid-pull: sample the pose after every tick so the monster path is proven. */
   const poses = [];
@@ -367,6 +377,7 @@ const DB_MUTANTS = [
   ['hunt_settings', 'public.hr_hunt_settings_view(uuid,integer)', "'slots', v_slots,", "'slot_list', v_slots,"],
   ['hunt_density', 'public.hr_hunt_density_view(uuid,integer)', 'jsonb_object_agg(d.hunt_id, d.density order by d.hunt_id)', 'jsonb_object_agg(d.hunt_id, d.density::text order by d.hunt_id)'],
   ['party', 'public.hr_hunt_party_view(uuid,integer)', "'leader_densities', coalesce", "'leader_density', coalesce"],
+  ['party', 'public.hr_hunt_party_view(uuid,integer)', "'leave_together', (select ps.party_leave_together", "'leave_togther', (select ps.party_leave_together"],
   ['hunt_settings', 'public.hr_hunt_settings_view(uuid,integer)', "'gather_share', v_eff->'gather_share',", "'gather', v_eff->'gather_share',"],
   ['hunt_analyzer', 'public.hr_hunt_analyzer_of(uuid,integer,uuid)', "'hunt_ms', floor(", "'huntms', floor("],
   ['hunt_analyzer', 'public.hr_hunt_stats_of(uuid[],numeric,uuid,integer)', "'kills', v_kills", "'kill_count', v_kills"],
@@ -393,6 +404,8 @@ const DB_MUTANTS = [
   ['home', 'public.hr_home_view(uuid,integer)', "'rooms', coalesce((select jsonb_agg(", "'room_list', coalesce((select jsonb_agg("],
   ['now', 'public.hr_state_of(uuid,integer)', "'now', now(),", "'stamp', now(),"],
   ['rename', 'public.hr_hero_rename_quote(uuid,integer)', "'price', r.base + r.per_level * v_lv,", "'cost', r.base + r.per_level * v_lv,"],
+  ['tally', 'public.hr_tally_section(uuid,integer)', "'per_day', cfg.paid_per_day,", "'perday', cfg.paid_per_day,"],
+  ['tally', 'public.hr_tally_count(uuid,integer,uuid,jsonb)', "coalesce((p_meta->'km'->>v_r.monster_id)::bigint, 0)", '0::bigint'],
 ];
 const EDGE_MUTANTS = [
   ['hunt_track', 'src/core/hunt-track.js', '    hunt_track: pb.steps.map(', '    track: pb.steps.map('],

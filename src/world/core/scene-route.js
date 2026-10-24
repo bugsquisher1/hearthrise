@@ -5,7 +5,8 @@
 // envelope's activity). A combat whose id is a hunt a map renders — or a monster
 // one of those hunts spawns (a training fight on a rat is fought in the cellar)
 // — shows that hunt. Anything else shows the viewer's own choice of town or
-// home. There is no client mirror of the activity: the caller passes what the
+// home (or the 64 px sandbox, when the viewer walked into it and the map table
+// has one). There is no client mirror of the activity: the caller passes what the
 // server last said, and a missing answer shows the town.
 // PURE: no DOM, no window, no G.
 // ════════════════════════════════════════════════════════════════════════
@@ -25,14 +26,14 @@ export function huntMapIndex(maps, huntIndex) {
 
 /**
  * @param {{kind: string, id: string|null}|null} activity  what the server says the hero is doing
- * @param {'town'|'home'} choice  the viewer's pick for a non-hunt scene
+ * @param {'town'|'home'|'sandbox'} choice  the viewer's pick for a non-hunt scene
  * @param {object} index  huntMapIndex()
- * @param {{town: string, home: string}} sceneMaps
- * @returns {{map: string, kind: 'hunt'|'town'|'home'}}
+ * @param {{town: string, home: string, sandbox?: string}} sceneMaps
+ * @returns {{map: string, kind: 'hunt'|'town'|'home'|'sandbox'}}
  */
 export function sceneFor(activity, choice, index, sceneMaps) {
   const id = activity && activity.kind === 'combat' ? activity.id : null;
   if (id && index[id]) return { map: index[id], kind: 'hunt' };
-  const pick = choice === 'home' ? 'home' : 'town';
+  const pick = choice === 'home' ? 'home' : choice === 'sandbox' && sceneMaps.sandbox ? 'sandbox' : 'town';
   return { map: sceneMaps[pick], kind: pick };
 }

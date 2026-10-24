@@ -11,6 +11,13 @@
 // stays square. A room smaller than the view is centred with darkness around
 // it; a bigger one scrolls with the camera.
 //
+// ONE TILE SIZE, ANY ART GRID (src/data/world/art-budget.js GRIDS). The rule
+// above is the base grid's (T 32). A scene drawn on another grid keeps the
+// same on-screen TILE: the 64 px sandbox grid (hd64) is drawn at x1, so its
+// tile is the town's 64 CSS px. Above WIDE_CSS it stays x1 (96 / 64 is not a
+// whole number) and shows more world. Still read off the window, once per
+// screen class and grid, never fitted to a room.
+//
 // THE INSET. The shell docks HUD panels over the World and passes the covered
 // strips (art px here); the camera frames the UNCOVERED part: a small room is
 // centred in it, and a followed hero is kept inside it with a tile of margin,
@@ -28,16 +35,22 @@
 // PURE: no DOM, no window, no G.
 // ════════════════════════════════════════════════════════════════════════
 
+import { GRIDS } from '../../data/world/art-budget.js?v=0.2.38';
+
 export const MOBILE_QUERY = '(max-width: 540px), (max-height: 540px) and (max-width: 1024px)';
 
-/** CSS px per art pixel on every screen class but the widest. */
-export const DENSITY = 2;
-/** A window wider than this (CSS px) draws each art pixel DENSITY + 1 CSS px square. */
+/** CSS px per art pixel on every screen class but the widest (the base grid's row in GRIDS). */
+export const DENSITY = GRIDS.base.density;
+/** A window wider than this (CSS px) draws each base art pixel GRIDS.base.wideDensity CSS px square. */
 export const WIDE_CSS = 2400;
 
-/** Device pixels per art pixel for a window `innerWidth` CSS px wide at `dpr`. Never per scene. */
-export function zoomFor(innerWidth, dpr) {
-  const css = (innerWidth || 0) > WIDE_CSS ? DENSITY + 1 : DENSITY;
+/**
+ * Device pixels per art pixel for a window `innerWidth` CSS px wide at `dpr`, on art grid `grid`
+ * (a GRIDS row; the base grid when absent). Never fitted to a scene or a room.
+ */
+export function zoomFor(innerWidth, dpr, grid) {
+  const g = grid || GRIDS.base;
+  const css = (innerWidth || 0) > WIDE_CSS ? g.wideDensity : g.density;
   return Math.max(1, Math.round(css * (dpr || 1)));
 }
 

@@ -27,6 +27,15 @@ export const PARTY = Object.freeze({
   finder: Object.freeze(['weapon_type']),
 });
 
+/* LEAVE TOGETHER (Tyler 2026-10-22): every hero's own box, default on, kept per hero on the server
+   (player_state.party_leave_together). When any other member's party hunt ends, a ticked hero is paid up to
+   that moment and goes home too (party_member_left / party_member_died); the party stays together. The words
+   on the party panel's own row (src/shell/widgets/party-leave.js). */
+export const PARTY_COPY = Object.freeze({
+  leaveTogether: 'Leave if anyone leaves the hunt or dies',
+  leaveTogetherTip: 'When another member’s hunt ends, this hero is paid for its hunt so far and comes home too.',
+});
+
 /** Every problem with the table, as strings. Empty = valid. */
 export function validate() {
   const out = [];

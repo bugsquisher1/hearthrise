@@ -14,15 +14,20 @@
 //                 shows when the server answers it, never before
 //   draft         what the input holds (display state, survives a tab switch)
 //   addLink(id)   put a catalogue item's link into the draft
-//   hideFrom(id)  drop a blocked player's lines now (the server stops sending them)
+//   hideFrom(id)  drop a blocked player's lines now (the history reads and the
+//                 party / whisper pushes stop at the server; a PUBLIC channel's
+//                 pushed line from a blocked player is dropped here, `blocked`)
+// Live lines arrive by private broadcast (src/social/realtime.js); every (re)join
+// of a topic re-reads the history and ADDS what the socket missed (catch-up), so
+// a blip loses nothing and nothing already shown is taken away by it.
 // System lines are the server's notices (channel 'system') and the account's
 // alerts (src/shell/alerts.js: rare drops, knock-outs, low supplies, ended hunts).
 // ════════════════════════════════════════════════════════════════════════
-import { CHAT_TABS, CHAT_LIMITS } from '../data/chat-channels.js?v=0.2.34';
-import { lineOf, systemLine, tabOfChannel, bodyOf, linkLabel } from './chat-lines.js?v=0.2.34';
-import { huntOf } from '../session/hunt-sections.js?v=0.2.34';
-import { partyMembershipOf } from '../session/party-sections.js?v=0.2.34';
-import { askVia } from '../session/intent-ledger.js?v=0.2.34';
+import { CHAT_TABS, CHAT_LIMITS } from '../data/chat-channels.js?v=0.2.38';
+import { lineOf, systemLine, tabOfChannel, bodyOf, linkLabel } from './chat-lines.js?v=0.2.38';
+import { huntOf } from '../session/hunt-sections.js?v=0.2.38';
+import { partyMembershipOf } from '../session/party-sections.js?v=0.2.38';
+import { askVia } from '../session/intent-ledger.js?v=0.2.38';
 
 const SERVER_TABS = Object.freeze(['global', 'local', 'party', 'system']);
 const SEND_KIND = Object.freeze(Object.fromEntries(CHAT_TABS.filter((t) => t.send).map((t) => [t.id, t.send])));
@@ -33,11 +38,17 @@ export class ChatStore {
    * @param {object} o.account   the AccountSession (its server link, the viewed character)
    * @param {object} [o.realtime] createSocialRealtime(...)
    * @param {() => number} [o.now]
+   * @param {(id: string) => boolean} [o.blocked]  has this account blocked that player (the BlockStore)?
+   * @param {(fn: Function, ms: number) => any} [o.later]  the catch-up's coalescing timer
    */
   constructor(o) {
     this._account = o.account;
     this._rt = o.realtime || null;
     this._now = o.now || (() => Date.now());
+    this._blocked = o.blocked || (() => false);
+    this._later = o.later || ((fn, ms) => setTimeout(fn, ms));
+    this._catch = { soon: false, busy: false, again: false };
+    this._dead = false;
     this._lines = new Map(CHAT_TABS.map((t) => [t.id, []]));
     this._ids = new Set();
     this._unread = new Map();
@@ -126,13 +137,47 @@ export class ChatStore {
     if (this._leave) { this._leave(); this._leave = null; }
     if (!this._rt) return;
     const channels = ['global', 'system', this.zone, this.party].filter(Boolean);
-    this._leave = this._rt.chat(channels, (row) => { if (this._take(row, true)) this._changed(); });
+    this._leave = this._rt.chat(this._account.userId, channels, (row) => { if (this._take(row, true)) this._changed(); },
+      () => this._catchUpSoon());
   }
 
-  /* One server row into its tab. Returns true when a line was added. */
+  /* A topic (re)joined: re-read the history once the joins of a burst have landed (CHAT_LIMITS.catchUpMs) and ADD
+     the lines the socket missed, as the news they are (unread off screen). One read at a time; a join while one is
+     out asks for one more. Never re-joins. */
+  _catchUpSoon() {
+    if (this._catch.soon) return;
+    this._catch.soon = true;
+    this._later(() => { this._catch.soon = false; this._catchUp(); }, CHAT_LIMITS.catchUpMs);
+  }
+
+  async _catchUp() {
+    const c = this._catch;
+    if (this._dead) return;
+    if (c.busy) { c.again = true; return; }
+    const cs = this.character();
+    if (!cs) return;
+    const key = this._key;
+    c.busy = true;
+    try {
+      const ans = await this._account.server.rpc('hr_chat_recent', { p_slot: cs.slot });
+      const b = ans && ans.body;
+      if (key === this._key && ans.ok && b && b.ok === true && Array.isArray(b.lines)) {
+        let any = false;
+        for (const row of b.lines) if (this._take(row, true)) any = true;
+        if (any) { for (const tab of SERVER_TABS) this.lines(tab).sort((x, y) => x.at - y.at); this._changed(); }
+      }
+    } catch (e) { /* the next join asks again */ } finally {
+      c.busy = false;
+      if (c.again) { c.again = false; this._catchUp(); }
+    }
+  }
+
+  /* One server row into its tab. Returns true when a line was added. A pushed line from a player this account
+     blocked is dropped (a public topic reaches every socket; the server filters the reads and the private pushes). */
   _take(row, live) {
     const l = lineOf(row);
     if (!l || this._ids.has(l.id)) return false;
+    if (live && l.fromId && this._blocked(l.fromId)) return false;
     const tab = tabOfChannel(l.channel, this.zone, this.party);
     if (!tab) return false;
     this._push(tab, l, live);
@@ -207,6 +252,7 @@ export class ChatStore {
   }
 
   destroy() {
+    this._dead = true;
     if (this._leave) this._leave();
     if (this._offChar) this._offChar();
     if (this._offAlerts) this._offAlerts();

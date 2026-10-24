@@ -19,11 +19,11 @@
 // PURE ESM. No DOM, no window, no timers, no Math.random.
 // ============================================================
 
-import { SUPPLIES } from '../data/supplies.js?v=0.2.34';
-import { END_ORDER, DEATH_XP_LOSS, DEATH_XP_BASE, GOLD_FLOOR, SUPPLY_SOURCE, ON_EMPTY } from '../data/hunt-sessions.js?v=0.2.34';
-import { CONSUMABLES } from '../data/consumables.js?v=0.2.34';
-import { COMBAT_SKILLS } from '../data/skills.js?v=0.2.34';
-import { skillLevelFromXp, skillXpForLevel, charLevelFromXp, charXpForLevel } from './xp.js?v=0.2.34';
+import { SUPPLIES } from '../data/supplies.js?v=0.2.38';
+import { END_ORDER, DEATH_XP_LOSS, DEATH_XP_BASE, GOLD_FLOOR, SUPPLY_SOURCE, ON_EMPTY } from '../data/hunt-sessions.js?v=0.2.38';
+import { CONSUMABLES } from '../data/consumables.js?v=0.2.38';
+import { COMBAT_SKILLS } from '../data/skills.js?v=0.2.38';
+import { skillLevelFromXp, skillXpForLevel, charLevelFromXp, charXpForLevel } from './xp.js?v=0.2.38';
 
 const int = (v, d) => { const n = Math.floor(Number(v)); return Number.isFinite(n) ? n : d; };
 
@@ -243,8 +243,10 @@ const at = (ms, t) => ms !== null && ms !== undefined && Number.isFinite(Number(
 const END_CHECKS = Object.freeze({
   /* The hero was killed this span (combat-sim.js die): the hunt ends at the next boundary. */
   died: (hs) => hs.died === true,
-  /* Another member of the party died this span: the whole party's hunt ends (Tyler 2026-10-19). */
-  party_member_died: (hs) => hs.partyDied === true && hs.died !== true,
+  /* LEAVE TOGETHER (Tyler 2026-10-22): another member's hunt ended and this hero's box "Leave if anyone leaves
+     the hunt or dies" is ticked (combat-sim.js cascadeFrom); a flag of the span, never stored. */
+  party_member_died: (hs) => hs.partyEnd === 'died' && hs.died !== true,
+  party_member_left: (hs) => hs.partyEnd === 'left' && hs.died !== true,
   heals_out: (hs) => essentialOut(hs, 'heal'),
   ammo_out: (hs) => essentialOut(hs, 'ammo'),
   gold_out: (hs) => hs.goldOut === true,
@@ -369,7 +371,11 @@ export function newHuntSession(o) {
     bag,
     /* Killed this span (a flag of the span, never stored: the death row is). */
     died: s.died === true,
-    partyDied: s.partyDied === true,
+    /* Sent home by another member's end (LEAVE TOGETHER): 'died' | 'left' | null, a flag of the span. */
+    partyEnd: s.partyEnd === 'died' || s.partyEnd === 'left' ? s.partyEnd : null,
+    /* The leader removed this member (the server's read: still hunting in its party's instance, no longer seated):
+       its end sends nobody home (Coordinator ruling 2026-10-23; combat-sim.js cascadeFrom). */
+    kicked: s.kicked === true,
     hoursLimit: s.hoursLimit === null || s.hoursLimit === undefined ? null : int(s.hoursLimit, null),
     /* THE STORE: the server's catalogue (the bar's slots choose the row), the
        purse it is paid from, and "a buy failed". */

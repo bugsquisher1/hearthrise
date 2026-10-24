@@ -15,15 +15,17 @@
 //                       the first whose conditions pass AND that can act fires)
 // Display only: every number is a catalogue row or the server's projection.
 // ════════════════════════════════════════════════════════════════════════
-import { ATTACK_KINDS } from '../data/condition-metrics.js?v=0.2.34';
-import { ABILITIES } from '../data/abilities.js?v=0.2.34';
-import { aimsAtMonsters } from '../core/hunt/conditions.js?v=0.2.34';
-import { CONSUMABLES, CONSUMABLE_RULES } from '../data/consumables.js?v=0.2.34';
-import { STATUSES } from '../data/statuses.js?v=0.2.34';
-import { ROLE_KEYS } from '../data/hunt-roles.js?v=0.2.34';
-import { WEAPON_WORDS } from '../data/hunt-hud.js?v=0.2.34';
-import { itemName, abilityName, runeWords, familyCount } from './widgets/bits.js?v=0.2.34';
-import { storeOf, storeWords, conditionWords } from './bar-draft.js?v=0.2.34';
+import { ATTACK_KINDS } from '../data/condition-metrics.js?v=0.2.38';
+import { ABILITIES } from '../data/abilities.js?v=0.2.38';
+import { aimsAtMonsters } from '../core/hunt/conditions.js?v=0.2.38';
+import { CONSUMABLES, CONSUMABLE_RULES } from '../data/consumables.js?v=0.2.38';
+import { STATUSES } from '../data/statuses.js?v=0.2.38';
+import { HUNT_ROLES, ROLE_KEYS, shootsItem } from '../data/hunt-roles.js?v=0.2.38';
+import { ITEMS } from '../data/items.js?v=0.2.38';
+import { isRune } from '../data/supplies.js?v=0.2.38';
+import { WEAPON_WORDS } from '../data/hunt-hud.js?v=0.2.38';
+import { itemName, abilityName, runeWords, familyCount } from './widgets/bits.js?v=0.2.38';
+import { storeOf, storeWords, conditionWords } from './bar-draft.js?v=0.2.38';
 
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 const secs = (ms) => (ms % 1000 ? (ms / 1000).toFixed(1) : String(ms / 1000));
@@ -49,10 +51,40 @@ function weaponsFor(disc) {
   return w.length ? w.join(' or ') : disc;
 }
 
+/* The worn sets that play any of `roles`, in words ("Bow or Crossbow"), each word once (ROLE_KEYS). */
+function weaponsOf(roles) {
+  const seen = new Set();
+  const w = [];
+  for (const k of Object.keys(ROLE_KEYS)) {
+    if (!ROLE_KEYS[k].roles.some((r) => roles.includes(r))) continue;
+    for (const word of String(WEAPON_WORDS[k] || k).split(' or ')) {
+      if (!seen.has(word.toLowerCase())) { seen.add(word.toLowerCase()); w.push(word.charAt(0).toUpperCase() + word.slice(1)); }
+    }
+  }
+  return w.join(' or ');
+}
+
+/* WHAT THE WORN WEAPON CAN SHOOT, in words: the engine's own rule (hunt-roles.js shootsItem; damage.js pickShot
+   passes over any other item, Andy 2026-10-23: a bow loosed Copper Whetstones from an attack slot). '' when the
+   hero's weapon (the server's role) can shoot the slot's item, or the slot is no item attack. A whetstone and a
+   rune are no one's shot (the server refuses either in an attack slot: 2026-12-29-slot-truth.sql). */
+function shotProblem(a, role) {
+  if (!a || a.type !== 'attack_with_item' || own(ATTACK_KINDS, a.id)) return '';
+  const it = ITEMS[a.id];
+  if (shootsItem(role, it)) return '';
+  if (it && it.reqSkill === 'melee') return 'A whetstone is not a shot: it sharpens a Melee weapon worn in the ammo slot. No weapon shoots it, so this slot never fires.';
+  if (isRune(it)) return 'A rune is not a shot: it fuels your spells. No weapon shoots it, so this slot never fires.';
+  const by = weaponsOf(Object.keys(HUNT_ROLES).filter((r) => shootsItem(r, it)));
+  if (!by) return 'No weapon shoots this, so this slot never fires.';
+  return (role && HUNT_ROLES[role] ? 'Your weapon can’t shoot this' : 'No weapon worn') + '. The slot stays struck until you wield a ' + by + '.';
+}
+
 /** "Your weapon can’t cast this. The slot stays struck until you wield a Shield." for a spell the hero's worn
-    set (the server's discipline, hunt_settings.discipline) cannot cast; '' otherwise. A warning, never a refusal
-    (art spec §8). */
-export function weaponWarning(a, disc) {
+    set (the server's discipline, hunt_settings.discipline) cannot cast, or the same for an attack item its
+    weapon (the server's role, hunt_settings.role) cannot shoot; '' otherwise. A warning, never a refusal
+    (art spec §8): the bar is configured for whichever weapon the hero wields next. */
+export function weaponWarning(a, disc, role) {
+  if (a && a.type === 'attack_with_item') return shotProblem(a, role);
   const r = a && a.type === 'ability' ? ABILITIES[a.id] : null;
   if (!r || r.universal || (disc && r.disciplines.includes(disc))) return '';
   return 'Your weapon can’t cast this. The slot stays struck until you wield a ' + weaponsFor(r.disciplines[0]) + '.';
@@ -224,6 +256,9 @@ export function reasonOf(sl, set, bag, hero) {
     if (sl.why === 'none_left') return { code: 'none_left', text: 'None left: you carry no ' + itemName(a.id) + '. The next food or drink slot fires instead.', glyph: 'uiChest', strike: true };
     if (sl.why === 'store_off') return { code: 'store_off', text: 'This hero is set to end the hunt rather than buy from the store.', glyph: 'uiChest', strike: true };
   }
+  /* An attack item the worn weapon cannot shoot never fires (the engine passes it over: damage.js pickShot). */
+  const shot = shotProblem(a, set && set.role);
+  if (shot) return { code: 'weapon', text: shot, glyph: 'uiLock', strike: true };
   if (sl.usable === false) return { code: 'server', text: 'The server says this cannot fire now.', glyph: 'uiLock', strike: true };
   if (a.type === 'consume') return null;
   const n = Number.isInteger(sl.count) && !own(ATTACK_KINDS, a.id) ? sl.count : carried(a, bag);

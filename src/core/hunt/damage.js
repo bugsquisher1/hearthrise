@@ -24,21 +24,22 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { MONSTERS } from '../../data/monsters.js?v=0.2.34';
-import { STATUSES } from '../../data/statuses.js?v=0.2.34';
-import { HUNT_STANCES, DEFAULT_STANCE } from '../../data/rule-subjects.js?v=0.2.34';
-import { COMBAT_BALANCE, rollAttack, rollCrit, applyCrit, defenceReduction, monsterAccuracy, monsterMaxHit } from '../combat.js?v=0.2.34';
-import { cheb } from './grid.js?v=0.2.34';
-import { atRest, unitById } from './movement.js?v=0.2.34';
-import { makeEvent } from './events.js?v=0.2.34';
-import { roleOf, elementOn, inRange, peel, engaged } from './targeting.js?v=0.2.34';
-import { fallen, partySize } from './pull-cycle.js?v=0.2.34';
-import { shareKillXp } from './xp-share.js?v=0.2.34';
-import { payBasic, shotLine } from './abilities.js?v=0.2.34';
-import { slotsFor, pickSlot, bestAim, footprintOf, inFootprint, DEFAULT_ATTACK_ROW } from './conditions.js?v=0.2.34';
-import { elementWithFloor } from '../../data/hunt-grounds.js?v=0.2.34';
-import { mitigate } from '../mitigation.js?v=0.2.34';
-import { BASIC_EFFECT_SHARE } from '../../data/supply-basics.js?v=0.2.34';
+import { MONSTERS } from '../../data/monsters.js?v=0.2.38';
+import { STATUSES } from '../../data/statuses.js?v=0.2.38';
+import { HUNT_STANCES, DEFAULT_STANCE } from '../../data/rule-subjects.js?v=0.2.38';
+import { COMBAT_BALANCE, rollAttack, rollCrit, applyCrit, defenceReduction, monsterAccuracy, monsterMaxHit } from '../combat.js?v=0.2.38';
+import { cheb } from './grid.js?v=0.2.38';
+import { atRest, unitById } from './movement.js?v=0.2.38';
+import { makeEvent } from './events.js?v=0.2.38';
+import { roleOf, elementOn, inRange, peel, engaged } from './targeting.js?v=0.2.38';
+import { fallen, partySize } from './pull-cycle.js?v=0.2.38';
+import { shareKillXp } from './xp-share.js?v=0.2.38';
+import { payBasic, shotLine } from './abilities.js?v=0.2.38';
+import { slotsFor, pickSlot, bestAim, footprintOf, inFootprint, itemRow, DEFAULT_ATTACK_ROW } from './conditions.js?v=0.2.38';
+import { shootsItem } from '../../data/hunt-roles.js?v=0.2.38';
+import { elementWithFloor } from '../../data/hunt-grounds.js?v=0.2.38';
+import { mitigate } from '../mitigation.js?v=0.2.38';
+import { BASIC_EFFECT_SHARE } from '../../data/supply-basics.js?v=0.2.38';
 
 /* A store shot's share of its partner's ammo bonus, permille. */
 const BASIC_SHOT_PM = Math.round(BASIC_EFFECT_SHARE * 1000);
@@ -246,12 +247,17 @@ function pickShot(inst, u, h, t, sc) {
         return (Number(u.mana) || 0) >= row.basic.mana ? { ammo: null, price: undefined, size: 1, aim: t, mana: row.basic.mana, magicXpMult: row.basic.magicXpMult } : { why: 'mana' };
       }
       const shoots = !!h && u.role === 'ranger';
-      /* A bow or crossbow with nothing loaded has no shot: no swing (the lane waits, no_stock). */
-      if (shoots && !h.ammo) return { why: 'no_stock' };
+      /* Loaded ammo the worn weapon cannot shoot (hunt-roles.js shootsItem: a whetstone on a bow) is no shot. */
+      const fits = !!h && !!h.ammo && shootsItem(u.role, itemRow(h, h.ammo));
+      /* A bow or crossbow with nothing it can loose loaded has no shot: no swing (the lane waits, no_stock). */
+      if (shoots && !fits) return { why: 'no_stock' };
       return { ammo: shoots ? h.ammo : null, price: shoots ? h.ammo : undefined, size: 1, aim: t };
     }
     /* An item attack slot is a shooter's (a caster's basic spends mana, a melee hero's spends nothing). */
     if (row.melee || row.basic || !h) return null;
+    /* AN ITEM THE WORN WEAPON CANNOT SHOOT IS NO SHOT (Andy 2026-10-23): the slot is passed over and the next
+       one fires. A bow loosed Copper Whetstones (Melee ammo), one a shot, from a slot ahead of its arrows. */
+    if (!shootsItem(u.role, itemRow(h, id))) return null;
     const l = shotLine(h, id);
     if (!l.id || l.why) return { why: l.why === 'gold_short' ? 'gold_short' : 'no_stock' };
     const size = footprintOf(slot, h);

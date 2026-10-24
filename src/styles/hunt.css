@@ -120,6 +120,12 @@
 .hp-hold.is-read .hh-seg:disabled { opacity: 1; }
 .hp-hold-warn { margin: 4px 0 0; font-size: var(--t-micro); color: var(--red); }
 .hp-hold-warn:empty { display: none; }
+/* "Leave if anyone leaves the hunt or dies" (party-leave.js): the viewer's own row only, under its gauges; it wraps in the phone's 200 px board. */
+.hp-together { display: flex; align-items: flex-start; gap: 6px; margin-top: 3px; font-size: var(--t-micro); line-height: 1.3; color: var(--ink-2); cursor: pointer; }
+.hp-together[hidden] { display: none; }
+.hp-together input { flex: none; margin: 2px 0 0; accent-color: var(--gold); }
+.hp-together input:disabled { cursor: default; }
+.hp-together input:disabled + .hp-together-text { color: var(--ink-3); }
 .hp-foot { margin: 8px 0 0; padding-top: 6px; border-top: 1px solid var(--line-soft); font-size: var(--t-micro); color: var(--ink-3); }
 .hp-party.is-empty .hp-foot { display: none; }
 .hp-acts { display: flex; gap: 6px; margin-top: 8px; }

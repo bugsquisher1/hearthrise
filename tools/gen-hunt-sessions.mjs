@@ -163,21 +163,17 @@ export const WORLD_FIELDS_READ = Object.freeze({
 /* v0.2.31 integration: ONE forward file per generator after the newest APPLIED (2026-11-20): the roster, the open glade and the style ladder's weapons
    (2026-11-23, now history). WHO HOLDS THE PACK (lane/b-tank-choice, Tyler 2026-10-22): the world gains `hold` / `holdNext`
    (targeting.js), so hr_hunt_world_shape changes: ONE forward file after the v0.2.32 sequence (its newest file is 2026-12-08-party-hold.sql). */
-/* lane/b-spell-core (2026-10-23): the store's Plain Iron Arrows (hr_hunt_basic_supplies), the retired eat-at / drink-at
-   options (hr_hunt_set_options) and their threshold limits, and the casters' mana basic in the magic bound
-   (magic_xp_mult_max): ONE forward file after the v0.2.34 sequence (its newest applied file is 2026-12-17-beta-premium.sql). */
-/* lane/b-spell-content (2026-10-23): the family x tier runes (hr_hunt_supplies), one store rune a family
-   (hr_hunt_basic_supplies), each spell's family rune and Rend / Frost Lance on (hr_hunt_abilities): ONE forward file
-   after S1a's staged 2026-12-21 (applied after 2026-12-22-rune-catalogue.generated.sql: hr_items first). */
-/* THE LOOT BANDS (lane b-loot-bands, designer + Tyler 2026-10-23): 2026-12-09 is the v0.2.32 chain (APPLIED, history). The
-   Thicket's banded drop rows (hr_hunt_kill_bounds: the settle refuses an item no spawn's bound names), Grayjaw's Ruff and
-   worn gear at half book (hr_hunt_vendor_value, catalogue.js vendorPriceOf) land in ONE forward file, applied after
-   2026-12-20-loot-catalogue (hr_items first), immediately before the hr-accrue deploy that drops them. */
-/* lane/b-spell-roles (Tyler 2026-10-23, roadmap p12/p15): the SUPPORT lane (hr_hunt_lanes; the Challenge, the Mark and the
-   shields on it, hr_hunt_abilities), the role keys' disciplines and shield arms (hr_hunt_weapon_roles), the shields
-   (hr_hunt_shields, which hr_hunt_weapon_of reads) and hr_hunt_roles retired (its last reader restated by
-   2026-12-24-spell-roles.sql, applied right after this file): ONE forward file after the staged 12-20 and 12-22. */
-export const OUT_NAME = '2026-12-24-hunt-sessions-catalogue.generated.sql';
+/* LEAVE TOGETHER (lane/b-party-leave-together, Tyler 2026-10-22): END_ORDER gains `party_member_left`; 2026-12-18 carried it
+   (APPLIED with v0.2.36, history now, never regenerated). THE LOOT BANDS (lane b-loot-bands, designer + Tyler 2026-10-23):
+   every ground's banded drop rows, the Trophies and the Ruff as vendor values and dropped gear selling by tier: 2026-12-20
+   (APPLIED with v0.2.37, history now, never regenerated). THE SPELL RELEASE (lanes b-spell-core S1a, b-spell-content S3,
+   b-spell-roles S1b, b-spell-balance; Tyler + designer 2026-10-23): the store's Plain Iron Arrows, the retired eat-at /
+   drink-at options and their limits, the casters' mana basic in the magic bound; the family x tier runes and one store
+   rune a family, each spell's family rune, Rend / Frost Lance on; the SUPPORT lane, the role keys' disciplines and shield
+   arms (hr_hunt_weapon_roles), the shields (hr_hunt_shields) and hr_hunt_roles retired; the 1 g store shot. ONE forward
+   file ON TOP of the APPLIED 12-20 one (the staged 12-21, 12-22 and 12-24 files collapsed into it, never applied), applied
+   after 2026-12-28-items-catalogue (hr_items first) and right before 2026-12-30-spell-content.sql. */
+export const OUT_NAME = '2026-12-30-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -570,24 +566,35 @@ export function render(src) {
 --   ${r.vendor.length} vendor values, ${r.basics.length} store supplies paid per use, ${r.targets.length} target modes,
 --   ${r.lanes.length} lanes, ${r.abilities.length} abilities, ${r.setOptions.length} action-set options, ${r.grounds.length} hunt grounds
 --
--- SUPERSEDES 2026-12-09-hunt-sessions-catalogue.generated.sql (the v0.2.32 chain;
--- APPLIED, history, never regenerated) and the STAGED 12-20, 12-21 and 12-22 files:
--- every table below is rewritten wholesale. NEW SINCE 12-22 (lane b-spell-roles, Tyler
--- 2026-10-23, roadmap p12 / p15): the SUPPORT lane (hr_hunt_lanes) carries the Challenge,
--- the Hunter's Mark and the shields (hr_hunt_abilities); a universal row may name every
--- discipline (no cap of five); each role key names its discipline and shield arm
--- (hr_hunt_weapon_roles), the shields are hr_hunt_shields, and hr_hunt_roles is RETIRED
--- (empty). ORDER: after 2026-12-24-shields-catalogue (hr_items: the five shields), right
--- before 2026-12-24-spell-roles.sql (hr_hunt_weapon_of and hr_hunt_settings_view read
--- the new columns; between the two the old view finds no role discipline).
+-- SUPERSEDES 2026-12-20-hunt-sessions-catalogue.generated.sql (APPLIED with v0.2.37,
+-- history: never regenerated): every table below is rewritten wholesale. The staged
+-- 12-21, 12-22 and 12-24 files of the spell lanes were never applied and are folded in.
+-- NEW SINCE 12-20 (the spell release, Tyler + designer 2026-10-23): the store's Plain
+-- Iron Arrows and the 1 g store shot (hr_hunt_basic_supplies); the eat-at / drink-at
+-- options (hr_hunt_set_options) and their threshold limits RETIRED (a slot's own
+-- conditions); the casters' mana basic in the magic bound (magic_xp_mult_max); the
+-- family x tier runes (hr_hunt_supplies) and one store rune a family; each spell's
+-- family rune, Rend and Frost Lance on (hr_hunt_abilities); the SUPPORT lane
+-- (hr_hunt_lanes) carries the Challenge, the Hunter's Mark and the shields; each role key
+-- names its discipline and shield arm (hr_hunt_weapon_roles), the shields are
+-- hr_hunt_shields, and hr_hunt_roles is RETIRED (empty). ORDER: after
+-- 2026-12-28-items-catalogue.generated.sql (hr_items: the runes and the shields) and
+-- 2026-12-29-slot-truth.sql; right before 2026-12-30-spell-content.sql (its §0 needs
+-- green_sickness) and 2026-12-31-spell-roles.sql (hr_hunt_weapon_of and
+-- hr_hunt_settings_view read the new columns; between the two the old view finds no
+-- role discipline); the hr-accrue deploy follows 12-31 AT ONCE.
 -- Carried from 12-20 (lane b-loot-bands, designer + Tyler 2026-10-23, the loot bands):
--- the Thicket's five monsters carry the banded drop tables (hr_hunt_kill_bounds: every
--- Scarce and Rare item a kill may pay), Grayjaw's Ruff is a vendor value, and worn gear
--- sells at half its book value (hr_hunt_vendor_value from catalogue.js vendorPriceOf,
--- src/data/loot-bands.js VENDOR_GEAR_RATE). ORDER: after 2026-12-20-loot-catalogue
+-- every ground's monsters carry the banded drop tables (hr_hunt_kill_bounds: every
+-- Scarce, Rare and Trophy item a kill may pay), the Ruff and the Trophies are vendor
+-- values, and dropped gear sells by tier (hr_hunt_vendor_value from catalogue.js
+-- vendorPriceOf, src/data/loot-bands.js). ORDER: after 2026-12-20-loot-catalogue
 -- (hr_items), and the hr-accrue deploy follows AT ONCE: until it does, an old edge's
--- Shortbow from Old Grayjaw is over the bound and that settle is refused.
--- Carried from 12-09: NEW SINCE 11-23 (lane b-tank-choice, Tyler 2026-10-22 "One tank holds"): the
+-- drop that the new bounds no longer name is over the bound and that settle is refused.
+-- Carried from 12-18 (lane b-party-leave-together, Tyler 2026-10-22 "Leave if anyone
+-- leaves the hunt or dies"): END_ORDER's \`party_member_left\` (a ticked hero sent
+-- home by another member's end; RESUME_AFTER_END too) in hr_hunt_end_reasons and
+-- hunt_sessions.end_reason's CHECK; the world's shape is unchanged since 12-09.
+-- Carried from 12-09 (lane b-tank-choice, Tyler 2026-10-22 "One tank holds"): the
 -- world's shape gains hold / holdNext (src/core/hunt/targeting.js), so
 -- hr_hunt_world_shape is rewritten; the hr-accrue edge carrying that world deploys
 -- with this file, which applies LAST, after 2026-12-08-party-hold.sql (the hold seat
@@ -743,7 +750,7 @@ alter table public.hr_hunt_abilities add column if not exists ord int not null d
 alter table public.hr_hunt_abilities drop constraint if exists hr_hunt_abilities_disciplines_check;
 alter table public.hr_hunt_abilities add constraint hr_hunt_abilities_disciplines_check check (cardinality(disciplines) >= 1);
 -- RETIRED (lane b-spell-roles, 2026-12-24): a role named ONE ability discipline. A role is now played by several role
--- keys on their own lists (hr_hunt_weapon_roles.discipline); 2026-12-24-spell-roles.sql restates its last reader,
+-- keys on their own lists (hr_hunt_weapon_roles.discipline); 2026-12-31-spell-roles.sql restates its last reader,
 -- hr_hunt_settings_view. Kept, EMPTY, because applied history's §0 checks and bodies name it.
 create table if not exists public.hr_hunt_roles (
   role       text primary key check (role ~ '^[a-z0-9_]{1,64}$'),

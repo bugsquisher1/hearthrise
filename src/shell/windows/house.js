@@ -17,15 +17,15 @@
 // answers, and the ledger changes only from the re-read envelope. A refusal is
 // said in plain words. A room whose rungs do nothing yet offers no purchase.
 // ════════════════════════════════════════════════════════════════════════
-import { homeOf, chestsOf } from '../../session/home-sections.js?v=0.2.34';
-import { buyHome, buildChest } from '../../session/home-intents.js?v=0.2.34';
-import { bagOf, goldOf, nameOf } from '../../session/item-sections.js?v=0.2.34';
-import { PROPERTY_TIERS } from '../../data/homestead-tiers.js?v=0.2.34';
-import { ROOM_PERKS } from '../../data/perks.js?v=0.2.34';
-import { text, cls, prop, attr, rows, element } from '../../render/paint.js?v=0.2.34';
-import { whole, gold } from '../../render/format.js?v=0.2.34';
-import { itemName } from '../widgets/bits.js?v=0.2.34';
-import { runIntent } from '../intent-words.js?v=0.2.34';
+import { homeOf, chestsOf } from '../../session/home-sections.js?v=0.2.38';
+import { buyHome, buildChest } from '../../session/home-intents.js?v=0.2.38';
+import { bagOf, goldOf, nameOf } from '../../session/item-sections.js?v=0.2.38';
+import { PROPERTY_TIERS } from '../../data/homestead-tiers.js?v=0.2.38';
+import { ROOM_PERKS } from '../../data/perks.js?v=0.2.38';
+import { text, cls, prop, attr, rows, element } from '../../render/paint.js?v=0.2.38';
+import { whole, gold } from '../../render/format.js?v=0.2.38';
+import { itemName } from '../widgets/bits.js?v=0.2.38';
+import { runIntent } from '../intent-words.js?v=0.2.38';
 
 const ROMAN = Object.freeze(['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X']);
 const SCRATCH = new WeakMap();
@@ -182,8 +182,10 @@ renderHouse.patch = function patchHouse(body, ctx) {
   cls(yes, 'is-on', !!step);
   if (step) {
     text(cf.querySelector('.hw-confirm-q'), (sc.ask.kind === 'chest' ? 'Build the ' : 'Buy the ') + step.label + '?');
-    text(cf.querySelector('.hw-confirm-note'), 'Costs ' + [gold(step.gold)].concat(step.items.map((it) => whole(it.qty) + ' ' + itemName(it.id))).join(', ')
-      + (who ? ', paid by ' + who : '') + '. All your characters share it.');
+    /* The gold is the ACCOUNT's (one purse, 2026-12-15-account-gold.sql); the materials leave this hero's own bag. */
+    const mats = step.items.map((it) => whole(it.qty) + ' ' + itemName(it.id)).join(', ');
+    text(cf.querySelector('.hw-confirm-note'), 'Costs ' + gold(step.gold) + ' of your gold'
+      + (mats ? ' and ' + mats + (who ? ' from ' + who + '\'s bag' : '') : '') + '. All your characters share it.');
     text(yes, 'Pay ' + gold(step.gold));
   }
   prop(yes, 'disabled', sc.pending);

@@ -13,19 +13,19 @@
 // PURE ESM, Node + Deno + browser.
 // ============================================================================
 
-import { DEFAULT_PROFILE, equipmentStats, armorSetBonus, playerCombatRolls, weaknessInfo } from './combat.js?v=0.2.34';
-import { makeBonus, EMPTY_PERKS } from './perks.js?v=0.2.34';
-import { companionBonus } from './companion-perk.js?v=0.2.34';
-import { buffQueueFromServer, buffBonusFor } from './buffs.js?v=0.2.34';
-import { grantXp, normaliseXpFrac } from './progression.js?v=0.2.34';
-import { charLevelFromXp, levelsOf } from './xp.js?v=0.2.34';
-import { vitalsOf, wearsArmour, holdsShield } from './vitals.js?v=0.2.34';
-import { newHuntSession, takeLine } from './action-rules.js?v=0.2.34';
-import { makeGoalCounter, makeBestiaryCounter, makeCollectionCounter } from './goals.js?v=0.2.34';
-import { MONSTERS } from '../data/monsters.js?v=0.2.34';
-import { honeOf, honeWornAt, ammoPerShot } from './ammo.js?v=0.2.34';
-import { mitigationFor, NO_MITIGATION } from './mitigation.js?v=0.2.34';
-import { isRune } from '../data/runes.js?v=0.2.34';
+import { DEFAULT_PROFILE, equipmentStats, armorSetBonus, playerCombatRolls, weaknessInfo } from './combat.js?v=0.2.38';
+import { makeBonus, EMPTY_PERKS } from './perks.js?v=0.2.38';
+import { companionBonus } from './companion-perk.js?v=0.2.38';
+import { buffQueueFromServer, buffBonusFor } from './buffs.js?v=0.2.38';
+import { grantXp, normaliseXpFrac } from './progression.js?v=0.2.38';
+import { charLevelFromXp, levelsOf } from './xp.js?v=0.2.38';
+import { vitalsOf, wearsArmour, holdsShield } from './vitals.js?v=0.2.38';
+import { newHuntSession, takeLine } from './action-rules.js?v=0.2.38';
+import { makeGoalCounter, makeBestiaryCounter, makeCollectionCounter } from './goals.js?v=0.2.38';
+import { MONSTERS } from '../data/monsters.js?v=0.2.38';
+import { honeOf, honeWornAt, ammoPerShot } from './ammo.js?v=0.2.38';
+import { mitigationFor, NO_MITIGATION } from './mitigation.js?v=0.2.38';
+import { isRune } from '../data/runes.js?v=0.2.38';
 
 /* A finite, non-negative number or the fallback (every number that crosses in from a row). */
 function nat(v, fallback) {
@@ -319,11 +319,38 @@ export function memberSide(mi, ctx) {
       hero: { role: h.role, element: h.element || '', settings: h.settings || null,
         slots: h.slots || [], stopRules: h.stopRules || [], density: h.density || 0, lead: h.lead === true,
         hold: Number.isInteger(h.hold) ? h.hold : null,
+        leaveTogether: h.leaveTogether === true,
         actionSet: h.actionSet || 'hunt', range: h.range || 1, ammo: equipment.ammo || null },
     },
   };
 }
 
+
+/* ── ONE PURSE PER ACCOUNT (Tyler 2026-10-23; 2026-12-15-account-gold.sql) ──────
+   Gold is the ACCOUNT's, so the heroes of one account in one instance spend ONE purse,
+   in time order: the coins any of them loots, a sale any of them makes and a store use
+   any of them buys move the same gold, and each use keeps the purse at its OWN hero's
+   floor (action-rules.js floorOf). The settle reads every member's state in one
+   statement, so their start purses agree; the first side's is kept. The database pays
+   the window's store bills after every member's credits (hr_hunt_apply_instance), which
+   this time order keeps payable. Links each grouped side's session purse to one box. */
+export function sharePurses(sides) {
+  const byUser = new Map();
+  for (const s of sides || []) {
+    const u = s && s.mi && s.mi.user != null ? String(s.mi.user) : null;
+    if (u === null || !s.hs) continue;
+    if (!byUser.has(u)) byUser.set(u, []);
+    byUser.get(u).push(s);
+  }
+  for (const group of byUser.values()) {
+    if (group.length < 2) continue;
+    const box = { gold: Math.max(0, Math.floor(Number(group[0].hs.purse) || 0)) };
+    for (const s of group) {
+      Object.defineProperty(s.hs, 'purse', { get: () => box.gold, set: (v) => { box.gold = v; }, enumerable: true, configurable: true });
+    }
+  }
+  return sides;
+}
 
 /* ── A PARTY MEMBER AS THE VIEWER'S BROWSER SEES IT (Tyler 2026-10-20) ──────────
    hunt_live gives the viewer its OWN member's full setup, but every OTHER member only
@@ -337,7 +364,7 @@ export function memberSide(mi, ctx) {
    (tests/hunt-live.mjs LV-P). */
 export const FROZEN_KEYS = Object.freeze(['hp', 'maxHp', 'maxMana', 'regenPm', 'snap', 'vs', 'family', 'armoured', 'shield', 'hero', 'session']);
 export const FROZEN_SESSION_KEYS = Object.freeze(['huntFromMs', 'nextSwingAtMs', 'swingIndex', 'bag', 'basics', 'shop',
-  'supplySource', 'onEmpty', 'goldFloor', 'leaveAtMs', 'changeAtMs', 'stopAtMs']);
+  'supplySource', 'onEmpty', 'goldFloor', 'leaveAtMs', 'changeAtMs', 'stopAtMs', 'kicked']);
 const finiteOr = (v, d) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 
 /** The frozen numbers of an assembled member side at server instant `atMs`, against the monster `kinds`. */

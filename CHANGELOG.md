@@ -5,6 +5,38 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.38 — 2026-10-23 (Straight shooting)
+
+**Rangers fire their abilities.** Precision Shot and Flame Volley now fire when you pick your arrows on the bar, not only when arrows are worn in the ammo slot. A bow no longer shoots whetstones (the slot says why), and the Configure window only offers ammo your weapon can shoot.
+
+**The game updates as it happens.** Changes from the server now arrive the moment they're saved instead of on the next check, so party hunts, other heroes and the world feel live. The heroes you aren't watching ask the server far less often, which makes the game lighter to run, and leaving a hunt as a party no longer floods the server.
+
+**Chat is lighter.** Messages, whispers and party lines arrive the same way they always have (a little faster), and a dropped connection catches up on what you missed.
+
+**The Sandbox.** A "To the sandbox" sign in the Common leads to a new walking area drawn at a sharper scale. Look around; there's nothing to do there yet.
+
+## v0.2.37 — 2026-10-23 (Worth the hunt)
+
+**New loot on every ground.** Each monster now drops a full spread: creature parts, a crafting material, and gear for every armour weight (heavy, medium and light), so every build finds its next upgrade about once an hour as it moves up the grounds. Rare pieces turn up every few hours with a louder moment when they drop, and the Rat King and Chief Coppercap each guard a Trophy worth chasing. No gear is bound any more: everything you find can be stored or sold. The Hunts page shows the gear each ground drops for your armour.
+
+**Meet Tamsin Reeve, the Common's tally-keeper.** Take up to three kill tasks at her board (Q), hunt, and she pays you when you're back in town: gold, plus the next piece of gear you're missing for your armour. Your progress shows on the hunt cards.
+
+**Fixed:** the farm hint no longer says nothing grows while your shared land is full of crops.
+
+## v0.2.36 — 2026-10-23 (Home together)
+
+**Leave together.** Your row on the party panel now has a box: "Leave if anyone leaves the hunt or dies". It starts ticked and is remembered for each hero. When a partner leaves, falls or runs out, every hero with the box ticked is paid for its time, then comes home with them, and the summary says why ("Mira fell, so Tyler came home too."). Untick it to keep hunting. Removing someone from the party never sends anyone else home.
+
+## v0.2.35 — 2026-10-23 (One purse)
+
+**Your heroes share one purse.** Gold now belongs to your account: whatever any of your heroes earns or spends comes in and goes out of the same purse, shown as "Your gold". Every hero's gold was added together, nothing lost. Items still move between your heroes through Storage.
+
+**Runes stop costing you behind your back.** A basic attack no longer buys store runes on its own, running out of runes no longer ends your hunt, and a hit is now as strong as the rune it actually used. One spell you can't afford no longer ends the hunt either.
+
+**Follow means follow.** A hero set to Follow now attacks the monster its leader is fighting, and Strongest and Follow both switch to a better target when one turns up.
+
+**Fixed:** dead monsters no longer pop back when you switch heroes, corpses stay where they fell instead of sliding, and changing weapons mid-hunt now says "Not while a hunt is running." instead of half-working (setups change in town).
+
 ## v0.2.34 — 2026-10-23 (Shared land)
 
 **Your heroes share one farm.** Farm land now belongs to your account, like the house and the depot: any of your heroes can plant, water and harvest any plot, and the Farm window shows who planted what. Crops already in the ground moved over with their timers.

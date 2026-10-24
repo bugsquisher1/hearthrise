@@ -57,7 +57,12 @@
 //   CW-5  [page] a right-click on the World's canvas: a party member opens the player menu
 //         under that player's name (the server's party_people id: Message, Add friend,
 //         Block), a monster opens Look, the ground opens nothing, the viewed hero no menu
-//   RT-1  the realtime bindings one client holds are capped by CHAT_LIMITS.realtimeBindingsMax
+//   RT-1  the realtime joins one client holds are capped by CHAT_LIMITS.realtimeBindingsMax (the inbox counts once)
+//   RT-2  every chat join is a PRIVATE broadcast topic (2026-12-26-chat-broadcast.sql): chat:<channel> for a public
+//         channel, the account's own chat:inbox:<uid> for its party's lines and its whispers; no postgres_changes
+//   RC-1  A RECONNECT CATCHES UP: every (re)join re-reads the history once per burst and ADDS what the socket
+//         missed (chat and whispers), keeping what is shown, never re-subscribing
+//   BL-2  a pushed PUBLIC line from a blocked player is not shown (the server filters reads and inbox pushes)
 //   WT-1  a World pick becomes a stamped player, a monster, or nothing
 //   CW-6  [page] THE MENU STAYS (playtest 10-22: "right click outside of the bag is not
 //         sticking"): with the Inventory open, the menu a right-click on a chat name opens
@@ -120,9 +125,9 @@ function fakeAccount(answers) {
   return { acct, calls, rec, cs };
 }
 function fakeRealtime() {
-  const rt = { chats: [], whisperTo: null, push: null, pushW: null };
-  rt.chat = (channels, onRow) => { rt.chats.push(channels.slice()); rt.push = onRow; return () => {}; };
-  rt.whispers = (uid, onRow) => { rt.whisperTo = uid; rt.pushW = onRow; return () => {}; };
+  const rt = { chats: [], chatUid: null, whisperTo: null, push: null, pushW: null, joinChat: null, joinW: null };
+  rt.chat = (uid, channels, onRow, onJoin) => { rt.chatUid = uid; rt.chats.push(channels.slice()); rt.push = onRow; rt.joinChat = onJoin; return () => {}; };
+  rt.whispers = (uid, onRow, onJoin) => { rt.whisperTo = uid; rt.pushW = onRow; rt.joinW = onJoin; return () => {}; };
   return rt;
 }
 const tick = () => new Promise((ok) => setTimeout(ok, 0));
@@ -240,22 +245,91 @@ async function pureRules(M) {
     if (mon !== 'look') fail('MN-1 a monster gets ' + mon);
     soc.destroy();
   }
-  // RT-1: the realtime bindings per client are capped by the data value, across chat and whispers
+  // RT-1: the realtime joins per client are capped by the data value, across chat and whispers (the inbox counts once)
+  // RT-2: every join is a PRIVATE broadcast topic the server sends on (2026-12-26-chat-broadcast.sql): chat:<channel>
+  //       for a public channel, the account's own chat:inbox:<uid> for its party's lines and its whispers; nothing
+  //       is a postgres_changes subscription; a pushed message hands on its `line`, and every (re)join tells onJoin
   {
-    const bound = [];
+    const chans = [];
     const client = { realtime: { setAuth: () => {} }, removeChannel: (ch) => { ch.gone = true; },
-      channel: (topic) => { const ch = { topic, on: (t, f) => { bound.push({ ch, filter: f.filter }); return ch; }, subscribe: () => ch }; return ch; } };
-    const live = () => bound.filter((b) => !b.ch.gone).length;
+      channel: (topic, opts) => { const ch = { topic, opts, events: {}, status: null, on: (t, f, cb) => { ch.events[t + ':' + (f && f.event)] = cb; return ch; },
+        subscribe: (cb) => { ch.status = cb; return ch; } }; chans.push(ch); return ch; } };
+    const live = () => chans.filter((c) => !c.gone).length;
     const r = M.rt.createSocialRealtime(client, () => 'jwt');
     const cap = M.chans.CHAT_LIMITS.realtimeBindingsMax;
-    const leave = r.chat(['global', 'system', 'local:town', PARTY, 'local:a', 'local:b', 'local:c'], () => {});
-    if (live() !== cap || r.bindings() !== cap) fail('RT-1 seven channels took ' + live() + ' bindings (cap ' + cap + ')');
-    r.whispers(UID, () => {});
-    if (live() !== cap) fail('RT-1 a whisper subscription past the cap took a binding (' + live() + ')');
+    const got = [];
+    let joins = 0;
+    const leave = r.chat(UID, ['global', 'system', 'local:town', PARTY, 'local:a', 'local:b', 'local:c'], (row) => got.push(row), () => joins++);
+    if (live() !== cap || r.bindings() !== cap) fail('RT-1 seven channels took ' + live() + ' joins (cap ' + cap + ')');
+    const topics = chans.map((c) => c.topic).join(',');
+    if (topics !== 'chat:global,chat:system,chat:local:town,chat:inbox:' + UID + ',chat:local:a') fail('RT-2 the joins are ' + topics);
+    if (chans.some((c) => !c.opts || !c.opts.config || c.opts.config.private !== true)) fail('RT-2 a chat topic was joined as a PUBLIC channel');
+    if (chans.some((c) => Object.keys(c.events).some((k) => !/^broadcast:(line|whisper)$/.test(k)))) fail('RT-2 a join listens to something other than broadcast line/whisper: ' + JSON.stringify(chans.map((c) => Object.keys(c.events))));
+    const on = (topic, event) => { const c = chans.find((x) => x.topic === topic && !x.gone); return (c && c.events['broadcast:' + event]) || (() => {}); };
+    const inboxCh = chans.find((x) => x.topic === 'chat:inbox:' + UID && !x.gone);
+    on('chat:global', 'line')({ payload: { t: 'line', line: { id: 'g1' } } });
+    on('chat:inbox:' + UID, 'line')({ payload: { t: 'line', line: { id: 'p1' } } });
+    if (got.map((x) => x && x.id).join(',') !== 'g1,p1') fail('RT-2 the pushed lines (global, the party through the inbox) handed on ' + JSON.stringify(got));
+    if (inboxCh && chans[0].status) { chans[0].status('SUBSCRIBED'); inboxCh.status('SUBSCRIBED'); chans[0].status('CHANNEL_ERROR'); }
+    if (joins !== 2) fail('RT-2 two (re)joins told onJoin ' + joins + ' times');
+    const wgot = [];
+    r.whispers(UID, (row) => wgot.push(row));
+    if (live() !== cap) fail('RT-1 a whisper subscription past the cap took a join (' + live() + ')');
+    on('chat:inbox:' + UID, 'whisper')({ payload: { t: 'whisper', line: { id: 'w1' } } });
+    if (wgot.map((x) => x && x.id).join(',') !== 'w1' || got.length !== 2) fail('RT-2 a whisper reached ' + JSON.stringify({ wgot, got }));
     leave();
+    if (live() !== 1 || r.bindings() !== 1 || chans.filter((c) => !c.gone)[0].topic !== 'chat:inbox:' + UID) fail('RT-1 after leaving the chat, the inbox did not stay alone for the whispers (' + live() + ')');
     r.whispers(UID, () => {});
-    if (live() !== 1 || r.bindings() !== 1) fail('RT-1 after leaving, the whispers binding did not land alone (' + live() + ')');
-    if (cap < 5) fail('RT-1 the cap ' + cap + ' cannot hold global, system, zone, party and whispers');
+    if (live() !== 1) fail('RT-1 a second whispers listener took a second join');
+    if (cap < 4) fail('RT-1 the cap ' + cap + ' cannot hold global, system, zone and the inbox');
+  }
+  // RC-1: A RECONNECT CATCHES UP. Every (re)join re-reads the history once per burst and ADDS what the socket
+  //       missed, keeping what is shown; a whisper inbox (re)join does the same with hr_whispers_recent
+  // BL-2: a pushed PUBLIC line from a player this account blocked is not shown (the server filters reads and pushes
+  //       to inboxes; a public topic reaches every socket)
+  {
+    const later = [];
+    const answers = {
+      hr_chat_recent: { ok: true, zone: 'local:town', party: null, lines: [row({ body: 'old' })] },
+      hr_whispers_recent: { ok: true, lines: [] },
+    };
+    const { acct, calls } = fakeAccount(answers);
+    const rt = fakeRealtime();
+    const soc = new M.store.SocialSession({ account: acct, realtime: rt, timers: { setTimer: () => 1, clearTimer: () => {}, later: (fn) => later.push(fn) } });
+    soc.start();
+    await tick(); await tick();
+    const chat = soc.chat;
+    if (rt.chatUid !== UID) fail('RC-1 the chat subscription does not name the account (its inbox carries the party lines): ' + rt.chatUid);
+    rt.push(row({ body: 'live before the drop' }));
+    const missed = row({ body: 'missed while down' });
+    answers.hr_chat_recent = { ok: true, zone: 'local:town', party: null, lines: [row({ body: 'old' }), missed] };
+    const reads = () => calls.filter((c) => c.name === 'hr_chat_recent').length;
+    const r0 = reads();
+    rt.joinChat(); rt.joinChat(); rt.joinChat();
+    if (later.length !== 1) fail('RC-1 a burst of three joins scheduled ' + later.length + ' catch-ups, not one');
+    later.splice(0).forEach((fn) => fn());
+    await tick(); await tick();
+    if (reads() !== r0 + 1) fail('RC-1 a burst of joins read the history ' + (reads() - r0) + ' times, not once');
+    const words = chat.lines('global').map((l) => l.parts.map((p) => p.text || '').join(''));
+    if (!words.includes('missed while down')) fail('RC-1 a line missed while the socket was down did not come back: ' + JSON.stringify(words));
+    if (!words.includes('live before the drop')) fail('RC-1 the catch-up took away a line already shown');
+    if (calls.filter((c) => c.name === 'hr_chat_recent').length && rt.chats.length !== 1) fail('RC-1 a catch-up re-subscribed (' + rt.chats.length + ' subscriptions)');
+    // whispers
+    const wr0 = calls.filter((c) => c.name === 'hr_whispers_recent').length;
+    answers.hr_whispers_recent = { ok: true, lines: [row({ channel: undefined, to_id: UID, to_name: 'Me', body: 'whisper missed while down' })] };
+    if (typeof rt.joinW !== 'function') fail('RC-1 the whispers subscription gave no (re)join callback, so a blip loses the whispers');
+    else rt.joinW();
+    await tick(); await tick();
+    if (calls.filter((c) => c.name === 'hr_whispers_recent').length !== wr0 + 1) fail('RC-1 an inbox (re)join did not re-read the whispers once');
+    if (!soc.whispers.conversations().length) fail('RC-1 a whisper missed while the socket was down did not come back');
+    // BL-2
+    soc.blocks.apply([{ id: OTHER, name: 'Bramble' }]);
+    const n0 = chat.lines('global').length;
+    rt.push(row({ body: 'from a blocked player' }));
+    if (chat.lines('global').length !== n0) fail('BL-2 a pushed public line from a blocked player was shown');
+    rt.push(row({ from_id: 'aaaaaaaa-0000-4000-8000-0000000000e9', body: 'from someone else' }));
+    if (chat.lines('global').length !== n0 + 1) fail('BL-2 a pushed line from a player NOT blocked was dropped');
+    soc.destroy();
   }
   // WT-1: what the World picked becomes a target: a stamped player, a monster, or nothing for the ground
   {
@@ -449,10 +523,11 @@ async function pageRules(overrides, shots) {
       await page.keyboard.press('Enter');
       if (!await wait(page, () => document.querySelector('[data-hs-win="chat"] .hc-log.is-talk.is-on li'))) { fails.push('CW-1 [' + tag + '] the chat did not open on Global with its history'); await ctx.close(); continue; }
       // CW-1
-      const n = await page.evaluate(([zone]) => window.__hub.row('chat_messages', { id: '00000000-0000-4000-8000-00000000f001', channel: 'global',
+      /* The server's broadcast of a stored line (2026-12-26-chat-broadcast.sql): topic chat:global, event line. */
+      const n = await page.evaluate(() => window.__hub.send('chat:global', { t: 'line', line: { id: '00000000-0000-4000-8000-00000000f001', channel: 'global',
         from_id: 'aaaaaaaa-0000-4000-8000-0000000000b1', from_name: 'Bramble', from_slot: 0, from_level: 34, from_weapon: 'shield', from_role: 'healer',
-        body: 'look [[item:bronze_sword]]', created_at: new Date(Date.UTC(2026, 9, 18, 9, 5)).toISOString() }) + (zone ? 0 : 0), [ZONE]);
-      if (n !== 1) fails.push('CW-1 [' + tag + '] the page did not listen to Global (' + n + ' bindings took the row)');
+        body: 'look [[item:bronze_sword]]', created_at: new Date(Date.UTC(2026, 9, 18, 9, 5)).toISOString() } }, 'line'));
+      if (n !== 1) fails.push('CW-1 [' + tag + '] the page did not listen to Global (' + n + ' handlers took the line)');
       await page.waitForTimeout(400);
       const line = await page.evaluate(() => {
         const li = document.querySelector('[data-hs-win="chat"] .hc-log.is-talk.is-on li[data-key="00000000-0000-4000-8000-00000000f001"]');
@@ -465,9 +540,9 @@ async function pageRules(overrides, shots) {
       if (!line || line.time !== hhmm || line.name !== 'Bramble' || !/is-tank/.test(line.cls) || !/\[34/.test(line.tag || '') || !line.glyph
         || line.link !== '[Bronze Sword]' || !line.last) fails.push('CW-1 [' + tag + '] the line reads ' + JSON.stringify(line));
       // CW-2
-      await page.evaluate(() => window.__hub.row('chat_messages', { id: '00000000-0000-4000-8000-00000000f002', channel: 'local:mill_cellar',
+      await page.evaluate(() => window.__hub.send('chat:local:mill_cellar', { t: 'line', line: { id: '00000000-0000-4000-8000-00000000f002', channel: 'local:mill_cellar',
         from_id: 'aaaaaaaa-0000-4000-8000-0000000000b1', from_name: 'Bramble', from_slot: 0, from_level: 34, from_weapon: 'shield', from_role: null,
-        body: 'down here', created_at: new Date().toISOString() }));
+        body: 'down here', created_at: new Date().toISOString() } }, 'line'));
       const dot = await wait(page, () => { const b = document.querySelector('[data-hs-win="chat"] [data-tab="local"]'); return b && b.classList.contains('is-unread'); }, null, 2000);
       if (!dot) fails.push('CW-2 [' + tag + '] no unread dot on Local');
       await page.click('[data-hs-win="chat"] [data-tab="local"]');
@@ -642,7 +717,17 @@ const PURE_MUTANTS = [
   ['a hidden row is listed', 'src/shell/context-menu.js', "if (row.hidden || !row.targets.includes(target.kind)) continue;", "if (!row.targets.includes(target.kind)) continue;"],
   ['you can block yourself', 'src/social/social-session.js', "const other = (t) => t.kind === 'player' && !!t.id && !this.isSelf(t);", "const other = (t) => t.kind === 'player' && !!t.id;"],
   ['a friend reads online when offline', 'src/social/friends.js', "online: f.online === true,", "online: true,"],
-  ['the realtime bindings are not capped', 'src/social/realtime.js', "        .slice(0, Math.max(0, CHAT_LIMITS.realtimeBindingsMax - held()));", ";"],
+  ['the realtime bindings are not capped', 'src/social/realtime.js', "        if (held() >= CHAT_LIMITS.realtimeBindingsMax) break;\n", ''],
+  ['a chat topic is joined as a public channel', 'src/social/realtime.js', "client.channel(topic, { config: { private: true } })", 'client.channel(topic)'],
+  ['the inbox is a shared party topic', 'src/social/realtime.js', "if (typeof uid === 'string' && UUID.test(uid)) leaves.push(onInbox(uid, 'line', onRow, joined));\n          continue;",
+    "const ch = join('chat:' + c, { line: (m) => onRow(lineOf(m)) }, joined); leaves.push(() => leave(ch));\n          continue;"],
+  ['a rejoin tells nobody', 'src/social/realtime.js', "ch.subscribe((status) => { if (status === 'SUBSCRIBED') onJoin(); });", 'ch.subscribe(() => {});'],
+  ['a reconnect never catches up', 'src/social/chat-store.js', '      () => this._catchUpSoon());', '      () => {});'],
+  ['every join reads the history', 'src/social/chat-store.js', '    if (this._catch.soon) return;\n', ''],
+  ['the catch-up replaces what is shown', 'src/social/chat-store.js', "        for (const row of b.lines) if (this._take(row, true)) any = true;\n        if (any) { for (const tab of SERVER_TABS)",
+    "        for (const tab of SERVER_TABS) { for (const l of this.lines(tab)) this._ids.delete(l.id); this._lines.set(tab, []); }\n        for (const row of b.lines) if (this._take(row, true)) any = true;\n        if (any) { for (const tab of SERVER_TABS)"],
+  ['a whisper rejoin never catches up', 'src/social/whispers.js', ", () => this._catchUp());", ');'],
+  ['a blocked player\'s public line is shown', 'src/social/chat-store.js', '    if (live && l.fromId && this._blocked(l.fromId)) return false;\n', ''],
   ['a failed online ask keeps the last count', 'src/social/players-online.js', '    let n = null;', '    let n = this.count;'],
   ['a refused social read still asks the count', 'src/social/social-session.js', '    if (!read) { this.online.clear(); return null; }\n', ''],
   ['the online ask names only the viewed character', 'src/social/social-session.js',

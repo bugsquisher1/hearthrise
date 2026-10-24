@@ -79,9 +79,16 @@ import { isMain } from './_is-main.mjs';
 /** The file that refills public.hr_unlocks wholesale. */
 const OWNER = '2026-08-16-unlocks.generated.sql';
 
-/** THE REPAIR LIST — every migration that must be re-applied, IN THIS ORDER,
- *  after OWNER has been re-applied. Cross-checked against the manifest below,
- *  so adding a new hr_unlocks seeder without adding it here fails this guard. */
+/** THE REPAIR LIST — every migration whose hr_unlocks writes must be re-run, IN THIS
+ *  ORDER, after OWNER has been re-applied. Cross-checked against the manifest below,
+ *  so adding a new hr_unlocks seeder without adding it here fails this guard.
+ *
+ *  ⚠ THE CATALOGUE STATEMENTS, NOT THE WHOLE FILE (2026-12-15-account-gold.sql). The two
+ *    2026-08-19 files also restate gold bodies (hr_unlock_buy, the start kit) and self-check
+ *    per-hero gold, a column that no longer exists: re-applied whole at chain end they refuse,
+ *    and if they did not they would install a pre-purse hr_unlock_buy over the one that ships.
+ *    So the repair is each file's top-level `insert into` / `delete from public.hr_unlocks`
+ *    statements, in file order — the rows, and nothing a later file has restated since. */
 const REPAIR_AFTER_WIPE = [
   '2026-08-19-gold-spend-slices-2-3.sql',              // bank · plot:farm_land · worker_hire
   '2026-08-19-companion-unlocks.sql',                  // the 4 SHOP companions, rung-shaped
@@ -115,6 +122,16 @@ const FP_SQL = `select unlock_id,
 const problems = [];
 const ok = (cond, msg) => { if (!cond) problems.push(msg); };
 const mig = (f) => readFile(join(ROOT, 'supabase', 'migrations', f), 'utf8');
+/** A file's top-level hr_unlocks writes, in order: each statement starts a line (so a quoted
+ *  `--   delete from …` comment is not one) and ends at the first line ending in `;`. */
+function catalogueWrites(sql) {
+  const t = sql.replace(/\r\n/g, '\n'), out = [];
+  for (const m of t.matchAll(/^(?:insert\s+into|delete\s+from)\s+public\.hr_unlocks\b/gim)) {
+    const end = t.slice(m.index).search(/;[ \t]*$/m);
+    if (end > 0) out.push(t.slice(m.index, m.index + end + 1));
+  }
+  return out;
+}
 
 const FIX = '2026-09-05-companion-unlock-catalogue-reseed.sql';
 
@@ -196,7 +213,9 @@ async function run({ control = false } = {}) {
   // ── (4) THE DECLARED REPAIR RESTORES IT EXACTLY ─────────────────────────
   const refused = [];
   for (const f of repair) {
-    try { await db.exec(await mig(f)); }
+    const writes = catalogueWrites(await mig(f));
+    if (!writes.length) { refused.push(`${f}: no top-level hr_unlocks statement found — the repair would be a silent no-op`); continue; }
+    try { for (const w of writes) await db.exec(w); }
     catch (e) { refused.push(`${f}: ${String(e.message || e).split('\n')[0]}`); }
   }
   const after = fpOf(await q(FP_SQL));

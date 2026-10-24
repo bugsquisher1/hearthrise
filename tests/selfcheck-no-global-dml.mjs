@@ -919,6 +919,24 @@ export const ACKNOWLEDGED = {
       "raise exception 'VERIFY(fold): % of % crops reached the accounts, or one changed on the way', v_moved, v_want; end if;",
     ],
   },
+  '2026-12-15-account-gold.sql :: call :: hr_gold_fold': {
+    verdict: 'staged-backfill',
+    sites: 1,
+    why: 'Section 3b is the file\'s WORK, not a self-check: the one-time fold of every hero\'s '
+       + 'player_state.gold into its account\'s ONE purse (Tyler 2026-10-23: "it should just be account '
+       + 'gold"), global by definition like the depot and farm folds above. It writes account_wallet '
+       + '(an insert, or on an existing wallet row an ADD of the summed gold: nothing is overwritten or '
+       + 'lowered) and one kind=wallet ledger row per account; it runs once (player_state.gold is dropped '
+       + 'in the same transaction; a re-apply finds no column and returns before it), under an ACCESS '
+       + 'EXCLUSIVE lock on player_state, and is followed by a conservation check over every user and the '
+       + 'fleet total. The self-check half (3a) calls the same function scoped to its own probe user and '
+       + 'rolls back. `sites` is pinned at 1.',
+    proof: [
+      'v_n := pg_temp.hr_gold_fold(v_u);',
+      'lock table public.player_state in access exclusive mode;',
+      "raise exception 'VERIFY(fold): an account purse does not equal its heroes'' summed gold'; end if;",
+    ],
+  },
   '2026-12-02-old-rewards-cut.sql :: call :: hr_cut_item_holders': {
     verdict: 'staged-backfill',
     sites: 2,
@@ -934,7 +952,7 @@ export const ACKNOWLEDGED = {
       "raise exception 'old-rewards-cut §4(d): a fox row is still held'; end if;",
     ],
   },
-  '2026-12-22-rune-ladder-cut.sql :: call :: hr_cut_item_holders': {
+  '2026-12-28-rune-ladder-cut.sql :: call :: hr_cut_item_holders': {
     verdict: 'staged-backfill',
     sites: 3,
     why: 'Section 2 is the file\'s WORK: the one-time cut of the old rune ladder and the graded blanks from every '

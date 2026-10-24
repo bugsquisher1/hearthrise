@@ -15,6 +15,8 @@
 //             { id, colors } or null: 2026-11-04-party-outfits.sql, read by hunt-sections.js memberOf)
 //           hold_seat: who holds the pack (Tyler 2026-10-22): a tank's seat (One tank holds) or null (Take turns),
 //             hunt_parties.hold_seat, set only by the leader's hr_party_hold_set (lane/c-hunt-screens-server)
+//           leave_together: THIS hero's own "Leave if anyone leaves the hunt or dies" (Tyler 2026-10-22),
+//             player_state.party_leave_together, set only by its own hr_party_leave_together_set (2026-12-18)
 //   (a solo hunt is a party of one with id null: no party membership here)
 // The finder's answer (hr_hunt_party_finder) keeps its own { seats: [{ seat, weapon, role, name }] }.
 // What this lane asks the server for (CONFLICTS.md 2026-10-18 party UI; the
@@ -28,12 +30,12 @@
 // the server's `role` is only the pick, kept when the weapon allows it.
 // ════════════════════════════════════════════════════════════════════════
 
-import { roleForWeapon, WEAPON_ROLES } from '../data/hunt-roles.js?v=0.2.34';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.34';
-import { TREES, ROCKS, FISH_SPOTS } from '../data/gathering.js?v=0.2.34';
-import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.34';
-import { huntOf, staminaOf, densityMapOf } from './hunt-sections.js?v=0.2.34';
-import { heroVitalsOf } from './character-sections.js?v=0.2.34';
+import { roleForWeapon, WEAPON_ROLES } from '../data/hunt-roles.js?v=0.2.38';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.38';
+import { TREES, ROCKS, FISH_SPOTS } from '../data/gathering.js?v=0.2.38';
+import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.38';
+import { huntOf, staminaOf, densityMapOf } from './hunt-sections.js?v=0.2.38';
+import { heroVitalsOf } from './character-sections.js?v=0.2.38';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -79,6 +81,9 @@ export function partyMembershipOf(cs) {
     leaderName: (seats.find((s) => s.seat === seatNo(p.leader_seat)) || {}).name || null,
     /* WHO HOLDS THE PACK: the seat the leader picked to hold every lap, or null (the tanks take turns). */
     holdSeat: seatNo(p.hold_seat),
+    /* LEAVE TOGETHER (Tyler 2026-10-22): THIS hero's own "Leave if anyone leaves the hunt or dies"
+       (player_state.party_leave_together); null when the server did not say (the box stays off). */
+    leaveTogether: typeof p.leave_together === 'boolean' ? p.leave_together : null,
     anyHunting: seats.some((s) => s.hunting),
     full: max !== null && seats.length >= max,
   };

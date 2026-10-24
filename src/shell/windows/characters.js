@@ -19,17 +19,17 @@
 // the server refuses rather than charge another sum. Refusals in plain words.
 // Built once, patched in place.
 // ════════════════════════════════════════════════════════════════════════
-import { ALERT_KINDS } from '../../data/alerts.js?v=0.2.34';
-import { summaryOf } from '../command-model.js?v=0.2.34';
-import { alertShown, setAlertShown } from '../alerts.js?v=0.2.34';
-import { huntName } from '../../session/party-sections.js?v=0.2.34';
-import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.34';
-import { gold, whole, hoursMinutes } from '../../render/format.js?v=0.2.34';
-import { renameOf, goldOf } from '../../session/item-sections.js?v=0.2.34';
-import { runIntent } from '../intent-words.js?v=0.2.34';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.34';
-import { gaugeHtml, patchGauge, patchRoleGlyph } from '../widgets/bits.js?v=0.2.34';
-import { glyphSvg } from '../launcher.js?v=0.2.34';
+import { ALERT_KINDS } from '../../data/alerts.js?v=0.2.38';
+import { summaryOf } from '../command-model.js?v=0.2.38';
+import { alertShown, setAlertShown } from '../alerts.js?v=0.2.38';
+import { huntName } from '../../session/party-sections.js?v=0.2.38';
+import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.38';
+import { gold, whole, hoursMinutes } from '../../render/format.js?v=0.2.38';
+import { renameOf, goldOf } from '../../session/item-sections.js?v=0.2.38';
+import { runIntent } from '../intent-words.js?v=0.2.38';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.38';
+import { gaugeHtml, patchGauge, patchRoleGlyph } from '../widgets/bits.js?v=0.2.38';
+import { glyphSvg } from '../launcher.js?v=0.2.38';
 
 /* The rename panel's scratch, per viewed character: which hero, the typed name, the confirm step. */
 const SCRATCH = new WeakMap();
@@ -94,7 +94,7 @@ function patchRow(li, x, ctx) {
   prop(ren, 'disabled', scratchOf(ctx.character).pending);
 }
 
-/** The rename panel: the chosen hero's quote, its gold, the typed name and the confirm step. */
+/** The rename panel: the chosen hero's quote, the account's gold, the typed name and the confirm step. */
 function patchRename(root, ctx, peers) {
   const sc = scratchOf(ctx.character);
   const target = sc.slot === null ? null : peers.find((cs) => cs.slot === sc.slot) || null;
@@ -108,9 +108,9 @@ function patchRename(root, ctx, peers) {
   text(panel.querySelector('.hw-rename-head'), 'Rename ' + name);
   const short = !!q && purse !== null && purse < q.price;
   text(panel.querySelector('.hw-rename-quote'), !q ? 'The server has not priced a new name yet.'
-    : 'A new name costs ' + gold(q.price) + ' at Level ' + whole(q.level) + ', paid by ' + name + '. The first name was free; every change after it costs gold.'
+    : 'A new name costs ' + gold(q.price) + ' at Level ' + whole(q.level) + ', paid from your gold. The first name was free; every change after it costs gold.'
       + (!q.available ? ' ' + name + (RENAME_WHY[q.why] || ' cannot change name right now.')
-        : short ? ' ' + name + ' has ' + gold(purse) + '.' : ''));
+        : short ? ' You have ' + gold(purse) + '.' : ''));
   const can = !!q && q.available && !short && !sc.pending;
   if (sc.confirm && !can) sc.confirm = false;
   const ask = panel.querySelector('[data-hs-act="rename-ask"]');

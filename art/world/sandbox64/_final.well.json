@@ -1,0 +1,44 @@
+{
+  "id": "well",
+  "class": "fixture",
+  "style": "s1",
+  "material": "stone",
+  "source": "well.png",
+  "frame": [
+    80,
+    96
+  ],
+  "measured": {
+    "mass": [
+      71,
+      86
+    ]
+  },
+  "target_x2_of_today": [
+    72,
+    86
+  ],
+  "notes": "SANDBOX64 round 3 final (2026-10-23). Size reference = today's art/world/common/well.png cut to its body and scaled x2 nearest-neighbour; the reference sets the size.",
+  "pixellab": {
+    "tool": "create_object_pro_flash",
+    "object_id": "1085500e-5e7a-45cf-b80d-551ff4e67b3f",
+    "params": {
+      "width": 80,
+      "height": 96,
+      "n_directions": 1,
+      "view": "high top-down",
+      "seed": 1305,
+      "style_image": "upload of art/world/common/well.png body x2 (72x86); usage 'Keep exactly this size and silhouette; redraw it with full 64 px detail (this reference is a 2x enlargement, so do not copy its chunky pixels).'",
+      "style_options": {
+        "color_palette": true,
+        "detail": false,
+        "outline": true,
+        "shading": true
+      },
+      "palette": "hr-world-56-v2 (56 colours)",
+      "description": "A village stone well seen from a high top-down camera: round grey fieldstone wall, a wooden frame with a small shingled roof on two posts, a rope and a wooden bucket. Keep exactly this size and silhouette, redraw with full 64 px detail: clean shading in a few tones per material, single dark outline, lit from the upper left, no background, no shadow, classic MMORPG game prop."
+    },
+    "cost_generations": 5,
+    "cost_note": "tool estimate; round 3 jobs overlapped (round total in knight.json)"
+  }
+}

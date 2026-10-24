@@ -53,6 +53,7 @@
       "stamina",
       "stamina_refill",
       "state",
+      "tally",
       "total_level",
       "traits",
       "unlocked_recipes",
@@ -73,6 +74,7 @@
       "fight",
       "gems",
       "gold",
+      "gold_v",
       "hearth_tokens",
       "hearthfind_last",
       "hearthfind_plinth",
@@ -92,5 +94,5 @@
       "workers_accrued_to"
     ]
   },
-  "generatedAt": "2026-10-22"
+  "generatedAt": "2026-10-23"
 }

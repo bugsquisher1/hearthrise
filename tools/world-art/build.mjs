@@ -22,6 +22,10 @@
 //   in FACINGS order (s,e,n,w, then se,sw,ne,nw), frames left to right at the frame size.
 // Terrain sidecar: { id, class: 'terrain', material, source, lower, upper,
 //   tiles: { NWNESWSE: [[col, row], …] }, pixellab } — T×T cells of the source.
+// THE SET'S GRID: art/world/<set>/_set.json { "grid": "hd64" } names the art grid the set is
+// drawn on (src/data/world/art-budget.js GRIDS); no file is the base grid. The grid's T, class
+// table, shadow rule and measuring bands build and validate the set, and the manifest records
+// its T. Files starting with `_` are set settings, never sidecars.
 //
 // Exit 0 green · 1 a finding or drift · 2 harness error.
 import { readFileSync, writeFileSync, readdirSync, existsSync, mkdirSync, statSync } from 'node:fs';
@@ -32,7 +36,7 @@ import { lock } from './lock.mjs';
 import { measureFrame, contactSpans } from './measure.mjs';
 import { validateSprite, validateTerrain, validateAtlasSize, referenceFrames } from './validate.mjs';
 import { pack } from './pack.mjs';
-import { CLASSES, FACINGS, T, SHADOW, MANIFEST_VERSION, atlasPaths } from '../../src/data/world/art-budget.js';
+import { FACINGS, MANIFEST_VERSION, atlasPaths, gridOf } from '../../src/data/world/art-budget.js';
 import { PALETTE_ID } from './palette.mjs';
 import { isMain as isEntryModule } from '../../tests/_is-main.mjs';
 
@@ -48,15 +52,21 @@ export function listSets(root = ROOT) {
   return readdirSync(dir).filter((d) => statSync(join(dir, d)).isDirectory()).sort();
 }
 
+/** The grid profile a set is drawn on (its _set.json `grid`; the base grid without one). */
+export function setGrid(root, set) {
+  const f = join(root, ART_DIR, set, '_set.json');
+  return gridOf(existsSync(f) ? JSON.parse(readFileSync(f, 'utf8')).grid : null);
+}
+
 export function readSidecars(root, set) {
   const dir = join(root, ART_DIR, set);
-  return readdirSync(dir).filter((f) => f.endsWith('.json')).sort()
+  return readdirSync(dir).filter((f) => f.endsWith('.json') && !f.startsWith('_')).sort()
     .map((f) => ({ file: `${ART_DIR}/${set}/${f}`, ...JSON.parse(readFileSync(join(dir, f), 'utf8')) }));
 }
 
 /** Slice and lock a sprite's frames from its source sheet. */
-export function framesOf(sc, sheet) {
-  const cls = CLASSES[sc.class] || {};
+export function framesOf(sc, sheet, grid = gridOf()) {
+  const cls = grid.classes[sc.class] || {};
   const [fw, fh] = sc.frame || cls.frame || [sheet.width, sheet.height];
   const frames = [];
   const problems = [];
@@ -82,27 +92,29 @@ export function spriteOf(sc, frames) {
   };
 }
 
-function shadowOf(sc, cls, refs) {
+function shadowOf(sc, cls, refs, grid) {
+  const { T, shadow: SHADOW, scale: k } = grid;
   const kind = sc.shadow !== undefined ? sc.shadow : cls.shadow;
   if (!kind) return null;
-  const ms = refs.map((f) => measureFrame(f.img)).filter((m) => !m.empty);
+  const ms = refs.map((f) => measureFrame(f.img, k)).filter((m) => !m.empty);
   if (kind === 'ellipse') {
     const fw = (sc.footprint || [1, 1])[0];
     const w = Math.round(Math.min(SHADOW.footprintK * fw * T, SHADOW.massK * median(ms.map((m) => m.mass.w))));
     return { kind, w, h: Math.max(2, Math.round(SHADOW.aspect * w)), dx: SHADOW.dx, dy: SHADOW.dy };
   }
-  return { kind, height: median(ms.map((m) => m.mass.h)), base: contactOf(sc, ms[0]) };
+  return { kind, height: median(ms.map((m) => m.mass.h)), base: contactOf(sc, ms[0], k) };
 }
 
-function contactOf(sc, m) {
+function contactOf(sc, m, k = 1) {
   if (!m) return [0, 0];
-  const spans = contactSpans(m.profile, sc.anchor_px[1], 2);
+  const spans = contactSpans(m.profile, sc.anchor_px[1], 2 * k);
   return spans.length ? [spans[0][0], spans[spans.length - 1][1]] : [m.box.x0, m.box.x1];
 }
 
 /** Build one set in memory. */
 export function buildSet(root, set) {
   const findings = [];
+  const grid = setGrid(root, set), T = grid.T;
   const sprites = [], terrains = [];
   for (const sc of readSidecars(root, set)) {
     const src = join(root, ART_DIR, set, sc.source || '');
@@ -111,14 +123,14 @@ export function buildSet(root, set) {
     if (sc.class === 'terrain') {
       const tiles = {};
       for (const [k, cells] of Object.entries(sc.tiles)) tiles[k] = cells.map(([c, r]) => lock(crop(sheet, c * T, r * T, T, T), sc.material));
-      findings.push(...validateTerrain({ id: sc.id, kind: sc.kind, cycle: sc.cycle, tiles }));
+      findings.push(...validateTerrain({ id: sc.id, kind: sc.kind, cycle: sc.cycle, tiles }, grid));
       terrains.push({ sc, tiles });
       continue;
     }
-    const { frames, problems, frame } = framesOf(sc, sheet);
+    const { frames, problems, frame } = framesOf(sc, sheet, grid);
     findings.push(...problems);
     const sp = spriteOf(sc, frames);
-    findings.push(...validateSprite(sp));
+    findings.push(...validateSprite(sp, grid));
     sprites.push({ sc, sp, frame });
   }
   const all = [];
@@ -134,9 +146,9 @@ export function buildSet(root, set) {
     sprites: {}, terrain: {},
   };
   for (const { sc, sp, frame } of sprites.sort((a, b) => (a.sc.id < b.sc.id ? -1 : 1))) {
-    const cls = CLASSES[sc.class] || {};
+    const cls = grid.classes[sc.class] || {};
     const refs = referenceFrames(sp.frames);
-    const ms = refs.map((f) => measureFrame(f.img)).filter((m) => !m.empty);
+    const ms = refs.map((f) => measureFrame(f.img, grid.scale)).filter((m) => !m.empty);
     const anims = {};
     for (const a of sc.anims) {
       const dirs = {};
@@ -146,7 +158,7 @@ export function buildSet(root, set) {
     manifest.sprites[sc.id] = {
       class: sc.class, layer: cls.layer || 'prop', frame, anchor: sc.anchor_px, footprint: sp.footprint,
       overhang: sp.overhang, hover: sp.hover, height: median(ms.map((m) => m.mass.h)),
-      contact: contactOf(sc, ms[0]), shadow: cls.contact ? shadowOf(sc, cls, refs) : null,
+      contact: contactOf(sc, ms[0], grid.scale), shadow: cls.contact ? shadowOf(sc, cls, refs, grid) : null,
       ...(sc.blend === 'add' ? { blend: 'add' } : {}), anims,
     };
   }
@@ -155,7 +167,7 @@ export function buildSet(root, set) {
     for (const k of Object.keys(tiles).sort()) out[k] = tiles[k].map((_, i) => packed.rects.get(`${sc.id}:${k}:${i}`));
     manifest.terrain[sc.id] = { kind: sc.kind || 'wang16', lower: sc.lower, upper: sc.upper, ...(sc.cycle ? { cycle: sc.cycle } : {}), ...(sc.painted ? { painted: true } : {}), tiles: out };
   }
-  return { set, findings, manifest, atlas: packed.image, sprites };
+  return { set, findings, manifest, atlas: packed.image, sprites, grid };
 }
 
 /** A manifest sprite back out of its atlas, as the record validateSprite reads. */
@@ -172,6 +184,7 @@ export function spriteFromAtlas(manifest, atlas, id) {
 /** A manifest terrain back out of its atlas. */
 export function terrainFromAtlas(manifest, atlas, id) {
   const tiles = {};
+  const T = manifest.T;
   for (const [k, list] of Object.entries(manifest.terrain[id].tiles)) tiles[k] = list.map(([x, y]) => crop(atlas, x, y, T, T));
   const t = manifest.terrain[id];
   return { id, kind: t.kind, cycle: t.cycle, tiles };
@@ -217,8 +230,8 @@ export function checkAll(root = ROOT) {
 
 function report(b) {
   for (const { sc, sp } of b.sprites || []) {
-    const cls = CLASSES[sc.class] || {};
-    const refs = referenceFrames(sp.frames).map((f) => [f.dir, measureFrame(f.img)]).filter(([, m]) => !m.empty);
+    const cls = b.grid.classes[sc.class] || {};
+    const refs = referenceFrames(sp.frames).map((f) => [f.dir, measureFrame(f.img, b.grid.scale)]).filter(([, m]) => !m.empty);
     console.log(`  ${sc.id.padEnd(18)} ${sc.class.padEnd(9)} ` + refs.map(([d, m]) => `${d}: mass ${m.mass.w}x${m.mass.h} box ${m.box.x0},${m.box.y0}-${m.box.x1},${m.box.y1} contact ${m.contact}`).join(' | ') + ` (anchor ${sc.anchor_px}, body ${cls.body ? cls.body.join('-') : '?'})`);
   }
 }

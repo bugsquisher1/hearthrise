@@ -348,6 +348,23 @@ async function runTests(mods) {
     const at = HUD.clearOfEdges({ left: 900, top: 8, width: 300, height: 40 }, [party], 1440, 12, [chat]);
     ok(!over({ left: at.left, top: 8, width: 300, height: 40 }, chat) && at.push.every((p) => p.i < 1), 'the top bar must clear the dock: ' + JSON.stringify(at));
   });
+  t('H12 a stacking widget sits under the ones it names on its edge, and only when it would overlap them', () => {
+    const over = (a, q) => a.left < q.left + q.width && a.left + a.width > q.left && a.top < q.top + q.height && a.top + a.height > q.top;
+    /* v0.2.37 run 40020854780 (HS-13): the tally at the right edge ran under a tall analyzer */
+    const an = { left: 1143, top: 12, width: 285, height: 420 }, bar = { left: 1000, top: 4, width: 430, height: 42 };
+    const tally = { left: 1248, top: 12, width: 180, height: 90 };
+    const top = HUD.stackBelow(tally, [an], 12);
+    eq(top, 12 + 420 + 12, 'it sits one gap under the analyzer');
+    ok(!over(Object.assign({}, tally, { top }), an), 'it still overlaps the analyzer at ' + top);
+    eq(HUD.stackBelow(tally, [{ left: 1143, top: 12, width: 0, height: 0 }], 12), 12, 'a hidden widget is in nobody\'s way');
+    eq(HUD.stackBelow(tally, [{ left: 12, top: 12, width: 258, height: 250 }], 12), 12, 'a widget across the screen moves nothing');
+    eq(HUD.stackBelow(tally, [{ left: 1143, top: 60, width: 285, height: 100 }], 12), 172, 'one lower down on its edge, overlapping it, still sends it under');
+    eq(HUD.stackBelow({ left: 1248, top: 12, width: 180, height: 90 }, [{ left: 1143, top: 400, width: 285, height: 100 }], 12), 12, 'one below it moves nothing');
+    eq(HUD.stackBelow(tally, [bar, Object.assign({}, an, { top: 50 })], 12), 50 + 420 + 12, 'under every one it names, in any order');
+    let threw = false;
+    try { HUD.validateWidgetRows([W({ below: ['nobody'] })]); } catch { threw = true; }
+    ok(threw, 'a `below` naming no widget must be refused');
+  });
   t('H8 the contract is validated', () => {
     const bad = [W({ anchor: 'xx' }), W({ layer: 'sky' }), W({ opacity: 0.2 }), W({ when: 'night' }), W({ removable: false, visible: false }), W({ phone: { min: [1, 1] } })];
     for (const r of bad) { let threw = false; try { HUD.validateWidgetRows([r]); } catch (e) { threw = true; } ok(threw, 'must refuse ' + JSON.stringify(r)); }
@@ -442,12 +459,14 @@ async function runTests(mods) {
       setResidue(f, v) { this.writes.push([f, v]); this.record = { residue: { [f]: v } }; return true; } }, o);
     const env = (now, ended, session = 's-1') => hero({
       serverNow: () => now,
-      read: (k) => ({ name: 'Brannoc', state: { level_xp: XP.charXpForLevel(10) + 7, gold: 1956 },
+      /* state.gold is the ACCOUNT purse (2026-12-15-account-gold.sql): it moves with every hero, so the line
+         reads this hero's own hunt coins (the analyzer's), never the purse. */
+      read: (k) => ({ name: 'Brannoc', state: { level_xp: XP.charXpForLevel(10) + 7, gold: 99999 },
         hunt: { session_id: session, hunt_id: 'meadowbrook_thicket', ended: !!ended, session: ended ? { end_reason: 'stamina' } : {}, hero: {}, pose: { units: [] } },
-        hunt_analyzer: { hero: { kills: 644 } } })[k] });
+        hunt_analyzer: { hero: { kills: 644, coins: 1956 } } })[k] });
     const back = AR.awayRecapOf(env(T0 + H2));
     ok(back && back.kind === 'away' && /While you were away \(2 h 0 min\), Brannoc hunted Meadowbrook Thicket/.test(back.text)
-      && /Level 5 to 10/.test(back.text) && /\+1,142 gold/.test(back.text) && /544 kills/.test(back.text) && /Still hunting\./.test(back.text),
+      && /Level 5 to 10/.test(back.text) && /\+1,142 gold/.test(back.text) && !/99,185|98,185/.test(back.text) && /544 kills/.test(back.text) && /Still hunting\./.test(back.text),
       'the return line: ' + JSON.stringify(back));
     ok(back && back.id === 'away:s-1:' + T0, 'the line is shown once: its id carries the stamp ' + (back && back.id));
     const ended = AR.awayRecapOf(env(T0 + H2, true));

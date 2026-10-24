@@ -43,13 +43,16 @@
 //   A-PARTY   invite by name -> accept -> the leader's one start enters both
 //             members with their OWN bags, and the instance settles them; a kicked
 //             hunter is ended `left` at its leave and the instance settles on
-//             without it (Security reopen #2, 2026-10-29-party-security.sql).
+//             without it (Security reopen #2, 2026-10-29-party-security.sql); the
+//             leader, its "Leave if anyone leaves" box on by default, is NOT sent
+//             home: a kick sends nobody home (Coordinator ruling 2026-10-23).
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { bootReplay, inventory, LAST_PATCHED, ROOT } from './schema-replay.mjs';
 import { isMain } from './_is-main.mjs';
+import { goldOf } from './_gold.mjs';
 
 const MUTATE = process.argv.includes('--mutate');
 const FN = join('supabase', 'functions', 'hr-accrue');
@@ -80,7 +83,8 @@ async function asAuth(db, uid, sql, params) {
   try { const r = (await db.query(sql, params)).rows[0]; return r ? Object.values(r)[0] : undefined; }
   finally { await db.exec('reset role'); }
 }
-const gold = async (H, db, uid) => Number(await H.one(db, 'select gold from public.player_state where user_id = $1 and slot = 0', [uid]));
+/* The gold the hero spends: its ACCOUNT's purse (2026-12-15-account-gold.sql), or its own on an older chain. */
+const gold = async (H, db, uid) => goldOf((sql, p) => db.query(sql, p).then((r) => r.rows), uid, 0);
 const qty = async (H, db, uid, item) => Number(await H.one(db, 'select coalesce((select qty from public.player_inventory where user_id = $1 and slot = 0 and item_id = $2), 0)', [uid, item]));
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -320,6 +324,9 @@ const ARMS = {
        clock, its session gets leave_at; the next settle ends it `left` there, and the instance settles on with the
        leader alone, so the kicked member is in no later split. */
     await db.query('delete from public.hr_rate_counters');
+    /* A KICK SENDS NOBODY HOME (Coordinator ruling 2026-10-23): the leader keeps its box "Leave if anyone leaves the hunt
+       or dies" at the server's default (on), and the kicked member's end does not send it home. */
+    if (await H.one(db, 'select party_leave_together from public.player_state where user_id = $1 and slot = 0', [a]) !== true) p.push('CONTROL: the leader’s box is not on by default');
     const sb = await H.one(db, 'select id from public.hunt_sessions where instance_id = $1 and user_id = $2 and ended_at is null', [pid, b]);
     const seatB = await H.one(db, 'select seat from public.hunt_party_members where party_id = $1 and user_id = $2', [pid, b]);
     const k = await ok(a, 'select public.hr_hunt_party_kick(0, $1, $2::uuid)', [seatB, idem()]);
@@ -335,7 +342,7 @@ const ARMS = {
       p.push('the kicked hunter was not ended at its leave: ' + JSON.stringify(end));
     }
     const open = await H.q(db, 'select user_id from public.hunt_sessions where instance_id = $1 and ended_at is null', [pid]);
-    if (open.length !== 1 || open[0].user_id !== a) p.push('after the kick the instance holds ' + JSON.stringify(open) + ', want the leader alone');
+    if (open.length !== 1 || open[0].user_id !== a) p.push('after the kick the instance holds ' + JSON.stringify(open) + ', want the leader alone (a ticked leader is not sent home by a kick)');
     return p;
   },
 };
@@ -446,16 +453,19 @@ async function blessArm(db, { H, M }, attended) {
 /* Each mutant: the file, its [find, replace], the arm that must go red. The file's own
    self-check is turned into an uncalled function so the defect reaches the arm. */
 const MUTANTS = [
-  { arm: 'A-LOCK', file: '2026-10-27-core-bodies.sql', why: 'hr_apply no longer refuses a locked sale',
-    find: "        if v_n < 0 and coalesce(v_this_intent, '') ~ '^vendor_sell(_many)?(:|$)' and public.hr_item_locked(v_uid, v_slot, k) then",
-    repl: "        if false and coalesce(v_this_intent, '') ~ '^vendor_sell(_many)?(:|$)' and public.hr_item_locked(v_uid, v_slot, k) then" },
-  /* hr_hunt_apply_member is RESTATED last by 2026-11-16-hunt-density-bounds.sql (after the core rebuild):
-     their mutants are planted in the bodies that run. */
-  { arm: 'A-LOOT-AWAY', file: '2026-11-16-hunt-density-bounds.sql', why: 'the settle no longer runs the loot filter',
+  /* hr_apply's LAST author is 2026-12-15-account-gold.sql §5 (four anchored edits of the installed text, md5-pinned to
+     its pre-image, so a plant in an earlier file trips that pin): the defect rides §5 as a fifth edit of the body it
+     installs. The anchor sits in §5's do-block, in no function body of the text, so the mutant names its body (`fn`). */
+  { arm: 'A-LOCK', file: '2026-12-15-account-gold.sql', fn: 'hr_apply', why: 'hr_apply no longer refuses a locked sale',
+    find: '  v_new := replace(v_new, a4, r4);\n  execute v_new;',
+    repl: '  v_new := replace(v_new, a4, r4);\n  v_new := replace(v_new, $l$        if v_n < 0 and coalesce(v_this_intent, \'\') ~ \'^vendor_sell(_many)?(:|$)\' and public.hr_item_locked(v_uid, v_slot, k) then$l$,\n    $l$        if false and coalesce(v_this_intent, \'\') ~ \'^vendor_sell(_many)?(:|$)\' and public.hr_item_locked(v_uid, v_slot, k) then$l$);\n  execute v_new;' },
+  /* hr_hunt_apply_member and hr_hunt_loot_rules are RESTATED last by 2026-12-15-account-gold.sql (the account
+     purse, md5-pinned to their pre-images): their mutants are planted in the bodies that run. */
+  { arm: 'A-LOOT-AWAY', file: '2026-12-15-account-gold.sql', why: 'the settle no longer runs the loot filter',
     find: "  v_loot := public.hr_hunt_loot_rules(p_user, p_slot, p_session, p_intent, p_delta->'items', v_to);", repl: '  v_loot := null;' },
-  { arm: 'A-LOOT-ATTENDED', file: '2026-10-25-bag-rules.sql', why: 'a sale pays twice the vendor bid',
+  { arm: 'A-LOOT-ATTENDED', file: '2026-12-15-account-gold.sql', why: 'a sale pays twice the vendor bid',
     find: '      v_gold := v_gold + v_q * v_r.unit;', repl: '      v_gold := v_gold + 2 * v_q * v_r.unit;' },
-  { arm: 'A-LOOT-AWAY', file: '2026-10-25-bag-rules.sql', why: 'the loot filter ignores a lock',
+  { arm: 'A-LOOT-AWAY', file: '2026-12-15-account-gold.sql', why: 'the loot filter ignores a lock',
     find: "       and r.loot_rule in ('sell', 'ignore') and not r.locked", repl: "       and r.loot_rule in ('sell', 'ignore')" },
   /* hr_shop_view is RESTATED last by 2026-11-25-shop-seeds.sql: its mutants are planted in the body that runs. */
   { arm: 'A-NO-SUPPLY', file: '2026-11-25-shop-seeds.sql', why: 'the shop section lists the supplies again',
@@ -482,17 +492,36 @@ const MUTANTS = [
   { arm: 'A-STAMINA', file: '2026-10-25-stamina-refill.sql', why: 'the refill charges and never writes the pool',
     find: "   where user_id = v_uid and slot = p_slot;\n  return jsonb_build_object('ok', true, 'version', v_a->'version', 'gold', -p_price,",
     repl: "   where false;\n  return jsonb_build_object('ok', true, 'version', v_a->'version', 'gold', -p_price," },
-  /* hr_hunt_apply_member is RESTATED last by 2026-11-16-hunt-density-bounds.sql: the hook call is planted in the body that runs. */
-  { arm: 'A-BLESS-AWAY', file: '2026-11-16-hunt-density-bounds.sql', why: 'the death no longer applies blessings',
+  /* hr_hunt_apply_member is RESTATED last by 2026-12-15-account-gold.sql: the hook call is planted in the body that runs. */
+  { arm: 'A-BLESS-AWAY', file: '2026-12-15-account-gold.sql', why: 'the death no longer applies blessings',
     find: '    v_bless := public.hr_blessing_take(p_user, p_slot, p_session, v_dx, v_s.settled_to);', repl: '    v_bless := null;' },
   /* ('every fall of the window is protected, not the first' RETIRED with the core rebuild: a hunt holds one death,
      so there is no second death for the mutant to protect.) */
   { arm: 'A-BLESS-ATTENDED', file: '2026-10-25-blessings.sql', why: 'a death does not use the blessings up',
     find: '  delete from public.player_blessings where user_id = p_user and slot = p_slot and tier = any (v_tiers);', repl: '  perform 1;' },
   /* hr_hunt_party_start is RESTATED last by 2026-12-07-party-finder.sql (after town-activity-yields): the mutant is planted in the body that runs. */
+  /* A KICK SENDS NOBODY HOME (Coordinator ruling 2026-10-23): the engine's read never flags the removed member. */
+  { arm: 'A-PARTY', file: '2026-12-18-party-leave-together.sql', why: "a kicked member's end sends the ticked leader home",
+    find: "'kicked', exists (select 1 from public.hunt_parties p where p.id = v_i.id)", repl: "'kicked', false and exists (select 1 from public.hunt_parties p where p.id = v_i.id)" },
   { arm: 'A-PARTY', file: '2026-12-07-party-finder.sql', why: "the shared start loads the leader's bag into every member",
     find: 'public.hr_hunt_saved_bag(v_m.user_id, v_m.slot),', repl: 'public.hr_hunt_saved_bag(v_uid, p_slot),' },
 ];
+
+/** The function whose dollar-quoted BODY holds offset `at` of a migration's text, or null. A `create or replace
+    function` whose body closed before `at` does not hold it: an anchor in a later do-block (2026-12-15-account-gold.sql
+    §5's hr_apply edits, after its hr_hunt_apply_instance) belongs to no body in the text, so the mutant names it. */
+function enclosingFunction(text, at) {
+  let fn = null;
+  for (const m of text.slice(0, at).matchAll(/create\s+or\s+replace\s+function\s+(?:public\.)?(\w+)\s*\(/gi)) {
+    const open = /\$(\w*)\$/g;
+    open.lastIndex = m.index;
+    const o = open.exec(text);
+    if (!o || o.index >= at) continue;
+    const close = text.indexOf(o[0], o.index + o[0].length);
+    if (close < 0 || close > at) fn = m[1];
+  }
+  return fn;
+}
 
 /** Each mutant's file must be the chain's LAST author of the function its `find` sits in (mutate the caller). */
 export function staleAnchors(mutants) {
@@ -503,8 +532,7 @@ export function staleAnchors(mutants) {
     const body = text(mu.file);
     const at = body.indexOf(mu.find);
     if (at < 0) { out.push(`${mu.arm}: find not in ${mu.file}`); continue; }
-    let fn = null;
-    for (const m of body.slice(0, at).matchAll(/create\s+or\s+replace\s+function\s+(?:public\.)?(\w+)\s*\(/gi)) fn = m[1];
+    const fn = enclosingFunction(body, at) || mu.fn || null;
     if (!fn) continue;
     const re = new RegExp('create\\s+or\\s+replace\\s+function\\s+(?:public\\.)?' + fn + '\\s*\\(', 'i');
     const later = order.slice(order.indexOf(mu.file) + 1).filter((f) => re.test(text(f)));
@@ -554,6 +582,10 @@ async function main() {
      Selftest: the old party-flow anchor must be flagged, or this check is blind. */
   const probe = staleAnchors([{ arm: 'SELFTEST', file: '2026-10-28-party-flow.sql', find: 'public.hr_hunt_saved_bag(v_m.user_id, v_m.slot),' }]);
   if (!probe.length) { console.error('✗ ANCHOR selftest: a superseded party-flow anchor was not flagged'); process.exit(1); }
+  /* ...and a plant INSIDE a body a later file restates whole (12-15's hr_hunt_apply_instance, restated by
+     2026-12-23-tally-tasks.sql) must be flagged: a body's end is read from its dollar quotes, not guessed. */
+  const inBody = staleAnchors([{ arm: 'SELFTEST', file: '2026-12-15-account-gold.sql', find: '      if public.hr_purse_of(v_u) < v_f then\n' }]);
+  if (!inBody.some((s) => s.includes('hr_hunt_apply_instance'))) { console.error('✗ ANCHOR selftest: a plant in 12-15\'s superseded hr_hunt_apply_instance was not flagged'); process.exit(1); }
   const stale = staleAnchors(MUTANTS);
   for (const s of stale) console.error('✗ ANCHOR ' + s);
   let missed = stale.length;

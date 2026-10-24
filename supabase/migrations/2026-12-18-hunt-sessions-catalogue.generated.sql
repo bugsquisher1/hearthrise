@@ -8,14 +8,20 @@
 --   src/data/premium.js, src/core/hunt/world-state.js and the vendor price
 --   (hr-accrue/catalogue.js). Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: 6fadd6d5af788c0b67ee70cf66370520e878c440722554717c7b566149bcb1ab
---   59 supplies, 121 hunts (named + training), 50 limits, 11 end reasons,
---   498 vendor values, 20 store supplies paid per use, 5 target modes,
---   3 lanes, 14 abilities, 10 action-set options, 5 hunt grounds
+--   digest: 2b32a776e90127b30ba033530882a6b68acd531ef1ba18e0d6aaa0bd37c93943
+--   59 supplies, 121 hunts (named + training), 52 limits, 12 end reasons,
+--   498 vendor values, 19 store supplies paid per use, 5 target modes,
+--   3 lanes, 14 abilities, 12 action-set options, 5 hunt grounds
 --
--- SUPERSEDES 2026-11-23-hunt-sessions-catalogue.generated.sql (the v0.2.31 chain;
--- history once applied, never regenerated): every table below is rewritten wholesale.
--- NEW SINCE 11-23 (lane b-tank-choice, Tyler 2026-10-22 "One tank holds"): the
+-- SUPERSEDES 2026-12-09-hunt-sessions-catalogue.generated.sql (the v0.2.32 chain,
+-- APPLIED, history: never regenerated): every table below is rewritten wholesale.
+-- NEW SINCE 12-09 (lane b-party-leave-together, Tyler 2026-10-22 "Leave if anyone
+-- leaves the hunt or dies"): END_ORDER gains `party_member_left` (a ticked hero sent
+-- home by another member's end; RESUME_AFTER_END too), so hr_hunt_end_reasons and
+-- hunt_sessions.end_reason's CHECK are rewritten; the world's shape is unchanged.
+-- Applies after the APPLIED 12-14..12-17 files and right BEFORE 2026-12-18-party-leave-together.sql
+-- (which proves the end).
+-- Carried from 12-09 (lane b-tank-choice, Tyler 2026-10-22 "One tank holds"): the
 -- world's shape gains hold / holdNext (src/core/hunt/targeting.js), so
 -- hr_hunt_world_shape is rewritten; the hr-accrue edge carrying that world deploys
 -- with this file, which applies LAST, after 2026-12-08-party-hold.sql (the hold seat
@@ -303,7 +309,6 @@ insert into public.hr_hunt_basic_supplies (basic_id, kind, partner, heals, mana,
   ('plain_dawnpoint_arrows', 'ammo', 'dawnpoint_arrows', 0, 0, 24),
   ('plain_emberhead_arrows', 'ammo', 'emberhead_arrows', 0, 0, 18),
   ('plain_fire_rune', 'ammo', 'fire_rune', 0, 0, 8),
-  ('plain_iron_arrows', 'ammo', 'iron_arrows', 0, 0, 2),
   ('plain_iron_bolts', 'ammo', 'iron_bolts', 0, 0, 2),
   ('plain_mithril_arrows', 'ammo', 'mithril_arrows', 0, 0, 8),
   ('plain_rune_arrows', 'ammo', 'rune_arrows', 0, 0, 12),
@@ -331,6 +336,8 @@ insert into public.hr_hunt_set_options (opt, kind, limit_key, vals, dflt) values
   ('action_set', 'enum', null, array['hunt', 'mana_train', 'boss']::text[], '"hunt"'::jsonb),
   ('chase', 'bool', null, null, null),
   ('distance', 'limit', 'distance', null, null),
+  ('drink_below_pct', 'limit', 'threshold_pct', null, '30'::jsonb),
+  ('food_below_pct', 'limit', 'threshold_pct', null, '50'::jsonb),
   ('gather_share', 'limit', 'gather_share', null, '0'::jsonb),
   ('gold_floor', 'limit', 'gold_floor', null, null),
   ('on_empty', 'enum', null, array['switch', 'end']::text[], '"switch"'::jsonb),
@@ -820,21 +827,24 @@ insert into public.hr_hunt_limits (key, value) values
   ('stamina_low_min', 60),
   ('stamina_premium_min', 720),
   ('swing_interval_ms', 2000),
+  ('threshold_pct_max', 99),
+  ('threshold_pct_min', 1),
   ('value_headroom', 3),
   ('world_max_bytes', 16384);
 delete from public.hr_hunt_end_reasons;
 insert into public.hr_hunt_end_reasons (reason, ord, resumes) values
   ('died', 1, true),
   ('party_member_died', 2, true),
-  ('heals_out', 3, true),
-  ('ammo_out', 4, true),
-  ('gold_out', 5, true),
-  ('rule', 6, true),
-  ('stamina', 7, true),
-  ('hours', 8, true),
-  ('left', 9, false),
-  ('changed', 10, false),
-  ('server', 11, true);
+  ('party_member_left', 3, true),
+  ('heals_out', 4, true),
+  ('ammo_out', 5, true),
+  ('gold_out', 6, true),
+  ('rule', 7, true),
+  ('stamina', 8, true),
+  ('hours', 9, true),
+  ('left', 10, false),
+  ('changed', 11, false),
+  ('server', 12, true);
 delete from public.hr_hunt_resumable_kinds;
 insert into public.hr_hunt_resumable_kinds (kind) values
   ('gather'),
@@ -843,7 +853,7 @@ insert into public.hr_hunt_resumable_kinds (kind) values
 -- hunt_sessions.end_reason's CHECK is END_ORDER (the generator owns it).
 alter table public.hunt_sessions drop constraint if exists hunt_sessions_end_reason_check;
 alter table public.hunt_sessions add constraint hunt_sessions_end_reason_check
-  check (end_reason in ('died', 'party_member_died', 'heals_out', 'ammo_out', 'gold_out', 'rule', 'stamina', 'hours', 'left', 'changed', 'server'));
+  check (end_reason in ('died', 'party_member_died', 'party_member_left', 'heals_out', 'ammo_out', 'gold_out', 'rule', 'stamina', 'hours', 'left', 'changed', 'server'));
 -- The bar's size is ACTION_SET_LIMITS.slots (Huntera's two rows of ten).
 alter table public.player_action_sets drop constraint if exists player_action_sets_slots_check;
 alter table public.player_action_sets add constraint player_action_sets_slots_check
@@ -1369,17 +1379,17 @@ declare v_role text; v_t text;
 begin
   if (select count(*) from public.hr_hunt_supplies) <> 59
      or (select count(*) from public.hr_hunt_travel) <> 121
-     or (select count(*) from public.hr_hunt_limits) <> 50
-     or (select count(*) from public.hr_hunt_end_reasons) <> 11
+     or (select count(*) from public.hr_hunt_limits) <> 52
+     or (select count(*) from public.hr_hunt_end_reasons) <> 12
      or (select count(*) from public.hr_hunt_vendor_value) <> 498
-     or (select count(*) from public.hr_hunt_basic_supplies) <> 20
+     or (select count(*) from public.hr_hunt_basic_supplies) <> 19
      or (select count(*) from public.hr_hunt_cover_items) <> 0
      or exists (select 1 from public.hr_hunt_basic_supplies where cardinality(coalesce(tiers, '{}'::int[])) > 0)
      or exists (select 1 from public.hr_hunt_travel where tier is not null)
      or (select count(*) from public.hr_hunt_target_modes) <> 5
      or (select count(*) from public.hr_hunt_resumable_kinds) <> 3
      or (select count(*) from public.hr_hunt_lanes) <> 3
-     or (select count(*) from public.hr_hunt_set_options) <> 10
+     or (select count(*) from public.hr_hunt_set_options) <> 12
      or (select count(*) from public.hr_hunt_kill_bounds) <> 134
      or (select count(*) from public.hr_hunt_abilities) <> 14
      or (select count(*) from public.hr_hunt_grounds) <> 5
@@ -1391,7 +1401,7 @@ begin
      or (select count(*) from public.hr_hunt_weapons) <> 64
      or (select count(*) from public.hr_hunt_weapon_roles) <> 12
      or (select count(*) from public.hr_hunt_roles) <> 5
-     or (select count(*) from public.hr_hunt_end_reasons where resumes) <> 9 then
+     or (select count(*) from public.hr_hunt_end_reasons where resumes) <> 10 then
     raise exception 'hunt-session catalogue row counts moved from the generator''s'; end if;
   -- The world fields the party section reads by name are all there, at the generator's positions.
   if (select fields from public.hr_hunt_world_shape) is distinct from '{"unit":{"id":0,"side":1,"kind":2,"pocket":3,"alive":4,"hp":5,"maxHp":6,"target":7,"home":8,"x":9,"y":10,"fx":11,"fy":12,"prog":13,"speed":14,"dir":15,"goal":16,"path":17,"waitMs":18,"repathMs":19,"spot":20,"holdMs":21,"role":22,"dist":23,"chase":24,"tmode":25,"queued":26,"aiMs":27,"deadMs":28,"hpMilli":29,"yieldPm":30,"stance":31,"acc":32,"maxHit":33,"def":34,"element":35,"swingLeftMs":36,"mana":37,"maxMana":38,"manaMilli":39,"regenPm":40,"lanes":41,"cds":42,"shield":43,"markPm":44,"markUntil":45,"statuses":46,"laneAt":47,"otHp":48,"otMana":49,"ruleHold":50,"ruleWait":51},"world":{"ground":0,"swing":1,"leader":2,"trail":3,"leaderLast":4,"hold":5,"holdNext":6,"phase":7,"routeIdx":8,"phaseMs":9,"regroupNext":10,"runs":11,"nextId":12,"density":13,"xpGroup":14,"rareWon":15}}'::jsonb

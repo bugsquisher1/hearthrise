@@ -130,6 +130,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { pathToFileURL } from 'node:url';
 import { bootReplay, ROOT } from './schema-replay.mjs';
+import { goldOf, setGold } from './_gold.mjs';
 import { PRE_WALLET } from './wallet-fixture.mjs';
 import { HR_APPLY_FINAL, HR_APPLY_S3_BLIND } from './hr-apply-final-body.mjs';
 import { HR_STATE_OF_FINAL, HR_STATE_OF_S3_BLIND } from './hr-state-of-final-body.mjs';
@@ -879,15 +880,16 @@ async function run(mutate, blind) {
 
   // ── the character ────────────────────────────────────────────────────────
   await db.exec(`insert into auth.users (id) values ('${U}') on conflict (id) do nothing;`);
-  await db.exec(`insert into public.player_state (user_id, slot, gold, hp, version, accrued_to)
-    values ('${U}', 0, 100000, 10, 1, now())
-    on conflict (user_id, slot) do update set gold = 100000, version = 1, buffs = '[]'::jsonb,
+  await db.exec(`insert into public.player_state (user_id, slot, hp, version, accrued_to)
+    values ('${U}', 0, 10, 1, now())
+    on conflict (user_id, slot) do update set version = 1, buffs = '[]'::jsonb,
       client_state = '{}'::jsonb;`);
+  /* the gold the hero spends: its ACCOUNT's purse (2026-12-15-account-gold.sql), or its own on an older chain */
+  await setGold((sql, p) => db.query(sql, p).then((r) => r.rows), U, 0, 100000);
 
   const queue = async () => (await db.query(
     'select buffs from public.player_state where user_id = $1 and slot = 0', [U])).rows[0].buffs;
-  const gold = async () => Number((await db.query(
-    'select gold from public.player_state where user_id = $1 and slot = 0', [U])).rows[0].gold);
+  const gold = async () => Number(await goldOf((sql, p) => db.query(sql, p).then((r) => r.rows), U, 0));
   const apply = async (delta, key) => {
     const v = Number((await db.query(
       'select version from public.player_state where user_id = $1 and slot = 0', [U])).rows[0].version);

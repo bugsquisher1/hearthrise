@@ -43,15 +43,15 @@ const V = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(ROOT, 'src/build-
 const MIGRATION = 'supabase/migrations/2026-10-25-action-conditions.sql';
 /* The starter bar moved forward (Tyler 2026-10-21: a slot names ONE item; a new hero's bar). */
 const STORE_MIGRATION = 'supabase/migrations/2026-11-07-store-by-slot.sql';
-/* The limits (+ max_ignored), the action ids (no rune is an attack item) and the role rule sets (their triggers
+/* The limits (+ max_ignored), the action ids (no rune and no whetstone is an attack item) and the role rule sets (their triggers
    written as real conditions) moved forward: lane b-spell-core, Tyler 2026-10-23. */
-const SLOT_MIGRATION = 'supabase/migrations/2026-12-21-slot-truth.sql';
+const SLOT_MIGRATION = 'supabase/migrations/2026-12-29-slot-truth.sql';
 /* The metrics (Green Sickness's mark, the heal aimed at yourself) and the role rule sets (a rune spell's slot names its
    store rune) moved forward again: lane b-spell-content, Tyler 2026-10-23. */
-const CONTENT_MIGRATION = 'supabase/migrations/2026-12-22-spell-content.sql';
+const CONTENT_MIGRATION = 'supabase/migrations/2026-12-30-spell-content.sql';
 /* The role rule sets (the Melee damage set gains the sword's Flame Strike) and the settings view that places the starter
    bar (restated: the role key's discipline) moved forward again: lane b-spell-roles, Tyler 2026-10-23. */
-const ROLES_MIGRATION = 'supabase/migrations/2026-12-24-spell-roles.sql';
+const ROLES_MIGRATION = 'supabase/migrations/2026-12-31-spell-roles.sql';
 
 async function load(root) {
   const M = await loadCore(root);
@@ -202,7 +202,7 @@ export function actionIdRowsSql(M) {
   for (const k of Object.keys(M.CM.ATTACK_KINDS)) ids.push(['attack_with_item', k]);
   /* ONE item a slot (Tyler 2026-10-21): every crafted food and drink AND every store food and drink; no kinds. */
   for (const r of Object.values(M.CD.CONSUMABLES)) ids.push(['consume', r.id]);
-  /* an attack item is an ammo line that is no rune (runes fuel spells only, Tyler 2026-10-23) */
+  /* an attack item is an ammo some weapon can shoot: no rune (runes fuel spells only, Tyler 2026-10-23), no whetstone (Andy a41) */
   for (const s of Object.values(M.SUP.SUPPLIES)) if (M.conditions.attackItem(s.id)) ids.push(['attack_with_item', s.id]);
   return ids.sort((a, b) => (a[0] + ':' + a[1] < b[0] + ':' + b[1] ? -1 : 1)).map(([t, i]) => '  (' + q(t) + ', ' + q(i) + ')').join(',\n');
 }
@@ -257,6 +257,10 @@ const cases = {
       [Object.assign(ab('power_strike'), { when: 1 }), 'bad_slot'],
       /* Runes fuel spells only (Tyler 2026-10-23): no attack slot names one. */
       [slot('attack_with_item', 'chalked_fire_rune'), 'bad_action'],
+      /* A whetstone sharpens a Melee weapon worn in the ammo slot and is no one's shot (Andy a41: a bow loosed 1,012 Copper
+         Whetstones from an attack slot): no attack slot names one (attackItem, the server's hr_hunt_action_ids). */
+      [slot('attack_with_item', 'copper_whetstone'), 'bad_action'], [slot('attack_with_item', 'steel_whetstone'), 'bad_action'],
+      [slot('attack_with_item', 'iron_bolts'), null],
       /* ON / OFF and the IGNORED MONSTERS (Tyler 2026-10-19; the server's hr_hunt_slot_check, the same refusals). */
       [Object.assign(ab('power_strike'), { enabled: false }), null], [Object.assign(ab('power_strike'), { enabled: 'no' }), 'bad_enabled'],
       [Object.assign(ab('fireball'), { ignore: ['rat', 'slime'] }), null],
@@ -836,7 +840,7 @@ const cases = {
       if (got !== want) return 'the migration\'s ' + tag + ' block is stale (node tests/hunt-core/conditions.mjs --print)';
     }
     /* THE STARTER BAR the server places for a new hero is the start kit's (src/data/start-kit.js START_BAR). */
-    /* the chain end's settings view (2026-12-24-spell-roles.sql restates it, the 2026-11-07 placement block unchanged) */
+    /* the chain end's settings view (2026-12-31-spell-roles.sql restates it, the 2026-11-07 placement block unchanged) */
     const sb = /-- ⟦starter-bar⟧\n\s*v_def := v_def \|\| '([^\n]*)'::jsonb;\n\s*-- ⟦\/starter-bar⟧/.exec(roles);
     let bar = null;
     try { bar = sb ? JSON.parse(sb[1].replace(/''/g, "'")) : null; } catch { bar = null; }
@@ -892,6 +896,8 @@ const mutants = [
   { name: 'an area slot aims at an ignored monster', case: 'slot-switch-and-ignore', edits: [['src/core/hunt/conditions.js', '  const cand = mons.filter((m) => reaches(inst, hero, range, m) && !ignores(slot, m))', '  const cand = mons.filter((m) => reaches(inst, hero, range, m))']] },
   { name: 'an ignored monster may be a single-target ability\'s target', case: 'slot-switch-and-ignore', edits: [['src/core/hunt/abilities.js', '  const near = mons.filter((m) => inReach(inst, hero, h.range, m) && !ignores(cx && cx.slot, m)).sort(byPreference(hero));', '  const near = mons.filter((m) => inReach(inst, hero, h.range, m)).sort(byPreference(hero));']] },
   { name: 'an unknown monster may be ignored', case: 'validation', edits: [['src/core/hunt/conditions.js', "  if (!s.ignore.every((id) => typeof id === 'string' && Object.prototype.hasOwnProperty.call(MONSTERS, id)) || new Set(s.ignore).size !== s.ignore.length) return { error: 'bad_ignore' };\n", '']] },
+  { name: 'a whetstone attack slot is accepted (Andy a41)', case: 'validation',
+    edits: [['src/core/hunt/conditions.js', 'SHOOTERS.some((r) => shootsItem(r, ITEMS[id]))', "!!ITEMS[id] && ITEMS[id].reqSkill !== 'magic'"]] },
   { name: 'a slot may ignore without bound', case: 'validation', edits: [['src/core/hunt/conditions.js', "  if (s.ignore.length > MAX_IGNORED) return { error: 'too_many_ignored' };\n", '']] },
   { name: 'an area shot spends one unit per monster hit', case: 'attack-item', edits: [['src/core/hunt/damage.js', '    for (const m of hits) if (m.alive) blow(inst, sc, u, h, m, shot.pick.price, sharePm);', '    for (const m of hits) { if (m !== aim && shot.pick.ammo) payBasic(inst, u, { ammo: shot.pick.ammo }, sc); if (m.alive) blow(inst, sc, u, h, m, shot.pick.price, sharePm); }']] },
   { name: 'an empty attack stack does not fall back', case: 'attack-item', edits: [['src/core/hunt/damage.js', "    if (!l.id || l.why) return { why: l.why === 'gold_short' ? 'gold_short' : 'no_stock' };\n    const size", '    if (!l.id) return { id, size: 1, aim: cx.aim || u };\n    const size']] },

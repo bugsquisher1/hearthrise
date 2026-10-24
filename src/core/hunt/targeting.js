@@ -20,13 +20,13 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { HUNT_ROLES, CHALLENGE } from '../../data/hunt-roles.js?v=0.2.34';
-import { MONSTERS } from '../../data/monsters.js?v=0.2.34';
-import { DEFAULT_TARGET_MODE } from '../../data/rule-subjects.js?v=0.2.34';
-import { elementPermille } from '../combat.js?v=0.2.34';
-import { cheb, dist2, los } from './grid.js?v=0.2.34';
-import { unitById, leaderOf } from './movement.js?v=0.2.34';
-import { makeEvent } from './events.js?v=0.2.34';
+import { HUNT_ROLES, CHALLENGE } from '../../data/hunt-roles.js?v=0.2.38';
+import { MONSTERS } from '../../data/monsters.js?v=0.2.38';
+import { DEFAULT_TARGET_MODE } from '../../data/rule-subjects.js?v=0.2.38';
+import { elementPermille } from '../combat.js?v=0.2.38';
+import { cheb, dist2, los } from './grid.js?v=0.2.38';
+import { unitById, leaderOf } from './movement.js?v=0.2.38';
+import { makeEvent } from './events.js?v=0.2.38';
 
 /* holdMs: ms a Challenged monster stays on its challenger (no other Challenge takes it meanwhile).
    The Challenge's cooldown is the ability's own clock (abilities.js `cds`). leaderLast: the leader's last target (TG-04).
@@ -66,19 +66,49 @@ const ORDER = Object.freeze({
   /* Highest % life first, compared as integers (b.hp / b.maxHp vs a.hp / a.maxHp, cross-multiplied). */
   highest_pct: () => (a, b) => b.hp * a.maxHp - a.hp * b.maxHp,
   strongest: () => (a, b) => b.maxHp - a.maxHp,
-  /* The leader's last target first (TG-04), then nearest. The leader itself has no one to follow. */
+  /* The monster the leader fights first (followed, TG-04), then nearest. */
   follow: (inst, u) => {
-    const lt = inst.world.leader !== u.id ? inst.world.leaderLast : null;
+    const lt = followed(inst, u);
     return (a, b) => (b.id === lt) - (a.id === lt);
   },
 });
+const orderOf = (inst, u, mode) => (ORDER[mode] || ORDER[DEFAULT_TARGET_MODE])(inst, u);
+
+/* THE MODES THE FIGHT DOES NOT REORDER: a kind's max HP, the leader's choice. A melee hero beside a target
+   turns to its mark when one of these ranks the mark strictly ahead (outranked); under nearest, lowest HP
+   and highest % every blow reorders the pack, so it keeps the one it fights until that one falls. */
+const STEADY_MODES = Object.freeze(['strongest', 'follow']);
+
+/**
+ * THE MONSTER A "FOLLOW" HERO FOLLOWS (TG-04): the one the leader is on NOW, else the one its last blow
+ * hit; null for the leader itself (it has no one to follow). Until 2026-10-23 only the last blow's: at
+ * every pull that named a monster of the pack before, so a follower opened on its own nearest and a
+ * melee follower kept it until it fell (Andy a08: "Follow seems to just target the first creature").
+ */
+export function followed(inst, u) {
+  if (inst.world.leader === u.id) return null;
+  const k = unitById(inst, inst.world.leader);
+  const on = k && Number.isInteger(k.target) ? unitById(inst, k.target) : null;
+  return on && on.alive && on.side === 'mon' ? on.id : inst.world.leaderLast;
+}
 
 /** Ordered targets for `unit` by its Target setting (TG-01). `settings.tmode` overrides the unit's own. */
 export function pickTargets(inst, unit, settings) {
   if (!unit || !roleOf(unit)) return [];
-  const mode = (settings && settings.tmode) || unit.tmode;
-  const cmp = (ORDER[mode] || ORDER[DEFAULT_TARGET_MODE])(inst, unit);
+  const cmp = orderOf(inst, unit, (settings && settings.tmode) || unit.tmode);
   return engaged(inst).sort((a, b) => cmp(a, b) || dist2(a, unit) - dist2(b, unit) || a.id - b.id);
+}
+
+/**
+ * Does melee hero `u`'s Target setting rank another engaged monster STRICTLY ahead of `cur` (a stronger
+ * kind under "Strongest", the leader's monster under "Follow"; never a tie, so the nearer/id tie-break
+ * never moves it)? Asked only when its re-aim clock is due (aiMs, roles.js closeIn): a mark with no free
+ * tile beside it is tried once a re-aim, never a path search every sub-step.
+ */
+function outranked(inst, u, cur) {
+  if (u.aiMs > 0 || !STEADY_MODES.includes(u.tmode)) return false;
+  const cmp = orderOf(inst, u, u.tmode);
+  return engaged(inst).some((m) => m !== cur && cmp(m, cur) < 0);
 }
 
 /** The basic attack's target: the first in order it can hit that its element hurts, else the first it can hit (TG-03). */
@@ -221,7 +251,7 @@ export function chooseTargets(inst, sc) {
     const cur = marks ? unitById(inst, u.target) : null;
     /* Kept while it stands beside it or walks a path that ends beside it (roles.js closeIn's pick). */
     const enRoute = !!cur && !!u.goal && u.path.length > 0 && cheb({ x: u.goal[0], y: u.goal[1] }, cur) <= 1;
-    if (cur && cur.alive && Number.isInteger(cur.target) && (inRange(inst, u, cur) || enRoute)) continue;
+    if (cur && cur.alive && Number.isInteger(cur.target) && (inRange(inst, u, cur) || enRoute) && !outranked(inst, u, cur)) continue;
     const b = marks ? null : basicTarget(inst, u);
     const all = !b && (u === k || !leaderMoving) ? pickTargets(inst, u) : [];
     const first = b || all.find((m) => elementOn(m, u.element) > 0) || all[0] || null;

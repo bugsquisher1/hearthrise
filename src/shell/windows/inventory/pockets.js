@@ -8,12 +8,12 @@
 // marks a grid adds (new, locked, the bar key). Built once per stack, patched
 // in place. Display only.
 // ════════════════════════════════════════════════════════════════════════
-import { kindOf, rarityOf } from '../../bag-model.js?v=0.2.34';
-import { text, cls } from '../../../render/paint.js?v=0.2.34';
-import { whole, short } from '../../../render/format.js?v=0.2.34';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.34';
-import { glyphSvg } from '../../launcher.js?v=0.2.34';
-import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.34';
+import { kindOf, rarityOf } from '../../bag-model.js?v=0.2.38';
+import { text, cls } from '../../../render/paint.js?v=0.2.38';
+import { whole, short } from '../../../render/format.js?v=0.2.38';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.38';
+import { glyphSvg } from '../../launcher.js?v=0.2.38';
+import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.38';
 
 const PIPS = Object.freeze({ common: 0, uncommon: 1, rare: 2, epic: 3, legendary: 4, mythic: 5, unique: 5 });
 

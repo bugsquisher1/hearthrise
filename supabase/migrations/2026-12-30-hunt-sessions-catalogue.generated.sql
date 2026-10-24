@@ -8,29 +8,40 @@
 --   src/data/premium.js, src/core/hunt/world-state.js and the vendor price
 --   (hr-accrue/catalogue.js). Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: 980ee35dde2fbee796a40db6136e48f6eb4d5ebd6423a25d902449c1c1380e93
---   82 supplies, 121 hunts (named + training), 50 limits, 11 end reasons,
+--   digest: f811f5e71da6d1095130e992c114c3ea5f8a4aa4aef6da14e7f6d9962cdfd106
+--   82 supplies, 121 hunts (named + training), 50 limits, 12 end reasons,
 --   531 vendor values, 25 store supplies paid per use, 5 target modes,
 --   4 lanes, 16 abilities, 10 action-set options, 5 hunt grounds
 --
--- SUPERSEDES 2026-12-09-hunt-sessions-catalogue.generated.sql (the v0.2.32 chain;
--- APPLIED, history, never regenerated) and the STAGED 12-20, 12-21 and 12-22 files:
--- every table below is rewritten wholesale. NEW SINCE 12-22 (lane b-spell-roles, Tyler
--- 2026-10-23, roadmap p12 / p15): the SUPPORT lane (hr_hunt_lanes) carries the Challenge,
--- the Hunter's Mark and the shields (hr_hunt_abilities); a universal row may name every
--- discipline (no cap of five); each role key names its discipline and shield arm
--- (hr_hunt_weapon_roles), the shields are hr_hunt_shields, and hr_hunt_roles is RETIRED
--- (empty). ORDER: after 2026-12-24-shields-catalogue (hr_items: the five shields), right
--- before 2026-12-24-spell-roles.sql (hr_hunt_weapon_of and hr_hunt_settings_view read
--- the new columns; between the two the old view finds no role discipline).
+-- SUPERSEDES 2026-12-20-hunt-sessions-catalogue.generated.sql (APPLIED with v0.2.37,
+-- history: never regenerated): every table below is rewritten wholesale. The staged
+-- 12-21, 12-22 and 12-24 files of the spell lanes were never applied and are folded in.
+-- NEW SINCE 12-20 (the spell release, Tyler + designer 2026-10-23): the store's Plain
+-- Iron Arrows and the 1 g store shot (hr_hunt_basic_supplies); the eat-at / drink-at
+-- options (hr_hunt_set_options) and their threshold limits RETIRED (a slot's own
+-- conditions); the casters' mana basic in the magic bound (magic_xp_mult_max); the
+-- family x tier runes (hr_hunt_supplies) and one store rune a family; each spell's
+-- family rune, Rend and Frost Lance on (hr_hunt_abilities); the SUPPORT lane
+-- (hr_hunt_lanes) carries the Challenge, the Hunter's Mark and the shields; each role key
+-- names its discipline and shield arm (hr_hunt_weapon_roles), the shields are
+-- hr_hunt_shields, and hr_hunt_roles is RETIRED (empty). ORDER: after
+-- 2026-12-28-items-catalogue.generated.sql (hr_items: the runes and the shields) and
+-- 2026-12-29-slot-truth.sql; right before 2026-12-30-spell-content.sql (its §0 needs
+-- green_sickness) and 2026-12-31-spell-roles.sql (hr_hunt_weapon_of and
+-- hr_hunt_settings_view read the new columns; between the two the old view finds no
+-- role discipline); the hr-accrue deploy follows 12-31 AT ONCE.
 -- Carried from 12-20 (lane b-loot-bands, designer + Tyler 2026-10-23, the loot bands):
--- the Thicket's five monsters carry the banded drop tables (hr_hunt_kill_bounds: every
--- Scarce and Rare item a kill may pay), Grayjaw's Ruff is a vendor value, and worn gear
--- sells at half its book value (hr_hunt_vendor_value from catalogue.js vendorPriceOf,
--- src/data/loot-bands.js VENDOR_GEAR_RATE). ORDER: after 2026-12-20-loot-catalogue
+-- every ground's monsters carry the banded drop tables (hr_hunt_kill_bounds: every
+-- Scarce, Rare and Trophy item a kill may pay), the Ruff and the Trophies are vendor
+-- values, and dropped gear sells by tier (hr_hunt_vendor_value from catalogue.js
+-- vendorPriceOf, src/data/loot-bands.js). ORDER: after 2026-12-20-loot-catalogue
 -- (hr_items), and the hr-accrue deploy follows AT ONCE: until it does, an old edge's
--- Shortbow from Old Grayjaw is over the bound and that settle is refused.
--- Carried from 12-09: NEW SINCE 11-23 (lane b-tank-choice, Tyler 2026-10-22 "One tank holds"): the
+-- drop that the new bounds no longer name is over the bound and that settle is refused.
+-- Carried from 12-18 (lane b-party-leave-together, Tyler 2026-10-22 "Leave if anyone
+-- leaves the hunt or dies"): END_ORDER's `party_member_left` (a ticked hero sent
+-- home by another member's end; RESUME_AFTER_END too) in hr_hunt_end_reasons and
+-- hunt_sessions.end_reason's CHECK; the world's shape is unchanged since 12-09.
+-- Carried from 12-09 (lane b-tank-choice, Tyler 2026-10-22 "One tank holds"): the
 -- world's shape gains hold / holdNext (src/core/hunt/targeting.js), so
 -- hr_hunt_world_shape is rewritten; the hr-accrue edge carrying that world deploys
 -- with this file, which applies LAST, after 2026-12-08-party-hold.sql (the hold seat
@@ -186,7 +197,7 @@ alter table public.hr_hunt_abilities add column if not exists ord int not null d
 alter table public.hr_hunt_abilities drop constraint if exists hr_hunt_abilities_disciplines_check;
 alter table public.hr_hunt_abilities add constraint hr_hunt_abilities_disciplines_check check (cardinality(disciplines) >= 1);
 -- RETIRED (lane b-spell-roles, 2026-12-24): a role named ONE ability discipline. A role is now played by several role
--- keys on their own lists (hr_hunt_weapon_roles.discipline); 2026-12-24-spell-roles.sql restates its last reader,
+-- keys on their own lists (hr_hunt_weapon_roles.discipline); 2026-12-31-spell-roles.sql restates its last reader,
 -- hr_hunt_settings_view. Kept, EMPTY, because applied history's §0 checks and bodies name it.
 create table if not exists public.hr_hunt_roles (
   role       text primary key check (role ~ '^[a-z0-9_]{1,64}$'),
@@ -895,15 +906,16 @@ delete from public.hr_hunt_end_reasons;
 insert into public.hr_hunt_end_reasons (reason, ord, resumes) values
   ('died', 1, true),
   ('party_member_died', 2, true),
-  ('heals_out', 3, true),
-  ('ammo_out', 4, true),
-  ('gold_out', 5, true),
-  ('rule', 6, true),
-  ('stamina', 7, true),
-  ('hours', 8, true),
-  ('left', 9, false),
-  ('changed', 10, false),
-  ('server', 11, true);
+  ('party_member_left', 3, true),
+  ('heals_out', 4, true),
+  ('ammo_out', 5, true),
+  ('gold_out', 6, true),
+  ('rule', 7, true),
+  ('stamina', 8, true),
+  ('hours', 9, true),
+  ('left', 10, false),
+  ('changed', 11, false),
+  ('server', 12, true);
 delete from public.hr_hunt_resumable_kinds;
 insert into public.hr_hunt_resumable_kinds (kind) values
   ('gather'),
@@ -912,7 +924,7 @@ insert into public.hr_hunt_resumable_kinds (kind) values
 -- hunt_sessions.end_reason's CHECK is END_ORDER (the generator owns it).
 alter table public.hunt_sessions drop constraint if exists hunt_sessions_end_reason_check;
 alter table public.hunt_sessions add constraint hunt_sessions_end_reason_check
-  check (end_reason in ('died', 'party_member_died', 'heals_out', 'ammo_out', 'gold_out', 'rule', 'stamina', 'hours', 'left', 'changed', 'server'));
+  check (end_reason in ('died', 'party_member_died', 'party_member_left', 'heals_out', 'ammo_out', 'gold_out', 'rule', 'stamina', 'hours', 'left', 'changed', 'server'));
 -- The bar's size is ACTION_SET_LIMITS.slots (Huntera's two rows of ten).
 alter table public.player_action_sets drop constraint if exists player_action_sets_slots_check;
 alter table public.player_action_sets add constraint player_action_sets_slots_check
@@ -1472,7 +1484,7 @@ begin
   if (select count(*) from public.hr_hunt_supplies) <> 82
      or (select count(*) from public.hr_hunt_travel) <> 121
      or (select count(*) from public.hr_hunt_limits) <> 50
-     or (select count(*) from public.hr_hunt_end_reasons) <> 11
+     or (select count(*) from public.hr_hunt_end_reasons) <> 12
      or (select count(*) from public.hr_hunt_vendor_value) <> 531
      or (select count(*) from public.hr_hunt_basic_supplies) <> 25
      or (select count(*) from public.hr_hunt_cover_items) <> 0
@@ -1497,7 +1509,7 @@ begin
      or exists (select 1 from public.hr_hunt_weapon_roles where discipline is null)
      or exists (select 1 from public.hr_hunt_weapon_roles w where w.with_shield is not null
                  and not exists (select 1 from public.hr_hunt_weapon_roles k where k.weapon_type = w.with_shield))
-     or (select count(*) from public.hr_hunt_end_reasons where resumes) <> 9 then
+     or (select count(*) from public.hr_hunt_end_reasons where resumes) <> 10 then
     raise exception 'hunt-session catalogue row counts moved from the generator''s'; end if;
   -- The world fields the party section reads by name are all there, at the generator's positions.
   if (select fields from public.hr_hunt_world_shape) is distinct from '{"unit":{"id":0,"side":1,"kind":2,"pocket":3,"alive":4,"hp":5,"maxHp":6,"target":7,"home":8,"x":9,"y":10,"fx":11,"fy":12,"prog":13,"speed":14,"dir":15,"goal":16,"path":17,"waitMs":18,"repathMs":19,"spot":20,"holdMs":21,"role":22,"dist":23,"chase":24,"tmode":25,"queued":26,"aiMs":27,"deadMs":28,"hpMilli":29,"yieldPm":30,"stance":31,"acc":32,"maxHit":33,"def":34,"element":35,"swingLeftMs":36,"mana":37,"maxMana":38,"manaMilli":39,"regenPm":40,"lanes":41,"cds":42,"shield":43,"markPm":44,"markUntil":45,"statuses":46,"laneAt":47,"otHp":48,"otMana":49,"ruleHold":50,"ruleWait":51},"world":{"ground":0,"swing":1,"leader":2,"trail":3,"leaderLast":4,"hold":5,"holdNext":6,"phase":7,"routeIdx":8,"phaseMs":9,"regroupNext":10,"runs":11,"nextId":12,"density":13,"xpGroup":14,"rareWon":15}}'::jsonb

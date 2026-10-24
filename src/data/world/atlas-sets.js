@@ -11,3 +11,12 @@
 // ════════════════════════════════════════════════════════════════════════
 
 export const ATLAS_SETS = Object.freeze(['hunt', 'vfx', 'sewer', 'mill', 'common', 'cottage', 'forest', 'warren', 'glade']);
+
+/* THE SETS OF ANOTHER ART GRID (src/data/world/art-budget.js GRIDS), by grid. They are not loaded
+   on the pane's first open: the first scene drawn on that grid loads them into a book of their own
+   (src/world/sandbox-scene.js), so no player outside it downloads them and no id is shared with
+   the base grid's book. */
+export const GRID_SETS = Object.freeze({ hd64: Object.freeze(['sandbox64']) });
+
+/** Every set the renderer can load, on any grid (the art guards read this list). */
+export const LOADED_SETS = Object.freeze(ATLAS_SETS.concat(...Object.values(GRID_SETS)));

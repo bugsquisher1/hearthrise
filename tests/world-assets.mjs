@@ -63,8 +63,9 @@ import { ROOT, ART_DIR, OUT_DIR, checkAll, spriteFromAtlas, terrainFromAtlas } f
 import { CLASSES, MANIFEST_VERSION, FACINGS } from '../src/data/world/art-budget.js';
 import { PALETTE_ID } from '../tools/world-art/palette.mjs';
 import { style1Findings, reachableRefs, codeSets, RETIRED_SETS } from '../tools/world-art/style1.mjs';
-import { readSidecars, listSets } from '../tools/world-art/build.mjs';
-import { ATLAS_SETS } from '../src/data/world/atlas-sets.js';
+import { readSidecars, listSets, setGrid } from '../tools/world-art/build.mjs';
+/* every set the renderer can load, on any art grid (the sandbox's hd64 set loads on its first entry) */
+import { LOADED_SETS as ATLAS_SETS } from '../src/data/world/atlas-sets.js';
 import { WORLD_MAPS } from '../src/data/world/maps/index.js';
 import { ROOM_LAYOUTS, TROPHY_MOUNT_SPRITES } from '../src/data/world/house-layouts.js';
 import { OUTFITS } from '../src/data/hunt-outfits.js';
@@ -210,11 +211,14 @@ function guard() {
     if (atlas.width !== m.size[0] || atlas.height !== m.size[1]) fails.push(`${file}: size ${m.size} but the PNG is ${atlas.width}x${atlas.height}`);
     if (pixelHash(atlas) !== m.pixels) fails.push(`${file}: atlas pixels do not match the manifest hash`);
     for (const f of validateAtlasSize(m.set, atlas.width, atlas.height)) fails.push(`${file}: [${f.rule}] ${f.detail}`);
+    /* each set is held to ITS grid's budget (art/world/<set>/_set.json; the base grid without one) */
+    const grid = setGrid(ROOT, m.set);
+    if (m.T !== grid.T) fails.push(`${file}: manifest T ${m.T}, but set ${m.set} is drawn on the ${grid.id} grid (T ${grid.T})`);
     for (const id of Object.keys(m.sprites)) {
       seen[id] = { set: m.set, sprite: m.sprites[id] };
-      for (const f of validateSprite(spriteFromAtlas(m, atlas, id))) fails.push(`${file}: [${f.rule}] ${f.id}: ${f.detail}`);
+      for (const f of validateSprite(spriteFromAtlas(m, atlas, id), grid)) fails.push(`${file}: [${f.rule}] ${f.id}: ${f.detail}`);
     }
-    for (const id of Object.keys(m.terrain)) for (const f of validateTerrain(terrainFromAtlas(m, atlas, id))) fails.push(`${file}: [${f.rule}] ${f.id}: ${f.detail}`);
+    for (const id of Object.keys(m.terrain)) for (const f of validateTerrain(terrainFromAtlas(m, atlas, id), grid)) fails.push(`${file}: [${f.rule}] ${f.id}: ${f.detail}`);
   }
   for (const [id, want] of Object.entries(REQUIRED)) {
     const got = seen[id];

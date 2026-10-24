@@ -328,6 +328,7 @@
         "self": 1,
         "leader_seat": 0,
         "self_seat": 0,
+        "leave_together": true,
         "members": [
           {
             "unit": 1,

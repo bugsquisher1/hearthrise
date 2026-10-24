@@ -6,10 +6,11 @@
 // is the same after a reload, on another device, and while the browser was
 // closed (CLAUDE.md §6). The rules live in src/data/hunt-tutorial.js currentCard.
 // ════════════════════════════════════════════════════════════════════════
-import { currentCard, nextGoal, ROLE_SKILL } from '../data/hunt-tutorial.js?v=0.2.34';
-import { levelOf } from './character-sections.js?v=0.2.34';
-import { huntOf, settingsOf, huntBestsOf } from './hunt-sections.js?v=0.2.34';
-import { skillsOf } from './item-sections.js?v=0.2.34';
+import { currentCard, nextGoal, ROLE_SKILL } from '../data/hunt-tutorial.js?v=0.2.38';
+import { levelOf } from './character-sections.js?v=0.2.38';
+import { huntOf, settingsOf, huntBestsOf } from './hunt-sections.js?v=0.2.38';
+import { skillsOf } from './item-sections.js?v=0.2.38';
+import { farmFieldOf } from './farm-sections.js?v=0.2.38';
 
 /** The facts currentCard judges, or null until the server has told the Level XP. */
 function tutorialFactsOf(cs) {
@@ -46,5 +47,16 @@ export function pointerCardOf(cs) {
   const sk = skillsOf(cs);
   const skill = ROLE_SKILL[role];
   return nextGoal({ charLevel: f.charLevel, role, skillLevel: sk && skill && sk[skill] ? sk[skill].level : null,
-    defenseXp: sk && sk.defense ? sk.defense.xp : null, farmingXp: sk && sk.farming ? sk.farming.xp : null });
+    defenseXp: sk && sk.defense ? sk.defense.xp : null, land: landOf(cs) });
+}
+
+/* The ACCOUNT's field as the server last said (2026-12-14-shared-farm: one field for every hero, and any hero may
+   harvest): how many plots hold a crop, and the READY plots per crop. Never this hero's Farming XP: a hero who has
+   never planted, on land the others planted, does not have an empty farm. Null until the server has sent the field. */
+function landOf(cs) {
+  const field = farmFieldOf(cs);
+  if (!field) return null;
+  const ready = {};
+  for (const p of field.plots.values()) if (p.ready) ready[p.crop] = (ready[p.crop] || 0) + 1;
+  return { planted: field.plots.size, ready };
 }

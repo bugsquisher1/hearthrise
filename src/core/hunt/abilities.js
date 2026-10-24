@@ -8,7 +8,8 @@
 // the next). An ability is usable when:
 //   it is active and its action set does not skip it (AB-11),
 //   its own cooldown and its lane are ready (AB-01/02),
-//   the hero has the mana (AB-12), its rune and its shots resolve — own line
+//   the hero has the mana (AB-12), its rune and its shots (the item its attack
+//   slots loose: castShotOf) resolve — own line
 //   first, then the store (AB-05/06, src/core/action-rules.js resolveLine; a
 //   RUNE is bought only when the slot names the store rune, `action.store`, so
 //   a default bar never buys one unseen — designer 2026-10-21; a basic shot
@@ -38,20 +39,21 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { ABILITIES, ABILITY_LANES, ABILITY_RULES, ACTION_SET_SKIPS, abilitySkill, versionOf, outputPm } from '../../data/abilities.js?v=0.2.34';
-import { resolveLine, storeLine, takeLine, canAfford, shopShotFor } from '../action-rules.js?v=0.2.34';
-import { runeTierOf, versionLevel } from '../../data/runes.js?v=0.2.34';
-import { BASIC_EFFECT_SHARE } from '../../data/supply-basics.js?v=0.2.34';
-import { cheb, dist2, los } from './grid.js?v=0.2.34';
-import { makeEvent } from './events.js?v=0.2.34';
-import { landHit } from './damage.js?v=0.2.34';
-import { challengeable, challengeFrom, holderTank } from './targeting.js?v=0.2.34';
-import { applyStatus, statusRow } from './status.js?v=0.2.34';
-import { levelOf } from '../xp.js?v=0.2.34';
-import { ammoPerShot } from '../ammo.js?v=0.2.34';
-import { ITEMS } from '../../data/items.js?v=0.2.34';
-import { isRune } from '../../data/supplies.js?v=0.2.34';
-import { slotsFor, pickSlot, bestAim, itemRow, ignores } from './conditions.js?v=0.2.34';
+import { ABILITIES, ABILITY_LANES, ABILITY_RULES, ACTION_SET_SKIPS, abilitySkill, versionOf, outputPm } from '../../data/abilities.js?v=0.2.38';
+import { resolveLine, storeLine, takeLine, canAfford, shopShotFor } from '../action-rules.js?v=0.2.38';
+import { runeTierOf, versionLevel } from '../../data/runes.js?v=0.2.38';
+import { BASIC_EFFECT_SHARE } from '../../data/supply-basics.js?v=0.2.38';
+import { cheb, dist2, los } from './grid.js?v=0.2.38';
+import { makeEvent } from './events.js?v=0.2.38';
+import { landHit } from './damage.js?v=0.2.38';
+import { challengeable, challengeFrom, holderTank } from './targeting.js?v=0.2.38';
+import { applyStatus, statusRow } from './status.js?v=0.2.38';
+import { levelOf } from '../xp.js?v=0.2.38';
+import { ammoPerShot } from '../ammo.js?v=0.2.38';
+import { ITEMS } from '../../data/items.js?v=0.2.38';
+import { isRune } from '../../data/supplies.js?v=0.2.38';
+import { slotsFor, pickSlot, bestAim, itemRow, ignores, DEFAULT_ATTACK_ROW } from './conditions.js?v=0.2.38';
+import { shootsItem } from '../../data/hunt-roles.js?v=0.2.38';
 
 export const PERSISTED = Object.freeze({
   unit: Object.freeze([['mana', 'int'], ['maxMana', 'int'], ['manaMilli', 'int'], ['regenPm', 'int'], ['lanes', 'json'], ['cds', 'json'],
@@ -149,10 +151,29 @@ function runeFor(h, row, store) {
   return { line: s, version: 1, pm: BASIC_PM };
 }
 
+/**
+ * THE ITEM A SHOT ABILITY LOOSES (Andy 2026-10-23: Precision Shot and Flame Volley never fired for a
+ * Ranger with no ammo worn, his arrows picked on the bar). The player picks every supply on the bar
+ * (Tyler 2026-10-21), so a cast looses what the hero's basic attack would: the first ATTACK slot, in
+ * bar order, whose conditions pass and that has a shot of an item the worn weapon can loose (own
+ * first, then the store's partner: shotLine); the lane's default (d_attack) is the loaded ammo.
+ * Null = no shot. Pure, and it reports no wait (pickSlot with no lane).
+ */
+function castShotOf(inst, hero, h) {
+  const rows = slotsFor(h, 'attack');
+  const got = pickSlot(inst, hero, h, rows.length ? rows : [DEFAULT_ATTACK_ROW], (slot) => {
+    const id = slot.action.id === 'loaded' ? h.ammo : slot.action.id;
+    if (!id || !shootsItem(hero.role, itemRow(h, id))) return null;
+    const l = shotLine(h, id);
+    return l.id && !l.why ? { id } : null;
+  });
+  return got ? got.pick.id : null;
+}
+
 /* The supply lines one cast needs and the version it casts ({ lines, version, pm: the store's share
    in permille }), or the reason it cannot have them. `store` is the slot's chosen store rune
-   (action.store), or none: own runes only. */
-function suppliesFor(h, row, store) {
+   (action.store), or none: own runes only. `ammo` is the item its shots are (castShotOf), or null: none. */
+function suppliesFor(h, row, store, ammo) {
   const lines = [];
   let version = 1; let pm = 1000;
   if (row.rune) {
@@ -160,17 +181,17 @@ function suppliesFor(h, row, store) {
     if (r.why) return r;
     lines.push(r.line); version = r.version; pm = r.pm;
   }
-  /* The free rung (ammoPerShot 0): a loaded stack of it never depletes, so a cast needs no shot lines. */
-  const freeShot = !!h.ammo && ammoPerShot(itemRow(h, h.ammo)) === 0 && int(h.hs.bag && h.hs.bag[h.ammo] && h.hs.bag[h.ammo].left) > 0;
+  /* The free rung (ammoPerShot 0): a carried stack of it never depletes, so a cast needs no shot lines. */
+  const freeShot = !!ammo && ammoPerShot(itemRow(h, ammo)) === 0 && int(h.hs.bag && h.hs.bag[ammo] && h.hs.bag[ammo].left) > 0;
   if (row.ammo > 0 && !freeShot) {
-    if (!h.ammo) return { why: 'no_ammo' };
+    if (!ammo) return { why: 'no_ammo' };
     /* Own shots first, the rest from the store shot behind the line (one resolver). */
-    const line = h.hs.bag && h.hs.bag[h.ammo];
+    const line = h.hs.bag && h.hs.bag[ammo];
     const own = Math.min(row.ammo, Math.max(0, int(line && line.left)));
-    for (let i = 0; i < own; i++) lines.push({ id: h.ammo, source: 'own', price: 0 });
+    for (let i = 0; i < own; i++) lines.push({ id: ammo, source: 'own', price: 0 });
     if (own < row.ammo) {
       /* (The store is asked only once the carried line is empty; a rune is never bought as a shot: shotLine.) */
-      const shot = isRune(itemRow(h, h.ammo)) ? null : shopShotFor(h.hs, h.ammo);
+      const shot = isRune(itemRow(h, ammo)) ? null : shopShotFor(h.hs, ammo);
       if (!shot) return { why: 'no_ammo' };
       for (let i = own; i < row.ammo; i++) lines.push({ id: shot.id, source: 'store', price: shot.price });
     }
@@ -240,7 +261,7 @@ export function firstUsable(inst, hero, sc, only) {
     /* A slot whose supplies the purse cannot pay WAITS (gold_short) and the next slot is tried. It never
        ends the hunt from here: out of gold ends a hunt only for the action actually taken (Tyler 10-14),
        and a slot that cannot pay is never taken (fire() pays what this answered affordable). */
-    const s = suppliesFor(h, row, slot.action.store);
+    const s = suppliesFor(h, row, slot.action.store, row.ammo > 0 ? castShotOf(inst, hero, h) : null);
     if (s.why) return { why: s.short ? 'gold_short' : s.why === 'level' ? 'level' : 'no_stock' };
     /* THE VERSION'S PRICE AND OUTPUT (abilities.js versionOf, outputPm): its mana (never more with level), and
        its permille of the row's numbers at the hero's level in the row's skill, at the rune's share (a store

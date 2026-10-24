@@ -68,15 +68,18 @@ const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'))
 /* v0.2.31 integration: ONE forward file per generator after the newest APPLIED (2026-11-20): the kit's plots, coal at any level and the style ladder in one file. */
 /* THE RUNE FAMILIES x TIERS (lane b-spell-content, Tyler 2026-10-23): 2026-11-22-loot-catalogue.generated.sql is APPLIED
    history; the family x tier runes (hr_items), their bind recipes (hr_activities) and the start kit without its Air Runes
-   (hr_start_inventory) land in this forward file, after 2026-12-21-slot-truth.sql: the same full delete+insert replace. */
+   (hr_start_inventory) land in the spell release's forward file (below): the same full delete+insert replace. */
 /* THE LOOT BANDS (lane b-loot-bands, Tyler 2026-10-23): 2026-11-22 is APPLIED history. No gear binds ("Nah no bound gear
    in this game"): the practice kit, the premium Oak Practice Blade, the dungeon signature weapons and the boss-forge
    bodies turn tradeable (hr_items.tradeable; the Hearthfind trophies stay bound), and Grayjaw's Ruff joins hr_items.
-   ONE forward file, the same full delete+insert replace, applied before 2026-12-20-hunt-sessions-catalogue. */
+   ONE forward file, the same full delete+insert replace, applied before 2026-12-20-hunt-sessions-catalogue (APPLIED with
+   v0.2.37: history now, never regenerated). */
 /* THE SHIELDS (lane b-spell-roles, Tyler 2026-10-23): the five shields (hr_items, hr_item_slots: shield), their three
    Smithing recipes (hr_activities artisan rows) and every bow two-handed (hr_items.two_handed: a bow carries no shield).
-   ONE forward file after the staged 12-20 (loot bands) and 12-22 (rune families), carrying both: the same full replace. */
-const OUT = join(ROOT, 'supabase', 'migrations', '2026-12-24-shields-catalogue.generated.sql');
+   THE SPELL RELEASE (v0.2.39 integration): ONE forward file ON TOP of the APPLIED 2026-12-20-loot-catalogue, carrying the
+   rune families and the shields (the staged 12-22 and 12-24 files collapsed into it, never applied): the same full replace,
+   FIRST of the release's files (2026-12-28-rune-ladder-cut.sql and the hunt-sessions catalogue read its items). */
+const OUT = join(ROOT, 'supabase', 'migrations', '2026-12-28-items-catalogue.generated.sql');
 /* THE SECOND GENERATED FILE (2026-09-13). hr_item_buffs is emitted as its own
    migration rather than into OUT above, and that is a deliberate operational
    call: OUT is the FOURTH file in tests/schema-apply-order.json and is already

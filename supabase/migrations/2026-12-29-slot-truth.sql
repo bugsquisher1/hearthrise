@@ -9,7 +9,10 @@
 -- source: the slot's own conditions); every slot can be switched Off and can
 -- ignore chosen monsters (Tyler 2026-10-19, the Configure action: "Ignored
 -- monsters", "Enabled"). And (Tyler 2026-10-23) runes fuel SPELLS only: no attack
--- slot may name a rune.
+-- slot may name a rune. Nor a whetstone (Andy a41, 2026-10-23: a bow loosed 1,012
+-- Copper Whetstones from an attack slot): a whetstone sharpens a Melee weapon worn in
+-- the ammo slot and is no one's shot; the engine passes such a slot over (hunt-roles.js
+-- shootsItem), and the server now refuses to store one.
 --
 -- ── WHAT ─────────────────────────────────────────────────────────────────────
 --   hr_hunt_slot_check        a slot may carry `enabled` (a boolean; false = Off,
@@ -22,9 +25,11 @@
 --                             (it is the rule's content), never `enabled` (an Off and
 --                             On keeps the id). A slot with neither keeps its id.
 --   hr_hunt_condition_limits  + max_ignored (⟦limits⟧, condition-metrics.js MAX_IGNORED).
---   hr_hunt_action_ids        no rune is an attack item (⟦action-ids⟧: conditions.js
---                             attackItem); a stored rune attack slot reads as an
---                             empty tablet (no back-compat: the wipe is at EA).
+--   hr_hunt_action_ids        no rune and no whetstone is an attack item (⟦action-ids⟧:
+--                             conditions.js attackItem, an ammo some weapon can shoot:
+--                             hunt-roles.js shootsItem); a stored rune or whetstone
+--                             attack slot reads as an empty tablet (no back-compat:
+--                             the wipe is at EA).
 --   hr_hunt_role_rules        each role default slot carries its trigger as REAL
 --                             conditions (⟦role-rules⟧: rule-subjects.js ROLE_RULES
 --                             over abilities.js suggestedTrigger), the conditions the
@@ -35,19 +40,20 @@
 -- but its SLOT-TRUTH lines. The three catalogue tables are full replaces from
 -- src/data (pinned equal by tests/hunt-core/conditions.mjs sql-rows; `--print`).
 -- The retired eat-at / drink-at option rows (hr_hunt_set_options) and their
--- threshold limits leave with 2026-12-21-hunt-sessions-catalogue.generated.sql.
+-- threshold limits leave with 2026-12-30-hunt-sessions-catalogue.generated.sql.
 --
 -- ── EXPLOIT SURFACE ─────────────────────────────────────────────────────────
 -- None to value. `enabled` and `ignore` only ever STOP a slot from firing; a slot
 -- names no price, amount or item a store sells. `ignore` is bounded (max_ignored,
 -- unique, known ids) so a stored bar cannot grow; the settle reads the stored,
 -- canonical slots. No table, grant, signature or player row moves; seeded rows move
--- in hr_hunt_condition_limits (+1), hr_hunt_action_ids (-7 runes) and
+-- in hr_hunt_condition_limits (+1), hr_hunt_action_ids (-7 runes, -7 whetstones) and
 -- hr_hunt_role_rules (same 15 rows, new conditions): restore-census re-pinned.
 --
 -- ── ORDER ───────────────────────────────────────────────────────────────────
--- After 2026-12-21-hunt-sessions-catalogue.generated.sql (no object in common; the
--- same lane) and after 2026-12-17-beta-premium.sql (the newest applied). The
+-- After 2026-12-29-alpha-catalogue.generated.sql and before 2026-12-30-hunt-sessions-
+-- catalogue.generated.sql (no object in common with either; the newest applied file is
+-- 2026-12-27-chat-unpublish.sql). The
 -- hr-accrue edge of this lane (it reads enabled / ignore, retires runes from
 -- basics and the eat-at / drink-at options) may deploy before or after: an old
 -- edge ignores the two keys (a slot Off still fires until it lands), the new edge
@@ -85,21 +91,14 @@ insert into public.hr_hunt_action_ids (type, id) values
 -- ⟦action-ids⟧
   ('attack_with_item', 'barbed_arrows'),
   ('attack_with_item', 'bronze_arrows'),
-  ('attack_with_item', 'coarse_whetstone'),
-  ('attack_with_item', 'copper_whetstone'),
-  ('attack_with_item', 'dawn_whetstone'),
   ('attack_with_item', 'dawnpoint_arrows'),
   ('attack_with_item', 'emberhead_arrows'),
   ('attack_with_item', 'iron_arrows'),
   ('attack_with_item', 'iron_bolts'),
-  ('attack_with_item', 'iron_whetstone'),
   ('attack_with_item', 'loaded'),
   ('attack_with_item', 'mithril_arrows'),
-  ('attack_with_item', 'mithril_whetstone'),
   ('attack_with_item', 'rune_arrows'),
-  ('attack_with_item', 'rune_whetstone'),
   ('attack_with_item', 'steel_arrows'),
-  ('attack_with_item', 'steel_whetstone'),
   ('consume', 'baked_potato'),
   ('consume', 'carrot_juice'),
   ('consume', 'cooked_bear_meat'),
@@ -164,7 +163,7 @@ create or replace function public.hr_hunt_slot_check(p_s jsonb)
 returns jsonb language plpgsql stable set search_path = public, pg_catalog as $$
 declare
   -- STORE-BY-SLOT (2026-11-04): a slot names ONE item; a rune spell may name its store rune (action.store).
-  -- SLOT-TRUTH (2026-12-21): a slot may be switched Off (enabled) and may ignore monsters (ignore).
+  -- SLOT-TRUTH (2026-12-29): a slot may be switched Off (enabled) and may ignore monsters (ignore).
   v_type text; v_id text; v_r jsonb; v_store text; v_ign jsonb; v_max int;
 begin
   if p_s is null or jsonb_typeof(p_s) = 'null' then return jsonb_build_object('ok', true, 'slot', 'null'::jsonb); end if;
@@ -240,9 +239,9 @@ begin
   -- (a) the catalogue rows
   if (select value from public.hr_hunt_condition_limits where key = 'max_ignored') is distinct from 8 then
     raise exception 'VERIFY(a): max_ignored is not 8'; end if;
-  if exists (select 1 from public.hr_hunt_action_ids where type = 'attack_with_item' and id like '%\_rune')
+  if exists (select 1 from public.hr_hunt_action_ids where type = 'attack_with_item' and (id like '%\_rune' or id like '%\_whetstone'))
      or not exists (select 1 from public.hr_hunt_action_ids where type = 'attack_with_item' and id = 'iron_arrows') then
-    raise exception 'VERIFY(a): a rune is still an attack item, or the arrows are gone'; end if;
+    raise exception 'VERIFY(a): a rune or a whetstone is still an attack item, or the arrows are gone'; end if;
   if (select slot->'conditions' from public.hr_hunt_role_rules where role = 'mage' and ord = 2)
        is distinct from '[{"metric":"self_hp_pct","op":"lt","value":85}]'::jsonb
      or (select slot->'conditions' from public.hr_hunt_role_rules where role = 'healer' and ord = 0)
@@ -278,9 +277,16 @@ begin
   if v->>'error' is distinct from 'bad_enabled' then raise exception 'VERIFY(c): a non-boolean Off answered %', v; end if;
   v := public.hr_hunt_slot_check('{"action": {"type": "ability", "id": "fireball"}, "colour": "red"}'::jsonb);
   if v->>'error' is distinct from 'bad_slot' then raise exception 'VERIFY(c): an unknown slot key answered %', v; end if;
-  -- (d) no rune attack slot; a bar keeps an Off slot and an ignore list through hr_hunt_bar_check
-  v := public.hr_hunt_slot_check('{"action": {"type": "attack_with_item", "id": "fire_rune"}}'::jsonb);
-  if v->>'error' is distinct from 'bad_action' then raise exception 'VERIFY(d): a Fire Rune attack slot answered %', v; end if;
+  -- (d) no rune and no whetstone attack slot (Andy a41), the arrows still are; a bar keeps an Off slot and an
+  --     ignore list through hr_hunt_bar_check
+  foreach v_f in array array['chalked_fire_rune', 'copper_whetstone', 'steel_whetstone'] loop
+    v := public.hr_hunt_slot_check(jsonb_build_object('action', jsonb_build_object('type', 'attack_with_item', 'id', v_f)));
+    if v->>'error' is distinct from 'bad_action' then raise exception 'VERIFY(d): a % attack slot answered %', v_f, v; end if;
+  end loop;
+  v := public.hr_hunt_bar_check('[{"action": {"type": "attack_with_item", "id": "copper_whetstone"}}]'::jsonb);
+  if coalesce(v->>'ok', '') = 'true' then raise exception 'VERIFY(d): a bar with a whetstone attack slot was stored: %', v; end if;
+  v := public.hr_hunt_slot_check('{"action": {"type": "attack_with_item", "id": "iron_arrows"}}'::jsonb);
+  if coalesce(v->>'ok', '') <> 'true' then raise exception 'VERIFY(d): an Iron Arrows attack slot answered %', v; end if;
   v := public.hr_hunt_bar_check('[{"action": {"type": "ability", "id": "fireball"}, "enabled": false}, {"action": {"type": "ability", "id": "fireball"}, "ignore": ["rat"]}, null]'::jsonb);
   if coalesce(v->>'ok', '') <> 'true' or v->'slots'->0->'enabled' is distinct from 'false'::jsonb
      or v->'slots'->1->'ignore' is distinct from '["rat"]'::jsonb or v->'slots'->0->>'id' = v->'slots'->1->>'id' then
@@ -295,5 +301,5 @@ begin
      or has_function_privilege('authenticated', 'public.hr_hunt_slot_check(jsonb)', 'execute') then
     raise exception 'VERIFY(f): a client role reaches hr_hunt_slot_check'; end if;
   perform public.hr_assert_grant_hygiene(true);
-  raise notice 'slot-truth: a slot does what it says; Off and ignored monsters stored and validated; no rune attack slot';
+  raise notice 'slot-truth: a slot does what it says; Off and ignored monsters stored and validated; no rune or whetstone attack slot';
 end $$;

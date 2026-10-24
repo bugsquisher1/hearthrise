@@ -27,18 +27,22 @@
 //   S6 A UNIT DIES ONCE: a second kill of a unit drawn dead never restarts its fall,
 //      and a corpse lies the way it fell (it never turns to face what it last swung
 //      at: Andy 10-21 "saw a corpse twitch again once dead").
+//   S8 A FINISHED CORPSE IS FORGOTTEN: once a corpse has lain its corpseMs the scene
+//      drops it, and the timeline with it (timeline.js T11, refused while it still
+//      holds a step or an event to play), so a long hunt walks only the units on
+//      screen each frame, never every monster it ever spawned.
 // ════════════════════════════════════════════════════════════════════════
-import { EVENT_FX, LOOT_FX, HIT_FX, PROJECTILE, CAST_FX } from '../data/hunt-vfx.js?v=0.2.34';
-import { outfitSprite } from '../data/hunt-outfits.js?v=0.2.34';
-import { huntOf, partyOf } from '../session/hunt-sections.js?v=0.2.34';
-import { partyPeopleOf } from '../session/party-sections.js?v=0.2.34';
-import { floatShown } from './float-prefs.js?v=0.2.34';
-import { heroSprite } from '../session/hero-look.js?v=0.2.34';
-import { abilityName, itemName } from '../shell/widgets/bits.js?v=0.2.34';
-import { STUB_SPRITE } from '../world/core/book.js?v=0.2.34';
-import { HUNT_GROUNDS } from '../data/hunt-grounds.js?v=0.2.34';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.34';
-import { levelOf } from '../session/character-sections.js?v=0.2.34';
+import { EVENT_FX, LOOT_FX, HIT_FX, PROJECTILE, CAST_FX } from '../data/hunt-vfx.js?v=0.2.38';
+import { outfitSprite } from '../data/hunt-outfits.js?v=0.2.38';
+import { huntOf, partyOf } from '../session/hunt-sections.js?v=0.2.38';
+import { partyPeopleOf } from '../session/party-sections.js?v=0.2.38';
+import { floatShown } from './float-prefs.js?v=0.2.38';
+import { heroSprite } from '../session/hero-look.js?v=0.2.38';
+import { abilityName, itemName } from '../shell/widgets/bits.js?v=0.2.38';
+import { STUB_SPRITE } from '../world/core/book.js?v=0.2.38';
+import { HUNT_GROUNDS } from '../data/hunt-grounds.js?v=0.2.38';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.38';
+import { levelOf } from '../session/character-sections.js?v=0.2.38';
 
 /* The ground's first start tile, standing (the hero before its first window). */
 function entranceOf(huntId) {
@@ -53,6 +57,7 @@ export const SCENE_TIMING = Object.freeze({
   corpseFadeMs: 2000,   // it fades out over its last 2 s
   flashMs: 120,         // a hit's white flash
   riseMs: 400,          // a unit a reconcile finds alive after its drawn death fades back in, never pops up
+  staleMs: 1000,        // a scene not drawn for this long (another character viewed, a hidden tab) shows no one fall on its return
   floatMs: 1000,        // a floating number's life
   levelMs: 3000,        // "Level 6" over the hero when the server's Level rises (the earned moment)
 });
@@ -147,6 +152,10 @@ export function createHuntScene(o) {
   let fx = [], floats = [];
   const flash = new Map(), dead = new Map(), swing = new Map(), bleed = new Map(), cycle = new Map(), target = new Map(), risen = new Map();
   const lie = new Map();   // S6: unit -> { dir, diag }, the facing a unit fell with
+  const perUnit = [flash, dead, swing, bleed, cycle, target, risen, lie];
+  /* S7: the client instant of the last frame drawn and the units it drew standing */
+  let drawnAt = null;
+  const standing = new Set();
   const fresh = () => o.read();
   let read = fresh();
 
@@ -305,13 +314,12 @@ export function createHuntScene(o) {
       if (q && (q.x !== p.x || q.y !== p.y)) { hx = q.x - p.x; hy = q.y - p.y; }
     }
     let { dir, diag } = facingOf(hx, hy);
-    let alpha = 1, grey = 0, under = false, corpse = null;
+    let alpha = 1, grey = 0, under = false, corpse = null, x = p.x, y = p.y;
     const rose = risen.get(u);
     if (rose !== undefined) { if (now - rose >= SCENE_TIMING.riseMs) risen.delete(u); else alpha = Math.max(0, now - rose) / SCENE_TIMING.riseMs; }
     const died = dead.get(u);
     if (died !== undefined) {
-      /* a unit the server walks again is not dead; one killed mid-step (HP 0 at this instant, read as its bar
-         reads it) finishes its step dead */
+      /* a unit the server walks again is not dead (HP above 0 at this instant, read as its bar reads it) */
       const hpNow = typeof tl.hpAt === 'function' ? tl.hpAt(u, now) : null;
       const gone = hpNow ? hpNow.hp <= 0 : (read.units.get(u) || {}).hp === 0;
       if (p.moving && !gone) { dead.delete(u); lie.delete(u); } else {
@@ -319,9 +327,12 @@ export function createHuntScene(o) {
         if (age >= SCENE_TIMING.corpseMs) return null;
         if (age >= 0) {
           under = true;
-          /* S6: it lies the way it fell */
-          if (!lie.has(u)) lie.set(u, { dir, diag });
-          ({ dir, diag } = lie.get(u));
+          /* S6: it lies WHERE and the way it fell: the spot it stood on at its death instant, kept from its first
+             dead frame. A step the timeline holds past the death (a walk the live engine draws rolling on from the
+             last one, a restart dropping the steps after its instant) never moves it (Andy a16, v0.2.33: a corpse
+             glided 1.5 tiles after the kill). */
+          if (!lie.has(u)) { const at = tl.positionAt(u, died) || p; lie.set(u, { dir, diag, x: at.x, y: at.y }); }
+          ({ dir, diag, x, y } = lie.get(u));
           /* VW-05: the sprite's own death clip, then its corpse frame; only art without them greys. */
           corpse = corpseFrame(id, clips, dir, age);
           if (!corpse) grey = Math.min(1, age / SCENE_TIMING.deathFadeMs);
@@ -335,7 +346,7 @@ export function createHuntScene(o) {
     const frame = corpse ? corpse.frame : moving ? Math.floor((p.d * walk.fps * tl.tileMs) / 1000) : 0;
     const anim = corpse ? corpse.anim : moving ? 'walk' : clips.idle ? 'idle' : walk ? 'walk' : 'idle';
     const f = flash.get(u);
-    const out = { id, unit: u, x: p.x, y: p.y, anim, dir, diag, frame, alpha, grey, under,
+    const out = { id, unit: u, x, y, anim, dir, diag, frame, alpha, grey, under,
       flash: !under && f !== undefined && now >= f && now - f < SCENE_TIMING.flashMs };
     if (!under) {
       /* Every bar is the HP AT THE INSTANT SHOWN (timeline.js T6: heroes too, so it moves live), the snapshot's only as a fallback. */
@@ -402,13 +413,21 @@ export function createHuntScene(o) {
     const units = [];
     const ids = tl.units();
     /* S4: per-unit state never outlives the unit's track (a long hunt respawns thousands). */
-    if (flash.size + dead.size + swing.size + bleed.size + cycle.size + target.size + risen.size + lie.size > PRUNE_AT) {
+    if (perUnit.reduce((n, m) => n + m.size, 0) > PRUNE_AT) {
       const live = new Set(ids);
-      for (const m of [flash, dead, swing, bleed, cycle, target, risen, lie]) for (const k of m.keys()) if (!live.has(k)) m.delete(k);
+      for (const m of perUnit) for (const k of m.keys()) if (!live.has(k)) m.delete(k);
     }
+    drawnAt = now;
+    standing.clear();
     for (const u of ids) {
       const d = unitAt(u, now);
-      if (!d) continue;
+      if (!d) {
+        /* S8: a corpse that has lain its time is finished: forgotten here and by the timeline */
+        const died = dead.get(u);
+        if (died !== undefined && now - died >= SCENE_TIMING.corpseMs && tl.forget(u, now)) for (const m of perUnit) m.delete(u);
+        continue;
+      }
+      if (!d.under) standing.add(u);
       if (u === read.viewed) hero = d;
       else units.push(d);
     }
@@ -450,6 +469,10 @@ export function createHuntScene(o) {
      * drawing follows it both ways: a monster drawn dead that the server's world holds alive fades
      * back in (never pops up off its corpse), and a monster drawn STANDING that is no longer in that
      * world falls where it stands (left drawn, it stood at its last tile with an empty bar).
+     * S7 ONLY WHAT WAS ON SCREEN FALLS: "drawn standing" is the last frame's, and only while that frame
+     * is current (staleMs). A scene coming back (another character was viewed, a hidden tab) shows a
+     * monster that died meanwhile as gone, never falling anew at its last tile (Andy a17, v0.2.33:
+     * "switching characters brings dead monsters back on screen").
      */
     revive(alive, now) {
       if (!alive) return;
@@ -461,10 +484,14 @@ export function createHuntScene(o) {
         if (t !== null) risen.set(u, t);
       }
       if (t === null) return;
-      for (const u of tl.units()) if (!alive.has(u) && !dead.has(u) && !isHero(u)) dead.set(u, t);
+      const onScreen = drawnAt !== null && t - drawnAt <= SCENE_TIMING.staleMs;
+      for (const u of tl.units()) {
+        if (alive.has(u) || dead.has(u) || isHero(u)) continue;
+        dead.set(u, onScreen && standing.has(u) ? t : t - SCENE_TIMING.corpseMs);
+      }
     },
-    /** For tests: how many effects and floats are live, and the keys played. */
-    stats: () => ({ fx: fx.length, floats: floats.length, played: keys.size }),
+    /** For tests: how many effects and floats are live, the keys played, and the units drawn dead. */
+    stats: () => ({ fx: fx.length, floats: floats.length, played: keys.size, dead: dead.size }),
   };
 }
 

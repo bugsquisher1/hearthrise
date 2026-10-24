@@ -20,19 +20,19 @@
 // (bar-draft.js), every control stays off until the server has answered, and a refusal
 // keeps the draft and outlines its condition. On a phone (922×423) it is a full sheet.
 // ════════════════════════════════════════════════════════════════════════
-import { METRICS, OPERATORS, MAX_CONDITIONS } from '../../data/condition-metrics.js?v=0.2.34';
-import { STATUSES } from '../../data/statuses.js?v=0.2.34';
-import { settingsOf, huntOf, partyOf } from '../../session/hunt-sections.js?v=0.2.34';
-import { vitalsOf } from '../../session/party-sections.js?v=0.2.34';
-import { biggestBlowOn } from '../../core/hunt/pull-cycle.js?v=0.2.34';
-import { carriedOf } from '../../session/item-sections.js?v=0.2.34';
-import { rows, text, attr, prop, cls, element } from '../../render/paint.js?v=0.2.34';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.34';
-import { actionIconHtml } from '../widgets/bits.js?v=0.2.34';
-import { SLOTS, draftOf, openSlot, closeSlot, conditionFor, blankCondition, saveOpen, emptyOpen, moveSlot, startConditions, storeChoices, storeChoiceWords, storeDefault } from '../bar-draft.js?v=0.2.34';
-import { TABS, tabOf, factsOf, carried, healWarning, weaponWarning } from '../action-facts.js?v=0.2.34';
-import { glyphSvg } from '../launcher.js?v=0.2.34';
-import { tableOf, rowIn, cellsOf, sentenceOf, compareLines, wasteLine, sourceLine, effectLine } from '../action-table.js?v=0.2.34';
+import { METRICS, OPERATORS, MAX_CONDITIONS } from '../../data/condition-metrics.js?v=0.2.38';
+import { STATUSES } from '../../data/statuses.js?v=0.2.38';
+import { settingsOf, huntOf, partyOf } from '../../session/hunt-sections.js?v=0.2.38';
+import { vitalsOf } from '../../session/party-sections.js?v=0.2.38';
+import { biggestBlowOn } from '../../core/hunt/pull-cycle.js?v=0.2.38';
+import { carriedOf } from '../../session/item-sections.js?v=0.2.38';
+import { rows, text, attr, prop, cls, element } from '../../render/paint.js?v=0.2.38';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.38';
+import { actionIconHtml } from '../widgets/bits.js?v=0.2.38';
+import { SLOTS, draftOf, openSlot, closeSlot, conditionFor, blankCondition, saveOpen, emptyOpen, moveSlot, startConditions, storeChoices, storeChoiceWords, storeDefault } from '../bar-draft.js?v=0.2.38';
+import { TABS, tabOf, factsOf, carried, healWarning, weaponWarning } from '../action-facts.js?v=0.2.38';
+import { glyphSvg } from '../launcher.js?v=0.2.38';
+import { tableOf, rowIn, cellsOf, sentenceOf, compareLines, wasteLine, sourceLine, effectLine } from '../action-table.js?v=0.2.38';
 
 const METRIC = new Map(METRICS.map((m) => [m.id, m]));
 const options = (pairs) => pairs.map(([v, l]) => '<option value="' + esc(v) + '">' + esc(l) + '</option>').join('');
@@ -141,7 +141,7 @@ function patchRow(el, r, picked, off) {
   cls(el, 'is-store', r.carry === 'store');
   cls(el, 'is-mana', r.kind === 'drink' || r.kind === 'spells' || r.kind === 'runes');
   cls(el, 'is-locked', !!r.locked);
-  attr(el, 'title', r.locked ? 'Your weapon can’t cast this' : '');
+  attr(el, 'title', r.locked ? (r.kind === 'ammo' ? 'Your weapon can’t shoot this' : 'Your weapon can’t cast this') : '');
   prop(el, 'disabled', off);
 }
 
@@ -168,7 +168,7 @@ renderConfigureAction.patch = function patchConfigureAction(body, ctx) {
   const bag = carriedOf(cs);
   const v = viewOf(cs);
   const tab = v.tab || (d.action.id ? tabOf(d.action) : LAST_TAB.get(cs) || 'spells');
-  const table = tableOf(tab, { discipline: set.discipline, bag, store: set.store });
+  const table = tableOf(tab, { discipline: set.discipline, role: set.role, bag, store: set.store });
   const picked = rowIn(table, d.action);
   /* THE TOP LINE */
   text(root.querySelector('.ca-rank'), 'Slot ' + (s.open + 1) + (s.open === 0 ? ' · tried first' : ' · tried after slot ' + s.open));
@@ -182,7 +182,7 @@ renderConfigureAction.patch = function patchConfigureAction(body, ctx) {
   text(root.querySelector('.ca-note'), say.note ? ' ' + say.note : '');
   text(root.querySelector('.ca-ready'), d.action.id && !d.conditions.length ? ' whenever it is ready.' : '');
   root.querySelectorAll('.ca-cond').forEach((row, i) => patchCond(row, d.conditions[i], i, s, ctx.doc));
-  text(root.querySelector('.ca-weapon'), weaponWarning(d.action, set.discipline));
+  text(root.querySelector('.ca-weapon'), weaponWarning(d.action, set.discipline, set.role));
   /* The heal warning: the hero's hunt (running, else the last one) at the party's size, the server's max HP. */
   const h = huntOf(cs), p = partyOf(cs);
   const blow = h && h.huntId ? biggestBlowOn(h.huntId, p ? p.members.length : 1) : null;

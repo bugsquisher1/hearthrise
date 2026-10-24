@@ -1,0 +1,36 @@
+{
+  "id": "ground",
+  "class": "terrain",
+  "kind": "wang16",
+  "style": "s1",
+  "material": "terrain",
+  "tile_px": 64,
+  "source": "ground.png",
+  "metadata": "ground.metadata.json",
+  "variants": "free: the plain grass tile (corners all lower) is used in its 4 orientations (as is, flipX, flipY, both); no generated variants",
+  "notes": "SANDBOX64 round 3 final (2026-10-23): calmer, flat grass <-> dirt. Replaces t1_grass_dirt (ca241672).",
+  "pixellab": {
+    "tool": "create_topdown_tileset",
+    "tileset_id": "312e78ac-b577-47b6-9fa1-e8ccf0c40f4b",
+    "base_tile_ids": {
+      "lower_grass": "79f2dbe8-484a-4716-8392-6ac6ce015c2e",
+      "upper_dirt": "aa5cc64b-9ccc-4313-81b1-8f85c827c481"
+    },
+    "params": {
+      "mode": "pro",
+      "tile_size": {
+        "width": 64,
+        "height": 64
+      },
+      "view": "high top-down",
+      "transition_size": 0,
+      "raggedness": 0.2,
+      "max_colors": 10,
+      "palette": "hr-world-56-v2 (56 colours)",
+      "lower_description": "calm short meadow grass, soft muted olive green, very low contrast, smooth even texture, only a few faint blades, no flowers, no dark spots",
+      "upper_description": "smooth packed dirt road, soft muted warm brown, very low contrast, flat on the same level as the grass, almost no pebbles",
+      "transition_description": "soft grass edge meeting the trodden earth, flat ground, no step or ledge"
+    },
+    "cost_generations": 25
+  }
+}

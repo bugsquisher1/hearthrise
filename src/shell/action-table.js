@@ -16,12 +16,13 @@
 //   sourceLine(row, ctx)  where its uses come from
 // No DOM, no clock, no state. Nothing here gates or spends anything.
 // ════════════════════════════════════════════════════════════════════════
-import { ABILITIES } from '../data/abilities.js?v=0.2.34';
-import { CONSUMABLES, CONSUMABLE_RULES } from '../data/consumables.js?v=0.2.34';
-import { SUPPLIES, isRune } from '../data/supplies.js?v=0.2.34';
-import { ITEMS } from '../data/items.js?v=0.2.34';
-import { ATTACK_KINDS } from '../data/condition-metrics.js?v=0.2.34';
-import { itemName, abilityName, runeWords, familyCount } from './widgets/bits.js?v=0.2.34';
+import { ABILITIES } from '../data/abilities.js?v=0.2.38';
+import { CONSUMABLES, CONSUMABLE_RULES } from '../data/consumables.js?v=0.2.38';
+import { SUPPLIES } from '../data/supplies.js?v=0.2.38';
+import { ITEMS } from '../data/items.js?v=0.2.38';
+import { HUNT_ROLES, shootsItem } from '../data/hunt-roles.js?v=0.2.38';
+import { ATTACK_KINDS } from '../data/condition-metrics.js?v=0.2.38';
+import { itemName, abilityName, runeWords, familyCount } from './widgets/bits.js?v=0.2.38';
 
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 const secs = (ms) => (ms % 1000 ? (ms / 1000).toFixed(1) : String(ms / 1000));
@@ -71,7 +72,7 @@ const byValue = (a, b) => ((a.per === null) - (b.per === null)) || ((a.per || 0)
 
 /**
  * The runs a tab shows: [{ kind, label, cols, rows }], plus `empty` (why there is
- * nothing to pick) when no run has a row. `ctx` = { discipline (the server's, hunt_settings), bag (the server's
+ * nothing to pick) when no run has a row. `ctx` = { discipline, role (the server's, hunt_settings), bag (the server's
  * inventory rows), store (the server's store rows: settingsOf(cs).store) }.
  */
 export function tableOf(tab, ctx) {
@@ -97,11 +98,15 @@ export function tableOf(tab, ctx) {
     const rows = Object.values(CONSUMABLES).filter((x) => x.kind === kind).map((x) => supplyRow(x, c.store, c.bag)).sort(byValue);
     if (rows.length) runs.push({ kind, label: RUN_LABEL[kind], cols: RUN_COLUMNS[kind], rows });
   }
-  /* No rune: a rune fuels spells only (Tyler 2026-10-23), so no attack slot may name one (conditions.js). */
-  const ammo = Object.keys(ATTACK_KINDS).concat(Object.values(SUPPLIES).filter((r) => r.kind === 'ammo' && !isRune(ITEMS[r.id])).map((r) => r.id))
-    .map((id) => ammoRow(id, c.store, c.bag));
+  /* THE SHOTS (hunt-roles.js shootsItem, the engine's rule): only ammo some weapon can loose is offered — a
+     whetstone sharpens a Melee weapon from the ammo slot and is no one's shot (Andy 2026-10-23: a bow loosed
+     Copper Whetstones from an attack slot), nor is a rune (it fuels spells only, Tyler 2026-10-23) — and one the
+     worn weapon cannot shoot is listed LOCKED, as a spell is. */
+  const roles = Object.keys(HUNT_ROLES);
+  const ammo = Object.keys(ATTACK_KINDS).concat(Object.values(SUPPLIES).filter((r) => r.kind === 'ammo' && roles.some((k) => shootsItem(k, ITEMS[r.id]))).map((r) => r.id))
+    .map((id) => Object.assign(ammoRow(id, c.store, c.bag), { locked: !own(ATTACK_KINDS, id) && !shootsItem(c.role, ITEMS[id]) }));
   const loaded = ammo.filter((r) => own(ATTACK_KINDS, r.action.id));
-  runs.push({ kind: 'ammo', label: RUN_LABEL.ammo, cols: RUN_COLUMNS.ammo, rows: loaded.concat(ammo.filter((r) => !own(ATTACK_KINDS, r.action.id)).sort(byValue)) });
+  runs.push({ kind: 'ammo', label: RUN_LABEL.ammo, cols: RUN_COLUMNS.ammo, rows: loaded.concat(ammo.filter((r) => !own(ATTACK_KINDS, r.action.id)).sort((a, b) => (a.locked - b.locked) || byValue(a, b))) });
   return { runs, empty: null };
 }
 

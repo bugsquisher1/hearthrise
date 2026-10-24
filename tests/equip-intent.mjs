@@ -4,6 +4,9 @@
 //   node tests/equip-intent.mjs            # the guard
 //   node tests/equip-intent.mjs --mutate   # plant real defects, prove RED
 //
+// mutant-anchors: supabase/functions/hr-accrue/equip.js
+// mutant-writes-tree: no — mutants are planted into a temp copy of src/ and the edge (HR_EQUIP_MODULE)
+//
 // Spec: docs/design/live-settlement.md §10 PHASE 2 and §12(1).
 // Ships with: supabase/functions/hr-accrue/equip.js,
 //             supabase/migrations/2026-08-18-equip-release-codes.sql.
@@ -38,7 +41,10 @@
 // Those are named rather than implied.
 // ════════════════════════════════════════════════════════════════════════
 import { bootReplay } from './schema-replay.mjs';
-import { runEquip, validateOps, equipDelta, VERB } from '../supabase/functions/hr-accrue/equip.js';
+/* HR_EQUIP_MODULE: --mutate runs this file against a PLANTED copy of the verb (a temp copy of src/ and the
+   edge, never the tree); unset, the shipped bytes. */
+const { runEquip, validateOps, equipDelta, VERB } = await import(process.env.HR_EQUIP_MODULE
+  ? pathToFileURL(process.env.HR_EQUIP_MODULE).href : new URL('../supabase/functions/hr-accrue/equip.js', import.meta.url).href);
 import { readEquip, MAX_EQUIP_OPS, INTENT_KEYS } from '../supabase/functions/hr-accrue/request.js';
 import {
   INTENT_REGISTRY, guardStampKeys, collectsFirst, rateBucketFor, STATELESS_REFUSALS,
@@ -476,6 +482,42 @@ async function body(db, call, exec) {
       'E8: the response carries no `collected` field. The collect ran or it did not, and a client '
       + 'that cannot tell reports a paid window as nothing (the b349 defect).');
   }
+
+  // ── E10. SETUPS CHANGE IN TOWN (Andy a23, live v0.2.33) ─────────────────
+  // A swap mid-hunt was taken: the weapon changed while the engine's unit kept the role its old weapon gave it
+  // at the join, and the bar (hr_hunt_settings_view reads that role off the instance's world) showed the old
+  // weapon's spells until the hunt ended. Now refused `hunt_open`, as hr_hunt_preset_apply refuses a setup
+  // switch mid-hunt: nothing worn or carried moves, the hunt is not settled for it, and the screen says why.
+  {
+    await db.query("update player_state set active_kind = 'idle', active_id = null where user_id = $1 and slot = 0", [UID]);
+    const worn = await call({ equip: { weapon: 'iron_sword' } });
+    ok(worn.status === 200, `E10-SETUP: the sword did not go on in town — ${JSON.stringify(worn.body).slice(0, 200)}`);
+    await db.query('update public.hr_hunt_config set enabled = true where id');
+    const e = (await db.query("select public.hr_hunt_enter(0, 'mill_cellar', '[]'::jsonb, 0, null, $1::uuid) r", [uuid()])).rows[0].r;
+    ok(e && e.ok === true, `E10-SETUP: the hunt was not entered — ${JSON.stringify(e).slice(0, 200)}`);
+    if (e && e.ok === true) {
+      const sid = e.session.id;
+      const settled = async () => (await db.query('select settled_to::text t from public.hunt_sessions where id = $1', [sid])).rows[0].t;
+      const before = { weapon: await eqOf(db, 'weapon'), kit: await invOf(db, KIT_WEAPON), sword: await invOf(db, 'iron_sword'), at: await settled() };
+      ok(before.weapon === 'iron_sword' && before.kit === 1, `E10-SETUP: worn ${before.weapon}, ${before.kit} ${KIT_WEAPON} carried`);
+      const r = await call({ equip: { weapon: KIT_WEAPON } });
+      ok(r.status === 409 && r.body.error === 'hunt_open',
+        `E10: an equip with a hunt open answered ${r.status} ${JSON.stringify(r.body).slice(0, 200)}, want 409 hunt_open`);
+      ok(await eqOf(db, 'weapon') === before.weapon && await invOf(db, KIT_WEAPON) === before.kit && await invOf(db, 'iron_sword') === before.sword,
+        'E10: an equip refused mid-hunt moved the worn set or the bag');
+      ok(await settled() === before.at, 'E10: an equip refused mid-hunt settled the hunt (a collect for a swap that cannot happen)');
+      const { refusalText } = await import(pathToFileURL(join(ROOT, 'src/shell/intent-words.js')).href);
+      const { REFUSAL_FALLBACK } = await import(pathToFileURL(join(ROOT, 'src/data/refusal-words.js')).href);
+      const said = refusalText({ ok: false, error: r.body.error });
+      ok(typeof said === 'string' && said.length > 0 && said !== REFUSAL_FALLBACK,
+        `E10: the screen reads the mid-hunt refusal as "${said}" (the generic fallback says nothing of the hunt)`);
+      /* CONTROL: out of the hunt the same swap is taken (the refusal is the hunt's, not the item's). */
+      await db.query("select public.hr_hunt_close($1::uuid, 'left', now(), true)", [sid]);
+      const r2 = await call({ equip: { weapon: KIT_WEAPON } });
+      ok(r2.status === 200 && await eqOf(db, 'weapon') === KIT_WEAPON,
+        `E10-CONTROL: the same swap after the hunt ended answered ${r2.status} ${JSON.stringify(r2.body).slice(0, 200)}`);
+    }
+  }
 }
 
 // ════════════════════════════════════════════════════════════════════════
@@ -508,8 +550,42 @@ export async function runAll() {
   return problems.slice();
 }
 
+/* --mutate: each planted defect in the verb must turn its claim red. The copy is src/ and supabase/functions in a
+   temp dir (the verb's relative imports resolve there); this file and the chain stay the tracked ones. */
+const MUTANTS = [
+  { name: 'an equip mid-hunt is taken (live v0.2.33, Andy a23)', arm: /^E10: an equip with a hunt open/,
+    file: 'supabase/functions/hr-accrue/equip.js',
+    from: "  if (st && st.active_kind === 'combat' && await huntOpenOf(exec, user, slot)) {", to: '  if (false) {' },
+];
+async function mutate() {
+  const { mkdtempSync, cpSync, readFileSync, writeFileSync, rmSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { spawnSync } = await import('node:child_process');
+  let escaped = 0;
+  for (const m of MUTANTS) {
+    const base = mkdtempSync(join(tmpdir(), 'hr-equip-'));
+    try {
+      cpSync(join(ROOT, 'src'), join(base, 'src'), { recursive: true });
+      cpSync(join(ROOT, 'supabase', 'functions'), join(base, 'supabase', 'functions'), { recursive: true });
+      const f = join(base, m.file);
+      const src = readFileSync(f, 'utf8');
+      if (src.split(m.from).length !== 2) { console.error(`equip-intent --mutate: the anchor of "${m.name}" is not found once`); process.exit(2); }
+      writeFileSync(f, src.replace(m.from, m.to));
+      const r = spawnSync(process.execPath, [join(ROOT, 'tests', 'equip-intent.mjs')], { encoding: 'utf8', timeout: 15 * 60000,
+        env: Object.assign({}, process.env, { HR_EQUIP_MODULE: f }) });
+      const lines = ((r.stdout || '') + (r.stderr || '')).split('\n').map((l) => l.replace(/^\s*✗\s*/, ''));
+      const hit = r.status !== 0 && lines.some((l) => m.arm.test(l));
+      console.log(`  ${hit ? 'caught ' : 'ESCAPED'} ${m.name}`);
+      if (!hit) escaped++;
+    } finally { rmSync(base, { recursive: true, force: true }); }
+  }
+  console.log(escaped ? `equip-intent --mutate: ${escaped} ESCAPED` : `equip-intent --mutate: ${MUTANTS.length}/${MUTANTS.length} caught`);
+  process.exit(escaped ? 1 : 0);
+}
+
 const SELF = isMain(import.meta.url);
-if (SELF) {
+if (SELF && process.argv.includes('--mutate')) await mutate();
+else if (SELF) {
   const fails = await runAll();
   for (const f of fails) console.error('  ✗ ' + f);
   console.log(fails.length ? `equip-intent: ${fails.length} FAILED` : 'equip-intent: OK');

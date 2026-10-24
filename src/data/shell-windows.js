@@ -45,6 +45,9 @@ export const SHELL_WINDOWS = Object.freeze([
   /* The account's one house (Tyler 2026-10-15): the property, its rooms and the storage chests, bought from any character. */
   Object.freeze({ id: 'house', label: 'House', key: 'e', glyph: 'navHouse', width: 480, object: 'deed' }),
   Object.freeze({ id: 'services', label: 'Services', key: 'r', glyph: 'uiHourglass', width: 400, object: 'ledger' }),
+  /* Tamsin's tally (2026-12-23-tally-tasks.sql): kill tasks counted by the server, paid in town. Her board on the
+     Common opens it too (src/data/world/stations.js TAP_OPENS), and so does the HUD's tally. */
+  Object.freeze({ id: 'tally', label: 'Tamsin\'s tally', key: 'q', glyph: 'navBounty', width: 460, object: 'ledger' }),
   Object.freeze({ id: 'hunt-prep', label: 'Hunt prep', key: 'p', glyph: 'uiCheck', width: 420, object: 'plain' }),
   /* Week plan step 16 + QoL 3: the party, and every open character on one screen (opened from the
      character strip's "All characters", so it takes no launcher icon). */

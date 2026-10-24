@@ -34,16 +34,21 @@
 // Nothing here gates or spends anything; the "Start again" button is an
 // intent (CharacterSession.restartHunt) like every other.
 // ════════════════════════════════════════════════════════════════════════
-import { ALERT_INDEX } from '../data/alerts.js?v=0.2.34';
-import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.34';
-import { ALERTS_SEEN_MAX } from '../session/residue.js?v=0.2.34';
-import { huntOf, settingsOf } from '../session/hunt-sections.js?v=0.2.34';
-import { carriedOf, nameOf } from '../session/item-sections.js?v=0.2.34';
-import { huntName, invitesOf } from '../session/party-sections.js?v=0.2.34';
-import { itemName } from './widgets/bits.js?v=0.2.34';
-import { CONSUMABLES } from '../data/consumables.js?v=0.2.34';
-import { deathSeen } from './death-popup.js?v=0.2.34';
-import { awayRecapOf, stampAway } from './away-recap.js?v=0.2.34';
+import { ALERT_INDEX } from '../data/alerts.js?v=0.2.38';
+import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.38';
+import { ALERTS_SEEN_MAX } from '../session/residue.js?v=0.2.38';
+import { huntOf, settingsOf } from '../session/hunt-sections.js?v=0.2.38';
+import { carriedOf, nameOf } from '../session/item-sections.js?v=0.2.38';
+import { huntName, invitesOf } from '../session/party-sections.js?v=0.2.38';
+import { itemName } from './widgets/bits.js?v=0.2.38';
+import { CONSUMABLES } from '../data/consumables.js?v=0.2.38';
+import { deathSeen } from './death-popup.js?v=0.2.38';
+import { awayRecapOf, stampAway } from './away-recap.js?v=0.2.38';
+import { tallyOf, pickWords } from '../session/tally-sections.js?v=0.2.38';
+import { tallyTask } from '../data/tally-tasks.js?v=0.2.38';
+import { gold } from '../render/format.js?v=0.2.38';
+
+const tallyLabel = (task) => { const t = tallyTask(task); return t ? t.label : 'a tally'; };
 
 const residueOf = (cs) => {
   const r = cs && cs.record && cs.record.residue && cs.record.residue.alerts;
@@ -98,6 +103,11 @@ const supplyWords = (id) => itemName(id);
 function candidatesOf(cs, viewed) {
   const out = (invitesOf(cs) || []).map((i) => ({ id: 'invite:' + i.id, kind: 'invite', session: null, invite: i.id,
     text: i.from + ' invites ' + who(cs) + ' to their party.' }));
+  /* Tamsin's payments (the server's claims of the last day, `tally.recent`): one line each, ever. */
+  for (const p of (tallyOf(cs) || { recent: [] }).recent) {
+    out.push({ id: 'tally:' + p.claim, kind: 'tally', session: null, item: p.item,
+      text: 'Tamsin paid ' + who(cs) + ' ' + gold(p.gold) + ' and ' + pickWords(p, itemName) + ' for ' + tallyLabel(p.task) + '.' });
+  }
   const h = huntOf(cs);
   if (!h) return out;
   const where = huntName(h.huntId);
@@ -108,14 +118,25 @@ function candidatesOf(cs, viewed) {
     if (!viewed && !deathSeen(cs, h.sessionId)) out.push({ id: 'death:' + h.sessionId, kind: 'death', session: h.sessionId,
       text: END_REASON_COPY.died.one.replace('{name}', who(cs)).replace('{ground}', where) });
   }
+  /* LEAVE TOGETHER (Tyler 2026-10-22): "<Name> left the hunt, so <hero> came home too." / "<Name> fell, so ..." */
   else if (h.ended && h.endReason === 'party_member_died') out.push({ id: 'death:' + h.sessionId, kind: 'death', session: h.sessionId,
-    text: 'A party member died in ' + where + ', so ' + who(cs) + '’s party returned to town.' });
+    text: cameHomeLine(h, who(cs)) });
+  else if (h.ended && h.endReason === 'party_member_left') out.push({ id: 'ended:' + h.sessionId, kind: 'ended', session: h.sessionId,
+    text: cameHomeLine(h, who(cs)) });
   else if (h.ended) out.push({ id: 'ended:' + h.sessionId, kind: 'ended', session: h.sessionId, text: who(cs) + '’s hunt in ' + where + ' has ended.' });
   else for (const l of lowItems(cs, h.hero)) {
     out.push({ id: 'low:' + h.sessionId + ':' + l.item, kind: 'low', session: h.sessionId, item: l.item,
       text: who(cs) + ' is out of ' + supplyWords(l.item) + '.' });
   }
   return out;
+}
+
+/** A ticked hero's way home (LEAVE TOGETHER): who ended first, by the server's `end_by` ("A party member" when it
+    cannot say), and this hero's name. Pure; exported for tests/party-ui.mjs. */
+export function cameHomeLine(h, hero) {
+  const copy = END_REASON_COPY[h && h.endReason];
+  if (!copy || (h.endReason !== 'party_member_died' && h.endReason !== 'party_member_left')) return '';
+  return copy.one.replace('{member}', (h.endBy && String(h.endBy)) || 'A party member').replace('{name}', hero);
 }
 
 /** The rare-drop alert for one arriving timeline event, or null. */

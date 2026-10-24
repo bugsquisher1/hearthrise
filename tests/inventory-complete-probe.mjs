@@ -93,14 +93,15 @@ async function main() {
       `JS mirror: ${label} → ${expect}`);
   }
 
-  // ── (2b) THE CLIENT GATE — a pushed frame may carry the bag only when the
-  //         frame itself stamps the flag. The rebuilt client (src/session/
-  //         envelope.js, 2026-10-17) refuses a partial bag outright; the old
-  //         client's dormant inventory flip retired with it. Static, so it runs
-  //         even where the replay DB cannot boot. */
+  // ── (2b) THE CLIENT GATE — a pushed frame is the WHOLE character
+  //         (2026-12-25-frame-push-revive.sql): the client takes only a
+  //         `t:'state'` frame whose envelope is stamped with the frame's own
+  //         version, applied like a load (the bag replaced whole, exactly as
+  //         hr_load's), and never a key-subset patch, so no partial bag can be
+  //         applied at all. Static, so it runs even where the replay DB cannot boot. */
   const envSrc = (await readFile(join(ROOT, 'src', 'session', 'envelope.js'), 'utf8')).replace(/\r\n/g, '\n');
-  ok(/BAG_KEYS\.some\(\(k\) => k in f\.patch\) && f\.patch\.inventory_complete !== true\) return keep\('bag_incomplete'\)/.test(envSrc),
-    'CLIENT GATE: src/session/envelope.js applies a bag frame without inventory_complete === true');
+  ok(/msg\.t !== 'state'/.test(envSrc) && /msg\.env\.version !== msg\.frame/.test(envSrc) && !/\.patch\b/.test(envSrc),
+    'CLIENT GATE: src/session/envelope.js takes a frame that is not the whole character at its own version (a partial bag could apply)');
 
   // ── (3) DRIVEN AGAINST THE REAL hr_state_of ───────────────────────────────
   const { db } = await bootReplay({});

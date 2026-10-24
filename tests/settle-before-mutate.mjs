@@ -52,6 +52,7 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { bootReplay, LAST_PATCHED, ROOT } from './schema-replay.mjs';
+import { goldOf, setGold } from './_gold.mjs';
 /* The settle-first threshold, PINNED here since its JS twin (src/core/combat-xp-cap.js) went with the
    attended combat-XP door in the core rebuild (2026-10-19): no JS path reads it any more, so the SQL's
    c_settle_first_ms is held to the ruled 180 s directly. */
@@ -108,8 +109,11 @@ async function asRole(db, role, sql, params) {
 }
 async function snapshot(db) {
   const q = async (sql) => JSON.stringify((await db.query(sql, [UID])).rows);
+  /* The gold the hero spends: the account purse from 2026-12-15-account-gold.sql on, its own before. */
+  const rows = async (sql, p) => (await db.query(sql, p)).rows;
   return {
-    state: await q(`select gold::text, version::text, accrued_to::text, active_kind
+    gold: await goldOf(rows, UID, 0),
+    state: await q(`select version::text, accrued_to::text, active_kind
                       from player_state where user_id = $1 and slot = 0`),
     inv: await q('select item_id, qty::text from player_inventory where user_id = $1 order by item_id'),
     progress: await q(`select kind, key, value::text from player_progress where user_id = $1
@@ -121,10 +125,11 @@ async function snapshot(db) {
 
 async function r5(db) {
   await db.query('insert into auth.users(id) values ($1) on conflict (id) do nothing', [UID]);
-  await db.query(`insert into player_state (user_id, slot, gold, hp, version,
+  await db.query(`insert into player_state (user_id, slot, hp, version,
                     accrued_to, active_kind, active_id, active_since)
-                  values ($1, 0, 1000, 10, 1, now() - interval '${STALE}',
+                  values ($1, 0, 10, 1, now() - interval '${STALE}',
                           'combat', 'r5_probe_target', now() - interval '8 hours')`, [UID]);
+  await setGold(async (sql, p) => (await db.query(sql, p)).rows, UID, 0, 1000);
   await db.query(`insert into player_progress (user_id, slot, kind, key, value, period_key, updated_at)
                   values ($1, 0, 'stat', 'ev:smithed', 60, '', now())`, [UID]);
   const food = (await db.query('select item_id from hr_item_buffs order by item_id limit 1')).rows[0].item_id;

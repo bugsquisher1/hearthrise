@@ -284,19 +284,18 @@ async function signInAndPlay(page, base, town) {
 }
 
 /**
- * A new full envelope for the shown character, the way the live game gets one:
- * a pushed frame that skips a version makes the client re-read (hello), and
- * the scripted server answers with `s.env`. Resolves when it has been applied.
+ * A new full envelope for the shown character, the way the live game gets one: a pushed frame
+ * (2026-12-25-frame-push-revive.sql) that carries the WHOLE character at the next version, applied
+ * like a load (envelope.js E2). Resolves when it has been applied.
  */
 async function pushEnvelope(page, s) {
-  const frame = s.version + 2;
-  s.version = frame;
-  await page.evaluate(([uid, f, st]) => window.__hub.send('hr:' + uid + ':0', { t: 'delta', frame: f, patch: { state: st } }), [UID, frame, s.env.state]);
-  /* Applied = the page has parsed an answer at least as new as the re-read this frame asks for (every
-     answer from here on carries s.env as it is now), then its own tasks after that have run. */
+  const env = s.next();
+  /* The hub delivers synchronously, so the page holds the envelope when this returns; noted like a parsed answer. */
+  await page.evaluate(([uid, e]) => { window.__hub.send('hr:' + uid + ':0', { t: 'state', frame: e.version, env: e });
+    window.__hsSeen = Math.max(window.__hsSeen || 0, e.version); }, [UID, env]);
   const c = CLOCKS.get(page);
-  if (c && c.paused) { await drive(page, { maxMs: 2000, pred: (v) => (window.__hsSeen || 0) >= v, arg: frame + 1 }); return; }
-  await wait(page, (v) => (window.__hsSeen || 0) >= v, frame + 1);
+  if (c && c.paused) { await drive(page, { maxMs: 2000, pred: (v) => (window.__hsSeen || 0) >= v, arg: env.version }); return; }
+  await wait(page, (v) => (window.__hsSeen || 0) >= v, env.version);
   await page.evaluate(() => new Promise((ok) => setTimeout(() => setTimeout(ok, 0), 0)));
 }
 
@@ -1694,7 +1693,7 @@ const MUTANTS = [
   ['the struck reason of a food slot ignores the server', 'src/shell/action-facts.js', "    if (sl.why === 'none_left') return", "    if (false) return"],
   ['Configure action never warns a heal slot', 'src/shell/windows/configure-action.js', "healWarning(d, set, blow, vitalsOf(cs).hpMax)", "''"],
   ['a spell the weapon cannot cast reads like a castable one', 'src/shell/windows/configure-action.js', "  cls(el, 'is-locked', !!r.locked);", ''],
-  ['Configure action never says a locked spell stays struck', 'src/shell/windows/configure-action.js', "  text(root.querySelector('.ca-weapon'), weaponWarning(d.action, set.discipline));", ''],
+  ['Configure action never says a locked spell stays struck', 'src/shell/windows/configure-action.js', "  text(root.querySelector('.ca-weapon'), weaponWarning(d.action, set.discipline, set.role));", ''],
   ['the phone sheet cuts the heal warning to one line and says it nowhere whole', 'src/shell/windows/configure-action.js', "  text(root.querySelector('.ca-d-warn'), warn);", ''],
   ['the heal warning reads the whole ground whatever the party size', 'src/shell/windows/configure-action.js', 'biggestBlowOn(h.huntId, p ? p.members.length : 1)', 'biggestBlowOn(h.huntId, 4)'],
   ['the Hunts window keeps saying "On the way" while hunting', 'src/shell/windows/hunts.js', "  if (sc.msg && sc.msg === sc.enterMsg && (now || (h && h.ended))) { sc.msg = ''; sc.enterMsg = null; }\n", ''],
@@ -1785,9 +1784,10 @@ async function mutantSeconds() {
   try { return JSON.parse(await readFile(join(ROOT, 'tests', 'hunt-screen.mutant-times.json'), 'utf8')).seconds || {}; } catch { return {}; }
 }
 
-/* A shard's booked mutant time. A job is ~3 min of setup (one install took 9.5 min on run 39765799475),
-   ~2.3 min of clean control and, in in-page-3, ~2.3 min of plain run: 18 min of mutants keeps every
-   job near 25 min and under 30 in the slow-install case. Over it, add a shard (smoke.yml + ci-shape --write). */
+/* A shard's booked mutant time. A job is ~1-8 min of setup (installs took 0.4-7.7 min on runs 40034325773..
+   40043808165), ~3.4 min of clean control and, in in-page-3, ~3.4 min of plain run (re-measured on 40043808165):
+   18 min of mutants keeps every job under 30 min of its 40 (25% headroom) in the slow-install case. Over it,
+   add a shard (smoke.yml + ci-shape --write); re-measure the times file when a release runs every mutant. */
 const SHARD_BUDGET_S = 18 * 60;
 
 /** --shard-plan (no browser): smoke.yml registers shards 1..N of one N, the plan for that N is a
@@ -1847,7 +1847,7 @@ async function main() {
       : 'hunt-screen: panels mount; patch in place; intents only; the analyzer is the server’s; badge defaults; each log line once' + (shots ? ' (shots in ' + shots + ')' : ''));
     process.exit(fails.length ? 1 : 0);
   }
-  /* --shard=K/N: the mutants split over N CI jobs (in-page-3 … in-page-9), BALANCED BY MEASURED TIME
+  /* --shard=K/N: the mutants split over N CI jobs (in-page-3 … in-page-9, in-page-14 … 16), BALANCED BY MEASURED TIME
      (2026-10-22: round-robin by count let shard 1/3 hit its 46-min limit on run 39765799475 — a mutant
      costs 2-155 s). planShards (tools/lib/mutant-scope.mjs) books each mutant at its seconds in
      tests/hunt-screen.mutant-times.json; checkShards proves the plan is a partition (every mutant in

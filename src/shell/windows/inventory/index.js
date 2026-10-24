@@ -20,15 +20,15 @@
 // (src/render/paint.js). Opening it again is what clears the "new" marks the
 // player was shown last time (the residue `bagSeen`).
 // ════════════════════════════════════════════════════════════════════════
-import { text, cls, prop, style } from '../../../render/paint.js?v=0.2.34';
-import { whole, gold } from '../../../render/format.js?v=0.2.34';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.34';
-import { closeFloatMenu } from '../float-menu.js?v=0.2.34';
-import { stateOf } from './state.js?v=0.2.34';
-import { dollHtml, slotLineHtml, patchDoll, patchSlotLine } from './doll.js?v=0.2.34';
-import { toolbarHtml, gridHtml, toolsHtml, patchToolbar, patchGrid, patchTools, KEYS } from './grid.js?v=0.2.34';
-import { advancedHtml, patchAdvanced } from './advanced.js?v=0.2.34';
-import { actInventory, commitSeen, INVENTORY_EVENTS } from './actions.js?v=0.2.34';
+import { text, cls, prop, style } from '../../../render/paint.js?v=0.2.38';
+import { whole, gold } from '../../../render/format.js?v=0.2.38';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.38';
+import { closeFloatMenu } from '../float-menu.js?v=0.2.38';
+import { stateOf } from './state.js?v=0.2.38';
+import { dollHtml, slotLineHtml, patchDoll, patchSlotLine } from './doll.js?v=0.2.38';
+import { toolbarHtml, gridHtml, toolsHtml, patchToolbar, patchGrid, patchTools, KEYS } from './grid.js?v=0.2.38';
+import { advancedHtml, patchAdvanced } from './advanced.js?v=0.2.38';
+import { actInventory, commitSeen, INVENTORY_EVENTS } from './actions.js?v=0.2.38';
 
 /** The skeleton (built once per opening). */
 export function renderInventory(ctx) {
@@ -57,7 +57,7 @@ function patchFoot(root, st) {
     text(box.querySelector('.hw-captext'), whole(used) + ' of ' + whole(cap) + ' spaces');
     box.querySelector('.hw-capbar').setAttribute('aria-valuenow', String(used));
   }
-  text(root.querySelector('.hw-gold'), st.gold === null ? '' : gold(st.gold));
+  text(root.querySelector('.hw-gold'), st.gold === null ? '' : 'Your gold ' + gold(st.gold));   // the ACCOUNT's purse, every hero's
   prop(root.querySelector('[data-hs-act="advanced"]'), 'checked', st.prefs.advanced);
 }
 

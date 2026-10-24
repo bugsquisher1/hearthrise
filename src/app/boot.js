@@ -5,7 +5,7 @@
 //        → AccountSession (src/session/account-session.js): one per login
 //        → the characters screen: the account's slots, read from the server
 //          and, under them, the next hero slot for sale at the server's price, paid
-//          from one hero's gold (src/app/slot-offer.js; ONE intent, re-read on its answer)
+//          from the account's gold (src/app/slot-offer.js; ONE intent, re-read on its answer)
 //        → an empty (or unnamed) slot opens the creation step (src/app/hero-create.js):
 //          name + four colours, ONE intent; the hero enters town on the server's yes
 //        → the game: the character strip (src/app/character-strip.js; up to the
@@ -15,8 +15,8 @@
 //          (src/shell/alerts.js) watches every open character
 //
 // Which open character is shown is AccountSession.viewed, a view pointer; a
-// switch remounts only the pane, and every other character keeps its record,
-// channel and timers. A reload signs back in from the stored session and
+// switch remounts only the pane; the shown character streams live and the others play on the server (a plain
+// read a minute, CharacterSession.setViewed). A reload signs back in from the stored session and
 // starts at the characters screen.
 //
 // THE CLOSED GAME: the server refuses a non-allowlisted account (403
@@ -31,26 +31,26 @@
 // retried in the background.
 // ════════════════════════════════════════════════════════════════════════
 
-import { SUPABASE_CONFIG, createSupabaseClient } from '../net/supabase-bootstrap.js?v=0.2.34';
-import { createAuth, AUTH_COPY } from '../net/auth.js?v=0.2.34';
-import { SESSION_CONFIG } from '../session/config.js?v=0.2.34';
-import { createServerLink } from '../session/server.js?v=0.2.34';
-import { AccountSession } from '../session/account-session.js?v=0.2.34';
-import { FRAME_EVENT } from '../session/character-session.js?v=0.2.34';
-import { renderAuthScreen, AUTH_BRAND } from './sign-in.js?v=0.2.34';
-import { mountWorldPane } from './world-pane.js?v=0.2.34';
-import { mountCharacterStrip, stripTargetOf } from './character-strip.js?v=0.2.34';
-import { renderHeroCreate } from './hero-create.js?v=0.2.34';
-import { slotOfferHtml, slotRefusalText, pickPayer } from './slot-offer.js?v=0.2.34';
-import { createAlertCenter } from '../shell/alerts.js?v=0.2.34';
-import { createSocialRealtime } from '../social/realtime.js?v=0.2.34';
-import { SocialSession } from '../social/social-session.js?v=0.2.34';
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.34';
-import { startObservability, track } from '../net/observability.js?v=0.2.34';
-import { startDiagnostics } from '../net/diagnostics.js?v=0.2.34';
-import { mountPressAck } from '../shell/press-ack.js?v=0.2.34';
-import { liveOverlayWanted, mountLiveOverlay } from './live-overlay.js?v=0.2.34';
-import { mountNewVersion } from './new-version.js?v=0.2.34';
+import { SUPABASE_CONFIG, createSupabaseClient } from '../net/supabase-bootstrap.js?v=0.2.38';
+import { createAuth, AUTH_COPY } from '../net/auth.js?v=0.2.38';
+import { SESSION_CONFIG } from '../session/config.js?v=0.2.38';
+import { createServerLink } from '../session/server.js?v=0.2.38';
+import { AccountSession } from '../session/account-session.js?v=0.2.38';
+import { FRAME_EVENT } from '../session/character-session.js?v=0.2.38';
+import { renderAuthScreen, AUTH_BRAND } from './sign-in.js?v=0.2.38';
+import { mountWorldPane } from './world-pane.js?v=0.2.38';
+import { mountCharacterStrip, stripTargetOf } from './character-strip.js?v=0.2.38';
+import { renderHeroCreate } from './hero-create.js?v=0.2.38';
+import { slotOfferHtml, slotRefusalText } from './slot-offer.js?v=0.2.38';
+import { createAlertCenter } from '../shell/alerts.js?v=0.2.38';
+import { createSocialRealtime } from '../social/realtime.js?v=0.2.38';
+import { SocialSession } from '../social/social-session.js?v=0.2.38';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.38';
+import { startObservability, track } from '../net/observability.js?v=0.2.38';
+import { startDiagnostics } from '../net/diagnostics.js?v=0.2.38';
+import { mountPressAck } from '../shell/press-ack.js?v=0.2.38';
+import { liveOverlayWanted, mountLiveOverlay } from './live-overlay.js?v=0.2.38';
+import { mountNewVersion } from './new-version.js?v=0.2.38';
 
 const DISCORD = 'https://discord.gg/eJrUSUJM3M';
 
@@ -90,7 +90,6 @@ function startApp(win) {
   let creating = null;
   let rosterSlots = [];   // the account's existing characters, as the roster last read them
   let roster = [];        // the roster rows the characters screen shows (the server's, as last read)
-  let slotPay = null;     // the hero picked to pay for a hero slot (a pick, never a number)
   let slotBuying = false; // a hero-slot purchase is in flight: the button stays off until the answer
 
   const recovering = /type=recovery/.test(win.location.hash);
@@ -192,31 +191,31 @@ function startApp(win) {
     root.querySelector('.auth-card').innerHTML = '<h1 class="auth-title">Your characters</h1>'
       + '<p class="auth-lead">Signed in as ' + esc(auth.email() || 'you') + '. ' + (a.limit() > 1 ? 'Up to ' + a.limit() + ' can play at once.' : 'One can play at a time.') + '</p>'
       + '<ul class="char-list">' + (rows || '<li class="char-row">The server did not answer. Reload to try again.</li>') + '</ul>'
-      + '<div class="slot-offer-mount">' + slotOfferHtml(a.slotOffer, roster, { payer: slotPay, pending: slotBuying }) + '</div>'
+      + '<div class="slot-offer-mount">' + slotOfferHtml(a.slotOffer, roster, { pending: slotBuying }) + '</div>'
       + '<p class="auth-message' + (note ? ' is-good' : '') + '" role="status" aria-live="polite">' + esc(note || '') + '</p>'
       + '<p class="auth-links"><button type="button" class="auth-link" data-app="sign-out">Sign out</button></p>';
   }
 
-  /* The offer block alone, redrawn for a new payer pick or while a purchase is in flight. */
+  /* The offer block alone, redrawn while a purchase is in flight. */
   function drawSlotOffer() {
     const m = root.querySelector('.slot-offer-mount');
-    if (m && account) m.innerHTML = slotOfferHtml(account.slotOffer, roster, { payer: slotPay, pending: slotBuying });
+    if (m && account) m.innerHTML = slotOfferHtml(account.slotOffer, roster, { pending: slotBuying });
   }
 
-  /* ONE purchase: the button is off until the server answers; a yes re-reads the roster from the server. */
-  async function buySlot(slotId, paySlot) {
-    if (slotBuying || !account || !Number.isInteger(slotId) || !Number.isInteger(paySlot)) return;
+  /* ONE purchase from the account's gold (`actor`: the hero the journal names): the button is off until the
+     server answers; a yes re-reads the roster from the server. */
+  async function buySlot(slotId, actor) {
+    if (slotBuying || !account || !Number.isInteger(slotId) || !Number.isInteger(actor)) return;
     const a = account;
     slotBuying = true;
     drawSlotOffer();
-    const r = await a.buySlot(slotId, paySlot);
+    const r = await a.buySlot(slotId, actor);
     slotBuying = false;
     if (a !== account || a.closedGame) return;
     if (r.ok) { track('hero_slot_bought'); await showCharacters('Hero slot bought. Create your new hero in it.'); return; }
     drawSlotOffer();
     const m = root.querySelector('.auth-message');
-    const payer = roster.find((x) => x.slot === paySlot);
-    if (m) { m.classList.remove('is-good'); m.textContent = slotRefusalText(r, payer && payer.name); }
+    if (m) { m.classList.remove('is-good'); m.textContent = slotRefusalText(r); }
   }
 
   /* The creation step over the characters card: the hero enters town only on the server's yes. */
@@ -306,12 +305,6 @@ function startApp(win) {
     else if (what === 'all') { if (pane) pane.shell.toggle('characters'); }
     else if (what === 'create') showCreate(slot);
     else if (what === 'buy-slot') buySlot(Number(t.getAttribute('data-slot-id')), Number(t.getAttribute('data-pay')));
-  });
-  root.addEventListener('change', (e) => {
-    const t = e.target.closest('[data-app="slot-payer"]');
-    if (!t || slotBuying) return;
-    slotPay = pickPayer(roster.filter((r) => r.exists && Number.isSafeInteger(r.gold)), Number(t.value));
-    drawSlotOffer();
   });
 
   auth.onChange((ev) => {

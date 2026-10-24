@@ -76,6 +76,7 @@ export const CLIENT_RPCS = Object.freeze({
   hr_hunt_party_invite_player: 'invite the player a menu targets by the server account id it carries (+ slot); same checks as the named invite (party-intents.js invitePlayer)',
   hr_hunt_party_list: 'the leader shows or hides its party in the finder, a yes/no (party-intents.js listParty)',
   hr_party_hold_set: 'the leader picks who holds the pack, a seat or null for take turns; the server checks leader, seat and tank (party-intents.js setHoldSeat; 2026-12-08-party-hold.sql)',
+  hr_party_leave_together_set: 'this hero\'s own "Leave if anyone leaves the hunt or dies", a yes/no; no other hero is named (party-intents.js setLeaveTogether; 2026-12-18-party-leave-together.sql)',
   hr_hunt_restart: 'go back to the hunt that just ended on that session’s own setup (CharacterSession.restartHunt)',
   /* Lane S2's Services window: each sends the server's own QUOTE (refused quote_changed otherwise), never a price of its own. */
   hr_stamina_refill: 'buy the next stamina refill at the quoted price (CharacterSession.buyStamina)',
@@ -90,6 +91,12 @@ export const CLIENT_RPCS = Object.freeze({
   hr_farm_harvest: 'harvest a ready plot and leave it empty; readiness and the roll are the server’s (farm-intents.js harvestPlot)',
   hr_farm_harvest_replant: 'harvest a ready plot and plant the same crop again, from an own seed or one bought at the listed Shop price (farm-intents.js harvestPlot)',
   hr_farm_upgrade_plot: 'buy the next plot tier the client expects; the server prices it, gold first then deeds (farm-intents.js upgradePlot)',
+  /* Tamsin's tally (2026-12-23-tally-tasks.sql): catalogue ids only; the server counts the kills, prices the reward and picks the piece. */
+  hr_tally_view: 'Tamsin\'s board for this hero: the tasks, what each pays and her pick now; a read (tally-intents.js tallyBoard)',
+  hr_tally_accept: 'take a kill task by id at her board in town, with the armour weight the first time; no count, no price (tally-intents.js takeTask)',
+  hr_tally_drop: 'give up a held kill task by id; its count is lost (tally-intents.js dropTask)',
+  hr_tally_set: 'keep a task, the armour weight she picks for or her slot order, ids only (tally-intents.js setTally)',
+  hr_tally_collect: 'in town, be paid for done kill tasks; the server decides what is due, its gold and her pick (tally-intents.js collectTally)',
   /* The social side (2026-10-25-chat-channels.sql, 2026-10-25-social.sql): a slot, a channel KIND, a body,
      a target (a user id or a claimed name) and a yes/no — never a name, level, zone or role of the sender. */
   hr_chat_send: 'post a line to global / local / party; the server names the sender and the channel (ChatStore.send)',

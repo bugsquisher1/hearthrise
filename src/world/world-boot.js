@@ -20,29 +20,31 @@
 // text field has focus. opts.town (src/session/town-presence.js) gives the walkers and is the
 // one record of where this body stands in town (placeOn: a switch is not a move).
 // A fight on a hunt no map renders shows town or home with a slim banner offering the mapped hunt.
+// THE 64 PX SANDBOX: another art grid, loaded on first entry; its presence rule is sandbox-scene.js.
 // ════════════════════════════════════════════════════════════════════════
-import { BUILD } from '../build-info.js?v=0.2.34';
-import { MATERIALS, OPEN_CLASSES, LIGHTS } from '../data/world/terrain.js?v=0.2.34';
-import { WORLD_MAPS } from '../data/world/maps/index.js?v=0.2.34';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.34';
-import { MONSTERS } from '../data/monsters.js?v=0.2.34';
-import { compileMap } from './core/map-compile.js?v=0.2.34';
-import { STUB_SPRITE } from './core/book.js?v=0.2.34';
-import { fpsFor, MOBILE_QUERY } from './core/camera.js?v=0.2.34';
-import { heroBuilding, roofTargets, stepAlpha } from './core/roofs.js?v=0.2.34';
-import { readScene, setChoice, heroPosOn, notePos, forgetPos } from './store.js?v=0.2.34';
-import { loadAtlases } from './atlas.js?v=0.2.34';
-import { createCanvasBackend } from './render/canvas-backend.js?v=0.2.34';
-import { huntOfMap } from './hunt-maps.js?v=0.2.34';
-import { createHuntScene } from './hunt-scene.js?v=0.2.34';
-import { liveSceneOf, endLiveScene } from '../hunt-view/scene.js?v=0.2.34';
-import { huntOf } from '../session/hunt-sections.js?v=0.2.34';
-import { createWalkScene } from './walk-scene.js?v=0.2.34';
-import { homeMapFor, homeEnv } from './home-scene.js?v=0.2.34';
-import { runAction } from './steer-local.js?v=0.2.34';
-import { heroSprite } from '../session/hero-look.js?v=0.2.34';
-import { keyBelongsToField } from '../utils/dom.js?v=0.2.34';
-import { homeOf } from '../session/home-sections.js?v=0.2.34';
+import { BUILD } from '../build-info.js?v=0.2.38';
+import { MATERIALS, OPEN_CLASSES, LIGHTS } from '../data/world/terrain.js?v=0.2.38';
+import { WORLD_MAPS, SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.38';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.38';
+import { MONSTERS } from '../data/monsters.js?v=0.2.38';
+import { compileMap } from './core/map-compile.js?v=0.2.38';
+import { STUB_SPRITE } from './core/book.js?v=0.2.38';
+import { fpsFor, MOBILE_QUERY } from './core/camera.js?v=0.2.38';
+import { heroBuilding, roofTargets, stepAlpha } from './core/roofs.js?v=0.2.38';
+import { readScene, setChoice, heroPosOn, notePos, forgetPos } from './store.js?v=0.2.38';
+import { loadAtlases, loadAtlasSet } from './atlas.js?v=0.2.38';
+import { createGridArt, sandboxExtras, presenceFor } from './sandbox-scene.js?v=0.2.38';
+import { createCanvasBackend } from './render/canvas-backend.js?v=0.2.38';
+import { huntOfMap } from './hunt-maps.js?v=0.2.38';
+import { createHuntScene } from './hunt-scene.js?v=0.2.38';
+import { liveSceneOf, endLiveScene } from '../hunt-view/scene.js?v=0.2.38';
+import { huntOf } from '../session/hunt-sections.js?v=0.2.38';
+import { createWalkScene } from './walk-scene.js?v=0.2.38';
+import { homeMapFor, homeEnv } from './home-scene.js?v=0.2.38';
+import { runAction } from './steer-local.js?v=0.2.38';
+import { heroSprite } from '../session/hero-look.js?v=0.2.38';
+import { keyBelongsToField } from '../utils/dom.js?v=0.2.38';
+import { homeOf } from '../session/home-sections.js?v=0.2.38';
 
 /* THE KEYS (desktop): WASD and the arrows, by physical key (e.code, so a
    non-QWERTY layout walks with the same hand). Two held at once walk the
@@ -139,6 +141,8 @@ export async function bootWorld(panel, opts) {
   const sprites = new Proxy(book.sprites, { get: (t, k) => t[k] || STUB_SPRITE });
   const tables = { materials: MATERIALS, sprites, openClasses: OPEN_CLASSES, lights: LIGHTS };
   const backend = createCanvasBackend({ win, doc, book, images, tables, css });
+  const gridArt = createGridArt({ doc, version: BUILD.cache, tables, loadSet: loadAtlasSet });
+  const artOf = (id) => gridArt.art(ROWS.get(id).grid);
   stage.querySelectorAll('.world-status').forEach((el) => el.remove());
   backend.mount(stage);
 
@@ -154,7 +158,7 @@ export async function bootWorld(panel, opts) {
 
   const compiled = new Map();
   const mapOf = (id) => {
-    if (!compiled.has(id)) compiled.set(id, compileMap(ROWS.get(id), tables));
+    if (!compiled.has(id)) compiled.set(id, compileMap(ROWS.get(id), (artOf(id) || { tables }).tables));
     return compiled.get(id);
   };
   const mq = typeof win.matchMedia === 'function' ? win.matchMedia(MOBILE_QUERY) : null;
@@ -220,15 +224,14 @@ export async function bootWorld(panel, opts) {
     const held = !!town && map.kind === 'town';
     if (!walk || walk.map !== map) {
       const at = held ? town.placeOn(map.id) : heroPosOn(G, map.id);
-      walk = createWalkScene(map, { at, sprites, openClasses: OPEN_CLASSES, maps: ROW_OF, heroSprite: () => heroSprite(character) });
+      const mapSprites = (artOf(map.id) || { tables }).tables.sprites;
+      walk = createWalkScene(map, Object.assign({ at, sprites: mapSprites, openClasses: OPEN_CLASSES, maps: ROW_OF, heroSprite: () => heroSprite(character) },
+        sandboxExtras(map, mapSprites)));
       if (keys.size) walk.drive(keyVector(), now);   // keys still held across a scene change keep walking
     }
     const f = walk.frame(readEnv(map.kind), now);
     if (!held) notePos(G, map.id, f.hero.x, f.hero.y);
-    if (town) {
-      town.show(map.kind === 'town' ? map.id : null);
-      if (map.kind === 'town') town.publish(f.place);
-    }
+    presenceFor(town, map, f.place);
     lastWalk = f;
     return f;
   }
@@ -237,7 +240,7 @@ export async function bootWorld(panel, opts) {
   function walkStats() {
     const f = lastWalk;
     return f && { hero: f.hero, cell: walk.cell(), mark: f.mark, bubbles: f.bubbles.map((b) => b.text), stations: walk.map.stations,
-      units: f.units.map((u) => ({ id: u.id, x: u.x, y: u.y, plate: u.plate.text, alpha: u.alpha, anim: u.anim, age: u.age, dir: u.dir,
+      units: f.units.map((u) => ({ id: u.id, x: u.x, y: u.y, plate: u.plate ? u.plate.text : null, alpha: u.alpha, anim: u.anim, age: u.age, dir: u.dir,
         player: u.ref && u.ref.player ? u.ref.player.id : null })),
       place: f.place,
       props: f.props.map((p) => ({ id: p.id, x: p.x, y: p.y, ref: p.ref })) };
@@ -252,9 +255,15 @@ export async function bootWorld(panel, opts) {
   const monsterName = (id) => (MONSTERS[id] && MONSTERS[id].name) || id;
   function route() {
     const G = view();
-    const sc = readScene(G, homeMapFor(homeNow().tier));
+    let sc = readScene(G, homeMapFor(homeNow().tier));
+    const grid = ROWS.get(sc.map).grid;
+    if (grid && grid !== 'base' && !artOf(sc.map)) {
+      /* ANOTHER GRID'S ART IS STILL LOADING: the Common stays on screen; a failed load sends the viewer back to it */
+      gridArt.ensure(grid).then((ok) => { if (!ok) setChoice(view(), 'town'); if (!running) sync(); });
+      sc = { map: SCENE_MAPS.town, kind: 'town' };
+    }
     if (!scene || sc.map !== scene.map || sc.kind !== scene.kind) {
-      if (!scene || sc.map !== scene.map) { backend.setMap(mapOf(sc.map)); roofAlpha = {}; }
+      if (!scene || sc.map !== scene.map) { backend.setMap(mapOf(sc.map), artOf(sc.map) || undefined); roofAlpha = {}; }
       scene = sc;
       paintChrome(sc);
     }
@@ -293,6 +302,7 @@ export async function bootWorld(panel, opts) {
     walk: () => true,
     hunt: (id) => emit('entrance', { hunt: id }),
     skill: (id) => emit('station', { skill: id }),
+    window: (id) => emit('keeper', { window: id }),
     room: (id) => emit('room', { room: id }),
     house: (id) => emit('house', { room: id }),
     scene(choice) { setChoice(view(), choice); if (running) step(0); return true; },

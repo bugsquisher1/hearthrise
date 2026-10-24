@@ -19,14 +19,18 @@
 //   slotOffer     the next hero slot the server sells this account ({ slotId, cost,
 //                 max }, from the envelope's `account.hero_slot_offer`), null at the
 //                 cap or before the roster has read it
-//   buySlot(slotId, paySlot)  ONE intent (hr_buy_hero_slot): buy that slot with the
-//                 gold of the hero in paySlot; the server prices, checks and debits
+//   buySlot(slotId, slot)  ONE intent (hr_buy_hero_slot): buy that slot with the ACCOUNT's
+//                 gold (one purse, 2026-12-15-account-gold.sql); `slot` is the acting hero the
+//                 journal names. The server prices, checks and debits
+//   purse()       the account's gold as the newest answer any open hero read says it
+//                 ({ gold, v }: state.gold at wallet version state.gold_v), or null; a newer
+//                 one re-renders every other open hero (CharacterSession.notePurse)
 //   create(slot, name, colors)  ask the server to make the hero in an owned slot:
 //                 ONE intent (hr_create_hero) with its name and four dye indices;
 //                 a slot holding an unnamed character (roster `unnamed`) is named by it
 //   open(slot)    a CharacterSession for the slot: loaded, then connected
 //   close(slot)   leave and forget one character
-//   view(slot)    show another open character (viewed); nothing else moves
+//   view(slot)    show another open character (viewed): only it streams live; it asks one settle, the one left goes quiet
 //   limit()       how many may play at once, as the server says
 //   findItems(q)  where an item is across this account's characters
 //                 (hr_account_items: bags and worn sets by character, and the
@@ -41,12 +45,13 @@
 //                 left and destroyed when it closes
 // ════════════════════════════════════════════════════════════════════════
 
-import { SESSION_CONFIG } from './config.js?v=0.2.34';
-import { CharacterSession } from './character-session.js?v=0.2.34';
-import { TownPresence } from './town-presence.js?v=0.2.34';
-import { WORLD_MAPS, SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.34';
-import { charLevelFromXp } from '../core/xp.js?v=0.2.34';
-import { createIntentLedger } from './intent-ledger.js?v=0.2.34';
+import { SESSION_CONFIG } from './config.js?v=0.2.38';
+import { CharacterSession } from './character-session.js?v=0.2.38';
+import { TownPresence } from './town-presence.js?v=0.2.38';
+import { WORLD_MAPS, SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.38';
+import { charLevelFromXp } from '../core/xp.js?v=0.2.38';
+import { createIntentLedger } from './intent-ledger.js?v=0.2.38';
+import { purseOf, newerPurse } from './item-sections.js?v=0.2.38';
 
 /* What the account's characters share: the depot (2026-11-27-account-depot.sql) and the
    farm land (2026-12-14-shared-farm.sql). A change to one re-reads the others. */
@@ -69,14 +74,16 @@ export function accountLimitOf(read) {
 }
 
 /** A roster row's hero, from one hr_load answer: its name, Level (the server's state.level_xp on the
-    shared curve, CORE_MODEL.md §1) and gold (state.gold), or nulls. Pure. */
+    shared curve, CORE_MODEL.md §1) and the ACCOUNT purse it read (state.gold at version state.gold_v:
+    the same gold on every hero), or nulls. Pure. */
 export function heroOf(body) {
-  if (!body || body.ok !== true) return { name: null, level: null, gold: null };
+  if (!body || body.ok !== true) return { name: null, level: null, gold: null, goldV: null };
   const name = typeof body.name === 'string' && body.name.trim() ? body.name.trim().slice(0, 40) : null;
   const st = body.state && typeof body.state === 'object' ? body.state : {};
   const lx = st.level_xp;
   return { name, level: Number.isSafeInteger(lx) && lx >= 0 ? charLevelFromXp(lx) : null,
-    gold: Number.isSafeInteger(st.gold) && st.gold >= 0 ? st.gold : null };
+    gold: Number.isSafeInteger(st.gold) && st.gold >= 0 ? st.gold : null,
+    goldV: Number.isSafeInteger(st.gold_v) && st.gold_v >= 0 ? st.gold_v : null };
 }
 
 /** The next hero slot the server sells, from an `account` section: { slotId, cost, max }, or null
@@ -135,7 +142,21 @@ export class AccountSession {
     this._limit = null;
     this.slotOffer = null;
     this.viewed = null;
+    this._purse = null;
     this.social = o.social ? o.social(this) : null;
+  }
+
+  /** The account's gold, { gold, v }: the newest purse any open hero has read, or null. */
+  purse() { return this._purse; }
+
+  /* A hero's answer stated the purse: keep it if it is newer (raise-only), and let every OTHER open hero
+     re-render with it (their own envelopes still hold the older copy until their next answer). */
+  _notePurse(cs) {
+    const next = newerPurse(this._purse, purseOf(cs));
+    /* Raise-only by VERSION, never by identity: two heroes re-rendering each other stop at once. */
+    if (!next || (this._purse && next.v <= this._purse.v)) return;
+    this._purse = next;
+    for (const other of this._chars.values()) if (other !== cs && typeof other.notePurse === 'function') other.notePurse();
   }
 
   get userId() { return this.auth.userId(); }
@@ -159,7 +180,11 @@ export class AccountSession {
   /** Show another open character. Only the pointer moves; every CharacterSession is left exactly as it was. */
   view(slot) {
     if (!this._chars.has(slot) || this.viewed === slot) return this.viewed === slot;
+    const was = this._chars.get(this.viewed);
     this.viewed = slot;
+    /* the one left goes quiet (no live view, a plain read a minute); the one shown asks ONE settle at once */
+    if (was) was.setViewed(false);
+    this._chars.get(slot).setViewed(true);
     this._emit('viewed', slot);
     return true;
   }
@@ -214,9 +239,10 @@ export class AccountSession {
   }
 
   /**
-   * Buy hero slot `slotId` with the gold of the hero in `paySlot`: ONE intent with its own key, an ask
-   * in the intent ledger; the server owns the price, the ladder, the cap and the debit. On a yes the
-   * paying character, if open, is re-read so its gold is the server's.
+   * Buy hero slot `slotId` with the ACCOUNT's gold: ONE intent with its own key, an ask in the intent
+   * ledger; the server owns the price, the ladder, the cap and the debit. `paySlot` is the acting hero
+   * (the journal's provenance), never a choice of whose gold. On a yes that hero, if open, is re-read:
+   * its answer carries the new purse, which every other open hero then shows.
    * { ok } or { ok:false, error, reason, shortBy }.
    */
   buySlot(slotId, paySlot) {
@@ -247,9 +273,12 @@ export class AccountSession {
     const uid = this.userId;
     if (!uid) return { ok: false, reason: 'signed_out' };
     const cs = new CharacterSession({ slot, uid, server: this.server, intents: this.intents, channel: this._channel,
-      setTimer: this._timers.setTimer, clearTimer: this._timers.clearTimer });
+      setTimer: this._timers.setTimer, clearTimer: this._timers.clearTimer, now: this._timers.now, viewed: this.viewed === null || this.viewed === slot });
     /* The storage is the ACCOUNT's (2026-11-27-account-depot.sql): a move on one character re-reads the others. */
     cs.onShared = (kind, from) => this._sharedChanged(kind, from);
+    /* The gold is the ACCOUNT's (2026-12-15-account-gold.sql): every hero reads the newest purse any of them has seen. */
+    cs.accountPurse = () => this._purse;
+    cs.subscribe((s) => this._notePurse(s));
     this._chars.set(slot, cs);
     cs.subscribe((s, why) => { if (why === 'closed-game') this._noteClosed({ closed: true }); });
     this._emit('opening', slot);   // watchers (the alerts) hear the first load's events too
@@ -270,6 +299,7 @@ export class AccountSession {
       timers: this._timers.setInterval ? { setTimer: this._timers.setInterval, clearTimer: this._timers.clearInterval } : null }));
     this._towns.get(slot).stand();
     if (this.viewed === null) this.viewed = slot;
+    cs.setViewed(this.viewed === slot);   // only the viewed character streams live (CLAUDE.md §6)
     this._emit('opened', slot);
     if (this.social) this.social.start();
     return { ok: true, session: cs };
@@ -327,7 +357,7 @@ export class AccountSession {
     const town = this._towns.get(slot);
     if (town) { this._towns.delete(slot); town.destroy(); }
     cs.close();
-    if (this.viewed === slot) this.viewed = this._chars.size ? this.characters()[0].slot : null;
+    if (this.viewed === slot) { this.viewed = this._chars.size ? this.characters()[0].slot : null; if (this.viewed !== null) this._chars.get(this.viewed).setViewed(true); }
     this._emit('closed', slot);
     return true;
   }

@@ -8,7 +8,7 @@
 -- family x tier items, Chalked to Graven (src/data/stonecraft.js, runes.js), bound
 -- from the one Blank Rune. The old one-a-family ammo ladder (Air, Earth, Water, Fire,
 -- Chaos, Death and Blood Runes) and the Fine and Deep Blank Runes left hr_items with
--- 2026-12-22-rune-catalogue.generated.sql. No back-compat and no save migration
+-- 2026-12-28-items-catalogue.generated.sql. No back-compat and no save migration
 -- (CLAUDE.md §1; progress is wiped at Early Access): a held old rune is not converted,
 -- it is CUT, the 2026-12-02-old-rewards-cut.sql pattern.
 --
@@ -27,7 +27,7 @@
 -- (bind_earth_runes ...) accrues nothing there until it picks a new one; nothing is
 -- reset behind the player's back (§2: player state is never fabricated).
 --
--- ORDER: after 2026-12-22-rune-catalogue.generated.sql (the item rows go first;
+-- ORDER: after 2026-12-28-items-catalogue.generated.sql (the item rows go first;
 -- §0 refuses otherwise). No edge deploy of its own.
 -- REVERSIBILITY: none for the deleted holdings (journalled in player_ledger); the
 -- helper is dropped in §4.
@@ -38,7 +38,7 @@ do $mig$
 begin
   if exists (select 1 from public.hr_items where item_id in ('air_rune', 'earth_rune', 'water_rune', 'fire_rune', 'chaos_rune',
                                                             'death_rune', 'blood_rune', 'fine_rune_blank', 'deep_rune_blank')) then
-    raise exception 'PRECONDITION: apply 2026-12-22-rune-catalogue.generated.sql first (an old rune is still catalogued)'; end if;
+    raise exception 'PRECONDITION: apply 2026-12-28-items-catalogue.generated.sql first (an old rune is still catalogued)'; end if;
   if not exists (select 1 from public.hr_items where item_id = 'chalked_fire_rune') then
     raise exception 'PRECONDITION: the family x tier runes are not catalogued'; end if;
 end $mig$;

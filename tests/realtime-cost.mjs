@@ -9,6 +9,14 @@
 //   node tests/realtime-cost.mjs --mutate=<id>
 //
 // Ships with: supabase/migrations/2026-09-06-realtime-publication-trim.sql
+// Re-pointed by: 2026-12-26-chat-broadcast.sql + 2026-12-27-chat-unpublish.sql
+//   (lane/c-realtime, 2026-10-23). Chat left postgres_changes for private
+//   Broadcast: the WAL poller was 38.6 % of ALL database time (52.3M of
+//   135.4M ms, 8.57M calls since 08-17) for the two chat tables. The equality
+//   below now holds at {} = {}, and R4 is the control that makes {} = {} mean
+//   "chat moved to Broadcast", not "chat stopped": the server sends every line
+//   (the two AFTER INSERT triggers exist in the rebuilt chain) and the client
+//   joins the private chat topics (src/social/realtime.js).
 //
 // ── WHY THIS FILE EXISTS ────────────────────────────────────────────────
 // Measured on production (nezapsylztqbbwuwembx) 2026-09-06 over a 20.25-day
@@ -53,13 +61,15 @@ import { bootReplay, LAST_PATCHED, ROOT } from './schema-replay.mjs';
 
 const MIG = '2026-09-06-realtime-publication-trim.sql';
 
-/* THE LOAD-BEARING SET. The chat window (src/social/realtime.js) subscribes to
-   both, and neither has a fallback: nothing polls them, so Realtime is the only
-   path by which a peer's line (chat_messages) or a whisper (chat_whispers,
-   2026-10-25-social.sql) reaches another client. */
-const EXPECTED = ['chat_messages', 'chat_whispers'];
-/* A SQL mutant replays only up to the trim file it patches (REPLAY SCOPE), where
-   the publication was exactly chat_messages: chat_whispers is added later. */
+/* THE LOAD-BEARING SET IS EMPTY since 2026-12-27-chat-unpublish.sql: no table is
+   published and nothing under src/** is a postgres_changes subscription. A peer's
+   line and a whisper reach another client by the server's private Broadcast
+   (2026-12-26-chat-broadcast.sql), which R4 proves is in place. */
+const EXPECTED = [];
+const UNPUBLISH = '2026-12-27-chat-unpublish.sql';
+/* A SQL mutant on the TRIM file replays only up to it (REPLAY SCOPE), where the
+   publication was exactly chat_messages; it is judged on the publication alone
+   (R1), because the client scanned is today's, not the one of that date. */
 const AT_TRIM = ['chat_messages'];
 
 /* ── A CONSUMER THAT IS COMING BACK, WITH A DATE ────────────────────────────
@@ -140,10 +150,38 @@ const MUTATIONS = {
       + "  .on('postgres_changes', { event: '*', schema: 'public', table: 'market_listings' }, () => onChange()).subscribe();\n" },
   },
   chat_consumer_removed: {
-    why: 'the chat window\'s subscriptions are deleted (src/social/realtime.js gone) while both tables '
-       + 'stay published — chat and whispers published for nobody, and no peer line ever arrives. '
-       + 'R3 and R4 must catch it.',
+    why: 'the chat window\'s Broadcast joins are deleted (src/social/realtime.js gone): the server still '
+       + 'sends every line and no client hears one — the {} = {} publication looks like a saving and is a '
+       + 'dead chat. R4 must catch it.',
     srcDrop: ['src/social/realtime.js'],
+  },
+  chat_republished: {
+    why: 'a later file puts chat_messages back in supabase_realtime (and the unpublish self-check is '
+       + 'neutered so it does not abort first): the WAL poller decodes every chat write again for a '
+       + 'client that no longer subscribes. R1 and R3 must catch it.',
+    file: UNPUBLISH,
+    sql: [
+      ['-- ── §2 SELF-CHECK (CLAUDE.md §4), EXECUTED ───────────────────────────────────',
+       'alter publication supabase_realtime add table public.chat_messages;\n'
+       + '-- ── §2 SELF-CHECK (CLAUDE.md §4), EXECUTED ───────────────────────────────────'],
+      ["  if v_txt is not null then raise exception 'u1:", "  if false then raise exception 'u1:"],
+    ],
+  },
+  broadcast_sender_dropped: {
+    why: 'the chat_messages broadcast trigger is dropped after the publication goes (and the unpublish '
+       + 'checks are neutered): nothing publishes, nothing broadcasts, and chat is silently dead. '
+       + 'R4 must catch it.',
+    file: UNPUBLISH,
+    sql: [
+      ['-- ── §1 UNPUBLISH ─────', 'drop trigger hr_chat_broadcast on public.chat_messages;\n-- ── §1 UNPUBLISH ─────'],
+      ["    raise exception 'u2:", "    raise notice 'u2:"],
+    ],
+  },
+  postgres_changes_returns: {
+    why: 'the chat client subscribes to chat_messages by postgres_changes again while the table is '
+       + 'unpublished: a handler that can never fire, and the poller would be asked for it. R2 must catch it.',
+    srcExtra: { 'src/social/chat-probe.js': "export const sub = (client, onRow) => client.channel('hr-chat-x')\n"
+      + "  .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: 'channel=eq.global' }, (m) => onRow(m.new)).subscribe();\n" },
   },
 };
 
@@ -178,9 +216,23 @@ async function subscribedTables(srcExtra, srcDrop) {
   return found;
 }
 
+/* The client half of chat's Broadcast path: some file under src/** joins the private chat topics on the
+   broadcast extension (the public channels' chat:<channel> and the account's chat:inbox:<uid>). */
+async function chatBroadcastClient(srcExtra, srcDrop) {
+  const files = await walk(join(ROOT, 'src'));
+  for (const f of files) {
+    const rel = f.slice(ROOT.length + 1).replace(/\\/g, '/');
+    if ((srcDrop || []).includes(rel)) continue;
+    const text = (await readFile(f, 'utf8')).replace(/\r\n/g, '\n');
+    if (/\.on\(\s*'broadcast'/.test(text) && text.includes("'chat:inbox:'") && /'chat:' \+/.test(text)
+        && /private:\s*true/.test(text)) return true;
+  }
+  return Object.values(srcExtra || {}).some((t) => /\.on\(\s*'broadcast'/.test(t) && t.includes("'chat:inbox:'"));
+}
+
 // ── the database half ───────────────────────────────────────────────────
-async function readDatabase(sqlPatches) {
-  const patches = sqlPatches ? new Map([[MIG, sqlPatches]]) : undefined;
+async function readDatabase(sqlPatches, file) {
+  const patches = sqlPatches ? new Map([[file || MIG, sqlPatches]]) : undefined;
   const { db } = await bootReplay({ patches, upTo: LAST_PATCHED });
   const r = await db.query(
     `select tablename from pg_publication_tables
@@ -189,7 +241,13 @@ async function readDatabase(sqlPatches) {
   const t = await db.query(
     `select count(*)::int n from pg_class c join pg_namespace ns on ns.oid = c.relnamespace
       where ns.nspname = 'public' and c.relname in ('market_listings','market_buy_offers','chat_messages')`);
-  return { published: r.rows.map(x => x.tablename), tablesAlive: t.rows[0].n };
+  /* THE SERVER HALF of chat's Broadcast path (2026-12-26-chat-broadcast.sql): both senders, enabled. */
+  const s = await db.query(
+    `select count(*)::int n from pg_trigger
+      where not tgisinternal and tgenabled <> 'D'
+        and ((tgrelid = to_regclass('public.chat_messages') and tgname = 'hr_chat_broadcast')
+          or (tgrelid = to_regclass('public.chat_whispers') and tgname = 'hr_whisper_broadcast'))`);
+  return { published: r.rows.map(x => x.tablename), tablesAlive: t.rows[0].n, senders: s.rows[0].n };
 }
 
 // ── the run ─────────────────────────────────────────────────────────────
@@ -198,9 +256,11 @@ async function run(mutation) {
   const m = mutation ? MUTATIONS[mutation] : null;
   if (mutation && !m) { console.error(`unknown mutation "${mutation}"`); process.exit(2); }
 
-  const { published, tablesAlive } = await readDatabase(m && m.sql);
+  const { published, tablesAlive, senders } = await readDatabase(m && m.sql, m && m.file);
   const subs = await subscribedTables(m && m.srcExtra, m && m.srcDrop);
-  const expected = m && m.sql ? AT_TRIM : EXPECTED;
+  /* A mutant on the TRIM file is a database of that date: judged on its publication (R1) and R5 only. */
+  const atTrim = !!(m && m.sql && !m.file);
+  const expected = atTrim ? AT_TRIM : EXPECTED;
   const subscribed = [...subs.keys()].sort();
   const today = (m && m.today) || new Date().toISOString().slice(0, 10);
   const consumed = (t) => subscribed.includes(t) || pendingNow(today, t);
@@ -209,6 +269,10 @@ async function run(mutation) {
   ok(published.join(',') === expected.join(','),
     `R1 publication supabase_realtime should publish exactly [${expected.join(', ')}], `
     + `the repo chain publishes [${published.join(', ') || '(none)'}]`);
+  if (atTrim) {
+    ok(tablesAlive === 3, `R5 all three tables must still EXIST after the trim (unpublishing is not dropping); found ${tablesAlive}/3`);
+    return problems.slice();
+  }
 
   // R2 — nothing is subscribed that is not published (a handler that can never fire).
   for (const t of subscribed) {
@@ -227,14 +291,15 @@ async function run(mutation) {
 
   // R4 — CONTROL. R1-R3 are all satisfied by an EMPTY publication and an empty
   // client: two empty sets are equal, and that database is the cheapest one
-  // there is. Name the table whose absence is a broken game, not a saving.
-  ok(published.includes('chat_messages') && consumed('chat_messages'),
-    'R4 chat_messages must be BOTH published and consumed (subscribed, or a pending consumer within its '
-    + 'date) — chat is the only peer-delivery path and nothing polls chat_messages as a fallback');
-  if (!(m && m.sql)) {
-    ok(published.includes('chat_whispers') && consumed('chat_whispers'),
-      'R4 chat_whispers must be BOTH published and consumed — a whisper reaches its recipient only through Realtime');
-  }
+  // there is. It is the right one only because chat moved to Broadcast: the
+  // server sends every line (both senders in the chain) AND the client joins the
+  // private chat topics. Either half missing is a dead chat, not a saving.
+  ok(senders === 2,
+    `R4 the chain installs ${senders}/2 chat broadcast senders (hr_chat_broadcast, hr_whisper_broadcast, enabled) — `
+    + 'with the tables unpublished, nothing else delivers a peer\'s line or a whisper');
+  ok(await chatBroadcastClient(m && m.srcExtra, m && m.srcDrop),
+    'R4 no file under src/** joins the private chat topics on Broadcast (chat:<channel>, chat:inbox:<uid>) — '
+    + 'the server sends every line to nobody');
 
   // R5 — CONTROL. The trim must UNPUBLISH, never DROP. A migration that deleted
   // the tables would satisfy R1-R4 and destroy the market.
@@ -277,4 +342,5 @@ if (res.length) {
   for (const p of res) console.error('  ✗ ' + p);
   process.exit(1);
 }
-console.log('realtime-cost: OK — publication == client subscriptions == [' + EXPECTED.join(', ') + ']');
+console.log('realtime-cost: OK — publication == client subscriptions == [' + EXPECTED.join(', ')
+  + '], and chat is delivered by Broadcast (both senders in the chain, the client joins the private topics)');

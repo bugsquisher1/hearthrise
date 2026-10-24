@@ -148,8 +148,18 @@ export const HUNT_MAX_DEGRADE = 3;
    fire, up to accrual.js HUNT_MAX_WINDOW_MS (6 h), twice per fire on a retry,
    until the worker's CPU budget kills the whole tick and every hunt in it. */
 export const HUNT_SETTLE_SPAN_MS = 15 * 60000;
-/* Refusals that mean "someone else moved the instance under us". */
-const RETRYABLE = Object.freeze(['session_moved', 'version_conflict']);
+/* Refusals that mean "someone else moved the instance under us" — or, with ONE purse per account
+   (2026-12-15-account-gold.sql), "another hero of the account moved the purse under us": a store bill
+   the purse no longer pays (gold_short) or a gold_out end it no longer proves (another hero's coins
+   arrived). The server never clamps a bill the engine already spent; it refuses the window, and this
+   re-reads at once so the window re-runs on the fresh purse. */
+const RETRYABLE = Object.freeze(['session_moved', 'version_conflict', 'gold_short']);
+export function retryableSettle(v) {
+  if (!v || v.outcome !== 'refused') return false;
+  if (RETRYABLE.includes(v.reason)) return true;
+  const d = v.body && v.body.detail && v.body.detail.detail;
+  return v.reason === 'end_not_proven' && !!d && d.reason === 'gold_out';
+}
 
 /* THE READ. One statement: the gate is its first term on a player door (D3:
    a call that settles nothing still spends budget), absent on the tick's. */
@@ -238,7 +248,7 @@ export async function settleHunt(o) {
   let last = null;
   for (let attempt = 0; attempt < 2; attempt++) {
     const v = await settleOnce(o, mode);
-    if (v.outcome !== 'refused' || !RETRYABLE.includes(v.reason)) return v;
+    if (!retryableSettle(v)) return v;
     last = v;
   }
   return last;
@@ -359,7 +369,7 @@ export async function readHuntSettle(o, mode) {
   for (const m of r.members) members.push(await memberInput(exec, m, inst));
   const partyRoles = members.map((m) => m._role).filter(Boolean);
   for (const m of members) {
-    m.hero = heroSetup({ weaponType: m._weaponType, options: m._options, bar: m._bar, partyRoles, lead: m._leads, hold: m._hold });
+    m.hero = heroSetup({ weaponType: m._weaponType, options: m._options, bar: m._bar, partyRoles, leaveTogether: m._leaveTogether, lead: m._leads, hold: m._hold });
     if (!m.hero) return { answer: { outcome: 'refused', reason: 'no_role', ...refusal(409, 'no_role') } };
   }
   /* Below the floor a player door that asked for the live view gets the instance's start point
@@ -417,7 +427,9 @@ async function memberInput(exec, m, inst) {
     user: String(m.user), slot: Number(m.slot), seat: Number(m.seat) || 0,
     unitId: Number.isInteger(m.unit_id) ? m.unit_id : null,
     sessionId: String(m.session.id), version: env.version, huntId: String(inst.hunt),
-    huntSession: huntSessionFromRead(m.session, inst.id),
+    /* KICKED (hr_hunt_instance_read `kicked`, 2026-12-18-party-leave-together.sql): a member the leader removed; its end
+       sends nobody home (Coordinator ruling 2026-10-23). */
+    huntSession: { ...huntSessionFromRead(m.session, inst.id), kicked: m.kicked === true },
     skills: e.skills, levelXp: e.levelXp, xpFrac: e.xpFrac, hp: e.hp, gold: e.gold,
     equipment: e.equipment, inventory: e.inventory, buffs: e.buffs,
     deathsTodayBefore: e.deathsTodayBefore, deathsLifetimeBefore: e.deathsLifetimeBefore,
@@ -432,6 +444,9 @@ async function memberInput(exec, m, inst) {
     /* WHO HOLDS THE PACK (Tyler 2026-10-22): the party's hold seat (hr_hunt_instance_read `hold_seat`, the server's
        hunt_parties.hold_seat, set by the leader's hr_party_hold_set); null = the tanks take turns. */
     _hold: Number.isInteger(inst.hold_seat) ? inst.hold_seat : null,
+    /* LEAVE TOGETHER (Tyler 2026-10-22): this member's own "Leave if anyone leaves the hunt or dies" (hr_hunt_instance_read
+       `leave_together`, the server's player_state.party_leave_together). A read without it (an older server) is off. */
+    _leaveTogether: m.leave_together === true,
   };
 }
 

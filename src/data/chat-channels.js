@@ -35,10 +35,14 @@ export const CHAT_LIMITS = Object.freeze({
   linesPerTab: 200,      // kept in memory per tab; older lines drop off the top
   whisperTabsMax: 6,     // open conversations; the oldest quiet one closes first
   friendsPollMs: 30000,  // hr_social_state (also the presence stamp, floor 20 s server-side)
-  /* Realtime postgres_changes bindings one client may hold at once (src/social/realtime.js):
-     global, system, the zone, the party and the whispers are five. Each binding is a filter the
-     Realtime poller evaluates per write for this client, so the ceiling is a cost bound, not a feature. */
+  /* Private broadcast topics one client may join for chat at once (src/social/realtime.js): global,
+     system and the zone are three, and the account's inbox (its whispers and its party's lines) is the
+     fourth; the fifth is slack. Each join is one authorization and one socket subscription on Realtime,
+     so the ceiling is a cost bound, not a feature (2026-12-26-chat-broadcast.sql). */
   realtimeBindingsMax: 5,
+  /* After a topic (re)joins, the history is re-read this long later, once for the whole burst of joins,
+     to add the lines the socket missed while it was down. */
+  catchUpMs: 250,
 });
 
 /* THE WORLD'S NOTICES: lines only the SERVER writes, never a player (Tyler's "super-rare drop moments": a

@@ -7,7 +7,9 @@
 // inside them so a refusal is rare, never so a bound can be skipped:
 //   publishMinMs   never two position publishes closer than this (server floor 250 ms, 90/min)
 //   keepaliveMs    a standing hero re-publishes this often (server freshness 30 s)
-//   pollMs         hr_town_walkers is read this often while a town is on screen (server 45/min)
+//   parkedKeepaliveMs  ...and an unviewed (parked) one this often, still inside the 30 s freshness
+//   pollMs         hr_town_walkers is read this often while a town is DRAWN (server 45/min): a frame that
+//                  asks for the people (walkers()); a hidden tab or a pane not drawing reads nobody
 //   staleMs        a walker list older than this shows nobody, never ghosts
 //   cap            walkers drawn at most (the server's c_cap)
 //   snapTiles      a peer drawn this many tiles from where the server says it is
@@ -17,6 +19,7 @@
 export const TOWN_PRESENCE = Object.freeze({
   publishMinMs: 1000,
   keepaliveMs: 10000,
+  parkedKeepaliveMs: 20000,
   pollMs: 2000,
   staleMs: 8000,
   cap: 40,

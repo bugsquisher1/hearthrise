@@ -18,4 +18,8 @@
 export const TAP_OPENS = Object.freeze({
   anvil: Object.freeze({ open: 'skill', skill: 'smithing' }),
   woodpile: Object.freeze({ open: 'skill', skill: 'woodcutting' }),
+  /* Tamsin Reeve and her Tally Board on the Common (2026-12-23-tally-tasks.sql): her window. PLACEHOLDER ART:
+     the Common's style-1 crier and noticeboard stand in for her until her own sprite and board are drawn. */
+  npc_crier: Object.freeze({ open: 'window', window: 'tally' }),
+  noticeboard: Object.freeze({ open: 'window', window: 'tally' }),
 });

@@ -52,17 +52,18 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random. Draws nothing.
 // ============================================================
 
-import { METRICS, OPERATORS, MAX_CONDITIONS, MAX_STOP_RULES, MAX_IGNORED, STOP_HOLD_MS, ACTION_TYPES, ATTACK_KINDS, EFFECT_IDS } from '../../data/condition-metrics.js?v=0.2.34';
-import { ABILITIES, suggestedTrigger } from '../../data/abilities.js?v=0.2.34';
-import { CONSUMABLES, CONSUMABLE_RULES } from '../../data/consumables.js?v=0.2.34';
-import { SUPPLIES, isRune } from '../../data/supplies.js?v=0.2.34';
-import { ITEMS } from '../../data/items.js?v=0.2.34';
-import { MONSTERS } from '../../data/monsters.js?v=0.2.34';
-import { ROLE_RULES } from '../../data/rule-subjects.js?v=0.2.34';
-import { cheb, dist2, los } from './grid.js?v=0.2.34';
-import { makeEvent } from './events.js?v=0.2.34';
-import { BASIC_INDEX } from '../../data/supply-basics.js?v=0.2.34';
-import { START_BAR } from '../../data/start-kit.js?v=0.2.34';
+import { METRICS, OPERATORS, MAX_CONDITIONS, MAX_STOP_RULES, MAX_IGNORED, STOP_HOLD_MS, ACTION_TYPES, ATTACK_KINDS, EFFECT_IDS } from '../../data/condition-metrics.js?v=0.2.38';
+import { ABILITIES, suggestedTrigger } from '../../data/abilities.js?v=0.2.38';
+import { CONSUMABLES, CONSUMABLE_RULES } from '../../data/consumables.js?v=0.2.38';
+import { SUPPLIES } from '../../data/supplies.js?v=0.2.38';
+import { ITEMS } from '../../data/items.js?v=0.2.38';
+import { MONSTERS } from '../../data/monsters.js?v=0.2.38';
+import { ROLE_RULES } from '../../data/rule-subjects.js?v=0.2.38';
+import { cheb, dist2, los } from './grid.js?v=0.2.38';
+import { makeEvent } from './events.js?v=0.2.38';
+import { BASIC_INDEX } from '../../data/supply-basics.js?v=0.2.38';
+import { START_BAR } from '../../data/start-kit.js?v=0.2.38';
+import { HUNT_ROLES, shootsItem } from '../../data/hunt-roles.js?v=0.2.38';
 
 /* ruleHold: ms each stop rule has held, by its stable rule id (null = none held).
    ruleWait: the last `rule_wait` reported, per lane ('ruleId:why'), so it is reported once.
@@ -124,13 +125,17 @@ function actionKnown(type, id) {
   if (type === 'ability') return !!ABILITIES[id];
   /* ONE item, crafted or a store row (Tyler 2026-10-21: the game never picks; no "Any food"). */
   if (type === 'consume') return Object.prototype.hasOwnProperty.call(CONSUMABLES, id);
-  /* An attack item is a carried ammo line that is no rune: a rune fuels spells only (Tyler 2026-10-23). */
+  /* An attack item is a carried ammo line some weapon can shoot (attackItem): no rune, no whetstone. */
   if (type === 'attack_with_item') return Object.prototype.hasOwnProperty.call(ATTACK_KINDS, id) || attackItem(id);
   return false;
 }
-/** May an attack slot name item `id`? A carried ammo line that is no rune (the server's hr_hunt_action_ids, pinned). */
+/* The roles that shoot (hunt-roles.js shootsItem decides what each can loose). */
+const SHOOTERS = Object.freeze(Object.keys(HUNT_ROLES));
+/** May an attack slot name item `id`? A carried ammo line some weapon can loose as a shot (hunt-roles.js shootsItem:
+    an arrow or a bolt). A rune fuels spells only (Tyler 2026-10-23) and a whetstone sharpens a Melee weapon worn in
+    the ammo slot, no one's shot (Andy a41): neither is an attack item. The server's hr_hunt_action_ids, pinned. */
 export function attackItem(id) {
-  return !!(SUPPLIES[id] && SUPPLIES[id].kind === 'ammo' && !isRune(ITEMS[id]));
+  return !!(SUPPLIES[id] && SUPPLIES[id].kind === 'ammo' && SHOOTERS.some((r) => shootsItem(r, ITEMS[id])));
 }
 
 /** THE STORE RUNE A SPELL SLOT MAY NAME (`action.store`): a rune spell's slot opts into

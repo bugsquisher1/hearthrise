@@ -38,6 +38,7 @@
 
 import { readFile } from 'node:fs/promises';
 import { bootReplay } from './schema-replay.mjs';
+import { setGold } from './_gold.mjs';
 /* THE FINAL-BODY RULE. hr_state_of is RESTATED WHOLE by 2026-09-14-hr-state-of-
    restatement.sql, which runs LAST — so every arm below plants THERE, not in this
    migration's own splice, which the restatement overwrites. An arm left on the
@@ -151,9 +152,12 @@ async function boot(mutate, gateBlind) {
    able to make this projection guard vacuous or falsely red. */
 async function seed(db, uid, deeds, farmXp) {
   await db.exec(`insert into auth.users (id) values ('${uid}') on conflict (id) do nothing;`);
-  await db.exec(`insert into public.player_state (user_id, slot, gold, version)
-                 values ('${uid}', 0, 1000000, 1)
-                 on conflict (user_id, slot) do update set gold=1000000, version=1;`);
+  await db.exec(`insert into public.player_state (user_id, slot, version)
+                 values ('${uid}', 0, 1)
+                 on conflict (user_id, slot) do update set version=1;`);
+  /* The gold the hero spends: the ACCOUNT purse from 2026-12-15-account-gold.sql on, its own before
+     (the mutation arms stop at ARMS_API, where the per-hero column still exists). */
+  await setGold(async (sql, p) => (await db.query(sql, p)).rows, uid, 0, 1000000);
   await db.exec(`insert into public.player_inventory (user_id, slot, item_id, qty)
                  values ('${uid}', 0, 'farm_deed', ${deeds})
                  on conflict (user_id, slot, item_id) do update set qty=${deeds};`);

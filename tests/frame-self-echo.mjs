@@ -44,6 +44,7 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { bootReplay, ROOT, LAST_PATCHED } from './schema-replay.mjs';
+import { setGold } from './_gold.mjs';
 import { frameSelfMarker } from '../supabase/functions/hr-accrue/frame-self.js';
 
 const OWN = '2026-10-09-frame-self-echo.sql';
@@ -154,12 +155,21 @@ async function executed(db) {
     }
     const act = (await one("select activity_id from public.hr_activities where kind = 'gather' order by activity_id limit 1")).activity_id;
     await db.query('insert into auth.users (id) values ($1), ($2) on conflict do nothing', [U, O]);
-    await db.query(`insert into public.player_state (user_id, slot, gold, hp, version, accrued_to,
+    await db.query(`insert into public.player_state (user_id, slot, hp, version, accrued_to,
         active_kind, active_id, active_since)
-      values ($1, 0, 1000, 10, 1, date_trunc('second', now()) - interval '20 minutes', 'gather', $3,
+      values ($1, 0, 10, 1, date_trunc('second', now()) - interval '20 minutes', 'gather', $3,
               date_trunc('second', now()) - interval '80 minutes'),
-             ($2, 0, 1000, 10, 1, date_trunc('second', now()) - interval '20 minutes', 'idle', null, null)`,
+             ($2, 0, 10, 1, date_trunc('second', now()) - interval '20 minutes', 'idle', null, null)`,
     [U, O, act]);
+    /* the 1,000 gold each started with: its ACCOUNT purse (2026-12-15-account-gold.sql), or its own on an older chain */
+    for (const u of [U, O]) await setGold((sql, p) => db.query(sql, p).then((r) => r.rows), u, 0, 1000);
+    /* OPEN IN A CLIENT: the presence the gate reads since 2026-12-25-frame-push-revive.sql (character_presence, the
+       rebuilt client's stamp); an older chain (the negative control below) has no such table and gates HTTP on nothing. */
+    const hasPresence = (await one("select to_regclass('public.character_presence') is not null as x")).x;
+    const open = async (u, on) => { if (!hasPresence) return;
+      if (on) await db.query('insert into public.character_presence (user_id, slot, seen_at) values ($1, 0, now()) on conflict (user_id, slot) do update set seen_at = now()', [u]);
+      else await db.query('delete from public.character_presence where user_id = $1', [u]); };
+    await open(U, true); await open(O, true);
     await db.query(`insert into public.hr_tick_ownership (user_id, slot, channel, owned, lease_holder, lease_until)
       values ($1, 0, 'gather', true, 'guard-selfecho', now() + interval '5 minutes')`, [U]);
     await db.exec(`update public.hr_tick_config set enabled = true,
@@ -195,7 +205,9 @@ async function executed(db) {
     ok(await step(U, () => tick('20 minutes', '16 minutes', '00000000-0000-4000-8000-0000000f5d03')) === 1, 'F4', '★ a WORLD-TICK settle for the requester (online) was not pushed — the marker silenced a tick frame');
     /* AWAY: offline → no tick frame, marker or not (the 10-07 rule, unchanged). */
     await db.query('update public.player_state set last_seen_at = null where user_id = $1 and slot = 0', [U]);
-    ok(await step(U, () => tick('16 minutes', '12 minutes', '00000000-0000-4000-8000-0000000f5d04')) === 0, 'F4', 'an OFFLINE tick settle pushed a frame (the 10-07 online-only rule regressed)');
+    await open(U, false);
+    ok(await step(U, () => tick('16 minutes', '12 minutes', '00000000-0000-4000-8000-0000000f5d04')) === 0, 'F4', 'an OFFLINE tick settle pushed a frame (the online-only rule regressed)');
+    await open(U, true);
 
     /* ★ FORGED: client-shaped request (JWT claims present) and an owner session. */
     await db.query("select set_config('request.jwt.claims', $1, true)", [JSON.stringify({ sub: U, role: 'authenticated' })]);

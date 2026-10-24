@@ -7,7 +7,7 @@
 //   node tests/party-ui.mjs --mutate       every planted defect must turn a rule RED
 //   node tests/party-ui.mjs --shots <dir>  also write the visual-gate screenshots (1440x900, 922x423)
 //
-// mutant-anchors: src/hunt-view/live-engine.js src/shell/widgets/party-panel.js src/shell/widgets/party-hold.js src/data/refusal-words.js src/shell/alerts.js src/shell/hunt-list.js src/session/party-sections.js src/session/character-session.js src/shell/windows/party.js src/shell/windows/party-finder.js src/app/character-strip.js src/shell/widgets/alerts.js src/session/party-intents.js src/shell/intent-words.js src/shell/windows/hunts.js src/shell/windows/inventory/bury.js
+// mutant-anchors: src/hunt-view/live-engine.js src/shell/widgets/party-leave.js src/hunt-view/summary-model.js src/shell/widgets/party-panel.js src/shell/widgets/party-hold.js src/data/refusal-words.js src/shell/alerts.js src/shell/hunt-list.js src/session/party-sections.js src/session/character-session.js src/shell/windows/party.js src/shell/windows/party-finder.js src/app/character-strip.js src/shell/widgets/alerts.js src/session/party-intents.js src/shell/intent-words.js src/shell/windows/hunts.js src/shell/windows/inventory/bury.js
 // mutant-writes-tree: no — pure mutants plant into a temp copy of src/, page mutants into served overrides
 //
 // The fixture is tests/fixtures/party-envelope.json (S1's `party` shape plus this lane's asks).
@@ -35,8 +35,12 @@
 //         shown (and after a reload), a refusal in words; every other seat read-only
 //   PR-7  ONE TANK HOLDS ON THE ROWS: "Holds every lap" / "Guards the party", a pick made mid-lap waits for
 //         the lap, a weak pick warns by name; the lines go in town and come back
+//   PR-8  LEAVE TOGETHER (Tyler 2026-10-22): the own row's box "Leave if anyone leaves the hunt or dies" from the
+//         server (no other row; none when the section does not say), ONE hr_party_leave_together_set (slot, yes/no,
+//         key), off in flight, the re-read and a reload show it, a refusal in words; the came-home lines name the
+//         member; in hunt -> a member leaves -> this ticked hero comes home -> start again, the box as set
 //   UI-1  the strip shows one tab per character with its name, what it is doing and its alert
-//         badge; a tab press shows that character and re-reads nobody
+//         badge; a tab press shows that character and asks only IT one settle (never a full read, never another)
 //   UI-2  the alert lines show each alert once, survive a re-read without repeating, and go
 //         when dismissed
 //   PI-2  THE ONE-WAY FLOW'S VERBS (src/session/party-intents.js, PARTY_SPEC 2026-10-19): Start
@@ -124,6 +128,8 @@ async function load(base) {
     BITS: await import(u('src/shell/widgets/bits.js')),
     LE: await import(u('src/hunt-view/live-engine.js')),
     WS: await import(u('src/core/hunt/world-state.js')),
+    SM: await import(u('src/hunt-view/summary-model.js')),
+    PD: await import(u('src/data/party.js')),
   };
 }
 
@@ -650,6 +656,125 @@ async function pureRules(M, base) {
     return want(panelShown(M, dom, ctx), 'Eddie:Guards the party|Hank:|Apollo:|Fremulon:Holds every lap', 'Fremulon', FREM, '', 'the next hunt');
   });
 
+  /* PR-8 LEAVE TOGETHER (Tyler 2026-10-22): the viewer's OWN row carries its hero's box "Leave if anyone leaves the
+     hunt or dies", checked as the SERVER says (the party section's leave_together); no other row shows one, and a
+     section that does not say shows none. A change puts the server's value straight back, sends ONE
+     hr_party_leave_together_set naming only the slot, the yes/no and a key, keeps the box off while it is in flight,
+     and the re-read envelope replaces it (and a reload shows it); a refusal reads in words and changes nothing; a
+     change to what the server holds sends nothing. Another own hero's row shows ITS box. Then the transition: in a
+     hunt, a member leaves, this ticked hero's hunt ends party_member_left naming that member ("Mira left the hunt, so
+     Tyler came home too."; a death: "Mira fell, ..."; the summary says the same), and the party starts again
+     together with the box still as set. */
+  await t('PR-8', async () => {
+    const srv = fakeServer();
+    srv.env[0].party = Object.assign(andyParty({ hunting: false }), { leave_together: true });
+    srv.env[1].party = Object.assign(andyParty({ hunting: false, self: 3 }), { leave_together: false });
+    const base = srv.rpc;
+    srv.rpc = async (name, args) => {
+      if (name !== 'hr_party_leave_together_set') return base(name, args);
+      srv.calls.push([name, args]);
+      if (srv.reply.ok === false) return { ok: true, status: 200, body: clone(srv.reply) };
+      srv.env[args.p_slot].party.leave_together = args.p_on;
+      return { ok: true, status: 200, body: { ok: true, leave_together: args.p_on } };
+    };
+    const acc = account(M, srv);
+    const cs = (await acc.open(0)).session;
+    if (!cs) return 'the fixture character did not open';
+    const COPY = M.PD.PARTY_COPY.leaveTogether;
+    if (COPY !== 'Leave if anyone leaves the hunt or dies') return 'the box reads ' + JSON.stringify(COPY);
+    const boxesOf = (dom, ctx) => {
+      panelShown(M, dom, ctx);
+      return dom.el.querySelector('.hp-members').kids.map((r) => {
+        const l = r.querySelector('.hp-together');
+        const b = l.querySelector('input');
+        return r.querySelector('.hp-name').textContent + ':' + (l.hidden ? '-' : (b.checked ? 'on' : 'off') + (b.disabled ? '/off' : '')
+          + (l.querySelector('.hp-together-text').textContent === COPY ? '' : '/words?'));
+      }).join('|');
+    };
+    const dom = fakeDom();
+    const ctx = { character: cs, account: acc, doc: dom.doc, glyphs: {} };
+    const ownBox = () => dom.el.querySelector('.hp-members').kids[0].querySelector('.hp-together').querySelector('input');
+    const change = async (want) => {
+      const box = ownBox();
+      box.checked = want;
+      M.PP.renderPartyPanel.act(ctx, dom.el, 'together', { type: 'change' }, box);
+      const shownNow = (box.checked ? 'on' : 'off') + (box.disabled ? '/off' : '');
+      for (let i = 0; i < 40 && dom.el.querySelector('.hp-msg').textContent === 'Saving…'; i++) await new Promise((res) => setTimeout(res, 5));
+      return shownNow;
+    };
+    let v = boxesOf(dom, ctx);
+    if (v !== 'Eddie:on|Hank:-|Apollo:-|Fremulon:-') return 'the rows read ' + v + ' (want the own row ticked from the server, no other row)';
+    /* untick: the server's value goes straight back, off while in flight, ONE intent */
+    srv.calls.length = 0;
+    const during = await change(false);
+    if (during !== 'on/off') return 'while the untick was in flight the box read ' + during + ' (want the server’s on, and off)';
+    const sent = srv.calls.filter((c) => c[0] === 'hr_party_leave_together_set');
+    if (sent.length !== 1 || Object.keys(sent[0][1]).sort().join() !== 'p_idem,p_on,p_slot' || sent[0][1].p_on !== false || sent[0][1].p_slot !== 0) return 'the untick sent ' + JSON.stringify(sent);
+    if (!srv.calls.some((c) => c[0] === 'hr_load')) return 'the answer was not re-read';
+    v = boxesOf(dom, ctx);
+    if (v !== 'Eddie:off|Hank:-|Apollo:-|Fremulon:-') return 'after the answer the rows read ' + v;
+    /* a reload: a new session over the same server shows the box as set */
+    const acc2 = account(M, srv);
+    const dom2 = fakeDom();
+    const reloaded = boxesOf(dom2, { character: (await acc2.open(0)).session, account: acc2, doc: dom2.doc, glyphs: {} });
+    if (reloaded !== 'Eddie:off|Hank:-|Apollo:-|Fremulon:-') return 'after a reload the rows read ' + reloaded;
+    /* a refusal reads in words and changes nothing */
+    srv.calls.length = 0;
+    srv.reply = { ok: false, error: 'rate_limited' };
+    await change(true);
+    if (dom.el.querySelector('.hp-msg').textContent !== 'Too many changes at once. Try again in a moment.') return 'the refusal reads ' + JSON.stringify(dom.el.querySelector('.hp-msg').textContent);
+    v = boxesOf(dom, ctx);
+    if (srv.calls.some((c) => c[0] === 'hr_load') || v !== 'Eddie:off|Hank:-|Apollo:-|Fremulon:-') return 'a refusal changed the box: ' + v;
+    srv.reply = { ok: true };
+    /* a change to what the server already holds sends nothing */
+    srv.calls.length = 0;
+    await change(false);
+    if (srv.calls.length) return 'a change to the server’s own value sent ' + JSON.stringify(srv.calls.map((c) => c[0]));
+    /* another own hero (seat 3) sees ITS box on ITS row, and nobody else's */
+    const other = (await acc.open(1)).session;
+    const dom3 = fakeDom();
+    const seen = boxesOf(dom3, { character: other, account: acc, doc: dom3.doc, glyphs: {} });
+    if (seen !== 'Eddie:-|Hank:-|Apollo:-|Fremulon:off') return 'seat 3’s own character reads ' + seen;
+    /* a section that does not carry the box shows none (never a default of the client's) */
+    const silent = andyParty({ hunting: false });
+    const dom4 = fakeDom();
+    const quiet = boxesOf(dom4, { character: { read: (k) => (k === 'party' ? silent : undefined) }, account: null, doc: dom4.doc, glyphs: {} });
+    if (quiet !== 'Eddie:-|Hank:-|Apollo:-|Fremulon:-') return 'a section with no box reads ' + quiet;
+    /* the came-home words */
+    const left = M.AL.cameHomeLine({ endReason: 'party_member_left', endBy: 'Mira' }, 'Tyler');
+    const fell = M.AL.cameHomeLine({ endReason: 'party_member_died', endBy: 'Mira' }, 'Tyler');
+    const anon = M.AL.cameHomeLine({ endReason: 'party_member_left', endBy: null }, 'Tyler');
+    if (left !== 'Mira left the hunt, so Tyler came home too.' || fell !== 'Mira fell, so Tyler came home too.' || anon !== 'A party member left the hunt, so Tyler came home too.') {
+      return 'the came-home lines read ' + JSON.stringify([left, fell, anon]);
+    }
+    const sum = [M.SM.endWords('party_member_left', false, 'Mira', 'Tyler'), M.SM.endWords('party_member_died', false, 'Mira', 'Tyler')];
+    if (sum[0] !== left || sum[1] !== fell) return 'the summary says ' + JSON.stringify(sum);
+    /* THE TRANSITION, on the fixture's hunting party (Tyler seat 0, Mira seat 1), the box ticked again */
+    const tsrv = fakeServer();
+    tsrv.env[0].party.leave_together = true;
+    const tacc = account(M, tsrv);
+    const centre = M.AL.createAlertCenter(tacc);
+    const tcs = (await tacc.open(0)).session;
+    const tdom = fakeDom();
+    const tctx = { character: tcs, account: tacc, doc: tdom.doc, glyphs: {} };
+    const tboxes = () => { M.PP.renderPartyPanel.patch(tdom.el, tctx); const k = tdom.el.querySelector('.hp-members').kids; return k.map((r) => r.querySelector('.hp-together').hidden ? '-' : (r.querySelector('.hp-together').querySelector('input').checked ? 'on' : 'off')).join(); };
+    if (tboxes() !== 'on,-') return 'in the hunt the rows read ' + tboxes();
+    /* Mira leaves: the server ends Tyler's hunt party_member_left, naming her */
+    tsrv.env[0].hunt.ended = true;
+    tsrv.env[0].hunt.session = Object.assign({}, tsrv.env[0].hunt.session, { end_reason: 'party_member_left', end_by: 'Mira', ended_at: '2026-10-17T12:30:00Z', phase: 'ended' });
+    tsrv.env[0].party.members = tsrv.env[0].party.members.map((m) => Object.assign({}, m, { hunting: false, unit: null }));
+    await tcs.load();
+    const line = centre.list().find((a) => a.session === tsrv.env[0].hunt.session_id && a.kind === 'ended');
+    if (!line || line.text !== 'Mira left the hunt, so Tyler came home too.') return 'the way home reads ' + JSON.stringify(centre.list().map((a) => [a.kind, a.text]));
+    if (M.SM.endedSessionOf(tcs) === null || M.SM.endedSessionOf(tcs).by !== 'Mira') return 'the summary’s session names ' + JSON.stringify(M.SM.endedSessionOf(tcs) && M.SM.endedSessionOf(tcs).by);
+    if (tboxes() !== 'on,-') return 'back in town the rows read ' + tboxes() + ' (the party stays, the box as set)';
+    /* the party starts again together: a new hunt, every seat hunting, the box still as set */
+    tsrv.env[0].hunt = Object.assign(clone(FIXTURE.characters[0].hunt), { session_id: '5d1c0f2e-0000-4000-8000-0000000000aa' });
+    tsrv.env[0].party.members = clone(FIXTURE.characters[0].party.members);
+    await tcs.load();
+    return tboxes() === 'on,-' || 'after starting again the rows read ' + tboxes();
+  });
+
   await t('PR-1', async () => {
     const members = [{ seat: 0, weapon: 'staff', role_pick: 'healer' }, { seat: 1, weapon: 'wand', role_pick: 'tank' }, { seat: 2, weapon: 'bow', role_pick: 'tank' }, { seat: 3, weapon: 'no_such_weapon', role_pick: 'tank' }];
     const cs = { read: (k) => (k === 'party' ? { id: '11111111-0000-4000-8000-00000000000a', hunt: 'mill_cellar', max: 4, leader_seat: 0, self_seat: 0, members } : undefined) };
@@ -762,13 +887,11 @@ async function quietHuntPoll(s, slot, clearMs = 1500) {
   }
 }
 
-/* A new full envelope, the way the live game gets one: a frame that skips a version makes the client re-read. */
+/* A new full envelope, the way the live game gets one: a pushed frame carrying the whole character at the next
+   version (2026-12-25-frame-push-revive.sql), applied like a load. */
 async function pushEnvelope(page, s, slot) {
-  const frame = s.version + 2;
-  s.version = frame;
-  const before = sent(s, 'hr-accrue').length;
-  await page.evaluate(([t, f, st]) => window.__hub.send(t, { t: 'delta', frame: f, patch: { state: st } }), ['hr:' + UID + ':' + slot, frame, s.env[slot].state]);
-  for (let i = 0; i < 60 && sent(s, 'hr-accrue').length <= before; i++) await page.waitForTimeout(50);
+  const e = s.next(slot);
+  await page.evaluate(([t, env]) => window.__hub.send(t, { t: 'state', frame: env.version, env }), ['hr:' + UID + ':' + slot, e]);
   await page.waitForTimeout(300);
 }
 
@@ -792,7 +915,7 @@ async function pageRules(overrides, shots) {
       /* A step that throws (a control missing from the page) is a red rule, never a crash of the run. */
       try {
       if (!(await openBoth(page, base))) { fails.push('UI-1 [' + tag + '] two characters did not open beside each other' + (errors.length ? ': ' + errors.slice(0, 2).join(' | ') : '')); await ctx.close(); continue; }
-      /* UI-1: one tab per character, its name, what it does, its badge; a press shows it and re-reads nobody. */
+      /* UI-1: one tab per character, its name, what it does, its badge; a press shows it and asks only it one settle. */
       await page.waitForTimeout(400);
       const tabs = await page.evaluate(() => Array.from(document.querySelectorAll('.char-tab[data-app="show"]')).map((b) => ({ slot: b.getAttribute('data-slot'),
         name: b.querySelector('.char-tab-name').textContent, doing: b.querySelector('.char-tab-doing').textContent, badge: b.querySelector('.char-badge').textContent, on: b.classList.contains('is-shown') })));
@@ -804,9 +927,27 @@ async function pageRules(overrides, shots) {
       await page.click('.char-tab[data-slot="0"]');
       if (!(await wait(page, () => document.querySelector('#panel-world[data-slot="0"]') && document.querySelector('.hs-launchers') && !document.querySelector('#panel-world[data-slot="1"]')))) fails.push('UI-1 [' + tag + '] the tab did not show character 0');
       await page.waitForTimeout(300);
+      /* Only the shown character streams live (lane/a-accrue-storm Part 2): the switch asks IT one settle (and its live
+         view the start point that answer lacked), never a full read, and nothing of the character left. */
       const reads = s.calls.slice(loads).filter((c) => c.name === 'hr_load' || c.name === 'hr-accrue');
-      if (reads.length) fails.push('UI-1 [' + tag + '] a switch re-read ' + reads.map((c) => c.name + ':' + (c.body.p_slot ?? c.body.slot)).join(', '));
+      if (reads.length > 2 || reads.some((c) => c.name !== 'hr-accrue' || (c.body.p_slot ?? c.body.slot) !== 0))
+        fails.push('UI-1 [' + tag + '] a switch re-read ' + reads.map((c) => c.name + ':' + (c.body.p_slot ?? c.body.slot)).join(', '));
       if (!(await page.evaluate((uid) => !!window.__hub.channels['hr:' + uid + ':1'], UID))) fails.push('UI-1 [' + tag + '] the switch left character 1’s channel');
+      /* PR-8 [page]: on the party panel the viewer's own row carries the server's ticked box in words of at least
+         12 px, inside its row (the phone board too); the partner's row shows none. */
+      await wait(page, () => document.querySelectorAll('.hp-party .hp-m').length === 2, null, 3000);
+      const together = await page.evaluate(() => Array.from(document.querySelectorAll('.hp-party .hp-m')).map((r) => {
+        const l = r.querySelector('.hp-together'); const box = l && l.querySelector('input');
+        const lr = l && l.getBoundingClientRect(); const rr = r.getBoundingClientRect();
+        return { name: r.querySelector('.hp-name').textContent, shown: !!l && !l.hidden && lr.width > 0 && lr.height > 0, checked: !!box && box.checked,
+          off: !!box && box.disabled, text: l ? l.textContent : '', px: l ? parseFloat(getComputedStyle(l).fontSize) : 0,
+          inside: !!lr && lr.left >= rr.left - 0.5 && lr.right <= rr.right + 0.5 };
+      }));
+      const own = together.find((x) => x.name === 'Tyler'); const mate = together.find((x) => x.name === 'Mira');
+      if (!own || !own.shown || !own.checked || own.off || own.text !== 'Leave if anyone leaves the hunt or dies' || !(own.px >= 12) || !own.inside || !mate || mate.shown) {
+        fails.push('PR-8 [' + tag + '] the party panel’s boxes read ' + JSON.stringify(together));
+      }
+      await shot('party-panel');
       /* UI-2: each alert once; a re-read does not repeat them; dismiss removes one. */
       const lines = () => page.evaluate(() => Array.from(document.querySelectorAll('.hw-alert')).map((li) => li.getAttribute('data-kind')).sort().join(','));
       /* The town character (slot 1) has an invite waiting: its alert line rides beside the rare drop (UI-6). */
@@ -1027,6 +1168,17 @@ const PURE_MUTANTS = [
   ['a pick made mid-lap reads as in force', 'src/hunt-view/live-engine.js', '{ runs: runs + lap, hold: world.holdNext }', '{ runs: runs + lap }'],
   ['a weak pick raises no warning', 'src/shell/widgets/party-hold.js', '    if (own && underHoldFloor(own, known)) warn =', '    if (false) warn ='],
   ['DPS and HPS shows with nobody hunting', 'src/shell/widgets/party-panel.js', "  prop(expand, 'hidden', !r.anyHunting);", "  prop(expand, 'hidden', false);"],
+  /* PR-8 LEAVE TOGETHER (Tyler 2026-10-22) */
+  ['the box shows on every row (Tyler 2026-10-22)', 'src/shell/widgets/party-leave.js', "  const own = r.inParty && m.seat === r.selfSeat && typeof r.together === 'boolean';", "  const own = r.inParty && typeof r.together === 'boolean';"],
+  ['the box stays on while in flight', 'src/shell/widgets/party-leave.js', "  prop(box, 'disabled', !own || pending);", "  prop(box, 'disabled', !own);"],
+  ['a change to what the server holds is sent', 'src/shell/widgets/party-leave.js', ' || want === r.together || sc.pending) return true;', ' || sc.pending) return true;'],
+  ['the box set names a user', 'src/session/party-intents.js', '{ p_slot: cs.slot, p_on: on, p_idem: newIdem() }', '{ p_slot: cs.slot, p_on: on, p_user: account.userId, p_idem: newIdem() }'],
+  ['the box set re-reads nobody', 'src/session/party-intents.js', '{ p_slot: cs.slot, p_on: on, p_idem: newIdem() }), [cs]));', '{ p_slot: cs.slot, p_on: on, p_idem: newIdem() }), []));'],
+  ['a section with no box reads as on', 'src/session/party-sections.js', "    leaveTogether: typeof p.leave_together === 'boolean' ? p.leave_together : null,", '    leaveTogether: p.leave_together !== false,'],
+  ['the came-home line names nobody', 'src/shell/alerts.js', "(h.endBy && String(h.endBy)) || 'A party member'", "'A party member'"],
+  ['a hero sent home by a leave raises a plain end line', 'src/shell/alerts.js', "  else if (h.ended && h.endReason === 'party_member_left') out.push(", '  else if (false) out.push('],
+  ['the summary says the hunt ended (no member, no hero)', 'src/hunt-view/summary-model.js', "  if (typeof by === 'string' && by && (reason === 'party_member_left'", "  if (false && (reason === 'party_member_left'"],
+  ['the summary forgets who sent the hero home', 'src/hunt-view/summary-model.js', "    by: typeof s.end_by === 'string' && s.end_by.trim() ? s.end_by.trim().slice(0, 40) : null,", '    by: null,'],
   ['not ready names nobody', 'src/shell/intent-words.js', "    return 'Nobody went in: ' + seats.map((x) => x.name + ' ' + (x.error === 'hunt_open' && x.hunt && HUNT_INDEX[x.hunt]\n      ? 'is still hunting in ' + HUNT_INDEX[x.hunt].name : SEAT_WORDS[x.error] || 'is not ready')).join('; ') + '.';", "    return 'Not everyone in the party is ready.';"],
 ];
 const PAGE_MUTANTS = [

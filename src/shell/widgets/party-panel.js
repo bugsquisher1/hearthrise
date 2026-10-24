@@ -24,22 +24,27 @@
 // shows none. The leader's "Take turns | One tank holds" switch, the note under
 // the roster and the weak-pick warning are ./party-hold.js.
 //
+// LEAVE TOGETHER (Tyler 2026-10-22): the viewer's OWN row carries its hero's box
+// "Leave if anyone leaves the hunt or dies" from the server (./party-leave.js);
+// other rows show nothing of theirs.
+//
 // Built once; each member is a keyed row (src/render/paint.js rows), patched in
 // place. The expand toggle and the intent scratch live on the panel element.
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.34';
-import { ROLE_GLYPH } from '../../data/hunt-hud.js?v=0.2.34';
-import { partyOf, liveHpOf } from '../../session/hunt-sections.js?v=0.2.34';
-import { partyMembershipOf } from '../../session/party-sections.js?v=0.2.34';
-import { heroVitalsOf } from '../../session/character-sections.js?v=0.2.34';
-import { afterLeave, disbandParty } from '../../session/party-intents.js?v=0.2.34';
-import { runIntent } from '../intent-words.js?v=0.2.34';
-import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.34';
-import { short, whole } from '../../render/format.js?v=0.2.34';
-import { glyphSvg } from '../launcher.js?v=0.2.34';
-import { markPlayer } from '../context-menu.js?v=0.2.34';
-import { gaugeHtml, patchGauge, panelHtml } from './bits.js?v=0.2.34';
-import { turnWords, holdView, holdHtml, patchHold, holdAct } from './party-hold.js?v=0.2.34';
+import { HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.38';
+import { ROLE_GLYPH } from '../../data/hunt-hud.js?v=0.2.38';
+import { partyOf, liveHpOf } from '../../session/hunt-sections.js?v=0.2.38';
+import { partyMembershipOf } from '../../session/party-sections.js?v=0.2.38';
+import { heroVitalsOf } from '../../session/character-sections.js?v=0.2.38';
+import { afterLeave, disbandParty } from '../../session/party-intents.js?v=0.2.38';
+import { runIntent } from '../intent-words.js?v=0.2.38';
+import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.38';
+import { short, whole } from '../../render/format.js?v=0.2.38';
+import { glyphSvg } from '../launcher.js?v=0.2.38';
+import { markPlayer } from '../context-menu.js?v=0.2.38';
+import { gaugeHtml, patchGauge, panelHtml } from './bits.js?v=0.2.38';
+import { turnWords, holdView, holdHtml, patchHold, holdAct } from './party-hold.js?v=0.2.38';
+import { togetherHtml, patchTogether, togetherAct } from './party-leave.js?v=0.2.38';
 
 function memberHtml(glyphs) {
   return '<li class="hp-m">'
@@ -51,6 +56,7 @@ function memberHtml(glyphs) {
     + '<button type="button" class="hh-tool hp-kick" data-hs-act="kick" hidden>Remove</button></div>'
     + '<p class="hp-turn"></p>'
     + gaugeHtml('hp', 'Health') + gaugeHtml('mana', 'Mana')
+    + togetherHtml()
     + '<dl class="hp-stats"><dt>DPS</dt><dd class="hp-dps"></dd><dt>Total</dt><dd class="hp-dealt"></dd>'
     + '<dt>HPS</dt><dd class="hp-hps"></dd><dt>Total</dt><dd class="hp-healed"></dd></dl>'
     + '</div></li>';
@@ -83,6 +89,7 @@ function patchMember(el, m, party, glyphs) {
   text(el.querySelector('.hp-dealt'), short(m.dealt));
   text(el.querySelector('.hp-hps'), short(m.hps));
   text(el.querySelector('.hp-healed'), short(m.healed));
+  patchTogether(el, m, party.roster, party.pending);
 }
 
 /* "Away, seat kept 7 min" (the server's seat_ms, whole minutes up); else what the hunt says it is doing. Exported for tests/party-ui.mjs (PR-4). */
@@ -121,11 +128,12 @@ export function rosterOf(cs) {
         hp: live ? live.hp : s.hp, hpMax: live ? live.hpMax : s.hpMax,
       });
     });
-    return { members, leaderSeat: p.leader, selfSeat: p.me, isLeader: p.isLeader, inParty: true, anyHunting: p.anyHunting, holdSeat: p.holdSeat, pullSeat };
+    return { members, leaderSeat: p.leader, selfSeat: p.me, isLeader: p.isLeader, inParty: true, anyHunting: p.anyHunting, holdSeat: p.holdSeat, pullSeat,
+      together: p.leaveTogether };
   }
-  if (!h) return { members: [], leaderSeat: null, selfSeat: null, isLeader: false, inParty: false, anyHunting: false, holdSeat: null, pullSeat: null };
+  if (!h) return { members: [], leaderSeat: null, selfSeat: null, isLeader: false, inParty: false, anyHunting: false, holdSeat: null, pullSeat: null, together: null };
   const members = h.members.map((m) => Object.assign({}, m, { hunting: true, away: false, seatMs: null }));
-  return { members, leaderSeat: h.leaderSeat, selfSeat: h.selfSeat, isLeader: false, inParty: false, anyHunting: true, holdSeat: null, pullSeat };
+  return { members, leaderSeat: h.leaderSeat, selfSeat: h.selfSeat, isLeader: false, inParty: false, anyHunting: true, holdSeat: null, pullSeat, together: null };
 }
 
 /** The roster with each hunting member's HP as the live timeline plays it (hunt-sections.js liveHpOf: the
@@ -171,7 +179,7 @@ export function renderPartyPanel() {
 renderPartyPanel.patch = function patchPartyPanel(el, ctx) {
   const r = liveRoster(ctx.character, rosterOf(ctx.character));
   const sc = scOf(el);
-  const view = { leaderSeat: r.leaderSeat, selfSeat: r.selfSeat, canKick: r.inParty && r.isLeader, pending: sc.pending };
+  const view = { leaderSeat: r.leaderSeat, selfSeat: r.selfSeat, canKick: r.inParty && r.isLeader, pending: sc.pending, roster: r };
   cls(el.querySelector('.hp-party'), 'is-empty', !r.members.length);
   rows(el.querySelector('.hp-members'), r.members, {
     key: (m) => m.seat,
@@ -193,6 +201,11 @@ renderPartyPanel.patch = function patchPartyPanel(el, ctx) {
 };
 
 renderPartyPanel.act = function actPartyPanel(ctx, el, action, ev, btn) {
+  /* the own row's "Leave if anyone leaves the hunt or dies" box answers its change (./party-leave.js) */
+  if (action === 'together' && ctx.character) {
+    togetherAct(ctx, ctx.character, scOf(el), () => renderPartyPanel.patch(el, ctx), action, ev, btn, rosterOf(ctx.character));
+    return;
+  }
   if (ev.type !== 'click') return;
   if (action === 'expand') {
     const on = btn.getAttribute('aria-pressed') !== 'true';

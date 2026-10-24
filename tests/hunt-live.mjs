@@ -50,6 +50,9 @@
 //         never the hunt): a tank with no food of its own and an "Any food" slot naming
 //         Salted Trout buys Salted Trout and nothing else, on the server's commits (the
 //         browser closed) and in the browser's prediction (viewed), every commit matching.
+//   LV-RANGER A RANGER'S BAR (Andy 2026-10-23, Fremulon): a bow with NO ammo worn, a Copper Whetstone
+//         slot ahead of its arrows: it shoots only its arrows (never the whetstone) and Precision Shot
+//         casts on them, on the server's commits (browser closed) and in the prediction (viewed).
 //   LV-RR THE PARTY'S RARE ROLL IS THE SERVER'S (Tyler L8; rulings: loot rolls use a server-only
 //         stream): with every monster carrying rare rows, the server's commits roll rares
 //         (`rare_roll`, each Crown Shard to its winner) and the browser's prediction, which
@@ -68,6 +71,9 @@
 //         point's next swing (it runs none) still gives every unit it places a kind and a bar.
 //   LV-PULL THE HOLDER PULLS (bug #61, Andy's party): under Take turns the lap's holder, under "One tank
 //         holds" the pick, switched only when the lap ends; no tank yanks a pack, browser closed and viewed.
+//   LV-TGT "STRONGEST" AND "FOLLOW" ON A MIXED PACK (Andy a08): a follower stands on the leader's monster, a
+//         Strongest hero on the strongest kind engaged, browser closed (the server's boundaries) and viewed (every
+//         commit matches; the browser plays their blows as the server's commits hold them).
 //   LV-R  RECONCILE: a prediction forced off the server's world is judged
 //         `diverged` at the next commit, and the reseed eases every unit onto its true
 //         tile with no frame moving a unit more than one tile.
@@ -120,8 +126,10 @@ function memberOf(M, user, seat, role, level) {
     skills: { melee: M.XP.skillXpForLevel('melee', L), defense: M.XP.skillXpForLevel('defense', L), ranged: M.XP.skillXpForLevel('ranged', L), magic: 0, prayer: 0 },
     levelXp: M.XP.charXpForLevel(L), xpFrac: null, hp: 1e6, gold: 500, equipment: role === 'tank' ? { weapon, shield: 'practice_shield' } : { weapon }, inventory: {}, buffs: [], perks: null,
     deathsTodayBefore: 0, deathsLifetimeBefore: 0, hearthfindReady: false,
+    /* LEAVE TOGETHER (Tyler 2026-10-22): every hero's box "Leave if anyone leaves the hunt or dies" is on, the server's
+       default (player_state.party_leave_together), so a partner's death sends this hero home (LV-Q, LV-E). */
     /* (the SHIELD makes the tank, Tyler 2026-10-23: a tank's key is the shield's, a sword alone plays Melee damage) */
-    hero: M.SPAWN.heroSetup({ weaponType: role === 'ranger' ? 'ranged' : role === 'melee_dps' ? 'hammer' : 'shield', options: {}, bar: [], partyRoles: ['tank', 'melee_dps'] }),
+    hero: M.SPAWN.heroSetup({ weaponType: role === 'ranger' ? 'ranged' : role === 'melee_dps' ? 'hammer' : 'shield', options: {}, bar: [], partyRoles: ['tank', 'melee_dps'], leaveTogether: true }),
   };
 }
 
@@ -558,6 +566,64 @@ function rules(M) {
     }
   }
 
+  { // LV-TGT: "STRONGEST" AND "FOLLOW" ON A MIXED PACK, BOTH PATHS (Andy a08, live v0.2.33: "Strongest and Follow
+    // both seem to just target the first creature"). A Glade trio at density 8 (crows, poachers, vines, a sluicer: their
+    // max HP differ): `a` the tank leads on Nearest, `b` a Melee DPS on "Follow", `c` a Melee DPS on "Strongest".
+    // BROWSER CLOSED: at the server's swing boundaries with 2+ monsters engaged, b stands on the leader's monster at 85%+
+    // of them (before: 56%; it took the leader's LAST blow's monster, at a pull one of the pack before, so it opened on its
+    // own nearest and kept it), and c on a strongest-kind monster at 80%+ of the mixed ones, 30+ points above the Nearest
+    // leader (the control). VIEWED: b's browser (a and c its peers) predicts every commit and plays b's and c's blows
+    // exactly as the server's commits hold them.
+    const hunt = 'mosslight_glade', SPAN = 300000;
+    const mk = () => [['a', 'tank', null], ['b', 'melee_dps', 'follow'], ['c', 'melee_dps', 'strongest']].map(([user, role, mode], i) => {
+      const mi = memberOf(M, user, i, role, 30);
+      mi.huntId = hunt;
+      mi.hero = Object.assign({}, M.SPAWN.heroSetup({ weaponType: role === 'tank' ? 'sword' : 'hammer', options: mode ? { target_mode: mode } : {},
+        bar: [], partyRoles: ['tank', 'melee_dps', 'melee_dps'], lead: i === 0 }), { density: 8 });
+      return mi;
+    });
+    const mis = mk();
+    const srv = server(M, mis, { hunt });
+    const n = { lead: 0, onLead: 0, mixed: 0, onTop: 0, leaderOnTop: 0 };
+    let ended = null;
+    for (let t = T0 + M.CB.tickMs; t <= T0 + SPAN; t += M.CB.tickMs) {
+      const c = srv.commit(t);
+      if (!c || !srv.inst.world) { ended = t - T0; break; }
+      const w = M.WS.decode(JSON.parse(srv.inst.world));
+      const eng = w.units.filter((u) => u.side === 'mon' && u.alive && Number.isInteger(u.target));
+      if (eng.length < 2) continue;
+      const [A, B, C] = mis.map((m) => w.units.find((u) => u.id === m.unitId));
+      if (!A || !B || !C) continue;
+      const on = (h) => eng.find((m) => m.id === h.target) || null;
+      if (w.leader === A.id && on(A)) { n.lead++; if (B.target === A.target) n.onLead++; }
+      const top = Math.max(...eng.map((m) => m.maxHp));
+      if (new Set(eng.map((m) => m.maxHp)).size > 1) {
+        n.mixed++;
+        if (on(C) && on(C).maxHp === top) n.onTop++;
+        if (on(A) && on(A).maxHp === top) n.leaderOnTop++;
+      }
+    }
+    const pct = (a, b) => (b ? Math.round((100 * a) / b) : 0);
+    console.log(`  LV-TGT closed (Glade trio, d8, ${SPAN / 1000} s): Follow on the leader's monster at ${n.onLead}/${n.lead} boundaries; Strongest on the strongest kind at ${n.onTop}/${n.mixed} mixed ones (the Nearest leader ${n.leaderOnTop})`);
+    ok('LV-TGT', ended === null, `closed: the trio's hunt ended ${ended} ms in (a death or a refusal; the rule needs the whole span)`);
+    ok('LV-TGT', n.lead >= 40 && pct(n.onLead, n.lead) >= 85, `closed: "Follow" stood on the leader's monster at ${n.onLead} of ${n.lead} boundaries (want 40+ boundaries, 85%+)`);
+    ok('LV-TGT', n.mixed >= 40 && pct(n.onTop, n.mixed) >= 80 && pct(n.onTop, n.mixed) >= pct(n.leaderOnTop, n.mixed) + 30,
+      `closed: "Strongest" stood on the strongest kind at ${n.onTop} of ${n.mixed} mixed boundaries, the Nearest leader at ${n.leaderOnTop} (want 40+, 80%+, 30+ points above)`);
+    /* viewed: b's browser */
+    const vm = mk();
+    const v = run(M, [vm[1], vm[0], vm[2]], SPAN, { server: { hunt } });
+    const ids = [vm[1].unitId, vm[2].unitId];
+    const last = v.verdicts.length ? v.verdicts[v.verdicts.length - 1].t : T0;
+    const blows = (evs) => evs.filter((e) => (e.type === 'dmg' || e.type === 'miss') && ids.includes(e.u) && e.atMs < last)
+      .map((e) => e.atMs + ':' + e.type + ':' + e.u + '>' + e.t).sort();
+    const srvBlows = blows(v.verdicts.flatMap((x) => x.tl.hunt_events)), fedBlows = blows(v.fed.events);
+    const unmatched = v.verdicts.filter((x) => x.v !== 'match').length;
+    const same = srvBlows.length === fedBlows.length && srvBlows.every((x, i) => x === fedBlows[i]);
+    console.log(`  LV-TGT viewed: ${unmatched} of ${v.verdicts.length} commits off the prediction; b's and c's blows: server ${srvBlows.length}, browser ${fedBlows.length}, same ${same}`);
+    ok('LV-TGT', v.verdicts.length >= 15 && unmatched === 0 && srvBlows.length > 50 && same,
+      `viewed: ${unmatched} of ${v.verdicts.length} commits off, ${srvBlows.length} server blows vs ${fedBlows.length} predicted (same ${same}); want 15+ commits, 0 off, 50+ blows, the same`);
+  }
+
   { // LV-Q: ONE DEATH STOPS THE WHOLE PARTY AT ONCE (Tyler 2026-10-19; live v0.2.23, Andy: "2nd char starts to run
     // away after death"). A Sewer duo at density 8 whose tank falls: from the sub-step the tank dies nobody acts again
     // (the party's hunt ends at each member's next boundary). Before: the ranger, alone and targeted, kited 5 tiles
@@ -867,6 +933,34 @@ function rules(M) {
     ok('LV-$', JSON.stringify(dry(closedEvs)) === JSON.stringify(['cooked_shrimp,salted_trout,2']), 'the server\'s run-out event read ' + JSON.stringify(dry(closedEvs)) + ', want slot 2 (Salted Trout) taking over');
     ok('LV-$', bad.length === 0, bad.length + ' commit(s) did not match the prediction');
   }
+  { /* LV-RANGER a Ranger's bar, viewed and with the browser closed (Andy 2026-10-23, Fremulon) */
+    const mi = memberOf(M, 'a', 0, 'ranger', 10);
+    mi.huntSession = Object.assign({}, mi.huntSession, { bag: { iron_arrows: { loaded: 400, left: 400 }, copper_whetstone: { loaded: 50, left: 50 },
+      cooked_shrimp: { loaded: 30, left: 30, essential: true } } });
+    const slot = (type, id) => ({ action: { type, id }, conditions: [], join: 'and' });
+    mi.hero = M.SPAWN.heroSetup({ weaponType: 'ranged', options: {}, partyRoles: ['ranger'],
+      bar: [slot('ability', 'hunters_mark'), slot('ability', 'precision_shot'), slot('attack_with_item', 'copper_whetstone'), slot('attack_with_item', 'iron_arrows')] });
+    const r = run(M, [mi], 160000);
+    const casts = (evs) => evs.filter((e) => e.type === 'cast').map((e) => e.ability);
+    const shots = (evs) => evs.filter((e) => e.type === 'shot').map((e) => e.item);
+    const closedEvs = r.verdicts.flatMap((x) => x.tl.hunt_events);
+    /* the browser runs a swing or so past the last commit: the viewed half is judged on the committed span */
+    const viewedEvs = r.fed.events.filter((e) => e.atMs < r.srv.inst.settled_to_ms);
+    const bad = r.verdicts.filter((x) => x.v !== 'match');
+    const bag = mi.huntSession.bag;
+    const n = (list, id) => list.filter((x) => x === id).length;
+    console.log(`  LV-RANGER: the server cast ${JSON.stringify(casts(closedEvs))}, shot ${shots(closedEvs).length} [${[...new Set(shots(closedEvs))].join(', ')}]; arrows ${bag.iron_arrows.left}/400, whetstones ${bag.copper_whetstone.left}/50; the browser cast ${casts(viewedEvs).length}, shot ${shots(viewedEvs).length}; ${bad.length} of ${r.verdicts.length} commits off`);
+    ok('LV-RANGER', shots(closedEvs).length >= 10, 'CONTROL: the Ranger shot ' + shots(closedEvs).length + ' time(s) in 160 s');
+    ok('LV-RANGER', shots(closedEvs).every((id) => id === 'iron_arrows') && bag.copper_whetstone.left === 50,
+      'browser closed: a bow shot a whetstone (slot 3, ahead of its arrows): shots ' + JSON.stringify([...new Set(shots(closedEvs))]) + ', ' + bag.copper_whetstone.left + ' of 50 whetstones left');
+    ok('LV-RANGER', n(casts(closedEvs), 'precision_shot') >= 3 && n(casts(closedEvs), 'hunters_mark') >= 1,
+      'browser closed: with no ammo worn the shot spells never cast on the bar\'s arrows: ' + JSON.stringify(casts(closedEvs)));
+    ok('LV-RANGER', bag.iron_arrows.left === 400 - shots(closedEvs).length - n(casts(closedEvs), 'precision_shot'),
+      'browser closed: ' + (400 - bag.iron_arrows.left) + ' arrows spent for ' + shots(closedEvs).length + ' shots + ' + n(casts(closedEvs), 'precision_shot') + ' Precision Shots');
+    ok('LV-RANGER', JSON.stringify(casts(viewedEvs)) === JSON.stringify(casts(closedEvs)) && JSON.stringify(shots(viewedEvs)) === JSON.stringify(shots(closedEvs)),
+      'viewed: the browser predicted casts ' + JSON.stringify(casts(viewedEvs)) + ' and ' + shots(viewedEvs).length + ' shots');
+    ok('LV-RANGER', bad.length === 0, bad.length + ' commit(s) did not match the prediction');
+  }
   return fails;
 }
 const sorted = (o) => Object.fromEntries(Object.entries(o).sort());
@@ -905,6 +999,10 @@ const MUTANTS = [
   ['an empty own slot buys its store partner instead of falling to slot 2 (LV-$)', 'src/core/action-rules.js',
     "  if (c && c.source === 'own') return leftOf(hs, want) > 0 ? { id: want, source: 'own', price: 0 } : { why: 'none' };",
     "  if (c && c.source === 'own' && !(leftOf(hs, want) > 0) && shopShotFor(hs, want)) return { id: shopShotFor(hs, want).id, source: 'store', price: shopShotFor(hs, want).price };\n  if (c && c.source === 'own') return leftOf(hs, want) > 0 ? { id: want, source: 'own', price: 0 } : { why: 'none' };", /^LV-\$/],
+  ['a bow shoots the whetstone an attack slot names (LV-RANGER, Andy 10-23)', 'src/core/hunt/damage.js',
+    '    if (!shootsItem(u.role, itemRow(h, id))) return null;\n', '', /^LV-RANGER/, [['src/core/hunt/conditions.js', 'SHOOTERS.some((r) => shootsItem(r, ITEMS[id]))', "!!ITEMS[id] && ITEMS[id].reqSkill !== 'magic'"]]],
+  ['a shot ability reads only the worn ammo (LV-RANGER, Andy 10-23)', 'src/core/hunt/abilities.js',
+    "    const id = slot.action.id === 'loaded' ? h.ammo : slot.action.id;", '    const id = h.ammo;', /^LV-RANGER/],
   ['the browser keeps every combat seed since the hunt began (LV-G)', 'src/hunt-view/live-engine.js',
     'const keepFrom = Math.max(Math.min(st.seeds.from, from), st.world ? st.world.swing : st.worldSwing);', 'const keepFrom = Math.min(st.seeds.from, from);', /^LV-G/],
   ['corpses are never cleared from the stored world (LV-G)', 'src/core/hunt/pull-cycle.js', 'if (u.deadMs >= HUNT_TUNING.corpseMs) gone = true;', 'if (false) gone = true;', /^LV-G/],
@@ -923,6 +1021,11 @@ const MUTANTS = [
   ['the assembled hero loses the hold pick (LV-HOLD)', 'src/core/member.js', '        hold: Number.isInteger(h.hold) ? h.hold : null,\n', '', /^LV-HOLD/],
   ['the browser drops the hold pick of a peer (LV-HOLD)', 'src/core/member.js', '    hero: f.hero || {},', '    hero: Object.assign({}, f.hero, { hold: null }),', /^LV-HOLD/],
   ['the settle drops hr_hunt_instance_read hold_seat (LV-HOLD)', 'supabase/functions/hr-accrue/hunt-settle.js', 'lead: m._leads, hold: m._hold });', 'lead: m._leads });', /^LV-HOLD/],
+  ["Follow reads only the leader's last blow (LV-TGT, Andy a08)", 'src/core/hunt/targeting.js',
+    "return on && on.alive && on.side === 'mon' ? on.id : inst.world.leaderLast;", 'return inst.world.leaderLast;', /^LV-TGT: closed: "Follow"/],
+  ['a melee follower keeps the monster it fights (LV-TGT, Andy a08)', 'src/core/hunt/targeting.js',
+    "const STEADY_MODES = Object.freeze(['strongest', 'follow']);", 'const STEADY_MODES = Object.freeze([]);', /^LV-TGT: closed: "Follow"/],
+  ['"Strongest" ranks nothing (LV-TGT)', 'src/core/hunt/targeting.js', '  strongest: () => (a, b) => b.maxHp - a.maxHp,', '  strongest: () => () => 0,', /^LV-TGT: closed: "Strongest"/],
 ];
 
 async function mutate() {
@@ -930,15 +1033,18 @@ async function mutate() {
   /* `--only <text>`: just the mutants whose name holds <text> (a lane proves its own rule without the whole sweep) */
   const at = process.argv.indexOf('--only');
   const list = at > 0 ? MUTANTS.filter(([name]) => name.includes(String(process.argv[at + 1] || ''))) : MUTANTS;
-  for (const [name, file, from, to, arm] of list) {
+  /* `more`: further [file, from, to] edits one mutant plants with its first (a rule two doors hold). */
+  for (const [name, file, from, to, arm, more] of list) {
     const base = mkdtempSync(join(tmpdir(), 'hr-live-'));
     try {
       cpSync(join(ROOT, 'src'), join(base, 'src'), { recursive: true });
       cpSync(join(ROOT, 'supabase', 'functions'), join(base, 'supabase', 'functions'), { recursive: true });
-      const f = join(base, file);
-      const src = readFileSync(f, 'utf8');
-      if (src.split(from).length !== 2) { console.error(`harness: anchor for "${name}" not found once`); process.exit(2); }
-      writeFileSync(f, src.replace(from, to));
+      for (const [fl, a, b] of [[file, from, to]].concat(more || [])) {
+        const f = join(base, fl);
+        const src = readFileSync(f, 'utf8');
+        if (src.split(a).length !== 2) { console.error(`harness: anchor for "${name}" not found once`); process.exit(2); }
+        writeFileSync(f, src.replace(a, b));
+      }
       let fails;
       try { fails = rules(await load(base)); } catch (e) { fails = ['threw: ' + e.message]; }
       const hit = fails.some((x) => arm.test(x));

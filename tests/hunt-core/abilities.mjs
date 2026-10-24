@@ -120,7 +120,7 @@ const cases = {
       return 'Flame Strike did not cast on a store rune beside the starter kit: ' + JSON.stringify([casts(sc), hs.tally, hs.purse]);
     }
     const v = kit();
-    const x = oneHero(M, {}, { hs: v, bar: [storeSlot('flame_volley')], range: 7, ammo: 'iron_arrows' }, [{ x: 15, y: 3 }, { x: 15, y: 4 }]);
+    const x = oneHero(M, { role: 'ranger' }, { hs: v, bar: [storeSlot('flame_volley')], range: 7, ammo: 'iron_arrows' }, [{ x: 15, y: 3 }, { x: 15, y: 4 }]);
     x.sc.rng = rngOf(M, 6);
     M.abilities.castAbilities(x.inst, x.sc);
     return JSON.stringify(casts(x.sc)) === '["flame_volley"]' && v.tally.bought.plain_fire_rune === 1 && v.bag.iron_arrows.left === 27
@@ -389,15 +389,33 @@ const cases = {
   /* AB-06: a shot ability spends its shots of the loaded ammo, per cast. */
   'ammo-per-shot': (M) => {
     const hs = supplySession(M, { bag: { iron_arrows: { loaded: 2 } } });
-    const { inst, sc } = oneHero(M, {}, { hs, bar: ['precision_shot'], range: 7, ammo: 'iron_arrows' }, [{ x: 15, y: 3 }]);
+    const { inst, sc } = oneHero(M, { role: 'ranger' }, { hs, bar: ['precision_shot'], range: 7, ammo: 'iron_arrows' }, [{ x: 15, y: 3 }]);
     sc.rng = rngOf(M, 3);
     M.abilities.castAbilities(inst, sc);
     if (hs.bag.iron_arrows.left !== 1) return 'a one-shot ability left ' + hs.bag.iron_arrows.left + ' of 2 arrows';
     const v = supplySession(M, { bag: { iron_arrows: { loaded: 2 }, chalked_fire_rune: { loaded: 2 } }, onEmpty: 'end' });
-    const x = oneHero(M, {}, { hs: v, bar: ['flame_volley'], range: 7, ammo: 'iron_arrows' }, [{ x: 15, y: 3 }, { x: 15, y: 4 }]);
+    const x = oneHero(M, { role: 'ranger' }, { hs: v, bar: ['flame_volley'], range: 7, ammo: 'iron_arrows' }, [{ x: 15, y: 3 }, { x: 15, y: 4 }]);
     x.sc.rng = rngOf(M, 4);
     M.abilities.castAbilities(x.inst, x.sc);
     return casts(x.sc).length === 0 && v.bag.chalked_fire_rune.left === 2 ? null : 'a three-shot volley fired on two arrows';
+  },
+  /* A SHOT ABILITY LOOSES THE BAR'S ARROWS (Andy 2026-10-23, Fremulon): a Ranger with NO ammo worn, his arrows
+     picked on the bar behind a Copper Whetstone slot, never cast Precision Shot (it read only the worn ammo). The
+     cast spends one of the arrows his basic would loose (the first attack slot that can shoot), never a whetstone;
+     with arrows in no slot it waits. */
+  'shot-ability-looses-the-bar-arrows': (M) => {
+    const atk = (id) => ({ action: { type: 'attack_with_item', id }, conditions: [], join: 'and' });
+    const play = (bar) => {
+      const hs = supplySession(M, { bag: { iron_arrows: { loaded: 2 }, copper_whetstone: { loaded: 5 } } });
+      const x = oneHero(M, { role: 'ranger' }, { hs, bar, range: 7, ammo: null }, [{ x: 15, y: 3, hp: 500, maxHp: 500 }]);
+      x.sc.rng = rngOf(M, 3);
+      M.abilities.castAbilities(x.inst, x.sc);
+      return { casts: casts(x.sc), arrows: hs.bag.iron_arrows.left, stones: hs.bag.copper_whetstone.left };
+    };
+    const got = play(['precision_shot', atk('copper_whetstone'), atk('iron_arrows')]);
+    if (JSON.stringify(got) !== JSON.stringify({ casts: ['precision_shot'], arrows: 1, stones: 5 })) return 'with arrows on the bar and none worn: ' + JSON.stringify(got) + ', want one Precision Shot on one Iron Arrow, no whetstone';
+    const none = play(['precision_shot', atk('copper_whetstone')]);
+    return none.casts.length === 0 && none.stones === 5 ? null : 'with only a whetstone on the bar Precision Shot cast on ' + JSON.stringify(none);
   },
   /* AB-09: a heal is capped at the missing HP (food no longer waits on it: consumables.js ALWAYS FIRES). */
   'heal-capped': (M) => {
@@ -622,6 +640,10 @@ const mutants = [
     edits: [['src/core/hunt/abilities.js', '    if (int(hero.mana) < c.mana) return false;', '']] },
   { name: 'a multi-shot ability may fire short', case: 'ammo-per-shot',
     edits: [['src/core/hunt/abilities.js', "      if (!shot) return { why: 'no_ammo' };", '      if (!shot) return { lines };']] },
+  { name: 'a shot ability reads only the worn ammo (Andy 10-23: Precision Shot never cast)', case: 'shot-ability-looses-the-bar-arrows',
+    edits: [['src/core/hunt/abilities.js', "    const id = slot.action.id === 'loaded' ? h.ammo : slot.action.id;", '    const id = h.ammo;']] },
+  { name: 'a shot ability looses a whetstone from the bar', case: 'shot-ability-looses-the-bar-arrows',
+    edits: [['src/core/hunt/abilities.js', '    if (!id || !shootsItem(hero.role, itemRow(h, id))) return null;', '    if (!id) return null;']] },
   { name: 'a heal is not capped at the missing HP', case: 'heal-capped',
     edits: [['src/core/hunt/abilities.js', '  const got = Math.max(0, Math.min(n, int(t.maxHp) - int(t.hp)));', '  const got = Math.max(0, n);']] },
   { name: 'Challenge pulls nothing', case: 'taunt-pulls-back',

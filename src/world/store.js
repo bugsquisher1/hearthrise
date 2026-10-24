@@ -13,9 +13,10 @@
 // players there); a reload forgets it, which is correct for a view. tests/world-no-authority.mjs fails the build
 // on any other write to G.
 // ════════════════════════════════════════════════════════════════════════
-import { SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.34';
-import { sceneFor } from './core/scene-route.js?v=0.2.34';
-import { HUNT_MAP_INDEX } from './hunt-maps.js?v=0.2.34';
+import { SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.38';
+import { SANDBOX } from '../data/world/sandbox.js?v=0.2.38';
+import { sceneFor } from './core/scene-route.js?v=0.2.38';
+import { HUNT_MAP_INDEX } from './hunt-maps.js?v=0.2.38';
 
 /** The display scratch, created on first use. The world's only write to G. */
 export function worldOf(G) {
@@ -23,9 +24,9 @@ export function worldOf(G) {
   return G._world;
 }
 
-/** The viewer picks the town or their home for a scene that is not a hunt. */
+/** The viewer picks the town or their home (or, while it is open, the 64 px sandbox) for a scene that is not a hunt. */
 export function setChoice(G, choice) {
-  worldOf(G).choice = choice === 'home' ? 'home' : 'town';
+  worldOf(G).choice = choice === 'home' ? 'home' : choice === 'sandbox' && SANDBOX.open ? 'sandbox' : 'town';
 }
 
 /** Where the local hero stood last on `map` ([x, y] whole tiles), or null. */

@@ -19,13 +19,13 @@
 //   Names only: drop odds a player sees come from the server's catalogue and the Bestiary
 //   (ART_DIRECTION §8), so none is shown here.
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_GROUNDS } from '../data/hunt-grounds.js?v=0.2.34';
-import { MONSTERS } from '../data/monsters.js?v=0.2.34';
-import { ITEMS } from '../data/items.js?v=0.2.34';
-import { bandOf } from '../core/drops.js?v=0.2.34';
-import { REVEAL_BANDS } from '../data/loot-bands.js?v=0.2.34';
-import { ARMOUR_WEIGHT } from '../data/core-model.js?v=0.2.34';
-import { armourLineWord } from '../data/gear-tiers.js?v=0.2.34';
+import { HUNT_GROUNDS } from '../data/hunt-grounds.js?v=0.2.38';
+import { MONSTERS } from '../data/monsters.js?v=0.2.38';
+import { ITEMS } from '../data/items.js?v=0.2.38';
+import { bandOf } from '../core/drops.js?v=0.2.38';
+import { REVEAL_BANDS } from '../data/loot-bands.js?v=0.2.38';
+import { ARMOUR_WEIGHT } from '../data/core-model.js?v=0.2.38';
+import { armourLineWord } from '../data/gear-tiers.js?v=0.2.38';
 
 /* How common a creature is, by its share of the ground's spawn points: at least `common` is common,
    under `rare` is rare, between is uncommon (Tyler 10-18: a common majority, some uncommon, one or two rare). */

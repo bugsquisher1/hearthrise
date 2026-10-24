@@ -231,13 +231,14 @@ async function signInAndPlay(page, base) {
   return wait(page, () => document.querySelector('.hs-launchers'));
 }
 
-/* A new full envelope, the way the live game gets one: a skipped frame makes the client re-read. */
+/* A new full envelope, the way the live game gets one: a settle the SERVER committed (the world tick, another
+   member's hello) pushed as a frame carrying the whole character at the next version (2026-12-25-frame-push-
+   revive.sql), applied like a load. The stub's settle hook runs as for a plain settle (`s.onCall`, no verb), but no
+   call is logged: the client asked for nothing. */
 async function pushEnvelope(page, s) {
-  const frame = s.version + 2;
-  s.version = frame;
-  const before = s.calls.filter((c) => c.name === 'hr-accrue').length;
-  await page.evaluate(([uid, f, st]) => window.__hub.send('hr:' + uid + ':0', { t: 'delta', frame: f, patch: { state: st } }), [UID, frame, s.env.state]);
-  for (let i = 0; i < 60 && s.calls.filter((c) => c.name === 'hr-accrue').length <= before; i++) await page.waitForTimeout(50);
+  if (s.onCall) s.onCall('hr-accrue', {});
+  const e = s.next();
+  await page.evaluate(([uid, env]) => window.__hub.send('hr:' + uid + ':0', { t: 'state', frame: env.version, env }), [UID, e]);
   await page.waitForTimeout(250);
 }
 
@@ -858,7 +859,7 @@ async function checks(overrides, shots) {
           fails.push('AW-16 with the Inventory docked the camera shows past the map: map ' + JSON.stringify([tl.x - half, tl.y - half, br.x + half, br.y + half].map(Math.round)) + ' vs canvas ' + JSON.stringify([box.left, box.top, box.right, box.bottom].map(Math.round)));
         /* The capacity bar and the gold under the two columns. */
         const foot = await page.evaluate(() => ({ cap: document.querySelector('.hw-captext').textContent, gold: document.querySelector('.hw-gold').textContent }));
-        if (!/ of 40 spaces$/.test(foot.cap) || foot.gold !== '5,200 gp') fails.push('AW-14 the Inventory foot reads ' + JSON.stringify(foot));
+        if (!/ of 40 spaces$/.test(foot.cap) || foot.gold !== 'Your gold 5,200 gp') fails.push('AW-14 the Inventory foot reads ' + JSON.stringify(foot));
         if (shots) await shot(page, 'alpha-1440x900-inventory-town');
         /* AW-14 going hunting is two presses from town: the mill hatch opens Hunts on the Mill Cellar, Enter goes. */
         await page.keyboard.press('Escape');
@@ -951,6 +952,7 @@ async function checks(overrides, shots) {
         if (g0 !== '0:true:Hunt:Melee · on now:4:iron_sword.png|1:false:Bow:Ranger:0:shortbow.png') fails.push('AW-26 Go as reads ' + JSON.stringify(g0));
         /* AW-27 BEFORE YOU GO: what the bar spends, in slot order, from the server's bar, bag and gold. */
         const before = () => page.evaluate((w) => Array.from(document.querySelectorAll(w + '.hw-before-line')).map((li) => (li.classList.contains('is-short') ? '!' : '') + li.textContent).join(' | '), W);
+        /* Flame Strike's slot names its store rune: carried runes first, then the store's a cast, and the gold pays it. */
         const b0 = await before();
         if (b0 !== 'Runes: 40 Fire runes of yours, then Plain Fire Rune from the store, 1 gp a cast | Food: 14 Wheat Bread of yours | Drink: 6 Goldenroot Tea of yours | Stamina: 30 min left, then the hunt ends. | Gold: 5,200 gp pays the store as you use it.')
           fails.push('AW-27 Before you go reads ' + JSON.stringify(b0));

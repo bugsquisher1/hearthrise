@@ -8,20 +8,21 @@
 // slot editor changes any of it. The bar on screen changes only when the
 // server's re-read envelope says so.
 // ════════════════════════════════════════════════════════════════════════
-import { BAR_SLOTS } from '../data/hunt-hud.js?v=0.2.34';
-import { ITEMS } from '../data/items.js?v=0.2.34';
-import { isRune } from '../data/supplies.js?v=0.2.34';
-import { settingsOf, wireSlot } from '../session/hunt-sections.js?v=0.2.34';
-import { kindOf } from './bag-model.js?v=0.2.34';
-import { startConditions } from './bar-draft.js?v=0.2.34';
+import { BAR_SLOTS } from '../data/hunt-hud.js?v=0.2.38';
+import { attackItem } from '../core/hunt/conditions.js?v=0.2.38';
+import { settingsOf, wireSlot } from '../session/hunt-sections.js?v=0.2.38';
+import { kindOf } from './bag-model.js?v=0.2.38';
+import { startConditions } from './bar-draft.js?v=0.2.38';
 
 const SLOTS = BAR_SLOTS.rows * BAR_SLOTS.cols;
 
 /** Can this item go on a bar slot at all? */
 export function barKind(id) {
   const k = kindOf(id);
-  /* A rune is no ammo (Tyler 2026-10-23: runes fuel spells only, chosen on a spell's slot): it has no bar slot of its own. */
-  if (k === 'ammo' && isRune(ITEMS[id])) return null;
+  /* Only an ammo some weapon can shoot (conditions.js attackItem, the server's hr_hunt_action_ids): a rune fuels spells
+     only (Tyler 2026-10-23, chosen on a spell's slot) and a whetstone sharpens a Melee weapon from the ammo slot (Andy
+     a41: no one's shot), so neither has a bar slot of its own. */
+  if (k === 'ammo' && !attackItem(id)) return null;
   return k === 'food' || k === 'drink' || k === 'ammo' ? k : null;
 }
 

@@ -183,6 +183,16 @@ const LIVE = [
 
 /** Seed the ledger. INSERT is the one verb hr_ledger_immutable permits. */
 async function seed(db) {
+  /* From 2026-12-15-account-gold.sql on, a gold row states its account purse, so each account
+     needs a purse (and the auth user it hangs off) before its history can be journalled. */
+  const purses = (await db.query(`select exists (select 1 from information_schema.columns where table_schema = 'public'
+      and table_name = 'account_wallet' and column_name = 'gold') as a`)).rows[0].a;
+  if (purses) {
+    for (const u of [U1, U2]) {
+      await db.query('insert into auth.users (id) values ($1) on conflict (id) do nothing', [u]);
+      await db.query('insert into public.account_wallet (user_id) values ($1) on conflict (user_id) do nothing', [u]);
+    }
+  }
   const rows = [
     ...AGED.map((r) => [...r, true]),
     ...LIVE.map((r) => [...r, false]),

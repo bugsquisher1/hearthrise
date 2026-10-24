@@ -60,6 +60,8 @@ import { applyPanelAlpha, clearPanelAlpha } from './panel-alpha.js?v=0.2.44';
 const DISPLAY_TICK_MS = 250;
 /* How far a press on a window's head must travel before it is a drag (a click never floats a window). */
 const DRAG_SLOP_PX = 5;
+/* The widgets the coach card hangs under (launcher.js: the icon row in town, the hunt bar in a hunt). */
+const COACH_HOSTS = '[data-hs-widget="launchers"], [data-hs-widget="hunt-topbar"]';
 /* The DOM events a renderer may opt into with `.events` (click and change always reach `.act`). */
 const EXTRA_EVENTS = Object.freeze(['input', 'keydown', 'contextmenu', 'pointerdown', 'pointerup', 'pointercancel',
   'dragstart', 'dragover', 'dragleave', 'drop', 'dragend', 'mouseover', 'mouseout', 'focusin']);
@@ -255,6 +257,20 @@ export function mountShell(root, o) {
     }
     stackWidgets();
     publishInset();
+    roomForCoach();
+  }
+
+  /* The coach card hangs under its host (the hunt bar in a hunt, the icon row in town: launcher.js) and must end
+     above the action bar. Each host widget carries --coach-room, the px from its foot to the bar's top (the World's
+     foot when no bar shows), whether or not a card shows yet (a display tick may draw one); the phone caps the card
+     to it (shell.css). Measured after every repaint and resize, never a constant. */
+  function roomForCoach() {
+    const bar = worldHud.querySelector('[data-hs-widget="action-bar"]');
+    const floor = bar && bar.offsetWidth ? bar.getBoundingClientRect().top : worldHud.getBoundingClientRect().bottom;
+    for (const w of [worldHud, screenHud].flatMap((b) => Array.from(b.querySelectorAll(COACH_HOSTS)))) {
+      const v = Math.max(0, Math.floor(floor - w.getBoundingClientRect().bottom)) + 'px';
+      if (w.style.getPropertyValue('--coach-room') !== v) w.style.setProperty('--coach-room', v);
+    }
   }
 
   /* A widget that stacks (a row's `below`: the tally) sits under the widgets it names on its edge, wherever

@@ -39,13 +39,13 @@
 -- A shield is a catalogue fact (hr_hunt_shields, generated); a client sends no key.
 --
 -- ── ORDER ───────────────────────────────────────────────────────────────────
--- After 2027-01-11-hunt-sessions-catalogue.generated.sql (hr_hunt_shields and the
+-- After 2027-01-13-hunt-sessions-catalogue.generated.sql (hr_hunt_shields and the
 -- discipline / with_shield columns; §0 refuses without them), applied RIGHT AFTER
 -- it: between the two the old settings view finds no role discipline. Then deploy
 -- the hr-accrue edge of this lane (it keys the hero on the worn set too).
 -- REVERSIBILITY: re-apply hr_hunt_weapon_of from 2026-10-23-hunt-party.sql,
 -- hr_hunt_settings_view from 2026-11-17-hunt-density-home.sql and the role rules
--- from 2027-01-11-spell-content.sql. No begin/commit (CLAUDE.md §2).
+-- from 2027-01-13-spell-content.sql. No begin/commit (CLAUDE.md §2).
 -- ════════════════════════════════════════════════════════════════════════
 
 -- ── §0 PRECONDITIONS AND THE PINS ────────────────────────────────────────────
@@ -57,7 +57,7 @@ begin
      or not exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'hr_hunt_weapon_roles' and column_name = 'discipline')
      or exists (select 1 from public.hr_hunt_weapon_roles where discipline is null)
      or not exists (select 1 from public.hr_hunt_weapon_roles where with_shield is not null) then
-    raise exception 'PRECONDITION: apply 2027-01-11-hunt-sessions-catalogue.generated.sql first (hr_hunt_shields, the role keys'' disciplines and shield arms)'; end if;
+    raise exception 'PRECONDITION: apply 2027-01-13-hunt-sessions-catalogue.generated.sql first (hr_hunt_shields, the role keys'' disciplines and shield arms)'; end if;
   -- hr_hunt_settings_view: the live image (tests/live-hash-drift.baseline.json, measured 2026-10-23), or this file's own.
   select prosrc into v_src from pg_proc where oid = 'public.hr_hunt_settings_view(uuid,integer)'::regprocedure;
   v_def := md5(regexp_replace(pg_get_functiondef('public.hr_hunt_settings_view(uuid,integer)'::regprocedure), '[[:space:]]+', ' ', 'g'));
@@ -72,7 +72,7 @@ end $mig$;
 -- ── §1 THE ROLE KEY OF THE WORN SET ──────────────────────────────────────────
 create or replace function public.hr_hunt_weapon_of(p_user uuid, p_slot int)
 returns text language sql stable set search_path = public, pg_catalog as $$
-  -- SPELL-ROLES (2027-01-11-spell-roles.sql): the weapon's key (hr_hunt_weapons; unarmed = neutral), turned into its
+  -- SPELL-ROLES (2027-01-13-spell-roles.sql): the weapon's key (hr_hunt_weapons; unarmed = neutral), turned into its
   -- shield arm (hr_hunt_weapon_roles.with_shield) when the shield slot holds a shield (hr_hunt_shields).
   with k as (
     select coalesce((select w.weapon_type from public.player_equipment pe
@@ -118,7 +118,7 @@ declare
 begin
   select * into s from public.hunt_sessions h where h.user_id = p_user and h.slot = p_slot and h.ended_at is null
    order by h.entered_at desc limit 1;
-  -- SPELL-ROLES (2027-01-11-spell-roles.sql): the abilities the bar may hold are the worn set's ROLE KEY's discipline
+  -- SPELL-ROLES (2027-01-13-spell-roles.sql): the abilities the bar may hold are the worn set's ROLE KEY's discipline
   -- (hr_hunt_weapon_roles.discipline over hr_hunt_weapon_of: the weapon and the shield beside it), never the role's;
   -- the role default slots are kept to that discipline (as the engine's heroSlots keeps them); `discipline` is projected.
   -- DENSITY-HOME (2026-11-17-hunt-density-home.sql): no `density` key; the pick per ground is the hunt_density section.

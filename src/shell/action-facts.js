@@ -67,7 +67,7 @@ function weaponsOf(roles) {
 /* WHAT THE WORN WEAPON CAN SHOOT, in words: the engine's own rule (hunt-roles.js shootsItem; damage.js pickShot
    passes over any other item, Andy 2026-10-23: a bow loosed Copper Whetstones from an attack slot). '' when the
    hero's weapon (the server's role) can shoot the slot's item, or the slot is no item attack. A whetstone and a
-   rune are no one's shot (the server refuses either in an attack slot: 2027-01-11-slot-truth.sql). */
+   rune are no one's shot (the server refuses either in an attack slot: 2027-01-13-slot-truth.sql). */
 function shotProblem(a, role) {
   if (!a || a.type !== 'attack_with_item' || own(ATTACK_KINDS, a.id)) return '';
   const it = ITEMS[a.id];

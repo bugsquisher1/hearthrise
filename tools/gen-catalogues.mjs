@@ -78,8 +78,8 @@ const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'))
    Smithing recipes (hr_activities artisan rows) and every bow two-handed (hr_items.two_handed: a bow carries no shield).
    THE SPELL RELEASE (v0.2.39 integration): ONE forward file ON TOP of the APPLIED 2026-12-20-loot-catalogue, carrying the
    rune families and the shields (the staged 12-22 and 12-24 files collapsed into it, never applied): the same full replace,
-   FIRST of the release's files (2027-01-11-rune-ladder-cut.sql and the hunt-sessions catalogue read its items). */
-const OUT = join(ROOT, 'supabase', 'migrations', '2027-01-11-items-catalogue.generated.sql');
+   FIRST of the release's files (2027-01-13-rune-ladder-cut.sql and the hunt-sessions catalogue read its items). */
+const OUT = join(ROOT, 'supabase', 'migrations', '2027-01-13-items-catalogue.generated.sql');
 /* THE SECOND GENERATED FILE (2026-09-13). hr_item_buffs is emitted as its own
    migration rather than into OUT above, and that is a deliberate operational
    call: OUT is the FOURTH file in tests/schema-apply-order.json and is already

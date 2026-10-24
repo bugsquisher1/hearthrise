@@ -540,14 +540,18 @@
 .hs-widget.is-alerts:has(.hw-alerts.is-empty) { pointer-events: none; }
 .hw-alerts.is-empty { display: none; }
 .hw-alert-list { display: flex; flex-direction: column; gap: 4px; margin: 0; padding: 0; list-style: none; width: 360px; max-width: calc(100vw - 24px); }
+/* Each alert is a HUD plate in the thin steel frame; its kind is the 4 px bar inside its left edge (gold a rare
+   find, red a fall, steel the rest). */
 .hw-alert {
   display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px;
-  padding: 4px 4px 4px 8px;
-  background: var(--world-hud-bg); border-left: 2px solid var(--ink-3);
+  padding: 2px 2px 2px 12px;
+  background: var(--hud-fill); border: 6px solid transparent;
+  border-image: url('../../assets/ui/steel-frame-thin.png') 3 / 6px stretch; image-rendering: pixelated;
+  box-shadow: inset 4px 0 0 var(--ink-3);
   font-size: var(--t-small); color: var(--ink);
 }
-.hw-alert[data-kind="rare"] { border-left-color: var(--gold); }
-.hw-alert[data-kind="fall"] { border-left-color: var(--red); }
+.hw-alert[data-kind="rare"] { box-shadow: inset 4px 0 0 var(--gold); }
+.hw-alert[data-kind="fall"] { box-shadow: inset 4px 0 0 var(--red); }
 .hw-alert-glyph { display: grid; place-items: center; flex: none; color: var(--ink-2); }
 .hw-alert[data-kind="rare"] .hw-alert-glyph { color: var(--gold-2); }
 .hw-alert-glyph .hs-glyph { width: 18px; height: 18px; }
@@ -559,7 +563,7 @@
 .hw-alert-x .hs-glyph { width: 14px; height: 14px; }
 @media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
   .hw-alert-list { width: 300px; }
-  .hw-alert { font-size: var(--t-micro); padding: 2px 2px 2px 6px; }
+  .hw-alert { font-size: var(--t-micro); padding: 0 0 0 10px; }
 }
 
 /* ── Report a problem (src/shell/windows/report.js): one text box, the details ride along ── */

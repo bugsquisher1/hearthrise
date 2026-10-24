@@ -27,40 +27,44 @@
 .hs-widget.is-under-dock { visibility: hidden; }
 
 /* ── Players online (widgets/online.js): one quiet line on the world, a small green dot, the server's number ── */
-.hs-online { display: flex; align-items: center; gap: 6px; margin: 0; padding: 2px 8px; background: var(--bg-1); font-size: var(--t-micro); color: var(--ink-2); white-space: nowrap; font-variant-numeric: lining-nums tabular-nums; }
+.hs-online { display: flex; align-items: center; gap: 6px; margin: 0; padding: 2px 8px; background: var(--hud-fill); font-size: var(--t-micro); color: var(--ink-2); white-space: nowrap; font-variant-numeric: lining-nums tabular-nums; }
 .hs-online-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
 
 /* ── Tamsin's tally (widgets/tally-hud.js): each held kill task's server count on a notched stick ── */
-.hs-tally { display: flex; flex-direction: column; gap: 4px; padding: 6px 8px; background: var(--bg-1); }
+.hs-tally { display: flex; flex-direction: column; gap: 4px; padding: 4px 6px; background: var(--hud-fill);
+  border: 6px solid transparent; border-image: url('../../assets/ui/steel-frame-thin.png') 3 / 6px stretch; image-rendering: pixelated; }
 .hs-widget.is-tally.is-quiet { display: none; }
 .hs-tally-open { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 0; border: 0; background: none; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
-.hs-tally-open b { font-family: var(--f-label); font-weight: 700; font-size: var(--t-micro); letter-spacing: .04em; color: var(--gold-2); }
+.hs-tally-open b { font-family: var(--f-display); font-weight: 700; font-size: var(--t-micro); letter-spacing: .1em; color: var(--gold-2); }
 .hs-tally-open:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: 2px; }
 .hs-tally-none { font-size: var(--t-micro); color: var(--ink-2); }
 .hs-tally-none:empty { display: none; }
 .hs-tally-list { margin: 0; padding: 0; list-style: none; }
 .hs-tally-row { font-size: var(--t-micro); color: var(--ink); white-space: nowrap; font-variant-numeric: lining-nums tabular-nums; }
 /* The split tally stick: a notch every tenth of the count, the server's kills as the cut part; gold once done. */
-.ht-stick { display: block; height: 6px; margin: 3px 0 2px; background-color: var(--bg-0);
+.ht-stick { display: block; height: 8px; margin: 3px 0 2px; background-color: var(--bg-0); box-shadow: var(--steel-well);
   background-image: repeating-linear-gradient(90deg, transparent 0 calc(10% - 1px), var(--line-soft) calc(10% - 1px) 10%); }
 .ht-stick i { display: block; height: 100%; background: var(--ink-2); }
 .is-done > .ht-stick i, .is-done .ht-stick i { background: var(--gold); }
 
 /* ── The launcher row: icons only, a tooltip with label and key, the open one lit gold ── */
-.hs-launchers { display: flex; align-items: stretch; height: 40px; padding-left: 10px; background: var(--bg-1); border-left: 1px solid var(--line-soft); }
+.hs-launchers { display: flex; align-items: stretch; height: 40px; padding-left: 10px; background: var(--bg-1); border-left: 2px solid var(--steel-sep); }
 .hs-launch { position: relative; width: 40px; height: 100%; padding: 0; display: grid; place-items: center; border: 0; background: none; cursor: pointer; color: var(--ink-3); font: inherit; }
 .hs-launch:hover, .hs-launch:focus-visible { color: var(--ink); }
 /* The first-minute pointer (launcher.js): one line hanging under the Hunts icon, the first in the row. */
 .hs-launchers { position: relative; }
+/* A Forged Steel popup (the thin steel frame, solid), the gold bar at its left: the game is speaking to you. */
 .hs-pointer {
-  position: absolute; top: calc(100% + 8px); left: 10px; z-index: 5; width: 260px; margin: 0; padding: 6px 10px;
-  background: var(--modal-bg); border-left: 2px solid var(--gold); box-shadow: 0 6px 16px color-mix(in srgb, var(--world-shadow) 50%, transparent);
+  position: absolute; top: calc(100% + 12px); left: 10px; z-index: 5; width: 260px; margin: 0; padding: 4px 8px 6px 14px;
+  background: var(--bg-2); border: 6px solid transparent; border-image: url('../../assets/ui/steel-frame-thin.png') 3 / 6px stretch; image-rendering: pixelated;
+  box-shadow: inset 4px 0 0 var(--gold), 0 6px 16px color-mix(in srgb, var(--world-shadow) 50%, transparent);
   font-size: var(--t-micro); line-height: 1.35; color: var(--ink-2); pointer-events: none;
 }
 /* In a hunt the card hangs under the hunt top bar (hunt-topbar.js), inside that widget's own box. */
 .hs-widget > .hs-pointer { left: 0; width: min(260px, 100%); }
-.hs-pointer b { display: block; color: var(--gold-2); }
-.hs-pointer::before { content: ''; position: absolute; top: -6px; left: 14px; border: 6px solid transparent; border-top: 0; border-bottom-color: var(--gold); }
+.hs-pointer b { display: block; font-family: var(--f-display); font-weight: 700; letter-spacing: .06em; color: var(--gold-2); }
+/* The pointer's tip stands on the frame's top edge (the frame is 6 px). */
+.hs-pointer::before { content: ''; position: absolute; top: -12px; left: 10px; border: 6px solid transparent; border-top: 0; border-bottom-color: var(--gold); }
 /* The coach folds (launcher.js coachFoldOf): a dash at the card's corner folds it to its title, a tab that opens it;
    a new card while folded marks the tab with the bag's "new" square. Only the two controls take presses. */
 .hs-pointer:not(.is-min) { padding-right: 34px; }
@@ -68,7 +72,7 @@
 .hs-coach-min::after { content: ''; width: 10px; height: 2px; background: currentColor; }
 .hs-coach-min:hover, .hs-coach-tab:hover { color: var(--ink); }
 .hs-pointer.is-min, .hs-widget > .hs-pointer.is-min { width: auto; padding: 0; }
-.hs-coach-tab { display: flex; align-items: center; gap: 6px; min-height: 28px; padding: 0 10px; border: 0; background: none; font-family: var(--f-label); font-weight: 700; font-size: var(--t-micro); color: var(--gold-2); white-space: nowrap; cursor: pointer; pointer-events: auto; }
+.hs-coach-tab { display: flex; align-items: center; gap: 6px; min-height: 28px; padding: 0 10px; border: 0; background: none; font-family: var(--f-display); font-weight: 700; font-size: var(--t-micro); color: var(--gold-2); white-space: nowrap; cursor: pointer; pointer-events: auto; }
 .hs-coach-new { width: 6px; height: 6px; flex: none; background: var(--gold-2); box-shadow: 0 0 0 1px var(--bg-0); }
 .hs-coach-min:focus-visible, .hs-coach-tab:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: -2px; }
 .hs-launch:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: -4px; }
@@ -79,7 +83,8 @@
   position: absolute; top: calc(100% + 6px); right: 0;
   padding: 3px 8px; white-space: pre;
   font-family: var(--f-ui); font-size: var(--t-micro); font-weight: 700; color: var(--ink);
-  background: var(--world-hud-bg); border: 1px solid var(--line-soft); border-radius: var(--r);
+  background: var(--bg-2); border: 6px solid transparent; border-radius: 0;
+  border-image: url('../../assets/ui/steel-frame-thin.png') 3 / 6px stretch; image-rendering: pixelated;
   opacity: 0; pointer-events: none; transition: opacity 120ms ease-out;
 }
 .hs-launch:hover::before, .hs-launch:focus-visible::before { opacity: 1; }

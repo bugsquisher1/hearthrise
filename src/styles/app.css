@@ -107,13 +107,16 @@
   .slot-offer { gap: 4px; padding-top: 6px; }
 }
 
+/* Forged Steel: the strip stands on a steel edge (the thin frame's bottom run, 3 art px = 6 px) over the World. */
 .char-strip {
   display: flex;
   align-items: stretch;
   gap: 0.25rem;
   padding: 0 0.5rem;
   background: var(--bg-1);
-  border-bottom: 1px solid var(--line);
+  border-bottom: 6px solid transparent;
+  border-image: url('../../assets/ui/steel-frame-thin.png') 3 / 0 0 6px 0 stretch;
+  image-rendering: pixelated;
   flex-shrink: 0;
 }
 /* One tab per open character (src/app/character-strip.js): role, name, doing, three thin bars, the alert badge. */

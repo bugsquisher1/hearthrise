@@ -11,8 +11,10 @@
 //                     "new" marks
 //   scratch           the search text, the selection, the cursor, the open
 //                     menu, the open doll slot and the confirmation, an intent
-//                     in flight. Display only: nothing reads it but this
-//                     window, nothing spends it.
+//                     in flight and its words (`msg`) with the line it was
+//                     pressed on (`msgAt`: 'pick:<item>', 'slot', 'upgrade', or null
+//                     for the window's own line). Display only: nothing reads
+//                     it but this window, nothing spends it.
 //   the town ticker   what running town work has certainly done since the
 //                     server's watermark (`tick`, town-work.js tickOf): the
 //                     pockets show it as pending; `items` and `qty`, which every
@@ -36,7 +38,7 @@ export function scratchOf(cs) {
   let s = SCRATCH.get(cs);
   if (!s) {
     s = { tab: 'bag', query: '', sel: new Set(), cursor: null, anchor: null, menu: null, menuOwner: null, confirm: null, slot: null,
-      pending: false, wearing: null, msg: '', shownNew: new Set(), press: null, pressed: false };
+      pending: false, wearing: null, msg: '', msgAt: null, shownNew: new Set(), press: null, pressed: false };
     SCRATCH.set(cs, s);
   }
   return s;

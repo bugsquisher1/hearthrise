@@ -82,7 +82,7 @@ export function clientCodes(root) {
 
 async function load(root) {
   const u = (p) => pathToFileURL(join(root, p)).href;
-  return { IW: await import(u('src/shell/intent-words.js')), RW: await import(u('src/data/refusal-words.js')),
+  return { IW: await import(u('src/shell/intent-words.js')), RW: await import(u('src/data/refusal-words.js')), IL: await import(u('src/shell/item-lore.js')),
     CS: await import(u('src/session/character-session.js')), root };
 }
 
@@ -105,7 +105,10 @@ const CLAIMS = {
   RW3: (M) => {
     const out = [];
     const with1 = M.IW.refusalText({ ok: false, error: 'requirement_not_met', item: 'iron_platelegs' }, csWith({ defense: { xp: 0, level: 1 } }));
-    if (with1 !== 'Iron Platelegs needs Defense 15 (you have 1).') out.push('RW3 the Iron Platelegs refusal reads ' + JSON.stringify(with1));
+    if (with1 !== 'Iron Platelegs needs Defense 15 — you have 1.') out.push('RW3 the Iron Platelegs refusal reads ' + JSON.stringify(with1));
+    /* whatever the requirement names (Tyler 2026-10-24: gear moves to Level gates, supplies and runes keep skills) */
+    const words = [M.IL.needWords('level', 30, 28), M.IL.needWords('magic', 20, 14), M.IL.needWords('level', 30, null)].join('|');
+    if (words !== 'Needs Level 30 — you\'re 28|Needs Magic 20 — you have 14|Needs Level 30') out.push('RW3 the requirement words read ' + JSON.stringify(words));
     const bare = M.IW.refusalText({ ok: false, error: 'requirement_not_met', item: 'iron_platelegs' });
     if (bare !== 'Iron Platelegs needs Defense 15.') out.push('RW3 without a character it reads ' + JSON.stringify(bare));
     const noItem = M.IW.refusalText({ ok: false, error: 'requirement_not_met' });
@@ -125,6 +128,18 @@ const CLAIMS = {
     if (forged.item !== null) out.push('RW4 a malformed item id was handed on: ' + JSON.stringify(forged));
     return out;
   },
+  RW5: async (M) => {
+    /* Tyler 2026-10-24 ("Gear swapping isn't working"): the engine's mid-hunt equip refusal (equip.js: hunt_open, the
+       verb echoed) reads as what to do, through the real session reader; another verb's hunt_open keeps its own line. */
+    const out = [];
+    const cs = new M.CS.CharacterSession({ slot: 0, uid: 'u', server: { intents: null } });
+    const r = await cs._settled({ ok: false, status: 409, body: { ok: false, verb: 'equip', error: 'hunt_open' } });
+    const said = M.IW.refusalText(r);
+    if (said !== 'Leave the hunt to change gear.') out.push('RW5 an equip mid-hunt reads ' + JSON.stringify(said) + ' (' + JSON.stringify(r) + ')');
+    const other = M.IW.refusalText({ ok: false, error: 'hunt_open', verb: 'set_activity' });
+    if (other !== M.RW.REFUSAL_WORDS.hunt_open) out.push('RW5 another verb\'s hunt_open reads ' + JSON.stringify(other));
+    return out;
+  },
 };
 
 async function run(root) {
@@ -140,7 +155,10 @@ const MUTANTS = [
   ['RW1', 'the old one-word fallback for every unlisted code', 'src/shell/intent-words.js', '  return (typeof code === \'string\' && familyWords(code)) || REFUSAL_FALLBACK;', '  return REFUSAL_FALLBACK;'],
   ['RW2', 'the fallback says nothing about what changed', 'src/data/refusal-words.js', "export const REFUSAL_FALLBACK = 'That did not go through, so nothing was changed. Try again in a moment.';", "export const REFUSAL_FALLBACK = 'Not done: the server refused it.';"],
   ['RW3', 'the requirement is not said with its numbers', 'src/shell/intent-words.js', '    const w = requirementWords(r.item, cs);', '    const w = null;'],
-  ['RW3', 'the hero\'s own level is not read', 'src/shell/intent-words.js', '  const sk = cs ? skillsOf(cs) : null;', '  const sk = null;'],
+  ['RW3', 'the hero\'s own level is not read', 'src/shell/intent-words.js', '  const need = it ? needOf(item, cs ? skillsOf(cs) : null, lv ? lv.level : null) : null;', '  const need = it ? needOf(item, null, null) : null;'],
+  ['RW3', 'a Level requirement reads as a skill', 'src/shell/item-lore.js', "  return 'Needs ' + (level ? 'Level' : skillName(req)) + ' ' + lv", "  return 'Needs ' + skillName(req) + ' ' + lv"],
+  ['RW5', 'an equip mid-hunt reads as the generic hunt line', 'src/shell/intent-words.js', '  return refusalWords(r && r.error, r && r.verb);', '  return refusalWords(r && r.error);'],
+  ['RW5', 'the session drops the verb', 'src/session/refusal.js', "    verb: typeof b.verb === 'string' && /^[a-z_]{1,32}$/.test(b.verb) ? b.verb : null,\n", ''],
   ['RW4', 'the session drops the item', 'src/session/refusal.js', '    field: typeof b.field === \'string\' ? b.field.slice(0, 32) : null, item,\n', '    field: typeof b.field === \'string\' ? b.field.slice(0, 32) : null,\n'],
 ];
 

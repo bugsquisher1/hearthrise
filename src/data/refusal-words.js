@@ -18,6 +18,12 @@ import { MAX_CONDITIONS } from './condition-metrics.js?v=0.2.38';
 
 export const REFUSAL_FALLBACK = 'That did not go through, so nothing was changed. Try again in a moment.';
 
+/* A code that reads better for the verb the engine refused (its answer echoes `verb`): verb -> code -> line, checked
+   before REFUSAL_WORDS. Gear is changed in town (equip.js refuses an equip while the hero's hunt is open). */
+export const REFUSAL_VERB_WORDS = Object.freeze({
+  equip: Object.freeze({ hunt_open: 'Leave the hunt to change gear.' }),
+});
+
 export const REFUSAL_WORDS = Object.freeze({
   /* The connection and the session. */
   rate_limited: 'Too many changes at once. Try again in a moment.',
@@ -133,7 +139,7 @@ export const REFUSAL_WORDS = Object.freeze({
   too_many_conditions: 'A slot takes at most ' + MAX_CONDITIONS + ' conditions.',
   store_off: 'This hero is set to end the hunt rather than buy from the store.',
   /* Hunts. */
-  hunt_open: 'Not while a hunt is running.',
+  hunt_open: 'Not while a hunt is running.',   // an equip's own line: REFUSAL_VERB_WORDS
   hunting: 'Not while a hunt is running.',
   hunt_leaving: 'This hero is already on the way back to town.',
   no_hunt: 'There is no hunt running.',

@@ -77,7 +77,10 @@
 //         cooks; Sell all loot keeps it; a level under the recipe's says so in words
 //   AW-21 EQUIP UPGRADES: ONE equip intent naming every strictly better piece (never the weapon
 //         or a piece above the hero's skill), its slots and stacks marked until the answer, a
-//         refusal in words with nothing moved, the Shop's offer after a gear purchase, a reload agrees
+//         refusal in words with nothing moved, the Shop's offer after a gear purchase, a reload agrees;
+//         the screen never offers what the server refuses (Tyler 2026-10-24): an unmet requirement
+//         (the server's numbers) or a running hunt turns Equip / Equip upgrades off with the reason
+//         beside it, and a refusal says why on the line pressed, in view
 //   AW-22 GATHERING AND CRAFTING (designer 2026-10-22: the town skills had no door):
 //         each gathering and bench skill in the ledger opens its work; a row shows what
 //         the server's level opens (and the next two, "Needs Woodcutting 15"); Start is
@@ -195,8 +198,13 @@ async function stub(page, s) {
     if (name === 'hr-accrue') {
       if (body.verb) {
         await new Promise((ok) => setTimeout(ok, s.delayMs));
-        /* A refusal the next intent gets (AW-21), the engine's shape: nothing moved, the code says why. */
-        if (s.refuse) { const error = s.refuse; s.refuse = null; return json({ ok: false, verb: body.verb, error }); }
+        /* A refusal the next intent gets (AW-21), the engine's shape (equip.js refusalBody): HTTP 409, nothing moved,
+           the whole character at its version riding the answer, the verb echoed, the code saying why. */
+        if (s.refuse) {
+          const error = s.refuse; s.refuse = null;
+          return r.fulfill({ status: 409, contentType: 'application/json',
+            body: JSON.stringify(Object.assign(clone(s.env), { version: s.version, ok: false, verb: body.verb, error })) });
+        }
         if (s.onEdge) s.onEdge(body);
         return json(Object.assign({ ok: true, accrued: true }, s.next()));
       }
@@ -698,7 +706,14 @@ async function checks(overrides, shots) {
         if (!after.ratNew || after.bonesNew) fails.push('AW-3 the "new" mark is wrong after the envelope (more rat tails new: ' + after.ratNew + ', fewer bones new: ' + after.bonesNew + ')');
         if (!after.same) fails.push('AW-2 a new envelope rebuilt the rat tail pocket instead of patching it');
         if (after.rat !== '40' || after.bones !== '2' || after.gel) fails.push('AW-3 the bag did not take the server’s new counts (rat ' + after.rat + ', bones ' + after.bones + ', slime gel still there: ' + after.gel + ')');
-        /* AW-4: Equip on a bag sword is one intent, off at once, and the doll waits for the server. */
+        /* AW-4: Equip on a bag sword is one intent, off at once, and the doll waits for the server. In town with the
+           Melee the sword needs: the engine refuses an equip mid-hunt or under its requirement, and the screen never
+           offers one then (AW-21, Tyler 2026-10-24). */
+        for (const k of ['hunt', 'hunt_analyzer', 'hunt_track', 'hunt_events', 'party']) delete s.env[k];
+        s.env.state = Object.assign({}, s.env.state, { active_kind: 'idle', active_id: null });
+        s.env.skills.melee = { xp: 4700, level: 30, frac: 0 };
+        await pushEnvelope(page, s);
+        await wait(page, () => { const b = document.querySelector('.hw-pick [data-hs-act="primary"]'); return !b || !b.disabled; }, null, 3000);
         await page.click('.hw-pocket[data-item="steel_sword"]');
         const loadsBefore = sent(s, 'hr_load').length;
         await page.click('.hw-pick [data-hs-act="primary"]');
@@ -1324,12 +1339,25 @@ async function checks(overrides, shots) {
         await page.waitForTimeout(250);
         const pre = await page.evaluate(() => { const l = document.querySelector('.hw-inv .hw-upgrade'); return { on: l.classList.contains('is-on'), q: l.querySelector('.hw-upgrade-q').textContent, off: l.querySelector('button').disabled }; });
         if (!pre.on || pre.off || !/^Wear Iron Helm \(\+\d+ Defense/.test(pre.q) || /Steel/.test(pre.q)) fails.push('AW-21 the preview line is wrong before the press: ' + JSON.stringify(pre));
-        /* A refusal: nothing moves, the words say why. */
+        /* A REQUIREMENT THE SERVER'S NUMBERS SAY IS UNMET (Tyler 2026-10-24, "Gear swapping isn't working": Fingerguns,
+           Defense 19, was offered Equip on a Steel Helm that needs 30, and the refusal said nothing on screen): the
+           picked line's Equip is off and says why, and a press sends nothing. */
+        await page.click('.hw-pocket[data-item="steel_helm"]');
+        await page.waitForTimeout(150);
+        const need = await page.evaluate(() => ({ off: document.querySelector('.hw-inv [data-hs-act="primary"]').disabled,
+          why: document.querySelector('.hw-inv .hw-pick-why').textContent }));
+        await page.keyboard.press('Enter');
+        await page.waitForTimeout(300);
+        if (!need.off || need.why !== 'Needs Defense 30 — you have 19.' || sent(s, 'hr-accrue', 'equip').length) fails.push('AW-21 a Steel Helm at Defense 19 reads ' + JSON.stringify(need) + ', ' + sent(s, 'hr-accrue', 'equip').length + ' equip(s) sent');
+        /* A refusal (the engine's 409): nothing moves, and the words say why ON THE LINE PRESSED, in view (they sat at the
+           window's foot, below the fold, so the press looked like nothing). */
         s.refuse = 'requirement_not_met';
         await page.click('.hw-inv [data-hs-act="equip-upgrades"]');
         await page.waitForTimeout(50);
         await wait(page, () => !document.querySelector('.hw-inv [data-hs-act="equip-upgrades"]').disabled, null, 3000);
-        if ((await msg()) !== 'Your skill is too low to wear that yet. Nothing was put on.') fails.push('AW-21 a level refusal reads ' + JSON.stringify(await msg()));
+        const said = await page.evaluate(() => { const n = document.querySelector('.hw-inv .hw-upgrade-why'), b = document.querySelector('[data-hs-win="inventory"] .hs-win-body').getBoundingClientRect();
+          const q = n.getBoundingClientRect(); return { t: n.textContent, inView: n.getClientRects().length > 0 && q.top >= b.top - 1 && q.bottom <= b.bottom + 1 }; });
+        if (said.t !== 'Your skill is too low to wear that yet. Nothing was put on.' || !said.inView) fails.push('AW-21 a refused Equip upgrades says ' + JSON.stringify(said) + ' on its line (want the words, in view)');
         if (await page.evaluate(() => document.querySelector('.hw-slot[data-slot="helmet"]').getAttribute('data-item'))) fails.push('AW-21 the doll changed on a refusal');
         if (shots) await shot(page, 'alpha-1440x900-equip-upgrades');
         /* The press that lands: ONE intent, every slot and stack marked until the answer. */
@@ -1365,7 +1393,29 @@ async function checks(overrides, shots) {
         if (!/^Wear Copper Ring \(/.test(shopLine)) fails.push('AW-21 after a gear purchase the Shop offers ' + JSON.stringify(shopLine));
         if (shots) await shot(page, 'alpha-1440x900-shop-upgrades');
       } else fails.push('AW-21 the town character did not mount');
-      if (errors.length) fails.push('AW-21 console errors: ' + errors.slice(0, 3).join(' | '));
+      if (errors.filter((e) => !/status of 409/.test(e)).length) fails.push('AW-21 console errors: ' + errors.slice(0, 3).join(' | '));
+      await ctx.close();
+    }
+
+    { // AW-21 MID-HUNT (Tyler 2026-10-24): the engine refuses every equip while the hunt is open (equip.js hunt_open),
+      // so the Inventory never offers one: Equip and Equip upgrades are off and say why, a press sends nothing, and the
+      // engine's own refusal reads as what to do
+      const hunting = (e) => { Object.assign(e.inventory, { steel_helm: 1, iron_helm: 1, iron_platebody: 1 }); };
+      const { ctx, page, errors, s, up } = await open({ mutateEnv: hunting });
+      if (up) {
+        await openWin(page, 'b', 'inventory');
+        await page.waitForTimeout(250);
+        await page.click('.hw-pocket[data-item="iron_helm"]');
+        await page.waitForTimeout(150);
+        await page.keyboard.press('Enter');
+        await page.waitForTimeout(300);
+        const mid = await page.evaluate(() => { const q = (x) => document.querySelector('[data-hs-win="inventory"] ' + x);
+          return { equip: q('[data-hs-act="primary"]').disabled, why: q('.hw-pick-why').textContent,
+            upg: q('[data-hs-act="equip-upgrades"]').disabled, upgWhy: q('.hw-upgrade-why').textContent }; });
+        if (!mid.equip || mid.why !== 'Leave the hunt to change gear.' || !mid.upg || mid.upgWhy !== 'Leave the hunt to put these on.' || sent(s, 'hr-accrue', 'equip').length)
+          fails.push('AW-21 mid-hunt the Inventory reads ' + JSON.stringify(mid) + ', ' + sent(s, 'hr-accrue', 'equip').length + ' equip(s) sent');
+      } else fails.push('AW-21 the hunting character did not mount');
+      if (errors.length) fails.push('AW-21 mid-hunt console errors: ' + errors.slice(0, 3).join(' | '));
       await ctx.close();
     }
 
@@ -1631,7 +1681,7 @@ const MUTANTS = [
   ['a bulk sale names a locked stack', 'src/shell/bag-model.js', '    if (locked.has(id)) { kept.push(id); continue; }\n', ''],
   ['the bag keeps a count the server dropped', 'src/session/item-sections.js', '  for (const [id, n] of Object.entries(inv)) if (ID.test(id) && count(n) && n > 0) items.push({ id, qty: n });\n  return items;',
     '  for (const [id, n] of Object.entries(inv)) if (ID.test(id) && count(n) && n > 0) items.push({ id, qty: n });\n  const prev = globalThis.__bag || [];\n  for (const p of prev) { const i = items.find((x) => x.id === p.id); if (!i) items.push(p); else i.qty = Math.max(i.qty, p.qty); }\n  globalThis.__bag = items.map((x) => ({ ...x }));\n  return items;'],
-  ['bag actions stay on while an intent is in flight', 'src/shell/windows/inventory/grid.js', "prop(pb, 'disabled', sc.pending || !prim);", "prop(pb, 'disabled', !prim);"],
+  ['bag actions stay on while an intent is in flight', 'src/shell/windows/inventory/grid.js', "prop(pb, 'disabled', sc.pending || !prim || !!wearWhy);", "prop(pb, 'disabled', !prim || !!wearWhy);"],
   ['a pocket is rebuilt whenever its count changes', 'src/shell/windows/inventory/grid.js', '    key: (r) => r.id,\n    build: (r) => element(ctx.doc, pocketHtml(r.id, ctx.glyphs)),', '    key: (r) => r.id + ":" + r.qty,\n    build: (r) => element(ctx.doc, pocketHtml(r.id, ctx.glyphs)),'],
   ['a sale is sent without the confirmation', 'src/shell/windows/inventory/actions.js', '  st.sc.confirm = confirmFor(st, ids, label);\n  repaint();', '  st.sc.confirm = confirmFor(st, ids, label);\n  repaint();\n  doSell(st, repaint);'],
   ['the Shop lists supplies again', 'src/data/supply-basics.js', "export const SHOP_SOLD_KINDS = Object.freeze(['tool', 'gear', 'seed']);", "export const SHOP_SOLD_KINDS = Object.freeze(['food', 'drink', 'ammo', 'tool', 'gear', 'seed']);"],
@@ -1715,7 +1765,7 @@ const MUTANTS = [
   ['ticker: a yield range is read at its top', 'src/shell/town-ticker.js', '  int: (lo) => Math.ceil(Number(lo) || 0),', '  int: (lo, hi) => Math.floor(Number(hi) || 0),'],
 ];
 /* The doll mutant needs the want set where an equip is asked: plant it beside the intent. */
-const COMPANION = { 'the doll wears the item before the server confirms': ['src/shell/windows/inventory/actions.js', '    if (slot) wear(st, repaint, slot, id);', '    if (slot) globalThis.__want = id;\n    if (slot) wear(st, repaint, slot, id);'],
+const COMPANION = { 'the doll wears the item before the server confirms': ['src/shell/windows/inventory/actions.js', "    if (slot) wear(st, repaint, slot, id, 'pick:' + id);", "    if (slot) globalThis.__want = id;\n    if (slot) wear(st, repaint, slot, id, 'pick:' + id);"],
   /* The high-water mark the merged-upward ticker keeps (module scope: one per planted tree). */
   'ticker: a payout under the prediction never snaps down (merged upward)': ['src/shell/town-ticker.js', 'const own = (o, k) =>', 'const HIGH = {};\nconst own = (o, k) =>'] };
 

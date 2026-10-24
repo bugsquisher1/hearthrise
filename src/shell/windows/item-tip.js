@@ -41,7 +41,7 @@ function tipHtml(id, o) {
         : '<p class="hw-tip-cmp">No change.</p>';
     }
   }
-  const need = needOf(id, opt.skills);
+  const need = needOf(id, opt.skills, opt.level);
   if (need) h += '<p class="hw-tip-need' + (need.short ? ' is-short' : '') + '">' + esc(need.text) + '</p>';
   const src = sourcesOf(id, opt.offers);
   if (src.length) h += '<p class="hw-tip-line"><small>Comes from</small>' + esc(src.join('. ')) + '</p>';

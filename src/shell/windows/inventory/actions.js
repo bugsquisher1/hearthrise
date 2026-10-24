@@ -40,6 +40,10 @@ import { askElsewhere } from './elsewhere.js?v=0.2.38';
 import { skillsOf } from '../../../session/item-sections.js?v=0.2.38';
 import { buryRecipeOf, buryLabel, buryBlock, startBury, stopBury } from './bury.js?v=0.2.38';
 import { equipUpgrades } from '../../widgets/upgrade-line.js?v=0.2.38';
+import { wearBlock } from '../../gear-gate.js?v=0.2.38';
+import { levelOf } from '../../../session/character-sections.js?v=0.2.38';
+
+const heroLevel = (cs) => { const lv = levelOf(cs); return lv ? lv.level : null; };
 
 export const INVENTORY_EVENTS = Object.freeze(['input', 'keydown', 'contextmenu', 'pointerdown', 'pointerup', 'pointercancel',
   'dragstart', 'dragover', 'dragleave', 'drop', 'dragend', 'mouseover', 'mouseout']);
@@ -74,27 +78,43 @@ function tipFor(ctx, st, li) {
     rule: st.rules ? (st.rules.loot[id] || 'keep') : null,
     offers: st.shop ? st.shop.offers : null,
     skills: skillsOf(st.cs),
+    level: heroLevel(st.cs),
   });
 }
 
 /* ── The intents ── */
-function send(st, repaint, fn, busy, done) {
+/* `at`: the line the press was on ('pick:<item>' while that stack is picked, 'slot'; null: the window's own line),
+   where its words show (grid.js, doll.js). */
+function send(st, repaint, fn, busy, done, at) {
   st.sc.menu = null;
+  st.sc.msgAt = at || null;
   return runIntent(st.sc, repaint, fn, busy, done, st.cs);
+}
+
+/* Words with no intent behind them (what the screen already knows), on the line `at`. */
+function say(st, repaint, msg, at) {
+  st.sc.menu = null;
+  st.sc.msg = msg;
+  st.sc.msgAt = at || null;
+  repaint();
 }
 
 function goldNow(cs) { const s = cs.read('state'); return s && Number.isSafeInteger(s.gold) ? s.gold : null; }
 
-/** Wear `id` in `slot`, or take the slot's piece off (`id` null): ONE `equip` intent. From the press until the
-    server's envelope lands, the slot and the stack moving carry the pending mark (`sc.wearing`, display only:
-    the doll, the stats and the bag change only from that envelope; "Equip upgrades" marks every slot it names). */
-function wear(st, repaint, slot, id) {
+/** Wear `id` in `slot`, or take the slot's piece off (`id` null): ONE `equip` intent, unless the server's sections
+    already say it would be refused (gear-gate.js: a hunt running, a requirement unmet), which is said instead. From
+    the press until the server's envelope lands, the slot and the stack moving carry the pending mark (`sc.wearing`,
+    display only: the doll, the stats and the bag change only from that envelope; "Equip upgrades" marks every slot
+    it names). Its words show on the line `at` the press was on. */
+function wear(st, repaint, slot, id, at) {
   const sc = st.sc;
   if (sc.pending) return Promise.resolve({ ok: false, error: 'busy' });
+  const why = wearBlock(st.cs, id);
+  if (why) { say(st, repaint, why, at); return Promise.resolve({ ok: false, error: 'blocked' }); }
   sc.wearing = { slots: [slot], items: id ? [id] : [] };
   return send(st, repaint, async () => {
     try { return await st.cs.edgeIntent('equip', { equip: equipOps(slot, id, st.eq) }); } finally { sc.wearing = null; }
-  }, id ? 'Equipping…' : 'Taking it off…');
+  }, id ? 'Equipping…' : 'Taking it off…', null, at);
 }
 
 function doPrimary(st, id, repaint) {
@@ -102,7 +122,7 @@ function doPrimary(st, id, repaint) {
   const k = kindOf(id);
   if (k === 'gear') {
     const slot = equipSlotFor(id, st.eq);
-    if (slot) wear(st, repaint, slot, id);
+    if (slot) wear(st, repaint, slot, id, 'pick:' + id);
   } else if (k === 'food') {
     send(st, repaint, () => cs.edgeIntent('eat', { item: id }), 'Eating…');
   } else if (barKind(id) && st.bar && barIndexOf(cs, id) < 0) {
@@ -114,7 +134,7 @@ function doPrimary(st, id, repaint) {
 /* Bury or cook the whole stack (bury.js): refused here only for what the screen already knows (a hunt, the level, one running). */
 function doBury(st, id, repaint) {
   const why = buryBlock(st.cs, buryRecipeOf(id));
-  if (why) { st.sc.menu = null; st.sc.msg = why; repaint(); return; }
+  if (why) { say(st, repaint, why); return; }
   startBury(st.cs, st.sc, id, (fn, busy, done) => send(st, repaint, fn, busy, done), repaint);
 }
 
@@ -143,7 +163,7 @@ function doSell(st, repaint) {
 }
 
 function doLock(st, id, repaint) {
-  if (!st.rules) { st.sc.msg = 'Locks switch on when the server starts keeping them.'; st.sc.menu = null; repaint(); return; }
+  if (!st.rules) { say(st, repaint, 'Locks switch on when the server starts keeping them.'); return; }
   const on = !st.rules.locked.has(id);
   send(st, repaint, () => st.cs.lockItem(id, on), on ? 'Locking…' : 'Unlocking…');
 }
@@ -165,7 +185,8 @@ function openMenu(ctx, body, st, id, at, repaint) {
   const off = (on) => (on && !sc.pending ? '' : ' disabled');
   const item = (act, label, on, extra) => '<button type="button" role="menuitem" class="hw-mi" data-hs-act="' + act + '"' + (extra || '') + off(on) + '>' + esc(label) + '</button>';
   let h = '<b class="hw-menu-title">' + esc(itemName(id)) + '</b>';
-  if (k === 'gear') h += item('m-equip', 'Equip', !!equipSlotFor(id, st.eq));
+  const block = k === 'gear' ? wearBlock(st.cs, id) : '';
+  if (k === 'gear') h += item('m-equip', 'Equip', !!equipSlotFor(id, st.eq) && !block, block ? ' title="' + esc(block) + '"' : '');
   if (k === 'food') h += item('m-eat', 'Eat', true);
   const br = buryRecipeOf(id);
   if (br) h += item('m-bury', buryLabel(br, st.qty.get(id) || 0), !buryBlock(st.cs, br));
@@ -256,19 +277,21 @@ function onSlotDrag(st, ev, t, repaint) {
   if (ev.type === 'drop') {
     const id = ev.dataTransfer.getData(DRAG_TYPE);
     const slot = t.getAttribute('data-slot');
-    if (fitsSlot(id, slot)) wear(st, repaint, slot, id);
-    else { st.sc.msg = itemName(id) + ' does not go in that slot.'; repaint(); }
+    /* the drop opens that slot's line: its words (and the server's answer) show there */
+    st.sc.slot = slot;
+    if (fitsSlot(id, slot)) wear(st, repaint, slot, id, 'slot');
+    else say(st, repaint, itemName(id) + ' does not go in that slot.', 'slot');
   }
   return true;
 }
 
-/* A worn piece over the grid: take it off on the drop. */
+/* A worn piece over the grid: take it off on the drop (its slot's line opens to say how it went). */
 function onGridDrag(st, ev, repaint) {
   if (!dragTypes(ev).includes(DRAG_WORN)) return false;
   ev.preventDefault();
   if (ev.type === 'drop') {
     const slot = ev.dataTransfer.getData(DRAG_WORN);
-    if (st.eq[slot]) wear(st, repaint, slot, null);
+    if (st.eq[slot]) { st.sc.slot = slot; wear(st, repaint, slot, null, 'slot'); }
   }
   return true;
 }
@@ -289,9 +312,9 @@ function onDoll(ctx, st, action, ev, t, repaint) {
     return false;
   }
   if (type !== 'click') return false;
-  if (action === 'slot') { const s = t.getAttribute('data-slot'); sc.slot = sc.slot === s ? null : s; sc.msg = ''; repaint(); return true; }
-  if (action === 'wear' && sc.slot) { wear(st, repaint, sc.slot, t.getAttribute('data-item')); return true; }
-  if (action === 'unequip' && sc.slot && st.eq[sc.slot]) { wear(st, repaint, sc.slot, null); return true; }
+  if (action === 'slot') { const s = t.getAttribute('data-slot'); sc.slot = sc.slot === s ? null : s; sc.msg = ''; sc.msgAt = null; repaint(); return true; }
+  if (action === 'wear' && sc.slot) { wear(st, repaint, sc.slot, t.getAttribute('data-item'), 'slot'); return true; }
+  if (action === 'unequip' && sc.slot && st.eq[sc.slot]) { wear(st, repaint, sc.slot, null, 'slot'); return true; }
   return false;
 }
 

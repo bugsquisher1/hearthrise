@@ -54,10 +54,15 @@
 .hw-burying.is-on { display: flex; }
 .hw-burying-q { flex: 1; }
 /* "Equip upgrades": what the press puts on, in words, beside the button (src/shell/widgets/upgrade-line.js). */
-.hw-upgrade { display: none; align-items: center; gap: 8px; margin-top: 8px; padding: 6px 8px; background: var(--bg-1); box-shadow: var(--hw-well); }
+.hw-upgrade { display: none; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin-top: 8px; padding: 6px 8px; background: var(--bg-1); box-shadow: var(--hw-well); }
 .hw-upgrade.is-on { display: flex; }
 .hw-upgrade-q { flex: 1; min-width: 0; margin: 0; color: var(--ink-2); }
 .hw-upgrade .hw-primary { display: inline-block; flex: none; }
+/* A gear control's own words (gear-gate.js, the press's answer): on the line it was pressed on, never only at the
+   window's foot (Tyler 2026-10-24: an Equip refused off-screen read as "nothing happened"). */
+.hw-why { flex-basis: 100%; margin: 4px 0 0; font-size: var(--t-micro); color: var(--ink); }
+.hw-why:empty { display: none; }
+.hw-upgrade .hw-why { margin: 0; }
 .hw-amt { display: flex; align-items: center; gap: 4px; padding: 4px 0; }
 .hw-amt-n { width: 6em; }
 .hw-selcount { flex: 1; font-weight: 700; font-variant-numeric: lining-nums tabular-nums; }

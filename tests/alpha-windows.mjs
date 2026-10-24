@@ -156,6 +156,9 @@ const HOOK = { [PANE]: PANE_SRC.replace('    runtime.sync();\n', '    runtime.sy
 const clone = (o) => JSON.parse(JSON.stringify(o));
 /* The hunt rows (each ground's theme) the Hunts page draws. */
 const HUNTS = (await import(pathToFileURL(join(ROOT, 'src/data/hunts.js')).href)).HUNT_INDEX;
+/* The Cellar's one gear line, alone, as the page must print it (its math is checked from the rows in huntsPure). */
+const CELLAR_ODDS = (await import(pathToFileURL(join(ROOT, 'src/render/format.js')).href)).chance(
+  (await import(pathToFileURL(join(ROOT, 'src/shell/hunt-ground-facts.js')).href)).scarceSetOf('mill_cellar', 'medium', 1)[0].chance);
 /* A Level 1 hero in town (no hunt, no party, no bests yet), 30 min of stamina, two setups the server can put
    on and a third set it cannot (no setup row): the Hunts window's fresh hero (AW-25 .. AW-29). */
 function levelOne(e) {
@@ -356,6 +359,38 @@ async function huntsPure(imp) {
   const sets = (h, w) => scarceSetOf(h, w).map((e) => e.lines.join(',') + ':' + e.slots.join(',') + ':' + e.weapons.join(',')).join('|');
   if (sets('millrace_sewer', 'medium') !== 'Leather,Bronze,Apprentice:bodies,legs:|Studded,Iron,Adept:helmets,boots:Iron Sword') fails.push('AW-25 the Sewer\'s gear reads ' + sets('millrace_sewer', 'medium'));
   if (sets('mosslight_glade', null) !== 'Iron,Studded,Adept:helmets,bodies,legs,boots:Longbow') fails.push('AW-25 the glade\'s gear for no worn weight reads ' + sets('mosslight_glade', null));
+  /* THE ODDS (Tyler 2026-10-24: "a % drop chance or nothing at all"): each line's chance per kill is the engine's rows
+     (monsters.js, the catalogue hr-accrue rolls) at the yield share the settle spawns a party-scaled monster with. Worked
+     here from the rows on the Sewer (a party-only boss pocket, two tiers), alone and as four: a tier line = any piece of
+     it on one kill of the ground's mix (the pockets that party walks, as built), a Rare = per kill of its carrier (the
+     Rat King by the smallest party he meets). */
+  const { HUNT_GROUNDS, routeFor, yieldPermille } = await imp('src/data/hunt-grounds.js');
+  const { ITEMS } = await imp('src/data/items.js');
+  const { chance } = await imp('src/render/format.js');
+  const { detailHtml } = await imp('src/shell/windows/hunt-detail.js');
+  const sewer = Object.values(HUNT_GROUNDS).find((g) => g.hunt === 'millrace_sewer');
+  for (const n of [1, 4]) {
+    const y = (size) => yieldPermille(size) / 1000;
+    const pts = {};
+    for (const i of routeFor(sewer, n)) for (const s of sewer.pockets[i].spawns) pts[s.monster] = (pts[s.monster] || 0) + 1;
+    const all = Object.values(pts).reduce((t, k) => t + k, 0);
+    const tierOdds = (tier) => Object.entries(pts).reduce((t, [id, k]) => {
+      const rows = MONSTERS[id].drops.filter((d) => d.band === 'scarce' && (Number(ITEMS[d.id].tier) || 1) === tier);
+      return t + (k / all) * (1 - rows.reduce((p, d) => p * (1 - Math.min(0.95, d.ch * y(n))), 1));
+    }, 0);
+    const shown = scarceSetOf('millrace_sewer', 'medium', n).map((e) => chance(e.chance)).join('|');
+    const want = [1, 2].map((t) => chance(tierOdds(t))).join('|');
+    if (shown !== want || /under|^0%/.test(want)) fails.push('AW-25 the Sewer\'s gear odds for ' + n + ' read ' + shown + ', the rows say ' + want);
+    const rr = raresOf('millrace_sewer', n).map((x) => x.name + ' ' + chance(x.chance)).join('|');
+    const rw = residentsOf('millrace_sewer').flatMap((m) => MONSTERS[m.id].drops.filter((d) => d.band === 'rare' || d.band === 'trophy')
+      .map((d) => ({ t: d.band === 'trophy', s: ITEMS[d.id].n + ' ' + chance(Math.min(0.95, d.ch * y(Math.max(n, m.id === 'rat_king' ? 2 : 1)))) })))
+      .sort((a, b) => Number(a.t) - Number(b.t)).map((x) => x.s).join('|');
+    if (rr !== rw) fails.push('AW-25 the Sewer\'s rare odds for ' + n + ' read ' + rr + ', the rows say ' + rw);
+  }
+  const fmt = [0.0035, 0.021, 0.12, 0.00009, 0.0001].map(chance).join('|');
+  if (fmt !== '0.35%|2.1%|12%|under 0.01%|0.01%') fails.push('AW-25 the odds read ' + fmt + ' (two significant figures, "under 0.01%" below it)');
+  const head = detailHtml();
+  if (!head.includes('<h4 class="hw-hd-h">Drops <small') || /about every hour|no odds/i.test(head)) fails.push('AW-25 the drops heading reads ' + (/<h4 class="hw-hd-h">([^<]*)<small class="hw-hd-per hw-hd-per-size"/.exec(head) || [, '?'])[1]);
   const worn = [wornWeightOf({ helmet: 'leather_helmet', body: 'bronze_platebody', pants: 'leather_pants' }), wornWeightOf({ weapon: 'practice_sword' }), wornWeightOf({ helmet: 'adept_helmet', body: 'iron_platebody' })].join();
   if (worn !== 'medium,,heavy') fails.push('AW-25 the worn weight reads ' + worn);
   /* The list line: the band against the Level in words and a tone; the best, or New. */
@@ -919,7 +954,8 @@ async function checks(overrides, shots) {
           const d = document.querySelector(w + '.hw-hunt-detail');
           const vis = (q) => { const n = d.querySelector(q); return n && n.getClientRects().length ? n.textContent : null; };
           return { name: vis('.hw-hd-name'), theme: vis('.hw-hd-theme'),
-            sets: Array.from(d.querySelectorAll('.hw-hd-set')).map((n) => n.textContent),
+            sets: Array.from(d.querySelectorAll('.hw-hd-set')).map((n) => n.firstElementChild.textContent + ' · ' + n.querySelector('.hw-hd-odds').textContent),
+            per: vis('.hw-hd-per-size'),
             rares: Array.from(d.querySelectorAll('.hw-hd-rare')).map((n) => n.querySelector('.hw-hd-rare-name').textContent + ' / ' + n.querySelector('.hw-hd-rare-by').textContent + (n.classList.contains('is-trophy') ? ' (trophy)' : '')),
             raresShown: (() => { const h = d.querySelector('.hw-hd-rares'), head = h && h.previousElementSibling; return !!head && head.getClientRects().length > 0; })(),
             mons: Array.from(d.querySelectorAll('.hw-hd-mon')).map((li) => { const c = li.querySelector('canvas'), b = c.getBoundingClientRect(), st = li.querySelector('.hw-hd-stand').getBoundingClientRect();
@@ -935,7 +971,9 @@ async function checks(overrides, shots) {
         if (p.name !== 'Mill Cellar' || p.theme !== HUNTS.mill_cellar.theme || mons !== 'rat:Level 2 · common|slime:Level 2 · uncommon|hive_wasp:Level 4 · uncommon')
           fails.push('AW-25 the Mill Cellar page reads ' + JSON.stringify({ name: p.name, theme: p.theme, mons }));
         /* the fixture hero wears Leather Boots, so the medium line reads first; the Cellar has no Rare, so no Rare heading */
-        if (p.sets.join('|') !== 'Leather, Bronze, Apprentice: helmets' || p.rares.length || p.raresShown) fails.push('AW-25 the Cellar\'s drops read ' + JSON.stringify([p.sets, p.rares, p.raresShown]));
+        /* each line with its chance per kill, alone (the engine's rows: the pure AW-25 works the math from them) */
+        if (p.sets.join('|') !== 'Leather, Bronze, Apprentice: helmets · ' + CELLAR_ODDS || p.per !== 'chance per kill, hunting alone' || p.rares.length || p.raresShown)
+          fails.push('AW-25 the Cellar\'s drops read ' + JSON.stringify([p.sets, p.per, p.rares, p.raresShown]));
         if (p.bests.join('|') !== 'Not hunted yet. A hunt of 10 min or more sets your best.') fails.push('AW-25 with no best the page reads ' + JSON.stringify(p.bests));
         if (shots) await shot(page, 'hunts-1440x900-cellar-level1');
         /* The server's best arrives: the line and the page take it (replaced, never kept from before). */

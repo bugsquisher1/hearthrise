@@ -8,21 +8,26 @@
 //                      pockets' `spawns`, the pack as built). Tyler 10-18: "Hunt card
 //                      and bestiary show roughly how common each is": a word, never
 //                      a percentage (the mix moves with the density pick).
-//   scarceSetOf(hunt, worn)  THE GEAR THAT DROPS ABOUT HOURLY (the loot bands, Tyler
-//                      2026-10-23): one entry a tier, its armour lines' words in each
-//                      weight (the hero's worn weight first), the slots they cover and the
-//                      tier's Scarce weapons: "Iron, Studded, Adept: helmets, boots; Iron Sword".
-//   raresOf(hunt)      every Rare and Trophy item and the creature that carries it, Rares
-//                      first. A row's band decides (src/core/drops.js bandOf, REVEAL_BANDS),
-//                      never a server-revealed surprise (`lucky`, `salvage`).
+//   scarceSetOf(hunt, worn, size)  THE GROUND'S GEAR (the loot bands, Tyler 2026-10-23): one
+//                      entry a tier, its armour lines' words in each weight (the hero's worn
+//                      weight first), the slots they cover and the tier's Scarce weapons:
+//                      "Iron, Studded, Adept: helmets, boots; Iron Sword", and `chance`: that a
+//                      kill here drops any piece of it.
+//   raresOf(hunt, size) every Rare and Trophy item and the creature that carries it, Rares
+//                      first, and `chance`: per kill of that creature. A row's band decides
+//                      (src/core/drops.js bandOf, REVEAL_BANDS), never a server-revealed
+//                      surprise (`lucky`, `salvage`).
 //   wornWeightOf(eq)   the armour weight a hero wears most (heavy, medium, light), or null.
-//   Names only: drop odds a player sees come from the server's catalogue and the Bestiary
-//   (ART_DIRECTION §8), so none is shown here.
+//   THE ODDS (Tyler 2026-10-24: "either give like a % drop chance or nothing at all") are the
+//   server's own: src/data/monsters.js is the catalogue the hr-accrue engine rolls (bundled
+//   into it), and each row's chance on one kill is the roller's (drops.js effectiveDropChance)
+//   at the kill's yield share for a party of `size` (hunt-grounds.js yieldPermille), before any
+//   hero's bonus. Never a number typed here (ART_DIRECTION §8).
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_GROUNDS } from '../data/hunt-grounds.js?v=0.2.38';
+import { HUNT_GROUNDS, routeFor, yieldPermille } from '../data/hunt-grounds.js?v=0.2.38';
 import { MONSTERS } from '../data/monsters.js?v=0.2.38';
 import { ITEMS } from '../data/items.js?v=0.2.38';
-import { bandOf } from '../core/drops.js?v=0.2.38';
+import { bandOf, effectiveDropChance } from '../core/drops.js?v=0.2.38';
 import { REVEAL_BANDS } from '../data/loot-bands.js?v=0.2.38';
 import { ARMOUR_WEIGHT } from '../data/core-model.js?v=0.2.38';
 import { armourLineWord } from '../data/gear-tiers.js?v=0.2.38';
@@ -73,37 +78,73 @@ export function wornWeightOf(eq) {
   return n[best] ? best : null;
 }
 
+const sizeOf = (size) => Math.max(1, Math.floor(Number(size) || 1));
+
+/* The party a creature is met by: `size`, or the smallest party that walks a pocket holding it (a party-only boss). */
+function metBy(g, id, size) {
+  const need = g.pockets.filter((p) => p.spawns.some((s) => s.monster === id)).map((p) => p.minParty || 1);
+  return Math.max(size, need.length ? Math.min(...need) : 1);
+}
+
+/* One row's chance on ONE kill by a party of `size`: the roller's own, at the kill's yield share (a party-scaled
+   ground's monster pays yieldPermille(size) of every chance: pull-cycle.js spawns it so), before any hero's bonus. */
+const rowChance = (g, d, size) => effectiveDropChance(d, { yieldMult: g.partyScale === true ? yieldPermille(size) / 1000 : 1 });
+
+/* That one kill drops ANY of `rows` (every row rolls on its own: drops.js rollDropTable). */
+const anyOf = (g, rows, size) => 1 - rows.reduce((p, d) => p * (1 - rowChance(g, d, size)), 1);
+
+/* THE KILLS A PARTY OF `size` MAKES HERE: each creature's share of the spawn points on the pockets it walks
+   (routeFor: a pocket whose minParty it misses is skipped), the ground as built. */
+function killMixOf(g, size) {
+  const n = new Map();
+  for (const i of routeFor(g, size)) for (const s of g.pockets[i].spawns) n.set(s.monster, (n.get(s.monster) || 0) + 1);
+  const all = Array.from(n.values()).reduce((t, k) => t + k, 0);
+  return new Map(Array.from(n, ([id, k]) => [id, k / all]));
+}
+
 /**
  * The ground's Scarce gear, one entry a tier (lowest first): { tier, lines: ['Iron', 'Studded', 'Adept'] (the worn
- * weight's first), slots: ['helmets', 'boots'], weapons: ['Iron Sword'] }. [] for a ground with none.
+ * weight's first), slots: ['helmets', 'boots'], weapons: ['Iron Sword'], chance } where `chance` is that one kill here,
+ * by a party of `size` (default alone), drops any piece of the tier. [] for a ground with none.
  */
-export function scarceSetOf(hunt, worn) {
+export function scarceSetOf(hunt, worn, size) {
+  const g = groundOf(hunt), n = sizeOf(size);
   const order = worn && WEIGHTS.includes(worn) ? [worn, ...WEIGHTS.filter((w) => w !== worn)] : WEIGHTS;
   const tiers = new Map();
-  const at = (t) => { if (!tiers.has(t)) tiers.set(t, { tier: t, weights: new Set(), slots: new Set(), weapons: [] }); return tiers.get(t); };
+  const at = (t) => { if (!tiers.has(t)) tiers.set(t, { tier: t, weights: new Set(), slots: new Set(), weapons: [], rows: new Map() }); return tiers.get(t); };
   for (const r of residentsOf(hunt)) {
     for (const d of (MONSTERS[r.id] || {}).drops || []) {
       const it = d && d.band === 'scarce' && ITEMS[d.id];
       if (!it) continue;
       const e = at(Number(it.tier) || 1), w = ARMOUR_WEIGHT[it.armourClass];
+      if (!e.rows.has(r.id)) e.rows.set(r.id, []);
+      e.rows.get(r.id).push(d);
       if (it.type === 'armor' && w && SLOT_WORDS[it.slot]) { e.weights.add(it.armourClass); e.slots.add(it.slot); }
       else if (!e.weapons.includes(nameOf(d.id))) e.weapons.push(nameOf(d.id));
     }
   }
+  const mix = g ? killMixOf(g, n) : new Map();
   return [...tiers.values()].sort((a, b) => a.tier - b.tier).map((e) => ({
     tier: e.tier,
     lines: order.map((w) => [...e.weights].find((c) => ARMOUR_WEIGHT[c] === w)).filter(Boolean).map((c) => armourLineWord(c, e.tier)),
     slots: Object.keys(SLOT_WORDS).filter((sl) => e.slots.has(sl)).map((sl) => SLOT_WORDS[sl]),
     weapons: e.weapons,
+    chance: Array.from(e.rows, ([id, rows]) => (mix.get(id) || 0) * anyOf(g, rows, n)).reduce((t, c) => t + c, 0),
   }));
 }
 
-/** Every Rare and Trophy item here and its carrier, Rares first: [{ id, name, trophy, carrier: { id, name } }]. */
-export function raresOf(hunt) {
+/**
+ * Every Rare and Trophy item here and its carrier, Rares first: [{ id, name, trophy, carrier: { id, name }, chance }],
+ * `chance` per kill of the carrier by a party of `size` (default alone; a party-only boss, by the smallest party he meets).
+ */
+export function raresOf(hunt, size) {
+  const g = groundOf(hunt), n = sizeOf(size);
   const out = [];
   for (const r of residentsOf(hunt)) {
     for (const d of ((MONSTERS[r.id] || {}).drops || []).filter(isRare)) {
-      if (!out.some((x) => x.id === d.id && x.carrier.id === r.id)) out.push({ id: d.id, name: nameOf(d.id), trophy: bandOf(d) === 'trophy', carrier: { id: r.id, name: r.name } });
+      if (!out.some((x) => x.id === d.id && x.carrier.id === r.id)) {
+        out.push({ id: d.id, name: nameOf(d.id), trophy: bandOf(d) === 'trophy', carrier: { id: r.id, name: r.name }, chance: rowChance(g, d, metBy(g, r.id, n)) });
+      }
     }
   }
   return out.sort((a, b) => Number(a.trophy) - Number(b.trophy));

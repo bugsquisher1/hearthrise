@@ -45,3 +45,11 @@ export function hoursMinutes(ms) {
 
 /** 0..1 → "62%". */
 export function pct(f) { return ok(f) ? Math.round(Math.max(0, Math.min(1, f)) * 100) + '%' : DASH; }
+
+/** A drop chance, 0..1, to two significant figures: "12%", "2.1%", "0.35%"; "under 0.01%" below that (Tyler 2026-10-24). */
+export function chance(f) {
+  if (!ok(f) || f < 0) return DASH;
+  const p = Math.min(1, f) * 100;
+  if (p === 0) return '0%';
+  return p < 0.01 ? 'under 0.01%' : Number(p.toPrecision(2)) + '%';
+}

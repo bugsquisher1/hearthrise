@@ -24,10 +24,10 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-10-24",
- "replay_ms": 71480,
+ "replay_ms": 50528,
  "counts": {
-  "tracked_names": 212,
-  "entries": 165
+  "tracked_names": 213,
+  "entries": 166
  },
  "functions": [
   {
@@ -1916,17 +1916,18 @@
     "2026-10-28-consume-defaults.sql",
     "2026-11-07-store-by-slot.sql",
     "2026-11-15-preset-names.sql",
-    "2026-11-17-hunt-density-home.sql"
+    "2026-11-17-hunt-density-home.sql",
+    "2027-01-13-spell-roles.sql"
    ],
    "live": {
-    "md5": "0a75868795c3cb662ce2eaa5d17529fa",
-    "norm_len": 9075,
+    "md5": "08546f851811dbc0384362adf4fef9b2",
+    "norm_len": 9634,
     "measured": "2026-10-24",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "0a75868795c3cb662ce2eaa5d17529fa",
-    "norm_len": 9075,
+    "md5": "08546f851811dbc0384362adf4fef9b2",
+    "norm_len": 9634,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -1958,6 +1959,30 @@
    "replay": {
     "md5": "d829a27aeb3fd6518aa37853dd90e615",
     "norm_len": 19036,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_hunt_slot_check(p_s jsonb)",
+   "name": "hr_hunt_slot_check",
+   "tracked_by": [
+    "chain"
+   ],
+   "touched_by": [
+    "2026-10-25-action-conditions.sql",
+    "2026-11-07-store-by-slot.sql",
+    "2027-01-13-slot-truth.sql"
+   ],
+   "live": {
+    "md5": "80eb1a65bdc5bb99977e6d3542989cb2",
+    "norm_len": 5441,
+    "measured": "2026-10-24",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "80eb1a65bdc5bb99977e6d3542989cb2",
+    "norm_len": 5441,
     "source": "computed-from-replay"
    },
    "agree": true

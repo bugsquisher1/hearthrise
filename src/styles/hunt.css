@@ -8,16 +8,22 @@
    ══════════════════════════════════════════════════════════════════════════ */
 
 /* ── The shared panel frame and controls ── */
+/* FORGED STEEL for the HUD (2026-10-24): a read-only panel over the World is the quiet member of the family:
+   the THIN steel frame (assets/ui/steel-frame-thin.png, 3 art px = 6 px), the HUD plate as its floor at the
+   player's Window opacity (--hud-fill), no grain, its name in Cinzel over a dim gold rule. */
 .hh-panel {
   display: flex; flex-direction: column;
-  background: var(--world-hud-bg);
-  border: 4px solid transparent;
-  border-image: url('../../assets/ui/frame-iron-thin.png') 2 / 4px stretch;
+  background: var(--hud-fill);
+  border: 6px solid transparent;
+  border-image: url('../../assets/ui/steel-frame-thin.png') 3 / 6px stretch;
   image-rendering: pixelated;
   font-size: var(--t-micro); color: var(--ink);
 }
-.hh-panel-head { display: flex; align-items: center; gap: 6px; min-height: 32px; padding: 2px 6px; border-bottom: 1px solid var(--line); }
-.hh-panel-title { flex: 1; margin: 0; font-family: var(--f-label); font-weight: 700; font-size: var(--t-micro); letter-spacing: .04em; color: var(--ink-3); }
+/* Over a busy ground at a low Window opacity the words keep a hard 1 px shadow under them (as the chat's lines do;
+   never a blur). */
+.hh-panel, .ht-bar, .hs-tally, .hw-alert, .hs-online { text-shadow: 0 1px 0 var(--world-shadow); }
+.hh-panel-head { display: flex; align-items: center; gap: 6px; min-height: 32px; padding: 2px 6px; border-bottom: 2px solid var(--steel-rule); }
+.hh-panel-title { flex: 1; margin: 0; font-family: var(--f-display); font-weight: 700; font-size: var(--t-micro); letter-spacing: .14em; color: var(--gold-2); }
 .hh-panel-body { padding: 6px 8px 8px; }
 /* Controls carry no box of their own (containment is earned, §9):
    · .hh-tool is a text command. Quiet ink, a panel wash on hover, and when it
@@ -49,7 +55,7 @@
   font-family: var(--f-ui); font-size: var(--t-micro); font-variant-numeric: lining-nums;
 }
 .hh-num { width: 64px; }
-.hh-segs, .hh-step, .hh-seg { background: var(--bg-1); box-shadow: inset 1px 1px 0 color-mix(in srgb, var(--world-shadow) 70%, transparent), inset -1px -1px 0 color-mix(in srgb, var(--hl) 10%, transparent); }
+.hh-segs, .hh-step, .hh-seg { background: var(--bg-1); box-shadow: var(--steel-well); }
 .hh-segs .hh-seg, .hh-step .hh-seg { background: none; box-shadow: none; }
 .hh-segs .hh-seg[aria-pressed="true"], .hh-seg[aria-pressed="true"], .hh-seg[aria-pressed="true"]:hover:not(:disabled) { background: var(--bg-3); }
 .hh-segs { display: inline-flex; }
@@ -65,7 +71,7 @@
 
 /* ── Gauges: a sunk bar with its number on it ── */
 /* The track is the same well as a bar slot, so an empty stretch still reads as a bar. */
-.hh-gauge { position: relative; display: block; height: 18px; background: var(--bg-1); box-shadow: inset 1px 1px 0 color-mix(in srgb, var(--world-shadow) 70%, transparent), inset -1px -1px 0 color-mix(in srgb, var(--hl) 12%, transparent); overflow: hidden; }
+.hh-gauge { position: relative; display: block; height: 18px; background: var(--bg-0); box-shadow: var(--steel-well); overflow: hidden; }
 .hh-gauge-fill { position: absolute; top: 0; left: 0; bottom: 0; width: 0; background: var(--ink-3); }
 .hh-gauge.is-hp .hh-gauge-fill { background: var(--hud-fill-hp); }
 .hh-gauge.is-mana .hh-gauge-fill { background: var(--gem); }
@@ -74,9 +80,10 @@
 .hh-gauge-text { position: relative; display: block; padding: 0 6px; font-style: normal; font-size: var(--t-micro); line-height: 18px; font-weight: 700; color: var(--ink); paint-order: stroke fill; -webkit-text-stroke: 3px var(--bg-0); font-variant-numeric: lining-nums tabular-nums; white-space: nowrap; }
 
 /* ── Top bar ── */
-.ht-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 4px 6px 4px 10px; background: var(--world-hud-bg); border: 4px solid transparent; border-image: url('../../assets/ui/frame-iron-thin.png') 2 / 4px stretch; image-rendering: pixelated; }
-.ht-ground { font-family: var(--f-label); font-weight: 700; font-size: var(--t-small); letter-spacing: .04em; color: var(--gold-2); white-space: nowrap; }
-.ht-clock { font-variant-numeric: lining-nums tabular-nums; color: var(--ink-2); font-size: var(--t-micro); white-space: nowrap; padding-right: 4px; margin-right: 2px; border-right: 1px solid var(--line-soft); }
+.ht-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 2px 4px 2px 8px; background: var(--hud-fill); border: 6px solid transparent; border-image: url('../../assets/ui/steel-frame-thin.png') 3 / 6px stretch; image-rendering: pixelated; }
+/* The ground is named as a place is (ART_DIRECTION §10): Cinzel in gold. */
+.ht-ground { font-family: var(--f-display); font-weight: 700; font-size: var(--t-small); letter-spacing: .08em; color: var(--gold-2); white-space: nowrap; }
+.ht-clock { font-variant-numeric: lining-nums tabular-nums; color: var(--ink-2); font-size: var(--t-micro); white-space: nowrap; padding-right: 6px; margin-right: 2px; border-right: 2px solid var(--steel-sep); }
 .ht-bar .hh-intent-msg { max-width: none; flex-basis: 100%; }
 /* The pending leave's countdown beside Leave hunt: gold label text (the bar's own ground-name ink), tabular seconds. */
 .ht-leaving { font-family: var(--f-label); font-weight: 700; font-size: var(--t-small); color: var(--gold-2); font-variant-numeric: lining-nums tabular-nums; white-space: nowrap; }
@@ -126,7 +133,7 @@
 .hp-together input { flex: none; margin: 2px 0 0; accent-color: var(--gold); }
 .hp-together input:disabled { cursor: default; }
 .hp-together input:disabled + .hp-together-text { color: var(--ink-3); }
-.hp-foot { margin: 8px 0 0; padding-top: 6px; border-top: 1px solid var(--line-soft); font-size: var(--t-micro); color: var(--ink-3); }
+.hp-foot { margin: 8px 0 0; padding-top: 6px; border-top: 2px solid var(--steel-sep); font-size: var(--t-micro); color: var(--ink-3); }
 .hp-party.is-empty .hp-foot { display: none; }
 .hp-acts { display: flex; gap: 6px; margin-top: 8px; }
 .hp-acts.is-off { display: none; }
@@ -149,13 +156,16 @@
 .ha-clocks small { display: block; font-family: var(--f-label); font-size: var(--t-micro); color: var(--ink-3); letter-spacing: .04em; }
 .ha-clocks b { font-variant-numeric: lining-nums tabular-nums; }
 .ha-tabs, .hc-tabs { display: flex; gap: 2px; margin-bottom: 6px; border-bottom: 1px solid var(--line-soft); }
+/* The analyzer's tabs and sections part on the steel separator (2 px, one art px). */
+.ha-tabs { border-bottom: 2px solid var(--steel-sep); }
+.ha-tabs .ha-tab { margin-bottom: -2px; }
 .ha-tab { flex: 1; min-height: 30px; margin-bottom: -1px; padding: 0 10px; border: 0; border-bottom: 2px solid transparent; background: none; color: var(--ink-3); font-family: var(--f-label); font-weight: 700; font-size: var(--t-micro); letter-spacing: .04em; cursor: pointer; }
 .hc-tabs .ha-tab { flex: none; }
 .ha-tab:hover { color: var(--ink); }
 .ha-tab:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: -2px; }
 .ha-tab[aria-selected="true"] { color: var(--gold-2); border-bottom-color: var(--gold); }
 .ha-scroll { overflow: auto; min-height: 0; }
-.ha-sec { border-top: 1px solid var(--line-soft); }
+.ha-sec { border-top: 2px solid var(--steel-sep); }
 .ha-sec-head { margin: 0; }
 .ha-fold { width: 100%; min-height: 30px; padding: 0; border: 0; background: none; text-align: left; color: var(--ink-3); font-family: var(--f-label); font-weight: 700; font-size: var(--t-micro); letter-spacing: .04em; cursor: pointer; }
 .ha-fold::after { content: '\25BE'; float: right; }

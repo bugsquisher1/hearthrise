@@ -24,10 +24,10 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-10-24",
- "replay_ms": 50528,
+ "replay_ms": 44048,
  "counts": {
-  "tracked_names": 213,
-  "entries": 166
+  "tracked_names": 214,
+  "entries": 167
  },
  "functions": [
   {
@@ -270,17 +270,18 @@
     "2026-10-27-core-bodies.sql",
     "2026-12-01-bench-count.sql",
     "2026-12-14-shared-farm.sql",
-    "2026-12-15-account-gold.sql"
+    "2026-12-15-account-gold.sql",
+    "2027-01-14-gear-by-level.sql"
    ],
    "live": {
-    "md5": "8f26477f5ffbf61fb61ee9b49759b082",
-    "norm_len": 133008,
+    "md5": "093411e030486a6f2d3cf205a51183e3",
+    "norm_len": 133130,
     "measured": "2026-10-24",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "8f26477f5ffbf61fb61ee9b49759b082",
-    "norm_len": 133008,
+    "md5": "093411e030486a6f2d3cf205a51183e3",
+    "norm_len": 133130,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -2104,6 +2105,28 @@
    "replay": {
     "md5": "712f2c22fe6492a4e233420f6f9d20f4",
     "norm_len": 332,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_item_requirement_unmet(p_user uuid, p_slot integer, p_item text)",
+   "name": "hr_item_requirement_unmet",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2027-01-14-gear-by-level.sql"
+   ],
+   "live": {
+    "md5": "72b825302ae64c846ae0003653ab5d71",
+    "norm_len": 932,
+    "measured": "2026-10-24",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "72b825302ae64c846ae0003653ab5d71",
+    "norm_len": 932,
     "source": "computed-from-replay"
    },
    "agree": true

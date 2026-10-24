@@ -24,6 +24,9 @@
 //   B-12 A SCENE SWITCHES WHOLE: a hero in town starts hunting the Mill Cellar while
 //        the one sheet the cellar adds is still on its way; the World keeps the
 //        Common on screen until that sheet has arrived, then shows the cellar
+//   B-13 A SHEET THAT LANDS AFTER ITS PANE IS GONE DOES NOTHING: a hero back from the
+//        cellar waits on the Common's sheet, the pane is closed (Characters), the sheet
+//        lands: the closed pane never wakes the hero's town presence (no walkers read)
 //   B-4  a second character opens beside the first (two topics, one strip)
 //   B-5  sign out -> the sign-in screen, and no copy of the session is left in
 //        localStorage or sessionStorage (auth key, sb-*, the tab id)
@@ -252,6 +255,43 @@ async function checks(overrides) {
       await ctx.close();
     }
 
+    { // B-13 a sheet that lands after its pane was closed draws nothing and wakes no presence
+      const o = { hunt: true };
+      const { ctx, page, errors } = await fresh(o);
+      let release = null, asked = 0;
+      const held = new Promise((r) => { release = r; });
+      const back = TOWN_SHEETS.sets.filter((s) => !CELLAR_SHEETS.sets.includes(s));
+      await page.route('**/assets/world/atlas-*.png*', async (r) => {
+        if (back.includes(sheetOf(r.request().url()))) { asked++; await held; }
+        return r.continue();
+      });
+      const town = [];
+      page.on('request', (q) => { if (/\/rpc\/hr_town_walkers/.test(q.url())) town.push(Date.now()); });
+      await page.goto(base + '/play.html', { waitUntil: 'load' });
+      await wait(page, () => document.querySelector('form[data-auth="sign-in"]'));
+      await page.fill('input[name=email]', 'qa@example.test');
+      await page.fill('input[name=password]', 'not-a-real-password');
+      await page.click('.auth-submit');
+      await wait(page, () => document.querySelector('[data-app="play"][data-slot="0"]'));
+      await page.click('[data-app="play"][data-slot="0"]');
+      const inCellar = await wait(page, () => /Mill Cellar/.test((document.querySelector('#panel-world .world-title') || {}).textContent || ''));
+      o.hunt = false;
+      await page.evaluate(([uid, env]) => window.__hub.send('hr:' + uid + ':0', { t: 'state', frame: 20, env }, 'frame'), [UID, envelope(0, 20)]);
+      for (let i = 0; i < 60 && !asked; i++) await page.waitForTimeout(50);
+      await page.click('[data-app="characters"]');
+      await wait(page, () => document.querySelector('[data-app="play"][data-slot="0"]'));
+      await page.waitForTimeout(300);
+      const mark = Date.now();
+      release();
+      await page.waitForTimeout(2000);
+      const woke = town.filter((t) => t >= mark).length;
+      if (!back.length) fails.push('B-13 harness: the Common adds no sheet to the cellar\'s (' + TOWN_SHEETS.sets.join() + ')');
+      else if (!inCellar || !asked) fails.push('B-13 harness: the hero never hunted the cellar (' + inCellar + ') or the Common\'s sheet was never asked for (' + asked + ')');
+      else if (woke) fails.push('B-13 a sheet landing after its pane was closed read the town\'s walkers ' + woke + ' time(s): the closed pane woke the presence');
+      if (errors.length) fails.push('B-13 console errors: ' + errors.slice(0, 3).join(' | '));
+      await ctx.close();
+    }
+
     { // B-9 one hero, two owned slots: name + level, Create hero (name + colours), both after a reload
       const o = { heroes: { 0: 'Tester' }, created: [] };
       const { ctx, page, errors } = await fresh(o);
@@ -395,13 +435,14 @@ const MUTANTS = [
     '  await sheets.ensure(Array.from(new Set(Object.keys(book.sprites).map((id) => book.frame(id).set))));'],
   ['a scene shows before its sheets arrive', 'src/world/world-boot.js', "sheets.ensure(need).then(() => { waiting.delete(sc.map); if (!running) sync(); }); }\n      return null;",
     "sheets.ensure(need).then(() => { waiting.delete(sc.map); if (!running) sync(); }); }"],
+  ['a closed pane still draws a sheet that lands late', 'src/world/world-boot.js', '    if (gone) return;\n    if (panel', '    if (panel'],
 ];
 
 async function main() {
   if (!process.argv.includes('--mutate')) {
     const fails = await checks(null);
     for (const f of fails) console.log('  ✗ ' + f);
-    console.log(fails.length ? 'client-boot: ' + fails.length + ' check(s) RED' : 'client-boot: both pages boot; sign-in, play (the Common sheets only), a scene switched whole, two characters, one hero + a named, coloured hero created in the second slot, sign-out, a dead session, reset and closed all hold');
+    console.log(fails.length ? 'client-boot: ' + fails.length + ' check(s) RED' : 'client-boot: both pages boot; sign-in, play (the Common sheets only), a scene switched whole, a late sheet on a closed pane, two characters, one hero + a named, coloured hero created in the second slot, sign-out, a dead session, reset and closed all hold');
     process.exit(fails.length ? 1 : 0);
   }
   let bad = 0;

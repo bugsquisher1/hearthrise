@@ -181,7 +181,7 @@ export async function bootWorld(panel, opts) {
   stage.appendChild(idle);
 
   const mq = typeof win.matchMedia === 'function' ? win.matchMedia(MOBILE_QUERY) : null;
-  let running = false, raf = 0, last = 0, frames = 0, scene = null, roofAlpha = {};
+  let running = false, raf = 0, last = 0, frames = 0, scene = null, roofAlpha = {}, gone = false;   // gone: destroyed
   let walk = null, lastWalk = null;
   const town = opts.town || null;
   const readEnv = createEnvReader(homeNow, town);
@@ -404,7 +404,8 @@ export async function bootWorld(panel, opts) {
        paints the change on its next frame: a second draw in the same frame was
        the whole cost of every server answer (tests/perf-budget.mjs). A throw
        here must not leave the loop state wrong, so it is reported and the loop
-       decision still runs. */
+       decision still runs. A sheet or grid art landing after destroy() draws nothing (the presence stays parked). */
+    if (gone) return;
     if (panel.classList.contains('active') && !(running && live())) {
       try { step(0); } catch (e) { console.error('[world] a frame failed', e); }
     }
@@ -452,8 +453,9 @@ export async function bootWorld(panel, opts) {
      * from the next frame on, so a window never covers the hero: drawn now only
      * when the loop is not running (sync's rule; the shell hands a new pane its inset at once).
      */
-    setInset(o) { backend.setInset(o); if (panel.classList.contains('active') && !(running && live())) step(0); },
+    setInset(o) { if (gone) return; backend.setInset(o); if (panel.classList.contains('active') && !(running && live())) step(0); },
     destroy() {
+      gone = true;
       if (raf) win.cancelAnimationFrame(raf);
       raf = 0; running = false;
       /* the live scene stays the character's (S5): shown again, it still knows every death it played */

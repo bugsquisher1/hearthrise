@@ -7,10 +7,10 @@
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
  "generated": "2026-10-24",
- "digest": "33895962f7f0365cb6b2fc06dab8d8943f2e17693cbcdebc5d886357c9bd9186",
+ "digest": "e37c4b7b805e50bbdc77d8b02d4416d7dedaed8c422e35b1a5997911e4699eff",
  "counts": {
   "relations": 225,
-  "functions": 522,
+  "functions": 524,
   "policies": 115,
   "indexes": 320,
   "triggers": 48,
@@ -691,7 +691,9 @@
    "hr_social_party_view(p_user uuid, p_slot integer)",
    "hr_social_person(p_user uuid)",
    "hr_social_resolve(p_target text)",
+   "hr_social_slot(p_user uuid)",
    "hr_social_state(p_slot integer)",
+   "hr_social_target(p_target text, OUT target_user uuid, OUT target_slot integer)",
    "hr_stamina_cap(p_user uuid, p_slot integer, p_at timestamp with time zone)",
    "hr_stamina_of(p_user uuid, p_slot integer, p_at timestamp with time zone)",
    "hr_stamina_refill(p_slot integer, p_price bigint, p_idem uuid)",

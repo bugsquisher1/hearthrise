@@ -5,9 +5,10 @@
 //   node tests/chat-social.mjs                the rules (pure node, then a real Chromium)
 //   node tests/chat-social.mjs --pure         the pure rules only (no browser)
 //   node tests/chat-social.mjs --mutate       every planted defect must turn a rule RED
+//   node tests/chat-social.mjs --mutate --only=FR-2   just the mutants whose name holds that text
 //   node tests/chat-social.mjs --shots <dir>  also write the visual-gate screenshots (1440x900, 922x423)
 //
-// mutant-anchors: src/social/ src/data/chat-channels.js src/data/shell-windows.js src/shell/window-sizes.js src/shell/windows/inventory/index.js src/styles/hunt.css src/styles/app.css src/shell/context-menu.js src/shell/menu-providers.js src/shell/windows/chat.js src/shell/windows/friends.js src/hunt-view/scene.js src/session/party-sections.js src/world/world-boot.js src/shell/shell.js src/shell/hud.js
+// mutant-anchors: src/social/ src/data/chat-channels.js src/data/shell-windows.js src/shell/window-sizes.js src/shell/windows/inventory/index.js src/styles/hunt.css src/styles/app.css src/shell/context-menu.js src/shell/menu-providers.js src/shell/windows/chat.js src/shell/windows/friends.js src/shell/windows/block-list.js src/hunt-view/scene.js src/session/party-sections.js src/world/world-boot.js src/shell/shell.js src/shell/hud.js
 // mutant-writes-tree: no — pure mutants plant into a temp copy of src/, page mutants into served overrides
 //
 // The server half of every rule (the sender's name, level and role stamped by
@@ -42,7 +43,18 @@
 //   MN-1  THE MENU lists the data rows its providers allow, in row order: Trade
 //         never (hidden until its lane); no Message or Block on yourself; a
 //         blocked player gets Unblock; a monster gets Look
-//   FR-1  FRIENDS read as the server said: online, and what they are doing
+//   FR-1  FRIENDS read as the server said: online, and what they are doing; a
+//         person keeps the server's slot (the hero its name is), a bad slot is null
+//   FR-2  [page] A FRIEND ROW IS ONE HERO (2027-01-17-social-pass.sql): every row
+//         (Friends, Asks for you, Your asks, Blocked) shows the server's CURRENT name
+//         and is patched at the next read (a rename, a switch of heroes); a row's
+//         menu target carries the server's slot, so Inspect from it asks for THAT
+//         hero; an ask answered `friends` (a mutual ask) reads "You are friends
+//         now."; a refused Unblock says why on the window's line
+//   WH-2  A RENAME REACHES HELD WHISPERS: a re-read renders the sender hero's current
+//         name on a line already held, and the conversation's label follows it
+//   CW-10 [page] a chat line already drawn takes the server's current name at the
+//         next read (hr_chat_row renders it), its menu target too
 //   ON-1  PLAYERS ONLINE (tracker r16): the count is hr_players_online's answer, asked
 //         on each social poll naming the account's open character slots, replaced by
 //         each answer; a refused or malformed answer reads "— online", never the last
@@ -356,6 +368,25 @@ async function pureRules(M) {
     const away = list.find((x) => x.name === 'Away');
     if (!away || M.fwin.doingWords(away) !== 'Offline · In town') fail('FR-1 an offline friend reads ' + JSON.stringify(away && M.fwin.doingWords(away)));
     if (list.length !== 2 || !/^Online · Hunting in /.test(words) || f.incoming().length !== 1) fail('FR-1 friends read ' + JSON.stringify(list) + ' "' + words + '"');
+    /* The person is ONE hero: the server's slot rides it (the menu targets that hero); a malformed one is no slot. */
+    f.apply({ friends: [{ id: OTHER, name: 'Wren Ashby', slot: 1, online: true, doing: { kind: 'town' } }], incoming: [{ id: UID, name: 'Me', slot: 'x' }] });
+    if (f.friends()[0].slot !== 1 || f.incoming()[0].slot !== null) fail('FR-1 a person slot reads ' +JSON.stringify([f.friends()[0], f.incoming()[0]]));
+  }
+  // WH-2: a re-read (the inbox's catch-up) renders each hero's CURRENT name (2027-01-17 hr_whisper_row); a held line takes it.
+  {
+    const first = row({ id: '00000000-0000-4000-8000-0000000a0001', channel: undefined, to_id: UID, to_name: 'Me', from_name: 'Bree Hollow', body: 'hi' });
+    let lines = [];
+    const { acct } = fakeAccount({ hr_whispers_recent: () => ({ ok: true, lines }) });
+    const rt = fakeRealtime();
+    const wh = new M.wh.WhisperStore({ account: acct, realtime: rt });
+    await wh.load();
+    rt.pushW(first);
+    lines = [Object.assign({}, first, { from_name: 'Bree Marsh' })];
+    rt.joinW();
+    for (let i = 0; i < 5; i++) await tick();
+    const conv = wh.conversations()[0];
+    const held = conv ? wh.lines(conv.tab) : [];
+    if (!conv || conv.name !== 'Bree Marsh' || held.length !== 1 || held[0].name !== 'Bree Marsh') fail('WH-2 after a rename the whisper reads ' + JSON.stringify({ conv, held: held.map((l) => l.name) }));
   }
   // ON-1 (tracker r16): the online count is the server's answer, asked on every social poll naming exactly the
   // account's open character slots (the server stamps its own of those present), REPLACED by each answer; a
@@ -425,7 +456,9 @@ async function stub(page, s) {
     if (name === 'hr-accrue') return json(Object.assign({ accrued: true }, env(s.seats), kept(), { version: ++s.version }));
     if (name === 'hr_chat_recent') return json({ ok: true, zone: ZONE, party: null, lines: s.recent || [row({ body: 'welcome back', created_at: '2026-10-18T08:00:00Z' })] });
     if (name === 'hr_chat_send') return json({ ok: true, line: row({ from_id: UID, from_name: 'Quill', body: body.p_body, from_weapon: 'staff', from_role: 'healer' }) });
-    if (name === 'hr_social_state') return json({ ok: true, friends: [], incoming: [], outgoing: [], blocks: [] });
+    if (name === 'hr_social_state') return json(s.social || { ok: true, friends: [], incoming: [], outgoing: [], blocks: [] });
+    if (name === 'hr_friend_request' && s.ask) return json(s.ask);
+    if (name === 'hr_block_set' && s.block) return json(s.block);
     if (name === 'hr_players_online') return json({ ok: true, online: 3 });
     if (name === 'hr_whispers_recent') return json({ ok: true, lines: [] });
     if (name === 'hr_inspect') return json({ ok: true, id: OTHER, name: 'Bramble', slot: 0, level: 34, weapon: 'sword', role: null, gear: [{ slot: 'weapon', item: 'bronze_sword' }] });
@@ -620,6 +653,21 @@ async function pageRules(overrides, shots) {
         await page.keyboard.press('b');
         await page.waitForTimeout(300);
       }
+      // CW-10 (2027-01-17): a line already drawn takes the server's current name at the next read (hr_chat_row
+      // renders the hero's current name; the catch-up after a re-join reads it), and its menu target with it.
+      if (!phone) {
+        const R = (name) => row({ id: '00000000-0000-4000-8000-0000000c0010', from_name: name, body: 'renamed later', created_at: new Date().toISOString() });
+        await page.click('[data-hs-win="chat"] [data-tab="global"]');
+        s.recent = [R('Bree Hollow')];
+        await page.evaluate(() => window.__hub.join('chat:global'));
+        const sel = '[data-hs-win="chat"] .hc-log.is-talk.is-on li[data-key="00000000-0000-4000-8000-0000000c0010"] .hc-name';
+        if (!await wait(page, (q) => { const b = document.querySelector(q); return b && b.textContent === 'Bree Hollow'; }, sel, 3000)) fails.push('CW-10 [' + tag + '] the caught-up line did not show');
+        s.recent = [R('Bree Marsh')];
+        await page.evaluate(() => window.__hub.join('chat:global'));
+        const renamed = await wait(page, (q) => { const b = document.querySelector(q); return b && b.textContent === 'Bree Marsh' && b.getAttribute('data-hs-player-name') === 'Bree Marsh'; }, sel, 3000);
+        if (!renamed) fails.push('CW-10 [' + tag + '] after a rename the drawn line reads ' + JSON.stringify(await page.evaluate((q) => { const b = document.querySelector(q); return b && [b.textContent, b.getAttribute('data-hs-player-name')]; }, sel)));
+        s.recent = null;
+      }
       // CW-4
       const nameBox = await page.$('[data-hs-win="chat"] .hc-log.is-talk.is-on .hc-name[data-hs-player-id]');
       if (!nameBox) fails.push('CW-4 [' + tag + '] no name to right-click');
@@ -641,6 +689,49 @@ async function pageRules(overrides, shots) {
       await page.keyboard.press('n');
       if (!await wait(page, () => document.querySelector('[data-hs-win="friends"] .hf-friends .hs-blocks'), null, 3000)) fails.push('CW-4 [' + tag + '] the Friends window (with its block list) did not open on N');
       if (shots) await page.screenshot({ path: join(shots, 'friends-' + tag + '.png') });
+      // FR-2 (2027-01-17): every row is ONE hero, patched at the next read; its menu target carries the server's slot.
+      if (!phone) {
+        const fail2 = (m) => fails.push('FR-2 [' + tag + '] ' + m);
+        const ID = (n) => 'aaaaaaaa-0000-4000-8000-0000000000e' + n;
+        const answer = (later) => ({ ok: true,
+          friends: [{ id: OTHER, name: later ? 'Wren Ashby' : 'Bree Hollow', slot: later ? 1 : 0, online: true, doing: { kind: 'town' } }],
+          incoming: [{ id: ID(1), name: later ? 'Asker Renamed' : 'Asker', slot: 0 }], outgoing: [{ id: ID(2), name: later ? 'Waiter Renamed' : 'Waiter', slot: 0 }],
+          blocks: [{ id: ID(3), name: later ? 'Pest Renamed' : 'Pest', slot: 0 }] });
+        const read = () => page.evaluate(() => {
+          const w = document.querySelector('[data-hs-win="friends"]');
+          const who = (q) => Array.from(w.querySelectorAll(q)).map((e) => e.textContent);
+          const f = w.querySelector('.hf-list.is-friends .hf-row');
+          return { friend: who('.hf-list.is-friends .hf-who'), target: f && [f.getAttribute('data-hs-player-name'), f.getAttribute('data-hs-player-slot')],
+            asks: who('.hf-list.is-in .hf-who'), mine: who('.hf-list.is-out .hf-who'), blocked: who('.hs-blocks .hs-block b'), msg: w.querySelector('.hf-msg').textContent };
+        });
+        const ask = async (name) => { await page.fill('[data-hs-win="friends"] .hf-name', name); await page.click('[data-hs-win="friends"] [data-hs-act="ask"]'); await page.waitForTimeout(500); };
+        s.social = answer(false); s.ask = { ok: true, state: 'requested', person: { id: ID(2), name: 'Waiter', slot: 0 } };
+        await ask('Waiter');
+        const r0 = await read();
+        if (r0.friend.join() !== 'Bree Hollow' || JSON.stringify(r0.target) !== '["Bree Hollow","0"]' || r0.asks.join() !== 'Asker' || r0.mine.join() !== 'Waiter'
+          || r0.blocked.join() !== 'Pest' || r0.msg !== 'Asked. They will see it in their friends list.') fail2('the first read shows ' + JSON.stringify(r0));
+        /* the next read: renames everywhere, the friend now on its other hero; the ask was answered `friends` (a mutual ask) */
+        s.social = answer(true); s.ask = { ok: true, state: 'friends', person: { id: ID(1), name: 'Asker Renamed', slot: 0 } };
+        await ask('Asker');
+        const r1 = await read();
+        if (r1.friend.join() !== 'Wren Ashby' || JSON.stringify(r1.target) !== '["Wren Ashby","1"]' || r1.asks.join() !== 'Asker Renamed' || r1.mine.join() !== 'Waiter Renamed'
+          || r1.blocked.join() !== 'Pest Renamed') fail2('the next read shows ' + JSON.stringify(r1));
+        if (r1.msg !== 'You are friends now.') fail2('a mutual ask reads "' + r1.msg + '"');
+        /* a refused Unblock says why */
+        s.block = { ok: false, error: 'rate_limited' };
+        await page.click('[data-hs-win="friends"] [data-hs-act="unblock"]');
+        await page.waitForTimeout(500);
+        const r2 = await read();
+        if (r2.msg !== 'Too many changes at once. Try again in a moment.') fail2('a refused Unblock reads "' + r2.msg + '"');
+        /* Inspect from the row's menu asks for THAT hero (the server's slot), not the account's any one */
+        const n0 = s.calls.filter((c) => c.name === 'hr_inspect').length;
+        await page.click('[data-hs-win="friends"] .hf-list.is-friends .hf-row .hf-who', { button: 'right' });
+        await page.click('.hw-menu.is-on .hw-mi >> text=Inspect gear');
+        await page.waitForTimeout(500);
+        const asked = s.calls.filter((c) => c.name === 'hr_inspect').slice(n0).map((c) => c.body);
+        if (asked.length !== 1 || asked[0].p_target !== OTHER || asked[0].p_slot !== 1) fail2('Inspect from the row asked ' + JSON.stringify(asked));
+        s.social = null; s.ask = null; s.block = null;
+      }
       // CW-7: the chat's corner, its see-through plate, its grip and the size a reload keeps
       const closeAll = async () => { for (let i = 0; i < 5 && await page.evaluate(() => !!document.querySelector('[data-hs-win]:not(.is-leaving)')); i++) { await page.mouse.click(2, vp.height - 2); await page.keyboard.press('Escape'); await page.waitForTimeout(220); } };
       const chatBox = () => page.evaluate(() => {
@@ -741,6 +832,8 @@ const PURE_MUTANTS = [
   ['the online ask names only the viewed character', 'src/social/social-session.js',
     "o.account.characters().map((cs) => cs.slot)", '[o.account.viewed]'],
   ['the ground opens a menu', 'src/shell/menu-providers.js', "    if (MONSTERS[mon]) return { kind: 'monster', id: mon, title: monsterName(mon) };", "    return { kind: 'monster', id: mon, title: String(mon) };"],
+  ['a person drops its slot (FR-1)', 'src/social/friends.js', 'slot: Number.isInteger(p.slot) && p.slot >= 0 && p.slot <= 32 ? p.slot : null };', 'slot: null };'],
+  ['a held whisper keeps its old name (WH-2)', 'src/social/whispers.js', 'if (this._ids.has(l.id)) return this._rename(l);', 'if (this._ids.has(l.id)) return false;'],
   ['a re-read keeps lines the server no longer returns', 'src/social/chat-store.js', "const keep = tab === 'system' ? this.lines(tab).filter((l) => l.system) : [];", 'const keep = this.lines(tab);'],
 ];
 const PAGE_MUTANTS = [
@@ -761,6 +854,14 @@ const PAGE_MUTANTS = [
   ['the chat keeps its height under a widget (CW-8)', 'src/shell/hud.js', 'const max = Math.min(...over.map(room), at.max === null ? Infinity : at.max);', 'const max = at.max === null ? Infinity : at.max;'],
   ['a log is not kept at its foot (CW-9)', 'src/shell/windows/chat.js', '    keepPinned(list);', '    void keepPinned;'],
   ['another screen lays out a chat line (CW-1)', 'src/styles/app.css', '.hero-body { display: flex;', '.hc-body, .hero-body { display: flex;'],
+  ['a friend row keeps the name it was built with (FR-2)', 'src/shell/windows/friends.js', "  markPlayer(el, target(p));\n  text(el.querySelector('.hf-who'), p.name);",
+    "  if (!el.hasAttribute('data-hs-player')) { markPlayer(el, target(p)); text(el.querySelector('.hf-who'), p.name); }"],
+  ['a friend row targets the account, not its hero (FR-2)', 'src/shell/windows/friends.js', "slot: Number.isInteger(p.slot) ? p.slot : null });", 'slot: null });'],
+  ['a mutual ask reads "Asked" (FR-2)', 'src/shell/windows/friends.js', '(r) => ASK_WORDS[r && r.state] || ASK_WORDS.requested);', '() => ASK_WORDS.requested);'],
+  ['a refused Unblock is silent (FR-2)', 'src/shell/windows/friends.js', "settle(ctx, body, st, actBlocks(ctx, body, t), '');", 'actBlocks(ctx, body, t);'],
+  ['a blocked row keeps its first name (FR-2)', 'src/shell/windows/block-list.js', "patch: (el, p) => { text(el.querySelector('b'), p.name);", "patch: (el, p) => { if (!el.querySelector('b').textContent) text(el.querySelector('b'), p.name);"],
+  ['a held chat line keeps its old name (CW-10)', 'src/social/chat-store.js', 'if (this._ids.has(l.id)) return this._rename(l);', 'if (this._ids.has(l.id)) return false;'],
+  ['a drawn line never repaints its name (CW-10)', 'src/shell/windows/chat.js', 'build: (l) => lineEl(ctx, l), patch: patchName });', 'build: (l) => lineEl(ctx, l), patch: () => {} });'],
   ['the menu is drawn inside the World', 'src/shell/windows/float-menu.js', "  doc.body.appendChild(el);\n  return el;", "  (doc.querySelector('.world-stage') || doc.body).appendChild(el);\n  return el;"],
 ];
 
@@ -786,7 +887,10 @@ async function main() {
   if (clean.length) { console.log('  ✗ clean control RED: ' + clean.join('; ')); process.exit(1); }
   console.log('  ✓ clean control green');
   let bad = 0;
-  for (const [name, file, from, to] of PURE_MUTANTS) {
+  /* --only=<text>: just the mutants whose name holds it (the rule tag in brackets, e.g. --only=FR-2). */
+  const only = (process.argv.find((x) => x.startsWith('--only=')) || '').slice(7);
+  const pick = (list) => (only ? list.filter(([name]) => name.includes(only)) : list);
+  for (const [name, file, from, to] of pick(PURE_MUTANTS)) {
     const tmp = copySrc();
     try {
       const text = readFileSync(join(tmp, file), 'utf8');
@@ -798,14 +902,14 @@ async function main() {
       else { console.log('  ✗ ' + name + ' — NOT caught'); bad++; }
     } finally { rmSync(tmp, { recursive: true, force: true }); }
   }
-  for (const [name, file, from, to] of onlyPure ? [] : PAGE_MUTANTS) {
+  for (const [name, file, from, to] of onlyPure ? [] : pick(PAGE_MUTANTS)) {
     const text = await readFile(join(ROOT, file), 'utf8');
     if (!text.includes(from)) { console.log('  ✗ ' + name + ' — anchor not found in ' + file); bad++; continue; }
     const fails = await pageRules({ [file]: text.replace(from, to) }, null);
     if (fails.length) console.log('  ✓ ' + name + ' — caught (' + fails[0].split(' ')[0] + ')');
     else { console.log('  ✗ ' + name + ' — NOT caught'); bad++; }
   }
-  const n = PURE_MUTANTS.length + (onlyPure ? 0 : PAGE_MUTANTS.length);
+  const n = pick(PURE_MUTANTS).length + (onlyPure ? 0 : pick(PAGE_MUTANTS).length);
   console.log(bad ? 'chat-social --mutate: ' + bad + ' escaped' : 'chat-social --mutate: ' + n + '/' + n + ' mutants caught');
   process.exit(bad ? 1 : 0);
 }

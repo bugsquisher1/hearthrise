@@ -6,9 +6,11 @@
 // server's: names, online, and what a friend is doing (hunting where / in
 // town) — the server tells only accepted friends, and hides a character whose
 // presence is quiet.
-//   friends()   [{ id, name, online, doing: { kind: 'hunting'|'town', hunt } | null }]
-//   incoming()  [{ id, name }]  asks made to this account
-//   outgoing()  [{ id, name }]  asks this account made
+//   friends()   [{ id, name, slot, online, doing: { kind: 'hunting'|'town', hunt } | null }]
+//   incoming()  [{ id, name, slot }]  asks made to this account
+//   outgoing()  [{ id, name, slot }]  asks this account made
+// A person is an ACCOUNT named by its current character (the hero on screen):
+// `slot` is that hero, `doing` is what that hero does.
 //   isFriend(id) / asked(id)
 //   request(target) / answer(id, accept) / remove(id): ONE rpc each; the list
 //               moves only when the next hr_social_state says so (the
@@ -23,9 +25,11 @@ const HUNT = /^[a-z0-9_]{1,64}$/;
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const nameOf = (v) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, 24) : 'Adventurer');
 
-/** One person as the server answered it, or null. */
+/** One person as the server answered it, or null. `slot` is the character the name is (hr_social_person, 2027-01-17):
+    the menu targets THAT hero, so the gear an Inspect shows is the hero the row names. */
 export function personOf(p) {
-  return isObj(p) && typeof p.id === 'string' && UUID.test(p.id) ? { id: p.id, name: nameOf(p.name) } : null;
+  if (!(isObj(p) && typeof p.id === 'string' && UUID.test(p.id))) return null;
+  return { id: p.id, name: nameOf(p.name), slot: Number.isInteger(p.slot) && p.slot >= 0 && p.slot <= 32 ? p.slot : null };
 }
 
 function doingOf(d) {

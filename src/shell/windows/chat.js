@@ -12,7 +12,8 @@
 //
 // Lines come from the account's social side (ctx.account.social: ChatStore,
 // WhisperStore) and are only ever APPENDED: one keyed list per tab, built once,
-// so a line already drawn is never redrawn. A list stays at the bottom unless
+// so a line already drawn is never redrawn; only its speaker's name is patched
+// (a rename shows at the next read). A list stays at the bottom unless
 // the player scrolled up; then a "New messages" pill brings them down.
 //
 // THE INPUT: its placeholder says who you are talking to. Enter sends (ONE
@@ -90,6 +91,15 @@ function lineEl(ctx, l) {
   return element(ctx.doc, '<li class="hc-line"><time class="hc-time">' + esc(l.time) + '</time> ' + who + tag + ': <span class="hc-body">' + partsHtml(l.parts) + '</span></li>');
 }
 
+/* A drawn line keeps its words; only the speaker's NAME follows the server's row (hr_chat_row / hr_whisper_row render
+   the hero's current name), so a rename reaches lines already on screen at the next read. */
+function patchName(el, l) {
+  const b = l.system ? null : el.querySelector('.hc-name');
+  if (!b || b.getAttribute('data-hs-player-name') === l.name) return;
+  attr(b, 'data-hs-player-name', l.name);
+  text(b, l.name);
+}
+
 /* The keyed list for one tab, made the first time it is shown. */
 function logOf(body, tab) {
   const box = body.querySelector('.hc-logs');
@@ -160,7 +170,7 @@ function patchTalk(body, ctx, social, st) {
   cls(list, 'is-on', true);
   const atBottom = PINNED.get(list) || atFoot(list);
   const before = list.childElementCount;
-  rows(list, lines, { key: (l) => l.id, build: (l) => lineEl(ctx, l), patch: () => {} });
+  rows(list, lines, { key: (l) => l.id, build: (l) => lineEl(ctx, l), patch: patchName });
   const added = list.childElementCount > before;
   const pill = body.querySelector('.hc-pill');
   if (atBottom || st.jump) { list.scrollTop = list.scrollHeight; st.jump = false; prop(pill, 'hidden', true); }

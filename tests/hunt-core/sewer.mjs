@@ -571,8 +571,7 @@ const cases = {
        anything): the window's icon while it is closed, then the control inside it, deepest first; the bar's food slot
        until its own Configure action is open, then Save. The icon row draws its ring itself, as the last attribute. */
     const imp = (p) => import(pathToFileURL(join(M.root, p)).href + V);
-    const { ringPlan } = await imp('src/shell/coach.js');
-    const { renderLaunchers } = await imp('src/shell/launcher.js');
+    const { renderLaunchers, ringPlan } = await imp('src/shell/launcher.js');
     const { SHELL_WINDOWS } = await imp('src/data/shell-windows.js');
     const card = (id) => M.tut.HUNT_TUTORIAL.find((s) => s.id === id);
     for (const [a, row] of Object.entries(M.tut.TUTORIAL_ANCHORS)) {
@@ -770,7 +769,7 @@ const mutants = [
   { name: 'no ring on the icon a card starts at', case: 'coach-ring',
     edits: [['src/data/hunt-tutorial.js', 'return a && a.icon && !open(a.window) ? a.window : null;', 'return null;']] },
   { name: 'the bar ring stays on the slot while its Configure action is open', case: 'coach-ring',
-    edits: [['src/shell/coach.js', "open('configure-action') && at.configuring === card.barSlot ?", 'false ?']] },
+    edits: [['src/shell/launcher.js', "open('configure-action') && at.configuring === card.barSlot ?", 'false ?']] },
   { name: 'the icon row draws no ring of its own (a repaint drops it)', case: 'coach-ring',
     edits: [['src/shell/launcher.js', "(ring === r.id ? ' data-coach-ring=\"\"' : '')", "''"]] },
 ];

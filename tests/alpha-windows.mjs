@@ -1776,8 +1776,8 @@ const MUTANTS = [
   ['the skills are one window again', 'src/shell/windows/skills.js', "export const renderTradeSkills = skillsWindow([['gather', 'Gathering'], ['artisan', 'Crafting']]);", "export const renderTradeSkills = skillsWindow([['combat', 'Combat'], ['gather', 'Gathering'], ['artisan', 'Crafting']]);"],
   ['a new player gets no pointer to Hunts', 'src/shell/launcher.js', "+ (ctx.hud && ctx.hud.isShown('hunt-topbar') ? '' : pointerFor(ctx)) + '</nav>'", "+ '</nav>'"],
   ['the card leaves when its window opens (AW-17b, playtest 2026-10-24)', 'src/shell/shell.js', "placeCoach(slot, win && slot.parentElement.getAttribute('data-hs-win') === win ? coachHtml(cs, card) : '');", "placeCoach(slot, '');"],
-  ['nothing inside a window is ringed (AW-17b)', 'src/shell/shell.js', '    ringCoach(ctx, card, [shell, screen]);\n', ''],
-  ['the ring is on a control nobody can see (AW-17b)', 'src/shell/coach.js', "const shown = (el) => el.getClientRects().length > 0 && !el.closest('[hidden]');", 'const shown = () => true;'],
+  ['nothing inside a window is ringed (AW-17b)', 'src/shell/shell.js', '    ringCoach(ctx, card, [shell, screen], cs ? draftOf(cs).open : null);\n', ''],
+  ['the ring is on a control nobody can see (AW-17b)', 'src/shell/launcher.js', "const shown = (el) => el.getClientRects().length > 0 && !el.closest('[hidden]');", 'const shown = () => true;'],
   ['the Hunts window stays over the hunt it entered (AW-29)', 'src/shell/windows/hunts.js', "  const thenClose = (r) => { if (r && r.ok) { sc.closeOnHunt = true; repaint(); } };\n", '  const thenClose = () => {};\n'],
   /* The Hunts window, master-detail (designer plan 2026-10-22): AW-25 .. AW-29. */
   ['AW-25 every creature reads common', 'src/shell/hunt-ground-facts.js', "  if (share >= SHARE_BANDS.common) return 'common';", "  return 'common';"],

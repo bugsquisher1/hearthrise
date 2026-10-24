@@ -44,9 +44,9 @@ import { SHELL_WINDOWS } from '../data/shell-windows.js?v=0.2.42';
 import { HUD_WIDGETS } from '../data/hud-widgets.js?v=0.2.42';
 import { createWindowManager, DOCK_EDGE, HOME_BOTTOM, RESIZE_MIN } from './window-manager.js?v=0.2.42';
 import { createHud, residueStore, placeWidget, hudInsetOf, clearOfEdges, clearOfDock, stageOf, dockCap, homeAt, stackBelow } from './hud.js?v=0.2.42';
-import { keyLabel, glyphSvg, actCoach, heldCard, coachHtml, placeCoach } from './launcher.js?v=0.2.42';
-import { ringCoach } from './coach.js?v=0.2.42';
+import { keyLabel, glyphSvg, actCoach, heldCard, coachHtml, placeCoach, ringCoach } from './launcher.js?v=0.2.42';
 import { coachWindow } from '../data/hunt-tutorial.js?v=0.2.42';
+import { draftOf } from './bar-draft.js?v=0.2.42';
 import { WINDOW_RENDERERS, WIDGET_RENDERERS } from './renderers.js?v=0.2.42';
 import { mountContextMenu } from './context-menu.js?v=0.2.42';
 import { menuProvidersOf } from './menu-providers.js?v=0.2.42';
@@ -137,7 +137,7 @@ export function mountShell(root, o) {
     el.innerHTML = '<header class="hs-win-head" data-hs-drag="' + esc(row.id) + '">' + glyphSvg(ctx.glyphs, row.glyph)
       + '<h2 class="hs-win-title">' + esc(row.label) + '</h2><kbd class="hs-key">' + esc(keyLabel(row.key)) + '</kbd>'
       + '<button type="button" class="hs-close" data-hs-close="' + esc(row.id) + '" aria-label="Close ' + esc(row.label) + '">' + glyphSvg(ctx.glyphs, 'uiClose') + '</button></header>'
-      /* the coach's card when it points into this window (src/shell/coach.js), above the body: it covers nothing */
+      /* the coach's card when it points into this window (coach() below), above the body: it covers nothing */
       + '<div class="hs-win-coach"></div>'
       + '<div class="hs-win-body" data-hs-body></div>' + gripHtml(row);
     return el;
@@ -339,7 +339,7 @@ export function mountShell(root, o) {
     paintWidgets();
     coach();
   }
-  /* The coach (launcher.js heldCard) inside the window it points into, and its gold ring (coach.js), after every
+  /* The coach (launcher.js heldCard) inside the window it points into, and its gold ring (launcher.js ringCoach), after every
      paint and on the display tick; a card that gives way on the tick (a held card read) redraws the icon row too. */
   let coachShown = null;
   function coach(tick) {
@@ -352,7 +352,7 @@ export function mountShell(root, o) {
     const id = card ? card.id : null;
     if (tick && id !== coachShown) paintWidgets();
     coachShown = id;
-    ringCoach(ctx, card, [shell, screen]);
+    ringCoach(ctx, card, [shell, screen], cs ? draftOf(cs).open : null);
   }
   const offWm = wm.subscribe(onWm);
   /* A reset or a size-class reload moves every line of the HUD layout window too. */

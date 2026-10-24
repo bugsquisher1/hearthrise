@@ -22,7 +22,7 @@
 // ROW SHAPE
 //   { id, title, text, anchor, done, ring?, party? }
 //     anchor  the surface the card points at (TUTORIAL_ANCHORS); the shell rings the real control
-//             there (src/shell/coach.js) and, when the anchor is a window, shows the card inside it
+//             there (src/shell/launcher.js ringCoach) and, when the anchor is a window, shows the card inside it
 //     ring    what on that surface: { item } the bar slot holding it, { crop } the seed to plant,
 //             { skill, work } the skill and its recipe, { task } Tamsin's task
 //     party   true: a PARTY card, met only by a hero in a party of 2+ whose Level opens its hunt;
@@ -67,7 +67,7 @@ import { BASIC_INDEX } from './supply-basics.js?v=0.2.42';
 
 /* The surfaces a card may point at: `window` the shell window (src/data/shell-windows.js) its controls live in (the
    card shows INSIDE it while it is open), `icon` its way starts at that window's icon, and what the coach rings
-   (src/shell/coach.js ringPlan). */
+   (src/shell/launcher.js ringPlan). */
 const anchor = (about, window, icon) => Object.freeze({ about, window: window || null, icon: !!icon });
 export const TUTORIAL_ANCHORS = Object.freeze({
   hunt_picker: anchor('Hunts (src/shell/windows/hunts.js): its icon, then the ground\'s line, then Enter', 'hunts', true),

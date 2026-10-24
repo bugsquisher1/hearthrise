@@ -5,7 +5,7 @@
 //   node tests/session-core.mjs           the rules (pure node, no network)
 //   node tests/session-core.mjs --mutate  every planted defect must turn a rule RED
 //
-// mutant-anchors: src/session/ src/net/auth.js src/net/supabase-bootstrap.js
+// mutant-anchors: src/session/ src/net/auth.js src/net/supabase-bootstrap.js src/app/sign-in.js
 // mutant-writes-tree: no — mutants are planted into a temp copy of src/session + src/net/auth.js + src/net/supabase-bootstrap.js + src/hunt-view + src/data + src/core
 //
 //   ENV-1  a full envelope REPLACES the record: a key the new one lacks is gone
@@ -71,7 +71,11 @@
 //   NET-1  the engine is asked in the database's region (forceFunctionRegion from SUPABASE_CONFIG)
 //   OUT-1  sign-out clears every copy of the session (device + tab, sb-*, retired keys, tab id) and closes every character
 //   TAB-1  the tab id is stable within a tab and new for a new tab
-//   COPY-1 sign-up/reset copy never reveals whether an email has an account; no "open beta"/"invite code"
+//   COPY-1 sign-up/reset copy never reveals whether an email has an account (by code or by message); no "open beta"/"invite code"
+//   COPY-2 a refused sign-up, sign-in or new password says WHY, read by supabase-js's error.code, then status, then
+//          message: too short, leaked, address refused, too many tries, sign-ups closed, not confirmed yet; the
+//          generic line only for an unknown refusal, "in a minute" only for too many tries; a short password never
+//          leaves the client; the create and set-password forms say the rule under the Password field (Tyler 10-24)
 //   TOK-1  a token about to expire is refreshed BEFORE the call; the call carries the new one
 //          (live 2026-10-20: a background tab sent a token dead for 14 h, 805 times)
 //   TOK-2  a 401 renews the token once and retries that call once, never more
@@ -98,6 +102,8 @@ async function load(base) {
     S: await import(u('src/session/server.js')),
     AU: await import(u('src/net/auth.js')),
     NB: await import(u('src/net/supabase-bootstrap.js')),
+    AR: await import(u('src/data/account-rules.js')),
+    SI: await import(u('src/app/sign-in.js')),
     CFG: await import(u('src/session/config.js')),
     TP: await import(u('src/session/town-poll.js')),
     I: await import(u('src/session/item-sections.js')),
@@ -151,7 +157,7 @@ const timers = { setTimer: () => 0, clearTimer: () => {} };
 async function rules(M) {
   const fails = [];
   const t = async (id, fn) => { try { const r = await fn(); if (r !== true) fails.push(id + ': ' + r); } catch (e) { fails.push(harnessFail(id, e)); } };
-  const { E, R, C, A, S, AU, NB, CFG, TP, I, FI, FS } = M;
+  const { E, R, C, A, S, AU, NB, AR, SI, CFG, TP, I, FI, FS } = M;
 
   await t('ENV-1', () => {
     const a = E.applyEnvelope(null, env(3, { skills: { mining: 5 }, buffs: [1] })).record;
@@ -1232,15 +1238,91 @@ async function rules(M) {
     const answers = [];
     const mk = (err) => ({ auth: { signUp: async () => ({ data: {}, error: err }), resetPasswordForEmail: async () => ({ error: null }),
       onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }), getSession: async () => ({ data: {} }) } });
-    for (const err of [null, { message: 'User already registered', status: 422 }]) {
+    for (const err of [null, { message: 'User already registered', status: 422 }, { code: 'user_already_exists', status: 422, message: 'refused' }]) {
       const au = AU.createAuth({ client: mk(err), device: memStore(), tab: memStore(), redirectTo: 'https://x/' });
-      answers.push((await au.signUp('a@b.co', 'abcdefgh', 'abcdefgh')).message);
+      answers.push((await au.signUp('a@b.co', 'abcdefghij', 'abcdefghij')).message);
       answers.push((await au.requestReset('a@b.co')).message);
     }
-    if (answers[0] !== answers[2] || answers[1] !== answers[3]) return 'the copy differs for an existing email';
+    if (answers[0] !== answers[2] || answers[1] !== answers[3]) return 'the copy differs for an existing email (by message)';
+    if (answers[0] !== answers[4] || answers[1] !== answers[5]) return 'the copy differs for an existing email (by code)';
     if (!/if you already have an account, sign in/i.test(answers[0])) return 'sign-up copy does not point an existing account to sign in';
     const all = Object.values(AU.AUTH_COPY).join(' ');
     return !/open beta|invite code/i.test(all) || 'retired copy (open beta / invite code) is back';
+  });
+
+  await t('COPY-2', async () => {
+    const N = AR.PASSWORD_MIN_LENGTH, pw = 'x'.repeat(N), C = AU.AUTH_COPY;
+    if (!Number.isSafeInteger(N) || N < 1) return 'no password minimum in src/data/account-rules.js';
+    let called = 0;
+    const mk = (err) => ({ auth: {
+      signUp: async () => { called++; return { data: { user: null, session: null }, error: err }; },
+      signInWithPassword: async () => ({ data: { session: null }, error: err }),
+      updateUser: async () => ({ data: {}, error: err }),
+      onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }), getSession: async () => ({ data: {} }) } });
+    const rig = (err) => AU.createAuth({ client: mk(err), device: memStore(), tab: memStore(), redirectTo: 'https://x/' });
+    /* A coded refusal carries a message no fallback reads, so only error.code can name it. */
+    const weak = (reasons) => ({ name: 'AuthWeakPasswordError', code: 'weak_password', status: 422, reasons, message: 'refused' });
+    const SIGN_UP = [
+      ['weak_password, too short', weak(['length']), 'shortPassword'],
+      ['weak_password, leaked', weak(['pwned']), 'leakedPassword'],
+      ['user_already_exists', { code: 'user_already_exists', status: 422, message: 'refused' }, 'signUpSent'],
+      ['email_exists', { code: 'email_exists', status: 422, message: 'refused' }, 'signUpSent'],
+      ['email_address_invalid', { code: 'email_address_invalid', status: 400, message: 'refused' }, 'emailRefused'],
+      ['over_email_send_rate_limit', { code: 'over_email_send_rate_limit', status: 400, message: 'refused' }, 'rateLimited'],
+      ['over_request_rate_limit', { code: 'over_request_rate_limit', status: 400, message: 'refused' }, 'rateLimited'],
+      ['signup_disabled', { code: 'signup_disabled', status: 422, message: 'refused' }, 'signUpsClosed'],
+      ['429 with no code', { status: 429, message: 'Too Many Requests' }, 'rateLimited'],
+      ['no code, the length message', { status: 422, message: 'Password should be at least ' + N + ' characters.' }, 'shortPassword'],
+      ['no code, the closed message', { status: 422, message: 'Signups not allowed for this instance' }, 'signUpsClosed'],
+      ['an unknown code', { code: 'unexpected_failure', status: 500, message: 'refused' }, 'signUpFailed'],
+      ['no code, an unknown message', { status: 400, message: 'refused' }, 'signUpFailed'],
+    ];
+    const generic = [], minute = [];
+    for (const [name, err, key] of SIGN_UP) {
+      const r = await rig(err).signUp('a@b.co', pw, pw);
+      if (r.message !== C[key]) return 'sign-up ' + name + ' reads ' + JSON.stringify(r.message) + ', not ' + key;
+      if (r.ok !== (key === 'signUpSent')) return 'sign-up ' + name + ' answers ok=' + r.ok;
+      if (r.message === C.signUpFailed) generic.push(name);
+      if (/in a minute/i.test(r.message)) minute.push(name);
+    }
+    if (generic.join() !== 'an unknown code,no code, an unknown message') return 'the generic line answers a known refusal: ' + generic.join(', ');
+    if (minute.join() !== 'over_email_send_rate_limit,over_request_rate_limit,429 with no code') return '"in a minute" answers something else: ' + minute.join(', ');
+    called = 0;
+    const short = await rig(null).signUp('a@b.co', pw.slice(1), pw.slice(1));
+    if (called || short.ok || short.message !== C.shortPassword) return 'a ' + (N - 1) + '-character password reached the auth server or read ' + JSON.stringify(short.message);
+    if (!C.shortPassword.includes(String(N)) || !C.passwordRule.includes(String(N))) return 'the length words do not name ' + N;
+    const SIGN_IN = [
+      ['email_not_confirmed', { code: 'email_not_confirmed', status: 400, message: 'refused' }, 'notConfirmed'],
+      ['invalid_credentials', { code: 'invalid_credentials', status: 400, message: 'Invalid login credentials' }, 'signInFailed'],
+      ['over_request_rate_limit', { code: 'over_request_rate_limit', status: 429, message: 'refused' }, 'rateLimited'],
+      ['an existing-email message', { status: 400, message: 'User already registered' }, 'signInFailed'],
+    ];
+    for (const [name, err, key] of SIGN_IN) {
+      const r = await rig(err).signIn('a@b.co', pw);
+      if (r.ok || r.message !== C[key]) return 'sign-in ' + name + ' reads ' + JSON.stringify(r.message) + ', not ' + key;
+    }
+    const NEW_PW = [
+      ['weak_password, too short', weak(['length']), 'shortPassword'],
+      ['weak_password, leaked', weak(['pwned']), 'leakedPassword'],
+      ['same_password', { code: 'same_password', status: 422, message: 'refused' }, 'samePassword'],
+      ['an unknown code', { code: 'session_expired', status: 401, message: 'refused' }, 'passwordFailed'],
+    ];
+    for (const [name, err, key] of NEW_PW) {
+      const r = await rig(err).setNewPassword(pw, pw);
+      if (r.ok || r.message !== C[key]) return 'new password ' + name + ' reads ' + JSON.stringify(r.message) + ', not ' + key;
+    }
+    /* The forms: the rule under the Password field before any press, at the one minimum. */
+    const el = () => ({ textContent: '', disabled: false, classList: { toggle() {} }, addEventListener() {}, focus() {}, querySelector: () => el(), elements: { namedItem: () => null } });
+    const screen = (mode) => { let html = ''; SI.renderAuthScreen({ set innerHTML(v) { html = v; }, querySelector: () => el() }, {}, mode, {}); return html; };
+    const rule = '<p class="auth-lead" id="auth-password-rule">' + C.passwordRule + '</p>';
+    for (const mode of ['create', 'set-password']) {
+      const h = screen(mode);
+      const at = h.indexOf('name="password"');
+      if (at < 0 || h.indexOf(rule) < at || h.indexOf(rule) > h.indexOf('name="confirm"')) return 'the ' + mode + ' form does not say the rule under the Password field';
+      if (!h.includes('aria-describedby="auth-password-rule"')) return 'the ' + mode + ' password field is not described by its rule';
+      if ((h.match(new RegExp('minlength="' + N + '"', 'g')) || []).length !== 2) return 'the ' + mode + ' form does not hold both fields at minlength ' + N;
+    }
+    return !screen('sign-in').includes('auth-password-rule') || 'the sign-in form says the new-password rule';
   });
 
   /* THE TOKEN (TOK-*): the real createAuth over a fake supabase-js auth, the real server link over a fake fetch. */
@@ -1375,7 +1457,18 @@ const MUTANTS = [
   ['sign-out keeps sb-* keys', 'src/net/auth.js', " || k.startsWith('sb-')", ''],
   ['sign-out keeps the tab id', 'src/net/auth.js', '    if (o.tab) o.tab.remove(cfg.tabKey);\n', ''],
   ['sign-out leaves characters open', 'src/session/account-session.js', '    for (const slot of Array.from(this._chars.keys())) this.close(slot);\n', ''],
-  ['existing email told apart', 'src/net/auth.js', "if (error && !/already (registered|exists)/i.test(String(error.message || ''))) return fail(AUTH_COPY.signUpFailed);", 'if (error) return fail(AUTH_COPY.signUpFailed);'],
+  ["existing email told apart by its message","src/net/auth.js","  [/already (registered|exists)/i, 'signUpSent'],\n",""],
+  ["existing email told apart by its code","src/net/auth.js","  user_already_exists: 'signUpSent', email_exists: 'signUpSent',","  user_already_exists: 'signUpFailed', email_exists: 'signUpFailed',"],
+  /* COPY-2 (Tyler 10-24): a refusal says why */
+  ["a refusal is read only by its message","src/net/auth.js","  if (Object.prototype.hasOwnProperty.call(CODE_COPY, code)) return CODE_COPY[code];\n",""],
+  ["a too-short password reads as a weak one","src/net/auth.js","[['length', 'shortPassword'], ['pwned', 'leakedPassword']]","[['pwned', 'leakedPassword']]"],
+  ["a leaked password reads as a weak one","src/net/auth.js","[['length', 'shortPassword'], ['pwned', 'leakedPassword']]","[['length', 'shortPassword']]"],
+  ["a 429 with no code reads as generic","src/net/auth.js","  if (error.status === 429) return 'rateLimited';\n",""],
+  ["every sign-up refusal reads as generic","src/net/auth.js","const key = error ? copyFor(error, SIGN_UP_SAYS, 'signUpFailed') : 'signUpSent';","const key = error ? (/already (registered|exists)/i.test(String(error.message || '')) || error.code === 'user_already_exists' || error.code === 'email_exists' ? 'signUpSent' : 'signUpFailed') : 'signUpSent';"],
+  ["sign-in tells apart more than it may","src/net/auth.js","if (error) return fail(AUTH_COPY[copyFor(error, SIGN_IN_SAYS, 'signInFailed')]);","if (error) return fail(AUTH_COPY[authErrorCopy(error) || 'signInFailed']);"],
+  ["a new password refusal reads as an expired link","src/net/auth.js","if (error) return fail(AUTH_COPY[copyFor(error, NEW_PASSWORD_SAYS, 'passwordFailed')]);","if (error) return fail(AUTH_COPY.passwordFailed);"],
+  ["a short password goes to the auth server","src/net/auth.js","      if (String(password || '').length < PASSWORD_MIN_LENGTH) return fail(AUTH_COPY.shortPassword);\n      if (password !== confirm) return fail(AUTH_COPY.mismatch);\n      try {\n        const { error } = await auth.signUp(","      if (password !== confirm) return fail(AUTH_COPY.mismatch);\n      try {\n        const { error } = await auth.signUp("],
+  ["the form does not say the rule","src/app/sign-in.js","\n    + '<p class=\"auth-lead\" id=\"auth-password-rule\">' + esc(AUTH_COPY.passwordRule) + '</p>',",","],
   ['the engine runs in the players\' region', 'src/session/server.js', "post('/functions/v1/hr-accrue?forceFunctionRegion=' + SUPABASE_CONFIG.functionRegion, body)", "post('/functions/v1/hr-accrue', body)"],
   ['the region is not the database\'s', 'src/net/supabase-bootstrap.js', "functionRegion: 'us-west-2',", "functionRegion: 'us-east-2',"],
   ['closed game ignored', 'src/session/server.js', "return status === CLOSED_STATUS && !!body", "return false && !!body"],
@@ -1446,7 +1539,7 @@ async function main() {
   if (!mutate) {
     const fails = [...await rules(await load(ROOT)), ...await viewRules(ROOT)];
     for (const f of fails) console.log('  ✗ ' + f);
-    console.log(fails.length ? 'session-core: ' + fails.length + ' rule(s) RED' : 'session-core: every session rule holds (41 rules)');
+    console.log(fails.length ? 'session-core: ' + fails.length + ' rule(s) RED' : 'session-core: every session rule holds (42 rules)');
     process.exit(fails.length ? 1 : 0);
   }
   const clean = await cleanControl(async () => rules(await load(ROOT)));

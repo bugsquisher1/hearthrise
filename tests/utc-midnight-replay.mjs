@@ -404,9 +404,20 @@ async function base() {
     const v = verdict(r, label);
     if (v !== 'harness') ok(label, v === 'green', v === 'green' ? '' : `→ ${describe(r)}`);
   };
-  for (const k of SWEEP) arm(`the fixture runs at midnight ${k >= 0 ? '+' : '−'}${Math.abs(k)} s`, k - probe.index / 1000);
-  for (const a of ARMS.filter((x) => x.window)) arm(a.name, a.off);
+  const arms = SWEEP.map((k) => [`the fixture runs at midnight ${k >= 0 ? '+' : '−'}${Math.abs(k)} s`, k - probe.index / 1000])
+    .concat(ARMS.filter((x) => x.window).map((a) => [a.name, a.off]));
+  /* --shard=K/N (smoke.yml, 2026-10-24: 14 replays of ~40 s were 87% of one job's budget): every Nth arm from
+     the Kth. The control and the probe run in every shard, so each shard's reds mean what the whole run's do. */
+  const sh = SHARD ? arms.filter((_, i) => i % SHARD.n === SHARD.k - 1) : arms;
+  if (SHARD) console.log(`  ..    shard ${SHARD.k}/${SHARD.n}: ${sh.length} of ${arms.length} arms\n`);
+  for (const [label, off] of sh) arm(label, off);
 }
+const SHARD = (() => {
+  const a = process.argv.find((x) => x.startsWith('--shard='));
+  const m = a && /^--shard=(\d+)\/(\d+)$/.exec(a);
+  if (a && (!m || +m[1] < 1 || +m[1] > +m[2])) { console.error(`  HARNESS: bad ${a} (want --shard=K/N, 1 <= K <= N)`); process.exit(2); }
+  return m ? { k: +m[1], n: +m[2] } : null;
+})();
 
 /* Plant `find` → `replace`, replay at the given offsets, restore byte-for-byte.
    Returns the two results, or sets `harness` if the mutation could not be planted

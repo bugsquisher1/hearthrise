@@ -1783,9 +1783,10 @@ async function mutantSeconds() {
   try { return JSON.parse(await readFile(join(ROOT, 'tests', 'hunt-screen.mutant-times.json'), 'utf8')).seconds || {}; } catch { return {}; }
 }
 
-/* A shard's booked mutant time. A job is ~3 min of setup (one install took 9.5 min on run 39765799475),
-   ~2.3 min of clean control and, in in-page-3, ~2.3 min of plain run: 18 min of mutants keeps every
-   job near 25 min and under 30 in the slow-install case. Over it, add a shard (smoke.yml + ci-shape --write). */
+/* A shard's booked mutant time. A job is ~1-8 min of setup (installs took 0.4-7.7 min on runs 40034325773..
+   40043808165), ~3.4 min of clean control and, in in-page-3, ~3.4 min of plain run (re-measured on 40043808165):
+   18 min of mutants keeps every job under 30 min of its 40 (25% headroom) in the slow-install case. Over it,
+   add a shard (smoke.yml + ci-shape --write); re-measure the times file when a release runs every mutant. */
 const SHARD_BUDGET_S = 18 * 60;
 
 /** --shard-plan (no browser): smoke.yml registers shards 1..N of one N, the plan for that N is a
@@ -1845,7 +1846,7 @@ async function main() {
       : 'hunt-screen: panels mount; patch in place; intents only; the analyzer is the server’s; badge defaults; each log line once' + (shots ? ' (shots in ' + shots + ')' : ''));
     process.exit(fails.length ? 1 : 0);
   }
-  /* --shard=K/N: the mutants split over N CI jobs (in-page-3 … in-page-9), BALANCED BY MEASURED TIME
+  /* --shard=K/N: the mutants split over N CI jobs (in-page-3 … in-page-9, in-page-14 … 16), BALANCED BY MEASURED TIME
      (2026-10-22: round-robin by count let shard 1/3 hit its 46-min limit on run 39765799475 — a mutant
      costs 2-155 s). planShards (tools/lib/mutant-scope.mjs) books each mutant at its seconds in
      tests/hunt-screen.mutant-times.json; checkShards proves the plan is a partition (every mutant in

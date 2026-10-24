@@ -23,10 +23,12 @@ export const GEAR_HUNT_WORDS = Object.freeze({
   upgrades: 'Leave the hunt to put these on.',
 });
 
-/** True while the server holds this hero's hunt open (its `hunt` section, replaced by every envelope). */
+/** True while the server holds this hero in an open hunt: its `hunt` section open and its state in combat, the two
+ *  facts the engine's own check reads (equip.js), each replaced by every envelope. */
 export function gearLocked(cs) {
   const h = huntOf(cs);
-  return !!h && !h.ended;
+  const st = cs && typeof cs.read === 'function' ? cs.read('state') : null;
+  return !!h && !h.ended && !!st && st.active_kind === 'combat';
 }
 
 /** The hero's requirement for `id` in words against the server's numbers: { text, short }, or null (none). */

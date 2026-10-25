@@ -157,6 +157,12 @@
 //              both members the party panel draws: unit (= the session's world
 //              unit), name, role, HP / mana off the pose, dealt, DPS; leader and
 //              self are units; `account.max_concurrent` is the server config.
+//   TOWN-DEFAULTS the bar's unset options read the engine's pick (2027-01-25-town-defaults.sql):
+//              alone in town, a party in town, a hunt before its first settle == roles.js
+//              defaultSettings for the role and party, GOLD_FLOOR.default; the first settle's
+//              unit carries exactly that pick; a saved option wins.
+//   FIRST-MANA before a hunt's first settle the hero and every hunting member read their full
+//              mana (hunt-spawn.js), never null; the client's readers get a number.
 //   VALUE      every bound refuses a forgery and moves nothing: gold / XP /
 //              item (value_over), kills (kills_over), the world's size, shape and
 //              swing, the store without consent (store_off), the lane caps
@@ -2153,21 +2159,44 @@ const DB_ARMS = {
     if (canon(tick) !== canon(viewed)) problems.push(`viewed and tick wrote different rows ${firstDiff(canon(tick), canon(viewed))}`);
     return problems;
   }),
-  'PARTY-LEAVE-IDEM': async (db) => inTx(db, async () => {
+  /* Judged AS OF the file (tests/schema-replay.mjs REPLAY SCOPE): a later file splices one of its bodies under its own pin
+     (2027-01-25-town-defaults.sql, hr_hunt_party_view), so on the whole chain this file's §0 rightly refuses a second
+     apply ("another file moved it"); the property under test is this file's own idempotency. So the arm boots the chain
+     TO this file, and carries over from the whole chain every body no LATER file authors (a DB mutant planted there
+     rides with it). */
+  'PARTY-LEAVE-IDEM': async (main) => {
+    const FILE = '2026-12-18-party-leave-together.sql';
     const SIGS = ['public.hr_hunt_party_view(uuid,integer)', 'public.hr_hunt_instance_read(uuid,integer)',
       'public.hr_hunt_settle_session(uuid,integer,uuid,jsonb)', 'public.hr_hunt_view(uuid)', 'public.hr_party_leave_together_set(integer,boolean,uuid)'];
-    const shape = async () => JSON.stringify({
-      bodies: await Promise.all(SIGS.map((s) => one(db, `select md5(replace(prosrc, chr(13), '')) || ':' || coalesce(array_to_string(proacl, ','), '') from pg_proc where oid = $1::regprocedure`, [s]))),
-      column: await q(db, `select data_type, is_nullable, column_default from information_schema.columns where table_schema = 'public' and table_name = 'player_state' and column_name = 'party_leave_together'`),
-      baseline: await q(db, `select proname, identity_args, grantee, note, approved_at from public.hr_client_rpc_baseline where proname = 'hr_party_leave_together_set'`),
-    });
-    const before = await shape();
-    if (!before.includes('"is_nullable":"NO"') || !before.includes('true')) return [`CONTROL: the replayed chain carries no box: ${before.slice(0, 200)}`];
-    const sql = readFileSync(join(ROOT, 'supabase', 'migrations', '2026-12-18-party-leave-together.sql'), 'utf8').replace(/\r\n/g, '\n');
-    try { await db.exec(sql); } catch (e) { return [`the second apply RAISED: ${String(e.message).split('\n')[0]}`]; }
-    const after = await shape();
-    return after === before ? [] : [`the second apply moved ${firstDiff(before, after)}`];
-  }),
+    const order = JSON.parse(readFileSync(join(ROOT, 'tests', 'schema-apply-order.json'), 'utf8')).order;
+    const later = order.slice(order.indexOf(FILE) + 1).map((f) => readFileSync(join(ROOT, 'supabase', 'migrations', f), 'utf8'));
+    const authoredLater = (sig) => {
+      const fn = sig.slice('public.'.length, sig.indexOf('('));
+      const re = new RegExp('create\\s+or\\s+replace\\s+function\\s+(?:public\\.)?' + fn + '\\s*\\(|pg_get_functiondef\\(\\s*\'(?:public\\.)?' + fn + '\\(', 'i');
+      return later.some((t) => re.test(t));
+    };
+    const { bootReplay } = await import('./schema-replay.mjs');
+    const { db } = await bootReplay({ upTo: FILE });
+    try {
+      return await inTx(db, async () => {
+        for (const sig of SIGS) {
+          if (authoredLater(sig)) continue;
+          await db.exec(String(await one(main, 'select pg_get_functiondef($1::regprocedure)', [sig])));
+        }
+        const shape = async () => JSON.stringify({
+          bodies: await Promise.all(SIGS.map((s) => one(db, `select md5(replace(prosrc, chr(13), '')) || ':' || coalesce(array_to_string(proacl, ','), '') from pg_proc where oid = $1::regprocedure`, [s]))),
+          column: await q(db, `select data_type, is_nullable, column_default from information_schema.columns where table_schema = 'public' and table_name = 'player_state' and column_name = 'party_leave_together'`),
+          baseline: await q(db, `select proname, identity_args, grantee, note, approved_at from public.hr_client_rpc_baseline where proname = 'hr_party_leave_together_set'`),
+        });
+        const before = await shape();
+        if (!before.includes('"is_nullable":"NO"') || !before.includes('true')) return [`CONTROL: the replayed chain carries no box: ${before.slice(0, 200)}`];
+        const sql = readFileSync(join(ROOT, 'supabase', 'migrations', FILE), 'utf8').replace(/\r\n/g, '\n');
+        try { await db.exec(sql); } catch (e) { return [`the second apply RAISED: ${String(e.message).split('\n')[0]}`]; }
+        const after = await shape();
+        return after === before ? [] : [`the second apply moved ${firstDiff(before, after)}`];
+      });
+    } finally { await db.close?.(); }
+  },
   /* HOLD-SEAT (Tyler 2026-10-22, the party's "One tank holds"; lane/b-tank-choice). hr_hunt_instance_read carries
      the party's hunt_parties.hold_seat at instance.hold_seat (lane/c-hunt-screens-server, 2026-12-08-party-hold.sql,
      in the replayed chain; the arm sets the column as hr_party_hold_set would, rolled back). The door and the tick
@@ -2346,6 +2375,79 @@ const DB_ARMS = {
     /* A solo hunt is a party of one. */
     const soloEnv = await one(db, 'select public.hr_hunt_party_view($1::uuid, 0)', [UIDS[2]]);
     if (soloEnv !== null) problems.push(`a character with no hunt and no party has a party section: ${JSON.stringify(soloEnv).slice(0, 200)}`);
+    return problems;
+  }),
+  /* TOWN-DEFAULTS (Tyler 2026-10-25: the whole bar is configurable in town; 2027-01-25-town-defaults.sql + its generated
+     hr_hunt_role_defaults): an option the hero never set reads what the ENGINE would play (hunt-spawn.js heroSetup over
+     roles.js defaultSettings for its role and party; GOLD_FLOOR.default for the gold to keep): alone in town, in a party
+     in town (a Healer beside a shield Melee: its chase and target differ from alone), in a hunt before its first settle,
+     and the first settle's unit then carries exactly that pick, so the server and the engine cannot disagree. A saved
+     option wins. Before the fix all five read null out of a hunt. */
+  'TOWN-DEFAULTS': async (db, M) => inTx(db, async () => {
+    const problems = [];
+    const { defaultSettings } = await import(pathToFileURL(join(M.root, 'src/core/hunt/roles.js')).href);
+    const view = (u) => one(db, 'select public.hr_hunt_settings_view($1::uuid, 0)', [u]);
+    const bar = (v) => canon({ target_mode: v.target_mode, stance: v.stance, distance: v.distance, chase: v.chase, gold_floor: v.gold_floor });
+    const engine = (role, party) => {
+      const d = defaultSettings(role, party);
+      return canon({ target_mode: d.tmode, stance: d.stance, distance: d.dist, chase: d.chase, gold_floor: M.HSD.GOLD_FLOOR.default });
+    };
+    /* (1) alone in town, nothing set; then a saved stance wins */
+    await character(db, M, UIDS[2], { inv: {} });
+    const alone = await view(UIDS[2]);
+    if (!alone.role || bar(alone) !== engine(alone.role, [alone.role])) problems.push(`alone in town the bar reads ${bar(alone)}, the engine plays ${alone.role && engine(alone.role, [alone.role])}`);
+    const other = alone.stance === 'defensive' ? 'offensive' : 'defensive';
+    await asUser(db, UIDS[2]);
+    const set = await one(db, 'select public.hr_action_set_options(0, 0, $1::jsonb, $2::uuid)', [JSON.stringify({ stance: other }), idem()]);
+    await db.query("select set_config('request.jwt.claim.sub', '', true)");
+    if (!set || set.ok !== true) return [...problems, 'CONTROL: the stance was refused ' + JSON.stringify(set).slice(0, 160)];
+    if ((await view(UIDS[2])).stance !== other) problems.push(`a saved stance ${other} reads ${(await view(UIDS[2])).stance}`);
+    /* (2) a party in town: seat 1 takes up the practice staff (a Healer) beside seat 0's sword and shield */
+    let town = null;
+    const h = await hunter(db, M, { party: [{ ...STRONG }, { ...STRONG }], beforeEnter: async () => {
+      await db.query("delete from public.player_equipment where user_id = $1 and slot = 0 and equip_slot in ('shield', 'weapon')", [UIDS[1]]);
+      await db.query("insert into public.player_equipment (user_id, slot, equip_slot, item_id) values ($1, 0, 'weapon', 'practice_staff')", [UIDS[1]]);
+      town = [await view(UIDS[0]), await view(UIDS[1])];
+    } });
+    const roles = town.map((v) => v.role);
+    if (roles.join() !== 'tank,healer') return [...problems, 'CONTROL: the party plays ' + roles.join()];
+    if (engine('healer', ['healer']) === engine('healer', roles)) return [...problems, 'CONTROL: a Healer plays the same alone and in this party'];
+    for (const [i, v] of town.entries()) if (bar(v) !== engine(v.role, roles)) problems.push(`seat ${i} (${v.role}) in town reads ${bar(v)}, the engine plays ${engine(v.role, roles)}`);
+    /* (3) in the hunt, before its first settle (no unit yet) */
+    const before = [await view(UIDS[0]), await view(UIDS[1])];
+    for (const [i, v] of before.entries()) if (bar(v) !== engine(v.role, roles)) problems.push(`seat ${i} before the first settle reads ${bar(v)}, the engine plays ${engine(v.role, roles)}`);
+    /* (4) the first settle spawns the units: the view now reads them, and they carry exactly that pick */
+    await settleTo(db, M, h.from + 60000);
+    if (await one(db, 'select count(*)::int from public.hunt_sessions where id = any($1::uuid[]) and unit_id is not null', [h.sids]) !== 2) return [...problems, 'CONTROL: the first settle placed no units'];
+    const after = [await view(UIDS[0]), await view(UIDS[1])];
+    for (const [i, v] of after.entries()) if (bar(v) !== bar(before[i])) problems.push(`seat ${i}'s unit plays ${bar(v)}, the bar showed ${bar(before[i])}`);
+    return problems;
+  }),
+  /* FIRST-MANA (2027-01-25-town-defaults.sql): before a hunt's first settle (no world yet) the hero's own hunt section and
+     every hunting member's party row read the hero's FULL mana (hunt-spawn.js heroUnit starts a hero at maxMana), as HP
+     reads its stored value; the client's readers get a number, never "–". After the settle the pose's figure. */
+  'FIRST-MANA': async (db, M) => inTx(db, async () => {
+    const problems = [];
+    const { partyOf, huntOf } = await import(pathToFileURL(join(ROOT, 'src/session/hunt-sections.js')).href);
+    const h = await hunter(db, M, { party: [{ ...STRONG }, { ...STRONG }] });
+    const maxes = await Promise.all(UIDS.slice(0, 2).map(async (u) => Number((await one(db, 'select public.hr_vitals_of($1::uuid, 0)', [u])).max_mana)));
+    const read = async (label, full) => {
+      const env = await one(db, 'select public.hr_state_of($1::uuid, 0)', [UIDS[0]]);
+      const cs = { read: (k) => env[k] };
+      const me = huntOf(cs); const p = partyOf(cs);
+      if (!me || !p) { problems.push(`${label}: the client reads no hunt or party (${!!me}/${!!p})`); return; }
+      if (!Number.isFinite(me.hero.mana) || me.hero.manaMax !== maxes[0] || (full && me.hero.mana !== maxes[0]) || me.hero.mana > me.hero.manaMax) {
+        problems.push(`${label}: the hero reads mana ${me.hero.mana} of ${me.hero.manaMax} (max ${maxes[0]})`);
+      }
+      const seen = p.members.map((m) => [m.mana, m.manaMax]);
+      if (p.members.length !== 2 || p.members.some((m) => !Number.isFinite(m.mana) || !Number.isFinite(m.manaMax) || m.mana > m.manaMax
+          || (full && m.mana !== m.manaMax)) || canon(p.members.map((m) => m.manaMax).sort()) !== canon(maxes.slice().sort())) {
+        problems.push(`${label}: the party rows read mana ${canon(seen)} (maxima ${canon(maxes)})`);
+      }
+    };
+    await read('before the first settle', true);
+    await settleTo(db, M, h.from + 60000);
+    await read('after the first settle', false);
     return problems;
   }),
   /* P0 bug report #57 (v0.2.26): a Level-2 club hero picked density 8 at Mill Cellar; the kill bound counted
@@ -3161,8 +3263,21 @@ const DB_MUTANTS = [
     find: "'hp_max', case when", replace: "'max_hp', case when" },
   { arm: 'PARTY-VIEW', name: 'the party section does not name the world unit', fn: 'public.hr_hunt_party_view(uuid,integer)',
     find: "'unit', v_r.unit_id,", replace: "'unit_id', v_r.unit_id," },
+  /* (re-anchored on 2027-01-25-town-defaults.sql: a hunting member's mana falls back to its max mana) */
   { arm: 'PARTY-VIEW', name: 'the vitals are not read off the pose', fn: 'public.hr_hunt_party_view(uuid,integer)',
-    find: "'mana', v_v->'mana',", replace: "'mana', null::jsonb," },
+    find: "        'mana', case when v_r.sid is not null then coalesce(v_v->'mana', v_mx->'max_mana') end,", replace: "        'mana', null::jsonb," },
+  /* TOWN DEFAULTS (2027-01-25-town-defaults.sql): each leg goes red on its own defect. */
+  { arm: 'TOWN-DEFAULTS', name: '[town defaults] an unset option reads null again (no role default)', fn: 'public.hr_hunt_settings_view(uuid,integer)',
+    find: "    v_val := coalesce(nullif(v_opt->v_o.opt, 'null'::jsonb), v_unit->v_o.opt, v_o.dflt, v_rdef->v_o.opt);",
+    replace: "    v_val := coalesce(nullif(v_opt->v_o.opt, 'null'::jsonb), v_unit->v_o.opt, v_o.dflt);" },
+  { arm: 'TOWN-DEFAULTS', name: '[town defaults] the party is ignored (every hero reads its alone pick)', fn: 'public.hr_hunt_role_default(text,text[])',
+    find: "  select d.j->p_role->(case when cardinality(p.roles) <= 1 then 'solo'", replace: "  select d.j->p_role->(case when true then 'solo'" },
+  { arm: 'FIRST-MANA', name: '[town defaults] the hero\'s mana has no fallback before the world', fn: 'public.hr_hunt_section_view(uuid,integer)',
+    find: "      'mana', coalesce(v_me->((v_uf->>'mana')::int), case when s.ended_at is null then to_jsonb(v_mpmax) end), 'mana_max', to_jsonb(v_mpmax),",
+    replace: "      'mana', v_me->((v_uf->>'mana')::int), 'mana_max', to_jsonb(v_mpmax)," },
+  { arm: 'FIRST-MANA', name: '[town defaults] a member\'s mana has no fallback before the world', fn: 'public.hr_hunt_party_view(uuid,integer)',
+    find: "        'mana', case when v_r.sid is not null then coalesce(v_v->'mana', v_mx->'max_mana') end,\n        'mana_max', case when v_r.sid is not null then coalesce(v_v->'mana_max', v_mx->'max_mana') end,",
+    replace: "        'mana', v_v->'mana',\n        'mana_max', v_v->'mana_max'," },
   { arm: 'REPLAY', name: 'the instance CAS is gone', fn: AI,
     find: '  if v_i.world_swing <> p_world_from then', replace: '  if false then' },
   { arm: 'TICK-1', name: '[C2 instance unmoved] the instance swing counter is not written', fn: AI,

@@ -7,10 +7,10 @@
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
  "generated": "2026-10-25",
- "digest": "00e372ab5910ba7d9b2c57d7f3145286b5cefc36b0f23af79450e98626dbd49d",
+ "digest": "83ab4084679ce03979690c64e229b4dd7c2b2d3fdaec704010b3cd2684c70b6c",
  "counts": {
   "relations": 227,
-  "functions": 539,
+  "functions": 542,
   "policies": 115,
   "indexes": 323,
   "triggers": 50,
@@ -524,6 +524,9 @@
    "hr_hunt_presets_view(p_user uuid, p_slot integer)",
    "hr_hunt_restart(p_slot integer, p_session uuid, p_idem uuid)",
    "hr_hunt_restock(p_slot integer, p_item text, p_qty bigint, p_idem uuid)",
+   "hr_hunt_role_default(p_role text, p_party text[])",
+   "hr_hunt_role_defaults()",
+   "hr_hunt_role_of(p_user uuid, p_slot integer)",
    "hr_hunt_roster(p_holder text, p_limit integer, p_lease_ms integer)",
    "hr_hunt_roster_sharded(p_prefix text, p_body_max integer, p_lease_ms integer)",
    "hr_hunt_saved_bag(p_user uuid, p_slot integer)",

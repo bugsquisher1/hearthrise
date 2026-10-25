@@ -35,13 +35,13 @@
 
 export const SHELL_WINDOWS = Object.freeze([
   Object.freeze({ id: 'hunts', label: 'Hunts', key: 'h', glyph: 'uiMap', width: 800, object: 'plain' }),
-  Object.freeze({ id: 'inventory', label: 'Inventory', key: 'b', glyph: 'navInventory', width: 452, object: 'satchel' }),
+  Object.freeze({ id: 'inventory', label: 'Inventory', key: 'b', glyph: 'navInventory', width: 560, object: 'satchel' }),
   Object.freeze({ id: 'character', label: 'Character', key: 'c', glyph: 'navCharacter', width: 560, object: 'ledger' }),
   Object.freeze({ id: 'skills-trade', label: 'Gathering and crafting', key: 'g', glyph: 'uiPickaxe', width: 380, object: 'ledger' }),
-  Object.freeze({ id: 'storage', label: 'Storage', key: 't', glyph: 'uiChest', width: 452, object: 'satchel' }),
+  Object.freeze({ id: 'storage', label: 'Storage', key: 't', glyph: 'uiChest', width: 540, object: 'satchel' }),
   /* Services (stamina, Blessings) is the Shop's third tab (Tyler 2026-10-25: "Lets move services to the 'shop' menu"):
      its old key R opens the Shop on it. */
-  Object.freeze({ id: 'shop', label: 'Shop', key: 'v', glyph: 'navStore', width: 420, object: 'ledger', tabKeys: Object.freeze({ r: 'services' }) }),
+  Object.freeze({ id: 'shop', label: 'Shop', key: 'v', glyph: 'navStore', width: 480, object: 'ledger', tabKeys: Object.freeze({ r: 'services' }) }),
   /* The farm plots (P1 2026-10-22: no client door to farming). Per hero: each hero has its own plots on the server. */
   Object.freeze({ id: 'farm', label: 'Farm', key: 'j', glyph: 'uiSprout', width: 440, object: 'plain' }),
   /* Lane S2: stamina refills, blessings and the character's name, each priced by the server. */

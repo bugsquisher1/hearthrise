@@ -258,8 +258,10 @@ async function run(mutant) {
       if (r) {
         const body = r.body || {};
         const det = body.detail && typeof body.detail === 'object' ? body.detail : body;
-        ok(r.status !== 200 && JSON.stringify(body).includes('insufficient_item'), 'SS-3 the stale settle was not refused insufficient_item: ' + r.status + ' ' + String(JSON.stringify(body)).slice(0, 260));
-        ok(JSON.stringify(body).includes('"storage"'), 'SS-3 the refusal does not carry the Storage count: ' + String(JSON.stringify(det)).slice(0, 200));
+        ok(r.status === 409 && body.stage === 'collect' && det.error === 'insufficient_item',
+          'SS-3 the stale settle was not refused insufficient_item at the collect: ' + r.status + ' ' + String(JSON.stringify(det)).slice(0, 260));
+        ok(det.item_id === IN && Number(det.need) === 3 * NEED && Number(det.bag) === 0 && Number(det.storage) === 3 * NEED - 1 && Number(det.have) === 3 * NEED - 1,
+          `SS-3 the refusal does not state the server's counts (have ${3 * NEED - 1} = bag 0 + Storage ${3 * NEED - 1}, need ${3 * NEED}): ` + String(JSON.stringify(det)).slice(0, 200));
         ok(await sto(A, IN) === 3 * NEED - 1 && await bag(A, 0, IN) === 0 && await bag(A, 0, OUT) === out0,
           `SS-3 a refused settle moved something: Storage ${await sto(A, IN)}, bag ${await bag(A, 0, IN)}, product +${await bag(A, 0, OUT) - out0}`);
         // The next stop re-reads: pays what is left (2 whole actions), and the run is over.

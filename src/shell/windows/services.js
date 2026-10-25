@@ -61,7 +61,8 @@ export function patchServicesPane(body, ctx) {
     text(quote, q.why === 'stamina_full' ? 'Your stamina is full.' : 'You have bought all ' + whole(q.perDay) + ' refills for today. More tomorrow.');
     text(ask, 'Buy stamina');
   } else {
-    text(quote, 'Restores ' + hoursText(q.restoreMs) + ' for ' + gold(q.price) + '. Bought today: ' + whole(q.boughtToday) + ' of ' + whole(q.perDay) + '; each one costs more.');
+    text(quote, 'Restores ' + hoursText(q.restoreMs) + ' for ' + gold(q.price) + '. Bought today: ' + whole(q.boughtToday) + ' of ' + whole(q.perDay) + '; each one costs more.'
+      + (purse !== null && purse < q.price ? ' You need ' + gold(q.price - purse) + ' more.' : ''));
     text(ask, 'Buy ' + hoursText(q.restoreMs) + ' · ' + gold(q.price));
   }
   const canStam = !!q && q.available && !sc.pending && (purse === null || purse >= q.price);
@@ -86,7 +87,9 @@ export function patchServicesPane(body, ctx) {
     build: (t) => element(ctx.doc, '<li class="hw-line" data-tier="' + t.tier + '"><span class="hw-line-name"><b>Blessing ' + ROMAN[t.tier] + '</b><small></small></span>'
       + '<button type="button" class="hh-tool" data-hs-act="bless" data-tier="' + t.tier + '"></button></li>'),
     patch: (li, t) => {
-      text(li.querySelector('small'), Math.round(t.permille / 10) + '% less XP lost' + (t.tier > 1 ? ' in all' : '') + ' · ' + (t.held ? 'owned' : t.price ? gold(t.price) : 'free'));
+      const short = !t.held && next && next.tier === t.tier && purse !== null && purse < t.price ? t.price - purse : 0;
+      text(li.querySelector('small'), Math.round(t.permille / 10) + '% less XP lost' + (t.tier > 1 ? ' in all' : '') + ' · ' + (t.held ? 'owned' : t.price ? gold(t.price) : 'free')
+        + (short ? ' · You need ' + gold(short) + ' more.' : ''));
       const btn = li.querySelector('button');
       text(btn, t.held ? 'Owned' : next && next.tier === t.tier ? (t.price ? 'Bless · ' + gold(t.price) : 'Bless · free') : 'Needs ' + ROMAN[t.tier - 1]);
       prop(btn, 'disabled', t.held || !next || next.tier !== t.tier || sc.pending || (purse !== null && purse < t.price));

@@ -497,6 +497,17 @@ jobs:
           node tests/services-window.mjs
           node tools/mutant-gate.mjs node tests/services-window.mjs --mutate
 
+      # SAY WHY (Tyler 10-25: "if I try to do something and can't, tell me
+      # why"; the item menu's Cook all was greyed with no words): every intent
+      # site in the shell shows its refusal, every control off for a rule says
+      # why on screen (not a title), the words carry the server's numbers, and
+      # play.html shows Cook all, a short Shop buy and a locked hunt saying why.
+      - name: Say why - every refused or disabled action says why (play.html)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/say-why.mjs
+          node tools/mutant-gate.mjs node tests/say-why.mjs --mutate
+
       # THE HOUSE WINDOW (2026-10-22): the account's one home from the server
       # (`home`, `depot`), a chest at its quoted price after a confirmation, a
       # room rung through the engine's unlock_buy, refusals in words, fails safe.

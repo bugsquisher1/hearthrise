@@ -90,11 +90,14 @@ function patchBuy(root, st, ctx) {
       build: (o) => offerRow(ctx, o),
       patch: (li, o) => {
         const n = st.sc.qty[o.offer] || 1;
-        text(li.querySelector('small'), gold(o.price) + ' each · ' + whole(st.qty.get(o.item) || 0) + ' in the bag');
+        /* Short of the server's gold: Buy is off and the row says by how much (say-why). */
+        const short = st.gold !== null && st.gold < o.price * n ? o.price * n - st.gold : 0;
+        text(li.querySelector('small'), gold(o.price) + ' each · ' + whole(st.qty.get(o.item) || 0) + ' in the bag'
+          + (short ? ' · You need ' + gold(short) + ' more.' : ''));
         prop(li.querySelector('select'), 'value', String(n));
         const b = li.querySelector('[data-hs-act="buy"]');
         text(b, 'Buy ' + n + ' · ' + gold(o.price * n));
-        prop(b, 'disabled', st.sc.pending || (st.gold !== null && st.gold < o.price * n));
+        prop(b, 'disabled', st.sc.pending || short > 0);
       },
     });
   }

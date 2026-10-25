@@ -160,6 +160,8 @@
 .hw-mi:hover:not(:disabled) { background: var(--surf-panel); }
 .hw-mi:disabled { color: var(--ink-3); cursor: default; }
 .hw-mi[aria-pressed="true"] { color: var(--gold-2); }
+/* Why the entry above is off, in words (say-why: a title alone never reaches a phone). */
+.hw-mi-why { max-width: 280px; padding: 0 10px 6px; font-size: var(--t-micro); color: var(--ink-2); }
 .hw-menu-sub { padding: 6px 8px 2px; font-size: var(--t-micro); color: var(--ink-3); border-top: 1px solid var(--line-soft); }
 .hw-menu-rules { display: flex; flex-direction: column; }
 

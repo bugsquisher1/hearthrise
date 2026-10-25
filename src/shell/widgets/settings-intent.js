@@ -18,15 +18,9 @@ import { settingsOf, partyOf } from '../../session/hunt-sections.js?v=0.2.46';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.46';
 import { text, attr, prop, cls } from '../../render/paint.js?v=0.2.46';
 import { answerWithin } from '../bar-draft.js?v=0.2.46';
+import { refusalText } from '../intent-words.js?v=0.2.46';
 
-/* Words for the server's refusal codes; anything else reads as a plain "not saved". */
-const REFUSAL = Object.freeze({
-  rate_limited: 'Too many changes at once. Try again in a moment.',
-  settle_first: 'The hunt is catching up. Try again in a few seconds.',
-  bad_option: 'The server does not take this setting yet.',
-  network: 'No connection. Your settings are unchanged.',
-  timeout: 'The server has not answered. The panel shows what it last confirmed.',
-});
+/* The server's refusal reads from the one table (src/data/refusal-words.js via intent-words.js refusalText). */
 
 /** The <option>s for the target select. */
 export function targetOptionsHtml() {
@@ -134,7 +128,7 @@ export async function sendOption(ctx, root, el, repaint) {
   /* Never left pending: the answer, a refusal or the timeout always turns the controls back on. */
   const r = await answerWithin(() => cs.setHuntOptions(s.preset, opts));
   attr(root, 'data-pending', null);
-  text(root.querySelector('.hh-intent-msg'), r.ok ? '' : (REFUSAL[r.error] || 'Not saved: the server refused it.'));
+  text(root.querySelector('.hh-intent-msg'), r.ok ? '' : refusalText(r, cs));
   repaint();
   return r.ok;
 }

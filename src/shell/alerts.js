@@ -196,7 +196,10 @@ export function createAlertCenter(account) {
 
   function scan(cs) {
     let any = false;
-    const now = candidatesOf(cs, account.viewed === cs.slot);
+    /* ON SCREEN: the viewed slot, or, while the first character is still loading (a reload, a sign-in), the one the
+       account is opening, since it becomes the viewed one (AccountSession._open: `viewed === null` -> this slot).
+       Without that a reload raised "has ended · Start again" over the hero on screen (QA2's Pellow, 10-25). */
+    const now = candidatesOf(cs, account.viewed === cs.slot || account.viewed === null);
     /* "While you were away" (away-recap.js): judged against the last-seen stamp BEFORE it is renewed. */
     const away = awayRecapOf(cs);
     if (away) now.push(away);

@@ -16,9 +16,9 @@
 //                      with no seed, where to buy one) → ONE hr_farm_plant.
 //   A growing plot     Water (2 h at double speed) while the server says it may
 //                      be watered → ONE hr_farm_water.
-//   A ready plot       Harvest (the designer's model: the same crop goes back in,
+//   A ready plot       Harvest and replant (the designer's model: the same crop goes back in,
 //                      from your own seed, else one bought at the Shop's price) →
-//                      ONE hr_farm_harvest_replant; "Leave it empty" → hr_farm_harvest.
+//                      ONE hr_farm_harvest_replant; "Harvest only" → hr_farm_harvest (Tyler 10-25).
 //   The plot tier      Improve the soil at the server's price → hr_farm_upgrade_plot.
 // Every number is the server's (src/session/farm-sections.js). The countdown only
 // displays, and when it runs out the window asks the server again; Harvest opens
@@ -119,12 +119,14 @@ function patchPlot(li, i, st, now) {
   const harvest = li.querySelector('.hw-harvest');
   cls(harvest, 'is-on', !!p && p.ready);
   attr(harvest, 'data-hs-act', extra ? 'leave' : 'harvest');
+  /* Each label says what its verb does (Tyler 10-25, "farming is hard to understand"): an extra plot never replants. */
+  text(harvest, extra ? 'Harvest' : 'Harvest and replant');
   prop(harvest, 'disabled', st.sc.pending);
   const act = li.querySelector('.hw-plot-do');
   const verb = !p ? 'plant' : p.ready ? (extra ? '' : 'leave') : p.waterable ? 'water' : '';
   attr(act, 'data-hs-act', verb || null);
   cls(act, 'is-off', !verb);
-  text(act, verb === 'plant' ? 'Plant' : verb === 'leave' ? 'Leave it empty' : verb === 'water' ? 'Water' : p ? 'Watered' : '');
+  text(act, verb === 'plant' ? 'Plant' : verb === 'leave' ? 'Harvest only' : verb === 'water' ? 'Water' : p ? 'Watered' : '');
   prop(act, 'disabled', !verb || st.sc.pending);
 }
 

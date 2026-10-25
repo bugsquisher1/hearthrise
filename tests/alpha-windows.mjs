@@ -145,7 +145,7 @@
 //   AW-32 DISPATCH LOOT (Tyler 2026-10-25, 2027-01-23-loot-dispatch.sql): mid-hunt the Bag's Dispatch loot is off with
 //         "out hunting" in view; in town the item menu offers the loot plan (Keep in bag pressed, Deposit in storage,
 //         Sell) and the pickup filter (Don't pick up); Deposit is ONE hr_loot_rule_set {slot, item, rule, key}; the
-//         starting kit's Deposit and Sell are off; Dispatch loot is ONE hr_loot_dispatch {slot, key}, off in flight,
+//         starting kit's Sell is off (Deposit on); Dispatch loot is ONE hr_loot_dispatch {slot, key}, off in flight,
 //         its line the server's answer ("Stored 1 stack, sold 2 for 246 gp. 1 stack locked, so kept."), the bag and
 //         Storage the re-read envelope's; Storage offers the same button beside the bag at 1440x900 and 844x390
 // ════════════════════════════════════════════════════════════════════════
@@ -944,10 +944,10 @@ async function checks(overrides, shots) {
         if (rs.length !== 1 || rs[0].body.p_item !== 'wolf_pelt' || rs[0].body.p_rule !== 'deposit' || Object.keys(rs[0].body).sort().join() !== 'p_idem,p_item,p_rule,p_slot') {
           fails.push('AW-32 Deposit in storage sent ' + JSON.stringify(rs.map((c) => c.body)));
         }
-        /* the starting kit takes no Deposit or Sell plan (the server's start_kit), said before the press */
+        /* the starting kit may be deposited but takes no Sell plan (the server's start_kit), said before the press */
         const k = await menuOf('cooked_shrimp');
         const kit = Object.fromEntries(k.rules.map((r) => [r[0], r[3]]));
-        if (kit.deposit !== true || kit.sell !== true || kit.keep !== false) fails.push('AW-32 the starting kit offers ' + JSON.stringify(k.rules));
+        if (kit.deposit !== false || kit.sell !== true || kit.keep !== false) fails.push('AW-32 the starting kit offers ' + JSON.stringify(k.rules));
         await page.keyboard.press('Escape');
         await page.waitForTimeout(150);
         s.reply = { ok: true, version: 9, stored: { stacks: 1, units: 3, items: { wolf_pelt: 3 } }, sold: { stacks: 2, units: 43, gold: 246, items: { rat_tail: 31, slime_gel: 12 } },

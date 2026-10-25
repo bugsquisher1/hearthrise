@@ -35,14 +35,14 @@ const WORDS = new Map(LOOT_CHOICES.map(([v, w]) => [v, w]));
 export const planWords = (rule) => WORDS.get(rule || 'keep') || WORDS.get('keep');
 
 /* The hero's starting kit (src/data/start-kit.js, the source the server's hr_start_inventory is generated from): it
-   takes no Deposit or Sell plan (hr_loot_plan_refusal 'start_kit'). */
+   may be deposited but takes no Sell plan (hr_loot_plan_refusal 'start_kit': no gold from the kit). */
 const KIT = new Set([...Object.keys(START_INVENTORY), ...Object.values(START_EQUIPMENT)]);
 const MOVES = new Set(['deposit', 'sell']);
 
 /** Why `plan` is off for item `id`, or '' — the server's two refusals by item, said before the press. `bids`: the shop's. */
 export function planBlock(id, plan, bids) {
   if (!MOVES.has(plan)) return '';
-  if (KIT.has(id)) return 'Your starting kit stays in your bag.';
+  if (plan === 'sell' && KIT.has(id)) return 'The shop does not buy back your starting kit.';
   if (plan === 'sell' && bids && !bids.has(id)) return 'The shop does not buy this.';
   return '';
 }
@@ -53,7 +53,7 @@ export function dispatchBlock(cs) {
   if (h && !h.ended) return 'Your hero is out hunting. Dispatch loot works in town.';
   const rules = rulesOf(cs), bag = bagOf(cs);
   if (!rules || !bag) return 'Reading your bag…';
-  const planned = bag.some((r) => MOVES.has(rules.loot[r.id]) && !rules.locked.has(r.id) && !KIT.has(r.id));
+  const planned = bag.some((r) => MOVES.has(rules.loot[r.id]) && !rules.locked.has(r.id) && !(rules.loot[r.id] === 'sell' && KIT.has(r.id)));
   return planned ? '' : 'Nothing in your bag has a Deposit or Sell plan yet. Give an item one from its menu in the Inventory (B).';
 }
 

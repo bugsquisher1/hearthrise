@@ -24,8 +24,11 @@
 //              the first new kind (item order) takes the room, the next stays in the
 //              bag and is reported storage_full; a press that can move nothing is
 //              refused storage_full and moves no version
-//   LD-SETTER  the four plans; a start-kit item takes no deposit/sell plan (start_kit),
-//              an unpriced item no sell plan (item_not_sellable); anon cannot dispatch
+//   LD-SETTER  the four plans; a start-kit item takes no SELL plan (start_kit: no minting
+//              from the kit), an unpriced item no sell plan (item_not_sellable); anon
+//              cannot dispatch
+//   LD-KIT     a start-kit item MAY be planned Deposit in storage (Coordinator 2026-10-25:
+//              Storage takes it anyway): Dispatch stores the whole stack, no gold moves
 //   LD-IDEM    a second apply of the file is byte-identical (bodies, schema, baseline rows)
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync } from 'node:fs';
@@ -214,20 +217,40 @@ const ARMS = {
     await asAuth(db, uid, 'select public.hr_create_character(0)');
     await db.query('delete from public.hr_rate_counters');
     const priced = await H.one(db, "select v.item_id from public.hr_hunt_vendor_value v where v.unit > 0 and public.hr_loot_plan_refusal(v.item_id, 'sell') is null order by 1 limit 1");
-    const unpriced = await H.one(db, "select i.item_id from public.hr_items i where not exists (select 1 from public.hr_hunt_vendor_value v where v.item_id = i.item_id) and public.hr_loot_plan_refusal(i.item_id, 'deposit') is null order by 1 limit 1");
+    const unpriced = await H.one(db, "select i.item_id from public.hr_items i where not exists (select 1 from public.hr_hunt_vendor_value v where v.item_id = i.item_id) and not exists (select 1 from public.hr_start_inventory s where s.item_id = i.item_id) and not exists (select 1 from public.hr_start_equipment s where s.item_id = i.item_id) order by 1 limit 1");
     for (const rule of ['deposit', 'sell', 'ignore', 'keep']) {
       const r = await asAuth(db, uid, 'select public.hr_loot_rule_set(0, $1, $2, $3::uuid)', [priced, rule, idem()]);
       const held = r && r.bag_rules && r.bag_rules.loot ? r.bag_rules.loot[priced] : undefined;
       if (!r || r.ok !== true || (rule === 'keep' ? held !== undefined : held !== rule)) p.push(`the ${rule} plan answered ${JSON.stringify(r)}`);
     }
-    for (const rule of ['deposit', 'sell']) {
-      const r = await asAuth(db, uid, 'select public.hr_loot_rule_set(0, $1, $2, $3::uuid)', ['cooked_shrimp', rule, idem()]);
-      if (!r || r.error !== 'start_kit') p.push(`a start-kit ${rule} plan answered ${JSON.stringify(r)}`);
-    }
+    /* the starting kit is never SOLD by a plan (no minting from the kit); its deposit is LD-KIT's */
+    const ks = await asAuth(db, uid, "select public.hr_loot_rule_set(0, 'cooked_shrimp', 'sell', $1::uuid)", [idem()]);
+    if (!ks || ks.error !== 'start_kit') p.push('a start-kit sell plan answered ' + JSON.stringify(ks));
     const s = await asAuth(db, uid, "select public.hr_loot_rule_set(0, $1, 'sell', $2::uuid)", [unpriced, idem()]);
     if (!s || s.error !== 'item_not_sellable') p.push('an unpriced sell plan answered ' + JSON.stringify(s));
     const anon = await H.one(db, "select has_function_privilege('anon', 'public.hr_loot_dispatch(integer,uuid)', 'execute')");
     if (anon) p.push('anon can execute hr_loot_dispatch');
+    return p;
+  },
+
+  'LD-KIT': async (db, ctx) => {
+    const { H } = ctx;
+    const p = [];
+    const uid = H.UIDS[1];
+    await db.query('insert into auth.users (id) values ($1) on conflict (id) do nothing', [uid]);
+    await db.query("insert into public.hr_access_allowlist (user_id, note) values ($1, 'loot-dispatch') on conflict (user_id) do nothing", [uid]);
+    await asAuth(db, uid, 'select public.hr_create_character(0)');
+    await db.query('delete from public.hr_rate_counters');
+    /* a fresh hero in town with its kit in the bag: Cooked Shrimp planned Deposit in storage */
+    const bag0 = await bagOf(H, db, uid), gold0 = await purse(db, uid);
+    if (!n(bag0, 'cooked_shrimp')) return ['CONTROL: the new hero holds no Cooked Shrimp: ' + JSON.stringify(bag0)];
+    const r = await asAuth(db, uid, "select public.hr_loot_rule_set(0, 'cooked_shrimp', 'deposit', $1::uuid)", [idem()]);
+    if (!r || r.ok !== true || r.bag_rules.loot.cooked_shrimp !== 'deposit') return ['a start-kit deposit plan answered ' + JSON.stringify(r)];
+    const a = await dispatch(db, uid, idem());
+    const bag1 = await bagOf(H, db, uid), bank1 = await bankOf(H, db, uid);
+    if (!a || a.ok !== true || n(a.stored && a.stored.items, 'cooked_shrimp') !== n(bag0, 'cooked_shrimp')) p.push('Dispatch of a start-kit deposit answered ' + JSON.stringify(a));
+    if (n(bag1, 'cooked_shrimp') !== 0 || n(bank1, 'cooked_shrimp') !== n(bag0, 'cooked_shrimp')) p.push(`cooked_shrimp: bag ${n(bag1, 'cooked_shrimp')}, Storage ${n(bank1, 'cooked_shrimp')} (want all ${n(bag0, 'cooked_shrimp')} stored)`);
+    if (await purse(db, uid) !== gold0) p.push('a start-kit deposit moved gold');
     return p;
   },
 
@@ -260,8 +283,10 @@ const MUTANTS = [
   { arm: 'LD-REPLAY', why: 'a decided key runs again',
     pairs: [['  v_r := public.hr_intent_replay(v_uid, p_slot, p_idem, c_verb);\n  if v_r is not null then return public.hr_note_rejection(c_verb, p_slot, v_r); end if;\n  -- SETTLE', '  v_r := null;\n  -- SETTLE'],
       ['  v_r := public.hr_intent_replay(v_uid, p_slot, p_idem, c_verb);\n  if v_r is not null then return public.hr_note_rejection(c_verb, p_slot, v_r); end if;\n  -- A hero', '  v_r := null;\n  -- A hero']] },
-  { arm: 'LD-SETTER', why: 'the setter takes a start-kit plan',
-    find: "    when exists (select 1 from public.hr_start_inventory k where k.item_id = p_item)", repl: "    when false and exists (select 1 from public.hr_start_inventory k where k.item_id = p_item)" },
+  { arm: 'LD-SETTER', why: 'the setter takes a start-kit sell plan',
+    find: "    when p_plan = 'sell' and (exists (select 1 from public.hr_start_inventory k where k.item_id = p_item)", repl: "    when false and (exists (select 1 from public.hr_start_inventory k where k.item_id = p_item)" },
+  { arm: 'LD-KIT', why: 'a start-kit deposit is refused again',
+    find: "    when p_plan = 'sell' and (exists (select 1 from public.hr_start_inventory k where k.item_id = p_item)", repl: "    when p_plan in ('sell', 'deposit') and (exists (select 1 from public.hr_start_inventory k where k.item_id = p_item)" },
 ];
 
 function selfCheckOff() {

@@ -616,7 +616,7 @@ const SAY = Object.freeze({
     const how = to === pct ? 'set it with − or +' : 'press − until it reads ' + to + '% (' + (left > 0 ? 'only ' + left + ' is wasted there, and you still eat before a big hit'
       : 'nothing is wasted there') + ')';
     return { text: head + uc(anA(food)) + ' heals ' + heal + ', and at ' + pct + '% of your ' + max + ' HP you\'re missing ' + missing + ', so ' + lost
-      + ' of it is wasted. Press ' + slotWords([i]) + ', ' + how + ', then Save.', barSlot: i };
+      + ' of it is wasted. Press ' + slotWords([i]) + ', ' + how + ', then Save.', barSlot: i, goal: to < pct ? to : null };
   },
   food_order: (f) => {
     const p = storeFirst(f);
@@ -630,7 +630,7 @@ const SAY = Object.freeze({
        (at the same HP the first slot whose conditions pass fires) */
     const fix = [higher ? 'make it ' + hpBelow(O) + '% or lower' : null, first ? 'press Later until it sits after ' + slotWords([p.own]) : null].filter(Boolean);
     return { text: uc(slotWords([p.store])) + ' still buys ' + name(S.id) + ' (' + gp + ' gp) below ' + hpBelow(S) + '%, ' + why + '. Press '
-      + slotWords([p.store]) + ', ' + fix.join(' and ') + ', then Save.', barSlot: p.store };
+      + slotWords([p.store]) + ', ' + fix.join(' and ') + ', then Save.', barSlot: p.store, goal: higher ? hpBelow(O) : null };
   },
   leave_cellar: (f) => ({ text: 'You\'re Level ' + f.charLevel + '. Leave the hunt to go back to town. Your loot is already in your bag.' }),
   styles: () => {
@@ -766,7 +766,7 @@ function stated(card, facts) {
 /**
  * The card as the player reads it: its words stated from the facts (SAY; else its text with each {slot:<item>} written
  * as the server's slot: "slot 4", 1-based, or "the Salted Shrimp slot" when no slot holds it), `barSlot` (the 0-based
- * bar slot its ring is on, or null), `textIn` (its words inside its window) and `hooks` (the ring hooks it needs that
+ * bar slot its ring is on, or null), `goal` (the HP % its words ask the slot to reach, or null), `textIn` (its words inside its window) and `hooks` (the ring hooks it needs that
  * the client does not carry yet, their tokens written). `facts`: the tutorial facts. Pure; null for no card, or one
  * that cannot be stated truly.
  */
@@ -781,7 +781,7 @@ export function cardFor(card, facts) {
   const barSlot = Number.isInteger(said.barSlot) ? said.barSlot : item && at(item) >= 0 ? at(item) : null;
   const hooks = (card.hooks || []).map((h) => h.replace('{store}', said.store || '').replace('{other}', said.other === undefined ? '' : String(said.other))
     .replace('{slot}', barSlot === null ? '' : String(barSlot)));
-  return Object.freeze({ ...card, text, barSlot, textIn: card.inWindow || null, hooks: Object.freeze(hooks) });
+  return Object.freeze({ ...card, text, barSlot, goal: Number.isFinite(said.goal) ? said.goal : null, textIn: card.inWindow || null, hooks: Object.freeze(hooks) });
 }
 
 /* ── AFTER THE GUIDE: WHAT NEXT ───────────────────────────────────────────

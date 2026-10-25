@@ -274,9 +274,10 @@ export function ringPlan(card, at) {
       if (!Number.isInteger(card.barSlot)) return [];
       if (!(open('configure-action') && at.configuring === card.barSlot)) return ['[data-hs-widget="action-bar"] .hb-slot[data-slot="' + card.barSlot + '"]'];
       /* Inside Configure action on the card's slot: the control the card names (its hooks: the store rune to pick, the
-         HP condition's −) until the player has changed the slot, then Save. A card that only teaches rings nothing. */
+         HP condition's −) until the player has changed the slot as the words ask (down to the card's goal HP: "press −
+         until it reads 50%"), then Save. A card that only teaches rings nothing. */
       const save = inWin('configure-action', '[data-x="save"]:not([disabled])');
-      if (at.edited) return [save];
+      if (at.edited && !(Number.isFinite(card.goal) && Number.isFinite(at.cond0) && at.cond0 > card.goal)) return [save];
       const hooks = card.hooks || [];
       return hooks.length ? hooks.concat(save) : card.gotIt ? [] : [save];
     }
@@ -306,11 +307,12 @@ const shown = (el) => el.getClientRects().length > 0 && !el.closest('[hidden]');
    server's slot (its action or conditions): { configuring, edited }. */
 function barEditOf(cs) {
   const d = cs ? draftOf(cs) : null;
-  if (!d || !Number.isInteger(d.open) || !d.draft) return { configuring: null, edited: false };
+  if (!d || !Number.isInteger(d.open) || !d.draft) return { configuring: null, edited: false, cond0: null };
   const bar = serverBar(cs);
   const cur = bar ? bar[d.open] : null;
   const say = (s) => JSON.stringify([s.action || null, s.conditions || [], s.store || null]);
-  return { configuring: d.open, edited: cur ? say(cur) !== say(d.draft) : !!(d.draft.action && d.draft.action.id) };
+  const c0 = Array.isArray(d.draft.conditions) && d.draft.conditions[0] ? d.draft.conditions[0].value : null;
+  return { configuring: d.open, edited: cur ? say(cur) !== say(d.draft) : !!(d.draft.action && d.draft.action.id), cond0: Number.isFinite(c0) ? c0 : null };
 }
 
 /**
@@ -322,7 +324,7 @@ export function ringCoach(ctx, card, roots) {
   const cs = ctx.character;
   const t = cs && tallyOf(cs);
   const bar = barEditOf(cs);
-  const plan = ringPlan(card, { open: (id) => ctx.wm.isOpen(id), configuring: bar.configuring, edited: bar.edited, weight: t ? !!t.weight : null });
+  const plan = ringPlan(card, { open: (id) => ctx.wm.isOpen(id), configuring: bar.configuring, edited: bar.edited, cond0: bar.cond0, weight: t ? !!t.weight : null });
   let target = null;
   for (const q of plan) {
     for (const r of roots) { const el = r.querySelector(q); if (el && shown(el)) { target = el; break; } }

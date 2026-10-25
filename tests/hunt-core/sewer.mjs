@@ -932,6 +932,12 @@ const cases = {
     /* inside Configure action on the food slot: the HP condition's − (the card's hook) until the slot is changed, then Save */
     if (!first(barCard, at('configure-action', { configuring: 2 })).includes('.ca-cond[data-cond="0"] [data-x="dec"]')) return 'Configure action open on the food slot: the − is not ringed first: ' + first(barCard, at('configure-action', { configuring: 2 }));
     if (!first(barCard, at('configure-action', { configuring: 2, edited: true })).includes('[data-x="save"]')) return 'Configure action open on the food slot, changed: Save is not ringed';
+    /* "press − until it reads 50%": the − stays ringed until the slot reaches the card's goal, then Save (one press at
+       55% must not send the player to Save) */
+    const goalCard = M.tut.cardFor(card('food_when'), { ...bar, hpMax: 200 });
+    if (goalCard.goal !== 50 || !goalCard.text.includes('until it reads 50%')) return 'Eat on time at 200 HP aims at ' + goalCard.goal + ': ' + goalCard.text;
+    if (!first(goalCard, at('configure-action', { configuring: 2, edited: true, cond0: 55 })).includes('[data-x="dec"]')) return 'at 55% of a 50% goal the ring left the −';
+    if (!first(goalCard, at('configure-action', { configuring: 2, edited: true, cond0: 50 })).includes('[data-x="save"]')) return 'at the goal 50% Save is not ringed';
     if (!first(barCard, at('configure-action', { configuring: 0 })).includes('.hb-slot[data-slot="2"]')) return 'Configure action open on another slot: the food slot lost its ring';
     if (ringPlan(M.tut.cardFor(card('food_when'), { slots: [] }), at(null)).length) return 'no food on the bar, yet a slot is ringed';
     /* the icon row: a fresh hero's Hunts icon carries the ring (once, last attribute); with Hunts open, no icon does */
@@ -1295,6 +1301,8 @@ const mutants = [
     edits: [['src/shell/launcher.js', 'slotsOwned: rows ? rows.length : null,', 'slotsOwned: rows ? rows.filter((r) => r.exists).length : null,']] },
   { name: 'a hero out hunting counts as in town for a party', case: 'tutorial-shell-facts',
     edits: [['src/shell/launcher.js', 'open: true, hunting: huntOpenOf(c) });', 'open: true, hunting: false });']] },
+  { name: 'one press of − sends the player to Save before the card\'s goal HP', case: 'coach-ring',
+    edits: [['src/shell/launcher.js', 'if (at.edited && !(Number.isFinite(card.goal) && Number.isFinite(at.cond0) && at.cond0 > card.goal)) return [save];', 'if (at.edited) return [save];']] },
   { name: 'the hooks ring in the order written (the tab over its own control)', case: 'tutorial-shell-facts',
     edits: [['src/shell/launcher.js', 'default: return (card.hooks || []).slice().reverse();', 'default: return (card.hooks || []).slice();']] },
   { name: 'the Blessing cards still point at the old Services window', case: 'tutorial-shell-facts',

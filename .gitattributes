@@ -36,3 +36,6 @@ index.html text eol=lf
 # Coordination logs are append-only, one dated section per lane; two lanes appending
 # at the same tail is not a conflict. Union keeps both sides (2026-10-18).
 .claude/coordination/*.md merge=union
+# The same for each agent's own log (one dated section per lane, appended at the tail); the
+# pattern above does not reach the agents/ subfolder, which is where v0.2.46's three conflicts came from (2026-10-25).
+.claude/coordination/agents/*.md merge=union

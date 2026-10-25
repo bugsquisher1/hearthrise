@@ -454,6 +454,21 @@ async function runTests(mods) {
     hud.setFolded('analyzer', false);
     eq(store.peek(), {}, 'opened again, nothing is saved');
   });
+  /* H16 ROOM FOR THE STACK (v0.2.46: the 170 px desktop bar pushed the Tally, stacked under a full analyzer, off the
+     World at 1440x900): the analyzer may take the height that leaves the tally one gap above the bar, read from its
+     top and never its height (one pass settles it), and never under 160 px. */
+  t('H16 a widget others stack under leaves them room above the bottom bar', () => {
+    const an = { left: 1119, top: 12, width: 290, height: 560 }, tally = { left: 1218, top: 584, width: 191, height: 143 };
+    const bar = { left: 93, top: 646, width: 1235, height: 170 };
+    const room = HUD.stackRoom(an, tally, [bar], 833, 12);
+    eq(room, 646 - 12 - 143 - 12 - 12, 'the analyzer ends where the tally under it ends one gap above the bar');
+    ok(an.top + room + 12 + tally.height <= bar.top - 12, 'the tally under it would still cross the bar: ' + room);
+    eq(HUD.stackRoom(Object.assign({}, an, { height: 300 }), tally, [bar], 833, 12), room, 'the room reads no height of its own (one pass settles it)');
+    eq(HUD.stackRoom(an, tally, [], 833, 12), 833 - 12 - 143 - 12 - 12, 'no bar under the column: the World\'s foot is the floor');
+    eq(HUD.stackRoom(an, Object.assign({}, tally, { left: 12 }), [bar], 833, 12), null, 'a widget across the screen asks for no room');
+    eq(HUD.stackRoom(an, Object.assign({}, tally, { width: 0, height: 0 }), [bar], 833, 12), null, 'a quiet tally asks for no room');
+    eq(HUD.stackRoom(an, Object.assign({}, tally, { height: 480 }), [bar], 833, 12), null, 'under 160 px the analyzer stays readable and the tally steps below');
+  });
   t('H8 the contract is validated', () => {
     const bad = [W({ anchor: 'xx' }), W({ layer: 'sky' }), W({ opacity: 0.2 }), W({ when: 'night' }), W({ removable: false, visible: false }), W({ phone: { min: [1, 1] } })];
     for (const r of bad) { let threw = false; try { HUD.validateWidgetRows([r]); } catch (e) { threw = true; } ok(threw, 'must refuse ' + JSON.stringify(r)); }
@@ -641,6 +656,10 @@ const MUTANTS = [
   { test: 'H4', file: HUD_FILE, from: "for (const k of SIZE_CLASSES) if (k !== cls && isObj(all[k])) next[k] = all[k];\n    store.write(next);\n    load();", to: 'store.write({});\n    load();' },
   { test: 'H10', file: HUD_FILE, from: "return { left: Math.round(left), push: hits(left).filter(({ i }) => i < edges.length).map(({ i }) => ({ i, top: Math.round(r.top + r.height + gap) })) };", to: 'return { left: Math.round(r.left), push: [] };' },
   { test: 'H10', file: HUD_FILE, from: '.filter(({ q }) => !q.pinned && q.top < r.top + r.height', to: '.filter(({ q }) => q.top < r.top + r.height' },
+  /* H16: room for the stack above the bar */
+  { test: 'H16', file: HUD_FILE, from: '  const room = Math.floor((bar === null ? boxHeight : bar) - gap - s.height - gap - a.top);', to: '  const room = Math.floor((bar === null ? boxHeight : bar) - gap - a.top);' },
+  { test: 'H16', file: HUD_FILE, from: '  return room >= DOCK_CAP_MIN_PX ? room : null;\n}\n\n/** The highest top', to: '  return room;\n}\n\n/** The highest top' },
+  { test: 'H16', file: HUD_FILE, from: "  if (!(s.width > 0 && s.height > 0) || !(s.left < a.left + a.width && s.left + s.width > a.left)) return null;", to: '  if (!(s.width > 0 && s.height > 0)) return null;' },
   /* H14, H15: move and fold (Tyler 2026-10-25) */
   { test: 'H14', file: HUD_FILE, from: '  const top = onScreen ? Math.max(0, Math.min(y, box.height - size.height)) : y;', to: '  const top = y;' },
   { test: 'H14', file: HUD_FILE, from: "  const h = left + rect.width / 2 < box.width / 2 ? 'l' : 'r';", to: "  const h = 'r';" },

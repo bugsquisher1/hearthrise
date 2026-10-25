@@ -223,6 +223,21 @@ export function dockCap(pane, bars, gap) {
   return cap >= DOCK_CAP_MIN_PX ? cap : null;
 }
 
+/**
+ * ROOM FOR A STACK (v0.2.46: the desktop action bar grew to 170 px, and the Tally, stacked under a full analyzer at
+ * 1440x900, was pushed under the bar and off the World). `a` is a widget the widget `s` stacks under (a row's `below`),
+ * rects {left, top, width, height} in the box's px: the height `a` may take so `s`, one `gap` under it, still ends one
+ * `gap` above the floor (the highest bottom bar in `bars` crossing `s`'s column, else `boxHeight`). Null when they share
+ * no column, when `s` takes no room, or when that room is under DOCK_CAP_MIN_PX (`a` stays readable; `s` steps below
+ * as before). It reads `a`'s top, never its height, so the cap it sets settles in one pass. Pure.
+ */
+export function stackRoom(a, s, bars, boxHeight, gap) {
+  if (!(s.width > 0 && s.height > 0) || !(s.left < a.left + a.width && s.left + s.width > a.left)) return null;
+  const bar = barTopUnder(s, bars, gap);
+  const room = Math.floor((bar === null ? boxHeight : bar) - gap - s.height - gap - a.top);
+  return room >= DOCK_CAP_MIN_PX ? room : null;
+}
+
 /** The highest top of the bottom bars whose span crosses `pane`'s column (by `gap`), or null. Pure. */
 function barTopUnder(pane, bars, gap) {
   const under = bars.filter((b) => b.width > 0 && pane.left < b.left + b.width + gap && b.left < pane.left + pane.width + gap);

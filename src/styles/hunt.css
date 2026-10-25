@@ -142,7 +142,8 @@
 .hp-msg:empty { display: none; }
 
 /* ── Analyzer ── */
-.ha-analyzer { width: 290px; max-height: min(560px, calc(100vh - 200px)); }
+/* --hs-room (shell.js roomForStack): the height that leaves the Tally stacked under it clear of the action bar. */
+.ha-analyzer { width: 290px; max-height: min(560px, calc(100vh - 200px), var(--hs-room, 100vh)); }
 /* Its close is the phone's (no HUD panel carries one on a desktop, where Hunt details and HUD layout hide it). */
 .ha-close { display: none; }
 /* Folded (widget-move.js): the title row alone, its fold a plus; the stacked Tally rises under it. */
@@ -746,7 +747,7 @@ label.st-line { cursor: pointer; }
      and the hero / party switch share the second, and the numbers scroll under them. The head, the body and the
      main box lend their children to the panel's own grid (display: contents); the desktop panel is unchanged. */
   .ha-analyzer { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; grid-template-rows: auto auto auto minmax(0, 1fr) auto;
-    align-items: center; column-gap: 6px; width: 340px; max-height: calc(100vh - 224px); padding: 0 6px 4px; }
+    align-items: center; column-gap: 6px; width: 340px; max-height: min(calc(100vh - 224px), var(--hs-room, 100vh)); padding: 0 6px 4px; }
   .ha-analyzer .hh-panel-head, .ha-analyzer .hh-panel-body, .ha-analyzer .ha-main { display: contents; }
   .ha-analyzer .hh-panel-title { display: none; }
   /* The tabs share row 1 with the fold and the close: a premium hero's four run past their column, so the strip pans

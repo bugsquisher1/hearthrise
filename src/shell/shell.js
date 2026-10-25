@@ -43,7 +43,7 @@ import { MOBILE_QUERY } from '../world/core/camera.js?v=0.2.45';
 import { SHELL_WINDOWS } from '../data/shell-windows.js?v=0.2.45';
 import { HUD_WIDGETS } from '../data/hud-widgets.js?v=0.2.45';
 import { createWindowManager, DOCK_EDGE, HOME_BOTTOM, RESIZE_MIN } from './window-manager.js?v=0.2.45';
-import { createHud, residueStore, placeWidget, hudInsetOf, clearOfEdges, clearOfDock, stageOf, dockCap, homeAt, stackBelow } from './hud.js?v=0.2.45';
+import { createHud, residueStore, placeWidget, hudInsetOf, clearOfEdges, clearOfDock, stageOf, dockCap, homeAt, stackBelow, stackRoom } from './hud.js?v=0.2.45';
 import { keyLabel, glyphSvg, actCoach, heldCard, coachHtml, placeCoach, ringCoach } from './launcher.js?v=0.2.45';
 import { coachWindow } from '../data/hunt-tutorial.js?v=0.2.45';
 import { draftOf } from './bar-draft.js?v=0.2.45';
@@ -227,6 +227,7 @@ export function mountShell(root, o) {
       el.style.top = at.top + 'px';
     }
     stackWidgets();
+    roomForStack();
     capDock();
     /* A docked window never covers a widget (hud.js clearOfDock, r11): a right-anchored World widget it
        lands on slides left of the dock but never into the middle of the fight (hud.js stageOf), else
@@ -290,6 +291,31 @@ export function mountShell(root, o) {
       const at = rel(el);
       const top = stackBelow(at, above, DOCK_EDGE);
       if (top !== Math.round(at.top)) el.style.top = top + 'px';
+    }
+  }
+
+  /* A widget others stack under (the analyzer, for the Tally) ends where the one under it still clears the bottom bar
+     (hud.js stackRoom, the 170 px bar): its CSS reads --hs-room. Written only when it changes; the size change re-places
+     the widgets (the observer above), and the room reads no height of its own, so the second pass writes nothing. */
+  function roomForStack() {
+    const b = worldHud.getBoundingClientRect();
+    const rel = (e) => { const q = e.getBoundingClientRect(); return { left: q.left - b.left, top: q.top - b.top, width: q.width, height: q.height }; };
+    const els = Array.from(worldHud.querySelectorAll('[data-hs-widget]'));
+    const bars = els.filter((e) => hud.layoutOf(e.getAttribute('data-hs-widget')).anchor === 'bc').map(rel);
+    const room = new Map();
+    for (const row of hud.rows()) {
+      const el = row.below && worldHud.querySelector('[data-hs-widget="' + row.id + '"]');
+      for (const id of row.below || []) {
+        const a = worldHud.querySelector('[data-hs-widget="' + id + '"]');
+        if (!a) continue;
+        const r = el && el.offsetWidth && !hud.isMoved(row.id) && !hud.isMoved(id) ? stackRoom(rel(a), rel(el), bars, b.height, DOCK_EDGE) : null;
+        room.set(a, r === null ? (room.get(a) ?? null) : Math.min(r, room.get(a) ?? r));
+      }
+    }
+    for (const [a, r] of room) {
+      const v = r === null ? '' : r + 'px';
+      if (a.style.getPropertyValue('--hs-room') === v) continue;
+      if (v) a.style.setProperty('--hs-room', v); else a.style.removeProperty('--hs-room');
     }
   }
 

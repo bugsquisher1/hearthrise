@@ -320,6 +320,11 @@ async function checks(overrides, shots) {
         let st = await settle(page, under);
         const before = st;
         if (!under(st)) fails.push('TW-10 CONTROL: the tally does not stack under the analyzer: ' + JSON.stringify(st));
+        /* ...and on the screen, above the action bar (v0.2.46: the 170 px bar pushed it off under a full analyzer): the
+           analyzer makes room for it (hud.js stackRoom) */
+        const barTop = await page.evaluate(() => { const e = document.querySelector('[data-hs-hud="world"] [data-hs-widget="action-bar"]'); return e ? Math.round(e.getBoundingClientRect().top) : null; });
+        st = await settle(page, (x) => under(x) && barTop !== null && x.tally.bottom <= barTop);
+        if (!(barTop !== null && st.tally && st.tally.bottom <= barTop && st.tally.top >= 0)) fails.push('TW-10 the stacked tally is not on screen above the action bar (top ' + barTop + '): ' + JSON.stringify(st));
         await shot('desktop-1440x900-default');
         /* FOLD: the dash folds the analyzer to its title; the stacked tally rises under it; one press, one put at once */
         const putsAtFold = s.calls.length;
@@ -475,6 +480,7 @@ const MUTANTS = [
   ['the drop is never kept', 'src/shell/widget-move.js', '      hud.setPlace(id, hud.layoutOf(id), true);', '      hud.setPlace(id, hud.layoutOf(id), false);'],
   ['dragging the tally opens her window', 'src/shell/widget-move.js', '    if (swallow) { swallow = false; e.stopPropagation(); e.preventDefault(); return; }', ''],
   ['the phone drags a widget', 'src/shell/widget-move.js', "    if (e.button !== 0 || o.isPhone()) return;", "    if (e.button !== 0) return;"],
+  ['the analyzer makes no room for the tally above the bar', 'src/shell/shell.js', '    stackWidgets();\n    roomForStack();\n', '    stackWidgets();\n'],
 ];
 
 async function main() {

@@ -27,13 +27,15 @@ import { STARTER_SETS } from './start-kit.js?v=0.2.45';
 
 const style = (id, role, weapons, name, does, uses) => Object.freeze({ id, role, weapons: Object.freeze(weapons), name, does, uses });
 
-/* The lead line above the rows: the rule itself. */
-export const HOW_YOU_FIGHT_LEAD = 'There is no class to pick. The weapon you hold is how you fight, and all six starter weapons are in your bag. To switch, equip another in town.';
+/* The lead line above the rows: the rule itself. The sword and shield are WORN, not in the bag (start-kit.js
+   START_EQUIPMENT); a player can make more heroes and play several at once (2 slots to start, up to 4 at once). */
+export const HOW_YOU_FIGHT_LEAD = 'There\'s no class to pick. The weapon you hold is how you fight: you start with a sword and shield on, and the other starter weapons are in your bag. To switch, equip another in town. Later you can make more heroes and play up to four at once.';
 
 export const HOW_YOU_FIGHT = Object.freeze([
   style('hold', 'tank', ['practice_sword', 'practice_shield'], 'Sword and shield',
-    'Holds the monsters on you, so your party is not hit.', 'Uses food.'),
-  style('hit', 'melee_dps', ['practice_hatchets', 'practice_club'], 'Two axes or a club',
+    'Holds the monsters on you, so your party isn\'t hit.', 'Uses food.'),
+  /* Tyler 2026-10-24 (player text ruling 4): the crush weapon family is the Hammer. */
+  style('hit', 'melee_dps', ['practice_hatchets', 'practice_club'], 'Two axes or a hammer',
     'Hits hardest, up close.', 'Uses food.'),
   style('shoot', 'ranger', ['practice_bow', 'practice_crossbow'], 'Bow or crossbow',
     'Shoots from a distance.', 'Uses arrows or bolts, and food.'),
@@ -53,11 +55,13 @@ export const HELP_NOTES = Object.freeze([
   note('stamina', 'Stamina is hunting time',
     'Every minute of hunting uses a minute of stamina, and every minute out of a hunt gives one back, even with the game closed. A free hero holds up to 8 hours.'),
   note('weapon', 'Your weapon is how you fight',
-    'There is no class. A sword and shield hold monsters on you, two axes or a club hit hard, a bow or crossbow shoots from a distance, a wand and spellbook cast spells, and a staff heals. Equip another from your bag to switch.'),
+    'There is no class. A sword and shield hold monsters on you, two axes or a hammer hit hard, a bow or crossbow shoots from a distance, a wand and spellbook cast spells, and a staff heals. Equip another from your bag to switch.'),
   note('supplies', 'Food and drink',
     'Food heals and drink brings back mana. What you carry is used first, for free. Store supplies cost gold each time your hero uses one, and if the gold runs out the hunt ends. Raw meat and fish cook into food: pick them in your bag and choose Cook all.'),
   note('bar', 'The action bar',
     'Each slot is one spell, food or drink, with up to three conditions such as My HP % below 60. The first slot that can fire, fires, so put the most important one first.'),
+  note('loot', 'Selling and keeping loot',
+    'Loot lands in your bag as it drops, even while the hunt runs. In the Shop, Sell all loot sells what is only worth gold and keeps Bones (bury them for Prayer) and food you can cook. Mark a thing Sell at the shop in your bag\'s This hunt tab once, and Sell junk sells it every time.'),
   note('gold', 'What gold is for',
     'Store supplies cost gold as your hero uses them. In town the Shop sells gloves, belts, jewelry and tools, and Services sells extra stamina and Blessings. Save up and you can buy another hero slot.'),
   note('armour', 'Armor and Defense',

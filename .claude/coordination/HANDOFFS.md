@@ -1,5 +1,14 @@
 # Handoffs
 
+### 2026-10-25 · SYSTEMS (lane/b-tutorial-cards, tutorial lane 1) → TUTORIAL LANE 2 (rings and placement) · the interface
+
+Lane 1 is data and facts only; every card shows today without the hooks below (no ring there yet). Lane 2:
+1. **Pass the shell's facts:** `pointerCardOf(cs, sh)` (src/session/tutorial-sections.js header). `sh.read` = the residue `coach.read` (string ids; add it to sanitizeCoach, display state like `alerts.seen`); `sh.roster` = AccountSession roster rows + `open`/`hunting`; `sh.slotsOwned`, `sh.playLimit` (limit()); `sh.sellable` = bag-model lootToSell priced and unlocked via sellPlan (the SAME function the button uses); `sh.upgrades` = upgrade-plan's Equip upgrades items. Absent = that card is passed by (never a wall), so B4, C4, D1-D3, F4, F5, F7, C1, D4, D5, E1 are invisible until this lands.
+2. **Got it / read on sight:** a card with `gotIt` gets a Got it button that adds its id to `coach.read`; a `read` card without `gotIt` (first_eat, first_drink, stamina_low) is added to `coach.read` once it has been on screen its readMs.
+3. **New hooks to add (each card's `hooks`, tokens written by cardFor):** `[data-coach-hook="level"]` (Level medallion), `[data-coach-hook="stamina"]` (stamina timer), `[data-coach-hook="stance"]` (the stance control, back on the bar per Tyler 10-25), `[data-hs-win="shop"] [data-coach-hook="sell-confirm"]` (Sell all loot's confirmation), `[data-hs-win="inventory"] [data-rule-item]` (a This hunt row's loot rule), `[data-hs-win="hunt-prep"] [data-coach-hook="setup-save"]` (Save current setup). Existing selectors the cards name for ringPlan: `.ca-rs[data-store="{store}"]`, `.ca-cond[data-cond="0"] [data-x="dec"]`, `.hw-tab[data-tab="sell"|"hunt"]`, `[data-hs-act="sell-loot"|"bless"|"equip-upgrades"|"setups"]`, `.hw-slot[data-slot="weapon"]`, `.char-tool[data-app="characters"]`, `.char-pick[data-app="create"]`, `.char-tab[data-slot="{other}"]`.
+4. **ringPlan:** the new anchors (inventory, shop, services, storage, hunt_prep, house, characters, strip) fall to `default: []` after the icon ring; read `card.hooks` there. `card.textIn` is the card's words inside its window (row 20). `heldCard`'s `passed` replay assumes only the first-minute cards are AUTO (validate() enforces reactive cards come after them).
+
+
 ### 2026-10-24 · ART DIRECTOR (lane/a-mobile-p1) → BAR REDESIGN LANE + SECOND PHONE LANE · what 667x375 still breaks
 
 Left alone because those lanes own the files (brief: action-bar.js, launcher.js, character-strip.js):

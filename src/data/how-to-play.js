@@ -63,7 +63,7 @@ export const HELP_NOTES = Object.freeze([
   note('loot', 'Selling and keeping loot',
     'Loot lands in your bag as it drops, even while the hunt runs. In the Shop, Sell all loot sells what is only worth gold and keeps Bones (bury them for Prayer) and food you can cook. Mark a thing Sell at the shop in your bag\'s This hunt tab once, and Sell junk sells it every time.'),
   note('gold', 'What gold is for',
-    'Store supplies cost gold as your hero uses them. In town the Shop sells gloves, belts, jewelry and tools, and Services sells extra stamina and Blessings. Save up and you can buy another hero slot.'),
+    'Store supplies cost gold as your hero uses them. In town the Shop sells gloves, belts, jewelry and tools, and its Services tab sells extra stamina and Blessings. Save up and you can buy another hero slot.'),
   note('armour', 'Armor and Defense',
     'Defense rises only while your hero wears armor and takes blows. Monsters drop helmets, bodies, legs and boots; gloves and belts are armor too, and the Shop sells them. Heavy pieces add health, light pieces add mana. Any hero can wear any piece once its Level is high enough.'),
   note('farm', 'Your farm',
@@ -75,7 +75,7 @@ export const HELP_NOTES = Object.freeze([
   note('heroes', 'Several heroes at once',
     'Your account starts with two hero slots, and up to four heroes can play at the same time. Your own heroes join your party straight away, so one can hold the monsters while another heals.'),
   note('death', 'If your hero dies',
-    'The hunt ends and your hero wakes in town, losing a little Level XP. Blessings from Services cut that loss, and they are free below Level 30.'),
+    'The hunt ends and your hero wakes in town, losing a little Level XP. Blessings from the Shop\'s Services tab cut that loss, and they are free below Level 30.'),
 ]);
 
 /** Every problem with the tables, as strings. Empty = valid. */

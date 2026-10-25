@@ -921,13 +921,28 @@ const cases = {
     ];
     for (const [id, a, sel] of want) if (!first(id, a).includes(sel)) return id + ' rings ' + JSON.stringify(first(id, a)) + ', wanted ' + sel;
     if (!ringPlan(card('to_the_cellar'), at('hunts')).some((q) => q.includes('.hw-hunt[data-hunt="mill_cellar"]'))) return 'Hunts open on a phone list: the Mill Cellar line is never ringed';
-    for (const id of ['first_kill', 'first_level', 'earn_the_thicket', 'tamsin_pays']) if (ringPlan(card(id), at(null)).length) return id + ' rings something, but names no control';
+    for (const id of ['first_kill', 'tamsin_pays']) if (ringPlan(card(id), at(null)).length) return id + ' rings something, but names no control';
+    /* a card on the bar's Level or stamina rings that hook (the bar draws it: lane/b-action-bar-fix) */
+    for (const [id, hook] of [['first_level', '[data-coach-hook="level"]'], ['earn_the_thicket', '[data-coach-hook="stamina"]']]) if (first(id, at(null)) !== hook) return id + ' rings ' + JSON.stringify(first(id, at(null))) + ', wanted ' + hook;
     /* the bar card: the slot that holds the food, then Save once THAT slot's Configure action is open */
     const slot = (type, id, conditions) => ({ type, id, store: null, conditions: conditions || [], enabled: true, usable: true, count: null });
     const bar = { slots: [slot('ability', 'challenge'), slot('ability', 'power_strike'), slot('consume', 'cooked_shrimp', [{ metric: 'self_hp_pct', op: 'lt', value: 60 }])] };
     const barCard = M.tut.cardFor(card('food_when'), bar);
     if (first(barCard, at(null)) !== '[data-hs-widget="action-bar"] .hb-slot[data-slot="2"]') return 'the bar card rings ' + first(barCard, at(null));
-    if (!first(barCard, at('configure-action', { configuring: 2 })).includes('[data-x="save"]')) return 'Configure action open on the food slot: Save is not ringed';
+    /* inside Configure action on the food slot: the HP condition's − (the card's hook) until the slot is changed, then Save */
+    if (!first(barCard, at('configure-action', { configuring: 2 })).includes('.ca-cond[data-cond="0"] [data-x="dec"]')) return 'Configure action open on the food slot: the − is not ringed first: ' + first(barCard, at('configure-action', { configuring: 2 }));
+    if (!first(barCard, at('configure-action', { configuring: 2, edited: true })).includes('[data-x="save"]')) return 'Configure action open on the food slot, changed: Save is not ringed';
+    /* "press − until it reads 50%": the − stays ringed until the slot reaches the card's goal, then Save (one press at
+       55% must not send the player to Save) */
+    const goalCard = M.tut.cardFor(card('food_when'), { ...bar, hpMax: 200 });
+    if (goalCard.goal !== 50 || !goalCard.text.includes('until it reads 50%')) return 'Eat on time at 200 HP aims at ' + goalCard.goal + ': ' + goalCard.text;
+    if (!first(goalCard, at('configure-action', { configuring: 2, edited: true, cond0: 55 })).includes('[data-x="dec"]')) return 'at 55% of a 50% goal the ring left the −';
+    if (!first(goalCard, at('configure-action', { configuring: 2, edited: true, cond0: 50 })).includes('[data-x="save"]')) return 'at the goal 50% Save is not ringed';
+    /* a card the player only reads ("Your hero just ate", ringing its slot) rings nothing inside Configure action: no Save
+       for a slot nobody was asked to change (played 2026-10-25: Save was ringed over the untouched slot) */
+    const ate = M.tut.cardFor(card('first_eat'), { ...bar, supplies: [{ item: 'cooked_shrimp', source: 'own', count: 1 }], carried: { cooked_shrimp: 19 } });
+    if (!ate || first(ate, at(null)) !== '[data-hs-widget="action-bar"] .hb-slot[data-slot="2"]') return 'Your hero just ate rings ' + (ate && first(ate, at(null)));
+    if (ringPlan(ate, at('configure-action', { configuring: 2 })).length) return 'Your hero just ate rings ' + JSON.stringify(ringPlan(ate, at('configure-action', { configuring: 2 }))) + ' inside Configure action';
     if (!first(barCard, at('configure-action', { configuring: 0 })).includes('.hb-slot[data-slot="2"]')) return 'Configure action open on another slot: the food slot lost its ring';
     if (ringPlan(M.tut.cardFor(card('food_when'), { slots: [] }), at(null)).length) return 'no food on the bar, yet a slot is ringed';
     /* the icon row: a fresh hero's Hunts icon carries the ring (once, last attribute); with Hunts open, no icon does */
@@ -999,6 +1014,137 @@ const cases = {
     }
     return null;
   },
+  'tutorial-shell-facts': async (M) => {
+    /* LANE 2 (board 2026-10-25 §4): THE SHELL'S FACTS make the twelve hidden cards visible. Through the shell's own
+       readers (src/shell/launcher.js coachFactsOf over a real envelope and an AccountSession's roster): each card's
+       trigger shows it, its ring lands on the real control (ringPlan: the card's hooks, deepest first), and the
+       server's next answer (or the Got it press, residue `coach.read`) moves the card on. */
+    const imp = (p) => import(pathToFileURL(join(M.root, p)).href + V);
+    const L = await imp('src/shell/launcher.js');
+    const { residueOf } = await imp('src/session/residue.js');
+    const base = JSON.parse(readFileSync(join(M.root, 'tests/fixtures/alpha-envelope.json'), 'utf8'));
+    /* a CharacterSession as the shell reads it: its record (data + the allowlisted residue) and setResidue */
+    const hero = (env, coach, slot = 0) => {
+      const cs = { slot, puts: [], read: (k) => cs.record.data[k], record: { data: env, residue: residueOf({ coach: coach || {} }) },
+        setResidue(f, v) { cs.puts.push([f, v]); cs.record = { data: cs.record.data, residue: { ...cs.record.residue, ...residueOf({ [f]: v }) } }; return true; } };
+      return cs;
+    };
+    const acct = (open, rows, limit) => ({ characters: () => open, lastRoster: () => rows, statedLimit: () => limit });
+    const ctxOf = (cs, account, t) => ({ character: cs, account, now: t === undefined ? undefined : () => t, wm: { openIds: () => [], isOpen: () => false } });
+    const card = (cs, account) => L.heldCard(ctxOf(cs, account));
+    const at = (open) => ({ open: (id) => id === open, configuring: null, weight: null });
+    const KNOWN = ['bar_intro', 'first_eat', 'first_drink', 'fight_settings', 'styles', 'storage'];
+    /* a Level 6 hero back from the Cellar: the fixture's loot plus a Bronze Helm and Leather Gloves it can wear (gear
+       by Level), a bar with no lesson left on it (the bar cards are tutorial-bar-chain's) */
+    const bag0 = { ...base.inventory, bronze_helm: 1, leather_gloves: 1 };
+    for (const id of ['iron_helm', 'iron_platebody', 'steel_sword', 'bronze_sword', 'shortbow']) delete bag0[id];
+    const town = (more) => Object.assign(JSON.parse(JSON.stringify(base)), {
+      state: { active_kind: 'idle', active_id: null, gold: 5200, level_xp: M.xp.charXpForLevel(6) }, inventory: bag0,
+      hunt: { ...base.hunt, hunt_id: 'mill_cellar', ended: true, session: { end_reason: 'left' } }, hunt_analyzer: { ...base.hunt_analyzer, ended: true },
+      hunt_settings: { ...base.hunt_settings, slots: [], bar: [] },
+      skills: { ...base.skills, farming: { xp: 28, level: 1, frac: 0 } } }, more || {});
+
+    /* E1 Wear what you found: the bag holds what Equip upgrades would put on (upgrade-line.js upgradeOf), in town */
+    const e1 = hero(town(), { read: KNOWN });
+    const c1 = card(e1, acct([e1], [{ slot: 0, exists: true, level: 6, name: 'Tyler' }, { slot: 1, exists: false }], 4));
+    if (!c1 || c1.id !== 'equip_upgrades') return 'a bag holding better gear in town shows ' + (c1 && c1.id) + ', want "Wear what you found"';
+    if (L.ringPlan(c1, at(null))[0] !== '.hs-launchers [data-hs-open="inventory"]') return 'Wear what you found rings ' + L.ringPlan(c1, at(null))[0];
+    if (!L.ringPlan(c1, at('inventory'))[0].includes('[data-hs-act="equip-upgrades"]')) return 'with the bag open Equip upgrades is not ringed: ' + L.ringPlan(c1, at('inventory'))[0];
+    /* worn: the server's next answer holds nothing better: the card moves on, to Sell what only pays coin (the Shop's
+       own Sell all loot set: bag-model.js lootSale over the server's bids) */
+    const worn = { ...base.equipment, helmet: 'bronze_helm', gloves: 'leather_gloves' };
+    const left = { ...bag0 }; delete left.bronze_helm; delete left.leather_gloves;
+    const c2env = town({ equipment: worn, inventory: left });
+    const c2 = card(hero(c2env, { read: KNOWN }), null);
+    if (!c2 || c2.id !== 'sell_loot') return 'with nothing better left and loot in the bag the coach shows ' + (c2 && c2.id) + ', want "Sell what only pays coin"';
+    const sellPlan = L.ringPlan(c2, at('shop'));
+    if (!sellPlan[0].includes('[data-coach-hook="sell-confirm"]') || !sellPlan[1].includes('[data-hs-act="sell-loot"]') || !sellPlan[2].includes('.hw-tab[data-tab="sell"]'))
+      return 'Sell what only pays coin rings, in order, ' + JSON.stringify(sellPlan) + ' (want the confirmation, Sell all loot, the Sell tab)';
+    if (!(L.coachFactsOf(hero(c2env), null).sellable > 0)) return 'the shell says Sell all loot sells nothing over ' + JSON.stringify(Object.keys(left));
+    /* sold: what is left is what Sell all loot keeps (bones for Prayer, food that cooks): the card moves on */
+    const kept = {}; for (const id of ['bones', 'wheat_bread', 'cooked_shrimp', 'goldenroot_tea', 'normal_log', 'copper_ore', 'chalked_fire_rune', 'bronze_arrows']) if (left[id]) kept[id] = left[id];
+    const c3 = card(hero(town({ equipment: worn, inventory: kept }), { read: KNOWN }), null);
+    if (!c3 || c3.id === 'sell_loot' || c3.id === 'equip_upgrades') return 'after the sale the coach still shows ' + (c3 && c3.id);
+    if (L.coachFactsOf(hero(town({ inventory: kept })), null).sellable !== 0) return 'Sell all loot would still sell from ' + JSON.stringify(Object.keys(kept));
+    /* without the Shop's prices the shell cannot say: unknown, never a wall */
+    if (L.coachFactsOf(hero(town({ shop: undefined })), null).sellable !== null) return 'with no shop section the shell still claims a sellable count';
+
+    /* GOT IT: a card that only teaches offers Got it where the press can be recorded; the press adds its id to the
+       residue coach.read (and a fold keeps the reads); without a recorder there is no button and the card is passed by */
+    const sc = M.tut.HUNT_TUTORIAL.find((r) => r.id === 'styles');
+    const g = hero(town({ equipment: { ...worn, weapon: M.kit.START_EQUIPMENT.weapon }, inventory: kept, bag_rules: { ...base.bag_rules, loot: { rat_tail: 'sell' } },
+      skills: { ...base.skills, farming: { xp: 28, level: 1, frac: 0 }, cooking: { xp: 30, level: 1, frac: 0 } } }), { read: KNOWN.filter((x) => x !== 'styles') });
+    if (!L.coachHtml(g, M.tut.cardFor(sc, {})).includes('data-hs-act="coach-got"')) return 'Every weapon is a style has no Got it';
+    const noRec = { slot: 0, read: g.read, record: g.record };
+    if (L.coachHtml(noRec, M.tut.cardFor(sc, {})).includes('coach-got')) return 'Got it is offered where the press cannot be recorded';
+    const gotCtx = { character: g, account: null, wm: { openIds: () => [], isOpen: () => false } };
+    const atStyles = L.heldCard(gotCtx);
+    if (!atStyles || atStyles.id !== 'styles') return 'after cooking, in town, the coach shows ' + (atStyles && atStyles.id) + ', want "Every weapon is a style"';
+    if (L.ringPlan(atStyles, at('inventory'))[0] !== '[data-hs-win="inventory"] .hw-slot[data-slot="weapon"]') return 'the styles card rings ' + L.ringPlan(atStyles, at('inventory'))[0];
+    L.actCoach(gotCtx, null, 'coach-got', { type: 'click' });
+    const put = g.puts.find(([f]) => f === 'coach');
+    if (!put || !put[1].read.includes('styles')) return 'Got it wrote ' + JSON.stringify(g.puts) + ', want coach.read to hold styles';
+    if ((L.heldCard(gotCtx) || {}).id === 'styles') return 'after Got it the styles card is still up';
+    const fold = hero(town(), { read: ['bar_intro', 'styles'] });
+    const fc = { character: fold, account: null, wm: { openIds: () => [], isOpen: () => false } };
+    if (L.heldCard(fc)) {
+      L.actCoach(fc, { ownerDocument: null, contains: () => false }, 'coach-min', { type: 'click' });
+      const p = fold.puts.find(([f]) => f === 'coach');
+      if (!p || p[1].min !== true || !(p[1].read || []).includes('styles')) return 'folding the coach dropped the reads: ' + JSON.stringify(p);
+    }
+    if (residueOf({ coach: { read: Array.from({ length: 300 }, (_, i) => 'c' + i) } }).coach.read.length > 128) return 'coach.read is not bounded';
+
+    /* READ ON SIGHT: "Your hero just ate" is marked read once its open box has been on screen its reading time; a Got it
+       card never is; off screen the clock starts again */
+    const eat = M.tut.HUNT_TUTORIAL.find((r) => r.id === 'first_eat');
+    const fs = M.tut.HUNT_TUTORIAL.find((r) => r.id === 'fight_settings');
+    const s = hero(town(), { read: [] });
+    const ms = L.readMs(eat);
+    if (L.noteCoachSight(ctxOf(s, null, 0), eat, true) || L.noteCoachSight(ctxOf(s, null, ms - 1), eat, true)) return 'a read-on-sight card was marked before its reading time';
+    if (!L.noteCoachSight(ctxOf(s, null, ms + 1), eat, true) || !L.coachReadOf(s).has('first_eat')) return 'a read-on-sight card on screen its reading time was not marked read';
+    const s2 = hero(town(), { read: [] });
+    L.noteCoachSight(ctxOf(s2, null, 0), eat, true); L.noteCoachSight(ctxOf(s2, null, 10), eat, false);
+    if (L.noteCoachSight(ctxOf(s2, null, ms + 1), eat, true)) return 'a card off screen kept its reading clock';
+    L.noteCoachSight(ctxOf(s2, null, 0), fs, true);
+    if (L.noteCoachSight(ctxOf(s2, null, 60000), fs, true)) return 'a Got it card was marked read on sight';
+
+    /* D4 MORE THAN ONE HERO: 5 minutes into the Thicket, one hero, two slots owned: the server's play limit and the
+       roster's slots in the words; Characters, then Create hero ringed; a second hero finishes it */
+    const thicket = (sessionMs) => Object.assign(JSON.parse(JSON.stringify(base)), {
+      state: { active_kind: 'combat', active_id: 'meadowbrook_thicket', gold: 5200, level_xp: M.xp.charXpForLevel(6) },
+      hunt: { ...base.hunt, hunt_id: 'meadowbrook_thicket', ended: false },
+      hunt_analyzer: { ...base.hunt_analyzer, hunt_ms: sessionMs, hero: { ...base.hunt_analyzer.hero, supplies: [] } },
+      hunt_settings: { ...base.hunt_settings, slots: [], bar: [] }, equipment: worn, inventory: kept, skills: { ...base.skills, farming: { xp: 28, level: 1, frac: 0 } } });
+    const solo = hero(thicket(6 * 60000), { read: KNOWN });
+    const rows1 = [{ slot: 0, exists: true, level: 6, name: 'Tyler' }, { slot: 1, exists: false }];
+    const d4 = card(solo, acct([solo], rows1, 4));
+    if (!d4 || d4.id !== 'more_heroes' || !d4.text.includes('up to 4 heroes at once') || !d4.text.includes('you own 2 hero slots'))
+      return '5 minutes into the Thicket with one hero the coach shows ' + JSON.stringify(d4 && [d4.id, d4.text]);
+    const d4ring = L.ringPlan(d4, at(null));
+    if (d4ring[0] !== '.char-pick[data-app="create"]' || d4ring[1] !== '.char-tool[data-app="characters"]') return 'More than one hero rings ' + JSON.stringify(d4ring);
+    if ((card(hero(thicket(4 * 60000), { read: KNOWN }), acct([solo], rows1, 4)) || {}).id === 'more_heroes') return 'the more-heroes card came before 5 minutes in the Thicket';
+    if ((card(solo, acct([solo], rows1, null)) || {}).id === 'more_heroes') return 'the more-heroes card stated a play limit the server never sent';
+    const rows2 = [{ slot: 0, exists: true, level: 6, name: 'Tyler' }, { slot: 1, exists: true, level: 1, name: 'Wren' }];
+    if ((card(solo, acct([solo], rows2, 4)) || {}).id === 'more_heroes') return 'a second hero on the roster did not finish "More than one hero"';
+
+    /* D5 HUNT TOGETHER: two of the account's heroes playing, both in town, no party: the other hero's tab is ringed */
+    const a0 = hero(town({ equipment: worn, inventory: kept }), { read: [...KNOWN, 'loot_rules'] });
+    const a1 = hero(town({ equipment: worn, inventory: kept, name: 'Wren' }), {}, 1);
+    const d5 = card(a0, acct([a0, a1], rows2, 4));
+    if (!d5 || d5.id !== 'party_own' || !d5.text.includes('Wren\'s tab')) return 'two heroes in town show ' + JSON.stringify(d5 && [d5.id, d5.text]) + ', want "Hunt together" naming Wren';
+    if (L.ringPlan(d5, at(null))[0] !== '.char-tab[data-slot="1"]') return 'Hunt together rings ' + L.ringPlan(d5, at(null))[0];
+    const a1h = hero(thicket(60000), {}, 1);
+    if ((card(a0, acct([a0, a1h], rows2, 4)) || {}).id === 'party_own') return 'Hunt together is up while the other hero is out hunting';
+
+    /* THE SERVICES TAB (Tyler 2026-10-25): a Blessing card rings the Shop's icon, then its Services tab, then the next Bless */
+    const bl = M.tut.cardFor(M.tut.HUNT_TUTORIAL.find((r) => r.id === 'bless'), { blessings: { held: 0, of: 3, freeUntil: 30, best: 950, prices: [0, 0, 0] } });
+    if (L.ringPlan(bl, at(null))[0] !== '.hs-launchers [data-hs-open="shop"]') return 'the Blessing card rings ' + L.ringPlan(bl, at(null))[0] + ', want the Shop icon';
+    const inShop = L.ringPlan(bl, at('shop'));
+    if (!inShop[0].includes('[data-hs-act="bless"]:not([disabled])') || !inShop[1].includes('.hw-tab[data-tab="services"]')) return 'in the Shop the Blessing card rings ' + JSON.stringify(inShop);
+    if (M.tut.coachWindow(bl) !== 'shop' || M.tut.coachTab(bl) !== 'services') return 'the Blessing card does not point into the Shop\'s Services tab';
+    if (/open Services/.test(bl.text)) return 'the Blessing card still says "open Services": ' + bl.text;
+    return null;
+  },
 };
 
 const mutants = [
@@ -1016,7 +1162,8 @@ const mutants = [
   { name: 'nothing to aim at after the guide (no what-next line)', case: 'tutorial-launcher-card',
     edits: [['src/session/tutorial-sections.js', '  if (card) return cardFor(card, f);\n', '  return card && cardFor(card, f);\n']] },
   { name: 'the launcher shows only the first card', case: 'tutorial-launcher-card',
-    edits: [['src/shell/launcher.js', 'const card = pointerCardOf(cs);', "const card = pointerCardOf(cs) && { id: 'to_the_cellar', title: 'a', text: 'b' };"]] },
+    edits: [['src/shell/launcher.js', 'const card = pointerCardOf(cs, cs ? coachFactsOf(cs, ctx.account || null) : undefined);',
+      "const card = pointerCardOf(cs, cs ? coachFactsOf(cs, ctx.account || null) : undefined) && { id: 'to_the_cellar', title: 'a', text: 'b' };"]] },
   { name: 'the pointer is drawn over an open window', case: 'tutorial-launcher-card',
     edits: [['src/shell/launcher.js', 'ctx.wm.openIds().length > 0', 'ctx.wm.row(ctx.wm.openIds()[0] || "") && ctx.wm.row(ctx.wm.openIds()[0]).modal']] },
   { name: 'the launcher keeps the pointer in a hunt (over Leave hunt)', case: 'tutorial-launcher-card',
@@ -1093,7 +1240,7 @@ const mutants = [
   { name: 'no ring on the icon a card starts at', case: 'coach-ring',
     edits: [['src/data/hunt-tutorial.js', 'return a && a.icon && !open(a.window) ? a.window : null;', 'return null;']] },
   { name: 'the bar ring stays on the slot while its Configure action is open', case: 'coach-ring',
-    edits: [['src/shell/launcher.js', "open('configure-action') && at.configuring === card.barSlot ?", 'false ?']] },
+    edits: [['src/shell/launcher.js', "if (!(open('configure-action') && at.configuring === card.barSlot)) return", 'if (true) return']] },
   { name: 'the icon row draws no ring of its own (a repaint drops it)', case: 'coach-ring',
     edits: [['src/shell/launcher.js', "(ring === r.id ? ' data-coach-ring=\"\"' : '')", "''"]] },
   /* lane/b-tutorial-cards (the 2026-10-25 curriculum) */
@@ -1142,6 +1289,29 @@ const mutants = [
     edits: [['src/data/hunt-tutorial.js', "'shop', { kind: 'any', of: [{ kind: 'loot_sold' }, { kind: 'been', hunt: THICKET }] },", "'shop', { kind: 'loot_sold' },"]] },
   { name: 'the shown first-minute cards come after the reactive ones (the shell would replay them)', case: 'tutorial-walk-through',
     edits: [['src/data/hunt-tutorial.js', "export const AUTO_KINDS = Object.freeze(['kills', 'level', 'pull']);", "export const AUTO_KINDS = Object.freeze(['kills', 'level', 'pull', 'unlock']);"]] },
+  /* lane 2: the shell's facts, Got it, read on sight, the hooks' order */
+  { name: 'the shell passes the coach no facts (the twelve cards stay hidden)', case: 'tutorial-shell-facts',
+    edits: [['src/shell/launcher.js', 'const card = pointerCardOf(cs, cs ? coachFactsOf(cs, ctx.account || null) : undefined);', 'const card = pointerCardOf(cs, undefined);']] },
+  { name: 'the coach counts the bag, not what Sell all loot sells', case: 'tutorial-shell-facts',
+    edits: [['src/shell/launcher.js', 'lootSale(bag, rulesOf(cs), shop, skillsOf(cs)).lines.length', 'bag.length']] },
+  { name: 'Got it records nothing', case: 'tutorial-shell-facts',
+    edits: [['src/shell/launcher.js', "return cs.setResidue('coach', Object.assign({}, r, { read: Array.from(read).concat(card.id).slice(-COACH_READ_MAX) }));", 'return false;']] },
+  { name: 'folding the coach forgets the reads', case: 'tutorial-shell-facts',
+    edits: [['src/shell/launcher.js', 'const keep = read && read.size ? { read: Array.from(read) } : {};', 'const keep = {};']] },
+  { name: 'a Got it card is marked read on sight', case: 'tutorial-shell-facts',
+    edits: [['src/shell/launcher.js', 'const readOnSight = (card) => !!card && !card.gotIt && ', 'const readOnSight = (card) => !!card && ']] },
+  { name: 'a read-on-sight card is marked at once', case: 'tutorial-shell-facts',
+    edits: [['src/shell/launcher.js', '  if (now - s.since < readMs(card)) return false;\n', '']] },
+  { name: 'the slots owned are the heroes, not the slots', case: 'tutorial-shell-facts',
+    edits: [['src/shell/launcher.js', 'slotsOwned: rows ? rows.length : null,', 'slotsOwned: rows ? rows.filter((r) => r.exists).length : null,']] },
+  { name: 'a hero out hunting counts as in town for a party', case: 'tutorial-shell-facts',
+    edits: [['src/shell/launcher.js', 'open: true, hunting: huntOpenOf(c) });', 'open: true, hunting: false });']] },
+  { name: 'one press of − sends the player to Save before the card\'s goal HP', case: 'coach-ring',
+    edits: [['src/shell/launcher.js', 'if (at.edited && !(Number.isFinite(card.goal) && Number.isFinite(at.cond0) && at.cond0 > card.goal)) return [save];', 'if (at.edited) return [save];']] },
+  { name: 'the hooks ring in the order written (the tab over its own control)', case: 'tutorial-shell-facts',
+    edits: [['src/shell/launcher.js', 'default: return (card.hooks || []).slice().reverse();', 'default: return (card.hooks || []).slice();']] },
+  { name: 'the Blessing cards still point at the old Services window', case: 'tutorial-shell-facts',
+    edits: [['src/data/hunt-tutorial.js', "'shop', true, 'services'),", "'services', true),"]] },
 ];
 
 /* fixtures/h1.js `plant`, widened to the world engine and its manifests (the map cases read them):

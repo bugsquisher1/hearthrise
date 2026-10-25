@@ -63,6 +63,15 @@ export function validateWindowRows(rows) {
     if (typeof r.label !== 'string' || !r.label) throw new Error('shell windows: ' + r.id + ' has no label');
     if (!KEY_RE.test(r.key || '')) throw new Error('shell windows: ' + r.id + ' key must be a letter, enter or escape');
     if (keys.has(r.key)) throw new Error('shell windows: key ' + r.key + ' is both ' + keys.get(r.key) + ' and ' + r.id);
+    /* tabKeys: a second shortcut that opens this window on one of its tabs ({ r: 'services' }: R opens the Shop on Services) */
+    if (r.tabKeys !== undefined) {
+      if (!r.tabKeys || typeof r.tabKeys !== 'object') throw new Error('shell windows: ' + r.id + ' tabKeys is an object');
+      for (const [k, tab] of Object.entries(r.tabKeys)) {
+        if (!/^[a-z]$/.test(k) || typeof tab !== 'string' || !/^[a-z][a-z0-9_-]*$/.test(tab)) throw new Error('shell windows: ' + r.id + ' tab key ' + k + ' must be a letter naming a tab');
+        if (keys.has(k) || k === r.key) throw new Error('shell windows: key ' + k + ' is both ' + (keys.get(k) || r.id) + ' and ' + r.id + '\'s ' + tab + ' tab');
+        keys.set(k, r.id + ':' + tab);
+      }
+    }
     if (!(r.width > 0)) throw new Error('shell windows: ' + r.id + ' needs a positive width');
     if (r.modal !== undefined && r.modal !== true) throw new Error('shell windows: ' + r.id + ' modal is true or absent');
     if (r.home !== undefined && r.home !== 'bl') throw new Error('shell windows: ' + r.id + " home is 'bl' or absent");
@@ -107,6 +116,7 @@ export function createWindowManager(o) {
   const lastAt = new Map();      // id -> { right } | { x, y }: where it was when it last closed
   const sized = new Map();       // id -> {w, h} set live by setSize (else o.sizeOf's saved one)
   const sizeOf = o.sizeOf || (() => null);
+  const tabWanted = new Map();   // id -> the tab a press asked it to show (openTab), until its renderer takes it
 
   const isModal = (id) => rows.get(id).modal === true;
   const docked = () => open.filter((id) => !floating.has(id) && !isModal(id));
@@ -219,6 +229,14 @@ export function createWindowManager(o) {
     return open.includes(id) && !leaving.has(id) ? close(id) : openWindow(id);
   }
 
+  /** Open (or raise) `id` on `tab`: its renderer takes the wish on its next patch (takeTab). */
+  function openTab(id, tab) {
+    if (!rows.has(id) || typeof tab !== 'string') return false;
+    tabWanted.set(id, tab);
+    if (open.includes(id) && !leaving.has(id)) { focus(id); emit(); return true; }
+    return openWindow(id);
+  }
+
   /** The live windows, oldest first (a window sliding out is already gone). */
   const live = () => open.filter((id) => !leaving.has(id));
 
@@ -235,6 +253,7 @@ export function createWindowManager(o) {
     const k = String(ev.key || '').toLowerCase();
     if (k === 'escape') return onEscape();
     for (const r of rows.values()) if (r.key === k && k !== 'escape') return toggle(r.id);
+    for (const r of rows.values()) if (r.tabKeys && Object.prototype.hasOwnProperty.call(r.tabKeys, k)) return openTab(r.id, r.tabKeys[k]);
     return false;
   }
 
@@ -304,7 +323,11 @@ export function createWindowManager(o) {
   function subscribe(fn) { listeners.add(fn); return () => listeners.delete(fn); }
 
   return {
-    open: openWindow, close, toggle, focus, float, dock, resize, setSize, handleKey, layout, subscribe,
+    open: openWindow, close, toggle, focus, float, dock, resize, setSize, handleKey, layout, subscribe, openTab,
+    /** The tab a press asked `id` to show, once (its renderer reads it as it patches), or null. */
+    takeTab(id) { const t = tabWanted.has(id) ? tabWanted.get(id) : null; tabWanted.delete(id); return t; },
+    /** Is a tab wish waiting for `id`? (the shell re-patches that window at once) */
+    wantsTab: (id) => tabWanted.has(id),
     /** The size a window shows at now ({w, h}; h null for a row that sizes to its content). */
     sizeOf: (id) => (rows.has(id) ? sizeNow(id) : null),
     openIds: () => live(),

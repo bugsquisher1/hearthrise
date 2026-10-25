@@ -13,11 +13,9 @@ import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.45';
 import { huntOf, analyzerOf, sessionClockMs, serverNowOf } from '../../session/hunt-sections.js?v=0.2.45';
 import { text, prop, attr } from '../../render/paint.js?v=0.2.45';
 import { clock } from '../../render/format.js?v=0.2.45';
-import { takeFresh } from '../../hunt-view/summary-recorder.js?v=0.2.45';
 import { track } from '../../net/observability.js?v=0.2.45';
 import { refusalText } from '../intent-words.js?v=0.2.45';
 import { pointerFor, actCoach, placeCoach } from '../launcher.js?v=0.2.45';
-import { deathPopupOf } from '../death-popup.js?v=0.2.45';
 
 /* The pending leave's line, per CharacterSession.leaveCountdown phase (null: the press is still out). */
 const LEAVING = Object.freeze({ asked: 'Leaving…', now: 'Leaving now…', late: 'Still processing your leave…' });
@@ -38,9 +36,8 @@ export function renderHuntTopbar() {
 }
 
 renderHuntTopbar.patch = function patchHuntTopbar(el, ctx) {
-  /* A freshly ended hunt opens its summary, unless the hero died: the death popup comes first, and its
-     "Hunt summary" button opens the summary (Tyler 2026-10-19). */
-  if (takeFresh(ctx.character) && !deathPopupOf(ctx.character) && !ctx.wm.isOpen('death')) queueMicrotask(() => ctx.wm.open('hunt-summary'));
+  /* (A freshly ended hunt opens its summary from the shell, src/shell/shell.js followSummary: this bar leaves town
+     with the hunt.) */
   const h = huntOf(ctx.character);
   const a = analyzerOf(ctx.character);
   const ground = h && h.huntId && HUNT_INDEX[h.huntId];

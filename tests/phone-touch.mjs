@@ -82,6 +82,8 @@ function scripted(fixture, prep) {
   /* Like the real server, the residue a put stores comes back in every later envelope (client_state). */
   const s = { env: clone(fixture), version: 1, calls: [], residue: {} };
   if (prep) prep(s.env);
+  /* a fixture's own residue is where the server keeps it: the store every later envelope echoes */
+  if (s.env.client_state) { s.residue = Object.assign({}, s.env.client_state); delete s.env.client_state; }
   s.next = () => Object.assign(clone(s.env), { version: ++s.version, client_state: clone(s.residue) });
   return s;
 }
@@ -338,17 +340,21 @@ function longCoach(env) {
   env.hunt_settings = Object.assign({}, env.hunt_settings, { role: 'mage', discipline: 'staff' });
   env.skills = { magic: { xp: 9000000, level: 44 }, defense: { xp: 0, level: 1 } };
   env.farm_land = { cap: 6, plot_level: 1, deeds: 0, plots: [0, 1, 2, 3, 4].map((i) => ({ i, crop: 'turnip', ready: true })) };
+  /* the reactive cards a Level 29 hero has long since read (residue coach.read), and no better gear in its bag, so
+     the coach is the long "What next" line, not "Your hero just ate" or "Wear what you found" */
+  env.client_state = Object.assign({}, env.client_state, { coach: { read: ['first_eat', 'first_drink', 'fight_settings', 'storage', 'stamina_low'] } });
+  if (env.inventory) for (const id of ['bronze_sword', 'steel_sword', 'iron_helm', 'iron_platebody', 'shortbow']) delete env.inventory[id];
 }
 const COACH = `(() => { const p = document.querySelector('.hs-widget .hs-pointer:not(.is-min)'); if (!p) return null;
   const t = p.querySelector('.hs-coach-text'), dash = p.querySelector('.hs-coach-min');
-  return { card: window.__r(p), hub: window.__r('.hb-bar'), chars: (p.textContent || '').length, maxH: getComputedStyle(p).maxHeight,
+  return { id: p.getAttribute('data-tutorial'), card: window.__r(p), hub: window.__r('.hb-bar'), chars: (p.textContent || '').length, maxH: getComputedStyle(p).maxHeight,
     dash: window.__onScreen(window.__r(dash)) && window.__hits(dash), text: t && window.__r(t), top: t ? t.scrollTop : 0, end: t ? t.scrollHeight - t.clientHeight : 0,
     lines: t ? t.clientHeight / parseFloat(getComputedStyle(t).lineHeight) : 0 }; })()`;
 const coachState = (page) => page.evaluate((src) => (0, eval)(src), COACH);
 async function coachFits(page, tag, fails, phone) {
   const c = await coachState(page);
   if (!c) { fails.push('PH-6 [' + tag + '] CONTROL: no open coach card'); return; }
-  if (c.chars < 300) { fails.push('PH-6 [' + tag + '] CONTROL: the coach says only ' + c.chars + ' characters, so it proves nothing'); return; }
+  if (c.chars < 300) { fails.push('PH-6 [' + tag + '] CONTROL: the coach (' + c.id + ') says only ' + c.chars + ' characters, so it proves nothing'); return; }
   if (!phone) { if (c.maxH !== 'none' || c.end > 0) fails.push('PH-6 [' + tag + '] the desktop coach is capped (' + c.maxH + ', ' + c.end + ' px to scroll)'); return; }
   if (!c.hub) { fails.push('PH-6 [' + tag + '] CONTROL: no action bar'); return; }
   if (!window_onScreen(c.card, page.viewportSize()) || c.card.bottom > c.hub.top + 0.5) {

@@ -44,14 +44,15 @@ import { SHELL_WINDOWS } from '../data/shell-windows.js?v=0.2.45';
 import { HUD_WIDGETS } from '../data/hud-widgets.js?v=0.2.45';
 import { createWindowManager, DOCK_EDGE, HOME_BOTTOM, RESIZE_MIN } from './window-manager.js?v=0.2.45';
 import { createHud, residueStore, placeWidget, hudInsetOf, clearOfEdges, clearOfDock, stageOf, dockCap, homeAt, stackBelow } from './hud.js?v=0.2.45';
-import { keyLabel, glyphSvg, actCoach, heldCard, coachHtml, placeCoach, ringCoach } from './launcher.js?v=0.2.45';
+import { keyLabel, glyphSvg, actCoach, heldCard, coachHtml, placeCoach, ringCoach, noteCoachSight } from './launcher.js?v=0.2.45';
 import { coachWindow } from '../data/hunt-tutorial.js?v=0.2.45';
-import { draftOf } from './bar-draft.js?v=0.2.45';
 import { WINDOW_RENDERERS, WIDGET_RENDERERS } from './renderers.js?v=0.2.45';
 import { mountContextMenu } from './context-menu.js?v=0.2.45';
 import { menuProvidersOf } from './menu-providers.js?v=0.2.45';
 import { escapeHtml as esc } from '../utils/dom.js?v=0.2.45';
-import { followDeaths } from './death-popup.js?v=0.2.45';
+import { followDeaths, deathPopupOf } from './death-popup.js?v=0.2.45';
+import { takeFresh } from '../hunt-view/summary-recorder.js?v=0.2.45';
+import { huntOf } from '../session/hunt-sections.js?v=0.2.45';
 import { sizeStore, gripHtml, pressGrip } from './window-sizes.js?v=0.2.45';
 import { watchTown } from '../session/town-poll.js?v=0.2.45';
 import { applyPanelAlpha, clearPanelAlpha } from './panel-alpha.js?v=0.2.45';
@@ -109,11 +110,23 @@ export function mountShell(root, o) {
     reducedMotion,
     schedule: (fn, ms) => host.setTimeout(fn, ms),
   });
+  /* THE HUNT'S WIDGETS LEAVE TOWN WITH IT (designer walk 2026-10-25 #5: the summary, "Not in a party", the hunt bar's
+     Summary, the analyzer's "Hunt ended" and a toast, five overlays on return): the party panel and the analyzer show
+     while a hunt runs and the server has not said it ended; the hunt bar, which keeps only the way back to the summary
+     once the hunt is over (Tyler 10-19), leaves with the summary: when the player closes it (summaryClosed), so the
+     summary opens by itself (followSummary below) as the one notice and then the town is clear. */
+  let summaryClosed = null;   // the ended session whose summary the player has closed (display scratch)
+  const huntUp = (id) => {
+    if (!opts.inHunt || !opts.inHunt()) return false;
+    const h = huntOf(opts.character);
+    if (!h || !h.ended) return true;
+    return id === 'hunt-topbar' && summaryClosed !== h.sessionId;
+  };
   const hud = createHud({
     widgets: HUD_WIDGETS,
     sizeClass: () => (phoneMq.matches ? 'phone' : 'desktop'),
     store: residueStore(opts.character),
-    inHunt: opts.inHunt,
+    inHunt: huntUp,
   });
   const insetListeners = new Set();
   const ctx = {
@@ -350,8 +363,15 @@ export function mountShell(root, o) {
     for (const fn of insetListeners) fn(inset);
     host.dispatchEvent(new host.CustomEvent('hearthrise:shell-inset', { detail: inset }));
   }
+  let summaryWasOpen = false;
   function onWm() {
+    /* the player closed an ended hunt's summary: its hunt bar leaves town with it (huntUp) */
+    const so = wm.isOpen('hunt-summary');
+    if (summaryWasOpen && !so) { const h = huntOf(ctx.character); if (h && h.ended) summaryClosed = h.sessionId; }
+    summaryWasOpen = so;
     paintWindows();
+    /* an open window asked to show another tab (R on an open Shop: window-manager.js openTab) shows it at once */
+    for (const id of wm.openIds()) if (wm.wantsTab(id)) refresh(id);
     paintWidgets();
     coach();
   }
@@ -363,19 +383,33 @@ export function mountShell(root, o) {
     const card = cs ? heldCard(ctx) : null;
     const win = coachWindow(card);
     for (const slot of layer.querySelectorAll('[data-hs-win] > .hs-win-coach')) {
-      placeCoach(slot, win && slot.parentElement.getAttribute('data-hs-win') === win ? coachHtml(cs, card) : '');
+      placeCoach(slot, win && slot.parentElement.getAttribute('data-hs-win') === win ? coachHtml(cs, card, true) : '');
     }
     const id = card ? card.id : null;
     if (tick && id !== coachShown) paintWidgets();
     coachShown = id;
-    ringCoach(ctx, card, [shell, screen], cs ? draftOf(cs).open : null);
+    ringCoach(ctx, card, ringRoots);
+    /* a card the player only has to read is marked read once its open box has been on screen its reading time */
+    if (tick) noteCoachSight(ctx, card, !!card && [shell, screen].some((r) => !!r.querySelector('.hs-pointer[data-tutorial="' + card.id + '"]:not(.is-min)')));
   }
+  /* The ring's boxes: the World shell, the screen layer, then the whole screen around them (the character strip's
+     Characters button and hero tabs, src/app/character-strip.js). */
+  const ringRoots = [shell, screen, opts.screen || doc.body];
   const offWm = wm.subscribe(onWm);
   /* A reset or a size-class reload moves every line of the HUD layout window too. */
   const offHud = hud.subscribe((id) => { paintWidgets(); if (id === null) for (const w of wm.openIds()) refresh(w); });
 
+  /* A freshly ended hunt opens its summary, once (summary-recorder.js takeFresh), unless the hero died: the death popup
+     comes first, and its "Hunt summary" button opens it (Tyler 2026-10-19). Here, not in the hunt bar: the bar leaves
+     town with the hunt (huntUp). */
+  function followSummary() {
+    const cs = ctx.character;
+    if (cs && takeFresh(cs) && !deathPopupOf(cs) && !wm.isOpen('death')) queueMicrotask(() => wm.open('hunt-summary'));
+  }
+
   /* The display tick: components patch their clocks and play the timeline's due events. */
   function patchComponents() {
+    followSummary();
     if (ctx.character && ctx.character.timeline) ctx.character.timeline.advance(ctx.now());
     /* The Work window or the bag watches the town work: the viewed character re-reads at townPollMs (town-poll.js). */
     if (ctx.character && (wm.isOpen('skills-trade') || wm.isOpen('inventory'))) watchTown(ctx.character);
@@ -477,6 +511,7 @@ export function mountShell(root, o) {
   doc.addEventListener('keydown', onKey);
   phoneMq.addEventListener('change', onSizeClass);
   host.addEventListener('resize', onResize);
+  followSummary();
   paintWidgets();
   coach();
   /* A death opens its popup (death-popup.js), on mount too: a death while away shows on return. */
@@ -489,7 +524,7 @@ export function mountShell(root, o) {
     toggle: (id) => wm.toggle(id),
     refresh,
     /** Repaint the widgets and patch the open component windows (every applied envelope). */
-    paint() { paintWidgets(); for (const id of wm.openIds()) if (WINDOW_RENDERERS[id] && WINDOW_RENDERERS[id].patch) refresh(id); coach(); },
+    paint() { followSummary(); paintWidgets(); for (const id of wm.openIds()) if (WINDOW_RENDERERS[id] && WINDOW_RENDERERS[id].patch) refresh(id); coach(); },
     inset: () => insetNow(),
     /* A subscriber hears the inset as it is NOW, then every change: the mount already published it to
        nobody, and publishInset only repeats a change, so a pane mounted mid-hunt (a reload, a switch of

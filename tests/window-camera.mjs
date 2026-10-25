@@ -313,11 +313,11 @@ async function checks(overrides) {
       else {
         for (const k of ['p', 'r', 'g']) { await page.keyboard.press(k); await settle(page); }
         const r0 = await rects(page);
-        if (Object.keys(r0).sort().join() !== 'hunt-prep,services,skills-trade') fails.push('WC-1 three docked windows did not open: ' + JSON.stringify(r0));
+        if (Object.keys(r0).sort().join() !== 'hunt-prep,shop,skills-trade') fails.push('WC-1 three docked windows did not open: ' + JSON.stringify(r0));
         else {
           const c0 = await camera(page), h0 = await hero(page);
           /* WC-2: presses inside a window (its head, its body) move no window, no camera, no hero. */
-          for (const sel of ['[data-hs-win="services"] .hs-win-title', '[data-hs-win="hunt-prep"] .hs-win-title', '[data-hs-win="services"] .hs-win-title']) { await press(page, sel, 3); await page.waitForTimeout(120); }
+          for (const sel of ['[data-hs-win="shop"] .hs-win-title', '[data-hs-win="hunt-prep"] .hs-win-title', '[data-hs-win="shop"] .hs-win-title']) { await press(page, sel, 3); await page.waitForTimeout(120); }
           await settle(page);
           if (JSON.stringify(await rects(page)) !== JSON.stringify(r0)) fails.push('WC-1 presses inside windows moved the dock: ' + JSON.stringify(await rects(page)) + ' vs ' + JSON.stringify(r0));
           if ((await camera(page)) !== c0) fails.push('WC-2 three presses inside a window moved the camera from ' + c0 + ' to ' + (await camera(page)));
@@ -344,14 +344,14 @@ async function checks(overrides) {
           });
           if (scrolled.some((n) => n !== 0)) fails.push('WC-2 the World can be scrolled under a window (stage, pane): ' + scrolled.join(','));
           /* WC-1: the X closes on a real press and release; the others keep their rects. */
-          await press(page, '[data-hs-win="services"] [data-hs-close]');
+          await press(page, '[data-hs-win="shop"] [data-hs-close]');
           await settle(page);
           const r1 = await rects(page);
-          if (r1['services']) fails.push('WC-1 a press on Services’ X did not close it: ' + JSON.stringify(r1));
+          if (r1['shop']) fails.push('WC-1 a press on the Shop’s X did not close it: ' + JSON.stringify(r1));
           if (r1['hunt-prep'] !== r0['hunt-prep'] || r1['skills-trade'] !== r0['skills-trade']) fails.push('WC-1 closing one window moved the others: ' + JSON.stringify(r1) + ' vs ' + JSON.stringify(r0));
           await page.keyboard.press('r'); await settle(page);
           const r2 = await rects(page);
-          if (r2['services'] !== r0['services']) fails.push('WC-1 a reopened window did not come back to its rect: ' + r2['services'] + ' vs ' + r0['services']);
+          if (r2['shop'] !== r0['shop']) fails.push('WC-1 a reopened window did not come back to its rect: ' + r2['shop'] + ' vs ' + r0['shop']);
           /* WC-5 (Tyler, v0.2.6): the centred Configure action modal floats over the World: with three
              windows docked, opening it and closing it close no window and leave the camera and hero alone. */
           const mc0 = await camera(page), mh0 = await hero(page);
@@ -364,7 +364,7 @@ async function checks(overrides) {
             await settle(page);
             const mr2 = await rects(page), mc2 = await camera(page), mh2 = await hero(page);
             if (mr2['configure-action']) fails.push('WC-5 the modal’s X did not close it');
-            for (const id of ['hunt-prep', 'services', 'skills-trade']) {
+            for (const id of ['hunt-prep', 'shop', 'skills-trade']) {
               if (mr1[id] !== r2[id] || mr2[id] !== r2[id]) fails.push('WC-5 the modal closed or moved ' + id + ': ' + [r2[id], mr1[id], mr2[id]].join(' -> '));
             }
             if (mc1 !== mc0 || mc2 !== mc0) fails.push('WC-5 the modal moved the camera: ' + [mc0, mc1, mc2].join(' -> '));

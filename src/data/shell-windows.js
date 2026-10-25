@@ -19,6 +19,7 @@
 //   home     'bl': opens floating at the World's bottom-left, never docked (window-manager.js)
 //   resizable true: a grip resizes it, the size kept per character (src/shell/window-sizes.js)
 //   height   the starting height of a home or resizable row, CSS px
+//   tabKeys  { letter: tab }: more shortcuts, each opening this window on that tab (window-manager.js openTab)
 //
 // The rest of the spec's catalogue (Bestiary L, Market M) lands
 // with its renderer: a launcher never opens a window that does not exist yet
@@ -38,13 +39,14 @@ export const SHELL_WINDOWS = Object.freeze([
   Object.freeze({ id: 'character', label: 'Character', key: 'c', glyph: 'navCharacter', width: 560, object: 'ledger' }),
   Object.freeze({ id: 'skills-trade', label: 'Gathering and crafting', key: 'g', glyph: 'uiPickaxe', width: 380, object: 'ledger' }),
   Object.freeze({ id: 'storage', label: 'Storage', key: 't', glyph: 'uiChest', width: 452, object: 'satchel' }),
-  Object.freeze({ id: 'shop', label: 'Shop', key: 'v', glyph: 'navStore', width: 420, object: 'ledger' }),
+  /* Services (stamina, Blessings) is the Shop's third tab (Tyler 2026-10-25: "Lets move services to the 'shop' menu"):
+     its old key R opens the Shop on it. */
+  Object.freeze({ id: 'shop', label: 'Shop', key: 'v', glyph: 'navStore', width: 420, object: 'ledger', tabKeys: Object.freeze({ r: 'services' }) }),
   /* The farm plots (P1 2026-10-22: no client door to farming). Per hero: each hero has its own plots on the server. */
   Object.freeze({ id: 'farm', label: 'Farm', key: 'j', glyph: 'uiSprout', width: 440, object: 'plain' }),
   /* Lane S2: stamina refills, blessings and the character's name, each priced by the server. */
   /* The account's one house (Tyler 2026-10-15): the property, its rooms and the storage chests, bought from any character. */
   Object.freeze({ id: 'house', label: 'House', key: 'e', glyph: 'navHouse', width: 480, object: 'deed' }),
-  Object.freeze({ id: 'services', label: 'Services', key: 'r', glyph: 'uiHourglass', width: 400, object: 'ledger' }),
   /* Tamsin's tally (2026-12-23-tally-tasks.sql): kill tasks counted by the server, paid in town. Her board on the
      Common opens it too (src/data/world/stations.js TAP_OPENS), and so does the HUD's tally. */
   Object.freeze({ id: 'tally', label: 'Tamsin\'s tally', key: 'q', glyph: 'navBounty', width: 460, object: 'ledger' }),

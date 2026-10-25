@@ -123,7 +123,9 @@ function candidatesOf(cs, viewed) {
     text: cameHomeLine(h, who(cs)) });
   else if (h.ended && h.endReason === 'party_member_left') out.push({ id: 'ended:' + h.sessionId, kind: 'ended', session: h.sessionId,
     text: cameHomeLine(h, who(cs)) });
-  else if (h.ended) out.push({ id: 'ended:' + h.sessionId, kind: 'ended', session: h.sessionId, text: who(cs) + '’s hunt in ' + where + ' has ended.' });
+  /* The character ON SCREEN gets its hunt summary instead (it opens by itself: src/shell/shell.js followSummary), the
+     one notice of a return (designer walk 2026-10-25 #5): its line is marked seen, never shown. */
+  else if (h.ended) out.push({ id: 'ended:' + h.sessionId, kind: 'ended', session: h.sessionId, quiet: viewed, text: who(cs) + '’s hunt in ' + where + ' has ended.' });
   else for (const l of lowItems(cs, h.hero)) {
     out.push({ id: 'low:' + h.sessionId + ':' + l.item, kind: 'low', session: h.sessionId, item: l.item,
       text: who(cs) + ' is out of ' + supplyWords(l.item) + '.' });
@@ -181,6 +183,7 @@ export function createAlertCenter(account) {
     const stored = residueOf(cs).seen;
     if (mine.has(c.id) || (Array.isArray(stored) && stored.includes(c.id))) return false;
     mine.add(c.id);
+    if (c.quiet) return false;
     if (!alertShown(cs, c.kind)) return false;
     const kind = ALERT_INDEX[c.kind];
     alerts.unshift(Object.assign({ key: 'a' + (++n), slot: cs.slot, action: kind.action, button: kind.button, decline: kind.decline || null,

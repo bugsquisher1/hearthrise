@@ -208,6 +208,10 @@ async function pureRules(M, base) {
       if (!doing.startsWith('In town, ' + want)) return 'Characters reads ' + JSON.stringify(doing) + ' for ' + JSON.stringify(st);
     }
     if (M.BURY.buryLine(at({ active_kind: 'idle', active_id: null }))) return 'an idle hero gets a Stop line';
+    /* board 2026-10-25 #10: a hero back from a hunt that has since cooked or chopped and stopped is idle, not "the
+       hunt is over" (the strip said so long after); the hunt's end is its summary's to say */
+    const after = { read: (k) => (k === 'state' ? { active_kind: 'idle', active_id: null } : k === 'hunt' ? { session_id: 's', hunt_id: 'mill_cellar', ended: true } : null) };
+    if (M.PS.assignmentOf(after).text !== 'In town, idle') return 'an idle hero after a hunt reads ' + JSON.stringify(M.PS.assignmentOf(after).text);
     return true;
   });
 
@@ -352,7 +356,14 @@ async function pureRules(M, base) {
     e.hunt_events = [];
     e.hunt.ended = true;
     e.hunt.session = { end_reason: 'stamina', ended_at: '2026-10-17T12:30:00Z', phase: 'ended' };
+    /* the hero ON SCREEN gets its hunt summary instead, the one notice of a return (designer walk 2026-10-25 #5): no line */
+    const accV = account(M, srv);
+    accV.viewed = 0;   // the hero on screen
+    const centreV = M.AL.createAlertCenter(accV);
+    if (!(await accV.open(0)).session) return 'the fixture character did not open (viewed)';
+    if (centreV.list().some((a) => a.kind === 'ended')) return 'the hero on screen raised an ended line over its own hunt summary';
     const acc = account(M, srv);
+    acc.viewed = 1;   // another hero is on screen: this one is played unviewed
     const centre = M.AL.createAlertCenter(acc);
     const cs = (await acc.open(0)).session;
     if (!cs) return 'the fixture character did not open';

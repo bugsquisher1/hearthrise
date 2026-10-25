@@ -158,7 +158,9 @@ export function assignmentOf(cs) {
   const st = read(cs, 'state');
   if (!isObj(st)) return { kind: 'unknown', where: null, text: 'Not read yet' };
   if (st.active_kind === 'combat' && typeof st.active_id === 'string') return { kind: 'hunting', where: st.active_id, text: 'Hunting in ' + huntName(st.active_id) };
-  if (!st.active_kind || st.active_kind === 'idle') return { kind: 'idle', where: null, text: h && h.ended ? 'In town, the hunt is over' : 'In town, idle' };
+  /* Idle is idle: "the hunt is over" stayed on a hero that had chopped or cooked since (board 2026-10-25 #10); the
+     hunt's end is its summary's to say. */
+  if (!st.active_kind || st.active_kind === 'idle') return { kind: 'idle', where: null, text: 'In town, idle' };
   const what = townActivityWords(st) || String(st.active_kind).replace(/_/g, ' ');
   return { kind: 'busy', where: null, text: 'In town, ' + what };
 }

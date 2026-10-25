@@ -26,6 +26,11 @@ import { endedSessionOf, sanitizeSummaries, huntAgainOf, endWords } from '../../
 import { observeSessions } from '../../session/character-session.js?v=0.2.45';
 import { attach, summariesOf, liveDeaths } from '../../hunt-view/summary-recorder.js?v=0.2.45';
 import { nameOf } from '../../session/item-sections.js?v=0.2.45';
+import { heldCard } from '../launcher.js?v=0.2.45';
+import { coachWindow, coachTab } from '../../data/hunt-tutorial.js?v=0.2.45';
+
+/* The tutorial card up now (a card of the guide, never the "What next" line), or null. */
+const nextStepOf = (ctx) => { const c = ctx.character ? heldCard(ctx) : null; return c && c.done ? c : null; };
 
 /* Every character the account opens is recorded from its first envelope, so no hunt event is played unseen. */
 observeSessions(attach);
@@ -47,6 +52,9 @@ export function renderHuntSummary() {
     + '<header class="hsum-head"><h3 class="hsum-title"></h3><p class="hsum-when"></p></header><p class="hsum-reason"></p>'
     + '<dl class="hsum-stats">' + STATS.map(([k, label]) => '<div class="hsum-stat"><dt>' + label + '</dt><dd data-stat="' + k + '"></dd></div>').join('') + '</dl>'
     + '<div class="hsum-actions">'
+    /* while a tutorial card is up its next step is the main press here (board 2026-10-25 #5: "Hunt again" pulled the
+       other way); then "Hunt again" is the main one again */
+    + '<button type="button" class="hh-tool is-primary" data-hs-act="coach-next" hidden></button>'
     + '<button type="button" class="hh-tool is-primary" data-hs-act="again">Hunt again</button>'
     + '<button type="button" class="hh-tool" data-hs-act="bag">Open bag</button></div>'
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p>'
@@ -121,7 +129,12 @@ renderHuntSummary.patch = function patchHuntSummary(body, ctx) {
     const go = root.querySelector('[data-hs-act="again"]');
     prop(go, 'disabled', sc.pending || huntOpen || !again);
     attr(go, 'title', huntOpen ? 'A hunt is already running.' : again ? 'Same ground, action set, limits and bag.' : 'This hunt did not keep its settings.');
-    for (const b of root.querySelectorAll('.hsum-actions button:not(.is-primary)')) prop(b, 'disabled', sc.pending);
+    const card = huntOpen ? null : nextStepOf(ctx);
+    const next = root.querySelector('[data-hs-act="coach-next"]');
+    prop(next, 'hidden', !card);
+    text(next, card ? 'Next: ' + card.title : '');
+    cls(go, 'is-primary', !card);
+    for (const b of root.querySelectorAll('.hsum-actions button:not(.is-primary):not([data-hs-act="again"])')) prop(b, 'disabled', sc.pending);
   }
   text(root.querySelector('.hh-intent-msg'), sc.msg);
 
@@ -144,6 +157,17 @@ renderHuntSummary.act = function actHuntSummary(ctx, body, action, ev, t) {
   const sc = scratchOf(cs);
   const repaint = () => renderHuntSummary.patch(body, ctx);
   if (action === 'pick') { sc.pick = t.getAttribute('data-id'); sc.msg = ''; repaint(); return true; }
+  /* the card's next step: the summary closes and the card's window opens on its tab (its card and ring are there),
+     or, for a card on the bar or the town, the summary closes and the card stands under the icon row */
+  if (action === 'coach-next') {
+    const card = nextStepOf(ctx);
+    ctx.wm.close('hunt-summary');
+    const win = card ? coachWindow(card) : null;
+    if (win && ctx.wm.row(win) && ctx.wm.row(win).launcher !== false) {
+      if (coachTab(card)) ctx.wm.openTab(win, coachTab(card)); else ctx.show(win);
+    }
+    return true;
+  }
   if (action === 'bag') { ctx.show('inventory'); return true; }
   if (action === 'again') {
     const list = summariesOf(cs);

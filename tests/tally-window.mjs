@@ -22,6 +22,7 @@
 //         is handed in (the settle that brings the hero home pays)
 //   TW-6  the HUD's tally and the hunt list read the server's count ("Gray Wolves 112/200")
 //   TW-7  FAIL SAFE: with no tally section nothing is drawn and nothing can be taken
+//   TW-10 A NEW HERO (board 2026-10-25 #13): never met Tamsin (no weight, nothing held or paid) = no Tally box in town; met = her line
 //   TW-9  HER WORDS in plain English: the greeting says what happens (Tyler 2026-10-24), and no line
 //         a player reads from her keeps the old riddles ("your half of the stick", "a piece for your back")
 //   TW-8  THE HUD'S PLACE (v0.2.37 run 40020854780): hunting with three tasks held, the tally
@@ -248,6 +249,24 @@ async function checks(overrides) {
       }
       await ctx.close();
     }
+    { // TW-10 a new hero who has not met Tamsin (no weight asked, nothing held or paid): no Tally box in town; once met, her line
+      const fresh = Object.assign(clone(TALLY), { held: [], recent: [], weight: null, paid_today: 0 });
+      const { ctx, page, up } = await open(Object.assign(clone(TOWN), { tally: fresh }));
+      const quiet = () => page.evaluate(() => { const w = document.querySelector('[data-hs-widget="tally"]'); return !w || w.classList.contains('is-quiet') || !w.getClientRects().length; });
+      if (!up) fails.push('TW-10 the town did not mount');
+      else {
+        await page.waitForTimeout(500);
+        if (!(await quiet())) fails.push('TW-10 a hero who never met Tamsin sees her Tally box beside the coach (board 2026-10-25 #13)');
+      }
+      await ctx.close();
+      const met = await open(Object.assign(clone(TOWN), { tally: Object.assign(clone(fresh), { weight: 'light' }) }));
+      if (met.up) {
+        await met.page.waitForTimeout(500);
+        const line = await met.page.evaluate(() => (document.querySelector('[data-hs-widget="tally"] .hs-tally-none') || {}).textContent || '');
+        if (!/Tamsin has kill tasks/.test(line)) fails.push('TW-10 once met (a weight asked), the empty Tally box reads ' + JSON.stringify(line));
+      }
+      await met.ctx.close();
+    }
     { // TW-7
       const { ctx, page, s, up } = await open({ hunt: null }, null, { ok: true, hunting: false, tally: null, board: BOARD.board });
       if (!(up && await show(page))) fails.push('TW-7 her window did not open without the section');
@@ -281,7 +300,8 @@ const MUTANTS = [
   ['the tally sits at its anchor, over the analyzer', 'src/shell/shell.js', '      const top = stackBelow(at, above, DOCK_EDGE);', '      const top = Math.round(at.top);'],
   ['her greeting is the riddle again', 'src/data/tally-tasks.js', "greeting: 'Take a task from my board and go hunting. When the count\\'s done, I\\'ll pay you in town: gold, plus a piece of armor you can wear.',",
     "greeting: 'Bring me your half of the stick when the count is done, and I pay. Coin, and a piece for your back.',"],
-  ['a tally with nothing to show keeps its box', 'src/shell/widgets/tally-hud.js', "  cls(el, 'is-quiet', !t || (!held.length && hunting));", "  cls(el.querySelector('.hs-tally'), 'is-quiet', !t || (!held.length && hunting));"],
+  ['a tally with nothing to show keeps its box', 'src/shell/widgets/tally-hud.js', "  cls(el, 'is-quiet', !t || (!held.length && (hunting || !met)));", "  cls(el.querySelector('.hs-tally'), 'is-quiet', !t || (!held.length && (hunting || !met)));"],
+  ['a new hero\'s first screen carries Tamsin\'s line beside the coach', 'src/shell/widgets/tally-hud.js', '  const met = !!t && (!!t.weight || t.recent.length > 0);', '  const met = !!t;'],
 ];
 
 async function main() {

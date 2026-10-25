@@ -164,13 +164,40 @@ export function cookOf(id) {
   return COOKS.get(id) || null;
 }
 
+let USES = null;
+/* Every item some recipe spends -> the skill and level of each recipe spending it, built once from the recipe rows. */
+function inputUses() {
+  if (USES) return USES;
+  USES = new Map();
+  for (const [skill, rows] of Object.entries(ARTISAN_RECIPES)) for (const r of rows || []) if (r) for (const id of Object.keys(recipeInputs(r) || {})) {
+    if (!USES.has(id)) USES.set(id, []);
+    USES.get(id).push({ skill, req: Math.max(1, Number(r.req) || 1) });
+  }
+  return USES;
+}
+/* Does a recipe this hero can make NOW spend `id`? `skills`: the server's ({ skill: { level } }), a skill it does not
+   list being level 1; null (not said yet): any recipe counts, so nothing useful is sold on a guess. */
+function madeInto(id, skills) {
+  const uses = inputUses().get(id);
+  if (!uses) return false;
+  return uses.some((u) => !skills || ((skills[u.skill] && skills[u.skill].level) || 1) >= u.req);
+}
+
 /**
  * The stacks "Sell all loot" sells: monster loot, never an offering a skill trains on (bones are buried for Prayer,
- * ruling 2026-10-14; Brannoc 10-22: Sell all loot sold his bones) nor raw food that cooks (the same playtest's
- * Raw Wolf Meat). Ids, in the bag's order.
+ * ruling 2026-10-14; Brannoc 10-22: Sell all loot sold his bones), nor raw food that cooks (the same playtest's
+ * Raw Wolf Meat), nor a material a recipe the hero can make spends (board 2026-10-25 #22: it sold Silk Thread, the
+ * first Crafting recipes' thread). Ids, in the bag's order. `skills`: the server's skills, or null.
  */
-export function lootToSell(items) {
-  return (items || []).filter((r) => kindOf(r.id) === 'loot' && !riteOf(r.id) && !cookOf(r.id)).map((r) => r.id);
+export function lootToSell(items, skills) {
+  return (items || []).filter((r) => kindOf(r.id) === 'loot' && !riteOf(r.id) && !cookOf(r.id) && !madeInto(r.id, skills === undefined ? null : skills)).map((r) => r.id);
+}
+
+/** "Sell all loot": the plan its button shows and sends (src/shell/windows/shop.js) and the coach's `sellable` fact
+    reads (src/shell/launcher.js coachFactsOf), ONE function so the card and the button never disagree. `rules`,
+    `shop` and `skills`: the server's sections (rulesOf, shopOf, skillsOf), or null. */
+export function lootSale(items, rules, shop, skills) {
+  return sellPlan(items || [], lootToSell(items, skills), { locked: rules ? rules.locked : null, bids: shop ? shop.bids : null });
 }
 
 /**

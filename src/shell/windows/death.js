@@ -5,13 +5,14 @@
 // character dies: where, what killed the hero, what happened in its last
 // seconds (when the hunt was watched), the XP dying cost and what a Blessing
 // kept, back in town.
+//   Blessings      (while the hero lacks one) closes it and opens the Shop on its Services tab
 //   Hunt summary   closes it and opens the hunt summary (windows/hunt-summary.js)
 //   OK             closes it
 // Closing it any way records the dismissal (death-popup.js followDeaths). Every
 // line is the server's death row; built once, patched in place.
 // ════════════════════════════════════════════════════════════════════════
-import { text, cls } from '../../render/paint.js?v=0.2.45';
-import { deathPopupOf, deathWords } from '../death-popup.js?v=0.2.45';
+import { text, cls, prop } from '../../render/paint.js?v=0.2.45';
+import { deathPopupOf, deathWords, blessingsMissing } from '../death-popup.js?v=0.2.45';
 import { huntOf } from '../../session/hunt-sections.js?v=0.2.45';
 import { deathLogOf } from '../../session/character-sections.js?v=0.2.45';
 
@@ -28,6 +29,8 @@ export function renderDeath() {
     + '<div class="hdeath-cost">' + line('lost') + line('saved') + '</div>'
     + line('town')
     + '<div class="hsum-actions hdeath-actions">'
+    /* the way to the Blessings a death used up (the Shop's Services tab), while the hero lacks one */
+    + '<button type="button" class="hh-tool" data-hs-act="death-bless" hidden>Blessings</button>'
     + '<button type="button" class="hh-tool" data-hs-act="death-summary">Hunt summary</button>'
     + '<button type="button" class="hh-tool is-primary" data-hs-act="death-ok">OK</button></div>'
     + '</section></div>';
@@ -54,11 +57,13 @@ renderDeath.patch = function patchDeath(body, ctx) {
     text(p, w[k]);
     cls(p, 'is-on', !!w[k]);
   }
+  prop(root.querySelector('[data-hs-act="death-bless"]'), 'hidden', blessingsMissing(ctx.character) !== true);
 };
 
 renderDeath.act = function actDeath(ctx, body, action, ev) {
-  if (ev.type !== 'click' || (action !== 'death-ok' && action !== 'death-summary')) return false;
+  if (ev.type !== 'click' || (action !== 'death-ok' && action !== 'death-summary' && action !== 'death-bless')) return false;
   ctx.wm.close('death');
   if (action === 'death-summary') ctx.show('hunt-summary');
+  if (action === 'death-bless') ctx.wm.openTab('shop', 'services');
   return true;
 };

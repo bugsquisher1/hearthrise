@@ -1766,7 +1766,7 @@ const MUTANTS = [
   ['an atlas is decoded once per caller', 'src/world/atlas.js', 'return heldImage(o.doc, urlOf(o, atlasPaths(set).image));', "return heldImage(o.doc, urlOf(o, atlasPaths(set).image) + '&n=' + Math.random());"],
   ['the phone bar keeps the whole panel (HS-22)', 'src/styles/hunt.css', '  .hb-pl-more { position: fixed;', '  .hb-pl-more { display: contents; } .hb-xx { position: fixed;'],
   ['the desktop bar keeps the settings form open (HS-12)', 'src/styles/hunt.css', 'transform: translateY(8px); visibility: hidden;', 'transform: translateY(8px); visibility: visible;'],
-  ['the phone hub keeps the big medal (HS-22)', 'src/styles/hunt.css', '  .hb-medal, .hb-arcs { width: 64px; height: 64px; }', '  .hb-medal, .hb-arcs { width: 88px; height: 88px; }'],
+  ['the phone hub keeps the big medal (HS-22)', 'src/styles/hunt.css', '  .hb-medal { width: 72px; height: 72px; align-self: center; }', '  .hb-medal { width: 88px; height: 88px; align-self: center; }'],
   ['the world HUD stays under the alerts while a tooltip is open (HS-22)', 'src/styles/hunt.css', '.hb-plaque.is-open) { z-index: 7; }', '.hb-plaque.is-open) { z-index: 2; }'],
   ['the phone alerts dock on the left, over the Party panel (HS-22)', 'src/data/hud-widgets.js', "phone: Object.freeze({ anchor: 'br', dx: 4, dy: 104 }),", "phone: Object.freeze({ anchor: 'bl', dx: 4, dy: 160 }),"],
   ['the phone alerts draw over an open window (HS-22)', 'src/styles/hunt.css', '  :root:has(.hs-win:not(.is-leaving)) .hs-widget.is-alerts { visibility: hidden; }', '.hs-widget.is-alerts { }'],

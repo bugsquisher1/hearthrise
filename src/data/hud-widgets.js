@@ -39,10 +39,11 @@ export const HUD_WIDGETS = Object.freeze([
     phone: Object.freeze({ anchor: 'br', dx: 4, dy: 104 }),
   }),
   /* Tracker r16: how many players are online, as the server counts (src/social/players-online.js).
-     One short line in the bottom-left corner of the screen, clear of the bar, the party and the alerts.
+     One short line at the bottom left, standing just above the action bar (its 8 px offset + its 170 px desktop
+     height + 8: from 1280 px the bar spans that corner, hunt.css), clear of the bar, the party and the alerts.
      Off by default on a phone, where the action bar spans that corner (HUD layout can show it). */
   Object.freeze({
-    id: 'online', label: 'Players online', layer: 'screen', anchor: 'bl', dx: 12, dy: 10,
+    id: 'online', label: 'Players online', layer: 'screen', anchor: 'bl', dx: 12, dy: 186,
     min: Object.freeze([96, 22]), opacity: 0.85, visible: true, removable: true, when: 'always',
     phone: Object.freeze({ visible: false, dx: 4, dy: 4 }),
   }),

@@ -3,11 +3,13 @@
 //
 // Ported from the hunt sim's emblem (prototypes/hunt-sim/ui.js `emblem`, our own
 // design; function and layout, never its code), in style-1 tokens:
-//   medallion  a pixel-art iron medallion (assets/ui/bar-medal.png, drawn by
-//              tools/make-hud-bar-art.mjs): "Lv", the level, "XP n%"; the XP arc
-//              gilds its iron rim as the level fills
+//   ring       ONE smooth vector ring (Tyler 10-25: "the circle just needs to be
+//              smoothed out", overriding the pixel-only rule for this ring): a
+//              steel bezel, the gauge channel, the XP ring, the inner disc with
+//              "Lv", the level and "XP n%" inside it; flat token colours, no ticks
 //   arcs       HP as a red arc on its left, mana as a blue arc on its right,
-//              both filling from the bottom, inside the art's gauge channel
+//              both filling from the bottom along the channel; the XP ring fills
+//              gold clockwise from the top as the level fills
 //   readouts   "HP 180/220" and its regen a second on the left, "MP 40/60" and
 //              its regen on the right
 //   stamina    the time left under the medallion, with an hourglass
@@ -27,12 +29,13 @@ import { whole, hoursMinutes } from '../../render/format.js?v=0.2.45';
 import { glyphSvg } from '../launcher.js?v=0.2.45';
 import { itemIconHtml, itemName } from './bits.js?v=0.2.45';
 
-/* The arcs on the medallion art's own 52 x 52 grid (bar-medal.png), centre (26, 26): HP and mana at radius 21 in
-   the gauge channel (r 19.4-22.6), the left one from the bottom (111.6 deg) round to the top (248.4 deg), the
-   right one the mirror; the XP ring at radius 15.4 on the rim (r 14.4-16.4). */
-const ARC_LEFT = 'M18.28 45.53 A21 21 0 0 1 18.28 6.47';
-const ARC_RIGHT = 'M33.72 45.53 A21 21 0 0 0 33.72 6.47';
-const XP_RING = 'M26 10.6 A15.4 15.4 0 1 1 25.99 10.6';
+/* THE RING on a 120-unit grid, centre (60, 60), drawn smooth (no crispEdges) at any size the stylesheet gives it.
+   From the outside in: the steel bezel (r 59), the gauge channel (r 52, 10 wide) with HP on its left from the bottom
+   (104 deg) round to the top (256 deg) and mana the mirror on its right (28 deg gaps top and bottom, no ticks), the
+   XP ring (r 43, 5 wide) clockwise from the top, and the inner disc (r 40) the words sit in. hunt.css colours it. */
+const ARC_LEFT = 'M47.42 110.46 A52 52 0 0 1 47.42 9.54';
+const ARC_RIGHT = 'M72.58 110.46 A52 52 0 0 0 72.58 9.54';
+const XP_RING = 'M60 17 A43 43 0 1 1 60 103 A43 43 0 1 1 60 17';
 
 const ok = (v) => Number.isFinite(v);
 const share = (cur, max) => (ok(cur) && ok(max) && max > 0 ? Math.max(0, Math.min(1, cur / max)) : 0);
@@ -40,13 +43,16 @@ const share = (cur, max) => (ok(cur) && ok(max) && max > 0 ? Math.max(0, Math.mi
 /** The hub's skeleton (built once, inside the bar). */
 export function hubHtml(glyphs) {
   const arc = (d, k) => '<path class="hb-arc is-' + k + '" d="' + d + '" pathLength="100" stroke-dasharray="0 100"/>';
+  const ring = (k, r) => '<circle class="hb-ring-' + k + '" cx="60" cy="60" r="' + r + '"/>';
   return '<div class="hb-hub">'
     + '<div class="hb-read is-hp" title="Health"><span class="hb-read-k">HP</span><b class="hb-read-v" data-v="hp"></b><small class="hb-read-r" data-r="hp" title="Health regained each second"></small></div>'
-    + '<div class="hb-medal" role="group" aria-label="Level and experience">'
-    + '<svg class="hb-arcs" viewBox="0 0 52 52" shape-rendering="crispEdges" aria-hidden="true">' + arc(ARC_LEFT, 'hp') + arc(ARC_RIGHT, 'mana') + arc(XP_RING, 'xp') + '</svg>'
-    + '<span class="hb-medal-in"><small>Lv</small><b class="hb-lv"></b><small class="hb-xp"></small></span></div>'
+    + '<div class="hb-medal" role="group" aria-label="Level and experience" data-coach="level">'
+    + '<svg class="hb-arcs" viewBox="0 0 120 120" aria-hidden="true">' + ring('bezel', 59) + ring('channel', 52)
+    + '<path class="hb-arc-track" d="' + ARC_LEFT + '"/><path class="hb-arc-track" d="' + ARC_RIGHT + '"/>' + arc(ARC_LEFT, 'hp') + arc(ARC_RIGHT, 'mana')
+    + ring('xp', 43) + arc(XP_RING, 'xp') + ring('disc', 40) + '</svg>'
+    + '<span class="hb-medal-in"><small class="hb-lv-k">Lv</small><b class="hb-lv"></b><small class="hb-xp"><i class="hb-xp-k">XP </i><span class="hb-xp-v"></span></small></span></div>'
     + '<div class="hb-read is-mana" title="Mana"><span class="hb-read-k">MP</span><b class="hb-read-v" data-v="mana"></b><small class="hb-read-r" data-r="mana" title="Mana regained each second"></small></div>'
-    + '<div class="hb-stam" title="Stamina: hunting time left">' + glyphSvg(glyphs, 'uiHourglass') + '<b class="hb-stam-v"></b></div>'
+    + '<div class="hb-stam" title="Stamina: hunting time left" data-coach="stamina">' + glyphSvg(glyphs, 'uiHourglass') + '<b class="hb-stam-v"></b></div>'
     + '<div class="hb-socket is-food"><span class="hb-socket-ico"></span><small class="hb-socket-k"></small></div>'
     + '<div class="hb-socket is-charm" title="Charm socket: empty"><span class="hb-socket-ico">' + glyphSvg(glyphs, 'uiRing') + '</span><small class="hb-socket-k">Charm</small></div>'
     + '</div>';
@@ -89,7 +95,8 @@ export function patchHub(el, ctx) {
   fill(el.querySelector('.hb-arc.is-mana'), share(v.mana, v.manaMax));
   fill(el.querySelector('.hb-arc.is-xp'), xp === null ? 0 : Math.max(0, Math.min(1, xp)));
   text(el.querySelector('.hb-lv'), level === null ? '–' : String(level));
-  text(el.querySelector('.hb-xp'), xp === null ? '' : 'XP ' + Math.floor(Math.max(0, Math.min(1, xp)) * 100) + '%');
+  text(el.querySelector('.hb-xp-v'), xp === null ? '' : Math.floor(Math.max(0, Math.min(1, xp)) * 100) + '%');
+  attr(el.querySelector('.hb-xp'), 'hidden', xp === null ? '' : null);
   attr(el.querySelector('.hb-medal'), 'title', level === null ? 'Level' : 'Level ' + level + (xp === null ? '' : ': ' + Math.floor(Math.max(0, Math.min(1, xp)) * 100) + '% of the way to ' + (level + 1)));
   text(el.querySelector('.hb-stam-v'), hoursMinutes(stam ? stam.msLeft : null));
   const food = foodOf(carriedOf(cs));

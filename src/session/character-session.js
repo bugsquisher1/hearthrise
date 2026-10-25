@@ -66,7 +66,7 @@ export function observeSessions(fn) { OBSERVERS.add(fn); return () => OBSERVERS.
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const ITEM = /^[a-z0-9_]{1,64}$/;
 const HUNT_ID = /^[a-z0-9_]{1,64}$/;
-const LOOT_RULES = Object.freeze(['keep', 'sell', 'ignore']);
+const LOOT_RULES = Object.freeze(['keep', 'deposit', 'sell', 'ignore']);
 export { frameTopic };   // the push channel's topic rule lives in frame-channel.js
 
 function newIdem() {
@@ -341,7 +341,7 @@ export class CharacterSession {
     return this._ask('item_lock', () => this._server.rpc('hr_item_lock', { p_slot: this.slot, p_item: item, p_locked: locked === true, p_idem: newIdem() }));
   }
 
-  /** What the server does with this item when a hunt picks it up: keep, sell at the shop, or leave it. */
+  /** The item's loot plan (keep in bag, deposit in storage, sell: run by loot-intents.js) or its pickup filter (ignore). */
   async setLootRule(item, rule) {
     if (this._closed || !ITEM.test(String(item)) || !LOOT_RULES.includes(rule)) return { ok: false, error: 'bad_intent' };
     return this._ask('loot_rule_set', () => this._server.rpc('hr_loot_rule_set', { p_slot: this.slot, p_item: item, p_rule: rule, p_idem: newIdem() }));

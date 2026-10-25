@@ -29,7 +29,7 @@
 //         pending mark from the press until the answer (r16), the engine's answer
 //         (the whole envelope) is applied with no second round trip to hr_load, and
 //         the doll keeps the server's weapon until an envelope says otherwise
-//   AW-5  LOCK PROTECTS FROM BULK SELL: "Sell junk" over stacks that include a
+//   AW-5  LOCK PROTECTS FROM BULK SELL: "Sell selected" over stacks that include a
 //         locked one confirms with the locked stack kept, and the ONE
 //         vendor_sell_many it sends never names it
 //   AW-6  A SALE SHOWS ITS TOTAL FIRST: nothing is sent until the confirmation
@@ -40,8 +40,8 @@
 //         button and the hunt summary no Restock
 //   AW-8  HUNT PREP: the readiness line names this character's shortages from the
 //         server's bag and bar; Use sends ONE hr_hunt_preset_apply
-//   AW-9  FAIL SAFE: with no bag_rules and no shop section, lock, the loot rules
-//         and sell junk stay off and the bag value reads a dash
+//   AW-9  FAIL SAFE: with no bag_rules and no shop section, lock, the loot plans
+//         and Dispatch loot stay off and the bag value reads a dash
 //   AW-10 a food stack dragged onto a bar slot is ONE hr_action_set_options with
 //         the whole bar restated and the item in that slot
 //   AW-11 the bag's keys: an arrow moves the cursor, L locks that stack with ONE
@@ -142,7 +142,13 @@
 //         the card inside it while the hunt bar leaves with the summary; the ring walks the Sell tab -> Sell all loot ->
 //         the confirmation's Sell, and the confirmation is in view inside the window (it sat under a long list); no
 //         Services icon, and R opens the Shop on its Services tab (stamina and Blessings), closed or open
-//   AW-32 THE ITEM WELLS (Tyler 10-25, art/review/window-icons-2026-10-25 option C as picked): at 1440x900 the bag's
+//   AW-32 DISPATCH LOOT (Tyler 2026-10-25, 2027-01-23-loot-dispatch.sql): mid-hunt the Bag's Dispatch loot is off with
+//         "out hunting" in view; in town the item menu offers the loot plan (Keep in bag pressed, Deposit in storage,
+//         Sell) and the pickup filter (Don't pick up); Deposit is ONE hr_loot_rule_set {slot, item, rule, key}; the
+//         starting kit's Sell is off (Deposit on); Dispatch loot is ONE hr_loot_dispatch {slot, key}, off in flight,
+//         its line the server's answer ("Stored 1 stack, sold 2 for 246 gp. 1 stack locked, so kept."), the bag and
+//         Storage the re-read envelope's; Storage offers the same button beside the bag at 1440x900 and 844x390
+//   AW-33 THE ITEM WELLS (Tyler 10-25, art/review/window-icons-2026-10-25 option C as picked): at 1440x900 the bag's
 //         pockets are 44 px wells, 6 a row; Storage's are 44 px, 10 a row; the paper doll's wells are larger than the
 //         bag's; the Shop's lines hold the art in a 44 px well; every item icon in Inventory, Storage and the Shop
 //         draws its 32 px art at exactly 1x (a whole scale, never 1.25x / 1.5x); counts and shop prices at 16 px. At
@@ -189,7 +195,7 @@ function levelOne(e) {
   e.hunt_settings = Object.assign({}, e.hunt_settings, { presets: [{ preset: 0, name: 'Hunt' }, { preset: 1, name: 'Bow' }, { preset: 2, name: 'Bare set' }] });
 }
 const wait = (page, fn, arg, ms = 8000) => page.waitForFunction(fn, arg, { timeout: ms }).then(() => true, () => false);
-const ITEM_RPCS = ['hr_item_lock', 'hr_loot_rule_set', 'hr_hunt_preset_save', 'hr_hunt_preset_apply', 'hr_action_set_options', 'hr_hunt_enter', 'hr_bank_move'];
+const ITEM_RPCS = ['hr_item_lock', 'hr_loot_rule_set', 'hr_hunt_preset_save', 'hr_hunt_preset_apply', 'hr_action_set_options', 'hr_hunt_enter', 'hr_bank_move', 'hr_loot_dispatch'];
 /* The windows a player opens from the launcher row, with their keys (src/data/shell-windows.js). */
 const WINDOWS = [['h', 'hunts'], ['b', 'inventory'], ['c', 'character'], ['g', 'skills-trade'], ['t', 'storage'], ['v', 'shop'], ['p', 'hunt-prep']];
 
@@ -774,9 +780,9 @@ async function checks(overrides, shots) {
       await ctx.close();
     }
 
-    /* AW-32 the item wells: measured on the rendered windows, desktop then phone. */
+    /* AW-33 the item wells: measured on the rendered windows, desktop then phone. */
     for (const [vw, vh, want] of [[1440, 900, { pocket: 44, bagRow: 6, storeRow: 10, line: 44, font: '16px' }], [922, 423, { pocket: 36, line: 40, font: '14.5px' }]]) {
-      const tag = 'AW-32 at ' + vw + 'x' + vh + ': ';
+      const tag = 'AW-33 at ' + vw + 'x' + vh + ': ';
       const { ctx, page, up } = await open({ viewport: { width: vw, height: vh }, mutateEnv: (e) => {
         for (const k of ['hunt', 'hunt_analyzer', 'hunt_track', 'hunt_events', 'party']) delete e[k];
         e.state = Object.assign({}, e.state, { active_kind: 'idle', active_id: null });
@@ -833,7 +839,8 @@ async function checks(overrides, shots) {
       const { ctx, page, s, up } = await open();
       if (up) {
         await openWin(page, 'b', 'inventory');
-        await page.click('[data-hs-act="sell-junk"]');
+        for (const id of ['rat_tail', 'slime_gel', 'sticky_core']) await page.click('.hw-pocket[data-item="' + id + '"]', { modifiers: ['Control'] });
+        await page.click('[data-hs-act="sell-sel"]');
         await page.waitForTimeout(150);
         const cf = await page.evaluate(() => ({ on: document.querySelector('.hw-confirm').classList.contains('is-on'),
           q: document.querySelector('.hw-confirm-q').textContent, note: document.querySelector('.hw-confirm-note').textContent,
@@ -950,10 +957,95 @@ async function checks(overrides, shots) {
         await page.waitForTimeout(150);
         const st = await page.evaluate(() => ({ lock: document.querySelector('[data-hs-act="m-lock"]').disabled,
           rules: Array.from(document.querySelectorAll('[data-hs-act="m-rule"]')).every((b) => b.disabled),
-          junk: document.querySelector('[data-hs-act="sell-junk"]').disabled, value: document.querySelector('.hw-value').textContent }));
-        if (!st.lock || !st.rules || !st.junk || st.value !== 'Value –') fails.push('AW-9 without the server’s sections the bag offered ' + JSON.stringify(st));
+          dispatch: document.querySelector('[data-hs-act="dispatch"]').disabled, value: document.querySelector('.hw-value').textContent }));
+        if (!st.lock || !st.rules || !st.dispatch || st.value !== 'Value –') fails.push('AW-9 without the server’s sections the bag offered ' + JSON.stringify(st));
       } else fails.push('AW-9 the screen did not mount');
       await ctx.close();
+    }
+
+    { // AW-32 DISPATCH LOOT (Tyler 2026-10-25): the loot plan in the item menu, ONE hr_loot_dispatch, the server's answer
+      const town = (e) => {
+        for (const k of ['hunt', 'hunt_analyzer', 'hunt_track', 'hunt_events', 'party']) delete e[k];
+        e.state = Object.assign({}, e.state, { active_kind: 'idle', active_id: null });
+        e.bank = { oak_logs: 12 };
+      };
+      { // hunting: off, and the reason is in view
+        const { ctx, page, up } = await open();
+        if (up) {
+          await openWin(page, 'b', 'inventory');
+          const st = await page.evaluate(() => ({ off: document.querySelector('[data-hs-act="dispatch"]').disabled, why: document.querySelector('.hw-dispatch-why').textContent }));
+          if (!st.off || !/out hunting/.test(st.why)) fails.push('AW-32 mid-hunt Dispatch loot is not off with its reason: ' + JSON.stringify(st));
+        } else fails.push('AW-32 the screen did not mount (hunting)');
+        await ctx.close();
+      }
+      const { ctx, page, s, up, errors } = await open({ mutateEnv: town });
+      if (up) {
+        await openWin(page, 'b', 'inventory');
+        const menuOf = async (id) => {
+          await page.click('.hw-pocket[data-item="' + id + '"]', { button: 'right' });
+          await page.waitForTimeout(150);
+          return page.evaluate(() => ({ subs: Array.from(document.querySelectorAll('.hw-menu .hw-menu-sub')).map((x) => x.textContent),
+            rules: Array.from(document.querySelectorAll('.hw-menu [data-hs-act="m-rule"]')).map((b) => [b.getAttribute('data-rule'), b.textContent, b.getAttribute('aria-pressed'), b.disabled]) }));
+        };
+        const m = await menuOf('wolf_pelt');
+        const want = [['keep', 'Keep in bag', 'true', false], ['deposit', 'Deposit in storage', 'false', false], ['sell', 'Sell', 'false', false], ['ignore', 'Don\'t pick up', 'false', false]];
+        if (JSON.stringify(m.rules) !== JSON.stringify(want) || !m.subs.includes('Loot plan') || !m.subs.includes('On pickup')) fails.push('AW-32 the item menu offers ' + JSON.stringify(m));
+        if (shots) await shot(page, 'dispatch-1440x900-item-menu');
+        s.onCall = (name, body) => {
+          if (name === 'hr_loot_rule_set') { s.env.bag_rules.loot[body.p_item] = body.p_rule; }
+          if (name === 'hr_loot_dispatch') {
+            for (const k of ['wolf_pelt', 'rat_tail', 'slime_gel']) delete s.env.inventory[k];
+            s.env.bank = Object.assign({}, s.env.bank, { wolf_pelt: 3 });
+          }
+        };
+        await page.click('.hw-menu [data-hs-act="m-rule"][data-rule="deposit"]');
+        await page.waitForTimeout(600);
+        const rs = sent(s, 'hr_loot_rule_set');
+        if (rs.length !== 1 || rs[0].body.p_item !== 'wolf_pelt' || rs[0].body.p_rule !== 'deposit' || Object.keys(rs[0].body).sort().join() !== 'p_idem,p_item,p_rule,p_slot') {
+          fails.push('AW-32 Deposit in storage sent ' + JSON.stringify(rs.map((c) => c.body)));
+        }
+        /* the starting kit may be deposited but takes no Sell plan (the server's start_kit), said before the press */
+        const k = await menuOf('cooked_shrimp');
+        const kit = Object.fromEntries(k.rules.map((r) => [r[0], r[3]]));
+        if (kit.deposit !== false || kit.sell !== true || kit.keep !== false) fails.push('AW-32 the starting kit offers ' + JSON.stringify(k.rules));
+        await page.keyboard.press('Escape');
+        await page.waitForTimeout(150);
+        s.reply = { ok: true, version: 9, stored: { stacks: 1, units: 3, items: { wolf_pelt: 3 } }, sold: { stacks: 2, units: 43, gold: 246, items: { rat_tail: 31, slime_gel: 12 } },
+          unplaced: { stacks: 0, items: {}, why: null }, kept: { locked: 1, kit: 0, later: 0 }, sell_refused: null };
+        await page.click('[data-hs-win="inventory"] [data-hs-act="dispatch"]');
+        await page.waitForTimeout(100);
+        const busy = await page.evaluate(() => document.querySelector('[data-hs-win="inventory"] [data-hs-act="dispatch"]').disabled);
+        await page.waitForTimeout(800);
+        const after = await page.evaluate(() => ({ msg: document.querySelector('[data-hs-win="inventory"] .hh-intent-msg').textContent,
+          tail: !!document.querySelector('.hw-pocket[data-item="rat_tail"]'), pelt: !!document.querySelector('.hw-pocket[data-item="wolf_pelt"]') }));
+        const ds = sent(s, 'hr_loot_dispatch');
+        if (ds.length !== 1 || Object.keys(ds[0].body).sort().join() !== 'p_idem,p_slot' || ds[0].body.p_slot !== 0) fails.push('AW-32 Dispatch loot sent ' + JSON.stringify(ds.map((c) => c.body)));
+        if (!busy) fails.push('AW-32 Dispatch loot stayed on while its intent was in flight');
+        if (after.msg !== 'Stored 1 stack, sold 2 for 246 gp. 1 stack locked, so kept.') fails.push('AW-32 the answer line reads ' + JSON.stringify(after.msg));
+        if (after.tail || after.pelt) fails.push('AW-32 the bag did not take the re-read envelope: ' + JSON.stringify(after));
+        if (shots) await shot(page, 'dispatch-1440x900-bag-answer');
+        await openWin(page, 't', 'storage');
+        await page.waitForTimeout(150);
+        const sb = await page.evaluate(() => { const b = document.querySelector('[data-hs-win="storage"] [data-hs-act="dispatch"]'); return b ? { off: b.disabled, why: document.querySelector('.hw-store-do .hw-why').textContent, pelt: !!document.querySelector('[data-hs-win="storage"] .hw-pockets[data-side="bank"] [data-item="wolf_pelt"]') } : null; });
+        if (!sb || !sb.off || !/Deposit or Sell plan/.test(sb.why) || !sb.pelt) fails.push('AW-32 Storage after the dispatch reads ' + JSON.stringify(sb));
+        if (shots) await shot(page, 'dispatch-1440x900-storage-after');
+        if (errors.length) fails.push('AW-32 console errors: ' + errors.slice(0, 3).join(' | '));
+      } else fails.push('AW-32 the screen did not mount (town)');
+      await ctx.close();
+      for (const viewport of [{ width: 1440, height: 900 }, { width: 844, height: 390 }]) { // Storage with a plan to run
+        const ph = await open({ viewport, mutateEnv: (e) => { town(e); e.bag_rules.loot.wolf_pelt = 'deposit'; } });
+        if (ph.up) {
+          await openWin(ph.page, 't', 'storage');
+          await ph.page.waitForTimeout(150);
+          const on = await ph.page.evaluate(() => { const x = document.querySelector('[data-hs-win="storage"] [data-hs-act="dispatch"]'); return x ? !x.disabled : null; });
+          if (!on) fails.push('AW-32 at ' + viewport.width + 'x' + viewport.height + ' Storage does not offer Dispatch loot');
+          /* the sheet scrolls on a phone: the shot shows the bag side with its button */
+          await ph.page.evaluate(() => { const x = document.querySelector('[data-hs-win="storage"] [data-hs-act="dispatch"]'); if (x) x.scrollIntoView({ block: 'center' }); });
+          await ph.page.waitForTimeout(150);
+          if (shots) await shot(ph.page, 'dispatch-' + viewport.width + 'x' + viewport.height + '-storage');
+        } else fails.push('AW-32 the ' + viewport.width + 'x' + viewport.height + ' screen did not mount');
+        await ph.ctx.close();
+      }
     }
 
     { // AW-12 .. AW-14, AW-16: Tyler's first playtest (10-18), in town with no hunt running

@@ -17,7 +17,7 @@
 //   buffs      [{ type, magnitude, until, remaining_ms }]
 // What the alpha-windows server lane adds (CONFLICTS.md, 2026-10-18; the
 // fixture is tests/fixtures/alpha-envelope.json):
-//   bag_rules     { locked: [item], loot: { item: keep|sell|ignore } }   (its `restock` is not read:
+//   bag_rules     { locked: [item], loot: { item: deposit|sell|ignore } }  (the loot plan; keep = absent)   (its `restock` is not read:
 //                 restock targets drove the retired one-tap refill)
 //   shop          { offers: [{ offer, item, kind, price }], bids: { item: gold each } }
 //                   (offers: tools, gear and seeds; the Shop sells no supplies, Tyler 2026-10-20)
@@ -118,7 +118,7 @@ export function nameOf(cs) {
   return isObj(h) && isObj(h.hero) ? str(h.hero.name, 40) : null;
 }
 
-const RULES = Object.freeze(['keep', 'sell', 'ignore']);
+const RULES = Object.freeze(['keep', 'deposit', 'sell', 'ignore']);
 
 /** `bag_rules`: locks and the loot filter. Null = the server has none of it yet (controls stay off). */
 export function rulesOf(cs) {

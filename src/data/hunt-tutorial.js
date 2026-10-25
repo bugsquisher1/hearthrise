@@ -45,7 +45,7 @@
 //   name, slots (the bar the server SHOWS: [{ type, id, store, conditions, enabled, usable, count } | null]),
 //   stored (the bar it STORED: [{ type, id, conditions } | null]), discipline, role, stance, store (the server's
 //   store rows), carried { item: n } (the hunt bag in a hunt, else the bag), bag { item: n }, stacks, bagCap,
-//   bankStacks, lootRules { item: keep|sell|ignore }, weapon (worn), blessings { held, of, freeUntil, prices },
+//   bankStacks, lootRules { item: deposit|sell|ignore }, weapon (worn), blessings { held, of, freeUntil, prices },
 //   endReason (the latest hunt's, once ended), death { xp, saved } (the newest death_log row), supplies [{ item,
 //   source, count }] (this hunt's analyzer), huntMs, hpMax, presets (saved setups), landPlanted, land { ready },
 //   home { owned, next }, gold, staminaMs, tally { held, paid, weight }, and from the SHELL (the lane 1 / lane 2
@@ -232,9 +232,9 @@ export const HUNT_TUTORIAL = Object.freeze([
     { when: [IN_TOWN, { kind: 'sellable' }], inWindow: 'Press Sell, then Sell all loot. It keeps your Bones (bury them for Prayer) and food you can cook.',
       hooks: ['[data-hs-win="shop"] .hw-tab[data-tab="sell"]', '[data-hs-win="shop"] [data-hs-act="sell-loot"]', '[data-hs-win="shop"] [data-coach-hook="sell-confirm"]'] }),
   step('loot_rules', 'Decide once',
-    'Open your bag\'s This hunt tab and set each thing you don\'t need to Sell at the shop. From then on, Sell junk sells everything you marked in one press.',
+    'Open your bag\'s This hunt tab and give each thing you don\'t need a plan: Sell, or Deposit in storage. Back in town, Dispatch loot does every plan in one press.',
     'inventory', { kind: 'any', of: [{ kind: 'loot_rule' }, { kind: 'been', hunt: THICKET }] },
-    { knowledge: true, when: [IN_TOWN], inWindow: 'Press This hunt, then set each thing you don\'t need to Sell at the shop.',
+    { knowledge: true, when: [IN_TOWN], inWindow: 'Press This hunt, then set each thing you don\'t need to Sell.',
       hooks: ['[data-hs-win="inventory"] .hw-tab[data-tab="hunt"]', '[data-hs-win="inventory"] [data-rule-item][data-coin]'] }),
   step('cook_catch', 'Cook your catch',
     'Open Gathering and crafting, press Cooking, then Start on Cook Shrimp. Your Raw Shrimp become the Cooked Shrimp your {slot:cooked_shrimp} eats.',
@@ -419,7 +419,7 @@ const FACTS = Object.freeze({
   /* the bag, loot and gear */
   sellable: (p, f) => known(f.sellable, (n) => n > 0),
   loot_sold: (p, f) => known(f.sellable, (n) => n === 0),
-  loot_rule: (p, f) => known(f.lootRules, (r) => Object.values(r).includes('sell')),
+  loot_rule: (p, f) => known(f.lootRules, (r) => Object.values(r).some((v) => v === 'sell' || v === 'deposit')),
   weapon_changed: (p, f) => known(f.weapon, (w) => w !== START_EQUIPMENT.weapon),
   upgrades: (p, f) => known(f.upgrades, (u) => u.length > 0),
   upgrades_none: (p, f) => known(f.upgrades, (u) => u.length === 0),

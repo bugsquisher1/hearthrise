@@ -14,14 +14,15 @@
 // ordering or interaction defect between them cannot hide:
 //   H-ALL          one 20-minute window with pickups and the hunt's one death
 //                  (the core rebuild). Tiers 1-2 bought before the window, tier 3
-//                  bought during it; three picked-up items ruled sell / ignore /
-//                  sell-but-LOCKED. Then: the death keeps loss − floor(loss x
+//                  bought during it; three picked-up items planned sell / ignore /
+//                  ignore-but-LOCKED. Then: the death keeps loss − floor(loss x
 //                  tier-2 permille), tiers 1-2 are used up and tier 3 is
-//                  kept; the sold item is gone for units x the bid (one
-//                  loot_sell row, gold_in stamped), the ignored one is gone,
-//                  the locked one is kept; the pickups (tally loot) equal an
-//                  identical window with no rules; and every coin is journalled
-//                  (Σ ledger gold = the purse's move).
+//                  kept; NOTHING SELLS AT PICKUP (Tyler 2026-10-25, 2027-01-23-
+//                  loot-dispatch.sql: a sell plan waits in the bag for Dispatch
+//                  loot; no loot_sell row, the bag holds what a no-rule window
+//                  holds), the ignored one is gone, the locked one is kept; the
+//                  pickups (tally loot) equal an identical window with no rules;
+//                  and every coin is journalled (Σ ledger gold = the purse's move).
 //   H-COVER        sell-to-cover with the purse short: unlocked, the cover item
 //                  IS sold to pay the store (the control); locked, it is never
 //                  offered, never sold, and the settle still lands.
@@ -94,7 +95,7 @@ const ARMS = {
     const say = async (sql, params) => { const r = await asAuth(db, uid, sql, params); if (!r || r.ok !== true) throw new Error(sql.slice(14, 40) + ' refused ' + JSON.stringify(r)); };
     await say("select public.hr_loot_rule_set(0, $1, 'sell', $2::uuid)", [sellIt, idem()]);
     await say("select public.hr_loot_rule_set(0, $1, 'ignore', $2::uuid)", [ignoreIt, idem()]);
-    await say("select public.hr_loot_rule_set(0, $1, 'sell', $2::uuid)", [lockIt, idem()]);
+    await say("select public.hr_loot_rule_set(0, $1, 'ignore', $2::uuid)", [lockIt, idem()]);
     await say('select public.hr_item_lock(0, $1, true, $2::uuid)', [lockIt, idem()]);
     await db.query(`insert into public.player_blessings (user_id, slot, tier, paid, bought_at)
       select $1, 0, t.tier, 0, case when t.tier < 3 then now() - interval '2 days' else now() end from public.hr_blessing_tiers t`, [uid]);
@@ -107,14 +108,10 @@ const ARMS = {
     if (dx.length !== 1) return [`CONTROL: the window held ${dx.length} deaths (need the hunt's one)`];
     /* The fight is the window's own: the pickups do not depend on the hooks. */
     if (JSON.stringify(B.loot) !== JSON.stringify(A.loot)) p.push('the pickups moved with the hooks: ' + JSON.stringify({ A: A.loot, B: B.loot }));
-    /* LOOT + LOCK. */
-    const sold = rows.filter((r) => r.intent === 'loot_sell');
-    const unit = Number(await H.one(db, 'select unit from public.hr_hunt_vendor_value where item_id = $1', [sellIt]));
-    if (sold.length !== 1 || Number(sold[0].meta.items[sellIt].qty) !== Number(A.loot[sellIt]) || Number(sold[0].gold) !== Number(A.loot[sellIt]) * unit
-        || Number(sold[0].gold_in) !== Number(sold[0].gold) || sold[0].meta.items[lockIt]) {
-      p.push(`loot_sell rows ${JSON.stringify(sold)} (want one: ${A.loot[sellIt]} x ${sellIt} at ${unit}, nothing of the locked ${lockIt})`);
-    }
-    if (Number(B.inv[sellIt] || 0) !== 0) p.push(`${sellIt}: ${B.inv[sellIt]} left in the bag after its sale`);
+    /* LOOT + LOCK. A sell plan never sells at pickup: no loot_sell row, the bag holds what the no-rule window's holds. */
+    const sold = rows.filter((r) => r.intent === 'loot_sell' || /^vendor_sell/.test(String(r.intent)));
+    if (sold.length) p.push(`a pickup SOLD: ${JSON.stringify(sold).slice(0, 300)} (a sell plan waits for Dispatch loot)`);
+    if (Number(B.inv[sellIt] || 0) !== Number(A.inv[sellIt] || 0)) p.push(`${sellIt}: the bag went to ${B.inv[sellIt]} with a sell plan, ${A.inv[sellIt]} with none (nothing moves at pickup)`);
     if (Number(B.inv[ignoreIt] || 0) !== 0 || !rows.some((r) => r.intent === 'loot_ignore' && Number(r.meta.items[ignoreIt]) === Number(A.loot[ignoreIt]))) {
       p.push(`${ignoreIt}: the ignore rule left ${B.inv[ignoreIt]} in the bag`);
     }
@@ -188,11 +185,11 @@ async function coverArm(db, { H, M }, forged) {
 
 /* Each mutant: file, [find, replace], the arm that must go red (the file's self-check is turned off).
    Each hook is planted in the body that RUNS, the chain's last author of its function (staleAnchors refuses any
-   other): hr_hunt_loot_rules is restated last by 2026-12-15-account-gold.sql (the account purse, md5-pinned to its
-   pre-image, so a plant in an earlier file trips that pin); hr_hunt_apply_member is patched last by
+   other): hr_hunt_loot_rules is restated last by 2027-01-23-loot-dispatch.sql (the pickup filter only, md5-pinned to
+   its pre-image, so a plant in an earlier file trips that pin); hr_hunt_apply_member is patched last by
    2027-01-20-tutorial-facts.sql under the same kind of pin (memberPlant, tests/alpha-server.mjs); hr_hunt_member_read
    by 2026-11-07-store-by-slot.sql (after the core rebuild, 2026-10-27-core-bodies.sql). */
-const MEMBER = '2026-12-15-account-gold.sql';
+const LOOT = '2027-01-23-loot-dispatch.sql';
 const READ = '2026-11-07-store-by-slot.sql';
 const MUTANTS = [
   { arm: 'H-ALL', why: 'the settle skips the loot filter',
@@ -201,8 +198,10 @@ const MUTANTS = [
     ...memberPlant('    v_bless := public.hr_blessing_take(p_user, p_slot, p_session, v_dx, v_s.settled_to);', '    v_bless := null;') },
   { arm: 'H-ALL', file: '2026-10-25-blessings.sql', why: 'a tier bought during the window covers it',
     find: '   where b.user_id = p_user and b.slot = p_slot and b.bought_at <= p_from', repl: '   where b.user_id = p_user and b.slot = p_slot' },
-  { arm: 'H-ALL', file: MEMBER, why: 'the loot filter sells a locked item',
-    find: "       and r.loot_rule in ('sell', 'ignore') and not r.locked", repl: "       and r.loot_rule in ('sell', 'ignore')" },
+  { arm: 'H-ALL', file: LOOT, why: 'the pickup filter takes a locked item',
+    find: "       and r.loot_rule = 'ignore' and not r.locked", repl: "       and r.loot_rule = 'ignore'" },
+  { arm: 'H-ALL', file: LOOT, why: 'a sell plan acts at pickup again',
+    find: "       and r.loot_rule = 'ignore' and not r.locked", repl: "       and r.loot_rule in ('ignore', 'sell') and not r.locked" },
   { arm: 'H-COVER', file: READ, why: 'the read offers a locked item to sell-to-cover',
     find: '                where not public.hr_item_locked(p_s.user_id, p_s.slot, c.item_id)), \'{}\'::jsonb))', repl: "                where true), '{}'::jsonb))" },
   { arm: 'H-COVER-FORGED', why: 'the member settle takes a cover line naming a locked item',

@@ -216,6 +216,8 @@
     "node tools/build-settle-hooks.mjs --check": "db-replay-7",
     "node tests/settle-hooks.mjs": "db-replay-7",
     "node tools/mutant-gate.mjs node tests/settle-hooks.mjs --mutate": "db-replay-7",
+    "node tests/loot-dispatch.mjs": "db-replay-7",
+    "node tools/mutant-gate.mjs node tests/loot-dispatch.mjs --mutate": "db-replay-7",
     "node tests/party-flow.mjs": "db-replay-7",
     "node tools/mutant-gate.mjs node tests/party-flow.mjs --mutate": "db-replay-7",
     "node tests/play-cap.mjs": "db-replay-7",

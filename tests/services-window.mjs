@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // ════════════════════════════════════════════════════════════════════════
-// tests/services-window.mjs — THE SERVICES WINDOW'S RULES, IN A REAL CHROMIUM (lane S2).
+// tests/services-window.mjs — THE SHOP'S SERVICES TAB, IN A REAL CHROMIUM (lane S2; a tab of the Shop since 2026-10-25).
 //
 //   node tests/services-window.mjs            the rules
 //   node tests/services-window.mjs --mutate   every planted defect must turn a rule RED
@@ -9,7 +9,7 @@
 //
 // play.html with supabase-js and the REST paths stubbed (tests/_client-harness.mjs);
 // the character is tests/fixtures/alpha-envelope.json plus the two S2 sections.
-//   SV-1  Services opens from its key (R) with zero console errors
+//   SV-1  R opens the Shop on its Services tab (Tyler 2026-10-25: Services moved into the Shop) with zero console errors
 //   SV-2  STAMINA, TOTAL FIRST: the server's quote (hours, price, today's count)
 //         is shown; Buy only opens a confirmation (nothing sent); confirming sends
 //         exactly ONE hr_stamina_refill carrying the QUOTED price, and every
@@ -81,56 +81,56 @@ async function checks(overrides) {
     await stub(page, s);
     const up = await signInAndPlay(page, 'http://127.0.0.1:' + port);
     await page.keyboard.press('r');
-    const opened = up && await wait(page, () => document.querySelector('[data-hs-win="services"] .hw-services'), null, 4000);
+    const opened = up && await wait(page, () => document.querySelector('[data-hs-win="shop"] [data-pane="services"] .hw-services'), null, 4000);
     return { ctx, page, errors, s, opened };
   };
   const sent = (s, n) => s.calls.filter((c) => c.name === n);
   const press = async (page, sel, rule) => { try { await page.click(sel, { timeout: 1500 }); return true; } catch { fails.push(rule + ' could not press ' + sel); return false; } };
-  const txt = (page, sel) => page.evaluate((q) => { const e = document.querySelector('[data-hs-win="services"] ' + q); return e ? e.textContent : null; }, sel);
-  const off = (page, sel) => page.evaluate((q) => { const e = document.querySelector('[data-hs-win="services"] ' + q); return e ? e.disabled : null; }, sel);
+  const txt = (page, sel) => page.evaluate((q) => { const e = document.querySelector('[data-hs-win="shop"] [data-pane="services"] ' + q); return e ? e.textContent : null; }, sel);
+  const off = (page, sel) => page.evaluate((q) => { const e = document.querySelector('[data-hs-win="shop"] [data-pane="services"] ' + q); return e ? e.disabled : null; }, sel);
   try {
     {
       const { ctx, page, errors, s, opened } = await open(clone(SECTIONS));
-      if (!opened) fails.push('SV-1 the Services window did not open from R');
+      if (!opened) fails.push('SV-1 R did not open the Shop on its Services tab');
       else {
         if (errors.length) fails.push('SV-1 console errors: ' + errors.join(' | ').slice(0, 300));
         // SV-2
         const quote = await txt(page, '.hw-stam-quote');
         if (!/Restores 4 h for 1,400/.test(quote || '') || !/Bought today: 1 of 6/.test(quote || '')) fails.push('SV-2 the quote line reads ' + JSON.stringify(quote));
-        await press(page, '[data-hs-win="services"] [data-hs-act="stam-ask"]', 'SV-2');
+        await press(page, '[data-hs-win="shop"] [data-pane="services"] [data-hs-act="stam-ask"]', 'SV-2');
         await page.waitForTimeout(150);
         if (sent(s, 'hr_stamina_refill').length) fails.push('SV-2 Buy sent a purchase before the confirmation');
         if (!/1,400/.test(await txt(page, '.hw-confirm-q') || '')) fails.push('SV-2 the confirmation does not state the price');
-        await press(page, '[data-hs-win="services"] [data-hs-act="stam-yes"]', 'SV-2');
+        await press(page, '[data-hs-win="shop"] [data-pane="services"] [data-hs-act="stam-yes"]', 'SV-2');
         await page.waitForTimeout(60);
         if (!(await off(page, '[data-hs-act="bless"][data-tier="2"]'))) fails.push('SV-2 a control stayed on while the purchase was in flight');
-        await wait(page, () => !document.querySelector('[data-hs-win="services"] .hw-services.is-pending'), null, 4000);
+        await wait(page, () => !document.querySelector('[data-hs-win="shop"] [data-pane="services"] .hw-services.is-pending'), null, 4000);
         const st = sent(s, 'hr_stamina_refill');
         if (st.length !== 1 || st[0].body.p_price !== 1400) fails.push('SV-2 the confirm sent ' + JSON.stringify(st.map((c) => c.body)));
         // SV-3
-        const rows = await page.evaluate(() => [...document.querySelectorAll('[data-hs-win="services"] .hw-bless li')].map((li) => ({ t: li.textContent, off: li.querySelector('button').disabled })));
+        const rows = await page.evaluate(() => [...document.querySelectorAll('[data-hs-win="shop"] [data-pane="services"] .hw-bless li')].map((li) => ({ t: li.textContent, off: li.querySelector('button').disabled })));
         if (rows.length !== 3 || !/Owned/.test(rows[0].t) || !rows[0].off || rows[1].off || !/165/.test(rows[1].t) || !rows[2].off || !/Needs II/.test(rows[2].t)) {
           fails.push('SV-3 the tiers read ' + JSON.stringify(rows));
         }
         const note = await txt(page, '.hw-bless-note');
         if (!/Free below Level 30./.test(note || '') || !/uses them all up/.test(note || '')) fails.push('SV-3 the note reads ' + JSON.stringify(note));
-        await press(page, '[data-hs-win="services"] [data-hs-act="bless"][data-tier="2"]', 'SV-3');
-        await wait(page, () => !document.querySelector('[data-hs-win="services"] .hw-services.is-pending'), null, 4000);
+        await press(page, '[data-hs-win="shop"] [data-pane="services"] [data-hs-act="bless"][data-tier="2"]', 'SV-3');
+        await wait(page, () => !document.querySelector('[data-hs-win="shop"] [data-pane="services"] .hw-services.is-pending'), null, 4000);
         const bl = sent(s, 'hr_blessing_buy');
         if (bl.length !== 1 || bl[0].body.p_tier !== 2 || bl[0].body.p_price !== 165) fails.push('SV-3 the press sent ' + JSON.stringify(bl.map((c) => c.body)));
         // SV-4
-        if (await page.evaluate(() => document.querySelectorAll('[data-hs-win="services"] input[type="text"]').length) !== 0) fails.push('SV-4 the Services window still offers a name box');
+        if (await page.evaluate(() => document.querySelectorAll('[data-hs-win="shop"] [data-pane="services"] input[type="text"]').length) !== 0) fails.push('SV-4 the Services window still offers a name box');
         if (sent(s, 'hr_character_name_set').length) fails.push('SV-4 the Services window sent a free name change');
       }
       await ctx.close();
     }
     { // SV-5
       const { ctx, page, opened } = await open({});
-      if (!opened) fails.push('SV-5 the window did not open without the sections');
+      if (!opened) fails.push('SV-5 the Services tab did not open without the sections');
       else {
         if (!(await off(page, '[data-hs-act="stam-ask"]'))) fails.push('SV-5 Buy stamina is on with no quote');
         if (!/not priced/.test(await txt(page, '.hw-stam-quote') || '')) fails.push('SV-5 the stamina line does not say it is unpriced');
-        if (await page.evaluate(() => document.querySelectorAll('[data-hs-win="services"] .hw-bless li').length) !== 0) fails.push('SV-5 blessing rows were invented');
+        if (await page.evaluate(() => document.querySelectorAll('[data-hs-win="shop"] [data-pane="services"] .hw-bless li').length) !== 0) fails.push('SV-5 blessing rows were invented');
       }
       await ctx.close();
     }

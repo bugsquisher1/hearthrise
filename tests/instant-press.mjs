@@ -111,7 +111,7 @@ async function checks(overrides) {
     const roster = await wait(page, () => document.querySelector('[data-app="play"][data-slot="0"]'));
     return { ctx, page, errors, s, roster };
   };
-  const servicesBtn = (q) => '[data-hs-win="services"] ' + q;
+  const servicesBtn = (q) => '[data-hs-win="shop"] [data-pane="services"] ' + q;
   try {
     {
       const { ctx, page, errors, s, roster } = await start('');
@@ -135,7 +135,7 @@ async function checks(overrides) {
         s.loadDelay = 0;
         if (!(await wait(page, () => document.querySelector('.hs-launchers')))) fails.push('IP-1 the game never opened after Play');
         await page.keyboard.press('r');
-        if (!(await wait(page, () => document.querySelector('[data-hs-win="services"] .hw-services'), null, 4000))) fails.push('IP-1 Services did not open');
+        if (!(await wait(page, () => document.querySelector('[data-hs-win="shop"] [data-pane="services"] .hw-services'), null, 4000))) fails.push('IP-1 Services did not open');
         else {
           // IP-4: opening a confirmation sends nothing and is never marked.
           const ask = await page.evaluate((q) => { const b = document.querySelector(q); b.click(); return b.classList.contains('is-sending'); }, servicesBtn('[data-hs-act="stam-ask"]'));
@@ -158,7 +158,7 @@ async function checks(overrides) {
           await page.evaluate((q) => document.querySelector(q).click(), bless);
           const refused = await wait(page, (q) => document.querySelector(q).classList.contains('is-refused'), bless, 3000);
           const after = await page.evaluate((q) => ({ sending: document.querySelector(q).classList.contains('is-sending'),
-            msg: document.querySelector('[data-hs-win="services"] .hh-intent-msg').textContent }), bless);
+            msg: document.querySelector('[data-hs-win="shop"] [data-pane="services"] .hh-intent-msg').textContent }), bless);
           if (!refused) fails.push('IP-3 a refused purchase left no refused mark on its button');
           if (after.sending) fails.push('IP-3 a refused purchase stayed pending');
           if (!/Prices or your bag changed/.test(after.msg)) fails.push('IP-3 the window does not say why: ' + JSON.stringify(after.msg));
@@ -175,8 +175,8 @@ async function checks(overrides) {
         await page.click('[data-app="play"][data-slot="0"]');
         await wait(page, () => document.querySelector('.hs-launchers'));
         await page.keyboard.press('r');
-        await wait(page, () => document.querySelector('[data-hs-win="services"] .hw-services'), null, 4000);
-        await page.click('[data-hs-win="services"] [data-hs-act="bless"][data-tier="2"]');
+        await wait(page, () => document.querySelector('[data-hs-win="shop"] [data-pane="services"] .hw-services'), null, 4000);
+        await page.click('[data-hs-win="shop"] [data-pane="services"] [data-hs-act="bless"][data-tier="2"]');
         await wait(page, () => /blessing_buy/.test((document.querySelector('[data-live-overlay]') || {}).textContent || ''), null, 4000);
         await sleep(1100);
         const lines = await page.evaluate(() => [...document.querySelectorAll('[data-live-overlay] p')].map((p) => p.textContent));

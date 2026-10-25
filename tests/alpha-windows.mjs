@@ -1232,22 +1232,28 @@ async function checks(overrides, shots) {
         await page.click('[data-hs-win="shop"] .hw-tab[data-tab="sell"]');
         await page.waitForTimeout(400);
         if ((await ringed()).join() !== 'sell-loot') fails.push('AW-31 on the Sell tab the ring is on ' + JSON.stringify(await ringed()) + ', want Sell all loot');
-        await page.click('[data-hs-win="shop"] [data-hs-act="sell-loot"]');
-        await page.waitForTimeout(400);
-        /* the confirmation is in view inside the window (it sat under the list, below the fold) and its Sell is ringed */
+        /* the confirmation is in view inside the window (it sat under the list, below the fold), by the Shop's own doing:
+           measured in the same task as the press, before the coach's ring (which scrolls to what it rings) can land */
         const cf = await page.evaluate(() => {
+          document.querySelector('[data-hs-win="shop"] [data-hs-act="sell-loot"]').click();
           const c = document.querySelector('[data-hs-win="shop"] [data-pane="sell"] .hw-confirm');
+          /* in view = inside the window's body box AND on the screen (a body taller than the screen still hides it) */
           const w = c.closest('[data-hs-win]').querySelector('[data-hs-body]').getBoundingClientRect(), r = c.getBoundingClientRect();
-          return { on: c.classList.contains('is-on'), top: Math.round(r.top), bottom: Math.round(r.bottom), boxTop: Math.round(w.top), boxBottom: Math.round(w.bottom) };
+          return { on: c.classList.contains('is-on'), top: Math.round(r.top), bottom: Math.round(r.bottom), boxTop: Math.round(Math.max(0, w.top)),
+            boxBottom: Math.round(Math.min(window.innerHeight, w.bottom)), lines: document.querySelectorAll('[data-hs-win="shop"] .hw-sell-list > li').length };
         });
         if (!cf.on || cf.top < cf.boxTop || cf.bottom > cf.boxBottom) fails.push('AW-31 the sale\'s confirmation is out of view: ' + JSON.stringify(cf));
+        await page.waitForTimeout(400);
         if ((await ringed()).join() !== 'sell-confirm') fails.push('AW-31 with the confirmation open the ring is on ' + JSON.stringify(await ringed()) + ', want its Sell');
         if (shots) await shot(page, 'alpha-1440x900-shop-sell-confirm');
         /* SERVICES IN THE SHOP (Tyler 2026-10-25): no Services icon; R opens the Shop on its Services tab, from the Sell tab too */
         const icons = await page.evaluate(() => Array.from(document.querySelectorAll('.hs-launch')).map((b) => b.getAttribute('data-hs-open')));
         if (icons.includes('services') || !icons.includes('shop')) fails.push('AW-31 the icon row reads ' + icons.join(','));
         await page.evaluate(() => { const a = document.activeElement; if (a && a.blur) a.blur(); });
-        await page.keyboard.press('r');
+        /* at once, in the same task as the key (not at the next display tick) */
+        const atOnce = await page.evaluate(() => { document.dispatchEvent(new KeyboardEvent('keydown', { key: 'r', bubbles: true }));
+          return (document.querySelector('[data-hs-win="shop"] .hw-tab[aria-selected="true"]') || {}).dataset?.tab; });
+        if (atOnce !== 'services') fails.push('AW-31 R over the open Shop did not switch it to Services at once (it shows ' + atOnce + ')');
         await page.waitForTimeout(300);
         const svc = () => page.evaluate(() => ({ tab: (document.querySelector('[data-hs-win="shop"] .hw-tab[aria-selected="true"]') || {}).dataset?.tab,
           pane: !!document.querySelector('[data-hs-win="shop"] [data-pane="services"].is-on .hw-services .hw-bless'),

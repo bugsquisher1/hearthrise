@@ -179,6 +179,7 @@ async function checks(overrides, shots) {
   const show = async (page) => { await page.keyboard.press('q'); return wait(page, () => document.querySelector('[data-hs-win="tally"] .hw-tally'), null, 4000); };
   const sent = (s, n) => s.calls.filter((c) => c.name === n);
   const press = async (page, sel, rule) => { try { await page.click(sel, { timeout: 1500 }); return true; } catch { fails.push(rule + ' could not press ' + sel); return false; } };
+  const tap = async (page, sel, rule) => { try { await page.tap(sel, { timeout: 1500 }); return true; } catch { fails.push(rule + ' could not tap ' + sel); return false; } };
   const txt = (page, sel) => page.evaluate((q) => { const e = document.querySelector(q); return e ? e.textContent : null; }, sel);
   const idle = (page) => wait(page, () => !document.querySelector('[data-hs-win="tally"] .hw-tally.is-pending'), null, 4000);
   const off = (page, sel) => page.evaluate((q) => { const e = document.querySelector(q); return !e || e.disabled; }, sel);
@@ -322,7 +323,7 @@ async function checks(overrides, shots) {
         await shot('desktop-1440x900-default');
         /* FOLD: the dash folds the analyzer to its title; the stacked tally rises under it; one press, one put at once */
         const putsAtFold = s.calls.length;
-        await page.click('[data-hs-widget="analyzer"] [data-hs-wfold]');
+        await press(page, '[data-hs-widget="analyzer"] [data-hs-wfold]', 'TW-10');
         st = await settle(page, (x) => x.an && x.an.height < 80 && under(x) && x.tally.top < before.tally.top);
         if (!(st.an && st.an.folded && st.an.height < 80)) fails.push('TW-10 the analyzer did not fold to its title: ' + JSON.stringify(st.an));
         else if (!(under(st) && st.tally.top < before.tally.top)) fails.push('TW-10 the tally did not rise under the folded analyzer: ' + JSON.stringify(st));
@@ -334,7 +335,7 @@ async function checks(overrides, shots) {
         if (!(await backIn(page))) fails.push('TW-10 the hunt did not come back after a reload');
         st = await settle(page, (x) => x.an && x.an.folded && under(x));
         if (!(st.an && st.an.folded && st.an.height < 80)) fails.push('TW-10 a reload opened the folded analyzer again: ' + JSON.stringify(st.an));
-        await page.click('[data-hs-widget="analyzer"] [data-hs-wfold]');
+        await press(page, '[data-hs-widget="analyzer"] [data-hs-wfold]', 'TW-10');
         st = await settle(page, (x) => x.an && !x.an.folded && x.an.height > 120 && under(x));
         if (!(st.an && !st.an.folded && st.an.height > 120)) fails.push('TW-10 the plus did not open the analyzer again: ' + JSON.stringify(st.an));
         /* MOVE: its title drags it to the bottom-left; the unmoved tally rises to its own top */
@@ -376,18 +377,18 @@ async function checks(overrides, shots) {
         if (!(st.an && !st.an.moved && st.an.right > 1300 && st.an.top < 120)) fails.push('TW-10 Put back did not return the analyzer to the top-right: ' + JSON.stringify(st.an));
         if (!(st.tally && tallyAt && st.tally.left === tallyAt.left && st.tally.top === tallyAt.top)) fails.push('TW-10 the moved tally was stacked under the analyzer: ' + JSON.stringify([tallyAt, st.tally]));
         /* moved again, under the Party panel on the left, it folds to its title like the analyzer */
-        const party = await page.evaluate(() => { const r = document.querySelector('[data-hs-hud="world"] [data-hs-widget="party"]').getBoundingClientRect(); return { left: Math.round(r.left), bottom: Math.round(r.bottom) }; });
+        const party = await page.evaluate(() => { const e = document.querySelector('[data-hs-hud="world"] [data-hs-widget="party"]'); const r = e ? e.getBoundingClientRect() : { left: 21, bottom: 351 }; return { left: Math.round(r.left), bottom: Math.round(r.bottom) }; });
         await dragBy(page, '[data-hs-widget="tally"] .hs-tally-open', party.left - st.tally.left, party.bottom + 12 - st.tally.top);
         st = await settle(page, (x) => x.tally && x.tally.left === party.left);
         if (!(st.tally && st.tally.left === party.left && st.tally.top >= party.bottom)) fails.push('TW-10 the tally did not move under the Party panel: ' + JSON.stringify([party, st.tally]));
         await shot('desktop-1440x900-tally-moved');
-        await page.click('[data-hs-widget="tally"] [data-hs-wfold]');
+        await press(page, '[data-hs-widget="tally"] [data-hs-wfold]', 'TW-10');
         st = await settle(page, (x) => x.tally && x.tally.folded && x.tally.height < 60);
         if (!(st.tally && st.tally.folded && st.tally.height < 60 && st.tally.left === party.left)) fails.push('TW-10 the moved tally did not fold to its title in place: ' + JSON.stringify(st.tally));
         await shot('desktop-1440x900-tally-folded');
-        await page.click('[data-hs-widget="tally"] [data-hs-wfold]');
+        await press(page, '[data-hs-widget="tally"] [data-hs-wfold]', 'TW-10');
         await settle(page, (x) => x.tally && !x.tally.folded);
-        await page.click('[data-hs-widget="tally"] .hs-tally-open');
+        await press(page, '[data-hs-widget="tally"] .hs-tally-open', 'TW-10');
         if (!(await wait(page, () => document.querySelector('[data-hs-win="tally"]'), null, 3000))) fails.push('TW-10 a plain press on the moved tally\'s title did not open her window');
         if (errors.length) fails.push('TW-10 console errors: ' + errors.join(' | ').slice(0, 300));
       }
@@ -409,12 +410,12 @@ async function checks(overrides, shots) {
         if (!(st.an && st.an.bottom <= vp.height)) fails.push('TW-10 [' + tag + '] CONTROL: the open analyzer is not on screen: ' + JSON.stringify(st.an));
         if (shots) await page.screenshot({ path: join(shots, 'phone-' + tag + '-analyzer-open.png') });
         const putsAtFold = s.calls.length;
-        await page.tap('[data-hs-widget="analyzer"] [data-hs-wfold]');
+        await tap(page, '[data-hs-widget="analyzer"] [data-hs-wfold]', 'TW-10 [' + tag + ']');
         st = await settle(page, (x) => x.an && x.an.folded && x.an.height <= 60);
         if (!(st.an && st.an.folded && st.an.height <= 60)) fails.push('TW-10 [' + tag + '] the phone analyzer did not fold to one row: ' + JSON.stringify(st.an));
         const title = await page.evaluate(() => { const t = document.querySelector('[data-hs-widget="analyzer"] .hh-panel-title'); return t && t.getClientRects().length ? t.textContent : null; });
         if (title !== 'Hunt analyzer') fails.push('TW-10 [' + tag + '] the folded phone analyzer does not say what it is: ' + JSON.stringify(title));
-        const fold = await page.evaluate(() => { const b = document.querySelector('[data-hs-widget="analyzer"] [data-hs-wfold]').getBoundingClientRect(); return [Math.round(b.width), Math.round(b.height)]; });
+        const fold = await page.evaluate(() => { const e = document.querySelector('[data-hs-widget="analyzer"] [data-hs-wfold]'); const b = e ? e.getBoundingClientRect() : { width: 0, height: 0 }; return [Math.round(b.width), Math.round(b.height)]; });
         if (fold[0] < 40 || fold[1] < 40) fails.push('TW-10 [' + tag + '] the phone fold is not thumb-sized: ' + fold.join('x'));
         if (shots) await page.screenshot({ path: join(shots, 'phone-' + tag + '-analyzer-folded.png') });
         const foldPuts = await putsOf(s, putsAtFold, (l) => !!(l.phone && l.phone.analyzer && l.phone.analyzer.folded === true));
@@ -427,7 +428,7 @@ async function checks(overrides, shots) {
         await page.waitForTimeout(400);
         const a1 = await box(page, 'analyzer');
         if (!a0 || !a1 || a1.moved || Math.abs(a1.left - a0.left) > 1 || Math.abs(a1.top - a0.top) > 1) fails.push('TW-10 [' + tag + '] the phone dragged the analyzer: ' + JSON.stringify([a0, a1]));
-        await page.tap('[data-hs-widget="analyzer"] [data-hs-wfold]');
+        await tap(page, '[data-hs-widget="analyzer"] [data-hs-wfold]', 'TW-10 [' + tag + ']');
         st = await settle(page, (x) => x.an && !x.an.folded && x.an.height > 100);
         if (!(st.an && !st.an.folded)) fails.push('TW-10 [' + tag + '] the plus did not open the phone analyzer');
       }

@@ -48,7 +48,7 @@ const FN = (f) => join(ROOT, 'supabase', 'functions', 'hr-accrue', f);
 
 /* ── THE MUTATION CATALOGUE: each plants a real defect, in the edge bytes (a temp
    copy) or in the migration's text (the replay). ─────────────────────────── */
-const MUTATIONS = {
+const MUTANTS = {
   buy_forwards_ask: {
     why: 'THE ONE THAT MATTERS: market_buy forwards a caller-supplied price where the buyer\'s ceiling goes, so a '
        + 'hostile body sets what it agrees to pay from a field the buyer never declared',
@@ -146,7 +146,6 @@ const problems = [];
 const ok = (cond, msg) => { if (!cond) { failures++; problems.push(msg); } };
 const brief = (o) => JSON.stringify(o === undefined ? null : o).slice(0, 260);
 const uuid = () => crypto.randomUUID();
-const has = (a) => process.argv.includes(`--${a}`);
 /** Does this body carry the hr_state_of envelope (the server's state, its clock and the bag)? */
 const isEnv = (b) => !!b && typeof b === 'object' && typeof b.now === 'string' && !!b.inventory && typeof b.inventory === 'object'
   && Object.prototype.hasOwnProperty.call(b, 'version');
@@ -191,7 +190,7 @@ function makeExec(db, counter) {
 // ════════════════════════════════════════════════════════════════════════
 async function run(mutation) {
   failures = 0; problems.length = 0;
-  const m = mutation ? MUTATIONS[mutation] : null;
+  const m = mutation ? MUTANTS[mutation] : null;
   const all = m ? m.patches : [];
   const edgePatches = all.filter(([f]) => f !== MIG_PATH);
   const sqlMut = all.filter(([f]) => f === MIG_PATH).map(([, a, b]) => [a, b]);
@@ -562,14 +561,14 @@ async function run(mutation) {
 
 // ════════════════════════════════════════════════════════════════════════
 async function main() {
-  if (has('list')) {
-    for (const [id, m] of Object.entries(MUTATIONS)) console.log(`${id}\n    ${m.why}`);
+  if (process.argv.includes('--list')) {
+    for (const [id, m] of Object.entries(MUTANTS)) console.log(`${id}\n    ${m.why}`);
     return;
   }
-  if (has('selftest') || has('mutate')) {
+  if (process.argv.includes('--selftest') || process.argv.includes('--mutate')) {
     await runMutationProof({
       label: 'market-edge',
-      cases: Object.entries(MUTATIONS).map(([id, m]) => ({ id, why: m.why })),
+      cases: Object.entries(MUTANTS).map(([id, m]) => ({ id, why: m.why })),
       baseline: () => run(null),
       arm: (id) => run(id),
       failures: () => failures,

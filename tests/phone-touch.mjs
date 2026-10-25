@@ -41,6 +41,13 @@
 //        saved setups and sliders, and the stamina "+" are each on screen, cut by no clipping box and pressable where
 //        drawn; the tutorial's hooks (data-coach-hook) are each on one shown element; the ring's words sit inside its
 //        disc and no pixel medallion is left; a sideways swipe over the slots reaches slots 10 and 20
+//   PH-8 THE PHONE'S BAR NEVER COSTS THE DESKTOP (1280x800, 1440x900, 1920x1080; Tyler 10-25): the bar on screen,
+//        every filled slot's icon 64 px (x2), the fight controls and the stamina "+" in view and pressable without
+//        opening anything, the ring's words inside its disc, no pixel medallion
+//   PH-9 THE STAMINA "+" (844x390; Tyler 10-25): a panel wholly on screen with the server's quote and Buy in reach;
+//        ONE hr_stamina_refill at that price, Buy off until the answer, the stamina from the re-read; a refusal in
+//        words; refills used up or too little gold turn Buy off with the reason and keep the "+"; the premium note
+//        for a hero without premium only
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
 import { leaseBrowser } from './_chrome.mjs';
@@ -91,6 +98,8 @@ async function stub(page, s, fonts) {
     if (name === 'hr_load') return json(s.next());
     if (name === 'hr-accrue') return json(Object.assign({ accrued: true }, s.next()));
     if (name === 'hr_put_client_state') { s.residue = Object.assign({}, s.residue, body.p_patch || {}); return json({ ok: true }); }
+    /* PH-9: a stamina refill, held while s.holdRefill (s.releaseRefill answers it); s.onRefill is the server. */
+    if (name === 'hr_stamina_refill' && s.onRefill) { if (s.holdRefill) await new Promise((ok) => { s.releaseRefill = ok; }); return json(s.onRefill(body)); }
     return json({ ok: true });
   });
 }
@@ -395,6 +404,86 @@ async function barFits(page, tag, fails) {
   if (last.some((x) => !x)) fails.push('PH-7 [' + tag + '] slots 10 and 20 cannot be reached by a swipe over the slots: ' + JSON.stringify(last));
 }
 
+/* ── PH-8 ── THE PHONE'S BAR NEVER COSTS THE DESKTOP (Tyler 10-25: "I don't want to sacrifice shit on desktop for mobile
+   ever"). At 1280x800 (a Steam Deck), 1440x900 and 1920x1080 the bar is on screen, every filled slot's icon is 64 px (its
+   32 art px at x2, the bigger icons he asked for), the setup, its buttons, target, stance, chase, distance and the
+   stamina "+" are in view and pressable without opening anything, the ring's words sit inside its disc and no pixel
+   medallion (its clock ticks and stepped bezel) is left. */
+const DESK_BAR = `(() => {
+  const bar = document.querySelector('.hb-bar').getBoundingClientRect();
+  const icons = Array.from(document.querySelectorAll('.hb-slot[data-item] .hh-icon')).map((i) => Math.round(i.getBoundingClientRect().width) + 'x' + Math.round(i.getBoundingClientRect().height));
+  const ctl = Array.from(document.querySelectorAll('.hb-plaque [data-opt]:not([data-opt="gold_floor"]), .hb-plaque .hb-more, .hb-plaque .hb-ok, .hb-set .hs-name, .hb-stam-buy'));
+  return { inside: bar.left >= 0 && bar.right <= innerWidth && bar.bottom <= innerHeight, icons, n: ctl.length,
+    hidden: ctl.filter((c) => !(window.__onScreen(window.__r(c)) && window.__hits(c))).map((c) => c.getAttribute('data-opt') || c.className) };
+})()`;
+async function desktopBar(page, tag, fails) {
+  await wait(page, () => document.querySelector('.hb-plaque [data-opt="stance"]:not([disabled])'));
+  const d = await page.evaluate((src) => (0, eval)(src), DESK_BAR);
+  if (!d.inside) fails.push('PH-8 [' + tag + '] the desktop bar runs off the screen');
+  if (!d.icons.length || d.icons.some((s) => s !== '64x64')) fails.push('PH-8 [' + tag + '] the slot icons are not 64 px (x2): ' + d.icons.join(' '));
+  if (d.n < 9 || d.hidden.length) fails.push('PH-8 [' + tag + '] fight controls not in view and pressable on the desktop bar: ' + d.hidden.join(', ') + ' (' + d.n + ' found)');
+  const ring = await page.evaluate((src) => (0, eval)(src), RING_WORDS);
+  if (ring.err || !ring.n || ring.out.length || ring.bitmap || ring.crisp) fails.push('PH-8 [' + tag + '] the ring: ' + JSON.stringify(ring));
+}
+
+/* ── PH-9 ── THE STAMINA "+" (Tyler 10-25), on a phone (844x390): it opens a panel wholly on screen with the server's quote
+   ("+4 h for 1,880 gp", "3 h 12 m of 8 h") and Buy in reach; Buy sends ONE hr_stamina_refill at that price and is off until
+   the answer; the stamina shown moves only with the re-read; a refusal reads in words; today's refills used or too little
+   gold turn Buy off with the reason and keep the "+"; "Premium raises your stamina cap by 4 hours." shows to a hero
+   without premium only. */
+const H4 = 4 * 3600000;
+const freeHero = (gold, quote) => (env) => {
+  env.premium = { active: false };
+  env.state = Object.assign({}, env.state, { gold });
+  env.stamina = Object.assign({}, env.stamina, { ms: 11520000, max_ms: 28800000 });
+  env.stamina_refill = quote;
+};
+const QUOTE = { available: true, why: null, restore_ms: H4, price: 1880, n: 2, per_day: 6 };
+const PANEL = `(() => { const b = document.querySelector('.hb-buy'), q = (k) => b.querySelector(k), shown = (e) => !!e && e.getClientRects().length > 0;
+  return { on: shown(b), whole: window.__onScreen(window.__r(b)), now: q('.hb-buy-now').textContent, quote: q('.hb-buy-quote').textContent, why: q('.hb-buy-why').textContent,
+    premium: shown(q('.hb-buy-premium')), off: q('.hb-buy-go').disabled, reach: window.__onScreen(window.__r(q('.hb-buy-go'))) && window.__hits(q('.hb-buy-go')),
+    msg: q('.hb-buy-msg').textContent, plus: window.__onScreen(window.__r('.hb-stam-buy')) }; })()`;
+const panelOf = (page) => page.evaluate((src) => (0, eval)(src), PANEL);
+async function staminaBuy(open, fails, done) {
+  const tag = '844x390', vp = { width: 844, height: 390 };
+  const a = await open(vp, HUNT, freeHero(25000, QUOTE));
+  if (!a.up) { fails.push('PH-9 the hunt did not mount'); await a.ctx.close(); return; }
+  await a.page.click('.hb-stam-buy', { timeout: 2500 }).catch(() => null);
+  await a.page.waitForTimeout(250);
+  const p0 = await panelOf(a.page);
+  if (!p0.on || !p0.whole || !p0.reach || !/\+4 h for 1,880 gp/.test(p0.quote) || p0.off || p0.now !== '3 h 12 m of 8 h') fails.push('PH-9 [' + tag + '] the "+" did not open the server\'s quote whole on screen: ' + JSON.stringify(p0));
+  if (!p0.premium) fails.push('PH-9 [' + tag + '] a hero without premium is not told premium raises the cap');
+  a.s.holdRefill = true;
+  a.s.onRefill = () => { a.s.env.stamina = Object.assign({}, a.s.env.stamina, { ms: a.s.env.stamina.ms + H4 }); a.s.env.stamina_refill = Object.assign({}, QUOTE, { restore_ms: 2880000, price: 520, n: 3 }); return { ok: true }; };
+  await a.page.click('.hb-buy-go', { timeout: 2500 }).catch(() => null);
+  for (let i = 0; i < 40 && !a.s.calls.some((c) => c.name === 'hr_stamina_refill'); i++) await a.page.waitForTimeout(50);
+  const mid = await panelOf(a.page);
+  if (!mid.off || mid.now !== '3 h 12 m of 8 h') fails.push('PH-9 [' + tag + '] Buy stayed on (or the stamina moved) before the server answered: ' + JSON.stringify(mid));
+  a.s.holdRefill = false;
+  if (a.s.releaseRefill) a.s.releaseRefill();
+  const bought = await wait(a.page, () => document.querySelector('.hb-buy-now').textContent === '7 h 12 m of 8 h' && document.querySelector('.hb-buy-msg').textContent === 'Stamina restored.', null, 6000);
+  const sent = a.s.calls.filter((c) => c.name === 'hr_stamina_refill');
+  if (sent.length !== 1 || sent[0].body.p_price !== 1880 || sent[0].body.p_slot !== 0 || !sent[0].body.p_idem) fails.push('PH-9 [' + tag + '] Buy sent ' + JSON.stringify(sent.map((c) => c.body)));
+  if (!bought) fails.push('PH-9 [' + tag + '] after the server answered the panel reads ' + JSON.stringify(await panelOf(a.page)));
+  a.s.onRefill = () => ({ ok: false, error: 'quote_changed' });
+  await a.page.click('.hb-buy-go', { timeout: 2500 }).catch(() => null);
+  if (!(await wait(a.page, () => /^Prices or your bag changed/.test(document.querySelector('.hb-buy-msg').textContent), null, 6000))) fails.push('PH-9 [' + tag + '] a refused refill reads ' + JSON.stringify(await panelOf(a.page)));
+  await done(a, tag);
+  /* Cannot be bought: Buy off with the server's words, the "+" still there; a premium hero is not told about premium. */
+  for (const [label, prep, words, premium] of [
+    ['today\'s refills used', freeHero(25000, { available: false, why: 'refill_limit', n: 7, per_day: 6 }), /^No more stamina refills today\.$/, true],
+    ['not enough gold, a premium hero', (env) => { freeHero(100, QUOTE)(env); env.premium = { active: true }; }, /^Not enough gold\.$/, false]]) {
+    const o = await open(vp, HUNT, prep);
+    if (!o.up) { fails.push('PH-9 [' + label + '] the hunt did not mount'); await o.ctx.close(); continue; }
+    await o.page.click('.hb-stam-buy', { timeout: 2500 }).catch(() => null);
+    await o.page.waitForTimeout(250);
+    const p = await panelOf(o.page);
+    if (!words.test(p.why) || !p.off || !p.plus) fails.push('PH-9 [' + tag + '] ' + label + ': ' + JSON.stringify(p));
+    if (p.premium !== premium) fails.push('PH-9 [' + tag + '] ' + label + ': the premium note ' + (premium ? 'is missing' : 'shows to a premium hero'));
+    await done(o, tag);
+  }
+}
+
 async function rules(overrides, shots, { stopAtFirst = false, blocks = null } = {}) {
   /* `blocks`: a mutant runs only the pages its rule reads (BLOCKS_OF), so --mutate costs seconds a mutant, not the suite. */
   const run = (b) => !blocks || blocks.includes(b);
@@ -504,6 +593,15 @@ async function rules(overrides, shots, { stopAtFirst = false, blocks = null } = 
       await barFits(o.page, tag, fails);
       await done(o, tag);
     }
+    for (const vp of run('desk') ? [{ width: 1280, height: 800 }, { width: 1440, height: 900 }, { width: 1920, height: 1080 }] : []) { // PH-8
+      const tag = tagOf(vp);
+      const o = await open(vp, HUNT);
+      if (!o.up) { fails.push('PH-8 [' + tag + '] the hunt did not mount'); await o.ctx.close(); continue; }
+      await shot(o.page, 'desk-bar-' + tag);
+      await desktopBar(o.page, tag, fails);
+      await done(o, tag);
+    }
+    if (run('stamina')) await staminaBuy(open, fails, done); // PH-9
     if (shots && !blocks) await moreShots(open, shot);
   } catch (e) {
     /* the array's own push: under stopAtFirst `fails.push` throws, and a throw here would leave rules() rejected */
@@ -570,7 +668,7 @@ async function moreShots(open, shot) {
 
 /* The pages each rule reads: a mutant named for a rule runs those alone, or the pages its own fifth field names
    (PH-5's hunt bar and analyzer tabs are measured on the hunt pages, its Shop, tooltip and Equip in town). */
-const BLOCKS_OF = Object.freeze({ 'PH-1': ['configure'], 'PH-2': ['hunt'], 'PH-3': ['portrait'], 'PH-4': ['town'], 'PH-5': ['town'], 'PH-6': ['coach'], 'PH-7': ['bar'] });
+const BLOCKS_OF = Object.freeze({ 'PH-1': ['configure'], 'PH-2': ['hunt'], 'PH-3': ['portrait'], 'PH-4': ['town'], 'PH-5': ['town'], 'PH-6': ['coach'], 'PH-7': ['bar'], 'PH-8': ['desk'], 'PH-9': ['stamina'] });
 /* Each planted defect undoes one fix; each must turn a rule red. */
 const MUTANTS = [
   ['PH-1 the configure sheet\'s list does not scroll', 'src/styles/hunt.css', '  .hs-win[data-hs-win="configure-action"] .ca-mid {', '  .hs-win[data-hs-win="configure-action"] .ca-mid-x {'],
@@ -603,6 +701,16 @@ const MUTANTS = [
   ['PH-7 the phone stance folds away', 'src/styles/hunt.css', '  .hb-pl-row.is-stance { grid-area: stance; min-height: 0; }', '  .hb-pl-row.is-stance { display: none; }'],
   ['PH-7 the stamina + takes no press', 'src/styles/hunt.css', '.hb-stam-buy { position: relative; width: 36px;', '.hb-stam-buy { pointer-events: none; position: relative; width: 36px;'],
   ['PH-7 the phone ring carries the desktop words', 'src/styles/hunt.css', '  .hb-lv-k, .hb-xp-k { display: none; }', '  .hb-lv-k, .hb-xp-k { }'],
+  ['PH-8 the slot icons stay x1 on a desktop', 'src/styles/hunt.css', '.hb-slot .hh-icon, .hb-socket-ico .hh-icon { width: round(down, 100% - 4px, 32px); height: round(down, 100% - 4px, 32px); }', '.hb-slot .hh-icon, .hb-socket-ico .hh-icon { width: 32px; height: 32px; }'],
+  ['PH-8 the ring is the pixel medallion again', 'src/styles/hunt.css', '.hb-medal { grid-area: medal; align-self: start; position: relative; width: 120px; height: 120px; }', '.hb-medal { grid-area: medal; align-self: start; position: relative; width: 120px; height: 120px; background: url(../../assets/ui/bar-medal.png) center / 100% 100% no-repeat; }'],
+  ['PH-8 the ring words run onto the ring', 'src/styles/hunt.css', 'justify-content: center; gap: 1px; line-height: 1;', 'justify-content: center; gap: 12px; line-height: 1;'],
+  ['PH-8 the stance folds away on a desktop', 'src/styles/hunt.css', '.hb-stance { display: flex; width: 100%; }', '.hb-stance { display: none; width: 100%; }'],
+  ['PH-9 the refill sends a price of its own', 'src/shell/widgets/stamina-buy.js', 'cs.buyStamina(q.price)', 'cs.buyStamina(q.price + 1)'],
+  ['PH-9 the premium note shows to premium heroes too', 'src/shell/widgets/stamina-buy.js', "cls(box.querySelector('.hb-buy-premium'), 'is-on', !isPremium(cs));", "cls(box.querySelector('.hb-buy-premium'), 'is-on', true);"],
+  ['PH-9 a refused refill loses its words', 'src/shell/widgets/stamina-buy.js', "s.msg = r.ok ? 'Stamina restored.' : refusalWords(r.error);", "s.msg = r.ok ? 'Stamina restored.' : '';"],
+  ['PH-9 Buy stays on when a refill cannot be bought', 'src/shell/widgets/stamina-buy.js', "prop(go, 'disabled', !!why || s.pending);", "prop(go, 'disabled', s.pending);"],
+  ['PH-9 Buy stays on while the refill is in flight', 'src/shell/widgets/stamina-buy.js', "prop(go, 'disabled', !!why || s.pending);", "prop(go, 'disabled', !!why);"],
+  ['PH-9 the stamina panel is wider than a phone', 'src/styles/hunt.css', '.hb-buy { display: none; position: absolute; bottom: calc(100% + 6px); width: 280px;', '.hb-buy { display: none; position: absolute; bottom: calc(100% + 6px); width: 900px;'],
   ['PH-6 the coach is capped on a desktop too', 'src/styles/shell.css', '.hs-pointer:not(.is-min) { padding-right: 34px; }', '.hs-pointer:not(.is-min) { padding-right: 34px; max-height: 200px; overflow-y: auto; }'],
 ];
 
@@ -617,7 +725,7 @@ async function main() {
   if (!process.argv.includes('--mutate')) {
     const fails = await rules(null, shots, { blocks });
     for (const f of fails) console.log('  ✗ ' + f);
-    console.log(fails.length ? 'phone-touch: ' + fails.length + ' rule(s) RED' : 'phone-touch: the configure sheet scrolls with Save in reach, Hunt details toggles and the analyzer closes clear of the hunt bar, portrait asks to turn, Settings and the bag answer a thumb, a long coach ends above the action bar, the phone bar keeps every fight control in reach' + (shots ? ' (shots in ' + shots + ')' : ''));
+    console.log(fails.length ? 'phone-touch: ' + fails.length + ' rule(s) RED' : 'phone-touch: the configure sheet scrolls with Save in reach, Hunt details toggles and the analyzer closes clear of the hunt bar, portrait asks to turn, Settings and the bag answer a thumb, a long coach ends above the action bar, the phone bar keeps every fight control in reach, the desktop bar keeps its 64 px icons, the stamina + buys at the server\'s quote' + (shots ? ' (shots in ' + shots + ')' : ''));
     process.exit(fails.length ? 1 : 0);
   }
   const clean = await rules(null, null);

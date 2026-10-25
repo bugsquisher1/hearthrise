@@ -99,14 +99,8 @@
 //         or "New"; its page a line per mode ("Best alone: 12,400 Level XP per hour · balance
 //         3,100 gp per hour") or ONE "Not hunted yet", >= 12 px, and the next envelope REPLACES
 //         them (never merged)
-//   HS-27 THE DESKTOP BAR (Tyler 10-25) at 1280x800, 1440x900 and 1920x1080: on screen; every filled slot's icon
-//         64 px (its 32 art px at x2); the setup, its buttons, target, stance, chase, distance and the stamina "+"
-//         in view and pressable without opening anything; the ring's words inside its inner disc; no pixel
-//         medallion (its clock ticks and stepped bezel) left
-//   HS-28 THE STAMINA "+" (Tyler 10-25): it opens the server's quote (+4 h for 1,880 gp, "3 h 12 m of 8 h"); Buy sends
-//         ONE hr_stamina_refill at that price and is off until the answer; the stamina shown moves only with the
-//         re-read; a refusal reads in words; today's refills used or too little gold turn Buy off with the reason
-//         and keep the "+"; "Premium raises your stamina cap by 4 hours." shows to a hero without premium only
+//   The desktop bar's 64 px icons, its fight controls and ring (Tyler 10-25) and the stamina "+" are tests/phone-touch.mjs
+//   PH-8 and PH-9: this suite's mutant shards are full (--shard-plan books each within 18 min).
 //   HS-25 THE HUNT SUMMARY shows the server's balance per hour to every character, and raw
 //         XP per hour only when the server sent it (premium)
 // ════════════════════════════════════════════════════════════════════════
@@ -118,7 +112,6 @@ import { ROOT, UID, serve, SDK_STUB } from './_client-harness.mjs';
 import { pathToFileURL } from 'node:url';
 import { scopeMutants, gateScope, planShards, checkShards } from '../tools/lib/mutant-scope.mjs';
 import { judge, report, exitOf, cleanControl } from './_mutant-verdict.mjs';
-import { RING_WORDS } from './_bar-probes.mjs';
 
 const FIXTURE = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/hunt-envelope.json'), 'utf8'));
 /* The scene and its log play huntPlaybackDelayMs behind the server (src/session/config.js): the fixture's
@@ -218,7 +211,7 @@ function scripted() {
   const s = { env: clone(FIXTURE), version: 1, calls: [], optionsReply: { ok: true }, optionsDelayMs: 300, densityReply: { ok: true }, waiting: {} };
   /* answer every held reply of a kind, and stop holding that kind */
   s.release = (kind) => {
-    if (kind === 'accrue') s.holdAccrue = false; else if (kind === 'density') s.holdDensity = false; else if (kind === 'refill') s.holdRefill = false; else s.holdOptions = false;
+    if (kind === 'accrue') s.holdAccrue = false; else if (kind === 'density') s.holdDensity = false; else s.holdOptions = false;
     for (const go of (s.waiting[kind] || []).splice(0)) go();
   };
   s.sent = (name) => s.calls.filter((c) => c.name === name);
@@ -267,8 +260,6 @@ async function stub(page, s) {
       if (s.onDensity && s.densityReply.ok) s.onDensity(body);
       return json(s.densityReply.ok ? Object.assign({ hunt: body.p_hunt, density: body.p_density }, s.densityReply) : s.densityReply);
     }
-    /* A stamina refill (hr_stamina_refill): held like a save; s.onRefill is the server (its answer, its new envelope). */
-    if (name === 'hr_stamina_refill' && s.onRefill) { if (s.holdRefill) await hold(page, r, s, 'refill'); return json(s.onRefill(body)); }
     if (name === 'hr_hunt_leave' && s.onLeave) { await sleep(400); const out = s.onLeave(); await json(out); s.leaveAnswered = true; return undefined; }
     /* `keepResidue`: the server keeps what hr_put_client_state sends and hands it back in every envelope (as hr_state_of does). */
     /* `residueLate`: the server has not stored the put yet when the next re-read is built (s.lateResidue holds it until the test lands it). */
@@ -1582,77 +1573,6 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       await ctx.close();
     }
 
-    for (const vp of [{ width: 1280, height: 800 }, { width: 1440, height: 900 }, { width: 1920, height: 1080 }]) { // HS-27 THE DESKTOP BAR (Tyler 10-25)
-      const tag = vp.width + 'x' + vp.height;
-      const { ctx, page, up } = await open({ viewport: vp });
-      if (up) {
-        await wait(page, () => document.querySelector('.hb-plaque [data-opt="stance"]:not([disabled])'));
-        const d = await page.evaluate((src) => {
-          const bar = document.querySelector('.hb-bar').getBoundingClientRect();
-          const icons = Array.from(document.querySelectorAll('.hb-slot[data-item] .hh-icon')).map((i) => Math.round(i.getBoundingClientRect().width) + 'x' + Math.round(i.getBoundingClientRect().height));
-          const hit = (c) => { const r = c.getBoundingClientRect(), h = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
-            return r.width > 0 && r.top >= 0 && r.left >= 0 && r.bottom <= innerHeight && r.right <= innerWidth && (h === c || c.contains(h)); };
-          const ctl = Array.from(document.querySelectorAll('.hb-plaque [data-opt]:not([data-opt="gold_floor"]), .hb-plaque .hb-more, .hb-plaque .hb-ok, .hb-set .hs-name, .hb-stam-buy'));
-          return { inside: bar.left >= 0 && bar.right <= innerWidth && bar.bottom <= innerHeight, icons, ctl: ctl.length,
-            hidden: ctl.filter((c) => !hit(c)).map((c) => c.getAttribute('data-opt') || c.className), ring: (0, eval)(src) };
-        }, RING_WORDS);
-        if (!d.inside) fails.push('HS-27 [' + tag + '] the bar runs off the screen');
-        if (!d.icons.length || d.icons.some((s) => s !== '64x64')) fails.push('HS-27 [' + tag + '] the slot icons are not 64 px (x2): ' + d.icons.join(' '));
-        if (d.ctl < 9 || d.hidden.length) fails.push('HS-27 [' + tag + '] fight controls not in view and pressable: ' + d.hidden.join(', ') + ' (' + d.ctl + ' found)');
-        if (d.ring.err || !d.ring.n || d.ring.out.length) fails.push('HS-27 [' + tag + '] the ring\'s words leave its inner disc: ' + JSON.stringify(d.ring));
-        if (d.ring.bitmap || d.ring.crisp) fails.push('HS-27 [' + tag + '] the ring is still the pixel medallion (its ticks and stepped bezel): ' + JSON.stringify(d.ring));
-      } else fails.push('HS-27 [' + tag + '] the screen did not mount');
-      await ctx.close();
-    }
-
-    { // HS-28 THE STAMINA "+" (Tyler 10-25): the server's quote, ONE refill at that price, the premium note for a free hero, refusals in words
-      const H4 = 4 * 3600000;
-      const { ctx, page, s, up } = await open({ prep: (sc) => {
-        sc.env.premium = { active: false };
-        sc.env.state = Object.assign({}, sc.env.state, { gold: 25000 });
-        sc.env.stamina = Object.assign({}, sc.env.stamina, { ms: 11520000, max_ms: 28800000 });
-        sc.env.stamina_refill = { available: true, why: null, restore_ms: H4, price: 1880, n: 2, per_day: 6 };
-      } });
-      if (up) {
-        const panel = () => page.evaluate(() => { const b = document.querySelector('.hb-buy'), q = (k) => b.querySelector(k), shown = (e) => !!e && e.getClientRects().length > 0;
-          return { on: shown(b), now: q('.hb-buy-now').textContent, quote: q('.hb-buy-quote').textContent, why: q('.hb-buy-why').textContent, premium: shown(q('.hb-buy-premium')),
-            go: q('.hb-buy-go').textContent, off: q('.hb-buy-go').disabled, msg: q('.hb-buy-msg').textContent, plus: shown(document.querySelector('.hb-stam-buy')) }; });
-        await page.click('.hb-stam-buy');
-        const p0 = await panel();
-        if (!p0.on || !/\+4 h for 1,880 gp/.test(p0.quote) || p0.off || p0.now !== '3 h 12 m of 8 h') fails.push('HS-28 the "+" did not open the server\'s quote: ' + JSON.stringify(p0));
-        if (!p0.premium) fails.push('HS-28 a hero without premium is not told premium raises the cap: ' + JSON.stringify(p0));
-        /* Buy: ONE hr_stamina_refill at the quoted price, Buy off until the server answers, the new stamina from the re-read. */
-        s.holdRefill = true;
-        s.onRefill = () => { s.env.stamina = Object.assign({}, s.env.stamina, { ms: s.env.stamina.ms + H4 }); s.env.stamina_refill = { available: true, why: null, restore_ms: 2880000, price: 520, n: 3, per_day: 6 }; return { ok: true }; };
-        await page.click('.hb-buy-go');
-        await until(() => s.sent('hr_stamina_refill').length >= 1);
-        const mid = await panel();
-        if (!mid.off || mid.now !== '3 h 12 m of 8 h') fails.push('HS-28 Buy stayed on (or the stamina moved) before the server answered: ' + JSON.stringify(mid));
-        s.release('refill');
-        const bought = await wait(page, () => /^7 h 12 m of 8 h$/.test(document.querySelector('.hb-buy-now').textContent) && document.querySelector('.hb-buy-msg').textContent === 'Stamina restored.');
-        const sent = s.sent('hr_stamina_refill');
-        if (sent.length !== 1 || sent[0].body.p_price !== 1880 || sent[0].body.p_slot !== 0 || !sent[0].body.p_idem) fails.push('HS-28 Buy sent ' + JSON.stringify(sent.map((c) => c.body)));
-        if (!bought) fails.push('HS-28 after the server answered the panel reads ' + JSON.stringify(await panel()));
-        /* A refusal from the server, in its words. */
-        s.onRefill = () => ({ ok: false, error: 'quote_changed' });
-        await page.click('.hb-buy-go');
-        if (!(await wait(page, () => /^Prices or your bag changed/.test(document.querySelector('.hb-buy-msg').textContent)))) fails.push('HS-28 a refused refill reads ' + JSON.stringify(await panel()));
-        /* Cannot be bought: today's refills used, then not enough gold; Buy off with the reason, the "+" still there. */
-        for (const [label, set, words] of [['today\'s refills used', () => { s.env.stamina_refill = { available: false, why: 'refill_limit', n: 7, per_day: 6 }; }, /^No more stamina refills today\.$/],
-          ['not enough gold', () => { s.env.stamina_refill = { available: true, why: null, restore_ms: H4, price: 1880, n: 2, per_day: 6 }; s.env.state = Object.assign({}, s.env.state, { gold: 100 }); }, /^Not enough gold\.$/]]) {
-          set();
-          await pushEnvelope(page, s);
-          const p = await panel();
-          if (!words.test(p.why) || !p.off || !p.plus) fails.push('HS-28 ' + label + ': ' + JSON.stringify(p));
-        }
-        /* A premium hero is not told about premium. */
-        s.env.premium = { active: true };
-        await pushEnvelope(page, s);
-        if ((await panel()).premium) fails.push('HS-28 a premium hero is shown the premium note');
-      } else fails.push('HS-28 the screen did not mount');
-      await ctx.close();
-    }
-
     for (const town of [false, true]) { // HS-22 THE PHONE BAR at 922x423 (v0.2.23 gate: 874 x 178, 42% of the screen)
       const tag = town ? 'in town' : 'in a hunt';
       /* three party invites waiting: three alert lines, so the stack has a height to collide with */
@@ -1864,15 +1784,6 @@ const MUTANTS = [
   ['the phone alerts draw over an open window (HS-22)', 'src/styles/hunt.css', '  :root:has(.hs-win:not(.is-leaving)) .hs-widget.is-alerts { visibility: hidden; }', '.hs-widget.is-alerts { }'],
   ['the fight settings sheet starts at the top of the screen (HS-22)', 'src/shell/widgets/action-bar.js', "    sheet.style.top = Math.round(Math.max(box.top, hb ? hb.bottom + 4 : box.top)) + 'px';", "    sheet.style.top = '0px';"],
   ['a widget that grows after it is placed is never placed again (HS-22)', 'src/shell/shell.js', 'const sized = host.ResizeObserver ? ', 'const sized = false ? '],
-  ['the slot icons stay x1 on a desktop (HS-27)', 'src/styles/hunt.css', '.hb-slot .hh-icon, .hb-socket-ico .hh-icon { width: round(down, 100% - 4px, 32px); height: round(down, 100% - 4px, 32px); }', '.hb-slot .hh-icon, .hb-socket-ico .hh-icon { width: 32px; height: 32px; }'],
-  ['the ring is the pixel medallion again (HS-27)', 'src/styles/hunt.css', '.hb-medal { grid-area: medal; align-self: start; position: relative; width: 120px; height: 120px; }', '.hb-medal { grid-area: medal; align-self: start; position: relative; width: 120px; height: 120px; background: url(../../assets/ui/bar-medal.png) center / 100% 100% no-repeat; }'],
-  ['the ring\'s words run onto the ring (HS-27)', 'src/styles/hunt.css', 'justify-content: center; gap: 1px; line-height: 1;', 'justify-content: center; gap: 12px; line-height: 1;'],
-  ['the stance folds away on a desktop (HS-12)', 'src/styles/hunt.css', '.hb-stance { display: flex; width: 100%; }', '.hb-stance { display: none; width: 100%; }'],
-  ['the stamina refill sends a price of its own (HS-28)', 'src/shell/widgets/stamina-buy.js', 'cs.buyStamina(q.price)', 'cs.buyStamina(q.price + 1)'],
-  ['the premium note shows to premium heroes too (HS-28)', 'src/shell/widgets/stamina-buy.js', "cls(box.querySelector('.hb-buy-premium'), 'is-on', !isPremium(cs));", "cls(box.querySelector('.hb-buy-premium'), 'is-on', true);"],
-  ['a refused refill loses its words (HS-28)', 'src/shell/widgets/stamina-buy.js', "s.msg = r.ok ? 'Stamina restored.' : refusalWords(r.error);", "s.msg = r.ok ? 'Stamina restored.' : '';"],
-  ['Buy stays on when a refill cannot be bought (HS-28)', 'src/shell/widgets/stamina-buy.js', "prop(go, 'disabled', !!why || s.pending);", "prop(go, 'disabled', s.pending);"],
-  ['Buy stays on while the refill is in flight (HS-28)', 'src/shell/widgets/stamina-buy.js', "prop(go, 'disabled', !!why || s.pending);", "prop(go, 'disabled', !!why);"],
   ['the bleed badge defaults on for regular monsters', 'src/data/combat-text.js', "label: 'Bleed stack count', on: on(false, true)", "label: 'Bleed stack count', on: on(true, true)"],
   ['the picker card never shows the personal best (HS-24)', 'src/shell/windows/hunt-detail.js', "['.hw-hunt-best-solo', best && best.solo]", "['.hw-hunt-best-solo', null]"],
   /* The merge lands on a COPY: envelope records are deep-frozen, so writing into one threw, the Hunts window stopped

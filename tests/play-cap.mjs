@@ -7,11 +7,13 @@
 //   node tests/play-cap.mjs            the guard (every arm)
 //   node tests/play-cap.mjs --mutate   every planted defect must turn an arm red
 //
-// mutant-anchors: supabase/migrations/2027-01-19-play-cap.sql
+// mutant-anchors: supabase/migrations/2027-01-19-play-cap.sql, supabase/migrations/2027-01-20-tutorial-facts.sql
 // mutant-writes-tree: no — each mutant is planted on the chain end inside a rolled-back transaction
 //
 // Ships with supabase/migrations/2027-01-19-play-cap.sql. On the real chain (PGlite), as a player and as the engine
 // call each door (`authenticated` with the request's cf-connecting-ip header; `hr_engine` with neither JWT nor header):
+//   PC-EMPTY   AN ACCOUNT WITH NO HERO (2027-01-20-tutorial-facts.sql): hr_load(0) answers no_character WITH the two
+//              owned slots and the cap; the real roster reads two empty slots and plays the cap at once (not one)
 //   PC-CLOSED  THE BROWSER CLOSED (no client at all): two heroes hunt (hr_hunt_enter) and two gather through the REAL
 //              edge verb (supabase/functions/hr-accrue/set-activity.js runSetActivity); the account's fifth is refused
 //              too_many_playing by the hunt door and by the town door (409), and nothing of it moved
@@ -45,6 +47,7 @@ const { CharacterSession } = await mod('src/session/character-session.js');
 const { refusalText } = await mod('src/shell/intent-words.js');
 const { REFUSAL_WORDS } = await mod('src/data/refusal-words.js');
 const { SESSION_CONFIG } = await mod('src/session/config.js');
+const { AccountSession } = await mod('src/session/account-session.js');
 const SA = await mod('supabase/functions/hr-accrue/set-activity.js');
 
 const idem = () => crypto.randomUUID();
@@ -99,6 +102,27 @@ async function world(db, accounts) {
 }
 
 const ARMS = {
+  /* THE EMPTY ACCOUNT'S FACTS (2027-01-20-tutorial-facts.sql; tutorial board row 8): an account with no hero reads, from
+     the server through the REAL roster (src/session/account-session.js), its two starter slots and the cap it plays
+     under, not one slot and "One can play at a time". */
+  'PC-EMPTY': async (db) => {
+    const p = []; const E = U(9);
+    await db.query('insert into auth.users (id) values ($1) on conflict (id) do nothing', [E]);
+    await db.query("insert into public.hr_access_allowlist (user_id, note) values ($1, 'play-cap empty') on conflict (user_id) do nothing", [E]);
+    const cap = Number(await one(db, "select public.hr_hunt_limit('max_concurrent')"));
+    const owned = await one(db, 'select public.hr_hero_slots_of($1)', [E]);
+    const ans = await as(db, E, IP_X, 'select public.hr_load(0)', []);
+    if (!ans || ans.error !== 'no_character') p.push('an empty account loaded as ' + JSON.stringify(ans).slice(0, 160));
+    if (JSON.stringify(ans && ans.hero_slots) !== JSON.stringify(owned) || owned.length !== 2) p.push(`the empty answer names slots ${JSON.stringify(ans && ans.hero_slots)}, the server owns ${JSON.stringify(owned)} (two to start)`);
+    if (!ans || !ans.account || ans.account.max_concurrent !== cap || cap !== SESSION_CONFIG.maxConcurrentCharacters) p.push(`the empty answer names the limit ${JSON.stringify(ans && ans.account)}, the cap is ${cap}`);
+    const server = { rpc: async (name, args) => ({ ok: true, status: 200, closed: false,
+      body: name === 'hr_load' ? await as(db, E, IP_X, 'select public.hr_load($1)', [args.p_slot]) : { ok: false, error: 'not_in_this_test' } }) };
+    const acc = new AccountSession({ auth: { userId: () => E, token: () => 'jwt' }, server, tab: null, timers: {} });
+    const rows = await acc.roster();
+    if (JSON.stringify(rows.map((r) => [r.slot, r.exists, r.unnamed])) !== '[[0,false,false],[1,false,false]]') p.push('the roster of an empty account read ' + JSON.stringify(rows));
+    if (acc.limit() !== cap) p.push(`the roster of an empty account plays ${acc.limit()} at once, the server says ${cap}`);
+    return p;
+  },
   'PC-CLOSED': async (db) => {
     const p = []; const A = U(1);
     const { hunt, node } = await world(db, [[A, 5]]);
@@ -271,6 +295,7 @@ async function plant(db, sig, from, to) {
   await db.exec(t.replace(from, to));
 }
 const MUTANTS = [
+  { arm: 'PC-EMPTY', why: 'an empty slot answers the bare no_character', go: (db) => plant(db, 'hr_load(integer)', "'hero_slots', public.hr_hero_slots_of(v_uid), 'account', public.hr_account_view(v_uid, coalesce(p_slot, 0)));\n  end if;\n  -- A CHARACTER ENTERS", "'_', 0);\n  end if;\n  -- A CHARACTER ENTERS") },
   { arm: 'PC-CLOSED', why: 'the cap admits everyone', go: (db) => plant(db, 'hr_play_refusal(uuid,integer,bytea,uuid)', '  -- THE ACCOUNT.\n', '  return null;\n  -- THE ACCOUNT.\n') },
   { arm: 'PC-CLOSED', why: 'no guard trigger: the engine town door is uncapped', go: (db) => db.exec('drop trigger hr_play_cap_guard_upd on public.player_state') },
   { arm: 'PC-VIEWED', why: 'the hunt door counts after it writes (no clean refusal)', go: (db) => plant(db, 'hr_hunt_enter_for(uuid,integer,text,jsonb,integer,integer)', '  if not public.hr_playing(v_uid, p_slot) then\n    v_r := public.hr_play_refusal', '  if false then\n    v_r := public.hr_play_refusal') },

@@ -112,7 +112,8 @@
 //   STAMINA    the pool through the database; the cap follows premium (free
 //              8 h, premium 12 h at the window); a tampered pool is refused.
 //   RESUME     an automatic end resumes the last activity after the walk home;
-//              a level-locked one leaves the character idle.
+//              a level-locked one leaves the character idle; so does a bench with
+//              no inputs for one action (a death, browser closed and hunt viewed).
 //   DEATHXP    the death states its price; one death_xp row; bank = start +
 //              gains − price; an over-charge is refused.
 //   TALLY      tally = Σ ledger rows stamped with the session.
@@ -1771,6 +1772,35 @@ const DB_ARMS = {
     const st = await one(db, 'select active_kind from public.player_state where user_id = $1 and slot = 0', [UID]);
     if (!b.sid || st === 'artisan') problems.push(`Enter left the hero burying (${st})`);
     if (!yielded || yielded.kind !== 'artisan' || yielded.id !== 'bury_bones') problems.push(`the bury's stop was not journalled: ${JSON.stringify(yielded)}`);
+    /* A DRY BENCH IS NOT RESUMED (tutorial board row 10, 2027-01-20-tutorial-facts.sql): the hero cooked until its shrimp
+       ran out, hunted and died, and came home "working on Cook Shrimp" with 0 Raw Shrimp. BOTH PATHS, the same rows: the
+       browser closed (the tick's door) and the hunt viewed (the player's door). With one action's inputs in the bag the
+       same death resumes the bench. */
+    const need = await one(db, `select public.hr_bench_inputs() -> 'cook_shrimp'`);
+    if (!need || !Object.keys(need).length) return [...problems, 'CONTROL: hr_bench_inputs() names no input for cook_shrimp'];
+    const doors = { closed: (sid) => ({ mode: 'tick', session: sid }), viewed: () => ({ mode: 'settle', bucket: null, project: true, live: true }) };
+    for (const [path, door] of Object.entries(doors)) {
+      for (const stocked of [false, true]) {
+        await db.query('rollback'); await db.query('begin');
+        const h = await hunter(db, M, { ...DOOMED, lastActivity: { kind: 'artisan', id: 'cook_shrimp' } });
+        await db.query('delete from public.player_inventory where user_id = $1 and slot = 0 and item_id = any($2::text[])', [UID, Object.keys(need)]);
+        for (const [item, qty] of Object.entries(stocked ? need : {})) {
+          await db.query('insert into public.player_inventory (user_id, slot, item_id, qty) values ($1, 0, $2, $3)', [UID, item, qty]);
+        }
+        const exec = makeExec(db);
+        for (const t of ticksOf(90000, SPAN_MS)(h.from)) {
+          const r = await M.HS.settleHunt({ exec, user: UID, slot: 0, grounds: groundsOf(M), atMs: t, ...door(h.sid) });
+          if (!r || r.outcome !== 'paid' || await one(db, 'select ended_at is not null from public.hunt_sessions where id = $1', [h.sid])) break;
+        }
+        const s = await snapshot(db, h.sid);
+        const res = await one(db, `select meta from public.player_ledger where session_id = $1 and intent = 'resume'`, [h.sid]);
+        const tag = `${path}, ${stocked ? 'one action stocked' : 'dry'}`;
+        if (s.session.end_reason !== 'died') { problems.push(`${tag}: CONTROL: the doomed hero's hunt ended ${s.session.end_reason}`); continue; }
+        const want = stocked ? 'artisan:cook_shrimp' : 'idle:';
+        if (s.active !== want) problems.push(`${tag}: the death left the hero ${s.active}, not ${want}`);
+        if (!res || res.resumed !== stocked || res.id !== 'cook_shrimp') problems.push(`${tag}: the resume journalled ${JSON.stringify(res)}`);
+      }
+    }
     return problems;
   }),
   DEATHXP: async (db, M) => inTx(db, async () => {
@@ -3062,6 +3092,8 @@ const DB_MUTANTS = [
     replace: '  select case when coalesce((select ps.premium_until > now() from public.player_state ps where ps.user_id = p_user and ps.slot = p_slot), false)' },
   { arm: 'RESUME', name: 'an automatic end resumes nothing', fn: AM,
     find: '    if v_ok then\n      update public.player_state', replace: '    if false then\n      update public.player_state' },
+  { arm: 'RESUME', name: 'a resume ignores the bench\'s inputs', fn: AM,
+    find: '      and public.hr_resume_has_inputs(p_user, p_slot, v_lk, v_li);\n', replace: '      and true;\n' },
   { arm: 'VALUE', name: 'a heals_out end is proven on a full bag', fn: SS,
     find: "      when 'heals_out' then not exists (select 1 from public.hunt_bag b join public.hr_hunt_supplies p on p.item_id = b.item_id",
     replace: "      when 'heals_out' then true or not exists (select 1 from public.hunt_bag b join public.hr_hunt_supplies p on p.item_id = b.item_id" },

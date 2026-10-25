@@ -58,8 +58,8 @@ const idem = () => crypto.randomUUID();
 export const MUTANTS = {
   count_first_member: { arm: 'TT-2', why: 'the settle counts only the first member of a party',
     db: ['public.hr_hunt_apply_instance(uuid,bigint,jsonb,jsonb,uuid,integer)',
-      "    for v_m in select e.value from jsonb_array_elements(p_members) e order by (e.value->>'user')::uuid, (e.value->>'slot')::int loop\n      perform public.hr_tally_count(",
-      "    for v_m in select e.value from jsonb_array_elements(p_members) e order by (e.value->>'user')::uuid, (e.value->>'slot')::int limit 1 loop\n      perform public.hr_tally_count("] },
+      "    for v_m in select e.value from jsonb_array_elements(p_members) e order by (e.value->>'user')::uuid, (e.value->>'slot')::int loop\n      v_cur := jsonb_build_object('user', v_m->'user', 'slot', v_m->'slot', 'session', v_m->'session');\n      perform public.hr_tally_count(",
+      "    for v_m in select e.value from jsonb_array_elements(p_members) e order by (e.value->>'user')::uuid, (e.value->>'slot')::int limit 1 loop\n      v_cur := jsonb_build_object('user', v_m->'user', 'slot', v_m->'slot', 'session', v_m->'session');\n      perform public.hr_tally_count("] },
   count_any_ground: { arm: 'TT-2', why: 'a kill counts toward a task on another ground',
     db: ['public.hr_tally_count(uuid,integer,uuid,jsonb)', 'and c.hunt_id = v_hunt and t.done_at is null', 'and t.done_at is null'] },
   count_all_kills: { arm: 'TT-2', why: 'every kill counts, not the task monster\'s',

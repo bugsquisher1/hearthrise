@@ -554,6 +554,32 @@ export const INTENT_REGISTRY = Object.freeze({
      inputs, and the put is a no-op unless the inputs still match.
      `collectsFirst: false`: it moves no value, so there is nothing to price. */
   sheet: Object.freeze({ bucket: 'accrue', needsKey: false, collectsFirst: false }),
+  /* ── THE WEIGHHOUSE (market lane 2; ./market.js, 2027-01-12-market-account.sql) ──
+     THE WRITES: `bucket: 'shop'`, the b355 ruling kept. Every market write spends
+     ONE `shop` token at the edge before any database work (the boolean gate for a
+     Storage-only call, the gate + read when it settles first), shared with the NPC
+     shop because the gate's limit list is a `case` in SQL and a new arm is a
+     restatement of hr_rate_gate for a surface that already has its own fuse: the
+     RPC spends its own `market` counter (60/min per account) as defence in depth,
+     so the edge gate is the binding one for an honest client and this adds no
+     reachable write rate. THE COST, stated: a player listing in a burst can
+     rate-limit their own next NPC purchase. Batch the gesture; do not widen the gate.
+     `collectsFirst: TRUE` on list and buy ONLY, and only their BAG path settles
+     (market.js touchesBag): list from the bag removes priceable inputs, buy into
+     the bag adds them (threat model §4 #24). Storage is not an engine input, so
+     list from Storage, buy into Storage and cancel (its units go to Storage) never
+     settle — which is why cancel's row is `false`.
+     THE READS: `bucket: 'market_read'`, and it is NOT an hr_rate_gate bucket: the
+     edge spends nothing for a read, the RPC's first statement is its own read gate
+     (hr_market_read_gate, 120/min per account). Routing a read through gateAndRead
+     would fail closed (429 forever); tests/market-edge.mjs measures the counter
+     each verb really spends. No key: a read moves nothing. */
+  market_list: Object.freeze({ bucket: 'shop', needsKey: true, collectsFirst: true }),
+  market_cancel: Object.freeze({ bucket: 'shop', needsKey: true, collectsFirst: false }),
+  market_buy: Object.freeze({ bucket: 'shop', needsKey: true, collectsFirst: true }),
+  market_browse: Object.freeze({ bucket: 'market_read', needsKey: false, collectsFirst: false }),
+  market_item: Object.freeze({ bucket: 'market_read', needsKey: false, collectsFirst: false }),
+  market_mine: Object.freeze({ bucket: 'market_read', needsKey: false, collectsFirst: false }),
 });
 
 /** The registry columns every row must carry, exported so the guard reads the
@@ -803,6 +829,17 @@ export const INTENT_ERRORS = Object.freeze({
                    Minted here, answered from the parsed request before any
                    database work. */
   BAD_LINES: 'bad_lines',                 // 400 — absent or malformed sale lines
+
+  /* ── THE WEIGHHOUSE (market lane 2; 2027-01-12-market-account.sql) ────────
+     NO code is minted here. These four are LANE 1's own shape codes (its
+     header's ERROR TAXONOMY), named so market.js refuses a malformed `market`
+     object with the word the RPC itself would have used, before any database
+     work. Every other market refusal — the switch, the catalogue, the caps, the
+     escrow, the purse — is hr_market_*'s own code, returned verbatim. */
+  BAD_SOURCE: 'bad_source',               // 400 — market.source is not 'bag' | 'storage'
+  BAD_DELIVER: 'bad_deliver',             // 400 — market.deliver is not 'storage' | 'bag'
+  BAD_PRICE: 'bad_price',                 // 400 — market.ask_each / max_each not a whole 1..1e9
+  BAD_REQUEST: 'bad_request',             // 400 — `market` absent, or a selector / page field unreadable
 });
 
 /* ── THE REFUSALS THAT CANNOT CARRY AN ENVELOPE ────────────────────────────

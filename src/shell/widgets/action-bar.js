@@ -125,7 +125,7 @@ export function renderActionBar(ctx) {
        keep on a desktop, the target too on a phone (hunt.css). */
     + '<div class="hb-plaque" role="group" aria-label="Fight settings" data-coach-hook="fight-settings">'
     /* The set's name renames in place (inline-name.js; ONE hr_action_set_rename, ruling C4). */
-    + '<div class="hb-pl-row is-set" data-coach-hook="preset"><span class="hb-label">Setup</span><span class="hb-set">' + nameEditorHtml('set-rename', '', 'New name for this setup') + '</span>'
+    + '<div class="hb-pl-row is-set"><span class="hb-label">Setup</span><span class="hb-set" data-coach-hook="preset">' + nameEditorHtml('set-rename', '', 'New name for this setup') + '</span>'
     + '<button type="button" class="hh-tool hb-ok" data-hs-act="setups" aria-label="Saved setups: switch or save">' + glyphSvg(g, 'uiCheck') + '</button>'
     + '<button type="button" class="hh-tool hb-more" data-hs-act="panel" aria-expanded="false" aria-label="More fight settings">' + glyphSvg(g, 'uiSettings') + '</button></div>'
     + '<div class="hb-pl-more" role="group" aria-label="More fight settings">'

@@ -37,6 +37,10 @@
 //        row in town): a high Level's "What next" card ends above the bar's top and on screen; its words end part-way
 //        into a line (the cue they scroll) and scroll to their end under a wheel over them while its fold stays on
 //        screen, pressable, and folds it. At 1440x900 the card is never capped
+//   PH-7 THE PHONE'S OWN BAR (667x375, 844x390, 922x423; Tyler 10-25): stance, Chase, distance, the setup's name, its
+//        saved setups and sliders, and the stamina "+" are each on screen, cut by no clipping box and pressable where
+//        drawn; the tutorial's hooks (data-coach-hook) are each on one shown element; the ring's words sit inside its
+//        disc and no pixel medallion is left; a sideways swipe over the slots reaches slots 10 and 20
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
 import { leaseBrowser } from './_chrome.mjs';
@@ -44,6 +48,7 @@ import { readFile, mkdir } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { ROOT, serve, SDK_STUB } from './_client-harness.mjs';
+import { RING_WORDS } from './_bar-probes.mjs';
 
 const clone = (o) => JSON.parse(JSON.stringify(o));
 const HUNT = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/hunt-envelope.json'), 'utf8'));
@@ -356,6 +361,40 @@ async function coachFits(page, tag, fails, phone) {
 }
 function window_onScreen(r, vp) { return !!r && r.left >= -0.5 && r.top >= -0.5 && r.right <= vp.width + 0.5 && r.bottom <= vp.height + 0.5; }
 
+/* ── PH-7 ── THE PHONE'S OWN BAR (Tyler 10-25: "Not having it there is dangerous for the player"; "mobile needs its own
+   bar"). Every fight control and the stamina "+" on screen, uncut by any box that clips it and pressable where it is
+   drawn; the tutorial's hooks each on one shown element; the ring's words inside its disc; the last column of slots
+   reachable by a sideways swipe over them when the screen is too narrow for all ten. */
+const HOOKS = ['fight-settings', 'preset', 'stance', 'chase', 'distance', 'level', 'stamina', 'stamina-buy'];
+const BAR_FIT = `(() => {
+  const cut = (c) => { const r = c.getBoundingClientRect();
+    for (let a = c.parentElement; a && a !== document.body; a = a.parentElement) { const s = getComputedStyle(a);
+      if (s.overflowX === 'visible' && s.overflowY === 'visible') continue;
+      const q = a.getBoundingClientRect(); if (r.left < q.left - 0.5 || r.right > q.right + 0.5 || r.top < q.top - 0.5 || r.bottom > q.bottom + 0.5) return true; }
+    return false; };
+  const ctl = Array.from(document.querySelectorAll('.hb-plaque [data-opt="stance"], .hb-plaque [data-opt="chase"], .hb-plaque [data-opt="distance"], .hb-plaque .hb-more, .hb-plaque .hb-ok, .hb-set .hs-name, .hb-stam-buy'));
+  const bad = ctl.filter((c) => !(window.__onScreen(window.__r(c)) && window.__hits(c) && !cut(c))).map((c) => (c.getAttribute('data-opt') || c.className) + (c.getAttribute('data-val') ? ' ' + c.getAttribute('data-val') : ''));
+  const hooks = ${JSON.stringify(HOOKS)}.filter((h) => { const e = document.querySelectorAll('[data-coach-hook="' + h + '"]'); return e.length !== 1 || !window.__onScreen(window.__r(e[0])); });
+  return { n: ctl.length, bad, hooks };
+})()`;
+async function barFits(page, tag, fails) {
+  await wait(page, () => document.querySelector('.hb-plaque [data-opt="stance"]:not([disabled])'));
+  const f = await page.evaluate((src) => (0, eval)(src), BAR_FIT);
+  if (f.n < 9 || f.bad.length) fails.push('PH-7 [' + tag + '] fight controls off screen, cut or covered: ' + f.bad.join(', ') + ' (' + f.n + ' found)');
+  if (f.hooks.length) fails.push('PH-7 [' + tag + '] the tutorial hooks missing, doubled or off screen: ' + f.hooks.join(', '));
+  const ring = await page.evaluate((src) => (0, eval)(src), RING_WORDS);
+  if (ring.err || !ring.n || ring.out.length || ring.bitmap || ring.crisp) fails.push('PH-7 [' + tag + '] the ring: ' + JSON.stringify(ring));
+  /* A swipe over the slots (a sideways wheel, as a thumb scrolls) brings slots 10 and 20 into reach. */
+  const g = await page.evaluate(() => window.__r('.hb-grid'));
+  if (!g) { fails.push('PH-7 [' + tag + '] CONTROL: no slot block'); return; }
+  await page.mouse.move(g.left + g.width / 2, g.top + g.height / 2);
+  for (let i = 0; i < 6; i++) { await page.mouse.wheel(240, 0); await page.waitForTimeout(40); }
+  await page.waitForTimeout(250);
+  const last = await page.evaluate(() => ['9', '19'].map((n) => { const s = document.querySelector('.hb-slot[data-slot="' + n + '"]'); const r = window.__r(s), g = window.__r('.hb-grid');
+    return !!r && window.__onScreen(r) && window.__hits(s) && r.left >= g.left - 0.5 && r.right <= g.right + 0.5; }));
+  if (last.some((x) => !x)) fails.push('PH-7 [' + tag + '] slots 10 and 20 cannot be reached by a swipe over the slots: ' + JSON.stringify(last));
+}
+
 async function rules(overrides, shots, { stopAtFirst = false, blocks = null } = {}) {
   /* `blocks`: a mutant runs only the pages its rule reads (BLOCKS_OF), so --mutate costs seconds a mutant, not the suite. */
   const run = (b) => !blocks || blocks.includes(b);
@@ -457,6 +496,14 @@ async function rules(overrides, shots, { stopAtFirst = false, blocks = null } = 
         await done(o, tag);
       }
     }
+    for (const vp of run('bar') ? PHONES : []) { // PH-7
+      const tag = tagOf(vp);
+      const o = await open(vp, HUNT);
+      if (!o.up) { fails.push('PH-7 [' + tag + '] the hunt did not mount'); await o.ctx.close(); continue; }
+      await shot(o.page, 'bar-' + tag);
+      await barFits(o.page, tag, fails);
+      await done(o, tag);
+    }
     if (shots && !blocks) await moreShots(open, shot);
   } catch (e) {
     /* the array's own push: under stopAtFirst `fails.push` throws, and a throw here would leave rules() rejected */
@@ -523,7 +570,7 @@ async function moreShots(open, shot) {
 
 /* The pages each rule reads: a mutant named for a rule runs those alone, or the pages its own fifth field names
    (PH-5's hunt bar and analyzer tabs are measured on the hunt pages, its Shop, tooltip and Equip in town). */
-const BLOCKS_OF = Object.freeze({ 'PH-1': ['configure'], 'PH-2': ['hunt'], 'PH-3': ['portrait'], 'PH-4': ['town'], 'PH-5': ['town'], 'PH-6': ['coach'] });
+const BLOCKS_OF = Object.freeze({ 'PH-1': ['configure'], 'PH-2': ['hunt'], 'PH-3': ['portrait'], 'PH-4': ['town'], 'PH-5': ['town'], 'PH-6': ['coach'], 'PH-7': ['bar'] });
 /* Each planted defect undoes one fix; each must turn a rule red. */
 const MUTANTS = [
   ['PH-1 the configure sheet\'s list does not scroll', 'src/styles/hunt.css', '  .hs-win[data-hs-win="configure-action"] .ca-mid {', '  .hs-win[data-hs-win="configure-action"] .ca-mid-x {'],
@@ -552,6 +599,10 @@ const MUTANTS = [
   ['PH-6 the coach\'s words take no thumb', 'src/styles/shell.css', '    pointer-events: auto; scrollbar-width: thin;', '    scrollbar-width: thin;'],
   ['PH-6 the coach\'s words end on a whole line', 'src/styles/shell.css', 'max-height: calc(round(down, var(--coach-room) - 42px - 1.5lh, 1lh) + .5lh);', ''],
   ['PH-6 the whole card scrolls, its fold with it', 'src/styles/shell.css', 'display: flex; flex-direction: column; max-height: calc(var(--coach-room) - 20px); }', 'max-height: calc(var(--coach-room) - 20px); overflow-y: auto; pointer-events: auto; }'],
+  ['PH-7 the slots never give way, so the panel runs off a small phone', 'src/styles/hunt.css', '  .hb-grid { order: 1; display: flex; gap: 2px; min-width: 0; overflow-x: auto;', '  .hb-grid { order: 1; display: flex; gap: 2px; min-width: max-content; overflow-x: visible;'],
+  ['PH-7 the phone stance folds away', 'src/styles/hunt.css', '  .hb-pl-row.is-stance { grid-area: stance; min-height: 0; }', '  .hb-pl-row.is-stance { display: none; }'],
+  ['PH-7 the stamina + takes no press', 'src/styles/hunt.css', '.hb-stam-buy { position: relative; width: 36px;', '.hb-stam-buy { pointer-events: none; position: relative; width: 36px;'],
+  ['PH-7 the phone ring carries the desktop words', 'src/styles/hunt.css', '  .hb-lv-k, .hb-xp-k { display: none; }', '  .hb-lv-k, .hb-xp-k { }'],
   ['PH-6 the coach is capped on a desktop too', 'src/styles/shell.css', '.hs-pointer:not(.is-min) { padding-right: 34px; }', '.hs-pointer:not(.is-min) { padding-right: 34px; max-height: 200px; overflow-y: auto; }'],
 ];
 
@@ -566,7 +617,7 @@ async function main() {
   if (!process.argv.includes('--mutate')) {
     const fails = await rules(null, shots, { blocks });
     for (const f of fails) console.log('  ✗ ' + f);
-    console.log(fails.length ? 'phone-touch: ' + fails.length + ' rule(s) RED' : 'phone-touch: the configure sheet scrolls with Save in reach, Hunt details toggles and the analyzer closes clear of the hunt bar, portrait asks to turn, Settings and the bag answer a thumb, a long coach ends above the action bar' + (shots ? ' (shots in ' + shots + ')' : ''));
+    console.log(fails.length ? 'phone-touch: ' + fails.length + ' rule(s) RED' : 'phone-touch: the configure sheet scrolls with Save in reach, Hunt details toggles and the analyzer closes clear of the hunt bar, portrait asks to turn, Settings and the bag answer a thumb, a long coach ends above the action bar, the phone bar keeps every fight control in reach' + (shots ? ' (shots in ' + shots + ')' : ''));
     process.exit(fails.length ? 1 : 0);
   }
   const clean = await rules(null, null);

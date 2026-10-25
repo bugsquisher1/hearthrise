@@ -31,6 +31,7 @@ export class LiveLink {
     this._tries = 0;
     this._short = 0;
     this._reseeded = null;
+    this._joining = false;
     /** What the live view did (tools: the world stage's data-live): each commit's verdict, every restart. */
     this.stats = { match: 0, diverged: 0, unknown: 0, reseeds: 0, catchUps: 0, starves: 0 };
     this._wasStalled = false;
@@ -42,10 +43,40 @@ export class LiveLink {
   /** The prediction ran to the instance's end (every member left) and waits for the server to close the hunt. */
   ended() { return this.engine.ended(); }
 
+  /**
+   * VIEWED AGAIN MID-HUNT (a hero switch, AccountSession.view; Andy #65 "freezing/catchup sprinting and jumping when
+   * toggling between characters"). The screen plays a hair behind real time AT ONCE, so it shows the server's latest
+   * snapshot (the pose every pushed frame walked the units onto while unviewed) instead of a playback a poll behind,
+   * and the start point, when it lands, eases forward from there (catchUp, timeline.js T8). Played a poll behind until
+   * then, the units stood where they were 19 s ago for the whole wait and then leapt across the map the moment the
+   * delay fell to the live one. Until the start point lands the view JOINS: a server window is the past and is not
+   * played over the snapshot (character-session.js _play), so the one ease is the start point's. `pose` is the
+   * snapshot (the hunt section's): a unit it no longer lists is gone at the server, and played a hair behind it
+   * nothing of it is still to come, so it is forgotten (timeline.js T11) rather than held unnamed (an older frame's
+   * pose placed it with no kind: "[hunt-scene] no sprite for unit N (null)" on the way back, Andy #65).
+   */
+  join(pose) {
+    if (this.engine.running() || this.engine.stalled()) return;
+    const live = SESSION_CONFIG.liveDelayMs;
+    this._joining = true;
+    this._tl.setDelay(live);
+    this.want = true; this._tries = 0;
+    this.hold(pose);
+  }
+  /** Waiting for the start point of a view switched to mid-hunt (join): the screen holds the snapshot. */
+  joining() { return this._joining === true && !this.engine.running() && !this.engine.stalled(); }
+  /** JOINING, each newer snapshot (`pose`, an answer's hunt section) forgets what the server no longer lists (join). */
+  hold(pose) {
+    if (!this.joining() || !pose || typeof pose !== 'object' || !Array.isArray(pose.units)) return;
+    const listed = new Set(pose.units.map((p) => p && p.u));
+    const now = this._now();
+    for (const u of this._tl.units()) if (!listed.has(u)) this._tl.forget(u, now);
+  }
+
   /** The hunt is over (or there is none): back to the server-paced view. */
   off() {
-    if (this.engine.running() || this.engine.stalled()) { this.engine.stop(); this._tl.setDelay(SESSION_CONFIG.huntPlaybackDelayMs); }
-    this.want = false; this._tries = 0;
+    if (this.engine.running() || this.engine.stalled() || this._joining) { this.engine.stop(); this._tl.setDelay(SESSION_CONFIG.huntPlaybackDelayMs); }
+    this.want = false; this._tries = 0; this._joining = false;
   }
 
   /** One server answer while a hunt is open. */
@@ -72,7 +103,7 @@ export class LiveLink {
       /* Not started, or out of seeds: (re)start from the server's world. A start point from an older
          commit leaves the prediction behind the clock, and advance() eases it on (catchUp). */
       if (!this.engine.running() && !this.engine.ended()) {
-        if (this.engine.seed(body.hunt_live)) { this._tl.setDelay(SESSION_CONFIG.liveDelayMs); this._tries = 0; this._emit('live'); }
+        if (this.engine.seed(body.hunt_live)) { this._tl.setDelay(SESSION_CONFIG.liveDelayMs); this._tries = 0; this._joining = false; this._emit('live'); }
         return;
       }
       /* A start point the prediction agrees with hands it the next seeds. A character whose own poll

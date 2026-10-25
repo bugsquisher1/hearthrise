@@ -50,6 +50,9 @@
 //         Challenge"); a monster on another hero ends it.
 //   LV-26 PUSHED FRAMES COST THE WATCHED HUNT NOTHING: a party member settles first and each settle reaches this
 //         session as a frame: the prediction never runs dry, and it asks and reads no more than with no frames.
+//   LV-27 A HERO SWITCH (Andy #65, "freezing/catchup sprinting and jumping when toggling"): viewed again
+//         mid-hunt, the first frame shows the server's latest snapshot, the live prediction plays within two
+//         answers and a live ask and eases forward from it; no frame leaps and every unit drawn has a sprite.
 //   LV-4  THE PAGE (headless Chrome, the real client, the same server answers): the hunt
 //         draws, no page error, and the frame loop holds budget against the frozen sim
 //         (prototypes/hunt-sim) measured the same way.
@@ -126,10 +129,23 @@ function envFor(nowMs, enteredMs, heroes, fromMs) {
      switchAt    [from, to] server ms: another character is viewed. Its World pane is unmounted (no frame,
                  no engine step; the polls go on) and mounted again at `to`: the scene is the one each
                  mount takes from scene.js liveSceneOf, as src/world/world-boot.js does
+     unview      [from, to] server ms: ANOTHER HERO IS VIEWED (AccountSession.view): this session is told
+                 setViewed(false) (no live view, a plain read a minute), the hero now viewed settles the
+                 instance each time the floor allows and every settle reaches this session as a pushed
+                 frame carrying the stored world's pose; at `to` it is viewed again (setViewed(true)) and
+                 its pane is mounted again (Andy #65, "freezing/catchup sprinting and jumping when toggling")
+     quietBefore with unview: the hero viewed meanwhile settles nothing this long before `to` (its first ask lands a commit)
      hunt        the ground the server plays (default Mill Cellar; the members' huntId must name it)
      people      the party_people section (seat -> user, slot); peers: the account's other sessions
      outfits     { seat: outfit }: the party section's member `outfit` ({ id, colors }) by seat
      fps         frames drawn per second (default 60; a long hunt draws fewer to stay quick) */
+/* The hunt section's pose of the instance's stored world (hr_state_of hunt.pose: its units at the last commit). */
+function poseOf(LM, inst) {
+  const w = LM.WS.decodeStored(JSON.parse(inst.world));
+  return { at_ms: inst.settled_to_ms, world_swing: inst.world_swing, units: (w ? w.units : []).map((u) => ({ u: u.id, x: u.x, y: u.y, hp: u.hp, hp_max: u.maxHp,
+    side: u.side === 'hero' ? 'hero' : 'monster', alive: u.alive, ...(u.side === 'hero' ? {} : { kind: u.kind, boss: false }) })) };
+}
+
 async function playLive(M, LM, book, mis, spanMs, onFrame, opt) {
   const o = opt || {};
   const T0 = LIVE_H.T0;
@@ -144,6 +160,8 @@ async function playLive(M, LM, book, mis, spanMs, onFrame, opt) {
   const env = () => {
     const e = Object.assign(envFor(clock.t + OFF, entered, heroes(), T0), { version: ++version }, o.people ? { party_people: clone(o.people) } : null);
     for (const m of e.party.members) if (o.outfits && o.outfits[m.seat]) m.outfit = clone(o.outfits[m.seat]);
+    /* `unview`: the hunt section's pose is the stored world's (hr_state_of: the instance at its last commit) */
+    if (o.unview && srv.inst.world) e.hunt.pose = poseOf(LM, srv.inst);
     return e;
   };
   const late = [];
@@ -186,15 +204,19 @@ async function playLive(M, LM, book, mis, spanMs, onFrame, opt) {
     return ingest(b, t);
   };
   const mount = () => M.S.liveSceneOf(cs, { key: 'mill_cellar|live', book, peers: o.peers });
-  let scene = o.switchAt ? mount() : M.S.createHuntScene({ timeline: cs.timeline, book, read: () => M.S.readHunt(cs, o.peers) });
+  let scene = o.switchAt || o.unview ? mount() : M.S.createHuntScene({ timeline: cs.timeline, book, read: () => M.S.readHunt(cs, o.peers) });
   const played = [];
-  cs.timeline.subscribe((ev) => { played.push(ev.atMs); if (!o.switchAt) scene.onEvent(ev, cs.now()); });
-  let away = false;
+  cs.timeline.subscribe((ev) => { played.push(ev.atMs); if (!o.switchAt && !o.unview) scene.onEvent(ev, cs.now()); });
+  let away = false, quiet = false;
   for (let s = entered; s < T0 + spanMs; s += 1000 / (o.fps || 60)) {
     clock.t = s - OFF;
-    if (o.otherFirst && s > T0 && s - lastCommit >= 15000) {
+    /* `unview` [from, to]: another hero is viewed; this one goes quiet and is viewed again at `to` */
+    const unviewed = !!o.unview && s >= o.unview[0] && s < o.unview[1];
+    if (unviewed && !quiet) { quiet = true; cs.setViewed(false); }
+    if (!unviewed && quiet) { quiet = false; cs.setViewed(true); scene = mount(); }
+    if ((o.otherFirst || (unviewed && !(o.quietBefore && s >= o.unview[1] - o.quietBefore))) && s > T0 && s - lastCommit >= 15000) {
       srv.commit(s); lastCommit = s;
-      if (o.frames) { const e = env(); cs.onFrame({ t: 'state', frame: e.version, env: e }); await new Promise((r) => setImmediate(r)); }
+      if (o.frames || unviewed) { const e = env(); cs.onFrame({ t: 'state', frame: e.version, env: e }); await new Promise((r) => setImmediate(r)); }
     }
     /* `hold` [from, to] (server ms): the network is gone; no poll answers until it returns */
     const held = o.hold && s >= o.hold[0] && s < o.hold[1];
@@ -207,6 +229,7 @@ async function playLive(M, LM, book, mis, spanMs, onFrame, opt) {
     /* `pause` [from, to] (server ms): the frame loop stops (a background tab: no frame, no engine step) */
     if (o.pause && s >= o.pause[0] && s < o.pause[1]) continue;
     if (o.switchAt && s >= o.switchAt[0] && s < o.switchAt[1]) { away = true; continue; }
+    if (unviewed) continue;
     if (away) { away = false; scene = mount(); }   // viewed again: a new pane, the character's scene
     cs.liveAdvance(clock.t);
     const back = cs.takeReseeded(); if (back) scene.revive(back, clock.t);
@@ -488,6 +511,71 @@ async function nodeRules(M) {
     console.log(`  LV-26 a party member settles first, 850 ms latency: without frames ${quiet.asks} asks, ${quiet.reads} reads, ${quiet.dry}/${quiet.n} frames dry, live ${quiet.liveAt} ms after the first boundary; with its settles pushed ${fed.asks} asks, ${fed.reads} reads, ${fed.dry}/${fed.n} dry, live at ${fed.liveAt} ms`);
     ok('LV-26', quiet.n > 0 && fed.n > 0 && fed.dry === 0, `with the settles pushed the prediction ran out of seeds for ${fed.dry} of ${fed.n} frames (without them ${quiet.dry})`);
     ok('LV-26', fed.asks <= quiet.asks + 1 && fed.reads <= quiet.reads, `pushed frames made the view ask ${fed.asks} times and read ${fed.reads} (without them ${quiet.asks} and ${quiet.reads})`);
+  }
+
+  { // LV-27 A HERO SWITCH (Andy #65, live v0.2.45: "Spawn lag w/ freezing/catchup sprinting and jumping when toggling
+    // between characters"; "froze for like 4 seconds, then super sprinted, then jumped"). A duo's viewer is switched
+    // away for 30 s (AccountSession.view: setViewed(false); the hero now viewed settles each time the floor allows and
+    // every settle reaches this one as a frame with the stored world's pose) and viewed again, 850 ms answers, once
+    // when its first ask lands a commit (a second ask brings the start point) and once when it lands the start point.
+    // From the switch back: the first frame shows the server's latest snapshot (the session's pose), the live prediction
+    // plays within two answers and a live ask, it eases forward from the snapshot (timeline.js T8), no frame moves a
+    // unit more than half a tile (was a 3-tile leap when a poll-behind playback fell to the live delay), and every unit
+    // drawn has a sprite (was a unit an older frame's pose placed with no kind, and a spawn inside the catch-up).
+    const delay = M.CFG.SESSION_CONFIG.liveDelayMs, ask = M.CFG.SESSION_CONFIG.liveAskMs, LAT = 850;
+    for (const [tag, back, quiet] of [['first ask a commit', 60000, 15000], ['first ask a start point', 53000, 0]]) {
+      const mis = [LIVE_H.memberOf(LM, 'a', 0, 'tank', 6), LIVE_H.memberOf(LM, 'b', 1, 'melee_dps', 6)];
+      const SW = [LIVE_H.T0 + 30000, LIVE_H.T0 + back];
+      const r = { first: null, snapOff: null, liveAt: null, easeEndAt: null, easeTiles: 0, step: 0, speed: 0, speedPlay: 0, unnamed: 0 };
+      const warn = console.warn; console.warn = (...a) => { r.unnamed++; if (process.env.HR_DEBUG) warn(...a, cur - LIVE_H.T0); };
+      let cur = null, prevS = null, wrapped = null;
+      const prev = new Map();
+      try {
+        await playLive(M, LM, book, mis, back + 15000, ({ s, f, cs }) => {
+          cur = s;
+          if (wrapped !== cs.timeline) {
+            wrapped = cs.timeline;
+            const rebase = cs.timeline.rebase;
+            /* the restart's ease after the switch: how far it carries a unit, and when the last one lands */
+            cs.timeline.rebase = (at, pos, ease, ends) => {
+              if (cur >= SW[1]) for (const [u, xy] of pos) { const p = cs.timeline.positionAt(u, cs.now()); if (p) r.easeTiles = Math.max(r.easeTiles, Math.hypot(xy[0] - p.x, xy[1] - p.y)); }
+              const n = rebase(at, pos, ease, ends);
+              if (cur >= SW[1] && ends instanceof Map) for (const e of ends.values()) r.easeEndAt = Math.max(r.easeEndAt ?? -Infinity, cs.timeline.clientAt(e) - cs.now() + cur);
+              return n;
+            };
+          }
+          const dt = prevS === null || s - prevS > 100 ? 0 : (s - prevS) / 1000; prevS = s;
+          if (s >= SW[1] && r.first === null) {
+            /* the first frame back: every unit the session's snapshot lists alive is drawn on its tile */
+            r.first = Math.round(s - SW[1]); r.snapOff = 0;
+            const pose = cs.read('hunt').pose;
+            for (const p of (pose && pose.units) || []) {
+              if (!p.alive) continue;
+              const d = [f.hero, ...f.units].find((x) => x && x.unit === p.u);
+              r.snapOff = Math.max(r.snapOff, d ? Math.hypot(d.x - p.x, d.y - p.y) : Infinity);
+            }
+          }
+          for (const d of [f.hero, ...f.units]) {
+            if (!d || d.under) continue;
+            const q = prev.get(d.unit);
+            if (q && dt > 0) {
+              const st = Math.hypot(d.x - q.x, d.y - q.y);
+              if (s >= SW[1]) { r.step = Math.max(r.step, st); r.speed = Math.max(r.speed, st / dt); }
+              else if (s >= LIVE_H.T0 + 5000 && s < SW[0]) r.speedPlay = Math.max(r.speedPlay, st / dt);
+            }
+            prev.set(d.unit, { x: d.x, y: d.y });
+          }
+          if (s >= SW[1] && r.liveAt === null && cs.live.running() && cs.timeline.delayMs() <= delay) r.liveAt = Math.round(s - SW[1]);
+        }, { viewer: 'a', unview: SW, quietBefore: quiet, clears: true, latencyMs: LAT });
+      } finally { console.warn = warn; }
+      const settled = r.easeEndAt === null ? r.liveAt : Math.max(r.liveAt ?? Infinity, Math.round(r.easeEndAt - SW[1]));
+      const budget = 2 * LAT + ask + 200;
+      console.log(`  LV-27 switched back after 30 s (${tag}, ${LAT} ms answers): first frame ${r.first} ms after, ${r.snapOff === null ? '?' : r.snapOff.toFixed(2)} tile(s) off the server's snapshot; live ${r.liveAt} ms after, eased in by ${settled} ms (largest ease ${r.easeTiles.toFixed(2)} tiles); fastest unit ${r.speed.toFixed(2)} tiles/s (in play ${r.speedPlay.toFixed(2)}), largest frame step ${r.step.toFixed(3)} tiles; ${r.unnamed} unit(s) with no sprite`);
+      ok('LV-27', r.snapOff !== null && r.snapOff <= 0.5, `(${tag}) the first frame back drew a unit ${r.snapOff} tiles off the server's snapshot (budget 0.5: the snapshot at once, never a playback a poll behind)`);
+      ok('LV-27', r.liveAt !== null && settled <= budget, `(${tag}) the live prediction played ${r.liveAt} ms after the switch and its ease ended ${settled} ms after it (budget ${budget}: two answers and a live ask)`);
+      ok('LV-27', r.step <= BUDGET.maxStepTiles, `(${tag}) a frame after the switch moved a unit ${r.step.toFixed(2)} tiles (budget ${BUDGET.maxStepTiles}: no leap)`);
+      ok('LV-27', r.unnamed === 0, `(${tag}) ${r.unnamed} unit(s) were drawn with no sprite after the switch`);
+    }
   }
 
   { // LV-12 A DEATH INSIDE A CATCH-UP IS PLAYED: the frame loop stops for 5 s (a background tab) across two
@@ -1049,6 +1137,10 @@ async function pageRules() {
 }
 
 const MUTANTS = [
+  /* Andy #65 (live v0.2.45): a hero viewed again mid-hunt shows the server's snapshot at once and eases forward (LV-27). */
+  ['a hero viewed again plays a poll behind until its start point (LV-27)', 'src/session/character-session.js', "    else if (this._huntOpen()) this.liveLink.join(this.read('hunt').pose);\n", '', /^LV-27: \(first ask a (commit|start point)\) a frame after the switch moved/],
+  ['a joining view plays the server window over the snapshot (LV-27)', 'src/session/character-session.js', '    if (this.live.running() || this.live.stalled() || this.liveLink.joining()) {', '    if (this.live.running() || this.live.stalled()) {', /^LV-27: \(first ask a commit\)/],
+  ['a joining view keeps units the snapshot no longer lists (LV-27)', 'src/session/live-link.js', "    if (!this.joining() || !pose || typeof pose !== 'object' || !Array.isArray(pose.units)) return;", '    return;', /^LV-27: .* with no sprite/],
   ['a pushed frame asks the engine again (LV-26)', 'src/session/character-session.js', '    return f.env !== null && this._take(f.env, FRAME_EVENT);', '    return f.env !== null && this._take(f.env, FRAME_EVENT) && (this.hello(), true);', /^LV-26/],
   ['a pushed frame is read again in full (LV-26)', 'src/session/character-session.js', '    return f.env !== null && this._take(f.env, FRAME_EVENT);', '    return f.env !== null && this._take(f.env, FRAME_EVENT) && (this.load(), true);', /^LV-26/],
   ['the Challenge slot never reads Holding (LV-22, bug #61)', 'src/shell/widgets/action-bar.js', '  const holding = holdsPackNow(cs, hero);', '  const holding = false;', /^LV-22/],
@@ -1089,7 +1181,7 @@ const MUTANTS = [
   ['a corpse with an event still to play is forgotten (LV-25)', 'src/hunt-view/timeline.js', '    for (const ev of queue) if (ev.u === u || ev.t === u) return false;\n', '', /^LV-25/],
   ['another player\'s party outfit is not read (LV-20)', 'src/session/hunt-sections.js', 'outfit: outfitIdOf(m.outfit),', 'outfit: null,', /^LV-20/],
   ['your other hero in the party wears the role\'s outfit (LV-20)', 'src/hunt-view/scene.js', 'return (m && m.look) || outfitSprite(m && m.outfit, m && m.role);', 'return outfitSprite(m && m.outfit, m && m.role);', /^LV-20/],
-  ['a waiting prediction takes the server window too (LV-10)', 'src/session/character-session.js', '    if (this.live.running() || this.live.stalled()) {', '    if (this.live.running()) {', /^LV-10/],
+  ['a waiting prediction takes the server window too (LV-10)', 'src/session/character-session.js', '    if (this.live.running() || this.live.stalled() || this.liveLink.joining()) {', '    if (this.live.running() || this.liveLink.joining()) {', /^LV-10/],
   ["the last hunt's units are kept (LV-9)", 'src/session/character-session.js', 'if (sid !== null && sid !== this._huntSid) { this.liveLink.off(); this.timeline.clear(); }', '', /^LV-9/],
   ['the per-minute figure printed as /s (LV-3)', 'src/shell/widgets/vitals-hub.js', 'regen(hero.hpPerS)', 'regen(hero.hpPerS * 60)', /^LV-3/],
   ['HP regen at the resting rate (LV-3)', 'src/session/hunt-sections.js', '* VITALS.inFightRegenPermillePerS *', '* 60 *', /^LV-3/],

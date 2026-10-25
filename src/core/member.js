@@ -18,7 +18,7 @@ import { makeBonus, EMPTY_PERKS } from './perks.js?v=0.2.45';
 import { companionBonus } from './companion-perk.js?v=0.2.45';
 import { buffQueueFromServer, buffBonusFor } from './buffs.js?v=0.2.45';
 import { grantXp, normaliseXpFrac } from './progression.js?v=0.2.45';
-import { charLevelFromXp, levelsOf } from './xp.js?v=0.2.45';
+import { charLevelFromXp, levelsOf, levelOf, skillXpForLevel } from './xp.js?v=0.2.45';
 import { vitalsOf, wearsArmour, holdsShield } from './vitals.js?v=0.2.45';
 import { newHuntSession, takeLine } from './action-rules.js?v=0.2.45';
 import { makeGoalCounter, makeBestiaryCounter, makeCollectionCounter } from './goals.js?v=0.2.45';
@@ -26,6 +26,10 @@ import { MONSTERS } from '../data/monsters.js?v=0.2.45';
 import { honeOf, honeWornAt, ammoPerShot } from './ammo.js?v=0.2.45';
 import { mitigationFor, NO_MITIGATION } from './mitigation.js?v=0.2.45';
 import { isRune } from '../data/runes.js?v=0.2.45';
+import { ABILITIES, abilitySkill } from '../data/abilities.js?v=0.2.45';
+import { STATUSES } from '../data/statuses.js?v=0.2.45';
+import { BASIC_EFFECT_SHARE } from '../data/supply-basics.js?v=0.2.45';
+import { LANE_OF } from './hunt/conditions.js?v=0.2.45';
 
 /* A finite, non-negative number or the fallback (every number that crosses in from a row). */
 function nat(v, fallback) {
@@ -361,11 +365,51 @@ export function sharePurses(sides) {
    settings, bar, range) and its supply session (bag counts, the store catalogue, its
    pending ends). Never its skills, gear, perks, buffs, premium, purse, cover list,
    stamina or bestiary. FROZEN_KEYS / FROZEN_SESSION_KEYS are the allowlist
-   (tests/hunt-live.mjs LV-P). */
-export const FROZEN_KEYS = Object.freeze(['hp', 'maxHp', 'maxMana', 'regenPm', 'snap', 'vs', 'family', 'armoured', 'shield', 'hero', 'session']);
+   (tests/hunt-live.mjs LV-P).
+   EVERY INPUT THE ENGINE READS OFF A HERO, AS A NUMBER (Andy #64/#65, live v0.2.45: match 0 in a
+   4-hero party, every commit re-seeded): `lv` is the LEVEL (never the XP) of each skill its bar's
+   abilities grow with (abilitySkill: a spell's version and output, Tyler 10-23; a status's
+   scalesWith), so a peer's Fireball lands as hard in the browser as on the server; `shots` is its
+   blow priced by every item its attack lane can spend other than the worn ammo as worn (a bar's
+   other arrows, and any store shot at the store's share: member shotRolls), so a peer shooting
+   store arrows hits as it does on the server. Without them a peer cast at Magic 1 and shot at its
+   worn arrows' strength, and the prediction left the server's world at nearly every commit. */
+export const FROZEN_KEYS = Object.freeze(['hp', 'maxHp', 'maxMana', 'regenPm', 'snap', 'vs', 'family', 'armoured', 'shield', 'hero', 'session', 'lv', 'shots']);
 export const FROZEN_SESSION_KEYS = Object.freeze(['huntFromMs', 'nextSwingAtMs', 'swingIndex', 'bag', 'basics', 'shop',
   'supplySource', 'onEmpty', 'goldFloor', 'leaveAtMs', 'changeAtMs', 'stopAtMs', 'kicked']);
 const finiteOr = (v, d) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
+/* The store's share of a shot's bonus, permille (damage.js BASIC_SHOT_PM: a store shot is its partner's basic version). */
+const STORE_SHOT_PM = Math.round(BASIC_EFFECT_SHARE * 1000);
+/* A shot's key in the frozen `shots` table: the item it spent and its share (1000 = carried, whole). */
+const shotKey = (ammo, sharePm) => String(ammo) + '|' + (Number.isInteger(sharePm) && sharePm >= 0 && sharePm < 1000 ? sharePm : 1000);
+/* One roll against a monster, as the frozen row keeps it (frozenSide gives it back in playerCombatRolls' shape). */
+const vsRow = (r) => ({ accuracy: finiteOr(r.accuracy, 0), critChance: finiteOr(r.critChance, 0), damageMult: finiteOr(r.weak && r.weak.damageMult, 1) });
+
+/** The skills whose LEVEL the engine reads for a hero running `slots` (heroSlots rows): each ability's own skill and its status's scalesWith. */
+export function engineSkillsOf(slots) {
+  const out = new Set();
+  for (const r of Array.isArray(slots) ? slots : []) {
+    const a = r && r.slot && r.slot.action;
+    const row = a && a.type === 'ability' ? ABILITIES[a.id] : null;
+    if (!row) continue;
+    out.add(abilitySkill(row));
+    const st = row.status ? STATUSES[row.status] : null;
+    if (st && typeof st.scalesWith === 'string') out.add(st.scalesWith);
+  }
+  return Array.from(out).sort();
+}
+
+/** The items a hero's attack lane can price a blow by (every attack slot's item and the worn ammo), sorted. */
+function shotItemsOf(hero) {
+  const out = new Set();
+  for (const r of Array.isArray(hero.slots) ? hero.slots : []) {
+    const a = r && r.slot && r.slot.action;
+    if (a && LANE_OF[a.type] === 'attack' && typeof a.id === 'string') out.add(a.id === 'loaded' ? hero.ammo : a.id);
+  }
+  if (hero.ammo) out.add(hero.ammo);
+  out.delete(null); out.delete(undefined);
+  return Array.from(out).sort();
+}
 
 /** The frozen numbers of an assembled member side at server instant `atMs`, against the monster `kinds`. */
 export function frozenOf(side, kinds, atMs) {
@@ -376,14 +420,30 @@ export function frozenOf(side, kinds, atMs) {
   for (const k of kinds) {
     const row = MONSTERS[k];
     const r = row ? m.rollsVs(row) : null;
-    if (r) vs[k] = { accuracy: finiteOr(r.accuracy, 0), critChance: finiteOr(r.critChance, 0), damageMult: finiteOr(r.weak && r.weak.damageMult, 1) };
+    if (r) vs[k] = vsRow(r);
+  }
+  const lv = {};
+  for (const k of engineSkillsOf(m.hero.slots)) lv[k] = levelOf(m.state.skills, k);
+  /* damage.js blow: a shot spending the worn ammo whole is the worn rolls (snap / vs); every other is shotRolls'. */
+  const shots = {};
+  if (typeof m.shotRolls === 'function') {
+    for (const id of shotItemsOf(m.hero)) {
+      for (const pm of [1000, STORE_SHOT_PM]) {
+        if (pm === 1000 && id === m.hero.ammo) continue;
+        const share = pm < 1000 ? pm : undefined;
+        const base = m.shotRolls(null, id, share);
+        const per = {};
+        for (const k of kinds) if (MONSTERS[k]) per[k] = vsRow(m.shotRolls(MONSTERS[k], id, share));
+        shots[shotKey(id, share)] = { maxHit: finiteOr(base && base.maxHit, 1), vs: per };
+      }
+    }
   }
   const hs = side.mi.huntSession || {};
   const session = {};
   for (const k of FROZEN_SESSION_KEYS) if (hs[k] !== undefined) session[k] = hs[k];
   return { hp: m.state.playerHp, maxHp: m.state.playerMaxHp, maxMana: m.state.playerMaxMana, regenPm: m.state.regenPm,
     snap: { acc: snap.acc, maxHit: snap.maxHit, def: snap.def, mit: snap.mit || NO_MITIGATION }, vs, family: m.family, armoured: m.armoured === true,
-    shield: m.shield === true, hero: m.hero, session };
+    shield: m.shield === true, hero: m.hero, session, lv, shots };
 }
 
 /* A monster ROW back to its kind (damage.js hands rollsVs the row). */
@@ -392,19 +452,32 @@ const KIND_OF = new Map(Object.entries(MONSTERS).map(([k, row]) => [row, k]));
 /** The engine member of a frozen row (the browser's peer): its numbers, an inert fx, an unbounded purse. */
 export function frozenSide(row) {
   const f = row.frozen || {};
+  /* Each frozen LEVEL back as the XP that reaches it (levelOf gives the level back exactly): the engine reads levels only. */
+  const skills = {};
+  for (const [k, lv] of Object.entries(f.lv && typeof f.lv === 'object' ? f.lv : {})) if (Number.isInteger(lv) && lv >= 1) skills[k] = skillXpForLevel(k, lv);
   const state = { playerHp: f.hp, playerMaxHp: f.maxHp, playerMaxMana: f.maxMana, regenPm: f.regenPm,
-    levelXp: 0, gold: 0, skills: {}, stats: {}, buffs: [] };
+    levelXp: 0, gold: 0, skills, stats: {}, buffs: [] };
   const hs = newHuntSession(Object.assign({}, f.session, { purse: Number.MAX_SAFE_INTEGER, cover: {}, staminaMs: null,
     tally: null, endedReason: null, endedAtMs: null }));
   const snap = f.snap || { acc: 0, maxHit: 1, def: 0, mit: NO_MITIGATION };
   const vs = f.vs || {};
+  const shots = f.shots && typeof f.shots === 'object' ? f.shots : {};
+  const rolled = (v) => ({ accuracy: v.accuracy, critChance: v.critChance, weak: { damageMult: v.damageMult } });
   const member = {
     key: row.key, seat: row.seat, unitId: Number.isInteger(row.unitId) ? row.unitId : null, hs, state, fx: {},
     family: f.family, armoured: f.armoured === true, shield: f.shield === true,
     bonus: () => 0, weakness: () => ({ dropMult: 1, damageMult: 1 }), relicMult: () => 1,
     rollsVs: (r) => {
       const v = vs[KIND_OF.get(r)];
-      return v ? { accuracy: v.accuracy, critChance: v.critChance, weak: { damageMult: v.damageMult } } : null;
+      return v ? rolled(v) : null;
+    },
+    /* A blow priced by a shot the frozen row holds (frozenOf `shots`); one it does not hold is the worn
+       rolls, as before (the server's commit then reconciles it). `m` null = the neutral foe: the max hit. */
+    shotRolls: (m, ammo, sharePm) => {
+      const s = shots[shotKey(ammo, sharePm)];
+      if (m === null || m === undefined) return { maxHit: s ? s.maxHit : snap.maxHit };
+      const v = s ? s.vs[KIND_OF.get(m)] : vs[KIND_OF.get(m)];
+      return v ? rolled(v) : { accuracy: snap.acc / 1000, critChance: 0, weak: { damageMult: 1 } };
     },
     snapshot: () => snap,
     hero: f.hero || {},

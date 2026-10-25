@@ -183,6 +183,8 @@ export class CharacterSession {
     this._viewed = on !== false;
     this._poll.stop();
     if (!this._viewed) this.liveLink.off();
+    /* mid-hunt, the screen shows the server's latest snapshot at once and eases forward from the start point (live-link.js join) */
+    else if (this._huntOpen()) this.liveLink.join(this.read('hunt').pose);
     this._armHuntPoll();
     if (this._viewed) this.hello();
   }
@@ -218,8 +220,10 @@ export class CharacterSession {
     this._liveFrom(body);
     /* ONE POSITION SOURCE: while a prediction exists, even one out of seeds waiting for its restart,
        the server's window never writes the same units (its steps are the past, played over the prediction's:
-       two sources bouncing one hero). Only its SERVER-ONLY events (a party's rare roll) come from it. */
-    if (this.live.running() || this.live.stalled()) {
+       two sources bouncing one hero). Only its SERVER-ONLY events (a party's rare roll) come from it. A view JOINING
+       mid-hunt (a hero switch: live-link.js join) holds the server's snapshot until its start point: a window is the past. */
+    if (this.live.running() || this.live.stalled() || this.liveLink.joining()) {
+      this.liveLink.hold(h0 && h0.pose);
       const ms = Number.isSafeInteger(body.hunt_server_now_ms) ? body.hunt_server_now_ms : typeof body.now === 'string' ? Math.floor(Date.parse(body.now)) : NaN;
       const own = Array.isArray(body.hunt_events) ? body.hunt_events.filter((e) => e && SERVER_ONLY_EVENTS.includes(e.type)) : [];
       if (Number.isSafeInteger(ms) || own.length) this.timeline.ingest({ serverNowMs: ms, events: own }, this._now());

@@ -35,10 +35,10 @@ import { recipeInputs } from '../../../core/artisan.js?v=0.2.46';
 import { whole } from '../../../render/format.js?v=0.2.46';
 import { itemName } from '../../widgets/bits.js?v=0.2.46';
 import { riteOf, cookOf } from '../../bag-model.js?v=0.2.46';
-import { skillsOf } from '../../../session/item-sections.js?v=0.2.46';
+import { skillsOf, heldOf } from '../../../session/item-sections.js?v=0.2.46';
 import { huntOf } from '../../../session/hunt-sections.js?v=0.2.46';
 import { townActivityWords } from '../../../session/party-sections.js?v=0.2.46';
-import { startWork, stopWork, workRow, workOf, runParts } from '../../town-work.js?v=0.2.46';
+import { startWork, stopWork, workRow, workOf, runParts, workBlock } from '../../town-work.js?v=0.2.46';
 import { lineParts, lineText } from '../../town-ticker.js?v=0.2.46';
 
 /** The bench entry that spends a whole stack of `id` ({ skill, recipe, input, need }), or null. */
@@ -66,8 +66,14 @@ export function buryVerb(e) { return e.skill === 'cooking' ? 'Cook' : String(e.r
 /** "Burying", "Offering", "Cooking": the verb as the line under the bag says it. */
 export function buryingWord(e) { const v = buryVerb(e); return (/[^e]e$/.test(v) ? v.slice(0, -1) : v) + 'ing'; }
 
-/** The label for a stack of `qty`: "Bury" for one, "Bury all" for more. */
+/** The label for `qty` units (pass buryQty: the bag + Storage the bench spends): "Bury" for one, "Bury all" for more. */
 export function buryLabel(e, qty) { return buryVerb(e) + (qty > e.need ? ' all' : ''); }
+
+/**
+ * How many of `id` a Bury all / Cook all spends: the server's bag PLUS the account's Storage where the server says
+ * a bench draws on it (Tyler 2026-10-25, skills from Storage: the bag first, then Storage), else the bag.
+ */
+export function buryQty(cs, id) { return heldOf(cs)[id] || 0; }
 
 /** The bench entry the server says this character is working now, or null. */
 export function buryingOf(cs) {
@@ -86,8 +92,11 @@ export function buryBlock(cs, e) {
   const name = skillName(e.skill);
   if (lv === null) return 'Reading your ' + name + ' level…';
   if (lv < e.recipe.req) return 'Needs ' + name + ' ' + e.recipe.req + ' (you have ' + lv + ').';
-  const qty = (cs.read('inventory') || {})[e.input] || 0;
+  const qty = buryQty(cs, e.input);
   if (qty < e.need) return 'Needs ' + e.need + ' ' + itemName(e.input) + ' for one.';
+  /* The bag's room for the product, as the Work window says it (town-work.js workBlock: the engine's own test). */
+  const why = workBlock(cs, workRow('artisan', e.recipe.id), false);
+  if (/^Your bag is full/.test(why)) return why;
   return '';
 }
 
@@ -99,7 +108,7 @@ export function buryBlock(cs, e) {
 export function startBury(cs, sc, id, send, repaint) {
   const e = buryRecipeOf(id);
   if (!e) return null;
-  const qty = (cs.read('inventory') || {})[id] || 0;
+  const qty = buryQty(cs, id);
   return startWork(cs, workRow('artisan', e.recipe.id), send, repaint, buryingWord(e) + ' ' + whole(qty) + ' ' + itemName(id) + '…');
 }
 

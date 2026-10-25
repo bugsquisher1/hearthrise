@@ -42,7 +42,7 @@ import { dispatchLoot } from '../../../session/loot-intents.js?v=0.2.46';
 import { fitsSlot, dollTip, DRAG_WORN } from './doll.js?v=0.2.46';
 import { askElsewhere } from './elsewhere.js?v=0.2.46';
 import { skillsOf } from '../../../session/item-sections.js?v=0.2.46';
-import { buryRecipeOf, buryLabel, buryBlock, startBury, stopBury } from './bury.js?v=0.2.46';
+import { buryRecipeOf, buryLabel, buryBlock, startBury, stopBury, buryQty } from './bury.js?v=0.2.46';
 import { equipUpgrades } from '../../widgets/upgrade-line.js?v=0.2.46';
 import { wearBlock } from '../../gear-gate.js?v=0.2.46';
 import { levelOf } from '../../../session/character-sections.js?v=0.2.46';
@@ -201,7 +201,7 @@ function openMenu(ctx, body, st, id, at, repaint) {
   if (k === 'gear') h += item('m-equip', 'Equip', !!equipSlotFor(id, st.eq) && !block, block ? ' title="' + esc(block) + '"' : '');
   if (k === 'food') h += item('m-eat', 'Eat', true);
   const br = buryRecipeOf(id);
-  if (br) h += item('m-bury', buryLabel(br, st.qty.get(id) || 0), !buryBlock(st.cs, br));
+  if (br) h += item('m-bury', buryLabel(br, buryQty(st.cs, id)), !buryBlock(st.cs, br));
   if (barKind(id)) h += item('m-bar', bi >= 0 ? 'On the bar (key ' + barKeyLabel(bi) + ')' : 'Put on the bar', !!st.bar && bi < 0);
   h += item('m-sell', locked ? 'Sell (unlock it first)' : 'Sell…', !locked && !!st.shop && st.shop.bids.has(id));
   h += item('m-lock', locked ? 'Unlock' : 'Lock', !!st.rules);

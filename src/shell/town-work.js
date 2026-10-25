@@ -41,14 +41,14 @@ import { ITEMS } from '../data/items.js?v=0.2.46';
 import { SKILLS_DEF } from '../data/skills.js?v=0.2.46';
 import { HUNT_TUNING } from '../data/hunt-tuning.js?v=0.2.46';
 import { indexGatherNodes, gatherIntervalMs } from '../core/skill-sim.js?v=0.2.46';
-import { indexArtisanRecipes, artisanIntervalMs } from '../core/artisan-sim.js?v=0.2.46';
+import { indexArtisanRecipes, artisanIntervalMs, bagFullFor } from '../core/artisan-sim.js?v=0.2.46';
 import { recipeInputs } from '../core/artisan.js?v=0.2.46';
 import { pacedXp } from '../core/pacing.js?v=0.2.46';
 import { whole } from '../render/format.js?v=0.2.46';
 import { itemName } from './widgets/bits.js?v=0.2.46';
-import { skillsOf } from '../session/item-sections.js?v=0.2.46';
+import { skillsOf, heldOf, bagCapOf, drawsOnStorage } from '../session/item-sections.js?v=0.2.46';
 import { townWorkRunning } from '../session/town-poll.js?v=0.2.46';
-import { predictTown, aheadQty, shownQty, lineParts } from './town-ticker.js?v=0.2.46';
+import { predictTown, aheadQty, aheadStored, shownQty, lineParts } from './town-ticker.js?v=0.2.46';
 
 /** Every gathering node the engine runs, by id: { skill, node }. The same index the server builds (hr-accrue catalogue.js). */
 export const GATHER_INDEX = indexGatherNodes({ woodcutting: TREES, mining: ROCKS, fishing: FISH_SPOTS });
@@ -67,6 +67,11 @@ const skillWord = (s) => (SKILLS_DEF[s] && SKILLS_DEF[s].name) || s;
 const stateOf = (cs) => (cs && typeof cs.read === 'function' ? cs.read('state') : null);
 const invOf = (cs) => (cs && typeof cs.read === 'function' && cs.read('inventory')) || {};
 const eqOf = (cs) => (cs && typeof cs.read === 'function' && cs.read('equipment')) || {};
+/* SKILLS FROM STORAGE (Tyler 2026-10-25): what a bench's inputs are counted against, the bag plus the account's
+   Storage where the server says so (item-sections.js heldOf). The bag alone (invOf) stays the tools and the room. */
+const supplyOf = (cs) => heldOf(cs);
+/* Where the inputs are, in words: "in your bag" until the server says Storage counts too. */
+const fromWords = (cs) => (drawsOnStorage(cs) ? 'in your bag or Storage' : 'in your bag');
 
 /** A work row: { kind, id, skill, row } for a gathering node or a bench recipe id, or null. */
 export function workRow(kind, id) {
@@ -90,7 +95,7 @@ export function yieldOf(w) {
   return Math.max(1, Number(w.row.outputQty) || 1);
 }
 
-/** How many actions the bag covers for a bench recipe (the server's bag; 0 when an input is missing). */
+/** How many actions `inv` covers for a bench recipe (pass supplyOf: the server's bag + Storage; 0 when an input is missing). */
 export function runsOf(recipe, inv) {
   const ins = recipeInputs(recipe);
   let n = Infinity;
@@ -153,11 +158,15 @@ export function workBlock(cs, w, huntRunning) {
   if (lv < (w.row.req || 1)) return 'Needs ' + skillWord(w.skill) + ' ' + w.row.req + '.';
   if (w.kind === 'artisan') {
     if (w.row.gated) return 'Needs the ' + itemName(w.row.gated) + ' recipe.';
-    const inv = invOf(cs);
+    const inv = supplyOf(cs);
     for (const [id, need] of Object.entries(recipeInputs(w.row))) {
       const have = inv[id] || 0;
-      if (have < need) return have ? 'Needs ' + whole(need) + ' ' + itemName(id) + ' (you have ' + whole(have) + ').' : 'No ' + itemName(id) + ' in your bag.';
+      if (have < need) return have ? 'Needs ' + whole(need) + ' ' + itemName(id) + ' (you have ' + whole(have) + ').' : 'No ' + itemName(id) + ' ' + fromWords(cs) + '.';
     }
+    /* The bag's room (the engine's own test, artisan-sim.js bagFullFor, on the server's bag and stack cap): the
+       product needs a new stack and the bag has none. The engine would stop the bench at once and say so. */
+    const full = bagFullFor({ inventory: invOf(cs) }, w.row, w.skill, { bagCap: bagCapOf(cs), burns: false });
+    if (full) return 'Your bag is full. Make room for ' + itemName(full) + ' first.';
   }
   return '';
 }
@@ -187,7 +196,8 @@ export function startWork(cs, w, send, repaint, words, count) {
     const out = productOf(w);
     run.from = { id: w.id, xp: xpOf(cs, w.skill), skill: w.skill, out, made: out ? bag[out] || 0 : 0, burnt: bag[BURNT] || 0 };
     if (w.kind === 'artisan') {
-      const runs = n === null ? runsOf(w.row, bag) : Math.min(n, runsOf(w.row, bag));
+      const sup = supplyOf(cs);
+      const runs = n === null ? runsOf(w.row, sup) : Math.min(n, runsOf(w.row, sup));
       const endAt = Date.now() + runs * actionMs(cs, w) + SLACK_MS;
       const arm = () => { run.timer = setTimeout(fire, Math.max(0, Math.min(MAX_WAIT_MS, endAt - Date.now()))); };
       /* At the end: stop (it collects). On a long run, every MAX_WAIT_MS: one settle (hello) so the bag and XP move. */
@@ -258,8 +268,12 @@ export function tickOf(cs) {
   const m = TICKS.get(cs);
   if (m && m.rec === rec && m.at === at && m.no === no) return m.tick;
   const refused = !!no && !(rec && no.version !== null && rec.version > no.version);
-  const tick = predictTown({ w: workOf(cs), state: st, skills: skillsOf(cs), inventory: invOf(cs), equipment: eqOf(cs),
-    left: leftOf(cs), nowMs: at, refused });
+  /* The Storage a bench draws on after the bag: the supply less the bag (both the server's; empty when Storage does not count). */
+  const bag = invOf(cs);
+  const storage = {};
+  for (const [id, n] of Object.entries(supplyOf(cs))) if (n > (bag[id] || 0)) storage[id] = n - (bag[id] || 0);
+  const tick = predictTown({ w: workOf(cs), state: st, skills: skillsOf(cs), inventory: bag, storage, equipment: eqOf(cs),
+    left: leftOf(cs), bagCap: bagCapOf(cs), nowMs: at, refused });
   TICKS.set(cs, { rec, at, no, tick });
   return tick;
 }
@@ -293,8 +307,10 @@ export function runParts(cs, w) {
   if (w.kind === 'artisan') {
     const first = Object.keys(recipeInputs(w.row))[0];
     if (first) {
-      const s = shownQty(tick, first, bag[first] || 0);
-      parts.push({ key: 'left', text: whole(s.qty) + ' ' + itemName(first) + ' left', ahead: s.ahead !== 0 });
+      /* What is left to spend: the bag plus the Storage the bench draws on, less the ticker's certain spend of both. */
+      const d = aheadQty(tick, first) + aheadStored(tick, first);
+      const left = Math.max(0, (supplyOf(cs)[first] || 0) + d);
+      parts.push({ key: 'left', text: whole(left) + ' ' + itemName(first) + ' left', ahead: d !== 0 });
     }
   }
   return parts;

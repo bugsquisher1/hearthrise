@@ -25,7 +25,7 @@ import { settingsOf, analyzerOf } from '../../../session/hunt-sections.js?v=0.2.
 import { BAG_CATS, BAG_SORTS, view, kindOf, equipSlotFor, sellPlan } from '../../bag-model.js?v=0.2.46';
 import { barKind, barIndexOf } from '../../bar-assign.js?v=0.2.46';
 import { itemName } from '../../widgets/bits.js?v=0.2.46';
-import { buryRecipeOf, buryLabel } from './bury.js?v=0.2.46';
+import { buryRecipeOf, buryLabel, buryQty } from './bury.js?v=0.2.46';
 import { upgradeOf } from '../../widgets/upgrade-line.js?v=0.2.46';
 import { tickOf } from '../../town-work.js?v=0.2.46';
 
@@ -101,7 +101,7 @@ export function primaryOf(st, id) {
   if (k === 'food') return ['eat', 'Eat'];
   if (barKind(id) && st.bar && barIndexOf(st.cs, id) < 0) return ['bar', 'Put on the bar'];
   const br = buryRecipeOf(id);
-  if (br) return ['bury', buryLabel(br, st.qty.get(id))];
+  if (br) return ['bury', buryLabel(br, buryQty(st.cs, id))];
   if (st.shop && st.shop.bids.has(id) && !(st.rules && st.rules.locked.has(id))) return ['sell', 'Sell'];
   return null;
 }

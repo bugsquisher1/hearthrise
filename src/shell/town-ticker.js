@@ -77,12 +77,15 @@ const count = (n) => (Number.isSafeInteger(n) && n > 0 ? n : 0);
  *   state      the envelope's `state` (active_kind, active_id, active_since, accrued_to)
  *   skills     { id: { xp, level } } (item-sections.js skillsOf)
  *   inventory  the envelope's bag; equipment its worn set
+ *   storage    the account's Storage a bench draws on after the bag ({ id: qty }, the server's; absent = none)
  *   left       the bench run's actions left (bench_run.left), or null (until an input runs out)
+ *   bagCap     the bag's stack cap (state.bank_cap), or null
  *   nowMs      the server's clock now (CharacterSession.serverNow)
  *   refused    true while a settle refusal stands on this record
- * @returns {{ actions: number, items: object, xp: object, unsure: number } | null}
- *   items: { id: signed change } (the product up, the inputs down); xp: { skill: XP }; unsure: actions whose product
- *   is a roll. null when nothing may be predicted.
+ * @returns {{ actions: number, items: object, stored: object, xp: object, unsure: number } | null}
+ *   items: { id: signed change } to the BAG (the product up, the inputs down, the bag first, as the server spends);
+ *   stored: { id: signed change } to Storage (the inputs the bag could not cover); xp: { skill: XP }; unsure:
+ *   actions whose product is a roll. null when nothing may be predicted.
  */
 export function predictTown(o) {
   const w = o && o.w;
@@ -96,22 +99,35 @@ export function predictTown(o) {
   for (const [id, r] of Object.entries(o.skills || {})) if (r && count(r.xp)) skills[id] = r.xp;
   const bag = {};
   for (const [id, n] of Object.entries(o.inventory || {})) if (count(n)) bag[id] = n;
-  const scratch = { skillTargetId: w.id, skills, inventory: bag, equipment: o.equipment || {}, toolCarry: {}, stats: {}, buffs: [], unlockedRecipes: {} };
+  /* The supply a bench's inputs are counted against (artisan-sim.js `state.supply`): the bag plus the Storage it draws on. */
+  const supply = Object.assign({}, bag);
+  for (const [id, n] of Object.entries(o.storage || {})) if (count(n)) supply[id] = (supply[id] || 0) + n;
+  const scratch = { skillTargetId: w.id, skills, inventory: bag, supply, equipment: o.equipment || {}, toolCarry: {}, stats: {}, buffs: [], unlockedRecipes: {} };
   const gather = w.kind === 'gather';
   const stepMs = gather ? gatherIntervalMs(scratch, w.skill, w.row, { items: ITEMS }) : artisanIntervalMs(scratch, w.skill, w.row, { items: ITEMS });
   const win = creditWindow({ watermarkMs: fromMs, activeSinceMs: sinceMs, nowMs, capMs: horizonMs(stepMs) });
   if (win.capped) return null;
   const burnable = !gather && w.skill === 'cooking' && !!w.row.output && burnChance(w.row, levelOf(skills, 'cooking'), 0) > 0;
   const items = {};
+  const stored = {};
   let unsure = 0;
   const move = (id, n) => { items[id] = (items[id] || 0) + n; };
-  /* The engine's own effects, on the scratch bag (a bench's next action checks it, as on the server). */
+  /* The engine's own effects, on the scratch bag and supply (a bench's next action checks them, as on the server):
+     an input leaves the bag first, then Storage (hr_materials_take's order). */
   const fx = {
-    addItem(id, n) { bag[id] = (bag[id] || 0) + n; if (burnable && id === w.row.output) unsure++; else move(id, n); },
-    removeItem(id, n) { const take = Math.min(n, bag[id] || 0); bag[id] = (bag[id] || 0) - take; move(id, -take); },
+    addItem(id, n) { bag[id] = (bag[id] || 0) + n; supply[id] = (supply[id] || 0) + n; if (burnable && id === w.row.output) unsure++; else move(id, n); },
+    removeItem(id, n) {
+      const take = Math.min(n, supply[id] || 0);
+      const fromBag = Math.min(take, bag[id] || 0);
+      supply[id] = (supply[id] || 0) - take;
+      bag[id] = (bag[id] || 0) - fromBag;
+      if (fromBag) move(id, -fromBag);
+      if (take > fromBag) stored[id] = (stored[id] || 0) - (take - fromBag);
+    },
   };
   const one = Object.create(null);
-  const ctx = { fromMs: win.fromMs, toMs: win.toMs, items: ITEMS, rng: FLOOR_RNG, away: true, fx };
+  const ctx = { fromMs: win.fromMs, toMs: win.toMs, items: ITEMS, rng: FLOOR_RNG, away: true, fx,
+    bagCap: Number.isSafeInteger(o.bagCap) && o.bagCap > 0 ? o.bagCap : null };
   let sum;
   if (gather) {
     one[w.id] = { skill: w.skill, node: w.row };
@@ -125,11 +141,14 @@ export function predictTown(o) {
   const each = Math.floor(pacedXp(xpSkill, burnable ? burnXp(w.row) : w.row.xp));
   const xp = actions && each > 0 ? { [xpSkill]: actions * each } : {};
   for (const id of Object.keys(items)) if (!items[id]) delete items[id];
-  return { actions, items, xp, unsure };
+  return { actions, items, stored, xp, unsure };
 }
 
-/** The ticker's certain change to the stack `id` (signed), or 0. */
+/** The ticker's certain change to the bag's stack `id` (signed), or 0. */
 export function aheadQty(tick, id) { return tick && own(tick.items, id) ? tick.items[id] : 0; }
+
+/** The ticker's certain change to the Storage stack `id` a bench draws on (signed, never above 0), or 0. */
+export function aheadStored(tick, id) { return tick && own(tick.stored, id) ? tick.stored[id] : 0; }
 
 /** The ticker's XP for `skill` not yet paid, or 0. */
 export function aheadXp(tick, skill) { return tick && own(tick.xp, skill) ? tick.xp[skill] : 0; }

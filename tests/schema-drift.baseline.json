@@ -7,10 +7,10 @@
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
  "generated": "2026-10-25",
- "digest": "cf552e420a339b14f2a05a5ad240ddbd49e391632330964161f2d25b483f5970",
+ "digest": "95bb81a16522544158fc7e6259475626ac42ad8ebeb4581c1d0d37e0b3525920",
  "counts": {
   "relations": 227,
-  "functions": 540,
+  "functions": 541,
   "policies": 115,
   "indexes": 323,
   "triggers": 50,
@@ -699,6 +699,7 @@
    "hr_shard_of(p_user uuid)",
    "hr_shop_view(p_user uuid, p_slot integer)",
    "hr_signup_gate(event jsonb)",
+   "hr_skill_inputs_view(p_user uuid, p_slot integer)",
    "hr_skill_level(p_skill text, p_xp bigint)",
    "hr_skill_xp_for_level(p_skill text, p_level integer)",
    "hr_slot_health()",

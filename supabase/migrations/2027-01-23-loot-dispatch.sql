@@ -19,7 +19,7 @@
 --             stack at the vendor's bid (hr_hunt_vendor_value, the catalogue vendor_sell
 --             prices with), through hr_apply: the same journal as vendor_sell_many.
 --   ignore    "Don't pick up": the settle leaves the picked-up units behind (unchanged).
---   A LOCKED stack is never dispatched; a start-kit item may not carry deposit or sell
+--   A LOCKED stack is never dispatched; a start-kit item may be deposited but never sold
 --   (hr_loot_plan_refusal, the one answer the setter and Dispatch both ask).
 --
 -- ── THE CONTRACT (authenticated; the client sends a slot and a key, nothing else) ──
@@ -40,7 +40,7 @@
 --   gates:  closed (closed mode), rate_limited (bucket bank_move, 60/min), settle_first /
 --           party_hunt_running (an unpaid town window), hunting (an open hunt: the hero is
 --           not in town)
---   rules:  start_kit, item_not_sellable (setter)
+--   rules:  start_kit (a sell plan on the starting kit), item_not_sellable (setter)
 --   state:  no_character, nothing_to_dispatch {locked, kit}, storage_full {cap, used,
 --           stacks} (nothing moved: every planned deposit was a new kind and Storage has
 --           no room, and nothing was planned to sell); a sale hr_apply refuses (its day
@@ -146,10 +146,11 @@ create or replace function public.hr_loot_plan_refusal(p_item text, p_plan text)
 returns text language sql stable set search_path = public, pg_catalog as $$
   select case
     when p_plan is null or p_plan in ('keep', 'ignore') then null
-    -- the hero's starting kit (generated from src/data/start-kit.js) stays in the bag: the
-    -- market's listable rule (2027-01-12) refuses it too; Storage still takes it one press at a time.
-    when exists (select 1 from public.hr_start_inventory k where k.item_id = p_item)
-      or exists (select 1 from public.hr_start_equipment k where k.item_id = p_item) then 'start_kit'
+    -- the hero's starting kit (generated from src/data/start-kit.js) is never SOLD by a plan (no
+    -- minting from the kit; the market's listable rule, 2027-01-12, refuses it too); it may be
+    -- DEPOSITED, as Storage already takes it one stack at a time (Coordinator 2026-10-25).
+    when p_plan = 'sell' and (exists (select 1 from public.hr_start_inventory k where k.item_id = p_item)
+      or exists (select 1 from public.hr_start_equipment k where k.item_id = p_item)) then 'start_kit'
     -- sell only what the vendor prices (the catalogue vendor_sell and the pickup sale priced with).
     when p_plan = 'sell' and not exists (select 1 from public.hr_hunt_vendor_value v where v.item_id = p_item and v.unit > 0)
       then 'item_not_sellable'
@@ -198,7 +199,7 @@ revoke execute on function public.hr_loot_rule_set(int, text, text, uuid) from a
 grant  execute on function public.hr_loot_rule_set(int, text, text, uuid) to authenticated;
 update public.hr_client_rpc_baseline
    set note = 'added 2026-10-25 (lane S2); 2027-01-23-loot-dispatch.sql: the item''s loot plan keep / deposit / sell (run by '
-              'hr_loot_dispatch in town) or the pickup filter ignore; start-kit items take no deposit/sell plan; moves no value'
+              'hr_loot_dispatch in town) or the pickup filter ignore; start-kit items take no sell plan; moves no value'
  where grantee = 'authenticated' and proname = 'hr_loot_rule_set';
 
 -- ── §4 THE PICKUP FILTER, RESTATED WHOLE (§0 pin bf314f41) ──────────────────
@@ -412,6 +413,7 @@ declare
   k    constant text := '000000c0-0000-4000-b000-0000d15a';
   v jsonb; v1 jsonb; v_role text; v_ver bigint; v_purse bigint; v_n bigint; v_inst uuid := gen_random_uuid();
   v_dep text; v_sell text; v_keep text; v_ign text; v_lock text; v_new text; v_new2 text; v_kit constant text := 'cooked_shrimp';
+  v_kit2 text; v_kq bigint;
   v_unit bigint;
 begin
   begin
@@ -438,12 +440,13 @@ begin
     v := public.hr_loot_rule_set(0, v_lock, 'deposit', (k || '0004')::uuid);
     v := public.hr_item_lock(0, v_lock, true, (k || '0005')::uuid);
     if not public.hr_item_locked(v_u, 0, v_lock) then raise exception 'VERIFY(a): the lock answered %', v; end if;
+    -- the starting kit: deposit yes (Storage takes it anyway), sell never (no minting from the kit)
     v := public.hr_loot_rule_set(0, v_kit, 'deposit', (k || '0006')::uuid);
-    if v->>'error' is distinct from 'start_kit' then raise exception 'VERIFY(a): a start-kit deposit plan answered %', v; end if;
+    if (v->'bag_rules'->'loot'->>v_kit) is distinct from 'deposit' then raise exception 'VERIFY(a): a start-kit deposit plan answered %', v; end if;
     v := public.hr_loot_rule_set(0, v_kit, 'sell', (k || '0007')::uuid);
     if v->>'error' is distinct from 'start_kit' then raise exception 'VERIFY(a): a start-kit sell plan answered %', v; end if;
     v := public.hr_loot_rule_set(0, (select i.item_id from public.hr_items i where not exists (select 1 from public.hr_hunt_vendor_value w where w.item_id = i.item_id)
-                                      and public.hr_loot_plan_refusal(i.item_id, 'deposit') is null order by 1 limit 1), 'sell', (k || '0008')::uuid);
+                                      and not exists (select 1 from public.hr_start_inventory s where s.item_id = i.item_id) and not exists (select 1 from public.hr_start_equipment s where s.item_id = i.item_id) order by 1 limit 1), 'sell', (k || '0008')::uuid);
     if v->>'error' is distinct from 'item_not_sellable' then raise exception 'VERIFY(a): selling an unpriced item answered %', v; end if;
     v := public.hr_loot_rule_set(0, v_dep, 'store', (k || '0009')::uuid);
     if v->>'error' is distinct from 'bad_intent' then raise exception 'VERIFY(a): an unknown plan answered %', v; end if;
@@ -510,6 +513,23 @@ begin
        or exists (select 1 from public.player_ledger where id > v_n and user_id = v_u)
        or (select qty from public.account_bank where user_id = v_u and item_id = v_dep) is distinct from 11::bigint then
       raise exception 'VERIFY(d): a replay answered % or moved something', v; end if;
+
+    -- (d2) A START-KIT ITEM PLANNED DEPOSIT moves whole to Storage (no gold); the start-kit SELL plan
+    -- held from before is still skipped and counted.
+    select k2.item_id into v_kit2 from public.hr_start_inventory k2 join public.player_inventory i on i.item_id = k2.item_id
+     where i.user_id = v_u and i.slot = 0 and k2.item_id <> v_kit order by k2.item_id limit 1;
+    if v_kit2 is null then raise exception 'VERIFY(d2): the new hero holds no second start-kit item'; end if;
+    v_kq := (select qty from public.player_inventory where user_id = v_u and slot = 0 and item_id = v_kit2);
+    v := public.hr_loot_rule_set(0, v_kit2, 'deposit', (k || '0150')::uuid);
+    if (v->'bag_rules'->'loot'->>v_kit2) is distinct from 'deposit' then raise exception 'VERIFY(d2): a start-kit deposit plan answered %', v; end if;
+    v_purse := public.hr_purse_of(v_u);
+    v := public.hr_loot_dispatch(0, (k || '0151')::uuid);
+    if coalesce(v->>'ok', '') <> 'true' or (v->'stored'->'items'->>v_kit2)::bigint is distinct from v_kq
+       or exists (select 1 from public.player_inventory where user_id = v_u and slot = 0 and item_id = v_kit2)
+       or (select qty from public.account_bank where user_id = v_u and item_id = v_kit2) is distinct from v_kq
+       or public.hr_purse_of(v_u) <> v_purse or (v->'kept'->>'kit')::int <> 1 or (v->'sold'->>'stacks')::int <> 0
+       or not exists (select 1 from public.player_inventory where user_id = v_u and slot = 0 and item_id = v_kit) then
+      raise exception 'VERIFY(d2): a start-kit deposit answered % (or the held start-kit sale moved)', v; end if;
 
     -- (e) NOTHING PLANNED IN THE BAG: refused by name, the key stays free.
     v := public.hr_loot_dispatch(0, (k || '0200')::uuid);

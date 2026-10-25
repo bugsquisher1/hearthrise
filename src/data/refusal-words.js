@@ -76,7 +76,7 @@ export const REFUSAL_WORDS = Object.freeze({
   insufficient_bank: 'Your storage no longer has that many.',
   /* The loot plan and Dispatch loot (2027-01-23-loot-dispatch.sql). */
   nothing_to_dispatch: 'Nothing in your bag has a Deposit or Sell plan.',
-  start_kit: 'Your starting kit stays in your bag. Storage takes it one stack at a time.',
+  start_kit: 'The shop does not buy back your starting kit. You can still deposit it in Storage.',
   /* The House window (2026-11-29-house-home.sql, hr_unlock_buy) and the storage chests (hr_storage_chest_build). */
   already_owned: 'Your house already has that.',
   prereq_property_tier: 'Your house is too small for that yet. Buy the next home first.',

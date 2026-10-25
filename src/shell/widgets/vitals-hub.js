@@ -12,7 +12,8 @@
 //              gold clockwise from the top as the level fills
 //   readouts   "HP 180/220" and its regen a second on the left, "MP 40/60" and
 //              its regen on the right
-//   stamina    the time left under the medallion, with an hourglass
+//   stamina    the time left under the ring, with an hourglass, and the gold "+"
+//              that buys a refill (stamina-buy.js)
 //   sockets    Food (how many the bag holds, the best one's icon) and Charm
 // EVERY hero has mana (ruling: 100 + 10 a level for everyone): the mana arc
 // and readout always show, carrying whatever the server sends. Every number
@@ -28,6 +29,7 @@ import { text, attr } from '../../render/paint.js?v=0.2.45';
 import { whole, hoursMinutes } from '../../render/format.js?v=0.2.45';
 import { glyphSvg } from '../launcher.js?v=0.2.45';
 import { itemIconHtml, itemName } from './bits.js?v=0.2.45';
+import { staminaPlusHtml } from './stamina-buy.js?v=0.2.45';
 
 /* THE RING on a 120-unit grid, centre (60, 60), drawn smooth (no crispEdges) at any size the stylesheet gives it.
    From the outside in: the steel bezel (r 59), the gauge channel (r 52, 10 wide) with HP on its left from the bottom
@@ -46,13 +48,13 @@ export function hubHtml(glyphs) {
   const ring = (k, r) => '<circle class="hb-ring-' + k + '" cx="60" cy="60" r="' + r + '"/>';
   return '<div class="hb-hub">'
     + '<div class="hb-read is-hp" title="Health"><span class="hb-read-k">HP</span><b class="hb-read-v" data-v="hp"></b><small class="hb-read-r" data-r="hp" title="Health regained each second"></small></div>'
-    + '<div class="hb-medal" role="group" aria-label="Level and experience" data-coach="level">'
+    + '<div class="hb-medal" role="group" aria-label="Level and experience" data-coach-hook="level">'
     + '<svg class="hb-arcs" viewBox="0 0 120 120" aria-hidden="true">' + ring('bezel', 59) + ring('channel', 52)
     + '<path class="hb-arc-track" d="' + ARC_LEFT + '"/><path class="hb-arc-track" d="' + ARC_RIGHT + '"/>' + arc(ARC_LEFT, 'hp') + arc(ARC_RIGHT, 'mana')
     + ring('xp', 43) + arc(XP_RING, 'xp') + ring('disc', 40) + '</svg>'
     + '<span class="hb-medal-in"><small class="hb-lv-k">Lv</small><b class="hb-lv"></b><small class="hb-xp"><i class="hb-xp-k">XP </i><span class="hb-xp-v"></span></small></span></div>'
     + '<div class="hb-read is-mana" title="Mana"><span class="hb-read-k">MP</span><b class="hb-read-v" data-v="mana"></b><small class="hb-read-r" data-r="mana" title="Mana regained each second"></small></div>'
-    + '<div class="hb-stam" title="Stamina: hunting time left" data-coach="stamina">' + glyphSvg(glyphs, 'uiHourglass') + '<b class="hb-stam-v"></b></div>'
+    + '<div class="hb-stam" title="Stamina: hunting time left" data-coach-hook="stamina">' + glyphSvg(glyphs, 'uiHourglass') + '<b class="hb-stam-v"></b>' + staminaPlusHtml() + '</div>'
     + '<div class="hb-socket is-food"><span class="hb-socket-ico"></span><small class="hb-socket-k"></small></div>'
     + '<div class="hb-socket is-charm" title="Charm socket: empty"><span class="hb-socket-ico">' + glyphSvg(glyphs, 'uiRing') + '</span><small class="hb-socket-k">Charm</small></div>'
     + '</div>';

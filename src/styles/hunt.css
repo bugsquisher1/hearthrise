@@ -197,8 +197,8 @@
    and why). The bar's widget rises over its sibling widgets' own cards (the hunt bar's pointer is z 5), and the
    world HUD over the screen layer (.hs-screen, z 6: the alerts and the launcher row) while one is open and no
    window is: an open window (Configure action above all) stays over the bar. */
-.hs-widget:has(.hb-tip.is-on, .hb-drop.is-on, .hb-plaque.is-open) { z-index: 6; }
-.hs-shell:not(:has(.hs-win:not(.is-leaving))) > .hs-hud:has(.hb-tip.is-on, .hb-drop.is-on, .hb-plaque.is-open) { z-index: 7; }
+.hs-widget:has(.hb-tip.is-on, .hb-drop.is-on, .hb-plaque.is-open, .hb-buy.is-on) { z-index: 6; }
+.hs-shell:not(:has(.hs-win:not(.is-leaving))) > .hs-hud:has(.hb-tip.is-on, .hb-drop.is-on, .hb-plaque.is-open, .hb-buy.is-on) { z-index: 7; }
 /* THE BAR IS ONE FORGED OBJECT (Tyler 10-22: "dorky, no art to it"; 10-25: keep the layout, a smooth ring, the fight
    controls back on the right, more gold, bigger icons). A 6-art-px iron plate (bar-plate.png, tools/make-hud-bar-art.mjs)
    with a gold rule along its top edge (--steel-rule, a window heading's rule); the slots are wells sunk into it
@@ -323,6 +323,31 @@
 .hb-read-r { font-size: var(--t-micro); color: var(--ink-3); }
 .hb-stam { grid-area: stam; align-self: end; display: flex; align-items: center; gap: 4px; font-size: var(--t-micro); color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; }
 .hb-stam .hs-glyph { width: 14px; height: 14px; color: var(--ink-3); }
+/* THE STAMINA "+" (Tyler 10-25, stamina-buy.js): a small sunk well with a gold pixel cross after the timer (the bar's "+"
+   language: press it to add). Its press target is 36 px; the -8 px margin keeps the line at the well's 20 px. */
+.hb-stam-buy { position: relative; width: 36px; height: 36px; margin: -8px -8px -8px -4px; padding: 0; border: 0; background: none; cursor: pointer; display: grid; place-items: center; }
+.hb-stam-buy > i { position: relative; width: 20px; height: 20px; background: var(--bg-1); box-shadow: var(--steel-well); }
+.hb-stam-buy > i::before, .hb-stam-buy > i::after { content: ''; position: absolute; background: var(--gold); }
+.hb-stam-buy > i::before { left: 9px; top: 5px; width: 2px; height: 10px; }
+.hb-stam-buy > i::after { left: 5px; top: 9px; width: 10px; height: 2px; }
+.hb-stam-buy:hover > i, .hb-stam-buy[aria-expanded="true"] > i { background: var(--bg-3); }
+.hb-stam-buy:hover > i::before, .hb-stam-buy:hover > i::after, .hb-stam-buy[aria-expanded="true"] > i::before, .hb-stam-buy[aria-expanded="true"] > i::after { background: var(--gold-2); }
+.hb-stam-buy:focus-visible { outline: none; }
+.hb-stam-buy:focus-visible > i { outline: 2px solid var(--aqua-2); outline-offset: 1px; }
+/* Its panel, from the bar over the stamina line: what one refill gives and its price (the server's quote), why it cannot
+   be bought, the premium note for a hero without premium, Buy (the gold plate), the status line. */
+.hb-buy { display: none; position: absolute; bottom: calc(100% + 6px); width: 280px; padding: 8px 10px 10px; flex-direction: column; gap: 4px; background: var(--modal-bg); border: 4px solid transparent; border-image: url('../../assets/ui/frame-iron-thin.png') 2 / 4px stretch; image-rendering: pixelated; z-index: 3; }
+.hb-buy.is-on { display: flex; }
+.hb-buy-head { display: flex; align-items: center; gap: 8px; min-height: 30px; }
+.hb-buy-head b { font-family: var(--f-display); font-size: var(--t-micro); letter-spacing: .1em; color: var(--gold-2); }
+.hb-buy-now { flex: 1; font-size: var(--t-micro); color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; }
+.hb-buy p { margin: 0; font-size: var(--t-micro); line-height: 1.35; color: var(--ink-2); }
+.hb-buy p:empty { display: none; }
+.hb-buy .hb-buy-quote { color: var(--ink); }
+.hb-buy .hb-buy-why { color: var(--gold-2); }
+.hb-buy .hb-buy-premium { display: none; color: var(--ink-3); }
+.hb-buy .hb-buy-premium.is-on { display: block; }
+.hb-buy-go { align-self: stretch; margin-top: 4px; min-height: 34px; }
 .hb-socket { display: flex; flex-direction: column; align-items: center; gap: 2px; align-self: end; }
 .hb-socket.is-food { grid-area: food; }
 .hb-socket.is-charm { grid-area: charm; }
@@ -622,6 +647,7 @@ label.st-line { cursor: pointer; }
   .hb-read-v { font-size: var(--t-micro); }
   .hb-read-r { display: none; }
   .hb-stam { align-self: auto; justify-self: start; line-height: 1.15; }
+  .hb-buy-go, .hb-buy .hh-tool { min-height: 40px; }
   .hb-socket.is-charm { display: none; }
   .hb-socket.is-food { flex-direction: row; align-self: auto; line-height: 1.15; }
   .hb-socket.is-food .hb-socket-ico { display: none; }

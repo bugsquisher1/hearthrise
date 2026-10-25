@@ -168,9 +168,8 @@ export const HUNT_TUTORIAL = Object.freeze([
   /* ── Reactive cards that interrupt the chain (after the first-minute cards, so the shell's "passed" rule never
      replays one of those). Each starts on its own fact and explains what just happened. ── */
   step('stamina_low', 'Stamina is low',
-    'At 0 the hunt ends. Anything but hunting refills it hour for hour, and the Shop\'s Services tab sells a top-up.',
-    'services', READ, { reactive: true, when: [HUNTING, { kind: 'stamina_low' }],
-      hooks: [SERVICES_TAB, '[data-hs-win="shop"] [data-hs-act="stam-ask"]:not([disabled])'] }),
+    'At 0 the hunt ends. Anything but hunting refills it hour for hour, and the + beside your stamina buys a top-up.',
+    'hud_vitals', READ, { reactive: true, when: [HUNTING, { kind: 'stamina_low' }], hooks: ['[data-coach-hook="stamina-buy"]'] }),
   step('first_death', 'You died',
     'The hunt ended and your hero came home. Blessings cut what a death costs, and they\'re free for now: open the Shop\'s Services tab and Bless again.',
     'services', { kind: 'blessed' }, { reactive: true, when: [IN_TOWN, { kind: 'died' }, { kind: 'below_free' }],

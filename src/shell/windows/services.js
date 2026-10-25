@@ -21,20 +21,13 @@
 import { staminaRefillOf, blessingsOf, goldOf } from '../../session/item-sections.js?v=0.2.45';
 import { staminaOf } from '../../session/hunt-sections.js?v=0.2.45';
 import { text, cls, prop, rows, element } from '../../render/paint.js?v=0.2.45';
-import { whole, gold } from '../../render/format.js?v=0.2.45';
+import { whole, gold, hoursWords as hoursText } from '../../render/format.js?v=0.2.45';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.45';
 import { runIntent } from '../intent-words.js?v=0.2.45';
 
 const ROMAN = Object.freeze(['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX']);
 const SCRATCH = new WeakMap();
 const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { confirm: false, pending: false, msg: '' }; SCRATCH.set(cs, s); } return s; };
-
-/** "4 h", "1 h 30 m", "45 m" from milliseconds. */
-function hoursText(ms) {
-  const m = Math.max(0, Math.floor(Number(ms) / 60000));
-  const h = Math.floor(m / 60), r = m % 60;
-  return h && r ? h + ' h ' + r + ' m' : h ? h + ' h' : r + ' m';
-}
 
 /** The tab's skeleton (built once per opening of the Shop, inside its pane). */
 export function servicesPaneHtml() {

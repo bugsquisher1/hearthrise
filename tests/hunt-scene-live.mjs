@@ -660,10 +660,12 @@ async function nodeRules(M) {
 
   { // LV-24 A CORPSE NEVER MOVES (Andy a16, live v0.2.33: "a dead monster's corpse twitched once after death"). A
     // Thicket duo at density 8: the wolves run, and the live engine draws a step rolling on from the end of the last
-    // one (live-engine.js timeSteps), so a step can begin after the kill in its own sub-step. From its first dead
+    // one (live-engine.js timeSteps), so a step can begin after the kill in its own sub-step. Two Melee heroes and no
+    // tank (2026-10-25): with a tank the pack now forms its box on open ground and stops shuffling, and a tank and a
+    // Melee no longer killed a wolf mid-step in 450 s (tests/hunt-core/roles.mjs tank-plants-on-open-ground). From its first dead
     // frame a corpse is drawn on ONE spot until it fades (before: one glided 1.5 tiles after the kill). CONTROL: the
     // timeline did hold steps of a killed unit past its kill.
-    const mis = ['tank', 'melee_dps'].map((r, i) => {
+    const mis = ['melee_dps', 'melee_dps'].map((r, i) => {
       const mi = LIVE_H.memberOf(LM, 'ab'[i], i, r, 12);
       mi.huntId = 'meadowbrook_thicket'; mi.hero = Object.assign({}, mi.hero, { density: 8 });
       return mi;

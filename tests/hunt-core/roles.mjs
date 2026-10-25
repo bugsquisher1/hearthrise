@@ -24,7 +24,85 @@ const NOTCH = Object.freeze([
   '############', // 9
 ]);
 
+/*
+ * A PULL OF 8 ON A REAL GROUND (the production grid both runtimes build: src/core/hunt-ground.js huntGroundOf),
+ * played on the one engine (world-step.js stepSwing). A lone tank that never kills (acc 0) and a pack that never
+ * dies, so the box is the ground's and the pathing's alone. `at`: the tank engages from that tile (the pack is on
+ * him at once, as pull-cycle.js startPull leaves it); null: he walks the route and pulls as the cycle does.
+ * Answers the occupied neighbours (the pack's monsters beside him) from 10 to 30 s after the pull (mean, min), his
+ * tile and its room (roles.js roomAt) at the pull and at 30 s, and whether the pack ever reset (a leash break).
+ */
+function boxFight(M, gid, p, at, o = {}) {
+  const { ground, grid } = M.hg.huntGroundOf(M.grounds.HUNT_GROUNDS[gid].hunt);
+  const hero = { role: 'tank', maxHp: 1e9, hp: 1e9, acc: 0, maxHit: 0, def: 1e6, element: '' };
+  if (o.chase === false) hero.settings = { chase: false, dist: 1 };
+  const w = M.hs.newHuntWorld(ground, grid, [hero], { density: o.density || 8 });
+  const k = w.units[0];
+  for (const m of w.units) if (m.side === 'mon') { m.hp = 1e9; m.maxHp = 1e9; }
+  w.routeIdx = M.grounds.routeFor(ground, 1).indexOf(p);
+  if (at) {
+    k.x = k.fx = at[0]; k.y = k.fy = at[1];
+    w.phase = 'fight'; w.leader = k.id; w.packs[p].aggro = true; w.packs[p].holder = k.id;
+    for (const m of w.units) if (m.side === 'mon' && m.pocket === p) m.target = k.id;
+  }
+  const heroes = { [k.id]: { hs: M.AR.newHuntSession({ id: 'open-ground', huntFromMs: 0, purse: 1e9 }), slots: M.conditions.heroSlots([], null), actionSet: 'hunt', range: 1, ammo: null } };
+  const inst = { world: w, ground, grid };
+  const room = (x, y) => M.roles.roomAt(inst, p, x, y);
+  let last = at ? [at[0], at[1]] : [k.x, k.y]; let from = at ? last : null; let pulled = at ? 0 : -1;
+  const seen = []; let reset = false;
+  for (let s = 0; s < 200 && (pulled < 0 || s - pulled < 15); s++) {
+    const r = M.worldstep.stepSwing(w, { ground, grid, heroes, swingMs: 2000, atMs: s * 2000, rng: M.rng.createRng(M.rng.hashSeed('open-ground', gid, p, s)) });
+    const pull = r.events.find((e) => e.type === 'pull' && e.pocket === p);
+    for (const st of r.track) if (st.u === k.id && (!pull || from || st.atMs < pull.atMs)) last = [st.x, st.y];
+    if (pull && !from) { from = last; pulled = s; for (const st of r.track) if (st.u === k.id) last = [st.x, st.y]; }
+    if (r.events.some((e) => e.type === 'pack_reset')) reset = true;
+    if (pulled >= 0 && s - pulled >= 5) seen.push(w.units.filter((m) => m.side === 'mon' && m.alive && m.pocket === p && Math.max(Math.abs(m.x - k.x), Math.abs(m.y - k.y)) <= 1).length);
+  }
+  if (!from) return { error: gid + ' P' + p + ': no pull in 400 s' };
+  return { mean: seen.reduce((a, b) => a + b, 0) / Math.max(1, seen.length), min: Math.min(...seen), from, to: [k.x, k.y],
+    roomFrom: room(from[0], from[1]), roomTo: room(k.x, k.y), reset };
+}
+
+/* The open-ground cases (Tyler + Andy 2026-10-25), all at density 8 on the real maps. `was`: the box today's
+   engine gave before the fix (the "plants wherever the pull leaves him" mutant below plays it), for the print. */
+const OPEN_CASES = Object.freeze([
+  ['mill_cellar', 0, null, 'the cellar\'s first pull, his back on the pack area\'s edge', 7],
+  ['millrace_sewer', 1, null, 'the Sewer\'s slime room, pulled from the corridor mouth', 5],
+  ['meadowbrook_thicket', 1, [17, 1], 'back to the Birch Glade\'s north wall', 5],
+  ['coppercap_warrens', 3, [52, 36], 'back to the Coal Gallery\'s south wall', 5],
+  ['mill_cellar', 1, [4, 4], 'the cellar\'s north-west corner', 4],
+  ['millrace_sewer', 2, [33, 24], 'the channel room\'s corner pocket (six walls)', 3],
+  ['coppercap_warrens', 3, [55, 36], 'the Coal Gallery\'s south-east corner (five walls)', 3],
+]);
+
 const cases = {
+  /* THE OPEN GROUND (Tyler + Andy 2026-10-25: "we need to fix pathing so that the tank doesn't stand next to the
+     wall. During an 8 box it ruins the whole point"). A pull of 8 by a wall, in a corner, against the pack area's
+     edge or at a corridor mouth: within 30 s at least 7 of the tank's 8 neighbours hold a monster of his pack,
+     he never left the pack area (no reset) and never stood on worse ground than he engaged on. Where no tile in
+     reach has more room (the Warrens' Copper Face, its pull tile's 7 the best there is) he holds where he pulled,
+     as he does when his box takes the whole pull (density 5) and with Chase off. */
+  'tank-plants-on-open-ground': (M) => {
+    const line = [];
+    for (const [gid, p, at, what, was] of OPEN_CASES) {
+      const r = boxFight(M, gid, p, at);
+      if (r.error) return r.error;
+      line.push(gid + ' P' + p + ' ' + was + ' -> ' + r.mean.toFixed(1));
+      const where = gid + ' P' + p + ' (' + what + ', engaged at ' + r.from + ')';
+      if (r.reset) return where + ': the pack reset (the tank left its area)';
+      if (r.mean < 7) return where + ': only ' + r.mean.toFixed(1) + ' of the 8 tiles round the tank held a monster (10-30 s), standing at ' + r.to + ' (room ' + r.roomTo + ')';
+      if (r.roomTo < r.roomFrom) return where + ': he walked into worse ground: room ' + r.roomFrom + ' at ' + r.from + ', ' + r.roomTo + ' at ' + r.to;
+    }
+    console.log('    open ground, occupied of 8 (before -> after): ' + line.join(' | '));
+    const best = boxFight(M, 'coppercap_warrens', 1, null);
+    if (best.error) return best.error;
+    if (String(best.to) !== String(best.from) || best.min < 7) return 'the Copper Face (the best in reach is his own tile): engaged at ' + best.from + ', stood at ' + best.to + ', box ' + best.mean.toFixed(1) + ' (min ' + best.min + ')';
+    const fits = boxFight(M, 'mill_cellar', 0, null, { density: 5 });
+    if (fits.error) return fits.error;
+    if (String(fits.to) !== String(fits.from) || fits.min < 5) return 'a pull of 5 his box takes: he moved from ' + fits.from + ' to ' + fits.to + ' (box ' + fits.mean.toFixed(1) + ')';
+    const still = boxFight(M, 'mill_cellar', 1, [4, 4], { chase: false });
+    return String(still.to) === '4,4' ? null : 'Chase off: the tank walked from the corner to ' + still.to;
+  },
   /* SECONDARY HERO PATHING (Andy 2026-10-21: "if it hesitates choosing a spot (diagonal or moves after
      killing maybe) the secondary player just stands there"). A Melee hero walks to a free tile beside its
      target it can REACH (heroes pass through heroes; a monster blocks), and hits it. */
@@ -241,12 +319,22 @@ const mutants = [
     edits: [['src/data/wave3-uniques.js', "weaponType:'magic',discipline:'restoration',twoHanded:true,", "weaponType:'magic',twoHanded:true,"]] },
   { name: '[spell-content] the Codex heals', case: 'every-magic-weapon-has-a-discipline',
     edits: [['src/data/items.js', "weaponType:'magic', discipline:'destruction', atkB:15,", "weaponType:'magic', discipline:'restoration', atkB:15,"]] },
+  { name: 'the tank plants wherever the pull leaves him (before 2026-10-25)', case: 'tank-plants-on-open-ground',
+    edits: [[R, '  if (plantOpen(inst, h, onMe, near, zone)) return;\n', '']] },
+  { name: 'the room counts the slots, not the way round to them', case: 'tank-plants-on-open-ground',
+    edits: [[R, '  return BOX_ROOM * feeds.reduce((m, f) => Math.max(m, bits(f)), 0) + bits(any);', '  return BOX_ROOM * bits(any) + bits(any);']] },
+  { name: 'he steps to the best tile in reach even when it is worse than his own', case: 'tank-plants-on-open-ground',
+    edits: [[R, '  let best = null; let room = here;', '  let best = null; let room = -1;']] },
+  { name: 'he steps even when his box takes the whole pull', case: 'tank-plants-on-open-ground',
+    edits: [[R, ' && onMe.length > Math.floor(here / BOX_ROOM);', ';']] },
+  { name: 'Chase off walks to open ground', case: 'tank-plants-on-open-ground',
+    edits: [[R, "  if (!h.chase) { h.spot = null; clearGoal(h); return; }\n  /* A tank no monster", "  if (!h.chase && plantOpen(inst, h, mons.filter((m) => m.target === h.id), nearestTo(mons, h), 25)) return;\n  if (!h.chase) { h.spot = null; clearGoal(h); return; }\n  /* A tank no monster"]] },
   { name: 'the tank chases with a monster on him', case: 'tank-holds',
     edits: [[R, "  if (mons.some((m) => cheb(m, h) <= 1)) { clearGoal(h); return; }\n", '']] },
   { name: 'the nearest free tile by straight line, reachable or not (live v0.2.22)', case: 'melee-reaches-a-free-tile',
     edits: [[R, '  if (goToNearest(inst, h, beside([tgt]))) return;', "  { const t = ringFree(inst.grid, tgt, 1, h, (x, y) => !standable(inst, h, tgt.pocket, x, y)); if (t) { setGoal(inst, h, t[0], t[1]); return; } }"]] },
   { name: 'a second tank stands by whatever is beside it (live v0.2.20)', case: 'second-tank-walks-to-its-mark',
-    edits: [[R, "  if (!h.chase) { clearGoal(h); return; }\n  /* A tank no monster", "  if (!h.chase || mons.some((m) => cheb(m, h) <= 1)) { clearGoal(h); return; }\n  /* A tank no monster"]] },
+    edits: [[R, "  if (!h.chase) { h.spot = null; clearGoal(h); return; }\n  /* A tank no monster", "  if (!h.chase || mons.some((m) => cheb(m, h) <= 1)) { h.spot = null; clearGoal(h); return; }\n  /* A tank no monster"]] },
   { name: 'the farthest monster picks first', case: 'surround-then-queue',
     edits: [[R, '    .sort(([a, ta], [b, tb]) => dist2(a, ta) - dist2(b, tb) || a.id - b.id);', '    .sort(([a, ta], [b, tb]) => dist2(b, tb) - dist2(a, ta) || a.id - b.id);']] },
   { name: 'no queue: extras stand', case: 'surround-then-queue', edits: [[R, '    if (q) setGoal(inst, m, q[0], q[1]);', '']] },

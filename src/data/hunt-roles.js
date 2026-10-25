@@ -159,6 +159,14 @@ export const KITE = Object.freeze({ searchRadius: 5, awayMin: 0.5, minGap: 2, sh
 /* How often a monster re-picks its surround slot, and the ring extras queue on (RO-02). */
 export const SURROUND = Object.freeze({ repathMs: 500, queueRing: 2 });
 
+/* THE OPEN GROUND (Tyler + Andy 2026-10-25: "fix pathing so that the tank doesn't stand next to the wall. During an
+   8 box it ruins the whole point"). A holding tank whose pack is still walking in, more of it than his tile's box
+   can take, steps at most `steps` moves (round the monsters, inside the pack area) to a tile with more room before
+   he plants (src/core/hunt/roles.js plantOpen). A tile's room is read `wayRound` tiles round it: how far a monster
+   is looked for a way round the box to its far side (roles.js roomAt). Measured on the real grounds at density 8
+   (tests/hunt-core/roles.mjs tank-plants-on-open-ground). */
+export const OPEN_GROUND = Object.freeze({ steps: 2, wayRound: 4 });
+
 /* How often the travelling leader / a positioning hero re-aims (RO-05, PC-03). */
 export const AI_REPATH_MS = Object.freeze({ travel: 1500, ranged: 1000, melee: 500, kite: 600 });
 
@@ -217,6 +225,8 @@ export function validate() {
   if (!Number.isInteger(CHALLENGE.holderMinHpPm) || CHALLENGE.holderMinHpPm < 0 || CHALLENGE.holderMinHpPm > 1000) out.push('CHALLENGE.holderMinHpPm is permille 0..1000');
   for (const [k, v] of Object.entries(AI_REPATH_MS)) if (!Number.isInteger(v) || v <= 0 || v % 100 !== 0) out.push('AI_REPATH_MS.' + k + ' must be a whole number of sub-steps');
   if (!Number.isInteger(SURROUND.repathMs) || SURROUND.repathMs % 100 !== 0) out.push('SURROUND.repathMs must be a whole number of sub-steps');
+  if (!Number.isInteger(OPEN_GROUND.steps) || OPEN_GROUND.steps < 0 || OPEN_GROUND.steps > 4) out.push('OPEN_GROUND.steps must be a whole number of moves 0..4 (a small step, never a walk across the room)');
+  if (!Number.isInteger(OPEN_GROUND.wayRound) || OPEN_GROUND.wayRound < 2 || OPEN_GROUND.wayRound > 8) out.push('OPEN_GROUND.wayRound must be a whole number of tiles 2..8 (the box and its ring, at least)');
   if (!(SPOT.hysteresis >= 0)) out.push('SPOT.hysteresis must be >= 0');
   return out;
 }

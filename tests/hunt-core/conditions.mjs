@@ -921,7 +921,7 @@ const mutants = [
   { name: 'the stop-rule hold is not persisted (a cut resets it)', case: 'stop-rule-span', edits: [['src/core/hunt/conditions.js', "  unit: Object.freeze([['ruleHold', 'json'], ['ruleWait', 'json']]),", "  unit: Object.freeze([['ruleWait', 'json']]),"]] },
   { name: 'the healer\'s default rule set has no attack-when-safe rule', case: 'healer-default-rules',
     edits: [['src/data/rule-subjects.js', "    slot('green_sickness', [{ metric: 'ally_hp_pct', op: 'gte', value: 70, subject: 'lowest' }])]),", '  ]),']] },
-  { name: 'monsters do not fill the diagonal tiles of the box', case: 'full-box', edits: [['src/core/hunt/roles.js', '      if ((!dx && !dy) || !walkable(inst.grid, x, y)', '      if ((!dx && !dy) || (dx && dy) || !walkable(inst.grid, x, y)']] },
+  { name: 'monsters do not fill the diagonal tiles of the box', case: 'full-box', edits: [['src/core/hunt/roles.js', '  if (dx && dy && (!walkable(inst.grid, tx + dx, ty) || !walkable(inst.grid, tx, ty + dy))) return false;', '  if (dx && dy) return false;']] },
   { name: 'the smallest pick sets the pull (the rule before Tyler 10-20)', case: 'density-pull',
     edits: [['src/data/hunt-grounds.js', "  const lead = list.find((h) => h.lead === true)\n    || list", "  const lead = list.filter((h) => h.density > 0).sort((a, b) => a.density - b.density)[0]\n    || list"]] },
   { name: 'the lowest seat chooses, not the leader', case: 'density-pull', edits: [['src/data/hunt-grounds.js', "  const lead = list.find((h) => h.lead === true)\n    || list", "  const lead = list"]] },

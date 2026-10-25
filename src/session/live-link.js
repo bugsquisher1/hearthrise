@@ -60,7 +60,8 @@ export class LiveLink {
     const live = SESSION_CONFIG.liveDelayMs;
     this._joining = true;
     this._tl.setDelay(live);
-    this.want = true; this._tries = 0;
+    /* No ask of its own: the switch's ONE settle (CharacterSession.setViewed hello) brings the start point, or an
+       answer without one sets `want` (_take) and the next ask comes liveAskMs after it (session-core VIEW-3). */
     this.hold(pose);
   }
   /** Waiting for the start point of a view switched to mid-hunt (join): the screen holds the snapshot. */
@@ -81,6 +82,7 @@ export class LiveLink {
 
   /** One server answer while a hunt is open. */
   from(body) {
+    this.hold(body.hunt && body.hunt.pose);   // joining: the answer's snapshot forgets what the server no longer lists
     const before = this.engine.seededUntil();
     this._take(body);
     /* An answer that left the look-ahead short makes the next early ask wait twice as long (refillDelayMs). */

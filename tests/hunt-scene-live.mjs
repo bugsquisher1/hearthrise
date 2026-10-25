@@ -519,10 +519,10 @@ async function nodeRules(M) {
     // every settle reaches this one as a frame with the stored world's pose) and viewed again, 850 ms answers, once
     // when its first ask lands a commit (a second ask brings the start point) and once when it lands the start point.
     // From the switch back: the first frame shows the server's latest snapshot (the session's pose), the live prediction
-    // plays within two answers and a live ask, it eases forward from the snapshot (timeline.js T8), no frame moves a
+    // is on screen within two answers, a live ask and one ease (liveEaseMs) and eases forward from the snapshot (T8), no frame moves a
     // unit more than half a tile (was a 3-tile leap when a poll-behind playback fell to the live delay), and every unit
     // drawn has a sprite (was a unit an older frame's pose placed with no kind, and a spawn inside the catch-up).
-    const delay = M.CFG.SESSION_CONFIG.liveDelayMs, ask = M.CFG.SESSION_CONFIG.liveAskMs, LAT = 850;
+    const delay = M.CFG.SESSION_CONFIG.liveDelayMs, ask = M.CFG.SESSION_CONFIG.liveAskMs, ease = M.CFG.SESSION_CONFIG.liveEaseMs, LAT = 850;
     for (const [tag, back, quiet] of [['first ask a commit', 60000, 15000], ['first ask a start point', 53000, 0]]) {
       const mis = [LIVE_H.memberOf(LM, 'a', 0, 'tank', 6), LIVE_H.memberOf(LM, 'b', 1, 'melee_dps', 6)];
       const SW = [LIVE_H.T0 + 30000, LIVE_H.T0 + back];
@@ -569,10 +569,10 @@ async function nodeRules(M) {
         }, { viewer: 'a', unview: SW, quietBefore: quiet, clears: true, latencyMs: LAT });
       } finally { console.warn = warn; }
       const settled = r.easeEndAt === null ? r.liveAt : Math.max(r.liveAt ?? Infinity, Math.round(r.easeEndAt - SW[1]));
-      const budget = 2 * LAT + ask + 200;
+      const budget = 2 * LAT + ask + ease + 100;
       console.log(`  LV-27 switched back after 30 s (${tag}, ${LAT} ms answers): first frame ${r.first} ms after, ${r.snapOff === null ? '?' : r.snapOff.toFixed(2)} tile(s) off the server's snapshot; live ${r.liveAt} ms after, eased in by ${settled} ms (largest ease ${r.easeTiles.toFixed(2)} tiles); fastest unit ${r.speed.toFixed(2)} tiles/s (in play ${r.speedPlay.toFixed(2)}), largest frame step ${r.step.toFixed(3)} tiles; ${r.unnamed} unit(s) with no sprite`);
       ok('LV-27', r.snapOff !== null && r.snapOff <= 0.5, `(${tag}) the first frame back drew a unit ${r.snapOff} tiles off the server's snapshot (budget 0.5: the snapshot at once, never a playback a poll behind)`);
-      ok('LV-27', r.liveAt !== null && settled <= budget, `(${tag}) the live prediction played ${r.liveAt} ms after the switch and its ease ended ${settled} ms after it (budget ${budget}: two answers and a live ask)`);
+      ok('LV-27', r.liveAt !== null && settled <= budget, `(${tag}) the live prediction played ${r.liveAt} ms after the switch and its ease ended ${settled} ms after it (budget ${budget}: two answers, a live ask and one ease)`);
       ok('LV-27', r.step <= BUDGET.maxStepTiles, `(${tag}) a frame after the switch moved a unit ${r.step.toFixed(2)} tiles (budget ${BUDGET.maxStepTiles}: no leap)`);
       ok('LV-27', r.unnamed === 0, `(${tag}) ${r.unnamed} unit(s) were drawn with no sprite after the switch`);
     }
@@ -1138,7 +1138,7 @@ async function pageRules() {
 
 const MUTANTS = [
   /* Andy #65 (live v0.2.45): a hero viewed again mid-hunt shows the server's snapshot at once and eases forward (LV-27). */
-  ['a hero viewed again plays a poll behind until its start point (LV-27)', 'src/session/character-session.js', "    else if (this._huntOpen()) this.liveLink.join(this.read('hunt').pose);\n", '', /^LV-27: \(first ask a (commit|start point)\) a frame after the switch moved/],
+  ['a hero viewed again plays a poll behind until its start point (LV-27)', 'src/session/character-session.js', "this.liveLink.join(this.read('hunt').pose);", 'void 0;', /^LV-27: \(first ask a (commit|start point)\) a frame after the switch moved/],
   ['a joining view plays the server window over the snapshot (LV-27)', 'src/session/character-session.js', '    if (this.live.running() || this.live.stalled() || this.liveLink.joining()) {', '    if (this.live.running() || this.live.stalled()) {', /^LV-27: \(first ask a commit\)/],
   ['a joining view keeps units the snapshot no longer lists (LV-27)', 'src/session/live-link.js', "    if (!this.joining() || !pose || typeof pose !== 'object' || !Array.isArray(pose.units)) return;", '    return;', /^LV-27: .* with no sprite/],
   ['a pushed frame asks the engine again (LV-26)', 'src/session/character-session.js', '    return f.env !== null && this._take(f.env, FRAME_EVENT);', '    return f.env !== null && this._take(f.env, FRAME_EVENT) && (this.hello(), true);', /^LV-26/],

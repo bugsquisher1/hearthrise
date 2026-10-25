@@ -3066,3 +3066,15 @@ add a shard; (6) a display:contents row has no box, so a tutorial hook (and its 
 has one in BOTH layouts; (7) a text probe must measure INK, not the range rect: the content box of "29" in Cinzel is
 taller than its glyphs and reads as touching the ring when it does not; (8) a widget's open/close transform makes its
 box lie for 120 ms: wait for transform none before measuring where it stands.
+
+## 2026-10-25 lane/b-window-icon-size (build of the picked C, amended)
+Tyler on the C mock: bag/storage "perfect"; Shop "too big"; doll "a bit smaller". Shipped: bag/storage wells 36 -> 44
+(6 / 10 a row at 1440), counts 14.5 -> 16; doll 52 px wells with 1x art; Shop lines 1x art in a 44 px sunk well,
+prices 16 px; windows 560 / 540 / 480 (data rows, desktop only: a phone sheet ignores the row width). All sizes are
+clamp() on 100vw snapped with round(down, ..., 2px), so a phone (<= 1024 wide) keeps the old sizes: no new @media.
+AW-33 measures every item img's drawn/natural ratio (must be exactly 1) plus wells and per-row counts at 1440x900 and
+922x423; 3 mutants (1.5x bag icon, 2x Shop, 36 px wells). Shots: art/review/window-icons-build-2026-10-25.
+Lessons: (1) the shoot harness's leased browser can hang on close: end the script with process.exit(0) or metrics
+piped through tail never print; (2) the worktree hook refuses any inline script containing the word git: save
+origin/main copies with a plain show-redirect and feed them in by env var; (3) at 1920x1080 the Inventory now scrolls
+by 35 px (725/690) where it did not: the price of 44 px wells with a 43-stack bag.

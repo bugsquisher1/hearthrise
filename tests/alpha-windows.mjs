@@ -787,6 +787,7 @@ async function checks(overrides, shots) {
         for (const k of ['hunt', 'hunt_analyzer', 'hunt_track', 'hunt_events', 'party']) delete e[k];
         e.state = Object.assign({}, e.state, { active_kind: 'idle', active_id: null });
         e.bank = Object.fromEntries(Object.keys(e.inventory).map((id, i) => [id, 3 + i]));
+        e.shop = Object.assign({}, e.shop, { offers: ['bronze_sword', 'iron_helm'].map((id, i) => ({ offer: 'gear.' + id, item: id, kind: 'gear', price: 40 + i * 140 })) });
       } });
       /* Every visible item icon in the window: its drawn size and its art's own; a scale that is not whole wobbles. */
       const measure = (id) => page.evaluate((w) => {

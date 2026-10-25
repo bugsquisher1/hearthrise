@@ -101,9 +101,10 @@
 //         them (never merged)
 //   The desktop bar's 64 px icons, its fight controls and ring (Tyler 10-25) and the stamina "+" are tests/phone-touch.mjs
 //   PH-8 and PH-9: this suite's mutant shards are full (--shard-plan books each within 18 min).
-//   HS-27 THE BAR IS CONFIGURABLE IN TOWN (Tyler 10-25): with target, stance, chase, distance and the gold to keep
-//         unset (as hr_hunt_settings_view sends them out of a hunt) every control is on and shows the engine's pick
-//         for the role; a press sends ONE absolute value and the re-read envelope's value replaces it
+//   HS-27 THE BAR IS CONFIGURABLE IN TOWN (Tyler 10-25): every control the server sends a value for (out of a hunt
+//         hr_hunt_settings_view projects the engine's pick, 2027-01-25-town-defaults.sql) is on and shows THAT value;
+//         one it leaves unset is off (no client copy of the rule); a press sends ONE absolute value and the re-read
+//         envelope's value replaces it
 //   HS-25 THE HUNT SUMMARY shows the server's balance per hour to every character, and raw
 //         XP per hour only when the server sent it (premium)
 // ════════════════════════════════════════════════════════════════════════
@@ -350,12 +351,12 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
   try {
     /* HS-27 runs FIRST: its mutants are caught (stopAtFirst) a page boot in, not after every rule before it (shard budget). */
     { // HS-27 THE BAR IS CONFIGURABLE IN TOWN (Tyler 2026-10-25, a Level-30 hero in town: target, stance, chase and distance
-      // greyed out). Out of a hunt hr_hunt_settings_view leaves an option the player never set unset (no catalogue default;
-      // the engine picks it at spawn from the role, roles.js defaultSettings): every control is live and shows that pick,
-      // a press sends ONE hr_action_set_options with an absolute value, and the re-read envelope's value replaces it.
+      // greyed out). Out of a hunt hr_hunt_settings_view projects the engine's pick for an unset option (role and party,
+      // 2027-01-25-town-defaults.sql): every control the server sends is live and shows the SERVER's value, a press sends
+      // ONE hr_action_set_options with an absolute value, and the re-read envelope's value replaces it. An option the
+      // server leaves unset (here the target and the gold to keep) is off: the client never fills it (CLAUDE.md §6).
       const { ctx, page, s, up } = await open({ town: true, prep: (sv) => {
-        for (const k of ['target_mode', 'stance', 'distance', 'chase', 'gold_floor']) delete sv.env.hunt_settings[k];
-        sv.env.hunt_settings.role = 'ranger';
+        Object.assign(sv.env.hunt_settings, { role: 'ranger', target_mode: null, stance: 'balanced', distance: 3, chase: false, gold_floor: null });
         sv.onOptions = (o) => Object.assign(sv.env.hunt_settings, o);
       } });
       if (!up) fails.push('HS-27 the town bar did not mount');
@@ -367,9 +368,12 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           chase: document.querySelector(p + ' [data-opt="chase"]').getAttribute('aria-pressed'), gold: document.querySelector(p + ' [data-opt="gold_floor"]').value }), P);
         await wait(page, (p) => document.querySelector(p + ' [data-opt="stance"]'), P);
         const t0 = await read();
-        /* a lone Ranger (no Melee in its party of one): 3 tiles, chase off, Nearest, Balanced; the engine's 300 gold to keep */
-        if (t0.off.length) fails.push('HS-27 in town these bar controls are off: ' + t0.off.join(', '));
-        if (t0.target !== 'nearest' || t0.dist !== '3' || t0.stance !== 'balanced' || t0.chase !== 'false' || t0.gold !== '300') fails.push('HS-27 in town the panel does not show the role\'s pick: ' + JSON.stringify(t0));
+        /* the server's lone-Ranger pick (3 tiles, chase off, Balanced) is live; the two it left unset are off and empty */
+        if (t0.off.join() !== 'target_mode,gold_floor') fails.push('HS-27 in town the bar controls off are ' + JSON.stringify(t0.off) + ' (want only the two the server left unset: target_mode, gold_floor)');
+        if (t0.dist !== '3' || t0.stance !== 'balanced' || t0.chase !== 'false' || t0.gold !== '') fails.push('HS-27 in town the panel does not show only the server\'s values: ' + JSON.stringify(t0));
+        /* the gold to keep says what it does, in plain words under the field (Tyler 10-25), at the 12 px floor or more */
+        const note = await page.evaluate((p) => { const n = document.querySelector(p + ' .is-gold + .hb-pl-note'); return n ? { t: n.textContent, px: parseFloat(getComputedStyle(n).fontSize) } : null; }, P);
+        if (!note || note.t !== 'The hunt sells loot, then stops, rather than spend below this.' || !(note.px >= 12)) fails.push('HS-27 the gold to keep has no plain-English line under it: ' + JSON.stringify(note));
         const before = s.sent('hr_action_set_options').length;
         await page.click(P + ' [data-opt="distance"][data-val="1"]');
         await until(() => s.sent('hr_action_set_options').length > before);
@@ -1845,10 +1849,10 @@ const MUTANTS = [
   ['a struck slot carries no glyph', 'src/shell/widgets/action-bar.js', "g.innerHTML = why ? glyphSvg(ctx.glyphs, why.glyph) : '';", "g.innerHTML = why && !why.strike ? glyphSvg(ctx.glyphs, why.glyph) : '';"],
   ['a server-refused slot is not struck', 'src/shell/action-facts.js', "  if (sl.usable === false) return { code: 'server', text: 'The server says this cannot fire now.', glyph: 'uiLock', strike: true };\n  if (a.type === 'consume') return null;", "  if (a.type === 'consume') return null;"],
   ['the panel’s chase sends nothing', 'src/shell/widgets/settings-intent.js', "  if (key === 'chase') { const c = valueOf(s, key, cs); return c === null ? null : { chase: !c }; }", "  if (key === 'chase') return null;"],
-  /* Tyler 10-25: the bar is configurable IN TOWN, where the server leaves an unset option unset (HS-27). */
-  ['the fight panel locks in town again (HS-27)', 'src/shell/widgets/settings-intent.js', "  return v === null ? townDefaultOf(cs, s, key) ?? null : v;", "  return v;"],
-  ['the town pick ignores the role (HS-27)', 'src/shell/widgets/settings-intent.js', "  const role = s.role || roleIdOf(cs);", "  const role = 'tank';"],
-  ['the gold to keep locks while unset (HS-27)', 'src/shell/widgets/settings-intent.js', "v === null || v === undefined ? GOLD_FLOOR.default : null", "null"],
+  /* Tyler 10-25: the bar is configurable IN TOWN from the server's projected picks; the client fills nothing (HS-27). */
+  ['the fight panel locks a value the server sent in town (HS-27)', 'src/shell/widgets/settings-intent.js', "  return v === undefined || v === null ? null : v;", "  return null;"],
+  ['the client fills an unset option with its own pick (HS-27)', 'src/shell/widgets/settings-intent.js', "  return v === undefined || v === null ? null : v;", "  return v === undefined ? null : v === null ? 'nearest' : v;"],
+  ['the gold to keep shows a client default while unset (HS-27)', 'src/shell/widgets/settings-intent.js', "return Number.isSafeInteger(v) && v >= 0 ? v : null;", "return Number.isSafeInteger(v) && v >= 0 ? v : GOLD_FLOOR.default;"],
   ['a slot short of its rune says nothing', 'src/shell/action-facts.js', '    if (r.rune && !(familyCount(r.rune, bag) > 0)', '    if (false && r.rune && !(familyCount(r.rune, bag) > 0)'],
   ['the hub keeps an ended hunt’s in-fight regen', 'src/shell/widgets/vitals-hub.js', '  const hero = h && !h.ended ? h.hero : null;', '  const hero = h ? h.hero : null;'],
   ['the gold to keep shows the typed value before the server confirms', 'src/shell/widgets/settings-intent.js', "(pending || el.ownerDocument.activeElement !== el)", "(!pending && el.ownerDocument.activeElement !== el)"],

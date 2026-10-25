@@ -424,6 +424,22 @@ async function screens(overrides) {
           await shot('cook-all');
           await page.keyboard.press('Escape');
         }
+        /* (a2) the loot plan on a starting-kit item: Sell off, its reason on its own visible line under it. */
+        const kit = '[data-hs-win="inventory"] .hw-pocket[data-item="cooked_shrimp"]';
+        if (!(await wait(page, (q) => document.querySelector(q), kit, 3000))) fails.push('SW-4 the cooked shrimp (starting kit) is not in the bag');
+        else {
+          await page.waitForTimeout(200);
+          await page.click(kit, { button: 'right' });
+          await page.waitForTimeout(250);
+          const p = await page.evaluate(() => {
+            const b = document.querySelector('.hw-menu.is-on [data-hs-act="m-rule"][data-rule="sell"]');
+            const why = b && b.nextElementSibling && b.nextElementSibling.matches('.hw-mi-why') ? b.nextElementSibling : null;
+            return { off: !!b && b.disabled, why: why && why.textContent, shown: !!why && why.getBoundingClientRect().height > 0 };
+          });
+          if (!p.off || p.why !== 'The shop does not buy back your starting kit.' || !p.shown) fails.push('SW-4 the loot plan\'s Sell on a starting-kit item reads ' + JSON.stringify(p));
+          await shot('plan-kit-sell');
+          await page.keyboard.press('Escape');
+        }
       }
       /* (b) a Shop buy short of the server's gold: off, and the row says how much more. */
       if (!(await openWin('v', 'shop'))) fails.push('SW-4 the Shop did not open');
@@ -487,6 +503,8 @@ const MUTANTS = [
     "runIntent(sc, repaint, () => cs.edgeIntent('shop_buy'", "void ((...a) => a[2]())(sc, repaint, () => cs.edgeIntent('shop_buy'"],
   ['the item menu greys Cook all with no words (the 10-25 bug)', 'src/shell/windows/inventory/actions.js',
     "    + (!on && why ? '<small class=\"hw-mi-why\" data-why=\"' + act + '\">' + esc(why) + '</small>' : '');", "    + '';", true],
+  ['the loot plan greys Sell on a starting-kit item with a hover title only', 'src/shell/windows/inventory/actions.js',
+    "' data-rule=\"' + v + '\" aria-pressed=\"' + (rule === v) + '\"', why);", "' data-rule=\"' + v + '\" aria-pressed=\"' + (rule === v) + '\" title=\"' + esc(why) + '\"');", true],
   ['a Shop buy short of gold is greyed with no words', 'src/shell/windows/shop.js',
     "          + (short ? ' · You need ' + gold(short) + ' more.' : ''));", "          + '');", true],
   ['a new rule-disabled control with no reason', 'src/shell/windows/services.js',
@@ -513,7 +531,7 @@ async function main() {
     const fails = await checks(null, true);
     for (const f of fails) console.log('  ✗ ' + f);
     console.log(fails.length ? 'say-why: ' + fails.length + ' rule(s) RED'
-      : 'say-why: every intent site speaks; every rule-disabled control says why on screen; the words carry the server\'s numbers; Cook all, a short Shop buy and a locked hunt say why in play.html');
+      : 'say-why: every intent site speaks; every rule-disabled control says why on screen; the words carry the server\'s numbers; Cook all, a starting-kit Sell plan, a short Shop buy and a locked hunt say why in play.html');
     process.exit(fails.length ? 1 : 0);
   }
   const clean = await checks(null, true);

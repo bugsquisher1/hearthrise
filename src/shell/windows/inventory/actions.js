@@ -213,12 +213,12 @@ function openMenu(ctx, body, st, id, at, repaint) {
   h += item('m-select', sc.sel.has(id) ? 'Unselect' : 'Select', true);
   h += item('m-link', 'Link in chat', !!(ctx.account && ctx.account.social));
   /* The loot plan (what Dispatch loot does with it), then the pickup filter: the current one pressed, a plan the
-     server would refuse for this item off with its reason (loot-dispatch.js planBlock). */
+     server would refuse for this item off with its reason on its own visible line (loot-dispatch.js planBlock). */
   const rule = st.rules ? (st.rules.loot[id] || 'keep') : null;
   const bids = st.shop ? st.shop.bids : null;
   const choice = ([v, w]) => {
-    const why = planBlock(id, v, bids);
-    return item('m-rule', w, !!st.rules && !why, ' data-rule="' + v + '" aria-pressed="' + (rule === v) + '"' + (why ? ' title="' + esc(why) + '"' : ''));
+    const why = planBlock(id, v, bids) || (st.rules ? '' : 'Reading your loot plans…');
+    return item('m-rule', w, !!st.rules && !why, ' data-rule="' + v + '" aria-pressed="' + (rule === v) + '"', why);
   };
   for (const [group, words] of [['plan', 'Loot plan'], ['pickup', 'On pickup']]) {
     h += '<span class="hw-menu-sub">' + words + '</span><span class="hw-menu-rules" role="group" aria-label="' + words + '">'

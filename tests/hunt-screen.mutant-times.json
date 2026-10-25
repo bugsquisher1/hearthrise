@@ -90,8 +90,8 @@
   "the picker card never shows the personal best (HS-24)": 187,
   "a free summary shows raw XP per hour (HS-25)": 192,
   "ammo mixed back into Food & drink (HS-27, HS-7)": 30,
-  "the fight panel locks in town again (HS-27)": 25,
-  "the town pick ignores the role (HS-27)": 25,
-  "the gold to keep locks while unset (HS-27)": 25
+  "the fight panel locks a value the server sent in town (HS-27)": 25,
+  "the client fills an unset option with its own pick (HS-27)": 25,
+  "the gold to keep shows a client default while unset (HS-27)": 25
  }
 }

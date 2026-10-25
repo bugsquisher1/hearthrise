@@ -32,6 +32,9 @@
 //         predicts that pull (every commit matches): the peer's frozen hero carries `lead`.
 //   LV-B  A FULL BOX IS PULLED, VIEWED (Andy 10-20): a Thicket duo at its leader's 8 (the member never
 //         picked) pulls the designer's ring of 8 from its edge and kills it; every commit matches.
+//   LV-OPEN THE OPEN GROUND (Tyler + Andy 10-25: "the tank doesn't stand next to the wall"): a lone tank pulls the
+//         cellar's first pack of 8 from the pack area's edge; browser closed, every server commit from 32 s has all 8
+//         of his tiles held by his pack (7 before); viewed, every commit matches the prediction (same tiles, same seed).
 //   LV-H  THE LOOK-AHEAD (Tyler 2026-10-20): hunt_live sends liveSeeds (16) combat seeds,
 //         one constant (src/data/hunt-tuning.js) the edge reads, and the leave horizon of
 //         2026-10-31-live-horizon.sql is exactly liveSeeds x the swing.
@@ -97,7 +100,10 @@ const T0 = Date.UTC(2026, 9, 19, 15, 33, 17, 447);
 
 async function load(base) {
   const u = (p) => import(pathToFileURL(join(base, p)).href);
+  /* the engine's own instance of a src/** module: src/core imports src/data with the build's ?v= (CLAUDE.md §5) */
+  const V = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(base, 'src/build-info.js'), 'utf8')) || [, ''])[1];
   return {
+    ENGINE_MONSTERS: (await import(pathToFileURL(join(base, 'src/data/monsters.js')).href + V)).MONSTERS,
     base,
     AC: await u(FN + '/accrual.js'),
     HS: await u(FN + '/hunt-settle.js'),
@@ -339,6 +345,34 @@ function rules(M) {
     ok('LV-B', pulls >= 1 && kills >= 8, `the duo at the leader's 8 pulled ${pulls} time(s) and killed ${kills} in 160 s: the full box walled the leader off`);
     const bad = r.verdicts.filter((x) => x.v !== 'match');
     ok('LV-B', r.verdicts.length >= 9 && bad.length === 0, `the viewer's browser did not predict the full-box pull: ${bad.length} of ${r.verdicts.length} commits diverged`);
+  }
+
+  { // LV-OPEN: THE OPEN GROUND, BOTH PATHS (Tyler + Andy 2026-10-25: "fix pathing so that the tank doesn't stand next to
+    // the wall. During an 8 box it ruins the whole point"). A lone tank pulls the cellar's first pack at density 8 from
+    // a tile on the pack area's edge, where one tile of his box is walled in behind the others (7 of 8 before the fix:
+    // tests/hunt-core/roles.mjs tank-plants-on-open-ground); the rats never die (their row's HP, the one the spawn reads,
+    // raised for this run only). Browser closed: at every server commit from 32 s the holder has his pack on all 8 of
+    // his tiles. Viewed: the browser's prediction matches every commit (the world hash covers every unit's tile), so
+    // one seed puts every unit on the same tile in both runtimes.
+    const mis = [memberOf(M, 'a', 0, 'tank', 40)];
+    mis[0].hero = Object.assign({}, mis[0].hero, { density: 8, lead: true });
+    const boxes = [];
+    const was = M.ENGINE_MONSTERS.rat.hp;
+    let r;
+    try {
+      M.ENGINE_MONSTERS.rat.hp = 1000000;
+      r = run(M, mis, 96000, { onCommit: ({ t, srv }) => {
+        if (t - T0 < 32000 || !srv.inst.world) return;
+        const w = M.WS.decode(JSON.parse(srv.inst.world));
+        const pk = w.packs.find((p) => p.aggro && Number.isInteger(p.holder));
+        const k = pk && w.units.find((u) => u.id === pk.holder);
+        boxes.push(k ? w.units.filter((u) => u.side === 'mon' && u.alive && u.target === k.id && Math.max(Math.abs(u.x - k.x), Math.abs(u.y - k.y)) <= 1).length : -1);
+      } });
+    } finally { M.ENGINE_MONSTERS.rat.hp = was; }
+    console.log(`  LV-OPEN cellar pull of 8: the server's commits from 32 s held ${JSON.stringify(boxes)} beside the tank; ${r.verdicts.filter((x) => x.v === 'match').length} of ${r.verdicts.length} commits matched the prediction`);
+    ok('LV-OPEN', boxes.length >= 3 && boxes.every((n) => n === 8), `browser closed: the server's commits from 32 s held ${JSON.stringify(boxes)} of the pack beside the tank, want 8 at each (a full box)`);
+    const bad = r.verdicts.filter((x) => x.v !== 'match');
+    ok('LV-OPEN', r.verdicts.length >= 5 && bad.length === 0, `viewed: the browser's prediction of the open-ground pull diverged at ${bad.length} of ${r.verdicts.length} commits`);
   }
 
   { // LV-H: the look-ahead is ONE constant (16 swings), and a leave lands no earlier than its last swing.
@@ -1065,7 +1099,11 @@ const MUTANTS = [
   ['the holder never rotates (LV-T)', 'src/core/hunt/targeting.js', 'return tanks[runs % tanks.length];', 'return tanks[0];', /^LV-T/],
   ['a peer row carries its full setup (LV-P)', 'supabase/functions/hr-accrue/hunt-settle.js', '      if (!self) {', '      if (false) {', /^LV-P/],
   ['the look-ahead is its own number at the edge (LV-H)', 'supabase/functions/hr-accrue/hunt-settle.js', 'export const LIVE_SEEDS = HUNT_TUNING.liveSeeds;', 'export const LIVE_SEEDS = 64;', /^LV-H/],
-  ['a second tank holds where it stands (LV-T)', 'src/core/hunt/roles.js', "  if (!mons.some((m) => m.target === h.id)) { closeIn(inst, h, unitById(inst, h.target) || nearestTo(mons, h)); return; }\n", '', /^LV-T/],
+  ['the tank plants wherever the pull leaves him (LV-OPEN, Tyler + Andy 10-25)', 'src/core/hunt/roles.js', '  if (plantOpen(inst, h, onMe, near, zone)) return;\n', '', /^LV-OPEN: browser closed/],
+  ["the browser's pack area is not the server's (LV-OPEN, viewed)", 'src/hunt-view/live-engine.js',
+    '    const where = huntGroundOf(String(live.instance.hunt));\n',
+    '    const real = huntGroundOf(String(live.instance.hunt));\n    const where = real && { grid: real.grid, ground: Object.assign({}, real.ground, { leashMargin: 0 }) };\n', /^LV-OPEN: viewed/],
+  ['a second tank holds where it stands (LV-T)', 'src/core/hunt/roles.js', "  if (!onMe.length) { h.spot = null; closeIn(inst, h, unitById(inst, h.target) || nearestTo(mons, h)); return; }\n", '', /^LV-T/],
   ['the swing runs on after a hero dies (LV-Q, live v0.2.23)', 'src/core/hunt/world-step.js', '    if (heroes.some((u) => !u.alive)) break;\n', '', /^LV-Q/],
   ['an ended instance keeps the prediction swinging (LV-E)', 'src/hunt-view/live-engine.js', 'if (!(sim.nextSwingAtMs > at)) {', 'if (false) {', /^LV-E/],
   ['a fresh world counts from 0, not the instance swing (LV-W)', 'src/hunt-view/live-engine.js', '      worldSwing: s.worldSwing },', '      worldSwing: 0 },', /^LV-W/],

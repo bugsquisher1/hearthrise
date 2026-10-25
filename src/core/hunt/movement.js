@@ -16,15 +16,17 @@
 // leash.leashAllows. This file is its only importer.
 //
 // Also here, because they are claims on tiles: the leader's trail and
-// follow-the-leader (MV-08/09), and the ranged SPOT reservation with
-// hysteresis (RO-07/08) plus the hard pack-area filter every hero tile search
-// uses (RO-13). roles.js scores tiles; this file decides which may be stood on.
+// follow-the-leader (MV-08/09), and the SPOT a hero claims to stand on in a
+// fight (a ranged hero's shooting spot with hysteresis, RO-07/08; the holding
+// tank's open ground, roles.js plantOpen) plus the hard pack-area filter every
+// hero tile search uses (RO-13). roles.js scores tiles; this file decides which
+// may be stood on.
 //
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
 import { HUNT_TUNING } from '../../data/hunt-tuning.js?v=0.2.45';
-import { walkable, astar, bfsTo, cheb, stepCost, tileKey } from './grid.js?v=0.2.45';
+import { walkable, astar, bfsTo, bfsWithin, cheb, stepCost, tileKey } from './grid.js?v=0.2.45';
 import { leashAllows, inArea } from './leash.js?v=0.2.45';
 import { trackStep } from './events.js?v=0.2.45';
 
@@ -97,6 +99,14 @@ export function goToNearest(inst, u, goal) {
   u.goal = [end[0], end[1]];
   u.path = p;
   return u.goal;
+}
+
+/**
+ * Every tile `u` can reach within `steps` moves round every monster standing now (occupancy fresh),
+ * `veto(x, y)` refusing more (grid.bfsWithin): { tiles: [[x, y, moves], …] fewest moves first, pathTo(x, y) }.
+ */
+export function reachWithin(inst, u, steps, veto) {
+  return bfsWithin(inst.grid, u.x, u.y, steps, (x, y) => blocks(inst, u, x, y) || !leashAllows(inst, u, x, y) || (veto ? veto(x, y) : false));
 }
 
 /** Aim `u` at (gx, gy). The same goal keeps its path (MV-01); no path = stand. */

@@ -17,10 +17,11 @@
 //            on a slot puts it there (src/shell/bar-assign.js)
 //   tooltip  hover, focus or a long press: name, cost, type, cooldown, effect,
 //            then the slot's setup and any conflict (action-facts.js)
-//   panel    the setup in use (a setup owns this bar; Saved setups switch it,
-//            designer ruling 2026-10-22); target, stance, chase,
-//            distance and the gold to keep (gold_floor) fold out above the
-//            bar from its Fight settings button: each ONE intent
+//   panel    the fight panel on the bar's right, always in view (Tyler 10-19,
+//            10-25): the setup in use (a setup owns this bar; Saved setups
+//            switch it, designer ruling 2026-10-22), target, stance, chase and
+//            distance; its sliders fold out the gold to keep (gold_floor), and
+//            on a phone the target too. Each control is ONE intent
 //            (settings-intent.js), shown from the server only once it confirms
 // Shown in town too (Tyler 10-18: set it up before leaving). Every value is
 // the server's; the bar changes only when the re-read envelope says so.
@@ -35,6 +36,7 @@ import { glyphSvg } from '../launcher.js?v=0.2.45';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.45';
 import { actionIconHtml } from './bits.js?v=0.2.45';
 import { hubHtml, patchHub } from './vitals-hub.js?v=0.2.45';
+import { staminaBuyHtml, patchStaminaBuy, actStaminaBuy } from './stamina-buy.js?v=0.2.45';
 import { openSlot, sendPlan, movePlan, swapPlan, insertPlan, serverBar, answerWithin } from '../bar-draft.js?v=0.2.45';
 import { actionName, factsOf, carried, supplyLines, setupWords, conflictsOf, reasonOf, holdingReason, sharedCooldownOf } from '../action-facts.js?v=0.2.45';
 import { resetConfigureView } from '../windows/configure-action.js?v=0.2.45';
@@ -96,7 +98,7 @@ const holdsPackNow = (cs, hero) => !!hero && !!cs && !!cs.live && typeof cs.live
 function slotHtml(i) {
   return '<li class="hb-slot is-empty" data-slot="' + i + '" data-hs-act="slot" role="button" tabindex="0" aria-label="Slot ' + (i + 1) + '">'
     + '<span class="hb-slot-ico"></span><small class="hb-n">' + (i + 1) + '</small><small class="hb-count"></small><b class="hb-warn" aria-hidden="true">!</b>'
-    + '<span class="hb-why" aria-hidden="true"></span><span class="hb-plus" aria-hidden="true">+</span>'
+    + '<span class="hb-why" aria-hidden="true"></span><span class="hb-plus" aria-hidden="true"></span>'
     + '<span class="hb-cd" aria-hidden="true"><i class="hb-cd-ember"></i><b class="hb-cd-s"></b></span></li>';
 }
 
@@ -110,25 +112,31 @@ export function renderActionBar(ctx) {
     for (let r = 0; r < BAR_SLOTS.rows; r++) for (let c = 0; c < half; c++) h += slotHtml(r * BAR_SLOTS.cols + c + (right ? half : 0));
     return h;
   };
+  /* The hub comes first and the slots after it in the markup: a desktop orders them slots | hub | slots (hunt.css),
+     a phone keeps the hub at the bar's left and runs the twenty slots as one block of two rows (its own bar). */
   return '<div class="hb-bar" role="group" aria-label="Action bar">'
-    + '<ol class="hb-slots" aria-label="Slots 1 to 5 and 11 to 15, slot 1 tried first">' + side(false) + '</ol>'
     + hubHtml(g)
-    + '<ol class="hb-slots" aria-label="Slots 6 to 10 and 16 to 20">' + side(true) + '</ol>'
-    + '<div class="hb-plaque">'
+    + '<div class="hb-grid">'
+    + '<ol class="hb-slots" aria-label="Slots 1 to 5 and 11 to 15, slot 1 tried first">' + side(false) + '</ol>'
+    + '<ol class="hb-slots" aria-label="Slots 6 to 10 and 16 to 20">' + side(true) + '</ol></div>'
+    /* THE FIGHT PANEL (Tyler 10-19 and 10-25: "Not having it there is dangerous for the player"): the setup, its
+       target, stance, chase and distance sit ON the bar's right, always in view; each control is ONE intent and
+       stays off until the server answers (settings-intent.js). The sliders open what does not fit: the gold to
+       keep on a desktop, the target too on a phone (hunt.css). */
+    + '<div class="hb-plaque" role="group" aria-label="Fight settings" data-coach-hook="fight-settings">'
     /* The set's name renames in place (inline-name.js; ONE hr_action_set_rename, ruling C4). */
-    + '<div class="hb-pl-row"><span class="hb-label">Setup</span><span class="hb-set">' + nameEditorHtml('set-rename', '', 'New name for this setup') + '</span>'
-    + '<button type="button" class="hh-tool" data-hs-act="setups" aria-label="Saved setups: switch or save">' + glyphSvg(g, 'uiCheck') + '</button>'
-    /* The rest of the panel folds out above the bar (a slide-out sheet on a phone, hunt.css): this opens it. */
-    + '<button type="button" class="hh-tool hb-more" data-hs-act="panel" aria-expanded="false" aria-label="Fight settings">' + glyphSvg(g, 'uiSettings') + '</button></div>'
-    + '<div class="hb-pl-more" role="group" aria-label="Fight settings">'
-    + '<div class="hb-pl-head"><b>Fight settings</b><button type="button" class="hh-tool" data-hs-act="panel" aria-label="Close">×</button></div>'
-    + '<label class="hb-pl-row"><span class="hb-label">Target</span><select class="hh-select" data-opt="target_mode" data-hs-act="opt" aria-label="Target">' + targetOptionsHtml() + '</select></label>'
-    + '<div class="hb-pl-row"><span class="hh-segs hb-stance" role="group" aria-label="Stance">' + stanceButtonsHtml() + '</span></div>'
-    + '<div class="hb-pl-row"><button type="button" class="hh-seg" data-opt="chase" data-hs-act="opt" aria-pressed="false" title="With chase off, the hero keeps its distance">Chase</button>'
-    + '<span class="hb-label">Distance</span>' + distanceHtml() + '</div>'
-    + '<label class="hb-pl-row is-gold"><span class="hb-label">Keep at least</span>' + goldFloorHtml() + '<span class="hb-label">gold</span></label></div>'
+    + '<div class="hb-pl-row is-set"><span class="hb-label">Setup</span><span class="hb-set" data-coach-hook="preset">' + nameEditorHtml('set-rename', '', 'New name for this setup') + '</span>'
+    + '<button type="button" class="hh-tool hb-ok" data-hs-act="setups" aria-label="Saved setups: switch or save">' + glyphSvg(g, 'uiCheck') + '</button>'
+    + '<button type="button" class="hh-tool hb-more" data-hs-act="panel" aria-expanded="false" aria-label="More fight settings">' + glyphSvg(g, 'uiSettings') + '</button></div>'
+    + '<div class="hb-pl-more" role="group" aria-label="More fight settings">'
+    + '<label class="hb-pl-row is-target"><span class="hb-label">Target</span><select class="hh-select" data-opt="target_mode" data-hs-act="opt" aria-label="Target">' + targetOptionsHtml() + '</select></label>'
+    + '<div class="hb-pl-fold"><div class="hb-pl-head"><b>More fight settings</b><button type="button" class="hh-tool" data-hs-act="panel" aria-label="Close">×</button></div>'
+    + '<label class="hb-pl-row is-gold"><span class="hb-label">Keep at least</span>' + goldFloorHtml() + '<span class="hb-label">gold</span></label></div></div>'
+    + '<div class="hb-pl-row is-stance"><span class="hh-segs hb-stance" role="group" aria-label="Stance" data-coach-hook="stance">' + stanceButtonsHtml() + '</span></div>'
+    + '<div class="hb-pl-row is-move"><button type="button" class="hh-seg hb-chase" data-opt="chase" data-hs-act="opt" aria-pressed="false" data-coach-hook="chase" title="With chase off, the hero keeps its distance">Chase</button>'
+    + '<span class="hb-dist" data-coach-hook="distance"><span class="hb-label">Distance</span>' + distanceHtml() + '</span></div>'
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></div>'
-    + '<div class="hb-tip" role="tooltip"></div>'
+    + '<div class="hb-tip" role="tooltip"></div>' + staminaBuyHtml()
     + '<div class="hb-drop" role="menu" aria-label="Drop the action"><b class="hb-drop-t"></b>'
     + '<button type="button" class="hh-tool" role="menuitem" data-hs-act="drop" data-x="swap"></button>'
     + '<button type="button" class="hh-tool" role="menuitem" data-hs-act="drop" data-x="insert">Insert here (shift the rest)</button>'
@@ -199,6 +207,7 @@ renderActionBar.patch = function patchActionBar(el, ctx) {
   const s = settingsOf(cs);
   cls(el.querySelector('.hb-bar'), 'is-town', !h);
   patchHub(el, ctx);
+  patchStaminaBuy(el, ctx);
   const slots = s ? Array.from({ length: SLOTS }, (_, i) => s.slots[i] || { empty: true }) : [];
   const wires = slots.map((x) => wireSlot(x));
   const conflicts = s ? conflictsOf(wires, s) : new Map();
@@ -332,7 +341,8 @@ function renameSet(ctx, el, ev, t) {
   renderActionBar.patch(el, ctx);
   answerWithin(() => renameActionSet(ctx.account, ctx.character, s.preset, name)).then((r) => {
     RENAMING.delete(el);
-    text(msg, r.ok ? '' : r.error === 'timeout' ? barRefusalWords(r.error) : refusalWords(r.error));
+    /* refusalWords carries the timeout's words too (refusal-words.js): one reader for every answer. */
+    text(msg, r.ok ? '' : refusalWords(r.error));
     renderActionBar.patch(el, ctx);
   });
   return true;
@@ -361,6 +371,7 @@ renderActionBar.act = function actActionBar(ctx, el, action, ev, t) {
   }
   if (action === 'set-rename-key') return renameSet(ctx, el, ev, t);
   if (action === 'setups' && ev.type === 'click') { ctx.show('hunt-prep'); return; }
+  if (action.startsWith('stam-')) { actStaminaBuy(ctx, el, action, ev, () => renderActionBar.patch(el, ctx)); return; }
   if (action === 'panel' && ev.type === 'click') { setPanel(ctx, el, !PANEL.has(el)); return; }
   if (action === 'drop' && ev.type === 'click') {
     const d = DROP.get(el);

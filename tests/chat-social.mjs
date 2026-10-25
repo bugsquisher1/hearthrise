@@ -774,13 +774,14 @@ async function pageRules(overrides, shots) {
           const puts0 = s.calls.filter((c) => c.name === 'hr_put_client_state').length;
           await page.mouse.move(g.x + g.width / 2, g.y + g.height / 2);
           await page.mouse.down();
-          await page.mouse.move(g.x + g.width / 2 + 80, g.y + g.height / 2 - 60, { steps: 6 });
+          /* 40 up: at 1440x900 the room between the Party panel and the action bar (170 px tall since 10-25) caps the chat at 336 px */
+          await page.mouse.move(g.x + g.width / 2 + 80, g.y + g.height / 2 - 40, { steps: 6 });
           await page.mouse.up();
           await page.waitForTimeout(2200);
           const c1 = await chatBox();
-          if (c1.w - c0.w !== 80 || c1.h - c0.h !== 60 || c1.left !== c0.left || c1.bottom !== c0.bottom) fails.push('CW-7 [' + tag + '] the grip did not grow the chat up and right: ' + JSON.stringify(c0) + ' -> ' + JSON.stringify(c1));
+          if (c1.w - c0.w !== 80 || c1.h - c0.h !== 40 || c1.left !== c0.left || c1.bottom !== c0.bottom) fails.push('CW-7 [' + tag + '] the grip did not grow the chat up and right: ' + JSON.stringify(c0) + ' -> ' + JSON.stringify(c1));
           const puts = s.calls.filter((c) => c.name === 'hr_put_client_state').slice(puts0).filter((c) => c.body.p_patch && c.body.p_patch.winSize);
-          const want = JSON.stringify({ chat: [400 + 80, 280 + 60] });
+          const want = JSON.stringify({ chat: [400 + 80, 280 + 40] });
           if (puts.length !== 1 || JSON.stringify(puts[0].body.p_patch.winSize) !== want) fails.push('CW-7 [' + tag + '] the size was put as ' + JSON.stringify(puts.map((c) => c.body.p_patch)) + ', not ONE ' + want);
           await page.reload({ waitUntil: 'load' });
           await wait(page, () => document.querySelector('[data-hs-shell]') || document.querySelector('[data-app="play"][data-slot="0"]'));

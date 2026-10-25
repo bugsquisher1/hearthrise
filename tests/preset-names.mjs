@@ -32,6 +32,9 @@
 //         setup are off and the window says why; once the hunt has ended, Save
 //         current setup sends ONE hr_hunt_preset_save on the first free number
 //   PN-9  FIVE AT MOST: with ACTION_SET_LIMITS.presets setups, Save current setup is off
+//   PN-10 A BAR RENAME THE SERVER NEVER ANSWERS (lane/b-action-bar-fix: renameSet called an undefined function on
+//         the timeout, so the line stuck on "Renaming…" and the page threw): after BAR_ANSWER_MS the plaque says the
+//         server has not answered, keeps the server's name and turns its name control back on, with no page error
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
 import { leaseBrowser } from './_chrome.mjs';
@@ -39,14 +42,16 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { ROOT, serve, SDK_STUB } from './_client-harness.mjs';
 import { harnessFail, judge, report, exitOf, cleanControl } from './_mutant-verdict.mjs';
+import { pathToFileURL } from 'node:url';
 
 const FIXTURE = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/alpha-envelope.json'), 'utf8'));
+const { BAR_ANSWER_MS } = await import(pathToFileURL(join(ROOT, 'src/data/hunt-hud.js')).href);
 const RPCS = ['hr_hunt_preset_rename', 'hr_hunt_preset_delete', 'hr_action_set_rename'];
 const clone = (o) => JSON.parse(JSON.stringify(o));
 const wait = (page, fn, arg, ms = 8000) => page.waitForFunction(fn, arg, { timeout: ms }).then(() => true, () => false);
 
 function scripted() {
-  const s = { env: clone(FIXTURE), version: 1, calls: [], delayMs: 400, refuse: null };
+  const s = { env: clone(FIXTURE), version: 1, calls: [], delayMs: 400, refuse: null, hang: false };
   s.env.hunt_presets = [s.env.hunt_presets[0], Object.assign(clone(s.env.hunt_presets[0]), { preset: 3, name: 'Mill run' })];
   s.next = () => Object.assign(clone(s.env), { version: ++s.version, client_state: {} });
   /* The server's answer to one of the three verbs: a refusal leaves the record as it was. */
@@ -70,6 +75,8 @@ async function stub(page, s) {
     const json = (b) => r.fulfill({ contentType: 'application/json', body: JSON.stringify(b) });
     if (name === 'hr_load') return json(s.next());
     if (name === 'hr-accrue') return json(Object.assign({ accrued: true }, s.next()));
+    /* s.hang: the server never answers (the request stays open until the page closes). */
+    if (RPCS.includes(name) && s.hang) return;
     if (RPCS.includes(name)) { await new Promise((ok) => setTimeout(ok, s.delayMs)); return json(s.answer(name, body)); }
     return json({ ok: true });
   });
@@ -112,6 +119,8 @@ async function checks(overrides) {
   const s = scripted();
   try {
     await stub(page, s);
+    /* The page's timers on a clock this test can move (PN-10 jumps past BAR_ANSWER_MS); it runs at real speed otherwise. */
+    await page.clock.install();
     if (!(await signIn(page, 'http://127.0.0.1:' + port)) || !(await openPrep(page))) throw new Error('the shell or Hunt prep did not open');
     // PN-7 (the fixture's hero is on set 0)
     const use7 = await page.evaluate((sels) => sels.map((sel) => { const li = document.querySelector(sel); return li && { cur: li.classList.contains('is-current'), small: li.querySelector('small').textContent }; }), [ROW(0), ROW(3)]);
@@ -175,6 +184,20 @@ async function checks(overrides) {
     await page.waitForTimeout(900);
     const ar = sent(s, 'hr_action_set_rename');
     if (ar.length !== 1 || ar[0].body.p_preset !== FIXTURE.hunt_settings.preset || ar[0].body.p_name !== 'Tank bar') fails.push('PN-5 the plaque sent ' + JSON.stringify(ar.map((c) => c.body)));
+    // PN-10
+    s.hang = true;
+    const thrown = errors.length;
+    await page.click('.hb-set .hs-name');
+    await page.fill('.hb-set .hs-name-edit', 'Late name');
+    await page.press('.hb-set .hs-name-edit', 'Enter');
+    await page.waitForTimeout(150);
+    await page.clock.fastForward(BAR_ANSWER_MS + 500);
+    await page.waitForTimeout(300);
+    const late = await page.evaluate(() => ({ msg: document.querySelector('.hb-plaque .hh-intent-msg').textContent, name: document.querySelector('.hb-set .hs-name-t').textContent,
+      off: document.querySelector('.hb-set .hs-name').disabled }));
+    if (!/has not answered/.test(late.msg) || late.name !== 'Tank bar' || late.off || errors.length > thrown)
+      fails.push('PN-10 a rename the server never answers left ' + JSON.stringify(late) + (errors.length > thrown ? ' and threw: ' + errors[thrown] : ''));
+    s.hang = false;
     // after a reload, everything reads from the server's record
     if (!(await reload(page)) || !(await openPrep(page))) throw new Error('the reload did not come back');
     await page.waitForTimeout(300);
@@ -231,6 +254,7 @@ const MUTANTS = [
     "prop(el, 'disabled', sc.pending || !presets || full || hunting);", "prop(el, 'disabled', sc.pending || !presets || full);"],
   ['a new setup takes a used number', 'src/shell/windows/hunt-prep.js', 'while (used.has(free) && free < MAX_PRESETS) free++;', 'free = used.size;'],
   ['a sixth setup can be saved', 'src/shell/windows/hunt-prep.js', 'const MAX_PRESETS = ACTION_SET_LIMITS.presets;', 'const MAX_PRESETS = 8;'],
+  ['a bar rename that times out throws (PN-10)', 'src/shell/widgets/action-bar.js', "    text(msg, r.ok ? '' : refusalWords(r.error));", "    text(msg, r.ok ? '' : r.error === 'timeout' ? barRefusalWords(r.error) : refusalWords(r.error));"],
   ['the plaque renames another set','src/shell/widgets/action-bar.js', 'renameActionSet(ctx.account, ctx.character, s.preset, name)', 'renameActionSet(ctx.account, ctx.character, s.preset + 1, name)'],
 ];
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // tools/make-hud-bar-art.mjs - draws the action bar's pixel art (ART_DIRECTION §9, 2026-10-22 de-boxing pass).
-//   node tools/make-hud-bar-art.mjs            write the four PNGs into assets/ui/
+//   node tools/make-hud-bar-art.mjs            write the two PNGs into assets/ui/
 //   node tools/make-hud-bar-art.mjs --check    exit 1 if a committed PNG differs from what this draws
 // Hand-drawn by rule, hr-world-56-v2 colours only (art/world/palette.json: shadow, iron, steel),
 // lit from the upper left like the world, shown at the one density (x2, image-rendering: pixelated):
@@ -8,10 +8,8 @@
 //                    band, a dark seam and a rivet in each corner. No fill: the plate's face is the HUD token.
 //   bar-socket.png   6x6, slice 2 (4 px): a slot cut into the plate. Its upper-left wall is in shadow, its
 //                    lower-right wall catches the light; no fill, so the floor stays a token (hover, drop, states).
-//   bar-medal.png    52x52 (104 px): the hub's medallion. Outer iron bezel with four steel studs, the gauge
-//                    channel the HP and mana arcs fill (r 19-23), the inner bezel, an iron rim the XP arc gilds
-//                    (r 14.5-16) and a sunk well for the level. bar-medal-sm.png is the same at 32x32 (64 px, phone).
-// The arcs in vitals-hub.js are drawn on a 52-unit viewBox so they land in this art's channel and rim.
+// The hub's ring is no longer pixel art: Tyler 10-25 ("the circle just needs to be smoothed out") made it one smooth
+// vector ring (vitals-hub.js), so bar-medal.png and bar-medal-sm.png are retired.
 import { readFileSync, writeFileSync } from 'node:fs';
 import { createImage, encodePNG } from './world-art/png.mjs';
 import { isMain } from '../tests/_is-main.mjs';
@@ -69,40 +67,9 @@ function socket() {
   return im;
 }
 
-/* The medallion on an S grid; radii are fractions of 52 so the phone size keeps the same geometry. */
-function medal(S) {
-  const im = img(S), c = S / 2, k = S / 52;
-  for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
-    const dx = x + 0.5 - c, dy = y + 0.5 - c, d = Math.hypot(dx, dy) / k;
-    const lit = -(dx + dy) / (Math.hypot(dx, dy) || 1);   // +1 upper-left, -1 lower-right
-    let col = null;
-    if (d > 26) col = null;
-    else if (d > 25) col = P.out;
-    else if (d > 23.2) col = lit > 0.4 ? P.i3 : lit < -0.4 ? P.i0 : P.i2;          // outer bezel
-    else if (d > 22.6) col = P.out;
-    else if (d > 19.4) col = P.sh1;                                                // the gauge channel
-    else if (d > 18.6) col = P.out;
-    else if (d > 16.4) col = lit > 0.4 ? P.i2 : lit < -0.4 ? P.i0 : P.i1;          // inner bezel
-    else if (d > 14.4) col = lit > 0.5 ? P.i1 : P.i0;                              // the iron rim the XP gilds
-    else if (d > 13.4) col = P.out;
-    else if (d > 12.4) col = lit > 0 ? P.out : P.i0;                               // the well's cut: shadow up-left
-    else col = P.sh1;
-    im.put(x, y, col);
-  }
-  /* Four steel studs on the outer bezel at the compass points (the gauge gaps sit top and bottom). */
-  const r = 24.1 * k, s = Math.max(1, Math.round(2 * k));
-  for (const [ax, ay] of [[0, -1], [1, 0], [0, 1], [-1, 0]]) {
-    const px = Math.floor(c + ax * r - s / 2), py = Math.floor(c + ay * r - s / 2);
-    for (let i = 0; i < s; i++) for (let j = 0; j < s; j++) im.put(px + i, py + j, i === 0 && j === 0 ? P.st3 : (i + j === 2 * (s - 1) ? P.out : P.st1));
-  }
-  return im;
-}
-
 export const ART = {
   'bar-plate.png': () => plate(18),
   'bar-socket.png': socket,
-  'bar-medal.png': () => medal(52),
-  'bar-medal-sm.png': () => medal(32),
 };
 
 if (isMain(import.meta.url)) {

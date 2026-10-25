@@ -99,10 +99,11 @@ export function actionIconHtml(glyphs, action) {
   return '<span class="hh-icon is-glyph">' + glyphSvg(glyphs, ACTION_GLYPH[id] || (action && action.type === 'ability' ? 'uiSpark' : 'uiChest')) + '</span>';
 }
 
-/** The frame every hunt panel sits in: a title row (with optional controls) and a body. */
-export function panelHtml(cls, title, controls, body) {
+/** The frame every hunt panel sits in: a title row (with optional controls) and a body. `move`: the title row drags
+ *  the panel (src/shell/widget-move.js [data-hs-wdrag]). */
+export function panelHtml(cls, title, controls, body, move = false) {
   return '<section class="hh-panel ' + cls + '" aria-label="' + esc(title) + '">'
-    + '<header class="hh-panel-head"><h2 class="hh-panel-title">' + esc(title) + '</h2>' + (controls || '') + '</header>'
+    + '<header class="hh-panel-head"' + (move ? ' data-hs-wdrag title="Drag to move"' : '') + '><h2 class="hh-panel-title">' + esc(title) + '</h2>' + (controls || '') + '</header>'
     + '<div class="hh-panel-body">' + body + '</div></section>';
 }
 

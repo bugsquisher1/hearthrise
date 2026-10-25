@@ -27,6 +27,18 @@
 .hs-widget:hover, .hs-widget:focus-within { opacity: 1; }
 /* No room beside the docked windows (src/shell/hud.js clearOfDock): the widget waits, never under a window. */
 .hs-widget.is-under-dock { visibility: hidden; }
+/* MOVE AND FOLD (src/shell/widget-move.js, Tyler 2026-10-25): a title that drags (desktop), a dash at its end that
+   folds the widget to that title and a plus that opens it again. Drawn as the coach's fold is: two ink bars, no glyph. */
+.hs-widget [data-hs-wdrag] { user-select: none; touch-action: none; }
+.hs-widget [data-hs-wdrag]:not(button) { cursor: grab; }
+.hs-widget.is-dragging { z-index: 6; opacity: 1; }
+.hs-widget.is-dragging [data-hs-wdrag] { cursor: grabbing; }
+.hs-wfold { flex: none; display: grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 0; background: none; color: var(--ink-3); cursor: pointer; }
+.hs-wfold::before, .hs-wfold::after { content: ''; grid-area: 1 / 1; width: 10px; height: 2px; background: currentColor; }
+.hs-wfold::after { display: none; }
+.hs-wfold[aria-expanded="false"]::after { display: block; width: 2px; height: 10px; }
+.hs-wfold:hover { color: var(--ink); }
+.hs-wfold:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: -2px; }
 
 /* ── Players online (widgets/online.js): one quiet line on the world, a small green dot, the server's number ── */
 .hs-online { display: flex; align-items: center; gap: 6px; margin: 0; padding: 2px 8px; background: var(--hud-fill); font-size: var(--t-micro); color: var(--ink-2); white-space: nowrap; font-variant-numeric: lining-nums tabular-nums; }
@@ -36,7 +48,10 @@
 .hs-tally { display: flex; flex-direction: column; gap: 4px; padding: 4px 6px; background: var(--hud-fill);
   border: 6px solid transparent; border-image: url('../../assets/ui/steel-frame-thin.png') 3 / 6px stretch; image-rendering: pixelated; }
 .hs-widget.is-tally.is-quiet { display: none; }
-.hs-tally-open { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 0; border: 0; background: none; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+.hs-tally-head { display: flex; align-items: flex-start; gap: 4px; }
+.hs-tally-open { flex: 1; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 0; border: 0; background: none; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+.hs-tally-head .hs-wfold { width: 22px; height: 22px; margin: -2px -2px 0 0; }
+.hs-widget.is-folded .hs-tally-none, .hs-widget.is-folded .hs-tally-list { display: none; }
 .hs-tally-open b { font-family: var(--f-display); font-weight: 700; font-size: var(--t-micro); letter-spacing: .1em; color: var(--gold-2); }
 .hs-tally-open:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: 2px; }
 .hs-tally-none { font-size: var(--t-micro); color: var(--ink-2); }
@@ -239,8 +254,10 @@
 
 /* ── The HUD layout window: one ruled line per widget, then Reset ── */
 .hs-hudset { margin: 0; padding: 0; list-style: none; }
-.hs-hudset-row { display: flex; align-items: center; gap: 10px; min-height: 36px; border-top: 1px solid var(--line-soft); }
-.hs-hudset-show { flex: 1; font-size: var(--t-small); color: var(--ink-2); }
+.hs-hudset-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0 10px; min-height: 36px; border-top: 1px solid var(--line-soft); }
+.hs-hudset-show { flex: 1 1 150px; font-size: var(--t-small); color: var(--ink-2); }
+/* A moved panel's Put back (hud.js): its own line under the row, at the right, never squeezing the name. */
+.hs-hudset-put { min-height: 32px; margin: 0 0 8px auto; padding: 0 10px; }
 .hs-hudset-show small { font-size: var(--t-micro); color: var(--ink-3); }
 .hs-hudset-row input { accent-color: var(--gold); }
 .hs-hudset-row input[type="range"] { width: 110px; }
@@ -257,6 +274,10 @@
   .hs-pointer:not(.is-min) { padding-right: calc(var(--tap) + 4px); }
   .hs-coach-min { top: 0; right: 0; width: var(--tap); height: var(--tap); }
   .hs-coach-tab { min-height: var(--tap); padding: 0 14px; }
+  /* The phone folds a widget but never drags one (widget-move.js): its title is just a title, its fold thumb-sized. */
+  .hs-widget [data-hs-wdrag] { touch-action: auto; }
+  .hs-widget [data-hs-wdrag]:not(button) { cursor: default; }
+  .hs-wfold, .hs-tally-head .hs-wfold { width: var(--tap); height: var(--tap); margin: 0; }
   /* A long card (a high Level's "What next") ends above the action bar: --coach-room is its host's foot to the bar's
      top (shell.js roomForCoach), less the card's 12 px drop and an 8 px gap. The title and the dash stay; the words
      scroll in their own box, which alone takes the thumb (the card lets presses through to the World). That box ends
@@ -266,7 +287,7 @@
   .hs-widget > .hs-pointer:not(.is-min), .hs-launchers > .hs-pointer:not(.is-min) { display: flex; flex-direction: column; max-height: calc(var(--coach-room) - 20px); }
   .hs-pointer:not(.is-min) > .hs-coach-text {
     min-height: 0; max-height: calc(round(down, var(--coach-room) - 42px - 1.5lh, 1lh) + .5lh); overflow-y: auto; overscroll-behavior: contain;
-    pointer-events: auto; scrollbar-width: thin; scrollbar-color: var(--ink-3) transparent;
+    pointer-events: auto;
   }
   .hs-win-coach > .hs-pointer { margin: 6px 10px 0; }
   .hs-coach-got { min-height: var(--tap); }

@@ -15,7 +15,9 @@
 //      a home-bl window (Chat) floating at the bottom-left and a resizable one's size
 //   H  HUD: defaults per size class, show/hide (never the launchers), opacity
 //      clamp, persisted per size class, Reset touches only this class, a saved
-//      layout survives a reload, `when: hunt`, placement by anchor
+//      layout survives a reload, `when: hunt`, placement by anchor; MOVE (a drop
+//      kept as corner offsets, back after a reload, on screen at every size, Put
+//      back) and FOLD (kept, back after a reload) (Tyler 2026-10-25: H14, H15)
 //   R  the residue: hudLayout is allowlisted, rides the put, and a forged bag
 //      is bounded on the way in
 //
@@ -237,9 +239,9 @@ async function runTests(mods) {
   t('H1 defaults per size class come from the row and its phone block', () => {
     const cls = { v: 'desktop' };
     const hud = hudOf(memStore(), cls);
-    eq(hud.layoutOf('vitals'), { anchor: 'bc', dx: 0, dy: 100, opacity: 1, visible: true }, 'desktop defaults');
+    eq(hud.layoutOf('vitals'), { anchor: 'bc', dx: 0, dy: 100, opacity: 1, visible: true, folded: false }, 'desktop defaults');
     cls.v = 'phone'; hud.reload();
-    eq(hud.layoutOf('vitals'), { anchor: 'tl', dx: 6, dy: 62, opacity: 1, visible: true }, 'phone overrides');
+    eq(hud.layoutOf('vitals'), { anchor: 'tl', dx: 6, dy: 62, opacity: 1, visible: true, folded: false }, 'phone overrides');
     eq(hud.layoutOf('analyzer').visible, false, 'phone visible:false');
     ok(!hud.isShown('chat'), 'a default-hidden widget starts hidden');
   });
@@ -276,8 +278,8 @@ async function runTests(mods) {
     eq(store.peek(), { phone: { vitals: { opacity: 0.5 } } }, 'the phone layout survives a desktop reset');
   });
   t('H5 a garbage saved layout falls back to defaults', () => {
-    const store = memStore({ desktop: { vitals: { anchor: 'zz', dx: 'x', opacity: 'a', visible: 1 } } });
-    eq(hudOf(store, { v: 'desktop' }).layoutOf('vitals'), { anchor: 'bc', dx: 0, dy: 100, opacity: 1, visible: true }, 'nothing malformed lands');
+    const store = memStore({ desktop: { vitals: { anchor: 'zz', dx: 'x', opacity: 'a', visible: 1, folded: 'yes' } } });
+    eq(hudOf(store, { v: 'desktop' }).layoutOf('vitals'), { anchor: 'bc', dx: 0, dy: 100, opacity: 1, visible: true, folded: false }, 'nothing malformed lands');
   });
   t('H6 hunt widgets show only in a hunt', () => {
     const hunt = { v: false };
@@ -324,6 +326,11 @@ async function runTests(mods) {
     const moved = [party, an].map((q, i) => { const p = at.push.find((x) => x.i === i); return p ? Object.assign({}, q, { top: p.top }) : q; });
     ok(moved.every((q) => !over(placed, q)), 'the bar still overlaps an edge widget: ' + JSON.stringify(at));
     eq(at.push.map((p) => p.i), [1], 'only the analyzer (the one nearest the centre spot) steps down');
+    /* a widget the player moved (pinned) is in no bar's row: the bar never slides for it and never pushes it */
+    const pinned = HUD.clearOfEdges(r, [party, Object.assign({ pinned: true }, an)], 1010, 12);
+    ok(!pinned.push.some((p) => p.i === 1), 'a moved widget must never be pushed: ' + JSON.stringify(pinned));
+    const bar = { left: 700, top: 8, width: 300, height: 40 };
+    eq(HUD.clearOfEdges(bar, [party, Object.assign({ pinned: true }, an)], 1440, 12), { left: 700, push: [] }, 'the bar must not slide away from a moved widget');
   });
   t('H11 a docked window never covers a right-anchored widget: it slides left of the dock, else waits hidden (r11)', () => {
     const over = (a, q) => a.left < q.left + q.width && a.left + a.width > q.left && a.top < q.top + q.height && a.top + a.height > q.top;
@@ -379,6 +386,12 @@ async function runTests(mods) {
       /* under the hunt bar and the analyzer at once, both fractional, in either order */
       const bar = { left: 1000, top: 4.4, width: 430, height: 41.2 }, tall = Object.assign({ height: 420.3 }, an, { top: 40.1 });
       cases.push({ r: tally, above: [bar, tall], gap: 12 }, { r: tally, above: [tall, bar], gap: 12 });
+      /* MOVED AND FOLDED (Tyler 2026-10-25): a folded analyzer is its title row (a fractional ~43 px), and a moved one
+         lands anywhere at a fractional px, on the tally's column or across it; both end, under every bottom they cross */
+      for (let k = 1; k < 64; k += 7) {
+        cases.push({ r: tally, above: [Object.assign({ height: 43 + k / 64 }, an)], gap: 12 });
+        cases.push({ r: tally, above: [{ left: 1200.5 + k / 64, top: 20 + k / 3, width: 285.25, height: 43 + k / 64 }, bar], gap: 12 });
+      }
       const got = await stackBelowOffThread(mods.HUD_URL, cases, 3000);
       if (got === null) throw new Error('stackBelow never returned within 3 s for a fractional bottom (the loop spins: the page hangs)');
       cases.forEach((c, i) => {
@@ -388,6 +401,74 @@ async function runTests(mods) {
       });
     } catch (e) { fails.push(id + ': ' + e.message); }
   })();
+  /* H14 MOVE (Tyler 2026-10-25): a drop is kept as offsets from the nearest corner, comes back after a reload, sits on
+     screen at every size (1440x900, the phones' 844x390 and 667x375), and Put back returns it; another size class is
+     untouched. The World boxes are the play page's at those sizes (the strip takes the top). */
+  t('H14 a moved widget is kept from its corner, comes back after a reload, and stays on screen at every size', () => {
+    const store = memStore();
+    const hud = hudOf(store, { v: 'desktop' });
+    const big = { width: 1440, height: 860 }, size = { width: 290, height: 420 };
+    ok(!hud.isMoved('analyzer'), 'a fresh widget is not moved');
+    const at = HUD.placeFrom({ left: 12, top: 860 - 420 - 30, width: 290, height: 420 }, big);
+    eq(at, { anchor: 'bl', dx: 12, dy: 30 }, 'a drop at the bottom-left keeps the bottom-left corner');
+    eq(HUD.placeFrom({ left: -500, top: -500, width: 290, height: 120 }, big), { anchor: 'tl', dx: 0, dy: 0 }, 'a drop past the top-left corner is kept at that corner');
+    eq(HUD.placeFrom({ left: 9999, top: 9999, width: 290, height: 120 }, big), { anchor: 'br', dx: 0, dy: 0 }, 'a drop past the bottom-right corner is kept at that corner');
+    ok(hud.setPlace('analyzer', at), 'the drop is kept');
+    ok(hud.isMoved('analyzer'), 'and it is moved');
+    eq(store.peek(), { desktop: { analyzer: { anchor: 'bl', dx: 12, dy: 30 } } }, 'only the place is saved, under desktop');
+    eq(HUD.placeWidget(hud.layoutOf('analyzer'), big, size, true), { left: 12, top: 410 }, 'placed back on the px it was dropped on');
+    const again = hudOf(store, { v: 'desktop' });
+    eq([again.layoutOf('analyzer').anchor, again.layoutOf('analyzer').dx, again.layoutOf('analyzer').dy, again.isMoved('analyzer')], ['bl', 12, 30, true], 'a reload reads it back');
+    for (const [w, h] of [[1440, 860], [844, 350], [667, 335]]) {
+      /* the analyzer is at most the World less 200 px tall (hunt.css), so it fits every box it is dropped in */
+      const box = { width: w, height: h }, sz = { width: 290, height: Math.min(420, h - 200) };
+      const p = HUD.placeWidget(again.layoutOf('analyzer'), box, sz, true);
+      ok(p.left === 12 && p.top >= 0 && p.top + sz.height === h - 30, w + 'x' + h + ': the bottom-left drop must stay 12 px in and 30 px up: ' + JSON.stringify(p));
+      for (const drop of [{ left: -500, top: -500 }, { left: 9999, top: 9999 }, { left: w / 2, top: h / 2 }]) {
+        const q = HUD.placeWidget(HUD.placeFrom(Object.assign({}, drop, sz), box), box, sz, true);
+        ok(q.left >= 0 && q.top >= 0 && q.left + sz.width <= w && q.top + sz.height <= h, w + 'x' + h + ': a drop at ' + JSON.stringify(drop) + ' left the screen: ' + JSON.stringify(q));
+      }
+      eq(HUD.placeWidget({ anchor: 'bl', dx: 12, dy: 30 }, box, { width: 290, height: h + 50 }, true).top, 0, w + 'x' + h + ': a widget taller than the World pins to its top');
+      const forged = HUD.placeWidget({ anchor: 'br', dx: -4096, dy: 4096 }, box, { width: 180, height: 90 }, true);
+      ok(forged.left >= 0 && forged.top >= 0 && forged.left + 180 <= w && forged.top + 90 <= h, w + 'x' + h + ': a forged offset left the screen: ' + JSON.stringify(forged));
+    }
+    eq(HUD.placeWidget({ anchor: 'tr', dx: 12, dy: 12 }, { width: 600, height: 200 }, { width: 290, height: 420 }), { left: 298, top: 12 }, 'an unmoved widget is placed exactly as before');
+    again.setPlace('chat', HUD.placeFrom({ left: 700, top: 300, width: 180, height: 90 }, big));
+    eq(store.peek().desktop.chat, { anchor: 'tr', dx: 560, dy: 300 }, 'past the middle a drop keeps the right edge');
+    ok(again.putBack('analyzer') && !again.isMoved('analyzer'), 'Put back returns it to its own place');
+    ok(!('analyzer' in store.peek().desktop), 'and saves nothing for it');
+    const phone = hudOf(store, { v: 'phone' });
+    ok(!phone.isMoved('chat'), 'the phone layout is untouched by a desktop drop');
+    again.reset();
+    ok(!again.isMoved('chat'), 'Reset layout puts every widget back');
+  });
+  t('H15 a folded widget stays folded after a reload; the fold rides the residue bound', () => {
+    const store = memStore();
+    const hud = hudOf(store, { v: 'desktop' });
+    ok(hud.setFolded('analyzer', true) && hud.layoutOf('analyzer').folded, 'the fold is set');
+    eq(store.peek(), { desktop: { analyzer: { folded: true } } }, 'only the fold is saved');
+    ok(!hud.isMoved('analyzer'), 'a fold is not a move');
+    ok(hudOf(store, { v: 'desktop' }).layoutOf('analyzer').folded === true, 'a reload keeps it folded');
+    eq(CS.sanitizeResidueField('hudLayout', store.peek()), store.peek(), 'the fold survives the residue bound');
+    eq(CS.sanitizeResidueField('hudLayout', { desktop: { analyzer: { folded: 'yes', anchor: 'bl', dx: 12, dy: 30 } } }), { desktop: { analyzer: { anchor: 'bl', dx: 12, dy: 30 } } }, 'a forged fold is dropped, a place is kept');
+    hud.setFolded('analyzer', false);
+    eq(store.peek(), {}, 'opened again, nothing is saved');
+  });
+  /* H16 ROOM FOR THE STACK (v0.2.46: the 170 px desktop bar pushed the Tally, stacked under a full analyzer, off the
+     World at 1440x900): the analyzer may take the height that leaves the tally one gap above the bar, read from its
+     top and never its height (one pass settles it), and never under 160 px. */
+  t('H16 a widget others stack under leaves them room above the bottom bar', () => {
+    const an = { left: 1119, top: 12, width: 290, height: 560 }, tally = { left: 1218, top: 584, width: 191, height: 143 };
+    const bar = { left: 93, top: 646, width: 1235, height: 170 };
+    const room = HUD.stackRoom(an, tally, [bar], 833, 12);
+    eq(room, 646 - 12 - 143 - 12 - 12, 'the analyzer ends where the tally under it ends one gap above the bar');
+    ok(an.top + room + 12 + tally.height <= bar.top - 12, 'the tally under it would still cross the bar: ' + room);
+    eq(HUD.stackRoom(Object.assign({}, an, { height: 300 }), tally, [bar], 833, 12), room, 'the room reads no height of its own (one pass settles it)');
+    eq(HUD.stackRoom(an, tally, [], 833, 12), 833 - 12 - 143 - 12 - 12, 'no bar under the column: the World\'s foot is the floor');
+    eq(HUD.stackRoom(an, Object.assign({}, tally, { left: 12 }), [bar], 833, 12), null, 'a widget across the screen asks for no room');
+    eq(HUD.stackRoom(an, Object.assign({}, tally, { width: 0, height: 0 }), [bar], 833, 12), null, 'a quiet tally asks for no room');
+    eq(HUD.stackRoom(an, Object.assign({}, tally, { height: 480 }), [bar], 833, 12), null, 'under 160 px the analyzer stays readable and the tally steps below');
+  });
   t('H8 the contract is validated', () => {
     const bad = [W({ anchor: 'xx' }), W({ layer: 'sky' }), W({ opacity: 0.2 }), W({ when: 'night' }), W({ removable: false, visible: false }), W({ phone: { min: [1, 1] } })];
     for (const r of bad) { let threw = false; try { HUD.validateWidgetRows([r]); } catch (e) { threw = true; } ok(threw, 'must refuse ' + JSON.stringify(r)); }
@@ -413,6 +494,13 @@ async function runTests(mods) {
     eq(character.writes, [['hudLayout', { desktop: { vitals: { visible: false } } }]], 'the HUD writes hudLayout on its own character, once');
     eq(HUD.residueStore(character).read(), { desktop: { vitals: { visible: false } } }, 'and reads it back from that character');
     eq(CS.sanitizeResidueField('hudLayout', character.writes[0][1]), character.writes[0][1], 'what the HUD writes survives the bound unchanged');
+    /* a one-press change (a fold, a drop) is put at once, so a reload right after it keeps it; a slider keeps the debounce */
+    character.flushes = 0; character.flushResidue = function () { this.flushes++; return Promise.resolve(true); };
+    hud.setOpacity('vitals', 0.5);
+    eq(character.flushes, 0, 'an opacity slider step waits for the debounce');
+    hud.setFolded('vitals', true);
+    hud.setPlace('vitals', { anchor: 'tl', dx: 40, dy: 40 });
+    eq(character.flushes, 2, 'a fold and a drop are each put at once');
   });
 
   /* ── W15, H12, R4: the chat's corner and size (Tyler 2026-10-22), the docked window above the bar ── */
@@ -567,6 +655,20 @@ const MUTANTS = [
   { test: 'H3', file: HUD_FILE, from: 'if (!row.removable) L.visible = true;', to: '' },
   { test: 'H4', file: HUD_FILE, from: "for (const k of SIZE_CLASSES) if (k !== cls && isObj(all[k])) next[k] = all[k];\n    store.write(next);\n    load();", to: 'store.write({});\n    load();' },
   { test: 'H10', file: HUD_FILE, from: "return { left: Math.round(left), push: hits(left).filter(({ i }) => i < edges.length).map(({ i }) => ({ i, top: Math.round(r.top + r.height + gap) })) };", to: 'return { left: Math.round(r.left), push: [] };' },
+  { test: 'H10', file: HUD_FILE, from: '.filter(({ q }) => !q.pinned && q.top < r.top + r.height', to: '.filter(({ q }) => q.top < r.top + r.height' },
+  /* H16: room for the stack above the bar */
+  { test: 'H16', file: HUD_FILE, from: '  const room = Math.floor((bar === null ? boxHeight : bar) - gap - s.height - gap - a.top);', to: '  const room = Math.floor((bar === null ? boxHeight : bar) - gap - a.top);' },
+  { test: 'H16', file: HUD_FILE, from: '  return room >= DOCK_CAP_MIN_PX ? room : null;\n}\n\n/** The highest top', to: '  return room;\n}\n\n/** The highest top' },
+  { test: 'H16', file: HUD_FILE, from: "  if (!(s.width > 0 && s.height > 0) || !(s.left < a.left + a.width && s.left + s.width > a.left)) return null;", to: '  if (!(s.width > 0 && s.height > 0)) return null;' },
+  /* H14, H15: move and fold (Tyler 2026-10-25) */
+  { test: 'H14', file: HUD_FILE, from: '  const top = onScreen ? Math.max(0, Math.min(y, box.height - size.height)) : y;', to: '  const top = y;' },
+  { test: 'H14', file: HUD_FILE, from: "  const h = left + rect.width / 2 < box.width / 2 ? 'l' : 'r';", to: "  const h = 'r';" },
+  { test: 'H14', file: HUD_FILE, from: '    if (keep) { save(true); changed(id); }', to: '    if (keep) changed(id);' },
+  { test: 'H14', file: HUD_FILE, from: '    return L.anchor !== d.anchor || L.dx !== d.dx || L.dy !== d.dy;', to: '    return false;' },
+  { test: 'H14', file: HUD_FILE, from: '  const left = Math.max(0, Math.min(rect.left, box.width - rect.width));', to: '  const left = rect.left;' },
+  { test: 'H14', file: HUD_FILE, from: '  const top = Math.max(0, Math.min(rect.top, box.height - rect.height));', to: '  const top = rect.top;' },
+  { test: 'H15', file: HUD_FILE, from: "    if (typeof saved.folded === 'boolean') L.folded = saved.folded;\n", to: '' },
+  { test: 'H15', file: 'src/session/residue.js', from: "      if (typeof r.folded === 'boolean') e.folded = r.folded;\n", to: '' },
   { test: 'H11', file: HUD_FILE, from: '  if (!dock.some((q) => hit(r.left, q))) return r.left;', to: '  return r.left;' },
   { test: 'H11', file: HUD_FILE, from: '    if (stops.some((q) => hit(x, q))) return null;\n', to: '' },
   { test: 'H11', file: HUD_FILE, from: '  const row = edges.concat(fixed).map(', to: '  const row = edges.map(' },
@@ -574,7 +676,8 @@ const MUTANTS = [
   { test: 'H9', file: HUD_FILE, from: '    if (!(r > l && b > t)) continue;', to: '    if (!(q.width > 0 && q.height > 0)) continue;' },
   { test: 'H9', file: HUD_FILE, from: "else if (v === 't' && (h === 'c' || box.width * b < side * box.height))", to: "else if (v === 't' && h === 'c')" },
   { test: 'R1', file: 'src/session/residue.js', from: "  hudLayout: sanitizeHudLayout,", to: '  hudLayout: (v) => v,' },
-  { test: 'R2', file: HUD_FILE, from: "write(next) { if (character) character.setResidue('hudLayout', next); },", to: 'write(next) {},' },
+  { test: 'R2', file: HUD_FILE, from: "      character.setResidue('hudLayout', next);\n", to: '' },
+  { test: 'R2', file: HUD_FILE, from: "      if (now && typeof character.flushResidue === 'function') Promise.resolve(character.flushResidue()).catch(() => {});\n", to: '' },
   { test: 'R3', file: 'src/shell/away-recap.js', from: '  if (gone < AWAY_MIN_MS) return null;\n', to: '' },
   { test: 'R3', file: 'src/shell/away-recap.js', from: "!was || !h || h.sessionId !== was.s ||", to: '!was || !h ||' },
   { test: 'R3', file: 'src/shell/away-recap.js', from: "'away:' + h.sessionId.replace(/[^A-Za-z0-9_:.-]/g, '_').slice(0, 64) + ':' + was.at", to: "'away:' + h.sessionId.replace(/[^A-Za-z0-9_:.-]/g, '_').slice(0, 64) + ':' + now" },

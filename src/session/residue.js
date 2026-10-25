@@ -17,7 +17,7 @@ const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 
 const HUD_LAYOUT = Object.freeze({ classes: 4, widgets: 48, offset: 4096 });   // headroom over the spec's 2 x 8
 
-/** The World shell's widget show/hide, opacity and anchor per size class (src/shell/hud.js). */
+/** The World shell's widget show/hide, opacity, place (anchor and offsets) and fold per size class (src/shell/hud.js). */
 function sanitizeHudLayout(v) {
   const out = {};
   if (!isObj(v)) return out;
@@ -35,6 +35,7 @@ function sanitizeHudLayout(v) {
       for (const k of ['dx', 'dy']) if (Number.isFinite(r[k])) e[k] = Math.max(-HUD_LAYOUT.offset, Math.min(HUD_LAYOUT.offset, Math.round(r[k])));
       if (Number.isFinite(r.opacity)) e.opacity = Math.max(0.4, Math.min(1, r.opacity));
       if (typeof r.visible === 'boolean') e.visible = r.visible;
+      if (typeof r.folded === 'boolean') e.folded = r.folded;
       if (!Object.keys(e).length) continue;
       kept[id] = e;
       if (++n >= HUD_LAYOUT.widgets) break;
@@ -183,7 +184,7 @@ function sanitizeCoach(v) {
 
 /** field -> sanitizer. The keys ARE the allowlist. */
 const SANITIZERS = Object.freeze({
-  hudLayout: sanitizeHudLayout,     // display preference: the HUD layout; gates and spends nothing
+  hudLayout: sanitizeHudLayout,     // display preference: the HUD layout (show, fade, place, fold); gates and spends nothing
   combatText: sanitizeCombatText,   // display preference: which floating numbers show; gates and spends nothing
   combatLog: sanitizeCombatLog,     // display preference: the combat log's filters; gates and spends nothing
   bagSeen: sanitizeBagSeen,         // display state: which bag stacks carry the "new" mark; gates and spends nothing

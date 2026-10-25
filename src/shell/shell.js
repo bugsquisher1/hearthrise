@@ -43,7 +43,7 @@ import { MOBILE_QUERY } from '../world/core/camera.js?v=0.2.45';
 import { SHELL_WINDOWS } from '../data/shell-windows.js?v=0.2.45';
 import { HUD_WIDGETS } from '../data/hud-widgets.js?v=0.2.45';
 import { createWindowManager, DOCK_EDGE, HOME_BOTTOM, RESIZE_MIN } from './window-manager.js?v=0.2.45';
-import { createHud, residueStore, placeWidget, hudInsetOf, clearOfEdges, clearOfDock, stageOf, dockCap, homeAt, stackBelow } from './hud.js?v=0.2.45';
+import { createHud, residueStore, placeWidget, hudInsetOf, clearOfEdges, clearOfDock, stageOf, dockCap, homeAt, stackBelow, stackRoom } from './hud.js?v=0.2.45';
 import { keyLabel, glyphSvg, actCoach, heldCard, coachHtml, placeCoach, ringCoach, noteCoachSight } from './launcher.js?v=0.2.45';
 import { coachWindow } from '../data/hunt-tutorial.js?v=0.2.45';
 import { WINDOW_RENDERERS, WIDGET_RENDERERS } from './renderers.js?v=0.2.45';
@@ -56,6 +56,7 @@ import { huntOf } from '../session/hunt-sections.js?v=0.2.45';
 import { sizeStore, gripHtml, pressGrip } from './window-sizes.js?v=0.2.45';
 import { watchTown } from '../session/town-poll.js?v=0.2.45';
 import { applyPanelAlpha, clearPanelAlpha } from './panel-alpha.js?v=0.2.45';
+import { mountWidgetMoves, paintMove } from './widget-move.js?v=0.2.45';
 
 /* The components' display clock: session timers and the timeline's due events (parity SH-05, DOM 4 Hz). */
 const DISPLAY_TICK_MS = 250;
@@ -216,7 +217,8 @@ export function mountShell(root, o) {
       const L = hud.layoutOf(row.id);
       el.style.setProperty('--hs-op', String(L.opacity));
       el.style.minWidth = row.min[0] + 'px';
-      el.style.minHeight = row.min[1] + 'px';
+      el.style.minHeight = L.folded ? '' : row.min[1] + 'px';
+      paintMove(el, L, hud.isMoved(row.id));
       if (sized && !sized.watched.has(el)) { sized.watched.add(el); sized.ro.observe(el, { box: 'border-box' }); }
     }
     placeWidgets();
@@ -233,11 +235,12 @@ export function mountShell(root, o) {
       const box = row.layer === 'screen' ? screenHud : worldHud;
       const el = box.querySelector('[data-hs-widget="' + row.id + '"]');
       if (!el) continue;
-      const at = placeWidget(hud.layoutOf(row.id), { width: box.clientWidth, height: box.clientHeight }, { width: el.offsetWidth, height: el.offsetHeight });
+      const at = placeWidget(hud.layoutOf(row.id), { width: box.clientWidth, height: box.clientHeight }, { width: el.offsetWidth, height: el.offsetHeight }, hud.isMoved(row.id));
       el.style.left = at.left + 'px';
       el.style.top = at.top + 'px';
     }
     stackWidgets();
+    roomForStack();
     capDock();
     /* A docked window never covers a widget (hud.js clearOfDock, r11): a right-anchored World widget it
        lands on slides left of the dock but never into the middle of the fight (hud.js stageOf), else
@@ -250,7 +253,8 @@ export function mountShell(root, o) {
       const anchorOf = (e) => hud.layoutOf(e.getAttribute('data-hs-widget')).anchor;
       const centred = (e) => anchorOf(e)[1] === 'c';
       const b = box.getBoundingClientRect();
-      const rel = (e) => { const q = e.getBoundingClientRect(); return { left: q.left - b.left, top: q.top - b.top, width: q.width, height: q.height }; };
+      /* pinned: a widget the player moved, in no centred bar's row (hud.js clearOfEdges) */
+      const rel = (e) => { const q = e.getBoundingClientRect(); return { left: q.left - b.left, top: q.top - b.top, width: q.width, height: q.height, pinned: hud.isMoved(e.getAttribute('data-hs-widget')) }; };
       const edgeEls = els.filter((e) => !centred(e));
       const fixed = box === worldHud ? dock : [];
       const stage = fixed.length ? [stageOf(insetNow(), { width: b.width, height: b.height })] : [];
@@ -290,7 +294,7 @@ export function mountShell(root, o) {
      they are now (hud.js stackBelow); a hidden one is in nobody's way. Run again after a step-down. */
   function stackWidgets() {
     for (const row of hud.rows()) {
-      if (!row.below) continue;
+      if (!row.below || hud.isMoved(row.id)) continue;
       const box = row.layer === 'screen' ? screenHud : worldHud;
       const el = box.querySelector('[data-hs-widget="' + row.id + '"]');
       if (!el || !el.offsetWidth) continue;
@@ -300,6 +304,31 @@ export function mountShell(root, o) {
       const at = rel(el);
       const top = stackBelow(at, above, DOCK_EDGE);
       if (top !== Math.round(at.top)) el.style.top = top + 'px';
+    }
+  }
+
+  /* A widget others stack under (the analyzer, for the Tally) ends where the one under it still clears the bottom bar
+     (hud.js stackRoom, the 170 px bar): its CSS reads --hs-room. Written only when it changes; the size change re-places
+     the widgets (the observer above), and the room reads no height of its own, so the second pass writes nothing. */
+  function roomForStack() {
+    const b = worldHud.getBoundingClientRect();
+    const rel = (e) => { const q = e.getBoundingClientRect(); return { left: q.left - b.left, top: q.top - b.top, width: q.width, height: q.height }; };
+    const els = Array.from(worldHud.querySelectorAll('[data-hs-widget]'));
+    const bars = els.filter((e) => hud.layoutOf(e.getAttribute('data-hs-widget')).anchor === 'bc').map(rel);
+    const room = new Map();
+    for (const row of hud.rows()) {
+      const el = row.below && worldHud.querySelector('[data-hs-widget="' + row.id + '"]');
+      for (const id of row.below || []) {
+        const a = worldHud.querySelector('[data-hs-widget="' + id + '"]');
+        if (!a) continue;
+        const r = el && el.offsetWidth && !hud.isMoved(row.id) && !hud.isMoved(id) ? stackRoom(rel(a), rel(el), bars, b.height, DOCK_EDGE) : null;
+        room.set(a, r === null ? (room.get(a) ?? null) : Math.min(r, room.get(a) ?? r));
+      }
+    }
+    for (const [a, r] of room) {
+      const v = r === null ? '' : r + 'px';
+      if (a.style.getPropertyValue('--hs-room') === v) continue;
+      if (v) a.style.setProperty('--hs-room', v); else a.style.removeProperty('--hs-room');
     }
   }
 
@@ -349,6 +378,7 @@ export function mountShell(root, o) {
     const b = shell.getBoundingClientRect();
     const widgets = [];
     for (const el of worldHud.querySelectorAll('[data-hs-widget]')) {
+      if (hud.isMoved(el.getAttribute('data-hs-widget'))) continue;   // the player's own, like a floating window
       const r = el.getBoundingClientRect();
       const left = dockHome.has(el) ? dockHome.get(el) : r.left - b.left;
       widgets.push({ anchor: hud.layoutOf(el.getAttribute('data-hs-widget')).anchor, rect: { left, top: r.top - b.top, width: r.width, height: r.height } });
@@ -512,6 +542,8 @@ export function mountShell(root, o) {
   phoneMq.addEventListener('change', onSizeClass);
   host.addEventListener('resize', onResize);
   followSummary();
+  /* A widget's title drags it (desktop) and its dash folds it (src/shell/widget-move.js). */
+  const offMoves = mountWidgetMoves({ boxes: [worldHud, screenHud], hud, host, isPhone: () => phoneMq.matches, place: placeWidgets, refresh });
   paintWidgets();
   coach();
   /* A death opens its popup (death-popup.js), on mount too: a death while away shows on return. */
@@ -532,7 +564,7 @@ export function mountShell(root, o) {
     onInset(fn) { insetListeners.add(fn); fn(insetNow()); return () => insetListeners.delete(fn); },
     menu: ctx.menu,
     destroy() {
-      offDeaths(); offWm(); offHud();
+      offDeaths(); offWm(); offHud(); offMoves();
       if (sized) sized.ro.disconnect();
       ctx.menu.destroy();
       host.clearInterval(ticker);

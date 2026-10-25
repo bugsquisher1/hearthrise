@@ -22,6 +22,8 @@
 //   This hero / Party   which of the server's two views is shown (AW-04)
 //   Session / Training / Taken / Dealt   the four tabs (AW-05; Training 2026-10-22)
 //   sections fold (AW-11); lists are keyed rows (AW-12)
+//   the title drags the panel and its dash folds it to the title (Tyler 2026-10-25,
+//   src/shell/widget-move.js; kept per character in the HUD layout)
 //
 // The session clock runs between envelopes on the SERVER's clock from the
 // instant its hunt_ms was settled to (hunt-sections.js sessionClockMs), so it
@@ -35,6 +37,7 @@ import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.45';
 import { panelHtml, itemIconHtml, itemName, monsterName, abilityName, elementName, skillName } from './bits.js?v=0.2.45';
 import { ANALYZER_RATE_AFTER_MS } from '../../data/hunt-sessions.js?v=0.2.45';
 import { glyphSvg } from '../launcher.js?v=0.2.45';
+import { foldButtonHtml } from '../widget-move.js?v=0.2.45';
 
 /* Before the server's rate window the rates are null: the totals show, and this line says when the rest will. */
 const RATE_LATER = 'Per hour after ' + Math.round(ANALYZER_RATE_AFTER_MS / 60000) + ' min.';
@@ -72,22 +75,26 @@ function sectionHtml(s) {
     + '<div class="ha-sec-body">' + stats + (s.stats ? '' : '<ul class="ha-list"></ul><p class="ha-none">Nothing yet.</p>') + '</div></section>';
 }
 
-/** The skeleton (built once). Its close (shown on a phone only, hunt.css) hides the panel and Hunt details brings it
- *  back (QA phone playtest 10-24: with no close, a phone's only way out was the 13 px box in Settings). */
+/** The skeleton (built once). Its title row is the name, the fold and the close (shown on a phone only, hunt.css),
+ *  which hides the panel and Hunt details brings it back (QA phone playtest 10-24: with no close, a phone's only way
+ *  out was the 13 px box in Settings). The hero / party switch is the body's, under the clocks: beside the name and
+ *  the fold it wrapped the name onto two lines at 290 px (2026-10-25). */
 export function renderAnalyzer(ctx) {
-  const tools = '<span class="ha-scope" role="group" aria-label="Whose numbers">'
+  const scope = '<span class="ha-scope" role="group" aria-label="Whose numbers">'
     + '<button type="button" class="hh-tool" data-hs-act="scope" data-scope="hero" aria-pressed="true">This hero</button>'
-    + '<button type="button" class="hh-tool" data-hs-act="scope" data-scope="party" aria-pressed="false">Party</button></span>'
+    + '<button type="button" class="hh-tool" data-hs-act="scope" data-scope="party" aria-pressed="false">Party</button></span>';
+  const tools = foldButtonHtml('Hunt analyzer')
     + '<button type="button" class="hs-close ha-close" data-hs-act="hide" aria-label="Close the hunt analyzer" title="Close (Hunt details opens it again)">'
     + (glyphSvg(ctx && ctx.glyphs, 'uiClose') || '×') + '</button>';
   const body = '<p class="ha-wait">The analyzer fills in once the hunt has run for a moment.</p>'
     + '<div class="ha-main">'
     + '<p class="ha-ended" role="status">Hunt ended. This is the session summary.</p>'
     + '<div class="ha-clocks"><span><small>Session</small><b data-clock="session"></b></span><span data-premium><small>Next level in</small><b data-clock="next"></b></span></div>'
+    + scope
     + '<div class="ha-tabs" role="tablist">' + TABS.map(([id, label], i) => '<button type="button" role="tab" class="ha-tab" data-hs-act="tab" data-tab="' + id + '" aria-selected="' + (i === 0) + '"' + (premiumTab(id) ? ' data-premium' : '') + '>' + label + '</button>').join('') + '</div>'
     + '<div class="ha-scroll">' + SECTIONS.map(sectionHtml).join('') + '</div>'
     + '<p class="hs-note ha-more" hidden>More detail with premium.</p></div>';
-  return panelHtml('ha-analyzer', 'Hunt analyzer', tools, body);
+  return panelHtml('ha-analyzer', 'Hunt analyzer', tools, body, true);
 }
 
 function lineHtml() {

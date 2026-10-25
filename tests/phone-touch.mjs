@@ -700,7 +700,8 @@ const MUTANTS = [
   ['PH-6 nothing caps the phone coach', 'src/styles/shell.css', 'flex-direction: column; max-height: calc(var(--coach-room) - 20px); }\n  .hs-pointer:not(.is-min) > .hs-coach-text {\n    min-height: 0; max-height: calc(round(down, var(--coach-room) - 42px - 1.5lh, 1lh) + .5lh);',
     'flex-direction: column; }\n  .hs-pointer:not(.is-min) > .hs-coach-text {\n    min-height: 0;'],
   ['PH-6 the coach\'s room is never measured', 'src/shell/shell.js', '    publishInset();\n    roomForCoach();\n', '    publishInset();\n'],
-  ['PH-6 the coach\'s words take no thumb', 'src/styles/shell.css', '    pointer-events: auto; scrollbar-width: thin;', '    scrollbar-width: thin;'],
+  /* re-anchored 10-25 (lane/b-widget-move-fold): the coach's own thin scrollbar left for the game's one scrollbar (app.css) */
+  ['PH-6 the coach\'s words take no thumb', 'src/styles/shell.css', '    pointer-events: auto;', ''],
   ['PH-6 the coach\'s words end on a whole line', 'src/styles/shell.css', 'max-height: calc(round(down, var(--coach-room) - 42px - 1.5lh, 1lh) + .5lh);', ''],
   ['PH-6 the whole card scrolls, its fold with it', 'src/styles/shell.css', 'display: flex; flex-direction: column; max-height: calc(var(--coach-room) - 20px); }', 'max-height: calc(var(--coach-room) - 20px); overflow-y: auto; pointer-events: auto; }'],
   ['PH-7 the slots never give way, so the panel runs off a small phone', 'src/styles/hunt.css', '  .hb-grid { order: 1; display: flex; gap: 2px; min-width: 0; overflow-x: auto;', '  .hb-grid { order: 1; display: flex; gap: 2px; min-width: max-content; overflow-x: visible;'],

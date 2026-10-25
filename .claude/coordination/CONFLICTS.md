@@ -2054,3 +2054,11 @@ The world plan (§2 Home) and the W4 brief say "the template follows `state.plot
 - **The phone folds but never drags** (src/shell/widget-move.js header): the right-hand column is one computed stack (hunt bar, analyzer, bar; HS-22) and the phone analyzer has no title band to grab. The phone tab strip pans sideways (four premium tabs no longer fit beside the fold and the close).
 - **The analyzer's This hero / Party switch moved under the clocks on desktop** (beside the new fold it wrapped the title).
 - **Pre-existing, for the action-bar lane:** tests/fixtures/alpha-envelope.json's phone action bar is 104 px at 844x390 (HS-22's cap is 100), which puts a shown analyzer in the bar's row, and clearOfEdges pushes it off the screen. Not changed here.
+## 2026-10-25 — SEMANTIC (designer to confirm): where tutorial lane 1 departs from the 2026-10-25 board table
+**Lane:** `lane/b-tutorial-cards` (systems-engineer).
+- **No Level gates on B4 and B6.** Gated at Level 3 and 4, the chain skipped forward to "Out to the brook" and came BACK when the Level arrived (the old class of #2). The bar cards now follow each other at the player's pace (each waits for its own press).
+- **Eat on time stops at 50%, not "− twice".** At Level 3 (170 HP) 50% still wastes 11 of a shrimp's 96; the card steps down in Configure action's 5% until nothing is wasted, never under 50%, and says what is left.
+- **Order matters covers a store slot AHEAD of the own food** (same HP, the first slot fires): it asks to move it Later, since lowering it would not do.
+- **"Taking a beating?"** triggers on 3 meals in one hunt (a fact that stays for the hunt), not "HP under 40%" (a moment the card would flash past), and names the bar's stance, not the sliders popup (Tyler 10-25: stance back on the bar).
+- **Hook names:** `data-coach-hook="level|stamina|stance|sell-confirm|setup-save"` instead of the board's `data-coach="…"`: `data-coach` is already the coach box's own key (launcher.js placeCoach redraws on it).
+- **Day-one cards (juice, house, own runes) cap at Level 15** like the chain; death, stamina, storage and paid Blessings are uncapped. "Out to the brook" keeps "about a quarter of an hour" (the live play, 14:57), not the harness's 25 minutes.

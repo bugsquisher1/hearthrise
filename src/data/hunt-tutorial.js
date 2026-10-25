@@ -235,7 +235,7 @@ export const HUNT_TUTORIAL = Object.freeze([
     'Open your bag\'s This hunt tab and set each thing you don\'t need to Sell at the shop. From then on, Sell junk sells everything you marked in one press.',
     'inventory', { kind: 'any', of: [{ kind: 'loot_rule' }, { kind: 'been', hunt: THICKET }] },
     { knowledge: true, when: [IN_TOWN], inWindow: 'Press This hunt, then set each thing you don\'t need to Sell at the shop.',
-      hooks: ['[data-hs-win="inventory"] .hw-tab[data-tab="hunt"]', '[data-hs-win="inventory"] [data-rule-item]'] }),
+      hooks: ['[data-hs-win="inventory"] .hw-tab[data-tab="hunt"]', '[data-hs-win="inventory"] [data-rule-item][data-coin]'] }),
   step('cook_catch', 'Cook your catch',
     'Open Gathering and crafting, press Cooking, then Start on Cook Shrimp. Your Raw Shrimp become the Cooked Shrimp your {slot:cooked_shrimp} eats.',
     'crafting', { kind: 'skill_xp', skill: 'cooking' }, { when: [IN_TOWN], ring: { skill: 'cooking', work: 'cook_shrimp' } }),

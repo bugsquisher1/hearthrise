@@ -1246,6 +1246,15 @@ async function checks(overrides, shots) {
         await page.waitForTimeout(400);
         if ((await ringed()).join() !== 'sell-confirm') fails.push('AW-31 with the confirmation open the ring is on ' + JSON.stringify(await ringed()) + ', want its Sell');
         if (shots) await shot(page, 'alpha-1440x900-shop-sell-confirm');
+        /* "Decide once" rings a loot rule on a stack that only pays coin, never on Bones (played 2026-10-25) */
+        await openWin(page, 'b', 'inventory');
+        await page.click('[data-hs-win="inventory"] .hw-tab[data-tab="hunt"]');
+        await page.waitForTimeout(300);
+        const coinRows = await page.evaluate(() => Array.from(document.querySelectorAll('[data-hs-win="inventory"] [data-rule-item]')).map((s) => s.getAttribute('data-rule-item') + (s.hasAttribute('data-coin') ? ':coin' : '')));
+        if (!coinRows.includes('rat_tail:coin') || coinRows.some((x) => /^bones:coin/.test(x))) fails.push('AW-31 the loot-rule rows read ' + JSON.stringify(coinRows) + ' (want Rat Tail marked as coin, never Bones)');
+        await openWin(page, 'v', 'shop');
+        await page.click('[data-hs-win="shop"] .hw-tab[data-tab="sell"]');
+        await page.waitForTimeout(200);
         /* SERVICES IN THE SHOP (Tyler 2026-10-25): no Services icon; R opens the Shop on its Services tab, from the Sell tab too */
         const icons = await page.evaluate(() => Array.from(document.querySelectorAll('.hs-launch')).map((b) => b.getAttribute('data-hs-open')));
         if (icons.includes('services') || !icons.includes('shop')) fails.push('AW-31 the icon row reads ' + icons.join(','));
@@ -1898,6 +1907,7 @@ const MUTANTS = [
   ['coach: the sale\'s confirmation sits under the list, out of view (AW-31)', 'src/shell/windows/shop.js', '  if (opening) revealInWindow(cf);\n', ''],
   ['coach: the sale\'s confirmation is never ringed (AW-31)', 'src/shell/windows/shop.js', ' data-coach-hook="sell-confirm"', ''],
   ['coach: R opens nothing once Services left the icon row (AW-31)', 'src/data/shell-windows.js', ", tabKeys: Object.freeze({ r: 'services' }) }),", ' }),'],
+  ['coach: "Decide once" rings Bones for the shop (AW-31)', 'src/shell/windows/inventory/grid.js', "attr(sel, 'data-coin', coin.has(l.item) ? '' : null);", "attr(sel, 'data-coin', '');"],
   ['coach: R over the open Shop never switches it to Services (AW-31)', 'src/shell/shell.js', '    for (const id of wm.openIds()) if (wm.wantsTab(id)) refresh(id);\n', ''],
   /* The Hunts window, master-detail (designer plan 2026-10-22): AW-25 .. AW-29. */
   ['AW-25 every creature reads common', 'src/shell/hunt-ground-facts.js', "  if (share >= SHARE_BANDS.common) return 'common';", "  return 'common';"],

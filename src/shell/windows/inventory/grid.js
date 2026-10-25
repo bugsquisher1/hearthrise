@@ -17,7 +17,8 @@
 // action is ONE intent with the controls off until the server answers
 // (actions.js). Patched in place (src/render/paint.js).
 // ════════════════════════════════════════════════════════════════════════
-import { BAG_CATS, BAG_SORTS, isNew, bagValue } from '../../bag-model.js?v=0.2.45';
+import { BAG_CATS, BAG_SORTS, isNew, bagValue, lootToSell } from '../../bag-model.js?v=0.2.45';
+import { skillsOf } from '../../../session/item-sections.js?v=0.2.45';
 import { barIndexOf, barKeyLabel } from '../../bar-assign.js?v=0.2.45';
 import { rows, text, cls, attr, prop, element } from '../../../render/paint.js?v=0.2.45';
 import { whole, gold } from '../../../render/format.js?v=0.2.45';
@@ -197,6 +198,7 @@ function patchHuntPane(root, st, ctx) {
   let worth = 0, priced = true;
   for (const l of loot) if (bids && bids.has(l.item)) worth += bids.get(l.item) * l.count; else priced = false;
   const n = loot.reduce((s, l) => s + l.count, 0);
+  const coin = new Set(lootToSell(loot.map((l) => ({ id: l.item, qty: l.count })), skillsOf(st.cs)));
   text(pane.querySelector('.hw-loot-sum'), loot.length ? 'This hunt: ' + whole(n) + (n === 1 ? ' item' : ' items') + (bids ? ' · worth ' + gold(worth) + (priced ? '' : ' or more') : '') : '');
   rows(pane.querySelector('.hw-loot'), loot, {
     key: (l) => l.item,
@@ -209,6 +211,9 @@ function patchHuntPane(root, st, ctx) {
       const sel = li.querySelector('select');
       if (st.rules) prop(sel, 'value', st.rules.loot[l.item] || 'keep');
       prop(sel, 'disabled', st.sc.pending || !st.rules);
+      /* a stack that only pays coin (what Sell all loot sells): the row the coach's "Decide once" rings, never the
+         Bones a skill trains on (played 2026-10-25: the first row, Bones, was ringed for "Sell at the shop") */
+      attr(sel, 'data-coin', coin.has(l.item) ? '' : null);
     },
   });
   cls(pane.querySelector('.hw-loot-none'), 'is-on', !loot.length);

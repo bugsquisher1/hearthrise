@@ -24,10 +24,10 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-10-25",
- "replay_ms": 7019,
+ "replay_ms": 198637,
  "counts": {
-  "tracked_names": 668,
-  "entries": 523
+  "tracked_names": 669,
+  "entries": 524
  },
  "functions": [
   {
@@ -4573,17 +4573,18 @@
     "2026-12-11-hunt-deploy-no-forfeit.sql",
     "2026-12-15-account-gold.sql",
     "2026-12-23-tally-tasks.sql",
-    "2026-12-25-frame-push-revive.sql"
+    "2026-12-25-frame-push-revive.sql",
+    "2027-01-22-party-settle-isolation.sql"
    ],
    "live": {
-    "md5": "0450771586af5458f5184e1e524cc01e",
-    "norm_len": 15604,
+    "md5": "a661a6690f46dc7f1a2fdb666dea7ae1",
+    "norm_len": 16846,
     "measured": "2026-10-25",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "0450771586af5458f5184e1e524cc01e",
-    "norm_len": 15604,
+    "md5": "a661a6690f46dc7f1a2fdb666dea7ae1",
+    "norm_len": 16846,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -4872,6 +4873,7 @@
    "sig": "hr_hunt_close(p_session uuid, p_reason text, p_at timestamp with time zone, p_return_bag boolean)",
    "name": "hr_hunt_close",
    "tracked_by": [
+    "pin",
     "restate"
    ],
    "touched_by": [
@@ -5111,22 +5113,47 @@
    "sig": "hr_hunt_forfeit(p_instance uuid, p_code text, p_detail jsonb)",
    "name": "hr_hunt_forfeit",
    "tracked_by": [
+    "chain",
     "pin",
     "restate"
    ],
    "touched_by": [
     "2026-11-16-hunt-density-bounds.sql",
-    "2026-11-20-hunt-forfeit-durable.sql"
+    "2026-11-20-hunt-forfeit-durable.sql",
+    "2027-01-22-party-settle-isolation.sql"
    ],
    "live": {
-    "md5": "3d3b89160bc0a99b280eda40a7a741db",
-    "norm_len": 1625,
+    "md5": "cc82ec973710e8f4501aef4985ab0b5d",
+    "norm_len": 1243,
     "measured": "2026-10-25",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "3d3b89160bc0a99b280eda40a7a741db",
-    "norm_len": 1625,
+    "md5": "cc82ec973710e8f4501aef4985ab0b5d",
+    "norm_len": 1243,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_hunt_forfeit_seat(p_instance uuid, p_session uuid, p_code text, p_detail jsonb, p_refusals integer)",
+   "name": "hr_hunt_forfeit_seat",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-01-22-party-settle-isolation.sql"
+   ],
+   "live": {
+    "md5": "889a385cab57a9a1e056fd786aa10f3d",
+    "norm_len": 1789,
+    "measured": "2026-10-25",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "889a385cab57a9a1e056fd786aa10f3d",
+    "norm_len": 1789,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -6262,20 +6289,22 @@
    "sig": "hr_hunt_settle_refused(p_instance uuid, p_world_from bigint, p_first jsonb, p_answer jsonb)",
    "name": "hr_hunt_settle_refused",
    "tracked_by": [
+    "pin",
     "restate"
    ],
    "touched_by": [
-    "2026-11-16-hunt-density-bounds.sql"
+    "2026-11-16-hunt-density-bounds.sql",
+    "2027-01-22-party-settle-isolation.sql"
    ],
    "live": {
-    "md5": "0129755255e671b844a3fa2d076a2a16",
-    "norm_len": 1318,
+    "md5": "5c90976ca747f281caafe1a92c3d1ac8",
+    "norm_len": 2872,
     "measured": "2026-10-25",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "0129755255e671b844a3fa2d076a2a16",
-    "norm_len": 1318,
+    "md5": "5c90976ca747f281caafe1a92c3d1ac8",
+    "norm_len": 2872,
     "source": "computed-from-replay"
    },
    "agree": true

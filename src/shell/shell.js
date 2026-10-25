@@ -511,6 +511,7 @@ export function mountShell(root, o) {
   doc.addEventListener('keydown', onKey);
   phoneMq.addEventListener('change', onSizeClass);
   host.addEventListener('resize', onResize);
+  followSummary();
   paintWidgets();
   coach();
   /* A death opens its popup (death-popup.js), on mount too: a death while away shows on return. */

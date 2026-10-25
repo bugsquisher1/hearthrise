@@ -10,7 +10,7 @@
 //   node tests/alpha-windows.mjs --shots <dir>  also write the visual-gate screenshots
 //                                               (1440x900 and 922x423)
 //
-// mutant-anchors: src/shell/town-ticker.js src/session/refusal.js src/session/character-session.js src/shell/widgets/amount.js src/shell/windows/inventory/bury.js src/shell/windows/inventory/state.js src/shell/windows/float-menu.js src/shell/bag-model.js src/session/item-sections.js src/shell/windows/inventory/grid.js src/shell/windows/inventory/actions.js src/shell/windows/shop.js src/shell/windows/inventory/doll.js src/session/edge-intents.js src/world/world-boot.js src/world/core/camera.js src/shell/windows/hunts.js src/shell/windows/storage.js src/shell/hunt-list.js src/shell/windows/skills.js src/shell/launcher.js src/shell/upgrade-plan.js src/shell/widgets/upgrade-line.js src/shell/intent-words.js src/shell/town-work.js src/shell/windows/work.js src/shell/hunt-ground-facts.js src/shell/windows/hunt-detail.js src/shell/hunt-go.js src/shell/windows/party-finder.js src/data/refusal-words.js src/styles/windows.css src/session/residue.js src/shell/panel-alpha.js src/styles/shell.css
+// mutant-anchors: src/shell/town-ticker.js src/session/refusal.js src/session/character-session.js src/shell/widgets/amount.js src/shell/windows/inventory/bury.js src/shell/windows/inventory/state.js src/shell/windows/float-menu.js src/shell/bag-model.js src/session/item-sections.js src/shell/windows/inventory/grid.js src/shell/windows/inventory/actions.js src/shell/windows/shop.js src/shell/windows/inventory/doll.js src/session/edge-intents.js src/world/world-boot.js src/world/core/camera.js src/shell/windows/hunts.js src/shell/windows/storage.js src/shell/hunt-list.js src/shell/windows/skills.js src/shell/launcher.js src/shell/upgrade-plan.js src/shell/widgets/upgrade-line.js src/shell/intent-words.js src/shell/town-work.js src/shell/windows/work.js src/shell/hunt-ground-facts.js src/shell/windows/hunt-detail.js src/shell/hunt-go.js src/shell/windows/party-finder.js src/data/refusal-words.js src/styles/windows.css src/session/residue.js src/shell/panel-alpha.js src/styles/shell.css src/shell/shell.js src/shell/alerts.js src/shell/windows/hunt-summary.js src/data/shell-windows.js
 //
 // play.html with supabase-js and the REST paths stubbed (tests/_client-harness.mjs);
 // the character's envelope is tests/fixtures/alpha-envelope.json.
@@ -34,7 +34,7 @@
 //         vendor_sell_many it sends never names it
 //   AW-6  A SALE SHOWS ITS TOTAL FIRST: nothing is sent until the confirmation
 //         (which carries the total at the server's bids) is accepted
-//   AW-7  THE SHOP SELLS NO SUPPLIES (Tyler 2026-10-20): the Shop has Buy and Sell
+//   AW-7  THE SHOP SELLS NO SUPPLIES (Tyler 2026-10-20): the Shop has Buy, Sell and Services (2026-10-25)
 //         only (no Refill), Buy lists the tools and never a food, drink or ammo
 //         offer even when a server still sends one, Hunt prep has no refill
 //         button and the hunt summary no Restock
@@ -136,6 +136,12 @@
 //   AW-30 THE WINDOW OPACITY (Tyler 2026-10-24): Settings > Interface > Window opacity at 70
 //         puts ONE residue `panelAlpha: 70`, fades a window's floor to 0.7 while its title
 //         stays solid, and after a reload the windows are still at 0.7 and the slider says 70%
+//   AW-31 THE CLEAN RETURN (designer walk 2026-10-25 #5, #6; Tyler 2026-10-25 Services in the Shop): a hero leaving the
+//         Cellar gets the summary as the one notice (no analyzer, party panel or "has ended" toast); its main press is
+//         the tutorial card's next step ("Next: Sell what only pays coin", Hunt again second), which opens the Shop with
+//         the card inside it while the hunt bar leaves with the summary; the ring walks the Sell tab -> Sell all loot ->
+//         the confirmation's Sell, and the confirmation is in view inside the window (it sat under a long list); no
+//         Services icon, and R opens the Shop on its Services tab (stamina and Blessings), closed or open
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
 import { leaseBrowser } from './_chrome.mjs';
@@ -666,6 +672,7 @@ async function checks(overrides, shots) {
     page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
     const s = scripted();
     if (o.mutateEnv) o.mutateEnv(s.env);
+    if (o.residue) Object.assign(s.residue, o.residue);
     await stub(page, s);
     const up = await signInAndPlay(page, base);
     return { ctx, page, errors, s, up };
@@ -805,14 +812,16 @@ async function checks(overrides, shots) {
         { offer: 'supply.leather_gloves', item: 'leather_gloves', kind: 'gear', price: 160 }]) });
         e.state = Object.assign({}, e.state, { active_kind: 'artisan', active_id: 'bury_bones' });
         e.hunt = Object.assign({}, e.hunt, { ended: true }); };
-      const { ctx, page, s, up } = await open({ mutateEnv: tools });
+      const { ctx, page, s, errors, up } = await open({ mutateEnv: tools });
       if (up) {
-        await openWin(page, 'v', 'shop');
+        if (!(await openWin(page, 'v', 'shop'))) fails.push('AW-7 V did not open the Shop: ' + JSON.stringify(await page.evaluate(() => Array.from(document.querySelectorAll('[data-hs-win]')).map((w) => w.getAttribute('data-hs-win') + (w.classList.contains('is-leaving') ? ':leaving' : '')))) + ' ' + errors.slice(0, 2).join(' | '));
         await page.waitForTimeout(150);
         const shop = await page.evaluate(() => ({ tabs: Array.from(document.querySelectorAll('.hw-shop .hw-tab')).map((b) => b.getAttribute('data-tab')),
           lines: Array.from(document.querySelectorAll('.hw-shop [data-pane="buy"] .hw-line')).map((l) => l.getAttribute('data-item')),
           refill: !!document.querySelector('.hw-shop [data-hs-act="refill"]') }));
-        if (shop.tabs.join() !== 'buy,sell' || shop.refill) fails.push('AW-7 the Shop still has a refill: ' + JSON.stringify(shop));
+        /* Buy, Sell, and Services (stamina and Blessings, Tyler 2026-10-25): no supply refill anywhere */
+        if (shop.tabs.join() !== 'buy,sell,services' || shop.refill) fails.push('AW-7 the Shop\'s tabs are ' + JSON.stringify(shop) + ', want Buy, Sell and Services and no refill'
+          + ' [' + (await page.evaluate(() => { const w = document.querySelector('[data-hs-win="shop"]'); return w ? w.outerHTML.slice(0, 400) : 'no shop'; })) + '] ' + errors.slice(0, 2).join(' | '));
         if (shop.lines.join() !== 'leather_gloves,bronze_axe') fails.push('AW-7 the Shop offers ' + JSON.stringify(shop.lines) + ', not the gear then the tools alone');
         /* The session reader is the first filter (the Buy lists only draw their own kinds, so they mask it): it drops
            the fixture's food, drink and ammo itself. */
@@ -1168,6 +1177,90 @@ async function checks(overrides, shots) {
           document.querySelector(w + '.hw-hunt-detail .hw-hunt-enter').disabled].join(':'), W);
         if (go.join() !== 'meadowbrook_thicket' || !hunting || !back || after !== 'meadowbrook_thicket:Meadowbrook Thicket:false') fails.push('AW-29 the round trip reads ' + JSON.stringify({ go, hunting, back, after }));
       }
+      await ctx.close();
+    }
+
+    { // AW-31 THE CLEAN RETURN (designer walk 2026-10-25 #5), THE CARD'S NEXT STEP, THE SALE IN VIEW (#6), SERVICES IN THE SHOP
+      /* A Level 5 hero in the Cellar with loot and no gear in its bag (the bar's lessons read, a bar with nothing left to
+         teach), so the card waiting in town is "Sell what only pays coin"; 25 more priced loot stacks make the Sell list
+         run past the Shop's fold. */
+      const MORE = ['small_fang', 'giant_rat_hide', 'venom_sac', 'hive_wasp_stinger', 'goblin_ear', 'goblin_totem', 'magic_essence', 'rune_frag', 'coal',
+        'bat_wing', 'night_fang', 'oak_log', 'iron_ore', 'spider_eye', 'bear_claw', 'dire_fang', 'alpha_fang', 'willow_log', 'troll_hide', 'iron_bar',
+        'steel_bar', 'hell_ember', 'dark_sigil', 'brute_plate', 'cracked_spellstone'];
+      const back5 = (e) => {
+        e.state = Object.assign({}, e.state, { level_xp: 1736 });
+        e.skills = Object.assign({}, e.skills, { farming: { xp: 28, level: 1, frac: 0 } });
+        for (const id of ['bronze_sword', 'steel_sword', 'iron_helm', 'iron_platebody', 'shortbow']) delete e.inventory[id];
+        for (const id of MORE) { e.inventory[id] = 3; e.shop.bids[id] = 2; }
+        e.hunt_settings = Object.assign({}, e.hunt_settings, { slots: [], bar: [] });
+      };
+      const { ctx, page, s, errors, up } = await open({ mutateEnv: back5, residue: { coach: { read: ['bar_intro'] } } });
+      if (!up) fails.push('AW-31 the page did not mount');
+      else {
+        const look = () => page.evaluate(() => {
+          const btn = (q) => document.querySelector('[data-hs-win="hunt-summary"] ' + q);
+          return { analyzer: !!document.querySelector('[data-hs-widget="analyzer"]'), party: !!document.querySelector('[data-hs-widget="party"]'),
+            bar: !!document.querySelector('[data-hs-widget="hunt-topbar"]'), summary: !!document.querySelector('[data-hs-win="hunt-summary"]:not(.is-leaving)'),
+            toast: /has ended/.test((document.querySelector('[data-hs-widget="alerts"]') || {}).textContent || ''),
+            next: btn('[data-hs-act="coach-next"]') && !btn('[data-hs-act="coach-next"]').hidden ? btn('[data-hs-act="coach-next"]').textContent : null,
+            againMain: btn('[data-hs-act="again"]') ? btn('[data-hs-act="again"]').classList.contains('is-primary') : null };
+        });
+        const ringed = () => page.evaluate(() => Array.from(document.querySelectorAll('[data-coach-ring]')).map((e) => e.getAttribute('data-hs-open') || e.getAttribute('data-tab')
+          || e.getAttribute('data-coach-hook') || e.getAttribute('data-hs-act') || e.className));
+        const inHunt = await look();
+        if (!inHunt.analyzer || !inHunt.bar) fails.push('AW-31 the fixture hunt shows no hunt widgets: ' + JSON.stringify(inHunt));
+        /* the hero leaves the Cellar: the summary is the one notice; no analyzer, no party panel, no "has ended" toast */
+        s.env.hunt = Object.assign({}, s.env.hunt, { ended: true, session: { end_reason: 'left', ended_at: '2026-10-25T00:20:00Z', phase: 'ended' } });
+        s.env.state = Object.assign({}, s.env.state, { active_kind: 'idle', active_id: null });
+        await pushEnvelope(page, s);
+        await wait(page, () => document.querySelector('[data-hs-win="hunt-summary"] [data-hs-built]'), null, 3000);
+        await page.waitForTimeout(300);
+        const town = await look();
+        if (town.analyzer || town.party || town.toast || !town.summary) fails.push('AW-31 back in town the screen holds more than the summary: ' + JSON.stringify(town));
+        /* the card's next step is the summary's main press, Hunt again the second */
+        if (town.next !== 'Next: Sell what only pays coin' || town.againMain !== false) fails.push('AW-31 the summary\'s main press is ' + JSON.stringify(town) + ', want "Next: Sell what only pays coin" over Hunt again');
+        if (shots) await shot(page, 'alpha-1440x900-return-summary');
+        /* pressed: the summary goes, the hunt bar leaves with it, and the Shop opens with the card inside it, the Sell tab ringed */
+        await page.click('[data-hs-win="hunt-summary"] [data-hs-act="coach-next"]');
+        const inShop = await wait(page, () => document.querySelector('[data-hs-win="shop"] [data-hs-built]') && !document.querySelector('[data-hs-win="hunt-summary"]:not(.is-leaving)'), null, 3000);
+        await page.waitForTimeout(400);
+        const after = await look();
+        const card = await page.evaluate(() => { const p = document.querySelector('[data-hs-win="shop"] > .hs-win-coach .hs-pointer'); return p ? p.getAttribute('data-tutorial') : null; });
+        if (!inShop || after.bar || card !== 'sell_loot') fails.push('AW-31 the next step left ' + JSON.stringify({ inShop, bar: after.bar, card }) + ', want the Shop open with "Sell what only pays coin" in it and no hunt bar');
+        const r0 = await ringed();
+        if (r0.join() !== 'sell') fails.push('AW-31 in the Shop the ring is on ' + JSON.stringify(r0) + ', want the Sell tab');
+        await page.click('[data-hs-win="shop"] .hw-tab[data-tab="sell"]');
+        await page.waitForTimeout(400);
+        if ((await ringed()).join() !== 'sell-loot') fails.push('AW-31 on the Sell tab the ring is on ' + JSON.stringify(await ringed()) + ', want Sell all loot');
+        await page.click('[data-hs-win="shop"] [data-hs-act="sell-loot"]');
+        await page.waitForTimeout(400);
+        /* the confirmation is in view inside the window (it sat under the list, below the fold) and its Sell is ringed */
+        const cf = await page.evaluate(() => {
+          const c = document.querySelector('[data-hs-win="shop"] [data-pane="sell"] .hw-confirm');
+          const w = c.closest('[data-hs-win]').querySelector('[data-hs-body]').getBoundingClientRect(), r = c.getBoundingClientRect();
+          return { on: c.classList.contains('is-on'), top: Math.round(r.top), bottom: Math.round(r.bottom), boxTop: Math.round(w.top), boxBottom: Math.round(w.bottom) };
+        });
+        if (!cf.on || cf.top < cf.boxTop || cf.bottom > cf.boxBottom) fails.push('AW-31 the sale\'s confirmation is out of view: ' + JSON.stringify(cf));
+        if ((await ringed()).join() !== 'sell-confirm') fails.push('AW-31 with the confirmation open the ring is on ' + JSON.stringify(await ringed()) + ', want its Sell');
+        if (shots) await shot(page, 'alpha-1440x900-shop-sell-confirm');
+        /* SERVICES IN THE SHOP (Tyler 2026-10-25): no Services icon; R opens the Shop on its Services tab, from the Sell tab too */
+        const icons = await page.evaluate(() => Array.from(document.querySelectorAll('.hs-launch')).map((b) => b.getAttribute('data-hs-open')));
+        if (icons.includes('services') || !icons.includes('shop')) fails.push('AW-31 the icon row reads ' + icons.join(','));
+        await page.evaluate(() => { const a = document.activeElement; if (a && a.blur) a.blur(); });
+        await page.keyboard.press('r');
+        await page.waitForTimeout(300);
+        const svc = () => page.evaluate(() => ({ tab: (document.querySelector('[data-hs-win="shop"] .hw-tab[aria-selected="true"]') || {}).dataset?.tab,
+          pane: !!document.querySelector('[data-hs-win="shop"] [data-pane="services"].is-on .hw-services .hw-bless'),
+          stam: !!document.querySelector('[data-hs-win="shop"] [data-pane="services"].is-on [data-hs-act="stam-ask"]') }));
+        const v1 = await svc();
+        if (v1.tab !== 'services' || !v1.pane || !v1.stam) fails.push('AW-31 R over the open Shop shows ' + JSON.stringify(v1) + ', want its Services tab');
+        await openWin(page, 'r', 'shop');
+        await page.waitForTimeout(200);
+        const v2 = await svc();
+        if (v2.tab !== 'services' || !v2.pane) fails.push('AW-31 R with the Shop closed opens ' + JSON.stringify(v2) + ', want the Shop on Services');
+        if (shots) await shot(page, 'alpha-1440x900-shop-services');
+      }
+      if (errors.length) fails.push('AW-31 console errors: ' + errors.slice(0, 3).join(' | '));
       await ctx.close();
     }
 
@@ -1792,6 +1885,14 @@ const MUTANTS = [
   ['coach: nothing inside a window is ringed (AW-17b)', 'src/shell/shell.js', '    ringCoach(ctx, card, ringRoots);\n', ''],
   ['coach: the ring is on a control nobody can see (AW-17b)', 'src/shell/launcher.js', "const shown = (el) => el.getClientRects().length > 0 && !el.closest('[hidden]');", 'const shown = () => true;'],
   ['coach: the Hunts window stays over the hunt it entered (AW-29)', 'src/shell/windows/hunts.js', "  const thenClose = (r) => { if (r && r.ok) { sc.closeOnHunt = true; repaint(); } };\n", '  const thenClose = () => {};\n'],
+  /* lane/b-tutorial-rings (AW-31): the clean return, the card's next step, the sale in view, Services in the Shop */
+  ['coach: the analyzer and the party panel stay in town after the hunt (AW-31)', 'src/shell/shell.js', '    if (!h || !h.ended) return true;\n', '    return true;\n'],
+  ['coach: the hunt\'s "has ended" toast shows over its summary (AW-31)', 'src/shell/alerts.js', '    if (c.quiet) return false;\n', ''],
+  ['coach: Hunt again stays the summary\'s main press over the card (AW-31)', 'src/shell/windows/hunt-summary.js', 'const card = huntOpen ? null : nextStepOf(ctx);', 'const card = null;'],
+  ['coach: the sale\'s confirmation sits under the list, out of view (AW-31)', 'src/shell/windows/shop.js', '  if (opening) revealInWindow(cf);\n', ''],
+  ['coach: the sale\'s confirmation is never ringed (AW-31)', 'src/shell/windows/shop.js', ' data-coach-hook="sell-confirm"', ''],
+  ['coach: R opens nothing once Services left the icon row (AW-31)', 'src/data/shell-windows.js', ", tabKeys: Object.freeze({ r: 'services' }) }),", ' }),'],
+  ['coach: R over the open Shop never switches it to Services (AW-31)', 'src/shell/shell.js', '    for (const id of wm.openIds()) if (wm.wantsTab(id)) refresh(id);\n', ''],
   /* The Hunts window, master-detail (designer plan 2026-10-22): AW-25 .. AW-29. */
   ['AW-25 every creature reads common', 'src/shell/hunt-ground-facts.js', "  if (share >= SHARE_BANDS.common) return 'common';", "  return 'common';"],
   ['AW-25 a Scarce piece reads as the ground\'s Rare (odds, not the band)', 'src/shell/hunt-ground-facts.js', 'd.ch < 1 && REVEAL_BANDS.includes(bandOf(d));', 'd.ch < 1 && d.ch <= 0.05;'],
@@ -1844,7 +1945,18 @@ const MUTANTS = [
 /* The doll mutant needs the want set where an equip is asked: plant it beside the intent. */
 const COMPANION = { 'the doll wears the item before the server confirms': ['src/shell/windows/inventory/actions.js', "    if (slot) wear(st, repaint, slot, id, 'pick:' + id);", "    if (slot) globalThis.__want = id;\n    if (slot) wear(st, repaint, slot, id, 'pick:' + id);"],
   /* The high-water mark the merged-upward ticker keeps (module scope: one per planted tree). */
-  'ticker: a payout under the prediction never snaps down (merged upward)': ['src/shell/town-ticker.js', 'const own = (o, k) =>', 'const HIGH = {};\nconst own = (o, k) =>'] };
+  'ticker: a payout under the prediction never snaps down (merged upward)': ['src/shell/town-ticker.js', 'const own = (o, k) =>', 'const HIGH = {};\nconst own = (o, k) =>'],
+  /* today's Shop: the confirmation after the list AND no reveal (either alone keeps it in view) */
+  'coach: the sale\'s confirmation sits under the list, out of view (AW-31)': ['src/shell/windows/shop.js',
+    `    /* the confirmation beside the press, never under the list (the coach rings its Sell: data-coach-hook) */
+    + '<div class="hw-confirm" role="alertdialog" aria-label="Confirm the sale"><p class="hw-confirm-q"></p><p class="hw-confirm-note"></p>'
+    + '<div class="hw-confirm-do"><button type="button" class="hw-primary" data-hs-act="confirm-yes" data-coach-hook="sell-confirm"></button>'
+    + '<button type="button" class="hh-tool" data-hs-act="confirm-no">Cancel</button></div></div>'
+    + '<ul class="hw-ledger hw-sell-list"></ul><p class="hh-empty hw-sell-none">Nothing in your bag that the shop buys.</p></section>'`,
+    `    + '<ul class="hw-ledger hw-sell-list"></ul><p class="hh-empty hw-sell-none">Nothing in your bag that the shop buys.</p>'
+    + '<div class="hw-confirm" role="alertdialog" aria-label="Confirm the sale"><p class="hw-confirm-q"></p><p class="hw-confirm-note"></p>'
+    + '<div class="hw-confirm-do"><button type="button" class="hw-primary" data-hs-act="confirm-yes" data-coach-hook="sell-confirm"></button>'
+    + '<button type="button" class="hh-tool" data-hs-act="confirm-no">Cancel</button></div></div></section>'`] };
 
 async function main() {
   const at = process.argv.indexOf('--shots');

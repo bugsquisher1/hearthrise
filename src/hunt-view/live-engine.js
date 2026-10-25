@@ -246,8 +246,10 @@ export function createLiveEngine(o) {
       positions.set(u, xy); alive.add(u);
       if (hp[u]) units[u] = hp[u];
     }
-    /* a unit that first appears after `until` (a respawn) is alive too: its steps are played on */
-    for (const s of track) alive.add(s.u);
+    /* a unit that first appears after `until` (a respawn) is alive too: its steps are played on, and it is
+       named and sized from the swing that spawned it (the run's unit book), or the scene cannot draw it until
+       the next swing names it ("[hunt-scene] no sprite for unit 6..17 (null)", Andy #65 at a switch) */
+    for (const s of track) { alive.add(s.u); if (!units[s.u] && !killed.has(s.u) && hp[s.u]) units[s.u] = hp[s.u]; }
     return { positions, alive, units, fallen, fromMs: until, track, events, kills };
   }
 

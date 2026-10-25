@@ -71,7 +71,12 @@
 //         closed (the server's commits) and viewed (every commit matches; a peer's frozen hero carries
 //         `hold`); a change mid-hunt takes force at the lap boundary, never mid-lap.
 //   LV-N  A RESTART NAMES WHAT IT PLACES (Andy 10-22, null sprites): a reseed drawn before the start
-//         point's next swing (it runs none) still gives every unit it places a kind and a bar.
+//         point's next swing (it runs none) still gives every unit it places a kind and a bar, and a unit
+//         spawning in a catch-up's last swing after the eased instant is named too (Andy #65).
+//   LV-4P ANDY'S OWN PARTY, EVERY HERO VIEWED (#64/#65, live v0.2.45 "match 0"): four heroes of one account at
+//         the Warrens on their default bars (scaled spells, store runes, food, drink; a Ranger's carried and
+//         bought arrows): viewing each in turn, every commit matches the prediction; the server's commits
+//         are the same with the browser closed (a peer's frozen `lv` and `shots`, src/core/member.js).
 //   LV-PULL THE HOLDER PULLS (bug #61, Andy's party): under Take turns the lap's holder, under "One tank
 //         holds" the pick, switched only when the lap ends; no tank yanks a pack, browser closed and viewed.
 //   LV-TGT "STRONGEST" AND "FOLLOW" ON A MIXED PACK (Andy a08): a follower stands on the leader's monster, a
@@ -110,6 +115,7 @@ async function load(base) {
     SB: await u('src/data/supply-basics.js'),
     XP: await u('src/core/xp.js'),
     MB: await u('src/core/member.js'),
+    HR: await u('src/data/hunt-roles.js'),
     TUNE: (await u('src/data/hunt-tuning.js')).HUNT_TUNING,
     CB: (await u('src/core/combat.js')).COMBAT_BALANCE,
     WS: await u('src/core/hunt/world-state.js'),
@@ -145,10 +151,10 @@ function server(M, mis, o) {
   const hunt = (o && o.hunt) || 'mill_cellar', t0 = (o && o.t0) || T0;
   const where = M.HG.huntGroundOf(hunt);
   const inst = { id: (o && o.id) || 'i-live', hunt, world: null, settled_to_ms: t0, next_swing_at_ms: t0, world_swing: 0, secret: SECRET };
-  const drops = {};
+  const drops = {}, buys = {};
   return {
-    inst, drops,
-    live: (user) => M.HS.huntLive(inst, mis, user, 0),
+    inst, drops, buys,
+    live: (user, slot) => M.HS.huntLive(inst, mis, user, slot || 0),
     commit(to) {
       const r = M.AC.accrueHunt({ instance: { id: inst.id, nextSwingAtMs: inst.next_swing_at_ms, world: inst.world, worldSwing: inst.world_swing },
         window: { fromMs: inst.settled_to_ms, toMs: to }, secret: SECRET, ground: where.ground, grid: where.grid,
@@ -165,6 +171,7 @@ function server(M, mis, o) {
         mi.levelXp += p.delta.level_xp || 0;
         mi.gold += p.delta.gold || 0;
         for (const [id, n] of Object.entries(p.delta.items || {})) drops[id] = (drops[id] || 0) + n;
+        for (const [id, n] of Object.entries(h.buys || {})) buys[id] = (buys[id] || 0) + n;
       }
       inst.world = r.world; inst.settled_to_ms = r.settledTo; inst.next_swing_at_ms = r.settledTo; inst.world_swing = r.worldSwingTo;
       return { tl, check: { world_swing: r.worldSwingTo, settled_to_ms: r.settledTo, world_hash: M.HT.worldHash(r.world), seeds: M.HS.liveSeeds(inst, r.worldSwingTo) } };
@@ -177,7 +184,7 @@ function run(M, mis, spanMs, opt) {
   const o = opt || {};
   const srv = server(M, mis, o.server);
   const E = M.LE.createLiveEngine({ items: M.ITEMS, monsters: (o.server && o.server.monsters) || M.MONSTERS });
-  E.seed(srv.live(mis[0].user));
+  E.seed(srv.live(o.viewer ? o.viewer.user : mis[0].user, o.viewer ? o.viewer.slot : 0));
   const fed = { steps: [], events: [] };
   const heroesSeen = new Map();
   const verdicts = [];
@@ -294,6 +301,11 @@ function rules(M) {
       ok('LV-P', !text.includes(bad), 'a peer row leaks ' + bad);
     }
     ok('LV-P', !!own && !!own.skills && !!own.equipment && !!own.huntSession, "the viewer's own row is not its full setup");
+    /* the frozen `lv` is the LEVEL of each skill the peer's bar reads (Andy #64), never its XP */
+    const lv = (peer && peer.frozen && peer.frozen.lv) || null;
+    const reads = M.MB.engineSkillsOf(mis[1].hero.slots);
+    ok('LV-P', !!lv && reads.length > 0 && JSON.stringify(Object.keys(lv).sort()) === JSON.stringify(reads)
+      && reads.every((k) => lv[k] === M.XP.levelOf(mis[1].skills, k)), `a peer's frozen lv is ${JSON.stringify(lv)} (want the levels of ${reads.join(', ')})`);
   }
 
   { // LV-A: ARMOUR WEIGHTS, BOTH PATHS (ruling K7): the PEER tank wears a mixed set (leather dodges, a plate helm
@@ -945,6 +957,77 @@ function rules(M) {
     console.log(`  LV-N: ${restarts} restart(s), ${beforeNext} before the start point's next swing; ${unnamed.length} unit(s) placed with no kind`);
     ok('LV-N', restarts >= 9 && beforeNext >= 9, `CONTROL: ${restarts} restarts, ${beforeNext} of them before the next swing (want every one)`);
     ok('LV-N', unnamed.length === 0, `a restart placed ${unnamed.length} unit(s) with no kind (the scene cannot draw them): ${unnamed.slice(0, 6).join(', ')}`);
+    /* ...and a unit that SPAWNS inside the catch-up's last swing, after the instant it eases onto (its first steps
+       are played on), is named too: a restart a few seconds behind a four-hero party's commits ("[hunt-scene] no
+       sprite for unit 6..17 (null)", Andy #65 at a hero switch). */
+    const four = ['tank', 'ranger', 'tank', 'melee_dps'].map((role, i) => memberOf(M, 'p' + i, i, role, 6));
+    const srv4 = server(M, four);
+    let spawned = 0;
+    const unnamedSpawn = [];
+    for (let t = T0 + 16000; t <= T0 + 240000; t += 16000) {
+      srv4.commit(t);
+      for (const lag of [1900, 9000]) {
+        const res = M.LE.createLiveEngine({ items: M.ITEMS, monsters: M.MONSTERS }).reseed(srv4.live('p0'), t + lag - 150, 250);
+        if (!res) continue;
+        const first = new Set(res.track.filter((s) => !res.positions.has(s.u)).map((s) => s.u));
+        spawned += first.size;
+        for (const u of first) if (!(res.units[u] && typeof res.units[u][0] === 'string')) unnamedSpawn.push((t - T0) + '+' + lag + ':' + u);
+      }
+    }
+    console.log(`  LV-N spawns inside a catch-up (a four-hero party, restarts 1.9 and 9 s behind its commits): ${spawned} unit(s) first seen after the eased instant, ${unnamedSpawn.length} with no kind`);
+    ok('LV-N', spawned > 0, 'CONTROL: no restart caught a unit spawning after the instant it eases onto');
+    ok('LV-N', unnamedSpawn.length === 0, `a restart played on ${unnamedSpawn.length} unit(s) spawned in its last swing with no kind: ${unnamedSpawn.slice(0, 6).join(', ')}`);
+  }
+  { /* LV-4P ANDY'S OWN PARTY, EVERY HERO VIEWED IN TURN (#64/#65, live v0.2.45: "match 0, diverged 26"; since v0.2.42,
+       5a6e449b6: spell versions and output grow with the caster's level). Four heroes of ONE account at Coppercap
+       Warrens, Level 35, each on its role's default bar (the core spell naming the store rune, food and drink from the
+       store); the Ranger wears Barbed Arrows (a few carried, then the store's at its share) and its bar names Iron Arrows it
+       carries a dozen of. A peer's Fireball and Mend must land as hard in the browser as on the server (frozen `lv`), and its
+       carried Iron and bought Barbed shots must hit as they do there (frozen `shots`), or the prediction leaves the server's world. */
+    const party = () => {
+      const roles = ['tank', 'ranger', 'mage', 'healer'];
+      const kit = { tank: { weapon: 'steel_sword', shield: 'coppercap_shield', helmet: 'steel_helm', body: 'steel_platebody', pants: 'steel_platelegs', boots: 'steel_boots' },
+        ranger: { weapon: 'maple_bow', ammo: 'barbed_arrows', helmet: 'boarhide_helmet', body: 'boarhide_body', pants: 'boarhide_pants', boots: 'boarhide_boots' },
+        mage: { weapon: 'willow_wand', shield: 'willow_spellbook', helmet: 'scholar_helmet', body: 'scholar_body', pants: 'scholar_pants', boots: 'scholar_boots' },
+        healer: { weapon: 'willow_staff', helmet: 'scholar_helmet', body: 'scholar_body', pants: 'scholar_pants', boots: 'scholar_boots' } };
+      const at = (metric, value) => [{ metric, op: 'lt', value }];
+      const rangerBar = [{ action: { type: 'consume', id: 'salted_shrimp' }, conditions: at('self_hp_pct', 60), join: 'and' },
+        { action: { type: 'attack_with_item', id: 'iron_arrows' }, conditions: [], join: 'and' }];
+      return roles.map((role, i) => {
+        const mi = memberOf(M, 'andy', i, role, 35);
+        mi.key = 'andy:' + i; mi.slot = i; mi.sessionId = 's-andy-' + i; mi.huntId = 'coppercap_warrens'; mi.gold = 50000; mi.hp = 1e9;
+        mi.equipment = kit[role];
+        mi.skills = { ...mi.skills, magic: M.XP.skillXpForLevel('magic', 35) };
+        mi.huntSession = Object.assign({}, mi.huntSession, { id: 's-andy-' + i, bag: role === 'ranger' ? { barbed_arrows: { loaded: 6, left: 6 }, iron_arrows: { loaded: 12, left: 12 } } : {} });
+        mi.hero = M.SPAWN.heroSetup({ weaponType: M.HR.wornRoleKey(kit[role], M.ITEMS), options: role === 'healer' ? { role: 'healer' } : {},
+          bar: role === 'ranger' ? rangerBar : [], partyRoles: roles, leaveTogether: true, lead: i === 0 });
+        return mi;
+      });
+    };
+    const SPAN = 160000;
+    /* BROWSER CLOSED: the server's commits alone (every hero unwatched); the prediction is display only, so a viewed run's
+       commits must be these. */
+    const hashesOf = (o) => { const h = []; return [h, Object.assign({ server: { hunt: 'coppercap_warrens' }, onCommit: ({ c }) => h.push(c.check.world_hash) }, o)]; };
+    const [closedHashes, closedOpt] = hashesOf();
+    const closedParty = party();
+    const closed = run(M, closedParty, SPAN, closedOpt);
+    const evs = closed.verdicts.flatMap((x) => x.tl.hunt_events);
+    const castsBy = (id) => evs.filter((e) => e.type === 'cast' && e.ability === id).length;
+    const ironShots = evs.filter((e) => e.type === 'shot' && e.item === 'iron_arrows').length, bought = closed.srv.buys.plain_barbed_arrows || 0;
+    const scaled = castsBy('fireball') + castsBy('greater_mend') + castsBy('mend');
+    console.log(`  LV-4P closed (Andy's own party, Warrens L35, ${SPAN / 1000} s): ${closed.verdicts.length} commits; Fireball ${castsBy('fireball')}, Mend ${castsBy('greater_mend') + castsBy('mend')}, Precision Shot ${castsBy('precision_shot')}, carried Iron Arrow shots ${ironShots}, store Barbed shots ${bought}`);
+    ok('LV-4P', closed.verdicts.length >= 9, `CONTROL: ${closed.verdicts.length} server commits in ${SPAN / 1000} s`);
+    ok('LV-4P', scaled >= 3 && ironShots >= 6 && bought >= 6, `CONTROL: in ${SPAN / 1000} s the party cast ${scaled} level-scaled spell(s), shot ${ironShots} carried Iron Arrow(s) and bought ${bought} Barbed shot(s)`);
+    for (let v = 0; v < 4; v++) {
+      const [hashes, opt] = hashesOf({ viewer: { user: 'andy', slot: v } });
+      const r = run(M, party(), SPAN, opt);
+      const n = { match: 0, diverged: 0, unknown: 0 };
+      for (const x of r.verdicts) n[x.v]++;
+      const first = r.verdicts.find((x) => x.v !== 'match');
+      console.log(`  LV-4P viewed hero ${v}: ${r.verdicts.length} commits, match ${n.match}, diverged ${n.diverged}, unknown ${n.unknown}${first ? ' (first off at ' + (first.t - T0) / 1000 + ' s)' : ''}`);
+      ok('LV-4P', n.match > 0 && n.match === r.verdicts.length, `viewing hero ${v}: ${n.match} of ${r.verdicts.length} commits matched the prediction (diverged ${n.diverged}, unknown ${n.unknown})`);
+      ok('LV-4P', hashes.length === closedHashes.length && hashes.every((h, k) => h === closedHashes[k]), `viewing hero ${v} changed the server's commits`);
+    }
   }
   { /* LV-$ the slot ORDER is the fallback, viewed and with the browser closed */
     const mi = memberOf(M, 'a', 0, 'tank', 6);
@@ -1064,6 +1147,12 @@ const MUTANTS = [
   ['a melee follower keeps the monster it fights (LV-TGT, Andy a08)', 'src/core/hunt/targeting.js',
     "const STEADY_MODES = Object.freeze(['strongest', 'follow']);", 'const STEADY_MODES = Object.freeze([]);', /^LV-TGT: closed: "Follow"/],
   ['"Strongest" ranks nothing (LV-TGT)', 'src/core/hunt/targeting.js', '  strongest: () => (a, b) => b.maxHp - a.maxHp,', '  strongest: () => () => 0,', /^LV-TGT: closed: "Strongest"/],
+  /* Andy #64/#65 (live v0.2.45, match 0): a peer the browser draws carries every input the engine reads, as a number. */
+  ['a peer is frozen without its skill levels: its spells cast at level 1 (LV-4P)', 'src/core/member.js', '  for (const k of engineSkillsOf(m.hero.slots)) lv[k] = levelOf(m.state.skills, k);\n', '', /^LV-4P: viewing/],
+  ['a frozen peer swings every shot on its worn rolls (LV-4P)', 'src/core/member.js', '    shotRolls: (m, ammo, sharePm) => {', '    wornOnly: (m, ammo, sharePm) => {', /^LV-4P: viewing/],
+  ['a frozen peer\'s store shot hits as a carried one (LV-4P)', 'src/core/member.js', '      for (const pm of [1000, STORE_SHOT_PM]) {', '      for (const pm of [1000]) {', /^LV-4P: viewing/],
+  ['a unit spawned in a catch-up\'s last swing has no kind (LV-N, Andy #65)', 'src/hunt-view/live-engine.js',
+    'for (const s of track) { alive.add(s.u); if (!units[s.u] && !killed.has(s.u) && hp[s.u]) units[s.u] = hp[s.u]; }', 'for (const s of track) alive.add(s.u);', /^LV-N: a restart played on/],
 ];
 
 async function mutate() {

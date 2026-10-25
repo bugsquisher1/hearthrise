@@ -35,10 +35,10 @@ import { recipeInputs } from '../../../core/artisan.js?v=0.2.47';
 import { whole } from '../../../render/format.js?v=0.2.47';
 import { itemName } from '../../widgets/bits.js?v=0.2.47';
 import { riteOf, cookOf } from '../../bag-model.js?v=0.2.47';
-import { skillsOf } from '../../../session/item-sections.js?v=0.2.47';
+import { skillsOf, heldOf } from '../../../session/item-sections.js?v=0.2.47';
 import { huntOf } from '../../../session/hunt-sections.js?v=0.2.47';
 import { townActivityWords } from '../../../session/party-sections.js?v=0.2.47';
-import { startWork, stopWork, workRow, workOf, runParts, doWords } from '../../town-work.js?v=0.2.47';
+import { startWork, stopWork, workRow, workOf, runParts, doWords, workBlock } from '../../town-work.js?v=0.2.47';
 import { skillShortWords } from '../../intent-words.js?v=0.2.47';
 import { lineParts, lineText } from '../../town-ticker.js?v=0.2.47';
 
@@ -67,8 +67,14 @@ export function buryVerb(e) { return e.skill === 'cooking' ? 'Cook' : String(e.r
 /** "Burying", "Offering", "Cooking": the verb as the line under the bag says it. */
 export function buryingWord(e) { const v = buryVerb(e); return (/[^e]e$/.test(v) ? v.slice(0, -1) : v) + 'ing'; }
 
-/** The label for a stack of `qty`: "Bury" for one, "Bury all" for more. */
+/** The label for `qty` units (pass buryQty: the bag + Storage the bench spends): "Bury" for one, "Bury all" for more. */
 export function buryLabel(e, qty) { return buryVerb(e) + (qty > e.need ? ' all' : ''); }
+
+/**
+ * How many of `id` a Bury all / Cook all spends: the server's bag PLUS the account's Storage where the server says
+ * a bench draws on it (Tyler 2026-10-25, skills from Storage: the bag first, then Storage), else the bag.
+ */
+export function buryQty(cs, id) { return heldOf(cs)[id] || 0; }
 
 /** The bench entry the server says this character is working now, or null. */
 export function buryingOf(cs) {
@@ -88,8 +94,11 @@ export function buryBlock(cs, e) {
   if (lv === null) return 'Reading your ' + name + ' level…';
   /* "You need Cooking 15 to cook Raw Wolf Meat. You have 4." — the sentence the server's refusal reads as too (town-work.js). */
   if (lv < e.recipe.req) { const w = workRow('artisan', e.recipe.id); return skillShortWords(e.skill, e.recipe.req, lv, w ? doWords(w) : ''); }
-  const qty = (cs.read('inventory') || {})[e.input] || 0;
+  const qty = buryQty(cs, e.input);
   if (qty < e.need) return 'You need ' + e.need + ' ' + itemName(e.input) + ' for one. You have ' + whole(qty) + '.';
+  /* The bag's room for the product, as the Work window says it (town-work.js workBlock: the engine's own test). */
+  const why = workBlock(cs, workRow('artisan', e.recipe.id), false);
+  if (/^Your bag is full/.test(why)) return why;
   return '';
 }
 
@@ -101,7 +110,7 @@ export function buryBlock(cs, e) {
 export function startBury(cs, sc, id, send, repaint) {
   const e = buryRecipeOf(id);
   if (!e) return null;
-  const qty = (cs.read('inventory') || {})[id] || 0;
+  const qty = buryQty(cs, id);
   return startWork(cs, workRow('artisan', e.recipe.id), send, repaint, buryingWord(e) + ' ' + whole(qty) + ' ' + itemName(id) + '…');
 }
 

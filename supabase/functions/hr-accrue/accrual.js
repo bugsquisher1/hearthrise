@@ -2019,6 +2019,21 @@ function accrueArtisan(inp, span) {
     const q = Math.floor(nat(inp.inventory[id], 0));
     if (q > 0) bag[id] = q;
   }
+  /* SKILLS FROM STORAGE (Tyler 2026-10-25): THE SUPPLY a bench's inputs are counted against is the bag PLUS the
+     account's Storage (`inp.storage`, null where the server has no `skill_inputs` section: then it IS the bag), in
+     the server's order — hr_apply takes each spent input from the bag first, then Storage (hr_materials_take), so
+     the removeItem below spends `bag` first and keeps it the server's bag after the apply. `bag` alone stays
+     `state.inventory`: the tool lookup and the bag's room read it. */
+  const storage0 = Object.create(null);
+  if (inp.storage && typeof inp.storage === 'object') {
+    for (const id in inp.storage) {
+      const q = Math.floor(nat(inp.storage[id], 0));
+      if (q > 0) storage0[id] = q;
+    }
+  }
+  const supply = Object.create(null);
+  for (const id in bag) supply[id] = bag[id];
+  for (const id in storage0) supply[id] = (supply[id] || 0) + storage0[id];
 
   const carry0 = normaliseToolCarry(inp.toolCarry);
   const state = {
@@ -2031,6 +2046,7 @@ function accrueArtisan(inp, span) {
     skills: { ...skills0 },        // a COPY: grantXp mutates it, and the diff below is the delta
     xpFrac: xpFrac0 ? { ...xpFrac0 } : undefined, // a COPY too; undefined = no column = per-grant floor
     inventory: bag,
+    supply,
     equipment,
     /* THE GATE, FAIL-CLOSED BY SHAPE. `null`/absent → `gateOk` false for any
        recipe carrying `gated` → the span stops at tick 0 with GATE and pays
@@ -2059,6 +2075,7 @@ function accrueArtisan(inp, span) {
      two paths — one contract, not an artisan-flavoured copy of one. */
   const goals = makeGoalCounter();
   let stoppedInput = null;
+  let stoppedReason = null;
 
   const fx = {
     addXp(skillId, amt) {
@@ -2077,7 +2094,8 @@ function accrueArtisan(inp, span) {
       const n = Math.floor(Number(qty) || 0);
       if (!id || n <= 0) return;
       itemDelta[id] = (itemDelta[id] || 0) + n;
-      bag[id] = (bag[id] || 0) + n;
+      bag[id] = (bag[id] || 0) + n;          // the product lands in the BAG
+      supply[id] = (supply[id] || 0) + n;    // and is in the supply a later input check reads
     },
     /* ── THE DEBIT, AND IT IS THE WHOLE MATERIAL CLAMP ────────────────────
        `resolveArtisanTick` calls this once per consumed input, with the
@@ -2100,10 +2118,14 @@ function accrueArtisan(inp, span) {
     removeItem(id, qty) {
       const n = Math.floor(Number(qty) || 0);
       if (!id || n <= 0) return;
-      const have = Math.floor(nat(bag[id], 0));
+      /* Against the SUPPLY (bag + Storage), the bag first: the server's order (hr_materials_take). */
+      const have = Math.floor(nat(supply[id], 0));
       const take = Math.min(n, have);
       if (take <= 0) return;
-      bag[id] = have - take;
+      supply[id] = have - take;
+      if (supply[id] <= 0) delete supply[id];
+      const inBag = Math.floor(nat(bag[id], 0));
+      bag[id] = inBag - Math.min(take, inBag);
       if (bag[id] <= 0) delete bag[id];
       itemDelta[id] = (itemDelta[id] || 0) - take;
     },
@@ -2121,7 +2143,7 @@ function accrueArtisan(inp, span) {
        `state.stats.burnt` and the summary, and a per-burn handler on a
        ~14,000-action night is the per-tick journalling this file's header
        forbids. */
-    onStop(reason, skill, targetId, missing) { stoppedInput = missing || null; },
+    onStop(reason, skill, targetId, missing) { stoppedInput = missing || null; stoppedReason = reason || null; },
   };
 
   const ctx = {
@@ -2142,6 +2164,9 @@ function accrueArtisan(inp, span) {
        and it is set from `inp.actionBudget`, which index.ts computes from the
        engine's own previous answer — never from a request body. */
     maxActions: runCap(inp.actionBudget, left0),
+    /* THE BAG'S STACK CAP (envelope.js bagCap, player_state.bank_cap): a product with no room stops the bench
+       BAG_FULL (artisan-sim.js bagFullFor) rather than proposing a stack hr_apply refuses bank_full. */
+    bagCap: Number.isSafeInteger(inp.bagCap) && inp.bagCap > 0 ? inp.bagCap : null,
     /* `minStepMs` is NOT SET, so `resolveStepMs` uses the real MIN_ACTION_MS
        floor. This object is built field by field and nothing is spread into it:
        if it were built from a request body, `minStepMs` would ride in through
@@ -2199,7 +2224,8 @@ function accrueArtisan(inp, span) {
      stops a pathological catalogue turning one ledger row into a blob. */
   const skipped = [];
   const SKIPPED_MAX = 8;
-  const startQty = (id) => Math.floor(nat((inp.inventory || {})[id], 0));
+  /* What the run could spend of `id`: the bag plus the Storage it draws on (SKILLS FROM STORAGE). */
+  const startQty = (id) => Math.floor(nat((inp.inventory || {})[id], 0)) + (storage0[id] || 0);
   for (const id in itemDelta) {
     /* Unknown ids are refused by hr_apply against the generated hr_items
        catalogue, which would reject the WHOLE delta — one renamed output id
@@ -2257,6 +2283,8 @@ function accrueArtisan(inp, span) {
   const counted = left1 === 0;
   const stopped = summary.stoppedBy === ARTISAN_STOP.SUPPLIES
                 || summary.stoppedBy === ARTISAN_STOP.GATE
+                /* A full bag stops the bench like an empty input: it cannot pay until the player makes room. */
+                || summary.stoppedBy === ARTISAN_STOP.BAG_FULL
                 || counted;
   const nothingHappened = itemKinds === 0 && Object.keys(xpDelta).length === 0 && summary.ticks === 0;
   if (nothingHappened && !stopped) return { accrued: false, reason: SKIP.NOTHING, summary };
@@ -2315,7 +2343,9 @@ function accrueArtisan(inp, span) {
         /* WHY it stopped and on WHAT, because "the night made 200 bars and the
            bag had ore for 4,000" is only answerable from the stop. */
         stopped: counted ? 'count' : (summary.stoppedBy || null),
-        out_of: stoppedInput,
+        /* The input that ran out; for a full bag, the product that had no room (`room_for`). */
+        out_of: stoppedReason === ARTISAN_STOP.BAG_FULL ? null : stoppedInput,
+        ...(stoppedReason === ARTISAN_STOP.BAG_FULL ? { room_for: stoppedInput } : {}),
         /* "MAKE N": the count this window started from and what it left (absent on an uncounted run). */
         ...(left0 !== null ? { n: left0, left: left1 } : {}),
         /* C5. A COMMA-JOINED STRING, not an array: T7 asserts every meta value

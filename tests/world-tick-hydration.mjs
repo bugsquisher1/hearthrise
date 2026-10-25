@@ -571,6 +571,7 @@ try {
     const u = U(5);
     await seedFighter(u);
     await db.exec(`update public.player_state set active_left = 7 where user_id = '${u}' and slot = 0;`);
+    await db.exec(`insert into public.account_bank (user_id, item_id, qty) values ('${u}', 'copper_ore', 3) on conflict (user_id, item_id) do update set qty = 3;`);
     const { env, nowMs } = await envelopeOf(u);
 
     /* THE DECLARED SOURCE OF EVERY KEY. `from` is the envelope NAME, `level`
@@ -618,6 +619,11 @@ try {
       /* "MAKE N" (2026-12-01-bench-count.sql): the run's count rides the `bench_run` section,
          read as `bench_run.left` (the probe below carries 7 so the swap arm is not vacuous). */
       activeLeft: { from: 'bench_run', level: 'top' },
+      /* SKILLS FROM STORAGE (2027-01-24-skills-from-storage.sql): the account's Storage a bench draws on, read off the
+         top-level `bank` only where the `skill_inputs` section names it (the probe holds a Storage stack so the swap
+         arm is not vacuous); the bag's stack cap off `state.bank_cap`. */
+      storage: { from: 'bank', level: 'top' },
+      bagCap: { from: 'bank_cap', level: 'state' },
     };
 
     const declared = Object.keys(SOURCES);
@@ -688,6 +694,8 @@ try {
       buffs: env.buffs,
       ammoCarry: null,
       activeLeft: env.bench_run && env.bench_run.left,
+      storage: env.skill_inputs && env.skill_inputs.from && env.skill_inputs.from.includes('storage') ? env.bank : null,
+      bagCap: env.state.bank_cap,
     };
     const wrongValue = Object.keys(EXPECT).filter((k) => !same(hy[k], EXPECT[k]));
     judge('H5b', wrongValue.length === 0,

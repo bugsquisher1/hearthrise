@@ -27,7 +27,7 @@
 // ════════════════════════════════════════════════════════════════════════
 import { farmLandOf, readyInMs } from '../../session/farm-sections.js?v=0.2.47';
 import { plantCrop, waterPlot, harvestPlot, upgradePlot } from '../../session/farm-intents.js?v=0.2.47';
-import { bagOf, skillsOf, goldOf, shopOf } from '../../session/item-sections.js?v=0.2.47';
+import { bagOf, skillsOf, goldOf, shopOf, heldOf, drawsOnStorage } from '../../session/item-sections.js?v=0.2.47';
 import { CROPS } from '../../data/gathering.js?v=0.2.47';
 import { requiredPlotLevel, unlockedCrops } from '../../core/farm.js?v=0.2.47';
 import { rows, text, cls, attr, prop, style, element } from '../../render/paint.js?v=0.2.47';
@@ -45,7 +45,7 @@ const FARM_WORDS = Object.freeze({
   empty_plot: 'That plot is empty now.',
   plot_occupied: 'Something is already growing there.',
   plot_cap: 'Your land has no room for that plot yet.',
-  insufficient_seed: 'You have no seed for that crop. The Shop sells seeds.',
+  insufficient_seed: 'You have no seed for that crop in your bag or Storage. The Shop sells seeds.',
   level_too_low: 'Your Farming level is too low for that crop.',
   plot_tier_locked: 'Your plots need a higher tier for that crop.',
   still_watered: 'Still soaked. Water it again when this wears off.',
@@ -151,7 +151,7 @@ function patchSow(root, st, ctx) {
       + '<span class="hw-line-name"><b>' + esc(r.c.name) + '</b><small></small></span>'
       + '<button type="button" class="hh-tool" data-hs-act="sow" data-crop="' + esc(r.id) + '">Plant</button></li>'),
     patch: (li, r) => {
-      text(li.querySelector('small'), r.c.hours + ' h · ' + (r.why || whole(r.held) + (r.held === 1 ? ' seed' : ' seeds') + ' in your bag'));
+      text(li.querySelector('small'), r.c.hours + ' h · ' + (r.why || whole(r.held) + (r.held === 1 ? ' seed' : ' seeds') + st.seedsWhere));
       cls(li, 'is-locked', !!r.why);
       prop(li.querySelector('button'), 'disabled', !!r.why || st.sc.pending);
     },
@@ -192,7 +192,9 @@ renderFarm.patch = function patchFarm(body, ctx) {
   const st = {
     land, sc, glyphs: ctx.glyphs, purse,
     farming: sk && sk.farming ? sk.farming.level : sk ? 1 : null,
-    seeds: new Map((bagOf(cs) || []).map((r) => [r.id, r.qty])),
+    /* The seeds a plant can spend: the server's bag, then the account's Storage (heldOf; Tyler 2026-10-25). */
+    seeds: new Map(Object.entries(heldOf(cs))),
+    seedsWhere: drawsOnStorage(cs) ? ' in your bag and Storage' : ' in your bag',
     prices: new Map(shop ? shop.offers.filter((o) => o.kind === 'seed').map((o) => [o.item, o.price]) : []),
   };
   /* The land's plots, then any EXTRA plot past them (the server's `extra`), in index order. */

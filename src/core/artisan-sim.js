@@ -43,13 +43,22 @@
 //   ctx.recipes  the recipe index (see `indexArtisanRecipes`)
 //   ctx.fx       the effect sink; a missing handler is a no-op, so a bare call
 //                simulates without side effects
+//   ctx.bagCap   the bag's stack cap (player_state.bank_cap, hr_apply's bank_full
+//                fuse), or absent: no fuse (see bagFullFor)
+//
+// ── WHERE A BENCH'S INPUTS COME FROM (Tyler 2026-10-25, skills from Storage) ──
+// `state.supply`, when the caller sets it, is the pool the inputs are counted
+// against: the hero's bag PLUS the account's Storage (the server takes the bag
+// first, then Storage: hr_materials_take). `state.inventory` stays the BAG: the
+// tool lookup and the bag's room read it, so a tool in Storage speeds nothing.
+// No `supply` = the bag is the pool, byte for byte the behaviour before it.
 //
 // `state` is MUTATED in place, matching grantXp / simulateTick / simulateSkillSpan.
 //
 // PURE ESM. No DOM, no window, no timers, no Math.random.
 // ============================================================
 
-import { resolveArtisanAction, missingInput, recipeInputs, gateOk } from './artisan.js?v=0.2.47';
+import { resolveArtisanAction, missingInput, recipeInputs, gateOk, burnChance, BURNT_ITEM } from './artisan.js?v=0.2.47';
 import { bestTool, toolSpeed, toolXpB, toolDouble } from './tools.js?v=0.2.47';
 import { actionIntervalMs } from './pacing.js?v=0.2.47';
 import { CHANNEL, channelApplies, rateMult } from './away.js?v=0.2.47';
@@ -86,7 +95,51 @@ export const STOP_REASON = Object.freeze({
        supabase/functions/hr-accrue/accrual.js, which lists SUPPLIES and GATE by
        name for exactly that reason. */
   BUDGET: 'budget',
+  /* The next action's product would open a NEW stack in a bag already at its
+     cap (`ctx.bagCap`, hr_apply's bank_full fuse). A stop like SUPPLIES: the
+     bench cannot run until the player makes room, so the caller clears the
+     pointer and SAYS WHY instead of proposing a settle the server refuses
+     (which the degrade ladder would grind down to a forfeit, the bench still
+     "running"). Reachable since inputs come from Storage too: a bag that never
+     empties an input stack never frees a slot (Tyler 2026-10-25). */
+  BAG_FULL: 'bag_full',
 });
+
+/**
+ * The item whose new stack the bag has no room for on the NEXT action of
+ * `recipe`, or null when it fits (or no cap is known). Pure over the bag.
+ *
+ * An action opens at most ONE stack: its product, or for a dish that can burn
+ * the burnt food instead. Its consumption runs first and takes the BAG first, so
+ * an input whose last bag units it spends frees that slot (unless a free craft
+ * could refund it: then nothing is counted as freed). `stacks - freed + 1 > cap`
+ * is exactly hr_apply's `bank_full` test after the action.
+ *
+ * @param state { inventory (the BAG), skills }
+ * @param recipe an ARTISAN_RECIPES row; skill its bench
+ * @param ctx { bagCap, bonus, burns? } — `burns: false` asks about the product only (a caller that cannot
+ *            know the burn chance: the client does not hold the Kitchen perk; the engine's own stop covers it)
+ */
+export function bagFullFor(state, recipe, skill, ctx) {
+  const c = ctx || {};
+  const cap = Number.isSafeInteger(c.bagCap) && c.bagCap > 0 ? c.bagCap : null;
+  if (cap === null || !recipe || !recipe.output) return null;
+  const bag = (state && state.inventory) || {};
+  const held = (id) => (Number(bag[id]) || 0) > 0;
+  const bonus = typeof c.bonus === 'function' ? c.bonus : () => 0;
+  const burns = c.burns !== false && skill === 'cooking'
+    && burnChance(recipe, levelOf(state && state.skills, 'cooking'), bonus('noBurn') || 0) > 0;
+  const opens = !held(recipe.output) ? recipe.output : (burns && !held(BURNT_ITEM) ? BURNT_ITEM : null);
+  if (opens === null) return null;
+  let stacks = 0;
+  for (const id in bag) if ((Number(bag[id]) || 0) > 0) stacks++;
+  let freed = 0;
+  if (!(skill === 'crafting' && (bonus('craftSave') || 0) > 0)) {
+    const ins = recipeInputs(recipe);
+    for (const id in ins) { const q = Number(bag[id]) || 0; if (q > 0 && q <= ins[id]) freed++; }
+  }
+  return stacks - freed + 1 > cap ? opens : null;
+}
 
 /* The benches this file can simulate. Derived from the index the caller builds
    rather than hardcoded, so a fifth bench is a data row. */
@@ -186,7 +239,8 @@ export function resolveArtisanTick(state, recipe, ctx) {
 
   const res = resolveArtisanAction(recipe, {
     skillId: skill,
-    inventory: state.inventory,
+    /* The inputs are counted against the supply (bag + Storage) where the caller set one; see the header. */
+    inventory: state.supply || state.inventory,
     unlockedRecipes: state.unlockedRecipes,
     items: c.items,
     /* Derived HERE, from state, rather than accepted from the caller — two
@@ -278,9 +332,10 @@ function emptySummary(spanMs, ctx) {
  * contract has always claimed.
  *
  * @param state MUTATED. { activeSkill, skillTargetId, skills, inventory,
- *                         equipment, unlockedRecipes, toolCarry, stats, buffs? }
+ *                         equipment, unlockedRecipes, toolCarry, stats, buffs?,
+ *                         supply? (bag + Storage: the inputs' pool) }
  * @param ctx   { fromMs, toMs, recipes, items, rng, bonus, fx, away, capped,
- *                maxActions? }
+ *                maxActions?, bagCap? }
  * @returns the welcome-back summary.
  */
 export function simulateArtisanSpan(state, ctx) {
@@ -380,7 +435,7 @@ export function simulateArtisanSpan(state, ctx) {
         /* The supply pre-check. Captured HERE rather than read at report time:
            the caller's refusal path clears the activity pointer, so anything
            downstream asking "what was running?" would find null. */
-        const missing = missingInput(recipe, state.inventory);
+        const missing = missingInput(recipe, state.supply || state.inventory);
         if (missing !== null) {
           stopReason = STOP_REASON.SUPPLIES;
           stoppedById = missing;
@@ -393,6 +448,14 @@ export function simulateArtisanSpan(state, ctx) {
           stopReason = STOP_REASON.GATE;
           stoppedById = recipe.gated || targetId;
           call(fx, 'onStop', stopReason, skill, targetId, recipe.gated || null);
+          return done;
+        }
+        /* THE BAG'S ROOM, last: an ingredient or a gate is the more basic answer. */
+        const full = bagFullFor(state, recipe, skill, c);
+        if (full !== null) {
+          stopReason = STOP_REASON.BAG_FULL;
+          stoppedById = full;
+          call(fx, 'onStop', stopReason, skill, targetId, full);
           return done;
         }
         const r = resolveArtisanTick(state, recipe, tickCtx);

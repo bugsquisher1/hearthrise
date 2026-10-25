@@ -127,7 +127,18 @@ export const ENGINE_STATE_KEYS = Object.freeze([
   'toolCarry', 'ammoCarry', 'fight',
   'deathsTodayBefore', 'deathsLifetimeBefore',
   'hearthfindReady',
+  'storage', 'bagCap',
 ]);
+
+/* SKILLS FROM STORAGE (2027-01-24-skills-from-storage.sql, Tyler 2026-10-25): the account's Storage a bench
+   draws on after the bag, read ONLY where the envelope's `skill_inputs` section names it. That section is the
+   switch: a database whose hr_apply takes bench inputs from the bag alone has no such section, the engine then
+   prices the run against the bag alone, and this edge is safe on either side of the apply. */
+function storageInputs(e) {
+  const from = e && e.skill_inputs && Array.isArray(e.skill_inputs.from) ? e.skill_inputs.from : null;
+  const bank = e && e.bank;
+  return from && from.includes('storage') && bank && typeof bank === 'object' && !Array.isArray(bank) ? bank : null;
+}
 
 /* THE POINTER KEYS: the activity and the two watermarks. A chained caller
    OVERRIDES these per window (the tick's watermark is the fence's mark, not
@@ -206,6 +217,13 @@ export function engineInputsFromEnvelope(env, nowMs) {
     /* `inventory` is an input the engine SPENDS (ammo) as well as reads, which
        is why the returned delta's `items` map is signed. */
     inventory: e.inventory || {},
+    /* THE ACCOUNT'S STORAGE a bench draws on after the bag (`bank`, top level), or null where the server
+       does not take bench inputs from it (see storageInputs). Read for a bench's INPUTS only: tools and the
+       bag's room stay the bag's. */
+    storage: storageInputs(e),
+    /* THE BAG'S STACK CAP (player_state.bank_cap: hr_apply's bank_full fuse), so a bench stops BAG_FULL
+       instead of proposing a stack the server refuses. null = unknown, no fuse. */
+    bagCap: Number.isSafeInteger(st.bank_cap) && st.bank_cap > 0 ? st.bank_cap : null,
     /* THE CONSUMABLE BUFF QUEUE (2026-09-13). player_state.buffs, written only
        by hr_apply's buff_apply block from hr_item_buffs + now(). PRESENCE OF
        KEY, not `|| []`: an ABSENT key means this database has no buff column

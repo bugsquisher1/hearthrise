@@ -148,6 +148,11 @@
 //         starting kit's Sell is off (Deposit on); Dispatch loot is ONE hr_loot_dispatch {slot, key}, off in flight,
 //         its line the server's answer ("Stored 1 stack, sold 2 for 246 gp. 1 stack locked, so kept."), the bag and
 //         Storage the re-read envelope's; Storage offers the same button beside the bag at 1440x900 and 844x390
+//   AW-33 THE ITEM WELLS (Tyler 10-25, art/review/window-icons-2026-10-25 option C as picked): at 1440x900 the bag's
+//         pockets are 44 px wells, 6 a row; Storage's are 44 px, 10 a row; the paper doll's wells are larger than the
+//         bag's; the Shop's lines hold the art in a 44 px well; every item icon in Inventory, Storage and the Shop
+//         draws its 32 px art at exactly 1x (a whole scale, never 1.25x / 1.5x); counts and shop prices at 16 px. At
+//         922x423 (a phone) every well, count and line is what it was (36 px, 14.5 px).
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
 import { leaseBrowser } from './_chrome.mjs';
@@ -772,6 +777,62 @@ async function checks(overrides, shots) {
         if (shots) { await page.click('.hw-slot[data-slot="weapon"]'); await page.waitForTimeout(200); await shot(page, 'alpha-1440x900-gear-slot'); }
       }
       if (errors.length) fails.push('AW-1 console errors: ' + errors.slice(0, 3).join(' | '));
+      await ctx.close();
+    }
+
+    /* AW-33 the item wells: measured on the rendered windows, desktop then phone. */
+    for (const [vw, vh, want] of [[1440, 900, { pocket: 44, bagRow: 6, storeRow: 10, line: 44, font: '16px' }], [922, 423, { pocket: 36, line: 40, font: '14.5px' }]]) {
+      const tag = 'AW-33 at ' + vw + 'x' + vh + ': ';
+      const { ctx, page, up } = await open({ viewport: { width: vw, height: vh }, mutateEnv: (e) => {
+        for (const k of ['hunt', 'hunt_analyzer', 'hunt_track', 'hunt_events', 'party']) delete e[k];
+        e.state = Object.assign({}, e.state, { active_kind: 'idle', active_id: null });
+        e.bank = Object.fromEntries(Object.keys(e.inventory).map((id, i) => [id, 3 + i]));
+        e.shop = Object.assign({}, e.shop, { offers: ['bronze_sword', 'iron_helm'].map((id, i) => ({ offer: 'gear.' + id, item: id, kind: 'gear', price: 40 + i * 140 })) });
+      } });
+      /* Every visible item icon in the window: its drawn size and its art's own; a scale that is not whole wobbles. */
+      const measure = (id) => page.evaluate((w) => {
+        const win = document.querySelector('[data-hs-win="' + w + '"]');
+        const vis = (q) => Array.from(win.querySelectorAll(q)).filter((n) => n.getClientRects().length > 0);
+        const box = (n) => { const r = n.getBoundingClientRect(); return [Math.round(r.width * 100) / 100, Math.round(r.height * 100) / 100]; };
+        const rows = (q) => { const l = vis(q); return l.length ? l.filter((n) => Math.abs(n.getBoundingClientRect().top - l[0].getBoundingClientRect().top) < 2).length : 0; };
+        const cnt = vis('.hw-count').find((n) => n.textContent);
+        const price = vis('.hw-line-name small').find((n) => n.textContent);
+        return { pocket: vis('.hw-pocket').map(box)[0] || null, slot: vis('.hw-doll .hw-slot').map(box)[0] || null,
+          line: vis('.hw-line .hw-ico').map(box)[0] || null, bagRow: rows('.hw-pockets:not([data-side="bank"]) > .hw-pocket'), storeRow: rows('.hw-pockets[data-side="bank"] > .hw-pocket'),
+          count: cnt ? getComputedStyle(cnt).fontSize : null, price: price ? getComputedStyle(price).fontSize : null,
+          art: vis('img.hh-icon').filter((i) => i.complete && i.naturalWidth).map((i) => { const r = i.getBoundingClientRect(); return [r.width / i.naturalWidth, r.height / i.naturalHeight, i.getAttribute('src').split('/').pop()]; }) };
+      }, id);
+      const artOk = (m, where) => {
+        if (!m.art.length) { fails.push(tag + where + ' drew no item art to measure'); return; }
+        const bad = m.art.filter(([x, y]) => x !== 1 || y !== 1);
+        if (bad.length) fails.push(tag + where + ' draws item art at a scale other than exactly 1x: ' + JSON.stringify(bad.slice(0, 3)));
+      };
+      if (!up) fails.push(tag + 'the shell did not mount');
+      else {
+        if (!(await openWin(page, 'b', 'inventory'))) fails.push(tag + 'Inventory did not open');
+        else {
+          const m = await measure('inventory');
+          if (!m.pocket || m.pocket[0] !== want.pocket || m.pocket[1] !== want.pocket) fails.push(tag + 'a bag pocket is ' + JSON.stringify(m.pocket) + ', want ' + want.pocket + ' px');
+          if (want.bagRow && m.bagRow !== want.bagRow) fails.push(tag + 'the bag shows ' + m.bagRow + ' a row, want ' + want.bagRow);
+          if (!m.slot || (want.bagRow ? m.slot[0] <= m.pocket[0] : m.slot[0] !== want.pocket)) fails.push(tag + 'a doll slot is ' + JSON.stringify(m.slot) + ' beside a ' + JSON.stringify(m.pocket) + ' pocket');
+          if (m.count !== want.font) fails.push(tag + 'a bag count is ' + m.count + ', want ' + want.font);
+          artOk(m, 'Inventory');
+        }
+        if (!(await openWin(page, 't', 'storage'))) fails.push(tag + 'Storage did not open');
+        else {
+          const m = await measure('storage');
+          if (!m.pocket || m.pocket[0] !== want.pocket) fails.push(tag + 'a storage pocket is ' + JSON.stringify(m.pocket) + ', want ' + want.pocket + ' px');
+          if (want.storeRow && m.storeRow !== want.storeRow) fails.push(tag + 'storage shows ' + m.storeRow + ' a row, want ' + want.storeRow);
+          artOk(m, 'Storage');
+        }
+        if (!(await openWin(page, 'v', 'shop'))) fails.push(tag + 'the Shop did not open');
+        else {
+          const m = await measure('shop');
+          if (!m.line || m.line[0] !== want.line || m.line[1] !== want.line) fails.push(tag + 'a Shop line holds its art in ' + JSON.stringify(m.line) + ', want ' + want.line + ' px');
+          if (m.price !== want.font) fails.push(tag + 'a Shop price is ' + m.price + ', want ' + want.font);
+          artOk(m, 'the Shop');
+        }
+      }
       await ctx.close();
     }
 
@@ -1951,6 +2012,9 @@ async function checks(overrides, shots) {
 }
 
 const MUTANTS = [
+  ['a bag icon draws at 1.5x in its well', 'src/styles/windows.css', '.hw-pocket .hw-ico .hh-icon, .hw-slot .hw-ico .hh-icon { width: 32px; height: 32px; }', '.hw-pocket .hw-ico .hh-icon, .hw-slot .hw-ico .hh-icon { width: 48px; height: 48px; }'],
+  ['the Shop lines go 2x again', 'src/styles/windows.css', '.hw-line .hw-ico .hh-icon { width: 32px; height: 32px; }', '.hw-line .hw-ico .hh-icon { width: 64px; height: 64px; }'],
+  ['the bag wells stay 36 px on Steam', 'src/styles/windows.css', 'width: round(down, clamp(36px, 36px + (100vw - 1024px) / 32, 44px), 2px); height: round(down, clamp(36px, 36px + (100vw - 1024px) / 32, 44px), 2px);', 'width: 36px; height: 36px;'],
   ['a bulk sale names a locked stack', 'src/shell/bag-model.js', '    if (locked.has(id)) { kept.push(id); continue; }\n', ''],
   ['the bag keeps a count the server dropped', 'src/session/item-sections.js', '  for (const [id, n] of Object.entries(inv)) if (ID.test(id) && count(n) && n > 0) items.push({ id, qty: n });\n  return items;',
     '  for (const [id, n] of Object.entries(inv)) if (ID.test(id) && count(n) && n > 0) items.push({ id, qty: n });\n  const prev = globalThis.__bag || [];\n  for (const p of prev) { const i = items.find((x) => x.id === p.id); if (!i) items.push(p); else i.qty = Math.max(i.qty, p.qty); }\n  globalThis.__bag = items.map((x) => ({ ...x }));\n  return items;'],

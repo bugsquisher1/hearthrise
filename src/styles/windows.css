@@ -38,6 +38,11 @@
 .hw-line-name { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .hw-line-name b { font-weight: 700; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hw-line-name small { font-size: var(--t-micro); color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; }
+/* The Shop's lines (Buy, Sell, Services) take the bag's treatment, not 2x (Tyler 10-25: "Shop is too big"): the same
+   1x art in the bag's well size and the price at the supporting size from 1280; a phone keeps today's line. */
+.hw-shop .hw-line { min-height: round(down, clamp(52px, 52px + (100vw - 1024px) / 64, 56px), 2px); }
+.hw-shop .hw-line .hw-ico { width: round(down, clamp(40px, 40px + (100vw - 1024px) / 64, 44px), 2px); height: round(down, clamp(40px, 40px + (100vw - 1024px) / 64, 44px), 2px); background: var(--bg-1); box-shadow: var(--hw-well); }
+.hw-shop .hw-line-name small { font-size: clamp(var(--t-micro), var(--t-micro) + (100vw - 1024px) / 170, var(--t-small)); }
 /* The one primary: the gold plate (shell.css, Forged Steel). Here only when it shows. */
 .hw-primary { display: none; white-space: nowrap; cursor: pointer; }
 .hw-primary.is-on { display: inline-block; }
@@ -86,14 +91,18 @@
 .hw-cat { min-height: 30px; padding: 0 8px; border: 0; border-bottom: 2px solid transparent; background: none; font-family: var(--f-ui); font-weight: 700; font-size: var(--t-micro); color: var(--ink-2); cursor: pointer; }
 .hw-cat:hover { color: var(--ink); }
 .hw-cat[aria-pressed="true"] { color: var(--gold-2); background: var(--bg-3); border-bottom-color: var(--gold); }
-/* Pockets and slots: 36 px, the 32 px pixel icon at ×1 inside a 2 px sunk rim (Tyler 10-18:
-   "the items are far too big"; Huntera-like density, our own iron and slate). */
-.hw-pockets { display: grid; grid-template-columns: repeat(auto-fill, 36px); gap: 2px; margin: 0; padding: 0; list-style: none; }
+/* Pockets and slots: the 32 px pixel icon at ×1 inside a sunk rim (Tyler 10-18: "the items are far too big";
+   Huntera-like density, our own iron and slate). Tyler 10-25 ("photo 2 bag icons are perfect", the C mock in
+   art/review/window-icons-2026-10-25): the WELL grows, never the art. Sized like the action bar (hunt.css .hb-slots),
+   by the viewport and not a new media query: 36 px at 1024 wide and under (every phone, unchanged), 44 px from 1280
+   (Steam), snapped to even px between. The art stays 32 px: 1x is the only sharp size under 64. */
+.hw-pockets { display: grid; grid-template-columns: repeat(auto-fill, round(down, clamp(36px, 36px + (100vw - 1024px) / 32, 44px), 2px)); gap: round(down, clamp(2px, 2px + (100vw - 1024px) / 128, 4px), 1px); margin: 0; padding: 0; list-style: none; }
 .hw-pocket .hw-ico, .hw-slot .hw-ico { width: 32px; height: 32px; }
 .hw-pocket .hw-ico .hh-icon, .hw-slot .hw-ico .hh-icon { width: 32px; height: 32px; }
 .hw-pocket .hw-ico .hh-icon.is-glyph .hs-glyph, .hw-slot .hw-ico .hh-icon.is-glyph .hs-glyph { width: 20px; height: 20px; }
 .hw-pocket {
-  position: relative; width: 36px; height: 36px; padding: 0;
+  position: relative; padding: 0;
+  width: round(down, clamp(36px, 36px + (100vw - 1024px) / 32, 44px), 2px); height: round(down, clamp(36px, 36px + (100vw - 1024px) / 32, 44px), 2px);
   display: grid; place-items: center;
   background: var(--bg-1); box-shadow: var(--hw-well);
   border: 2px solid transparent; border-radius: 0;
@@ -119,9 +128,10 @@
 .hw-pocket.rar-mythic, .hw-pocket.rar-unique, .hw-slot.rar-mythic, .hw-slot.rar-unique { border-style: double; border-width: 3px; }
 .hw-pips { position: absolute; left: 1px; bottom: 1px; display: flex; gap: 1px; }
 .hw-pips i { width: 2px; height: 2px; background: var(--pocket-rar, var(--ink-3)); }
+/* The count: the floor size on a phone's 36 px well, the supporting size (16 px) in the 44 px well, off the art's corner. */
 .hw-count {
-  position: absolute; right: 0; bottom: -1px;
-  font-size: var(--t-micro); font-weight: 800; line-height: 1; font-variant-numeric: lining-nums tabular-nums; color: var(--ink);
+  position: absolute; right: clamp(0px, (100vw - 1024px) / 128, 2px); bottom: clamp(-1px, -1px + (100vw - 1024px) / 128, 1px);
+  font-size: clamp(var(--t-micro), var(--t-micro) + (100vw - 1024px) / 170, var(--t-small)); font-weight: 800; line-height: 1; font-variant-numeric: lining-nums tabular-nums; color: var(--ink);
   paint-order: stroke fill; -webkit-text-stroke: 3px var(--bg-0); pointer-events: none;
 }
 .hw-new { display: none; position: absolute; right: 1px; top: 1px; width: 6px; height: 6px; background: var(--gold-2); box-shadow: 0 0 0 1px var(--bg-0); }
@@ -212,10 +222,12 @@
 .hw-imbue { display: none; }
 .hw-imbue.is-on { display: block; }
 
-/* The paper doll: three across, five down, in the shape of a body. */
-.hw-doll { flex: none; display: grid; grid-template-columns: repeat(3, 36px); grid-auto-rows: 36px; gap: 4px; padding: 4px; background: var(--surf-sunken); box-shadow: var(--hw-well); }
+/* The paper doll: three across, five down, in the shape of a body. The worn set reads a step above the bag (Tyler 10-25:
+   the 2x doll was "a bit" big): the same 1x art in a roomier well, 36 px on a phone, 52 px from 1280 (the bag's 44 + 8). */
+.hw-doll { flex: none; display: grid; grid-template-columns: repeat(3, round(down, clamp(36px, 36px + (100vw - 1024px) / 16, 52px), 2px)); grid-auto-rows: round(down, clamp(36px, 36px + (100vw - 1024px) / 16, 52px), 2px); gap: round(down, clamp(4px, 4px + (100vw - 1024px) / 128, 6px), 1px); padding: round(down, clamp(4px, 4px + (100vw - 1024px) / 128, 6px), 1px); background: var(--surf-sunken); box-shadow: var(--hw-well); }
 .hw-slot {
-  position: relative; width: 36px; height: 36px; padding: 0;
+  position: relative; padding: 0;
+  width: round(down, clamp(36px, 36px + (100vw - 1024px) / 16, 52px), 2px); height: round(down, clamp(36px, 36px + (100vw - 1024px) / 16, 52px), 2px);
   display: grid; place-items: center;
   background: var(--bg-1); box-shadow: var(--hw-well);
   border: 2px solid transparent; border-radius: 0; cursor: pointer;
@@ -225,7 +237,7 @@
 .hw-slot:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: 1px; }
 .hw-slot.is-open { outline: 2px solid var(--ink); outline-offset: 1px; }
 .hw-ghost { display: none; color: var(--ink-3); opacity: .45; }
-.hw-ghost .hs-glyph { width: 18px; height: 18px; }
+.hw-ghost .hs-glyph { width: round(down, clamp(18px, 18px + (100vw - 1024px) / 64, 22px), 2px); height: round(down, clamp(18px, 18px + (100vw - 1024px) / 64, 22px), 2px); }
 .hw-slot.is-empty .hw-ghost { display: block; }
 .hw-slot.is-empty .hw-ico { display: none; }
 .hw-role { margin: 4px 2px 0; font-weight: 700; color: var(--ink); }
@@ -251,7 +263,7 @@
 .hw-fit-need:empty { display: none; }
 
 /* ── Storage (src/shell/windows/storage.js): the same pockets, two grids ── */
-.hw-store .hw-pockets { min-height: 36px; padding: 4px; background: var(--surf-sunken); box-shadow: var(--hw-well); }
+.hw-store .hw-pockets { min-height: round(down, clamp(36px, 36px + (100vw - 1024px) / 32, 44px), 2px); padding: 4px; background: var(--surf-sunken); box-shadow: var(--hw-well); }
 .hw-store.is-off .hw-pocket { cursor: default; opacity: .6; }
 .hw-store-n { font-family: var(--f-ui); font-weight: 400; letter-spacing: 0; color: var(--ink-3); }
 .hw-store-note { margin: 0 2px 4px; }

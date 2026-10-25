@@ -3,9 +3,15 @@
 //
 // docs/design/WORLD_SHELL.md §2. Every widget is a row in src/data/hud-widgets.js;
 // this module turns the rows plus the player's saved layout into "is it shown,
-// how faded, where does it sit". v1 is show/hide, per-widget opacity and Reset
-// layout; anchor/dx/dy are read and honoured but nothing here moves them (drag is
-// v1.1, and it will write the same three fields).
+// how faded, where does it sit, is it folded". Show/hide, per-widget opacity,
+// Reset layout, and (Tyler 2026-10-25) MOVE and FOLD: a widget whose title carries
+// [data-hs-wdrag] is dragged by it (src/shell/widget-move.js; the desktop size
+// class), which writes the same anchor/dx/dy, and its [data-hs-wfold] folds it to
+// that title (`folded`). A MOVED widget (anchor/dx/dy off its row's defaults) is
+// the player's own, like a floating window: it is clamped on screen at every size,
+// it stacks under nothing (a row's `below`), a centred bar neither slides for it
+// nor pushes it, and it is not in the camera inset (moving a panel never re-frames
+// the hero around where it used to be).
 //
 // THE LAYOUT IS A DISPLAY PREFERENCE. It is stored per size class in the residue
 // field `hudLayout` ({desktop:{id:{...}}, phone:{...}}; src/session/residue.js),
@@ -81,7 +87,7 @@ export function stackBelow(r, above, gap) {
 
 /** The row's own layout for a size class: the desktop fields, then the phone block. */
 export function defaultsFor(row, sizeClass) {
-  const d = { anchor: row.anchor, dx: row.dx, dy: row.dy, opacity: row.opacity, visible: row.visible };
+  const d = { anchor: row.anchor, dx: row.dx, dy: row.dy, opacity: row.opacity, visible: row.visible, folded: false };
   if (sizeClass === 'phone') Object.assign(d, row.phone);
   return d;
 }
@@ -95,6 +101,7 @@ function mergeEntry(row, base, saved) {
     if (Number.isFinite(saved.dy)) L.dy = Math.round(saved.dy);
     if (Number.isFinite(saved.opacity)) L.opacity = clampOpacity(saved.opacity);
     if (typeof saved.visible === 'boolean') L.visible = saved.visible;
+    if (typeof saved.folded === 'boolean') L.folded = saved.folded;
   }
   if (!row.removable) L.visible = true;
   return L;
@@ -110,13 +117,34 @@ function diffEntry(L, base) {
 /**
  * Where a widget sits inside its layer box: left/top in px from the anchor and
  * offsets, and never off the box horizontally (a widget wider than the space
- * left beside the dock pins to the left edge).
+ * left beside the dock pins to the left edge). `onScreen` (a moved widget) keeps
+ * it inside the box vertically too, at every size: a widget taller than the box
+ * pins to its top.
  */
-export function placeWidget(L, box, size) {
+export function placeWidget(L, box, size, onScreen = false) {
   const v = L.anchor[0], h = L.anchor[1];
   const x = h === 'l' ? L.dx : h === 'r' ? box.width - size.width - L.dx : (box.width - size.width) / 2 + L.dx;
   const y = v === 't' ? L.dy : v === 'b' ? box.height - size.height - L.dy : (box.height - size.height) / 2 + L.dy;
-  return { left: Math.round(Math.max(0, Math.min(x, box.width - size.width))), top: Math.round(y) };
+  const top = onScreen ? Math.max(0, Math.min(y, box.height - size.height)) : y;
+  return { left: Math.round(Math.max(0, Math.min(x, box.width - size.width))), top: Math.round(top) };
+}
+
+/**
+ * A widget dropped at `rect` (its box's px) as the layout keeps it: the anchor of the box's quarter its middle is
+ * in (t|b + l|r: never centred, so a moved widget is never a bar) and the whole px from that corner's edges, the
+ * rect first clamped inside the box. Anchored to the nearest corner it keeps its place at any size (a widget left
+ * at the bottom-left stays there when the window narrows), and placeWidget puts it back on the same px. Pure.
+ */
+export function placeFrom(rect, box) {
+  const left = Math.max(0, Math.min(rect.left, box.width - rect.width));
+  const top = Math.max(0, Math.min(rect.top, box.height - rect.height));
+  const h = left + rect.width / 2 < box.width / 2 ? 'l' : 'r';
+  const v = top + rect.height / 2 < box.height / 2 ? 't' : 'b';
+  return {
+    anchor: v + h,
+    dx: Math.round(h === 'l' ? left : box.width - rect.width - left),
+    dy: Math.round(v === 't' ? top : box.height - rect.height - top),
+  };
 }
 
 /**
@@ -125,11 +153,13 @@ export function placeWidget(L, box, size) {
  * edge-anchored widget in its row by `gap`; when no left clears them all (the row is too narrow),
  * it takes the one that hits the fewest (nearest wins a tie) and those it still hits step down
  * below it. Rects are {left, top, width, height} in the box's px. Pure.
- * `fixed` are rects it must also clear but never pushes (the docked windows, r11).
+ * `fixed` are rects it must also clear but never pushes (the docked windows, r11). An edge rect marked `pinned` (a
+ * widget the player moved) is in nobody's row: the bar never slides for it (Tyler 10-22: the bar never travels across
+ * the screen for something else) and never pushes it; the player put it there and may move it again.
  * @returns {{left: number, push: {i: number, top: number}[]}}  `i` indexes `edges`
  */
 export function clearOfEdges(r, edges, boxWidth, gap, fixed = []) {
-  const row = edges.concat(fixed).map((q, i) => ({ q, i })).filter(({ q }) => q.top < r.top + r.height && q.top + q.height > r.top);
+  const row = edges.concat(fixed).map((q, i) => ({ q, i })).filter(({ q }) => !q.pinned && q.top < r.top + r.height && q.top + q.height > r.top);
   const hits = (x) => row.filter(({ q }) => !(x + r.width + gap <= q.left || q.left + q.width + gap <= x));
   const xs = [r.left].concat(row.map(({ q }) => q.left + q.width + gap), row.map(({ q }) => q.left - gap - r.width))
     .filter((x) => x >= 0 && x + r.width <= boxWidth)
@@ -277,13 +307,18 @@ export function hudInsetOf(widgets, box) {
 /**
  * The residue adapter for ONE character: reads its record's `hudLayout` and
  * writes through CharacterSession.setResidue (which persists it, debounced).
- * Display-only by contract.
- * @param {{record: object|null, setResidue(f: string, v: object): boolean}} character
+ * `now`: a one-press change (a drop, a fold) is put at once, so a reload right
+ * after it keeps it; a slider's burst keeps the debounce. Display-only by contract.
+ * @param {{record: object|null, setResidue(f: string, v: object): boolean, flushResidue?(): Promise<boolean>}} character
  */
 export function residueStore(character) {
   return {
     read() { const r = character && character.record; const v = r && r.residue && r.residue.hudLayout; return isObj(v) ? v : null; },
-    write(next) { if (character) character.setResidue('hudLayout', next); },
+    write(next, now = false) {
+      if (!character) return;
+      character.setResidue('hudLayout', next);
+      if (now && typeof character.flushResidue === 'function') Promise.resolve(character.flushResidue()).catch(() => {});
+    },
   };
 }
 
@@ -311,17 +346,19 @@ export function createHud(o) {
     for (const row of rows.values()) layout.set(row.id, mergeEntry(row, defaultsFor(row, cls), saved[row.id]));
   }
 
-  function save() {
+  function save(now = false) {
     const all = store.read();
     const next = {};
     if (isObj(all)) for (const k of SIZE_CLASSES) if (k !== cls && isObj(all[k])) next[k] = all[k];
     const mine = {};
     for (const row of rows.values()) {
-      const d = diffEntry(layout.get(row.id), defaultsFor(row, cls));
+      /* a moved widget's place is kept whole: its offsets mean nothing without its corner (a later default never mixes in) */
+      const L = layout.get(row.id);
+      const d = Object.assign(isMoved(row.id) ? { anchor: L.anchor, dx: L.dx, dy: L.dy } : {}, diffEntry(L, defaultsFor(row, cls)));
       if (Object.keys(d).length) mine[row.id] = d;
     }
     if (Object.keys(mine).length) next[cls] = mine;
-    store.write(next);
+    store.write(next, now);
   }
 
   function changed(id) { for (const fn of listeners) fn(id); }
@@ -331,6 +368,41 @@ export function createHud(o) {
     if (!row || (!row.removable && !on)) return false;
     layout.get(id).visible = !!on;
     save(); changed(id);
+    return true;
+  }
+
+  /** Moved = off its row's own place for this size class (a drag wrote anchor/dx/dy). */
+  function isMoved(id) {
+    const row = rows.get(id);
+    if (!row) return false;
+    const L = layout.get(id), d = defaultsFor(row, cls);
+    return L.anchor !== d.anchor || L.dx !== d.dx || L.dy !== d.dy;
+  }
+
+  /**
+   * A drag's place (placeFrom). `keep` false holds it in memory only, for the frames of the drag; the drop keeps
+   * it (one residue put per gesture) and tells the subscribers.
+   */
+  function setPlace(id, at, keep = true) {
+    if (!rows.has(id) || !at || !ANCHOR_RE.test(at.anchor || '') || !Number.isFinite(at.dx) || !Number.isFinite(at.dy)) return false;
+    Object.assign(layout.get(id), { anchor: at.anchor, dx: Math.round(at.dx), dy: Math.round(at.dy) });
+    if (keep) { save(true); changed(id); }
+    return true;
+  }
+
+  /** The widget back at its row's own place (its opacity, show and fold are kept). */
+  function putBack(id) {
+    const row = rows.get(id);
+    if (!row) return false;
+    const d = defaultsFor(row, cls);
+    return setPlace(id, { anchor: d.anchor, dx: d.dx, dy: d.dy });
+  }
+
+  /** Folded to its title, or open. */
+  function setFolded(id, on) {
+    if (!rows.has(id)) return false;
+    layout.get(id).folded = !!on;
+    save(true); changed(id);
     return true;
   }
 
@@ -362,13 +434,13 @@ export function createHud(o) {
       const row = rows.get(id);
       return !!row && layout.get(id).visible && (row.when === 'always' || inHunt());
     },
-    setVisible, setOpacity, reset,
+    setVisible, setOpacity, reset, isMoved, setPlace, putBack, setFolded,
     subscribe(fn) { listeners.add(fn); return () => listeners.delete(fn); },
   };
 }
 
 
-/** The `hud` window's body: one line per widget (show, opacity) and Reset layout. */
+/** The `hud` window's body: one line per widget (show, opacity, Put back once it is moved) and Reset layout. */
 export function renderHudSettings(ctx) {
   const hud = ctx.hud;
   const line = (row) => {
@@ -378,9 +450,18 @@ export function renderHudSettings(ctx) {
       + '<label class="hs-hudset-show"><input type="checkbox" data-hs-wshow="' + esc(row.id) + '"' + (L.visible ? ' checked' : '') + (row.removable ? '' : ' disabled') + '> '
       + esc(row.label) + (row.when === 'hunt' ? ' <small>in a hunt</small>' : '') + '</label>'
       + '<input type="range" min="40" max="100" step="5" value="' + pct + '" data-hs-wop="' + esc(row.id) + '" aria-label="' + esc(row.label) + ' opacity">'
-      + '<span class="hs-hudset-pct">' + pct + '%</span></li>';
+      + '<span class="hs-hudset-pct">' + pct + '%</span>'
+      + (hud.isMoved(row.id) ? '<button type="button" class="hs-quiet hs-hudset-put" data-hs-act="put-back" data-wid="' + esc(row.id) + '" aria-label="Put the ' + esc(row.label) + ' back">Put back</button>' : '')
+      + '</li>';
   };
-  return '<p class="hs-note">Show, hide or fade any part of the screen. Hovering shows it at full strength.</p>'
+  const move = hud.sizeClass() === 'desktop' ? ' Drag the Hunt analyzer or the Tally by its title to move it.' : '';
+  return '<p class="hs-note">Show, hide or fade any part of the screen. Hovering shows it at full strength.' + move + '</p>'
     + '<ul class="hs-hudset">' + hud.rows().map(line).join('') + '</ul>'
     + '<div class="hs-foot"><button type="button" class="hs-quiet" data-hs-wreset>Reset layout</button></div>';
 }
+
+/* Put back: one moved widget at its own place again, and this list redrawn without its button. */
+renderHudSettings.act = function actHudSettings(ctx, body, action, ev, t) {
+  if (action !== 'put-back' || ev.type !== 'click') return;
+  if (ctx.hud.putBack(t.getAttribute('data-wid'))) ctx.refresh('hud');
+};

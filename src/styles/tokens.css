@@ -972,4 +972,9 @@ body[data-theme="hearthlight"] {
   --steel-btn: color-mix(in srgb, var(--ink-3) 45%, var(--bg-1));
   /* A sunk well, one art px deep (2 screen px): shadow up-left, a lit lip down-right (light from the upper left). */
   --steel-well: inset 2px 2px 0 color-mix(in srgb, var(--world-shadow) 80%, transparent), inset -2px -2px 0 color-mix(in srgb, var(--hl) 9%, transparent);
+  /* THE ONE SCROLLBAR (Tyler 2026-10-25: the browser's light grey "feels really out of place"; app.css draws it): a
+     thin steel track, a dim gold thumb that brightens a little under the pointer. Solid at any Window opacity. */
+  --scroll-track: var(--steel-sep);
+  --scroll-thumb: var(--steel-rule);
+  --scroll-thumb-hover: color-mix(in srgb, var(--gold-3) 75%, var(--bg-1));
 }

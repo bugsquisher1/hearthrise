@@ -82,7 +82,12 @@ const LOOK_ROWS = [row({
   bind: Object.freeze({ store: 'residue', field: 'panelAlpha' }),
 })];
 
-/* ── Interface: show or hide each HUD panel ── */
+/* ── Interface: show or hide each HUD panel, then the HUD layout window (fade, put back a moved panel, reset) ── */
+const LAYOUT_ROW = row({
+  id: 'ui.hudWindow', category: 'interface', label: 'HUD layout',
+  help: 'Fade any panel, put a panel you moved back where it was, or reset them all.',
+  type: 'action', open: 'hud',
+});
 const PANEL_ROWS = HUD_WIDGETS.filter((w) => w.removable).map((w) => row({
   id: 'panel.' + w.id,
   category: 'interface',
@@ -113,7 +118,7 @@ const HELP_ROWS = [...HELP_NOTES.map((n) => row({ id: 'help.' + n.id, category: 
   type: 'action', open: 'report',
 })];
 
-export const SETTINGS = Object.freeze([...LOOK_ROWS, ...PANEL_ROWS, ...FLOAT_ROWS, ...HOTKEY_ROWS, ...SOCIAL_SETTINGS.map(row), ...HELP_ROWS]);
+export const SETTINGS = Object.freeze([...LOOK_ROWS, ...PANEL_ROWS, LAYOUT_ROW, ...FLOAT_ROWS, ...HOTKEY_ROWS, ...SOCIAL_SETTINGS.map(row), ...HELP_ROWS]);
 
 /** Throws on the first broken row; the guard and the window both rely on it. */
 export function validateSettings(rows = SETTINGS, cats = SETTING_CATEGORIES) {

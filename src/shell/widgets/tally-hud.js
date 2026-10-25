@@ -5,17 +5,20 @@
 // (src/session/tally-sections.js; the settle counts, never the browser), a notched
 // stick under it, and "Done" once the server says so. In town with nothing held it
 // says where Tamsin is; while hunting with nothing held it shows nothing. A press
-// opens her window. A widget the player can hide (Settings, HUD layout). Built once,
+// opens her window. A widget the player can hide (Settings, HUD layout), drag by its
+// title and fold to it (src/shell/widget-move.js, Tyler 2026-10-25). Built once,
 // patched in place.
 // ════════════════════════════════════════════════════════════════════════
 import { tallyOf, tallyLine } from '../../session/tally-sections.js?v=0.2.45';
 import { huntOf } from '../../session/hunt-sections.js?v=0.2.45';
 import { rows, text, cls, style, element } from '../../render/paint.js?v=0.2.45';
+import { foldButtonHtml } from '../widget-move.js?v=0.2.45';
 
-/** The skeleton (built once). */
+/** The skeleton (built once). Its title opens her window on a press and drags the widget on a drag. */
 export function renderTallyHud() {
-  return '<section class="hs-tally" aria-label="Your tallies"><button type="button" class="hs-tally-open" data-hs-act="tally-open">'
-    + '<b>Tally</b><span class="hs-tally-none"></span></button><ul class="hs-tally-list"></ul></section>';
+  return '<section class="hs-tally" aria-label="Your tallies"><div class="hs-tally-head">'
+    + '<button type="button" class="hs-tally-open" data-hs-act="tally-open" data-hs-wdrag title="Open the Tally (drag to move)">'
+    + '<b>Tally</b><span class="hs-tally-none"></span></button>' + foldButtonHtml('Tally') + '</div><ul class="hs-tally-list"></ul></section>';
 }
 
 renderTallyHud.patch = function patchTallyHud(el, ctx) {

@@ -12,6 +12,15 @@
   font-variant-numeric: lining-nums;
 }
 .app.is-auth { min-height: 100vh; display: grid; place-items: center; }
+/* THE ONE SCROLLBAR for every scroll area of the game (Tyler 2026-10-25), thin steel with a dim gold thumb (tokens.css
+   --scroll-*): the standard properties (Firefox, Chromium) and the -webkit- parts (Safari, an older Chromium). Zero
+   specificity, so a box that hides its bar on purpose (a category row that pans) keeps doing so. */
+:where(*) { scrollbar-width: thin; scrollbar-color: var(--scroll-thumb) var(--scroll-track); }
+:where(*:hover) { scrollbar-color: var(--scroll-thumb-hover) var(--scroll-track); }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track, ::-webkit-scrollbar-corner { background: var(--scroll-track); }
+::-webkit-scrollbar-thumb { background: var(--scroll-thumb); }
+::-webkit-scrollbar-thumb:hover { background: var(--scroll-thumb-hover); }
 /* clip, never hidden: a hidden box still scrolls when told to (a focus, a scroll-into-view), and at 667 x 375 a
    too-wide child slid the whole game 102 px off the left edge, the icon row with it (phone-touch PH-1). */
 .app.is-game { height: 100vh; display: flex; flex-direction: column; overflow: clip; }

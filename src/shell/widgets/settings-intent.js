@@ -13,14 +13,14 @@
 //
 // Controls are marked `data-opt="<key>"`; buttons carry `data-val`.
 // ════════════════════════════════════════════════════════════════════════
-import { TARGET_MODES, HUNT_STANCES, HERO_DISTANCE } from '../../data/rule-subjects.js?v=0.2.46';
-import { GOLD_FLOOR } from '../../data/hunt-sessions.js?v=0.2.46';
-import { settingsOf, partyOf, huntOf } from '../../session/hunt-sections.js?v=0.2.46';
-import { partyMembershipOf, roleIdOf } from '../../session/party-sections.js?v=0.2.46';
-import { defaultSettings } from '../../core/hunt/roles.js?v=0.2.46';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.46';
-import { text, attr, prop, cls } from '../../render/paint.js?v=0.2.46';
-import { answerWithin } from '../bar-draft.js?v=0.2.46';
+import { TARGET_MODES, HUNT_STANCES, HERO_DISTANCE } from '../../data/rule-subjects.js?v=0.2.47';
+import { GOLD_FLOOR } from '../../data/hunt-sessions.js?v=0.2.47';
+import { settingsOf, partyOf, huntOf } from '../../session/hunt-sections.js?v=0.2.47';
+import { partyMembershipOf, roleIdOf } from '../../session/party-sections.js?v=0.2.47';
+import { defaultSettings } from '../../core/hunt/roles.js?v=0.2.47';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.47';
+import { text, attr, prop, cls } from '../../render/paint.js?v=0.2.47';
+import { answerWithin } from '../bar-draft.js?v=0.2.47';
 
 /* Words for the server's refusal codes; anything else reads as a plain "not saved". */
 const REFUSAL = Object.freeze({

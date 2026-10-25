@@ -23,16 +23,21 @@ async function loadCore2(root) {
   return M;
 }
 
-/** h1's suite (cases on the repo, every mutant on a planted copy must be caught) with loadCore2. */
+/** h1's suite (cases on the repo, every mutant on a planted copy must be caught) with loadCore2.
+    `--only a,b` runs just those cases and their mutants (a local re-run; CI runs everything). */
 export async function suite(name, cases, mutants) {
   const R = makeReport(name);
   const M = await loadCore2(ROOT);
+  const at = process.argv.indexOf('--only');
+  const only = at > 0 ? new Set(String(process.argv[at + 1] || '').split(',')) : null;
   for (const [cn, fn] of Object.entries(cases)) {
+    if (only && !only.has(cn)) continue;
     let why = null;
     try { why = fn(M); } catch (e) { why = 'threw ' + (e && e.stack || e); }
     R.ok(!why, cn + ': ' + why);
   }
   for (const mu of mutants || []) {
+    if (only && !only.has(mu.case)) continue;
     if (!cases[mu.case]) { R.ok(false, 'mutant "' + mu.name + '" names no case ' + mu.case); continue; }
     const p = plant(mu.edits);
     try {
@@ -43,7 +48,8 @@ export async function suite(name, cases, mutants) {
       R.ok(!!why, 'mutant "' + mu.name + '" was NOT caught by ' + mu.case);
     } finally { p.done(); }
   }
-  if (!R.fails.length) console.log('  ' + Object.keys(cases).length + ' cases, ' + (mutants || []).length + ' mutants caught');
+  const ran = (n) => !only || only.has(n);
+  if (!R.fails.length) console.log('  ' + Object.keys(cases).filter(ran).length + ' cases, ' + (mutants || []).filter((mu) => ran(mu.case)).length + ' mutants caught');
   R.finish();
 }
 

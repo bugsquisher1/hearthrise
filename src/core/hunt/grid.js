@@ -1,8 +1,8 @@
 // ============================================================
 // src/core/hunt/grid.js — THE HUNT GROUND AS TILES (spec §1.1; parity GR-01..06)
 //
-// Walkable and opaque tests, distances, line of sight, A* and free-tile
-// searches. Everything is integer: distances are Chebyshev or SQUARED
+// Walkable and opaque tests, distances, line of sight, A*, breadth-first and
+// free-tile searches. Everything is integer: distances are Chebyshev or SQUARED
 // Euclid, path costs are millitiles (HUNT_TUNING.stepCost), so two runtimes
 // can never disagree on a float. Every search scans in a fixed order and
 // breaks ties by that order, so the same inputs give the same tile.
@@ -132,6 +132,44 @@ export function bfsTo(g, sx, sy, goal, blocked, cap) {
     }
   }
   return null;
+}
+
+/**
+ * EVERY TILE WITHIN `depth` MOVES of (sx, sy), breadth-first: 8 directions, no corner cutting,
+ * `blocked(x, y)` vetoes any tile but the start. Answers { tiles: [[x, y, moves], …] in the order
+ * found (fewest moves first, then NEIGHBOURS order; start excluded), pathTo(x, y) } where pathTo
+ * gives the tiles to step through to a found tile, start excluded. Linear in the tiles it finds.
+ */
+export function bfsWithin(g, sx, sy, depth, blocked) {
+  const start = tileKey(g, sx, sy);
+  const from = new Map([[start, -1]]);
+  const tiles = [];
+  let ring = [start];
+  for (let d = 1; d <= depth && ring.length; d++) {
+    const next = [];
+    for (const k of ring) {
+      const x = k % g.w; const y = (k - x) / g.w;
+      for (const [dx, dy] of NEIGHBOURS) {
+        const nx = x + dx; const ny = y + dy;
+        if (!walkable(g, nx, ny)) continue;
+        if (dx && dy && (!walkable(g, x + dx, y) || !walkable(g, x, y + dy))) continue;
+        const nk = tileKey(g, nx, ny);
+        if (from.has(nk)) continue;
+        if (blocked && blocked(nx, ny)) continue;
+        from.set(nk, k);
+        tiles.push([nx, ny, d]);
+        next.push(nk);
+      }
+    }
+    ring = next;
+  }
+  const pathTo = (x, y) => {
+    const path = []; let c = tileKey(g, x, y);
+    if (!from.has(c)) return null;
+    while (c !== start) { path.push([c % g.w, (c - (c % g.w)) / g.w]); c = from.get(c); }
+    return path.reverse();
+  };
+  return { tiles, pathTo };
 }
 
 /** Line of sight (Bresenham): no opaque tile strictly between a and b. */

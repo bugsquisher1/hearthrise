@@ -22,6 +22,11 @@ export const REFUSAL_FALLBACK = 'That did not go through, so nothing was changed
    before REFUSAL_WORDS. Gear is changed in town (equip.js refuses an equip while the hero's hunt is open). */
 export const REFUSAL_VERB_WORDS = Object.freeze({
   equip: Object.freeze({ hunt_open: 'Leave the hunt to change gear.' }),
+  /* Dispatch loot (2027-01-23-loot-dispatch.sql): Storage is at home and the shop in town. */
+  loot_dispatch: Object.freeze({
+    hunting: 'Your hero is out hunting. Dispatch loot works in town.',
+    storage_full: 'Storage is full, so nothing was stored. Storage chests in the House (E) make more room.',
+  }),
 });
 
 export const REFUSAL_WORDS = Object.freeze({
@@ -67,7 +72,11 @@ export const REFUSAL_WORDS = Object.freeze({
   bag_empty: 'Your bag is empty.',
   bag_short: 'You no longer have that many.',
   bank_full: 'Your storage is full.',
+  storage_full: 'Your storage is full.',
   insufficient_bank: 'Your storage no longer has that many.',
+  /* The loot plan and Dispatch loot (2027-01-23-loot-dispatch.sql). */
+  nothing_to_dispatch: 'Nothing in your bag has a Deposit or Sell plan.',
+  start_kit: 'The shop does not buy back your starting kit. You can still deposit it in Storage.',
   /* The House window (2026-11-29-house-home.sql, hr_unlock_buy) and the storage chests (hr_storage_chest_build). */
   already_owned: 'Your house already has that.',
   prereq_property_tier: 'Your house is too small for that yet. Buy the next home first.',

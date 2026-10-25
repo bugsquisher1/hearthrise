@@ -22,7 +22,7 @@
 // ════════════════════════════════════════════════════════════════════════
 import { bagOf, bagCapOf, goldOf, rulesOf, shopOf, equipmentOf, huntLootOf } from '../../../session/item-sections.js?v=0.2.46';
 import { settingsOf, analyzerOf } from '../../../session/hunt-sections.js?v=0.2.46';
-import { BAG_CATS, BAG_SORTS, view, kindOf, equipSlotFor, sellPlan, junkIds } from '../../bag-model.js?v=0.2.46';
+import { BAG_CATS, BAG_SORTS, view, kindOf, equipSlotFor, sellPlan } from '../../bag-model.js?v=0.2.46';
 import { barKind, barIndexOf } from '../../bar-assign.js?v=0.2.46';
 import { itemName } from '../../widgets/bits.js?v=0.2.46';
 import { buryRecipeOf, buryLabel } from './bury.js?v=0.2.46';
@@ -115,11 +115,6 @@ export function confirmFor(st, ids, label) {
   const plan = sellPlan(st.items, ids, { locked: st.rules ? st.rules.locked : null, bids: st.shop.bids });
   if (!plan.lines.length) return { label, plan, empty: true };
   return { label, plan, empty: false };
-}
-
-/** The stacks "Sell junk" names: the loot filter's "sell" rule. */
-export function junkOf(st) {
-  return junkIds(st.items, st.rules);
 }
 
 /** The words for a confirmation: the question, then what is kept and why. */

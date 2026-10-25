@@ -222,12 +222,6 @@ export function sellPlan(items, ids, o) {
   return { lines, total, kept, unpriced };
 }
 
-/** The stacks the loot filter marks "sell at the shop": what "Sell junk" offers. */
-export function junkIds(items, rules) {
-  if (!rules) return [];
-  return items.filter((r) => rules.loot[r.id] === 'sell').map((r) => r.id);
-}
-
 /** The bag's worth at the server's bids; `unpriced` counts the stacks it has no bid for. */
 export function bagValue(items, bids) {
   let total = 0, unpriced = 0;

@@ -14,8 +14,8 @@ import { whole, gold } from '../../render/format.js?v=0.2.46';
 import { itemName } from '../widgets/bits.js?v=0.2.46';
 import { kindWords, sourcesOf, usesOf, flavourOf, needOf } from '../item-lore.js?v=0.2.46';
 import { statLines, compare, rarityOf } from '../bag-model.js?v=0.2.46';
+import { planWords } from '../loot-dispatch.js?v=0.2.46';
 
-const RULE_WORDS = Object.freeze({ keep: 'Keep', sell: 'Sell at the shop', ignore: 'Leave on the ground' });
 const GAP = 10;
 
 /**
@@ -52,7 +52,7 @@ function tipHtml(id, o) {
     h += '<p class="hw-tip-line"><small>Value</small>' + esc(each + all) + '</p>';
   }
   if (opt.locked) h += '<p class="hw-tip-line"><small>Locked</small>Bulk sales never take it.</p>';
-  if (opt.rule && RULE_WORDS[opt.rule]) h += '<p class="hw-tip-line"><small>On pickup</small>' + esc(RULE_WORDS[opt.rule]) + '</p>';
+  if (opt.rule) h += '<p class="hw-tip-line"><small>' + (opt.rule === 'ignore' ? 'On pickup' : 'Loot plan') + '</small>' + esc(planWords(opt.rule)) + '</p>';
   return h;
 }
 

@@ -9,11 +9,13 @@
 //                          src/shell/upgrade-plan.js)
 //   eat                    the engine's `eat`
 //   put on the bar         the whole bar restated (bar-assign.js)
-//   sell (one, the selection, junk, a category)
+//   sell (one, the selection, a category)
 //                          ONE `vendor_sell_many` naming the stacks whole,
 //                          after a confirmation that shows the total at the
 //                          server's bids; LOCKED stacks are never named
-//   lock, loot rule        hr_item_lock, hr_loot_rule_set
+//   lock, loot plan        hr_item_lock, hr_loot_rule_set (Keep in bag / Deposit in
+//                          storage / Sell, or Don't pick up: loot-dispatch.js)
+//   Dispatch loot          ONE hr_loot_dispatch: the server runs every plan in town
 //   bury / cook (and stop) the engine's `set_activity` on the item's Prayer rite or
 //                          Cooking recipe (bury.js): the server spends the stack and pays
 // While one is in flight every action control is off; the counts change only
@@ -34,7 +36,9 @@ import { gold } from '../../../render/format.js?v=0.2.46';
 import { itemName } from '../../widgets/bits.js?v=0.2.46';
 import { showTip, hideTip } from '../item-tip.js?v=0.2.46';
 import { openFloatMenu, closeFloatMenu } from '../float-menu.js?v=0.2.46';
-import { stateOf, scratchOf, seenOf, confirmFor, junkOf, setPref } from './state.js?v=0.2.46';
+import { stateOf, scratchOf, seenOf, confirmFor, setPref } from './state.js?v=0.2.46';
+import { LOOT_CHOICES, planBlock, dispatchWords } from '../../loot-dispatch.js?v=0.2.46';
+import { dispatchLoot } from '../../../session/loot-intents.js?v=0.2.46';
 import { fitsSlot, dollTip, DRAG_WORN } from './doll.js?v=0.2.46';
 import { askElsewhere } from './elsewhere.js?v=0.2.46';
 import { skillsOf } from '../../../session/item-sections.js?v=0.2.46';
@@ -54,7 +58,6 @@ const LONG_PRESS_MS = 500;
    addLink — the name and rarity render from the catalogue) and the chat shows. False when chat is not connected. */
 const linkInChat = (ctx, id) => { const s = ctx.account && ctx.account.social; if (!s || !s.chat.addLink(id)) return false; ctx.show('chat'); return true; };
 const chatOpen = (ctx) => ctx.wm.openIds().includes('chat');
-const RULE_WORDS = Object.freeze([['keep', 'Keep'], ['sell', 'Sell at the shop'], ['ignore', 'Leave it']]);
 
 /** Commit the "new" marks the player has now seen (the residue write is deferred out of the paint). */
 export function commitSeen(cs, ids) {
@@ -168,9 +171,18 @@ function doLock(st, id, repaint) {
   send(st, repaint, () => st.cs.lockItem(id, on), on ? 'Locking…' : 'Unlocking…');
 }
 
+/* The item's loot plan or its pickup filter: ONE hr_loot_rule_set. "Don't pick up" pressed again goes back to Keep in bag. */
 function doRule(st, id, rule, repaint) {
   if (!st.rules) return;
-  send(st, repaint, () => st.cs.setLootRule(id, rule), 'Saving the loot rule…');
+  const now = st.rules.loot[id] || 'keep';
+  const next = rule === 'ignore' && now === 'ignore' ? 'keep' : rule;
+  if (next === now) { st.sc.menu = null; repaint(); return; }
+  send(st, repaint, () => st.cs.setLootRule(id, next), next === 'ignore' ? 'Saving: don\'t pick it up…' : 'Saving the loot plan…');
+}
+
+/* Dispatch loot: the server runs every plan on the bag; its one answer is the line. */
+function doDispatch(ctx, st, repaint) {
+  send(st, repaint, () => dispatchLoot(ctx.account, st.cs), 'Dispatching your loot…', (r) => dispatchWords(r.dispatch));
 }
 
 /* ── The context menu: built when it opens, beside the stack ── */
@@ -195,8 +207,18 @@ function openMenu(ctx, body, st, id, at, repaint) {
   h += item('m-lock', locked ? 'Unlock' : 'Lock', !!st.rules);
   h += item('m-select', sc.sel.has(id) ? 'Unselect' : 'Select', true);
   h += item('m-link', 'Link in chat', !!(ctx.account && ctx.account.social));
-  h += '<span class="hw-menu-sub">On pickup</span><span class="hw-menu-rules" role="group" aria-label="On pickup">'
-    + RULE_WORDS.map(([v, w]) => item('m-rule', w, !!st.rules, ' data-rule="' + v + '" aria-pressed="' + ((st.rules && (st.rules.loot[id] || 'keep')) === v) + '"')).join('') + '</span>';
+  /* The loot plan (what Dispatch loot does with it), then the pickup filter: the current one pressed, a plan the
+     server would refuse for this item off with its reason (loot-dispatch.js planBlock). */
+  const rule = st.rules ? (st.rules.loot[id] || 'keep') : null;
+  const bids = st.shop ? st.shop.bids : null;
+  const choice = ([v, w]) => {
+    const why = planBlock(id, v, bids);
+    return item('m-rule', w, !!st.rules && !why, ' data-rule="' + v + '" aria-pressed="' + (rule === v) + '"' + (why ? ' title="' + esc(why) + '"' : ''));
+  };
+  for (const [group, words] of [['plan', 'Loot plan'], ['pickup', 'On pickup']]) {
+    h += '<span class="hw-menu-sub">' + words + '</span><span class="hw-menu-rules" role="group" aria-label="' + words + '">'
+      + LOOT_CHOICES.filter((c) => c[2] === group).map(choice).join('') + '</span>';
+  }
   /* The bag's own menu: its repaint closes only this one, never a menu another surface opened (float-menu.js). */
   sc.menuOwner = {
     onAct: (action, e, b) => actInventory(ctx, body, action, e, b, repaint),
@@ -374,7 +396,7 @@ export function actInventory(ctx, body, action, ev, t, repaint) {
     case 'more': if (cur) { const r = t.getBoundingClientRect(); openMenu(ctx, body, st, cur, { x: r.left, y: r.bottom + 4 }, repaint); } return true;
     case 'sell-sel': askSell(st, Array.from(sc.sel), 'Sell selected', repaint); return true;
     case 'clear-sel': sc.sel.clear(); repaint(); return true;
-    case 'sell-junk': askSell(st, junkOf(st), 'Sell junk', repaint); return true;
+    case 'dispatch': doDispatch(ctx, st, repaint); return true;
     case 'sell-cat': askSell(st, st.shown.map((r) => r.id), 'Sell all', repaint); return true;
     case 'confirm-yes': doSell(st, repaint); return true;
     case 'confirm-no': sc.confirm = null; repaint(); return true;

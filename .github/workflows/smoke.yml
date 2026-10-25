@@ -2855,6 +2855,19 @@ jobs:
           node tests/settle-hooks.mjs
           node tools/mutant-gate.mjs node tests/settle-hooks.mjs --mutate
 
+      # THE LOOT PLAN AND DISPATCH LOOT (Tyler 2026-10-25, 2027-01-23-loot-dispatch.sql): a
+      # real hunt with deposit / sell / keep / sell-but-locked plans picks up loot and SELLS
+      # NOTHING at pickup; Dispatch mid-hunt is refused; after the real leave it moves the
+      # deposit stack whole to Storage, sells the sell stack at the catalogue bid (= the edge's
+      # vendorPriceOf), one bank row and one vendor_sell_many row, one version step; a replay
+      # moves nothing; Storage room by kind; the setter's refusals; a byte-identical re-apply.
+      # --mutate plants seven defects, each red on its arm.
+      - name: Loot plan and Dispatch loot — no pickup sale, deposit and sell in town
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/loot-dispatch.mjs
+          node tools/mutant-gate.mjs node tests/loot-dispatch.mjs --mutate
+
       # THE ONE-WAY PARTY FLOW (2026-10-28-party-flow.sql, PARTY_SPEC + Tyler
       # 10-19): every step on the real chain as `authenticated` — the first
       # invite makes the party, an own character joins at once (slot or name),

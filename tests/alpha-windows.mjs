@@ -1193,6 +1193,8 @@ async function checks(overrides, shots) {
         for (const id of ['bronze_sword', 'steel_sword', 'iron_helm', 'iron_platebody', 'shortbow']) delete e.inventory[id];
         for (const id of MORE) { e.inventory[id] = 3; e.shop.bids[id] = 2; }
         e.hunt_settings = Object.assign({}, e.hunt_settings, { slots: [], bar: [] });
+        /* this hunt's loot holds Bones too (a skill's offering, never coin) */
+        e.hunt = Object.assign({}, e.hunt, { loot: e.hunt.loot.concat([{ item: 'bones', count: 8 }]) });
       };
       const { ctx, page, s, errors, up } = await open({ mutateEnv: back5, residue: { coach: { read: ['bar_intro'] } } });
       if (!up) fails.push('AW-31 the page did not mount');

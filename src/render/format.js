@@ -43,6 +43,14 @@ export function hoursMinutes(ms) {
   return Math.floor(m / 60) + ':' + String(m % 60).padStart(2, '0') + 'h';
 }
 
+/** "4 h", "1 h 30 m", "45 m" from ms (how long a stamina refill restores, how much is left). */
+export function hoursWords(ms) {
+  if (!ok(ms) || ms < 0) return DASH;
+  const m = Math.floor(ms / 60000);
+  const h = Math.floor(m / 60), r = m % 60;
+  return h && r ? h + ' h ' + r + ' m' : h ? h + ' h' : r + ' m';
+}
+
 /** 0..1 → "62%". */
 export function pct(f) { return ok(f) ? Math.round(Math.max(0, Math.min(1, f)) * 100) + '%' : DASH; }
 

@@ -1,5 +1,12 @@
 # Handoffs
 
+### 2026-10-25 · SYSTEMS (lane/b-tutorial-rings, tutorial lane 2) → COORDINATOR / DESIGNER / ART · what shipped and what is left
+
+1. **Interface live:** `coachFactsOf(cs, account)` (src/shell/launcher.js) passes read / roster / slotsOwned / playLimit (`AccountSession.statedLimit()`, never a fallback) / sellable (`bag-model.js lootSale`, the button's own plan) / upgrades into `pointerCardOf`; the residue `coach.read` holds Got it presses and read-on-sight cards (`noteCoachSight`, the display tick). `ringPlan` rings `card.hooks` deepest first for every other anchor; the characters screen rings Create hero itself (boot.js `ringCharacters`).
+2. **Services is the Shop's third tab** (Tyler 10-25): window row gone, `tabKeys: { r: 'services' }` on the Shop (window-manager.js `openTab`/`takeTab`), services.js is now the tab's pane; Blessing cards ring Shop icon -> Services tab -> next Bless; the death popup has a Blessings button there. The stamina-low card rings the bar lane's new `+` (`data-coach-hook="stamina-buy"`).
+3. **Designer, decide:** "Sell all loot" now keeps a material a recipe the hero can make NOW spends (Silk Thread at Crafting 1, Copper Ore at Smithing 1), row 22; Normal Log is still sold (no client recipe spends it; the house costs are server-side). The return keeps the hunt bar (Summary only) while the summary is open and drops it when the summary closes; say if it should go at once.
+4. **Still open (not in this lane):** row 15 (Hunt prep copy), 16 (stance numbers on the bar's panel), 18 (Hunts opens on the card's ground), 21 (Bless all), 23 (Plant all), 24, 26; the cards that say "Press slot N" inside Configure action have no `inWindow` words (lane 1 data); `[hunt-scene] no sprite for unit N (null)` warnings seen on the phone run (world renderer).
+
 ### 2026-10-25 · SYSTEMS (lane/b-tutorial-cards, tutorial lane 1) → TUTORIAL LANE 2 (rings and placement) · the interface
 
 Lane 1 is data and facts only; every card shows today without the hooks below (no ring there yet). Lane 2:

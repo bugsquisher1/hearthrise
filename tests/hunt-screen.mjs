@@ -528,7 +528,8 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         const folded = () => page.evaluate(() => getComputedStyle(document.querySelector('.hb-pl-fold')).visibility);
         if (await folded() !== 'hidden') fails.push('HS-12 the gold to keep shows on the desktop bar before its sliders are pressed');
         const unfold = async () => { if (await folded() === 'visible') return true; await page.click(P + ' .hb-more');
-          return wait(page, () => getComputedStyle(document.querySelector('.hb-pl-fold')).visibility === 'visible'); };
+          /* open AND done sliding up (a 120 ms transform), so its box is where it stands */
+          return wait(page, () => { const f = getComputedStyle(document.querySelector('.hb-pl-fold')); return f.visibility === 'visible' && f.transform === 'none'; }); };
         if (!(await unfold())) fails.push('HS-12 the bar’s sliders did not fold the gold to keep out');
         const btn = P + ' [data-opt="stance"][data-val="offensive"]';
         /* What the server says once it has saved: it saves what it confirms AT its answer (s.onOptions), so

@@ -119,8 +119,11 @@ const mutants = [
     edits: [['src/data/abilities.js', "target: 'mark',\n    bonusPct: 20, durMs: 8000 }),", "target: 'mark',\n    bonusPct: 20, durMs: 8000, slowPct: 30 }),"]] },
   { name: 'the mark bonus is never applied', case: 'every-row-field-has-a-reader',
     edits: [['src/core/hunt/abilities.js', 't.markPm = row.bonusPct * 10;', 't.markPm = 200;']] },
+  /* member.js engineSkillsOf also reads scalesWith (which skill levels a frozen peer row keeps, switch-catchup 10-25),
+     so the field is dead only when BOTH readers drop it. */
   { name: 'bleed stops scaling with its skill', case: 'every-row-field-has-a-reader',
-    edits: [['src/core/hunt/abilities.js', 'skillLv: h && h.skills && srow.scalesWith ? levelOf(h.skills, srow.scalesWith) : 0,', "skillLv: h && h.skills ? levelOf(h.skills, 'melee') : 0,"]] },
+    edits: [['src/core/hunt/abilities.js', 'skillLv: h && h.skills && srow.scalesWith ? levelOf(h.skills, srow.scalesWith) : 0,', "skillLv: h && h.skills ? levelOf(h.skills, 'melee') : 0,"],
+      ['src/core/member.js', "    if (st && typeof st.scalesWith === 'string') out.add(st.scalesWith);\n", "    if (st) out.add('melee');\n"]] },
   { name: 'the suggested trigger stops reading the heal thresholds (a row promises a trigger no slot starts with)', case: 'every-row-field-has-a-reader',
     edits: [['src/data/abilities.js', "  if (row.target === 'self') return [{ metric: 'self_hp_pct', op: 'lt', value: row.whenBelowPct }];\n", ''],
       ['src/data/abilities.js', "  if (row.target === 'ally') return [{ metric: 'ally_hp_pct', op: 'lt', value: row.whenBelowPct, subject: 'lowest' }];\n", ''],

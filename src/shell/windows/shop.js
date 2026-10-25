@@ -157,7 +157,10 @@ renderShop.patch = function patchShop(body, ctx) {
   if (st.sc.tab === 'buy') patchBuy(root, st, ctx);
   else if (st.sc.tab === 'sell') patchSell(root, st, ctx);
   else patchServicesPane(root, ctx);
-  text(root.querySelector('.hh-intent-msg'), st.sc.msgAt ? '' : st.sc.msg);   // an Equip upgrades press says it on its line
+  /* the Shop's OWN line, a child of .hw-shop: the Services pane above it has its own (services.js), and a plain
+     querySelector found that one first, so a Buy/Sell answer was written into the hidden pane and every Shop repaint
+     wiped the Services refusal (v0.2.46 run 40171591445, IP-3) */
+  text(root.querySelector(':scope > .hh-intent-msg'), st.sc.msgAt ? '' : st.sc.msg);   // an Equip upgrades press says it on its line
   cls(root, 'is-pending', st.sc.pending);
 };
 

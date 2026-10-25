@@ -177,6 +177,18 @@ async function configureFits(page, tag, fails) {
   const pan = await page.evaluate(() => { const d = document.scrollingElement; const app = document.querySelector('.app');
     return { doc: d.scrollWidth - innerWidth, left: d.scrollLeft + (app ? app.scrollLeft : 0) }; });
   if (pan.doc > 0 || pan.left) fails.push('PH-1 [' + tag + '] the page pans sideways: ' + pan.doc + ' px wider than the screen, slid ' + pan.left + ' px');
+  /* ...and never will: the screen layer is the screen. Once the moved widgets came to be clamped on screen (widget-move,
+     v0.2.46) nothing of today's fixture runs past the edge, so a screen widget wider than its room is planted (the 667 px
+     icon row of 10-24, a long name, a future widget at its default place): the page still may not widen. */
+  const wide = await page.evaluate(() => { const scr = document.querySelector('.hs-screen'); if (!scr) return null;
+    const probe = document.createElement('div');
+    probe.style.cssText = 'position:absolute;top:0;left:calc(100% - 40px);width:480px;height:8px;pointer-events:none';
+    scr.appendChild(probe);
+    const out = { doc: document.scrollingElement.scrollWidth - innerWidth, past: probe.getBoundingClientRect().right - innerWidth };
+    probe.remove(); return out; });
+  if (!wide) fails.push('PH-1 [' + tag + '] CONTROL: no screen layer (.hs-screen)');
+  else if (wide.past <= 0) fails.push('PH-1 [' + tag + '] CONTROL: the planted wide widget does not run past the screen');
+  else if (wide.doc > 0) fails.push('PH-1 [' + tag + '] a screen widget wider than its room widens the page by ' + wide.doc + ' px');
 }
 
 /* ── PH-2 ── */

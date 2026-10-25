@@ -32,7 +32,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { bootReplay, LAST_PATCHED, ROOT } from './schema-replay.mjs';
 import { isMain } from './_is-main.mjs';
-import { staleAnchors } from './alpha-server.mjs';
+import { staleAnchors, memberPlant } from './alpha-server.mjs';
 import { goldOf } from './_gold.mjs';
 
 const MUTATE = process.argv.includes('--mutate');
@@ -188,24 +188,25 @@ async function coverArm(db, { H, M }, forged) {
 
 /* Each mutant: file, [find, replace], the arm that must go red (the file's self-check is turned off).
    Each hook is planted in the body that RUNS, the chain's last author of its function (staleAnchors refuses any
-   other): hr_hunt_apply_member and hr_hunt_loot_rules are restated last by 2026-12-15-account-gold.sql (the
-   account purse, md5-pinned to their pre-images, so a plant in an earlier file trips that pin), hr_hunt_member_read
+   other): hr_hunt_loot_rules is restated last by 2026-12-15-account-gold.sql (the account purse, md5-pinned to its
+   pre-image, so a plant in an earlier file trips that pin); hr_hunt_apply_member is patched last by
+   2027-01-20-tutorial-facts.sql under the same kind of pin (memberPlant, tests/alpha-server.mjs); hr_hunt_member_read
    by 2026-11-07-store-by-slot.sql (after the core rebuild, 2026-10-27-core-bodies.sql). */
 const MEMBER = '2026-12-15-account-gold.sql';
 const READ = '2026-11-07-store-by-slot.sql';
 const MUTANTS = [
-  { arm: 'H-ALL', file: MEMBER, why: 'the settle skips the loot filter',
-    find: "  v_loot := public.hr_hunt_loot_rules(p_user, p_slot, p_session, p_intent, p_delta->'items', v_to);", repl: '  v_loot := null;' },
-  { arm: 'H-ALL', file: MEMBER, why: 'the settle skips the blessing',
-    find: '    v_bless := public.hr_blessing_take(p_user, p_slot, p_session, v_dx, v_s.settled_to);', repl: '    v_bless := null;' },
+  { arm: 'H-ALL', why: 'the settle skips the loot filter',
+    ...memberPlant("  v_loot := public.hr_hunt_loot_rules(p_user, p_slot, p_session, p_intent, p_delta->'items', v_to);", '  v_loot := null;') },
+  { arm: 'H-ALL', why: 'the settle skips the blessing',
+    ...memberPlant('    v_bless := public.hr_blessing_take(p_user, p_slot, p_session, v_dx, v_s.settled_to);', '    v_bless := null;') },
   { arm: 'H-ALL', file: '2026-10-25-blessings.sql', why: 'a tier bought during the window covers it',
     find: '   where b.user_id = p_user and b.slot = p_slot and b.bought_at <= p_from', repl: '   where b.user_id = p_user and b.slot = p_slot' },
   { arm: 'H-ALL', file: MEMBER, why: 'the loot filter sells a locked item',
     find: "       and r.loot_rule in ('sell', 'ignore') and not r.locked", repl: "       and r.loot_rule in ('sell', 'ignore')" },
   { arm: 'H-COVER', file: READ, why: 'the read offers a locked item to sell-to-cover',
     find: '                where not public.hr_item_locked(p_s.user_id, p_s.slot, c.item_id)), \'{}\'::jsonb))', repl: "                where true), '{}'::jsonb))" },
-  { arm: 'H-COVER-FORGED', file: MEMBER, why: 'the member settle takes a cover line naming a locked item',
-    find: "      if public.hr_item_locked(p_user, p_slot, v_k) then perform public.hr_reject('item_locked', jsonb_build_object('item', v_k)); end if;", repl: '' },
+  { arm: 'H-COVER-FORGED', why: 'the member settle takes a cover line naming a locked item',
+    ...memberPlant("      if public.hr_item_locked(p_user, p_slot, v_k) then perform public.hr_reject('item_locked', jsonb_build_object('item', v_k)); end if;", '') },
 ];
 
 function selfCheckOff(file) {
@@ -253,7 +254,7 @@ async function main() {
     process.exit(bad ? 1 : 0);
   }
   /* A mutant planted in a body a later file restates never runs (H-ALL/H-COVER, v0.2.30): refuse it up front. */
-  const stale = staleAnchors(MUTANTS);
+  const stale = staleAnchors(MUTANTS, { patches: true });
   for (const s of stale) console.error('✗ ANCHOR ' + s);
   let missed = stale.length;
   for (const mu of MUTANTS) {

@@ -458,6 +458,16 @@ async function blessArm(db, { H, M }, attended) {
 // ═══════════════════════════════════════════════════════════════════════
 /* Each mutant: the file, its [find, replace], the arm that must go red. The file's own
    self-check is turned into an uncalled function so the defect reaches the arm. */
+/* hr_hunt_apply_member's LAST author is 2027-01-20-tutorial-facts.sql §2 (one anchored edit of the installed text; its §0
+   pins the pre-image, 2026-12-15-account-gold.sql's body, so a plant there trips that pin and the chain never boots): a
+   member-settle defect rides §2 as a second edit of the body it installs. The anchor sits in §2's do-block, in no
+   function body of the text, so the mutant names its body (`fn`). Shared with tests/settle-hooks.mjs. */
+export const MEMBER_LAST = '2027-01-20-tutorial-facts.sql';
+export function memberPlant(find, repl) {
+  if (find.includes('$l$') || repl.includes('$l$')) throw new Error('memberPlant: the edit may not hold $l$');
+  return { file: MEMBER_LAST, fn: 'hr_hunt_apply_member', find: '  execute replace(v_def, a1, r1);',
+    repl: '  execute replace(replace(v_def, a1, r1), $l$' + find + '$l$, $l$' + repl + '$l$);' };
+}
 const MUTANTS = [
   /* hr_apply's LAST author is 2027-01-14-gear-by-level.sql §2 (one anchored edit of the installed text; its §0 pins the
      pre-image, the live body after 2026-12-15-account-gold.sql §5, so a plant in an earlier file trips that pin): the
@@ -466,10 +476,10 @@ const MUTANTS = [
   { arm: 'A-LOCK', file: '2027-01-14-gear-by-level.sql', fn: 'hr_apply', why: 'hr_apply no longer refuses a locked sale',
     find: '  execute replace(v_def, a1, r1);',
     repl: '  execute replace(replace(v_def, a1, r1), $l$        if v_n < 0 and coalesce(v_this_intent, \'\') ~ \'^vendor_sell(_many)?(:|$)\' and public.hr_item_locked(v_uid, v_slot, k) then$l$,\n    $l$        if false and coalesce(v_this_intent, \'\') ~ \'^vendor_sell(_many)?(:|$)\' and public.hr_item_locked(v_uid, v_slot, k) then$l$);' },
-  /* hr_hunt_apply_member and hr_hunt_loot_rules are RESTATED last by 2026-12-15-account-gold.sql (the account
-     purse, md5-pinned to their pre-images): their mutants are planted in the bodies that run. */
-  { arm: 'A-LOOT-AWAY', file: '2026-12-15-account-gold.sql', why: 'the settle no longer runs the loot filter',
-    find: "  v_loot := public.hr_hunt_loot_rules(p_user, p_slot, p_session, p_intent, p_delta->'items', v_to);", repl: '  v_loot := null;' },
+  /* hr_hunt_loot_rules is RESTATED last by 2026-12-15-account-gold.sql (md5-pinned to its pre-image); hr_hunt_apply_member
+     is patched last by 2027-01-20-tutorial-facts.sql (memberPlant): each mutant is planted in the body that runs. */
+  { arm: 'A-LOOT-AWAY', why: 'the settle no longer runs the loot filter',
+    ...memberPlant("  v_loot := public.hr_hunt_loot_rules(p_user, p_slot, p_session, p_intent, p_delta->'items', v_to);", '  v_loot := null;') },
   { arm: 'A-LOOT-ATTENDED', file: '2026-12-15-account-gold.sql', why: 'a sale pays twice the vendor bid',
     find: '      v_gold := v_gold + v_q * v_r.unit;', repl: '      v_gold := v_gold + 2 * v_q * v_r.unit;' },
   { arm: 'A-LOOT-AWAY', file: '2026-12-15-account-gold.sql', why: 'the loot filter ignores a lock',
@@ -501,9 +511,9 @@ const MUTANTS = [
   { arm: 'A-STAMINA', file: '2026-10-25-stamina-refill.sql', why: 'the refill charges and never writes the pool',
     find: "   where user_id = v_uid and slot = p_slot;\n  return jsonb_build_object('ok', true, 'version', v_a->'version', 'gold', -p_price,",
     repl: "   where false;\n  return jsonb_build_object('ok', true, 'version', v_a->'version', 'gold', -p_price," },
-  /* hr_hunt_apply_member is RESTATED last by 2026-12-15-account-gold.sql: the hook call is planted in the body that runs. */
-  { arm: 'A-BLESS-AWAY', file: '2026-12-15-account-gold.sql', why: 'the death no longer applies blessings',
-    find: '    v_bless := public.hr_blessing_take(p_user, p_slot, p_session, v_dx, v_s.settled_to);', repl: '    v_bless := null;' },
+  /* hr_hunt_apply_member is patched last by 2027-01-20-tutorial-facts.sql: the hook call is planted in the body that runs. */
+  { arm: 'A-BLESS-AWAY', why: 'the death no longer applies blessings',
+    ...memberPlant('    v_bless := public.hr_blessing_take(p_user, p_slot, p_session, v_dx, v_s.settled_to);', '    v_bless := null;') },
   /* ('every fall of the window is protected, not the first' RETIRED with the core rebuild: a hunt holds one death,
      so there is no second death for the mutant to protect.) */
   { arm: 'A-BLESS-ATTENDED', file: '2026-10-25-blessings.sql', why: 'a death does not use the blessings up',
@@ -533,7 +543,7 @@ function enclosingFunction(text, at) {
 }
 
 /** Each mutant's file must be the chain's LAST author of the function its `find` sits in (mutate the caller). */
-export function staleAnchors(mutants) {
+export function staleAnchors(mutants, { patches = false } = {}) {
   const order = JSON.parse(readFileSync(join(ROOT, 'tests', 'schema-apply-order.json'), 'utf8')).order;
   const text = (f) => { try { return readFileSync(MIG(f), 'utf8').replace(/\r\n/g, '\n'); } catch { return ''; } };
   const out = [];
@@ -544,7 +554,12 @@ export function staleAnchors(mutants) {
     const fn = enclosingFunction(body, at) || mu.fn || null;
     if (!fn) continue;
     const re = new RegExp('create\\s+or\\s+replace\\s+function\\s+(?:public\\.)?' + fn + '\\s*\\(', 'i');
-    const later = order.slice(order.indexOf(mu.file) + 1).filter((f) => re.test(text(f)));
+    /* `patches` (a harness that replays the WHOLE chain: this file, tests/settle-hooks.mjs): an ANCHORED PATCH
+       (`execute replace(pg_get_functiondef('public.fn(..)'), ..)`, md5-pinned to its pre-image) is an author too, since a
+       plant in an earlier body trips that pin and the chain never boots (tutorial-facts, v0.2.46). A harness that
+       replays only TO the planted file (tests/account-gold.mjs REPLAY SCOPE) never reaches the patch and leaves it off. */
+    const patch = new RegExp("pg_get_functiondef\\(\\s*'(?:public\\.)?" + fn + '\\(', 'i');
+    const later = order.slice(order.indexOf(mu.file) + 1).filter((f) => re.test(text(f)) || (patches && patch.test(text(f))));
     if (later.length) out.push(`${mu.arm}: ${fn} in ${mu.file} is restated last by ${later.at(-1)}; plant it there`);
   }
   return out;
@@ -595,7 +610,11 @@ async function main() {
      2026-12-23-tally-tasks.sql) must be flagged: a body's end is read from its dollar quotes, not guessed. */
   const inBody = staleAnchors([{ arm: 'SELFTEST', file: '2026-12-15-account-gold.sql', find: '      if public.hr_purse_of(v_u) < v_f then\n' }]);
   if (!inBody.some((s) => s.includes('hr_hunt_apply_instance'))) { console.error('✗ ANCHOR selftest: a plant in 12-15\'s superseded hr_hunt_apply_instance was not flagged'); process.exit(1); }
-  const stale = staleAnchors(MUTANTS);
+  /* ...and a plant in a body a later file PATCHES under an md5 pin (12-15's hr_hunt_apply_member, edited in place by
+     2027-01-20-tutorial-facts.sql's execute replace(pg_get_functiondef(..))) must be flagged: a patch is an author. */
+  const patched = staleAnchors([{ arm: 'SELFTEST', file: '2026-12-15-account-gold.sql', find: '    v_bless := public.hr_blessing_take(p_user, p_slot, p_session, v_dx, v_s.settled_to);' }], { patches: true });
+  if (!patched.some((s) => s.includes(MEMBER_LAST))) { console.error('✗ ANCHOR selftest: a plant in 12-15\'s pin-patched hr_hunt_apply_member was not flagged'); process.exit(1); }
+  const stale = staleAnchors(MUTANTS, { patches: true });
   for (const s of stale) console.error('✗ ANCHOR ' + s);
   let missed = stale.length;
   /* `--arm A,B`: only the mutants of those arms (a lane proving the arms its diff touches; the nightly runs all). */

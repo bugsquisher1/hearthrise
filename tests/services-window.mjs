@@ -5,7 +5,7 @@
 //   node tests/services-window.mjs            the rules
 //   node tests/services-window.mjs --mutate   every planted defect must turn a rule RED
 //
-// mutant-anchors: src/shell/windows/services.js src/session/item-sections.js
+// mutant-anchors: src/shell/windows/services.js src/session/item-sections.js src/shell/windows/shop.js
 //
 // play.html with supabase-js and the REST paths stubbed (tests/_client-harness.mjs);
 // the character is tests/fixtures/alpha-envelope.json plus the two S2 sections.
@@ -23,6 +23,8 @@
 //         Characters window's Rename, tests/hero-rename-client.mjs)
 //   SV-5  FAIL SAFE: with no stamina_refill / blessings sections the purchase
 //         controls stay off and the window says the server has not priced them
+//   SV-6  THE ANSWER STAYS: the tab's words ("Blessing II is yours.") survive the
+//         Shop's next repaint (the Shop writes only its own line)
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
 import { leaseBrowser } from './_chrome.mjs';
@@ -118,6 +120,12 @@ async function checks(overrides) {
         await wait(page, () => !document.querySelector('[data-hs-win="shop"] [data-pane="services"] .hw-services.is-pending'), null, 4000);
         const bl = sent(s, 'hr_blessing_buy');
         if (bl.length !== 1 || bl[0].body.p_tier !== 2 || bl[0].body.p_price !== 165) fails.push('SV-3 the press sent ' + JSON.stringify(bl.map((c) => c.body)));
+        // SV-6: the tab's answer stays through the Shop's next repaint (a press on the shown tab repaints the Shop)
+        await wait(page, () => /Blessing II is yours/.test(document.querySelector('[data-hs-win="shop"] [data-pane="services"] .hh-intent-msg').textContent), null, 3000);
+        await press(page, '[data-hs-win="shop"] .hw-tab[data-tab="services"]', 'SV-6');
+        await page.waitForTimeout(120);
+        const kept = await txt(page, '.hh-intent-msg');
+        if (!/Blessing II is yours/.test(kept || '')) fails.push('SV-6 the Shop\'s repaint wiped the Services answer: ' + JSON.stringify(kept));
         // SV-4
         if (await page.evaluate(() => document.querySelectorAll('[data-hs-win="shop"] [data-pane="services"] input[type="text"]').length) !== 0) fails.push('SV-4 the Services window still offers a name box');
         if (sent(s, 'hr_character_name_set').length) fails.push('SV-4 the Services window sent a free name change');
@@ -148,6 +156,8 @@ const MUTANTS = [
     "if (q && q.available) runIntent(sc, repaint, () => cs.buyStamina(q.price), 'x'); return true; }"],
   ['any missing tier can be bought', 'src/shell/windows/services.js', "prop(btn, 'disabled', t.held || !next || next.tier !== t.tier || sc.pending", "prop(btn, 'disabled', t.held || sc.pending"],
   ['the stamina control is on with no quote', 'src/shell/windows/services.js', 'const canStam = !!q && q.available && !sc.pending', 'const canStam = !sc.pending'],
+  ['the Shop writes its own line over the Services answer (IP-3, v0.2.46)', 'src/shell/windows/shop.js',
+    "text(root.querySelector(':scope > .hh-intent-msg'), st.sc.msgAt", "text(root.querySelector('.hh-intent-msg'), st.sc.msgAt"],
   ['the reader invents a quote', 'src/session/item-sections.js', "  const q = read(cs, 'stamina_refill');\n", "  const q = read(cs, 'stamina_refill') || { available: true, n: 1, per_day: 6, price: 1, restore_ms: 60000 };\n"],
 ];
 

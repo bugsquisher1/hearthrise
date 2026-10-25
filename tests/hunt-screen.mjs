@@ -742,8 +742,11 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         });
         if (bar && (bar.leave || bar.details || !bar.summary)) fails.push('HS-10 a hunt that is over still offers more than its summary: ' + JSON.stringify(bar));
         /* HS-18 the rate that applies NOW: a hunt that is over no longer fights, so its in-fight regen is gone from the hub. */
-        const overRg = await page.evaluate(() => [document.querySelector('[data-r="hp"]').textContent, document.querySelector('[data-r="mana"]').textContent]);
-        if (overRg.join('') !== '') fails.push('HS-18 the hub still shows the hunt’s regen once it is over: ' + JSON.stringify(overRg));
+        /* the hub stays with the bar (shown in town too: hud-widgets.js action-bar `when: 'always'`), so a missing hub is a
+           rule's red, never a harness throw (v0.2.46 run 40171591445: "the bar hides in town" read null here) */
+        const overRg = await page.evaluate(() => ['[data-r="hp"]', '[data-r="mana"]'].map((q) => { const n = document.querySelector(q); return n ? n.textContent : null; }));
+        if (overRg.includes(null)) fails.push('HS-18 the bar’s hub is gone once the hunt is over: ' + JSON.stringify(overRg));
+        else if (overRg.join('') !== '') fails.push('HS-18 the hub still shows the hunt’s regen once it is over: ' + JSON.stringify(overRg));
         s.env.hunt = Object.assign({}, s.env.hunt, { ended: false });
         await pushEnvelope(page, s);
         const live = await page.evaluate(() => { const n = document.querySelector('.ht-bar [data-hs-act="leave"]'); return !!n && n.getClientRects().length > 0; });

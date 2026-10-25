@@ -3066,3 +3066,14 @@ add a shard; (6) a display:contents row has no box, so a tutorial hook (and its 
 has one in BOTH layouts; (7) a text probe must measure INK, not the range rect: the content box of "29" in Cinzel is
 taller than its glyphs and reads as touching the ring when it does not; (8) a widget's open/close transform makes its
 box lie for 120 ms: wait for transform none before measuring where it stands.
+
+## 2026-10-25 — lane/d-window-icon-size: mocks only (Tyler: inventory/storage/shop icons "a small increase")
+Three options on the real client (fake server, QA-like load: 43/60 bag, 90/120 storage), art/review/window-icons-2026-10-25.
+Pick C: 2x (64 px) on the paper doll and the Shop's Buy/Sell lines, 1x art in 44 px wells + 16 px counts for the bag and
+storage grids, desktop >= 1280 only. A (2x everywhere) cuts the bag to 4/row (+67% scroll); B alone is a spacing
+change, not a size change.
+Lessons: (1) a "small" increase of 32 px art does not exist: 40/48 px is a 1.25/1.5 resample; offer 2x where the count is
+bounded and air elsewhere; (2) 2x is the CLEAN scale at 150% Windows scaling (3 device px per art px) while 1x wobbles
+(1.5): an argument for 2x, not against; (3) the window body keeps its scroll and the mouse keeps hovering after a width
+change: scroll to top and park the mouse before every shot or the tooltip and scroll position lie; (4) parallel headless
+boots of the full client time out on this PC: run the options in one process, one after another.

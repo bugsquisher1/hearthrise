@@ -147,6 +147,11 @@
 //   PARTY-KICK a member closed by the database between settles (a kick, a leave at
 //              once) walks its unit out; the next settle still commits (live P1 10-20:
 //              `tally ... not a hero` on every fire).
+//   PARTY-GRIEF one member's own state never ends its party's hunt (threat model #7):
+//              a member racing its own bag (Storage deposit between the read and the
+//              commit of the bones its cover sells) is refused cover_over six fires in
+//              a row; the count is ITS seat's, the sixth ends ITS hunt alone; the
+//              partner hunts on and is paid next settle; both doors, the same rows.
 //   PARTY-VIEW the real `party` section of a settled two-hero hunt, read by the
 //              client's own reader (src/session/hunt-sections.js partyOf), yields
 //              both members the party panel draws: unit (= the session's world
@@ -165,7 +170,8 @@
 //   FORFEIT    the sixth refused commit in a row forfeits the window: ended `left`
 //              (Leave pressed) or `server` (browser closed) at the last accepted
 //              boundary, purse unmoved, one window_forfeit row, bag home; a landed
-//              commit starts the count over.
+//              commit starts the count over. A member's own refusal counts on its
+//              seat, an instance refusal on the instance; each count starts over.
 //   DEPLOY     a deploy never ends a hunt: a catalogue world-shape move with the edge
 //              landing before or after it (v0.2.32 live). Catalogue first: the old
 //              engine's settles are held (never counted); edge first: the new engine
@@ -2225,6 +2231,94 @@ const DB_ARMS = {
     if (!Number.isInteger(gone) || w.includes(String(gone))) problems.push(`the kicked unit ${gone} is still in the world's heroes ${w}`);
     return problems;
   }),
+  /* PARTY-GRIEF (Security threat model #7; 2027-01-22-party-settle-isolation.sql): ONE member's own state refusing
+     the party's settles ends only THAT member's hunt, never the others'. Seat B buys store food with a thin purse and
+     sells looted bones to cover it (sell-to-cover); seat A (no shield, so B holds every pull and eats) is the victim.
+     B races its OWN bag with the player's verb: between the edge's read and its commit it deposits in Storage the
+     bones the window's cover sells (hr_bank_move), then takes them back, six fires in a row. Each commit is refused
+     cover_over and counted on B's seat, never on the instance; the sixth ends B's hunt alone (`server`, forfeit, at
+     the last accepted boundary, journalled once); A hunts on and the next settle pays its owed window, B's unit
+     walked out of the world. BOTH DOORS, the same rows: the tick (browser closed) and A's own settle (hunt viewed).
+     Before the fix the sixth refusal forfeited BOTH hunts. */
+  'PARTY-GRIEF': async (db, M) => inTx(db, async () => {
+    const problems = [];
+    const GRIEFER = { minutesAgo: 25, inv: {}, bag: [], gold: 100, level: 3,
+      options: { supply_source: 'store', on_empty: 'end', gold_floor: 0,
+        slots: [{ action: { type: 'consume', id: 'salted_shrimp' }, conditions: [{ metric: 'self_hp_pct', op: 'lt', value: 99 }], join: 'and' }] } };
+    const h = await hunter(db, M, { party: [{ ...STRONG }, GRIEFER] });
+    const [A, B] = UIDS; const [sA, sB] = h.sids;
+    await db.query("delete from public.player_equipment where user_id = $1 and slot = 0 and equip_slot = 'shield'", [A]);
+    /* 50 g a bone (tests/settle-hooks.mjs H-COVER): one pickup covers a store meal, so the cover case is reached */
+    await db.query("insert into public.hr_hunt_cover_items (item_id, unit) values ('bones', 50) on conflict (item_id) do update set unit = 50");
+    const exec = makeExec(db);
+    /* (1) honest windows until the next one's proposal sells B's bones to cover its store food */
+    let at = null;
+    for (const t of ticksOf(30000, 20 * 60000)(h.from)) {
+      const plan = await M.HS.readHuntSettle({ exec, user: A, slot: 0, grounds: groundsOf(M), atMs: t }, 'tick');
+      if (plan.answer) return [...problems, `CONTROL: the honest read answered ${plan.answer.reason}`];
+      const p = await M.HS.proposeHuntSettle(plan, plan.toMs, 0);
+      if (!p.out.accrued) continue;
+      const b = p.commit.members.find((x) => String(x.user) === B);
+      /* a race the griefer can win: the cover sells more bones than this window itself loots (those reach the bag in the commit) */
+      if (b && Number((b.hunt.cover || {}).bones) > Number(((b.delta || {}).items || {}).bones || 0)) { at = t; break; }
+      const res = await M.HS.commitHuntSettle(exec, { ...p.commit, project: null });
+      if (!res || res.ok !== true) return [...problems, `CONTROL: an honest window was refused ${JSON.stringify(res).slice(0, 200)}`];
+    }
+    if (at === null) return [...problems, 'CONTROL: in 20 minutes no window sold B\'s bones to cover its store food'];
+    const unitB = await one(db, 'select unit_id from public.hunt_sessions where id = $1', [sB]);
+    const bank = async (dir, qty) => {
+      await db.query('delete from public.hr_rate_counters');   // the bank gate is not under test
+      await asUser(db, B);
+      const r = await one(db, "select public.hr_bank_move(0, 'bones', $1::bigint, $2, $3::uuid)", [qty, dir, idem()]);
+      await db.query("select set_config('request.jwt.claim.sub', '', true)");
+      if (!r || r.ok !== true) throw new Error(`B's ${dir} of ${qty} bones answered ${JSON.stringify(r).slice(0, 200)}`);
+    };
+    /* THE RACE, on the commit statement itself: B's bones leave the bag after the read, come back after the commit */
+    const grief = async (text, params) => {
+      if (text !== M.HS.HUNT_APPLY_SQL) return exec(text, params);
+      const held = Number(await one(db, "select coalesce((select qty from public.player_inventory where user_id = $1 and slot = 0 and item_id = 'bones'), 0)", [B]));
+      if (held > 0) await bank('deposit', held);
+      try { return await exec(text, params); } finally { if (held > 0) await bank('withdraw', held); }
+    };
+    const gold = async (u) => Number(await one(db, 'select coalesce((select w.gold from public.account_wallet w where w.user_id = $1), 0)', [u]));
+    const rows = {};
+    await db.query('savepoint party_grief');
+    for (const door of ['tick', 'settle']) {
+      const fire = (atMs) => M.HS.settleHunt({ exec: grief, user: A, slot: 0, mode: door, grounds: groundsOf(M), atMs,
+        ...(door === 'tick' ? { session: sA } : { project: true, live: true, minWindowMs: 0 }) });
+      const g0 = await gold(A); const kills0 = (await snapshot(db, sA, A)).tally.kills;
+      const answers = [];
+      for (let i = 0; i < 6; i++) answers.push(await fire(at));
+      if (answers.some((v) => v.outcome !== 'refused' || v.reason !== 'cover_over')) {
+        problems.push(`${door}: CONTROL: the six raced fires answered ${answers.map((v) => v.outcome + '/' + v.reason).join(', ')}, not cover_over`);
+        break;
+      }
+      const s = (await q(db, `select id, ended_at, floor(extract(epoch from ended_at) * 1000)::bigint::text as ended_ms, end_reason, forfeit, refusals from public.hunt_sessions where id = any($1::uuid[])`, [h.sids]))
+        .reduce((o, r) => ({ ...o, [r.id]: r }), {});
+      const inst = (await q(db, 'select refusals, floor(extract(epoch from settled_to) * 1000)::bigint::text as at from public.hunt_instances where id = $1', [h.inst]))[0];
+      /* THE BUG: A's hunt ended with B's sixth refusal */
+      if (s[sA].ended_at !== null) problems.push(`${door}: B's refusals ended A's hunt (${s[sA].end_reason}, forfeit ${s[sA].forfeit})`);
+      if (inst.refusals > 1) problems.push(`${door}: B's refusals were counted on the instance (${inst.refusals})`);
+      if (s[sB].end_reason !== 'server' || s[sB].forfeit !== true || s[sB].refusals !== 6 || Number(s[sB].ended_ms) !== Number(inst.at)) {
+        problems.push(`${door}: the griefer's own hunt did not end at the last accepted boundary: ${JSON.stringify(s[sB])}`);
+      }
+      const forfeits = await q(db, "select session_id from public.player_ledger where session_id = any($1::uuid[]) and kind = 'hunt' and intent = 'window_forfeit' and coalesce(gold, 0) = 0", [h.sids]);
+      if (forfeits.length !== 1 || forfeits[0].session_id !== sB) problems.push(`${door}: window_forfeit rows on ${JSON.stringify(forfeits.map((f) => f.session_id === sA ? 'A' : 'B'))}, want B once`);
+      if (await gold(A) !== g0 || (await snapshot(db, sA, A)).tally.kills !== kills0) problems.push(`${door}: a refused window paid A`);
+      /* A hunts on: the next fire pays its owed window, and B's unit has walked out of the world */
+      const next = await fire(at + 90000);
+      if (next.outcome !== 'paid') problems.push(`${door}: A's next settle answered ${next.outcome}/${next.reason}`);
+      const w = await one(db, 'select world from public.hunt_instances where id = $1', [h.inst]);
+      const heroes = w ? M.WS.decode(JSON.parse(w)).units.filter((u) => u.side === 'hero').map((u) => u.id) : [];
+      if (heroes.includes(unitB)) problems.push(`${door}: the forfeited seat's unit ${unitB} still fights (${heroes})`);
+      const a = await snapshot(db, sA, A);
+      if (a.session.ended_at !== null || !(a.tally.kills > kills0)) problems.push(`${door}: A did not hunt on (ended ${a.session.end_reason}, kills ${kills0} -> ${a.tally.kills})`);
+      rows[door] = [a, await snapshot(db, sB, B)];
+      await db.query('rollback to savepoint party_grief');
+    }
+    if (rows.tick && rows.settle && canon(rows.tick) !== canon(rows.settle)) problems.push(`the browser-closed and hunt-viewed doors wrote different rows ${firstDiff(canon(rows.tick), canon(rows.settle))}`);
+    return problems;
+  }),
   'PARTY-VIEW': async (db, M) => inTx(db, async () => {
     const problems = [];
     const { partyOf } = await import(pathToFileURL(join(ROOT, 'src/session/hunt-sections.js')).href);
@@ -2346,6 +2440,18 @@ const DB_ARMS = {
     if (!honest.res || honest.res.ok !== true) problems.push(`a landed window after five refusals answered ${JSON.stringify(honest.res).slice(0, 200)}`);
     r = await refuse(5, h.from + 180000);
     if (r.res.forfeit || !(await open())) problems.push('five refusals after a landed window forfeited the hunt (the count did not start over)');
+    await db.query('rollback to savepoint forfeit');
+    /* The INSTANCE's own refusals (a malformed world swing: no member's half is reached) count on the instance, never
+       on a seat (2027-01-22-party-settle-isolation.sql); a landed commit starts that count over too. */
+    const forgedWorld = (c) => { c.settle.world_swing = 'x'; };
+    const counts = async () => (await q(db, 'select (select refusals from public.hunt_instances where id = $1) i, (select refusals from public.hunt_sessions where id = $2) s', [h.inst, h.sid]))[0];
+    for (let i = 0; i < 5; i++) r = await settleTo(db, M, h.from + 120000, { tamper: forgedWorld });
+    let c = await counts();
+    if (!r.res || r.res.error !== 'bad_world_swing' || r.res.forfeit || c.i !== 5 || c.s !== 0) problems.push(`five instance refusals answered ${JSON.stringify(r.res).slice(0, 160)}, counts ${JSON.stringify(c)}`);
+    if (!(await settleTo(db, M, h.from + 120000, { raw: true })).res?.ok) problems.push('a landed window after five instance refusals was refused');
+    for (let i = 0; i < 5; i++) r = await settleTo(db, M, h.from + 180000, { tamper: forgedWorld });
+    c = await counts();
+    if (r.res.forfeit || !(await open()) || c.i !== 5) problems.push(`five instance refusals after a landed window forfeited the hunt or kept the old count (${JSON.stringify(c)})`);
     await db.query('rollback to savepoint forfeit');
     for (const [label, leave, want] of [['hunt viewed, Leave pressed', true, 'left'], ['browser closed, no Leave', false, 'server']]) {
       if (leave) {
@@ -2998,10 +3104,25 @@ const DB_MUTANTS = [
     find: '  if v_n >= c_forfeit_after then', replace: '  if false then' },
   { arm: 'FORFEIT', name: 'a landed commit keeps the refusal count', fn: AI,
     find: 'settled_to = v_to, next_swing_at = v_to, refusals = 0, version = version + 1', replace: 'settled_to = v_to, next_swing_at = v_to, version = version + 1' },
+  /* PARTY ISOLATION (2027-01-22-party-settle-isolation.sql, threat model #7): each leg goes red on its own defect. */
+  { arm: 'FORFEIT', name: '[party isolation] a landed commit keeps the seat\'s refusal count', fn: AI,
+    find: "    update public.hunt_sessions set refusals = 0\n     where id in (select (e.value->>'session')::uuid from jsonb_array_elements(p_members) e) and refusals > 0;\n",
+    replace: '' },
+  { arm: 'PARTY-GRIEF', name: '[party isolation] a member\'s own refusal is counted on the instance again (the party forfeits)', fn: SR,
+    find: "  if jsonb_typeof(p_answer->'member') = 'object'", replace: "  if false and jsonb_typeof(p_answer->'member') = 'object'" },
+  { arm: 'PARTY-GRIEF', name: '[party isolation] the refused exit no longer names the member it was proving', fn: AI,
+    find: "      || case when v_cur is not null then jsonb_build_object('member', v_cur) else '{}'::jsonb end);", replace: '      );' },
+  { arm: 'PARTY-GRIEF', name: '[party isolation] the member\'s value half is not attributed', fn: AI,
+    find: "      v_cur := jsonb_build_object('user', v_m->'user', 'slot', v_m->'slot', 'session', v_m->'session');\n      v_h := public.hr_hunt_apply_member(",
+    replace: "      v_cur := null;\n      v_h := public.hr_hunt_apply_member(" },
+  { arm: 'PARTY-GRIEF', name: '[party isolation] a seat\'s sixth refusal ends every seat', fn: SR,
+    find: "      v_forfeit := public.hr_hunt_forfeit_seat(p_instance, v_seat.id, v_ans->>'error', v_ans->'detail', v_n);",
+    replace: "      v_forfeit := public.hr_hunt_forfeit(p_instance, v_ans->>'error', v_ans->'detail');" },
   { arm: 'FORFEIT', name: 'a forfeited hunt reads forfeit from the pruned ledger again', fn: 'public.hr_hunt_view(uuid)',
     find: "'forfeit', s.forfeit,", replace: "'forfeit', exists (select 1 from public.player_ledger l where l.session_id = s.id and l.intent = 'window_forfeit')," },
-  { arm: 'FORFEIT', name: 'a forfeit ends the hunt now instead of at the last accepted boundary', fn: 'public.hr_hunt_forfeit(uuid,text,jsonb)',
-    find: "    perform public.hr_hunt_close(v_s.id, v_end, v_i.settled_to, true);", replace: "    perform public.hr_hunt_close(v_s.id, v_end, now(), true);" },
+  /* (re-anchored on 2027-01-22-party-settle-isolation.sql: every seat ends through hr_hunt_forfeit_seat) */
+  { arm: 'FORFEIT', name: 'a forfeit ends the hunt now instead of at the last accepted boundary', fn: 'public.hr_hunt_forfeit_seat(uuid,uuid,text,jsonb,integer)',
+    find: "  perform public.hr_hunt_close(v_s.id, v_end, v_i.settled_to, true);", replace: "  perform public.hr_hunt_close(v_s.id, v_end, now(), true);" },
   { arm: 'DEPLOY', name: '[deploy v0.2.32] a world of the shape the catalogue just replaced counts toward the forfeit again', fn: AI,
     find: "        return public.hr_hunt_settle_held(p_instance, p_world_from, v_first, jsonb_build_object('ok', false, 'error', 'world_shape_moved',",
     replace: "        return public.hr_hunt_settle_refused(p_instance, p_world_from, v_first, jsonb_build_object('ok', false, 'error', 'world_shape_moved'," },

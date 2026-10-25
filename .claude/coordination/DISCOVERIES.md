@@ -3782,3 +3782,10 @@ flex bar is never narrower than its nowrap items' min-content, so `min-width: 0`
 give way; width auto does. (4) A hidden column must hide its head too: `.ca-head .ca-c:nth-of-type(2)` counted the
 icon and Name spans and matched nothing, so four heads sat over three columns and "You carry" wrapped to a second
 row. Give the head cells the rows' data-c and hide both with one selector.
+
+## 2026-10-25 Art Director: action bar samples (lane/d-action-bar-samples)
+- At 667x375 today's bar is clipped at 660 px: slot 10 is cut and the setup corner (name, check, sliders) is off-screen
+  (sliders measured at x 820), so a small phone cannot open Fight settings. All three samples fit (shoot.mjs measures it).
+- Buff meals (11 SUPPLIES rows of kind 'buff': Tomato Soup, Hunter's Feast, ...) are not in CONSUMABLES, so no bar slot
+  can eat one: they have no home in Configure action. Game Designer call: a "Meals" run under Food & drink, or not in hunts.
+- Whetstones are kind 'ammo' but worn from the gear's ammo slot (tableOf drops them); the Ammo tab should say so.

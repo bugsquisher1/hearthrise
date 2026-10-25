@@ -1,0 +1,166 @@
+/* art/review/action-bar-2026-10-25/samples.css — THROWAWAY sample styles (tokens only; pixel art from the world
+   palette lives in the canvas). Loaded into the real page by shoot.mjs; never shipped. */
+
+/* The real interior is hidden; the sample interior takes its place inside the same widget. */
+.hb-bar.sb > :not(.sb-in):not(.hb-tip):not(.hb-drop) { display: none !important; }
+.hb-bar.sb { gap: 0; padding: 4px 10px; background: var(--hud-fill); border: 6px solid transparent;
+  border-image: url('../../../assets/ui/steel-frame-thin.png') 3 / 6px stretch; image-rendering: pixelated; }
+.sb-in { display: flex; align-items: center; gap: 14px; }
+
+/* ── SLOTS: a sunk socket (bar-socket.png, 2 art px), the icon at 32, ONE count, nothing else on its face ── */
+.sb-slots { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(5, 40px); grid-auto-rows: 40px; gap: 4px; }
+.sb-slot { position: relative; display: grid; place-items: center; background: var(--bg-1);
+  border: 4px solid transparent; border-image: url('../../../assets/ui/bar-socket.png') 2 / 4px stretch; image-rendering: pixelated; }
+.sb-ico { display: grid; place-items: center; width: 32px; height: 32px; }
+.sb-ico .hh-icon { width: 32px; height: 32px; image-rendering: pixelated; }
+.sb-ico .hs-glyph { width: 22px; height: 22px; color: var(--ink-2); }
+.sb-n { position: absolute; right: -3px; bottom: -4px; font: 700 var(--t-micro)/1 var(--f-ui); color: var(--ink);
+  font-variant-numeric: lining-nums tabular-nums; paint-order: stroke; -webkit-text-stroke: 3px var(--bg-0); }
+/* An empty socket: the floor one step deeper and a 1-art-px "+" in quiet steel; the NEXT one to fill (the first
+   empty in priority order) carries the gold "+". */
+.sb-slot.is-empty { background: var(--bg-0); }
+.sb-plus { position: relative; width: 10px; height: 10px; }
+.sb-plus::before, .sb-plus::after { content: ''; position: absolute; background: var(--steel-sep); }
+.sb-plus::before { left: 4px; top: 0; width: 2px; height: 10px; }
+.sb-plus::after { top: 4px; left: 0; width: 10px; height: 2px; }
+.sb-slot.is-next .sb-plus::before, .sb-slot.is-next .sb-plus::after { background: var(--gold-2); }
+/* Out: the icon stays readable (dimmed), a pixel staircase strike corner to corner, its count 0 in red. */
+.sb-slot.is-off .sb-ico { opacity: .45; }
+.sb-strike { position: absolute; inset: 0; width: 32px; height: 32px; image-rendering: pixelated; }
+.sb-slot.is-off .sb-n { color: var(--red); }
+
+/* ── THE HUB ── */
+.sb-hub { display: grid; align-items: center; justify-items: center; }
+.sb-medal { position: relative; display: grid; place-items: center; }
+.sb-ring { display: block; image-rendering: pixelated; }
+.sb-lv { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1; pointer-events: none; }
+.sb-lv b { font: 800 20px/1 var(--f-ui); color: var(--gold-2); font-variant-numeric: lining-nums tabular-nums; }
+.sb-lv small { margin-top: 1px; font: 700 var(--t-micro)/1 var(--f-ui); color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; }
+.sb-read { display: flex; flex-direction: column; line-height: 1.15; white-space: nowrap; font-variant-numeric: lining-nums tabular-nums; }
+.sb-read.is-hp { grid-area: hp; align-items: flex-end; justify-self: end; }
+.sb-read.is-mp { grid-area: mp; align-items: flex-start; justify-self: start; }
+.sb-v { font: 700 var(--t-small)/1.15 var(--f-ui); }
+.sb-k { margin-right: 4px; font: 700 var(--t-micro)/1 var(--f-label); letter-spacing: .06em; color: var(--ink-3); }
+.sb-max { font-weight: 400; color: var(--ink-3); }
+.sb-read.is-hp .sb-v { color: var(--hud-hp-ink); }
+.sb-read.is-mp .sb-v { color: var(--hud-mana-ink); }
+.sb-r { font: 400 var(--t-micro)/1.15 var(--f-ui); color: var(--ink-3); }
+.sb-sock { position: relative; width: 32px; height: 32px; display: grid; place-items: center; background: var(--bg-0);
+  border: 4px solid transparent; border-image: url('../../../assets/ui/bar-socket.png') 2 / 4px stretch; image-rendering: pixelated; }
+.sb-sock-ico { display: grid; place-items: center; }
+.sb-sock-ico .hh-icon { width: 24px; height: 24px; image-rendering: pixelated; }
+.sb-sock-ico .hs-glyph { width: 16px; height: 16px; color: var(--steel-sep); }
+.sb-sock.is-food { grid-area: food; justify-self: end; }
+.sb-sock.is-charm { grid-area: charm; justify-self: start; }
+.sb-stam { grid-area: stam; display: flex; align-items: center; gap: 4px; font: 700 var(--t-micro)/1 var(--f-ui); color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; white-space: nowrap; }
+.sb-stam .hs-glyph { width: 14px; height: 14px; color: var(--ink-3); }
+
+/* ── THE SETUP CORNER, as before the 10-24 mocks: SETUP · name · check · sliders ── */
+.sb-setup { align-self: stretch; display: flex; align-items: center; padding-left: 12px; border-left: 4px solid transparent;
+  border-image: url('../../../assets/ui/bar-socket.png') 2 / 0 0 0 4px stretch; image-rendering: pixelated; }
+.sb-setup .hb-pl-row { gap: 6px; }
+.sb-setup .hb-label { font-family: var(--f-display); font-weight: 700; letter-spacing: .14em; color: var(--ink-3); }
+.sb-setup .hb-set { color: var(--gold-2); font-weight: 700; }
+
+/* Stamina, every variant but B: a small steel tab hanging under the ring, on the bar's bottom frame line. */
+.sb-hub { position: relative; }
+.sb-stam { position: absolute; left: 50%; bottom: -17px; transform: translateX(-50%); z-index: 1; padding: 2px 8px;
+  background: var(--bg-0); border: 4px solid transparent; border-image: url('../../../assets/ui/steel-frame-thin.png') 3 / 4px stretch; }
+.sb-setup .hh-tool { min-width: 30px; padding: 0 4px; }
+
+/* ════ A · FORGED RING: today's plan, every part on one grid ════
+   HP | ring | MP on the slots' first row, Food and Charm under the readouts on the second, stamina under the ring. */
+.sb-a .sb-hub { grid-template-columns: auto auto auto; grid-template-rows: 42px 42px;
+  grid-template-areas: "hp medal mp" "food medal charm"; column-gap: 10px; }
+.sb-a .sb-medal { grid-area: medal; }
+.hb-bar.sb-a { padding-bottom: 8px; }
+
+/* ════ B · CROWN: separate steel trays (the world between them), the hub's ring rising over its tray ════ */
+.hb-bar.sb-b { background: none; border: 0; padding: 0; }
+.sb-b .sb-in { align-items: flex-end; gap: 8px; }
+.sb-b .sb-slots, .sb-b .sb-setup, .sb-b .sb-hub { background: var(--hud-fill); border: 6px solid transparent;
+  border-image: url('../../../assets/ui/steel-frame-thin.png') 3 / 6px stretch; image-rendering: pixelated; height: 104px; box-sizing: border-box; }
+.sb-b .sb-slots { padding: 4px 6px; align-content: center; }
+.sb-b .sb-setup { padding: 0 10px; }
+.sb-b .sb-hub { grid-template-columns: auto 128px auto; grid-template-rows: 46px 46px; grid-template-areas: "hp medal mp" "food medal charm";
+  column-gap: 8px; padding: 0 8px; align-content: center; }
+.sb-b .sb-medal { grid-area: medal; align-self: end; margin-bottom: -6px; }
+.sb-b .sb-stam { left: 50%; bottom: 6px; padding: 0; background: none; border: 0; color: var(--ink); }
+.sb-b .sb-lv { padding-bottom: 16px; }
+.sb-b .sb-lv b { font-size: 24px; }
+
+/* ════ C · BEAD STRIP: the lowest bar; the slots as one sunk grid a side, HP/MP as gems ════ */
+.sb-c .sb-in { gap: 12px; }
+.sb-c .sb-slots { gap: 2px; grid-template-columns: repeat(5, 38px); grid-auto-rows: 38px; background: var(--bg-0); padding: 2px;
+  border: 4px solid transparent; border-image: url('../../../assets/ui/bar-socket.png') 2 / 4px stretch; }
+.sb-c .sb-slot { border: 0; background: var(--bg-2); }
+.sb-c .sb-slot.is-empty { background: var(--bg-1); }
+.sb-c .sb-n { right: 1px; bottom: 0; }
+.sb-c .sb-hub { grid-template-columns: auto auto auto; grid-template-rows: 40px 40px; grid-template-areas: "hp medal mp" "food medal charm"; column-gap: 10px; }
+.sb-c .sb-medal { grid-area: medal; }
+.sb-c .sb-lv b { font-size: 18px; }
+.sb-c .sb-sock { width: 30px; height: 30px; }
+.hb-bar.sb-c { padding-top: 2px; padding-bottom: 6px; }
+
+/* ════ THE PHONE (landscape): the same objects, smaller wells; nothing runs past the right edge at 667 ════ */
+@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
+  .hb-bar.sb { padding: 2px 6px 6px; max-width: calc(100vw - 16px); box-sizing: border-box; }
+  .sb-in { gap: 8px; }
+  .sb-slots { grid-template-columns: repeat(5, 30px); grid-auto-rows: 30px; gap: 2px; }
+  .sb-slot { border-width: 2px; border-image-width: 2px; }
+  .sb-ico, .sb-ico .hh-icon { width: 24px; height: 24px; }
+  .sb-n { right: -2px; bottom: -3px; }
+  .sb-strike { width: 26px; height: 26px; }
+  .sb-plus { transform: scale(.8); }
+  .sb-k { display: none; }
+  .sb-v { font-size: var(--t-micro); }
+  .sb-r::before { font: 700 var(--t-micro)/1 var(--f-label); color: var(--ink-3); }
+  .sb-read.is-hp .sb-r::before { content: 'HP '; }
+  .sb-read.is-mp .sb-r::before { content: 'MP '; }
+  .sb-sock { width: 26px; height: 26px; border-width: 2px; border-image-width: 2px; }
+  .sb-sock-ico .hh-icon { width: 20px; height: 20px; }
+  .sb-lv b { font-size: 15px; }
+  .sb-setup { padding-left: 8px; }
+  .sb-setup .hb-pl-row { flex-wrap: wrap; width: 76px; gap: 0 4px; justify-content: center; }
+  .sb-setup .hb-label { display: none; }
+  .sb-setup .hb-set { flex-basis: 100%; text-align: center; }
+  .sb-stam { bottom: -15px; padding: 1px 6px; border-width: 2px; border-image-width: 2px; }
+
+  .sb-a .sb-hub { grid-template-rows: 34px 34px; column-gap: 6px; }
+
+  /* B on a phone: four frames cost ~50 px at 667, so the trays join into one plate; the horseshoe still rises
+     through its top edge (the crown is B's identity). */
+  .hb-bar.sb-b { background: var(--hud-fill); border: 6px solid transparent; border-image: url('../../../assets/ui/steel-frame-thin.png') 3 / 6px stretch; padding: 2px 6px 4px; }
+  .sb-b .sb-slots, .sb-b .sb-hub { background: none; border: 0; height: auto; padding: 0; }
+  .sb-b .sb-setup { background: none; height: auto; margin-left: 0; padding: 0 0 0 8px; border: 0; border-left: 4px solid transparent;
+    border-image: url('../../../assets/ui/bar-socket.png') 2 / 0 0 0 4px stretch; }
+  .sb-b .sb-in { align-items: center; gap: 8px; }
+  .sb-b .sb-hub { grid-template-columns: auto 80px auto; grid-template-rows: 32px 32px; column-gap: 4px; }
+  .sb-b .sb-medal { align-self: end; margin-bottom: -4px; }
+  .sb-b .sb-lv { padding-bottom: 10px; }
+  .sb-b .sb-lv b { font-size: 15px; }
+  .sb-b .sb-lv small { font-size: var(--t-micro); }
+  .sb-b .sb-stam { bottom: 2px; padding: 0; border: 0; }
+  .sb-b .sb-stam .hs-glyph { display: none; }
+
+  .sb-c .sb-slots { border-width: 2px; border-image-width: 2px; padding: 1px; }
+  .sb-c .sb-slots { grid-template-columns: repeat(5, 30px); grid-auto-rows: 30px; }
+  .sb-c .sb-hub { grid-template-rows: 32px 32px; column-gap: 6px; }
+  .sb-c .sb-sock { width: 24px; height: 24px; }
+}
+
+/* ════ CONFIGURE ACTION sample: Spells | Runes | Food & drink | Ammo ════ */
+.sb-ca .ca-run-label small { margin-left: 8px; font-family: var(--f-ui); font-weight: 400; font-variant: normal; letter-spacing: 0; text-transform: none; font-size: var(--t-micro); color: var(--ink-3); }
+.sb-ca .ca-namebox { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.15; }
+.sb-ca .sb-sub { font-size: var(--t-micro); color: var(--ink-3); font-weight: 400; }
+.sb-ca .ca-head, .sb-ca .ca-row { grid-template-columns: 32px minmax(0, 1fr) 84px 48px 60px 56px; }
+.sb-ca .ca-row [data-c="0"] { white-space: nowrap; }
+.sb-ca [data-run="food"] .ca-row [data-c="0"]::before, .sb-ca [data-run="drink"] .ca-row [data-c="0"]::before { content: '+'; }
+.sb-ca [data-run="food"] .ca-row [data-c="0"]::after { content: ' HP'; font-size: var(--t-micro); color: var(--ink-3); font-weight: 400; }
+.sb-ca [data-run="drink"] .ca-row [data-c="0"]::after { content: ' mana'; font-size: var(--t-micro); color: var(--ink-3); font-weight: 400; }
+@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
+  .sb-ca .ca-head, .sb-ca .ca-row { grid-template-columns: 28px minmax(0, 1fr) 76px 56px 56px; }
+}
+.sb-ca.sb-tab-ammo .ca-tab[data-tab="items"] { color: var(--ink-3); border-bottom-color: transparent; }
+.sb-ca.sb-tab-ammo .ca-tab[data-tab="ammo"] { color: var(--gold-2); border-bottom-color: var(--gold); }
+.sb-ca-note { margin: 8px 4px 2px; font-size: var(--t-micro); color: var(--ink-3); }

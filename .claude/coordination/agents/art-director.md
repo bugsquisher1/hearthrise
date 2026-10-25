@@ -3047,3 +3047,12 @@ no scrollbar until it moves: end the visible words part-way into a line (round(d
 "more" (at 922x423 the first cap landed on a whole line and read as the end); (3) Playwright headless hides scrollbars,
 so a shot never proves a scroll cue: assert it (PH-6's line-fraction check); (4) a fallback cap that the tighter rule
 always beats cannot have its own mutant: mutate both together and say so beside the mutant.
+
+## 2026-10-25 action bar samples (lane/d-action-bar-samples, from release/v0.2.45)
+Tyler: the bar is "atrocious". Shot today's bar on the real client (stub server, a Level 29 Healer), wrote a
+pixel-pointed critique, built 3 samples in the page (art/review/action-bar-2026-10-25/: A forged ring, B crown, C bead
+strip) + the Configure action with Ammo on its own tab. Pick: B. Lessons: (1) the hub ring must be ONE drawing
+language: a canvas at art resolution painted per pixel from the palette beats any SVG arc on pixel art; (2) the
+client repaints table cells on every envelope, so a mock edits only nodes the patch never touches (or CSS pseudo
+content); (3) four steel frames cost ~50 px at 667: a tray layout must join into one plate on phones; (4) measure the
+setup corner's right edge in the shot script: today's 667 overflow was invisible until measured (x 820 of 667).

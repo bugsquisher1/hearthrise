@@ -81,3 +81,8 @@ The client half (B #1, A #1, A #5, B #3) is built on lane/b-hunts-detail from da
 **Tracker:** https://claude.ai/artifact/81VCt3YuFkKbrtke5u9jqK (Tyler answers questions + row notes there; read BOTH at session start). Rulings: memory rulings-of-record. Gap list: .claude/coordination/sim-gap-list-2026-10-19.md. Lanes + files: ACTIVE_WORK.md.
 
 **Known open bugs:** Andy's/Tyler's heroes can be stuck "busy" (hidden activity) — workaround Inventory > Stop (Andy reports no Stop line visible: the Stop line may not render; party-invite-menu lane fixes the cause server-side). Windows still push the world (lane/a-windows-float @09eac2750 is old WIP, unfinished). No death popup yet. Backups stopped after 2026-10-14 (PITR off): investigate.
+
+## 2026-10-25 Art Director -> Asset Director: two spell icons missing (action bar)
+Protective Ward and Mend have no ability art (`actionIconHtml` falls back to the uiSpark sparkle glyph), so a Healer's
+bar shows two glyphs beside three painted, orange-framed spell icons. Need: 32 px icons in the same set as
+greater_mend / circle_of_renewal / green_sickness (ABILITY_ART). Evidence: art/review/action-bar-2026-10-25/current-1440-bar.png slots 2 and 4.

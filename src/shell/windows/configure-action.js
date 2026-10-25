@@ -3,12 +3,12 @@
 //
 // Tyler 2026-10-18 (the flow) and 2026-10-21 (a slot names ONE item; the game never
 // picks one), built to the art direction spec of 2026-10-21 (Charcoal & Gold):
-//   top       "Slot 3 · tried after slot 2", the Spells | Runes | Items tabs, Earlier / Later
+//   top       "Slot 3 · tried after slot 2", the Spells | Runes | Food & drink | Ammo tabs, Earlier / Later
 //   sentence  the slot read as one editable sentence: "Eat [Salted Trout] when [my HP]
 //             [is at or below] [−45+]%", then "and …" for each further condition (all
 //             must match), "+ Add a condition", and the heal warning under it (the
 //             hunt's hardest blow, pull-cycle.js biggestBlowOn, against the server's max HP)
-//   table     the tab's items in runs (Food, Drink, Ammo), each row its numbers from the
+//   table     the tab's items in runs (Food and Drink; Ammo on its own tab), each row its numbers from the
 //             SERVER's rows (hunt_settings.store), sorted cheapest per point
 //             (action-table.js tableOf); the picked row gold and pinned at the top
 //   detail    the hovered or focused row against the pick (signed differences, the

@@ -104,7 +104,7 @@ async function clientWords(root) {
   const arrows = F.reasonOf(slot('iron_arrows'), set, [{ id: 'iron_arrows', qty: 5 }], null);
   if (arrows) return 'a bow\'s Iron Arrows slot (5 carried) reads ' + JSON.stringify(arrows);
   if (!F.weaponWarning({ type: 'attack_with_item', id: 'copper_whetstone' }, null, 'ranger')) return 'Configure action says nothing about a whetstone attack slot';
-  const run = T.tableOf('items', { role: 'ranger', bag: [], store: [] }).runs.find((r) => r.kind === 'ammo');
+  const run = T.tableOf('ammo', { role: 'ranger', bag: [], store: [] }).runs.find((r) => r.kind === 'ammo');
   const row = (id) => (run && run.rows.find((r) => r.action.id === id)) || null;
   const stones = (run ? run.rows : []).filter((r) => /whetstone|_rune$/.test(r.action.id)).map((r) => r.action.id);
   if (stones.length) return 'the Ammo run offers a whetstone or a rune as a shot: ' + stones.join(', ');

@@ -2,7 +2,8 @@
 // src/shell/widgets/settings-intent.js — HUNT SETTINGS ARE INTENTS (parity HS-01..HS-09).
 //
 // The action bar's control panel (target, stance, chase, distance, the gold to keep) is built from these.
-// Every control SHOWS the server's `hunt_settings` section and nothing else.
+// Every control SHOWS the server's `hunt_settings` section; an option the server leaves unset shows the pick the
+// ONE engine makes for it (townDefaultOf, goldFloorOf), so the bar is configurable in town too (Tyler 10-25).
 // A change is an INTENT: the controls of that panel go disabled at once, one
 // hr_action_set_options call is sent (CharacterSession.setHuntOptions), and
 // they come back only when the server has answered and the re-read envelope
@@ -14,7 +15,9 @@
 // ════════════════════════════════════════════════════════════════════════
 import { TARGET_MODES, HUNT_STANCES, HERO_DISTANCE } from '../../data/rule-subjects.js?v=0.2.46';
 import { GOLD_FLOOR } from '../../data/hunt-sessions.js?v=0.2.46';
-import { settingsOf, partyOf } from '../../session/hunt-sections.js?v=0.2.46';
+import { settingsOf, partyOf, huntOf } from '../../session/hunt-sections.js?v=0.2.46';
+import { partyMembershipOf, roleIdOf } from '../../session/party-sections.js?v=0.2.46';
+import { defaultSettings } from '../../core/hunt/roles.js?v=0.2.46';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.46';
 import { text, attr, prop, cls } from '../../render/paint.js?v=0.2.46';
 import { answerWithin } from '../bar-draft.js?v=0.2.46';
@@ -53,11 +56,13 @@ export function goldFloorHtml() {
 }
 
 /* The server's gold floor (hunt_settings.gold_floor, hr_hunt_settings_view). settingsOf (hunt-sections.js, the
-   live-engine lane's) does not parse it yet: read here until it does, never a client default. */
+   live-engine lane's) does not parse it yet: read here until it does. */
 function goldFloorOf(cs) {
   const raw = cs && typeof cs.read === 'function' ? cs.read('hunt_settings') : null;
-  const v = raw && raw.gold_floor;
-  return Number.isSafeInteger(v) && v >= 0 ? v : null;
+  if (!raw || typeof raw !== 'object') return null;
+  const v = raw.gold_floor;
+  /* Unset (no catalogue default, hr_hunt_set_options) the engine keeps GOLD_FLOOR.default (action-rules.js floorOf): shown so it can be set in town too. */
+  return Number.isSafeInteger(v) && v >= 0 ? v : v === null || v === undefined ? GOLD_FLOOR.default : null;
 }
 
 /** Patch every [data-opt] control under `root` to the server's settings; off while pending or unknown. */
@@ -87,11 +92,28 @@ export function patchControls(root, cs) {
   cls(root, 'is-pending', pending);
 }
 
+/* CONFIGURABLE IN TOWN (Tyler 2026-10-25: "people don't want to go into a hunt to configure their bar"). Out of a hunt
+   the server leaves an option the player never set unset (hr_hunt_settings_view: the catalogue has no default for
+   target, stance, chase or distance; the engine picks them at spawn from the role and the party, roles.js
+   defaultSettings). The bar shows that same pick, from the same rule, so the control is live before a hunt: a press
+   sends an absolute value, the server stores it in the setup's options and the re-read envelope projects it. In a
+   hunt the server always sends the unit's own value, and a value it sends always wins. */
+const DEFAULT_KEY = Object.freeze({ target_mode: 'tmode', stance: 'stance', distance: 'dist', chase: 'chase' });
+function townDefaultOf(cs, s, key) {
+  const h = huntOf(cs);
+  if ((h && !h.ended) || !DEFAULT_KEY[key]) return null;
+  const role = s.role || roleIdOf(cs);
+  const p = partyMembershipOf(cs);
+  const roles = p && p.seats.length > 1 ? p.seats.map((x) => x.role).filter(Boolean) : [role];
+  try { return defaultSettings(role, roles.includes(role) ? roles : roles.concat(role))[DEFAULT_KEY[key]]; } catch { return null; }
+}
+
 function valueOf(s, key, cs) {
   if (key === 'gold_floor') return goldFloorOf(cs);
   const map = { target_mode: s.targetMode, stance: s.stance, distance: s.distance, chase: s.chase };
   const v = map[key];
-  return v === undefined ? null : v;
+  if (v === undefined) return null;
+  return v === null ? townDefaultOf(cs, s, key) ?? null : v;
 }
 
 /** The option a control's gesture asks for, or null (no change / out of the range the server takes). */
@@ -100,18 +122,19 @@ function optionFor(el, cs) {
   if (!s) return null;
   const key = el.getAttribute('data-opt');
   if (key === 'distance') {
-    const n = (s.distance || 0) + Number(el.getAttribute('data-val'));
-    return s.distance === null || n < HERO_DISTANCE.min || n > HERO_DISTANCE.max ? null : { distance: n };
+    const d = valueOf(s, key, cs);
+    const n = (d || 0) + Number(el.getAttribute('data-val'));
+    return d === null || n < HERO_DISTANCE.min || n > HERO_DISTANCE.max ? null : { distance: n };
   }
-  if (key === 'chase') return s.chase === null ? null : { chase: !s.chase };
-  if (key === 'stance') return el.getAttribute('data-val') === s.stance ? null : { stance: el.getAttribute('data-val') };
+  if (key === 'chase') { const c = valueOf(s, key, cs); return c === null ? null : { chase: !c }; }
+  if (key === 'stance') return el.getAttribute('data-val') === valueOf(s, key, cs) ? null : { stance: el.getAttribute('data-val') };
   if (key === 'gold_floor') {
     const now = goldFloorOf(cs);
     const n = Number(el.value);
     /* Only a whole number in the server's range is sent; anything else snaps back to the server's value. */
     return now === null || !Number.isSafeInteger(n) || n < GOLD_FLOOR.min || n > GOLD_FLOOR.max || n === now ? null : { gold_floor: n };
   }
-  if (key === 'target_mode') return TARGET_MODES[el.value] && el.value !== s.targetMode ? { target_mode: el.value } : null;
+  if (key === 'target_mode') return TARGET_MODES[el.value] && el.value !== valueOf(s, key, cs) ? { target_mode: el.value } : null;
   return null;
 }
 

@@ -85,7 +85,7 @@
 //         beside the dock instead of hiding; docking never moves the camera on a desktop. The chat
 //         is no docked window (Tyler 10-22: home bottom-left): on a desktop it opens in the World's
 //         left half, low, and never over the action bar
-//   HS-22 THE PHONE BAR (922x423), in a hunt and in town: at most 100 px tall, the alerts dock
+//   HS-22 THE PHONE BAR (922x423; the height also at 844x390 and 667x375), in a hunt and in town: at most 100 px tall, the alerts dock
 //         above its top, and the fight settings are a slide-out sheet (shut until the bar's
 //         button opens it, then on top of everything, shut again on Escape)
 //   HS-23 THE HEAL WARNING: a heal slot whose HP % is fewer HP than the hunt's biggest blow at the
@@ -101,6 +101,9 @@
 //         them (never merged)
 //   The desktop bar's 64 px icons, its fight controls and ring (Tyler 10-25) and the stamina "+" are tests/phone-touch.mjs
 //   PH-8 and PH-9: this suite's mutant shards are full (--shard-plan books each within 18 min).
+//   HS-27 THE BAR IS CONFIGURABLE IN TOWN (Tyler 10-25): with target, stance, chase, distance and the gold to keep
+//         unset (as hr_hunt_settings_view sends them out of a hunt) every control is on and shows the engine's pick
+//         for the role; a press sends ONE absolute value and the re-read envelope's value replaces it
 //   HS-25 THE HUNT SUMMARY shows the server's balance per hour to every character, and raw
 //         XP per hour only when the server sent it (premium)
 // ════════════════════════════════════════════════════════════════════════
@@ -345,6 +348,55 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
     return { ctx, page, errors, s, up };
   };
   try {
+    /* HS-27 runs FIRST: its mutants are caught (stopAtFirst) a page boot in, not after every rule before it (shard budget). */
+    { // HS-27 THE BAR IS CONFIGURABLE IN TOWN (Tyler 2026-10-25, a Level-30 hero in town: target, stance, chase and distance
+      // greyed out). Out of a hunt hr_hunt_settings_view leaves an option the player never set unset (no catalogue default;
+      // the engine picks it at spawn from the role, roles.js defaultSettings): every control is live and shows that pick,
+      // a press sends ONE hr_action_set_options with an absolute value, and the re-read envelope's value replaces it.
+      const { ctx, page, s, up } = await open({ town: true, prep: (sv) => {
+        for (const k of ['target_mode', 'stance', 'distance', 'chase', 'gold_floor']) delete sv.env.hunt_settings[k];
+        sv.env.hunt_settings.role = 'ranger';
+        sv.onOptions = (o) => Object.assign(sv.env.hunt_settings, o);
+      } });
+      if (!up) fails.push('HS-27 the town bar did not mount');
+      else {
+        const P = '.hb-plaque';
+        const read = () => page.evaluate((p) => ({ off: Array.from(document.querySelectorAll(p + ' [data-opt]')).filter((c) => c.disabled).map((c) => c.getAttribute('data-opt') + (c.getAttribute('data-val') ? ':' + c.getAttribute('data-val') : '')),
+          target: document.querySelector(p + ' [data-opt="target_mode"]').value, dist: document.querySelector(p + ' [data-show="distance"]').textContent,
+          stance: (document.querySelector(p + ' [data-opt="stance"][aria-pressed="true"]') || { getAttribute: () => null }).getAttribute('data-val'),
+          chase: document.querySelector(p + ' [data-opt="chase"]').getAttribute('aria-pressed'), gold: document.querySelector(p + ' [data-opt="gold_floor"]').value }), P);
+        await wait(page, (p) => document.querySelector(p + ' [data-opt="stance"]'), P);
+        const t0 = await read();
+        /* a lone Ranger (no Melee in its party of one): 3 tiles, chase off, Nearest, Balanced; the engine's 300 gold to keep */
+        if (t0.off.length) fails.push('HS-27 in town these bar controls are off: ' + t0.off.join(', '));
+        if (t0.target !== 'nearest' || t0.dist !== '3' || t0.stance !== 'balanced' || t0.chase !== 'false' || t0.gold !== '300') fails.push('HS-27 in town the panel does not show the role\'s pick: ' + JSON.stringify(t0));
+        const before = s.sent('hr_action_set_options').length;
+        await page.click(P + ' [data-opt="distance"][data-val="1"]');
+        await until(() => s.sent('hr_action_set_options').length > before);
+        const got = s.sent('hr_action_set_options').slice(before).map((c) => JSON.stringify(c.body.p_opts));
+        if (got.length !== 1 || got[0] !== '{"distance":4}') fails.push('HS-27 the town distance + sent ' + JSON.stringify(got));
+        const shown = await wait(page, (p) => document.querySelector(p + ' [data-show="distance"]').textContent === '4' && !document.querySelector(p).classList.contains('is-pending'), P);
+        if (!shown) fails.push('HS-27 after the server saved it the town distance does not read the re-read 4: ' + JSON.stringify(await read()));
+        const b2 = s.sent('hr_action_set_options').length;
+        await page.click(P + ' [data-opt="chase"]');
+        await until(() => s.sent('hr_action_set_options').length > b2);
+        const got2 = s.sent('hr_action_set_options').slice(b2).map((c) => JSON.stringify(c.body.p_opts));
+        if (got2.length !== 1 || got2[0] !== '{"chase":true}') fails.push('HS-27 the town Chase sent ' + JSON.stringify(got2));
+        if (shots) await page.screenshot({ path: join(shots, 'town-1440x900-fight-panel.png') });
+        /* Every slot too, in town: an empty slot opens Configure action, whose tabs are Spells | Runes | Food & drink | Ammo
+           (Tyler 2026-10-25: ammo on its own tab, never mixed in with food and drink; HS-7 reads the same in a hunt). */
+        await page.click('.hb-slot[data-slot="5"]');
+        await wait(page, () => document.querySelector('[data-hs-win="configure-action"] .ca-rank'), null);
+        const runsOn = async (tab) => { await page.click('.ca-tab[data-tab="' + tab + '"]');
+          await wait(page, (t) => document.querySelector('.ca-tab[data-tab="' + t + '"][aria-selected="true"]'), tab);
+          return page.evaluate(() => Array.from(document.querySelectorAll('.ca-runs .ca-run')).map((r) => r.getAttribute('data-run')).join()); };
+        const food = await runsOn('food'), ammo = await runsOn('ammo');
+        if (food !== 'food,drink' || ammo !== 'ammo') fails.push('HS-27 in town Configure action lists ' + JSON.stringify({ food, ammo }) + ' (want food,drink under Food & drink and ammo alone under Ammo)');
+        await page.keyboard.press('Escape');
+      }
+      await ctx.close();
+    }
+
     { // HS-1, HS-2, HS-4 numbers, HS-6
       const { ctx, page, errors, s, up } = await open();
       if (!up) fails.push('HS-1 the hunt panels did not mount for the fixture character' + (errors.length ? ' (' + errors.slice(0, 3).join(' | ') + ')' : ''));
@@ -992,7 +1044,20 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           });
           if (!picks.ok) fails.push('HS-7 the metric picker is not the registry: ' + picks.shown.join(','));
           if (!/^Slot 3 · tried after slot 2$/.test(picks.title)) fails.push('HS-7 the window opened on "' + picks.title + '", not slot 3');
-          if (picks.picked !== 'Wheat Bread' || picks.tab !== 'Items') fails.push('HS-7 the server’s action is not the picked choice on its tab: ' + picks.picked + ' / ' + picks.tab);
+          if (picks.picked !== 'Wheat Bread' || picks.tab !== 'Food & drink') fails.push('HS-7 the server’s action is not the picked choice on its tab: ' + picks.picked + ' / ' + picks.tab);
+          /* AMMO HAS ITS OWN TAB (Tyler 2026-10-25): Spells | Runes | Food & drink | Ammo; Food & drink lists food and drink
+             only, and every shot is under Ammo. */
+          const tabsOf = async () => page.evaluate(() => ({ tabs: Array.from(document.querySelectorAll('.ca-tab')).map((b) => b.textContent),
+            runs: Array.from(document.querySelectorAll('.ca-runs .ca-run')).map((r) => r.getAttribute('data-run')) }));
+          const onFood = await tabsOf();
+          if (onFood.tabs.join('|') !== 'Spells|Runes|Food & drink|Ammo') fails.push('HS-7 the tabs read ' + onFood.tabs.join(' | '));
+          if (onFood.runs.join() !== 'food,drink') fails.push('HS-7 the Food & drink tab lists the runs ' + JSON.stringify(onFood.runs) + ' (ammo mixed in?)');
+          await page.click('.ca-tab[data-tab="ammo"]');
+          await wait(page, () => document.querySelector('.ca-tab[data-tab="ammo"][aria-selected="true"]'), null);
+          const onAmmo = await tabsOf();
+          if (onAmmo.runs.join() !== 'ammo') fails.push('HS-7 the Ammo tab lists the runs ' + JSON.stringify(onAmmo.runs));
+          await page.click('.ca-tab[data-tab="food"]');
+          await wait(page, () => document.querySelector('.ca-tab[data-tab="food"][aria-selected="true"]'), null);
           if (picks.mid > 30) fails.push('HS-7 the modal is not centred (' + Math.round(picks.mid) + ' px off)');
           await page.selectOption('.ca-cond[data-cond="0"] [data-f="op"]', 'lt');
           await page.fill('.ca-cond[data-cond="0"] [data-f="value"]', '40');
@@ -1412,7 +1477,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         const why = await wait(page, () => /^Your weapon can’t cast this. The slot stays struck until you wield a .+.$/.test((document.querySelector('.ca-weapon') || {}).textContent || ''), null);
         if (!why) fails.push('HS-8 a locked spell picked does not say why the slot will stay struck: ' + JSON.stringify(await page.evaluate(() => document.querySelector('.ca-weapon').textContent)));
       }
-      await page.click('.ca-tab[data-tab="items"]');
+      await page.click('.ca-tab[data-tab="food"]');
       const food = await page.$$eval('.ca-run[data-run="food"] .ca-list .ca-row', (n) => n.map((b) => ({ id: b.getAttribute('data-id'),
         cells: Array.from(b.querySelectorAll('.ca-c')).map((c) => c.textContent) })));
       const heals = FIXTURE.hunt_settings.store.filter((r) => r.kind === 'heal');
@@ -1671,6 +1736,15 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       } else fails.push('HS-22 the phone screen did not mount ' + tag);
       await ctx.close();
     }
+    /* HS-22 on the smaller phones too (lane/b-widget-move-fold 10-25 reported 104 px at 844x390, which put a shown
+       analyzer in the bar's row): at most 100 px tall at 844x390 and 667x375, in a hunt and in town. */
+    for (const [w, h] of [[844, 390], [667, 375]]) for (const town of [false, true]) {
+      const tag = w + 'x' + h + (town ? ' in town' : ' in a hunt');
+      const { ctx, page, up } = await open({ viewport: { width: w, height: h }, town });
+      const bh = up ? await page.evaluate(() => document.querySelector('.hb-bar').getBoundingClientRect().height) : null;
+      if (bh === null || bh > 100) fails.push('HS-22 ' + tag + ' the phone bar is ' + (bh === null ? 'not mounted' : Math.round(bh) + ' px tall (want <= 100)'));
+      await ctx.close();
+    }
 
     if (shots) { // the phone size class
       const { ctx, page, up } = await open({ viewport: { width: 922, height: 423 } });
@@ -1699,6 +1773,8 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
 }
 
 const MUTANTS = [
+  /* Tyler 10-25: ammo on its own tab (HS-7). */
+  ['ammo mixed back into Food & drink (HS-27, HS-7)', 'src/shell/action-table.js', [["    return { runs, empty: runs.length ? null : 'No food or drink in the game yet.' };\n", ''], ["  if (tab !== 'ammo') return { runs, empty: null };\n", '']]],
   ['the shell rebuilds a component on every paint', 'src/shell/shell.js', 'if (render.patch) render.patch(el, ctx);', 'if (render.patch) { el.innerHTML = render(ctx); render.patch(el, ctx); }'],
   ['keyed rows rebuild every row', 'src/render/paint.js', 'let el = held.get(k) || (kept && kept.get(k));', 'let el = null;'],
   ['a setting shows before the server confirms', 'src/shell/widgets/settings-intent.js', [["  attr(root, 'data-pending', true);\n", "  attr(root, 'data-pending', true);\n  root.__want = el;\n"],
@@ -1768,7 +1844,11 @@ const MUTANTS = [
   ['the hub prints regen with two decimals', 'src/shell/widgets/vitals-hub.js', "'+' + r.toFixed(1)", "'+' + r.toFixed(2)"],
   ['a struck slot carries no glyph', 'src/shell/widgets/action-bar.js', "g.innerHTML = why ? glyphSvg(ctx.glyphs, why.glyph) : '';", "g.innerHTML = why && !why.strike ? glyphSvg(ctx.glyphs, why.glyph) : '';"],
   ['a server-refused slot is not struck', 'src/shell/action-facts.js', "  if (sl.usable === false) return { code: 'server', text: 'The server says this cannot fire now.', glyph: 'uiLock', strike: true };\n  if (a.type === 'consume') return null;", "  if (a.type === 'consume') return null;"],
-  ['the panel’s chase sends nothing', 'src/shell/widgets/settings-intent.js', "  if (key === 'chase') return s.chase === null ? null : { chase: !s.chase };", "  if (key === 'chase') return null;"],
+  ['the panel’s chase sends nothing', 'src/shell/widgets/settings-intent.js', "  if (key === 'chase') { const c = valueOf(s, key, cs); return c === null ? null : { chase: !c }; }", "  if (key === 'chase') return null;"],
+  /* Tyler 10-25: the bar is configurable IN TOWN, where the server leaves an unset option unset (HS-27). */
+  ['the fight panel locks in town again (HS-27)', 'src/shell/widgets/settings-intent.js', "  return v === null ? townDefaultOf(cs, s, key) ?? null : v;", "  return v;"],
+  ['the town pick ignores the role (HS-27)', 'src/shell/widgets/settings-intent.js', "  const role = s.role || roleIdOf(cs);", "  const role = 'tank';"],
+  ['the gold to keep locks while unset (HS-27)', 'src/shell/widgets/settings-intent.js', "v === null || v === undefined ? GOLD_FLOOR.default : null", "null"],
   ['a slot short of its rune says nothing', 'src/shell/action-facts.js', '    if (r.rune && !(familyCount(r.rune, bag) > 0)', '    if (false && r.rune && !(familyCount(r.rune, bag) > 0)'],
   ['the hub keeps an ended hunt’s in-fight regen', 'src/shell/widgets/vitals-hub.js', '  const hero = h && !h.ended ? h.hero : null;', '  const hero = h ? h.hero : null;'],
   ['the gold to keep shows the typed value before the server confirms', 'src/shell/widgets/settings-intent.js', "(pending || el.ownerDocument.activeElement !== el)", "(!pending && el.ownerDocument.activeElement !== el)"],

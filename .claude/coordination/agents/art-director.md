@@ -3047,3 +3047,14 @@ no scrollbar until it moves: end the visible words part-way into a line (round(d
 "more" (at 922x423 the first cap landed on a whole line and read as the end); (3) Playwright headless hides scrollbars,
 so a shot never proves a scroll cue: assert it (PH-6's line-fraction check); (4) a fallback cap that the tighter rule
 always beats cannot have its own mutant: mutate both together and say so beside the mutant.
+
+## 2026-10-25 — lane/b-action-bar-fix: mocks first (Tyler: "Give me mocks before you implement it")
+Four asks on the REAL bar, no redesign: a smooth ring, the fight controls visible on the right, more gold, bigger
+icons; phones get their own bar ("I don't want to sacrifice shit on desktop for mobile ever"). Mock = the working
+copy on the fake-server harness (Lv 29, 40%), a748d9853, art/review/action-bar-fix-2026-10-25/{before,mocks}.
+Lessons: (1) the 32 px icons are true 32-art-px (no 2x2 blocks), so the only bigger whole scale is 64: measure the
+art before promising "a bit bigger"; (2) a 2x bar is ~1240 px wide, so a desktop has to fit 1280 (Steam Deck) and
+narrow windows without a new @media spelling: the well size is a clamp() on 100vw and the icon snaps with
+round(down, 100% - 4px, 32px) (whole scale at any well size); (3) a widget pinned to a corner (Players online) is
+silently covered when the bar widens: re-check every corner widget after a width change; (4) the before shots proved
+the danger with a failed click (Fight settings off screen at 667): cite that as the evidence, not a description.

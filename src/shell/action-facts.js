@@ -4,8 +4,9 @@
 // One home for the words the Configure action window and the bar's slot
 // tooltip both show, so they can never disagree:
 //   TABS / choicesFor   Spells (the abilities the worn weapon gives, by the
-//                       server's `role`), Runes (rune ammo), Items (food and
-//                       drink, own or "any" with the store behind it, and ammo)
+//                       server's `role`), Runes (the spells a rune fuels), Food &
+//                       drink (own, or the store's behind it) and Ammo (its own
+//                       tab, Tyler 2026-10-25)
 //                       — the same ids the server accepts (src/core/hunt/
 //                       conditions.js actionKnown), never a typed list
 //   factsOf             type line, cost, cooldown, effect, requirement
@@ -30,13 +31,14 @@ import { storeOf, storeWords, conditionWords } from './bar-draft.js?v=0.2.46';
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 const secs = (ms) => (ms % 1000 ? (ms / 1000).toFixed(1) : String(ms / 1000));
 
-/** The three tabs of the Configure action window: spells, the spells that spend a rune, and items. */
-export const TABS = Object.freeze([['spells', 'Spells'], ['runes', 'Runes'], ['items', 'Items']]);
+/** The four tabs of the Configure action window: spells, the spells that spend a rune, food and drink, and ammo
+    (Tyler 2026-10-25: ammo keeps its own tab, never mixed in with food and drink). */
+export const TABS = Object.freeze([['spells', 'Spells'], ['runes', 'Runes'], ['food', 'Food & drink'], ['ammo', 'Ammo']]);
 
-/** The tab an action belongs to (a rune spell under Runes; food, drink and ammo under Items). */
+/** The tab an action belongs to (a rune spell under Runes; a shot under Ammo; food and drink under Food & drink). */
 export function tabOf(a) {
   if (!a || a.type === 'ability') return a && ABILITIES[a.id] && ABILITIES[a.id].rune ? 'runes' : 'spells';
-  return 'items';
+  return a.type === 'attack_with_item' ? 'ammo' : 'food';
 }
 
 /** An action's player-facing name. */

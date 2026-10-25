@@ -1001,6 +1001,33 @@ async function nodeRules(M) {
     ok('LV-15b', mate && mate.hp === allyMax - 70 && mate.hpMax === allyMax,
       `the party panel reads ${mate && mate.hp}/${mate && mate.hpMax} HP for the party-mate while its bar plays ${allyMax - 70}/${allyMax}`);
   }
+  { // LV-15c MANA FROM THE FIRST FRAME (Fingerguns + Pellow 10-25: "MP –" for the first ~10 s of a new hunt). Until the
+    // first settle builds the instance's world, hr_hunt_state sends the hero's `mana_max` (from hr_vitals_of) but no
+    // `mana` (the world's unit holds it), and a new instance's hero starts FULL (src/core/hunt-spawn.js mana ?? maxMana).
+    // The hub and the panel's own row must read that full pool, never a dash.
+    const env = clone(LIVE);
+    env.hunt = Object.assign({}, env.hunt, { pose: null, hero: Object.assign({}, env.hunt.hero, { mana: null, mana_max: 140 }) });
+    env.party = Object.assign({}, env.party, { members: env.party.members.map((m) => Object.assign({}, m, { mana: null, mana_max: null })) });
+    const clock = { t: 1000 };
+    const cs = new M.C.CharacterSession({ slot: 0, uid: '11111111-2222-3333-4444-555555555555',
+      server: { rpc: async () => ({ ok: true, body: clone(env) }), accrue: async () => ({ ok: true, body: { ok: true, accrued: false } }) },
+      setTimer: () => 0, clearTimer: () => {}, now: () => clock.t });
+    await cs.load();
+    const stub = () => {
+      const kids = new Map(), at = new Map();
+      return { textContent: '', innerHTML: '', classList: { contains: () => false, toggle() {} },
+        style: { getPropertyValue: () => '', setProperty() {}, removeProperty() {} },
+        hasAttribute: (k) => at.has(k), getAttribute: (k) => (at.has(k) ? at.get(k) : null), setAttribute: (k, v) => at.set(k, v), removeAttribute: (k) => at.delete(k),
+        querySelector(s) { if (!kids.has(s)) kids.set(s, stub()); return kids.get(s); } };
+    };
+    const el = stub();
+    M.HUB.patchHub(el, { character: cs, glyphs: {}, now: () => clock.t });
+    const shown = el.querySelector('[data-v="mana"]').textContent;
+    ok('LV-15c', shown === '140/140', `before the first settle the vitals hub reads "${shown}" mana, want "140/140"`);
+    const r = M.PP.liveRoster(cs, M.PP.rosterOf(cs));
+    const me = r.members.find((m) => m.seat === r.selfSeat);
+    ok('LV-15c', me && me.mana === 140 && me.manaMax === 140, `before the first settle the party panel's own row reads ${me && me.mana}/${me && me.manaMax} mana, want 140/140`);
+  }
   { // LV-22 THE CHALLENGE SLOT READS AS WORKING (bug #61, Andy 10-22: "Challenge still not procing"). A tank holding
     // every engaged monster has nothing to Challenge (Tyler 10-16), so the slot never fires: the bar says so. The viewed
     // tank's Challenge slot (the fixture's slot 1) rests in the quiet Holding state, its glyph and its words, from the
@@ -1189,6 +1216,7 @@ const MUTANTS = [
   ['HP regen at the resting rate (LV-3)', 'src/session/hunt-sections.js', '* VITALS.inFightRegenPermillePerS *', '* 60 *', /^LV-3/],
   /* r09: the hub reads heroVitalsOf, the one reader it shares with the Character tab and the party panel's own row. */
   ["the hub reads the last commit's HP (LV-15, live v0.2.22)", 'src/session/character-sections.js', '    const live = liveHpOf(cs, hero.unit);', '    const live = null;', /^LV-15/],
+  ['a new hunt reads no mana before its first settle (LV-15c, Fingerguns 10-25)', 'src/session/character-sections.js', 'mana: hero.mana !== null ? hero.mana : hero.manaMax, manaMax', 'mana: hero.mana, manaMax', /^LV-15c/],
   /* r09: the panel's own row reads heroVitalsOf; the commit's HP is the roster row's m.hp. */
   ["the party panel reads the last commit's HP (LV-15, live v0.2.22)", 'src/shell/widgets/party-panel.js', 'level: v.level, hp: v.hp, hpMax: v.hpMax', 'level: v.level, hp: m.hp, hpMax: m.hpMax', /^LV-15/],
   ["the party panel reads a party-mate's last-commit HP (LV-15b)", 'src/shell/widgets/party-panel.js', 'const live = m.hunting ? liveHpOf(cs, m.unit) : null;', 'const live = null;', /^LV-15b/],

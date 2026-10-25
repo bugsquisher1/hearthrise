@@ -120,6 +120,10 @@ async function checks(overrides) {
         // FW-3 (before anything changes): Harvest only on the server's ready plot
         if (await shown(page, W + '.hw-plot[data-plot="0"] .hw-harvest')) fails.push('FW-3 the growing plot shows Harvest');
         if (!(await shown(page, W + '.hw-plot[data-plot="1"] .hw-harvest'))) fails.push('FW-3 the ready plot shows no Harvest');
+        /* Tyler 10-25: each label says what its verb does: Harvest and replant = hr_farm_harvest_replant (pressed below),
+           Harvest only = hr_farm_harvest (the leave verb) */
+        const labels = await page.evaluate(() => [...document.querySelectorAll('[data-hs-win="farm"] .hw-plot[data-plot="1"] button.hh-tool')].map((b) => [b.getAttribute('data-hs-act'), b.textContent]));
+        if (JSON.stringify(labels) !== JSON.stringify([['harvest', 'Harvest and replant'], ['leave', 'Harvest only']])) fails.push('FW-3 the ready plot\'s buttons read ' + JSON.stringify(labels));
         // FW-2
         await press(page, W + '.hw-plot[data-plot="2"] .hw-soil', 'FW-2');
         await wait(page, () => document.querySelector('[data-hs-win="farm"] .hw-sow.is-on'), null, 2000);
@@ -173,6 +177,8 @@ async function checks(overrides) {
         const by3 = await txt(page, W + '.hw-plot[data-plot="3"] .hw-plot-by');
         if (!/^Planted by Alda\. Extra plot: gone once harvested$/.test(by3 || '') || !(await page.evaluate(() => document.querySelector('[data-hs-win="farm"] .hw-plot[data-plot="3"]').classList.contains('is-extra')))) fails.push('FW-7 the extra plot says ' + JSON.stringify(by3));
         if (!/1 extra plot goes once harvested\./.test((await txt(page, W + '.hw-farm-land')) || '')) fails.push('FW-7 the land line reads ' + JSON.stringify(await txt(page, W + '.hw-farm-land')));
+        const lone = await txt(page, W + '.hw-plot[data-plot="3"] .hw-harvest');
+        if (lone !== 'Harvest') fails.push('FW-7 the extra plot\'s one button reads ' + JSON.stringify(lone) + ', want "Harvest" (it never replants)');
         await press(page, W + '.hw-plot[data-plot="3"] .hw-harvest', 'FW-7');
         await idle(page);
         const hv = s.calls.filter((c) => /harvest/.test(c.name));
@@ -210,6 +216,9 @@ const MUTANTS = [
   ['a plot never says who planted it', 'src/shell/windows/farm.js', "text(li.querySelector('.hw-plot-by'), !p ? '' :", "text(li.querySelector('.hw-plot-by'), true ? '' :"],
   ['an extra plot is not drawn', 'src/shell/windows/farm.js', '(_, i) => i).concat(extras);', '(_, i) => i);'],
   ['an extra plot is replanted', 'src/shell/windows/farm.js', "attr(harvest, 'data-hs-act', extra ? 'leave' : 'harvest');", "attr(harvest, 'data-hs-act', 'harvest');"],
+  ['the replant button reads plain Harvest (Tyler 10-25)', 'src/shell/windows/farm.js', "text(harvest, extra ? 'Harvest' : 'Harvest and replant');", "text(harvest, 'Harvest');"],
+  ['the no-replant button reads Leave it empty (Tyler 10-25)', 'src/shell/windows/farm.js', "verb === 'leave' ? 'Harvest only' :", "verb === 'leave' ? 'Leave it empty' :"],
+  ['the extra plot\'s button says replant (Tyler 10-25)', 'src/shell/windows/farm.js', "text(harvest, extra ? 'Harvest' : 'Harvest and replant');", "text(harvest, 'Harvest and replant');"],
   ['the reader drops the planter', 'src/session/farm-sections.js', 'byName: nameOf(p.by_name)', 'byName: null'],
 ];
 

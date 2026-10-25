@@ -239,7 +239,7 @@ async function pureRules(M, base) {
     srv.env[0].hunt.session = Object.assign({}, srv.env[0].hunt.session, { end_reason: 'died', ended_at: '2026-10-17T12:30:00Z', phase: 'ended' });
     await cs2.load(); await cs2.load();
     if (centre2.list().length) return 'the on-screen hero’s death also raised a side line: ' + JSON.stringify(centre2.list().map((a) => [a.kind, a.text]));
-    acc2.viewed = null;
+    acc2.viewed = 1;   // another hero on screen
     await cs2.load(); await cs2.load();
     if (centre2.list().length !== 1 || centre2.list()[0].kind !== 'death' || !/died in .* and returned to town/.test(centre2.list()[0].text)) return 'a death raised ' + JSON.stringify(centre2.list().map((a) => [a.kind, a.text]));
     srv.env[0].hunt.ended = false;
@@ -362,6 +362,12 @@ async function pureRules(M, base) {
     const centreV = M.AL.createAlertCenter(accV);
     if (!(await accV.open(0)).session) return 'the fixture character did not open (viewed)';
     if (centreV.list().some((a) => a.kind === 'ended')) return 'the hero on screen raised an ended line over its own hunt summary';
+    /* A RELOAD (QA2's Pellow 10-25): the first character opens before anything is viewed (viewed null); it becomes
+       the hero on screen, so its unread ended line must stay quiet too. */
+    const accR = account(M, srv);
+    const centreR = M.AL.createAlertCenter(accR);
+    if (!(await accR.open(0)).session) return 'the fixture character did not open (reload)';
+    if (centreR.list().some((a) => a.kind === 'ended')) return 'after a reload the hero on screen raised an ended line over its own hunt summary';
     const acc = account(M, srv);
     acc.viewed = 1;   // another hero is on screen: this one is played unviewed
     const centre = M.AL.createAlertCenter(acc);
@@ -1143,6 +1149,7 @@ async function pageRules(overrides, shots) {
 const PURE_MUTANTS = [
   ['the last hunt\'s end line stays into the next (AL-3, Brannoc 10-22)', 'src/shell/alerts.js', '|| (open && RETIRE.has(a.kind) && a.session && a.session !== open)', ''],
   ['the low alert counts the bag mid-hunt (AL-2, Brannoc 10-22)', 'src/session/item-sections.js', '  return huntBagOf(cs) || bagOf(cs);', '  return bagOf(cs);'],
+  ['a reload raises "has ended" over the hero on screen (AL-3, QA2 Pellow 10-25)', 'src/shell/alerts.js', 'account.viewed === cs.slot || account.viewed === null);', 'account.viewed === cs.slot);'],
   ['a death off screen raises no line', 'src/shell/alerts.js', '    if (!viewed && !deathSeen(cs, h.sessionId)) out.push(', '    if (false) out.push('],
   ['the store paying per use still warns out of stock', 'src/shell/alerts.js', "const storePays = !s || s.supplySource === 'store' || s.onEmpty !== 'end';", 'const storePays = false;'],
   ['a hero with no mana pool is warned about drinks', 'src/shell/alerts.js', "const uses = (id) => kindOf(id) !== 'drink' || hero.manaMax > 0;", 'const uses = () => true;'],

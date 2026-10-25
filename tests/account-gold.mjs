@@ -571,7 +571,8 @@ async function huntArms(mutate, M) {
   for (const door of ['tick', 'settle']) {
     const u = await d.newAccount();
     await d.options(u, 0, { gold_floor: 0 }); await d.options(u, 1, { gold_floor: 0 });
-    /* every Mill Cellar drop a vendor buys is SOLD ON PICKUP (the loot filter): its sale is a hunt gold move (G7) */
+    /* every Mill Cellar drop a vendor buys is PLANNED SELL: since 2027-01-23-loot-dispatch.sql nothing sells at pickup
+       (the plan waits in the bag for Dispatch loot), so the race below is the coins and the bills alone (G7 checks no sale) */
     for (const slot of [0, 1]) for (const item of await d.sellable()) {
       await d.as(u); await d.gate();
       const lr = await d.one("select public.hr_loot_rule_set($1, $2, 'sell', gen_random_uuid())", [slot, item]);
@@ -585,7 +586,7 @@ async function huntArms(mutate, M) {
     const r1 = await commit(M, d, p1);
     ok(r1 && r1.ok === true, `G4 ${door}: slot 1's window answered ${JSON.stringify(r1).slice(0, 300)}`);
     const left = await d.purse(u);
-    /* slot 0's bill, read at 500, cannot be paid now: above what is left plus its coins and anything it sells on pickup */
+    /* slot 0's bill, read at 500, cannot be paid now: above what is left plus its coins */
     addBuys(memberOf(p0, u, 0), Math.ceil((left + c0 + OVER) / 14));
     const inst0 = await d.one('select instance_id from public.hunt_sessions where user_id = $1 and slot = 0', [u]);
     const sw0 = await d.one('select world_swing::text from public.hunt_instances where id = $1', [inst0]);
@@ -674,8 +675,8 @@ async function huntArms(mutate, M) {
   const hunts = await d.q(`select intent, gold_kind k, count(*)::int n, count(session_id)::int s from public.player_ledger
                              where coalesce(gold, 0) <> 0 and (session_id is not null or intent in ('supply_buy', 'vendor_cover', 'loot_sell')) group by 1, 2`);
   ok(hunts.length > 0 && hunts.every((h) => h.n === h.s) && hunts.some((h) => h.k === 'hunt_supply') && hunts.some((h) => h.k === 'hunt_loot')
-    && hunts.some((h) => h.intent === 'loot_sell' && h.k === 'hunt_sale'),
-    `G7: the hunt gold rows are ${JSON.stringify(hunts)} (every one with its session; coins, loot sold on pickup and store bills present)`);
+    && !hunts.some((h) => h.intent === 'loot_sell'),
+    `G7: the hunt gold rows are ${JSON.stringify(hunts)} (every one with its session; coins and store bills present; no loot sold on pickup, G4's sell plans notwithstanding)`);
 
   // G10 the lock order in the body that RUNS (2026-12-23-tally-tasks.sql restates hr_hunt_apply_instance last).
   const inst = (await d.one("select prosrc from pg_proc where oid = to_regprocedure('public.hr_hunt_apply_instance(uuid,bigint,jsonb,jsonb,uuid,integer)')")).replace(/--[^\n]*/g, '');

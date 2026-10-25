@@ -52,7 +52,9 @@ export const CLIENT_RPCS = Object.freeze({
   hr_bank_move: 'move a stack between the bag and the home storage, value-neutral (CharacterSession.moveStorage)',
   /* The alpha windows (2026-10-18; CONFLICTS.md): staged for the server lane, refused as http_404 until it lands. */
   hr_item_lock: 'lock or unlock an item so no bulk sale can name it (CharacterSession.lockItem)',
-  hr_loot_rule_set: 'keep / sell / ignore an item on pickup, applied by the server (CharacterSession.setLootRule)',
+  hr_loot_rule_set: "an item's loot plan (keep in bag / deposit in storage / sell) or its pickup filter (do not pick up); a name and a word, the server validates it (CharacterSession.setLootRule)",
+  /* Tyler 2026-10-25 (2027-01-23-loot-dispatch.sql): a slot and a key; the plans, bag, bid and Storage room are the server's. */
+  hr_loot_dispatch: "run this hero's loot plans in town: deposit and sell the planned stacks; names no item, count or price (loot-intents.js dispatchLoot)",
   hr_hunt_preset_save: 'snapshot the action set and gear as a setup (CharacterSession.savePreset)',
   hr_hunt_preset_apply: 'put a saved setup back on (CharacterSession.applyPreset)',
   /* Ruling C4 (2026-11-15-preset-names.sql): a slot, a preset number and a name; the server owns the name rule. */

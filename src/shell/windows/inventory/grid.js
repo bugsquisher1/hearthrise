@@ -8,10 +8,11 @@
 // Storage window's: it also lists where else the item is, elsewhere.js), the
 // sort and the category row (remembered, residue `bagView`). Below it: the
 // picked stack's line with its ONE primary action, the bulk tools (sell the
-// selection, sell junk, sell a whole category) and their confirmation with
-// the total. This hunt lists what the running hunt picked up with each item's
-// loot rule (keep / sell at the shop / leave it), applied by the server on
-// pickup.
+// selection, sell a whole category, Dispatch loot) and the sale's confirmation
+// with the total. This hunt lists what the running hunt picked up with each
+// item's loot plan (Keep in bag / Deposit in storage / Sell, run by Dispatch loot
+// in town) or its pickup filter (Don't pick up, the only rule a pickup applies;
+// loot-dispatch.js, Tyler 2026-10-25).
 //
 // Every count is the envelope's `inventory`, replaced, never merged; every
 // action is ONE intent with the controls off until the server answers
@@ -25,7 +26,8 @@ import { whole, gold } from '../../../render/format.js?v=0.2.46';
 import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.46';
 import { glyphSvg } from '../../launcher.js?v=0.2.46';
 import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.46';
-import { primaryOf, junkOf, confirmWords, huntLoot } from './state.js?v=0.2.46';
+import { primaryOf, confirmWords, huntLoot } from './state.js?v=0.2.46';
+import { LOOT_CHOICES, planBlock, dispatchBlock } from '../../loot-dispatch.js?v=0.2.46';
 import { pocketHtml, patchCount } from './pockets.js?v=0.2.46';
 import { elsewhereHtml, patchElsewhere } from './elsewhere.js?v=0.2.46';
 import { buryParts, buryBlock, buryRecipeOf } from './bury.js?v=0.2.46';
@@ -34,7 +36,9 @@ import { upgradeLineHtml, patchUpgradeLine } from '../../widgets/upgrade-line.js
 import { wearBlock, gearLocked } from '../../gear-gate.js?v=0.2.46';
 import { whyLine } from '../../widgets/why-line.js?v=0.2.46';
 
-const RULES = Object.freeze([['keep', 'Keep'], ['sell', 'Sell at the shop'], ['ignore', 'Leave it']]);
+/* The This hunt row's choices: the three plans, then the pickup filter (loot-dispatch.js). */
+const RULE_OPTIONS = '<optgroup label="Loot plan">' + LOOT_CHOICES.filter((c) => c[2] === 'plan').map(([v, w]) => '<option value="' + v + '">' + esc(w) + '</option>').join('')
+  + '</optgroup><optgroup label="On pickup">' + LOOT_CHOICES.filter((c) => c[2] === 'pickup').map(([v, w]) => '<option value="' + v + '">' + esc(w) + '</option>').join('') + '</optgroup>';
 export const KEYS = '/ search · arrows move · Enter use · Space select · Delete sell · L lock · Ctrl+A select all';
 
 /** The toolbar across the window (tabs, search, sort, categories). */
@@ -69,8 +73,9 @@ export function toolsHtml(g) {
     + '<div class="hw-bulk"><span class="hw-selcount"></span>'
     + '<button type="button" class="hh-tool" data-hs-act="sell-sel">Sell selected</button>'
     + '<button type="button" class="hh-tool" data-hs-act="clear-sel">Clear</button></div>'
-    + '<div class="hw-tools"><button type="button" class="hh-tool" data-hs-act="sell-junk"></button>'
+    + '<div class="hw-tools"><button type="button" class="hh-tool" data-hs-act="dispatch">Dispatch loot</button>'
     + '<button type="button" class="hh-tool" data-hs-act="sell-cat"></button><span class="hw-value"></span></div>'
+    + '<p class="hw-why hw-dispatch-why" role="status" aria-live="polite"></p>'
     + '<div class="hw-confirm" role="alertdialog" aria-label="Confirm the sale"><p class="hw-confirm-q"></p><p class="hw-confirm-note"></p>'
     + '<div class="hw-confirm-do"><button type="button" class="hw-primary" data-hs-act="confirm-yes"></button>'
     + '<button type="button" class="hh-tool" data-hs-act="confirm-no">Cancel</button></div></div>'
@@ -164,11 +169,13 @@ export function patchTools(root, st, ctx) {
   prop(root.querySelector('[data-hs-act="sell-sel"]'), 'disabled', sc.pending || !st.shop);
   const tools = root.querySelector('.hw-tools');
   cls(tools, 'is-off', !onBag);
-  const junk = junkOf(st);
-  const jb = tools.querySelector('[data-hs-act="sell-junk"]');
-  text(jb, 'Sell junk' + (junk.length ? ' (' + junk.length + ')' : ''));
-  attr(jb, 'title', st.rules ? 'Sells every stack your loot filter marks "Sell at the shop"' : 'The loot filter is not on the server yet');
-  prop(jb, 'disabled', sc.pending || !st.shop || !junk.length);
+  /* Dispatch loot: off with the server-sections' reason (a hunt running, nothing planned); a hunt's reason is said in view. */
+  const dWhy = dispatchBlock(st.cs);
+  const db = tools.querySelector('[data-hs-act="dispatch"]');
+  attr(db, 'title', dWhy || 'Stores every stack planned "Deposit in storage" and sells every stack planned "Sell"');
+  prop(db, 'disabled', sc.pending || !!dWhy);
+  const huntWhy = /hunting/.test(dWhy) ? dWhy : '';
+  whyLine(root.querySelector('.hw-dispatch-why'), onBag ? huntWhy : '', false);
   const cb = tools.querySelector('[data-hs-act="sell-cat"]');
   const catLabel = (BAG_CATS.find(([id]) => id === prefs.cat) || [])[1] || '';
   cls(cb, 'is-on', prefs.cat !== 'all');
@@ -204,20 +211,23 @@ function patchHuntPane(root, st, ctx) {
     key: (l) => l.item,
     build: (l) => element(ctx.doc, '<li class="hw-loot-row" data-hs-act="loot-row" data-item="' + esc(l.item) + '"><span class="hw-ico">' + itemIconHtml(ctx.glyphs, l.item) + '</span>'
       + '<span class="hw-loot-name"><b>' + esc(itemName(l.item)) + '</b><small></small></span>'
-      + '<select class="hh-select" data-hs-act="rule" data-item="' + esc(l.item) + '" data-rule-item="' + esc(l.item) + '" aria-label="On pickup">' + RULES.map(([v, w]) => '<option value="' + v + '">' + esc(w) + '</option>').join('') + '</select></li>'),
+      + '<select class="hh-select" data-hs-act="rule" data-item="' + esc(l.item) + '" data-rule-item="' + esc(l.item) + '" aria-label="Loot plan">' + RULE_OPTIONS + '</select></li>'),
     patch: (li, l) => {
       const inBag = st.qty.get(l.item) || 0;
       text(li.querySelector('small'), '×' + whole(l.count) + ' this hunt · ' + whole(inBag) + ' in the bag');
       const sel = li.querySelector('select');
       if (st.rules) prop(sel, 'value', st.rules.loot[l.item] || 'keep');
       prop(sel, 'disabled', st.sc.pending || !st.rules);
+      /* a plan the server refuses for this item (its starting kit, no shop price) is off, with its reason */
+      for (const o of sel.options) { const why = planBlock(l.item, o.value, bids); prop(o, 'disabled', !!why); attr(o, 'title', why || null); }
       /* a stack that only pays coin (what Sell all loot sells): the row the coach's "Decide once" rings, never the
          Bones a skill trains on (played 2026-10-25: the first row, Bones, was ringed for "Sell at the shop") */
       attr(sel, 'data-coin', coin.has(l.item) ? '' : null);
     },
   });
   cls(pane.querySelector('.hw-loot-none'), 'is-on', !loot.length);
-  text(pane.querySelector('.hw-loot-note'), st.rules ? 'The server applies each rule the next time a hunt picks the item up.' : 'Loot rules switch on when the server starts keeping them.');
+  text(pane.querySelector('.hw-loot-note'), st.rules ? 'Loot goes into your bag as it drops. Back in town, Dispatch loot (in the Bag tab or Storage) stores and sells each item by its plan. Don\'t pick up leaves it on the ground.'
+    : 'Loot plans switch on when the server starts keeping them.');
 }
 
 /** The grid column for the open tab. */

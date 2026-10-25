@@ -31,9 +31,11 @@
 //             the section lists every gear row at its price, the REAL edge
 //             shop_buy sells one (and two rings in one buy) with a `shop` ledger
 //             row naming the unit, and the vendor pays at most half back.
-//   A-LOOT-AWAY / A-LOOT-ATTENDED  the loot filter in the REAL settle (tick and
-//             player door): sell = picked-up units x the vendor bid, as gold,
-//             the pickups still tallied; ignore leaves them; a locked item is kept;
+//   A-LOOT-AWAY / A-LOOT-ATTENDED  the loot plans in the REAL settle (tick and
+//             player door): NOTHING SELLS AT PICKUP (Tyler 2026-10-25, 2027-01-23-
+//             loot-dispatch.sql: a sell plan waits in the bag for Dispatch loot, no
+//             gold, no loot_sell row); ignore leaves the picked-up units behind; a
+//             locked item is kept; the pickups are tallied the same;
 //   A-BLESS-AWAY / A-BLESS-ATTENDED  a blessed death in the REAL settle: the
 //             death (one a hunt since the core rebuild) keeps loss − floor(loss x
 //             permille / 1000) of its Level and skill price, the tiers are used up,
@@ -353,7 +355,7 @@ const ARMS = {
   },
 };
 
-/* THE LOOT FILTER IN THE SETTLE: run A with no rule, read what it picked up; run B with sell / ignore / sell+lock. */
+/* THE LOOT PLANS IN THE SETTLE: run A with no rule, read what it picked up; run B with sell / ignore / ignore+lock. */
 async function lootArm(db, { H, M }, attended) {
   const p = [];
   const uid = H.UIDS[0];
@@ -388,19 +390,16 @@ async function lootArm(db, { H, M }, attended) {
   await set("select public.hr_loot_rule_set(0, $1, 'sell', $2::uuid)", [sellIt, idem()]);
   await set("select public.hr_loot_rule_set(0, $1, 'ignore', $2::uuid)", [ignoreIt, idem()]);
   if (keepIt) {
-    await set("select public.hr_loot_rule_set(0, $1, 'sell', $2::uuid)", [keepIt, idem()]);
+    await set("select public.hr_loot_rule_set(0, $1, 'ignore', $2::uuid)", [keepIt, idem()]);
     await set('select public.hr_item_lock(0, $1, true, $2::uuid)', [keepIt, idem()]);
   }
   const B = await go();
-  const unit = Number(await H.one(db, 'select unit from public.hr_hunt_vendor_value where item_id = $1', [sellIt]));
-  const soldQ = B.sold.reduce((a, r) => a + Number(((r.meta.items || {})[sellIt] || {}).qty || 0), 0);
-  const soldG = B.sold.reduce((a, r) => a + Number(r.gold), 0);
   const leftQ = B.left.reduce((a, r) => a + Number((r.meta.items || {})[ignoreIt] || 0), 0);
   if (JSON.stringify(B.loot) !== JSON.stringify(A.loot)) p.push('the pickups changed with the rules: ' + JSON.stringify({ A: A.loot, B: B.loot }));
-  if (soldQ !== Number(A.loot[sellIt])) p.push(`${sellIt}: sold ${soldQ} of ${A.loot[sellIt]} picked up`);
-  if (soldG !== soldQ * unit || B.sold.some((r) => Number(r.gold_in) !== Number(r.gold))) p.push(`${sellIt}: ${soldG} g for ${soldQ} at ${unit} (gold_in stamped: ${B.sold.map((r) => r.gold_in)})`);
-  if (B.gold - A.gold !== soldG) p.push(`the purse moved ${B.gold - A.gold}, the sales ${soldG}`);
-  if (Number(B.inv[sellIt] || 0) !== Number(A.inv[sellIt] || 0) - soldQ) p.push(`${sellIt}: bag ${B.inv[sellIt]} vs ${A.inv[sellIt]} - ${soldQ}`);
+  /* a sell plan waits in the bag for Dispatch loot: no sale row, no gold, the bag as with no rule */
+  if (B.sold.length) p.push(`a pickup SOLD (${B.sold.length} loot_sell rows: ${JSON.stringify(B.sold).slice(0, 200)})`);
+  if (B.gold !== A.gold) p.push(`the purse moved ${B.gold - A.gold} with a sell plan (nothing sells at pickup)`);
+  if (Number(B.inv[sellIt] || 0) !== Number(A.inv[sellIt] || 0)) p.push(`${sellIt}: bag ${B.inv[sellIt]} with a sell plan vs ${A.inv[sellIt]} with none`);
   if (leftQ !== Number(A.loot[ignoreIt]) || Number(B.inv[ignoreIt] || 0) !== Number(A.inv[ignoreIt] || 0) - leftQ) p.push(`${ignoreIt}: left ${leftQ} of ${A.loot[ignoreIt]}, bag ${B.inv[ignoreIt]} vs ${A.inv[ignoreIt]}`);
   if (keepIt && Number(B.inv[keepIt] || 0) !== Number(A.inv[keepIt] || 0)) p.push(`${keepIt}: a LOCKED item was taken by its rule`);
   return p;
@@ -476,14 +475,14 @@ const MUTANTS = [
   { arm: 'A-LOCK', file: '2027-01-14-gear-by-level.sql', fn: 'hr_apply', why: 'hr_apply no longer refuses a locked sale',
     find: '  execute replace(v_def, a1, r1);',
     repl: '  execute replace(replace(v_def, a1, r1), $l$        if v_n < 0 and coalesce(v_this_intent, \'\') ~ \'^vendor_sell(_many)?(:|$)\' and public.hr_item_locked(v_uid, v_slot, k) then$l$,\n    $l$        if false and coalesce(v_this_intent, \'\') ~ \'^vendor_sell(_many)?(:|$)\' and public.hr_item_locked(v_uid, v_slot, k) then$l$);' },
-  /* hr_hunt_loot_rules is RESTATED last by 2026-12-15-account-gold.sql (md5-pinned to its pre-image); hr_hunt_apply_member
+  /* hr_hunt_loot_rules is RESTATED last by 2027-01-23-loot-dispatch.sql (md5-pinned to its pre-image); hr_hunt_apply_member
      is patched last by 2027-01-20-tutorial-facts.sql (memberPlant): each mutant is planted in the body that runs. */
   { arm: 'A-LOOT-AWAY', why: 'the settle no longer runs the loot filter',
     ...memberPlant("  v_loot := public.hr_hunt_loot_rules(p_user, p_slot, p_session, p_intent, p_delta->'items', v_to);", '  v_loot := null;') },
-  { arm: 'A-LOOT-ATTENDED', file: '2026-12-15-account-gold.sql', why: 'a sale pays twice the vendor bid',
-    find: '      v_gold := v_gold + v_q * v_r.unit;', repl: '      v_gold := v_gold + 2 * v_q * v_r.unit;' },
-  { arm: 'A-LOOT-AWAY', file: '2026-12-15-account-gold.sql', why: 'the loot filter ignores a lock',
-    find: "       and r.loot_rule in ('sell', 'ignore') and not r.locked", repl: "       and r.loot_rule in ('sell', 'ignore')" },
+  { arm: 'A-LOOT-ATTENDED', file: '2027-01-23-loot-dispatch.sql', why: 'a sell plan acts at pickup again',
+    find: "       and r.loot_rule = 'ignore' and not r.locked", repl: "       and r.loot_rule in ('ignore', 'sell') and not r.locked" },
+  { arm: 'A-LOOT-AWAY', file: '2027-01-23-loot-dispatch.sql', why: 'the pickup filter ignores a lock',
+    find: "       and r.loot_rule = 'ignore' and not r.locked", repl: "       and r.loot_rule = 'ignore'" },
   /* hr_shop_view is RESTATED last by 2026-11-25-shop-seeds.sql: its mutants are planted in the body that runs. */
   { arm: 'A-NO-SUPPLY', file: '2026-11-25-shop-seeds.sql', why: 'the shop section lists the supplies again',
     find: "from public.hr_shop_supply_offers o where o.kind in ('tool', 'gear', 'seed')), '[]'::jsonb),", repl: "from public.hr_shop_supply_offers o), '[]'::jsonb)," },

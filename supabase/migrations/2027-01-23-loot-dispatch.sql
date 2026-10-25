@@ -10,7 +10,7 @@
 -- CLOSED: applies on its passing §6 (tools/apply-migration.mjs, one file, never inside
 -- begin/commit, never 00:00-00:10 UTC). MONEY SURFACE (a vendor sale mints gold): the one
 -- Security review before Steam EA covers it (CLAUDE.md §2, Tyler 2026-10-25). Contract:
--- docs/design/ARCHITECTURE_CONTRACTS.md §1.10 "Loot plan and Dispatch loot".
+-- docs/design/ARCHITECTURE_CONTRACTS.md §23 "Loot plan and Dispatch loot".
 --
 -- ── THE PLAN (player_item_rules.loot_rule, per hero, per item; no row = keep) ──
 --   keep      the default. A hunt bags it; Dispatch leaves it in the bag.
@@ -116,8 +116,8 @@ begin
   -- tests/live-hash-drift.baseline.json, 2026-10-25) or this file's own (post). Anything
   -- else means another file moved it: re-pin first.
   for r in select * from (values
-    ('public.hr_loot_rule_set(integer,text,text,uuid)', 'c093f58091750ec31a2befb8e3363b9b', 'c0de0000000000000000000000000001', '2026-10-25-bag-rules.sql'),
-    ('public.hr_hunt_loot_rules(uuid,integer,uuid,uuid,jsonb,timestamp with time zone)', 'bf314f41f2ae45588d212e62ee2c7ce6', 'c0de0000000000000000000000000002', '2026-12-15-account-gold.sql')
+    ('public.hr_loot_rule_set(integer,text,text,uuid)', 'c093f58091750ec31a2befb8e3363b9b', 'cfa8fc9bce2ea4c1e626eb8b4cf5adc6', '2026-10-25-bag-rules.sql'),
+    ('public.hr_hunt_loot_rules(uuid,integer,uuid,uuid,jsonb,timestamp with time zone)', 'bf314f41f2ae45588d212e62ee2c7ce6', '00a39317b7b8d4a93b9f39748dad2064', '2026-12-15-account-gold.sql')
   ) p(sig, pre, post, src) loop
     select md5(replace(prosrc, chr(13), '')) into v_md5 from pg_proc where oid = to_regprocedure(r.sig);
     if v_md5 is null then raise exception 'PIN: % is missing', r.sig; end if;
@@ -491,7 +491,8 @@ begin
        or not exists (select 1 from public.player_inventory where user_id = v_u and slot = 0 and item_id = v_kit)
        or (v1->'kept'->>'locked')::int <> 1 or (v1->'kept'->>'kit')::int <> 1 then
       raise exception 'VERIFY(c): a keep / ignore / locked / start-kit stack moved: %', v1; end if;
-    if (select count(*) from public.player_ledger where id > v_n and user_id = v_u) <> 2
+    -- (hr_apply may add its own non-value rows, e.g. renown_ratchet; the value rows are these two)
+    if (select count(*) from public.player_ledger where id > v_n and user_id = v_u and (kind in ('bank', 'shop') or coalesce(gold, 0) <> 0 or qty is not null)) <> 2
        or (select count(*) from public.player_ledger where id > v_n and user_id = v_u and kind = 'bank' and intent = 'loot_dispatch:deposit'
              and qty = -11 and (meta->'items'->>v_dep)::bigint = 11) <> 1
        or (select count(*) from public.player_ledger where id > v_n and user_id = v_u and kind = 'shop' and intent like 'vendor\_sell\_many:1:%'

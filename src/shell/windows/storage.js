@@ -22,6 +22,10 @@
 // storage stack was last added to, kept by this character. Display only.
 // While a hunt runs the chest is at home and the hero is not: the window says
 // so and its moves stay off (the server's own rule is in CONFLICTS.md).
+// Beside the bag: Dispatch loot (Tyler 2026-10-25, loot-dispatch.js), ONE
+// hr_loot_dispatch that stores every stack planned "Deposit in storage" while
+// Storage has room and sells every stack planned "Sell"; off with its reason (a
+// hunt, nothing planned), and its line is the server's answer.
 // ════════════════════════════════════════════════════════════════════════
 import { bagOf, bankOf, depotOf, shopOf } from '../../session/item-sections.js?v=0.2.46';
 import { STORE_SEEN_MAX } from '../../session/residue.js?v=0.2.46';
@@ -38,6 +42,7 @@ import { pocketHtml, patchCount } from './inventory/pockets.js?v=0.2.46';
 import { showTip, hideTip } from './item-tip.js?v=0.2.46';
 import { openFloatMenu, closeFloatMenu } from './float-menu.js?v=0.2.46';
 import { amountHtml, amountOf, stepAmount } from '../widgets/amount.js?v=0.2.46';
+import { dispatchBlock, runDispatch } from '../loot-dispatch.js?v=0.2.46';
 
 const SCRATCH = new WeakMap();
 const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { query: '', pending: false, msg: '', press: null, pressed: false }; SCRATCH.set(cs, s); } return s; };
@@ -59,6 +64,7 @@ export function renderStorage(ctx) {
     + '<ul class="hw-pockets" data-side="bank" role="listbox" aria-label="In storage"></ul><p class="hh-empty hw-store-none" data-none="bank"></p>'
     + '<p class="hs-note hw-store-room"></p>'
     + '<h3 class="hw-ledger-head is-on">In your bag <small class="hw-store-n" data-n="bag"></small></h3>'
+    + '<div class="hw-tools hw-store-do"><button type="button" class="hh-tool" data-hs-act="dispatch">Dispatch loot</button><p class="hw-why"></p></div>'
     + '<ul class="hw-pockets" data-side="bag" role="listbox" aria-label="In your bag"></ul><p class="hh-empty hw-store-none" data-none="bag"></p>'
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></div>';
 }
@@ -107,6 +113,12 @@ renderStorage.patch = function patchStorage(body, ctx) {
     ? 'More room comes from storage chests, built in the House (E). Next: the ' + depot.next.name + ', ' + whole(depot.next.stacks) + ' more stacks.'
     : 'Every storage chest is built.');
   patchSide(root, ctx, 'bag', bag || [], view(bag || [], Object.assign({ seen: bagSeenOf(cs, bag || []) }, o)), off);
+  /* Dispatch loot: off with the server-sections' reason; a hunt's reason is the note above, any other is said here. */
+  const dWhy = dispatchBlock(cs);
+  const db = root.querySelector('[data-hs-act="dispatch"]');
+  prop(db, 'disabled', sc.pending || !!dWhy);
+  attr(db, 'title', dWhy || 'Stores every stack planned "Deposit in storage" and sells every stack planned "Sell"');
+  text(root.querySelector('.hw-store-do .hw-why'), away ? '' : dWhy);
   cls(root, 'is-pending', sc.pending);
   cls(root, 'is-off', off);
   text(root.querySelector('.hh-intent-msg'), sc.msg);
@@ -152,6 +164,7 @@ renderStorage.act = function actStorage(ctx, body, action, ev, t) {
   if (action === 'search' && ev.type === 'input') { sc.query = t.value.slice(0, 40); repaint(); return false; }
   if (action === 'sort' && ev.type === 'change') { setPref(cs, 'sort', t.value); repaint(); return false; }
   if (action === 'cat' && ev.type === 'click') { setPref(cs, 'cat', t.getAttribute('data-cat')); repaint(); return true; }
+  if (action === 'dispatch') { if (ev.type === 'click' && !sc.pending && !t.disabled) runDispatch(ctx.account, cs, sc, repaint); return ev.type === 'click'; }
   if (action !== 'withdraw' && action !== 'deposit') return false;
   const id = t.getAttribute('data-item');
   const type = ev.type;

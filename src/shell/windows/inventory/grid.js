@@ -17,22 +17,22 @@
 // action is ONE intent with the controls off until the server answers
 // (actions.js). Patched in place (src/render/paint.js).
 // ════════════════════════════════════════════════════════════════════════
-import { BAG_CATS, BAG_SORTS, isNew, bagValue, lootToSell } from '../../bag-model.js?v=0.2.46';
-import { skillsOf } from '../../../session/item-sections.js?v=0.2.46';
-import { barIndexOf, barKeyLabel } from '../../bar-assign.js?v=0.2.46';
-import { rows, text, cls, attr, prop, element } from '../../../render/paint.js?v=0.2.46';
-import { whole, gold } from '../../../render/format.js?v=0.2.46';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.46';
-import { glyphSvg } from '../../launcher.js?v=0.2.46';
-import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.46';
-import { primaryOf, junkOf, confirmWords, huntLoot } from './state.js?v=0.2.46';
-import { pocketHtml, patchCount } from './pockets.js?v=0.2.46';
-import { elsewhereHtml, patchElsewhere } from './elsewhere.js?v=0.2.46';
-import { buryParts, buryBlock, buryRecipeOf } from './bury.js?v=0.2.46';
-import { shownQty, aheadQty, paintLine } from '../../town-ticker.js?v=0.2.46';
-import { upgradeLineHtml, patchUpgradeLine } from '../../widgets/upgrade-line.js?v=0.2.46';
-import { wearBlock, gearLocked } from '../../gear-gate.js?v=0.2.46';
-import { whyLine } from '../../widgets/why-line.js?v=0.2.46';
+import { BAG_CATS, BAG_SORTS, isNew, bagValue, lootToSell } from '../../bag-model.js?v=0.2.47';
+import { skillsOf } from '../../../session/item-sections.js?v=0.2.47';
+import { barIndexOf, barKeyLabel } from '../../bar-assign.js?v=0.2.47';
+import { rows, text, cls, attr, prop, element } from '../../../render/paint.js?v=0.2.47';
+import { whole, gold } from '../../../render/format.js?v=0.2.47';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.47';
+import { glyphSvg } from '../../launcher.js?v=0.2.47';
+import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.47';
+import { primaryOf, junkOf, confirmWords, huntLoot } from './state.js?v=0.2.47';
+import { pocketHtml, patchCount } from './pockets.js?v=0.2.47';
+import { elsewhereHtml, patchElsewhere } from './elsewhere.js?v=0.2.47';
+import { buryParts, buryBlock, buryRecipeOf } from './bury.js?v=0.2.47';
+import { shownQty, aheadQty, paintLine } from '../../town-ticker.js?v=0.2.47';
+import { upgradeLineHtml, patchUpgradeLine } from '../../widgets/upgrade-line.js?v=0.2.47';
+import { wearBlock, gearLocked } from '../../gear-gate.js?v=0.2.47';
+import { whyLine } from '../../widgets/why-line.js?v=0.2.47';
 
 const RULES = Object.freeze([['keep', 'Keep'], ['sell', 'Sell at the shop'], ['ignore', 'Leave it']]);
 export const KEYS = '/ search · arrows move · Enter use · Space select · Delete sell · L lock · Ctrl+A select all';

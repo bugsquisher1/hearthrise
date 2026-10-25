@@ -4395,3 +4395,9 @@ guard tests/hunt-scene.mjs (SC-1..8, 13/13 mutants).
 4. *Measure a title row before adding a control to it.* The fold wrapped "Hunt analyzer" to two lines at 290 px beside This hero / Party (16 -> 32 px); the switch moved under the clocks (the phone already seats it there).
 5. *Headless Playwright hides scrollbars* (--hide-scrollbars): a scrollbar shot needs ignoreDefaultArgs, or before and after are the same picture.
 6. *Mutation anchors from four suites pin shell.js lines verbatim* (tally-window, hunt-screen, window-camera, chat-social): add beside them, never reword them. A new client module is a play.html preload line (module-preload --write).
+
+## 2026-10-25 lane/a-v0246-followups — learnings
+1. *`account.viewed` is null while the FIRST character loads* (AccountSession._open sets it after load): an "on screen" test during the opening scan treats null as "this one", the account's own rule.
+2. *A catalogue `dflt` null means "the engine decides at spawn"*: in town the view reads null. Read the server SQL before blaming a client lock.
+3. *hunt-screen's stopAtFirst makes a mutant cost as deep as its rule sits*: put a new rule FIRST when the shard plan is full (HS-27 ~25 s vs ~190 s beside HS-8).
+4. *Python text mode on Windows writes CRLF*: rewrite repo files with newline=''.

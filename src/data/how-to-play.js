@@ -21,9 +21,9 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { ITEMS } from './items.js?v=0.2.46';
-import { HUNT_ROLES, roleForWeapon, roleKeyOf } from './hunt-roles.js?v=0.2.46';
-import { STARTER_SETS } from './start-kit.js?v=0.2.46';
+import { ITEMS } from './items.js?v=0.2.47';
+import { HUNT_ROLES, roleForWeapon, roleKeyOf } from './hunt-roles.js?v=0.2.47';
+import { STARTER_SETS } from './start-kit.js?v=0.2.47';
 
 const style = (id, role, weapons, name, does, uses) => Object.freeze({ id, role, weapons: Object.freeze(weapons), name, does, uses });
 
@@ -67,7 +67,7 @@ export const HELP_NOTES = Object.freeze([
   note('armour', 'Armor and Defense',
     'Defense rises only while your hero wears armor and takes blows. Monsters drop helmets, bodies, legs and boots; gloves and belts are armor too, and the Shop sells them. Heavy pieces add health, light pieces add mana. Any hero can wear any piece once its Level is high enough.'),
   note('farm', 'Your farm',
-    'Open the Farm (J) and plant a seed in an empty plot; your bag starts with turnip seeds. A crop grows while you hunt or play away, and watering makes it grow twice as fast for 2 hours. Harvest puts the same crop back in, from your own seeds or one bought at the Shop\'s price.'),
+    'Open the Farm (J) and plant a seed in an empty plot; your bag starts with turnip seeds. A crop grows while you hunt or play away, and watering makes it grow twice as fast for 2 hours. Harvest and replant puts the same crop back in, from your own seeds or one bought at the Shop\'s price; Harvest only leaves the plot empty.'),
   note('levels', 'Level and skills',
     'Every kill pays Level XP, and each Level raises your health and mana. Your Level decides which gear you can wear; arrows, whetstones and runes ask for their skill instead. Melee, Ranged, Magic and Defense rise by doing them: fighting with that weapon, or taking blows in armor. Level has no cap.'),
   note('town', 'Work in town',

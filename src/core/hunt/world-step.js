@@ -24,19 +24,19 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { HUNT_TUNING } from '../../data/hunt-tuning.js?v=0.2.46';
-import { recordTrail, followTrail, moveAll, occupancy } from './movement.js?v=0.2.46';
-import { makeUnit } from './world-state.js?v=0.2.46';
-import { holderOutside, resetPack } from './leash.js?v=0.2.46';
-import { chooseTargets } from './targeting.js?v=0.2.46';
-import { positionHeroes } from './roles.js?v=0.2.46';
-import { respawnPacks, runPhase, clearCorpses } from './pull-cycle.js?v=0.2.46';
-import { resolveAttacks } from './damage.js?v=0.2.46';
-import { castAbilities } from './abilities.js?v=0.2.46';
-import { tickStatuses } from './status.js?v=0.2.46';
-import { consume } from './consumables.js?v=0.2.46';
-import { flushXpGroup } from './xp-share.js?v=0.2.46';
-import { checkStopRules } from './conditions.js?v=0.2.46';
+import { HUNT_TUNING } from '../../data/hunt-tuning.js?v=0.2.47';
+import { recordTrail, followTrail, moveAll, occupancy } from './movement.js?v=0.2.47';
+import { makeUnit } from './world-state.js?v=0.2.47';
+import { holderOutside, resetPack } from './leash.js?v=0.2.47';
+import { chooseTargets } from './targeting.js?v=0.2.47';
+import { positionHeroes } from './roles.js?v=0.2.47';
+import { respawnPacks, runPhase, clearCorpses } from './pull-cycle.js?v=0.2.47';
+import { resolveAttacks } from './damage.js?v=0.2.47';
+import { castAbilities } from './abilities.js?v=0.2.47';
+import { tickStatuses } from './status.js?v=0.2.47';
+import { consume } from './consumables.js?v=0.2.47';
+import { flushXpGroup } from './xp-share.js?v=0.2.47';
+import { checkStopRules } from './conditions.js?v=0.2.47';
 
 /** How many sub-steps one swing of `swingMs` is; refuses a swing that is not a whole number of them. */
 export function substepsOf(swingMs) {

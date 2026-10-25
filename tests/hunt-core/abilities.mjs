@@ -346,7 +346,7 @@ const cases = {
      names the store rune keeps it. The engine refuses a rune attack slot too (conditions.js slotProblem). */
   'client-prices-no-rune-a-shot': (M) => {
     const store = M.SB.BASIC_SUPPLIES.map((b) => ({ id: b.id, kind: b.kind, partner: b.partner, amount: 0, price: b.price }));
-    const run = SHELL.table.tableOf('items', { store, bag: [] }).runs.find((r) => r.kind === 'ammo');
+    const run = SHELL.table.tableOf('ammo', { store, bag: [] }).runs.find((r) => r.kind === 'ammo');
     const row = (id) => (run && run.rows.find((r) => r.action.id === id)) || null;
     const runes = run ? run.rows.filter((r) => M.runes.isRune(M.ITEMS[r.action.id])).map((r) => r.action.id) : [];
     if (runes.length) return 'the Ammo run offers runes as basic ammo: ' + runes;

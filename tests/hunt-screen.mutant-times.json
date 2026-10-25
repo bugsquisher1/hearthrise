@@ -1,5 +1,5 @@
 {
- "measured": "GitHub ubuntu-latest, run 40043808165 (release/v0.2.38, 2026-10-24, every mutant run: the diff touched tests/_client-harness.mjs): seconds from one mutant's caught line to the next, the first from the clean control (205 s a shard, excluded). Re-measure with the same method when a shard nears its budget; a mutant missing here is booked at the slowest measured one.",
+ "measured": "GitHub ubuntu-latest, run 40043808165 (release/v0.2.38, 2026-10-24, every mutant run: the diff touched tests/_client-harness.mjs): seconds from one mutant's caught line to the next, the first from the clean control (205 s a shard, excluded). Re-measure with the same method when a shard nears its budget; a mutant missing here is booked at the slowest measured one. Four entries ESTIMATED 2026-10-25 (lane/a-v0246-followups, not yet measured on GitHub) from the neighbouring rules: HS-27 runs first in checks (~25 s, one page boot), its Configure check catches the ammo mutant there too (~30 s).",
  "seconds": {
   "a setting shows before the server confirms": 4,
   "the hub counts the bag mid-hunt, not the hunt bag (HS-18, Brannoc 10-22)": 2,
@@ -88,6 +88,10 @@
   "the phone alerts dock on the left, over the Party panel (HS-22)": 201,
   "a widget that grows after it is placed is never placed again (HS-22)": 202,
   "the picker card never shows the personal best (HS-24)": 187,
-  "a free summary shows raw XP per hour (HS-25)": 192
+  "a free summary shows raw XP per hour (HS-25)": 192,
+  "ammo mixed back into Food & drink (HS-27, HS-7)": 30,
+  "the fight panel locks in town again (HS-27)": 25,
+  "the town pick ignores the role (HS-27)": 25,
+  "the gold to keep locks while unset (HS-27)": 25
  }
 }

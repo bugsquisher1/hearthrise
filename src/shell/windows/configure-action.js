@@ -3,12 +3,12 @@
 //
 // Tyler 2026-10-18 (the flow) and 2026-10-21 (a slot names ONE item; the game never
 // picks one), built to the art direction spec of 2026-10-21 (Charcoal & Gold):
-//   top       "Slot 3 · tried after slot 2", the Spells | Runes | Items tabs, Earlier / Later
+//   top       "Slot 3 · tried after slot 2", the Spells | Runes | Food & drink | Ammo tabs, Earlier / Later
 //   sentence  the slot read as one editable sentence: "Eat [Salted Trout] when [my HP]
 //             [is at or below] [−45+]%", then "and …" for each further condition (all
 //             must match), "+ Add a condition", and the heal warning under it (the
 //             hunt's hardest blow, pull-cycle.js biggestBlowOn, against the server's max HP)
-//   table     the tab's items in runs (Food, Drink, Ammo), each row its numbers from the
+//   table     the tab's items in runs (Food and Drink; Ammo on its own tab), each row its numbers from the
 //             SERVER's rows (hunt_settings.store), sorted cheapest per point
 //             (action-table.js tableOf); the picked row gold and pinned at the top
 //   detail    the hovered or focused row against the pick (signed differences, the
@@ -20,19 +20,19 @@
 // (bar-draft.js), every control stays off until the server has answered, and a refusal
 // keeps the draft and outlines its condition. On a phone (922×423) it is a full sheet.
 // ════════════════════════════════════════════════════════════════════════
-import { METRICS, OPERATORS, MAX_CONDITIONS } from '../../data/condition-metrics.js?v=0.2.46';
-import { STATUSES } from '../../data/statuses.js?v=0.2.46';
-import { settingsOf, huntOf, partyOf } from '../../session/hunt-sections.js?v=0.2.46';
-import { vitalsOf } from '../../session/party-sections.js?v=0.2.46';
-import { biggestBlowOn } from '../../core/hunt/pull-cycle.js?v=0.2.46';
-import { carriedOf } from '../../session/item-sections.js?v=0.2.46';
-import { rows, text, attr, prop, cls, element } from '../../render/paint.js?v=0.2.46';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.46';
-import { actionIconHtml } from '../widgets/bits.js?v=0.2.46';
-import { SLOTS, draftOf, openSlot, closeSlot, conditionFor, blankCondition, saveOpen, emptyOpen, moveSlot, startConditions, storeChoices, storeChoiceWords, storeDefault } from '../bar-draft.js?v=0.2.46';
-import { TABS, tabOf, factsOf, carried, healWarning, weaponWarning } from '../action-facts.js?v=0.2.46';
-import { glyphSvg } from '../launcher.js?v=0.2.46';
-import { tableOf, rowIn, cellsOf, sentenceOf, compareLines, wasteLine, sourceLine, effectLine } from '../action-table.js?v=0.2.46';
+import { METRICS, OPERATORS, MAX_CONDITIONS } from '../../data/condition-metrics.js?v=0.2.47';
+import { STATUSES } from '../../data/statuses.js?v=0.2.47';
+import { settingsOf, huntOf, partyOf } from '../../session/hunt-sections.js?v=0.2.47';
+import { vitalsOf } from '../../session/party-sections.js?v=0.2.47';
+import { biggestBlowOn } from '../../core/hunt/pull-cycle.js?v=0.2.47';
+import { carriedOf } from '../../session/item-sections.js?v=0.2.47';
+import { rows, text, attr, prop, cls, element } from '../../render/paint.js?v=0.2.47';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.47';
+import { actionIconHtml } from '../widgets/bits.js?v=0.2.47';
+import { SLOTS, draftOf, openSlot, closeSlot, conditionFor, blankCondition, saveOpen, emptyOpen, moveSlot, startConditions, storeChoices, storeChoiceWords, storeDefault } from '../bar-draft.js?v=0.2.47';
+import { TABS, tabOf, factsOf, carried, healWarning, weaponWarning } from '../action-facts.js?v=0.2.47';
+import { glyphSvg } from '../launcher.js?v=0.2.47';
+import { tableOf, rowIn, cellsOf, sentenceOf, compareLines, wasteLine, sourceLine, effectLine } from '../action-table.js?v=0.2.47';
 
 const METRIC = new Map(METRICS.map((m) => [m.id, m]));
 const options = (pairs) => pairs.map(([v, l]) => '<option value="' + esc(v) + '">' + esc(l) + '</option>').join('');

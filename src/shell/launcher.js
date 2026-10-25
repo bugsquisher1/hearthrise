@@ -279,7 +279,7 @@ export function ringPlan(card, at) {
       const save = inWin('configure-action', '[data-x="save"]:not([disabled])');
       if (at.edited && !(Number.isFinite(card.goal) && Number.isFinite(at.cond0) && at.cond0 > card.goal)) return [save];
       const hooks = card.hooks || [];
-      return hooks.length ? hooks.concat(save) : card.gotIt ? [] : [save];
+      return hooks.length ? hooks.concat(save) : card.gotIt || readOnSight(card) ? [] : [save];
     }
     case 'farm':
       return [inWin('farm', '.hw-seeds .hw-line[data-crop="' + g.crop + '"] [data-hs-act="sow"]:not([disabled])'),

@@ -938,6 +938,11 @@ const cases = {
     if (goalCard.goal !== 50 || !goalCard.text.includes('until it reads 50%')) return 'Eat on time at 200 HP aims at ' + goalCard.goal + ': ' + goalCard.text;
     if (!first(goalCard, at('configure-action', { configuring: 2, edited: true, cond0: 55 })).includes('[data-x="dec"]')) return 'at 55% of a 50% goal the ring left the −';
     if (!first(goalCard, at('configure-action', { configuring: 2, edited: true, cond0: 50 })).includes('[data-x="save"]')) return 'at the goal 50% Save is not ringed';
+    /* a card the player only reads ("Your hero just ate", ringing its slot) rings nothing inside Configure action: no Save
+       for a slot nobody was asked to change (played 2026-10-25: Save was ringed over the untouched slot) */
+    const ate = M.tut.cardFor(card('first_eat'), { ...bar, supplies: [{ item: 'cooked_shrimp', source: 'own', count: 1 }], carried: { cooked_shrimp: 19 } });
+    if (!ate || first(ate, at(null)) !== '[data-hs-widget="action-bar"] .hb-slot[data-slot="2"]') return 'Your hero just ate rings ' + (ate && first(ate, at(null)));
+    if (ringPlan(ate, at('configure-action', { configuring: 2 })).length) return 'Your hero just ate rings ' + JSON.stringify(ringPlan(ate, at('configure-action', { configuring: 2 }))) + ' inside Configure action';
     if (!first(barCard, at('configure-action', { configuring: 0 })).includes('.hb-slot[data-slot="2"]')) return 'Configure action open on another slot: the food slot lost its ring';
     if (ringPlan(M.tut.cardFor(card('food_when'), { slots: [] }), at(null)).length) return 'no food on the bar, yet a slot is ringed';
     /* the icon row: a fresh hero's Hunts icon carries the ring (once, last attribute); with Hunts open, no icon does */

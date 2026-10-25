@@ -7,7 +7,15 @@
 //   party-scale            550 / 700 / 850 / 1000 permille, and the solo Healer floor
 //   sewer-full-party-loop  a four-hero party plays the real core (stepSwing) on the real map:
 //                          every pocket is pulled in route order, the Rat King dies, nobody wipes
-//   tutorial-walk-through  each step is doable from the start kit plus the steps before it
+//   tutorial-walk-through  each step is doable from the start kit plus the steps before it; one hero walks the whole
+//                          chain in order (the 2026-10-25 curriculum); no solo wall; no town section is a wall
+//   tutorial-bar-chain     every starting weapon on its real default bar: Your action bar, Spells need runes, Eat on
+//                          time (Configure action's own waste), Order matters; "Tell your hero when" regression
+//   tutorial-town-chain    sell or keep, Blessings (the server's numbers), Tamsin's weight per role, paid, setups
+//   tutorial-reactive      ate, drank, a beating, more heroes, hunt together, upgrades, storage, stamina, a death,
+//                          paid Blessings, juice, a house, own runes: each on its own fact and worded from it
+//   tutorial-second-hero   a second hero skips the knowledge cards and keeps the ones that set its own state
+//   tutorial-no-wall       no Got it recorder or shell facts: never a wall; no card names an empty slot
 //   tutorial-never-backward  town -> Thicket -> town -> Sewer -> town -> Cellar, reloading between:
 //                          the pointer never moves back (#58, Andy 10-22)
 //   coach-gear-by-level    "What next" names the next gear at the next Level, only pieces a player can get
@@ -486,6 +494,10 @@ const cases = {
       if (lost > 0 ? !line.includes(lost + ' of its ' + heal) : line !== '') return set + ': the coach\'s waste (' + lost + ') is not Configure action\'s: "' + line + '"';
       if (!eat || eat.id !== 'food_when' || eat.barSlot !== food || !eat.text.startsWith('Slot ' + (food + 1) + ' eats your own Cooked Shrimp when your HP is below 60%. A Cooked Shrimp heals ' + heal)
         || !eat.text.includes(fixed.hpMax + ' HP') || (lost > 0 && !eat.text.includes(lost + ' of it is wasted'))) return set + ': the eat card reads ' + JSON.stringify(eat && eat.text);
+      /* where it says to stop: Configure action's 5% steps down from 60 until nothing is wasted, never under 50% */
+      let stop = 60;
+      while (stop - 5 >= 50 && M.tut.wasteAt(heal, stop, fixed.hpMax) > 0) stop -= 5;
+      if (lost > 0 && !eat.text.includes('press − until it reads ' + stop + '%')) return set + ': the eat card does not stop at ' + stop + '%: ' + eat.text;
       /* REGRESSION ("Tell your hero when" never showed, PRIORITY_BOARD 2026-10-25 #2): any Save restates the whole bar, so the
          kit's own 60% food slot comes back STORED; that is not the player choosing when to eat. */
       const kitStored = { ...fixed, stored: T.slots.map((s) => ({ type: s.type, id: s.id, conditions: s.conditions })) };
@@ -500,6 +512,13 @@ const cases = {
       const both = (s) => (s && s.id === 'salted_shrimp' ? { ...s, conditions: [{ metric: 'self_hp_pct', op: 'lt', value: 45 }] } : at(45)(s));
       const fixedOrder = { ...set45, slots: fixed.slots.map(both), stored: kitStored.stored.map(both) };
       if ((say(fixedOrder) || {}).id !== 'earn_the_thicket') return set + ': with the bar set the card is ' + (say(fixedOrder) || {}).id;
+      /* the store slot moved BEFORE the own food at the same HP: the first slot whose conditions pass fires, so it eats
+         first; the card asks to move it after the own slot (lowering it to the same HP would not do) */
+      const swapped = fixedOrder.slots.slice();
+      [swapped[food], swapped[shop]] = [swapped[shop], swapped[food]];
+      const early = say({ ...fixedOrder, slots: swapped });
+      if (!early || early.id !== 'food_order' || early.barSlot !== food || !early.text.includes('and it comes first, so it eats before your own Cooked Shrimp. Press slot '
+        + (food + 1) + ', press Later until it sits after slot ' + (shop + 1) + ', then Save.')) return set + ': a store slot ahead of the own food reads ' + JSON.stringify(early && early.text);
       /* the own food gone (struck "none left"): the store eating first is the fallback working, not a wrong order */
       if ((say({ ...set45, slots: set45.slots.map((s) => (s && s.id === 'cooked_shrimp' ? { ...s, count: 0 } : s)) }) || {}).id === 'food_order') return set + ': with no own food left the order card still asks';
       /* no food slot on the bar at all (the player emptied it): no card names one (#2: "Press the Cooked Shrimp slot") */
@@ -532,7 +551,7 @@ const cases = {
     const bless = said('bless');
     if (!bless || !bless.text.includes('costs ' + Math.round(M.sessions.DEATH_XP_LOSS * 100) + '% of your Level XP, never a Level')
       || !bless.text.includes('up to ' + M.blessings.BLESSING_TIERS[M.blessings.BLESSING_TIERS.length - 1].xpLossReductionPermille / 10 + '%')
-      || !bless.text.includes('free until Level ' + M.blessings.BLESSING_RULES.freeUntilLevel) || !bless.text.includes('Bless all 3')) return 'the Blessing card reads ' + JSON.stringify(bless && bless.text);
+      || !bless.text.includes('free until Level ' + M.blessings.BLESSING_RULES.freeUntilLevel) || !bless.text.includes('Bless all three')) return 'the Blessing card reads ' + JSON.stringify(bless && bless.text);
     const tam = said('tamsins_task');
     if (!tam || !tam.text.includes('Heavy suits a shield tank') || !tam.text.includes('Take 200 Gray Wolves')) return 'Tamsin\'s card reads ' + JSON.stringify(tam && tam.text);
     for (const role of ['tank', 'melee_dps', 'ranger', 'mage', 'healer']) {
@@ -585,7 +604,7 @@ const cases = {
     const town = steps.find((s) => s.id === 'save_setup').facts;
     const two = { roster: [{ slot: 0, level: 9, name: 'Corliss', open: true, hunting: false }, { slot: 2, level: 1, name: 'Bree', open: true, hunting: false }], slotsOwned: 2, playLimit: 4 };
     const pair = say(R({ ...town, ...two }));
-    if (!pair || pair.id !== 'party_own' || !pair.text.includes('Right-click Bree\'s tab') || !pair.hooks.includes('.char-tab[data-slot="2"]')) return 'the party card reads ' + JSON.stringify(pair && { text: pair.text, hooks: pair.hooks });
+    if (!pair || pair.id !== 'party_own' || !pair.text.includes('Bree\'s tab and choose Invite to party') || !pair.hooks.includes('.char-tab[data-slot="2"]')) return 'the party card reads ' + JSON.stringify(pair && { text: pair.text, hooks: pair.hooks });
     if ((say(R({ ...town, ...two, partied: true })) || {}).id === 'party_own') return 'a hero who has hunted in a party is asked to make one';
     const up = say(R({ ...town, upgrades: ['bronze_platebody'] }));
     if (!up || up.id !== 'equip_upgrades' || !up.text.startsWith('You found Bronze Platebody.')) return 'the upgrade card reads ' + JSON.stringify(up && up.text);
@@ -606,12 +625,12 @@ const cases = {
     if (d1.id !== 'first_death' || !d1.text.includes('Corliss came home') || !d1.text.includes('Dying cost 10 Level XP; your Blessings saved 190 more and are used up now.')
       || !d1.text.includes('free until Level ' + M.blessings.BLESSING_RULES.freeUntilLevel)) return 'the death card reads ' + JSON.stringify(d1.text);
     const d0 = died(deathEnv(9, null, false));
-    if (d0.id !== 'first_death' || !d0.text.includes('Blessings would have saved most of it') || !d0.text.includes('Bless all 3')) return 'the death card with no Blessing reads ' + JSON.stringify(d0.text);
+    if (d0.id !== 'first_death' || !d0.text.includes('Blessings would have saved most of it') || !d0.text.includes('Bless all three')) return 'the death card with no Blessing reads ' + JSON.stringify(d0.text);
     if (died(deathEnv(9, null, true)).id === 'first_death') return 'blessed again, the death card is still up';
     /* Level 31, past the guide: the paid Blessings card, the server's prices */
     const paid = died(deathEnv(31, null, false), { read: [] });
     const total = M.blessings.BLESSING_TIERS.reduce((n, t) => n + M.blessings.blessingPrice(t.tier, 31), 0);
-    if (paid.id !== 'bless_paid' || !paid.text.includes(total + ' gp for all 3 at Level 31') || !paid.text.includes('up to 95%')) return 'at Level 31 the Blessing card reads ' + JSON.stringify(paid.text) + ' (' + paid.id + ')';
+    if (paid.id !== 'bless_paid' || !paid.text.includes(total + ' gp for all three at Level 31') || !paid.text.includes('up to 95%')) return 'at Level 31 the Blessing card reads ' + JSON.stringify(paid.text) + ' (' + paid.id + ')';
     /* the day-one cards wait for the chain: Level 9, a task held, in town: Tamsin's card, not the house */
     const homeNext = { owned: false, next: { name: 'Hearthside Homestead', gold: 400, items: [{ id: 'normal_log', qty: 30 }, { id: 'copper_ore', qty: 20 }] } };
     const L9 = (f) => ({ ...f, levelXp: M.xp.charXpForLevel(9), charLevel: 9 });
@@ -1088,6 +1107,8 @@ const mutants = [
     edits: [['src/data/hunt-tutorial.js', "hpBelow(O) === null || O.count === 0) continue;", 'hpBelow(O) === null) continue;']] },
   { name: 'the coach\'s waste is not Configure action\'s sum', case: 'tutorial-bar-chain',
     edits: [['src/data/hunt-tutorial.js', 'export const wasteAt = (amount, pct, max) => amount - Math.round((max * (100 - pct)) / 100);', 'export const wasteAt = (amount, pct, max) => amount - Math.round((max * pct) / 100);']] },
+  { name: 'the eat card sends a low hero under the designer\'s 50% to waste nothing', case: 'tutorial-bar-chain',
+    edits: [['src/data/hunt-tutorial.js', 'const PCT_STEP = 5, EAT_FLOOR_PCT = 50;', 'const PCT_STEP = 5, EAT_FLOOR_PCT = 0;']] },
   { name: 'every slot the coach names is "slot 1"', case: 'tutorial-bar-chain',
     edits: [['src/data/hunt-tutorial.js', '  const n = ix.map((i) => i + 1);', '  const n = ix.map(() => 1);']] },
   { name: 'a card that cannot be stated truly is shown anyway', case: 'tutorial-bar-chain',

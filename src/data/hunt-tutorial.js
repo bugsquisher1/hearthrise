@@ -136,6 +136,9 @@ const BEATING_EATS = 3;
 const BAG_NEAR_FULL = 0.8;
 /* The Level the house and own-rune cards wait for (the designer's day-one plan: past the Thicket's first half hour). */
 const DAY_ONE_LEVEL = 8;
+/* Eat on time: Configure action's − and + move an HP condition in 5% steps (configure-action.js nudge), and the card
+   never asks a hero to eat below the designer's 50%. */
+const PCT_STEP = 5, EAT_FLOOR_PCT = 50;
 const IN_TOWN = { kind: 'in_town' }, HUNTING = { kind: 'hunting' };
 const READ = { kind: 'read' };
 
@@ -178,7 +181,7 @@ export const HUNT_TUTORIAL = Object.freeze([
     { reactive: true, knowledge: true, when: [{ kind: 'hunt_age', min: MORE_HEROES_MS, past: CELLAR }, { kind: 'one_hero' }],
       hooks: ['.char-tool[data-app="characters"]', '.char-pick[data-app="create"]'] }),
   step('party_own', 'Hunt together',
-    'Your heroes can share a hunt. Right-click another hero\'s tab and choose Invite to party; your own heroes join at once.',
+    'Your heroes can share a hunt. Right-click (long-press on a phone) another hero\'s tab and choose Invite to party; your own heroes join at once.',
     'strip', { kind: 'partied' }, { reactive: true, when: [IN_TOWN, { kind: 'own_hero_in_town' }], hooks: ['.char-tab[data-slot="{other}"]'] }),
   step('equip_upgrades', 'Wear what you found',
     'You found gear that beats what you wear. Gear goes on in town: open your bag and press Equip upgrades.',
@@ -537,6 +540,8 @@ const name = (id) => (ITEMS[id] && ITEMS[id].n) || (BASIC_INDEX[id] && BASIC_IND
 const lc = (w) => w.charAt(0).toLowerCase() + w.slice(1);
 const uc = (w) => w.charAt(0).toUpperCase() + w.slice(1);
 const anA = (w) => (/^[aeiou]/i.test(w) ? 'an ' : 'a ') + w;
+/* a small count in words ("Bless all three"), else its digits */
+const inWords = (n) => ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'][n] || String(n);
 const listed = (words) => (words.length < 2 ? words.join('') : words.slice(0, -1).join(', ') + ' and ' + words[words.length - 1]);
 /** "slot 4", "slots 4 and 5", "slots 1 to 3", "slots 1, 3 and 5" for 0-based slot indices. */
 export function slotWords(ix) {
@@ -590,19 +595,31 @@ const SAY = Object.freeze({
       + slotWords([i]) + ', set the HP with − or +, then Save.', barSlot: i };
     const lost = wasteAt(heal, pct, max);
     const missing = Math.round((max * (100 - pct)) / 100);
-    return { text: head + uc(anA(food)) + ' heals ' + heal + ', and at ' + pct + '% of your ' + max + ' HP you\'re missing ' + missing
-      + (lost > 0 ? ', so ' + lost + ' of it is wasted. Press ' + slotWords([i]) + ', press − until nothing is wasted, then Save.'
-        : ', so none of it is wasted. Eat lower to save food or higher to play safe: press ' + slotWords([i]) + ', set it with − or +, then Save.'), barSlot: i };
+    if (lost <= 0) return { text: head + uc(anA(food)) + ' heals ' + heal + ', and at ' + pct + '% of your ' + max + ' HP you\'re missing ' + missing
+      + ', so none of it is wasted. Eat lower to save food or higher to play safe: press ' + slotWords([i]) + ', set it with − or +, then Save.', barSlot: i };
+    /* where to stop: the first step down (Configure action's 5%) that wastes nothing, but never under EAT_FLOOR_PCT (a low
+       hero's few HP; the designer's 50%), where a little waste is the price of eating before a big hit */
+    let to = pct;
+    while (to - PCT_STEP >= EAT_FLOOR_PCT && wasteAt(heal, to, max) > 0) to -= PCT_STEP;
+    const left = wasteAt(heal, to, max);
+    const how = to === pct ? 'set it with − or +' : 'press − until it reads ' + to + '% (' + (left > 0 ? 'only ' + left + ' is wasted there, and you still eat before a big hit'
+      : 'nothing is wasted there') + ')';
+    return { text: head + uc(anA(food)) + ' heals ' + heal + ', and at ' + pct + '% of your ' + max + ' HP you\'re missing ' + missing + ', so ' + lost
+      + ' of it is wasted. Press ' + slotWords([i]) + ', ' + how + ', then Save.', barSlot: i };
   },
   food_order: (f) => {
     const p = storeFirst(f);
     if (!p) return null;
     const S = f.slots[p.store], O = f.slots[p.own], gp = priceOf(f, S.id);
     if (gp === null) return null;
-    const why = hpBelow(S) > hpBelow(O) ? 'so between ' + hpBelow(O) + '% and ' + hpBelow(S) + '% it eats before your own ' + name(O.id)
+    const higher = hpBelow(S) > hpBelow(O), first = p.store < p.own;
+    const why = higher ? 'so between ' + hpBelow(O) + '% and ' + hpBelow(S) + '% it eats before your own ' + name(O.id)
       : 'and it comes first, so it eats before your own ' + name(O.id);
+    /* a later slot at a higher HP: lower it to the own slot's; an EARLIER slot: it must also move after the own slot
+       (at the same HP the first slot whose conditions pass fires) */
+    const fix = [higher ? 'make it ' + hpBelow(O) + '% or lower' : null, first ? 'press Later until it sits after ' + slotWords([p.own]) : null].filter(Boolean);
     return { text: uc(slotWords([p.store])) + ' still buys ' + name(S.id) + ' (' + gp + ' gp) below ' + hpBelow(S) + '%, ' + why + '. Press '
-      + slotWords([p.store]) + ', make it ' + hpBelow(O) + '% or lower' + (p.store < p.own ? ' or move it later' : '') + ', then Save.', barSlot: p.store };
+      + slotWords([p.store]) + ', ' + fix.join(' and ') + ', then Save.', barSlot: p.store };
   },
   leave_cellar: (f) => ({ text: 'You\'re Level ' + f.charLevel + '. Leave the hunt to go back to town. Your loot is already in your bag.' }),
   styles: () => {
@@ -617,7 +634,7 @@ const SAY = Object.freeze({
     if (!b || !Number.isInteger(b.freeUntil) || !(b.best > 0)) return null;
     return { text: 'Out past the Cellar you can die. Dying ends the hunt, sends you home and costs ' + Math.round(DEATH_XP_LOSS * 100)
       + '% of your Level XP, never a Level. Blessings protect up to ' + Math.round(b.best / 10) + '% of that, and they\'re free until Level ' + b.freeUntil
-      + ': open Services and Bless all ' + b.of + '.' };
+      + ': open Services and Bless all ' + inWords(b.of) + '.' };
   },
   tamsins_task: (f) => {
     const w = WEIGHT_FOR_ROLE[f.role];
@@ -632,7 +649,7 @@ const SAY = Object.freeze({
     const kept = d.saved && Number.isInteger(d.saved.level) && d.saved.level > 0
       ? '; your Blessings saved ' + d.saved.level + ' more and are used up now' : '. Blessings would have saved most of it';
     return { text: 'The hunt ended and ' + who + ' came home. You kept your loot and your Level. Dying cost ' + d.xp + ' Level XP' + kept
-      + '. They\'re free until Level ' + b.freeUntil + ': open Services and Bless ' + (d.saved ? 'again' : 'all ' + b.of) + ' before you go back.' };
+      + '. They\'re free until Level ' + b.freeUntil + ': open Services and Bless ' + (d.saved ? 'again' : 'all ' + inWords(b.of)) + ' before you go back.' };
   },
   first_eat: (f) => {
     const ate = used(f, 'food', 'own');
@@ -667,7 +684,7 @@ const SAY = Object.freeze({
   party_own: (f) => {
     const o = (heroesOn(f) || []).find((x) => x.slot !== f.self && x.open === true && x.hunting === false && x.name);
     if (!o) return null;
-    return { text: 'Your heroes can share a hunt. Right-click ' + o.name + '\'s tab and choose Invite to party; your own heroes join at once. A shield tank holds the pack and a staff heals.', other: o.slot };
+    return { text: 'Your heroes can share a hunt. Right-click (long-press on a phone) ' + o.name + '\'s tab and choose Invite to party; your own heroes join at once. A shield tank holds the pack and a staff heals.', other: o.slot };
   },
   equip_upgrades: (f) => {
     const ids = (f.upgrades || []).filter((id) => name(id));
@@ -723,7 +740,7 @@ const SAY = Object.freeze({
     const b = f.blessings;
     if (!b || !Array.isArray(b.prices) || !b.prices.length || !(b.best > 0)) return null;
     const total = b.prices.reduce((n, p) => n + p, 0);
-    const which = b.prices.length === b.of ? 'all ' + b.of : b.prices.length === 1 ? 'the one you don\'t hold' : 'the ' + b.prices.length + ' you don\'t hold';
+    const which = b.prices.length === b.of ? 'all ' + inWords(b.of) : 'the ' + inWords(b.prices.length) + ' you don\'t hold';
     return { text: 'From Level ' + b.freeUntil + ' each Blessing costs gold: ' + total + ' gp for ' + which + ' at Level ' + f.charLevel
       + '. They still cut what a death takes by up to ' + Math.round(b.best / 10) + '%.' };
   },

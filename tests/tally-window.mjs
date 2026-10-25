@@ -107,6 +107,17 @@ const box = (page, id) => page.evaluate((w) => { const e = document.querySelecto
   return { left: Math.round(r.left), top: Math.round(r.top), right: Math.round(r.right), bottom: Math.round(r.bottom), width: Math.round(r.width), height: Math.round(r.height),
     folded: e.classList.contains('is-folded'), moved: e.classList.contains('is-moved') }; }, id);
 const crosses = (a, b) => !!a && !!b && a.left < b.right - 1 && a.right > b.left + 1 && a.top < b.bottom - 1 && a.bottom > b.top + 1;
+/* a widget's box once layout has settled (two reads 100 ms apart agree, or 3 s): a drag aims from where it IS */
+async function steadyBox(page, id) {
+  let a = await box(page, id);
+  for (const end = Date.now() + 3000; Date.now() < end;) {
+    await page.waitForTimeout(100);
+    const b = await box(page, id);
+    if (a && b && a.left === b.left && a.top === b.top && a.width === b.width && a.height === b.height) return b;
+    a = b;
+  }
+  return a;
+}
 /* a press on `sel`'s middle dragged by (dx, dy) in small steps, as a hand moves a mouse */
 async function dragBy(page, sel, dx, dy) {
   const r = await page.evaluate((q) => { const e = document.querySelector(q); if (!e) return null; const b = e.getBoundingClientRect(); return { x: b.left + b.width / 2, y: b.top + b.height / 2 }; }, sel);
@@ -345,6 +356,7 @@ async function checks(overrides, shots) {
         if (!(st.an && !st.an.folded && st.an.height > 120)) fails.push('TW-10 the plus did not open the analyzer again: ' + JSON.stringify(st.an));
         /* MOVE: its title drags it to the bottom-left; the unmoved tally rises to its own top */
         const puts = s.calls.length;
+        st.an = await steadyBox(page, 'analyzer');
         await dragBy(page, '[data-hs-widget="analyzer"] .hh-panel-title', 260 - st.an.left - st.an.width / 2, 860 - st.an.bottom - 40);
         st = await settle(page, (x) => x.an && x.an.moved && x.tally && x.tally.top < 120);
         const dropped = st.an;
@@ -362,7 +374,7 @@ async function checks(overrides, shots) {
         await page.setViewportSize({ width: 1440, height: 900 });
         st = await settle(page, (x) => x.an && x.an.bottom > 700);
         /* The Tally drags by its title without opening her window, and sits where it was dropped */
-        const t0 = st.tally;
+        const t0 = await steadyBox(page, 'tally');
         await dragBy(page, '[data-hs-widget="tally"] .hs-tally-open', 1180 - t0.left, 150 - t0.top);
         st = await settle(page, (x) => x.tally && x.tally.moved);
         const tallyAt = st.tally;
@@ -383,6 +395,7 @@ async function checks(overrides, shots) {
         if (!(st.tally && tallyAt && st.tally.left === tallyAt.left && st.tally.top === tallyAt.top)) fails.push('TW-10 the moved tally was stacked under the analyzer: ' + JSON.stringify([tallyAt, st.tally]));
         /* moved again, under the Party panel on the left, it folds to its title like the analyzer */
         const party = await page.evaluate(() => { const e = document.querySelector('[data-hs-hud="world"] [data-hs-widget="party"]'); const r = e ? e.getBoundingClientRect() : { left: 21, bottom: 351 }; return { left: Math.round(r.left), bottom: Math.round(r.bottom) }; });
+        st.tally = await steadyBox(page, 'tally');
         await dragBy(page, '[data-hs-widget="tally"] .hs-tally-open', party.left - st.tally.left, party.bottom + 12 - st.tally.top);
         st = await settle(page, (x) => x.tally && x.tally.left === party.left);
         if (!(st.tally && st.tally.left === party.left && st.tally.top >= party.bottom)) fails.push('TW-10 the tally did not move under the Party panel: ' + JSON.stringify([party, st.tally]));
@@ -428,7 +441,7 @@ async function checks(overrides, shots) {
         if (!(await backIn(page, ready))) fails.push('TW-10 [' + tag + '] the phone hunt did not come back after a reload');
         st = await settle(page, (x) => x.an && x.an.folded);
         if (!(st.an && st.an.folded)) fails.push('TW-10 [' + tag + '] a phone reload opened the folded analyzer again');
-        const a0 = st.an;
+        const a0 = await steadyBox(page, 'analyzer');
         await dragBy(page, '[data-hs-widget="analyzer"] .hh-panel-title', -300, 120);
         await page.waitForTimeout(400);
         const a1 = await box(page, 'analyzer');

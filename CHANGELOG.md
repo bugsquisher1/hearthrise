@@ -5,6 +5,20 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.46 — 2026-10-25 (A better bar and a fuller tutorial)
+
+**A new action bar.** Spell and item icons are twice as big on wide screens, and your stance, setup, target, Chase and Distance sit on the right where you can see them without opening anything. Phones get their own bar that fits the screen. Tap the "+" by your stamina to see the refill price and buy one.
+
+**The tutorial goes further.** Twelve more guide cards cover your first meal and drink, fight settings, selling loot, Storage, blessings, more heroes and running your own party. A gold ring now points at the exact button each card talks about, and "Got it" puts a card away for good. Coming back to town after a hunt is tidier: the hunt panels close and the summary points you to what's next.
+
+**Services moved into the Shop.** The Shop now has three tabs: Buy, Sell and Services. R opens it on Services.
+
+**Move and fold the Hunt analyzer and Tally.** Drag them by their title bar and fold them with "−". They stay where you put them after a reload. Settings › Interface › HUD layout puts them back. Scrollbars now match the rest of the game.
+
+**Tanks find open ground.** A tank pulled against a wall or into a corner now steps to open ground, so all eight places around him can fill.
+
+**Switching heroes is smooth again.** Switching to a hero in a party no longer freezes, races ahead or jumps, and party fights on screen now match what the server records.
+
 ## v0.2.45 — 2026-10-24 (Clearer sign-up)
 
 **Sign-up says what went wrong.** If an account can't be made, the form now tells you why: the password needs at least 10 characters, it's shown up in a data leak, the email can't be used, or there have been too many tries. The 10-character rule is shown under the password box before you start.

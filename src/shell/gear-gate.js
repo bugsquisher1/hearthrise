@@ -11,11 +11,11 @@
 // A control these turn off says why beside it. When a number is not known yet the
 // press is allowed and the server's answer is shown: never a client-only guess.
 // ════════════════════════════════════════════════════════════════════════
-import { huntOf } from '../session/hunt-sections.js?v=0.2.45';
-import { skillsOf } from '../session/item-sections.js?v=0.2.45';
-import { levelOf } from '../session/character-sections.js?v=0.2.45';
-import { REFUSAL_VERB_WORDS } from '../data/refusal-words.js?v=0.2.45';
-import { needOf } from './item-lore.js?v=0.2.45';
+import { huntOf } from '../session/hunt-sections.js?v=0.2.46';
+import { skillsOf } from '../session/item-sections.js?v=0.2.46';
+import { levelOf } from '../session/character-sections.js?v=0.2.46';
+import { REFUSAL_VERB_WORDS } from '../data/refusal-words.js?v=0.2.46';
+import { needOf } from './item-lore.js?v=0.2.46';
 
 /** The words beside a gear control a running hunt turns off (one piece: the engine's own refusal line). */
 export const GEAR_HUNT_WORDS = Object.freeze({

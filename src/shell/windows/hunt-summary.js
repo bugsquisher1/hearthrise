@@ -17,17 +17,17 @@
 // when the session ends. Numbers come from the server's sections only.
 // Built once, patched in place (src/render/paint.js).
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.45';
-import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.45';
-import { whole, gold, clock } from '../../render/format.js?v=0.2.45';
-import { itemName, itemIconHtml } from '../widgets/bits.js?v=0.2.45';
-import { runIntent } from '../intent-words.js?v=0.2.45';
-import { endedSessionOf, sanitizeSummaries, huntAgainOf, endWords } from '../../hunt-view/summary-model.js?v=0.2.45';
-import { observeSessions } from '../../session/character-session.js?v=0.2.45';
-import { attach, summariesOf, liveDeaths } from '../../hunt-view/summary-recorder.js?v=0.2.45';
-import { nameOf } from '../../session/item-sections.js?v=0.2.45';
-import { heldCard } from '../launcher.js?v=0.2.45';
-import { coachWindow, coachTab } from '../../data/hunt-tutorial.js?v=0.2.45';
+import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.46';
+import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.46';
+import { whole, gold, clock } from '../../render/format.js?v=0.2.46';
+import { itemName, itemIconHtml } from '../widgets/bits.js?v=0.2.46';
+import { runIntent } from '../intent-words.js?v=0.2.46';
+import { endedSessionOf, sanitizeSummaries, huntAgainOf, endWords } from '../../hunt-view/summary-model.js?v=0.2.46';
+import { observeSessions } from '../../session/character-session.js?v=0.2.46';
+import { attach, summariesOf, liveDeaths } from '../../hunt-view/summary-recorder.js?v=0.2.46';
+import { nameOf } from '../../session/item-sections.js?v=0.2.46';
+import { heldCard } from '../launcher.js?v=0.2.46';
+import { coachWindow, coachTab } from '../../data/hunt-tutorial.js?v=0.2.46';
 
 /* The tutorial card up now (a card of the guide, never the "What next" line), or null. */
 const nextStepOf = (ctx) => { const c = ctx.character ? heldCard(ctx) : null; return c && c.done ? c : null; };

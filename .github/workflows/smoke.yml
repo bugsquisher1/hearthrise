@@ -2762,9 +2762,13 @@ jobs:
   # + lane S2 (2026-10-18, measured locally template-warm): gen-alpha-catalogue
   # --check/--selftest ~2 s, alpha-server 14 s plain + 35 s mutate (~60 s each
   # cold) = ~1290 s (21.5 min). Budget = x2 = 43.
+  # + market-edge (2026-10-25, lane c-market-edge, measured locally on a busy box): ~2 min
+  # plain + ~5 min --selftest (14 arms, prefix-cached replays) = ~1710 s (28.5 min) local;
+  # GitHub has run this job's replays 1.5-3.6x faster than local. Budget 43 -> 50; re-measure
+  # from the first GitHub run and tighten.
   db-replay-7:
     runs-on: ubuntu-latest
-    timeout-minutes: 43
+    timeout-minutes: 50
 
     steps:
       - uses: actions/checkout@v4
@@ -2881,6 +2885,21 @@ jobs:
         run: |
           node tests/play-cap.mjs
           node tools/mutant-gate.mjs node tests/play-cap.mjs --mutate
+
+      # THE WEIGHHOUSE THROUGH THE EDGE (market lane 2: hr-accrue market.js + 2027-01-21-
+      # market-same-network.sql), on the real chain end: the wire (request.js readMarket, the
+      # registry, the client builder agree), the switch OFF (market_closed, bare), list ->
+      # browse -> buy -> mine -> cancel through src/session/market-intents.js with every side
+      # conserved, a replay that moves nothing, the same-network sale flagged and absent from
+      # every history read, settle-first on the bag path only, the counters each verb spends,
+      # zero statements for a shape refusal, index.ts's literal dispatch, a byte-identical
+      # second apply. --selftest plants 14 defects (edge bytes, client builder, the migration
+      # with its §6 silenced so a leg must catch each).
+      - name: Market edge — the six market verbs through hr-accrue, and the same-network flag
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/market-edge.mjs
+          node tools/mutant-gate.mjs node tests/market-edge.mjs --selftest
 
       # THE CONTROL HALF OF A MUTATION PROOF. Every registered guard is re-run
       # with HR_MUTANT_CONTROL=1 (nothing planted, scope kept); any arm that

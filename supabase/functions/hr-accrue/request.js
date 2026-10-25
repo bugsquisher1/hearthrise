@@ -55,9 +55,20 @@
 //
 // ⚠ THERE IS STILL NO `price`, `cost`, `gold`, `total` OR `unit` FIELD, AND
 //   THERE NEVER WILL BE. `qty` is the ONLY number the client contributes to a
-//   value transfer, it is bounded before it is used, and the thing it
-//   multiplies came out of src/data. That is the whole of the client's
-//   arithmetic authority over the economy.
+//   value transfer with the SERVER, it is bounded before it is used, and the
+//   thing it multiplies came out of src/data. That is the whole of the client's
+//   arithmetic authority over the NPC economy.
+//
+// ── THE ONE EXCEPTION, NAMESPACED: `market` (the Weighhouse, market lane 2) ──
+//   A player-to-player market needs the SELLER's price for their own goods, so
+//   `market.ask_each` is a price — a DECLARATION, like an activity, that
+//   hr_market_list bounds between the shop's bid and max(1,000, 100 x book)
+//   under its own catalogue. `market.max_each` is the BUYER's ceiling and can
+//   only refuse a buy. Neither is what anyone is charged: the buyer pays the
+//   LOCKED listing row's price. Both live inside ONE `market` object that only
+//   the six market verbs read (readMarket), with their own bounds (the market's
+//   count is hr_market_config's, not MAX_QTY's), so no other verb can ever read
+//   a price from a body.
 //
 // PURE ESM, no I/O, no globals. Runs in Node and Deno unchanged.
 // ============================================================================
@@ -125,7 +136,12 @@ export const VERBS = Object.freeze(
        the slot and nothing else: the engine computes the combat numbers from
        server state and stores them compare-and-set (./character-sheet.js). It
        moves no value. */
-    'sheet']);
+    'sheet',
+    /* THE WEIGHHOUSE (market lane 2; 2027-01-12-market-account.sql). Six verbs, one per engine-only
+       RPC: three writes and three reads. Each reads only the `market` object (readMarket); the
+       verbs stay separate for the dispatch-table reason — a body field that changes WHAT the verb
+       does is a typo away from a different intent. */
+    'market_list', 'market_cancel', 'market_buy', 'market_browse', 'market_item', 'market_mine']);
 export const DEFAULT_VERB = 'accrue';
 
 /* THE BODY CAP (Security, reopen review 2026-10-19). A player intent is read through the ONE bounded
@@ -227,8 +243,21 @@ export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f
     which is the direction that matters. */
 export const INTENT_KEYS = Object.freeze(
   ['slot', 'verb', 'intentId', 'activity', 'offer', 'item', 'qty',
-    'equip', 'auto', 'trophy', 'lines'],
+    'equip', 'auto', 'trophy', 'lines', 'market'],
 );
+
+/** The `market` object's own vocabulary (readMarket), exported so a test reads it instead of restating it. */
+export const MARKET_KEYS = Object.freeze(
+  ['source', 'deliver', 'item', 'qty', 'ask_each', 'max_each', 'listing', 'items', 'after', 'limit'],
+);
+/** The largest count a market call may name: hr_market_config's own ceiling on max_qty
+    (constraint hr_market_config_max_qty_ceiling, 2026-08-17-market-v2.sql). The operator's
+    max_qty (default 1,000,000) is checked by the RPC, which answers bad_qty {max} BY NAME. */
+export const MAX_MARKET_QTY = 100000000;
+/** The largest ask or buyer's ceiling: market_listings.ask_each's CHECK (<= 1e9). */
+export const MAX_MARKET_PRICE = 1000000000;
+/** The most items one browse may name, and the most a page may hold: hr_market_browse's bounds. */
+export const MAX_MARKET_ITEMS = 50;
 
 /** The stage ceiling a claim may NAME. Deliberately the parse-level bound only:
     which stage a character has actually REACHED is read by hr_trophy_claim from
@@ -293,6 +322,59 @@ export function parseIntent(body) {
   out.auto = readAuto(body);
   out.trophy = readTrophy(body);
   out.lines = readLines(body);
+  out.market = readMarket(body);
+  return out;
+}
+
+/** A whole JSON number in [1, max], or null. Never a numeric string, never rounded. */
+function readWhole(v, max) {
+  return typeof v === 'number' && Number.isSafeInteger(v) && v >= 1 && v <= max ? v : null;
+}
+
+/**
+ * THE MARKET'S WHOLE CALLER-SUPPLIED SURFACE: `market: { ... }` (market lane 2).
+ *
+ * FIELD-WISE, like readActivity, not whole-object: every market refusal is lane 1's
+ * code BY NAME (bad_source, bad_qty, bad_price, bad_deliver, bad_request), so the
+ * verb must be able to tell which subfield was unreadable. The returned object is
+ * FRESHLY BUILT, null-prototype, and holds ONLY the MARKET_KEYS the body carried:
+ *   ABSENT            the key is not set (`undefined` to a reader)
+ *   present, readable its validated value
+ *   present, not      `null` — the verb refuses it by name
+ * Any other key on `market` (a `price`, a `gold`, a `seller`, a `name`) is never read.
+ *
+ *   source   'bag' | 'storage'               deliver  'storage' | 'bag'
+ *   item     a catalogue-shaped id           listing  a canonical lowercase uuid
+ *   qty      whole, 1..MAX_MARKET_QTY        ask_each / max_each  whole, 1..MAX_MARKET_PRICE
+ *   items    0..MAX_MARKET_ITEMS catalogue-shaped ids (a browse's search page)
+ *   after    a catalogue-shaped id (the browse's keyset)    limit  whole, 1..MAX_MARKET_ITEMS
+ *
+ * @returns a null-prototype object, or `null` when `market` is absent or not a plain object.
+ */
+export function readMarket(body) {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return null;
+  if (!Object.prototype.hasOwnProperty.call(body, 'market')) return null;
+  const m = body.market;
+  if (!m || typeof m !== 'object' || Array.isArray(m)) return null;
+  const own = (k) => Object.prototype.hasOwnProperty.call(m, k);
+  const out = Object.create(null);
+  if (own('source')) out.source = (m.source === 'bag' || m.source === 'storage') ? m.source : null;
+  if (own('deliver')) out.deliver = (m.deliver === 'storage' || m.deliver === 'bag') ? m.deliver : null;
+  if (own('item')) out.item = (typeof m.item === 'string' && CATALOGUE_ID_RE.test(m.item)) ? m.item : null;
+  if (own('after')) out.after = (typeof m.after === 'string' && CATALOGUE_ID_RE.test(m.after)) ? m.after : null;
+  if (own('qty')) out.qty = readWhole(m.qty, MAX_MARKET_QTY);
+  if (own('ask_each')) out.ask_each = readWhole(m.ask_each, MAX_MARKET_PRICE);
+  if (own('max_each')) out.max_each = readWhole(m.max_each, MAX_MARKET_PRICE);
+  if (own('limit')) out.limit = readWhole(m.limit, MAX_MARKET_ITEMS);
+  if (own('listing')) {
+    const s = typeof m.listing === 'string' && m.listing.length === 36 ? m.listing.toLowerCase() : null;
+    out.listing = s !== null && UUID_RE.test(s) ? s : null;
+  }
+  if (own('items')) {
+    const a = m.items;
+    out.items = (Array.isArray(a) && a.length <= MAX_MARKET_ITEMS
+      && a.every((x) => typeof x === 'string' && CATALOGUE_ID_RE.test(x))) ? a.slice() : null;
+  }
   return out;
 }
 

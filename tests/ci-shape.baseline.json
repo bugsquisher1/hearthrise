@@ -220,6 +220,8 @@
     "node tools/mutant-gate.mjs node tests/party-flow.mjs --mutate": "db-replay-7",
     "node tests/play-cap.mjs": "db-replay-7",
     "node tools/mutant-gate.mjs node tests/play-cap.mjs --mutate": "db-replay-7",
+    "node tests/market-edge.mjs": "db-replay-7",
+    "node tools/mutant-gate.mjs node tests/market-edge.mjs --selftest": "db-replay-7",
     "node tests/mutant-control.mjs": "db-replay-7",
     "node tools/mutant-gate.mjs node tests/mutant-control.mjs --selftest": "db-replay-7",
     "node tests/world-tick-parity-probe.mjs": "db-replay-8",

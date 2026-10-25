@@ -21,6 +21,10 @@
 //         field is named like a value (price, gold, cost, total, amount, ask),
 //         every edgeIntent('<verb>' call names a pinned verb, and every pinned
 //         verb is called somewhere (a stale entry is a standing permission);
+//         its MARKET_FIELDS (the `market` object's subfields per market verb) is
+//         exactly CLIENT_MARKET_FIELDS, and no subfield is named like a value but
+//         the ONE declared price (CLIENT_PRICE_DECLARATIONS: the seller's
+//         market_list ask_each, bounded by the server; the buyer sends none);
 //   IS-3  ONE server link: `fetch(` appears only in src/session/server.js, and no
 //         client module reaches PostgREST tables or RPCs through supabase-js
 //         (`.from(`, `.rpc(`) — the client's only use of supabase-js is auth and
@@ -134,9 +138,41 @@ export const CLIENT_EDGE_INTENTS = Object.freeze({
   set_activity: ['activity'],
   /* the House window: a property tier or room rung by offer id; hr_unlock_buy prices, gates and debits it (home-intents.js buyHome) */
   unlock_buy: ['offer'],
+  /* the Weighhouse (market lane 2; hr-accrue market.js): one `market` object per ask, its subfields pinned below;
+     src/session/market-intents.js sends them for the market window (lane 4) */
+  market_list: ['market'],
+  market_cancel: ['market'],
+  market_buy: ['market'],
+  market_browse: ['market'],
+  market_item: ['market'],
+  market_mine: [],
 });
+
+/* The `market` object's subfields per verb (edge-intents.js MARKET_FIELDS = hr-accrue request.js readMarket). */
+export const CLIENT_MARKET_FIELDS = Object.freeze({
+  market_list: ['source', 'item', 'qty', 'ask_each'],
+  market_cancel: ['listing'],
+  market_buy: ['listing', 'qty', 'max_each', 'deliver'],
+  market_browse: ['items', 'after', 'limit'],
+  market_item: ['item'],
+});
+/* THE ONE PRICE A CLIENT MAY SEND: the seller's own ask for their own goods. hr_market_list bounds it between
+   the shop's bid and the ceiling; the buyer is charged the server's listing row, and market_buy carries no
+   ask (its max_each can only refuse). Any other value-named subfield is IS-5 red. */
+export const CLIENT_PRICE_DECLARATIONS = Object.freeze({ market_list: ['ask_each'] });
 const EDGE = 'src/session/edge-intents.js';
 const VALUE_FIELD = /price|gold|cost|total|amount|ask/i;
+
+/* MARKET_FIELDS as the builder spells it: one `verb: Object.freeze([...])` line per market verb. */
+function marketTable(text) {
+  const block = (text || '').match(/export const MARKET_FIELDS = Object\.freeze\(\{([\s\S]*?)\}\);/);
+  if (!block) return null;
+  const out = {};
+  for (const m of block[1].matchAll(/^\s*([a-z_]+): Object\.freeze\(\[([^\]]*)\]\),?\s*$/gm)) {
+    out[m[1]] = m[2].split(',').map((x) => x.trim().replace(/^'|'$/g, '')).filter(Boolean);
+  }
+  return out;
+}
 
 /* EDGE_INTENTS as the builder spells it: one `verb: Object.freeze([...])` line per verb. */
 function edgeTable(text) {
@@ -198,6 +234,18 @@ export function check(files) {
     if (JSON.stringify(table) !== JSON.stringify(CLIENT_EDGE_INTENTS)) problems.push(`IS-5 ${EDGE} EDGE_INTENTS ${JSON.stringify(table)} is not the pinned ${JSON.stringify(CLIENT_EDGE_INTENTS)} — a new verb or field is a reviewed edit here too`);
     for (const [v, fields] of Object.entries(table)) for (const k of fields) if (VALUE_FIELD.test(k)) problems.push(`IS-5 the engine intent ${v} carries ${k}, a value field — the client sends names and counts only`);
   }
+  const mkt = marketTable(files[EDGE]);
+  if (!mkt) problems.push(`IS-5 ${EDGE} has no readable MARKET_FIELDS table`);
+  else {
+    if (JSON.stringify(mkt) !== JSON.stringify(CLIENT_MARKET_FIELDS)) problems.push(`IS-5 ${EDGE} MARKET_FIELDS ${JSON.stringify(mkt)} is not the pinned ${JSON.stringify(CLIENT_MARKET_FIELDS)} — a new market subfield is a reviewed edit here too`);
+    for (const [v, fields] of Object.entries(mkt)) {
+      for (const k of fields) {
+        const declared = Object.prototype.hasOwnProperty.call(CLIENT_PRICE_DECLARATIONS, v) && CLIENT_PRICE_DECLARATIONS[v].includes(k);
+        if (VALUE_FIELD.test(k) && !declared) problems.push(`IS-5 the market intent ${v} carries ${k}, a value field — the seller's market_list ask_each is the ONE price a client may send`);
+      }
+      if (table && !(table[v] || []).includes('market')) problems.push(`IS-5 MARKET_FIELDS names ${v}, whose EDGE_INTENTS row carries no market object`);
+    }
+  }
   for (const v of Object.keys(CLIENT_EDGE_INTENTS)) if (!edgeCalled.has(v)) problems.push(`IS-5 CLIENT_EDGE_INTENTS lists ${v} and no client module sends it — a stale entry is a standing permission`);
   return problems;
 }
@@ -214,7 +262,10 @@ if (process.argv.includes('--selftest')) {
     ['the edge sent a hand-built body outside the builder', plant('src/app/boot.js', 'server.accrue(body);'), 'IS-2'],
     ['an engine intent the pin does not name', plant('src/shell/windows/inventory/actions.js', "cs.edgeIntent('grant_gold', { qty: 5 });"), 'IS-5'],
     ['the builder grew a price field', { ...real, [EDGE]: real[EDGE].replace("shop_buy: Object.freeze(['offer', 'qty']),", "shop_buy: Object.freeze(['offer', 'qty', 'price']),") }, 'IS-5'],
-    ['the builder grew a verb', { ...real, [EDGE]: real[EDGE].replace("eat: Object.freeze(['item']),", "eat: Object.freeze(['item']),\n  market_buy: Object.freeze(['listing', 'qty']),") }, 'IS-5'],
+    ['the builder grew a verb', { ...real, [EDGE]: real[EDGE].replace("eat: Object.freeze(['item']),", "eat: Object.freeze(['item']),\n  grant_gold: Object.freeze(['qty']),") }, 'IS-5'],
+    ['the buyer\'s market wire grew an ask', { ...real, [EDGE]: real[EDGE].replace("market_buy: Object.freeze(['listing', 'qty', 'max_each', 'deliver']),", "market_buy: Object.freeze(['listing', 'qty', 'max_each', 'deliver', 'ask_each']),") }, 'IS-5'],
+    ['a market subfield named like a value, pinned too', { ...real, [EDGE]: real[EDGE].replace("market_cancel: Object.freeze(['listing']),", "market_cancel: Object.freeze(['listing', 'refund_gold']),") }, 'IS-5'],
+    ['the market subfield table unreadable', { ...real, [EDGE]: real[EDGE].replace('export const MARKET_FIELDS = Object.freeze({', 'export const MARKET_FIELDZ = Object.freeze({') }, 'IS-5'],
     ['a pinned engine intent nobody sends', { ...real, 'src/shell/windows/inventory/actions.js': real['src/shell/windows/inventory/actions.js'].split("edgeIntent('eat'").join("edgeIntentX('eat'") }, 'IS-5'],
     ['the link calls an Edge Function the pin does not name', plant(LINK, "const x = () => post('/functions/v1/grant-gold', {});"), 'IS-6'],
     ['a second fetch', plant('src/app/world-pane.js', "fetch('/rest/v1/rpc/hr_load');"), 'IS-3'],

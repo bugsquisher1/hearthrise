@@ -11,22 +11,30 @@
 //           `equip`, src/shell/widgets/upgrade-line.js).
 //   Sell    every unlocked bag stack the shop bids on, loot first, one Sell per
 //           line and "Sell all loot" — each a confirmation with the total, then
-//           ONE `vendor_sell_many`. Locked stacks are listed as kept.
+//           ONE `vendor_sell_many`. Locked stacks are listed as kept. The
+//           confirmation stands right under Sell all loot and is brought into view
+//           inside the window as it opens (board 2026-10-25 #6: below the fold at
+//           1350x862 it looked as if the press did nothing).
+//   Services  stamina and Blessings (src/shell/windows/services.js; Tyler 2026-10-25:
+//           Services moved into the Shop as its third tab). R opens the Shop on it
+//           (src/data/shell-windows.js tabKeys; window-manager.js openTab).
 // Every control is off while an intent is in flight; counts and gold change
 // only from the re-read envelope.
 // ════════════════════════════════════════════════════════════════════════
-import { shopOf, bagOf, rulesOf, goldOf } from '../../session/item-sections.js?v=0.2.45';
+import { shopOf, bagOf, rulesOf, goldOf, skillsOf } from '../../session/item-sections.js?v=0.2.45';
 import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.45';
 import { whole, gold } from '../../render/format.js?v=0.2.45';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.45';
 import { itemIconHtml, itemName } from '../widgets/bits.js?v=0.2.45';
-import { kindOf, sellPlan, lootToSell } from '../bag-model.js?v=0.2.45';
+import { kindOf, sellPlan, lootSale } from '../bag-model.js?v=0.2.45';
 import { runIntent } from '../intent-words.js?v=0.2.45';
 import { showTip, hideTip } from './item-tip.js?v=0.2.45';
 import { upgradeOf, upgradeLineHtml, patchUpgradeLine, equipUpgrades } from '../widgets/upgrade-line.js?v=0.2.45';
 import { gearLocked } from '../gear-gate.js?v=0.2.45';
+import { revealInWindow } from '../widgets/bits.js?v=0.2.45';
+import { servicesPaneHtml, patchServicesPane, actServicesPane } from './services.js?v=0.2.45';
 
-const TABS = Object.freeze([['buy', 'Buy'], ['sell', 'Sell']]);
+const TABS = Object.freeze([['buy', 'Buy'], ['sell', 'Sell'], ['services', 'Services']]);
 const QTYS = Object.freeze([1, 5, 10, 25, 50, 100]);
 /* The Buy tab's lists, by the server's offer kind: [kind, heading, the one line under it]. The gear line says
    why it is there (designer 2026-10-22: Defense trains only in armour; monsters drop the big pieces). */
@@ -53,10 +61,12 @@ export function renderShop() {
     + '<p class="hh-empty hw-buy-none">The shop has no prices for you yet.</p>' + upgradeLineHtml() + '</section>'
     + '<section class="hw-pane" data-pane="sell">'
     + '<div class="hw-tools"><button type="button" class="hh-tool" data-hs-act="sell-loot"></button></div>'
-    + '<ul class="hw-ledger hw-sell-list"></ul><p class="hh-empty hw-sell-none">Nothing in your bag that the shop buys.</p>'
+    /* the confirmation beside the press, never under the list (the coach rings its Sell: data-coach-hook) */
     + '<div class="hw-confirm" role="alertdialog" aria-label="Confirm the sale"><p class="hw-confirm-q"></p><p class="hw-confirm-note"></p>'
-    + '<div class="hw-confirm-do"><button type="button" class="hw-primary" data-hs-act="confirm-yes"></button>'
-    + '<button type="button" class="hh-tool" data-hs-act="confirm-no">Cancel</button></div></div></section>'
+    + '<div class="hw-confirm-do"><button type="button" class="hw-primary" data-hs-act="confirm-yes" data-coach-hook="sell-confirm"></button>'
+    + '<button type="button" class="hh-tool" data-hs-act="confirm-no">Cancel</button></div></div>'
+    + '<ul class="hw-ledger hw-sell-list"></ul><p class="hh-empty hw-sell-none">Nothing in your bag that the shop buys.</p></section>'
+    + '<section class="hw-pane" data-pane="services">' + servicesPaneHtml() + '</section>'
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></div>';
 }
 
@@ -113,13 +123,15 @@ function patchSell(root, st, ctx) {
     },
   });
   cls(root.querySelector('.hw-sell-none'), 'is-on', !list.length);
-  const loot = lootToSell(st.items);
-  const plan = sellPlan(st.items, loot, { locked, bids });
+  const plan = lootSale(st.items, st.rules, st.shop, skillsOf(st.cs));
   const lb = root.querySelector('[data-hs-act="sell-loot"]');
   text(lb, 'Sell all loot' + (plan.lines.length ? ' · ' + gold(plan.total) : ''));
   prop(lb, 'disabled', sc.pending || !plan.lines.length);
   const cf = root.querySelector('[data-pane="sell"] .hw-confirm');
+  const opening = !!sc.confirm && !cf.classList.contains('is-on');
   cls(cf, 'is-on', !!sc.confirm);
+  /* a confirmation that opens below the window's fold is brought into view inside it, once, as it opens */
+  if (opening) revealInWindow(cf);
   if (sc.confirm) {
     const p = sc.confirm;
     text(cf.querySelector('.hw-confirm-q'), p.lines.length === 1 ? 'Sell ' + itemName(p.lines[0].item) + ' ×' + whole(p.lines[0].qty) + '?' : 'Sell ' + p.lines.length + ' stacks?');
@@ -134,13 +146,17 @@ renderShop.patch = function patchShop(body, ctx) {
   const cs = ctx.character;
   const items = bagOf(cs) || [];
   const st = { cs, sc: scratchOf(cs), shop: shopOf(cs), rules: rulesOf(cs), items, gold: goldOf(cs), qty: new Map(items.map((r) => [r.id, r.qty])) };
+  /* a press that asked for a tab (R: Services; the coach's next step) shows it */
+  const want = ctx.wm && typeof ctx.wm.takeTab === 'function' ? ctx.wm.takeTab('shop') : null;
+  if (want && TABS.some(([id]) => id === want) && want !== st.sc.tab) { st.sc.tab = want; st.sc.confirm = null; st.sc.msg = ''; st.sc.msgAt = null; st.sc.wear = false; }
   const root = body.querySelector('.hw-shop');
   for (const b of root.querySelectorAll('.hw-tab')) attr(b, 'aria-selected', String(b.getAttribute('data-tab') === st.sc.tab));
   for (const p of root.querySelectorAll('.hw-pane')) cls(p, 'is-on', p.getAttribute('data-pane') === st.sc.tab);
   text(root.querySelector('.hw-gold'), 'Your gold ' + gold(st.gold));
   text(root.querySelector('.hw-shop-note'), st.shop ? '' : 'Prices load from the server.');
   if (st.sc.tab === 'buy') patchBuy(root, st, ctx);
-  else patchSell(root, st, ctx);
+  else if (st.sc.tab === 'sell') patchSell(root, st, ctx);
+  else patchServicesPane(root, ctx);
   text(root.querySelector('.hh-intent-msg'), st.sc.msgAt ? '' : st.sc.msg);   // an Equip upgrades press says it on its line
   cls(root, 'is-pending', st.sc.pending);
 };
@@ -165,6 +181,7 @@ renderShop.act = function actShop(ctx, body, action, ev, t) {
     return false;
   }
   if (ev.type !== 'click') return false;
+  if (sc.tab === 'services' && actServicesPane(ctx, body, action, ev, t)) return true;
   if (action === 'tab') { sc.tab = t.getAttribute('data-tab'); sc.confirm = null; sc.msg = ''; sc.msgAt = null; sc.wear = false; repaint(); return true; }
   if (action === 'buy') {
     const offer = t.getAttribute('data-offer');
@@ -180,8 +197,8 @@ renderShop.act = function actShop(ctx, body, action, ev, t) {
   if (action === 'sell' || action === 'sell-loot') {
     const items = bagOf(cs) || [];
     const rules = rulesOf(cs);
-    const ids = action === 'sell' ? [t.getAttribute('data-item')] : lootToSell(items);
-    const plan = sellPlan(items, ids, { locked: rules ? rules.locked : null, bids: shop ? shop.bids : null });
+    const plan = action === 'sell' ? sellPlan(items, [t.getAttribute('data-item')], { locked: rules ? rules.locked : null, bids: shop ? shop.bids : null })
+      : lootSale(items, rules, shop, skillsOf(cs));
     sc.confirm = plan.lines.length ? plan : null;
     repaint();
     return true;

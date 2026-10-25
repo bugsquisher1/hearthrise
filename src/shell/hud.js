@@ -292,7 +292,8 @@ export function residueStore(character) {
  * @param {object[]} o.widgets             the rows (src/data/hud-widgets.js)
  * @param {() => string} o.sizeClass       'desktop' | 'phone'
  * @param {{read():object|null, write(v:object):void}} o.store
- * @param {() => boolean} [o.inHunt]       true while a hunt is running ('hunt' widgets)
+ * @param {(id: string) => boolean} [o.inHunt]  true while hunt widget `id` belongs on screen (a hunt is running;
+ *                                         src/shell/shell.js huntUp keeps the hunt bar until its summary is closed)
  */
 export function createHud(o) {
   const rows = validateWidgetRows(o.widgets);
@@ -360,7 +361,7 @@ export function createHud(o) {
     /** Shown = the player's switch, and the row's `when` (a hunt widget only in a hunt). */
     isShown(id) {
       const row = rows.get(id);
-      return !!row && layout.get(id).visible && (row.when === 'always' || inHunt());
+      return !!row && layout.get(id).visible && (row.when === 'always' || inHunt(id));
     },
     setVisible, setOpacity, reset,
     subscribe(fn) { listeners.add(fn); return () => listeners.delete(fn); },

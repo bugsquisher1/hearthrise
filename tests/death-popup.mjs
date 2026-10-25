@@ -6,7 +6,7 @@
 //   node tests/death-popup.mjs --mutate       every planted defect must turn a rule RED
 //   node tests/death-popup.mjs --shots <dir>  also write the visual-gate screenshots (1440x900, 922x423)
 //
-// mutant-anchors: src/shell/death-popup.js src/shell/windows/death.js src/shell/alerts.js src/session/character-sections.js src/shell/widgets/hunt-topbar.js
+// mutant-anchors: src/shell/death-popup.js src/shell/windows/death.js src/shell/alerts.js src/session/character-sections.js src/shell/widgets/hunt-topbar.js src/shell/shell.js
 // mutant-writes-tree: no — page mutants are served overrides
 //
 // play.html with supabase-js and the REST paths stubbed (tests/_client-harness.mjs), on
@@ -244,7 +244,7 @@ const PAGE_MUTANTS = [
   ['the own death is a side line again', 'src/shell/alerts.js', '    if (!viewed && !deathSeen(cs, h.sessionId)) out.push(', '    out.push('],
   ['the projection drops the Blessing', 'src/session/character-sections.js', "      saved: !('saved' in r) ? undefined : isObj(r.saved) ? xpMap(r.saved) : null });", '      saved: undefined });'],
   ['Hunt summary only closes', 'src/shell/windows/death.js', "  if (action === 'death-summary') ctx.show('hunt-summary');\n", ''],
-  ['the summary opens over the popup', 'src/shell/widgets/hunt-topbar.js', "if (takeFresh(ctx.character) && !deathPopupOf(ctx.character) && !ctx.wm.isOpen('death'))", 'if (takeFresh(ctx.character))'],
+  ['the summary opens over the popup', 'src/shell/shell.js', "if (cs && takeFresh(cs) && !deathPopupOf(cs) && !wm.isOpen('death'))", 'if (cs && takeFresh(cs))'],
 ];
 
 async function main() {

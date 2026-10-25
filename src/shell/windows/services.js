@@ -1,6 +1,8 @@
 // ════════════════════════════════════════════════════════════════════════
-// src/shell/windows/services.js — SERVICES: STAMINA AND BLESSINGS (lane S2).
+// src/shell/windows/services.js — THE SHOP'S SERVICES TAB: STAMINA AND BLESSINGS (lane S2).
 //
+// Tyler 2026-10-25 ("Lets move services to the 'shop' menu"): no window of its own any more; the Shop
+// (shop.js) shows this pane as its third tab, and R opens the Shop on it (src/data/shell-windows.js tabKeys).
 // Two services the town sells, every number the SERVER's:
 //   Stamina    the next refill as the server prices it (`stamina_refill`): how
 //              long it restores, its gold, and which purchase of today it is.
@@ -34,8 +36,8 @@ function hoursText(ms) {
   return h && r ? h + ' h ' + r + ' m' : h ? h + ' h' : r + ' m';
 }
 
-/** The skeleton (built once per opening). */
-export function renderServices() {
+/** The tab's skeleton (built once per opening of the Shop, inside its pane). */
+export function servicesPaneHtml() {
   return '<div class="hw-services">'
     + '<h3 class="hs-sub">Stamina</h3>'
     + '<p class="hs-note hw-stam-now"></p><p class="hw-stam-quote"></p>'
@@ -49,7 +51,8 @@ export function renderServices() {
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></div>';
 }
 
-renderServices.patch = function patchServices(body, ctx) {
+/** Patch the tab in place (the Shop's patch, while its Services tab shows). */
+export function patchServicesPane(body, ctx) {
   const cs = ctx.character;
   const sc = scratchOf(cs);
   const root = body.querySelector('.hw-services');
@@ -98,13 +101,14 @@ renderServices.patch = function patchServices(body, ctx) {
   });
   text(root.querySelector('.hh-intent-msg'), sc.msg);
   cls(root, 'is-pending', sc.pending);
-};
+}
 
-renderServices.act = function actServices(ctx, body, action, ev, t) {
+/** The tab's presses (the Shop routes its clicks here first); true when handled. */
+export function actServicesPane(ctx, body, action, ev, t) {
   if (ev.type !== 'click') return false;
   const cs = ctx.character;
   const sc = scratchOf(cs);
-  const repaint = () => renderServices.patch(body, ctx);
+  const repaint = () => patchServicesPane(body, ctx);
   if (action === 'stam-ask') { const q = staminaRefillOf(cs); if (q && q.available) { sc.confirm = true; sc.msg = ''; repaint(); } return true; }
   if (action === 'stam-no') { sc.confirm = false; repaint(); return true; }
   if (action === 'stam-yes' && sc.confirm) {
@@ -123,4 +127,4 @@ renderServices.act = function actServices(ctx, body, action, ev, t) {
     return true;
   }
   return false;
-};
+}

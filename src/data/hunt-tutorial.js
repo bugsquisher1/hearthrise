@@ -85,7 +85,7 @@ import { START_EQUIPMENT, START_BAR } from './start-kit.js?v=0.2.45';
 /* The surfaces a card may point at: `window` the shell window (src/data/shell-windows.js) its controls live in (the
    card shows INSIDE it while it is open), `icon` its way starts at that window's icon, and what the coach rings
    (src/shell/launcher.js ringPlan). */
-const anchor = (about, window, icon) => Object.freeze({ about, window: window || null, icon: !!icon });
+const anchor = (about, window, icon, tab) => Object.freeze({ about, window: window || null, icon: !!icon, tab: tab || null });
 export const TUTORIAL_ANCHORS = Object.freeze({
   hunt_picker: anchor('Hunts (src/shell/windows/hunts.js): its icon, then the ground\'s line, then Enter', 'hunts', true),
   world: anchor('the world pane (src/app/world-pane.js): nothing to ring'),
@@ -97,7 +97,8 @@ export const TUTORIAL_ANCHORS = Object.freeze({
   tally: anchor('Tamsin\'s tally (src/shell/windows/tally.js): her icon, the armor weight, then ring.task\'s Take', 'tally', true),
   inventory: anchor('the bag (src/shell/windows/inventory): its icon, then the control the card names', 'inventory', true),
   shop: anchor('the Shop (src/shell/windows/shop.js): its icon, the Sell tab, then Sell all loot', 'shop', true),
-  services: anchor('Services (src/shell/windows/services.js): its icon, then the next Bless', 'services', true),
+  /* Services is the Shop's third tab (Tyler 2026-10-25): the Shop's icon, its Services tab, then the next Bless */
+  services: anchor('the Shop\'s Services tab (src/shell/windows/services.js): the Shop\'s icon, the Services tab, then the control', 'shop', true, 'services'),
   storage: anchor('Storage (src/shell/windows/storage.js): its icon', 'storage', true),
   hunt_prep: anchor('Hunt prep (src/shell/windows/hunt-prep.js): the bar\'s setup corner, then Save current setup', 'hunt-prep', true),
   house: anchor('the House (src/shell/windows/house.js): its icon, then Buy', 'house', true),
@@ -109,6 +110,12 @@ export const TUTORIAL_ANCHORS = Object.freeze({
 export function coachWindow(card) {
   const a = card && TUTORIAL_ANCHORS[card.anchor];
   return a ? a.window : null;
+}
+
+/** The tab of that window `card`'s controls live on (the Shop's Services), or null. */
+export function coachTab(card) {
+  const a = card && TUTORIAL_ANCHORS[card.anchor];
+  return a ? a.tab : null;
 }
 
 /** The window whose ICON the coach rings for `card` (its way starts there and the window is closed), or null. */
@@ -141,6 +148,9 @@ const DAY_ONE_LEVEL = 8;
 const PCT_STEP = 5, EAT_FLOOR_PCT = 50;
 const IN_TOWN = { kind: 'in_town' }, HUNTING = { kind: 'hunting' };
 const READ = { kind: 'read' };
+/* The Shop's Services tab and its next Bless (the shell rings the deepest one on screen first) */
+const SERVICES_TAB = '[data-hs-win="shop"] .hw-tab[data-tab="services"]';
+const TO_BLESS = [SERVICES_TAB, '[data-hs-win="shop"] [data-hs-act="bless"]:not([disabled])'];
 
 export const HUNT_TUTORIAL = Object.freeze([
   /* ── A. Before the first pull ───────────────────────────────────────── */
@@ -158,12 +168,13 @@ export const HUNT_TUTORIAL = Object.freeze([
   /* ── Reactive cards that interrupt the chain (after the first-minute cards, so the shell's "passed" rule never
      replays one of those). Each starts on its own fact and explains what just happened. ── */
   step('stamina_low', 'Stamina is low',
-    'At 0 the hunt ends. Anything but hunting refills it hour for hour, and Services sells a top-up.',
-    'services', READ, { reactive: true, when: [HUNTING, { kind: 'stamina_low' }], hooks: ['[data-coach-hook="stamina"]'] }),
+    'At 0 the hunt ends. Anything but hunting refills it hour for hour, and the Shop\'s Services tab sells a top-up.',
+    'services', READ, { reactive: true, when: [HUNTING, { kind: 'stamina_low' }],
+      hooks: [SERVICES_TAB, '[data-hs-win="shop"] [data-hs-act="stam-ask"]:not([disabled])'] }),
   step('first_death', 'You died',
-    'The hunt ended and your hero came home. Blessings cut what a death costs, and they\'re free for now: open Services and Bless again.',
+    'The hunt ended and your hero came home. Blessings cut what a death costs, and they\'re free for now: open the Shop\'s Services tab and Bless again.',
     'services', { kind: 'blessed' }, { reactive: true, when: [IN_TOWN, { kind: 'died' }, { kind: 'below_free' }],
-      inWindow: 'Press Bless on each Blessing while they\'re free.', hooks: ['[data-hs-win="services"] [data-hs-act="bless"]'] }),
+      inWindow: 'Press Services, then Bless on each Blessing while they\'re free.', hooks: TO_BLESS }),
   step('first_eat', 'Your hero just ate',
     'Your HP fell low, so a food slot ate for you.',
     'action_bar', READ, { reactive: true, when: [HUNTING, { kind: 'ate' }] }),
@@ -234,9 +245,9 @@ export const HUNT_TUTORIAL = Object.freeze([
     'inventory', { kind: 'any', of: [READ, { kind: 'weapon_changed' }] },
     { knowledge: true, gotIt: true, when: [IN_TOWN], hooks: ['[data-hs-win="inventory"] .hw-slot[data-slot="weapon"]'] }),
   step('bless', 'Before the wolves',
-    'Out past the Cellar you can die. Blessings protect most of what a death costs, and they\'re free for now: open Services and Bless all three.',
+    'Out past the Cellar you can die. Blessings protect most of what a death costs, and they\'re free for now: open the Shop\'s Services tab and Bless all three.',
     'services', { kind: 'blessed' }, { when: [IN_TOWN, { kind: 'level_at', at: HUNT_INDEX[THICKET].band[0] }, { kind: 'below_free' }],
-      inWindow: 'Press Bless on each of the three Blessings.', hooks: ['[data-hs-win="services"] [data-hs-act="bless"]'] }),
+      inWindow: 'Press Services, then Bless on each of the three Blessings.', hooks: TO_BLESS }),
   step('tamsins_task', 'Tamsin\'s wolves',
     'Tamsin pays for kills. Open her tally, pick the armor weight she pays you in, then Take ' + WOLVES.count + ' ' + WOLVES.label
       + '. Every kill counts, even while you\'re away.',
@@ -273,7 +284,8 @@ export const HUNT_TUTORIAL = Object.freeze([
     'crafting', { kind: 'rune_owned' }, { reactive: true, dayOne: true, when: [IN_TOWN, { kind: 'level_at', at: DAY_ONE_LEVEL }, { kind: 'rune_unowned' }] }),
   step('bless_paid', 'Blessings cost gold now',
     'From now on each Blessing costs gold. They still cut what a death takes.',
-    'services', { kind: 'any', of: [{ kind: 'blessed' }, READ] }, { reactive: true, gotIt: true, when: [IN_TOWN, { kind: 'at_free' }, { kind: 'unblessed' }] }),
+    'services', { kind: 'any', of: [{ kind: 'blessed' }, READ] }, { reactive: true, gotIt: true, when: [IN_TOWN, { kind: 'at_free' }, { kind: 'unblessed' }],
+      hooks: TO_BLESS }),
 ]);
 
 /* The kinds the SERVER finishes on its own (no press of the player's): the shell keeps such a card up long enough
@@ -634,7 +646,7 @@ const SAY = Object.freeze({
     if (!b || !Number.isInteger(b.freeUntil) || !(b.best > 0)) return null;
     return { text: 'Out past the Cellar you can die. Dying ends the hunt, sends you home and costs ' + Math.round(DEATH_XP_LOSS * 100)
       + '% of your Level XP, never a Level. Blessings protect up to ' + Math.round(b.best / 10) + '% of that, and they\'re free until Level ' + b.freeUntil
-      + ': open Services and Bless all ' + inWords(b.of) + '.' };
+      + ': open the Shop\'s Services tab and Bless all ' + inWords(b.of) + '.' };
   },
   tamsins_task: (f) => {
     const w = WEIGHT_FOR_ROLE[f.role];
@@ -649,7 +661,7 @@ const SAY = Object.freeze({
     const kept = d.saved && Number.isInteger(d.saved.level) && d.saved.level > 0
       ? '; your Blessings saved ' + d.saved.level + ' more and are used up now' : '. Blessings would have saved most of it';
     return { text: 'The hunt ended and ' + who + ' came home. You kept your loot and your Level. Dying cost ' + d.xp + ' Level XP' + kept
-      + '. They\'re free until Level ' + b.freeUntil + ': open Services and Bless ' + (d.saved ? 'again' : 'all ' + inWords(b.of)) + ' before you go back.' };
+      + '. They\'re free until Level ' + b.freeUntil + ': open the Shop\'s Services tab and Bless ' + (d.saved ? 'again' : 'all ' + inWords(b.of)) + ' before you go back.' };
   },
   first_eat: (f) => {
     const ate = used(f, 'food', 'own');

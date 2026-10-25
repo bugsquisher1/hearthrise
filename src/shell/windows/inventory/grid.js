@@ -202,7 +202,7 @@ function patchHuntPane(root, st, ctx) {
     key: (l) => l.item,
     build: (l) => element(ctx.doc, '<li class="hw-loot-row" data-hs-act="loot-row" data-item="' + esc(l.item) + '"><span class="hw-ico">' + itemIconHtml(ctx.glyphs, l.item) + '</span>'
       + '<span class="hw-loot-name"><b>' + esc(itemName(l.item)) + '</b><small></small></span>'
-      + '<select class="hh-select" data-hs-act="rule" data-item="' + esc(l.item) + '" aria-label="On pickup">' + RULES.map(([v, w]) => '<option value="' + v + '">' + esc(w) + '</option>').join('') + '</select></li>'),
+      + '<select class="hh-select" data-hs-act="rule" data-item="' + esc(l.item) + '" data-rule-item="' + esc(l.item) + '" aria-label="On pickup">' + RULES.map(([v, w]) => '<option value="' + v + '">' + esc(w) + '</option>').join('') + '</select></li>'),
     patch: (li, l) => {
       const inBag = st.qty.get(l.item) || 0;
       text(li.querySelector('small'), '×' + whole(l.count) + ' this hunt · ' + whole(inBag) + ' in the bag');

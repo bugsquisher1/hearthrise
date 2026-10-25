@@ -292,6 +292,11 @@ async function pure() {
   const { usesOf } = await imp('src/shell/item-lore.js');
   const sold = lootToSell([{ id: 'bones', qty: 15 }, { id: 'rat_tail', qty: 4 }, { id: 'razor_claw', qty: 1 }]);
   if (sold.join(',') !== 'rat_tail') fails.push('AW-0 Sell all loot would sell ' + sold.join(', ') + ' (bones and offerings are kept for Prayer)');
+  /* board 2026-10-25 #22: Sell all loot sold Silk Thread, the first Crafting recipes' thread: a material a recipe the hero
+     can make NOW spends is kept (the server's skill level); one only a far higher level spends is sold */
+  const crafter = lootToSell([{ id: 'silk_thread', qty: 6 }, { id: 'slime_gel', qty: 3 }, { id: 'rat_tail', qty: 2 }], { crafting: { xp: 0, level: 1 } });
+  if (crafter.join(',') !== 'slime_gel,rat_tail') fails.push('AW-0 a Crafting 1 hero\'s Sell all loot sells ' + crafter.join(', ') + ' (want slime_gel, rat_tail: Silk Thread is its Crafting 1 thread)');
+  if (lootToSell([{ id: 'slime_gel', qty: 3 }], { crafting: { xp: 0, level: 30 } }).length) fails.push('AW-0 a Crafting 30 hero\'s Sell all loot sells its Slime Gel');
   const bones = usesOf('bones');
   if (!bones.some((l) => /^Bury it to train Prayer/.test(l)) || bones.some((l) => /sell/i.test(l))) fails.push('AW-0 the bones tooltip reads ' + JSON.stringify(bones));
   /* AW-20: what cooks is read off the recipe rows (no id list); the bench refuses in words, from the server's level. */
@@ -1664,7 +1669,8 @@ async function checks(overrides, shots) {
           const r1 = await ringed();
           const inWin = await page.evaluate(() => { const p = document.querySelector('[data-hs-win="hunts"] > .hs-win-coach .hs-pointer'); return p ? p.textContent : null; });
           if (r1.join() !== 'mill_cellar') fails.push('AW-17b with Hunts open on the phone the ring is on ' + JSON.stringify(r1) + ', wanted the Mill Cellar line');
-          if (!inWin || !/Open Hunts/.test(inWin)) fails.push('AW-17b the card is not inside the Hunts sheet: ' + JSON.stringify(inWin));
+          /* inside the window it says its words for there (board 2026-10-25 #20: never "Open Hunts" over the open Hunts) */
+          if (!inWin || !/Press Enter/.test(inWin) || /Open Hunts/.test(inWin)) fails.push('AW-17b the card is not inside the Hunts sheet, in its words for there: ' + JSON.stringify(inWin));
           if (shots) await shot(page, 'alpha-922x423-first-minute-hunts');
           await page.keyboard.press('Escape');
           await page.waitForTimeout(300);
@@ -1782,8 +1788,8 @@ const MUTANTS = [
   ['the bench ignores the server level', 'src/shell/windows/inventory/bury.js', "  if (lv < e.recipe.req) return 'Needs '", "  if (false) return 'Needs '"],
   ['the skills are one window again', 'src/shell/windows/skills.js', "export const renderTradeSkills = skillsWindow([['gather', 'Gathering'], ['artisan', 'Crafting']]);", "export const renderTradeSkills = skillsWindow([['combat', 'Combat'], ['gather', 'Gathering'], ['artisan', 'Crafting']]);"],
   ['a new player gets no pointer to Hunts', 'src/shell/launcher.js', "+ (ctx.hud && ctx.hud.isShown('hunt-topbar') ? '' : pointerFor(ctx)) + '</nav>'", "+ '</nav>'"],
-  ['coach: the card leaves when its window opens (AW-17b, playtest 2026-10-24)', 'src/shell/shell.js', "placeCoach(slot, win && slot.parentElement.getAttribute('data-hs-win') === win ? coachHtml(cs, card) : '');", "placeCoach(slot, '');"],
-  ['coach: nothing inside a window is ringed (AW-17b)', 'src/shell/shell.js', '    ringCoach(ctx, card, [shell, screen], cs ? draftOf(cs).open : null);\n', ''],
+  ['coach: the card leaves when its window opens (AW-17b, playtest 2026-10-24)', 'src/shell/shell.js', "placeCoach(slot, win && slot.parentElement.getAttribute('data-hs-win') === win ? coachHtml(cs, card, true) : '');", "placeCoach(slot, '');"],
+  ['coach: nothing inside a window is ringed (AW-17b)', 'src/shell/shell.js', '    ringCoach(ctx, card, ringRoots);\n', ''],
   ['coach: the ring is on a control nobody can see (AW-17b)', 'src/shell/launcher.js', "const shown = (el) => el.getClientRects().length > 0 && !el.closest('[hidden]');", 'const shown = () => true;'],
   ['coach: the Hunts window stays over the hunt it entered (AW-29)', 'src/shell/windows/hunts.js', "  const thenClose = (r) => { if (r && r.ok) { sc.closeOnHunt = true; repaint(); } };\n", '  const thenClose = () => {};\n'],
   /* The Hunts window, master-detail (designer plan 2026-10-22): AW-25 .. AW-29. */

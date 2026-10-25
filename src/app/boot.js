@@ -51,6 +51,8 @@ import { startDiagnostics } from '../net/diagnostics.js?v=0.2.45';
 import { mountPressAck } from '../shell/press-ack.js?v=0.2.45';
 import { liveOverlayWanted, mountLiveOverlay } from './live-overlay.js?v=0.2.45';
 import { mountNewVersion } from './new-version.js?v=0.2.45';
+import { pointerCardOf } from '../session/tutorial-sections.js?v=0.2.45';
+import { coachFactsOf } from '../shell/launcher.js?v=0.2.45';
 
 const DISCORD = 'https://discord.gg/eJrUSUJM3M';
 
@@ -188,12 +190,27 @@ function startApp(win) {
       + (r.exists && r.level ? ' <small class="char-level">Level ' + r.level + '</small>' : '') + '</span> '
       + '<span class="char-go">' + (r.exists ? (open.has(r.slot) ? 'Show' : 'Play') : r.unnamed ? 'Name hero' : 'Create hero') + '</span>'
       + '</button></li>').join('');
+    /* the server's play-at-once limit, never a client fallback (board 2026-10-25 #8: an empty account read "One can play
+       at a time." because the server had not said yet); unsaid, nothing is said */
+    const lim = a.statedLimit();
+    const playLine = lim === null ? '' : lim > 1 ? 'Up to ' + Math.min(lim, a.limit()) + ' can play at once.' : 'One can play at a time.';
     root.querySelector('.auth-card').innerHTML = '<h1 class="auth-title">Your characters</h1>'
-      + '<p class="auth-lead">Signed in as ' + esc(auth.email() || 'you') + '. ' + (a.limit() > 1 ? 'Up to ' + a.limit() + ' can play at once.' : 'One can play at a time.') + '</p>'
+      + '<p class="auth-lead">Signed in as ' + esc(auth.email() || 'you') + '. ' + playLine + '</p>'
       + '<ul class="char-list">' + (rows || '<li class="char-row">The server did not answer. Reload to try again.</li>') + '</ul>'
       + '<div class="slot-offer-mount">' + slotOfferHtml(a.slotOffer, roster, { pending: slotBuying }) + '</div>'
       + '<p class="auth-message' + (note ? ' is-good' : '') + '" role="status" aria-live="polite">' + esc(note || '') + '</p>'
       + '<p class="auth-links"><button type="button" class="auth-link" data-app="sign-out">Sign out</button></p>';
+    ringCharacters(a, root.querySelector('.auth-card'));
+  }
+
+  /* THE COACH ON THE CHARACTERS SCREEN (board 2026-10-25 D4 "More than one hero"): the game's shell is gone here, so the
+     screen rings the step the viewed hero's card names on it (its hooks: Create hero in the empty slot), the deepest
+     one on screen, from the same facts the shell reads (src/shell/launcher.js coachFactsOf). Display only. */
+  function ringCharacters(a, card) {
+    const cs = a.character(a.viewed);
+    const c = cs ? pointerCardOf(cs, coachFactsOf(cs, a)) : null;
+    const el = c && c.hooks ? c.hooks.slice().reverse().map((q) => card.querySelector(q)).find(Boolean) : null;
+    if (el) el.setAttribute('data-coach-ring', '');
   }
 
   /* The offer block alone, redrawn while a purchase is in flight. */

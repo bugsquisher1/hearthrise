@@ -10,6 +10,14 @@ import { escapeHtml as esc } from '../utils/dom.js?v=0.2.45';
 import { pointerCardOf } from '../session/tutorial-sections.js?v=0.2.45';
 import { HUNT_TUTORIAL, AUTO_KINDS, coachIcon } from '../data/hunt-tutorial.js?v=0.2.45';
 import { tallyOf } from '../session/tally-sections.js?v=0.2.45';
+import { bagOf, rulesOf, shopOf, equipmentOf, nameOf, skillsOf } from '../session/item-sections.js?v=0.2.45';
+import { levelOf } from '../session/character-sections.js?v=0.2.45';
+import { huntOf } from '../session/hunt-sections.js?v=0.2.45';
+import { COACH_READ_MAX } from '../session/residue.js?v=0.2.45';
+import { lootSale } from './bag-model.js?v=0.2.45';
+import { upgradeOf } from './widgets/upgrade-line.js?v=0.2.45';
+import { revealInWindow, glyphSvg } from './widgets/bits.js?v=0.2.45';
+import { draftOf, serverBar } from './bar-draft.js?v=0.2.45';
 
 /** The chip text for a row's shortcut key: 'b' -> 'B', 'enter' -> 'Enter'. */
 export function keyLabel(key) {
@@ -17,11 +25,8 @@ export function keyLabel(key) {
   return k.length === 1 ? k.toUpperCase() : k.charAt(0).toUpperCase() + k.slice(1);
 }
 
-/** An inline SVG for a window.HR_GLYPHS key, or '' when the glyph is missing. */
-export function glyphSvg(glyphs, key, cls) {
-  const d = glyphs && glyphs[key];
-  return d ? '<svg class="' + (cls || 'hs-glyph') + '" viewBox="0 0 512 512" aria-hidden="true" focusable="false"><path d="' + esc(d) + '"/></svg>' : '';
-}
+/** An inline SVG for a window.HR_GLYPHS key, or '' when the glyph is missing (src/shell/widgets/bits.js). */
+export { glyphSvg };
 
 /**
  * THE TUTORIAL POINTER (Tyler 10-18: "I'm confused right away"). One line under the icon row: the
@@ -57,10 +62,86 @@ export function readMs(card) {
   return Math.max(4000, Math.min(9000, 1500 + words * 250));
 }
 
-/** The card the coach shows now: the server's (pointerCardOf), or one still being read (above). */
+/* ── THE SHELL'S FACTS (the lane 1 / lane 2 interface, src/session/tutorial-sections.js header) ──
+   What only the shell knows, computed with the SAME function its control uses, so a card and its button never
+   disagree: the reads (residue `coach.read`), the account's heroes (the roster the server last read plus the open
+   CharacterSessions, which are fresher), the slots owned and the play-at-once limit (the server's, never a fallback),
+   what Sell all loot would sell (bag-model.js lootSale) and what Equip upgrades would put on (upgrade-line.js). A
+   field the shell cannot know is null, and the card that needs it is passed by (never a wall). Kept per character
+   while the records it read are the same objects (every envelope and residue write replaces a record). */
+const FACTS = new WeakMap();
+/** The cards this character has read (Got it, or on screen long enough), or null when this client cannot record one. */
+export function coachReadOf(cs) {
+  if (!cs || !cs.record || typeof cs.setResidue !== 'function') return null;
+  const r = cs.record.residue && cs.record.residue.coach;
+  return new Set(r && Array.isArray(r.read) ? r.read : []);
+}
+const huntOpenOf = (c) => { const h = huntOf(c); return !!h && !h.ended; };
+/** The shell's facts for `cs` (pointerCardOf's second argument). `account`: the AccountSession, or null. */
+export function coachFactsOf(cs, account) {
+  if (!cs) return {};
+  const open = account && typeof account.characters === 'function' ? account.characters() : [];
+  const memo = FACTS.get(cs);
+  if (memo && cs.record && memo.record === cs.record && memo.account === account && memo.open.length === open.length
+    && memo.open.every((x, i) => x.cs === open[i] && x.record === open[i].record)) return memo.sh;
+  const rows = account && typeof account.lastRoster === 'function' ? account.lastRoster() : null;
+  let roster = null;
+  if (rows || open.length) {
+    const by = new Map();
+    for (const r of rows || []) if (r.exists) by.set(r.slot, { slot: r.slot, level: r.level, name: r.name, open: false, hunting: null });
+    for (const c of open) {
+      const lv = levelOf(c);
+      by.set(c.slot, { slot: c.slot, level: lv ? lv.level : (by.get(c.slot) || {}).level ?? null, name: nameOf(c) || (by.get(c.slot) || {}).name || null,
+        open: true, hunting: huntOpenOf(c) });
+    }
+    roster = Array.from(by.values()).sort((a, b) => a.slot - b.slot);
+  }
+  const bag = bagOf(cs), shop = shopOf(cs), eq = equipmentOf(cs);
+  const sh = {
+    read: coachReadOf(cs),
+    roster,
+    slotsOwned: rows ? rows.length : null,
+    playLimit: account && typeof account.statedLimit === 'function' ? account.statedLimit() : null,
+    sellable: bag && shop ? lootSale(bag, rulesOf(cs), shop, skillsOf(cs)).lines.length : null,
+    upgrades: bag && eq ? upgradeOf(cs).picks.map((p) => p.id) : null,
+  };
+  if (cs.record) FACTS.set(cs, { record: cs.record, account, open: open.map((c) => ({ cs: c, record: c.record })), sh });
+  return sh;
+}
+
+/** Record `card` as read for this character (residue `coach.read`, display state): its Got it press, or a card the
+    player only has to read once it has been on screen its reading time. True when written. */
+export function markCoachRead(cs, card) {
+  const read = coachReadOf(cs);
+  if (!read || !card || read.has(card.id)) return false;
+  const r = (cs.record.residue && cs.record.residue.coach) || {};
+  return cs.setResidue('coach', Object.assign({}, r, { read: Array.from(read).concat(card.id).slice(-COACH_READ_MAX) }));
+}
+
+/* A card read on sight: it finishes on its read and has no Got it (you ate, you drank, stamina is low). */
+const readOnSight = (card) => !!card && !card.gotIt && !!card.done && (card.done.kind === 'read'
+  || (card.done.kind === 'any' && card.done.of.some((d) => d.kind === 'read')));
+const SIGHT = new WeakMap();
+/**
+ * The display tick's read-on-sight clock: `onScreen` = the card's open box is on screen now. A read-on-sight card
+ * that has stayed on screen its reading time is recorded read (markCoachRead) and gives way. True when written.
+ */
+export function noteCoachSight(ctx, card, onScreen) {
+  const cs = ctx.character;
+  const now = typeof ctx.now === 'function' ? ctx.now() : null;
+  if (!cs || now === null || !readOnSight(card) || !onScreen) { if (cs) SIGHT.delete(cs); return false; }
+  const s = SIGHT.get(cs);
+  if (!s || s.id !== card.id) { SIGHT.set(cs, { id: card.id, since: now }); return false; }
+  if (now - s.since < readMs(card)) return false;
+  SIGHT.delete(cs);
+  return markCoachRead(cs, card);
+}
+
+/** The card the coach shows now: the server's (pointerCardOf, with the shell's facts: ctx.account), or one still
+ *  being read (above). */
 export function heldCard(ctx) {
   const cs = ctx.character;
-  const card = pointerCardOf(cs);
+  const card = pointerCardOf(cs, cs ? coachFactsOf(cs, ctx.account || null) : undefined);
   const now = typeof ctx.now === 'function' ? ctx.now() : null;
   if (!cs || now === null) return card;
   const had = HELD.get(cs);
@@ -78,19 +159,25 @@ export function heldCard(ctx) {
 }
 
 /** The coach box for `card` (folded to its title, or open), the same wherever it is drawn. Open, its words are their
- *  own box (.hs-coach-text): on a phone a long card scrolls there, under its title and its dash (shell.css). */
-export function coachHtml(cs, card) {
+ *  own box (.hs-coach-text): on a phone a long card scrolls there, under its title and its dash (shell.css). `inWin`:
+ *  drawn inside the window the card points into, where it says its words for there (card.textIn: "Press Enter",
+ *  never "Open Hunts" over the open Hunts, board 2026-10-25 #20). */
+export function coachHtml(cs, card, inWin) {
+  if (inWin && card.textIn) card = Object.assign({}, card, { text: card.textIn });
   const { min, fresh } = coachFoldOf(cs, card);
   /* data-coach: what the box shows (the card, folded or not, marked or not); the hunt bar redraws when it changes. */
   const head = '<p class="hs-pointer' + (min ? ' is-min' : '') + '" role="note" data-tutorial="' + esc(card.id) + '" data-coach="'
-    + esc(card.id + (min ? (fresh ? ':new' : ':min') : '')) + '">';
+    + esc(card.id + (min ? (fresh ? ':new' : ':min') : '')) + '"' + (card.anchor ? ' data-anchor="' + esc(card.anchor) + '"' : '') + '>';
   if (min) {
     return head + '<button type="button" class="hs-coach-tab" data-hs-act="coach-open" aria-expanded="false" aria-label="'
       + esc(card.title + (fresh ? ', something new' : '') + ': show') + '">' + esc(card.title)
       + (fresh ? '<i class="hs-coach-new" aria-hidden="true"></i>' : '') + '</button></p>';
   }
+  /* A card that teaches and asks for nothing finishes on its Got it (residue `coach.read`, markCoachRead); it is
+     offered only where this client can record the press, so it is never a button that does nothing. */
+  const got = card.gotIt && coachReadOf(cs) ? ' <button type="button" class="hs-coach-got" data-hs-act="coach-got">Got it</button>' : '';
   return head + '<button type="button" class="hs-coach-min" data-hs-act="coach-min" aria-expanded="true" aria-label="Minimize '
-    + esc(card.title) + '" title="Minimize"></button><b>' + esc(card.title) + '</b> <span class="hs-coach-text">' + esc(card.text) + '</span></p>';
+    + esc(card.title) + '" title="Minimize"></button><b>' + esc(card.title) + '</b> <span class="hs-coach-text">' + esc(card.text) + '</span>' + got + '</p>';
 }
 
 /**
@@ -118,15 +205,18 @@ export function placeCoach(el, html) {
 
 /** The coach's fold and open presses, from wherever it is drawn (this row, the hunt top bar, a window). True when handled. */
 export function actCoach(ctx, el, action, ev) {
-  if (action !== 'coach-min' && action !== 'coach-open') return false;
+  if (action !== 'coach-min' && action !== 'coach-open' && action !== 'coach-got') return false;
   if (ev.type !== 'click') return true;
   const cs = ctx.character;
   const card = cs && heldCard(ctx);
   if (!card || typeof cs.setResidue !== 'function') return true;
+  if (action === 'coach-got') { if (card.gotIt) markCoachRead(cs, card); return true; }
   const doc = el.ownerDocument;
   const hadFocus = !!doc && !!doc.activeElement && el.contains(doc.activeElement);
-  /* Opening clears the mark: the card the player now sees is the one they have seen. */
-  cs.setResidue('coach', action === 'coach-min' ? { min: true, seen: card.id } : { seen: card.id });
+  /* Opening clears the mark: the card the player now sees is the one they have seen. The reads stay. */
+  const read = coachReadOf(cs);
+  const keep = read && read.size ? { read: Array.from(read) } : {};
+  cs.setResidue('coach', Object.assign(action === 'coach-min' ? { min: true, seen: card.id } : { seen: card.id }, keep));
   /* The box is redrawn on the residue change (one repaint per task): keep the keyboard on the coach's control. */
   if (hadFocus) queueMicrotask(() => { const b = el.querySelector('[data-hs-act^="coach-"]'); if (b) b.focus(); });
   return true;
@@ -182,8 +272,13 @@ export function ringPlan(card, at) {
     case 'hunt_topbar': return ['[data-hs-widget="hunt-topbar"] [data-hs-act="leave"]:not([disabled])'];
     case 'action_bar': {
       if (!Number.isInteger(card.barSlot)) return [];
-      return open('configure-action') && at.configuring === card.barSlot ? [inWin('configure-action', '[data-x="save"]:not([disabled])')]
-        : ['[data-hs-widget="action-bar"] .hb-slot[data-slot="' + card.barSlot + '"]'];
+      if (!(open('configure-action') && at.configuring === card.barSlot)) return ['[data-hs-widget="action-bar"] .hb-slot[data-slot="' + card.barSlot + '"]'];
+      /* Inside Configure action on the card's slot: the control the card names (its hooks: the store rune to pick, the
+         HP condition's −) until the player has changed the slot, then Save. A card that only teaches rings nothing. */
+      const save = inWin('configure-action', '[data-x="save"]:not([disabled])');
+      if (at.edited) return [save];
+      const hooks = card.hooks || [];
+      return hooks.length ? hooks.concat(save) : card.gotIt ? [] : [save];
     }
     case 'farm':
       return [inWin('farm', '.hw-seeds .hw-line[data-crop="' + g.crop + '"] [data-hs-act="sow"]:not([disabled])'),
@@ -197,42 +292,45 @@ export function ringPlan(card, at) {
     case 'tally':
       return at.weight === false ? [inWin('tally', '.ht-weights')]
         : [inWin('tally', '[data-hs-act="take"][data-task="' + g.task + '"]:not([disabled])')];
-    default: return [];
+    /* Every other anchor rings the card's own hooks (src/data/hunt-tutorial.js, tokens written by cardFor). They are
+       written in the order the player meets them, so the deepest that is on screen comes first: the Shop's Sell tab ->
+       Sell all loot -> its confirmation's Sell; Characters -> Create hero. */
+    default: return (card.hooks || []).slice().reverse();
   }
 }
 
 /* On screen: laid out, and not inside anything hidden. */
 const shown = (el) => el.getClientRects().length > 0 && !el.closest('[hidden]');
 
-/* A ring that lands below a window's fold (Tamsin's Take under her weight row, a ground low in the list) is scrolled
-   into view inside its window, once, as it lands: only the window's own scroll box moves, never the page or the World. */
-function reveal(el) {
-  for (let p = el.parentElement; p && !p.hasAttribute('data-hs-win'); p = p.parentElement) {
-    if (p.scrollHeight <= p.clientHeight + 1) continue;
-    const oy = p.ownerDocument.defaultView.getComputedStyle(p).overflowY;
-    if (oy !== 'auto' && oy !== 'scroll') continue;
-    const r = el.getBoundingClientRect(), b = p.getBoundingClientRect();
-    if (r.top < b.top) p.scrollTop -= b.top - r.top + 8;
-    else if (r.bottom > b.bottom) p.scrollTop += r.bottom - b.bottom + 8;
-    return;
-  }
+/* The bar slot Configure action has open (src/shell/bar-draft.js), and whether the player has changed it from the
+   server's slot (its action or conditions): { configuring, edited }. */
+function barEditOf(cs) {
+  const d = cs ? draftOf(cs) : null;
+  if (!d || !Number.isInteger(d.open) || !d.draft) return { configuring: null, edited: false };
+  const bar = serverBar(cs);
+  const cur = bar ? bar[d.open] : null;
+  const say = (s) => JSON.stringify([s.action || null, s.conditions || [], s.store || null]);
+  return { configuring: d.open, edited: cur ? say(cur) !== say(d.draft) : !!(d.draft.action && d.draft.action.id) };
 }
 
 /**
- * Ring `card`'s control in `roots` (the shell's boxes: the World shell and the screen layer): the first selector of its
- * way that is on screen gets `data-coach-ring`, and every other element loses it. `configuring`: the bar slot open in
- * Configure action (src/shell/bar-draft.js), or null. Answers the ringed element or null.
+ * Ring `card`'s control in `roots` (the shell's boxes: the World shell, the screen layer, and the screen around them:
+ * the character strip): the first selector of its way that is on screen gets `data-coach-ring`, and every other
+ * element loses it. Answers the ringed element or null.
  */
-export function ringCoach(ctx, card, roots, configuring) {
+export function ringCoach(ctx, card, roots) {
   const cs = ctx.character;
   const t = cs && tallyOf(cs);
-  const plan = ringPlan(card, { open: (id) => ctx.wm.isOpen(id), configuring: Number.isInteger(configuring) ? configuring : null, weight: t ? !!t.weight : null });
+  const bar = barEditOf(cs);
+  const plan = ringPlan(card, { open: (id) => ctx.wm.isOpen(id), configuring: bar.configuring, edited: bar.edited, weight: t ? !!t.weight : null });
   let target = null;
   for (const q of plan) {
     for (const r of roots) { const el = r.querySelector(q); if (el && shown(el)) { target = el; break; } }
     if (target) break;
   }
   for (const r of roots) for (const el of r.querySelectorAll('[data-coach-ring]')) if (el !== target) el.removeAttribute('data-coach-ring');
-  if (target && !target.hasAttribute('data-coach-ring')) { target.setAttribute('data-coach-ring', ''); reveal(target); }
+  /* a ring that lands below a window's fold (Tamsin's Take under her weight row, a ground low in the list) is scrolled
+     into view inside its window, once, as it lands: only the window's own scroll box moves, never the page or the World */
+  if (target && !target.hasAttribute('data-coach-ring')) { target.setAttribute('data-coach-ring', ''); revealInWindow(target); }
   return target;
 }

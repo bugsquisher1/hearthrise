@@ -19,8 +19,8 @@
 // ════════════════════════════════════════════════════════════════════════
 import { ALERTS_SEEN_MAX } from '../session/residue.js?v=0.2.45';
 import { huntOf } from '../session/hunt-sections.js?v=0.2.45';
-import { deathLogOf } from '../session/character-sections.js?v=0.2.45';
-import { nameOf } from '../session/item-sections.js?v=0.2.45';
+import { deathLogOf, levelOf } from '../session/character-sections.js?v=0.2.45';
+import { nameOf, blessingsOf } from '../session/item-sections.js?v=0.2.45';
 import { huntName } from '../session/party-sections.js?v=0.2.45';
 import { SKILLS_DEF } from '../data/skills.js?v=0.2.45';
 import { whole } from '../render/format.js?v=0.2.45';
@@ -33,6 +33,18 @@ const seenOf = (cs) => {
 };
 /** The dismissal id of a death: its hunt session's (the alert centre reads the same one). */
 const deathSeenId = (session) => 'died:' + session;
+/* ", and they're free until Level 30" while the server's Blessings are free for this hero (board 2026-10-25 #9: the
+   popup never said so, and the player walked back into the same death unblessed), else nothing. */
+function freeWords(cs) {
+  const b = blessingsOf(cs), lv = levelOf(cs);
+  return b && Number.isInteger(b.freeUntil) && lv && lv.level < b.freeUntil ? ', and they\'re free until Level ' + b.freeUntil : '';
+}
+
+/** Does this hero hold fewer Blessings than the server offers? (the popup's Blessings button) Null when unknown. */
+export function blessingsMissing(cs) {
+  const b = blessingsOf(cs);
+  return b && b.tiers.length ? b.tiers.some((t) => !t.held) : null;
+}
 /* Dismissed on this page: an envelope that lands before the residue put cannot bring one back. */
 const DISMISSED = new WeakMap();
 const dismissedOf = (cs) => { let s = DISMISSED.get(cs); if (!s) { s = new Set(); DISMISSED.set(cs, s); } return s; };
@@ -87,7 +99,7 @@ export function deathWords(cs, d) {
     lost: Object.keys(row.xpLost).length ? 'Dying cost ' + xpWords(row.xpLost) + '.' : row.xp === null ? '' : 'Dying cost no XP.',
     /* undefined: the server did not say whether a Blessing was used, so nothing is said about one. */
     saved: row.saved === undefined ? ''
-      : row.saved === null ? 'No Blessing was active. A Blessing (Services) lowers what dying costs.'
+      : row.saved === null ? 'No Blessing was active. Blessings, in the Shop\'s Services tab, lower what dying costs' + freeWords(cs) + '.'
       : Object.keys(row.saved).length ? 'Your Blessing kept ' + xpWords(row.saved) + ', and is now used up.' : 'Your Blessing is now used up.',
     town: who + ' is back in town with full health and mana.',
   };

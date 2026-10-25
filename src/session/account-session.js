@@ -140,6 +140,7 @@ export class AccountSession {
     this._listeners = new Set();
     this.closedGame = false;
     this._limit = null;
+    this._roster = null;
     this.slotOffer = null;
     this.viewed = null;
     this._purse = null;
@@ -177,6 +178,14 @@ export class AccountSession {
     return Math.min(this.config.maxConcurrentCharacters, this._limit === null ? 1 : this._limit);
   }
 
+  /** The server's own play-at-once limit as last read (roster or any open character), or null until it has said:
+      words that state it (the coach's "up to N at once") never fall back to a client number. */
+  statedLimit() { this.limit(); return this._limit; }
+
+  /** The roster rows as the server last read them (roster(): every owned slot, with or without a hero), or null
+      before the first read. A copy: the coach's facts (src/shell/launcher.js coachFactsOf) read it. */
+  lastRoster() { return this._roster ? this._roster.map((r) => Object.assign({}, r)) : null; }
+
   /** Show another open character. Only the pointer moves; every CharacterSession is left exactly as it was. */
   view(slot) {
     if (!this._chars.has(slot) || this.viewed === slot) return this.viewed === slot;
@@ -209,12 +218,14 @@ export class AccountSession {
     this.slotOffer = slotOfferOf(first.ok && first.body ? first.body.account : null, this.config);
     const owned = ownedSlots(first.ok && first.body ? first.body.hero_slots : null, this.config);
     const answers = await Promise.all(owned.map((slot) => (slot === 0 ? first : this.server.rpc('hr_load', { p_slot: slot }))));
-    return owned.map((slot, i) => {
+    const rows = owned.map((slot, i) => {
       const ans = answers[i];
       this._noteClosed(ans);
       return Object.assign({ slot, exists: !!(ans.ok && ans.body && ans.body.ok === true),
         unnamed: !!(ans.ok && ans.body && ans.body.error === 'needs_name') }, heroOf(ans.ok ? ans.body : null));
     });
+    this._roster = rows;
+    return rows;
   }
 
   /** A player's problem report, through the bug-report bridge (it names the reporter from the token,

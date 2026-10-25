@@ -24,7 +24,6 @@ import { renderCharacter } from './windows/character/index.js?v=0.2.45';
 import { renderHunts } from './windows/hunts.js?v=0.2.45';
 import { renderStorage } from './windows/storage.js?v=0.2.45';
 import { renderShop } from './windows/shop.js?v=0.2.45';
-import { renderServices } from './windows/services.js?v=0.2.45';
 import { renderHuntPrep } from './windows/hunt-prep.js?v=0.2.45';
 import { renderParty } from './windows/party.js?v=0.2.45';
 import { renderCharacters } from './windows/characters.js?v=0.2.45';
@@ -46,7 +45,6 @@ export const WINDOW_RENDERERS = Object.freeze({
   'skills-trade': renderWork,
   storage: renderStorage,
   shop: renderShop,
-  services: renderServices,
   farm: renderFarm,
   tally: renderTally,
   house: renderHouse,

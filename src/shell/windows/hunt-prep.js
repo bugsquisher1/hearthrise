@@ -47,7 +47,7 @@ export function renderHuntPrep() {
     + '<ul class="hw-ledger hw-presets"></ul><p class="hh-empty hw-presets-none"></p>'
     + '<p class="hs-note hw-town-only">Setups change in town. This hunt keeps the bar it set off with.</p>'
     + '<div class="hw-add"><input type="text" class="hh-num hw-preset-name" maxlength="24" placeholder="Name this setup" aria-label="Setup name" data-hs-act="preset-name">'
-    + '<button type="button" class="hh-tool" data-hs-act="save-new">Save current setup</button></div>'
+    + '<button type="button" class="hh-tool" data-hs-act="save-new" data-coach-hook="setup-save">Save current setup</button></div>'
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></div>';
 }
 

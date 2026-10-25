@@ -14,9 +14,15 @@ import { SKILLS_DEF } from '../../data/skills.js?v=0.2.45';
 import { PIXEL_DIR, ABILITY_DIR, ABILITY_ART, SUPPLY_DIR, SUPPLY_ART_AHEAD } from '../../data/item-art.js?v=0.2.45';
 import { BASIC_INDEX } from '../../data/supply-basics.js?v=0.2.45';
 import { ROLE_GLYPH } from '../../data/hunt-hud.js?v=0.2.45';
-import { glyphSvg } from '../launcher.js?v=0.2.45';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.45';
 import { text, style, attr } from '../../render/paint.js?v=0.2.45';
+
+/** An inline SVG for a window.HR_GLYPHS key, or '' when the glyph is missing. (Here, under every panel part; the
+    icon row re-exports it, src/shell/launcher.js, so a coach import of these parts is never a cycle.) */
+export function glyphSvg(glyphs, key, cls) {
+  const d = glyphs && glyphs[key];
+  return d ? '<svg class="' + (cls || 'hs-glyph') + '" viewBox="0 0 512 512" aria-hidden="true" focusable="false"><path d="' + esc(d) + '"/></svg>' : '';
+}
 
 /** A gauge's skeleton: kind is hp | mana | stamina | xp. */
 export function gaugeHtml(kind, label) {
@@ -105,4 +111,22 @@ export function patchRoleGlyph(el, role, glyphs) {
   if (!el || el.getAttribute('data-role') === String(role)) return;
   el.innerHTML = glyphSvg(glyphs, ROLE_GLYPH[role] || 'uiPeople');
   el.setAttribute('data-role', String(role));
+}
+
+/**
+ * Bring `el` into view INSIDE its window: the nearest scroll box between it and its [data-hs-win] moves, never the
+ * page or the World (a coach ring below a window's fold; a confirmation under a long list, board 2026-10-25 #6:
+ * "press Sell all loot and nothing seems to happen"). True when it scrolled.
+ */
+export function revealInWindow(el) {
+  for (let p = el && el.parentElement; p && !p.hasAttribute('data-hs-win'); p = p.parentElement) {
+    if (p.scrollHeight <= p.clientHeight + 1) continue;
+    const oy = p.ownerDocument.defaultView.getComputedStyle(p).overflowY;
+    if (oy !== 'auto' && oy !== 'scroll') continue;
+    const r = el.getBoundingClientRect(), b = p.getBoundingClientRect();
+    if (r.top < b.top) { p.scrollTop -= b.top - r.top + 8; return true; }
+    if (r.bottom > b.bottom) { p.scrollTop += r.bottom - b.bottom + 8; return true; }
+    return false;
+  }
+  return false;
 }

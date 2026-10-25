@@ -352,7 +352,13 @@ async function pureRules(M, base) {
     e.hunt_events = [];
     e.hunt.ended = true;
     e.hunt.session = { end_reason: 'stamina', ended_at: '2026-10-17T12:30:00Z', phase: 'ended' };
+    /* the hero ON SCREEN gets its hunt summary instead, the one notice of a return (designer walk 2026-10-25 #5): no line */
+    const accV = account(M, srv);
+    const centreV = M.AL.createAlertCenter(accV);
+    if (!(await accV.open(0)).session) return 'the fixture character did not open (viewed)';
+    if (centreV.list().some((a) => a.kind === 'ended')) return 'the hero on screen raised an ended line over its own hunt summary';
     const acc = account(M, srv);
+    acc.viewed = 1;   // another hero is on screen: this one is played unviewed
     const centre = M.AL.createAlertCenter(acc);
     const cs = (await acc.open(0)).session;
     if (!cs) return 'the fixture character did not open';

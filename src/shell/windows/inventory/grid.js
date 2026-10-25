@@ -149,7 +149,7 @@ export function patchTools(root, st, ctx) {
   attr(pb, 'title', buryWhy || wearWhy || null);
   /* The picked line's words: its last press's answer, else why its action is off. */
   const pickSaid = !!cur && sc.msgAt === 'pick:' + cur && !!sc.msg;
-  whyLine(root.querySelector('.hw-pick-why'), !cur ? '' : (pickSaid ? sc.msg : wearWhy), pickSaid);
+  whyLine(root.querySelector('.hw-pick-why'), !cur ? '' : (pickSaid ? sc.msg : wearWhy || buryWhy), pickSaid);
   patchUpgradeLine(root, st.upgrade, onBag, sc.pending, { locked: gearLocked(st.cs), msg: sc.msgAt === 'upgrade' ? sc.msg : '' });
   const line = buryParts(st.cs);
   const bl = root.querySelector('.hw-burying');

@@ -24,6 +24,8 @@
     "node tools/mutant-gate.mjs node tests/window-camera.mjs --mutate": "in-page-2",
     "node tests/services-window.mjs": "in-page-2",
     "node tools/mutant-gate.mjs node tests/services-window.mjs --mutate": "in-page-2",
+    "node tests/say-why.mjs": "in-page-2",
+    "node tools/mutant-gate.mjs node tests/say-why.mjs --mutate": "in-page-2",
     "node tests/house-window.mjs": "in-page-2",
     "node tools/mutant-gate.mjs node tests/house-window.mjs --mutate": "in-page-2",
     "node tests/farm-window.mjs": "in-page-2",

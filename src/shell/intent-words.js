@@ -17,6 +17,7 @@ import { skillsOf } from '../session/item-sections.js?v=0.2.46';
 import { levelOf } from '../session/character-sections.js?v=0.2.46';
 import { needOf, needWords } from './item-lore.js?v=0.2.46';
 import { whole } from '../render/format.js?v=0.2.46';
+import { SKILLS_DEF } from '../data/skills.js?v=0.2.46';
 
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 
@@ -53,6 +54,24 @@ function requirementWords(item, cs, counts) {
   return need ? it.n + ' n' + need.text.slice(1) + '.' : null;
 }
 
+/**
+ * "You need Cooking 15 to cook Raw Wolf Meat. You have 4." — a skill short of what a town action asks (Tyler 10-25:
+ * "if I try to do something and can't, tell me why"). `need` is the catalogue row's level (the server's catalogue is
+ * generated from it), `have` the server's skill level (null: not said), `doing` the action's own words ("cook Raw
+ * Wolf Meat"). The client's pre-check and the server's refusal say this one sentence. Pure.
+ */
+export function skillShortWords(skill, need, have, doing) {
+  const name = (SKILLS_DEF[skill] && SKILLS_DEF[skill].name) || String(skill);
+  return 'You need ' + name + ' ' + need + (doing ? ' to ' + doing : '') + '.' + (Number.isInteger(have) ? ' You have ' + have + '.' : '');
+}
+
+/* "You need Level 16 to enter Wolf Den. You are Level 8." — hr_hunt_enter's activity_locked names the ground's floor and
+   the hero's Level (refusal.js floorOf); every number is the server's. */
+function floorWords(f) {
+  const h = f.hunt && HUNT_INDEX[f.hunt] ? HUNT_INDEX[f.hunt].name : 'that hunt';
+  return 'You need Level ' + f.level + ' to enter ' + h + '.' + (Number.isInteger(f.have) ? ' You are Level ' + f.have + '.' : '');
+}
+
 /* Why one seat held the party's start back, after its name. */
 const SEAT_WORDS = Object.freeze({
   away: 'is away', no_stamina: 'has no stamina left', hunt_open: 'is still hunting', activity_running: 'is busy in town',
@@ -75,6 +94,9 @@ export function refusalText(r, cs) {
   /* A name the rules refuse for what it says, not its length (hr_validate_display_name reserved / blocked). */
   if (r && r.error === 'bad_name' && (r.reason === 'reserved' || r.reason === 'blocked')) return refusalWords('bad_name_rule');
   if (r && r.error === 'member_hunting' && r.name) return r.name + ' is hunting. Invite them once that hunt ends.';
+  if (r && r.error === 'activity_locked' && r.floor) return floorWords(r.floor);
+  /* A town action above the server's skill level: town-work.js names the skill, both levels and the action. */
+  if (r && r.error === 'level_too_low' && r.skill && Number.isInteger(r.skill.need)) return skillShortWords(r.skill.id, r.skill.need, r.skill.have, r.skill.doing);
   if (r && (r.error === 'requirement_not_met' || r.error === 'level_too_low') && r.item) {
     const w = requirementWords(r.item, cs, r.counts);
     if (w) return w;

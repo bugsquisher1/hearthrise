@@ -46,6 +46,7 @@ import { recipeInputs } from '../core/artisan.js?v=0.2.46';
 import { pacedXp } from '../core/pacing.js?v=0.2.46';
 import { whole } from '../render/format.js?v=0.2.46';
 import { itemName } from './widgets/bits.js?v=0.2.46';
+import { skillShortWords } from './intent-words.js?v=0.2.46';
 import { skillsOf } from '../session/item-sections.js?v=0.2.46';
 import { townWorkRunning } from '../session/town-poll.js?v=0.2.46';
 import { predictTown, aheadQty, shownQty, lineParts } from './town-ticker.js?v=0.2.46';
@@ -144,13 +145,25 @@ function workWords(w) {
   return ((/[^e]e$/.test(verb) ? verb.slice(0, -1) : verb) + 'ing').toLowerCase() + (rest.length ? ' ' + rest.join(' ') : '');
 }
 
+/** The action as "You need … to ___" says it: "cook Raw Wolf Meat", "make Bronze Bar", "chop the Oak Tree", "bury Bones". */
+export function doWords(w) {
+  if (w.kind === 'gather') return (w.skill === 'woodcutting' ? 'chop the ' : w.skill === 'mining' ? 'mine the ' : 'fish at the ') + w.row.name;
+  const out = productOf(w);
+  if (out && w.skill === 'cooking') return 'cook ' + itemName(Object.keys(recipeInputs(w.row))[0] || out);
+  if (out) return 'make ' + itemName(out);
+  const [verb, ...rest] = String(w.row.name).split(' ');
+  return verb.toLowerCase() + (rest.length ? ' ' + rest.join(' ') : '');
+}
+
+/* The server's skill level for a row's skill, or null (not sent yet). */
+const levelFor = (cs, skill) => { const sk = skillsOf(cs); return sk && sk[skill] && Number.isInteger(sk[skill].level) ? sk[skill].level : null; };
+
 /** Why this row cannot start now (plain words), or '' when it can. Every number is the server's. */
 export function workBlock(cs, w, huntRunning) {
   if (huntRunning) return 'Not while a hunt is running.';
-  const sk = skillsOf(cs);
-  const lv = sk && sk[w.skill] ? sk[w.skill].level : null;
+  const lv = levelFor(cs, w.skill);
   if (lv === null) return 'Reading your ' + skillWord(w.skill) + ' level…';
-  if (lv < (w.row.req || 1)) return 'Needs ' + skillWord(w.skill) + ' ' + w.row.req + '.';
+  if (lv < (w.row.req || 1)) return skillShortWords(w.skill, w.row.req, lv, doWords(w));
   if (w.kind === 'artisan') {
     if (w.row.gated) return 'Needs the ' + itemName(w.row.gated) + ' recipe.';
     const inv = invOf(cs);
@@ -168,8 +181,10 @@ const runOf = (cs) => { let r = RUNS.get(cs); if (!r) { r = { timer: null, from:
 
 function xpOf(cs, skill) { const sk = skillsOf(cs); return sk && sk[skill] ? sk[skill].xp : null; }
 
-/* The bench refuses a recipe above its level as `activity_locked`; for town work that is the skill, not a hunt. */
-const skillRefusal = (r) => (r && !r.ok && r.error === 'activity_locked' ? Object.assign({}, r, { error: 'level_too_low' }) : r);
+/* The engine refuses a row above its level as `activity_locked`; for town work that is the skill, not a hunt, and the
+   words name it with both levels (the catalogue row's, the server's skill: intent-words.js skillShortWords). */
+const skillRefusal = (cs, w) => (r) => (r && !r.ok && r.error === 'activity_locked'
+  ? Object.assign({}, r, { error: 'level_too_low', skill: { id: w.skill, need: w.row.req || 1, have: levelFor(cs, w.skill), doing: doWords(w) } }) : r);
 
 /**
  * Start (or switch to) a work row: ONE set_activity. `send(fn, busy, done)` is the window's runIntent;
@@ -180,7 +195,7 @@ export function startWork(cs, w, send, repaint, words, count) {
   /* A whole count only on a bench row; anything else (All, a gathering node) runs until stopped or out. */
   const n = w.kind === 'artisan' && Number.isInteger(count) && count > 0 ? count : null;
   const activity = n === null ? { kind: w.kind, id: w.id } : { kind: w.kind, id: w.id, count: n };
-  return send(() => cs.edgeIntent('set_activity', { activity }).then(skillRefusal), 'Starting…', () => {
+  return send(() => cs.edgeIntent('set_activity', { activity }).then(skillRefusal(cs, w)), 'Starting…', () => {
     clearTimeout(run.timer);
     run.timer = null;
     const bag = invOf(cs);

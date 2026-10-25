@@ -112,7 +112,8 @@ renderHuntPrep.patch = function patchHuntPrep(body, ctx) {
   const full = presets && presets.length >= MAX_PRESETS;
   for (const el of root.querySelectorAll('.hw-add input, .hw-add button')) prop(el, 'disabled', sc.pending || !presets || full || hunting);
   cls(root.querySelector('.hw-town-only'), 'is-on', hunting);
-  text(root.querySelector('.hh-intent-msg'), sc.msg);
+  /* Saving a new setup is off when every slot is used: said, not only greyed (say-why). */
+  text(root.querySelector('.hh-intent-msg'), sc.msg || (full && !hunting ? 'All ' + MAX_PRESETS + ' setup slots are used. Delete one to save a new setup.' : ''));
 };
 
 renderHuntPrep.act = function actHuntPrep(ctx, body, action, ev, t) {

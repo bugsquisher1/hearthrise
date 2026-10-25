@@ -38,7 +38,8 @@ import { riteOf, cookOf } from '../../bag-model.js?v=0.2.46';
 import { skillsOf } from '../../../session/item-sections.js?v=0.2.46';
 import { huntOf } from '../../../session/hunt-sections.js?v=0.2.46';
 import { townActivityWords } from '../../../session/party-sections.js?v=0.2.46';
-import { startWork, stopWork, workRow, workOf, runParts } from '../../town-work.js?v=0.2.46';
+import { startWork, stopWork, workRow, workOf, runParts, doWords } from '../../town-work.js?v=0.2.46';
+import { skillShortWords } from '../../intent-words.js?v=0.2.46';
 import { lineParts, lineText } from '../../town-ticker.js?v=0.2.46';
 
 /** The bench entry that spends a whole stack of `id` ({ skill, recipe, input, need }), or null. */
@@ -85,9 +86,10 @@ export function buryBlock(cs, e) {
   const lv = sk && sk[e.skill] ? sk[e.skill].level : null;
   const name = skillName(e.skill);
   if (lv === null) return 'Reading your ' + name + ' level…';
-  if (lv < e.recipe.req) return 'Needs ' + name + ' ' + e.recipe.req + ' (you have ' + lv + ').';
+  /* "You need Cooking 15 to cook Raw Wolf Meat. You have 4." — the sentence the server's refusal reads as too (town-work.js). */
+  if (lv < e.recipe.req) { const w = workRow('artisan', e.recipe.id); return skillShortWords(e.skill, e.recipe.req, lv, w ? doWords(w) : ''); }
   const qty = (cs.read('inventory') || {})[e.input] || 0;
-  if (qty < e.need) return 'Needs ' + e.need + ' ' + itemName(e.input) + ' for one.';
+  if (qty < e.need) return 'You need ' + e.need + ' ' + itemName(e.input) + ' for one. You have ' + whole(qty) + '.';
   return '';
 }
 

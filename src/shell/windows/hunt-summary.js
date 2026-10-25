@@ -99,6 +99,7 @@ renderHuntSummary.patch = function patchHuntSummary(body, ctx) {
   const cur = list.find((s) => s.id === sc.pick) || list[0] || null;
   const open = endedSessionOf(cs);
   const huntOpen = !!open && !open.ended;
+  let againWhy = '';
   cls(root, 'is-empty', !cur);
 
   const live = huntOpen ? liveDeaths(a).deaths.slice(-2) : [];
@@ -129,6 +130,8 @@ renderHuntSummary.patch = function patchHuntSummary(body, ctx) {
     const go = root.querySelector('[data-hs-act="again"]');
     prop(go, 'disabled', sc.pending || huntOpen || !again);
     attr(go, 'title', huntOpen ? 'A hunt is already running.' : again ? 'Same ground, action set, limits and bag.' : 'This hunt did not keep its settings.');
+    /* Hunt again off says why on the line under it, not only in a title (say-why). */
+    againWhy = huntOpen ? 'Hunt again is off: a hunt is already running.' : again ? '' : 'Hunt again is off: this hunt did not keep its settings.';
     const card = huntOpen ? null : nextStepOf(ctx);
     const next = root.querySelector('[data-hs-act="coach-next"]');
     prop(next, 'hidden', !card);
@@ -136,7 +139,7 @@ renderHuntSummary.patch = function patchHuntSummary(body, ctx) {
     cls(go, 'is-primary', !card);
     for (const b of root.querySelectorAll('.hsum-actions button:not(.is-primary):not([data-hs-act="again"])')) prop(b, 'disabled', sc.pending);
   }
-  text(root.querySelector('.hh-intent-msg'), sc.msg);
+  text(root.querySelector('.hh-intent-msg'), sc.msg || againWhy);
 
   const past = list.filter((s) => s !== cur);
   cls(root.querySelector('.hsum-h-past'), 'is-on', past.length > 0);

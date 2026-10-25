@@ -183,15 +183,20 @@ function openMenu(ctx, body, st, id, at, repaint) {
   const locked = !!(st.rules && st.rules.locked.has(id));
   const bi = barIndexOf(st.cs, id);
   const off = (on) => (on && !sc.pending ? '' : ' disabled');
-  const item = (act, label, on, extra) => '<button type="button" role="menuitem" class="hw-mi" data-hs-act="' + act + '"' + (extra || '') + off(on) + '>' + esc(label) + '</button>';
+  /* An entry that is off says why on its own visible line under it (Tyler 10-25: "if I try to do something and can't,
+     tell me why"; a title is not enough on a phone). A press in flight says nothing: the window's line shows it. */
+  const item = (act, label, on, extra, why) => '<button type="button" role="menuitem" class="hw-mi" data-hs-act="' + act + '"' + (extra || '') + off(on) + '>' + esc(label) + '</button>'
+    + (!on && why ? '<small class="hw-mi-why" data-why="' + act + '">' + esc(why) + '</small>' : '');
   let h = '<b class="hw-menu-title">' + esc(itemName(id)) + '</b>';
-  const block = k === 'gear' ? wearBlock(st.cs, id) : '';
-  if (k === 'gear') h += item('m-equip', 'Equip', !!equipSlotFor(id, st.eq) && !block, block ? ' title="' + esc(block) + '"' : '');
+  const block = k === 'gear' ? wearBlock(st.cs, id) || (equipSlotFor(id, st.eq) ? '' : itemName(id) + ' does not go in any slot.') : '';
+  if (k === 'gear') h += item('m-equip', 'Equip', !block, '', block);
   if (k === 'food') h += item('m-eat', 'Eat', true);
   const br = buryRecipeOf(id);
-  if (br) h += item('m-bury', buryLabel(br, st.qty.get(id) || 0), !buryBlock(st.cs, br));
-  if (barKind(id)) h += item('m-bar', bi >= 0 ? 'On the bar (key ' + barKeyLabel(bi) + ')' : 'Put on the bar', !!st.bar && bi < 0);
-  h += item('m-sell', locked ? 'Sell (unlock it first)' : 'Sell…', !locked && !!st.shop && st.shop.bids.has(id));
+  const brWhy = br ? buryBlock(st.cs, br) : '';
+  if (br) h += item('m-bury', buryLabel(br, st.qty.get(id) || 0), !brWhy, '', brWhy);
+  if (barKind(id)) h += item('m-bar', bi >= 0 ? 'On the bar (key ' + barKeyLabel(bi) + ')' : 'Put on the bar', !!st.bar && bi < 0, '', st.bar ? '' : 'The bar is still loading.');
+  const sellWhy = locked ? '' : !st.shop ? 'The shop is still loading.' : st.shop.bids.has(id) ? '' : 'The shop does not buy this.';
+  h += item('m-sell', locked ? 'Sell (unlock it first)' : 'Sell…', !locked && !sellWhy, '', sellWhy);
   h += item('m-lock', locked ? 'Unlock' : 'Lock', !!st.rules);
   h += item('m-select', sc.sel.has(id) ? 'Unselect' : 'Select', true);
   h += item('m-link', 'Link in chat', !!(ctx.account && ctx.account.social));

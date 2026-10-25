@@ -4395,3 +4395,8 @@ guard tests/hunt-scene.mjs (SC-1..8, 13/13 mutants).
 4. *Measure a title row before adding a control to it.* The fold wrapped "Hunt analyzer" to two lines at 290 px beside This hero / Party (16 -> 32 px); the switch moved under the clocks (the phone already seats it there).
 5. *Headless Playwright hides scrollbars* (--hide-scrollbars): a scrollbar shot needs ignoreDefaultArgs, or before and after are the same picture.
 6. *Mutation anchors from four suites pin shell.js lines verbatim* (tally-window, hunt-screen, window-camera, chat-social): add beside them, never reword them. A new client module is a play.html preload line (module-preload --write).
+
+## 2026-10-25 lane/a-say-why (Tyler: "if I try to do something and cannot, tell me why")
+1. *A greyed control with a reason only in title= is a silent no-op on a phone.* The item menu now prints a .hw-mi-why line under any off entry (actions.js item(act, label, on, extra, why)); new menu entries pass their reason as the 5th arg (lane/c-store-all plan choices still use title=).
+2. *One sentence for client pre-check and server refusal:* intent-words.js skillShortWords (bench/gather above the skill) and floorWords (hr_hunt_enter activity_locked: band_min - refuse_under + 1, from refusal.js floor). town-work.js maps the engine activity_locked to level_too_low WITH the skill facts.
+3. tests/say-why.mjs is the standing guard: SW-1 every intent call site in shell/app speaks or hands its answer up; SW-2 every rule-disabled control is listed in REASONS with words that must stay in its file. A new rule-disabled control is red until it says why on screen.

@@ -5,6 +5,18 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.47 — 2026-10-25 (Set up in town)
+
+**Set up your bar in town.** Target, stance, Chase, Distance and gold to keep now work while you're in town, so you can get ready before you set out.
+
+**Ammo has its own tab.** Configure action's tabs are now Spells, Runes, Food & drink and Ammo.
+
+**Clearer farm buttons.** A ready plot offers "Harvest and replant" or "Harvest only".
+
+**Party hunts are safer.** If one hero's turn keeps failing, only that hero leaves the hunt; the rest of the party keeps going.
+
+**Small fixes.** No more "hunt has ended" note about the hero you're looking at after a reload, and your mana shows from the first second of a hunt.
+
 ## v0.2.46 — 2026-10-25 (A better bar and a fuller tutorial)
 
 **A new action bar.** Spell and item icons are twice as big on wide screens, and your stance, setup, target, Chase and Distance sit on the right where you can see them without opening anything. Phones get their own bar that fits the screen. Tap the "+" by your stamina to see the refill price and buy one.

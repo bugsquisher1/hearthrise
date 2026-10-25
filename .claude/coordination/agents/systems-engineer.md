@@ -4400,3 +4400,8 @@ guard tests/hunt-scene.mjs (SC-1..8, 13/13 mutants).
 1. *A greyed control with a reason only in title= is a silent no-op on a phone.* The item menu now prints a .hw-mi-why line under any off entry (actions.js item(act, label, on, extra, why)); new menu entries pass their reason as the 5th arg (lane/c-store-all plan choices still use title=).
 2. *One sentence for client pre-check and server refusal:* intent-words.js skillShortWords (bench/gather above the skill) and floorWords (hr_hunt_enter activity_locked: band_min - refuse_under + 1, from refusal.js floor). town-work.js maps the engine activity_locked to level_too_low WITH the skill facts.
 3. tests/say-why.mjs is the standing guard: SW-1 every intent call site in shell/app speaks or hands its answer up; SW-2 every rule-disabled control is listed in REASONS with words that must stay in its file. A new rule-disabled control is red until it says why on screen.
+## 2026-10-25 lane/a-v0246-followups — learnings
+1. *`account.viewed` is null while the FIRST character loads* (AccountSession._open sets it after load): an "on screen" test during the opening scan treats null as "this one", the account's own rule.
+2. *A catalogue `dflt` null means "the engine decides at spawn"*: in town the view reads null. Read the server SQL before blaming a client lock.
+3. *hunt-screen's stopAtFirst makes a mutant cost as deep as its rule sits*: put a new rule FIRST when the shard plan is full (HS-27 ~25 s vs ~190 s beside HS-8).
+4. *Python text mode on Windows writes CRLF*: rewrite repo files with newline=''.

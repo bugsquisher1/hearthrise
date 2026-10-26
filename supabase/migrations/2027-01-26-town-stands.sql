@@ -118,7 +118,14 @@
 -- per tick. town_moves: one ~100 B row per activity change, deleted when
 -- applied (the next town read). town_seen: unlogged, one row per parked hero.
 -- A read scans ONE instance (<= 240 held bodies + tombstones changed in the
--- last 65 s) through the partial index, then per row point probes; measured in
+-- last 65 s) on cheap key joins; who is SHOWN (quiet, admitted, live, blocked)
+-- is computed only for a delta's candidates. A walker's look (name, level,
+-- role, outfit: ~2.4 ms of helpers a walker, measured read-only on production
+-- 2026-10-25) is cached on its row, read at placement and re-read when older
+-- than 60 s for the rows an answer carries (SKIP LOCKED): about 4 re-reads a
+-- second per full instance, where hr_town_walkers paid it for 40 walkers on
+-- every 2 s poll of every viewer. Measured: the visibility pass over 240 rows
+-- 5.5 ms native (production, read-only replica of the query); PGlite numbers in
 -- tests/town-stands.mjs --load. A placement scans the map's stands (<= ~600)
 -- once. The first seat of an account scans the map's held bodies (O(map));
 -- a seat table is the step up if one map ever holds > ~50 instances.
@@ -1020,6 +1027,12 @@ begin
     perform public.hr_town_move(0, 'town_common', 12, 9, 12, 9, 's');
     if (select moved_at from public.town_positions where user_id = v_v and slot = 0) <> now() - interval '1 second' then
       raise exception 'town-stands §6(d): a keepalive on the same tile counted as a move'; end if;
+    -- THE LIVE CLIENT KEEPS ITS TOWN until the client half ships: the old read still answers over the same publishes
+    perform set_config('request.jwt.claim.sub', v_uids[1]::text, true);
+    v := public.hr_town_walkers('town_common');
+    if v->>'ok' is distinct from 'true' or not (v->'walkers' @> jsonb_build_array(jsonb_build_object('id', v_v, 'x', 12, 'y', 9))) then
+      raise exception 'town-stands §6(d): hr_town_walkers no longer serves the live client: %', left(v::text, 300); end if;
+    perform set_config('request.jwt.claim.sub', v_v::text, true);
     -- hr_town_go: a counter takes the body; a work station is refused; null sends it back to its activity's place
     v := public.hr_town_go(0, 'tally_board');
     if v->'me'->>'station' is distinct from 'tally_board'

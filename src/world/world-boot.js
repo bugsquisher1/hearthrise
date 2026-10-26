@@ -252,6 +252,9 @@ export async function bootWorld(panel, opts) {
       const at = held ? town.placeOn(map.id) : heroPosOn(G, map.id);
       walkPlaced = !held || !!at;
       walkStand = held ? standKeyOf(town) : null;
+      /* set down by the server mid-walk (back from a hunt into a resumed activity): it walks on to its stand */
+      const me = held && typeof town.me === 'function' ? town.me() : null;
+      if (me && at && at[0] === me.x && at[1] === me.y && (me.x !== me.at[0] || me.y !== me.at[1])) walkStand = null;
       const mapSprites = (artOf(map.id) || { tables }).tables.sprites;
       walk = createWalkScene(map, Object.assign({ at, sprites: mapSprites, openClasses: OPEN_CLASSES, maps: ROW_OF, heroSprite: () => heroSprite(character) },
         sandboxExtras(map, mapSprites)));
@@ -325,7 +328,7 @@ export async function bootWorld(panel, opts) {
     let cast;
     if (sc.kind === 'hunt') {
       cast = huntState(G, sc, map, name, now);
-      walk = null; lastWalk = null; keys.clear(); forgetPos(G);   // back in town: the arrival point
+      walk = null; lastWalk = null; keys.clear(); forgetPos(G);   // back in town: on the stand the server gives it
       if (town) town.show(null);
     } else {
       hunt = null; huntMap = null; lastHunt = null; endLive();

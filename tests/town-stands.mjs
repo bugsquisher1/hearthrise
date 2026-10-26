@@ -200,7 +200,7 @@ const MUTANTS = [
   ['a delta is answered whole', "  v_full := v_cur is null or v_cur < v_now - c_full_after or v_cur > v_now + interval '1 second';", '  v_full := true;'],
   ['the gone are never told', "                       where v_since is not null and not (s.shown and s.inside)", "                       where false and not (s.shown and s.inside)"],
   ['a delta reads every body again', "         where v_since is null or t.changed > v_since or (t.inside and not t.was_inside)", "         where true or t.changed > v_since or (t.inside and not t.was_inside)"],
-  ['a peer\'s look is never re-read', "     where b.user_id = p.id and b.slot = p.slot and (b.look is null or b.look_at < v_now - interval '60 seconds');", "     where b.user_id = p.id and b.slot = p.slot and b.look is null;"],
+  ['a peer\'s look is never re-read', "        where t.look is null or t.look_at < v_now - interval '60 seconds'", "        where t.look is null"],
   ['the arrival is ignored', "        perform public.hr_town_place(r.user_id, r.slot, p_map, v_from, 'arrive', r.ended_at);", "        perform public.hr_town_place_pointer(r.user_id, r.slot, p_map);"],
   ['hr_town_go takes a work station', "s.role in ('visit', 'idle', 'bench')) then", "s.role in ('visit', 'idle', 'bench', 'work')) then"],
 ];
@@ -216,7 +216,11 @@ async function main() {
       if (src.split(from).length !== 2) { console.log('  ✗ ' + name + ' — anchor matches ' + (src.split(from).length - 1) + ' times'); bad++; continue; }
       let fails;
       try { fails = await rules((await bootReplay({ patches: new Map([[FILE, [[from, to]]]]), upTo: FILE })).db); }
-      catch (e) { fails = ['replay refused it: ' + String(e.message).split('\n')[1]]; }
+      catch (e) {
+        /* a HARNESS fault (the anchor moved, the patch did not land) proves nothing: red, never "caught" */
+        if (e && e.harness) { console.log('  ✗ ' + name + ' — harness: ' + String(e.message).split('\n')[0]); bad++; continue; }
+        fails = ['replay refused it: ' + String(e.message).split('\n')[1]];
+      }
       if (fails.length) console.log('  ✓ ' + name + ' — caught (' + fails[0].slice(0, 90) + ')');
       else { console.log('  ✗ ' + name + ' — NOT caught'); bad++; }
     }

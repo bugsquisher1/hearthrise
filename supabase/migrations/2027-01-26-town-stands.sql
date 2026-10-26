@@ -437,11 +437,13 @@ begin
     update public.town_bodies set why = p_why, changed_at = now()
      where user_id = p_user and slot = p_slot and why is distinct from p_why;
   else
-    insert into public.town_bodies as tb (user_id, slot, map_id, inst, station_id, stand_no, why, since, from_x, from_y, changed_at)
-      values (p_user, p_slot, p_map, v_inst, v_st, v_no, p_why, coalesce(p_since, now()), v_fx, v_fy, now())
+    -- its look is read with its stand (a new body is never sent without one)
+    insert into public.town_bodies as tb (user_id, slot, map_id, inst, station_id, stand_no, why, since, from_x, from_y, changed_at, look, look_at)
+      values (p_user, p_slot, p_map, v_inst, v_st, v_no, p_why, coalesce(p_since, now()), v_fx, v_fy, now(), public.hr_town_look(p_user, p_slot), now())
     on conflict (user_id, slot) do update
       set map_id = excluded.map_id, inst = excluded.inst, station_id = excluded.station_id, stand_no = excluded.stand_no,
-          why = excluded.why, since = excluded.since, from_x = excluded.from_x, from_y = excluded.from_y, changed_at = excluded.changed_at;
+          why = excluded.why, since = excluded.since, from_x = excluded.from_x, from_y = excluded.from_y, changed_at = excluded.changed_at,
+          look = excluded.look, look_at = excluded.look_at;
   end if;
   return jsonb_build_object('ok', true, 'me', public.hr_town_me(p_user, p_slot));
 end $fn$;
@@ -763,12 +765,18 @@ begin
   -- THE LOOKS of the bodies this answer carries, re-read when older than 60 s (the helpers run for those rows only),
   -- then the walkers. Last: body rows are locked after the map lock, never before (§ CONCURRENCY).
   if v_pick is not null then
+    -- SKIP LOCKED: two readers refreshing one look never wait on (or deadlock with) each other; the one that skipped
+    -- sends the minute-old look, or reads it fresh when it has none
     update public.town_bodies b set look = public.hr_town_look(b.user_id, b.slot), look_at = v_now
-      from jsonb_to_recordset(v_pick) p(id uuid, slot int)
-     where b.user_id = p.id and b.slot = p.slot and (b.look is null or b.look_at < v_now - interval '60 seconds');
-    select jsonb_agg(jsonb_build_object('id', p.id, 'slot', p.slot, 'name', b.look->'name', 'level', b.look->'level',
-                       'role', b.look->'role', 'outfit', b.look->'outfit', 'x', p.x, 'y', p.y, 'gx', p.gx, 'gy', p.gy, 'dir', p.dir,
-                       'age_ms', p.age_ms, 'station', p.station, 'work', p.work) order by p.ord)
+     where (b.user_id, b.slot) in (
+       select t.user_id, t.slot from public.town_bodies t
+         join jsonb_to_recordset(v_pick) p(id uuid, slot int) on t.user_id = p.id and t.slot = p.slot
+        where t.look is null or t.look_at < v_now - interval '60 seconds'
+        order by t.user_id, t.slot
+        for update of t skip locked);
+    select jsonb_agg(jsonb_build_object('id', p.id, 'slot', p.slot) || coalesce(b.look, public.hr_town_look(p.id, p.slot))
+                     || jsonb_build_object('x', p.x, 'y', p.y, 'gx', p.gx, 'gy', p.gy, 'dir', p.dir,
+                                           'age_ms', p.age_ms, 'station', p.station, 'work', p.work) order by p.ord)
       into v_walkers
       from jsonb_to_recordset(v_pick) p(id uuid, slot int, x int, y int, gx int, gy int, dir text, age_ms int, station text, work boolean, ord int)
       join public.town_bodies b on b.user_id = p.id and b.slot = p.slot;

@@ -83,7 +83,8 @@
 //         gear, Message, Add friend, Invite to party, Block); the hero starts on
 //         its server stand and publishes its own tiles; when the server moves its
 //         stand the hero WALKS there (display only) and publishes the walk; the
-//         Home button leaves town; zero console errors
+//         Home button leaves town; back in town, set down by the server mid-walk,
+//         it walks on to its stand; zero console errors
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
 import { leaseBrowser } from './_chrome.mjs';
@@ -783,6 +784,14 @@ async function pageRules(overrides, shots) {
     const after = s.calls.length;
     await page.waitForTimeout(2500);
     if (s.calls.slice(after).some((c) => c.name === 'hr_town_view')) fail('TW-8 the home scene still polls the town');
+    /* BACK IN TOWN, SET DOWN MID-WALK (the server says it is walking from (12,10) to its stand (6,9)): it walks on there */
+    s.me = ME(12, 10, { station: 'smithy_anvil', stand: 3, gx: 6, gy: 9, at: [6, 9], work: true, since_ms: 3 });
+    const back = s.calls.length;
+    await page.click('[data-world-choice="town"]');
+    await page.waitForTimeout(4500);
+    const on = s.calls.slice(back).filter((c) => c.name === 'hr_town_move' && c.body.p_map !== null).map((c) => c.body);
+    const end = on[on.length - 1];
+    if (!end || end.p_x !== 6 || end.p_y !== 9) fail('TW-8 set down mid-walk, the hero did not walk on to its stand (6,9): it published ' + JSON.stringify(on.map((b) => [b.p_x, b.p_y])));
     if (errors.length) fail('TW-8 console errors: ' + errors.slice(0, 3).join(' | '));
     await ctx.close();
   } finally {
@@ -973,6 +982,8 @@ const PAGE_MUTANTS = [
   ['each pane mount makes a new display scratch', 'src/app/world-pane.js', '  const scratch = scratchOf(character);', "  const scratch = { choice: 'town' };"],
   ['the home scene stays in town', 'src/world/sandbox-scene.js', "  else town.show(map.kind === 'town' ? map.id : null);", "  else if (map.kind === 'town') town.show(map.id);"],
   ['the World never walks the hero to its new stand', 'src/world/world-boot.js', '      if (k && k !== walkStand) { walkStand = k; walk.goTo(town.me().at, now); }', '      if (k && k !== walkStand) { walkStand = k; }'],
+  ['set down mid-walk, the hero stays where it was set down', 'src/world/world-boot.js',
+    '      if (me && at && at[0] === me.x && at[1] === me.y && (me.x !== me.at[0] || me.y !== me.at[1])) walkStand = null;\n', ''],
   ['the hero jumps to its new stand', 'src/world/walk-scene.js', '    goTo(to, now) { steer.walkTo(to, now, false); },', '    goTo(to, now) { steer.walkTo(to, now - 600000, false); },'],
 ];
 

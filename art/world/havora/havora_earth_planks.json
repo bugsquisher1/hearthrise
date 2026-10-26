@@ -107,10 +107,10 @@
   },
   "pixellab": {
     "tool": "create_topdown_tileset",
-    "id": "3e728013-e2c5-42e9-97c2-e8df9b1b3a29",
+    "id": "7222f34c-32ac-43a7-bfa7-899a55cfbcdb",
     "base_tile_ids": {
       "lower": "97e71544-5fcf-4e48-94b7-c809721a12be",
-      "upper": "03b8d806-83f4-4b8f-b285-90dc2d449d79"
+      "upper": "d30fdac5-1850-4f6a-b88e-15798e9ff083"
     },
     "params": {
       "mode": "pro",
@@ -119,5 +119,5 @@
       "transition_size": 0
     }
   },
-  "notes": "Havora's docks and bridge ends: dirt road (Greenhaven dirt base 97e71544) to weathered dock planks (base 03b8d806). Pro Wang tileset, 32 px."
+  "notes": "Havora's docks and bridge ends: dirt road (Greenhaven dirt base 97e71544) to a warm oak boardwalk (base d30fdac5). Pro Wang tileset, 32 px."
 }

@@ -21,6 +21,7 @@ import { GROUND_ROWS } from '../town/ground.js?v=0.2.47';
 import { SITES, SCENERY, EXITS, PATCHES, AMBIENT, BLEND } from '../town/sites.js?v=0.2.47';
 import { GREENERY } from '../town/greenery.js?v=0.2.47';
 import { WEAR } from '../town/wear.js?v=0.2.47';
+import { PALISADE } from '../town/palisade.js?v=0.2.47';
 import { STATIONS, STATION_BY_ID, ACTIVITY_STATIONS } from '../stations.js?v=0.2.47';
 
 const tile = (x, y) => { const [mx, my] = at(x, y); return { x: mx, y: my }; };
@@ -52,6 +53,7 @@ export default Object.freeze({
     ...SCENERY.map(([id, x, y]) => Object.freeze(Object.assign({ id }, tile(x, y)))),
     ...STATIONS.flatMap((s) => s.props),
     ...GREENERY.map(([id, x, y]) => Object.freeze(Object.assign({ id }, tile(x, y)))),
+    ...PALISADE.map(([id, x, y]) => Object.freeze(Object.assign({ id }, tile(x, y)))),
     ...WEAR.map(([id, x, y]) => Object.freeze(Object.assign({ id: 'square_decal_' + id }, tile(x, y)))),
   ]),
   buildings: Object.freeze(SITES.map(site)),
@@ -63,5 +65,5 @@ export default Object.freeze({
   /* the lint's reach origin and a hero's fallback place: the gatehouse's first stand (a hero ARRIVES at one of the
      gatehouse's stands, stations.js arrivalStand) */
   start: first(ACTIVITY_STATIONS.arrival),
-  maskHash: 'aa789518',
+  maskHash: 'd639329e',
 });

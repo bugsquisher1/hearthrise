@@ -44,7 +44,7 @@ export const SCENERY = Object.freeze([
   ['floor_grate', 46, 67],
   /* HAVORA'S LOTS (art/world/havora, lane/b-havora-art-2): the gatehouse (every overground hunt leaves from its yard),
      the tavern on P07 over its cook yard, the bridge over the river (walked on: its cells stay planks) */
-  ['havora_gatehouse', 74, 10], ['havora_tavern', 62, 20], ['havora_bridge', 88, 48],
+  ['havora_gatehouse', 75, 5], ['havora_tavern', 62, 20], ['havora_bridge', 88, 48],
   ['havora_guild_hall', 116, 72], ['havora_sewer_works', 44, 56], ['havora_fisher_guild', 66, 78], ['havora_harbor_office', 98, 76],
   /* the homes: the crooked shacks NW (P01-P06), the town lots (P09-P10), the mountain (P11) and the waterfront estates (P13-P15) */
   ['havora_home_p01', 16, 14], ['havora_home_p02', 30, 16], ['havora_home_p03', 46, 14], ['havora_home_p04', 20, 36],
@@ -72,7 +72,7 @@ export const BLEND = Object.freeze({
   pairs: Object.freeze(['havora_grass_earth', 'havora_grass_water', 'square_grass_flag', 'square_dirt_flag',
     /* lane/b-havora-art-2 (art/world/havora): the docks' and bridge's planks, the farm plots, the mountain's rock */
     'havora_earth_planks', 'havora_water_planks', 'havora_grass_tilled', 'havora_grass_rock', 'havora_earth_rock']),
-  alias: Object.freeze({ cobble: 'flagstone' }),
+  alias: Object.freeze({ cobble: 'flagstone', palisade: 'grass' }),
 });
 
 /* looping effects the map places (map-compile.js `ambient`): the Great Hearth's fire over its firebox,

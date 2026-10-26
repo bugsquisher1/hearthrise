@@ -13,7 +13,7 @@
     306
   ],
   "footprint": [
-    18,
+    16,
     10
   ],
   "anims": [
@@ -37,5 +37,5 @@
     "cost": 25,
     "style": "common/square_general_store"
   },
-  "notes": "Havora's gatehouse (plan x74-91 y10-19, Blueprint v0.5 x2): central gate tower, open oak gates, two round towers, guard houses. Heroes arrive in its yard (stations.js gatehouse)."
+  "notes": "Havora's gatehouse (plan x75-90 y5-14, Blueprint v0.5 x2): central gate tower, open oak gates, two round towers, guard houses. It straddles the palisade (rows 8-9 meet its towers); heroes arrive in its yard to the south (stations.js gatehouse)."
 }

@@ -35,13 +35,15 @@ export const MATERIALS = Object.freeze({
   thicket: Object.freeze({ solid: true, trees: true }),
   brook: Object.freeze({ solid: true, flat: true }),
   chasm: Object.freeze({ solid: true, flat: true }),
-  /* Havora, the real town (2026-10-25, blueprint v0.5 x2): its river and sea, the mountain's cliffs and the shack
-     palisade block a step and are FLAT (no wall kit, they hide nothing); a `site` is the floor of a building
-     footprint whose art is not drawn yet, `tilled` a farm plot. Until the town's ground art lands, every cell
-     draws in its material's placeholder tone (--world-ground-<id>-a/-b, src/world/core/compose.js). */
+  /* Havora, the real town (2026-10-25, blueprint v0.5 x2): its river and sea and the mountain's cliffs block a step
+     and are FLAT (no wall kit, they hide nothing); the shack palisade is its sprites (below); a `site` is the floor of
+     a building footprint whose art is not drawn yet, `tilled` a farm plot. A cell no wang16 pair draws stays in its
+     material's placeholder tone (--world-ground-<id>-a/-b, src/world/core/compose.js). */
   water: Object.freeze({ solid: true, flat: true }),
   cliff: Object.freeze({ solid: true, flat: true }),
-  palisade: Object.freeze({ solid: true, flat: true }),
+  /* the palisade's cells are walled by its style-1 sprites (town/palisade.js), which block every one of them: the
+     ground itself is open, drawn as grass under the logs (BLEND alias, town/sites.js) */
+  palisade: Object.freeze({ solid: false }),
   site: Object.freeze({ solid: false }),
   tilled: Object.freeze({ solid: false, green: true }),
 });

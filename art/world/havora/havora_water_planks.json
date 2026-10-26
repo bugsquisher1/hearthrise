@@ -107,10 +107,10 @@
   },
   "pixellab": {
     "tool": "create_topdown_tileset",
-    "id": "48156d9c-aac3-49b9-9d82-ff8d547d73d2",
+    "id": "3d3a3399-e6a0-456d-ba6f-8511a9191b91",
     "base_tile_ids": {
       "lower": "32062820-23ec-4670-bff9-b5aab5db74fa",
-      "upper": "03b8d806-83f4-4b8f-b285-90dc2d449d79"
+      "upper": "d30fdac5-1850-4f6a-b88e-15798e9ff083"
     },
     "params": {
       "mode": "pro",
@@ -119,5 +119,5 @@
       "transition_size": 0
     }
   },
-  "notes": "Havora's docks over the water: river water (base 32062820, the Greenhaven bank's) to the same dock planks (03b8d806, chained). Pro Wang tileset, 32 px."
+  "notes": "Havora's docks over the water: river water (base 32062820, the Greenhaven bank's) to the same oak boardwalk (d30fdac5, chained). Pro Wang tileset, 32 px."
 }

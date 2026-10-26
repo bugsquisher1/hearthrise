@@ -266,7 +266,7 @@ async function checks(overrides) {
         return r.continue();
       });
       const town = [];
-      page.on('request', (q) => { if (/\/rpc\/hr_town_walkers/.test(q.url())) town.push(Date.now()); });
+      page.on('request', (q) => { if (/\/rpc\/hr_town_view/.test(q.url())) town.push(Date.now()); });
       await page.goto(base + '/play.html', { waitUntil: 'load' });
       await wait(page, () => document.querySelector('form[data-auth="sign-in"]'));
       await page.fill('input[name=email]', 'qa@example.test');

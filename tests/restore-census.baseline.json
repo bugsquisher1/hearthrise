@@ -605,7 +605,10 @@
   "hr_world_notices": "The rare-drop notice journal (2026-11-14-rare-broadcast.sql). It records that a System chat line was posted for a drop, never the drop itself: the item is in player_inventory and the ledger, both on the manifest. Losing it re-opens one day of the notice cap and loses who-was-announced history, nothing a player owns.",
   "party_seekers": "A finder listing, not progress: one row per character, every row expires 30 minutes after it is written (and sooner on a join, a hunt start or sign-out), grants nothing on its own (an invite is a separate verb with its own checks). Losing every row costs each seeker one press.",
   "account_play_net": "Anti-abuse stamp, not value: the play cap's record of which network an account last called from (a salted hash). A lost row costs a player nothing; the next hr_load writes it again.",
-  "hero_play_net": "Anti-abuse stamp, not value: the network a playing hero started from (a salted hash), read only to count heroes per network. A lost row costs a player nothing; it lets that hero go uncounted per network until it starts again."
+  "hero_play_net": "Anti-abuse stamp, not value: the network a playing hero started from (a salted hash), read only to count heroes per network. A lost row costs a player nothing; it lets that hero go uncounted per network until it starts again.",
+  "town_bodies": "A display placement, not progress: which town stand each character's body holds, placed by the server from its activity pointer (2027-01-28-town-stands.sql). Every present hero is placed again on its next keepalive or read, and a worker on its next activity change. Losing every row costs nobody anything a player earned.",
+  "town_moves": "Transient notes that an activity pointer changed, deleted by the next town read once applied. No value: losing them leaves a body where it stood until its next change.",
+  "town_seen": "Unlogged keepalive stamps (a parked hero is present), never read after 30 s. Losing every row costs nobody anything."
  },
  "tables": {
   "account_bank": {
@@ -894,7 +897,7 @@
   },
   "hr_client_rpc_baseline": {
    "class": "seeded",
-   "replay": 97,
+   "replay": 98,
    "note": "The approved client-callable RPC list: 51 rows on 2026-08-15, 72 on 2026-08-30, 73 since 2026-09-08-hero-slot-buy.sql §9 registered hr_buy_hero_slot(p_slot_id integer, p_slot integer, p_idem uuid) for `authenticated` with a delete-then-insert, so a re-apply cannot double it; production measured at 73 rows carrying that exact row on 2026-09-04. 74 IN THE REPLAY SINCE 2026-09-06-recovering-until.sql §5b registered hr_rest(p_slot integer, p_intent_id uuid) for `authenticated` — the Recovery Rule's food-for-a-knockout relief valve, granted in §5 of the same file and deliberately revoked from hr_engine. STAGED, NOT APPLIED: this row is a REPLAY-ONLY count today and production is expected to stay one lower until the Coordinator applies that migration, at which point the two converge with no further re-baseline. §5b derives identity_args from pg_proc via to_regprocedure (a retyped signature silences nothing, because check (2) joins on it) and deletes any row bearing a stale signature first, so a re-apply can neither double the row nor leave an approval for a shape that no longer exists. hr_assert_grant_hygiene check (2) raises on any grant not recorded here, nightly on cron. A rebuild that seeded a different set would make that detector wrong in both directions — silently permitting an unreviewed grant, or crying about a reviewed one. 77 IN THE REPLAY SINCE 2026-09-13-town-presence.sql §12 registered the three Week-1 live-system verbs for `authenticated` — hr_heartbeat(p_slot integer), hr_set_presence_quiet(p_slot integer, p_quiet boolean) and hr_town_of(p_zone text) — with the same delete-then-insert, so a re-apply cannot double them. APPLIED 2026-09-13 (town-presence): production and replay converged at 77. 78 IN THE REPLAY SINCE 2026-09-13-world-finds-projection.sql §5 registered hr_world_finds_of(p_limit integer) for `authenticated` — the projected Hearthfind board, which closes the named pre-launch P2 by minting the finder's display name server-side (NULL for a presence_quiet finder) so that world_finds.user_id could be revoked from anon and authenticated — with the same delete-then-insert keyed on (proname, grantee), so a re-apply can neither double the row nor leave an approval for a shape that no longer exists. APPLIED 2026-09-13 08:14 UTC (world-finds-projection): production and replay converged at 78. This row is the APPROVAL for the grant, in the same migration as the grant: hr_assert_grant_hygiene check (2) raises nightly on any client-executable function this table does not list, so a rebuild that seeded a different set would make that detector wrong in both directions — silently permitting an unreviewed grant, or crying about a reviewed one. 80 IN THE REPLAY SINCE 2026-09-14-gem-unlock-buy.sql section 6b and 2026-09-14-recipe-learn.sql section 4d registered hr_buy_gem_unlock(p_unlock_id text, p_slot integer, p_idem uuid) and hr_recipe_learn(p_item text, p_slot integer, p_idem uuid) for `authenticated`, each with the same delete-then-insert keyed on (proname, grantee), so a re-apply can neither double a row nor leave an approval for a shape that no longer exists. STAGED, NOT APPLIED: both rows are REPLAY-ONLY today and production is expected to stay at 78 until the Coordinator applies the two migrations, at which point the counts converge with no further re-baseline. This entry was updated BY HAND rather than with --write, deliberately: --write would also re-pin every other table's row count from this branch's replay, which is not this lane's to certify. 87 since 2026-09-23-m8-parties-s1-3-client-surface.sql registered the six client-callable M8 slice-1 party functions (hr_party_view + the five membership verbs) for `authenticated`, also with a delete-then-insert so a re-apply converges rather than skipping a row whose argued claim has since been rewritten. 89 since 2026-09-24-m8-parties-s4-3-client-surface.sql registered the two M8 slice-4 hunt verbs — hr_party_hunt_start(p_slot integer, p_active_id text, p_stance text, p_stop jsonb, p_idem uuid) and hr_party_hunt_stop(p_slot integer, p_idem uuid) — for `authenticated`, with the same delete-then-insert, and that file's §3(a) asserts each row's identity_args EQUALS the installed pg_get_function_arguments, so a retyped signature is red at apply time rather than an approval for a shape nobody granted. STAGED, NOT APPLIED: both rows are REPLAY-ONLY today and production is expected to stay at 87 until the Coordinator applies the S4 three, at which point the counts converge with no further re-baseline. 90 IN THE REPLAY SINCE 2026-10-15-party-hunt-view.sql §6 registered hr_party_hunt_view(p_slot integer) for authenticated (Game Designer A1, the member-only read of the party hunt) and rewrote the hr_party_view row's note (A2: share_bp/xp/gold retired), both delete-then-insert keyed on (proname, grantee) with identity_args derived from pg_get_function_identity_arguments. STAGED, NOT APPLIED: REPLAY-ONLY until the Coordinator applies it. Updated BY HAND, not --write, for the reason above. 91 IN THE REPLAY SINCE 2026-10-18-discord-gift.sql §7 registered hr_claim_discord_gift(p_slot integer, p_code text) for authenticated (delete-then-insert keyed on (proname, grantee)). STAGED, NOT APPLIED: REPLAY-ONLY until the Coordinator applies it. Updated BY HAND. 98 IN THE REPLAY SINCE 2026-10-22-hunt-sessions-drop-away.sql §3 dropped hr_set_auto_eat and hr_credit_kills and deleted their two `authenticated` rows (hunt sessions retire auto-eat and the attended kill credit; ruling HR-2026-10-14 §3). STAGED, NOT APPLIED: REPLAY-ONLY until the Coordinator applies it. 2026-10-25-town-walk.sql registered hr_town_move and hr_town_walkers for authenticated (delete-then-insert). 123 since 2026-10-31-party-create-retire.sql deleted the hr_hunt_party_create row (the first invite makes the party); APPLIED in v0.2.20, production and replay converged. 112 IN THE REPLAY SINCE 2026-12-04-world-actions-cut.sql deleted the twelve raid_strike / world_event_* / hr_rally_pledge_state / clan_board_* / clan_hunt_declare / clan_tier_up / clan_work_complete rows with their functions. STAGED, NOT APPLIED: REPLAY-ONLY until the Coordinator applies it. 95 IN THE REPLAY SINCE 2027-01-18-dead-surfaces-cut.sql deleted the hr_worker_hire / hr_worker_assign rows with their functions (§1) and the 23 clan-door rows whose EXECUTE it revoked from every client role (§3: clan_* + hr_clan_browser; bodies and clan tables kept). STAGED, NOT APPLIED: REPLAY-ONLY until the Coordinator applies it."
   },
   "hr_client_write_baseline": {
@@ -1351,7 +1354,7 @@
   },
   "hr_state_sections": {
    "class": "seeded",
-   "replay": 30,
+   "replay": 29,
    "note": "The X7 state-section registry (2026-10-23-character-premium.sql and the S1 files): one row per hr_state_of section and its projector. Seeded by the migrations that register a section; rebuilt from repo, never restored."
   },
   "hr_storage_chests": {
@@ -1454,6 +1457,21 @@
    "class": "seeded",
    "replay": 1,
    "note": "2026-10-25-town-walk.sql: the walkable town map catalogue (map id, zone, size in tiles), one row per town; hr_town_move bounds every published position by it. Rebuilt from repo, never restored."
+  },
+  "hr_town_stands": {
+   "class": "seeded",
+   "replay": 79,
+   "note": "Generated catalogue (2027-01-26-town-stations.generated.sql): every stand of every station (index, tile, facing, overflow), one tile each per map. Rebuilt from repo, never restored."
+  },
+  "hr_town_station_hosts": {
+   "class": "seeded",
+   "replay": 9,
+   "note": "Generated catalogue (2027-01-26-town-stations.generated.sql): which activity stands at which station ((kind, skill|*, id|*) -> station), read by hr_town_station_for. Rebuilt from repo, never restored."
+  },
+  "hr_town_stations": {
+   "class": "seeded",
+   "replay": 7,
+   "note": "Generated catalogue (2027-01-26-town-stations.generated.sql from src/data/world/stations.js TOWN_STATIONS): each town map's stations (role, the tile its stands face, order). Replaced whole per map by the generator. Rebuilt from repo, never restored."
   },
   "hr_traits": {
    "class": "seeded",
@@ -1716,10 +1734,22 @@
    "wiped_at_cutover": true,
    "note": "2026-10-25-social.sql, ships EMPTY. When an account last had the game open (server clock) and on which character: stamped by hr_social_state's 30 s poll (floor 20 s), read only to answer a FRIEND's online state. Regenerated within one poll of the player coming back; an empty table reads everyone as offline for at most 30 seconds."
   },
+  "town_bodies": {
+   "class": "operational",
+   "note": "2027-01-28-town-stands.sql, ships EMPTY. The stand each character's body holds in town (map, instance, station, stand, the tile it walks from, a minute-old cached look), placed by the server from the activity pointer. Display presence, no player value: an empty table re-places every present hero on its next keepalive or read; an offline worker reappears at its station on its next activity change (re-running the file's backfill insert places them at once)."
+  },
+  "town_moves": {
+   "class": "operational",
+   "note": "2027-01-28-town-stands.sql, ships EMPTY. Notes that a hero's activity pointer changed (from the AFTER trigger on player_state), applied and deleted by the next town read. Losing them leaves a body where it stood until its next change or keepalive."
+  },
   "town_positions": {
    "class": "operational",
    "wiped_at_cutover": true,
    "note": "2026-10-25-town-walk.sql, ships EMPTY, UNLOGGED. Where each account body stands in town (map, tile, goal tile, facing, server stamp), rewritten by hr_town_move at most once a second while walking and every 10 s standing; read only by hr_town_walkers within 30 s. An empty table shows an empty Common for at most one keepalive."
+  },
+  "town_seen": {
+   "class": "operational",
+   "note": "2027-01-28-town-stands.sql, ships EMPTY, UNLOGGED. A parked hero's keepalive (hr_town_here, no tile) and a viewer's read, server-stamped; read within 30 s. An empty table shows idle parked heroes gone for at most one keepalive."
   },
   "town_snapshot": {
    "class": "regenerated",

@@ -117,9 +117,13 @@ export const CLIENT_RPCS = Object.freeze({
   hr_social_state: 'friends, asks and blocks, and this account’s presence stamp, a read (SocialSession.reread)',
   hr_inspect: 'another player’s worn items, a read (inspectOf)',
   hr_players_online: 'stamp this account’s own open characters present (slots only) and read how many characters are playing, a count only (PlayersOnline.ask; 2026-11-07-players-online.sql)',
-  /* Town presence (2026-10-25-town-walk.sql): this character's own tile, goal tile and facing, catalogue-bounded; never a user or a time. */
+  /* Town presence (2026-10-25-town-walk.sql): this character's own tile, goal tile and facing, catalogue-bounded; never a user or a time.
+     The stands (2027-01-28-town-stands.sql): the SERVER places every body; the client names its slot, a map, a station id,
+     a window centre and the last answer's cursor, never a stand, a tile of a parked body, a user or a time. */
   hr_town_move: 'where this character stands and walks to in a town, or a null map to leave; display presence (TownPresence.publish)',
-  hr_town_walkers: 'who stands on a town map now, as the server names them, a read (TownPresence.read)',
+  hr_town_view: 'who stands around this character in its town instance, only what changed since its cursor, and its own server stand, a read (TownPresence.read)',
+  hr_town_here: 'an unviewed character is present in town, no tile: the server stands it on its stand (TownPresence.here)',
+  hr_town_go: 'send this character’s body to a counter or back to its work: a station id only (TownPresence.go)',
   hr_outfit_set: 'wear an owned outfit with a dye index per region; cosmetic, the server checks ownership (CharacterSession.saveOutfit)',
 });
 

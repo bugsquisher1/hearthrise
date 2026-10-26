@@ -11,9 +11,9 @@
 // it runs. States (data-state on .rp): edit → sending → sent | failed.
 // Built once; patched in place (the button follows the text and the state).
 // ════════════════════════════════════════════════════════════════════════
-import { reportBody, worldSnapshot } from '../report-model.js?v=0.2.48';
-import { startDiagnostics } from '../../net/diagnostics.js?v=0.2.48';
-import { attr, cls, prop, text } from '../../render/paint.js?v=0.2.48';
+import { reportBody, worldSnapshot } from '../report-model.js?v=0.2.49';
+import { startDiagnostics } from '../../net/diagnostics.js?v=0.2.49';
+import { attr, cls, prop, text } from '../../render/paint.js?v=0.2.49';
 
 /* What the player reads after the bridge answers, by its status (or the link's). */
 const SAID = Object.freeze({

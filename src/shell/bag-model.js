@@ -17,14 +17,14 @@
 //   equipSlotFor(id, eq)  the slot an item would go into
 //   riteOf / cookOf       the bench recipe that spends a whole stack (Bury, Cook all)
 // ════════════════════════════════════════════════════════════════════════
-import { ITEMS } from '../data/items.js?v=0.2.48';
-import { DRINK_ITEMS } from '../data/drinks.js?v=0.2.48';
-import { MONSTERS } from '../data/monsters.js?v=0.2.48';
-import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.48';
-import { expandItemSlot } from '../data/gathering.js?v=0.2.48';
-import { recipeInputs } from '../core/artisan.js?v=0.2.48';
-import { BAG_SEEN_MAX } from '../session/residue.js?v=0.2.48';
-import { itemName } from './widgets/bits.js?v=0.2.48';
+import { ITEMS } from '../data/items.js?v=0.2.49';
+import { DRINK_ITEMS } from '../data/drinks.js?v=0.2.49';
+import { MONSTERS } from '../data/monsters.js?v=0.2.49';
+import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.49';
+import { expandItemSlot } from '../data/gathering.js?v=0.2.49';
+import { recipeInputs } from '../core/artisan.js?v=0.2.49';
+import { BAG_SEEN_MAX } from '../session/residue.js?v=0.2.49';
+import { itemName } from './widgets/bits.js?v=0.2.49';
 
 /* The category row, in reading order. `all` first; the rest are kinds. */
 export const BAG_CATS = Object.freeze([

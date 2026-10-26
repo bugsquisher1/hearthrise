@@ -19,7 +19,7 @@
 //   snapTiles      a peer drawn this many tiles from where the server says it is
 //                  jumps there instead of walking (a door, an exit, a long gap)
 // ════════════════════════════════════════════════════════════════════════
-import { TOWN_INSTANCE } from './world/stations.js?v=0.2.48';
+import { TOWN_INSTANCE } from './world/stations.js?v=0.2.49';
 
 export const TOWN_PRESENCE = Object.freeze({
   publishMinMs: 1000,

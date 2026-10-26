@@ -122,3 +122,6 @@ docs/reports/css-ab/
 # Lane screenshots from tools/*-page.mjs — evidence for a review, never shipped.
 .tmp-shots/
 .claude/coordination/tracker/memory-export.html
+
+# tools/balance-sim: simulator runs (JSONL per plan); the committed summary is tools/balance-sim/baseline-summary.json
+tools/balance-sim/out/

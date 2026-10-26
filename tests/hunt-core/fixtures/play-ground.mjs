@@ -24,7 +24,11 @@ const COMBAT = ['melee', 'ranged', 'magic', 'defense'];
     equipment (one worn set every hero wears, e.g. the start kit's; or a function (role, seat, L) -> set, one per hero),
     bag ((role, seat, L) -> the hunt bag { item: { loaded } }; default: one free Bronze Arrow for a Ranger, else empty),
     session (fields over every hero's hunt session, e.g. { goldFloor, onEmpty }),
-    options ((role, seat, L) -> the hero's stored bar options, player_action_sets.options: chase, stance, distance, target_mode) }. */
+    options ((role, seat, L) -> the hero's stored bar options, player_action_sets.options: chase, stance, distance, target_mode),
+    windowMs (the settle's cut, default ten minutes: any cut walks the same swings, TICK-1; a short one lets onWindow read HP often),
+    start ((role, seat, L) -> { levelXp?, skills? }: a hero's own Level XP and skill XP instead of "every combat skill at L",
+    tools/balance-sim's career runs), leaveTogether (true: every hero's "Leave if anyone leaves the hunt or dies" box ticked,
+    the server's default) }. The answer's `members` is each hero's state at the end (levelXp, skills, gold, hp, ended). */
 /** The trees loadPlay reads beyond src/core and src/data: a planted copy (h1.js plant) needs them too. */
 export const PLAY_TREES = Object.freeze(['supabase/functions/hr-accrue', 'src/world/core', 'assets/world']);
 
@@ -100,9 +104,11 @@ export async function loadPlay(root) {
     const line = role === 'ranger' ? ['leather', 'studded', 'boarhide', 'snakeskin'] : ['apprentice', 'adept', 'scholar', 'warlock'];
     return { ...base, helmet: line[t] + '_helmet', body: line[t] + '_body', pants: line[t] + '_pants', boots: line[t] + '_boots' };
   };
-  const hero = (huntId, role, i, L, roles, fullSet, worn, bar, bag, session, options) => {
-    /* A hero at Level L with every combat skill at L (the designer's fit: skill ~ Level through L25). */
-    const skills = Object.fromEntries(COMBAT.map((k) => [k, XP.skillXpForLevel(k, L)]));
+  const hero = (huntId, role, i, L, roles, fullSet, worn, bar, bag, session, options, start, leaveTogether) => {
+    /* A hero at Level L with every combat skill at L (the designer's fit: skill ~ Level through L25), unless
+       opts.start gives its own Level XP and skill XP (a career run carries them from one run to the next). */
+    const st = (start && start(role, i, L)) || {};
+    const skills = st.skills ? { ...st.skills } : Object.fromEntries(COMBAT.map((k) => [k, XP.skillXpForLevel(k, L)]));
     /* opts.equipment: a worn set given whole (the start kit, start-kit.js START_EQUIPMENT), for every hero. */
     const equipment = typeof worn === 'function' ? worn(role, i, L) : worn ? { ...worn } : fullSet ? fullKit(L, role) : kit(L, role);
     return {
@@ -110,17 +116,18 @@ export async function loadPlay(root) {
       huntSession: { id: 's-' + role + i, instanceId: IID, huntFromMs: T0, nextSwingAtMs: T0, swingIndex: 0,
         bag: typeof bag === 'function' ? bag(role, i, L) : role === 'ranger' ? { bronze_arrows: { loaded: 1 } } : {},
         staminaMs: 12 * 3600000, staminaMaxMs: 12 * 3600000, basics, goldFloor: 0, supplySource: 'mine', onEmpty: 'switch', cover: {}, ...(session || {}) },
-      skills, levelXp: XP.charXpForLevel(L), xpFrac: null, hp: 1e9, gold: 50000, equipment,
+      skills, levelXp: Number.isInteger(st.levelXp) ? st.levelXp : XP.charXpForLevel(L), xpFrac: null, hp: 1e9, gold: 50000, equipment,
       inventory: {}, deathsTodayBefore: 0, deathsLifetimeBefore: 0, hearthfindReady: false, perks: null,
       hero: SPAWN.heroSetup({ weaponType: wornRoleKey(equipment, ITEMS), options: { ...(role === 'healer' ? { role: 'healer' } : {}), ...(options ? options(role, i, L) : {}) },
-        bar: typeof bar === 'function' ? bar(role, i, L) : refBar(huntId), partyRoles: roles }),
+        bar: typeof bar === 'function' ? bar(role, i, L) : refBar(huntId), partyRoles: roles, leaveTogether: leaveTogether === true }),
     };
   };
   const run = (huntId, L, roles, opts = {}) => {
     const span = opts.spanMs || SPAN, secret = opts.secret || SECRET, monsters = opts.monsters || MONSTERS;
     const ground = G.HUNT_GROUNDS[huntId], grid = gridOf(ground.map);
     /* L: one Level for every hero, or one per hero in seat order (a mixed party: [9, 19]) */
-    const members = roles.map((r, i) => hero(huntId, r, i, Array.isArray(L) ? L[i] : L, roles, opts.fullSet === true, opts.equipment || null, opts.bar || null, opts.bag || null, opts.session || null, typeof opts.options === 'function' ? opts.options : null));
+    const members = roles.map((r, i) => hero(huntId, r, i, Array.isArray(L) ? L[i] : L, roles, opts.fullSet === true, opts.equipment || null, opts.bar || null, opts.bag || null, opts.session || null, typeof opts.options === 'function' ? opts.options : null,
+      typeof opts.start === 'function' ? opts.start : null, opts.leaveTogether === true));
     /* opts.density: the party's monster density pick (the settle clamps it to the ground) */
     if (Number.isInteger(opts.density)) for (const m of members) m.hero = Object.assign({}, m.hero, { density: opts.density });
     /* common vs rare by the hunt's own drop rows: a loot-band row (src/data/loot-bands.js) is a common in the common and
@@ -132,8 +139,9 @@ export async function loadPlay(root) {
     let world = null, next = T0, played = 0;
     const T = { xp: 0, levelXp: 0, coin: 0, commons: 0, rares: 0, store: 0, falls: 0, kills: 0, ended: [], buys: {} };
     const items = {}, heroItems = {}, killsBy = {}, heroXp = {}, heroRares = {}, rareRolls = [];
-    for (let t = T0; t < T0 + span; t += 600000) {
-      const out = AC.accrueHunt({ instance: { id: IID, nextSwingAtMs: next, world }, window: { fromMs: t, toMs: Math.min(T0 + span, t + 600000) },
+    const WIN = Number.isInteger(opts.windowMs) && opts.windowMs > 0 ? opts.windowMs : 600000;
+    for (let t = T0; t < T0 + span; t += WIN) {
+      const out = AC.accrueHunt({ instance: { id: IID, nextSwingAtMs: next, world }, window: { fromMs: t, toMs: Math.min(T0 + span, t + WIN) },
         secret, ground, grid, items: ITEMS, monsters, members });
       if (!out.accrued) continue;
       /* opts.onWindow(out, members): an observer of each settled window's events and members (party-defense.mjs) */
@@ -183,6 +191,7 @@ export async function loadPlay(root) {
     const r = (n) => Math.round(n * per);
     const income = r(T.coin + T.commons), store = r(T.store);
     return { spanMs: span, playedMs: played, totals: T, items, heroItems, heroXp, heroRares, rareRolls, killsBy, heroes: members.map((m) => m.key),
+      members: members.map((m) => ({ key: m.key, levelXp: m.levelXp, skills: { ...m.skills }, gold: m.gold, hp: m.hp, ended: m.ended || null })),
       kills: Math.round(T.kills * 3600000 / span), falls: T.falls, xp: r(T.xp), levelXp: r(T.levelXp), coin: r(T.coin), commons: r(T.commons), rares: r(T.rares), store, income,
       margin: store ? Math.round((income / store - 1) * 100) + '%' : 'no store spend', net: income + r(T.rares) - store, ended: T.ended };
   };

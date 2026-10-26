@@ -307,7 +307,8 @@ function check(M) {
     const at3 = ws.cell().join();
     for (let t = 2500; t <= 20000; t += 50) f = ws.frame(ENV({ kind: 'gather' }), t);
     ok('S', ws.cell().join() === at3 && f.hero.anim === 'idle', 'a hero the player sent must stay where it arrived (' + at3 + '), walked to ' + ws.cell().join());
-    ws.drive([1, 0], 20000); ws.drive(null, 20000);
+    /* south: a smith's place opens onto the yard in front of the fire (east may be the unit's other anvil) */
+    ws.drive([0, 1], 20000); ws.drive(null, 20000);
     let kt = 20000;
     for (; kt <= 21000; kt += 50) ws.frame(ENV({ kind: 'gather' }), kt);
     const atKeys = ws.cell().join();

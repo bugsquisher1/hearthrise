@@ -1,0 +1,41 @@
+{
+  "id": "havora_palisade_he2",
+  "class": "palisade",
+  "style": "s1",
+  "material": "wood",
+  "source": "havora_palisade_he2.png",
+  "frame": [
+    48,
+    96
+  ],
+  "anchor_px": [
+    16,
+    95
+  ],
+  "footprint": [
+    1,
+    2
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_image_pro",
+    "image": "76a9234f-8a29-4714-96eb-8ab37323c01c",
+    "seed": 711,
+    "size": [
+      256,
+      96
+    ],
+    "cost": 10,
+    "style": "havora/havora_home_p01"
+  },
+  "notes": "The east end of an east-west palisade run whose last column lays slice 2: that slice with the strip's thick post (px 72-86) half a tile east of it, so the run ends on a post (lane/b-havora-polish 2026-10-26, town/palisade.js)."
+}

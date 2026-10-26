@@ -6,7 +6,7 @@
 //   node tests/town-stands.mjs --load     + the synthetic load: 60 viewers reading every 2 s over 240 bodies
 //   node tests/town-stands.mjs --mutate   every planted defect in the migration must turn a rule RED
 //
-// mutant-anchors: supabase/migrations/2027-01-28-town-stands.sql, supabase/migrations/2027-01-29-havora-stations.generated.sql
+// mutant-anchors: supabase/migrations/2027-01-28-town-stands.sql, supabase/migrations/2027-01-30-havora-yards.generated.sql
 //
 // supabase/migrations/2027-01-28-town-stands.sql proves its contract inside ONE
 // transaction (its §6, on every replay). This guard plays it the way the game
@@ -112,12 +112,19 @@ async function liveTown(patches) {
   return fails;
 }
 
-/* TS-4: THE NEXT CATALOGUE OVER A TOWN AT WORK (2027-01-29-havora-stations.generated.sql, production's shape: 8 heroes
-   working, each set down on the 24 x 14 seed's stands by the town's first read before it applies). Every body on a
-   stand the new catalogue lacks is released and, while it works, noted again; the next read sets each down on its
-   activity's NEW station; a second apply of the file changes nothing and passes its own self-check. */
+/* TS-4: THE NEXT CATALOGUE OVER A TOWN AT WORK (tools/gen-town-stations.mjs OUT_FILE, production's shape: 8 heroes
+   working, each set down on the live catalogue's stands by the town's first read before it applies). A catalogue may
+   keep every stand number and only move tiles (2027-01-30: the yards laid out organically, every station at least
+   its old count), so half the workers are first put on stand numbers no catalogue has (900+): those bodies hold a
+   stand the new catalogue lacks and must be released and, while they work, noted again; the other half stay on
+   stands that still exist (production's shape for a tile-only catalogue: held, never released). The next read sets
+   every worker down on its activity's station; a second apply of the file changes nothing and passes its own
+   self-check. */
 const NEXT = CATALOGUE;
+const LACKING = LIVE_WORK.filter((_, i) => (i + 1) % 2 === 1).length;
 const SEEDED_AND_READ = LIVE_SEED.replace('end $seed$;', `  perform public.hr_town_moves_settle((select map_id from public.hr_town_maps where main), 1000);
+  update public.town_bodies set stand_no = 900 + right(user_id::text, 1)::int
+   where user_id::text like '000000c1-0000-4000-a000-7057ee%' and station_id is not null and right(user_id::text, 1)::int % 2 = 1;
 end $seed$;`);
 async function nextCatalogue(patches) {
   const fails = [];
@@ -130,7 +137,7 @@ async function nextCatalogue(patches) {
       and not exists (select 1 from public.hr_town_stands s where s.map_id = b.map_id and s.station_id = b.station_id and s.stand_no = b.stand_no)`);
     if (await dangling() !== 0) fails.push('TS-4 a body holds a stand the new catalogue does not have');
     const noted = await one(db, `select count(distinct (user_id, slot))::int from public.town_moves where ${live}`);
-    if (noted !== LIVE_WORK.length) fails.push('TS-4 the released workers are not noted for the next read: ' + noted + ' of ' + LIVE_WORK.length);
+    if (noted !== LACKING) fails.push('TS-4 the released workers are not noted for the next read: ' + noted + ' of ' + LACKING);
     await one(db, "select public.hr_town_moves_settle('town_common', 1000)");
     const placed = (await db.query(`select b.station_id, ps.active_kind k, ps.active_id a,
         public.hr_town_station_for('town_common', ps.active_kind, ps.active_id) want
@@ -291,9 +298,9 @@ const MUTANTS = [
 /* ...and in the next generated catalogue (TS-4): [name, file, from, to]. A regenerated catalogue keeps these lines
    (tools/gen-town-stations.mjs writes them); a new OUT_FILE moves the file named here (the harness refuses a mismatch). */
 const NEXT_MUTANTS = [
-  ['a released worker is not noted again', 'supabase/migrations/2027-01-29-havora-stations.generated.sql',
+  ['a released worker is not noted again', 'supabase/migrations/2027-01-30-havora-yards.generated.sql',
     "       where ps.active_kind in ('gather', 'artisan', 'training')", "       where false and ps.active_kind in ('gather', 'artisan', 'training')"],
-  ['a body is left on a stand the catalogue lacks', 'supabase/migrations/2027-01-29-havora-stations.generated.sql',
+  ['a body is left on a stand the catalogue lacks', 'supabase/migrations/2027-01-30-havora-yards.generated.sql',
     '       where b.station_id is not null\n         and not exists', '       where false and b.station_id is not null\n         and not exists'],
 ];
 /* every mutant as [name, migration file, from, to] */

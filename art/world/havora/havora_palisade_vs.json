@@ -1,9 +1,9 @@
 {
-  "id": "havora_palisade_v4",
+  "id": "havora_palisade_vs",
   "class": "palisade_v",
   "style": "s1",
   "material": "wood",
-  "source": "havora_palisade_v4.png",
+  "source": "havora_palisade_vs.png",
   "frame": [
     64,
     32
@@ -37,5 +37,5 @@
     "cost": 10,
     "style": "havora/havora_home_p01"
   },
-  "notes": "Slice 4 of 8 of one 256 px north-south palisade strip (create_image_pro): the town wall's north-south runs lay slice (row mod 8) (town/palisade.js)."
+  "notes": "The south end of a north-south palisade run (stake feet bound with rope): slice 7 of the 256 px strip, kept as cut (lane/b-havora-polish 2026-10-26, town/palisade.js)."
 }

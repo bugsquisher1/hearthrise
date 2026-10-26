@@ -1,0 +1,42 @@
+{
+  "id": "havora_bread_oven",
+  "class": "fixture",
+  "style": "s1",
+  "material": "wood",
+  "source": "havora_bread_oven.png",
+  "frame": [
+    57,
+    59
+  ],
+  "anchor_px": [
+    28,
+    58
+  ],
+  "footprint": [
+    2,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_image_pro",
+    "image": "f3910b09-1455-494b-93ea-eefda77b5f9b",
+    "index": 6,
+    "seed": 3103,
+    "size": [
+      64,
+      64
+    ],
+    "cost": 10,
+    "style": "havora/havora_tavern"
+  },
+  "notes": "A domed stone bread oven with embers in its mouth and a peel: the cook yard's oven (lane/b-havora-polish 2026-10-26: the cook yard's own art in place of the cottage forge sprite). Candidate 6 of 16, cropped to its art."
+}

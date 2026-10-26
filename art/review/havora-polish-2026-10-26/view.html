@@ -1,0 +1,48 @@
+<!doctype html>
+<!-- Havora review view (lane/b-havora-polish, 2026-10-26). NOT game code: the REAL renderer
+     (compileMap + canvas-backend + every atlas) on town_common, no sign-in, for the art review shots.
+     ?x=&y=  the hero's tile (map columns, not plan x)      ?overview=1  the whole map at 1 art px a px
+     Serve the worktree root (python -m http.server) and open /art/review/havora-polish-2026-10-26/view.html -->
+<html><head><meta charset="utf-8"><base href="/">
+<link rel="stylesheet" href="src/styles/tokens.css">
+<style>html,body{margin:0;height:100%;overflow:hidden;background:#000}#stage{position:fixed;inset:0}canvas{image-rendering:pixelated;display:block}</style>
+</head><body><div id="stage"></div><script type="module">
+import { BUILD } from './src/build-info.js?v=0.2.50';
+import { MATERIALS, OPEN_CLASSES, LIGHTS } from './src/data/world/terrain.js?v=0.2.50';
+import town from './src/data/world/maps/town_common.js?v=0.2.50';
+import { compileMap } from './src/world/core/map-compile.js?v=0.2.50';
+import { groundTiles } from './src/world/core/compose.js?v=0.2.50';
+import { loadAtlases } from './src/world/atlas.js?v=0.2.50';
+import { createCanvasBackend } from './src/world/render/canvas-backend.js?v=0.2.50';
+const q = new URLSearchParams(location.search);
+const { book, images } = await loadAtlases({ doc: document, version: BUILD.cache + '-' + Date.now() });
+const tables = { materials: MATERIALS, sprites: book.sprites, openClasses: OPEN_CLASSES, lights: LIGHTS };
+const map = compileMap(town, tables);
+const styles = getComputedStyle(document.body), css = (n) => styles.getPropertyValue(n).trim();
+if (q.get('overview')) {
+  /* the whole ground (tones + tiles) and every object's frame at 1 art px a px, scaled to fit */
+  const T = map.T, g0 = groundTiles(map, book, tables, T);
+  const cv = document.createElement('canvas'); cv.width = map.w * T; cv.height = map.h * T;
+  const g = cv.getContext('2d'); g.imageSmoothingEnabled = false;
+  for (const t of g0.tones) { g.fillStyle = css('--world-ground-' + t.m + (t.alt ? '-b' : '-a')); g.fillRect(t.x, t.y, T, T); }
+  for (const t of g0.tiles) g.drawImage(images[t.set], t.sx, t.sy, T, T, t.x, t.y, T, T);
+  const objs = map.objects.map((o) => ({ o, s: book.sprite(o.id) })).sort((a, b) => (a.o.y + a.o.fh) - (b.o.y + b.o.fh));
+  for (const { o } of objs) {
+    const f = book.frame(o.id, 'idle', 's', 0); if (!f || !images[f.set]) continue;
+    g.drawImage(images[f.set], f.sx, f.sy, f.w, f.h, o.x * T + Math.floor(o.fw * T / 2) - f.ax, o.y * T + o.fh * T - 1 - f.ay, f.w, f.h);
+  }
+  const k = Number(q.get('k') || 0.25), out = document.createElement('canvas');
+  out.width = Math.round(cv.width * k); out.height = Math.round(cv.height * k);
+  const og = out.getContext('2d'); og.imageSmoothingEnabled = k < 1; og.drawImage(cv, 0, 0, out.width, out.height);
+  document.getElementById('stage').appendChild(out);
+  document.body.dataset.ready = '1';
+} else {
+  const backend = createCanvasBackend({ win: window, doc: document, book, images, tables, css });
+  backend.mount(document.getElementById('stage'));
+  backend.setMap(map);
+  const hero = { x: Number(q.get('x') || map.start[0]), y: Number(q.get('y') || map.start[1]) };
+  const draw = () => backend.sync({ hero, name: 'You', t: performance.now() });
+  draw(); setInterval(draw, 200);
+  document.body.dataset.ready = '1';
+}
+</script></body></html>

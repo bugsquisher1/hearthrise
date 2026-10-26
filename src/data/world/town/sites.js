@@ -39,29 +39,48 @@ export const SCENERY = Object.freeze([
   ['square_decal_leaves_a', 110, 58], ['square_decal_tuft_a', 103, 59],
   ['lamppost', 105, 57], ['lamppost', 123, 43], ['lamppost', 101, 47],
   /* the smithy and the mill (whole sprites) and their yards */
-  ['smithy', 76, 38], ['npc_smith', 78, 43], ['flower_bed', 74, 44],
+  ['smithy', 76, 38], ['npc_smith', 78, 43], ['flower_bed', 79, 45],
   ['mill', 89, 28], ['hatch', 88, 34], ['barrels', 86, 30], ['flour_sack', 87, 30], ['water_trough', 86, 33], ['hay_bale', 87, 33],
   ['floor_grate', 46, 67],
   /* HAVORA'S LOTS (art/world/havora, lane/b-havora-art-2): the gatehouse (every overground hunt leaves from its yard),
      the tavern on P07 over its cook yard, the bridge over the river (walked on: its cells stay planks) */
   ['havora_gatehouse', 75, 5], ['havora_tavern', 62, 20], ['havora_bridge', 88, 48],
+  /* lane/b-havora-polish: the gate road's bridge over the mill race (the road east to the bank no longer runs into the water)
+     and the south road's bridge to the hunter's yard (its deck spans the river's bend below P10) */
+  ['havora_bridge', 89, 15], ['havora_bridge', 86, 72],
   ['havora_guild_hall', 116, 72], ['havora_sewer_works', 44, 56], ['havora_fisher_guild', 66, 78], ['havora_harbor_office', 98, 76],
   /* the homes: the crooked shacks NW (P01-P06), the town lots (P09-P10), the mountain (P11) and the waterfront estates (P13-P15) */
   ['havora_home_p01', 16, 14], ['havora_home_p02', 30, 16], ['havora_home_p03', 46, 14], ['havora_home_p04', 20, 36],
-  ['havora_home_p05', 36, 38], ['havora_home_p06', 48, 66], ['havora_home_p09', 68, 50], ['havora_home_p10', 88, 62],
+  ['havora_home_p05', 36, 38], ['havora_home_p06', 48, 66], ['havora_home_p09', 68, 54], ['havora_home_p10', 88, 62],
   ['havora_home_p11', 132, 20], ['havora_home_p12', 132, 46], ['havora_home_p13', 120, 74], ['havora_home_p14', 142, 66], ['havora_home_p15', 138, 80],
   /* the mine's mouth in the mountain, a fishing pier off the shore */
   ['mine_mouth', 138, 34], ['fishing_pier', 60, 94],
   /* the cook yard's stores, the training yard's rack, the farm's crates */
-  ['sack_pile', 74, 31], ['barrel_planter', 60, 30], ['weapon_rack', 78, 63], ['turnip_crate', 19, 82],
+  ['sack_pile', 74, 31], ['barrel_planter', 58, 31], ['weapon_rack', 78, 63], ['turnip_crate', 19, 82],
   ['well', 99, 40], ['signpost', 9, 47],
+  /* THE WORK YARDS' CLUTTER (lane/b-havora-polish 2026-10-26), between the stations' pieces (../stations.js) so a yard
+     reads as worked in: each forge's quench trough (west of it) and bellows (east), a tool rack, charcoal sacks, crates
+     and barrels between the units; the cook yard's
+     barrels, flour and a bucket; hay, an armour stand and barrels round the training dummies; the quarry's spoil by the mine
+     mouth (a broken barrel, sacks, a wheel, rubble) and loose stone round the heaps; a woodpile and a chopping block at the Westwood's edge; hay,
+     a basket, sacks and a trough among the farm plots */
+  ['water_trough', 62, 37], ['bellows', 64, 37], ['water_trough', 67, 38], ['bellows', 69, 38], ['water_trough', 60, 42], ['bellows', 62, 42],
+  ['water_trough', 65, 43], ['bellows', 67, 43], ['weapon_rack', 65, 37], ['crates', 70, 38], ['sack_pile', 59, 43], ['barrels', 64, 42],
+  ['barrels', 72, 32], ['flour_sack', 74, 34], ['bucket', 66, 33],
+  ['hay_bale', 70, 67], ['armour_stand', 59, 66], ['barrels', 77, 69],
+  ['barrel_broken', 137, 36], ['sack_tall', 136, 35], ['cart_wheel', 142, 38],
+  ['corner_rubble', 142, 36], ['pebbles', 147, 34], ['pebbles', 157, 37], ['havora_scree_b', 156, 43], ['havora_scree_a', 150, 36],
+  ['havora_scree_c', 146, 38], ['pebbles', 152, 33], ['havora_scree_d', 157, 35], ['corner_rubble', 151, 42], ['pebbles', 159, 41],
+  ['havora_scree_a', 154, 46], ['pebbles', 149, 47], ['havora_scree_b', 144, 40],
+  ['woodpile', -5, 45], ['chopping_block', -3, 44],
+  ['hay_bale', 53, 83], ['basket', 30, 84], ['water_trough', 53, 87], ['sack_stack', 44, 84],
   /* THE ARRIVAL YARD south of the gatehouse (heroes back from a hunt stand at x78-89 y16-19, stations.js): lamps
      flanking the gate, a carter's corner of crates, sacks and a spare wheel against the tavern wall, the trough and
      hay for the horses and a well by the mill race, and a signpost on the road south toward Hearth Square */
   ['lamppost', 79, 15], ['lamppost', 88, 15],
   ['crates', 74, 15], ['crates', 75, 15], ['barrels', 74, 16], ['sack_stack', 75, 16], ['cart_wheel', 76, 15],
-  ['water_trough', 91, 17], ['hay_bale', 91, 18], ['well', 91, 22],
-  ['lamppost', 80, 23], ['signpost', 86, 27], ['crates', 90, 26],
+  ['water_trough', 90, 21], ['hay_bale', 89, 21], ['well', 91, 22],
+  ['lamppost', 79, 23], ['signpost', 86, 27], ['crates', 90, 26],
 ].map((r) => Object.freeze(r)));
 
 /* the ways out of town onto a hunting ground's map: the mill's cellar hatch, the sewer grate */
@@ -78,7 +97,9 @@ export const PATCHES = Object.freeze([Object.freeze({ terrain: 'havora_square_pl
 export const BLEND = Object.freeze({
   pairs: Object.freeze(['havora_grass_earth', 'havora_grass_water', 'square_grass_flag', 'square_dirt_flag',
     /* lane/b-havora-art-2 (art/world/havora): the docks' and bridge's planks, the farm plots, the mountain's rock */
-    'havora_earth_planks', 'havora_water_planks', 'havora_grass_tilled', 'havora_grass_rock', 'havora_earth_rock']),
+    'havora_earth_planks', 'havora_water_planks', 'havora_grass_tilled', 'havora_grass_rock', 'havora_earth_rock',
+    /* lane/b-havora-polish: the quarry's gravel floor against the rock and the cart path */
+    'havora_gravel_rock', 'havora_earth_gravel']),
   alias: Object.freeze({ cobble: 'flagstone', palisade: 'grass' }),
 });
 

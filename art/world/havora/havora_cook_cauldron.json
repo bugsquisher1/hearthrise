@@ -1,0 +1,42 @@
+{
+  "id": "havora_cook_cauldron",
+  "class": "fixture",
+  "style": "s1",
+  "material": "wood",
+  "source": "havora_cook_cauldron.png",
+  "frame": [
+    38,
+    51
+  ],
+  "anchor_px": [
+    19,
+    50
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_image_pro",
+    "image": "e5de7b67-d3cd-465d-86df-273d761cadbe",
+    "index": 0,
+    "seed": 3102,
+    "size": [
+      48,
+      64
+    ],
+    "cost": 10,
+    "style": "havora/havora_tavern"
+  },
+  "notes": "An iron cauldron hung from a tripod over a small fire: the cook yard's stew pot (lane/b-havora-polish 2026-10-26: the cook yard's own art in place of the cottage forge sprite). Candidate 0 of 16, cropped to its art."
+}

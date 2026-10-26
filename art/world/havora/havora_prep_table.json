@@ -1,0 +1,42 @@
+{
+  "id": "havora_prep_table",
+  "class": "station",
+  "style": "s1",
+  "material": "wood",
+  "source": "havora_prep_table.png",
+  "frame": [
+    47,
+    35
+  ],
+  "anchor_px": [
+    23,
+    34
+  ],
+  "footprint": [
+    2,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_image_pro",
+    "image": "5d64e5e7-8bbe-4ce3-868c-0b1ec4e7acbb",
+    "index": 5,
+    "seed": 3104,
+    "size": [
+      64,
+      48
+    ],
+    "cost": 10,
+    "style": "havora/havora_tavern"
+  },
+  "notes": "A rough kitchen table with a board, a knife, vegetables and a fish: the cook yard's prep table (lane/b-havora-polish 2026-10-26: the cook yard's own art in place of the cottage forge sprite). Candidate 5 of 16, cropped to its art."
+}

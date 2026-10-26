@@ -38,8 +38,10 @@ import { isMain } from '../tests/_is-main.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 /* The dated file this generator writes. A NEW catalogue (a new town) is a new dated file; an applied one stays as
-   history (2027-01-26-town-stations.generated.sql: the 24x14 Common seed, APPLIED 10-26). */
-export const OUT_FILE = '2027-01-29-havora-stations.generated.sql';
+   history (2027-01-26-town-stations.generated.sql: the 24x14 Common seed, APPLIED 10-26; 2027-01-29-havora-stations:
+   Havora's first stands, APPLIED 10-26; 2027-01-30: the work yards, quarry, Westwood and farm laid out organically,
+   lane/b-havora-polish). */
+export const OUT_FILE = '2027-01-30-havora-yards.generated.sql';
 const OUT = join(ROOT, 'supabase', 'migrations', OUT_FILE);
 
 export const ROLES = Object.freeze(['work', 'arrive', 'idle', 'visit', 'bench']);

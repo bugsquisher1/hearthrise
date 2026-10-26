@@ -4405,3 +4405,7 @@ guard tests/hunt-scene.mjs (SC-1..8, 13/13 mutants).
 2. *A catalogue `dflt` null means "the engine decides at spawn"*: in town the view reads null. Read the server SQL before blaming a client lock.
 3. *hunt-screen's stopAtFirst makes a mutant cost as deep as its rule sits*: put a new rule FIRST when the shard plan is full (HS-27 ~25 s vs ~190 s beside HS-8).
 4. *Python text mode on Windows writes CRLF*: rewrite repo files with newline=''.
+## 2026-10-25 lane/i-v0248 (integration) — learnings
+1. *Never pipe a merge through `tail`*: the first conflict lines scrolled off and three files were committed with markers (caught by `git grep` for markers before the next merge; amended). Read the full `--diff-filter=U` list, then `git grep -n "^<<<<<<< "` before every merge commit.
+2. *Conflicts across ?v= bumps are mostly noise*: when one side only bumped versions, take the other side and re-run the bump rewrite; union import lines per module (symbol-wise) so both sides' new names survive.
+3. *An integration exposes guard drift neither lane saw*: say-why (written beside store-all) had REASONS for controls store-all had changed; fix the reasons on screen, not the REASONS list.

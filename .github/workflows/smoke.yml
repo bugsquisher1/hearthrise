@@ -4504,6 +4504,19 @@ jobs:
         if: ${{ !cancelled() }}
         run: node tests/world-town-home.mjs
 
+      # Havora's stations (src/data/world/stations.js, the real-town plan of
+      # 2026-10-25): every stand walkable, reachable, in plain view, unique, inside
+      # its district and at the plan's count (Hearth Square >= 130, town >= 545);
+      # every activity, hunt and arrival resolves to a station of its kind; every
+      # tap opens a real window or skill. --selftest plants 11 defects.
+      - name: Town stations - mutation proof
+        if: ${{ !cancelled() }}
+        run: node tools/mutant-gate.mjs node tests/town-stations.mjs --selftest
+
+      - name: Town stations - base run
+        if: ${{ !cancelled() }}
+        run: node tests/town-stations.mjs
+
       # The 64 px sandbox (src/data/world/sandbox.js): in by the Common's sign,
       # the hd64 grid drawn at x1 from its own book, the keys walk, the wanderer
       # stays in its leash, out by the exit sign; the town presence is parked

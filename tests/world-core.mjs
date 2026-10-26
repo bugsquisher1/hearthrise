@@ -66,7 +66,7 @@ async function load(base) {
   return { grid, zsort, roofs, shadows, camera, mapc, path, wang, route, compose, nullb, bookm, maps, terrain, hunts, budget, manifests,
     sceneSets, outfits, grounds, vfx, layouts, homeScene, atlasSets: sets,
     canvasSrc: readFileSync(join(base, 'src/world/render/canvas-backend.js'), 'utf8'),
-    worldCss: readFileSync(join(ROOT, 'src/styles/world.css'), 'utf8') };
+    worldCss: readFileSync(join(ROOT, 'src/styles/world.css'), 'utf8'), tokensCss: readFileSync(join(ROOT, 'src/styles/tokens.css'), 'utf8') };
 }
 
 /** Every check, against one loaded module set. Returns [{ id, msg }] failures. */
@@ -117,10 +117,12 @@ function check(M) {
     ok('Z1', firstAt(north, millFace) >= 0 && heroIdx(north) < firstAt(north, millFace), 'a hero north of the mill\'s front row must draw BEHIND its wall slices');
     const beside = frame('_kit_town', { x: 12, y: 4 }, {}, wide);
     ok('Z1', heroIdx(beside) > at(beside.sprites, (d, i) => millFace(d) && !beside.sprites.slice(i + 1).some(millFace)), 'a hero beside a wall slice on the same row must draw in front of all of them');
-    const oak = (f) => at(f.sprites, (d) => d.id === 'oak');
-    const n = frame('town_common', { x: 9, y: 2 }), s = frame('town_common', { x: 9, y: 4 });
-    ok('Z2', heroIdx(n) < oak(n) && heroIdx(s) > oak(s), 'a hero north of a tree must draw behind it, south in front');
-    const m1 = frame('town_common', { x: 9, y: 2.5 }), m2 = frame('town_common', { x: 9, y: 3.5 });
+    /* the town's first oak (a Westwood tree), and the open tiles north and south of it */
+    const tree = rows.town_common.objects.find((o) => o.id === 'oak');
+    const oak = (f) => at(f.sprites, (d) => d.id === 'oak' && d.tx === tree.x && d.ty === tree.y);
+    const n = frame('town_common', { x: tree.x, y: tree.y - 1 }), s = frame('town_common', { x: tree.x, y: tree.y + 1 });
+    ok('Z2', oak(n) >= 0 && heroIdx(n) < oak(n) && heroIdx(s) > oak(s), 'a hero north of a tree must draw behind it, south in front');
+    const m1 = frame('town_common', { x: tree.x, y: tree.y - 0.5 }), m2 = frame('town_common', { x: tree.x, y: tree.y + 0.5 });
     ok('Z2', heroIdx(m1) < oak(m1) && heroIdx(m2) > oak(m2), 'a moving hero is keyed by its INTERPOLATED row');
     const items = [{ row: 2 }, { row: 2 }, { row: 1 }, { row: 1.5 }];
     const a = M.zsort.ySort(items).map((d) => d.seq).join(), b = M.zsort.ySort(items).map((d) => d.seq).join();
@@ -311,12 +313,17 @@ function check(M) {
       ['a roof that is not the footprint', 'L-ROOF', '_kit_home', (r) => { r.buildings[0].roof.rect = [2, 1, 12, 9]; }],
       ['a stale mask hash', 'L-HASH', 'mill_cellar', (r) => { r.rows[10] = '###...#................#'; }],
       ['furniture north of a south wall', 'L-NORTH', 'home_cottage', (r) => { r.objects.find((o) => o.id === 'table').y = 9; }],
-      ['an outdoor map with a treeless window', 'L-TREES', 'town_common', (r) => { r.objects = r.objects.filter((o) => o.id !== 'oak'); }],
+      ['an outdoor map with a treeless window', 'L-TREES', 'town_common', (r) => { r.objects = r.objects.filter((o) => o.id !== 'oak' && o.id !== 'pine'); }],
+      /* only a window MOSTLY of green ground may go without a tree: a treeless meadow on the sea's edge is still red */
+      ['a meadow with no tree, beside the sea', 'L-TREES', 'home_cottage', (r) => { r.objects = r.objects.filter((o) => o.id !== 'oak' && o.id !== 'pine');
+        r.rows = r.rows.map((row, y) => (y < 7 ? row : row.replace(/[^.]/g, '.'))); }],
       ['a barrel on rock', 'L-SPACE', 'mill_cellar', (r) => { r.objects.push({ id: 'barrels', x: 1, y: 7 }); }],
       ['a walled-off strip of a walked map', 'L-REACH', 'home_cottage', (r) => { r.objects.push({ id: 'bush', x: 1, y: 11 }); }],
       ['an enterable building with no inside wall kit', 'L-KIT', '_kit_town', (r) => { delete r.buildings[0].closed; }],
-      ['a focus off the map', 'L-WHOLE', 'town_common', (r) => { r.focus = [40, 7]; }],
-      ['a station hidden behind the well', 'L-COVER', 'town_common', (r) => { r.stations = Object.assign({}, r.stations, { combat: [14, 7] }); }],
+      ['a focus off the map', 'L-WHOLE', 'town_common', (r) => { r.focus = [r.rows[0].length + 3, 7]; }],
+      ['a station hidden behind the well', 'L-COVER', 'town_common', (r) => { const w = r.objects.find((o) => o.id === 'well'); r.stations = Object.assign({}, r.stations, { combat: [w.x, w.y - 1] }); }],
+      ['a hunt map drawn in placeholder tones', 'L-KIND', 'mill_cellar', (r) => { r.ground = null; }],
+      ['a ground no atlas carries', 'L-KIND', 'town_common', (r) => { r.ground = 'town_ground'; }],
     ];
     for (const [what, code, id, edit] of want) ok('L1', plant(id, edit).includes(code), 'the lint did not reject ' + what + ' with ' + code);
   });
@@ -348,6 +355,15 @@ function check(M) {
     for (const id of Object.keys(rows)) {
       const g = M.compose.groundTiles(compiled(id), book, tables, T);
       const m = compiled(id);
+      /* A town ahead of its ground art (ground: null) is a placeholder tone under every cell, and no art or void. */
+      if (m.groundTerrain === null) {
+        ok('W2', g.tones.length === m.ground.length && g.tones.every((t, i) => t.m === m.ground[i]) && !g.tiles.length && !g.voids.length,
+          id + ': a ground with no art must lay one placeholder tone per cell, in its material, and nothing else');
+        const css = M.tokensCss;
+        const missing = [...new Set(m.ground)].filter((mat) => !['a', 'b'].every((k) => css.includes('--world-ground-' + mat + '-' + k + ':')));
+        ok('W2', !missing.length, id + ': no placeholder tone token (src/styles/tokens.css --world-ground-<material>-a/-b) for ' + missing.join(', '));
+        continue;
+      }
       /* A painted ground (port-pixellab.mjs) is art under every cell, rock included: no void at all. */
       const painted = !!(book.terrains[m.groundTerrain] && book.terrains[m.groundTerrain].painted);
       const open = painted ? m.ground.length : m.ground.filter((mat) => !tables.materials[mat].solid).length;
@@ -490,6 +506,8 @@ const MUTANTS = [
   ['L0', 'a map row edited without its hash', 'src/data/world/maps/mill_cellar.js', [["    '########################',\n    '###...................##',\n", "    '########################',\n    '###.......#...........##',\n"]]],
   ['P1', 'diagonals cut corners', 'src/world/core/path.js', [['if (dx && dy) return walkable', 'if (false) return walkable']]],
   ['W1', 'a lone tile stops melting', 'src/world/core/wang.js', [['up >= 3 ? 1 : 0', 'up >= 1 ? 1 : 0']]],
+  ['W2', 'a ground with no art lays nothing', 'src/world/core/compose.js', [['tones.push({ m: map.ground[y * map.w + x]', 'void ({ m: map.ground[y * map.w + x]']]],
+  ['L1', 'every window of a map is let off the tree rule', 'src/world/core/map-compile.js', [['if (2 * greenIn(wx, wy) < ww * wh) continue;', 'continue;']]],
   ['W3', 'a fill floor hashed into seams', 'src/world/core/compose.js', [['const n = fill ? (y % fill[1]) * fill[0] + (x % fill[0]) : cellHash(x, y);', 'const n = cellHash(x, y);']]],
   ['G1', 'an unmapped monster falls into the cellar', 'src/world/core/scene-route.js', [['if (id && index[id]) return', "if (id) return { map: 'mill_cellar', kind: 'hunt' }; if (id && index[id]) return"]]],
   ['G2', 'a missing sprite resolves to nothing', 'src/world/core/book.js', [['const sprite = (id) => sprites[id] || STUB_SPRITE;', 'const sprite = (id) => sprites[id];']]],

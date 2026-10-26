@@ -61,8 +61,14 @@ function cellHash(x, y) {
  * @param {{materials: object}} tables
  */
 export function groundTiles(map, book, tables, T) {
-  const tiles = [], voids = [];
-  const terr = book.terrains[map.groundTerrain];
+  const tiles = [], voids = [], tones = [];
+  /* NO GROUND ART YET (ground: null, a town ahead of its art; map-compile.js L-KIND): every cell is a flat
+     PLACEHOLDER in its material's tone, two tones checkered (--world-ground-<material>-a/-b), so the layout
+     reads and nothing pretends to be finished art. Building floors and placed sprites still draw over it. */
+  if (map.groundTerrain === null) {
+    for (let y = 0; y < map.h; y++) for (let x = 0; x < map.w; x++) tones.push({ m: map.ground[y * map.w + x], alt: (x + y) & 1, x: x * T, y: y * T });
+  }
+  const terr = map.groundTerrain === null ? null : book.terrains[map.groundTerrain];
   const upper = terr ? terr.upper : null;
   const fill = terr && terr.kind === 'fill' ? terr.cycle || [1, 1] : null;
   /* A PAINTED ground (a whole map stitched from PixelLab, port-pixellab.mjs) covers every cell,
@@ -70,7 +76,7 @@ export function groundTiles(map, book, tables, T) {
   const painted = !!(terr && terr.painted);
   const solid = (x, y) => { const m = tables.materials[map.ground[y * map.w + x]]; return !painted && !!(m && m.solid); };
   const g = vertexGrid((x, y) => map.ground[y * map.w + x] === upper, map.w, map.h);
-  for (let y = 0; y < map.h; y++) {
+  for (let y = 0; y < (tones.length ? 0 : map.h); y++) {
     for (let x = 0; x < map.w; x++) {
       if (solid(x, y)) { voids.push({ x: x * T, y: y * T }); continue; }
       /* A fill is one periodic field cut into a cols x rows cycle: lay it in order so it tiles seamlessly. */
@@ -91,7 +97,7 @@ export function groundTiles(map, book, tables, T) {
       }
     }
   }
-  return { tiles, voids };
+  return { tiles, voids, tones };
 }
 
 /**

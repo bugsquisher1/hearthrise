@@ -60,6 +60,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { ROOT, UID, serve, SDK_STUB } from './_client-harness.mjs';
+import { TOWN_NAME } from '../src/data/world/town/plan.js';
 
 /* account.max_concurrent is the server's concurrent limit (AccountSession.limit): without it one character plays. */
 function envelope(slot, version, extra) {
@@ -238,7 +239,7 @@ async function checks(overrides) {
       await page.click('.auth-submit');
       await wait(page, () => document.querySelector('[data-app="play"][data-slot="0"]'));
       await page.click('[data-app="play"][data-slot="0"]');
-      const inTown = await wait(page, () => /Common/.test((document.querySelector('#panel-world .world-title') || {}).textContent || ''));
+      const inTown = await wait(page, (name) => ((document.querySelector('#panel-world .world-title') || {}).textContent || '').includes(name), TOWN_NAME);
       o.hunt = true;
       await page.evaluate(([uid, env]) => window.__hub.send('hr:' + uid + ':0', { t: 'state', frame: 10, env }, 'frame'), [UID, Object.assign({}, HUNT, { version: 10 })]);
       for (let i = 0; i < 60 && !asked; i++) await page.waitForTimeout(50);
@@ -249,7 +250,7 @@ async function checks(overrides) {
       if (!added.length) fails.push('B-12 harness: the cellar adds no sheet to the Common\'s (' + CELLAR_SHEETS.sets.join() + ')');
       else if (!inTown) fails.push('B-12 the hero never stood in the Common');
       else if (!asked) fails.push('B-12 the hunt in the cellar never asked for its sheet ' + added.join());
-      else if (!/Common/.test(during)) fails.push('B-12 the World showed "' + during + '" while the cellar\'s sheet (' + added.join() + ') was still on its way');
+      else if (!during.includes(TOWN_NAME)) fails.push('B-12 the World showed "' + during + '" while the cellar\'s sheet (' + added.join() + ') was still on its way');
       else if (!after) fails.push('B-12 the cellar never showed after its sheet arrived (title: ' + await title() + ')');
       if (errors.length) fails.push('B-12 console errors: ' + errors.slice(0, 3).join(' | '));
       await ctx.close();

@@ -23,7 +23,8 @@
 // WHERE THE BODY STANDS (placeOn) is this presence's alone: the World pane is
 // remounted on every switch of the viewed character, and a pane shown again
 // starts its hero there, never at the map's start (a switch is not a move). A
-// body back from a hunt stands at the town's arrival tile (Tyler 2026-10-19).
+// body back from a hunt stands at its arrival tile (Tyler 2026-10-19): one of the
+// gatehouse's stands, picked per character (arrivalOn; stations.js arrivalStand).
 // ════════════════════════════════════════════════════════════════════════
 import { TOWN_PRESENCE, TOWN_DIRS } from '../data/town-presence.js?v=0.2.47';
 
@@ -240,6 +241,12 @@ export class TownPresence {
     this._drawnAt = now;
     if (!this._map || this._readAt === null || this._now() - this._readAt > this.limits.staleMs) return [];
     return this._walkers.filter((w) => !this._hidden(w.id));
+  }
+
+  /** Where this character arrives on `map` ([x, y]: its gatehouse stand, src/data/world/stations.js arrivalStand), or null. */
+  arrivalOn(map) {
+    const a = this._arrival;
+    return a && a.map === map ? [a.x, a.y] : null;
   }
 
   /** The town map this presence is on, or null. */

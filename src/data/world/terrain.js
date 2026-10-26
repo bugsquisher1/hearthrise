@@ -5,7 +5,9 @@
 // this file only says what the art does not:
 //   MATERIALS   what a legend character means. `solid` blocks walking; `wall`
 //               names the wall kit a solid material is faced with; `trees` marks a painted
-//               wood (the outdoor tree lint counts its tiles as trees)
+//               wood (the outdoor tree lint counts its tiles as trees); `green` marks open
+//               country: L-TREES asks for a tree in every window that is mostly green (a
+//               window of sea, cliff, paving or building footprints is not a meadow)
 //               (<wall>_wall, <wall>_cap, <wall>_cap_h, <wall>_cap_w). A `flat`
 //               solid (water) carries no kit and is never drawn as a raised wall.
 //   OPEN_CLASSES  art classes that never block a step (lying flat, small, hung
@@ -20,7 +22,7 @@
 export const MATERIALS = Object.freeze({
   earth: Object.freeze({ solid: false }),
   flagstone: Object.freeze({ solid: false }),
-  grass: Object.freeze({ solid: false }),
+  grass: Object.freeze({ solid: false, green: true }),
   cobble: Object.freeze({ solid: false }),
   planks: Object.freeze({ solid: false }),
   rock: Object.freeze({ solid: true, wall: 'stone' }),
@@ -33,6 +35,15 @@ export const MATERIALS = Object.freeze({
   thicket: Object.freeze({ solid: true, trees: true }),
   brook: Object.freeze({ solid: true, flat: true }),
   chasm: Object.freeze({ solid: true, flat: true }),
+  /* Havora, the real town (2026-10-25, blueprint v0.5 x2): its river and sea, the mountain's cliffs and the shack
+     palisade block a step and are FLAT (no wall kit, they hide nothing); a `site` is the floor of a building
+     footprint whose art is not drawn yet, `tilled` a farm plot. Until the town's ground art lands, every cell
+     draws in its material's placeholder tone (--world-ground-<id>-a/-b, src/world/core/compose.js). */
+  water: Object.freeze({ solid: true, flat: true }),
+  cliff: Object.freeze({ solid: true, flat: true }),
+  palisade: Object.freeze({ solid: true, flat: true }),
+  site: Object.freeze({ solid: false }),
+  tilled: Object.freeze({ solid: false, green: true }),
 });
 
 /* 'span' (a bridge laid over water or a gap) is walked ON: it never blocks the step it covers (2026-10-18:

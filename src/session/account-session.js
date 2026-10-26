@@ -49,6 +49,7 @@ import { SESSION_CONFIG } from './config.js?v=0.2.47';
 import { CharacterSession } from './character-session.js?v=0.2.47';
 import { TownPresence } from './town-presence.js?v=0.2.47';
 import { WORLD_MAPS, SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.47';
+import { arrivalStand } from '../data/world/stations.js?v=0.2.47';
 import { charLevelFromXp } from '../core/xp.js?v=0.2.47';
 import { createIntentLedger } from './intent-ledger.js?v=0.2.47';
 import { purseOf, newerPurse } from './item-sections.js?v=0.2.47';
@@ -304,7 +305,9 @@ export class AccountSession {
     /* Playing = standing in town for everyone (Tyler 2026-10-19), viewed or not: a body from the
        moment it opens (a reload or login too), at the town's arrival tile, while it is not hunting. */
     const town = WORLD_MAPS.find((m) => m.id === SCENE_MAPS.town);
-    const arrival = town && town.start ? { map: town.id, x: town.start[0], y: town.start[1], gx: town.start[0], gy: town.start[1], dir: 's' } : null;
+    /* its OWN gatehouse stand (stations.js arrivalStand), never one tile every hero shares; the server assigns stands in L2 */
+    const stand = town ? arrivalStand(this.userId, slot) : null;
+    const arrival = stand ? { map: town.id, x: stand[0], y: stand[1], gx: stand[0], gy: stand[1], dir: 's' } : null;
     this._towns.set(slot, new TownPresence({ server: this.server, slot, self: () => this.userId,
       hidden: (id) => !!(this.social && this.social.blocks && this.social.blocks.has(id)),
       busy: () => huntOpenIn(cs.read('hunt')), arrival,

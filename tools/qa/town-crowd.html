@@ -1,0 +1,107 @@
+<!doctype html>
+<!-- tools/qa/town-crowd.html — HOW MANY BODIES CAN HAVORA DRAW? A local, test-only measurement page (never linked
+     from the game, signs nobody in, talks to no server). It draws the real town (src/data/world/maps/town_common.js)
+     with the real renderer (src/world/render/canvas-backend.js) and the real peer walk (src/world/town-scene.js),
+     N fake people standing round the Great Hearth (the nearest open tiles), `walk` per cent of them re-aimed to a
+     nearby tile every 3 s, and times each frame's people step + compose + draw.
+       http://localhost:<port>/tools/qa/town-crowd.html?n=240&w=844&h=390&dpr=3&s=10
+     n bodies (40), at=x,y the hero's map tile (the hearth's fuel row), w x h the stage in CSS px (the window's), dpr the device pixel ratio (the screen's), s seconds (10),
+     walk per cent walking (25), plates=0 no nameplates, gpu=1 a pixel read back each frame. Read window.crowd when document.title is 'done', or paste tools/qa/pane-probe.js
+     (it finds canvas.world-canvas) for the page-level fps. The plan's budget: <= 4 ms a frame for units on a mid phone.
+-->
+<html><head><meta charset="utf-8"><title>town crowd</title>
+<!-- the site root: the atlases resolve against the document, as on play.html -->
+<base href="../../">
+<link rel="stylesheet" href="../../src/styles/tokens.css">
+<style>html,body{margin:0;background:#0b0a0c;color:#e6dcbc;font:12px monospace}#stage{position:relative;overflow:hidden}#out{position:fixed;left:4px;bottom:4px;background:#000c;padding:4px;white-space:pre}</style>
+</head><body><div id="stage"></div><div id="out">loading…</div>
+<script type="module">
+import { loadAtlases } from '../../src/world/atlas.js';
+import { STUB_SPRITE } from '../../src/world/core/book.js';
+import { compileMap } from '../../src/world/core/map-compile.js';
+import { reachFrom } from '../../src/world/core/path.js';
+import { createCanvasBackend } from '../../src/world/render/canvas-backend.js';
+import { createTownCast } from '../../src/world/town-scene.js';
+import { WORLD_MAPS } from '../../src/data/world/maps/index.js';
+import { MATERIALS, OPEN_CLASSES, LIGHTS } from '../../src/data/world/terrain.js';
+import { STATION_BY_ID } from '../../src/data/world/stations.js';
+import { TOWN_PRESENCE } from '../../src/data/town-presence.js';
+import { OUTFITS } from '../../src/data/hunt-outfits.js';
+import { BUILD } from '../../src/build-info.js';
+
+const q = new URLSearchParams(location.search);
+const N = q.has('n') ? +q.get('n') : 40, SECONDS = +q.get('s') || 10, WALK = q.has('walk') ? +q.get('walk') : 25;
+const W = +q.get('w') || innerWidth, H = +q.get('h') || innerHeight, DPR = +q.get('dpr') || devicePixelRatio || 1;
+const out = document.getElementById('out');
+const stage = document.getElementById('stage');
+stage.style.width = W + 'px'; stage.style.height = H + 'px';
+
+/* the renderer reads the window's width and pixel ratio for its zoom: this stage's, so a desktop pane can stand in for a phone */
+const win = new Proxy(window, { get: (t, k) => (k === 'innerWidth' ? W : k === 'innerHeight' ? H : k === 'devicePixelRatio' ? DPR
+  : (typeof t[k] === 'function' ? t[k].bind(t) : t[k])) });
+const styles = getComputedStyle(document.documentElement);
+const css = (name) => styles.getPropertyValue(name).trim();
+
+const { book, images } = await loadAtlases({ doc: document, version: BUILD.cache });
+const sprites = new Proxy(book.sprites, { get: (t, k) => t[k] || STUB_SPRITE });
+const tables = { materials: MATERIALS, sprites, openClasses: OPEN_CLASSES, lights: LIGHTS };
+const map = compileMap(WORLD_MAPS.find((m) => m.id === 'town_common'), tables);
+const backend = createCanvasBackend({ win, doc: document, book, images, tables, css });
+backend.mount(stage);
+backend.setMap(map);
+const cast = createTownCast(map, { sprites: book.sprites, limits: Object.assign({}, TOWN_PRESENCE, { snapTiles: 1e9 }) });
+
+/* the hero at the hearth's middle fuel stand; the crowd on the open tiles nearest it */
+const hero = q.has('at') ? q.get('at').split(',').map(Number) : STATION_BY_ID.hearth.stands[5];
+/* the tiles a body can stand on: open AND reachable (a closed footprint's inside is open but nobody gets there) */
+const reach = reachFrom(map.mask, map.w, map.h, map.start);
+const open = [];
+for (let y = 0; y < map.h; y++) for (let x = 0; x < map.w; x++) if (reach[y * map.w + x] && !(x === hero[0] && y === hero[1])) open.push([x, y]);
+open.sort((a, b) => Math.hypot(a[0] - hero[0], a[1] - hero[1]) - Math.hypot(b[0] - hero[0], b[1] - hero[1]));
+const looks = Object.keys(OUTFITS);
+const hex = (i) => i.toString(16).padStart(12, '0');
+const people = open.slice(0, N).map(([x, y], i) => ({ id: '00000000-0000-4000-8000-' + hex(i), slot: 0, name: 'Crowd ' + (i + 1), level: 1 + (i * 7) % 90,
+  role: null, outfit: looks[i % looks.length], x, y, gx: x, gy: y, dir: 's' }));
+let seed = 7;
+const rand = () => ((seed = (seed * 1103515245 + 12345) >>> 0) / 4294967296);
+function reaim() {
+  for (const p of people) {
+    if (rand() * 100 >= WALK) continue;
+    const near = open.filter(([x, y]) => Math.abs(x - p.gx) <= 6 && Math.abs(y - p.gy) <= 6);
+    const [gx, gy] = near[Math.floor(rand() * near.length)] || [p.gx, p.gy];
+    Object.assign(p, { x: p.gx, y: p.gy, gx, gy, dir: 's' });
+  }
+}
+
+/* THE CLOCK IS SIMULATED at 60 fps (a hidden pane's requestAnimationFrame is throttled to a frame or two a second,
+   which would time the first, chunk-baking frames only): SECONDS x 60 frames, each timed on the main thread
+   (people step + compose + canvas calls). gpu=1 also reads one pixel back each frame, so the GPU's work is in it. */
+const GPU = q.get('gpu') === '1';
+/* plates=0 draws the bodies without their nameplates: how much of the frame the names cost */
+const NO_PLATES = q.get('plates') === '0';
+const probe = stage.querySelector('canvas').getContext('2d');
+const ms = [], draw = [];
+const start = Date.now();
+for (let i = 0; i < SECONDS * 60; i++) {
+  const now = start + i * (1000 / 60);
+  if (i % 180 === 0) reaim();
+  const a = performance.now();
+  const units = cast.frame(people.map((p) => Object.assign({}, p)), now);
+  if (NO_PLATES) for (const u of units) u.plate = null;
+  const b = performance.now();
+  backend.sync({ hero: { x: hero[0], y: hero[1] }, name: 'You', t: now, units, roofAlpha: {} });
+  if (GPU) probe.getImageData(0, 0, 1, 1);
+  const c = performance.now();
+  ms.push(c - a); draw.push(c - b);
+  if (i % 30 === 29) { out.textContent = 'measuring ' + N + ' bodies: frame ' + (i + 1); await new Promise((r) => setTimeout(r, 0)); }
+}
+const stat = (list) => { const s = list.slice(30).sort((x, y) => x - y); return { mean: +(s.reduce((x, y) => x + y, 0) / s.length).toFixed(2),
+  p50: +s[Math.floor(s.length / 2)].toFixed(2), p95: +s[Math.floor(s.length * 0.95)].toFixed(2), max: +s[s.length - 1].toFixed(2) }; };
+const snap = backend.snapshot();
+window.crowd = { bodies: N, walkingPct: WALK, stage: W + 'x' + H + '@' + DPR, zoom: snap.z, gpuSync: GPU, frames: ms.length - 30,
+  frameMs: stat(ms), drawMs: stat(draw), spritesDrawn: snap.sprites, platesDrawn: snap.names.length,
+  /* drawn as stub boxes (an atlas that did not load): must be 0 for the numbers to mean the real art */
+  stubbed: snap.stubbed.length };
+out.textContent = JSON.stringify(window.crowd, null, 1);
+document.title = 'done';
+</script></body></html>

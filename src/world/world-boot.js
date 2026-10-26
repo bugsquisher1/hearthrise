@@ -241,7 +241,8 @@ export async function bootWorld(panel, opts) {
        stand, kept across a switch of the viewed character); at home it is the character's scratch */
     const held = !!town && map.kind === 'town';
     if (!walk || walk.map !== map) {
-      const at = held ? town.placeOn(map.id) : heroPosOn(G, map.id);
+      /* not standing there yet (back from a hunt, first view): its own gatehouse stand, never one shared tile */
+      const at = held ? town.placeOn(map.id) || (town.arrivalOn ? town.arrivalOn(map.id) : null) : heroPosOn(G, map.id);
       const mapSprites = (artOf(map.id) || { tables }).tables.sprites;
       walk = createWalkScene(map, Object.assign({ at, sprites: mapSprites, openClasses: OPEN_CLASSES, maps: ROW_OF, heroSprite: () => heroSprite(character) },
         sandboxExtras(map, mapSprites)));

@@ -104,6 +104,11 @@ function check(M) {
   /* the hero is drawn in its style-1 outfit, the knight's when the state names none */
   const HERO = 'outfit_knight';
   const dist2 = (a, b) => (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2;
+  /* open walking ground in Havora: the gatehouse road (plan x80-85, map x104-109), clear 10 tiles north of here */
+  const ROAD = [105, 30];
+  for (let y = ROAD[1] - 10; y <= ROAD[1]; y++) for (let x = ROAD[0]; x <= ROAD[0] + 3; x++) {
+    if (town.mask[y * town.w + x]) { console.error('world-town-home: harness — the road fixture ' + x + ',' + y + ' is blocked'); process.exit(2); }
+  }
 
   fam('R', () => {
     /* The shipped cottage is PAINTED (style 1: its floor and brick walls are the ground art) and
@@ -130,7 +135,8 @@ function check(M) {
      shares a pixel of its body with a prop, a tree, a wall or a roof, in front
      of it or behind it. Odo on the bench row (live 2026-10-14) was the case. */
   fam('C', () => {
-    ok('C', town.overlap[11 * town.w + 3] !== 0, 'the bench row (3,11) must read as occupied in the overlap grid');
+    const well = town.objects.find((o) => o.id === 'well');
+    ok('C', !!well && town.overlap[(well.y - 1) * town.w + well.x] !== 0, 'the tile behind the well must read as occupied in the overlap grid');
     for (const [k, at] of Object.entries(town.stations)) ok('C', !(town.overlap[at[1] * town.w + at[0]] & M.mapc.OVER), 'the ' + k + ' station must be in plain view');
   });
 
@@ -289,12 +295,14 @@ function check(M) {
     for (let t = 0; t <= 3000; t += 50) { s.step(t); const c = s.cell().join(); if (cells[cells.length - 1] !== c) cells.push(c); }
     ok('S', cells.join(' ') === '0,0 0,1 1,1', 'with a wall at 1,0 the walk must go around the corner, went ' + cells.join(' '));
     /* THE HERO NEVER WALKS ON ITS OWN (Tyler 2026-10-19). A tap on a station opens it AND walks there. */
-    const ws = M.walk.createWalkScene(town, { at: [11, 9], sprites: M.book.sprites, openClasses: M.terrain.OPEN_CLASSES, maps: M.rows });
-    const act = ws.tap({ tile: [6, 8], hits: [{ id: 'anvil', tx: 6, ty: 8, ref: null }] }, 0);   // the anvil: a station, blocked
+    /* the smithy yard's first anvil, the hero three rows south of it: it must WALK to stand next to it */
+    const anv = town.objects.find((o) => o.id === 'anvil');
+    const ws = M.walk.createWalkScene(town, { at: [anv.x + 1, anv.y + 3], sprites: M.book.sprites, openClasses: M.terrain.OPEN_CLASSES, maps: M.rows });
+    const act = ws.tap({ tile: [anv.x, anv.y], hits: [{ id: 'anvil', tx: anv.x, ty: anv.y, ref: null }] }, 0);   // the anvil: a station, blocked
     let f = null;
     for (let t = 0; t <= 2500; t += 50) f = ws.frame(ENV({ kind: 'gather' }), t);
     const c = ws.cell();
-    ok('S', act.kind === 'skill' && !(c[0] === 6 && c[1] === 8) && dist2(c, [6, 8]) <= 2 && f.mark === null,
+    ok('S', act.kind === 'skill' && !(c[0] === anv.x && c[1] === anv.y) && dist2(c, [anv.x, anv.y]) <= 2 && f.mark === null,
       'a tap on the anvil opens it and walks the hero next to it, the mark clearing on arrival: ' + act.kind + ' at ' + c.join());
     const at3 = ws.cell().join();
     for (let t = 2500; t <= 20000; t += 50) f = ws.frame(ENV({ kind: 'gather' }), t);
@@ -309,9 +317,12 @@ function check(M) {
     /* A NEW activity (the server's pointer changed, no player input) moves nobody. */
     for (; kt <= 60000; kt += 100) f = ws.frame(ENV({ kind: 'combat' }), kt);
     ok('S', ws.cell().join() === atKeys && f.hero.anim === 'idle', 'an activity change must not walk the hero (' + atKeys + '), walked to ' + ws.cell().join());
-    const lean = f.camera;
-    const here = ws.cell();
-    ok('S', lean && town.focus && Math.abs(lean.x - (here[0] + town.focus[0]) / 2) < 1e-9, 'the camera leans halfway to the town\'s focus');
+    /* a map with a focus leans its camera halfway there (Havora is too big for one: its row has none) */
+    const focused = Object.assign({}, town, { focus: [anv.x + 6, anv.y - 4] });
+    const wf = M.walk.createWalkScene(focused, { at: [anv.x + 1, anv.y + 1], sprites: M.book.sprites, openClasses: M.terrain.OPEN_CLASSES, maps: M.rows });
+    const lean = wf.frame(ENV({ kind: 'combat' }), kt).camera;
+    const here = wf.cell();
+    ok('S', lean && Math.abs(lean.x - (here[0] + focused.focus[0]) / 2) < 1e-9 && f.camera === null, 'the camera leans halfway to a map\'s focus, and follows the hero on a map with none');
     /* A HUNT ENDS AT THE ARRIVAL POINT (live v0.2.7: "walks to a random location after I leave a hunt"): the
        World forgets the hero's town spot when it enters a hunt, so the next town scene starts at the map's
        start, and there it stays for 15 s, through the activity the server resumes. */
@@ -356,27 +367,31 @@ function check(M) {
     wall.drive([-1, 0], 0);
     const faced = wall.step(1000);
     ok('K', !faced.moving && faced.x === 0 && faced.dir === 'w' && wall.restMs(5e4) === 0, 'held against the map edge the hero turns to face it, stays put and never counts as idle: ' + JSON.stringify(faced));
-    const ws = M.walk.createWalkScene(town, { at: [11, 9], sprites: M.book.sprites, openClasses: M.terrain.OPEN_CLASSES, maps: M.rows });
-    ws.tap({ tile: [11, 4], hits: [] }, 0);
+    const ws = M.walk.createWalkScene(town, { at: ROAD, sprites: M.book.sprites, openClasses: M.terrain.OPEN_CLASSES, maps: M.rows });
+    ws.tap({ tile: [ROAD[0], ROAD[1] - 5], hits: [] }, 0);
     ws.frame(ENV(), 100);
     ws.drive([1, 0], 100);
     let f = null;
     for (let t = 100; t <= 100 + 3 * legMs; t += 16) f = ws.frame(ENV(), t);
     /* the tap's first step north had barely begun, so the key re-aims it: the hero turns east on row 9 */
-    ok('K', f.mark === null && f.hero.dir === 'e' && f.hero.y === 9 && f.hero.x > 12, 'a key takes over from a tap walk: the tap path and its mark are dropped, got ' + JSON.stringify([f.mark, f.hero]));
+    ok('K', f.mark === null && f.hero.dir === 'e' && f.hero.y === ROAD[1] && f.hero.x > ROAD[0] + 1,'a key takes over from a tap walk: the tap path and its mark are dropped, got ' + JSON.stringify([f.mark, f.hero]));
   });
 
   /* M — A WALK THAT MOVES SMOOTHLY (live b585: walking toward the camera looked janky).
      Read off the frames the pane paints: the facing through a mostly-south walk,
      the hero's screen step per 60 fps frame at both densities the camera ships
      (x2, and x3 on a window wider than WIDE_CSS), and the walk clip's phase. */
+  const townMap = town;
   for (const z of [M.camera.zoomFor(1600, 1), M.camera.zoomFor(M.camera.WIDE_CSS + 160, 1)]) fam('M', () => {
     /* a stage 300 art px tall at either density, so the camera scrolls with the walk */
     const W = 1600, H = 300 * z;
-    const ws = M.walk.createWalkScene(town, { at: [10, 3], sprites: M.book.sprites, openClasses: M.terrain.OPEN_CLASSES, maps: M.rows });
+    /* a camera that LEANS toward a focus (Havora's row has none: its camera simply follows the hero's pixel) moves at half
+       the hero's speed: the case where a camera led by the fraction stepped the hero 0, 1, 3, 4 px */
+    const town = Object.assign({}, townMap, { focus: [ROAD[0] + 1, ROAD[1] + 12] });
+    const ws = M.walk.createWalkScene(town, { at: [ROAD[0], ROAD[1] - 9], sprites: M.book.sprites, openClasses: M.terrain.OPEN_CLASSES, maps: M.rows });
     let t = 1.7e12;
     ws.frame(ENV(), t);
-    ws.tap({ tile: [12, 9], hits: [] }, t);
+    ws.tap({ tile: [ROAD[0] + 2, ROAD[1] - 3], hits: [] }, t);
     const dirs = new Set(), steps = [], phases = [];
     let prev = null, first = null, last = null, idleAge = null;
     for (let k = 0; k < 200; k++) {
@@ -432,7 +447,7 @@ function check(M) {
     ok('D', drawn(four, { dir: 'nw' }) === 'n', 'a diagonal asked for with no art must fall back to its nearest cardinal, got ' + drawn(four, { dir: 'nw' }));
     ok('D', drawn(M.book, { dir: 's', diag: 'se' }) === 'se', 'the shipped hero outfit walks its diagonals, got ' + drawn(M.book, { dir: 's', diag: 'se' }));
     /* the feet: a held diagonal steps with its diagonal; a straight step clears it */
-    const st = M.steer.createSteer(town, [11, 9]);
+    const st = M.steer.createSteer(town, [ROAD[0], ROAD[1] - 5]);
     let t = 1e12;
     st.drive([1, 1], t);
     const a = st.step(t + 50);
@@ -441,7 +456,7 @@ function check(M) {
     const b = st.step(t + 5000);
     ok('D', b.diag === null && b.dir === 'e', 'a straight step must clear the diagonal: ' + JSON.stringify(b));
     /* end to end: a walk scene over the eight-facing art draws se on that step */
-    const ws = M.walk.createWalkScene(town, { at: [11, 9], sprites: eight.sprites, openClasses: M.terrain.OPEN_CLASSES, maps: M.rows });
+    const ws = M.walk.createWalkScene(town, { at: [ROAD[0], ROAD[1] - 5], sprites: eight.sprites, openClasses: M.terrain.OPEN_CLASSES, maps: M.rows });
     ws.frame(ENV(), t);
     ws.drive([1, 1], t);
     const f = ws.frame(ENV(), t + 60);

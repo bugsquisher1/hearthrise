@@ -102,7 +102,7 @@ const MUTANTS = [
   ['a shadow mask kept although a monster moved', 'src/world/render/canvas-backend.js',
     "else if (sh.type === 'ellipse') k += '|e' + sh.cx + ',' + sh.cy + ',' + sh.w + ',' + sh.h;", "else if (sh.type === 'ellipse') k += '|e';", /^PB-PIX/, 'pix'],
   ['the world sheets handed to the canvas as <img> (its first draw prepares a whole sheet inside the frame: v0.2.50, run 40321779709)', 'src/render/images.js',
-    "  const bitmap = win && typeof win.createImageBitmap === 'function' && typeof win.fetch === 'function';", '  const bitmap = false;', /^sheets/],
+    "  const bitmap = !!win && typeof win.createImageBitmap === 'function';", '  const bitmap = false;', /^sheets/],
   ["the light layer kept although the hero's lamp moved",'src/world/render/canvas-backend.js',
     "for (const p of points) sig += '|' + p.x + ',' + p.y + ',' + p.r + ',' + tone('light-' + p.tint);", "for (const p of points) sig += '|' + p.r;", /^PB-PIX/, 'pix'],
 ];

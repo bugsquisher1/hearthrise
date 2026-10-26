@@ -48,8 +48,7 @@ export function createCanvasBackend(o) {
   let host = null, canvas = null, ctx = null, ro = null, onResize = null;
   let map = null, chunks = new Map();
   let z = 2, dpr = 1, W = 1, H = 1, dirty = true, inset = cleanInset(null);
-  /* the viewer's town zoom (camera.js zoomFor `pick`, CSS px per base art px; null: the screen class's), and
-     the chunks kept: at least two screens' worth (a 2560 px window at x1 shows ~24 chunks; the LRU must not thrash) */
+  /* the viewer's zoom (camera.js zoomFor pick; null: the screen class's); chunks kept: two screens' worth */
   let zoomPick = null, keep = CHUNK_KEEP;
   let T = 32, CHUNK = 16 * T, zs = z;
   /* Ease after an inset change (camera.js easedCam); the FIRST inset is the start, never eased (hero switch). */
@@ -114,13 +113,8 @@ export function createCanvasBackend(o) {
     return c;
   }
 
-  /* THE GROUND BY CHUNK, binned once per map (each cell into every chunk it touches, in draw order): a chunk
-     bakes from its own cells, not a scan of the whole map's (a 192 x 116 town is 44k cells; v0.2.50's town
-     arrival baked its first chunks in one 100 ms frame, tests/perf-budget.mjs). The next map's is made by
-     prepare() as soon as its sheets arrive (world-boot.js), so the frame that shows it only bakes the chunks
-     it draws; one map ahead is kept, never a map left behind. Each chunk's cells are PACKED numbers
-     (voids x,y; tones name,x,y; tiles set,sx,sy,x,y; names the token or set strings), so the map's ground
-     objects (3.2 MB of heap for the town) are dropped once binned (the heap budget). */
+  /* THE GROUND BY CHUNK, binned once per map into packed numbers (voids x,y; tones name,x,y; tiles set,sx,sy,x,y):
+     a chunk bakes from its own cells, and prepare() bins the next map when its sheets land (tests/perf-budget.mjs). */
   const NONE = Object.freeze({ voids: [], tones: [], tiles: [] });
   let ahead = null;   // { m, book, bins }: the one map prepared ahead of its setMap
   const EMPTY = () => ({ cells: new Map(), names: [] });
@@ -533,7 +527,6 @@ export function createCanvasBackend(o) {
       last = null;
       lastCam = camFrom = null;   // a new map never eases in from the old one
     },
-    /** Make map `m`'s ground (drawn with `art` or the constructor's) ahead of the frame that shows it. */
     prepare(m, art) { const a = art || o; ahead = { m, book: a.book, bins: binsFor(m, a) }; },
     sync(state) { if (map && canvas) draw(state); },
     /** The viewer's zoom (CSS px per base art px; null: the screen class's), from the next frame on. */

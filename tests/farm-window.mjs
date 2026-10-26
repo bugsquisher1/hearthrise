@@ -29,6 +29,11 @@
 //         (past the cap) is drawn after the field saying it goes once harvested,
 //         and its Harvest sends ONE plain hr_farm_harvest (never a replant) as the
 //         hero on screen
+//   FW-8  A CROP THAT REGROWS (report #66: "Harvest only" on a tomato grew it back): a
+//         growing tomato says how often it grows back (the server's regrows_left); a ready
+//         one offers "Harvest (grows back N more times)" (ONE hr_farm_harvest) and "Harvest
+//         and clear plot" (ONE hr_farm_harvest_clear); on its last harvest it reads like
+//         any crop (Harvest and replant / Harvest only)
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
 import { leaseBrowser } from './_chrome.mjs';
@@ -54,7 +59,16 @@ const SHARED = {
 const EXTRA_HARVEST = { ok: true, plot: 3, crop: 'turnip', produce: 'turnip', qty: 2, xp: 672, regrew: false, withered: false, extra: true, planted_by: 0 };
 const HARVEST = { ok: true, plot: 1, crop: 'turnip', produce: 'turnip', qty: 3, xp: 1008, regrew: false, withered: false,
   replant: { ok: true, bought: 0, plot: 1, crop: 'turnip' } };
-const RPCS = ['hr_farm_plant', 'hr_farm_water', 'hr_farm_harvest', 'hr_farm_harvest_replant', 'hr_farm_upgrade_plot'];
+/* Report #66: tomatoes REGROW. Room for 3: plot 0 growing (the server says 4 more regrows), plot 1
+   ready (3 more), plot 2 ready on its LAST harvest (0 more: it withers, so it reads like any crop). */
+const REGROW = {
+  farm_land: { cap: 3, plot_level: 4, deeds: 0, upgrade: null,
+    plots: [{ i: 0, crop: 'tomato', ready: false, ready_in_s: 3600, waterable: false, regrows_left: 4, by: 0, by_name: 'Alda', extra: false },
+      { i: 1, crop: 'tomato', ready: true, ready_in_s: 0, waterable: false, regrows_left: 3, by: 0, by_name: 'Alda', extra: false },
+      { i: 2, crop: 'tomato', ready: true, ready_in_s: 0, waterable: false, regrows_left: 0, by: 0, by_name: 'Alda', extra: false }] },
+};
+const CLEAR = { ok: true, plot: 1, crop: 'tomato', produce: 'tomato', qty: 3, xp: 4410, regrew: false, withered: false, extra: false, cleared: true, regrows_left: null };
+const RPCS = ['hr_farm_plant', 'hr_farm_water', 'hr_farm_harvest', 'hr_farm_harvest_replant', 'hr_farm_harvest_clear', 'hr_farm_upgrade_plot'];
 const wait = (page, fn, arg, ms = 8000) => page.waitForFunction(fn, arg, { timeout: ms }).then(() => true, () => false);
 
 async function stub(page, s) {
@@ -188,6 +202,35 @@ async function checks(overrides) {
       }
       await ctx.close();
     }
+    { // FW-8 (report #66)
+      const { ctx, page, errors, s, opened } = await open(clone(REGROW), { hr_farm_harvest_clear: CLEAR,
+        hr_farm_harvest: { ok: true, plot: 1, crop: 'tomato', produce: 'tomato', qty: 2, xp: 2940, regrew: true, withered: false, extra: false, regrows_left: 2 } });
+      if (!opened) fails.push('FW-8 the window did not open');
+      else {
+        if (errors.length) fails.push('FW-8 console errors: ' + errors.join(' | ').slice(0, 300));
+        const by0 = await txt(page, W + '.hw-plot[data-plot="0"] .hw-plot-by');
+        if (by0 !== 'Planted by Alda. Grows back 4 more times after this harvest') fails.push('FW-8 the growing tomato says ' + JSON.stringify(by0));
+        const labels = (i) => page.evaluate((n) => [...document.querySelectorAll('[data-hs-win="farm"] .hw-plot[data-plot="' + n + '"] button.hh-tool')].map((b) => [b.getAttribute('data-hs-act'), b.textContent]), i);
+        const l1 = await labels(1);
+        if (JSON.stringify(l1) !== JSON.stringify([['leave', 'Harvest (grows back 3 more times)'], ['clear', 'Harvest and clear plot']])) fails.push('FW-8 the ready tomato\'s buttons read ' + JSON.stringify(l1));
+        const l2 = await labels(2);
+        const by2 = await txt(page, W + '.hw-plot[data-plot="2"] .hw-plot-by');
+        if (JSON.stringify(l2) !== JSON.stringify([['harvest', 'Harvest and replant'], ['leave', 'Harvest only']]) || !/Last harvest: the plant withers after it$/.test(by2 || '')) fails.push('FW-8 the last-harvest tomato reads ' + JSON.stringify([l2, by2]));
+        await press(page, W + '.hw-plot[data-plot="1"] [data-hs-act="clear"]', 'FW-8');
+        await idle(page);
+        const cl = s.calls.filter((c) => /harvest/.test(c.name));
+        if (cl.length !== 1 || cl[0].name !== 'hr_farm_harvest_clear' || cl[0].body.p_plot_idx !== 1 || cl[0].body.p_slot !== 0) fails.push('FW-8 Harvest and clear plot sent ' + JSON.stringify(cl));
+        const line = await txt(page, W + '.hh-intent-msg');
+        if (!/Harvested 3 Tomato/.test(line || '') || !/The plot is clear\./.test(line || '')) fails.push('FW-8 the line reads ' + JSON.stringify(line));
+        await press(page, W + '.hw-plot[data-plot="1"] [data-hs-act="leave"]', 'FW-8');
+        await idle(page);
+        const hv = s.calls.filter((c) => /harvest/.test(c.name)).slice(1);
+        if (hv.length !== 1 || hv[0].name !== 'hr_farm_harvest' || hv[0].body.p_plot_idx !== 1) fails.push('FW-8 Harvest (grows back) sent ' + JSON.stringify(hv));
+        const line2 = await txt(page, W + '.hh-intent-msg');
+        if (!/Harvested 2 Tomato .*It grows back, then 2 more times\.$/.test(line2 || '')) fails.push('FW-8 the regrow line reads ' + JSON.stringify(line2));
+      }
+      await ctx.close();
+    }
     { // FW-6
       const { ctx, page, opened } = await open({});
       if (!opened) fails.push('FW-6 the window did not open without the section');
@@ -215,10 +258,15 @@ const MUTANTS = [
   ['the window never says the land is shared', 'src/shell/windows/farm.js', "    + '<p class=\"hs-note hw-farm-shared\">Your heroes share this land. The hero you are playing plants their own seeds and keeps the crop and the Farming XP.</p>'\n", ''],
   ['a plot never says who planted it', 'src/shell/windows/farm.js', "text(li.querySelector('.hw-plot-by'), !p ? '' :", "text(li.querySelector('.hw-plot-by'), true ? '' :"],
   ['an extra plot is not drawn', 'src/shell/windows/farm.js', '(_, i) => i).concat(extras);', '(_, i) => i);'],
-  ['an extra plot is replanted', 'src/shell/windows/farm.js', "attr(harvest, 'data-hs-act', extra ? 'leave' : 'harvest');", "attr(harvest, 'data-hs-act', 'harvest');"],
-  ['the replant button reads plain Harvest (Tyler 10-25)', 'src/shell/windows/farm.js', "text(harvest, extra ? 'Harvest' : 'Harvest and replant');", "text(harvest, 'Harvest');"],
+  ['an extra plot is replanted', 'src/shell/windows/farm.js', "attr(harvest, 'data-hs-act', extra || vine ? 'leave' : 'harvest');", "attr(harvest, 'data-hs-act', vine ? 'leave' : 'harvest');"],
+  ['the replant button reads plain Harvest (Tyler 10-25)', 'src/shell/windows/farm.js', "text(harvest, extra ? 'Harvest' : vine ?", "text(harvest, true ? 'Harvest' : vine ?"],
   ['the no-replant button reads Leave it empty (Tyler 10-25)', 'src/shell/windows/farm.js', "verb === 'leave' ? 'Harvest only' :", "verb === 'leave' ? 'Leave it empty' :"],
-  ['the extra plot\'s button says replant (Tyler 10-25)', 'src/shell/windows/farm.js', "text(harvest, extra ? 'Harvest' : 'Harvest and replant');", "text(harvest, 'Harvest and replant');"],
+  ['the extra plot\'s button says replant (Tyler 10-25)', 'src/shell/windows/farm.js', "text(harvest, extra ? 'Harvest' : vine ?", "text(harvest, false ? 'Harvest' : vine ?"],
+  /* Report #66: a regrowing crop (tomato) said "Harvest only" and grew back. */
+  ['a regrowing crop offers Harvest only (#66)', 'src/shell/windows/farm.js', "const vine = regrow && more !== 0;", "const vine = false;"],
+  ['a regrowing plot never says it grows back (#66)', 'src/shell/windows/farm.js', "    + (!regrow ? '' :", "    + (true ? '' :"],
+  ['clear sends the plain harvest (#66)', 'src/session/farm-intents.js', "rpc('hr_farm_harvest_clear', {", "rpc('hr_farm_harvest', {"],
+  ['the regrow count is not the server\'s (#66)', 'src/session/farm-sections.js', 'regrowsLeft: count(p.regrows_left)', 'regrowsLeft: 4'],
   ['the reader drops the planter', 'src/session/farm-sections.js', 'byName: nameOf(p.by_name)', 'byName: null'],
 ];
 
@@ -227,7 +275,7 @@ async function main() {
     const fails = await checks(null);
     for (const f of fails) console.log('  ✗ ' + f);
     console.log(fails.length ? 'farm-window: ' + fails.length + ' rule(s) RED'
-      : 'farm-window: opens on J; the server\'s plots; plant from own seeds; harvest-and-replant only when the server says ready; water; refusals in plain words; fails safe; one field for every hero (who planted each plot, an extra plot harvested once)');
+      : 'farm-window: opens on J; the server\'s plots; plant from own seeds; harvest-and-replant only when the server says ready; water; refusals in plain words; fails safe; one field for every hero (who planted each plot, an extra plot harvested once); a regrowing crop says it grows back and can be harvested and cleared');
     process.exit(fails.length ? 1 : 0);
   }
   const clean = await checks(null);

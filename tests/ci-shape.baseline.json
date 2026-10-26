@@ -222,6 +222,8 @@
     "node tools/mutant-gate.mjs node tests/loot-dispatch.mjs --mutate": "db-replay-7",
     "node tests/skills-from-storage.mjs": "db-replay-7",
     "node tools/mutant-gate.mjs node tests/skills-from-storage.mjs --mutate": "db-replay-7",
+    "node tests/farm-harvest-clear.mjs": "db-replay-7",
+    "node tools/mutant-gate.mjs node tests/farm-harvest-clear.mjs --mutate": "db-replay-7",
     "node tests/party-flow.mjs": "db-replay-7",
     "node tools/mutant-gate.mjs node tests/party-flow.mjs --mutate": "db-replay-7",
     "node tests/play-cap.mjs": "db-replay-7",

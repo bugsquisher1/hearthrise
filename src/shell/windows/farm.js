@@ -19,6 +19,11 @@
 //   A ready plot       Harvest and replant (the designer's model: the same crop goes back in,
 //                      from your own seed, else one bought at the Shop's price) →
 //                      ONE hr_farm_harvest_replant; "Harvest only" → hr_farm_harvest (Tyler 10-25).
+//                      A REGROWING crop (tomato, emberfruit: CROPS regrows) stays in the ground
+//                      after a harvest, so its plot says how often it grows back (the server's
+//                      `regrows_left`) and offers "Harvest (grows back N more times)" →
+//                      hr_farm_harvest and "Harvest and clear plot" → hr_farm_harvest_clear
+//                      (report #66). On its last harvest it withers, so it reads like any crop.
 //   The plot tier      Improve the soil at the server's price → hr_farm_upgrade_plot.
 // Every number is the server's (src/session/farm-sections.js). The countdown only
 // displays, and when it runs out the window asks the server again; Harvest opens
@@ -26,7 +31,7 @@
 // intent is in flight; the field changes only from the re-read envelope.
 // ════════════════════════════════════════════════════════════════════════
 import { farmLandOf, readyInMs } from '../../session/farm-sections.js?v=0.2.47';
-import { plantCrop, waterPlot, harvestPlot, upgradePlot } from '../../session/farm-intents.js?v=0.2.47';
+import { plantCrop, waterPlot, harvestPlot, clearPlot, upgradePlot } from '../../session/farm-intents.js?v=0.2.47';
 import { bagOf, skillsOf, goldOf, shopOf, heldOf, drawsOnStorage } from '../../session/item-sections.js?v=0.2.47';
 import { CROPS } from '../../data/gathering.js?v=0.2.47';
 import { requiredPlotLevel, unlockedCrops } from '../../core/farm.js?v=0.2.47';
@@ -68,6 +73,9 @@ function left(ms) {
   const h = Math.floor(m / 60), r = m % 60;
   return h && r ? h + ' h ' + r + ' m' : h ? h + ' h' : r + ' m';
 }
+
+/** "1 more time", "3 more times". */
+const times = (n) => n + (n === 1 ? ' more time' : ' more times');
 
 /** The skeleton (built once per opening). */
 export function renderFarm() {
@@ -112,21 +120,28 @@ function patchPlot(li, i, st, now) {
   text(li.querySelector('.hw-plot-say span'), !p ? 'Empty' : p.ready ? 'Ready' : ms > 0 ? left(ms) + ' left' : 'Checking…');
   /* Who planted it (the land is shared by the account's heroes); an extra plot says it goes. */
   const extra = !!p && p.extra;
+  /* A REGROWING crop stays in the ground after a harvest (report #66): `more` is the server's
+     regrows after the next harvest (null = no limit), 0 = this harvest is its last. */
+  const regrow = !!p && !extra && !!crop && crop.regrows === true;
+  const more = regrow ? p.regrowsLeft : null;
+  const vine = regrow && more !== 0;   // a plain harvest leaves the plant growing
   cls(li, 'is-extra', extra);
   text(li.querySelector('.hw-plot-by'), !p ? '' : (p.byName ? 'Planted by ' + p.byName : 'Planted by one of your heroes')
-    + (extra ? '. Extra plot: gone once harvested' : ''));
-  /* Harvest replants the same crop; an extra plot is only harvested (it takes no new seed). */
+    + (extra ? '. Extra plot: gone once harvested' : '')
+    + (!regrow ? '' : more === null ? '. Grows back after every harvest' : more === 0 ? '. Last harvest: the plant withers after it'
+      : '. Grows back ' + times(more) + ' after this harvest'));
+  /* Harvest replants the same crop; an extra plot is only harvested (it takes no new seed); a living vine is kept. */
   const harvest = li.querySelector('.hw-harvest');
   cls(harvest, 'is-on', !!p && p.ready);
-  attr(harvest, 'data-hs-act', extra ? 'leave' : 'harvest');
+  attr(harvest, 'data-hs-act', extra || vine ? 'leave' : 'harvest');
   /* Each label says what its verb does (Tyler 10-25, "farming is hard to understand"): an extra plot never replants. */
-  text(harvest, extra ? 'Harvest' : 'Harvest and replant');
+  text(harvest, extra ? 'Harvest' : vine ? (more === null ? 'Harvest (it grows back)' : 'Harvest (grows back ' + times(more) + ')') : 'Harvest and replant');
   prop(harvest, 'disabled', st.sc.pending);
   const act = li.querySelector('.hw-plot-do');
-  const verb = !p ? 'plant' : p.ready ? (extra ? '' : 'leave') : p.waterable ? 'water' : '';
+  const verb = !p ? 'plant' : p.ready ? (extra ? '' : vine ? 'clear' : 'leave') : p.waterable ? 'water' : '';
   attr(act, 'data-hs-act', verb || null);
   cls(act, 'is-off', !verb);
-  text(act, verb === 'plant' ? 'Plant' : verb === 'leave' ? 'Harvest only' : verb === 'water' ? 'Water' : p ? 'Watered' : '');
+  text(act, verb === 'plant' ? 'Plant' : verb === 'leave' ? 'Harvest only' : verb === 'clear' ? 'Harvest and clear plot' : verb === 'water' ? 'Water' : p ? 'Watered' : '');
   prop(act, 'disabled', !verb || st.sc.pending);
 }
 
@@ -217,7 +232,9 @@ function harvestLine(r) {
   let s = 'Harvested ' + whole(b.qty) + ' ' + itemName(b.produce) + ' (+' + whole(b.xp) + ' Farming XP).';
   if (b.extra) return s + ' That extra plot is gone now.';
   if (b.withered) s += ' The plant has withered.';
-  else if (b.regrew) s += ' It grows back' + (Number.isInteger(b.regrows_left) ? ' (' + b.regrows_left + ' more harvests).' : '.');
+  else if (b.regrew) s += !Number.isInteger(b.regrows_left) ? ' It grows back.'
+    : b.regrows_left > 0 ? ' It grows back, then ' + times(b.regrows_left) + '.' : ' It grows back one last time.';
+  if (b.cleared) return s + ' The plot is clear.';
   if (!rep || rep.kept) return s;
   if (rep.ok) return s + (rep.bought ? ' Bought a seed for ' + gold(rep.bought) + ' and planted it again.' : ' Planted it again.');
   if (rep.error === 'cannot_afford') return s + ' Not planted again: a seed costs ' + gold(rep.price) + '.';
@@ -256,6 +273,7 @@ renderFarm.act = function actFarm(ctx, body, action, ev, t) {
     run(sc, repaint, () => harvestPlot(ctx.account, cs, plot, action === 'harvest'), 'Harvesting…', harvestLine);
     return true;
   }
+  if (action === 'clear') { run(sc, repaint, () => clearPlot(ctx.account, cs, plot), 'Harvesting…', harvestLine); return true; }
   if (action === 'upgrade' && land.upgrade) {
     const up = land.upgrade;
     run(sc, repaint, () => upgradePlot(ctx.account, cs, up.level), 'Improving the soil…', () => 'Your plots are tier ' + up.level + ' now.');

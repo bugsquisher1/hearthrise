@@ -1351,7 +1351,7 @@
   },
   "hr_state_sections": {
    "class": "seeded",
-   "replay": 29,
+   "replay": 30,
    "note": "The X7 state-section registry (2026-10-23-character-premium.sql and the S1 files): one row per hr_state_of section and its projector. Seeded by the migrations that register a section; rebuilt from repo, never restored."
   },
   "hr_storage_chests": {

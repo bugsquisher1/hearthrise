@@ -354,11 +354,20 @@ async function run(mutate) {
 
   // ══ M0 · A SECOND APPLY IS BYTE-IDENTICAL (schema, bodies, config row) ════
   await leg(async () => {
-    const bodies = () => q(`select p.oid::regprocedure::text f, md5(p.prosrc) h, coalesce(p.proacl::text, '') acl from pg_proc p
+    /* A body a LATER file restates (2027-01-21-market-same-network.sql: the two reads that look at
+       market_sales) is that file's to keep byte-identical (tests/market-edge.mjs E10); re-applying this
+       older file over it restores this file's image by design. Derived from the apply order, never typed. */
+    const order = JSON.parse(await readFile(join(ROOT, 'tests', 'schema-apply-order.json'), 'utf8')).order;
+    const later = new Set();
+    for (const f of order.slice(order.indexOf(MIG) + 1)) {
+      const t = await readFile(join(ROOT, 'supabase', 'migrations', f), 'utf8');
+      for (const m2 of t.matchAll(/create or replace function public\.(hr_market_\w+|hr_storage_room_\w+|hr_bank_move|hr_depot_view|hr_name_restamp|hr_assert_grant_hygiene)\(/g)) later.add(m2[1]);
+    }
+    const bodies = async () => (await q(`select p.proname n, p.oid::regprocedure::text f, md5(p.prosrc) h, coalesce(p.proacl::text, '') acl from pg_proc p
                              where p.pronamespace = 'public'::regnamespace
                                and (p.proname like 'hr\\_market%' or p.proname like 'hr\\_storage\\_room%'
                                  or p.proname in ('hr_bank_move', 'hr_depot_view', 'hr_name_restamp', 'hr_assert_grant_hygiene'))
-                             order by 1`);
+                             order by 2`)).filter((r) => !later.has(r.n));
     const before = JSON.stringify([await inventory(db), await bodies(), await q('select * from public.hr_market_config')]);
     /* The SAME text the chain applied — a mutant's too — or this leg would restore the clean bodies
        under every later leg and grade a mutant by "the body changed" instead of by behaviour. */

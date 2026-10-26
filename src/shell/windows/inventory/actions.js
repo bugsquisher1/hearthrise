@@ -28,24 +28,24 @@
 // open doll slot and the "new" marks. No key here is a walk key: selling is
 // Delete, so W, A, S and D always reach the World (Tyler 10-18).
 // ════════════════════════════════════════════════════════════════════════
-import { kindOf, equipSlotFor, equipOps, markSeen } from '../../bag-model.js?v=0.2.46';
-import { assignToBar, barKind, barIndexOf, barKeyLabel } from '../../bar-assign.js?v=0.2.46';
-import { runIntent } from '../../intent-words.js?v=0.2.46';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.46';
-import { gold } from '../../../render/format.js?v=0.2.46';
-import { itemName } from '../../widgets/bits.js?v=0.2.46';
-import { showTip, hideTip } from '../item-tip.js?v=0.2.46';
-import { openFloatMenu, closeFloatMenu } from '../float-menu.js?v=0.2.46';
-import { stateOf, scratchOf, seenOf, confirmFor, setPref } from './state.js?v=0.2.46';
-import { LOOT_CHOICES, planBlock, dispatchWords } from '../../loot-dispatch.js?v=0.2.46';
-import { dispatchLoot } from '../../../session/loot-intents.js?v=0.2.46';
-import { fitsSlot, dollTip, DRAG_WORN } from './doll.js?v=0.2.46';
-import { askElsewhere } from './elsewhere.js?v=0.2.46';
-import { skillsOf } from '../../../session/item-sections.js?v=0.2.46';
-import { buryRecipeOf, buryLabel, buryBlock, startBury, stopBury } from './bury.js?v=0.2.46';
-import { equipUpgrades } from '../../widgets/upgrade-line.js?v=0.2.46';
-import { wearBlock } from '../../gear-gate.js?v=0.2.46';
-import { levelOf } from '../../../session/character-sections.js?v=0.2.46';
+import { kindOf, equipSlotFor, equipOps, markSeen } from '../../bag-model.js?v=0.2.47';
+import { assignToBar, barKind, barIndexOf, barKeyLabel } from '../../bar-assign.js?v=0.2.47';
+import { runIntent } from '../../intent-words.js?v=0.2.47';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.47';
+import { gold } from '../../../render/format.js?v=0.2.47';
+import { itemName } from '../../widgets/bits.js?v=0.2.47';
+import { showTip, hideTip } from '../item-tip.js?v=0.2.47';
+import { openFloatMenu, closeFloatMenu } from '../float-menu.js?v=0.2.47';
+import { stateOf, scratchOf, seenOf, confirmFor, setPref } from './state.js?v=0.2.47';
+import { LOOT_CHOICES, planBlock, dispatchWords } from '../../loot-dispatch.js?v=0.2.47';
+import { dispatchLoot } from '../../../session/loot-intents.js?v=0.2.47';
+import { fitsSlot, dollTip, DRAG_WORN } from './doll.js?v=0.2.47';
+import { askElsewhere } from './elsewhere.js?v=0.2.47';
+import { skillsOf } from '../../../session/item-sections.js?v=0.2.47';
+import { buryRecipeOf, buryLabel, buryBlock, startBury, stopBury, buryQty } from './bury.js?v=0.2.47';
+import { equipUpgrades } from '../../widgets/upgrade-line.js?v=0.2.47';
+import { wearBlock } from '../../gear-gate.js?v=0.2.47';
+import { levelOf } from '../../../session/character-sections.js?v=0.2.47';
 
 const heroLevel = (cs) => { const lv = levelOf(cs); return lv ? lv.level : null; };
 
@@ -205,7 +205,7 @@ function openMenu(ctx, body, st, id, at, repaint) {
   if (k === 'food') h += item('m-eat', 'Eat', true);
   const br = buryRecipeOf(id);
   const brWhy = br ? buryBlock(st.cs, br) : '';
-  if (br) h += item('m-bury', buryLabel(br, st.qty.get(id) || 0), !brWhy, '', brWhy);
+  if (br) h += item('m-bury', buryLabel(br, buryQty(st.cs, id)), !brWhy, '', brWhy);
   if (barKind(id)) h += item('m-bar', bi >= 0 ? 'On the bar (key ' + barKeyLabel(bi) + ')' : 'Put on the bar', !!st.bar && bi < 0, '', st.bar ? '' : 'The bar is still loading.');
   const sellWhy = locked ? '' : !st.shop ? 'The shop is still loading.' : st.shop.bids.has(id) ? '' : 'The shop does not buy this.';
   h += item('m-sell', locked ? 'Sell (unlock it first)' : 'Sell…', !locked && !sellWhy, '', sellWhy);
@@ -213,12 +213,12 @@ function openMenu(ctx, body, st, id, at, repaint) {
   h += item('m-select', sc.sel.has(id) ? 'Unselect' : 'Select', true);
   h += item('m-link', 'Link in chat', !!(ctx.account && ctx.account.social));
   /* The loot plan (what Dispatch loot does with it), then the pickup filter: the current one pressed, a plan the
-     server would refuse for this item off with its reason (loot-dispatch.js planBlock). */
+     server would refuse for this item off with its reason on its own visible line (loot-dispatch.js planBlock). */
   const rule = st.rules ? (st.rules.loot[id] || 'keep') : null;
   const bids = st.shop ? st.shop.bids : null;
   const choice = ([v, w]) => {
-    const why = planBlock(id, v, bids);
-    return item('m-rule', w, !!st.rules && !why, ' data-rule="' + v + '" aria-pressed="' + (rule === v) + '"' + (why ? ' title="' + esc(why) + '"' : ''));
+    const why = planBlock(id, v, bids) || (st.rules ? '' : 'Reading your loot plans…');
+    return item('m-rule', w, !!st.rules && !why, ' data-rule="' + v + '" aria-pressed="' + (rule === v) + '"', why);
   };
   for (const [group, words] of [['plan', 'Loot plan'], ['pickup', 'On pickup']]) {
     h += '<span class="hw-menu-sub">' + words + '</span><span class="hw-menu-rules" role="group" aria-label="' + words + '">'

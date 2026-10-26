@@ -14,7 +14,7 @@
 // QA's phone playtest (2026-10-24) scored mobile 4/10. play.html with supabase-js and the REST paths stubbed
 // (tests/_client-harness.mjs): tests/fixtures/hunt-envelope.json in a hunt, tests/fixtures/alpha-envelope.json
 // in town. Phones are landscape (CLAUDE.md §1, §7); the phone query is the frozen one.
-//   PH-1 CONFIGURE ACTION FITS (667x375, 844x390, 922x423): on the Spells and the Items tab the list scrolls
+//   PH-1 CONFIGURE ACTION FITS (667x375, 844x390, 922x423): on the Spells, Food & drink and Ammo tabs the list scrolls
 //        inside the sheet until its LAST row is on screen and pressable, while Save, Cancel and the close stay
 //        on screen and pressable; a new tab's list starts at its first row; the column heads sit over their own
 //        columns (the head's cells line up with the rows' cells, none wraps to a second line); the page itself
@@ -133,7 +133,7 @@ const RECT = `window.__r = (q, root) => { const e = typeof q === 'string' ? (roo
 async function configureFits(page, tag, fails) {
   await page.click('.hb-slot[data-slot="2"]');
   if (!(await wait(page, () => document.querySelector('[data-hs-win="configure-action"] .ca-rank')))) { fails.push('PH-1 [' + tag + '] a bar slot did not open Configure action'); return; }
-  for (const tab of ['spells', 'items']) {
+  for (const tab of ['spells', 'food', 'ammo']) {
     await page.click('.ca-tab[data-tab="' + tab + '"]');
     if (!(await wait(page, (t) => document.querySelector('.ca-tab[data-tab="' + t + '"][aria-selected="true"]') && document.querySelectorAll('.ca-runs .ca-row').length > 3, tab, 4000))) {
       fails.push('PH-1 [' + tag + '] the ' + tab + ' tab shows no list'); continue;

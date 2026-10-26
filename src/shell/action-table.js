@@ -16,13 +16,13 @@
 //   sourceLine(row, ctx)  where its uses come from
 // No DOM, no clock, no state. Nothing here gates or spends anything.
 // ════════════════════════════════════════════════════════════════════════
-import { ABILITIES } from '../data/abilities.js?v=0.2.46';
-import { CONSUMABLES, CONSUMABLE_RULES } from '../data/consumables.js?v=0.2.46';
-import { SUPPLIES } from '../data/supplies.js?v=0.2.46';
-import { ITEMS } from '../data/items.js?v=0.2.46';
-import { HUNT_ROLES, shootsItem } from '../data/hunt-roles.js?v=0.2.46';
-import { ATTACK_KINDS } from '../data/condition-metrics.js?v=0.2.46';
-import { itemName, abilityName, runeWords, familyCount } from './widgets/bits.js?v=0.2.46';
+import { ABILITIES } from '../data/abilities.js?v=0.2.47';
+import { CONSUMABLES, CONSUMABLE_RULES } from '../data/consumables.js?v=0.2.47';
+import { SUPPLIES } from '../data/supplies.js?v=0.2.47';
+import { ITEMS } from '../data/items.js?v=0.2.47';
+import { HUNT_ROLES, shootsItem } from '../data/hunt-roles.js?v=0.2.47';
+import { ATTACK_KINDS } from '../data/condition-metrics.js?v=0.2.47';
+import { itemName, abilityName, runeWords, familyCount } from './widgets/bits.js?v=0.2.47';
 
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 const secs = (ms) => (ms % 1000 ? (ms / 1000).toFixed(1) : String(ms / 1000));
@@ -36,7 +36,7 @@ export const RUN_COLUMNS = Object.freeze({
   spells: Object.freeze(['Mana', 'Cooldown', 'Rune', '']),
   runes: Object.freeze(['Rune', '', 'g per cast, cheapest first', 'You carry']),
 });
-const RUN_LABEL = Object.freeze({ food: 'Food', drink: 'Drink', ammo: 'Ammo' });
+const RUN_LABEL = Object.freeze({ food: 'Food', drink: 'Drink', ammo: 'Arrows and bolts' });
 
 /* The store row a crafted ammo or rune falls back to, from the SERVER's rows. */
 const partnerRow = (store, id) => (store || []).find((r) => r.partner === id) || null;
@@ -94,10 +94,14 @@ export function tableOf(tab, ctx) {
     return { runs: rows.length ? [{ kind: tab, label: null, cols: RUN_COLUMNS[tab], rows }] : [], empty };
   }
   const runs = [];
-  for (const kind of ['food', 'drink']) {
-    const rows = Object.values(CONSUMABLES).filter((x) => x.kind === kind).map((x) => supplyRow(x, c.store, c.bag)).sort(byValue);
-    if (rows.length) runs.push({ kind, label: RUN_LABEL[kind], cols: RUN_COLUMNS[kind], rows });
+  if (tab === 'food') {
+    for (const kind of ['food', 'drink']) {
+      const rows = Object.values(CONSUMABLES).filter((x) => x.kind === kind).map((x) => supplyRow(x, c.store, c.bag)).sort(byValue);
+      if (rows.length) runs.push({ kind, label: RUN_LABEL[kind], cols: RUN_COLUMNS[kind], rows });
+    }
+    return { runs, empty: runs.length ? null : 'No food or drink in the game yet.' };
   }
+  if (tab !== 'ammo') return { runs, empty: null };
   /* THE SHOTS (hunt-roles.js shootsItem, the engine's rule): only ammo some weapon can loose is offered — a
      whetstone sharpens a Melee weapon from the ammo slot and is no one's shot (Andy 2026-10-23: a bow loosed
      Copper Whetstones from an attack slot), nor is a rune (it fuels spells only, Tyler 2026-10-23) — and one the

@@ -18,23 +18,23 @@
 // action is ONE intent with the controls off until the server answers
 // (actions.js). Patched in place (src/render/paint.js).
 // ════════════════════════════════════════════════════════════════════════
-import { BAG_CATS, BAG_SORTS, isNew, bagValue, lootToSell } from '../../bag-model.js?v=0.2.46';
-import { skillsOf } from '../../../session/item-sections.js?v=0.2.46';
-import { barIndexOf, barKeyLabel } from '../../bar-assign.js?v=0.2.46';
-import { rows, text, cls, attr, prop, element } from '../../../render/paint.js?v=0.2.46';
-import { whole, gold } from '../../../render/format.js?v=0.2.46';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.46';
-import { glyphSvg } from '../../launcher.js?v=0.2.46';
-import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.46';
-import { primaryOf, confirmWords, huntLoot } from './state.js?v=0.2.46';
-import { LOOT_CHOICES, planBlock, dispatchBlock } from '../../loot-dispatch.js?v=0.2.46';
-import { pocketHtml, patchCount } from './pockets.js?v=0.2.46';
-import { elsewhereHtml, patchElsewhere } from './elsewhere.js?v=0.2.46';
-import { buryParts, buryBlock, buryRecipeOf } from './bury.js?v=0.2.46';
-import { shownQty, aheadQty, paintLine } from '../../town-ticker.js?v=0.2.46';
-import { upgradeLineHtml, patchUpgradeLine } from '../../widgets/upgrade-line.js?v=0.2.46';
-import { wearBlock, gearLocked } from '../../gear-gate.js?v=0.2.46';
-import { whyLine } from '../../widgets/why-line.js?v=0.2.46';
+import { BAG_CATS, BAG_SORTS, isNew, bagValue, lootToSell } from '../../bag-model.js?v=0.2.47';
+import { skillsOf } from '../../../session/item-sections.js?v=0.2.47';
+import { barIndexOf, barKeyLabel } from '../../bar-assign.js?v=0.2.47';
+import { rows, text, cls, attr, prop, element } from '../../../render/paint.js?v=0.2.47';
+import { whole, gold } from '../../../render/format.js?v=0.2.47';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.47';
+import { glyphSvg } from '../../launcher.js?v=0.2.47';
+import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.47';
+import { primaryOf, confirmWords, huntLoot } from './state.js?v=0.2.47';
+import { LOOT_CHOICES, planBlock, dispatchBlock } from '../../loot-dispatch.js?v=0.2.47';
+import { pocketHtml, patchCount } from './pockets.js?v=0.2.47';
+import { elsewhereHtml, patchElsewhere } from './elsewhere.js?v=0.2.47';
+import { buryParts, buryBlock, buryRecipeOf } from './bury.js?v=0.2.47';
+import { shownQty, aheadQty, paintLine } from '../../town-ticker.js?v=0.2.47';
+import { upgradeLineHtml, patchUpgradeLine } from '../../widgets/upgrade-line.js?v=0.2.47';
+import { wearBlock, gearLocked } from '../../gear-gate.js?v=0.2.47';
+import { whyLine } from '../../widgets/why-line.js?v=0.2.47';
 
 /* The This hunt row's choices: the three plans, then the pickup filter (loot-dispatch.js). */
 const RULE_OPTIONS = '<optgroup label="Loot plan">' + LOOT_CHOICES.filter((c) => c[2] === 'plan').map(([v, w]) => '<option value="' + v + '">' + esc(w) + '</option>').join('')
@@ -169,20 +169,19 @@ export function patchTools(root, st, ctx) {
   prop(root.querySelector('[data-hs-act="sell-sel"]'), 'disabled', sc.pending || !st.shop);
   const tools = root.querySelector('.hw-tools');
   cls(tools, 'is-off', !onBag);
-  /* Dispatch loot: off with the server-sections' reason (a hunt running, nothing planned); a hunt's reason is said in view. */
+  /* Dispatch loot: off with the server-sections' reason (a hunt running, nothing planned), said on its own line. */
   const dWhy = dispatchBlock(st.cs);
   const db = tools.querySelector('[data-hs-act="dispatch"]');
   attr(db, 'title', dWhy || 'Stores every stack planned "Deposit in storage" and sells every stack planned "Sell"');
   prop(db, 'disabled', sc.pending || !!dWhy);
-  const huntWhy = /hunting/.test(dWhy) ? dWhy : '';
-  whyLine(root.querySelector('.hw-dispatch-why'), onBag ? huntWhy : '', false);
+  whyLine(root.querySelector('.hw-dispatch-why'), onBag ? dWhy : '', false);
   const cb = tools.querySelector('[data-hs-act="sell-cat"]');
   const catLabel = (BAG_CATS.find(([id]) => id === prefs.cat) || [])[1] || '';
   cls(cb, 'is-on', prefs.cat !== 'all');
   text(cb, 'Sell all ' + catLabel.toLowerCase());
   prop(cb, 'disabled', sc.pending || !st.shop || !st.shown.length);
   const val = st.shop ? bagValue(st.items, st.shop.bids) : null;
-  text(tools.querySelector('.hw-value'), !val ? 'Value –' : 'Worth ' + gold(val.total) + (val.unpriced ? ' (' + val.unpriced + ' unpriced)' : ''));
+  text(tools.querySelector('.hw-value'), !st.shop ? 'Reading the shop prices…' : !val ? 'Value –' : 'Worth ' + gold(val.total) + (val.unpriced ? ' (' + val.unpriced + ' unpriced)' : ''));
 
   const cf = root.querySelector('.hw-confirm');
   cls(cf, 'is-on', !!sc.confirm);
@@ -214,11 +213,12 @@ function patchHuntPane(root, st, ctx) {
       + '<select class="hh-select" data-hs-act="rule" data-item="' + esc(l.item) + '" data-rule-item="' + esc(l.item) + '" aria-label="Loot plan">' + RULE_OPTIONS + '</select></li>'),
     patch: (li, l) => {
       const inBag = st.qty.get(l.item) || 0;
-      text(li.querySelector('small'), '×' + whole(l.count) + ' this hunt · ' + whole(inBag) + ' in the bag');
+      /* a plan the server refuses for this item (its starting kit, no shop price) is off, its reason on the row's line */
+      const offWhy = [...new Set(LOOT_CHOICES.map(([v]) => planBlock(l.item, v, bids)).filter(Boolean))].join(' ');
+      text(li.querySelector('small'), '×' + whole(l.count) + ' this hunt · ' + whole(inBag) + ' in the bag' + (offWhy ? ' · ' + offWhy : ''));
       const sel = li.querySelector('select');
       if (st.rules) prop(sel, 'value', st.rules.loot[l.item] || 'keep');
       prop(sel, 'disabled', st.sc.pending || !st.rules);
-      /* a plan the server refuses for this item (its starting kit, no shop price) is off, with its reason */
       for (const o of sel.options) { const why = planBlock(l.item, o.value, bids); prop(o, 'disabled', !!why); attr(o, 'title', why || null); }
       /* a stack that only pays coin (what Sell all loot sells): the row the coach's "Decide once" rings, never the
          Bones a skill trains on (played 2026-10-25: the first row, Bones, was ringed for "Sell at the shop") */

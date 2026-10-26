@@ -185,9 +185,11 @@ export const REASONS = Object.freeze({
   ],
   'src/shell/windows/inventory/grid.js': [
     { cond: '!prim || !!wearWhy', words: 'wearWhy || buryWhy', where: 'the picked stack\'s line (.hw-pick-why): Equip\'s and Cook all\'s reason' },
-    { cond: '!st.shop', words: "'Sells every stack your loot filter marks", where: 'Sell selected / Sell junk / Sell all: off only before the shop section loads; Sell junk counts its stacks in its label' },
+    { cond: '!st.shop', words: "'Reading the shop prices…'", where: 'Sell selected / Sell all: off only before the shop section loads; the tools row value line says so' },
+    { cond: 'sc.pending || !!dWhy', words: "whyLine(root.querySelector('.hw-dispatch-why'), onBag ? dWhy : '', false);", where: 'Dispatch loot: its own line under the tools row (out hunting, nothing planned, reading the bag)' },
+    { cond: '!!why', words: "(offWhy ? ' · ' + offWhy : '')", where: 'the This hunt row: a plan the server refuses for the item (starting kit, no shop price) is said on the row line' },
     { cond: 'sc.confirm.empty', words: 'hw-confirm-note', where: 'the confirmation lists what is kept' },
-    { cond: '!st.rules', words: 'aria-label="On pickup"', where: 'OPEN: the hunt-loot rule select is off before bag_rules loads, with no words (lane/c-store-all owns the rule menu)' },
+    { cond: '!st.rules', words: "'Loot plans switch on when the server starts keeping them.'", where: 'the This hunt tab: the plan select is off before bag_rules loads and the tab note says so' },
     { cond: '!cur', words: "cls(pick, 'is-on', !!cur)", where: 'More sits on the picked line, which shows only with a stack picked' },
   ],
   'src/shell/windows/inventory/doll.js': [
@@ -198,6 +200,9 @@ export const REASONS = Object.freeze({
     { cond: 'short > 0', words: "' · You need ' + gold(short) + ' more.'", where: 'the offer row: "You need 40 gp more."' },
     { cond: 'isLocked', words: "isLocked ? 'Locked'", where: 'the button reads Locked and the row says locked' },
     { cond: '!plan.lines.length', words: "'Sell all loot'", where: 'the label carries the total only when there is loot' },
+  ],
+  'src/shell/windows/storage.js': [
+    { cond: 'sc.pending || !!dWhy', words: "text(root.querySelector('.hw-store-do .hw-why'), away ? '' : dWhy);", where: 'Dispatch loot in Storage: its own line (the store note says a hunt)' },
   ],
   'src/shell/windows/services.js': [
     { cond: '!canStam', words: "' You need ' + gold(q.price - purse) + ' more.'", where: 'the stamina quote line: full, all bought today, or how much more gold' },
@@ -424,6 +429,22 @@ async function screens(overrides) {
           await shot('cook-all');
           await page.keyboard.press('Escape');
         }
+        /* (a2) the loot plan on a starting-kit item: Sell off, its reason on its own visible line under it. */
+        const kit = '[data-hs-win="inventory"] .hw-pocket[data-item="cooked_shrimp"]';
+        if (!(await wait(page, (q) => document.querySelector(q), kit, 3000))) fails.push('SW-4 the cooked shrimp (starting kit) is not in the bag');
+        else {
+          await page.waitForTimeout(200);
+          await page.click(kit, { button: 'right' });
+          await page.waitForTimeout(250);
+          const p = await page.evaluate(() => {
+            const b = document.querySelector('.hw-menu.is-on [data-hs-act="m-rule"][data-rule="sell"]');
+            const why = b && b.nextElementSibling && b.nextElementSibling.matches('.hw-mi-why') ? b.nextElementSibling : null;
+            return { off: !!b && b.disabled, why: why && why.textContent, shown: !!why && why.getBoundingClientRect().height > 0 };
+          });
+          if (!p.off || p.why !== 'The shop does not buy back your starting kit.' || !p.shown) fails.push('SW-4 the loot plan\'s Sell on a starting-kit item reads ' + JSON.stringify(p));
+          await shot('plan-kit-sell');
+          await page.keyboard.press('Escape');
+        }
       }
       /* (b) a Shop buy short of the server's gold: off, and the row says how much more. */
       if (!(await openWin('v', 'shop'))) fails.push('SW-4 the Shop did not open');
@@ -487,6 +508,8 @@ const MUTANTS = [
     "runIntent(sc, repaint, () => cs.edgeIntent('shop_buy'", "void ((...a) => a[2]())(sc, repaint, () => cs.edgeIntent('shop_buy'"],
   ['the item menu greys Cook all with no words (the 10-25 bug)', 'src/shell/windows/inventory/actions.js',
     "    + (!on && why ? '<small class=\"hw-mi-why\" data-why=\"' + act + '\">' + esc(why) + '</small>' : '');", "    + '';", true],
+  ['the loot plan greys Sell on a starting-kit item with a hover title only', 'src/shell/windows/inventory/actions.js',
+    "' data-rule=\"' + v + '\" aria-pressed=\"' + (rule === v) + '\"', why);", "' data-rule=\"' + v + '\" aria-pressed=\"' + (rule === v) + '\" title=\"' + esc(why) + '\"');", true],
   ['a Shop buy short of gold is greyed with no words', 'src/shell/windows/shop.js',
     "          + (short ? ' · You need ' + gold(short) + ' more.' : ''));", "          + '');", true],
   ['a new rule-disabled control with no reason', 'src/shell/windows/services.js',
@@ -513,7 +536,7 @@ async function main() {
     const fails = await checks(null, true);
     for (const f of fails) console.log('  ✗ ' + f);
     console.log(fails.length ? 'say-why: ' + fails.length + ' rule(s) RED'
-      : 'say-why: every intent site speaks; every rule-disabled control says why on screen; the words carry the server\'s numbers; Cook all, a short Shop buy and a locked hunt say why in play.html');
+      : 'say-why: every intent site speaks; every rule-disabled control says why on screen; the words carry the server\'s numbers; Cook all, a starting-kit Sell plan, a short Shop buy and a locked hunt say why in play.html');
     process.exit(fails.length ? 1 : 0);
   }
   const clean = await checks(null, true);

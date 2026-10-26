@@ -24,10 +24,10 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-10-25",
- "replay_ms": 195246,
+ "replay_ms": 198637,
  "counts": {
-  "tracked_names": 670,
-  "entries": 525
+  "tracked_names": 669,
+  "entries": 524
  },
  "functions": [
   {
@@ -1191,7 +1191,6 @@
    "sig": "hr_bag_rules_view(p_user uuid, p_slot integer)",
    "name": "hr_bag_rules_view",
    "tracked_by": [
-    "pin",
     "restate"
    ],
    "touched_by": [
@@ -4574,7 +4573,8 @@
     "2026-12-11-hunt-deploy-no-forfeit.sql",
     "2026-12-15-account-gold.sql",
     "2026-12-23-tally-tasks.sql",
-    "2026-12-25-frame-push-revive.sql"
+    "2026-12-25-frame-push-revive.sql",
+    "2027-01-22-party-settle-isolation.sql"
    ],
    "live": {
     "md5": "a661a6690f46dc7f1a2fdb666dea7ae1",
@@ -4583,12 +4583,11 @@
     "source": "measured-live"
    },
    "replay": {
-    "md5": "0450771586af5458f5184e1e524cc01e",
-    "norm_len": 15604,
+    "md5": "a661a6690f46dc7f1a2fdb666dea7ae1",
+    "norm_len": 16846,
     "source": "computed-from-replay"
    },
-   "agree": false,
-   "why": "REVIEW 2026-10-25: live and replay disagree and nobody has said why. Strip comments from both bodies and diff them; write what actually differs here. The guard is RED until this sentence is real."
+   "agree": true
   },
   {
    "sig": "hr_hunt_apply_member(p_instance uuid, p_user uuid, p_slot integer, p_session uuid, p_intent uuid, p_delta jsonb, p_hunt jsonb, p_analyzer jsonb)",
@@ -4874,6 +4873,7 @@
    "sig": "hr_hunt_close(p_session uuid, p_reason text, p_at timestamp with time zone, p_return_bag boolean)",
    "name": "hr_hunt_close",
    "tracked_by": [
+    "pin",
     "restate"
    ],
    "touched_by": [
@@ -5113,12 +5113,14 @@
    "sig": "hr_hunt_forfeit(p_instance uuid, p_code text, p_detail jsonb)",
    "name": "hr_hunt_forfeit",
    "tracked_by": [
+    "chain",
     "pin",
     "restate"
    ],
    "touched_by": [
     "2026-11-16-hunt-density-bounds.sql",
-    "2026-11-20-hunt-forfeit-durable.sql"
+    "2026-11-20-hunt-forfeit-durable.sql",
+    "2027-01-22-party-settle-isolation.sql"
    ],
    "live": {
     "md5": "cc82ec973710e8f4501aef4985ab0b5d",
@@ -5127,12 +5129,34 @@
     "source": "measured-live"
    },
    "replay": {
-    "md5": "3d3b89160bc0a99b280eda40a7a741db",
-    "norm_len": 1625,
+    "md5": "cc82ec973710e8f4501aef4985ab0b5d",
+    "norm_len": 1243,
     "source": "computed-from-replay"
    },
-   "agree": false,
-   "why": "REVIEW 2026-10-25: live and replay disagree and nobody has said why. Strip comments from both bodies and diff them; write what actually differs here. The guard is RED until this sentence is real."
+   "agree": true
+  },
+  {
+   "sig": "hr_hunt_forfeit_seat(p_instance uuid, p_session uuid, p_code text, p_detail jsonb, p_refusals integer)",
+   "name": "hr_hunt_forfeit_seat",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-01-22-party-settle-isolation.sql"
+   ],
+   "live": {
+    "md5": "889a385cab57a9a1e056fd786aa10f3d",
+    "norm_len": 1789,
+    "measured": "2026-10-25",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "889a385cab57a9a1e056fd786aa10f3d",
+    "norm_len": 1789,
+    "source": "computed-from-replay"
+   },
+   "agree": true
   },
   {
    "sig": "hr_hunt_gap_ms(p_s hunt_sessions)",
@@ -5395,24 +5419,22 @@
    "sig": "hr_hunt_loot_rules(p_user uuid, p_slot integer, p_session uuid, p_intent uuid, p_items jsonb, p_at timestamp with time zone)",
    "name": "hr_hunt_loot_rules",
    "tracked_by": [
-    "chain",
     "pin",
     "restate"
    ],
    "touched_by": [
     "2026-10-25-bag-rules.sql",
-    "2026-12-15-account-gold.sql",
-    "2027-01-23-loot-dispatch.sql"
+    "2026-12-15-account-gold.sql"
    ],
    "live": {
-    "md5": "ff86b4dbde0b3b4c9d93ed665b4c63cc",
-    "norm_len": 2049,
+    "md5": "f3bb5c4935a20e60468807ffce848630",
+    "norm_len": 3229,
     "measured": "2026-10-25",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "ff86b4dbde0b3b4c9d93ed665b4c63cc",
-    "norm_len": 2049,
+    "md5": "f3bb5c4935a20e60468807ffce848630",
+    "norm_len": 3229,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -6267,10 +6289,12 @@
    "sig": "hr_hunt_settle_refused(p_instance uuid, p_world_from bigint, p_first jsonb, p_answer jsonb)",
    "name": "hr_hunt_settle_refused",
    "tracked_by": [
+    "pin",
     "restate"
    ],
    "touched_by": [
-    "2026-11-16-hunt-density-bounds.sql"
+    "2026-11-16-hunt-density-bounds.sql",
+    "2027-01-22-party-settle-isolation.sql"
    ],
    "live": {
     "md5": "5c90976ca747f281caafe1a92c3d1ac8",
@@ -6279,12 +6303,11 @@
     "source": "measured-live"
    },
    "replay": {
-    "md5": "0129755255e671b844a3fa2d076a2a16",
-    "norm_len": 1318,
+    "md5": "5c90976ca747f281caafe1a92c3d1ac8",
+    "norm_len": 2872,
     "source": "computed-from-replay"
    },
-   "agree": false,
-   "why": "REVIEW 2026-10-25: live and replay disagree and nobody has said why. Strip comments from both bodies and diff them; write what actually differs here. The guard is RED until this sentence is real."
+   "agree": true
   },
   {
    "sig": "hr_hunt_settle_session(p_user uuid, p_slot integer, p_session uuid, p_delta jsonb)",
@@ -6768,7 +6791,6 @@
    "sig": "hr_item_rule_put(p_user uuid, p_slot integer, p_item text, p_locked boolean, p_rule text, p_restock integer)",
    "name": "hr_item_rule_put",
    "tracked_by": [
-    "pin",
     "restate"
    ],
    "touched_by": [
@@ -7291,71 +7313,23 @@
    "agree": true
   },
   {
-   "sig": "hr_loot_dispatch(p_slot integer, p_idem uuid)",
-   "name": "hr_loot_dispatch",
-   "tracked_by": [
-    "pin",
-    "restate"
-   ],
-   "touched_by": [
-    "2027-01-23-loot-dispatch.sql"
-   ],
-   "live": {
-    "md5": "b37b3dedb0b86e41c706f91bdd67cb9c",
-    "norm_len": 8780,
-    "measured": "2026-10-25",
-    "source": "measured-live"
-   },
-   "replay": {
-    "md5": "b37b3dedb0b86e41c706f91bdd67cb9c",
-    "norm_len": 8780,
-    "source": "computed-from-replay"
-   },
-   "agree": true
-  },
-  {
-   "sig": "hr_loot_plan_refusal(p_item text, p_plan text)",
-   "name": "hr_loot_plan_refusal",
-   "tracked_by": [
-    "pin",
-    "restate"
-   ],
-   "touched_by": [
-    "2027-01-23-loot-dispatch.sql"
-   ],
-   "live": {
-    "md5": "94e6a471b83101b8043bc50ba48910d4",
-    "norm_len": 986,
-    "measured": "2026-10-25",
-    "source": "measured-live"
-   },
-   "replay": {
-    "md5": "94e6a471b83101b8043bc50ba48910d4",
-    "norm_len": 986,
-    "source": "computed-from-replay"
-   },
-   "agree": true
-  },
-  {
    "sig": "hr_loot_rule_set(p_slot integer, p_item text, p_rule text, p_idem uuid)",
    "name": "hr_loot_rule_set",
    "tracked_by": [
-    "pin",
     "restate"
    ],
    "touched_by": [
-    "2026-10-25-bag-rules.sql",
-    "2027-01-23-loot-dispatch.sql"
+    "2026-10-25-bag-rules.sql"
    ],
    "live": {
-    "md5": "57d2304cdfb89520fffd7a6ee13ac8b2",
-    "norm_len": 2794,
+    "md5": "410efe4f7af6087997325fc92f271912",
+    "norm_len": 2623,
     "measured": "2026-10-25",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "57d2304cdfb89520fffd7a6ee13ac8b2",
-    "norm_len": 2794,
+    "md5": "410efe4f7af6087997325fc92f271912",
+    "norm_len": 2623,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -10780,7 +10754,6 @@
    "sig": "hr_storage_room_cap(p_user uuid)",
    "name": "hr_storage_room_cap",
    "tracked_by": [
-    "pin",
     "restate"
    ],
    "touched_by": [
@@ -10826,7 +10799,6 @@
    "sig": "hr_storage_room_used(p_user uuid)",
    "name": "hr_storage_room_used",
    "tracked_by": [
-    "pin",
     "restate"
    ],
    "touched_by": [

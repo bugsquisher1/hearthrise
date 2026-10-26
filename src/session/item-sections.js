@@ -14,6 +14,7 @@
 //   skills     { skill: { xp, level } }
 //   state.gold, state.gold_v (the ACCOUNT purse and its version), state.bank_cap (the bag's stack cap)
 //   bank       { item: qty }        the home storage (hr_bank_move)
+//   skill_inputs { from: ['bag', 'storage'] }  where a town skill's inputs come from, in order (heldOf)
 //   buffs      [{ type, magnitude, until, remaining_ms }]
 // What the alpha-windows server lane adds (CONFLICTS.md, 2026-10-18; the
 // fixture is tests/fixtures/alpha-envelope.json):
@@ -30,8 +31,8 @@
 // The Characters window's (2026-12-04-hero-rename.sql):
 //   rename         { price, level, per_day, today, available, why }  what a new name costs, and whether it may
 // ════════════════════════════════════════════════════════════════════════
-import { huntBagOf } from './hunt-sections.js?v=0.2.46';
-import { SHOP_SOLD_KINDS } from '../data/supply-basics.js?v=0.2.46';
+import { huntBagOf } from './hunt-sections.js?v=0.2.47';
+import { SHOP_SOLD_KINDS } from '../data/supply-basics.js?v=0.2.47';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const ID = /^[a-z0-9_]{1,64}$/;
@@ -182,6 +183,27 @@ export function bankOf(cs) {
   const items = [];
   for (const [id, n] of Object.entries(b)) if (ID.test(id) && count(n) && n > 0) items.push({ id, qty: n });
   return items;
+}
+
+/**
+ * WHAT A TOWN SKILL CAN DRAW ON (Tyler 2026-10-25, skills from Storage): { item: qty }, the hero's bag plus the
+ * ACCOUNT's Storage where the server's `skill_inputs` section names it (the server spends the bag first, then
+ * Storage: hr_materials_take), else the bag alone. Both halves are the server's sections, replaced by each envelope.
+ * The bench counts ("Makes up to N"), Cook all / Bury all and the farm's seeds read this; tools and the bag's room
+ * read the bag.
+ */
+export function heldOf(cs) {
+  const out = {};
+  const inv = read(cs, 'inventory');
+  if (isObj(inv)) for (const [id, n] of Object.entries(inv)) if (ID.test(id) && count(n) && n > 0) out[id] = n;
+  if (drawsOnStorage(cs)) for (const r of bankOf(cs) || []) out[r.id] = (out[r.id] || 0) + r.qty;
+  return out;
+}
+
+/** `skill_inputs` (2027-01-24-skills-from-storage.sql): does the server say a town skill draws on Storage after the bag? */
+export function drawsOnStorage(cs) {
+  const si = read(cs, 'skill_inputs');
+  return isObj(si) && Array.isArray(si.from) && si.from.includes('storage');
 }
 
 /** `depot` (hr_depot_view; the ACCOUNT storage's space): { used, cap, next: { name, stacks } | null }, or null. */

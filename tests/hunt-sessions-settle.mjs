@@ -147,11 +147,22 @@
 //   PARTY-KICK a member closed by the database between settles (a kick, a leave at
 //              once) walks its unit out; the next settle still commits (live P1 10-20:
 //              `tally ... not a hero` on every fire).
+//   PARTY-GRIEF one member's own state never ends its party's hunt (threat model #7):
+//              a member racing its own bag (Storage deposit between the read and the
+//              commit of the bones its cover sells) is refused cover_over six fires in
+//              a row; the count is ITS seat's, the sixth ends ITS hunt alone; the
+//              partner hunts on and is paid next settle; both doors, the same rows.
 //   PARTY-VIEW the real `party` section of a settled two-hero hunt, read by the
 //              client's own reader (src/session/hunt-sections.js partyOf), yields
 //              both members the party panel draws: unit (= the session's world
 //              unit), name, role, HP / mana off the pose, dealt, DPS; leader and
 //              self are units; `account.max_concurrent` is the server config.
+//   TOWN-DEFAULTS the bar's unset options read the engine's pick (2027-01-25-town-defaults.sql):
+//              alone in town, a party in town, a hunt before its first settle == roles.js
+//              defaultSettings for the role and party, GOLD_FLOOR.default; the first settle's
+//              unit carries exactly that pick; a saved option wins.
+//   FIRST-MANA before a hunt's first settle the hero and every hunting member read their full
+//              mana (hunt-spawn.js), never null; the client's readers get a number.
 //   VALUE      every bound refuses a forgery and moves nothing: gold / XP /
 //              item (value_over), kills (kills_over), the world's size, shape and
 //              swing, the store without consent (store_off), the lane caps
@@ -165,7 +176,8 @@
 //   FORFEIT    the sixth refused commit in a row forfeits the window: ended `left`
 //              (Leave pressed) or `server` (browser closed) at the last accepted
 //              boundary, purse unmoved, one window_forfeit row, bag home; a landed
-//              commit starts the count over.
+//              commit starts the count over. A member's own refusal counts on its
+//              seat, an instance refusal on the instance; each count starts over.
 //   DEPLOY     a deploy never ends a hunt: a catalogue world-shape move with the edge
 //              landing before or after it (v0.2.32 live). Catalogue first: the old
 //              engine's settles are held (never counted); edge first: the new engine
@@ -2147,21 +2159,44 @@ const DB_ARMS = {
     if (canon(tick) !== canon(viewed)) problems.push(`viewed and tick wrote different rows ${firstDiff(canon(tick), canon(viewed))}`);
     return problems;
   }),
-  'PARTY-LEAVE-IDEM': async (db) => inTx(db, async () => {
+  /* Judged AS OF the file (tests/schema-replay.mjs REPLAY SCOPE): a later file splices one of its bodies under its own pin
+     (2027-01-25-town-defaults.sql, hr_hunt_party_view), so on the whole chain this file's §0 rightly refuses a second
+     apply ("another file moved it"); the property under test is this file's own idempotency. So the arm boots the chain
+     TO this file, and carries over from the whole chain every body no LATER file authors (a DB mutant planted there
+     rides with it). */
+  'PARTY-LEAVE-IDEM': async (main) => {
+    const FILE = '2026-12-18-party-leave-together.sql';
     const SIGS = ['public.hr_hunt_party_view(uuid,integer)', 'public.hr_hunt_instance_read(uuid,integer)',
       'public.hr_hunt_settle_session(uuid,integer,uuid,jsonb)', 'public.hr_hunt_view(uuid)', 'public.hr_party_leave_together_set(integer,boolean,uuid)'];
-    const shape = async () => JSON.stringify({
-      bodies: await Promise.all(SIGS.map((s) => one(db, `select md5(replace(prosrc, chr(13), '')) || ':' || coalesce(array_to_string(proacl, ','), '') from pg_proc where oid = $1::regprocedure`, [s]))),
-      column: await q(db, `select data_type, is_nullable, column_default from information_schema.columns where table_schema = 'public' and table_name = 'player_state' and column_name = 'party_leave_together'`),
-      baseline: await q(db, `select proname, identity_args, grantee, note, approved_at from public.hr_client_rpc_baseline where proname = 'hr_party_leave_together_set'`),
-    });
-    const before = await shape();
-    if (!before.includes('"is_nullable":"NO"') || !before.includes('true')) return [`CONTROL: the replayed chain carries no box: ${before.slice(0, 200)}`];
-    const sql = readFileSync(join(ROOT, 'supabase', 'migrations', '2026-12-18-party-leave-together.sql'), 'utf8').replace(/\r\n/g, '\n');
-    try { await db.exec(sql); } catch (e) { return [`the second apply RAISED: ${String(e.message).split('\n')[0]}`]; }
-    const after = await shape();
-    return after === before ? [] : [`the second apply moved ${firstDiff(before, after)}`];
-  }),
+    const order = JSON.parse(readFileSync(join(ROOT, 'tests', 'schema-apply-order.json'), 'utf8')).order;
+    const later = order.slice(order.indexOf(FILE) + 1).map((f) => readFileSync(join(ROOT, 'supabase', 'migrations', f), 'utf8'));
+    const authoredLater = (sig) => {
+      const fn = sig.slice('public.'.length, sig.indexOf('('));
+      const re = new RegExp('create\\s+or\\s+replace\\s+function\\s+(?:public\\.)?' + fn + '\\s*\\(|pg_get_functiondef\\(\\s*\'(?:public\\.)?' + fn + '\\(', 'i');
+      return later.some((t) => re.test(t));
+    };
+    const { bootReplay } = await import('./schema-replay.mjs');
+    const { db } = await bootReplay({ upTo: FILE });
+    try {
+      return await inTx(db, async () => {
+        for (const sig of SIGS) {
+          if (authoredLater(sig)) continue;
+          await db.exec(String(await one(main, 'select pg_get_functiondef($1::regprocedure)', [sig])));
+        }
+        const shape = async () => JSON.stringify({
+          bodies: await Promise.all(SIGS.map((s) => one(db, `select md5(replace(prosrc, chr(13), '')) || ':' || coalesce(array_to_string(proacl, ','), '') from pg_proc where oid = $1::regprocedure`, [s]))),
+          column: await q(db, `select data_type, is_nullable, column_default from information_schema.columns where table_schema = 'public' and table_name = 'player_state' and column_name = 'party_leave_together'`),
+          baseline: await q(db, `select proname, identity_args, grantee, note, approved_at from public.hr_client_rpc_baseline where proname = 'hr_party_leave_together_set'`),
+        });
+        const before = await shape();
+        if (!before.includes('"is_nullable":"NO"') || !before.includes('true')) return [`CONTROL: the replayed chain carries no box: ${before.slice(0, 200)}`];
+        const sql = readFileSync(join(ROOT, 'supabase', 'migrations', FILE), 'utf8').replace(/\r\n/g, '\n');
+        try { await db.exec(sql); } catch (e) { return [`the second apply RAISED: ${String(e.message).split('\n')[0]}`]; }
+        const after = await shape();
+        return after === before ? [] : [`the second apply moved ${firstDiff(before, after)}`];
+      });
+    } finally { await db.close?.(); }
+  },
   /* HOLD-SEAT (Tyler 2026-10-22, the party's "One tank holds"; lane/b-tank-choice). hr_hunt_instance_read carries
      the party's hunt_parties.hold_seat at instance.hold_seat (lane/c-hunt-screens-server, 2026-12-08-party-hold.sql,
      in the replayed chain; the arm sets the column as hr_party_hold_set would, rolled back). The door and the tick
@@ -2225,6 +2260,94 @@ const DB_ARMS = {
     if (!Number.isInteger(gone) || w.includes(String(gone))) problems.push(`the kicked unit ${gone} is still in the world's heroes ${w}`);
     return problems;
   }),
+  /* PARTY-GRIEF (Security threat model #7; 2027-01-22-party-settle-isolation.sql): ONE member's own state refusing
+     the party's settles ends only THAT member's hunt, never the others'. Seat B buys store food with a thin purse and
+     sells looted bones to cover it (sell-to-cover); seat A (no shield, so B holds every pull and eats) is the victim.
+     B races its OWN bag with the player's verb: between the edge's read and its commit it deposits in Storage the
+     bones the window's cover sells (hr_bank_move), then takes them back, six fires in a row. Each commit is refused
+     cover_over and counted on B's seat, never on the instance; the sixth ends B's hunt alone (`server`, forfeit, at
+     the last accepted boundary, journalled once); A hunts on and the next settle pays its owed window, B's unit
+     walked out of the world. BOTH DOORS, the same rows: the tick (browser closed) and A's own settle (hunt viewed).
+     Before the fix the sixth refusal forfeited BOTH hunts. */
+  'PARTY-GRIEF': async (db, M) => inTx(db, async () => {
+    const problems = [];
+    const GRIEFER = { minutesAgo: 25, inv: {}, bag: [], gold: 100, level: 3,
+      options: { supply_source: 'store', on_empty: 'end', gold_floor: 0,
+        slots: [{ action: { type: 'consume', id: 'salted_shrimp' }, conditions: [{ metric: 'self_hp_pct', op: 'lt', value: 99 }], join: 'and' }] } };
+    const h = await hunter(db, M, { party: [{ ...STRONG }, GRIEFER] });
+    const [A, B] = UIDS; const [sA, sB] = h.sids;
+    await db.query("delete from public.player_equipment where user_id = $1 and slot = 0 and equip_slot = 'shield'", [A]);
+    /* 50 g a bone (tests/settle-hooks.mjs H-COVER): one pickup covers a store meal, so the cover case is reached */
+    await db.query("insert into public.hr_hunt_cover_items (item_id, unit) values ('bones', 50) on conflict (item_id) do update set unit = 50");
+    const exec = makeExec(db);
+    /* (1) honest windows until the next one's proposal sells B's bones to cover its store food */
+    let at = null;
+    for (const t of ticksOf(30000, 20 * 60000)(h.from)) {
+      const plan = await M.HS.readHuntSettle({ exec, user: A, slot: 0, grounds: groundsOf(M), atMs: t }, 'tick');
+      if (plan.answer) return [...problems, `CONTROL: the honest read answered ${plan.answer.reason}`];
+      const p = await M.HS.proposeHuntSettle(plan, plan.toMs, 0);
+      if (!p.out.accrued) continue;
+      const b = p.commit.members.find((x) => String(x.user) === B);
+      /* a race the griefer can win: the cover sells more bones than this window itself loots (those reach the bag in the commit) */
+      if (b && Number((b.hunt.cover || {}).bones) > Number(((b.delta || {}).items || {}).bones || 0)) { at = t; break; }
+      const res = await M.HS.commitHuntSettle(exec, { ...p.commit, project: null });
+      if (!res || res.ok !== true) return [...problems, `CONTROL: an honest window was refused ${JSON.stringify(res).slice(0, 200)}`];
+    }
+    if (at === null) return [...problems, 'CONTROL: in 20 minutes no window sold B\'s bones to cover its store food'];
+    const unitB = await one(db, 'select unit_id from public.hunt_sessions where id = $1', [sB]);
+    const bank = async (dir, qty) => {
+      await db.query('delete from public.hr_rate_counters');   // the bank gate is not under test
+      await asUser(db, B);
+      const r = await one(db, "select public.hr_bank_move(0, 'bones', $1::bigint, $2, $3::uuid)", [qty, dir, idem()]);
+      await db.query("select set_config('request.jwt.claim.sub', '', true)");
+      if (!r || r.ok !== true) throw new Error(`B's ${dir} of ${qty} bones answered ${JSON.stringify(r).slice(0, 200)}`);
+    };
+    /* THE RACE, on the commit statement itself: B's bones leave the bag after the read, come back after the commit */
+    const grief = async (text, params) => {
+      if (text !== M.HS.HUNT_APPLY_SQL) return exec(text, params);
+      const held = Number(await one(db, "select coalesce((select qty from public.player_inventory where user_id = $1 and slot = 0 and item_id = 'bones'), 0)", [B]));
+      if (held > 0) await bank('deposit', held);
+      try { return await exec(text, params); } finally { if (held > 0) await bank('withdraw', held); }
+    };
+    const gold = async (u) => Number(await one(db, 'select coalesce((select w.gold from public.account_wallet w where w.user_id = $1), 0)', [u]));
+    const rows = {};
+    await db.query('savepoint party_grief');
+    for (const door of ['tick', 'settle']) {
+      const fire = (atMs) => M.HS.settleHunt({ exec: grief, user: A, slot: 0, mode: door, grounds: groundsOf(M), atMs,
+        ...(door === 'tick' ? { session: sA } : { project: true, live: true, minWindowMs: 0 }) });
+      const g0 = await gold(A); const kills0 = (await snapshot(db, sA, A)).tally.kills;
+      const answers = [];
+      for (let i = 0; i < 6; i++) answers.push(await fire(at));
+      if (answers.some((v) => v.outcome !== 'refused' || v.reason !== 'cover_over')) {
+        problems.push(`${door}: CONTROL: the six raced fires answered ${answers.map((v) => v.outcome + '/' + v.reason).join(', ')}, not cover_over`);
+        break;
+      }
+      const s = (await q(db, `select id, ended_at, floor(extract(epoch from ended_at) * 1000)::bigint::text as ended_ms, end_reason, forfeit, refusals from public.hunt_sessions where id = any($1::uuid[])`, [h.sids]))
+        .reduce((o, r) => ({ ...o, [r.id]: r }), {});
+      const inst = (await q(db, 'select refusals, floor(extract(epoch from settled_to) * 1000)::bigint::text as at from public.hunt_instances where id = $1', [h.inst]))[0];
+      /* THE BUG: A's hunt ended with B's sixth refusal */
+      if (s[sA].ended_at !== null) problems.push(`${door}: B's refusals ended A's hunt (${s[sA].end_reason}, forfeit ${s[sA].forfeit})`);
+      if (inst.refusals > 1) problems.push(`${door}: B's refusals were counted on the instance (${inst.refusals})`);
+      if (s[sB].end_reason !== 'server' || s[sB].forfeit !== true || s[sB].refusals !== 6 || Number(s[sB].ended_ms) !== Number(inst.at)) {
+        problems.push(`${door}: the griefer's own hunt did not end at the last accepted boundary: ${JSON.stringify(s[sB])}`);
+      }
+      const forfeits = await q(db, "select session_id from public.player_ledger where session_id = any($1::uuid[]) and kind = 'hunt' and intent = 'window_forfeit' and coalesce(gold, 0) = 0", [h.sids]);
+      if (forfeits.length !== 1 || forfeits[0].session_id !== sB) problems.push(`${door}: window_forfeit rows on ${JSON.stringify(forfeits.map((f) => f.session_id === sA ? 'A' : 'B'))}, want B once`);
+      if (await gold(A) !== g0 || (await snapshot(db, sA, A)).tally.kills !== kills0) problems.push(`${door}: a refused window paid A`);
+      /* A hunts on: the next fire pays its owed window, and B's unit has walked out of the world */
+      const next = await fire(at + 90000);
+      if (next.outcome !== 'paid') problems.push(`${door}: A's next settle answered ${next.outcome}/${next.reason}`);
+      const w = await one(db, 'select world from public.hunt_instances where id = $1', [h.inst]);
+      const heroes = w ? M.WS.decode(JSON.parse(w)).units.filter((u) => u.side === 'hero').map((u) => u.id) : [];
+      if (heroes.includes(unitB)) problems.push(`${door}: the forfeited seat's unit ${unitB} still fights (${heroes})`);
+      const a = await snapshot(db, sA, A);
+      if (a.session.ended_at !== null || !(a.tally.kills > kills0)) problems.push(`${door}: A did not hunt on (ended ${a.session.end_reason}, kills ${kills0} -> ${a.tally.kills})`);
+      rows[door] = [a, await snapshot(db, sB, B)];
+      await db.query('rollback to savepoint party_grief');
+    }
+    if (rows.tick && rows.settle && canon(rows.tick) !== canon(rows.settle)) problems.push(`the browser-closed and hunt-viewed doors wrote different rows ${firstDiff(canon(rows.tick), canon(rows.settle))}`);
+    return problems;
+  }),
   'PARTY-VIEW': async (db, M) => inTx(db, async () => {
     const problems = [];
     const { partyOf } = await import(pathToFileURL(join(ROOT, 'src/session/hunt-sections.js')).href);
@@ -2252,6 +2375,79 @@ const DB_ARMS = {
     /* A solo hunt is a party of one. */
     const soloEnv = await one(db, 'select public.hr_hunt_party_view($1::uuid, 0)', [UIDS[2]]);
     if (soloEnv !== null) problems.push(`a character with no hunt and no party has a party section: ${JSON.stringify(soloEnv).slice(0, 200)}`);
+    return problems;
+  }),
+  /* TOWN-DEFAULTS (Tyler 2026-10-25: the whole bar is configurable in town; 2027-01-25-town-defaults.sql + its generated
+     hr_hunt_role_defaults): an option the hero never set reads what the ENGINE would play (hunt-spawn.js heroSetup over
+     roles.js defaultSettings for its role and party; GOLD_FLOOR.default for the gold to keep): alone in town, in a party
+     in town (a Healer beside a shield Melee: its chase and target differ from alone), in a hunt before its first settle,
+     and the first settle's unit then carries exactly that pick, so the server and the engine cannot disagree. A saved
+     option wins. Before the fix all five read null out of a hunt. */
+  'TOWN-DEFAULTS': async (db, M) => inTx(db, async () => {
+    const problems = [];
+    const { defaultSettings } = await import(pathToFileURL(join(M.root, 'src/core/hunt/roles.js')).href);
+    const view = (u) => one(db, 'select public.hr_hunt_settings_view($1::uuid, 0)', [u]);
+    const bar = (v) => canon({ target_mode: v.target_mode, stance: v.stance, distance: v.distance, chase: v.chase, gold_floor: v.gold_floor });
+    const engine = (role, party) => {
+      const d = defaultSettings(role, party);
+      return canon({ target_mode: d.tmode, stance: d.stance, distance: d.dist, chase: d.chase, gold_floor: M.HSD.GOLD_FLOOR.default });
+    };
+    /* (1) alone in town, nothing set; then a saved stance wins */
+    await character(db, M, UIDS[2], { inv: {} });
+    const alone = await view(UIDS[2]);
+    if (!alone.role || bar(alone) !== engine(alone.role, [alone.role])) problems.push(`alone in town the bar reads ${bar(alone)}, the engine plays ${alone.role && engine(alone.role, [alone.role])}`);
+    const other = alone.stance === 'defensive' ? 'offensive' : 'defensive';
+    await asUser(db, UIDS[2]);
+    const set = await one(db, 'select public.hr_action_set_options(0, 0, $1::jsonb, $2::uuid)', [JSON.stringify({ stance: other }), idem()]);
+    await db.query("select set_config('request.jwt.claim.sub', '', true)");
+    if (!set || set.ok !== true) return [...problems, 'CONTROL: the stance was refused ' + JSON.stringify(set).slice(0, 160)];
+    if ((await view(UIDS[2])).stance !== other) problems.push(`a saved stance ${other} reads ${(await view(UIDS[2])).stance}`);
+    /* (2) a party in town: seat 1 takes up the practice staff (a Healer) beside seat 0's sword and shield */
+    let town = null;
+    const h = await hunter(db, M, { party: [{ ...STRONG }, { ...STRONG }], beforeEnter: async () => {
+      await db.query("delete from public.player_equipment where user_id = $1 and slot = 0 and equip_slot in ('shield', 'weapon')", [UIDS[1]]);
+      await db.query("insert into public.player_equipment (user_id, slot, equip_slot, item_id) values ($1, 0, 'weapon', 'practice_staff')", [UIDS[1]]);
+      town = [await view(UIDS[0]), await view(UIDS[1])];
+    } });
+    const roles = town.map((v) => v.role);
+    if (roles.join() !== 'tank,healer') return [...problems, 'CONTROL: the party plays ' + roles.join()];
+    if (engine('healer', ['healer']) === engine('healer', roles)) return [...problems, 'CONTROL: a Healer plays the same alone and in this party'];
+    for (const [i, v] of town.entries()) if (bar(v) !== engine(v.role, roles)) problems.push(`seat ${i} (${v.role}) in town reads ${bar(v)}, the engine plays ${engine(v.role, roles)}`);
+    /* (3) in the hunt, before its first settle (no unit yet) */
+    const before = [await view(UIDS[0]), await view(UIDS[1])];
+    for (const [i, v] of before.entries()) if (bar(v) !== engine(v.role, roles)) problems.push(`seat ${i} before the first settle reads ${bar(v)}, the engine plays ${engine(v.role, roles)}`);
+    /* (4) the first settle spawns the units: the view now reads them, and they carry exactly that pick */
+    await settleTo(db, M, h.from + 60000);
+    if (await one(db, 'select count(*)::int from public.hunt_sessions where id = any($1::uuid[]) and unit_id is not null', [h.sids]) !== 2) return [...problems, 'CONTROL: the first settle placed no units'];
+    const after = [await view(UIDS[0]), await view(UIDS[1])];
+    for (const [i, v] of after.entries()) if (bar(v) !== bar(before[i])) problems.push(`seat ${i}'s unit plays ${bar(v)}, the bar showed ${bar(before[i])}`);
+    return problems;
+  }),
+  /* FIRST-MANA (2027-01-25-town-defaults.sql): before a hunt's first settle (no world yet) the hero's own hunt section and
+     every hunting member's party row read the hero's FULL mana (hunt-spawn.js heroUnit starts a hero at maxMana), as HP
+     reads its stored value; the client's readers get a number, never "–". After the settle the pose's figure. */
+  'FIRST-MANA': async (db, M) => inTx(db, async () => {
+    const problems = [];
+    const { partyOf, huntOf } = await import(pathToFileURL(join(ROOT, 'src/session/hunt-sections.js')).href);
+    const h = await hunter(db, M, { party: [{ ...STRONG }, { ...STRONG }] });
+    const maxes = await Promise.all(UIDS.slice(0, 2).map(async (u) => Number((await one(db, 'select public.hr_vitals_of($1::uuid, 0)', [u])).max_mana)));
+    const read = async (label, full) => {
+      const env = await one(db, 'select public.hr_state_of($1::uuid, 0)', [UIDS[0]]);
+      const cs = { read: (k) => env[k] };
+      const me = huntOf(cs); const p = partyOf(cs);
+      if (!me || !p) { problems.push(`${label}: the client reads no hunt or party (${!!me}/${!!p})`); return; }
+      if (!Number.isFinite(me.hero.mana) || me.hero.manaMax !== maxes[0] || (full && me.hero.mana !== maxes[0]) || me.hero.mana > me.hero.manaMax) {
+        problems.push(`${label}: the hero reads mana ${me.hero.mana} of ${me.hero.manaMax} (max ${maxes[0]})`);
+      }
+      const seen = p.members.map((m) => [m.mana, m.manaMax]);
+      if (p.members.length !== 2 || p.members.some((m) => !Number.isFinite(m.mana) || !Number.isFinite(m.manaMax) || m.mana > m.manaMax
+          || (full && m.mana !== m.manaMax)) || canon(p.members.map((m) => m.manaMax).sort()) !== canon(maxes.slice().sort())) {
+        problems.push(`${label}: the party rows read mana ${canon(seen)} (maxima ${canon(maxes)})`);
+      }
+    };
+    await read('before the first settle', true);
+    await settleTo(db, M, h.from + 60000);
+    await read('after the first settle', false);
     return problems;
   }),
   /* P0 bug report #57 (v0.2.26): a Level-2 club hero picked density 8 at Mill Cellar; the kill bound counted
@@ -2346,6 +2542,18 @@ const DB_ARMS = {
     if (!honest.res || honest.res.ok !== true) problems.push(`a landed window after five refusals answered ${JSON.stringify(honest.res).slice(0, 200)}`);
     r = await refuse(5, h.from + 180000);
     if (r.res.forfeit || !(await open())) problems.push('five refusals after a landed window forfeited the hunt (the count did not start over)');
+    await db.query('rollback to savepoint forfeit');
+    /* The INSTANCE's own refusals (a malformed world swing: no member's half is reached) count on the instance, never
+       on a seat (2027-01-22-party-settle-isolation.sql); a landed commit starts that count over too. */
+    const forgedWorld = (c) => { c.settle.world_swing = 'x'; };
+    const counts = async () => (await q(db, 'select (select refusals from public.hunt_instances where id = $1) i, (select refusals from public.hunt_sessions where id = $2) s', [h.inst, h.sid]))[0];
+    for (let i = 0; i < 5; i++) r = await settleTo(db, M, h.from + 120000, { tamper: forgedWorld });
+    let c = await counts();
+    if (!r.res || r.res.error !== 'bad_world_swing' || r.res.forfeit || c.i !== 5 || c.s !== 0) problems.push(`five instance refusals answered ${JSON.stringify(r.res).slice(0, 160)}, counts ${JSON.stringify(c)}`);
+    if (!(await settleTo(db, M, h.from + 120000, { raw: true })).res?.ok) problems.push('a landed window after five instance refusals was refused');
+    for (let i = 0; i < 5; i++) r = await settleTo(db, M, h.from + 180000, { tamper: forgedWorld });
+    c = await counts();
+    if (r.res.forfeit || !(await open()) || c.i !== 5) problems.push(`five instance refusals after a landed window forfeited the hunt or kept the old count (${JSON.stringify(c)})`);
     await db.query('rollback to savepoint forfeit');
     for (const [label, leave, want] of [['hunt viewed, Leave pressed', true, 'left'], ['browser closed, no Leave', false, 'server']]) {
       if (leave) {
@@ -2998,10 +3206,25 @@ const DB_MUTANTS = [
     find: '  if v_n >= c_forfeit_after then', replace: '  if false then' },
   { arm: 'FORFEIT', name: 'a landed commit keeps the refusal count', fn: AI,
     find: 'settled_to = v_to, next_swing_at = v_to, refusals = 0, version = version + 1', replace: 'settled_to = v_to, next_swing_at = v_to, version = version + 1' },
+  /* PARTY ISOLATION (2027-01-22-party-settle-isolation.sql, threat model #7): each leg goes red on its own defect. */
+  { arm: 'FORFEIT', name: '[party isolation] a landed commit keeps the seat\'s refusal count', fn: AI,
+    find: "    update public.hunt_sessions set refusals = 0\n     where id in (select (e.value->>'session')::uuid from jsonb_array_elements(p_members) e) and refusals > 0;\n",
+    replace: '' },
+  { arm: 'PARTY-GRIEF', name: '[party isolation] a member\'s own refusal is counted on the instance again (the party forfeits)', fn: SR,
+    find: "  if jsonb_typeof(p_answer->'member') = 'object'", replace: "  if false and jsonb_typeof(p_answer->'member') = 'object'" },
+  { arm: 'PARTY-GRIEF', name: '[party isolation] the refused exit no longer names the member it was proving', fn: AI,
+    find: "      || case when v_cur is not null then jsonb_build_object('member', v_cur) else '{}'::jsonb end);", replace: '      );' },
+  { arm: 'PARTY-GRIEF', name: '[party isolation] the member\'s value half is not attributed', fn: AI,
+    find: "      v_cur := jsonb_build_object('user', v_m->'user', 'slot', v_m->'slot', 'session', v_m->'session');\n      v_h := public.hr_hunt_apply_member(",
+    replace: "      v_cur := null;\n      v_h := public.hr_hunt_apply_member(" },
+  { arm: 'PARTY-GRIEF', name: '[party isolation] a seat\'s sixth refusal ends every seat', fn: SR,
+    find: "      v_forfeit := public.hr_hunt_forfeit_seat(p_instance, v_seat.id, v_ans->>'error', v_ans->'detail', v_n);",
+    replace: "      v_forfeit := public.hr_hunt_forfeit(p_instance, v_ans->>'error', v_ans->'detail');" },
   { arm: 'FORFEIT', name: 'a forfeited hunt reads forfeit from the pruned ledger again', fn: 'public.hr_hunt_view(uuid)',
     find: "'forfeit', s.forfeit,", replace: "'forfeit', exists (select 1 from public.player_ledger l where l.session_id = s.id and l.intent = 'window_forfeit')," },
-  { arm: 'FORFEIT', name: 'a forfeit ends the hunt now instead of at the last accepted boundary', fn: 'public.hr_hunt_forfeit(uuid,text,jsonb)',
-    find: "    perform public.hr_hunt_close(v_s.id, v_end, v_i.settled_to, true);", replace: "    perform public.hr_hunt_close(v_s.id, v_end, now(), true);" },
+  /* (re-anchored on 2027-01-22-party-settle-isolation.sql: every seat ends through hr_hunt_forfeit_seat) */
+  { arm: 'FORFEIT', name: 'a forfeit ends the hunt now instead of at the last accepted boundary', fn: 'public.hr_hunt_forfeit_seat(uuid,uuid,text,jsonb,integer)',
+    find: "  perform public.hr_hunt_close(v_s.id, v_end, v_i.settled_to, true);", replace: "  perform public.hr_hunt_close(v_s.id, v_end, now(), true);" },
   { arm: 'DEPLOY', name: '[deploy v0.2.32] a world of the shape the catalogue just replaced counts toward the forfeit again', fn: AI,
     find: "        return public.hr_hunt_settle_held(p_instance, p_world_from, v_first, jsonb_build_object('ok', false, 'error', 'world_shape_moved',",
     replace: "        return public.hr_hunt_settle_refused(p_instance, p_world_from, v_first, jsonb_build_object('ok', false, 'error', 'world_shape_moved'," },
@@ -3040,8 +3263,21 @@ const DB_MUTANTS = [
     find: "'hp_max', case when", replace: "'max_hp', case when" },
   { arm: 'PARTY-VIEW', name: 'the party section does not name the world unit', fn: 'public.hr_hunt_party_view(uuid,integer)',
     find: "'unit', v_r.unit_id,", replace: "'unit_id', v_r.unit_id," },
+  /* (re-anchored on 2027-01-25-town-defaults.sql: a hunting member's mana falls back to its max mana) */
   { arm: 'PARTY-VIEW', name: 'the vitals are not read off the pose', fn: 'public.hr_hunt_party_view(uuid,integer)',
-    find: "'mana', v_v->'mana',", replace: "'mana', null::jsonb," },
+    find: "        'mana', case when v_r.sid is not null then coalesce(v_v->'mana', v_mx->'max_mana') end,", replace: "        'mana', null::jsonb," },
+  /* TOWN DEFAULTS (2027-01-25-town-defaults.sql): each leg goes red on its own defect. */
+  { arm: 'TOWN-DEFAULTS', name: '[town defaults] an unset option reads null again (no role default)', fn: 'public.hr_hunt_settings_view(uuid,integer)',
+    find: "    v_val := coalesce(nullif(v_opt->v_o.opt, 'null'::jsonb), v_unit->v_o.opt, v_o.dflt, v_rdef->v_o.opt);",
+    replace: "    v_val := coalesce(nullif(v_opt->v_o.opt, 'null'::jsonb), v_unit->v_o.opt, v_o.dflt);" },
+  { arm: 'TOWN-DEFAULTS', name: '[town defaults] the party is ignored (every hero reads its alone pick)', fn: 'public.hr_hunt_role_default(text,text[])',
+    find: "  select d.j->p_role->(case when cardinality(p.roles) <= 1 then 'solo'", replace: "  select d.j->p_role->(case when true then 'solo'" },
+  { arm: 'FIRST-MANA', name: '[town defaults] the hero\'s mana has no fallback before the world', fn: 'public.hr_hunt_section_view(uuid,integer)',
+    find: "      'mana', coalesce(v_me->((v_uf->>'mana')::int), case when s.ended_at is null then to_jsonb(v_mpmax) end), 'mana_max', to_jsonb(v_mpmax),",
+    replace: "      'mana', v_me->((v_uf->>'mana')::int), 'mana_max', to_jsonb(v_mpmax)," },
+  { arm: 'FIRST-MANA', name: '[town defaults] a member\'s mana has no fallback before the world', fn: 'public.hr_hunt_party_view(uuid,integer)',
+    find: "        'mana', case when v_r.sid is not null then coalesce(v_v->'mana', v_mx->'max_mana') end,\n        'mana_max', case when v_r.sid is not null then coalesce(v_v->'mana_max', v_mx->'max_mana') end,",
+    replace: "        'mana', v_v->'mana',\n        'mana_max', v_v->'mana_max'," },
   { arm: 'REPLAY', name: 'the instance CAS is gone', fn: AI,
     find: '  if v_i.world_swing <> p_world_from then', replace: '  if false then' },
   { arm: 'TICK-1', name: '[C2 instance unmoved] the instance swing counter is not written', fn: AI,

@@ -43,19 +43,19 @@
 // only things it sends of its own are the allowlisted residue and intents.
 // ════════════════════════════════════════════════════════════════════════
 
-import { applyEnvelope, frameEnvelope, withResidue } from './envelope.js?v=0.2.46';
-import { createTimeline } from '../hunt-view/timeline.js?v=0.2.46';
-import { LiveLink } from './live-link.js?v=0.2.46';
-import { RESIDUE_FIELDS, sanitizeResidueField, unconfirmedResidue } from './residue.js?v=0.2.46';
-import { SESSION_CONFIG } from './config.js?v=0.2.46';
-import { edgeBody } from './edge-intents.js?v=0.2.46';
-import { leaveAskOf, pendingLeaveAt, leaveCountdown, closeInMs } from './hunt-leave.js?v=0.2.46';
-import { HuntPoll, pollDelayMs } from './hunt-poll.js?v=0.2.46';
-import { AskPacer } from './ask-pacer.js?v=0.2.46';
-import { createIntentLedger } from './intent-ledger.js?v=0.2.46';
-import { frameTopic, reconnectDelay } from './frame-channel.js?v=0.2.46';
-import { refusalOf, settleRefusalOf } from './refusal.js?v=0.2.46';
-import { SERVER_ONLY_EVENTS } from '../core/hunt/events.js?v=0.2.46';
+import { applyEnvelope, frameEnvelope, withResidue } from './envelope.js?v=0.2.47';
+import { createTimeline } from '../hunt-view/timeline.js?v=0.2.47';
+import { LiveLink } from './live-link.js?v=0.2.47';
+import { RESIDUE_FIELDS, sanitizeResidueField, unconfirmedResidue } from './residue.js?v=0.2.47';
+import { SESSION_CONFIG } from './config.js?v=0.2.47';
+import { edgeBody, edgeRead } from './edge-intents.js?v=0.2.47';
+import { leaveAskOf, pendingLeaveAt, leaveCountdown, closeInMs } from './hunt-leave.js?v=0.2.47';
+import { HuntPoll, pollDelayMs } from './hunt-poll.js?v=0.2.47';
+import { AskPacer } from './ask-pacer.js?v=0.2.47';
+import { createIntentLedger } from './intent-ledger.js?v=0.2.47';
+import { frameTopic, reconnectDelay } from './frame-channel.js?v=0.2.47';
+import { refusalOf, settleRefusalOf } from './refusal.js?v=0.2.47';
+import { SERVER_ONLY_EVENTS } from '../core/hunt/events.js?v=0.2.47';
 
 export const FRAME_EVENT = 'frame';
 
@@ -325,14 +325,14 @@ export class CharacterSession {
       p_hours: Number.isInteger(a.hours) ? a.hours : null, p_idem: newIdem() }));
   }
 
-  /** An item intent through the engine. The body carries names and counts only (EDGE_INTENTS); the price, the stock
-      and the result are the server's, and the screen changes only from the server's envelope: the engine's answer
-      IS one (hr_state_of after its commit), applied as it stands, ONE round trip (r16). */
-  async edgeIntent(verb, fields) {
+  /** An item intent through the engine (EDGE_INTENTS fields only); the screen changes only from the server's envelope, the
+      engine's answer applied as it stands, ONE round trip (r16). `read`: a market read (no envelope, nothing applied:
+      edgeRead hands back the server's answer). The price, the stock and the result are the server's. */
+  async edgeIntent(verb, fields, read) {
     if (this._closed) return { ok: false, error: 'closed' };
     const body = edgeBody(this.slot, verb, fields, newIdem());
     if (!body) return { ok: false, error: 'bad_intent' };
-    return this._ask(verb, () => this._server.accrue(body), true);
+    return read === true ? edgeRead(await this._server.accrue(body)) : this._ask(verb, () => this._server.accrue(body), true);
   }
 
   /** Lock (or unlock) an item so no bulk sale can take it; the server keeps the lock. */

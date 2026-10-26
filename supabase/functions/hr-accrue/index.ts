@@ -91,6 +91,9 @@ import { runTrophyClaim } from './trophy-claim.js';
 import { runSheet } from './character-sheet.js';
 import { runEquip } from './equip.js';
 import { runEat } from './eat.js';
+import {
+  runMarketList, runMarketCancel, runMarketBuy, runMarketBrowse, runMarketItem, runMarketMine,
+} from './market.js';
 import { withCors } from './cors.js';
 /* THE WORLD TICK'S OWN ENTRY (WORLD_TICK_DESIGN.md §15c, milestone 1b). It is
    the ONE request path that reaches the engine with no player behind it, so it
@@ -557,6 +560,36 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
         slot,
         bucket: rateBucketFor(intent.verb),
       });
+      return await reply(out.body, out.status);
+    }
+
+    /* ── THE WEIGHHOUSE (market lane 2; ./market.js) ────────────────────────
+       Each verb is handed the `market` object request.js built field by field
+       and nothing else: no spread of `intent`. Every rule, cap, price and the
+       switch are the engine-only RPC's (2027-01-12-market-account.sql); the
+       module only shapes, gates, settles a bag verb and forwards. */
+    if (intent.verb === 'market_list') {
+      const out = await runMarketList({ exec, user, slot, intentId: intent.intentId, market: intent.market });
+      return await reply(out.body, out.status);
+    }
+    if (intent.verb === 'market_cancel') {
+      const out = await runMarketCancel({ exec, user, slot, intentId: intent.intentId, market: intent.market });
+      return await reply(out.body, out.status);
+    }
+    if (intent.verb === 'market_buy') {
+      const out = await runMarketBuy({ exec, user, slot, intentId: intent.intentId, market: intent.market });
+      return await reply(out.body, out.status);
+    }
+    if (intent.verb === 'market_browse') {
+      const out = await runMarketBrowse({ exec, user, slot, market: intent.market });
+      return await reply(out.body, out.status);
+    }
+    if (intent.verb === 'market_item') {
+      const out = await runMarketItem({ exec, user, slot, market: intent.market });
+      return await reply(out.body, out.status);
+    }
+    if (intent.verb === 'market_mine') {
+      const out = await runMarketMine({ exec, user, slot });
       return await reply(out.body, out.status);
     }
 

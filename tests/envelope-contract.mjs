@@ -154,6 +154,9 @@ function contract(R, cs, body, tl) {
   need('state', R.IS.bagCapOf(cs) !== null, 'bagCapOf reads no state.bank_cap');
   need('buffs', Array.isArray(body.buffs) && Array.isArray(R.IS.buffsOf(cs)), 'buffsOf reads ' + JSON.stringify(body.buffs).slice(0, 160));
   need('bank', body.bank === null || Array.isArray(R.IS.bankOf(cs)), 'bankOf reads ' + JSON.stringify(body.bank).slice(0, 160));
+  // where a town skill's inputs come from (2027-01-24-skills-from-storage.sql): the bag, then the account's Storage
+  need('skill_inputs', R.IS.drawsOnStorage(cs) === true && typeof R.IS.heldOf(cs) === 'object',
+    'drawsOnStorage reads ' + JSON.stringify(body.skill_inputs) + ' (want {from: ["bag", "storage"]})');
   // the ACCOUNT storage's space (2026-11-28-storage-chests.sql): used / cap and the next chest, the Storage window's line
   const dp = R.IS.depotOf(cs);
   need('depot', !!dp && dp.cap >= 1 && dp.used >= 0 && (dp.next === null || (dp.next.stacks >= 1 && dp.next.name.length > 0)),
@@ -242,7 +245,8 @@ function sheetContract(R, cs, body) {
 export const CONTRACT_KEYS = Object.freeze(['hunt', 'hunt_track', 'hunt_events', 'hunt_server_now_ms', 'hunt_settings', 'hunt_analyzer',
   'party', 'party_people', 'stamina', 'premium', 'account', 'inventory', 'equipment', 'skills', 'state', 'bank', 'buffs', 'hero_slots',
   'name', 'bag_rules', 'shop', 'hunt_presets', 'role', 'party_invites', 'stamina_refill', 'blessings',
-  'character_sheet', 'outfit', 'death_log', 'vitals', 'hunt_bests', 'hunt_density', 'depot', 'home', 'now', 'farm_land', 'bench_run', 'rename', 'tally']);
+  'character_sheet', 'outfit', 'death_log', 'vitals', 'hunt_bests', 'hunt_density', 'depot', 'home', 'now', 'farm_land', 'bench_run', 'rename', 'tally',
+  'skill_inputs']);
 
 /* What lane S2's sections are seeded with before the settle (each verb through the real RPC). */
 const SEED = Object.freeze({ name: 'Contract Hero', inviter: 'Contract Inviter', lock: 'cooked_shrimp', loot: 'normal_log',
@@ -408,6 +412,7 @@ const DB_MUTANTS = [
   ['rename', 'public.hr_hero_rename_quote(uuid,integer)', "'price', r.base + r.per_level * v_lv,", "'cost', r.base + r.per_level * v_lv,"],
   ['tally', 'public.hr_tally_section(uuid,integer)', "'per_day', cfg.paid_per_day,", "'perday', cfg.paid_per_day,"],
   ['tally', 'public.hr_tally_count(uuid,integer,uuid,jsonb)', "coalesce((p_meta->'km'->>v_r.monster_id)::bigint, 0)", '0::bigint'],
+  ['skill_inputs', 'public.hr_skill_inputs_view(uuid,integer)', "jsonb_build_object('from', jsonb_build_array('bag', 'storage'))", "jsonb_build_object('sources', jsonb_build_array('bag', 'storage'))"],
 ];
 const EDGE_MUTANTS = [
   ['hunt_track', 'src/core/hunt-track.js', '    hunt_track: pb.steps.map(', '    track: pb.steps.map('],

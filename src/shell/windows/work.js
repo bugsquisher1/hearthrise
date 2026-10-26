@@ -13,7 +13,8 @@
 //   gathering   what it yields, the seconds per action for the tool the hero
 //               holds, the XP each, and how many the bag holds now
 //   a bench     what goes in and what comes out, the seconds and XP each, and
-//               how many the bag covers ("Makes up to 62") or what is missing
+//               how many the bag and the account's Storage cover ("Makes up to
+//               62"; the server spends the bag first, Tyler 2026-10-25) or what is missing
 //   locked      the next two rows above the level, "Needs Smithing 15"
 // Buttons are off while a press is in flight and when the server's numbers say
 // no (a hunt running, the level, the materials); the server re-checks all of it.
@@ -22,19 +23,19 @@
 // (src/shell/town-ticker.js), as pending; the rows' numbers stay the server's.
 // Farming has no door here: it is grown in plots, which this window does not run.
 // ════════════════════════════════════════════════════════════════════════
-import { SKILLS_DEF } from '../../data/skills.js?v=0.2.46';
-import { SKILL_GUIDE } from '../../data/skill-guide.js?v=0.2.46';
-import { recipeInputs, burnPct } from '../../core/artisan.js?v=0.2.46';
-import { skillsOf } from '../../session/item-sections.js?v=0.2.46';
-import { huntOf } from '../../session/hunt-sections.js?v=0.2.46';
-import { text, cls, prop, attr, rows, element } from '../../render/paint.js?v=0.2.46';
-import { whole } from '../../render/format.js?v=0.2.46';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.46';
-import { itemName, itemIconHtml } from '../widgets/bits.js?v=0.2.46';
-import { runIntent } from '../intent-words.js?v=0.2.46';
-import { renderTradeSkills, skillBarHtml, patchSkillProgress } from './skills.js?v=0.2.46';
-import { GATHER_INDEX, BENCH_INDEX, workRow, workOf, productOf, yieldOf, runsOf, actionMs, xpEach, workBlock, startWork, stopWork, nowParts, tickOf, BENCH_COUNTS, defaultCount, leftOf } from '../town-work.js?v=0.2.46';
-import { aheadXp, paintLine } from '../town-ticker.js?v=0.2.46';
+import { SKILLS_DEF } from '../../data/skills.js?v=0.2.47';
+import { SKILL_GUIDE } from '../../data/skill-guide.js?v=0.2.47';
+import { recipeInputs, burnPct } from '../../core/artisan.js?v=0.2.47';
+import { skillsOf, heldOf, drawsOnStorage } from '../../session/item-sections.js?v=0.2.47';
+import { huntOf } from '../../session/hunt-sections.js?v=0.2.47';
+import { text, cls, prop, attr, rows, element } from '../../render/paint.js?v=0.2.47';
+import { whole } from '../../render/format.js?v=0.2.47';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.47';
+import { itemName, itemIconHtml } from '../widgets/bits.js?v=0.2.47';
+import { runIntent } from '../intent-words.js?v=0.2.47';
+import { renderTradeSkills, skillBarHtml, patchSkillProgress } from './skills.js?v=0.2.47';
+import { GATHER_INDEX, BENCH_INDEX, workRow, workOf, productOf, yieldOf, runsOf, actionMs, xpEach, workBlock, startWork, stopWork, nowParts, tickOf, BENCH_COUNTS, defaultCount, leftOf } from '../town-work.js?v=0.2.47';
+import { aheadXp, paintLine } from '../town-ticker.js?v=0.2.47';
 
 /* How many rows above the level a skill shows: the next things to aim at. */
 const AHEAD = 2;
@@ -102,7 +103,8 @@ function patchRow(li, w, cs, sc, on, hunting, lv) {
      server's Cooking level ("up to": a Kitchen rung the server holds burns less). */
   const burn = w.skill === 'cooking' && out ? burnPct(w.row, lv, 0) : 0;
   const pick = gather ? 'all' : countOf(sc, w);
-  const runs = runsOf(w.row, inv);
+  /* The bench's count reads what it draws on: the server's bag + Storage (heldOf), the server's own order. */
+  const runs = runsOf(w.row, heldOf(cs));
   const makes = (pick === 'all' ? 'Makes up to ' + whole(runs * yieldOf(w))
     : 'Makes ' + whole(Math.min(pick, runs) * yieldOf(w)) + ' of up to ' + whole(runs * yieldOf(w)));
   const have = gather ? whole(inv[out] || 0) + ' in your bag'
@@ -177,10 +179,9 @@ renderWork.patch = function patchWork(body, ctx) {
     const guide = SKILL_GUIDE[skill];
     const how = SKILLS_DEF[skill].cat === 'gather'
       ? 'Pick what to gather. Your hero keeps at it while you are away, until you stop it or start a hunt.'
-      : 'Pick what to make. It uses the materials in your bag and stops when they run out.';
+      : 'Pick what to make. It uses the materials in your bag' + (drawsOnStorage(cs) ? ', then your Storage,' : '') + ' and stops when they run out.';
     text(view.querySelector('.hw-work-use'), (guide ? guide.use + ' ' : '') + how);
-    const inv = (cs.read('inventory')) || {};
-    rows(view.querySelector('.hw-work-rows'), lv === null ? [] : rowsFor(skill, lv, inv), {
+    rows(view.querySelector('.hw-work-rows'), lv === null ? [] : rowsFor(skill, lv, heldOf(cs)), {
       key: (w) => w.id,
       build: (w) => element(ctx.doc, rowHtml(ctx.glyphs, w)),
       patch: (li, w) => patchRow(li, w, cs, sc, on, hunting, lv),

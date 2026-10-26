@@ -47,9 +47,17 @@ export const WIDE_CSS = 2400;
 /**
  * Device pixels per art pixel for a window `innerWidth` CSS px wide at `dpr`, on art grid `grid`
  * (a GRIDS row; the base grid when absent). Never fitted to a scene or a room.
+ * `pick`: THE VIEWER'S TOWN ZOOM (Tyler 2026-10-26, "a bit too zoomed in"; src/data/world/view-zoom.js),
+ * CSS px per base art px, chosen by the player, never by the map. A whole pick is rounded to whole device px
+ * like the screen class's (x1 at DPR 1.25 stays crisp at 1); a fractional one is kept as chosen: x1.5 at DPR 1
+ * is 1.5 device px per art px, drawn nearest-neighbour (blitPlan keeps its uneven columns fixed to the world).
  */
-export function zoomFor(innerWidth, dpr, grid) {
+export function zoomFor(innerWidth, dpr, grid, pick) {
   const g = grid || GRIDS.base;
+  if (Number.isFinite(pick) && pick > 0) {
+    const z = (pick * (dpr || 1)) / (g.scale || 1);
+    return Number.isInteger(pick) ? Math.max(1, Math.round(z)) : z;
+  }
   const css = (innerWidth || 0) > WIDE_CSS ? g.wideDensity : g.density;
   return Math.max(1, Math.round(css * (dpr || 1)));
 }
@@ -131,9 +139,20 @@ export function follow(target, view, world, inset, keep, margin, o = {}) {
  * A world art pixel at X lands on screen at (X - ox) * z + dx = X * z - round(cam.x * z).
  */
 export function blitPlan(cam, z, T) {
+  const q = alignOf(z);
   const cx = Math.round(cam.x * z), cy = Math.round(cam.y * z);
-  const ox = Math.floor(cx / z) - T, oy = Math.floor(cy / z) - T;
-  return { ox, oy, dx: ox * z - cx, dy: oy * z - cy };
+  const ox = Math.floor((Math.floor(cx / z) - T) / q) * q, oy = Math.floor((Math.floor(cy / z) - T) / q) * q;
+  return { ox, oy, dx: Math.round(ox * z - cx), dy: Math.round(oy * z - cy) };
+}
+
+/**
+ * The art-px step the compose origin moves in at zoom z: the least q (1..8) with q x z whole. At a whole z
+ * it is 1 (every pixel); at x1.5 it is 2, so the origin lands on a whole device pixel and an art pixel's
+ * screen width (1 or 2 device px) is fixed to the WORLD: a pan slides the pattern, it never shimmers.
+ */
+export function alignOf(z) {
+  for (let q = 1; q <= 8; q++) if (Math.abs(q * z - Math.round(q * z)) < 1e-9) return q;
+  return 1;
 }
 
 /**
@@ -160,7 +179,7 @@ export function frameView(look, vw, vh, map, z, T, o = {}) {
   const rule = { wholeView: map.kind !== 'hunt' };
   /* o.from / o.sinceMs: where the camera stood when the inset last changed, and how long ago (easedCam). */
   const cam = easedCam(o.from, follow(target, { w: vw, h: vh }, bounds, inset, mid(o.keep), T, rule), o.sinceMs);
-  const plan = blitPlan(cam, z, T);
+  const plan = blitPlan(cam, z, T), q = alignOf(z);
   const open = { x: cam.x + inset.left, y: cam.y + inset.top, w: Math.max(1, vw - inset.left - inset.right), h: Math.max(1, vh - inset.top - inset.bottom) };
-  return { cam, plan, open, view: { ox: plan.ox, oy: plan.oy, w: Math.ceil(vw) + 2 * T + 1, h: Math.ceil(vh) + 2 * T + 1 } };
+  return { cam, plan, open, view: { ox: plan.ox, oy: plan.oy, w: Math.ceil((Math.ceil(vw) + 2 * T + q) / q) * q, h: Math.ceil((Math.ceil(vh) + 2 * T + q) / q) * q } };
 }

@@ -69,29 +69,45 @@ export function blendTiles(map, book, T, inPatch, out) {
   const { pairs, alias } = map.blend;
   const terr = pairs.map((id) => ({ id, t: book.terrains[id] })).filter((p) => p.t && p.t.kind === 'wang16');
   const known = new Set(terr.flatMap((p) => [p.t.lower, p.t.upper]));
-  const paired = (a, b) => terr.some((p) => (p.t.lower === a && p.t.upper === b) || (p.t.lower === b && p.t.upper === a));
-  const matOf = (x, y) => {
-    const cx = Math.min(map.w - 1, Math.max(0, x)), cy = Math.min(map.h - 1, Math.max(0, y));
-    if (inPatch(cx, cy)) return null;
-    const m = map.ground[cy * map.w + cx], a = alias[m] || m;
-    return known.has(a) ? a : null;
-  };
+  const pairs2 = new Set(terr.flatMap((p) => [p.t.lower + '\n' + p.t.upper, p.t.upper + '\n' + p.t.lower]));
+  const paired = (a, b) => pairs2.has(a + '\n' + b);
+  /* each cell's material once (alias applied, null under a patch or with no pair), then four reads per dual
+     tile: a 192x116 town is 22k dual tiles, so nothing here allocates per tile */
+  const W = map.w, Hm = map.h, mat = new Array(W * Hm);
+  for (let cy = 0; cy < Hm; cy++) {
+    for (let cx = 0; cx < W; cx++) {
+      if (inPatch(cx, cy)) { mat[cy * W + cx] = null; continue; }
+      const m = map.ground[cy * W + cx], a = alias[m] || m;
+      mat[cy * W + cx] = known.has(a) ? a : null;
+    }
+  }
+  const matOf = (x, y) => mat[Math.min(Hm - 1, Math.max(0, y)) * W + Math.min(W - 1, Math.max(0, x))];
   const H = T >> 1;
-  for (let y = -1; y < map.h; y++) {
-    for (let x = -1; x < map.w; x++) {
-      const c = [matOf(x, y), matOf(x + 1, y), matOf(x, y + 1), matOf(x + 1, y + 1)];
-      const real = c.filter(Boolean);
-      if (!real.length) continue;
+  const c = [null, null, null, null];
+  const count = (m) => (c[0] === m) + (c[1] === m) + (c[2] === m) + (c[3] === m);
+  for (let y = -1; y < Hm; y++) {
+    for (let x = -1; x < W; x++) {
+      c[0] = matOf(x, y); c[1] = matOf(x + 1, y); c[2] = matOf(x, y + 1); c[3] = matOf(x + 1, y + 1);
       /* a hole corner takes the commonest real corner (the first on a tie) */
-      const most = real.reduce((b, m) => (real.filter((v) => v === m).length > real.filter((v) => v === b).length ? m : b), real[0]);
+      let most = null, mostN = 0;
+      for (let i = 0; i < 4; i++) {
+        const m = c[i];
+        if (!m) continue;
+        const n = count(m);
+        if (n > mostN) { most = m; mostN = n; }
+      }
+      if (most === null) continue;
       for (let i = 0; i < 4; i++) if (!c[i]) c[i] = most;
       let pick = null, best = -1;
       for (const p of terr) {
-        const n = c.filter((m) => m === p.t.lower || m === p.t.upper).length;
+        const lo = p.t.lower, up = p.t.upper;
+        const n = (c[0] === lo || c[0] === up) + (c[1] === lo || c[1] === up) + (c[2] === lo || c[2] === up) + (c[3] === lo || c[3] === up);
         if (n > best) { best = n; pick = p; }
       }
       if (!pick) continue;
-      const key = c.map((m) => (m === pick.t.upper || (m !== pick.t.lower && !paired(m, pick.t.lower) && paired(m, pick.t.upper)) ? '1' : '0')).join('');
+      const lo = pick.t.lower, up = pick.t.upper;
+      let key = '';
+      for (let i = 0; i < 4; i++) { const m = c[i]; key += m === up || (m !== lo && !paired(m, lo) && paired(m, up)) ? '1' : '0'; }
       const t = book.tile(pick.id, key, cellHash(x, y));
       if (t) out.push({ set: t.set, sx: t.sx, sy: t.sy, x: x * T + H, y: y * T + H });
     }
@@ -112,7 +128,14 @@ export function groundTiles(map, book, tables, T) {
   if (map.groundTerrain === null) {
     /* ...except its PATCHES: a district whose painted ground has landed (Hearth Square's paving), a fill laid
        in its cycle order from the patch's own corner. The art grows district by district; the tones shrink. */
-    const patchAt = (x, y) => (map.patches || []).find((p) => x >= p.rect.x && y >= p.rect.y && x < p.rect.x + p.rect.w && y < p.rect.y + p.rect.h);
+    /* each cell's patch (the first listed covering it), stamped once rather than searched per cell */
+    const patchGrid = new Array(map.w * map.h).fill(undefined);
+    for (const p of [...(map.patches || [])].reverse()) {
+      for (let y = Math.max(0, p.rect.y); y < Math.min(map.h, p.rect.y + p.rect.h); y++) {
+        for (let x = Math.max(0, p.rect.x); x < Math.min(map.w, p.rect.x + p.rect.w); x++) patchGrid[y * map.w + x] = p;
+      }
+    }
+    const patchAt = (x, y) => patchGrid[y * map.w + x];
     const laid = [];
     for (let y = 0; y < map.h; y++) {
       for (let x = 0; x < map.w; x++) {

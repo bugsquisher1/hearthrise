@@ -5,7 +5,7 @@
 //   node tests/window-camera.mjs           the rules, in a real Chromium
 //   node tests/window-camera.mjs --mutate  every planted defect must turn a rule RED
 //
-// mutant-anchors: src/shell/window-manager.js src/shell/shell.js src/world/core/camera.js src/world/render/canvas-backend.js src/styles/world.css src/hunt-view/scene.js
+// mutant-anchors: src/shell/window-manager.js src/shell/shell.js src/world/core/camera.js src/world/render/canvas-backend.js src/styles/world.css src/hunt-view/scene.js src/world/world-boot.js src/world/town-zoom.js
 // mutant-writes-tree: no — mutants are served overrides
 //
 // Tyler's playtest, 2026-10-18 (v0.2.1), on play.html with supabase-js and the
@@ -74,7 +74,7 @@ function townEnv() {
   return e;
 }
 
-async function stub(page) {
+async function stub(page, residue) {
   let version = 1;
   await page.route('**/src/vendor/supabase-js-*.js*', (r) => r.fulfill({ contentType: 'text/javascript', body: SDK_STUB }));
   await page.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ contentType: 'text/css', body: '' }));
@@ -82,7 +82,7 @@ async function stub(page) {
     const name = r.request().url().split('?')[0].split('/').pop();
     const body = JSON.parse(r.request().postData() || '{}');
     const json = (b) => r.fulfill({ contentType: 'application/json', body: JSON.stringify(b) });
-    if (name === 'hr_load') return json(Object.assign(townEnv(), { version: ++version }));
+    if (name === 'hr_load') return json(Object.assign(townEnv(), { version: ++version }, residue ? { client_state: residue } : {}));
     if (name === 'hr-accrue') return json({ accrued: false });
     /* the town (2027-01-28-town-stands.sql): the server stands the hero on its stand (the arrival's first, the Common's start tile) */
     if (name === 'hr_town_here') return json({ ok: true, me: STAND });
@@ -97,14 +97,14 @@ async function stub(page) {
 
 const wait = (page, fn, arg, ms = 8000) => page.waitForFunction(fn, arg, { timeout: ms }).then(() => true, () => false);
 
-async function enter(browser, base, viewport) {
+async function enter(browser, base, viewport, residue) {
   const ctx = await browser.newContext({ viewport });
   const page = await ctx.newPage();
   page.setDefaultTimeout(6000);
   const errors = [];
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
   page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
-  await stub(page);
+  await stub(page, residue);
   /* the page load is the machine's, not a rule: a cold module graph on a slow disk took 12 s (2026-10-22) */
   await page.goto(base + '/play.html', { waitUntil: 'load', timeout: 30000 });
   await wait(page, () => document.querySelector('form[data-auth="sign-in"]'));
@@ -406,7 +406,11 @@ async function checks(overrides) {
         const vb = await page.evaluate(() => [innerWidth, innerHeight]);
         const [cl, , cw, , , , hx] = v0.split(',').map(Number);
         if (cw < vb[0] - 40) fails.push('WC-3 the World canvas does not span the screen: ' + v0 + ' in ' + vb);
-        if (Math.abs(hx - (cl + cw / 2)) > 48) fails.push('WC-3 the hero is not centred across the World: x ' + hx + ' in ' + v0);
+        /* centred, unless the map's west edge is on screen (NO VOID holds the camera on the map: at the town zoom's
+           x1 the World is 44 tiles wide and the hero stands 11 in) */
+        const [ox, tile] = await page.evaluate(() => { const s = window.__world.stats(); return [window.__world.screenOf(0, 0).x, 32 * s.z / s.dpr]; });
+        const westShown = Math.abs((ox - tile / 2) - cl) <= 1;
+        if (Math.abs(hx - (cl + cw / 2)) > 48 && !(westShown && hx < cl + cw / 2)) fails.push('WC-3 the hero is not centred across the World: x ' + hx + ' in ' + v0);
         const steps = [
           ['opening Gathering and crafting', async () => page.keyboard.press('g')],
           ['opening Hunt prep', async () => page.keyboard.press('p')],
@@ -459,12 +463,87 @@ async function checks(overrides) {
       await ctx.close();
     }
     fails.push(...(await huntCamera(browser, base)));   // WC-7
+    fails.push(...(await townZoom(browser, base)));     // WC-8
   } catch (e) {
     /* a step that threw is HARNESS, never a rule (2026-10-22, tests/_mutant-verdict.mjs) */
     fails.push(harnessFail('a page step', e));
   } finally {
     await browser.close();
     server.close();
+  }
+  return fails;
+}
+
+/* WC-8 THE TOWN ZOOM (Tyler 2026-10-26: "a bit too zoomed in", then "I think 2x is fine"; src/world/town-zoom.js,
+   src/data/world/view-zoom.js). At 1440x900 the town opens at x2 with its + / − on the stage (+ off at the end);
+   at every zoom a press on a ground tile walks to THAT tile and a right-click on the peer names the peer; − draws
+   x1 on the next frame with the hero on screen and puts `townZoom: 1` into the residue (one hr_put_client_state);
+   the wheel steps back to x2. Reloaded with that residue the town opens at x1. A 2560 px window draws the town at
+   x2 too (no longer the wide x3). On the phone (922x423) there is no control and the screen class's x2 stays. */
+const TAP_AT = { x2: [11, 12], x1: [13, 12] };   // the arrival yard, south of the stand (a new tile per zoom: the hero stands on the last)
+async function townZoom(browser, base) {
+  const fails = [];
+  const zoomNow = (page) => page.evaluate(() => window.__world.stats().z);
+  const shown = (page) => page.evaluate(() => { const b = document.querySelector('.world-zoom'); return !!b && !b.hidden && b.getBoundingClientRect().width > 0; });
+  async function hits(page, tag) {
+    const at = TAP_AT[tag];
+    const p = await page.evaluate(([x, y]) => window.__world.screenOf(x, y), at);
+    await page.mouse.click(p.x, p.y);
+    await page.waitForTimeout(150);
+    const mark = await page.evaluate(() => window.__world.stats().walk.mark);
+    if (!mark || mark.x !== at[0] || mark.y !== at[1]) fails.push('WC-8 [' + tag + '] a press on tile ' + at + ' walked to ' + JSON.stringify(mark));
+    const q = await page.evaluate(([x, y]) => window.__world.screenOf(x, y), PEER_AT);
+    await page.mouse.click(q.x, q.y, { button: 'right' });
+    await page.waitForTimeout(200);
+    const menu = await page.evaluate(() => { const m = document.querySelector('.hw-menu.is-on'); return m ? m.querySelector('.hw-menu-title').textContent : null; });
+    if (menu !== PEER) fails.push('WC-8 [' + tag + '] a right-click on the peer opened ' + JSON.stringify(menu));
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(150);
+  }
+  {
+    const { ctx, page, errors, up } = await enter(browser, base, { width: 1440, height: 900 });
+    const puts = [];
+    page.on('request', (r) => { if (r.url().includes('hr_put_client_state')) { try { puts.push(JSON.parse(r.postData() || '{}').p_patch); } catch (e) { puts.push(null); } } });
+    if (!up) fails.push('WC-8 the town did not mount');
+    else {
+      if ((await zoomNow(page)) !== 2) fails.push('WC-8 the desktop town opens at x' + (await zoomNow(page)) + ', want x2');
+      if (!(await shown(page))) fails.push('WC-8 no zoom control on the desktop town');
+      if (!(await page.evaluate(() => document.querySelector('.world-zoom [data-zoom="1"]').disabled))) fails.push('WC-8 + is on at the closest zoom');
+      await hits(page, 'x2');
+      await press(page, '.world-zoom [data-zoom="-1"]');
+      await settle(page);
+      if ((await zoomNow(page)) !== 1) fails.push('WC-8 − did not draw x1 (z ' + (await zoomNow(page)) + ')');
+      const onScreen = await page.evaluate(() => { const c = document.querySelector('#panel-world canvas').getBoundingClientRect(), h = window.__world.stats().walk.cell, p = window.__world.screenOf(h[0], h[1]);
+        return p.x > c.left && p.x < c.right && p.y > c.top && p.y < c.bottom; });
+      if (!onScreen) fails.push('WC-8 the hero left the screen at x1');
+      await hits(page, 'x1');
+      await page.waitForTimeout(1900);   // the residue debounce (SESSION_CONFIG.residueDebounceMs)
+      if (!puts.some((p) => p && p.townZoom === 1)) fails.push('WC-8 the pick was not put into the residue: ' + JSON.stringify(puts));
+      const c = await page.evaluate(() => { const r = document.querySelector('#panel-world canvas').getBoundingClientRect(); return [r.left + r.width / 3, r.top + r.height / 3]; });
+      await page.mouse.move(c[0], c[1]);
+      await page.mouse.wheel(0, -120);
+      await settle(page);
+      if ((await zoomNow(page)) !== 2) fails.push('WC-8 the wheel did not step back to x2 (z ' + (await zoomNow(page)) + ')');
+    }
+    if (errors.length) fails.push('WC-8 console errors: ' + errors.slice(0, 3).join(' | '));
+    await ctx.close();
+  }
+  for (const [vp, residue, want, tag] of [[{ width: 1440, height: 900 }, { townZoom: 1 }, 1, 'reload'], [{ width: 2560, height: 1271 }, null, 2, '2560 wide']]) {
+    const { ctx, page, errors, up } = await enter(browser, base, vp, residue || undefined);
+    if (!up) fails.push('WC-8 the town did not mount (' + tag + ')');
+    else if ((await zoomNow(page)) !== want) fails.push('WC-8 [' + tag + '] the town opens at x' + (await zoomNow(page)) + ', want x' + want);
+    if (errors.length) fails.push('WC-8 console errors (' + tag + '): ' + errors.slice(0, 3).join(' | '));
+    await ctx.close();
+  }
+  {
+    const { ctx, page, errors, up } = await enter(browser, base, { width: 922, height: 423 }, { townZoom: 1 });
+    if (!up) fails.push('WC-8 the town did not mount (phone)');
+    else {
+      if ((await zoomNow(page)) !== 2) fails.push('WC-8 the phone town draws x' + (await zoomNow(page)) + ', want the screen class\'s x2');
+      if (await shown(page)) fails.push('WC-8 the phone shows a zoom control');
+    }
+    if (errors.length) fails.push('WC-8 console errors (phone): ' + errors.slice(0, 3).join(' | '));
+    await ctx.close();
   }
   return fails;
 }
@@ -482,7 +561,10 @@ const MUTANTS = [
   ['a name is not a target', 'src/world/render/canvas-backend.js', '      const hits = named.concat(', '      const hits = [].concat('],
   ['the hunt camera holds the whole view on the room again: the hero hugs the analyzer (WC-7)', 'src/world/core/camera.js', "const rule = { wholeView: map.kind !== 'hunt' };", 'const rule = { wholeView: true };'],
   ['a pane mounted mid-hunt never hears the HUD inset (WC-7)', 'src/shell/shell.js', 'insetListeners.add(fn); fn(insetNow());', 'insetListeners.add(fn);'],
-  ['the hunt camera follows the party leader, not the viewed hero (WC-7)', 'src/hunt-view/scene.js', 'viewed: h && h.hero.unit !== null ? h.hero.unit :', 'viewed: p && p.leader !== null ? p.leader :'],
+  ['the town never takes the viewer\'s zoom (WC-8)', 'src/world/world-boot.js', '    backend.setZoom(zoom.zoomOf(sc.kind));', '    backend.setZoom(null);'],
+  ['the town zoom is never put into the residue (WC-8)', 'src/world/town-zoom.js', "if (character && typeof character.setResidue === 'function') character.setResidue('townZoom', next);", ''],
+  ['the phone takes the desktop\'s pick (WC-8)', 'src/world/town-zoom.js', 'const current = () => (phone() ? null : picked() ?? TOWN_ZOOM.desktop);', 'const current = () => (picked() ?? TOWN_ZOOM.desktop);'],
+  ['the hunt camera follows the party leader, not the viewed hero (WC-7)','src/hunt-view/scene.js', 'viewed: h && h.hero.unit !== null ? h.hero.unit :', 'viewed: p && p.leader !== null ? p.leader :'],
 ];
 
 async function main() {
@@ -497,12 +579,14 @@ async function main() {
   console.log(clean.line);
   if (clean.code) process.exit(clean.code);
   const counts = { caught: 0, harness: 0, escaped: 0 };
-  for (const [name, file, from, to] of MUTANTS) {
+  /* --only TEXT: just the mutants whose name holds it (a lane re-proving its own) */
+  const only = process.argv.includes('--only') ? process.argv[process.argv.indexOf('--only') + 1] : null;
+  for (const [name, file, from, to] of MUTANTS.filter((m) => !only || m[0].includes(only))) {
     const text = await readFile(join(ROOT, file), 'utf8');
     if (!text.includes(from)) { console.log('  ✗ ' + name + ' — HARNESS: anchor not found in ' + file); counts.harness++; continue; }
     console.log(report(name, await judge(() => checks({ [file]: text.replace(from, to) })), counts));
   }
-  console.log(exitOf(counts) ? 'window-camera --mutate: ' + counts.escaped + ' escaped, ' + counts.harness + ' HARNESS (not catches)' : 'window-camera --mutate: ' + MUTANTS.length + '/' + MUTANTS.length + ' mutants caught, each by a named rule');
+  console.log(exitOf(counts) ? 'window-camera --mutate: ' + counts.escaped + ' escaped, ' + counts.harness + ' HARNESS (not catches)' : 'window-camera --mutate: ' + counts.caught + '/' + counts.caught + ' mutants caught, each by a named rule');
   process.exit(exitOf(counts));
 }
 

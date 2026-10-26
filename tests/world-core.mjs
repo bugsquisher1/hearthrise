@@ -200,10 +200,26 @@ function check(M) {
     for (const w of [922, 1440, 1920]) ok('C1', M.camera.zoomFor(w, 1, hd) * hd.T === M.camera.zoomFor(w, 1) * M.budget.GRIDS.base.T,
       'at ' + w + ' CSS px a sandbox tile must be the base tile on screen');
     ok('C1', M.camera.zoomFor(1440, 1, M.budget.GRIDS.base) === M.camera.zoomFor(1440, 1), 'the base grid, named or not, is the same zoom');
+    /* THE VIEWER'S TOWN ZOOM (Tyler 2026-10-26): a whole pick rounds to whole device px, a fractional one is kept */
+    const picks = [[2560, 1, 1, 1], [2560, 1, 2, 2], [1440, 1.25, 1, 1], [1440, 2, 1, 2], [2560, 1, 1.5, 1.5], [1280, 2, 1.5, 3], [922, 3, 2, 6]];
+    for (const [w, dd, p, z] of picks) ok('C1', M.camera.zoomFor(w, dd, undefined, p) === z, 'zoomFor(' + w + ', ' + dd + ', pick ' + p + ') is ' + M.camera.zoomFor(w, dd, undefined, p) + ', want ' + z);
+    ok('C1', M.camera.zoomFor(2560, 1, undefined, null) === 3 && M.camera.zoomFor(2560, 1, undefined, 0) === 3, 'no pick: the screen class\'s zoom');
+    /* x1.5: the compose origin on an even art px, so the blit offset is a whole device px and an art pixel's 1-or-2 px
+       width is the WORLD's (a 1-device-px camera step moves the world one device px; nothing re-cuts) */
+    {
+      let prev = null;
+      for (let k = 0; k <= 9; k++) {
+        const cam = { x: 100 + k / 1.5, y: 40 }, p = M.camera.blitPlan(cam, 1.5, T);
+        const sx = (334 - p.ox) * 1.5 + p.dx;
+        ok('C2', Number.isInteger(p.dx) && p.ox % 2 === 0 && sx === 334 * 1.5 - Math.round(cam.x * 1.5), 'the x1.5 blit does not keep the world\'s pixel grid (k ' + k + ': ox ' + p.ox + ' dx ' + p.dx + ')');
+        if (prev !== null) ok('C2', prev - sx === 1, 'a 1/z art-px camera move at x1.5 must move the world one device pixel');
+        prev = sx;
+      }
+    }
     /* ...and never per scene or room: the canvas sets z in measure() from the window and the map's ART GRID
        (nothing else of the map) and nowhere else, and no room frame reaches it */
     const draws = M.canvasSrc.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
-    ok('C6', (draws.match(/(?<!let )\bz = /g) || []).length === 1 && /z = zoomFor\(win\.innerWidth, dpr, map && map\.grid\);/.test(draws) && !/fitZoom|map\.frame/.test(draws),
+    ok('C6', (draws.match(/(?<!let )\bz = /g) || []).length === 1 && /z = zoomFor\(win\.innerWidth, dpr, map && map\.grid, zoomPick\);/.test(draws) && !/fitZoom|map\.frame/.test(draws),
       'the canvas must take ONE zoom from the window and the map\'s grid (measure) and never a per-room or fitted one');
     ok('C6', !('fitZoom' in M.camera) && !('frameCentre' in M.camera), 'the fitted zoom is gone (WORLD_SHELL §1: fitZoom is removed)');
     for (let z = 2; z <= 5; z++) {
@@ -540,7 +556,9 @@ const MUTANTS = [
   ['S4', 'hung art drawn on the floor', 'src/world/core/compose.js', [["const air = s.class === 'hanging' || s.class === 'flier' ? s.hover || 0 : 0;", 'const air = 0;']]],
   ['C1', 'the density read off device px (a DPR-3 phone drawn at x3)', 'src/world/core/camera.js', [['const css = (innerWidth || 0) > WIDE_CSS', 'const css = (innerWidth || 0) * (dpr || 1) > WIDE_CSS']]],
   ['C6', 'a per-room zoom comes back', 'src/world/render/canvas-backend.js', [['    const k = dpr / z;\n', '    z = map.frame ? z + 1 : z;\n    const k = dpr / z;\n']]],
-  ['C6', 'a zoom fitted to the map width, passed in as a grid', 'src/world/render/canvas-backend.js', [['z = zoomFor(win.innerWidth, dpr, map && map.grid);', 'z = zoomFor(win.innerWidth, dpr, map && { density: Math.max(1, Math.floor(W / (map.w * T))), wideDensity: 1 });']]],
+  ['C2', 'the x1.5 compose origin on any art px (its uneven columns re-cut as the camera moves)', 'src/world/core/camera.js', [['  const q = alignOf(z);\n  const cx', '  const q = 1;\n  const cx']]],
+  ['C1', 'a whole town-zoom pick kept fractional at DPR 1.25', 'src/world/core/camera.js', [['return Number.isInteger(pick) ? Math.max(1, Math.round(z)) : z;', 'return z;']]],
+  ['C6', 'a zoom fitted to the map width, passed in as a grid','src/world/render/canvas-backend.js', [['z = zoomFor(win.innerWidth, dpr, map && map.grid, zoomPick);', 'z = zoomFor(win.innerWidth, dpr, map && { density: Math.max(1, Math.floor(W / (map.w * T))), wideDensity: 1 }, zoomPick);']]],
   ['C1', 'the sandbox grid drawn at the base density (its tile twice the town\'s)', 'src/world/core/camera.js', [['  const g = grid || GRIDS.base;', '  const g = GRIDS.base;']]],
   ['C7', 'the camera ignores the docked window', 'src/world/core/camera.js', [['const inset = cleanInset(o.inset);', 'const inset = cleanInset(null);']]],
   ['C7', 'the leaning camera lets the hero walk under the window', 'src/world/core/camera.js', [['inset, mid(o.keep), T, rule), o.sinceMs);', 'inset, null, T, rule), o.sinceMs);']]],
@@ -558,7 +576,7 @@ const MUTANTS = [
   ['W2', 'the blend drawn on the cell grid, not the dual grid', 'src/world/core/compose.js', [['x: x * T + H, y: y * T + H', 'x: x * T, y: y * T']]],
   ['W2', 'the blend laid over the patches', 'src/world/core/compose.js', [['    if (map.blend) blendTiles(map, book, T, (x, y) => !!patchAt(x, y), tiles);\n    tiles.push(...laid);', '    tiles.push(...laid);\n    if (map.blend) blendTiles(map, book, T, (x, y) => !!patchAt(x, y), tiles);']]],
   ['W2', 'a hole corner (cliff) leaves its dual tile undrawn', 'src/world/core/compose.js', [['for (let i = 0; i < 4; i++) if (!c[i]) c[i] = most;', 'if (real.length < 4) continue;']]],
-  ['W2', 'a third material drawn as the upper of the pair', 'src/world/core/compose.js', [["(m !== pick.t.lower && !paired(m, pick.t.lower) && paired(m, pick.t.upper))", '(m !== pick.t.lower)']]],
+  ['W2', 'a third material drawn as the upper of the pair', 'src/world/core/compose.js', [['(m !== lo && !paired(m, lo) && paired(m, up))', '(m !== lo)']]],
   ['L1', 'every window of a map is let off the tree rule', 'src/world/core/map-compile.js', [['if (2 * greenIn(wx, wy) < ww * wh) continue;', 'continue;']]],
   ['W3', 'a fill floor hashed into seams', 'src/world/core/compose.js', [['const n = fill ? (y % fill[1]) * fill[0] + (x % fill[0]) : cellHash(x, y);', 'const n = cellHash(x, y);']]],
   ['G1', 'an unmapped monster falls into the cellar', 'src/world/core/scene-route.js', [['if (id && index[id]) return', "if (id) return { map: 'mill_cellar', kind: 'hunt' }; if (id && index[id]) return"]]],

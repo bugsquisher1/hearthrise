@@ -44,6 +44,7 @@ import { createHuntScene } from './hunt-scene.js?v=0.2.50';
 import { liveSceneOf, endLiveScene } from '../hunt-view/scene.js?v=0.2.50';
 import { huntOf } from '../session/hunt-sections.js?v=0.2.50';
 import { createWalkScene } from './walk-scene.js?v=0.2.50';
+import { createTownZoom } from './town-zoom.js?v=0.2.50';
 import { homeMapFor, homeEnv } from './home-scene.js?v=0.2.50';
 import { runAction } from './steer-local.js?v=0.2.50';
 import { heroSprite } from '../session/hero-look.js?v=0.2.50';
@@ -185,6 +186,8 @@ export async function bootWorld(panel, opts) {
   stage.appendChild(idle);
 
   const mq = typeof win.matchMedia === 'function' ? win.matchMedia(MOBILE_QUERY) : null;
+  /* THE TOWN ZOOM (town-zoom.js): the viewer's pick over the town, the screen class's anywhere else */
+  const zoom = createTownZoom({ win, doc, stage, character, mq, onChange: () => { if (!running) sync(); } });
   let running = false, raf = 0, last = 0, frames = 0, scene = null, roofAlpha = {}, gone = false;   // gone: destroyed
   let walk = null, lastWalk = null;
   let walkPlaced = true, walkStand = null;   // the town walk began on the server's place; the stand key (station:stand:since) it last walked to
@@ -301,7 +304,12 @@ export async function bootWorld(panel, opts) {
     if (!sheets.ready(need)) {
       /* ITS SHEETS ARE STILL LOADING (a ground entered, the town after a hunt): the frame showing stays until
          they arrive, then the scene switches whole: no stub boxes, and never one map's units on another */
-      if (!waiting.has(sc.map)) { waiting.add(sc.map); sheets.ensure(need).then(() => { waiting.delete(sc.map); if (!running) sync(); }); }
+      if (!waiting.has(sc.map)) {
+        waiting.add(sc.map);
+        const id = sc.map;
+        /* its ground is made here, in its own task, so the frame that shows it only bakes what it draws (perf-budget) */
+        sheets.ensure(need).then(() => { waiting.delete(id); if (!gone) backend.prepare(mapOf(id), artOf(id) || undefined); if (!running) sync(); });
+      }
       return null;
     }
     if (!scene || sc.map !== scene.map || sc.kind !== scene.kind) {
@@ -319,6 +327,8 @@ export async function bootWorld(panel, opts) {
     const G = view();
     const sc = route();
     if (!sc) return;   // the next scene's sheets are loading: the last frame stays on screen
+    backend.setZoom(zoom.zoomOf(sc.kind));
+    zoom.show(sc.kind);
     const map = mapOf(sc.map);
     const name = G.playerName || null;
     const now = Date.now();
@@ -492,6 +502,7 @@ export async function bootWorld(panel, opts) {
       doc.removeEventListener('focusin', onFocusIn);
       win.removeEventListener('blur', letGo);
       idle.remove();
+      zoom.destroy();
       backend.destroy();
     },
   };

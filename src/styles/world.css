@@ -89,6 +89,34 @@
 }
 
 #panel-world .world-stage.is-hot { cursor: pointer; }
+/* The town zoom (src/world/town-zoom.js): two small steel squares on the stage's right edge, the
+   scene picks' steel; never on the phone (the script hides it there). */
+#panel-world .world-zoom {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+#panel-world .world-zoom[hidden] { display: none; }
+#panel-world .world-zoom-btn {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 0;
+  border: 2px solid var(--steel-btn);
+  background: var(--bg-1);
+  color: var(--ink-2);
+  font-family: var(--f-ui);
+  font-weight: 700;
+  font-size: calc(18px * var(--ui-scale, 1));
+  line-height: 1;
+  cursor: pointer;
+}
+#panel-world .world-zoom-btn:hover:not(:disabled) { color: var(--gold-2); border-color: var(--gold); }
+#panel-world .world-zoom-btn:disabled { color: var(--ink-3); cursor: default; }
 /* A fight the World has no map for: one slim line along the foot of the town or
    home, clear of the plaza, the crier and the names along the top. */
 #panel-world .world-idle {

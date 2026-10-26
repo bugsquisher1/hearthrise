@@ -173,16 +173,21 @@ function bodyOverlap(w, h, objects, buildings, sprites, grid) {
     boxes.push({ x: x0 * T, y: y1 * T + T - 1 - wallUp, w: (x1 - x0 + 1) * T, h: wallUp + 1, row: y1, over: false, home: b.rect });
     boxes.push({ x: x0 * T, y: y0 * T - 16, w: (x1 - x0 + 1) * T, h: (y1 - y0 - 1) * T + roofH, row: Infinity, over: true, home: b.rect });
   }
-  for (let ty = 0; ty < h; ty++) {
-    for (let tx = 0; tx < w; tx++) {
-      const bx = tx * T + T / 2 - BODY.w / 2, foot = ty * T + T - 1, by = foot - BODY.h;
-      let bits = 0;
-      for (const q of boxes) {
+  /* Box by box over the tiles its pixels can reach (a tile's body spans a few tiles), the exact test kept:
+     the same bits as every tile against every box, in O(boxes x reach) (v0.2.50's 192x116 town took 30 ms
+     on the frame it was entered). */
+  for (const q of boxes) {
+    const tx0 = Math.max(0, Math.floor((q.x - T / 2 - BODY.w / 2) / T) - 1), tx1 = Math.min(w - 1, Math.ceil((q.x + q.w - T / 2 + BODY.w / 2) / T) + 1);
+    const ty0 = Math.max(0, Math.floor((q.y - T) / T) - 1), ty1 = Math.min(h - 1, Math.ceil((q.y + q.h + BODY.h) / T) + 1);
+    for (let ty = ty0; ty <= ty1; ty++) {
+      const foot = ty * T + T - 1, by = foot - BODY.h;
+      if (q.y >= foot || q.y + q.h <= by) continue;
+      for (let tx = tx0; tx <= tx1; tx++) {
+        const bx = tx * T + T / 2 - BODY.w / 2;
+        if (q.x >= bx + BODY.w || q.x + q.w <= bx) continue;
         if (q.home && inRect(q.home, tx, ty)) continue;
-        if (q.x >= bx + BODY.w || q.x + q.w <= bx || q.y >= foot || q.y + q.h <= by) continue;
-        bits |= q.over || q.row > ty ? OVER : UNDER;
+        out[ty * w + tx] |= q.over || q.row > ty ? OVER : UNDER;
       }
-      out[ty * w + tx] = bits;
     }
   }
   return out;

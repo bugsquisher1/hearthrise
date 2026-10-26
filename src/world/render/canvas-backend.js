@@ -1,7 +1,7 @@
 // ════════════════════════════════════════════════════════════════════════
 // src/world/render/canvas-backend.js — THE WORLD ON A 2D CANVAS.
 //
-// Interface { mount, setMap, setInset, sync, snapshot, destroy } — the same as
+// Interface { mount, setMap, prepare, setInset, sync, snapshot, destroy } — the same as
 // null-backend.js, and both draw composeFrame()'s list over the same manifest
 // book, so what the node tests assert is what this paints. The screen adds
 // pick / screenOf: a tap's client point ↔ the last frame's tiles and sprites.
@@ -46,8 +46,11 @@ export function createCanvasBackend(o) {
   lit.c.addEventListener('contextrestored', () => { litSig = null; });
   const stubs = new Map();
   let host = null, canvas = null, ctx = null, ro = null, onResize = null;
-  let map = null, ground = null, chunks = new Map();
+  let map = null, chunks = new Map();
   let z = 2, dpr = 1, W = 1, H = 1, dirty = true, inset = cleanInset(null);
+  /* the viewer's town zoom (camera.js zoomFor `pick`, CSS px per base art px; null: the screen class's), and
+     the chunks kept: at least two screens' worth (a 2560 px window at x1 shows ~24 chunks; the LRU must not thrash) */
+  let zoomPick = null, keep = CHUNK_KEEP;
   let T = 32, CHUNK = 16 * T, zs = z;
   /* Ease after an inset change (camera.js easedCam); the FIRST inset is the start, never eased (hero switch). */
   let lastCam = null, camFrom = null, insetSince = -Infinity, insetHeard = false;
@@ -60,7 +63,7 @@ export function createCanvasBackend(o) {
 
   function measure() {
     dpr = win.devicePixelRatio || 1;
-    z = zoomFor(win.innerWidth, dpr, map && map.grid);
+    z = zoomFor(win.innerWidth, dpr, map && map.grid, zoomPick);
     zs = (z * T) / 32;
     const r = host.getBoundingClientRect();
     W = Math.max(1, Math.round(r.width * dpr));
@@ -86,30 +89,70 @@ export function createCanvasBackend(o) {
     const key = cx + ',' + cy;
     let c = chunks.get(key);
     if (c) { chunks.delete(key); chunks.set(key, c); return c; }
-    if (chunks.size >= CHUNK_KEEP) chunks.delete(chunks.keys().next().value);
+    if (chunks.size >= keep) chunks.delete(chunks.keys().next().value);
     c = doc.createElement('canvas');
     c.width = CHUNK; c.height = CHUNK;
     const g = c.getContext('2d');
     g.imageSmoothingEnabled = false;
     const x0 = cx * CHUNK, y0 = cy * CHUNK;
-    const inside = (t) => t.x < x0 + CHUNK && t.y < y0 + CHUNK && t.x + T > x0 && t.y + T > y0;
+    const own = binned.cells.get(key) || NONE;
     g.fillStyle = tone('void');
-    for (const v of ground.voids) if (inside(v)) g.fillRect(v.x - x0, v.y - y0, T, T);
+    for (let i = 0, v = own.voids; i < v.length; i += 2) g.fillRect(v[i] - x0, v[i + 1] - y0, T, T);
     /* placeholder tones (a town ahead of its ground art): one token per material and parity, read once per chunk */
     const tones = new Map();
-    for (const t of ground.tones) {
-      if (!inside(t)) continue;
-      const k = 'ground-' + t.m + (t.alt ? '-b' : '-a');
+    for (let i = 0, t = own.tones; i < t.length; i += 3) {
+      const k = binned.names[t[i]];
       if (!tones.has(k)) tones.set(k, tone(k));
       g.fillStyle = tones.get(k);
-      g.fillRect(t.x - x0, t.y - y0, T, T);
+      g.fillRect(t[i + 1] - x0, t[i + 2] - y0, T, T);
     }
-    for (const t of ground.tiles) {
-      if (!inside(t) || !images[t.set]) continue;
-      g.drawImage(images[t.set], t.sx, t.sy, T, T, t.x - x0, t.y - y0, T, T);
+    for (let i = 0, t = own.tiles; i < t.length; i += 5) {
+      const img = images[binned.names[t[i]]];
+      if (img) g.drawImage(img, t[i + 1], t[i + 2], T, T, t[i + 3] - x0, t[i + 4] - y0, T, T);
     }
     chunks.set(key, c);
     return c;
+  }
+
+  /* THE GROUND BY CHUNK, binned once per map (each cell into every chunk it touches, in draw order): a chunk
+     bakes from its own cells, not a scan of the whole map's (a 192 x 116 town is 44k cells; v0.2.50's town
+     arrival baked its first chunks in one 100 ms frame, tests/perf-budget.mjs). The next map's is made by
+     prepare() as soon as its sheets arrive (world-boot.js), so the frame that shows it only bakes the chunks
+     it draws; one map ahead is kept, never a map left behind. Each chunk's cells are PACKED numbers
+     (voids x,y; tones name,x,y; tiles set,sx,sy,x,y; names the token or set strings), so the map's ground
+     objects (3.2 MB of heap for the town) are dropped once binned (the heap budget). */
+  const NONE = Object.freeze({ voids: [], tones: [], tiles: [] });
+  let ahead = null;   // { m, book, bins }: the one map prepared ahead of its setMap
+  const EMPTY = () => ({ cells: new Map(), names: [] });
+  let binned = EMPTY();
+  function bin(gr, T, CHUNK) {
+    const cells = new Map(), names = [], nameAt = new Map();
+    const name = (s) => { let i = nameAt.get(s); if (i === undefined) { i = names.length; names.push(s); nameAt.set(s, i); } return i; };
+    const pack = {
+      voids: (t) => [t.x, t.y],
+      tones: (t) => [name('ground-' + t.m + (t.alt ? '-b' : '-a')), t.x, t.y],
+      tiles: (t) => [name(t.set), t.sx, t.sy, t.x, t.y],
+    };
+    for (const kind of ['voids', 'tones', 'tiles']) {
+      for (const t of gr[kind]) {
+        const nums = pack[kind](t);
+        for (let cy = Math.floor(t.y / CHUNK); cy * CHUNK < t.y + T; cy++) {
+          for (let cx = Math.floor(t.x / CHUNK); cx * CHUNK < t.x + T; cx++) {
+            const k = cx + ',' + cy;
+            let b = cells.get(k);
+            if (!b) cells.set(k, b = { voids: [], tones: [], tiles: [] });
+            for (const n of nums) b[kind].push(n);
+          }
+        }
+      }
+    }
+    for (const b of cells.values()) for (const kind of ['voids', 'tones', 'tiles']) b[kind] = Int32Array.from(b[kind]);
+    return { cells, names };
+  }
+  function binsFor(m, a) {
+    if (ahead && ahead.m === m && ahead.book === a.book) return ahead.bins;
+    const t = m.T || 32;
+    return bin(groundTiles(m, a.book, a.tables, t), t, 16 * t);
   }
 
   function blit(g, d, view) {
@@ -428,6 +471,7 @@ export function createCanvasBackend(o) {
     g.fillStyle = tone('void');
     g.fillRect(0, 0, view.w, view.h);
     const mw = map.w * T, mh = map.h * T;
+    keep = Math.max(CHUNK_KEEP, 2 * (Math.ceil(view.w / CHUNK) + 1) * (Math.ceil(view.h / CHUNK) + 1));
     for (let cy = Math.floor(view.oy / CHUNK); cy * CHUNK < view.oy + view.h; cy++) {
       for (let cx = Math.floor(view.ox / CHUNK); cx * CHUNK < view.ox + view.w; cx++) {
         if (cx < 0 || cy < 0 || cx * CHUNK >= mw || cy * CHUNK >= mh) continue;
@@ -483,12 +527,17 @@ export function createCanvasBackend(o) {
       if (art) ({ book, images, tables } = art); else ({ book, images, tables } = o);
       T = m.T || 32; CHUNK = 16 * T;
       dirty = true;
-      ground = groundTiles(m, book, tables, T);
+      binned = binsFor(m, { book, tables });
+      ahead = null;
       chunks = new Map();
       last = null;
       lastCam = camFrom = null;   // a new map never eases in from the old one
     },
+    /** Make map `m`'s ground (drawn with `art` or the constructor's) ahead of the frame that shows it. */
+    prepare(m, art) { const a = art || o; ahead = { m, book: a.book, bins: binsFor(m, a) }; },
     sync(state) { if (map && canvas) draw(state); },
+    /** The viewer's zoom (CSS px per base art px; null: the screen class's), from the next frame on. */
+    setZoom(v) { const next = Number.isFinite(v) && v > 0 ? v : null; if (next !== zoomPick) { zoomPick = next; dirty = true; lastCam = camFrom = null; } },
     /**
      * THE CAMERA INSET: the strips of the stage a docked window covers, in CSS
      * px ({left, right, top, bottom}; null uncovers it). The camera frames the
@@ -547,9 +596,11 @@ export function createCanvasBackend(o) {
       if (ro) ro.disconnect();
       if (onResize) win.removeEventListener('resize', onResize);
       if (canvas) canvas.remove();
-      host = canvas = ctx = ro = onResize = map = last = lastView = ground = null;
+      host = canvas = ctx = ro = onResize = map = last = lastView = null;
       plateHits = [];
       chunks = new Map();
+      binned = EMPTY();
+      ahead = null;
     },
   };
 }

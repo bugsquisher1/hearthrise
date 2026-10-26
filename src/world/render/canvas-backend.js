@@ -92,20 +92,20 @@ export function createCanvasBackend(o) {
     const g = c.getContext('2d');
     g.imageSmoothingEnabled = false;
     const x0 = cx * CHUNK, y0 = cy * CHUNK;
-    const own = binned.get(key) || NONE;
+    const own = binned.cells.get(key) || NONE;
     g.fillStyle = tone('void');
-    for (const v of own.voids) g.fillRect(v.x - x0, v.y - y0, T, T);
+    for (let i = 0, v = own.voids; i < v.length; i += 2) g.fillRect(v[i] - x0, v[i + 1] - y0, T, T);
     /* placeholder tones (a town ahead of its ground art): one token per material and parity, read once per chunk */
     const tones = new Map();
-    for (const t of own.tones) {
-      const k = 'ground-' + t.m + (t.alt ? '-b' : '-a');
+    for (let i = 0, t = own.tones; i < t.length; i += 3) {
+      const k = binned.names[t[i]];
       if (!tones.has(k)) tones.set(k, tone(k));
       g.fillStyle = tones.get(k);
-      g.fillRect(t.x - x0, t.y - y0, T, T);
+      g.fillRect(t[i + 1] - x0, t[i + 2] - y0, T, T);
     }
-    for (const t of own.tiles) {
-      if (!images[t.set]) continue;
-      g.drawImage(images[t.set], t.sx, t.sy, T, T, t.x - x0, t.y - y0, T, T);
+    for (let i = 0, t = own.tiles; i < t.length; i += 5) {
+      const img = images[binned.names[t[i]]];
+      if (img) g.drawImage(img, t[i + 1], t[i + 2], T, T, t[i + 3] - x0, t[i + 4] - y0, T, T);
     }
     chunks.set(key, c);
     return c;
@@ -115,25 +115,36 @@ export function createCanvasBackend(o) {
      bakes from its own cells, not a scan of the whole map's (a 192 x 116 town is 44k cells; v0.2.50's town
      arrival baked its first chunks in one 100 ms frame, tests/perf-budget.mjs). The next map's is made by
      prepare() as soon as its sheets arrive (world-boot.js), so the frame that shows it only bakes the chunks
-     it draws; one map ahead is kept, never a map left behind (the heap budget). */
+     it draws; one map ahead is kept, never a map left behind. Each chunk's cells are PACKED numbers
+     (voids x,y; tones name,x,y; tiles set,sx,sy,x,y; names the token or set strings), so the map's ground
+     objects (3.2 MB of heap for the town) are dropped once binned (the heap budget). */
   const NONE = Object.freeze({ voids: [], tones: [], tiles: [] });
   let ahead = null;   // { m, book, bins }: the one map prepared ahead of its setMap
-  let binned = new Map();
+  const EMPTY = () => ({ cells: new Map(), names: [] });
+  let binned = EMPTY();
   function bin(gr, T, CHUNK) {
-    const out = new Map();
+    const cells = new Map(), names = [], nameAt = new Map();
+    const name = (s) => { let i = nameAt.get(s); if (i === undefined) { i = names.length; names.push(s); nameAt.set(s, i); } return i; };
+    const pack = {
+      voids: (t) => [t.x, t.y],
+      tones: (t) => [name('ground-' + t.m + (t.alt ? '-b' : '-a')), t.x, t.y],
+      tiles: (t) => [name(t.set), t.sx, t.sy, t.x, t.y],
+    };
     for (const kind of ['voids', 'tones', 'tiles']) {
       for (const t of gr[kind]) {
+        const nums = pack[kind](t);
         for (let cy = Math.floor(t.y / CHUNK); cy * CHUNK < t.y + T; cy++) {
           for (let cx = Math.floor(t.x / CHUNK); cx * CHUNK < t.x + T; cx++) {
             const k = cx + ',' + cy;
-            let b = out.get(k);
-            if (!b) out.set(k, b = { voids: [], tones: [], tiles: [] });
-            b[kind].push(t);
+            let b = cells.get(k);
+            if (!b) cells.set(k, b = { voids: [], tones: [], tiles: [] });
+            for (const n of nums) b[kind].push(n);
           }
         }
       }
     }
-    return out;
+    for (const b of cells.values()) for (const kind of ['voids', 'tones', 'tiles']) b[kind] = Int32Array.from(b[kind]);
+    return { cells, names };
   }
   function binsFor(m, a) {
     if (ahead && ahead.m === m && ahead.book === a.book) return ahead.bins;
@@ -582,7 +593,7 @@ export function createCanvasBackend(o) {
       host = canvas = ctx = ro = onResize = map = last = lastView = null;
       plateHits = [];
       chunks = new Map();
-      binned = new Map();
+      binned = EMPTY();
       ahead = null;
     },
   };

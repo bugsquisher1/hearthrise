@@ -58,7 +58,7 @@
 -- friends stand in (room up to the soft cap = players), else the lowest
 -- instance with room, else a new one (the 61st player opens instance 2). An
 -- account seated apart from its party's leader moves to the leader's
--- instance on its next keepalive when there is room (never the leader's).
+-- instance on its next keepalive or read when there is room (never the leader's).
 -- THE READ. hr_town_view(p_slot, p_map, p_cx, p_cy, p_cursor, p_pcx, p_pcy):
 -- the viewer's INSTANCE only, its VIEW (view_w x view_h around the centre the
 -- client names) plus `margin` tiles each side, at most `view_cap` (120)
@@ -701,6 +701,8 @@ begin
   perform public.hr_town_moves_settle(p_map, 4, v_uid, v_slot);
   if not exists (select 1 from public.town_bodies b where b.user_id = v_uid and b.slot = v_slot and b.map_id = p_map and b.station_id is not null) then
     perform public.hr_town_place_pointer(v_uid, v_slot, p_map);
+  else
+    perform public.hr_town_merge_party(v_uid, p_map);   -- a party stands together (a viewer joins its leader too)
   end if;
   v_me := public.hr_town_me(v_uid, v_slot);
   v_inst := (v_me->>'inst')::int;

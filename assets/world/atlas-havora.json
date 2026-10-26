@@ -1,0 +1,117 @@
+{
+  "version": 1,
+  "set": "havora",
+  "palette": "hr-world-56-v2",
+  "T": 32,
+  "image": "atlas-havora.png",
+  "size": [1024,844],
+  "pixels": "5c0af82a95b942191de83de158588a8298e52829927d6958c5e5338b4df7e9bb",
+  "sprites": {
+    "havora_bridge": {
+      "class": "bridge",
+      "layer": "decal",
+      "frame": [384,192],
+      "anchor": [192,191],
+      "footprint": [12,6],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 188,
+      "contact": [0,383],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[0,649]]
+          }
+        }
+      }
+    },
+    "havora_gatehouse": {
+      "class": "hall",
+      "layer": "unit",
+      "frame": [510,307],
+      "anchor": [255,306],
+      "footprint": [18,10],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 306,
+      "contact": [114,354],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[129,0]]
+          }
+        }
+      }
+    },
+    "havora_guild_hall": {
+      "class": "lot",
+      "layer": "unit",
+      "frame": [128,346],
+      "anchor": [64,345],
+      "footprint": [4,12],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 346,
+      "contact": [0,127],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[0,0]]
+          }
+        }
+      }
+    },
+    "havora_home_p01": {
+      "class": "lot",
+      "layer": "unit",
+      "frame": [320,296],
+      "anchor": [160,295],
+      "footprint": [10,8],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 296,
+      "contact": [1,318],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[385,347]]
+          }
+        }
+      }
+    },
+    "havora_tavern": {
+      "class": "hall",
+      "layer": "unit",
+      "frame": [384,301],
+      "anchor": [192,300],
+      "footprint": [12,8],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 301,
+      "contact": [79,198],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[0,347]]
+          }
+        }
+      }
+    }
+  },
+  "terrain": {}
+}

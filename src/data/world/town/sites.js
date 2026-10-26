@@ -23,15 +23,13 @@
 // ════════════════════════════════════════════════════════════════════════
 
 export const SITES = Object.freeze([
-  /* the north: the gatehouse (every overground hunt), the tavern on P07 */
-  ['gatehouse', 74, 10, 18, 10, 's'], ['tavern', 62, 20, 12, 8, 's'],
   /* the crooked shacks P01-P06 and the town lots P09-P10 */
-  ['p01', 16, 14, 10, 8, 's'], ['p02', 30, 16, 12, 8, 's'], ['p03', 46, 14, 10, 8, 's'], ['p04', 20, 36, 10, 8, 's'],
+  ['p02', 30, 16, 12, 8, 's'], ['p03', 46, 14, 10, 8, 's'], ['p04', 20, 36, 10, 8, 's'],
   ['p05', 36, 38, 12, 8, 's'], ['p06', 48, 66, 10, 8, 'w'], ['p09', 68, 50, 12, 8, 'n'], ['p10', 88, 62, 14, 10, 'w'],
   /* the sewer works (its grate is the Sewer's way in), the fishers' guild */
   ['sewer_works', 44, 56, 14, 10, 'w'], ['fisher_guild', 66, 78, 16, 10, 's'],
   /* the harbor: its office and guild hall; the mountain homes P11-P12 and the waterfront estates P13-P15 */
-  ['harbor_office', 98, 76, 16, 10, 's'], ['guild_hall', 116, 72, 4, 12, 's'],
+  ['harbor_office', 98, 76, 16, 10, 's'],
   ['p11', 132, 20, 16, 10, 'w'], ['p12', 132, 46, 16, 10, 'w'], ['p13', 120, 74, 16, 8, 's'], ['p14', 142, 66, 18, 8, 'w'], ['p15', 138, 80, 20, 8, 's'],
 ].map((r) => Object.freeze(r)));
 
@@ -51,6 +49,10 @@ export const SCENERY = Object.freeze([
   ['smithy', 76, 38], ['npc_smith', 78, 43], ['flower_bed', 74, 44],
   ['mill', 89, 28], ['hatch', 88, 34], ['barrels', 86, 30], ['flour_sack', 87, 30], ['water_trough', 86, 33], ['hay_bale', 87, 33],
   ['floor_grate', 46, 67],
+  /* HAVORA'S LOTS (art/world/havora, lane/b-havora-art-2): the gatehouse (every overground hunt leaves from its yard),
+     the tavern on P07 over its cook yard, the bridge over the river (walked on: its cells stay planks) */
+  ['havora_gatehouse', 74, 10], ['havora_tavern', 62, 20], ['havora_bridge', 88, 48],
+  ['havora_guild_hall', 116, 72], ['havora_home_p01', 16, 14],
   /* the mine's mouth in the mountain, a fishing pier off the shore */
   ['mine_mouth', 138, 34], ['fishing_pier', 60, 94],
   /* the cook yard's stores, the training yard's rack, the farm's crates */

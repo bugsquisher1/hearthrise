@@ -79,6 +79,12 @@ export const CLASSES = Object.freeze({
   // hall: 10-14 tiles wide). Drawn like a building; the monument (landmark) stays taller.
   hall: row({ body: [200, 320], measure: 'h', contact: 'touch', shadow: null, layer: 'unit' }),
   landmark: row({ body: [240, 352], measure: 'h', contact: 'touch', shadow: null, layer: 'unit' }),
+  // A whole town LOT drawn as one sprite: a building with its yard, fence, wall or towers (Havora's gatehouse,
+  // tavern, guilds, harbour office and homes P01-P15). Its footprint is the lot; a deep lot's art stands taller
+  // than a hall (footprint depth plus the facade), so its own row. Drawn like a building.
+  lot: row({ body: [160, 480], measure: 'h', contact: 'touch', shadow: null, layer: 'unit' }),
+  // A bridge laid over a river (Havora's river crossing): a span wider than the Sewer's grate, walked on.
+  bridge: row({ body: [128, 416], measure: 'max', raw: true, contact: 'flat', shadow: null, layer: 'decal' }),
   door: row({ body: [48, 48], measure: 'h', contact: 'solid', shadow: null, layer: 'wall' }),
   wall: row({ frame: [32, 60], anchor: [16, 59], body: [56, 60], measure: 'h', face: 48, cap: [8, 12], contact: 'wall', shadow: 'cast', layer: 'wall' }),
   wallend: row({ frame: [12, 60], anchor: [6, 59], body: [56, 60], measure: 'h', contact: 'wall', shadow: 'cast', layer: 'wall' }),

@@ -63,5 +63,5 @@ export default Object.freeze({
   /* the lint's reach origin and a hero's fallback place: the gatehouse's first stand (a hero ARRIVES at one of the
      gatehouse's stands, stations.js arrivalStand) */
   start: first(ACTIVITY_STATIONS.arrival),
-  maskHash: 'bcf89ee0',
+  maskHash: '80ceb924',
 });

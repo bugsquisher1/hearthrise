@@ -1,0 +1,41 @@
+{
+  "id": "havora_gatehouse",
+  "class": "hall",
+  "style": "s1",
+  "material": "stone",
+  "source": "havora_gatehouse.png",
+  "frame": [
+    510,
+    307
+  ],
+  "anchor_px": [
+    255,
+    306
+  ],
+  "footprint": [
+    18,
+    10
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_image_pro",
+    "image": "f2321dee-5f24-4a83-b8e9-3a3792a37880",
+    "seed": 501,
+    "size": [
+      576,
+      448
+    ],
+    "cost": 25,
+    "style": "common/square_general_store"
+  },
+  "notes": "Havora's gatehouse (plan x74-91 y10-19, Blueprint v0.5 x2): central gate tower, open oak gates, two round towers, guard houses. Heroes arrive in its yard (stations.js gatehouse)."
+}

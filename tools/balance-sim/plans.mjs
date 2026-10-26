@@ -67,6 +67,11 @@ export function buildPlan(name, axes, scale = 1) {
     out.push({ id: 'S1:career:four:s0', kind: 'career', party: PARTIES.four, startLevel: 8, targetLevel: 50, maxHours: pick(150, 400), chunkH: 1, seed: 0 });
   }
   if (name === 'career') return out;
+  if (name === 'career8') {
+    /* the same lives at the full box (density 8: the "reasonably efficient" pick wherever it stays safe) */
+    for (const s of ['tank', 'hammer', 'bow', 'mage']) out.push({ id: 'S1:career8:' + s + ':s0', kind: 'career', party: [s], startLevel: 1, targetLevel: 50, maxHours: 200, chunkH: 1, seed: 0, density: 8 });
+    return out;
+  }
   if (name === 'baseline' || full) {
     /* S2 THE SOLO GRID, as built: every style on every ground across its band and +-5 / 10 Levels */
     for (const g of G) for (const s of SOLO_STYLES) for (const L of levelsOf(g.band, full)) {

@@ -3066,3 +3066,19 @@ add a shard; (6) a display:contents row has no box, so a tutorial hook (and its 
 has one in BOTH layouts; (7) a text probe must measure INK, not the range rect: the content box of "29" in Cinzel is
 taller than its glyphs and reads as touching the ring when it does not; (8) a widget's open/close transform makes its
 box lie for 120 ms: wait for transform none before measuring where it stands.
+
+## 2026-10-25 — lane/b-hearth-art: the Great Hearth, the burn, Hearth Square (staged, no map)
+Hearth 352x352 (designer rev 2: footprint 11x4, art 11x11) from 10 candidates: Pro Flash caps at 256, so the
+winner design (D, 204 px) was redrawn at 352 with create_image_pro (style + labelled reference = D) and kept
+1-px detail. Fire loop, flare and recolours are PixelLab animate_image on a firebox crop, cut to the pixels that
+move (any frame differs from the still by >90), so the stone never shimmers. New budget rows: landmark, hall,
+stall. Lessons: (1) the stone grade turns warm fieldstone grey: judge every pick LOCKED, not raw; the fire must
+be its own `light` sprite or the grade dulls it; (2) animate_image on a crop keeps the arch still when the action
+says so; "something is thrown in" made it draw a flying object across the stone; (3) vfx_workbench parts read
+cartoon next to PixelLab pixels (flame_tongue): keep only its particles (sparks, embers); (4) Wang ellipses on a
+32 px vertex grid stair-step, and a Wang fill repeats every 32 px: a plaza is a PAINTED ground (create_image_pro
+field, outpainted with inpaint_image windows, seams re-laid by 48 px inpaint bands, the radial rings inpainted as
+a disc mask so they meet the field); (5) the model sizes stones to the canvas: a 512 field gave slabs 2-3 heroes
+long, 256 gave cobbles, 384 gave 1-2 heroes (crop its brick-course top band); a pasted disc never blends, an
+inpainted one does; the named-fuel light is a small pool (r ~7 tiles) or it reads as a screen filter;
+(6) a hand-drawn sprite fails style1 [s1-source] (no PixelLab id): generate even 12 px chunks.

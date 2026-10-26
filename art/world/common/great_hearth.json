@@ -1,0 +1,41 @@
+{
+  "id": "great_hearth",
+  "class": "landmark",
+  "style": "s1",
+  "material": "stone",
+  "source": "great_hearth.png",
+  "frame": [
+    352,
+    349
+  ],
+  "anchor_px": [
+    176,
+    348
+  ],
+  "footprint": [
+    11,
+    4
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_image_pro",
+    "image": "9467ba03-7db9-44ff-ad51-4d58e02fd4a5",
+    "seed": 1101,
+    "size": [
+      352,
+      352
+    ],
+    "cost": 25,
+    "reference": "S1 Great Hearth D, create_object_pro_flash 24835188-a0f5-4848-bbb0-a4103048a3c0 (style + design reference)"
+  },
+  "notes": "The Great Hearth of Hearth Square (lane/b-hearth-art 2026-10-25; designer rev 2: footprint 11x4 at x112-122 y45-48, art 11x11 tiles). PixelLab create_image_pro 352x352 with the chosen 256 px Pro Flash design as style and reference; pixels unscaled, bottom-centre anchor. Its firebox is drawn lit; hearth_fire (8-frame loop) is laid over it at frame px (146,238) and the map adds a point light (tint hearth). STAGED: not on any map yet."
+}

@@ -1,0 +1,35 @@
+{
+  "id": "square_market_stall",
+  "class": "stall",
+  "style": "s1",
+  "material": "wood",
+  "source": "square_market_stall.png",
+  "frame": [
+    76,
+    58
+  ],
+  "anchor_px": [
+    38,
+    57
+  ],
+  "footprint": [
+    3,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_object_pro_flash",
+    "object": "b90140c2-abb3-47b5-ab12-a3c7991aa5f6",
+    "name": "S1 market stall"
+  },
+  "notes": "Hearth Square market stall (east edge x129-131 y40-56, scenery until trade ships). STAGED."
+}

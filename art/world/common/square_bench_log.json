@@ -1,0 +1,35 @@
+{
+  "id": "square_bench_log",
+  "class": "bench",
+  "style": "s1",
+  "material": "wood",
+  "source": "square_bench_log.png",
+  "frame": [
+    64,
+    34
+  ],
+  "anchor_px": [
+    32,
+    33
+  ],
+  "footprint": [
+    2,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_object_pro_flash",
+    "object": "b23c1cdd-f03a-4a4b-9cff-d6e98c82c279",
+    "name": "S1 square bench log"
+  },
+  "notes": "Ported from PixelLab object b23c1cdd-f03a-4a4b-9cff-d6e98c82c279 (style 1) by tools/world-art/port-pixellab.mjs: pixels unscaled, bottom-centre anchor as Map Workshop places it."
+}

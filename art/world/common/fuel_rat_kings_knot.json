@@ -1,0 +1,37 @@
+{
+  "id": "fuel_rat_kings_knot",
+  "class": "loot",
+  "style": "s1",
+  "material": "native",
+  "source": "fuel_rat_kings_knot.png",
+  "frame": [
+    14,
+    14
+  ],
+  "anchor_px": [
+    7,
+    13
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_image_pro",
+    "image": "9a68274e-ee8a-472b-9cda-912b7368383b",
+    "candidate": 48,
+    "cost": "10 for the 64-candidate call",
+    "style": "common/woodpile"
+  },
+  "notes": "THE BURN, beat 1: the world chunk of fuel rat kings knot that a hero throws into the Great Hearth (never the UI item icon). The engine flies it from the hand to the firebox mouth (hearth px 176,262), an arc ~26 px high over 300 ms. Candidate 48 of a 64-candidate sheet. STAGED."
+}

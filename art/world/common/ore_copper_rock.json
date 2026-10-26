@@ -1,0 +1,35 @@
+{
+  "id": "ore_copper_rock",
+  "class": "bulky",
+  "style": "s1",
+  "material": "stone",
+  "source": "ore_copper_rock.png",
+  "frame": [
+    28,
+    27
+  ],
+  "anchor_px": [
+    14,
+    26
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_object_pro_flash",
+    "object": "5b333779-5250-4c29-bf69-b859b39b03b3",
+    "name": "S1 copper rock"
+  },
+  "notes": "Mining rock node sample (copper), one of the quarry floor nodes. STAGED sample."
+}

@@ -1,0 +1,35 @@
+{
+  "id": "fishing_pier",
+  "class": "span",
+  "style": "s1",
+  "material": "wood",
+  "source": "fishing_pier.png",
+  "frame": [
+    96,
+    160
+  ],
+  "anchor_px": [
+    48,
+    159
+  ],
+  "footprint": [
+    2,
+    3
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_object_pro_flash",
+    "object": "6fda63a4-5933-46ee-bb17-ac9e639036dd",
+    "name": "S1 fishing pier"
+  },
+  "notes": "Fishing pier end sample (shore y90-93; harbor piers later): laid flat over the water like the Sewer bridge. STAGED sample."
+}

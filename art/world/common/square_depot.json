@@ -1,0 +1,45 @@
+{
+  "id": "square_depot",
+  "class": "hall",
+  "style": "s1",
+  "material": "stone",
+  "source": "square_depot.png",
+  "frame": [
+    384,
+    302
+  ],
+  "anchor_px": [
+    192,
+    301
+  ],
+  "footprint": [
+    11,
+    6
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_image_pro",
+    "image": "a43f4d65-e3f4-4fc9-b86a-c1b4e72b0dfd",
+    "seed": 402,
+    "size": [
+      384,
+      320
+    ],
+    "cost": 25,
+    "style": "common/smithy",
+    "references": [
+      "common/smithy",
+      "great_hearth design D"
+    ]
+  },
+  "notes": "Hearth Square depot (Storage): stone storehouse, two iron-bound doors, key emblem, loft hoist (designer rev 2: depot x108-129 y60-73, counters on y59). Sample of the square ring. STAGED."
+}

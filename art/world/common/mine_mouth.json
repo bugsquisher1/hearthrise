@@ -1,0 +1,35 @@
+{
+  "id": "mine_mouth",
+  "class": "building",
+  "style": "s1",
+  "material": "stone",
+  "source": "mine_mouth.png",
+  "frame": [
+    120,
+    111
+  ],
+  "anchor_px": [
+    60,
+    110
+  ],
+  "footprint": [
+    4,
+    2
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_object_pro_flash",
+    "object": "6532dddd-187f-432e-a754-c897932e72af",
+    "name": "S1 mine mouth"
+  },
+  "notes": "The Mine mouth sample (designer rev 2: mouth x136-143 y34-42 in the Mountain): timbered tunnel, lantern, rails, ore cart. Pro Flash, style common/rocks. 4 tiles wide: the rest of the 8-tile mouth is the mountain ground. STAGED sample."
+}

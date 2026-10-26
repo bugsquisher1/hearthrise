@@ -40,7 +40,7 @@
 // floor(stands / heroesPerPlayer). view/margin/cap: the area a viewer reads (its view in tiles +
 // margin on every side, at most cap bodies a read; hr_town_view).
 // ════════════════════════════════════════════════════════════════════════
-import { at, TOWN_MAP } from './town/plan.js?v=0.2.47';
+import { at, TOWN_MAP } from './town/plan.js?v=0.2.48';
 
 export const TAP_OPENS = Object.freeze({
   anvil: Object.freeze({ open: 'skill', skill: 'smithing' }),
@@ -58,6 +58,9 @@ const F = (x0, y0, w, h) => { const out = []; for (let y = y0; y < y0 + h; y++) 
 const C = (x0, y0, w, h) => F(x0, y0, w, h).filter(([x, y]) => (x + y) % 2 === 0);
 /** The tile south of each prop (where its worker stands), in prop order. */
 const south = (props) => props.map(([, x, y]) => [x, y + 1]);
+/** The tiles nearest `to` first (then north to south, west to east): the first stand handed out is the closest. */
+const nearest = (tiles, [tx, ty]) => tiles.slice().sort((a, b) => ((a[0] - tx) ** 2 + (a[1] - ty) ** 2) - ((b[0] - tx) ** 2 + (b[1] - ty) ** 2)
+  || a[1] - b[1] || a[0] - b[0]);
 const win = (window) => Object.freeze({ open: 'window', window });
 const skill = (id) => Object.freeze({ open: 'skill', skill: id });
 
@@ -107,9 +110,11 @@ const ROWS = [
   /* the kill-task hunter's door yard, south of the barracks (her window until his own screen) */
   { id: 'hunter', district: 'barracks', kind: 'service', opens: null, props: [],
     stands: F(108, 71, 5, 2), overflow: F(108, 73, 5, 1), fallback: 'square_benches' },
-  /* THE GATEHOUSE: a hunt ending for many heroes lands here at once; every overground hunt leaves from here */
+  /* THE GATEHOUSE: a hunt ending for many heroes lands here at once; every overground hunt leaves from here. A hero
+     back from a hunt stands in the yard right in front of the gate (the first stands nearest its doors, x81-84 on the
+     wall's row 14), so even a phone's few rows show the gate it came through; the yard by the tavern wall overflows */
   { id: 'gatehouse', district: 'gatehouse', kind: 'arrival', opens: win('hunts'), props: [['signpost', 86, 20]],
-    stands: F(74, 20, 5, 8), overflow: F(74, 28, 5, 2), fallback: 'square_benches' },
+    stands: nearest([...F(78, 16, 12, 3), ...F(78, 19, 8, 1)], [83, 14]), overflow: F(74, 20, 5, 8), fallback: 'square_benches' },
   { id: 'mill_hatch', district: 'mill', kind: 'hunt', opens: null, props: [],
     stands: F(86, 35, 4, 2), overflow: [], fallback: 'gatehouse' },
   { id: 'sewer_grate', district: 'sewer', kind: 'hunt', opens: null, props: [],

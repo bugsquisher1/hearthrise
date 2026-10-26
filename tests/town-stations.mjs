@@ -22,8 +22,13 @@
 //        every hunt and arrival resolves to a station of the right kind and skill;
 //        a hunt with a way in from town leaves from beside it
 //   ST-7 taps: every opened window is a shell window, every opened skill a skill
-//   ST-8 arrival: arrivalStand picks a primary gatehouse stand, and an account's
-//        four heroes get four different ones
+//   ST-8 arrival (the SERVER hands out the arrival station's stands, lowest first:
+//        2027-01-28-town-stands.sql): it has a primary stand for each of an account's
+//        heroes, and each of the first ones is in a landscape phone's view (844 x 390
+//        CSS, 64 CSS px a tile) of the gatehouse's front, so a hero back from a hunt
+//        sees the gate it came through
+// ST-1's "in plain view" covers every placed thing, trees included: the selftest
+// plants a stand right behind a tree's canopy and must see ST-1 go red.
 // --selftest plants one defect per rule into a copy of the stations (never the
 // tree) and requires that rule to go red, after a clean control.
 // mutant-anchors: none — the proof mutates in-memory station rows, never the tree
@@ -53,14 +58,19 @@ try {
     'src/data/world/stations.js', 'src/data/world/town/plan.js', 'src/data/world/maps/index.js', 'src/world/core/map-compile.js',
     'src/world/core/path.js', 'src/data/world/terrain.js', 'src/world/core/book.js', 'src/data/world/atlas-sets.js', 'src/data/skills.js',
     'src/data/gathering.js', 'src/data/shell-windows.js', 'src/data/hunts.js'].map(imp));
+  const budget = await imp('src/data/world/art-budget.js');
   const manifests = {};
   for (const set of sets.LOADED_SETS) manifests[set] = JSON.parse(readFileSync(join(ROOT, 'assets/world/atlas-' + set + '.json'), 'utf8'));
   const book = bookm.createBook(manifests);
   const tables = { materials: terrain.MATERIALS, sprites: book.sprites, openClasses: terrain.OPEN_CLASSES, treeClasses: terrain.TREE_CLASSES, lights: terrain.LIGHTS, terrains: book.terrains };
-  M = { stations, plan, maps, mapc, path, skills, gathering, windows, hunts, tables };
+  M = { stations, plan, maps, mapc, path, skills, gathering, windows, hunts, tables, terrain, grids: budget.GRIDS };
 } catch (e) { console.error('town-stations: harness — ' + (e && e.stack || e)); process.exit(2); }
 
-/** Every rule over `S` (the stations module's shape: STATIONS, STATION_BY_ID, ACTIVITY_STATIONS, stationFor, arrivalStand, SITE_OPENS, TAP_OPENS). */
+/** A landscape phone's view (CSS px) and the town's sprite of the gate a hunt comes back through. */
+const PHONE = Object.freeze([844, 390]);
+const GATE_SPRITE = 'havora_gatehouse';
+
+/** Every rule over `S` (the stations module's shape: STATIONS, STATION_BY_ID, ACTIVITY_STATIONS, stationFor, TOWN_INSTANCE, SITE_OPENS, TAP_OPENS). */
 function check(S) {
   const fails = [];
   const ok = (id, cond, msg) => { if (!cond) fails.push(id + ' ' + msg); };
@@ -141,11 +151,21 @@ function check(S) {
     ok('ST-7', mapId === row.id && map.objects.some((o) => o.x === x && o.y === y), 'SITE_OPENS ' + key + ' names no placed prop');
   }
 
-  /* ST-8 arrival */
+  /* ST-8 arrival: the server's first stands of the arrival station, each in a phone's view of the gate */
   const gate = S.STATION_BY_ID[S.ACTIVITY_STATIONS.arrival];
-  const four = [0, 1, 2, 3].map((slot) => S.arrivalStand('5f0c6a1e-0000-4000-8000-00000000abcd', slot));
-  ok('ST-8', !!gate && four.every((t) => gate.stands.slice(0, gate.primary).some((s) => s[0] === t[0] && s[1] === t[1])), 'arrivalStand must pick a primary gatehouse stand: ' + JSON.stringify(four));
-  ok('ST-8', new Set(four.map(String)).size === 4, 'an account\'s four heroes must arrive on four stands: ' + JSON.stringify(four));
+  const heroes = S.TOWN_INSTANCE.heroesPerPlayer;
+  ok('ST-8', !!gate && gate.primary >= heroes, 'the arrival station needs a primary stand for each of an account\'s ' + heroes + ' heroes');
+  const house = map.objects.find((o) => o.id === GATE_SPRITE);
+  ok('ST-8', !!house, 'no ' + GATE_SPRITE + ' on the town map');
+  if (gate && house) {
+    const tileCss = M.grids.base.T * M.grids.base.density;
+    const half = [Math.floor(PHONE[0] / tileCss / 2), Math.floor(PHONE[1] / tileCss / 2)];
+    const front = house.y + (house.fh || 1) - 1, mid = house.x + (house.fw || 1) / 2;
+    for (const [x, y] of gate.stands.slice(0, heroes)) {
+      ok('ST-8', y - front <= half[1] && Math.abs(x - mid) <= half[0], 'arrival stand ' + x + ',' + y + ' is out of a phone\'s view of the gate (front row '
+        + front + ', ' + half[0] + ' x ' + half[1] + ' tiles each side)');
+    }
+  }
   return fails;
 }
 
@@ -154,9 +174,22 @@ function planted(edit) {
   const S = M.stations;
   const rows = S.STATIONS.map((s) => Object.assign({}, s, { stands: s.stands.map((t) => t.slice()), props: s.props.slice() }));
   const copy = { STATIONS: rows, STATION_BY_ID: Object.fromEntries(rows.map((s) => [s.id, s])), ACTIVITY_STATIONS: S.ACTIVITY_STATIONS,
-    stationFor: S.stationFor, arrivalStand: S.arrivalStand, SITE_OPENS: Object.assign({}, S.SITE_OPENS), TAP_OPENS: S.TAP_OPENS };
+    stationFor: S.stationFor, TOWN_INSTANCE: S.TOWN_INSTANCE, SITE_OPENS: Object.assign({}, S.SITE_OPENS), TAP_OPENS: S.TAP_OPENS };
   edit(copy);
   return copy;
+}
+
+/** An open, reachable tile right north of a tree of the town (its canopy is drawn over a hero standing there). */
+function behindTree() {
+  const row = M.maps.WORLD_MAPS.find((m) => m.id === M.plan.TOWN_MAP);
+  const map = M.mapc.compileMap(row, M.tables);
+  const reach = M.path.reachFrom(map.mask, map.w, map.h, row.start);
+  const trees = map.objects.filter((o) => M.terrain.TREE_CLASSES.includes((M.tables.sprites[o.id] || {}).class));
+  for (const t of trees) {
+    const x = t.x, y = t.y - 1, i = y * map.w + x;
+    if (y >= 0 && map.mask[i] === 0 && reach[i] === 1) return [x, y];
+  }
+  throw new Error('no open tile behind a tree of the town');
 }
 
 if (process.argv.includes('--selftest')) {
@@ -172,7 +205,10 @@ if (process.argv.includes('--selftest')) {
     ['ST-6', 'cooking stands at the forge', (c) => { c.stationFor = (a) => (a && a.skill === 'cooking' ? 'smithy_forges' : M.stations.stationFor(a)); }],
     ['ST-6', 'the sewer leaves from the gatehouse', (c) => { c.stationFor = (a) => (a && a.kind === 'hunt' ? 'gatehouse' : M.stations.stationFor(a)); }],
     ['ST-7', 'a tap opening a window that does not exist', (c) => { c.SITE_OPENS[Object.keys(c.SITE_OPENS)[0]] = { open: 'window', window: 'no_such_window' }; }],
-    ['ST-8', 'every hero arrives on one tile', (c) => { c.arrivalStand = () => by(c, 'gatehouse').stands[0]; }],
+    ['ST-1', 'a stand right behind a tree', (c) => { by(c, 'westwood').stands[0] = behindTree(); }],
+    ['ST-8', 'the first arrivals stand by the tavern wall, out of a phone\'s view of the gate', (c) => {
+      const g = by(c, 'gatehouse'); g.stands = g.stands.slice(g.primary).concat(g.stands.slice(0, g.primary)); }],
+    ['ST-8', 'fewer arrival stands than an account\'s heroes', (c) => { by(c, 'gatehouse').primary = 3; }],
   ];
   const control = check(planted(() => {}));
   if (control.length) { console.error('town-stations --selftest: the clean control is red:\n  ' + control.slice(0, 5).join('\n  ')); process.exit(1); }

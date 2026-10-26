@@ -4,8 +4,8 @@
 // (havora_palisade_v<row mod 8>, footprint 2 x 1 on the band's west column), so each run reads as one unbroken wall.
 // Plan coordinates [id, x, y] (town/plan.js). The cells stay palisade: what blocks a step is unchanged.
 // PURE ESM. Display data only.
-import { GROUND_ROWS } from './ground.js?v=0.2.47';
-import { WEST } from './plan.js?v=0.2.47';
+import { GROUND_ROWS } from './ground.js?v=0.2.48';
+import { WEST } from './plan.js?v=0.2.48';
 
 const wall = (x, y) => y >= 0 && y < GROUND_ROWS.length && GROUND_ROWS[y][x] === '|';
 function lay() {

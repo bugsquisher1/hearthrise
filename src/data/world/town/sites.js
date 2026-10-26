@@ -55,6 +55,13 @@ export const SCENERY = Object.freeze([
   /* the cook yard's stores, the training yard's rack, the farm's crates */
   ['sack_pile', 74, 31], ['barrel_planter', 60, 30], ['weapon_rack', 78, 63], ['turnip_crate', 19, 82],
   ['well', 99, 40], ['signpost', 9, 47],
+  /* THE ARRIVAL YARD south of the gatehouse (heroes back from a hunt stand at x78-89 y16-19, stations.js): lamps
+     flanking the gate, a carter's corner of crates, sacks and a spare wheel against the tavern wall, the trough and
+     hay for the horses and a well by the mill race, and a signpost on the road south toward Hearth Square */
+  ['lamppost', 79, 15], ['lamppost', 88, 15],
+  ['crates', 74, 15], ['crates', 75, 15], ['barrels', 74, 16], ['sack_stack', 75, 16], ['cart_wheel', 76, 15],
+  ['water_trough', 91, 17], ['hay_bale', 91, 18], ['well', 91, 22],
+  ['lamppost', 80, 23], ['signpost', 84, 26], ['crates', 90, 26],
 ].map((r) => Object.freeze(r)));
 
 /* the ways out of town onto a hunting ground's map: the mill's cellar hatch, the sewer grate */

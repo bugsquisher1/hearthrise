@@ -21,7 +21,7 @@ const PLACES = [
 const SIZES = [[1920, 1080], [2560, 1440]];
 const [phase, ...only] = process.argv.slice(2);
 if (!['before', 'after'].includes(phase)) { console.error('usage: shots.mjs <before|after> [name …]'); process.exit(2); }
-const dir = join(HERE, phase);
+const dir = join(HERE, process.env.SHOTS_DIR || phase);
 mkdirSync(dir, { recursive: true });
 const browser = await chromium.launch();
 try {

@@ -39,7 +39,7 @@ export const SCENERY = Object.freeze([
   ['square_decal_leaves_a', 110, 58], ['square_decal_tuft_a', 103, 59],
   ['lamppost', 105, 57], ['lamppost', 123, 43], ['lamppost', 101, 47],
   /* the smithy and the mill (whole sprites) and their yards */
-  ['smithy', 76, 38], ['npc_smith', 78, 43], ['flower_bed', 74, 44],
+  ['smithy', 76, 38], ['npc_smith', 78, 43], ['flower_bed', 79, 45],
   ['mill', 89, 28], ['hatch', 88, 34], ['barrels', 86, 30], ['flour_sack', 87, 30], ['water_trough', 86, 33], ['hay_bale', 87, 33],
   ['floor_grate', 46, 67],
   /* HAVORA'S LOTS (art/world/havora, lane/b-havora-art-2): the gatehouse (every overground hunt leaves from its yard),
@@ -56,18 +56,20 @@ export const SCENERY = Object.freeze([
   /* the mine's mouth in the mountain, a fishing pier off the shore */
   ['mine_mouth', 138, 34], ['fishing_pier', 60, 94],
   /* the cook yard's stores, the training yard's rack, the farm's crates */
-  ['sack_pile', 74, 31], ['barrel_planter', 60, 30], ['weapon_rack', 78, 63], ['turnip_crate', 19, 82],
+  ['sack_pile', 74, 31], ['barrel_planter', 58, 31], ['weapon_rack', 78, 63], ['turnip_crate', 19, 82],
   ['well', 99, 40], ['signpost', 9, 47],
   /* THE WORK YARDS' CLUTTER (lane/b-havora-polish 2026-10-26), between the stations' pieces (../stations.js) so a yard
-     reads as worked in: the smithy's bellows by two forges, a quench trough, crates and a spare wheel; the cook yard's
-     barrels, flour and a bucket; hay, an armour stand and barrels round the training dummies; the quarry's broken
-     barrel, sacks, a wheel and loose stone by the mine mouth; a woodpile and a chopping block at the Westwood's edge; hay,
+     reads as worked in: each forge's quench trough (west of it) and bellows (east), a tool rack, charcoal sacks, crates
+     and barrels between the units; the cook yard's
+     barrels, flour and a bucket; hay, an armour stand and barrels round the training dummies; the quarry's spoil by the mine
+     mouth (a broken barrel, sacks, a wheel, rubble) and loose stone round the heaps; a woodpile and a chopping block at the Westwood's edge; hay,
      a basket, sacks and a trough among the farm plots */
-  ['bellows', 56, 37], ['bellows', 64, 37], ['water_trough', 61, 44], ['crates', 65, 36], ['cart_wheel', 52, 41], ['barrels', 53, 37],
-  ['barrels', 67, 31], ['flour_sack', 74, 34], ['bucket', 62, 32],
+  ['water_trough', 62, 37], ['bellows', 64, 37], ['water_trough', 67, 38], ['bellows', 69, 38], ['water_trough', 60, 42], ['bellows', 62, 42],
+  ['water_trough', 65, 43], ['bellows', 67, 43], ['weapon_rack', 65, 37], ['crates', 70, 38], ['sack_pile', 59, 43], ['barrels', 64, 42],
+  ['barrels', 67, 31], ['flour_sack', 74, 34], ['bucket', 66, 33],
   ['hay_bale', 70, 67], ['armour_stand', 59, 66], ['barrels', 77, 69],
-  ['barrel_broken', 143, 36], ['sack_tall', 141, 37], ['cart_wheel', 145, 35],
-  ['pebbles', 147, 33], ['corner_rubble', 152, 38], ['havora_scree_b', 158, 46], ['havora_scree_a', 146, 44], ['pebbles', 155, 34],
+  ['barrel_broken', 137, 36], ['sack_tall', 136, 35], ['cart_wheel', 142, 38],
+  ['corner_rubble', 142, 36], ['pebbles', 147, 34], ['pebbles', 157, 37], ['havora_scree_b', 156, 43], ['havora_scree_a', 150, 36],
   ['woodpile', -5, 45], ['chopping_block', -3, 44],
   ['hay_bale', 53, 83], ['basket', 30, 84], ['water_trough', 53, 87], ['sack_stack', 44, 84],
   /* THE ARRIVAL YARD south of the gatehouse (heroes back from a hunt stand at x78-89 y16-19, stations.js): lamps

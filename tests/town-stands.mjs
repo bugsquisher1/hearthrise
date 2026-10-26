@@ -6,7 +6,7 @@
 //   node tests/town-stands.mjs --load     + the synthetic load: 60 viewers reading every 2 s over 240 bodies
 //   node tests/town-stands.mjs --mutate   every planted defect in the migration must turn a rule RED
 //
-// mutant-anchors: supabase/migrations/2027-01-28-town-stands.sql
+// mutant-anchors: supabase/migrations/2027-01-28-town-stands.sql, supabase/migrations/2027-01-29-havora-stations.generated.sql
 //
 // supabase/migrations/2027-01-28-town-stands.sql proves its contract inside ONE
 // transaction (its §6, on every replay). This guard plays it the way the game
@@ -25,6 +25,9 @@
 //         self-check assumed an empty town): the migration applies, its self-check included,
 //         on a chain where 8 heroes are already gathering and cooking (production's shape),
 //         twice, and leaves their 8 notes for the first town read
+//   TS-4  THE NEXT CATALOGUE (tools/gen-town-stations.mjs OUT_FILE, today Havora) over a town at
+//         work: no body is left on a stand it lacks, the released workers are noted and the
+//         next read sets each down on its activity's new station; a second apply moves nobody
 //   TS-3  OUT AND BACK: a parked hero that starts a hunt is refused a keepalive and is
 //         `gone` from a delta read made with the real cursor; when the hunt ends it is
 //         set down on the arrival stand; once a cursor is more than the 5 s commit
@@ -40,6 +43,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { bootReplay, ROOT } from './schema-replay.mjs';
 import { isMain } from './_is-main.mjs';
+import { OUT_FILE as CATALOGUE } from '../tools/gen-town-stations.mjs';
 
 const FILE = '2027-01-28-town-stands.sql';
 const U = (i) => '000000c0-0000-4000-a000-7057ff' + String(i).padStart(6, '0');
@@ -96,7 +100,8 @@ end $seed$;`;
 async function liveTown(patches) {
   const fails = [];
   let db;
-  try { ({ db } = await bootReplay(Object.assign({ seedBefore: new Map([[FILE, LIVE_SEED]]) }, patches ? { patches, upTo: FILE } : {}))); }
+  /* up to this file: its §6 plays on the catalogue it was applied over (2027-01-26's seed, as production on 10-26) */
+  try { ({ db } = await bootReplay(Object.assign({ seedBefore: new Map([[FILE, LIVE_SEED]]), upTo: FILE }, patches ? { patches } : {}))); }
   catch (e) { if (e && e.harness) throw e; return ['TS-0 the file did not apply on a town already at work: ' + String(e.message).split('\n')[1]]; }
   try {
     const src = (await readFile(join(ROOT, 'supabase/migrations', FILE), 'utf8')).replace(/\r\n/g, '\n');
@@ -107,15 +112,56 @@ async function liveTown(patches) {
   return fails;
 }
 
+/* TS-4: THE NEXT CATALOGUE OVER A TOWN AT WORK (2027-01-29-havora-stations.generated.sql, production's shape: 8 heroes
+   working, each set down on the 24 x 14 seed's stands by the town's first read before it applies). Every body on a
+   stand the new catalogue lacks is released and, while it works, noted again; the next read sets each down on its
+   activity's NEW station; a second apply of the file changes nothing and passes its own self-check. */
+const NEXT = CATALOGUE;
+const SEEDED_AND_READ = LIVE_SEED.replace('end $seed$;', `  perform public.hr_town_moves_settle((select map_id from public.hr_town_maps where main), 1000);
+end $seed$;`);
+async function nextCatalogue(patches) {
+  const fails = [];
+  let db;
+  try { ({ db } = await bootReplay(Object.assign({ seedBefore: new Map([[NEXT, SEEDED_AND_READ]]), upTo: NEXT }, patches ? { patches } : {}))); }
+  catch (e) { if (e && e.harness) throw e; return ['TS-4 ' + NEXT + ' did not apply on a town at work: ' + String(e.message).split('\n')[1]]; }
+  try {
+    const live = "user_id::text like '000000c1-0000-4000-a000-7057ee%'";   // TS-0's live workers (LIVE_SEED)
+    const dangling = () => one(db, `select count(*)::int from public.town_bodies b where b.${live} and b.station_id is not null
+      and not exists (select 1 from public.hr_town_stands s where s.map_id = b.map_id and s.station_id = b.station_id and s.stand_no = b.stand_no)`);
+    if (await dangling() !== 0) fails.push('TS-4 a body holds a stand the new catalogue does not have');
+    const noted = await one(db, `select count(distinct (user_id, slot))::int from public.town_moves where ${live}`);
+    if (noted !== LIVE_WORK.length) fails.push('TS-4 the released workers are not noted for the next read: ' + noted + ' of ' + LIVE_WORK.length);
+    await one(db, "select public.hr_town_moves_settle('town_common', 1000)");
+    const placed = (await db.query(`select b.station_id, ps.active_kind k, ps.active_id a,
+        public.hr_town_station_for('town_common', ps.active_kind, ps.active_id) want
+        from public.town_bodies b join public.player_state ps using (user_id, slot) where b.${live}`)).rows;
+    const wrong = placed.filter((r) => r.station_id !== r.want);
+    if (placed.length !== LIVE_WORK.length || wrong.length) fails.push('TS-4 a worker is not set down on its new station: ' + JSON.stringify(wrong.length ? wrong : placed).slice(0, 300));
+    const before = JSON.stringify((await db.query('select user_id, slot, station_id, stand_no, inst from public.town_bodies order by 1, 2')).rows);
+    const src = (await readFile(join(ROOT, 'supabase/migrations', NEXT), 'utf8')).replace(/\r\n/g, '\n');
+    try { await db.exec(`begin;\n${src}\ncommit;`); } catch (e) { await db.exec('rollback').catch(() => {}); fails.push('TS-4 a second apply refused: ' + e.message); }
+    const after = JSON.stringify((await db.query('select user_id, slot, station_id, stand_no, inst from public.town_bodies order by 1, 2')).rows);
+    if (before !== after) fails.push('TS-4 a second apply moved a body');
+  } finally { await db.close().catch(() => {}); }
+  return fails;
+}
+
 async function rules(db) {
   const fails = [];
   const fail = (m) => fails.push(m);
   await people(db, 6, [0, 1]);
   const V = U(6);   // the viewer: its own account, idle
+  /* WHERE TO LOOK: the catalogue's own tiles (the town is whatever the generated catalogue says, today Havora) */
+  const firstTile = async (station) => (await db.query("select x, y from public.hr_town_stands where map_id = 'town_common' and station_id = $1 order by stand_no limit 1", [station])).rows[0];
+  const W = await firstTile(await one(db, "select public.hr_town_station_for('town_common', 'gather', 'normal_tree')"));
+  const I = await firstTile(await one(db, "select station_id from public.hr_town_stations where map_id = 'town_common' and role = 'idle'"));
+  const A = await firstTile(await one(db, "select public.hr_town_station_for('town_common', 'combat', 'mill_cellar')"));
+  const counter = await one(db, "select station_id from public.hr_town_stations where map_id = 'town_common' and role = 'visit' order by ord limit 1");
+  const SX = W.x + 1, SY = W.y;   // the viewer's steered tile, in the woodcutters' view
   // TS-1 BROWSER CLOSED
   for (let i = 1; i <= 5; i++) await work(db, U(i), 0, 'gather', 'normal_tree');
-  await view(db, V, 0, 11, 7);                       // places the viewer; applies the notes after its read
-  const first = await view(db, V, 0, 11, 7);
+  await view(db, V, 0, W.x, W.y);                    // places the viewer; applies the notes after its read
+  const first = await view(db, V, 0, W.x, W.y);
   const ws = (first && first.walkers) || [];
   const workers = ws.filter((w) => [1, 2, 3, 4, 5].some((i) => w.id === U(i)));
   if (workers.length !== 5) fail('TS-1 the viewer sees ' + workers.length + ' of the 5 workers whose browsers are closed: ' + JSON.stringify(first).slice(0, 300));
@@ -133,58 +179,58 @@ async function rules(db) {
   const me = first && first.me;
   const idle = await one(db, "select station_id from public.hr_town_stations where map_id = 'town_common' and role = 'idle'");
   if (!me || me.station !== idle || !Array.isArray(me.at)) fail('TS-2 the idle viewer is not on the idle station: ' + JSON.stringify(me));
-  const pub = await as(db, V, "select public.hr_town_move(0, 'town_common', 12, 10, 12, 10, 's')");
+  const pub = await as(db, V, "select public.hr_town_move(0, 'town_common', $1, $2, $1, $2, 's')", [SX, SY]);
   if (!pub || pub.stamped !== true) fail('TS-2 the viewer\'s publish was refused: ' + JSON.stringify(pub));
-  const seen = await view(db, U(1), 0, 11, 7);
+  const seen = await view(db, U(1), 0, W.x, W.y);
   const vw = seen && (seen.walkers || []).find((w) => w.id === V && w.slot === 0);
-  if (!vw || vw.x !== 12 || vw.y !== 10) fail('TS-2 another player does not see the viewer on its steered tile: ' + JSON.stringify(vw));
+  if (!vw || vw.x !== SX || vw.y !== SY) fail('TS-2 another player does not see the viewer on its steered tile: ' + JSON.stringify(vw));
   /* a walker's LOOK (name, level, role, outfit) is read once a minute, not every read: a rename shows after it */
   await db.query("update public.profiles set display_name = 'Renamed Six' where id = $1", [V]);
-  const cached = await view(db, U(1), 0, 11, 7);
+  const cached = await view(db, U(1), 0, W.x, W.y);
   const cw = cached && (cached.walkers || []).find((w) => w.id === V && w.slot === 0);
   await db.query("update public.town_bodies set look_at = now() - interval '61 seconds' where user_id = $1", [V]);
-  const fresh = await view(db, U(1), 0, 11, 7);
+  const fresh = await view(db, U(1), 0, W.x, W.y);
   const fw = fresh && (fresh.walkers || []).find((w) => w.id === V && w.slot === 0);
   if (!cw || cw.name !== 'Stand 6' || !fw || fw.name !== 'Renamed Six')
     fail('TS-2 a walker\'s look is not the minute-old one, then the new one: ' + JSON.stringify(cw && cw.name) + ' then ' + JSON.stringify(fw && fw.name));
   await work(db, V, 0, 'artisan', 'cook_shrimp');
-  const moved = await view(db, V, 0, 11, 7);         // its own pending change first: `me` is its new stand at once
+  const moved = await view(db, V, 0, W.x, W.y);      // its own pending change first: `me` is its new stand at once
   const cook = await one(db, "select public.hr_town_station_for('town_common', 'artisan', 'cook_shrimp')");
   const vb = await standOf(db, V, 0);
-  if (!moved.me || moved.me.station !== cook || moved.me.work !== true || !vb || vb.from_x !== 12 || vb.from_y !== 10)
+  if (!moved.me || moved.me.station !== cook || moved.me.work !== true || !vb || vb.from_x !== SX || vb.from_y !== SY)
     fail('TS-2 a new activity did not move the viewer\'s stand to ' + cook + ' walking from where it stood: ' + JSON.stringify(moved.me) + ' ' + JSON.stringify(vb));
-  const go = await as(db, V, "select public.hr_town_go(0, 'tally_board')");
+  const go = await as(db, V, 'select public.hr_town_go(0, $1)', [counter]);
   const back = await as(db, V, 'select public.hr_town_go(0, null)');
   const refused = await as(db, V, "select public.hr_town_go(0, $1)", [cook]);
-  if (!go || !go.me || go.me.station !== 'tally_board' || !back || !back.me || back.me.station !== cook || !refused || refused.error !== 'unknown_station')
+  if (!go || !go.me || go.me.station !== counter || !back || !back.me || back.me.station !== cook || !refused || refused.error !== 'unknown_station')
     fail('TS-2 hr_town_go: counter ' + JSON.stringify(go && go.me) + ', back ' + JSON.stringify(back && back.me) + ', a work station ' + JSON.stringify(refused));
   // TS-3 OUT AND BACK (a parked hero: U(1) slot 1, idle, kept alive by hr_town_here)
   const P = U(1);
   const here = await as(db, P, "select public.hr_town_here(1, 'town_common')");
   if (!here || !here.me || here.me.station !== idle) fail('TS-3 a parked idle hero is not on the idle station: ' + JSON.stringify(here));
-  const c1 = await view(db, V, 0, 11, 7);
+  const c1 = await view(db, V, 0, I.x, I.y);          // the viewer looks at the square, where the parked hero stands
   const inst = await one(db, 'select gen_random_uuid()');
   await db.query("insert into public.hunt_instances (id, hunt_id, settled_to, next_swing_at) values ($1, 'mill_cellar', now(), now())", [inst]);
   await db.query("insert into public.hunt_sessions (id, user_id, slot, hunt_id, entered_at, hunt_from, settled_to, next_swing_at, instance_id) values (gen_random_uuid(), $1, 1, 'mill_cellar', now(), now(), now(), now(), $2)", [P, inst]);
   await db.query("select public.hr_hunt_point($1, 1, 'mill_cellar')", [P]);
   const refusedHere = await as(db, P, "select public.hr_town_here(1, 'town_common')");
   if (!refusedHere || refusedHere.error !== 'hunting') fail('TS-3 a hunting hero was answered present: ' + JSON.stringify(refusedHere));
-  await view(db, V, 0, 11, 7, c1.cursor, 11, 7);      // applies the hunt-start note after its read
-  const c2 = await view(db, V, 0, 11, 7, c1.cursor, 11, 7);
+  await view(db, V, 0, I.x, I.y, c1.cursor, I.x, I.y);   // applies the hunt-start note after its read
+  const c2 = await view(db, V, 0, I.x, I.y, c1.cursor, I.x, I.y);
   if (!c2 || c2.full !== false || !(c2.gone || []).some((g) => g.id === P && g.slot === 1)) fail('TS-3 the hunter is not gone from a delta read: ' + JSON.stringify(c2).slice(0, 300));
   await db.query("update public.hunt_sessions set ended_at = now(), end_reason = 'left' where user_id = $1 and slot = 1 and ended_at is null", [P]);
   await db.query('select public.hr_hunt_point($1, 1, null)', [P]);
   const home = await as(db, P, "select public.hr_town_here(1, 'town_common')");
   const arrive = await one(db, "select public.hr_town_station_for('town_common', 'combat', 'mill_cellar')");
   if (!home || !home.me || home.me.station !== arrive) fail('TS-3 back from its hunt the hero is not on the arrival (' + arrive + '): ' + JSON.stringify(home));
-  const c3 = await view(db, V, 0, 11, 7, c2.cursor, 11, 7);
+  const c3 = await view(db, V, 0, A.x, A.y, c2.cursor, I.x, I.y);   // ...then pans to the gate
   if (!(c3.walkers || []).some((w) => w.id === P && w.slot === 1)) fail('TS-3 the hero back from its hunt is not in the next delta: ' + JSON.stringify(c3).slice(0, 300));
   await new Promise((r) => setTimeout(r, 6000));      // past the commit slack: nothing changed since c3
   for (let i = 1; i <= 5; i++) await as(db, U(i), "select public.hr_town_here(0, 'town_common')");   // keepalives move nothing
   await as(db, P, "select public.hr_town_here(1, 'town_common')");
   /* a cursor re-reads what changed in the 5 s slack before it (commit order), so the read after the next one is the empty one */
-  const c4 = await view(db, V, 0, 11, 7, c3.cursor, 11, 7);
-  const c5 = await view(db, V, 0, 11, 7, c4.cursor, 11, 7);
+  const c4 = await view(db, V, 0, A.x, A.y, c3.cursor, A.x, A.y);
+  const c5 = await view(db, V, 0, A.x, A.y, c4.cursor, A.x, A.y);
   if (!c5 || c5.full !== false || (c5.walkers || []).length || (c5.gone || []).length) fail('TS-3 a delta six seconds after the last change is not empty: ' + JSON.stringify(c5).slice(0, 300));
   return fails;
 }
@@ -242,19 +288,33 @@ const MUTANTS = [
   ['the live town is not set down first (production 10-26)', "    perform public.hr_town_moves_settle(v_live, 100000);\n    if exists", "    if false and exists"],
   ['hr_town_go takes a work station', "s.role in ('visit', 'idle', 'bench')) then", "s.role in ('visit', 'idle', 'bench', 'work')) then"],
 ];
+/* ...and in the next generated catalogue (TS-4): [name, file, from, to]. A regenerated catalogue keeps these lines
+   (tools/gen-town-stations.mjs writes them); a new OUT_FILE moves the file named here (the harness refuses a mismatch). */
+const NEXT_MUTANTS = [
+  ['a released worker is not noted again', 'supabase/migrations/2027-01-29-havora-stations.generated.sql',
+    "       where ps.active_kind in ('gather', 'artisan', 'training')", "       where false and ps.active_kind in ('gather', 'artisan', 'training')"],
+  ['a body is left on a stand the catalogue lacks', 'supabase/migrations/2027-01-29-havora-stations.generated.sql',
+    '       where b.station_id is not null\n         and not exists', '       where false and b.station_id is not null\n         and not exists'],
+];
+/* every mutant as [name, migration file, from, to] */
+const ALL_MUTANTS = MUTANTS.map(([n, f, t]) => [n, FILE, f, t]).concat(NEXT_MUTANTS.map(([n, p, f, t]) => [n, p.split('/').pop(), f, t]));
 
 async function main() {
   /* AN EMPTY EVENT LOOP BEFORE THE VERDICT IS RED: a query that never settles must not let node exit 0 mid-run */
   process.on('beforeExit', () => { console.log('  ✗ town-stands stopped before its verdict (a query never settled)'); process.exit(1); });
-  const src = (await readFile(join(ROOT, 'supabase/migrations', FILE), 'utf8')).replace(/\r\n/g, '\n');
+  if (NEXT_MUTANTS.some(([, p]) => !p.endsWith('/' + NEXT))) { console.log('harness: NEXT_MUTANTS name a file that is not the generator\'s OUT_FILE ' + NEXT); process.exit(2); }
   const only = process.argv.includes('--only') ? process.argv[process.argv.indexOf('--only') + 1] : null;
   /* ONE MUTANT, IN ITS OWN PROCESS (the parent's --mutate spawns this): exit 0 caught, 10 escaped, 20 a harness fault */
   if (process.argv.includes('--mutant')) {
-    const [name, from, to] = MUTANTS[Number(process.argv[process.argv.indexOf('--mutant') + 1])];
+    const [name, mig, from, to] = ALL_MUTANTS[Number(process.argv[process.argv.indexOf('--mutant') + 1])];
+    const src = (await readFile(join(ROOT, 'supabase/migrations', mig), 'utf8')).replace(/\r\n/g, '\n');
     if (src.split(from).length !== 2) { console.log('harness: anchor matches ' + (src.split(from).length - 1) + ' times'); process.exit(20); }
     let fails;
-    const patches = new Map([[FILE, [[from, to]]]]);
-    try { fails = [...await rules((await bootReplay({ patches, upTo: FILE })).db), ...await liveTown(patches)]; }
+    const patches = new Map([[mig, [[from, to]]]]);
+    try {
+      fails = mig === FILE ? [...await rules((await bootReplay({ patches, upTo: FILE })).db), ...await liveTown(patches)]
+        : [...await nextCatalogue(patches)];
+    }
     catch (e) {
       /* a HARNESS fault (the anchor moved, the patch did not land) proves nothing: red, never "caught" */
       if (e && e.harness) { console.log('harness: ' + String(e.message).split('\n')[0]); process.exit(20); }
@@ -271,7 +331,7 @@ async function main() {
     await bootReplay({ upTo: '2027-01-26-town-stations.generated.sql' });
     const { spawnSync } = await import('node:child_process');
     let bad = 0, ran = 0;
-    for (const [i, [name]] of MUTANTS.entries()) {
+    for (const [i, [name]] of ALL_MUTANTS.entries()) {
       if (only && !name.includes(only)) continue;
       ran++;
       const r = spawnSync(process.execPath, [join(ROOT, 'tests', 'town-stands.mjs'), '--mutant', String(i)], { encoding: 'utf8', timeout: 900000 });
@@ -284,7 +344,7 @@ async function main() {
     process.exit(bad ? 1 : 0);
   }
   const { db } = await bootReplay();
-  const fails = [...await rules(db), ...await liveTown(null)];
+  const fails = [...await rules(db), ...await liveTown(null), ...await nextCatalogue()];
   for (const f of fails) console.log('  ✗ ' + f);
   if (process.argv.includes('--load')) {
     const { db: ldb } = await bootReplay();

@@ -103,6 +103,8 @@ const FIXTURE = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/hunt-envelo
 const clone = (o) => JSON.parse(JSON.stringify(o));
 const ANDY = 'aaaaaaaa-0000-4000-8000-0000000000a1';
 const TYLER = '11111111-0000-4000-8000-0000000000b2';
+/* the fakes' read area: the whole town (a real answer's area is the viewer's window; the presence drops what lies outside it) */
+const AREA = Object.freeze([0, 0, 255, 255]);
 /* the server's stand answer (hr_town_view / hr_town_here `me`) */
 const ME = (x = 4, y = 11, o = {}) => Object.assign({ map: 'town_common', inst: 1, station: 'green', stand: 1, x, y, gx: x, gy: y, dir: 's', at: [x, y],
   work: false, since_ms: 1 }, o);
@@ -205,7 +207,7 @@ function fakeWorld(M) {
           walkers.push({ id: b.uid, slot: b.slot, name: names.get(b.uid), level: 7, role: l ? world.walkerRole(l) : 'healer',
             outfit: l && l.outfit ? { id: l.outfit, colors: {} } : null, x: w.x, y: w.y, gx: w.gx, gy: w.gy, dir: w.dir, age_ms: 0, station: w.station, work: false });
         }
-        return { ok: true, body: { ok: true, map: args.p_map, inst: 1, cap: 120, full: true, cursor: ++clock * 1000, area: [0, 0, 23, 13], walkers, gone: [], me: where(key) } };
+        return { ok: true, body: { ok: true, map: args.p_map, inst: 1, cap: 120, full: true, cursor: ++clock * 1000, area: AREA, walkers, gone: [], me: where(key) } };
       }
       if (name === 'hr_town_move') {
         if (args.p_map === null) { pos.delete(key); stands.delete(key); return { ok: true, body: { ok: true, left: true } }; }
@@ -711,7 +713,7 @@ async function stub(page, s) {
     const json = (b) => r.fulfill({ contentType: 'application/json', body: JSON.stringify(b) });
     if (name === 'hr_load') return json(Object.assign(townEnvelope('Tyler'), { version: ++s.version }));
     if (name === 'hr-accrue') return json({ accrued: false });
-    if (name === 'hr_town_view') return json({ ok: true, map: body.p_map, inst: 1, cap: 120, full: true, cursor: ++s.cursor, area: [0, 0, 23, 13], gone: [], me: s.me,
+    if (name === 'hr_town_view') return json({ ok: true, map: body.p_map, inst: 1, cap: 120, full: true, cursor: ++s.cursor, area: AREA, gone: [], me: s.me,
       walkers: [{ id: ANDY, slot: 0, name: 'Andy', level: 9, role: 'healer', x: 13, y: 9, gx: 14, gy: 9, dir: 'w', age_ms: 400, station: 'green', work: false }] });
     if (name === 'hr_town_here') return json({ ok: true, me: s.me });
     if (name === 'hr_town_move') return json({ ok: true, stamped: true });
@@ -839,7 +841,7 @@ async function stubTwo(page, s) {
         const p = s.pos.get(slot) || STANDS[slot];
         walkers.push({ id: UID, slot, name: NAMES[slot], level: 9, role: 'tank', x: p.x, y: p.y, gx: p.gx, gy: p.gy, dir: p.dir, age_ms: 0, station: 'green', work: false });
       }
-      return json({ ok: true, map: body.p_map, inst: 1, cap: 120, full: true, cursor: ++s.version, area: [0, 0, 23, 13], gone: [], walkers, me: STANDS[body.p_slot] });
+      return json({ ok: true, map: body.p_map, inst: 1, cap: 120, full: true, cursor: ++s.version, area: AREA, gone: [], walkers, me: STANDS[body.p_slot] });
     }
     if (name === 'hr_chat_recent') return json({ ok: true, zone: 'local:town', party: null, lines: [] });
     if (name === 'hr_social_state') return json({ ok: true, friends: [], incoming: [], outgoing: [], blocks: [] });

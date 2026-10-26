@@ -4408,3 +4408,4 @@ guard tests/hunt-scene.mjs (SC-1..8, 13/13 mutants).
 3. *A closed painted footprint is open inside* (only its edge blocks): anything placing bodies must use reachFrom, not the mask (the crowd harness first stood people inside the hearth).
 4. *Stands behind a prop are hidden*: test every stand against the compile's OVER bits (two storage rows sat behind the counters).
 5. *Time renders with a simulated clock*: a pane that is not fronted throttles requestAnimationFrame to 1-2 fps and the first frames bake chunks; a page-relative atlas path 404s from tools/qa unless the page sets `<base>`, and the numbers then time stub boxes (report `stubbed`).
+6. *Every hall faces the camera (south)*: a building opens onto a square only from the square's north side. Check a plan's "across the square" pairs against the art's facing before laying lots; tall landmark art hides every tile it spans (no stands there).

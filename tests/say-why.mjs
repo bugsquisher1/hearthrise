@@ -240,7 +240,7 @@ export const REASONS = Object.freeze({
     { cond: '!on', words: "(you have '", where: 'each step\'s cost lines mark what is short, with your counts' },
   ],
   'src/shell/windows/tally.js': [
-    { cond: '!!why || st.sc.pending || st.hunting', words: "'Her board is on the Common: take tasks when you are back in town.'", where: 'the button reads Held / Full; hunting says the board is in town' },
+    { cond: '!!why || st.sc.pending || st.hunting', words: "': take tasks when you are back in town.'", where: 'the button reads Held / Full; hunting says the board is in town' },
     { cond: 'order.indexOf(s) === 0', words: '(the first cannot move up)', where: 'the first slot has nothing to move above (its button reads Earlier)' },
     { cond: '!t', words: "'Loading her board…'", where: 'the board says it is loading' },
   ],

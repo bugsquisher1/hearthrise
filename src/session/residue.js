@@ -12,6 +12,7 @@
 // can never reach a renderer or the server.
 // ════════════════════════════════════════════════════════════════════════
 import { PANEL_ALPHA } from '../data/panel-alpha.js?v=0.2.50';
+import { TOWN_ZOOM } from '../data/world/view-zoom.js?v=0.2.50';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 
@@ -182,6 +183,11 @@ function sanitizeCoach(v) {
   return out;
 }
 
+/* The town zoom the viewer picked (src/world/town-zoom.js): one of TOWN_ZOOM.steps, else no pick at all. */
+function sanitizeTownZoom(v) {
+  return TOWN_ZOOM.steps.includes(v) ? v : undefined;
+}
+
 /** field -> sanitizer. The keys ARE the allowlist. */
 const SANITIZERS = Object.freeze({
   hudLayout: sanitizeHudLayout,     // display preference: the HUD layout (show, fade, place, fold); gates and spends nothing
@@ -197,6 +203,7 @@ const SANITIZERS = Object.freeze({
   winSize: sanitizeWinSize,         // display preference: a resizable window's size (src/shell/window-sizes.js); gates and spends nothing
   panelAlpha: sanitizePanelAlpha,   // display preference: the window opacity, a percent (src/shell/panel-alpha.js); gates and spends nothing
   coach: sanitizeCoach,             // display state: the coach line folded to its title and the cards read (src/shell/launcher.js); gates and spends nothing
+  townZoom: sanitizeTownZoom,       // display preference: the town view's zoom (src/world/town-zoom.js); gates and spends nothing
 });
 
 export const RESIDUE_FIELDS = Object.freeze(Object.keys(SANITIZERS));

@@ -24,8 +24,9 @@ const SHOTS = [
   ['gate-1_5x', 'crowd=6&zoom=1.5', 2560, 1440, 1],
   ['gate-2x', 'crowd=6&zoom=2', 2560, 1440, 1],
 ];
-const only = process.argv.slice(2);
-const browser = await chromium.launch();
+const gpu = process.argv.includes('--gpu');   // the machine's GPU (Tyler's: an RTX 3070) instead of headless SwiftShader
+const only = process.argv.slice(2).filter((a) => a !== '--gpu');
+const browser = await chromium.launch(gpu ? { args: ['--enable-gpu', '--ignore-gpu-blocklist', '--use-angle=d3d11'] } : {});
 async function open(q, w, h, dpr) {
   const page = await browser.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: dpr });
   const errors = [];
@@ -52,6 +53,20 @@ try {
     if (dpr === 1 && name.startsWith('square')) await page.screenshot({ path: join(HERE, 'crop-' + name + '.png'), clip: { x: 1180, y: 380, width: 640, height: 360 } });
     console.log('  ' + name + '  z=' + z + (errors.length ? '  ERRORS: ' + errors.join(' | ') : ''));
     await page.close();
+  }
+  if (!only.length || only.includes('time')) {
+    /* THE TOWN DRAW at 2560 x 1440: 240 frames walking east across the square (new chunks baked on the way) */
+    for (const [crowd, walk] of [[20, true], [0, true], [20, false]]) for (const zoom of [1, 1.5, 2]) {
+      const { page } = await open('x=130&y=50&crowd=' + crowd + '&zoom=' + zoom, 2560, 1440, 1);
+      const r = await page.evaluate((walk) => {
+        const ms = [];
+        for (let k = 0; k < 240; k++) { const t = performance.now(); window.drawAt(walk ? k / 8 : 0); ms.push(performance.now() - t); }
+        ms.sort((a, b) => a - b);
+        return { avg: ms.reduce((a, b) => a + b, 0) / ms.length, p95: ms[Math.floor(ms.length * 0.95)], max: ms[ms.length - 1] };
+      }, walk);
+      console.log('  draw x' + zoom + ' crowd ' + crowd + (walk ? ' walking' : ' standing') + ': avg ' + r.avg.toFixed(2) + ' p95 ' + r.p95.toFixed(2) + ' max ' + r.max.toFixed(1) + ' ms');
+      await page.close();
+    }
   }
   if (!only.length || only.includes('pan')) {
     /* THE PAN AT x1.5: the camera moved 2/3 art px at a time (one device px); the still world must slide whole,

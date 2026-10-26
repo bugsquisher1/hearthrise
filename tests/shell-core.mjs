@@ -561,6 +561,12 @@ async function runTests(mods) {
     for (let i = 0; i < 100; i++) many['w' + i] = [300, 300];
     ok(Object.keys(CS.sanitizeResidueField('winSize', many)).length <= 16, 'the count is bounded');
   });
+  t('R5 townZoom is an allowlisted residue field: one of the offered steps, else no pick', () => {
+    ok(CS.RESIDUE_FIELDS.includes('townZoom'), 'townZoom must be in RESIDUE_FIELDS');
+    eq(CS.sanitizeResidueField('townZoom', 1), 1, 'a step is kept');
+    eq(CS.sanitizeResidueField('townZoom', 2), 2, 'a step is kept');
+    for (const bad of [0, 1.7, 9, -1, '2', null, {}]) eq(CS.sanitizeResidueField('townZoom', bad), undefined, 'not a step: ' + JSON.stringify(bad));
+  });
 
   /* ── R3: "while you were away" (src/shell/away-recap.js, designer 2026-10-22) ── */
   t('R3 the away recap: one line of server differences on return, never on a quick reload', () => {

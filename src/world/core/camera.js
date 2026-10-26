@@ -48,12 +48,16 @@ export const WIDE_CSS = 2400;
  * Device pixels per art pixel for a window `innerWidth` CSS px wide at `dpr`, on art grid `grid`
  * (a GRIDS row; the base grid when absent). Never fitted to a scene or a room.
  * `pick`: THE VIEWER'S TOWN ZOOM (Tyler 2026-10-26, "a bit too zoomed in"; src/data/world/view-zoom.js),
- * CSS px per base art px, chosen by the player, never by the map. It is kept as chosen: x1.5 at DPR 1 is
- * 1.5 device px per art px, drawn nearest-neighbour (blitPlan keeps its uneven columns fixed to the world).
+ * CSS px per base art px, chosen by the player, never by the map. A whole pick is rounded to whole device px
+ * like the screen class's (x1 at DPR 1.25 stays crisp at 1); a fractional one is kept as chosen: x1.5 at DPR 1
+ * is 1.5 device px per art px, drawn nearest-neighbour (blitPlan keeps its uneven columns fixed to the world).
  */
 export function zoomFor(innerWidth, dpr, grid, pick) {
   const g = grid || GRIDS.base;
-  if (Number.isFinite(pick) && pick > 0) return (pick * (dpr || 1)) / (g.scale || 1);
+  if (Number.isFinite(pick) && pick > 0) {
+    const z = (pick * (dpr || 1)) / (g.scale || 1);
+    return Number.isInteger(pick) ? Math.max(1, Math.round(z)) : z;
+  }
   const css = (innerWidth || 0) > WIDE_CSS ? g.wideDensity : g.density;
   return Math.max(1, Math.round(css * (dpr || 1)));
 }

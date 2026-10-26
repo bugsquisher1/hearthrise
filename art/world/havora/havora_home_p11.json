@@ -1,0 +1,41 @@
+{
+  "id": "havora_home_p11",
+  "class": "lot",
+  "style": "s1",
+  "material": "wood",
+  "source": "havora_home_p11.png",
+  "frame": [
+    462,
+    324
+  ],
+  "anchor_px": [
+    231,
+    323
+  ],
+  "footprint": [
+    16,
+    10
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_image_pro",
+    "image": "98cd95a5-5acd-43d2-bba2-8c5ef47e2a9c",
+    "seed": 621,
+    "size": [
+      512,
+      384
+    ],
+    "cost": 25,
+    "style": "common/square_general_store"
+  },
+  "notes": "Home P11 (plan x132-147 y20-29), the mountain: log and fieldstone lodge, stone-weighted slate roof, firewood, terraced yard."
+}

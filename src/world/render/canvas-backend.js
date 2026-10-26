@@ -26,6 +26,7 @@ import { paintStub } from '../stub-atlas.js?v=0.2.48';
 
 const LIGHT_BANDS = 4;   // stepped pools: pixel-art light, no airbrush
 const FLASH_ALPHA = 0.7; // a hit's silhouette over the frame
+const CHUNK_KEEP = 24;   // baked ground chunks kept (LRU): a 192 x 116 town is 96 of ~1 MB each
 
 /**
  * @param {{win: Window, doc: Document, book: object, images: object, tables: object,
@@ -84,7 +85,8 @@ export function createCanvasBackend(o) {
   function chunk(cx, cy) {
     const key = cx + ',' + cy;
     let c = chunks.get(key);
-    if (c) return c;
+    if (c) { chunks.delete(key); chunks.set(key, c); return c; }
+    if (chunks.size >= CHUNK_KEEP) chunks.delete(chunks.keys().next().value);
     c = doc.createElement('canvas');
     c.width = CHUNK; c.height = CHUNK;
     const g = c.getContext('2d');
@@ -93,6 +95,15 @@ export function createCanvasBackend(o) {
     const inside = (t) => t.x < x0 + CHUNK && t.y < y0 + CHUNK && t.x + T > x0 && t.y + T > y0;
     g.fillStyle = tone('void');
     for (const v of ground.voids) if (inside(v)) g.fillRect(v.x - x0, v.y - y0, T, T);
+    /* placeholder tones (a town ahead of its ground art): one token per material and parity, read once per chunk */
+    const tones = new Map();
+    for (const t of ground.tones) {
+      if (!inside(t)) continue;
+      const k = 'ground-' + t.m + (t.alt ? '-b' : '-a');
+      if (!tones.has(k)) tones.set(k, tone(k));
+      g.fillStyle = tones.get(k);
+      g.fillRect(t.x - x0, t.y - y0, T, T);
+    }
     for (const t of ground.tiles) {
       if (!inside(t) || !images[t.set]) continue;
       g.drawImage(images[t.set], t.sx, t.sy, T, T, t.x - x0, t.y - y0, T, T);

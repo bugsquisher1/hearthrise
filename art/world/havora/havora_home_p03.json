@@ -1,0 +1,41 @@
+{
+  "id": "havora_home_p03",
+  "class": "lot",
+  "style": "s1",
+  "material": "wood",
+  "source": "havora_home_p03.png",
+  "frame": [
+    320,
+    302
+  ],
+  "anchor_px": [
+    160,
+    301
+  ],
+  "footprint": [
+    10,
+    8
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_image_pro",
+    "image": "0b8ef71c-a601-41c5-ac71-c093c6dab48a",
+    "seed": 603,
+    "size": [
+      320,
+      320
+    ],
+    "cost": 15,
+    "style": "common/square_general_store"
+  },
+  "notes": "Home P03 (plan x46-55 y14-21), NW shacks: tall fisherman's shack on stone footings, turf roof, nets and drying rack."
+}

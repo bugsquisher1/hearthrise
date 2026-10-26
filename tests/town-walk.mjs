@@ -76,9 +76,9 @@
 //         only the slot and a station id, and a bad station sends nothing
 //   TW-14 [page] ONE ACCOUNT, TWO HEROES, SWITCHED A -> B -> A (Andy 10-21: "Not able to consistently
 //         see both characters on a map"): after every switch the viewed hero sees the other one drawn
-//         in The Common; switching never moves a hero (the one shown again stands where it stood, never
+//         in town; switching never moves a hero (the one shown again stands where it stood, never
 //         at its stand or the map's start) and never resets its Town / Home pick; zero console errors
-//   TW-8  [page] in The Common a peer the server names walks beside the hero; a
+//   TW-8  [page] in town a peer the server names walks beside the hero; a
 //         right-click on them opens the player menu under their name (Inspect
 //         gear, Message, Add friend, Invite to party, Block); the hero starts on
 //         its server stand and publishes its own tiles; when the server moves its
@@ -96,7 +96,8 @@ import { pathToFileURL } from 'node:url';
 import { ROOT, serve, SDK_STUB, UID } from './_client-harness.mjs';
 import { roleForWeapon as ROLE_FOR_WEAPON } from '../src/data/hunt-roles.js';
 /* the stations as the server catalogue reads them (the seed's rows, or the real town's STATIONS) */
-import { townStations } from '../tools/gen-town-stations.mjs';
+import { townStations, OUT_FILE as CATALOGUE } from '../tools/gen-town-stations.mjs';
+import { TOWN_NAME } from '../src/data/world/town/plan.js';
 
 const FIXTURE = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/hunt-envelope.json'), 'utf8'));
 const clone = (o) => JSON.parse(JSON.stringify(o));
@@ -121,7 +122,7 @@ async function load(base) {
     'src/data/town-presence.js', 'src/data/world/maps/index.js', 'src/world/town-scene.js', 'src/world/core/map-compile.js', 'src/world/core/book.js',
     'src/data/world/atlas-sets.js', 'src/data/world/terrain.js', 'src/session/hero-look.js', 'src/data/hunt-roles.js', 'src/data/world/stations.js'].map((p) => import(u(p))));
   return { base, acct, town, data, maps, cast, mapc, bookm, sets, terrain, look, roles, stations,
-    catalogue: readFileSync(join(base, 'supabase/migrations/2027-01-26-town-stations.generated.sql'), 'utf8') };
+    catalogue: readFileSync(join(base, 'supabase/migrations', CATALOGUE), 'utf8') };
 }
 
 /* The chain's last word on `fn` (its body, from the file the apply order applies last), and the function the
@@ -578,8 +579,8 @@ async function pureRules(M) {
   // TW-16 (Tyler live v0.2.31: "I can't see other players' skin choice. Just defaults to the paladin"):
   // A PEER WEARS ITS OWN LOOK. (a) the real server: the chain's last hr_town_look (the look hr_town_view sends
   // each walker in) names a walker's role with the function behind the character's OWN `role` section (its worn
-  // weapon's), never the retired action-set pick; (b) on the fake modelled on (a), another player appears in The
-  // Common drawn in the look its own screen draws it in (its weapon's outfit, or the one it chose), and after the
+  // weapon's), never the retired action-set pick; (b) on the fake modelled on (a), another player appears in
+  // town drawn in the look its own screen draws it in (its weapon's outfit, or the one it chose), and after the
   // viewer reloads it still is.
   {
     const { body, roleFn } = chainOf(M.base, 'hr_town_look');
@@ -742,8 +743,8 @@ async function pageRules(overrides, shots) {
     await page.click('.auth-submit');
     await wait(page, () => document.querySelector('[data-app="play"][data-slot="0"]'));
     await page.click('[data-app="play"][data-slot="0"]');
-    if (!await wait(page, () => document.querySelector('.world-canvas') && /Common/.test((document.querySelector('.world-title') || {}).textContent || ''))) {
-      fails.push('TW-8 the World did not open on The Common'); await ctx.close(); return fails;
+    if (!await wait(page, (name) => document.querySelector('.world-canvas') && ((document.querySelector('.world-title') || {}).textContent || '').includes(name), TOWN_NAME)) {
+      fails.push('TW-8 the World did not open on ' + TOWN_NAME); await ctx.close(); return fails;
     }
     await page.waitForTimeout(3000);   // two polls, a few publishes, Andy walking
     const reads = s.calls.filter((c) => c.name === 'hr_town_view');
@@ -885,10 +886,10 @@ async function switchRules(overrides) {
     await page.click('.auth-submit');
     await wait(page, () => document.querySelector('[data-app="play"][data-slot="0"]'));
     await page.click('[data-app="play"][data-slot="0"]');
-    const shows = (slot) => wait(page, (n) => !!document.querySelector('#panel-world[data-slot="' + n + '"] .world-canvas')
-      && /Common/.test((document.querySelector('#panel-world .world-title') || {}).textContent || ''), slot);
+    const shows = (slot) => wait(page, ([n, name]) => !!document.querySelector('#panel-world[data-slot="' + n + '"] .world-canvas')
+      && ((document.querySelector('#panel-world .world-title') || {}).textContent || '').includes(name), [slot, TOWN_NAME]);
     if (!await shows(0) || !await wait(page, () => document.querySelectorAll('.char-tab[data-slot]').length === 2)) {
-      fail('TW-14 the World did not open on The Common with both heroes in the strip'); await ctx.close(); return fails;
+      fail('TW-14 the World did not open on town with both heroes in the strip'); await ctx.close(); return fails;
     }
     /* walk Tyler off his stand: tap the ground to his side until his body stands elsewhere */
     const own = (slot) => s.calls.filter((c) => c.name === 'hr_town_move' && c.body.p_slot === slot && c.body.p_map !== null);
@@ -905,13 +906,13 @@ async function switchRules(overrides) {
     const sees = async (slot, other) => {
       await page.waitForTimeout(2600);   // a town poll after the switch
       const names = await peopleDrawn(page);
-      if (!names.includes(other)) fail('TW-14 viewing ' + NAMES[slot] + ' after a switch, ' + other + ' is not drawn in The Common (drawn: ' + JSON.stringify(names) + ')');
+      if (!names.includes(other)) fail('TW-14 viewing ' + NAMES[slot] + ' after a switch, ' + other + ' is not drawn in town (drawn: ' + JSON.stringify(names) + ')');
       if (names.includes(NAMES[slot])) fail('TW-14 viewing ' + NAMES[slot] + ', the hero is drawn as a walker of its own');
     };
     await sees(0, 'Fremulon');
     for (const slot of [1, 0, 1, 0]) {
       await page.click('.char-tab[data-slot="' + slot + '"]');
-      if (!await shows(slot)) { fail('TW-14 switching to ' + NAMES[slot] + ' did not show The Common'); break; }
+      if (!await shows(slot)) { fail('TW-14 switching to ' + NAMES[slot] + ' did not show town'); break; }
       await sees(slot, NAMES[1 - slot]);
     }
     const moved = own(0).filter((c) => s.calls.indexOf(c) >= mark && (c.body.p_x !== placed[0] || c.body.p_y !== placed[1]));
@@ -993,7 +994,7 @@ function copySrc() {
   const tmp = mkdtempSync(join(tmpdir(), 'hr-town-'));
   cpSync(join(ROOT, 'src'), join(tmp, 'src'), { recursive: true, filter: (p) => !/[\\/]vendor[\\/]?/.test(p.slice(ROOT.length)) });
   mkdirSync(join(tmp, 'supabase/migrations'), { recursive: true });
-  for (const f of ['2026-10-25-town-walk.sql', '2026-12-10-town-walker-role.sql', '2027-01-26-town-stations.generated.sql', '2027-01-28-town-stands.sql'])
+  for (const f of ['2026-10-25-town-walk.sql', '2026-12-10-town-walker-role.sql', '2027-01-26-town-stations.generated.sql', '2027-01-28-town-stands.sql', CATALOGUE])
     cpSync(join(ROOT, 'supabase/migrations', f), join(tmp, 'supabase/migrations', f));
   return tmp;
 }
@@ -1008,7 +1009,7 @@ async function main() {
     const fails = [...await pureRules(await loadRoot()), ...(onlyPure ? [] : [...await pageRules(null, shots), ...await switchRules(null)])];
     for (const f of fails) console.log('  ✗ ' + f);
     console.log(fails.length ? 'town-walk: ' + fails.length + ' rule(s) RED'
-      : 'town-walk: two accounts see each other; every body on its server stand; the publish is capped; blocks hidden; leaving leaves; whole answers replace, deltas only change' + (onlyPure ? '' : '; the peer walks in The Common with the one menu, the hero walks to its new stand') + (shots ? ' (shots in ' + shots + ')' : ''));
+      : 'town-walk: two accounts see each other; every body on its server stand; the publish is capped; blocks hidden; leaving leaves; whole answers replace, deltas only change' + (onlyPure ? '' : '; the peer walks in town with the one menu, the hero walks to its new stand') + (shots ? ' (shots in ' + shots + ')' : ''));
     process.exit(fails.length ? 1 : 0);
   }
   const clean = [...await pureRules(await loadRoot()), ...(onlyPure ? [] : [...await pageRules(null, null), ...await switchRules(null)])];

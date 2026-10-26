@@ -1101,6 +1101,14 @@ async function checks(overrides, shots) {
         /* AW-14 going hunting is two presses from town: the mill hatch opens Hunts on the Mill Cellar, Enter goes. */
         await page.keyboard.press('Escape');
         await page.waitForTimeout(200);
+        /* Havora is bigger than one view: tap the open map toward the hatch until it is well on screen */
+        for (let i = 0; i < 8; i++) {
+          const h = await at(TOWN.hatch[0], TOWN.hatch[1]);
+          const b = await page.evaluate(() => document.querySelector('.world-canvas').getBoundingClientRect().toJSON());
+          if (h.x > b.left + 120 && h.x < b.right - 120 && h.y > b.top + 120 && h.y < b.bottom - 200) break;
+          await page.mouse.click(Math.min(Math.max(h.x, b.left + 160), b.right - 160), Math.min(Math.max(h.y, b.top + 160), b.bottom - 240));
+          await page.waitForTimeout(2500);
+        }
         const hatch = await at(TOWN.hatch[0], TOWN.hatch[1]);
         await page.mouse.click(hatch.x, hatch.y);
         const opened = await wait(page, () => document.querySelector('[data-hs-win="hunts"] .hw-hunt.is-picked[data-hunt="mill_cellar"]'), null, 3000);

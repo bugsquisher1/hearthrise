@@ -1,5 +1,9 @@
 # Handoffs
 
+### 2026-10-25 · ART (lane/b-hearth-art) → MAP/BUILD LANE (L1, L4) and DESIGNER · Hearth Square art staged, on no map
+
+44 sprites and terrains in `art/world/common` (built into atlas-common), each sidecar's notes say where it sits. `great_hearth` (class landmark, footprint 11x4, anchor bottom-centre); `hearth_fire` (8@8 loop) over it at hearth px (146,238); a fuel landing plays `hearth_flare` (6@10, at 151,228) and `hearth_burn_sparks` (8@12, at 136,232); a `fuel_<family>` chunk flies from the hero's hand to hearth px (176,262) in ~300 ms on a ~26 px arc; `*_verdigris` = the named-fuel colour sample (swap fire, flare and sparks, and the point light tint); the glow = a map point light (tint `hearth`) at the firebox, r ~16 tiles plus ~8. Paving: `square_plaza` (painted 24x24, rings centred on local tile 11.5,12.5 = the hearth front) inside a kerb course of `square_grass_flag` / `square_dirt_flag` (wang16). Ring: `square_general_store`, `square_depot`, `square_bank`, `square_barracks` (class hall), `square_market_stall`, benches, 11 wear decals. Samples: `mine_mouth`, `ore_copper_rock`, `ore_coal_rock`, `rune_block`, `westwood_ash`, `westwood_yew`, `fishing_pier`. Designer: DISCOVERIES 2026-10-25 (the depot faces away from the square; store and barracks lots overlap).
+
 ### 2026-10-25 · SYSTEMS (lane/b-tutorial-rings, tutorial lane 2) → COORDINATOR / DESIGNER / ART · what shipped and what is left
 
 1. **Interface live:** `coachFactsOf(cs, account)` (src/shell/launcher.js) passes read / roster / slotsOwned / playLimit (`AccountSession.statedLimit()`, never a fallback) / sellable (`bag-model.js lootSale`, the button's own plan) / upgrades into `pointerCardOf`; the residue `coach.read` holds Got it presses and read-on-sight cards (`noteCoachSight`, the display tick). `ringPlan` rings `card.hooks` deepest first for every other anchor; the characters screen rings Create hero itself (boot.js `ringCharacters`).
@@ -97,3 +101,24 @@ The client half (B #1, A #1, A #5, B #3) is built on lane/b-hunts-detail from da
 **Tracker:** https://claude.ai/artifact/81VCt3YuFkKbrtke5u9jqK (Tyler answers questions + row notes there; read BOTH at session start). Rulings: memory rulings-of-record. Gap list: .claude/coordination/sim-gap-list-2026-10-19.md. Lanes + files: ACTIVE_WORK.md.
 
 **Known open bugs:** Andy's/Tyler's heroes can be stuck "busy" (hidden activity) — workaround Inventory > Stop (Andy reports no Stop line visible: the Stop line may not render; party-invite-menu lane fixes the cause server-side). Windows still push the world (lane/a-windows-float @09eac2750 is old WIP, unfinished). No death popup yet. Backups stopped after 2026-10-14 (PITR off): investigate.
+
+## 2026-10-26 · art-director → Coordinator (lane/b-havora-art-2) · PixelLab is needed for the rest of Havora
+The ground is done from existing pixels; everything else on the brief needs PixelLab calls this session could not make.
+Re-dispatch with the PixelLab MCP tools loaded (or run the calls): (1) create_topdown_tileset pro 32 px, chained from
+grass 42099ab7-68ef-4c41-bed9-581b37501045 / dirt 97e71544-5fcf-4e48-94b7-c809721a12be: grass/rock (the mountain),
+grass/sand + sand/water (the sea shore), earth/tilled (farm plots), earth/planks or a dock span; (2) buildings in the
+square_* hall style (create_image_pro, style = square_bank): gatehouse + walls, bridge (span), tavern P07, fisher_guild,
+harbor_office + docks, training yard dummies, sewer works, guild hall, homes P01-P15 (sample of 5 first). The renderer
+already draws any new wang16 pair: add its id to BLEND in src/data/world/town/sites.js.
+
+## 2026-10-26 · art lane (havora-art-3) → Coordinator (lane/b-havora-art-2) · Havora's lots, wall, docks, farm, rock, kerb
+Every placeholder site is now a style-1 sprite (new set art/world/havora, loaded via ATLAS_SETS; SITES is empty): gatehouse
+(moved to plan y5, 16x10, it straddles the palisade), tavern, bridge (walked on), harbour guild house, sewer works, fishers'
+guild, harbour office, homes P01-P15 (each different: crooked shacks NW, town lots, mountain lodges, waterfront estates).
+New art-budget classes: lot, bridge, palisade, palisade_v ('bridge' is in OPEN_CLASSES). Palisade = sliced log strips laid by
+town/palisade.js (the palisade material is now open ground under its blocking sprites, aliased to grass). New wang16 pairs in
+BLEND: earth/planks + water/planks (docks), grass/tilled (farm), grass/rock + earth/rock (mountain). Hearth Square's paving
+patch is havora_square_plaza (square_plaza + a baked kerb ring: decals on the edge would sit under stands, ST-2). Mountain
+scree decals: town/mountain.js. maskHash d639329e. Shots: art/review/havora-art-3-2026-10-26/ (11 views + 3 extras).
+Still open: the 4x4 smithy and mill look small beside the new lots; the mountain is flat rock (no cliff faces); the arrival
+yard is a wide bare dirt field. PixelLab: 620 subscription generations (4319.4 → 3699.4), no USD credits.

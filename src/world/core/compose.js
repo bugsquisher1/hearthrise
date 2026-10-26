@@ -55,14 +55,80 @@ function cellHash(x, y) {
 }
 
 /**
+ * A BLENDED TOWN GROUND (map.blend, a town whose ground art lands as wang16 PAIRS, not one terrain).
+ * The pairs are PixelLab tilesets, drawn the way PixelLab paints a map: on the DUAL grid, each tile
+ * half a cell off the map's cells with its four corners on four cell centres, so a cell's material
+ * fills the cell and every edge between two materials is a transition. Per dual tile: its corner
+ * materials (alias applied); a corner with no pair at all (cliff, a placeholder site) or under a
+ * patch takes its neighbours' material, so finished art runs up to the placeholder and under the
+ * patch's edge; two materials draw their pair's tile; otherwise the pair covering the most corners
+ * draws, each other corner as the member it has a pair with (the lower when both or neither: a
+ * flagstone corner at a grass/road junction reads as grass). What no pair can draw stays a tone.
+ */
+export function blendTiles(map, book, T, inPatch, out) {
+  const { pairs, alias } = map.blend;
+  const terr = pairs.map((id) => ({ id, t: book.terrains[id] })).filter((p) => p.t && p.t.kind === 'wang16');
+  const known = new Set(terr.flatMap((p) => [p.t.lower, p.t.upper]));
+  const paired = (a, b) => terr.some((p) => (p.t.lower === a && p.t.upper === b) || (p.t.lower === b && p.t.upper === a));
+  const matOf = (x, y) => {
+    const cx = Math.min(map.w - 1, Math.max(0, x)), cy = Math.min(map.h - 1, Math.max(0, y));
+    if (inPatch(cx, cy)) return null;
+    const m = map.ground[cy * map.w + cx], a = alias[m] || m;
+    return known.has(a) ? a : null;
+  };
+  const H = T >> 1;
+  for (let y = -1; y < map.h; y++) {
+    for (let x = -1; x < map.w; x++) {
+      const c = [matOf(x, y), matOf(x + 1, y), matOf(x, y + 1), matOf(x + 1, y + 1)];
+      const real = c.filter(Boolean);
+      if (!real.length) continue;
+      /* a hole corner takes the commonest real corner (the first on a tie) */
+      const most = real.reduce((b, m) => (real.filter((v) => v === m).length > real.filter((v) => v === b).length ? m : b), real[0]);
+      for (let i = 0; i < 4; i++) if (!c[i]) c[i] = most;
+      let pick = null, best = -1;
+      for (const p of terr) {
+        const n = c.filter((m) => m === p.t.lower || m === p.t.upper).length;
+        if (n > best) { best = n; pick = p; }
+      }
+      if (!pick) continue;
+      const key = c.map((m) => (m === pick.t.upper || (m !== pick.t.lower && !paired(m, pick.t.lower) && paired(m, pick.t.upper)) ? '1' : '0')).join('');
+      const t = book.tile(pick.id, key, cellHash(x, y));
+      if (t) out.push({ set: t.set, sx: t.sx, sy: t.sy, x: x * T + H, y: y * T + H });
+    }
+  }
+}
+
+/**
  * The static ground: [{ set, sx, sy, x, y }] tiles and [{ x, y }] void cells, art px.
  * @param {object} map compileMap() output
  * @param {object} book createBook()
  * @param {{materials: object}} tables
  */
 export function groundTiles(map, book, tables, T) {
-  const tiles = [], voids = [];
-  const terr = book.terrains[map.groundTerrain];
+  const tiles = [], voids = [], tones = [];
+  /* NO GROUND ART YET (ground: null, a town ahead of its art; map-compile.js L-KIND): every cell is a flat
+     PLACEHOLDER in its material's tone, two tones checkered (--world-ground-<material>-a/-b), so the layout
+     reads and nothing pretends to be finished art. Building floors and placed sprites still draw over it. */
+  if (map.groundTerrain === null) {
+    /* ...except its PATCHES: a district whose painted ground has landed (Hearth Square's paving), a fill laid
+       in its cycle order from the patch's own corner. The art grows district by district; the tones shrink. */
+    const patchAt = (x, y) => (map.patches || []).find((p) => x >= p.rect.x && y >= p.rect.y && x < p.rect.x + p.rect.w && y < p.rect.y + p.rect.h);
+    const laid = [];
+    for (let y = 0; y < map.h; y++) {
+      for (let x = 0; x < map.w; x++) {
+        const p = patchAt(x, y), pt = p && book.terrains[p.terrain];
+        if (pt) {
+          const [cols, rows] = pt.cycle || [1, 1];
+          const t = book.tile(p.terrain, '1111', ((y - p.rect.y) % rows) * cols + ((x - p.rect.x) % cols));
+          if (t) { laid.push({ set: t.set, sx: t.sx, sy: t.sy, x: x * T, y: y * T }); continue; }
+        }
+        tones.push({ m: map.ground[y * map.w + x], alt: (x + y) & 1, x: x * T, y: y * T });
+      }
+    }
+    if (map.blend) blendTiles(map, book, T, (x, y) => !!patchAt(x, y), tiles);
+    tiles.push(...laid);
+  }
+  const terr = map.groundTerrain === null ? null : book.terrains[map.groundTerrain];
   const upper = terr ? terr.upper : null;
   const fill = terr && terr.kind === 'fill' ? terr.cycle || [1, 1] : null;
   /* A PAINTED ground (a whole map stitched from PixelLab, port-pixellab.mjs) covers every cell,
@@ -70,7 +136,7 @@ export function groundTiles(map, book, tables, T) {
   const painted = !!(terr && terr.painted);
   const solid = (x, y) => { const m = tables.materials[map.ground[y * map.w + x]]; return !painted && !!(m && m.solid); };
   const g = vertexGrid((x, y) => map.ground[y * map.w + x] === upper, map.w, map.h);
-  for (let y = 0; y < map.h; y++) {
+  for (let y = 0; y < (map.groundTerrain === null ? 0 : map.h); y++) {
     for (let x = 0; x < map.w; x++) {
       if (solid(x, y)) { voids.push({ x: x * T, y: y * T }); continue; }
       /* A fill is one periodic field cut into a cols x rows cycle: lay it in order so it tiles seamlessly. */
@@ -91,7 +157,7 @@ export function groundTiles(map, book, tables, T) {
       }
     }
   }
-  return { tiles, voids };
+  return { tiles, voids, tones };
 }
 
 /**
@@ -252,6 +318,20 @@ export function composeFrame(map, book, state, view, tables, T) {
   for (const f of state.floats || []) {
     const age = Math.max(0, Math.min(1, f.age / (f.life || 1000)));
     floats.push({ text: f.text, kind: f.kind, big: !!f.big, x: (f.x + 0.5) * T + (f.dx || 0), y: f.y * T - 6 * k + (f.dy || 0) - 14 * k * age, alpha: age < 0.66 ? 1 : (1 - age) / 0.34 });
+  }
+  /* AMBIENT LOOPS (map-compile.js `ambient`: the Great Hearth's fire): a looping effect the MAP places, on the
+     state's clock, its anchor `lift` art px above the tile's foot row; drawn with the effects, after the light. */
+  for (const a of map.ambient || []) {
+    const s = book.sprite(a.id);
+    const name = s.anims && (s.anims.idle ? 'idle' : s.anims.play ? 'play' : null);
+    if (!name) continue;
+    const n = book.frames(a.id, name, 's');
+    const i = Math.floor((Math.max(0, state.t || 0) * (s.anims[name].fps || 0)) / 1000) % n;
+    const f = book.frame(a.id, name, 's', i);
+    const px = Math.round((a.x + 0.5) * T), py = Math.round((a.y + 1) * T - 1 - (a.lift || 0));
+    if (!near(px - f.ax, py - f.ay, f.w, f.h)) continue;
+    effects.push({ id: a.id, set: f.set, sx: f.sx, sy: f.sy, w: f.w, h: f.h, x: px - f.ax, y: py - f.ay, cx: px, cy: py, ax: f.ax, ay: f.ay,
+      blend: s.blend === 'add' ? 'add' : 'over', angle: 0 });
   }
   /* EFFECTS ({ id, x, y in tiles, age ms, lift, on, angle? }): a vfx clip centred at its anchor
      `lift` x the art height of sprite `on` (a flier's hover added) above the tile's foot row;

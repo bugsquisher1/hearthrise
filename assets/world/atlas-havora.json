@@ -1,0 +1,968 @@
+{
+  "version": 1,
+  "set": "havora",
+  "palette": "hr-world-56-v2",
+  "T": 32,
+  "image": "atlas-havora.png",
+  "size": [2048,1664],
+  "pixels": "839a07f5fe11065099931c2f4d3975becd22e56fb4c5093b56a52c0989c93c67",
+  "sprites": {
+    "havora_bridge": {
+      "class": "bridge",
+      "layer": "decal",
+      "frame": [384,192],
+      "anchor": [192,191],
+      "footprint": [12,6],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 188,
+      "contact": [0,383],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[782,1308]]
+          }
+        }
+      }
+    },
+    "havora_fisher_guild": {
+      "class": "lot",
+      "layer": "unit",
+      "frame": [496,316],
+      "anchor": [248,315],
+      "footprint": [16,10],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 316,
+      "contact": [363,450],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[0,689]]
+          }
+        }
+      }
+    },
+    "havora_gatehouse": {
+      "class": "hall",
+      "layer": "unit",
+      "frame": [510,307],
+      "anchor": [255,306],
+      "footprint": [16,10],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 306,
+      "contact": [114,354],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[497,689]]
+          }
+        }
+      }
+    },
+    "havora_guild_hall": {
+      "class": "lot",
+      "layer": "unit",
+      "frame": [128,346],
+      "anchor": [64,345],
+      "footprint": [4,12],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 346,
+      "contact": [0,127],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[868,0]]
+          }
+        }
+      }
+    },
+    "havora_harbor_office": {
+      "class": "lot",
+      "layer": "unit",
+      "frame": [418,356],
+      "anchor": [209,355],
+      "footprint": [16,10],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 356,
+      "contact": [193,206],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[449,0]]
+          }
+        }
+      }
+    },
+    "havora_home_p01": {
+      "class": "lot",
+      "layer": "unit",
+      "frame": [320,296],
+      "anchor": [160,295],
+      "footprint": [10,8],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 296,
+      "contact": [1,318],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[1149,1006]]
+          }
+        }
+      }
+    },
+    "havora_home_p02": {
+      "class": "lot",
+      "layer": "unit",
+      "frame": [378,297],
+      "anchor": [189,296],
+      "footprint": [12,8],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 297,
+      "contact": [3,373],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[770,1006]]
+          }
+        }
+      }
+    },
+    "havora_home_p03": {
+      "class": "lot",
+      "layer": "unit",
+      "frame": [320,302],
+      "anchor": [160,301],
+      "footprint": [10,8],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 298,
+      "contact": [6,313],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[1363,689]]
+          }
+        }
+      }
+    },
+    "havora_home_p04": {
+      "class": "lot",
+      "layer": "unit",
+      "frame": [320,294],
+      "anchor": [160,293],
+      "footprint": [10,8],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 290,
+      "contact": [0,318],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[1470,1006]]
+          }
+        }
+      }
+    },
+    "havora_home_p05": {
+      "class": "lot",
+      "layer": "unit",
+      "frame": [384,297],
+      "anchor": [192,296],
+      "footprint": [12,8],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 297,
+      "contact": [21,362],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[385,1006]]
+          }
+        }
+      }
+    },
+    "havora_home_p06": {
+      "class": "lot",
+      "layer": "unit",
+      "frame": [320,287],
+      "anchor": [160,286],
+      "footprint": [10,8],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 286,
+      "contact": [4,317],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[0,1308]]
+          }
+        }
+      }
+    },
+    "havora_home_p09": {
+      "class": "lot",
+      "layer": "unit",
+      "frame": [354,303],
+      "anchor": [177,302],
+      "footprint": [12,8],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 303,
+      "contact": [10,352],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[1008,689]]
+          }
+        }
+      }
+    },
+    "havora_home_p10": {
+      "class": "lot",
+      "layer": "unit",
+      "frame": [378,327],
+      "anchor": [189,326],
+      "footprint": [14,10],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 327,
+      "contact": [205,375],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[997,0]]
+          }
+        }
+      }
+    },
+    "havora_home_p11": {
+      "class": "lot",
+      "layer": "unit",
+      "frame": [462,324],
+      "anchor": [231,323],
+      "footprint": [16,10],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 324,
+      "contact": [0,459],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[1376,0]]
+          }
+        }
+      }
+    },
+    "havora_home_p12": {
+      "class": "lot",
+      "layer": "unit",
+      "frame": [460,284],
+      "anchor": [230,283],
+      "footprint": [16,10],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 283,
+      "contact": [100,428],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[321,1308]]
+          }
+        }
+      }
+    },
+    "havora_home_p13": {
+      "class": "lot",
+      "layer": "unit",
+      "frame": [486,320],
+      "anchor": [243,319],
+      "footprint": [16,8],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 320,
+      "contact": [1,485],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[1192,368]]
+          }
+        }
+      }
+    },
+    "havora_home_p14": {
+      "class": "lot",
+      "layer": "unit",
+      "frame": [550,320],
+      "anchor": [275,319],
+      "footprint": [18,8],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 320,
+      "contact": [3,545],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[641,368]]
+          }
+        }
+      }
+    },
+    "havora_home_p15": {
+      "class": "lot",
+      "layer": "unit",
+      "frame": [640,320],
+      "anchor": [320,319],
+      "footprint": [20,8],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 320,
+      "contact": [0,639],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[0,368]]
+          }
+        }
+      }
+    },
+    "havora_palisade_h0": {
+      "class": "palisade",
+      "layer": "unit",
+      "frame": [32,96],
+      "anchor": [16,95],
+      "footprint": [1,2],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 89,
+      "contact": [1,31],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[1167,1308]]
+          }
+        }
+      }
+    },
+    "havora_palisade_h1": {
+      "class": "palisade",
+      "layer": "unit",
+      "frame": [32,96],
+      "anchor": [16,95],
+      "footprint": [1,2],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 92,
+      "contact": [0,31],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[1200,1308]]
+          }
+        }
+      }
+    },
+    "havora_palisade_h2": {
+      "class": "palisade",
+      "layer": "unit",
+      "frame": [32,96],
+      "anchor": [16,95],
+      "footprint": [1,2],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 91,
+      "contact": [0,31],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[1233,1308]]
+          }
+        }
+      }
+    },
+    "havora_palisade_h3": {
+      "class": "palisade",
+      "layer": "unit",
+      "frame": [32,96],
+      "anchor": [16,95],
+      "footprint": [1,2],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 89,
+      "contact": [0,31],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[1266,1308]]
+          }
+        }
+      }
+    },
+    "havora_palisade_h4": {
+      "class": "palisade",
+      "layer": "unit",
+      "frame": [32,96],
+      "anchor": [16,95],
+      "footprint": [1,2],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 92,
+      "contact": [0,31],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[1299,1308]]
+          }
+        }
+      }
+    },
+    "havora_palisade_h5": {
+      "class": "palisade",
+      "layer": "unit",
+      "frame": [32,96],
+      "anchor": [16,95],
+      "footprint": [1,2],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 92,
+      "contact": [0,31],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[1332,1308]]
+          }
+        }
+      }
+    },
+    "havora_palisade_h6": {
+      "class": "palisade",
+      "layer": "unit",
+      "frame": [32,96],
+      "anchor": [16,95],
+      "footprint": [1,2],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 92,
+      "contact": [0,31],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[1365,1308]]
+          }
+        }
+      }
+    },
+    "havora_palisade_h7": {
+      "class": "palisade",
+      "layer": "unit",
+      "frame": [32,96],
+      "anchor": [16,95],
+      "footprint": [1,2],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 95,
+      "contact": [0,31],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[1398,1308]]
+          }
+        }
+      }
+    },
+    "havora_palisade_v0": {
+      "class": "palisade_v",
+      "layer": "unit",
+      "frame": [64,32],
+      "anchor": [32,31],
+      "footprint": [2,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 32,
+      "contact": [16,56],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[1503,1308]]
+          }
+        }
+      }
+    },
+    "havora_palisade_v1": {
+      "class": "palisade_v",
+      "layer": "unit",
+      "frame": [64,32],
+      "anchor": [32,31],
+      "footprint": [2,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 32,
+      "contact": [16,55],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[1568,1308]]
+          }
+        }
+      }
+    },
+    "havora_palisade_v2": {
+      "class": "palisade_v",
+      "layer": "unit",
+      "frame": [64,32],
+      "anchor": [32,31],
+      "footprint": [2,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 32,
+      "contact": [15,56],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[1633,1308]]
+          }
+        }
+      }
+    },
+    "havora_palisade_v3": {
+      "class": "palisade_v",
+      "layer": "unit",
+      "frame": [64,32],
+      "anchor": [32,31],
+      "footprint": [2,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 32,
+      "contact": [12,55],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[1698,1308]]
+          }
+        }
+      }
+    },
+    "havora_palisade_v4": {
+      "class": "palisade_v",
+      "layer": "unit",
+      "frame": [64,32],
+      "anchor": [32,31],
+      "footprint": [2,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 32,
+      "contact": [12,59],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[1763,1308]]
+          }
+        }
+      }
+    },
+    "havora_palisade_v5": {
+      "class": "palisade_v",
+      "layer": "unit",
+      "frame": [64,32],
+      "anchor": [32,31],
+      "footprint": [2,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 32,
+      "contact": [12,60],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[1828,1308]]
+          }
+        }
+      }
+    },
+    "havora_palisade_v6": {
+      "class": "palisade_v",
+      "layer": "unit",
+      "frame": [64,32],
+      "anchor": [32,31],
+      "footprint": [2,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 32,
+      "contact": [9,59],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[1893,1308]]
+          }
+        }
+      }
+    },
+    "havora_palisade_v7": {
+      "class": "palisade_v",
+      "layer": "unit",
+      "frame": [64,32],
+      "anchor": [32,31],
+      "footprint": [2,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 32,
+      "contact": [9,59],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[1958,1308]]
+          }
+        }
+      }
+    },
+    "havora_scree_a": {
+      "class": "decal",
+      "layer": "decal",
+      "frame": [28,27],
+      "anchor": [14,26],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 27,
+      "contact": [2,26],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[495,1629]]
+          }
+        }
+      }
+    },
+    "havora_scree_b": {
+      "class": "decal",
+      "layer": "decal",
+      "frame": [34,32],
+      "anchor": [17,31],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 32,
+      "contact": [12,16],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[0,1596]]
+          }
+        }
+      }
+    },
+    "havora_scree_c": {
+      "class": "decal",
+      "layer": "decal",
+      "frame": [32,36],
+      "anchor": [16,35],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 35,
+      "contact": [7,20],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[1470,1308]]
+          }
+        }
+      }
+    },
+    "havora_scree_d": {
+      "class": "decal",
+      "layer": "decal",
+      "frame": [38,37],
+      "anchor": [19,36],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 37,
+      "contact": [17,21],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[1431,1308]]
+          }
+        }
+      }
+    },
+    "havora_sewer_works": {
+      "class": "lot",
+      "layer": "unit",
+      "frame": [448,367],
+      "anchor": [224,366],
+      "footprint": [14,10],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 367,
+      "contact": [259,408],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[0,0]]
+          }
+        }
+      }
+    },
+    "havora_tavern": {
+      "class": "hall",
+      "layer": "unit",
+      "frame": [384,301],
+      "anchor": [192,300],
+      "footprint": [12,8],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 301,
+      "contact": [79,198],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[0,1006]]
+          }
+        }
+      }
+    }
+  },
+  "terrain": {
+    "havora_earth_planks": {
+      "kind": "wang16",
+      "lower": "earth",
+      "upper": "planks",
+      "tiles": {
+        "1000": [[299,1596]],
+        "1001": [[332,1596]],
+        "1010": [[365,1596]],
+        "1011": [[398,1596]],
+        "1100": [[431,1596]],
+        "1101": [[464,1596]],
+        "1110": [[497,1596]],
+        "1111": [[530,1596]],
+        "0000": [[35,1596]],
+        "0001": [[68,1596]],
+        "0010": [[101,1596]],
+        "0011": [[134,1596]],
+        "0100": [[167,1596]],
+        "0101": [[200,1596]],
+        "0110": [[233,1596]],
+        "0111": [[266,1596]]
+      }
+    },
+    "havora_earth_rock": {
+      "kind": "wang16",
+      "lower": "earth",
+      "upper": "cliff",
+      "tiles": {
+        "1000": [[794,1596]],
+        "1001": [[827,1596]],
+        "1010": [[860,1596]],
+        "1011": [[893,1596]],
+        "1100": [[926,1596]],
+        "1101": [[959,1596]],
+        "1110": [[992,1596]],
+        "1111": [[1025,1596]],
+        "0000": [[35,1596]],
+        "0001": [[563,1596]],
+        "0010": [[596,1596]],
+        "0011": [[629,1596]],
+        "0100": [[662,1596]],
+        "0101": [[695,1596]],
+        "0110": [[728,1596]],
+        "0111": [[761,1596]]
+      }
+    },
+    "havora_grass_rock": {
+      "kind": "wang16",
+      "lower": "grass",
+      "upper": "cliff",
+      "tiles": {
+        "1000": [[1322,1596]],
+        "1001": [[1355,1596]],
+        "1010": [[1388,1596]],
+        "1011": [[1421,1596]],
+        "1100": [[1454,1596]],
+        "1101": [[1487,1596]],
+        "1110": [[1520,1596]],
+        "1111": [[1025,1596]],
+        "0000": [[1058,1596]],
+        "0001": [[1091,1596]],
+        "0010": [[1124,1596]],
+        "0011": [[1157,1596]],
+        "0100": [[1190,1596]],
+        "0101": [[1223,1596]],
+        "0110": [[1256,1596]],
+        "0111": [[1289,1596]]
+      }
+    },
+    "havora_grass_tilled": {
+      "kind": "wang16",
+      "lower": "grass",
+      "upper": "tilled",
+      "tiles": {
+        "1000": [[1784,1596]],
+        "1001": [[1817,1596]],
+        "1010": [[1850,1596]],
+        "1011": [[1883,1596]],
+        "1100": [[1916,1596]],
+        "1101": [[1949,1596]],
+        "1110": [[1982,1596]],
+        "1111": [[2015,1596]],
+        "0000": [[1058,1596]],
+        "0001": [[1553,1596]],
+        "0010": [[1586,1596]],
+        "0011": [[1619,1596]],
+        "0100": [[1652,1596]],
+        "0101": [[1685,1596]],
+        "0110": [[1718,1596]],
+        "0111": [[1751,1596]]
+      }
+    },
+    "havora_water_planks": {
+      "kind": "wang16",
+      "lower": "water",
+      "upper": "planks",
+      "tiles": {
+        "1000": [[264,1629]],
+        "1001": [[297,1629]],
+        "1010": [[330,1629]],
+        "1011": [[363,1629]],
+        "1100": [[396,1629]],
+        "1101": [[429,1629]],
+        "1110": [[462,1629]],
+        "1111": [[530,1596]],
+        "0000": [[0,1629]],
+        "0001": [[33,1629]],
+        "0010": [[66,1629]],
+        "0011": [[99,1629]],
+        "0100": [[132,1629]],
+        "0101": [[165,1629]],
+        "0110": [[198,1629]],
+        "0111": [[231,1629]]
+      }
+    }
+  }
+}

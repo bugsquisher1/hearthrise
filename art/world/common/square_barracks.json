@@ -1,0 +1,45 @@
+{
+  "id": "square_barracks",
+  "class": "hall",
+  "style": "s1",
+  "material": "wood",
+  "source": "square_barracks.png",
+  "frame": [
+    342,
+    262
+  ],
+  "anchor_px": [
+    171,
+    261
+  ],
+  "footprint": [
+    11,
+    5
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_image_pro",
+    "image": "06d21b98-d152-4d55-bb2b-27366ab6cd7a",
+    "seed": 404,
+    "size": [
+      384,
+      320
+    ],
+    "cost": 25,
+    "style": "common/smithy",
+    "references": [
+      "common/smithy",
+      "great_hearth design D"
+    ]
+  },
+  "notes": "Hearth Square guard barracks (kill-task hunter; designer rev 2: guard_barracks x116-131 y26-37): weapon rack, red crossed-swords banner, bounty board, watch turret. STAGED."
+}

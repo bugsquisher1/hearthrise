@@ -1,6 +1,6 @@
 # Hearthrise — Asset Manifest
 
-_Last updated: 2026-10-19 (live-ground monster combat clips, Asset Director); 2026-10-15 (World atlas registry, Art Director); 2026-08-08 (asset-organization pass, build b216; asset
+_Last updated: 2026-10-25 (World atlas registry regenerated: Hearth Square staged art, Art Director); 2026-10-19 (live-ground monster combat clips, Asset Director); 2026-10-15 (World atlas registry, Art Director); 2026-08-08 (asset-organization pass, build b216; asset
 promotion pass, build b224)._
 
 The single reference for how Hearthrise's shipped assets are organized, what the
@@ -151,7 +151,7 @@ KNOWN_TWINS entries are gone). Decision: **retain**; approved: Asset Director (d
 ### World atlas registry (2026-10-15) — every world sprite and terrain, and what happens to it
 
 The registry Tyler's PixelLab directive asks for; there is no second registry. One row per sidecar in
-`art/world/<set>/*.json` (124 today), printed by `node tools/world-art/registry.mjs` from the sidecars
+`art/world/<set>/*.json` (239 today), printed by `node tools/world-art/registry.mjs` from the sidecars
 and the built manifests, plus the Art Director's decision (the `D` table in that script). **retain** =
 ships as is; **edit** = keep the asset and change it, cheapest fix first (`docs/PIXELLAB_WORKFLOW.md`);
 **replace** = a new asset. **Approval:** every row was approved for the world when its atlas was built
@@ -168,130 +168,245 @@ landed 2026-10-15 (40 generations, all R3; approval pending Tyler); R2 waits for
 
 | id | set | class | frame | animation states (frames@fps) | facings | decision | source (PixelLab tool, id) |
 |---|---|---|---|---|---|---|---|
-| hero | hero | character | 64×64 | idle 5@5, walk 8@10, attack 7@12, down 7@8 | senw | **edit**: R1a done 2026-10-15: the south walk lifts both feet (free hand edit, 0 gens, saved to walk group `e0833032`); open: 4 diagonal facings (idle, walk; R2), no hit clip; approved: pending Tyler | create_character `03dec2e0` |
-| peer_knight | hero | character | 64×64 | idle 1 | senw | **edit**: one still frame per facing; needs idle + walk to be a real peer | create_character `c95a6991` |
-| peer_mage | hero | character | 64×64 | idle 1 | senw | **edit**: one still frame per facing; needs idle + walk | create_character `6112c21c` |
-| peer_ranger | hero | character | 64×64 | idle 1 | senw | **edit**: one still frame per facing; needs idle + walk | create_character `f2a0b6c7` |
-| barrel | cellar | barrel | 24×32 | idle 1 | s | **retain** | create_1_direction_object `b90e189e` |
-| barrel_banded | cellar | barrel | 24×32 | idle 1 | s | **retain** | create_1_direction_object `b90e189e` |
-| barrel_broken | cellar | bulky | 28×32 | idle 1 | s | **retain** | create_1_direction_object `b90e189e` |
-| barrel_lid | cellar | barrel | 24×32 | idle 1 | s | **retain** | create_1_direction_object `b90e189e` |
-| barrel_old | cellar | barrel | 24×32 | idle 1 | s | **retain** | create_1_direction_object `b90e189e` |
-| bone | cellar | small | 16×16 | idle 1 | s | **retain** | create_1_direction_object `53ef2fe1` |
-| bones | cellar | small | 16×16 | idle 1 | s | **retain** | create_1_direction_object `53ef2fe1` |
-| bottle | cellar | small | 16×14 | idle 1 | s | **retain** | create_1_direction_object `53ef2fe1` |
-| brazier | cellar | fixture | 26×32 | idle 1 | s | **edit**: still flame; needs a 4-frame flicker | create_1_direction_object `b90e189e` |
-| candle | cellar | small | 10×14 | idle 1 | s | **retain** | create_1_direction_object `53ef2fe1` |
-| cart_wheel | cellar | bulky | 30×32 | idle 1 | s | **retain** | create_1_direction_object `b90e189e` |
-| cellar_earth | cellar | terrain | 32×32 tiles | still |  | **retain** | hand / script |
-| cellar_floor | cellar | terrain | 32×32 tiles | still |  | **retain**: unused today: the hunt floor is the flat cellar_earth fill (the flagstone patch read as a raised slab) | create_topdown_tileset `d6b2cf79` |
-| chest | cellar | box | 24×22 | idle 1 | s | **retain** | create_object_pro_flash `7480726a` |
-| chopping_block | cellar | bulky | 28×32 | idle 1 | s | **retain** | create_1_direction_object `b90e189e` |
-| coins | cellar | small | 16×12 | idle 1 | s | **retain** | create_1_direction_object `53ef2fe1` |
-| coins_scattered | cellar | small | 14×12 | idle 1 | s | **retain** | create_1_direction_object `53ef2fe1` |
-| crate | cellar | box | 18×22 | idle 1 | s | **retain** | create_1_direction_object `b90e189e` |
-| crate_stack | cellar | bulky | 30×32 | idle 1 | s | **retain** | create_1_direction_object `b90e189e` |
-| flour_sack | cellar | clutter | 26×26 | idle 1 | s | **retain** | create_1_direction_object `b90e189e` |
-| grain_sack | cellar | clutter | 26×24 | idle 1 | s | **retain** | create_1_direction_object `b90e189e` |
-| grain_spill | cellar | decal | 16×12 | idle 1 | s | **retain** | create_1_direction_object `53ef2fe1` |
-| hive_wasp | cellar | flier | 48×48 | idle 1, walk 4@12, attack 7@12, hit 5@12, death 7@10, corpse 1 | senw | **retain**: body edge 4.67:1; idle is 1 still frame (add a wing-buzz idle later) | create_object_pro_flash `630c2cff` |
-| ladder | cellar | hanging | 18×32 | idle 1 | s | **retain** | create_1_direction_object `b90e189e` |
-| lantern_post | cellar | fixture | 22×32 | idle 1 | s | **retain** | create_1_direction_object `b90e189e` |
-| loot_bag | cellar | loot | 14×14 | idle 1 | s | **replace**: R4 done 2026-10-15: a 14×14 tied burlap sack drawn by hand in palette (0 gens), body edge 1.06 → 3.21:1, lands beside the corpse; approved: pending Tyler | hand-drawn in palette (free, no generation) |
-| millstone | cellar | bulky | 28×30 | idle 1 | s | **retain** | create_1_direction_object `b90e189e` |
-| mushrooms | cellar | small | 16×16 | idle 1 | s | **retain** | create_1_direction_object `53ef2fe1` |
-| pebbles | cellar | decal | 14×12 | idle 1 | s | **retain** | create_1_direction_object `53ef2fe1` |
-| puddle | cellar | decal | 16×12 | idle 1 | s | **retain** | create_1_direction_object `53ef2fe1` |
-| rat | cellar | critter | 48×48 | idle 1, walk 6@10, attack 7@12, hit 5@12, death 7@10, corpse 1 | senw | **edit**: R3 done 2026-10-15: body edge 2.36 → 4.03:1 (min 3.76 over the 27 east frames), silhouette IoU ≥ 0.985, edit_image `4ef84f2b` + `f6a044fa`, 20 gens; open: idle is 1 still frame; approved: pending Tyler | create_object_pro_flash `18ec0bfa` |
-| rat_skull | cellar | small | 12×12 | idle 1 | s | **retain** | create_1_direction_object `53ef2fe1` |
-| sack_lying | cellar | clutter | 32×20 | idle 1 | s | **retain** | create_1_direction_object `b90e189e` |
-| sack_pile | cellar | bulky | 32×32 | idle 1 | s | **retain** | create_1_direction_object `b90e189e` |
-| sack_stack | cellar | bulky | 32×30 | idle 1 | s | **retain** | create_1_direction_object `b90e189e` |
-| sack_tall | cellar | bulky | 26×30 | idle 1 | s | **retain** | create_1_direction_object `b90e189e` |
-| skull | cellar | small | 14×14 | idle 1 | s | **retain** | create_1_direction_object `53ef2fe1` |
-| slime | cellar | critter | 48×48 | idle 1, walk 6@8, attack 7@12, hit 5@12, death 7@10, corpse 1 | senw | **edit**: R3 done 2026-10-15: body edge 2.59 → 4.33:1 (min 3.68 over the 27 east frames), silhouette IoU ≥ 0.978, edit_image `99916c7b` + `5436c660`, 20 gens; open: idle is 1 still frame; approved: pending Tyler | create_object_pro_flash `4bef8259` |
-| stone_cap | cellar | wallcap | 12×32 | idle 1 | s | **retain** | hand / script |
-| stone_cap_h | cellar | wallcap | 32×12 | idle 1 | s | **retain** | hand / script |
-| stone_cap_w | cellar | wallcap | 12×32 | idle 1 | s | **retain** | hand / script |
-| stone_end | cellar | wallend | 12×60 | idle 1 | s | **retain** | hand / script |
-| stone_stub | cellar | stub | 32×24 | face 4 | s | **retain** | hand / script |
-| stone_wall | cellar | wall | 32×60 | face 4 | s | **retain** | hand / script |
-| stone_wall_arch | cellar | wall | 32×60 | face 4 | s | **retain** | hand / script |
-| straw | cellar | decal | 16×14 | idle 1 | s | **retain** | create_1_direction_object `53ef2fe1` |
-| support_post | cellar | fixture | 30×34 | idle 1 | s | **retain** | create_1_direction_object `b90e189e` |
-| wall_torch | cellar | hanging | 16×32 | idle 1 | s | **edit**: still flame; needs a 4-frame flicker | create_1_direction_object `b90e189e` |
-| wasp_nest | cellar | hanging | 30×32 | idle 1 | s | **retain** | create_1_direction_object `b90e189e` |
-| web | cellar | hanging | 34×34 | idle 1 | s | **retain** | create_1_direction_object `b90e189e` |
-| anvil | town | bulky | 32×22 | idle 1 | s | **retain** | create_1_direction_object `8304f632` |
-| apple_crate | town | bulky | 28×30 | idle 1 | s | **retain** | create_1_direction_object `8304f632` |
-| barrel_planter | town | barrel | 24×32 | idle 1 | s | **retain** | create_1_direction_object `8304f632` |
-| bench | town | bench | 50×16 | idle 1 | s | **retain** | create_map_object `2acdbc69` |
-| bush | town | bush | 30×30 | idle 1 | s | **retain** | create_1_direction_object `8304f632` |
-| chimney | town | roof | 18×30 | idle 1 | s | **retain** | hand / script |
-| deadtree | town | tree | 78×112 | idle 1 | s | **retain** | create_map_object `2b56133f` |
-| door | town | door | 22×50 | idle 1 | s | **retain** | create_object_pro_flash `699000ad` |
-| firewood | town | bulky | 30×30 | idle 1 | s | **retain** | create_1_direction_object `8304f632` |
-| flower_bed | town | clutter | 32×24 | idle 1 | s | **retain** | create_1_direction_object `8304f632` |
-| flower_box | town | hanging | 30×30 | idle 1 | s | **retain** | create_1_direction_object `8304f632` |
-| hatch | town | decal | 24×28 | idle 1 | s | **retain** | create_map_object `c4645c68` |
-| hedge | town | bush | 30×30 | idle 1 | s | **retain** | create_1_direction_object `8304f632` |
-| lamppost | town | fixture | 12×62 | idle 1 | s | **retain** | create_map_object `f1f557ff` |
-| mill_sign | town | hanging | 22×32 | idle 1 | s | **retain** | create_map_object `19a01b33` |
-| noticeboard | town | fixture | 34×42 | idle 1 | s | **retain** | create_map_object `970b0bf5` |
-| npc_crier | town | character | 64×64 | idle 1 | senw | **edit**: one still frame; needs a 4-frame idle (town life) | create_character `1356ca8d` |
-| npc_smith | town | character | 64×64 | idle 1 | senw | **edit**: one still frame; needs a hammer loop (town life) | create_character `33ea8f13` |
-| oak | town | tree | 88×114 | idle 1 | s | **retain** | create_map_object `7d86bc0a` |
-| pine | town | tree | 74×114 | idle 1 | s | **retain** | create_map_object `73c5a2ba` |
-| roof_slate | town | roof | 32×32 | slice 12 | s | **retain** | hand / script |
-| roof_wood | town | roof | 32×32 | slice 12 | s | **retain** | hand / script |
-| signpost | town | fixture | 24×32 | idle 1 | s | **retain** | create_1_direction_object `8304f632` |
-| statue | town | fixture | 20×64 | idle 1 | s | **retain** | create_map_object `13598478` |
-| stone_house_end | town | wallend | 12×60 | idle 1 | s | **retain** | hand / script |
-| stone_house_wall | town | wall | 32×60 | face 4 | s | **retain** | hand / script |
-| stone_house_wall_door | town | wall | 32×60 | face 4 | s | **retain** | hand / script |
-| stone_house_wall_window | town | wall | 32×60 | face 4 | s | **retain** | hand / script |
-| timber_end | town | wallend | 12×60 | idle 1 | s | **retain** | hand / script |
-| timber_wall | town | wall | 32×60 | face 4 | s | **retain** | hand / script |
-| timber_wall_door | town | wall | 32×60 | face 4 | s | **retain** | hand / script |
-| timber_wall_window | town | wall | 32×60 | face 4 | s | **retain** | hand / script |
-| town_ground | town | terrain | 32×32 tiles | still |  | **edit**: one cobble fill with no wear, no edging and no square border: the "bland" town (after playable) | create_topdown_tileset `185818a3` |
-| waterwheel | town | fixture | 58×68 | idle 1 | s | **edit**: still; needs a turning loop (the town's one big motion) | create_map_object `23d8714a` |
-| well | town | fixture | 40×52 | idle 1 | s | **retain** | create_map_object `58e523ba` |
-| woodpile | town | fixture | 44×34 | idle 1 | s | **retain** | create_map_object `71b58870` |
-| young_oak | town | sapling | 46×90 | idle 1 | s | **retain** | create_map_object `74bbd1b0` |
-| altar | home | fixture | 32×40 | idle 1 | s | **retain** | create_map_object `ed166eb3` |
-| armour_stand | home | fixture | 24×34 | idle 1 | s | **retain** | create_1_direction_object `8304f632` |
-| banner | home | hanging | 28×32 | idle 1 | s | **retain** | create_1_direction_object `8304f632` |
-| basket | home | clutter | 28×28 | idle 1 | s | **retain** | create_1_direction_object `8304f632` |
-| bed | home | bed | 30×54 | idle 1 | s | **retain** | create_map_object `a049363d` |
-| bellows | home | clutter | 32×24 | idle 1 | s | **retain** | create_1_direction_object `8304f632` |
-| bookshelf | home | fixture | 26×54 | idle 1 | s | **retain** | create_map_object `c36e6293` |
-| candelabra | home | clutter | 24×32 | idle 1 | s | **retain** | create_1_direction_object `8304f632` |
-| chair | home | seat | 20×32 | idle 1 | s | **retain** | create_1_direction_object `8304f632` |
-| chair_side | home | seat | 18×32 | idle 1 | s | **retain** | create_1_direction_object `8304f632` |
-| chest_iron | home | box | 28×24 | idle 1 | s | **retain** | create_1_direction_object `8304f632` |
-| counter | home | station | 58×32 | idle 1 | s | **retain** | create_map_object `9c3ea5da` |
-| desk | home | station | 34×34 | idle 1 | s | **retain** | create_map_object `20eb5ea7` |
-| display_case | home | fixture | 26×32 | idle 1 | s | **retain** | create_map_object `59eb740f` |
-| dummy | home | fixture | 30×32 | idle 1 | s | **retain** | create_1_direction_object `8304f632` |
-| forge | home | fixture | 32×54 | idle 1 | s | **retain** | create_map_object `0de56b00` |
-| grindstone | home | station | 28×26 | idle 1 | s | **retain** | create_1_direction_object `b90e189e` |
-| hearth | home | fixture | 60×64 | idle 1 | s | **retain** | create_map_object `db702bc0` |
-| herbs_hanging | home | hanging | 32×26 | idle 1 | s | **retain** | create_1_direction_object `8304f632` |
-| plank_cap | home | wallcap | 12×32 | idle 1 | s | **retain** | hand / script |
-| plank_end | home | wallend | 12×60 | idle 1 | s | **retain** | hand / script |
-| plank_floor | home | terrain | 32×32 tiles | still |  | **retain** | hand / script |
-| plank_stub | home | stub | 32×24 | face 4 | s | **retain** | hand / script |
-| plank_wall | home | wall | 32×60 | face 4 | s | **retain** | hand / script |
-| plank_wall_door | home | wall | 32×60 | face 4 | s | **retain** | hand / script |
-| rug | home | decal | 68×40 | idle 1 | s | **retain** | hand / script |
-| shield_wall | home | hanging | 26×28 | idle 1 | s | **retain** | create_1_direction_object `8304f632` |
-| swords_wall | home | hanging | 30×30 | idle 1 | s | **retain** | create_1_direction_object `8304f632` |
-| table | home | table | 30×28 | idle 1 | s | **retain** | create_1_direction_object `8304f632` |
-| trophy_wolf | home | hanging | 26×32 | idle 1 | s | **retain** | create_1_direction_object `8304f632` |
-| wardrobe | home | fixture | 34×58 | idle 1 | s | **retain** | create_map_object `f7842a79` |
-| weapon_rack | home | fixture | 30×32 | idle 1 | s | **retain** | create_1_direction_object `8304f632` |
-| workbench | home | station | 32×32 | idle 1 | s | **retain** | create_1_direction_object `b90e189e` |
+| cistern_spider | hunt | vermin | 48×48 | idle 1@5, walk 6@10, attack 6@10, death 6@10, corpse 1 | senwseswnenw | **retain** | hand / script |
+| culvert_bat | hunt | vermin_flier | 48×48 | idle 1@5, walk 6@12, attack 6@10, death 6@10, corpse 1 | senwseswnenw | **retain** | hand / script |
+| drain_rat | hunt | vermin | 48×48 | idle 1@5, walk 6@10, attack 6@10, death 6@10, corpse 1 | senwseswnenw | **retain** | hand / script |
+| kobold_tosher | hunt | character | 64×64 | idle 1@5, walk 6@8, attack 6@10, death 6@10, corpse 1 | senwseswnenw | **retain** | hand / script |
+| outfit_berserker | hunt | character | 64×64 | idle 1@5, walk 6@8 | senwseswnenw | **retain** | hand / script |
+| outfit_brute | hunt | character | 64×64 | idle 1@5, walk 6@7 | senwseswnenw | **retain** | hand / script |
+| outfit_dawnward | hunt | character | 64×64 | idle 1@5, walk 6@8 | senwseswnenw | **retain** | hand / script |
+| outfit_druid | hunt | character | 64×64 | idle 1@5, walk 6@8 | senwseswnenw | **retain** | hand / script |
+| outfit_knight | hunt | character | 64×64 | idle 1@5, walk 6@8 | senwseswnenw | **retain** | hand / script |
+| outfit_ranger | hunt | character | 64×64 | idle 1@5, walk 6@8 | senwseswnenw | **retain** | hand / script |
+| outfit_sorcerer | hunt | character | 64×64 | idle 1@5, walk 6@8 | senwseswnenw | **retain** | hand / script |
+| outfit_witch | hunt | character | 64×64 | idle 1@5, walk 6@8 | senwseswnenw | **retain** | hand / script |
+| rat | hunt | vermin | 48×48 | idle 1@5, walk 6@10, attack 6@10, death 6@10, corpse 1 | senwseswnenw | **retain** | hand / script |
+| rat_king | hunt | beast | 64×64 | idle 1@5, walk 8@8, attack 6@10, death 6@10, corpse 1 | senwseswnenw | **retain** | hand / script |
+| slime | hunt | vermin | 48×48 | idle 1@5, walk 6@8, attack 6@10, death 6@10, corpse 1 | senwseswnenw | **retain** | hand / script |
+| sump_slime | hunt | vermin | 48×48 | idle 1@5, walk 6@8, attack 6@10, death 6@10, corpse 1 | senwseswnenw | **retain** | hand / script |
+| fx_arcane_barrier | vfx | vfx | 37×37 | play 8@7 | s | **retain** | hand / script |
+| fx_cast_druid_motes | vfx | vfx | 24×12 | play 8@4 | s | **retain** | hand / script |
+| fx_cast_knight_shield_bash | vfx | vfx | 25×20 | play 8@16 | s | **retain** | hand / script |
+| fx_cast_ranger_aim_glint | vfx | vfx | 12×10 | play 6@9 | s | **retain** | hand / script |
+| fx_cast_sorcerer_runes | vfx | vfx | 29×15 | play 8@4 | s | **retain** | hand / script |
+| fx_challenge_taunt | vfx | vfx | 46×64 | play 8@9 | s | **retain** | hand / script |
+| fx_circle_of_renewal | vfx | vfx | 38×17 | play 8@5 | s | **retain** | hand / script |
+| fx_crossbow_bolt_impact | vfx | vfx | 23×20 | play 5@16 | s | **retain** | hand / script |
+| fx_crossbow_bolt_projectile | vfx | vfx | 13×4 | play 4@12 | s | **retain** | hand / script |
+| fx_fire_rune_burst | vfx | vfx | 56×30 | play 8@9 | s | **retain** | hand / script |
+| fx_flame_volley_puff | vfx | vfx | 19×20 | play 6@12 | s | **retain** | hand / script |
+| fx_frost_lance_shatter | vfx | vfx | 38×51 | play 8@12 | s | **retain** | hand / script |
+| fx_hunters_mark | vfx | vfx | 22×10 | play 8@5 | s | **retain** | hand / script |
+| fx_level_up | vfx | vfx | 24×42 | play 8@8 | s | **retain** | hand / script |
+| fx_loot_sparkle | vfx | vfx | 19×20 | play 8@12 | s | **retain** | hand / script |
+| fx_melee_slash | vfx | vfx | 16×25 | play 5@16 | s | **retain** | hand / script |
+| fx_monster_death_poof | vfx | vfx | 23×18 | play 8@10 | s | **retain** | hand / script |
+| fx_natures_wrath | vfx | vfx | 40×32 | play 8@7 | s | **retain** | hand / script |
+| fx_nature_heal_motes | vfx | vfx | 18×33 | play 8@8 | s | **retain** | hand / script |
+| fx_power_strike | vfx | vfx | 34×31 | play 8@16 | s | **retain** | hand / script |
+| fx_staff_bolt | vfx | vfx | 6×6 | play 1@12 | s | **retain** | hand / script |
+| fx_staff_bolt_impact | vfx | vfx | 18×23 | play 2@16 | s | **retain** | hand / script |
+| fx_torch_flame_loop | vfx | vfx | 6×15 | play 8@12 | s | **retain** | hand / script |
+| fx_wand_bolt | vfx | vfx | 16×16 | play 1@12 | s | **retain** | hand / script |
+| fx_wand_bolt_impact | vfx | vfx | 22×22 | play 2@16 | s | **retain** | hand / script |
+| fx_water_drip_ripple | vfx | vfx | 20×10 | play 8@7 | s | **retain** | hand / script |
+| fx_water_drop_splash | vfx | vfx | 21×16 | play 8@11 | s | **retain** | hand / script |
+| fx_x_slash | vfx | vfx | 28×27 | play 8@14 | s | **retain** | hand / script |
+| barrels | sewer | bulky | 48×28 | idle 1 | s | **retain** | see sidecar |
+| barrel_stack | sewer | bulky | 32×32 | idle 1 | s | **retain** | see sidecar |
+| bones | sewer | decal | 32×32 | idle 1 | s | **retain** | see sidecar |
+| brazier | sewer | station | 32×30 | idle 1 | s | **retain** | see sidecar |
+| collapsed_cart | sewer | wreck | 64×42 | idle 1 | s | **retain** | see sidecar |
+| corner_rubble | sewer | decal | 48×48 | idle 1 | s | **retain** | see sidecar |
+| cracked_flagstone | sewer | decal | 48×32 | idle 1 | s | **retain** | see sidecar |
+| crates | sewer | bulky | 32×31 | idle 1 | s | **retain** | see sidecar |
+| drowned_lantern | sewer | decal | 32×32 | idle 1 | s | **retain** | see sidecar |
+| exposed_dirt | sewer | decal | 48×32 | idle 1 | s | **retain** | see sidecar |
+| floor_grate | sewer | decal | 32×32 | idle 1 | s | **retain** | see sidecar |
+| grate_bridge | sewer | span | 160×64 | idle 1 | s | **retain** | see sidecar |
+| hanging_chains | sewer | hanging | 32×48 | idle 1 | s | **retain** | see sidecar |
+| moss_puddle | sewer | decal | 64×48 | idle 1 | s | **retain** | see sidecar |
+| pipe_outflow | sewer | hanging | 32×48 | idle 1 | s | **retain** | see sidecar |
+| rat_nest | sewer | decal | 48×48 | idle 1 | s | **retain** | see sidecar |
+| sewer_ground | sewer | terrain | 32×32 tiles | still |  | **retain** | view_map |
+| wall_chunk | sewer | hanging | 64×48 | idle 1 | s | **retain** | see sidecar |
+| wall_torch | sewer | hanging | 32×48 | idle 1 | s | **retain** | see sidecar |
+| banner | mill | hanging | 18×24 | idle 1 | s | **retain** | create_image_pro_flash |
+| barrel_broken | mill | bulky | 42×37 | idle 1 | s | **retain** | create_image_pro_flash |
+| bone_pile | mill | decal | 22×18 | idle 1 | s | **retain** | create_image_pro_flash |
+| bread_loaf | mill | decal | 20×17 | idle 1 | s | **retain** | create_image_pro_flash |
+| bucket | mill | bulky | 18×26 | idle 1 | s | **retain** | create_image_pro_flash |
+| candle | mill | clutter | 14×22 | idle 1 | s | **retain** | create_image_pro_flash |
+| cellar_ground | mill | terrain | 32×32 tiles | still |  | **retain** | view_map |
+| coins_scattered | mill | decal | 18×16 | idle 1 | s | **retain** | create_image_pro_flash |
+| grain_spill | mill | decal | 42×23 | idle 1 | s | **retain** | create_image_pro_flash |
+| hay_bale | mill | clutter | 22×24 | idle 1 | s | **retain** | create_image_pro_flash |
+| herbs_hanging | mill | hanging | 16×26 | idle 1 | s | **retain** | create_image_pro_flash |
+| hive_wasp | mill | vermin_flier | 48×48 | idle 1@5, walk 6@10, attack 6@10, death 6@10, corpse 1 | senwseswnenw | **retain** | see sidecar |
+| jug | mill | clutter | 18×22 | idle 1 | s | **retain** | create_image_pro_flash |
+| ladder | mill | hanging | 22×26 | idle 1 | s | **retain** | create_image_pro_flash |
+| loot_bag | mill | clutter | 14×22 | idle 1 | s | **retain** | create_image_pro_flash |
+| millstone | mill | decal | 36×26 | idle 1 | s | **retain** | create_image_pro_flash |
+| mushrooms | mill | decal | 20×22 | idle 1 | s | **retain** | create_image_pro_flash |
+| pebbles | mill | decal | 18×15 | idle 1 | s | **retain** | create_image_pro_flash |
+| sack_pile | mill | bulky | 34×29 | idle 1 | s | **retain** | create_image_pro_flash |
+| sack_stack | mill | bulky | 34×35 | idle 1 | s | **retain** | create_image_pro_flash |
+| skull | mill | decal | 16×17 | idle 1 | s | **retain** | create_image_pro_flash |
+| straw | mill | decal | 46×30 | idle 1 | s | **retain** | create_image_pro_flash |
+| support_post | mill | fixture | 40×48 | idle 1 | s | **retain** | create_image_pro_flash |
+| wasp_nest | mill | hanging | 24×38 | idle 1 | s | **retain** | create_image_pro_flash |
+| water_trough | mill | clutter | 26×19 | idle 1 | s | **retain** | create_image_pro_flash |
+| web | mill | hanging | 36×36 | idle 1 | s | **retain** | create_image_pro_flash |
+| anvil | common | bulky | 30×29 | idle 1 | s | **retain** | create_image_pro_flash |
+| bush | common | bush | 32×28 | idle 1 | s | **retain** | see sidecar |
+| cabbage_crate | common | bulky | 38×30 | idle 1 | s | **retain** | create_image_pro_flash |
+| common_ground | common | terrain | 32×32 tiles | still |  | **retain** | view_map |
+| fence | common | bench | 32×24 | idle 1 | s | **retain** | see sidecar |
+| fishing_pier | common | span | 96×160 | idle 1 | s | **staged**: on no map yet (Hearth Square, 2026-10-25); approved: art-director 2026-10-25, Tyler pending | see sidecar |
+| flower_box | common | hanging | 38×23 | idle 1 | s | **retain** | create_image_pro_flash |
+| fuel_bone | common | loot | 14×14 | idle 1 | s | **staged**: on no map yet (Hearth Square, 2026-10-25); approved: art-director 2026-10-25, Tyler pending | create_image_pro |
+| fuel_coal | common | loot | 12×14 | idle 1 | s | **staged**: on no map yet (Hearth Square, 2026-10-25); approved: art-director 2026-10-25, Tyler pending | create_image_pro |
+| fuel_den_knot | common | loot | 14×14 | idle 1 | s | **staged**: on no map yet (Hearth Square, 2026-10-25); approved: art-director 2026-10-25, Tyler pending | create_image_pro |
+| fuel_dry_husk | common | loot | 14×15 | idle 1 | s | **staged**: on no map yet (Hearth Square, 2026-10-25); approved: art-director 2026-10-25, Tyler pending | create_image_pro |
+| fuel_lamp_jelly | common | loot | 14×11 | idle 1 | s | **staged**: on no map yet (Hearth Square, 2026-10-25); approved: art-director 2026-10-25, Tyler pending | create_image_pro |
+| fuel_log | common | loot | 16×14 | idle 1 | s | **staged**: on no map yet (Hearth Square, 2026-10-25); approved: art-director 2026-10-25, Tyler pending | create_image_pro |
+| fuel_mosslight_clump | common | loot | 14×15 | idle 1 | s | **staged**: on no map yet (Hearth Square, 2026-10-25); approved: art-director 2026-10-25, Tyler pending | create_image_pro |
+| fuel_pithwood | common | loot | 12×15 | idle 1 | s | **staged**: on no map yet (Hearth Square, 2026-10-25); approved: art-director 2026-10-25, Tyler pending | create_image_pro |
+| fuel_queens_comb | common | loot | 14×14 | idle 1 | s | **staged**: on no map yet (Hearth Square, 2026-10-25); approved: art-director 2026-10-25, Tyler pending | create_image_pro |
+| fuel_rat_kings_knot | common | loot | 14×14 | idle 1 | s | **staged**: on no map yet (Hearth Square, 2026-10-25); approved: art-director 2026-10-25, Tyler pending | create_image_pro |
+| fuel_verdigris_cake | common | loot | 14×12 | idle 1 | s | **staged**: on no map yet (Hearth Square, 2026-10-25); approved: art-director 2026-10-25, Tyler pending | create_image_pro |
+| great_hearth | common | landmark | 352×349 | idle 1 | s | **staged**: on no map yet (Hearth Square, 2026-10-25); approved: art-director 2026-10-25, Tyler pending | create_image_pro |
+| hatch | common | decal | 40×27 | idle 1 | s | **retain** | create_image_pro_flash |
+| hearth_burn_sparks | common | vfx | 75×65 | play 8@12 | s | **staged**: on no map yet (Hearth Square, 2026-10-25); approved: art-director 2026-10-25, Tyler pending | vfx_workbench |
+| hearth_burn_sparks_verdigris | common | vfx | 75×65 | play 8@12 | s | **staged**: on no map yet (Hearth Square, 2026-10-25); approved: art-director 2026-10-25, Tyler pending | vfx_workbench |
+| hearth_fire | common | vfx | 61×49 | idle 8@8 | s | **staged**: on no map yet (Hearth Square, 2026-10-25); approved: art-director 2026-10-25, Tyler pending | animate_image |
+| hearth_fire_verdigris | common | vfx | 61×49 | idle 8@8 | s | **staged**: on no map yet (Hearth Square, 2026-10-25); approved: art-director 2026-10-25, Tyler pending | animate_image |
+| hearth_flare | common | vfx | 55×50 | play 6@10 | s | **staged**: on no map yet (Hearth Square, 2026-10-25); approved: art-director 2026-10-25, Tyler pending | animate_image |
+| hearth_flare_verdigris | common | vfx | 55×50 | play 6@10 | s | **staged**: on no map yet (Hearth Square, 2026-10-25); approved: art-director 2026-10-25, Tyler pending | animate_image |
+| hedge | common | bush | 38×25 | idle 1 | s | **retain** | create_image_pro_flash |
+| lamppost | common | fixture | 32×42 | idle 1 | s | **retain** | see sidecar |
+| mill | common | building | 192×140 | idle 1 | s | **retain** | see sidecar |
+| mine_mouth | common | building | 120×111 | idle 1 | s | **staged**: on no map yet (Hearth Square, 2026-10-25); approved: art-director 2026-10-25, Tyler pending | see sidecar |
+| noticeboard | common | fixture | 36×33 | idle 1 | s | **retain** | create_image_pro_flash |
+| npc_crier | common | character | 64×64 | idle 1@5 | senwseswnenw | **retain** | see sidecar |
+| npc_smith | common | character | 64×64 | idle 1@5 | senwseswnenw | **retain** | see sidecar |
+| oak | common | sapling | 64×90 | idle 1 | s | **retain** | see sidecar |
+| ore_coal_rock | common | bulky | 28×27 | idle 1 | s | **staged**: on no map yet (Hearth Square, 2026-10-25); approved: art-director 2026-10-25, Tyler pending | see sidecar |
+| ore_copper_rock | common | bulky | 28×27 | idle 1 | s | **staged**: on no map yet (Hearth Square, 2026-10-25); approved: art-director 2026-10-25, Tyler pending | see sidecar |
+| pine | common | sapling | 64×92 | idle 1 | s | **retain** | see sidecar |
+| rocks | common | bulky | 32×30 | idle 1 | s | **retain** | see sidecar |
+| rug | common | decal | 40×23 | idle 1 | s | **retain** | create_image_pro_flash |
+| rune_block | common | bulky | 26×29 | idle 1 | s | **staged**: on no map yet (Hearth Square, 2026-10-25); approved: art-director 2026-10-25, Tyler pending | see sidecar |
+| signpost | common | fixture | 28×36 | idle 1 | s | **retain** | create_image_pro_flash |
+| smithy | common | building | 224×160 | idle 1 | s | **retain** | see sidecar |
+| square_bank | common | hall | 352×307 | idle 1 | s | **staged**: on no map yet (Hearth Square, 2026-10-25); approved: art-director 2026-10-25, Tyler pending | create_image_pro |
+| square_barracks | common | hall | 342×262 | idle 1 | s | **staged**: on no map yet (Hearth Square, 2026-10-25); approved: art-director 2026-10-25, Tyler pending | create_image_pro |
+| square_bench_log | common | bench | 64×34 | idle 1 | s | **staged**: on no map yet (Hearth Square, 2026-10-25); approved: art-director 2026-10-25, Tyler pending | see sidecar |
+| square_bench_stone | common | bench | 64×37 | idle 1 | s | **staged**: on no map yet (Hearth Square, 2026-10-25); approved: art-director 2026-10-25, Tyler pending | see sidecar |
+| square_bench_wood | common | bench | 64×34 | idle 1 | s | **staged**: on no map yet (Hearth Square, 2026-10-25); approved: art-director 2026-10-25, Tyler pending | see sidecar |
+| square_decal_chips_a | common | decal | 28×26 | idle 1 | s | **staged**: on no map yet (Hearth Square, 2026-10-25); approved: art-director 2026-10-25, Tyler pending | create_image_pro |
+| square_decal_chips_b | common | decal | 28×26 | idle 1 | s | **staged**: on no map yet (Hearth Square, 2026-10-25); approved: art-director 2026-10-25, Tyler pending | create_image_pro |
+| square_decal_leaves_a | common | decal | 20×17 | idle 1 | s | **staged**: on no map yet (Hearth Square, 2026-10-25); approved: art-director 2026-10-25, Tyler pending | create_image_pro |
+| square_decal_leaves_b | common | decal | 20×20 | idle 1 | s | **staged**: on no map yet (Hearth Square, 2026-10-25); approved: art-director 2026-10-25, Tyler pending | create_image_pro |
+| square_decal_moss_a | common | decal | 28×26 | idle 1 | s | **staged**: on no map yet (Hearth Square, 2026-10-25); approved: art-director 2026-10-25, Tyler pending | create_image_pro |
+| square_decal_moss_b | common | decal | 28×26 | idle 1 | s | **staged**: on no map yet (Hearth Square, 2026-10-25); approved: art-director 2026-10-25, Tyler pending | create_image_pro |
+| square_decal_puddle_a | common | decal | 26×20 | idle 1 | s | **staged**: on no map yet (Hearth Square, 2026-10-25); approved: art-director 2026-10-25, Tyler pending | create_image_pro |
+| square_decal_puddle_b | common | decal | 24×19 | idle 1 | s | **staged**: on no map yet (Hearth Square, 2026-10-25); approved: art-director 2026-10-25, Tyler pending | create_image_pro |
+| square_decal_soot | common | decal | 28×26 | idle 1 | s | **staged**: on no map yet (Hearth Square, 2026-10-25); approved: art-director 2026-10-25, Tyler pending | create_image_pro |
+| square_decal_tuft_a | common | decal | 28×19 | idle 1 | s | **staged**: on no map yet (Hearth Square, 2026-10-25); approved: art-director 2026-10-25, Tyler pending | create_image_pro |
+| square_decal_tuft_b | common | decal | 26×18 | idle 1 | s | **staged**: on no map yet (Hearth Square, 2026-10-25); approved: art-director 2026-10-25, Tyler pending | create_image_pro |
+| square_depot | common | hall | 384×302 | idle 1 | s | **staged**: on no map yet (Hearth Square, 2026-10-25); approved: art-director 2026-10-25, Tyler pending | create_image_pro |
+| square_dirt_flag | common | terrain | 32×32 tiles | still |  | **staged**: on no map yet (Hearth Square, 2026-10-25); approved: art-director 2026-10-25, Tyler pending | create_topdown_tileset `61093a68` |
+| square_general_store | common | hall | 384×315 | idle 1 | s | **staged**: on no map yet (Hearth Square, 2026-10-25); approved: art-director 2026-10-25, Tyler pending | create_image_pro |
+| square_grass_flag | common | terrain | 32×32 tiles | still |  | **staged**: on no map yet (Hearth Square, 2026-10-25); approved: art-director 2026-10-25, Tyler pending | create_topdown_tileset `1da34598` |
+| square_market_stall | common | stall | 76×58 | idle 1 | s | **staged**: on no map yet (Hearth Square, 2026-10-25); approved: art-director 2026-10-25, Tyler pending | see sidecar |
+| square_plaza | common | terrain | 32×32 tiles | still |  | **staged**: on no map yet (Hearth Square, 2026-10-25); approved: art-director 2026-10-25, Tyler pending | create_image_pro + inpaint_image |
+| well | common | fixture | 36×43 | idle 1 | s | **retain** | create_image_pro_flash |
+| westwood_ash | common | tree | 68×97 | idle 1 | s | **staged**: on no map yet (Hearth Square, 2026-10-25); approved: art-director 2026-10-25, Tyler pending | see sidecar |
+| westwood_yew | common | tree | 62×91 | idle 1 | s | **staged**: on no map yet (Hearth Square, 2026-10-25); approved: art-director 2026-10-25, Tyler pending | see sidecar |
+| woodpile | common | fixture | 38×23 | idle 1 | s | **retain** | create_image_pro_flash |
+| altar | cottage | fixture | 30×38 | idle 1 | s | **retain** | create_image_pro_flash |
+| apple_crate | cottage | box | 20×21 | idle 1 | s | **retain** | create_image_pro_flash |
+| armour_stand | cottage | fixture | 26×42 | idle 1 | s | **retain** | create_image_pro_flash |
+| barrel_planter | cottage | barrel | 24×25 | idle 1 | s | **retain** | create_image_pro_flash |
+| basket | cottage | clutter | 18×20 | idle 1 | s | **retain** | create_image_pro_flash |
+| bed | cottage | bed | 26×40 | idle 1 | s | **retain** | create_image_pro_flash |
+| bellows | cottage | clutter | 22×23 | idle 1 | s | **retain** | create_image_pro_flash |
+| bookshelf | cottage | fixture | 38×42 | idle 1 | s | **retain** | create_image_pro_flash |
+| candelabra | cottage | fixture | 20×29 | idle 1 | s | **retain** | create_image_pro_flash |
+| cart_wheel | cottage | bulky | 24×23 | idle 1 | s | **retain** | create_image_pro_flash |
+| chair_side | cottage | seat | 18×30 | idle 1 | s | **retain** | create_image_pro_flash |
+| chest | cottage | box | 20×18 | idle 1 | s | **retain** | create_image_pro_flash |
+| chest_iron | cottage | box | 18×18 | idle 1 | s | **retain** | create_image_pro_flash |
+| chopping_block | cottage | bulky | 22×26 | idle 1 | s | **retain** | create_image_pro_flash |
+| cottage_ground | cottage | terrain | 32×32 tiles | still |  | **retain** | view_map |
+| counter | cottage | station | 42×34 | idle 1 | s | **retain** | create_image_pro_flash |
+| desk | cottage | station | 38×32 | idle 1 | s | **retain** | create_image_pro_flash |
+| display_case | cottage | station | 24×23 | idle 1 | s | **retain** | create_image_pro_flash |
+| dummy | cottage | fixture | 32×43 | idle 1 | s | **retain** | create_image_pro_flash |
+| flour_sack | cottage | clutter | 20×24 | idle 1 | s | **retain** | create_image_pro_flash |
+| flower_bed | cottage | clutter | 24×18 | idle 1 | s | **retain** | create_image_pro_flash |
+| forge | cottage | fixture | 46×48 | idle 1 | s | **retain** | create_image_pro_flash |
+| grindstone | cottage | clutter | 20×23 | idle 1 | s | **retain** | create_image_pro_flash |
+| hearth | cottage | fixture | 36×45 | idle 1 | s | **retain** | create_image_pro_flash |
+| neighbour_cottage | cottage | building | 160×138 | idle 1 | s | **retain** | see sidecar |
+| sack_tall | cottage | bulky | 20×24 | idle 1 | s | **retain** | create_image_pro_flash |
+| shield_wall | cottage | hanging | 36×38 | idle 1 | s | **retain** | create_image_pro_flash |
+| statue | cottage | fixture | 22×53 | idle 1 | s | **retain** | create_image_pro_flash |
+| swords_wall | cottage | hanging | 42×41 | idle 1 | s | **retain** | create_image_pro_flash |
+| table | cottage | bench | 18×18 | idle 1 | s | **retain** | create_image_pro_flash |
+| trophy_wolf | cottage | hanging | 36×41 | idle 1 | s | **retain** | create_image_pro_flash |
+| turnip_crate | cottage | box | 18×21 | idle 1 | s | **retain** | create_image_pro_flash |
+| wardrobe | cottage | fixture | 30×45 | idle 1 | s | **retain** | create_image_pro_flash |
+| weapon_rack | cottage | fixture | 36×42 | idle 1 | s | **retain** | create_image_pro_flash |
+| workbench | cottage | station | 42×33 | idle 1 | s | **retain** | create_image_pro_flash |
+| briarcoat_wolf | forest | vermin | 48×48 | idle 1@5, walk 6@10, attack 6@10, death 6@10, corpse 1 | senwseswnenw | **retain** | see sidecar |
+| dire_gray | forest | beast | 64×64 | idle 1@5, walk 6@10, attack 6@10, death 6@10, corpse 1 | senwseswnenw | **retain** | see sidecar |
+| grayjaw | forest | beast | 64×64 | idle 1@5, walk 6@10, attack 6@10, death 6@10, corpse 1 | senwseswnenw | **retain** | see sidecar |
+| gray_whelp | forest | vermin | 48×48 | idle 1@5, walk 6@10, attack 6@10, death 6@10, corpse 1 | senwseswnenw | **retain** | see sidecar |
+| gray_wolf | forest | vermin | 48×48 | idle 1@5, walk 6@10, attack 6@10, death 6@10, corpse 1 | senwseswnenw | **retain** | see sidecar |
+| mb_fallen_log | forest | decal | 64×32 | idle 1 | s | **retain** | see sidecar |
+| mb_fern | forest | decal | 32×32 | idle 1 | s | **retain** | see sidecar |
+| mb_flowers | forest | decal | 32×32 | idle 1 | s | **retain** | see sidecar |
+| mb_hollow_oak | forest | sapling | 64×87 | idle 1 | s | **retain** | see sidecar |
+| mb_hollow_oak_stump | forest | wreck | 64×87 | idle 1 | s | **retain** | see sidecar |
+| mb_leaf_litter | forest | decal | 32×32 | idle 1 | s | **retain** | see sidecar |
+| mb_log_bridge | forest | span | 160×48 | idle 1 | s | **retain** | see sidecar |
+| mb_oak_stump | forest | wreck | 64×91 | idle 1 | s | **retain** | see sidecar |
+| mb_pine_stump | forest | decal | 64×96 | idle 1 | s | **retain** | see sidecar |
+| mb_reeds | forest | decal | 32×32 | idle 1 | s | **retain** | see sidecar |
+| mb_stepping_stones | forest | decal | 32×32 | idle 1 | s | **retain** | see sidecar |
+| meadowbrook_ground | forest | terrain | 32×32 tiles | still |  | **retain** | view_map |
+| chief_coppercap | warren | brute | 64×64 | idle 1@5, walk 6@10, attack 6@10, death 6@10, corpse 1 | senwseswnenw | **retain** | see sidecar |
+| cw_coal_seam | warren | bulky | 32×39 | idle 1 | s | **retain** | see sidecar |
+| cw_coal_seam_spent | warren | clutter | 32×39 | idle 1 | s | **retain** | see sidecar |
+| cw_copper_pots | warren | bulky | 32×29 | idle 1 | s | **retain** | see sidecar |
+| cw_copper_vein | warren | bulky | 32×39 | idle 1 | s | **retain** | see sidecar |
+| cw_copper_vein_spent | warren | decal | 32×48 | idle 1 | s | **retain** | see sidecar |
+| cw_gold_seam | warren | bulky | 32×39 | idle 1 | s | **retain** | see sidecar |
+| cw_gold_seam_spent | warren | clutter | 32×35 | idle 1 | s | **retain** | see sidecar |
+| cw_iron_vein | warren | bulky | 32×39 | idle 1 | s | **retain** | see sidecar |
+| cw_iron_vein_spent | warren | clutter | 32×39 | idle 1 | s | **retain** | see sidecar |
+| cw_mine_cart | warren | wreck | 48×40 | idle 1 | s | **retain** | see sidecar |
+| cw_ore_stain | warren | decal | 32×32 | idle 1 | s | **retain** | see sidecar |
+| cw_plank_bridge | warren | span | 48×96 | idle 1 | s | **retain** | see sidecar |
+| cw_puddle | warren | decal | 32×32 | idle 1 | s | **retain** | see sidecar |
+| cw_rails | warren | decal | 32×32 | idle 1 | s | **retain** | see sidecar |
+| cw_rubble | warren | decal | 32×32 | idle 1 | s | **retain** | see sidecar |
+| cw_stalagmite | warren | bulky | 32×39 | idle 1 | s | **retain** | see sidecar |
+| cw_throne | warren | wreck | 48×55 | idle 1 | s | **retain** | see sidecar |
+| cw_tool_rack | warren | bulky | 48×39 | idle 1 | s | **retain** | see sidecar |
+| goblin_digger | warren | vermin | 48×48 | idle 1@5, walk 6@10, attack 6@10, death 6@10, corpse 1 | senwseswnenw | **retain** | see sidecar |
+| goblin_scavenger | warren | vermin | 48×48 | idle 1@5, walk 6@10, attack 6@10, death 6@10, corpse 1 | senwseswnenw | **retain** | see sidecar |
+| goblin_skulker | warren | vermin | 48×48 | idle 1@5, walk 6@10, attack 6@10, death 6@10, corpse 1 | senwseswnenw | **retain** | see sidecar |
+| hobgoblin_foreman | warren | character | 64×64 | idle 1@5, walk 6@10, attack 6@10, death 6@10, corpse 1 | senwseswnenw | **retain** | see sidecar |
+| warrens_ground | warren | terrain | 32×32 tiles | still |  | **retain** | view_map |
+| carrion_crow | glade | vermin_flier | 48×48 | idle 1@5, walk 6@10, attack 6@10, death 6@10, corpse 1 | senwseswnenw | **retain** | see sidecar |
+| glade_poacher | glade | character | 64×64 | idle 1@5, walk 6@10, attack 6@10, death 6@10, corpse 1 | senwseswnenw | **retain** | see sidecar |
+| goblin_sluicer | glade | vermin | 48×48 | idle 1@5, walk 6@10, attack 6@10, death 6@10, corpse 1 | senwseswnenw | **retain** | see sidecar |
+| mosslight_ground | glade | terrain | 32×32 tiles | still |  | **retain** | view_map |
+| rook_poacher | glade | character | 64×64 | idle 1@5, walk 6@10, attack 6@10, death 6@10, corpse 1 | senwseswnenw | **retain** | see sidecar |
+| walking_vine | glade | vermin | 48×48 | idle 1@5, walk 6@10, attack 6@10, death 6@10, corpse 1 | senwseswnenw | **retain** | see sidecar |
 
 ### b224 — Asset Director promotion pass
 

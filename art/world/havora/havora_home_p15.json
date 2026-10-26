@@ -1,0 +1,41 @@
+{
+  "id": "havora_home_p15",
+  "class": "lot",
+  "style": "s1",
+  "material": "stone",
+  "source": "havora_home_p15.png",
+  "frame": [
+    640,
+    320
+  ],
+  "anchor_px": [
+    320,
+    319
+  ],
+  "footprint": [
+    20,
+    8
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_image_pro",
+    "image": "bd001665-3943-49e0-9581-7b3e4280385c",
+    "seed": 625,
+    "size": [
+      640,
+      320
+    ],
+    "cost": 25,
+    "style": "common/square_general_store"
+  },
+  "notes": "Home P15 (plan x138-157 y80-87), the grandest waterfront estate: stone mansion, crest, formal box-hedge garden, iron railings."
+}

@@ -1,0 +1,45 @@
+{
+  "id": "square_bank",
+  "class": "hall",
+  "style": "s1",
+  "material": "stone",
+  "source": "square_bank.png",
+  "frame": [
+    352,
+    307
+  ],
+  "anchor_px": [
+    176,
+    306
+  ],
+  "footprint": [
+    11,
+    6
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_image_pro",
+    "image": "3dd8b5d9-decf-48cb-89df-84f2e89df021",
+    "seed": 403,
+    "size": [
+      384,
+      320
+    ],
+    "cost": 25,
+    "style": "common/smithy",
+    "references": [
+      "common/smithy",
+      "great_hearth design D"
+    ]
+  },
+  "notes": "Hearth Square bank facade (designer rev 2: bank x112-127 y12-23; closed door, no system yet). STAGED."
+}

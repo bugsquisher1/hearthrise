@@ -119,6 +119,44 @@ function cellArt(sheet, cx, cy, cell, all = blobs(sheet)) {
   return out;
 }
 
+/* ── wang: a Wang-16 pair recovered from painted grounds ─────────────────────────────────────────
+   A PixelLab Map Workshop ground is drawn on a DUAL grid: its tileset's tiles sit half a cell off the
+   map cells, their corners on the cell centres. Cut at (16 + 32k, 16 + 32k), a painted ground is
+   exactly the tileset's own tiles (common_ground: 21 distinct tiles in 299 cuts). The grounds of the
+   Common family share their base tiles pixel for pixel (grass in common, meadowbrook, cottage and
+   mosslight; the dirt in common and square_dirt_flag), so every pair those grounds painted can be
+   recovered as a wang16 terrain without a new generation. */
+const CORNER = 6;
+/** The mean colour of a w x h block. */
+function meanOf(img, x0, y0, w, h) {
+  const m = [0, 0, 0];
+  for (let y = y0; y < y0 + h; y++) for (let x = x0; x < x0 + w; x++) { const p = (y * img.width + x) * 4; m[0] += img.data[p]; m[1] += img.data[p + 1]; m[2] += img.data[p + 2]; }
+  return m.map((v) => v / (w * h));
+}
+const dist = (a, b) => (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2;
+/** The four corner materials (NW NE SW SE) of the tile at (x, y): each corner block's nearest reference fill. */
+function cornersOf(img, x, y, refs) {
+  const at = (cx, cy) => { const m = meanOf(img, cx, cy, CORNER, CORNER); return refs.reduce((b, r) => (dist(m, r.mean) < dist(m, b.mean) ? r : b)).mat; };
+  return [at(x, y), at(x + T - CORNER, y), at(x, y + T - CORNER), at(x + T - CORNER, y + T - CORNER)];
+}
+const tileHash = (img, x, y) => { let s = ''; for (let r = 0; r < T; r++) s += Buffer.from(img.data.subarray(((y + r) * img.width + x) * 4, ((y + r) * img.width + x + T) * 4)).toString('base64'); return s; };
+/**
+ * A diagonal key no ground painted (two roads touching corner to corner): each quadrant from a tile
+ * whose three corners nearest it match (the quadrant's own corner and its two edge neighbours).
+ */
+function composeKey(key, byKey) {
+  const out = createImage(T, T), H = T / 2;
+  const quads = [[0, 1, 2, 0, 0], [1, 0, 3, 1, 0], [2, 0, 3, 0, 1], [3, 1, 2, 1, 1]];
+  for (const [c, n1, n2, qx, qy] of quads) {
+    const want = (k) => k[c] === key[c] && k[n1] === key[n1] && k[n2] === key[n2];
+    const src = Object.keys(byKey).filter(want).sort((a, b) => (b[3 - c] === key[3 - c]) - (a[3 - c] === key[3 - c]))[0];
+    if (!src) return null;
+    const t = byKey[src][0];
+    blit(out, t.img, t.x + qx * H, t.y + qy * H, H, H, qx * H, qy * H);
+  }
+  return out;
+}
+
 /** The lowest row holding an opaque pixel (-1 for an empty image). */
 function lowestRow(img) {
   for (let y = img.height - 1; y >= 0; y--) for (let x = 0; x < img.width; x++) if (img.data[(y * img.width + x) * 4 + 3] >= 128) return y;
@@ -237,7 +275,47 @@ function main() {
     };
     writeFileSync(join(dir, o.id + '.json'), JSON.stringify(sc, null, 2) + '\n');
     console.log('  ✓ ' + o.set + '/' + o.id + ' (' + o.class + ', ' + anims.map((a) => a.name).join('+') + ')');
-  } else throw new Error('usage: port-pixellab.mjs map|object|sheet|unit …');
+  } else if (cmd === 'wang') {
+    /* --from SET/GROUND[,…] --ref MAT:SET/GROUND:X:Y[,…] --lower MAT --upper MAT [--variants N]
+       Every 32 px cut at (16 + 32k) of the FROM grounds' sources whose four corners are the pair's
+       materials (each corner the nearest --ref fill: one REF per material any of the grounds paints,
+       so a tile with a third material is never taken for the pair). Distinct tiles per key, up to N. */
+    const load = (p) => { const [s, g] = p.split('/'); const sc = JSON.parse(readFileSync(join(ROOT, ART_DIR, s, g + '.json'), 'utf8')); return { p, sc, img: decodePNG(readFileSync(join(ROOT, ART_DIR, s, sc.source))) }; };
+    const grounds = o.from.split(',').map(load);
+    const refs = o.ref.split(',').map((r) => { const [mat, p, x, y] = r.split(':'); return { mat, mean: meanOf(load(p).img, Number(x), Number(y), T, T) }; });
+    const lo = o.lower, up = o.upper, max = Number(o.variants || 4);
+    const byKey = {}, seen = new Set();
+    for (const g of grounds) {
+      for (let y = T / 2; y + T <= g.img.height; y += T) for (let x = T / 2; x + T <= g.img.width; x += T) {
+        const c = cornersOf(g.img, x, y, refs);
+        if (!c.every((m) => m === lo || m === up)) continue;
+        const h = tileHash(g.img, x, y);
+        if (seen.has(h)) continue;
+        seen.add(h);
+        const key = c.map((m) => (m === up ? '1' : '0')).join('');
+        (byKey[key] = byKey[key] || []).push({ img: g.img, x, y, from: g.p });
+      }
+    }
+    const composed = [];
+    const cells = [];
+    for (let i = 0; i < 16; i++) {
+      const key = i.toString(2).padStart(4, '0');
+      let list = (byKey[key] || []).slice(0, max).map((t) => { const im = createImage(T, T); blit(im, t.img, t.x, t.y, T, T, 0, 0); return im; });
+      if (!list.length) { const im = composeKey(key, byKey); if (!im) throw new Error(o.id + ': no tile and no quadrants for corners ' + key); list = [im]; composed.push(key); }
+      for (const im of list) cells.push({ key, im });
+    }
+    const cols = 8, rows = Math.ceil(cells.length / cols), sheet = createImage(cols * T, rows * T), tiles = {};
+    cells.forEach((c, n) => { blit(sheet, c.im, 0, 0, T, T, (n % cols) * T, Math.floor(n / cols) * T); (tiles[c.key] = tiles[c.key] || []).push([n % cols, Math.floor(n / cols)]); });
+    writeFileSync(join(dir, o.id + '.png'), encodePNG(sheet));
+    const sources = grounds.map((g) => ({ ground: g.p, ...(g.sc.pixellab || {}) }));
+    const sc = {
+      id: o.id, class: 'terrain', kind: 'wang16', style: 's1', material: o.material || 'terrain', source: o.id + '.png', lower: lo, upper: up, tiles,
+      pixellab: { tool: 'port-wang', map: sources.map((s) => s.map || s.id || s.ground).join(','), sources },
+      notes: 'The ' + lo + '/' + up + ' Wang-16 pair recovered from the painted grounds ' + grounds.map((g) => g.p).join(', ') + ' (their tileset tiles, cut on the dual grid) by tools/world-art/port-pixellab.mjs wang; pixels unscaled.' + (composed.length ? ' Corners ' + composed.join(', ') + ' were never painted: each is four quadrants of painted tiles whose nearest corners match.' : ''),
+    };
+    writeFileSync(join(dir, o.id + '.json'), JSON.stringify(sc, null, 2) + '\n');
+    console.log('  ✓ ' + o.set + '/' + o.id + ' wang16 ' + lo + '/' + up + ': ' + cells.length + ' tiles' + (composed.length ? ', composed ' + composed.join(' ') : '') + ' · per key ' + Object.keys(tiles).sort().map((k) => k + ':' + tiles[k].length).join(' '));
+  } else throw new Error('usage: port-pixellab.mjs map|object|sheet|unit|wang …');
 }
 if (isMain(import.meta.url)) {
   try { main(); } catch (e) { console.error('port-pixellab: ' + (e && e.message || e)); process.exit(2); }

@@ -1,0 +1,41 @@
+{
+  "id": "havora_home_p13",
+  "class": "lot",
+  "style": "s1",
+  "material": "stone",
+  "source": "havora_home_p13.png",
+  "frame": [
+    486,
+    320
+  ],
+  "anchor_px": [
+    243,
+    319
+  ],
+  "footprint": [
+    16,
+    8
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_image_pro",
+    "image": "58658f7f-49bd-4c14-b481-703c4d69b35b",
+    "seed": 623,
+    "size": [
+      512,
+      320
+    ],
+    "cost": 25,
+    "style": "common/square_general_store"
+  },
+  "notes": "Home P13 (plan x120-135 y74-81), waterfront estate: merchant's townhouse, columned porch, walled garden with fountain."
+}

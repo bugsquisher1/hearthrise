@@ -1,0 +1,41 @@
+{
+  "id": "havora_harbor_office",
+  "class": "lot",
+  "style": "s1",
+  "material": "stone",
+  "source": "havora_harbor_office.png",
+  "frame": [
+    418,
+    356
+  ],
+  "anchor_px": [
+    209,
+    355
+  ],
+  "footprint": [
+    16,
+    10
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_image_pro",
+    "image": "b998d564-08f4-4eb5-a057-b96c99359796",
+    "seed": 613,
+    "size": [
+      512,
+      384
+    ],
+    "cost": 25,
+    "style": "common/square_general_store"
+  },
+  "notes": "The harbour office (plan x98-113 y76-85): dressed stone, slate roof, clock tower, ship's bell, shipping notices, cargo."
+}

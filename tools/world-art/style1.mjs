@@ -46,7 +46,10 @@ export function reachableRefs(d) {
   const spr = (what, id) => out.push({ what, id, kind: 'sprite' });
   const ter = (what, id) => out.push({ what, id, kind: 'terrain' });
   for (const m of d.maps) {
-    ter(m.id + ' ground', m.ground);
+    /* a null ground is no art at all (a town drawn in placeholder tones, map-compile.js L-KIND): nothing old can show */
+    if (m.ground !== null) ter(m.id + ' ground', m.ground);
+    for (const p of m.patches || []) ter(m.id + ' patch', p.terrain);
+    for (const a of m.ambient || []) spr(m.id + ' ambient at ' + a.x + ',' + a.y, a.id);
     for (const o of m.objects || []) spr(m.id + ' object at ' + o.x + ',' + o.y, o.id);
     for (const f of m.faces || []) spr(m.id + ' face at ' + f.x + ',' + f.y, f.id);
     for (const b of m.buildings || []) {

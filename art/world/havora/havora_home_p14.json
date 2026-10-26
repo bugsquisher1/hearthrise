@@ -1,0 +1,41 @@
+{
+  "id": "havora_home_p14",
+  "class": "lot",
+  "style": "s1",
+  "material": "stone",
+  "source": "havora_home_p14.png",
+  "frame": [
+    550,
+    320
+  ],
+  "anchor_px": [
+    275,
+    319
+  ],
+  "footprint": [
+    18,
+    8
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_image_pro",
+    "image": "094a892d-e1ed-4dcd-9054-28871cb86a57",
+    "seed": 624,
+    "size": [
+      576,
+      320
+    ],
+    "cost": 25,
+    "style": "common/square_general_store"
+  },
+  "notes": "Home P14 (plan x142-159 y66-73), waterfront estate: manor with a round turret, red tile roof, rose garden, lamp gate."
+}

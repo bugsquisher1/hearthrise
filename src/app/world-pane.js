@@ -17,10 +17,10 @@ import { mountShell } from '../shell/shell.js?v=0.2.48';
 import { logFor } from '../hunt-view/combat-log.js?v=0.2.48';
 import { pickHunt } from '../shell/windows/hunts.js?v=0.2.48';
 import { worldTargetOf } from '../shell/menu-providers.js?v=0.2.48';
-import { TAP_OPENS } from '../data/world/stations.js?v=0.2.48';
+import { TAP_WINDOWS } from '../data/world/stations.js?v=0.2.48';
 
-/* The windows a town keeper opens (a tapped station's `window`), and nothing else. */
-const KEEPER_WINDOWS = new Set(Object.values(TAP_OPENS).filter((o) => o.open === 'window').map((o) => o.window));
+/* The windows a town keeper or station opens (a tapped prop's `window`), and nothing else. */
+const KEEPER_WINDOWS = new Set(TAP_WINDOWS);
 
 const PANE_HTML = '<div class="world-chrome">'
   + '<span class="world-title">World</span>'
@@ -72,7 +72,7 @@ export async function mountWorldPane(host, character, o) {
   /* What a tap in the World names, and the window it opens (the World itself knows no window). */
   let shell = null;
   const SHOWS = { entrance: (d) => { pickHunt(character, d.hunt); return 'hunts'; }, station: () => 'skills-trade',
-    /* A town keeper's window (src/data/world/stations.js TAP_OPENS `window`): only a window a station names. */
+    /* A town keeper's or station's window (src/data/world/stations.js TAP_WINDOWS): only a window a station names. */
     keeper: (d) => (KEEPER_WINDOWS.has(d.window) ? d.window : null) };
   function emit(kind, detail) {
     /* The World's entity context (a right-click or long press on a unit): the shell's one player / monster menu. */

@@ -1,0 +1,41 @@
+{
+  "id": "havora_sewer_works",
+  "class": "lot",
+  "style": "s1",
+  "material": "stone",
+  "source": "havora_sewer_works.png",
+  "frame": [
+    448,
+    367
+  ],
+  "anchor_px": [
+    224,
+    366
+  ],
+  "footprint": [
+    14,
+    10
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_image_pro",
+    "image": "e8502e0a-c37e-4bca-880b-e883b0b28268",
+    "seed": 611,
+    "size": [
+      448,
+      384
+    ],
+    "cost": 25,
+    "style": "common/square_general_store"
+  },
+  "notes": "The sewer works (plan x44-57 y56-65): stone pump house, iron water wheel and pipes, sluice grates, vent chimney. The Sewer's grate is in its yard (sites.js floor_grate)."
+}

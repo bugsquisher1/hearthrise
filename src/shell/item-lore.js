@@ -13,18 +13,18 @@
 //   needOf(id, sk, lv)  "Needs Melee 30 — you have 20" / "Needs Level 30 — you're 28", against the server's numbers
 //   flavourOf(id)   the item's one-line description, or ''
 // ════════════════════════════════════════════════════════════════════════
-import { ITEMS } from '../data/items.js?v=0.2.49';
-import { LEVEL_REQ } from '../data/gear-tiers.js?v=0.2.49';
-import { DRINK_ITEMS, DRINK_RECIPES, DRINK_DESC } from '../data/drinks.js?v=0.2.49';
-import { MONSTERS } from '../data/monsters.js?v=0.2.49';
-import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.49';
-import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOT_META } from '../data/gathering.js?v=0.2.49';
-import { SHOP_OFFERS } from '../data/shops.js?v=0.2.49';
-import { SKILLS_DEF } from '../data/skills.js?v=0.2.49';
-import { ITEM_DESC } from '../data/item-descriptions.js?v=0.2.49';
-import { itemName, monsterName } from './widgets/bits.js?v=0.2.49';
-import { kindOf, riteOf, cookOf } from './bag-model.js?v=0.2.49';
-import { SHOP_LISTED_OFFER_IDS } from '../data/supply-basics.js?v=0.2.49';
+import { ITEMS } from '../data/items.js?v=0.2.50';
+import { LEVEL_REQ } from '../data/gear-tiers.js?v=0.2.50';
+import { DRINK_ITEMS, DRINK_RECIPES, DRINK_DESC } from '../data/drinks.js?v=0.2.50';
+import { MONSTERS } from '../data/monsters.js?v=0.2.50';
+import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.50';
+import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOT_META } from '../data/gathering.js?v=0.2.50';
+import { SHOP_OFFERS } from '../data/shops.js?v=0.2.50';
+import { SKILLS_DEF } from '../data/skills.js?v=0.2.50';
+import { ITEM_DESC } from '../data/item-descriptions.js?v=0.2.50';
+import { itemName, monsterName } from './widgets/bits.js?v=0.2.50';
+import { kindOf, riteOf, cookOf } from './bag-model.js?v=0.2.50';
+import { SHOP_LISTED_OFFER_IDS } from '../data/supply-basics.js?v=0.2.50';
 
 const skillName = (id) => (SKILLS_DEF[id] && SKILLS_DEF[id].name) || id;
 const RARITY = Object.freeze({ common: 'Common', uncommon: 'Uncommon', rare: 'Rare', epic: 'Epic', legendary: 'Legendary', mythic: 'Mythic', unique: 'Unique' });

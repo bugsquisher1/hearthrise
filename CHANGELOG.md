@@ -5,6 +5,14 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.50 — 2026-10-26 (Welcome to Havora)
+
+**The town is now Havora.** A whole city to walk: arrive through the gatehouse, follow the main road over the bridge, and you reach Hearth Square, where the Great Hearth burns at the centre of town. The Shop and Storage face the fire, Tamsin's board stands beside it, and the kill-task hunter waits at the barracks.
+
+**Every skill has its place.** Mine in the mountain to the east, chop in the Westwood beyond the western wall, fish from the shore and the riverbank, farm the plots by the sea, and work at the smithy and the tavern kitchen. Your heroes stand at the work they are doing, each on their own spot.
+
+**Room for everyone.** Havora holds up to 60 players at once, with parties and friends kept together.
+
 ## v0.2.49 — 2026-10-26 (A place for everyone)
 
 **Heroes stop piling up in town.** Every hero now gets its own spot to stand, chosen by the server: near the work it is doing, never on top of another hero. Heroes you aren't watching stand at their own work too.

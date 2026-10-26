@@ -2270,7 +2270,7 @@ async function main() {
 }
 
 /* --shard=K/N: every Nth mutant from the Kth. Each mutant re-runs the whole check suite (~63 s on a runner), so CI
-   splits the --mutate over N jobs (smoke.yml in-page-10 / 11 / 12; ci-shape registers each shard, so a dropped
+   splits the --mutate over N jobs (smoke.yml in-page-10 / 11 / 12 / 17 / 18 / 19; ci-shape registers each shard, so a dropped
    one goes red there). Null for a malformed shard. */
 function shardOf(list) {
   const a = process.argv.find((x) => x.startsWith('--shard='));

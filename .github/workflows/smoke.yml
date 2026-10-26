@@ -218,12 +218,17 @@ jobs:
   # install 26 + node suite 236 + client boot 67 + Alpha windows 721 = 1,050 s,
   # ~18 min with setup; slow runner (39374685521) ~1,320 s, ~22.5 min.
   # Budget = fast x2 = 36.
-  # 2026-10-26 (v0.2.50, run 40314818369): cancelled at 36:33 with 0 failures while
-  # the mutant gate re-ran every play.html-anchored mutant (the release bump touches
-  # play.html) → 60, the cap, until the gate stops counting a ?v= bump as a touch.
+  # 2026-10-26 (v0.2.50, run 40314818369): cancelled at 36:33 with 0 failures — a
+  # 12.2-min apt stall in the install, then death-popup --mutate re-run only because a
+  # play.html preload href holds "millrace_sewer" (the gate judged play.html whole-file).
+  # Lane a-ci-budget: the gate judges play.html by the LINES a diff really changes
+  # (`?v=` taken out), and Observability / Report a problem / Death popup moved to
+  # in-page-21. MEASURED, nightly full sweep (40196078710, every --mutate): setup 0.9 +
+  # node suite 6.7 + client boot 6.6 (--mutate 6.3) = 14.2 min; x2 = 28, 30 so the apt
+  # stall (14.2 + 12.2 = 26.4) keeps 12% slack.
   in-page:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 30
 
     steps:
       - uses: actions/checkout@v4
@@ -261,6 +266,45 @@ jobs:
           node tools/mutant-gate.mjs node tests/_chrome.mjs --selftest
           node tests/client-boot.mjs
           node tools/mutant-gate.mjs node tests/client-boot.mjs --mutate
+
+      # A failing run is far easier to diagnose with the page state attached.
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-failure
+          path: |
+            tests/**/*.png
+            tests/**/*.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # ── in-page-21 ── TELEMETRY, REPORT A PROBLEM, DEATH POPUP, SPLIT OUT OF in-page
+  # 2026-10-26 (lane a-ci-budget). release/v0.2.50 (run 40314818369) CANCELLED in-page
+  # at 36:33 with 0 failures: 12.2 min of apt stall (23.9 MB at 32.8 kB/s) + node suite
+  # 6.4 + client boot 6.7 + Observability 9.0 + Death popup cut at 0.7. MEASURED on the
+  # nightly full sweep (40196078710, every --mutate): Observability 9.4 (--mutate 9.1;
+  # it DECLARES play.html, so any real play.html change runs it) + Report a problem 1.4
+  # + Death popup 4.1 + setup 0.9 = 15.7 min; x2 = 32. With the apt stall: 27.9 (87%).
+  in-page-21:
+    runs-on: ubuntu-latest
+    timeout-minutes: 32
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Do NOT leave the token in .git/config where every later step —
+          # including npm lifecycle scripts — can read it and `git push`.
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Playwright + Chromium
+        run: |
+          npm install --no-audit --no-fund
+          npx playwright install --with-deps chromium
 
       # TELEMETRY (2026-10-20): play.html served as hearthrise.net with the REAL
       # vendored Sentry and PostHog, their ingest hosts routed: both wired with
@@ -300,7 +344,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: smoke-failure
+          name: smoke-failure-in-page-21
           path: |
             tests/**/*.png
             tests/**/*.log
@@ -583,12 +627,15 @@ jobs:
   # + Town 53 = 783 s, ~14 min with setup; budget stays 36.
   # 2026-10-24: Party UI, Chat and social and Town presence moved to in-page-13
   # (see there); this half ~1,240 s with every --mutate run, ~22 min (61%).
-  # 2026-10-26 (v0.2.49, run 40301377956): >36 min with the armour-weight doll
-  # mutants added (cancelled at 36:16, 0 failures, still catching) → 60, the cap,
-  # until this shard is split like in-page-10 (17/18/19).
+  # 2026-10-26 (v0.2.49, run 40301377956): cancelled at 36:16, 0 failures — 12.5 min
+  # of apt stall + Windows 6.1 + Farm 2.7 + Tally 9.8 + Character cut at 4.2. Lane
+  # a-ci-budget moved Tally and Character to in-page-20. MEASURED, every --mutate here
+  # run: Windows 6.8 (40314818369) + Services 0.4 + House 0.7 + Instant press 0.4
+  # (nightly 40196078710) + Say why 0.5 (40314818369) + Farm 2.7 (40301377956) + setup
+  # 0.9 = 12.4 min; x2 = 25, 28 so the apt stall (12.4 + 12.5 = 24.9) keeps 11% slack.
   in-page-2:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 28
 
     steps:
       - uses: actions/checkout@v4
@@ -658,16 +705,6 @@ jobs:
           node tests/farm-window.mjs
           node tools/mutant-gate.mjs node tests/farm-window.mjs --mutate
 
-      # TAMSIN'S TALLY ON SCREEN (lane c-tally-tasks): her window (Q) draws the server's
-      # tallies and her board, hands a due tally in once in town, Take sends ids only,
-      # refusals in words, nothing taken or handed in mid-hunt, the HUD and the hunt
-      # list read the server's count, fails safe. --mutate plants eight defects.
-      - name: Tally window (play.html)
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/tally-window.mjs
-          node tools/mutant-gate.mjs node tests/tally-window.mjs --mutate
-
       # EVERY PRESS ANSWERS AT ONCE (tracker r20, r21): a press that sends an
       # ask is pending in its own frame (Play, a purchase) until the server's
       # answer AND the re-read envelope, a second click in flight reaches no
@@ -679,6 +716,55 @@ jobs:
         run: |
           node tests/instant-press.mjs
           node tools/mutant-gate.mjs node tests/instant-press.mjs --mutate
+
+      # A failing run is far easier to diagnose with the page state attached.
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-failure-in-page-2
+          path: |
+            tests/**/*.png
+            tests/**/*.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # ── in-page-20 ── TALLY AND CHARACTER, SPLIT OUT OF in-page-2 2026-10-26 (lane
+  # a-ci-budget). release/v0.2.49 (run 40301377956) CANCELLED in-page-2 at 36:16 with 0
+  # failures: its runner spent 12.5 min in `playwright install --with-deps` (apt fetched
+  # 25.0 MB at 34.5 kB/s — half the browser jobs of 40301377956 and 40314818369 hit that
+  # mirror stall, 11.4-12.8 min each). MEASURED (40314818369, every --mutate here ran):
+  # Tally 11.3 (--mutate 10.9) + Character 9.1 (character-window --mutate 8.6) + setup
+  # 0.9 = 21.3 min; x2 = 43. With the apt stall: 33.5 (78%).
+  in-page-20:
+    runs-on: ubuntu-latest
+    timeout-minutes: 43
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Do NOT leave the token in .git/config where every later step —
+          # including npm lifecycle scripts — can read it and `git push`.
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Playwright + Chromium
+        run: |
+          npm install --no-audit --no-fund
+          npx playwright install --with-deps chromium
+
+      # TAMSIN'S TALLY ON SCREEN (lane c-tally-tasks): her window (Q) draws the server's
+      # tallies and her board, hands a due tally in once in town, Take sends ids only,
+      # refusals in words, nothing taken or handed in mid-hunt, the HUD and the hunt
+      # list read the server's count, fails safe. --mutate plants eight defects.
+      - name: Tally window (play.html)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/tally-window.mjs
+          node tools/mutant-gate.mjs node tests/tally-window.mjs --mutate
 
       # THE CHARACTER WINDOW (2026-10-25): the outfit catalogue is GENERATED
       # (gen-outfits --check); one XP formula, the sheet reads only what its
@@ -703,7 +789,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: smoke-failure-in-page-2
+          name: smoke-failure-in-page-20
           path: |
             tests/**/*.png
             tests/**/*.log

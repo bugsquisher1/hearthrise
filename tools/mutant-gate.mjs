@@ -19,8 +19,12 @@
 //                                        mapping guards-for uses) or a file one of its
 //                                        mutants anchors on (tools/guard-anchors.mjs). A
 //                                        hub file named by >25 guards (play.html) counts
-//                                        only through the mutants that anchor on it.
-//   The release cache-buster (`?v=` and build-info's version/date) is not a change.
+//                                        only through the mutants that anchor on a LINE
+//                                        the diff really changed (2026-10-26: a release
+//                                        that adds a modulepreload line re-proved every
+//                                        guard with any literal anywhere in play.html).
+//   The release cache-buster (`?v=` and build-info's version/date) is not a change —
+//   not as a file (guard-deps cacheBusterOnly) and not as a line (changedLines).
 // A skipped command prints why; nothing is skipped silently. When the diff cannot be
 // computed (a shallow clone that will not deepen, no merge base), it FAILS SAFE: the
 // full sweep, said out loud.
@@ -46,9 +50,9 @@ import { tmpdir } from 'node:os';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import {
-  PROOF_FLAG, GATE_PREFIX, unwrapGate, guardFileOf, touchedBy, guardSources, changedFiles, cacheBusterOnly,
+  PROOF_FLAG, GATE_PREFIX, unwrapGate, guardFileOf, touchedBy, guardSources, committedDiff, cacheBusterOnly, changedLines,
 } from './lib/guard-deps.mjs';
-import { scopedProofs } from './guard-anchors.mjs';
+import { scopedProofs, committedTexts, anchorLinesIn } from './guard-anchors.mjs';
 import { scopeMutants, splitMutants, parseMutants } from './lib/mutant-scope.mjs';
 import { parseWorkflow, flatSteps } from '../tests/run-ci-local.mjs';
 import { isMain } from '../tests/_is-main.mjs';
@@ -118,19 +122,26 @@ export function ciBase(env) {
 /**
  * guard file -> why, for every guard the diff touches.
  * @param {string[]} changed
- * @param {{ base?: string|null, extraGuards?: string[], sources?: Map<string,string>, anchors?: boolean }} o
+ * @param {{ base?: string|null, extraGuards?: string[], sources?: Map<string,string>, anchors?: boolean,
+ *   regions?: Map<string,{whole:boolean,base:number[][],head:number[][]}>|null,
+ *   read?: (rel: string) => { head: string|null, base: string|null } }} o
+ *   `regions` (changedLines' map of the same diff) turns on the line view for the hubs;
+ *   without it a hub is judged whole-file, as before.
  */
-export function selectGuards(changed, { base = null, extraGuards = [], sources = null, anchors = true } = {}) {
+export function selectGuards(changed, { base = null, extraGuards = [], sources = null, anchors = true, regions = null, read = undefined } = {}) {
   const src = new Map(sources || guardSources(ROOT));
   /* A guard outside tests/ and tools/ .mjs (bash bump-version.sh) still has a source to read. */
   for (const g of extraGuards) {
     if (src.has(g)) continue;
     try { src.set(g, readFileSync(g.match(/^[A-Za-z]:|^\//) ? g : join(ROOT, g), 'utf8')); } catch { /* not a file */ }
   }
-  /* A hub (named by more than HUB_AT guards) is judged by the mutants that anchor on it. */
-  const out = new Map(touchedBy(changed, src, { hubAt: HUB_AT }));
+  /* A hub (named by more than HUB_AT guards) is judged by the mutants that anchor on it —
+     on the lines the diff really changed (guard-anchors' line view), when the diff has them. */
+  const hubs = [];
+  const out = new Map(touchedBy(changed, src, { hubAt: HUB_AT, hubs }));
   if (anchors && changed.length) {
-    for (const s of scopedProofs(ROOT, { changed, base }).steps) {
+    const lines = regions ? { files: hubs, regions, read } : null;
+    for (const s of scopedProofs(ROOT, { changed, base, lines }).steps) {
       /* Its migration scope re-runs replay guards PLAINLY (arm null) — and plain runs always run here. */
       if (!s.arm || !PROOF_FLAG.test(s.arm)) continue;
       if (!out.has(s.guard)) out.set(s.guard, `a mutant anchors on ${s.because.slice(0, 2).join(', ')}`);
@@ -160,22 +171,24 @@ export function planFor(env, { extraGuards = [] } = {}) {
   try { plan = JSON.parse(readFileSync(cache, 'utf8')); } catch { /* first command of the job */ }
   if (!plan) {
     try {
-      let changed; let base = null; let how;
+      let changed; let base = null; let how; let regions = null;
       if (env.HR_MUTANT_GATE_FILES !== undefined) {
         changed = env.HR_MUTANT_GATE_FILES.split(',').map((s) => s.trim()).filter(Boolean);
         how = 'HR_MUTANT_GATE_FILES';
       } else {
         const b = ciBase(env);
         base = b.sha; how = b.how;
-        changed = changedFiles(ROOT, `${base}..HEAD`, { worktree: false });
+        ({ files: changed, regions } = committedDiff(ROOT, `${base}..HEAD`));
       }
       plan = { full: false, base, how, changed, selected: {} };
+      /* The line map is used once, here; the cached plan keeps only what the guards read. */
+      Object.defineProperty(plan, 'regions', { value: regions, enumerable: false });
     } catch (e) {
       plan = { full: true, why: `the diff could not be computed (${e.message.split('\n')[0]}) — fail safe` };
     }
     if (!plan.full) {
       try {
-        plan.selected = Object.fromEntries(selectGuards(plan.changed, { base: plan.base }));
+        plan.selected = Object.fromEntries(selectGuards(plan.changed, { base: plan.base, regions: plan.regions }));
       } catch (e) {
         plan = { full: true, why: `the guard map could not be built (${e.message.split('\n')[0]}) — fail safe` };
       }
@@ -235,18 +248,22 @@ export function registeredProofs(text = readFileSync(WORKFLOW, 'utf8')) {
 function explain(argv) {
   const at = (f) => (argv.includes(f) ? argv[argv.indexOf(f) + 1] : null);
   const files = at('--files');
-  let changed; let base = null;
+  let changed; let base = null; let regions = null; let read;
   if (files !== null) changed = files.split(',').map((s) => s.trim()).filter(Boolean);
   else if (at('--range')) {
-    base = gitOut(['rev-parse', at('--range').split('..')[0]]);
-    changed = changedFiles(ROOT, at('--range'), { worktree: false });
+    const [a, b] = at('--range').split('..');
+    base = gitOut(['rev-parse', a]);
+    const tip = gitOut(['rev-parse', b || 'HEAD']);
+    ({ files: changed, regions } = committedDiff(ROOT, `${base}..${tip}`));
+    /* The tip's texts, not HEAD's: the regions describe base..tip. */
+    read = (rel) => committedTexts(ROOT, base, rel, tip);
   } else {
     base = gitOut(['merge-base', at('--base') || 'origin/main', 'HEAD']);
-    changed = changedFiles(ROOT, `${base}..HEAD`, { worktree: false });
+    ({ files: changed, regions } = committedDiff(ROOT, `${base}..HEAD`));
   }
   const proofs = registeredProofs();
   const guards = [...new Set(proofs.map((p) => guardFileOf(p.cmd)))];
-  const plan = { full: false, selected: Object.fromEntries(selectGuards(changed, { base, extraGuards: guards })) };
+  const plan = { full: false, selected: Object.fromEntries(selectGuards(changed, { base, extraGuards: guards, regions, read })) };
   let n = 0;
   for (const p of proofs) {
     const d = decide(p.cmd, plan);
@@ -296,6 +313,99 @@ function properties(impl, proofs) {
   const full = gh('schedule');
   expect(proofs.every((p) => impl.decide(p.cmd, full).run), 'the full sweep runs every registered proof');
   return fails;
+}
+
+/* THE LINE VIEW, END TO END (2026-10-26). The real play.html in a scratch repository, and four
+   commits on it: every `?v=` bumped (BUMP); the bump plus one new modulepreload line (PRELOAD —
+   what a release that adds a module looks like); one line a guard anchors on edited, its anchor
+   kept (EDIT); that line deleted (DELETE). The guard G is DERIVED, never named: a registered
+   proof the whole-file view runs on PRELOAD and the line view skips. Returns the failure count. */
+async function lineViewSelftest() {
+  const HUB = 'play.html';
+  const text = readFileSync(join(ROOT, HUB), 'utf8').replace(/\r\n/g, '\n');
+  const PRE = '<link rel="modulepreload" href="';
+  const lines = text.split('\n');
+  const at = lines.findIndex((l) => l.startsWith(PRE));
+  if (at < 0) { console.log(`  FAILED   line view: ${HUB} has no "${PRE}" line — the fixture moved`); return 1; }
+  const bump = (t) => t.replace(/\?v=[0-9A-Za-z._-]+/g, '?v=9.9.9');
+  const dir = mkdtempSync(join(tmpdir(), 'hr-gate-lines-'));
+  const g = (...a) => {
+    const r = spawnSync('git', a, { cwd: dir, encoding: 'utf8', maxBuffer: 1e8 });
+    if (r.status !== 0) throw Object.assign(new Error(`git ${a.join(' ')}: ${r.stderr}`), { harness: true });
+    return r.stdout.trim();
+  };
+  let bad = 0;
+  try {
+    g('init', '-q', '-b', 'main'); g('config', 'user.email', 'selftest@example.test'); g('config', 'user.name', 'selftest');
+    g('config', 'commit.gpgsign', 'false'); g('config', 'core.autocrlf', 'false');
+    const commit = (t, from) => {
+      if (from) g('checkout', '-q', from);
+      writeFileSync(join(dir, HUB), t); g('add', '-A'); g('commit', '-qm', 'x', '--allow-empty'); return g('rev-parse', 'HEAD');
+    };
+    const base = commit(text);
+    const ins = [...lines]; ins.splice(at + 1, 0, `${PRE}src/zz-gate-probe.js?v=9.9.9">`);
+    const preload = commit(bump(ins.join('\n')), base);
+    const sources = guardSources(ROOT);
+    const extraGuards = registeredProofs().map((p) => guardFileOf(p.cmd));
+    const real = {
+      diff: (b, tip) => committedDiff(dir, `${b}..${tip}`),
+      read: (b, tip) => (rel) => committedTexts(dir, b, rel, tip),
+    };
+    const memo = new Map();
+    const select = (key, d, read) => {
+      if (!memo.has(key)) memo.set(key, new Set(selectGuards(d.files, { base: null, sources, extraGuards, regions: d.regions, read }).keys()));
+      return memo.get(key);
+    };
+    /* The whole-file view of PRELOAD (no regions) — what the gate did before this lane. */
+    const whole = new Set(selectGuards([HUB], { base: null, sources, extraGuards }).keys());
+    const preD = real.diff(base, preload);
+    const preLine = select('real:preload', preD, real.read(base, preload));
+    const skipped = [...whole].filter((x) => !preLine.has(x)).sort();
+    const G = skipped.map((x) => ({ guard: x, at: anchorLinesIn(ROOT, x, text) })).find((x) => x.at.length);
+    if (!G) { console.log('  FAILED   line view: no guard the whole-file view runs on PRELOAD is skipped by the line view'); return 1; }
+    const L = G.at[0];
+    const edited = [...lines]; edited[L - 1] += ' <!-- gate probe -->';
+    const edit = commit(edited.join('\n'), base);
+    const dropped = lines.filter((_, i) => i !== L - 1);
+    const del = commit(dropped.join('\n'), base);
+    const bumped = commit(bump(text), base);
+    const onInserted = [...whole].filter((x) => anchorLinesIn(ROOT, x, bump(ins.join('\n'))).includes(at + 2));
+
+    /* The properties, against an implementation { diff, read } (the line map and the texts). */
+    const props = (impl, tag) => {
+      const out = [];
+      const d0 = impl.diff(base, bumped);
+      out.push([!d0.files.includes(HUB), `BUMP: a diff that only bumps every \`?v=\` in ${HUB} changes no file (files: ${d0.files.join(', ') || 'none'})`]);
+      if (!out[0][0]) return out;
+      const pl = tag === 'real' ? preLine : select(`${tag}:preload`, impl.diff(base, preload), impl.read(base, preload));
+      out.push([[...whole].some((x) => !pl.has(x)) && onInserted.every((x) => pl.has(x)),
+        `PRELOAD: ${HUB} gains one modulepreload line — the ${onInserted.length} guard(s) anchored on that line run (${onInserted.slice(0, 2).join(', ')}), `
+        + `${G.guard} (anchored on line ${L}) does not`]);
+      if (!out[1][0]) return out;
+      out.push([select(`${tag}:edit`, impl.diff(base, edit), impl.read(base, edit)).has(G.guard), `EDIT: line ${L}, which ${G.guard} anchors on, edited (its anchor kept) — ${G.guard} runs`]);
+      if (!out[2][0]) return out;
+      out.push([select(`${tag}:del`, impl.diff(base, del), impl.read(base, del)).has(G.guard), `DELETE: line ${L} removed — ${G.guard} runs`]);
+      return out;
+    };
+    for (const [ok, label] of props(real, 'real')) { if (!ok) bad++; console.log(`  ${ok ? 'ok      ' : 'FAILED  '} line view: ${label}`); }
+    const strip = (d, side) => ({ ...d, regions: new Map([...d.regions].map(([k, v]) => [k, { ...v, [side]: [] }])) });
+    const mutants = [
+      ['the line view is off (a hub is judged whole-file)', { ...real, diff: (b, t) => ({ ...real.diff(b, t), regions: null }) }],
+      ['a `?v=` bump is a changed line', { ...real, diff: (b, t) => {
+        const regions = changedLines(g('diff', '-U0', '--no-color', '--no-ext-diff', '--no-renames', `${b}..${t}`).replace(/\?v=/g, '?w='));
+        return { files: [...regions].filter(([, r]) => r.whole || r.base.length || r.head.length).map(([p]) => p), regions };
+      } }],
+      ['the changed lines are never consulted (only anchor counts)', { ...real, diff: (b, t) => strip(strip(real.diff(b, t), 'head'), 'base') }],
+      ['the base side is never read', { diff: (b, t) => strip(real.diff(b, t), 'base'),
+        read: (b, t) => (rel) => { const x = real.read(b, t)(rel); return { head: x.head, base: x.head }; } }],
+    ];
+    for (const [label, impl] of mutants) {
+      const caught = props(impl, label).some(([ok]) => !ok);
+      if (!caught) bad++;
+      console.log(`  ${caught ? 'CAUGHT  ' : 'MISSED  '} line-view mutant: ${label}`);
+    }
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+  return bad;
 }
 
 async function selftest() {
@@ -389,6 +499,31 @@ async function selftest() {
     if (missed) bad++;
     console.log(`  ${missed ? 'MISSED  ' : 'CAUGHT  '} cache-buster mutant: ${label}`);
   }
+
+  /* changedLines: one hunk that bumps two preload hrefs and adds one between them has changed
+     exactly the added line; a rewritten line is a change on both sides. */
+  const mixed = `${hdr('p.html')}@@ -2,2 +2,3 @@\n-<link href="a.js?v=0.2.22">\n-<link href="b.js?v=0.2.22">\n`
+    + '+<link href="a.js?v=0.2.23">\n+<link href="new.js?v=0.2.23">\n+<link href="b.js?v=0.2.23">\n'
+    + `${hdr('q.js')}@@ -7 +7 @@\n-const x = 1;\n+const x = 2;\n`;
+  const lineChecks = (fn) => {
+    const r = fn(mixed);
+    const p = r.get('p.html'); const q = r.get('q.js');
+    return [
+      [!!p && !p.whole && JSON.stringify(p.head) === '[[3,3]]' && !p.base.length, 'a `?v=` bump beside an added line: only the added line changed (head 3)'],
+      [!!q && JSON.stringify(q.base) === '[[7,7]]' && JSON.stringify(q.head) === '[[7,7]]', 'a rewritten line changed on both sides (base 7, head 7)'],
+    ];
+  };
+  for (const [ok, label] of lineChecks(changedLines)) { if (!ok) bad++; console.log(`  ${ok ? 'ok      ' : 'FAILED  '} lines: ${label}`); }
+  for (const [label, fn] of [
+    ['every +/- line is a change (no pairing)', (t) => changedLines(t.replace(/\?v=/g, '?w='))],
+    ['a hunk is changed whole', (t) => new Map([...changedLines(t)].map(([k, v]) => [k, { ...v, whole: true }]))],
+  ]) {
+    const missed = lineChecks(fn).every(([ok]) => ok);
+    if (missed) bad++;
+    console.log(`  ${missed ? 'MISSED  ' : 'CAUGHT  '} lines mutant: ${label}`);
+  }
+
+  bad += await lineViewSelftest();
 
   /* The CLI, end to end: a skipped proof prints why and exits 0 without running; a
      touched proof runs and its exit code comes back; the plan is cached per job. */

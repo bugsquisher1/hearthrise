@@ -1,0 +1,112 @@
+# ============================================================
+# Install Playwright + Chromium, with apt's .deb downloads cached (lane a-ci-apt-cache,
+# 2026-10-26). Every browser job in smoke.yml runs this as its "Install Playwright +
+# Chromium" step; it was the same two inline lines in 22 jobs.
+#
+# WHY. `npx playwright install --with-deps chromium` runs `apt-get install` for the
+# fonts and libraries Chromium wants (25.9 MB of .debs on ubuntu-24.04: five font
+# packages are 20 MB of it). azure.archive.ubuntu.com intermittently serves those .debs
+# at 22-128 kB/s: 18 of 62 browser jobs in the v0.2.49/50/51 release runs (40301377956,
+# 40314818369, 40386324039) spent 150-891 s in this step against a median of 27-36 s,
+# and three were CANCELLED by their timeouts with 0 failures. The apt INDEX fetch from
+# the same mirror stayed fast in every stalled job read; the stall is in the .deb fetch.
+# Chromium itself comes from cdn.playwright.dev (~300 MiB in ~10 s) and is not cached:
+# a restore would cost about what the download does.
+#
+# HOW. The install command is unchanged, so the installed packages are exactly what
+# apt resolves today. Before it runs, apt's archive directory is seeded with the .debs
+# a previous run downloaded (actions/cache), each only if the freshly fetched, signed
+# index lists its SHA256 for that package version; apt uses a seeded .deb only when
+# it is the version it resolved, and downloads anything else. A stale or tampered
+# cache costs a download, never a different install. With a warm cache apt reports
+# "Need to get 0 B/25.9 MB of archives".
+#
+# KEY. Runner image + Playwright version: a new image or a Playwright bump writes a
+# fresh entry. Any older entry restores as the seed meanwhile (apt sorts out what still
+# matches), so only the packages that really changed come from the mirror. Caches
+# written on main are readable by every branch; a release branch's own run writes only
+# when no exact entry exists.
+# ============================================================
+name: Install Playwright + Chromium
+description: npm install, then npx playwright install --with-deps chromium with apt's .deb downloads cached.
+
+runs:
+  using: composite
+  steps:
+    - name: npm install
+      shell: bash
+      run: npm install --no-audit --no-fund
+
+    - name: apt .deb cache key
+      id: key
+      shell: bash
+      run: |
+        pw=$(node -p "JSON.parse(require('fs').readFileSync('node_modules/playwright-core/package.json','utf8')).version")
+        prefix="pw-apt-debs-v1-${ImageOS:-noimage}-"
+        echo "prefix=$prefix" >> "$GITHUB_OUTPUT"
+        echo "key=${prefix}${ImageVersion:-noversion}-pw${pw}" >> "$GITHUB_OUTPUT"
+
+    - name: Restore apt .debs
+      id: restore
+      uses: actions/cache/restore@v4
+      with:
+        path: ~/.cache/hr-pw-apt-debs
+        key: ${{ steps.key.outputs.key }}
+        restore-keys: ${{ steps.key.outputs.prefix }}
+
+    - name: npx playwright install --with-deps chromium
+      shell: bash
+      env:
+        HIT: ${{ steps.restore.outputs.cache-hit }}
+      run: |
+        shopt -s nullglob
+        # apt-get keeps downloaded .debs by default; said explicitly so an image-level
+        # setting cannot quietly turn the cache into a no-op.
+        echo 'APT::Keep-Downloaded-Packages "true";' | sudo tee /etc/apt/apt.conf.d/99hr-keep-debs > /dev/null
+        cached=("$HOME"/.cache/hr-pw-apt-debs/*.deb)
+        seed=()
+        if [ ${#cached[@]} -gt 0 ]; then
+          # apt trusts a file already in its archive directory on name and size alone, so
+          # a cached .deb is seeded only if the signed index lists its SHA256 for that
+          # package version. (Playwright's own `apt-get update` then finds every index current.)
+          sudo apt-get update -qq
+          for f in "${cached[@]}"; do
+            pkg=$(dpkg-deb -f "$f" Package 2> /dev/null) || continue
+            ver=$(dpkg-deb -f "$f" Version 2> /dev/null) || continue
+            idx=$(apt-cache show "$pkg=$ver" 2> /dev/null) || continue
+            if grep -qx "SHA256: $(sha256sum "$f" | cut -d' ' -f1)" <<< "$idx"; then seed+=("$f"); fi
+          done
+          if [ ${#seed[@]} -gt 0 ]; then sudo cp "${seed[@]}" /var/cache/apt/archives/; fi
+        fi
+        echo "apt archive seeded with ${#seed[@]} of ${#cached[@]} cached .deb file(s) (exact cache hit: '${HIT}')"
+        npx playwright install --with-deps chromium
+
+    # Cache upkeep never fails a job: the worst it can do is leave the next run to download.
+    - name: Collect apt .debs
+      id: collect
+      if: steps.restore.outputs.cache-hit != 'true'
+      continue-on-error: true
+      shell: bash
+      run: |
+        shopt -s nullglob
+        # Drop .debs apt can no longer download (versions superseded since the seed).
+        sudo apt-get autoclean -qq
+        rm -rf "$HOME/.cache/hr-pw-apt-debs"
+        mkdir -p "$HOME/.cache/hr-pw-apt-debs"
+        debs=(/var/cache/apt/archives/*.deb)
+        if [ ${#debs[@]} -eq 0 ]; then
+          echo "apt kept no .deb files: nothing to cache"
+          echo "save=false" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+        cp "${debs[@]}" "$HOME/.cache/hr-pw-apt-debs/"
+        echo "caching ${#debs[@]} .deb file(s), $(du -sh "$HOME/.cache/hr-pw-apt-debs" | cut -f1)"
+        echo "save=true" >> "$GITHUB_OUTPUT"
+
+    - name: Save apt .debs
+      if: steps.restore.outputs.cache-hit != 'true' && steps.collect.outputs.save == 'true'
+      continue-on-error: true
+      uses: actions/cache/save@v4
+      with:
+        path: ~/.cache/hr-pw-apt-debs
+        key: ${{ steps.key.outputs.key }}

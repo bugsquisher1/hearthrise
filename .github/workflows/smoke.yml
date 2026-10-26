@@ -242,9 +242,7 @@ jobs:
           node-version: '20'
 
       - name: Install Playwright + Chromium
-        run: |
-          npm install --no-audit --no-fund
-          npx playwright install --with-deps chromium
+        uses: ./.github/actions/playwright-chromium
 
       # The node guard suite (server, engine, economy, catalogue, secret,
       # supply-chain, migration and edge-payload checks). Until the client reset
@@ -302,9 +300,7 @@ jobs:
           node-version: '20'
 
       - name: Install Playwright + Chromium
-        run: |
-          npm install --no-audit --no-fund
-          npx playwright install --with-deps chromium
+        uses: ./.github/actions/playwright-chromium
 
       # TELEMETRY (2026-10-20): play.html served as hearthrise.net with the REAL
       # vendored Sentry and PostHog, their ingest hosts routed: both wired with
@@ -386,9 +382,7 @@ jobs:
           node-version: '20'
 
       - name: Install Playwright + Chromium
-        run: |
-          npm install --no-audit --no-fund
-          npx playwright install --with-deps chromium
+        uses: ./.github/actions/playwright-chromium
 
       # THE ALPHA WINDOWS (2026-10-18, week plan 16a + QoL 2/5): Bag, Gear,
       # Skills, Shop, Hunt prep and Find on the fixture envelope. Built once and
@@ -430,9 +424,7 @@ jobs:
           node-version: '20'
 
       - name: Install Playwright + Chromium
-        run: |
-          npm install --no-audit --no-fund
-          npx playwright install --with-deps chromium
+        uses: ./.github/actions/playwright-chromium
 
       # The Alpha windows --mutate shard 2 of 6 (see in-page-10), then the live
       # hunt scene.
@@ -469,9 +461,7 @@ jobs:
           node-version: '20'
 
       - name: Install Playwright + Chromium
-        run: |
-          npm install --no-audit --no-fund
-          npx playwright install --with-deps chromium
+        uses: ./.github/actions/playwright-chromium
 
       # The Alpha windows --mutate shard 3 of 6 (see in-page-10).
       - name: Alpha windows mutants, shard 3 of 6 (play.html)
@@ -508,9 +498,7 @@ jobs:
           node-version: '20'
 
       - name: Install Playwright + Chromium
-        run: |
-          npm install --no-audit --no-fund
-          npx playwright install --with-deps chromium
+        uses: ./.github/actions/playwright-chromium
 
       # The Alpha windows --mutate shard 4 of 6 (see in-page-10).
       - name: Alpha windows mutants, shard 4 of 6 (play.html)
@@ -545,9 +533,7 @@ jobs:
           node-version: '20'
 
       - name: Install Playwright + Chromium
-        run: |
-          npm install --no-audit --no-fund
-          npx playwright install --with-deps chromium
+        uses: ./.github/actions/playwright-chromium
 
       # The Alpha windows --mutate shard 5 of 6 (see in-page-10).
       - name: Alpha windows mutants, shard 5 of 6 (play.html)
@@ -582,9 +568,7 @@ jobs:
           node-version: '20'
 
       - name: Install Playwright + Chromium
-        run: |
-          npm install --no-audit --no-fund
-          npx playwright install --with-deps chromium
+        uses: ./.github/actions/playwright-chromium
 
       # The Alpha windows --mutate shard 6 of 6 (see in-page-10), then the preset names.
       - name: Alpha windows mutants, shard 6 of 6 (play.html)
@@ -649,9 +633,7 @@ jobs:
           node-version: '20'
 
       - name: Install Playwright + Chromium
-        run: |
-          npm install --no-audit --no-fund
-          npx playwright install --with-deps chromium
+        uses: ./.github/actions/playwright-chromium
 
       # WINDOWS, CAMERA AND RIGHT-CLICK (Tyler's playtest, 2026-10-18): the X
       # closes on a real press (docked windows keep their slots; focus never
@@ -752,9 +734,7 @@ jobs:
           node-version: '20'
 
       - name: Install Playwright + Chromium
-        run: |
-          npm install --no-audit --no-fund
-          npx playwright install --with-deps chromium
+        uses: ./.github/actions/playwright-chromium
 
       # TAMSIN'S TALLY ON SCREEN (lane c-tally-tasks): her window (Q) draws the server's
       # tallies and her board, hands a due tally in once in town, Take sends ids only,
@@ -823,9 +803,7 @@ jobs:
           node-version: '20'
 
       - name: Install Playwright + Chromium
-        run: |
-          npm install --no-audit --no-fund
-          npx playwright install --with-deps chromium
+        uses: ./.github/actions/playwright-chromium
 
       # THE PARTY UI (2026-10-18, week plan 16 + QoL 3/7): the character strip,
       # the command centre, the Party window and the alert lines on the party
@@ -952,9 +930,7 @@ jobs:
           node-version: '20'
 
       - name: Install Playwright + Chromium
-        run: |
-          npm install --no-audit --no-fund
-          npx playwright install --with-deps chromium
+        uses: ./.github/actions/playwright-chromium
 
       # THE HUNT SCREEN'S PANELS (2026-10-17, week plan steps 10-14): the party
       # board, analyzer, bottom bar, settings editor, combat log and Settings on
@@ -998,9 +974,7 @@ jobs:
           node-version: '20'
 
       - name: Install Playwright + Chromium
-        run: |
-          npm install --no-audit --no-fund
-          npx playwright install --with-deps chromium
+        uses: ./.github/actions/playwright-chromium
 
       - name: Hunt screen mutants, shard 2 of 10 (play.html)
         if: ${{ !cancelled() }}
@@ -1034,9 +1008,7 @@ jobs:
           node-version: '20'
 
       - name: Install Playwright + Chromium
-        run: |
-          npm install --no-audit --no-fund
-          npx playwright install --with-deps chromium
+        uses: ./.github/actions/playwright-chromium
 
       - name: Hunt screen mutants, shard 3 of 10 (play.html)
         if: ${{ !cancelled() }}
@@ -1070,9 +1042,7 @@ jobs:
           node-version: '20'
 
       - name: Install Playwright + Chromium
-        run: |
-          npm install --no-audit --no-fund
-          npx playwright install --with-deps chromium
+        uses: ./.github/actions/playwright-chromium
 
       - name: Hunt screen mutants, shard 4 of 10 (play.html)
         if: ${{ !cancelled() }}
@@ -1106,9 +1076,7 @@ jobs:
           node-version: '20'
 
       - name: Install Playwright + Chromium
-        run: |
-          npm install --no-audit --no-fund
-          npx playwright install --with-deps chromium
+        uses: ./.github/actions/playwright-chromium
 
       - name: Hunt screen mutants, shard 5 of 10 (play.html)
         if: ${{ !cancelled() }}
@@ -1142,9 +1110,7 @@ jobs:
           node-version: '20'
 
       - name: Install Playwright + Chromium
-        run: |
-          npm install --no-audit --no-fund
-          npx playwright install --with-deps chromium
+        uses: ./.github/actions/playwright-chromium
 
       - name: Hunt screen mutants, shard 6 of 10 (play.html)
         if: ${{ !cancelled() }}
@@ -1178,9 +1144,7 @@ jobs:
           node-version: '20'
 
       - name: Install Playwright + Chromium
-        run: |
-          npm install --no-audit --no-fund
-          npx playwright install --with-deps chromium
+        uses: ./.github/actions/playwright-chromium
 
       - name: Hunt screen mutants, shard 7 of 10 (play.html)
         if: ${{ !cancelled() }}
@@ -1217,9 +1181,7 @@ jobs:
           node-version: '20'
 
       - name: Install Playwright + Chromium
-        run: |
-          npm install --no-audit --no-fund
-          npx playwright install --with-deps chromium
+        uses: ./.github/actions/playwright-chromium
 
       - name: Hunt screen mutants, shard 8 of 10 (play.html)
         if: ${{ !cancelled() }}
@@ -1253,9 +1215,7 @@ jobs:
           node-version: '20'
 
       - name: Install Playwright + Chromium
-        run: |
-          npm install --no-audit --no-fund
-          npx playwright install --with-deps chromium
+        uses: ./.github/actions/playwright-chromium
 
       - name: Hunt screen mutants, shard 9 of 10 (play.html)
         if: ${{ !cancelled() }}
@@ -1289,9 +1249,7 @@ jobs:
           node-version: '20'
 
       - name: Install Playwright + Chromium
-        run: |
-          npm install --no-audit --no-fund
-          npx playwright install --with-deps chromium
+        uses: ./.github/actions/playwright-chromium
 
       - name: Hunt screen mutants, shard 10 of 10 (play.html)
         if: ${{ !cancelled() }}
@@ -1339,9 +1297,7 @@ jobs:
           node-version: '20'
 
       - name: Install Playwright + Chromium
-        run: |
-          npm install --no-audit --no-fund
-          npx playwright install --with-deps chromium
+        uses: ./.github/actions/playwright-chromium
 
       - name: Hunt page perf budget (play.html, Sewer party, 4 min)
         if: ${{ !cancelled() }}

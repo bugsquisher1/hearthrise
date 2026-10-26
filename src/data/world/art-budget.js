@@ -71,6 +71,9 @@ export const CLASSES = Object.freeze({
   // A whole building drawn as one style-1 sprite, roof and front wall (a closed facade: the
   // smithy, the mill, a neighbour's cottage). Its footprint is the ground it covers.
   building: row({ body: [80, 160], measure: 'h', contact: 'touch', shadow: null, layer: 'unit' }),
+  // A town's one monument, larger than any building (the Great Hearth of Hearth Square: footprint
+  // 11 x 4, art 11 x 11 tiles). Drawn like a building: one closed sprite, its anchor bottom-centre.
+  landmark: row({ body: [240, 352], measure: 'h', contact: 'touch', shadow: null, layer: 'unit' }),
   door: row({ body: [48, 48], measure: 'h', contact: 'solid', shadow: null, layer: 'wall' }),
   wall: row({ frame: [32, 60], anchor: [16, 59], body: [56, 60], measure: 'h', face: 48, cap: [8, 12], contact: 'wall', shadow: 'cast', layer: 'wall' }),
   wallend: row({ frame: [12, 60], anchor: [6, 59], body: [56, 60], measure: 'h', contact: 'wall', shadow: 'cast', layer: 'wall' }),

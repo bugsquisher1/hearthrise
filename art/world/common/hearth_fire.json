@@ -1,0 +1,37 @@
+{
+  "id": "hearth_fire",
+  "class": "vfx",
+  "style": "s1",
+  "material": "light",
+  "source": "hearth_fire.png",
+  "frame": [
+    61,
+    49
+  ],
+  "anchor_px": [
+    30,
+    24
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 8,
+      "loop": true,
+      "dirs": {
+        "s": 8
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "animate_image",
+    "image": "9460343b-3ee4-4a4d-97b6-0b39a2e7e0e4",
+    "seed": 12,
+    "cost": 2,
+    "source": "great_hearth firebox crop (112,196) 128x104"
+  },
+  "notes": "The Great Hearth idle fire: an 8-frame loop at 8 fps, the pixels of PixelLab animate_image frames 1-8 that move (any frame differs from the still by >90), cut to the firebox. Lies over great_hearth with its top-left on the hearth frame px (146,238): the anchor [30,24] is hearth px (176,262), the firebox centre. STAGED."
+}

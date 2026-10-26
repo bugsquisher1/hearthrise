@@ -1,0 +1,45 @@
+{
+  "id": "square_general_store",
+  "class": "hall",
+  "style": "s1",
+  "material": "wood",
+  "source": "square_general_store.png",
+  "frame": [
+    384,
+    315
+  ],
+  "anchor_px": [
+    192,
+    314
+  ],
+  "footprint": [
+    12,
+    6
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_image_pro",
+    "image": "dc8cf3d4-38b1-4126-b300-d116806a89a9",
+    "seed": 401,
+    "size": [
+      384,
+      320
+    ],
+    "cost": 25,
+    "style": "common/smithy",
+    "references": [
+      "common/smithy",
+      "great_hearth design D"
+    ]
+  },
+  "notes": "Hearth Square general store (Shop): 12 tiles wide, its open counter faces the fire (designer rev 2: general_store x106-123 y24-35, counters on y36). Sample of the square ring. STAGED."
+}

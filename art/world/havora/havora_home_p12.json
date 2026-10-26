@@ -1,0 +1,41 @@
+{
+  "id": "havora_home_p12",
+  "class": "lot",
+  "style": "s1",
+  "material": "stone",
+  "source": "havora_home_p12.png",
+  "frame": [
+    460,
+    284
+  ],
+  "anchor_px": [
+    230,
+    283
+  ],
+  "footprint": [
+    16,
+    10
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_image_pro",
+    "image": "2cbbc551-b26b-4b3b-9161-f325c8fac99f",
+    "seed": 622,
+    "size": [
+      512,
+      384
+    ],
+    "cost": 25,
+    "style": "common/square_general_store"
+  },
+  "notes": "Home P12 (plan x132-147 y46-55), the mountain: miner's granite cottage, turf roof, tool shed, ore cart on rails, stone yard wall."
+}

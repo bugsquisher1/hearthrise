@@ -1,0 +1,35 @@
+{
+  "id": "westwood_yew",
+  "class": "tree",
+  "style": "s1",
+  "material": "foliage",
+  "source": "westwood_yew.png",
+  "frame": [
+    62,
+    91
+  ],
+  "anchor_px": [
+    31,
+    90
+  ],
+  "footprint": [
+    2,
+    2
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_object_pro_flash",
+    "object": "5ad931d5-3c65-47c2-bbe1-2c85741f6219",
+    "name": "S1 westwood yew"
+  },
+  "notes": "The Westwood deep-tier woodcutting tree sample (yew, past the ash). STAGED sample."
+}

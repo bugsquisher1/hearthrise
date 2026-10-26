@@ -14,7 +14,8 @@
 // ROW SHAPE
 //   id, name, kind ('hunt' | 'town' | 'home'), hunts: [hunt ids it renders]
 //   outdoor (bool), light (one of LIGHT_KINDS), ground (a wang16 or fill terrain id:
-//     its lower/upper materials are what the legend's characters name)
+//     its lower/upper materials are what the legend's characters name; null on a town
+//     whose ground art is not made yet: each cell draws in its material's placeholder tone)
 //   legend { char: MATERIALS id }, rows [string, …] (equal widths)
 //   faces     [{ x, y, id }] a rock face drawn with a variant (an arch)
 //   objects   [{ id, x, y }] whole tiles, nothing else
@@ -28,6 +29,13 @@
 //             rect, doors and blocking, and needs no kit, floor or roof
 //   path      [[x,y], …] corner waypoints of a CLOSED loop of straight 8-way legs
 //   spawns [[x,y]], stations { name: [x,y] }, exits [{ x, y, to }], start [x,y]
+//   patches   [{ terrain, rect:[x,y,w,h] }] (ground: null only) a district's painted fill laid into the
+//             placeholder tones (Hearth Square's paving), in its cycle from the rect's corner
+//   blend     { pairs: [terrain…], alias?: { material: material } } (ground: null only) the town's ground as
+//             wang16 PAIRS drawn on the dual grid (compose.js groundTiles): a material with no pair stays a
+//             placeholder tone; alias draws one material with another's art (cobble with flagstone)
+//   ambient   [{ id, x, y, lift }] a looping effect the map places (the Great Hearth's fire), its
+//             anchor `lift` art px above tile (x, y)'s foot row; it blocks nothing
 //   focus     [x,y] (optional) the tile a walked map's camera leans toward, so
 //             the heart of the place stays in view wherever the hero stands
 //   maskHash  hash of the collision mask (maskHash below)
@@ -124,6 +132,9 @@ export function compileMap(row, tables) {
     groundTerrain: row.ground, ground, mask, maskHash: maskHash(mask, w, h), faces, objects, lights: lit, buildings,
     path: expandPath(row.path) || [], spawns: row.spawns || [], stations: row.stations || {},
     exits: row.exits || [], start: row.start, frame: row.frame ? rectOf(row.frame) : null, focus: row.focus || null,
+    patches: (row.patches || []).map((p) => ({ terrain: p.terrain, rect: rectOf(p.rect) })),
+    blend: row.blend ? { pairs: row.blend.pairs.slice(), alias: Object.assign({}, row.blend.alias || {}) } : null,
+    ambient: (row.ambient || []).map((a) => ({ id: a.id, x: a.x, y: a.y, lift: a.lift || 0 })),
     overlap: bodyOverlap(w, h, objects, buildings, sprites, grid),
   };
 }
@@ -199,8 +210,10 @@ const WHOLE = (v) => Number.isInteger(v);
  *   L-KIT   every wall piece a building can be drawn with is in an atlas: the
  *           front (wall, door, window) always; the inside view (cap, stub,
  *           end) unless the building is closed — so nothing draws as a stub
- *   L-TREES an outdoor map has a tree in every TREE_WINDOW-square window
- *   L-KIND  kind and light are known values; ground names a terrain
+ *   L-TREES an outdoor map has a tree in every TREE_WINDOW-square window that is
+ *           at least half green ground (terrain.js MATERIALS `green`)
+ *   L-KIND  kind and light are known values; ground names a terrain (or is null
+ *           on a town: placeholder tones until its ground art lands)
  *   L-HASH  maskHash matches the compiled mask
  *   L-GRID  the grid is a GRIDS row; a map on another grid than the base one draws
  *           nothing the engine still measures in base art px: no rock faces, no
@@ -212,7 +225,9 @@ export function lintMap(row, tables) {
   const { materials, sprites, openClasses, treeClasses, terrains } = tables;
   if (!MAP_KINDS.includes(row.kind)) bad('L-KIND', 'kind "' + row.kind + '" is not one of ' + MAP_KINDS.join('/'));
   if (!LIGHT_KINDS.includes(row.light)) bad('L-KIND', 'light "' + row.light + '" is not one of ' + LIGHT_KINDS.join('/'));
-  if (terrains && !terrains[row.ground]) bad('L-KIND', 'ground "' + row.ground + '" is not a terrain in any atlas');
+  /* ground: null is a town whose ground art is not made yet: every cell draws in its material's placeholder tone */
+  if (row.ground === null) { if (row.kind !== 'town') bad('L-KIND', 'only a town may draw its ground in placeholder tones (ground: null)'); }
+  else if (terrains && !terrains[row.ground]) bad('L-KIND', 'ground "' + row.ground + '" is not a terrain in any atlas');
   if (row.grid != null && !GRIDS[row.grid]) bad('L-GRID', 'grid "' + row.grid + '" is not one of ' + Object.keys(GRIDS).join('/'));
   if (gridOf(row.grid) !== GRIDS.base) {
     if ((row.faces || []).length) bad('L-GRID', 'a map on the ' + row.grid + ' grid has rock faces (their wall height is base art px)');
@@ -289,6 +304,19 @@ export function lintMap(row, tables) {
     else cells.filter(([x, y]) => !open(x, y)).forEach(([x, y]) => bad('L-PATH', 'the patrol path crosses a blocked tile at ' + x + ',' + y));
   }
   if (row.focus && !inside(row.focus[0], row.focus[1])) bad('L-WHOLE', 'focus ' + JSON.stringify(row.focus) + ' is not a whole tile inside the map');
+  for (const p of row.patches || []) {
+    const r = p.rect || [];
+    if (row.ground !== null) bad('L-KIND', 'a patch on a map with a ground terrain (patches lay art into a placeholder-tone town)');
+    if (terrains && !terrains[p.terrain]) bad('L-KIND', 'patch ground "' + p.terrain + '" is not a terrain in any atlas');
+    if (r.length !== 4 || !inside(r[0], r[1]) || !inside(r[0] + r[2] - 1, r[1] + r[3] - 1)) bad('L-WHOLE', 'patch ' + p.terrain + ' ' + JSON.stringify(r) + ' is not whole tiles inside the map');
+  }
+  if (row.blend) {
+    if (row.ground !== null) bad('L-KIND', 'a blend on a map with a ground terrain (a blend draws a placeholder-tone town)');
+    for (const id of row.blend.pairs || []) if (terrains && !(terrains[id] && terrains[id].kind === 'wang16')) bad('L-KIND', 'blend pair "' + id + '" is not a wang16 terrain in any atlas');
+  }
+  for (const a of row.ambient || []) {
+    if (!sprites[a.id] || !inside(a.x, a.y) || !(a.lift == null || WHOLE(a.lift))) bad('L-WHOLE', 'ambient ' + a.id + ' at ' + a.x + ',' + a.y + ' is not a sprite on a whole tile with a whole-px lift');
+  }
   const spots = [['start', row.start]].concat((row.spawns || []).map((s) => ['spawn', s]),
     Object.entries(row.stations || {}), (row.exits || []).map((e) => ['exit to ' + e.to, [e.x, e.y]]));
   for (const [what, at] of spots) if (!at || !open(at[0], at[1])) bad('L-WALK', what + ' ' + JSON.stringify(at) + ' is not on walkable ground');
@@ -315,7 +343,16 @@ export function lintMap(row, tables) {
       return false;
     };
     const ww = Math.min(TREE_WINDOW, w), wh = Math.min(TREE_WINDOW, h);
+    /* green cells per window, from a summed-area table: only a window mostly of green ground (a meadow,
+       not the sea, a cliff, a paved square or building footprints) asks for a tree */
+    const sum = new Int32Array((w + 1) * (h + 1));
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const g = (materials[map.ground[y * w + x]] || {}).green ? 1 : 0;
+      sum[(y + 1) * (w + 1) + x + 1] = g + sum[y * (w + 1) + x + 1] + sum[(y + 1) * (w + 1) + x] - sum[y * (w + 1) + x];
+    }
+    const greenIn = (x, y) => sum[(y + wh) * (w + 1) + x + ww] - sum[y * (w + 1) + x + ww] - sum[(y + wh) * (w + 1) + x] + sum[y * (w + 1) + x];
     for (let wy = 0; wy + wh <= h; wy++) for (let wx = 0; wx + ww <= w; wx++) {
+      if (2 * greenIn(wx, wy) < ww * wh) continue;
       if (!trees.some((t) => t.x >= wx && t.x < wx + ww && t.y >= wy && t.y < wy + wh) && !woodIn(wx, wy, ww, wh)) {
         bad('L-TREES', 'no tree in the ' + ww + 'x' + wh + ' window at ' + wx + ',' + wy); wy = h; break;
       }

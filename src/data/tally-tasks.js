@@ -32,11 +32,15 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
+import { TOWN_NAME } from './world/town/plan.js?v=0.2.49';
+
 /** Who keeps the tally, and the one line her board opens with: what she does, in plain words (Tyler 2026-10-24:
  *  "this is weird dialogue"). Client copy only: the generated catalogue holds none of it. */
 export const TALLY_KEEPER = Object.freeze({
   name: 'Tamsin Reeve',
-  title: 'Gives out kill tasks on the Common',
+  title: 'Gives out kill tasks in ' + TOWN_NAME,
+  /* where her board stands (src/data/world/stations.js `tally`) */
+  board: 'Hearth Square',
   greeting: 'Take a task from my board and go hunting. When the count\'s done, I\'ll pay you in town: gold, plus a piece of armor you can wear.',
 });
 

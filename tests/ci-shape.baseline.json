@@ -427,6 +427,8 @@
     "node tests/world-hunt.mjs": "client-guards",
     "node tools/mutant-gate.mjs node tests/world-town-home.mjs --selftest": "client-guards",
     "node tests/world-town-home.mjs": "client-guards",
+    "node tools/mutant-gate.mjs node tests/town-stations.mjs --selftest": "client-guards",
+    "node tests/town-stations.mjs": "client-guards",
     "node tools/mutant-gate.mjs node tests/world-sandbox.mjs --mutate": "client-guards",
     "node tests/world-sandbox.mjs": "client-guards",
     "node tools/mutant-gate.mjs node tests/shell-core.mjs --selftest": "client-guards",

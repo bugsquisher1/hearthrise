@@ -1,0 +1,41 @@
+{
+  "id": "havora_bridge",
+  "class": "bridge",
+  "style": "s1",
+  "material": "wood",
+  "source": "havora_bridge.png",
+  "frame": [
+    384,
+    192
+  ],
+  "anchor_px": [
+    192,
+    191
+  ],
+  "footprint": [
+    12,
+    6
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_image_pro",
+    "image": "a3e1aa6a-d836-48ca-ba23-f0f28f37ad1f",
+    "seed": 502,
+    "size": [
+      384,
+      192
+    ],
+    "cost": 15,
+    "style": "common/square_general_store"
+  },
+  "notes": "The bridge over the river (plan x88-99 y48-53, the planks cells): plank deck, timber railings, stone abutments; walked on (OPEN_CLASSES)."
+}

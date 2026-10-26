@@ -1,61 +1,72 @@
-// src/data/world/maps/town_common.js — a corner of the Common: the smithy, the mill, the plaza.
+// src/data/world/maps/town_common.js — HAVORA, the real town: Town Blueprint v0.5 x2 plus the Westwood (192 x 116).
 // Row shape and lint: src/world/core/map-compile.js. Rebuild the hash with
 // `node tests/world-core.mjs --hashes` after changing what blocks a step.
 //
-// ART (style 1): the ground is PixelLab map 53d53262 (`common_ground`, art/world/common):
-// grass, dirt lanes and the cobbled square, painted on these rows. The smithy and the mill
-// are whole style-1 building sprites (the mill's wheel is part of it), standing on their
-// footprints; nobody walks into either. The props are the Common's style-1 sheet.
+// The plan (docs/planning/PRIORITY_BOARD.md "Real town plan (2026-10-25)") is authored in plan
+// coordinates in ../town/*.js and ../stations.js; this file only puts it together:
+//   ground     ../town/ground.js (the blueprint's ground, traced x2, with the plan's districts)
+//   buildings  ../town/sites.js SITES: PLACEHOLDER FOOTPRINTS (painted, closed: they block a step,
+//              their art is the art lane's) on `site` ground; none is left (every lot is a SCENERY sprite)
+//   objects    the road wear (../town/wear.js), the style-1 scenery (every building and lot a whole sprite), every
+//              station's props, the trees of the green ground, the palisade (../town/palisade.js) and the
+//              mountain's scree (../town/mountain.js)
+//   stations   one stand of each kind the map lint checks (combat, gather, artisan, idle); every
+//              station and its full stand list is ../stations.js
+// ART: the town has no one ground (ground: null). Its ground is BLENDED from the Common family's wang16
+// pairs (BLEND in ../town/sites.js: grass, the dirt roads, the river and sea banks, the flagstone
+// yards, all one tileset family chained from the same grass and dirt tiles), drawn on the dual grid
+// (compose.js blendTiles); Hearth Square's paving is a patch over it. A material no pair draws yet
+// (a placeholder site) stays a placeholder tone.
+import { at, TOWN_NAME, TOWN_MAP } from '../town/plan.js?v=0.2.49';
+import { GROUND_ROWS } from '../town/ground.js?v=0.2.49';
+import { SITES, SCENERY, EXITS, PATCHES, AMBIENT, BLEND } from '../town/sites.js?v=0.2.49';
+import { GREENERY } from '../town/greenery.js?v=0.2.49';
+import { WEAR } from '../town/wear.js?v=0.2.49';
+import { PALISADE } from '../town/palisade.js?v=0.2.49';
+import { SCREE } from '../town/mountain.js?v=0.2.49';
+import { STATIONS, STATION_BY_ID, ACTIVITY_STATIONS } from '../stations.js?v=0.2.49';
+
+const tile = (x, y) => { const [mx, my] = at(x, y); return { x: mx, y: my }; };
+/** A placeholder footprint: a painted, closed building with its door mid-side. */
+function site([id, x, y, w, h, side, offset]) {
+  const [mx, my] = at(x, y);
+  const along = (n) => (Number.isInteger(offset) ? offset : n >> 1);
+  const door = side === 's' ? [mx + along(w), my + h - 1] : side === 'n' ? [mx + along(w), my]
+    : side === 'w' ? [mx, my + along(h)] : [mx + w - 1, my + along(h)];
+  return Object.freeze({ id, rect: Object.freeze([mx, my, w, h]), doors: Object.freeze([Object.freeze(door)]), painted: true, closed: true });
+}
+const first = (id) => STATION_BY_ID[id].stands[0];
+
 export default Object.freeze({
-  id: 'town_common',
-  name: 'The Common',
+  id: TOWN_MAP,
+  name: TOWN_NAME,
   kind: 'town',
   hunts: Object.freeze([]),
   outdoor: true,
   light: 'day',
-  ground: 'common_ground',
-  legend: Object.freeze({ '.': 'grass', ':': 'cobble' }),
-  rows: Object.freeze([
-    '..........:::...........',
-    '..........:::...........',
-    '..........:::...........',
-    '..........:::...........',
-    '..........:::...........',
-    '..........:::...........',
-    '..........::::::::......',
-    '::::::::::::::::::......',
-    '::::::::::::::::::......',
-    '::::::::::::::::::......',
-    '..........::::::::......',
-    '..........:::...........',
-    '..........:::...........',
-    '..........:::...........',
-  ]),
+  ground: null,
+  legend: Object.freeze({ '.': 'grass', ':': 'cobble', '=': 'earth', '_': 'flagstone', '#': 'planks', '~': 'water', '^': 'cliff', '|': 'palisade', 'o': 'site', '%': 'tilled' }),
+  rows: GROUND_ROWS,
+  blend: BLEND,
+  patches: Object.freeze(PATCHES.map((p) => Object.freeze({ terrain: p.terrain, rect: Object.freeze(at(p.rect[0], p.rect[1]).concat(p.rect[2], p.rect[3])) }))),
+  ambient: Object.freeze(AMBIENT.map((a) => Object.freeze(Object.assign({ id: a.id, lift: a.lift }, tile(a.x, a.y))))),
   faces: Object.freeze([]),
   objects: Object.freeze([
-    /* the two buildings: the smithy west of the lane, the mill (and its wheel) east */
-    { id: 'smithy', x: 2, y: 1 }, { id: 'mill', x: 14, y: 0 },
-    /* the mill yard: the cellar hatch, its stores */
-    { id: 'hatch', x: 15, y: 6 }, { id: 'barrels', x: 17, y: 5 }, { id: 'flour_sack', x: 18, y: 5 },
-    { id: 'water_trough', x: 13, y: 4 },
-    /* the smithy yard: the anvil, the smith, the board and its crier */
-    { id: 'hedge', x: 1, y: 6 }, { id: 'hedge', x: 2, y: 6 }, { id: 'flower_bed', x: 5, y: 6 }, { id: 'bush', x: 7, y: 6 },
-    { id: 'anvil', x: 6, y: 8 }, { id: 'cabbage_crate', x: 1, y: 8 }, { id: 'noticeboard', x: 8, y: 6 },
-    { id: 'npc_crier', x: 8, y: 7 }, { id: 'npc_smith', x: 5, y: 8 },
-    /* the square */
-    { id: 'lamppost', x: 9, y: 10 }, { id: 'lamppost', x: 13, y: 6 }, { id: 'signpost', x: 13, y: 10 },
-    { id: 'well', x: 14, y: 8 }, { id: 'woodpile', x: 19, y: 8 }, { id: 'hay_bale', x: 3, y: 10 },
-    /* the green */
-    { id: 'oak', x: 9, y: 3 }, { id: 'pine', x: 20, y: 1 }, { id: 'pine', x: 22, y: 6 }, { id: 'bush', x: 21, y: 11 },
-    { id: 'pine', x: 1, y: 12 }, { id: 'rocks', x: 7, y: 13 }, { id: 'bush', x: 8, y: 11 }, { id: 'hedge', x: 18, y: 10 }, { id: 'pine', x: 20, y: 13 },
-    { id: 'bush', x: 17, y: 11 },
+    ...SCENERY.map(([id, x, y]) => Object.freeze(Object.assign({ id }, tile(x, y)))),
+    ...STATIONS.flatMap((s) => s.props),
+    ...GREENERY.map(([id, x, y]) => Object.freeze(Object.assign({ id }, tile(x, y)))),
+    ...PALISADE.map(([id, x, y]) => Object.freeze(Object.assign({ id }, tile(x, y)))),
+    ...SCREE.map(([id, x, y]) => Object.freeze(Object.assign({ id }, tile(x, y)))),
+    ...WEAR.map(([id, x, y]) => Object.freeze(Object.assign({ id: 'square_decal_' + id }, tile(x, y)))),
   ]),
-  buildings: Object.freeze([]),
+  buildings: Object.freeze(SITES.map(site)),
   path: Object.freeze([]),
   spawns: Object.freeze([]),
-  stations: Object.freeze({ combat: [16, 7], gather: [19, 9], artisan: [7, 8], idle: [4, 11] }),
-  exits: Object.freeze([{ x: 15, y: 6, to: 'mill_cellar' }]),
-  start: Object.freeze([11, 9]),
-  focus: Object.freeze([11, 7]),
-  maskHash: '6f677c65',
+  stations: Object.freeze({ combat: first(ACTIVITY_STATIONS.training), gather: first(ACTIVITY_STATIONS.gather.woodcutting),
+    artisan: first(ACTIVITY_STATIONS.artisan.smithing), idle: first(ACTIVITY_STATIONS.idle) }),
+  exits: Object.freeze(EXITS.map((e) => Object.freeze(Object.assign({ to: e.to }, tile(e.x, e.y))))),
+  /* the lint's reach origin: the gatehouse's first stand (a hero back from a hunt arrives on one of the
+     gatehouse's stands, the one the SERVER holds for it: 2027-01-28-town-stands.sql) */
+  start: first(ACTIVITY_STATIONS.arrival),
+  maskHash: 'fc2be98b',
 });

@@ -11,6 +11,7 @@
 // ════════════════════════════════════════════════════════════════════════
 import { tallyOf, tallyLine } from '../../session/tally-sections.js?v=0.2.49';
 import { huntOf } from '../../session/hunt-sections.js?v=0.2.49';
+import { TALLY_KEEPER } from '../../data/tally-tasks.js?v=0.2.49';
 import { rows, text, cls, style, element } from '../../render/paint.js?v=0.2.49';
 import { foldButtonHtml } from '../widget-move.js?v=0.2.49';
 
@@ -32,7 +33,7 @@ renderTallyHud.patch = function patchTallyHud(el, ctx) {
      and first return hold one instruction, the coach's, which brings her in with her own card (board 2026-10-25 #13). */
   const met = !!t && (!!t.weight || t.recent.length > 0);
   cls(el, 'is-quiet', !t || (!held.length && (hunting || !met)));
-  text(el.querySelector('.hs-tally-none'), !t || held.length ? '' : 'Tamsin has kill tasks at her board on the Common.');
+  text(el.querySelector('.hs-tally-none'), !t || held.length ? '' : 'Tamsin has kill tasks at her board in ' + TALLY_KEEPER.board + '.');
   rows(el.querySelector('.hs-tally-list'), held, {
     key: (x) => x.task,
     build: () => element(ctx.doc, '<li class="hs-tally-row"><span></span><span class="ht-stick" aria-hidden="true"><i></i></span></li>'),

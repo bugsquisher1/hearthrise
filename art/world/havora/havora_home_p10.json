@@ -1,0 +1,41 @@
+{
+  "id": "havora_home_p10",
+  "class": "lot",
+  "style": "s1",
+  "material": "stone",
+  "source": "havora_home_p10.png",
+  "frame": [
+    378,
+    327
+  ],
+  "anchor_px": [
+    189,
+    326
+  ],
+  "footprint": [
+    14,
+    10
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_image_pro",
+    "image": "b618c188-271f-4a09-bf08-cbd0cb45f725",
+    "seed": 610,
+    "size": [
+      448,
+      384
+    ],
+    "cost": 25,
+    "style": "common/square_general_store"
+  },
+  "notes": "Home P10 (plan x88-101 y62-71), town lot: jettied stone and timber town house, slate roof, well and stable yard."
+}

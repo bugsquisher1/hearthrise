@@ -1,0 +1,35 @@
+{
+  "id": "rune_block",
+  "class": "bulky",
+  "style": "s1",
+  "material": "stone",
+  "source": "rune_block.png",
+  "frame": [
+    26,
+    29
+  ],
+  "anchor_px": [
+    13,
+    28
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_object_pro_flash",
+    "object": "baaab94d-0ce6-4477-8294-096a28d5687e",
+    "name": "S1 rune block"
+  },
+  "notes": "Runecrafting rune block sample (designer rev 2: 4 blocks at x150-157 y48-49 by the mine). STAGED sample."
+}

@@ -1,0 +1,41 @@
+{
+  "id": "havora_palisade_v1",
+  "class": "palisade_v",
+  "style": "s1",
+  "material": "wood",
+  "source": "havora_palisade_v1.png",
+  "frame": [
+    64,
+    32
+  ],
+  "anchor_px": [
+    32,
+    31
+  ],
+  "footprint": [
+    2,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_image_pro",
+    "image": "c4fdf69c-02c0-41e3-8c57-e3afc3338312",
+    "seed": 712,
+    "size": [
+      64,
+      256
+    ],
+    "cost": 10,
+    "style": "havora/havora_home_p01"
+  },
+  "notes": "Slice 1 of 8 of one 256 px north-south palisade strip (create_image_pro): the town wall's north-south runs lay slice (row mod 8) (town/palisade.js)."
+}

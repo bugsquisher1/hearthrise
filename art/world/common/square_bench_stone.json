@@ -1,0 +1,35 @@
+{
+  "id": "square_bench_stone",
+  "class": "bench",
+  "style": "s1",
+  "material": "stone",
+  "source": "square_bench_stone.png",
+  "frame": [
+    64,
+    37
+  ],
+  "anchor_px": [
+    32,
+    36
+  ],
+  "footprint": [
+    2,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_object_pro_flash",
+    "object": "83f7d7e6-5f70-4e3d-a68e-f03e5d82edb6",
+    "name": "S1 square bench stone"
+  },
+  "notes": "Ported from PixelLab object 83f7d7e6-5f70-4e3d-a68e-f03e5d82edb6 (style 1) by tools/world-art/port-pixellab.mjs: pixels unscaled, bottom-centre anchor as Map Workshop places it."
+}

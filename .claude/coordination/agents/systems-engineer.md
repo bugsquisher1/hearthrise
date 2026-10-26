@@ -4409,3 +4409,11 @@ guard tests/hunt-scene.mjs (SC-1..8, 13/13 mutants).
 1. *Never pipe a merge through `tail`*: the first conflict lines scrolled off and three files were committed with markers (caught by `git grep` for markers before the next merge; amended). Read the full `--diff-filter=U` list, then `git grep -n "^<<<<<<< "` before every merge commit.
 2. *Conflicts across ?v= bumps are mostly noise*: when one side only bumped versions, take the other side and re-run the bump rewrite; union import lines per module (symbol-wise) so both sides' new names survive.
 3. *An integration exposes guard drift neither lane saw*: say-why (written beside store-all) had REASONS for controls store-all had changed; fix the reasons on screen, not the REASONS list.
+
+## 2026-10-25 lane/b-town-map (L1 real town) — learnings
+1. *Trace a reference picture, don't eyeball it.* The blueprint PNG classified per 8 px (majority colour, dots ignored) gave every site's exact rect; the plan's own table had three overlaps (gate yard over P07/mill, the grate inside P06, store over barracks) that only the trace showed.
+2. *A painted fill tiles its picture.* On a map bigger than the painting the lanes repeat; a 192 x 116 town is 6144 x 3712 px, past the 2048 atlas cap, so no single painted ground fits. Placeholder tones (ground: null) are honest until district art lands.
+3. *A closed painted footprint is open inside* (only its edge blocks): anything placing bodies must use reachFrom, not the mask (the crowd harness first stood people inside the hearth).
+4. *Stands behind a prop are hidden*: test every stand against the compile's OVER bits (two storage rows sat behind the counters).
+5. *Time renders with a simulated clock*: a pane that is not fronted throttles requestAnimationFrame to 1-2 fps and the first frames bake chunks; a page-relative atlas path 404s from tools/qa unless the page sets `<base>`, and the numbers then time stub boxes (report `stubbed`).
+6. *Every hall faces the camera (south)*: a building opens onto a square only from the square's north side. Check a plan's "across the square" pairs against the art's facing before laying lots; tall landmark art hides every tile it spans (no stands there).

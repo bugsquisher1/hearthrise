@@ -1,0 +1,37 @@
+{
+  "id": "hearth_flare_verdigris",
+  "class": "vfx",
+  "style": "s1",
+  "material": "light",
+  "source": "hearth_flare_verdigris.png",
+  "frame": [
+    55,
+    50
+  ],
+  "anchor_px": [
+    25,
+    34
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "play",
+      "fps": 10,
+      "loop": false,
+      "dirs": {
+        "s": 6
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "animate_image",
+    "image": "fd7867aa-b04e-496c-bdbe-ffdab6e75f56",
+    "seed": 22,
+    "cost": 2,
+    "source": "great_hearth firebox crop (112,196) 128x104, first = last frame"
+  },
+  "notes": "hearth_flare with its flame pixels remapped to the Verdigris Cake ramp (mithril/venom), free recolour. STAGED."
+}

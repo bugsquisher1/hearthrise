@@ -58,6 +58,8 @@ export const CLASSES = Object.freeze({
   bed: row({ body: [40, 60], measure: 'h', contact: 'legged', shadow: 'ellipse', layer: 'prop' }),
   table: row({ body: [20, 24], measure: 'h', contact: 'legged', shadow: 'ellipse', layer: 'prop' }),
   station: row({ body: [22, 32], measure: 'h', contact: 'legged', shadow: 'ellipse', layer: 'prop' }),
+  // A market stall: a trestle under an awning on posts (Hearth Square's east edge), taller than a table.
+  stall: row({ body: [48, 72], measure: 'h', contact: 'legged', shadow: 'ellipse', layer: 'prop' }),
   bench: row({ body: [12, 20], measure: 'h', contact: 'legged', shadow: 'ellipse', layer: 'prop' }),
   seat: row({ body: [24, 28], measure: 'h', contact: 'legged', shadow: 'ellipse', layer: 'prop' }),
   bulky: row({ body: [20, 32], measure: 'h', maxW: 40, contact: 'solid', shadow: 'ellipse', layer: 'prop' }),
@@ -71,6 +73,22 @@ export const CLASSES = Object.freeze({
   // A whole building drawn as one style-1 sprite, roof and front wall (a closed facade: the
   // smithy, the mill, a neighbour's cottage). Its footprint is the ground it covers.
   building: row({ body: [80, 160], measure: 'h', contact: 'touch', shadow: null, layer: 'unit' }),
+  // A town's one monument, larger than any building (the Great Hearth of Hearth Square: footprint
+  // 11 x 4, art 11 x 11 tiles). Drawn like a building: one closed sprite, its anchor bottom-centre.
+  // A big town hall-sized building round a plaza (Hearth Square's general store, depot, bank, guild
+  // hall: 10-14 tiles wide). Drawn like a building; the monument (landmark) stays taller.
+  hall: row({ body: [200, 320], measure: 'h', contact: 'touch', shadow: null, layer: 'unit' }),
+  landmark: row({ body: [240, 352], measure: 'h', contact: 'touch', shadow: null, layer: 'unit' }),
+  // A whole town LOT drawn as one sprite: a building with its yard, fence, wall or towers (Havora's gatehouse,
+  // tavern, guilds, harbour office and homes P01-P15). Its footprint is the lot; a deep lot's art stands taller
+  // than a hall (footprint depth plus the facade), so its own row. Drawn like a building.
+  lot: row({ body: [160, 480], measure: 'h', contact: 'touch', shadow: null, layer: 'unit' }),
+  // A town palisade (Havora's wall): an east-west run is one 32 px slice of a log strip per column (footprint 1 x 2,
+  // the band's two rows), a north-south run one 32 px slice per row seen from above (footprint 2 x 1, raw).
+  palisade: row({ body: [56, 96], measure: 'h', contact: 'solid', shadow: null, layer: 'unit' }),
+  palisade_v: row({ body: [24, 32], measure: 'h', raw: true, contact: 'touch', shadow: null, layer: 'unit' }),
+  // A bridge laid over a river (Havora's river crossing): a span wider than the Sewer's grate, walked on.
+  bridge: row({ body: [128, 416], measure: 'max', raw: true, contact: 'flat', shadow: null, layer: 'decal' }),
   door: row({ body: [48, 48], measure: 'h', contact: 'solid', shadow: null, layer: 'wall' }),
   wall: row({ frame: [32, 60], anchor: [16, 59], body: [56, 60], measure: 'h', face: 48, cap: [8, 12], contact: 'wall', shadow: 'cast', layer: 'wall' }),
   wallend: row({ frame: [12, 60], anchor: [6, 59], body: [56, 60], measure: 'h', contact: 'wall', shadow: 'cast', layer: 'wall' }),

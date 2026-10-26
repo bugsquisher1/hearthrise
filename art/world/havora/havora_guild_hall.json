@@ -1,0 +1,41 @@
+{
+  "id": "havora_guild_hall",
+  "class": "lot",
+  "style": "s1",
+  "material": "stone",
+  "source": "havora_guild_hall.png",
+  "frame": [
+    128,
+    346
+  ],
+  "anchor_px": [
+    64,
+    345
+  ],
+  "footprint": [
+    4,
+    12
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_image_pro",
+    "image": "0c8d15fa-4a68-4842-8eb1-95847f0a4982",
+    "seed": 514,
+    "size": [
+      128,
+      384
+    ],
+    "cost": 15,
+    "style": "common/square_general_store"
+  },
+  "notes": "Havora's harbour guild house (plan x116-119 y72-83): narrow stone and half-timber front, anchor-and-oar crest, bell turret."
+}

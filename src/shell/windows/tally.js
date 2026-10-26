@@ -136,7 +136,7 @@ renderTally.patch = function patchTally(body, ctx) {
   const board = sc.board ? sc.board.board : [];
   rows(root.querySelector('.ht-board'), board, { key: (r) => r.task, build: (r) => element(ctx.doc, boardHtml(r)), patch: (li, r) => patchOffer(li, r, st) });
   cls(root.querySelector('.ht-wait'), 'is-on', !sc.board);
-  text(root.querySelector('.ht-wait'), st.hunting ? 'Her board is on the Common: take tasks when you are back in town.' : 'Loading her board…');
+  text(root.querySelector('.ht-wait'), st.hunting ? 'Her board is in ' + TALLY_KEEPER.board + ': take tasks when you are back in town.' : 'Loading her board…');
   const repaint = () => ctx.refresh('tally');
   /* HER ANSWER, once per opening and after every intent (a read, never the record). */
   if (sc.stale && !sc.asking && ctx.account) {

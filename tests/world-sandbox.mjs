@@ -76,7 +76,8 @@ async function rules(M) {
 
   /* SB-1 IN BY A SIGN */
   const G = {};
-  const inTown = M.walk.createWalkScene(town, Object.assign({ sprites: M.baseArt.tables.sprites, openClasses: [], maps: M.rows }, M.sb.sandboxExtras(town, M.baseArt.tables.sprites)));
+  /* the hero beside the sign (the town is far bigger than one view) */
+  const inTown = M.walk.createWalkScene(town, Object.assign({ at: [S.entry.at[0] + 1, S.entry.at[1]], sprites: M.baseArt.tables.sprites, openClasses: [], maps: M.rows }, M.sb.sandboxExtras(town, M.baseArt.tables.sprites)));
   const tf = inTown.frame({ kind: 'town', walkers: [] }, 0);
   const sign = tf.props.find((p) => p.ref && p.ref.scene === 'sandbox');
   ok('SB-1', sign && sign.x === S.entry.at[0] && sign.y === S.entry.at[1], 'the Common must show the entry sign at ' + S.entry.at);

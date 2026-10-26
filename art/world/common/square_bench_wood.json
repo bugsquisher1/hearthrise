@@ -1,0 +1,35 @@
+{
+  "id": "square_bench_wood",
+  "class": "bench",
+  "style": "s1",
+  "material": "wood",
+  "source": "square_bench_wood.png",
+  "frame": [
+    64,
+    34
+  ],
+  "anchor_px": [
+    32,
+    33
+  ],
+  "footprint": [
+    2,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_object_pro_flash",
+    "object": "a4ede56e-6447-462f-843f-bf1d5af6a2a9",
+    "name": "S1 square bench wood"
+  },
+  "notes": "Ported from PixelLab object a4ede56e-6447-462f-843f-bf1d5af6a2a9 (style 1) by tools/world-art/port-pixellab.mjs: pixels unscaled, bottom-centre anchor as Map Workshop places it."
+}

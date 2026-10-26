@@ -1,0 +1,36 @@
+<!doctype html>
+<!-- Havora integration review view (lane/i-havora, 2026-10-26). NOT game code: the REAL renderer (compileMap +
+     canvas-backend + every atlas) on town_common, no sign-in, for the integration shots.
+     ?x=&y=      the hero's tile (map columns); default: the gatehouse's first stand (where the server sets down
+                 a hero back from a hunt)
+     ?crowd=N    the first N stands of every station hold a hero (the server's lowest-first order), in turn of outfit
+     Serve the worktree root and open /art/review/havora-integration-2026-10-26/view.html -->
+<html><head><meta charset="utf-8"><base href="/">
+<link rel="stylesheet" href="src/styles/tokens.css">
+<style>html,body{margin:0;height:100%;overflow:hidden;background:#000}#stage{position:fixed;inset:0}canvas{image-rendering:pixelated;display:block}</style>
+</head><body><div id="stage"></div><script type="module">
+import { BUILD } from './src/build-info.js?v=0.2.49';
+import { MATERIALS, OPEN_CLASSES, LIGHTS } from './src/data/world/terrain.js?v=0.2.49';
+import town from './src/data/world/maps/town_common.js?v=0.2.49';
+import { STATIONS } from './src/data/world/stations.js?v=0.2.49';
+import { OUTFITS } from './src/data/hunt-outfits.js?v=0.2.49';
+import { compileMap } from './src/world/core/map-compile.js?v=0.2.49';
+import { loadAtlases } from './src/world/atlas.js?v=0.2.49';
+import { createCanvasBackend } from './src/world/render/canvas-backend.js?v=0.2.49';
+const q = new URLSearchParams(location.search);
+const { book, images } = await loadAtlases({ doc: document, version: BUILD.cache + '-' + Date.now() });
+const tables = { materials: MATERIALS, sprites: book.sprites, openClasses: OPEN_CLASSES, lights: LIGHTS };
+const map = compileMap(town, tables);
+const styles = getComputedStyle(document.body), css = (n) => styles.getPropertyValue(n).trim();
+const backend = createCanvasBackend({ win: window, doc: document, book, images, tables, css });
+backend.mount(document.getElementById('stage'));
+backend.setMap(map);
+const hero = { x: Number(q.get('x') || map.start[0]), y: Number(q.get('y') || map.start[1]) };
+const looks = Object.values(OUTFITS), crowd = Number(q.get('crowd') || 0);
+let n = 0;
+const units = STATIONS.flatMap((s) => s.stands.slice(0, crowd)).filter(([x, y]) => x !== hero.x || y !== hero.y)
+  .map(([x, y]) => ({ id: looks[n++ % looks.length], x, y, anim: 'idle', dir: 's', age: (n * 137) % 1000 }));
+const draw = () => backend.sync({ hero, name: 'You', units, t: performance.now() });
+draw(); setInterval(draw, 200);
+document.body.dataset.ready = '1';
+</script></body></html>

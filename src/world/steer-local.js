@@ -256,7 +256,7 @@ function exitAction(exit, maps) {
  * @param {object} map  compileMap() output
  * @param {{tile: [number, number], hits: {id: string, tx: number, ty: number, ref: object|null}[]}} pick
  *   hits are the drawn things under the tap, top-most first
- * @param {{opens: object, maps: object}} o  TAP_OPENS, and map rows by id (for exits)
+ * @param {{opens: object, sites?: object, maps: object}} o  TAP_OPENS, SITE_OPENS ('map:x,y' → the same shape), and map rows by id (for exits)
  * @returns {{kind: 'walk', to}|{kind: 'hunt', hunt}|{kind: 'skill', skill}|{kind: 'room', room}|{kind: 'house', room}|{kind: 'scene', choice}}
  *   A sign naming a scene (ref.scene: the sandbox's signs, src/world/sandbox-scene.js) switches to it.
  */
@@ -270,7 +270,8 @@ export function tapAction(map, pick, o) {
     const ex = exitAt(hit.tx, hit.ty);
     const viaExit = ex && exitAction(ex, o.maps);
     if (viaExit) return viaExit;
-    const opens = o.opens[hit.id];
+    /* one station's prop (the shop's counter, not the storage's: the same sprite) before the sprite's own row */
+    const opens = (o.sites && o.sites[map.id + ':' + hit.tx + ',' + hit.ty]) || o.opens[hit.id];
     if (opens && opens.open === 'skill') return { kind: 'skill', skill: opens.skill };
     if (opens && opens.open === 'window') return { kind: 'window', window: opens.window };
   }

@@ -1,0 +1,123 @@
+{
+  "id": "havora_grass_tilled",
+  "class": "terrain",
+  "kind": "wang16",
+  "style": "s1",
+  "material": "terrain",
+  "source": "havora_grass_tilled.png",
+  "lower": "grass",
+  "upper": "tilled",
+  "tiles": {
+    "1000": [
+      [
+        1,
+        1
+      ]
+    ],
+    "1001": [
+      [
+        2,
+        3
+      ]
+    ],
+    "1010": [
+      [
+        1,
+        0
+      ]
+    ],
+    "1011": [
+      [
+        0,
+        2
+      ]
+    ],
+    "1100": [
+      [
+        3,
+        0
+      ]
+    ],
+    "1101": [
+      [
+        0,
+        0
+      ]
+    ],
+    "1110": [
+      [
+        1,
+        3
+      ]
+    ],
+    "1111": [
+      [
+        0,
+        3
+      ]
+    ],
+    "0100": [
+      [
+        2,
+        0
+      ]
+    ],
+    "0110": [
+      [
+        0,
+        1
+      ]
+    ],
+    "0000": [
+      [
+        2,
+        1
+      ]
+    ],
+    "0001": [
+      [
+        3,
+        1
+      ]
+    ],
+    "0011": [
+      [
+        1,
+        2
+      ]
+    ],
+    "0010": [
+      [
+        2,
+        2
+      ]
+    ],
+    "0101": [
+      [
+        3,
+        2
+      ]
+    ],
+    "0111": [
+      [
+        3,
+        3
+      ]
+    ]
+  },
+  "pixellab": {
+    "tool": "create_topdown_tileset",
+    "id": "026c84dd-9407-4043-a3c1-3827595ad1a4",
+    "base_tile_ids": {
+      "lower": "42099ab7-68ef-4c41-bed9-581b37501045",
+      "upper": "fc7d5fdd-1ef2-48aa-a3f2-234c922b2eae"
+    },
+    "params": {
+      "mode": "pro",
+      "tile_size": 32,
+      "view": "high top-down",
+      "transition_size": 0
+    }
+  },
+  "notes": "Havora's farm plots: grass (base 42099ab7) to tilled furrowed soil (base fc7d5fdd). Pro Wang tileset, 32 px."
+}

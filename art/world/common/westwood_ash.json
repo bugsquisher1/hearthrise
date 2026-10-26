@@ -1,0 +1,35 @@
+{
+  "id": "westwood_ash",
+  "class": "tree",
+  "style": "s1",
+  "material": "foliage",
+  "source": "westwood_ash.png",
+  "frame": [
+    68,
+    97
+  ],
+  "anchor_px": [
+    34,
+    96
+  ],
+  "footprint": [
+    2,
+    2
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_object_pro_flash",
+    "object": "7900b47f-7906-4126-b677-bff020ea20f8",
+    "name": "S1 westwood ash tree"
+  },
+  "notes": "The Westwood woodcutting tree sample (a tier past oak/pine). STAGED sample."
+}

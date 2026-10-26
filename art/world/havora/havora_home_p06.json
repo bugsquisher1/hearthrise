@@ -1,0 +1,41 @@
+{
+  "id": "havora_home_p06",
+  "class": "lot",
+  "style": "s1",
+  "material": "wood",
+  "source": "havora_home_p06.png",
+  "frame": [
+    320,
+    287
+  ],
+  "anchor_px": [
+    160,
+    286
+  ],
+  "footprint": [
+    10,
+    8
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_image_pro",
+    "image": "387043e0-978f-40cb-ac09-e7776e9d7193",
+    "seed": 606,
+    "size": [
+      320,
+      320
+    ],
+    "cost": 15,
+    "style": "common/square_general_store"
+  },
+  "notes": "Home P06 (plan x48-57 y66-73): tiny log cabin, mossy plank roof, pumpkin patch, bean poles, beehive, hurdle fence."
+}

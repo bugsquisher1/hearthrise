@@ -1,0 +1,37 @@
+{
+  "id": "hearth_flare",
+  "class": "vfx",
+  "style": "s1",
+  "material": "light",
+  "source": "hearth_flare.png",
+  "frame": [
+    55,
+    50
+  ],
+  "anchor_px": [
+    25,
+    34
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "play",
+      "fps": 10,
+      "loop": false,
+      "dirs": {
+        "s": 6
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "animate_image",
+    "image": "fd7867aa-b04e-496c-bdbe-ffdab6e75f56",
+    "seed": 22,
+    "cost": 2,
+    "source": "great_hearth firebox crop (112,196) 128x104, first = last frame"
+  },
+  "notes": "THE BURN, beat 2: the hearth fire roars up for 0.6 s when a fuel lands (PixelLab animate_image, the pixels that move, cut to the firebox). Plays over great_hearth in place of hearth_fire, top-left on hearth px (151,228); the anchor [25,34] is the firebox centre, hearth px (176,262). STAGED."
+}

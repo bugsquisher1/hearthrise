@@ -804,6 +804,30 @@ body[data-theme="hearthlight"] {
   /* a sprite no shipped atlas carries yet */
   --world-stub-missing:  #8a6238;
   --world-stub-line:     rgba(0, 0, 0, .45);
+  /* A GROUND NOT PAINTED YET (a town map with ground: null, src/world/core/compose.js): each
+     cell a flat placeholder in its material's tone, -a/-b checkered. World-palette ramps
+     (art/world/palette.json); `site` (a building footprint without art) is the darkest so a
+     placeholder never passes for a finished building. */
+  --world-ground-grass-a:     #3d6234;
+  --world-ground-grass-b:     #3a5e31;
+  --world-ground-tilled-a:    #553a26;
+  --world-ground-tilled-b:    #3d2a1d;
+  --world-ground-earth-a:     #6e4c30;
+  --world-ground-earth-b:     #694a2e;
+  --world-ground-cobble-a:    #6a6865;
+  --world-ground-cobble-b:    #646260;
+  --world-ground-flagstone-a: #8a867d;
+  --world-ground-flagstone-b: #827e76;
+  --world-ground-planks-a:    #553a26;
+  --world-ground-planks-b:    #4f3623;
+  --world-ground-water-a:     #2b4a6a;
+  --world-ground-water-b:     #284666;
+  --world-ground-cliff-a:     #3a3a3e;
+  --world-ground-cliff-b:     #36363a;
+  --world-ground-palisade-a:  #3d2a1d;
+  --world-ground-palisade-b:  #3a281b;
+  --world-ground-site-a:      #231d1f;
+  --world-ground-site-b:      #2f2723;
 }
 
 

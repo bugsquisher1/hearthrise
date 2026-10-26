@@ -1,0 +1,41 @@
+{
+  "id": "havora_home_p01",
+  "class": "lot",
+  "style": "s1",
+  "material": "wood",
+  "source": "havora_home_p01.png",
+  "frame": [
+    320,
+    296
+  ],
+  "anchor_px": [
+    160,
+    295
+  ],
+  "footprint": [
+    10,
+    8
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_image_pro",
+    "image": "4c67ce73-3333-4ea7-b639-28804539db31",
+    "seed": 515,
+    "size": [
+      320,
+      320
+    ],
+    "cost": 15,
+    "style": "common/square_general_store"
+  },
+  "notes": "Home P01 (plan x16-25 y14-21), the NW crooked shacks: a leaning plank hut under patched thatch, cabbage patch, woodpile, washing line, picket fence."
+}

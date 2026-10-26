@@ -1,0 +1,41 @@
+{
+  "id": "havora_tavern",
+  "class": "hall",
+  "style": "s1",
+  "material": "wood",
+  "source": "havora_tavern.png",
+  "frame": [
+    384,
+    301
+  ],
+  "anchor_px": [
+    192,
+    300
+  ],
+  "footprint": [
+    12,
+    8
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_image_pro",
+    "image": "e10bd96e-dc74-43e7-9188-993bd3954d62",
+    "seed": 503,
+    "size": [
+      384,
+      384
+    ],
+    "cost": 25,
+    "style": "common/square_general_store"
+  },
+  "notes": "Havora's tavern on P07 (plan x62-73 y20-27): stone and half-timber, tankard sign, porch; its cook yard of 8 fires lies south (stations.js tavern_kitchen)."
+}

@@ -301,7 +301,12 @@ export async function bootWorld(panel, opts) {
     if (!sheets.ready(need)) {
       /* ITS SHEETS ARE STILL LOADING (a ground entered, the town after a hunt): the frame showing stays until
          they arrive, then the scene switches whole: no stub boxes, and never one map's units on another */
-      if (!waiting.has(sc.map)) { waiting.add(sc.map); sheets.ensure(need).then(() => { waiting.delete(sc.map); if (!running) sync(); }); }
+      if (!waiting.has(sc.map)) {
+        waiting.add(sc.map);
+        const id = sc.map;
+        /* its ground is made here, in its own task, so the frame that shows it only bakes what it draws (perf-budget) */
+        sheets.ensure(need).then(() => { waiting.delete(id); if (!gone) backend.prepare(mapOf(id), artOf(id) || undefined); if (!running) sync(); });
+      }
       return null;
     }
     if (!scene || sc.map !== scene.map || sc.kind !== scene.kind) {

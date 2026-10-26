@@ -558,7 +558,7 @@ const MUTANTS = [
   ['W2', 'the blend drawn on the cell grid, not the dual grid', 'src/world/core/compose.js', [['x: x * T + H, y: y * T + H', 'x: x * T, y: y * T']]],
   ['W2', 'the blend laid over the patches', 'src/world/core/compose.js', [['    if (map.blend) blendTiles(map, book, T, (x, y) => !!patchAt(x, y), tiles);\n    tiles.push(...laid);', '    tiles.push(...laid);\n    if (map.blend) blendTiles(map, book, T, (x, y) => !!patchAt(x, y), tiles);']]],
   ['W2', 'a hole corner (cliff) leaves its dual tile undrawn', 'src/world/core/compose.js', [['for (let i = 0; i < 4; i++) if (!c[i]) c[i] = most;', 'if (real.length < 4) continue;']]],
-  ['W2', 'a third material drawn as the upper of the pair', 'src/world/core/compose.js', [["(m !== pick.t.lower && !paired(m, pick.t.lower) && paired(m, pick.t.upper))", '(m !== pick.t.lower)']]],
+  ['W2', 'a third material drawn as the upper of the pair', 'src/world/core/compose.js', [['(m !== lo && !paired(m, lo) && paired(m, up))', '(m !== lo)']]],
   ['L1', 'every window of a map is let off the tree rule', 'src/world/core/map-compile.js', [['if (2 * greenIn(wx, wy) < ww * wh) continue;', 'continue;']]],
   ['W3', 'a fill floor hashed into seams', 'src/world/core/compose.js', [['const n = fill ? (y % fill[1]) * fill[0] + (x % fill[0]) : cellHash(x, y);', 'const n = cellHash(x, y);']]],
   ['G1', 'an unmapped monster falls into the cellar', 'src/world/core/scene-route.js', [['if (id && index[id]) return', "if (id) return { map: 'mill_cellar', kind: 'hunt' }; if (id && index[id]) return"]]],

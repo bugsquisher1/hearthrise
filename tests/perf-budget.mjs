@@ -8,7 +8,7 @@
 //                                              --sizes 1440x900,922x423 narrow it); prints, never fails
 //   node tests/perf-budget.mjs --mutate        every planted defect must turn the budget RED
 //
-// mutant-anchors: src/world/world-boot.js src/world/render/canvas-backend.js src/app/world-pane.js src/shell/widgets/analyzer.js src/shell/shell.js src/session/character-session.js src/hunt-view/combat-log.js
+// mutant-anchors: src/world/world-boot.js src/world/render/canvas-backend.js src/app/world-pane.js src/shell/widgets/analyzer.js src/shell/shell.js src/session/character-session.js src/hunt-view/combat-log.js src/render/images.js
 // mutant-writes-tree: no — probes and mutants are served from memory (tests/_client-harness.mjs serve overrides)
 //
 // THE SCENARIO (Andy, Firefox, live v0.2.23: "the page is slowing down", "the analyser seems to have slowed
@@ -77,6 +77,9 @@ const PROBES = [
     '  _take(body, why) { return window.__perf.time(\'envelope\', () => this.__take(body, why)); }\n  __take(body, why) {\n'],
   ['src/shell/widgets/analyzer.js', 'renderAnalyzer.patch = function patchAnalyzer(el, ctx) {\n',
     'renderAnalyzer.patch = function patchAnalyzer(el, ctx) {\n  window.__perf.count(\'analyzer\');\n'],
+  /* every sheet handed out over the whole run (boot and the town after the death), by kind */
+  ['src/render/images.js', '  HELD.set(url, ready);\n',
+    '  HELD.set(url, ready);\n  ready.then((s) => { window.__perf.sheets[s instanceof ImageBitmap ? \'bitmap\' : \'img\']++; }, () => {});\n'],
 ];
 
 /* ── the planted defects (--mutate): each must turn a budget red ── */
@@ -98,7 +101,9 @@ const MUTANTS = [
     "clock(sessionClockMs(a, serverNowOf(ctx.character)))", "clock(a.sessionMs === null ? null : a.sessionMs + live)", /^analyzer/],
   ['a shadow mask kept although a monster moved', 'src/world/render/canvas-backend.js',
     "else if (sh.type === 'ellipse') k += '|e' + sh.cx + ',' + sh.cy + ',' + sh.w + ',' + sh.h;", "else if (sh.type === 'ellipse') k += '|e';", /^PB-PIX/, 'pix'],
-  ["the light layer kept although the hero's lamp moved", 'src/world/render/canvas-backend.js',
+  ['the world sheets handed to the canvas as <img> (its first draw prepares a whole sheet inside the frame: v0.2.50, run 40321779709)', 'src/render/images.js',
+    "  const bitmap = win && typeof win.createImageBitmap === 'function' && typeof win.fetch === 'function';", '  const bitmap = false;', /^sheets/],
+  ["the light layer kept although the hero's lamp moved",'src/world/render/canvas-backend.js',
     "for (const p of points) sig += '|' + p.x + ',' + p.y + ',' + p.r + ',' + tone('light-' + p.tint);", "for (const p of points) sig += '|' + p.r;", /^PB-PIX/, 'pix'],
 ];
 
@@ -118,7 +123,7 @@ export function planted(extra) {
 /* The page's recorder: rAF gaps, the hidden-tab emulation, the probes' clocks, DOM churn, analyzer samples. */
 const INIT = `(() => {
   const P = window.__perf = { t: Object.create(null), c: Object.create(null), frames: new Float64Array(120000), nf: 0,
-    marks: [], samples: [], dom: [], added: 0, long: [], ltOk: false, path: [], trackOn: false, stopped: false };
+    marks: [], samples: [], dom: [], added: 0, long: [], ltOk: false, path: [], trackOn: false, stopped: false, sheets: { bitmap: 0, img: 0 } };
   /* depth: a canvas draw or a shell paint INSIDE an applied answer is counted apart (one answer, one paint, no draw) */
   const depth = Object.create(null);
   P.time = (k, fn) => { const a = performance.now(); depth[k] = (depth[k] || 0) + 1;
@@ -403,7 +408,7 @@ async function scenario(o) {
     const h1raw = await heap();
     const out = await page.evaluate(() => { const P = window.__perf; P.stopped = true;
       const got = { frames: Array.from(P.frames.slice(0, P.nf)), marks: P.marks, t: P.t, c: P.c, samples: P.samples, dom: P.dom, long: P.long, ltOk: P.ltOk, path: P.path,
-        nodes: document.getElementsByTagName('*').length, added: P.added, now: performance.now() };
+        nodes: document.getElementsByTagName('*').length, added: P.added, now: performance.now(), sheets: P.sheets };
       /* THE PROBE'S OWN RECORDS are not the game's heap: stopped, read out, then released before the end measure
          (the post-death path alone is thousands of per-frame unit lists, megabytes the page never holds; a record
          still running between here and the measure grew it by ~60 lists a second). */
@@ -498,7 +503,7 @@ function analyse(out, w0, o, srv) {
     logLines: Math.max(0, ...out.dom.map((d) => d[3])), addedPerMin: Math.round(out.added / minutes),
     paintsInAnswers: out.c.shellPaintInEnvelope || 0, drawsInAnswers: out.c.drawInEnvelope || 0, drawsOffLoop: out.c.drawOffLoop || 0,
     analyzerPerMin: Math.round((out.c.analyzer || 0) / minutes), analyzerBehindMs: Math.round(behind), analyzerBackMs: Math.round(backMs), analyzerBacks: backs, analyzerStillMs: stillMax,
-    path: out.path, marks: out.marks, runAway, samples: out.samples, dom: out.dom,
+    path: out.path, marks: out.marks, runAway, samples: out.samples, dom: out.dom, sheets: out.sheets || { bitmap: 0, img: 0 },
   };
 }
 
@@ -517,6 +522,8 @@ function budgetFails(m) {
   if (!(m.analyzerBehindMs <= b.analyzerBehindMs)) f.push(`analyzer clock up to ${m.analyzerBehindMs} ms behind the hunt (budget ${b.analyzerBehindMs})`);
   if (!(m.analyzerBackMs <= b.analyzerBackMs)) f.push(`analyzer clock ran back ${m.analyzerBackMs} ms (${m.analyzerBacks}x; budget ${b.analyzerBackMs})`);
   if (!(m.paintsInAnswers <= b.paintsInAnswers)) f.push(`repaint: ${m.paintsInAnswers} shell repaints inside server answers (budget ${b.paintsInAnswers})`);
+  /* the town's sheets arrive after the death: an <img> among them is prepared on the frame the town is entered */
+  if (!(m.sheets.bitmap > 0 && m.sheets.img === 0)) f.push(`sheets: ${m.sheets.img} world sheet(s) handed to the canvas as <img>, ${m.sheets.bitmap} as ImageBitmap (budget: every one a bitmap, src/render/images.js)`);
   if (!(m.drawsOffLoop <= b.drawsOffLoop)) f.push(`repaint: ${m.drawsOffLoop} World draws outside the frame loop, ${m.drawsInAnswers} of them inside answers (budget ${b.drawsOffLoop})`);
   return f;
 }
@@ -526,7 +533,7 @@ function row(m) {
   return `${m.browser.padEnd(8)} ${m.size.padEnd(8)} fps ${m.fpsMedian}/${m.fpsP5} long ${m.longFrames} worst ${Math.round(m.worstFrame)} resume ${Math.round(m.resumeWorst)} stall ${Math.round(m.stallWorst)}${m.pageTimed ? '' : ' (wall)'} lt ${m.longTasks}`
     + ` | engine ${ms(m.engine)} scene ${ms(m.scene)} draw ${ms(m.draw)} frame ${ms(m.frame)} env ${ms(m.envelope)} (${m.envelope ? m.envelope.n : 0}) tick ${ms(m.shellTick)}`
     + ` | heap ${m.heapMb === null ? 'n/a' : m.heapMb.toFixed(1) + 'MB' + (m.heapRawMb != null ? ' (with the probe records ' + m.heapRawMb.toFixed(1) + ')' : '')} dom ${m.domStart}->${m.domEnd} (+${m.domGrowth}) log ${m.logLines} +${m.addedPerMin}/min`
-    + ` | paints-in-answers ${m.paintsInAnswers} draws off-loop ${m.drawsOffLoop} (in answers ${m.drawsInAnswers})`
+    + ` | paints-in-answers ${m.paintsInAnswers} draws off-loop ${m.drawsOffLoop} (in answers ${m.drawsInAnswers}) sheets ${m.sheets.bitmap} bitmap/${m.sheets.img} img`
     + ` | analyzer ${m.analyzerPerMin}/min behind ${m.analyzerBehindMs} back ${m.analyzerBackMs}x${m.analyzerBacks} still ${m.analyzerStillMs}`;
 }
 

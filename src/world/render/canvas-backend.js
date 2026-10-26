@@ -1,7 +1,7 @@
 // ════════════════════════════════════════════════════════════════════════
 // src/world/render/canvas-backend.js — THE WORLD ON A 2D CANVAS.
 //
-// Interface { mount, setMap, setInset, sync, snapshot, destroy } — the same as
+// Interface { mount, setMap, prepare, setInset, sync, snapshot, destroy } — the same as
 // null-backend.js, and both draw composeFrame()'s list over the same manifest
 // book, so what the node tests assert is what this paints. The screen adds
 // pick / screenOf: a tap's client point ↔ the last frame's tiles and sprites.
@@ -46,7 +46,7 @@ export function createCanvasBackend(o) {
   lit.c.addEventListener('contextrestored', () => { litSig = null; });
   const stubs = new Map();
   let host = null, canvas = null, ctx = null, ro = null, onResize = null;
-  let map = null, ground = null, chunks = new Map();
+  let map = null, chunks = new Map();
   let z = 2, dpr = 1, W = 1, H = 1, dirty = true, inset = cleanInset(null);
   let T = 32, CHUNK = 16 * T, zs = z;
   /* Ease after an inset change (camera.js easedCam); the FIRST inset is the start, never eased (hero switch). */
@@ -92,24 +92,56 @@ export function createCanvasBackend(o) {
     const g = c.getContext('2d');
     g.imageSmoothingEnabled = false;
     const x0 = cx * CHUNK, y0 = cy * CHUNK;
-    const inside = (t) => t.x < x0 + CHUNK && t.y < y0 + CHUNK && t.x + T > x0 && t.y + T > y0;
+    const own = binned.get(key) || NONE;
     g.fillStyle = tone('void');
-    for (const v of ground.voids) if (inside(v)) g.fillRect(v.x - x0, v.y - y0, T, T);
+    for (const v of own.voids) g.fillRect(v.x - x0, v.y - y0, T, T);
     /* placeholder tones (a town ahead of its ground art): one token per material and parity, read once per chunk */
     const tones = new Map();
-    for (const t of ground.tones) {
-      if (!inside(t)) continue;
+    for (const t of own.tones) {
       const k = 'ground-' + t.m + (t.alt ? '-b' : '-a');
       if (!tones.has(k)) tones.set(k, tone(k));
       g.fillStyle = tones.get(k);
       g.fillRect(t.x - x0, t.y - y0, T, T);
     }
-    for (const t of ground.tiles) {
-      if (!inside(t) || !images[t.set]) continue;
+    for (const t of own.tiles) {
+      if (!images[t.set]) continue;
       g.drawImage(images[t.set], t.sx, t.sy, T, T, t.x - x0, t.y - y0, T, T);
     }
     chunks.set(key, c);
     return c;
+  }
+
+  /* THE GROUND BY CHUNK, binned once per map (each cell into every chunk it touches, in draw order): a chunk
+     bakes from its own cells, not a scan of the whole map's (a 192 x 116 town is 44k cells; v0.2.50's town
+     arrival baked its first chunks in one 100 ms frame, tests/perf-budget.mjs). Kept per map and book, and
+     made by prepare() as soon as a scene's sheets arrive (world-boot.js), so the frame that shows the map
+     only bakes the chunks it draws. */
+  const NONE = Object.freeze({ voids: [], tones: [], tiles: [] });
+  const grounds = new WeakMap();   // compiled map -> { book, bins }
+  let binned = new Map();
+  function bin(gr, T, CHUNK) {
+    const out = new Map();
+    for (const kind of ['voids', 'tones', 'tiles']) {
+      for (const t of gr[kind]) {
+        for (let cy = Math.floor(t.y / CHUNK); cy * CHUNK < t.y + T; cy++) {
+          for (let cx = Math.floor(t.x / CHUNK); cx * CHUNK < t.x + T; cx++) {
+            const k = cx + ',' + cy;
+            let b = out.get(k);
+            if (!b) out.set(k, b = { voids: [], tones: [], tiles: [] });
+            b[kind].push(t);
+          }
+        }
+      }
+    }
+    return out;
+  }
+  function binsFor(m, a) {
+    const had = grounds.get(m);
+    if (had && had.book === a.book) return had.bins;
+    const t = m.T || 32;
+    const bins = bin(groundTiles(m, a.book, a.tables, t), t, 16 * t);
+    grounds.set(m, { book: a.book, bins });
+    return bins;
   }
 
   function blit(g, d, view) {
@@ -483,11 +515,13 @@ export function createCanvasBackend(o) {
       if (art) ({ book, images, tables } = art); else ({ book, images, tables } = o);
       T = m.T || 32; CHUNK = 16 * T;
       dirty = true;
-      ground = groundTiles(m, book, tables, T);
+      binned = binsFor(m, { book, tables });
       chunks = new Map();
       last = null;
       lastCam = camFrom = null;   // a new map never eases in from the old one
     },
+    /** Make map `m`'s ground (drawn with `art` or the constructor's) ahead of the frame that shows it. */
+    prepare(m, art) { binsFor(m, art || o); },
     sync(state) { if (map && canvas) draw(state); },
     /**
      * THE CAMERA INSET: the strips of the stage a docked window covers, in CSS
@@ -547,9 +581,10 @@ export function createCanvasBackend(o) {
       if (ro) ro.disconnect();
       if (onResize) win.removeEventListener('resize', onResize);
       if (canvas) canvas.remove();
-      host = canvas = ctx = ro = onResize = map = last = lastView = ground = null;
+      host = canvas = ctx = ro = onResize = map = last = lastView = null;
       plateHits = [];
       chunks = new Map();
+      binned = new Map();
     },
   };
 }

@@ -1674,15 +1674,15 @@ const MUTATIONS = {
      replay by that pin (v0.2.44 run 40131714242), which proves nothing about this rule. hr_market_rules is restated
      by one file (2027-01-12-market-account.sql) and pinned by none; when a later file pins it, `only` names it. */
   restated_once_untracked: {
+    /* hr_market_mine, not hr_market_rules: 2027-01-21-market-same-network.sql md5-PINS hr_market_rules (rules
+       restate + pin), so this rule's catch must be planted on a body restateOnlyOf() still names. */
     file: '2027-01-12-market-account.sql',
-    only: 'hr_market_rules',
-    what: 'a comment is edited into hr_market_rules (restated by ONE migration, pinned by none) after it was '
+    only: 'hr_market_mine',
+    what: 'a comment is edited into hr_market_mine (restated by ONE migration, pinned by none) after it was '
         + 'applied, and a new body is created once and never pinned: both are bodies production is believed to carry',
-    expect: ['replay hr_market_rules()', 'untracked hr_mut_restated_once'],
-    find: '    from public.hr_market_config c\n$$;\n'
-        + 'revoke execute on function public.hr_market_rules() from public, anon, authenticated, service_role, hr_engine;\n',
-    repl: '    from public.hr_market_config c -- [edited after apply]\n$$;\n'
-        + 'revoke execute on function public.hr_market_rules() from public, anon, authenticated, service_role, hr_engine;\n'
+    expect: ['replay hr_market_mine(p_user uuid, p_slot integer)', 'untracked hr_mut_restated_once'],
+    find: "  return jsonb_build_object('ok', true, 'listings', v_list, 'history', v_hist, 'today', v_today, 'rules', public.hr_market_rules());\nend $$;\n",
+    repl: "  return jsonb_build_object('ok', true, 'listings', v_list, 'history', v_hist, 'today', v_today, 'rules', public.hr_market_rules()); -- [edited after apply]\nend $$;\n"
         + 'create or replace function public.hr_mut_restated_once(p_slot integer) returns integer language sql stable as $m$ select p_slot $m$;\n'
         + 'revoke execute on function public.hr_mut_restated_once(integer) from public, anon, authenticated, service_role;\n',
   },

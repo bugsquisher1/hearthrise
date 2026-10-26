@@ -48,6 +48,7 @@
       "renown_high",
       "role",
       "shop",
+      "skill_inputs",
       "skills",
       "stamina",
       "stamina_refill",
@@ -91,5 +92,5 @@
       "tool_carry"
     ]
   },
-  "generatedAt": "2026-10-24"
+  "generatedAt": "2026-10-26"
 }

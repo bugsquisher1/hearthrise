@@ -468,13 +468,13 @@ export function memberPlant(find, repl) {
     repl: '  execute replace(replace(v_def, a1, r1), $l$' + find + '$l$, $l$' + repl + '$l$);' };
 }
 const MUTANTS = [
-  /* hr_apply's LAST author is 2027-01-14-gear-by-level.sql §2 (one anchored edit of the installed text; its §0 pins the
-     pre-image, the live body after 2026-12-15-account-gold.sql §5, so a plant in an earlier file trips that pin): the
-     defect rides §2 as a second edit of the body it installs. The anchor sits in §2's do-block, in no function body of
-     the text, so the mutant names its body (`fn`). */
-  { arm: 'A-LOCK', file: '2027-01-14-gear-by-level.sql', fn: 'hr_apply', why: 'hr_apply no longer refuses a locked sale',
-    find: '  execute replace(v_def, a1, r1);',
-    repl: '  execute replace(replace(v_def, a1, r1), $l$        if v_n < 0 and coalesce(v_this_intent, \'\') ~ \'^vendor_sell(_many)?(:|$)\' and public.hr_item_locked(v_uid, v_slot, k) then$l$,\n    $l$        if false and coalesce(v_this_intent, \'\') ~ \'^vendor_sell(_many)?(:|$)\' and public.hr_item_locked(v_uid, v_slot, k) then$l$);' },
+  /* hr_apply's LAST author is 2027-01-24-skills-from-storage.sql §2 (five anchored edits of the installed text; its
+     §0 pins the pre-image, gear-by-level's live body, so a plant in an earlier file trips that pin): the defect rides
+     §2 as one more edit of the body it executes. The anchor sits in §2's do-block, in no function body of the text,
+     so the mutant names its body (`fn`). */
+  { arm: 'A-LOCK', file: '2027-01-24-skills-from-storage.sql', fn: 'hr_apply', why: 'hr_apply no longer refuses a locked sale',
+    find: '  end loop;\n  execute v_def;',
+    repl: '  end loop;\n  execute replace(v_def, $l$        if v_n < 0 and coalesce(v_this_intent, \'\') ~ \'^vendor_sell(_many)?(:|$)\' and public.hr_item_locked(v_uid, v_slot, k) then$l$,\n    $l$        if false and coalesce(v_this_intent, \'\') ~ \'^vendor_sell(_many)?(:|$)\' and public.hr_item_locked(v_uid, v_slot, k) then$l$);' },
   /* hr_hunt_loot_rules is RESTATED last by 2027-01-23-loot-dispatch.sql (md5-pinned to its pre-image); hr_hunt_apply_member
      is patched last by 2027-01-20-tutorial-facts.sql (memberPlant): each mutant is planted in the body that runs. */
   { arm: 'A-LOOT-AWAY', why: 'the settle no longer runs the loot filter',
@@ -566,7 +566,8 @@ export function staleAnchors(mutants, { patches = false } = {}) {
 
 function selfCheckOff(file) {
   const src = readFileSync(MIG(file), 'utf8').replace(/\r\n/g, '\n');
-  const m = src.match(/\n(-- (?:── )?§\d+ SELF-CHECK[^\n]*(?:\n--[^\n]*)*)\n(do \$(\w*)\$)/);
+  /* The heading, then anything up to its FIRST do-block: 2027-01-24's §7 defines pg_temp helpers before it. */
+  const m = src.match(/\n(-- (?:── )?§\d+ SELF-CHECK[^\n]*[\s\S]*?)\n(do \$(\w*)\$)/);
   if (!m) throw new Error('no self-check heading in ' + file);
   const head = m[1] + '\n' + m[2];
   const tag = '$' + m[3] + '$';

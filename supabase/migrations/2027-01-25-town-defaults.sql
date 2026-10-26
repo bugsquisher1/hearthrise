@@ -6,6 +6,9 @@
 -- STAGED. Game CLOSED: applies on its passing §5 (CLAUDE.md §2), one file via the
 -- Coordinator's apply tool, never inside begin/commit, never 00:00–00:10 UTC.
 -- DB-ONLY: no hr-accrue change (pack-edge --hash unmoved). Reads only; moves no value.
+-- RESTATEMENT-DEBT-ACK: hr_hunt_section_view's mana fallback is a one-line splice the guard counts
+-- as two; added by lane/a-v0248-ci after this file was APPLIED (2026-10-25), so the restatement is
+-- owed by the next migration that touches hr_hunt_section_view.
 --
 -- ── WHY ──────────────────────────────────────────────────────────────────────
 -- (1) THE BAR IN TOWN (Tyler 2026-10-25: every bar control configurable in town).

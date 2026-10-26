@@ -147,10 +147,9 @@ const SQL_MUTANTS = {
     pairs: [['    if v_md5 is distinct from r.pre and v_md5 is distinct from r.post and v_md5 is distinct from r.live then\n', '    if false then\n']],
     pins: true,
   },
-  loot_sale_unstamped: {
-    why: 'the loot filter\'s sale is journalled outside its hunt: the gold history cannot group it',
-    pairs: [["    perform set_config('hr.hunt_session', p_session::text, true);\n    v_a := public.hr_apply(p_user, p_slot,", "    v_a := public.hr_apply(p_user, p_slot,"]],
-  },
+  /* loot_sale_unstamped RETIRED (v0.2.48): 2027-01-23-loot-dispatch.sql restates hr_hunt_loot_rules with NO sale at
+     pickup, so there is no hunt sale left to unstamp; G7 now asserts none happens, and a sell plan acting at pickup
+     is alpha-server's A-LOOT-ATTENDED mutant, planted in 01-23's body. */
   read_makes_the_purse: {
     why: 'hr_purse_of makes the purse it reads: a STABLE read writes, and PostgREST\'s read-only call raises 25006',
     pairs: [['  select coalesce((select w.gold from public.account_wallet w where w.user_id = p_user), 0)::bigint\n',

@@ -61,7 +61,7 @@ export const SCENERY = Object.freeze([
   ['lamppost', 79, 15], ['lamppost', 88, 15],
   ['crates', 74, 15], ['crates', 75, 15], ['barrels', 74, 16], ['sack_stack', 75, 16], ['cart_wheel', 76, 15],
   ['water_trough', 91, 17], ['hay_bale', 91, 18], ['well', 91, 22],
-  ['lamppost', 80, 23], ['signpost', 84, 26], ['crates', 90, 26],
+  ['lamppost', 80, 23], ['signpost', 86, 27], ['crates', 90, 26],
 ].map((r) => Object.freeze(r)));
 
 /* the ways out of town onto a hunting ground's map: the mill's cellar hatch, the sewer grate */

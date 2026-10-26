@@ -36,6 +36,7 @@ export const REFUSAL_WORDS = Object.freeze({
   network: 'No connection. Nothing was changed.',
   timeout: 'The server has not answered. The game shows what it last confirmed.',
   busy: 'Still saving the last change. Try again in a moment.',
+  town_full: 'There is no free spot to stand here right now. Try again in a moment.',
   no_token: 'You are signed out. Sign in again to keep playing.',
   not_signed_in: 'You are signed out. Sign in again to keep playing.',
   unauthenticated: 'You are signed out. Sign in again to keep playing.',

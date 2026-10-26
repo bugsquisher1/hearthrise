@@ -11,12 +11,14 @@
 //              the trees of the green ground
 //   stations   one stand of each kind the map lint checks (combat, gather, artisan, idle); every
 //              station and its full stand list is ../stations.js
-// ART: the town has no one ground (ground: null): a district whose painted ground has landed is a
-// patch (Hearth Square's paving); every other cell draws in its material's placeholder tone until
-// the art lane's district grounds land. Never another style's tiles under it.
+// ART: the town has no one ground (ground: null). Its ground is BLENDED from the Common family's wang16
+// pairs (BLEND in ../town/sites.js: grass, the dirt roads, the river and sea banks, the flagstone
+// yards, all one tileset family chained from the same grass and dirt tiles), drawn on the dual grid
+// (compose.js blendTiles); Hearth Square's paving is a patch over it. A material no pair draws yet
+// (the mountain rock, the docks' planks, tilled plots, the placeholder sites) stays a placeholder tone.
 import { at, TOWN_NAME, TOWN_MAP } from '../town/plan.js?v=0.2.47';
 import { GROUND_ROWS } from '../town/ground.js?v=0.2.47';
-import { SITES, SCENERY, EXITS, PATCHES, AMBIENT } from '../town/sites.js?v=0.2.47';
+import { SITES, SCENERY, EXITS, PATCHES, AMBIENT, BLEND } from '../town/sites.js?v=0.2.47';
 import { GREENERY } from '../town/greenery.js?v=0.2.47';
 import { STATIONS, STATION_BY_ID, ACTIVITY_STATIONS } from '../stations.js?v=0.2.47';
 
@@ -41,6 +43,7 @@ export default Object.freeze({
   ground: null,
   legend: Object.freeze({ '.': 'grass', ':': 'cobble', '=': 'earth', '_': 'flagstone', '#': 'planks', '~': 'water', '^': 'cliff', '|': 'palisade', 'o': 'site', '%': 'tilled' }),
   rows: GROUND_ROWS,
+  blend: BLEND,
   patches: Object.freeze(PATCHES.map((p) => Object.freeze({ terrain: p.terrain, rect: Object.freeze(at(p.rect[0], p.rect[1]).concat(p.rect[2], p.rect[3])) }))),
   ambient: Object.freeze(AMBIENT.map((a) => Object.freeze(Object.assign({ id: a.id, lift: a.lift }, tile(a.x, a.y))))),
   faces: Object.freeze([]),

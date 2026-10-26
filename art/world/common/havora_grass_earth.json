@@ -1,0 +1,172 @@
+{
+  "id": "havora_grass_earth",
+  "class": "terrain",
+  "kind": "wang16",
+  "style": "s1",
+  "material": "terrain",
+  "source": "havora_grass_earth.png",
+  "lower": "grass",
+  "upper": "earth",
+  "tiles": {
+    "1000": [
+      [
+        0,
+        1
+      ]
+    ],
+    "1001": [
+      [
+        1,
+        1
+      ]
+    ],
+    "1010": [
+      [
+        2,
+        1
+      ]
+    ],
+    "1011": [
+      [
+        3,
+        1
+      ]
+    ],
+    "1100": [
+      [
+        4,
+        1
+      ]
+    ],
+    "1101": [
+      [
+        5,
+        1
+      ]
+    ],
+    "1110": [
+      [
+        6,
+        1
+      ]
+    ],
+    "1111": [
+      [
+        7,
+        1
+      ]
+    ],
+    "0000": [
+      [
+        0,
+        0
+      ]
+    ],
+    "0001": [
+      [
+        1,
+        0
+      ]
+    ],
+    "0010": [
+      [
+        2,
+        0
+      ]
+    ],
+    "0011": [
+      [
+        3,
+        0
+      ]
+    ],
+    "0100": [
+      [
+        4,
+        0
+      ]
+    ],
+    "0101": [
+      [
+        5,
+        0
+      ]
+    ],
+    "0110": [
+      [
+        6,
+        0
+      ]
+    ],
+    "0111": [
+      [
+        7,
+        0
+      ]
+    ]
+  },
+  "pixellab": {
+    "tool": "port-wang",
+    "map": "53d53262-74ed-4f7d-a8d0-61000b251901,91df925a-d1cb-4bcf-b440-d39cbb9b0e9e,4589f28b-7358-49ee-90f8-0501f0ca0683",
+    "sources": [
+      {
+        "ground": "common/common_ground",
+        "tool": "view_map",
+        "map": "53d53262-74ed-4f7d-a8d0-61000b251901",
+        "crops": [
+          [
+            0,
+            0
+          ]
+        ]
+      },
+      {
+        "ground": "forest/meadowbrook_ground",
+        "tool": "view_map",
+        "map": "91df925a-d1cb-4bcf-b440-d39cbb9b0e9e",
+        "crops": [
+          [
+            0,
+            0
+          ],
+          [
+            30,
+            0
+          ],
+          [
+            0,
+            20
+          ],
+          [
+            30,
+            20
+          ]
+        ]
+      },
+      {
+        "ground": "glade/mosslight_ground",
+        "tool": "view_map",
+        "map": "4589f28b-7358-49ee-90f8-0501f0ca0683",
+        "crops": [
+          [
+            0,
+            0
+          ],
+          [
+            30,
+            0
+          ],
+          [
+            0,
+            20
+          ],
+          [
+            30,
+            20
+          ]
+        ]
+      }
+    ]
+  },
+  "notes": "The grass/earth Wang-16 pair recovered from the painted grounds common/common_ground, forest/meadowbrook_ground, glade/mosslight_ground (their tileset tiles, cut on the dual grid) by tools/world-art/port-pixellab.mjs wang; pixels unscaled."
+}

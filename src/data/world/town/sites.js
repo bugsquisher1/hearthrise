@@ -66,6 +66,14 @@ export const EXITS = Object.freeze([
 /* the districts whose painted ground has landed (map-compile.js `patches`): Hearth Square's paving, 24 x 24 */
 export const PATCHES = Object.freeze([Object.freeze({ terrain: 'square_plaza', rect: Object.freeze([106, 36, 24, 24]) })]);
 
+/* THE GROUND (map-compile.js `blend`): the Common family's wang16 pairs, every one chained from the same grass
+   and dirt tiles (art/world/common/havora_*: recovered from the painted Common grounds; square_*_flag: the
+   square's flagstone sets). The cobble lanes draw as flagstone until a cobble pair exists. */
+export const BLEND = Object.freeze({
+  pairs: Object.freeze(['havora_grass_earth', 'havora_grass_water', 'square_grass_flag', 'square_dirt_flag']),
+  alias: Object.freeze({ cobble: 'flagstone' }),
+});
+
 /* looping effects the map places (map-compile.js `ambient`): the Great Hearth's fire over its firebox,
    tile (117, 48) lifted 86 art px (the hearth frame's px (176, 262), sidecar art/world/common/hearth_fire.json) */
 export const AMBIENT = Object.freeze([Object.freeze({ id: 'hearth_fire', x: 117, y: 48, lift: 86 })]);

@@ -31,6 +31,9 @@
 //   spawns [[x,y]], stations { name: [x,y] }, exits [{ x, y, to }], start [x,y]
 //   patches   [{ terrain, rect:[x,y,w,h] }] (ground: null only) a district's painted fill laid into the
 //             placeholder tones (Hearth Square's paving), in its cycle from the rect's corner
+//   blend     { pairs: [terrain…], alias?: { material: material } } (ground: null only) the town's ground as
+//             wang16 PAIRS drawn on the dual grid (compose.js groundTiles): a material with no pair stays a
+//             placeholder tone; alias draws one material with another's art (cobble with flagstone)
 //   ambient   [{ id, x, y, lift }] a looping effect the map places (the Great Hearth's fire), its
 //             anchor `lift` art px above tile (x, y)'s foot row; it blocks nothing
 //   focus     [x,y] (optional) the tile a walked map's camera leans toward, so
@@ -130,6 +133,7 @@ export function compileMap(row, tables) {
     path: expandPath(row.path) || [], spawns: row.spawns || [], stations: row.stations || {},
     exits: row.exits || [], start: row.start, frame: row.frame ? rectOf(row.frame) : null, focus: row.focus || null,
     patches: (row.patches || []).map((p) => ({ terrain: p.terrain, rect: rectOf(p.rect) })),
+    blend: row.blend ? { pairs: row.blend.pairs.slice(), alias: Object.assign({}, row.blend.alias || {}) } : null,
     ambient: (row.ambient || []).map((a) => ({ id: a.id, x: a.x, y: a.y, lift: a.lift || 0 })),
     overlap: bodyOverlap(w, h, objects, buildings, sprites, grid),
   };
@@ -305,6 +309,10 @@ export function lintMap(row, tables) {
     if (row.ground !== null) bad('L-KIND', 'a patch on a map with a ground terrain (patches lay art into a placeholder-tone town)');
     if (terrains && !terrains[p.terrain]) bad('L-KIND', 'patch ground "' + p.terrain + '" is not a terrain in any atlas');
     if (r.length !== 4 || !inside(r[0], r[1]) || !inside(r[0] + r[2] - 1, r[1] + r[3] - 1)) bad('L-WHOLE', 'patch ' + p.terrain + ' ' + JSON.stringify(r) + ' is not whole tiles inside the map');
+  }
+  if (row.blend) {
+    if (row.ground !== null) bad('L-KIND', 'a blend on a map with a ground terrain (a blend draws a placeholder-tone town)');
+    for (const id of row.blend.pairs || []) if (terrains && !(terrains[id] && terrains[id].kind === 'wang16')) bad('L-KIND', 'blend pair "' + id + '" is not a wang16 terrain in any atlas');
   }
   for (const a of row.ambient || []) {
     if (!sprites[a.id] || !inside(a.x, a.y) || !(a.lift == null || WHOLE(a.lift))) bad('L-WHOLE', 'ambient ' + a.id + ' at ' + a.x + ',' + a.y + ' is not a sprite on a whole tile with a whole-px lift');

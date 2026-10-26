@@ -55,6 +55,50 @@ function cellHash(x, y) {
 }
 
 /**
+ * A BLENDED TOWN GROUND (map.blend, a town whose ground art lands as wang16 PAIRS, not one terrain).
+ * The pairs are PixelLab tilesets, drawn the way PixelLab paints a map: on the DUAL grid, each tile
+ * half a cell off the map's cells with its four corners on four cell centres, so a cell's material
+ * fills the cell and every edge between two materials is a transition. Per dual tile: its corner
+ * materials (alias applied); a corner with no pair at all (cliff, a placeholder site) or under a
+ * patch takes its neighbours' material, so finished art runs up to the placeholder and under the
+ * patch's edge; two materials draw their pair's tile; otherwise the pair covering the most corners
+ * draws, each other corner as the member it has a pair with (the lower when both or neither: a
+ * flagstone corner at a grass/road junction reads as grass). What no pair can draw stays a tone.
+ */
+export function blendTiles(map, book, T, inPatch, out) {
+  const { pairs, alias } = map.blend;
+  const terr = pairs.map((id) => ({ id, t: book.terrains[id] })).filter((p) => p.t && p.t.kind === 'wang16');
+  const known = new Set(terr.flatMap((p) => [p.t.lower, p.t.upper]));
+  const paired = (a, b) => terr.some((p) => (p.t.lower === a && p.t.upper === b) || (p.t.lower === b && p.t.upper === a));
+  const matOf = (x, y) => {
+    const cx = Math.min(map.w - 1, Math.max(0, x)), cy = Math.min(map.h - 1, Math.max(0, y));
+    if (inPatch(cx, cy)) return null;
+    const m = map.ground[cy * map.w + cx], a = alias[m] || m;
+    return known.has(a) ? a : null;
+  };
+  const H = T >> 1;
+  for (let y = -1; y < map.h; y++) {
+    for (let x = -1; x < map.w; x++) {
+      const c = [matOf(x, y), matOf(x + 1, y), matOf(x, y + 1), matOf(x + 1, y + 1)];
+      const real = c.filter(Boolean);
+      if (!real.length) continue;
+      /* a hole corner takes the commonest real corner (the first on a tie) */
+      const most = real.reduce((b, m) => (real.filter((v) => v === m).length > real.filter((v) => v === b).length ? m : b), real[0]);
+      for (let i = 0; i < 4; i++) if (!c[i]) c[i] = most;
+      let pick = null, best = -1;
+      for (const p of terr) {
+        const n = c.filter((m) => m === p.t.lower || m === p.t.upper).length;
+        if (n > best) { best = n; pick = p; }
+      }
+      if (!pick) continue;
+      const key = c.map((m) => (m === pick.t.upper || (m !== pick.t.lower && !paired(m, pick.t.lower) && paired(m, pick.t.upper)) ? '1' : '0')).join('');
+      const t = book.tile(pick.id, key, cellHash(x, y));
+      if (t) out.push({ set: t.set, sx: t.sx, sy: t.sy, x: x * T + H, y: y * T + H });
+    }
+  }
+}
+
+/**
  * The static ground: [{ set, sx, sy, x, y }] tiles and [{ x, y }] void cells, art px.
  * @param {object} map compileMap() output
  * @param {object} book createBook()
@@ -69,17 +113,20 @@ export function groundTiles(map, book, tables, T) {
     /* ...except its PATCHES: a district whose painted ground has landed (Hearth Square's paving), a fill laid
        in its cycle order from the patch's own corner. The art grows district by district; the tones shrink. */
     const patchAt = (x, y) => (map.patches || []).find((p) => x >= p.rect.x && y >= p.rect.y && x < p.rect.x + p.rect.w && y < p.rect.y + p.rect.h);
+    const laid = [];
     for (let y = 0; y < map.h; y++) {
       for (let x = 0; x < map.w; x++) {
         const p = patchAt(x, y), pt = p && book.terrains[p.terrain];
         if (pt) {
           const [cols, rows] = pt.cycle || [1, 1];
           const t = book.tile(p.terrain, '1111', ((y - p.rect.y) % rows) * cols + ((x - p.rect.x) % cols));
-          if (t) { tiles.push({ set: t.set, sx: t.sx, sy: t.sy, x: x * T, y: y * T }); continue; }
+          if (t) { laid.push({ set: t.set, sx: t.sx, sy: t.sy, x: x * T, y: y * T }); continue; }
         }
         tones.push({ m: map.ground[y * map.w + x], alt: (x + y) & 1, x: x * T, y: y * T });
       }
     }
+    if (map.blend) blendTiles(map, book, T, (x, y) => !!patchAt(x, y), tiles);
+    tiles.push(...laid);
   }
   const terr = map.groundTerrain === null ? null : book.terrains[map.groundTerrain];
   const upper = terr ? terr.upper : null;

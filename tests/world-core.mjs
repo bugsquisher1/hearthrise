@@ -362,8 +362,25 @@ function check(M) {
         let patched = 0;
         for (let y = 0; y < m.h; y++) for (let x = 0; x < m.w; x++) if (inPatch(x, y)) patched++;
         const toneOk = g.tones.every((t) => !inPatch(t.x / T, t.y / T) && t.m === m.ground[(t.y / T) * m.w + t.x / T]);
-        ok('W2', g.tones.length === m.ground.length - patched && toneOk && g.tiles.length === patched && g.tiles.every((t) => t.set) && !g.voids.length,
-          id + ': a ground with no art must lay one placeholder tone per cell outside its patches, in its material, and art on every patch cell');
+        /* a BLENDED ground (m.blend) adds its pairs' tiles on the dual grid (half a cell off), laid UNDER the patches */
+        const mod = (v) => ((v % T) + T) % T;
+        const half = g.tiles.filter((t) => mod(t.x) !== 0 || mod(t.y) !== 0), whole = g.tiles.filter((t) => mod(t.x) === 0 && mod(t.y) === 0);
+        ok('W2', g.tones.length === m.ground.length - patched && toneOk && whole.length === patched && g.tiles.every((t) => t.set) && !g.voids.length
+          && (m.blend ? half.every((t) => mod(t.x) === T / 2 && mod(t.y) === T / 2) && g.tiles.indexOf(whole[0]) > g.tiles.indexOf(half[half.length - 1]) : !half.length),
+          id + ': a ground with no art must lay one placeholder tone per cell outside its patches, in its material, art on every patch cell, and blend tiles only on the dual grid under the patches');
+        if (m.blend) {
+          /* every cell of a material a blend pair draws (alias applied), outside the patches, is covered by its four dual tiles */
+          const mats = new Set(m.blend.pairs.flatMap((id2) => [book.terrains[id2].lower, book.terrains[id2].upper]));
+          const at = new Set(half.map((t) => (t.x - T / 2) / T + ',' + (t.y - T / 2) / T));
+          const bare = [];
+          for (let y = 0; y < m.h; y++) for (let x = 0; x < m.w; x++) {
+            const mat = m.ground[y * m.w + x];
+            if (inPatch(x, y) || !mats.has(m.blend.alias[mat] || mat)) continue;
+            if (![[x - 1, y - 1], [x, y - 1], [x - 1, y], [x, y]].every(([a, b]) => at.has(a + ',' + b))) bare.push(x + ',' + y);
+          }
+          ok('W2', !bare.length && m.blend.pairs.every((p) => book.terrains[p] && book.terrains[p].kind === 'wang16'),
+            id + ': every cell a blend pair draws must be under its four dual tiles (bare: ' + bare.slice(0, 6).join(' ') + ')');
+        }
         ok('W2', id !== 'town_common' || patched === 24 * 24, 'Hearth Square\'s paving (24 x 24) must be a patch of the town');
         /* the map's ambient loops (the Great Hearth's fire) play on the clock where the map puts them */
         for (const a of m.ambient) {
@@ -381,6 +398,22 @@ function check(M) {
       const painted = !!(book.terrains[m.groundTerrain] && book.terrains[m.groundTerrain].painted);
       const open = painted ? m.ground.length : m.ground.filter((mat) => !tables.materials[mat].solid).length;
       ok('W2', g.tiles.filter((t) => t.set).length >= open && g.voids.length === m.ground.length - open, id + ': the ground must cover every open tile with art and every rock tile with void' + (painted ? ' (painted: every tile with art)' : ''));
+    }
+    /* THE BLEND'S CORNERS (compose.js blendTiles), on a planted 4 x 3 town: grass | earth road | a river row, a cliff
+       cell with no pair. The dual tile between four cells spells their materials; a hole (the cliff) takes its
+       neighbours'; a third material is drawn as the member it pairs with. */
+    {
+      const rowsP = ['..==', '.^==', '~~..'], legend = { '.': 'grass', '=': 'earth', '~': 'water', '^': 'cliff' };
+      const pm = { w: 4, h: 3, ground: rowsP.join('').split('').map((c) => legend[c]), blend: { pairs: ['ge', 'gw'], alias: {} } };
+      const pb = { terrains: { ge: { kind: 'wang16', lower: 'grass', upper: 'earth' }, gw: { kind: 'wang16', lower: 'grass', upper: 'water' } },
+        tile: (id, key) => ({ set: id + ':' + key, sx: 0, sy: 0 }) };
+      const out = [];
+      M.compose.blendTiles(pm, pb, T, () => false, out);
+      const at = (x, y) => (out.find((t) => t.x === x * T + T / 2 && t.y === y * T + T / 2) || {}).set;
+      const want = { '-1,-1': 'ge:0000', '1,-1': 'ge:0101', '1,0': 'ge:0111', '0,1': 'gw:0111', '2,1': 'ge:1100', '1,1': 'ge:1100' };
+      const got = Object.keys(want).map((k) => k + '=' + at(...k.split(',').map(Number)));
+      ok('W2', Object.entries(want).every(([k, v]) => at(...k.split(',').map(Number)) === v) && out.length === 5 * 4,
+        'the blend must draw every dual tile of a planted town with the pair and key of its corners (got ' + got.join(' ') + ', ' + out.length + ' tiles)');
     }
     /* A fill floor (one periodic field, e.g. the cellar's flat earth) is laid in its cycle order, never hashed into seams. */
     for (const id of Object.keys(rows)) {
@@ -522,6 +555,10 @@ const MUTANTS = [
   ['W2', 'a patch of painted ground is left as tones', 'src/world/core/compose.js', [['const p = patchAt(x, y), pt', 'const p = null, pt']]],
   ['W2', 'the map\'s ambient loop never plays', 'src/world/core/compose.js', [["const i = Math.floor((Math.max(0, state.t || 0) * (s.anims[name].fps || 0)) / 1000) % n;", 'const i = 0;']]],
   ['W2', 'a ground with no art lays nothing', 'src/world/core/compose.js', [['tones.push({ m: map.ground[y * map.w + x]', 'void ({ m: map.ground[y * map.w + x]']]],
+  ['W2', 'the blend drawn on the cell grid, not the dual grid', 'src/world/core/compose.js', [['x: x * T + H, y: y * T + H', 'x: x * T, y: y * T']]],
+  ['W2', 'the blend laid over the patches', 'src/world/core/compose.js', [['    if (map.blend) blendTiles(map, book, T, (x, y) => !!patchAt(x, y), tiles);\n    tiles.push(...laid);', '    tiles.push(...laid);\n    if (map.blend) blendTiles(map, book, T, (x, y) => !!patchAt(x, y), tiles);']]],
+  ['W2', 'a hole corner (cliff) leaves its dual tile undrawn', 'src/world/core/compose.js', [['for (let i = 0; i < 4; i++) if (!c[i]) c[i] = most;', 'if (real.length < 4) continue;']]],
+  ['W2', 'a third material drawn as the upper of the pair', 'src/world/core/compose.js', [["(m !== pick.t.lower && !paired(m, pick.t.lower) && paired(m, pick.t.upper))", '(m !== pick.t.lower)']]],
   ['L1', 'every window of a map is let off the tree rule', 'src/world/core/map-compile.js', [['if (2 * greenIn(wx, wy) < ww * wh) continue;', 'continue;']]],
   ['W3', 'a fill floor hashed into seams', 'src/world/core/compose.js', [['const n = fill ? (y % fill[1]) * fill[0] + (x % fill[0]) : cellHash(x, y);', 'const n = cellHash(x, y);']]],
   ['G1', 'an unmapped monster falls into the cellar', 'src/world/core/scene-route.js', [['if (id && index[id]) return', "if (id) return { map: 'mill_cellar', kind: 'hunt' }; if (id && index[id]) return"]]],

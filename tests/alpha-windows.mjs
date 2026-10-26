@@ -10,7 +10,7 @@
 //   node tests/alpha-windows.mjs --shots <dir>  also write the visual-gate screenshots
 //                                               (1440x900 and 922x423)
 //
-// mutant-anchors: src/shell/town-ticker.js src/session/refusal.js src/session/character-session.js src/shell/widgets/amount.js src/shell/windows/inventory/bury.js src/shell/windows/inventory/state.js src/shell/windows/float-menu.js src/shell/bag-model.js src/session/item-sections.js src/shell/windows/inventory/grid.js src/shell/windows/inventory/actions.js src/shell/windows/shop.js src/shell/windows/inventory/doll.js src/session/edge-intents.js src/world/world-boot.js src/world/core/camera.js src/shell/windows/hunts.js src/shell/windows/storage.js src/shell/hunt-list.js src/shell/windows/skills.js src/shell/launcher.js src/shell/upgrade-plan.js src/shell/widgets/upgrade-line.js src/shell/intent-words.js src/shell/town-work.js src/shell/windows/work.js src/shell/hunt-ground-facts.js src/shell/windows/hunt-detail.js src/shell/hunt-go.js src/shell/windows/party-finder.js src/data/refusal-words.js src/styles/windows.css src/session/residue.js src/shell/panel-alpha.js src/styles/shell.css src/shell/shell.js src/shell/alerts.js src/shell/windows/hunt-summary.js src/data/shell-windows.js
+// mutant-anchors: src/shell/town-ticker.js src/session/refusal.js src/session/character-session.js src/shell/widgets/amount.js src/shell/windows/inventory/bury.js src/shell/windows/inventory/state.js src/shell/windows/float-menu.js src/shell/bag-model.js src/session/item-sections.js src/shell/windows/inventory/grid.js src/shell/windows/inventory/actions.js src/shell/windows/shop.js src/shell/windows/inventory/doll.js src/session/edge-intents.js src/world/world-boot.js src/world/core/camera.js src/shell/windows/hunts.js src/shell/windows/storage.js src/shell/hunt-list.js src/shell/windows/skills.js src/shell/launcher.js src/shell/upgrade-plan.js src/shell/widgets/upgrade-line.js src/shell/intent-words.js src/shell/town-work.js src/shell/windows/work.js src/shell/hunt-ground-facts.js src/shell/windows/hunt-detail.js src/shell/hunt-go.js src/shell/windows/party-finder.js src/data/refusal-words.js src/styles/windows.css src/session/residue.js src/shell/panel-alpha.js src/styles/shell.css src/shell/shell.js src/shell/alerts.js src/shell/windows/hunt-summary.js src/data/shell-windows.js src/shell/windows/item-tip.js src/data/armour-weights.js src/data/hunt-tutorial.js src/data/how-to-play.js
 //
 // play.html with supabase-js and the REST paths stubbed (tests/_client-harness.mjs);
 // the character's envelope is tests/fixtures/alpha-envelope.json.
@@ -153,6 +153,11 @@
 //         bag's; the Shop's lines hold the art in a 44 px well; every item icon in Inventory, Storage and the Shop
 //         draws its 32 px art at exactly 1x (a whole scale, never 1.25x / 1.5x); counts and shop prices at 16 px. At
 //         922x423 (a phone) every well, count and line is what it was (36 px, 14.5 px).
+//   AW-34 ARMOR WEIGHTS (Tyler 2026-10-25, src/data/armour-weights.js): the Inventory's "Armor worn" line counts the
+//         SERVER's equipment (2 plate, 1 leather, 1 cloth -> "2 heavy (+9.3% max HP) · 1 medium · 1 light (+5.8% max
+//         mana)", re-read when an envelope takes a piece off); a worn plate helmet's tooltip names its weight and its
+//         share; PURE: every armor row's tooltip line, vitals.js adding that same share, and Tamsin's card (as written
+//         and as the coach says it) and the Help note saying all three weights (`armor words:` mutants judge these).
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
 import { leaseBrowser } from './_chrome.mjs';
@@ -369,7 +374,7 @@ async function pure() {
     workBlock(wcs(1, {}), workRow('artisan', 'forge_bronze_axe'), false), workBlock(wcs(1, { copper_ore: 2 }), bronze, false), String(runsOf(bronze.row, { copper_ore: 11 })),
     workBlock(wcs(1, {}), bronze, false)];
   if (said.join('|') !== 'Needs 2 Copper Ore (you have 1).|Not while a hunt is running.|You need Smithing 3 to make Bronze Axe. You have 1.||5|No Copper Ore in your bag.') fails.push('AW-22 the work rows say ' + JSON.stringify(said));
-  return fails.concat(await huntsPure(imp), await tickerRules(ROOT));
+  return fails.concat(await huntsPure(imp), await tickerRules(ROOT), await armourWordRules(ROOT));
 }
 
 /* AW-25 .. AW-28 PURE: the Hunts page's facts from the data rows and its lines from the server's sections. */
@@ -484,6 +489,50 @@ async function huntsPure(imp) {
 /* AW-25 TOWN WORK COUNTS UP BETWEEN PAYOUTS (Tyler 2026-10-23), the pure rules: src/shell/town-ticker.js runs the
    server's own span loop on the envelope's numbers. `base` is the repo, or a temp copy of src a ticker mutant was
    planted into (TICKER_MUTANTS below). */
+/* AW-34 PURE (the armor weights' words), run on `base` so the `armor words:` mutants judge a planted copy of src. */
+async function armourWordRules(base) {
+  const fails = [];
+  const imp = (p) => import(pathToFileURL(join(base, p)).href);
+  /* AW-34 PURE: every armor piece's tooltip names its weight and its share, read off the rules; a cape or shield none; the
+     new-player path (Tamsin's card, where the hero first picks a weight) and the Help note say all three weights. */
+  const AW = await imp('src/data/armour-weights.js');
+  const { VITALS, ARMOUR_WEIGHT, ARMOUR_SLOTS } = await imp('src/data/core-model.js');
+  const { ITEMS } = await imp('src/data/items.js');
+  const pc = (pm) => '+' + Math.floor(pm) / 10 + '%';
+  const FULL = { heavy: ['max HP', VITALS.heavyHpPermille], light: ['max mana', VITALS.lightManaPermille] };
+  for (const [id, it] of Object.entries(ITEMS)) {
+    const w = it.slot ? ARMOUR_WEIGHT[it.armourClass] : null;
+    const pw = AW.pieceWords(id);
+    if (!w) { if (pw) fails.push('AW-34 ' + id + ' (no armor weight) gets a weight line'); continue; }
+    const f = FULL[w];
+    const ok = pw && pw.head.toLowerCase() === w + ' armor'
+      && (f ? pw.text.includes(pc(f[1] / ARMOUR_SLOTS.length) + ' ' + f[0] + ', of the ' + pc(f[1]) + ' a full ' + w + ' set') : /no HP or mana/.test(pw.text) && /miss/.test(pw.text));
+    if (!ok) { fails.push('AW-34 ' + id + ' (' + w + ') tooltip weight line reads ' + JSON.stringify(pw)); break; }
+  }
+  const wornW = AW.wornWeights({ helmet: 'iron_helm', body: 'bronze_platebody', boots: 'leather_boots', pants: 'apprentice_pants', cape: Object.keys(ITEMS).find((k) => ITEMS[k].slot === 'cape'), weapon: 'iron_sword' });
+  if (wornW.map((x) => x.text).join(' · ') !== '2 heavy (' + pc(VITALS.heavyHpPermille * 2 / ARMOUR_SLOTS.length) + ' max HP) · 1 medium (more blows miss) · 1 light (' + pc(VITALS.lightManaPermille / ARMOUR_SLOTS.length) + ' max mana)')
+    fails.push('AW-34 the worn-weight line for 2 plate, 1 leather, 1 cloth and a cape reads ' + JSON.stringify(wornW));
+  /* the share the words say is the one the engine adds: vitals.js maxHpFor / maxManaFor at every count (L 100) */
+  const { maxHpFor, maxManaFor } = await imp('src/core/vitals.js');
+  for (let n = 0; n <= ARMOUR_SLOTS.length; n++) {
+    const hp = Math.floor(((VITALS.hpBase + VITALS.hpPerLevel * 99) * (1000 + Math.floor((VITALS.heavyHpPermille * n) / ARMOUR_SLOTS.length))) / 1000);
+    const mp = Math.floor(((VITALS.manaBase + VITALS.manaPerLevel * 99) * (1000 + Math.floor((VITALS.lightManaPermille * n) / ARMOUR_SLOTS.length))) / 1000);
+    if (maxHpFor(100, n) !== hp || maxManaFor(100, n) !== mp) { fails.push('AW-34 vitals.js no longer adds the share the armor words say (' + n + ' pieces)'); break; }
+  }
+  const { HUNT_TUTORIAL, cardFor } = await imp('src/data/hunt-tutorial.js');
+  const { HELP_NOTES } = await imp('src/data/how-to-play.js');
+  const tamStep = HUNT_TUTORIAL.find((st) => st.id === 'tamsins_task') || {};
+  /* both the card as written and as the coach says it to a hero (cardFor: the role's advice) */
+  const tam = (tamStep.text || '') + ' | ' + ((cardFor(tamStep, { role: 'mage' }) || {}).text || '');
+  const help = (HELP_NOTES.find((n) => n.id === 'armour') || {}).text || '';
+  for (const w of AW.WEIGHT_ORDER) {
+    if (tam.split(' | ').some((t) => !t.includes(AW.weightShort(w)))) fails.push('AW-34 the tally card does not say what ' + w + ' armor gives: ' + JSON.stringify(tam));
+    if (!help.includes(AW.weightSentence(w))) fails.push('AW-34 the Help note does not say what ' + w + ' armor gives');
+  }
+  if (!/max HP/.test(tam) || !/max mana/.test(tam) || !/miss/.test(tam)) fails.push('AW-34 the tally card names no weight effect: ' + JSON.stringify(tam));
+  return fails;
+}
+
 async function tickerRules(base) {
   const fails = [];
   const imp = (p) => import(pathToFileURL(join(base, p)).href);
@@ -774,6 +823,24 @@ async function checks(overrides, shots) {
         await pushEnvelope(page, s);
         const now = await page.evaluate(() => document.querySelector('.hw-slot[data-slot="weapon"]').getAttribute('data-item'));
         if (now !== 'steel_sword') fails.push('AW-4 after the server’s envelope, the doll shows ' + now);
+        /* AW-34 ARMOR WEIGHTS (Tyler 2026-10-25): the doll's worn-weight line counts the SERVER's equipment by the server's
+           own sum (vitals.js maxHpFor), and the worn piece's tooltip names its weight and its share. */
+        const { VITALS, ARMOUR_SLOTS } = await import(pathToFileURL(join(ROOT, 'src/data/core-model.js')).href);
+        const share = (pm, n) => '+' + Math.floor((pm * n) / ARMOUR_SLOTS.length) / 10 + '%';
+        const weightsLine = () => page.evaluate(() => { const p = document.querySelector('.hw-weights'); return p && p.classList.contains('is-on') ? Array.from(p.querySelectorAll('span')).map((x) => x.textContent).join(' · ') : null; });
+        Object.assign(s.env.equipment, { helmet: 'iron_helm', body: 'bronze_platebody', pants: 'apprentice_pants' });
+        await pushEnvelope(page, s);
+        const want = '2 heavy (' + share(VITALS.heavyHpPermille, 2) + ' max HP) · 1 medium (more blows miss) · 1 light (' + share(VITALS.lightManaPermille, 1) + ' max mana)';
+        if ((await weightsLine()) !== want) fails.push('AW-34 the worn-weight line reads ' + JSON.stringify(await weightsLine()) + ', want ' + JSON.stringify(want));
+        if (shots) await shot(page, 'armour-weight-1440x900-doll');
+        await page.hover('.hw-slot[data-slot="helmet"]');
+        const tip = await page.evaluate(() => { const t = document.querySelector('.hw-tip.is-on .hw-tip-weight'); return t ? t.textContent : null; });
+        if (!tip || !tip.startsWith('Heavy armor') || !tip.includes(share(VITALS.heavyHpPermille, 1) + ' max HP, of the ' + share(VITALS.heavyHpPermille, ARMOUR_SLOTS.length) + ' a full heavy set of ' + ARMOUR_SLOTS.length))
+          fails.push('AW-34 the worn plate helmet\'s tooltip weight line reads ' + JSON.stringify(tip));
+        if (shots) await shot(page, 'armour-weight-1440x900-doll-tip');
+        delete s.env.equipment.helmet;
+        await pushEnvelope(page, s);
+        if (!String(await weightsLine()).startsWith('1 heavy (' + share(VITALS.heavyHpPermille, 1) + ' max HP)')) fails.push('AW-34 after the server took the helmet off, the line reads ' + JSON.stringify(await weightsLine()));
         if (shots) { await page.click('.hw-slot[data-slot="weapon"]'); await page.waitForTimeout(200); await shot(page, 'alpha-1440x900-gear-slot'); }
       }
       if (errors.length) fails.push('AW-1 console errors: ' + errors.slice(0, 3).join(' | '));
@@ -2000,6 +2067,25 @@ async function checks(overrides, shots) {
       } else fails.push('AW-1 the phone size did not mount');
       await ctx.close();
     }
+
+    if (shots) { // AW-34's look on a landscape phone: the worn-weight line and a plate helmet's tooltip
+      const { ctx, page, up } = await open({ viewport: { width: 844, height: 390 }, mutateEnv: (e) => {
+        for (const k of ['hunt', 'hunt_analyzer', 'hunt_track', 'hunt_events', 'party']) delete e[k];
+        e.state = Object.assign({}, e.state, { active_kind: 'idle', active_id: null });
+        Object.assign(e.equipment, { helmet: 'iron_helm', body: 'bronze_platebody', pants: 'apprentice_pants' });
+      } });
+      if (up && await openWin(page, 'b', 'inventory')) {
+        await page.waitForTimeout(300);
+        await page.evaluate(() => document.querySelector('.hw-weights').scrollIntoView({ block: 'center' }));
+        await page.mouse.move(2, 380);
+        await page.waitForTimeout(150);
+        await shot(page, 'armour-weight-844x390-doll');
+        await page.hover('.hw-slot[data-slot="helmet"]');
+        await page.waitForTimeout(150);
+        await shot(page, 'armour-weight-844x390-doll-tip');
+      } else fails.push('AW-34 the 844x390 Inventory did not open');
+      await ctx.close();
+    }
   } catch (e) {
     /* A step that threw is HARNESS, never a rule (2026-10-22: AW-8's disabled click "caught" every later
        mutant). A rule whose control a mutant can hide checks for the control and fails BY NAME. */
@@ -2012,6 +2098,12 @@ async function checks(overrides, shots) {
 }
 
 const MUTANTS = [
+  ['armor weight: the doll line never shows', 'src/shell/windows/inventory/doll.js', "  cls(p, 'is-on', !!eq);", "  cls(p, 'is-on', false);"],
+  ['armor weight: the doll line counts the bag, not the worn set', 'src/shell/windows/inventory/doll.js', "for (const x of wornWeights(eq))", "for (const x of wornWeights(Object.fromEntries((bagOf(st.cs) || []).map((r, i) => [i, r.id]))))"],
+  ['armor weight: the tooltip drops the weight line', 'src/shell/windows/item-tip.js', '  if (wt) h +=', '  if (wt && false) h +='],
+  ['armor weight: the share is not the server sum', 'src/data/armour-weights.js', "const pct = (pm) => '+' + (Math.round(pm) / 10) + '%';", "const pct = (pm) => '+' + (Math.round(pm) / 10 + 1) + '%';"],
+  ['armor words: the coach card stops naming the weights', 'src/data/hunt-tutorial.js', "pays you in. ' + WEIGHTS_SAID + ' ' + pick", "pays you in. ' + pick"],
+  ['armor words: the Help note forgets medium', 'src/data/how-to-play.js', "    + WEIGHT_ORDER.map(weightSentence).join(' ') + ' Pieces", "    + WEIGHT_ORDER.filter((w) => w !== 'medium').map(weightSentence).join(' ') + ' Pieces"],
   ['a bag icon draws at 1.5x in its well', 'src/styles/windows.css', '.hw-pocket .hw-ico .hh-icon, .hw-slot .hw-ico .hh-icon { width: 32px; height: 32px; }', '.hw-pocket .hw-ico .hh-icon, .hw-slot .hw-ico .hh-icon { width: 48px; height: 48px; }'],
   ['the Shop lines go 2x again', 'src/styles/windows.css', '.hw-line .hw-ico .hh-icon { width: 32px; height: 32px; }', '.hw-line .hw-ico .hh-icon { width: 64px; height: 64px; }'],
   ['the bag wells stay 36 px on Steam', 'src/styles/windows.css', 'width: round(down, clamp(36px, 36px + (100vw - 1024px) / 32, 44px), 2px); height: round(down, clamp(36px, 36px + (100vw - 1024px) / 32, 44px), 2px);', 'width: 36px; height: 36px;'],
@@ -2155,7 +2247,7 @@ async function main() {
   const sharded = shardOf(MUTANTS);
   const mine = sharded && only ? sharded.filter(([n]) => n.startsWith(only)) : sharded;
   if (!mine || !mine.length) { console.log('  ✗ HARNESS: bad --shard (want --shard=K/N with 1 <= K <= N) or no mutant matches --only'); process.exit(2); }
-  const pureOnly = mine.every(([n]) => n.startsWith('ticker:'));
+  const pureOnly = mine.every(([n]) => n.startsWith('ticker:') || n.startsWith('armor words:'));
   const clean = await cleanControl(() => (pureOnly ? pure() : checks(null, null)));
   console.log(clean.line);
   if (clean.code) process.exit(clean.code);
@@ -2170,7 +2262,7 @@ async function main() {
       over[f] = text.replace(x, y);
     }
     if (missing) { console.log('  ✗ ' + name + ' — HARNESS: anchor not found in ' + missing); counts.harness++; continue; }
-    const v = await judge(() => (name.startsWith('edgeBody') ? pureMutant(over[file]) : name.startsWith('ticker:') ? tickerMutant(over) : checks(over, null)));
+    const v = await judge(() => (name.startsWith('edgeBody') ? pureMutant(over[file]) : name.startsWith('ticker:') ? tickerMutant(over) : name.startsWith('armor words:') ? tickerMutant(over, armourWordRules) : checks(over, null)));
     console.log(report(name, v, counts));
   }
   console.log(exitOf(counts) ? 'alpha-windows --mutate: ' + counts.escaped + ' escaped, ' + counts.harness + ' HARNESS (not catches)' : 'alpha-windows --mutate: ' + mine.length + '/' + mine.length + ' mutants caught, each by a named rule' + (mine === MUTANTS ? '' : ' (' + (only ? '--only=' + only + ', ' : '') + 'of ' + MUTANTS.length + ')'));
@@ -2190,12 +2282,12 @@ function shardOf(list) {
 
 /* A ticker mutant is judged by the pure AW-24 rules, run from a temp copy of src (minus the vendored SDK) with the
    planted files written in: the working tree is never touched, and each copy is a fresh module graph. */
-async function tickerMutant(over) {
+async function tickerMutant(over, rules = tickerRules) {
   const tmp = mkdtempSync(join(tmpdir(), 'hr-ticker-'));
   try {
     cpSync(join(ROOT, 'src'), join(tmp, 'src'), { recursive: true, filter: (p) => !/[\\/]vendor([\\/]|$)/.test(p.slice(ROOT.length)) });
     for (const [f, text] of Object.entries(over)) writeFileSync(join(tmp, f), text);
-    return await tickerRules(tmp);
+    return await rules(tmp);
   } finally { rmSync(tmp, { recursive: true, force: true }); }
 }
 

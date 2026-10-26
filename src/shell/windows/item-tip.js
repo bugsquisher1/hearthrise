@@ -4,7 +4,7 @@
 // One floating tooltip per page, shown on hover or keyboard focus of an item:
 //   the name in its rarity, what kind of thing it is, its line of flavour,
 //   its stats and — for gear — what changes against the piece worn in that
-//   slot, where it comes from, what it is for, what the shop pays for it
+//   slot, what its armor weight gives, where it comes from, what it is for, what the shop pays for it
 //   (the server's bid, never a client price), its lock and loot rule.
 // Display only: it reads the catalogue (src/shell/item-lore.js) and the
 // numbers the window hands it from the envelope, and sends nothing.
@@ -15,6 +15,7 @@ import { itemName } from '../widgets/bits.js?v=0.2.47';
 import { kindWords, sourcesOf, usesOf, flavourOf, needOf } from '../item-lore.js?v=0.2.47';
 import { statLines, compare, rarityOf } from '../bag-model.js?v=0.2.47';
 import { planWords } from '../loot-dispatch.js?v=0.2.47';
+import { pieceWords } from '../../data/armour-weights.js?v=0.2.47';
 
 const GAP = 10;
 
@@ -41,6 +42,9 @@ function tipHtml(id, o) {
         : '<p class="hw-tip-cmp">No change.</p>';
     }
   }
+  /* what its weight gives (Tyler 2026-10-25: players did not know heavy, medium and light differ) */
+  const wt = pieceWords(id);
+  if (wt) h += '<p class="hw-tip-line hw-tip-weight"><small>' + esc(wt.head) + '</small>' + esc(wt.text) + '</p>';
   const need = needOf(id, opt.skills, opt.level);
   if (need) h += '<p class="hw-tip-need' + (need.short ? ' is-short' : '') + '">' + esc(need.text) + '</p>';
   const src = sourcesOf(id, opt.offers);

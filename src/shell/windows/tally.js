@@ -22,6 +22,7 @@ import { huntOf } from '../../session/hunt-sections.js?v=0.2.47';
 import { huntName } from '../../session/party-sections.js?v=0.2.47';
 import { goldOf } from '../../session/item-sections.js?v=0.2.47';
 import { TALLY_KEEPER, TALLY_RULES, tallyTask } from '../../data/tally-tasks.js?v=0.2.47';
+import { weightSentence, WEIGHT_ORDER } from '../../data/armour-weights.js?v=0.2.47';
 import { rows, text, cls, attr, prop, style, element } from '../../render/paint.js?v=0.2.47';
 import { whole, gold } from '../../render/format.js?v=0.2.47';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.47';
@@ -54,7 +55,7 @@ export function renderTally(ctx) {
     + '<h3 class="hw-ledger-head is-on">The armor she pays you in</h3>'
     + '<p class="hs-note ht-pick-note"></p>'
     + '<div class="ht-weights" role="group" aria-label="The armor weight she pays you in">'
-    + TALLY_RULES.weights.map((w) => '<button type="button" class="hh-seg" data-hs-act="weight" data-weight="' + w + '" aria-pressed="false">' + WEIGHT_WORDS[w] + '</button>').join('')
+    + TALLY_RULES.weights.map((w) => '<button type="button" class="hh-seg" data-hs-act="weight" data-weight="' + w + '" aria-pressed="false" title="' + esc(weightSentence(w)) + '">' + WEIGHT_WORDS[w] + '</button>').join('')
     + '</div><ol class="ht-order" aria-label="The order she pays armor slots in"></ol>'
     + '<h3 class="hw-ledger-head is-on">Her board</h3><ul class="hw-ledger ht-board"></ul>'
     + '<p class="hh-empty ht-wait">Loading her board…</p>'
@@ -124,7 +125,7 @@ renderTally.patch = function patchTally(body, ctx) {
   text(root.querySelector('.ht-today'), t ? 'Paid today: ' + t.paidToday + ' of ' + t.perDay : '');
   rows(root.querySelector('.ht-held'), t ? t.held : [], { key: (x) => x.task, build: (x) => element(ctx.doc, heldHtml(x)), patch: (li, x) => patchHeld(li, x, st) });
   cls(root.querySelector('.ht-none'), 'is-on', !!t && !t.held.length);
-  text(root.querySelector('.ht-pick-note'), !t ? '' : !t.weight ? 'Pick the armor weight she pays you in. You can change it later.'
+  text(root.querySelector('.ht-pick-note'), !t ? '' : !t.weight ? 'Pick the armor weight she pays you in. You can change it later. ' + WEIGHT_ORDER.map(weightSentence).join(' ')
     : 'Each task pays its gold and one ' + WEIGHT_WORDS[t.weight].toLowerCase() + ' armor piece from that ground she hasn\'t given you yet, in the slot order below. '
       + 'Once you\'ve had every piece, she pays in crafting materials instead.');
   for (const b of root.querySelectorAll('[data-hs-act="weight"]')) {

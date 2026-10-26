@@ -69,6 +69,7 @@ import { nextUnlock } from './skill-unlocks.js?v=0.2.47';
 import { SKILLS_DEF } from './skills.js?v=0.2.47';
 import { CROPS, TREES, ROCKS } from './gathering.js?v=0.2.47';
 import { tallyTask } from './tally-tasks.js?v=0.2.47';
+import { WEIGHT_ORDER, weightShort } from './armour-weights.js?v=0.2.47';
 import { ITEMS } from './items.js?v=0.2.47';
 import { BASIC_INDEX } from './supply-basics.js?v=0.2.47';
 import { LEVEL_REQ } from './gear-tiers.js?v=0.2.47';
@@ -131,6 +132,8 @@ const step = (id, title, text, anchor, done, more) => Object.freeze({ id, title,
 
 /* The task Tamsin's card names: a solo task on the solo ground (tally-tasks.js). */
 const WOLVES = tallyTask('thicket_gray_wolves');
+/* The first place a new hero picks an armor weight: one sentence a weight (Tyler 2026-10-25, src/data/armour-weights.js). */
+const WEIGHTS_SAID = WEIGHT_ORDER.map(weightShort).join(' ');
 const CELLAR = 'mill_cellar', THICKET = 'meadowbrook_thicket';
 /* A second hero skips the knowledge cards once another hero on the account is past this Level (the designer's rule:
    it has lived through the first hour; the cards that set THIS hero's own state still show). */
@@ -248,7 +251,7 @@ export const HUNT_TUTORIAL = Object.freeze([
     'services', { kind: 'blessed' }, { when: [IN_TOWN, { kind: 'level_at', at: HUNT_INDEX[THICKET].band[0] }, { kind: 'below_free' }],
       inWindow: 'Press Services, then Bless on each of the three Blessings.', hooks: TO_BLESS }),
   step('tamsins_task', 'Tamsin\'s wolves',
-    'Tamsin pays for kills. Open her tally, pick the armor weight she pays you in, then Take ' + WOLVES.count + ' ' + WOLVES.label
+    'Tamsin pays for kills. Open her tally and pick the armor weight she pays you in. ' + WEIGHTS_SAID + ' Then Take ' + WOLVES.count + ' ' + WOLVES.label
       + '. Every kill counts, even while you\'re away.',
     'tally', { kind: 'tally_taken', task: WOLVES.id }, { when: [IN_TOWN], ring: { task: WOLVES.id } }),
   step('into_the_thicket', 'Into the Thicket',
@@ -650,7 +653,7 @@ const SAY = Object.freeze({
   tamsins_task: (f) => {
     const w = WEIGHT_FOR_ROLE[f.role];
     const pick = w ? uc(w) + ' suits ' + ROLE_WORDS[f.role] + '. Then' : 'Then';
-    return { text: 'Tamsin pays for kills. Open her tally and pick the armor weight she pays you in. ' + pick + ' Take ' + WOLVES.count + ' ' + WOLVES.label
+    return { text: 'Tamsin pays for kills. Open her tally and pick the armor weight she pays you in. ' + WEIGHTS_SAID + ' ' + pick + ' Take ' + WOLVES.count + ' ' + WOLVES.label
       + ': every kill counts, even while you\'re away.' };
   },
   first_death: (f) => {

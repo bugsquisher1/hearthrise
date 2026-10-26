@@ -205,6 +205,11 @@
 .hw-inv-cols { display: flex; align-items: flex-start; gap: 10px; }
 .hw-inv-grid { flex: 1; min-width: 0; min-height: 186px; padding: 4px; background: var(--surf-sunken); box-shadow: var(--hw-well); }
 .hw-cats.is-off, .hw-tools.is-off { display: none; }
+/* The worn set's armor weights, under both columns (doll.js patchWeights): a label, then one plain line. */
+.hw-weights { display: none; margin: 6px 0 0; font-size: var(--t-micro); color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; cursor: help; }
+.hw-weights.is-on { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 12px; }
+.hw-weights span { white-space: nowrap; }
+.hw-weights small { font-family: var(--f-label); font-weight: 700; letter-spacing: .04em; color: var(--ink-3); }
 .hw-inv-foot { display: flex; align-items: center; gap: 10px; margin-top: 6px; font-size: var(--t-micro); color: var(--ink-2); }
 .hw-capacity { display: none; flex: 1; min-width: 0; align-items: center; gap: 6px; }
 .hw-capacity.is-on { display: flex; }

@@ -40,6 +40,7 @@ export const DISTRICTS = Object.freeze({
   mill: Object.freeze({ name: 'The Mill', rect: Object.freeze([84, 20, 18, 18]) }),
   smithy: Object.freeze({ name: 'The Smithy Yard', rect: Object.freeze([52, 36, 32, 12]) }),
   hearth_square: Object.freeze({ name: 'Hearth Square', rect: Object.freeze([100, 36, 32, 24]) }),
+  barracks: Object.freeze({ name: 'The Barracks', rect: Object.freeze([106, 60, 26, 16]) }),
   mine: Object.freeze({ name: 'The Mine', rect: Object.freeze([128, 30, 36, 24]) }),
   training: Object.freeze({ name: 'The Training Yard', rect: Object.freeze([58, 60, 22, 18]) }),
   sewer: Object.freeze({ name: 'The Sewer Works', rect: Object.freeze([40, 54, 20, 20]) }),

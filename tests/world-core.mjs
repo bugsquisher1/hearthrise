@@ -357,8 +357,21 @@ function check(M) {
       const m = compiled(id);
       /* A town ahead of its ground art (ground: null) is a placeholder tone under every cell, and no art or void. */
       if (m.groundTerrain === null) {
-        ok('W2', g.tones.length === m.ground.length && g.tones.every((t, i) => t.m === m.ground[i]) && !g.tiles.length && !g.voids.length,
-          id + ': a ground with no art must lay one placeholder tone per cell, in its material, and nothing else');
+        /* ...except its patches (Hearth Square's paving): art there, in the patch's own set */
+        const inPatch = (x, y) => m.patches.some((p) => x >= p.rect.x && y >= p.rect.y && x < p.rect.x + p.rect.w && y < p.rect.y + p.rect.h);
+        let patched = 0;
+        for (let y = 0; y < m.h; y++) for (let x = 0; x < m.w; x++) if (inPatch(x, y)) patched++;
+        const toneOk = g.tones.every((t) => !inPatch(t.x / T, t.y / T) && t.m === m.ground[(t.y / T) * m.w + t.x / T]);
+        ok('W2', g.tones.length === m.ground.length - patched && toneOk && g.tiles.length === patched && g.tiles.every((t) => t.set) && !g.voids.length,
+          id + ': a ground with no art must lay one placeholder tone per cell outside its patches, in its material, and art on every patch cell');
+        ok('W2', id !== 'town_common' || patched === 24 * 24, 'Hearth Square\'s paving (24 x 24) must be a patch of the town');
+        /* the map's ambient loops (the Great Hearth's fire) play on the clock where the map puts them */
+        for (const a of m.ambient) {
+          const fx = (t) => (frame(id, { x: a.x, y: a.y + 2 }, { t }).fx || []).find((e) => e.id === a.id);
+          const f0 = fx(0), f1 = fx(130);
+          ok('W2', !!f0 && !!f1 && f0.cy === Math.round((a.y + 1) * T - 1 - a.lift) && (f0.sx !== f1.sx || f0.sy !== f1.sy),
+            id + ': the ambient ' + a.id + ' at ' + a.x + ',' + a.y + ' must be drawn, lifted ' + a.lift + ' px, and loop on the clock');
+        }
         const css = M.tokensCss;
         const missing = [...new Set(m.ground)].filter((mat) => !['a', 'b'].every((k) => css.includes('--world-ground-' + mat + '-' + k + ':')));
         ok('W2', !missing.length, id + ': no placeholder tone token (src/styles/tokens.css --world-ground-<material>-a/-b) for ' + missing.join(', '));
@@ -506,6 +519,8 @@ const MUTANTS = [
   ['L0', 'a map row edited without its hash', 'src/data/world/maps/mill_cellar.js', [["    '########################',\n    '###...................##',\n", "    '########################',\n    '###.......#...........##',\n"]]],
   ['P1', 'diagonals cut corners', 'src/world/core/path.js', [['if (dx && dy) return walkable', 'if (false) return walkable']]],
   ['W1', 'a lone tile stops melting', 'src/world/core/wang.js', [['up >= 3 ? 1 : 0', 'up >= 1 ? 1 : 0']]],
+  ['W2', 'a patch of painted ground is left as tones', 'src/world/core/compose.js', [['const p = patchAt(x, y), pt', 'const p = null, pt']]],
+  ['W2', 'the map\'s ambient loop never plays', 'src/world/core/compose.js', [["const i = Math.floor((Math.max(0, state.t || 0) * (s.anims[name].fps || 0)) / 1000) % n;", 'const i = 0;']]],
   ['W2', 'a ground with no art lays nothing', 'src/world/core/compose.js', [['tones.push({ m: map.ground[y * map.w + x]', 'void ({ m: map.ground[y * map.w + x]']]],
   ['L1', 'every window of a map is let off the tree rule', 'src/world/core/map-compile.js', [['if (2 * greenIn(wx, wy) < ww * wh) continue;', 'continue;']]],
   ['W3', 'a fill floor hashed into seams', 'src/world/core/compose.js', [['const n = fill ? (y % fill[1]) * fill[0] + (x % fill[0]) : cellHash(x, y);', 'const n = cellHash(x, y);']]],

@@ -66,7 +66,20 @@ export function groundTiles(map, book, tables, T) {
      PLACEHOLDER in its material's tone, two tones checkered (--world-ground-<material>-a/-b), so the layout
      reads and nothing pretends to be finished art. Building floors and placed sprites still draw over it. */
   if (map.groundTerrain === null) {
-    for (let y = 0; y < map.h; y++) for (let x = 0; x < map.w; x++) tones.push({ m: map.ground[y * map.w + x], alt: (x + y) & 1, x: x * T, y: y * T });
+    /* ...except its PATCHES: a district whose painted ground has landed (Hearth Square's paving), a fill laid
+       in its cycle order from the patch's own corner. The art grows district by district; the tones shrink. */
+    const patchAt = (x, y) => (map.patches || []).find((p) => x >= p.rect.x && y >= p.rect.y && x < p.rect.x + p.rect.w && y < p.rect.y + p.rect.h);
+    for (let y = 0; y < map.h; y++) {
+      for (let x = 0; x < map.w; x++) {
+        const p = patchAt(x, y), pt = p && book.terrains[p.terrain];
+        if (pt) {
+          const [cols, rows] = pt.cycle || [1, 1];
+          const t = book.tile(p.terrain, '1111', ((y - p.rect.y) % rows) * cols + ((x - p.rect.x) % cols));
+          if (t) { tiles.push({ set: t.set, sx: t.sx, sy: t.sy, x: x * T, y: y * T }); continue; }
+        }
+        tones.push({ m: map.ground[y * map.w + x], alt: (x + y) & 1, x: x * T, y: y * T });
+      }
+    }
   }
   const terr = map.groundTerrain === null ? null : book.terrains[map.groundTerrain];
   const upper = terr ? terr.upper : null;
@@ -76,7 +89,7 @@ export function groundTiles(map, book, tables, T) {
   const painted = !!(terr && terr.painted);
   const solid = (x, y) => { const m = tables.materials[map.ground[y * map.w + x]]; return !painted && !!(m && m.solid); };
   const g = vertexGrid((x, y) => map.ground[y * map.w + x] === upper, map.w, map.h);
-  for (let y = 0; y < (tones.length ? 0 : map.h); y++) {
+  for (let y = 0; y < (map.groundTerrain === null ? 0 : map.h); y++) {
     for (let x = 0; x < map.w; x++) {
       if (solid(x, y)) { voids.push({ x: x * T, y: y * T }); continue; }
       /* A fill is one periodic field cut into a cols x rows cycle: lay it in order so it tiles seamlessly. */
@@ -258,6 +271,20 @@ export function composeFrame(map, book, state, view, tables, T) {
   for (const f of state.floats || []) {
     const age = Math.max(0, Math.min(1, f.age / (f.life || 1000)));
     floats.push({ text: f.text, kind: f.kind, big: !!f.big, x: (f.x + 0.5) * T + (f.dx || 0), y: f.y * T - 6 * k + (f.dy || 0) - 14 * k * age, alpha: age < 0.66 ? 1 : (1 - age) / 0.34 });
+  }
+  /* AMBIENT LOOPS (map-compile.js `ambient`: the Great Hearth's fire): a looping effect the MAP places, on the
+     state's clock, its anchor `lift` art px above the tile's foot row; drawn with the effects, after the light. */
+  for (const a of map.ambient || []) {
+    const s = book.sprite(a.id);
+    const name = s.anims && (s.anims.idle ? 'idle' : s.anims.play ? 'play' : null);
+    if (!name) continue;
+    const n = book.frames(a.id, name, 's');
+    const i = Math.floor((Math.max(0, state.t || 0) * (s.anims[name].fps || 0)) / 1000) % n;
+    const f = book.frame(a.id, name, 's', i);
+    const px = Math.round((a.x + 0.5) * T), py = Math.round((a.y + 1) * T - 1 - (a.lift || 0));
+    if (!near(px - f.ax, py - f.ay, f.w, f.h)) continue;
+    effects.push({ id: a.id, set: f.set, sx: f.sx, sy: f.sy, w: f.w, h: f.h, x: px - f.ax, y: py - f.ay, cx: px, cy: py, ax: f.ax, ay: f.ay,
+      blend: s.blend === 'add' ? 'add' : 'over', angle: 0 });
   }
   /* EFFECTS ({ id, x, y in tiles, age ms, lift, on, angle? }): a vfx clip centred at its anchor
      `lift` x the art height of sprite `on` (a flier's hover added) above the tile's foot row;

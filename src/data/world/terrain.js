@@ -58,5 +58,7 @@ export const LIGHTS = Object.freeze({
   lamppost: light(3, 'torch'),
   candle: light(1.5, 'torch'),
   hearth: light(4.5, 'hearth'),
+  /* the Great Hearth of Hearth Square: the warmest light in town */
+  great_hearth: light(8, 'hearth'),
   forge: light(3, 'hearth'),
 });

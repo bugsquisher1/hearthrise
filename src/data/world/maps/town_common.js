@@ -11,11 +11,12 @@
 //              the trees of the green ground
 //   stations   one stand of each kind the map lint checks (combat, gather, artisan, idle); every
 //              station and its full stand list is ../stations.js
-// ART: the ground has no art yet (ground: null): every cell draws in its material's placeholder
-// tone until the art lane's district grounds land. Never another style's tiles under it.
+// ART: the town has no one ground (ground: null): a district whose painted ground has landed is a
+// patch (Hearth Square's paving); every other cell draws in its material's placeholder tone until
+// the art lane's district grounds land. Never another style's tiles under it.
 import { at, TOWN_NAME, TOWN_MAP } from '../town/plan.js?v=0.2.47';
 import { GROUND_ROWS } from '../town/ground.js?v=0.2.47';
-import { SITES, SCENERY, EXITS } from '../town/sites.js?v=0.2.47';
+import { SITES, SCENERY, EXITS, PATCHES, AMBIENT } from '../town/sites.js?v=0.2.47';
 import { GREENERY } from '../town/greenery.js?v=0.2.47';
 import { STATIONS, STATION_BY_ID, ACTIVITY_STATIONS } from '../stations.js?v=0.2.47';
 
@@ -40,6 +41,8 @@ export default Object.freeze({
   ground: null,
   legend: Object.freeze({ '.': 'grass', ':': 'cobble', '=': 'earth', '_': 'flagstone', '#': 'planks', '~': 'water', '^': 'cliff', '|': 'palisade', 'o': 'site', '%': 'tilled' }),
   rows: GROUND_ROWS,
+  patches: Object.freeze(PATCHES.map((p) => Object.freeze({ terrain: p.terrain, rect: Object.freeze(at(p.rect[0], p.rect[1]).concat(p.rect[2], p.rect[3])) }))),
+  ambient: Object.freeze(AMBIENT.map((a) => Object.freeze(Object.assign({ id: a.id, lift: a.lift }, tile(a.x, a.y))))),
   faces: Object.freeze([]),
   objects: Object.freeze([
     ...SCENERY.map(([id, x, y]) => Object.freeze(Object.assign({ id }, tile(x, y)))),
@@ -55,5 +58,5 @@ export default Object.freeze({
   /* the lint's reach origin and a hero's fallback place: the gatehouse's first stand (a hero ARRIVES at one of the
      gatehouse's stands, stations.js arrivalStand) */
   start: first(ACTIVITY_STATIONS.arrival),
-  maskHash: '8528d546',
+  maskHash: 'bcf89ee0',
 });

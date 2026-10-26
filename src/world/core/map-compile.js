@@ -29,6 +29,10 @@
 //             rect, doors and blocking, and needs no kit, floor or roof
 //   path      [[x,y], …] corner waypoints of a CLOSED loop of straight 8-way legs
 //   spawns [[x,y]], stations { name: [x,y] }, exits [{ x, y, to }], start [x,y]
+//   patches   [{ terrain, rect:[x,y,w,h] }] (ground: null only) a district's painted fill laid into the
+//             placeholder tones (Hearth Square's paving), in its cycle from the rect's corner
+//   ambient   [{ id, x, y, lift }] a looping effect the map places (the Great Hearth's fire), its
+//             anchor `lift` art px above tile (x, y)'s foot row; it blocks nothing
 //   focus     [x,y] (optional) the tile a walked map's camera leans toward, so
 //             the heart of the place stays in view wherever the hero stands
 //   maskHash  hash of the collision mask (maskHash below)
@@ -125,6 +129,8 @@ export function compileMap(row, tables) {
     groundTerrain: row.ground, ground, mask, maskHash: maskHash(mask, w, h), faces, objects, lights: lit, buildings,
     path: expandPath(row.path) || [], spawns: row.spawns || [], stations: row.stations || {},
     exits: row.exits || [], start: row.start, frame: row.frame ? rectOf(row.frame) : null, focus: row.focus || null,
+    patches: (row.patches || []).map((p) => ({ terrain: p.terrain, rect: rectOf(p.rect) })),
+    ambient: (row.ambient || []).map((a) => ({ id: a.id, x: a.x, y: a.y, lift: a.lift || 0 })),
     overlap: bodyOverlap(w, h, objects, buildings, sprites, grid),
   };
 }
@@ -294,6 +300,15 @@ export function lintMap(row, tables) {
     else cells.filter(([x, y]) => !open(x, y)).forEach(([x, y]) => bad('L-PATH', 'the patrol path crosses a blocked tile at ' + x + ',' + y));
   }
   if (row.focus && !inside(row.focus[0], row.focus[1])) bad('L-WHOLE', 'focus ' + JSON.stringify(row.focus) + ' is not a whole tile inside the map');
+  for (const p of row.patches || []) {
+    const r = p.rect || [];
+    if (row.ground !== null) bad('L-KIND', 'a patch on a map with a ground terrain (patches lay art into a placeholder-tone town)');
+    if (terrains && !terrains[p.terrain]) bad('L-KIND', 'patch ground "' + p.terrain + '" is not a terrain in any atlas');
+    if (r.length !== 4 || !inside(r[0], r[1]) || !inside(r[0] + r[2] - 1, r[1] + r[3] - 1)) bad('L-WHOLE', 'patch ' + p.terrain + ' ' + JSON.stringify(r) + ' is not whole tiles inside the map');
+  }
+  for (const a of row.ambient || []) {
+    if (!sprites[a.id] || !inside(a.x, a.y) || !(a.lift == null || WHOLE(a.lift))) bad('L-WHOLE', 'ambient ' + a.id + ' at ' + a.x + ',' + a.y + ' is not a sprite on a whole tile with a whole-px lift');
+  }
   const spots = [['start', row.start]].concat((row.spawns || []).map((s) => ['spawn', s]),
     Object.entries(row.stations || {}), (row.exits || []).map((e) => ['exit to ' + e.to, [e.x, e.y]]));
   for (const [what, at] of spots) if (!at || !open(at[0], at[1])) bad('L-WALK', what + ' ' + JSON.stringify(at) + ' is not on walkable ground');

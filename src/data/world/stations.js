@@ -49,7 +49,7 @@ const south = (props) => props.map(([, x, y]) => [x, y + 1]);
 const win = (window) => Object.freeze({ open: 'window', window });
 const skill = (id) => Object.freeze({ open: 'skill', skill: id });
 
-/* THE GREAT HEARTH (placeholder footprint 11 x 4 at x112-122 y45-48, maps/town_common.js) and its 24 fuel stands */
+/* THE GREAT HEARTH (footprint 11 x 4 at x112-122 y45-48, town/sites.js) and its 24 fuel stands */
 const HEARTH_PROPS = [['woodpile', 111, 46], ['woodpile', 123, 46]];
 /* the smithy's west yard: 4 forges and 8 anvils (Smithing); in its own yard 6 workbenches and 2 grindstones (Crafting) */
 const FORGES = [56, 59, 62, 65].map((x) => ['forge', x, 37]);
@@ -60,10 +60,16 @@ const BENCHES = [['workbench', 67, 37], ['workbench', 69, 37], ['workbench', 71,
 const FIRES = [61, 64, 67, 70].flatMap((x) => [['hearth', x, 30], ['hearth', x, 33]]);
 const DUMMIES = [62, 66, 70, 74].flatMap((x) => [['dummy', x, 64], ['dummy', x, 70]]);
 /* the quarry: 24 rock nodes, 6 across and 4 deep */
-const ROCKS = [146, 149, 152, 155, 158, 161].flatMap((x) => [33, 36, 39, 42].map((y) => ['rocks', x, y]));
-const ALTARS = [150, 152, 154, 156].map((x) => ['altar', x, 48]);
-/* the Westwood: 40 trees, 5 across and 8 deep, the deeper rows further west (the plan's tiers deepen westward) */
-const TREES = Array.from({ length: 40 }, (_, i) => [i % 2 ? 'oak' : 'pine', -22 + (i % 5) * 4 + (i % 2), 18 + Math.floor(i / 5) * 9]);
+/* copper nearest the mouth, coal at the back (the art lane's ore samples; the middle columns keep the Common's rocks) */
+const ORE = { 146: 'ore_copper_rock', 149: 'ore_copper_rock', 152: 'rocks', 155: 'rocks', 158: 'ore_coal_rock', 161: 'ore_coal_rock' };
+const ROCKS = [146, 149, 152, 155, 158, 161].flatMap((x) => [33, 36, 39, 42].map((y) => [ORE[x], x, y]));
+const ALTARS = [150, 152, 154, 156].map((x) => ['rune_block', x, 48]);
+/* the Westwood: 40 trees, 5 across and 8 deep. The tiers deepen westward: the two west columns are the art lane's
+   2 x 2 yews and ashes, the rest the Common's pines and oaks. A woodcutter stands on the row south of its tree. */
+const TREE_ART = ['westwood_yew', 'westwood_ash'];
+const TREES = Array.from({ length: 40 }, (_, i) => [TREE_ART[i % 5] || (i % 2 ? 'oak' : 'pine'), -22 + (i % 5) * 4 + (i % 2), 18 + Math.floor(i / 5) * 9]);
+const TREE_ROWS = { westwood_yew: 2, westwood_ash: 2 };
+const treeStands = (trees) => trees.map(([id, x, y]) => [x, y + (TREE_ROWS[id] || 1)]);
 /* the farm: 12 plots of 3 x 2 (tilled ground, maps/town_common.js), their workers on the row south of each */
 const PLOTS = Array.from({ length: 12 }, (_, i) => [20 + (i % 6) * 6, 82 + Math.floor(i / 6) * 4]);
 
@@ -73,19 +79,22 @@ const ROWS = [
     stands: [...F(112, 49, 11, 1), ...F(111, 50, 13, 1)], overflow: [], fallback: 'square_benches' },
   /* the field (y52-53, checkered, the x110-111 aisle kept open) and the two flanks; then the corner by the storage */
   { id: 'hearth_square', district: 'hearth_square', kind: 'idle', opens: null, props: [],
-    stands: [...C(106, 52, 4, 2), ...C(112, 52, 17, 2), ...C(107, 42, 3, 9), ...F(124, 42, 5, 9)], overflow: F(106, 55, 4, 4), fallback: 'square_benches' },
+    stands: [...C(106, 52, 4, 2), ...C(112, 52, 17, 2), ...C(107, 42, 3, 9), ...F(124, 42, 5, 9)],
+    overflow: [...F(106, 55, 4, 4), ...C(112, 55, 10, 4)], fallback: 'square_benches' },
+  /* six benches (two rows of three, town/sites.js), a seat on the row south of each */
   { id: 'square_benches', district: 'hearth_square', kind: 'idle', opens: null, props: [],
-    stands: F(123, 55, 6, 4), overflow: [], fallback: null },
+    stands: [...F(123, 56, 6, 1), ...F(123, 59, 6, 1)], overflow: [], fallback: null },
   { id: 'tally', district: 'hearth_square', kind: 'service', opens: win('tally'), props: [['noticeboard', 103, 45], ['npc_crier', 104, 45]],
     stands: F(102, 46, 5, 2), overflow: F(102, 48, 5, 1), fallback: 'square_benches' },
-  { id: 'shop', district: 'hearth_square', kind: 'service', opens: win('shop'), props: [106, 108, 112, 114].map((x) => ['counter', x, 36]),
-    stands: [...F(106, 37, 4, 4), ...F(112, 37, 4, 4)], overflow: [...F(106, 41, 4, 1), ...F(112, 41, 4, 1)], fallback: 'square_benches' },
-  { id: 'storage', district: 'hearth_square', kind: 'service', opens: win('storage'), props: [112, 114, 118, 120].map((x) => ['counter', x, 59]),
-    /* never on y58 behind a counter: a hero there would be hidden by it */
-    stands: F(112, 55, 10, 3), overflow: [...F(112, 54, 10, 1), [116, 58], [117, 58]], fallback: 'square_benches' },
-  /* the kill-task hunter's door yard (her window until his own screen) */
-  { id: 'hunter', district: 'hearth_square', kind: 'service', opens: null, props: [],
-    stands: F(124, 39, 5, 2), overflow: F(124, 38, 5, 1), fallback: 'square_benches' },
+  /* THE SHOP AND THE STORAGE side by side on the square's north edge, their counters on y36 facing the fire
+     (the Great Hearth's art stands over x112-122 y38-47, so no stand is there: a hero there would be hidden) */
+  { id: 'shop', district: 'hearth_square', kind: 'service', opens: win('shop'), props: [106, 108, 110, 112].map((x) => ['counter', x, 36]),
+    stands: F(106, 37, 6, 5), overflow: F(104, 37, 2, 7), fallback: 'square_benches' },
+  { id: 'storage', district: 'hearth_square', kind: 'service', opens: win('storage'), props: [123, 125, 127].map((x) => ['counter', x, 36]),
+    stands: F(123, 37, 6, 5), overflow: F(129, 36, 3, 4), fallback: 'square_benches' },
+  /* the kill-task hunter's door yard, south of the barracks (her window until his own screen) */
+  { id: 'hunter', district: 'barracks', kind: 'service', opens: null, props: [],
+    stands: F(108, 71, 5, 2), overflow: F(108, 73, 5, 1), fallback: 'square_benches' },
   /* THE GATEHOUSE: a hunt ending for many heroes lands here at once; every overground hunt leaves from here */
   { id: 'gatehouse', district: 'gatehouse', kind: 'arrival', opens: win('hunts'), props: [['signpost', 86, 20]],
     stands: F(74, 20, 5, 8), overflow: F(74, 28, 5, 2), fallback: 'square_benches' },
@@ -106,7 +115,7 @@ const ROWS = [
     stands: DUMMIES.flatMap(([, x, y]) => [[x, y + 1], [x - 1, y + 1], [x + 1, y + 1]]), overflow: [], fallback: 'square_benches' },
   /* GATHERING: one hero to a tree, a rock, a stretch of shore or a plot */
   { id: 'westwood', district: 'westwood', kind: 'gather', skill: 'woodcutting', opens: skill('woodcutting'), props: TREES,
-    stands: south(TREES), overflow: [], fallback: 'square_benches' },
+    stands: treeStands(TREES), overflow: [], fallback: 'square_benches' },
   { id: 'mine', district: 'mine', kind: 'gather', skill: 'mining', opens: skill('mining'), props: ROCKS,
     stands: south(ROCKS), overflow: F(145, 45, 6, 1), fallback: 'square_benches' },
   { id: 'rune_block', district: 'mine', kind: 'artisan', skill: 'runecrafting', opens: skill('runecrafting'), props: ALTARS,

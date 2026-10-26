@@ -140,7 +140,9 @@ async function rules(M) {
   /* SB-6 NOTHING SENT */
   let now = 0;
   const calls = [], timers = [];
-  const server = { rpc: (name, args) => { calls.push({ name, args }); return Promise.resolve({ ok: true, body: { ok: true, walkers: [] } }); } };
+  /* the server stands the hero on its stand (2027-01-26-town-stands.sql `me`), so its own publishes may go */
+  const me = { map: town.id, inst: 1, station: 'arrival', stand: 1, x: 5, y: 9, gx: 5, gy: 9, dir: 's', at: [5, 9], work: false, since_ms: 1 };
+  const server = { rpc: (name, args) => { calls.push({ name, args }); return Promise.resolve({ ok: true, body: { ok: true, full: true, walkers: [], gone: [], me } }); } };
   const p = new M.presence.TownPresence({ server, slot: 0, self: () => null, now: () => now,
     timers: { setTimer: (fn) => { timers.push(fn); return timers.length; }, clearTimer: () => {} } });
   const place = { map: town.id, x: 5, y: 9, gx: 5, gy: 9, dir: 's' };
@@ -153,10 +155,11 @@ async function rules(M) {
     if (i % 20 === 0) for (const fn of timers.slice()) fn();
     await tick();
   }
-  const inside = calls.slice(before).filter((c) => c.name === 'hr_town_move');
-  ok('SB-6', inside.every((c) => c.args.p_map === town.id && c.args.p_x === 5 && c.args.p_y === 9), 'inside the sandbox only the keepalive of the town tile may be sent: ' + JSON.stringify(inside.map((c) => c.args)));
+  const inside = calls.slice(before).filter((c) => c.name === 'hr_town_move' || c.name === 'hr_town_here');
+  ok('SB-6', inside.length > 0 && inside.every((c) => c.name === 'hr_town_here' && c.args.p_map === town.id && Object.keys(c.args).sort().join(',') === 'p_map,p_slot'),
+    'inside the sandbox the body stays in the Common by its keepalive only (no tile, the town map): ' + JSON.stringify(inside.map((c) => [c.name, c.args])));
   ok('SB-6', !calls.some((c) => c.name === 'hr_town_move' && (c.args.p_map === null || c.args.p_map === sand.id)), 'the sandbox must never leave town nor send its own tile');
-  ok('SB-6', calls.every((c) => c.name === 'hr_town_move' || c.name === 'hr_town_walkers'), 'nothing but the town presence may be sent: ' + [...new Set(calls.map((c) => c.name))]);
+  ok('SB-6', calls.every((c) => ['hr_town_move', 'hr_town_view', 'hr_town_here'].includes(c.name)), 'nothing but the town presence may be sent: ' + [...new Set(calls.map((c) => c.name))]);
   M.sb.presenceFor(p, town, place);
   const back = p.placeOn(town.id);
   ok('SB-6', back && back[0] === 5 && back[1] === 9, 'back in the Common the body must stand where it stood, got ' + back);

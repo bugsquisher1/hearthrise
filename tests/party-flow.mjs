@@ -351,17 +351,18 @@ const ARMS = {
   },
 
   /* LIVE v0.2.11: right-clicking an unnamed player ("Adventurer") offered no Invite to party. The target is
-     built the way the game builds it: hr_town_walkers' REAL answer on this chain -> walkerOf -> the town scene's
+     built the way the game builds it: hr_town_view's REAL answer on this chain -> walkerOf -> the town scene's
      ref.player -> worldTargetOf -> the one menu; its press goes through the real party-intents to the real RPC. */
   'PF-MENU': async (db) => {
     const p = [];
     await world(db);
     await db.query("update public.profiles set display_name = null where id = $1", [B]);
     await db.query("update public.hr_flags set enabled = true where key = 'town_presence'");
-    await db.query("insert into public.town_positions (user_id, slot, map_id, x, y, gx, gy, dir, at) values ($1, 0, 'town_common', 3, 3, 3, 3, 's', now()) on conflict (user_id, slot) do update set at = now()", [B]);
-    const walkers = await as(db, A, "select public.hr_town_walkers('town_common')");
+    /* B stands in the Common (its keepalive: the server stands it on its stand, 2027-01-26-town-stands.sql) and A reads the town */
+    await as(db, B, "select public.hr_town_here(0, 'town_common')");
+    const walkers = await as(db, A, "select public.hr_town_view(0, 'town_common', null, null, null, null, null)");
     const raw = (walkers && walkers.walkers || []).find((w) => w.id === B);
-    if (!raw) return ['HARNESS: hr_town_walkers did not list B: ' + JSON.stringify(walkers).slice(0, 200)];
+    if (!raw) return ['HARNESS: hr_town_view did not list B: ' + JSON.stringify(walkers).slice(0, 200)];
     const w = CLIENT.TP.walkerOf(raw);
     const target = CLIENT.MP.worldTargetOf({ hits: [{ id: 'walker', ref: { player: { id: w.id, name: w.name, slot: w.slot } } }] });
     let state = await one(db, 'select public.hr_state_of($1, 0)', [A]);

@@ -172,6 +172,8 @@ create table if not exists public.town_bodies (
   from_x     smallint    check (from_x between 0 and 255),
   from_y     smallint    check (from_y between 0 and 255),
   changed_at timestamptz not null default now(),
+  look       jsonb,                   -- its name, level, role and outfit as hr_town_look last read them (a peer's display)
+  look_at    timestamptz,             -- ...and when: re-read when older than 60 s, only for the bodies an answer carries
   primary key (user_id, slot),
   foreign key (user_id, slot) references public.player_state (user_id, slot) on delete cascade,
   check ((station_id is null) = (stand_no is null)),
@@ -247,11 +249,14 @@ $fn$;
 
 -- WHERE EACH BODY OF AN INSTANCE IS NOW (the one rule, for the read and for `me`): its steered tile while it moved
 -- since it took its stand (a fresh publish), else walking from where it came (for the walk's length at 3.2 tiles/s),
--- else its stand. `visible`: holds a stand that exists, not quiet, admitted, live. `changed`: its last visible change.
+-- else its stand. `held`: it holds a stand that exists. `changed`: its last visible change. `seen`: its last keepalive.
+-- Cheap columns only (joins on keys): whether it is SHOWN (quiet, admitted, live, blocked) is the reader's, for the
+-- rows it reads. Not a definer function, so it inlines into its callers (all owner-only).
 create or replace function public.hr_town_bodies_at(p_map text, p_inst int, p_since timestamptz, p_user uuid default null, p_slot int default null)
 returns table (user_id uuid, slot int, station_id text, stand_no int, why text, since timestamptz,
-               x int, y int, gx int, gy int, dir text, sx int, sy int, visible boolean, changed timestamptz, seen_until timestamptz)
-language sql stable security definer set search_path = public, pg_catalog as $fn$
+               x int, y int, gx int, gy int, dir text, sx int, sy int, held boolean, kind text, quiet boolean,
+               seen timestamptz, changed timestamptz, seen_until timestamptz)
+language sql stable set search_path = public, pg_catalog as $fn$
   select b.user_id, b.slot::int, b.station_id, b.stand_no::int, b.why, b.since,
          (case when q.steered then tp.x when q.walking then b.from_x else s.x end)::int,
          (case when q.steered then tp.y when q.walking then b.from_y else s.y end)::int,
@@ -259,10 +264,11 @@ language sql stable security definer set search_path = public, pg_catalog as $fn
          (case when q.steered then tp.gy else s.y end)::int,
          case when q.steered then tp.dir else s.dir end,
          s.x::int, s.y::int,
-         (b.station_id is not null and s.x is not null and not coalesce(ps.presence_quiet, false)
-          and public.hr_admitted(b.user_id) and public.hr_town_live_of(ps.active_kind, q.seen, q.hunting)),
+         b.station_id is not null and s.x is not null,
+         ps.active_kind, coalesce(ps.presence_quiet, false),
+         greatest(ts.seen_at, tp.at),
          greatest(b.changed_at, case when q.steered then tp.moved_at end),
-         q.seen + interval '30 seconds'
+         greatest(ts.seen_at, tp.at) + interval '30 seconds'
     from (select t.* from public.town_bodies t
            where p_user is null and t.map_id = p_map and t.inst = p_inst and t.station_id is not null
           union all
@@ -280,9 +286,36 @@ language sql stable security definer set search_path = public, pg_catalog as $fn
         (tp.user_id is not null and tp.map_id = b.map_id and tp.at > now() - interval '30 seconds'
          and tp.moved_at is not null and tp.moved_at > b.since) as steered,
         (b.from_x is not null and s.x is not null
-         and now() < b.since + make_interval(secs => sqrt(power(s.x - b.from_x, 2) + power(s.y - b.from_y, 2)) / 3.2 + 1)) as walking,
-        greatest(ts.seen_at, tp.at) as seen,
-        exists (select 1 from public.hunt_sessions h where h.user_id = b.user_id and h.slot = b.slot and h.ended_at is null) as hunting) q
+         and now() < b.since + make_interval(secs => sqrt(power(s.x - b.from_x, 2) + power(s.y - b.from_y, 2)) / 3.2 + 1)) as walking) q
+$fn$;
+
+-- EVERY HELD BODY OF A MAP AND WHETHER IT IS LIVE (one set-based pass: the sweep and the seat count), the rule of
+-- hr_town_live over joins instead of a call a row.
+create or replace function public.hr_town_held(p_map text)
+returns table (user_id uuid, slot int, inst int, live boolean)
+language sql stable set search_path = public, pg_catalog as $fn$
+  select b.user_id, b.slot::int, b.inst::int,
+         public.hr_town_live_of(ps.active_kind, greatest(ts.seen_at, tp.at),
+           exists (select 1 from public.hunt_sessions h where h.user_id = b.user_id and h.slot = b.slot and h.ended_at is null))
+    from public.town_bodies b
+    left join public.player_state ps on ps.user_id = b.user_id and ps.slot = b.slot
+    left join public.town_seen ts on ts.user_id = b.user_id and ts.slot = b.slot
+    left join public.town_positions tp on tp.user_id = b.user_id and tp.slot = b.slot
+   where b.map_id = p_map and b.station_id is not null
+$fn$;
+
+-- A WALKER'S LOOK, as every other player sees it: named as its CHARACTER, its Level, its worn weapon's role (its own
+-- `role` section's), the outfit it chose while it owns it: hr_town_walkers' keys, through the same helpers.
+create or replace function public.hr_town_look(p_user uuid, p_slot int)
+returns jsonb language sql stable security definer set search_path = public, pg_catalog as $fn$
+  select jsonb_build_object(
+           'name', left(public.hr_character_name(p_user, p_slot), 24),
+           'level', public.hr_level_of(p_user, p_slot),
+           'role', public.hr_role_view(p_user, p_slot)->>'id',
+           -- THE OUTFIT the character chose (player_outfits, written only by hr_outfit_set), null when none or no longer owned
+           'outfit', (select case when po.outfit_id is not null and po.outfit_id = any (public.hr_outfit_owned(p_user, p_slot))
+                                  then jsonb_build_object('id', po.outfit_id, 'colors', coalesce(po.colors, '{}'::jsonb)) end
+                        from public.player_outfits po where po.user_id = p_user and po.slot = p_slot))
 $fn$;
 
 -- The character's own stand, as everyone else sees it (null when it holds none).
@@ -312,9 +345,7 @@ begin
   v_hard := greatest(1, (select count(*) from public.hr_town_stands s where s.map_id = p_map)::int / greatest(1, v_map.heroes));
   v_soft := least(v_map.players, v_hard);
   select coalesce(jsonb_object_agg(x.inst, x.n), '{}'::jsonb) into v_seats
-    from (select b.inst, count(distinct b.user_id) n from public.town_bodies b
-           where b.map_id = p_map and b.station_id is not null and public.hr_town_live(b.user_id, b.slot)
-           group by b.inst) x;
+    from (select h.inst, count(distinct h.user_id) n from public.hr_town_held(p_map) h where h.live group by h.inst) x;
   -- WITH ITS PARTY (the leader first, then a mate: up to the hard cap), THEN ITS FRIENDS (up to the soft cap)
   with mates as (
     select m2.user_id, bool_or(m2.user_id = p.leader_user) as leads
@@ -327,14 +358,13 @@ begin
     select case when f.user_lo = p_user then f.user_hi else f.user_lo end as user_id
       from public.friend_links f where f.user_lo = p_user or f.user_hi = p_user
   ), near as (
-    select b.inst, min(case when mt.leads then 0 when mt.user_id is not null then 1 else 2 end) as rnk,
-           count(distinct b.user_id) filter (where fr.user_id is not null) as nf
-      from public.town_bodies b
-      left join mates mt on mt.user_id = b.user_id
-      left join friends fr on fr.user_id = b.user_id
-     where b.map_id = p_map and b.station_id is not null and (mt.user_id is not null or fr.user_id is not null)
-       and public.hr_town_live(b.user_id, b.slot)
-     group by b.inst
+    select h.inst, min(case when mt.leads then 0 when mt.user_id is not null then 1 else 2 end) as rnk,
+           count(distinct h.user_id) filter (where fr.user_id is not null) as nf
+      from public.hr_town_held(p_map) h
+      left join mates mt on mt.user_id = h.user_id
+      left join friends fr on fr.user_id = h.user_id
+     where h.live and (mt.user_id is not null or fr.user_id is not null)
+     group by h.inst
   )
   select n.inst into v_inst from near n
    where coalesce((v_seats->>n.inst::text)::int, 0) < case when n.rnk < 2 then v_hard else v_soft end
@@ -374,8 +404,9 @@ begin
     public.hr_town_seat(p_user, p_map));
   -- an idle hero whose browser closed lets go of its stand here (no goodbye is needed)
   update public.town_bodies b set station_id = null, stand_no = null, why = 'gone', from_x = null, from_y = null, changed_at = now()
-   where b.map_id = p_map and b.inst = v_inst and b.station_id is not null
-     and not (b.user_id = p_user and b.slot = p_slot) and not public.hr_town_live(b.user_id, b.slot);
+    from public.hr_town_held(p_map) h
+   where h.inst = v_inst and not h.live and not (h.user_id = p_user and h.slot = p_slot)
+     and b.user_id = h.user_id and b.slot = h.slot and b.map_id = p_map and b.station_id is not null;
   -- one player fields at most v_map.heroes bodies
   if (select count(*) from public.town_bodies b where b.user_id = p_user and b.map_id = p_map and b.inst = v_inst
         and b.station_id is not null and b.slot <> p_slot) >= v_map.heroes then
@@ -640,8 +671,8 @@ declare
   v_me   jsonb; v_inst int;
   v_cur  timestamptz; v_since timestamptz; v_full boolean;
   v_hw int; v_hh int; v_cx int; v_cy int; v_px int; v_py int;
-  v_mates uuid[]; v_friends uuid[];
-  v_walkers jsonb; v_gone jsonb;
+  v_mates uuid[]; v_friends uuid[]; v_blocked uuid[];
+  v_pick jsonb; v_n int; v_walkers jsonb; v_gone jsonb;
 begin
   if v_uid is null then return jsonb_build_object('ok', false, 'error', 'not_signed_in'); end if;
   perform public.hr_access_check();
@@ -681,53 +712,67 @@ begin
                     where m1.user_id = v_uid and m2.user_id <> v_uid);
   v_friends := array(select case when f.user_lo = v_uid then f.user_hi else f.user_lo end
                        from public.friend_links f where f.user_lo = v_uid or f.user_hi = v_uid);
+  -- blocked either way (hr_social_blocked's rule), once for the whole read
+  v_blocked := array(select b.blocked_id from public.chat_blocks b where b.blocker_id = v_uid
+                     union select b.blocker_id from public.chat_blocks b where b.blocked_id = v_uid);
   if v_inst is not null then
-    -- ONE STATEMENT: the instance's bodies once (t), whether this answer is whole (m: asked, or a delta over the
-    -- cap — nothing is ever dropped from a delta), the walkers (w, the helpers run only for these <= cap rows) and
-    -- the gone (g: changed and no longer drawn in the window, or their presence ran out since the cursor).
-    with t as materialized (
-      select b.user_id, b.slot, b.station_id, b.why, b.x, b.y, b.gx, b.gy, b.dir, b.changed, b.seen_until,
-             b.visible and not public.hr_social_blocked(v_uid, b.user_id) as shown,
-             -- in the area: where it is OR where it walks to (a body walking in is read before it arrives)
-             (b.x between v_cx - v_hw and v_cx + v_hw and b.y between v_cy - v_hh and v_cy + v_hh)
-               or (b.gx between v_cx - v_hw and v_cx + v_hw and b.gy between v_cy - v_hh and v_cy + v_hh) as inside,
-             v_px is not null and ((b.x between v_px - v_hw and v_px + v_hw and b.y between v_py - v_hh and v_py + v_hh)
-               or (b.gx between v_px - v_hw and v_px + v_hw and b.gy between v_py - v_hh and v_py + v_hh)) as was_inside,
-             case when b.user_id = v_uid then 0 when b.user_id = any (v_mates) then 1 when b.user_id = any (v_friends) then 2 else 3 end as rnk,
-             (b.x - v_cx) * (b.x - v_cx) + (b.y - v_cy) * (b.y - v_cy) as d2
-        from public.hr_town_bodies_at(p_map, v_inst, v_since) b
-       where not (b.user_id = v_uid and b.slot = v_slot)
-    ), m as (
-      select v_full or count(*) filter (where t.shown and t.inside and (t.changed > v_since or not t.was_inside)) > v_map.view_cap as whole
-        from t
-    ), w as (
-      select t.* from t, m
-       where t.shown and t.inside and (m.whole or t.changed > v_since or not t.was_inside)
-       order by t.rnk, t.d2, t.user_id, t.slot limit v_map.view_cap
-    ), g as (
-      select t.user_id, t.slot from t, m
-       where not m.whole and not (t.shown and t.inside)
-         and (t.changed > v_since or (t.seen_until > v_since and t.seen_until <= v_now))
-       order by t.user_id, t.slot limit c_gone_max
-    )
-    select (select m.whole from m),
-           (select jsonb_agg(jsonb_build_object(
-                     'id', w.user_id, 'slot', w.slot,
-                     'name', left(public.hr_character_name(w.user_id, w.slot), 24),
-                     'level', public.hr_level_of(w.user_id, w.slot),
-                     'role', public.hr_role_view(w.user_id, w.slot)->>'id',
-                     'outfit', case when po.outfit_id is not null and po.outfit_id = any (public.hr_outfit_owned(w.user_id, w.slot))
-                                    then jsonb_build_object('id', po.outfit_id, 'colors', coalesce(po.colors, '{}'::jsonb)) end,
-                     'x', w.x, 'y', w.y, 'gx', w.gx, 'gy', w.gy, 'dir', w.dir,
-                     'age_ms', greatest(0, floor(extract(epoch from (v_now - w.changed)) * 1000))::int,
-                     'station', w.station_id, 'work', w.why = 'work'
-                   ) order by w.rnk, w.d2, w.user_id, w.slot)
-              from w left join public.player_outfits po on po.user_id = w.user_id and po.slot = w.slot),
-           (select jsonb_agg(jsonb_build_object('id', g.user_id, 'slot', g.slot) order by g.user_id, g.slot) from g)
-      into v_full, v_walkers, v_gone;
+    -- ONE STATEMENT A PASS: the instance's bodies once (t: cheap columns), the CANDIDATES (c: in a whole answer all of
+    -- them; in a delta those that changed, entered the area or whose presence ran out since the cursor), whether each
+    -- candidate is SHOWN (s: holds its stand, not quiet, not blocked either way, admitted, live), then how many are shown
+    -- in the area, the walkers to send (<= cap, own account, party, friends, then nearest) and the gone. A delta with
+    -- more than the cap is answered WHOLE (a second pass): nothing is ever dropped from a delta.
+    loop
+      with t as materialized (
+        select b.*,
+               -- in the area: where it is OR where it walks to (a body walking in is read before it arrives)
+               (b.x between v_cx - v_hw and v_cx + v_hw and b.y between v_cy - v_hh and v_cy + v_hh)
+                 or (b.gx between v_cx - v_hw and v_cx + v_hw and b.gy between v_cy - v_hh and v_cy + v_hh) as inside,
+               v_px is not null and ((b.x between v_px - v_hw and v_px + v_hw and b.y between v_py - v_hh and v_py + v_hh)
+                 or (b.gx between v_px - v_hw and v_px + v_hw and b.gy between v_py - v_hh and v_py + v_hh)) as was_inside,
+               case when b.user_id = v_uid then 0 when b.user_id = any (v_mates) then 1 when b.user_id = any (v_friends) then 2 else 3 end as rnk,
+               (b.x - v_cx) * (b.x - v_cx) + (b.y - v_cy) * (b.y - v_cy) as d2
+          from public.hr_town_bodies_at(p_map, v_inst, v_since) b
+         where not (b.user_id = v_uid and b.slot = v_slot)
+      ), s as materialized (
+        select t.*,
+               t.held and not t.quiet and not (t.user_id = any (v_blocked)) and public.hr_admitted(t.user_id)
+                 and public.hr_town_live_of(t.kind, t.seen,
+                       exists (select 1 from public.hunt_sessions h where h.user_id = t.user_id and h.slot = t.slot and h.ended_at is null)) as shown
+          from t
+         where v_since is null or t.changed > v_since or (t.inside and not t.was_inside)
+            or (t.seen_until > v_since and t.seen_until <= v_now)
+      )
+      select (select count(*)::int from s where s.shown and s.inside),
+             (select jsonb_agg(jsonb_build_object('id', w.user_id, 'slot', w.slot, 'x', w.x, 'y', w.y, 'gx', w.gx, 'gy', w.gy, 'dir', w.dir,
+                                 'age_ms', greatest(0, floor(extract(epoch from (v_now - w.changed)) * 1000))::int,
+                                 'station', w.station_id, 'work', w.why = 'work', 'ord', w.n))
+                from (select s.*, row_number() over (order by s.rnk, s.d2, s.user_id, s.slot) n from s
+                       where s.shown and s.inside order by s.rnk, s.d2, s.user_id, s.slot limit v_map.view_cap) w),
+             (select jsonb_agg(jsonb_build_object('id', g.user_id, 'slot', g.slot) order by g.user_id, g.slot)
+                from (select s.user_id, s.slot from s
+                       where v_since is not null and not (s.shown and s.inside)
+                         and (s.changed > v_since or (s.seen_until > v_since and s.seen_until <= v_now))
+                       order by s.user_id, s.slot limit c_gone_max) g)
+        into v_n, v_pick, v_gone;
+      exit when v_since is null or v_n <= v_map.view_cap;
+      v_full := true; v_since := null;
+    end loop;
   end if;
   -- the others' pending changes, AFTER the read (the map lock is never held across it): seen on the next read
   perform public.hr_town_moves_settle(p_map, 20);
+  -- THE LOOKS of the bodies this answer carries, re-read when older than 60 s (the helpers run for those rows only),
+  -- then the walkers. Last: body rows are locked after the map lock, never before (§ CONCURRENCY).
+  if v_pick is not null then
+    update public.town_bodies b set look = public.hr_town_look(b.user_id, b.slot), look_at = v_now
+      from jsonb_to_recordset(v_pick) p(id uuid, slot int)
+     where b.user_id = p.id and b.slot = p.slot and (b.look is null or b.look_at < v_now - interval '60 seconds');
+    select jsonb_agg(jsonb_build_object('id', p.id, 'slot', p.slot, 'name', b.look->'name', 'level', b.look->'level',
+                       'role', b.look->'role', 'outfit', b.look->'outfit', 'x', p.x, 'y', p.y, 'gx', p.gx, 'gy', p.gy, 'dir', p.dir,
+                       'age_ms', p.age_ms, 'station', p.station, 'work', p.work) order by p.ord)
+      into v_walkers
+      from jsonb_to_recordset(v_pick) p(id uuid, slot int, x int, y int, gx int, gy int, dir text, age_ms int, station text, work boolean, ord int)
+      join public.town_bodies b on b.user_id = p.id and b.slot = p.slot;
+  end if;
   return jsonb_build_object('ok', true, 'map', p_map, 'inst', v_inst, 'cap', v_map.view_cap, 'full', v_full,
     'cursor', floor(extract(epoch from v_now) * 1000000)::bigint,
     'area', jsonb_build_array(greatest(v_cx - v_hw, 0), greatest(v_cy - v_hh, 0), least(v_cx + v_hw, v_map.w - 1), least(v_cy + v_hh, v_map.h - 1)),
@@ -802,6 +847,7 @@ begin
   foreach f in array array['public.hr_town_work_kind(text)', 'public.hr_town_live_of(text,timestamp with time zone,boolean)',
                            'public.hr_town_live(uuid,integer)', 'public.hr_town_lock(text)',
                            'public.hr_town_bodies_at(text,integer,timestamp with time zone,uuid,integer)', 'public.hr_town_me(uuid,integer)',
+                           'public.hr_town_held(text)', 'public.hr_town_look(uuid,integer)',
                            'public.hr_town_seat(uuid,text)',
                            'public.hr_town_place(uuid,integer,text,text,text,timestamp with time zone,text,integer)',
                            'public.hr_town_place_pointer(uuid,integer,text)', 'public.hr_town_release(uuid,integer)',

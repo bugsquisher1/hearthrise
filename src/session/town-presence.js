@@ -161,15 +161,17 @@ export class TownPresence {
   publish(p) {
     const place = placeOf(p);
     if (!place || place.map !== this._map || this._dead) return false;
-    this._want = place;
     this._center = [place.x, place.y];
+    /* NOTHING BEFORE THE SERVER'S STAND: until it is known the hero has not been placed, and where the World
+       shows it is the client's guess (the map's start), never a tile to tell anyone */
+    if (!this.me()) return false;
+    this._want = place;
     return this._flush(false);
   }
 
   _flush(keepalive) {
     const p = this._want;
-    /* NOTHING BEFORE THE SERVER'S STAND: until it is known the hero has not been placed, and the client names no tile */
-    if (!p || this._sending || !this._map || !this._me || this._me.map !== this._map) return false;
+    if (!p || this._sending || !this._map) return false;
     const now = this._now();
     const since = now - this._sentAt;
     if (since < this.limits.publishMinMs) return false;
@@ -258,7 +260,7 @@ export class TownPresence {
 
   _tick() {
     if (this._parked) {
-      if (this._busy()) { this._leave(); this._me = null; return; }
+      if (this._busy()) { this._leave(); return; }
       if (this._now() - this._hereAt >= (this.limits.parkedKeepaliveMs || this.limits.keepaliveMs)) this.here();
       return;
     }
@@ -343,7 +345,8 @@ export class TownPresence {
   }
 
   _leave() {
-    this._want = null;
+    this._want = null; this._me = null;   // out of town: its stand is the server's to keep or let go
+    this._hereAt = -Infinity;             // back in town (a hunt over), it says it is here on the next tick
     if (!this._out) return;
     this._out = false; this._sent = null; this._sentAt = -Infinity;
     this._server.rpc('hr_town_move', { p_slot: this._slot, p_map: null, p_x: null, p_y: null, p_gx: null, p_gy: null, p_dir: null }).catch(() => {});

@@ -58,6 +58,8 @@ const clone = (o) => JSON.parse(JSON.stringify(o));
 const ANDY = 'aaaaaaaa-0000-4000-8000-0000000000a1';
 const PEER = 'Bartholomew Underhill';   // a long name: its ends lie beyond the figure's box
 const PEER_AT = [13, 9];
+/* the hero's server stand (hr_town_view / hr_town_here `me`): the Common's arrival, its start tile */
+const STAND = { map: 'town_common', inst: 1, station: 'arrival', stand: 1, x: 11, y: 9, gx: 11, gy: 9, dir: 's', at: [11, 9], work: false, since_ms: 1 };
 
 /* A read-only hook, served (never written to the tree): the World pane's runtime on window.__world. */
 const PANE = 'src/app/world-pane.js';
@@ -82,8 +84,10 @@ async function stub(page) {
     const json = (b) => r.fulfill({ contentType: 'application/json', body: JSON.stringify(b) });
     if (name === 'hr_load') return json(Object.assign(townEnv(), { version: ++version }));
     if (name === 'hr-accrue') return json({ accrued: false });
-    if (name === 'hr_town_walkers') return json({ ok: true, map: body.p_map, cap: 40, walkers: [
-      { id: ANDY, slot: 0, name: PEER, level: 9, role: 'healer', x: PEER_AT[0], y: PEER_AT[1], gx: PEER_AT[0], gy: PEER_AT[1], dir: 'w', age_ms: 0 }] });
+    /* the town (2027-01-26-town-stands.sql): the server stands the hero on its stand (the arrival's first, the Common's start tile) */
+    if (name === 'hr_town_here') return json({ ok: true, me: STAND });
+    if (name === 'hr_town_view') return json({ ok: true, map: body.p_map, inst: 1, cap: 120, full: true, cursor: 1, area: [0, 0, 23, 13], gone: [], me: STAND, walkers: [
+      { id: ANDY, slot: 0, name: PEER, level: 9, role: 'healer', x: PEER_AT[0], y: PEER_AT[1], gx: PEER_AT[0], gy: PEER_AT[1], dir: 'w', age_ms: 0, station: 'arrival', work: false }] });
     if (name === 'hr_chat_recent') return json({ ok: true, zone: 'local:town', party: null, lines: [] });
     if (name === 'hr_social_state') return json({ ok: true, friends: [], incoming: [], outgoing: [], blocks: [] });
     if (name === 'hr_whispers_recent') return json({ ok: true, lines: [] });
@@ -198,7 +202,8 @@ async function stubSlots(page, s) {
     const env = () => (s.env[slot] ? Object.assign(clone(s.env[slot]), { version: ++s.version }) : { ok: false, error: 'no_character' });
     if (name === 'hr_load') return json(env());
     if (name === 'hr-accrue') return json(s.env[slot] ? Object.assign({ accrued: true }, env()) : { accrued: false });
-    if (name === 'hr_town_walkers') return json({ ok: true, map: body.p_map, cap: 40, walkers: [] });
+    if (name === 'hr_town_here') return json({ ok: true, me: STAND });
+    if (name === 'hr_town_view') return json({ ok: true, map: body.p_map, inst: 1, cap: 120, full: true, cursor: 1, area: [0, 0, 23, 13], gone: [], me: STAND, walkers: [] });
     if (name === 'hr_chat_recent') return json({ ok: true, zone: 'local:town', party: null, lines: [] });
     if (name === 'hr_social_state') return json({ ok: true, friends: [], incoming: [], outgoing: [], blocks: [] });
     if (name === 'hr_whispers_recent') return json({ ok: true, lines: [] });

@@ -23,14 +23,7 @@
 // ════════════════════════════════════════════════════════════════════════
 
 export const SITES = Object.freeze([
-  /* the crooked shacks P01-P06 and the town lots P09-P10 */
-  ['p02', 30, 16, 12, 8, 's'], ['p03', 46, 14, 10, 8, 's'], ['p04', 20, 36, 10, 8, 's'],
-  ['p05', 36, 38, 12, 8, 's'], ['p06', 48, 66, 10, 8, 'w'], ['p09', 68, 50, 12, 8, 'n'], ['p10', 88, 62, 14, 10, 'w'],
-  /* the sewer works (its grate is the Sewer's way in), the fishers' guild */
-  ['sewer_works', 44, 56, 14, 10, 'w'], ['fisher_guild', 66, 78, 16, 10, 's'],
-  /* the harbor: its office and guild hall; the mountain homes P11-P12 and the waterfront estates P13-P15 */
-  ['harbor_office', 98, 76, 16, 10, 's'],
-  ['p11', 132, 20, 16, 10, 'w'], ['p12', 132, 46, 16, 10, 'w'], ['p13', 120, 74, 16, 8, 's'], ['p14', 142, 66, 18, 8, 'w'], ['p15', 138, 80, 20, 8, 's'],
+  /* every lot of Blueprint v0.5 x2 has its style-1 art (SCENERY, art/world/havora): no placeholder footprint is left */
 ].map((r) => Object.freeze(r)));
 
 /* the buildings and things with style-1 art, in plan coordinates (a sprite's footprint from its x, y) */
@@ -52,7 +45,11 @@ export const SCENERY = Object.freeze([
   /* HAVORA'S LOTS (art/world/havora, lane/b-havora-art-2): the gatehouse (every overground hunt leaves from its yard),
      the tavern on P07 over its cook yard, the bridge over the river (walked on: its cells stay planks) */
   ['havora_gatehouse', 74, 10], ['havora_tavern', 62, 20], ['havora_bridge', 88, 48],
-  ['havora_guild_hall', 116, 72], ['havora_home_p01', 16, 14],
+  ['havora_guild_hall', 116, 72], ['havora_sewer_works', 44, 56], ['havora_fisher_guild', 66, 78], ['havora_harbor_office', 98, 76],
+  /* the homes: the crooked shacks NW (P01-P06), the town lots (P09-P10), the mountain (P11) and the waterfront estates (P13-P15) */
+  ['havora_home_p01', 16, 14], ['havora_home_p02', 30, 16], ['havora_home_p03', 46, 14], ['havora_home_p04', 20, 36],
+  ['havora_home_p05', 36, 38], ['havora_home_p06', 48, 66], ['havora_home_p09', 68, 50], ['havora_home_p10', 88, 62],
+  ['havora_home_p11', 132, 20], ['havora_home_p12', 132, 46], ['havora_home_p13', 120, 74], ['havora_home_p14', 142, 66], ['havora_home_p15', 138, 80],
   /* the mine's mouth in the mountain, a fishing pier off the shore */
   ['mine_mouth', 138, 34], ['fishing_pier', 60, 94],
   /* the cook yard's stores, the training yard's rack, the farm's crates */
@@ -72,7 +69,9 @@ export const PATCHES = Object.freeze([Object.freeze({ terrain: 'square_plaza', r
    and dirt tiles (art/world/common/havora_*: recovered from the painted Common grounds; square_*_flag: the
    square's flagstone sets). The cobble lanes draw as flagstone until a cobble pair exists. */
 export const BLEND = Object.freeze({
-  pairs: Object.freeze(['havora_grass_earth', 'havora_grass_water', 'square_grass_flag', 'square_dirt_flag']),
+  pairs: Object.freeze(['havora_grass_earth', 'havora_grass_water', 'square_grass_flag', 'square_dirt_flag',
+    /* lane/b-havora-art-2 (art/world/havora): the docks' and bridge's planks, the farm plots, the mountain's rock */
+    'havora_earth_planks', 'havora_water_planks', 'havora_grass_tilled', 'havora_grass_rock', 'havora_earth_rock']),
   alias: Object.freeze({ cobble: 'flagstone' }),
 });
 

@@ -1,0 +1,41 @@
+{
+  "id": "havora_home_p04",
+  "class": "lot",
+  "style": "s1",
+  "material": "wood",
+  "source": "havora_home_p04.png",
+  "frame": [
+    320,
+    294
+  ],
+  "anchor_px": [
+    160,
+    293
+  ],
+  "footprint": [
+    10,
+    8
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_image_pro",
+    "image": "cf72758a-577f-4ec1-9422-8773e784cf28",
+    "seed": 604,
+    "size": [
+      320,
+      320
+    ],
+    "cost": 15,
+    "style": "common/square_general_store"
+  },
+  "notes": "Home P04 (plan x20-29 y36-43), NW shacks: wattle-and-daub hovel, shaggy thatch, wicker herb beds, peat, dry-stone wall."
+}

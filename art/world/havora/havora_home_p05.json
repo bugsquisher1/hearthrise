@@ -1,0 +1,41 @@
+{
+  "id": "havora_home_p05",
+  "class": "lot",
+  "style": "s1",
+  "material": "wood",
+  "source": "havora_home_p05.png",
+  "frame": [
+    384,
+    297
+  ],
+  "anchor_px": [
+    192,
+    296
+  ],
+  "footprint": [
+    12,
+    8
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_image_pro",
+    "image": "a0d9f1f8-493c-4226-b582-4c5e0ec2f252",
+    "seed": 605,
+    "size": [
+      384,
+      320
+    ],
+    "cost": 25,
+    "style": "common/square_general_store"
+  },
+  "notes": "Home P05 (plan x36-47 y38-45), NW shacks: tinker's shack against a ruined wall, sail-tarp roof, awning workbench, cat."
+}

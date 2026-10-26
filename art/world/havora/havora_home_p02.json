@@ -1,0 +1,41 @@
+{
+  "id": "havora_home_p02",
+  "class": "lot",
+  "style": "s1",
+  "material": "wood",
+  "source": "havora_home_p02.png",
+  "frame": [
+    378,
+    297
+  ],
+  "anchor_px": [
+    189,
+    296
+  ],
+  "footprint": [
+    12,
+    8
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_image_pro",
+    "image": "3e788917-7815-4945-9fcc-2831cc138146",
+    "seed": 602,
+    "size": [
+      384,
+      320
+    ],
+    "cost": 25,
+    "style": "common/square_general_store"
+  },
+  "notes": "Home P02 (plan x30-41 y16-23), NW shacks: two-room board shack, tin-patched thatch, goat pen, chickens, wattle fence."
+}

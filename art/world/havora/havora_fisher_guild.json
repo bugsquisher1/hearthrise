@@ -1,0 +1,41 @@
+{
+  "id": "havora_fisher_guild",
+  "class": "lot",
+  "style": "s1",
+  "material": "wood",
+  "source": "havora_fisher_guild.png",
+  "frame": [
+    496,
+    316
+  ],
+  "anchor_px": [
+    248,
+    315
+  ],
+  "footprint": [
+    16,
+    10
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_image_pro",
+    "image": "3486e113-e53b-4f6a-94c0-9ed1751343df",
+    "seed": 612,
+    "size": [
+      512,
+      384
+    ],
+    "cost": 25,
+    "style": "common/square_general_store"
+  },
+  "notes": "The fishers' guild (plan x66-81 y78-87): tarred timber hall, drying nets, fish sign, salted-fish barrels, upturned rowboat."
+}

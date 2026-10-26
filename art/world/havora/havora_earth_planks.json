@@ -1,0 +1,123 @@
+{
+  "id": "havora_earth_planks",
+  "class": "terrain",
+  "kind": "wang16",
+  "style": "s1",
+  "material": "terrain",
+  "source": "havora_earth_planks.png",
+  "lower": "earth",
+  "upper": "planks",
+  "tiles": {
+    "1000": [
+      [
+        1,
+        1
+      ]
+    ],
+    "1001": [
+      [
+        2,
+        3
+      ]
+    ],
+    "1010": [
+      [
+        1,
+        0
+      ]
+    ],
+    "1011": [
+      [
+        0,
+        2
+      ]
+    ],
+    "1100": [
+      [
+        3,
+        0
+      ]
+    ],
+    "1101": [
+      [
+        0,
+        0
+      ]
+    ],
+    "1110": [
+      [
+        1,
+        3
+      ]
+    ],
+    "1111": [
+      [
+        0,
+        3
+      ]
+    ],
+    "0100": [
+      [
+        2,
+        0
+      ]
+    ],
+    "0110": [
+      [
+        0,
+        1
+      ]
+    ],
+    "0000": [
+      [
+        2,
+        1
+      ]
+    ],
+    "0001": [
+      [
+        3,
+        1
+      ]
+    ],
+    "0011": [
+      [
+        1,
+        2
+      ]
+    ],
+    "0010": [
+      [
+        2,
+        2
+      ]
+    ],
+    "0101": [
+      [
+        3,
+        2
+      ]
+    ],
+    "0111": [
+      [
+        3,
+        3
+      ]
+    ]
+  },
+  "pixellab": {
+    "tool": "create_topdown_tileset",
+    "id": "3e728013-e2c5-42e9-97c2-e8df9b1b3a29",
+    "base_tile_ids": {
+      "lower": "97e71544-5fcf-4e48-94b7-c809721a12be",
+      "upper": "03b8d806-83f4-4b8f-b285-90dc2d449d79"
+    },
+    "params": {
+      "mode": "pro",
+      "tile_size": 32,
+      "view": "high top-down",
+      "transition_size": 0
+    }
+  },
+  "notes": "Havora's docks and bridge ends: dirt road (Greenhaven dirt base 97e71544) to weathered dock planks (base 03b8d806). Pro Wang tileset, 32 px."
+}

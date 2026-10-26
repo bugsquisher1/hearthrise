@@ -1,0 +1,123 @@
+{
+  "id": "havora_water_planks",
+  "class": "terrain",
+  "kind": "wang16",
+  "style": "s1",
+  "material": "terrain",
+  "source": "havora_water_planks.png",
+  "lower": "water",
+  "upper": "planks",
+  "tiles": {
+    "1000": [
+      [
+        1,
+        1
+      ]
+    ],
+    "1001": [
+      [
+        2,
+        3
+      ]
+    ],
+    "1010": [
+      [
+        1,
+        0
+      ]
+    ],
+    "1011": [
+      [
+        0,
+        2
+      ]
+    ],
+    "1100": [
+      [
+        3,
+        0
+      ]
+    ],
+    "1101": [
+      [
+        0,
+        0
+      ]
+    ],
+    "1110": [
+      [
+        1,
+        3
+      ]
+    ],
+    "1111": [
+      [
+        0,
+        3
+      ]
+    ],
+    "0100": [
+      [
+        2,
+        0
+      ]
+    ],
+    "0110": [
+      [
+        0,
+        1
+      ]
+    ],
+    "0000": [
+      [
+        2,
+        1
+      ]
+    ],
+    "0001": [
+      [
+        3,
+        1
+      ]
+    ],
+    "0011": [
+      [
+        1,
+        2
+      ]
+    ],
+    "0010": [
+      [
+        2,
+        2
+      ]
+    ],
+    "0101": [
+      [
+        3,
+        2
+      ]
+    ],
+    "0111": [
+      [
+        3,
+        3
+      ]
+    ]
+  },
+  "pixellab": {
+    "tool": "create_topdown_tileset",
+    "id": "48156d9c-aac3-49b9-9d82-ff8d547d73d2",
+    "base_tile_ids": {
+      "lower": "32062820-23ec-4670-bff9-b5aab5db74fa",
+      "upper": "03b8d806-83f4-4b8f-b285-90dc2d449d79"
+    },
+    "params": {
+      "mode": "pro",
+      "tile_size": 32,
+      "view": "high top-down",
+      "transition_size": 0
+    }
+  },
+  "notes": "Havora's docks over the water: river water (base 32062820, the Greenhaven bank's) to the same dock planks (03b8d806, chained). Pro Wang tileset, 32 px."
+}

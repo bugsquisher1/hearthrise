@@ -1,0 +1,41 @@
+{
+  "id": "havora_home_p09",
+  "class": "lot",
+  "style": "s1",
+  "material": "wood",
+  "source": "havora_home_p09.png",
+  "frame": [
+    354,
+    303
+  ],
+  "anchor_px": [
+    177,
+    302
+  ],
+  "footprint": [
+    12,
+    8
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_image_pro",
+    "image": "19dc7039-2988-4c65-a021-787db9479b7c",
+    "seed": 609,
+    "size": [
+      384,
+      320
+    ],
+    "cost": 25,
+    "style": "common/square_general_store"
+  },
+  "notes": "Home P09 (plan x68-79 y50-57), town lot: half-timbered cottage, clay tile roof, window boxes, walled front garden."
+}

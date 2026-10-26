@@ -4,8 +4,8 @@
   "palette": "hr-world-56-v2",
   "T": 32,
   "image": "atlas-havora.png",
-  "size": [1024,844],
-  "pixels": "5c0af82a95b942191de83de158588a8298e52829927d6958c5e5338b4df7e9bb",
+  "size": [2048,1632],
+  "pixels": "50276dbe6571fadd9f24b8835c51acc3c61485a015825638430dd49d38f42b65",
   "sprites": {
     "havora_bridge": {
       "class": "bridge",
@@ -23,7 +23,28 @@
           "fps": 0,
           "loop": false,
           "dirs": {
-            "s": [[0,649]]
+            "s": [[782,1308]]
+          }
+        }
+      }
+    },
+    "havora_fisher_guild": {
+      "class": "lot",
+      "layer": "unit",
+      "frame": [496,316],
+      "anchor": [248,315],
+      "footprint": [16,10],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 316,
+      "contact": [363,450],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[0,689]]
           }
         }
       }
@@ -44,7 +65,7 @@
           "fps": 0,
           "loop": false,
           "dirs": {
-            "s": [[129,0]]
+            "s": [[497,689]]
           }
         }
       }
@@ -65,7 +86,28 @@
           "fps": 0,
           "loop": false,
           "dirs": {
-            "s": [[0,0]]
+            "s": [[868,0]]
+          }
+        }
+      }
+    },
+    "havora_harbor_office": {
+      "class": "lot",
+      "layer": "unit",
+      "frame": [418,356],
+      "anchor": [209,355],
+      "footprint": [16,10],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 356,
+      "contact": [193,206],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[449,0]]
           }
         }
       }
@@ -86,7 +128,280 @@
           "fps": 0,
           "loop": false,
           "dirs": {
-            "s": [[385,347]]
+            "s": [[1149,1006]]
+          }
+        }
+      }
+    },
+    "havora_home_p02": {
+      "class": "lot",
+      "layer": "unit",
+      "frame": [378,297],
+      "anchor": [189,296],
+      "footprint": [12,8],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 297,
+      "contact": [3,373],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[770,1006]]
+          }
+        }
+      }
+    },
+    "havora_home_p03": {
+      "class": "lot",
+      "layer": "unit",
+      "frame": [320,302],
+      "anchor": [160,301],
+      "footprint": [10,8],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 298,
+      "contact": [6,313],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[1363,689]]
+          }
+        }
+      }
+    },
+    "havora_home_p04": {
+      "class": "lot",
+      "layer": "unit",
+      "frame": [320,294],
+      "anchor": [160,293],
+      "footprint": [10,8],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 290,
+      "contact": [0,318],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[1470,1006]]
+          }
+        }
+      }
+    },
+    "havora_home_p05": {
+      "class": "lot",
+      "layer": "unit",
+      "frame": [384,297],
+      "anchor": [192,296],
+      "footprint": [12,8],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 297,
+      "contact": [21,362],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[385,1006]]
+          }
+        }
+      }
+    },
+    "havora_home_p06": {
+      "class": "lot",
+      "layer": "unit",
+      "frame": [320,287],
+      "anchor": [160,286],
+      "footprint": [10,8],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 286,
+      "contact": [4,317],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[0,1308]]
+          }
+        }
+      }
+    },
+    "havora_home_p09": {
+      "class": "lot",
+      "layer": "unit",
+      "frame": [354,303],
+      "anchor": [177,302],
+      "footprint": [12,8],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 303,
+      "contact": [10,352],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[1008,689]]
+          }
+        }
+      }
+    },
+    "havora_home_p10": {
+      "class": "lot",
+      "layer": "unit",
+      "frame": [378,327],
+      "anchor": [189,326],
+      "footprint": [14,10],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 327,
+      "contact": [205,375],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[997,0]]
+          }
+        }
+      }
+    },
+    "havora_home_p11": {
+      "class": "lot",
+      "layer": "unit",
+      "frame": [462,324],
+      "anchor": [231,323],
+      "footprint": [16,10],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 324,
+      "contact": [0,459],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[1376,0]]
+          }
+        }
+      }
+    },
+    "havora_home_p12": {
+      "class": "lot",
+      "layer": "unit",
+      "frame": [460,284],
+      "anchor": [230,283],
+      "footprint": [16,10],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 283,
+      "contact": [100,428],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[321,1308]]
+          }
+        }
+      }
+    },
+    "havora_home_p13": {
+      "class": "lot",
+      "layer": "unit",
+      "frame": [486,320],
+      "anchor": [243,319],
+      "footprint": [16,8],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 320,
+      "contact": [1,485],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[1192,368]]
+          }
+        }
+      }
+    },
+    "havora_home_p14": {
+      "class": "lot",
+      "layer": "unit",
+      "frame": [550,320],
+      "anchor": [275,319],
+      "footprint": [18,8],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 320,
+      "contact": [3,545],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[641,368]]
+          }
+        }
+      }
+    },
+    "havora_home_p15": {
+      "class": "lot",
+      "layer": "unit",
+      "frame": [640,320],
+      "anchor": [320,319],
+      "footprint": [20,8],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 320,
+      "contact": [0,639],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[0,368]]
+          }
+        }
+      }
+    },
+    "havora_sewer_works": {
+      "class": "lot",
+      "layer": "unit",
+      "frame": [448,367],
+      "anchor": [224,366],
+      "footprint": [14,10],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 367,
+      "contact": [259,408],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[0,0]]
           }
         }
       }
@@ -107,11 +422,127 @@
           "fps": 0,
           "loop": false,
           "dirs": {
-            "s": [[0,347]]
+            "s": [[0,1006]]
           }
         }
       }
     }
   },
-  "terrain": {}
+  "terrain": {
+    "havora_earth_planks": {
+      "kind": "wang16",
+      "lower": "earth",
+      "upper": "planks",
+      "tiles": {
+        "1000": [[1431,1308]],
+        "1001": [[1464,1308]],
+        "1010": [[1497,1308]],
+        "1011": [[1530,1308]],
+        "1100": [[1563,1308]],
+        "1101": [[1596,1308]],
+        "1110": [[1629,1308]],
+        "1111": [[1662,1308]],
+        "0000": [[1167,1308]],
+        "0001": [[1200,1308]],
+        "0010": [[1233,1308]],
+        "0011": [[1266,1308]],
+        "0100": [[1299,1308]],
+        "0101": [[1332,1308]],
+        "0110": [[1365,1308]],
+        "0111": [[1398,1308]]
+      }
+    },
+    "havora_earth_rock": {
+      "kind": "wang16",
+      "lower": "earth",
+      "upper": "cliff",
+      "tiles": {
+        "1000": [[1926,1308]],
+        "1001": [[1959,1308]],
+        "1010": [[1992,1308]],
+        "1011": [[0,1596]],
+        "1100": [[33,1596]],
+        "1101": [[66,1596]],
+        "1110": [[99,1596]],
+        "1111": [[132,1596]],
+        "0000": [[1167,1308]],
+        "0001": [[1695,1308]],
+        "0010": [[1728,1308]],
+        "0011": [[1761,1308]],
+        "0100": [[1794,1308]],
+        "0101": [[1827,1308]],
+        "0110": [[1860,1308]],
+        "0111": [[1893,1308]]
+      }
+    },
+    "havora_grass_rock": {
+      "kind": "wang16",
+      "lower": "grass",
+      "upper": "cliff",
+      "tiles": {
+        "1000": [[429,1596]],
+        "1001": [[462,1596]],
+        "1010": [[495,1596]],
+        "1011": [[528,1596]],
+        "1100": [[561,1596]],
+        "1101": [[594,1596]],
+        "1110": [[627,1596]],
+        "1111": [[132,1596]],
+        "0000": [[165,1596]],
+        "0001": [[198,1596]],
+        "0010": [[231,1596]],
+        "0011": [[264,1596]],
+        "0100": [[297,1596]],
+        "0101": [[330,1596]],
+        "0110": [[363,1596]],
+        "0111": [[396,1596]]
+      }
+    },
+    "havora_grass_tilled": {
+      "kind": "wang16",
+      "lower": "grass",
+      "upper": "tilled",
+      "tiles": {
+        "1000": [[891,1596]],
+        "1001": [[924,1596]],
+        "1010": [[957,1596]],
+        "1011": [[990,1596]],
+        "1100": [[1023,1596]],
+        "1101": [[1056,1596]],
+        "1110": [[1089,1596]],
+        "1111": [[1122,1596]],
+        "0000": [[165,1596]],
+        "0001": [[660,1596]],
+        "0010": [[693,1596]],
+        "0011": [[726,1596]],
+        "0100": [[759,1596]],
+        "0101": [[792,1596]],
+        "0110": [[825,1596]],
+        "0111": [[858,1596]]
+      }
+    },
+    "havora_water_planks": {
+      "kind": "wang16",
+      "lower": "water",
+      "upper": "planks",
+      "tiles": {
+        "1000": [[1419,1596]],
+        "1001": [[1452,1596]],
+        "1010": [[1485,1596]],
+        "1011": [[1518,1596]],
+        "1100": [[1551,1596]],
+        "1101": [[1584,1596]],
+        "1110": [[1617,1596]],
+        "1111": [[1662,1308]],
+        "0000": [[1155,1596]],
+        "0001": [[1188,1596]],
+        "0010": [[1221,1596]],
+        "0011": [[1254,1596]],
+        "0100": [[1287,1596]],
+        "0101": [[1320,1596]],
+        "0110": [[1353,1596]],
+        "0111": [[1386,1596]]
+      }
+    }
+  }
 }

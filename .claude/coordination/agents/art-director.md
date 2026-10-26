@@ -3076,6 +3076,9 @@ stall. Lessons: (1) the stone grade turns warm fieldstone grey: judge every pick
 be its own `light` sprite or the grade dulls it; (2) animate_image on a crop keeps the arch still when the action
 says so; "something is thrown in" made it draw a flying object across the stone; (3) vfx_workbench parts read
 cartoon next to PixelLab pixels (flame_tongue): keep only its particles (sparks, embers); (4) Wang ellipses on a
-32 px vertex grid stair-step: a round ring needs a big radius or a hand-drawn edge; (5) a 24x24 one-material
-paving reads as a tiled floor: it needs structure (ring, kerb, planters, lamps), decals alone do not break it;
+32 px vertex grid stair-step, and a Wang fill repeats every 32 px: a plaza is a PAINTED ground (create_image_pro
+field, outpainted with inpaint_image windows, seams re-laid by 48 px inpaint bands, the radial rings inpainted as
+a disc mask so they meet the field); (5) the model sizes stones to the canvas: a 512 field gave slabs 2-3 heroes
+long, 256 gave cobbles, 384 gave 1-2 heroes (crop its brick-course top band); a pasted disc never blends, an
+inpainted one does; the named-fuel light is a small pool (r ~7 tiles) or it reads as a screen filter;
 (6) a hand-drawn sprite fails style1 [s1-source] (no PixelLab id): generate even 12 px chunks.

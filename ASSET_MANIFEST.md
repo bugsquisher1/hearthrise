@@ -151,7 +151,7 @@ KNOWN_TWINS entries are gone). Decision: **retain**; approved: Asset Director (d
 ### World atlas registry (2026-10-15) — every world sprite and terrain, and what happens to it
 
 The registry Tyler's PixelLab directive asks for; there is no second registry. One row per sidecar in
-`art/world/<set>/*.json` (236 today), printed by `node tools/world-art/registry.mjs` from the sidecars
+`art/world/<set>/*.json` (239 today), printed by `node tools/world-art/registry.mjs` from the sidecars
 and the built manifests, plus the Art Director's decision (the `D` table in that script). **retain** =
 ships as is; **edit** = keep the asset and change it, cheapest fix first (`docs/PIXELLAB_WORKFLOW.md`);
 **replace** = a new asset. **Approval:** every row was approved for the world when its atlas was built
@@ -291,10 +291,12 @@ landed 2026-10-15 (40 generations, all R3; approval pending Tyler); R2 waits for
 | npc_crier | common | character | 64×64 | idle 1@5 | senwseswnenw | **retain** | see sidecar |
 | npc_smith | common | character | 64×64 | idle 1@5 | senwseswnenw | **retain** | see sidecar |
 | oak | common | sapling | 64×90 | idle 1 | s | **retain** | see sidecar |
+| ore_coal_rock | common | bulky | 28×27 | idle 1 | s | **staged**: on no map yet (Hearth Square, 2026-10-25); approved: art-director 2026-10-25, Tyler pending | see sidecar |
 | ore_copper_rock | common | bulky | 28×27 | idle 1 | s | **staged**: on no map yet (Hearth Square, 2026-10-25); approved: art-director 2026-10-25, Tyler pending | see sidecar |
 | pine | common | sapling | 64×92 | idle 1 | s | **retain** | see sidecar |
 | rocks | common | bulky | 32×30 | idle 1 | s | **retain** | see sidecar |
 | rug | common | decal | 40×23 | idle 1 | s | **retain** | create_image_pro_flash |
+| rune_block | common | bulky | 26×29 | idle 1 | s | **staged**: on no map yet (Hearth Square, 2026-10-25); approved: art-director 2026-10-25, Tyler pending | see sidecar |
 | signpost | common | fixture | 28×36 | idle 1 | s | **retain** | create_image_pro_flash |
 | smithy | common | building | 224×160 | idle 1 | s | **retain** | see sidecar |
 | square_bank | common | hall | 352×307 | idle 1 | s | **staged**: on no map yet (Hearth Square, 2026-10-25); approved: art-director 2026-10-25, Tyler pending | create_image_pro |
@@ -315,12 +317,13 @@ landed 2026-10-15 (40 generations, all R3; approval pending Tyler); R2 waits for
 | square_decal_tuft_b | common | decal | 26×18 | idle 1 | s | **staged**: on no map yet (Hearth Square, 2026-10-25); approved: art-director 2026-10-25, Tyler pending | create_image_pro |
 | square_depot | common | hall | 384×302 | idle 1 | s | **staged**: on no map yet (Hearth Square, 2026-10-25); approved: art-director 2026-10-25, Tyler pending | create_image_pro |
 | square_dirt_flag | common | terrain | 32×32 tiles | still |  | **staged**: on no map yet (Hearth Square, 2026-10-25); approved: art-director 2026-10-25, Tyler pending | create_topdown_tileset `61093a68` |
-| square_flag_hearthstone | common | terrain | 32×32 tiles | still |  | **staged**: on no map yet (Hearth Square, 2026-10-25); approved: art-director 2026-10-25, Tyler pending | create_topdown_tileset `edb6840f` |
 | square_general_store | common | hall | 384×315 | idle 1 | s | **staged**: on no map yet (Hearth Square, 2026-10-25); approved: art-director 2026-10-25, Tyler pending | create_image_pro |
 | square_grass_flag | common | terrain | 32×32 tiles | still |  | **staged**: on no map yet (Hearth Square, 2026-10-25); approved: art-director 2026-10-25, Tyler pending | create_topdown_tileset `1da34598` |
 | square_market_stall | common | stall | 76×58 | idle 1 | s | **staged**: on no map yet (Hearth Square, 2026-10-25); approved: art-director 2026-10-25, Tyler pending | see sidecar |
+| square_plaza | common | terrain | 32×32 tiles | still |  | **staged**: on no map yet (Hearth Square, 2026-10-25); approved: art-director 2026-10-25, Tyler pending | create_image_pro + inpaint_image |
 | well | common | fixture | 36×43 | idle 1 | s | **retain** | create_image_pro_flash |
 | westwood_ash | common | tree | 68×97 | idle 1 | s | **staged**: on no map yet (Hearth Square, 2026-10-25); approved: art-director 2026-10-25, Tyler pending | see sidecar |
+| westwood_yew | common | tree | 62×91 | idle 1 | s | **staged**: on no map yet (Hearth Square, 2026-10-25); approved: art-director 2026-10-25, Tyler pending | see sidecar |
 | woodpile | common | fixture | 38×23 | idle 1 | s | **retain** | create_image_pro_flash |
 | altar | cottage | fixture | 30×38 | idle 1 | s | **retain** | create_image_pro_flash |
 | apple_crate | cottage | box | 20×21 | idle 1 | s | **retain** | create_image_pro_flash |

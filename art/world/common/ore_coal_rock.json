@@ -1,0 +1,35 @@
+{
+  "id": "ore_coal_rock",
+  "class": "bulky",
+  "style": "s1",
+  "material": "stone",
+  "source": "ore_coal_rock.png",
+  "frame": [
+    28,
+    27
+  ],
+  "anchor_px": [
+    14,
+    26
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_object_pro_flash",
+    "object": "ecc9da67-7461-4a52-84db-4af2bfb641b7",
+    "name": "S1 coal rock"
+  },
+  "notes": "Mining rock node sample (coal). STAGED sample."
+}

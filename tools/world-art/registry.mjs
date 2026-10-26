@@ -20,7 +20,7 @@ for (const id of ['great_hearth', 'hearth_fire', 'hearth_fire_verdigris', 'heart
   'square_decal_leaves_a', 'square_decal_leaves_b', 'square_decal_puddle_a', 'square_decal_puddle_b',
   'square_decal_chips_a', 'square_decal_chips_b', 'square_decal_tuft_a', 'square_decal_tuft_b', 'square_general_store',
   'square_depot', 'square_bank', 'square_barracks', 'square_market_stall', 'mine_mouth', 'ore_copper_rock',
-  'westwood_ash', 'fishing_pier']) D[id] = ['staged', 'on no map yet (Hearth Square, 2026-10-25); approved: art-director 2026-10-25, Tyler pending'];
+  'westwood_ash', 'fishing_pier', 'rune_block', 'westwood_yew', 'ore_coal_rock']) D[id] = ['staged', 'on no map yet (Hearth Square, 2026-10-25); approved: art-director 2026-10-25, Tyler pending'];
 const rows = [];
 for (const set of SETS) {
   const man = JSON.parse(readFileSync(ROOT + 'assets/world/atlas-' + set + '.json'));

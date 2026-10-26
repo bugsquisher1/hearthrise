@@ -24,7 +24,7 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-10-26",
- "replay_ms": 44142,
+ "replay_ms": 40332,
  "counts": {
   "tracked_names": 697,
   "entries": 552
@@ -12214,7 +12214,8 @@
     "restate"
    ],
    "touched_by": [
-    "2027-01-26-town-stations.generated.sql"
+    "2027-01-26-town-stations.generated.sql",
+    "2027-01-29-havora-stations.generated.sql"
    ],
    "live": {
     "md5": "1768152bb5d23488014488973f677f6d",

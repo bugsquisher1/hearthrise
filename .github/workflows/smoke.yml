@@ -2897,6 +2897,26 @@ jobs:
           node tests/skills-from-storage.mjs
           node tools/mutant-gate.mjs node tests/skills-from-storage.mjs --mutate
 
+      # HARVEST AND CLEAR PLOT (report #66; 2027-01-26-farm-harvest-clear.sql): a regrowing vine is
+      # harvested once and removed (plot empty, journalled), a plain harvest still regrows, a replay
+      # is cached, another account touches nothing, authenticated only, a second apply is a no-op.
+      # --mutate: 4.
+      - name: Farm — harvest and clear a regrowing plot
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/farm-harvest-clear.mjs
+          node tools/mutant-gate.mjs node tests/farm-harvest-clear.mjs --mutate
+
+      # THE REGROW LIMIT SURVIVES A CATALOGUE REGEN (2027-01-27-items-catalogue.generated.sql): a
+      # fresh generation writes hr_crops.regrow_limit = src/core/farm.js REGROW_LIMITS for every crop,
+      # and the replayed chain ends with them (every regen from 2026-08-22 to 2027-01-14 dropped it to
+      # 0 = no limit). --mutate: 2 (the generator drops the column / writes 0).
+      - name: Farm — regrowing crops keep their finite limit through a catalogue regen
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/catalogue-regrow-limit.mjs
+          node tools/mutant-gate.mjs node tests/catalogue-regrow-limit.mjs --mutate
+
       # THE ONE-WAY PARTY FLOW (2026-10-28-party-flow.sql, PARTY_SPEC + Tyler
       # 10-19): every step on the real chain as `authenticated` — the first
       # invite makes the party, an own character joins at once (slot or name),

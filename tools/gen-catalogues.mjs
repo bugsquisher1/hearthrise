@@ -84,7 +84,12 @@ const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'))
    Every equipment row's hr_items.req_skill turns 'level' (gear-tiers.js LEVEL_REQ) at its tier's Level; ammo, runes,
    food and drink keep their skill. ONE forward file, the same full delete+insert replace, applied AFTER
    2027-01-14-gear-by-level.sql (hr_apply reads 'level' as the hero's Level only once that file has landed). */
-const OUT = join(ROOT, 'supabase', 'migrations', '2027-01-14-items-catalogue.generated.sql');
+/* THE REGROW LIMIT (lane a-regrow-harvest, 2026-10-26): 2027-01-14-items-catalogue.generated.sql is APPLIED history.
+   Every full replace since 2026-08-22 re-inserted hr_crops WITHOUT regrow_limit, so tomato and emberfruit ended at 0
+   (= no limit) on the chain and live, against src/core/farm.js REGROW_LIMITS. The hr_crops rows now carry it (this
+   generator refuses a regrowing crop without a finite limit) and the emitted self-check asserts the landed limits and
+   plays one vine to its wither. ONE forward file, the same full delete+insert replace. */
+const OUT = join(ROOT, 'supabase', 'migrations', '2027-01-27-items-catalogue.generated.sql');
 /* THE SECOND GENERATED FILE (2026-09-13). hr_item_buffs is emitted as its own
    migration rather than into OUT above, and that is a deliberate operational
    call: OUT is the FOURTH file in tests/schema-apply-order.json and is already
@@ -158,6 +163,19 @@ const skills = Object.keys(SKILLS_DEF).sort().map((id) => ({
   skill_id: id, name: String(SKILLS_DEF[id].name ?? id), cat: String(SKILLS_DEF[id].cat ?? ''),
 }));
 
+/* THE FINITE-PERENNIAL LIMIT (src/core/farm.js REGROW_LIMITS, the one source). FAIL GENERATION, not the migration: a
+   regrowing crop needs a whole limit > 0 (0 is the server's "no limit"), a crop that does not regrow carries none. */
+const { REGROW_LIMITS } = await imp('src/core/farm.js');
+const regrowLimitOf = (id) => {
+  const lim = REGROW_LIMITS[id];
+  if (CROPS[id].regrows === true) {
+    if (!Number.isInteger(lim) || lim <= 0) { console.error(`regrow-limit: regrowing crop ${id} has no finite REGROW_LIMITS entry (got ${lim})`); process.exit(1); }
+    return lim;
+  }
+  if (lim !== undefined) { console.error(`regrow-limit: crop ${id} does not regrow but carries a REGROW_LIMITS entry`); process.exit(1); }
+  return 0;
+};
+
 const crops = Object.keys(CROPS).sort().map((id) => ({
   crop_id: id,
   seed_item: CROPS[id].seed ?? null,
@@ -175,6 +193,7 @@ const crops = Object.keys(CROPS).sort().map((id) => ({
   ),
   xp: Math.max(0, Math.trunc(CROPS[id].xp ?? 0)),
   regrows: CROPS[id].regrows === true,
+  regrow_limit: regrowLimitOf(id),
 }));
 
 // Activities: every id `player_state.active_id` may legally hold, with the
@@ -450,7 +469,8 @@ create table if not exists public.hr_crops (
   yield_min  int     not null default 1,
   yield_max  int     not null default 1,
   xp         int     not null default 0,
-  regrows    boolean not null default false
+  regrows    boolean not null default false,
+  regrow_limit int   not null default 0
 );
 -- Existing databases (created by a pre-2026-08-20 generator) get the columns
 -- from 2026-08-20-server-farming.sql; the ALTERs there and these column defs
@@ -459,6 +479,7 @@ alter table public.hr_crops add column if not exists yield_min int     not null 
 alter table public.hr_crops add column if not exists yield_max int     not null default 1;
 alter table public.hr_crops add column if not exists xp        int     not null default 0;
 alter table public.hr_crops add column if not exists regrows   boolean not null default false;
+alter table public.hr_crops add column if not exists regrow_limit int  not null default 0;
 
 create table if not exists public.hr_activities (
   kind        text not null check (kind in ('gather','artisan','combat')),
@@ -576,8 +597,8 @@ ${valuesBlock(equipSlots, (r) => `  (${q(r.equip_slot)},${n(r.ord)})`)};
 insert into public.hr_skills (skill_id, name, cat) values
 ${valuesBlock(skills, (r) => `  (${q(r.skill_id)},${q(r.name)},${q(r.cat)})`)};
 
-insert into public.hr_crops (crop_id, seed_item, prod_item, base_hours, req_lv, yield_min, yield_max, xp, regrows) values
-${valuesBlock(crops, (r) => `  (${q(r.crop_id)},${q(r.seed_item)},${q(r.prod_item)},${n(r.base_hours)},${n(r.req_lv)},${n(r.yield_min)},${n(r.yield_max)},${n(r.xp)},${b(r.regrows)})`)};
+insert into public.hr_crops (crop_id, seed_item, prod_item, base_hours, req_lv, yield_min, yield_max, xp, regrows, regrow_limit) values
+${valuesBlock(crops, (r) => `  (${q(r.crop_id)},${q(r.seed_item)},${q(r.prod_item)},${n(r.base_hours)},${n(r.req_lv)},${n(r.yield_min)},${n(r.yield_max)},${n(r.xp)},${b(r.regrows)},${n(r.regrow_limit)})`)};
 
 insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp, is_boss, level) values
 ${valuesBlock(activities, (r) => `  (${q(r.kind)},${q(r.activity_id)},${q(r.req_skill)},${n(r.req_lv)},${n(r.max_hp)},${b(r.is_boss)},${n(r.level)})`)};
@@ -826,11 +847,67 @@ begin
                   where p.item_id = i.item_id and p.equip_slot in (${ARMOUR_SLOTS.map(q).join(', ')}));
   if v_bad > 0 then raise exception '% armour row(s) in an armour slot carry no armour_weight', v_bad; end if;
 
+  -- THE FINITE-PERENNIAL LIMIT (2026-10-26): every regrowing crop carries src/core/farm.js REGROW_LIMITS, never 0
+  -- (the server's "no limit": the full replaces before this one dropped it and tomatoes regrew forever).
+  select count(*) into v_bad from public.hr_crops where regrows and regrow_limit <= 0;
+  if v_bad > 0 then raise exception '% regrowing crop(s) carry no finite regrow_limit', v_bad; end if;
+  select count(*) into v_bad from public.hr_crops c
+    full join (values ${crops.map((r) => `(${q(r.crop_id)}, ${n(r.regrow_limit)})`).join(', ')}) v(crop_id, lim) using (crop_id)
+   where c.regrow_limit is distinct from v.lim;
+  if v_bad > 0 then raise exception '% crop(s) land a regrow_limit the generator did not emit', v_bad; end if;
+
   raise notice 'CATALOGUES OK — % items, % activities, % runes, digest ${DIGEST}',
     (select count(*) from public.hr_items), (select count(*) from public.hr_activities),
     (select count(*) from public.hr_runes);
 end $$;
+${witherProbe()}`;
+
+/* ONE VINE PLAYED TO ITS WITHER (2026-10-26, CLAUDE.md §4): the regrowing crop with the smallest limit is harvested
+   through the real hr_farm_harvest as a probe player: it grows back `limit` times, withers on harvest limit+1 and the
+   plot is empty. Every probe row is rolled back. */
+function witherProbe() {
+  /* the smallest limit, then the least XP (the probe hero's day budget must not refuse a harvest) */
+  const vine = crops.filter((r) => r.regrows)
+    .sort((a, b2) => a.regrow_limit - b2.regrow_limit || a.xp * a.yield_max - b2.xp * b2.yield_max || (a.crop_id < b2.crop_id ? -1 : 1))[0];
+  if (!vine) return '';
+  return `
+-- ── A regrowing plot withers after regrow_limit + 1 harvests (executed, rolled back) ──
+do $$
+declare
+  v_u constant uuid := '000000c0-0000-4000-a000-00000127c001';
+  v jsonb; i int;
+begin
+  if to_regprocedure('public.hr_farm_harvest(integer,integer,uuid)') is null or to_regclass('public.account_farm_plots') is null then
+    raise exception 'the wither probe needs hr_farm_harvest and account_farm_plots (2026-12-14-shared-farm.sql)'; end if;
+  begin
+    perform set_config('request.jwt.claim.sub', v_u::text, true);
+    insert into auth.users (id) values (v_u) on conflict (id) do nothing;
+    insert into public.hr_access_allowlist (user_id, note) values (v_u, 'catalogue wither probe') on conflict (user_id) do nothing;
+    v := public.hr_create_character(0);
+    if coalesce(v->>'ok', '') <> 'true' then raise exception 'wither probe: hr_create_character(0) refused: %', v; end if;
+    insert into public.account_farm_plots (user_id, plot_idx, crop_id, planted_at, waterings, regrow_count, planted_by)
+      values (v_u, 0, ${q(vine.crop_id)}, now() - interval '2000 hours', '{}', 0, 0);
+    for i in 1 .. ${vine.regrow_limit + 1} loop
+      update public.account_farm_plots set planted_at = now() - interval '2000 hours' where user_id = v_u and plot_idx = 0;
+      v := public.hr_farm_harvest(0, 0, gen_random_uuid());
+      if coalesce(v->>'ok', '') <> 'true' then raise exception 'wither probe: harvest % of ${vine.crop_id} answered %', i, v; end if;
+      if (i <= ${vine.regrow_limit}) <> ((v->>'regrew') = 'true') or (i > ${vine.regrow_limit}) <> ((v->>'withered') = 'true') then
+        raise exception 'wither probe: harvest % of ${vine.regrow_limit + 1} answered % (it must regrow ${vine.regrow_limit} times, then wither)', i, v; end if;
+    end loop;
+    if exists (select 1 from public.account_farm_plots where user_id = v_u) then
+      raise exception 'wither probe: the plot is not empty after the wither'; end if;
+    raise exception using errcode = 'HR8A7', message = 'wither probe complete - rolling back';
+  exception when sqlstate 'HR8A7' then
+    null;
+  end;
+  perform set_config('request.jwt.claim.sub', '', true);
+  if exists (select 1 from public.player_state where user_id = v_u) or exists (select 1 from public.account_farm_plots where user_id = v_u)
+     or exists (select 1 from public.player_ledger where user_id = v_u) then
+    raise exception 'wither probe LEAKED a probe row'; end if;
+  raise notice 'wither probe: ${vine.crop_id} regrows ${vine.regrow_limit} times, then withers and clears the plot';
+end $$;
 `;
+}
 
 // ── 4b. Emit the ITEM → BUFF catalogue (its own migration file) ───────────
 const BUFF_DIGEST = createHash('sha256').update(JSON.stringify(itemBuffs)).digest('hex');

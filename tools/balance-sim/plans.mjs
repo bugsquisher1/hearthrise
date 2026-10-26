@@ -67,6 +67,42 @@ export function buildPlan(name, axes, scale = 1) {
     out.push({ id: 'S1:career:four:s0', kind: 'career', party: PARTIES.four, startLevel: 8, targetLevel: 50, maxHours: pick(150, 400), chunkH: 1, seed: 0 });
   }
   if (name === 'career') return out;
+  if (name === 'whatif') {
+    /* THE CANDIDATE CHANGES, in the sim only (worker.mjs applies a job's `whatIf` to the engine's own rows and restores
+       them after): each reference cell is played as today (`x=W0`) and under each candidate on the same dice. */
+    const refs = [
+      { ground: 'meadowbrook_thicket', party: ['tank'], level: 10 }, { ground: 'meadowbrook_thicket', party: ['tank'], level: 10, density: 8 },
+      { ground: 'meadowbrook_thicket', party: ['hammer'], level: 10, density: 8 },
+      { ground: 'mosslight_glade', party: ['tank'], level: 24 }, { ground: 'mosslight_glade', party: ['hammer'], level: 24, density: 8 },
+      { ground: 'mosslight_glade', party: ['bow'], level: 24, density: 8 }, { ground: 'mosslight_glade', party: ['healer'], level: 24, density: 8 },
+      { ground: 'mosslight_glade', party: ['tank'], level: 11 }, { ground: 'coppercap_warrens', party: ['tank'], level: 41 },
+      { ground: 'coppercap_warrens', party: ['hammer'], level: 41, density: 8 }, { ground: 'coppercap_warrens', party: ['hammer'], level: 27 },
+      { ground: 'millrace_sewer', party: PARTIES.four, level: 17, density: 8 },
+    ];
+    /* W1/W2: monster blows x1.25 / x1.5 on the EA tiers (1-3): the designer's named lever ("monster damage by tier,
+       never the shields"); tiers 4-6 keep theirs (no ground uses them) */
+    const dmg = (k) => ({ combat: { monsterAttackDamageScale: Math.round(5.4 * k * 100) / 100, monsterDamageScaleByTier: { 3: Math.round(4.0 * k * 100) / 100, 4: 4.0, 5: 3.0, 6: 2.2 } } });
+    const variants = [['W0', null], ['W1dmg125', dmg(1.25)], ['W2dmg150', dmg(1.5)]];
+    for (const r of refs) for (const [x, whatIf] of variants) out.push({ ...cellOf({ ...r, hours: H(3), seeds: 2, x }), ...(whatIf ? { whatIf } : {}) });
+    return out;
+  }
+  if (name === 'whatif2' || name === 'whatif3') {
+    /* W3: A LEVEL-GAP TERM for heroes UNDER a ground's floor (the danger lane's GAP idea; in band nothing changes): every
+       monster's `atk` (its accuracy AND its blow) x (1 + 8% per Level under the floor), so 5 under = x1.4, 10 under =
+       x1.8. Played on the under-floor cells, today vs the term, same dice. */
+    const refs = [
+      { ground: 'coppercap_warrens', party: ['hammer'], level: 27, gap: 5 }, { ground: 'coppercap_warrens', party: ['hammer'], level: 22, gap: 10 },
+      { ground: 'coppercap_warrens', party: ['tank'], level: 22, gap: 10 }, { ground: 'mosslight_glade', party: ['tank'], level: 11, gap: 5 },
+      { ground: 'mosslight_glade', party: ['hammer'], level: 6, gap: 10 }, { ground: 'millrace_sewer', party: ['bow'], level: 3, gap: 5 },
+    ];
+    /* whatif3: the same term's calibration, +3% and +5% per Level under (W4 / W5) */
+    const steps = name === 'whatif2' ? [['W3gap', 0.08]] : [['W4gap3', 0.03], ['W5gap5', 0.05]];
+    for (const { gap, ...r } of refs) {
+      if (name === 'whatif2') out.push(cellOf({ ...r, hours: H(3), seeds: 2, x: 'W0' }));
+      for (const [x, k] of steps) out.push({ ...cellOf({ ...r, hours: H(3), seeds: 2, x }), whatIf: { monsters: { '*': { atk: '*' + Math.round((1 + k * gap) * 100) / 100 } } } });
+    }
+    return out;
+  }
   if (name === 'career8') {
     /* the same lives at the full box (density 8: the "reasonably efficient" pick wherever it stays safe) */
     for (const s of ['tank', 'hammer', 'bow', 'mage']) out.push({ id: 'S1:career8:' + s + ':s0', kind: 'career', party: [s], startLevel: 1, targetLevel: 50, maxHours: 200, chunkH: 1, seed: 0, density: 8 });

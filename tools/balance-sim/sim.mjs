@@ -14,6 +14,25 @@
 //
 // Output (gitignored): tools/balance-sim/out/<plan>/cells.jsonl (one finished cell or career per line; a stopped run
 // resumes), cells.errors.jsonl. The committed summary is written by report.mjs.
+//
+// PLANS: smoke (one cell) · cost (what an hour of each ground costs) · baseline (tonight's subset: S1 careers, S2 the
+// solo grid as built, S3 the full box, S4 parties, S5 upgrade steps, S6 healing configs, S7 deep runs) · career /
+// career8 (lives as built / at the full box) · whatif, whatif2, whatif3 (candidate changes on the same dice) · full
+// (the same matrix at 24 h x 4 seeds: about 88k hero-hours, about 28 h at 4 workers on this PC, measured 4.6 worker-s
+// a hero-hour on the baseline).
+//
+// THE DASHBOARD JSON (out/<plan>/dashboard.json, schema 'hearthrise.balance-dashboard/1'), for a filterable artifact:
+//   { schema, generated, commit,
+//     dims: { ground[], style[], party[] ('tank+healer'), level[], density[] (0 = as built, 8 = the full box), stage[] },
+//     rows: [ one per hero per cell: { cell, stage, ground, band [lo, hi], party, partySize, style, level, density,
+//             variant (gear / bar / supply what-if, or null), hours, levelXpPerH, skillXpPerH {skill: xp}, incomePerH,
+//             raresPerH, storePerH, profitPerH, margin, killsPerH, ttkS, dps, takenPerH, dmgPerMonsterSwing, healInPerH,
+//             sustainRatio, eatsPerH, drinksPerH, deaths, deathsPer1000h {rate, lo, hi, k, hours}, closePer12h {...},
+//             minHpP50, minHpP10, difficulty ('easy' | 'normal' | 'hard' | 'extreme', or 'byHp|byDeaths'),
+//             rareEveryH, maxHp, mitigation {dodgePm, absorbPm, ward}, kit {slot: item} } ],
+//     careers: [ { id, party, hours, reached, hoursTo {L: h}, grounds, deaths, skillsAt, profitPerHByLevel } ],
+//     summary: { levelHours, curve, party, upgrades, deathCost } }
+// Filter by ground x style x level x partySize x density; colour by difficulty; plot levelXpPerH / profitPerH.
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadAxes, buildPlan } from './plans.mjs';

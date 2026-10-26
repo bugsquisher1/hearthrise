@@ -12,7 +12,7 @@ import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { execSync } from 'node:child_process';
-import { round } from './stats.mjs';
+import { round, rateCI } from './stats.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..', '..');
@@ -42,16 +42,20 @@ const dens = (c) => (Number.isInteger(c.cell.density) ? c.cell.density : 0);
 const variant = (c) => (c.cell.gear ? JSON.stringify(c.cell.gear) : '') + (c.cell.bar ? JSON.stringify(c.cell.bar) : '') + (c.cell.supply ? 'supply:' + c.cell.supply : '');
 const plain = (c) => !variant(c);
 const meanXp = (c) => c.party.levelXpPerHeroPerH;
-/* A cell a player can farm: nobody died in it and close calls stayed at or under the ruling's one per 12 h */
-const safe = (c) => c.heroes.every((h) => h.deaths === 0 && (h.closeCallsPer12h.rate || 0) <= 1);
+/* A cell a player can farm: "reasonably efficient hunting" that LASTS (ruling §2-§3): nobody died, close calls at or
+   under one per 12 h, the typical encounter no harder than Normal (minimum HP >= 60%), and it pays for its own
+   supplies (profit >= 0: a hunt that loses gold ends on gold_out, so it is not a 12 h hunt) */
+const safe = (c) => c.heroes.every((h) => h.deaths === 0 && (h.closeCallsPer12h.rate || 0) <= 1 && (h.encMinHpPct.p50 === null || h.encMinHpPct.p50 >= 60) && h.profitPerH >= 0);
 
 /* ── 1. LEVEL XP AN HOUR BY LEVEL (skills at the hero's Level), the efficient pick per Level ─────────────── */
-function xpCurve(style) {
-  /* per ground and density: [L, xp/h] sampled; efficient = the best safe sample at each Level, interpolated */
+function xpCurve(style, inBand) {
+  /* per ground and density: [L, xp/h] sampled; efficient = the best safe sample at each Level, interpolated.
+     inBand: only a ground at or above whose floor the hero stands (no hunting under a ground's floor: min-maxing) */
   const series = {};
   for (const c of cells) {
     if (c.cell.party.length !== 1 || c.cell.party[0] !== style || !plain(c) || !/S2|S3/.test(stage(c))) continue;
     if (!safe(c)) continue;
+    if (inBand && c.hunt.band && c.cell.level < c.hunt.band[0]) continue;
     const k = c.ground + '@' + dens(c);
     (series[k] = series[k] || []).push([c.cell.level, meanXp(c)]);
   }
@@ -101,10 +105,11 @@ const targetAt = (L) => {
   return TARGET_HOURS[TARGET_HOURS.length - 1][1];
 };
 
+/* style -> its measured efficient Level XP an hour at a Level (null where no safe cell covers it) */
+const RATES = {};
 function levelHours() {
   const styles = [...new Set(cells.filter((c) => c.cell.party.length === 1).map((c) => c.cell.party[0]))];
   const per = {};
-  const allPts = [];
   for (const s of styles) {
     const cv = xpCurve(s);
     const pts = [];
@@ -115,39 +120,49 @@ function levelHours() {
     const rate = (L) => { const v = pts.find((p) => p[0] === L); if (v) return v[1]; if (L < pts[0][0]) return pts[0][1]; return fit ? fit.a * L ** fit.b : pts[pts.length - 1][1]; };
     /* TODAY'S CONTENT: past the last ground the hero keeps its best last ground's rate (no ground beyond it) */
     const flat = (L) => (L <= last ? rate(L) : pts[pts.length - 1][1]);
+    RATES[s] = (L) => { const v = pts.find((p) => p[0] === L); return v ? v[1] : null; };
     per[s] = { measuredTo: last, fit: fit ? { a: round(fit.a, 1), b: round(fit.b, 3) } : null,
       xpPerH: Object.fromEntries([5, 10, 15, 20, 25, 30, 35, 40, 45, 50].filter((L) => L <= last).map((L) => [L, round(rate(L), 0)])),
       where: Object.fromEntries([5, 10, 15, 20, 25, 30, 35, 40, 45, 50].filter((L) => L <= last).map((L) => [L, (pts.find((p) => p[0] === L) || [])[2] || null])),
       hoursTrend: hoursTable(TODAY, rate), hoursTodayContent: hoursTable(TODAY, flat) };
-    for (const p of pts) allPts.push(p);
   }
   return per;
 }
 
 /* ── 2. THE PROPOSED LEVEL CURVE: XP per Level = the ruling's hours for that Level x the measured (then extrapolated) rate ── */
-function proposeCurve(rate) {
+function proposeCurve(rate, alt) {
   const want = (L) => (targetAt(L + 1) - targetAt(L)) * rate(L);
   const cum = [0, 0];
   for (let L = 1; L <= 1000; L++) cum[L + 1] = cum[L] + want(L);
-  /* integer coefficients of the form the engine and its SQL twin already carry (quartic, cubic, linear), plus the
-     variant with a quadratic term (a code change in src/core/xp.js and the generated limits row); log-error fit */
-  const err = (f) => { let e = 0; for (const L of MILESTONES) { const t = Math.log(Math.max(1, f(L))) - Math.log(Math.max(1, cum[L])); e += t * t; } return e; };
-  let best3 = null;
-  for (let q = 0; q <= 2; q++) for (let c = 0; c <= 400; c += 1) for (const l of [0, 25, 50, 100, 200, 400, 800, 1600]) {
-    const f = curveOf(q, c, 0, l), e = err(f);
-    if (!best3 || e < best3.e) best3 = { q, c, s: 0, l, e };
+  /* THE FIT, on the ruling's own measure (hours to each milestone). For f(L) = sum c_k (L-1)^k the hours to Level M
+     are LINEAR in the coefficients: hours(M) = sum_k c_k H_k(M), H_k(M) = sum_{l<M} (l^k - (l-1)^k) / rate(l). So the
+     search walks integer coefficients against a precomputed 9 x 4 table; the error is the squared log ratio of hours to
+     the target at each milestone. Two forms: today's (quartic, cubic, linear: the engine and its generated SQL limits
+     carry exactly these) and one with a quadratic term (a code change in src/core/xp.js and its SQL twin). */
+  const H = MILESTONES.map((M) => { const row = [0, 0, 0, 0, 0]; for (let l = 1; l < M; l++) { const r = Math.max(1, rate(l)); for (let k = 1; k <= 4; k++) row[k] += (l ** k - (l - 1) ** k) / r; } return row; });
+  const T = MILESTONES.map((M) => targetAt(M));
+  const err = (c, upTo = Infinity) => { let e = 0; for (let i = 0; i < H.length && MILESTONES[i] <= upTo; i++) { const h = c[1] * H[i][1] + c[2] * H[i][2] + c[3] * H[i][3] + c[4] * H[i][4]; if (!(h > 0)) return Infinity; const t = Math.log(h / T[i]); e += t * t; } return e; };
+  let best3 = { e: Infinity }, best4 = { e: Infinity };
+  for (let q = 0; q <= 2; q++) for (let c = 0; c <= 400; c++) for (let l = 0; l <= 20000; l += 100) { const e = err([0, l, 0, c, q]); if (e < best3.e) best3 = { e, q, c, s: 0, l }; }
+  for (let c = 0; c <= 300; c++) for (let sq = 0; sq <= 6000; sq += 25) for (let l = 0; l <= 20000; l += 200) { const e = err([0, l, sq, c, 0]); if (e < best4.e) best4 = { e, q: 0, c, s: sq, l }; }
+  /* refine the four-term fit one step around its grid point */
+  for (let c = Math.max(0, best4.c - 2); c <= best4.c + 2; c++) for (let sq = Math.max(0, best4.s - 25); sq <= best4.s + 25; sq++) for (let l = Math.max(0, best4.l - 200); l <= best4.l + 200; l += 10) {
+    const e = err([0, l, sq, c, 0]); if (e < best4.e) best4 = { e, q: 0, c, s: sq, l };
   }
-  let best4 = null;
-  for (let c = 0; c <= 200; c += 1) for (let s = 0; s <= 3000; s += 25) for (const l of [0, 50, 100, 200, 400, 800, 1600, 3200]) {
-    const f = curveOf(0, c, s, l), e = err(f);
-    if (!best4 || e < best4.e) best4 = { q: 0, c, s, l, e };
-  }
-  const table = (f) => Object.fromEntries(MILESTONES.map((L) => [L, round(hoursTable(f, rate)[L], 0)]));
+  /* THE NEAR TERM: the same four-term form fitted only to Levels 10-300 (the years a player meets first; past 300
+     the reference rate is all extrapolation) */
+  let near = { e: Infinity };
+  for (let c = 0; c <= 300; c++) for (let sq = 0; sq <= 8000; sq += 25) for (let l = 0; l <= 30000; l += 250) { const e = err([0, l, sq, c, 0], 300); if (e < near.e) near = { e, q: 0, c, s: sq, l }; }
+  const table = (f, r) => Object.fromEntries(MILESTONES.map((L) => [L, round(hoursTable(f, r || rate)[L], 0)]));
+  const both = (f) => ({ hours: table(f), ...Object.fromEntries(Object.entries(alt || {}).filter(([, r]) => r).map(([k, r]) => ['hoursAt_' + k, table(f, r)])) });
+  const f3 = curveOf(best3.q, best3.c, 0, best3.l), f4 = curveOf(0, best4.c, best4.s, best4.l), fn = curveOf(0, near.c, near.s, near.l);
+  const xpAt = (f) => Object.fromEntries(MILESTONES.map((L) => [L, f(L)]));
   return { ideal: Object.fromEntries(MILESTONES.map((L) => [L, Math.round(cum[L])])),
-    threeTerm: { coeffs: { quartic: best3.q, cubic: best3.c, linear: best3.l }, hours: table(curveOf(best3.q, best3.c, 0, best3.l)) },
-    withQuadratic: { coeffs: { cubic: best4.c, quadratic: best4.s, linear: best4.l }, hours: table(curveOf(0, best4.c, best4.s, best4.l)) },
-    today: { coeffs: LEVEL_CURVE, hours: table(TODAY) },
-    target: Object.fromEntries(MILESTONES.map((L) => [L, targetAt(L)])) };
+    threeTerm: { coeffs: { quartic: best3.q, cubic: best3.c, linear: best3.l }, logError: round(best3.e, 3), totalXp: xpAt(f3), ...both(f3) },
+    withQuadratic: { coeffs: { cubic: best4.c, quadratic: best4.s, linear: best4.l }, logError: round(best4.e, 3), totalXp: xpAt(f4), ...both(f4) },
+    nearTerm: { coeffs: { cubic: near.c, quadratic: near.s, linear: near.l }, fittedTo: 300, logError: round(near.e, 3), totalXp: xpAt(fn), ...both(fn) },
+    today: { coeffs: LEVEL_CURVE, totalXp: xpAt(TODAY), ...both(TODAY) },
+    target: Object.fromEntries(MILESTONES.map((L) => [L, round(targetAt(L), 0)])) };
 }
 
 /* ── 3. DIFFICULTY BANDS per ground and Level offset ───────────────────────────────────────────────────── */
@@ -158,10 +173,20 @@ function bands() {
     const h = c.heroes[0], b = c.hunt.band || [0, 0];
     const off = c.cell.level < b[0] ? c.cell.level - b[0] : c.cell.level > b[1] ? c.cell.level - b[1] : 0;
     out.push({ ground: c.ground, style: h.style, level: c.cell.level, density: dens(c), offset: off, hours: h.hours,
-      minHpP50: h.encMinHpPct.p50, minHpP10: h.encMinHpPct.p10, deaths: h.deaths, deathsPer1000h: h.deathsPer1000h,
-      closePer12h: h.closeCallsPer12h, band: h.band, xpPerH: h.levelXpPerH, profitPerH: h.profitPerH, killers: h.killers });
+      minHpP50: h.encMinHpPct.p50, minHpP10: h.encMinHpPct.p10, deaths: h.deaths, close: h.closeCallsPer12h.k || 0, band: h.band,
+      xpPerH: h.levelXpPerH, profitPerH: h.profitPerH });
   }
-  return out;
+  /* one row per ground x Level x density over every style: the difficulty a ground has at that offset from its band */
+  const by = {};
+  for (const r of out) (by[r.ground + '|' + r.level + '|' + r.density] = by[r.ground + '|' + r.level + '|' + r.density] || []).push(r);
+  const med = (a) => { const x = a.filter((v) => v !== null).sort((p, q) => p - q); return x.length ? x[Math.floor((x.length - 1) / 2)] : null; };
+  return Object.values(by).map((v) => {
+    const hours = v.reduce((t, x) => t + x.hours, 0), deaths = v.reduce((t, x) => t + x.deaths, 0);
+    return { ground: v[0].ground, level: v[0].level, density: v[0].density, offset: v[0].offset, styles: v.length, hours: round(hours, 0),
+      minHpP50Median: med(v.map((x) => x.minHpP50)), minHpP10Worst: Math.min(...v.map((x) => (x.minHpP10 === null ? 100 : x.minHpP10))),
+      deaths, deathsPer1000h: rateCI(deaths, hours, 1000), closeCalls: v.reduce((t, x) => t + x.close, 0), bands: [...new Set(v.map((x) => x.band))],
+      xpPerHMedian: med(v.map((x) => x.xpPerH)), profitPerHWorst: Math.min(...v.map((x) => x.profitPerH)) };
+  }).sort((a, b) => (a.ground < b.ground ? -1 : a.ground > b.ground ? 1 : a.level - b.level || a.density - b.density));
 }
 
 /* ── 4. PARTY vs SOLO, per character ──────────────────────────────────────────────────────────────────── */
@@ -175,11 +200,17 @@ function partyVsSolo() {
     const sameMean = same.length === c.cell.party.length ? same.reduce((t, x) => t + meanXp(x), 0) / same.length : null;
     /* the efficient solo: the best SAFE solo cell at this Level anywhere (any ground, style, density) */
     const eff = cells.filter((x) => x.cell.party.length === 1 && x.cell.level === L && plain(x) && safe(x)).sort((a, b) => meanXp(b) - meanXp(a))[0] || null;
+    /* THE COMPARABLE SOLO (ruling §5: same Levels, gear, sustainable strategies): each member's own style hunting
+       alone at its best safe option at this Level (any ground, either density), averaged over the members */
+    const own = c.cell.party.map((s) => cells.filter((x) => x.cell.party.length === 1 && x.cell.party[0] === s && x.cell.level === L && plain(x) && safe(x))
+      .reduce((b, x) => Math.max(b, meanXp(x)), 0));
+    const ownMean = own.every((y) => y > 0) ? own.reduce((t, y) => t + y, 0) / own.length : null;
     const n = c.cell.party.length, per = meanXp(c);
     const heroes = c.heroes.map((h) => ({ style: h.style, xpPerH: h.levelXpPerH, incomePerH: h.incomePerH, storePerH: h.storePerH, profitPerH: h.profitPerH, deaths: h.deaths }));
     const incomeAll = heroes.reduce((t, h) => t + h.incomePerH, 0), storeAll = heroes.reduce((t, h) => t + h.storePerH, 0);
     out.push({ ground: c.ground, party: styleKey(c), size: n, level: L, density: d, hours: c.party.hours, xpPerHero: per,
       vsSameGroundSolo: sameMean ? round(per / sameMean, 3) : null, sameGroundSoloXp: sameMean ? round(sameMean, 0) : null,
+      vsComparableSolo: ownMean ? round(per / ownMean, 3) : null, comparableSoloXp: ownMean ? round(ownMean, 0) : null,
       vsEfficientSolo: eff ? round(per / meanXp(eff), 3) : null, efficientSolo: eff ? { id: eff.id, xp: meanXp(eff) } : null,
       target: PARTY_TARGET[n] || null, heroes, rareRolls: c.party.rareRolls, rareWins: c.party.rareWins, rareGini: c.party.rareGini,
       /* gold: created by the hunt (coin + loot at the vendor's bid), destroyed (store supplies); per controlling player
@@ -220,6 +251,7 @@ function healing() {
   const out = [];
   for (const c of cells) {
     if (c.cell.party.length !== 1 || !/S3|S6/.test(stage(c))) continue;
+    if (stage(c) === 'S3' && !cells.some((x) => stage(x) === 'S6' && x.ground === c.ground && x.cell.level === c.cell.level && x.cell.party[0] === c.cell.party[0])) continue;
     const h = c.heroes[0];
     out.push({ ground: c.ground, style: h.style, level: c.cell.level, density: dens(c), variant: variant(c) || 'reference bar, store food',
       takenPerH: h.takenPerH, healInPerH: h.healInPerH, regenSharePct: h.takenPerH ? round(100 * Math.max(0, 1 - h.healInPerH.total / h.takenPerH), 1) : null,
@@ -227,6 +259,72 @@ function healing() {
       deaths: h.deaths, minHpP10: h.encMinHpPct.p10, closePer12h: h.closeCallsPer12h.rate, band: h.band });
   }
   return out;
+}
+
+/* ── 6b. STYLES SIDE BY SIDE: per ground and in-band Level, every style's XP/h and profit/h ranked (dominant / weak) ── */
+function styles() {
+  const out = [];
+  const groups = {};
+  for (const c of cells) {
+    if (c.cell.party.length !== 1 || !plain(c) || !/S2|S3/.test(stage(c))) continue;
+    const b = c.hunt.band || [0, 0];
+    if (c.cell.level < b[0] || c.cell.level > b[1]) continue;
+    const k = c.ground + '|' + c.cell.level + '|' + dens(c);
+    (groups[k] = groups[k] || []).push(c);
+  }
+  const top = {}, bottom = {};
+  for (const [k, cs] of Object.entries(groups)) {
+    const [ground, level, density] = k.split('|');
+    const r = cs.map((c) => ({ style: c.heroes[0].style, xpPerH: c.heroes[0].levelXpPerH, profitPerH: c.heroes[0].profitPerH, deaths: c.heroes[0].deaths,
+      minHpP10: c.heroes[0].encMinHpPct.p10, dps: c.heroes[0].dps })).sort((a, b) => b.xpPerH - a.xpPerH);
+    if (r.length > 2) { top[r[0].style] = (top[r[0].style] || 0) + 1; bottom[r[r.length - 1].style] = (bottom[r[r.length - 1].style] || 0) + 1; }
+    const best = r[0] ? r[0].xpPerH : 0;
+    out.push({ ground, level: Number(level), density: Number(density), spreadPct: best && r.length ? round((1 - r[r.length - 1].xpPerH / best) * 100, 1) : null, ranked: r });
+  }
+  return { groups: out, firstPlaces: top, lastPlaces: bottom };
+}
+
+/* ── 6c. THE CANDIDATE CHANGES, before vs after on the same dice (plan 'whatif': x=W0 today, W1.. each candidate) ── */
+function whatIfs(dirs) {
+  const out = [];
+  for (const d of dirs) {
+    const f = join(d, 'cells.jsonl');
+    if (existsSync(f)) out.push(...whatIfsOf(readFileSync(f, 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)).filter((r) => r.heroes)));
+  }
+  return out;
+}
+function whatIfsOf(ws) {
+  const spec = (r) => r.id.replace(/,x=W\w+/, '');
+  const base = new Map(ws.filter((r) => /x=W0\b/.test(r.id)).map((r) => [spec(r), r]));
+  const out = [];
+  for (const r of ws) {
+    const m = r.id.match(/x=(W[1-9]\w*)/);
+    if (!m) continue;
+    const b = base.get(spec(r));
+    if (!b) continue;
+    out.push({ cell: spec(r), candidate: m[1], whatIf: r.cell.whatIf || null, heroes: r.heroes.map((h, i) => {
+      const h0 = b.heroes[i];
+      const pick = (x) => ({ xpPerH: x.levelXpPerH, profitPerH: x.profitPerH, storePerH: x.storePerH, takenPerH: x.takenPerH, eatsPerH: x.eatsPerH.own + x.eatsPerH.store,
+        minHpP50: x.encMinHpPct.p50, minHpP10: x.encMinHpPct.p10, deaths: x.deaths, closeCalls: x.closeCallsPer12h.k, hours: x.hours, band: x.band });
+      return { style: h.style, before: pick(h0), after: pick(h) };
+    }) });
+  }
+  return out;
+}
+
+/* ── 6d. A PARTY XP SHARE BONUS, measured post hoc: XP feeds nothing inside a fight (a Level-up mid-hunt raises max HP,
+   nothing else), so each party cell's Level XP x m(n) IS the cell played with that share. The bonus a cell needs to
+   reach its target band's middle, and what the candidate m(n) = 1 + step x (n - 1) gives. ── */
+function partyBonus(rows, step) {
+  return rows.map((p) => {
+    const m = 1 + step * (p.size - 1);
+    const mid = p.target ? (p.target[0] + p.target[1]) / 2 : null;
+    return { ground: p.ground, party: p.party, level: p.level, density: p.density, vsComparableSolo: p.vsComparableSolo, vsEfficientSolo: p.vsEfficientSolo,
+      vsSameGroundSolo: p.vsSameGroundSolo, neededVsComparable: mid && p.vsComparableSolo ? round(mid / p.vsComparableSolo, 2) : null,
+      neededVsEfficient: mid && p.vsEfficientSolo ? round(mid / p.vsEfficientSolo, 2) : null, candidate: round(m, 2),
+      afterVsComparable: p.vsComparableSolo ? round(p.vsComparableSolo * m, 3) : null,
+      afterVsEfficient: p.vsEfficientSolo ? round(p.vsEfficientSolo * m, 3) : null, afterVsSameGround: p.vsSameGroundSolo ? round(p.vsSameGroundSolo * m, 3) : null, target: p.target };
+  });
 }
 
 /* ── 7. WHAT AN UNBLESSED DEATH COSTS, in hunting hours at the measured (then extrapolated) rate ──────────── */
@@ -309,23 +407,46 @@ function csv(rs) {
 
 /* ── RUN ──────────────────────────────────────────────────────────────────────────────────────────────── */
 const lh = levelHours();
-/* the reference rate for the curve and the death cost: the best style's efficient rate per Level (players optimise) */
-const refStyle = Object.entries(lh).sort((a, b) => (b[1].xpPerH[30] || 0) - (a[1].xpPerH[30] || 0))[0];
-const ref = refStyle ? (() => {
-  const s = refStyle[1], fit = s.fit;
-  const pts = Object.entries(s.xpPerH).map(([L, y]) => [Number(L), y]);
-  return (L) => {
-    if (L > s.measuredTo && fit) return fit.a * L ** fit.b;
-    let y = pts.length ? pts[0][1] : 1;
-    for (let i = 1; i < pts.length; i++) if (L <= pts[i][0]) { const [x0, y0] = pts[i - 1], [x1, y1] = pts[i]; y = y0 + ((y1 - y0) * (L - x0)) / (x1 - x0); return y; }
-    return fit ? fit.a * L ** fit.b : y;
-  };
-})() : null;
+/* THE REFERENCE RATE for the curve and the death cost: "reasonably efficient hunting" (ruling §2) = at each Level the
+   MEDIAN style's best SAFE solo cell (deaths 0, close calls <= 1/12 h, Normal or easier, pays its supplies) on a
+   ground whose floor it has reached (no farming under a floor), at either density; measured to the last ground, then
+   the power law fitted to it (L >= 10) past it: THE EXTRAPOLATION, conditional on future grounds keeping that trend.
+   The envelope (best style, under-floor grounds allowed) and the slowest style are kept as the bounds. */
+const STYLE_IDS = [...new Set(cells.filter((c) => c.cell.party.length === 1).map((c) => c.cell.party[0]))];
+const refSeries = (agg, inBand) => {
+  const curves = STYLE_IDS.map((s) => xpCurve(s, inBand));
+  const pts = [];
+  for (let L = 1; L <= 55; L++) { const v = curves.map((c) => c.at(L).xp).filter((y) => y !== null); if (v.length) pts.push([L, agg(v)]); }
+  if (!pts.length) return null;
+  const fit = fitPower(pts), last = pts[pts.length - 1][0];
+  const rate = (L) => { const p = pts.find((x) => x[0] === L); if (p) return p[1]; if (L < pts[0][0]) return pts[0][1]; return fit ? fit.a * L ** fit.b : pts[pts.length - 1][1]; };
+  return { rate, fit, last, pts };
+};
+const median = (v) => { const x = v.slice().sort((a, b) => a - b); return x.length % 2 ? x[(x.length - 1) / 2] : (x[x.length / 2 - 1] + x[x.length / 2]) / 2; };
+const eff = refSeries(median, true);
+const envelope = refSeries((v) => Math.max(...v), false);
+const slowest = refSeries((v) => Math.min(...v), true);
+const ref = eff ? eff.rate : null;
+/* THE CAREER RATE (what a player who hunts where the game recommends, as built, actually earned): the median career's
+   Level XP an hour at each Level, from its trace; past its last Level the efficient fit, scaled to meet it */
+const careerRate = (() => {
+  const solo = careers.filter((c) => c.party.length === 1);
+  if (!solo.length) return null;
+  const by = {};
+  for (const c of solo) for (const t of c.trace) { const L = Math.min(...t.levels); (by[L] = by[L] || []).push(t.xpPerH[0]); }
+  const med = (a) => { const x = a.slice().sort((p, q) => p - q); return x[Math.floor((x.length - 1) / 2)]; };
+  const pts = Object.entries(by).map(([L, a]) => [Number(L), med(a)]).sort((a, b) => a[0] - b[0]);
+  const last = pts[pts.length - 1];
+  const k = eff && eff.fit ? last[1] / (eff.fit.a * last[0] ** eff.fit.b) : 1;
+  return (L) => { const p = pts.find((x) => x[0] === L); if (p) return p[1]; if (L < pts[0][0]) return pts[0][1];
+    if (L > last[0]) return eff && eff.fit ? k * eff.fit.a * L ** eff.fit.b : last[1];
+    let y = pts[0][1]; for (let i = 1; i < pts.length; i++) if (L <= pts[i][0]) { y = pts[i - 1][1]; break; } return y; };
+})();
 const careerOut = careers.map((c) => ({ id: c.id, party: c.party, hours: c.hours, reached: c.reached,
   hoursTo: Object.fromEntries([5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60].map((L) => [L, c.milestones['0:' + L] ?? null])),
   grounds: [...new Set(c.trace.map((t) => t.ground))], deaths: c.trace.reduce((s, t) => s + t.deaths.reduce((a, b) => a + b, 0), 0),
-  skillsAt: Object.fromEntries([10, 25, 40, 50].map((L) => { const t = c.trace.find((x) => Math.min(...x.levels) >= L); return [L, t ? t.skills[0] : null]; })),
-  profitPerHByLevel: Object.fromEntries([10, 25, 40, 50].map((L) => { const t = c.trace.find((x) => Math.min(...x.levels) >= L); return [L, t ? t.profitPerH[0] : null]; })) }));
+  skillsAt: Object.fromEntries([10, 25, 40, 49].map((L) => { const t = c.trace.find((x) => Math.min(...x.levels) >= L); return [L, t ? t.skills[0] : null]; })),
+  profitPerHByLevel: Object.fromEntries([10, 25, 40, 49].map((L) => { const t = c.trace.find((x) => Math.min(...x.levels) >= L); return [L, t ? t.profitPerH[0] : null]; })) }));
 const summary = {
   meta: { generated: new Date().toISOString(), commit: (() => { try { return execSync('git rev-parse --short HEAD', { cwd: ROOT }).toString().trim(); } catch { return null; } })(),
     version: BUILD.version, input: IN.replace(ROOT, '.').replace(/\\/g, '/'), cells: cells.length, careers: careers.length,
@@ -335,13 +456,35 @@ const summary = {
   audit: await audit(),
   careers: careerOut,
   levelHours: lh,
-  curve: ref ? { referenceStyle: refStyle[0], ...proposeCurve(ref) } : null,
+  curve: ref ? { reference: 'median style, best safe solo cell per Level on a ground whose floor it has reached, either density, measured to L' + eff.last + ', then xp/h = '
+      + round(eff.fit.a, 1) + ' x L^' + round(eff.fit.b, 3) + ' (extrapolated: no ground past L' + eff.last + ')', referencePoints: eff.pts.filter(([L]) => L % 5 === 0).map(([L, y]) => [L, round(y, 0)]),
+    envelopeFit: envelope && envelope.fit ? { a: round(envelope.fit.a, 1), b: round(envelope.fit.b, 3) } : null,
+    slowestFit: slowest && slowest.fit ? { a: round(slowest.fit.a, 1), b: round(slowest.fit.b, 3) } : null,
+    ...proposeCurve(ref, { career: careerRate, envelope: envelope && envelope.rate, slowest: slowest && slowest.rate }) } : null,
   deathCost: ref ? deathCost(ref) : null,
   bands: bands(),
   party: partyVsSolo(),
   upgrades: upgrades(),
   healing: healing(),
+  styles: styles(),
+  whatIf: whatIfs([join(HERE, 'out', 'whatif'), join(HERE, 'out', 'whatif2')]),
 };
+summary.partyBonus = { step: 0.055, rows: partyBonus(summary.party, 0.055) };
+/* THE FIRST CI BALANCE GUARD, proposed (ruling §11: "CI balance guards gradually, with statistical tolerances"); not built
+   in this lane. The simulator is deterministic on a commit, so a guard replays exact cells; its tolerances absorb the
+   reshuffled dice a legitimate data change brings (the 2-seed spread measured here) and catch a balance move. */
+summary.proposedGuard = {
+  cells: 'the 12 reference cells of plan whatif at x=W0 (every ground, solo + a four, as built + the full box, in band + under a floor), 3 h x 2 seeds',
+  runsOn: 'a diff touching src/data/{monsters,hunt-grounds,hunts,items,gear-tiers,shields,supply-basics,core-model,hunt-roles,rule-subjects}.js or src/core/** (mutant-gate style), nightly otherwise',
+  costS: 'about 45 s on 4 workers, about 3 min single-process on a CI runner',
+  tolerances: { levelXpPerH: '+-10% of the committed baseline', profitPerH: '+-20%', minHpP50: '+-8 points',
+    deathsInBandNormal: '0 in the cell\'s 6 h (at the ruling\'s <= 1 per 1,000 h a false alarm is < 1%)', bandLabel: 'the difficulty band must not change' },
+  baseline: 'tools/balance-sim/baseline-summary.json (re-written by report.mjs; a deliberate balance change re-pins it in the same commit, like ci-shape --write)',
+};
+const c8 = join(HERE, 'out', 'career8', 'cells.jsonl');
+summary.careersFullBox = existsSync(c8) ? readFileSync(c8, 'utf8').split(String.fromCharCode(10)).filter(Boolean).map((l) => JSON.parse(l)).filter((r) => r.kind === 'career')
+  .map((c) => ({ id: c.id, hours: c.hours, reached: c.reached, hoursTo: Object.fromEntries([10, 25, 50].map((L) => [L, c.milestones['0:' + L] ?? null])),
+    deaths: c.trace.reduce((t, x) => t + x.deaths.reduce((a, b) => a + b, 0), 0), grounds: [...new Set(c.trace.map((t) => t.ground))] })) : [];
 const dash = { schema: 'hearthrise.balance-dashboard/1', generated: summary.meta.generated, commit: summary.meta.commit,
   dims: { ground: [...new Set(cells.map((c) => c.ground))], style: [...new Set(cells.flatMap((c) => c.cell.party))], party: [...new Set(cells.map(styleKey))],
     level: [...new Set(cells.map((c) => c.cell.level))].sort((a, b) => a - b), density: [...new Set(cells.map(dens))].sort((a, b) => a - b), stage: [...new Set(cells.map(stage))].sort() },
@@ -350,5 +493,14 @@ if (existsSync(IN)) {
   writeFileSync(join(IN, 'dashboard.json'), JSON.stringify(dash));
   writeFileSync(join(IN, 'cells.csv'), csv(dash.rows));
 }
-writeFileSync(SUMMARY, JSON.stringify(summary, null, 1) + '\n');
+/* one line per row (diff-friendly, a third of the indented size): each top-level section, and each element of an array section */
+const lines = ['{'];
+const keys = Object.keys(summary);
+keys.forEach((k, i) => {
+  const v = summary[k], end = i < keys.length - 1 ? ',' : '';
+  if (Array.isArray(v)) lines.push(JSON.stringify(k) + ': [', ...v.map((x, j) => '  ' + JSON.stringify(x) + (j < v.length - 1 ? ',' : '')), ']' + end);
+  else lines.push(JSON.stringify(k) + ': ' + JSON.stringify(v) + end);
+});
+lines.push('}');
+writeFileSync(SUMMARY, lines.join('\n') + '\n');
 console.log('balance-sim report: ' + cells.length + ' cells, ' + careers.length + ' careers, ' + summary.meta.simHours + ' hero-hours -> ' + SUMMARY.replace(ROOT, '.'));

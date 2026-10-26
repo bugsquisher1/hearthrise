@@ -279,6 +279,8 @@ export async function loadCellRunner(root) {
         if (!opts.start) delete opts.start;
         if (!opts.options) delete opts.options;
         if (Number.isInteger(cell.density)) opts.density = cell.density;
+        /* a what-if on the ground's own row (respawnMs, partyScale ...): a copy, never the frozen table */
+        if (cell.groundPatch) opts.ground = { ...ground, ...cell.groundPatch };
         const res = play.run(cell.ground, levels.length > 1 ? levels : levels[0], roles, opts);
         for (const h of H) close(h, live[h.key]);
         const played = Math.max(res.playedMs, 60000);

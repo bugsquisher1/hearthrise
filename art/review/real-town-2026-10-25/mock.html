@@ -1,8 +1,8 @@
 <!doctype html>
-<!-- Real town mocks (lane/d-real-town, 2026-10-25). STATIC MOCK, not game code.
-     ?view=overview   Town Blueprint v0.5 (docs/design/refs) with the plan drawn on it (blueprint tiles, 16 px)
-     ?view=desktop|phone|story|named   Hearth Square close-ups at x2 on the 32 px world grid.
-     Pixel art = live style-1 sprites (art/world/*) placed with the live anchor rule
+<!-- Real town mocks (lane/d-real-town, 2026-10-25, REVISED for 60 players: blueprint x2). STATIC MOCK, not game code.
+     ?view=overview   Town Blueprint v0.5 (docs/design/refs) scaled x2 (1 blueprint square = 2x2 tiles) + the Westwood, with the plan on it
+     ?view=desktop|phone|story|named   Hearth Square close-ups at x2 on the 32 px world grid (x2-grid tile coordinates).
+     Pixel art = live style-1 sprites (art/world/*) with the live anchor rule
      (compose.js: tx*T + floor(fw*T/2) - ax, ty*T + fh*T - 1 - ay). Every FLAT LABELLED BLOCK is a
      placeholder for art the art-director lane is making; nothing here is generated art. -->
 <html><head><meta charset="utf-8"><style>
@@ -16,7 +16,6 @@ const C = { gold: '#d8b25a', goldHi: '#f0d27a', ink: '#f1e7cf', plate: 'rgba(20,
   block: '#6b5f4f', blockEdge: '#3a3229', roof: '#5a4a3c', hearthStone: '#8a7f70', hearthDark: '#5f564b', fire: ['#7a2e14', '#c8501e', '#f08a2a', '#f8c850', '#fff0b0'] };
 const img = (src) => new Promise((ok) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => ok(null); i.src = src; });
 const meta = {};
-
 function label(g, text, x, y, size, color, align) {
   g.font = (size >= 13 ? '600 ' : '') + size + 'px Georgia, serif'; g.textAlign = align || 'center';
   const w = g.measureText(text).width + 12, x0 = align === 'left' ? x - 6 : x - w / 2;
@@ -24,127 +23,121 @@ function label(g, text, x, y, size, color, align) {
   g.fillStyle = color || C.gold; g.fillText(text, x, y);
 }
 
-/* ═══ 1. OVERVIEW: the blueprint, with the plan drawn on it ═══════════════ */
+/* ═══ 1. OVERVIEW: the blueprint x2 + the Westwood, 7 px a tile ════════════ */
 async function overview(cv, g) {
   const bp = await img('../../../docs/design/refs/TOWN-BLUEPRINT-v0.5-2026-10-15.png');
-  cv.width = 1440; cv.height = 968; g.imageSmoothingEnabled = false;
-  const S = 16, X0 = 96, Y0 = 40;               // blueprint tile -> px; the map starts 6 tiles in (the Westwood strip)
-  const X = (t) => X0 + t * S, Y = (t) => Y0 + t * S;
-  g.fillStyle = '#16140f'; g.fillRect(0, 0, 1440, 968);
-  g.drawImage(bp, 0, 38, 1344, 928, X0, Y0, 1344, 928);
-  const tmp = document.createElement('canvas'); tmp.width = bp.width; tmp.height = bp.height; const tg = tmp.getContext('2d'); tg.drawImage(bp, 0, 0);
+  const S = 7, WW = 24;
+  cv.width = 1440; cv.height = 40 + 116 * S + 52; g.imageSmoothingEnabled = false;
+  const X = (t) => 48 + (t + WW) * S, Y = (t) => 40 + t * S;
+  g.fillStyle = '#16140f'; g.fillRect(0, 0, cv.width, cv.height);
+  g.drawImage(bp, 0, 38, 1344, 928, X(0), Y(0), 168 * S, 116 * S);   // 16 px blueprint square -> 2 tiles -> 14 px
+  const tmp = document.createElement('canvas'); tmp.width = bp.width; tmp.height = bp.height; const tg = tmp.getContext('2d', { willReadFrequently: true }); tg.drawImage(bp, 0, 0);
   const px = (x, y) => { const d = tg.getImageData(x, y, 1, 1).data; return `rgb(${d[0]},${d[1]},${d[2]})`; };
-  const plaza = px(850, 345), grass = px(20, 300), road = px(660, 600);
-  const rect = (x, y, w, h, fill, edge) => { g.fillStyle = fill; g.fillRect(X(x), Y(y), w * S, h * S); if (edge) { g.strokeStyle = edge; g.lineWidth = 2; g.strokeRect(X(x) + 1, Y(y) + 1, w * S - 2, h * S - 2); } };
-  const ring = (x, y, c) => { g.strokeStyle = c || C.goldHi; g.lineWidth = 1.5; g.beginPath(); g.arc(X(x) + 8, Y(y) + 8, 5, 0, 7); g.stroke(); };
-  const tag = (t, x, y, size, color) => label(g, t, X(x), Y(y), size || 11, color);
+  const plaza = px(850, 345), road = px(660, 600);
+  const rect = (x, y, w, h, fill, edge) => { g.fillStyle = fill; g.fillRect(X(x), Y(y), w * S, h * S); if (edge) { g.strokeStyle = edge; g.lineWidth = 1.5; g.strokeRect(X(x) + 0.5, Y(y) + 0.5, w * S - 1, h * S - 1); } };
+  const dot = (x, y, c) => { g.fillStyle = c || C.goldHi; g.fillRect(X(x) + 2, Y(y) + 2, 3, 3); };
+  const field = (x0, y0, w, h, c, step = 1) => { for (let y = y0; y < y0 + h; y += step) for (let x = x0; x < x0 + w; x += step) dot(x, y, c); };
+  const tag = (t, x, y, size, color, align) => label(g, t, X(x), Y(y), size || 11, color, align);
 
-  // the Westwood: new forest strip west of the shack wall
-  for (let ty = 0; ty < 58; ty++) for (let tx = -6; tx < 0; tx++) { g.fillStyle = (tx + ty) % 2 ? '#2f4a26' : '#35522b'; g.fillRect(X(tx), Y(ty), S, S); }
-  for (let ty = 0; ty < 50; ty++) for (let tx = 0; tx < 5; tx++) if ((tx * 7 + ty * 3) % 5 === 0) { g.fillStyle = '#25401f'; g.beginPath(); g.arc(X(tx) + 8, Y(ty) + 8, 7, 0, 7); g.fill(); }
-  rect(5, 24, 1, 4, road);                                                  // the gap in the west wall
-  [[-5, 10], [-3, 14], [-5, 18], [-2, 21], [-5, 30], [-3, 33], [1, 36], [-4, 38]].forEach(([x, y]) => { g.fillStyle = '#1d3318'; g.beginPath(); g.arc(X(x) + 8, Y(y) + 8, 8, 0, 7); g.fill(); ring(x + 1, y, C.goldHi); });
-  label(g, 'THE WESTWOOD · Woodcutting', X(-5.6), Y(7.4), 11, C.gold, 'left'); label(g, '8 trees, deeper = higher tier', X(-5.6), Y(8.8), 10, C.ink, 'left');
+  // the Westwood
+  for (let ty = 0; ty < 116; ty++) for (let tx = -WW; tx < 0; tx++) { g.fillStyle = (tx + ty) % 2 ? '#2f4a26' : '#35522b'; g.fillRect(X(tx), Y(ty), S, S); }
+  for (let i = 0; i < 40; i++) { const x = -22 + (i % 5) * 4 + (i % 2), y = 18 + Math.floor(i / 5) * 9; g.fillStyle = '#1d3318'; g.beginPath(); g.arc(X(x) + 3, Y(y) + 3, 5, 0, 7); g.fill(); dot(x + 1, y + 1); }
+  rect(9, 48, 4, 8, road);
+  label(g, 'THE WESTWOOD', X(-23), Y(12), 12, C.gold, 'left'); label(g, 'Woodcutting: 40 trees', X(-23), Y(14.6), 10, C.ink, 'left');
 
-  // Hearth Square: market_hall cleared, the square opened
-  rect(54, 21, 10, 7, plaza);
-  g.setLineDash([6, 4]); g.strokeStyle = C.goldHi; g.lineWidth = 2; g.strokeRect(X(51), Y(18), 15 * S, 16 * S); g.setLineDash([]);
-  rect(52, 26, 11, 2, '#bdb3a0');                                           // flagstone apron
-  rect(57, 17, 3, 6, '#9a8c78', C.blockEdge);                               // chimney (art rises over the footprint)
-  rect(55, 22, 2, 3, '#8f8270', C.blockEdge); rect(60, 22, 2, 3, '#8f8270', C.blockEdge);   // log alcoves
-  rect(55, 23, 7, 3, '#a2937e', C.blockEdge);                               // the hearth's footprint
-  const grd = g.createRadialGradient(X(58.5), Y(24.5), 4, X(58.5), Y(24.5), 120); grd.addColorStop(0, 'rgba(255,190,80,0.55)'); grd.addColorStop(1, 'rgba(255,150,40,0)');
-  g.fillStyle = grd; g.fillRect(X(50), Y(16), 18 * S, 18 * S);
-  rect(57, 23, 3, 2, C.fire[2]); rect(57.5, 23.5, 2, 1, C.fire[3]);
-  label(g, 'THE GREAT HEARTH', X(58.5), Y(21.2), 13, C.goldHi);
-  label(g, 'Inner Flame', X(58.5), Y(22.4), 11, C.ink);
-  for (let x = 55; x <= 61; x++) ring(x, 26); for (let x = 54; x <= 62; x += 2) ring(x, 27);
-  [[52, 24], [53, 24], [62, 24], [63, 24]].forEach(([x, y]) => ring(x, y, 'rgba(240,210,122,0.5)'));
-  // market stalls moved to the square's east edge
-  [20, 24, 28].forEach((y) => rect(63, y, 3, 2, '#7c6a52', C.blockEdge)); tag('stalls (trade, later)', 64.5, 19.6, 10, C.ink);
-  // Tamsin, shop counters, storage counters, barracks yard
-  rect(52, 22, 1, 1, '#c8a060', C.blockEdge); rect(53, 22, 1, 1, '#d0d0d0', C.blockEdge); for (let x = 51; x <= 54; x++) ring(x, 23);
-  tag('Tamsin’s board', 50.3, 21.6, 10);
-  rect(53, 18, 2, 1, C.wood, C.blockEdge); rect(55, 18, 2, 1, C.wood, C.blockEdge); for (let x = 53; x <= 56; x++) ring(x, 19);
-  tag('SHOP counter: Buy | Sell | Services', 55, 11.7, 11);
-  rect(55, 29, 2, 1, C.wood, C.blockEdge); rect(59, 29, 2, 1, C.wood, C.blockEdge); [55, 56, 59, 60].forEach((x) => ring(x, 28));
-  tag('STORAGE (depot counters)', 59, 30.5 + 6.3, 11);
-  for (let x = 60; x <= 63; x++) ring(x, 19); tag('kill-task hunter', 62, 12.7, 10, C.ink);
-  tag('bank: closed (no system yet)', 60, 5.6, 10, C.ink);
-  for (let i = 0; i < 12; i++) { const a = (i / 12) * Math.PI * 2; ring(58.5 + Math.cos(a) * 7 - 0.5, 25.5 + Math.sin(a) * 6.5 - 0.5, 'rgba(240,210,122,0.4)'); }
+  // HEARTH SQUARE x106-129 y36-59 (market_hall cleared to stalls) + bridge forecourt
+  rect(104, 36, 28, 24, plaza); rect(102, 44, 4, 16, plaza);
+  g.setLineDash([6, 4]); g.strokeStyle = C.goldHi; g.lineWidth = 2; g.strokeRect(X(106), Y(36), 24 * S, 24 * S); g.setLineDash([]);
+  const grd = g.createRadialGradient(X(117.5), Y(47), 4, X(117.5), Y(47), 120); grd.addColorStop(0, 'rgba(255,190,80,0.6)'); grd.addColorStop(1, 'rgba(255,150,40,0)');
+  g.fillStyle = grd; g.fillRect(X(100), Y(30), 36 * S, 36 * S);
+  rect(115, 38, 5, 7, '#9a8c78', C.blockEdge); rect(112, 43, 3, 6, '#8f8270', C.blockEdge); rect(120, 43, 3, 6, '#8f8270', C.blockEdge);
+  rect(112, 45, 11, 4, '#a2937e', C.blockEdge); rect(115, 45, 5, 3, C.fire[2]); rect(116, 46, 3, 2, C.fire[3]);
+  rect(111, 49, 13, 2, '#bdb3a0');
+  field(112, 49, 11, 1); field(111, 50, 13, 1);                                   // 24 fuel stands
+  field(106, 52, 24, 3, C.goldHi, 2); field(107, 53, 22, 1, C.goldHi, 2);          // field (checkerboard)
+  field(106, 42, 5, 8, 'rgba(240,210,122,0.75)', 2); field(124, 42, 5, 8, 'rgba(240,210,122,0.75)', 2);   // flanks
+  field(112, 55, 10, 4);                                                         // storage stands
+  field(106, 37, 4, 5); field(112, 37, 4, 5);                                    // shop stands
+  [106, 108, 112, 114].forEach((x) => rect(x, 36, 2, 1, C.wood, C.blockEdge)); [112, 114, 118, 120].forEach((x) => rect(x, 59, 2, 1, C.wood, C.blockEdge));
+  [40, 44, 48, 52].forEach((y) => rect(129, y, 3, 3, '#7c6a52', C.blockEdge));
+  rect(103, 45, 1, 1, '#c8a060'); rect(104, 45, 1, 1, '#d0d0d0'); field(102, 46, 5, 3);
+  label(g, 'HEARTH SQUARE 24 × 24', X(118), Y(34.4), 12, C.goldHi);
+  label(g, 'THE GREAT HEARTH (11 × 4, art 11 × 11)', X(117.5), Y(64.2) + 0, 11, C.goldHi);
+  g.strokeStyle = C.goldHi; g.lineWidth = 1; g.beginPath(); g.moveTo(X(117.5), Y(62.6)); g.lineTo(X(117.5), Y(49)); g.stroke();
+  tag('Tamsin', 98.5, 43.6, 10, C.ink); tag('shop', 104, 33.6, 10, C.ink); tag('storage', 117, 76.4, 10, C.ink); tag('stalls', 134, 39.6, 10, C.ink);
 
-  // arrival route: gatehouse -> main road -> bridge -> the hearth's flank
-  g.setLineDash([10, 6]); g.strokeStyle = '#ffdf80'; g.lineWidth = 3; g.beginPath();
-  [[41.5, 11], [41.5, 25.5], [51, 25.5], [54, 26.5]].forEach(([x, y], i) => (i ? g.lineTo : g.moveTo).call(g, X(x), Y(y))); g.stroke(); g.setLineDash([]);
-  label(g, 'arrival: gatehouse → road → bridge → the Hearth', X(48), Y(31.6), 11, '#ffdf80');
-  for (let x = 37; x <= 42; x++) ring(x, 11); ring(37, 12); ring(38, 12); tag('GATEHOUSE: hunts out + arrival (8 stands)', 41.5, 4.4, 11);
-
-  // the mill on P08 (the river turns its wheel) + the cellar hatch
-  label(g, 'MILL (P08) · cellar hatch = Mill Cellar', X(46), Y(10.6), 10, C.ink); rect(44, 17, 1, 1, '#4a3a2a', C.goldHi);
-  // sewer works grate
-  rect(25, 34, 1, 1, '#333', C.goldHi); tag('grate = The Sewer', 25.5, 36.2, 10, C.ink);
-  // smithy yard: smithing + crafting
-  [[33, 24], [35, 24], [38, 24], [40, 24]].forEach(([x, y]) => rect(x, y, 2, 1, '#55483c', C.blockEdge));
-  for (let x = 33; x <= 36; x++) ring(x, 25); for (let x = 38; x <= 41; x++) ring(x, 25, '#9fd0ff');
-  tag('SMITHY: Smithing | Crafting', 37, 21.6, 11);
-  // tavern kitchen on P07
-  label(g, 'TAVERN (P07) · Cooking', X(33.5), Y(9.6), 11); rect(32, 16, 2, 1, C.fire[1], C.blockEdge); rect(34, 16, 2, 1, C.fire[1], C.blockEdge); for (let x = 32; x <= 35; x++) ring(x, 17);
+  // arrival route: gatehouse -> road -> bridge -> the hearth
+  g.setLineDash([8, 5]); g.strokeStyle = '#ffdf80'; g.lineWidth = 3; g.beginPath();
+  [[83, 22], [83, 51.5], [102, 51.5], [111, 50]].forEach(([x, y], i) => (i ? g.lineTo : g.moveTo).call(g, X(x), Y(y))); g.stroke(); g.setLineDash([]);
+  rect(70, 22, 27, 6, 'rgba(240,210,122,0.25)'); field(71, 23, 25, 4, C.goldHi, 2);
+  tag('GATEHOUSE: arrival + hunts out (50 stands)', 83, 8.4, 11);
+  // mill + hatch, sewer grate
+  rect(88, 34, 1, 1, '#4a3a2a', C.goldHi); tag('MILL · cellar hatch', 93, 21.4, 10, C.ink);
+  rect(50, 68, 2, 1, '#333', C.goldHi); tag('grate = The Sewer', 51, 71.4, 10, C.ink);
+  // smithy yard
+  rect(54, 36, 12, 12, 'rgba(120,100,80,0.55)', C.blockEdge); field(55, 38, 10, 9, '#9fd0ff', 2); field(66, 48, 18, 1);
+  tag('SMITHY YARD: Smithing | Crafting (40)', 66, 34.4, 11);
+  // tavern cook yard
+  rect(60, 30, 15, 5, 'rgba(160,80,40,0.45)', C.blockEdge); field(61, 31, 13, 3, C.goldHi, 2); tag('TAVERN · Cooking (26)', 67, 18.6, 11);
   // training yard
-  [31, 34, 37].forEach((x) => { rect(x, 33, 1, 1, '#a07a4a', C.blockEdge); ring(x - 1, 33); ring(x + 1, 33); }); tag('TRAINING YARD (dummies)', 34.5, 30.6, 11);
-  // fishing: the shore + the river bank
-  for (let x = 29; x <= 44; x += 3) ring(x, 45.4, '#9fd0ff'); for (let y = 28; y <= 31; y++) ring(43, y, '#9fd0ff');
-  tag('SHORE · Fishing (sea fish) by the fisher_guild', 37, 48.6, 11); tag('river bank · trout', 41, 31.0 + 2.6, 10, C.ink);
-  // farm plots on the south grass
-  for (let i = 0; i < 6; i++) { rect(10 + i * 3, 41, 2, 2, '#5a4330', C.blockEdge); ring(10 + i * 3, 43.3); }
-  tag('FARM PLOTS · Farming', 18.5, 40.6, 11);
-  // the mine in the mountain + the rune block
-  rect(68, 18, 4, 4, '#2e2b2a', C.goldHi); [[73, 17], [75, 17], [77, 17], [73, 20], [75, 20], [77, 20]].forEach(([x, y]) => { rect(x, y, 1, 1, '#8a6a4a', C.blockEdge); ring(x - 1, y); });
-  tag('THE MINE · Mining (copper … coal, essence)', 73, 16.4, 11); rect(74, 23, 2, 1, '#6a6070', C.goldHi); for (let x = 74; x <= 77; x++) ring(x, 24, '#c9a0ff');
-  tag('rune block · Runecrafting', 76, 26.4, 10, C.ink);
-  rect(65, 19, 3, 2, plaza); tag('east road to the Mine', 71.5, 15.2, 10, C.ink);
-  // homes
-  tag('EA homes P13-P15', 73, 46.4, 10, C.ink);
+  field(62, 64, 16, 12, C.goldHi, 3); tag('TRAINING (24)', 69.5, 61.4, 10);
+  // fishing
+  field(50, 91, 50, 2, '#9fd0ff', 2); field(86, 56, 2, 16, '#9fd0ff', 2); tag('SHORE · Fishing (40 + river 13)', 75, 97.6, 11);
+  // farm
+  for (let i = 0; i < 12; i++) { rect(20 + (i % 6) * 6, 82 + Math.floor(i / 6) * 4, 3, 2, '#5a4330', C.blockEdge); dot(23 + (i % 6) * 6, 82 + Math.floor(i / 6) * 4); }
+  tag('FARM PLOTS · Farming (30)', 37, 80.4, 11);
+  // the mine + rune block + east road
+  rect(129, 40, 8, 4, plaza); rect(136, 34, 8, 9, '#2e2b2a', C.goldHi); field(145, 31, 17, 15, C.goldHi, 3);
+  rect(150, 48, 8, 2, '#6a6070', C.goldHi); field(150, 50, 8, 2, '#c9a0ff', 2);
+  tag('THE MINE · Mining (30)', 152, 28.6, 11); tag('rune block (15)', 154, 55.4, 10, C.ink);
 
-  // title + legend over the sea
-  label(g, 'Hearthrise — the real town on Town Blueprint v0.5 (mock 2026-10-25, 1 tile = 16 px here)', 8, 24, 15, C.gold, 'left');
-  const lines = ['LEGEND  dashed gold square = HEARTH SQUARE (16 × 16 tiles; market_hall moved out to stalls)   ·   gold ring = a stand (one hero, never shared)   ·   faint ring = overflow / bench   ·   blue ring = Fishing / Crafting stand',
-    'dark strip on the left = THE WESTWOOD (new: west of the shack wall, through the gap on the Sewer road)   ·   everything else is the blueprint as Tyler drew it'];
-  lines.forEach((t, i) => label(g, t, 104, 908 + i * 26, 12, i ? C.ink : C.goldHi, 'left'));
+  label(g, 'Hearthrise — the real town for 60 players: Blueprint v0.5 × 2 (192 × 116 tiles), mock 2026-10-25 rev 2', 8, 24, 15, C.gold, 'left');
+  label(g, 'Dashed gold = Hearth Square 24 × 24 · gold dots = stands (one hero each) · blue = Fishing / Crafting stands · purple = Runecrafting · dashed line = arrival route · dark strip = the Westwood (new) · ≈ 545 stands for 240 bodies', 8, cv.height - 18, 12, C.ink, 'left');
 }
 
-/* ═══ 2. CLOSE-UPS: Hearth Square on the 32 px grid at x2 ═════════════════ */
+/* ═══ 2. CLOSE-UPS: Hearth Square on the 32 px grid at x2 (x2-grid tiles) ════ */
 const T = 32;
-// placeholder ground zones in blueprint tiles [x, y, w, h, kind]
 const GROUND = [
-  [42, 10, 30, 30, 'grass'], [51, 18, 16, 16, 'cobble'], [52, 26, 11, 2, 'flag'], [40, 10, 3, 30, 'road'], [43, 24, 8, 4, 'road'],
-  [44, 10, 4, 14, 'water'], [44, 28, 4, 12, 'water'], [44, 24, 4, 4, 'bridge'], [62, 34, 4, 6, 'road'],
+  [86, 30, 52, 40, 'grass'], [88, 30, 8, 18, 'water'], [88, 56, 8, 14, 'water'], [88, 48, 14, 8, 'bridge'],
+  [104, 36, 28, 24, 'cobble'], [102, 44, 4, 16, 'cobble'], [111, 49, 13, 2, 'flag'], [129, 40, 9, 4, 'road'],
 ];
-// facades (placeholder blocks with a roof band): [x, y, w, h(footprint), label]
-const FACADES = [[53, 12, 9, 6, 'general_store'], [58, 13, 8, 6, 'guard_barracks'], [54, 30, 11, 7, 'depot'], [56, 6, 8, 6, 'bank']];
-const STALLS = [[63, 20], [63, 24], [63, 28]];
-const OBJECTS = [['counter', 53, 18], ['counter', 55, 18], ['counter', 55, 29], ['counter', 59, 29], ['noticeboard', 52, 22], ['npc_crier', 53, 22],
-  ['lamppost', 51, 19], ['lamppost', 65, 32], ['lamppost', 51, 32], ['woodpile', 54, 25], ['woodpile', 62, 25], ['bush', 50, 17], ['hedge', 49, 31],
-  ['barrel_planter', 62, 18], ['flower_bed', 52, 33], ['pine', 42, 14], ['oak', 49, 12], ['pine', 68, 31]];
-const BENCHES = [[52, 30], [63, 31]];
+const FACADES = [[106, 26, 10, 10, 'general_store'], [116, 28, 16, 10, 'guard_barracks'], [108, 60, 22, 10, 'depot']];
+const STALLS = [[129, 40], [129, 44], [129, 48], [129, 52]];
+const OBJECTS = [['counter', 106, 36], ['counter', 108, 36], ['counter', 112, 36], ['counter', 114, 36],
+  ['counter', 112, 59], ['counter', 114, 59], ['counter', 118, 59], ['counter', 120, 59],
+  ['noticeboard', 103, 45], ['npc_crier', 104, 45], ['woodpile', 111, 47], ['woodpile', 123, 47],
+  ['lamppost', 105, 41], ['lamppost', 105, 57], ['lamppost', 128, 57], ['lamppost', 110, 44], ['lamppost', 125, 44],
+  ['barrel_planter', 104, 37], ['flower_bed', 107, 58], ['bush', 101, 42], ['hedge', 101, 58], ['oak', 98, 38], ['pine', 134, 60], ['pine', 99, 63]];
+const BENCHES = [[124, 54], [127, 54], [124, 57], [127, 57]];
 const DIR = { s: 0, e: 1, n: 2, w: 3 };
-let HEROES = [
-  ['outfit_knight', 57, 26, 'n', 'Brannoc · 34', true], ['outfit_ranger', 54, 19, 'n', 'Wenna · 21', true],
-  ['outfit_sorcerer', 59, 28, 'n', 'Osk · 18', true], ['outfit_druid', 52, 23, 'n', 'Ilse · 9', true],
-  ['outfit_berserker', 59, 26, 'n', 'Harrow · 52'], ['outfit_witch', 55, 26, 'n', 'Mags · 40'],
-  ['outfit_dawnward', 61, 26, 'n', 'Tobin · 27'], ['outfit_brute', 58, 27, 'n', 'Cael · 61'],
-  ['outfit_ranger', 56, 27, 'n', 'Petra · 12'], ['outfit_knight', 55, 19, 'n', 'Dunstan · 7'],
-  ['outfit_witch', 56, 28, 'n', 'Rook · 33'], ['outfit_druid', 47, 25, 'e', 'Fen · 3'], ['outfit_brute', 61, 19, 'n', 'Garth · 70'],
+const OUTFITS = ['outfit_berserker', 'outfit_witch', 'outfit_dawnward', 'outfit_brute', 'outfit_ranger', 'outfit_sorcerer', 'outfit_druid', 'outfit_knight'];
+const NAMES = ['Harrow', 'Mags', 'Tobin', 'Cael', 'Petra', 'Rook', 'Garth', 'Dunstan', 'Liss', 'Fen', 'Aldo', 'Nell', 'Bram', 'Wynn', 'Odo', 'Sabe', 'Kett', 'Mora',
+  'Tamm', 'Hild', 'Corin', 'Ansel', 'Brisk', 'Juno', 'Pell', 'Rhosyn', 'Edda', 'Vane', 'Ivo', 'Quill', 'Sorrel', 'Tibb', 'Ulla', 'Yarrow', 'Bede', 'Cress'];
+// ~40 bodies around the fire: your 4 (gold names) + other players
+const SPOTS = [
+  [113, 49, 'n'], [114, 49, 'n'], [116, 49, 'n'], [117, 49, 'n'], [119, 49, 'n'], [121, 49, 'n'], [122, 49, 'n'],
+  [111, 50, 'n'], [113, 50, 'n'], [115, 50, 'n'], [118, 50, 'n'], [120, 50, 'n'], [123, 50, 'n'],
+  [106, 52, 'e'], [108, 52, 'n'], [110, 52, 'n'], [114, 52, 'n'], [116, 52, 'n'], [120, 52, 'n'], [124, 52, 'n'], [126, 52, 'w'],
+  [107, 53, 'e'], [113, 53, 'n'], [117, 53, 'n'], [121, 53, 'n'], [127, 53, 'w'],
+  [108, 54, 'n'], [112, 54, 'n'], [118, 54, 'n'], [122, 54, 'n'],
+  [106, 43, 'e'], [108, 45, 'e'], [106, 47, 'e'], [126, 43, 'w'], [128, 46, 'w'],
+  [102, 47, 'e'], [104, 47, 'n'], [97, 51, 'e'], [112, 56, 'n'], [116, 56, 'n'], [120, 57, 'n'],
 ];
-const STANDS = [[55,26],[56,26],[57,26],[58,26],[59,26],[60,26],[61,26],[54,27],[56,27],[58,27],[60,27],[62,27],[52,24],[53,24],[62,24],[63,24],
-  [51,23],[52,23],[53,23],[54,23],[53,19],[54,19],[55,19],[56,19],[60,19],[61,19],[62,19],[63,19],[55,28],[56,28],[59,28],[60,28],[57,28],[58,28]];
+const OWN = { 115: true, 8: true, 36: true, 18: true };
+let HEROES = SPOTS.map(([x, y, d], i) => {
+  const own = i === 2 || i === 18 || i === 36 || i === 38;
+  const names = { 2: 'Brannoc · 34', 18: 'Wenna · 21', 36: 'Ilse · 9', 38: 'Osk · 18' };
+  return [own ? ['outfit_knight', 'outfit_ranger', 'outfit_druid', 'outfit_sorcerer'][[2, 18, 36, 38].indexOf(i)] : OUTFITS[i % OUTFITS.length], x, y, d,
+    own ? names[i] : NAMES[i % NAMES.length] + ' · ' + (3 + ((i * 17) % 70)), own];
+});
 
 async function loadSprites() {
   const m = await (await fetch('sprites.json')).json(); Object.assign(meta, m);
-  const ids = new Set([...OBJECTS.map((o) => o[0]), ...HEROES.map((h) => h[0])]);
+  const ids = new Set([...OBJECTS.map((o) => o[0]), ...OUTFITS]);
   for (const id of ids) if (meta[id]) meta[id].img = await img('../../../art/world/' + meta[id].dir + '/' + meta[id].src);
 }
-function scene(opt) {   // the square at 1 art px = 1 px; returns { cv, plates, fire: [x, y] }
-  const x0 = 40, y0 = 4, W = 34, H = 38;
+function scene(opt) {
+  const x0 = 86, y0 = 18, W = 52, H = 54;
   const cv = document.createElement('canvas'); cv.width = W * T; cv.height = H * T;
   const g = cv.getContext('2d'); g.imageSmoothingEnabled = false;
   const R = (x, y, w, h, c) => { g.fillStyle = c; g.fillRect((x - x0) * T, (y - y0) * T, w * T, h * T); };
@@ -152,35 +145,36 @@ function scene(opt) {   // the square at 1 art px = 1 px; returns { cv, plates, 
   for (const [x, y, w, h, k] of GROUND) for (let ty = y; ty < y + h; ty++) for (let tx = x; tx < x + w; tx++) {
     const odd = (tx + ty) % 2;
     R(tx, ty, 1, 1, k === 'grass' ? (odd ? C.grassA : C.grassB) : k === 'cobble' ? (odd ? C.cobble : C.cobbleB) : k === 'flag' ? (odd ? C.flag : C.flagB)
-      : k === 'water' ? (ty % 2 ? C.water : C.waterB) : k === 'bridge' ? C.wood : '#9a8f7c');
+      : k === 'water' ? (ty % 2 ? C.water : C.waterB) : k === 'bridge' ? (ty % 2 ? C.wood : '#6e5034') : '#9a8f7c');
     if (k === 'flag') { g.strokeStyle = 'rgba(40,34,28,0.5)'; g.strokeRect((tx - x0) * T + 1.5, (ty - y0) * T + 1.5, T - 3, T - 3); }
   }
   const draws = [];
   const tagBlock = (cx, cy, text, sub) => { g.fillStyle = C.ink; g.font = 'bold 11px Georgia, serif'; g.textAlign = 'center'; g.fillText(text, cx, cy); g.font = '9px Georgia, serif'; g.fillText(sub || 'PLACEHOLDER', cx, cy + 12); };
   for (const [x, y, w, h, name] of FACADES) draws.push({ foot: (y + h - y0) * T, f: () => {
-    R(x, y - 1, w, h - 1, C.roof); R(x, y + h - 2, w, 2, C.block);
-    g.strokeStyle = C.blockEdge; g.lineWidth = 2; g.strokeRect((x - x0) * T + 1, (y - 1 - y0) * T + 1, w * T - 2, (h + 1) * T - 2);
-    tagBlock((x + w / 2 - x0) * T, (y + h / 2 - y0) * T, name);
+    R(x, y, w, h - 2, C.roof); R(x, y + h - 2, w, 2, C.block);
+    g.strokeStyle = C.blockEdge; g.lineWidth = 2; g.strokeRect((x - x0) * T + 1, (y - y0) * T + 1, w * T - 2, h * T - 2);
+    tagBlock((x + w / 2 - x0) * T, (y + h - 1.4 - y0) * T, name);
   } });
-  for (const [x, y] of STALLS) draws.push({ foot: (y + 2 - y0) * T, f: () => { R(x, y - 1, 3, 1, '#8c3b2c'); R(x, y, 3, 2, '#7c6a52'); tagBlock((x + 1.5 - x0) * T, (y + 1 - y0) * T, 'stall', 'later'); } });
-  for (const [x, y] of BENCHES) draws.push({ foot: (y + 1 - y0) * T, f: () => { R(x, y + 0.3, 2, 0.5, C.wood); tagBlock((x + 1 - x0) * T, (y + 0.4 - y0) * T - 4, 'bench', ' '); } });
-  // THE GREAT HEARTH (placeholder shape: chimney, body, two log alcoves, the firebox)
-  const fire = [(58.5 - x0) * T, (24.2 - y0) * T];
-  draws.push({ foot: (26 - y0) * T, f: () => {
-    const fireRamp = opt.ramp || C.fire;
-    const glow = g.createRadialGradient(fire[0], fire[1], 10, fire[0], fire[1], opt.named ? 330 : 260);
-    glow.addColorStop(0, opt.glow || 'rgba(255,180,70,0.45)'); glow.addColorStop(1, 'rgba(255,140,40,0)');
-    g.fillStyle = glow; g.fillRect(fire[0] - 360, fire[1] - 360, 720, 720);
-    R(57, 17.5, 3, 4.5, '#9a8c78'); R(57, 17.5, 3, 0.5, '#6f6455');                         // chimney
-    R(56.5, 19.5, 4, 2.5, C.hearthStone);                                            // chimney breast
-    R(55, 22, 2, 3.8, C.hearthDark); R(60, 22, 2, 3.8, C.hearthDark);                // alcoves
-    for (let i = 0; i < 6; i++) { R(55.2 + (i % 2) * 0.9, 23 + Math.floor(i / 2) * 0.8, 0.8, 0.6, '#7a5634'); R(60.2 + (i % 2) * 0.9, 23 + Math.floor(i / 2) * 0.8, 0.8, 0.6, '#7a5634'); }
-    R(57, 22, 3, 3.8, C.hearthStone); R(57.3, 23, 2.4, 2.6, '#2a2018');                // firebox
+  for (const [x, y] of STALLS) draws.push({ foot: (y + 3 - y0) * T, f: () => { R(x, y, 3, 1, '#8c3b2c'); R(x, y + 1, 3, 2, '#7c6a52'); tagBlock((x + 1.5 - x0) * T, (y + 2 - y0) * T, 'stall', 'later'); } });
+  for (const [x, y] of BENCHES) draws.push({ foot: (y + 1 - y0) * T, f: () => { R(x, y + 0.4, 2, 0.45, C.wood); } });
+  // THE GREAT HEARTH: footprint x112-122 y45-48, art 11 x 11 (y38-48). Placeholder shape after the reference: tall chimney, firebox, two log alcoves.
+  const fire = [(117.5 - x0) * T, (46.6 - y0) * T];
+  draws.push({ foot: (49 - y0) * T, f: () => {
+    const ramp = opt.ramp || C.fire;
+    const glow = g.createRadialGradient(fire[0], fire[1], 10, fire[0], fire[1], 420);
+    glow.addColorStop(0, opt.glow || 'rgba(255,180,70,0.5)'); glow.addColorStop(1, 'rgba(255,140,40,0)');
+    g.fillStyle = glow; g.fillRect(fire[0] - 440, fire[1] - 440, 880, 880);
+    R(115.5, 38, 4, 5, '#9a8c78'); R(115.2, 38, 4.6, 0.6, '#6f6455');                  // chimney
+    R(114, 42, 7, 3, C.hearthStone);                                                  // breast
+    R(112, 44, 3, 4.6, C.hearthDark); R(120, 44, 3, 4.6, C.hearthDark);              // alcoves
+    for (let i = 0; i < 12; i++) { const bx = (i % 3) * 0.95, by = Math.floor(i / 3) * 0.95; R(112.2 + bx, 44.4 + by, 0.85, 0.75, '#7a5634'); R(120.2 + bx, 44.4 + by, 0.85, 0.75, '#7a5634'); }
+    R(115, 44.5, 5, 4.1, C.hearthStone); R(115.4, 45.1, 4.2, 3.3, '#2a2018');         // firebox
     const k = opt.flare || 1;
-    R(57.5, 24.2, 2, 1.3, fireRamp[1]); R(57.7, 23.6 - 0.4 * k, 1.6, 1.6 + 0.4 * k, fireRamp[2]); R(58.1, 23.9 - 0.4 * k, 0.8, 1.1 + 0.4 * k, fireRamp[3]); R(58.3, 24.4, 0.4, 0.6, fireRamp[4]);
-    R(55, 25.6, 7, 0.4, '#6f6455');                                                  // hearth step
-    g.fillStyle = C.ink; g.font = 'bold 12px Georgia, serif'; g.textAlign = 'center'; g.fillText('THE GREAT HEARTH', (58.5 - x0) * T, (20.9 - y0) * T); g.font = '9px Georgia, serif'; g.fillText('PLACEHOLDER (art in progress: 7 × 8 tiles)', (58.5 - x0) * T, (21.35 - y0) * T);
-    if (opt.motes) for (let i = 0; i < 18; i++) { g.fillStyle = fireRamp[3]; g.fillRect(fire[0] - 60 + ((i * 37) % 120), fire[1] - 40 - ((i * 53) % 150), 2, 2); }
+    R(115.7, 47.2, 3.6, 1.2, ramp[1]); R(116, 46.1 - 0.5 * k, 3, 2.1 + 0.5 * k, ramp[2]); R(116.6, 46.5 - 0.5 * k, 1.8, 1.6 + 0.5 * k, ramp[3]); R(117.1, 47.3, 0.8, 0.8, ramp[4]);
+    R(112, 48.6, 11, 0.4, '#6f6455');
+    g.fillStyle = C.ink; g.font = 'bold 13px Georgia, serif'; g.textAlign = 'center'; g.fillText('THE GREAT HEARTH', (117.5 - x0) * T, (41.5 - y0) * T);
+    g.font = '9px Georgia, serif'; g.fillText('PLACEHOLDER: footprint 11 × 4, art 11 × 11 tiles (art in progress)', (117.5 - x0) * T, (41.9 - y0) * T);
+    if (opt.motes) for (let i = 0; i < 24; i++) { g.fillStyle = ramp[3]; g.fillRect(fire[0] - 90 + ((i * 37) % 180), fire[1] - 60 - ((i * 53) % 200), 2, 2); }
   } });
   const place = (id, tx, ty, row = 0) => {
     const s = meta[id]; if (!s || !s.img) return null;
@@ -197,68 +191,38 @@ function scene(opt) {   // the square at 1 art px = 1 px; returns { cv, plates, 
   const plates = [];
   for (const [id, x, y, dir, name, own] of (opt.heroes || HEROES)) { const head = place(id, x, y, DIR[dir]); if (head) plates.push([head[0], head[1] + 8, name, own]); }
   draws.sort((a, b) => a.foot - b.foot).forEach((d) => d.f());
-  if (opt.stands !== false) for (const [x, y] of STANDS) { g.strokeStyle = 'rgba(240,210,122,0.55)'; g.lineWidth = 1; g.beginPath(); g.ellipse((x - x0 + 0.5) * T, (y - y0 + 0.82) * T, 9, 3.5, 0, 0, 7); g.stroke(); }
-  return { cv, plates, x0, y0, fire };
+  return { cv, plates, x0, y0 };
 }
-function present(g, sc, vx, vy, vw, vh, cx, cy, labels) {   // draw the scene at x2 into a viewport, centred on tile (cx, cy)
+function present(g, sc, vx, vy, vw, vh, cx, cy, labels, plateMode) {
   const k = 2, ox = Math.round(vx + vw / 2 - (cx - sc.x0 + 0.5) * T * k), oy = Math.round(vy + vh / 2 - (cy - sc.y0 + 0.5) * T * k);
   g.save(); g.beginPath(); g.rect(vx, vy, vw, vh); g.clip();
   g.imageSmoothingEnabled = false; g.drawImage(sc.cv, ox, oy, sc.cv.width * k, sc.cv.height * k);
   const laid = [];
-  for (const [x, y, name, own] of sc.plates.slice().sort((a, b) => b[1] - a[1])) {
+  for (const [x, y, name, own] of sc.plates.slice().sort((a, b) => (b[3] - a[3]) || (b[1] - a[1]))) {
     const px = ox + x * k; let py = oy + y * k - 2; g.font = '12px Georgia, serif'; const w = g.measureText(name).width + 12;
-    while (laid.some((r) => Math.abs(r[0] - px) < (r[2] + w) / 2 && Math.abs(r[1] - py) < 19)) py -= 19;   // plates never overlap: step up a line
+    let tries = 0; while (laid.some((r) => Math.abs(r[0] - px) < (r[2] + w) / 2 && Math.abs(r[1] - py) < 19) && tries < 2) { py -= 19; tries++; }
+    if (laid.some((r) => Math.abs(r[0] - px) < (r[2] + w) / 2 && Math.abs(r[1] - py) < 19)) continue;   // a crowd: a plate with no room is not drawn (yours always are)
     laid.push([px, py, w]); label(g, name, px, py, 12, own ? C.goldHi : C.ink);
   }
   for (const [t, x, y] of labels || []) label(g, t, ox + (x - sc.x0) * T * k, oy + (y - sc.y0) * T * k, 13);
   g.restore();
-  return { ox, oy, k, at: (x, y) => [ox + (x - sc.x0) * T * k, oy + (y - sc.y0) * T * k] };
 }
-const SQUARE_LABELS = [['Shop: Buy | Sell | Services', 55, 17.6], ['Storage', 57.5, 31.2], ['Tamsin’s board', 52.5, 21.0], ['Bridge ← from the gatehouse', 46, 23.6], ['Kill-task hunter', 61.5, 18.6]];
-
 (async () => {
   const cv = document.getElementById('c'), g = cv.getContext('2d');
   if (view === 'overview') { await overview(cv, g); document.title = 'ready'; return; }
   await loadSprites();
+  const [vw, vh, cx, cy] = view === 'phone' ? [844, 390, 117.5, 47.6] : [1440, 900, 116.5, 46.4];
+  cv.width = vw; cv.height = vh;
   if (view === 'desktop' || view === 'phone') {
-    const [vw, vh, cx, cy] = view === 'phone' ? [844, 390, 58, 24.6] : [1440, 900, 57.5, 23.6];
-    cv.width = vw; cv.height = vh;
-    present(g, scene({}), 0, 0, vw, vh, cx, cy, view === 'phone' ? [] : SQUARE_LABELS);
-    label(g, view === 'phone' ? 'Phone 844×390 at ×2: the hero’s whole station fits (mock)' : 'Hearth Square, desktop 1440×900 at ×2 (mock): gold names = your 4 heroes, white = other players, rings = stands', vw / 2, 22, 13, C.gold);
-  }
-  if (view === 'story' || view === 'named') {
-    cv.width = 1440; cv.height = 900; g.fillStyle = '#16140f'; g.fillRect(0, 0, 1440, 900);
-  }
-  if (view === 'story') {
-    const others = HEROES.filter((h) => !h[5] && h[1] !== 57);
-    const me = (x, y, d) => [['outfit_knight', x, y, d, 'Brannoc · 34', true], ...others];
-    const panes = [
-      { h: me(54, 19, 's'), cap: '1 · Bag: right-click Bones → “Fuel all 120”. ONE intent; the server says yes.' },
-      { h: me(53.6, 26, 'e'), cap: '2 · From the server’s yes, Brannoc walks to a free fuel stand (no XP shown yet).' },
-      { h: me(57, 26, 'n'), cap: '3 · On arrival: a throw. Bones arc into the firebox (one throw per 1.5 s at most).' },
-      { h: me(57, 26, 'n'), cap: '4 · The flare; the float shows what the settle PAID. Peers see a flare, no item name.', flare: 1.8 },
-    ];
-    panes.forEach((p, i) => {
-      const vx = (i % 2) * 720, vy = 30 + Math.floor(i / 2) * 435;
-      const v = present(g, scene({ heroes: p.h, flare: p.flare || 1, stands: false }), vx + 4, vy + 4, 712, 400, i === 0 ? 55.5 : 57, i === 0 ? 21.2 : 23.4, []);
-      if (i === 0) {   // the item menu
-        const [mx, my] = [vx + 430, vy + 60]; g.fillStyle = '#1d1b17'; g.fillRect(mx, my, 250, 150); g.strokeStyle = '#8a8a8a'; g.lineWidth = 2; g.strokeRect(mx, my, 250, 150);
-        g.fillStyle = C.gold; g.font = '600 14px Georgia, serif'; g.textAlign = 'left'; g.fillText('Bones ×120', mx + 12, my + 24);
-        ['Fuel the hearth', 'Fuel all 120', 'Keep in bag', 'Sell'].forEach((t, j) => { if (j === 1) { g.fillStyle = 'rgba(216,178,90,0.18)'; g.fillRect(mx + 4, my + 36 + j * 26, 242, 24); g.fillStyle = C.gold; g.fillRect(mx + 4, my + 36 + j * 26, 3, 24); } g.fillStyle = j < 2 ? C.goldHi : C.ink; g.font = '14px Georgia, serif'; g.fillText(t, mx + 16, my + 53 + j * 26); });
-      }
-      if (i === 2) { const [hx, hy] = v.at(57.5, 25.6), [fx, fy] = v.at(58.5, 24.5); for (let s = 0; s <= 3; s++) { const t = s / 3, x = hx + (fx - hx) * t, y = hy + (fy - hy) * t - Math.sin(t * Math.PI) * 60; g.fillStyle = '#eee6d2'; g.fillRect(x - 6, y - 3, 12, 5); g.fillRect(x - 8, y - 5, 4, 4); g.fillRect(x + 4, y - 5, 4, 4); } }
-      if (i === 3) { const [fx, fy] = v.at(58.5, 22.6); label(g, '+156 Inner Flame', fx, fy - 30, 14, '#ffd27a'); label(g, 'Fuelled 37 of 120 Bones', vx + 360, vy + 380, 13, C.ink); }
-      label(g, p.cap, vx + 360, vy + 26, 13, C.gold);
-    });
-    label(g, 'Fuel the hearth: storyboard (mock 2026-10-25). The server owns the result; the walk and burn play from its answer.', 720, 22, 13, C.goldHi);
+    present(g, scene({}), 0, 0, vw, vh, cx, cy, view === 'phone' ? [] : [['Tamsin’s board', 103.5, 43.6], ['← bridge from the gatehouse', 99, 50.8], ['Storage ↓', 116.5, 55.6], ['stalls (trade, later)', 130.5, 39.6]]);
+    label(g, view === 'phone' ? 'Phone 844×390 at ×2: the fire and both fuel rows fit (mock rev 2)' : 'Hearth Square 24 × 24, desktop 1440×900 at ×2, 41 heroes (mock rev 2): gold names = your 4 heroes; a crowd draws only the plates that fit', vw / 2, 22, 13, C.gold);
   }
   if (view === 'named') {
     const ramp = ['#1d4a2a', '#2e8a4a', '#4ecb6a', '#9cf0a0', '#e6ffe0'];
-    const heroes = HEROES.map((h) => (h[5] || h[2] > 25 ? h : [h[0], h[1], h[2], 'n', h[4], h[5]]));
-    present(g, scene({ ramp, glow: 'rgba(90,230,120,0.42)', named: true, motes: true, flare: 1.9 }), 0, 0, 1440, 900, 57.5, 24.2, []);
+    present(g, scene({ ramp, glow: 'rgba(90,230,120,0.42)', motes: true, flare: 1.9 }), 0, 0, vw, vh, cx, cy, []);
     label(g, 'A NAMED FUEL: Harrow fed the Hearth a Verdigris Cake (Chief Coppercap, 1 in 150). The flame burns copper-green for everyone in the square, 90 s.', 720, 22, 13, C.goldHi);
     label(g, '[Square] Harrow fed the Hearth a Verdigris Cake.', 20, 870, 14, '#9cf0a0', 'left');
-    label(g, '+4,500 Inner Flame', 1440 / 2 + 60, 300, 15, '#c8ffc8');
+    label(g, '+4,500 Inner Flame', 760, 330, 15, '#c8ffc8');
   }
   document.title = 'ready';
 })();

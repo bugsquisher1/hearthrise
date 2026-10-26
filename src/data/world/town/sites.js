@@ -45,10 +45,13 @@ export const SCENERY = Object.freeze([
   /* HAVORA'S LOTS (art/world/havora, lane/b-havora-art-2): the gatehouse (every overground hunt leaves from its yard),
      the tavern on P07 over its cook yard, the bridge over the river (walked on: its cells stay planks) */
   ['havora_gatehouse', 75, 5], ['havora_tavern', 62, 20], ['havora_bridge', 88, 48],
+  /* lane/b-havora-polish: the gate road's bridge over the mill race (the road east to the bank no longer runs into the water)
+     and the south road's bridge to the hunter's yard (its deck spans the river's bend below P10) */
+  ['havora_bridge', 89, 15], ['havora_bridge', 86, 72],
   ['havora_guild_hall', 116, 72], ['havora_sewer_works', 44, 56], ['havora_fisher_guild', 66, 78], ['havora_harbor_office', 98, 76],
   /* the homes: the crooked shacks NW (P01-P06), the town lots (P09-P10), the mountain (P11) and the waterfront estates (P13-P15) */
   ['havora_home_p01', 16, 14], ['havora_home_p02', 30, 16], ['havora_home_p03', 46, 14], ['havora_home_p04', 20, 36],
-  ['havora_home_p05', 36, 38], ['havora_home_p06', 48, 66], ['havora_home_p09', 68, 50], ['havora_home_p10', 88, 62],
+  ['havora_home_p05', 36, 38], ['havora_home_p06', 48, 66], ['havora_home_p09', 68, 54], ['havora_home_p10', 88, 62],
   ['havora_home_p11', 132, 20], ['havora_home_p12', 132, 46], ['havora_home_p13', 120, 74], ['havora_home_p14', 142, 66], ['havora_home_p15', 138, 80],
   /* the mine's mouth in the mountain, a fishing pier off the shore */
   ['mine_mouth', 138, 34], ['fishing_pier', 60, 94],
@@ -60,7 +63,7 @@ export const SCENERY = Object.freeze([
      hay for the horses and a well by the mill race, and a signpost on the road south toward Hearth Square */
   ['lamppost', 79, 15], ['lamppost', 88, 15],
   ['crates', 74, 15], ['crates', 75, 15], ['barrels', 74, 16], ['sack_stack', 75, 16], ['cart_wheel', 76, 15],
-  ['water_trough', 91, 17], ['hay_bale', 91, 18], ['well', 91, 22],
+  ['water_trough', 90, 21], ['hay_bale', 89, 21], ['well', 91, 22],
   ['lamppost', 80, 23], ['signpost', 86, 27], ['crates', 90, 26],
 ].map((r) => Object.freeze(r)));
 

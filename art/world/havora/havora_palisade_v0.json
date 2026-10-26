@@ -37,5 +37,5 @@
     "cost": 10,
     "style": "havora/havora_home_p01"
   },
-  "notes": "Slice 0 of 8 of one 256 px north-south palisade strip (create_image_pro): the town wall's north-south runs lay slice (row mod 8) (town/palisade.js)."
+  "notes": "Slice 0 of 4 of a seamless 128 px loop cut from the 256 px north-south strip (rows 3-130, where it meets itself best; lane/b-havora-polish 2026-10-26): a run lays slice (rows from its north end mod 4), so no seam shows however long (town/palisade.js)."
 }

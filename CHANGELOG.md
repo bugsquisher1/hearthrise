@@ -5,6 +5,12 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.52 — 2026-10-26 (Havora, tidied up)
+
+**Walls and roads fixed.** The town wall now joins up properly at every corner and gate, with no gaps or cut ends. Two new bridges and a boardwalk to the docks mean the roads go where you'd expect, with no long way round.
+
+**Working yards that look like work.** The smithy is laid out as forges with their anvils, troughs and bellows. The tavern kitchen has bread ovens, cauldrons, roasting spits and prep tables at the back door. The quarry has a gravel floor with rock shelves and ore along its faces. Trees, farm plots and training dummies sit more naturally too.
+
 ## v0.2.51 — 2026-10-26 (See more of Havora)
 
 **Zoom in town.** Havora now opens at a comfortable 2× on every desktop screen (wide screens were drawing even closer). Use the mouse wheel or the + and − buttons on the right to step out to 1× and see a whole district at once; the game remembers your choice.

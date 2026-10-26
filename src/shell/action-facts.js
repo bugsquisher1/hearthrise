@@ -16,17 +16,17 @@
 //                       the first whose conditions pass AND that can act fires)
 // Display only: every number is a catalogue row or the server's projection.
 // ════════════════════════════════════════════════════════════════════════
-import { ATTACK_KINDS } from '../data/condition-metrics.js?v=0.2.51';
-import { ABILITIES } from '../data/abilities.js?v=0.2.51';
-import { aimsAtMonsters } from '../core/hunt/conditions.js?v=0.2.51';
-import { CONSUMABLES, CONSUMABLE_RULES } from '../data/consumables.js?v=0.2.51';
-import { STATUSES } from '../data/statuses.js?v=0.2.51';
-import { HUNT_ROLES, ROLE_KEYS, shootsItem } from '../data/hunt-roles.js?v=0.2.51';
-import { ITEMS } from '../data/items.js?v=0.2.51';
-import { isRune } from '../data/supplies.js?v=0.2.51';
-import { WEAPON_WORDS } from '../data/hunt-hud.js?v=0.2.51';
-import { itemName, abilityName, runeWords, familyCount } from './widgets/bits.js?v=0.2.51';
-import { storeOf, storeWords, conditionWords } from './bar-draft.js?v=0.2.51';
+import { ATTACK_KINDS } from '../data/condition-metrics.js?v=0.2.52';
+import { ABILITIES } from '../data/abilities.js?v=0.2.52';
+import { aimsAtMonsters } from '../core/hunt/conditions.js?v=0.2.52';
+import { CONSUMABLES, CONSUMABLE_RULES } from '../data/consumables.js?v=0.2.52';
+import { STATUSES } from '../data/statuses.js?v=0.2.52';
+import { HUNT_ROLES, ROLE_KEYS, shootsItem } from '../data/hunt-roles.js?v=0.2.52';
+import { ITEMS } from '../data/items.js?v=0.2.52';
+import { isRune } from '../data/supplies.js?v=0.2.52';
+import { WEAPON_WORDS } from '../data/hunt-hud.js?v=0.2.52';
+import { itemName, abilityName, runeWords, familyCount } from './widgets/bits.js?v=0.2.52';
+import { storeOf, storeWords, conditionWords } from './bar-draft.js?v=0.2.52';
 
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 const secs = (ms) => (ms % 1000 ? (ms / 1000).toFixed(1) : String(ms / 1000));

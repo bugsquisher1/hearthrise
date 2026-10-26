@@ -20,14 +20,14 @@
 //                     pockets show it as pending; `items` and `qty`, which every
 //                     action reads, stay the server's.
 // ════════════════════════════════════════════════════════════════════════
-import { bagOf, bagCapOf, goldOf, rulesOf, shopOf, equipmentOf, huntLootOf } from '../../../session/item-sections.js?v=0.2.51';
-import { settingsOf, analyzerOf } from '../../../session/hunt-sections.js?v=0.2.51';
-import { BAG_CATS, BAG_SORTS, view, kindOf, equipSlotFor, sellPlan } from '../../bag-model.js?v=0.2.51';
-import { barKind, barIndexOf } from '../../bar-assign.js?v=0.2.51';
-import { itemName } from '../../widgets/bits.js?v=0.2.51';
-import { buryRecipeOf, buryLabel, buryQty } from './bury.js?v=0.2.51';
-import { upgradeOf } from '../../widgets/upgrade-line.js?v=0.2.51';
-import { tickOf } from '../../town-work.js?v=0.2.51';
+import { bagOf, bagCapOf, goldOf, rulesOf, shopOf, equipmentOf, huntLootOf } from '../../../session/item-sections.js?v=0.2.52';
+import { settingsOf, analyzerOf } from '../../../session/hunt-sections.js?v=0.2.52';
+import { BAG_CATS, BAG_SORTS, view, kindOf, equipSlotFor, sellPlan } from '../../bag-model.js?v=0.2.52';
+import { barKind, barIndexOf } from '../../bar-assign.js?v=0.2.52';
+import { itemName } from '../../widgets/bits.js?v=0.2.52';
+import { buryRecipeOf, buryLabel, buryQty } from './bury.js?v=0.2.52';
+import { upgradeOf } from '../../widgets/upgrade-line.js?v=0.2.52';
+import { tickOf } from '../../town-work.js?v=0.2.52';
 
 const SCRATCH = new WeakMap();
 const CAT_IDS = new Set(BAG_CATS.map(([id]) => id));

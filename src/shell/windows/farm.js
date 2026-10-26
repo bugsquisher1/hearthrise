@@ -25,16 +25,16 @@
 // on the server's `ready`, never on the clock. Every control is off while an
 // intent is in flight; the field changes only from the re-read envelope.
 // ════════════════════════════════════════════════════════════════════════
-import { farmLandOf, readyInMs } from '../../session/farm-sections.js?v=0.2.47';
-import { plantCrop, waterPlot, harvestPlot, upgradePlot } from '../../session/farm-intents.js?v=0.2.47';
-import { bagOf, skillsOf, goldOf, shopOf, heldOf, drawsOnStorage } from '../../session/item-sections.js?v=0.2.47';
-import { CROPS } from '../../data/gathering.js?v=0.2.47';
-import { requiredPlotLevel, unlockedCrops } from '../../core/farm.js?v=0.2.47';
-import { rows, text, cls, attr, prop, style, element } from '../../render/paint.js?v=0.2.47';
-import { whole, gold } from '../../render/format.js?v=0.2.47';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.47';
-import { itemIconHtml, itemName } from '../widgets/bits.js?v=0.2.47';
-import { runIntent, refusalText } from '../intent-words.js?v=0.2.47';
+import { farmLandOf, readyInMs } from '../../session/farm-sections.js?v=0.2.48';
+import { plantCrop, waterPlot, harvestPlot, upgradePlot } from '../../session/farm-intents.js?v=0.2.48';
+import { bagOf, skillsOf, goldOf, shopOf, heldOf, drawsOnStorage } from '../../session/item-sections.js?v=0.2.48';
+import { CROPS } from '../../data/gathering.js?v=0.2.48';
+import { requiredPlotLevel, unlockedCrops } from '../../core/farm.js?v=0.2.48';
+import { rows, text, cls, attr, prop, style, element } from '../../render/paint.js?v=0.2.48';
+import { whole, gold } from '../../render/format.js?v=0.2.48';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.48';
+import { itemIconHtml, itemName } from '../widgets/bits.js?v=0.2.48';
+import { runIntent, refusalText } from '../intent-words.js?v=0.2.48';
 
 const SCRATCH = new WeakMap();
 const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { pick: null, pending: false, msg: '', asked: null }; SCRATCH.set(cs, s); } return s; };

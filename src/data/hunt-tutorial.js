@@ -62,25 +62,25 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_INDEX } from './hunts.js?v=0.2.47';
-import { HUNT_GROUNDS } from './hunt-grounds.js?v=0.2.47';
-import { END_ORDER, DEATH_XP_LOSS, STAMINA_LOW_MIN } from './hunt-sessions.js?v=0.2.47';
-import { nextUnlock } from './skill-unlocks.js?v=0.2.47';
-import { SKILLS_DEF } from './skills.js?v=0.2.47';
-import { CROPS, TREES, ROCKS } from './gathering.js?v=0.2.47';
-import { tallyTask } from './tally-tasks.js?v=0.2.47';
-import { ITEMS } from './items.js?v=0.2.47';
-import { BASIC_INDEX } from './supply-basics.js?v=0.2.47';
-import { LEVEL_REQ } from './gear-tiers.js?v=0.2.47';
-import { roleWeaponOf, WEAPON_ROLES, SHIELD_ARM } from './hunt-roles.js?v=0.2.47';
-import { isShield } from './shields.js?v=0.2.47';
-import { deriveProfile } from '../core/member.js?v=0.2.47';
-import { ABILITIES } from './abilities.js?v=0.2.47';
-import { CONSUMABLES } from './consumables.js?v=0.2.47';
-import { RUNE_FAMILIES, runeId } from './runes.js?v=0.2.47';
-import { ARTISAN_RECIPES } from './recipes.js?v=0.2.47';
-import { HUNT_STANCES, ROLE_DEFAULTS } from './rule-subjects.js?v=0.2.47';
-import { START_EQUIPMENT, START_BAR } from './start-kit.js?v=0.2.47';
+import { HUNT_INDEX } from './hunts.js?v=0.2.48';
+import { HUNT_GROUNDS } from './hunt-grounds.js?v=0.2.48';
+import { END_ORDER, DEATH_XP_LOSS, STAMINA_LOW_MIN } from './hunt-sessions.js?v=0.2.48';
+import { nextUnlock } from './skill-unlocks.js?v=0.2.48';
+import { SKILLS_DEF } from './skills.js?v=0.2.48';
+import { CROPS, TREES, ROCKS } from './gathering.js?v=0.2.48';
+import { tallyTask } from './tally-tasks.js?v=0.2.48';
+import { ITEMS } from './items.js?v=0.2.48';
+import { BASIC_INDEX } from './supply-basics.js?v=0.2.48';
+import { LEVEL_REQ } from './gear-tiers.js?v=0.2.48';
+import { roleWeaponOf, WEAPON_ROLES, SHIELD_ARM } from './hunt-roles.js?v=0.2.48';
+import { isShield } from './shields.js?v=0.2.48';
+import { deriveProfile } from '../core/member.js?v=0.2.48';
+import { ABILITIES } from './abilities.js?v=0.2.48';
+import { CONSUMABLES } from './consumables.js?v=0.2.48';
+import { RUNE_FAMILIES, runeId } from './runes.js?v=0.2.48';
+import { ARTISAN_RECIPES } from './recipes.js?v=0.2.48';
+import { HUNT_STANCES, ROLE_DEFAULTS } from './rule-subjects.js?v=0.2.48';
+import { START_EQUIPMENT, START_BAR } from './start-kit.js?v=0.2.48';
 
 /* The surfaces a card may point at: `window` the shell window (src/data/shell-windows.js) its controls live in (the
    card shows INSIDE it while it is open), `icon` its way starts at that window's icon, and what the coach rings

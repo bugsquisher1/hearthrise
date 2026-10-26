@@ -26,16 +26,16 @@
 // PURE (no DOM). The caller owns the clock.
 // ════════════════════════════════════════════════════════════════════════
 
-import { simulateHuntInstance } from '../core/combat-sim.js?v=0.2.47';
-import { memberSide, frozenSide } from '../core/member.js?v=0.2.47';
-import { huntGroundOf } from '../core/hunt-ground.js?v=0.2.47';
-import { huntTimeline, worldHash } from '../core/hunt-track.js?v=0.2.47';
-import { encode as encodeWorldRow, decodeStored as decodeWorldRow } from '../core/hunt/world-state.js?v=0.2.47';
-import { COMBAT_BALANCE } from '../core/combat.js?v=0.2.47';
-import { HUNT_TUNING } from '../data/hunt-tuning.js?v=0.2.47';
-import { stepCost } from '../core/hunt/grid.js?v=0.2.47';
-import { SERVER_ONLY_EVENTS } from '../core/hunt/events.js?v=0.2.47';
-import { holderTank, roleOf, engaged, challengeable } from '../core/hunt/targeting.js?v=0.2.47';
+import { simulateHuntInstance } from '../core/combat-sim.js?v=0.2.48';
+import { memberSide, frozenSide } from '../core/member.js?v=0.2.48';
+import { huntGroundOf } from '../core/hunt-ground.js?v=0.2.48';
+import { huntTimeline, worldHash } from '../core/hunt-track.js?v=0.2.48';
+import { encode as encodeWorldRow, decodeStored as decodeWorldRow } from '../core/hunt/world-state.js?v=0.2.48';
+import { COMBAT_BALANCE } from '../core/combat.js?v=0.2.48';
+import { HUNT_TUNING } from '../data/hunt-tuning.js?v=0.2.48';
+import { stepCost } from '../core/hunt/grid.js?v=0.2.48';
+import { SERVER_ONLY_EVENTS } from '../core/hunt/events.js?v=0.2.48';
+import { holderTank, roleOf, engaged, challengeable } from '../core/hunt/targeting.js?v=0.2.48';
 
 /* How many swings of world hashes are kept to judge a server commit against. */
 const KEEP_HASHES = 64;

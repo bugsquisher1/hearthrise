@@ -5,6 +5,18 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.48 — 2026-10-26 (Plan your loot)
+
+**Plan where your loot goes.** In your bag, pick what happens to each kind of item: Keep in bag, Deposit in storage, Sell, or Don't pick up. Back in town, press "Dispatch loot" and it all goes where you planned, in one go. Your starting kit can be deposited but never sold.
+
+**Skills use your Storage.** Cooking, crafting, smithing, farming and the rest now take what they need from your bag first, then from your Storage, and "Makes up to" counts both. If your bag is full, the game tells you what to make room for.
+
+**The game says why.** When something can't be done, a line tells you why, right there, not just on hover.
+
+**Easier to read windows.** Bag, Storage and Shop icons are sharper and set in roomier slots, and the windows are a little wider on big screens.
+
+**Gold to keep, explained.** The "Keep at least ___ gold" fight setting now says what it does: the hunt sells loot, then heads home rather than spend below it.
+
 ## v0.2.47 — 2026-10-25 (Set up in town)
 
 **Set up your bar in town.** Target, stance, Chase, Distance and gold to keep now work while you're in town, so you can get ready before you set out.

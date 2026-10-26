@@ -123,9 +123,9 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_TUNING } from './hunt-tuning.js?v=0.2.47';
-import { HUNT_INDEX } from './hunts.js?v=0.2.47';
-import { MONSTERS } from './monsters.js?v=0.2.47';
+import { HUNT_TUNING } from './hunt-tuning.js?v=0.2.48';
+import { HUNT_INDEX } from './hunts.js?v=0.2.48';
+import { MONSTERS } from './monsters.js?v=0.2.48';
 
 const pocket = (room, ...spawns) => Object.freeze({ room: Object.freeze(room),
   spawns: Object.freeze(spawns.map(([monster, x, y]) => Object.freeze({ monster, x, y }))) });

@@ -33,11 +33,11 @@
 // none of them (map-compile.js L-GRID).
 // PURE: no DOM, no window, no G.
 // ════════════════════════════════════════════════════════════════════════
-import { ySort } from './zsort.js?v=0.2.47';
-import { heroBuilding } from './roofs.js?v=0.2.47';
-import { ellipseShadow, castMatrix } from './shadows.js?v=0.2.47';
-import { vertexGrid, tileKey } from './wang.js?v=0.2.47';
-import { OUTFITS } from '../../data/hunt-outfits.js?v=0.2.47';
+import { ySort } from './zsort.js?v=0.2.48';
+import { heroBuilding } from './roofs.js?v=0.2.48';
+import { ellipseShadow, castMatrix } from './shadows.js?v=0.2.48';
+import { vertexGrid, tileKey } from './wang.js?v=0.2.48';
+import { OUTFITS } from '../../data/hunt-outfits.js?v=0.2.48';
 
 /** Wall height: rock tops and capstones are raised by it. */
 export const WALL_FACE_PX = 48;

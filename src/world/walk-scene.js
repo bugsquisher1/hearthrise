@@ -13,9 +13,10 @@
 // merged into it; the peers follow each new walker list (town-scene.js).
 // THE HERO NEVER WALKS ON ITS OWN (Tyler 2026-10-19, after "my character
 // randomly walks to a random location after I leave a hunt"): it moves only when
-// the player steers it (a tap on open ground, the keys) or taps a station, which
-// walks it there as well as opening that station's screen. A new activity, a hunt
-// ending, standing still for any length of time: none of them move it.
+// the player steers it (a tap on open ground, the keys), taps a station, which
+// walks it there as well as opening that station's screen, or chose something the
+// server gives a place (the real town, 2026-10-25: a new activity walks it to that
+// activity's stand, goTo). Standing still for any length of time never moves it.
 // PURE: no DOM, no window, no G — world-boot.js reads those and passes `env`.
 // ════════════════════════════════════════════════════════════════════════
 import { TAP_OPENS } from '../data/world/stations.js?v=0.2.47';
@@ -106,6 +107,11 @@ export function createWalkScene(map, o) {
      * feet as a tap (steer-local.js drive), so nothing a key does is sent either.
      */
     drive(v, now) { steer.drive(v, now); },
+    /**
+     * Walk to the tile the SERVER gave this hero to stand on (its new stand: a new activity, back from a hunt,
+     * a counter; world-boot.js from the town presence). The same feet, display only, no mark: nothing is sent.
+     */
+    goTo(to, now) { steer.walkTo(to, now, false); },
     /** What a tap here would do, without doing it (the pointer's hover cue). */
     peek: (pick) => tapAction(map, pick, { opens: TAP_OPENS, maps: o.maps }),
     /** Where the hero stands (or is stepping onto). */

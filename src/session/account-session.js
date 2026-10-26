@@ -48,7 +48,7 @@
 import { SESSION_CONFIG } from './config.js?v=0.2.47';
 import { CharacterSession } from './character-session.js?v=0.2.47';
 import { TownPresence } from './town-presence.js?v=0.2.47';
-import { WORLD_MAPS, SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.47';
+import { SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.47';
 import { charLevelFromXp } from '../core/xp.js?v=0.2.47';
 import { createIntentLedger } from './intent-ledger.js?v=0.2.47';
 import { purseOf, newerPurse } from './item-sections.js?v=0.2.47';
@@ -302,12 +302,11 @@ export class AccountSession {
     }
     cs.connect();
     /* Playing = standing in town for everyone (Tyler 2026-10-19), viewed or not: a body from the
-       moment it opens (a reload or login too), at the town's arrival tile, while it is not hunting. */
-    const town = WORLD_MAPS.find((m) => m.id === SCENE_MAPS.town);
-    const arrival = town && town.start ? { map: town.id, x: town.start[0], y: town.start[1], gx: town.start[0], gy: town.start[1], dir: 's' } : null;
+       moment it opens (a reload or login too), on the stand the SERVER gives it (its activity's
+       station, else the town's idle place; 2027-01-26-town-stands.sql), while it is not hunting. */
     this._towns.set(slot, new TownPresence({ server: this.server, slot, self: () => this.userId,
       hidden: (id) => !!(this.social && this.social.blocks && this.social.blocks.has(id)),
-      busy: () => huntOpenIn(cs.read('hunt')), arrival,
+      busy: () => huntOpenIn(cs.read('hunt')), town: SCENE_MAPS.town,
       timers: this._timers.setInterval ? { setTimer: this._timers.setInterval, clearTimer: this._timers.clearInterval } : null }));
     this._towns.get(slot).stand();
     if (this.viewed === null) this.viewed = slot;

@@ -203,7 +203,7 @@ function check(M) {
     /* ...and never per scene or room: the canvas sets z in measure() from the window and the map's ART GRID
        (nothing else of the map) and nowhere else, and no room frame reaches it */
     const draws = M.canvasSrc.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
-    ok('C6', (draws.match(/(?<!let )\bz = /g) || []).length === 1 && /z = zoomFor\(win\.innerWidth, dpr, map && map\.grid\);/.test(draws) && !/fitZoom|map\.frame/.test(draws),
+    ok('C6', (draws.match(/(?<!let )\bz = /g) || []).length === 1 && /z = zoomFor\(win\.innerWidth, dpr, map && map\.grid, zoomPick\);/.test(draws) && !/fitZoom|map\.frame/.test(draws),
       'the canvas must take ONE zoom from the window and the map\'s grid (measure) and never a per-room or fitted one');
     ok('C6', !('fitZoom' in M.camera) && !('frameCentre' in M.camera), 'the fitted zoom is gone (WORLD_SHELL §1: fitZoom is removed)');
     for (let z = 2; z <= 5; z++) {
@@ -540,7 +540,7 @@ const MUTANTS = [
   ['S4', 'hung art drawn on the floor', 'src/world/core/compose.js', [["const air = s.class === 'hanging' || s.class === 'flier' ? s.hover || 0 : 0;", 'const air = 0;']]],
   ['C1', 'the density read off device px (a DPR-3 phone drawn at x3)', 'src/world/core/camera.js', [['const css = (innerWidth || 0) > WIDE_CSS', 'const css = (innerWidth || 0) * (dpr || 1) > WIDE_CSS']]],
   ['C6', 'a per-room zoom comes back', 'src/world/render/canvas-backend.js', [['    const k = dpr / z;\n', '    z = map.frame ? z + 1 : z;\n    const k = dpr / z;\n']]],
-  ['C6', 'a zoom fitted to the map width, passed in as a grid', 'src/world/render/canvas-backend.js', [['z = zoomFor(win.innerWidth, dpr, map && map.grid);', 'z = zoomFor(win.innerWidth, dpr, map && { density: Math.max(1, Math.floor(W / (map.w * T))), wideDensity: 1 });']]],
+  ['C6', 'a zoom fitted to the map width, passed in as a grid', 'src/world/render/canvas-backend.js', [['z = zoomFor(win.innerWidth, dpr, map && map.grid, zoomPick);', 'z = zoomFor(win.innerWidth, dpr, map && { density: Math.max(1, Math.floor(W / (map.w * T))), wideDensity: 1 }, zoomPick);']]],
   ['C1', 'the sandbox grid drawn at the base density (its tile twice the town\'s)', 'src/world/core/camera.js', [['  const g = grid || GRIDS.base;', '  const g = GRIDS.base;']]],
   ['C7', 'the camera ignores the docked window', 'src/world/core/camera.js', [['const inset = cleanInset(o.inset);', 'const inset = cleanInset(null);']]],
   ['C7', 'the leaning camera lets the hero walk under the window', 'src/world/core/camera.js', [['inset, mid(o.keep), T, rule), o.sinceMs);', 'inset, null, T, rule), o.sinceMs);']]],

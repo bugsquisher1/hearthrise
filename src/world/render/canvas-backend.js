@@ -48,6 +48,9 @@ export function createCanvasBackend(o) {
   let host = null, canvas = null, ctx = null, ro = null, onResize = null;
   let map = null, chunks = new Map();
   let z = 2, dpr = 1, W = 1, H = 1, dirty = true, inset = cleanInset(null);
+  /* the viewer's town zoom (camera.js zoomFor `pick`, CSS px per base art px; null: the screen class's), and
+     the chunks kept: at least two screens' worth (a 2560 px window at x1 shows ~24 chunks; the LRU must not thrash) */
+  let zoomPick = null, keep = CHUNK_KEEP;
   let T = 32, CHUNK = 16 * T, zs = z;
   /* Ease after an inset change (camera.js easedCam); the FIRST inset is the start, never eased (hero switch). */
   let lastCam = null, camFrom = null, insetSince = -Infinity, insetHeard = false;
@@ -60,7 +63,7 @@ export function createCanvasBackend(o) {
 
   function measure() {
     dpr = win.devicePixelRatio || 1;
-    z = zoomFor(win.innerWidth, dpr, map && map.grid);
+    z = zoomFor(win.innerWidth, dpr, map && map.grid, zoomPick);
     zs = (z * T) / 32;
     const r = host.getBoundingClientRect();
     W = Math.max(1, Math.round(r.width * dpr));
@@ -86,7 +89,7 @@ export function createCanvasBackend(o) {
     const key = cx + ',' + cy;
     let c = chunks.get(key);
     if (c) { chunks.delete(key); chunks.set(key, c); return c; }
-    if (chunks.size >= CHUNK_KEEP) chunks.delete(chunks.keys().next().value);
+    if (chunks.size >= keep) chunks.delete(chunks.keys().next().value);
     c = doc.createElement('canvas');
     c.width = CHUNK; c.height = CHUNK;
     const g = c.getContext('2d');
@@ -468,6 +471,7 @@ export function createCanvasBackend(o) {
     g.fillStyle = tone('void');
     g.fillRect(0, 0, view.w, view.h);
     const mw = map.w * T, mh = map.h * T;
+    keep = Math.max(CHUNK_KEEP, 2 * (Math.ceil(view.w / CHUNK) + 1) * (Math.ceil(view.h / CHUNK) + 1));
     for (let cy = Math.floor(view.oy / CHUNK); cy * CHUNK < view.oy + view.h; cy++) {
       for (let cx = Math.floor(view.ox / CHUNK); cx * CHUNK < view.ox + view.w; cx++) {
         if (cx < 0 || cy < 0 || cx * CHUNK >= mw || cy * CHUNK >= mh) continue;
@@ -532,6 +536,8 @@ export function createCanvasBackend(o) {
     /** Make map `m`'s ground (drawn with `art` or the constructor's) ahead of the frame that shows it. */
     prepare(m, art) { const a = art || o; ahead = { m, book: a.book, bins: binsFor(m, a) }; },
     sync(state) { if (map && canvas) draw(state); },
+    /** The viewer's zoom (CSS px per base art px; null: the screen class's), from the next frame on. */
+    setZoom(v) { const next = Number.isFinite(v) && v > 0 ? v : null; if (next !== zoomPick) { zoomPick = next; dirty = true; lastCam = camFrom = null; } },
     /**
      * THE CAMERA INSET: the strips of the stage a docked window covers, in CSS
      * px ({left, right, top, bottom}; null uncovers it). The camera frames the

@@ -101,3 +101,12 @@ The client half (B #1, A #1, A #5, B #3) is built on lane/b-hunts-detail from da
 **Tracker:** https://claude.ai/artifact/81VCt3YuFkKbrtke5u9jqK (Tyler answers questions + row notes there; read BOTH at session start). Rulings: memory rulings-of-record. Gap list: .claude/coordination/sim-gap-list-2026-10-19.md. Lanes + files: ACTIVE_WORK.md.
 
 **Known open bugs:** Andy's/Tyler's heroes can be stuck "busy" (hidden activity) — workaround Inventory > Stop (Andy reports no Stop line visible: the Stop line may not render; party-invite-menu lane fixes the cause server-side). Windows still push the world (lane/a-windows-float @09eac2750 is old WIP, unfinished). No death popup yet. Backups stopped after 2026-10-14 (PITR off): investigate.
+
+## 2026-10-26 · art-director → Coordinator (lane/b-havora-art-2) · PixelLab is needed for the rest of Havora
+The ground is done from existing pixels; everything else on the brief needs PixelLab calls this session could not make.
+Re-dispatch with the PixelLab MCP tools loaded (or run the calls): (1) create_topdown_tileset pro 32 px, chained from
+grass 42099ab7-68ef-4c41-bed9-581b37501045 / dirt 97e71544-5fcf-4e48-94b7-c809721a12be: grass/rock (the mountain),
+grass/sand + sand/water (the sea shore), earth/tilled (farm plots), earth/planks or a dock span; (2) buildings in the
+square_* hall style (create_image_pro, style = square_bank): gatehouse + walls, bridge (span), tavern P07, fisher_guild,
+harbor_office + docks, training yard dummies, sewer works, guild hall, homes P01-P15 (sample of 5 first). The renderer
+already draws any new wang16 pair: add its id to BLEND in src/data/world/town/sites.js.

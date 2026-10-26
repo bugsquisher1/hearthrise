@@ -3791,3 +3791,13 @@ row. Give the head cells the rows' data-c and hide both with one selector.
   the store at x106-117, the barracks at x119-129).
 - A 24x24 flagstone field is monotonous even with decals and the hearthstone ring: the map lane should structure it
   with props (oaks in planters, lampposts, a kerb, the well), not more paving.
+
+## 2026-10-26 · art-director (lane/b-havora-art-2) · the Common grounds ARE one tileset family
+- A PixelLab Map Workshop ground is drawn on the DUAL grid: cut at (16 + 32k) it is exactly its tilesets' tiles
+  (common_ground: 21 distinct tiles in 299 cuts). The grass tile is pixel-identical in common, meadowbrook, cottage and
+  mosslight; the dirt in common and square_dirt_flag; so grass/earth (all 16 keys painted) and grass/water (14 + 2
+  composed diagonals) were recovered with `port-pixellab.mjs wang`, zero generations. Any new town pair should be
+  chained from the same base tiles (grass 42099ab7…, dirt 97e71544…: square_grass_flag.json / square_dirt_flag.json).
+- The plaza's puddle decals are grey stone stains: on dirt they read as holes. Dirt needs its own wear decals.
+- This agent session had NO PixelLab tools (deferred, no tool search) and the token route is blocked by the permission
+  classifier: buildings, the bridge, walls, rock, sand, planks and tilled soil could not be generated tonight.

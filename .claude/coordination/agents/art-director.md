@@ -3082,3 +3082,12 @@ a disc mask so they meet the field); (5) the model sizes stones to the canvas: a
 long, 256 gave cobbles, 384 gave 1-2 heroes (crop its brick-course top band); a pasted disc never blends, an
 inpainted one does; the named-fuel light is a small pool (r ~7 tiles) or it reads as a screen filter;
 (6) a hand-drawn sprite fails style1 [s1-source] (no PixelLab id): generate even 12 px chunks.
+
+## 2026-10-26 — lane/b-havora-art-2: Havora's ground from the Common family (no generations)
+The town map had no ground art (ground: null, tones). Built the blend: compose.js blendTiles draws a map's wang16 PAIRS
+(map.blend) on the dual grid, under the patches, holes (cliff, sites) taking their neighbours' material; pairs recovered
+from existing painted grounds by port-pixellab.mjs wang (grass/earth, grass/water) plus the square's flag sets; 321 wear
+decals. Lessons: (1) a PixelLab painted ground is its tileset cut on the dual grid, so its pairs come back free and every
+Common ground shares base tiles; (2) draw a PixelLab pair the way PixelLab does (dual grid, corners on cell centres): a
+2-wide road stays 2 wide, no vertex melting; (3) a decal made for one floor is not wear for another (grey puddles on dirt
+read as holes); (4) this session had no PixelLab tools: check the tool list before accepting a generation brief.

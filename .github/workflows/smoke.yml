@@ -580,9 +580,12 @@ jobs:
   # + Town 53 = 783 s, ~14 min with setup; budget stays 36.
   # 2026-10-24: Party UI, Chat and social and Town presence moved to in-page-13
   # (see there); this half ~1,240 s with every --mutate run, ~22 min (61%).
+  # 2026-10-26 (v0.2.49, run 40301377956): >36 min with the armour-weight doll
+  # mutants added (cancelled at 36:16, 0 failures, still catching) → 60, the cap,
+  # until this shard is split like in-page-10 (17/18/19).
   in-page-2:
     runs-on: ubuntu-latest
-    timeout-minutes: 36
+    timeout-minutes: 60
 
     steps:
       - uses: actions/checkout@v4

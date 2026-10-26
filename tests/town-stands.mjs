@@ -6,9 +6,9 @@
 //   node tests/town-stands.mjs --load     + the synthetic load: 60 viewers reading every 2 s over 240 bodies
 //   node tests/town-stands.mjs --mutate   every planted defect in the migration must turn a rule RED
 //
-// mutant-anchors: supabase/migrations/2027-01-26-town-stands.sql
+// mutant-anchors: supabase/migrations/2027-01-28-town-stands.sql
 //
-// supabase/migrations/2027-01-26-town-stands.sql proves its contract inside ONE
+// supabase/migrations/2027-01-28-town-stands.sql proves its contract inside ONE
 // transaction (its §6, on every replay). This guard plays it the way the game
 // does, call by call on a committed database, as `authenticated`, with the real
 // clock between the calls (a cursor from one answer, a change, the next read):
@@ -21,6 +21,10 @@
 //         outfit) is re-read once a minute, a new activity moves its stand to the
 //         station walking from where it stood, hr_town_go takes it to a counter and
 //         back, and a work station is refused
+//   TS-0  A TOWN ALREADY AT WORK (production refused 2027-01-26-town-stands.sql, 10-26: its
+//         self-check assumed an empty town): the migration applies, its self-check included,
+//         on a chain where 8 heroes are already gathering and cooking (production's shape),
+//         twice, and leaves their 8 notes for the first town read
 //   TS-3  OUT AND BACK: a parked hero that starts a hunt is refused a keepalive and is
 //         `gone` from a delta read made with the real cursor; when the hunt ends it is
 //         set down on the arrival stand; once a cursor is more than the 5 s commit
@@ -37,7 +41,7 @@ import { join } from 'node:path';
 import { bootReplay, ROOT } from './schema-replay.mjs';
 import { isMain } from './_is-main.mjs';
 
-const FILE = '2027-01-26-town-stands.sql';
+const FILE = '2027-01-28-town-stands.sql';
 const U = (i) => '000000c0-0000-4000-a000-7057ff' + String(i).padStart(6, '0');
 
 /* As `authenticated`, each call its OWN transaction (the session's claim, not a transaction's): the real clock moves between calls. */
@@ -70,6 +74,38 @@ async function people(db, n, slots = [0]) {
 const work = (db, uid, slot, kind, id) => db.query('update public.player_state set active_kind = $3, active_id = $4 where user_id = $1 and slot = $2', [uid, slot, kind, id]);
 const standOf = (db, uid, slot) => db.query('select station_id, stand_no, why, inst, from_x, from_y from public.town_bodies where user_id = $1 and slot = $2', [uid, slot]).then((r) => r.rows[0] || null);
 const tileOf = (db, map, station, no) => db.query('select x, y from public.hr_town_stands where map_id = $1 and station_id = $2 and stand_no = $3', [map, station, no]).then((r) => r.rows[0] || null);
+
+/* TS-0: production's shape when the file applies: 7 heroes gathering and 1 cooking (measured read-only, 10-26). */
+const LIVE_WORK = [['gather', 'deep_mithril_vein'], ['gather', 'essence_rock'], ['gather', 'iron_rock'], ['gather', 'normal_tree'],
+  ['gather', 'rich_coal_rock'], ['gather', 'swordfish_deeps_s'], ['gather', 'yew_tree'], ['artisan', 'cook_shrimp']];
+const LIVE_SEED = `do $seed$
+declare u uuid; w text[] := array[${LIVE_WORK.map(([k, id]) => `'${k}:${id}'`).join(', ')}]; i int;
+begin
+  for i in 1..array_length(w, 1) loop
+    u := ('000000c1-0000-4000-a000-7057ee' || lpad(i::text, 6, '0'))::uuid;
+    insert into auth.users (id) values (u) on conflict (id) do nothing;
+    insert into public.profiles (id, display_name) values (u, 'Live ' || i) on conflict (id) do update set display_name = excluded.display_name;
+    insert into public.hr_access_allowlist (user_id, note) values (u, 'town-stands TS-0') on conflict (user_id) do nothing;
+    perform set_config('request.jwt.claim.sub', u::text, true);
+    perform public.hr_create_character(0);
+    update public.player_state set active_kind = split_part(w[i], ':', 1), active_id = split_part(w[i], ':', 2) where user_id = u and slot = 0;
+  end loop;
+  perform set_config('request.jwt.claim.sub', '', true);
+end $seed$;`;
+
+async function liveTown(patches) {
+  const fails = [];
+  let db;
+  try { ({ db } = await bootReplay(Object.assign({ seedBefore: new Map([[FILE, LIVE_SEED]]) }, patches ? { patches, upTo: FILE } : {}))); }
+  catch (e) { if (e && e.harness) throw e; return ['TS-0 the file did not apply on a town already at work: ' + String(e.message).split('\n')[1]]; }
+  try {
+    const src = (await readFile(join(ROOT, 'supabase/migrations', FILE), 'utf8')).replace(/\r\n/g, '\n');
+    try { await db.exec(`begin;\n${src}\ncommit;`); } catch (e) { await db.exec('rollback').catch(() => {}); fails.push('TS-0 a second apply on a town at work refused: ' + e.message); }
+    const n = await one(db, "select count(*)::int from public.town_moves where user_id::text like '000000c1-0000-4000-a000-7057ee%'");
+    if (n !== LIVE_WORK.length) fails.push('TS-0 the live workers\' notes are not left for the first read: ' + n + ' of ' + LIVE_WORK.length);
+  } finally { await db.close().catch(() => {}); }
+  return fails;
+}
 
 async function rules(db) {
   const fails = [];
@@ -203,6 +239,7 @@ const MUTANTS = [
   ['a peer\'s look is never re-read', "        where t.look is null or t.look_at < v_now - interval '60 seconds'", "        where t.look is null"],
   ['the arrival is ignored', "        perform public.hr_town_place(r.user_id, r.slot, p_map, v_from, 'arrive', r.ended_at);", "        perform public.hr_town_place_pointer(r.user_id, r.slot, p_map);"],
   ['a full station skips its fallback', "when s.station_id = v_fallback then 1 when st.role = 'bench' then 2 else 3 end", "when st.role = 'bench' then 2 else 3 end"],
+  ['the live town is not set down first (production 10-26)', "    perform public.hr_town_moves_settle(v_live, 100000);\n    if exists", "    if false and exists"],
   ['hr_town_go takes a work station', "s.role in ('visit', 'idle', 'bench')) then", "s.role in ('visit', 'idle', 'bench', 'work')) then"],
 ];
 
@@ -216,7 +253,8 @@ async function main() {
     const [name, from, to] = MUTANTS[Number(process.argv[process.argv.indexOf('--mutant') + 1])];
     if (src.split(from).length !== 2) { console.log('harness: anchor matches ' + (src.split(from).length - 1) + ' times'); process.exit(20); }
     let fails;
-    try { fails = await rules((await bootReplay({ patches: new Map([[FILE, [[from, to]]]]), upTo: FILE })).db); }
+    const patches = new Map([[FILE, [[from, to]]]]);
+    try { fails = [...await rules((await bootReplay({ patches, upTo: FILE })).db), ...await liveTown(patches)]; }
     catch (e) {
       /* a HARNESS fault (the anchor moved, the patch did not land) proves nothing: red, never "caught" */
       if (e && e.harness) { console.log('harness: ' + String(e.message).split('\n')[0]); process.exit(20); }
@@ -246,7 +284,7 @@ async function main() {
     process.exit(bad ? 1 : 0);
   }
   const { db } = await bootReplay();
-  const fails = await rules(db);
+  const fails = [...await rules(db), ...await liveTown(null)];
   for (const f of fails) console.log('  ✗ ' + f);
   if (process.argv.includes('--load')) {
     const { db: ldb } = await bootReplay();

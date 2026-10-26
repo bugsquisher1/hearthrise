@@ -303,7 +303,7 @@ export class AccountSession {
     cs.connect();
     /* Playing = standing in town for everyone (Tyler 2026-10-19), viewed or not: a body from the
        moment it opens (a reload or login too), on the stand the SERVER gives it (its activity's
-       station, else the town's idle place; 2027-01-26-town-stands.sql), while it is not hunting. */
+       station, else the town's idle place; 2027-01-28-town-stands.sql), while it is not hunting. */
     this._towns.set(slot, new TownPresence({ server: this.server, slot, self: () => this.userId,
       hidden: (id) => !!(this.social && this.social.blocks && this.social.blocks.has(id)),
       busy: () => huntOpenIn(cs.read('hunt')), town: SCENE_MAPS.town,

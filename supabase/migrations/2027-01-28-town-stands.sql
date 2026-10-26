@@ -6,8 +6,12 @@
 --
 -- STATUS: STAGED, NOT APPLIED. Pre-EA rules (CLAUDE.md §2): applies on its
 -- passing §6; this surface is on the EA Security review list. ORDER: after
--- 2027-01-26-town-stations.generated.sql (§0 refuses without the catalogue).
+-- 2027-01-26-town-stations.generated.sql (APPLIED 10-26; §0 refuses without it).
 -- EDGE: none (no value moves; the engine is untouched).
+-- RESTAGED: production refused this file as 2027-01-26-town-stands.sql (10-26,
+-- rolled back whole): its §6 assumed an empty town while the live gatherers its
+-- own backfill had noted took the probes' stands. §6 now sets the live workers
+-- down on the real town first and checks them, then plays on a copy (§6(L)).
 --
 -- ── WHY (the root cause, measured) ───────────────────────────────────────────
 -- town_common has ONE start tile. Every hero back from a hunt and every
@@ -191,7 +195,7 @@ create table if not exists public.town_bodies (
 create unique index if not exists town_bodies_one_per_stand on public.town_bodies (map_id, inst, station_id, stand_no) where station_id is not null;
 create index if not exists town_bodies_released on public.town_bodies (map_id, inst, changed_at) where station_id is null;
 comment on table public.town_bodies is
-  '2027-01-26-town-stands.sql: the stand each character''s body holds in town (map, instance, station, stand), placed by '
+  '2027-01-28-town-stands.sql: the stand each character''s body holds in town (map, instance, station, stand), placed by '
   'the server from its activity pointer; unique per stand. Written only by hr_town_place / hr_town_release (owner-only).';
 
 -- A parked hero's keepalive (no tile). UNLOGGED: a presence is worth zero bytes of WAL.
@@ -569,7 +573,7 @@ end $fn$;
 -- ── §3 THE NOTE (a trigger: every writer of the activity pointer, now and later) ─
 create or replace function public.hr_town_note_move()
 returns trigger language plpgsql security definer set search_path = public, pg_catalog as $fn$
--- TOWN-STANDS (2027-01-26-town-stands.sql): note THAT the activity pointer changed (and the hunt it came back from);
+-- TOWN-STANDS (2027-01-28-town-stands.sql): note THAT the activity pointer changed (and the hunt it came back from);
 -- the town's next read moves the body. An insert, nothing else: no lock, no wait, no read of any town table.
 begin
   insert into public.town_moves (user_id, slot, from_hunt, at)
@@ -812,7 +816,7 @@ declare
   v_map  public.hr_town_maps%rowtype;
   v_last timestamptz;
 begin
-  -- TOWN-STANDS (2027-01-26-town-stands.sql): a body is placed on the first publish; moved_at is a real move only.
+  -- TOWN-STANDS (2027-01-28-town-stands.sql): a body is placed on the first publish; moved_at is a real move only.
   if v_uid is null then return jsonb_build_object('ok', false, 'error', 'not_signed_in'); end if;
   perform public.hr_access_check();
   if not public.hr_flag_on('town_presence') then return jsonb_build_object('ok', true, 'off', true); end if;
@@ -898,6 +902,8 @@ declare
   v_u    uuid; v_uids uuid[] := '{}'; v_v uuid; v_h uuid;
   v_i    int; v_inst int; v jsonb; v_w jsonb; v_cur bigint; v_txt text; v_party uuid; v_hi uuid;
   v_probe constant text := 'zz_town_probe';
+  v_town  constant text := 'zz_town_copy';   -- (a)-(d) play on a copy of the LIVE town catalogue, made the main town here
+  v_live  text; v_n int;
 begin
   -- (0) THE SHAPE: the work kinds are the resumable town kinds; the guarantee index exists and is unique and partial.
   if (select array_agg(k.kind order by k.kind) from public.hr_hunt_resumable_kinds k)
@@ -916,6 +922,30 @@ begin
       on conflict (key) do update set enabled = true;
     insert into public.hr_flags (key, enabled, note) values ('closed_mode', true, 'town-stands §6')
       on conflict (key) do update set enabled = true;
+    -- (L) THE LIVE TOWN FIRST (production refused 2027-01-26-town-stands.sql: its probes assumed an empty town, and the
+    -- 7 live gatherers this file's backfill had noted took the woodpile's lowest stands first). Every hero already
+    -- working is set down on the REAL town now, and checked: each holds a stand, one body a stand. The probes then play
+    -- on a copy of the live catalogue made the main town for this block, so no live body stands in a probe's way.
+    select map_id into v_live from public.hr_town_maps where main;
+    perform public.hr_town_moves_settle(v_live, 100000);
+    if exists (select 1 from public.town_moves) then raise exception 'town-stands §6(L): live notes were left unapplied'; end if;
+    select count(*) into v_n from public.player_state ps
+     where public.hr_town_work_kind(ps.active_kind)
+       and not exists (select 1 from public.hunt_sessions h where h.user_id = ps.user_id and h.slot = ps.slot and h.ended_at is null)
+       and not exists (select 1 from public.town_bodies b where b.user_id = ps.user_id and b.slot = ps.slot and b.map_id = v_live and b.station_id is not null);
+    if v_n <> 0 then raise exception 'town-stands §6(L): % live worker(s) hold no stand on the live town', v_n; end if;
+    if exists (select 1 from public.town_bodies b where b.station_id is not null
+                group by b.map_id, b.inst, b.station_id, b.stand_no having count(*) > 1) then
+      raise exception 'town-stands §6(L): two live bodies share a stand'; end if;
+    update public.hr_town_maps set main = false where main;
+    insert into public.hr_town_maps (map_id, zone_id, w, h, players, heroes, view_w, view_h, margin, view_cap, main)
+      select v_town, v_town, m.w, m.h, m.players, m.heroes, m.view_w, m.view_h, m.margin, m.view_cap, true from public.hr_town_maps m where m.map_id = v_live;
+    insert into public.hr_town_stations (map_id, station_id, role, face_x, face_y, ord, fallback)
+      select v_town, s.station_id, s.role, s.face_x, s.face_y, s.ord, s.fallback from public.hr_town_stations s where s.map_id = v_live;
+    insert into public.hr_town_stands (map_id, station_id, stand_no, x, y, dir, overflow)
+      select v_town, s.station_id, s.stand_no, s.x, s.y, s.dir, s.overflow from public.hr_town_stands s where s.map_id = v_live;
+    insert into public.hr_town_station_hosts (map_id, kind, skill, activity_id, station_id)
+      select v_town, h.kind, h.skill, h.activity_id, h.station_id from public.hr_town_station_hosts h where h.map_id = v_live;
     -- 70 probe accounts (2 heroes each where needed); the first 14 hero pairs work on the seed Common
     for v_i in 1..70 loop
       v_u := (v_pfx || lpad(to_hex(v_i), 8, '0'))::uuid;
@@ -937,8 +967,8 @@ begin
     if (select count(*) from public.town_moves m where m.user_id = any (v_uids[1:7])) <> 13 then
       raise exception 'town-stands §6(a): the trigger did not note 13 activity changes'; end if;
     perform set_config('request.jwt.claim.sub', v_v::text, true);
-    v := public.hr_town_view(0, 'town_common', 11, 7, null, null, null);   -- places the viewer, applies the notes after
-    v := public.hr_town_view(0, 'town_common', 11, 7, null, null, null);
+    v := public.hr_town_view(0, v_town, 11, 7, null, null, null);   -- places the viewer, applies the notes after
+    v := public.hr_town_view(0, v_town, 11, 7, null, null, null);
     if v->>'ok' is distinct from 'true' or (v->>'full')::boolean is not true then raise exception 'town-stands §6(a): the read is %', v; end if;
     if exists (select 1 from public.town_moves m where m.user_id = any (v_uids[1:7])) then
       raise exception 'town-stands §6(a): two reads did not apply the notes'; end if;
@@ -964,7 +994,7 @@ begin
     v_w := v->'walkers';
     if (select count(*) from jsonb_array_elements(v_w) e
          where (e->>'id')::uuid = any (v_uids[1:7]) and (e->>'work')::boolean
-           and exists (select 1 from public.hr_town_stands s where s.map_id = 'town_common' and s.station_id = e->>'station'
+           and exists (select 1 from public.hr_town_stands s where s.map_id = v_town and s.station_id = e->>'station'
                          and s.x = (e->>'x')::int and s.y = (e->>'y')::int)) <> 13
        or exists (select 1 from public.town_seen s where s.user_id = any (v_uids[1:7]))
        or exists (select 1 from public.town_positions p where p.user_id = any (v_uids[1:7])) then
@@ -984,8 +1014,8 @@ begin
       values (gen_random_uuid(), v_h, 0, 'mill_cellar', now(), now(), now(), now(), v_hi);
     perform public.hr_hunt_point(v_h, 0, 'mill_cellar');
     v_cur := floor(extract(epoch from now() - interval '30 seconds') * 1000000)::bigint;
-    v := public.hr_town_view(0, 'town_common', 11, 7, v_cur, 11, 7);   -- applies the note after the read
-    v := public.hr_town_view(0, 'town_common', 11, 7, v_cur, 11, 7);
+    v := public.hr_town_view(0, v_town, 11, 7, v_cur, 11, 7);   -- applies the note after the read
+    v := public.hr_town_view(0, v_town, 11, 7, v_cur, 11, 7);
     if (v->>'full')::boolean or not (v->'gone' @> jsonb_build_array(jsonb_build_object('id', v_h, 'slot', 0)))
        or exists (select 1 from public.town_bodies b where b.user_id = v_h and b.slot = 0 and b.station_id is not null) then
       raise exception 'town-stands §6(c): a hero that went hunting is not gone: %', v; end if;
@@ -993,15 +1023,15 @@ begin
       raise exception 'town-stands §6(c): a delta with nothing changed returned %', v->'walkers'; end if;
     update public.hunt_sessions set ended_at = now(), end_reason = 'left' where user_id = v_h and slot = 0 and ended_at is null;
     perform public.hr_hunt_point(v_h, 0, null);
-    perform public.hr_town_moves_settle('town_common', 20);
+    perform public.hr_town_moves_settle(v_town, 20);
     if (select b.station_id from public.town_bodies b where b.user_id = v_h and b.slot = 0) is distinct from 'arrival'
        or (select b.why from public.town_bodies b where b.user_id = v_h and b.slot = 0) is distinct from 'arrive' then
       raise exception 'town-stands §6(c): back from its hunt the hero is not at the arrival: %', (select to_jsonb(b) from public.town_bodies b where b.user_id = v_h and b.slot = 0); end if;
     update public.player_state set active_kind = 'artisan', active_id = 'cook_shrimp' where user_id = v_h and slot = 0;
-    perform public.hr_town_moves_settle('town_common', 20);
+    perform public.hr_town_moves_settle(v_town, 20);
     if (select b.station_id from public.town_bodies b where b.user_id = v_h and b.slot = 0) is distinct from 'well_yard'
        or (select (b.from_x, b.from_y) from public.town_bodies b where b.user_id = v_h and b.slot = 0)
-          is distinct from (select (s.x, s.y) from public.hr_town_stands s where s.map_id = 'town_common' and s.station_id = 'arrival' and s.stand_no = 1) then
+          is distinct from (select (s.x, s.y) from public.hr_town_stands s where s.map_id = v_town and s.station_id = 'arrival' and s.stand_no = 1) then
       raise exception 'town-stands §6(c): the resumed cook does not walk from the arrival to the kitchen stand'; end if;
     perform set_config('request.jwt.claim.sub', v_h::text, true);
     -- (each call is its own statement: a read in the same statement would not see what the call wrote)
@@ -1010,7 +1040,7 @@ begin
        or (select b.station_id from public.town_bodies b where b.user_id = v_h and b.slot = 0) is distinct from 'well_yard' then
       raise exception 'town-stands §6(c): a leave took a working hero out of its station'; end if;
     update public.player_state set active_kind = 'idle', active_id = null where user_id = v_h and slot = 0;
-    perform public.hr_town_moves_settle('town_common', 20);
+    perform public.hr_town_moves_settle(v_town, 20);
     if (select b.why from public.town_bodies b where b.user_id = v_h and b.slot = 0) is distinct from 'idle'
        or (select b.station_id from public.town_bodies b where b.user_id = v_h and b.slot = 0) is distinct from 'well_yard' then
       raise exception 'town-stands §6(c): a hero that stopped walked away from where it stood'; end if;
@@ -1021,19 +1051,19 @@ begin
 
     -- (d) THE STEERED TILE: a publish that moves wins over the stand; a keepalive on the same tile is not a move.
     perform set_config('request.jwt.claim.sub', v_v::text, true);
-    if public.hr_town_move(0, 'town_common', 12, 9, 12, 9, 's')->>'stamped' is distinct from 'true' then
+    if public.hr_town_move(0, v_town, 12, 9, 12, 9, 's')->>'stamped' is distinct from 'true' then
       raise exception 'town-stands §6(d): the viewer''s publish was refused'; end if;
     -- it took its stand a minute ago and walked one second ago (one transaction has one clock: the times are set)
     update public.town_bodies set since = now() - interval '1 minute' where user_id = v_v and slot = 0;
     update public.town_positions set at = now() - interval '1 second', moved_at = now() - interval '1 second' where user_id = v_v and slot = 0;
     if (public.hr_town_me(v_v, 0)->>'x')::int <> 12 or (public.hr_town_me(v_v, 0)->>'y')::int <> 9 then
       raise exception 'town-stands §6(d): a steered hero is not drawn on its tile: %', public.hr_town_me(v_v, 0); end if;
-    perform public.hr_town_move(0, 'town_common', 12, 9, 12, 9, 's');
+    perform public.hr_town_move(0, v_town, 12, 9, 12, 9, 's');
     if (select moved_at from public.town_positions where user_id = v_v and slot = 0) <> now() - interval '1 second' then
       raise exception 'town-stands §6(d): a keepalive on the same tile counted as a move'; end if;
     -- THE LIVE CLIENT KEEPS ITS TOWN until the client half ships: the old read still answers over the same publishes
     perform set_config('request.jwt.claim.sub', v_uids[1]::text, true);
-    v := public.hr_town_walkers('town_common');
+    v := public.hr_town_walkers(v_town);
     if v->>'ok' is distinct from 'true' or not (v->'walkers' @> jsonb_build_array(jsonb_build_object('id', v_v, 'x', 12, 'y', 9))) then
       raise exception 'town-stands §6(d): hr_town_walkers no longer serves the live client: %', left(v::text, 300); end if;
     perform set_config('request.jwt.claim.sub', v_v::text, true);
@@ -1051,8 +1081,8 @@ begin
        or (select b.station_id from public.town_bodies b where b.user_id = v_v and b.slot = 0) is distinct from 'green' then
       raise exception 'town-stands §6(d): hr_town_go(null) did not send the idle body back to the green: %', v; end if;
     if public.hr_town_here(0, 'nowhere')->>'error' is distinct from 'bad_map'
-       or public.hr_town_here(4, 'town_common')->>'error' is distinct from 'no_character'
-       or public.hr_town_view(4, 'town_common', 0, 0, null, null, null)->>'error' is distinct from 'no_character' then
+       or public.hr_town_here(4, v_town)->>'error' is distinct from 'no_character'
+       or public.hr_town_view(4, v_town, 0, 0, null, null, null)->>'error' is distinct from 'no_character' then
       raise exception 'town-stands §6(d): a bad map or slot was answered'; end if;
 
     -- (e) INSTANCES ON THE RULED NUMBERS (a probe map of 260 stands, 60 players, 4 heroes: hard cap 65):
@@ -1171,7 +1201,8 @@ begin
   end;
   perform set_config('request.jwt.claim.sub', '', true);
   if exists (select 1 from public.town_bodies b where b.user_id::text like '000000c0-0000-4000-a000-7057%')
-     or exists (select 1 from public.hr_town_maps where map_id = 'zz_town_probe')
+     or exists (select 1 from public.hr_town_maps where map_id in ('zz_town_probe', 'zz_town_copy'))
+     or (select count(*) from public.hr_town_maps where main) <> 1
      or exists (select 1 from public.player_state where user_id::text like '000000c0-0000-4000-a000-7057%') then
     raise exception 'town-stands §6: a probe row leaked'; end if;
   -- THE GRANTS: no client reaches a town table or an owner-only helper; the three verbs and the restated move are the client's

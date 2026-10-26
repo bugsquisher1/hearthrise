@@ -6,7 +6,7 @@
 // body in a town stands (a station per activity, its stands in order, the
 // overflow after them), and TOWN_INSTANCE of how many players one town
 // instance holds and how far a viewer reads. Postgres must know both to do
-// what only it may (supabase/migrations/2027-01-26-town-stands.sql): hold one
+// what only it may (supabase/migrations/2027-01-28-town-stands.sql): hold one
 // stand per body under a unique key, place an UNVIEWED hero at its station
 // from its activity pointer, and open a second instance for the player who
 // would not fit. Emitted here as:

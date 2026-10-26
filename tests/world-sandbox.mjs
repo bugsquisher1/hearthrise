@@ -140,7 +140,7 @@ async function rules(M) {
   /* SB-6 NOTHING SENT */
   let now = 0;
   const calls = [], timers = [];
-  /* the server stands the hero on its stand (2027-01-26-town-stands.sql `me`), so its own publishes may go */
+  /* the server stands the hero on its stand (2027-01-28-town-stands.sql `me`), so its own publishes may go */
   const me = { map: town.id, inst: 1, station: 'arrival', stand: 1, x: 5, y: 9, gx: 5, gy: 9, dir: 's', at: [5, 9], work: false, since_ms: 1 };
   const server = { rpc: (name, args) => { calls.push({ name, args }); return Promise.resolve({ ok: true, body: { ok: true, full: true, walkers: [], gone: [], me } }); } };
   const p = new M.presence.TownPresence({ server, slot: 0, self: () => null, now: () => now,

@@ -358,7 +358,7 @@ const ARMS = {
     await world(db);
     await db.query("update public.profiles set display_name = null where id = $1", [B]);
     await db.query("update public.hr_flags set enabled = true where key = 'town_presence'");
-    /* B stands in the Common (its keepalive: the server stands it on its stand, 2027-01-26-town-stands.sql) and A reads the town */
+    /* B stands in the Common (its keepalive: the server stands it on its stand, 2027-01-28-town-stands.sql) and A reads the town */
     await as(db, B, "select public.hr_town_here(0, 'town_common')");
     const walkers = await as(db, A, "select public.hr_town_view(0, 'town_common', null, null, null, null, null)");
     const raw = (walkers && walkers.walkers || []).find((w) => w.id === B);

@@ -9,7 +9,7 @@
 // number anyone can spend: a position is display presence.
 //
 // THE SERVER DECIDES WHO IS THERE, AND WHERE EVERY BODY STANDS
-// (supabase/migrations/2027-01-26-town-stands.sql): each body holds a STAND the
+// (supabase/migrations/2027-01-28-town-stands.sql): each body holds a STAND the
 // server picked from its activity (a station per activity, src/data/world/
 // stations.js), so no two bodies share one and an unviewed hero stands at its
 // work, never at the gate. This presence never names a tile the server did not

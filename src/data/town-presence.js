@@ -4,7 +4,7 @@
 // The knobs of src/session/town-presence.js (who else is in town, and where)
 // and src/world/town-scene.js (how they walk on your screen). The server's own
 // bounds live in supabase/migrations/2026-10-25-town-walk.sql (the publish) and
-// 2027-01-26-town-stands.sql (the stands and the read); the client keeps inside
+// 2027-01-28-town-stands.sql (the stands and the read); the client keeps inside
 // them so a refusal is rare, never so a bound can be skipped:
 //   publishMinMs   never two position publishes closer than this (server floor 250 ms, 90/min)
 //   keepaliveMs    a standing hero re-publishes this often (server freshness 30 s)

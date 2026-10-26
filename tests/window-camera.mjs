@@ -84,7 +84,7 @@ async function stub(page) {
     const json = (b) => r.fulfill({ contentType: 'application/json', body: JSON.stringify(b) });
     if (name === 'hr_load') return json(Object.assign(townEnv(), { version: ++version }));
     if (name === 'hr-accrue') return json({ accrued: false });
-    /* the town (2027-01-26-town-stands.sql): the server stands the hero on its stand (the arrival's first, the Common's start tile) */
+    /* the town (2027-01-28-town-stands.sql): the server stands the hero on its stand (the arrival's first, the Common's start tile) */
     if (name === 'hr_town_here') return json({ ok: true, me: STAND });
     if (name === 'hr_town_view') return json({ ok: true, map: body.p_map, inst: 1, cap: 120, full: true, cursor: 1, area: [0, 0, 23, 13], gone: [], me: STAND, walkers: [
       { id: ANDY, slot: 0, name: PEER, level: 9, role: 'healer', x: PEER_AT[0], y: PEER_AT[1], gx: PEER_AT[0], gy: PEER_AT[1], dir: 'w', age_ms: 0, station: 'arrival', work: false }] });

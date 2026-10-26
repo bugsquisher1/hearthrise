@@ -16,7 +16,7 @@
 //
 // TOWN_STATIONS: WHERE EVERY BODY IN TOWN STANDS, BY WHAT IT IS DOING (the real-town plan,
 // docs/planning/PRIORITY_BOARD.md "Activity → station → stand"). The SERVER assigns the stand
-// (supabase/migrations/2027-01-26-town-stands.sql): when a hero's town activity changes, a hunt
+// (supabase/migrations/2027-01-28-town-stands.sql): when a hero's town activity changes, a hunt
 // starts or ends, or it appears in town, Postgres holds the lowest free stand of its station in
 // its town instance under a unique key, so no two bodies ever hold one stand; a full station's
 // next hero takes its overflow, then its `fallback` station, then the nearest free bench, then the

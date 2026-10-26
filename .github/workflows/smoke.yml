@@ -638,7 +638,7 @@ jobs:
 
       # THE REAL TOWN'S STANDS (2026-10-25, Tyler: heroes stacked on one tile; L2 of the
       # real-town plan): the SERVER places every body on a stand of its activity's station
-      # (2027-01-26-town-stands.sql), one body a stand, in town instances of 60 players,
+      # (2027-01-28-town-stands.sql), one body a stand, in town instances of 60 players,
       # read through a windowed delta (hr_town_view). The catalogue is generated from
       # src/data/world/stations.js and the town map rows (--check is the twin guard, its
       # refusals --selftest: a stand off the map, on a blocked tile, shared, an activity

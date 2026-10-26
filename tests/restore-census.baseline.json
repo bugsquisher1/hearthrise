@@ -606,7 +606,7 @@
   "party_seekers": "A finder listing, not progress: one row per character, every row expires 30 minutes after it is written (and sooner on a join, a hunt start or sign-out), grants nothing on its own (an invite is a separate verb with its own checks). Losing every row costs each seeker one press.",
   "account_play_net": "Anti-abuse stamp, not value: the play cap's record of which network an account last called from (a salted hash). A lost row costs a player nothing; the next hr_load writes it again.",
   "hero_play_net": "Anti-abuse stamp, not value: the network a playing hero started from (a salted hash), read only to count heroes per network. A lost row costs a player nothing; it lets that hero go uncounted per network until it starts again.",
-  "town_bodies": "A display placement, not progress: which town stand each character's body holds, placed by the server from its activity pointer (2027-01-26-town-stands.sql). Every present hero is placed again on its next keepalive or read, and a worker on its next activity change. Losing every row costs nobody anything a player earned.",
+  "town_bodies": "A display placement, not progress: which town stand each character's body holds, placed by the server from its activity pointer (2027-01-28-town-stands.sql). Every present hero is placed again on its next keepalive or read, and a worker on its next activity change. Losing every row costs nobody anything a player earned.",
   "town_moves": "Transient notes that an activity pointer changed, deleted by the next town read once applied. No value: losing them leaves a body where it stood until its next change.",
   "town_seen": "Unlogged keepalive stamps (a parked hero is present), never read after 30 s. Losing every row costs nobody anything."
  },
@@ -1736,11 +1736,11 @@
   },
   "town_bodies": {
    "class": "operational",
-   "note": "2027-01-26-town-stands.sql, ships EMPTY. The stand each character's body holds in town (map, instance, station, stand, the tile it walks from, a minute-old cached look), placed by the server from the activity pointer. Display presence, no player value: an empty table re-places every present hero on its next keepalive or read; an offline worker reappears at its station on its next activity change (re-running the file's backfill insert places them at once)."
+   "note": "2027-01-28-town-stands.sql, ships EMPTY. The stand each character's body holds in town (map, instance, station, stand, the tile it walks from, a minute-old cached look), placed by the server from the activity pointer. Display presence, no player value: an empty table re-places every present hero on its next keepalive or read; an offline worker reappears at its station on its next activity change (re-running the file's backfill insert places them at once)."
   },
   "town_moves": {
    "class": "operational",
-   "note": "2027-01-26-town-stands.sql, ships EMPTY. Notes that a hero's activity pointer changed (from the AFTER trigger on player_state), applied and deleted by the next town read. Losing them leaves a body where it stood until its next change or keepalive."
+   "note": "2027-01-28-town-stands.sql, ships EMPTY. Notes that a hero's activity pointer changed (from the AFTER trigger on player_state), applied and deleted by the next town read. Losing them leaves a body where it stood until its next change or keepalive."
   },
   "town_positions": {
    "class": "operational",
@@ -1749,7 +1749,7 @@
   },
   "town_seen": {
    "class": "operational",
-   "note": "2027-01-26-town-stands.sql, ships EMPTY, UNLOGGED. A parked hero's keepalive (hr_town_here, no tile) and a viewer's read, server-stamped; read within 30 s. An empty table shows idle parked heroes gone for at most one keepalive."
+   "note": "2027-01-28-town-stands.sql, ships EMPTY, UNLOGGED. A parked hero's keepalive (hr_town_here, no tile) and a viewer's read, server-stamped; read within 30 s. An empty table shows idle parked heroes gone for at most one keepalive."
   },
   "town_snapshot": {
    "class": "regenerated",

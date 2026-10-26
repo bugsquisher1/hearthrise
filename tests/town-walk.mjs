@@ -7,7 +7,7 @@
 //   node tests/town-walk.mjs --mutate       every planted defect must turn a rule RED
 //   node tests/town-walk.mjs --shots <dir>  also write the visual-gate screenshot (1440x900)
 //
-// mutant-anchors: src/session/town-presence.js src/session/account-session.js src/world/world-boot.js src/world/walk-scene.js src/world/sandbox-scene.js src/app/world-pane.js supabase/migrations/2027-01-26-town-stands.sql
+// mutant-anchors: src/session/town-presence.js src/session/account-session.js src/world/world-boot.js src/world/walk-scene.js src/world/sandbox-scene.js src/app/world-pane.js supabase/migrations/2027-01-28-town-stands.sql
 // mutant-writes-tree: no — pure mutants plant into a temp copy of src/, page mutants into served overrides
 //
 // The server half (own position only, catalogue bounds, the 250 ms floor and
@@ -15,7 +15,7 @@
 // worker at its station, a hunt out and back by the arrival, the 61st player in
 // instance 2, parties and friends together, the windowed read capped and only
 // changes) is EXECUTED by the self-checks of
-// supabase/migrations/2026-10-25-town-walk.sql and 2027-01-26-town-stands.sql on
+// supabase/migrations/2026-10-25-town-walk.sql and 2027-01-28-town-stands.sql on
 // every chain replay (tests/schema-drift.mjs), and on a committed database by
 // tests/town-stands.mjs. The walking itself (re-aim without a jump, the clip
 // never restarts, leave = gone) is tests/world-town-home.mjs family T. These are
@@ -145,7 +145,7 @@ function chainOf(base, fn) {
 }
 
 /* ── THE SHARED FAKE SERVER: hr_load, hr_town_move, hr_town_here, hr_town_view, with the server's own rules
-   (2027-01-26-town-stands.sql): the server picks every body's stand (the idle station's lowest free stand, the
+   (2027-01-28-town-stands.sql): the server picks every body's stand (the idle station's lowest free stand, the
    arrival's for one back from a hunt), a hunter has none, a steered tile wins while it moved after the stand was
    taken, and the read names the viewer's own character too (the CLIENT drops it). ── */
 function fakeWorld(M) {
@@ -973,7 +973,7 @@ const PURE_MUTANTS = [
   ['closing a character keeps its body in town', 'src/session/account-session.js', 'if (town) { this._towns.delete(slot); town.destroy(); }', 'void town;'],
   ['a hero back from a hunt still counts as hunting', 'src/session/account-session.js', "busy: () => huntOpenIn(cs.read('hunt')),", "busy: () => !!cs.read('hunt'),"],
   ['an ended hunt section is an open hunt', 'src/session/account-session.js', " && h.ended !== true;\n}", ';\n}'],
-  ['a walker\'s role is the retired action-set pick (live v0.2.31: every peer in plate)', 'supabase/migrations/2027-01-26-town-stands.sql',
+  ['a walker\'s role is the retired action-set pick (live v0.2.31: every peer in plate)', 'supabase/migrations/2027-01-28-town-stands.sql',
     "'role', public.hr_role_view(p_user, p_slot)->>'id',", "'role', public.hr_chat_role_pick(p_user, p_slot),"],
   ['a walker\'s chosen outfit is dropped', 'src/session/town-presence.js', 'OUTFIT.test(w.outfit.id) ? w.outfit.id : null', 'OUTFIT.test(w.outfit.id) ? null : null'],
 ];
@@ -993,7 +993,7 @@ function copySrc() {
   const tmp = mkdtempSync(join(tmpdir(), 'hr-town-'));
   cpSync(join(ROOT, 'src'), join(tmp, 'src'), { recursive: true, filter: (p) => !/[\\/]vendor[\\/]?/.test(p.slice(ROOT.length)) });
   mkdirSync(join(tmp, 'supabase/migrations'), { recursive: true });
-  for (const f of ['2026-10-25-town-walk.sql', '2026-12-10-town-walker-role.sql', '2027-01-26-town-stations.generated.sql', '2027-01-26-town-stands.sql'])
+  for (const f of ['2026-10-25-town-walk.sql', '2026-12-10-town-walker-role.sql', '2027-01-26-town-stations.generated.sql', '2027-01-28-town-stands.sql'])
     cpSync(join(ROOT, 'supabase/migrations', f), join(tmp, 'supabase/migrations', f));
   return tmp;
 }

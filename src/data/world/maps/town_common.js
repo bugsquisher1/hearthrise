@@ -7,7 +7,7 @@
 //   ground     ../town/ground.js (the blueprint's ground, traced x2, with the plan's districts)
 //   buildings  ../town/sites.js SITES: PLACEHOLDER FOOTPRINTS (painted, closed: they block a step,
 //              their art is the art lane's) on `site` ground
-//   objects    the style-1 scenery (the smithy and the mill are whole sprites), every station's props,
+//   objects    the road wear (../town/wear.js), the style-1 scenery (the smithy and the mill are whole sprites), every station's props,
 //              the trees of the green ground
 //   stations   one stand of each kind the map lint checks (combat, gather, artisan, idle); every
 //              station and its full stand list is ../stations.js
@@ -20,6 +20,7 @@ import { at, TOWN_NAME, TOWN_MAP } from '../town/plan.js?v=0.2.47';
 import { GROUND_ROWS } from '../town/ground.js?v=0.2.47';
 import { SITES, SCENERY, EXITS, PATCHES, AMBIENT, BLEND } from '../town/sites.js?v=0.2.47';
 import { GREENERY } from '../town/greenery.js?v=0.2.47';
+import { WEAR } from '../town/wear.js?v=0.2.47';
 import { STATIONS, STATION_BY_ID, ACTIVITY_STATIONS } from '../stations.js?v=0.2.47';
 
 const tile = (x, y) => { const [mx, my] = at(x, y); return { x: mx, y: my }; };
@@ -51,6 +52,7 @@ export default Object.freeze({
     ...SCENERY.map(([id, x, y]) => Object.freeze(Object.assign({ id }, tile(x, y)))),
     ...STATIONS.flatMap((s) => s.props),
     ...GREENERY.map(([id, x, y]) => Object.freeze(Object.assign({ id }, tile(x, y)))),
+    ...WEAR.map(([id, x, y]) => Object.freeze(Object.assign({ id: 'square_decal_' + id }, tile(x, y)))),
   ]),
   buildings: Object.freeze(SITES.map(site)),
   path: Object.freeze([]),

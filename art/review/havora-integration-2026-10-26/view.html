@@ -9,14 +9,14 @@
 <link rel="stylesheet" href="src/styles/tokens.css">
 <style>html,body{margin:0;height:100%;overflow:hidden;background:#000}#stage{position:fixed;inset:0}canvas{image-rendering:pixelated;display:block}</style>
 </head><body><div id="stage"></div><script type="module">
-import { BUILD } from './src/build-info.js?v=0.2.48';
-import { MATERIALS, OPEN_CLASSES, LIGHTS } from './src/data/world/terrain.js?v=0.2.48';
-import town from './src/data/world/maps/town_common.js?v=0.2.48';
-import { STATIONS } from './src/data/world/stations.js?v=0.2.48';
-import { OUTFITS } from './src/data/hunt-outfits.js?v=0.2.48';
-import { compileMap } from './src/world/core/map-compile.js?v=0.2.48';
-import { loadAtlases } from './src/world/atlas.js?v=0.2.48';
-import { createCanvasBackend } from './src/world/render/canvas-backend.js?v=0.2.48';
+import { BUILD } from './src/build-info.js?v=0.2.49';
+import { MATERIALS, OPEN_CLASSES, LIGHTS } from './src/data/world/terrain.js?v=0.2.49';
+import town from './src/data/world/maps/town_common.js?v=0.2.49';
+import { STATIONS } from './src/data/world/stations.js?v=0.2.49';
+import { OUTFITS } from './src/data/hunt-outfits.js?v=0.2.49';
+import { compileMap } from './src/world/core/map-compile.js?v=0.2.49';
+import { loadAtlases } from './src/world/atlas.js?v=0.2.49';
+import { createCanvasBackend } from './src/world/render/canvas-backend.js?v=0.2.49';
 const q = new URLSearchParams(location.search);
 const { book, images } = await loadAtlases({ doc: document, version: BUILD.cache + '-' + Date.now() });
 const tables = { materials: MATERIALS, sprites: book.sprites, openClasses: OPEN_CLASSES, lights: LIGHTS };

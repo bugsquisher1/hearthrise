@@ -24,10 +24,10 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-10-26",
- "replay_ms": 433166,
+ "replay_ms": 44142,
  "counts": {
-  "tracked_names": 677,
-  "entries": 532
+  "tracked_names": 697,
+  "entries": 552
  },
  "functions": [
   {
@@ -3685,6 +3685,28 @@
    "replay": {
     "md5": "72e72c96d053bcbf5921f3e24f29fe8c",
     "norm_len": 8198,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_farm_harvest_clear(p_slot integer, p_plot_idx integer, p_idem uuid)",
+   "name": "hr_farm_harvest_clear",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "2027-01-26-farm-harvest-clear.sql"
+   ],
+   "live": {
+    "md5": "f8d0f33f0ce6eb782dd4c45cb1f58948",
+    "norm_len": 2780,
+    "measured": "2026-10-26",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "f8d0f33f0ce6eb782dd4c45cb1f58948",
+    "norm_len": 2780,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -11738,25 +11760,292 @@
    "agree": true
   },
   {
+   "sig": "hr_town_bodies_at(p_map text, p_inst integer, p_since timestamp with time zone, p_user uuid, p_slot integer)",
+   "name": "hr_town_bodies_at",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "2027-01-28-town-stands.sql"
+   ],
+   "live": {
+    "md5": "0f8b06520e8a9b03042361dffddfb67c",
+    "norm_len": 2415,
+    "measured": "2026-10-26",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "0f8b06520e8a9b03042361dffddfb67c",
+    "norm_len": 2415,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_town_go(p_slot integer, p_station text)",
+   "name": "hr_town_go",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "2027-01-28-town-stands.sql"
+   ],
+   "live": {
+    "md5": "6ce84eb9eac49ba20e672a2b0397aa3d",
+    "norm_len": 2037,
+    "measured": "2026-10-26",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "6ce84eb9eac49ba20e672a2b0397aa3d",
+    "norm_len": 2037,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_town_held(p_map text)",
+   "name": "hr_town_held",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "2027-01-28-town-stands.sql"
+   ],
+   "live": {
+    "md5": "c57114bdced680805e89832fb4119cd9",
+    "norm_len": 763,
+    "measured": "2026-10-26",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "c57114bdced680805e89832fb4119cd9",
+    "norm_len": 763,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_town_here(p_slot integer, p_map text)",
+   "name": "hr_town_here",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "2027-01-28-town-stands.sql"
+   ],
+   "live": {
+    "md5": "deed37c82824e886b591cb1632e18c4b",
+    "norm_len": 2160,
+    "measured": "2026-10-26",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "deed37c82824e886b591cb1632e18c4b",
+    "norm_len": 2160,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_town_live(p_user uuid, p_slot integer)",
+   "name": "hr_town_live",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "2027-01-28-town-stands.sql"
+   ],
+   "live": {
+    "md5": "51cbd9b29716b6c03877d660081c18da",
+    "norm_len": 638,
+    "measured": "2026-10-26",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "51cbd9b29716b6c03877d660081c18da",
+    "norm_len": 638,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_town_live_of(p_kind text, p_seen timestamp with time zone, p_hunting boolean)",
+   "name": "hr_town_live_of",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "2027-01-28-town-stands.sql"
+   ],
+   "live": {
+    "md5": "171e3e7060e704d78fd4ab94207e7095",
+    "norm_len": 354,
+    "measured": "2026-10-26",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "171e3e7060e704d78fd4ab94207e7095",
+    "norm_len": 354,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_town_lock(p_map text)",
+   "name": "hr_town_lock",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "2027-01-28-town-stands.sql"
+   ],
+   "live": {
+    "md5": "b20c1407cdce2914efa49a5baafe752a",
+    "norm_len": 230,
+    "measured": "2026-10-26",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "b20c1407cdce2914efa49a5baafe752a",
+    "norm_len": 230,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_town_look(p_user uuid, p_slot integer)",
+   "name": "hr_town_look",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "2027-01-28-town-stands.sql"
+   ],
+   "live": {
+    "md5": "1a6ceebe218f985e63f182e3fa9515f2",
+    "norm_len": 783,
+    "measured": "2026-10-26",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "1a6ceebe218f985e63f182e3fa9515f2",
+    "norm_len": 783,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_town_me(p_user uuid, p_slot integer)",
+   "name": "hr_town_me",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "2027-01-28-town-stands.sql"
+   ],
+   "live": {
+    "md5": "9e3ffb52a478e6e37fded5fdffbafdbc",
+    "norm_len": 689,
+    "measured": "2026-10-26",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "9e3ffb52a478e6e37fded5fdffbafdbc",
+    "norm_len": 689,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_town_merge_party(p_user uuid, p_map text)",
+   "name": "hr_town_merge_party",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "2027-01-28-town-stands.sql"
+   ],
+   "live": {
+    "md5": "a4652614784e940dd312e1e2672e567d",
+    "norm_len": 1814,
+    "measured": "2026-10-26",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "a4652614784e940dd312e1e2672e567d",
+    "norm_len": 1814,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
    "sig": "hr_town_move(p_slot integer, p_map text, p_x integer, p_y integer, p_gx integer, p_gy integer, p_dir text)",
    "name": "hr_town_move",
    "tracked_by": [
+    "chain",
     "pin",
     "restate"
    ],
    "touched_by": [
     "2026-10-25-town-walk.sql",
-    "2026-10-31-town-bodies-per-character.sql"
+    "2026-10-31-town-bodies-per-character.sql",
+    "2027-01-28-town-stands.sql"
    ],
    "live": {
-    "md5": "2399b1f7e5e7d1617a9f70cde08cb0a0",
-    "norm_len": 2849,
+    "md5": "cdccab31182f0b4dda24ad1e91aea05f",
+    "norm_len": 3861,
     "measured": "2026-10-26",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "2399b1f7e5e7d1617a9f70cde08cb0a0",
-    "norm_len": 2849,
+    "md5": "cdccab31182f0b4dda24ad1e91aea05f",
+    "norm_len": 3861,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_town_moves_settle(p_map text, p_limit integer, p_user uuid, p_slot integer)",
+   "name": "hr_town_moves_settle",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "2027-01-28-town-stands.sql"
+   ],
+   "live": {
+    "md5": "f7660d3393dadfeb15890d0c2c2256b3",
+    "norm_len": 3044,
+    "measured": "2026-10-26",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "f7660d3393dadfeb15890d0c2c2256b3",
+    "norm_len": 3044,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_town_note_move()",
+   "name": "hr_town_note_move",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-01-28-town-stands.sql"
+   ],
+   "live": {
+    "md5": "4ad20f428da780560d0205aa77b158a3",
+    "norm_len": 650,
+    "measured": "2026-10-26",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "4ad20f428da780560d0205aa77b158a3",
+    "norm_len": 650,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -11807,6 +12096,50 @@
    "agree": true
   },
   {
+   "sig": "hr_town_place(p_user uuid, p_slot integer, p_map text, p_station text, p_why text, p_since timestamp with time zone, p_from_station text, p_inst integer)",
+   "name": "hr_town_place",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "2027-01-28-town-stands.sql"
+   ],
+   "live": {
+    "md5": "d3bd3e7fecca1023967a1204ed92d758",
+    "norm_len": 4759,
+    "measured": "2026-10-26",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "d3bd3e7fecca1023967a1204ed92d758",
+    "norm_len": 4759,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_town_place_pointer(p_user uuid, p_slot integer, p_map text)",
+   "name": "hr_town_place_pointer",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "2027-01-28-town-stands.sql"
+   ],
+   "live": {
+    "md5": "ea3a950dc61d9ef4c8a3674ee0e779b4",
+    "norm_len": 742,
+    "measured": "2026-10-26",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "ea3a950dc61d9ef4c8a3674ee0e779b4",
+    "norm_len": 742,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
    "sig": "hr_town_refresh(p_zone text)",
    "name": "hr_town_refresh",
    "tracked_by": [
@@ -11826,6 +12159,94 @@
    "replay": {
     "md5": "39776e3a0ed05b94f3cb4f8bfacedf9d",
     "norm_len": 5657,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_town_release(p_user uuid, p_slot integer)",
+   "name": "hr_town_release",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "2027-01-28-town-stands.sql"
+   ],
+   "live": {
+    "md5": "2990594e2fc140accae89d8354b692e4",
+    "norm_len": 386,
+    "measured": "2026-10-26",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "2990594e2fc140accae89d8354b692e4",
+    "norm_len": 386,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_town_seat(p_user uuid, p_map text)",
+   "name": "hr_town_seat",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "2027-01-28-town-stands.sql"
+   ],
+   "live": {
+    "md5": "a994a0597874699d499cdabe1c7a1c9c",
+    "norm_len": 2566,
+    "measured": "2026-10-26",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "a994a0597874699d499cdabe1c7a1c9c",
+    "norm_len": 2566,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_town_station_for(p_map text, p_kind text, p_id text)",
+   "name": "hr_town_station_for",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "2027-01-26-town-stations.generated.sql"
+   ],
+   "live": {
+    "md5": "1768152bb5d23488014488973f677f6d",
+    "norm_len": 744,
+    "measured": "2026-10-26",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "1768152bb5d23488014488973f677f6d",
+    "norm_len": 744,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_town_view(p_slot integer, p_map text, p_cx integer, p_cy integer, p_cursor bigint, p_pcx integer, p_pcy integer)",
+   "name": "hr_town_view",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "2027-01-28-town-stands.sql"
+   ],
+   "live": {
+    "md5": "92855cf2b7a597cb8c78fcbf0173831b",
+    "norm_len": 8970,
+    "measured": "2026-10-26",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "92855cf2b7a597cb8c78fcbf0173831b",
+    "norm_len": 8970,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -11854,6 +12275,28 @@
    "replay": {
     "md5": "bf82dd4d596f135e83a7af34e1dc8483",
     "norm_len": 2789,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_town_work_kind(p_kind text)",
+   "name": "hr_town_work_kind",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "2027-01-28-town-stands.sql"
+   ],
+   "live": {
+    "md5": "b127a34e6b662d122060e361a869b25b",
+    "norm_len": 239,
+    "measured": "2026-10-26",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "b127a34e6b662d122060e361a869b25b",
+    "norm_len": 239,
     "source": "computed-from-replay"
    },
    "agree": true

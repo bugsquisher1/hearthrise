@@ -13,6 +13,7 @@
 //   actions.js    every gesture: one intent each, controls off until it answers
 // Laid out as   [ toolbar                       ]
 //               [ doll ][ grid                   ]
+//               [ armor worn: heavy · medium · light ]
 //               [ capacity · Advanced view · gold ]
 //               [ slot line / picked line / tools ]
 //               [ advanced section (when on)     ]
@@ -20,15 +21,15 @@
 // (src/render/paint.js). Opening it again is what clears the "new" marks the
 // player was shown last time (the residue `bagSeen`).
 // ════════════════════════════════════════════════════════════════════════
-import { text, cls, prop, style } from '../../../render/paint.js?v=0.2.48';
-import { whole, gold } from '../../../render/format.js?v=0.2.48';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.48';
-import { closeFloatMenu } from '../float-menu.js?v=0.2.48';
-import { stateOf } from './state.js?v=0.2.48';
-import { dollHtml, slotLineHtml, patchDoll, patchSlotLine } from './doll.js?v=0.2.48';
-import { toolbarHtml, gridHtml, toolsHtml, patchToolbar, patchGrid, patchTools, KEYS } from './grid.js?v=0.2.48';
-import { advancedHtml, patchAdvanced } from './advanced.js?v=0.2.48';
-import { actInventory, commitSeen, INVENTORY_EVENTS } from './actions.js?v=0.2.48';
+import { text, cls, prop, style } from '../../../render/paint.js?v=0.2.49';
+import { whole, gold } from '../../../render/format.js?v=0.2.49';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.49';
+import { closeFloatMenu } from '../float-menu.js?v=0.2.49';
+import { stateOf } from './state.js?v=0.2.49';
+import { dollHtml, slotLineHtml, weightsHtml, patchDoll, patchSlotLine, patchWeights } from './doll.js?v=0.2.49';
+import { toolbarHtml, gridHtml, toolsHtml, patchToolbar, patchGrid, patchTools, KEYS } from './grid.js?v=0.2.49';
+import { advancedHtml, patchAdvanced } from './advanced.js?v=0.2.49';
+import { actInventory, commitSeen, INVENTORY_EVENTS } from './actions.js?v=0.2.49';
 
 /** The skeleton (built once per opening). */
 export function renderInventory(ctx) {
@@ -37,6 +38,7 @@ export function renderInventory(ctx) {
   return '<div class="hw-inv" tabindex="0" data-hs-act="inv" aria-label="Inventory">'
     + toolbarHtml(g)
     + '<div class="hw-inv-cols">' + dollHtml(g) + '<div class="hw-inv-grid" data-hs-act="grid">' + gridHtml() + '</div></div>'
+    + weightsHtml()
     + '<div class="hw-inv-foot"><span class="hw-capacity"><span class="hw-capbar" role="meter" aria-label="Bag spaces used" aria-valuemin="0"><i class="hw-capfill"></i></span><small class="hw-captext"></small></span>'
     + '<label class="hw-adv-toggle"><input type="checkbox" data-hs-act="advanced"> Advanced view</label>'
     + '<b class="hw-gold"></b></div>'
@@ -67,6 +69,7 @@ renderInventory.patch = function patchInventory(body, ctx) {
   const root = body.querySelector('.hw-inv');
   patchToolbar(root, st, ctx);
   patchDoll(root, st, ctx);
+  patchWeights(root, st);
   patchGrid(root, st, ctx);
   patchFoot(root, st);
   patchSlotLine(root, st, ctx);

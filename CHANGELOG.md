@@ -5,6 +5,14 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.49 — 2026-10-26 (A place for everyone)
+
+**Heroes stop piling up in town.** Every hero now gets its own spot to stand, chosen by the server: near the work it is doing, never on top of another hero. Heroes you aren't watching stand at their own work too.
+
+**Tomatoes and Emberfruit explained.** These crops grow back after a harvest. The Farm now says how many more times ("Harvest (grows back 3 more times)"), and "Harvest and clear plot" takes the crop and empties the plot. They wither after their fifth harvest, as they always should have.
+
+**Armor weights explained.** An armor piece's tooltip now says what its weight gives: heavy adds max HP and absorbs part of each blow, medium makes more blows miss you, light adds max mana and takes a little off each blow. Your Inventory shows what your worn armor adds up to.
+
 ## v0.2.48 — 2026-10-26 (Plan your loot)
 
 **Plan where your loot goes.** In your bag, pick what happens to each kind of item: Keep in bag, Deposit in storage, Sell, or Don't pick up. Back in town, press "Dispatch loot" and it all goes where you planned, in one go. Your starting kit can be deposited but never sold.

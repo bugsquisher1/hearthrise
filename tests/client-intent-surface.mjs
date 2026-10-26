@@ -94,7 +94,8 @@ export const CLIENT_RPCS = Object.freeze({
   /* The Farm window (P1 2026-10-22; 2026-11-26-farm-window.sql): a slot, a plot index, a crop id or the expected tier; never a price or a time. */
   hr_farm_plant: 'plant one own seed of a crop in an empty plot; level, plot tier and the plot cap are the server’s (farm-intents.js plantCrop)',
   hr_farm_water: 'water a growing plot for a 2 h double-speed window; the server refuses an open window (farm-intents.js waterPlot)',
-  hr_farm_harvest: 'harvest a ready plot and leave it empty; readiness and the roll are the server’s (farm-intents.js harvestPlot)',
+  hr_farm_harvest: 'harvest a ready plot and leave it empty (a regrowing crop stays and grows again); readiness and the roll are the server’s (farm-intents.js harvestPlot)',
+  hr_farm_harvest_clear: 'harvest a ready plot, then remove a regrowing plant so the plot is empty; a slot, a plot and a key only (farm-intents.js clearPlot; 2027-01-26-farm-harvest-clear.sql)',
   hr_farm_harvest_replant: 'harvest a ready plot and plant the same crop again, from an own seed or one bought at the listed Shop price (farm-intents.js harvestPlot)',
   hr_farm_upgrade_plot: 'buy the next plot tier the client expects; the server prices it, gold first then deeds (farm-intents.js upgradePlot)',
   /* Tamsin's tally (2026-12-23-tally-tasks.sql): catalogue ids only; the server counts the kills, prices the reward and picks the piece. */

@@ -20,14 +20,14 @@
 // Enter sits at the page's foot. This module draws; it holds no state and sends
 // nothing (hunts.js owns every press).
 // ════════════════════════════════════════════════════════════════════════
-import { rows, text, cls, prop, attr, style, element } from '../../render/paint.js?v=0.2.48';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.48';
-import { itemIconHtml, actionIconHtml } from '../widgets/bits.js?v=0.2.48';
-import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.48';
-import { bandWords, fitWords, heroWords, partyNote, bestWords } from '../hunt-list.js?v=0.2.48';
-import { residentsOf, scarceSetOf, raresOf } from '../hunt-ground-facts.js?v=0.2.48';
-import { creatureArt, drawCreature, PORTRAIT_DIR } from '../../render/creature-sprite.js?v=0.2.48';
-import { chance } from '../../render/format.js?v=0.2.48';
+import { rows, text, cls, prop, attr, style, element } from '../../render/paint.js?v=0.2.49';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.49';
+import { itemIconHtml, actionIconHtml } from '../widgets/bits.js?v=0.2.49';
+import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.49';
+import { bandWords, fitWords, heroWords, partyNote, bestWords } from '../hunt-list.js?v=0.2.49';
+import { residentsOf, scarceSetOf, raresOf } from '../hunt-ground-facts.js?v=0.2.49';
+import { creatureArt, drawCreature, PORTRAIT_DIR } from '../../render/creature-sprite.js?v=0.2.49';
+import { chance } from '../../render/format.js?v=0.2.49';
 
 /* The world's one density (ART_DIRECTION §2): every art pixel is 2x2 screen px; each creature faces the player
    (Tyler 2026-10-24), the portrait's front pose, so the line reads as one. */

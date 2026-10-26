@@ -14,7 +14,7 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { MAX_CONDITIONS, MAX_IGNORED } from './condition-metrics.js?v=0.2.48';
+import { MAX_CONDITIONS, MAX_IGNORED } from './condition-metrics.js?v=0.2.49';
 
 export const REFUSAL_FALLBACK = 'That did not go through, so nothing was changed. Try again in a moment.';
 
@@ -36,6 +36,7 @@ export const REFUSAL_WORDS = Object.freeze({
   network: 'No connection. Nothing was changed.',
   timeout: 'The server has not answered. The game shows what it last confirmed.',
   busy: 'Still saving the last change. Try again in a moment.',
+  town_full: 'There is no free spot to stand here right now. Try again in a moment.',
   no_token: 'You are signed out. Sign in again to keep playing.',
   not_signed_in: 'You are signed out. Sign in again to keep playing.',
   unauthenticated: 'You are signed out. Sign in again to keep playing.',

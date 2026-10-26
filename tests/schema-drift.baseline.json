@@ -7,10 +7,10 @@
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
  "generated": "2026-10-26",
- "digest": "759c90c7878e1dc45fe9b327cdf86fc1f63e97bc8bf6c11774c35252cdc9f82a",
+ "digest": "6d4de74899478f5efeec32fa2bad95544963fb67f5322f388adbdb609bbc4f38",
  "counts": {
   "relations": 234,
-  "functions": 566,
+  "functions": 567,
   "policies": 115,
   "indexes": 334,
   "triggers": 53,
@@ -429,6 +429,7 @@
    "hr_engine_closed(p_user uuid, p_slot integer, p_verb text)",
    "hr_farm_growth_hours(p_planted timestamp with time zone, p_waterings timestamp with time zone[], p_now timestamp with time zone)",
    "hr_farm_harvest(p_slot integer, p_plot_idx integer, p_idem uuid)",
+   "hr_farm_harvest_clear(p_slot integer, p_plot_idx integer, p_idem uuid)",
    "hr_farm_harvest_replant(p_slot integer, p_plot_idx integer, p_idem uuid)",
    "hr_farm_land_view(p_user uuid, p_slot integer)",
    "hr_farm_lock(p_user uuid)",

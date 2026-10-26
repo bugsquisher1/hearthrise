@@ -8,7 +8,10 @@
 //   waterPlot(account, cs, plot)          hr_farm_water: a 2 h double-speed window
 //   harvestPlot(account, cs, plot, again) again: hr_farm_harvest_replant (the same crop goes
 //                                         back in, from an own seed or one bought at the
-//                                         Shop's price); else hr_farm_harvest (plot left empty)
+//                                         Shop's price); else hr_farm_harvest (the plot is left
+//                                         empty, or a regrowing vine stays and grows again)
+//   clearPlot(account, cs, plot)          hr_farm_harvest_clear: harvest, then a regrowing vine
+//                                         is removed so the plot is empty (report #66)
 //   upgradePlot(account, cs, level)       hr_farm_upgrade_plot: the next plot tier, gold
 //                                         first and Farmer's Deeds when gold is short
 // On ok the character is RE-READ, so the field changes only from the server's
@@ -18,7 +21,7 @@
 // Each is one ask in the account's intent ledger (askVia), so the pressed control
 // waits on it.
 // ════════════════════════════════════════════════════════════════════════
-import { askVia } from './intent-ledger.js?v=0.2.48';
+import { askVia } from './intent-ledger.js?v=0.2.49';
 
 const CROP = /^[a-z_]{1,32}$/;
 const MAX_PLOT = 127;   // the server's index fuse (an extra plot may sit past 63)
@@ -68,6 +71,12 @@ export function harvestPlot(account, cs, plot, again) {
   return again
     ? askVia(cs, 'farm_replant', async () => settled(await account.server.rpc('hr_farm_harvest_replant', args), cs))
     : askVia(cs, 'farm_harvest', async () => settled(await account.server.rpc('hr_farm_harvest', args), cs));
+}
+
+/** Harvest plot `plot` and pull out a regrowing vine, so the plot is empty. */
+export function clearPlot(account, cs, plot) {
+  if (!usable(account, cs) || !plotOk(plot)) return refuse();
+  return askVia(cs, 'farm_clear', async () => settled(await account.server.rpc('hr_farm_harvest_clear', { p_slot: cs.slot, p_plot_idx: plot, p_idem: newIdem() }), cs));
 }
 
 /** Buy plot tier `level` (the server's next one; a second press for the same tier is refused stale_level). */

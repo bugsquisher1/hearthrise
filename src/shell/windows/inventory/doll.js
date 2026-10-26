@@ -17,19 +17,20 @@
 // `equip` intent; the doll changes only when the re-read envelope replaces
 // `equipment`.
 // ════════════════════════════════════════════════════════════════════════
-import { ITEMS } from '../../../data/items.js?v=0.2.48';
-import { EQUIP_SLOT_META, expandItemSlot } from '../../../data/gathering.js?v=0.2.48';
-import { bagOf, skillsOf, shopOf } from '../../../session/item-sections.js?v=0.2.48';
-import { rows, text, cls, attr, prop, element } from '../../../render/paint.js?v=0.2.48';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.48';
-import { glyphSvg } from '../../launcher.js?v=0.2.48';
-import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.48';
-import { compare, rarityOf } from '../../bag-model.js?v=0.2.48';
-import { needOf } from '../../item-lore.js?v=0.2.48';
-import { gearLocked, GEAR_HUNT_WORDS } from '../../gear-gate.js?v=0.2.48';
-import { whyLine } from '../../widgets/why-line.js?v=0.2.48';
-import { levelOf } from '../../../session/character-sections.js?v=0.2.48';
-import { showTip } from '../item-tip.js?v=0.2.48';
+import { ITEMS } from '../../../data/items.js?v=0.2.49';
+import { EQUIP_SLOT_META, expandItemSlot } from '../../../data/gathering.js?v=0.2.49';
+import { bagOf, skillsOf, shopOf, equipmentOf } from '../../../session/item-sections.js?v=0.2.49';
+import { wornWeights, weightSentence, WEIGHT_ORDER } from '../../../data/armour-weights.js?v=0.2.49';
+import { rows, text, cls, attr, prop, element } from '../../../render/paint.js?v=0.2.49';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.49';
+import { glyphSvg } from '../../launcher.js?v=0.2.49';
+import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.49';
+import { compare, rarityOf } from '../../bag-model.js?v=0.2.49';
+import { needOf } from '../../item-lore.js?v=0.2.49';
+import { gearLocked, GEAR_HUNT_WORDS } from '../../gear-gate.js?v=0.2.49';
+import { whyLine } from '../../widgets/why-line.js?v=0.2.49';
+import { levelOf } from '../../../session/character-sections.js?v=0.2.49';
+import { showTip } from '../item-tip.js?v=0.2.49';
 
 /* Body order, row by row: [slot, label, empty glyph]. */
 export const DOLL = Object.freeze([
@@ -52,6 +53,20 @@ export function dollHtml(g) {
   const slot = ([id, label, glyph]) => '<button type="button" class="hw-slot is-empty" data-hs-act="slot" data-slot="' + id + '" draggable="false" aria-label="' + esc(label) + '" title="' + esc(label) + '">'
     + '<span class="hw-ico"></span><span class="hw-ghost">' + glyphSvg(g, glyph) + '</span></button>';
   return '<div class="hw-doll" role="group" aria-label="Worn">' + DOLL.map(slot).join('') + '</div>';
+}
+
+/** The worn-weight line's skeleton (under both columns); its hover says what each weight does. */
+export function weightsHtml() {
+  return '<p class="hw-weights" title="' + esc(WEIGHT_ORDER.map(weightSentence).join(' ')) + '"><small>Armor worn</small>'
+    + WEIGHT_ORDER.map((w) => '<span data-weight="' + w + '"></span>').join('') + '</p>';
+}
+
+/** Patch the worn-weight line from the server's `equipment` (hidden until the server has sent it). */
+export function patchWeights(root, st) {
+  const p = root.querySelector('.hw-weights');
+  const eq = equipmentOf(st.cs);
+  cls(p, 'is-on', !!eq);
+  if (eq) for (const x of wornWeights(eq)) text(p.querySelector('[data-weight="' + x.w + '"]'), x.text);
 }
 
 /** The open slot's line's skeleton (under both columns). */

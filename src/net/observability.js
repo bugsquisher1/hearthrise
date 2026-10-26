@@ -29,12 +29,12 @@
 // from their buttons (track). Nothing here is ever read back by the game (§1).
 // ════════════════════════════════════════════════════════════════════════
 
-import { OBSERVABILITY_CONFIG } from './observability-config.js?v=0.2.48';
-import { BUILD } from '../build-info.js?v=0.2.48';
-import { observeSessions } from '../session/character-session.js?v=0.2.48';
-import { partyOf, huntOf, huntDensityOf } from '../session/hunt-sections.js?v=0.2.48';
-import { startDiagnostics } from './diagnostics.js?v=0.2.48';
-import { endedSessionOf } from '../hunt-view/summary-model.js?v=0.2.48';
+import { OBSERVABILITY_CONFIG } from './observability-config.js?v=0.2.49';
+import { BUILD } from '../build-info.js?v=0.2.49';
+import { observeSessions } from '../session/character-session.js?v=0.2.49';
+import { partyOf, huntOf, huntDensityOf } from '../session/hunt-sections.js?v=0.2.49';
+import { startDiagnostics } from './diagnostics.js?v=0.2.49';
+import { endedSessionOf } from '../hunt-view/summary-model.js?v=0.2.49';
 
 const EARLY_MAX = 10;        // errors held while Sentry loads
 const QUEUE_MAX = 20;        // events held while PostHog loads

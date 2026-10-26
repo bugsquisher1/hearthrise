@@ -22,7 +22,7 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { ABILITIES } from './abilities.js?v=0.2.48';
+import { ABILITIES } from './abilities.js?v=0.2.49';
 
 /* Where on a unit an effect centres, as a fraction of its art height: a rat's chest is
    lower than the Rat King's, and a mark floats over whichever head it is on. */

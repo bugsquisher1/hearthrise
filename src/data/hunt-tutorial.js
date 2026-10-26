@@ -62,25 +62,26 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_INDEX } from './hunts.js?v=0.2.48';
-import { HUNT_GROUNDS } from './hunt-grounds.js?v=0.2.48';
-import { END_ORDER, DEATH_XP_LOSS, STAMINA_LOW_MIN } from './hunt-sessions.js?v=0.2.48';
-import { nextUnlock } from './skill-unlocks.js?v=0.2.48';
-import { SKILLS_DEF } from './skills.js?v=0.2.48';
-import { CROPS, TREES, ROCKS } from './gathering.js?v=0.2.48';
-import { tallyTask } from './tally-tasks.js?v=0.2.48';
-import { ITEMS } from './items.js?v=0.2.48';
-import { BASIC_INDEX } from './supply-basics.js?v=0.2.48';
-import { LEVEL_REQ } from './gear-tiers.js?v=0.2.48';
-import { roleWeaponOf, WEAPON_ROLES, SHIELD_ARM } from './hunt-roles.js?v=0.2.48';
-import { isShield } from './shields.js?v=0.2.48';
-import { deriveProfile } from '../core/member.js?v=0.2.48';
-import { ABILITIES } from './abilities.js?v=0.2.48';
-import { CONSUMABLES } from './consumables.js?v=0.2.48';
-import { RUNE_FAMILIES, runeId } from './runes.js?v=0.2.48';
-import { ARTISAN_RECIPES } from './recipes.js?v=0.2.48';
-import { HUNT_STANCES, ROLE_DEFAULTS } from './rule-subjects.js?v=0.2.48';
-import { START_EQUIPMENT, START_BAR } from './start-kit.js?v=0.2.48';
+import { HUNT_INDEX } from './hunts.js?v=0.2.49';
+import { HUNT_GROUNDS } from './hunt-grounds.js?v=0.2.49';
+import { END_ORDER, DEATH_XP_LOSS, STAMINA_LOW_MIN } from './hunt-sessions.js?v=0.2.49';
+import { nextUnlock } from './skill-unlocks.js?v=0.2.49';
+import { SKILLS_DEF } from './skills.js?v=0.2.49';
+import { CROPS, TREES, ROCKS } from './gathering.js?v=0.2.49';
+import { tallyTask } from './tally-tasks.js?v=0.2.49';
+import { WEIGHT_ORDER, weightShort } from './armour-weights.js?v=0.2.49';
+import { ITEMS } from './items.js?v=0.2.49';
+import { BASIC_INDEX } from './supply-basics.js?v=0.2.49';
+import { LEVEL_REQ } from './gear-tiers.js?v=0.2.49';
+import { roleWeaponOf, WEAPON_ROLES, SHIELD_ARM } from './hunt-roles.js?v=0.2.49';
+import { isShield } from './shields.js?v=0.2.49';
+import { deriveProfile } from '../core/member.js?v=0.2.49';
+import { ABILITIES } from './abilities.js?v=0.2.49';
+import { CONSUMABLES } from './consumables.js?v=0.2.49';
+import { RUNE_FAMILIES, runeId } from './runes.js?v=0.2.49';
+import { ARTISAN_RECIPES } from './recipes.js?v=0.2.49';
+import { HUNT_STANCES, ROLE_DEFAULTS } from './rule-subjects.js?v=0.2.49';
+import { START_EQUIPMENT, START_BAR } from './start-kit.js?v=0.2.49';
 
 /* The surfaces a card may point at: `window` the shell window (src/data/shell-windows.js) its controls live in (the
    card shows INSIDE it while it is open), `icon` its way starts at that window's icon, and what the coach rings
@@ -131,6 +132,8 @@ const step = (id, title, text, anchor, done, more) => Object.freeze({ id, title,
 
 /* The task Tamsin's card names: a solo task on the solo ground (tally-tasks.js). */
 const WOLVES = tallyTask('thicket_gray_wolves');
+/* The first place a new hero picks an armor weight: one sentence a weight (Tyler 2026-10-25, src/data/armour-weights.js). */
+const WEIGHTS_SAID = WEIGHT_ORDER.map(weightShort).join(' ');
 const CELLAR = 'mill_cellar', THICKET = 'meadowbrook_thicket';
 /* A second hero skips the knowledge cards once another hero on the account is past this Level (the designer's rule:
    it has lived through the first hour; the cards that set THIS hero's own state still show). */
@@ -248,7 +251,7 @@ export const HUNT_TUTORIAL = Object.freeze([
     'services', { kind: 'blessed' }, { when: [IN_TOWN, { kind: 'level_at', at: HUNT_INDEX[THICKET].band[0] }, { kind: 'below_free' }],
       inWindow: 'Press Services, then Bless on each of the three Blessings.', hooks: TO_BLESS }),
   step('tamsins_task', 'Tamsin\'s wolves',
-    'Tamsin pays for kills. Open her tally, pick the armor weight she pays you in, then Take ' + WOLVES.count + ' ' + WOLVES.label
+    'Tamsin pays for kills. Open her tally and pick the armor weight she pays you in. ' + WEIGHTS_SAID + ' Then Take ' + WOLVES.count + ' ' + WOLVES.label
       + '. Every kill counts, even while you\'re away.',
     'tally', { kind: 'tally_taken', task: WOLVES.id }, { when: [IN_TOWN], ring: { task: WOLVES.id } }),
   step('into_the_thicket', 'Into the Thicket',
@@ -650,7 +653,7 @@ const SAY = Object.freeze({
   tamsins_task: (f) => {
     const w = WEIGHT_FOR_ROLE[f.role];
     const pick = w ? uc(w) + ' suits ' + ROLE_WORDS[f.role] + '. Then' : 'Then';
-    return { text: 'Tamsin pays for kills. Open her tally and pick the armor weight she pays you in. ' + pick + ' Take ' + WOLVES.count + ' ' + WOLVES.label
+    return { text: 'Tamsin pays for kills. Open her tally and pick the armor weight she pays you in. ' + WEIGHTS_SAID + ' ' + pick + ' Take ' + WOLVES.count + ' ' + WOLVES.label
       + ': every kill counts, even while you\'re away.' };
   },
   first_death: (f) => {

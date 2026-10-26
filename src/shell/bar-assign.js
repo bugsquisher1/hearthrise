@@ -8,11 +8,11 @@
 // slot editor changes any of it. The bar on screen changes only when the
 // server's re-read envelope says so.
 // ════════════════════════════════════════════════════════════════════════
-import { BAR_SLOTS } from '../data/hunt-hud.js?v=0.2.48';
-import { attackItem } from '../core/hunt/conditions.js?v=0.2.48';
-import { settingsOf, wireSlot } from '../session/hunt-sections.js?v=0.2.48';
-import { kindOf } from './bag-model.js?v=0.2.48';
-import { startConditions } from './bar-draft.js?v=0.2.48';
+import { BAR_SLOTS } from '../data/hunt-hud.js?v=0.2.49';
+import { attackItem } from '../core/hunt/conditions.js?v=0.2.49';
+import { settingsOf, wireSlot } from '../session/hunt-sections.js?v=0.2.49';
+import { kindOf } from './bag-model.js?v=0.2.49';
+import { startConditions } from './bar-draft.js?v=0.2.49';
 
 const SLOTS = BAR_SLOTS.rows * BAR_SLOTS.cols;
 

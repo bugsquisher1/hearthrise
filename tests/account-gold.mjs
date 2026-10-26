@@ -313,7 +313,20 @@ async function hunting(d, uid, slots, o = {}) {
     const inst = await d.one('select instance_id from public.hunt_sessions where id = $1', [sid]);
     await d.q('update public.hunt_instances set settled_to = $2::timestamptz, next_swing_at = $2::timestamptz where id = $1', [inst, t]);
   }
+  if (o.seed) await seedInstance(d, Object.values(sids)[0], o.seed);
   return sids;
+}
+
+/* THE DRAW, SEEDED AT ITS SOURCE (§4): every swing's seed is sha256(the replay's prng secret || instance id)
+   (hr_seed via hr_hunt_instance_read, hunt-seed.js), both random per run, so a scenario sized from the window's
+   coins could fail to build ("coins 60 + 8"). Pin both: the prng secret and the hunted instance's id. */
+async function seedInstance(d, sid, seed) {
+  await d.q("update public.hr_server_secrets set secret = convert_to($1, 'utf8') where name = 'prng'", ['account-gold:' + seed.secret]);
+  const old = await d.one('select instance_id::text from public.hunt_sessions where id = $1', [sid]);
+  await d.q(`insert into public.hunt_instances select (jsonb_populate_record(null::public.hunt_instances,
+               to_jsonb(i) || jsonb_build_object('id', $2::text))).* from public.hunt_instances i where i.id = $1::uuid`, [old, seed.instance]);
+  await d.q('update public.hunt_sessions set instance_id = $2::uuid where instance_id = $1::uuid', [old, seed.instance]);
+  await d.q('delete from public.hunt_instances where id = $1::uuid', [old]);
 }
 
 /* One read + proposal for (uid, slot), the real ground (grounds {}), the tick's door. */
@@ -324,7 +337,9 @@ async function propose(M, d, uid, slot, atMs) {
   if (!p.out.accrued) throw harness(`proposal (slot ${slot}) accrued nothing: ${p.out.reason}`);
   return p;
 }
-const commit = (M, d, p) => M.HS.commitHuntSettle(d.exec, { ...p.commit, project: null });
+/* G5's pinned draw (seedInstance): a window whose second hero's coins are needed for the first hero's bill. */
+const G5_SEED = Object.freeze({ secret: 'g5', instance: '00000000-0000-4000-8000-000000000005' });
+const commit = (M, d, p) =>M.HS.commitHuntSettle(d.exec, { ...p.commit, project: null });
 const memberOf = (p, uid, slot) => p.commit.members.find((m) => String(m.user) === String(uid) && Number(m.slot) === slot);
 /* A bill the purse cannot pay however much a window sells on pickup (well under the food lane's 361 uses a window). */
 const OVER = 2000;
@@ -621,7 +636,7 @@ async function huntArms(mutate, M) {
   {
     const u = await d.newAccount();
     await d.seedPurse(u, 300);                                    // exactly the default floor (300)
-    await hunting(d, u, [0, 1], { party: true, mins: 14 });
+    await hunting(d, u, [0, 1], { party: true, mins: 14, seed: G5_SEED });
     const inst = await d.one('select count(distinct instance_id)::int from public.hunt_sessions where user_id = $1 and ended_at is null', [u]);
     ok(inst === 1, `G5: the two own heroes hunt ${inst} instances`);
     const from = Number(await d.one('select floor(extract(epoch from i.settled_to) * 1000)::bigint::text from public.hunt_instances i join public.hunt_sessions h on h.instance_id = i.id where h.user_id = $1 and h.slot = 0', [u]));

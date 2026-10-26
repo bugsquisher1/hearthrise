@@ -317,6 +317,12 @@ jobs:
   # ~44 min; three (--shard=K/3, every 3rd mutant) are ~21 page mutants = ~30 min,
   # plus install, the clean control and one ~4 min neighbour step = ~37 min per
   # job. Budget stays 60.
+  # RE-SHARDED 2026-10-26 (lane/i-v0249): run 40280101746's in-page-10 hit its 60
+  # min with 0 failures (shard 1/3 then preset-names --mutate ran out of time);
+  # shards 2/3 and 3/3 MEASURED 49.8 and 54.9 min there (103 mutants, ~85 of them
+  # page-judged at ~2 min each on a runner). Six shards (--shard=K/6: in-page-10,
+  # 11, 12, 17, 18, 19) are ~14 page mutants = ~28 min + ~1 min install; budget
+  # stays 60 (x2). preset-names and its --mutate move to in-page-19.
   in-page-10:
     runs-on: ubuntu-latest
     timeout-minutes: 60
@@ -342,14 +348,13 @@ jobs:
       # patched in place; the server's counts win; every action one intent with
       # its controls off until the server answers; a locked stack never reaches
       # a bulk sale; a sale and the one-tap refill show their total first; the
-      # new sections missing fail safe. --mutate shard 1 of 3 (2: in-page-11, 3: in-page-12).
+      # new sections missing fail safe. --mutate shard 1 of 6 (2: in-page-11, 3: in-page-12,
+      # 4..6: in-page-17..19).
       - name: Alpha windows (play.html)
         if: ${{ !cancelled() }}
         run: |
           node tests/alpha-windows.mjs
-          node tools/mutant-gate.mjs node tests/alpha-windows.mjs --mutate --shard=1/3
-          node tests/preset-names.mjs
-          node tools/mutant-gate.mjs node tests/preset-names.mjs --mutate
+          node tools/mutant-gate.mjs node tests/alpha-windows.mjs --mutate --shard=1/6
 
       - name: Upload failure artifacts
         if: failure()
@@ -382,12 +387,12 @@ jobs:
           npm install --no-audit --no-fund
           npx playwright install --with-deps chromium
 
-      # The Alpha windows --mutate shard 2 of 3 (see in-page-10), then the live
+      # The Alpha windows --mutate shard 2 of 6 (see in-page-10), then the live
       # hunt scene.
-      - name: Alpha windows mutants, shard 2 of 3 (play.html)
+      - name: Alpha windows mutants, shard 2 of 6 (play.html)
         if: ${{ !cancelled() }}
         run: |
-          node tools/mutant-gate.mjs node tests/alpha-windows.mjs --mutate --shard=2/3
+          node tools/mutant-gate.mjs node tests/alpha-windows.mjs --mutate --shard=2/6
           node tests/hunt-scene-live.mjs
 
       - name: Upload failure artifacts
@@ -421,17 +426,137 @@ jobs:
           npm install --no-audit --no-fund
           npx playwright install --with-deps chromium
 
-      # The Alpha windows --mutate shard 3 of 3 (see in-page-10).
-      - name: Alpha windows mutants, shard 3 of 3 (play.html)
+      # The Alpha windows --mutate shard 3 of 6 (see in-page-10).
+      - name: Alpha windows mutants, shard 3 of 6 (play.html)
         if: ${{ !cancelled() }}
         run: |
-          node tools/mutant-gate.mjs node tests/alpha-windows.mjs --mutate --shard=3/3
+          node tools/mutant-gate.mjs node tests/alpha-windows.mjs --mutate --shard=3/6
 
       - name: Upload failure artifacts
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: smoke-failure-in-page-12
+          path: |
+            tests/**/*.png
+            tests/**/*.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # ── in-page-17 / 18 / 19 ── ALPHA WINDOWS MUTANTS, SHARDS 4-6 (2026-10-26, see
+  # the note above in-page-10). Budget 60.
+  in-page-17:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Do NOT leave the token in .git/config where every later step —
+          # including npm lifecycle scripts — can read it and `git push`.
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Playwright + Chromium
+        run: |
+          npm install --no-audit --no-fund
+          npx playwright install --with-deps chromium
+
+      # The Alpha windows --mutate shard 4 of 6 (see in-page-10).
+      - name: Alpha windows mutants, shard 4 of 6 (play.html)
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tests/alpha-windows.mjs --mutate --shard=4/6
+
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-failure-in-page-17
+          path: |
+            tests/**/*.png
+            tests/**/*.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+  in-page-18:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Do NOT leave the token in .git/config where every later step —
+          # including npm lifecycle scripts — can read it and `git push`.
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Playwright + Chromium
+        run: |
+          npm install --no-audit --no-fund
+          npx playwright install --with-deps chromium
+
+      # The Alpha windows --mutate shard 5 of 6 (see in-page-10).
+      - name: Alpha windows mutants, shard 5 of 6 (play.html)
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tests/alpha-windows.mjs --mutate --shard=5/6
+
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-failure-in-page-18
+          path: |
+            tests/**/*.png
+            tests/**/*.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+  in-page-19:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Do NOT leave the token in .git/config where every later step —
+          # including npm lifecycle scripts — can read it and `git push`.
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Playwright + Chromium
+        run: |
+          npm install --no-audit --no-fund
+          npx playwright install --with-deps chromium
+
+      # The Alpha windows --mutate shard 6 of 6 (see in-page-10), then the preset names.
+      - name: Alpha windows mutants, shard 6 of 6 (play.html)
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tests/alpha-windows.mjs --mutate --shard=6/6
+
+      # The hunt-bar preset names (moved from in-page-10 on the 2026-10-26 re-shard).
+      - name: Preset names (play.html)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/preset-names.mjs
+          node tools/mutant-gate.mjs node tests/preset-names.mjs --mutate
+
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-failure-in-page-19
           path: |
             tests/**/*.png
             tests/**/*.log
@@ -455,9 +580,12 @@ jobs:
   # + Town 53 = 783 s, ~14 min with setup; budget stays 36.
   # 2026-10-24: Party UI, Chat and social and Town presence moved to in-page-13
   # (see there); this half ~1,240 s with every --mutate run, ~22 min (61%).
+  # 2026-10-26 (v0.2.49, run 40301377956): >36 min with the armour-weight doll
+  # mutants added (cancelled at 36:16, 0 failures, still catching) → 60, the cap,
+  # until this shard is split like in-page-10 (17/18/19).
   in-page-2:
     runs-on: ubuntu-latest
-    timeout-minutes: 36
+    timeout-minutes: 60
 
     steps:
       - uses: actions/checkout@v4
@@ -2914,6 +3042,26 @@ jobs:
         run: |
           node tests/skills-from-storage.mjs
           node tools/mutant-gate.mjs node tests/skills-from-storage.mjs --mutate
+
+      # HARVEST AND CLEAR PLOT (report #66; 2027-01-26-farm-harvest-clear.sql): a regrowing vine is
+      # harvested once and removed (plot empty, journalled), a plain harvest still regrows, a replay
+      # is cached, another account touches nothing, authenticated only, a second apply is a no-op.
+      # --mutate: 4.
+      - name: Farm — harvest and clear a regrowing plot
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/farm-harvest-clear.mjs
+          node tools/mutant-gate.mjs node tests/farm-harvest-clear.mjs --mutate
+
+      # THE REGROW LIMIT SURVIVES A CATALOGUE REGEN (2027-01-27-items-catalogue.generated.sql): a
+      # fresh generation writes hr_crops.regrow_limit = src/core/farm.js REGROW_LIMITS for every crop,
+      # and the replayed chain ends with them (every regen from 2026-08-22 to 2027-01-14 dropped it to
+      # 0 = no limit). --mutate: 2 (the generator drops the column / writes 0).
+      - name: Farm — regrowing crops keep their finite limit through a catalogue regen
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/catalogue-regrow-limit.mjs
+          node tools/mutant-gate.mjs node tests/catalogue-regrow-limit.mjs --mutate
 
       # THE ONE-WAY PARTY FLOW (2026-10-28-party-flow.sql, PARTY_SPEC + Tyler
       # 10-19): every step on the real chain as `authenticated` — the first

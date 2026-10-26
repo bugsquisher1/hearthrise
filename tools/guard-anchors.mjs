@@ -254,6 +254,8 @@ function guardEntry(root, rel, { contentOf, registered = new Map() } = {}) {
   const read = contentOf || ((f) => { try { return [readFileSync(join(root, f), 'utf8')]; } catch { return []; } });
   let anchored = referenced.filter((f) => read(f).some((t) => anchorsIn(t, lits, res)));
   const how = anchored.length ? 'derived' : referenced.length ? 'referenced' : (dir.entries.length ? 'declared' : (dir.none !== null ? 'none' : 'missing'));
+  /* The files a literal or regex really anchors in: the only ones a LINE view can judge. */
+  const derived = new Set(anchored);
   if (!anchored.length) anchored = referenced;
   const declared = [];
   for (const e of dir.entries) {
@@ -272,7 +274,7 @@ function guardEntry(root, rel, { contentOf, registered = new Map() } = {}) {
     && !/\bmkdtemp(?:Sync)?\s*\(|\btmpdir\s*\(/.test(src);
   const solo = dir.writesTree || /['"]\.\/mutation-safety\.mjs['"]/.test(src) || writes;
   return { guard: rel, flags, arms, how, anchors: [...new Set([...anchored, ...declared])].sort(), errors, solo,
-    none: dir.none, registered: regFlags };
+    none: dir.none, registered: regFlags, derived, declared, lits, res };
 }
 
 /** guard file -> proof flags registered for it in smoke.yml (the arms CI runs). */
@@ -370,11 +372,94 @@ function versionsReader(root, base, changed) {
   };
 }
 
-/** The catalogue entries whose anchors a changed file touches (a dir anchor covers its subtree). */
-function triggered(entries, changed) {
+// ── THE LINE VIEW (2026-10-26, lane a-ci-budget) ───────────────────────────
+/* Runs 40301377956 and 40314818369 (release/v0.2.49, v0.2.50): every release adds
+   modulepreload lines to play.html, so play.html is "changed", and every guard with ANY
+   literal in play.html re-ran its --mutate — death-popup because a preload href holds
+   "millrace_sewer", observability on a comment's "hearthrise.net" (~13 min a job). For a
+   file the caller names (the CI gate names the HUBS), a derived anchor is touched only
+   where the diff's real lines (guard-deps changedLines, `?v=` taken out) meet it: */
+
+const lineAt = (starts, pos) => {
+  let lo = 0; let hi = starts.length - 1;
+  while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (starts[mid] <= pos) lo = mid; else hi = mid - 1; }
+  return lo + 1;
+};
+
+/** key -> [[firstLine, lastLine], …] for every occurrence of the guard's literals and regexes. */
+function occurrences(text, lits, res) {
+  const t = text.replace(/\r\n/g, '\n');
+  const starts = [0];
+  for (let i = t.indexOf('\n'); i >= 0; i = t.indexOf('\n', i + 1)) starts.push(i + 1);
+  const out = new Map();
+  const put = (k, at, len) => {
+    if (!out.has(k)) out.set(k, []);
+    out.get(k).push([lineAt(starts, at), lineAt(starts, at + Math.max(len - 1, 0))]);
+  };
+  for (const s of lits) for (let i = t.indexOf(s); i >= 0; i = t.indexOf(s, i + 1)) put(`s:${s}`, i, s.length);
+  for (const r of res) {
+    const g = new RegExp(r.source, r.flags.includes('g') ? r.flags : `${r.flags}g`);
+    for (const m of t.matchAll(g)) put(`r:${r.source}/${r.flags}`, m.index, m[0].length);
+  }
+  return out;
+}
+
+/** The 1-based lines of `text` that hold one of `rel`'s anchors (its literals and regexes). */
+export function anchorLinesIn(root, rel, text) {
+  const e = guardEntry(root, rel);
+  const out = new Set();
+  if (e) for (const spans of occurrences(text, e.lits, e.res).values()) for (const [a, b] of spans) for (let i = a; i <= b; i++) out.add(i);
+  return [...out].sort((x, y) => x - y);
+}
+
+const meets = (spans, ranges) => spans.some(([a, b]) => ranges.some(([c, d]) => a <= d && c <= b));
+
+/**
+ * Does the diff's real change to this file touch one of the guard's anchors? Touched when an
+ * anchor's HEAD occurrence meets a changed HEAD line, its base occurrence meets a changed base
+ * line (an edit that removes or rewrites the anchored line), or its count moved (an insertion
+ * that splits a multi-line anchor). Returns where (`line 101`, `base line 7 (gone at HEAD)`), or
+ * null. An anchor the lexer cannot see (under MIN_LITERAL, built at runtime) is not judged here:
+ * a guard that plants into a hub that way DECLARES the hub, and a declared hub stays whole-file.
+ */
+function anchorLineTouched(entry, { head, base, region }) {
+  const H = occurrences(head ?? '', entry.lits, entry.res);
+  const B = occurrences(base ?? '', entry.lits, entry.res);
+  for (const [k, spans] of H) {
+    const hit = spans.find((s) => meets([s], region.head));
+    if (hit) return `line ${hit[0]}`;
+    if ((B.get(k) || []).length !== spans.length) return `line ${spans[0][0]} (its count moved)`;
+  }
+  for (const [k, spans] of B) {
+    const hit = spans.find((s) => meets([s], region.base));
+    if (hit) return `base line ${hit[0]}`;
+    if (!H.has(k)) return `base line ${spans[0][0]} (gone at HEAD)`;
+  }
+  return null;
+}
+
+/**
+ * The catalogue entries whose anchors a changed file touches (a dir anchor covers its subtree).
+ * `lines` = { files, regions, read } judges each named file by the line view: `regions` is
+ * changedLines' map, `read(rel)` -> { head, base } (the texts the regions describe).
+ */
+function triggered(entries, changed, lines = null) {
   const hit = [];
+  const texts = new Map();
+  const lineFiles = lines ? new Set(lines.files) : new Set();
+  const textOf = (c) => { if (!texts.has(c)) texts.set(c, lines.read(c)); return texts.get(c); };
   for (const e of entries) {
-    const why = changed.filter((c) => c === e.guard || e.anchors.some((a) => (a.endsWith('/') ? c.startsWith(a) : c === a)));
+    const why = [];
+    for (const c of changed) {
+      if (c === e.guard) { why.push(c); continue; }
+      if (!e.anchors.some((a) => (a.endsWith('/') ? c.startsWith(a) : c === a))) continue;
+      const declared = (e.declared || []).some((a) => (a.endsWith('/') ? c.startsWith(a) : c === a));
+      const region = lines && lines.regions.get(c);
+      /* The line view needs a literal anchor (derived), a line map and both texts; else the whole file. */
+      if (!lineFiles.has(c) || declared || !e.derived || !e.derived.has(c) || !region || region.whole) { why.push(c); continue; }
+      const at = anchorLineTouched(e, { ...textOf(c), region });
+      if (at) why.push(`${c} (${at})`);
+    }
     if (why.length) hit.push({ ...e, because: why });
   }
   return hit;
@@ -450,8 +535,18 @@ function migrationSteps(root, changed, read) {
   return steps;
 }
 
-/** Everything lane-done needs: the steps to run, and the catalogue's own failures. */
-export function scopedProofs(root = ROOT, { changed = null, base = undefined, baseRef = null } = {}) {
+/** The tip's (HEAD's) and the base's committed text of `rel` (null where it does not exist). */
+export function committedTexts(root, base, rel, tip = 'HEAD') {
+  const show = (rev) => (rev ? git(root, ['show', `${rev}:${rel}`]) : null);
+  return { head: show(tip), base: show(base) };
+}
+
+/**
+ * Everything lane-done needs: the steps to run, and the catalogue's own failures.
+ * `lines` = { files, regions[, read] } (the CI gate: its hubs and changedLines' map) judges
+ * those files by the line view; `read` defaults to the committed texts at HEAD and the base.
+ */
+export function scopedProofs(root = ROOT, { changed = null, base = undefined, baseRef = null, lines = null } = {}) {
   const lb = base === undefined ? laneBase(root, baseRef || undefined) : (base ? { sha: base, ref: base } : null);
   const b = lb ? lb.sha : null;
   if (!changed && !b) return { error: `no merge base with ${baseRef || 'origin/main or main'} — cannot scope the proofs`, steps: [], errors: [] };
@@ -463,7 +558,9 @@ export function scopedProofs(root = ROOT, { changed = null, base = undefined, ba
      end-to-end arm, which must not re-enter itself (its selftest plants into
      src/session/envelope.js, which it anchors on) and needs one guard, not the fan-out. */
   const only = (process.env.HR_SCOPED_GUARDS || '').split(',').filter(Boolean);
-  const anchorSteps = triggered(entries, ch).flatMap((e) => e.arms.map((arm) => ({
+  const lineView = lines && lines.regions && (lines.read || b)
+    ? { files: lines.files || [], regions: lines.regions, read: lines.read || ((rel) => committedTexts(root, b, rel)) } : null;
+  const anchorSteps = triggered(entries, ch, lineView).flatMap((e) => e.arms.map((arm) => ({
     guard: e.guard, arm, solo: e.solo, because: e.because, anchors: e.anchors,
   })));
   const steps = [...anchorSteps, ...migrationSteps(root, ch, reader)]

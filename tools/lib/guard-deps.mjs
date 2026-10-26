@@ -21,7 +21,8 @@
 //   MIGRATION a changed supabase/migrations/*.sql picks the two replay guards.
 //   HUB       (opt-in, the CI gate only) a file named by more than `hubAt` guards —
 //             play.html is named by ~80 page guards — picks none of them by name; the
-//             gate re-proves only the guards whose MUTANTS anchor on it.
+//             gate re-proves only the guards whose MUTANTS anchor on a LINE the diff
+//             really changed (changedLines: a `?v=`-only edit is not a change).
 //
 // Pure apart from the readers at the bottom; no network, no database.
 // ════════════════════════════════════════════════════════════════════════
@@ -139,44 +140,111 @@ function git(root, args) {
 }
 
 /**
- * The files whose ONLY change is the release cache-buster (`?v=0.2.22` -> `?v=0.2.23`,
- * CLAUDE.md §5). Every release rewrites every ESM import under src/**, so without this
- * every release "touches" every module and re-proves ~190 of ~200 guards: the version
- * string is not a change any mutant can see. Read from one `git diff -U0`; a file that
- * is added, deleted, binary or changes anything else stays a change.
+ * One line with the release cache-buster (CLAUDE.md §5) taken out: every `?v=0.2.22`
+ * reads `?v=`, and src/build-info.js's `version:`/`cache:`/`date:` values read ''.
  */
-export function cacheBusterOnly(diffText) {
-  const VER = /\?v=[0-9A-Za-z._-]+/g;
-  /* src/build-info.js carries the same bump as `version:`/`cache:` and the release `date:`. */
-  const BUILD_LINE = /^(\s*(?:version|cache|date):\s*)'[0-9.-]+'/;
+function unbust(path, line) {
+  const t = line.replace(/\?v=[0-9A-Za-z._-]+/g, '?v=');
+  return path === 'src/build-info.js' ? t.replace(/^(\s*(?:version|cache|date):\s*)'[0-9.-]+'/, "$1''") : t;
+}
+
+/* A hunk's removed x added lines are paired by a longest common subsequence; past this many
+   cells the whole hunk counts as changed (the safe direction — a proof runs, never skips). */
+const LCS_CELLS = 4e6;
+
+/** Which of a hunk's removed (a) and added (b) lines survive pairing by equal unbust()ed text. */
+function unpaired(a, b) {
+  const n = a.length; const m = b.length;
+  if (!n || !m || n * m > LCS_CELLS) return { a: a.map((_, i) => i), b: b.map((_, j) => j) };
+  const w = m + 1;
+  const L = new Uint32Array((n + 1) * w);
+  for (let i = n - 1; i >= 0; i--) {
+    for (let j = m - 1; j >= 0; j--) {
+      L[i * w + j] = a[i] === b[j] ? L[(i + 1) * w + j + 1] + 1 : Math.max(L[(i + 1) * w + j], L[i * w + j + 1]);
+    }
+  }
+  const out = { a: [], b: [] };
+  let i = 0; let j = 0;
+  while (i < n && j < m) {
+    if (a[i] === b[j]) { i++; j++; } else if (L[(i + 1) * w + j] >= L[i * w + j + 1]) out.a.push(i++); else out.b.push(j++);
+  }
+  while (i < n) out.a.push(i++);
+  while (j < m) out.b.push(j++);
+  return out;
+}
+
+/** [1,2,3,7] -> [[1,3],[7,7]] */
+const toRanges = (ns) => ns.reduce((r, x) => {
+  const last = r[r.length - 1];
+  if (last && last[1] === x - 1) last[1] = x; else r.push([x, x]);
+  return r;
+}, []);
+
+/**
+ * THE REAL CHANGES, LINE BY LINE, from one `git diff -U0`: path -> { whole, base, head }, where
+ * `base`/`head` are the 1-based line ranges of the base/HEAD side that changed once the
+ * cache-buster is taken out (unbust). A line whose only change is its `?v=` is paired with its
+ * twin and is not a change, so a release that bumps every `?v=` in play.html AND adds one
+ * modulepreload line has changed exactly that one line. `whole` = added, deleted or binary
+ * (no line view). Every release rewrites every ESM import under src/**: without this, every
+ * release "touches" every module and re-proves ~190 of ~200 guards.
+ */
+export function changedLines(diffText) {
   const files = new Map();
   let cur = null;
+  const flush = () => {
+    if (!cur || !cur.hunk) return;
+    const u = unpaired(cur.minus.map((x) => x[1]), cur.plus.map((x) => x[1]));
+    for (const i of u.a) cur.baseLines.push(cur.minus[i][0]);
+    for (const j of u.b) cur.headLines.push(cur.plus[j][0]);
+    cur.minus = []; cur.plus = [];
+  };
   for (const l of diffText.split('\n')) {
     if (l.startsWith('diff --git ')) {
+      flush();
       const m = / b\/(.+)$/.exec(l);
-      cur = { path: m ? m[1] : null, minus: [], plus: [], other: false, hunk: false };
+      cur = { path: m ? m[1] : null, minus: [], plus: [], baseLines: [], headLines: [], whole: false, hunk: false, b: 0, h: 0 };
       if (cur.path) files.set(cur.path, cur);
       continue;
     }
     if (!cur) continue;
     /* Before the first @@ a file's header lines (`--- a/x`, `new file mode`); after it, content
        (a removed SQL comment `-- x` reads `--- x` and is content, not a header). */
-    if (l.startsWith('@@')) { cur.hunk = true; continue; }
-    if (!cur.hunk) { if (/^(new|deleted) file mode|^Binary files |^GIT binary patch/.test(l)) cur.other = true; continue; }
+    const at = /^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/.exec(l);
+    if (at) { flush(); cur.hunk = true; cur.b = Number(at[1]); cur.h = Number(at[2]); continue; }
+    if (!cur.hunk) { if (/^(new|deleted) file mode|^Binary files |^GIT binary patch/.test(l)) cur.whole = true; continue; }
     if (l.startsWith('\\')) continue;                                  // "\ No newline at end of file"
-    else if (l[0] === '+' || l[0] === '-') {
-      let t = l.slice(1).replace(VER, '?v=');
-      if (cur.path === 'src/build-info.js') t = t.replace(BUILD_LINE, "$1''");
-      (l[0] === '+' ? cur.plus : cur.minus).push(t);
-    }
+    if (l[0] === '-') cur.minus.push([cur.b++, unbust(cur.path, l.slice(1))]);
+    else if (l[0] === '+') cur.plus.push([cur.h++, unbust(cur.path, l.slice(1))]);
   }
-  const out = new Set();
+  flush();
+  const out = new Map();
   for (const f of files.values()) {
-    if (f.other || !f.plus.length || f.plus.length !== f.minus.length) continue;
-    const a = [...f.plus].sort(); const b = [...f.minus].sort();
-    if (a.every((x, i) => x === b[i])) out.add(f.path);
+    /* A mode-only change has no hunk and no lines: it is a change, judged whole. */
+    const whole = f.whole || !f.hunk;
+    out.set(f.path, { whole, base: whole ? [] : toRanges(f.baseLines), head: whole ? [] : toRanges(f.headLines) });
   }
   return out;
+}
+
+/** The files whose ONLY change is the release cache-buster (`?v=0.2.22` -> `?v=0.2.23`). */
+export function cacheBusterOnly(diffText) {
+  const out = new Set();
+  for (const [p, r] of changedLines(diffText)) if (!r.whole && !r.base.length && !r.head.length) out.add(p);
+  return out;
+}
+
+const listLines = (s) => s.split('\n').map((x) => x.trim().replace(/\\/g, '/')).filter(Boolean);
+
+/**
+ * A committed range's files (the cache-buster-only ones dropped) and its real changed
+ * lines (changedLines) — one `git diff -U0`, one `--name-only`.
+ */
+export function committedDiff(root, range) {
+  const regions = changedLines(git(root, ['diff', '-U0', '--no-color', '--no-ext-diff', '--no-renames', range]));
+  const bumpOnly = new Set([...regions].filter(([, r]) => !r.whole && !r.base.length && !r.head.length).map(([p]) => p));
+  const files = listLines(git(root, ['diff', '--name-only', '--no-renames', range])).filter((f) => !bumpOnly.has(f)).sort();
+  return { files, regions };
 }
 
 /**
@@ -185,13 +253,11 @@ export function cacheBusterOnly(diffText) {
  * lane's local view); CI passes false so a tree a mutant dirtied cannot move it.
  */
 export function changedFiles(root, range, { worktree = true } = {}) {
-  const lines = (s) => s.split('\n').map((x) => x.trim().replace(/\\/g, '/')).filter(Boolean);
-  const bumpOnly = cacheBusterOnly(git(root, ['diff', '-U0', '--no-color', '--no-ext-diff', '--no-renames', range]));
-  const out = new Set(lines(git(root, ['diff', '--name-only', '--no-renames', range])).filter((f) => !bumpOnly.has(f)));
+  const out = new Set(committedDiff(root, range).files);
   if (worktree) {
-    for (const f of lines(git(root, ['diff', '--name-only']))) out.add(f);
-    for (const f of lines(git(root, ['diff', '--name-only', '--cached']))) out.add(f);
-    for (const f of lines(git(root, ['ls-files', '--others', '--exclude-standard']))) out.add(f);
+    for (const f of listLines(git(root, ['diff', '--name-only']))) out.add(f);
+    for (const f of listLines(git(root, ['diff', '--name-only', '--cached']))) out.add(f);
+    for (const f of listLines(git(root, ['ls-files', '--others', '--exclude-standard']))) out.add(f);
   }
   return [...out].sort();
 }

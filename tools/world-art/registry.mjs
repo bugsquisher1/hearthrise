@@ -15,7 +15,7 @@ const D = {};
 for (const id of ['great_hearth', 'hearth_fire', 'hearth_fire_verdigris', 'hearth_flare', 'hearth_flare_verdigris',
   'hearth_burn_sparks', 'hearth_burn_sparks_verdigris', 'fuel_bone', 'fuel_lamp_jelly', 'fuel_dry_husk', 'fuel_pithwood',
   'fuel_log', 'fuel_coal', 'fuel_verdigris_cake', 'fuel_queens_comb', 'fuel_rat_kings_knot', 'fuel_den_knot',
-  'fuel_mosslight_clump', 'square_dirt_flag', 'square_grass_flag', 'square_flag_hearthstone', 'square_bench_wood',
+  'fuel_mosslight_clump', 'square_dirt_flag', 'square_grass_flag', 'square_plaza', 'square_bench_wood',
   'square_bench_stone', 'square_bench_log', 'square_decal_moss_a', 'square_decal_moss_b', 'square_decal_soot',
   'square_decal_leaves_a', 'square_decal_leaves_b', 'square_decal_puddle_a', 'square_decal_puddle_b',
   'square_decal_chips_a', 'square_decal_chips_b', 'square_decal_tuft_a', 'square_decal_tuft_b', 'square_general_store',

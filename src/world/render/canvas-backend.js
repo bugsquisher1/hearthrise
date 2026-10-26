@@ -113,11 +113,11 @@ export function createCanvasBackend(o) {
 
   /* THE GROUND BY CHUNK, binned once per map (each cell into every chunk it touches, in draw order): a chunk
      bakes from its own cells, not a scan of the whole map's (a 192 x 116 town is 44k cells; v0.2.50's town
-     arrival baked its first chunks in one 100 ms frame, tests/perf-budget.mjs). Kept per map and book, and
-     made by prepare() as soon as a scene's sheets arrive (world-boot.js), so the frame that shows the map
-     only bakes the chunks it draws. */
+     arrival baked its first chunks in one 100 ms frame, tests/perf-budget.mjs). The next map's is made by
+     prepare() as soon as its sheets arrive (world-boot.js), so the frame that shows it only bakes the chunks
+     it draws; one map ahead is kept, never a map left behind (the heap budget). */
   const NONE = Object.freeze({ voids: [], tones: [], tiles: [] });
-  const grounds = new WeakMap();   // compiled map -> { book, bins }
+  let ahead = null;   // { m, book, bins }: the one map prepared ahead of its setMap
   let binned = new Map();
   function bin(gr, T, CHUNK) {
     const out = new Map();
@@ -136,12 +136,9 @@ export function createCanvasBackend(o) {
     return out;
   }
   function binsFor(m, a) {
-    const had = grounds.get(m);
-    if (had && had.book === a.book) return had.bins;
+    if (ahead && ahead.m === m && ahead.book === a.book) return ahead.bins;
     const t = m.T || 32;
-    const bins = bin(groundTiles(m, a.book, a.tables, t), t, 16 * t);
-    grounds.set(m, { book: a.book, bins });
-    return bins;
+    return bin(groundTiles(m, a.book, a.tables, t), t, 16 * t);
   }
 
   function blit(g, d, view) {
@@ -516,12 +513,13 @@ export function createCanvasBackend(o) {
       T = m.T || 32; CHUNK = 16 * T;
       dirty = true;
       binned = binsFor(m, { book, tables });
+      ahead = null;
       chunks = new Map();
       last = null;
       lastCam = camFrom = null;   // a new map never eases in from the old one
     },
     /** Make map `m`'s ground (drawn with `art` or the constructor's) ahead of the frame that shows it. */
-    prepare(m, art) { binsFor(m, art || o); },
+    prepare(m, art) { const a = art || o; ahead = { m, book: a.book, bins: binsFor(m, a) }; },
     sync(state) { if (map && canvas) draw(state); },
     /**
      * THE CAMERA INSET: the strips of the stage a docked window covers, in CSS
@@ -585,6 +583,7 @@ export function createCanvasBackend(o) {
       plateHits = [];
       chunks = new Map();
       binned = new Map();
+      ahead = null;
     },
   };
 }

@@ -1460,18 +1460,18 @@
   },
   "hr_town_stands": {
    "class": "seeded",
-   "replay": 636,
-   "note": "Generated catalogue (tools/gen-town-stations.mjs; today 2027-01-29-havora-stations.generated.sql, Havora 192x116): every stand of every station (index, tile, facing, overflow), one tile each per map. Rebuilt from repo, never restored."
+   "replay": 644,
+   "note": "Generated catalogue (tools/gen-town-stations.mjs; today 2027-01-30-havora-yards.generated.sql, Havora 192x116): every stand of every station (index, tile, facing, overflow), one tile each per map. Rebuilt from repo, never restored."
   },
   "hr_town_station_hosts": {
    "class": "seeded",
    "replay": 13,
-   "note": "Generated catalogue (tools/gen-town-stations.mjs; today 2027-01-29-havora-stations.generated.sql, Havora 192x116): which activity stands at which station ((kind, skill|*, id|*) -> station), read by hr_town_station_for. Rebuilt from repo, never restored."
+   "note": "Generated catalogue (tools/gen-town-stations.mjs; today 2027-01-30-havora-yards.generated.sql, Havora 192x116): which activity stands at which station ((kind, skill|*, id|*) -> station), read by hr_town_station_for. Rebuilt from repo, never restored."
   },
   "hr_town_stations": {
    "class": "seeded",
    "replay": 20,
-   "note": "Generated catalogue (tools/gen-town-stations.mjs; today 2027-01-29-havora-stations.generated.sql, Havora 192x116): each town map's stations (role, the tile its stands face, order). Replaced whole per map by the generator. Rebuilt from repo, never restored."
+   "note": "Generated catalogue (tools/gen-town-stations.mjs; today 2027-01-30-havora-yards.generated.sql, Havora 192x116): each town map's stations (role, the tile its stands face, order). Replaced whole per map by the generator. Rebuilt from repo, never restored."
   },
   "hr_traits": {
    "class": "seeded",

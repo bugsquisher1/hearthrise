@@ -91,14 +91,15 @@ const ROCKS = [[145, 31], [148, 30], [151, 31], [154, 30], [157, 31], [160, 30],
   [146, 38], [158, 35], [150, 41], [159, 41]].map(([x, y]) => [ORE(x), x, y]);
 const ALTARS = [['rune_block', 150, 48], ['rune_block', 152, 47], ['rune_block', 155, 48], ['rune_block', 157, 47]];
 /* the Westwood: 40 trees in groves with clearings between and a few strays (the west groves the art lane's 2 x 2 yews
-   and ashes, the rest the Common's pines and oaks), listed nearest the west gate first so the first woodcutter stands
-   by the road. A woodcutter stands on the row south of its tree. */
-const TREES = [['oak', -4, 41], ['pine', -3, 60], ['pine', -7, 61], ['oak', -6, 38], ['oak', -9, 62], ['pine', -9, 37], ['oak', -4, 35],
-  ['pine', -13, 61], ['pine', -16, 57], ['pine', -8, 67], ['westwood_ash', -16, 39], ['oak', -11, 66], ['oak', -5, 69], ['oak', -20, 57],
-  ['westwood_ash', -14, 34], ['westwood_ash', -18, 62], ['pine', -15, 66], ['westwood_yew', -18, 34], ['pine', -9, 28], ['westwood_yew', -21, 37],
-  ['pine', -7, 26], ['pine', -11, 30], ['pine', -11, 73], ['westwood_yew', -22, 64], ['westwood_yew', -20, 67], ['westwood_ash', -7, 75],
-  ['pine', -13, 27], ['oak', -15, 73], ['oak', -15, 26], ['oak', -12, 78], ['oak', -10, 20], ['westwood_yew', -18, 23], ['pine', -7, 82],
-  ['pine', -15, 80], ['pine', -4, 83], ['pine', -18, 79], ['pine', -21, 22], ['pine', -23, 83], ['westwood_yew', -18, 14], ['westwood_ash', -21, 15]];
+   and ashes, the rest the Common's pines and oaks), listed from the grove by the west gate outward, so the first woodcutters stand
+   together by the road. A woodcutter stands on the row south of its tree. */
+const TREES = [['oak', -4, 41], ['oak', -6, 38], ['pine', -9, 37], ['oak', -4, 35], ['westwood_ash', -14, 34], ['westwood_ash', -16, 39],
+  ['pine', -11, 30], ['pine', -9, 28], ['pine', -7, 26], ['westwood_yew', -18, 34], ['pine', -13, 27], ['westwood_yew', -21, 37],
+  ['oak', -15, 26], ['pine', -3, 60], ['pine', -16, 57], ['oak', -10, 20], ['pine', -7, 61], ['westwood_yew', -18, 23],
+  ['oak', -9, 62], ['pine', -13, 61], ['oak', -20, 57], ['pine', -21, 22], ['westwood_ash', -18, 62], ['oak', -11, 66],
+  ['pine', -8, 67], ['pine', -15, 66], ['oak', -5, 69], ['westwood_yew', -18, 14], ['westwood_yew', -22, 64],
+  ['westwood_ash', -21, 15], ['westwood_yew', -20, 67], ['pine', -11, 73], ['oak', -15, 73], ['westwood_ash', -7, 75],
+  ['oak', -12, 78], ['pine', -18, 79], ['pine', -15, 80], ['pine', -7, 82], ['pine', -4, 83], ['pine', -23, 83]];
 const TREE_ROWS = { westwood_yew: 2, westwood_ash: 2 };
 const treeStands = (trees) => trees.map(([id, x, y]) => [x, y + (TREE_ROWS[id] || 1)]);
 /* the farm: 12 plots of tilled ground (town/ground.js), 3 to 5 wide, in two uneven rows of fields: [x, y, width], each

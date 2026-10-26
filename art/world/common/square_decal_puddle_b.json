@@ -1,0 +1,37 @@
+{
+  "id": "square_decal_puddle_b",
+  "class": "decal",
+  "style": "s1",
+  "material": "terrain",
+  "source": "square_decal_puddle_b.png",
+  "frame": [
+    24,
+    19
+  ],
+  "anchor_px": [
+    12,
+    18
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_image_pro",
+    "image": "df309b9f-a13e-4834-b0cb-5be1afd45caf",
+    "candidate": 38,
+    "cost": "10 for the 64-candidate call",
+    "style": "a 32 px tile of square_grass_flag"
+  },
+  "notes": "Hearth Square wear decal (candidate 38 of a 64-candidate create_image_pro sheet styled on the flagstone tile), cut to its opaque box; pixels unscaled. Scattered sparsely over the paving to break the 32 px repeat. STAGED."
+}

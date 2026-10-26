@@ -22,6 +22,11 @@
 //        every hunt and arrival resolves to a station of the right kind and skill;
 //        a hunt with a way in from town leaves from beside it
 //   ST-7 taps: every opened window is a shell window, every opened skill a skill
+//   ST-9 one town to walk (Tyler 2026-10-26: "some areas we can't walk between"): every open tile is
+//        reachable from the gatehouse arrival (each pocket that is not is listed with its size), and every
+//        tile of every WAY (town/plan.js WAYS: the high street, the gate road, the bridges, the east gate,
+//        the mine road, the south road, the boardwalk) is open and reachable, so a footprint, a fence or a
+//        prop dropped on a road can never cut the town in two
 //   ST-8 arrival (the SERVER hands out the arrival station's stands, lowest first:
 //        2027-01-28-town-stands.sql): it has a primary stand for each of an account's
 //        heroes, and each of the first ones is in a landscape phone's view (844 x 390
@@ -71,10 +76,12 @@ const PHONE = Object.freeze([844, 390]);
 const GATE_SPRITE = 'havora_gatehouse';
 
 /** Every rule over `S` (the stations module's shape: STATIONS, STATION_BY_ID, ACTIVITY_STATIONS, stationFor, TOWN_INSTANCE, SITE_OPENS, TAP_OPENS). */
-function check(S) {
+function check(S, editRow = null) {
   const fails = [];
   const ok = (id, cond, msg) => { if (!cond) fails.push(id + ' ' + msg); };
-  const row = M.maps.WORLD_MAPS.find((m) => m.id === M.plan.TOWN_MAP);
+  /* the shipped town row, or a copy changed by `editRow` (the selftest's planted map defect) */
+  const shipped = M.maps.WORLD_MAPS.find((m) => m.id === M.plan.TOWN_MAP);
+  const row = editRow ? editRow(Object.assign({}, shipped, { objects: shipped.objects.slice() })) : shipped;
   const map = M.mapc.compileMap(row, M.tables);
   const reach = M.path.reachFrom(map.mask, map.w, map.h, row.start);
   const exits = new Set(map.exits.map((e) => e.x + ',' + e.y));
@@ -151,6 +158,33 @@ function check(S) {
     ok('ST-7', mapId === row.id && map.objects.some((o) => o.x === x && o.y === y), 'SITE_OPENS ' + key + ' names no placed prop');
   }
 
+  /* ST-9 one town to walk: no open pocket the arrival cannot reach, no way blocked or cut off */
+  const pocket = new Uint8Array(map.w * map.h);
+  for (let i = 0; i < map.w * map.h; i++) {
+    if (map.mask[i] !== 0 || reach[i] === 1 || pocket[i]) continue;
+    let n = 0;
+    const todo = [i];
+    pocket[i] = 1;
+    while (todo.length) {
+      const at = todo.pop(), x = at % map.w, y = (at - x) / map.w;
+      n++;
+      for (const [ddx, ddy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const nx = x + ddx, ny = y + ddy, j = ny * map.w + nx;
+        if (nx >= 0 && ny >= 0 && nx < map.w && ny < map.h && map.mask[j] === 0 && !pocket[j]) { pocket[j] = 1; todo.push(j); }
+      }
+    }
+    ok('ST-9', false, 'a pocket of ' + n + ' open tile(s) at ' + (i % map.w) + ',' + Math.floor(i / map.w) + ' cannot be reached from the gatehouse arrival');
+  }
+  for (const way of M.plan.WAYS) {
+    const [wx, wy] = M.plan.at(way.rect[0], way.rect[1]);
+    const cut = [];
+    for (let y = wy; y < wy + way.rect[3]; y++) for (let x = wx; x < wx + way.rect[2]; x++) {
+      const i = y * map.w + x;
+      if (x < 0 || y < 0 || x >= map.w || y >= map.h || map.mask[i] !== 0 || reach[i] !== 1) cut.push(x + ',' + y);
+    }
+    ok('ST-9', cut.length === 0, way.name + ' is blocked or cut off at ' + cut.slice(0, 6).join(' ') + (cut.length > 6 ? ' (+' + (cut.length - 6) + ')' : ''));
+  }
+
   /* ST-8 arrival: the server's first stands of the arrival station, each in a phone's view of the gate */
   const gate = S.STATION_BY_ID[S.ACTIVITY_STATIONS.arrival];
   const heroes = S.TOWN_INSTANCE.heroesPerPlayer;
@@ -210,6 +244,15 @@ if (process.argv.includes('--selftest')) {
       const g = by(c, 'gatehouse'); g.stands = g.stands.slice(g.primary).concat(g.stands.slice(0, g.primary)); }],
     ['ST-8', 'fewer arrival stands than an account\'s heroes', (c) => { by(c, 'gatehouse').primary = 3; }],
   ];
+  /* ST-9's planted map defects: one road tile blocked by a crate; one open tile fenced in by four */
+  const crate = (px, py) => { const [x, y] = M.plan.at(px, py); return { id: 'crates', x, y }; };
+  const mapCases = [
+    ['ST-9', 'a crate dropped on one tile of the high street', (r) => { r.objects.push(crate(40, 50)); return r; }],
+    ['ST-9', 'a crate on one plank of the boardwalk', (r) => { r.objects.push(crate(100, 89)); return r; }],
+    ['ST-9', 'an open tile fenced in by four crates', (r) => {
+      for (const [ddx, ddy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) r.objects.push(crate(-14 + ddx, 46 + ddy));
+      return r; }],
+  ];
   const control = check(planted(() => {}));
   if (control.length) { console.error('town-stations --selftest: the clean control is red:\n  ' + control.slice(0, 5).join('\n  ')); process.exit(1); }
   let escaped = 0;
@@ -218,7 +261,13 @@ if (process.argv.includes('--selftest')) {
     if (got.some((f) => f.startsWith(rule + ' '))) console.log('  caught  ' + rule + '  ' + what);
     else { escaped++; console.error('  ESCAPED ' + rule + '  ' + what + (got.length ? ' (red elsewhere: ' + got[0] + ')' : '')); }
   }
-  console.log('town-stations --selftest: ' + (cases.length - escaped) + '/' + cases.length + ' caught');
+  for (const [rule, what, editRow] of mapCases) {
+    const got = check(M.stations, editRow);
+    if (got.some((f) => f.startsWith(rule + ' '))) console.log('  caught  ' + rule + '  ' + what);
+    else { escaped++; console.error('  ESCAPED ' + rule + '  ' + what + (got.length ? ' (red elsewhere: ' + got[0] + ')' : '')); }
+  }
+  const all = cases.length + mapCases.length;
+  console.log('town-stations --selftest: ' + (all - escaped) + '/' + all + ' caught');
   process.exit(escaped ? 1 : 0);
 }
 
@@ -229,4 +278,5 @@ if (fails.length) {
   process.exit(1);
 }
 const n = M.stations.STATIONS.reduce((a, s) => a + s.stands.length, 0);
-console.log('town-stations: ' + M.stations.STATIONS.length + ' stations, ' + n + ' stands, every one walkable, unique, in its district and at the plan\'s count');
+console.log('town-stations: ' + M.stations.STATIONS.length + ' stations, ' + n + ' stands, every one walkable, unique, in its district and at the plan\'s count; '
+  + M.plan.WAYS.length + ' ways open and the whole town reachable from the gatehouse');

@@ -66,27 +66,45 @@ const skill = (id) => Object.freeze({ open: 'skill', skill: id });
 
 /* THE GREAT HEARTH (footprint 11 x 4 at x112-122 y45-48, town/sites.js) and its 24 fuel stands */
 const HEARTH_PROPS = [['woodpile', 111, 46], ['woodpile', 123, 46]];
-/* the smithy's west yard: 4 forges and 8 anvils (Smithing); in its own yard 6 workbenches and 2 grindstones (Crafting) */
-const FORGES = [56, 59, 62, 65].map((x) => ['forge', x, 37]);
-const ANVILS = [55, 58, 61, 64].flatMap((x) => [['anvil', x, 41], ['anvil', x, 44]]);
-const BENCHES = [['workbench', 67, 37], ['workbench', 69, 37], ['workbench', 71, 37], ['workbench', 67, 40], ['workbench', 69, 40], ['workbench', 71, 40],
-  ['grindstone', 67, 43], ['grindstone', 70, 43]];
-/* the tavern's cook yard: 8 cook fires (2 x 1), two rows of four */
-const FIRES = [61, 64, 67, 70].flatMap((x) => [['hearth', x, 30], ['hearth', x, 33]]);
-const DUMMIES = [62, 66, 70, 74].flatMap((x) => [['dummy', x, 64], ['dummy', x, 70]]);
-/* the quarry: 24 rock nodes, 6 across and 4 deep */
-/* copper nearest the mouth, coal at the back (the art lane's ore samples; the middle columns keep the Common's rocks) */
-const ORE = { 146: 'ore_copper_rock', 149: 'ore_copper_rock', 152: 'rocks', 155: 'rocks', 158: 'ore_coal_rock', 161: 'ore_coal_rock' };
-const ROCKS = [146, 149, 152, 155, 158, 161].flatMap((x) => [33, 36, 39, 42].map((y) => [ORE[x], x, y]));
-const ALTARS = [150, 152, 154, 156].map((x) => ['rune_block', x, 48]);
-/* the Westwood: 40 trees, 5 across and 8 deep. The tiers deepen westward: the two west columns are the art lane's
-   2 x 2 yews and ashes, the rest the Common's pines and oaks. A woodcutter stands on the row south of its tree. */
-const TREE_ART = ['westwood_yew', 'westwood_ash'];
-const TREES = Array.from({ length: 40 }, (_, i) => [TREE_ART[i % 5] || (i % 2 ? 'oak' : 'pine'), -22 + (i % 5) * 4 + (i % 2), 18 + Math.floor(i / 5) * 9]);
+/* THE SMITHY YARD, laid like a working yard (lane/b-havora-polish 2026-10-26, Tyler: "very grid like"): forge
+   hearths staggered along the north side, each with its anvils where a smith turns from the fire, and a fourth hearth
+   down by the street; the crafting benches in a loose L in front of the smithy, the grindstones out in the yard. The
+   bellows, quench trough, crates and the wheel between them are scenery (town/sites.js). A worker stands south of
+   its piece (in front of it, in plain view). */
+const FORGES = [['forge', 55, 37], ['forge', 59, 38], ['forge', 63, 37], ['forge', 56, 43]];
+const ANVILS = [['anvil', 54, 40], ['anvil', 57, 40], ['anvil', 60, 41], ['anvil', 62, 40], ['anvil', 65, 40], ['anvil', 64, 43],
+  ['anvil', 58, 45], ['anvil', 53, 45]];
+const BENCHES = [['workbench', 66, 37], ['workbench', 69, 38], ['workbench', 73, 37], ['workbench', 66, 41], ['workbench', 69, 42], ['workbench', 72, 40],
+  ['grindstone', 71, 45], ['grindstone', 75, 42]];
+/* the tavern's cook yard (its earth now reaches the tavern's back door, town/ground.js): 8 cook fires (2 x 1) round
+   the yard, the near ones by the door, two cooks at each */
+const FIRES = [['hearth', 61, 29], ['hearth', 67, 28], ['hearth', 69, 29], ['hearth', 72, 31], ['hearth', 60, 33], ['hearth', 64, 32],
+  ['hearth', 68, 33], ['hearth', 71, 34]];
+/* the training yard: 8 dummies scattered over the yard, three fighters to a dummy */
+const DUMMIES = [['dummy', 62, 64], ['dummy', 66, 66], ['dummy', 71, 63], ['dummy', 75, 65], ['dummy', 63, 70], ['dummy', 68, 71],
+  ['dummy', 73, 69], ['dummy', 76, 72]];
+/* the quarry: 24 rock nodes along the mountain's north and east faces, round the outcrop and in three heaps on the floor;
+   copper nearest the mouth, the Common's rocks in the middle, coal at the back (the art lane's ore samples) */
+const ORE = (x) => (x <= 148 ? 'ore_copper_rock' : x <= 155 ? 'rocks' : 'ore_coal_rock');
+const ROCKS = [[145, 31], [148, 30], [151, 31], [154, 30], [157, 31], [160, 30], [162, 33], [161, 36], [162, 39], [160, 43],
+  [144, 39], [142, 38], [148, 35], [150, 36], [149, 38], [154, 37], [156, 39], [153, 40], [151, 43], [157, 44],
+  [146, 38], [158, 35], [150, 41], [159, 41]].map(([x, y]) => [ORE(x), x, y]);
+const ALTARS = [['rune_block', 150, 48], ['rune_block', 152, 47], ['rune_block', 155, 48], ['rune_block', 157, 47]];
+/* the Westwood: 40 trees in groves with clearings between and a few strays (the west groves the art lane's 2 x 2 yews
+   and ashes, the rest the Common's pines and oaks), listed nearest the west gate first so the first woodcutter stands
+   by the road. A woodcutter stands on the row south of its tree. */
+const TREES = [['oak', -4, 41], ['pine', -3, 60], ['pine', -7, 61], ['oak', -6, 38], ['oak', -9, 62], ['pine', -9, 37], ['oak', -4, 35],
+  ['pine', -13, 61], ['pine', -16, 57], ['pine', -8, 67], ['westwood_ash', -16, 39], ['oak', -11, 66], ['oak', -5, 69], ['oak', -20, 57],
+  ['westwood_ash', -14, 34], ['westwood_ash', -18, 62], ['pine', -15, 66], ['westwood_yew', -18, 34], ['pine', -9, 28], ['westwood_yew', -21, 37],
+  ['pine', -7, 26], ['pine', -11, 30], ['pine', -11, 73], ['westwood_yew', -22, 64], ['westwood_yew', -20, 67], ['westwood_ash', -7, 75],
+  ['pine', -13, 27], ['oak', -15, 73], ['oak', -15, 26], ['oak', -12, 78], ['oak', -10, 20], ['westwood_yew', -18, 23], ['pine', -7, 82],
+  ['pine', -15, 80], ['pine', -4, 83], ['pine', -18, 79], ['pine', -21, 22], ['pine', -23, 83], ['westwood_yew', -18, 14], ['westwood_ash', -21, 15]];
 const TREE_ROWS = { westwood_yew: 2, westwood_ash: 2 };
 const treeStands = (trees) => trees.map(([id, x, y]) => [x, y + (TREE_ROWS[id] || 1)]);
-/* the farm: 12 plots of 3 x 2 (tilled ground, maps/town_common.js), their workers on the row south of each */
-const PLOTS = Array.from({ length: 12 }, (_, i) => [20 + (i % 6) * 6, 82 + Math.floor(i / 6) * 4]);
+/* the farm: 12 plots of tilled ground (town/ground.js), 3 to 5 wide, in two uneven rows of fields: [x, y, width], each
+   2 deep, its workers on the row south of it */
+const PLOTS = [[20, 82, 4], [25, 82, 3], [29, 81, 5], [35, 82, 3], [39, 81, 4], [45, 81, 3],
+  [21, 86, 3], [25, 85, 4], [30, 86, 4], [35, 85, 3], [39, 86, 5], [46, 85, 3]];
 
 const ROWS = [
   /* HEARTH SQUARE (x106-129 y36-59): the fire, the field and flanks, the benches */
@@ -121,12 +139,15 @@ const ROWS = [
     stands: F(42, 68, 6, 1), overflow: [], fallback: 'gatehouse' },
   /* THE SMITHY YARD */
   { id: 'smithy_forges', district: 'smithy', kind: 'artisan', skill: 'smithing', opens: skill('smithing'), props: [...FORGES, ...ANVILS],
-    stands: [...south(FORGES), ...south(ANVILS)], overflow: F(55, 47, 8, 1), fallback: 'square_benches' },
+    stands: [...south(FORGES), ...south(ANVILS)],
+    overflow: [[57, 38], [61, 38], [58, 43], [61, 42], [57, 47], [61, 46], [64, 46], [55, 47]], fallback: 'square_benches' },
   { id: 'smithy_benches', district: 'smithy', kind: 'artisan', skill: 'crafting', opens: skill('crafting'), props: BENCHES,
-    stands: south(BENCHES), overflow: [...F(66, 46, 10, 1), [72, 41], [72, 38]], fallback: 'square_benches' },
+    stands: south(BENCHES),
+    overflow: [[68, 40], [71, 38], [70, 40], [67, 44], [70, 45], [73, 44], [68, 46], [74, 46], [65, 44], [72, 43], [67, 39], [76, 46]], fallback: 'square_benches' },
   /* THE TAVERN'S COOK YARD: two to a fire */
   { id: 'tavern_kitchen', district: 'tavern', kind: 'artisan', skill: 'cooking', opens: skill('cooking'), props: FIRES,
-    stands: FIRES.flatMap(([, x, y]) => [[x, y + 1], [x + 1, y + 1]]), overflow: [...F(61, 35, 11, 1), ...F(60, 32, 1, 3)], fallback: 'square_benches' },
+    stands: FIRES.flatMap(([, x, y]) => [[x, y + 1], [x + 1, y + 1]]), overflow: [[63, 29], [65, 30], [59, 31], [63, 31], [66, 31], [70, 32], [62, 34], [66, 35], [69, 35], [74, 33], [61, 35], [64, 35],
+      [75, 30], [60, 28]], fallback: 'square_benches' },
   /* THE TRAINING YARD: three to a dummy */
   { id: 'training_yard', district: 'training', kind: 'training', opens: win('hunts'), props: DUMMIES,
     stands: DUMMIES.flatMap(([, x, y]) => [[x, y + 1], [x - 1, y + 1], [x + 1, y + 1]]), overflow: [], fallback: 'square_benches' },
@@ -134,7 +155,7 @@ const ROWS = [
   { id: 'westwood', district: 'westwood', kind: 'gather', skill: 'woodcutting', opens: skill('woodcutting'), props: TREES,
     stands: treeStands(TREES), overflow: [], fallback: 'square_benches' },
   { id: 'mine', district: 'mine', kind: 'gather', skill: 'mining', opens: skill('mining'), props: ROCKS,
-    stands: south(ROCKS), overflow: F(145, 45, 6, 1), fallback: 'square_benches' },
+    stands: south(ROCKS), overflow: [[146, 33], [152, 33], [156, 34], [159, 38], [148, 41], [155, 42]], fallback: 'square_benches' },
   { id: 'rune_block', district: 'mine', kind: 'artisan', skill: 'runecrafting', opens: skill('runecrafting'), props: ALTARS,
     stands: F(150, 49, 8, 1), overflow: F(150, 50, 7, 1), fallback: 'square_benches' },
   { id: 'shore', district: 'shore', kind: 'gather', skill: 'fishing', opens: skill('fishing'), props: [['bucket', 48, 92]],
@@ -142,7 +163,7 @@ const ROWS = [
   { id: 'river_bank', district: 'river', kind: 'gather', skill: 'fishing', opens: skill('fishing'), props: [],
     stands: F(87, 54, 1, 8), overflow: F(86, 54, 1, 8), fallback: 'shore' },
   { id: 'farm', district: 'farm', kind: 'gather', skill: 'farming', opens: win('farm'), props: [['cabbage_crate', 19, 86]],
-    stands: PLOTS.flatMap(([x, y]) => F(x, y + 2, 3, 1)), overflow: [], fallback: 'square_benches' },
+    stands: PLOTS.flatMap(([x, y, w]) => F(x, y + 2, w, 1)), overflow: [], fallback: 'square_benches' },
 ];
 
 const tiles = (list) => Object.freeze(list.map(([x, y]) => at(x, y)));

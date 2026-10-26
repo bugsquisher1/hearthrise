@@ -6,7 +6,7 @@
 //   node tests/town-stands.mjs --load     + the synthetic load: 60 viewers reading every 2 s over 240 bodies
 //   node tests/town-stands.mjs --mutate   every planted defect in the migration must turn a rule RED
 //
-// mutant-anchors: supabase/migrations/2027-01-28-town-stands.sql, supabase/migrations/2027-01-29-havora-stations.generated.sql
+// mutant-anchors: supabase/migrations/2027-01-28-town-stands.sql, supabase/migrations/2027-01-30-havora-yards.generated.sql
 //
 // supabase/migrations/2027-01-28-town-stands.sql proves its contract inside ONE
 // transaction (its §6, on every replay). This guard plays it the way the game

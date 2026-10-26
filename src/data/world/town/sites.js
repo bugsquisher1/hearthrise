@@ -58,13 +58,25 @@ export const SCENERY = Object.freeze([
   /* the cook yard's stores, the training yard's rack, the farm's crates */
   ['sack_pile', 74, 31], ['barrel_planter', 60, 30], ['weapon_rack', 78, 63], ['turnip_crate', 19, 82],
   ['well', 99, 40], ['signpost', 9, 47],
+  /* THE WORK YARDS' CLUTTER (lane/b-havora-polish 2026-10-26), between the stations' pieces (../stations.js) so a yard
+     reads as worked in: the smithy's bellows by two forges, a quench trough, crates and a spare wheel; the cook yard's
+     barrels, flour and a bucket; hay, an armour stand and barrels round the training dummies; the quarry's broken
+     barrel, sacks, a wheel and loose stone by the mine mouth; a woodpile and a chopping block at the Westwood's edge; hay,
+     a basket, sacks and a trough among the farm plots */
+  ['bellows', 56, 37], ['bellows', 64, 37], ['water_trough', 61, 44], ['crates', 65, 36], ['cart_wheel', 52, 41], ['barrels', 53, 37],
+  ['barrels', 67, 31], ['flour_sack', 74, 34], ['bucket', 62, 32],
+  ['hay_bale', 70, 67], ['armour_stand', 59, 66], ['barrels', 77, 69],
+  ['barrel_broken', 143, 36], ['sack_tall', 141, 37], ['cart_wheel', 145, 35],
+  ['pebbles', 147, 33], ['corner_rubble', 152, 38], ['havora_scree_b', 158, 46], ['havora_scree_a', 146, 44], ['pebbles', 155, 34],
+  ['woodpile', -5, 45], ['chopping_block', -3, 44],
+  ['hay_bale', 53, 83], ['basket', 30, 84], ['water_trough', 53, 87], ['sack_stack', 44, 84],
   /* THE ARRIVAL YARD south of the gatehouse (heroes back from a hunt stand at x78-89 y16-19, stations.js): lamps
      flanking the gate, a carter's corner of crates, sacks and a spare wheel against the tavern wall, the trough and
      hay for the horses and a well by the mill race, and a signpost on the road south toward Hearth Square */
   ['lamppost', 79, 15], ['lamppost', 88, 15],
   ['crates', 74, 15], ['crates', 75, 15], ['barrels', 74, 16], ['sack_stack', 75, 16], ['cart_wheel', 76, 15],
   ['water_trough', 90, 21], ['hay_bale', 89, 21], ['well', 91, 22],
-  ['lamppost', 80, 23], ['signpost', 86, 27], ['crates', 90, 26],
+  ['lamppost', 79, 23], ['signpost', 86, 27], ['crates', 90, 26],
 ].map((r) => Object.freeze(r)));
 
 /* the ways out of town onto a hunting ground's map: the mill's cellar hatch, the sewer grate */

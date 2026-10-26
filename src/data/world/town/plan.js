@@ -48,3 +48,20 @@ export const DISTRICTS = Object.freeze({
   farm: Object.freeze({ name: 'The Farm Plots', rect: Object.freeze([18, 80, 40, 10]) }),
   shore: Object.freeze({ name: 'The Shore', rect: Object.freeze([40, 90, 56, 4]) }),
 });
+
+/**
+ * THE WAYS: the roads, bridges, gaps and boardwalks that join the districts, in plan coordinates [x, y, w, h].
+ * Every tile of a way is open and reachable from the gatehouse arrival (tests/town-stations.mjs ST-9), so a
+ * sprite footprint, a fence or a prop dropped on a road can never cut the town in two again (Tyler 2026-10-26:
+ * "some areas we can't walk between"; lane/b-havora-polish).
+ */
+export const WAYS = Object.freeze([
+  { name: 'the high street, the west gate to the great bridge and Hearth Square', rect: [-8, 48, 110, 6] },
+  { name: 'the gate road, the arrival yard south to the high street', rect: [80, 16, 6, 32] },
+  { name: 'the mill race bridge and the road east to the bank', rect: [89, 16, 17, 4] },
+  { name: 'the east gate in the palisade', rect: [124, 18, 10, 2] },
+  { name: 'the mine road, Hearth Square east to the quarry floor', rect: [132, 40, 12, 3] },
+  { name: 'the south road, the high street to the docks', rect: [82, 54, 4, 38] },
+  { name: 'the south bridge to the hunter\'s yard', rect: [80, 73, 22, 3] },
+  { name: 'the boardwalk over the river mouth to the docks', rect: [80, 88, 32, 4] },
+].map((w) => Object.freeze({ name: w.name, rect: Object.freeze(w.rect) })));

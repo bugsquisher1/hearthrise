@@ -505,7 +505,7 @@ async function pureRules(M) {
     const town = M.maps.WORLD_MAPS.find((m) => m.id === M.maps.SCENE_MAPS.town);
     const tp = new M.town.TownPresence({ server: w15.link(TYLER), slot: 1, self: () => TYLER, busy: () => hunting, town: town.id,
       timers: { setTimer: (fn) => { tick15 = fn; return 1; }, clearTimer: () => {} }, now: () => now });
-    tp.stand(); await settle();
+    tp.stand(); tick15(); await settle();   // its body on the first tick
     const idle = w15.IDLE[0];
     if (String(tp.placeOn(town.id)) !== String([idle.x, idle.y]) || String(tp.placeOn(town.id)) === String(town.start))
       fail('TW-15 a body standing from boot is at ' + tp.placeOn(town.id) + ', not the server\'s stand ' + [idle.x, idle.y]);
@@ -957,8 +957,8 @@ const PURE_MUTANTS = [
   ['viewing another character leaves town', 'src/session/town-presence.js', '    if (!this._map) { this.stand(); return; }\n    this._parked = true;\n', '    if (!this._map) { this.stand(); return; }\n    this.show(null); return;\n'],
   ['a parked character never keeps alive', 'src/session/town-presence.js', '      if (this._now() - this._hereAt >= (this.limits.parkedKeepaliveMs || this.limits.keepaliveMs)) this.here();\n', ''],
   ['a parked body keeps alive at the walking pace', 'src/session/town-presence.js', '(this.limits.parkedKeepaliveMs || this.limits.keepaliveMs)', 'this.limits.keepaliveMs'],
-  ['a parked body names the start tile', 'src/session/town-presence.js', '    if (!this._busy()) this.here();\n',
-    "    if (!this._busy()) { this.here(); this._server.rpc('hr_town_move', { p_slot: this._slot, p_map: m, p_x: 11, p_y: 9, p_gx: 11, p_gy: 9, p_dir: 's' }); }\n"],
+  ['a parked body names the start tile', 'src/session/town-presence.js', "    return this._server.rpc('hr_town_here', { p_slot: this._slot, p_map: map }).then((ans) => {",
+    "    this._server.rpc('hr_town_move', { p_slot: this._slot, p_map: map, p_x: 11, p_y: 9, p_gx: 11, p_gy: 9, p_dir: 's' });\n    return this._server.rpc('hr_town_here', { p_slot: this._slot, p_map: map }).then((ans) => {"],
   ['a town nobody draws keeps reading', 'src/session/town-presence.js', '    if (this._now() - this._drawnAt <= 2 * this.limits.pollMs) this.read();', '    this.read();'],
   ['a town drawn again waits for the poll', 'src/session/town-presence.js', '    if (this._map && !this._parked && now - this._drawnAt > 2 * this.limits.pollMs) this.read();\n', ''],
   ['a parked character that hunts stays in town', 'src/session/town-presence.js', '      if (this._busy()) { this._leave(); return; }\n', ''],

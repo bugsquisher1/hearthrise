@@ -75,7 +75,6 @@ function bareSnapshot(G) {
 
 /** The hunt the World can show today — the first hunt map's — named from the data. */
 const OPEN_HUNT = huntOfMap(WORLD_MAPS.find((m) => m.kind === 'hunt'));
-/** The town presence's own stand, as a key that changes when the server moves it (null when not placed). */
 const standKeyOf = (town) => {
   const me = town && typeof town.me === 'function' ? town.me() : null;
   return me ? me.station + ':' + me.stand + ':' + me.since : null;
@@ -188,7 +187,7 @@ export async function bootWorld(panel, opts) {
   const mq = typeof win.matchMedia === 'function' ? win.matchMedia(MOBILE_QUERY) : null;
   let running = false, raf = 0, last = 0, frames = 0, scene = null, roofAlpha = {}, gone = false;   // gone: destroyed
   let walk = null, lastWalk = null;
-  let walkPlaced = true, walkStand = null;   // the town walk began on the server's place; the stand it last walked to
+  let walkPlaced = true, walkStand = null;   // the town walk began on the server's place; the stand key (station:stand:since) it last walked to
   const town = opts.town || null;
   const readEnv = createEnvReader(homeNow, town);
 
@@ -246,8 +245,7 @@ export async function bootWorld(panel, opts) {
     /* ONE POSITION SOURCE: in town the body's place is the TownPresence's (where everyone else sees it
        stand, kept across a switch of the viewed character); at home it is the character's scratch */
     const held = !!town && map.kind === 'town';
-    /* a town walk begun before the server named this hero's place starts again ON it (the hero was never placed:
-       the client names no tile of its own, CLAUDE.md §6) */
+    /* a town walk begun before the server named this hero's place starts again ON it (no client-chosen tile, §6) */
     if (!walk || walk.map !== map || (held && !walkPlaced && town.placeOn(map.id))) {
       const at = held ? town.placeOn(map.id) : heroPosOn(G, map.id);
       walkPlaced = !held || !!at;
@@ -260,8 +258,7 @@ export async function bootWorld(panel, opts) {
         sandboxExtras(map, mapSprites)));
       if (keys.size) walk.drive(keyVector(), now);   // keys still held across a scene change keep walking
     }
-    /* THE SERVER MOVED THIS HERO'S STAND (a new activity, back from a hunt, a counter): it walks there from where
-       it is, display only (2027-01-26-town-stands.sql; the work pose on arrival is lane L3) */
+    /* THE SERVER MOVED ITS STAND (an activity, a hunt's end, a counter): it walks there, display only (town-stands) */
     if (held && walkPlaced) {
       const k = standKeyOf(town);
       if (k && k !== walkStand) { walkStand = k; walk.goTo(town.me().at, now); }

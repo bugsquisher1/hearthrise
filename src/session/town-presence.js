@@ -216,9 +216,8 @@ export class TownPresence {
     if (!m || this._dead || this._map) return false;
     this._map = m;
     this._parked = true;
+    /* its body on the first tick (<= pollMs; a boot sends no burst): a view of it first reads its stand itself */
     this._timer = this._set(() => this._tick(), this.limits.pollMs);
-    /* its stand at once: a view of it in the same breath starts its hero there */
-    if (!this._busy()) this.here();
     return true;
   }
 

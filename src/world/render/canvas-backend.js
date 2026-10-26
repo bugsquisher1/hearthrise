@@ -26,9 +26,7 @@ import { paintStub } from '../stub-atlas.js?v=0.2.47';
 
 const LIGHT_BANDS = 4;   // stepped pools: pixel-art light, no airbrush
 const FLASH_ALPHA = 0.7; // a hit's silhouette over the frame
-/* Baked ground chunks kept (LRU): a 1440 x 900 view at x2 touches at most 3 x 2 of 512 px, so 24 keeps every
-   chunk a walk revisits while a 192 x 116 town (96 chunks, ~96 MB if all were kept) stays ~24 MB. */
-const CHUNK_KEEP = 24;
+const CHUNK_KEEP = 24;   // baked ground chunks kept (LRU): a 192 x 116 town is 96 of ~1 MB each
 
 /**
  * @param {{win: Window, doc: Document, book: object, images: object, tables: object,
@@ -87,7 +85,6 @@ export function createCanvasBackend(o) {
   function chunk(cx, cy) {
     const key = cx + ',' + cy;
     let c = chunks.get(key);
-    /* most recently drawn last: a big map (Havora is 12 x 8 chunks, 1 MB each) keeps only CHUNK_KEEP baked */
     if (c) { chunks.delete(key); chunks.set(key, c); return c; }
     if (chunks.size >= CHUNK_KEEP) chunks.delete(chunks.keys().next().value);
     c = doc.createElement('canvas');

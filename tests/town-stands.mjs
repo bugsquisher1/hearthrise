@@ -206,25 +206,42 @@ const MUTANTS = [
 ];
 
 async function main() {
+  /* AN EMPTY EVENT LOOP BEFORE THE VERDICT IS RED: a query that never settles must not let node exit 0 mid-run */
+  process.on('beforeExit', () => { console.log('  ✗ town-stands stopped before its verdict (a query never settled)'); process.exit(1); });
   const src = (await readFile(join(ROOT, 'supabase/migrations', FILE), 'utf8')).replace(/\r\n/g, '\n');
+  const only = process.argv.includes('--only') ? process.argv[process.argv.indexOf('--only') + 1] : null;
+  /* ONE MUTANT, IN ITS OWN PROCESS (the parent's --mutate spawns this): exit 0 caught, 10 escaped, 20 a harness fault */
+  if (process.argv.includes('--mutant')) {
+    const [name, from, to] = MUTANTS[Number(process.argv[process.argv.indexOf('--mutant') + 1])];
+    if (src.split(from).length !== 2) { console.log('harness: anchor matches ' + (src.split(from).length - 1) + ' times'); process.exit(20); }
+    let fails;
+    try { fails = await rules((await bootReplay({ patches: new Map([[FILE, [[from, to]]]]), upTo: FILE })).db); }
+    catch (e) {
+      /* a HARNESS fault (the anchor moved, the patch did not land) proves nothing: red, never "caught" */
+      if (e && e.harness) { console.log('harness: ' + String(e.message).split('\n')[0]); process.exit(20); }
+      fails = ['replay refused it: ' + String(e.message).split('\n')[1]];
+    }
+    console.log(fails.length ? fails[0].slice(0, 90) : 'NOT caught: ' + name);
+    process.exit(fails.length ? 0 : 10);
+  }
   if (process.argv.includes('--mutate')) {
     const clean = await rules((await bootReplay()).db);
     if (clean.length) { console.log('  ✗ clean control RED: ' + clean.join('; ')); process.exit(1); }
     console.log('  ✓ clean control green');
-    let bad = 0;
-    for (const [name, from, to] of MUTANTS) {
-      if (src.split(from).length !== 2) { console.log('  ✗ ' + name + ' — anchor matches ' + (src.split(from).length - 1) + ' times'); bad++; continue; }
-      let fails;
-      try { fails = await rules((await bootReplay({ patches: new Map([[FILE, [[from, to]]]]), upTo: FILE })).db); }
-      catch (e) {
-        /* a HARNESS fault (the anchor moved, the patch did not land) proves nothing: red, never "caught" */
-        if (e && e.harness) { console.log('  ✗ ' + name + ' — harness: ' + String(e.message).split('\n')[0]); bad++; continue; }
-        fails = ['replay refused it: ' + String(e.message).split('\n')[1]];
-      }
-      if (fails.length) console.log('  ✓ ' + name + ' — caught (' + fails[0].slice(0, 90) + ')');
-      else { console.log('  ✗ ' + name + ' — NOT caught'); bad++; }
+    /* the chain up to the migration under test, on disk once, so every mutant's process restores it instead of replaying it */
+    await bootReplay({ upTo: '2027-01-26-town-stations.generated.sql' });
+    const { spawnSync } = await import('node:child_process');
+    let bad = 0, ran = 0;
+    for (const [i, [name]] of MUTANTS.entries()) {
+      if (only && !name.includes(only)) continue;
+      ran++;
+      const r = spawnSync(process.execPath, [join(ROOT, 'tests', 'town-stands.mjs'), '--mutant', String(i)], { encoding: 'utf8', timeout: 900000 });
+      const said = String(r.stdout || '').trim().split('\n').pop() || String(r.stderr || '').trim().split('\n').pop() || '';
+      if (r.status === 0) console.log('  ✓ ' + name + ' — caught (' + said + ')');
+      else { console.log('  ✗ ' + name + ' — ' + (r.status === 10 ? 'NOT caught' : 'harness (exit ' + r.status + '): ' + said)); bad++; }
     }
-    console.log(bad ? 'town-stands --mutate: ' + bad + ' escaped' : 'town-stands --mutate: ' + MUTANTS.length + '/' + MUTANTS.length + ' mutants caught');
+    console.log(bad || !ran ? 'town-stands --mutate: ' + bad + ' escaped of ' + ran : 'town-stands --mutate: ' + ran + '/' + ran + ' mutants caught');
+    if (!ran) bad = 1;
     process.exit(bad ? 1 : 0);
   }
   const { db } = await bootReplay();

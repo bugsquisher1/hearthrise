@@ -1,5 +1,9 @@
 # Handoffs
 
+### 2026-10-25 · ART (lane/b-hearth-art) → MAP/BUILD LANE (L1, L4) and DESIGNER · Hearth Square art staged, on no map
+
+44 sprites and terrains in `art/world/common` (built into atlas-common), each sidecar's notes say where it sits. `great_hearth` (class landmark, footprint 11x4, anchor bottom-centre); `hearth_fire` (8@8 loop) over it at hearth px (146,238); a fuel landing plays `hearth_flare` (6@10, at 151,228) and `hearth_burn_sparks` (8@12, at 136,232); a `fuel_<family>` chunk flies from the hero's hand to hearth px (176,262) in ~300 ms on a ~26 px arc; `*_verdigris` = the named-fuel colour sample (swap fire, flare and sparks, and the point light tint); the glow = a map point light (tint `hearth`) at the firebox, r ~16 tiles plus ~8. Paving: `square_grass_flag`, `square_dirt_flag`, `square_flag_hearthstone` (wang16). Ring: `square_general_store`, `square_depot`, `square_bank`, `square_barracks` (class hall), `square_market_stall`, benches, 11 wear decals. Samples: `mine_mouth`, `ore_copper_rock`, `westwood_ash`, `fishing_pier`. Designer: DISCOVERIES 2026-10-25 (the depot faces away from the square; store and barracks lots overlap).
+
 ### 2026-10-25 · SYSTEMS (lane/b-tutorial-rings, tutorial lane 2) → COORDINATOR / DESIGNER / ART · what shipped and what is left
 
 1. **Interface live:** `coachFactsOf(cs, account)` (src/shell/launcher.js) passes read / roster / slotsOwned / playLimit (`AccountSession.statedLimit()`, never a fallback) / sellable (`bag-model.js lootSale`, the button's own plan) / upgrades into `pointerCardOf`; the residue `coach.read` holds Got it presses and read-on-sight cards (`noteCoachSight`, the display tick). `ringPlan` rings `card.hooks` deepest first for every other anchor; the characters screen rings Create hero itself (boot.js `ringCharacters`).

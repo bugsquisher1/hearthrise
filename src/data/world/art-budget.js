@@ -58,6 +58,8 @@ export const CLASSES = Object.freeze({
   bed: row({ body: [40, 60], measure: 'h', contact: 'legged', shadow: 'ellipse', layer: 'prop' }),
   table: row({ body: [20, 24], measure: 'h', contact: 'legged', shadow: 'ellipse', layer: 'prop' }),
   station: row({ body: [22, 32], measure: 'h', contact: 'legged', shadow: 'ellipse', layer: 'prop' }),
+  // A market stall: a trestle under an awning on posts (Hearth Square's east edge), taller than a table.
+  stall: row({ body: [48, 72], measure: 'h', contact: 'legged', shadow: 'ellipse', layer: 'prop' }),
   bench: row({ body: [12, 20], measure: 'h', contact: 'legged', shadow: 'ellipse', layer: 'prop' }),
   seat: row({ body: [24, 28], measure: 'h', contact: 'legged', shadow: 'ellipse', layer: 'prop' }),
   bulky: row({ body: [20, 32], measure: 'h', maxW: 40, contact: 'solid', shadow: 'ellipse', layer: 'prop' }),
@@ -73,6 +75,9 @@ export const CLASSES = Object.freeze({
   building: row({ body: [80, 160], measure: 'h', contact: 'touch', shadow: null, layer: 'unit' }),
   // A town's one monument, larger than any building (the Great Hearth of Hearth Square: footprint
   // 11 x 4, art 11 x 11 tiles). Drawn like a building: one closed sprite, its anchor bottom-centre.
+  // A big town hall-sized building round a plaza (Hearth Square's general store, depot, bank, guild
+  // hall: 10-14 tiles wide). Drawn like a building; the monument (landmark) stays taller.
+  hall: row({ body: [200, 320], measure: 'h', contact: 'touch', shadow: null, layer: 'unit' }),
   landmark: row({ body: [240, 352], measure: 'h', contact: 'touch', shadow: null, layer: 'unit' }),
   door: row({ body: [48, 48], measure: 'h', contact: 'solid', shadow: null, layer: 'wall' }),
   wall: row({ frame: [32, 60], anchor: [16, 59], body: [56, 60], measure: 'h', face: 48, cap: [8, 12], contact: 'wall', shadow: 'cast', layer: 'wall' }),

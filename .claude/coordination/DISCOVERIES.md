@@ -3782,3 +3782,12 @@ flex bar is never narrower than its nowrap items' min-content, so `min-width: 0`
 give way; width auto does. (4) A hidden column must hide its head too: `.ca-head .ca-c:nth-of-type(2)` counted the
 icon and Name spans and matched nothing, so four heads sat over three columns and "You carry" wrapped to a second
 row. Give the head cells the rows' data-c and hide both with one selector.
+
+## 2026-10-25 · art-director (lane/b-hearth-art) · Hearth Square layout vs one-angle art
+- One camera angle (south): every building shows its door to the south. The depot (rev 2: x108-129 y60-73, counters
+  on y59) sits SOUTH of the square, so its door faces away from it and the counters would stand at its back wall. Fix
+  in the layout (Storage on the north or east side) or give it a south forecourt. Game-designer's call.
+- rev 2 lots overlap: general_store x106-123 y24-35 and guard_barracks x116-131 y26-37 share x116-123 (the mock puts
+  the store at x106-117, the barracks at x119-129).
+- A 24x24 flagstone field is monotonous even with decals and the hearthstone ring: the map lane should structure it
+  with props (oaks in planters, lampposts, a kerb, the well), not more paving.

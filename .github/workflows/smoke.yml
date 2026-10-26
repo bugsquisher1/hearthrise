@@ -218,9 +218,12 @@ jobs:
   # install 26 + node suite 236 + client boot 67 + Alpha windows 721 = 1,050 s,
   # ~18 min with setup; slow runner (39374685521) ~1,320 s, ~22.5 min.
   # Budget = fast x2 = 36.
+  # 2026-10-26 (v0.2.50, run 40314818369): cancelled at 36:33 with 0 failures while
+  # the mutant gate re-ran every play.html-anchored mutant (the release bump touches
+  # play.html) → 60, the cap, until the gate stops counting a ?v= bump as a touch.
   in-page:
     runs-on: ubuntu-latest
-    timeout-minutes: 36
+    timeout-minutes: 60
 
     steps:
       - uses: actions/checkout@v4

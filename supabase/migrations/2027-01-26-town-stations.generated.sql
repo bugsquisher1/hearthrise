@@ -27,8 +27,10 @@ create table if not exists public.hr_town_stations (
   face_x     smallint check (face_x between 0 and 255),
   face_y     smallint check (face_y between 0 and 255),
   ord        smallint not null check (ord >= 1),
+  fallback   text     check (fallback ~ '^[a-z0-9_]{1,40}$'),   -- where its full station's next hero goes, before the benches
   primary key (map_id, station_id)
 );
+alter table public.hr_town_stations add column if not exists fallback text check (fallback ~ '^[a-z0-9_]{1,40}$');
 create table if not exists public.hr_town_stands (
   map_id     text     not null,
   station_id text     not null,
@@ -67,14 +69,14 @@ insert into public.hr_town_maps (map_id, zone_id, w, h, players, heroes, view_w,
 delete from public.hr_town_station_hosts where map_id = any (array['town_common']::text[]);
 delete from public.hr_town_stands where map_id = any (array['town_common']::text[]);
 delete from public.hr_town_stations where map_id = any (array['town_common']::text[]);
-insert into public.hr_town_stations (map_id, station_id, role, face_x, face_y, ord) values
-  ('town_common', 'smithy_anvil', 'work', 6, 8, 1),
-  ('town_common', 'woodpile', 'work', 19, 8, 2),
-  ('town_common', 'well_yard', 'work', 14, 8, 3),
-  ('town_common', 'tally_board', 'visit', 8, 7, 4),
-  ('town_common', 'arrival', 'arrive', null, null, 5),
-  ('town_common', 'green', 'idle', null, null, 6),
-  ('town_common', 'east_green', 'bench', null, null, 7);
+insert into public.hr_town_stations (map_id, station_id, role, face_x, face_y, ord, fallback) values
+  ('town_common', 'smithy_anvil', 'work', 6, 8, 1, null),
+  ('town_common', 'woodpile', 'work', 19, 8, 2, null),
+  ('town_common', 'well_yard', 'work', 14, 8, 3, null),
+  ('town_common', 'tally_board', 'visit', 8, 7, 4, null),
+  ('town_common', 'arrival', 'arrive', null, null, 5, null),
+  ('town_common', 'green', 'idle', null, null, 6, null),
+  ('town_common', 'east_green', 'bench', null, null, 7, null);
 insert into public.hr_town_stands (map_id, station_id, stand_no, x, y, dir, overflow) values
   ('town_common', 'smithy_anvil', 1, 7, 8, 'w', false),
   ('town_common', 'smithy_anvil', 2, 7, 9, 'w', false),
@@ -216,6 +218,11 @@ begin
           or (select count(*) from public.hr_town_stands s where s.map_id = m.map_id) < m.heroes)
    limit 1;
   if v_bad is not null then raise exception 'town-stations: map % has not exactly one idle station or too few stands for one player', v_bad; end if;
+  select s.station_id into v_bad from public.hr_town_stations s
+   where s.fallback is not null and (s.fallback = s.station_id
+     or not exists (select 1 from public.hr_town_stations f where f.map_id = s.map_id and f.station_id = s.fallback))
+   limit 1;
+  if v_bad is not null then raise exception 'town-stations: station % falls back to no other station of its map', v_bad; end if;
   foreach v_map in array array['town_common']::text[] loop
     select a.kind || ':' || a.activity_id into v_bad from public.hr_activities a
      where a.kind in ('gather', 'artisan')

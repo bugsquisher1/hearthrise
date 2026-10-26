@@ -74,11 +74,48 @@ export function resolve(hosts, a) {
 }
 
 /**
+ * THE REAL TOWN'S SHAPE (lane/b-town-map, L1: src/data/world/stations.js STATIONS + ACTIVITY_STATIONS) as this
+ * generator's rows, per map: kind idle -> 'idle' (ACTIVITY_STATIONS.idle) or 'bench' (another idle place: the
+ * benches), arrival / hunt -> 'arrive', service -> 'visit', gather / artisan / training -> 'work'; `stands` are
+ * primary then overflow (`primary` of them primary), each facing its station's nearest prop; `fallback` kept; the
+ * hosts from ACTIVITY_STATIONS (a skill, a node id, training, and `arrival`: where every hunt sets its heroes down).
+ * Pure. With no STATIONS export the seed's TOWN_STATIONS rows are used as they are.
+ */
+export function townStations(stations) {
+  const { STATIONS, ACTIVITY_STATIONS: A, TOWN_STATIONS } = stations;
+  if (!Array.isArray(STATIONS)) return TOWN_STATIONS || {};
+  const roleOf = (s) => (s.kind === 'idle' ? (s.id === A.idle ? 'idle' : 'bench') : s.kind === 'arrival' || s.kind === 'hunt' ? 'arrive'
+    : s.kind === 'service' ? 'visit' : ['gather', 'artisan', 'training'].includes(s.kind) ? 'work' : s.kind);
+  const hostsOf = (id) => [
+    ...Object.entries(A.gather || {}).filter(([, st]) => st === id).map(([skill]) => ({ kind: 'gather', skill })),
+    ...Object.entries(A.node || {}).filter(([, st]) => st === id).map(([node]) => ({ kind: 'gather', ids: [node] })),
+    ...Object.entries(A.artisan || {}).filter(([, st]) => st === id).map(([skill]) => ({ kind: 'artisan', skill })),
+    ...(A.training === id ? [{ kind: 'training' }] : []),
+    ...(A.arrival === id ? [{ kind: 'combat' }] : []),
+  ];
+  const out = {};
+  for (const s of STATIONS) {
+    const props = (s.props || []).map((p) => [p.x, p.y]);
+    const facing = ([x, y]) => {
+      let best = null, bd = Infinity;
+      for (const q of props) { const d = (q[0] - x) ** 2 + (q[1] - y) ** 2; if (d > 0 && d < bd) { bd = d; best = q; } }
+      return [x, y, facingOf(x, y, best)];
+    };
+    const tiles = (s.stands || []).map(facing);
+    const n = Number.isInteger(s.primary) ? s.primary : tiles.length;
+    (out[s.map] = out[s.map] || []).push({ id: s.id, role: roleOf(s), hosts: hostsOf(s.id), face: null,
+      stands: tiles.slice(0, n), overflow: tiles.slice(n), fallback: s.fallback || null });
+  }
+  return out;
+}
+
+/**
  * The catalogue rows for the data, validated. `walkable(mapId)` answers (x, y) -> boolean for a tile a hero
  * can stand on AND reach from the map's start (the compiled mask; tests may pass a stub).
  */
 export function catalogue(D, walkable) {
-  const { TOWN_STATIONS, TOWN_INSTANCE } = D.stations;
+  const { TOWN_INSTANCE } = D.stations;
+  const TOWN_STATIONS = townStations(D.stations);
   const towns = D.maps.WORLD_MAPS.filter((m) => m.kind === 'town');
   const problems = [];
   const P = (m) => problems.push(m);
@@ -112,7 +149,7 @@ export function catalogue(D, walkable) {
       if (face && !(face.length === 2 && face.every(Number.isInteger) && face[0] >= 0 && face[0] < w && face[1] >= 0 && face[1] < h)) P(row.id + '/' + s.id + ': face ' + JSON.stringify(face) + ' is off the map');
       const all = [...(s.stands || []).map((t) => [t, false]), ...(s.overflow || []).map((t) => [t, true])];
       if (!(s.stands || []).length) P(row.id + '/' + s.id + ': a station with no stands');
-      stations.push({ map: row.id, id: s.id, role: s.role, fx: face ? face[0] : null, fy: face ? face[1] : null, ord: ord + 1 });
+      stations.push({ map: row.id, id: s.id, role: s.role, fx: face ? face[0] : null, fy: face ? face[1] : null, ord: ord + 1, fallback: s.fallback || null });
       all.forEach(([t, over], i) => {
         const [x, y, d] = Array.isArray(t) ? t : [];
         const where = row.id + '/' + s.id + ' stand ' + (i + 1) + ' ' + JSON.stringify(t);
@@ -143,6 +180,9 @@ export function catalogue(D, walkable) {
       if (keys.has(k)) P(row.id + ': host ' + k + ' is claimed by two stations');
       keys.add(k);
     }
+    /* a full station's next hero goes to its fallback (another station of this map), then the benches */
+    for (const s of list) if (s && s.fallback && (s.fallback === s.id || !list.some((o) => o && o.id === s.fallback)))
+      P(row.id + '/' + s.id + ': fallback ' + s.fallback + ' is not another station of this map');
     const idle = list.filter((s) => s && s.role === 'idle');
     if (idle.length !== 1) P(row.id + ': ' + idle.length + ' idle stations (want exactly 1)');
     for (const a of known) {
@@ -167,7 +207,7 @@ export function buildSql(D, walkable) {
   const mapIds = 'array[' + C.maps.map((m) => lit(m.id)).join(', ') + ']::text[]';
   const nul = (v) => (v === null || v === undefined ? 'null' : String(v));
   const mapRows = C.maps.map((m) => `  (${lit(m.id)}, ${lit(m.id)}, ${m.w}, ${m.h}, ${I.players}, ${I.heroesPerPlayer}, ${I.view[0]}, ${I.view[1]}, ${I.margin}, ${I.cap}, ${m.main})`);
-  const stRows = C.stations.map((s) => `  (${lit(s.map)}, ${lit(s.id)}, ${lit(s.role)}, ${nul(s.fx)}, ${nul(s.fy)}, ${s.ord})`);
+  const stRows = C.stations.map((s) => `  (${lit(s.map)}, ${lit(s.id)}, ${lit(s.role)}, ${nul(s.fx)}, ${nul(s.fy)}, ${s.ord}, ${s.fallback ? lit(s.fallback) : 'null'})`);
   const sdRows = C.stands.map((s) => `  (${lit(s.map)}, ${lit(s.station)}, ${s.no}, ${s.x}, ${s.y}, ${lit(s.dir)}, ${s.over})`);
   const hRows = C.hosts.map((h) => `  (${lit(h.map)}, ${lit(h.kind)}, ${lit(h.skill)}, ${lit(h.id)}, ${lit(h.station)})`);
   const per = C.maps.map((m) => `${m.id} ${m.stands} stands = ${Math.min(I.players, Math.floor(m.stands / I.heroesPerPlayer))} players per instance`).join(', ');
@@ -200,8 +240,10 @@ create table if not exists public.hr_town_stations (
   face_x     smallint check (face_x between 0 and 255),
   face_y     smallint check (face_y between 0 and 255),
   ord        smallint not null check (ord >= 1),
+  fallback   text     check (fallback ~ '^[a-z0-9_]{1,40}$'),   -- where its full station's next hero goes, before the benches
   primary key (map_id, station_id)
 );
+alter table public.hr_town_stations add column if not exists fallback text check (fallback ~ '^[a-z0-9_]{1,40}$');
 create table if not exists public.hr_town_stands (
   map_id     text     not null,
   station_id text     not null,
@@ -240,7 +282,7 @@ ${mapRows.join(',\n')}
 delete from public.hr_town_station_hosts where map_id = any (${mapIds});
 delete from public.hr_town_stands where map_id = any (${mapIds});
 delete from public.hr_town_stations where map_id = any (${mapIds});
-insert into public.hr_town_stations (map_id, station_id, role, face_x, face_y, ord) values
+insert into public.hr_town_stations (map_id, station_id, role, face_x, face_y, ord, fallback) values
 ${stRows.join(',\n')};
 insert into public.hr_town_stands (map_id, station_id, stand_no, x, y, dir, overflow) values
 ${sdRows.join(',\n')};
@@ -297,6 +339,11 @@ begin
           or (select count(*) from public.hr_town_stands s where s.map_id = m.map_id) < m.heroes)
    limit 1;
   if v_bad is not null then raise exception 'town-stations: map % has not exactly one idle station or too few stands for one player', v_bad; end if;
+  select s.station_id into v_bad from public.hr_town_stations s
+   where s.fallback is not null and (s.fallback = s.station_id
+     or not exists (select 1 from public.hr_town_stations f where f.map_id = s.map_id and f.station_id = s.fallback))
+   limit 1;
+  if v_bad is not null then raise exception 'town-stations: station % falls back to no other station of its map', v_bad; end if;
   foreach v_map in array ${mapIds} loop
     select a.kind || ':' || a.activity_id into v_bad from public.hr_activities a
      where a.kind in ('gather', 'artisan')
@@ -382,6 +429,27 @@ async function selftest() {
   expectThrow('a stand with a bad facing', () => buildSql(withStations((l) => { at(l, 'arrival').stands[0][2] = 'up'; }), walk));
   expectThrow('an instance of 0 players', () => buildSql({ ...D, stations: { ...D.stations, TOWN_INSTANCE: { ...D.stations.TOWN_INSTANCE, players: 0 } } }, walk));
   expectThrow('a town map with no stations', () => buildSql({ ...D, stations: { ...D.stations, TOWN_STATIONS: {} } }, walk));
+  expectThrow('a fallback that is no station', () => buildSql(withStations((l) => { work(l).fallback = 'nowhere'; }), walk));
+  expectThrow('a station that falls back to itself', () => buildSql(withStations((l) => { work(l).fallback = work(l).id; }), walk));
+  /* THE REAL TOWN'S SHAPE (L1: STATIONS + ACTIVITY_STATIONS) reads into the same catalogue as the seed it is built from */
+  {
+    const seed = D.stations.TOWN_STATIONS[town];
+    const kindOf = { idle: 'idle', bench: 'idle', arrive: 'arrival', visit: 'service', work: 'gather' };
+    const A = { gather: {}, node: {}, artisan: {}, training: null, hunt: {}, huntDefault: null, arrival: null, idle: seed.find((x) => x.role === 'idle').id };
+    for (const st of seed) for (const h of st.hosts || []) {
+      if (h.kind === 'gather' && h.skill) A.gather[h.skill] = st.id;
+      if (h.kind === 'artisan' && h.skill) A.artisan[h.skill] = st.id;
+      if (h.kind === 'combat') A.arrival = st.id;
+    }
+    const STATIONS = seed.map((st) => ({ id: st.id, map: town, kind: kindOf[st.role], fallback: st.fallback || null,
+      props: st.face ? [{ id: 'prop', x: st.face[0], y: st.face[1] }] : [], stands: [...st.stands, ...st.overflow].map((t) => [t[0], t[1]]), primary: st.stands.length }));
+    const a = catalogue(D, walk), b = catalogue({ ...D, stations: { ...D.stations, STATIONS, ACTIVITY_STATIONS: A } }, walk);
+    const same = (k) => JSON.stringify(a[k].map((r) => [r.station || r.id, r.no, r.x, r.y, r.over, r.kind, r.skill])) === JSON.stringify(b[k].map((r) => [r.station || r.id, r.no, r.x, r.y, r.over, r.kind, r.skill]));
+    if (!same('stands') || !same('hosts') || b.stations.length !== a.stations.length) { console.error('  MISSED  the real town\'s shape does not read as its seed'); bad++; }
+    else console.log('  caught  nothing: the real town\'s shape reads as its seed (stands, overflow, hosts)');
+    const benches = catalogue({ ...D, stations: { ...D.stations, STATIONS: STATIONS.map((st) => st.id === 'east_green' ? { ...st, kind: 'idle' } : st), ACTIVITY_STATIONS: A } }, walk);
+    if ((benches.stations.find((st) => st.id === 'east_green') || {}).role !== 'bench') { console.error('  MISSED  a second idle place of the real town is not a bench'); bad++; }
+  }
   if (facingOf(7, 8, [6, 8]) !== 'w' || facingOf(6, 7, [6, 8]) !== 's' || facingOf(6, 9, [6, 8]) !== 'n' || facingOf(4, 8, [6, 8]) !== 'e') {
     console.error('  MISSED  a stand does not face its station'); bad++;
   } else console.log('  caught  a stand that does not face its station');

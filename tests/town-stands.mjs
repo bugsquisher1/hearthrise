@@ -202,6 +202,7 @@ const MUTANTS = [
   ['a delta reads every body again', "         where v_since is null or t.changed > v_since or (t.inside and not t.was_inside)", "         where true or t.changed > v_since or (t.inside and not t.was_inside)"],
   ['a peer\'s look is never re-read', "        where t.look is null or t.look_at < v_now - interval '60 seconds'", "        where t.look is null"],
   ['the arrival is ignored', "        perform public.hr_town_place(r.user_id, r.slot, p_map, v_from, 'arrive', r.ended_at);", "        perform public.hr_town_place_pointer(r.user_id, r.slot, p_map);"],
+  ['a full station skips its fallback', "when s.station_id = v_fallback then 1 when st.role = 'bench' then 2 else 3 end", "when st.role = 'bench' then 2 else 3 end"],
   ['hr_town_go takes a work station', "s.role in ('visit', 'idle', 'bench')) then", "s.role in ('visit', 'idle', 'bench', 'work')) then"],
 ];
 

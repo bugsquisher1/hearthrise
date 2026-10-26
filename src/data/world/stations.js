@@ -19,11 +19,14 @@
 // (supabase/migrations/2027-01-26-town-stands.sql): when a hero's town activity changes, a hunt
 // starts or ends, or it appears in town, Postgres holds the lowest free stand of its station in
 // its town instance under a unique key, so no two bodies ever hold one stand; a full station's
-// next hero takes its overflow, then the nearest free bench, then the nearest free stand. These
-// rows are mirrored into the server catalogue by tools/gen-town-stations.mjs
+// next hero takes its overflow, then its `fallback` station, then the nearest free bench, then the
+// nearest free stand. These rows are mirrored into the server catalogue by tools/gen-town-stations.mjs
 // (hr_town_stations, hr_town_stands, hr_town_station_hosts; `--check` is the twin guard), which
 // refuses a stand off the map, on a blocked or unreachable tile, or shared by two stations.
-//   TOWN_STATIONS[mapId] = [{ id, role, hosts?, face?, stands, overflow? }]
+//   TOWN_STATIONS[mapId] = [{ id, role, hosts?, face?, stands, overflow?, fallback? }]
+//   (THE REAL TOWN'S SHAPE, L1: STATIONS [{ id, map, kind, skill, props, stands, primary, fallback }] +
+//   ACTIVITY_STATIONS, is read by the generator directly when exported: tools/gen-town-stations.mjs
+//   townStations maps it onto these rows. TOWN_INSTANCE below stays in either shape.)
 //     id        station id ([a-z0-9_]{1,40}); a stand is (station id, stand index 1..N: the
 //               stands in order, then the overflow) on a whole tile [x, y]
 //     role      'work'   a town activity's place (hosts name the activities)
@@ -37,6 +40,7 @@
 //     face      the tile its stands face (the anvil, the woodpile): each stand's facing is derived
 //               from it; a stand may name its own as a third element, [x, y, 'n'|'s'|'e'|'w']
 //     stands / overflow  [[x, y], …], primary first
+//     fallback  another station of the map its full station's next hero goes to, before the benches
 // SEED (lane/c-town-stands, 2026-10-25): stations on TODAY's 24x14 Common, so the server half
 // replays and runs before the real town lands. lane/b-town-map (L1) replaces these rows with the
 // 192x116 town (Hearth Square, gatehouse, smithy yard, kitchen, mine, Westwood, shore, …) in this

@@ -95,6 +95,8 @@ import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { ROOT, serve, SDK_STUB, UID } from './_client-harness.mjs';
 import { roleForWeapon as ROLE_FOR_WEAPON } from '../src/data/hunt-roles.js';
+/* the stations as the server catalogue reads them (the seed's rows, or the real town's STATIONS) */
+import { townStations } from '../tools/gen-town-stations.mjs';
 
 const FIXTURE = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/hunt-envelope.json'), 'utf8'));
 const clone = (o) => JSON.parse(JSON.stringify(o));
@@ -147,7 +149,7 @@ function chainOf(base, fn) {
    arrival's for one back from a hunt), a hunter has none, a steered tile wins while it moved after the stand was
    taken, and the read names the viewer's own character too (the CLIENT drops it). ── */
 function fakeWorld(M) {
-  const row = M.stations.TOWN_STATIONS.town_common;
+  const row = townStations(M.stations).town_common;
   const standsOf = (role) => { const st = row.find((x) => x.role === role); return st.stands.concat(st.overflow).map((t, i) => ({ station: st.id, stand: i + 1, x: t[0], y: t[1] })); };
   const IDLE = standsOf('idle'), ARRIVE = standsOf('arrive');
   const pos = new Map();      // 'uid:slot' -> { uid, slot, map, x, y, gx, gy, dir, moved }: its steered tile (a walker is a CHARACTER)

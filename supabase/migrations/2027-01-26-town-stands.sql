@@ -25,6 +25,7 @@
 -- (player_state.active_kind / active_id) through the generated catalogue's one
 -- resolver (hr_town_station_for: id, then skill, then kind; else the idle
 -- station); the stand is the station's lowest free one, then its overflow,
+-- then its FALLBACK station's (the catalogue's: a river bank's is the shore),
 -- then the nearest free bench, then the nearest free stand anywhere. The
 -- catalogue sizes every instance (floor(stands / heroes) seats at most), so a
 -- free stand always exists. A hero that steers (hr_town_move, unchanged rules)
@@ -386,7 +387,7 @@ end $fn$;
 
 -- THE PLACE: hold a stand for (p_user, p_slot) at station p_station of p_map (its instance: its account's, or
 -- p_inst for a party move, or a new seat). Keeps the stand it already holds there; else the station's lowest free
--- stand, its overflow, the nearest free bench, the nearest free stand. p_from_station: it walks in from that
+-- stand, its overflow, its fallback station's lowest free stand, the nearest free bench, the nearest free stand. p_from_station: it walks in from that
 -- station (a hunt's arrival), else from where it stood. Takes the map lock, then the body row.
 create or replace function public.hr_town_place(p_user uuid, p_slot int, p_map text, p_station text, p_why text,
                                                p_since timestamptz default null, p_from_station text default null, p_inst int default null)
@@ -394,14 +395,15 @@ returns jsonb language plpgsql volatile security definer set search_path = publi
 declare
   v_map  public.hr_town_maps%rowtype;
   v_b    public.town_bodies%rowtype;
-  v_inst int; v_st text; v_no int; v_ax int; v_ay int; v_fx int; v_fy int;
+  v_inst int; v_st text; v_no int; v_ax int; v_ay int; v_fx int; v_fy int; v_fallback text;
   v_keep boolean := false;
 begin
   select * into v_map from public.hr_town_maps where map_id = p_map;
   if not found then return jsonb_build_object('ok', false, 'error', 'bad_map'); end if;
   select coalesce(s.face_x, (select d.x from public.hr_town_stands d where d.map_id = s.map_id and d.station_id = s.station_id order by d.stand_no limit 1)),
-         coalesce(s.face_y, (select d.y from public.hr_town_stands d where d.map_id = s.map_id and d.station_id = s.station_id order by d.stand_no limit 1))
-    into v_ax, v_ay from public.hr_town_stations s where s.map_id = p_map and s.station_id = p_station;
+         coalesce(s.face_y, (select d.y from public.hr_town_stands d where d.map_id = s.map_id and d.station_id = s.station_id order by d.stand_no limit 1)),
+         s.fallback
+    into v_ax, v_ay, v_fallback from public.hr_town_stations s where s.map_id = p_map and s.station_id = p_station;
   if not found or coalesce(p_why, '') not in ('work', 'arrive', 'idle', 'visit') then return jsonb_build_object('ok', false, 'error', 'unknown_station'); end if;
   perform public.hr_town_lock(p_map);
   select * into v_b from public.town_bodies where user_id = p_user and slot = p_slot for update;
@@ -428,8 +430,8 @@ begin
        and not exists (select 1 from public.town_bodies o
                         where o.map_id = p_map and o.inst = v_inst and o.station_id = s.station_id and o.stand_no = s.stand_no
                           and not (o.user_id = p_user and o.slot = p_slot))
-     order by case when s.station_id = p_station then 0 when st.role = 'bench' then 1 else 2 end,
-              case when s.station_id = p_station then s.stand_no else 0 end,
+     order by case when s.station_id = p_station then 0 when s.station_id = v_fallback then 1 when st.role = 'bench' then 2 else 3 end,
+              case when s.station_id = p_station or s.station_id = v_fallback then s.stand_no else 0 end,
               power(s.x - v_ax, 2) + power(s.y - v_ay, 2), s.station_id, s.stand_no
      limit 1;
     if v_st is null then return jsonb_build_object('ok', false, 'error', 'town_full'); end if;
@@ -1064,6 +1066,11 @@ begin
       select v_probe, 'zz_square', g + 1, g % 16, g / 16, 's', false from generate_series(0, 255) g;
     insert into public.hr_town_stands (map_id, station_id, stand_no, x, y, dir, overflow)
       select v_probe, 'zz_bench', g + 1, 30 + g, 30, 's', false from generate_series(0, 3) g;
+    -- a one-stand counter that falls back to a side yard (before the bench)
+    insert into public.hr_town_stations (map_id, station_id, role, face_x, face_y, ord, fallback) values
+      (v_probe, 'zz_side', 'visit', null, null, 4, null), (v_probe, 'zz_counter', 'visit', null, null, 3, 'zz_side');
+    insert into public.hr_town_stands (map_id, station_id, stand_no, x, y, dir, overflow) values
+      (v_probe, 'zz_counter', 1, 35, 35, 's', false), (v_probe, 'zz_side', 1, 20, 38, 's', false), (v_probe, 'zz_side', 2, 21, 38, 's', false);
     for v_i in 9..69 loop   -- 61 players, the first 60 + 1
       insert into public.town_seen (user_id, slot, seen_at) values (v_uids[v_i], 0, now()) on conflict (user_id, slot) do update set seen_at = now();
       v := public.hr_town_place(v_uids[v_i], 0, v_probe, 'zz_square', 'idle');
@@ -1094,6 +1101,12 @@ begin
     perform public.hr_town_merge_party(v_uids[11], v_probe);
     if (select b.inst from public.town_bodies b where b.user_id = v_uids[11] and b.slot = 0) <> 2 then
       raise exception 'town-stands §6(e): an account apart from its party leader did not join it'; end if;
+    -- FULL STATION -> ITS FALLBACK, BEFORE THE BENCH: two heroes at a one-stand counter (the bench is nearer to it)
+    if (public.hr_town_place(v_uids[9], 0, v_probe, 'zz_counter', 'visit')->'me'->>'station') is distinct from 'zz_counter'
+       or (public.hr_town_place(v_uids[20], 0, v_probe, 'zz_counter', 'visit')->'me'->>'station') is distinct from 'zz_side' then
+      raise exception 'town-stands §6(e): a full station did not send its next hero to its fallback'; end if;
+    perform public.hr_town_place(v_uids[9], 0, v_probe, 'zz_square', 'idle');
+    perform public.hr_town_place(v_uids[20], 0, v_probe, 'zz_square', 'idle');
     -- no two bodies on one stand across the whole probe (the index, and the count)
     if exists (select 1 from public.town_bodies b where b.station_id is not null
                 group by b.map_id, b.inst, b.station_id, b.stand_no having count(*) > 1) then

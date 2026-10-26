@@ -7,35 +7,35 @@
 // HTML. tests/shell-renderers.mjs fails the build on a row with no renderer or
 // a renderer with no row, so a launcher can never open an empty window.
 // ════════════════════════════════════════════════════════════════════════
-import { renderLaunchers } from './launcher.js?v=0.2.50';
-import { renderHudSettings } from './hud.js?v=0.2.50';
-import { renderHuntTopbar } from './widgets/hunt-topbar.js?v=0.2.50';
-import { renderPartyPanel } from './widgets/party-panel.js?v=0.2.50';
-import { renderAnalyzer } from './widgets/analyzer.js?v=0.2.50';
-import { renderActionBar } from './widgets/action-bar.js?v=0.2.50';
-import { renderConfigureAction } from './windows/configure-action.js?v=0.2.50';
-import { renderChat } from './windows/chat.js?v=0.2.50';
-import { renderFriends } from './windows/friends.js?v=0.2.50';
-import { renderInspect } from './windows/inspect.js?v=0.2.50';
-import { renderSettings } from './windows/settings.js?v=0.2.50';
-import { renderInventory } from './windows/inventory/index.js?v=0.2.50';
-import { renderWork } from './windows/work.js?v=0.2.50';
-import { renderCharacter } from './windows/character/index.js?v=0.2.50';
-import { renderHunts } from './windows/hunts.js?v=0.2.50';
-import { renderStorage } from './windows/storage.js?v=0.2.50';
-import { renderShop } from './windows/shop.js?v=0.2.50';
-import { renderHuntPrep } from './windows/hunt-prep.js?v=0.2.50';
-import { renderParty } from './windows/party.js?v=0.2.50';
-import { renderCharacters } from './windows/characters.js?v=0.2.50';
-import { renderAlerts } from './widgets/alerts.js?v=0.2.50';
-import { renderHuntSummary } from './windows/hunt-summary.js?v=0.2.50';
-import { renderReport } from './windows/report.js?v=0.2.50';
-import { renderDeath } from './windows/death.js?v=0.2.50';
-import { renderOnline } from './widgets/online.js?v=0.2.50';
-import { renderHouse } from './windows/house.js?v=0.2.50';
-import { renderFarm } from './windows/farm.js?v=0.2.50';
-import { renderTally } from './windows/tally.js?v=0.2.50';
-import { renderTallyHud } from './widgets/tally-hud.js?v=0.2.50';
+import { renderLaunchers } from './launcher.js?v=0.2.51';
+import { renderHudSettings } from './hud.js?v=0.2.51';
+import { renderHuntTopbar } from './widgets/hunt-topbar.js?v=0.2.51';
+import { renderPartyPanel } from './widgets/party-panel.js?v=0.2.51';
+import { renderAnalyzer } from './widgets/analyzer.js?v=0.2.51';
+import { renderActionBar } from './widgets/action-bar.js?v=0.2.51';
+import { renderConfigureAction } from './windows/configure-action.js?v=0.2.51';
+import { renderChat } from './windows/chat.js?v=0.2.51';
+import { renderFriends } from './windows/friends.js?v=0.2.51';
+import { renderInspect } from './windows/inspect.js?v=0.2.51';
+import { renderSettings } from './windows/settings.js?v=0.2.51';
+import { renderInventory } from './windows/inventory/index.js?v=0.2.51';
+import { renderWork } from './windows/work.js?v=0.2.51';
+import { renderCharacter } from './windows/character/index.js?v=0.2.51';
+import { renderHunts } from './windows/hunts.js?v=0.2.51';
+import { renderStorage } from './windows/storage.js?v=0.2.51';
+import { renderShop } from './windows/shop.js?v=0.2.51';
+import { renderHuntPrep } from './windows/hunt-prep.js?v=0.2.51';
+import { renderParty } from './windows/party.js?v=0.2.51';
+import { renderCharacters } from './windows/characters.js?v=0.2.51';
+import { renderAlerts } from './widgets/alerts.js?v=0.2.51';
+import { renderHuntSummary } from './windows/hunt-summary.js?v=0.2.51';
+import { renderReport } from './windows/report.js?v=0.2.51';
+import { renderDeath } from './windows/death.js?v=0.2.51';
+import { renderOnline } from './widgets/online.js?v=0.2.51';
+import { renderHouse } from './windows/house.js?v=0.2.51';
+import { renderFarm } from './windows/farm.js?v=0.2.51';
+import { renderTally } from './windows/tally.js?v=0.2.51';
+import { renderTallyHud } from './widgets/tally-hud.js?v=0.2.51';
 
 /* A renderer with `.patch` is a component: built once, then patched in place (src/shell/shell.js). */
 export const WINDOW_RENDERERS = Object.freeze({

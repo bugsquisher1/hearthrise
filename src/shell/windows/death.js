@@ -11,10 +11,10 @@
 // Closing it any way records the dismissal (death-popup.js followDeaths). Every
 // line is the server's death row; built once, patched in place.
 // ════════════════════════════════════════════════════════════════════════
-import { text, cls, prop } from '../../render/paint.js?v=0.2.50';
-import { deathPopupOf, deathWords, blessingsMissing } from '../death-popup.js?v=0.2.50';
-import { huntOf } from '../../session/hunt-sections.js?v=0.2.50';
-import { deathLogOf } from '../../session/character-sections.js?v=0.2.50';
+import { text, cls, prop } from '../../render/paint.js?v=0.2.51';
+import { deathPopupOf, deathWords, blessingsMissing } from '../death-popup.js?v=0.2.51';
+import { huntOf } from '../../session/hunt-sections.js?v=0.2.51';
+import { deathLogOf } from '../../session/character-sections.js?v=0.2.51';
 
 const LINES = Object.freeze(['killed', 'what', 'lost', 'saved', 'town']);
 const line = (k) => '<p class="hdeath-line hdeath-' + k + '"></p>';

@@ -15,8 +15,8 @@
 // PURE ESM. No DOM, no window, no timers, no Math.random.
 // ============================================================
 
-import { LEVEL_CURVE, SKILL_CURVE } from '../data/core-model.js?v=0.2.50';
-import { SKILLS_DEF } from '../data/skills.js?v=0.2.50';
+import { LEVEL_CURVE, SKILL_CURVE } from '../data/core-model.js?v=0.2.51';
+import { SKILLS_DEF } from '../data/skills.js?v=0.2.51';
 
 /* Threshold XP for level i+1. b215: the level-98 threshold (11,805,606)
    was missing for a long time, which capped levelFromXp at 98 and made

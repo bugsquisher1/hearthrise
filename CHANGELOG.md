@@ -5,6 +5,12 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.51 — 2026-10-26 (See more of Havora)
+
+**Zoom in town.** Havora now opens at a comfortable 2× on every desktop screen (wide screens were drawing even closer). Use the mouse wheel or the + and − buttons on the right to step out to 1× and see a whole district at once; the game remembers your choice.
+
+**Smoother return to town.** Coming back to Havora after a hunt no longer stutters for a moment while the town loads.
+
 ## v0.2.50 — 2026-10-26 (Welcome to Havora)
 
 **The town is now Havora.** A whole city to walk: arrive through the gatehouse, follow the main road over the bridge, and you reach Hearth Square, where the Great Hearth burns at the centre of town. The Shop and Storage face the fire, Tamsin's board stands beside it, and the kill-task hunter waits at the barracks.

@@ -16,18 +16,18 @@
 // (hr_tally_view). Every control is off while an intent is in flight; the window
 // changes only from the re-read envelope and her next answer.
 // ════════════════════════════════════════════════════════════════════════
-import { tallyOf, tallyLine, waitWords, pickWords } from '../../session/tally-sections.js?v=0.2.50';
-import { tallyBoard, takeTask, dropTask, setTally, collectTally } from '../../session/tally-intents.js?v=0.2.50';
-import { huntOf } from '../../session/hunt-sections.js?v=0.2.50';
-import { huntName } from '../../session/party-sections.js?v=0.2.50';
-import { goldOf } from '../../session/item-sections.js?v=0.2.50';
-import { TALLY_KEEPER, TALLY_RULES, tallyTask } from '../../data/tally-tasks.js?v=0.2.50';
-import { weightSentence, WEIGHT_ORDER } from '../../data/armour-weights.js?v=0.2.50';
-import { rows, text, cls, attr, prop, style, element } from '../../render/paint.js?v=0.2.50';
-import { whole, gold } from '../../render/format.js?v=0.2.50';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.50';
-import { itemName } from '../widgets/bits.js?v=0.2.50';
-import { runIntent, refusalText } from '../intent-words.js?v=0.2.50';
+import { tallyOf, tallyLine, waitWords, pickWords } from '../../session/tally-sections.js?v=0.2.51';
+import { tallyBoard, takeTask, dropTask, setTally, collectTally } from '../../session/tally-intents.js?v=0.2.51';
+import { huntOf } from '../../session/hunt-sections.js?v=0.2.51';
+import { huntName } from '../../session/party-sections.js?v=0.2.51';
+import { goldOf } from '../../session/item-sections.js?v=0.2.51';
+import { TALLY_KEEPER, TALLY_RULES, tallyTask } from '../../data/tally-tasks.js?v=0.2.51';
+import { weightSentence, WEIGHT_ORDER } from '../../data/armour-weights.js?v=0.2.51';
+import { rows, text, cls, attr, prop, style, element } from '../../render/paint.js?v=0.2.51';
+import { whole, gold } from '../../render/format.js?v=0.2.51';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.51';
+import { itemName } from '../widgets/bits.js?v=0.2.51';
+import { runIntent, refusalText } from '../intent-words.js?v=0.2.51';
 
 const SCRATCH = new WeakMap();
 /* `board` is her last answer (null until it comes), `asking` the read in flight, `stale` asks again,

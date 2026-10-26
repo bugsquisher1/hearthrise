@@ -17,13 +17,15 @@
 //                one short heading and one or two sentences each, searchable.
 //
 // No number is restated that the game holds elsewhere except the ruled ones
-// (8 h free stamina, 4 heroes at once, 2 starting slots); copy only.
+// (8 h free stamina, 4 heroes at once, 2 starting slots); copy only. The armor
+// weights' words and numbers are read from src/data/armour-weights.js.
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
 import { ITEMS } from './items.js?v=0.2.48';
 import { HUNT_ROLES, roleForWeapon, roleKeyOf } from './hunt-roles.js?v=0.2.48';
 import { STARTER_SETS } from './start-kit.js?v=0.2.48';
+import { WEIGHT_ORDER, weightSentence } from './armour-weights.js?v=0.2.48';
 
 const style = (id, role, weapons, name, does, uses) => Object.freeze({ id, role, weapons: Object.freeze(weapons), name, does, uses });
 
@@ -65,7 +67,8 @@ export const HELP_NOTES = Object.freeze([
   note('gold', 'What gold is for',
     'Store supplies cost gold as your hero uses them. In town the Shop sells gloves, belts, jewelry and tools, and its Services tab sells extra stamina and Blessings. Save up and you can buy another hero slot.'),
   note('armour', 'Armor and Defense',
-    'Defense rises only while your hero wears armor and takes blows. Monsters drop helmets, bodies, legs and boots; gloves and belts are armor too, and the Shop sells them. Heavy pieces add health, light pieces add mana. Any hero can wear any piece once its Level is high enough.'),
+    'Defense rises only while your hero wears armor and takes blows. Monsters drop helmets, bodies, legs and boots; gloves and belts are armor too, and the Shop sells them. '
+    + WEIGHT_ORDER.map(weightSentence).join(' ') + ' Pieces of different weights mix freely. Any hero can wear any piece once its Level is high enough.'),
   note('farm', 'Your farm',
     'Open the Farm (J) and plant a seed in an empty plot; your bag starts with turnip seeds. A crop grows while you hunt or play away, and watering makes it grow twice as fast for 2 hours. Harvest and replant puts the same crop back in, from your own seeds or one bought at the Shop\'s price; Harvest only leaves the plot empty.'),
   note('levels', 'Level and skills',

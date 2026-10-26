@@ -66,10 +66,12 @@ export const SCENERY = Object.freeze([
      a basket, sacks and a trough among the farm plots */
   ['water_trough', 62, 37], ['bellows', 64, 37], ['water_trough', 67, 38], ['bellows', 69, 38], ['water_trough', 60, 42], ['bellows', 62, 42],
   ['water_trough', 65, 43], ['bellows', 67, 43], ['weapon_rack', 65, 37], ['crates', 70, 38], ['sack_pile', 59, 43], ['barrels', 64, 42],
-  ['barrels', 67, 31], ['flour_sack', 74, 34], ['bucket', 66, 33],
+  ['barrels', 72, 32], ['flour_sack', 74, 34], ['bucket', 66, 33],
   ['hay_bale', 70, 67], ['armour_stand', 59, 66], ['barrels', 77, 69],
   ['barrel_broken', 137, 36], ['sack_tall', 136, 35], ['cart_wheel', 142, 38],
   ['corner_rubble', 142, 36], ['pebbles', 147, 34], ['pebbles', 157, 37], ['havora_scree_b', 156, 43], ['havora_scree_a', 150, 36],
+  ['havora_scree_c', 146, 38], ['pebbles', 152, 33], ['havora_scree_d', 157, 35], ['corner_rubble', 151, 42], ['pebbles', 159, 41],
+  ['havora_scree_a', 154, 46], ['pebbles', 149, 47], ['havora_scree_b', 144, 40],
   ['woodpile', -5, 45], ['chopping_block', -3, 44],
   ['hay_bale', 53, 83], ['basket', 30, 84], ['water_trough', 53, 87], ['sack_stack', 44, 84],
   /* THE ARRIVAL YARD south of the gatehouse (heroes back from a hunt stand at x78-89 y16-19, stations.js): lamps
@@ -95,7 +97,9 @@ export const PATCHES = Object.freeze([Object.freeze({ terrain: 'havora_square_pl
 export const BLEND = Object.freeze({
   pairs: Object.freeze(['havora_grass_earth', 'havora_grass_water', 'square_grass_flag', 'square_dirt_flag',
     /* lane/b-havora-art-2 (art/world/havora): the docks' and bridge's planks, the farm plots, the mountain's rock */
-    'havora_earth_planks', 'havora_water_planks', 'havora_grass_tilled', 'havora_grass_rock', 'havora_earth_rock']),
+    'havora_earth_planks', 'havora_water_planks', 'havora_grass_tilled', 'havora_grass_rock', 'havora_earth_rock',
+    /* lane/b-havora-polish: the quarry's gravel floor against the rock and the cart path */
+    'havora_gravel_rock', 'havora_earth_gravel']),
   alias: Object.freeze({ cobble: 'flagstone', palisade: 'grass' }),
 });
 

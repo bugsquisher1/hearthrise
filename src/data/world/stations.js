@@ -76,10 +76,11 @@ const ANVILS = [['anvil', 62, 38], ['anvil', 64, 38], ['anvil', 67, 39], ['anvil
   ['anvil', 65, 44], ['anvil', 67, 44]];
 const BENCHES = [['workbench', 71, 40], ['workbench', 73, 40], ['workbench', 71, 44], ['workbench', 73, 45], ['workbench', 75, 44], ['workbench', 77, 45],
   ['grindstone', 69, 42], ['grindstone', 75, 42]];
-/* the tavern's cook yard (its earth now reaches the tavern's back door, town/ground.js): 8 cook fires (2 x 1) in
-   two kitchens either side of the back door, four fires each, two cooks at each */
-const FIRES = [['hearth', 60, 29], ['hearth', 63, 30], ['hearth', 61, 32], ['hearth', 64, 33], ['hearth', 68, 29], ['hearth', 71, 30],
-  ['hearth', 69, 32], ['hearth', 72, 33]];
+/* THE TAVERN'S COOK YARD (lane/b-havora-polish 2026-10-26, Tyler: the forge-sprite fires read as a second smithy): an
+   outdoor kitchen at the back door in its own style-1 art: a bread oven against the wall either side of the door, a
+   cauldron on its tripod by each, two spit fires out in the yard and the prep tables between them; two cooks at each */
+const FIRES = [['havora_bread_oven', 60, 28], ['havora_cook_cauldron', 63, 29], ['havora_bread_oven', 68, 28], ['havora_cook_cauldron', 71, 29],
+  ['havora_cook_spit', 61, 32], ['havora_cook_spit', 66, 31], ['havora_prep_table', 64, 34], ['havora_prep_table', 69, 33]];
 /* the training yard: 8 dummies scattered over the yard, three fighters to a dummy */
 const DUMMIES = [['dummy', 62, 64], ['dummy', 66, 66], ['dummy', 71, 63], ['dummy', 75, 65], ['dummy', 63, 70], ['dummy', 68, 71],
   ['dummy', 73, 69], ['dummy', 76, 72]];
@@ -88,9 +89,8 @@ const DUMMIES = [['dummy', 62, 64], ['dummy', 66, 66], ['dummy', 71, 63], ['dumm
    seams along the east face and by the low outcrop; copper nearest the mouth, the Common's rocks in the middle, coal at the
    back (the art lane's ore samples) */
 const ORE = (x) => (x <= 148 ? 'ore_copper_rock' : x <= 155 ? 'rocks' : 'ore_coal_rock');
-const ROCKS = [[145, 31], [147, 31], [146, 32], [148, 31], [152, 31], [155, 31], [153, 32], [156, 31], [160, 32], [162, 32], [159, 34],
-  [162, 41], [160, 42], [162, 43], [150, 38], [151, 40], [153, 40], [143, 34], [144, 36], [146, 43], [147, 44], [149, 44],
-  [159, 45], [160, 46]].map(([x, y]) => [ORE(x), x, y]);
+const ROCKS = [[145, 30], [146, 30], [148, 31], [144, 32], [154, 30], [156, 30], [158, 32], [153, 32], [160, 32], [161, 33], [159, 32],
+  [150, 40], [154, 40], [156, 38], [163, 40], [162, 42], [150, 44], [157, 44], [142, 34], [143, 36], [146, 43], [148, 43], [160, 47], [158, 48]].map(([x, y]) => [ORE(x), x, y]);
 const ALTARS = [['rune_block', 150, 48], ['rune_block', 152, 47], ['rune_block', 155, 48], ['rune_block', 157, 47]];
 /* the Westwood: 40 trees in groves with clearings between and a few strays (the west groves the art lane's 2 x 2 yews
    and ashes, the rest the Common's pines and oaks), listed from the grove by the west gate outward, so the first woodcutters stand
@@ -150,7 +150,7 @@ const ROWS = [
   /* THE TAVERN'S COOK YARD: two to a fire */
   { id: 'tavern_kitchen', district: 'tavern', kind: 'artisan', skill: 'cooking', opens: skill('cooking'), props: FIRES,
     stands: FIRES.flatMap(([, x, y]) => [[x, y + 1], [x + 1, y + 1]]),
-    overflow: [[66, 30], [65, 31], [66, 32], [67, 30], [68, 31], [67, 33], [63, 32], [68, 34], [62, 30], [70, 29], [63, 34], [70, 34], [62, 34], [67, 35]], fallback: 'square_benches' },
+    overflow: [[65, 31], [68, 30], [64, 32], [68, 32], [69, 31], [63, 31], [67, 33], [62, 31], [70, 31], [67, 34], [63, 34], [61, 30], [66, 35], [68, 34]], fallback: 'square_benches' },
   /* THE TRAINING YARD: three to a dummy */
   { id: 'training_yard', district: 'training', kind: 'training', opens: win('hunts'), props: DUMMIES,
     stands: DUMMIES.flatMap(([, x, y]) => [[x, y + 1], [x - 1, y + 1], [x + 1, y + 1]]), overflow: [], fallback: 'square_benches' },
@@ -158,7 +158,7 @@ const ROWS = [
   { id: 'westwood', district: 'westwood', kind: 'gather', skill: 'woodcutting', opens: skill('woodcutting'), props: TREES,
     stands: treeStands(TREES), overflow: [], fallback: 'square_benches' },
   { id: 'mine', district: 'mine', kind: 'gather', skill: 'mining', opens: skill('mining'), props: ROCKS,
-    stands: south(ROCKS), overflow: [[151, 37], [150, 40], [154, 40], [149, 38], [156, 39], [155, 41]], fallback: 'square_benches' },
+    stands: south(ROCKS), overflow: [[149, 39], [155, 39], [148, 42], [156, 41], [152, 35], [147, 40]], fallback: 'square_benches' },
   { id: 'rune_block', district: 'mine', kind: 'artisan', skill: 'runecrafting', opens: skill('runecrafting'), props: ALTARS,
     stands: F(150, 49, 8, 1), overflow: F(150, 50, 7, 1), fallback: 'square_benches' },
   { id: 'shore', district: 'shore', kind: 'gather', skill: 'fishing', opens: skill('fishing'), props: [['bucket', 48, 92]],

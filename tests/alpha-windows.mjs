@@ -2199,11 +2199,16 @@ async function tickerMutant(over) {
   } finally { rmSync(tmp, { recursive: true, force: true }); }
 }
 
-/* The edge-body mutant is a pure module: run AW-0 against the planted text. */
+/* The edge-body mutant is a pure module: run AW-0 against the planted text, imported from a temp copy of src (a
+   data: URL cannot resolve its relative imports, e.g. ./refusal.js since say-why). */
 async function pureMutant(text) {
-  const url = 'data:text/javascript;base64,' + Buffer.from(text).toString('base64');
-  const { edgeBody } = await import(url);
-  return edgeBody(0, 'shop_buy', { offer: 'supply.wheat_bread', qty: 2, price: 1 }, 'x') ? ['AW-0 edgeBody let a price field through'] : [];
+  const tmp = mkdtempSync(join(tmpdir(), 'hr-edgebody-'));
+  try {
+    cpSync(join(ROOT, 'src'), join(tmp, 'src'), { recursive: true, filter: (p) => !/[\\/]vendor([\\/]|$)/.test(p.slice(ROOT.length)) });
+    writeFileSync(join(tmp, 'src/session/edge-intents.js'), text);
+    const { edgeBody } = await import(pathToFileURL(join(tmp, 'src/session/edge-intents.js')).href);
+    return edgeBody(0, 'shop_buy', { offer: 'supply.wheat_bread', qty: 2, price: 1 }, 'x') ? ['AW-0 edgeBody let a price field through'] : [];
+  } finally { rmSync(tmp, { recursive: true, force: true }); }
 }
 
 main();

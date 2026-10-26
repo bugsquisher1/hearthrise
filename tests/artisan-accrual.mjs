@@ -1509,13 +1509,12 @@ export const MUTATIONS = [
     [ENGINE, "  if (grantMs < accrueFloorMs(inp.activeKind) && accrualCaller(inp) === 'accrue') {",
       '  if (false) {'],
   ], 'a client polling every second writes a ledger row every second', /T10a|sub-threshold/],
-  /* M1 RE-ANCHORED (b569): `bag[id] = have - take;` now occurs twice in the engine
-     (the combat sink grew the same removeItem), so the old anchor matched 2 lines
-     and the mutant never planted. The artisan sink's `nat(bag[id], 0)` read is
-     unique; the defect is the same — the delta debits, the bag is never spent. */
+  /* M1 RE-ANCHORED (v0.2.48): since SKILLS FROM STORAGE the artisan sink reads the
+     SUPPLY (bag + Storage), `nat(supply[id], 0)`, unique in the engine; the defect is
+     the same — the delta debits, the bag (and the supply) is never spent. */
   ['M1  the input debit does not spend the bag', [
-    [ENGINE, '      const have = Math.floor(nat(bag[id], 0));',
-      '      const have = Math.floor(nat(bag[id], 0)); itemDelta[id] = (itemDelta[id] || 0) - Math.min(n, have); return;'],
+    [ENGINE, '      const have = Math.floor(nat(supply[id], 0));',
+      '      const have = Math.floor(nat(supply[id], 0)); itemDelta[id] = (itemDelta[id] || 0) - Math.min(n, have); return;'],
   ], 'production is bounded by the clock instead of by the server inventory'],
   ['M9  "make N" never caps the run (lane c-work-fixes)', [
     [ENGINE, '    maxActions: runCap(inp.actionBudget, left0),', '    maxActions: runCap(inp.actionBudget, null),'],

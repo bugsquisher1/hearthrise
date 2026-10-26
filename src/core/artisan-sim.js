@@ -98,10 +98,9 @@ export const STOP_REASON = Object.freeze({
   /* The next action's product would open a NEW stack in a bag already at its
      cap (`ctx.bagCap`, hr_apply's bank_full fuse). A stop like SUPPLIES: the
      bench cannot run until the player makes room, so the caller clears the
-     pointer and SAYS WHY instead of proposing a settle the server refuses
-     (which the degrade ladder would grind down to a forfeit, the bench still
-     "running"). Reachable since inputs come from Storage too: a bag that never
-     empties an input stack never frees a slot (Tyler 2026-10-25). */
+     pointer and SAYS WHY instead of proposing a settle hr_apply refuses (the
+     degrade ladder would grind it to a forfeit). Reachable since inputs come
+     from Storage (Tyler 2026-10-25): a bag whose input stacks never empty. */
   BAG_FULL: 'bag_full',
 });
 

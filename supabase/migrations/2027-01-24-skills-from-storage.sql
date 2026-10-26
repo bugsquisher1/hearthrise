@@ -5,6 +5,9 @@
 -- STAGED (lane/c-skills-from-storage, backend-architect, 2026-10-25). Game CLOSED: applies on its
 -- passing §7 (CLAUDE.md §2). ITEM SURFACE (a consumer of the ACCOUNT's Storage): on the Steam EA
 -- Security review list beside 2027-01-10-house-from-storage.sql.
+-- RESTATEMENT-DEBT-ACK: hr_apply (the economy's single write path, 150k chars) takes FIVE anchored
+-- edits in §2, as gear-by-level and account-gold did; restating the whole body for one draw order
+-- is the larger risk. (Header form added by lane/a-v0248-ci: the §2 note's inline ack was not read.)
 --
 -- ── THE RULE, AS BUILT ───────────────────────────────────────────────────────
 --   Every town skill that SPENDS an item takes it from the acting hero's bag first and the rest

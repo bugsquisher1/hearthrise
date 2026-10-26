@@ -647,6 +647,24 @@ jobs:
           node tests/town-walk.mjs
           node tools/mutant-gate.mjs node tests/town-walk.mjs --mutate
 
+      # THE REAL TOWN'S STANDS (2026-10-25, Tyler: heroes stacked on one tile; L2 of the
+      # real-town plan): the SERVER places every body on a stand of its activity's station
+      # (2027-01-28-town-stands.sql), one body a stand, in town instances of 60 players,
+      # read through a windowed delta (hr_town_view). The catalogue is generated from
+      # src/data/world/stations.js and the town map rows (--check is the twin guard, its
+      # refusals --selftest: a stand off the map, on a blocked tile, shared, an activity
+      # that lands nowhere); the guard plays the verbs on a replayed chain call by call
+      # with the real clock: closed-browser workers on their stands, the viewed hero
+      # placed, steered, moved and sent to a counter, a hunt out (gone) and back (the
+      # arrival), an empty delta. --mutate plants 6 defects in the migration.
+      - name: Town stands — every body on its server stand
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/gen-town-stations.mjs --check
+          node tools/mutant-gate.mjs node tools/gen-town-stations.mjs --selftest
+          node tests/town-stands.mjs
+          node tools/mutant-gate.mjs node tests/town-stands.mjs --mutate
+
       # THE PHONE (QA's phone playtest 2026-10-24 scored mobile 4/10): Configure
       # action scrolls inside its sheet with Save and the close in reach (667x375
       # to 922x423) and the page never pans sideways; Hunt details toggles the

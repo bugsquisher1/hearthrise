@@ -474,13 +474,13 @@ async function checks(overrides) {
   return fails;
 }
 
-/* WC-8 THE TOWN ZOOM (Tyler 2026-10-26, "a bit too zoomed in"; src/world/town-zoom.js, src/data/world/view-zoom.js).
-   At 1440x900 the town opens at x1 with its + / − on the stage (− off at the end); at every zoom a press on a
-   ground tile walks to THAT tile and a right-click on the peer names the peer; + draws x2 on the next frame with
-   the hero on screen and puts `townZoom: 2` into the residue (one hr_put_client_state); the wheel steps back.
-   Reloaded with that residue the town opens at x2. On the phone (922x423) there is no control and the screen
-   class's x2 stays. */
-const TAP_AT = { x1: [11, 12], x2: [13, 12] };   // the arrival yard, south of the stand (a new tile per zoom: the hero stands on the last)
+/* WC-8 THE TOWN ZOOM (Tyler 2026-10-26: "a bit too zoomed in", then "I think 2x is fine"; src/world/town-zoom.js,
+   src/data/world/view-zoom.js). At 1440x900 the town opens at x2 with its + / − on the stage (+ off at the end);
+   at every zoom a press on a ground tile walks to THAT tile and a right-click on the peer names the peer; − draws
+   x1 on the next frame with the hero on screen and puts `townZoom: 1` into the residue (one hr_put_client_state);
+   the wheel steps back to x2. Reloaded with that residue the town opens at x1. A 2560 px window draws the town at
+   x2 too (no longer the wide x3). On the phone (922x423) there is no control and the screen class's x2 stays. */
+const TAP_AT = { x2: [11, 12], x1: [13, 12] };   // the arrival yard, south of the stand (a new tile per zoom: the hero stands on the last)
 async function townZoom(browser, base) {
   const fails = [];
   const zoomNow = (page) => page.evaluate(() => window.__world.stats().z);
@@ -506,33 +506,33 @@ async function townZoom(browser, base) {
     page.on('request', (r) => { if (r.url().includes('hr_put_client_state')) { try { puts.push(JSON.parse(r.postData() || '{}').p_patch); } catch (e) { puts.push(null); } } });
     if (!up) fails.push('WC-8 the town did not mount');
     else {
-      if ((await zoomNow(page)) !== 1) fails.push('WC-8 the desktop town opens at x' + (await zoomNow(page)) + ', want x1');
+      if ((await zoomNow(page)) !== 2) fails.push('WC-8 the desktop town opens at x' + (await zoomNow(page)) + ', want x2');
       if (!(await shown(page))) fails.push('WC-8 no zoom control on the desktop town');
-      if (!(await page.evaluate(() => document.querySelector('.world-zoom [data-zoom="-1"]').disabled))) fails.push('WC-8 − is on at the widest zoom');
-      await hits(page, 'x1');
-      await press(page, '.world-zoom [data-zoom="1"]');
+      if (!(await page.evaluate(() => document.querySelector('.world-zoom [data-zoom="1"]').disabled))) fails.push('WC-8 + is on at the closest zoom');
+      await hits(page, 'x2');
+      await press(page, '.world-zoom [data-zoom="-1"]');
       await settle(page);
-      if ((await zoomNow(page)) !== 2) fails.push('WC-8 + did not draw x2 (z ' + (await zoomNow(page)) + ')');
+      if ((await zoomNow(page)) !== 1) fails.push('WC-8 − did not draw x1 (z ' + (await zoomNow(page)) + ')');
       const onScreen = await page.evaluate(() => { const c = document.querySelector('#panel-world canvas').getBoundingClientRect(), h = window.__world.stats().walk.cell, p = window.__world.screenOf(h[0], h[1]);
         return p.x > c.left && p.x < c.right && p.y > c.top && p.y < c.bottom; });
-      if (!onScreen) fails.push('WC-8 the hero left the screen at x2');
-      await hits(page, 'x2');
+      if (!onScreen) fails.push('WC-8 the hero left the screen at x1');
+      await hits(page, 'x1');
       await page.waitForTimeout(1900);   // the residue debounce (SESSION_CONFIG.residueDebounceMs)
-      if (!puts.some((p) => p && p.townZoom === 2)) fails.push('WC-8 the pick was not put into the residue: ' + JSON.stringify(puts));
+      if (!puts.some((p) => p && p.townZoom === 1)) fails.push('WC-8 the pick was not put into the residue: ' + JSON.stringify(puts));
       const c = await page.evaluate(() => { const r = document.querySelector('#panel-world canvas').getBoundingClientRect(); return [r.left + r.width / 3, r.top + r.height / 3]; });
       await page.mouse.move(c[0], c[1]);
-      await page.mouse.wheel(0, 120);
+      await page.mouse.wheel(0, -120);
       await settle(page);
-      if ((await zoomNow(page)) !== 1) fails.push('WC-8 the wheel did not step back to x1 (z ' + (await zoomNow(page)) + ')');
+      if ((await zoomNow(page)) !== 2) fails.push('WC-8 the wheel did not step back to x2 (z ' + (await zoomNow(page)) + ')');
     }
     if (errors.length) fails.push('WC-8 console errors: ' + errors.slice(0, 3).join(' | '));
     await ctx.close();
   }
-  {
-    const { ctx, page, errors, up } = await enter(browser, base, { width: 1440, height: 900 }, { townZoom: 2 });
-    if (!up) fails.push('WC-8 the town did not mount (reload)');
-    else if ((await zoomNow(page)) !== 2) fails.push('WC-8 reloaded with townZoom 2 the town opens at x' + (await zoomNow(page)));
-    if (errors.length) fails.push('WC-8 console errors (reload): ' + errors.slice(0, 3).join(' | '));
+  for (const [vp, residue, want, tag] of [[{ width: 1440, height: 900 }, { townZoom: 1 }, 1, 'reload'], [{ width: 2560, height: 1271 }, null, 2, '2560 wide']]) {
+    const { ctx, page, errors, up } = await enter(browser, base, vp, residue || undefined);
+    if (!up) fails.push('WC-8 the town did not mount (' + tag + ')');
+    else if ((await zoomNow(page)) !== want) fails.push('WC-8 [' + tag + '] the town opens at x' + (await zoomNow(page)) + ', want x' + want);
+    if (errors.length) fails.push('WC-8 console errors (' + tag + '): ' + errors.slice(0, 3).join(' | '));
     await ctx.close();
   }
   {

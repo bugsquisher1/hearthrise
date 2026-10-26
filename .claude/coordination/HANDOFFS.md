@@ -110,3 +110,15 @@ grass/sand + sand/water (the sea shore), earth/tilled (farm plots), earth/planks
 square_* hall style (create_image_pro, style = square_bank): gatehouse + walls, bridge (span), tavern P07, fisher_guild,
 harbor_office + docks, training yard dummies, sewer works, guild hall, homes P01-P15 (sample of 5 first). The renderer
 already draws any new wang16 pair: add its id to BLEND in src/data/world/town/sites.js.
+
+## 2026-10-26 · art lane (havora-art-3) → Coordinator (lane/b-havora-art-2) · Havora's lots, wall, docks, farm, rock, kerb
+Every placeholder site is now a style-1 sprite (new set art/world/havora, loaded via ATLAS_SETS; SITES is empty): gatehouse
+(moved to plan y5, 16x10, it straddles the palisade), tavern, bridge (walked on), harbour guild house, sewer works, fishers'
+guild, harbour office, homes P01-P15 (each different: crooked shacks NW, town lots, mountain lodges, waterfront estates).
+New art-budget classes: lot, bridge, palisade, palisade_v ('bridge' is in OPEN_CLASSES). Palisade = sliced log strips laid by
+town/palisade.js (the palisade material is now open ground under its blocking sprites, aliased to grass). New wang16 pairs in
+BLEND: earth/planks + water/planks (docks), grass/tilled (farm), grass/rock + earth/rock (mountain). Hearth Square's paving
+patch is havora_square_plaza (square_plaza + a baked kerb ring: decals on the edge would sit under stands, ST-2). Mountain
+scree decals: town/mountain.js. maskHash d639329e. Shots: art/review/havora-art-3-2026-10-26/ (11 views + 3 extras).
+Still open: the 4x4 smithy and mill look small beside the new lots; the mountain is flat rock (no cliff faces); the arrival
+yard is a wide bare dirt field. PixelLab: 620 subscription generations (4319.4 → 3699.4), no USD credits.

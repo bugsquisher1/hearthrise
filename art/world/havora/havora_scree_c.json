@@ -1,0 +1,42 @@
+{
+  "id": "havora_scree_c",
+  "class": "decal",
+  "style": "s1",
+  "material": "stone",
+  "source": "havora_scree_c.png",
+  "frame": [
+    32,
+    36
+  ],
+  "anchor_px": [
+    16,
+    35
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_image_pro",
+    "image": "a693485d-1f17-4628-ade1-d4519fb2c916",
+    "index": 7,
+    "seed": 811,
+    "size": [
+      64,
+      64
+    ],
+    "cost": 10,
+    "style": "common/rocks"
+  },
+  "notes": "Scree on Havora's mountain rock (candidate 7 of a 16-candidate create_image_pro sheet, style common/rocks): scattered by town/mountain.js."
+}

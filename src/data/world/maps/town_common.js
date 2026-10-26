@@ -6,22 +6,24 @@
 // coordinates in ../town/*.js and ../stations.js; this file only puts it together:
 //   ground     ../town/ground.js (the blueprint's ground, traced x2, with the plan's districts)
 //   buildings  ../town/sites.js SITES: PLACEHOLDER FOOTPRINTS (painted, closed: they block a step,
-//              their art is the art lane's) on `site` ground
-//   objects    the road wear (../town/wear.js), the style-1 scenery (the smithy and the mill are whole sprites), every station's props,
-//              the trees of the green ground
+//              their art is the art lane's) on `site` ground; none is left (every lot is a SCENERY sprite)
+//   objects    the road wear (../town/wear.js), the style-1 scenery (every building and lot a whole sprite), every
+//              station's props, the trees of the green ground, the palisade (../town/palisade.js) and the
+//              mountain's scree (../town/mountain.js)
 //   stations   one stand of each kind the map lint checks (combat, gather, artisan, idle); every
 //              station and its full stand list is ../stations.js
 // ART: the town has no one ground (ground: null). Its ground is BLENDED from the Common family's wang16
 // pairs (BLEND in ../town/sites.js: grass, the dirt roads, the river and sea banks, the flagstone
 // yards, all one tileset family chained from the same grass and dirt tiles), drawn on the dual grid
 // (compose.js blendTiles); Hearth Square's paving is a patch over it. A material no pair draws yet
-// (the mountain rock, the docks' planks, tilled plots, the placeholder sites) stays a placeholder tone.
+// (a placeholder site) stays a placeholder tone.
 import { at, TOWN_NAME, TOWN_MAP } from '../town/plan.js?v=0.2.47';
 import { GROUND_ROWS } from '../town/ground.js?v=0.2.47';
 import { SITES, SCENERY, EXITS, PATCHES, AMBIENT, BLEND } from '../town/sites.js?v=0.2.47';
 import { GREENERY } from '../town/greenery.js?v=0.2.47';
 import { WEAR } from '../town/wear.js?v=0.2.47';
 import { PALISADE } from '../town/palisade.js?v=0.2.47';
+import { SCREE } from '../town/mountain.js?v=0.2.47';
 import { STATIONS, STATION_BY_ID, ACTIVITY_STATIONS } from '../stations.js?v=0.2.47';
 
 const tile = (x, y) => { const [mx, my] = at(x, y); return { x: mx, y: my }; };
@@ -54,6 +56,7 @@ export default Object.freeze({
     ...STATIONS.flatMap((s) => s.props),
     ...GREENERY.map(([id, x, y]) => Object.freeze(Object.assign({ id }, tile(x, y)))),
     ...PALISADE.map(([id, x, y]) => Object.freeze(Object.assign({ id }, tile(x, y)))),
+    ...SCREE.map(([id, x, y]) => Object.freeze(Object.assign({ id }, tile(x, y)))),
     ...WEAR.map(([id, x, y]) => Object.freeze(Object.assign({ id: 'square_decal_' + id }, tile(x, y)))),
   ]),
   buildings: Object.freeze(SITES.map(site)),

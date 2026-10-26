@@ -5,12 +5,12 @@
 // map row. What a station is built of (counters, forges, trees, rocks) is the
 // station's own `props` (../stations.js), never repeated here.
 //
-// SITES: every building of Blueprint v0.5 x2 that has no style-1 art yet is a
+// SITES: a building of Blueprint v0.5 x2 that has no style-1 art yet is a
 // PLACEHOLDER FOOTPRINT: a painted, closed building (map-compile.js) on `site`
 // ground, drawn as a flat dark block (--world-ground-site-*). It blocks a step
 // like the building will; its door is where its front will be. The art lane
-// replaces each one, district by district, with a whole style-1 sprite in
-// SCENERY (so far: the smithy, the mill, Hearth Square's ring and the Great Hearth).
+// replaces each one with a whole style-1 sprite in SCENERY whose footprint is the
+// lot (lane/b-havora-art-2, 2026-10-26: every lot has its art, art/world/havora).
 // [id, x, y, w, h, door side, door offset?] — the door sits mid-side ('s' south … 'w' west), or
 // `offset` tiles along that side from its north-west end.
 //
@@ -62,8 +62,8 @@ export const EXITS = Object.freeze([
   Object.freeze({ x: 88, y: 34, to: 'mill_cellar' }), Object.freeze({ x: 46, y: 67, to: 'millrace_sewer' }),
 ]);
 
-/* the districts whose painted ground has landed (map-compile.js `patches`): Hearth Square's paving, 24 x 24 */
-export const PATCHES = Object.freeze([Object.freeze({ terrain: 'square_plaza', rect: Object.freeze([106, 36, 24, 24]) })]);
+/* the districts whose painted ground has landed (map-compile.js `patches`): Hearth Square's paving, 24 x 24, framed by its kerb */
+export const PATCHES = Object.freeze([Object.freeze({ terrain: 'havora_square_plaza', rect: Object.freeze([106, 36, 24, 24]) })]);
 
 /* THE GROUND (map-compile.js `blend`): the Common family's wang16 pairs, every one chained from the same grass
    and dirt tiles (art/world/common/havora_*: recovered from the painted Common grounds; square_*_flag: the

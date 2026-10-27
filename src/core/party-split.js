@@ -31,7 +31,7 @@
 // PURE ESM, dual-runtime. No clock, no dice of its own, no Math.random.
 // ============================================================
 
-import { PARTY } from '../data/party.js?v=0.2.56';
+import { PARTY } from '../data/party.js?v=0.2.57';
 
 /* THE RARE ROLL'S ROTATION, persisted on the instance world (world-state.js composes it):
    the unit ids of the heroes who have won a rare roll since everyone last had one. A settle

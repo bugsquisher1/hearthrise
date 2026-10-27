@@ -15,16 +15,16 @@
 // server's answer held as window scratch — never the record, and nothing can
 // spend them: Join is the server's own check under its lock.
 // ════════════════════════════════════════════════════════════════════════
-import { WEAPON_ROLES, HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.56';
-import { WEAPON_WORDS } from '../../data/hunt-hud.js?v=0.2.56';
-import { finderRows, huntName, partyMembershipOf } from '../../session/party-sections.js?v=0.2.56';
-import { roleOf } from '../../session/item-sections.js?v=0.2.56';
-import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.56';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.56';
-import { refusalWords, runIntent } from '../intent-words.js?v=0.2.56';
-import { patchRoleGlyph } from '../widgets/bits.js?v=0.2.56';
-import { listParty } from '../../session/party-intents.js?v=0.2.56';
-import { huntRows } from '../hunt-list.js?v=0.2.56';
+import { WEAPON_ROLES, HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.57';
+import { WEAPON_WORDS } from '../../data/hunt-hud.js?v=0.2.57';
+import { finderRows, huntName, partyMembershipOf } from '../../session/party-sections.js?v=0.2.57';
+import { roleOf } from '../../session/item-sections.js?v=0.2.57';
+import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.57';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.57';
+import { refusalWords, runIntent } from '../intent-words.js?v=0.2.57';
+import { patchRoleGlyph } from '../widgets/bits.js?v=0.2.57';
+import { listParty } from '../../session/party-intents.js?v=0.2.57';
+import { huntRows } from '../hunt-list.js?v=0.2.57';
 
 const SCRATCH = new WeakMap();
 

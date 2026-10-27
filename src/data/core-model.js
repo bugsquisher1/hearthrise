@@ -12,17 +12,54 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-/* THE LEVEL CURVE (Q1, re-ruled after Tyler's 10-19 review: slower). Total XP to
-   reach Level L = quartic x (L-1)^4 + cubic x (L-1)^3 + linear x (L-1): an integer,
-   0 at Level 1, endless (L100 ~ 540 h, L200 ~ 4,000 h in range). */
-export const LEVEL_CURVE = Object.freeze({ quartic: 1, cubic: 20, linear: 50 });
+/* THE LEVEL CURVE (balance layer 1, lane/b-level-curve 2026-10-27; Tyler's balance
+   ruling 2026-10-25 §2; replaces the 10-19 quartic, which on the same measurement took
+   Level 10 in about 1 h and Level 1000 in about 150,000 h; no single polynomial fits
+   the ruling's table within 20%). The XP one Level costs, in PACE BRACKETS: from Level `from` (until
+   the next bracket) the step from Level L to L+1 costs
+       first + rise x m + bend x m^2,   m = L - from,
+   `first` being the first bracket's own step (Level 1 -> 2) and, for every later
+   bracket, the step the bracket before it would have charged next, so a step never
+   jumps and every Level costs more than the one before (rise + bend >= 1). The last
+   bracket runs forever (Levels are endless). Total XP to reach a Level is an exact
+   integer in every runtime (src/core/xp.js; the server's hr_level_curve rows are
+   generated from these by tools/gen-level-curve.mjs). Fitted by the balance
+   simulator (tools/balance-sim/pace.mjs) to LEVEL_PACE below on the real engine: to
+   Level 50 the measured Level XP an hour of a hero hunting where the game recommends,
+   past it LEVEL_PACE.contract. The brackets: 1 the Mill Cellar's first levels (Level 5
+   in about a quarter of an hour, the tutorial's promise), 5 the first ground, 10 the
+   rest of today's content, 50 and 300 the long climb. */
+export const LEVEL_CURVE = Object.freeze({
+  first: 60,
+  brackets: Object.freeze([
+    Object.freeze({ from: 1, rise: 0, bend: 122 }),
+    Object.freeze({ from: 5, rise: 12591, bend: 0 }),
+    Object.freeze({ from: 10, rise: 0, bend: 489 }),
+    Object.freeze({ from: 50, rise: 80832, bend: 119 }),
+    Object.freeze({ from: 300, rise: 211914, bend: 578 }),
+  ]),
+});
 
-/* THE LEVEL GUARD'S LINE (Q1): a hero hunting in range earns xpPerHourPerLevel x
-   Level XP an hour; summed over Levels 1..199 the curve must take between
-   `hoursTo200` hours, and Level 10 between `hoursTo10` (tests/level-curve.mjs).
-   Not read by the game. */
-export const LEVEL_GUARD = Object.freeze({ xpPerHourPerLevel: 2900, hoursTo200: Object.freeze([3800, 4200]),
-  hoursTo10: Object.freeze([0.75, 2]) });
+/* THE PACE THE CURVE IS HELD TO (tests/level-curve.mjs; not read by the game).
+   targets    Tyler's balance ruling 2026-10-25 §2: [Level, cumulative hunting hours]
+              of reasonably efficient hunting (12 h a day, no bought stamina)
+   tolerance  every target within this share (the ruling's targets are benchmarks)
+   early      Level `level` within `hours` (the fit aims at `aim`): the tutorial's
+              "about a quarter of an hour" in the Mill Cellar before the Thicket opens
+              (hunt-tutorial.js earn_the_thicket); the guard checks the careers
+   contract   past the last Level the simulator can measure (no ground beyond it), a
+              ground pays a x Level^b Level XP an hour at its own Level: the trend of
+              today's solo grounds in their bands (Cellar, Thicket, Glade, Warrens:
+              tools/balance-sim/level-pace.json `ladder`). It is what a NEW ground must
+              pay for the curve to hold; once grounds past Level 50 exist, the simulator
+              measures them and the contract only covers what lies beyond. */
+export const LEVEL_PACE = Object.freeze({
+  targets: Object.freeze([[10, 6], [25, 36], [50, 168], [100, 600], [200, 1680], [300, 3120], [500, 6720], [750, 13440], [1000, 23520]]
+    .map((t) => Object.freeze(t))),
+  tolerance: 0.1,
+  early: Object.freeze({ level: 5, hours: Object.freeze([0.15, 0.35]), aim: 0.25 }),
+  contract: Object.freeze({ a: 1086, b: 1.333 }),
+});
 
 /* THE UNCAPPED SKILL CURVE (Q2): Melee, Ranged, Magic, Defense, Inner Flame.
    XP from level s to s+1 = floor(base x s^2 x (1 + growthPermille/1000)^(s-1)),
@@ -110,8 +147,15 @@ export const MONSTER_LEVEL_BY_TIER = Object.freeze({ 1: 5, 2: 15, 3: 35, 4: 60, 
      bonesPerHour          a hero burning every bone of an in-range cellar hunt:
                            464 kills/h x 0.26 bones a kill (forest-cave --play,
                            measured 2026-10-19)
+     refHours              the hours to refLevel the rate was fitted to: the 10-19
+                           curve at its guard's line (2,900 x Level XP an hour). The
+                           10-27 Level curve (lane/b-level-curve) takes about 36 h to
+                           Level 25, so a hero who burns everything now reaches Inner
+                           Flame 15 near Level 11: the skill, like every combat skill,
+                           runs ahead of Level until the skill layer re-fits it
+                           (ruling 2026-10-25 §13.2, not approved)
      xpPerBone             the Inner Flame XP a bone PAYS: skillXp(inner_flame, refFlame) /
-                           (bonesPerHour x hours to refLevel at LEVEL_GUARD's rate)
+                           (bonesPerHour x refHours)
                            = 22,539 / (121 x 11.97) = 15.56, to the tenth
                            (tests/hearth-fuel-rate.mjs re-derives it)
      recipeXp              the fuel_bones row's authored (pre-dial) XP: recipeXp x
@@ -122,7 +166,7 @@ export const MONSTER_LEVEL_BY_TIER = Object.freeze({ 1: 5, 2: 15, 3: 35, 4: 60, 
    2026-09-12 values (scaling the whole ladder by the same factor breaks the per-apply XP
    clamp at the top rungs). */
 export const FLAME_FUEL = Object.freeze({
-  refLevel: 25, refFlame: 15, bonesPerHour: 121, xpPerBone: 15.6, recipeXp: 40,
+  refLevel: 25, refFlame: 15, bonesPerHour: 121, refHours: 11.97, xpPerBone: 15.6, recipeXp: 40,
 });
 
 /* FOOD HEALS MOVED x12 WITH MONSTER DAMAGE (CORE_NUMBERS Q3: monsterAttackDamageScale

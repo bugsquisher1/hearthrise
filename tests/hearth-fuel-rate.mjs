@@ -11,8 +11,10 @@
 // core rebuild sets the bone's PAID XP from the curve (src/data/core-model.js
 // FLAME_FUEL) and authors the row pre-dial. Claims:
 //   B1  the constant is the curve's: skillXp(inner_flame, refFlame) / (bonesPerHour x
-//       hours to refLevel at LEVEL_GUARD's rate), to the tenth; and the row's
-//       authored XP x PACE.xp is exactly that
+//       refHours, the hours to refLevel the rate was fitted to), to the tenth; and
+//       the row's authored XP x PACE.xp is exactly that. (refHours is the 10-19
+//       Level pace; the 10-27 curve is slower, and re-fitting the skill to it belongs
+//       to the skill layer: src/data/core-model.js FLAME_FUEL.)
 //   B2  fuelling the Hearth with N bones through the real edge accrual (computeAccrual,
 //       artisan) pays Inner Flame XP = N x xpPerBone EXACTLY: whole XP in delta.xp, the
 //       rest in delta.xp_frac, carried across windows (a 0.5 carried in makes 3 bones
@@ -75,10 +77,8 @@ function paidOf(M, n, f0, item) {
 
 const CLAIMS = {
   B1: (M) => {
-    const B = M.CM.FLAME_FUEL; const G = M.CM.LEVEL_GUARD;
-    let h = 0;
-    for (let l = 1; l < B.refLevel; l++) h += (M.XP.charXpForLevel(l + 1) - M.XP.charXpForLevel(l)) / (G.xpPerHourPerLevel * l);
-    const want = Math.round((M.XP.skillXpForLevel('inner_flame', B.refFlame) / (B.bonesPerHour * h)) * 10) / 10;
+    const B = M.CM.FLAME_FUEL;
+    const want = Math.round((M.XP.skillXpForLevel('inner_flame', B.refFlame) / (B.bonesPerHour * B.refHours)) * 10) / 10;
     if (B.xpPerBone !== want) return [`xpPerBone is ${B.xpPerBone}; the Inner Flame curve says ${want}`];
     if (Math.round(B.recipeXp * M.PACE.xp * 1e6) !== Math.round(B.xpPerBone * 1e6)) {
       return [`the authored ${B.recipeXp} x the dial ${M.PACE.xp} pays ${B.recipeXp * M.PACE.xp}, not ${B.xpPerBone}`];
@@ -125,6 +125,8 @@ const MUTANTS = [
     from: "fuel('bones', FLAME_FUEL.recipeXp,", to: "fuel('bones', 4.5," },
   { claim: 'B1', name: 'the paid rate drifts off the curve', file: 'src/data/core-model.js',
     from: 'xpPerBone: 15.6,', to: 'xpPerBone: 15.5,' },
+  { claim: 'B1', name: 'the hours the rate was fitted to move without the rate', file: 'src/data/core-model.js',
+    from: 'refHours: 11.97,', to: 'refHours: 36,' },
   { claim: 'B4', name: 'Lamp Jelly pays less than a bone', file: 'src/data/hearth.js',
     from: "FAMILY_FUELS.map((item) => fuel(item, FLAME_FUEL.recipeXp,", to: "FAMILY_FUELS.map((item) => fuel(item, item === 'lamp_jelly' ? 20 : FLAME_FUEL.recipeXp," },
 ];

@@ -109,19 +109,66 @@ export function skillLevelFromXp(skillId, xp) {
 }
 
 // ── The Level curve (the character, from kills only) ────────────────────
-/** Total XP to REACH Level `lv`: quartic x (L-1)^4 + cubic x (L-1)^3 + linear x (L-1), exact. */
-export function charXpForLevel(lv) {
-  const n = Math.max(1, Math.floor(Number(lv) || 1)) - 1;
-  return LEVEL_CURVE.quartic * n * n * n * n + LEVEL_CURVE.cubic * n * n * n + LEVEL_CURVE.linear * n;
+/* LEVEL_CURVE's pace brackets as rows the two directions read: each bracket's start
+   Level, the total XP that reaches it (`base`) and its first step. Inside a bracket
+   the total m Levels on is base + first m + rise m(m-1)/2 + bend (m-1)m(2m-1)/6, the
+   sums of the step first + rise k + bend k^2 over k < m: whole numbers, divided
+   before they are multiplied, so they stay exact while the total does (up to 2^53,
+   past Level 30,000: centuries of hunting). The server's hr_level_curve holds these
+   rows (tools/gen-level-curve.mjs). A malformed curve throws here, at load (and in
+   levelCurveRowsOf, which the generator's --selftest plants bad curves into). */
+const sumK = (m) => (m * (m - 1)) / 2;
+const sumK2 = (m) => ((m - 1) * m * (2 * m - 1)) / 6;
+/** The bracket rows of a curve shaped like LEVEL_CURVE; throws on a malformed one. */
+export function levelCurveRowsOf(curve) {
+  const bs = curve && curve.brackets;
+  const whole = (v) => Number.isSafeInteger(v) && v >= 0;
+  if (!Array.isArray(bs) || !bs.length || bs[0].from !== 1 || !(whole(curve.first) && curve.first >= 1)) {
+    throw new Error('LEVEL_CURVE: brackets must start at Level 1 with a first step of 1 XP or more');
+  }
+  const rows = [];
+  let base = 0, first = curve.first;
+  bs.forEach((b, i) => {
+    if (!whole(b.from) || !whole(b.rise) || !whole(b.bend) || b.rise + b.bend < 1 || (i > 0 && !(b.from > bs[i - 1].from))) {
+      throw new Error('LEVEL_CURVE: bracket ' + i + ' ' + JSON.stringify(b) + ' needs a rising whole start Level and whole rise/bend with rise + bend >= 1');
+    }
+    if (i > 0) {
+      const p = rows[i - 1], m = b.from - p.from;
+      base = p.base + p.first * m + p.rise * sumK(m) + p.bend * sumK2(m);
+      first = p.first + p.rise * m + p.bend * m * m;
+    }
+    rows.push(Object.freeze({ from: b.from, base, first, rise: b.rise, bend: b.bend }));
+  });
+  return Object.freeze(rows);
 }
-/** The Level `xp` makes. Endless. */
+const LEVEL_ROWS = levelCurveRowsOf(LEVEL_CURVE);
+/** The derived bracket rows { from, base, first, rise, bend } (the generator writes them to SQL). */
+export function levelCurveRows() { return LEVEL_ROWS; }
+
+const totalIn = (r, m) => r.base + r.first * m + r.rise * sumK(m) + r.bend * sumK2(m);
+
+/** Total XP to REACH Level `lv` on bracket rows `rows` (levelCurveRowsOf; the balance simulator's fit reads a
+    candidate curve through this). Exact; Level 1 is 0. */
+export function xpForLevelOn(rows, lv) {
+  const L = Math.max(1, Math.floor(Number(lv) || 1));
+  let i = rows.length - 1;
+  while (i > 0 && rows[i].from > L) i -= 1;
+  return totalIn(rows[i], L - rows[i].from);
+}
+/** Total XP to REACH Level `lv` (exact; Level 1 is 0). */
+export function charXpForLevel(lv) { return xpForLevelOn(LEVEL_ROWS, lv); }
+/** The Level `xp` makes. Endless: the highest Level whose total `xp` reaches. */
 export function charLevelFromXp(xp) {
   const x = Math.max(0, Math.floor(Number(xp) || 0));
-  const lead = LEVEL_CURVE.quartic > 0 ? Math.pow(x / LEVEL_CURVE.quartic, 0.25) : Math.cbrt(x / Math.max(1, LEVEL_CURVE.cubic));
-  let lv = Math.max(1, Math.floor(lead));
-  while (lv > 1 && charXpForLevel(lv) > x) lv -= 1;
-  while (charXpForLevel(lv + 1) <= x) lv += 1;
-  return lv;
+  let i = LEVEL_ROWS.length - 1;
+  while (i > 0 && LEVEL_ROWS[i].base > x) i -= 1;
+  const r = LEVEL_ROWS[i];
+  /* the largest m with totalIn(r, m) <= x: m stays inside the bracket (the next one starts at its base) */
+  let lo = 0;
+  let hi = i + 1 < LEVEL_ROWS.length ? LEVEL_ROWS[i + 1].from - r.from : 1;
+  if (i + 1 >= LEVEL_ROWS.length) while (totalIn(r, hi) <= x && hi < 1e7) hi *= 2;
+  while (hi - lo > 1) { const mid = Math.floor((lo + hi) / 2); if (totalIn(r, mid) <= x) lo = mid; else hi = mid; }
+  return r.from + lo;
 }
 
 // ── Derived levels ───────────────────────────────────────────────────────

@@ -5,6 +5,14 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.55 — 2026-10-27 (Inner Flame)
+
+**Inner Flame replaces Prayer.** Your Prayer level carries over as Inner Flame, and it still softens the XP you lose when you die. You train it at the Hearth in Havora's square.
+
+**Fuel the hearth.** Right-click bones in your bag and choose Fuel the hearth (or Fuel all). Your hero walks to the Hearth, throws them in, and the fire flares. Creatures with no bones now drop hearth fuel of their own.
+
+**Rare fuels light the square.** A few rare named fuels burn the Hearth in their own colour (amber, honey, marsh-blue, mosslight and verdigris) for everyone in town for a while, and the square's chat says who lit it.
+
 ## v0.2.54 — 2026-10-27 (Havora's harbour)
 
 **A working harbour.** Havora's east waterfront is now a stone quay with timber piers, mooring posts, nets and rope. A paved harbour square has market stalls, cargo and lamps. The east dock now leads up to the road, and every waterside path in town connects.

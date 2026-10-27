@@ -23,19 +23,19 @@
 // (src/shell/town-ticker.js), as pending; the rows' numbers stay the server's.
 // Farming has no door here: it is grown in plots, which this window does not run.
 // ════════════════════════════════════════════════════════════════════════
-import { SKILLS_DEF } from '../../data/skills.js?v=0.2.54';
-import { SKILL_GUIDE } from '../../data/skill-guide.js?v=0.2.54';
-import { recipeInputs, burnPct } from '../../core/artisan.js?v=0.2.54';
-import { skillsOf, heldOf, drawsOnStorage } from '../../session/item-sections.js?v=0.2.54';
-import { huntOf } from '../../session/hunt-sections.js?v=0.2.54';
-import { text, cls, prop, attr, rows, element } from '../../render/paint.js?v=0.2.54';
-import { whole } from '../../render/format.js?v=0.2.54';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.54';
-import { itemName, itemIconHtml } from '../widgets/bits.js?v=0.2.54';
-import { runIntent } from '../intent-words.js?v=0.2.54';
-import { renderTradeSkills, skillBarHtml, patchSkillProgress } from './skills.js?v=0.2.54';
-import { GATHER_INDEX, BENCH_INDEX, workRow, workOf, productOf, yieldOf, runsOf, actionMs, xpEach, workBlock, startWork, stopWork, nowParts, tickOf, BENCH_COUNTS, defaultCount, leftOf } from '../town-work.js?v=0.2.54';
-import { aheadXp, paintLine } from '../town-ticker.js?v=0.2.54';
+import { SKILLS_DEF } from '../../data/skills.js?v=0.2.55';
+import { SKILL_GUIDE } from '../../data/skill-guide.js?v=0.2.55';
+import { recipeInputs, burnPct } from '../../core/artisan.js?v=0.2.55';
+import { skillsOf, heldOf, drawsOnStorage } from '../../session/item-sections.js?v=0.2.55';
+import { huntOf } from '../../session/hunt-sections.js?v=0.2.55';
+import { text, cls, prop, attr, rows, element } from '../../render/paint.js?v=0.2.55';
+import { whole } from '../../render/format.js?v=0.2.55';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.55';
+import { itemName, itemIconHtml } from '../widgets/bits.js?v=0.2.55';
+import { runIntent } from '../intent-words.js?v=0.2.55';
+import { renderTradeSkills, skillBarHtml, patchSkillProgress } from './skills.js?v=0.2.55';
+import { GATHER_INDEX, BENCH_INDEX, workRow, workOf, productOf, yieldOf, runsOf, actionMs, xpEach, workBlock, startWork, stopWork, nowParts, tickOf, BENCH_COUNTS, defaultCount, leftOf } from '../town-work.js?v=0.2.55';
+import { aheadXp, paintLine } from '../town-ticker.js?v=0.2.55';
 
 /* How many rows above the level a skill shows: the next things to aim at. */
 const AHEAD = 2;

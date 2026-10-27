@@ -38,20 +38,20 @@
 // only things it sends of its own are the allowlisted residue and intents.
 // ════════════════════════════════════════════════════════════════════════
 
-import { applyEnvelope, frameEnvelope, withResidue } from './envelope.js?v=0.2.54';
-import { createTimeline } from '../hunt-view/timeline.js?v=0.2.54';
-import { LiveLink } from './live-link.js?v=0.2.54';
-import { RESIDUE_FIELDS, sanitizeResidueField, unconfirmedResidue } from './residue.js?v=0.2.54';
-import { SESSION_CONFIG } from './config.js?v=0.2.54';
-import { edgeBody, edgeRead } from './edge-intents.js?v=0.2.54';
-import { leaveAskOf, pendingLeaveAt, leaveCountdown, closeInMs } from './hunt-leave.js?v=0.2.54';
-import { HuntPoll, pollDelayMs } from './hunt-poll.js?v=0.2.54';
-import { AskPacer } from './ask-pacer.js?v=0.2.54';
-import { createIntentLedger } from './intent-ledger.js?v=0.2.54';
-import { ReadGate } from './read-gate.js?v=0.2.54';
-import { frameTopic, reconnectDelay } from './frame-channel.js?v=0.2.54';
-import { refusalOf, settleRefusalOf } from './refusal.js?v=0.2.54';
-import { SERVER_ONLY_EVENTS } from '../core/hunt/events.js?v=0.2.54';
+import { applyEnvelope, frameEnvelope, withResidue } from './envelope.js?v=0.2.55';
+import { createTimeline } from '../hunt-view/timeline.js?v=0.2.55';
+import { LiveLink } from './live-link.js?v=0.2.55';
+import { RESIDUE_FIELDS, sanitizeResidueField, unconfirmedResidue } from './residue.js?v=0.2.55';
+import { SESSION_CONFIG } from './config.js?v=0.2.55';
+import { edgeBody, edgeRead } from './edge-intents.js?v=0.2.55';
+import { leaveAskOf, pendingLeaveAt, leaveCountdown, closeInMs } from './hunt-leave.js?v=0.2.55';
+import { HuntPoll, pollDelayMs } from './hunt-poll.js?v=0.2.55';
+import { AskPacer } from './ask-pacer.js?v=0.2.55';
+import { createIntentLedger } from './intent-ledger.js?v=0.2.55';
+import { ReadGate } from './read-gate.js?v=0.2.55';
+import { frameTopic, reconnectDelay } from './frame-channel.js?v=0.2.55';
+import { refusalOf, settleRefusalOf } from './refusal.js?v=0.2.55';
+import { SERVER_ONLY_EVENTS } from '../core/hunt/events.js?v=0.2.55';
 
 export const FRAME_EVENT = 'frame';
 

@@ -4,11 +4,15 @@
 // PARTY_SPEC.md §2 (2026-10-19), one way to do each thing:
 //   invite      right-click a player (or one of your own characters' strip
 //               tabs) -> Invite to party; the first invite makes the party
-//   the roster  the Party panel (src/shell/widgets/party-panel.js), always on
-//               screen while partied, with Leave / Kick / Disband
+//   the roster  the Party panel (src/shell/widgets/party-panel.js) in a hunt, with Leave /
+//               Kick / Disband; in town, this window's Your party tab (same roster, same Leave)
 //   start       the leader's "Start with party" in the Hunts window, where the
 //               ground is chosen
-// So this window holds only what has no other home, as two tabs:
+// So this window holds what has no other home, as three tabs:
+//   Your party    shown only while THIS character sits in a party, and the tab
+//                 it opens on then (./party-roster.js; Tyler live v0.2.53: a party
+//                 formed in town had no screen, the board being a hunt widget):
+//                 every seat, the next step, Leave party / Disband
 //   Invites       invites waiting for THIS character (the server's
 //                 `party_invites`): Join / No thanks (the toast offers the same
 //                 two answers anywhere in the game)
@@ -22,13 +26,15 @@ import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.53';
 import { runIntent } from '../intent-words.js?v=0.2.53';
 import { finderHtml, patchFinder, actFinder, partyScratch } from './party-finder.js?v=0.2.53';
+import { rosterHtml, patchRoster, actRoster } from './party-roster.js?v=0.2.53';
 
-const TABS = Object.freeze([['invites', 'Invites'], ['find', 'Find a party']]);
+const TABS = Object.freeze([['party', 'Your party'], ['invites', 'Invites'], ['find', 'Find a party']]);
 
 /** The skeleton (built once per opening). */
 export function renderParty() {
   return '<div class="hw-party">'
     + '<div class="hw-tabs" role="tablist">' + TABS.map(([id, l]) => '<button type="button" role="tab" class="hw-tab" data-hs-act="party-tab" data-tab="' + id + '" aria-selected="false">' + esc(l) + '</button>').join('') + '</div>'
+    + '<section class="hw-pane" data-pane="party">' + rosterHtml() + '</section>'
     + '<section class="hw-pane" data-pane="invites">'
     + '<ul class="hw-ledger hw-invites"></ul>'
     + '<p class="hh-empty hw-invites-none"></p></section>'
@@ -56,7 +62,7 @@ function patchInvites(root, ctx, sc, inv) {
   });
   const none = root.querySelector('.hw-invites-none');
   cls(none, 'is-on', !inv.length);
-  text(none, partyMembershipOf(ctx.character) ? 'No invites. You are in a party: its members show in the Party panel.'
+  text(none, partyMembershipOf(ctx.character) ? 'No invites. You are in a party: its members show on the Your party tab.'
     : 'No invites right now. Right-click a player and choose Invite to party to start your own.');
 }
 
@@ -65,14 +71,22 @@ renderParty.patch = function patchParty(body, ctx) {
   const sc = partyScratch(cs);
   const root = body.querySelector('.hw-party');
   const inv = invitesOf(cs) || [];
-  /* The tab the player picked; until then Invites when one is waiting, else the finder. */
-  const tab = sc.tab || (inv.length ? 'invites' : 'find');
+  const mine = partyMembershipOf(cs);
+  /* A pick lasts while the party it was made in does: joining or leaving one opens the window afresh. */
+  const partyKey = mine ? mine.id : '';
+  if (sc.tabFor !== partyKey) { if (sc.tabFor !== undefined) sc.tab = null; sc.tabFor = partyKey; }
+  /* The tab the player picked (Your party only while in one); until then Your party while in one, Invites when
+     one is waiting, else the finder. */
+  const picked = sc.tab === 'party' && !mine ? null : sc.tab;
+  const tab = picked || (mine ? 'party' : inv.length ? 'invites' : 'find');
   for (const b of root.querySelectorAll('.hw-tab')) {
     attr(b, 'aria-selected', String(b.getAttribute('data-tab') === tab));
+    if (b.getAttribute('data-tab') === 'party') prop(b, 'hidden', !mine);
     if (b.getAttribute('data-tab') === 'invites') text(b, inv.length ? 'Invites (' + inv.length + ')' : 'Invites');
   }
   for (const p of root.querySelectorAll('.hw-pane')) cls(p, 'is-on', p.getAttribute('data-pane') === tab);
   cls(root, 'is-pending', sc.pending);
+  patchRoster(root, ctx, sc, mine);
   patchInvites(root, ctx, sc, inv);
   patchFinder(root, ctx, sc);
   text(root.querySelector('.hh-intent-msg'), sc.msg);
@@ -90,5 +104,5 @@ renderParty.act = function actParty(ctx, body, action, ev, t) {
       () => (yes ? 'You joined the party.' : 'Invite declined.'));
     return true;
   }
-  return actFinder(ctx, body, action, t, repaint);
+  return actRoster(ctx, action, repaint, sc) || actFinder(ctx, body, action, t, repaint);
 };

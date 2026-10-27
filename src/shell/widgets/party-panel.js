@@ -159,6 +159,17 @@ export function liveRoster(cs, r) {
   return Object.assign({}, r, { members, hold: holdView(Object.assign({}, r, { members }), turns) });
 }
 
+/**
+ * LEAVE PARTY and DISBAND (leader): ONE intent each, the only path to either. This board and the Party window's
+ * Your party tab (src/shell/windows/party-roster.js) both press it. True when `action` was one of the two.
+ */
+export function leaveOrDisband(ctx, cs, sc, repaint, action) {
+  if (action === 'leave') runIntent(sc, repaint, () => afterLeave(ctx.account, cs, () => cs.leaveParty()), 'Leaving…', () => 'You left the party.');
+  else if (action === 'disband') runIntent(sc, repaint, () => disbandParty(ctx.account, cs), 'Disbanding…', () => 'The party is disbanded.');
+  else return false;
+  return true;
+}
+
 const scratch = new WeakMap();
 function scOf(el) {
   let sc = scratch.get(el);
@@ -218,9 +229,8 @@ renderPartyPanel.act = function actPartyPanel(ctx, el, action, ev, btn) {
   const sc = scOf(el);
   const repaint = () => renderPartyPanel.patch(el, ctx);
   if (holdAct(ctx, cs, sc, repaint, action, btn, liveRoster(cs, rosterOf(cs)).hold)) return;
-  if (action === 'leave') runIntent(sc, repaint, () => afterLeave(ctx.account, cs, () => cs.leaveParty()), 'Leaving…', () => 'You left the party.');
-  else if (action === 'disband') runIntent(sc, repaint, () => disbandParty(ctx.account, cs), 'Disbanding…', () => 'The party is disbanded.');
-  else if (action === 'kick') {
+  if (leaveOrDisband(ctx, cs, sc, repaint, action)) return;
+  if (action === 'kick') {
     const seat = Number(btn.getAttribute('data-seat'));
     if (Number.isInteger(seat)) runIntent(sc, repaint, () => afterLeave(ctx.account, cs, () => cs.kickSeat(seat)), 'Removing…', () => 'Removed from the party.');
   }

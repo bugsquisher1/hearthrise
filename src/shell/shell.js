@@ -190,8 +190,11 @@ export function mountShell(root, o) {
          to the World's bottom-left by its bottom edge, so a taller one grows up. */
       const home = Number.isFinite(p.bottom);
       el.classList.toggle('is-home', home);
-      el.style.left = p.docked || p.modal ? '' : p.x + 'px';
-      el.style.top = p.docked || p.modal || home ? '' : p.y + 'px';
+      /* A modal the player dragged (desktop) sits where it was put: no longer centred by its CSS. */
+      const moved = !!p.modal && Number.isFinite(p.x);
+      el.classList.toggle('is-moved', moved);
+      el.style.left = p.docked || (p.modal && !moved) ? '' : p.x + 'px';
+      el.style.top = p.docked || (p.modal && !moved) || home ? '' : p.y + 'px';
       el.style.bottom = home ? p.bottom + 'px' : '';
     }
   }
@@ -515,15 +518,17 @@ export function mountShell(root, o) {
     wm.focus(id);
     if (!phoneMq.matches && pressGrip(e, { wm, store: sizes, host })) return;
     const head = e.target.closest('[data-hs-drag]');
-    if (!head || e.button !== 0 || phoneMq.matches || wm.row(id).modal) return;
+    if (!head || e.button !== 0 || phoneMq.matches) return;
     const b = shell.getBoundingClientRect(), r = win.getBoundingClientRect();
+    /* A modal (Configure action) is held wholly inside the World, so the manager takes its measured height. */
+    const h = wm.row(id).modal ? r.height : undefined;
     const ox = e.clientX - r.left, oy = e.clientY - r.top;
     /* A press that wanders under DRAG_SLOP_PX is a click, not a drag: it never floats the window. */
     let dragging = false;
     const move = (m) => {
       if (!dragging && Math.hypot(m.clientX - e.clientX, m.clientY - e.clientY) < DRAG_SLOP_PX) return;
       dragging = true;
-      wm.float(id, { x: m.clientX - b.left - ox, y: m.clientY - b.top - oy });
+      wm.float(id, { x: m.clientX - b.left - ox, y: m.clientY - b.top - oy, h });
     };
     const up = () => { host.removeEventListener('pointermove', move); host.removeEventListener('pointerup', up); };
     host.addEventListener('pointermove', move);

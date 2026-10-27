@@ -28,6 +28,9 @@
 //         off the dock and closing both, sampled every frame through each
 //   WC-5  A MODAL FLOATS: with three windows docked, Configure action opens and
 //         closes over them; no window closes or moves, the camera and hero stay
+//   WC-5b ITS HEAD DRAGS IT (Tyler 2026-10-27): the modal follows the hand, a drag
+//         past the edge leaves it wholly on screen, the docked windows stay
+//         (`--shots <dir>` writes configure-action-dragged.png for the visual gate)
 //   WC-4  RIGHT-CLICK: a real right-click on another player in town (on the
 //         figure or on the name over it) opens the player menu, and the
 //         browser's own menu is suppressed there
@@ -365,7 +368,32 @@ async function checks(overrides) {
           else {
             await settle(page);
             const mr1 = await rects(page), mc1 = await camera(page), mh1 = await hero(page);
-            await press(page, '[data-hs-win="configure-action"] [data-hs-close]');
+            /* WC-5b (Tyler 2026-10-27, "let the configure action panel be dragged"): its head drags it like any
+               window; it lands where the hand put it, and a drag past the edge leaves it wholly on screen. */
+            const box = () => page.evaluate(() => { const r = document.querySelector('[data-hs-win="configure-action"]').getBoundingClientRect();
+              return { x: Math.round(r.left), y: Math.round(r.top), r: Math.round(r.right), b: Math.round(r.bottom), w: innerWidth, h: innerHeight }; });
+            const drag = async (dx, dy) => {
+              const h = await page.locator('[data-hs-win="configure-action"] .hs-win-head').first().boundingBox();
+              const x = h.x + 40, y = h.y + h.height / 2;
+              await page.mouse.move(x, y); await page.mouse.down();
+              for (let i = 1; i <= 6; i++) await page.mouse.move(x + dx * i / 6, y + dy * i / 6);
+              await page.mouse.up(); await settle(page);
+            };
+            const at0 = await box();
+            await drag(-120, -60);
+            const at1 = await box();
+            if (Math.abs(at1.x - (at0.x - 120)) > 2 || Math.abs(at1.y - (at0.y - 60)) > 2) fails.push('WC-5b a drag on the modal’s head did not move it with the hand: ' + JSON.stringify([at0, at1]));
+            if (SHOTS) await page.screenshot({ path: join(SHOTS, 'configure-action-dragged.png') });
+            /* to the screen's far corner (the hand stays on the page): the panel would hang off the World there */
+            const hd = await page.locator('[data-hs-win="configure-action"] .hs-win-head').first().boundingBox();
+            await drag(at1.w - 4 - (hd.x + 40), at1.h - 4 - (hd.y + hd.height / 2));
+            const at2 = await box();
+            if (at2.x < 0 || at2.y < 0 || at2.r > at2.w || at2.b > at2.h) fails.push('WC-5b a modal dragged past the edge left the screen: ' + JSON.stringify(at2));
+            const xAt = await page.evaluate(() => { const x = document.querySelector('[data-hs-win="configure-action"] [data-hs-close]').getBoundingClientRect();
+              const e = document.elementFromPoint(x.left + x.width / 2, x.top + x.height / 2); return e && !e.closest('[data-hs-close]') ? e.outerHTML.slice(0, 120) : null; });
+            if (xAt) fails.push('WC-5b the dragged modal’s X is covered by ' + xAt);
+            const mr1b = await rects(page);
+            for (const id of ['hunt-prep', 'shop', 'skills-trade']) if (mr1b[id] !== r2[id]) fails.push('WC-5b dragging the modal moved ' + id);
             await settle(page);
             const mr2 = await rects(page), mc2 = await camera(page), mh2 = await hero(page);
             if (mr2['configure-action']) fails.push('WC-5 the modal’s X did not close it');
@@ -548,7 +576,12 @@ async function townZoom(browser, base) {
   return fails;
 }
 
+const SHOTS = process.argv.includes('--shots') ? process.argv[process.argv.indexOf('--shots') + 1] : null;
+
 const MUTANTS = [
+  ['a modal never drags (WC-5b)', 'src/shell/shell.js', '    if (!head || e.button !== 0 || phoneMq.matches) return;', '    if (!head || e.button !== 0 || phoneMq.matches || wm.row(id).modal) return;'],
+  ['a dragged modal keeps its centring transform (WC-5b)', 'src/styles/shell.css', '.hs-win.is-modal.is-moved { transform: none; }', '.hs-win.is-modal.is-moved { }'],
+  ['a modal is clamped by a 48 px head, not its height (WC-5b)', 'src/shell/shell.js', '    const h = wm.row(id).modal ? r.height : undefined;', '    const h = undefined;'],
   ['the dock follows the focus order', 'src/shell/window-manager.js', "else Object.assign(e, { docked: true, right: slot.has(id) ? slot.get(id) : DOCK_EDGE,",
     "else Object.assign(e, { docked: true, right: DOCK_EDGE + open.slice(i + 1).filter((d) => !floating.has(d)).reduce((s, d) => s + width(d) + DOCK_GAP, 0),"],
   ['a docked window that grows runs over the bar', 'src/shell/shell.js', '    capDock();\n', ''],

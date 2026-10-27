@@ -199,7 +199,17 @@ async function runTests(mods) {
       const at = Object.fromEntries(wm.layout().map((p) => [p.id, p]));
       ok(at.cfg && at.cfg.modal && !at.cfg.docked, (phone ? 'phone' : 'desktop') + ': the modal row is centred, not docked');
       ok(!!at.bag, (phone ? 'phone' : 'desktop') + ': the window under the modal stays open');
-      ok(wm.float('cfg', { x: 5, y: 5 }) === false, 'a modal never floats');
+      if (phone) { ok(wm.float('cfg', { x: 5, y: 5 }) === false, 'a phone modal never moves'); continue; }
+      /* Tyler 2026-10-27: the desktop modal's head drags it, held wholly inside the World (860 tall here). */
+      ok(wm.float('cfg', { x: 40, y: 30, h: 400 }) === true, 'desktop: a modal is dragged by its head');
+      let c = wm.layout().find((p) => p.id === 'cfg');
+      ok(c.modal && !c.docked && c.x === 40 && c.y === 30, 'desktop: the dragged modal sits where it was put, still a modal');
+      wm.float('cfg', { x: 5000, y: 5000, h: 400 });
+      c = wm.layout().find((p) => p.id === 'cfg');
+      ok(c.x === 1440 - 560 && c.y === 860 - 400, 'desktop: a modal dragged past the edge stays wholly inside the World');
+      ok(!!wm.layout().find((p) => p.id === 'bag').docked, 'desktop: dragging the modal never moves the dock');
+      wm.close('cfg'); wm.open('cfg');
+      ok(!Number.isFinite(wm.layout().find((p) => p.id === 'cfg').x), 'desktop: a reopened modal is centred again');
     }
   });
   t('W13 slots are stable: focus, open and close never move another window; a reopen goes back', () => {
@@ -637,6 +647,7 @@ const MUTANTS = [
   { test: 'W4', file: WM_FILE, from: "if (open[open.length - 1] !== id) { open.splice(open.indexOf(id), 1); open.push(id); emit(); }", to: '' },
   { test: 'W5', file: WM_FILE, from: 'if (isPhone() && !isModal(id)) for (const other of open.slice()) drop(other);', to: '' },
   { test: 'W10b', file: WM_FILE, from: 'const isModal = (id) => rows.get(id).modal === true;', to: 'const isModal = () => false;' },
+  { test: 'W10b', file: WM_FILE, from: 'y: Math.round(Math.max(0, Math.min(w.height - tall, f.y)))', to: 'y: Math.round(f.y)' },
   { test: 'W13', file: WM_FILE, from: "else Object.assign(e, { docked: true, right: slot.has(id) ? slot.get(id) : DOCK_EDGE,", to: "else Object.assign(e, { docked: true, right: DOCK_EDGE + open.slice(i + 1).filter((d) => !floating.has(d)).reduce((s, d) => s + width(d) + DOCK_GAP, 0)," },
   { test: 'W15', file: WM_FILE, from: "      } else if (!was && isHome(id)) floating.set(id, { home: true });\n", to: '      }\n' },
   { test: 'W15', file: WM_FILE, from: "    if (keepBottom && f && !f.home) f.y = Math.max(0, f.y - (now.h - before.h));", to: '' },

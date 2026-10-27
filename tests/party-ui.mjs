@@ -7,7 +7,7 @@
 //   node tests/party-ui.mjs --mutate       every planted defect must turn a rule RED
 //   node tests/party-ui.mjs --shots <dir>  also write the visual-gate screenshots (1440x900, 922x423)
 //
-// mutant-anchors: src/hunt-view/live-engine.js src/shell/widgets/party-leave.js src/hunt-view/summary-model.js src/shell/widgets/party-panel.js src/shell/widgets/party-hold.js src/data/refusal-words.js src/shell/alerts.js src/shell/hunt-list.js src/session/party-sections.js src/session/character-session.js src/shell/windows/party.js src/shell/windows/party-finder.js src/app/character-strip.js src/shell/widgets/alerts.js src/session/party-intents.js src/shell/intent-words.js src/shell/windows/hunts.js src/shell/windows/inventory/bury.js
+// mutant-anchors: src/shell/windows/party-roster.js src/hunt-view/live-engine.js src/shell/widgets/party-leave.js src/hunt-view/summary-model.js src/shell/widgets/party-panel.js src/shell/widgets/party-hold.js src/data/refusal-words.js src/shell/alerts.js src/shell/hunt-list.js src/session/party-sections.js src/session/character-session.js src/shell/windows/party.js src/shell/windows/party-finder.js src/app/character-strip.js src/shell/widgets/alerts.js src/session/party-intents.js src/shell/intent-words.js src/shell/windows/hunts.js src/shell/windows/inventory/bury.js
 // mutant-writes-tree: no — pure mutants plant into a temp copy of src/, page mutants into served overrides
 //
 // The fixture is tests/fixtures/party-envelope.json (S1's `party` shape plus this lane's asks).
@@ -65,6 +65,10 @@
 //   AL-2  no out-of-stock warning while the store pays; none for a resource the hero does not use; the
 //         hunt bag's supplies are stock mid-hunt (Brannoc 10-22)
 //   AL-3  a new hunt retires the last one's ended / death / low lines (Brannoc 10-22)
+//   UI-9  IN TOWN in a party of two (Tyler live v0.2.53, "the party screen is not working"): the Party window
+//         opens on Your party with both seats, the leader's crown, the next step and a Leave party that is ONE
+//         hr_hunt_party_leave, off from the press; the finder's weapon filter reads "Needs a shield", never
+//         "No shield yet (Melee (shield))"
 //   UI-4  the command centre lists every open character; zero console errors throughout
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
@@ -1133,6 +1137,37 @@ async function pageRules(overrides, shots) {
           const b = await page.evaluate(() => { const e = document.querySelector('[data-hs-win="hunts"] .hw-hunt-detail [data-hs-act="enter"]'); return e && { off: e.disabled, text: e.textContent }; });
           if (!b || !b.off || b.text !== 'Enter') fails.push('UI-3 [' + tag + '] a member’s Enter reads ' + JSON.stringify(b));
         } else fails.push('UI-3 [' + tag + '] H did not open the Hunts window for character 1');
+        /* UI-9 (Tyler live v0.2.53, "the party screen is not working"): IN TOWN, in a party of two, the Party window
+           opens on Your party: both seats by name with the leader's crown, the member's next step, and a Leave party
+           that is ONE hr_hunt_party_leave for this slot, off from the press. The finder's weapon words read plainly. */
+        s.env[1].party.members.forEach((m) => { m.hunting = false; });
+        await pushEnvelope(page, s, 1);
+        if (await openWin(page, 'y', 'hunt-party')) {
+          const P = '[data-hs-win="hunt-party"] ';
+          const v = await page.evaluate((q) => {
+            const sel = document.querySelector(q + '.hw-tab[aria-selected="true"]');
+            const seats = Array.from(document.querySelectorAll(q + '.hw-seat')).map((li) => ({ name: li.querySelector('.hw-seat-name').textContent,
+              lead: !li.querySelector('.hw-seat-lead').hidden, where: li.querySelector('.hw-seat-state').textContent, shown: li.getBoundingClientRect().height > 0 }));
+            const leave = document.querySelector(q + '[data-hs-act="leave"]');
+            const lr = leave && leave.getBoundingClientRect();
+            const opts = Array.from(document.querySelectorAll(q + '[data-hs-act="find-weapon"] option')).map((o) => o.textContent);
+            const pick = document.querySelector(q + '[data-hs-act="party-hunts"]');
+            return { tab: sel && sel.getAttribute('data-tab'), seats, next: document.querySelector(q + '.hw-party-next').textContent,
+              memberPicks: !!pick && pick.getBoundingClientRect().width > 0,
+              leave: !!leave && !leave.hidden && !leave.disabled && lr.width > 0 && leave.textContent === 'Leave party', opts };
+          }, P);
+          const names = v.seats.map((x) => x.name + (x.lead ? '*' : '') + ':' + x.where).join('|');
+          if (v.tab !== 'party' || names !== 'Tyler*:In town|Mira (you):In town' || !v.seats.every((x) => x.shown) || !v.leave || v.memberPicks
+            || v.next !== 'Waiting for Tyler to pick a hunt.') fails.push('UI-9 [' + tag + '] the Party window in town reads ' + JSON.stringify(v));
+          if (!v.opts.includes('Needs a shield') || !v.opts.includes('Needs a sword · Melee') || v.opts.some((o) => o.includes('((') || /^No /.test(o)))
+            fails.push('UI-9 [' + tag + '] the finder’s weapon words read ' + JSON.stringify(v.opts));
+          await shot('party-town');
+          const lv = sent(s, 'hr_hunt_party_leave').length;
+          const off = await page.evaluate((q) => { const b = document.querySelector(q + '[data-hs-act="leave"]'); b.click(); return b.disabled; }, P);
+          await page.waitForTimeout(700);
+          const l = sent(s, 'hr_hunt_party_leave').slice(lv);
+          if (!off || l.length !== 1 || l[0].body.p_slot !== 1) fails.push('UI-9 [' + tag + '] Leave party sent ' + JSON.stringify(l.map((c) => c.body)) + (off ? '' : ', on while in flight'));
+        } else fails.push('UI-9 [' + tag + '] Y did not open the Party window for character 1 in town');
       } else fails.push('UI-3 [' + tag + '] the Party window did not open for character 1');
       } catch (e) { fails.push(harnessFail('[' + tag + '] a page step', e)); }
       if (errors.length) fails.push('UI-4 [' + tag + '] console errors: ' + errors.slice(0, 3).join(' | '));
@@ -1225,7 +1260,14 @@ const PAGE_MUTANTS = [
   ['the toast stays on while in flight', 'src/shell/widgets/alerts.js', "  ctx.alerts.mark(a.key, true, '');\n  renderAlerts.patch(el, ctx);\n", "  ctx.alerts.mark(a.key, true, '');\n"],
   ['the listing switch stays on while in flight', 'src/shell/windows/party-finder.js', "  prop(sw.querySelector('button'), 'disabled', sc.pending);", "  prop(sw.querySelector('button'), 'disabled', false);"],
   ['the leader has no listing switch', 'src/shell/windows/party-finder.js', "  prop(sw, 'hidden', !(mine && mine.isLeader));", "  prop(sw, 'hidden', true);"],
-  ['the Party window opens on the finder with an invite waiting', 'src/shell/windows/party.js', "  const tab = sc.tab || (inv.length ? 'invites' : 'find');", "  const tab = sc.tab || 'find';"],
+  ['the Party window opens on the finder with an invite waiting', 'src/shell/windows/party.js', "  const tab = picked || (mine ? 'party' : inv.length ? 'invites' : 'find');", "  const tab = picked || (mine ? 'party' : 'find');"],
+  /* UI-9 (Tyler live v0.2.53): a party formed in town has a screen */
+  ['the Party window in a party opens on the finder', 'src/shell/windows/party.js', "  const tab = picked || (mine ? 'party' : inv.length ? 'invites' : 'find');", "  const tab = picked || (inv.length ? 'invites' : 'find');"],
+  ['Your party lists no seats', 'src/shell/windows/party-roster.js', "  rows(root.querySelector('.hw-seats'), r.members, {", "  rows(root.querySelector('.hw-seats'), [], {"],
+  ['Leave party stays on while in flight', 'src/shell/windows/party-roster.js', "for (const b of root.querySelectorAll('.hw-party-acts button')) prop(b, 'disabled', sc.pending);", "for (const b of root.querySelectorAll('.hw-party-acts button')) prop(b, 'disabled', false);"],
+  ["a member is offered the leader's hunt pick", 'src/styles/windows.css', '.hw-party-acts [hidden] { display: none; }', ''],
+  ['Your party has no Leave', 'src/shell/windows/party-roster.js', "  return leaveOrDisband(ctx, ctx.character, sc, repaint, action);", "  return false;"],
+  ['the finder says Melee (shield) in brackets', 'src/shell/windows/party-finder.js', "  return role.label.toLowerCase().includes(word) ? what : what + ' · ' + role.label;", "  return 'No ' + word + ' yet (' + role.label + ')';"],
   ['a tab press re-reads the character', 'src/app/boot.js', "    else if (what === 'show') goTo(slot, null);", "    else if (what === 'show') { goTo(slot, null); account.character(slot).load(); }"],
   ['the strip shows no badge', 'src/app/character-strip.js', "  text(badge, x.alerts ? String(x.alerts) : '');", "  text(badge, '');"],
   ['the finder ignores this character’s weapon', 'src/shell/windows/party-finder.js', "  return mine && mine.weapon && WEAPON_ROLES[mine.weapon] ? mine.weapon : '';", "  return '';"],

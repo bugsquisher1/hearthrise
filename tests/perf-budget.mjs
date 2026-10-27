@@ -8,7 +8,7 @@
 //                                              --sizes 1440x900,922x423 narrow it); prints, never fails
 //   node tests/perf-budget.mjs --mutate        every planted defect must turn the budget RED
 //
-// mutant-anchors: src/world/world-boot.js src/world/render/canvas-backend.js src/app/world-pane.js src/shell/widgets/analyzer.js src/shell/shell.js src/session/character-session.js src/hunt-view/combat-log.js src/render/images.js
+// mutant-anchors: src/world/world-boot.js src/world/core/compose.js src/world/render/canvas-backend.js src/app/world-pane.js src/shell/widgets/analyzer.js src/shell/shell.js src/session/character-session.js src/hunt-view/combat-log.js src/render/images.js
 // mutant-writes-tree: no — probes and mutants are served from memory (tests/_client-harness.mjs serve overrides)
 //
 // THE SCENARIO (Andy, Firefox, live v0.2.23: "the page is slowing down", "the analyser seems to have slowed
@@ -29,6 +29,10 @@
 //   analyzer       patches per minute, its session clock against the hunt's real elapsed time (behind by,
 //                  and how often it ran backwards), and the longest its kill count stood still while hunting
 //   the run-away   the second hero's drawn path from the death on: how far it walks, and for how long
+//   the ground     PB-HELD (main run 40417203016): every map's ground (compose.js groundOf; the town's is 22k dual
+//                  tiles) is made once, in a task of its own: never inside a frame, never twice for one map
+//   what held it   each frame the page held over 50 ms is printed with its Long Animation Frame (entry point,
+//                  script ms, forced layout, render) and the probes' clocks inside it, so a red names its cause
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
@@ -80,6 +84,9 @@ const PROBES = [
   /* every sheet handed out over the whole run (boot and the town after the death), by kind */
   ['src/render/images.js', '  HELD.set(url, ready);\n',
     '  HELD.set(url, ready);\n  ready.then((s) => { window.__perf.sheets[s instanceof ImageBitmap ? \'bitmap\' : \'img\']++; }, () => {});\n'],
+  /* every ground made (the town's is 22k dual tiles): never inside a frame, never twice for one map */
+  ['src/world/core/compose.js', '  if (!g) byBook.set(book, g = groundTiles(map, book, tables, T));',
+    '  if (!g) byBook.set(book, g = window.__perf ? window.__perf.ground(map, () => groundTiles(map, book, tables, T)) : groundTiles(map, book, tables, T));'],
 ];
 
 /* ── the planted defects (--mutate): each must turn a budget red ── */
@@ -103,6 +110,10 @@ const MUTANTS = [
     "else if (sh.type === 'ellipse') k += '|e' + sh.cx + ',' + sh.cy + ',' + sh.w + ',' + sh.h;", "else if (sh.type === 'ellipse') k += '|e';", /^PB-PIX/, 'pix'],
   ['the world sheets handed to the canvas as <img> (its first draw prepares a whole sheet inside the frame: v0.2.50, run 40321779709)', 'src/render/images.js',
     "  const bitmap = !!win && typeof win.createImageBitmap === 'function';", '  const bitmap = false;', /^sheets/],
+  ['the town derived inside the frame that enters it (main run 40417203016: a 117 ms frame back from the hunt)', 'src/world/world-boot.js',
+    '    if (!needs.has(sc.map) || !sheets.ready(needs.get(sc.map)) || waiting.has(sc.map)) {', '    if (!sheets.ready(setsFor(sc.map)) || waiting.has(sc.map)) {', /^ground/, 'scenario', 4],
+  ['the renderer makes the ground again instead of taking the one its sheets were read from', 'src/world/core/compose.js',
+    '  const g = groundOf(map, book, tables, T);\n  GROUNDS.get(map).delete(book);', '  if (GROUNDS.has(map)) GROUNDS.get(map).delete(book);\n  const g = groundOf(map, book, tables, T);\n  GROUNDS.get(map).delete(book);', /^ground/, 'scenario', 4],
   ["the light layer kept although the hero's lamp moved",'src/world/render/canvas-backend.js',
     "for (const p of points) sig += '|' + p.x + ',' + p.y + ',' + p.r + ',' + tone('light-' + p.tint);", "for (const p of points) sig += '|' + p.r;", /^PB-PIX/, 'pix'],
 ];
@@ -123,15 +134,17 @@ export function planted(extra) {
 /* The page's recorder: rAF gaps, the hidden-tab emulation, the probes' clocks, DOM churn, analyzer samples. */
 const INIT = `(() => {
   const P = window.__perf = { t: Object.create(null), c: Object.create(null), frames: new Float64Array(120000), nf: 0,
-    marks: [], samples: [], dom: [], added: 0, long: [], ltOk: false, path: [], trackOn: false, stopped: false, sheets: { bitmap: 0, img: 0 } };
+    marks: [], samples: [], dom: [], added: 0, long: [], ltOk: false, path: [], trackOn: false, stopped: false, sheets: { bitmap: 0, img: 0 }, spans: [] };
   /* depth: a canvas draw or a shell paint INSIDE an applied answer is counted apart (one answer, one paint, no draw) */
   const depth = Object.create(null);
   P.time = (k, fn) => { const a = performance.now(); depth[k] = (depth[k] || 0) + 1;
     if (depth.envelope && k !== 'envelope' && !document.hidden) P.count(k + 'InEnvelope');
     if (k === 'draw' && !depth.frame && !document.hidden) P.count('drawOffLoop');
     try { return fn(); } finally { depth[k]--; const d = performance.now() - a;
-    const r = P.t[k] || (P.t[k] = { n: 0, ms: 0, max: 0, over: 0 }); r.n++; r.ms += d; if (d > r.max) r.max = d; if (d > 16) r.over++; } };
+    const r = P.t[k] || (P.t[k] = { n: 0, ms: 0, max: 0, over: 0 }); r.n++; r.ms += d; if (d > r.max) r.max = d; if (d > 16) { r.over++; if (!P.stopped && P.spans.length < 5000) P.spans.push([a, d, k]); } } };
   P.count = (k) => { P.c[k] = (P.c[k] || 0) + 1; };
+  const grounds = new WeakSet();
+  P.ground = (map, fn) => { if (depth.frame && !document.hidden) P.count('groundInFrame'); if (grounds.has(map)) P.count('groundRemade'); grounds.add(map); return P.time('ground', fn); };
   P.mark = (name) => P.marks.push([performance.now(), name]);
   let tn = 0;
   P.track = (now, f) => { if (P.stopped || (!P.trackOn && (tn++ % 15)) || P.path.length > 30000) return;
@@ -149,6 +162,10 @@ const INIT = `(() => {
   const rec = (t) => { if (P.nf < P.frames.length) P.frames[P.nf++] = t; window.requestAnimationFrame(rec); };
   window.requestAnimationFrame(rec);
   try { new PerformanceObserver((l) => { if (!P.stopped) for (const e of l.getEntries()) P.long.push([e.startTime, e.duration]); }).observe({ type: 'longtask', buffered: true }); P.ltOk = (PerformanceObserver.supportedEntryTypes || []).includes('longtask'); } catch (e) {}
+  /* WHAT HELD IT (Long Animation Frames, Chromium): each frame over 50 ms with its scripts, so a red names its cause */
+  P.loaf = [];
+  try { new PerformanceObserver((l) => { if (!P.stopped) for (const e of l.getEntries()) P.loaf.push([e.startTime, e.duration, e.blockingDuration, e.renderStart, e.styleAndLayoutStart,
+    (e.scripts || []).map((x) => [x.invoker, x.invokerType, (x.sourceURL || '').split('/').pop() + ':' + (x.sourceFunctionName || '') + '@' + x.sourceCharPosition, Math.round(x.duration), Math.round(x.forcedStyleAndLayoutDuration || 0), Math.round(x.startTime)])]); }).observe({ type: 'long-animation-frame', buffered: true }); } catch (e) {}
   const mo = new MutationObserver((ms) => { for (const m of ms) P.added += m.addedNodes.length; });
   const watch = () => mo.observe(document.documentElement, { childList: true, subtree: true });
   if (document.documentElement) watch(); else document.addEventListener('DOMContentLoaded', watch);
@@ -407,12 +424,12 @@ async function scenario(o) {
     if (cdp && o.profile) (await import('node:fs')).writeFileSync(o.profile, JSON.stringify((await cdp.send('Profiler.stop')).profile));
     const h1raw = await heap();
     const out = await page.evaluate(() => { const P = window.__perf; P.stopped = true;
-      const got = { frames: Array.from(P.frames.slice(0, P.nf)), marks: P.marks, t: P.t, c: P.c, samples: P.samples, dom: P.dom, long: P.long, ltOk: P.ltOk, path: P.path,
+      const got = { frames: Array.from(P.frames.slice(0, P.nf)), marks: P.marks, t: P.t, c: P.c, samples: P.samples, dom: P.dom, long: P.long, loaf: P.loaf, spans: P.spans, ltOk: P.ltOk, path: P.path,
         nodes: document.getElementsByTagName('*').length, added: P.added, now: performance.now(), sheets: P.sheets };
       /* THE PROBE'S OWN RECORDS are not the game's heap: stopped, read out, then released before the end measure
          (the post-death path alone is thousands of per-frame unit lists, megabytes the page never holds; a record
          still running between here and the measure grew it by ~60 lists a second). */
-      P.marks = []; P.samples = []; P.dom = []; P.long = []; P.path = [];
+      P.marks = []; P.samples = []; P.dom = []; P.long = []; P.loaf = []; P.spans = []; P.path = [];
       return got; });
     const h1 = await heap();
     await snap('end');
@@ -439,6 +456,7 @@ function analyse(out, w0, o, srv) {
   const busyIn = (a, b) => { let ms = 0; for (const [s, d] of lts) ms += Math.max(0, Math.min(b, s + d) - Math.max(a, s)); return Math.min(b - a, ms); };
   const gaps = [];
   let resumeWorst = 0, stallWorst = 0;
+  const held = [];
   for (let i = 1; i < fr.length; i++) {
     const g = fr[i] - fr[i - 1];
     /* the hidden span itself (no frame is owed) and the 2 s after it (the resume, reported apart) */
@@ -446,6 +464,7 @@ function analyse(out, w0, o, srv) {
     const page = out.ltOk ? (g > 50 ? busyIn(fr[i - 1], fr[i]) : g) : g;
     if (g > 50 && page <= 50) stallWorst = Math.max(stallWorst, g);
     gaps.push(page);
+    if (page > 50) held.push([fr[i - 1], g, page]);
   }
   /* fps in 1 s buckets, outside the hidden span and its resume */
   const buckets = new Map();
@@ -501,8 +520,13 @@ function analyse(out, w0, o, srv) {
     engine: per('engine'), scene: per('scene'), draw: per('draw'), frame: per('frame'), envelope: per('envelope'), shellTick: per('shellTick'),
     domStart: w0.nodes, domEnd: hunted ? hunted[1] : out.nodes, domGrowth: hunted ? (hunted[1] - hunted[3]) - (w0.nodes - w0.lines) : null,
     logLines: Math.max(0, ...out.dom.map((d) => d[3])), addedPerMin: Math.round(out.added / minutes),
+    groundInFrame: out.c.groundInFrame || 0, groundRemade: out.c.groundRemade || 0, ground: per('ground'),
     paintsInAnswers: out.c.shellPaintInEnvelope || 0, drawsInAnswers: out.c.drawInEnvelope || 0, drawsOffLoop: out.c.drawOffLoop || 0,
     analyzerPerMin: Math.round((out.c.analyzer || 0) / minutes), analyzerBehindMs: Math.round(behind), analyzerBackMs: Math.round(backMs), analyzerBacks: backs, analyzerStillMs: stillMax,
+    held: held.map(([a, g, page]) => { const m = out.marks.filter((x) => x[0] <= a).pop();
+      return { at: Math.round(a - w0.t), after: m ? m[1] + ' +' + Math.round(a - m[0]) : 'start', gap: Math.round(g), page: Math.round(page),
+        loaf: (out.loaf || []).filter((l) => l[0] < a + g && l[0] + l[1] > a),
+        spans: (out.spans || []).filter((x) => x[0] < a + g && x[0] + x[1] > a).map((x) => x[2] + ' ' + Math.round(x[1])) }; }),
     path: out.path, marks: out.marks, runAway, samples: out.samples, dom: out.dom, sheets: out.sheets || { bitmap: 0, img: 0 },
   };
 }
@@ -524,6 +548,9 @@ function budgetFails(m) {
   if (!(m.paintsInAnswers <= b.paintsInAnswers)) f.push(`repaint: ${m.paintsInAnswers} shell repaints inside server answers (budget ${b.paintsInAnswers})`);
   /* the town's sheets arrive after the death: an <img> among them is prepared on the frame the town is entered */
   if (!(m.sheets.bitmap > 0 && m.sheets.img === 0)) f.push(`sheets: ${m.sheets.img} world sheet(s) handed to the canvas as <img>, ${m.sheets.bitmap} as ImageBitmap (budget: every one a bitmap, src/render/images.js)`);
+  /* PB-HELD (main run 40417203016, a 117 ms frame back from the hunt): the town's ground was made inside the frame
+     that entered it and again when its sheets landed. A scene's ground is made once, in a task of its own. */
+  if (m.groundInFrame || m.groundRemade) f.push(`ground: a map's ground made ${m.groundInFrame} time(s) inside a frame, ${m.groundRemade} time(s) again for a map that had one (budget 0, compose.js groundOf)`);
   if (!(m.drawsOffLoop <= b.drawsOffLoop)) f.push(`repaint: ${m.drawsOffLoop} World draws outside the frame loop, ${m.drawsInAnswers} of them inside answers (budget ${b.drawsOffLoop})`);
   return f;
 }
@@ -533,8 +560,17 @@ function row(m) {
   return `${m.browser.padEnd(8)} ${m.size.padEnd(8)} fps ${m.fpsMedian}/${m.fpsP5} long ${m.longFrames} worst ${Math.round(m.worstFrame)} resume ${Math.round(m.resumeWorst)} stall ${Math.round(m.stallWorst)}${m.pageTimed ? '' : ' (wall)'} lt ${m.longTasks}`
     + ` | engine ${ms(m.engine)} scene ${ms(m.scene)} draw ${ms(m.draw)} frame ${ms(m.frame)} env ${ms(m.envelope)} (${m.envelope ? m.envelope.n : 0}) tick ${ms(m.shellTick)}`
     + ` | heap ${m.heapMb === null ? 'n/a' : m.heapMb.toFixed(1) + 'MB' + (m.heapRawMb != null ? ' (with the probe records ' + m.heapRawMb.toFixed(1) + ')' : '')} dom ${m.domStart}->${m.domEnd} (+${m.domGrowth}) log ${m.logLines} +${m.addedPerMin}/min`
+    + ` | ground ${ms(m.ground)} (${m.ground ? m.ground.n : 0}) in-frame ${m.groundInFrame} again ${m.groundRemade}`
     + ` | paints-in-answers ${m.paintsInAnswers} draws off-loop ${m.drawsOffLoop} (in answers ${m.drawsInAnswers}) sheets ${m.sheets.bitmap} bitmap/${m.sheets.img} img`
     + ` | analyzer ${m.analyzerPerMin}/min behind ${m.analyzerBehindMs} back ${m.analyzerBackMs}x${m.analyzerBacks} still ${m.analyzerStillMs}`;
+}
+
+/* Each frame the page held over 50 ms: where in the scenario, what ran in it (Long Animation Frames: entry point,
+   script ms, forced layout) and the probes' clocks over 16 ms inside it, so a red names its cause. */
+function printHeld(m) {
+  for (const h of m.held) console.log(`   held ${h.page} ms (gap ${h.gap}) at ${h.at} ms, ${h.after}: `
+    + (h.loaf.map((l) => `frame ${Math.round(l[1])} block ${Math.round(l[2])}${l[3] ? ' render ' + Math.round(l[0] + l[1] - l[3]) : ''}${l[4] ? ' style+layout ' + Math.round(l[0] + l[1] - l[4]) : ''} [${l[5].map((x) => x[2] + ' ' + x[0] + ' ' + x[3] + 'ms' + (x[4] ? ' layout ' + x[4] : '')).join('; ')}]`).join(' / ') || 'no frame attribution')
+    + (h.spans.length ? ' {' + h.spans.join(', ') + '}' : ''));
 }
 
 function arg(name, dv) { const i = process.argv.indexOf(name); return i > 0 ? process.argv[i + 1] : dv; }
@@ -564,6 +600,7 @@ async function main() {
       const m = await scenario({ browser, width, height, minutes, hiddenMs: 60000, overrides: planted() });
       all.push(m);
       console.log(row(m));
+      printHeld(m);
       if (m.errors.length) console.log('   errors: ' + m.errors.join(' | '));
     }
     if (dump) (await import('node:fs')).writeFileSync(dump, JSON.stringify(all));
@@ -575,6 +612,7 @@ async function main() {
   const m = await scenario({ browser, width: 1440, height: 900, minutes: Number(arg('--minutes', '4')), hiddenMs: 30000, overrides: planted(), profile: arg('--profile', null), snapshots: arg('--snapshots', null),
     second: arg('--second', 'melee_dps'), viewAtDeath: Number(arg('--view-death', '0')) });
   console.log(row(m));
+  printHeld(m);
   if (arg('--dump', null)) (await import('node:fs')).writeFileSync(arg('--dump', null), JSON.stringify(m));
   const fails = pix.concat(budgetFails(m));
   for (const f of fails) console.log('  ✗ ' + f);

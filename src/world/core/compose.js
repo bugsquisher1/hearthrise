@@ -33,11 +33,11 @@
 // none of them (map-compile.js L-GRID).
 // PURE: no DOM, no window, no G.
 // ════════════════════════════════════════════════════════════════════════
-import { ySort } from './zsort.js?v=0.2.53';
-import { heroBuilding } from './roofs.js?v=0.2.53';
-import { ellipseShadow, castMatrix } from './shadows.js?v=0.2.53';
-import { vertexGrid, tileKey } from './wang.js?v=0.2.53';
-import { OUTFITS } from '../../data/hunt-outfits.js?v=0.2.53';
+import { ySort } from './zsort.js?v=0.2.54';
+import { heroBuilding } from './roofs.js?v=0.2.54';
+import { ellipseShadow, castMatrix } from './shadows.js?v=0.2.54';
+import { vertexGrid, tileKey } from './wang.js?v=0.2.54';
+import { OUTFITS } from '../../data/hunt-outfits.js?v=0.2.54';
 
 /** Wall height: rock tops and capstones are raised by it. */
 export const WALL_FACE_PX = 48;
@@ -68,47 +68,52 @@ function cellHash(x, y) {
 export function blendTiles(map, book, T, inPatch, out) {
   const { pairs, alias } = map.blend;
   const terr = pairs.map((id) => ({ id, t: book.terrains[id] })).filter((p) => p.t && p.t.kind === 'wang16');
-  const known = new Set(terr.flatMap((p) => [p.t.lower, p.t.upper]));
-  const pairs2 = new Set(terr.flatMap((p) => [p.t.lower + '\n' + p.t.upper, p.t.upper + '\n' + p.t.lower]));
-  const paired = (a, b) => pairs2.has(a + '\n' + b);
-  /* each cell's material once (alias applied, null under a patch or with no pair), then four reads per dual
-     tile: a 192x116 town is 22k dual tiles, so nothing here allocates per tile */
-  const W = map.w, Hm = map.h, mat = new Array(W * Hm);
+  /* THE MATERIALS AS SMALL INTEGERS (index into `known`, -1 none): a 192x116 town is 22k dual tiles, so the
+     loop below compares numbers and reads a pair table, never building a string per tile (perf-budget) */
+  const known = Array.from(new Set(terr.flatMap((p) => [p.t.lower, p.t.upper])));
+  const idOf = new Map(known.map((m, i) => [m, i]));
+  const K = known.length;
+  const pairM = new Uint8Array(K * K);
+  for (const p of terr) { const a = idOf.get(p.t.lower), b = idOf.get(p.t.upper); pairM[a * K + b] = pairM[b * K + a] = 1; }
+  const LO = terr.map((p) => idOf.get(p.t.lower)), UP = terr.map((p) => idOf.get(p.t.upper));
+  const KEYS = Array.from({ length: 16 }, (_, b) => b.toString(2).padStart(4, '0'));   // corner bits NW NE SW SE → the tile key
+  /* each cell's material once (alias applied, -1 under a patch or with no pair), then four reads per dual tile */
+  const W = map.w, Hm = map.h, mat = new Int16Array(W * Hm);
   for (let cy = 0; cy < Hm; cy++) {
     for (let cx = 0; cx < W; cx++) {
-      if (inPatch(cx, cy)) { mat[cy * W + cx] = null; continue; }
-      const m = map.ground[cy * W + cx], a = alias[m] || m;
-      mat[cy * W + cx] = known.has(a) ? a : null;
+      if (inPatch(cx, cy)) { mat[cy * W + cx] = -1; continue; }
+      const m = map.ground[cy * W + cx], a = alias[m] || m, i = idOf.get(a);
+      mat[cy * W + cx] = i === undefined ? -1 : i;
     }
   }
   const matOf = (x, y) => mat[Math.min(Hm - 1, Math.max(0, y)) * W + Math.min(W - 1, Math.max(0, x))];
   const H = T >> 1;
-  const c = [null, null, null, null];
+  const c = new Int16Array(4);
   const count = (m) => (c[0] === m) + (c[1] === m) + (c[2] === m) + (c[3] === m);
   for (let y = -1; y < Hm; y++) {
     for (let x = -1; x < W; x++) {
       c[0] = matOf(x, y); c[1] = matOf(x + 1, y); c[2] = matOf(x, y + 1); c[3] = matOf(x + 1, y + 1);
       /* a hole corner takes the commonest real corner (the first on a tie) */
-      let most = null, mostN = 0;
+      let most = -1, mostN = 0;
       for (let i = 0; i < 4; i++) {
         const m = c[i];
-        if (!m) continue;
+        if (m < 0) continue;
         const n = count(m);
         if (n > mostN) { most = m; mostN = n; }
       }
-      if (most === null) continue;
-      for (let i = 0; i < 4; i++) if (!c[i]) c[i] = most;
-      let pick = null, best = -1;
-      for (const p of terr) {
-        const lo = p.t.lower, up = p.t.upper;
+      if (most < 0) continue;
+      for (let i = 0; i < 4; i++) if (c[i] < 0) c[i] = most;
+      let pick = -1, best = -1;
+      for (let p = 0; p < terr.length; p++) {
+        const lo = LO[p], up = UP[p];
         const n = (c[0] === lo || c[0] === up) + (c[1] === lo || c[1] === up) + (c[2] === lo || c[2] === up) + (c[3] === lo || c[3] === up);
         if (n > best) { best = n; pick = p; }
       }
-      if (!pick) continue;
-      const lo = pick.t.lower, up = pick.t.upper;
-      let key = '';
-      for (let i = 0; i < 4; i++) { const m = c[i]; key += m === up || (m !== lo && !paired(m, lo) && paired(m, up)) ? '1' : '0'; }
-      const t = book.tile(pick.id, key, cellHash(x, y));
+      if (pick < 0) continue;
+      const lo = LO[pick], up = UP[pick];
+      let bits = 0;
+      for (let i = 0; i < 4; i++) { const m = c[i]; bits = (bits << 1) | (m === up || (m !== lo && !pairM[m * K + lo] && pairM[m * K + up]) ? 1 : 0); }
+      const t = book.tile(terr[pick].id, KEYS[bits], cellHash(x, y));
       if (t) out.push({ set: t.set, sx: t.sx, sy: t.sy, x: x * T + H, y: y * T + H });
     }
   }
@@ -158,7 +163,7 @@ export function groundTiles(map, book, tables, T) {
      rock and water included: its walls are in the paint, so nothing is void. */
   const painted = !!(terr && terr.painted);
   const solid = (x, y) => { const m = tables.materials[map.ground[y * map.w + x]]; return !painted && !!(m && m.solid); };
-  const g = vertexGrid((x, y) => map.ground[y * map.w + x] === upper, map.w, map.h);
+  const g = map.groundTerrain === null ? null : vertexGrid((x, y) => map.ground[y * map.w + x] === upper, map.w, map.h);
   for (let y = 0; y < (map.groundTerrain === null ? 0 : map.h); y++) {
     for (let x = 0; x < map.w; x++) {
       if (solid(x, y)) { voids.push({ x: x * T, y: y * T }); continue; }
@@ -181,6 +186,26 @@ export function groundTiles(map, book, tables, T) {
     }
   }
   return { tiles, voids, tones };
+}
+
+/* THE GROUND IS MADE ONCE PER (map, book), by whichever reader asks first: scene-sets.js reads the sheets it
+   draws from, then the canvas backend bins it and TAKES it (its last reader), so the town's 44k tile records
+   never outlive the bins. Made twice, once inside a frame, it was the page's longest frame on the way back
+   from a hunt (tests/perf-budget.mjs PB-HELD). Readers never change it. */
+const GROUNDS = new WeakMap();
+/** groundTiles(map, book, tables, T), made once and kept until taken. */
+export function groundOf(map, book, tables, T) {
+  let byBook = GROUNDS.get(map);
+  if (!byBook) GROUNDS.set(map, byBook = new WeakMap());
+  let g = byBook.get(book);
+  if (!g) byBook.set(book, g = groundTiles(map, book, tables, T));
+  return g;
+}
+/** The ground for its last reader (the renderer's bins): handed over and no longer kept. */
+export function takeGround(map, book, tables, T) {
+  const g = groundOf(map, book, tables, T);
+  GROUNDS.get(map).delete(book);
+  return g;
 }
 
 /**

@@ -280,4 +280,11 @@ export const WEAR = Object.freeze([
   ['tuft_b', 87, 89],
   ['leaves_b', 91, 89],
   ['leaves_a', 95, 90],
+  ['leaves_a', 141, 76],
+  ['tuft_b', 147, 78],
+  ['leaves_b', 152, 75],
+  ['tuft_a', 156, 77],
+  ['leaves_b', 124, 83],
+  ['tuft_b', 129, 85],
+  ['leaves_a', 133, 84],
 ].map((r) => Object.freeze(r)));

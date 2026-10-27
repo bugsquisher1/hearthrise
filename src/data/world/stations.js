@@ -40,7 +40,7 @@
 // floor(stands / heroesPerPlayer). view/margin/cap: the area a viewer reads (its view in tiles +
 // margin on every side, at most cap bodies a read; hr_town_view).
 // ════════════════════════════════════════════════════════════════════════
-import { at, TOWN_MAP } from './town/plan.js?v=0.2.53';
+import { at, TOWN_MAP } from './town/plan.js?v=0.2.54';
 
 export const TAP_OPENS = Object.freeze({
   anvil: Object.freeze({ open: 'skill', skill: 'smithing' }),

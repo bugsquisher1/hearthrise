@@ -24,7 +24,7 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-10-27",
- "replay_ms": 493695,
+ "replay_ms": 116684,
  "counts": {
   "tracked_names": 699,
   "entries": 554
@@ -7106,17 +7106,18 @@
    "touched_by": [
     "2026-08-08-leaderboards.sql",
     "2026-08-17-leaderboard-skills.sql",
-    "2026-10-27-core-bodies.sql"
+    "2026-10-27-core-bodies.sql",
+    "2027-01-31-total-level-flame.sql"
    ],
    "live": {
-    "md5": "43a1270bf42c043616cbd570c188a8fb",
-    "norm_len": 292,
+    "md5": "a8fce2cccdb905f148c0021972a60c03",
+    "norm_len": 297,
     "measured": "2026-10-27",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "43a1270bf42c043616cbd570c188a8fb",
-    "norm_len": 292,
+    "md5": "a8fce2cccdb905f148c0021972a60c03",
+    "norm_len": 297,
     "source": "computed-from-replay"
    },
    "agree": true

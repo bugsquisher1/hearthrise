@@ -23,8 +23,8 @@
 //   · knocked out, the hero lies down and no floats are drawn.
 // PURE: no DOM, no window, no G, no randomness but its own seeded draw.
 // ════════════════════════════════════════════════════════════════════════
-import { walkable } from './core/path.js?v=0.2.53';
-import { diagonalOf } from './core/facing.js?v=0.2.53';
+import { walkable } from './core/path.js?v=0.2.54';
+import { diagonalOf } from './core/facing.js?v=0.2.54';
 
 export const WINDUP_MS = 400;
 export const FAST_TICK_MS = 1200;

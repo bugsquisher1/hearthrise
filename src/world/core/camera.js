@@ -35,7 +35,7 @@
 // PURE: no DOM, no window, no G.
 // ════════════════════════════════════════════════════════════════════════
 
-import { GRIDS } from '../../data/world/art-budget.js?v=0.2.53';
+import { GRIDS } from '../../data/world/art-budget.js?v=0.2.54';
 
 export const MOBILE_QUERY = '(max-width: 540px), (max-height: 540px) and (max-width: 1024px)';
 

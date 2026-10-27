@@ -5,6 +5,14 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.54 — 2026-10-27 (Havora's harbour)
+
+**A working harbour.** Havora's east waterfront is now a stone quay with timber piers, mooring posts, nets and rope. A paved harbour square has market stalls, cargo and lamps. The east dock now leads up to the road, and every waterside path in town connects.
+
+**Whole buildings.** The guild hall by the docks no longer looks cut off at the sides.
+
+**Smoother return to town.** Coming back from a hunt no longer stutters while the town loads.
+
 ## v0.2.53 — 2026-10-27 (Storage that keeps up)
 
 **Storage shows what is really there.** When one hero uses materials from Storage (crafting, cooking, farming), every other hero with Storage open now sees the new counts straight away, so you no longer try to take out items that are already gone.

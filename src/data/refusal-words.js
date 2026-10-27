@@ -14,7 +14,7 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { MAX_CONDITIONS, MAX_IGNORED } from './condition-metrics.js?v=0.2.52';
+import { MAX_CONDITIONS, MAX_IGNORED } from './condition-metrics.js?v=0.2.54';
 
 export const REFUSAL_FALLBACK = 'That did not go through, so nothing was changed. Try again in a moment.';
 
@@ -27,11 +27,22 @@ export const REFUSAL_VERB_WORDS = Object.freeze({
     hunting: 'Your hero is out hunting. Dispatch loot works in town.',
     storage_full: 'Storage is full, so nothing was stored. Storage chests in the House (E) make more room.',
   }),
+  /* A named fuel in the Great Hearth (2027-01-31-inner-flame.sql hr_hearth_burn): the Hearth is in Havora's square. */
+  hearth_burn: Object.freeze({
+    hunting: 'Your hero is out hunting. The Great Hearth is in town.',
+    no_item: 'That fuel is not in your bag any more.',
+  }),
 });
 
 export const REFUSAL_WORDS = Object.freeze({
   /* The connection and the session. */
   rate_limited: 'Too many changes at once. Try again in a moment.',
+  /* The Great Hearth (2027-01-31-inner-flame.sql hr_hearth_burn; intent-words.js adds the numbers it sent) */
+  not_a_fuel: 'The Great Hearth does not burn that as a named fuel.',
+  no_item: 'You do not have that in your bag.',
+  flame_too_low: 'Your Inner Flame is too low for that fuel yet.',
+  hearth_limit: 'The Great Hearth takes only so many named fuels a day from one hero. Try again tomorrow.',
+  hearth_busy: 'The Great Hearth is already burning named fuels. Try again in a few minutes.',
   settle_first: 'The hunt is catching up. Try again in a few seconds.',
   network: 'No connection. Nothing was changed.',
   timeout: 'The server has not answered. The game shows what it last confirmed.',

@@ -4,7 +4,7 @@
 //
 // docs/design/CORE_MODEL.md: Level (kills only, endless), the combat skills'
 // uncapped curve, the capped 99 curve of every other skill, max HP / max mana
-// from Level and armour weight, Prayer's regen rate and the monsters' levels
+// from Level and armour weight, Inner Flame's regen rate and the monsters' levels
 // are computed in TWO places: src/core/xp.js + src/core/vitals.js (the edge
 // engine and the browser's display) and the SQL twins of
 // 2026-10-27-core-bodies.sql (hr_char_xp_for_level, hr_char_level,
@@ -78,7 +78,7 @@ function compare(js, sql) {
     if (js.maxHp(r.l, r.a) !== r.hp) push(`max HP at Level ${r.l}, ${r.a} heavy: JS ${js.maxHp(r.l, r.a)}, SQL ${r.hp}`);
     if (js.maxMana(r.l, r.a) !== r.mana) push(`max mana at Level ${r.l}, ${r.a} light: JS ${js.maxMana(r.l, r.a)}, SQL ${r.mana}`);
   }
-  for (const r of sql.regen) if (js.regen(r.p) !== r.v) push(`regen at Prayer ${r.p}: JS ${js.regen(r.p)}, SQL ${r.v}`);
+  for (const r of sql.regen) if (js.regen(r.p) !== r.v) push(`regen at Inner Flame ${r.p}: JS ${js.regen(r.p)}, SQL ${r.v}`);
   for (const r of sql.monster) {
     const j = js.monster(r.m);
     if ((j ?? null) !== (r.v ?? null)) push(`monster ${r.m}: JS level ${j}, SQL ${r.v}`);
@@ -94,7 +94,7 @@ const MUTANTS = [
   ['a capped skill walks the combat curve', { skillLevel: (s, x) => XP.skillLevelFromXp('melee', x) }],
   ['max HP adds 11 a Level', { maxHp: (l, a) => VIT.maxHpFor(l, a) + Math.max(0, l - 1) }],
   ['light armour adds nothing to mana', { maxMana: (l) => VIT.maxManaFor(l, 0) }],
-  ['Prayer\'s regen k is 51', { regen: (p) => { const P = Math.max(1, p); return 1000 + Math.floor((1000 * P) / (P + 51)); } }],
+  ['Inner Flame\'s regen k is 51', { regen: (p) => { const P = Math.max(1, p); return 1000 + Math.floor((1000 * P) / (P + 51)); } }],
   ['an unplaced monster reads its tier one higher', { monster: (m) => monsterLevelOf(MONSTERS[m]) + (Number.isInteger(MONSTERS[m].level) ? 0 : 1) }],
 ];
 

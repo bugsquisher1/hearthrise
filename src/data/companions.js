@@ -12,7 +12,7 @@
 //    Smeltery ladder and half the homestead Forge, from a pet nobody budgeted.
 //
 // 2. THE FIVE MISSPELLED KEYS. `xpB`, `goldBonus` and `prayerXp` are not
-//    getBonus keys — the real names are `allXP`, `goldFind` and `prayerSpeed`.
+//    getBonus keys — the real names are `allXP`, `goldFind` and `flameSpeed`.
 //    Fox, Lichling, Raccoon, Owl and Grave Wisp have therefore paid EXACTLY
 //    NOTHING since they shipped. Correcting the names is a power INCREASE, so
 //    it lands in the same commit as the magnitudes that pay for it — never
@@ -46,7 +46,7 @@ export const COMPANIONS = {
               proc:null},
   raccoon:   {n:'Raccoon',      icon:'🦝', role:'utility', bonus:{goldFind:.01},     source:'shop:25000',
               proc:{trigger:'kill',      chance:.20, effect:'extraGold', amount:5, label:'+5 gold'}},
-  owl:       {n:'Owl',          icon:'🦉', role:'artisan', bonus:{prayerSpeed:.01},  source:'shop:8000:prayer50',
+  owl:       {n:'Owl',          icon:'🦉', role:'artisan', bonus:{flameSpeed:.01},  source:'shop:8000:inner_flame50',
               proc:null},
   tortoise:  {n:'Tortoise',     icon:'🐢', role:'combat',  bonus:{defB:10, hpRegen:2}, source:'drop:ancient_bear',
               proc:null},
@@ -63,7 +63,7 @@ export const COMPANIONS = {
   phoenix_chick:{n:'Phoenix Chick', icon:'🐤', role:'artisan', bonus:{cookSpeed:.01},   source:'skill:cooking:2000',     proc:{trigger:'cook', chance:.04, effect:'refundIngredients', label:'Rekindled!'}},
   forge_imp:    {n:'Forge Imp',     icon:'👺', role:'artisan', bonus:{smithSpeed:.01},  source:'skill:smithing:2000',    proc:null},
   silkling:     {n:'Silkling',      icon:'🕷️', role:'artisan', bonus:{craftSpeed:.01},  source:'skill:crafting:2000',    proc:null},
-  grave_wisp:   {n:'Grave Wisp',    icon:'🕯️', role:'artisan', bonus:{prayerSpeed:.01}, source:'skill:prayer:1200',      proc:null},
+  grave_wisp:   {n:'Grave Wisp',    icon:'🕯️', role:'artisan', bonus:{flameSpeed:.01}, source:'skill:inner_flame:1200',      proc:null},
   lichling:     {n:'Lichling',      icon:'💀', role:'utility', bonus:{allXP:.01},       source:'boss:lich:200',          proc:{trigger:'kill', chance:.02, effect:'extraGold', amount:25, label:'Soul tithe!'}},
   dragonling:   {n:'Dragonling',    icon:'🐲', role:'combat',  bonus:{rareDrop:.15, strB:5}, source:'boss:dragon:200',   proc:{trigger:'combatHit', chance:.02, effect:'fireDot', label:'Dragonfire!'}},
 };

@@ -326,9 +326,9 @@ async function main() {
       add({ id: 'L3', topic: 'The L32-50 Glade stretch', measured: 'A lone hero stays in the Glade from L16 to L50 (the Warrens is a party ground): one Level takes ' + one(31).toFixed(1) + ' h at L31 and '
         + one(49).toFixed(1) + ' h at L49 on the curve, ' + one(50).toFixed(1) + ' h at L50 at the contract rate.', target: 'Steady progression', gap: 'Major',
         proposal: 'D5 (a solo ground or the Warrens\' solo Level for 32-50) shortens L32-50; re-measure the pace when it lands.', decides: 'Designer' });
-      add({ id: 'L4', topic: 'Prayer burying', measured: 'The bury rate was fitted to Prayer 15 by L25 at the old pace (12 h). On the new curve 12 h of hunting is Level '
-        + median(careers.map((c) => { const t = c.trace.find((x) => x.hours >= 12); return t ? t.levels[0] : null; })) + '.', target: 'Prayer about 0.6 x Level', gap: 'Minor',
-        proposal: 'Leave until the Hearth (Inner Flame) replaces burying; re-fit then.', decides: 'Designer' });
+      add({ id: 'L4', topic: 'Inner Flame fuelling', measured: 'The Hearth\'s fuel rate (FLAME_FUEL) was fitted to Inner Flame 15 by L25 at the old pace (12 h). On the new curve 12 h of hunting is Level '
+        + median(careers.map((c) => { const t = c.trace.find((x) => x.hours >= 12); return t ? t.levels[0] : null; })) + '.', target: 'Inner Flame about 0.6 x Level', gap: 'Minor',
+        proposal: 'Re-fit in the skill layer (with 13.2).', decides: 'Designer' });
       add({ id: 'L5', topic: 'Gold priced by Level', measured: 'Blessings are free below L30: ' + measured[30].toFixed(0) + ' h of hunting now, ' + oldH(30).toFixed(0)
         + ' h on the old curve. Blessing, stamina-refill and rename prices scale with Level, so they take a smaller share of the gold earned by a Level.', target: 'Economy phase (§12)', gap: 'Minor',
         proposal: 'Re-price in the economy layer.', decides: 'Designer, Tyler (money)' });

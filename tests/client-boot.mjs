@@ -436,8 +436,8 @@ const MUTANTS = [
   ['the closed answer is ignored', 'src/app/boot.js', "if (why === 'closed-game') showClosed();", "if (why === 'never') showClosed();"],
   ['the World downloads every sheet on Play', 'src/world/world-boot.js', '  await sheets.ensure(setsFor(setsFor(first).length ? first : SCENE_MAPS.town));',
     '  await sheets.ensure(Array.from(new Set(Object.keys(book.sprites).map((id) => book.frame(id).set))));'],
-  ['a scene shows before its sheets arrive', 'src/world/world-boot.js', "if (!running) sync(); }, 0));\n      }\n      return null;",
-    "if (!running) sync(); }, 0));\n      }"],
+  ['a scene shows before its sheets arrive', 'src/world/world-boot.js', "could not be prepared', e));\n      }\n      return null;",
+    "could not be prepared', e));\n      }"],
   ['a closed pane still draws a sheet that lands late', 'src/world/world-boot.js', '    if (gone) return;\n    if (panel', '    if (panel'],
 ];
 

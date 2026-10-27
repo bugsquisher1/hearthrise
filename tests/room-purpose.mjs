@@ -60,7 +60,7 @@ function jsChecks() {
     ok(ms === want, `RP1: Library ${lv} binds a rune in ${ms} ms, expected ${want} (base ${base})`);
   }
   ok(actionIntervalMs('runecrafting', 3000, { bonus: makeBonus({ rooms: { workshop: 5 } }) }) === base, 'RP1: the Workshop still speeds runecrafting');
-  for (const skill of ['crafting', 'cooking', 'smithing', 'prayer', 'mining']) {
+  for (const skill of ['crafting', 'cooking', 'smithing', 'inner_flame', 'mining']) {
     ok(actionIntervalMs(skill, 3000, { bonus: makeBonus({ rooms: { library: 5 } }) }) === actionIntervalMs(skill, 3000, { bonus: makeBonus({}) }),
       `RP1: the Library speeds ${skill}`);
   }

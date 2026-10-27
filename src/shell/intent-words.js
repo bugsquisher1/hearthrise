@@ -10,14 +10,14 @@
 // server's value stays on screen either way: nothing changed before it answered.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.52';
-import { ITEMS } from '../data/items.js?v=0.2.52';
-import { REFUSAL_WORDS, REFUSAL_FAMILIES, REFUSAL_FALLBACK, REFUSAL_VERB_WORDS } from '../data/refusal-words.js?v=0.2.52';
-import { skillsOf } from '../session/item-sections.js?v=0.2.52';
-import { levelOf } from '../session/character-sections.js?v=0.2.52';
-import { needOf, needWords } from './item-lore.js?v=0.2.52';
-import { whole } from '../render/format.js?v=0.2.52';
-import { SKILLS_DEF } from '../data/skills.js?v=0.2.52';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.54';
+import { ITEMS } from '../data/items.js?v=0.2.54';
+import { REFUSAL_WORDS, REFUSAL_FAMILIES, REFUSAL_FALLBACK, REFUSAL_VERB_WORDS } from '../data/refusal-words.js?v=0.2.54';
+import { skillsOf } from '../session/item-sections.js?v=0.2.54';
+import { levelOf } from '../session/character-sections.js?v=0.2.54';
+import { needOf, needWords } from './item-lore.js?v=0.2.54';
+import { whole } from '../render/format.js?v=0.2.54';
+import { SKILLS_DEF } from '../data/skills.js?v=0.2.54';
 
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 
@@ -95,6 +95,13 @@ export function refusalText(r, cs) {
   if (r && r.error === 'bad_name' && (r.reason === 'reserved' || r.reason === 'blocked')) return refusalWords('bad_name_rule');
   if (r && r.error === 'member_hunting' && r.name) return r.name + ' is hunting. Invite them once that hunt ends.';
   if (r && r.error === 'activity_locked' && r.floor) return floorWords(r.floor);
+  /* A named fuel above the hero's Inner Flame (hr_hearth_burn sends both levels): "Den Knot needs Inner Flame 3. You have 1." */
+  if (r && r.error === 'flame_too_low' && Number.isInteger(r.need)) {
+    return (r.item && own(ITEMS, r.item) ? ITEMS[r.item].n : 'That fuel') + ' needs Inner Flame ' + r.need + '.' + (Number.isInteger(r.have) ? ' You have ' + r.have + '.' : '');
+  }
+  if (r && r.error === 'hearth_busy' && Number.isInteger(r.waitS)) {
+    return 'The Great Hearth is already burning named fuels. Try again in ' + Math.max(1, Math.ceil(r.waitS / 60)) + ' min.';
+  }
   /* A town action above the server's skill level: town-work.js names the skill, both levels and the action. */
   if (r && r.error === 'level_too_low' && r.skill && Number.isInteger(r.skill.need)) return skillShortWords(r.skill.id, r.skill.need, r.skill.have, r.skill.doing);
   if (r && (r.error === 'requirement_not_met' || r.error === 'level_too_low') && r.item) {

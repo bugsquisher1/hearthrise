@@ -99,6 +99,8 @@ const EXTRA = [
      configuration — which is what production will be. */
   ['auto-eat', MIG('2026-08-15-auto-eat.sql')],
   ['tool-carry', MIG('2026-08-15-tool-carry.sql')],
+  /* Inner Flame replaced Prayer (2027-01-31): the slice's catalogue under today's names (A3d); see the file. */
+  ['inner-flame-slice-shim', join(ROOT, 'tests', 'fixtures', 'inner-flame-slice-shim.sql')],
 ];
 
 /* ── THE MUTATION CATALOGUE ─────────────────────────────────────────────────
@@ -978,39 +980,39 @@ async function run(mutate) {
     }
   }
 
-  /* ── A3d. BURYING BONES PAYS PRAYER (Tyler live, v0.2.1: "can't bury bones") ─
-     The Inventory's Bury is THIS intent and nothing else: set_activity
-     artisan:bury_bones, then the switch back to idle collects. Prayer XP comes
-     from the server's recipe row (PRAYER_BURY), the bones leave the server's bag,
+  /* ── A3d. FUELLING THE HEARTH WITH BONES PAYS INNER FLAME (Tyler live, v0.2.1: "can't bury bones";
+     Tyler 2026-10-25: Inner Flame replaces Prayer). The Inventory's Fuel all is THIS intent and nothing
+     else: set_activity artisan:fuel_bones, then the switch back to idle collects. Inner Flame XP comes
+     from the server's recipe row (FLAME_FUEL), the bones leave the server's bag,
      and the tables a reload reads (player_skills, player_inventory) say so. */
   {
     await db.query(
       `insert into public.player_inventory (user_id, slot, item_id, qty) values ($1, 0, 'bones', 6)
        on conflict (user_id, slot, item_id) do update set qty = excluded.qty`, [UID]);
-    const prayerBefore = await skillXp(db, UID, 'prayer');
-    const start = await call({ intentId: uuid(), activity: { kind: 'artisan', id: 'bury_bones' } });
+    const flameBefore = await skillXp(db, UID, 'inner_flame');
+    const start = await call({ intentId: uuid(), activity: { kind: 'artisan', id: 'fuel_bones' } });
     ok(start.status === 200 && start.body.ok === true,
-      `A3d: Bury was refused: ${start.status} ${JSON.stringify(start.body).slice(0, 200)}`);
-    const burying = await state(db, UID);
-    ok(burying.active_kind === 'artisan' && burying.active_id === 'bury_bones',
-      `A3d: the pointer is ${burying.active_kind}/${burying.active_id}, not artisan/bury_bones`);
-    /* Thirty seconds of burying: six bones at 1.2 s each fit with room to spare. */
+      `A3d: Fuel all was refused: ${start.status} ${JSON.stringify(start.body).slice(0, 200)}`);
+    const fueling = await state(db, UID);
+    ok(fueling.active_kind === 'artisan' && fueling.active_id === 'fuel_bones',
+      `A3d: the pointer is ${fueling.active_kind}/${fueling.active_id}, not artisan/fuel_bones`);
+    /* Thirty seconds at the Hearth: six bones at 1.2 s each fit with room to spare. */
     await db.query(
       `update public.player_state set accrued_to = now() - interval '30 seconds', active_since = now() - interval '30 seconds'
         where user_id = $1 and slot = 0`, [UID]);
     const stop = await call({ intentId: uuid(), activity: { kind: 'idle', id: null } });
     ok(stop.status === 200 && stop.body.ok === true && !!stop.body.collected,
-      `A3d: the stop did not collect the burying: ${stop.status} ${JSON.stringify(stop.body).slice(0, 200)}`);
+      `A3d: the stop did not collect the fuelling: ${stop.status} ${JSON.stringify(stop.body).slice(0, 200)}`);
     const bones = Number((await db.query(
       `select qty from public.player_inventory where user_id = $1 and slot = 0 and item_id = 'bones'`, [UID])).rows[0]?.qty ?? 0);
-    ok(bones === 0, `A3d: ${bones} bones are still in the server bag after 30 s of burying six`);
-    const gained = (await skillXp(db, UID, 'prayer')) - prayerBefore;
-    /* A bone pays PRAYER_BURY.xpPerBone (15.6: the authored 40 through the pacing dial, the core rebuild's
-       Prayer curve). This replay's chain may predate the carried remainder, so the window floors each grant
+    ok(bones === 0, `A3d: ${bones} bones are still in the server bag after 30 s of fuelling six`);
+    const gained = (await skillXp(db, UID, 'inner_flame')) - flameBefore;
+    /* A bone pays FLAME_FUEL.xpPerBone (15.6: the authored 40 through the pacing dial, the core rebuild's
+       Inner Flame curve). This replay's chain may predate the carried remainder, so the window floors each grant
        (6 x 15 = 90) or carries it (floor of 6 x 15.6 = 93): never less, never more. */
-    const { PRAYER_BURY } = await import('../src/data/core-model.js');
-    const lo = 6 * Math.floor(PRAYER_BURY.xpPerBone); const hi = Math.floor(6 * PRAYER_BURY.xpPerBone);
-    ok(gained >= lo && gained <= hi, `A3d: burying six bones paid ${gained} Prayer XP (expected ${lo}..${hi}: ${PRAYER_BURY.xpPerBone} a bone)`);
+    const { FLAME_FUEL } = await import('../src/data/core-model.js');
+    const lo = 6 * Math.floor(FLAME_FUEL.xpPerBone); const hi = Math.floor(6 * FLAME_FUEL.xpPerBone);
+    ok(gained >= lo && gained <= hi, `A3d: fuelling six bones paid ${gained} Inner Flame XP (expected ${lo}..${hi}: ${FLAME_FUEL.xpPerBone} a bone)`);
     const after = await state(db, UID);
     ok(after.active_kind === 'idle', `A3d: after the stop the pointer is ${after.active_kind}, not idle — hr_hunt_enter would refuse activity_running`);
   }

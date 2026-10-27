@@ -33,13 +33,17 @@
 //   hr_town_here   a PARKED character (not on screen, still in town) is present:
 //                  every parkedKeepaliveMs, no tile; the answer is its stand.
 //   hr_town_go     send the body to a counter or back to its work (go(station)).
+//   hearth()       the colour the Great Hearth's fire burns now (a named fuel,
+//                  2027-01-31-inner-flame.sql: hr_town_view `hearth`), on this
+//                  browser's clock, or null; noteStand(me) takes a stand another
+//                  answer named (a named fuel's burn sets the body at the fire).
 // An answer older than staleMs shows nobody rather than people who may have left.
 // WHERE THE BODY STANDS (placeOn) is where the World last walked it (a pane shown
 // again starts its hero there: a switch is not a move), else the server's stand.
 // When the server moves the stand (a new activity, back from a hunt, a counter)
 // the World walks the hero there from where it is (me(), display only).
 // ════════════════════════════════════════════════════════════════════════
-import { TOWN_PRESENCE, TOWN_DIRS } from '../data/town-presence.js?v=0.2.52';
+import { TOWN_PRESENCE, TOWN_DIRS } from '../data/town-presence.js?v=0.2.54';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MAP_ID = /^[a-z0-9_]{1,40}$/;
@@ -71,6 +75,18 @@ function standOf(m) {
   if (typeof m.station !== 'string' || !STATION.test(m.station) || !Number.isInteger(m.stand)) return null;
   return Object.freeze({ map: m.map, x: m.x, y: m.y, gx: m.gx, gy: m.gy, dir: m.dir, at: Object.freeze([m.at[0], m.at[1]]),
     station: m.station, stand: m.stand, work: m.work === true, since: Number.isFinite(m.since_ms) ? m.since_ms : 0 });
+}
+
+const FLAME = /^[a-z0-9_]{1,32}$/;
+/** The named flame a town answer carries, on the local clock (`at`: this browser's ms when it was read), or null. Pure. */
+function hearthOf(h, at) {
+  if (!h || typeof h !== 'object' || typeof h.flame !== 'string' || !FLAME.test(h.flame)) return null;
+  const n = (v) => (Number.isSafeInteger(v) ? v : null);
+  const now = n(h.now_ms), from = n(h.from_ms), until = n(h.until_ms);
+  if (now === null || from === null || until === null || until <= from) return null;
+  return Object.freeze({ flame: h.flame, item: typeof h.item === 'string' && /^[a-z0-9_]{1,64}$/.test(h.item) ? h.item : null,
+    by: typeof h.by === 'string' && h.by.trim() ? h.by.slice(0, 24) : null,
+    startedAt: at - (now - from), endsAt: at + (until - now), queued: n(h.queued) || 0 });
 }
 
 /** The position a publish names, validated, or null. Pure. */
@@ -120,6 +136,8 @@ export class TownPresence {
     this._center = null;      // where the hero stands now (the next read's window centre)
     this._reading = null; this._next = null;   // the read in flight, and the one asked while it is out
     this._me = null;          // this character's own stand, as the server last said
+    this._hearth = null;      // the named flame the Great Hearth burns, as the last town answer said (local clock)
+    this._burn = null;        // this character's last named burn the server accepted ({item, at}: the throw the World plays)
     this._sent = null;        // the last place the server took
     this._sentAt = -Infinity;
     this._want = null;        // the latest place the World reported
@@ -146,7 +164,7 @@ export class TownPresence {
     }
     this._parked = false;
     this._map = m;
-    this._known = new Map(); this._walkers = []; this._readAt = null; this._cursor = null; this._readCenter = null; this._want = null;
+    this._known = new Map(); this._walkers = []; this._readAt = null; this._cursor = null; this._readCenter = null; this._want = null; this._hearth = null;
     if (this._timer !== null) { this._clear(this._timer); this._timer = null; }
     if (m) {
       this._timer = this._set(() => this._tick(), this.limits.pollMs);
@@ -247,6 +265,15 @@ export class TownPresence {
     }, () => null);
   }
 
+  /** A stand another answer named for this character (hr_hearth_burn's `me`): the World walks the hero there. */
+  noteStand(raw) { if (!this._dead) this._noteMe(raw); }
+
+  /** The server burnt this character's named fuel `item` (hr_hearth_burn): the World throws it once the hero is at the fire. */
+  noteBurn(item) { if (!this._dead && typeof item === 'string') { this._burn = Object.freeze({ item, at: this._now() }); this._changed(); } }
+
+  /** This character's last accepted named burn ({item, at}, local ms), or null. Display only. */
+  lastBurn() { return this._burn; }
+
   _noteMe(raw) {
     const s = standOf(raw);
     if (!s) { if (raw === null) this._me = null; return; }
@@ -289,7 +316,9 @@ export class TownPresence {
     if (map !== this._map || this._dead) return false;
     const b = ans && ans.body;
     if (!ans || !ans.ok || !b || b.ok !== true) return false;
-    if (b.off) { this._known = new Map(); this._walkers = []; this._readAt = this._now(); this._changed(); return true; }
+    if (b.off) { this._known = new Map(); this._walkers = []; this._hearth = null; this._readAt = this._now(); this._changed(); return true; }
+    /* the Great Hearth's named flame, REPLACED by every answer (absent: none burns) */
+    this._hearth = hearthOf(b.hearth, this._now());
     /* A WHOLE ANSWER REPLACES THE LIST; a delta upserts what changed and drops who is gone (never merged upward) */
     if (b.full === true || whole) { this._known = new Map(); this._fullAt = now; }
     for (const g of Array.isArray(b.gone) ? b.gone : []) if (g && typeof g.id === 'string') this._known.delete(g.id.toLowerCase() + ':' + g.slot);
@@ -326,6 +355,12 @@ export class TownPresence {
     this._drawnAt = now;
     if (!this._map || this._readAt === null || this._now() - this._readAt > this.limits.staleMs) return [];
     return this._walkers.filter((w) => !this._hidden(w.id));
+  }
+
+  /** The named flame the Great Hearth burns now ({flame, item, by, startedAt, endsAt, queued}, local ms), or null. */
+  hearth() {
+    const h = this._hearth;
+    return h && this._map && this._now() < h.endsAt ? h : null;
   }
 
   /** The town map this presence is on, or null. */

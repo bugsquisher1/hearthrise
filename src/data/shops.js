@@ -42,8 +42,8 @@
 //   usd            the platform store, never hr_apply
 // ════════════════════════════════════════════════════════════════════════
 
-import { SUPPLY_SHOP_OFFERS, SHOP_SOLD_KINDS } from './supply-basics.js?v=0.2.52';
-import { ITEMS } from './items.js?v=0.2.52';
+import { SUPPLY_SHOP_OFFERS, SHOP_SOLD_KINDS } from './supply-basics.js?v=0.2.54';
+import { ITEMS } from './items.js?v=0.2.54';
 
 export const SHOPS_DIGEST = "3dd62b831e08bf6b8180fdfa08e203c68eea083199dfdb44a4082ccd36552e07";
 
@@ -85,7 +85,7 @@ export const SHOP_OFFERS = [
     name: "Owl",
     cost: [{ kind: "currency", id: "gold", amount: 8000 }],
     grant: [{ kind: "unlock", id: "companion:owl", amount: 1 }],
-    reqSkill: "prayer", reqLv: 50,
+    reqSkill: "inner_flame", reqLv: 50,
   },
   {
     id: "companion.raccoon", table: "companion",

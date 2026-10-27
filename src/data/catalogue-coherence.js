@@ -29,22 +29,23 @@
 // PURE ESM. No DOM. Imports cleanly in Node, Deno and the browser.
 // ============================================================
 
-import { ITEMS } from './items.js?v=0.2.52';
-import { ARTISAN_RECIPES } from './recipes.js?v=0.2.52';
-import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=0.2.52';
-import { SKILLS_DEF } from './skills.js?v=0.2.52';
-import { SHOP_OFFERS } from './shops.js?v=0.2.52';
-import { SHOP_LISTED_OFFER_IDS } from './supply-basics.js?v=0.2.52';
-import { START_INVENTORY, START_EQUIPMENT } from './start-kit.js?v=0.2.52';
-import { PREMIUM_LOGIN_REWARD } from './premium.js?v=0.2.52';
-import { HEARTHFIND_ITEMS, HEARTHFIND_TABLE } from './hearthfind.js?v=0.2.52';
-import { EFFECT_KINDS } from './item-effects.js?v=0.2.52';
-import { MONSTERS } from './monsters.js?v=0.2.52';
-import { HUNT_GROUNDS, OPEN_GROUNDS } from './hunt-grounds.js?v=0.2.52';
-import { HUNT_INDEX } from './hunts.js?v=0.2.52';
+import { ITEMS } from './items.js?v=0.2.54';
+import { ARTISAN_RECIPES } from './recipes.js?v=0.2.54';
+import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=0.2.54';
+import { SKILLS_DEF } from './skills.js?v=0.2.54';
+import { SHOP_OFFERS } from './shops.js?v=0.2.54';
+import { SHOP_LISTED_OFFER_IDS } from './supply-basics.js?v=0.2.54';
+import { START_INVENTORY, START_EQUIPMENT } from './start-kit.js?v=0.2.54';
+import { PREMIUM_LOGIN_REWARD } from './premium.js?v=0.2.54';
+import { HEARTHFIND_ITEMS, HEARTHFIND_TABLE } from './hearthfind.js?v=0.2.54';
+import { EFFECT_KINDS } from './item-effects.js?v=0.2.54';
+import { MONSTERS } from './monsters.js?v=0.2.54';
+import { NAMED_FUELS } from './hearth.js?v=0.2.54';
+import { HUNT_GROUNDS, OPEN_GROUNDS } from './hunt-grounds.js?v=0.2.54';
+import { HUNT_INDEX } from './hunts.js?v=0.2.54';
 import {
   gatherProductIds, cropProductIds, seedIds, combatDropIds, artisanOutputIds,
-} from './item-authority.js?v=0.2.52';
+} from './item-authority.js?v=0.2.54';
 
 /* The data identities this module reads, re-exported so a Node guard can mutate
    the SAME objects (a bare import without the ?v= query is a second module
@@ -87,7 +88,7 @@ export const VENDOR_TRASH = Object.freeze(['sticky_core', 'goblin_ear', 'goblin_
   'swarm_heart', 'warlord_badge', 'hell_ember', 'shadow_thread', 'captain_medal',
   'shadow_pelt', 'death_steel', 'hollow_sigil', 'abyssal_pearl', 'gold_bar', 'verdite_bar',
   'heartgarnet',
-  /* CORE REBUILD (2026-10-19): the Rat King's Crown Shard lost its Prayer offering (Tyler's
+  /* CORE REBUILD (2026-10-19): the Rat King's Crown Shard lost its old altar offering (Tyler's
      deletion list); "a trader pays well for it" is its whole job until the roster gives it one. */
   'crown_shard',
   /* THE IMBUEMENT SLOT (lane c-loot-loop, designer 2026-10-21; src/data/imbuements.js). One item per Thicket and
@@ -199,7 +200,7 @@ export const UNREACHABLE = Object.freeze({
     'raw_bear_meat', 'cooked_bear_meat', 'bear_claw_pie',
   ]),
   /* Tier 4+ ladder rungs, the old roster's uniques, and the dragon, undead, demon, troll and void materials
-     with the late recipes they feed (Cooking 25 panther and 70+, Prayer 35+, Crafting 60 keystones). */
+     with the late recipes they feed (Cooking 25 panther and 70+, Inner Flame 35+, Crafting 60 keystones). */
   later: Object.freeze([
     'mithril_boots', 'rune_boots', 'mithril_gauntlets', 'rune_gauntlets', 'ember_gauntlets', 'mithril_belt',
     'rune_belt', 'snakeskin_boots', 'wyvernhide_boots', 'snakeskin_gloves', 'wyvernhide_gloves', 'snakeskin_belt',
@@ -346,6 +347,8 @@ export function itemUses() {
     if (Number(it.mana) > 0) push(m, id, 'drunk for mana on a hunt');
   }
   for (const id of Object.keys(CODED_USES)) push(m, id, CODED_USES[id].label);
+  /* a named fuel is burnt alone in the Great Hearth (src/data/hearth.js; hr_hearth_burn, 2027-01-31-inner-flame.sql) */
+  for (const id of Object.keys(NAMED_FUELS)) push(m, id, 'burnt in the Great Hearth (a named fuel)');
   return m;
 }
 
@@ -363,6 +366,8 @@ export const ENGINE_SKILL_CONSUMERS = Object.freeze({
   defense:      Object.freeze({ label: 'damage taken (combat engine)', file: 'src/core/combat.js', needle: 'defense' }),
   ranged:       Object.freeze({ label: 'ranged accuracy and damage (combat engine)', file: 'src/core/combat.js', needle: 'ranged' }),
   magic:        Object.freeze({ label: 'magic accuracy and damage (combat engine)', file: 'src/core/combat.js', needle: 'magic' }),
+  /* Inner Flame (Tyler 2026-10-25, replacing Prayer and its PENDING_CONSUMER row): the HP and mana regeneration RATE */
+  inner_flame:  Object.freeze({ label: 'HP and mana regeneration rate (vitals)', file: 'src/core/vitals.js', needle: "levelOf(c && c.skills, 'inner_flame')" }),
 });
 
 /** skill -> [consumer labels]: who uses what the skill makes. */

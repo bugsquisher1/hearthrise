@@ -45,7 +45,7 @@
 // is true, so it pays live and away identically.)
 // ============================================================
 
-import { COMPANIONS } from '../data/companions.js?v=0.2.52';
+import { COMPANIONS } from '../data/companions.js?v=0.2.54';
 
 /* The keys this layer projects: the src/core/perks.js GOVERNED percentage
    keys that a companion can pay, plus farmYield (a flat crop COUNT, governed
@@ -54,7 +54,7 @@ import { COMPANIONS } from '../data/companions.js?v=0.2.52';
    here (see the header). Frozen so a stray write cannot widen the surface. */
 export const COMPANION_KEYS = Object.freeze([
   'allXP', 'goldFind', 'gatherSpeed', 'cookSpeed',
-  'smithSpeed', 'craftSpeed', 'prayerSpeed', 'farmYield',
+  'smithSpeed', 'craftSpeed', 'flameSpeed', 'farmYield',
 ]);
 const KEY_SET = new Set(COMPANION_KEYS);
 

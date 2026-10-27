@@ -14,15 +14,15 @@
 // Stats the engine does not have (leech, element protections, a character
 // XP bar) have no line at all.
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_ROLES } from '../../../data/hunt-roles.js?v=0.2.52';
-import { characterSheetOf, heroVitalsOf } from '../../../session/character-sections.js?v=0.2.52';
-import { nameOf, bagCapOf } from '../../../session/item-sections.js?v=0.2.52';
-import { staminaOf } from '../../../session/hunt-sections.js?v=0.2.52';
-import { roleIdOf } from '../../../session/party-sections.js?v=0.2.52';
-import { text, cls, style, attr } from '../../../render/paint.js?v=0.2.52';
-import { whole, hoursMinutes } from '../../../render/format.js?v=0.2.52';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.52';
-import { combatLedger } from '../skills.js?v=0.2.52';
+import { HUNT_ROLES } from '../../../data/hunt-roles.js?v=0.2.54';
+import { characterSheetOf, heroVitalsOf } from '../../../session/character-sections.js?v=0.2.54';
+import { nameOf, bagCapOf } from '../../../session/item-sections.js?v=0.2.54';
+import { staminaOf } from '../../../session/hunt-sections.js?v=0.2.54';
+import { roleIdOf } from '../../../session/party-sections.js?v=0.2.54';
+import { text, cls, style, attr } from '../../../render/paint.js?v=0.2.54';
+import { whole, hoursMinutes } from '../../../render/format.js?v=0.2.54';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.54';
+import { combatLedger } from '../skills.js?v=0.2.54';
 
 /* [key, label] of each number line; a line shows only when its value exists. */
 const VITALS = Object.freeze([['hp', 'Max health'], ['mana', 'Max mana'], ['regen', 'Regeneration'], ['speed', 'Speed'], ['cap', 'Capacity'], ['stamina', 'Stamina']]);
@@ -100,7 +100,7 @@ export function patchSheet(body, ctx, drawPortrait, asked) {
   /* Vitals: max HP and max mana, the engine's regeneration and walk speed, the bag's spaces, the stamina pool. */
   line(root, '[data-vital="hp"]', hv.hpMax !== null ? whole(hv.hpMax) : null);
   line(root, '[data-vital="mana"]', hv.manaMax !== null ? whole(hv.manaMax) : null);
-  line(root, '[data-vital="regen"]', c && c.regenPct !== null ? signedPct((c.regenPct - 100) / 100) + ' (Prayer)' : null);
+  line(root, '[data-vital="regen"]', c && c.regenPct !== null ? signedPct((c.regenPct - 100) / 100) + ' (Inner Flame)' : null);
   line(root, '[data-vital="speed"]', c && c.moveSpeed !== null ? (Math.round(c.moveSpeed / 100) / 10) + ' tiles a second' : null);
   line(root, '[data-vital="cap"]', cap !== null ? whole(cap) + ' bag spaces' : null);
   line(root, '[data-vital="stamina"]', st ? hoursMinutes(st.msLeft) : null);

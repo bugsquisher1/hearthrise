@@ -74,6 +74,8 @@ try {
 /** A landscape phone's view (CSS px) and the town's sprite of the gate a hunt comes back through. */
 const PHONE = Object.freeze([844, 390]);
 const GATE_SPRITE = 'havora_gatehouse';
+/** ST-10: how far past a blocker a way is looked for, and the widest strip of rock that may not cut a way. */
+const DEAD_END_SPAN = 12, CLIFF_STRIP = 4;
 
 /** Every rule over `S` (the stations module's shape: STATIONS, STATION_BY_ID, ACTIVITY_STATIONS, stationFor, TOWN_INSTANCE, SITE_OPENS, TAP_OPENS). */
 function check(S, editRow = null) {
@@ -135,7 +137,7 @@ function check(S, editRow = null) {
     for (const n of nodes) want({ kind: 'gather', skill, node: n.id }, 'gather', skill);
   }
   for (const [id, def] of Object.entries(M.skills.SKILLS_DEF)) if (def.cat === 'artisan') want({ kind: 'artisan', skill: id }, 'artisan', id);
-  want({ kind: 'artisan', skill: 'prayer' }, 'artisan', 'prayer');
+  want({ kind: 'artisan', skill: 'inner_flame' }, 'artisan', 'inner_flame');
   want({ kind: 'training' }, 'training');
   want({ kind: 'arrival' }, 'arrival');
   want({ kind: 'idle' }, 'idle');
@@ -184,6 +186,51 @@ function check(S, editRow = null) {
     }
     ok('ST-9', cut.length === 0, way.name + ' is blocked or cut off at ' + cut.slice(0, 6).join(' ') + (cut.length > 6 ? ' (+' + (cut.length - 6) + ')' : ''));
   }
+
+  /* ST-10 NO DEAD END (lane/a-havora-dock, Tyler 2026-10-26: "should be able to walk here"): a walkable way (road, yard,
+     planks, gravel) that runs straight into water, a strip of cliff at most CLIFF_STRIP wide, or a placed thing that is
+     not a building (piers side by side over open water are not a dead end) and comes out the other side within DEAD_END_SPAN tiles must be crossable there or close by: the walk
+     between the two sides is at most 3 x the gap + 12. A building lot or a market stall standing between two streets is
+     the town's plan; water and a thin strip of rock never are (a bridge, a dock or a lane goes there). */
+  const WAYS_GROUND = new Set(['earth', 'cobble', 'flagstone', 'planks', 'gravel', 'setts']);
+  const BUILT = new Set(['lot', 'hall', 'building', 'landmark', 'stall']);
+  const owner = new Map();
+  for (const o of map.objects) {
+    if (M.tables.openClasses.includes(o.cls)) continue;
+    for (let y = o.y; y < o.y + o.fh; y++) for (let x = o.x; x < o.x + o.fw; x++) owner.set(y * map.w + x, o);
+  }
+  const free = (x, y) => x >= 0 && y >= 0 && x < map.w && y < map.h && map.mask[y * map.w + x] === 0;
+  const wayAt = (x, y) => free(x, y) && WAYS_GROUND.has(map.ground[y * map.w + x]);
+  const distFrom = (sx, sy) => {
+    const d = new Int32Array(map.w * map.h).fill(-1), q = [sy * map.w + sx];
+    d[q[0]] = 0;
+    for (let i = 0; i < q.length; i++) {
+      const a = q[i], x = a % map.w, y = (a - x) / map.w;
+      for (const [ddx, ddy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) if (free(x + ddx, y + ddy) && d[(y + ddy) * map.w + x + ddx] < 0) { d[(y + ddy) * map.w + x + ddx] = d[a] + 1; q.push((y + ddy) * map.w + x + ddx); }
+    }
+    return d;
+  };
+  const dead = [];
+  for (let y = 0; y < map.h; y++) for (let x = 0; x < map.w; x++) {
+    if (!wayAt(x, y)) continue;
+    for (const [ddx, ddy] of [[1, 0], [0, 1]]) {
+      if (free(x + ddx, y + ddy)) continue;
+      let k = 1, kinds = new Set();
+      while (k <= DEAD_END_SPAN && !free(x + ddx * k, y + ddy * k)) {
+        const i = (y + ddy * k) * map.w + x + ddx * k, o = owner.get(i);
+        kinds.add(o ? (BUILT.has(o.cls) ? 'built' : 'thing') : map.ground[i] === 'water' ? 'water' : 'rock');
+        k++;
+      }
+      if (k > DEAD_END_SPAN || !wayAt(x + ddx * k, y + ddy * k) || kinds.has('built')) continue;
+      if (kinds.has('rock') && !kinds.has('water') && !kinds.has('thing') && k - 1 > CLIFF_STRIP) continue;
+      /* two piers side by side with open water between are a harbour, not a dead end */
+      const planksAt = (px, py) => map.ground[py * map.w + px] === 'planks';
+      if (kinds.has('water') && !kinds.has('rock') && planksAt(x, y) && planksAt(x + ddx * k, y + ddy * k)) continue;
+      const d = distFrom(x, y)[(y + ddy * k) * map.w + x + ddx * k];
+      if (d < 0 || d > 3 * k + 12) dead.push(x + ',' + y + ' -> ' + (x + ddx * k) + ',' + (y + ddy * k) + ' (' + [...kinds].join('+') + ', walk ' + d + ')');
+    }
+  }
+  ok('ST-10', dead.length === 0, dead.length + ' way(s) run into a dead end with the way going on beyond: ' + dead.slice(0, 6).join('; '));
 
   /* ST-8 arrival: the server's first stands of the arrival station, each in a phone's view of the gate */
   const gate = S.STATION_BY_ID[S.ACTIVITY_STATIONS.arrival];
@@ -251,6 +298,14 @@ if (process.argv.includes('--selftest')) {
     ['ST-9', 'a crate on one plank of the boardwalk', (r) => { r.objects.push(crate(100, 89)); return r; }],
     ['ST-9', 'an open tile fenced in by four crates', (r) => {
       for (const [ddx, ddy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) r.objects.push(crate(-14 + ddx, 46 + ddy));
+      return r; }],
+    /* ST-10: the gate road's bridge deck turned back into river, planks and all (the road runs into the water on both banks) */
+    ['ST-10', 'the mill race bridge\'s deck back to water', (r) => {
+      r.rows = r.rows.map((s, y) => (y >= 16 && y <= 19 ? s.slice(0, 113) + '~~~~~~~~~~~~' + s.slice(125) : s));
+      return r; }],
+    /* ST-10: Tyler's dead end (live v0.2.52): the east dock and the yard across from it, cut apart by a strip of rock */
+    ['ST-10', 'a strip of rock between the east dock and the estates\' lane', (r) => {
+      r.rows = r.rows.map((s, y) => (y >= 80 && y <= 83 ? s.slice(0, 160) + '^^' + s.slice(162) : s));
       return r; }],
   ];
   const control = check(planted(() => {}));

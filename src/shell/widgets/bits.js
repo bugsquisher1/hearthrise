@@ -5,17 +5,17 @@
 // derived from the id; a glyph when the id is not an item), an item's name, and
 // the frame every hunt panel sits in (title, minimise). Display only.
 // ════════════════════════════════════════════════════════════════════════
-import { ITEMS } from '../../data/items.js?v=0.2.52';
-import { RUNE_FAMILIES } from '../../data/runes.js?v=0.2.52';
-import { DRINK_ITEMS } from '../../data/drinks.js?v=0.2.52';
-import { MONSTERS } from '../../data/monsters.js?v=0.2.52';
-import { ABILITIES } from '../../data/abilities.js?v=0.2.52';
-import { SKILLS_DEF } from '../../data/skills.js?v=0.2.52';
-import { PIXEL_DIR, ABILITY_DIR, ABILITY_ART, SUPPLY_DIR, SUPPLY_ART_AHEAD } from '../../data/item-art.js?v=0.2.52';
-import { BASIC_INDEX } from '../../data/supply-basics.js?v=0.2.52';
-import { ROLE_GLYPH } from '../../data/hunt-hud.js?v=0.2.52';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.52';
-import { text, style, attr } from '../../render/paint.js?v=0.2.52';
+import { ITEMS } from '../../data/items.js?v=0.2.54';
+import { RUNE_FAMILIES } from '../../data/runes.js?v=0.2.54';
+import { DRINK_ITEMS } from '../../data/drinks.js?v=0.2.54';
+import { MONSTERS } from '../../data/monsters.js?v=0.2.54';
+import { ABILITIES } from '../../data/abilities.js?v=0.2.54';
+import { SKILLS_DEF } from '../../data/skills.js?v=0.2.54';
+import { PIXEL_DIR, ABILITY_DIR, ABILITY_ART, SUPPLY_DIR, SUPPLY_ART_AHEAD } from '../../data/item-art.js?v=0.2.54';
+import { BASIC_INDEX } from '../../data/supply-basics.js?v=0.2.54';
+import { ROLE_GLYPH } from '../../data/hunt-hud.js?v=0.2.54';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.54';
+import { text, style, attr } from '../../render/paint.js?v=0.2.54';
 
 /** An inline SVG for a window.HR_GLYPHS key, or '' when the glyph is missing. (Here, under every panel part; the
     icon row re-exports it, src/shell/launcher.js, so a coach import of these parts is never a cycle.) */

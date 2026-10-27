@@ -38,13 +38,13 @@
 //   ACCRUED (serverAccruedSkill === true): the union of what the engine settles —
 //     • COMBAT xp skills — the skills a hunt pays (src/core/hunt-rewards.js):
 //       COMBAT_XP_SKILLS (Melee, Ranged, Magic, Defense). Source:
-//       src/core/progression.js. (Prayer is the payable artisan lane below.)
+//       src/core/progression.js. (Inner Flame is the payable artisan lane below.)
 //     • GATHER skills — GATHER_SKILLS (woodcutting/mining/fishing), the exact
 //       list src/core/skill-sim.js's simulateSkillSpan pays. Source:
 //       src/core/pacing.js. NOTE farming is a 'gather' CATEGORY skill but has no
 //       gather node, so it is deliberately NOT here.
 //     • PAYABLE ARTISAN skills — the ARTISAN_SETTLEMENT lanes marked 'payable'
-//       (smithing/crafting/runecrafting/stonemason/prayer). Source:
+//       (smithing/crafting/runecrafting/stonemason/inner_flame). Source:
 //       src/data/item-authority.js — the SAME table that decides which artisan
 //       OUTPUTS the item envelope may own, so items and skills cannot disagree
 //       about which lane the server settles. Cooking ('unmodeled') is excluded.
@@ -55,10 +55,10 @@
 // PURE ESM. No DOM required to import; loads and answers in Node.
 // ============================================================================
 
-import { SKILLS_DEF } from './skills.js?v=0.2.52';
-import { COMBAT_XP_SKILLS } from '../core/progression.js?v=0.2.52';
-import { GATHER_SKILLS } from '../core/pacing.js?v=0.2.52';
-import { ARTISAN_SETTLEMENT } from './item-authority.js?v=0.2.52';
+import { SKILLS_DEF } from './skills.js?v=0.2.54';
+import { COMBAT_XP_SKILLS } from '../core/progression.js?v=0.2.54';
+import { GATHER_SKILLS } from '../core/pacing.js?v=0.2.54';
+import { ARTISAN_SETTLEMENT } from './item-authority.js?v=0.2.54';
 
 /** The skills a hunt pays XP into (src/core/hunt-rewards.js routes, the one list). */
 export function combatXpSkills() {

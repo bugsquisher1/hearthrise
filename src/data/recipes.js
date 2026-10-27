@@ -1,4 +1,4 @@
-// Artisan recipes (cooking/smithing/crafting/prayer)
+// Artisan recipes (cooking/smithing/crafting/runecrafting, and Inner Flame's fuels)
 //
 // b139 (QA sweep §1.1): consolidated from legacy.js's Phase A.1 NEW_RECIPES
 // IIFE. Now uses the modern multi-input schema (`inputs: {id: qty}`) for
@@ -16,13 +16,13 @@
 /* The fletching ladder (arrows). Crafted gear — the generated gear-tiers
    recipes, the wave-3 uniques, the library-2 sets, the boss forge and the
    jewellery/cape rows — was deleted in the 2026-10-14 demolition. */
-import { SLOT_RECIPES } from './slot-ladders.js?v=0.2.52';
-import { ITEMS, foodClassOf } from './items.js?v=0.2.52';
-import { STONECRAFT_RECIPES } from './stonecraft.js?v=0.2.52';
-import { DRINK_RECIPES } from './drinks.js?v=0.2.52';
-import { PRAYER_BURY } from './core-model.js?v=0.2.52';
-import { STYLE_GEAR_RECIPES } from './style-gear.js?v=0.2.52';
-import { SHIELD_RECIPES } from './shields.js?v=0.2.52';
+import { SLOT_RECIPES } from './slot-ladders.js?v=0.2.54';
+import { ITEMS, foodClassOf } from './items.js?v=0.2.54';
+import { STONECRAFT_RECIPES } from './stonecraft.js?v=0.2.54';
+import { DRINK_RECIPES } from './drinks.js?v=0.2.54';
+import { HEARTH_FUELS, fuelRecipeId } from './hearth.js?v=0.2.54';
+import { STYLE_GEAR_RECIPES } from './style-gear.js?v=0.2.54';
+import { SHIELD_RECIPES } from './shields.js?v=0.2.54';
 const BASE_RECIPES = {
   cooking: [
     // Fish — original starter chain
@@ -262,60 +262,23 @@ const BASE_RECIPES = {
        and property offer that spends keystones still resolves. */
     {id:'craft_keystone', name:'Set Keystone', icon:'🧱', inputs:{timber_beam:3, iron_fitting:3, ancient_fragment:2, cracked_spellstone:1}, output:'keystone', outputQty:1, xp:900, req:60, ms:6500},
   ],
-  /* ── PRAYER ─────────────────────────────────────────────────────────────
-     THE VOID: this bench shipped with THREE rows — 1, 15, 35 — and then nothing
-     from 36 to 99. A player who reached Prayer 36 had no new Prayer action for
-     the remaining 64 levels of the skill, on the only bench in the game whose
-     whole output is XP. `bury_dragon` at 72 XP per 2 s is ~130k XP/hour against
-     a 99 curve of ~13M, so the top of the skill was not slow, it was ABSENT.
+  /* ── INNER FLAME: FUEL THE HEARTH (Tyler 2026-10-25, replacing Prayer's burying rites) ──────────────
+     One row per fuel, BUILT from src/data/hearth.js HEARTH_FUELS (the ladder lives there; this bench is its
+     shape): `{id:'fuel_<item>', name, input, output:null, xp, req, ms}`. `output:null` makes each row a PURE
+     SINK — src/core/artisan.js `recipeInputs` reads singular `input` (→ `{[input]:1}`) and `produced` is null
+     when `output` is falsy, so the away engine, the ledger's craft kind and the attended loop all handle it
+     with no engine code. The row's name is its FUEL (the verb is always "Fuel the hearth").
 
-     THE SHAPE IS DELIBERATELY THE ONE THE BENCH ALREADY HAS, not a new system:
-     `{id,name,icon,input,output:null,xp,req,ms}`. `output:null` makes each row a
-     PURE SINK — src/core/artisan.js `recipeInputs` reads singular `input` (→
-     `{[input]:1}`) and `produced` is null when `output` is falsy, so the away
-     engine, the ledger's craft kind and the attended loop all already handle it
-     (this is exactly how `bury_dragon` accrues). ZERO engine code was added for
-     these ten rows, which is the test that they are data and not a feature.
-
-     INPUTS ARE MONSTER DROPS, ten of them, chosen so the ladder is fed by the
-     combat tier a player is fighting at that Prayer level rather than by a
-     second gathering lane — and so ten drops that had a vendor price and no
-     other sink acquire one. Every id is verified present in src/data/items.js
-     and every one already carries painted or bundle art in
-     `LOCAL_ITEM_ICON` (src/render/icons.js), so no icon mapping is owed; each
-     row's glyph is its INPUT's own icon, the same relationship `bury_bones`
-     has to `bones`.
-
-     The XP curve steps ~1.4x per rung against ms that grows only 2.2 s → 3.8 s,
-     which is the standard artisan shape: the later rungs are worth more per
-     action AND per hour, but each one costs a rarer drop. Levels are the
-     Designer's (ruling 2026-09-12, final); Bury Bones' XP is set from the core
-     rebuild's Prayer curve (src/data/core-model.js PRAYER_BURY, 2026-10-19), the
-     rites above it await the designer's Prayer pass. Retuning is a data edit plus a
-     catalogue regenerate.
-
-     ⚠ ADDING A ROW HERE MOVES THE SERVER. tools/gen-catalogues.mjs emits one
-     `hr_activities` row per recipe (kind 'artisan', req_skill = the bench, req_lv
-     = `req`) — that row is what lets `set_activity` accept the id at all, so the
-     catalogue MUST be applied before the client that offers the tile. `xp` and `ms` are NOT in hr_activities;
-     they reach the server through the EDGE PAYLOAD, which imports this file
-     (supabase/functions/hr-accrue/catalogue.js), so hr-accrue must be redeployed at the same cut. BURY IS FAST (designer 2026-10-21, Andy live: 700 bones
-     took 22.4 min): 1200 -> 400 ms, x PACE.actionMs 1.6 = 640 ms a bone (7.5 min for 700); XP per bone unchanged. */
-  prayer: [
-    {id:'bury_bones',     name:'Bury Bones',         icon:'🦴', input:'bones',         output:null, xp:PRAYER_BURY.recipeXp, req:1,  ms:400},
-    {id:'bury_big',       name:'Bury Big Bones',     icon:'🦴', input:'big_bones',     output:null, xp:15,  req:15, ms:1500},
-    {id:'bury_dragon',    name:'Bury Dragon Bones',  icon:'🦴', input:'dragon_bones',  output:null, xp:72,  req:35, ms:2000},
-    {id:'bury_bone_chips',        name:'Sift Bone Chips',          icon:'🦴',  input:'bone_chips',   output:null, xp:105,  req:40, ms:2200},
-    {id:'consecrate_grave_dust',  name:'Consecrate Grave Dust',    icon:'⚱️',  input:'grave_dust',   output:null, xp:155,  req:46, ms:2400},
-    {id:'offer_razor_claw',       name:'Offer Razor Claw',         icon:'爪',  input:'razor_claw',   output:null, xp:212,  req:52, ms:2500},
-    {id:'scatter_vamp_dust',      name:'Scatter Vampire Dust',     icon:'💜',  input:'vamp_dust',    output:null, xp:295,  req:58, ms:2600},
-    {id:'banish_demon_shard',     name:'Banish Demon Shard',       icon:'🔴',  input:'demon_shard',  output:null, xp:420,  req:65, ms:2800},
-    {id:'unbind_wraith_veil',     name:'Unbind Wraith Veil',       icon:'👻',  input:'wraith_veil',  output:null, xp:600,  req:72, ms:3000},
-    {id:'consecrate_dragon_scale',name:'Consecrate Dragon Scale',  icon:'🐲',  input:'dragon_scale', output:null, xp:855,  req:79, ms:3200},
-    {id:'release_lich_soul',      name:'Release Lich Soul',        icon:'☠️',  input:'lich_soul',    output:null, xp:1210, req:86, ms:3400},
-    {id:'offer_ancient_claw',     name:'Offer Ancient Claw',       icon:'爪',  input:'ancient_claw', output:null, xp:1700, req:92, ms:3600},
-    {id:'purge_void_chitin',      name:'Purge Void Chitin',        icon:'🪲',  input:'void_chitin',  output:null, xp:2400, req:99, ms:3800},
-  ]
+     ⚠ ADDING A ROW (to HEARTH_FUELS) MOVES THE SERVER. tools/gen-catalogues.mjs emits one `hr_activities`
+     row per recipe (kind 'artisan', req_skill = the bench, req_lv = `req`) — that row is what lets
+     `set_activity` accept the id at all, so the catalogue MUST be applied before the client that offers it.
+     `xp` and `ms` are NOT in hr_activities; they reach the server through the EDGE PAYLOAD, which imports
+     this file (supabase/functions/hr-accrue/catalogue.js), so hr-accrue must be redeployed at the same cut.
+     FUELLING IS FAST (designer 2026-10-21, Andy live: 700 bones took 22.4 min): 400 ms x PACE.actionMs 1.6 =
+     640 ms a bone (7.5 min for 700); XP per bone from the curve (core-model.js FLAME_FUEL). */
+  inner_flame: HEARTH_FUELS.map((f) => ({
+    id: fuelRecipeId(f.item), name: (ITEMS[f.item] && ITEMS[f.item].n) || f.item, input: f.item, output: null, xp: f.xp, req: f.req, ms: f.ms,
+  })),
 };
 
 /* Every lane is sorted by required level so each artisan panel reads as a
@@ -329,7 +292,7 @@ export const ARTISAN_RECIPES = {
      the made shields (shields.js, Tyler 2026-10-23). */
   smithing: byReq(BASE_RECIPES.smithing.concat(STYLE_GEAR_RECIPES.smithing, SHIELD_RECIPES)),
   crafting: byReq(BASE_RECIPES.crafting.concat(SLOT_RECIPES.crafting, STYLE_GEAR_RECIPES.crafting)),
-  prayer:   BASE_RECIPES.prayer,
+  inner_flame: byReq(BASE_RECIPES.inner_flame),
   runecrafting: byReq(STONECRAFT_RECIPES.runecrafting),
 };
 
@@ -343,8 +306,8 @@ export const ARTISAN_RECIPES = {
    lands in the right tab the moment it is written, and one that no lane
    claims surfaces as `uncategorized` (asserted empty) instead of vanishing.
 
-   Prayer is deliberately absent — its bench is a list, not a taxonomy, and
-   it has no output item to derive from.
+   Inner Flame is deliberately absent — its bench is a list of fuels, not a
+   taxonomy, and it has no output item to derive from.
 
    Demolition (2026-10-14): the weapon, armour, jewellery, materials and
    weapon-enchant lanes went with crafted gear, tools and Enchant v1, and the

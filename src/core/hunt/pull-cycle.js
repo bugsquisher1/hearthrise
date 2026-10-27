@@ -22,19 +22,19 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { HUNT_TUNING } from '../../data/hunt-tuning.js?v=0.2.52';
-import { VITALS } from '../../data/core-model.js?v=0.2.52';
-import { MONSTERS, monsterSpeedOf } from '../../data/monsters.js?v=0.2.52';
-import { AI_REPATH_MS } from '../../data/hunt-roles.js?v=0.2.52';
-import { HUNT_GROUNDS, packHpFor, yieldPermille, routeFor, pullRows, monstersOn } from '../../data/hunt-grounds.js?v=0.2.52';
-import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.52';
-import { monsterMaxHit } from '../combat.js?v=0.2.52';
-import { cheb, dist2, freeNear, tileKey } from './grid.js?v=0.2.52';
-import { inArea, resetPack } from './leash.js?v=0.2.52';
-import { atRest, unitById, leaderOf, setGoal, clearGoal, occupancy, reachable } from './movement.js?v=0.2.52';
-import { makeEvent, trackStep } from './events.js?v=0.2.52';
-import { pickLeader, kites } from './roles.js?v=0.2.52';
-import { holderTank, turnTanks, pickInForce } from './targeting.js?v=0.2.52';
+import { HUNT_TUNING } from '../../data/hunt-tuning.js?v=0.2.54';
+import { VITALS } from '../../data/core-model.js?v=0.2.54';
+import { MONSTERS, monsterSpeedOf } from '../../data/monsters.js?v=0.2.54';
+import { AI_REPATH_MS } from '../../data/hunt-roles.js?v=0.2.54';
+import { HUNT_GROUNDS, packHpFor, yieldPermille, routeFor, pullRows, monstersOn } from '../../data/hunt-grounds.js?v=0.2.54';
+import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.54';
+import { monsterMaxHit } from '../combat.js?v=0.2.54';
+import { cheb, dist2, freeNear, tileKey } from './grid.js?v=0.2.54';
+import { inArea, resetPack } from './leash.js?v=0.2.54';
+import { atRest, unitById, leaderOf, setGoal, clearGoal, occupancy, reachable } from './movement.js?v=0.2.54';
+import { makeEvent, trackStep } from './events.js?v=0.2.54';
+import { pickLeader, kites } from './roles.js?v=0.2.54';
+import { holderTank, turnTanks, pickInForce } from './targeting.js?v=0.2.54';
 
 /* deadMs: a corpse's age. hpMilli: out-of-combat regen carried below one HP.
    phase / routeIdx / phaseMs / regroupNext / runs / nextId: the cycle. alive / respawnAtMs: a pack. */
@@ -223,7 +223,7 @@ function travel(inst, sc, k) {
 }
 
 /* The living heroes regain HP (PC-12): the resting rate out of a fight, the
-   in-fight rate during one (CORE_NUMBERS Q6), each times the hero's Prayer regen
+   in-fight rate during one (CORE_NUMBERS Q6), each times the hero's Inner Flame regen
    rate (`regenPm`, src/core/vitals.js regenPermille). */
 function tickHeroes(inst, sc) {
   const rate = inst.world.phase !== PHASE.FIGHT ? HUNT_TUNING.oocRegenPermillePerS : VITALS.inFightRegenPermillePerS;

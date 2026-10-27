@@ -8,21 +8,15 @@
 --   src/data/premium.js, src/core/hunt/world-state.js and the vendor price
 --   (hr-accrue/catalogue.js). Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: 05d14fce38e1364c72d591b9aa35dfb6fc2abac54f4e3e96aee51b2987ba9f01
---   82 supplies, 121 hunts (named + training), 47 limits, 12 end reasons,
---   531 vendor values, 25 store supplies paid per use, 5 target modes,
+--   digest: 89d887fdd61891bb473cdd8eb91c9582f30eb7f79e950bee41a5cd8f46131695
+--   82 supplies, 121 hunts (named + training), 50 limits, 12 end reasons,
+--   539 vendor values, 25 store supplies paid per use, 5 target modes,
 --   4 lanes, 16 abilities, 10 action-set options, 5 hunt grounds
 --
--- SUPERSEDES 2027-01-13-hunt-sessions-catalogue.generated.sql (APPLIED 2026-10-24 with
--- v0.2.42, history: never regenerated): every table below is rewritten wholesale.
--- NEW SINCE 01-13 (lane/b-level-curve, 2026-10-27): hr_hunt_limits loses level_quartic,
--- level_cubic and level_linear; the Level curve is hr_level_curve
--- (2027-01-31-level-curve.generated.sql), and nothing else changes. ORDER: right AFTER
--- 2027-01-31-level-curve.generated.sql (the precondition below refuses this file while a
--- curve function still reads the three rows: with them gone, the old bodies would read
--- a curve of 0 XP a Level). Carried from 01-13, which superseded 12-20 (APPLIED with
--- v0.2.37) and folded in the staged 12-21, 12-22 and 12-24 files of the spell lanes:
--- THE SPELL RELEASE (Tyler + designer 2026-10-23): the store's Plain
+-- SUPERSEDES 2026-12-20-hunt-sessions-catalogue.generated.sql (APPLIED with v0.2.37,
+-- history: never regenerated): every table below is rewritten wholesale. The staged
+-- 12-21, 12-22 and 12-24 files of the spell lanes were never applied and are folded in.
+-- NEW SINCE 12-20 (the spell release, Tyler + designer 2026-10-23): the store's Plain
 -- Iron Arrows and the 1 g store shot (hr_hunt_basic_supplies); the eat-at / drink-at
 -- options (hr_hunt_set_options) and their threshold limits RETIRED (a slot's own
 -- conditions); the casters' mana basic in the magic bound (magic_xp_mult_max); the
@@ -75,10 +69,6 @@ begin
               and p.proname in ('hr_hunt_member_read', 'hr_hunt_settle_session')
               and (p.prosrc like '%q.tiers%' or p.prosrc like '%b.tiers%' or p.prosrc like '%v_tier%')) then
     raise exception 'PRECONDITION: apply 2026-11-07-store-by-slot.sql first (a hunt body still reads the store tier)'; end if;
-  if exists (select 1 from pg_proc p where p.pronamespace = 'public'::regnamespace
-              and p.proname in ('hr_char_level', 'hr_char_xp_for_level') and p.prosrc like '%level_quartic%')
-     or to_regclass('public.hr_level_curve') is null then
-    raise exception 'PRECONDITION: apply 2027-01-31-level-curve.generated.sql first (a Level curve function still reads hr_hunt_limits)'; end if;
 end $$;
 --
 -- Server-only: RLS on, NO policy, no client grant (the client reads src/data).
@@ -443,8 +433,8 @@ insert into public.hr_hunt_kill_bounds (monster_id, gold_max, xp_max, drops) val
   ('cave_wyrm', 102, 515, '{"dragon_scale":1,"iron_ore":1,"mithril_ore":1,"coal":1,"snakeskin_gloves":1}'::jsonb),
   ('centipede', 40, 188, '{"void_chitin":1,"venom_sac":1,"iron_ore":1,"coal":1}'::jsonb),
   ('chained_demon', 254, 962, '{"demon_shard":1,"hell_ember":1,"death_steel":1,"iron_fitting":1,"yew_staff":1}'::jsonb),
-  ('chief_coppercap', 215, 9570, '{"big_bones":1,"gold_ore":1,"goblin_totem":1,"coppercaps_tallow":1,"steel_platebody":1,"boarhide_body":1,"scholar_body":1,"war_crown":1,"willow_wand":1,"willow_spellbook":1,"willow_staff":1,"coppercaps_cauldron":1}'::jsonb),
-  ('cistern_spider', 90, 839, '{"silk_thread":1,"cistern_venom_gland":1,"longbow":1,"oak_crossbow":1}'::jsonb),
+  ('chief_coppercap', 215, 9570, '{"big_bones":1,"gold_ore":1,"goblin_totem":1,"coppercaps_tallow":1,"steel_platebody":1,"boarhide_body":1,"scholar_body":1,"war_crown":1,"willow_wand":1,"willow_spellbook":1,"willow_staff":1,"verdigris_cake":1,"coppercaps_cauldron":1}'::jsonb),
+  ('cistern_spider', 90, 839, '{"silk_thread":1,"dry_husk":1,"cistern_venom_gland":1,"longbow":1,"oak_crossbow":1}'::jsonb),
   ('clay_golem', 40, 217, '{"iron_ore":1,"iron_fitting":1,"coal":1,"steel_boots":1}'::jsonb),
   ('conjurer', 118, 477, '{"magic_essence":1,"hell_ember":1,"rune_frag":1,"maple_spellbook":1,"warlock_boots":1}'::jsonb),
   ('culvert_bat', 38, 393, '{"bat_wing":1,"bones":1,"culvert_bat_fang":1,"iron_helm":1,"studded_helmet":1,"adept_helmet":1}'::jsonb),
@@ -453,7 +443,7 @@ insert into public.hr_hunt_kill_bounds (monster_id, gold_max, xp_max, drops) val
   ('dark_wizard', 25, 97, '{"magic_essence":1,"rune_frag":1,"bones":1,"dark_sigil":1,"oak_wand":1,"oak_spellbook":1}'::jsonb),
   ('death_knight', 260, 1010, '{"big_bones":1,"death_steel":1,"captains_ribblade":1}'::jsonb),
   ('deserter', 46, 198, '{"iron_bar":1,"steel_bar":1,"iron_fitting":1,"bones":1,"maple_bow":1}'::jsonb),
-  ('dire_gray', 14, 221, '{"raw_wolf_meat":1,"bones":1,"dire_hackle":1,"bronze_platebody":1,"leather_body":1,"apprentice_body":1,"studded_body":1}'::jsonb),
+  ('dire_gray', 14, 221, '{"raw_wolf_meat":1,"bones":1,"dire_hackle":1,"bronze_platebody":1,"leather_body":1,"apprentice_body":1,"studded_body":1,"den_knot":1}'::jsonb),
   ('dire_wolf', 40, 193, '{"wolf_pelt":1,"dire_fang":1,"alpha_fang":1,"raw_wolf_meat":1,"boarhide_boots":1}'::jsonb),
   ('draconia', 646, 1924, '{"dragon_bones":1,"dragon_scale":1,"dragon_gem":1,"ancient_claw":1,"dragonrib_bow":1}'::jsonb),
   ('dragon', 700, 2030, '{"dragon_bones":1,"dragon_scale":1,"dragon_gem":1,"ancient_claw":1,"marrow_cookbook":1}'::jsonb),
@@ -490,7 +480,7 @@ insert into public.hr_hunt_kill_bounds (monster_id, gold_max, xp_max, drops) val
   ('grayjaw', 16, 311, '{"wolf_pelt":1,"bones":1,"grayjaw_whisker":1,"alpha_fang":1,"iron_helm":1,"studded_helmet":1,"adept_helmet":1,"grayjaws_ruff":1}'::jsonb),
   ('grim_reaper', 668, 1797, '{"lich_soul":1,"death_steel":1,"hollow_sigil":1,"big_bones":1,"vamp_dust":1}'::jsonb),
   ('hellhound', 130, 513, '{"demon_shard":1,"hell_ember":1,"big_bones":1,"coal":1}'::jsonb),
-  ('hive_wasp', 4, 48, '{"venom_sac":1,"silk_thread":1,"hive_wasp_stinger":1,"bronze_helm":1,"leather_helmet":1,"apprentice_helmet":1}'::jsonb),
+  ('hive_wasp', 4, 48, '{"venom_sac":1,"silk_thread":1,"hive_wasp_stinger":1,"bronze_helm":1,"leather_helmet":1,"apprentice_helmet":1,"queens_comb":1}'::jsonb),
   ('hobgoblin', 22, 89, '{"goblin_ear":1,"iron_ore":1,"iron_sword":1,"goblin_totem":1,"rat_stick":1}'::jsonb),
   ('hobgoblin_foreman', 67, 2562, '{"big_bones":1,"iron_ore":1,"coal":1,"foremans_lash":1,"steel_platebody":1,"boarhide_body":1,"scholar_body":1,"steel_hatchets":1}'::jsonb),
   ('ice_elemental', 100, 462, '{"frostfin":1,"magic_essence":1,"mithril_ore":1}'::jsonb),
@@ -517,7 +507,7 @@ insert into public.hr_hunt_kill_bounds (monster_id, gold_max, xp_max, drops) val
   ('panther', 210, 828, '{"shadow_pelt":1,"razor_claw":1,"ruby":1,"raw_panther_meat":1,"panthers_eye_pendant":1}'::jsonb),
   ('plague_swarm', 82, 360, '{"plague_ichor":1,"venom_sac":1,"swarm_heart":1,"field_cookbook":1}'::jsonb),
   ('rat', 4, 41, '{"rat_tail":1,"small_fang":1,"wheat":1,"bones":1,"giant_rat_hide":1}'::jsonb),
-  ('rat_king', 238, 4740, '{"rat_tail":1,"bones":1,"knotted_tails":1,"crown_shard":1,"kingsgrate":1,"rat_kings_crown":1}'::jsonb),
+  ('rat_king', 238, 4740, '{"rat_tail":1,"bones":1,"knotted_tails":1,"crown_shard":1,"kingsgrate":1,"rat_kings_knot":1,"rat_kings_crown":1}'::jsonb),
   ('revenant', 512, 1707, '{"big_bones":1,"death_steel":1,"ancient_rune":1,"grave_dust":1,"ember_gauntlets":1}'::jsonb),
   ('rock_troll', 48, 226, '{"troll_hide":1,"iron_ore":1,"coal":1,"big_bones":1,"steel_belt":1}'::jsonb),
   ('rook_poacher', 40, 637, '{"raw_wolf_meat":1,"bones":1,"rooks_moss_charm":1,"rooks_whistle":1,"steel_helm":1,"boarhide_helmet":1,"scholar_helmet":1}'::jsonb),
@@ -526,14 +516,14 @@ insert into public.hr_hunt_kill_bounds (monster_id, gold_max, xp_max, drops) val
   ('shadow_creeper', 190, 760, '{"shadow_thread":1,"silk_thread":1,"void_chitin":1,"shadowsilk_cape":1}'::jsonb),
   ('shrieker', 15, 77, '{"oak_log":1,"moonbloom":1,"goldenroot":1,"studded_helmet":1}'::jsonb),
   ('skeleton', 20, 98, '{"bones":1,"bone_chips":1,"iron_ore":1,"ancient_fragment":1,"iron_belt":1}'::jsonb),
-  ('slime', 3, 34, '{"slime_gel":1,"bones":1,"sticky_core":1}'::jsonb),
+  ('slime', 3, 34, '{"slime_gel":1,"lamp_jelly":1,"sticky_core":1}'::jsonb),
   ('small_wolf', 9, 38, '{"wolf_pelt":1,"small_fang":1,"bones":1,"raw_wolf_meat":1,"wolfbone_torc":1}'::jsonb),
   ('stag', 14, 71, '{"wolf_pelt":1,"bones":1,"raw_wolf_meat":1,"studded_boots":1}'::jsonb),
   ('starhusk', 272, 940, '{"void_chitin":1,"shadow_thread":1,"ancient_rune":1,"grave_dust":1,"sorcerer_belt":1}'::jsonb),
   ('stone_golem', 15, 87, '{"copper_ore":1,"iron_ore":1,"coal":1,"iron_gauntlets":1}'::jsonb),
   ('stonejaw', 586, 1857, '{"war_crown":1,"captain_medal":1,"death_steel":1,"warlord_badge":1}'::jsonb),
   ('storm_elemental', 548, 1673, '{"magic_essence":1,"ancient_rune":1,"dawnstone_ore":1,"rune_bar":1,"runewood_staff":1}'::jsonb),
-  ('sump_slime', 14, 216, '{"slime_gel":1,"sump_membrane":1,"bronze_platebody":1,"leather_body":1,"apprentice_body":1,"oak_wand":1,"oak_spellbook":1,"oak_staff":1}'::jsonb),
+  ('sump_slime', 14, 216, '{"slime_gel":1,"lamp_jelly":1,"sump_membrane":1,"bronze_platebody":1,"leather_body":1,"apprentice_body":1,"oak_wand":1,"oak_spellbook":1,"oak_staff":1}'::jsonb),
   ('the_silence', 614, 1716, '{"void_chitin":1,"void_core":1,"shadow_thread":1,"hollow_sigil":1}'::jsonb),
   ('the_unlit', 698, 2010, '{"void_core":1,"void_chitin":1,"hollow_sigil":1,"ancient_rune":1,"dawnstone_ore":1}'::jsonb),
   ('treant', 528, 1828, '{"duskwood_log":1,"runewood_log":1,"timber_beam":1,"moonbloom":1,"yew_log":1}'::jsonb),
@@ -542,7 +532,7 @@ insert into public.hr_hunt_kill_bounds (monster_id, gold_max, xp_max, drops) val
   ('vharek', 620, 1919, '{"demon_shard":1,"hell_ember":1,"death_steel":1,"ember_bar":1,"hollow_sigil":1}'::jsonb),
   ('void_mote', 126, 482, '{"void_chitin":1,"magic_essence":1,"rune_frag":1,"void_censer":1}'::jsonb),
   ('void_parasite', 420, 1410, '{"void_chitin":1,"plague_ichor":1,"void_core":1,"archmage_boots":1}'::jsonb),
-  ('walking_vine', 12, 313, '{"magic_essence":1,"mosslight_tendril":1,"iron_helm":1,"studded_helmet":1,"adept_helmet":1}'::jsonb),
+  ('walking_vine', 12, 313, '{"magic_essence":1,"pithwood":1,"mosslight_tendril":1,"iron_helm":1,"studded_helmet":1,"adept_helmet":1,"mosslight_clump":1}'::jsonb),
   ('war_king', 520, 1680, '{"captain_medal":1,"war_crown":1,"chief_blade":1}'::jsonb),
   ('warband_captain', 225, 885, '{"warlord_badge":1,"captain_medal":1,"rune_sword":1}'::jsonb),
   ('warlock', 60, 222, '{"magic_essence":1,"rune_frag":1,"cracked_spellstone":1,"willow_wand":1,"willow_spellbook":1,"scholar_gloves":1}'::jsonb),
@@ -875,6 +865,8 @@ insert into public.hr_hunt_limits (key, value) values
   ('distance_max', 8),
   ('distance_min', 1),
   ('drink_mana_per_min_max', 19440),
+  ('flame_regen_k', 50),
+  ('flame_regen_max_permille', 1000),
   ('gather_share_max', 100),
   ('gather_share_min', 0),
   ('gold_floor_default', 300),
@@ -887,6 +879,9 @@ insert into public.hr_hunt_limits (key, value) values
   ('hp_base', 150),
   ('hp_per_level', 10),
   ('in_fight_regen_permille_s', 3),
+  ('level_cubic', 20),
+  ('level_linear', 50),
+  ('level_quartic', 1),
   ('light_mana_permille', 350),
   ('magic_xp_mult_max', 1600),
   ('magic_xp_permille', 1500),
@@ -896,8 +891,6 @@ insert into public.hr_hunt_limits (key, value) values
   ('max_concurrent', 4),
   ('ooc_regen_permille_s', 60),
   ('party_max', 4),
-  ('prayer_regen_k', 50),
-  ('prayer_regen_max_permille', 1000),
   ('presets', 5),
   ('sessions_kept', 20),
   ('skill_base', 15),
@@ -1092,6 +1085,7 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('death_steel', 110),
   ('demon_shard', 40),
   ('demoncaller_staff', 1904),
+  ('den_knot', 90),
   ('dented_copper_pot', 16),
   ('dire_fang', 30),
   ('dire_hackle', 5),
@@ -1110,6 +1104,7 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('dragonhide_pants', 2802),
   ('dragonrend_greatblade', 2464),
   ('dragonrib_bow', 1911),
+  ('dry_husk', 1),
   ('duskwood_bow', 5292),
   ('duskwood_log', 230),
   ('duskwood_plank', 2600),
@@ -1205,6 +1200,7 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('kingsgrate', 150),
   ('knotted_tails', 10),
   ('kobold_scale', 5),
+  ('lamp_jelly', 1),
   ('lazlos_maul', 231),
   ('leather_belt', 17),
   ('leather_body', 62),
@@ -1244,6 +1240,7 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('moonbloom_elixir', 2600),
   ('moonbloom_seed', 280),
   ('moonfish', 180),
+  ('mosslight_clump', 180),
   ('mosslight_tendril', 8),
   ('night_fang', 90),
   ('nightstalker_pelt', 1736),
@@ -1259,6 +1256,7 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('packlord_band', 210),
   ('panthers_eye_pendant', 1904),
   ('pikeperch', 5),
+  ('pithwood', 1),
   ('plague_ichor', 36),
   ('plaguewarden_greaves', 1512),
   ('potato', 13),
@@ -1267,9 +1265,11 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('pumpkin_cider', 50),
   ('pumpkin_pie', 420),
   ('pumpkin_seed', 25),
+  ('queens_comb', 60),
   ('quiet_coat', 3822),
   ('rat_incisor', 4),
   ('rat_kings_crown', 4000),
+  ('rat_kings_knot', 150),
   ('rat_stick', 77),
   ('rat_tail', 1),
   ('raw_bear_meat', 3),
@@ -1402,6 +1402,7 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('vamp_dust', 24),
   ('vegetable_stew', 140),
   ('venom_sac', 15),
+  ('verdigris_cake', 300),
   ('verdite_bar', 320),
   ('verdite_blade', 126),
   ('verdite_helm', 151),
@@ -1490,9 +1491,9 @@ declare v_role text; v_t text;
 begin
   if (select count(*) from public.hr_hunt_supplies) <> 82
      or (select count(*) from public.hr_hunt_travel) <> 121
-     or (select count(*) from public.hr_hunt_limits) <> 47
+     or (select count(*) from public.hr_hunt_limits) <> 50
      or (select count(*) from public.hr_hunt_end_reasons) <> 12
-     or (select count(*) from public.hr_hunt_vendor_value) <> 531
+     or (select count(*) from public.hr_hunt_vendor_value) <> 539
      or (select count(*) from public.hr_hunt_basic_supplies) <> 25
      or (select count(*) from public.hr_hunt_cover_items) <> 0
      or exists (select 1 from public.hr_hunt_basic_supplies where cardinality(coalesce(tiers, '{}'::int[])) > 0)
@@ -1526,11 +1527,9 @@ begin
   -- ONE consumable lane, at the data file's ms (the food-lane ruling, spec §3.4 #3).
   if (select ms from public.hr_hunt_lanes where lane = 'consumable') is distinct from 2000 then
     raise exception 'the consumable lane is not consumables.js laneMs'; end if;
-  -- Premium may never rest less than free; the core model's curves are live (a Level and a skill both start at 0 XP:
-  -- the Level curve's own rows, hr_level_curve, and the skill curve's base).
+  -- Premium may never rest less than free; the core model's curves are live (a Level and a skill both start at 0 XP).
   if public.hr_hunt_limit('stamina_premium_min') < public.hr_hunt_limit('stamina_free_min')
-     or public.hr_hunt_limit('level_cubic') is not null
-     or coalesce(public.hr_char_xp_for_level(2), 0) <= 0 or coalesce(public.hr_hunt_limit('skill_base'), 0) <= 0
+     or coalesce(public.hr_hunt_limit('level_cubic'), 0) <= 0 or coalesce(public.hr_hunt_limit('skill_base'), 0) <= 0
      or coalesce(public.hr_hunt_limit('armour_slots'), 0) <= 0 then
     raise exception 'the stamina caps or the core model rows are malformed'; end if;
   -- Every supply, vendor value, ability rune and login reward is a catalogued item;

@@ -44,8 +44,8 @@
 //   Waking a hidden tab checks the token before anything else is sent.
 // ════════════════════════════════════════════════════════════════════════
 
-import { SESSION_CONFIG } from '../session/config.js?v=0.2.52';
-import { PASSWORD_MIN_LENGTH } from '../data/account-rules.js?v=0.2.52';
+import { SESSION_CONFIG } from '../session/config.js?v=0.2.54';
+import { PASSWORD_MIN_LENGTH } from '../data/account-rules.js?v=0.2.54';
 
 /** A token closer than this to its expiry is refreshed before it is sent. */
 export const TOKEN_MARGIN_MS = 60000;

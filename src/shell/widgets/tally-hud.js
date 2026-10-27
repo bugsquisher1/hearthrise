@@ -9,11 +9,11 @@
 // title and fold to it (src/shell/widget-move.js, Tyler 2026-10-25). Built once,
 // patched in place.
 // ════════════════════════════════════════════════════════════════════════
-import { tallyOf, tallyLine } from '../../session/tally-sections.js?v=0.2.52';
-import { huntOf } from '../../session/hunt-sections.js?v=0.2.52';
-import { TALLY_KEEPER } from '../../data/tally-tasks.js?v=0.2.52';
-import { rows, text, cls, style, element } from '../../render/paint.js?v=0.2.52';
-import { foldButtonHtml } from '../widget-move.js?v=0.2.52';
+import { tallyOf, tallyLine } from '../../session/tally-sections.js?v=0.2.54';
+import { huntOf } from '../../session/hunt-sections.js?v=0.2.54';
+import { TALLY_KEEPER } from '../../data/tally-tasks.js?v=0.2.54';
+import { rows, text, cls, style, element } from '../../render/paint.js?v=0.2.54';
+import { foldButtonHtml } from '../widget-move.js?v=0.2.54';
 
 /** The skeleton (built once). Its title opens her window on a press and drags the widget on a drag. */
 export function renderTallyHud() {

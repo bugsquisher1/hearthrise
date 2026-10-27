@@ -101,6 +101,8 @@ export const CLIENT_RPCS = Object.freeze({
   /* Tamsin's tally (2026-12-23-tally-tasks.sql): catalogue ids only; the server counts the kills, prices the reward and picks the piece. */
   hr_tally_view: 'Tamsin\'s board for this hero: the tasks, what each pays and her pick now; a read (tally-intents.js tallyBoard)',
   hr_tally_accept: 'take a kill task by id at her board in town, with the armour weight the first time; no count, no price (tally-intents.js takeTask)',
+  /* The Great Hearth (2027-01-31-inner-flame.sql): a slot, a catalogue id and a key; the XP, colour, time and clamps are the server's. */
+  hr_hearth_burn: 'burn ONE named fuel from the bag in the Great Hearth by its catalogue id and a fresh key; never an amount, an XP figure or a colour (hearth-intents.js burnNamedFuel)',
   hr_tally_drop: 'give up a held kill task by id; its count is lost (tally-intents.js dropTask)',
   hr_tally_set: 'keep a task, the armour weight she picks for or her slot order, ids only (tally-intents.js setTally)',
   hr_tally_collect: 'in town, be paid for done kill tasks; the server decides what is due, its gold and her pick (tally-intents.js collectTally)',

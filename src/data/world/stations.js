@@ -40,11 +40,13 @@
 // floor(stands / heroesPerPlayer). view/margin/cap: the area a viewer reads (its view in tiles +
 // margin on every side, at most cap bodies a read; hr_town_view).
 // ════════════════════════════════════════════════════════════════════════
-import { at, TOWN_MAP } from './town/plan.js?v=0.2.52';
+import { at, TOWN_MAP } from './town/plan.js?v=0.2.54';
 
 export const TAP_OPENS = Object.freeze({
   anvil: Object.freeze({ open: 'skill', skill: 'smithing' }),
   woodpile: Object.freeze({ open: 'skill', skill: 'woodcutting' }),
+  /* the Great Hearth itself: the bag, where Fuel the hearth is (Tyler 2026-10-25; Inner Flame, src/data/hearth.js) */
+  great_hearth: Object.freeze({ open: 'window', window: 'inventory' }),
   /* Tamsin Reeve and her Tally Board in Hearth Square (2026-12-23-tally-tasks.sql): her window. PLACEHOLDER ART:
      the style-1 crier and noticeboard stand in for her until her own sprite and board are drawn. */
   npc_crier: Object.freeze({ open: 'window', window: 'tally' }),
@@ -111,7 +113,7 @@ const PLOTS = [[20, 82, 4], [25, 82, 3], [29, 81, 5], [35, 82, 3], [39, 81, 4], 
 
 const ROWS = [
   /* HEARTH SQUARE (x106-129 y36-59): the fire, the field and flanks, the benches */
-  { id: 'hearth', district: 'hearth_square', kind: 'artisan', skill: 'prayer', opens: win('inventory'), props: HEARTH_PROPS,
+  { id: 'hearth', district: 'hearth_square', kind: 'artisan', skill: 'inner_flame', opens: win('inventory'), props: HEARTH_PROPS,
     stands: [...F(112, 49, 11, 1), ...F(111, 50, 13, 1)], overflow: [], fallback: 'square_benches' },
   /* the field (y52-53, checkered, the x110-111 aisle kept open) and the two flanks; then the corner by the storage */
   { id: 'hearth_square', district: 'hearth_square', kind: 'idle', opens: null, props: [],
@@ -190,7 +192,7 @@ export const TAP_WINDOWS = Object.freeze(Array.from(new Set(Object.values(TAP_OP
 export const ACTIVITY_STATIONS = Object.freeze({
   gather: Object.freeze({ woodcutting: 'westwood', mining: 'mine', fishing: 'shore', farming: 'farm' }),
   node: Object.freeze({ trout_s: 'river_bank', pikeperch_s: 'river_bank' }),
-  artisan: Object.freeze({ smithing: 'smithy_forges', crafting: 'smithy_benches', cooking: 'tavern_kitchen', runecrafting: 'rune_block', prayer: 'hearth' }),
+  artisan: Object.freeze({ smithing: 'smithy_forges', crafting: 'smithy_benches', cooking: 'tavern_kitchen', runecrafting: 'rune_block', inner_flame: 'hearth' }),
   training: 'training_yard',
   /* a hunt leaves from its map's way in: the cellar hatch, the sewer grate, else the gatehouse */
   hunt: Object.freeze({ mill_cellar: 'mill_hatch', millrace_sewer: 'sewer_grate' }),

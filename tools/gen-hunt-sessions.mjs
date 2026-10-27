@@ -143,7 +143,7 @@ import { PREMIUM_LOGIN_REWARD } from '../src/data/premium.js';
 import { WORLD_VERSION, SHAPE, FIELDS as WORLD_FIELDS } from '../src/core/hunt/world-state.js';
 import { vendorPriceOf } from '../supabase/functions/hr-accrue/catalogue.js';
 import { COMBAT_BALANCE } from '../src/core/combat.js';
-import { SKILL_CURVE, VITALS, ARMOUR_SLOTS, COMBAT_XP, PRAYER_REGEN } from '../src/data/core-model.js';
+import { SKILL_CURVE, VITALS, ARMOUR_SLOTS, COMBAT_XP, FLAME_REGEN } from '../src/data/core-model.js';
 import { isMain } from '../tests/_is-main.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -172,12 +172,16 @@ export const WORLD_FIELDS_READ = Object.freeze({
    rune a family, each spell's family rune, Rend / Frost Lance on; the SUPPORT lane, the role keys' disciplines and shield
    arms (hr_hunt_weapon_roles), the shields (hr_hunt_shields) and hr_hunt_roles retired; the 1 g store shot. ONE forward
    file ON TOP of the APPLIED 12-20 one (the staged 12-21, 12-22 and 12-24 files collapsed into it, never applied), applied
-   after 2027-01-13-items-catalogue (hr_items first) and right before 2027-01-13-spell-content.sql. That file is history
-   (APPLIED 2026-10-24 with v0.2.42). THE LEVEL CURVE'S OWN ROWS (lane/b-level-curve, 2026-10-27): the Level curve leaves
-   hr_hunt_limits (level_quartic / level_cubic / level_linear) for its own table, hr_level_curve
-   (tools/gen-level-curve.mjs), so the next forward file carries every table unchanged but those three rows, applied
-   right AFTER 2027-01-31-level-curve.generated.sql (which moves the curve functions off them first). */
-export const OUT_NAME = '2027-01-31-hunt-sessions-catalogue.generated.sql';
+   after 2027-01-13-items-catalogue (hr_items first) and right before 2027-01-13-spell-content.sql. */
+/* INNER FLAME (lane b-inner-flame, Tyler 2026-10-25): 2027-01-13 is APPLIED history. The regen limits' keys prayer_regen_*
+   -> flame_regen_* (hr_hunt_limits; read by hr_regen_permille, restated in 2027-01-31-inner-flame.sql) and the Hearth's
+   fuels in the loot's vendor values land in ONE forward file, the same full replace, applied after
+   2027-01-31-items-catalogue.generated.sql (hr_items first) and before 2027-01-31-inner-flame.sql. */
+/* THE LEVEL CURVE'S OWN ROWS (lane/b-level-curve, 2026-10-27): the Level curve leaves hr_hunt_limits (level_quartic /
+   level_cubic / level_linear) for its own table, hr_level_curve (tools/gen-level-curve.mjs). The next forward file sits ON
+   TOP of Inner Flame's 2027-01-31 one (every table as it has them) but for those three rows, applied right AFTER
+   2027-02-01-level-curve.generated.sql (which moves the curve functions off them first). */
+export const OUT_NAME = '2027-02-01-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -357,7 +361,7 @@ export function catalogueRows(src = {}) {
     hp_base: VITALS.hpBase, hp_per_level: VITALS.hpPerLevel, mana_base: VITALS.manaBase, mana_per_level: VITALS.manaPerLevel,
     heavy_hp_permille: VITALS.heavyHpPermille, light_mana_permille: VITALS.lightManaPermille, armour_slots: ARMOUR_SLOTS.length,
     in_fight_regen_permille_s: VITALS.inFightRegenPermillePerS,
-    prayer_regen_max_permille: PRAYER_REGEN.maxPermille, prayer_regen_k: PRAYER_REGEN.k,
+    flame_regen_max_permille: FLAME_REGEN.maxPermille, flame_regen_k: FLAME_REGEN.k,
     hit_xp_permille: Math.round(COMBAT_XP.hitXpPerDamage * 1000),
     defense_xp_level_permille: COMBAT_XP.defenseXpPerLevelPermille, block_mult: COMBAT_XP.blockMult,
   };
@@ -570,14 +574,16 @@ export function render(src) {
 --   ${r.vendor.length} vendor values, ${r.basics.length} store supplies paid per use, ${r.targets.length} target modes,
 --   ${r.lanes.length} lanes, ${r.abilities.length} abilities, ${r.setOptions.length} action-set options, ${r.grounds.length} hunt grounds
 --
--- SUPERSEDES 2027-01-13-hunt-sessions-catalogue.generated.sql (APPLIED 2026-10-24 with
--- v0.2.42, history: never regenerated): every table below is rewritten wholesale.
--- NEW SINCE 01-13 (lane/b-level-curve, 2026-10-27): hr_hunt_limits loses level_quartic,
--- level_cubic and level_linear; the Level curve is hr_level_curve
--- (2027-01-31-level-curve.generated.sql), and nothing else changes. ORDER: right AFTER
--- 2027-01-31-level-curve.generated.sql (the precondition below refuses this file while a
+-- SUPERSEDES 2027-01-31-hunt-sessions-catalogue.generated.sql (lane/b-inner-flame, applied
+-- before this file; history once applied: never regenerated): every table below is
+-- rewritten wholesale. NEW SINCE 01-31 (lane/b-level-curve, 2026-10-27): hr_hunt_limits
+-- loses level_quartic, level_cubic and level_linear; the Level curve is hr_level_curve
+-- (2027-02-01-level-curve.generated.sql), and nothing else changes. ORDER: right AFTER
+-- 2027-02-01-level-curve.generated.sql (the precondition below refuses this file while a
 -- curve function still reads the three rows: with them gone, the old bodies would read
--- a curve of 0 XP a Level). Carried from 01-13, which superseded 12-20 (APPLIED with
+-- a curve of 0 XP a Level). Carried from 01-31 (lane/b-inner-flame, Tyler 2026-10-25):
+-- the regen limits prayer_regen_* are flame_regen_* and the Hearth's fuels are vendor
+-- values. Carried from 01-13 (APPLIED 2026-10-24 with v0.2.42), which superseded 12-20 (APPLIED with
 -- v0.2.37) and folded in the staged 12-21, 12-22 and 12-24 files of the spell lanes:
 -- THE SPELL RELEASE (Tyler + designer 2026-10-23): the store's Plain
 -- Iron Arrows and the 1 g store shot (hr_hunt_basic_supplies); the eat-at / drink-at
@@ -635,7 +641,7 @@ begin
   if exists (select 1 from pg_proc p where p.pronamespace = 'public'::regnamespace
               and p.proname in ('hr_char_level', 'hr_char_xp_for_level') and p.prosrc like '%level_quartic%')
      or to_regclass('public.hr_level_curve') is null then
-    raise exception 'PRECONDITION: apply 2027-01-31-level-curve.generated.sql first (a Level curve function still reads hr_hunt_limits)'; end if;
+    raise exception 'PRECONDITION: apply 2027-02-01-level-curve.generated.sql first (a Level curve function still reads hr_hunt_limits)'; end if;
 end $$;
 --
 -- Server-only: RLS on, NO policy, no client grant (the client reads src/data).

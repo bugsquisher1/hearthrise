@@ -4,9 +4,9 @@
 // The one home for the town activities a player starts and stops (designer
 // ruling 2026-10-22, lane/b-town-skills): chopping, mining and fishing (a
 // gathering node), and every bench recipe (Cooking, Smithing, Crafting,
-// Runecrafting, and the Prayer rites the bag's Bury all names). The Gathering
-// and crafting window (src/shell/windows/work.js) and the bag's Bury all /
-// Cook all (src/shell/windows/inventory/bury.js) both start and stop through
+// Runecrafting, and Inner Flame's fuels the bag's Fuel the hearth names). The
+// Gathering and crafting window (src/shell/windows/work.js) and the bag's Fuel
+// the hearth / Cook all (src/shell/windows/inventory/bury.js) both start and stop through
 // here, so there is one path, not two.
 //
 // The server runs it. Start is ONE `set_activity` naming { kind:'gather', id:<node> }
@@ -35,21 +35,21 @@
 // server's engine has certainly done since its watermark (tickOf: town-ticker.js,
 // Tyler 2026-10-23), shown as pending and never spent.
 // ════════════════════════════════════════════════════════════════════════
-import { TREES, ROCKS, FISH_SPOTS } from '../data/gathering.js?v=0.2.52';
-import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.52';
-import { ITEMS } from '../data/items.js?v=0.2.52';
-import { SKILLS_DEF } from '../data/skills.js?v=0.2.52';
-import { HUNT_TUNING } from '../data/hunt-tuning.js?v=0.2.52';
-import { indexGatherNodes, gatherIntervalMs } from '../core/skill-sim.js?v=0.2.52';
-import { indexArtisanRecipes, artisanIntervalMs, bagFullFor } from '../core/artisan-sim.js?v=0.2.52';
-import { recipeInputs } from '../core/artisan.js?v=0.2.52';
-import { pacedXp } from '../core/pacing.js?v=0.2.52';
-import { whole } from '../render/format.js?v=0.2.52';
-import { itemName } from './widgets/bits.js?v=0.2.52';
-import { skillsOf, heldOf, bagCapOf, drawsOnStorage } from '../session/item-sections.js?v=0.2.52';
-import { townWorkRunning } from '../session/town-poll.js?v=0.2.52';
-import { predictTown, aheadQty, shownQty, lineParts, aheadStored } from './town-ticker.js?v=0.2.52';
-import { skillShortWords } from './intent-words.js?v=0.2.52';
+import { TREES, ROCKS, FISH_SPOTS } from '../data/gathering.js?v=0.2.54';
+import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.54';
+import { ITEMS } from '../data/items.js?v=0.2.54';
+import { SKILLS_DEF } from '../data/skills.js?v=0.2.54';
+import { HUNT_TUNING } from '../data/hunt-tuning.js?v=0.2.54';
+import { indexGatherNodes, gatherIntervalMs } from '../core/skill-sim.js?v=0.2.54';
+import { indexArtisanRecipes, artisanIntervalMs, bagFullFor } from '../core/artisan-sim.js?v=0.2.54';
+import { recipeInputs } from '../core/artisan.js?v=0.2.54';
+import { pacedXp } from '../core/pacing.js?v=0.2.54';
+import { whole } from '../render/format.js?v=0.2.54';
+import { itemName } from './widgets/bits.js?v=0.2.54';
+import { skillsOf, heldOf, bagCapOf, drawsOnStorage } from '../session/item-sections.js?v=0.2.54';
+import { townWorkRunning } from '../session/town-poll.js?v=0.2.54';
+import { predictTown, aheadQty, shownQty, lineParts, aheadStored } from './town-ticker.js?v=0.2.54';
+import { skillShortWords } from './intent-words.js?v=0.2.54';
 
 /** Every gathering node the engine runs, by id: { skill, node }. The same index the server builds (hr-accrue catalogue.js). */
 export const GATHER_INDEX = indexGatherNodes({ woodcutting: TREES, mining: ROCKS, fishing: FISH_SPOTS });
@@ -87,7 +87,7 @@ export function workOf(cs) {
   return s && typeof s.active_id === 'string' ? workRow(s.active_kind, s.active_id) : null;
 }
 
-/** The item a row makes, or null (a Prayer rite makes nothing). */
+/** The item a row makes, or null (a Hearth fuel makes nothing). */
 export function productOf(w) { return w.kind === 'gather' ? w.row.prod : (w.row.output || null); }
 
 /** How many of the product one action makes: "45" for a rune bind, 1 for most. Gathering's range is its low end. */
@@ -145,19 +145,17 @@ function workWords(w) {
   /* A dish names what goes on the fire ("cooking Raw Shrimp"), any other bench what it makes. */
   if (out && w.skill === 'cooking') return 'cooking ' + itemName(Object.keys(recipeInputs(w.row))[0] || out);
   if (out) return 'making ' + itemName(out);
-  /* A Prayer rite makes nothing: its own verb ("Bury Bones" -> "burying Bones"). */
-  const [verb, ...rest] = String(w.row.name).split(' ');
-  return ((/[^e]e$/.test(verb) ? verb.slice(0, -1) : verb) + 'ing').toLowerCase() + (rest.length ? ' ' + rest.join(' ') : '');
+  /* A fuel makes nothing: the Great Hearth burns it (src/data/hearth.js; every output-less row is a fuel) */
+  return 'fueling the Great Hearth with ' + itemName(w.row.input);
 }
 
-/** The action as "You need … to ___" says it: "cook Raw Wolf Meat", "make Bronze Bar", "chop the Oak Tree", "bury Bones". */
+/** The action as "You need … to ___" says it: "cook Raw Wolf Meat", "make Bronze Bar", "chop the Oak Tree", "burn Big Bones in the Great Hearth". */
 export function doWords(w) {
   if (w.kind === 'gather') return (w.skill === 'woodcutting' ? 'chop the ' : w.skill === 'mining' ? 'mine the ' : 'fish at the ') + w.row.name;
   const out = productOf(w);
   if (out && w.skill === 'cooking') return 'cook ' + itemName(Object.keys(recipeInputs(w.row))[0] || out);
   if (out) return 'make ' + itemName(out);
-  const [verb, ...rest] = String(w.row.name).split(' ');
-  return verb.toLowerCase() + (rest.length ? ' ' + rest.join(' ') : '');
+  return 'burn ' + itemName(w.row.input) + ' in the Great Hearth';
 }
 
 /* The server's skill level for a row's skill, or null (not sent yet). */

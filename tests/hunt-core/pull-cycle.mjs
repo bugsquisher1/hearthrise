@@ -136,7 +136,7 @@ const cases = {
     return !k.alive && k.hp === 0 ? null : 'the dead leader stood up (' + k.hp + ' HP): a death is never undone in a hunt';
   },
   /* PC-12 / CORE_NUMBERS Q6: out of a fight heroes regain oocRegenPermillePerS of max HP a second, in a fight
-     inFightRegenPermillePerS; both times the hero's Prayer regen rate (regenPm). */
+     inFightRegenPermillePerS; both times the hero's Inner Flame regen rate (regenPm). */
   'ooc-regen': (M) => {
     const mk = (phase) => {
       const h = H(M, 1, 2, 8, 'tank', { hp: 100, maxHp: 200 });
@@ -156,7 +156,7 @@ const cases = {
     p.regenPm = 1500;
     for (let i = 0; i < 10; i++) M.hunt['pull-cycle'].runPhase(pi, sc2(M, 1));
     const prayed = 100 + Math.floor((200 * M.tuning.HUNT_TUNING.oocRegenPermillePerS * 1500) / 1000000);
-    return p.hp === prayed ? null : 'Prayer x1.5: ' + p.hp + ' HP, expected ' + prayed;
+    return p.hp === prayed ? null : 'Inner Flame x1.5: ' + p.hp + ' HP, expected ' + prayed;
   },
   /* PC-16: a corpse lingers corpseMs, then is removed. */
   'corpse-removed': (M) => {
@@ -273,7 +273,7 @@ const mutants = [
     edits: [[P, '  for (let p = 0; p < inst.world.packs.length; p++) if (inst.world.packs[p].aggro) resetPack(inst, p, sc);\n', '']] },
   { name: 'a dead leader stands up', case: 'wipe-resets-pack', edits: [[P, '    if (!h.alive) continue;', '    if (!h.alive) { h.alive = true; h.hp = h.maxHp; continue; }']] },
   { name: 'the resting rate in a fight', case: 'ooc-regen', edits: [[P, "inst.world.phase !== PHASE.FIGHT ? HUNT_TUNING.oocRegenPermillePerS : VITALS.inFightRegenPermillePerS", 'HUNT_TUNING.oocRegenPermillePerS']] },
-  { name: 'Prayer does not reach HP regen', case: 'ooc-regen', edits: [[P, '    const pm = Number.isInteger(h.regenPm) && h.regenPm > 0 ? h.regenPm : 1000;', '    const pm = 1000;']] },
+  { name: 'Inner Flame does not reach HP regen', case: 'ooc-regen', edits: [[P, '    const pm = Number.isInteger(h.regenPm) && h.regenPm > 0 ? h.regenPm : 1000;', '    const pm = 1000;']] },
   { name: 'corpses stay forever', case: 'corpse-removed', edits: [[P, '    if (u.deadMs >= HUNT_TUNING.corpseMs) gone = true;', '']] },
   { name: 'a swing clock is not persisted', case: 'party-world-survives-every-cut',
     edits: [['src/core/hunt/damage.js', ", ['swingLeftMs', 'int']]),", ']),']] },

@@ -800,7 +800,7 @@ const cases = {
       key: 'l' + i, user: 'u' + i, slot: 0, seat: i, unitId: null, sessionId: 's' + i, version: 1, huntId: 'meadowbrook_thicket',
       huntSession: { id: 's' + i, instanceId: 'i', huntFromMs: from, nextSwingAtMs: from, swingIndex: 0, onEmpty: 'switch', bag: {},
         staminaMs: 8 * 3600000, staminaMaxMs: 8 * 3600000 },
-      skills: { melee: M.XP.skillXpForLevel('melee', L), defense: M.XP.skillXpForLevel('defense', L), ranged: 0, magic: 0, prayer: 0 },
+      skills: { melee: M.XP.skillXpForLevel('melee', L), defense: M.XP.skillXpForLevel('defense', L), ranged: 0, magic: 0, inner_flame: 0 },
       levelXp: M.XP.charXpForLevel(L), hp: 1e6, gold: 0, equipment: { weapon }, inventory: {},
       hero: M.heroSetup({ weaponType: wt, options: Object.assign({ role }, options), bar: [], partyRoles: ['tank', 'melee_dps'], lead }) }));
     const out = M.acc.accrueHunt({ instance: { id: '00000000-0000-4000-8000-0000000000af', nextSwingAtMs: from, world: null },

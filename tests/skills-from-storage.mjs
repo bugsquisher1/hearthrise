@@ -22,7 +22,7 @@
 //         read and its apply; hr_apply refuses insufficient_item {have, need, bag, storage} and NOTHING moves; the
 //         next stop re-reads and pays what is left. Before - withdrawn - used = after.
 //   SS-4  THE CLIENT'S COUNTS ARE BAG + STORAGE: the Work window's runs ("Makes up to N"), its blocking line, the
-//         bag's Bury all label and count, from the server's envelope; with neither, the line says where it looked.
+//         bag's Fuel all label and count, from the server's envelope; with neither, the line says where it looked.
 //   SS-5  PLANTING: a seed in Storage only is planted (journalled from.storage); harvest-and-replant from a Storage
 //         seed buys nothing; no seed anywhere is insufficient_seed {seed, have 0, need 1, bag 0, storage 0}.
 //   SS-6  A FULL BAG SAYS WHY: the product needs a new stack in a bag at its cap; the bench stops bag_full
@@ -93,7 +93,7 @@ const JS_MUTANTS = {
     repl: '  return null;',
   },
   client_bag_only: {
-    why: 'the client counts the bag only: "Makes up to N" and Bury all read less than the server spends',
+    why: 'the client counts the bag only: "Makes up to N" and Fuel all read less than the server spends',
     file: 'src/session/item-sections.js',
     find: '  if (drawsOnStorage(cs)) for (const r of bankOf(cs) || []) out[r.id] = (out[r.id] || 0) + r.qty;\n',
     repl: '',
@@ -105,7 +105,7 @@ const JS_MUTANTS = {
     repl: '  return null;',
   },
   bury_bag_only: {
-    why: 'Bury all / Cook all counts the bag only (a stack in Storage reads "Bury")',
+    why: 'Fuel all / Cook all counts the bag only (a stack in Storage reads "Fuel the hearth")',
     file: 'src/shell/windows/inventory/bury.js',
     find: 'export function buryQty(cs, id) { return heldOf(cs)[id] || 0; }',
     repl: "export function buryQty(cs, id) { return (cs.read('inventory') || {})[id] || 0; }",
@@ -138,6 +138,9 @@ async function run(mutant) {
   }
   const { db } = await bootReplay({ patches: sqlM ? new Map([[MIG, [[sqlM.find, sqlM.repl], ...GATE_BLIND]]]) : undefined, upTo: MIG });
   try {
+    /* the chain stops at MIG, before Inner Flame replaced Prayer (2027-01-31): the catalogue under today's names, so
+       the envelope carries the inner_flame key today's client reads (SS-4's Fuel all); see the file */
+    await db.exec(await readFile(join(ROOT, 'tests/fixtures/inner-flame-slice-shim.sql'), 'utf8'));
     if (mutant === 'apply_after_purse') await plantAfterPurse(db);
     const mod = (f) => import(pathToFileURL(join(base, f)).href);
     const SA = await mod('supabase/functions/hr-accrue/set-activity.js');
@@ -181,7 +184,7 @@ async function run(mutant) {
     // no free craft (cooking burns, crafting saves), that the server's generated catalogue lists; bones' rite.
     const inputsSql = await one('select public.hr_bench_inputs()');
     const benches = Object.entries(TW.BENCH_INDEX)
-      .filter(([id, e]) => !['cooking', 'crafting', 'prayer'].includes(e.skill) && e.recipe.output && !e.recipe.gated
+      .filter(([id, e]) => !['cooking', 'crafting', 'inner_flame'].includes(e.skill) && e.recipe.output && !e.recipe.gated
         && (e.recipe.req || 1) <= 1 && Object.keys(recipeInputs(e.recipe)).length === 1 && inputsSql[id])
       .sort(([a], [b]) => (a < b ? -1 : 1));
     if (!benches.length) { const e = new Error('HARNESS: no level-1 single-input bench'); e.harness = true; throw e; }
@@ -290,9 +293,9 @@ async function run(mutant) {
       if (br) {
         await put(A, 0, 'bones', 1, 5);
         const c2 = csOf(await envOf(A, 0));
-        ok(BU.buryQty(c2, 'bones') === 6 && BU.buryLabel(br, BU.buryQty(c2, 'bones')) === BU.buryVerb(br) + ' all',
-          `SS-4 Bury all counts ${BU.buryQty(c2, 'bones')} bones and reads ${JSON.stringify(BU.buryLabel(br, BU.buryQty(c2, 'bones')))} (1 in the bag, 5 in Storage)`);
-        ok(BU.buryBlock(c2, br) === '', 'SS-4 Bury is blocked with bones in the bag and Storage: ' + JSON.stringify(BU.buryBlock(c2, br)));
+        ok(BU.buryQty(c2, 'bones') === 6 && BU.buryLabel(br, BU.buryQty(c2, 'bones')) === 'Fuel all 6',
+          `SS-4 Fuel all counts ${BU.buryQty(c2, 'bones')} bones and reads ${JSON.stringify(BU.buryLabel(br, BU.buryQty(c2, 'bones')))} (1 in the bag, 5 in Storage)`);
+        ok(BU.buryBlock(c2, br) === '', 'SS-4 Fuel all is blocked with bones in the bag and Storage: ' + JSON.stringify(BU.buryBlock(c2, br)));
         await put(A, 0, 'bones', 0, 0);
       } else problems.push('SS-4 HARNESS: bones have no rite');
     }

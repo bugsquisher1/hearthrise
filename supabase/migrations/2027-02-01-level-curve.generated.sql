@@ -11,7 +11,7 @@
 -- from a bracket's start Level the step to the next Level costs first + rise x m +
 -- bend x m^2 (m Levels into the bracket). hr_level_curve holds 5 rows; the two
 -- curve functions read them instead of the 10-19 quartic's hr_hunt_limits rows
--- (level_quartic / level_cubic / level_linear, dropped by the 2027-01-31 hunt-sessions
+-- (level_quartic / level_cubic / level_linear, dropped by the 2027-02-01 hunt-sessions
 -- catalogue that applies right after this file). Signatures, volatility and grants
 -- are unchanged, so every reader (the settle's death floor, hr_level_block,
 -- hr_level_of, the analyzer's ETA) follows with no edit.
@@ -21,8 +21,8 @@
 -- the hr-accrue deploy carrying the same LEVEL_CURVE follows this file (AT ONCE:
 -- between the two, a death's loss is priced on the old curve and may be refused once
 -- as death_xp_over, then settles on the next tick after the deploy).
--- ORDER: after 2027-01-30-havora-yards.generated.sql; BEFORE
--- 2027-01-31-hunt-sessions-catalogue.generated.sql (its precondition refuses until
+-- ORDER: after lane/b-inner-flame's 2027-01-31 set (2027-01-31-hearth-catalogue.generated.sql
+-- last); BEFORE 2027-02-01-hunt-sessions-catalogue.generated.sql (its precondition refuses until
 -- this file has run). No begin/commit (CLAUDE.md §2).
 -- ════════════════════════════════════════════════════════════════════════
 

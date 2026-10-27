@@ -97,7 +97,7 @@ export function characterSheetOf(env, perks, nowMs) {
     role: role || null,
     weapon_type: eq.weaponType || 'neutral',
     /* THE CORE MODEL'S VITALS (src/core/vitals.js): Level, max HP and mana from
-       Level and armour weight, and Prayer's regen rate (percent of the base). */
+       Level and armour weight, and Inner Flame's regen rate (percent of the base). */
     level: vit.level,
     max_hp: vit.maxHp,
     max_mana: vit.maxMana,

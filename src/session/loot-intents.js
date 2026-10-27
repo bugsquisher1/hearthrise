@@ -8,13 +8,13 @@
 // nothing else: the plans, the bag, the bid and the Storage room are the server's.
 // On ok the character is RE-READ (the bag and Storage change only from that
 // envelope) and the server's answer comes back as `dispatch`, for its one line
-// (src/shell/loot-dispatch.js dispatchWords); the account's other heroes hear
-// 'bank' (onShared), as after a Storage move. A refusal keeps the server's code
+// (src/shell/loot-dispatch.js dispatchWords); the account's other heroes show
+// that Storage from it (AccountSession._noteStorage). A refusal keeps the server's code
 // and says which verb it was, so its words can be the verb's own.
 //   dispatchLoot(account, cs)   hr_loot_dispatch
 // ════════════════════════════════════════════════════════════════════════
-import { askVia } from './intent-ledger.js?v=0.2.52';
-import { refusalOf } from './refusal.js?v=0.2.52';
+import { askVia } from './intent-ledger.js?v=0.2.54';
+import { refusalOf } from './refusal.js?v=0.2.54';
 
 const VERB = 'loot_dispatch';
 const newIdem = () => globalThis.crypto.randomUUID();
@@ -30,7 +30,6 @@ export function dispatchLoot(account, cs) {
       return Object.assign(r, { verb: r.verb || VERB });
     }
     if (cs.status !== 'closed') await cs.load();
-    if (typeof cs.onShared === 'function') cs.onShared('bank', cs.slot);
     return { ok: true, dispatch: body };
   });
 }

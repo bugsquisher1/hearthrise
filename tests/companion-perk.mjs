@@ -57,7 +57,7 @@ function pickEquipment() {
   return eqp;
 }
 const EQUIPMENT = pickEquipment();
-const SKILLS = { melee: 30000, defense: 22000, ranged: 1000, magic: 1000, prayer: 500 };
+const SKILLS = { melee: 30000, defense: 22000, ranged: 1000, magic: 1000, inner_flame: 500 };
 const MONSTER = Object.keys(MONSTERS).includes('goblin') ? 'goblin' : Object.keys(MONSTERS)[0];
 const FROM_MS = Date.UTC(2026, 2, 14, 20, 0, 0);
 const NOW_MS = FROM_MS + 12 * 3600000;

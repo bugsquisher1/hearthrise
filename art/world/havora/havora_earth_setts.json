@@ -1,0 +1,248 @@
+{
+  "id": "havora_earth_setts",
+  "class": "terrain",
+  "kind": "wang16",
+  "style": "s1",
+  "material": "terrain",
+  "source": "havora_earth_setts.png",
+  "lower": "earth",
+  "upper": "setts",
+  "tiles": {
+    "1000": [
+      [
+        2,
+        5
+      ],
+      [
+        3,
+        5
+      ],
+      [
+        0,
+        6
+      ]
+    ],
+    "1001": [
+      [
+        1,
+        6
+      ],
+      [
+        2,
+        6
+      ],
+      [
+        3,
+        6
+      ]
+    ],
+    "1010": [
+      [
+        0,
+        7
+      ],
+      [
+        1,
+        7
+      ],
+      [
+        2,
+        7
+      ]
+    ],
+    "1011": [
+      [
+        3,
+        7
+      ],
+      [
+        0,
+        8
+      ],
+      [
+        1,
+        8
+      ]
+    ],
+    "1100": [
+      [
+        2,
+        8
+      ],
+      [
+        3,
+        8
+      ],
+      [
+        0,
+        9
+      ]
+    ],
+    "1101": [
+      [
+        1,
+        9
+      ],
+      [
+        2,
+        9
+      ],
+      [
+        3,
+        9
+      ]
+    ],
+    "1110": [
+      [
+        0,
+        10
+      ],
+      [
+        1,
+        10
+      ],
+      [
+        2,
+        10
+      ]
+    ],
+    "1111": [
+      [
+        3,
+        10
+      ],
+      [
+        0,
+        11
+      ],
+      [
+        1,
+        11
+      ],
+      [
+        2,
+        11
+      ]
+    ],
+    "0000": [
+      [
+        0,
+        0
+      ]
+    ],
+    "0001": [
+      [
+        1,
+        0
+      ],
+      [
+        2,
+        0
+      ],
+      [
+        3,
+        0
+      ]
+    ],
+    "0010": [
+      [
+        0,
+        1
+      ],
+      [
+        1,
+        1
+      ],
+      [
+        2,
+        1
+      ]
+    ],
+    "0011": [
+      [
+        3,
+        1
+      ],
+      [
+        0,
+        2
+      ],
+      [
+        1,
+        2
+      ]
+    ],
+    "0100": [
+      [
+        2,
+        2
+      ],
+      [
+        3,
+        2
+      ],
+      [
+        0,
+        3
+      ]
+    ],
+    "0101": [
+      [
+        1,
+        3
+      ],
+      [
+        2,
+        3
+      ],
+      [
+        3,
+        3
+      ]
+    ],
+    "0110": [
+      [
+        0,
+        4
+      ],
+      [
+        1,
+        4
+      ],
+      [
+        2,
+        4
+      ]
+    ],
+    "0111": [
+      [
+        3,
+        4
+      ],
+      [
+        0,
+        5
+      ],
+      [
+        1,
+        5
+      ]
+    ]
+  },
+  "pixellab": {
+    "tool": "create_topdown_tileset",
+    "id": "97de820c-9645-4d3b-91bc-48d2b134817b",
+    "base_tile_ids": {
+      "lower": "97e71544-5fcf-4e48-94b7-c809721a12be",
+      "upper": "ca836d29-e082-4d85-b1e5-03e4aedf35a2"
+    },
+    "params": {
+      "mode": "pro",
+      "tile_size": 32,
+      "view": "high top-down",
+      "transition_size": 0
+    },
+    "derived": "tools/world-art/harbour-art.mjs (lane/a-havora-dock round 3)"
+  },
+  "notes": "Packed earth against the harbour's granite setts: setts laid in courses of mixed stones, the edge whole stones thinning into the earth with loose broken setts past them, three variants of every edge and four of the interior (drawn by tools/world-art/harbour-art.mjs from the stone, shadow and moss ramps; the earth is PixelLab's, lane/a-havora-dock round 3)."
+}

@@ -1,0 +1,123 @@
+{
+  "id": "havora_water_setts",
+  "class": "terrain",
+  "kind": "wang16",
+  "style": "s1",
+  "material": "terrain",
+  "source": "havora_water_setts.png",
+  "lower": "water",
+  "upper": "setts",
+  "tiles": {
+    "1000": [
+      [
+        1,
+        1
+      ]
+    ],
+    "1001": [
+      [
+        2,
+        3
+      ]
+    ],
+    "1010": [
+      [
+        1,
+        0
+      ]
+    ],
+    "1011": [
+      [
+        0,
+        2
+      ]
+    ],
+    "1100": [
+      [
+        3,
+        0
+      ]
+    ],
+    "1101": [
+      [
+        0,
+        0
+      ]
+    ],
+    "1110": [
+      [
+        1,
+        3
+      ]
+    ],
+    "1111": [
+      [
+        0,
+        3
+      ]
+    ],
+    "0100": [
+      [
+        2,
+        0
+      ]
+    ],
+    "0110": [
+      [
+        0,
+        1
+      ]
+    ],
+    "0000": [
+      [
+        2,
+        1
+      ]
+    ],
+    "0001": [
+      [
+        3,
+        1
+      ]
+    ],
+    "0011": [
+      [
+        1,
+        2
+      ]
+    ],
+    "0010": [
+      [
+        2,
+        2
+      ]
+    ],
+    "0101": [
+      [
+        3,
+        2
+      ]
+    ],
+    "0111": [
+      [
+        3,
+        3
+      ]
+    ]
+  },
+  "pixellab": {
+    "tool": "create_topdown_tileset",
+    "id": "a03d710b-200f-47f0-afcc-fca9b106f0b3",
+    "base_tile_ids": {
+      "lower": "32062820-23ec-4670-bff9-b5aab5db74fa",
+      "upper": "ca836d29-e082-4d85-b1e5-03e4aedf35a2"
+    },
+    "params": {
+      "mode": "pro",
+      "tile_size": 32,
+      "view": "high top-down",
+      "transition_size": 0.25
+    }
+  },
+  "notes": "The harbour quay: granite setts ending in a dressed stone quay wall with capstones and mooring rings (lane/a-havora-dock round 2, 2026-10-26). Chained from the water base tile of havora_water_planks and the setts of havora_earth_setts."
+}

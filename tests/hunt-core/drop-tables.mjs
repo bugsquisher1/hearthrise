@@ -21,7 +21,8 @@
 //   band-is-the-reveal  the roller (src/core/drops.js bandOf) reveals exactly the Rare and Trophy rows; Common, Uncommon and
 //                    Scarce are standard drops; an unbanded old-roster row (a lucky or salvage find) reveals by its odds
 //   build-coverage   each ground's Scarce rows cover helmet, body, legs and boots in all three weights (the tutorial excepted)
-//   four-slots       each monster has a Common that is its own product (not bones), at most one bones row, and EXACTLY one
+//   four-slots       each monster has a Common that is its own product (not bones, nor the Hearth fuel a boneless body
+//                    drops in their place: src/data/hearth.js FAMILY_FUELS), at most one bones row, and EXACTLY one
 //                    imbuement row (`imbue`, no other monster drops it, (5%, 15%], tier and book value from its Level)
 //   gear-pace        (the floor hour, expected on its kills) each Scarce piece lands about once an hour per hero
 //                    (BAND_TARGETS.scarce, Tyler 2026-10-23), for the reference group AND a party ground's second group
@@ -121,6 +122,8 @@ async function load(root) {
     WEIGHT: (await imp(root, 'src/data/core-model.js')).ARMOUR_WEIGHT,
     live: (await imp(root, 'src/data/item-effects.js')).effectsAreLive,
     BOSSES: (await imp(root, 'src/data/bosses.js')).BOSSES,
+    /* a boneless body's bones row (Tyler 10-25): its family's Hearth fuel */
+    bodyFuels: (await imp(root, 'src/data/hearth.js')).FAMILY_FUELS,
     hfSources: new Set((await imp(root, 'src/data/hearthfind.js')).HEARTHFIND_TABLE.filter((r) => r.kind === 'monster').map((r) => r.id)),
     /* what a listed Shop row sells (catalogue-coherence: only a listed row is a door) */
     shopSold: new Set(SB.SUPPLY_SHOP_OFFERS.filter((o) => SB.SHOP_SOLD_KINDS.includes(o.kind)).map((o) => o.item)),
@@ -288,8 +291,9 @@ const cases = {
         if (it.v !== M.IMB.imbueValueFor(m.level) || it.raw !== true) return gid + ': ' + d.id + ' book value ' + it.v + ' (raw ' + it.raw + '), the rule is ' + M.IMB.imbueValueFor(m.level) + ', raw';
         if (!(d.ch > M.IMB.IMBUE_DROP.above && d.ch <= M.IMB.IMBUE_DROP.max)) return gid + ': ' + id + ' imbuement row at ' + d.ch + ', not in the uncommon band';
         if (droppers[d.id].size !== 1) return gid + ': ' + d.id + ' is dropped by ' + [...droppers[d.id]].join(', ') + ', the ruling is one monster';
-        if (drops.filter((x) => BONES.includes(x.id)).length > 1) return gid + ': ' + id + ' has two bones rows';
-        if (!drops.some((x) => x.band === 'common' && !BONES.includes(x.id))) return gid + ': ' + id + ' has no Common of its own (a part that sells or feeds a bench)';
+        const boneRow = (x) => BONES.includes(x.id) || M.bodyFuels.includes(x.id);
+        if (drops.filter(boneRow).length > 1) return gid + ': ' + id + ' has two bones rows (bones, or the Hearth fuel of a boneless body)';
+        if (!drops.some((x) => x.band === 'common' && !boneRow(x))) return gid + ': ' + id + ' has no Common of its own (a part that sells or feeds a bench)';
       }
     }
     return null;
@@ -592,7 +596,9 @@ const dataMutants = [
   { name: 'an imbuement row at rare odds', case: 'four-slots', edit: (ms) => { ms.gray_wolf.drops.find((d) => d.id === 'gray_dewclaw').ch = 0.02; } },
   { name: 'a third Common (the old free-form list)', case: 'loot-structure', edit: (ms) => { ms.gray_wolf.drops.splice(1, 0, { id: 'wolf_pelt', ch: 0.3, band: 'common' }); } },
   { name: 'the Slime\'s Sticky Core back at 2% (an hourly "Rare")', case: 'four-slots', edit: (ms) => { Object.assign(rowOf(ms, 'slime', 'sticky_core'), { ch: 0.02, band: 'rare' }); } },
+  /* the spider's own product is its silk; its Dry Husk is its bones row (src/data/hearth.js FAMILY_FUELS) */
   { name: 'the junk row lost', case: 'four-slots', edit: (ms) => { ms.cistern_spider.drops = ms.cistern_spider.drops.filter((d) => d.id !== 'silk_thread'); } },
+  { name: 'a boneless body drops bones beside its Hearth fuel', case: 'four-slots', edit: (ms) => { ms.sump_slime.drops.splice(2, 0, { id: 'bones', ch: 1, band: 'common' }); } },
   { name: 'an imbuement item on a monster of the wrong tier', case: 'four-slots', edit: (ms) => { ms.rat_king.level = 30; } },
   /* the loot bands */
   { name: 'a band row loses its band', case: 'loot-structure', edit: (ms) => { delete rowOf(ms, 'gray_wolf', 'bones').band; } },

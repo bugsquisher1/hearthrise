@@ -4,7 +4,7 @@
 //
 //   XP_TABLE / levelFromXp / xpForLevel   the CAPPED curve: gathering and
 //                       crafting skills, 99 levels.
-//   skill curve         Melee, Ranged, Magic, Defense, Prayer: no cap
+//   skill curve         Melee, Ranged, Magic, Defense, Inner Flame: no cap
 //                       (src/data/core-model.js SKILL_CURVE), whole XP.
 //   Level curve         the character's Level, from kills only, endless
 //                       (LEVEL_CURVE); Level is not a skill.
@@ -15,8 +15,8 @@
 // PURE ESM. No DOM, no window, no timers, no Math.random.
 // ============================================================
 
-import { LEVEL_CURVE, SKILL_CURVE } from '../data/core-model.js?v=0.2.52';
-import { SKILLS_DEF } from '../data/skills.js?v=0.2.52';
+import { LEVEL_CURVE, SKILL_CURVE } from '../data/core-model.js?v=0.2.54';
+import { SKILLS_DEF } from '../data/skills.js?v=0.2.54';
 
 /* Threshold XP for level i+1. b215: the level-98 threshold (11,805,606)
    was missing for a long time, which capped levelFromXp at 98 and made
@@ -60,7 +60,7 @@ export function xpPct(xp) {
   return (xp - a) / (b - a);
 }
 
-// ── The uncapped skill curve (Melee, Ranged, Magic, Defense, Prayer) ──────
+// ── The uncapped skill curve (Melee, Ranged, Magic, Defense, Inner Flame) ──────
 /* The XP from level s to s+1 is floor(base x s^2 x r^(s-1)), r = (1000 + g)/1000,
    the power held as an exact fraction of integers (BigInt), so every runtime
    floors the same value. TOTAL[s-1] = XP to reach level s. Grown on demand;

@@ -616,7 +616,9 @@ async function rules(M) {
     if (cs.record.version !== 5 || cs.record.data.equipment.weapon !== 'iron_sword') return 'the equip answer was not applied';
     body = { ok: true };
     await cs.edgeIntent('equip', { equip: { weapon: null } });
-    if (calls.join(',') !== 'hr_load,accrue,accrue,hr_load') return 'an answer with no envelope did not re-read: ' + calls.join(',');
+    /* ...its re-read answers an older version (not applied), so ONE bounded resync follows (read-gate.js); the next
+       ones in the resync window are owed to its end, never sent per intent */
+    if (calls.join(',') !== 'hr_load,accrue,accrue,hr_load,hr_load') return 'an answer with no envelope did not re-read: ' + calls.join(',');
     body = Object.assign({ ok: true }, env(2, { equipment: {} }));
     await cs.edgeIntent('equip', { equip: { weapon: null } });
     if (calls.slice(-2).join(',') !== 'accrue,hr_load' || cs.record.version === 2) return 'a stale answer was applied or not re-read: ' + calls.join(',');
@@ -1086,16 +1088,18 @@ async function rules(M) {
     if (!srv.calls.some((c) => c[0] === 'hr_load' && c[1].p_slot === 0)) return 'the paying hero was not re-read after the purchase';
     return JSON.stringify(acc.slotOffer) === '{"slotId":3,"cost":40000,"max":5}' || 'after the purchase the offer is ' + JSON.stringify(acc.slotOffer);
   });
-  await t('ACC-DEPOT', async () => {
-    /* The storage is the ACCOUNT's (2026-11-27-account-depot.sql): what slot 0 puts away is in slot 1's
-       storage at once (the account re-reads the other open characters) and after a reload. The fake
-       server keeps ONE depot for both slots, as hr_bank_move / hr_state_of do. */
-    const depot = {}; const bags = { 0: { rat_tail: 5 }, 1: {} }; let ver = 1;
+  /* ONE ACCOUNT DEPOT on a fake server (hr_bank_move / hr_state_of keep one for every slot): each envelope states it
+     with the server's clock (`now`, hr_state_of's transaction instant); `spend` is a town skill on some hero drawing
+     on it (2027-01-24-skills-from-storage.sql); `loads(slot)` counts the full reads sent. */
+  const depotServer = (bags, depot, o = {}) => {
+    let ver = 1, clock = Date.parse('2026-10-26T15:35:00Z');
+    const step = o.sameInstant ? 0 : 10;   // sameInstant: every answer at one server instant (a fixture's fixed `now`)
     const answer = (body) => ({ ok: true, status: 200, body, closed: false });
     const srv = fakeServer({});
     const base = srv.rpc;
+    const envOf = (slot) => env(++ver, Object.assign({ now: new Date(clock += step).toISOString(), name: 'H' + slot, inventory: { ...bags[slot] }, bank: { ...depot } }, said(4)));
     srv.rpc = async (name, args) => {
-      if (name === 'hr_load') { srv.calls.push([name, args]); return answer(env(++ver, Object.assign({ name: 'H' + args.p_slot, inventory: { ...bags[args.p_slot] }, bank: { ...depot } }, said(4)))); }
+      if (name === 'hr_load') { srv.calls.push([name, args]); return answer(envOf(args.p_slot)); }
       if (name !== 'hr_bank_move') return base(name, args);
       srv.calls.push([name, args]);
       const [from, to] = args.p_dir === 'deposit' ? [bags[args.p_slot], depot] : [depot, bags[args.p_slot]];
@@ -1104,20 +1108,105 @@ async function rules(M) {
       to[args.p_item] = (to[args.p_item] || 0) + args.p_qty;
       return answer({ ok: true, version: ++ver });
     };
+    srv.spend = (item, n) => { depot[item] -= n; if (!depot[item]) delete depot[item]; };
+    srv.envOf = envOf;
+    srv.loads = (slot) => srv.calls.filter((c) => c[0] === 'hr_load' && (slot === undefined || c[1].p_slot === slot)).length;
+    return srv;
+  };
+  const shows = (cs) => JSON.stringify(Object.fromEntries((I.bankOf(cs) || []).map((r) => [r.id, r.qty])));
+  await t('ACC-DEPOT', async () => {
+    /* The storage is the ACCOUNT's (2026-11-27-account-depot.sql): what slot 0 puts away is in slot 1's Storage at
+       once, from slot 0's own re-read (no read of slot 1: Andy 10-26, a read per hero per move blew hr_load's budget),
+       slot 1 re-renders, and it is there after a reload. */
+    const srv = depotServer({ 0: { rat_tail: 5 }, 1: {} }, {});
     const acc = mkAccount(srv);
     await acc.open(0); await acc.open(1);
     const s1 = acc.character(1);
     if (!acc.character(0) || !s1) return 'two characters did not open: ' + acc.characters().map((c) => c.slot);
+    let painted = 0; s1.subscribe((s, why) => { if (why === 'storage') painted++; });
+    const before = srv.loads(1);
     const put = await acc.character(0).moveStorage('rat_tail', 3, 'deposit');
     await new Promise((r) => setTimeout(r, 0));
     if (!put.ok) return 'the deposit answered ' + JSON.stringify(put);
-    if (JSON.stringify(s1.read('bank')) !== '{"rat_tail":3}') return 'slot 1 still shows storage ' + JSON.stringify(s1.read('bank')) + ' after slot 0 put 3 away (not re-read)';
+    if (shows(s1) !== '{"rat_tail":3}') return 'slot 1 still shows storage ' + shows(s1) + ' after slot 0 put 3 away';
+    if (painted < 1) return 'slot 1 was not re-rendered with the new Storage';
+    if (srv.loads(1) !== before) return 'slot 1 was re-read for a move it did not make (' + (srv.loads(1) - before) + ' hr_load)';
     const again = mkAccount(srv);
     await again.open(1);
-    if (JSON.stringify(again.character(1).read('bank')) !== '{"rat_tail":3}') return 'after a reload slot 1 shows storage ' + JSON.stringify(again.character(1).read('bank'));
+    if (shows(again.character(1)) !== '{"rat_tail":3}') return 'after a reload slot 1 shows storage ' + shows(again.character(1));
     const take = await again.character(1).moveStorage('rat_tail', 3, 'withdraw');
     if (!take.ok || JSON.stringify(again.character(1).read('inventory')) !== '{"rat_tail":3}') return 'slot 1 could not take out what slot 0 put away: ' + JSON.stringify([take, again.character(1).read('inventory')]);
     return true;
+  });
+  await t('ACC-STORE-SKILL', async () => {
+    /* (a) Hero A's town skill spends from the account Storage (server-side); A's next answer (its own settle, a frame)
+       states the smaller Storage -> hero B's open Storage window shows the server's count, re-rendered, unasked;
+       an OLDER answer of B's (an earlier server instant) never rolls it back. */
+    const srv = depotServer({ 0: {}, 1: {} }, { iron_ore: 10 });
+    const acc = mkAccount(srv);
+    await acc.open(0); await acc.open(1);
+    const a = acc.character(0), b = acc.character(1);
+    const stale = srv.envOf(1), late = srv.envOf(0);   // reads taken before A's skill spent, answered late
+    if (shows(b) !== '{"iron_ore":10}') return 'B opened showing ' + shows(b);
+    let painted = 0; b.subscribe((s, why) => { if (why === 'storage') painted++; });
+    srv.spend('iron_ore', 7);
+    await a.load();   // A's own answer after its bench spent 7 ore
+    if (shows(b) !== '{"iron_ore":3}') return 'B still shows ' + shows(b) + ' after A spent 7 of the 10 ore (server holds 3)';
+    if (painted < 1) return 'B was not re-rendered when A read the smaller Storage';
+    b.onFrame({ t: 'state', frame: stale.version + 100, env: Object.assign({}, stale, { version: stale.version + 100 }) });
+    if (shows(b) !== '{"iron_ore":3}') return 'an older read of B rolled the Storage back to ' + shows(b);
+    a.onFrame({ t: 'state', frame: late.version + 100, env: Object.assign({}, late, { version: late.version + 100 }) });
+    if (shows(b) !== '{"iron_ore":3}') return 'an older read of A rolled B\'s Storage back to ' + shows(b);
+    return true;
+  });
+  await t('ACC-STORE-TIE', async () => {
+    /* Two answers at ONE server instant: the later-received NEW answer is the Storage, and the heroes' re-renders
+       (no new answer) never note each other back and forth. */
+    const srv = depotServer({ 0: {}, 1: {} }, { iron_ore: 4 }, { sameInstant: true });
+    const acc = mkAccount(srv);
+    await acc.open(0); await acc.open(1);
+    const a = acc.character(0), b = acc.character(1);
+    let painted = 0; b.subscribe((s, why) => { if (why === 'storage') painted++; });
+    srv.spend('iron_ore', 1);
+    await a.load();
+    if (shows(b) !== '{"iron_ore":3}') return 'B shows ' + shows(b) + ' after A read 3 ore at the same instant';
+    return (painted >= 1 && painted <= 2) || 'B re-rendered ' + painted + ' times for one answer of A';
+  });
+  await t('ACC-STORE-REFUSED', async () => {
+    /* (b) The window shows 5 ore; the server holds 2 (another hero's bench spent 3). Taking 5 out is refused
+       insufficient_bank -> by the time the press frees, the window shows the server's 2, from ONE re-read. */
+    const srv = depotServer({ 0: {} }, { iron_ore: 5 });
+    const acc = mkAccount(srv);
+    await acc.open(0);
+    const cs = acc.character(0);
+    srv.spend('iron_ore', 3);
+    const before = srv.loads(0);
+    const r = await cs.moveStorage('iron_ore', 5, 'withdraw');
+    if (r.ok || r.error !== 'insufficient_bank') return 'the stale withdraw answered ' + JSON.stringify(r);
+    if (shows(cs) !== '{"iron_ore":2}') return 'after the refusal the window still shows ' + shows(cs) + ' (server holds 2)';
+    return srv.loads(0) - before === 1 || 'the refusal sent ' + (srv.loads(0) - before) + ' re-reads (want exactly 1)';
+  });
+  await t('ACC-STORE-STORM', async () => {
+    /* (c) Andy 10-26: 4 heroes open, a burst of Storage presses. N refusals cost at most ONE re-read in a window
+       (not N, not N x heroes); N moves cost the mover's own re-reads only; N reads asked at once cost at most two. */
+    const srv = depotServer({ 0: { rat_tail: 20 }, 1: {}, 2: {}, 3: {} }, { iron_ore: 1 });
+    const acc = mkAccount(srv);
+    for (const s of [0, 1, 2, 3]) await acc.open(s);
+    if (acc.characters().length !== 4) return 'four heroes did not open';
+    const a = acc.character(0);
+    const before = [0, 1, 2, 3].map((s) => srv.loads(s));
+    for (let i = 0; i < 6; i++) await a.moveStorage('iron_ore', 5, 'withdraw');
+    await Promise.all(Array.from({ length: 6 }, () => a.moveStorage('iron_ore', 5, 'withdraw')));
+    const refusedReads = srv.loads(0) - before[0];
+    if (refusedReads > 1) return '12 refused presses sent ' + refusedReads + ' re-reads of the mover (want at most 1 in the window)';
+    for (const s of [1, 2, 3]) if (srv.loads(s) !== before[s]) return '12 refused presses on hero 0 re-read hero ' + s;
+    const mid = [0, 1, 2, 3].map((s) => srv.loads(s));
+    for (let i = 0; i < 5; i++) if (!(await a.moveStorage('rat_tail', 1, 'deposit')).ok) return 'deposit ' + i + ' was refused';
+    for (const s of [1, 2, 3]) if (srv.loads(s) !== mid[s]) return '5 moves on hero 0 re-read hero ' + s + ' ' + (srv.loads(s) - mid[s]) + ' times';
+    if (shows(acc.character(3)) !== '{"iron_ore":1,"rat_tail":5}') return 'hero 3 shows ' + shows(acc.character(3)) + ' after 5 deposits';
+    const b = acc.character(1), was = srv.loads(1);
+    await Promise.all(Array.from({ length: 9 }, () => b.load()));
+    return srv.loads(1) - was <= 2 || '9 reads asked at once sent ' + (srv.loads(1) - was) + ' hr_load (want at most 2)';
   });
   await t('ACC-GOLD', async () => {
     /* GOLD IS THE ACCOUNT'S (Tyler 2026-10-23; 2026-12-15-account-gold.sql): ONE purse, which every hero's
@@ -1429,7 +1518,7 @@ async function viewRules(base) {
 
 /* ── THE MUTANTS: each must turn at least one rule red. ── */
 const MUTANTS = [
-  ['an engine answer costs a second round trip', 'src/session/character-session.js', "{ if (!(carries && this._take(ans.body, 'load'))) await this.load(); return { ok: true }; }", '{ await this.load(); return { ok: true }; }'],
+  ['an engine answer costs a second round trip', 'src/session/character-session.js', "{ if (!(carries && this._take(ans.body, 'load')) && !(await this.load())) await this.resync(); return { ok: true }; }", '{ if (!(await this.load())) await this.resync(); return { ok: true }; }'],
   ['every intent answer is taken as the envelope', 'src/session/character-session.js', '_settled(await send(), carries === true)', '_settled(await send(), true)'],
   ['merge, not replace', 'src/session/envelope.js', '  const data = {};\n  for (const k of Object.keys(env))', '  const data = Object.assign({}, current ? current.data : {});\n  for (const k of Object.keys(env))'],
   ['stale accepted', 'src/session/envelope.js', "if (current && env.version < current.version) return keep('stale');", ''],
@@ -1517,10 +1606,17 @@ const MUTANTS = [
   ['waking a hidden tab checks nothing', 'src/net/auth.js', "if (o.doc.visibilityState === 'visible') freshToken();", "if (false) freshToken();"],
   ['a failed live ask re-arms at once, forever', 'src/session/character-session.js', 'if (!took && engine) this.liveLink.missed();', ''],
   ['the live ask gives up after two tries', 'src/session/live-link.js', '      this.want = true;\n      this._tries++;', '      this.want = this._tries < 2;\n      if (this.want) this._tries++;'],
-  ['a storage move leaves the other characters stale', 'src/session/account-session.js', '    for (const [slot, cs] of this._chars) if (slot !== from) cs.load();\n', ''],
-  ['a storage move never tells the account', 'src/session/character-session.js', "if (r && r.ok && typeof this.onShared === 'function') this.onShared('bank', this.slot); ", ''],
+  /* STORE-1 (Andy 10-26): the account Storage is the newest any hero read; a refusal re-reads ONCE; reads are bounded */
+  ['another hero keeps its stale Storage', 'src/session/account-session.js', '    this._storage = next;\n', ''],
+  ['another hero is not re-rendered for a new Storage', 'src/session/account-session.js', "if (other !== cs && typeof other.noteStorage === 'function') other.noteStorage();", 'void other;'],
+  ['the Storage is the envelope\'s own copy', 'src/session/item-sections.js', '  return acct && isObj(acct[key]) ? acct[key] : read(cs, key);', '  return read(cs, key);'],
+  ['the Storage is the last answer, not the newest', 'src/session/account-session.js', '    if (this._storage && next.at < this._storage.at) return;\n', ''],
+  ['two heroes re-render each other forever', 'src/session/account-session.js', '    if (!next || this._seenBanks.has(next.bank)) return;', '    if (!next) return;'],
+  ['a refused move keeps the stale window', 'src/session/character-session.js', "      if (!r.ok && r.error !== 'closed') await this.resync();", ''],
+  ['every refusal re-reads', 'src/session/read-gate.js', '    if (wait <= 0) return this._resyncNow();', '    return this._resyncNow();'],
+  ['every read is sent on its own', 'src/session/read-gate.js', '    if (!this._out) return this._send();', '    return this._send();'],
   ['a farm action never tells the account', 'src/session/farm-intents.js', "    if (typeof cs.onShared === 'function') cs.onShared('farm', cs.slot);\n", ''],
-  ['the account ignores a farm change', 'src/session/account-session.js', "const SHARED_KINDS = new Set(['bank', 'farm']);", "const SHARED_KINDS = new Set(['bank']);"],
+  ['the account ignores a farm change', 'src/session/account-session.js', "const SHARED_KINDS = new Set(['farm']);", "const SHARED_KINDS = new Set([]);"],
   ['an idle settle replaces the character','src/session/character-session.js', "if (ans.ok && ans.body && ans.body.accrued !== true) return this.load();", ""],
   ['a watched bench waits until it is done', 'src/session/town-poll.js', "  if (!townAskDue(townWorkRunning(cs.read('state'), cs.read('hunt')), a.busy, a.at, cs.receivedAt, now)) return false;", '  return false;'],
   ['the town re-read asks every display tick', 'src/session/town-poll.js', '  return nowMs - since >= SESSION_CONFIG.townPollMs;', '  return true;'],

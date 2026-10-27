@@ -62,26 +62,26 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_INDEX } from './hunts.js?v=0.2.52';
-import { HUNT_GROUNDS } from './hunt-grounds.js?v=0.2.52';
-import { END_ORDER, DEATH_XP_LOSS, STAMINA_LOW_MIN } from './hunt-sessions.js?v=0.2.52';
-import { nextUnlock } from './skill-unlocks.js?v=0.2.52';
-import { SKILLS_DEF } from './skills.js?v=0.2.52';
-import { CROPS, TREES, ROCKS } from './gathering.js?v=0.2.52';
-import { tallyTask } from './tally-tasks.js?v=0.2.52';
-import { WEIGHT_ORDER, weightShort } from './armour-weights.js?v=0.2.52';
-import { ITEMS } from './items.js?v=0.2.52';
-import { BASIC_INDEX } from './supply-basics.js?v=0.2.52';
-import { LEVEL_REQ } from './gear-tiers.js?v=0.2.52';
-import { roleWeaponOf, WEAPON_ROLES, SHIELD_ARM } from './hunt-roles.js?v=0.2.52';
-import { isShield } from './shields.js?v=0.2.52';
-import { deriveProfile } from '../core/member.js?v=0.2.52';
-import { ABILITIES } from './abilities.js?v=0.2.52';
-import { CONSUMABLES } from './consumables.js?v=0.2.52';
-import { RUNE_FAMILIES, runeId } from './runes.js?v=0.2.52';
-import { ARTISAN_RECIPES } from './recipes.js?v=0.2.52';
-import { HUNT_STANCES, ROLE_DEFAULTS } from './rule-subjects.js?v=0.2.52';
-import { START_EQUIPMENT, START_BAR } from './start-kit.js?v=0.2.52';
+import { HUNT_INDEX } from './hunts.js?v=0.2.54';
+import { HUNT_GROUNDS } from './hunt-grounds.js?v=0.2.54';
+import { END_ORDER, DEATH_XP_LOSS, STAMINA_LOW_MIN } from './hunt-sessions.js?v=0.2.54';
+import { nextUnlock } from './skill-unlocks.js?v=0.2.54';
+import { SKILLS_DEF } from './skills.js?v=0.2.54';
+import { CROPS, TREES, ROCKS } from './gathering.js?v=0.2.54';
+import { tallyTask } from './tally-tasks.js?v=0.2.54';
+import { WEIGHT_ORDER, weightShort } from './armour-weights.js?v=0.2.54';
+import { ITEMS } from './items.js?v=0.2.54';
+import { BASIC_INDEX } from './supply-basics.js?v=0.2.54';
+import { LEVEL_REQ } from './gear-tiers.js?v=0.2.54';
+import { roleWeaponOf, WEAPON_ROLES, SHIELD_ARM } from './hunt-roles.js?v=0.2.54';
+import { isShield } from './shields.js?v=0.2.54';
+import { deriveProfile } from '../core/member.js?v=0.2.54';
+import { ABILITIES } from './abilities.js?v=0.2.54';
+import { CONSUMABLES } from './consumables.js?v=0.2.54';
+import { RUNE_FAMILIES, runeId } from './runes.js?v=0.2.54';
+import { ARTISAN_RECIPES } from './recipes.js?v=0.2.54';
+import { HUNT_STANCES, ROLE_DEFAULTS } from './rule-subjects.js?v=0.2.54';
+import { START_EQUIPMENT, START_BAR } from './start-kit.js?v=0.2.54';
 
 /* The surfaces a card may point at: `window` the shell window (src/data/shell-windows.js) its controls live in (the
    card shows INSIDE it while it is open), `icon` its way starts at that window's icon, and what the coach rings
@@ -230,9 +230,9 @@ export const HUNT_TUTORIAL = Object.freeze([
     'hunt_topbar', { kind: 'ended', reason: 'left' }),
   /* ── C. The first return: sell or keep, cook, styles, Blessings before danger, Tamsin ── */
   step('sell_loot', 'Sell what only pays coin',
-    'Open the Shop and press Sell. Sell all loot sells the parts that are only worth gold, and keeps your Bones (bury them for Prayer) and food you can cook. Point at anything to see what it\'s for.',
+    'Open the Shop and press Sell. Sell all loot sells the parts that are only worth gold, and keeps your Bones (fuel for the Great Hearth, which raises your Inner Flame) and food you can cook. Point at anything to see what it\'s for.',
     'shop', { kind: 'any', of: [{ kind: 'loot_sold' }, { kind: 'been', hunt: THICKET }] },
-    { when: [IN_TOWN, { kind: 'sellable' }], inWindow: 'Press Sell, then Sell all loot. It keeps your Bones (bury them for Prayer) and food you can cook.',
+    { when: [IN_TOWN, { kind: 'sellable' }], inWindow: 'Press Sell, then Sell all loot. It keeps your Bones (fuel for the Great Hearth, which raises your Inner Flame) and food you can cook.',
       hooks: ['[data-hs-win="shop"] .hw-tab[data-tab="sell"]', '[data-hs-win="shop"] [data-hs-act="sell-loot"]', '[data-hs-win="shop"] [data-coach-hook="sell-confirm"]'] }),
   step('loot_rules', 'Decide once',
     'Open your bag\'s This hunt tab and give each thing you don\'t need a plan: Sell, or Deposit in storage. Back in town, Dispatch loot does every plan in one press.',

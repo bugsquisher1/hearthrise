@@ -49,6 +49,8 @@ export const MATERIALS = Object.freeze({
   /* the quarry's floor of packed gravel (lane/b-havora-polish 2026-10-26): walked on, drawn by its own pairs with the
      mountain rock and the dirt road (havora_gravel_rock, havora_earth_gravel) */
   gravel: Object.freeze({ solid: false }),
+  /* the harbour's granite setts (lane/a-havora-dock 2026-10-26): the quay, the estates' yard, building footings */
+  setts: Object.freeze({ solid: false }),
 });
 
 /* 'span' and 'bridge' (laid over water or a gap) are walked ON: it never blocks the step it covers (2026-10-18:

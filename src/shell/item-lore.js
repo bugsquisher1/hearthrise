@@ -13,18 +13,19 @@
 //   needOf(id, sk, lv)  "Needs Melee 30 — you have 20" / "Needs Level 30 — you're 28", against the server's numbers
 //   flavourOf(id)   the item's one-line description, or ''
 // ════════════════════════════════════════════════════════════════════════
-import { ITEMS } from '../data/items.js?v=0.2.52';
-import { LEVEL_REQ } from '../data/gear-tiers.js?v=0.2.52';
-import { DRINK_ITEMS, DRINK_RECIPES, DRINK_DESC } from '../data/drinks.js?v=0.2.52';
-import { MONSTERS } from '../data/monsters.js?v=0.2.52';
-import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.52';
-import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOT_META } from '../data/gathering.js?v=0.2.52';
-import { SHOP_OFFERS } from '../data/shops.js?v=0.2.52';
-import { SKILLS_DEF } from '../data/skills.js?v=0.2.52';
-import { ITEM_DESC } from '../data/item-descriptions.js?v=0.2.52';
-import { itemName, monsterName } from './widgets/bits.js?v=0.2.52';
-import { kindOf, riteOf, cookOf } from './bag-model.js?v=0.2.52';
-import { SHOP_LISTED_OFFER_IDS } from '../data/supply-basics.js?v=0.2.52';
+import { ITEMS } from '../data/items.js?v=0.2.54';
+import { LEVEL_REQ } from '../data/gear-tiers.js?v=0.2.54';
+import { DRINK_ITEMS, DRINK_RECIPES, DRINK_DESC } from '../data/drinks.js?v=0.2.54';
+import { MONSTERS } from '../data/monsters.js?v=0.2.54';
+import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.54';
+import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOT_META } from '../data/gathering.js?v=0.2.54';
+import { SHOP_OFFERS } from '../data/shops.js?v=0.2.54';
+import { SKILLS_DEF } from '../data/skills.js?v=0.2.54';
+import { ITEM_DESC } from '../data/item-descriptions.js?v=0.2.54';
+import { itemName, monsterName } from './widgets/bits.js?v=0.2.54';
+import { kindOf, riteOf, cookOf, namedFuelOf } from './bag-model.js?v=0.2.54';
+import { FLAMES } from '../data/hearth.js?v=0.2.54';
+import { SHOP_LISTED_OFFER_IDS } from '../data/supply-basics.js?v=0.2.54';
 
 const skillName = (id) => (SKILLS_DEF[id] && SKILLS_DEF[id].name) || id;
 const RARITY = Object.freeze({ common: 'Common', uncommon: 'Uncommon', rare: 'Rare', epic: 'Epic', legendary: 'Legendary', mythic: 'Mythic', unique: 'Unique' });
@@ -104,9 +105,14 @@ export function usesOf(id) {
   if (k === 'ammo') out.push(/_rune$/.test(id) ? 'Spent by spells that call for it' : 'Fired from a bow, one per shot');
   if (k === 'food') out.push('Eat to heal ' + it.heals + ' health');
   if (k === 'drink') out.push('Drink to restore ' + DRINK_ITEMS[id].mana + ' mana');
-  /* An offering (bones): what the skill does with it, never "sell it" (ruling 2026-10-14, Brannoc 10-22). */
+  /* A Hearth fuel (bones and the family fuels): what the Great Hearth does with it, never "sell it" (ruling 2026-10-14,
+     Brannoc 10-22). Every output-less bench row is a fuel (src/data/hearth.js). */
   const rite = riteOf(id);
-  if (rite) out.push(String(rite.recipe.name).split(' ')[0] + ' it to train ' + skillName(rite.skill));
+  if (rite) out.push('Burn it in the Great Hearth to train ' + skillName(rite.skill) + (rite.recipe.req > 1 ? ' (' + skillName(rite.skill) + ' ' + rite.recipe.req + ')' : ''));
+  /* A named fuel: a burst of Inner Flame, and the square's fire takes its colour for everyone */
+  const named = namedFuelOf(id);
+  if (named) out.push('Burn it in the Great Hearth for a burst of ' + skillName('inner_flame') + ' XP; the fire ' + FLAMES[named.flame].words + ' for all Havora'
+    + (named.req > 1 ? ' (' + skillName('inner_flame') + ' ' + named.req + ')' : ''));
   /* Raw food that cooks (playtest 10-22: Raw Wolf Meat read as 1 gp loot): Cook all in the bag does it. */
   const cook = cookOf(id);
   if (cook) out.push('Cook it into food (' + skillName(cook.skill) + ' ' + cook.recipe.req + ')');

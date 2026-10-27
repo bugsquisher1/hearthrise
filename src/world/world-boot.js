@@ -21,35 +21,40 @@
 // one record of where this body stands in town (placeOn: a switch is not a move).
 // A fight on a hunt no map renders shows town or home with a slim banner offering the mapped hunt.
 // THE 64 PX SANDBOX: another art grid, loaded on first entry; its presence rule is sandbox-scene.js.
+// THE GREAT HEARTH (hearth-burn.js): in town the frame also carries the fuel throws, the named flame's colour
+// and the hero's "+N Inner Flame", all from what the server said (the pointer, the stands, the town read).
 // THE ART BY SCENE (atlas.js, scene-sets.js): every manifest on the first open, but a sheet only when a
 // scene drawing from it shows. The first scene opens whole; a later one (a ground entered, the town after
 // a hunt) switches once its sheets have arrived, the last frame holding meanwhile.
 // ════════════════════════════════════════════════════════════════════════
-import { BUILD } from '../build-info.js?v=0.2.52';
-import { MATERIALS, OPEN_CLASSES, LIGHTS } from '../data/world/terrain.js?v=0.2.52';
-import { WORLD_MAPS, SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.52';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.52';
-import { MONSTERS } from '../data/monsters.js?v=0.2.52';
-import { compileMap } from './core/map-compile.js?v=0.2.52';
-import { createBook, STUB_SPRITE } from './core/book.js?v=0.2.52';
-import { fpsFor, MOBILE_QUERY } from './core/camera.js?v=0.2.52';
-import { heroBuilding, roofTargets, stepAlpha } from './core/roofs.js?v=0.2.52';
-import { readScene, setChoice, heroPosOn, notePos, forgetPos } from './store.js?v=0.2.52';
-import { loadManifests, createSceneImages, loadAtlasSet } from './atlas.js?v=0.2.52';
-import { sceneSets } from './scene-sets.js?v=0.2.52';
-import { createGridArt, sandboxExtras, presenceFor } from './sandbox-scene.js?v=0.2.52';
-import { createCanvasBackend } from './render/canvas-backend.js?v=0.2.52';
-import { huntOfMap } from './hunt-maps.js?v=0.2.52';
-import { createHuntScene } from './hunt-scene.js?v=0.2.52';
-import { liveSceneOf, endLiveScene } from '../hunt-view/scene.js?v=0.2.52';
-import { huntOf } from '../session/hunt-sections.js?v=0.2.52';
-import { createWalkScene } from './walk-scene.js?v=0.2.52';
-import { createTownZoom } from './town-zoom.js?v=0.2.52';
-import { homeMapFor, homeEnv } from './home-scene.js?v=0.2.52';
-import { runAction } from './steer-local.js?v=0.2.52';
-import { heroSprite } from '../session/hero-look.js?v=0.2.52';
-import { keyBelongsToField } from '../utils/dom.js?v=0.2.52';
-import { homeOf } from '../session/home-sections.js?v=0.2.52';
+import { BUILD } from '../build-info.js?v=0.2.54';
+import { MATERIALS, OPEN_CLASSES, LIGHTS } from '../data/world/terrain.js?v=0.2.54';
+import { WORLD_MAPS, SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.54';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.54';
+import { MONSTERS } from '../data/monsters.js?v=0.2.54';
+import { compileMap } from './core/map-compile.js?v=0.2.54';
+import { groundOf } from './core/compose.js?v=0.2.54';
+import { createBook, STUB_SPRITE } from './core/book.js?v=0.2.54';
+import { fpsFor, MOBILE_QUERY } from './core/camera.js?v=0.2.54';
+import { heroBuilding, roofTargets, stepAlpha } from './core/roofs.js?v=0.2.54';
+import { readScene, setChoice, heroPosOn, notePos, forgetPos } from './store.js?v=0.2.54';
+import { loadManifests, createSceneImages, loadAtlasSet } from './atlas.js?v=0.2.54';
+import { sceneSets } from './scene-sets.js?v=0.2.54';
+import { createGridArt, sandboxExtras, presenceFor } from './sandbox-scene.js?v=0.2.54';
+import { createCanvasBackend } from './render/canvas-backend.js?v=0.2.54';
+import { huntOfMap } from './hunt-maps.js?v=0.2.54';
+import { createHuntScene } from './hunt-scene.js?v=0.2.54';
+import { liveSceneOf, endLiveScene } from '../hunt-view/scene.js?v=0.2.54';
+import { huntOf } from '../session/hunt-sections.js?v=0.2.54';
+import { createWalkScene } from './walk-scene.js?v=0.2.54';
+import { createTownZoom } from './town-zoom.js?v=0.2.54';
+import { homeMapFor, homeEnv } from './home-scene.js?v=0.2.54';
+import { runAction } from './steer-local.js?v=0.2.54';
+import { heroSprite } from '../session/hero-look.js?v=0.2.54';
+import { keyBelongsToField } from '../utils/dom.js?v=0.2.54';
+import { homeOf } from '../session/home-sections.js?v=0.2.54';
+import { skillsOf } from '../session/item-sections.js?v=0.2.54';
+import { createHearthView } from './hearth-burn.js?v=0.2.54';
 
 /* THE KEYS (desktop): WASD and the arrows, by physical key (e.code, so a
    non-QWERTY layout walks with the same hand). Two held at once walk the
@@ -164,8 +169,7 @@ export async function bootWorld(panel, opts) {
   const needs = new Map();
   const setsFor = (id) => {
     const grid = ROWS.get(id).grid;
-    if (grid && grid !== 'base') return [];
-    if (!needs.has(id)) needs.set(id, sceneSets(mapOf(id), ROWS.get(id), book, tables));
+    if (!needs.has(id)) needs.set(id, grid && grid !== 'base' ? [] : sceneSets(mapOf(id), ROWS.get(id), book, tables));
     return needs.get(id);
   };
   const homeNow = createHomeReader(character);
@@ -193,6 +197,18 @@ export async function bootWorld(panel, opts) {
   let walkPlaced = true, walkStand = null;   // the town walk began on the server's place; the stand key (station:stand:since) it last walked to
   const town = opts.town || null;
   const readEnv = createEnvReader(homeNow, town);
+  let hearthView = null, hearthMap = null;
+
+  /* THE GREAT HEARTH in a town frame (hearth-burn.js): the throws, the colour, the "+N Inner Flame"; display only */
+  function hearthState(map, f, now) {
+    /* the book's own sprites, never the stub proxy: a colour whose art is not loaded draws the plain fire */
+    if (hearthMap !== map) { hearthMap = map; hearthView = createHearthView(map, { sprites: book.sprites }); }
+    const s = character && typeof character.read === 'function' ? character.read('state') : null;
+    const sk = character ? skillsOf(character) : null;
+    return hearthView.frame({ place: f.place, units: f.units, walkers: town.walkers(), me: town.me(), hero: f.hero,
+      active: s && s.active_kind === 'artisan' ? s.active_id : null, burn: town.lastBurn(), flame: town.hearth(),
+      xp: sk && sk.inner_flame && Number.isFinite(sk.inner_flame.xp) ? sk.inner_flame.xp : null }, now);
+  }
 
   function paintChrome(sc) {
     stage.classList.remove('is-hot');
@@ -267,6 +283,7 @@ export async function bootWorld(panel, opts) {
       if (k && k !== walkStand) { walkStand = k; walk.goTo(town.me().at, now); }
     }
     const f = walk.frame(readEnv(map.kind), now);
+    if (held && map.kind === 'town') Object.assign(f, hearthState(map, f, now));
     if (!held) notePos(G, map.id, f.hero.x, f.hero.y);
     presenceFor(town, map, f.place);
     lastWalk = f;
@@ -280,7 +297,9 @@ export async function bootWorld(panel, opts) {
       units: f.units.map((u) => ({ id: u.id, x: u.x, y: u.y, plate: u.plate ? u.plate.text : null, alpha: u.alpha, anim: u.anim, age: u.age, dir: u.dir,
         player: u.ref && u.ref.player ? u.ref.player.id : null })),
       place: f.place,
-      props: f.props.map((p) => ({ id: p.id, x: p.x, y: p.y, ref: p.ref })) };
+      props: f.props.map((p) => ({ id: p.id, x: p.x, y: p.y, ref: p.ref })),
+      /* the Great Hearth's effects this frame (hearth-burn.js), for a test or a look */
+      hearth: { fx: (f.fx || []).map((e) => e.id), swap: f.ambientSwap || null, floats: (f.floats || []).map((x) => x.text) } };
   }
 
   /* ROUTE: which scene, and the HTML around it (title, picks, the unmapped-fight
@@ -300,15 +319,22 @@ export async function bootWorld(panel, opts) {
       gridArt.ensure(grid).then((ok) => { if (!ok) setChoice(view(), 'town'); if (!running) sync(); });
       sc = { map: SCENE_MAPS.town, kind: 'town' };
     }
-    const need = setsFor(sc.map);
-    if (!sheets.ready(need) || waiting.has(sc.map)) {
-      /* ITS SHEETS ARE STILL LOADING (a ground entered, the town after a hunt): the frame showing stays until
-         they arrive, then the scene switches whole: no stub boxes, and never one map's units on another */
+    if (!needs.has(sc.map) || !sheets.ready(needs.get(sc.map)) || waiting.has(sc.map)) {
+      /* A SCENE NOT YET SHOWN (a ground entered, the town after a hunt): the frame showing stays until it is
+         ready, then the scene switches whole: no stub boxes, and never one map's units on another. Each heavy
+         step is a task of its own, never a frame's (tests/perf-budget.mjs PB-HELD): its ground (made once,
+         compose.js groundOf), the sheets it draws from, those sheets loaded, then its ground binned. */
       if (!waiting.has(sc.map)) {
         waiting.add(sc.map);
         const id = sc.map;
-        /* its ground is made in a task of its own (not the last sheet's), so the frame that shows it only bakes what it draws */
-        sheets.ensure(need).then(() => win.setTimeout(() => { if (!gone) backend.prepare(mapOf(id), artOf(id) || undefined); waiting.delete(id); if (!running) sync(); }, 0));
+        const task = (fn) => new Promise((done) => win.setTimeout(() => done(gone ? null : fn()), 0));
+        /* the ground first, alone (the town's is 22k dual tiles), then what the scene draws over it */
+        task(() => { const g = ROWS.get(id).grid; if (!g || g === 'base') { const m = mapOf(id); groundOf(m, book, tables, m.T || 32); } })
+          .then(() => task(() => setsFor(id)))
+          .then((need) => need && sheets.ensure(need))
+          .then(() => task(() => backend.prepare(mapOf(id), artOf(id) || undefined)))
+          .then(() => { waiting.delete(id); if (!running) sync(); },
+            (e) => console.error('[world] the scene "' + id + '" could not be prepared', e));
       }
       return null;
     }

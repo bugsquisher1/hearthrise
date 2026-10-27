@@ -6,7 +6,7 @@
 // still reaching for `Math.random()` (three times: craftSave, the cooking
 // burn, and the yield_* roll). It also owned the recipe-input consumption,
 // the output quantity, and the deterministic artisan-tool carry — i.e. the
-// whole production step for cooking / smithing / crafting / prayer.
+// whole production step for cooking / smithing / crafting / Inner Flame.
 //
 // The accrual engine has to price an overnight of smithing without a DOM,
 // so all of that lives here now and legacy.js delegates. Everything the
@@ -26,7 +26,7 @@
 // PURE ESM. No DOM, no window, no timers, no Math.random.
 // ============================================================
 
-import { advanceToolCarry } from './tools.js?v=0.2.52';
+import { advanceToolCarry } from './tools.js?v=0.2.54';
 
 /* ── Burn (open-fire cooking) ─────────────────────────────────────────
    Values unchanged from b225 / b227. Documented at length in

@@ -1061,7 +1061,7 @@ const cases = {
     if (!sellPlan[0].includes('[data-coach-hook="sell-confirm"]') || !sellPlan[1].includes('[data-hs-act="sell-loot"]') || !sellPlan[2].includes('.hw-tab[data-tab="sell"]'))
       return 'Sell what only pays coin rings, in order, ' + JSON.stringify(sellPlan) + ' (want the confirmation, Sell all loot, the Sell tab)';
     if (!(L.coachFactsOf(hero(c2env), null).sellable > 0)) return 'the shell says Sell all loot sells nothing over ' + JSON.stringify(Object.keys(left));
-    /* sold: what is left is what Sell all loot keeps (bones for Prayer, food that cooks): the card moves on */
+    /* sold: what is left is what Sell all loot keeps (bones for the Great Hearth, food that cooks): the card moves on */
     const kept = {}; for (const id of ['bones', 'wheat_bread', 'cooked_shrimp', 'goldenroot_tea', 'normal_log', 'copper_ore', 'chalked_fire_rune', 'bronze_arrows']) if (left[id]) kept[id] = left[id];
     const c3 = card(hero(town({ equipment: worn, inventory: kept }), { read: KNOWN }), null);
     if (!c3 || c3.id === 'sell_loot' || c3.id === 'equip_upgrades') return 'after the sale the coach still shows ' + (c3 && c3.id);

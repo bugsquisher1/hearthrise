@@ -18,8 +18,8 @@
 // read makes that ROW null, not the whole section.
 // ════════════════════════════════════════════════════════════════════════
 
-import { roleForWeapon } from '../data/hunt-roles.js?v=0.2.52';
-import { VITALS } from '../data/core-model.js?v=0.2.52';
+import { roleForWeapon } from '../data/hunt-roles.js?v=0.2.54';
+import { VITALS } from '../data/core-model.js?v=0.2.54';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
@@ -77,7 +77,7 @@ export function huntOf(cs) {
       xpPct: num(hero.xp_pct), regenPm: int(hero.regen_pm),
       /* PER SECOND, the rates the engine runs while the hunt fights (src/core/hunt/pull-cycle.js
          tickHeroes; src/core/hunt/abilities.js mana): HP at VITALS.inFightRegenPermillePerS of the
-         server's max HP, mana the server's per-minute figure (Prayer's regen_pm is in both). */
+         server's max HP, mana the server's per-minute figure (Inner Flame's regen_pm is in both). */
       hpPerS: num(hero.hp_max) !== null && int(hero.regen_pm) !== null
         ? (hero.hp_max * VITALS.inFightRegenPermillePerS * hero.regen_pm) / 1e6 : null,
       manaPerS: num(hero.mana_regen) !== null ? hero.mana_regen / 60 : null,

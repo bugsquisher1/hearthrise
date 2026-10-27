@@ -30,12 +30,12 @@
 // the server's `role` is only the pick, kept when the weapon allows it.
 // ════════════════════════════════════════════════════════════════════════
 
-import { roleForWeapon, WEAPON_ROLES } from '../data/hunt-roles.js?v=0.2.52';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.52';
-import { TREES, ROCKS, FISH_SPOTS } from '../data/gathering.js?v=0.2.52';
-import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.52';
-import { huntOf, staminaOf, densityMapOf } from './hunt-sections.js?v=0.2.52';
-import { heroVitalsOf } from './character-sections.js?v=0.2.52';
+import { roleForWeapon, WEAPON_ROLES } from '../data/hunt-roles.js?v=0.2.54';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.54';
+import { TREES, ROCKS, FISH_SPOTS } from '../data/gathering.js?v=0.2.54';
+import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.54';
+import { huntOf, staminaOf, densityMapOf } from './hunt-sections.js?v=0.2.54';
+import { heroVitalsOf } from './character-sections.js?v=0.2.54';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -138,7 +138,8 @@ const TOWN_WORDS = new Map([
   ...TREES.map((n) => ['gather:' + n.id, 'chopping the ' + n.name]),
   ...ROCKS.map((n) => ['gather:' + n.id, 'mining the ' + n.name]),
   ...FISH_SPOTS.map((n) => ['gather:' + n.id, 'fishing at the ' + n.name]),
-  ...Object.values(ARTISAN_RECIPES).flat().map((r) => ['artisan:' + r.id, 'working on ' + r.name]),
+  /* a fuel (an output-less row: src/data/hearth.js) burns in the Great Hearth; any other row is worked on */
+  ...Object.values(ARTISAN_RECIPES).flat().map((r) => ['artisan:' + r.id, r.output ? 'working on ' + r.name : 'fueling the Great Hearth with ' + r.name]),
 ]);
 const TOWN_KIND_WORDS = Object.freeze({ gather: 'gathering', artisan: 'at a workbench', training: 'training' });
 

@@ -27,22 +27,22 @@
 // Storage has room and sells every stack planned "Sell"; off with its reason (a
 // hunt, nothing planned), and its line is the server's answer.
 // ════════════════════════════════════════════════════════════════════════
-import { bagOf, bankOf, depotOf, shopOf } from '../../session/item-sections.js?v=0.2.52';
-import { STORE_SEEN_MAX } from '../../session/residue.js?v=0.2.52';
-import { huntOf } from '../../session/hunt-sections.js?v=0.2.52';
-import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.52';
-import { whole } from '../../render/format.js?v=0.2.52';
-import { glyphSvg } from '../launcher.js?v=0.2.52';
-import { itemName } from '../widgets/bits.js?v=0.2.52';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.52';
-import { BAG_CATS, BAG_SORTS, view } from '../bag-model.js?v=0.2.52';
-import { storePrefsOf, markStored } from '../storage-model.js?v=0.2.52';
-import { runIntent } from '../intent-words.js?v=0.2.52';
-import { pocketHtml, patchCount } from './inventory/pockets.js?v=0.2.52';
-import { showTip, hideTip } from './item-tip.js?v=0.2.52';
-import { openFloatMenu, closeFloatMenu } from './float-menu.js?v=0.2.52';
-import { amountHtml, amountOf, stepAmount } from '../widgets/amount.js?v=0.2.52';
-import { dispatchBlock, runDispatch } from '../loot-dispatch.js?v=0.2.52';
+import { bagOf, bankOf, depotOf, shopOf } from '../../session/item-sections.js?v=0.2.54';
+import { STORE_SEEN_MAX } from '../../session/residue.js?v=0.2.54';
+import { huntOf } from '../../session/hunt-sections.js?v=0.2.54';
+import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.54';
+import { whole } from '../../render/format.js?v=0.2.54';
+import { glyphSvg } from '../launcher.js?v=0.2.54';
+import { itemName } from '../widgets/bits.js?v=0.2.54';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.54';
+import { BAG_CATS, BAG_SORTS, view } from '../bag-model.js?v=0.2.54';
+import { storePrefsOf, markStored } from '../storage-model.js?v=0.2.54';
+import { runIntent } from '../intent-words.js?v=0.2.54';
+import { pocketHtml, patchCount } from './inventory/pockets.js?v=0.2.54';
+import { showTip, hideTip } from './item-tip.js?v=0.2.54';
+import { openFloatMenu, closeFloatMenu } from './float-menu.js?v=0.2.54';
+import { amountHtml, amountOf, stepAmount } from '../widgets/amount.js?v=0.2.54';
+import { dispatchBlock, runDispatch } from '../loot-dispatch.js?v=0.2.54';
 
 const SCRATCH = new WeakMap();
 const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { query: '', pending: false, msg: '', press: null, pressed: false }; SCRATCH.set(cs, s); } return s; };
@@ -60,13 +60,15 @@ export function renderStorage(ctx) {
     + '<label class="hw-sort"><span>Sort</span><select class="hh-select" data-hs-act="sort">' + BAG_SORTS.map(([id, l]) => '<option value="' + id + '">' + esc(l) + '</option>').join('') + '</select></label></div>'
     + '<div class="hw-cats" role="group" aria-label="Show">' + BAG_CATS.map(([id, l]) => '<button type="button" class="hw-cat" data-hs-act="cat" data-cat="' + id + '" aria-pressed="false">' + esc(l) + '</button>').join('') + '</div>'
     + '<p class="hs-note hw-store-note"></p>'
+    /* The press's answer sits ABOVE both grids (Andy 10-26: under a full bag it was off the bottom, and a refused
+       12k-arrow press read as lag): it says "Putting it away…", then the result or the refusal, where the eye is. */
+    + '<p class="hh-intent-msg" role="status" aria-live="polite"></p>'
     + '<h3 class="hw-ledger-head is-on">In storage <small class="hw-store-n" data-n="bank"></small></h3>'
     + '<ul class="hw-pockets" data-side="bank" role="listbox" aria-label="In storage"></ul><p class="hh-empty hw-store-none" data-none="bank"></p>'
     + '<p class="hs-note hw-store-room"></p>'
     + '<h3 class="hw-ledger-head is-on">In your bag <small class="hw-store-n" data-n="bag"></small></h3>'
     + '<div class="hw-tools hw-store-do"><button type="button" class="hh-tool" data-hs-act="dispatch">Dispatch loot</button><p class="hw-why"></p></div>'
-    + '<ul class="hw-pockets" data-side="bag" role="listbox" aria-label="In your bag"></ul><p class="hh-empty hw-store-none" data-none="bag"></p>'
-    + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></div>';
+    + '<ul class="hw-pockets" data-side="bag" role="listbox" aria-label="In your bag"></ul><p class="hh-empty hw-store-none" data-none="bag"></p></div>';
 }
 
 function patchSide(root, ctx, side, list, shown, off, depot) {

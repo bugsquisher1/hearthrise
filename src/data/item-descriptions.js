@@ -3,15 +3,15 @@
 // voice, original IP. Surfaced in the item detail/tooltip (the "what is it" line).
 // SAFE TO EXTEND: an item with no entry here just shows no flavour line — nothing breaks.
 
-import { WAVE3_DESC } from './wave3-uniques.js?v=0.2.52';
-import { SLOT_DESC } from './slot-ladders.js?v=0.2.52';
-import { LIB2_DESC } from './library2-items.js?v=0.2.52';
-import { BOSS_FORGE_DESC } from './boss-forge.js?v=0.2.52';
-import { CHAMPION_DESC } from './champions.js?v=0.2.52';
-import { DRINK_DESC } from './drinks.js?v=0.2.52';
-import { IMBUE_DESC } from './imbuements.js?v=0.2.52';
-import { STYLE_GEAR_DESC } from './style-gear.js?v=0.2.52';
-import { SHIELD_DESC } from './shields.js?v=0.2.52';
+import { WAVE3_DESC } from './wave3-uniques.js?v=0.2.54';
+import { SLOT_DESC } from './slot-ladders.js?v=0.2.54';
+import { LIB2_DESC } from './library2-items.js?v=0.2.54';
+import { BOSS_FORGE_DESC } from './boss-forge.js?v=0.2.54';
+import { CHAMPION_DESC } from './champions.js?v=0.2.54';
+import { DRINK_DESC } from './drinks.js?v=0.2.54';
+import { IMBUE_DESC } from './imbuements.js?v=0.2.54';
+import { STYLE_GEAR_DESC } from './style-gear.js?v=0.2.54';
+import { SHIELD_DESC } from './shields.js?v=0.2.54';
 
 export const ITEM_DESC = {
   /* Mage = wand + spellbook; Healer = staff (Tyler 2026-10-19). */
@@ -103,16 +103,25 @@ export const ITEM_DESC = {
   'bear_claw': 'A curved claw torn from a bear, a trophy and crafting reagent',
   'bear_claw_pie': 'A rugged pie stuffed with bear meat, a fighter\'s feast that hardens your blows',
   'bear_pelt': 'The heavy pelt of a bear, thick hide for rugged armour',
-  'big_bones': 'Heavy bones from a large brute, a richer offering when buried',
+  'big_bones': 'Fuel for the Great Hearth in Havora, hotter than plain bones. Left by big brutes',
   'boarhide_belt': 'A broad boarhide belt, rugged enough for a ranger living out of camp',
   'boarhide_body': 'A boarhide jerkin, thick and rugged, cover built for a ranger who hunts the deep woods',
   'boarhide_boots': 'Boarhide boots, tough-soled and sure, built for a ranger who covers real ground',
   'boarhide_gloves': 'Boarhide vambraces, thick enough to shrug off a bowstring\'s bite',
   'boarhide_helmet': 'A boarhide coif, tough and bristled, a rugged ranger\'s steady ward',
   'boarhide_pants': 'Boarhide chaps, tough and broken-in, built for a ranger who never stops moving',
-  'bone_chips': 'Splinters of shattered bone, ground into meal for crafting',
+  'bone_chips': 'Splinters of shattered bone, ground into meal for smithing or burned in the Great Hearth',
   'bone_needle': 'A simple bone needle, a novice crafter\'s first honest stitch',
-  'bones': 'Bare bones left by common beasts, buried to honour the dead and earn favour',
+  'bones': 'Fuel for the Great Hearth in Havora: burn them there to raise your Inner Flame',
+  /* THE GREAT HEARTH'S FUELS (src/data/hearth.js): what each is for, then where it comes from */
+  'lamp_jelly': 'Fuel for the Great Hearth, burned like bones. A slime has no skeleton, but its jelly burns like lamp oil',
+  'dry_husk': 'Fuel for the Great Hearth, burned like bones. The papery shell a spider sheds, dry as kindling',
+  'pithwood': 'Fuel for the Great Hearth, burned like bones. The soft heartwood of a Walking Vine',
+  'queens_comb': 'A named fuel: the Great Hearth turns it into a burst of Inner Flame and burns honey-gold for all Havora. Wax from the heart of the Mill Cellar hive',
+  'den_knot': 'A named fuel: the Great Hearth turns it into a burst of Inner Flame and burns deep amber for all Havora. A resin-soaked pine knot from the Dire Gray\'s den',
+  'rat_kings_knot': 'A named fuel: the Great Hearth turns it into a burst of Inner Flame and burns marsh-gas blue for all Havora. The knot the Rat King\'s tails are tied in',
+  'mosslight_clump': 'A named fuel: the Great Hearth turns it into a burst of Inner Flame and glows blue-green for all Havora. Moss off a Walking Vine in Mosslight Glade',
+  'verdigris_cake': 'A named fuel: the Great Hearth turns it into a burst of Inner Flame and burns copper green for all Havora. Scale off Chief Coppercap\'s stolen pots',
   'bronze_axe': 'Cast-bronze felling axe, a woodcutter\'s first honest tool',
   'bronze_bar': 'Copper and tin smelted to bronze, the first true alloy',
   'bronze_belt': 'Sturdy bronze girdle that braces a recruit\'s waist and hangs his kit',
@@ -174,7 +183,7 @@ export const ITEM_DESC = {
   'deepvein_lodestar': 'A lodestone hauled up from the deepest vein ever opened, a keepsake for the finder alone',
   'demon_shard': 'A shard of hardened demon-flesh, hot to the touch, infernal crafting stock',
   'dire_fang': 'A curved fang from a dire beast, a fierce trophy and crafting stock',
-  'dragon_bones': 'Dense, blackened bones of a dragon, the richest burial offering of all',
+  'dragon_bones': 'Fuel for the Great Hearth, the hottest bones it takes. Dense and blackened, from a dragon',
   'dragon_gem': 'A gem cut from a dragon\'s hoard, the rarest jewel a smith can set',
   'dragon_relic': 'A legendary relic of a slain dragon, prize of the deepest dungeons',
   'dragon_scale': 'A single scale prised from a dragon, prized armouring material',

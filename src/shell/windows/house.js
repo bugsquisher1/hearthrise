@@ -20,15 +20,15 @@
 // answers, and the ledger changes only from the re-read envelope. A refusal is
 // said in plain words. A room whose rungs do nothing yet offers no purchase.
 // ════════════════════════════════════════════════════════════════════════
-import { homeOf, chestsOf } from '../../session/home-sections.js?v=0.2.52';
-import { buyHome, buildChest } from '../../session/home-intents.js?v=0.2.52';
-import { bagOf, bankOf, goldOf, nameOf } from '../../session/item-sections.js?v=0.2.52';
-import { PROPERTY_TIERS } from '../../data/homestead-tiers.js?v=0.2.52';
-import { ROOM_PERKS } from '../../data/perks.js?v=0.2.52';
-import { text, cls, prop, attr, rows, element } from '../../render/paint.js?v=0.2.52';
-import { whole, gold } from '../../render/format.js?v=0.2.52';
-import { itemName } from '../widgets/bits.js?v=0.2.52';
-import { runIntent } from '../intent-words.js?v=0.2.52';
+import { homeOf, chestsOf } from '../../session/home-sections.js?v=0.2.54';
+import { buyHome, buildChest } from '../../session/home-intents.js?v=0.2.54';
+import { bagOf, bankOf, goldOf, nameOf } from '../../session/item-sections.js?v=0.2.54';
+import { PROPERTY_TIERS } from '../../data/homestead-tiers.js?v=0.2.54';
+import { ROOM_PERKS } from '../../data/perks.js?v=0.2.54';
+import { text, cls, prop, attr, rows, element } from '../../render/paint.js?v=0.2.54';
+import { whole, gold } from '../../render/format.js?v=0.2.54';
+import { itemName } from '../widgets/bits.js?v=0.2.54';
+import { runIntent } from '../intent-words.js?v=0.2.54';
 
 const ROMAN = Object.freeze(['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X']);
 const SCRATCH = new WeakMap();
@@ -42,7 +42,7 @@ const PERK_WORDS = Object.freeze({
   smithSpeed: (v) => 'smithing ' + pc(v) + '% faster',
   craftSpeed: (v) => 'crafting ' + pc(v) + '% faster',
   craftSave: (v) => pc(v) + '% chance to save the materials',
-  prayerSpeed: (v) => 'prayer offerings ' + pc(v) + '% faster',
+  flameSpeed: (v) => 'fueling the Great Hearth ' + pc(v) + '% faster',
   runeSpeed: (v) => 'rune binding ' + pc(v) + '% faster',
   buffDuration: (v) => 'food and drink effects last ' + pc(v) + '% longer',
   farmPlots: (v) => v + ' more farm ' + (v === 1 ? 'bed' : 'beds') + ' on the land your heroes share',

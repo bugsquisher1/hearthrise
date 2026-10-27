@@ -20,14 +20,14 @@
 //                     pockets show it as pending; `items` and `qty`, which every
 //                     action reads, stay the server's.
 // ════════════════════════════════════════════════════════════════════════
-import { bagOf, bagCapOf, goldOf, rulesOf, shopOf, equipmentOf, huntLootOf } from '../../../session/item-sections.js?v=0.2.52';
-import { settingsOf, analyzerOf } from '../../../session/hunt-sections.js?v=0.2.52';
-import { BAG_CATS, BAG_SORTS, view, kindOf, equipSlotFor, sellPlan } from '../../bag-model.js?v=0.2.52';
-import { barKind, barIndexOf } from '../../bar-assign.js?v=0.2.52';
-import { itemName } from '../../widgets/bits.js?v=0.2.52';
-import { buryRecipeOf, buryLabel, buryQty } from './bury.js?v=0.2.52';
-import { upgradeOf } from '../../widgets/upgrade-line.js?v=0.2.52';
-import { tickOf } from '../../town-work.js?v=0.2.52';
+import { bagOf, bagCapOf, goldOf, rulesOf, shopOf, equipmentOf, huntLootOf } from '../../../session/item-sections.js?v=0.2.54';
+import { settingsOf, analyzerOf } from '../../../session/hunt-sections.js?v=0.2.54';
+import { BAG_CATS, BAG_SORTS, view, kindOf, equipSlotFor, sellPlan, namedFuelOf } from '../../bag-model.js?v=0.2.54';
+import { barKind, barIndexOf } from '../../bar-assign.js?v=0.2.54';
+import { itemName } from '../../widgets/bits.js?v=0.2.54';
+import { buryRecipeOf, buryLabel, buryQty } from './bury.js?v=0.2.54';
+import { upgradeOf } from '../../widgets/upgrade-line.js?v=0.2.54';
+import { tickOf } from '../../town-work.js?v=0.2.54';
 
 const SCRATCH = new WeakMap();
 const CAT_IDS = new Set(BAG_CATS.map(([id]) => id));
@@ -77,7 +77,7 @@ export function stateOf(ctx) {
   const stored = seenOf(cs);
   const seen = stored || Object.fromEntries(list.map((r) => [r.id, [r.qty, 0]]));
   const shown = view(list, { cat: prefs.cat, query: sc.query, sort: prefs.sort, bids: shop ? shop.bids : null, seen });
-  return { cs, items: list, loaded: !!items, cap: bagCapOf(cs), gold: goldOf(cs), rules: rulesOf(cs), shop, eq: equipmentOf(cs) || {},
+  return { cs, account: ctx.account || null, items: list, loaded: !!items, cap: bagCapOf(cs), gold: goldOf(cs), rules: rulesOf(cs), shop, eq: equipmentOf(cs) || {},
     bar: settingsOf(cs), prefs, sc, seen, unmarked: !stored, shown, qty: new Map(list.map((r) => [r.id, r.qty])),
     /* What "Equip upgrades" would put on (src/shell/upgrade-plan.js), from the same server sections. */
     upgrade: upgradeOf(cs),
@@ -102,6 +102,8 @@ export function primaryOf(st, id) {
   if (barKind(id) && st.bar && barIndexOf(st.cs, id) < 0) return ['bar', 'Put on the bar'];
   const br = buryRecipeOf(id);
   if (br) return ['bury', buryLabel(br, buryQty(st.cs, id))];
+  /* a named fuel burns alone in the Great Hearth (bury.js burnNamed) */
+  if (namedFuelOf(id)) return ['hearth', 'Fuel the hearth'];
   if (st.shop && st.shop.bids.has(id) && !(st.rules && st.rules.locked.has(id))) return ['sell', 'Sell'];
   return null;
 }

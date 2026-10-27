@@ -2,7 +2,9 @@
 // src/data/skills.js — THE SKILL LIST (docs/design/CORE_MODEL.md §1; Tyler
 // 2026-10-14 / 2026-10-19).
 //
-// combat   Melee, Ranged, Magic, Defense, Prayer: trained by use, NO cap
+// combat   Melee, Ranged, Magic, Defense, Inner Flame: trained by use, NO cap
+//          (Inner Flame replaced Prayer, Tyler 2026-10-25: trained by fuelling
+//          the Great Hearth in Havora's square, src/data/hearth.js)
 //          (src/core/xp.js skill curve). There is no Hitpoints, Attack or
 //          Strength skill.
 // gather / artisan   capped at 99 (src/core/xp.js XP_TABLE).
@@ -23,7 +25,7 @@ export const SKILLS_DEF = {
   ranged: { name: 'Ranged', icon: '🏹', cat: 'combat' },
   magic: { name: 'Magic', icon: '🔮', cat: 'combat' },
   defense: { name: 'Defense', icon: '🛡️', cat: 'combat' },
-  prayer: { name: 'Prayer', icon: '🙏', cat: 'combat' },
+  inner_flame: { name: 'Inner Flame', cat: 'combat' },   // no emoji: its glyph is a hearth (skill-guide.js), never a flame bolt
   woodcutting: { name: 'Woodcutting', icon: '🪓', cat: 'gather' },
   mining: { name: 'Mining', icon: '⛏️', cat: 'gather' },
   fishing: { name: 'Fishing', icon: '🎣', cat: 'gather' },

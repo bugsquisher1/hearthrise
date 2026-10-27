@@ -17,9 +17,9 @@
 // over the replayed chain.
 //
 // THE FORWARD-FILE RULE: an applied file is history and is never regenerated in
-// place; a new curve is a new dated file (OUT_NAME). 2027-01-31 is the first
+// place; a new curve is a new dated file (OUT_NAME). 2027-02-01 is the first
 // (lane/b-level-curve: the bracket curve replaces the 10-19 quartic, whose
-// coefficients lived in hr_hunt_limits; the 2027-01-31 hunt-sessions catalogue,
+// coefficients lived in hr_hunt_limits; the 2027-02-01 hunt-sessions catalogue,
 // applied right after this file, drops those three rows).
 //
 //   Regenerate:  node tools/gen-level-curve.mjs
@@ -37,7 +37,7 @@ import { dirname, join } from 'node:path';
 import { isMain } from '../tests/_is-main.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-export const OUT_NAME = '2027-01-31-level-curve.generated.sql';
+export const OUT_NAME = '2027-02-01-level-curve.generated.sql';
 const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 
 /* The Levels the self-check pins: every bracket's edge, Tyler's target Levels and a deep one. */
@@ -69,7 +69,7 @@ export function buildSql(XP) {
 -- from a bracket's start Level the step to the next Level costs first + rise x m +
 -- bend x m^2 (m Levels into the bracket). hr_level_curve holds ${rows.length} rows; the two
 -- curve functions read them instead of the 10-19 quartic's hr_hunt_limits rows
--- (level_quartic / level_cubic / level_linear, dropped by the 2027-01-31 hunt-sessions
+-- (level_quartic / level_cubic / level_linear, dropped by the 2027-02-01 hunt-sessions
 -- catalogue that applies right after this file). Signatures, volatility and grants
 -- are unchanged, so every reader (the settle's death floor, hr_level_block,
 -- hr_level_of, the analyzer's ETA) follows with no edit.
@@ -79,8 +79,8 @@ export function buildSql(XP) {
 -- the hr-accrue deploy carrying the same LEVEL_CURVE follows this file (AT ONCE:
 -- between the two, a death's loss is priced on the old curve and may be refused once
 -- as death_xp_over, then settles on the next tick after the deploy).
--- ORDER: after 2027-01-30-havora-yards.generated.sql; BEFORE
--- 2027-01-31-hunt-sessions-catalogue.generated.sql (its precondition refuses until
+-- ORDER: after lane/b-inner-flame's 2027-01-31 set (2027-01-31-hearth-catalogue.generated.sql
+-- last); BEFORE 2027-02-01-hunt-sessions-catalogue.generated.sql (its precondition refuses until
 -- this file has run). No begin/commit (CLAUDE.md §2).
 -- ════════════════════════════════════════════════════════════════════════
 

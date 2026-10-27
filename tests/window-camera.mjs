@@ -394,6 +394,7 @@ async function checks(overrides) {
             if (xAt) fails.push('WC-5b the dragged modal’s X is covered by ' + xAt);
             const mr1b = await rects(page);
             for (const id of ['hunt-prep', 'shop', 'skills-trade']) if (mr1b[id] !== r2[id]) fails.push('WC-5b dragging the modal moved ' + id);
+            await press(page, '[data-hs-win="configure-action"] [data-hs-close]');
             await settle(page);
             const mr2 = await rects(page), mc2 = await camera(page), mh2 = await hero(page);
             if (mr2['configure-action']) fails.push('WC-5 the modal’s X did not close it');

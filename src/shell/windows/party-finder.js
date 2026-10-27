@@ -15,16 +15,16 @@
 // server's answer held as window scratch — never the record, and nothing can
 // spend them: Join is the server's own check under its lock.
 // ════════════════════════════════════════════════════════════════════════
-import { WEAPON_ROLES, HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.55';
-import { WEAPON_WORDS } from '../../data/hunt-hud.js?v=0.2.55';
-import { finderRows, huntName, partyMembershipOf } from '../../session/party-sections.js?v=0.2.55';
-import { roleOf } from '../../session/item-sections.js?v=0.2.55';
-import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.55';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.55';
-import { refusalWords, runIntent } from '../intent-words.js?v=0.2.55';
-import { patchRoleGlyph } from '../widgets/bits.js?v=0.2.55';
-import { listParty } from '../../session/party-intents.js?v=0.2.55';
-import { huntRows } from '../hunt-list.js?v=0.2.55';
+import { WEAPON_ROLES, HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.56';
+import { WEAPON_WORDS } from '../../data/hunt-hud.js?v=0.2.56';
+import { finderRows, huntName, partyMembershipOf } from '../../session/party-sections.js?v=0.2.56';
+import { roleOf } from '../../session/item-sections.js?v=0.2.56';
+import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.56';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.56';
+import { refusalWords, runIntent } from '../intent-words.js?v=0.2.56';
+import { patchRoleGlyph } from '../widgets/bits.js?v=0.2.56';
+import { listParty } from '../../session/party-intents.js?v=0.2.56';
+import { huntRows } from '../hunt-list.js?v=0.2.56';
 
 const SCRATCH = new WeakMap();
 
@@ -37,14 +37,18 @@ function listedOf(cs) {
 /** The Party window's scratch for one character: the intent in flight, the open tab, the finder's last answer. */
 export function partyScratch(cs) {
   let s = SCRATCH.get(cs);
-  if (!s) { s = { pending: false, msg: '', found: null, findMsg: '', weapon: undefined, ground: '', tab: null }; SCRATCH.set(cs, s); }
+  if (!s) { s = { pending: false, msg: '', found: null, findMsg: '', weapon: undefined, ground: '', tab: null, tabFor: undefined }; SCRATCH.set(cs, s); }
   return s;
 }
 
-/** "No bow yet (Ranger)": the weapon filter's words. */
+/** "Needs a bow · Ranger": the weapon filter's words (a party with no member of that weapon yet). The role is left
+    out where it already names the weapon ("Needs a shield", never "Melee (shield)" in brackets again);
+    tests/party-ui.mjs UI-9 reads them off the select. */
 function weaponOption(w) {
   const role = HUNT_ROLES[WEAPON_ROLES[w][0]];
-  return 'No ' + (WEAPON_WORDS[w] || w).toLowerCase() + ' yet (' + role.label + ')';
+  const word = (WEAPON_WORDS[w] || w).toLowerCase();
+  const what = 'Needs ' + (/s$/.test(word) ? '' : 'a ') + word;
+  return role.label.toLowerCase().includes(word) ? what : what + ' · ' + role.label;
 }
 
 export function finderHtml() {

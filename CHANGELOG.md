@@ -5,6 +5,14 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.56 — 2026-10-27 (Your party, in town)
+
+**See your party in town.** When you're in a party, the Party window opens on a new Your party tab: everyone in it, who leads, where each of them is, and what happens next. The leader can pick a hunt for the party from there, and anyone can leave with one button.
+
+**Clearer party search.** The weapon filter in Find a party now reads "Needs a shield", "Needs a sword" and so on.
+
+**Move the action setup.** You can drag the Configure action panel by its header to see what's behind it.
+
 ## v0.2.55 — 2026-10-27 (Inner Flame)
 
 **Inner Flame replaces Prayer.** Your Prayer level carries over as Inner Flame, and it still softens the XP you lose when you die. You train it at the Hearth in Havora's square.

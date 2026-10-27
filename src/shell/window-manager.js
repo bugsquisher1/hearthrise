@@ -19,7 +19,9 @@
 //            replaces it.
 //   modal    a row with `modal: true` (Configure action) opens CENTRED over the
 //            World on every size class: never docked, never a sheet, and it
-//            leaves the windows under it open.
+//            leaves the windows under it open. On desktop its head drags it like
+//            any window (Tyler 2026-10-27), held wholly inside the World (`h`, its
+//            measured height); a reopen is centred again. The phone never moves it.
 //   Esc      closes the top window; with none open it opens the `escape` row.
 //   keys     each row's `key` toggles it; ignored while typing (src/utils/dom.js
 //            keyBelongsToField: a text field, or a select's arrows) or with a modifier.
@@ -38,7 +40,7 @@
 // size and a scheduler, so node drives every rule (tests/shell-core.mjs).
 // ════════════════════════════════════════════════════════════════════════
 
-import { keyBelongsToField } from '../utils/dom.js?v=0.2.55';
+import { keyBelongsToField } from '../utils/dom.js?v=0.2.56';
 
 export const MAX_OPEN = 3;
 export const DOCK_MAX = 0.6;
@@ -257,12 +259,20 @@ export function createWindowManager(o) {
     return false;
   }
 
-  /** Float a window at {x, y} (desktop only), clamped inside the World. */
+  /* A moved modal's spot, held wholly inside the World (its width, and its height `h` when the host measured it). */
+  function modalAt(id, f) {
+    const w = world();
+    const wide = Math.min(rows.get(id).width, w.width), tall = Number.isFinite(f.h) && f.h > 0 ? Math.min(f.h, w.height) : 48;
+    return { x: Math.round(Math.max(0, Math.min(w.width - wide, f.x))), y: Math.round(Math.max(0, Math.min(w.height - tall, f.y))) };
+  }
+
+  /** Float a window at {x, y} (desktop only), clamped inside the World; a modal also takes its height `h`. */
   function float(id, pos) {
-    if (isPhone() || !open.includes(id) || isModal(id)) return false;
+    if (isPhone() || !open.includes(id) || !pos || !Number.isFinite(pos.x) || !Number.isFinite(pos.y)) return false;
     const w = world();
     slot.delete(id);
-    floating.set(id, { x: Math.round(Math.max(0, Math.min(w.width - width(id), pos.x))), y: Math.round(Math.max(0, Math.min(w.height - 48, pos.y))) });
+    if (isModal(id)) floating.set(id, Object.assign(modalAt(id, pos), Number.isFinite(pos.h) ? { h: pos.h } : {}));
+    else floating.set(id, { x: Math.round(Math.max(0, Math.min(w.width - width(id), pos.x))), y: Math.round(Math.max(0, Math.min(w.height - 48, pos.y))) });
     if (open[open.length - 1] !== id) { open.splice(open.indexOf(id), 1); open.push(id); }
     emit();
     return true;
@@ -286,7 +296,7 @@ export function createWindowManager(o) {
 
   function dock(id) {
     if (!floating.delete(id)) return false;
-    place(id, null);
+    if (!isModal(id)) place(id, null);   // a modal "docks" back to the centre
     emit();
     return true;
   }
@@ -309,7 +319,7 @@ export function createWindowManager(o) {
     for (let i = 0; i < open.length; i++) {
       const id = open[i], r = rows.get(id);
       const e = { id, z: 10 + i, top: i === open.length - 1, entering: entering.has(id), leaving: leaving.has(id), phone };
-      if (isModal(id)) Object.assign(e, { docked: false, modal: true, width: r.width });
+      if (isModal(id)) Object.assign(e, { docked: false, modal: true, width: r.width }, !phone && floating.has(id) ? modalAt(id, floating.get(id)) : {});
       else if (phone) Object.assign(e, { docked: true, right: 0, width: null });
       else if (floating.has(id) && floating.get(id).home) Object.assign(e, { docked: false, x: DOCK_EDGE, bottom: HOME_BOTTOM, width: width(id), height: r.resizable ? sizeNow(id).h : null });
       else if (floating.has(id)) Object.assign(e, { docked: false, x: floating.get(id).x, y: floating.get(id).y, width: width(id), height: r.resizable ? sizeNow(id).h : null });

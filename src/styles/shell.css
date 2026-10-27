@@ -157,7 +157,8 @@
 .hs-win.is-floating { box-shadow: 0 14px 36px color-mix(in srgb, var(--world-shadow) 65%, transparent); }
 /* A modal row (Configure action): centred over the World, never docked, never moving the camera. */
 .hs-win.is-modal { left: 50%; top: 50%; right: auto; transform: translate(-50%, -50%); max-width: calc(100% - 16px); max-height: calc(100% - 16px); }
-.hs-win.is-modal .hs-win-head { cursor: default; }
+/* Dragged by its head (desktop, Tyler 2026-10-27): then it sits at the manager's left/top, no longer centred. */
+.hs-win.is-modal.is-moved { transform: none; }
 .hs-win.is-modal.is-entering, .hs-win.is-modal.is-leaving { animation: none; }
 /* Motion: a 120 ms slide and fade from the dock edge, and back out; never a bounce. */
 @keyframes hs-in { from { opacity: 0; transform: translateX(16px); } to { opacity: 1; transform: none; } }

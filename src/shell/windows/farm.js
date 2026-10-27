@@ -30,16 +30,16 @@
 // on the server's `ready`, never on the clock. Every control is off while an
 // intent is in flight; the field changes only from the re-read envelope.
 // ════════════════════════════════════════════════════════════════════════
-import { farmLandOf, readyInMs } from '../../session/farm-sections.js?v=0.2.55';
-import { plantCrop, waterPlot, harvestPlot, clearPlot, upgradePlot } from '../../session/farm-intents.js?v=0.2.55';
-import { bagOf, skillsOf, goldOf, shopOf, heldOf, drawsOnStorage } from '../../session/item-sections.js?v=0.2.55';
-import { CROPS } from '../../data/gathering.js?v=0.2.55';
-import { requiredPlotLevel, unlockedCrops } from '../../core/farm.js?v=0.2.55';
-import { rows, text, cls, attr, prop, style, element } from '../../render/paint.js?v=0.2.55';
-import { whole, gold } from '../../render/format.js?v=0.2.55';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.55';
-import { itemIconHtml, itemName } from '../widgets/bits.js?v=0.2.55';
-import { runIntent, refusalText } from '../intent-words.js?v=0.2.55';
+import { farmLandOf, readyInMs } from '../../session/farm-sections.js?v=0.2.56';
+import { plantCrop, waterPlot, harvestPlot, clearPlot, upgradePlot } from '../../session/farm-intents.js?v=0.2.56';
+import { bagOf, skillsOf, goldOf, shopOf, heldOf, drawsOnStorage } from '../../session/item-sections.js?v=0.2.56';
+import { CROPS } from '../../data/gathering.js?v=0.2.56';
+import { requiredPlotLevel, unlockedCrops } from '../../core/farm.js?v=0.2.56';
+import { rows, text, cls, attr, prop, style, element } from '../../render/paint.js?v=0.2.56';
+import { whole, gold } from '../../render/format.js?v=0.2.56';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.56';
+import { itemIconHtml, itemName } from '../widgets/bits.js?v=0.2.56';
+import { runIntent, refusalText } from '../intent-words.js?v=0.2.56';
 
 const SCRATCH = new WeakMap();
 const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { pick: null, pending: false, msg: '', asked: null }; SCRATCH.set(cs, s); } return s; };

@@ -538,6 +538,16 @@
 .hw-found-roles { display: flex; gap: 2px; }
 .hw-found-roles .hw-roleglyph { width: 24px; height: 24px; }
 .hw-found-roles .hw-roleglyph .hs-glyph { width: 14px; height: 14px; }
+/* Your party (party-roster.js): one ledger row per seat, the leader's crown beside the name, where it is on the right. */
+.hw-seat-name { overflow: hidden; text-overflow: ellipsis; }
+.hw-seat-lead { display: inline-flex; vertical-align: -2px; margin-left: 6px; color: var(--gold-2); }
+.hw-seat-lead[hidden] { display: none; }
+.hw-seat-lead .hs-glyph { width: 14px; height: 14px; }
+.hw-seat-state { flex: none; font-size: var(--t-micro); color: var(--ink-2); }
+.hw-seat.is-away { opacity: .7; }
+.hw-party-next { margin: 8px 0 0; }
+.hw-party-acts .hw-primary { margin-right: auto; }
+.hw-party-acts [hidden] { display: none; }
 
 /* ── The command centre (src/shell/windows/characters.js): one ledger row per character ── */
 .hw-chars { margin: 0; padding: 0; list-style: none; }

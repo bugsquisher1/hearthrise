@@ -13,8 +13,8 @@
 // ============================================================
 
 export const BUILD = Object.freeze({
-  version:   '0.2.55',   // semver: patch per release, minor per milestone, 1.0.0 = full release
-  cache:     '0.2.55',   // cache-buster = the version string; must match every ?v=
+  version:   '0.2.56',   // semver: patch per release, minor per milestone, 1.0.0 = full release
+  cache:     '0.2.56',   // cache-buster = the version string; must match every ?v=
   channel:   'beta',                // 'dev' | 'beta' | 'live'
   date:      '2026-10-27',         // build date
   // Set this to your latest commit SHA after each push if you want

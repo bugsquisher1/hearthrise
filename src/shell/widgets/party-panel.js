@@ -31,20 +31,20 @@
 // Built once; each member is a keyed row (src/render/paint.js rows), patched in
 // place. The expand toggle and the intent scratch live on the panel element.
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.55';
-import { ROLE_GLYPH } from '../../data/hunt-hud.js?v=0.2.55';
-import { partyOf, liveHpOf } from '../../session/hunt-sections.js?v=0.2.55';
-import { partyMembershipOf } from '../../session/party-sections.js?v=0.2.55';
-import { heroVitalsOf } from '../../session/character-sections.js?v=0.2.55';
-import { afterLeave, disbandParty } from '../../session/party-intents.js?v=0.2.55';
-import { runIntent } from '../intent-words.js?v=0.2.55';
-import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.55';
-import { short, whole } from '../../render/format.js?v=0.2.55';
-import { glyphSvg } from '../launcher.js?v=0.2.55';
-import { markPlayer } from '../context-menu.js?v=0.2.55';
-import { gaugeHtml, patchGauge, panelHtml } from './bits.js?v=0.2.55';
-import { turnWords, holdView, holdHtml, patchHold, holdAct } from './party-hold.js?v=0.2.55';
-import { togetherHtml, patchTogether, togetherAct } from './party-leave.js?v=0.2.55';
+import { HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.56';
+import { ROLE_GLYPH } from '../../data/hunt-hud.js?v=0.2.56';
+import { partyOf, liveHpOf } from '../../session/hunt-sections.js?v=0.2.56';
+import { partyMembershipOf } from '../../session/party-sections.js?v=0.2.56';
+import { heroVitalsOf } from '../../session/character-sections.js?v=0.2.56';
+import { afterLeave, disbandParty } from '../../session/party-intents.js?v=0.2.56';
+import { runIntent } from '../intent-words.js?v=0.2.56';
+import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.56';
+import { short, whole } from '../../render/format.js?v=0.2.56';
+import { glyphSvg } from '../launcher.js?v=0.2.56';
+import { markPlayer } from '../context-menu.js?v=0.2.56';
+import { gaugeHtml, patchGauge, panelHtml } from './bits.js?v=0.2.56';
+import { turnWords, holdView, holdHtml, patchHold, holdAct } from './party-hold.js?v=0.2.56';
+import { togetherHtml, patchTogether, togetherAct } from './party-leave.js?v=0.2.56';
 
 function memberHtml(glyphs) {
   return '<li class="hp-m">'
@@ -159,6 +159,17 @@ export function liveRoster(cs, r) {
   return Object.assign({}, r, { members, hold: holdView(Object.assign({}, r, { members }), turns) });
 }
 
+/**
+ * LEAVE PARTY and DISBAND (leader): ONE intent each, the only path to either. This board and the Party window's
+ * Your party tab (src/shell/windows/party-roster.js) both press it. True when `action` was one of the two.
+ */
+export function leaveOrDisband(ctx, cs, sc, repaint, action) {
+  if (action === 'leave') runIntent(sc, repaint, () => afterLeave(ctx.account, cs, () => cs.leaveParty()), 'Leaving…', () => 'You left the party.');
+  else if (action === 'disband') runIntent(sc, repaint, () => disbandParty(ctx.account, cs), 'Disbanding…', () => 'The party is disbanded.');
+  else return false;
+  return true;
+}
+
 const scratch = new WeakMap();
 function scOf(el) {
   let sc = scratch.get(el);
@@ -218,9 +229,8 @@ renderPartyPanel.act = function actPartyPanel(ctx, el, action, ev, btn) {
   const sc = scOf(el);
   const repaint = () => renderPartyPanel.patch(el, ctx);
   if (holdAct(ctx, cs, sc, repaint, action, btn, liveRoster(cs, rosterOf(cs)).hold)) return;
-  if (action === 'leave') runIntent(sc, repaint, () => afterLeave(ctx.account, cs, () => cs.leaveParty()), 'Leaving…', () => 'You left the party.');
-  else if (action === 'disband') runIntent(sc, repaint, () => disbandParty(ctx.account, cs), 'Disbanding…', () => 'The party is disbanded.');
-  else if (action === 'kick') {
+  if (leaveOrDisband(ctx, cs, sc, repaint, action)) return;
+  if (action === 'kick') {
     const seat = Number(btn.getAttribute('data-seat'));
     if (Number.isInteger(seat)) runIntent(sc, repaint, () => afterLeave(ctx.account, cs, () => cs.kickSeat(seat)), 'Removing…', () => 'Removed from the party.');
   }

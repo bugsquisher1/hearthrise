@@ -4417,3 +4417,12 @@ guard tests/hunt-scene.mjs (SC-1..8, 13/13 mutants).
 4. *Stands behind a prop are hidden*: test every stand against the compile's OVER bits (two storage rows sat behind the counters).
 5. *Time renders with a simulated clock*: a pane that is not fronted throttles requestAnimationFrame to 1-2 fps and the first frames bake chunks; a page-relative atlas path 404s from tools/qa unless the page sets `<base>`, and the numbers then time stub boxes (report `stubbed`).
 6. *Every hall faces the camera (south)*: a building opens onto a square only from the square's north side. Check a plan's "across the square" pairs against the art's facing before laying lots; tall landmark art hides every tile it spans (no stands there).
+
+## 2026-10-26 · lane/b-balance-sim (Tyler's 10-25 balance ruling: the real-engine simulator and today's baseline)
+1. *A ground's spawn cap, not the hero, sets XP an hour.* As built every style at every Level from the floor to +5 earns within ~15-25% on a ground (Cellar 7-8k, Thicket 21-25k, Glade 56-85k): the respawn limit binds, so gear, skills and Level move kill speed and damage taken, not XP/h. Measure an upgrade where the hero is the limit (the full box), and plan hours per ground, not per Level.
+2. *A hand-written kit drifts from the ladder.* play-ground's Ranger wore a bow a tier above its Level; build kits from GEAR_LADDERS + reqLv + reachableSources, and the simulator can only wear what a player can get (it found tier 4+ has no source at all).
+3. *Paired dice make an A/B a measurement.* Secrets keyed by (seed, segment), never by cell, so "weapon one tier behind" and every what-if replay the same draws.
+4. *The settle's cut costs a party, not a solo.* A four's 10 s cuts cost +40% an hour; 30 s cuts plus a per-window regeneration rate fitted to the engine's own end HP keep encounter dips within ~2-4 points of the per-swing truth (checked against 2 s cuts).
+5. *Budget by measured cost per (ground, party size, density), and run the long jobs first.* A 15-minute probe under contention overstated an hour 3-7x (JIT + other lanes); the 643-job baseline took 1.6 h at 4 workers.
+6. *"Nobody dies" is a sustain fact, not a damage fact.* x1.5 monster damage moved eating and gold, never deaths: food on one 2 s lane plus 6%/s regeneration out-heal everything while gold lasts. Find the term that can kill (a level gap on atk does, steeply) before tuning damage.
+7. *A string built in a Python heredoc can turn '\n' into a real newline in JS source*: patch JS from a JS script (or String.fromCharCode(10)).

@@ -48,7 +48,7 @@ export const SCENERY = Object.freeze([
   /* lane/b-havora-polish: the gate road's bridge over the mill race (the road east to the bank no longer runs into the water)
      and the south road's bridge to the hunter's yard (its deck spans the river's bend below P10) */
   ['havora_bridge', 89, 15], ['havora_bridge', 86, 72],
-  ['havora_guild_hall', 116, 72], ['havora_sewer_works', 44, 56], ['havora_fisher_guild', 66, 78], ['havora_harbor_office', 98, 76],
+  ['havora_guild_hall', 114, 72], ['havora_sewer_works', 44, 56], ['havora_fisher_guild', 66, 78], ['havora_harbor_office', 98, 76],
   /* the homes: the crooked shacks NW (P01-P06), the town lots (P09-P10), the mountain (P11) and the waterfront estates (P13-P15) */
   ['havora_home_p01', 16, 14], ['havora_home_p02', 30, 16], ['havora_home_p03', 46, 14], ['havora_home_p04', 20, 36],
   ['havora_home_p05', 36, 38], ['havora_home_p06', 48, 66], ['havora_home_p09', 68, 54], ['havora_home_p10', 88, 62],
@@ -62,11 +62,13 @@ export const SCENERY = Object.freeze([
      the road down to the end of P13's dock, cargo where the dock meets the lane */
   ['crates', 133, 82], ['barrels', 133, 83], ['sack_stack', 138, 74], ['cart_wheel', 139, 74], ['barrels', 157, 79], ['crates', 157, 74],
   ['lamppost', 139, 79],
+  /* THE HARBOUR SQUARE in front of P13 (lane/a-havora-dock round 3): two fish stalls, a cargo stack by the lane, lamps */
+  ['square_market_stall', 123, 84], ['square_market_stall', 127, 85], ['crates', 134, 82], ['sack_stack', 132, 82], ['sack_pile', 134, 84], ['barrels', 131, 84], ['lamppost', 122, 82], ['lamppost', 130, 82], ['lamppost', 135, 86], ['havora_nets', 125, 82],
   /* THE HARBOUR (lane/a-havora-dock round 2): bollards along the quay wall and at the pier heads, nets, rope, the yard's
      capstan and hand crane */
   ['havora_bollard', 112, 89], ['havora_bollard', 118, 89], ['havora_bollard', 122, 89], ['havora_bollard', 131, 89], ['havora_bollard', 136, 89], ['havora_bollard', 140, 89],
   ['havora_bollard', 148, 89], ['havora_bollard', 160, 89], ['havora_bollard', 107, 97], ['havora_bollard', 109, 97], ['havora_bollard', 125, 99], ['havora_bollard', 127, 99],
-  ['havora_bollard', 142, 96], ['havora_bollard', 144, 96], ['havora_bollard', 155, 98], ['havora_bollard', 158, 98], ['havora_nets', 133, 87],
+  ['havora_bollard', 142, 96], ['havora_bollard', 144, 96], ['havora_bollard', 152, 98], ['havora_bollard', 154, 98], ['havora_nets', 133, 87],
   ['havora_nets', 154, 78], ['havora_rope_coil', 111, 89], ['havora_rope_coil', 139, 88], ['havora_rope_coil', 126, 93], ['havora_rope_coil', 115, 85], ['havora_capstan', 148, 75],
   ['havora_hand_crane', 141, 74],
   /* THE WORK YARDS' CLUTTER (lane/b-havora-polish 2026-10-26), between the stations' pieces (../stations.js) so a yard

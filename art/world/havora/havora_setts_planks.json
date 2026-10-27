@@ -10,98 +10,110 @@
   "tiles": {
     "1000": [
       [
-        1,
-        1
+        3,
+        2
       ]
     ],
     "1001": [
       [
-        2,
+        0,
         3
       ]
     ],
     "1010": [
       [
         1,
-        0
+        3
       ]
     ],
     "1011": [
       [
-        0,
-        2
+        2,
+        3
       ]
     ],
     "1100": [
       [
         3,
-        0
+        3
       ]
     ],
     "1101": [
       [
         0,
-        0
+        4
       ]
     ],
     "1110": [
       [
         1,
-        3
+        4
       ]
     ],
     "1111": [
       [
-        0,
-        3
-      ]
-    ],
-    "0100": [
-      [
         2,
-        0
-      ]
-    ],
-    "0110": [
-      [
-        0,
-        1
+        4
       ]
     ],
     "0000": [
       [
+        0,
+        0
+      ],
+      [
+        1,
+        0
+      ],
+      [
         2,
-        1
+        0
+      ],
+      [
+        3,
+        0
       ]
     ],
     "0001": [
       [
-        3,
+        0,
+        1
+      ]
+    ],
+    "0010": [
+      [
+        1,
         1
       ]
     ],
     "0011": [
       [
-        1,
-        2
+        2,
+        1
       ]
     ],
-    "0010": [
+    "0100": [
       [
-        2,
-        2
+        3,
+        1
       ]
     ],
     "0101": [
       [
-        3,
+        0,
+        2
+      ]
+    ],
+    "0110": [
+      [
+        1,
         2
       ]
     ],
     "0111": [
       [
-        3,
-        3
+        2,
+        2
       ]
     ]
   },
@@ -117,7 +129,8 @@
       "tile_size": 32,
       "view": "high top-down",
       "transition_size": 0
-    }
+    },
+    "derived": "tools/world-art/harbour-art.mjs (lane/a-havora-dock round 3)"
   },
-  "notes": "A pier's root on the quay: planks meeting the setts over a dark timber sill (lane/a-havora-dock round 2, 2026-10-26). Chained from the setts of havora_earth_setts and the planks of havora_water_planks."
+  "notes": "A pier's root on the quay: PixelLab's timber sill, its paving swapped for the hand-laid setts (tools/world-art/harbour-art.mjs, lane/a-havora-dock round 3)."
 }

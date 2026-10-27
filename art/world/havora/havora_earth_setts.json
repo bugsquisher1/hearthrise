@@ -10,98 +10,222 @@
   "tiles": {
     "1000": [
       [
-        1,
-        1
+        2,
+        5
+      ],
+      [
+        3,
+        5
+      ],
+      [
+        0,
+        6
       ]
     ],
     "1001": [
       [
+        1,
+        6
+      ],
+      [
         2,
-        3
+        6
+      ],
+      [
+        3,
+        6
       ]
     ],
     "1010": [
       [
+        0,
+        7
+      ],
+      [
         1,
-        0
+        7
+      ],
+      [
+        2,
+        7
       ]
     ],
     "1011": [
       [
+        3,
+        7
+      ],
+      [
         0,
-        2
+        8
+      ],
+      [
+        1,
+        8
       ]
     ],
     "1100": [
       [
+        2,
+        8
+      ],
+      [
         3,
-        0
+        8
+      ],
+      [
+        0,
+        9
       ]
     ],
     "1101": [
       [
-        0,
-        0
+        1,
+        9
+      ],
+      [
+        2,
+        9
+      ],
+      [
+        3,
+        9
       ]
     ],
     "1110": [
       [
+        0,
+        10
+      ],
+      [
         1,
-        3
+        10
+      ],
+      [
+        2,
+        10
       ]
     ],
     "1111": [
       [
+        3,
+        10
+      ],
+      [
         0,
-        3
-      ]
-    ],
-    "0100": [
+        11
+      ],
+      [
+        1,
+        11
+      ],
       [
         2,
-        0
-      ]
-    ],
-    "0110": [
-      [
-        0,
-        1
+        11
       ]
     ],
     "0000": [
       [
-        2,
-        1
+        0,
+        0
       ]
     ],
     "0001": [
       [
+        1,
+        0
+      ],
+      [
+        2,
+        0
+      ],
+      [
         3,
+        0
+      ]
+    ],
+    "0010": [
+      [
+        0,
+        1
+      ],
+      [
+        1,
+        1
+      ],
+      [
+        2,
         1
       ]
     ],
     "0011": [
       [
+        3,
+        1
+      ],
+      [
+        0,
+        2
+      ],
+      [
         1,
         2
       ]
     ],
-    "0010": [
+    "0100": [
       [
         2,
         2
+      ],
+      [
+        3,
+        2
+      ],
+      [
+        0,
+        3
       ]
     ],
     "0101": [
       [
+        1,
+        3
+      ],
+      [
+        2,
+        3
+      ],
+      [
         3,
-        2
+        3
+      ]
+    ],
+    "0110": [
+      [
+        0,
+        4
+      ],
+      [
+        1,
+        4
+      ],
+      [
+        2,
+        4
       ]
     ],
     "0111": [
       [
         3,
-        3
+        4
+      ],
+      [
+        0,
+        5
+      ],
+      [
+        1,
+        5
       ]
     ]
   },
@@ -117,7 +241,8 @@
       "tile_size": 32,
       "view": "high top-down",
       "transition_size": 0
-    }
+    },
+    "derived": "tools/world-art/harbour-art.mjs (lane/a-havora-dock round 3)"
   },
-  "notes": "Packed earth against the harbour's granite setts paving (lane/a-havora-dock round 2, 2026-10-26: the quay, the estates' yard and the building footings). Chained from the earth base tile of havora_earth_rock."
+  "notes": "Packed earth against the harbour's granite setts: setts laid in courses of mixed stones, the edge whole stones thinning into the earth with loose broken setts past them, three variants of every edge and four of the interior (drawn by tools/world-art/harbour-art.mjs from the stone, shadow and moss ramps; the earth is PixelLab's, lane/a-havora-dock round 3)."
 }

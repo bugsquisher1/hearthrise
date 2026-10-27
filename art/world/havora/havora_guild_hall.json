@@ -5,15 +5,15 @@
   "material": "stone",
   "source": "havora_guild_hall.png",
   "frame": [
-    128,
+    192,
     346
   ],
   "anchor_px": [
-    64,
+    96,
     345
   ],
   "footprint": [
-    4,
+    6,
     12
   ],
   "anims": [
@@ -35,7 +35,14 @@
       384
     ],
     "cost": 15,
-    "style": "common/square_general_store"
+    "style": "common/square_general_store",
+    "extended": {
+      "tool": "inpaint_image",
+      "image": "805b5d21-65b4-47da-9df5-f648e95ea520",
+      "seed": 6101,
+      "cost": 15,
+      "mask": "the 44 px either side of the 128 px original"
+    }
   },
-  "notes": "Havora's harbour guild house (plan x116-119 y72-83): narrow stone and half-timber front, anchor-and-oar crest, bell turret."
+  "notes": "Havora's harbour guild house (plan x114-119 y72-83): narrow stone and half-timber front, anchor-and-oar crest, bell turret. lane/a-havora-dock round 3 (Tyler: \"the building just looks like its edges are sliced off\"): the 128 px original was cropped mid-window; its sides were inpainted out to a whole building (quoined corners, whole windows, eaves) and the lot widened from 4 to 6 tiles westward."
 }

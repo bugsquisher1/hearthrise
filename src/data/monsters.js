@@ -116,7 +116,7 @@ export const MONSTERS = {
        Husk waits: its two Commons are full (the loot bands' 1-2), and its Silk Thread is Crafting 1-9's only early source */
     drops: [{ id: 'venom_sac', ch: .35, band: 'common' }, { id: 'silk_thread', ch: .16, band: 'common' }, { id: 'hive_wasp_stinger', ch: .08, band: 'uncommon' },
       { id: 'bronze_helm', ch: .02, band: 'scarce' }, { id: 'leather_helmet', ch: .02, band: 'scarce' }, { id: 'apprentice_helmet', ch: .02, band: 'scarce' },
-      { id: 'queens_comb', ch: .0005, band: 'rare' }] },
+      { id: 'queens_comb', ch: .0013, band: 'rare' }] },
   wild_boar: { name: 'Wild Boar', icon: '🐗', tier: 1, cls: 'mammal', family: 'Mammal',
     hp: 13, atk: 4, def: 1, xp: 11, gp: [2, 6],
     drops: [{ id: 'wolf_pelt', ch: .3 }, { id: 'bones', ch: 1 }, { id: 'raw_wolf_meat', ch: .45 }, { id: 'small_fang', ch: .14 },
@@ -705,7 +705,7 @@ export const MONSTERS = {
     /* one override (element): fire glances off the knot; frost is the exam's answer. */
     elementResist: ['ember'],
     hp: 600, atk: 14, def: 4, xp: 3840, gp: [119, 238], speed: 2800,
-    drops: [{ id: 'rat_tail', ch: 1, band: 'common' }, { id: 'bones', ch: 1, band: 'common' }, { id: 'knotted_tails', ch: .15, band: 'uncommon' }, { id: 'crown_shard', ch: .014, band: 'rare' }, { id: 'kingsgrate', ch: .017, band: 'rare' }, { id: 'rat_kings_knot', ch: .0067, band: 'rare' }, { id: 'rat_kings_crown', ch: .0015, band: 'trophy' }] },
+    drops: [{ id: 'rat_tail', ch: 1, band: 'common' }, { id: 'bones', ch: 1, band: 'common' }, { id: 'knotted_tails', ch: .15, band: 'uncommon' }, { id: 'crown_shard', ch: .014, band: 'rare' }, { id: 'kingsgrate', ch: .017, band: 'rare' }, { id: 'rat_kings_knot', ch: .014, band: 'rare' }, { id: 'rat_kings_crown', ch: .0015, band: 'trophy' }] },
 
   /* ══ Meadowbrook Thicket: the gray wolves (one family, five roles; a solo ground).
      Names, roles and economy: the src/data/hunt-grounds.js header. THE LOOT BANDS' SAMPLE (designer 2026-10-23): one
@@ -774,7 +774,7 @@ export const MONSTERS = {
     drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'gold_ore', ch: .5, band: 'common' }, { id: 'goblin_totem', ch: .3, band: 'common' }, { id: 'coppercaps_tallow', ch: .15, band: 'uncommon' },
       { id: 'steel_platebody', ch: .05, band: 'scarce' }, { id: 'boarhide_body', ch: .05, band: 'scarce' }, { id: 'scholar_body', ch: .05, band: 'scarce' }, { id: 'war_crown', ch: .016, band: 'rare' },
       { id: 'willow_wand', ch: .0125, band: 'rare' }, { id: 'willow_spellbook', ch: .0125, band: 'rare' }, { id: 'willow_staff', ch: .0125, band: 'rare' },
-      { id: 'verdigris_cake', ch: .0067, band: 'rare' }, { id: 'coppercaps_cauldron', ch: .0013, band: 'trophy' }] },
+      { id: 'verdigris_cake', ch: .0125, band: 'rare' }, { id: 'coppercaps_cauldron', ch: .0013, band: 'trophy' }] },
 
   /* ══ Mosslight Glade, levels 16-31, solo, mixed (lane c-ground-16-31): roles, junk and economy in the src/data/hunt-grounds.js header.
      THE LOOT BANDS (batch 3): the whole tier-2 set in three weights, about hourly (crows boots, poachers legs and their
@@ -793,7 +793,7 @@ export const MONSTERS = {
     /* the tank: slow and woody; a blade cuts it, an arrow sticks, fire takes it */
     hp: 35, atk: 9, def: 4, xp: 260, gp: [4, 12], speed: 2400,
     drops: [{ id: 'magic_essence', ch: .25, band: 'common' }, { id: 'pithwood', ch: .5, band: 'common' }, { id: 'mosslight_tendril', ch: .08, band: 'uncommon' }, { id: 'iron_helm', ch: .019, band: 'scarce' }, { id: 'studded_helmet', ch: .019, band: 'scarce' }, { id: 'adept_helmet', ch: .019, band: 'scarce' },
-      { id: 'mosslight_clump', ch: .00067, band: 'rare' }] },
+      { id: 'mosslight_clump', ch: .0013, band: 'rare' }] },
   goblin_sluicer: { name: 'Goblin Sluicer', icon: '👺', tier: 3, level: 26, cls: 'humanoid', family: 'Humanoid',
     /* one override (element): soaked from the spring run, so fire hisses off it. */
     elementResist: ['ember'],

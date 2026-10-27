@@ -521,6 +521,9 @@ async function run(patch) {
   // purpose ruling ONLY: the Library pays runeSpeed, the Garden farmPlots, the
   // Trophy Room trophyMounts (three NEW keys, so the grid gained columns). Old vs
   // new makeBonus compared over this grid on every pre-existing key: 1157 cells,
+  // 0 moved. RE-PINNED 2026-10-27 (2247d02f -> 6d5c58d6) for Inner Flame replacing Prayer ONLY (lane/b-inner-flame):
+  // the Shrine's key prayerSpeed is renamed flameSpeed. Old (origin/main 437d66b6d) vs new makeBonus over this grid,
+  // the renamed key read under its old name and every other key under its own: 81 inputs x 16 keys = 1296 cells,
   // 0 moved.
   // ⚠ A FUTURE re-pin needs the same old-vs-new proof in its commit, never just the new hash.
   {
@@ -543,7 +546,7 @@ async function run(patch) {
       return [JSON.stringify(st), KEYS.map((k) => b(k)), n.rooms, n.plots, n.propertyTier];
     });
     const hash = createHash('sha256').update(JSON.stringify(rows)).digest('hex');
-    ok(hash === '2247d02f15f9e54972ee7e5cd4f44431ac94b934d83d8362af458d5b28b80961',
+    ok(hash === '6d5c58d693ce67dd42f23c937e1d9d004f2b954af45f1d8d6e54bab31001918e',
       `P10: makeBonus over ${states.length} kept inputs x ${KEYS.length} keys hashed ${hash} — `
       + 'a kept perk number moved');
     const base = { rooms: maxRooms, propertyTier: 5 };

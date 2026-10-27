@@ -276,7 +276,7 @@ function unsimulatedKindGuard() {
    Deliberately NOT `actionIntervalMs()` from core/pacing.js: this reference has
    to spend the terms independently, or a change to the shared helper would move
    both columns together and parity would stay green while the number drifted. */
-const SPEED_KEY = { cooking: 'cookSpeed', smithing: 'smithSpeed', crafting: 'craftSpeed', prayer: 'prayerSpeed' };
+const SPEED_KEY = { cooking: 'cookSpeed', smithing: 'smithSpeed', crafting: 'craftSpeed', prayer: 'flameSpeed' };
 function clientArtisanIntervalMs(skill, recipe, inventory, equipment, bonus) {
   const tool = bestTool(skill, inventory, equipment, ITEMS);
   const speed = (bonus(SPEED_KEY[skill]) || 0) + toolSpeed(tool);

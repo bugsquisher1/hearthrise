@@ -143,7 +143,7 @@ import { PREMIUM_LOGIN_REWARD } from '../src/data/premium.js';
 import { WORLD_VERSION, SHAPE, FIELDS as WORLD_FIELDS } from '../src/core/hunt/world-state.js';
 import { vendorPriceOf } from '../supabase/functions/hr-accrue/catalogue.js';
 import { COMBAT_BALANCE } from '../src/core/combat.js';
-import { LEVEL_CURVE, SKILL_CURVE, VITALS, ARMOUR_SLOTS, COMBAT_XP, PRAYER_REGEN } from '../src/data/core-model.js';
+import { LEVEL_CURVE, SKILL_CURVE, VITALS, ARMOUR_SLOTS, COMBAT_XP, FLAME_REGEN } from '../src/data/core-model.js';
 import { isMain } from '../tests/_is-main.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -173,7 +173,11 @@ export const WORLD_FIELDS_READ = Object.freeze({
    arms (hr_hunt_weapon_roles), the shields (hr_hunt_shields) and hr_hunt_roles retired; the 1 g store shot. ONE forward
    file ON TOP of the APPLIED 12-20 one (the staged 12-21, 12-22 and 12-24 files collapsed into it, never applied), applied
    after 2027-01-13-items-catalogue (hr_items first) and right before 2027-01-13-spell-content.sql. */
-export const OUT_NAME = '2027-01-13-hunt-sessions-catalogue.generated.sql';
+/* INNER FLAME (lane b-inner-flame, Tyler 2026-10-25): 2027-01-13 is APPLIED history. The regen limits' keys prayer_regen_*
+   -> flame_regen_* (hr_hunt_limits; read by hr_regen_permille, restated in 2027-01-31-inner-flame.sql) and the Hearth's
+   fuels in the loot's vendor values land in ONE forward file, the same full replace, applied after
+   2027-01-31-items-catalogue.generated.sql (hr_items first) and before 2027-01-31-inner-flame.sql. */
+export const OUT_NAME = '2027-01-31-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -353,7 +357,7 @@ export function catalogueRows(src = {}) {
     hp_base: VITALS.hpBase, hp_per_level: VITALS.hpPerLevel, mana_base: VITALS.manaBase, mana_per_level: VITALS.manaPerLevel,
     heavy_hp_permille: VITALS.heavyHpPermille, light_mana_permille: VITALS.lightManaPermille, armour_slots: ARMOUR_SLOTS.length,
     in_fight_regen_permille_s: VITALS.inFightRegenPermillePerS,
-    prayer_regen_max_permille: PRAYER_REGEN.maxPermille, prayer_regen_k: PRAYER_REGEN.k,
+    flame_regen_max_permille: FLAME_REGEN.maxPermille, flame_regen_k: FLAME_REGEN.k,
     hit_xp_permille: Math.round(COMBAT_XP.hitXpPerDamage * 1000),
     defense_xp_level_permille: COMBAT_XP.defenseXpPerLevelPermille, block_mult: COMBAT_XP.blockMult,
   };

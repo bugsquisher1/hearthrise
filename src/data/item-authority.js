@@ -96,7 +96,7 @@ export const ARTISAN_SETTLEMENT = Object.freeze({
   smithing:     'payable',
   crafting:     'payable',
   runecrafting: 'payable',
-  prayer:       'payable',   // buries bones for XP; outputs are null → contributes no id
+  inner_flame:  'payable',   // fuels the Great Hearth for XP; outputs are null → contributes no id
   cooking:      COOKING_SETTLEMENT_ARM_ENABLED ? 'payable' : 'unmodeled',
 });
 
@@ -320,7 +320,7 @@ export function combatDropIds() {
   return s;
 }
 
-/** The output ids of one artisan lane. Rows with `output:null` (prayer) add none. */
+/** The output ids of one artisan lane. Rows with `output:null` (Inner Flame's fuels) add none. */
 export function artisanOutputIds(skill) {
   const s = new Set();
   const rows = (ARTISAN_RECIPES || {})[skill];

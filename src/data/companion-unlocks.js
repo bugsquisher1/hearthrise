@@ -6,7 +6,7 @@
 // (public.hr_unlock_buy) sells them with no new code path — the same treatment
 // worker_hire / plot:farm_land / bank got in slices 2 & 3. The census: four
 // companions have a `shop:` source, and exactly TWO of them carry a skill
-// requirement (honeybee → cooking 25, owl → prayer 50).
+// requirement (honeybee → cooking 25, owl → inner_flame 50; Inner Flame replaced Prayer 2026-10-25).
 //
 // ── THE ONE NEW SERVER INVARIANT ────────────────────────────────────────────
 // A companion is the first gold spend gated on a SKILL LEVEL rather than on the
@@ -74,7 +74,7 @@ export const COMPANION_OFFERS = Object.freeze([
     items: Object.freeze({}),
     req_property_tier: 0,
     req_item: null,
-    req_skill: 'prayer',
+    req_skill: 'inner_flame',
     req_skill_level: 50,
   }),
   Object.freeze({

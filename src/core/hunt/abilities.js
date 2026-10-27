@@ -378,7 +378,7 @@ export function fire(inst, u, pick, sc) {
 }
 
 /** Mana regenerates ABILITY_RULES.manaRegenPctPerMin of max a minute, in milli-mana (AB-13), times
-    the hero's Prayer regen rate (`regenPm`, permille: src/core/vitals.js regenPermille; 1000 unset). */
+    the hero's Inner Flame regen rate (`regenPm`, permille: src/core/vitals.js regenPermille; 1000 unset). */
 function regenMana(u, dtMs) {
   if (!(int(u.maxMana) > 0)) return;
   const pm = int(u.regenPm) > 0 ? int(u.regenPm) : 1000;

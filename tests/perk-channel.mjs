@@ -526,7 +526,7 @@ async function run(patch) {
   {
     const KEYS = [...new Set([...ALL_KEYS.filter((k) => k !== 'raidPower'),
       'allXP', 'combatXP', 'goldFind', 'gatherSpeed', 'cookSpeed', 'smithSpeed',
-      'craftSpeed', 'prayerSpeed', 'noBurn', 'notAKey', 'constructor'])].sort();
+      'craftSpeed', 'flameSpeed', 'noBurn', 'notAKey', 'constructor'])].sort();
     const states = [{}];
     for (const id of Object.keys(ROOM_PERKS).sort()) {
       for (let lv = 0; lv <= ROOM_PERKS[id].length + 1; lv++) states.push({ rooms: { [id]: lv } });

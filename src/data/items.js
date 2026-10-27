@@ -82,8 +82,15 @@ export const ITEMS={
   bronze_knife:{n:'Bronze Knife',icon:'🔪',v:70,type:'tool',toolSkill:'cooking',toolTier:1,toolSpeed:.05},
   steel_knife:{n:'Steel Knife',icon:'🔪',v:950,type:'tool',toolSkill:'cooking',toolTier:3,toolSpeed:.15},
   rune_knife:{n:'Rune Knife',icon:'🔪',v:9200,type:'tool',toolSkill:'cooking',toolTier:5,toolSpeed:.25},
-  bones:{n:'Bones',icon:'🦴',v:1,buryXp:4.5},big_bones:{n:'Big Bones',icon:'🦴',v:3,buryXp:15},
-  dragon_bones:{n:'Dragon Bones',icon:'🦴',v:10,buryXp:72},
+  bones:{n:'Bones',icon:'🦴',v:1},big_bones:{n:'Big Bones',icon:'🦴',v:3},
+  dragon_bones:{n:'Dragon Bones',icon:'🦴',v:10},
+  /* THE GREAT HEARTH'S FUELS (src/data/hearth.js; Tyler 2026-10-25). The family fuels are a boneless
+     creature's bones (worth a bone at the trader, burned like one); the named fuels are the five super-rare
+     ones that colour the square's flame (a burn or a sale: the trader pays a little, the Hearth a lot). */
+  lamp_jelly:{n:'Lamp Jelly',icon:'🟡',v:1},dry_husk:{n:'Dry Husk',icon:'🪲',v:1},pithwood:{n:'Pithwood',icon:'🪵',v:1},
+  queens_comb:{n:"Queen's Comb",icon:'🍯',v:60},den_knot:{n:'Den Knot',icon:'🪵',v:90},
+  rat_kings_knot:{n:"Rat King's Knot",icon:'🪢',v:150},mosslight_clump:{n:'Mosslight Clump',icon:'🌿',v:180},
+  verdigris_cake:{n:'Verdigris Cake',icon:'🟩',v:300},
   slime_gel:{n:'Slime Gel',icon:'🟢',v:5},goblin_ear:{n:'Goblin Ear',icon:'👂',v:8},
   bat_wing:{n:'Bat Wing',icon:'🦇',v:12},wolf_pelt:{n:'Wolf Pelt',icon:'🐺',v:35},
   troll_hide:{n:'Troll Hide',icon:'🟤',v:80},vamp_dust:{n:'Vampire Dust',icon:'💜',v:120},
@@ -92,7 +99,7 @@ export const ITEMS={
   rune_frag:{n:'Rune Fragment',icon:'🔷',v:30},ancient_rune:{n:'Ancient Rune',icon:'🔮',v:300},
   dragon_gem:{n:'Dragon Gem',icon:'💎',v:2000},ruby:{n:'Ruby',icon:'❤️',v:400},
   rat_tail:{n:'Rat Tail',icon:'🐀',v:6},
-  /* The Rat King's shard (15%, ~3 an hour for a full party): sold, the sewer's profit; offered, Prayer XP. */
+  /* The Rat King's shard (15%, ~3 an hour for a full party): sold, the sewer's profit. */
   crown_shard:{n:'Crown Shard',icon:'👑',v:150},small_fang:{n:'Small Fang',icon:'🦷',v:15},
   bone_chips:{n:'Bone Chips',icon:'🦴',v:10},ancient_fragment:{n:'Ancient Fragment',icon:'🏺',v:85},goblin_totem:{n:'Goblin Totem',icon:'🗿',v:120},
   night_fang:{n:'Night Fang',icon:'🦇',v:90},dark_sigil:{n:'Dark Sigil',icon:'🔯',v:180},venom_sac:{n:'Venom Sac',icon:'🟣',v:75},

@@ -85,7 +85,7 @@ export const SHOP_OFFERS = [
     name: "Owl",
     cost: [{ kind: "currency", id: "gold", amount: 8000 }],
     grant: [{ kind: "unlock", id: "companion:owl", amount: 1 }],
-    reqSkill: "prayer", reqLv: 50,
+    reqSkill: "inner_flame", reqLv: 50,
   },
   {
     id: "companion.raccoon", table: "companion",

@@ -8,7 +8,7 @@
 // 0.39) scales every bench grant, so 13.5 x 0.39 = 5.27 paid 5 and carried 0.27
 // (correct arithmetic on a rate authored before the dial was understood). The
 // core rebuild sets the bone's PAID XP from the Prayer curve (src/data/core-model.js
-// PRAYER_BURY) and authors the row pre-dial. Claims:
+// FLAME_FUEL) and authors the row pre-dial. Claims:
 //   B1  the constant is the curve's: skillXp(prayer, refPrayer) / (bonesPerHour x
 //       hours to refLevel at LEVEL_GUARD's rate), to the tenth; and the row's
 //       authored XP x PACE.xp is exactly that
@@ -61,7 +61,7 @@ function bury(M, n, frac, ms = 3600000) {
 
 const CLAIMS = {
   B1: (M) => {
-    const B = M.CM.PRAYER_BURY; const G = M.CM.LEVEL_GUARD;
+    const B = M.CM.FLAME_FUEL; const G = M.CM.LEVEL_GUARD;
     let h = 0;
     for (let l = 1; l < B.refLevel; l++) h += (M.XP.charXpForLevel(l + 1) - M.XP.charXpForLevel(l)) / (G.xpPerHourPerLevel * l);
     const want = Math.round((M.XP.skillXpForLevel('prayer', B.refPrayer) / (B.bonesPerHour * h)) * 10) / 10;
@@ -70,12 +70,12 @@ const CLAIMS = {
       return [`the authored ${B.recipeXp} x the dial ${M.PACE.xp} pays ${B.recipeXp * M.PACE.xp}, not ${B.xpPerBone}`];
     }
     const row = M.R.ARTISAN_RECIPES.prayer.find((r) => r.id === 'bury_bones');
-    if (!row || row.xp !== B.recipeXp) return [`bury_bones authors ${row && row.xp}, PRAYER_BURY says ${B.recipeXp}`];
+    if (!row || row.xp !== B.recipeXp) return [`bury_bones authors ${row && row.xp}, FLAME_FUEL says ${B.recipeXp}`];
     return [];
   },
   B2: (M) => {
     const out = [];
-    const rate = M.CM.PRAYER_BURY.xpPerBone;
+    const rate = M.CM.FLAME_FUEL.xpPerBone;
     for (const [n, f0] of [[1], [2], [3], [7], [3, 0.5]]) {
       const r = bury(M, n, f0);
       const d = r && r.delta;
@@ -96,13 +96,13 @@ const CLAIMS = {
 
 const MUTANTS = [
   { claim: 'B3', name: 'Bury Bones back at 1,200 ms (700 bones in 22 minutes)', file: 'src/data/recipes.js',
-    from: "output:null, xp:PRAYER_BURY.recipeXp, req:1,  ms:400},", to: "output:null, xp:PRAYER_BURY.recipeXp, req:1,  ms:1200}," },
+    from: "output:null, xp:FLAME_FUEL.recipeXp, req:1,  ms:400},", to: "output:null, xp:FLAME_FUEL.recipeXp, req:1,  ms:1200}," },
   { claim: 'B2', name: 'Prayer leaves the dial (a bone pays 40, the authored pre-dial value)', file: 'src/core/pacing.js',
     from: "'magic', 'defense'];", to: "'magic', 'defense', 'prayer'];" },
   { claim: 'B2', name: 'the remainder is dropped (per-grant floor)', file: 'src/core/progression.js',
     from: '  if (state.xpFrac && typeof state.xpFrac === \'object\') {', to: '  if (false) {' },
   { claim: 'B1', name: 'the bone authors the old 4.5', file: 'src/data/recipes.js',
-    from: 'xp:PRAYER_BURY.recipeXp,', to: 'xp:4.5,' },
+    from: 'xp:FLAME_FUEL.recipeXp,', to: 'xp:4.5,' },
   { claim: 'B1', name: 'the paid rate drifts off the curve', file: 'src/data/core-model.js',
     from: 'xpPerBone: 15.6,', to: 'xpPerBone: 15.5,' },
 ];

@@ -42,7 +42,7 @@ const PERK_WORDS = Object.freeze({
   smithSpeed: (v) => 'smithing ' + pc(v) + '% faster',
   craftSpeed: (v) => 'crafting ' + pc(v) + '% faster',
   craftSave: (v) => pc(v) + '% chance to save the materials',
-  prayerSpeed: (v) => 'prayer offerings ' + pc(v) + '% faster',
+  flameSpeed: (v) => 'fueling the Great Hearth ' + pc(v) + '% faster',
   runeSpeed: (v) => 'rune binding ' + pc(v) + '% faster',
   buffDuration: (v) => 'food and drink effects last ' + pc(v) + '% longer',
   farmPlots: (v) => v + ' more farm ' + (v === 1 ? 'bed' : 'beds') + ' on the land your heroes share',

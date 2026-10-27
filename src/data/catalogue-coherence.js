@@ -87,7 +87,7 @@ export const VENDOR_TRASH = Object.freeze(['sticky_core', 'goblin_ear', 'goblin_
   'swarm_heart', 'warlord_badge', 'hell_ember', 'shadow_thread', 'captain_medal',
   'shadow_pelt', 'death_steel', 'hollow_sigil', 'abyssal_pearl', 'gold_bar', 'verdite_bar',
   'heartgarnet',
-  /* CORE REBUILD (2026-10-19): the Rat King's Crown Shard lost its Prayer offering (Tyler's
+  /* CORE REBUILD (2026-10-19): the Rat King's Crown Shard lost its old altar offering (Tyler's
      deletion list); "a trader pays well for it" is its whole job until the roster gives it one. */
   'crown_shard',
   /* THE IMBUEMENT SLOT (lane c-loot-loop, designer 2026-10-21; src/data/imbuements.js). One item per Thicket and
@@ -199,7 +199,7 @@ export const UNREACHABLE = Object.freeze({
     'raw_bear_meat', 'cooked_bear_meat', 'bear_claw_pie',
   ]),
   /* Tier 4+ ladder rungs, the old roster's uniques, and the dragon, undead, demon, troll and void materials
-     with the late recipes they feed (Cooking 25 panther and 70+, Prayer 35+, Crafting 60 keystones). */
+     with the late recipes they feed (Cooking 25 panther and 70+, Inner Flame 35+, Crafting 60 keystones). */
   later: Object.freeze([
     'mithril_boots', 'rune_boots', 'mithril_gauntlets', 'rune_gauntlets', 'ember_gauntlets', 'mithril_belt',
     'rune_belt', 'snakeskin_boots', 'wyvernhide_boots', 'snakeskin_gloves', 'wyvernhide_gloves', 'snakeskin_belt',

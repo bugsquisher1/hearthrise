@@ -15,7 +15,7 @@
 // bought with gold, or a SHOWCASE:
 //   kitchen   cooking speed + burn-proofing      cellar    food/drink last longer
 //   forge     smithing speed                     workshop  crafting speed + saves
-//   shrine    prayer offerings speed             library   runecrafting speed (runeSpeed)
+//   shrine    hearth fuelling speed              library   runecrafting speed (runeSpeed)
 //   garden    farm beds for every character (farmPlots, capacity)
 //   trophy    trophy wall mounts in the home (trophyMounts, display only)
 //
@@ -64,11 +64,11 @@ export const ROOM_PERKS = Object.freeze({
     {"runeSpeed":0.1},
   ],
   shrine: [
-    {"prayerSpeed":0.02},
-    {"prayerSpeed":0.04},
-    {"prayerSpeed":0.06},
-    {"prayerSpeed":0.08},
-    {"prayerSpeed":0.1},
+    {"flameSpeed":0.02},
+    {"flameSpeed":0.04},
+    {"flameSpeed":0.06},
+    {"flameSpeed":0.08},
+    {"flameSpeed":0.1},
   ],
   trophy: [
     {"trophyMounts":2},
@@ -96,4 +96,4 @@ export const ROOM_RUNG_EXTRAS = Object.freeze({
 
 /* Every bonus key any rung can pay, sorted. Exported so a consumer can assert
    it knows what each one MEANS rather than silently forwarding a new one. */
-export const ROOM_PERK_KEYS = Object.freeze(["buffDuration","cookSpeed","craftSave","craftSpeed","farmPlots","noBurn","prayerSpeed","runeSpeed","smithSpeed","trophyMounts"]);
+export const ROOM_PERK_KEYS = Object.freeze(["buffDuration","cookSpeed","craftSave","craftSpeed","farmPlots","noBurn","flameSpeed","runeSpeed","smithSpeed","trophyMounts"]);

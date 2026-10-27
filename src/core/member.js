@@ -198,14 +198,14 @@ export function memberSide(mi, ctx) {
     purse: nat(mi.gold, 0) }));
   const fx = {
     /* SKILL XP through the SHARED grant (perks, the carried remainder). A
-       Prayer level raises the regen rate from the next swing. */
+       Inner Flame level raises the regen rate from the next swing. */
     addXp(skillId, amt) {
       const before = Number(state.skills[skillId]) || 0;
       grantXp(state, skillId, amt, { bonus, restedQuantum: 0, authored: false });
       const applied = (Number(state.skills[skillId]) || 0) - before;
       if (applied > 0) xpGained[skillId] = (xpGained[skillId] || 0) + applied;
       hs.tally.xp[skillId] = (hs.tally.xp[skillId] || 0) + (Number(amt) || 0);
-      if (skillId === 'prayer' && applied > 0) applyVitals(state, equipment, items);
+      if (skillId === 'inner_flame' && applied > 0) applyVitals(state, equipment, items);
     },
     /* LEVEL XP: the kill share xp-share.js already split, whole (Level comes from
        kills only). A Level raises max HP and max mana from the next swing. */

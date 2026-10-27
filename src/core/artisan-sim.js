@@ -204,7 +204,7 @@ export function toolFor(state, skill, items) {
  *
  * This is legacy.js's `activityIntervalMs()` for the artisan branch, expressed
  * once. It applies PACE.actionMs, the bench's own speed perk (`cookSpeed` /
- * `smithSpeed` / `craftSpeed` / `prayerSpeed`, via `speedKeyFor`), the tool
+ * `smithSpeed` / `craftSpeed` / `flameSpeed`, via `speedKeyFor`), the tool
  * ladder, and `speedClamp`'s 0.70 fuse. No request field reaches it.
  */
 export function artisanIntervalMs(state, skill, recipe, ctx) {

@@ -35,7 +35,7 @@ export * as tools from './tools.js?v=0.2.52';
 export * as farm from './farm.js?v=0.2.52';
 export * as progression from './progression.js?v=0.2.52';
 /* THE CORE MODEL'S VITALS (docs/design/CORE_MODEL.md §3): max HP and mana from
-   Level and armour weight, the regen rate from Prayer. */
+   Level and armour weight, the regen rate from Inner Flame. */
 export * as vitals from './vitals.js?v=0.2.52';
 export * as artisan from './artisan.js?v=0.2.52';
 /* b357 — THE CONSUMPTION SEAM. Authored ahead of its consumers on purpose:

@@ -15,12 +15,14 @@
 //   isNew / markSeen      the "new" mark (residue `bagSeen`, display only)
 //   statLines / compare   an item's stats in words, and the change against the worn one
 //   equipSlotFor(id, eq)  the slot an item would go into
-//   riteOf / cookOf       the bench recipe that spends a whole stack (Bury, Cook all)
+//   riteOf / cookOf       the bench recipe that spends a whole stack (Fuel the hearth, Cook all)
+//   namedFuelOf(id)       a named Hearth fuel's row (src/data/hearth.js): burnt alone, never sold in bulk
 // ════════════════════════════════════════════════════════════════════════
 import { ITEMS } from '../data/items.js?v=0.2.52';
 import { DRINK_ITEMS } from '../data/drinks.js?v=0.2.52';
 import { MONSTERS } from '../data/monsters.js?v=0.2.52';
 import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.52';
+import { NAMED_FUELS } from '../data/hearth.js?v=0.2.52';
 import { expandItemSlot } from '../data/gathering.js?v=0.2.52';
 import { recipeInputs } from '../core/artisan.js?v=0.2.52';
 import { BAG_SEEN_MAX } from '../session/residue.js?v=0.2.52';
@@ -63,6 +65,8 @@ export function kindOf(id) {
   if (it.slot === 'ammo' || it.type === 'ammo' || /_(arrows|rune)$/.test(id)) return 'ammo';
   if (it.slot) return 'gear';
   if (Number(it.heals) > 0) return 'food';
+  /* a named Hearth fuel is a rare reveal kept to burn (src/data/hearth.js): Rare, never bulk-sold loot */
+  if (NAMED_FUELS[id]) return 'rare';
   if (dropSet().has(id)) return 'loot';
   if (it.raw || it.tag === 'crafting-mat' || it.seed || inputSet().has(id)) return 'material';
   if (it.type === 'trophy' || RARE_TAGS.has(it.tag) || RARE_RUNGS.has(it.rarity)) return 'rare';
@@ -132,7 +136,7 @@ export function view(items, o) {
 let RITES = null;
 /**
  * The recipe a skill spends this item on WITHOUT making anything (a recipe row with an `input` and no `output`:
- * Prayer's Bury Bones, Offer Razor Claw...), or null. From the recipe rows, so a new offering needs no code.
+ * Inner Flame's fuels, fuel_bones, fuel_lamp_jelly...), or null. From the recipe rows, so a new fuel needs no code.
  */
 export function riteOf(id) {
   if (!RITES) {
@@ -141,6 +145,9 @@ export function riteOf(id) {
   }
   return RITES.get(id) || null;
 }
+
+/** A named Hearth fuel's row ({ item, xp, req, flame, secs, chunk }: src/data/hearth.js NAMED_FUELS), or null. */
+export function namedFuelOf(id) { return NAMED_FUELS[id] ? Object.assign({ item: id }, NAMED_FUELS[id]) : null; }
 
 let COOKS = null;
 /**
@@ -184,8 +191,8 @@ function madeInto(id, skills) {
 }
 
 /**
- * The stacks "Sell all loot" sells: monster loot, never an offering a skill trains on (bones are buried for Prayer,
- * ruling 2026-10-14; Brannoc 10-22: Sell all loot sold his bones), nor raw food that cooks (the same playtest's
+ * The stacks "Sell all loot" sells: monster loot, never a fuel a skill trains on (bones feed the Great Hearth,
+ * ruling 2026-10-14; Brannoc 10-22: Sell all loot sold his bones; a named fuel is Rare, never loot), nor raw food that cooks (the same playtest's
  * Raw Wolf Meat), nor a material a recipe the hero can make spends (board 2026-10-25 #22: it sold Silk Thread, the
  * first Crafting recipes' thread). Ids, in the bag's order. `skills`: the server's skills, or null.
  */

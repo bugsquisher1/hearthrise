@@ -4,7 +4,7 @@
 // docs/design/reviews/CORE_NUMBERS_2026-10-19.md, pending Tyler's approval).
 //
 // Level comes from kills only and is endless; Melee, Ranged, Magic, Defense and
-// Prayer train by use with no cap; gathering and crafting skills cap at 99
+// Inner Flame train by use with no cap; gathering and crafting skills cap at 99
 // (src/core/xp.js owns every curve; the server twins are pinned to these rows
 // by tests/core-curves.mjs). Every number here is ONE data constant, so a
 // ruling is a data edit, never a code change.
@@ -24,7 +24,7 @@ export const LEVEL_CURVE = Object.freeze({ quartic: 1, cubic: 20, linear: 50 });
 export const LEVEL_GUARD = Object.freeze({ xpPerHourPerLevel: 2900, hoursTo200: Object.freeze([3800, 4200]),
   hoursTo10: Object.freeze([0.75, 2]) });
 
-/* THE UNCAPPED SKILL CURVE (Q2): Melee, Ranged, Magic, Defense, Prayer.
+/* THE UNCAPPED SKILL CURVE (Q2): Melee, Ranged, Magic, Defense, Inner Flame.
    XP from level s to s+1 = floor(base x s^2 x (1 + growthPermille/1000)^(s-1)),
    the power walked in exact integers (src/core/xp.js), so the browser, the edge
    and Postgres agree to the unit. No cap. */
@@ -41,7 +41,7 @@ export const VITALS = Object.freeze({
   heavyHpPermille: 280,
   lightManaPermille: 350,
   /* Q6: HP regenerates this permille of max a second DURING a fight (the
-     resting rate is hunt-tuning.js oocRegenPermillePerS); Prayer multiplies both. */
+     resting rate is hunt-tuning.js oocRegenPermillePerS); Inner Flame multiplies both. */
   inFightRegenPermillePerS: 3,
 });
 
@@ -90,35 +90,39 @@ export const COMBAT_XP = Object.freeze({
   blockMult: 2,
 });
 
-/* PRAYER (Q6; Tyler: no cap, regen RATES only, a diminishing curve). The rate is
-   1 + maxPermille/1000 x P / (P + k), P = the Prayer level: never reaches
+/* INNER FLAME (Q6; Tyler: no cap, regen RATES only, a diminishing curve; Tyler 2026-10-25:
+   Inner Flame replaces Prayer and keeps its job). The rate is
+   1 + maxPermille/1000 x P / (P + k), P = the Inner Flame level: never reaches
    double, so food and drink stay necessary. */
-export const PRAYER_REGEN = Object.freeze({ maxPermille: 1000, k: 50 });
+export const FLAME_REGEN = Object.freeze({ maxPermille: 1000, k: 50 });
 
 /* A MONSTER'S LEVEL when its row names none (Q5: an unplaced monster, by tier).
    A placed monster carries its own `level` (src/data/monsters.js). */
 export const MONSTER_LEVEL_BY_TIER = Object.freeze({ 1: 5, 2: 15, 3: 35, 4: 60, 5: 90, 6: 130 });
 
-/* PRAYER FROM BURYING (CORE_NUMBERS 2026-10-19 line 99: Prayer ~ 0.6 x Level for a
-   player who buries everything). Burying is a bench action, so its XP rides the
-   pacing dial like every artisan grant (pacing.js PACE.xp 0.39: the root cause of the
-   live 3 bones -> 5 XP, 2026-10-19), and fractions carry in player_skills.xp_frac.
-     refLevel / refPrayer  the plain-bones rite serves Prayer 1-15 (Big Bones open at
-                           15), reached by Level 25: 0.6 x 25 = 15
-     bonesPerHour          a hero burying every bone of an in-range cellar hunt:
+/* INNER FLAME FROM FUELLING THE HEARTH (CORE_NUMBERS 2026-10-19 line 99: the skill ~ 0.6 x
+   Level for a player who burns everything; Tyler 2026-10-25: feed the Hearth, raise your Inner
+   Flame). Fuelling is a bench action, so its XP rides the pacing dial like every artisan grant
+   (pacing.js PACE.xp 0.39: the root cause of the live 3 bones -> 5 XP, 2026-10-19), and fractions
+   carry in player_skills.xp_frac.
+     refLevel / refFlame   plain Bones serve Inner Flame 1-15 (Big Bones open at 15), reached by
+                           Level 25: 0.6 x 25 = 15
+     bonesPerHour          a hero burning every bone of an in-range cellar hunt:
                            464 kills/h x 0.26 bones a kill (forest-cave --play,
                            measured 2026-10-19)
-     xpPerBone             the Prayer XP a bone PAYS: skillXp(prayer, refPrayer) /
+     xpPerBone             the Inner Flame XP a bone PAYS: skillXp(inner_flame, refFlame) /
                            (bonesPerHour x hours to refLevel at LEVEL_GUARD's rate)
                            = 22,539 / (121 x 11.97) = 15.56, to the tenth
-                           (tests/bury-rate.mjs re-derives it)
-     recipeXp              the bury_bones row's authored (pre-dial) XP: recipeXp x
-                           PACE.xp = xpPerBone exactly (40 x 0.39 = 15.6)
-   Only the plain-bones rite is set from the curve: the rites above it keep the
-   designer's 2026-09-12 values until the designer's Prayer pass (scaling the whole
-   ladder by the same factor breaks the per-apply XP clamp at the top rites). */
-export const PRAYER_BURY = Object.freeze({
-  refLevel: 25, refPrayer: 15, bonesPerHour: 121, xpPerBone: 15.6, recipeXp: 40,
+                           (tests/hearth-fuel-rate.mjs re-derives it)
+     recipeXp              the fuel_bones row's authored (pre-dial) XP: recipeXp x
+                           PACE.xp = xpPerBone exactly (40 x 0.39 = 15.6). The family fuels
+                           (Lamp Jelly, Dry Husk, Pithwood) pay the same: a boneless
+                           creature's fuel is its bones (src/data/hearth.js).
+   Only the plain-bones rung is set from the curve: the rungs above it keep the designer's
+   2026-09-12 values (scaling the whole ladder by the same factor breaks the per-apply XP
+   clamp at the top rungs). */
+export const FLAME_FUEL = Object.freeze({
+  refLevel: 25, refFlame: 15, bonesPerHour: 121, xpPerBone: 15.6, recipeXp: 40,
 });
 
 /* FOOD HEALS MOVED x12 WITH MONSTER DAMAGE (CORE_NUMBERS Q3: monsterAttackDamageScale

@@ -89,7 +89,11 @@ const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'))
    (= no limit) on the chain and live, against src/core/farm.js REGROW_LIMITS. The hr_crops rows now carry it (this
    generator refuses a regrowing crop without a finite limit) and the emitted self-check asserts the landed limits and
    plays one vine to its wither. ONE forward file, the same full delete+insert replace. */
-const OUT = join(ROOT, 'supabase', 'migrations', '2027-01-27-items-catalogue.generated.sql');
+/* INNER FLAME (lane b-inner-flame, Tyler 2026-10-25: the Great Hearth replaces Prayer): 2027-01-27-items-catalogue.generated.sql
+   is APPLIED history. The skill row prayer -> inner_flame (hr_skills), the bench's rows bury_* -> fuel_<item> with the family
+   fuels' rungs (hr_activities), and the eight fuels (hr_items) land in ONE forward file, the same full delete+insert replace,
+   applied before 2027-01-31-inner-flame.sql (which renames the players' rows onto it). */
+const OUT = join(ROOT, 'supabase', 'migrations', '2027-01-31-items-catalogue.generated.sql');
 /* THE SECOND GENERATED FILE (2026-09-13). hr_item_buffs is emitted as its own
    migration rather than into OUT above, and that is a deliberate operational
    call: OUT is the FOURTH file in tests/schema-apply-order.json and is already
@@ -112,8 +116,9 @@ const OUT_ITEM_BUFFS = join(ROOT, 'supabase', 'migrations',
 /* ROOM PURPOSE REGEN (2026-10-22 game-designer ruling): the Library's runeSpeed,
    the Garden's farmPlots and the Trophy Room's trophyMounts; again a NEW,
    LAST-registered file, the applied 2026-10-23 one stays in the chain. */
+/* INNER FLAME (lane b-inner-flame, 2026-10-27): 2026-11-30 is APPLIED history; the Shrine's key prayerSpeed -> flameSpeed. */
 const OUT_ROOM_PERKS = join(ROOT, 'supabase', 'migrations',
-  '2026-11-30-room-perks-catalogue.generated.sql');   // v0.2.31 integration: ONE forward file per generator after the newest APPLIED (2026-11-20) (after house-home)
+  '2027-01-31-room-perks-catalogue.generated.sql');
 
 const imp = (rel) => import(pathToFileURL(join(ROOT, rel)).href);
 
@@ -1235,7 +1240,8 @@ end $$;
    read by one SQL body, no rows to census. */
 const { recipeInputs } = await imp('src/core/artisan.js');
 const { ARTISAN_RECIPES: BENCH_RECIPES } = await imp('src/data/recipes.js');
-const OUT_BENCH_INPUTS = join(ROOT, 'supabase', 'migrations', '2027-01-20-bench-inputs.generated.sql');
+/* INNER FLAME (lane b-inner-flame, 2026-10-27): 2027-01-20 is APPLIED history; the fuel_<item> rows (the bury_* rows retire). */
+const OUT_BENCH_INPUTS = join(ROOT, 'supabase', 'migrations', '2027-01-31-bench-inputs.generated.sql');
 const benchInputs = {};
 {
   const known = new Set(itemIds);

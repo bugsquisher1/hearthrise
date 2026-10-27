@@ -121,7 +121,7 @@ export const DEFAULT_RESUME = null;
 /* SELL-TO-COVER: WHAT A HUNT MAY SELL TO KEEP THE SHOP PAID (master plan row 3;
    narrowed by the Master Design Reference §8 review, 2026-10-15). Auto-sell is
    OPT-IN and touches JUNK ONLY: an item must carry `junk: true` in
-   src/data/items.js — never bones (Prayer), never a creature product a future
+   src/data/items.js — never bones (the Hearth's fuel), never a creature product a future
    imbuement may need, never equipment, never a packed supply or a shop
    supply's partner. No item is flagged junk today, so sell-to-cover is INERT
    until the loot-rules lane (M4) flags its first row. Only units THIS session

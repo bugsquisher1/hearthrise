@@ -30,7 +30,7 @@ import { primaryOf, confirmWords, huntLoot } from './state.js?v=0.2.52';
 import { LOOT_CHOICES, planBlock, dispatchBlock } from '../../loot-dispatch.js?v=0.2.52';
 import { pocketHtml, patchCount } from './pockets.js?v=0.2.52';
 import { elsewhereHtml, patchElsewhere } from './elsewhere.js?v=0.2.52';
-import { buryParts, buryBlock, buryRecipeOf } from './bury.js?v=0.2.52';
+import { buryParts, buryBlock, buryRecipeOf, namedBlock } from './bury.js?v=0.2.52';
 import { shownQty, aheadQty, paintLine } from '../../town-ticker.js?v=0.2.52';
 import { upgradeLineHtml, patchUpgradeLine } from '../../widgets/upgrade-line.js?v=0.2.52';
 import { wearBlock, gearLocked } from '../../gear-gate.js?v=0.2.52';
@@ -147,7 +147,7 @@ export function patchTools(root, st, ctx) {
   const pb = pick.querySelector('[data-hs-act="primary"]');
   text(pb, prim ? prim[1] : '');
   cls(pb, 'is-on', !!prim);
-  const buryWhy = prim && prim[0] === 'bury' ? buryBlock(st.cs, buryRecipeOf(cur)) : '';
+  const buryWhy = prim && prim[0] === 'bury' ? buryBlock(st.cs, buryRecipeOf(cur)) : prim && prim[0] === 'hearth' ? namedBlock(st.cs, cur) : '';
   /* Equip the server's sections already refuse (a hunt running, a requirement unmet: gear-gate.js) is off, and says why. */
   const wearWhy = prim && prim[0] === 'equip' ? wearBlock(st.cs, cur) : '';
   prop(pb, 'disabled', sc.pending || !prim || !!wearWhy);

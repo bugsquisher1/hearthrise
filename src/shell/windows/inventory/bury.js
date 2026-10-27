@@ -29,18 +29,18 @@
 // The engine spends the WHOLE stack: it has no "this many" for a recipe, so a
 // partial run would be a client guess at the server's clock. It is not offered.
 // ════════════════════════════════════════════════════════════════════════
-import { ARTISAN_RECIPES } from '../../../data/recipes.js?v=0.2.52';
-import { SKILLS_DEF } from '../../../data/skills.js?v=0.2.52';
-import { recipeInputs } from '../../../core/artisan.js?v=0.2.52';
-import { whole } from '../../../render/format.js?v=0.2.52';
-import { itemName } from '../../widgets/bits.js?v=0.2.52';
-import { riteOf, cookOf } from '../../bag-model.js?v=0.2.52';
-import { skillsOf, heldOf } from '../../../session/item-sections.js?v=0.2.52';
-import { huntOf } from '../../../session/hunt-sections.js?v=0.2.52';
-import { townActivityWords } from '../../../session/party-sections.js?v=0.2.52';
-import { startWork, stopWork, workRow, workOf, runParts, doWords, workBlock } from '../../town-work.js?v=0.2.52';
-import { skillShortWords } from '../../intent-words.js?v=0.2.52';
-import { lineParts, lineText } from '../../town-ticker.js?v=0.2.52';
+import { ARTISAN_RECIPES } from '../../../data/recipes.js?v=0.2.53';
+import { SKILLS_DEF } from '../../../data/skills.js?v=0.2.53';
+import { recipeInputs } from '../../../core/artisan.js?v=0.2.53';
+import { whole } from '../../../render/format.js?v=0.2.53';
+import { itemName } from '../../widgets/bits.js?v=0.2.53';
+import { riteOf, cookOf } from '../../bag-model.js?v=0.2.53';
+import { skillsOf, heldOf } from '../../../session/item-sections.js?v=0.2.53';
+import { huntOf } from '../../../session/hunt-sections.js?v=0.2.53';
+import { townActivityWords } from '../../../session/party-sections.js?v=0.2.53';
+import { startWork, stopWork, workRow, workOf, runParts, doWords, workBlock } from '../../town-work.js?v=0.2.53';
+import { skillShortWords } from '../../intent-words.js?v=0.2.53';
+import { lineParts, lineText } from '../../town-ticker.js?v=0.2.53';
 
 /** The bench entry that spends a whole stack of `id` ({ skill, recipe, input, need }), or null. */
 export function buryRecipeOf(id) { return riteOf(id) || cookOf(id); }

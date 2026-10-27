@@ -3190,6 +3190,10 @@ const AI = 'public.hr_hunt_apply_instance(uuid,bigint,jsonb,jsonb,uuid,integer)'
 const SS = 'public.hr_hunt_settle_session(uuid,integer,uuid,jsonb)';
 const SR = 'public.hr_hunt_settle_refused(uuid,bigint,jsonb,jsonb)';
 const DB_MUTANTS = [
+  /* INNER FLAME KEEPS PRAYER'S DEATH LOSS (2027-01-31-inner-flame.sql): the death's skills are the catalogue's combat rows. */
+  { arm: 'DEATHXP-FLAME', name: '[inner flame] a death no longer prices Inner Flame', fn: 'public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)',
+    find: "  c_xp_skills constant text[] := array(select k.skill_id from public.hr_skills k where k.cat = 'combat' order by k.skill_id);",
+    replace: "  c_xp_skills constant text[] := array(select k.skill_id from public.hr_skills k where k.cat = 'combat' and k.skill_id <> 'inner_flame' order by k.skill_id);" },
   /* LEAVE TOGETHER (2026-12-18-party-leave-together.sql): each server rule goes red on its own defect. */
   { arm: 'PARTY-LEAVE', name: '[leave together] a cascade end is proven for an unticked hero', fn: SS,
     find: "      when 'party_member_left' then coalesce((select ps.party_leave_together from public.player_state ps\n                                               where ps.user_id = p_user and ps.slot = p_slot), false)",

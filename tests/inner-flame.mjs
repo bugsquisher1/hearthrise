@@ -127,8 +127,10 @@ const ARMS = {
     if (left !== 0) out.push(left + ' bones are still in the bag after 30 s at the Hearth');
     if (gained < 6 * Math.floor(per) || gained > Math.floor(6 * per)) out.push(`six bones paid ${gained} Inner Flame XP, not 6 x ${per}`);
     const rows = await q(db, `select kind, meta from public.player_ledger where user_id = $1 and slot = 0 and kind = 'craft' order by id`, [U1]);
-    const row = rows.find((r) => r.meta && r.meta.i && Number(r.meta.i.bones) === -6);
-    if (!row || !row.meta.x || Number(row.meta.x.inner_flame) !== gained) out.push('no craft ledger row names the six bones and the XP: ' + JSON.stringify(rows.map((r) => r.meta)).slice(0, 300));
+    /* the craft row journals what the bench spent and paid (its delta: i = items, x = XP) */
+    const d = (r) => (r.meta && r.meta.delta) || {};
+    const row = rows.find((r) => d(r).i && Number(d(r).i.bones) === -6);
+    if (!row || !d(row).x || Number(d(row).x.inner_flame) !== gained || row.meta.skill !== 'inner_flame' || row.meta.recipe !== 'fuel_bones') out.push('no craft ledger row names the six bones and the XP: ' + JSON.stringify(rows.map((r) => r.meta)).slice(0, 300));
     return out;
   },
 

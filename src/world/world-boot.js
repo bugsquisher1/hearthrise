@@ -201,7 +201,8 @@ export async function bootWorld(panel, opts) {
 
   /* THE GREAT HEARTH in a town frame (hearth-burn.js): the throws, the colour, the "+N Inner Flame"; display only */
   function hearthState(map, f, now) {
-    if (hearthMap !== map) { hearthMap = map; hearthView = createHearthView(map, { sprites: (artOf(map.id) || { tables }).tables.sprites }); }
+    /* the book's own sprites, never the stub proxy: a colour whose art is not loaded draws the plain fire */
+    if (hearthMap !== map) { hearthMap = map; hearthView = createHearthView(map, { sprites: book.sprites }); }
     const s = character && typeof character.read === 'function' ? character.read('state') : null;
     const sk = character ? skillsOf(character) : null;
     return hearthView.frame({ place: f.place, units: f.units, walkers: town.walkers(), me: town.me(), hero: f.hero,

@@ -92,6 +92,10 @@
 //   TICK-1     N tick windows (90 s) and odd cuts == ONE window, through the
 //              database: the character, the session, the bag, the tally, the
 //              ledger sums, the timeline, and the instance WORLD itself.
+//   DEATHXP-FLAME  Inner Flame keeps Prayer's death loss (Tyler 2026-10-25): a hero part-way into its Inner
+//              Flame dies and the death prices it as a combat skill (DEATH_XP_LOSS of its progress, never a
+//              level), the same with the browser closed (the tick's windows) and the hunt viewed (a player's
+//              irregular instants), and the bank says so
 //   BOTH-PATH  a hunt with a death settled at a player's irregular instants writes
 //              what the tick's windows write.
 //   NO-DODGE   a death the viewer's live seeds showed cannot be stepped around: a
@@ -1577,6 +1581,29 @@ const DB_ARMS = {
     if (canon(a) !== canon(b)) problems.push(`a hunt settled at a player's instants wrote different rows from the tick's ${firstDiff(canon(a), canon(b))}`);
     return problems;
   },
+  'DEATHXP-FLAME': async (db, M) => {
+    const problems = [];
+    const start = M.XP.skillXpForLevel('inner_flame', 10) + 1000;
+    const want = M.AR.skillDeathLoss('inner_flame', start);
+    if (!(want > 0)) return [`CONTROL: a death at Inner Flame 10 + 1000 XP would cost ${want}`];
+    const attended = (from, a) => {
+      const deaths = ((a[0] && a[0].events) || []).filter((e) => e[0] === 'death').map((e) => Date.parse(e[1]));
+      const cuts = [from + 7001, from + 33333];
+      for (const t of deaths) cuts.push(t - 1500, t + 1500);
+      cuts.push(from + SPAN_MS);
+      return [...new Set(cuts)].filter((t) => t > from && t <= from + SPAN_MS).sort((x, y) => x - y);
+    };
+    const FLAME = { ...DOOMED, skillsXp: { ...DOOMED.skillsXp, inner_flame: start } };
+    const { a, b } = await compareRuns(db, M, FLAME, ticksOf(90000, SPAN_MS), attended);
+    for (const [door, s] of [['the browser closed', a[0]], ['the hunt viewed', b[0]]]) {
+      if ((s.deaths || []).length !== 1) { problems.push(`CONTROL (${door}): the hero died ${(s.deaths || []).length} time(s)`); continue; }
+      const price = s.death_xp || {};
+      if (Number(price.inner_flame) !== want) problems.push(`${door}: the death cost Inner Flame ${price.inner_flame}, not ${want} (DEATH_XP_LOSS of its progress)`);
+      const bank = s.skills && s.skills.inner_flame ? Number(s.skills.inner_flame[0]) : null;
+      if (bank !== start - want) problems.push(`${door}: Inner Flame banks ${bank} after the death, not ${start} - ${want}`);
+    }
+    return problems;
+  },
   'NO-DODGE': async (db, M) => inTx(db, async () => {
     const problems = [];
     const h = await hunter(db, M, { ...DOOMED });
@@ -1779,11 +1806,11 @@ const DB_ARMS = {
     /* ENTER STOPS BURYING, like fishing (Andy live 10-21: "burying locks an action"): ONE hunt_enter intent with a
        bury running enters the hunt (hunter throws on a refusal), the bury yields, journalled with what it was. */
     await db.query('rollback'); await db.query('begin');
-    const b = await hunter(db, M, { ...STRONG, running: { kind: 'artisan', id: 'bury_bones' } });
+    const b = await hunter(db, M, { ...STRONG, running: { kind: 'artisan', id: 'fuel_bones' } });
     const yielded = await one(db, `select l.meta from public.player_ledger l where l.user_id = $1 and l.intent = 'activity_yield' order by l.id desc limit 1`, [UID]);
     const st = await one(db, 'select active_kind from public.player_state where user_id = $1 and slot = 0', [UID]);
     if (!b.sid || st === 'artisan') problems.push(`Enter left the hero burying (${st})`);
-    if (!yielded || yielded.kind !== 'artisan' || yielded.id !== 'bury_bones') problems.push(`the bury's stop was not journalled: ${JSON.stringify(yielded)}`);
+    if (!yielded || yielded.kind !== 'artisan' || yielded.id !== 'fuel_bones') problems.push(`the bury's stop was not journalled: ${JSON.stringify(yielded)}`);
     /* A DRY BENCH IS NOT RESUMED (tutorial board row 10, 2027-01-20-tutorial-facts.sql): the hero cooked until its shrimp
        ran out, hunted and died, and came home "working on Cook Shrimp" with 0 Raw Shrimp. BOTH PATHS, the same rows: the
        browser closed (the tick's door) and the hunt viewed (the player's door). With one action's inputs in the bag the

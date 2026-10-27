@@ -138,7 +138,8 @@ const TOWN_WORDS = new Map([
   ...TREES.map((n) => ['gather:' + n.id, 'chopping the ' + n.name]),
   ...ROCKS.map((n) => ['gather:' + n.id, 'mining the ' + n.name]),
   ...FISH_SPOTS.map((n) => ['gather:' + n.id, 'fishing at the ' + n.name]),
-  ...Object.values(ARTISAN_RECIPES).flat().map((r) => ['artisan:' + r.id, 'working on ' + r.name]),
+  /* a fuel (an output-less row: src/data/hearth.js) burns in the Great Hearth; any other row is worked on */
+  ...Object.values(ARTISAN_RECIPES).flat().map((r) => ['artisan:' + r.id, r.output ? 'working on ' + r.name : 'fueling the Great Hearth with ' + r.name]),
 ]);
 const TOWN_KIND_WORDS = Object.freeze({ gather: 'gathering', artisan: 'at a workbench', training: 'training' });
 

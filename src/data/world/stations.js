@@ -45,6 +45,8 @@ import { at, TOWN_MAP } from './town/plan.js?v=0.2.52';
 export const TAP_OPENS = Object.freeze({
   anvil: Object.freeze({ open: 'skill', skill: 'smithing' }),
   woodpile: Object.freeze({ open: 'skill', skill: 'woodcutting' }),
+  /* the Great Hearth itself: the bag, where Fuel the hearth is (Tyler 2026-10-25; Inner Flame, src/data/hearth.js) */
+  great_hearth: Object.freeze({ open: 'window', window: 'inventory' }),
   /* Tamsin Reeve and her Tally Board in Hearth Square (2026-12-23-tally-tasks.sql): her window. PLACEHOLDER ART:
      the style-1 crier and noticeboard stand in for her until her own sprite and board are drawn. */
   npc_crier: Object.freeze({ open: 'window', window: 'tally' }),

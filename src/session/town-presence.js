@@ -137,6 +137,7 @@ export class TownPresence {
     this._reading = null; this._next = null;   // the read in flight, and the one asked while it is out
     this._me = null;          // this character's own stand, as the server last said
     this._hearth = null;      // the named flame the Great Hearth burns, as the last town answer said (local clock)
+    this._burn = null;        // this character's last named burn the server accepted ({item, at}: the throw the World plays)
     this._sent = null;        // the last place the server took
     this._sentAt = -Infinity;
     this._want = null;        // the latest place the World reported
@@ -266,6 +267,12 @@ export class TownPresence {
 
   /** A stand another answer named for this character (hr_hearth_burn's `me`): the World walks the hero there. */
   noteStand(raw) { if (!this._dead) this._noteMe(raw); }
+
+  /** The server burnt this character's named fuel `item` (hr_hearth_burn): the World throws it once the hero is at the fire. */
+  noteBurn(item) { if (!this._dead && typeof item === 'string') { this._burn = Object.freeze({ item, at: this._now() }); this._changed(); } }
+
+  /** This character's last accepted named burn ({item, at}, local ms), or null. Display only. */
+  lastBurn() { return this._burn; }
 
   _noteMe(raw) {
     const s = standOf(raw);

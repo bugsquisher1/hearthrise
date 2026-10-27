@@ -175,7 +175,7 @@ async function checks(overrides, shots) {
         /* CW-2: exactly the section's numbers. */
         const L = await lines(page);
         const want = { Damage: '1–17', 'Hit chance': '74.5% against no armour', 'Critical chance': '4.5%', Defence: '23', Dodge: '12.5% of blows', Absorb: '31% of each blow', Ward: '4 off each blow', 'Max mana': '60', 'Max health': '220',
-          Regeneration: '+1.9% (Prayer)', 'Home and renown': '+2%', Total: '+2%' };
+          Regeneration: '+1.9% (Inner Flame)', 'Home and renown': '+2%', Total: '+2%' };
         for (const [k, v] of Object.entries(want)) if (L[k] !== v) fails.push('CW-2 ' + k + ' reads ' + JSON.stringify(L[k]) + ', the server sent ' + v);
         if ('Prayer ward' in L || 'Gear' in L || 'Food and drink' in L) fails.push('CW-3 a zero line is drawn: ' + JSON.stringify(L));
         const level = await page.evaluate(() => document.querySelector('[data-hs-win="character"] .hw-cs-lv').textContent);
@@ -240,7 +240,7 @@ async function checks(overrides, shots) {
         await openWin(page, 'g', 'skills-trade');
         await page.waitForTimeout(300);
         const trade = await page.evaluate(() => Array.from(document.querySelectorAll('[data-hs-win="skills-trade"] .hw-skill')).map((li) => li.textContent));
-        if (trade.some((t) => /^\s*(Melee|Defense|Prayer|Magic|Ranged)/.test(t))) fails.push('CW-6 Gathering and crafting lists a combat skill');
+        if (trade.some((t) => /^\s*(Melee|Defense|Inner Flame|Magic|Ranged)/.test(t))) fails.push('CW-6 Gathering and crafting lists a combat skill');
         const wc = trade.find((t) => /^\s*Smithing/.test(t)) || '';
         if (!/Next at level \d+: .*\((woodcutting|mining) tool\)/.test(wc)) fails.push('CW-6 the smithing unlock does not name its kind: ' + JSON.stringify(wc));
       }

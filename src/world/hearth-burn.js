@@ -105,3 +105,60 @@ export function createHearthBurn(map, o) {
     },
   };
 }
+
+const XP_FLOAT_MS = 1500;
+const BURN_KEEP_MS = 30000;   // a named burn the hero has not reached the fire for in this long is not thrown
+const atStand = (place, me) => !!place && !!me && place.x === me.x && place.y === me.y && place.gx === me.x && place.gy === me.y;
+
+/**
+ * THE HEARTH AS THE TOWN FRAME DRAWS IT: who throws, the colour, and the hero's "+N Inner Flame" when a settle paid.
+ * One per town map (world-boot.js). frame() reads only what the server said and the frame already placed.
+ * @param {object} map  compileMap() output (a town)
+ * @param {{sprites: object}} o
+ */
+export function createHearthView(map, o) {
+  const burn = createHearthBurn(map, o);
+  let standKey = null, arrivedAt = null, lastXp = null;
+  const floats = [];
+  return {
+    /**
+     * @param {{ place: object, units: object[], walkers: object[], me: object|null, active: string|null,
+     *           burn: {item: string, at: number}|null, flame: object|null, xp: number|null, hero: {x: number, y: number} }} e
+     *   place: the walk frame's place; units: its drawn people (ref.player); walkers: TownPresence.walkers(); me:
+     *   TownPresence.me(); active: the server's artisan pointer (state.active_id) or null; burn: lastBurn(); flame:
+     *   hearth(); xp: the server's Inner Flame XP (skills section); hero: the hero as drawn
+     * @param {number} now ms
+     * @returns {{ fx: object[], floats: object[], ambientSwap: object|null }}
+     */
+    frame(e, now) {
+      /* WHEN THE HERO REACHED ITS HEARTH STAND (a new stand starts the clock again) */
+      const me = e.me && /^hearth/.test(e.me.station) ? e.me : null;
+      const key = me ? me.station + ':' + me.stand + ':' + me.since : null;
+      if (key !== standKey) { standKey = key; arrivedAt = null; }
+      if (me && arrivedAt === null && atStand(e.place, me)) arrivedAt = now;
+      const there = me && arrivedAt !== null && atStand(e.place, me);
+      const chunk = there && e.active ? chunkOfRecipe(e.active) : null;
+      const hero = e.hero || { x: 0, y: 0 };
+      /* the peers working at the Hearth's stands, where the frame drew them */
+      const working = new Set((e.walkers || []).filter((w) => w.work && /^hearth/.test(w.station || '')).map((w) => w.id + ':' + w.slot));
+      const peers = [];
+      for (const u of e.units || []) {
+        const p = u.ref && u.ref.player;
+        if (p && working.has(p.id + ':' + p.slot)) peers.push({ key: p.id + ':' + p.slot, x: u.x, y: u.y });
+      }
+      /* your named fuel, thrown once you stand at the fire (from the server's yes, never before) */
+      const b = e.burn && there && now - e.burn.at < BURN_KEEP_MS && chunkOfNamed(e.burn.item)
+        ? { x: hero.x, y: hero.y, chunk: chunkOfNamed(e.burn.item), at: Math.max(e.burn.at, arrivedAt) } : null;
+      const out = burn.frame({ me: chunk ? { key: 'me', x: hero.x, y: hero.y, chunk, since: arrivedAt } : null, burn: b, peers, flame: e.flame }, now);
+      /* "+N Inner Flame": only what a settle PAID (the server's XP rising), over the hero while it is at the fire */
+      if (Number.isFinite(e.xp)) {
+        if (lastXp !== null && e.xp > lastXp && me) floats.push({ text: '+' + Math.round(e.xp - lastXp).toLocaleString('en-US') + ' Inner Flame', kind: 'xp', at: now });
+        lastXp = e.xp;
+      }
+      while (floats.length && now - floats[0].at > XP_FLOAT_MS) floats.shift();
+      return { fx: out.fx, ambientSwap: out.swap,
+        floats: floats.map((f) => ({ text: f.text, kind: f.kind, x: hero.x, y: hero.y - 1, age: now - f.at, life: XP_FLOAT_MS })) };
+    },
+  };
+}
+

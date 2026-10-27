@@ -60,7 +60,7 @@ Regenerate with `node tools/gen-hunts.mjs` and `node tools/gen-hunt-sessions.mjs
 - **Icons:** emoji `icon` is the last-resort fallback; real art is mapped by
   `src/data/item-art.js`. New items are art-backlog targets.
 
-### 3. Recipes (cooking / smithing / crafting / prayer / runecrafting / stonemason) — data
+### 3. Recipes (cooking / smithing / crafting / runecrafting / Inner Flame fuels) — data
 `src/data/recipes.js` → `ARTISAN_RECIPES[skill]` (array of `{id, name, input,
 secondary?, output, xp, req, ms, gated?}`). One engine runs them all
 (`src/core/artisan.js`). Category lanes derive automatically via
@@ -90,33 +90,21 @@ outranks the material's flavour.** Two neighbouring rules bind at the same time:
 a rung reachable before coal is minable may never demand coal (`b525`), and the
 gathering ladders' paced xp/s (`b226`/`b390`) are not a lever for fixing a recipe.
 
-#### The Prayer bench (`ARTISAN_RECIPES.prayer`) — 13 rungs, 1 → 99
-Every row is `output: null` (XP only) and consumes one monster drop.
-
-| req | id | name | input | xp | ms |
-|---:|---|---|---|---:|---:|
-| 1 | `bury_bones` | Bury Bones | `bones` | 4.5 | 1200 |
-| 15 | `bury_big` | Bury Big Bones | `big_bones` | 15 | 1500 |
-| 35 | `bury_dragon` | Bury Dragon Bones | `dragon_bones` | 72 | 2000 |
-| 40 | `bury_bone_chips` | Sift Bone Chips | `bone_chips` | 105 | 2200 |
-| 46 | `consecrate_grave_dust` | Consecrate Grave Dust | `grave_dust` | 155 | 2400 |
-| 52 | `offer_razor_claw` | Offer Razor Claw | `razor_claw` | 212 | 2500 |
-| 58 | `scatter_vamp_dust` | Scatter Vampire Dust | `vamp_dust` | 295 | 2600 |
-| 65 | `banish_demon_shard` | Banish Demon Shard | `demon_shard` | 420 | 2800 |
-| 72 | `unbind_wraith_veil` | Unbind Wraith Veil | `wraith_veil` | 600 | 3000 |
-| 79 | `consecrate_dragon_scale` | Consecrate Dragon Scale | `dragon_scale` | 855 | 3200 |
-| 86 | `release_lich_soul` | Release Lich Soul | `lich_soul` | 1210 | 3400 |
-| 92 | `offer_ancient_claw` | Offer Ancient Claw | `ancient_claw` | 1700 | 3600 |
-| 99 | `purge_void_chitin` | Purge Void Chitin | `void_chitin` | 2400 | 3800 |
-
-Rungs 40–99 are the 2026-09-12 ruling; before it the bench stopped at 35 and had
-no action for 64 levels. The ladder is asserted strictly increasing and
-reaching 99 by `PRAYER-LADDER-1` in the in-page suite.
-
-**Prayer wards (W0, 2026-10-10)** — `PRAYER_WARDS` in `src/data/skills.js`, read by
-`src/core/combat.js`, cut monster hit chance. This CONTRADICTS the current ruling
-(Prayer raises HP and mana regeneration rates only, Tyler 2026-10-14) and is owed
-removal; do not build on it.
+#### The Great Hearth (`ARTISAN_RECIPES.inner_flame`, Inner Flame) — built from `src/data/hearth.js`
+Inner Flame replaced Prayer (Tyler 2026-10-25): the same job (the HP and mana regeneration RATE,
+`FLAME_REGEN`; a combat skill a death prices), trained by fuelling the Great Hearth in Havora's square.
+- **Everyday fuels** are `HEARTH_FUELS` rows (`{item, xp, req, ms, chunk}`); the bench row of each is
+  derived (`fuel_<item>`, `output: null`). Creatures with skeletons drop bones; a boneless creature drops
+  its family's fuel, which pays what a bone pays (Lamp Jelly: slimes; Dry Husk: insects and spiders;
+  Pithwood: walking plants). Clinker (golems, elementals) and Wisp Wax (spirits) are designed and ship
+  with their first reachable ground. **To add a fuel:** a row in `HEARTH_FUELS` + the item + its drop row;
+  regenerate (`gen-catalogues`) and redeploy the edge.
+- **Named fuels** are `NAMED_FUELS` rows (`{xp, req, flame, secs, chunk}`), one per ground or boss, a
+  Rare drop each: burnt alone by `hr_hearth_burn` (2027-01-31-inner-flame.sql), a burst of XP, and the
+  square's fire takes the row's `FLAMES` colour for everyone in Havora. The server catalogue is
+  `tools/gen-hearth-catalogue.mjs` (`--check`); a colour's art is `tools/world-art/hearth-flames.mjs`.
+  **To add one:** the item, its Rare drop row, a `NAMED_FUELS` row (and a `FLAMES` colour + its ramp in
+  `hearth-flames.mjs` if new), regenerate both.
 
 **Runecrafting supplies itself (W0).** `mine_rune_essence` (input-free,
 `xpSkill: 'mining'`, the quarry pattern) → `cut_rune_blanks` / `split_rune_blanks`

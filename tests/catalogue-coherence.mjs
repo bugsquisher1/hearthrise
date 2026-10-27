@@ -106,7 +106,7 @@ export const PENDING_SOURCE = Object.freeze({
   shortbow:          'cut: a stat copy of the Practice Bow (merge rung 1 into the practice kit), systems-engineer',
 });
 export const PENDING_CONSUMER = Object.freeze({
-  prayer: 'w0e — Prayer does something in a fight (audit top-10 #8)',
+  /* (prayer's row left with the skill, 2026-10-27: Inner Flame's regen rate is an ENGINE_SKILL_CONSUMERS row) */
 });
 
 const EQUIP_TYPES = { weapon: 1, armor: 1, jewelry: 1, ammo: 1 };

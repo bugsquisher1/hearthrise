@@ -87,7 +87,7 @@ const T0 = Date.parse('2026-09-16T04:00:00.000Z');
 // has does not "still test the engine", it tests a weapon with no speed.
 const MAXED = {
   attack: 13034431, strength: 13034431, defense: 13034431, hitpoints: 13034431,
-  ranged: 13034431, magic: 13034431, prayer: 13034431,
+  ranged: 13034431, magic: 13034431, inner_flame: 13034431,
 };
 
 const FIXTURES = [
@@ -97,7 +97,7 @@ const FIXTURES = [
     activeKind: 'combat', activeId: 'goblin', capMs: 43200000, seed: 1592269876,
     hp: 60, maxHp: 60, gold: 1234,
     skills: { attack: 30000, strength: 28000, defense: 22000, hitpoints: 26000,
-              ranged: 1000, magic: 1000, prayer: 500,
+              ranged: 1000, magic: 1000, inner_flame: 500,
               woodcutting: 4000, mining: 4000, fishing: 4000 },
     inventory: {},
     equipment: { weapon: 'dawn_sword', helmet: 'regent_helm', body: 'slagheart_platebody',
@@ -121,7 +121,7 @@ const FIXTURES = [
     activeKind: 'combat', activeId: 'rat', capMs: 43200000, seed: 2596069104,
     hp: 40, maxHp: 40, gold: 500,
     skills: { attack: 5000, strength: 5000, defense: 3000, hitpoints: 8000,
-              ranged: 60000, magic: 1000, prayer: 0 },
+              ranged: 60000, magic: 1000, inner_flame: 0 },
     inventory: {},
     equipment: { weapon: 'duskwood_bow', helmet: 'regent_helm' },
     autoEatEnabled: false,

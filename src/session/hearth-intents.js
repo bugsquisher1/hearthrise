@@ -39,6 +39,7 @@ export function burnNamedFuel(account, cs, item) {
     /* the server set the body on a fuel stand: the World walks it there (display only) */
     const town = typeof account.townOf === 'function' ? account.townOf(cs.slot) : null;
     if (town && b.me && typeof town.noteStand === 'function') town.noteStand(b.me);
+    if (town && typeof town.noteBurn === 'function') town.noteBurn(item);
     if (typeof cs.load === 'function') await cs.load();
     const f = b.flame && typeof b.flame === 'object' ? b.flame : {};
     return { ok: true, item, xp: int(b.xp),

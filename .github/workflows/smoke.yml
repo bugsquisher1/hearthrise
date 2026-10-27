@@ -3364,20 +3364,24 @@ jobs:
           node tests/hunt-tick-shards.mjs
           node tools/mutant-gate.mjs node tests/hunt-tick-shards.mjs --mutate
       # THE CORE MODEL (docs/design/CORE_MODEL.md, 2026-10-19): the Level curve, the
-      # combat skills' uncapped curve, max HP / mana, Prayer's regen and monster levels
+      # combat skills' uncapped curve, max HP / mana, Inner Flame's regen and monster levels
       # agree in JS and SQL on every boundary (core-curves, PGlite replay); the Level
-      # curve stays inside the designer's hours (level-curve); a buried bone pays
-      # exactly its Prayer XP through the real edge accrual (bury-rate). Each carries
-      # its own --selftest / --mutate proof.
-      - name: Core model — curves JS = SQL, Level hours, bury rate
+      # curve stays inside the designer's hours (level-curve); a bone burnt in the Great
+      # Hearth pays exactly its Inner Flame XP through the real edge accrual, and a
+      # boneless creature's fuel pays the same (hearth-fuel-rate); the Hearth's named
+      # fuels catalogue is src/data/hearth.js (gen-hearth-catalogue). Each carries its
+      # own --selftest / --mutate proof.
+      - name: Core model — curves JS = SQL, Level hours, Hearth fuel rate
         if: ${{ !cancelled() }}
         run: |
           node tests/core-curves.mjs
           node tools/mutant-gate.mjs node tests/core-curves.mjs --selftest
           node tests/level-curve.mjs
           node tools/mutant-gate.mjs node tests/level-curve.mjs --selftest
-          node tests/bury-rate.mjs
-          node tools/mutant-gate.mjs node tests/bury-rate.mjs --mutate
+          node tests/hearth-fuel-rate.mjs
+          node tools/mutant-gate.mjs node tests/hearth-fuel-rate.mjs --mutate
+          node tools/gen-hearth-catalogue.mjs --check
+          node tools/mutant-gate.mjs node tools/gen-hearth-catalogue.mjs --selftest
       # THE ENVELOPE CONTRACT (2026-10-18; two server-vs-client shape mismatches in a
       # row — party seats vs members, the raw world vs huntOf — are a CLASS): a
       # premium two-hero party settled through the player door on the replayed
@@ -3725,6 +3729,18 @@ jobs:
           node tools/mutant-gate.mjs node tools/gen-tally-tasks.mjs --selftest
           node tests/tally-tasks.mjs
           node tools/mutant-gate.mjs node tests/tally-tasks.mjs --selftest
+
+      # THE GREAT HEARTH (Tyler 2026-10-25: Inner Flame replaces Prayer): a hero fuels the
+      # Hearth through the real edge intent (its body stands at a fuel stand, the collect pays
+      # the bench's XP and journals it), a named fuel burns once through hr_hearth_burn (refused
+      # in words while hunting, with none, for a non-fuel, below its level), the square's colour
+      # reaches another player's town read, and the client offers, holds and draws it from the
+      # server's answers. 10 planted defects.
+      - name: The Great Hearth — Inner Flame from fuel, named fuels colour the square
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/inner-flame.mjs
+          node tools/mutant-gate.mjs node tests/inner-flame.mjs --selftest
 
       # THE DEPOT'S SPACE (Tyler 2026-10-22): the account's base + the storage chests it
       # built. The catalogue is generated from src/data/homestead-tiers.js (--check, its

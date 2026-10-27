@@ -1,0 +1,46 @@
+{
+  "id": "hearth_burn_sparks_mosslight",
+  "class": "vfx",
+  "style": "s1",
+  "material": "light",
+  "source": "hearth_burn_sparks_mosslight.png",
+  "frame": [
+    75,
+    65
+  ],
+  "anchor_px": [
+    40,
+    30
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "play",
+      "fps": 12,
+      "loop": false,
+      "dirs": {
+        "s": 8
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "vfx_workbench",
+    "effect": "30bc46ec-668c-4d88-b4df-34c8a5f83a15",
+    "image": "b2885207-e777-4c10-8c6c-8e3f9267a226",
+    "parts": [
+      "cooling_sparks",
+      "ember_rise"
+    ],
+    "cost": 0,
+    "colours": [
+      "#8e1f1f",
+      "#c23a2a",
+      "#f2a03a",
+      "#ffd36a"
+    ]
+  },
+  "notes": "hearth_burn_sparks with its flame pixels (where it differs from hearth_burn_sparks_verdigris) re-poured onto the mosslight ramp by tools/world-art/hearth-flames.mjs; free recolour, no generation. Same placement as hearth_burn_sparks."
+}

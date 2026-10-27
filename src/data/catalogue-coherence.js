@@ -40,6 +40,7 @@ import { PREMIUM_LOGIN_REWARD } from './premium.js?v=0.2.52';
 import { HEARTHFIND_ITEMS, HEARTHFIND_TABLE } from './hearthfind.js?v=0.2.52';
 import { EFFECT_KINDS } from './item-effects.js?v=0.2.52';
 import { MONSTERS } from './monsters.js?v=0.2.52';
+import { NAMED_FUELS } from './hearth.js?v=0.2.52';
 import { HUNT_GROUNDS, OPEN_GROUNDS } from './hunt-grounds.js?v=0.2.52';
 import { HUNT_INDEX } from './hunts.js?v=0.2.52';
 import {
@@ -346,6 +347,8 @@ export function itemUses() {
     if (Number(it.mana) > 0) push(m, id, 'drunk for mana on a hunt');
   }
   for (const id of Object.keys(CODED_USES)) push(m, id, CODED_USES[id].label);
+  /* a named fuel is burnt alone in the Great Hearth (src/data/hearth.js; hr_hearth_burn, 2027-01-31-inner-flame.sql) */
+  for (const id of Object.keys(NAMED_FUELS)) push(m, id, 'burnt in the Great Hearth (a named fuel)');
   return m;
 }
 
@@ -363,6 +366,8 @@ export const ENGINE_SKILL_CONSUMERS = Object.freeze({
   defense:      Object.freeze({ label: 'damage taken (combat engine)', file: 'src/core/combat.js', needle: 'defense' }),
   ranged:       Object.freeze({ label: 'ranged accuracy and damage (combat engine)', file: 'src/core/combat.js', needle: 'ranged' }),
   magic:        Object.freeze({ label: 'magic accuracy and damage (combat engine)', file: 'src/core/combat.js', needle: 'magic' }),
+  /* Inner Flame (Tyler 2026-10-25, replacing Prayer and its PENDING_CONSUMER row): the HP and mana regeneration RATE */
+  inner_flame:  Object.freeze({ label: 'HP and mana regeneration rate (vitals)', file: 'src/core/vitals.js', needle: "levelOf(c && c.skills, 'inner_flame')" }),
 });
 
 /** skill -> [consumer labels]: who uses what the skill makes. */

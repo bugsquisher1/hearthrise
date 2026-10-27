@@ -1,0 +1,34 @@
+{
+  "id": "havora_pier_root",
+  "class": "span",
+  "style": "s1",
+  "material": "wood",
+  "source": "havora_pier_root.png",
+  "frame": [
+    116,
+    38
+  ],
+  "anchor_px": [
+    58,
+    37
+  ],
+  "footprint": [
+    3,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tileset": "2dc0c370-6013-49fa-9dc4-619a0a4b8498",
+    "derived": "tools/world-art/harbour-art.mjs: the boards are the PixelLab dock tileset planks turned along the pier; the edge beams, sill and pilings are drawn on its earth and shadow ramps"
+  },
+  "notes": "A root slice of a Havora pier (3 tiles wide): PixelLab dock boards turned to run along it, a dark edge beam each side, round pilings standing out of the water; its sill reaches up over the quay's cap. Drawn by tools/world-art/harbour-art.mjs (lane/a-havora-dock round 3), laid by src/data/world/town/piers.js."
+}

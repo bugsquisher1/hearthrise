@@ -8,7 +8,7 @@
 // is DERIVED, never authored, so a new map, ground, monster or effect is one
 // data row and nothing here changes:
 //   placed   what the renderer itself places on the map: compose.js's own
-//            groundTiles + composeFrame over the WHOLE map, once with no hero
+//            ground (groundOf, shared with the renderer) + composeFrame over the WHOLE map, once with no hero
 //            and once with the hero inside each walk-in building (its inside
 //            walls), every frame lookup recorded. No second copy of the
 //            placement rules.
@@ -20,14 +20,14 @@
 // tests/world-core.mjs (family A) proves it covers what each shipped scene draws, and no more.
 // PURE: no DOM, no window, no G.
 // ════════════════════════════════════════════════════════════════════════
-import { groundTiles, composeFrame } from './core/compose.js?v=0.2.53';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.53';
-import { HUNT_GROUNDS, gatherNodesOf } from '../data/hunt-grounds.js?v=0.2.53';
-import { OUTFITS } from '../data/hunt-outfits.js?v=0.2.53';
-import { effectIds } from '../data/hunt-vfx.js?v=0.2.53';
-import { ROOM_LAYOUTS, TROPHY_MOUNT_SPRITES } from '../data/world/house-layouts.js?v=0.2.53';
-import { SANDBOX } from '../data/world/sandbox.js?v=0.2.53';
-import { furnish } from './home-scene.js?v=0.2.53';
+import { groundOf, composeFrame } from './core/compose.js?v=0.2.54';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.54';
+import { HUNT_GROUNDS, gatherNodesOf } from '../data/hunt-grounds.js?v=0.2.54';
+import { OUTFITS } from '../data/hunt-outfits.js?v=0.2.54';
+import { effectIds } from '../data/hunt-vfx.js?v=0.2.54';
+import { ROOM_LAYOUTS, TROPHY_MOUNT_SPRITES } from '../data/world/house-layouts.js?v=0.2.54';
+import { SANDBOX } from '../data/world/sandbox.js?v=0.2.54';
+import { furnish } from './home-scene.js?v=0.2.54';
 
 /** The monsters (and gather-node art) of every ground drawn on map `row` and every hunt it renders. */
 function groundIds(row, ids) {
@@ -73,7 +73,8 @@ export function sceneSets(map, row, book, tables) {
   });
   const T = map.T || 32;
   const whole = { ox: 0, oy: 0, w: map.w * T, h: map.h * T };
-  groundTiles(map, rec, tables, T);
+  /* the ground's sheets are its tiles' (every terrain lookup that draws is a tile): the one shared ground, not a second pass */
+  for (const t of groundOf(map, book, tables, T).tiles) note(t.set);
   composeFrame(map, rec, { hero: null }, whole, tables, T);
   /* inside a walk-in building its inside walls show (compose.js: the hero's own building) */
   for (const b of map.buildings) {

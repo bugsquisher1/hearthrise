@@ -1,0 +1,136 @@
+{
+  "id": "havora_setts_planks",
+  "class": "terrain",
+  "kind": "wang16",
+  "style": "s1",
+  "material": "terrain",
+  "source": "havora_setts_planks.png",
+  "lower": "setts",
+  "upper": "planks",
+  "tiles": {
+    "1000": [
+      [
+        3,
+        2
+      ]
+    ],
+    "1001": [
+      [
+        0,
+        3
+      ]
+    ],
+    "1010": [
+      [
+        1,
+        3
+      ]
+    ],
+    "1011": [
+      [
+        2,
+        3
+      ]
+    ],
+    "1100": [
+      [
+        3,
+        3
+      ]
+    ],
+    "1101": [
+      [
+        0,
+        4
+      ]
+    ],
+    "1110": [
+      [
+        1,
+        4
+      ]
+    ],
+    "1111": [
+      [
+        2,
+        4
+      ]
+    ],
+    "0000": [
+      [
+        0,
+        0
+      ],
+      [
+        1,
+        0
+      ],
+      [
+        2,
+        0
+      ],
+      [
+        3,
+        0
+      ]
+    ],
+    "0001": [
+      [
+        0,
+        1
+      ]
+    ],
+    "0010": [
+      [
+        1,
+        1
+      ]
+    ],
+    "0011": [
+      [
+        2,
+        1
+      ]
+    ],
+    "0100": [
+      [
+        3,
+        1
+      ]
+    ],
+    "0101": [
+      [
+        0,
+        2
+      ]
+    ],
+    "0110": [
+      [
+        1,
+        2
+      ]
+    ],
+    "0111": [
+      [
+        2,
+        2
+      ]
+    ]
+  },
+  "pixellab": {
+    "tool": "create_topdown_tileset",
+    "id": "816c2d1f-3be0-4c2a-8a80-47f3371368a2",
+    "base_tile_ids": {
+      "lower": "ca836d29-e082-4d85-b1e5-03e4aedf35a2",
+      "upper": "d30fdac5-1850-4f6a-b88e-15798e9ff083"
+    },
+    "params": {
+      "mode": "pro",
+      "tile_size": 32,
+      "view": "high top-down",
+      "transition_size": 0
+    },
+    "derived": "tools/world-art/harbour-art.mjs (lane/a-havora-dock round 3)"
+  },
+  "notes": "A pier's root on the quay: PixelLab's timber sill, its paving swapped for the hand-laid setts (tools/world-art/harbour-art.mjs, lane/a-havora-dock round 3)."
+}

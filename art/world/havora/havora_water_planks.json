@@ -107,7 +107,7 @@
   },
   "pixellab": {
     "tool": "create_topdown_tileset",
-    "id": "3d3a3399-e6a0-456d-ba6f-8511a9191b91",
+    "id": "2dc0c370-6013-49fa-9dc4-619a0a4b8498",
     "base_tile_ids": {
       "lower": "32062820-23ec-4670-bff9-b5aab5db74fa",
       "upper": "d30fdac5-1850-4f6a-b88e-15798e9ff083"
@@ -116,8 +116,8 @@
       "mode": "pro",
       "tile_size": 32,
       "view": "high top-down",
-      "transition_size": 0
+      "transition_size": 0.25
     }
   },
-  "notes": "Havora's docks over the water: river water (base 32062820, the Greenhaven bank's) to the same oak boardwalk (d30fdac5, chained). Pro Wang tileset, 32 px."
+  "notes": "The docks and piers over the water, edged with a dark timber beam on round pilings (lane/a-havora-dock round 2, 2026-10-26, Tyler: no flat plank floors with dead-straight edges; replaces the flat pair, same base tiles)."
 }

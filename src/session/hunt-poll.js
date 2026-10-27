@@ -12,7 +12,7 @@
 // a time-out, a close), at once (character-session.js _onChannel). Timing only:
 // nothing here is read as owned or spent.
 // ════════════════════════════════════════════════════════════════════════
-import { SESSION_CONFIG } from './config.js?v=0.2.53';
+import { SESSION_CONFIG } from './config.js?v=0.2.54';
 
 /**
  * How soon (ms) the next re-read is asked: the live view's start-point ask

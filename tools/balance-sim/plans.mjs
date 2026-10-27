@@ -67,6 +67,33 @@ export function buildPlan(name, axes, scale = 1) {
     out.push({ id: 'S1:career:four:s0', kind: 'career', party: PARTIES.four, startLevel: 8, targetLevel: 50, maxHours: pick(150, 400), chunkH: 1, seed: 0 });
   }
   if (name === 'career') return out;
+  if (name === 'ladder') {
+    /* THE GROUND LADDER (the Level curve's contract past the last ground, LEVEL_PACE.contract): what each ground pays a
+       lone hero IN ITS OWN BAND, as built: every solo ground at its floor, middle and top, and a party ground only from
+       the Level it is solo-able (soloFrom), every style, 2 seeds. */
+    for (const g of G) {
+      const from = g.groupFit === 'party' ? g.soloFrom : g.band[0];
+      if (!Number.isInteger(from)) continue;
+      for (const s of SOLO_STYLES) for (const L of uniq([from, Math.round((from + g.band[1]) / 2), g.band[1]])) {
+        out.push(cellOf({ ground: g.id, party: [s], level: L, hours: H(2), seeds: 2, x: 'LAD' }));
+      }
+    }
+    return out;
+  }
+  if (name === 'pace' || name === 'pacebounds') {
+    /* THE LEVEL PACE (balance layer 1, tools/balance-sim/pace.mjs): every solo style's life from Level 1 to the last
+       ground's top, where the game recommends, as built (the reference: the median style); 15-minute chunks while
+       Levels come in minutes. 'pacebounds' adds the bounds the reference is not: the full box (density 8) and a party
+       of four own heroes. */
+    const top = Math.max(...G.map((g) => g.band[1]));
+    const life = { kind: 'career', startLevel: 1, targetLevel: top, maxHours: pick(500, 800), chunkH: 1, chunkByLevel: [[1, 0.25], [10, 1]], seed: 0 };
+    if (name === 'pace') for (const s of SOLO_STYLES) out.push({ ...life, id: 'P:pace:' + s + ':s0', party: [s] });
+    if (name === 'pacebounds') {
+      for (const s of ['tank', 'hammer', 'bow', 'mage']) out.push({ ...life, id: 'P:box:' + s + ':s0', party: [s], density: 8 });
+      out.push({ ...life, id: 'P:four:s0', party: PARTIES.four });
+    }
+    return out;
+  }
   if (name === 'whatif') {
     /* THE CANDIDATE CHANGES, in the sim only (worker.mjs applies a job's `whatIf` to the engine's own rows and restores
        them after): each reference cell is played as today (`x=W0`) and under each candidate on the same dice. */

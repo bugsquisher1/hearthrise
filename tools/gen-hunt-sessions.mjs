@@ -143,7 +143,7 @@ import { PREMIUM_LOGIN_REWARD } from '../src/data/premium.js';
 import { WORLD_VERSION, SHAPE, FIELDS as WORLD_FIELDS } from '../src/core/hunt/world-state.js';
 import { vendorPriceOf } from '../supabase/functions/hr-accrue/catalogue.js';
 import { COMBAT_BALANCE } from '../src/core/combat.js';
-import { LEVEL_CURVE, SKILL_CURVE, VITALS, ARMOUR_SLOTS, COMBAT_XP, PRAYER_REGEN } from '../src/data/core-model.js';
+import { SKILL_CURVE, VITALS, ARMOUR_SLOTS, COMBAT_XP, PRAYER_REGEN } from '../src/data/core-model.js';
 import { isMain } from '../tests/_is-main.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -172,8 +172,12 @@ export const WORLD_FIELDS_READ = Object.freeze({
    rune a family, each spell's family rune, Rend / Frost Lance on; the SUPPORT lane, the role keys' disciplines and shield
    arms (hr_hunt_weapon_roles), the shields (hr_hunt_shields) and hr_hunt_roles retired; the 1 g store shot. ONE forward
    file ON TOP of the APPLIED 12-20 one (the staged 12-21, 12-22 and 12-24 files collapsed into it, never applied), applied
-   after 2027-01-13-items-catalogue (hr_items first) and right before 2027-01-13-spell-content.sql. */
-export const OUT_NAME = '2027-01-13-hunt-sessions-catalogue.generated.sql';
+   after 2027-01-13-items-catalogue (hr_items first) and right before 2027-01-13-spell-content.sql. That file is history
+   (APPLIED 2026-10-24 with v0.2.42). THE LEVEL CURVE'S OWN ROWS (lane/b-level-curve, 2026-10-27): the Level curve leaves
+   hr_hunt_limits (level_quartic / level_cubic / level_linear) for its own table, hr_level_curve
+   (tools/gen-level-curve.mjs), so the next forward file carries every table unchanged but those three rows, applied
+   right AFTER 2027-01-31-level-curve.generated.sql (which moves the curve functions off them first). */
+export const OUT_NAME = '2027-01-31-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -343,12 +347,12 @@ export function catalogueRows(src = {}) {
        (hunt-roles.js `basic`, lane b-spell-core), the magic bound's top. The basic spends the same pool. */
     magic_xp_mult_max: Math.max(1000, ...Object.values(S.abilities).map((a) => a.magicXpMult || 0),
       ...Object.values(S.roles).map((r) => (r.basic && r.basic.magicXpMult) || 0)),
-    /* THE CORE MODEL (src/data/core-model.js; CORE_MODEL.md): the curves and the
-       vitals the server derives Level, skill levels, max HP / mana and the regen
-       rate from (hr_char_level, hr_skill_level, hr_vitals_of), and the combat XP
-       rates the value bound prices. One source; tests/core-curves.mjs pins the
-       SQL twins to src/core/xp.js and src/core/vitals.js. */
-    level_quartic: LEVEL_CURVE.quartic, level_cubic: LEVEL_CURVE.cubic, level_linear: LEVEL_CURVE.linear,
+    /* THE CORE MODEL (src/data/core-model.js; CORE_MODEL.md): the skill curve and the
+       vitals the server derives skill levels, max HP / mana and the regen rate from
+       (hr_skill_level, hr_vitals_of), and the combat XP rates the value bound prices.
+       One source; tests/core-curves.mjs pins the SQL twins to src/core/xp.js and
+       src/core/vitals.js. The Level curve has its own rows (hr_level_curve,
+       tools/gen-level-curve.mjs) since lane/b-level-curve. */
     skill_base: SKILL_CURVE.base, skill_growth_permille: SKILL_CURVE.growthPermille,
     hp_base: VITALS.hpBase, hp_per_level: VITALS.hpPerLevel, mana_base: VITALS.manaBase, mana_per_level: VITALS.manaPerLevel,
     heavy_hp_permille: VITALS.heavyHpPermille, light_mana_permille: VITALS.lightManaPermille, armour_slots: ARMOUR_SLOTS.length,
@@ -566,10 +570,16 @@ export function render(src) {
 --   ${r.vendor.length} vendor values, ${r.basics.length} store supplies paid per use, ${r.targets.length} target modes,
 --   ${r.lanes.length} lanes, ${r.abilities.length} abilities, ${r.setOptions.length} action-set options, ${r.grounds.length} hunt grounds
 --
--- SUPERSEDES 2026-12-20-hunt-sessions-catalogue.generated.sql (APPLIED with v0.2.37,
--- history: never regenerated): every table below is rewritten wholesale. The staged
--- 12-21, 12-22 and 12-24 files of the spell lanes were never applied and are folded in.
--- NEW SINCE 12-20 (the spell release, Tyler + designer 2026-10-23): the store's Plain
+-- SUPERSEDES 2027-01-13-hunt-sessions-catalogue.generated.sql (APPLIED 2026-10-24 with
+-- v0.2.42, history: never regenerated): every table below is rewritten wholesale.
+-- NEW SINCE 01-13 (lane/b-level-curve, 2026-10-27): hr_hunt_limits loses level_quartic,
+-- level_cubic and level_linear; the Level curve is hr_level_curve
+-- (2027-01-31-level-curve.generated.sql), and nothing else changes. ORDER: right AFTER
+-- 2027-01-31-level-curve.generated.sql (the precondition below refuses this file while a
+-- curve function still reads the three rows: with them gone, the old bodies would read
+-- a curve of 0 XP a Level). Carried from 01-13, which superseded 12-20 (APPLIED with
+-- v0.2.37) and folded in the staged 12-21, 12-22 and 12-24 files of the spell lanes:
+-- THE SPELL RELEASE (Tyler + designer 2026-10-23): the store's Plain
 -- Iron Arrows and the 1 g store shot (hr_hunt_basic_supplies); the eat-at / drink-at
 -- options (hr_hunt_set_options) and their threshold limits RETIRED (a slot's own
 -- conditions); the casters' mana basic in the magic bound (magic_xp_mult_max); the
@@ -622,6 +632,10 @@ begin
               and p.proname in ('hr_hunt_member_read', 'hr_hunt_settle_session')
               and (p.prosrc like '%q.tiers%' or p.prosrc like '%b.tiers%' or p.prosrc like '%v_tier%')) then
     raise exception 'PRECONDITION: apply 2026-11-07-store-by-slot.sql first (a hunt body still reads the store tier)'; end if;
+  if exists (select 1 from pg_proc p where p.pronamespace = 'public'::regnamespace
+              and p.proname in ('hr_char_level', 'hr_char_xp_for_level') and p.prosrc like '%level_quartic%')
+     or to_regclass('public.hr_level_curve') is null then
+    raise exception 'PRECONDITION: apply 2027-01-31-level-curve.generated.sql first (a Level curve function still reads hr_hunt_limits)'; end if;
 end $$;
 --
 -- Server-only: RLS on, NO policy, no client grant (the client reads src/data).
@@ -962,9 +976,11 @@ begin
   -- ONE consumable lane, at the data file's ms (the food-lane ruling, spec §3.4 #3).
   if (select ms from public.hr_hunt_lanes where lane = 'consumable') is distinct from ${r.lanes.find((x) => x.l === 'consumable').ms} then
     raise exception 'the consumable lane is not consumables.js laneMs'; end if;
-  -- Premium may never rest less than free; the core model's curves are live (a Level and a skill both start at 0 XP).
+  -- Premium may never rest less than free; the core model's curves are live (a Level and a skill both start at 0 XP:
+  -- the Level curve's own rows, hr_level_curve, and the skill curve's base).
   if public.hr_hunt_limit('stamina_premium_min') < public.hr_hunt_limit('stamina_free_min')
-     or coalesce(public.hr_hunt_limit('level_cubic'), 0) <= 0 or coalesce(public.hr_hunt_limit('skill_base'), 0) <= 0
+     or public.hr_hunt_limit('level_cubic') is not null
+     or coalesce(public.hr_char_xp_for_level(2), 0) <= 0 or coalesce(public.hr_hunt_limit('skill_base'), 0) <= 0
      or coalesce(public.hr_hunt_limit('armour_slots'), 0) <= 0 then
     raise exception 'the stamina caps or the core model rows are malformed'; end if;
   -- Every supply, vendor value, ability rune and login reward is a catalogued item;

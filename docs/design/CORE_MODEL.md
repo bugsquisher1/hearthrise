@@ -19,8 +19,13 @@ Deleted ids: `attack`, `strength`, `hitpoints`. Level is a column, never a `play
 from the pacing dial (`pacing.js PACE_EXEMPT_SKILLS`): the curves were fitted to the XP as paid.
 
 ## 2. Curves (`src/core/xp.js`; SQL `hr_char_xp_for_level`, `hr_char_level`, `hr_skill_xp_for_level`, `hr_skill_level`)
-- **Level**: total XP to reach L = `(L-1)^4 + 20 (L-1)^3 + 50 (L-1)` (`LEVEL_CURVE`), endless. L5 1,736; L10 21,591; L200 1,725,861,131.
-  Guard (`tests/level-curve.mjs`): at `2,900 x L` Level XP an hour, L10 in 0.75-2 h (1.12) and L200 in 3,800-4,200 h (4,017).
+- **Level** (balance layer 1, lane/b-level-curve 2026-10-27, to Tyler's 10-25 pace): PACE BRACKETS (`LEVEL_CURVE`). From a
+  bracket's start Level the step to the next Level costs `first + rise m + bend m^2` (m Levels into it), each bracket starting
+  where the one before would have gone next; the last runs forever. SQL reads the generated `hr_level_curve` rows
+  (`tools/gen-level-curve.mjs`). {XPLINE}
+  Guard (`tests/level-curve.mjs`): every `LEVEL_PACE` target within 10% on the balance simulator's committed measurement
+  (`tools/balance-sim/level-pace.json`: a lone hero of each style hunting where the game recommends, to L50; past it
+  `LEVEL_PACE.contract`, what a new ground must pay). {HOURLINE}
 - **Combat skills**: XP to advance s -> s+1 = `15 x s^2 x 1.04^(s-1)` (`SKILL_CURVE`), exact integers (BigInt walk), no cap;
   SQL reads the generated `hr_skill_curve` table. Gather/artisan keep the capped 99 table (`isCapped`, `skillCapOf`).
 - Parity: `tests/core-curves.mjs` compares JS and SQL on 5,300 boundary values (curves, vitals, regen, monster levels).

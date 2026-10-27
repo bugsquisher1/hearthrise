@@ -45,6 +45,8 @@ import { ROOT, UID, serve, SDK_STUB } from './_client-harness.mjs';
 import { harnessFail, judge, report, exitOf, cleanControl } from './_mutant-verdict.mjs';
 
 const FIXTURE = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/alpha-envelope.json'), 'utf8'));
+/* Level totals on the shipped curve (src/core/xp.js), never typed: the curve is data (lane/b-level-curve). */
+const { charXpForLevel } = await import(pathToFileURL(join(ROOT, 'src/core/xp.js')).href);
 const clone = (o) => JSON.parse(JSON.stringify(o));
 const wait = (page, fn, arg, ms = 8000) => page.waitForFunction(fn, arg, { timeout: ms }).then(() => true, () => false);
 
@@ -52,8 +54,8 @@ const wait = (page, fn, arg, ms = 8000) => page.waitForFunction(fn, arg, { timeo
 const COMBAT = { role: 'melee_dps', weapon_type: 'sword', max_mana: 60, move_speed: 3200, damage: { min: 1, max: 17 },
   accuracy_pct: 74.5, crit_pct: 4.5, defence: 23, dodge_pct: 12.5, absorb_pct: 31, ward: 4, regen_pct: 101.9, set: null, xp: { perks: 0.02, buffs: 0, combat: 0 } };
 function withSections(env, o = {}) {
-  /* The Level is read off state.level_xp on the shared curve (321,000 = Level 21, CORE_MODEL.md §2). */
-  env.state = Object.assign({}, env.state, { level_xp: 321000 });
+  /* The Level is read off state.level_xp on the shared curve (Level 21's total, CORE_MODEL.md §2). */
+  env.state = Object.assign({}, env.state, { level_xp: charXpForLevel(21) });
   env.character_sheet = { level: 21, max_hp: 24, bestiary: { slain: 7, total: 119 }, fresh: o.fresh !== false,
     combat: o.fresh === false ? null : Object.assign(clone(COMBAT), o.combat || {}), computed_at: '2026-10-18T10:00:00Z' };
   if (o.dropMana && env.character_sheet.combat) delete env.character_sheet.combat.max_mana;
@@ -285,7 +287,7 @@ async function checks(overrides, shots) {
         });
         await same('in a hunt', '21');
         /* A frame (the whole character, 2026-12-25-frame-push-revive.sql) with a new Level XP: both read the server's Level. */
-        s.env.state = Object.assign({}, s.env.state, { level_xp: 450000 });
+        s.env.state = Object.assign({}, s.env.state, { level_xp: charXpForLevel(23) + 1684 });
         await push(page, s);
         await same('after a pushed frame', '23');
         /* Back in town: the character's own vitals on both. */

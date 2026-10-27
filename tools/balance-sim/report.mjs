@@ -34,9 +34,11 @@ const { BLESSING_TIERS, blessingPrice } = await import(u('src/data/blessings.js'
 const { LEVEL_CURVE } = await import(u('src/data/core-model.js'));
 
 const rows = existsSync(join(IN, 'cells.jsonl')) ? readFileSync(join(IN, 'cells.jsonl'), 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)) : [];
-const careers = rows.filter((r) => r.kind === 'career');
+/* the reference lives as built; a full-box life (density 8: plan pacebounds' box, or the older career8 run) is a bound */
+const careers = rows.filter((r) => r.kind === 'career' && !Number.isInteger(r.density));
+const boxCareers = rows.filter((r) => r.kind === 'career' && Number.isInteger(r.density));
 const cells = rows.filter((r) => r.kind !== 'career' && r.heroes);
-const stage = (c) => ((c.id.match(/x=(S\d)/) || [])[1] || (c.id.includes('x=cost') ? 'cost' : 'S?'));
+const stage = (c) => ((c.id.match(/x=(S\d|LAD)/) || [])[1] || (c.id.includes('x=cost') ? 'cost' : 'S?'));
 const styleKey = (c) => c.cell.party.join('+');
 const dens = (c) => (Number.isInteger(c.cell.density) ? c.cell.density : 0);
 const variant = (c) => (c.cell.gear ? JSON.stringify(c.cell.gear) : '') + (c.cell.bar ? JSON.stringify(c.cell.bar) : '') + (c.cell.supply ? 'supply:' + c.cell.supply : '');
@@ -84,8 +86,8 @@ function fitPower(pts) {
 }
 
 const dXp = (curve, L) => curve(L + 1) - curve(L);
-const curveOf = (q, c, s, l) => (L) => { const n = L - 1; return q * n ** 4 + c * n ** 3 + s * n ** 2 + l * n; };
-const TODAY = curveOf(LEVEL_CURVE.quartic, LEVEL_CURVE.cubic, 0, LEVEL_CURVE.linear);
+/* the shipped Level curve (src/core/xp.js over LEVEL_CURVE's pace brackets) */
+const TODAY = (L) => XP.charXpForLevel(L);
 /* hours from Level 1 to each milestone on `curve` at xp/h `rate(L)` */
 function hoursTable(curve, rate) {
   const out = {};
@@ -129,39 +131,18 @@ function levelHours() {
   return per;
 }
 
-/* ── 2. THE PROPOSED LEVEL CURVE: XP per Level = the ruling's hours for that Level x the measured (then extrapolated) rate ── */
+/* ── 2. THE LEVEL CURVE against the ruling: the shipped curve's hours at the measured (then extrapolated) rate, and the
+   ideal totals (the ruling's hours for each Level x that rate). The curve itself is FITTED by tools/balance-sim/pace.mjs
+   --fit on the career measurement (plan pace: a hero's life where the game recommends), not here (lane/b-level-curve). ── */
 function proposeCurve(rate, alt) {
   const want = (L) => (targetAt(L + 1) - targetAt(L)) * rate(L);
   const cum = [0, 0];
   for (let L = 1; L <= 1000; L++) cum[L + 1] = cum[L] + want(L);
-  /* THE FIT, on the ruling's own measure (hours to each milestone). For f(L) = sum c_k (L-1)^k the hours to Level M
-     are LINEAR in the coefficients: hours(M) = sum_k c_k H_k(M), H_k(M) = sum_{l<M} (l^k - (l-1)^k) / rate(l). So the
-     search walks integer coefficients against a precomputed 9 x 4 table; the error is the squared log ratio of hours to
-     the target at each milestone. Two forms: today's (quartic, cubic, linear: the engine and its generated SQL limits
-     carry exactly these) and one with a quadratic term (a code change in src/core/xp.js and its SQL twin). */
-  const H = MILESTONES.map((M) => { const row = [0, 0, 0, 0, 0]; for (let l = 1; l < M; l++) { const r = Math.max(1, rate(l)); for (let k = 1; k <= 4; k++) row[k] += (l ** k - (l - 1) ** k) / r; } return row; });
-  const T = MILESTONES.map((M) => targetAt(M));
-  const err = (c, upTo = Infinity) => { let e = 0; for (let i = 0; i < H.length && MILESTONES[i] <= upTo; i++) { const h = c[1] * H[i][1] + c[2] * H[i][2] + c[3] * H[i][3] + c[4] * H[i][4]; if (!(h > 0)) return Infinity; const t = Math.log(h / T[i]); e += t * t; } return e; };
-  let best3 = { e: Infinity }, best4 = { e: Infinity };
-  for (let q = 0; q <= 2; q++) for (let c = 0; c <= 400; c++) for (let l = 0; l <= 20000; l += 100) { const e = err([0, l, 0, c, q]); if (e < best3.e) best3 = { e, q, c, s: 0, l }; }
-  for (let c = 0; c <= 300; c++) for (let sq = 0; sq <= 6000; sq += 25) for (let l = 0; l <= 20000; l += 200) { const e = err([0, l, sq, c, 0]); if (e < best4.e) best4 = { e, q: 0, c, s: sq, l }; }
-  /* refine the four-term fit one step around its grid point */
-  for (let c = Math.max(0, best4.c - 2); c <= best4.c + 2; c++) for (let sq = Math.max(0, best4.s - 25); sq <= best4.s + 25; sq++) for (let l = Math.max(0, best4.l - 200); l <= best4.l + 200; l += 10) {
-    const e = err([0, l, sq, c, 0]); if (e < best4.e) best4 = { e, q: 0, c, s: sq, l };
-  }
-  /* THE NEAR TERM: the same four-term form fitted only to Levels 10-300 (the years a player meets first; past 300
-     the reference rate is all extrapolation) */
-  let near = { e: Infinity };
-  for (let c = 0; c <= 300; c++) for (let sq = 0; sq <= 8000; sq += 25) for (let l = 0; l <= 30000; l += 250) { const e = err([0, l, sq, c, 0], 300); if (e < near.e) near = { e, q: 0, c, s: sq, l }; }
   const table = (f, r) => Object.fromEntries(MILESTONES.map((L) => [L, round(hoursTable(f, r || rate)[L], 0)]));
   const both = (f) => ({ hours: table(f), ...Object.fromEntries(Object.entries(alt || {}).filter(([, r]) => r).map(([k, r]) => ['hoursAt_' + k, table(f, r)])) });
-  const f3 = curveOf(best3.q, best3.c, 0, best3.l), f4 = curveOf(0, best4.c, best4.s, best4.l), fn = curveOf(0, near.c, near.s, near.l);
   const xpAt = (f) => Object.fromEntries(MILESTONES.map((L) => [L, f(L)]));
   return { ideal: Object.fromEntries(MILESTONES.map((L) => [L, Math.round(cum[L])])),
-    threeTerm: { coeffs: { quartic: best3.q, cubic: best3.c, linear: best3.l }, logError: round(best3.e, 3), totalXp: xpAt(f3), ...both(f3) },
-    withQuadratic: { coeffs: { cubic: best4.c, quadratic: best4.s, linear: best4.l }, logError: round(best4.e, 3), totalXp: xpAt(f4), ...both(f4) },
-    nearTerm: { coeffs: { cubic: near.c, quadratic: near.s, linear: near.l }, fittedTo: 300, logError: round(near.e, 3), totalXp: xpAt(fn), ...both(fn) },
-    today: { coeffs: LEVEL_CURVE, totalXp: xpAt(TODAY), ...both(TODAY) },
+    today: { coeffs: LEVEL_CURVE, totalXp: xpAt(TODAY), ...both(TODAY) }, fittedBy: 'tools/balance-sim/pace.mjs --fit',
     target: Object.fromEntries(MILESTONES.map((L) => [L, round(targetAt(L), 0)])) };
 }
 
@@ -482,9 +463,9 @@ summary.proposedGuard = {
   baseline: 'tools/balance-sim/baseline-summary.json (re-written by report.mjs; a deliberate balance change re-pins it in the same commit, like ci-shape --write)',
 };
 const c8 = join(HERE, 'out', 'career8', 'cells.jsonl');
-summary.careersFullBox = existsSync(c8) ? readFileSync(c8, 'utf8').split(String.fromCharCode(10)).filter(Boolean).map((l) => JSON.parse(l)).filter((r) => r.kind === 'career')
+summary.careersFullBox = (boxCareers.length ? boxCareers : existsSync(c8) ? readFileSync(c8, 'utf8').split(String.fromCharCode(10)).filter(Boolean).map((l) => JSON.parse(l)).filter((r) => r.kind === 'career') : [])
   .map((c) => ({ id: c.id, hours: c.hours, reached: c.reached, hoursTo: Object.fromEntries([10, 25, 50].map((L) => [L, c.milestones['0:' + L] ?? null])),
-    deaths: c.trace.reduce((t, x) => t + x.deaths.reduce((a, b) => a + b, 0), 0), grounds: [...new Set(c.trace.map((t) => t.ground))] })) : [];
+    deaths: c.trace.reduce((t, x) => t + x.deaths.reduce((a, b) => a + b, 0), 0), grounds: [...new Set(c.trace.map((t) => t.ground))] }));
 const dash = { schema: 'hearthrise.balance-dashboard/1', generated: summary.meta.generated, commit: summary.meta.commit,
   dims: { ground: [...new Set(cells.map((c) => c.ground))], style: [...new Set(cells.flatMap((c) => c.cell.party))], party: [...new Set(cells.map(styleKey))],
     level: [...new Set(cells.map((c) => c.cell.level))].sort((a, b) => a - b), density: [...new Set(cells.map(dens))].sort((a, b) => a - b), stage: [...new Set(cells.map(stage))].sort() },

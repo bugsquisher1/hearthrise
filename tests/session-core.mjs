@@ -109,6 +109,7 @@ async function load(base) {
     I: await import(u('src/session/item-sections.js')),
     FI: await import(u('src/session/farm-intents.js')),
     FS: await import(u('src/session/farm-sections.js')),
+    XP: await import(u('src/core/xp.js')),
   };
 }
 
@@ -157,7 +158,7 @@ const timers = { setTimer: () => 0, clearTimer: () => {} };
 async function rules(M) {
   const fails = [];
   const t = async (id, fn) => { try { const r = await fn(); if (r !== true) fails.push(id + ': ' + r); } catch (e) { fails.push(harnessFail(id, e)); } };
-  const { E, R, C, A, S, AU, NB, AR, SI, CFG, TP, I, FI, FS } = M;
+  const { E, R, C, A, S, AU, NB, AR, SI, CFG, TP, I, FI, FS, XP } = M;
 
   await t('ENV-1', () => {
     const a = E.applyEnvelope(null, env(3, { skills: { mining: 5 }, buffs: [1] })).record;
@@ -1007,9 +1008,9 @@ async function rules(M) {
     return true;
   });
   await t('ACC-2', async () => {
-    /* each hero by its server name and its Level from the server's Level XP (21,591 = Level 10, CORE_MODEL.md §2) */
+    /* each hero by its server name and its Level from the server's Level XP (Level 10's total on the shipped curve) */
     /* gold is the ACCOUNT purse each hero's answer states, with the wallet version it was read at (goldV) */
-    const srv = fakeServer({ 0: env(1, { hero_slots: [0, 2, 3, 99, -1, 'x'], name: 'Tester', state: { gold: 1, gold_v: 4, level_xp: 21591 } }), 2: env(1),
+    const srv = fakeServer({ 0: env(1, { hero_slots: [0, 2, 3, 99, -1, 'x'], name: 'Tester', state: { gold: 1, gold_v: 4, level_xp: XP.charXpForLevel(10) } }), 2: env(1),
       3: { ok: false, error: 'needs_name', hero_slots: [0, 2, 3] } });
     const acc = mkAccount(srv);
     const r = await acc.roster();

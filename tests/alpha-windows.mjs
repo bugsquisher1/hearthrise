@@ -186,6 +186,7 @@ const HUNTS = (await import(pathToFileURL(join(ROOT, 'src/data/hunts.js')).href)
 /* The Cellar's one gear line, alone, as the page must print it (its math is checked from the rows in huntsPure). */
 /* The Level XP a hero at Level 30 holds (src/core/xp.js): gear is worn by the hero's Level (Tyler 2026-10-24). */
 const LEVEL_30_XP = (await import(pathToFileURL(join(ROOT, 'src/core/xp.js')).href)).charXpForLevel(30);
+const LEVEL_5_XP = (await import(pathToFileURL(join(ROOT, 'src/core/xp.js')).href)).charXpForLevel(5);
 const CELLAR_ODDS = (await import(pathToFileURL(join(ROOT, 'src/render/format.js')).href)).chance(
   (await import(pathToFileURL(join(ROOT, 'src/shell/hunt-ground-facts.js')).href)).scarceSetOf('mill_cellar', 'medium', 1)[0].chance);
 /* A Level 1 hero in town (no hunt, no party, no bests yet), 30 min of stamina, two setups the server can put
@@ -1416,7 +1417,7 @@ async function checks(overrides, shots) {
         'bat_wing', 'night_fang', 'oak_log', 'iron_ore', 'spider_eye', 'bear_claw', 'dire_fang', 'alpha_fang', 'willow_log', 'troll_hide', 'iron_bar',
         'steel_bar', 'hell_ember', 'dark_sigil', 'brute_plate', 'cracked_spellstone'];
       const back5 = (e) => {
-        e.state = Object.assign({}, e.state, { level_xp: 1736 });
+        e.state = Object.assign({}, e.state, { level_xp: LEVEL_5_XP });
         e.skills = Object.assign({}, e.skills, { farming: { xp: 28, level: 1, frac: 0 } });
         for (const id of ['bronze_sword', 'steel_sword', 'iron_helm', 'iron_platebody', 'shortbow']) delete e.inventory[id];
         for (const id of MORE) { e.inventory[id] = 3; e.shop.bids[id] = 2; }

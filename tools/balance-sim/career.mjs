@@ -16,6 +16,8 @@ const COMBAT = ['melee', 'ranged', 'magic', 'defense', 'prayer'];
 /**
  * job = { id, party: [style], startLevel (1), targetLevel, maxHours, chunkH (1), density (null = as built),
  *         seed (0), root (the repo, for the recommendation module) } -> the career's trace and milestones.
+ * `chunkByLevel` [[fromLevel, hours], ...] (ascending) overrides chunkH by the party's lowest Level: short chunks
+ * while Levels come in minutes (the first hour), so each Level's XP an hour is read on the ground it was earned on.
  */
 export function runCareer(R, job) {
   const XP = R.XP;
@@ -26,9 +28,14 @@ export function runCareer(R, job) {
   const milestones = {};
   let hours = 0, chunk = 0;
   const lv = (s) => XP.charLevelFromXp(s.levelXp);
-  const chunkH = job.chunkH || 1;
+  const chunkOf = (L) => {
+    let h = job.chunkH || 1;
+    for (const [from, ch] of job.chunkByLevel || []) if (L >= from) h = ch;
+    return h;
+  };
   while (hours < job.maxHours && Math.min(...seats.map(lv)) < job.targetLevel) {
     const levels = seats.map(lv);
+    const chunkH = chunkOf(Math.min(...levels));
     const ground = job.ground || rec(levels, n);
     const cell = { id: job.id + ':' + chunk, ground, party: job.party, startBySeat: seats.map((s) => ({ levelXp: s.levelXp, skills: { ...s.skills } })),
       hours: chunkH, seeds: 1, seedBase: (job.seed || 0) * 100000 + chunk, segmentH: chunkH, windowMs: 600000,
@@ -58,6 +65,6 @@ export function runCareer(R, job) {
       skills: seats.map((s) => Object.fromEntries(COMBAT.map((k) => [k, XP.skillLevelFromXp(k, s.skills[k] || 0)]))) });
     chunk++;
   }
-  return { id: job.id, kind: 'career', party: job.party, startLevel: job.startLevel || 1, targetLevel: job.targetLevel, hours: Math.round(hours * 100) / 100,
+  return { id: job.id, kind: 'career', party: job.party, ...(Number.isInteger(job.density) ? { density: job.density } : {}), startLevel: job.startLevel || 1, targetLevel: job.targetLevel, hours: Math.round(hours * 100) / 100,
     reached: seats.map(lv), milestones, trace };
 }

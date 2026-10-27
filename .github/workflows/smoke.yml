@@ -3366,9 +3366,10 @@ jobs:
       # THE CORE MODEL (docs/design/CORE_MODEL.md, 2026-10-19): the Level curve, the
       # combat skills' uncapped curve, max HP / mana, Prayer's regen and monster levels
       # agree in JS and SQL on every boundary (core-curves, PGlite replay); the Level
-      # curve stays inside the designer's hours (level-curve); a buried bone pays
-      # exactly its Prayer XP through the real edge accrual (bury-rate). Each carries
-      # its own --selftest / --mutate proof.
+      # curve keeps Tyler's 10-25 pace on the simulator's committed measurement
+      # (level-curve) and its server rows are generated from the data (gen-level-curve);
+      # a buried bone pays exactly its Prayer XP through the real edge accrual
+      # (bury-rate). Each carries its own --selftest / --mutate proof.
       - name: Core model — curves JS = SQL, Level hours, bury rate
         if: ${{ !cancelled() }}
         run: |
@@ -3376,6 +3377,8 @@ jobs:
           node tools/mutant-gate.mjs node tests/core-curves.mjs --selftest
           node tests/level-curve.mjs
           node tools/mutant-gate.mjs node tests/level-curve.mjs --selftest
+          node tools/gen-level-curve.mjs --check
+          node tools/mutant-gate.mjs node tools/gen-level-curve.mjs --selftest
           node tests/bury-rate.mjs
           node tools/mutant-gate.mjs node tests/bury-rate.mjs --mutate
       # THE ENVELOPE CONTRACT (2026-10-18; two server-vs-client shape mismatches in a

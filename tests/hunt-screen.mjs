@@ -116,6 +116,9 @@ import { ROOT, UID, serve, SDK_STUB } from './_client-harness.mjs';
 import { pathToFileURL } from 'node:url';
 import { scopeMutants, gateScope, planShards, checkShards } from '../tools/lib/mutant-scope.mjs';
 import { judge, report, exitOf, cleanControl } from './_mutant-verdict.mjs';
+/* Level totals on the shipped curve (src/core/xp.js), never typed: the curve is data (lane/b-level-curve). */
+const { charXpForLevel } = await import(pathToFileURL(join(ROOT, 'src/core/xp.js')).href);
+const xpInto = (L, share) => charXpForLevel(L) + Math.ceil(share * (charXpForLevel(L + 1) - charXpForLevel(L)));
 
 const FIXTURE = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/hunt-envelope.json'), 'utf8'));
 /* The scene and its log play huntPlaybackDelayMs behind the server (src/session/config.js): the fixture's
@@ -429,9 +432,9 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         s.env.party.members[0].hp = 90;
         s.env.hunt.hero.hp = 90;
         s.env.hunt_analyzer.hero.kills = 170;
-        /* The Level is the server's Level XP (r09: the hub and the Character tab read one field): 577,109 is
-           Level 24 and 62% of the way to 25 on the shared curve, the hunt hero's level and xp_pct. */
-        s.env.state = Object.assign({}, s.env.state, { level_xp: 577109 });
+        /* The Level is the server's Level XP (r09: the hub and the Character tab read one field): Level 24 and
+           62% of the way to 25 on the shared curve, the hunt hero's level and xp_pct. */
+        s.env.state = Object.assign({}, s.env.state, { level_xp: xpInto(24, 0.62) });
         /* Its re-read answers 600 ms late, as on a slow runner: GitHub run 39640048955 (in-page-5, clean control)
            read these numbers 200 ms after the re-read was ASKED and saw kills 164, hp 180/220. pushEnvelope now
            waits until the page has parsed the answer, so the slow answer must still be read whole. */
@@ -459,7 +462,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         if (h1.gauges) fails.push('HS-18 the old flat gauges are still on the bar');
         /* A melee hero the server sends no mana pool still shows its mana gauge (every hero has mana). */
         Object.assign(s.env.hunt.hero, { mana: 0, mana_max: 0, level: 25, xp_pct: 0.05, hp: 220, regen_pm: 1000, mana_regen: 18 });
-        s.env.state = Object.assign({}, s.env.state, { level_xp: 614202 });   // Level 25, 5% on
+        s.env.state = Object.assign({}, s.env.state, { level_xp: xpInto(25, 0.05) });   // Level 25, 5% on
         s.env.party.members[0].hp = 220;
         await pushEnvelope(page, s);
         const h2 = await hub();

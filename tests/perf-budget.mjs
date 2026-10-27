@@ -29,6 +29,10 @@
 //   analyzer       patches per minute, its session clock against the hunt's real elapsed time (behind by,
 //                  and how often it ran backwards), and the longest its kill count stood still while hunting
 //   the run-away   the second hero's drawn path from the death on: how far it walks, and for how long
+//   the ground     PB-HELD (main run 40417203016): every map's ground (compose.js groundOf; the town's is 22k dual
+//                  tiles) is made once, in a task of its own: never inside a frame, never twice for one map
+//   what held it   each frame the page held over 50 ms is printed with its Long Animation Frame (entry point,
+//                  script ms, forced layout, render) and the probes' clocks inside it, so a red names its cause
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';

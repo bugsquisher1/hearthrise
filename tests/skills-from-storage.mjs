@@ -138,6 +138,9 @@ async function run(mutant) {
   }
   const { db } = await bootReplay({ patches: sqlM ? new Map([[MIG, [[sqlM.find, sqlM.repl], ...GATE_BLIND]]]) : undefined, upTo: MIG });
   try {
+    /* the chain stops at MIG, before Inner Flame replaced Prayer (2027-01-31): the catalogue under today's names, so
+       the envelope carries the inner_flame key today's client reads (SS-4's Fuel all); see the file */
+    await db.exec(await readFile(join(ROOT, 'tests/fixtures/inner-flame-slice-shim.sql'), 'utf8'));
     if (mutant === 'apply_after_purse') await plantAfterPurse(db);
     const mod = (f) => import(pathToFileURL(join(base, f)).href);
     const SA = await mod('supabase/functions/hr-accrue/set-activity.js');

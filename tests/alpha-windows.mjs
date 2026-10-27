@@ -1249,11 +1249,13 @@ async function checks(overrides, shots) {
         if (!drawn || p.mons.some((m) => !m.drawn || !m.w || m.w % 2 || m.h % 2 || Math.abs(m.cw - m.w) > 0.5 || Math.abs(m.ch - m.h) > 0.5)) fails.push('AW-25 the creatures are not drawn at x2 from the world art: ' + JSON.stringify(p.mons));
         if (new Set(p.mons.map((m) => m.ground)).size !== 1 || p.mons.some((m) => !m.inside)) fails.push('AW-25 the creatures do not stand on one ground line, inside it: ' + JSON.stringify(p.mons.map((m) => [m.ground, m.inside])));
         const mons = p.mons.map((m) => m.id + ':' + m.how + (m.carrier ? ':carrier' : '')).join('|');
-        if (p.name !== 'Mill Cellar' || p.theme !== HUNTS.mill_cellar.theme || mons !== 'rat:Level 2 · common|slime:Level 2 · uncommon|hive_wasp:Level 4 · uncommon')
+        if (p.name !== 'Mill Cellar' || p.theme !== HUNTS.mill_cellar.theme || mons !== 'rat:Level 2 · common|slime:Level 2 · uncommon|hive_wasp:Level 4 · uncommon:carrier')
           fails.push('AW-25 the Mill Cellar page reads ' + JSON.stringify({ name: p.name, theme: p.theme, mons }));
-        /* the fixture hero wears Leather Boots, so the medium line reads first; the Cellar has no Rare, so no Rare heading */
+        /* the fixture hero wears Leather Boots, so the medium line reads first; the Cellar's one Rare is the Hive Wasp's
+           Queen's Comb (the Great Hearth's named fuel, src/data/hearth.js), so the wasp carries and the Rare heading shows */
         /* each line with its chance per kill, alone (the engine's rows: the pure AW-25 works the math from them) */
-        if (p.sets.join('|') !== 'Leather, Bronze, Apprentice: helmets · ' + CELLAR_ODDS || p.per !== 'chance per kill, hunting alone' || p.rares.length || p.raresShown)
+        if (p.sets.join('|') !== 'Leather, Bronze, Apprentice: helmets · ' + CELLAR_ODDS || p.per !== 'chance per kill, hunting alone'
+          || p.rares.join('|') !== "Queen's Comb / Hive Wasp" || !p.raresShown)
           fails.push('AW-25 the Cellar\'s drops read ' + JSON.stringify([p.sets, p.per, p.rares, p.raresShown]));
         if (p.bests.join('|') !== 'Not hunted yet. A hunt of 10 min or more sets your best.') fails.push('AW-25 with no best the page reads ' + JSON.stringify(p.bests));
         if (shots) await shot(page, 'hunts-1440x900-cellar-level1');

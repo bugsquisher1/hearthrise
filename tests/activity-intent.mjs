@@ -99,6 +99,8 @@ const EXTRA = [
      configuration — which is what production will be. */
   ['auto-eat', MIG('2026-08-15-auto-eat.sql')],
   ['tool-carry', MIG('2026-08-15-tool-carry.sql')],
+  /* Inner Flame replaced Prayer (2027-01-31): the slice's catalogue under today's names (A3d); see the file. */
+  ['inner-flame-slice-shim', join(ROOT, 'tests', 'fixtures', 'inner-flame-slice-shim.sql')],
 ];
 
 /* ── THE MUTATION CATALOGUE ─────────────────────────────────────────────────

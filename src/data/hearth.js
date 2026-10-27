@@ -22,8 +22,8 @@
 //                 flame.sql), pays a burst of Inner Flame XP and colours the Hearth's
 //                 flame for everyone in Havora for `secs` (a second named fuel queues
 //                 behind it). Rows are mirrored into the server catalogue
-//                 hr_hearth_named by tools/gen-catalogues.mjs (--check is the twin
-//                 guard); XP is authored PRE-DIAL and the generator stores what the
+//                 hr_hearth_named by tools/gen-hearth-catalogue.mjs (--check is the
+//                 twin guard); XP is authored PRE-DIAL and the generator stores what the
 //                 server PAYS (src/core/pacing.js pacedXp).
 //
 // NAMES (DESIGN_STANDARDS §2): each named fuel is a thing from its creature or
@@ -45,12 +45,13 @@ import { FLAME_FUEL } from './core-model.js?v=0.2.52';
    { item, xp (pre-dial, per item), req (Inner Flame), ms (per item, before the pacing dial), chunk (the
    world sprite thrown into the fire, atlas-common: art/world/common/fuel_*.json) }. Rung order. */
 const fuel = (item, xp, req, ms, chunk) => Object.freeze({ item, xp, req, ms, chunk });
+/* THE FAMILY FUELS: a boneless creature's bones (Tyler 10-25): slimes, insects and spiders, walking plants. Each is
+   its dropper's BONES ROW, not its own product (tests/hunt-core/drop-tables.mjs four-slots reads this list), and
+   burns on the plain bone's rung. A new family is one id here plus its item and its chunk sprite `fuel_<id>`. */
+export const FAMILY_FUELS = Object.freeze(['lamp_jelly', 'dry_husk', 'pithwood']);
 export const HEARTH_FUELS = Object.freeze([
   fuel('bones', FLAME_FUEL.recipeXp, 1, 400, 'fuel_bone'),
-  /* the family fuels: a boneless creature's bones (Tyler 10-25), the same rung */
-  fuel('lamp_jelly', FLAME_FUEL.recipeXp, 1, 400, 'fuel_lamp_jelly'),
-  fuel('dry_husk', FLAME_FUEL.recipeXp, 1, 400, 'fuel_dry_husk'),
-  fuel('pithwood', FLAME_FUEL.recipeXp, 1, 400, 'fuel_pithwood'),
+  ...FAMILY_FUELS.map((item) => fuel(item, FLAME_FUEL.recipeXp, 1, 400, 'fuel_' + item)),
   /* Big Bones paid 15, under a plain bone's 40 (the board's "15 -> retuned"): the designer's retune puts it between
      Bones and Dragon Bones (game-designer call, lane/b-inner-flame 2026-10-27) */
   fuel('big_bones', 60, 15, 1500, 'fuel_bone'),

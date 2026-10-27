@@ -6,7 +6,7 @@
 //   node tests/town-stands.mjs --load     + the synthetic load: 60 viewers reading every 2 s over 240 bodies
 //   node tests/town-stands.mjs --mutate   every planted defect in the migration must turn a rule RED
 //
-// mutant-anchors: supabase/migrations/2027-01-28-town-stands.sql, supabase/migrations/2027-01-30-havora-yards.generated.sql
+// mutant-anchors: supabase/migrations/2027-01-28-town-stands.sql, supabase/migrations/2027-01-31-town-stations.generated.sql
 //
 // supabase/migrations/2027-01-28-town-stands.sql proves its contract inside ONE
 // transaction (its §6, on every replay). This guard plays it the way the game
@@ -298,9 +298,9 @@ const MUTANTS = [
 /* ...and in the next generated catalogue (TS-4): [name, file, from, to]. A regenerated catalogue keeps these lines
    (tools/gen-town-stations.mjs writes them); a new OUT_FILE moves the file named here (the harness refuses a mismatch). */
 const NEXT_MUTANTS = [
-  ['a released worker is not noted again', 'supabase/migrations/2027-01-30-havora-yards.generated.sql',
+  ['a released worker is not noted again', 'supabase/migrations/2027-01-31-town-stations.generated.sql',
     "       where ps.active_kind in ('gather', 'artisan', 'training')", "       where false and ps.active_kind in ('gather', 'artisan', 'training')"],
-  ['a body is left on a stand the catalogue lacks', 'supabase/migrations/2027-01-30-havora-yards.generated.sql',
+  ['a body is left on a stand the catalogue lacks', 'supabase/migrations/2027-01-31-town-stations.generated.sql',
     '       where b.station_id is not null\n         and not exists', '       where false and b.station_id is not null\n         and not exists'],
 ];
 /* every mutant as [name, migration file, from, to] */

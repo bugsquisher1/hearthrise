@@ -31,6 +31,7 @@ import { WORLD_MAPS, SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.52';
 import { HUNT_INDEX } from '../data/hunts.js?v=0.2.52';
 import { MONSTERS } from '../data/monsters.js?v=0.2.52';
 import { compileMap } from './core/map-compile.js?v=0.2.52';
+import { groundOf } from './core/compose.js?v=0.2.52';
 import { createBook, STUB_SPRITE } from './core/book.js?v=0.2.52';
 import { fpsFor, MOBILE_QUERY } from './core/camera.js?v=0.2.52';
 import { heroBuilding, roofTargets, stepAlpha } from './core/roofs.js?v=0.2.52';
@@ -302,13 +303,15 @@ export async function bootWorld(panel, opts) {
     if (!needs.has(sc.map) || !sheets.ready(needs.get(sc.map)) || waiting.has(sc.map)) {
       /* A SCENE NOT YET SHOWN (a ground entered, the town after a hunt): the frame showing stays until it is
          ready, then the scene switches whole: no stub boxes, and never one map's units on another. Each heavy
-         step is a task of its own, never a frame's (tests/perf-budget.mjs PB-HELD): the sheets it draws from
-         (its whole ground made once, compose.js groundOf), then those sheets, then its ground binned. */
+         step is a task of its own, never a frame's (tests/perf-budget.mjs PB-HELD): its ground (made once,
+         compose.js groundOf), the sheets it draws from, those sheets loaded, then its ground binned. */
       if (!waiting.has(sc.map)) {
         waiting.add(sc.map);
         const id = sc.map;
         const task = (fn) => new Promise((done) => win.setTimeout(() => done(gone ? null : fn()), 0));
-        task(() => setsFor(id))
+        /* the ground first, alone (the town's is 22k dual tiles), then what the scene draws over it */
+        task(() => { const g = ROWS.get(id).grid; if (!g || g === 'base') { const m = mapOf(id); groundOf(m, book, tables, m.T || 32); } })
+          .then(() => task(() => setsFor(id)))
           .then((need) => need && sheets.ensure(need))
           .then(() => task(() => backend.prepare(mapOf(id), artOf(id) || undefined)))
           .then(() => { waiting.delete(id); if (!running) sync(); },

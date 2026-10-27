@@ -1514,12 +1514,12 @@ async function checks(overrides, shots) {
         for (const k of ['hunt', 'hunt_analyzer', 'hunt_track', 'hunt_events', 'party']) delete e[k];
         e.state = Object.assign({}, e.state, { active_kind: 'idle', active_id: null, bank_cap: 40 });
         e.bank = { oak_logs: 12, iron_bar: 3, shrimp: 2 };
-        e.inventory = Object.assign({}, e.inventory, { raw_wolf_meat: 4, raw_bear_meat: 2 });
+        e.inventory = Object.assign({}, e.inventory, { raw_wolf_meat: 4, raw_bear_meat: 2, bronze_arrows: 12000 });
       };
       const { ctx, page, errors, s, up } = await open({ mutateEnv: town });
       const shift = (from, to, id, n) => { from[id] -= n; if (!from[id]) delete from[id]; to[id] = (to[id] || 0) + n; };
       s.onCall = (name, b) => {
-        if (name === 'hr_bank_move') { if (b.p_dir === 'deposit') shift(s.env.inventory, s.env.bank, b.p_item, b.p_qty); else shift(s.env.bank, s.env.inventory, b.p_item, b.p_qty); }
+        if (name === 'hr_bank_move' && s.reply.ok !== false) { if (b.p_dir === 'deposit') shift(s.env.inventory, s.env.bank, b.p_item, b.p_qty); else shift(s.env.bank, s.env.inventory, b.p_item, b.p_qty); }
         if (name === 'hr-accrue' && b.verb === 'set_activity') {
           if (b.activity.kind === 'artisan') Object.assign(s.env.state, { active_kind: 'artisan', active_id: b.activity.id });
           else {
@@ -1559,6 +1559,39 @@ async function checks(overrides, shots) {
           mv = sent(s, 'hr_bank_move').slice(1).map((c) => c.body.p_item + ':' + c.body.p_qty + ':' + c.body.p_dir);
           if (mv.join() !== 'oak_logs:1:withdraw,iron_bar:3:withdraw') fails.push('AW-18 a press then a Shift-press sent ' + JSON.stringify(mv));
           if ((await sc('bank', 'oak_logs')) !== '11') fails.push('AW-18 one oak log out leaves storage showing ' + (await sc('bank', 'oak_logs')));
+          /* AW-18b (Andy 10-26): 12,000 arrows, Shift-pressed, go in as ONE hr_bank_move of 12,000; a refused deposit
+             says the bag's words (not Storage's) in a line the player can see without scrolling, and moves nothing. */
+          const W18 = '[data-hs-win="storage"] ';
+          const msgSeen = () => page.evaluate((w) => {
+            const m = document.querySelector(w + '.hh-intent-msg'); const win = document.querySelector(w.trim());
+            if (!m || !m.textContent) return null;
+            const r = m.getBoundingClientRect(); let box = win.getBoundingClientRect();
+            for (let n = m.parentElement; n && n !== win.parentElement; n = n.parentElement) {
+              if (/(auto|scroll|hidden)/.test(getComputedStyle(n).overflowY)) { const b = n.getBoundingClientRect(); box = { top: Math.max(box.top, b.top), bottom: Math.min(box.bottom, b.bottom) }; }
+            }
+            /* above both grids: a full bag scrolls them, never the answer to the press */
+            const above = !!(m.compareDocumentPosition(document.querySelector(w + '.hw-pockets[data-side="bank"]')) & Node.DOCUMENT_POSITION_FOLLOWING);
+            return { text: m.textContent, shown: above && r.height > 0 && r.top >= box.top - 1 && r.bottom <= box.bottom + 1 };
+          }, W18);
+          s.reply = { ok: false, error: 'insufficient_item', item_id: 'copper_ore', have: 0, need: 7 };
+          await page.click(W18 + '[data-side="bag"] .hw-pocket[data-item="copper_ore"]', { modifiers: ['Shift'] });
+          await page.waitForTimeout(800);
+          s.reply = { ok: true };
+          const said = await msgSeen();
+          if (!said || said.text !== 'You no longer have that many.') fails.push('AW-18b a refused deposit says ' + JSON.stringify(said && said.text));
+          else if (!said.shown) fails.push('AW-18b the refusal of a deposit is out of sight (under the grids, where a full bag scrolls it away)');
+          if ((await sc('bag', 'copper_ore')) !== '7') fails.push('AW-18b a refused deposit moved the bag to ' + (await sc('bag', 'copper_ore')));
+          await page.click(W18 + '[data-side="bag"] .hw-pocket[data-item="bronze_arrows"]', { modifiers: ['Shift'] });
+          await page.waitForTimeout(800);
+          const arrows = sent(s, 'hr_bank_move').slice(-1).map((c) => c.body.p_item + ':' + c.body.p_qty + ':' + c.body.p_dir).join();
+          if (arrows !== 'bronze_arrows:12000:deposit') fails.push('AW-18b a Shift-press on 12,000 arrows sent ' + arrows);
+          const label = await page.evaluate((w) => { const li = document.querySelector(w + '[data-side="bank"] .hw-pocket[data-item="bronze_arrows"]'); return li ? li.getAttribute('aria-label') : null; }, W18);
+          if (!/, 12,000: /.test(String(label)) || (await sc('bag', 'bronze_arrows')) !== null) fails.push('AW-18b after 12,000 arrows went in, storage reads ' + JSON.stringify(label) + ' and the bag ' + (await sc('bag', 'bronze_arrows')));
+          const done = await msgSeen();
+          if (!done || !/^Put away 12,000 /.test(done.text) || !done.shown) fails.push('AW-18b the 12,000-arrow deposit says ' + JSON.stringify(done));
+          await page.click(W18 + '[data-side="bank"] .hw-pocket[data-item="bronze_arrows"]', { modifiers: ['Shift'] });
+          await page.waitForTimeout(800);
+          if ((await sc('bag', 'bronze_arrows')) === null) fails.push('AW-18b the 12,000 arrows did not come back out');
           /* AW-23 sort and filter: storage holds oak_logs 11, copper_ore 3, shrimp 2 (iron_bar went back to the bag) */
           const W = '[data-hs-win="storage"] ';
           const grid = (sd) => page.evaluate((x) => [...document.querySelectorAll('[data-hs-win="storage"] .hw-pockets[data-side="' + x + '"] .hw-pocket')].map((li) => li.getAttribute('data-item')).join(), sd);

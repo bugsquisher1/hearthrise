@@ -62,6 +62,13 @@ export const SCENERY = Object.freeze([
      the road down to the end of P13's dock, cargo where the dock meets the lane */
   ['crates', 133, 82], ['barrels', 133, 83], ['sack_stack', 138, 74], ['cart_wheel', 139, 74], ['barrels', 157, 79], ['crates', 157, 74],
   ['lamppost', 139, 79],
+  /* THE HARBOUR (lane/a-havora-dock round 2): bollards along the quay wall and at the pier heads, nets, rope, the yard's
+     capstan and hand crane */
+  ['havora_bollard', 112, 89], ['havora_bollard', 118, 89], ['havora_bollard', 122, 89], ['havora_bollard', 131, 89], ['havora_bollard', 136, 89], ['havora_bollard', 140, 89],
+  ['havora_bollard', 148, 89], ['havora_bollard', 160, 89], ['havora_bollard', 107, 97], ['havora_bollard', 109, 97], ['havora_bollard', 125, 99], ['havora_bollard', 127, 99],
+  ['havora_bollard', 142, 96], ['havora_bollard', 144, 96], ['havora_bollard', 155, 98], ['havora_bollard', 158, 98], ['havora_nets', 133, 87],
+  ['havora_nets', 154, 78], ['havora_rope_coil', 111, 89], ['havora_rope_coil', 139, 88], ['havora_rope_coil', 126, 93], ['havora_rope_coil', 115, 85], ['havora_capstan', 148, 75],
+  ['havora_hand_crane', 141, 74],
   /* THE WORK YARDS' CLUTTER (lane/b-havora-polish 2026-10-26), between the stations' pieces (../stations.js) so a yard
      reads as worked in: each forge's quench trough (west of it) and bellows (east), a tool rack, charcoal sacks, crates
      and barrels between the units; the cook yard's
@@ -105,7 +112,9 @@ export const BLEND = Object.freeze({
     /* lane/b-havora-polish: the quarry's gravel floor against the rock and the cart path */
     'havora_gravel_rock', 'havora_earth_gravel',
     /* lane/a-havora-dock: the stone quay where the dirt meets the water, the rocky shore under the mountain */
-    'havora_water_quay', 'havora_water_rock']),
+    'havora_water_quay', 'havora_water_rock',
+    /* lane/a-havora-dock round 2: the harbour's setts quay against the earth, the water and the piers */
+    'havora_earth_setts', 'havora_water_setts', 'havora_setts_planks']),
   alias: Object.freeze({ cobble: 'flagstone', palisade: 'grass' }),
 });
 

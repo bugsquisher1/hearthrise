@@ -189,10 +189,10 @@ function check(S, editRow = null) {
 
   /* ST-10 NO DEAD END (lane/a-havora-dock, Tyler 2026-10-26: "should be able to walk here"): a walkable way (road, yard,
      planks, gravel) that runs straight into water, a strip of cliff at most CLIFF_STRIP wide, or a placed thing that is
-     not a building and comes out the other side within DEAD_END_SPAN tiles must be crossable there or close by: the walk
+     not a building (piers side by side over open water are not a dead end) and comes out the other side within DEAD_END_SPAN tiles must be crossable there or close by: the walk
      between the two sides is at most 3 x the gap + 12. A building lot or a market stall standing between two streets is
      the town's plan; water and a thin strip of rock never are (a bridge, a dock or a lane goes there). */
-  const WAYS_GROUND = new Set(['earth', 'cobble', 'flagstone', 'planks', 'gravel']);
+  const WAYS_GROUND = new Set(['earth', 'cobble', 'flagstone', 'planks', 'gravel', 'setts']);
   const BUILT = new Set(['lot', 'hall', 'building', 'landmark', 'stall']);
   const owner = new Map();
   for (const o of map.objects) {
@@ -223,6 +223,9 @@ function check(S, editRow = null) {
       }
       if (k > DEAD_END_SPAN || !wayAt(x + ddx * k, y + ddy * k) || kinds.has('built')) continue;
       if (kinds.has('rock') && !kinds.has('water') && !kinds.has('thing') && k - 1 > CLIFF_STRIP) continue;
+      /* two piers side by side with open water between are a harbour, not a dead end */
+      const planksAt = (px, py) => map.ground[py * map.w + px] === 'planks';
+      if (kinds.has('water') && !kinds.has('rock') && planksAt(x, y) && planksAt(x + ddx * k, y + ddy * k)) continue;
       const d = distFrom(x, y)[(y + ddy * k) * map.w + x + ddx * k];
       if (d < 0 || d > 3 * k + 12) dead.push(x + ',' + y + ' -> ' + (x + ddx * k) + ',' + (y + ddy * k) + ' (' + [...kinds].join('+') + ', walk ' + d + ')');
     }
@@ -296,9 +299,9 @@ if (process.argv.includes('--selftest')) {
     ['ST-9', 'an open tile fenced in by four crates', (r) => {
       for (const [ddx, ddy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) r.objects.push(crate(-14 + ddx, 46 + ddy));
       return r; }],
-    /* ST-10: the gate road's bridge deck turned back into river (the road runs into the water on both banks) */
+    /* ST-10: the gate road's bridge deck turned back into river, planks and all (the road runs into the water on both banks) */
     ['ST-10', 'the mill race bridge\'s deck back to water', (r) => {
-      r.rows = r.rows.map((s, y) => (y >= 16 && y <= 19 ? s.slice(0, 116) + '~~~~~~' + s.slice(122) : s));
+      r.rows = r.rows.map((s, y) => (y >= 16 && y <= 19 ? s.slice(0, 113) + '~~~~~~~~~~~~' + s.slice(125) : s));
       return r; }],
     /* ST-10: Tyler's dead end (live v0.2.52): the east dock and the yard across from it, cut apart by a strip of rock */
     ['ST-10', 'a strip of rock between the east dock and the estates\' lane', (r) => {

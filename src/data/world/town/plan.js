@@ -63,7 +63,7 @@ export const WAYS = Object.freeze([
   { name: 'the mine road, Hearth Square east to the quarry floor', rect: [132, 40, 12, 3] },
   { name: 'the south road, the high street to the docks', rect: [82, 54, 4, 38] },
   { name: 'the south bridge to the hunter\'s yard', rect: [80, 73, 22, 3] },
-  { name: 'the boardwalk over the river mouth to the docks', rect: [80, 88, 32, 4] },
+  { name: 'the boardwalk over the river mouth to the docks', rect: [80, 88, 32, 2] },
   /* lane/a-havora-dock (Tyler 2026-10-26, live v0.2.52: the dock by P13 ended at a strip of mountain rock that read as a
      road): the east dock walks onto the estates' lane, up past P15 to the road and across the yard in front of P14 */
   { name: 'the east dock onto the estates\' lane and up to the road', rect: [136, 68, 2, 16] },

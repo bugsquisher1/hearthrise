@@ -857,8 +857,12 @@ async function checks(overrides, shots) {
         e.shop = Object.assign({}, e.shop, { offers: ['bronze_sword', 'iron_helm'].map((id, i) => ({ offer: 'gear.' + id, item: id, kind: 'gear', price: 40 + i * 140 })) });
       } });
       /* Every visible item icon in the window: its drawn size and its art's own; a scale that is not whole wobbles. */
-      const measure = (id) => page.evaluate((w) => {
+      /* AT REST: the window slides in (shell.css hs-in, 120 ms translateX); a rect read mid-slide maps every icon through
+         a fractional transform and reads 32.00006 px for 32 (float noise, not a scale). Measured once nothing moves it. */
+      const measure = (id) => page.evaluate(async (w) => {
         const win = document.querySelector('[data-hs-win="' + w + '"]');
+        const moving = () => { for (let n = win; n; n = n.parentElement) if (getComputedStyle(n).transform !== 'none') return true; return false; };
+        for (let i = 0; i < 40 && moving(); i++) await new Promise((r) => setTimeout(r, 50));
         const vis = (q) => Array.from(win.querySelectorAll(q)).filter((n) => n.getClientRects().length > 0);
         const box = (n) => { const r = n.getBoundingClientRect(); return [Math.round(r.width * 100) / 100, Math.round(r.height * 100) / 100]; };
         const rows = (q) => { const l = vis(q); return l.length ? l.filter((n) => Math.abs(n.getBoundingClientRect().top - l[0].getBoundingClientRect().top) < 2).length : 0; };

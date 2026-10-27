@@ -22,8 +22,9 @@
 //   C4  every Level costs more XP than the one before (to Level 5,000), the first 1+
 //   C5  LEVEL_PACE.contract is today's ladder: at Levels 50, 100, 300 and 1,000 it
 //       pays within 10% of the measured ladder's own fit
-// A red C1 is not a curve bug: the content moved. Re-measure (about 40 min on 4
-// workers) and re-pin, then re-fit if C2/C3 go red:
+// A red C1 is not a curve bug: the content moved. Re-measure (2-3 h on 4 workers:
+// eight careers of ~170 h) and re-pin, then re-fit if C2/C3 go red (a fit that moves
+// only the brackets past the ceiling, --fit --fit-past, needs no re-measure):
 //   node tools/balance-sim/sim.mjs --plan pace --out tools/balance-sim/out/pace
 //   node tools/balance-sim/sim.mjs --plan ladder --out tools/balance-sim/out/ladder
 //   node tools/balance-sim/pace.mjs --fit --write

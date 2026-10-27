@@ -2,9 +2,11 @@
 // tools/balance-sim/pace.mjs — THE LEVEL PACE: what the Level curve costs a player, in hunting hours, measured on the
 // real engine (balance layer 1; Tyler's balance ruling 2026-10-25 §2, src/data/core-model.js LEVEL_PACE).
 //
-//   node tools/balance-sim/sim.mjs --plan pace   [--out tools/balance-sim/out/pace]     the careers (about 30 min, 4 workers)
-//   node tools/balance-sim/sim.mjs --plan ladder [--out tools/balance-sim/out/ladder]   the grounds in band (about 10 min)
-//   node tools/balance-sim/sim.mjs --plan pacebounds                                    optional: full box, a party of four
+//   node tools/balance-sim/sim.mjs --plan pace   [--out tools/balance-sim/out/pace]     8 careers of ~170 h: 60-90 min each,
+//                                                                                       2-3 h on 4 workers (measured 10-27)
+//   node tools/balance-sim/sim.mjs --plan ladder [--out tools/balance-sim/out/ladder]   96 cells in band: ~25 min on 4 workers
+//   node tools/balance-sim/sim.mjs --plan pacebounds                                    optional: full box (a career ~2 h),
+//                                                                                       a party of four (about 4 solo careers)
 //   node tools/balance-sim/pace.mjs [--pace DIR] [--ladder DIR] [--bounds DIR] [--fit] [--write] [--dash DIR]
 //
 // THE REFERENCE ("reasonably efficient hunting", ruling §2): a lone hero of each style, from Level 1, hunting where the
@@ -17,6 +19,8 @@
 //   --fit    the minimax fit of LEVEL_CURVE's brackets (their start Levels kept) to LEVEL_PACE.targets on the reference
 //            rate (a small LP, lp.mjs), with the early Levels held where the tutorial says they are (LEVEL_PACE.early),
 //            printed as the data rows to paste; the fit is never written into src/data by this tool
+//   --fit-past  with --fit: hold `first` and every bracket starting under the ceiling as they are, re-fit only the
+//            brackets past it (a new contract): the careers never pass the ceiling, so nothing needs re-measuring
 //   --write  the committed snapshot tools/balance-sim/level-pace.json that tests/level-curve.mjs judges the curve with
 //   --dash   the Balance Dashboard's level data (level-pace.json, findings.json, balance-cells.csv) into DIR
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
@@ -202,7 +206,7 @@ async function main() {
   const measuredLevels = [...new Set([2, 5, 10, 15, 20, 25, 30, 40, 50, ...targetLevels])].filter((L) => L <= ceiling).sort((a, b) => a - b);
   const rate = ratesOf(careers);
   for (const k of Object.keys(rate)) if (Number(k) >= ceiling) delete rate[k];
-  const measured = Object.fromEntries(measuredLevels.map((L) => [L, median(careers.map((c) => c.milestones['0:' + L]))]));
+  const measured = Object.fromEntries(measuredLevels.map((L) => { const m = median(careers.map((c) => c.milestones['0:' + L])); return [L, m === null ? null : Math.round(m * 1000) / 1000]; }));
   const ladderCells = readRows(resolve(arg('ladder', join(HERE, 'out', 'ladder'))));
   const ladder = ladderCells.length ? ladderOf(ladderCells) : null;
   const old = existsSync(SNAPSHOT) ? JSON.parse(readFileSync(SNAPSHOT, 'utf8')) : null;

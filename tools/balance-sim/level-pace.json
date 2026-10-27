@@ -1,0 +1,842 @@
+{
+ "schema": "hearthrise.level-pace/1",
+ "generated": "2026-10-27T11:48:58.031Z",
+ "commit": "7949fbc6d",
+ "version": "0.2.52",
+ "curve": {
+  "first": 60,
+  "brackets": [
+   {
+    "from": 1,
+    "rise": 0,
+    "bend": 122
+   },
+   {
+    "from": 5,
+    "rise": 12591,
+    "bend": 0
+   },
+   {
+    "from": 10,
+    "rise": 0,
+    "bend": 489
+   },
+   {
+    "from": 50,
+    "rise": 80832,
+    "bend": 119
+   },
+   {
+    "from": 300,
+    "rise": 211914,
+    "bend": 578
+   }
+  ]
+ },
+ "fingerprint": "63800e0090a01869",
+ "ceiling": 50,
+ "reference": "median of 8 solo styles, Level 1 to 50, where the Hunts window recommends, as built (tools/balance-sim plan pace)",
+ "styles": [
+  "tank",
+  "sword",
+  "hammer",
+  "axes",
+  "bow",
+  "crossbow",
+  "mage",
+  "healer"
+ ],
+ "rate": {
+  "1": 7690,
+  "2": 7690,
+  "3": 7690,
+  "4": 7755,
+  "5": 15807,
+  "6": 24231,
+  "7": 24572,
+  "8": 24813,
+  "9": 24904,
+  "10": 24971,
+  "11": 25104,
+  "12": 25133,
+  "13": 25145,
+  "14": 25145,
+  "15": 25165,
+  "16": 51076,
+  "17": 76439,
+  "18": 77109,
+  "19": 76983,
+  "20": 76957,
+  "21": 76952,
+  "22": 77739,
+  "23": 77853,
+  "24": 78224,
+  "25": 78775,
+  "26": 78845,
+  "27": 78694,
+  "28": 79125,
+  "29": 79431,
+  "30": 80469,
+  "31": 81027,
+  "32": 81093,
+  "33": 81100,
+  "34": 81183,
+  "35": 81278,
+  "36": 81474,
+  "37": 81483,
+  "38": 81688,
+  "39": 81848,
+  "40": 81952,
+  "41": 81855,
+  "42": 81894,
+  "43": 81942,
+  "44": 81998,
+  "45": 81998,
+  "46": 82045,
+  "47": 82078,
+  "48": 82144,
+  "49": 82163
+ },
+ "measuredHours": {
+  "2": 0.01,
+  "5": 0.255,
+  "10": 5.925,
+  "15": 19.43,
+  "20": 27.67,
+  "25": 36.44,
+  "30": 49.53,
+  "40": 94,
+  "50": 173.17
+ },
+ "careers": {
+  "tank": {
+   "party": [
+    "tank"
+   ],
+   "density": null,
+   "hours": 197.75,
+   "reached": [
+    50
+   ],
+   "hoursTo": {
+    "2": 0.01,
+    "5": 0.27,
+    "10": 6.56,
+    "15": 20.81,
+    "20": 30.52,
+    "25": 41.22,
+    "30": 56.93,
+    "40": 108.03,
+    "50": 197.4
+   },
+   "deaths": 0,
+   "grounds": [
+    "mill_cellar",
+    "meadowbrook_thicket",
+    "mosslight_glade"
+   ],
+   "skillsAt": {
+    "10": {
+     "melee": 18,
+     "ranged": 1,
+     "magic": 1,
+     "defense": 16,
+     "prayer": 1
+    },
+    "25": {
+     "melee": 32,
+     "ranged": 1,
+     "magic": 1,
+     "defense": 30,
+     "prayer": 1
+    },
+    "49": {
+     "melee": 50,
+     "ranged": 1,
+     "magic": 1,
+     "defense": 46,
+     "prayer": 1
+    }
+   }
+  },
+  "sword": {
+   "party": [
+    "sword"
+   ],
+   "density": null,
+   "hours": 194.75,
+   "reached": [
+    50
+   ],
+   "hoursTo": {
+    "2": 0.01,
+    "5": 0.27,
+    "10": 6.53,
+    "15": 20.76,
+    "20": 30.35,
+    "25": 40.81,
+    "30": 56.19,
+    "40": 106.3,
+    "50": 194.06
+   },
+   "deaths": 0,
+   "grounds": [
+    "mill_cellar",
+    "meadowbrook_thicket",
+    "mosslight_glade"
+   ],
+   "skillsAt": {
+    "10": {
+     "melee": 18,
+     "ranged": 1,
+     "magic": 1,
+     "defense": 13,
+     "prayer": 1
+    },
+    "25": {
+     "melee": 32,
+     "ranged": 1,
+     "magic": 1,
+     "defense": 25,
+     "prayer": 1
+    },
+    "49": {
+     "melee": 50,
+     "ranged": 1,
+     "magic": 1,
+     "defense": 39,
+     "prayer": 1
+    }
+   }
+  },
+  "hammer": {
+   "party": [
+    "hammer"
+   ],
+   "density": null,
+   "hours": 172.75,
+   "reached": [
+    50
+   ],
+   "hoursTo": {
+    "2": 0.01,
+    "5": 0.24,
+    "10": 5.71,
+    "15": 19.22,
+    "20": 27.36,
+    "25": 35.97,
+    "30": 48.91,
+    "40": 93.19,
+    "50": 172.32
+   },
+   "deaths": 0,
+   "grounds": [
+    "mill_cellar",
+    "meadowbrook_thicket",
+    "mosslight_glade"
+   ],
+   "skillsAt": {
+    "10": {
+     "melee": 18,
+     "ranged": 1,
+     "magic": 1,
+     "defense": 11,
+     "prayer": 1
+    },
+    "25": {
+     "melee": 32,
+     "ranged": 1,
+     "magic": 1,
+     "defense": 22,
+     "prayer": 1
+    },
+    "49": {
+     "melee": 50,
+     "ranged": 1,
+     "magic": 1,
+     "defense": 36,
+     "prayer": 1
+    }
+   }
+  },
+  "axes": {
+   "party": [
+    "axes"
+   ],
+   "density": null,
+   "hours": 173.75,
+   "reached": [
+    50
+   ],
+   "hoursTo": {
+    "2": 0.01,
+    "5": 0.24,
+    "10": 5.71,
+    "15": 19.22,
+    "20": 27.45,
+    "25": 36.19,
+    "30": 49.31,
+    "40": 94.05,
+    "50": 173.67
+   },
+   "deaths": 0,
+   "grounds": [
+    "mill_cellar",
+    "meadowbrook_thicket",
+    "mosslight_glade"
+   ],
+   "skillsAt": {
+    "10": {
+     "melee": 18,
+     "ranged": 1,
+     "magic": 1,
+     "defense": 11,
+     "prayer": 1
+    },
+    "25": {
+     "melee": 32,
+     "ranged": 1,
+     "magic": 1,
+     "defense": 23,
+     "prayer": 1
+    },
+    "49": {
+     "melee": 50,
+     "ranged": 1,
+     "magic": 1,
+     "defense": 37,
+     "prayer": 1
+    }
+   }
+  },
+  "bow": {
+   "party": [
+    "bow"
+   ],
+   "density": null,
+   "hours": 173,
+   "reached": [
+    50
+   ],
+   "hoursTo": {
+    "2": 0.01,
+    "5": 0.26,
+    "10": 5.94,
+    "15": 19.44,
+    "20": 27.7,
+    "25": 36.52,
+    "30": 49.61,
+    "40": 93.95,
+    "50": 172.67
+   },
+   "deaths": 0,
+   "grounds": [
+    "mill_cellar",
+    "meadowbrook_thicket",
+    "mosslight_glade"
+   ],
+   "skillsAt": {
+    "10": {
+     "melee": 1,
+     "ranged": 18,
+     "magic": 1,
+     "defense": 8,
+     "prayer": 1
+    },
+    "25": {
+     "melee": 1,
+     "ranged": 32,
+     "magic": 1,
+     "defense": 17,
+     "prayer": 1
+    },
+    "49": {
+     "melee": 1,
+     "ranged": 50,
+     "magic": 1,
+     "defense": 27,
+     "prayer": 1
+    }
+   }
+  },
+  "crossbow": {
+   "party": [
+    "crossbow"
+   ],
+   "density": null,
+   "hours": 173,
+   "reached": [
+    50
+   ],
+   "hoursTo": {
+    "2": 0.01,
+    "5": 0.25,
+    "10": 5.91,
+    "15": 19.42,
+    "20": 27.64,
+    "25": 36.36,
+    "30": 49.45,
+    "40": 93.66,
+    "50": 172.14
+   },
+   "deaths": 0,
+   "grounds": [
+    "mill_cellar",
+    "meadowbrook_thicket",
+    "mosslight_glade"
+   ],
+   "skillsAt": {
+    "10": {
+     "melee": 1,
+     "ranged": 18,
+     "magic": 1,
+     "defense": 10,
+     "prayer": 1
+    },
+    "25": {
+     "melee": 1,
+     "ranged": 32,
+     "magic": 1,
+     "defense": 19,
+     "prayer": 1
+    },
+    "49": {
+     "melee": 1,
+     "ranged": 50,
+     "magic": 1,
+     "defense": 32,
+     "prayer": 1
+    }
+   }
+  },
+  "mage": {
+   "party": [
+    "mage"
+   ],
+   "density": null,
+   "hours": 166.75,
+   "reached": [
+    50
+   ],
+   "hoursTo": {
+    "2": 0.01,
+    "5": 0.24,
+    "10": 5.7,
+    "15": 19.16,
+    "20": 27.16,
+    "25": 35.44,
+    "30": 47.9,
+    "40": 90.28,
+    "50": 166.23
+   },
+   "deaths": 0,
+   "grounds": [
+    "mill_cellar",
+    "meadowbrook_thicket",
+    "mosslight_glade"
+   ],
+   "skillsAt": {
+    "10": {
+     "melee": 1,
+     "ranged": 1,
+     "magic": 20,
+     "defense": 6,
+     "prayer": 1
+    },
+    "25": {
+     "melee": 1,
+     "ranged": 1,
+     "magic": 32,
+     "defense": 14,
+     "prayer": 1
+    },
+    "49": {
+     "melee": 1,
+     "ranged": 1,
+     "magic": 45,
+     "defense": 22,
+     "prayer": 1
+    }
+   }
+  },
+  "healer": {
+   "party": [
+    "healer"
+   ],
+   "density": null,
+   "hours": 185.5,
+   "reached": [
+    50
+   ],
+   "hoursTo": {
+    "2": 0.01,
+    "5": 0.28,
+    "10": 7.32,
+    "15": 23.09,
+    "20": 32.07,
+    "25": 42.24,
+    "30": 57.27,
+    "40": 103.29,
+    "50": 185.19
+   },
+   "deaths": 0,
+   "grounds": [
+    "mill_cellar",
+    "meadowbrook_thicket",
+    "mosslight_glade"
+   ],
+   "skillsAt": {
+    "10": {
+     "melee": 1,
+     "ranged": 1,
+     "magic": 14,
+     "defense": 10,
+     "prayer": 1
+    },
+    "25": {
+     "melee": 1,
+     "ranged": 1,
+     "magic": 23,
+     "defense": 19,
+     "prayer": 1
+    },
+    "49": {
+     "melee": 1,
+     "ranged": 1,
+     "magic": 32,
+     "defense": 29,
+     "prayer": 1
+    }
+   }
+  }
+ },
+ "ladder": {
+  "points": [
+   [
+    4.5,
+    7719,
+    "mill_cellar"
+   ],
+   [
+    10,
+    24638,
+    "meadowbrook_thicket"
+   ],
+   [
+    23.5,
+    75765,
+    "mosslight_glade"
+   ],
+   [
+    47.5,
+    179121,
+    "coppercap_warrens"
+   ]
+  ],
+  "a": 1086,
+  "b": 1.333
+ },
+ "bounds": {
+  "box:tank": {
+   "party": [
+    "tank"
+   ],
+   "density": 8,
+   "hours": 137.25,
+   "reached": [
+    50
+   ],
+   "hoursTo": {
+    "2": 0,
+    "5": 0.13,
+    "10": 5.05,
+    "15": 15.58,
+    "20": 22.52,
+    "25": 30.31,
+    "30": 41.55,
+    "40": 76.75,
+    "50": 137.16
+   },
+   "deaths": 0,
+   "grounds": [
+    "mill_cellar",
+    "meadowbrook_thicket",
+    "mosslight_glade"
+   ],
+   "skillsAt": {
+    "10": {
+     "melee": 19,
+     "ranged": 1,
+     "magic": 1,
+     "defense": 21,
+     "prayer": 1
+    },
+    "25": {
+     "melee": 33,
+     "ranged": 1,
+     "magic": 1,
+     "defense": 38,
+     "prayer": 1
+    },
+    "49": {
+     "melee": 50,
+     "ranged": 1,
+     "magic": 1,
+     "defense": 56,
+     "prayer": 1
+    }
+   }
+  },
+  "box:hammer": {
+   "party": [
+    "hammer"
+   ],
+   "density": 8,
+   "hours": 94,
+   "reached": [
+    50
+   ],
+   "hoursTo": {
+    "2": 0,
+    "5": 0.09,
+    "10": 2.88,
+    "15": 9.34,
+    "20": 13.68,
+    "25": 18.62,
+    "30": 25.97,
+    "40": 50.37,
+    "50": 93.68
+   },
+   "deaths": 0,
+   "grounds": [
+    "mill_cellar",
+    "meadowbrook_thicket",
+    "mosslight_glade"
+   ],
+   "skillsAt": {
+    "10": {
+     "melee": 19,
+     "ranged": 1,
+     "magic": 1,
+     "defense": 14,
+     "prayer": 1
+    },
+    "25": {
+     "melee": 33,
+     "ranged": 1,
+     "magic": 1,
+     "defense": 27,
+     "prayer": 1
+    },
+    "49": {
+     "melee": 50,
+     "ranged": 1,
+     "magic": 1,
+     "defense": 43,
+     "prayer": 1
+    }
+   }
+  },
+  "box:bow": {
+   "party": [
+    "bow"
+   ],
+   "density": 8,
+   "hours": 124,
+   "reached": [
+    50
+   ],
+   "hoursTo": {
+    "2": 0,
+    "5": 0.12,
+    "10": 3.98,
+    "15": 12.67,
+    "20": 18.69,
+    "25": 25.55,
+    "30": 35.63,
+    "40": 68.03,
+    "50": 123.84
+   },
+   "deaths": 0,
+   "grounds": [
+    "mill_cellar",
+    "meadowbrook_thicket",
+    "mosslight_glade"
+   ],
+   "skillsAt": {
+    "10": {
+     "melee": 1,
+     "ranged": 19,
+     "magic": 1,
+     "defense": 12,
+     "prayer": 1
+    },
+    "25": {
+     "melee": 1,
+     "ranged": 33,
+     "magic": 1,
+     "defense": 22,
+     "prayer": 1
+    },
+    "49": {
+     "melee": 1,
+     "ranged": 51,
+     "magic": 1,
+     "defense": 35,
+     "prayer": 1
+    }
+   }
+  }
+ },
+ "table": {
+  "10": {
+   "target": 6,
+   "hours": 5.8,
+   "err": -0.034,
+   "measured": 5.9,
+   "before": 1
+  },
+  "25": {
+   "target": 36,
+   "hours": 36.6,
+   "err": 0.016,
+   "measured": 36.4,
+   "before": 11
+  },
+  "50": {
+   "target": 168,
+   "hours": 173.6,
+   "err": 0.034,
+   "measured": 173.2,
+   "before": 104
+  },
+  "100": {
+   "target": 600,
+   "hours": 579.1,
+   "err": -0.035,
+   "measured": null,
+   "before": 395
+  },
+  "200": {
+   "target": 1680,
+   "hours": 1737.3,
+   "err": 0.034,
+   "measured": null,
+   "before": 2120
+  },
+  "300": {
+   "target": 3120,
+   "hours": 3011.1,
+   "err": -0.035,
+   "measured": null,
+   "before": 5992
+  },
+  "500": {
+   "target": 6720,
+   "hours": 6485.9,
+   "err": -0.035,
+   "measured": null,
+   "before": 22711
+  },
+  "750": {
+   "target": 13440,
+   "hours": 13309.8,
+   "err": -0.01,
+   "measured": null,
+   "before": 66035
+  },
+  "1000": {
+   "target": 23520,
+   "hours": 22708.8,
+   "err": -0.034,
+   "measured": null,
+   "before": 141257
+  }
+ },
+ "death": [
+  {
+   "level": 10,
+   "xpLost": 3408,
+   "shareOfLevel": 0.052,
+   "unblessedHours": 0.14,
+   "blessedHours": {
+    "1": 0.09,
+    "2": 0.05,
+    "3": 0.01
+   },
+   "extrapolated": false
+  },
+  {
+   "level": 25,
+   "xpLost": 33925,
+   "shareOfLevel": 0.194,
+   "unblessedHours": 0.43,
+   "blessedHours": {
+    "1": 0.29,
+    "2": 0.16,
+    "3": 0.02
+   },
+   "extrapolated": false
+  },
+  {
+   "level": 50,
+   "xpLost": 264086,
+   "shareOfLevel": 0.312,
+   "unblessedHours": 1.32,
+   "blessedHours": {
+    "1": 0.9,
+    "2": 0.49,
+    "3": 0.07
+   },
+   "extrapolated": true
+  },
+  {
+   "level": 100,
+   "xpLost": 2593233,
+   "shareOfLevel": 0.5,
+   "unblessedHours": 5.15,
+   "blessedHours": {
+    "1": 3.5,
+    "2": 1.91,
+    "3": 0.26
+   },
+   "extrapolated": true
+  },
+  {
+   "level": 200,
+   "xpLost": 7824833,
+   "shareOfLevel": 0.5,
+   "unblessedHours": 6.17,
+   "blessedHours": {
+    "1": 4.2,
+    "2": 2.28,
+    "3": 0.31
+   },
+   "extrapolated": true
+  },
+  {
+   "level": 500,
+   "xpLost": 46997833,
+   "shareOfLevel": 0.5,
+   "unblessedHours": 10.93,
+   "blessedHours": {
+    "1": 7.43,
+    "2": 4.04,
+    "3": 0.55
+   },
+   "extrapolated": true
+  },
+  {
+   "level": 1000,
+   "xpLost": 230026333,
+   "shareOfLevel": 0.5,
+   "unblessedHours": 21.23,
+   "blessedHours": {
+    "1": 14.44,
+    "2": 7.86,
+    "3": 1.06
+   },
+   "extrapolated": true
+  }
+ ]
+}

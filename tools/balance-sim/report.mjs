@@ -31,7 +31,10 @@ const { BUILD } = await import(u('src/build-info.js'));
 const XP = await import(u('src/core/xp.js') + '?v=' + BUILD.version);
 const AR = await import(u('src/core/action-rules.js') + '?v=' + BUILD.version);
 const { BLESSING_TIERS, blessingPrice } = await import(u('src/data/blessings.js'));
-const { LEVEL_CURVE } = await import(u('src/data/core-model.js'));
+const { LEVEL_CURVE, LEVEL_PACE } = await import(u('src/data/core-model.js'));
+/* the Level pace of record (tools/balance-sim/pace.mjs --write), when it exists */
+const PACE_FILE = join(HERE, 'level-pace.json');
+const PACE = existsSync(PACE_FILE) ? JSON.parse(readFileSync(PACE_FILE, 'utf8')) : null;
 
 const rows = existsSync(join(IN, 'cells.jsonl')) ? readFileSync(join(IN, 'cells.jsonl'), 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)) : [];
 /* the reference lives as built; a full-box life (density 8: plan pacebounds' box, or the older career8 run) is a bound */
@@ -437,12 +440,16 @@ const summary = {
   audit: await audit(),
   careers: careerOut,
   levelHours: lh,
-  curve: ref ? { reference: 'median style, best safe solo cell per Level on a ground whose floor it has reached, either density, measured to L' + eff.last + ', then xp/h = '
+  /* THE LEVEL PACE OF RECORD is tools/balance-sim/level-pace.json (pace.mjs: careers where the game recommends, then
+     LEVEL_PACE.contract), which tests/level-curve.mjs judges; it is quoted here whole. The cell-based rates below (the
+     best safe cell at any ground and density) are a faster BOUND on the same curve, kept for comparison. */
+  pace: PACE ? { source: 'tools/balance-sim/level-pace.json', reference: PACE.reference, contract: LEVEL_PACE.contract, table: PACE.table, measuredHours: PACE.measuredHours } : null,
+  curve: ref ? { reference: 'BOUND, not the pace of record: median style, best safe solo cell per Level on a ground whose floor it has reached, either density, measured to L' + eff.last + ', then xp/h = '
       + round(eff.fit.a, 1) + ' x L^' + round(eff.fit.b, 3) + ' (extrapolated: no ground past L' + eff.last + ')', referencePoints: eff.pts.filter(([L]) => L % 5 === 0).map(([L, y]) => [L, round(y, 0)]),
     envelopeFit: envelope && envelope.fit ? { a: round(envelope.fit.a, 1), b: round(envelope.fit.b, 3) } : null,
     slowestFit: slowest && slowest.fit ? { a: round(slowest.fit.a, 1), b: round(slowest.fit.b, 3) } : null,
     ...proposeCurve(ref, { career: careerRate, envelope: envelope && envelope.rate, slowest: slowest && slowest.rate }) } : null,
-  deathCost: ref ? deathCost(ref) : null,
+  deathCost: PACE && PACE.death ? PACE.death : ref ? deathCost(ref) : null,
   bands: bands(),
   party: partyVsSolo(),
   upgrades: upgrades(),
@@ -469,7 +476,7 @@ summary.careersFullBox = (boxCareers.length ? boxCareers : existsSync(c8) ? read
 const dash = { schema: 'hearthrise.balance-dashboard/1', generated: summary.meta.generated, commit: summary.meta.commit,
   dims: { ground: [...new Set(cells.map((c) => c.ground))], style: [...new Set(cells.flatMap((c) => c.cell.party))], party: [...new Set(cells.map(styleKey))],
     level: [...new Set(cells.map((c) => c.cell.level))].sort((a, b) => a - b), density: [...new Set(cells.map(dens))].sort((a, b) => a - b), stage: [...new Set(cells.map(stage))].sort() },
-  rows: dashboardRows(), careers: careerOut, summary: { levelHours: summary.levelHours, curve: summary.curve, party: summary.party, upgrades: summary.upgrades, deathCost: summary.deathCost } };
+  rows: dashboardRows(), careers: careerOut, summary: { levelHours: summary.levelHours, pace: summary.pace, curve: summary.curve, party: summary.party, upgrades: summary.upgrades, deathCost: summary.deathCost } };
 if (existsSync(IN)) {
   writeFileSync(join(IN, 'dashboard.json'), JSON.stringify(dash));
   writeFileSync(join(IN, 'cells.csv'), csv(dash.rows));

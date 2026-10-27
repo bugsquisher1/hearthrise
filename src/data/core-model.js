@@ -148,7 +148,7 @@ export const MONSTER_LEVEL_BY_TIER = Object.freeze({ 1: 5, 2: 15, 3: 35, 4: 60, 
      refHours              the hours to refLevel the rate was fitted to: the 10-19
                            curve at its guard's line (2,900 x Level XP an hour). The
                            10-27 Level curve takes about 36 h to Level 25, so a hero who
-                           buries everything now reaches Prayer 15 near Level 16: Prayer,
+                           buries everything now reaches Prayer 15 near Level 11: Prayer,
                            like every combat skill, runs ahead of Level until the skill
                            layer re-fits it (ruling 2026-10-25 §13.2, not approved)
      xpPerBone             the Prayer XP a bone PAYS: skillXp(prayer, refPrayer) /

@@ -66,10 +66,10 @@
 //         a kind chip and the search narrow both Storage grids, Count orders by the
 //         stack, Newest puts the stack just stored first, and the chip and sort are
 //         remembered (ONE residue put naming storeView) and come back after a reload
-//   AW-19 BURY (Tyler live 10-18, "can't bury bones"): bones offer Bury all; it is
-//         ONE set_activity { kind:'artisan', id:'bury_bones' } and nothing else, the
-//         Burying line reads the server's pointer, Stop is ONE set_activity idle, and
-//         the bag and the Prayer XP change only from the envelope (and stay after a reload)
+//   AW-19 FUEL THE HEARTH (Tyler live 10-18, "can't bury bones"; 10-25: Inner Flame replaces
+//         Prayer): bones offer Fuel all N; it is ONE set_activity { kind:'artisan', id:'fuel_bones' }
+//         and nothing else, the Fueling line reads the server's pointer, Stop is ONE set_activity
+//         idle, and the bag and the Inner Flame XP change only from the envelope (and stay after a reload)
 //   AW-20 COOK ALL (playtest 10-22: Raw Wolf Meat sold for 1 gp, nothing said it cooks):
 //         raw food with a one-input Cooking recipe to food offers Cook all, the same ONE
 //         set_activity { kind:'artisan', id:'cook_wolf_meat' }; the Cooking line reads the
@@ -308,19 +308,22 @@ async function pure() {
   if (!/stop it here\.$/.test(buryLine({ read: (k) => (k === 'state' ? { active_kind: 'gather', active_id: 'copper_rock' } : null) })))
     fails.push('AW-19 a gathering pointer gets no Stop line, so it would run unseen');
   if (edgeBody(0, 'set_activity', { activity: { kind: 'combat', id: 'rat' } }, 'x')) fails.push('AW-0 edgeBody let the client declare a fight through set_activity');
-  /* BONES ARE FOR PRAYER (ruling 2026-10-14; Brannoc 10-22: the tooltip said "Sell it at the shop" and Sell all loot sold
-     them): an item a recipe spends without making anything is kept out of Sell all loot, and its tooltip says its use. */
+  /* BONES FEED THE GREAT HEARTH (ruling 2026-10-14; Brannoc 10-22: the tooltip said "Sell it at the shop" and Sell all
+     loot sold them; Tyler 2026-10-25: Inner Flame replaces Prayer): an item a recipe spends without making anything is kept
+     out of Sell all loot, and its tooltip says its use; a named fuel is Rare, never bulk-sold loot. */
   const { lootToSell } = await imp('src/shell/bag-model.js');
   const { usesOf } = await imp('src/shell/item-lore.js');
-  const sold = lootToSell([{ id: 'bones', qty: 15 }, { id: 'rat_tail', qty: 4 }, { id: 'razor_claw', qty: 1 }]);
-  if (sold.join(',') !== 'rat_tail') fails.push('AW-0 Sell all loot would sell ' + sold.join(', ') + ' (bones and offerings are kept for Prayer)');
+  const sold = lootToSell([{ id: 'bones', qty: 15 }, { id: 'rat_tail', qty: 4 }, { id: 'razor_claw', qty: 1 }, { id: 'lamp_jelly', qty: 3 }, { id: 'den_knot', qty: 1 }]);
+  if (sold.join(',') !== 'rat_tail') fails.push('AW-0 Sell all loot would sell ' + sold.join(', ') + ' (bones and every Hearth fuel are kept for the Great Hearth)');
   /* board 2026-10-25 #22: Sell all loot sold Silk Thread, the first Crafting recipes' thread: a material a recipe the hero
      can make NOW spends is kept (the server's skill level); one only a far higher level spends is sold */
   const crafter = lootToSell([{ id: 'silk_thread', qty: 6 }, { id: 'slime_gel', qty: 3 }, { id: 'rat_tail', qty: 2 }], { crafting: { xp: 0, level: 1 } });
   if (crafter.join(',') !== 'slime_gel,rat_tail') fails.push('AW-0 a Crafting 1 hero\'s Sell all loot sells ' + crafter.join(', ') + ' (want slime_gel, rat_tail: Silk Thread is its Crafting 1 thread)');
   if (lootToSell([{ id: 'slime_gel', qty: 3 }], { crafting: { xp: 0, level: 30 } }).length) fails.push('AW-0 a Crafting 30 hero\'s Sell all loot sells its Slime Gel');
   const bones = usesOf('bones');
-  if (!bones.some((l) => /^Bury it to train Prayer/.test(l)) || bones.some((l) => /sell/i.test(l))) fails.push('AW-0 the bones tooltip reads ' + JSON.stringify(bones));
+  if (!bones.some((l) => /^Burn it in the Great Hearth to train Inner Flame/.test(l)) || bones.some((l) => /sell/i.test(l))) fails.push('AW-0 the bones tooltip reads ' + JSON.stringify(bones));
+  const knot = usesOf('den_knot');
+  if (!knot.some((l) => /^Burn it in the Great Hearth for a burst of Inner Flame XP; the fire burns deep amber for all Havora/.test(l))) fails.push('AW-0 the Den Knot tooltip reads ' + JSON.stringify(knot));
   /* AW-20: what cooks is read off the recipe rows (no id list); the bench refuses in words, from the server's level. */
   const { cookOf } = await imp('src/shell/bag-model.js');
   const { buryRecipeOf, buryBlock, buryLabel } = await imp('src/shell/windows/inventory/bury.js');
@@ -549,7 +552,7 @@ async function tickerRules(base) {
   const { ITEMS } = await imp('src/data/items.js');
   const T0 = Date.UTC(2026, 9, 23, 12, 0, 0);
   const iso = (ms) => new Date(ms).toISOString();
-  const SKILLS = { woodcutting: { xp: 1500, level: 12 }, mining: { xp: 800, level: 8 }, smithing: { xp: 0, level: 1 }, prayer: { xp: 120, level: 2 },
+  const SKILLS = { woodcutting: { xp: 1500, level: 12 }, mining: { xp: 800, level: 8 }, smithing: { xp: 0, level: 1 }, inner_flame: { xp: 120, level: 2 },
     cooking: { xp: 1200, level: 11 }, runecrafting: { xp: 0, level: 1 } };
   const envOf = (kind, id, inv, more) => Object.assign({ state: { active_kind: kind, active_id: id, active_since: iso(T0), accrued_to: iso(T0) },
     skills: SKILLS, inventory: inv, equipment: {}, shop: { offers: [], bids: { normal_log: 3, bones: 1 } } }, more || {});
@@ -646,18 +649,18 @@ async function tickerRules(base) {
   if (said.join() !== 'unpayable_bench@3,unpayable_bench@3,none') fails.push('TK-7 the character keeps the settle refusal as ' + said.join() + ' (want it from the refusal, kept through a lost answer, gone at the next)');
 
   /* TK-8: a bench counts its inputs down with the engine's own stop: never past the bag, never past the run's "N left". */
-  const bury = TW.workRow('artisan', 'bury_bones');
-  const bstep = TW.actionMs(hero(envOf('artisan', 'bury_bones', {})), bury);
-  const csb = hero(envOf('artisan', 'bury_bones', { bones: 8 }));
+  const bury = TW.workRow('artisan', 'fuel_bones');
+  const bstep = TW.actionMs(hero(envOf('artisan', 'fuel_bones', {})), bury);
+  const csb = hero(envOf('artisan', 'fuel_bones', { bones: 8 }));
   csb.clock = T0 + 3 * bstep + 100;
   const b3 = TW.tickOf(csb);
   csb.clock = T0 + 20 * bstep;
   const ball = TW.tickOf(csb);
-  const csl = hero(envOf('artisan', 'bury_bones', { bones: 8 }, { bench_run: { left: 2 } }));
+  const csl = hero(envOf('artisan', 'fuel_bones', { bones: 8 }, { bench_run: { left: 2 } }));
   csl.clock = T0 + 20 * bstep;
   const bleft = TW.tickOf(csl);
   const bline = TK.lineText(buryParts(csb));
-  if (!b3 || b3.items.bones !== -3 || TK.aheadXp(b3, 'prayer') !== 3 * TW.xpEach(bury) || !ball || ball.items.bones !== -8 || !bleft || bleft.items.bones !== -2 || !/^Burying Bones: 0 Bones left\./.test(bline))
+  if (!b3 || b3.items.bones !== -3 || TK.aheadXp(b3, 'inner_flame') !== 3 * TW.xpEach(bury) || !ball || ball.items.bones !== -8 || !bleft || bleft.items.bones !== -2 || !/^Fueling the Great Hearth with Bones: 0 Bones left\./.test(bline))
     fails.push('TK-8 the bench count: ' + JSON.stringify({ b3, all: ball && ball.items, left2: bleft && bleft.items, bline }));
 
   /* TK-9: a dish that can burn is a roll: the inputs and the burn's XP are certain, the dish is not (no stack moves). */
@@ -676,12 +679,12 @@ async function tickerRules(base) {
 
   /* TK-10: ROUNDED DOWN. Against the engine as the SERVER runs it (its perks, a real roll, its tool carry and XP
      remainder), over many windows, the ticker never shows an action, an item or an XP the server did not pay. */
-  const perks = { gatherSpeed: 0.2, smithSpeed: 0.2, prayerSpeed: 0.2, cookSpeed: 0.2, runeSpeed: 0.2, allXP: 0.1, craftSave: 0.3, yield_smithing: 0.2, noBurn: 0.1 };
+  const perks = { gatherSpeed: 0.2, smithSpeed: 0.2, flameSpeed: 0.2, cookSpeed: 0.2, runeSpeed: 0.2, allXP: 0.1, craftSave: 0.3, yield_smithing: 0.2, noBurn: 0.1 };
   const bonus = (k) => perks[k] || 0;
   /* The best axe there is: its speed, its XP and its double-yield carry (the server's carry starts at 0.7, the ticker's at 0). */
   const axe = Object.keys(ITEMS).filter((k) => ITEMS[k].type === 'tool' && ITEMS[k].toolSkill === 'woodcutting').sort((a, b) => (ITEMS[b].toolTier || 0) - (ITEMS[a].toolTier || 0))[0];
   const cases = [['gather', 'normal_tree', { normal_log: 3 }], ['gather', 'normal_tree', { [axe]: 1 }], ['gather', 'rich_coal_rock', {}], ['artisan', 'smelt_bronze', { copper_ore: 40 }],
-    ['artisan', 'bury_bones', { bones: 50 }], ['artisan', 'cook_shrimp', { shrimp: 30 }]];
+    ['artisan', 'fuel_bones', { bones: 50 }], ['artisan', 'cook_shrimp', { shrimp: 30 }]];
   const rune = Object.keys(TW.BENCH_INDEX).find((id) => TW.BENCH_INDEX[id].skill === 'runecrafting' && (TW.BENCH_INDEX[id].recipe.outputQty || 1) > 1);
   if (rune) cases.push(['artisan', rune, Object.fromEntries(Object.entries(TW.workRow('artisan', rune).row.inputs || {}).map(([i, n]) => [i, n * 40]))]);
   const rich = Object.assign({}, SKILLS, { mining: { xp: 13034431, level: 99 }, runecrafting: { xp: 13034431, level: 99 } });
@@ -949,7 +952,7 @@ async function checks(overrides, shots) {
          The Shop lists the outfitter's gear above the tools (designer 2026-10-22, 2026-11-24-shop-outfitter.sql). */
       const tools = (e) => { e.shop = Object.assign({}, e.shop, { offers: e.shop.offers.concat([{ offer: 'supply.bronze_axe', item: 'bronze_axe', kind: 'tool', price: 120 },
         { offer: 'supply.leather_gloves', item: 'leather_gloves', kind: 'gear', price: 160 }]) });
-        e.state = Object.assign({}, e.state, { active_kind: 'artisan', active_id: 'bury_bones' });
+        e.state = Object.assign({}, e.state, { active_kind: 'artisan', active_id: 'fuel_bones' });
         e.hunt = Object.assign({}, e.hunt, { ended: true }); };
       const { ctx, page, s, errors, up } = await open({ mutateEnv: tools });
       if (up) {
@@ -1250,11 +1253,13 @@ async function checks(overrides, shots) {
         if (!drawn || p.mons.some((m) => !m.drawn || !m.w || m.w % 2 || m.h % 2 || Math.abs(m.cw - m.w) > 0.5 || Math.abs(m.ch - m.h) > 0.5)) fails.push('AW-25 the creatures are not drawn at x2 from the world art: ' + JSON.stringify(p.mons));
         if (new Set(p.mons.map((m) => m.ground)).size !== 1 || p.mons.some((m) => !m.inside)) fails.push('AW-25 the creatures do not stand on one ground line, inside it: ' + JSON.stringify(p.mons.map((m) => [m.ground, m.inside])));
         const mons = p.mons.map((m) => m.id + ':' + m.how + (m.carrier ? ':carrier' : '')).join('|');
-        if (p.name !== 'Mill Cellar' || p.theme !== HUNTS.mill_cellar.theme || mons !== 'rat:Level 2 · common|slime:Level 2 · uncommon|hive_wasp:Level 4 · uncommon')
+        if (p.name !== 'Mill Cellar' || p.theme !== HUNTS.mill_cellar.theme || mons !== 'rat:Level 2 · common|slime:Level 2 · uncommon|hive_wasp:Level 4 · uncommon:carrier')
           fails.push('AW-25 the Mill Cellar page reads ' + JSON.stringify({ name: p.name, theme: p.theme, mons }));
-        /* the fixture hero wears Leather Boots, so the medium line reads first; the Cellar has no Rare, so no Rare heading */
+        /* the fixture hero wears Leather Boots, so the medium line reads first; the Cellar's one Rare is the Hive Wasp's
+           Queen's Comb (the Great Hearth's named fuel, src/data/hearth.js), so the wasp carries and the Rare heading shows */
         /* each line with its chance per kill, alone (the engine's rows: the pure AW-25 works the math from them) */
-        if (p.sets.join('|') !== 'Leather, Bronze, Apprentice: helmets · ' + CELLAR_ODDS || p.per !== 'chance per kill, hunting alone' || p.rares.length || p.raresShown)
+        if (p.sets.join('|') !== 'Leather, Bronze, Apprentice: helmets · ' + CELLAR_ODDS || p.per !== 'chance per kill, hunting alone'
+          || p.rares.join('|') !== "Queen's Comb / Hive Wasp" || !p.raresShown)
           fails.push('AW-25 the Cellar\'s drops read ' + JSON.stringify([p.sets, p.per, p.rares, p.raresShown]));
         if (p.bests.join('|') !== 'Not hunted yet. A hunt of 10 min or more sets your best.') fails.push('AW-25 with no best the page reads ' + JSON.stringify(p.bests));
         if (shots) await shot(page, 'hunts-1440x900-cellar-level1');
@@ -1528,7 +1533,7 @@ async function checks(overrides, shots) {
           if (b.activity.kind === 'artisan') Object.assign(s.env.state, { active_kind: 'artisan', active_id: b.activity.id });
           else {
             const inv = s.env.inventory;
-            if (s.env.state.active_id === 'bury_bones') { s.env.skills.prayer.xp += 6 * (inv.bones || 0); delete inv.bones; }
+            if (s.env.state.active_id === 'fuel_bones') { s.env.skills.inner_flame.xp += 6 * (inv.bones || 0); delete inv.bones; }
             if (s.env.state.active_id === 'cook_wolf_meat') { s.env.skills.cooking.xp += 100; inv.cooked_wolf_meat = inv.raw_wolf_meat - 1; inv.burnt_food = 1; delete inv.raw_wolf_meat; }
             Object.assign(s.env.state, { active_kind: 'idle', active_id: null });
           }
@@ -1630,19 +1635,19 @@ async function checks(overrides, shots) {
           }
           if (shots) await shot(page, 'alpha-1440x900-storage');
         }
-        /* AW-19 bury: the bones' primary is Bury all; ONE set_activity; Stop collects; the server's numbers only */
+        /* AW-19 Fuel the hearth: the bones' primary is Fuel all 8; ONE set_activity; Stop collects; the server's numbers only */
         await openWin(page, 'b', 'inventory');
         await page.click('[data-hs-win="inventory"] .hw-pocket[data-item="bones"]');
         const prim = await page.evaluate(() => document.querySelector('[data-hs-win="inventory"] .hw-pick [data-hs-act="primary"]').textContent);
-        if (prim !== 'Bury all') fails.push('AW-19 the bones offer "' + prim + '", not Bury all');
+        if (prim !== 'Fuel all 8') fails.push('AW-19 the bones offer "' + prim + '", not Fuel all 8');
         else {
           await page.click('[data-hs-win="inventory"] .hw-pick [data-hs-act="primary"]');
           await page.waitForTimeout(800);
           const go = sent(s, 'hr-accrue', 'set_activity');
-          if (go.length !== 1 || JSON.stringify(go[0].body.activity) !== '{"kind":"artisan","id":"bury_bones"}' || Object.keys(go[0].body).sort().join() !== 'activity,intentId,slot,verb')
-            fails.push('AW-19 Bury all sent ' + JSON.stringify(go.map((c) => c.body)));
+          if (go.length !== 1 || JSON.stringify(go[0].body.activity) !== '{"kind":"artisan","id":"fuel_bones"}' || Object.keys(go[0].body).sort().join() !== 'activity,intentId,slot,verb')
+            fails.push('AW-19 Fuel all sent ' + JSON.stringify(go.map((c) => c.body)));
           const line = await page.evaluate(() => { const b = document.querySelector('[data-hs-win="inventory"] .hw-burying'); return b && b.classList.contains('is-on') ? b.textContent : ''; });
-          if (!/^Burying Bones: 8 Bones left\. Your bag and Prayer XP update as it goes\./.test(line)) fails.push('AW-19 no Burying line from the server pointer: ' + JSON.stringify(line));
+          if (!/^Fueling the Great Hearth with Bones: 8 Bones left\. Your bag and Inner Flame XP update as it goes\./.test(line)) fails.push('AW-19 no Fueling line from the server pointer: ' + JSON.stringify(line));
           if ((await count(page, 'bones')) !== '8') fails.push('AW-19 the bag painted the bury before the server paid it: bones x' + (await count(page, 'bones')));
           if (shots) await shot(page, 'alpha-1440x900-burying');
           await page.click('[data-hs-win="inventory"] [data-hs-act="bury-stop"]');
@@ -1650,7 +1655,7 @@ async function checks(overrides, shots) {
           const stop = sent(s, 'hr-accrue', 'set_activity').slice(1);
           if (stop.length !== 1 || JSON.stringify(stop[0].body.activity) !== '{"kind":"idle"}') fails.push('AW-19 Stop sent ' + JSON.stringify(stop.map((c) => c.body)));
           const after = await page.evaluate(() => ({ bones: !!document.querySelector('[data-hs-win="inventory"] .hw-pocket[data-item="bones"]'), msg: document.querySelector('[data-hs-win="inventory"] .hh-intent-msg').textContent }));
-          if (after.bones || after.msg !== 'Done: +48 Prayer XP.') fails.push('AW-19 after the server buried them: ' + JSON.stringify(after));
+          if (after.bones || after.msg !== 'Done: +48 Inner Flame XP.') fails.push('AW-19 after the server burnt them: ' + JSON.stringify(after));
           if (!(await reloadAndPlay(page))) fails.push('AW-19 the reload did not come back');
           else {
             await openWin(page, 'b', 'inventory');
@@ -2027,7 +2032,7 @@ async function checks(overrides, shots) {
 
     { // AW-17 the skills are two windows and neither scrolls, on the phone too; the first-minute pointer
       /* A character that has killed nothing: Level XP 0 (the core rebuild: Level comes from kills only). */
-      const fresh = (e) => { for (const k of Object.keys(e.skills)) if (['melee', 'defense', 'prayer', 'magic', 'ranged'].includes(k)) e.skills[k] = { xp: 0, level: 1 }; for (const k of ['hunt', 'hunt_analyzer', 'hunt_track', 'hunt_events', 'party']) delete e[k]; e.state = Object.assign({}, e.state, { active_kind: 'idle', active_id: null, level_xp: 0 }); };
+      const fresh = (e) => { for (const k of Object.keys(e.skills)) if (['melee', 'defense', 'inner_flame', 'magic', 'ranged'].includes(k)) e.skills[k] = { xp: 0, level: 1 }; for (const k of ['hunt', 'hunt_analyzer', 'hunt_track', 'hunt_events', 'party']) delete e[k]; e.state = Object.assign({}, e.state, { active_kind: 'idle', active_id: null, level_xp: 0 }); };
       const { ctx, page, up } = await open({ viewport: { width: 922, height: 423 }, mutateEnv: fresh });
       if (up) {
         const ptr = await page.evaluate(() => { const p = document.querySelector('.hs-pointer'); return p ? p.textContent : null; });

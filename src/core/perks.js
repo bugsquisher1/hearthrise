@@ -129,7 +129,7 @@ export const TOTAL_CAP = 0.30;
                     magnitude below any cap */
 export const GOVERNED = Object.freeze({
   allXP: 1, combatXP: 1, goldFind: 1,
-  gatherSpeed: 1, cookSpeed: 1, smithSpeed: 1, craftSpeed: 1, prayerSpeed: 1, runeSpeed: 1,
+  gatherSpeed: 1, cookSpeed: 1, smithSpeed: 1, craftSpeed: 1, flameSpeed: 1, runeSpeed: 1,
 });
 
 export function governed(key) { return own(GOVERNED, key) && GOVERNED[key] === 1; }

@@ -386,7 +386,7 @@ function makeLoop(loopId, rows) {
 const inv = (env, id) => num(env && env.inventory && env.inventory[id]);
 const xpOf = (env, sk) => num(env && env.skills && env.skills[sk] && env.skills[sk].xp);
 const lvOf = (env, sk) => num(env && env.skills && env.skills[sk] && env.skills[sk].level);
-const COMBAT_SKILLS = ['melee', 'defense', 'ranged', 'magic', 'prayer'];
+const COMBAT_SKILLS = ['melee', 'defense', 'ranged', 'magic', 'inner_flame'];
 const combatXp = (env) => COMBAT_SKILLS.reduce((s, k) => s + xpOf(env, k), 0);
 const heals = (id) => num(ITEMS[id] && ITEMS[id].heals);
 const isFood = (id) => heals(id) > 0;

@@ -102,7 +102,7 @@ const MONSTER = Object.keys(MONSTERS).includes('goblin') ? 'goblin' : Object.key
    sides. See "Known limitations". */
 const MAXED = Object.freeze({
   melee: 13034431, defense: 13034431,
-  ranged: 13034431, magic: 13034431, prayer: 13034431,
+  ranged: 13034431, magic: 13034431, inner_flame: 13034431,
 });
 
 /* 2026-03-14 20:00 UTC → 2026-03-15 08:00 UTC. Twelve hours, one UTC boundary,
@@ -117,7 +117,7 @@ const SEED = 0x5eed1234;
 function baseSkills() {
   return {
     melee: 30000, defense: 22000,
-    ranged: 1000, magic: 1000, prayer: 500,
+    ranged: 1000, magic: 1000, inner_flame: 500,
     woodcutting: 4000, mining: 4000, fishing: 4000,
   };
 }
@@ -330,7 +330,7 @@ const GATHER_MAXED = { woodcutting: 13034431, mining: 13034431, fishing: 1303443
 /* The artisan benches, at 99, for the clamp/day-budget sweeps below. Same
    reason GATHER_MAXED exists: a fixture that is silently testing a level gate
    is not testing a yield. */
-const ARTISAN_MAXED = { smithing: 13034431, crafting: 13034431, cooking: 13034431, prayer: 13034431 };
+const ARTISAN_MAXED = { smithing: 13034431, crafting: 13034431, cooking: 13034431, inner_flame: 13034431 };
 const ARTISAN_INDEX = indexArtisanRecipes(ARTISAN_RECIPES);
 /* Every gated recipe unlocked. DERIVED from the data — a hand-listed set would
    go stale the day a ninth scroll is authored, and the recipes behind scrolls

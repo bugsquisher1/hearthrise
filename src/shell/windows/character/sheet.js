@@ -100,7 +100,7 @@ export function patchSheet(body, ctx, drawPortrait, asked) {
   /* Vitals: max HP and max mana, the engine's regeneration and walk speed, the bag's spaces, the stamina pool. */
   line(root, '[data-vital="hp"]', hv.hpMax !== null ? whole(hv.hpMax) : null);
   line(root, '[data-vital="mana"]', hv.manaMax !== null ? whole(hv.manaMax) : null);
-  line(root, '[data-vital="regen"]', c && c.regenPct !== null ? signedPct((c.regenPct - 100) / 100) + ' (Prayer)' : null);
+  line(root, '[data-vital="regen"]', c && c.regenPct !== null ? signedPct((c.regenPct - 100) / 100) + ' (Inner Flame)' : null);
   line(root, '[data-vital="speed"]', c && c.moveSpeed !== null ? (Math.round(c.moveSpeed / 100) / 10) + ' tiles a second' : null);
   line(root, '[data-vital="cap"]', cap !== null ? whole(cap) + ' bag spaces' : null);
   line(root, '[data-vital="stamina"]', st ? hoursMinutes(st.msLeft) : null);

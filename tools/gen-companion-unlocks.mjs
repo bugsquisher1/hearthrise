@@ -147,31 +147,36 @@ async function deriveBuy() {
 }
 
 // ── EMIT ────────────────────────────────────────────────────────────────────
+/* THE FILE THIS WRITES IS APPLIED HISTORY (2026-08-19), cut when Inner Flame was still named `prayer`. The
+   rename lives in 2027-01-31-inner-flame.sql (it renames the live owl row's req_skill), so the frozen file
+   keeps the skill ids it was cut with: the drift guard above reads today's names, the emission the cut's. */
+const AT_CUT = Object.freeze({ inner_flame: 'prayer' });
+const OFFERS_AT_CUT = COMPANION_OFFERS.map((o) => (o.req_skill && AT_CUT[o.req_skill] ? { ...o, req_skill: AT_CUT[o.req_skill] } : o));
 const q = (s) => (s === null || s === undefined ? 'null' : `'${String(s).replace(/'/g, "''")}'`);
 const num = (n) => (n === null || n === undefined ? 'null' : String(n));
 const jb = (o) => `${q(JSON.stringify(o))}::jsonb`;
 const iarr = (a) => `array[${a.join(',')}]::int[]`;
 
 const DIGEST = createHash('sha256')
-  .update(JSON.stringify({ COMPANION_UNLOCKS, COMPANION_OFFERS })).digest('hex');
+  .update(JSON.stringify({ COMPANION_UNLOCKS, COMPANION_OFFERS: OFFERS_AT_CUT })).digest('hex');
 
 const unlockLines = COMPANION_UNLOCKS.map((u) =>
   `  (${q(u.unlock_id)}, ${q(u.namespace)}, 'max', 'unlock', ${num(u.max_value)}, ${iarr(u.rungs)})`).join(',\n');
 
-const offerLines = COMPANION_OFFERS.map((r) =>
+const offerLines = OFFERS_AT_CUT.map((r) =>
   `  (${q(r.offer_id)}, ${q(r.table_name)}, ${q(r.name)}, ${q(r.unlock_id)}, ${num(r.value)}, `
   + `${num(r.gold)}, ${jb(r.items)}, ${num(r.req_property_tier)}, null, null, ${q(r.req_skill)}, ${num(r.req_skill_level)})`).join(',\n');
 
 const offerIds = COMPANION_OFFER_IDS.map((id) => q(id)).join(', ');
-const nSell = COMPANION_OFFERS.length;
+const nSell = OFFERS_AT_CUT.length;
 const nUnlock = COMPANION_UNLOCKS.length;
-const nSkillGated = COMPANION_OFFERS.filter((o) => o.req_skill !== null).length;
+const nSkillGated = OFFERS_AT_CUT.filter((o) => o.req_skill !== null).length;
 
 // Pick a concrete pair for the behavioural probe by PROPERTY, not by name, so a
 // data edit cannot leave the probe testing nothing.
-const GATED = COMPANION_OFFERS.find((o) => o.req_skill !== null);
-const UNGATED = COMPANION_OFFERS.find((o) => o.req_skill === null);
-const GATED2 = COMPANION_OFFERS.filter((o) => o.req_skill !== null && o.req_skill !== (GATED && GATED.req_skill))[0];
+const GATED = OFFERS_AT_CUT.find((o) => o.req_skill !== null);
+const UNGATED = OFFERS_AT_CUT.find((o) => o.req_skill === null);
+const GATED2 = OFFERS_AT_CUT.filter((o) => o.req_skill !== null && o.req_skill !== (GATED && GATED.req_skill))[0];
 if (!GATED || !UNGATED) die('the probe needs one skill-gated and one ungated companion; the data no longer provides both');
 
 async function build() {

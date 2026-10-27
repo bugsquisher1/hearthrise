@@ -1,11 +1,11 @@
 // ============================================================
 // src/core/vitals.js — MAX HP, MAX MANA AND THE REGEN RATE, from Level, armour
-// weight and Prayer (docs/design/CORE_MODEL.md §3, §5; Tyler 2026-10-14/19).
+// weight and Inner Flame (docs/design/CORE_MODEL.md §3, §5; Tyler 2026-10-14/19).
 //
 //   maxHp   = floor((hpBase + hpPerLevel x (L-1)) x (1000 + heavyPm) / 1000)
 //   maxMana = floor((manaBase + manaPerLevel x (L-1)) x (1000 + lightPm) / 1000)
 //   heavyPm = floor(heavyHpPermille x heavy slots / ARMOUR_SLOTS)   (light alike)
-//   regen   = 1000 + floor(maxPermille x P / (P + k)), P = the Prayer level
+//   regen   = 1000 + floor(maxPermille x P / (P + k)), P = the Inner Flame level
 //             (permille of the base HP and mana regen rates, resting and in fight)
 //
 // DERIVED, NEVER STORED: the server computes the same integers in hr_vitals_of
@@ -15,7 +15,7 @@
 // PURE ESM. No DOM, no window, no timers, no Math.random.
 // ============================================================
 
-import { VITALS, ARMOUR_WEIGHT, ARMOUR_SLOTS, PRAYER_REGEN } from '../data/core-model.js?v=0.2.54';
+import { VITALS, ARMOUR_WEIGHT, ARMOUR_SLOTS, FLAME_REGEN } from '../data/core-model.js?v=0.2.54';
 import { charLevelFromXp, levelOf } from './xp.js?v=0.2.54';
 import { isShield } from '../data/shields.js?v=0.2.54';
 
@@ -68,10 +68,10 @@ export function maxManaFor(level, light) {
   return Math.floor(((VITALS.manaBase + VITALS.manaPerLevel * (L - 1)) * (1000 + pm)) / 1000);
 }
 
-/** The regen rate at Prayer level `p`, permille of the base rate (1000 = no bonus). */
+/** The regen rate at Inner Flame level `p`, permille of the base rate (1000 = no bonus). */
 export function regenPermille(p) {
   const P = Math.max(1, int(p));
-  return 1000 + Math.floor((PRAYER_REGEN.maxPermille * P) / (P + PRAYER_REGEN.k));
+  return 1000 + Math.floor((FLAME_REGEN.maxPermille * P) / (P + FLAME_REGEN.k));
 }
 
 /**
@@ -82,5 +82,5 @@ export function vitalsOf(c) {
   const level = charLevelFromXp(c && c.levelXp);
   const w = armourWeights(c && c.equipment, c && c.items);
   return { level, maxHp: maxHpFor(level, w.heavy), maxMana: maxManaFor(level, w.light),
-    regenPm: regenPermille(levelOf(c && c.skills, 'prayer')) };
+    regenPm: regenPermille(levelOf(c && c.skills, 'inner_flame')) };
 }

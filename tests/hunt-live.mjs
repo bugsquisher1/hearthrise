@@ -135,7 +135,7 @@ function memberOf(M, user, seat, role, level) {
     huntSession: { id: 's-' + user, instanceId: 'i-live', huntFromMs: T0, nextSwingAtMs: T0, swingIndex: 0, bag: { cooked_shrimp: { loaded: 30, left: 30, essential: true } },
       staminaMs: 8 * 3600000, staminaMaxMs: 8 * 3600000, basics,
       goldFloor: 0, supplySource: 'mine', onEmpty: 'switch', cover: {} },
-    skills: { melee: M.XP.skillXpForLevel('melee', L), defense: M.XP.skillXpForLevel('defense', L), ranged: M.XP.skillXpForLevel('ranged', L), magic: 0, prayer: 0 },
+    skills: { melee: M.XP.skillXpForLevel('melee', L), defense: M.XP.skillXpForLevel('defense', L), ranged: M.XP.skillXpForLevel('ranged', L), magic: 0, inner_flame: 0 },
     levelXp: M.XP.charXpForLevel(L), xpFrac: null, hp: 1e6, gold: 500, equipment: role === 'tank' ? { weapon, shield: 'practice_shield' } : { weapon }, inventory: {}, buffs: [], perks: null,
     deathsTodayBefore: 0, deathsLifetimeBefore: 0, hearthfindReady: false,
     /* LEAVE TOGETHER (Tyler 2026-10-22): every hero's box "Leave if anyone leaves the hunt or dies" is on, the server's
@@ -555,9 +555,9 @@ function rules(M) {
       };
       const plate = { body: 'bronze_platebody', pants: 'steel_platelegs', boots: 'bronze_boots' };
       return [
-        row('eddie', 0, 3696348, { melee: 1212343, defense: 1166560, magic: 7056, ranged: 0, prayer: 76422 }, { weapon: 'steel_sword', shield: 'practice_shield', helmet: 'iron_helm', ...plate }, 'shield', true),
-        row('fremulon', 1, 3370870, { melee: 965112, defense: 636093, magic: 6894, ranged: 0, prayer: 84294 }, { weapon: 'iron_sword', shield: 'practice_shield', helmet: 'steel_helm', ...plate }, 'shield', false),
-        row('apollo', 2, 1509460, { melee: 4015, defense: 267, magic: 220560, ranged: 405, prayer: 26451 },
+        row('eddie', 0, 3696348, { melee: 1212343, defense: 1166560, magic: 7056, ranged: 0, inner_flame: 76422 }, { weapon: 'steel_sword', shield: 'practice_shield', helmet: 'iron_helm', ...plate }, 'shield', true),
+        row('fremulon', 1, 3370870, { melee: 965112, defense: 636093, magic: 6894, ranged: 0, inner_flame: 84294 }, { weapon: 'iron_sword', shield: 'practice_shield', helmet: 'steel_helm', ...plate }, 'shield', false),
+        row('apollo', 2, 1509460, { melee: 4015, defense: 267, magic: 220560, ranged: 405, inner_flame: 26451 },
           { weapon: 'practice_wand', shield: 'practice_spellbook', helmet: 'leather_helmet', body: 'leather_body', boots: 'leather_boots' }, 'wand', false),
       ];
     };

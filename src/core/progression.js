@@ -23,7 +23,7 @@ import { spendRestedCharge } from './rested.js?v=0.2.54';
 import { advanceToolCarry } from './tools.js?v=0.2.54';
 
 /* The skills the `combatXP` bonus channel pays: the four trained in a fight
-   (CORE_MODEL.md §4). Prayer trains at the altar, not in a fight. ONE list,
+   (CORE_MODEL.md §4). Inner Flame trains at the Great Hearth, not in a fight. ONE list,
    read by both the XP grant and the hint the player sees. */
 export const COMBAT_XP_SKILLS = ['melee', 'ranged', 'magic', 'defense'];
 

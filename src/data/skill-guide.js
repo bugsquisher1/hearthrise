@@ -18,7 +18,7 @@ export const SKILL_GUIDE = Object.freeze({
   ranged: row('uiBow', 'Your shots land more often and hit harder.', 'Deal damage with a bow or crossbow.'),
   magic: row('uiStaff', 'Your spells land more often and hit harder.', 'Spend mana on spells.'),
   defense: row('uiShield', 'Monsters hit you less often.', 'Take blows while wearing armour; a shield block counts double.'),
-  prayer: row('uiStar', 'You recover health and mana faster.', 'Bury bones.'),
+  inner_flame: row('uiCamp', 'Your hero recovers health and mana faster.', 'Fuel the Great Hearth in Havora with bones and other fuel.'),
   woodcutting: row('uiAxe', 'Logs for Crafting and for building your home.', 'Chop trees.'),
   mining: row('uiPickaxe', 'Ore for Smithing and essence for Runecrafting.', 'Mine rocks.'),
   fishing: row('uiRod', 'Raw fish for Cooking.', 'Fish at a fishing spot.'),

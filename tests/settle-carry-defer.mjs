@@ -98,7 +98,7 @@ function baseChar(over) {
     activeKind: 'gather', activeId: 'normal_tree', capMs: 43200000,
     hp: 99, maxHp: 99, gold: 0,
     skills: { attack: MAXED, strength: MAXED, defense: MAXED, hitpoints: MAXED,
-              ranged: MAXED, magic: 1000, prayer: 1000,
+              ranged: MAXED, magic: 1000, inner_flame: 1000,
               woodcutting: MAXED, mining: MAXED, fishing: MAXED },
     inventory: {},
     equipment: {},

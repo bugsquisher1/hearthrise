@@ -21,6 +21,8 @@
 // one record of where this body stands in town (placeOn: a switch is not a move).
 // A fight on a hunt no map renders shows town or home with a slim banner offering the mapped hunt.
 // THE 64 PX SANDBOX: another art grid, loaded on first entry; its presence rule is sandbox-scene.js.
+// THE GREAT HEARTH (hearth-burn.js): in town the frame also carries the fuel throws, the named flame's colour
+// and the hero's "+N Inner Flame", all from what the server said (the pointer, the stands, the town read).
 // THE ART BY SCENE (atlas.js, scene-sets.js): every manifest on the first open, but a sheet only when a
 // scene drawing from it shows. The first scene opens whole; a later one (a ground entered, the town after
 // a hunt) switches once its sheets have arrived, the last frame holding meanwhile.
@@ -51,6 +53,8 @@ import { runAction } from './steer-local.js?v=0.2.54';
 import { heroSprite } from '../session/hero-look.js?v=0.2.54';
 import { keyBelongsToField } from '../utils/dom.js?v=0.2.54';
 import { homeOf } from '../session/home-sections.js?v=0.2.54';
+import { skillsOf } from '../session/item-sections.js?v=0.2.54';
+import { createHearthView } from './hearth-burn.js?v=0.2.54';
 
 /* THE KEYS (desktop): WASD and the arrows, by physical key (e.code, so a
    non-QWERTY layout walks with the same hand). Two held at once walk the
@@ -193,6 +197,18 @@ export async function bootWorld(panel, opts) {
   let walkPlaced = true, walkStand = null;   // the town walk began on the server's place; the stand key (station:stand:since) it last walked to
   const town = opts.town || null;
   const readEnv = createEnvReader(homeNow, town);
+  let hearthView = null, hearthMap = null;
+
+  /* THE GREAT HEARTH in a town frame (hearth-burn.js): the throws, the colour, the "+N Inner Flame"; display only */
+  function hearthState(map, f, now) {
+    /* the book's own sprites, never the stub proxy: a colour whose art is not loaded draws the plain fire */
+    if (hearthMap !== map) { hearthMap = map; hearthView = createHearthView(map, { sprites: book.sprites }); }
+    const s = character && typeof character.read === 'function' ? character.read('state') : null;
+    const sk = character ? skillsOf(character) : null;
+    return hearthView.frame({ place: f.place, units: f.units, walkers: town.walkers(), me: town.me(), hero: f.hero,
+      active: s && s.active_kind === 'artisan' ? s.active_id : null, burn: town.lastBurn(), flame: town.hearth(),
+      xp: sk && sk.inner_flame && Number.isFinite(sk.inner_flame.xp) ? sk.inner_flame.xp : null }, now);
+  }
 
   function paintChrome(sc) {
     stage.classList.remove('is-hot');
@@ -267,6 +283,7 @@ export async function bootWorld(panel, opts) {
       if (k && k !== walkStand) { walkStand = k; walk.goTo(town.me().at, now); }
     }
     const f = walk.frame(readEnv(map.kind), now);
+    if (held && map.kind === 'town') Object.assign(f, hearthState(map, f, now));
     if (!held) notePos(G, map.id, f.hero.x, f.hero.y);
     presenceFor(town, map, f.place);
     lastWalk = f;
@@ -280,7 +297,9 @@ export async function bootWorld(panel, opts) {
       units: f.units.map((u) => ({ id: u.id, x: u.x, y: u.y, plate: u.plate ? u.plate.text : null, alpha: u.alpha, anim: u.anim, age: u.age, dir: u.dir,
         player: u.ref && u.ref.player ? u.ref.player.id : null })),
       place: f.place,
-      props: f.props.map((p) => ({ id: p.id, x: p.x, y: p.y, ref: p.ref })) };
+      props: f.props.map((p) => ({ id: p.id, x: p.x, y: p.y, ref: p.ref })),
+      /* the Great Hearth's effects this frame (hearth-burn.js), for a test or a look */
+      hearth: { fx: (f.fx || []).map((e) => e.id), swap: f.ambientSwap || null, floats: (f.floats || []).map((x) => x.text) } };
   }
 
   /* ROUTE: which scene, and the HTML around it (title, picks, the unmapped-fight

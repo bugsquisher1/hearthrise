@@ -137,7 +137,7 @@ function check(S, editRow = null) {
     for (const n of nodes) want({ kind: 'gather', skill, node: n.id }, 'gather', skill);
   }
   for (const [id, def] of Object.entries(M.skills.SKILLS_DEF)) if (def.cat === 'artisan') want({ kind: 'artisan', skill: id }, 'artisan', id);
-  want({ kind: 'artisan', skill: 'prayer' }, 'artisan', 'prayer');
+  want({ kind: 'artisan', skill: 'inner_flame' }, 'artisan', 'inner_flame');
   want({ kind: 'training' }, 'training');
   want({ kind: 'arrival' }, 'arrival');
   want({ kind: 'idle' }, 'idle');

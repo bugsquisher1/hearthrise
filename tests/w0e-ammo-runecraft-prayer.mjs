@@ -207,7 +207,7 @@ export async function runAll({ mutate } = {}) {
       return huntAccrual({ ...inp, inventory: {} }, { seed: o.seed || SEED, bag, engine: ACC, bar: o.bar });
     };
 
-    const RANGED = { melee: 0, defense: MAX_XP, ranged: MAX_XP, magic: 0, prayer: 0 };
+    const RANGED = { melee: 0, defense: MAX_XP, ranged: MAX_XP, magic: 0, inner_flame: 0 };
 
     // ═════════════════════════ AMMO ═════════════════════════════════════
     {
@@ -289,7 +289,7 @@ export async function runAll({ mutate } = {}) {
       }
 
       /* THE LOOP, through the engine. Runecrafting 1, Mining 1, Stonemason 0; a Magic-15 Mage. */
-      const skills = { runecrafting: 0, mining: 0, stonemason: 0, defense: xpAt(30), magic: xpAt(15), prayer: 0 };
+      const skills = { runecrafting: 0, mining: 0, stonemason: 0, defense: xpAt(30), magic: xpAt(15), inner_flame: 0 };
       const step = (id, inventory) => away({ kind: 'artisan', id, skills: { ...skills }, inventory, hp: 300 });
       const mine = away({ kind: 'gather', id: 'essence_rock', skills: { ...skills }, inventory: {}, hp: 300 });
       const ess = (mine.accrued && mine.delta.items && mine.delta.items.rune_essence) || 0;

@@ -17,11 +17,11 @@
 export const PACE = { xp: 0.39, actionMs: 1.60 };
 /* Farming, and the combat skills trained in a fight: their XP is paid as the core
    model states it (src/data/core-model.js COMBAT_XP; the skill curve was fitted to
-   it as paid). Prayer is trained at a bench (the burying rites) and stays on the
-   dial like every artisan skill: its rates are authored pre-dial (PRAYER_BURY). */
+   it as paid). Inner Flame is trained at a bench (fuelling the Great Hearth) and stays on the
+   dial like every artisan skill: its rates are authored pre-dial (FLAME_FUEL). */
 export const PACE_EXEMPT_SKILLS = ['farming', 'melee', 'ranged', 'magic', 'defense'];
 
-export const SPEED_KEYS = { cookSpeed: 1, smithSpeed: 1, craftSpeed: 1, prayerSpeed: 1, runeSpeed: 1, gatherSpeed: 1 };
+export const SPEED_KEYS = { cookSpeed: 1, smithSpeed: 1, craftSpeed: 1, flameSpeed: 1, runeSpeed: 1, gatherSpeed: 1 };
 
 /* b227/b228 — THE FUSE, at the point of CONSUMPTION.
    A clamp inside getBonus is escaped by every wrapper above it (measured:
@@ -65,7 +65,7 @@ export const GATHER_SKILLS = ['woodcutting', 'mining', 'fishing'];
    and maps to `craftSpeed` (the Workshop speeds the crafting family): a
    bespoke key with no room rung to produce it would be a GHOST KEY. */
 const ARTISAN_SPEED_KEY = {
-  cooking: 'cookSpeed', smithing: 'smithSpeed', crafting: 'craftSpeed', prayer: 'prayerSpeed',
+  cooking: 'cookSpeed', smithing: 'smithSpeed', crafting: 'craftSpeed', inner_flame: 'flameSpeed',
   runecrafting: 'runeSpeed', stonemason: 'craftSpeed',
 };
 

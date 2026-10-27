@@ -11,8 +11,8 @@
 //   coin       its gp range, every kill
 //   junk       ONE row: the creature's own product, at common odds (over 15%).
 //              It sells to the vendor; it may also be a craft input (wolf meat
-//              cooks, pelts build rooms, bone chips feed Smithing and Prayer). Bones are NOT the junk
-//              slot: a boned creature may add a bones row (Prayer), a slime or a
+//              cooks, pelts build rooms, bone chips feed Smithing and the Hearth). Bones are NOT the junk
+//              slot: a boned creature may add a bones row (the Hearth's fuel), a slime or a
 //              spider has none.
 //   imbuement  ONE row: an item this monster and no other drops (IMBUE_ITEMS
 //              below), at uncommon odds (IMBUE_DROP), tier from the monster's

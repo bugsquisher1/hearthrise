@@ -4,9 +4,9 @@
 // The one home for the town activities a player starts and stops (designer
 // ruling 2026-10-22, lane/b-town-skills): chopping, mining and fishing (a
 // gathering node), and every bench recipe (Cooking, Smithing, Crafting,
-// Runecrafting, and the Prayer rites the bag's Bury all names). The Gathering
-// and crafting window (src/shell/windows/work.js) and the bag's Bury all /
-// Cook all (src/shell/windows/inventory/bury.js) both start and stop through
+// Runecrafting, and Inner Flame's fuels the bag's Fuel the hearth names). The
+// Gathering and crafting window (src/shell/windows/work.js) and the bag's Fuel
+// the hearth / Cook all (src/shell/windows/inventory/bury.js) both start and stop through
 // here, so there is one path, not two.
 //
 // The server runs it. Start is ONE `set_activity` naming { kind:'gather', id:<node> }
@@ -87,7 +87,7 @@ export function workOf(cs) {
   return s && typeof s.active_id === 'string' ? workRow(s.active_kind, s.active_id) : null;
 }
 
-/** The item a row makes, or null (a Prayer rite makes nothing). */
+/** The item a row makes, or null (a Hearth fuel makes nothing). */
 export function productOf(w) { return w.kind === 'gather' ? w.row.prod : (w.row.output || null); }
 
 /** How many of the product one action makes: "45" for a rune bind, 1 for most. Gathering's range is its low end. */
@@ -145,19 +145,17 @@ function workWords(w) {
   /* A dish names what goes on the fire ("cooking Raw Shrimp"), any other bench what it makes. */
   if (out && w.skill === 'cooking') return 'cooking ' + itemName(Object.keys(recipeInputs(w.row))[0] || out);
   if (out) return 'making ' + itemName(out);
-  /* A Prayer rite makes nothing: its own verb ("Bury Bones" -> "burying Bones"). */
-  const [verb, ...rest] = String(w.row.name).split(' ');
-  return ((/[^e]e$/.test(verb) ? verb.slice(0, -1) : verb) + 'ing').toLowerCase() + (rest.length ? ' ' + rest.join(' ') : '');
+  /* A fuel makes nothing: the Great Hearth burns it (src/data/hearth.js; every output-less row is a fuel) */
+  return 'fueling the Great Hearth with ' + itemName(w.row.input);
 }
 
-/** The action as "You need … to ___" says it: "cook Raw Wolf Meat", "make Bronze Bar", "chop the Oak Tree", "bury Bones". */
+/** The action as "You need … to ___" says it: "cook Raw Wolf Meat", "make Bronze Bar", "chop the Oak Tree", "burn Big Bones in the Great Hearth". */
 export function doWords(w) {
   if (w.kind === 'gather') return (w.skill === 'woodcutting' ? 'chop the ' : w.skill === 'mining' ? 'mine the ' : 'fish at the ') + w.row.name;
   const out = productOf(w);
   if (out && w.skill === 'cooking') return 'cook ' + itemName(Object.keys(recipeInputs(w.row))[0] || out);
   if (out) return 'make ' + itemName(out);
-  const [verb, ...rest] = String(w.row.name).split(' ');
-  return verb.toLowerCase() + (rest.length ? ' ' + rest.join(' ') : '');
+  return 'burn ' + itemName(w.row.input) + ' in the Great Hearth';
 }
 
 /* The server's skill level for a row's skill, or null (not sent yet). */

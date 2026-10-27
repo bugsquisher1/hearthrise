@@ -19,8 +19,6 @@
     "src/data/monsters.js#Shadow Creeper": "Shadow",
     "src/data/monsters.js#Void Mote": "Void",
     "src/data/monsters.js#Void Parasite": "Void",
-    "src/data/recipes.js#Offer Ancient Claw": "Ancient",
-    "src/data/recipes.js#Purge Void Chitin": "Void",
     "src/data/recipes.js#Void Banquet": "Void"
   }
 }

@@ -6,7 +6,7 @@
 // still reaching for `Math.random()` (three times: craftSave, the cooking
 // burn, and the yield_* roll). It also owned the recipe-input consumption,
 // the output quantity, and the deterministic artisan-tool carry — i.e. the
-// whole production step for cooking / smithing / crafting / prayer.
+// whole production step for cooking / smithing / crafting / Inner Flame.
 //
 // The accrual engine has to price an overnight of smithing without a DOM,
 // so all of that lives here now and legacy.js delegates. Everything the

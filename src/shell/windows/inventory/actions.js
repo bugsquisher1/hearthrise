@@ -16,8 +16,10 @@
 //   lock, loot plan        hr_item_lock, hr_loot_rule_set (Keep in bag / Deposit in
 //                          storage / Sell, or Don't pick up: loot-dispatch.js)
 //   Dispatch loot          ONE hr_loot_dispatch: the server runs every plan in town
-//   bury / cook (and stop) the engine's `set_activity` on the item's Prayer rite or
-//                          Cooking recipe (bury.js): the server spends the stack and pays
+//   fuel / cook (and stop) the engine's `set_activity` on the item's Hearth fuel row or
+//                          Cooking recipe (bury.js): the server spends the stack (or one:
+//                          "Fuel the hearth") and pays; the hero walks to a fuel stand
+//   a named fuel           hr_hearth_burn (bury.js burnNamed): one, alone, the square's colour
 // While one is in flight every action control is off; the counts change only
 // when the re-read envelope replaces the bag and the worn set.
 //
@@ -28,7 +30,7 @@
 // open doll slot and the "new" marks. No key here is a walk key: selling is
 // Delete, so W, A, S and D always reach the World (Tyler 10-18).
 // ════════════════════════════════════════════════════════════════════════
-import { kindOf, equipSlotFor, equipOps, markSeen } from '../../bag-model.js?v=0.2.54';
+import { kindOf, equipSlotFor, equipOps, markSeen, namedFuelOf } from '../../bag-model.js?v=0.2.54';
 import { assignToBar, barKind, barIndexOf, barKeyLabel } from '../../bar-assign.js?v=0.2.54';
 import { runIntent } from '../../intent-words.js?v=0.2.54';
 import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.54';
@@ -42,7 +44,7 @@ import { dispatchLoot } from '../../../session/loot-intents.js?v=0.2.54';
 import { fitsSlot, dollTip, DRAG_WORN } from './doll.js?v=0.2.54';
 import { askElsewhere } from './elsewhere.js?v=0.2.54';
 import { skillsOf } from '../../../session/item-sections.js?v=0.2.54';
-import { buryRecipeOf, buryLabel, buryBlock, startBury, stopBury, buryQty } from './bury.js?v=0.2.54';
+import { buryRecipeOf, buryLabel, buryBlock, startBury, stopBury, buryQty, namedBlock, burnNamed } from './bury.js?v=0.2.54';
 import { equipUpgrades } from '../../widgets/upgrade-line.js?v=0.2.54';
 import { wearBlock } from '../../gear-gate.js?v=0.2.54';
 import { levelOf } from '../../../session/character-sections.js?v=0.2.54';
@@ -131,14 +133,22 @@ function doPrimary(st, id, repaint) {
   } else if (barKind(id) && st.bar && barIndexOf(cs, id) < 0) {
     send(st, repaint, () => assignToBar(cs, id), 'Putting it on the bar…');
   } else if (buryRecipeOf(id)) doBury(st, id, repaint);
+  else if (namedFuelOf(id)) doNamed(st, id, repaint);
   else askSell(st, [id], 'Sell', repaint);
 }
 
 /* Bury or cook the whole stack (bury.js): refused here only for what the screen already knows (a hunt, the level, one running). */
-function doBury(st, id, repaint) {
+function doBury(st, id, repaint, count) {
   const why = buryBlock(st.cs, buryRecipeOf(id));
   if (why) { say(st, repaint, why); return; }
-  startBury(st.cs, st.sc, id, (fn, busy, done) => send(st, repaint, fn, busy, done), repaint);
+  startBury(st.cs, st.sc, id, (fn, busy, done) => send(st, repaint, fn, busy, done), repaint, count);
+}
+
+/* Burn ONE named fuel in the Great Hearth (bury.js burnNamed): refused here only for what the screen already knows. */
+function doNamed(st, id, repaint) {
+  const why = namedBlock(st.cs, id);
+  if (why) { say(st, repaint, why, 'pick:' + id); return; }
+  burnNamed(st.account, st.cs, id, (fn, busy, done) => send(st, repaint, fn, busy, done, 'pick:' + id));
 }
 
 function doStopBury(st, repaint) {
@@ -205,7 +215,12 @@ function openMenu(ctx, body, st, id, at, repaint) {
   if (k === 'food') h += item('m-eat', 'Eat', true);
   const br = buryRecipeOf(id);
   const brWhy = br ? buryBlock(st.cs, br) : '';
+  /* a fuel stack offers ONE ("Fuel the hearth", a bench count of one) beside the whole stack ("Fuel all N", Tyler 10-25) */
+  if (br && br.skill !== 'cooking' && buryQty(st.cs, id) > br.need) h += item('m-fuel-one', 'Fuel the hearth', !brWhy, '', brWhy);
   if (br) h += item('m-bury', buryLabel(br, buryQty(st.cs, id)), !brWhy, '', brWhy);
+  const nf = namedFuelOf(id);
+  const nfWhy = nf ? namedBlock(st.cs, id) : '';
+  if (nf) h += item('m-hearth', 'Fuel the hearth', !nfWhy, '', nfWhy);
   if (barKind(id)) h += item('m-bar', bi >= 0 ? 'On the bar (key ' + barKeyLabel(bi) + ')' : 'Put on the bar', !!st.bar && bi < 0, '', st.bar ? '' : 'The bar is still loading.');
   const sellWhy = locked ? '' : !st.shop ? 'The shop is still loading.' : st.shop.bids.has(id) ? '' : 'The shop does not buy this.';
   h += item('m-sell', locked ? 'Sell (unlock it first)' : 'Sell…', !locked && !sellWhy, '', sellWhy);
@@ -415,6 +430,8 @@ export function actInventory(ctx, body, action, ev, t, repaint) {
   switch (action) {
     case 'm-equip': case 'm-eat': doPrimary(st, id, repaint); return true;
     case 'm-bury': doBury(st, id, repaint); return true;
+    case 'm-fuel-one': doBury(st, id, repaint, 1); return true;
+    case 'm-hearth': doNamed(st, id, repaint); return true;
     case 'm-bar': send(st, repaint, () => assignToBar(st.cs, id), 'Putting it on the bar…'); return true;
     case 'm-sell': askSell(st, [id], 'Sell', repaint); return true;
     case 'm-lock': doLock(st, id, repaint); return true;

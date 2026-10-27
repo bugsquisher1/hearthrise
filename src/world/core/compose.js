@@ -368,30 +368,35 @@ export function composeFrame(map, book, state, view, tables, T) {
     floats.push({ text: f.text, kind: f.kind, big: !!f.big, x: (f.x + 0.5) * T + (f.dx || 0), y: f.y * T - 6 * k + (f.dy || 0) - 14 * k * age, alpha: age < 0.66 ? 1 : (1 - age) / 0.34 });
   }
   /* AMBIENT LOOPS (map-compile.js `ambient`: the Great Hearth's fire): a looping effect the MAP places, on the
-     state's clock, its anchor `lift` art px above the tile's foot row; drawn with the effects, after the light. */
+     state's clock, its anchor `lift` art px above the tile's foot row; drawn with the effects, after the light.
+     `state.ambientSwap` draws another clip in its place ({ hearth_fire: 'hearth_fire_honey' }: a named fuel's colour,
+     src/world/hearth-burn.js), at the same anchor. */
   for (const a of map.ambient || []) {
-    const s = book.sprite(a.id);
+    const id = (state.ambientSwap && state.ambientSwap[a.id]) || a.id;
+    const s = book.sprite(id);
     const name = s.anims && (s.anims.idle ? 'idle' : s.anims.play ? 'play' : null);
     if (!name) continue;
-    const n = book.frames(a.id, name, 's');
+    const n = book.frames(id, name, 's');
     const i = Math.floor((Math.max(0, state.t || 0) * (s.anims[name].fps || 0)) / 1000) % n;
-    const f = book.frame(a.id, name, 's', i);
+    const f = book.frame(id, name, 's', i);
     const px = Math.round((a.x + 0.5) * T), py = Math.round((a.y + 1) * T - 1 - (a.lift || 0));
     if (!near(px - f.ax, py - f.ay, f.w, f.h)) continue;
-    effects.push({ id: a.id, set: f.set, sx: f.sx, sy: f.sy, w: f.w, h: f.h, x: px - f.ax, y: py - f.ay, cx: px, cy: py, ax: f.ax, ay: f.ay,
+    effects.push({ id, set: f.set, sx: f.sx, sy: f.sy, w: f.w, h: f.h, x: px - f.ax, y: py - f.ay, cx: px, cy: py, ax: f.ax, ay: f.ay,
       blend: s.blend === 'add' ? 'add' : 'over', angle: 0 });
   }
   /* EFFECTS ({ id, x, y in tiles, age ms, lift, on, angle? }): a vfx clip centred at its anchor
      `lift` x the art height of sprite `on` (a flier's hover added) above the tile's foot row;
-     a one-shot past its last frame is not drawn. */
+     a one-shot past its last frame is not drawn. A still (a sprite with only an `idle` frame: a fuel
+     chunk thrown into the Great Hearth) is drawn as itself, wherever its x and y put it. */
   for (const e of state.fx || []) {
     const s = book.sprite(e.id);
-    const clip = s.anims && s.anims.play;
+    const anim = s.anims && s.anims.play ? 'play' : s.anims && s.anims.idle && !s.anims.idle.fps ? 'idle' : null;
+    const clip = anim && s.anims[anim];
     if (!clip) continue;
-    const n = book.frames(e.id, 'play', 's');
+    const n = book.frames(e.id, anim, 's');
     const i = Math.floor((Math.max(0, e.age) * (clip.fps || 1)) / 1000);
     if (!clip.loop && i >= n) continue;
-    const f = book.frame(e.id, 'play', 's', i);
+    const f = book.frame(e.id, anim, 's', i);
     const host = e.on ? book.sprite(e.on) : null;
     const up = host ? (host.height || 20) * (e.lift || 0) + (host.class === 'flier' ? host.hover || 0 : 0) : 20 * (e.lift || 0);
     const px = Math.round((e.x + 0.5) * T), py = Math.round((e.y + 1) * T - 1 - up);

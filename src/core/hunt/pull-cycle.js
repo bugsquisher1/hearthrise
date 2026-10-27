@@ -223,7 +223,7 @@ function travel(inst, sc, k) {
 }
 
 /* The living heroes regain HP (PC-12): the resting rate out of a fight, the
-   in-fight rate during one (CORE_NUMBERS Q6), each times the hero's Prayer regen
+   in-fight rate during one (CORE_NUMBERS Q6), each times the hero's Inner Flame regen
    rate (`regenPm`, src/core/vitals.js regenPermille). */
 function tickHeroes(inst, sc) {
   const rate = inst.world.phase !== PHASE.FIGHT ? HUNT_TUNING.oocRegenPermillePerS : VITALS.inFightRegenPermillePerS;

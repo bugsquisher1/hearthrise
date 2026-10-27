@@ -1,0 +1,37 @@
+{
+  "id": "hearth_fire_marsh",
+  "class": "vfx",
+  "style": "s1",
+  "material": "light",
+  "source": "hearth_fire_marsh.png",
+  "frame": [
+    61,
+    49
+  ],
+  "anchor_px": [
+    30,
+    24
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 8,
+      "loop": true,
+      "dirs": {
+        "s": 8
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "animate_image",
+    "image": "9460343b-3ee4-4a4d-97b6-0b39a2e7e0e4",
+    "seed": 12,
+    "cost": 2,
+    "source": "great_hearth firebox crop (112,196) 128x104"
+  },
+  "notes": "hearth_fire with its flame pixels (where it differs from hearth_fire_verdigris) re-poured onto the marsh ramp by tools/world-art/hearth-flames.mjs; free recolour, no generation. Same placement as hearth_fire."
+}

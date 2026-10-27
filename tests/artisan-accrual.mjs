@@ -93,7 +93,7 @@ const SEED = 0x5eed1234;
 
 const MAXED = 13034431;                 // level 99
 const SKILLS = Object.freeze({
-  cooking: MAXED, smithing: MAXED, crafting: MAXED, prayer: MAXED,
+  cooking: MAXED, smithing: MAXED, crafting: MAXED, inner_flame: MAXED,
   woodcutting: MAXED, mining: MAXED, fishing: MAXED,
   attack: 1000, strength: 1000, defense: 1000, hitpoints: 1000,
 });
@@ -276,7 +276,7 @@ function unsimulatedKindGuard() {
    Deliberately NOT `actionIntervalMs()` from core/pacing.js: this reference has
    to spend the terms independently, or a change to the shared helper would move
    both columns together and parity would stay green while the number drifted. */
-const SPEED_KEY = { cooking: 'cookSpeed', smithing: 'smithSpeed', crafting: 'craftSpeed', prayer: 'prayerSpeed' };
+const SPEED_KEY = { cooking: 'cookSpeed', smithing: 'smithSpeed', crafting: 'craftSpeed', inner_flame: 'flameSpeed' };
 function clientArtisanIntervalMs(skill, recipe, inventory, equipment, bonus) {
   const tool = bestTool(skill, inventory, equipment, ITEMS);
   const speed = (bonus(SPEED_KEY[skill]) || 0) + toolSpeed(tool);
@@ -370,7 +370,7 @@ function clientArtisanSpan(opts) {
      • the best hammer          — tool speed moves the interval, the fractional
                                   carry moves the yield, toolXpB moves the grant
      • a crafting material out  — craftSave and yield_crafting are live
-     • prayer                   — the bench with no BENCH_COUNTERS row at all
+     • inner_flame              — the bench with no BENCH_COUNTERS row at all
    The coverage assertions at the bottom are what stop this table quietly
    degrading into one easy case that always passes. */
 function pickRecipe(skill, pred) {
@@ -394,9 +394,9 @@ const FIXTURES = [
     pick: () => pickRecipe('crafting', (r) => r.output && ITEMS[r.output] && !ITEMS[r.output].type),
   },
   {
-    name: 'prayer (no BENCH_COUNTERS row — the counter loop must not invent one)',
-    skill: 'prayer', tool: false,
-    pick: () => pickRecipe('prayer', () => true),
+    name: 'inner_flame (no BENCH_COUNTERS row — the counter loop must not invent one)',
+    skill: 'inner_flame', tool: false,
+    pick: () => pickRecipe('inner_flame', () => true),
   },
 ];
 

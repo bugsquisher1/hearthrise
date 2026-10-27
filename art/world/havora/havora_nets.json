@@ -1,0 +1,43 @@
+{
+  "id": "havora_nets",
+  "class": "bulky",
+  "style": "s1",
+  "material": "wood",
+  "source": "havora_nets.png",
+  "frame": [
+    40,
+    27
+  ],
+  "anchor_px": [
+    20,
+    26
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_image_pro",
+    "image": "e4b824f0-b9c1-4af9-a62a-f50b048c75da",
+    "index": 14,
+    "seed": 4201,
+    "size": [
+      48,
+      48
+    ],
+    "cost": 10,
+    "style": "havora/havora_tavern",
+    "size_note": "candidate sheet 48 x 48"
+  },
+  "notes": "A heap of fishing nets with floats: the harbour quay (lane/b-havora-polish 2026-10-26: the cook yard's own art in place of the cottage forge sprite). Candidate 14 of 25, cropped to its art. Its trailing rope below the contact row trimmed."
+}

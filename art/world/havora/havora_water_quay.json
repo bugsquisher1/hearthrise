@@ -1,0 +1,124 @@
+{
+  "id": "havora_water_quay",
+  "class": "terrain",
+  "kind": "wang16",
+  "style": "s1",
+  "material": "terrain",
+  "source": "havora_water_quay.png",
+  "lower": "water",
+  "upper": "earth",
+  "tiles": {
+    "1000": [
+      [
+        0,
+        2
+      ]
+    ],
+    "1001": [
+      [
+        1,
+        2
+      ]
+    ],
+    "1010": [
+      [
+        2,
+        2
+      ]
+    ],
+    "1011": [
+      [
+        3,
+        2
+      ]
+    ],
+    "1100": [
+      [
+        0,
+        3
+      ]
+    ],
+    "1101": [
+      [
+        1,
+        3
+      ]
+    ],
+    "1110": [
+      [
+        2,
+        3
+      ]
+    ],
+    "1111": [
+      [
+        3,
+        3
+      ]
+    ],
+    "0000": [
+      [
+        0,
+        0
+      ]
+    ],
+    "0001": [
+      [
+        1,
+        0
+      ]
+    ],
+    "0010": [
+      [
+        2,
+        0
+      ]
+    ],
+    "0011": [
+      [
+        3,
+        0
+      ]
+    ],
+    "0100": [
+      [
+        0,
+        1
+      ]
+    ],
+    "0101": [
+      [
+        1,
+        1
+      ]
+    ],
+    "0110": [
+      [
+        2,
+        1
+      ]
+    ],
+    "0111": [
+      [
+        3,
+        1
+      ]
+    ]
+  },
+  "pixellab": {
+    "tool": "create_topdown_tileset",
+    "id": "49686d03-6daf-4ed4-a170-9302efb7be7e",
+    "base_tile_ids": {
+      "lower": "32062820-23ec-4670-bff9-b5aab5db74fa",
+      "upper": "97e71544-5fcf-4e48-94b7-c809721a12be"
+    },
+    "params": {
+      "mode": "pro",
+      "tile_size": 32,
+      "view": "high top-down",
+      "transition_size": 0.25
+    },
+    "derived": "tools/world-art/harbour-art.mjs (lane/a-havora-dock round 3)"
+  },
+  "notes": "Where Havora's dirt meets its river and harbour: a low dressed-stone quay wall with capstones The water is darkened under the wall (tools/world-art/harbour-art.mjs, lane/a-havora-dock round 3)."
+}

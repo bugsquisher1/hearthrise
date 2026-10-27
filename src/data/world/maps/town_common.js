@@ -8,7 +8,7 @@
 //   buildings  ../town/sites.js SITES: PLACEHOLDER FOOTPRINTS (painted, closed: they block a step,
 //              their art is the art lane's) on `site` ground; none is left (every lot is a SCENERY sprite)
 //   objects    the road wear (../town/wear.js), the style-1 scenery (every building and lot a whole sprite), every
-//              station's props, the trees of the green ground, the palisade (../town/palisade.js) and the
+//              station's props, the trees of the green ground, the palisade (../town/palisade.js), the piers (../town/piers.js) and the
 //              mountain's scree (../town/mountain.js)
 //   stations   one stand of each kind the map lint checks (combat, gather, artisan, idle); every
 //              station and its full stand list is ../stations.js
@@ -24,6 +24,7 @@ import { GREENERY } from '../town/greenery.js?v=0.2.53';
 import { WEAR } from '../town/wear.js?v=0.2.53';
 import { PALISADE } from '../town/palisade.js?v=0.2.53';
 import { SCREE } from '../town/mountain.js?v=0.2.53';
+import { PIERS } from '../town/piers.js?v=0.2.53';
 import { STATIONS, STATION_BY_ID, ACTIVITY_STATIONS } from '../stations.js?v=0.2.53';
 
 const tile = (x, y) => { const [mx, my] = at(x, y); return { x: mx, y: my }; };
@@ -45,7 +46,7 @@ export default Object.freeze({
   outdoor: true,
   light: 'day',
   ground: null,
-  legend: Object.freeze({ '.': 'grass', ':': 'cobble', '=': 'earth', '_': 'flagstone', '#': 'planks', '~': 'water', '^': 'cliff', '|': 'palisade', 'o': 'site', '%': 'tilled', ',': 'gravel' }),
+  legend: Object.freeze({ '.': 'grass', ':': 'cobble', '=': 'earth', '_': 'flagstone', '#': 'planks', '~': 'water', '^': 'cliff', '|': 'palisade', 'o': 'site', '%': 'tilled', ',': 'gravel', ';': 'setts' }),
   rows: GROUND_ROWS,
   blend: BLEND,
   patches: Object.freeze(PATCHES.map((p) => Object.freeze({ terrain: p.terrain, rect: Object.freeze(at(p.rect[0], p.rect[1]).concat(p.rect[2], p.rect[3])) }))),
@@ -57,6 +58,7 @@ export default Object.freeze({
     ...GREENERY.map(([id, x, y]) => Object.freeze(Object.assign({ id }, tile(x, y)))),
     ...PALISADE.map(([id, x, y]) => Object.freeze(Object.assign({ id }, tile(x, y)))),
     ...SCREE.map(([id, x, y]) => Object.freeze(Object.assign({ id }, tile(x, y)))),
+    ...PIERS.map(([id, x, y]) => Object.freeze(Object.assign({ id }, tile(x, y)))),
     ...WEAR.map(([id, x, y]) => Object.freeze(Object.assign({ id: 'square_decal_' + id }, tile(x, y)))),
   ]),
   buildings: Object.freeze(SITES.map(site)),
@@ -68,5 +70,5 @@ export default Object.freeze({
   /* the lint's reach origin: the gatehouse's first stand (a hero back from a hunt arrives on one of the
      gatehouse's stands, the one the SERVER holds for it: 2027-01-28-town-stands.sql) */
   start: first(ACTIVITY_STATIONS.arrival),
-  maskHash: 'e7fdd4e9',
+  maskHash: 'f3acca06',
 });

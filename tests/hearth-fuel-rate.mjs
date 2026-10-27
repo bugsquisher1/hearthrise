@@ -35,7 +35,6 @@ import { isMain } from './_is-main.mjs';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const FROM = Date.UTC(2026, 9, 19, 6, 0, 0);
 const UID = '00000000-0000-4000-8000-0000000b0e01';
-const FAMILY = ['lamp_jelly', 'dry_husk', 'pithwood'];
 
 async function load(root) {
   const u = (p) => pathToFileURL(join(root, p)).href;
@@ -48,6 +47,8 @@ async function load(root) {
     R: await import(u('src/data/recipes.js')),
     ITEMS: (await import(u('src/data/items.js'))).ITEMS,
     MONSTERS: (await import(u('src/data/monsters.js'))).MONSTERS,
+    /* the family fuels (a boneless body's bones), from the data so a new family is checked as it lands */
+    FAMILY: (await import(u('src/data/hearth.js'))).FAMILY_FUELS,
   };
 }
 
@@ -102,8 +103,8 @@ const CLAIMS = {
     return got === 700 ? [] : [`an 8-minute window burnt ${got} of 700 bones (${r && (r.reason || r.skip)}): the Hearth cannot keep up with a hunt's bones`];
   },
   B4: (M) => {
-    const out = [];
-    for (const item of FAMILY) {
+    const out = M.FAMILY.length ? [] : ['no family fuels in src/data/hearth.js FAMILY_FUELS'];
+    for (const item of M.FAMILY) {
       const bone = paidOf(M, 7, undefined, 'bones');
       const fam = paidOf(M, 7, undefined, item);
       if (typeof fam === 'string') { out.push(fam); continue; }
@@ -125,7 +126,7 @@ const MUTANTS = [
   { claim: 'B1', name: 'the paid rate drifts off the curve', file: 'src/data/core-model.js',
     from: 'xpPerBone: 15.6,', to: 'xpPerBone: 15.5,' },
   { claim: 'B4', name: 'Lamp Jelly pays less than a bone', file: 'src/data/hearth.js',
-    from: "fuel('lamp_jelly', FLAME_FUEL.recipeXp,", to: "fuel('lamp_jelly', 20," },
+    from: "FAMILY_FUELS.map((item) => fuel(item, FLAME_FUEL.recipeXp,", to: "FAMILY_FUELS.map((item) => fuel(item, item === 'lamp_jelly' ? 20 : FLAME_FUEL.recipeXp," },
 ];
 
 async function runAll(root, only) {

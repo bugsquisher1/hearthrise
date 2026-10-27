@@ -91,9 +91,10 @@ export const WORKFLOW = join(ROOT, '.github', 'workflows', 'smoke.yml');
    drifting into "runs most of CI". */
 export const SKIP = [
   ['Install Playwright + Chromium',
-    'environment setup, not a gate: npm install + npx playwright install --with-deps installs '
-    + 'system packages and needs root on Linux. If a guard fails here for a missing dependency, '
-    + 'run those two commands by hand once.'],
+    'environment setup, not a gate: .github/actions/playwright-chromium runs npm install + '
+    + 'npx playwright install --with-deps chromium (apt .debs cached), which installs system '
+    + 'packages and needs root on Linux. If a guard fails here for a missing dependency, run '
+    + 'those two commands by hand once.'],
   ['Install node modules (no browser)',
     'environment setup, not a gate: `npm install` in every non-browser job of the matrix. A dev '
     + 'machine already has node_modules; re-installing it four times per local run would cost '

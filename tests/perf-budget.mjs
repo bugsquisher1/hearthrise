@@ -565,7 +565,7 @@ function row(m) {
    script ms, forced layout) and the probes' clocks over 16 ms inside it, so a red names its cause. */
 function printHeld(m) {
   for (const h of m.held) console.log(`   held ${h.page} ms (gap ${h.gap}) at ${h.at} ms, ${h.after}: `
-    + (h.loaf.map((l) => `frame ${Math.round(l[1])} block ${Math.round(l[2])} [${l[5].map((x) => x[2] + ' ' + x[0] + ' ' + x[3] + 'ms' + (x[4] ? ' layout ' + x[4] : '')).join('; ')}]`).join(' / ') || 'no frame attribution')
+    + (h.loaf.map((l) => `frame ${Math.round(l[1])} block ${Math.round(l[2])}${l[3] ? ' render ' + Math.round(l[0] + l[1] - l[3]) : ''}${l[4] ? ' style+layout ' + Math.round(l[0] + l[1] - l[4]) : ''} [${l[5].map((x) => x[2] + ' ' + x[0] + ' ' + x[3] + 'ms' + (x[4] ? ' layout ' + x[4] : '')).join('; ')}]`).join(' / ') || 'no frame attribution')
     + (h.spans.length ? ' {' + h.spans.join(', ') + '}' : ''));
 }
 

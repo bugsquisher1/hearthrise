@@ -21,7 +21,7 @@
 // Colours: --world-* tokens via `css`. Tile, chunk, zoom: the map's grid (zs = z x T / 32).
 // ════════════════════════════════════════════════════════════════════════
 import { zoomFor, frameView, cleanInset } from '../core/camera.js?v=0.2.52';
-import { composeFrame, groundTiles } from '../core/compose.js?v=0.2.52';
+import { composeFrame, takeGround } from '../core/compose.js?v=0.2.52';
 import { paintStub } from '../stub-atlas.js?v=0.2.52';
 
 const LIGHT_BANDS = 4;   // stepped pools: pixel-art light, no airbrush
@@ -85,7 +85,7 @@ export function createCanvasBackend(o) {
   }
 
   function chunk(cx, cy) {
-    const key = cx + ',' + cy;
+    const key = chunkKey(cx, cy);
     let c = chunks.get(key);
     if (c) { chunks.delete(key); chunks.set(key, c); return c; }
     if (chunks.size >= keep) chunks.delete(chunks.keys().next().value);
@@ -114,39 +114,46 @@ export function createCanvasBackend(o) {
   }
 
   /* THE GROUND BY CHUNK, binned once per map into packed numbers (voids x,y; tones name,x,y; tiles set,sx,sy,x,y):
-     a chunk bakes from its own cells, and prepare() bins the next map when its sheets land (tests/perf-budget.mjs). */
+     a chunk bakes from its own cells. prepare() bins the next map when its sheets land, and the bins are KEPT per
+     map, so the town shown again after a hunt never re-makes its ground inside a frame (tests/perf-budget.mjs). */
   const NONE = Object.freeze({ voids: [], tones: [], tiles: [] });
-  let ahead = null;   // { m, book, bins }: the one map prepared ahead of its setMap
+  const BINS = new WeakMap();   // map → { book, bins }
   const EMPTY = () => ({ cells: new Map(), names: [] });
   let binned = EMPTY();
+  /* a chunk's key: one number per (cx, cy), the dual grid's -1 column included (never a string per tile) */
+  const chunkKey = (cx, cy) => cy * 65536 + cx;
   function bin(gr, T, CHUNK) {
     const cells = new Map(), names = [], nameAt = new Map();
     const name = (s) => { let i = nameAt.get(s); if (i === undefined) { i = names.length; names.push(s); nameAt.set(s, i); } return i; };
-    const pack = {
-      voids: (t) => [t.x, t.y],
-      tones: (t) => [name('ground-' + t.m + (t.alt ? '-b' : '-a')), t.x, t.y],
-      tiles: (t) => [name(t.set), t.sx, t.sy, t.x, t.y],
-    };
-    for (const kind of ['voids', 'tones', 'tiles']) {
-      for (const t of gr[kind]) {
-        const nums = pack[kind](t);
-        for (let cy = Math.floor(t.y / CHUNK); cy * CHUNK < t.y + T; cy++) {
-          for (let cx = Math.floor(t.x / CHUNK); cx * CHUNK < t.x + T; cx++) {
-            const k = cx + ',' + cy;
-            let b = cells.get(k);
-            if (!b) cells.set(k, b = { voids: [], tones: [], tiles: [] });
-            for (const n of nums) b[kind].push(n);
-          }
+    /* a tone's name per material and parity, made once per map rather than once per cell */
+    const toneAt = new Map();
+    const toneName = (m, alt) => { const k = alt ? 'b' + m : 'a' + m; let i = toneAt.get(k); if (i === undefined) toneAt.set(k, i = name('ground-' + m + (alt ? '-b' : '-a'))); return i; };
+    const into = (kind, t, a, b, c, d, e) => {
+      for (let cy = Math.floor(t.y / CHUNK); cy * CHUNK < t.y + T; cy++) {
+        for (let cx = Math.floor(t.x / CHUNK); cx * CHUNK < t.x + T; cx++) {
+          const k = chunkKey(cx, cy);
+          let bk = cells.get(k);
+          if (!bk) cells.set(k, bk = { voids: [], tones: [], tiles: [] });
+          const out = bk[kind];
+          if (kind === 'voids') out.push(a, b);
+          else if (kind === 'tones') out.push(a, b, c);
+          else out.push(a, b, c, d, e);
         }
       }
-    }
+    };
+    for (const t of gr.voids) into('voids', t, t.x, t.y);
+    for (const t of gr.tones) into('tones', t, toneName(t.m, t.alt), t.x, t.y);
+    for (const t of gr.tiles) into('tiles', t, name(t.set), t.sx, t.sy, t.x, t.y);
     for (const b of cells.values()) for (const kind of ['voids', 'tones', 'tiles']) b[kind] = Int32Array.from(b[kind]);
     return { cells, names };
   }
   function binsFor(m, a) {
-    if (ahead && ahead.m === m && ahead.book === a.book) return ahead.bins;
+    const kept = BINS.get(m);
+    if (kept && kept.book === a.book) return kept.bins;
     const t = m.T || 32;
-    return bin(groundTiles(m, a.book, a.tables, t), t, 16 * t);
+    const bins = bin(takeGround(m, a.book, a.tables, t), t, 16 * t);
+    BINS.set(m, { book: a.book, bins });
+    return bins;
   }
 
   function blit(g, d, view) {
@@ -522,12 +529,11 @@ export function createCanvasBackend(o) {
       T = m.T || 32; CHUNK = 16 * T;
       dirty = true;
       binned = binsFor(m, { book, tables });
-      ahead = null;
       chunks = new Map();
       last = null;
       lastCam = camFrom = null;   // a new map never eases in from the old one
     },
-    prepare(m, art) { const a = art || o; ahead = { m, book: a.book, bins: binsFor(m, a) }; },
+    prepare(m, art) { binsFor(m, art || o); },
     sync(state) { if (map && canvas) draw(state); },
     /** The viewer's zoom (CSS px per base art px; null: the screen class's), from the next frame on. */
     setZoom(v) { const next = Number.isFinite(v) && v > 0 ? v : null; if (next !== zoomPick) { zoomPick = next; dirty = true; lastCam = camFrom = null; } },
@@ -593,7 +599,6 @@ export function createCanvasBackend(o) {
       plateHits = [];
       chunks = new Map();
       binned = EMPTY();
-      ahead = null;
     },
   };
 }

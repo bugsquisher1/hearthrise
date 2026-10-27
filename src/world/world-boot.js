@@ -164,8 +164,7 @@ export async function bootWorld(panel, opts) {
   const needs = new Map();
   const setsFor = (id) => {
     const grid = ROWS.get(id).grid;
-    if (grid && grid !== 'base') return [];
-    if (!needs.has(id)) needs.set(id, sceneSets(mapOf(id), ROWS.get(id), book, tables));
+    if (!needs.has(id)) needs.set(id, grid && grid !== 'base' ? [] : sceneSets(mapOf(id), ROWS.get(id), book, tables));
     return needs.get(id);
   };
   const homeNow = createHomeReader(character);
@@ -300,15 +299,20 @@ export async function bootWorld(panel, opts) {
       gridArt.ensure(grid).then((ok) => { if (!ok) setChoice(view(), 'town'); if (!running) sync(); });
       sc = { map: SCENE_MAPS.town, kind: 'town' };
     }
-    const need = setsFor(sc.map);
-    if (!sheets.ready(need) || waiting.has(sc.map)) {
-      /* ITS SHEETS ARE STILL LOADING (a ground entered, the town after a hunt): the frame showing stays until
-         they arrive, then the scene switches whole: no stub boxes, and never one map's units on another */
+    if (!needs.has(sc.map) || !sheets.ready(needs.get(sc.map)) || waiting.has(sc.map)) {
+      /* A SCENE NOT YET SHOWN (a ground entered, the town after a hunt): the frame showing stays until it is
+         ready, then the scene switches whole: no stub boxes, and never one map's units on another. Each heavy
+         step is a task of its own, never a frame's (tests/perf-budget.mjs PB-HELD): the sheets it draws from
+         (its whole ground made once, compose.js groundOf), then those sheets, then its ground binned. */
       if (!waiting.has(sc.map)) {
         waiting.add(sc.map);
         const id = sc.map;
-        /* its ground is made in a task of its own (not the last sheet's), so the frame that shows it only bakes what it draws */
-        sheets.ensure(need).then(() => win.setTimeout(() => { if (!gone) backend.prepare(mapOf(id), artOf(id) || undefined); waiting.delete(id); if (!running) sync(); }, 0));
+        const task = (fn) => new Promise((done) => win.setTimeout(() => done(gone ? null : fn()), 0));
+        task(() => setsFor(id))
+          .then((need) => need && sheets.ensure(need))
+          .then(() => task(() => backend.prepare(mapOf(id), artOf(id) || undefined)))
+          .then(() => { waiting.delete(id); if (!running) sync(); },
+            (e) => console.error('[world] the scene "' + id + '" could not be prepared', e));
       }
       return null;
     }

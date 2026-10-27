@@ -28,7 +28,7 @@ const NAMED_SPARKS_MS = 1200;
 /* a stable phase per thrower (0..every), so two heroes side by side never throw in step */
 function phaseOf(key, every) {
   let h = 2166136261;
-  for (let i = 0; i < key.length; i++) h = Math.imul(h ^ key.charCodeAt(i), 16777619);
+  for (let i = 0; i < key.length; i++) { h ^= key.charCodeAt(i); h = Math.imul(h, 16777619); }
   return (h >>> 0) % every;
 }
 

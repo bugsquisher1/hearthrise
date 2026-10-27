@@ -58,6 +58,10 @@ export const SCENERY = Object.freeze([
   /* the cook yard's stores, the training yard's rack, the farm's crates */
   ['sack_pile', 74, 31], ['barrel_planter', 58, 31], ['weapon_rack', 78, 63], ['turnip_crate', 19, 82],
   ['well', 99, 40], ['signpost', 9, 47],
+  /* THE EAST QUAY (lane/a-havora-dock 2026-10-26): the estates' yard between P14 and P15, a lane of beaten earth from
+     the road down to the end of P13's dock, cargo where the dock meets the lane */
+  ['crates', 133, 82], ['barrels', 133, 83], ['sack_stack', 138, 74], ['cart_wheel', 139, 74], ['barrels', 157, 79], ['crates', 157, 74],
+  ['lamppost', 139, 79],
   /* THE WORK YARDS' CLUTTER (lane/b-havora-polish 2026-10-26), between the stations' pieces (../stations.js) so a yard
      reads as worked in: each forge's quench trough (west of it) and bellows (east), a tool rack, charcoal sacks, crates
      and barrels between the units; the cook yard's
@@ -99,7 +103,9 @@ export const BLEND = Object.freeze({
     /* lane/b-havora-art-2 (art/world/havora): the docks' and bridge's planks, the farm plots, the mountain's rock */
     'havora_earth_planks', 'havora_water_planks', 'havora_grass_tilled', 'havora_grass_rock', 'havora_earth_rock',
     /* lane/b-havora-polish: the quarry's gravel floor against the rock and the cart path */
-    'havora_gravel_rock', 'havora_earth_gravel']),
+    'havora_gravel_rock', 'havora_earth_gravel',
+    /* lane/a-havora-dock: the stone quay where the dirt meets the water, the rocky shore under the mountain */
+    'havora_water_quay', 'havora_water_rock']),
   alias: Object.freeze({ cobble: 'flagstone', palisade: 'grass' }),
 });
 

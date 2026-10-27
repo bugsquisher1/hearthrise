@@ -8,35 +8,30 @@
 // handed the session it belongs to, so two characters played at once can never
 // read or write each other.
 //
-//   load()             hr_load(p_slot) — the full read; REPLACES the record
+//   load() / resync()  hr_load(p_slot) — the full read; REPLACES the record; single-flight, bounded (read-gate.js)
 //   connect()          subscribe to the push topic; on every join one `hello`
 //                      (hr-accrue {slot}) re-reads the whole state (hunting: the
 //                      hunt re-read does), so a gap is closed; a frame is the whole character at a
 //                      commit (envelope.js E2): it replaces the record like a load, never asks the engine
 //   setResidue(f, v)   a display preference: the residue changes at once, one hr_put_client_state per burst
-//   setHuntOptions(p, o) the hunt settings INTENT (hr_action_set_options); the
-//                      new settings arrive only in the re-read envelope
+//   setHuntOptions(p, o) the hunt settings INTENT (hr_action_set_options); the new settings arrive only in the re-read
 //   setHuntDensity(h, n) the density pick on one ground (hr_hunt_density_set), re-read
 //   enterHunt(h, b, p) the go-hunting INTENT (hr_hunt_enter), re-read the same way
 //   leaveHunt()        the leave INTENT (hr_hunt_leave), re-read the same way
-//   moveStorage(i,n,d) the ACCOUNT storage INTENT (hr_bank_move), re-read; then onShared('bank', slot)
-//   edgeIntent(v, f)   an item intent through the engine (equip, sell, buy, eat;
-//                      src/session/edge-intents.js): names and counts only
+//   moveStorage(i,n,d) the ACCOUNT storage INTENT (hr_bank_move), re-read (every hero shows it: bankOf); refused: resync()
+//   edgeIntent(v, f)   an item intent through the engine (equip, sell, buy, eat; edge-intents.js): names and counts only
 //   lockItem / setLootRule / savePreset / applyPreset   the bag rules and the hunt presets: one intent each, re-read
 //   joinParty / leaveParty / kickSeat / inviteByName / answerInvite / restartHunt   the party and hunt-again
 //                      intents, re-read the same way (party-intents.js startPartyHunt re-reads every own seat)
 //   saveOutfit(o, c)   the outfit INTENT (hr_outfit_set), re-read the same way
 //   findParties        the party finder, a read whose rows are never the record
-//   hunt re-read       while a hunt is open, one hello per src/session/hunt-poll.js (the hunter's
-//                      settle answers state, track and events) until the envelope says it ended;
-//                      every hello is paced to the character's budget (src/session/ask-pacer.js); a
-//                      frame (another member's settle, the world tick) defers it: the poll is the fallback
+//   hunt re-read       while a hunt is open, one hello per hunt-poll.js (the hunter's settle: state, track, events)
+//                      until it ended, paced (ask-pacer.js); a frame (a member's settle, the tick) defers it
 //   timeline           the settle responses' visual timeline (src/hunt-view/timeline.js), never the record
 //   now()              the display clock the timeline plays on
-//   intents            the account's asks in flight (intent-ledger.js): every intent
-//                      above is tracked from its send until the re-read envelope
+//   intents            the account's asks in flight (intent-ledger.js), each tracked from its send to the re-read envelope
 //   subscribe(fn)      fn(session, why) after every applied change
-//   notePurse()        another hero read a newer ACCOUNT purse (AccountSession): re-render ('purse')
+//   notePurse() / noteStorage()  another hero read a newer ACCOUNT purse / Storage (AccountSession): re-render
 //   close()            leave the topic, cancel timers, forget the record
 //
 // It authors no number: the record changes only from a server answer, and the
@@ -53,6 +48,7 @@ import { leaveAskOf, pendingLeaveAt, leaveCountdown, closeInMs } from './hunt-le
 import { HuntPoll, pollDelayMs } from './hunt-poll.js?v=0.2.52';
 import { AskPacer } from './ask-pacer.js?v=0.2.52';
 import { createIntentLedger } from './intent-ledger.js?v=0.2.52';
+import { ReadGate } from './read-gate.js?v=0.2.52';
 import { frameTopic, reconnectDelay } from './frame-channel.js?v=0.2.52';
 import { refusalOf, settleRefusalOf } from './refusal.js?v=0.2.52';
 import { SERVER_ONLY_EVENTS } from '../core/hunt/events.js?v=0.2.52';
@@ -111,6 +107,7 @@ export class CharacterSession {
     this._now = o.now || (() => (globalThis.performance ? globalThis.performance.now() : Date.now()));
     this._poll = new HuntPoll({ setTimer: this._setTimer, clearTimer: this._clearTimer, now: () => this._now(), fire: () => this._huntPoll() });
     this._pace = new AskPacer({ setTimer: this._setTimer, clearTimer: this._clearTimer, now: () => this._now() });
+    this._reads = new ReadGate({ read: () => this._loadOnce(), setTimer: this._setTimer, clearTimer: this._clearTimer, now: () => this._now() });
     /* Played a poll behind, the buffer holds two windows of steps and a unit gone from the pose must
        outlive the delay before it is forgotten (timeline.js T5). */
     this.timeline = createTimeline({ delayMs: SESSION_CONFIG.huntPlaybackDelayMs, maxSteps: 256,
@@ -127,7 +124,6 @@ export class CharacterSession {
 
   /** The display clock (ms) this character's timeline plays on: every view of it reads this one. */
   now() { return this._now(); }
-
   /** The frozen record { version, data, residue }, or null before the first answer. */
   get record() { return this._record; }
   /** 'idle' | 'loading' | 'ready' | 'empty' (no character in this slot) | 'closed-game' | 'error' | 'closed' */
@@ -136,6 +132,7 @@ export class CharacterSession {
   read(key) { return this._record ? this._record.data[key] : undefined; }
   subscribe(fn) { this._listeners.add(fn); return () => this._listeners.delete(fn); }
   notePurse() { if (!this._closed) this._emit('purse'); }   // a newer ACCOUNT purse, read by another hero (goldOf)
+  noteStorage() { if (!this._closed) this._emit('storage'); }   // a newer ACCOUNT Storage, read by another hero (bankOf)
   _emit(why) { for (const fn of Array.from(this._listeners)) { try { fn(this, why); } catch (e) { console.error('[character] a listener failed', e); } } }
   /** Apply a full envelope from the server; false when it was refused. */
   _take(body, why) {
@@ -282,11 +279,14 @@ export class CharacterSession {
       p_bag: lines.map((l) => ({ item: l.item, qty: l.qty })), p_preset: preset, p_hours: null, p_idem: newIdem() }));
   }
 
-  /** Move a stack between the bag and the ACCOUNT's storage (hr_bank_move; `dir` deposit | withdraw); on ok, onShared. */
+  /** Bag to or from the ACCOUNT's storage (hr_bank_move; deposit | withdraw), re-read; refused: ONE bounded resync first. */
   async moveStorage(item, qty, dir) {
     if (this._closed || !ITEM.test(String(item)) || !Number.isSafeInteger(qty) || qty < 1 || qty > 1000000 || (dir !== 'deposit' && dir !== 'withdraw')) return { ok: false, error: 'bad_intent' };
-    return this._ask('bank_move', () => this._server.rpc('hr_bank_move', { p_slot: this.slot, p_item: item, p_qty: qty, p_dir: dir, p_idem: newIdem() }))
-      .then((r) => { if (r && r.ok && typeof this.onShared === 'function') this.onShared('bank', this.slot); return r; });
+    return this.intents.track('bank_move', async () => {
+      const r = await this._settled(await this._server.rpc('hr_bank_move', { p_slot: this.slot, p_item: item, p_qty: qty, p_dir: dir, p_idem: newIdem() }));
+      if (!r.ok && r.error !== 'closed') await this.resync();   // the window held counts the server no longer has
+      return r;
+    });
   }
 
   /** Copy THIS character's hunt settings (every action set: bar, stop rules, options) onto another of the account's
@@ -462,18 +462,16 @@ export class CharacterSession {
     });
   }
 
-  /* ONE ASK, tracked (intent-ledger.js) from the send until the re-read envelope is applied: the
-     pressed control shows it in flight (src/shell/press-ack.js) and clears on the server's word. */
+  /* ONE ASK, tracked (intent-ledger.js) from the send to the re-read envelope: the press shows it in flight (press-ack.js). */
   _ask(verb, send, carries) { return this.intents.track(verb, async () => this._settled(await send(), carries === true)); }
 
-  /* An intent's answer: on ok the screen shows the server's result. `carries`: the answer is the engine's,
-     whose body IS the whole envelope; it is applied as it stands. When envelope.js refuses it (malformed,
-     stale), or for any other answer, the whole character is re-read. */
+  /* An intent's answer: on ok the screen shows the server's result. `carries`: the engine's body IS the whole envelope,
+     applied as it stands; refused by envelope.js, or any other answer: re-read, and a re-read that did not land is resync'd. */
   async _settled(ans, carries) {
     if (this._closed) return { ok: false, error: 'closed' };
     /* below_range: the server admitted a hunt under its level floor (the floor is a warning, Tyler 10-18). */
     if (ans.ok && ans.body && ans.body.ok === true && ans.body.below_range === true) { await this.load(); return { ok: true, belowRange: true }; }
-    if (ans.ok && ans.body && ans.body.ok === true) { if (!(carries && this._take(ans.body, 'load'))) await this.load(); return { ok: true }; }
+    if (ans.ok && ans.body && ans.body.ok === true) { if (!(carries && this._take(ans.body, 'load')) && !(await this.load())) await this.resync(); return { ok: true }; }
     return refusalOf(ans);   // the server's detail (slot, condition, field, item) back to the editor as sent
   }
 
@@ -483,10 +481,12 @@ export class CharacterSession {
     if (!this._record) { this._status = 'error'; this._emit('error'); }
   }
 
-  /** The full read. Resolves to true when the record was replaced. */
-  async load() {
+  /** The full read, single-flight; resync: ONE bounded re-read after a refusal (read-gate.js). True when the record was replaced. */
+  load() { return this._closed ? Promise.resolve(false) : this._reads.load(); }
+  resync() { return this._closed ? Promise.resolve(false) : this._reads.resync(); }
+  async _loadOnce() {
     if (this._closed) return false;
-    if (!this._record) this._status = 'loading';
+    if (!this._record) this._status = 'loading';   // the first read
     const ans = await this._server.rpc('hr_load', { p_slot: this.slot });
     if (this._closed) return false;
     if (ans.ok && this._take(ans.body, 'load')) return true;
@@ -590,7 +590,7 @@ export class CharacterSession {
     this._dropChannel();
     if (this._retry) { this._clearTimer(this._retry); this._retry = null; }
     if (this._residueTimer) { this._clearTimer(this._residueTimer); this._residueTimer = null; }
-    this._poll.stop(); this._pace.stop();
+    this._poll.stop(); this._pace.stop(); this._reads.stop();
     this._record = null;
     this._pending = {}; this._sent = {};
     this._status = 'closed';

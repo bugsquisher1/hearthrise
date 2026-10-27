@@ -45,6 +45,11 @@ export const SESSION_CONFIG = Object.freeze({
       plain read (hr_load: never the engine's budget, no live view), so its strip and alerts learn of a hunt's end
       within a minute; the server settles it meanwhile (the world tick, or the party's viewed member). */
   unviewedPollMs: 60000,
+  /** A re-read after a refusal (or a re-read that did not land) goes at once, then at most one per this window,
+      doubling for each that follows close on the last up to resyncMaxMs (src/session/read-gate.js): N refused
+      presses cost one bounded read each window, never N. */
+  resyncMinMs: 2000,
+  resyncMaxMs: 16000,
   /** While the Work window or the bag is open and the hero gathers or works a bench in town, the viewed
       character asks the engine to bring it up to date this often (src/session/town-poll.js), so the bag,
       the skill XP and the run's progress move as it goes. Just over the engine's town floor

@@ -51,11 +51,11 @@ import { TownPresence } from './town-presence.js?v=0.2.52';
 import { SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.52';
 import { charLevelFromXp } from '../core/xp.js?v=0.2.52';
 import { createIntentLedger } from './intent-ledger.js?v=0.2.52';
-import { purseOf, newerPurse } from './item-sections.js?v=0.2.52';
+import { purseOf, newerPurse, storageOf } from './item-sections.js?v=0.2.52';
 
 /* What the account's characters share: the depot (2026-11-27-account-depot.sql) and the
    farm land (2026-12-14-shared-farm.sql). A change to one re-reads the others. */
-const SHARED_KINDS = new Set(['bank', 'farm']);
+const SHARED_KINDS = new Set(['farm']);   // 'bank' (the depot) is read through _noteStorage, not re-read
 
 /** This tab's session id: made once per tab, kept across a reload, new for a new tab. */
 export function tabSessionId(tab, cfg = SESSION_CONFIG, make) {
@@ -144,6 +144,8 @@ export class AccountSession {
     this.slotOffer = null;
     this.viewed = null;
     this._purse = null;
+    this._storage = null;   // { at, bank, depot }: the newest account Storage any open hero read (item-sections.js storageOf)
+    this._seenBanks = new WeakSet();   // the envelopes' `bank` objects already noted (a re-render brings no new one)
     this.social = o.social ? o.social(this) : null;
   }
 
@@ -158,6 +160,18 @@ export class AccountSession {
     if (!next || (this._purse && next.v <= this._purse.v)) return;
     this._purse = next;
     for (const other of this._chars.values()) if (other !== cs && typeof other.notePurse === 'function') other.notePurse();
+  }
+
+  /* A hero's NEW answer (a `bank` this account has not seen: each envelope brings its own copy) stated the Storage at
+     the server instant of the last one or later: keep it, and let every OTHER open hero re-render with it (a skill on
+     one hero spends what another's window shows). Never rolled back to an earlier instant; a re-render is no answer. */
+  _noteStorage(cs) {
+    const next = storageOf(cs);
+    if (!next || this._seenBanks.has(next.bank)) return;
+    this._seenBanks.add(next.bank);
+    if (this._storage && next.at < this._storage.at) return;
+    this._storage = next;
+    for (const other of this._chars.values()) if (other !== cs && typeof other.noteStorage === 'function') other.noteStorage();
   }
 
   get userId() { return this.auth.userId(); }
@@ -291,6 +305,9 @@ export class AccountSession {
     /* The gold is the ACCOUNT's (2026-12-15-account-gold.sql): every hero reads the newest purse any of them has seen. */
     cs.accountPurse = () => this._purse;
     cs.subscribe((s) => this._notePurse(s));
+    /* ...and so is the Storage: every hero reads the newest copy any of them was told (item-sections.js bankOf). */
+    cs.accountStorage = () => this._storage;
+    cs.subscribe((s) => this._noteStorage(s));
     this._chars.set(slot, cs);
     cs.subscribe((s, why) => { if (why === 'closed-game') this._noteClosed({ closed: true }); });
     this._emit('opening', slot);   // watchers (the alerts) hear the first load's events too
@@ -353,9 +370,10 @@ export class AccountSession {
     return { ok: true, rows };
   }
 
-  /* ACCOUNT state one character changed (the depot 'bank', the farm land 'farm'): every OTHER open
-     character re-reads, so no screen keeps a storage or a field the server no longer holds
-     (CLAUDE.md §6). One hr_load each, rarely. */
+  /* ACCOUNT state one character changed: no screen keeps a storage or a field the server no longer holds (CLAUDE.md §6).
+     The depot ('bank') needs no read: the mover's own re-read is the newest Storage, which every hero shows
+     (_noteStorage); a re-read per hero per move went over hr_load's budget (Andy, 2026-10-26). The farm land ('farm')
+     is in each hero's envelope only: every OTHER open character re-reads (single-flight, read-gate.js). */
   _sharedChanged(kind, from) {
     if (!SHARED_KINDS.has(kind)) return;
     for (const [slot, cs] of this._chars) if (slot !== from) cs.load();

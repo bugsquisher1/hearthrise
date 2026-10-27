@@ -31,8 +31,8 @@
 // The Characters window's (2026-12-04-hero-rename.sql):
 //   rename         { price, level, per_day, today, available, why }  what a new name costs, and whether it may
 // ════════════════════════════════════════════════════════════════════════
-import { huntBagOf } from './hunt-sections.js?v=0.2.52';
-import { SHOP_SOLD_KINDS } from '../data/supply-basics.js?v=0.2.52';
+import { huntBagOf } from './hunt-sections.js?v=0.2.53';
+import { SHOP_SOLD_KINDS } from '../data/supply-basics.js?v=0.2.53';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const ID = /^[a-z0-9_]{1,64}$/;
@@ -176,9 +176,29 @@ export function roleOf(cs) {
   return isObj(r) && str(r.id, 32) ? { id: r.id, weapon: str(r.weapon) } : null;
 }
 
+/* THE ACCOUNT'S STORAGE IS ONE (2026-11-27-account-depot.sql) while each hero's envelope holds the copy it was read
+   with: a town skill on another hero spends from it (2027-01-24-skills-from-storage.sql), a Storage move changes it.
+   So `bank` and `depot` read as the NEWEST any open hero was told, by the server's clock (`now`, hr_state_of's
+   transaction instant): this envelope's own copy, unless AccountSession holds a later one (Andy, 2026-10-26: the window
+   showed stacks the server no longer held and every press on them was refused). REPLACED whole, never merged. */
+const serverMs = (v) => (typeof v === 'string' ? Date.parse(v) : NaN);
+
+/** This envelope's OWN account storage, { at, bank, depot } (at: the server's ms), or null without a `bank` or a clock. */
+export function storageOf(cs) {
+  const at = serverMs(read(cs, 'now')), bank = read(cs, 'bank');
+  return Number.isFinite(at) && isObj(bank) ? { at, bank, depot: isObj(read(cs, 'depot')) ? read(cs, 'depot') : null } : null;
+}
+
+/* The account's copy (AccountSession keeps the newest of every open hero's reads, this one's included), else this
+   envelope's own (a session read alone, or a section the newest read did not carry). */
+function accountSection(cs, key) {
+  const acct = cs && typeof cs.accountStorage === 'function' ? cs.accountStorage() : null;
+  return acct && isObj(acct[key]) ? acct[key] : read(cs, key);
+}
+
 /** `bank` (hr_state_of; written only by hr_bank_move): the ACCOUNT's storage, [{ id, qty }], or null. */
 export function bankOf(cs) {
-  const b = read(cs, 'bank');
+  const b = accountSection(cs, 'bank');
   if (!isObj(b)) return null;
   const items = [];
   for (const [id, n] of Object.entries(b)) if (ID.test(id) && count(n) && n > 0) items.push({ id, qty: n });
@@ -208,7 +228,7 @@ export function drawsOnStorage(cs) {
 
 /** `depot` (hr_depot_view; the ACCOUNT storage's space): { used, cap, next: { name, stacks } | null }, or null. */
 export function depotOf(cs) {
-  const d = read(cs, 'depot');
+  const d = accountSection(cs, 'depot');
   if (!isObj(d) || count(d.used) === null || !count(d.cap)) return null;
   const n = isObj(d.next) && str(d.next.name, 40) && count(d.next.stacks) ? { name: d.next.name, stacks: d.next.stacks } : null;
   return { used: d.used, cap: d.cap, next: n };

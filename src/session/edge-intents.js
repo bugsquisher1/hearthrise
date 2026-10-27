@@ -30,7 +30,7 @@
 // new verb or field is a reviewed edit there as well as here.
 // ════════════════════════════════════════════════════════════════════════
 
-import { refusalOf } from './refusal.js?v=0.2.52';
+import { refusalOf } from './refusal.js?v=0.2.53';
 
 export const EDGE_INTENTS = Object.freeze({
   equip: Object.freeze(['equip']),

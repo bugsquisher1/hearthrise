@@ -7,7 +7,7 @@
 // an Equip refused below the fold of the Inventory read as "nothing happened");
 // a reason that is simply there when the window opens never moves the scroll.
 // ════════════════════════════════════════════════════════════════════════
-import { text } from '../../render/paint.js?v=0.2.52';
+import { text } from '../../render/paint.js?v=0.2.53';
 
 /** Write `words` into the line `el`; when they are a press's answer (`pressed`) and changed, bring the line into view. */
 export function whyLine(el, words, pressed) {

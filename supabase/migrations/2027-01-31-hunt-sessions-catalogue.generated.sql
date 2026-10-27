@@ -8,7 +8,7 @@
 --   src/data/premium.js, src/core/hunt/world-state.js and the vendor price
 --   (hr-accrue/catalogue.js). Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: 65e60afe1606c08e9fb7c3091456e2c68696a373da9033cc6eabef7cf7ede6a6
+--   digest: 89d887fdd61891bb473cdd8eb91c9582f30eb7f79e950bee41a5cd8f46131695
 --   82 supplies, 121 hunts (named + training), 50 limits, 12 end reasons,
 --   539 vendor values, 25 store supplies paid per use, 5 target modes,
 --   4 lanes, 16 abilities, 10 action-set options, 5 hunt grounds
@@ -480,7 +480,7 @@ insert into public.hr_hunt_kill_bounds (monster_id, gold_max, xp_max, drops) val
   ('grayjaw', 16, 311, '{"wolf_pelt":1,"bones":1,"grayjaw_whisker":1,"alpha_fang":1,"iron_helm":1,"studded_helmet":1,"adept_helmet":1,"grayjaws_ruff":1}'::jsonb),
   ('grim_reaper', 668, 1797, '{"lich_soul":1,"death_steel":1,"hollow_sigil":1,"big_bones":1,"vamp_dust":1}'::jsonb),
   ('hellhound', 130, 513, '{"demon_shard":1,"hell_ember":1,"big_bones":1,"coal":1}'::jsonb),
-  ('hive_wasp', 4, 48, '{"venom_sac":1,"dry_husk":1,"hive_wasp_stinger":1,"bronze_helm":1,"leather_helmet":1,"apprentice_helmet":1,"queens_comb":1}'::jsonb),
+  ('hive_wasp', 4, 48, '{"venom_sac":1,"silk_thread":1,"hive_wasp_stinger":1,"bronze_helm":1,"leather_helmet":1,"apprentice_helmet":1,"queens_comb":1}'::jsonb),
   ('hobgoblin', 22, 89, '{"goblin_ear":1,"iron_ore":1,"iron_sword":1,"goblin_totem":1,"rat_stick":1}'::jsonb),
   ('hobgoblin_foreman', 67, 2562, '{"big_bones":1,"iron_ore":1,"coal":1,"foremans_lash":1,"steel_platebody":1,"boarhide_body":1,"scholar_body":1,"steel_hatchets":1}'::jsonb),
   ('ice_elemental', 100, 462, '{"frostfin":1,"magic_essence":1,"mithril_ore":1}'::jsonb),

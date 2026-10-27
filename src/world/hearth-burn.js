@@ -33,15 +33,15 @@ function phaseOf(key, every) {
 }
 
 /** The world chunk a fuel bench throws, by the server's pointer (`active_id`), or null when it is not a fuel. */
-export const chunkOfRecipe = (id) => CHUNK_OF_RECIPE.get(id) || null;
+const chunkOfRecipe = (id) => CHUNK_OF_RECIPE.get(id) || null;
 /** The world chunk a named fuel throws, or null. */
-export const chunkOfNamed = (item) => (NAMED_FUELS[item] ? NAMED_FUELS[item].chunk : null);
+const chunkOfNamed = (item) => (NAMED_FUELS[item] ? NAMED_FUELS[item].chunk : null);
 
 /**
  * @param {object} map  compileMap() output (a town)
  * @param {{sprites: object}} o  the atlas book's sprites (a colour's art is drawn only if it is there)
  */
-export function createHearthBurn(map, o) {
+function createHearthBurn(map, o) {
   const fire = (map.ambient || []).find((a) => a.id === FLAMES.fire.fire) || null;
   const T = map.T || 32;
   const has = (id) => !!(o && o.sprites && o.sprites[id]);

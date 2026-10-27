@@ -115,7 +115,7 @@ export const ITEM_DESC = {
   'bones': 'Fuel for the Great Hearth in Havora: burn them there to raise your Inner Flame',
   /* THE GREAT HEARTH'S FUELS (src/data/hearth.js): what each is for, then where it comes from */
   'lamp_jelly': 'Fuel for the Great Hearth, burned like bones. A slime has no skeleton, but its jelly burns like lamp oil',
-  'dry_husk': 'Fuel for the Great Hearth, burned like bones. The papery shell of a wasp or a spider, dry as kindling',
+  'dry_husk': 'Fuel for the Great Hearth, burned like bones. The papery shell a spider sheds, dry as kindling',
   'pithwood': 'Fuel for the Great Hearth, burned like bones. The soft heartwood of a Walking Vine',
   'queens_comb': 'A named fuel: the Great Hearth turns it into a burst of Inner Flame and burns honey-gold for all Havora. Wax from the heart of the Mill Cellar hive',
   'den_knot': 'A named fuel: the Great Hearth turns it into a burst of Inner Flame and burns deep amber for all Havora. A resin-soaked pine knot from the Dire Gray\'s den',

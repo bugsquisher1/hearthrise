@@ -112,9 +112,9 @@ export const MONSTERS = {
     weaponWeak: 'ranged', weaponResist: [],
     hp: 8, atk: 4, def: 0, xp: 36, gp: [1, 4],
     /* the loot bands (batch 1): the tutorial's first helmet in all three weights, each about hourly at the floor */
-    /* the Hearth (Tyler 2026-10-25): a wasp has no bones, so its dry husk is its fuel (it took silk_thread's row: silk
-       is the Cistern Spider's); the hive's heart holds the Queen's Comb, a named fuel (src/data/hearth.js) */
-    drops: [{ id: 'venom_sac', ch: .35, band: 'common' }, { id: 'dry_husk', ch: .16, band: 'common' }, { id: 'hive_wasp_stinger', ch: .08, band: 'uncommon' },
+    /* the Hearth (Tyler 2026-10-25): the hive's heart holds the Queen's Comb, a named fuel (src/data/hearth.js). Its Dry
+       Husk waits: its two Commons are full (the loot bands' 1-2), and its Silk Thread is Crafting 1-9's only early source */
+    drops: [{ id: 'venom_sac', ch: .35, band: 'common' }, { id: 'silk_thread', ch: .16, band: 'common' }, { id: 'hive_wasp_stinger', ch: .08, band: 'uncommon' },
       { id: 'bronze_helm', ch: .02, band: 'scarce' }, { id: 'leather_helmet', ch: .02, band: 'scarce' }, { id: 'apprentice_helmet', ch: .02, band: 'scarce' },
       { id: 'queens_comb', ch: .0005, band: 'rare' }] },
   wild_boar: { name: 'Wild Boar', icon: '🐗', tier: 1, cls: 'mammal', family: 'Mammal',

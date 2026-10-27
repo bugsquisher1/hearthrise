@@ -75,7 +75,7 @@ function byRecipeId(rid) {
 const skillName = (skill) => (SKILLS_DEF[skill] && SKILLS_DEF[skill].name) || skill;
 
 /** The entry's verb: "Cook" for every dish, "Fuel" for every fuel. */
-export function buryVerb(e) { return e.skill === 'cooking' ? 'Cook' : 'Fuel'; }
+function buryVerb(e) { return e.skill === 'cooking' ? 'Cook' : 'Fuel'; }
 
 /** "Cooking", "Fueling the Great Hearth with": the verb as the line under the bag says it (American spelling, 10-24). */
 export function buryingWord(e) { return e.skill === 'cooking' ? 'Cooking' : 'Fueling the Great Hearth with'; }

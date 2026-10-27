@@ -79,7 +79,7 @@ function standOf(m) {
 
 const FLAME = /^[a-z0-9_]{1,32}$/;
 /** The named flame a town answer carries, on the local clock (`at`: this browser's ms when it was read), or null. Pure. */
-export function hearthOf(h, at) {
+function hearthOf(h, at) {
   if (!h || typeof h !== 'object' || typeof h.flame !== 'string' || !FLAME.test(h.flame)) return null;
   const n = (v) => (Number.isSafeInteger(v) ? v : null);
   const now = n(h.now_ms), from = n(h.from_ms), until = n(h.until_ms);

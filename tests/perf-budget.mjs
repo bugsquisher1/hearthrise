@@ -107,9 +107,9 @@ const MUTANTS = [
   ['the world sheets handed to the canvas as <img> (its first draw prepares a whole sheet inside the frame: v0.2.50, run 40321779709)', 'src/render/images.js',
     "  const bitmap = !!win && typeof win.createImageBitmap === 'function';", '  const bitmap = false;', /^sheets/],
   ['the town derived inside the frame that enters it (main run 40417203016: a 117 ms frame back from the hunt)', 'src/world/world-boot.js',
-    '    if (!needs.has(sc.map) || !sheets.ready(needs.get(sc.map)) || waiting.has(sc.map)) {', '    if (!sheets.ready(setsFor(sc.map)) || waiting.has(sc.map)) {', /^ground/],
+    '    if (!needs.has(sc.map) || !sheets.ready(needs.get(sc.map)) || waiting.has(sc.map)) {', '    if (!sheets.ready(setsFor(sc.map)) || waiting.has(sc.map)) {', /^ground/, 'scenario', 4],
   ['the renderer makes the ground again instead of taking the one its sheets were read from', 'src/world/core/compose.js',
-    '  const g = groundOf(map, book, tables, T);\n  GROUNDS.get(map).delete(book);', '  if (GROUNDS.has(map)) GROUNDS.get(map).delete(book);\n  const g = groundOf(map, book, tables, T);\n  GROUNDS.get(map).delete(book);', /^ground/],
+    '  const g = groundOf(map, book, tables, T);\n  GROUNDS.get(map).delete(book);', '  if (GROUNDS.has(map)) GROUNDS.get(map).delete(book);\n  const g = groundOf(map, book, tables, T);\n  GROUNDS.get(map).delete(book);', /^ground/, 'scenario', 4],
   ["the light layer kept although the hero's lamp moved",'src/world/render/canvas-backend.js',
     "for (const p of points) sig += '|' + p.x + ',' + p.y + ',' + p.r + ',' + tone('light-' + p.tint);", "for (const p of points) sig += '|' + p.r;", /^PB-PIX/, 'pix'],
 ];

@@ -7,6 +7,9 @@
 //                                              10 minutes each (--minutes N, --browsers chromium,firefox,
 //                                              --sizes 1440x900,922x423 narrow it); prints, never fails
 //   node tests/perf-budget.mjs --mutate        every planted defect must turn the budget RED
+//   ... --trace FILE [--trace-for S]          (Chromium, either mode) a Chrome trace of every process from the
+//                                              hero's open, S seconds (50): what a held frame's task was, its
+//                                              wall vs thread-CPU time, the GPU process meanwhile
 //
 // mutant-anchors: src/world/world-boot.js src/world/core/compose.js src/world/render/canvas-backend.js src/app/world-pane.js src/shell/widgets/analyzer.js src/shell/shell.js src/session/character-session.js src/hunt-view/combat-log.js src/render/images.js
 // mutant-writes-tree: no — probes and mutants are served from memory (tests/_client-harness.mjs serve overrides)
@@ -393,7 +396,8 @@ async function scenario(o) {
     /* --trace FILE (Chromium): a Chrome trace of every process (renderer, GPU, browser) from the hero's open, for
        --trace-for seconds (default 50: the warm-up and the first social answers), to name what a held frame was */
     const traced = cdp && o.trace ? browser.startTracing(page, { path: o.trace, categories: TRACE_CATEGORIES })
-      .then(() => page.waitForTimeout((o.traceFor || 50) * 1000)).then(() => browser.stopTracing()) : null;
+      .then(() => page.waitForTimeout((o.traceFor || 50) * 1000)).then(() => browser.stopTracing())
+      .catch((e) => console.warn('perf-budget --trace: no trace (' + e.message.split('\n')[0] + ')')) : null;
     await page.waitForSelector('.hs-launchers');
     const showAnalyzer = async () => { if (await page.$('.ha-analyzer') === null || !(await page.isVisible('.ha-analyzer'))) {
       const b = await page.$('[data-hs-act="details"]'); if (b) await b.click({ timeout: 5000 }).catch((e) => errors.push('analyzer: ' + e.message.split('\n')[0])); } };

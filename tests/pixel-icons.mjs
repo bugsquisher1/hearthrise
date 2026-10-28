@@ -58,6 +58,9 @@ const KNOWN_TWINS = [['crown_of_the_fallen_king', 'crown_shard'],
   /* Grayjaw's Ruff (the loot bands' Thicket sample, lane b-loot-bands) wears the Houndskin Cloak's fur cape until the
      Asset Director draws Grayjaw's gray neck ruff (no generated art in that lane). */
   ['grayjaws_ruff', 'houndskin_cloak'],
+  /* The Graypelt Cloak (the first-hour rung, lane b-first-hour) wears the Woollen Cloak's icon (an unreachable cape, so
+     the two never share a shelf) until the Asset Director draws a gray wolf-pelt cloak. */
+  ['graypelt_cloak', 'woolen_cloak'],
   /* The Warrens' two new tier-3 Rares (loot bands batch 4) wear their tier-2 rung's icon until steel heads and a willow stock are drawn. */
   ['steel_hatchets', 'iron_hatchets'], ['steel_hatchets', 'practice_hatchets'], ['willow_crossbow', 'oak_crossbow'], ['willow_crossbow', 'practice_crossbow'],
   /* The Cellar's and the Warrens' imbuement items and the two boss Trophies (loot bands phase C) wear a near item's

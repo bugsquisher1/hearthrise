@@ -1270,6 +1270,21 @@ async function checks(overrides, shots) {
         const best = await page.evaluate((w) => document.querySelector(w + '.hw-hunt[data-hunt="mill_cellar"] .hw-hunt-bestline').textContent, W);
         const p2 = await page1();
         if (best !== 'Best 7,141 Level XP/h' || p2.bests.join('|') !== 'Best alone: 7,141 Level XP per hour · balance 1,859 gp per hour') fails.push('AW-25 the server\'s best reads ' + JSON.stringify([best, p2.bests]));
+        /* AW-25b THE PICK FOLLOWS THE ADVICE until the player picks by hand (lane/b-first-hour: the Cellar, picked for a
+           Level 1 hero, stayed picked at Level 5 while the coach sent the hero to the Thicket). */
+        const pickedNow = () => page.evaluate((w) => (document.querySelector(w + '.hw-hunt.is-picked') || {}).dataset?.hunt, W);
+        s.env.state = Object.assign({}, s.env.state, { level_xp: LEVEL_5_XP });
+        await pushEnvelope(page, s);
+        const at5 = await wait(page, (w) => !!document.querySelector(w + '.hw-hunt.is-picked[data-hunt="meadowbrook_thicket"]'), W, 3000);
+        if (!at5) fails.push('AW-25b at Level 5 the pick stayed on ' + (await pickedNow()) + ', not the Thicket the advice marks');
+        await page.click(W + '.hw-hunt[data-hunt="mill_cellar"]');
+        s.env.state = Object.assign({}, s.env.state, { level_xp: 0 });
+        await pushEnvelope(page, s);
+        s.env.state = Object.assign({}, s.env.state, { level_xp: LEVEL_5_XP });
+        await pushEnvelope(page, s);
+        if ((await pickedNow()) !== 'mill_cellar') fails.push('AW-25b a ground picked by hand was replaced by the advice: ' + (await pickedNow()));
+        s.env.state = Object.assign({}, s.env.state, { level_xp: 0 });
+        await pushEnvelope(page, s);
         /* AW-26 GO AS: the setups as lines, the one on now chosen; Enter as it is ONE hr_hunt_enter and no apply. */
         const goAs = () => page.evaluate((w) => Array.from(document.querySelectorAll(w + '.hw-go')).map((b) => [b.dataset.preset, b.getAttribute('aria-checked'), b.querySelector('.hw-go-name').textContent,
           b.querySelector('.hw-go-what').textContent, b.querySelectorAll('.hw-go-bar .hh-icon').length, (b.querySelector('.hw-go-weapon img') || {}).src ? b.querySelector('.hw-go-weapon img').getAttribute('src').split('/').pop() : ''].join(':')), W);
@@ -2236,7 +2251,9 @@ const MUTANTS = [
   ['AW-28 Find a party searches every ground', 'src/shell/windows/party-finder.js', '  const hunt = sc.ground || null, weapon = sc.weapon || null;', '  const hunt = null, weapon = sc.weapon || null;'],
   ['AW-28 the party path shows on every ground', 'src/shell/windows/hunts.js', "    partyBlock: !follower && (r.groupFit === 'party' || (party && party.isLeader)) ? {", '    partyBlock: !follower ? {'],
   ['AW-28 Bring your heroes offers a hero already in a party', 'src/shell/hunt-go.js', ' && Number.isInteger(o.slot) && !partyMembershipOf(o))', ' && Number.isInteger(o.slot))'],
-  ['AW-29 the pick resets after a hunt', 'src/shell/windows/hunts.js', '  if (!sc.pick && list.length) sc.pick = rec.row ? rec.row.hunt : list[0].hunt;', '  if ((!sc.pick || (h && h.ended)) && list.length) sc.pick = rec.row ? rec.row.hunt : list[0].hunt;'],
+  ['AW-29 the pick resets after a hunt', 'src/shell/windows/hunts.js', '  if ((!sc.pick || sc.auto) && list.length) {', '  if ((!sc.pick || sc.auto || (h && h.ended)) && list.length) {'],
+  ['AW-25b the pick never follows the advice once set', 'src/shell/windows/hunts.js', '  if ((!sc.pick || sc.auto) && list.length) {', '  if (!sc.pick && list.length) {'],
+  ['AW-25b a pick by hand is replaced by the advice', 'src/shell/windows/hunts.js', "    sc.pick = hunt; sc.auto = false; sc.msg = ''; sc.paged = true; repaint();", "    sc.pick = hunt; sc.msg = ''; sc.paged = true; repaint();"],
   ['edgeBody lets an unlisted field through', 'src/session/edge-intents.js', '  for (const k of Object.keys(fields)) if (!allowed.includes(k)) return null;\n', ''],
   /* AW-24 in the page: the bag's pocket is where the ticker shows, so these two are judged by the page rules. */
   ['the bag shows only the server\'s count while town work runs', 'src/shell/windows/inventory/grid.js', '  patchCount(li, shown.qty, shown.ahead !== 0);', '  patchCount(li, r.qty);'],

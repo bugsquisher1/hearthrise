@@ -30,6 +30,7 @@ import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.58';
 import { glyphSvg } from '../launcher.js?v=0.2.58';
 import { tickOf } from '../town-work.js?v=0.2.58';
 import { aheadXp } from '../town-ticker.js?v=0.2.58';
+import { regenPermille } from '../../core/vitals.js?v=0.2.58';
 
 /* Is `level` the skill's last (a capped skill at its cap)? Combat skills have none. */
 const mastered = (id, level) => { const cap = skillCapOf(id); return cap !== null && level >= cap; };
@@ -103,7 +104,9 @@ function skillsWindow(groups) {
           const r = sk[id] || { xp: 0, level: 1 };
           text(li.querySelector('.hw-skill-lv'), String(r.level));
           patchSkillProgress(li, id, r, aheadXp(tick, id));
-          const next = nextUnlock(id, r.level);
+          /* Inner Flame's payoff on its own line (lane/b-first-hour): the recovery rate its level gives, the engine's
+             (core/vitals.js regenPermille, the Character sheet's Regeneration), before its next fuel. */
+          const next = [id === 'inner_flame' ? 'Recovery +' + (regenPermille(r.level) - 1000) / 10 + '%' : '', nextUnlock(id, r.level)].filter(Boolean).join(' · ');
           const nx = li.querySelector('.hw-skill-next');
           text(nx, next);
           attr(nx, 'title', next || null);

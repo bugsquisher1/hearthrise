@@ -29,6 +29,8 @@ import { farmFieldOf } from './farm-sections.js?v=0.2.58';
 import { homeOf } from './home-sections.js?v=0.2.58';
 import { tallyOf } from './tally-sections.js?v=0.2.58';
 import { partyMembershipOf } from './party-sections.js?v=0.2.58';
+import { wearsArmour } from '../core/vitals.js?v=0.2.58';
+import { ITEMS } from '../data/items.js?v=0.2.58';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const ID = /^[a-z0-9_]{1,64}$/;
@@ -127,6 +129,8 @@ export function tutorialFactsOf(cs, sh) {
     bankStacks: bank ? bank.length : null,
     lootRules: rules ? rules.loot : null,
     weapon: eq ? eq.weapon || null : undefined,
+    /* wears armor or a shield, so Defense trains (the engine's own test over the server's worn set) */
+    armoured: eq ? wearsArmour(eq, ITEMS) : undefined,
     blessings: blessFacts(cs), death: deathFacts(cs),
     /* this hunt's supplies, as the analyzer counts them (none once it ended: the hunt the card speaks of is over) */
     supplies: an && !an.ended && open ? an.hero.supplies : null, huntMs: an && open ? an.sessionMs : null,

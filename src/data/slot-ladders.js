@@ -116,6 +116,14 @@ export const SLOT_ITEMS = {
      buckets. Note the pre-existing quirk this sidesteps: the three tiered
      capes already in the game carry no armourClass, so armorSetBonus counts
      them as PLATE today. Raised as a handoff; not changed here.             */
+  /* THE FIRST-HOUR RUNG (designer 2026-10-28, lane/b-first-hour): the gear between the practice kit and Level 15.
+     A fresh hero's Thicket stretch (Level 5 to 15, about 19 h on the 10-25 curve) had nothing new to wear past its
+     tier-1 armor, and What next read "Level 12: Grayjaw's Ruff", a 15 h Rare. One cape every way to fight wears
+     (no style's accuracy or damage pays for it), MADE in Crafting from the Thicket's own Wolf Pelts (about 31 an hour
+     at the floor, tests/hunt-core/forest-cave.mjs --play): the hunt feeds the bench. Between the Shop's Traveler Cape
+     (Level 1, defense 1) and Grayjaw's Ruff (Level 12, defense 3 and crit). Book 150 sells for 75 (tier 1 at 0.5,
+     loot-bands.js) against six pelts' 210: stitching is never a gold faucet (style-gear.js's economy rule). */
+  graypelt_cloak:  { n: 'Graypelt Cloak',  icon: '🦸', v: 150, type: 'armor', slot: 'cape', armourClass: 'cape', tier: 1, rarity: 'common', reqSkill: 'level', reqLv: 8, defB: 2, critB: 0.005 },
   woolen_cloak:    { n: 'Woollen Cloak',   icon: '🦸', v: priced(240, 1), type: 'armor', slot: 'cape', armourClass: 'cape', tier: 1, rarity: 'common',    reqSkill: 'level', reqLv: 12, defB: 2 },
   houndskin_cloak: { n: 'Houndskin Cloak', icon: '🦸', v: priced(240, 2), type: 'armor', slot: 'cape', armourClass: 'cape', tier: 2, rarity: 'uncommon',  reqSkill: 'level', reqLv: 28, defB: 4,  strB: 1 },
   trollhide_cape:  { n: 'Trollhide Cape',  icon: '🦸', v: priced(240, 4), type: 'armor', slot: 'cape', armourClass: 'cape', tier: 4, rarity: 'epic',      reqSkill: 'level', reqLv: 50, defB: 11, strB: 2 },
@@ -198,6 +206,8 @@ export const SLOT_RECIPES = {
     { id: 'fletch_rune_arrows',      name: 'Fletch Rune Arrows ×50',      icon: '🏹', inputs: { rune_bar: 1, yew_plank: 1 },                      output: 'rune_arrows',      outputQty: 50,  xp: 450, req: 63, ms: 4000 },
     { id: 'fletch_emberhead_arrows', name: 'Fletch Emberhead Arrows ×50', icon: '🏹', inputs: { ember_bar: 1, silk_thread: 16 },                  output: 'emberhead_arrows', outputQty: 50,  xp: 600, req: 78, ms: 4200 },
     { id: 'fletch_dawnpoint_arrows', name: 'Fletch Dawnpoint Arrows ×50', icon: '🏹', inputs: { dawn_bar: 1, duskwood_plank: 1 },                 output: 'dawnpoint_arrows', outputQty: 50, xp: 820, req: 91, ms: 4400 },
+    /* The first-hour rung (graypelt_cloak above): Crafting 1, so a hero who never crafted can stitch it the day it reaches Level 8. */
+    { id: 'stitch_graypelt_cloak', name: 'Stitch Graypelt Cloak', icon: '🦸', inputs: { wolf_pelt: 6 }, output: 'graypelt_cloak', xp: 30, req: 1, ms: 3200 },
   ],
 };
 

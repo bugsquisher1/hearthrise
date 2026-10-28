@@ -24,7 +24,8 @@
 //     ring       what on that surface: { item } the bar slot holding it, { crop } the seed to plant,
 //                { skill, work } the skill and its recipe, { task } Tamsin's task
 //     hooks      the ring hooks the card's way needs that the client does not carry yet (lane 2 adds them); the
-//                card shows without them. Tokens: {store} (the store rune B5 names), {slot} (the card's bar slot)
+//                card shows without them. Tokens: {store} (the store rune B5 names), {slot} (the card's bar slot),
+//                {other} (another hero's strip slot), {fuel} (the fuel stack the Hearth card names)
 //     inWindow   the words once the card shows INSIDE its window (it no longer says "open X")
 //     when       the facts the card needs to be on the hero's way (all of them); unmet = passed by
 //     party      a PARTY card, met only by a hero in a party of 2+ whose Level opens its hunt
@@ -45,7 +46,7 @@
 //   name, slots (the bar the server SHOWS: [{ type, id, store, conditions, enabled, usable, count } | null]),
 //   stored (the bar it STORED: [{ type, id, conditions } | null]), discipline, role, stance, store (the server's
 //   store rows), carried { item: n } (the hunt bag in a hunt, else the bag), bag { item: n }, stacks, bagCap,
-//   bankStacks, lootRules { item: deposit|sell|ignore }, weapon (worn), blessings { held, of, freeUntil, prices },
+//   bankStacks, lootRules { item: deposit|sell|ignore }, weapon (worn), armoured (wears armor or a shield), blessings { held, of, freeUntil, prices },
 //   endReason (the latest hunt's, once ended), death { xp, saved } (the newest death_log row), supplies [{ item,
 //   source, count }] (this hunt's analyzer), huntMs, hpMax, presets (saved setups), landPlanted, land { ready },
 //   home { owned, next }, gold, staminaMs, tally { held, paid, weight }, and from the SHELL (the lane 1 / lane 2
@@ -82,6 +83,8 @@ import { RUNE_FAMILIES, runeId } from './runes.js?v=0.2.58';
 import { ARTISAN_RECIPES } from './recipes.js?v=0.2.58';
 import { HUNT_STANCES, ROLE_DEFAULTS } from './rule-subjects.js?v=0.2.58';
 import { START_EQUIPMENT, START_BAR } from './start-kit.js?v=0.2.58';
+import { HEARTH_FUELS } from './hearth.js?v=0.2.58';
+import { regenPermille } from '../core/vitals.js?v=0.2.58';
 
 /* The surfaces a card may point at: `window` the shell window (src/data/shell-windows.js) its controls live in (the
    card shows INSIDE it while it is open), `icon` its way starts at that window's icon, and what the coach rings
@@ -144,8 +147,21 @@ const MORE_HEROES_MS = 5 * 60000;
 const BEATING_EATS = 3;
 /* The bag counts as nearly full at this share of its stacks (the designer's 80 of 100). */
 const BAG_NEAR_FULL = 0.8;
-/* The Level the house and own-rune cards wait for (the designer's day-one plan: past the Thicket's first half hour). */
-const DAY_ONE_LEVEL = 8;
+/* The Level the house and own-rune cards wait for (the designer's day-one plan: past the Thicket's first half hour).
+   8 -> 7 (designer 2026-10-28, lane/b-first-hour): on the 10-25 curve Level 8 is about two hours in, so the day-one goals
+   sat unseen through a first evening; Level 7 is about 40 minutes, the Thicket's first half hour. */
+const DAY_ONE_LEVEL = 7;
+/* The fuel a hero carries before the Hearth card asks it to burn some: the Cellar's quarter hour leaves about a dozen
+   (9 Bones and 3 Lamp Jelly a fresh kit hero, forest-cave --play), the Thicket about 160 Bones an hour. */
+const FUEL_CARD_AT = 10;
+/* The everyday fuels a hero at Inner Flame 1 can burn (hearth.js HEARTH_FUELS: Bones and the family fuels). */
+const FIRST_FUELS = Object.freeze(HEARTH_FUELS.filter((x) => x.req <= 1).map((x) => x.item));
+/* What Inner Flame 10 does for recovery, in words (core/vitals.js regenPermille: the engine's own rate). */
+const FLAME_AT = 10;
+const FLAME_PCT = Math.round((regenPermille(FLAME_AT) - 1000) / 10);
+/* The first-hour rung and the pelts its stitch takes (slot-ladders.js), read from the rows, never restated. */
+const CLOAK = ITEMS.graypelt_cloak;
+const CLOAK_PELTS = ((ARTISAN_RECIPES.crafting || []).find((r) => r.output === 'graypelt_cloak') || { inputs: {} }).inputs.wolf_pelt;
 /* Eat on time: Configure action's − and + move an HP condition in 5% steps (configure-action.js nudge), and the card
    never asks a hero to eat below the designer's 50%. */
 const PCT_STEP = 5, EAT_FLOOR_PCT = 50;
@@ -194,7 +210,7 @@ export const HUNT_TUTORIAL = Object.freeze([
     { reactive: true, knowledge: true, when: [{ kind: 'hunt_age', min: MORE_HEROES_MS, past: CELLAR }, { kind: 'one_hero' }],
       hooks: ['.char-tool[data-app="characters"]', '.char-pick[data-app="create"]'] }),
   step('party_own', 'Hunt together',
-    'Your heroes can share a hunt. Right-click (long-press on a phone) another hero\'s tab and choose Invite to party; your own heroes join at once.',
+    'Your heroes can share a hunt. Right-click (long-press on a phone) another hero\'s tab and choose Invite to party; your own heroes join at once. Then the Party window\'s Your party tab shows everyone in it.',
     'strip', { kind: 'partied' }, { reactive: true, when: [IN_TOWN, { kind: 'own_hero_in_town' }], hooks: ['.char-tab[data-slot="{other}"]'] }),
   step('equip_upgrades', 'Wear what you found',
     'You found gear that beats what you wear. Gear goes on in town: open your bag and press Equip upgrades.',
@@ -203,6 +219,24 @@ export const HUNT_TUTORIAL = Object.freeze([
   step('storage', 'Room in your bag',
     'Your bag is nearly full. Storage holds more, and all your heroes share it.',
     'storage', { kind: 'any', of: [READ, { kind: 'stored_stack' }] }, { reactive: true, gotIt: true, when: [{ kind: 'bag_full' }] }),
+  /* THE HEARTH, TAUGHT (designer 2026-10-28, lane/b-first-hour): Inner Flame was named only in a bracket of the Sell
+     card, so no hero was ever asked to fuel the Hearth. In town with a stack of fuel and no Inner Flame XP yet, the
+     card names the stack and rings it in the bag, then its Fuel all. Finished by the server's Inner Flame XP. */
+  step('fuel_hearth', 'Feed the Hearth',
+    'Burn your Bones in the Great Hearth to raise your Inner Flame: your hero recovers health and mana faster on every hunt. Open your bag, press your Bones, then Fuel all.',
+    'inventory', { kind: 'skill_xp', skill: 'inner_flame' }, { reactive: true, when: [IN_TOWN, { kind: 'fuel_held', n: FUEL_CARD_AT }],
+      inWindow: 'Press your Bones, then Fuel all. Your hero walks to the Great Hearth and burns them.',
+      hooks: ['[data-hs-win="inventory"] .hw-pocket[data-item="{fuel}"]', '[data-hs-win="inventory"] .hw-pick[data-item="{fuel}"] [data-hs-act="primary"]'] }),
+  /* DEFENSE THAT NEVER TRAINS (designer 2026-10-28): it rises only from blows taken in armor or behind a shield
+     (Tyler 2026-10-18; core/vitals.js wearsArmour). The kit's Practice Shield trains it, but a hero who took up a staff,
+     a bow, the hatchets or the club wears nothing that counts. In town with nothing worn that counts (its first-minute
+     cards come before it, so never ahead of the first hunt), the card says so and names the Shop's piece every style
+     can wear; wearing one finishes it. */
+  step('no_defense', 'Defense isn\'t training',
+    'Defense rises only from blows you take while wearing armor or a shield, and you wear neither. The Shop sells Leather Gloves, which suit every way to fight.',
+    'shop', { kind: 'any', of: [READ, { kind: 'armoured' }] },
+    { reactive: true, gotIt: true, when: [IN_TOWN, { kind: 'unarmoured' }],
+      inWindow: 'Press Buy, then buy Leather Gloves. Put them on from your bag.', hooks: ['[data-hs-win="shop"] .hw-tab[data-tab="buy"]'] }),
   /* ── B. The first hunt, the bar while it fights ────────────────────── */
   /* In the cellar wait (designer 2026-10-24: dead minutes from minute 2 to Level 5); hr_farm_plant does not refuse a hunter. */
   step('plant_land', 'Plant your land',
@@ -284,6 +318,12 @@ export const HUNT_TUTORIAL = Object.freeze([
   step('own_runes', 'Make your own runes',
     'Mine Rune Essence, then cut it into Blank Runes and bind them in Runecrafting. Your own runes cast the full spell; the store\'s rune casts a weaker one.',
     'crafting', { kind: 'rune_owned' }, { reactive: true, dayOne: true, when: [IN_TOWN, { kind: 'level_at', at: DAY_ONE_LEVEL }, { kind: 'rune_unowned' }] }),
+  /* The first-hour rung (slot-ladders.js graypelt_cloak): at its Level with the pelts in the bag, the card rings the
+     recipe. Finished by any Crafting XP (a fresh hero has none: the cloak is most heroes' first craft). */
+  step('stitch_cloak', 'A cloak from the wolves',
+    'You can wear a Graypelt Cloak now. Open Gathering and crafting, press Crafting, then Start on Stitch Graypelt Cloak.',
+    'crafting', { kind: 'skill_xp', skill: 'crafting' }, { reactive: true, dayOne: true, ring: { skill: 'crafting', work: 'stitch_graypelt_cloak' },
+      when: [IN_TOWN, { kind: 'level_at', at: CLOAK.reqLv }, { kind: 'carries', item: 'wolf_pelt', n: CLOAK_PELTS }] }),
   step('bless_paid', 'Blessings cost gold now',
     'From now on each Blessing costs gold. They still cut what a death takes.',
     'services', { kind: 'any', of: [{ kind: 'blessed' }, READ] }, { reactive: true, gotIt: true, when: [IN_TOWN, { kind: 'at_free' }, { kind: 'unblessed' }],
@@ -410,7 +450,7 @@ const FACTS = Object.freeze({
   food_order: (p, f) => (Array.isArray(f.slots) ? storeFirst(f) === null : null),
   bar_saved: (p, f) => (Array.isArray(f.stored) ? f.stored.some(Boolean) : null),
   drink_slot: (p, f) => (Array.isArray(f.stored) ? f.stored.some((s) => isDrink(s) && s.id === p.item) : null),
-  carries: (p, f) => known(f.carried, (c) => c[p.item] > 0),
+  carries: (p, f) => known(f.carried, (c) => c[p.item] >= (p.n || 1)),
   rune_unowned: (p, f) => (Array.isArray(f.slots) && f.carried ? runeless(f) !== null : null),
   rune_owned: (p, f) => (Array.isArray(f.slots) && f.carried ? runeless(f) === null : null),
   stance_changed: (p, f) => (f.stance && ROLE_DEFAULTS[f.role] ? f.stance !== ROLE_DEFAULTS[f.role].stance : null),
@@ -424,6 +464,11 @@ const FACTS = Object.freeze({
   loot_sold: (p, f) => known(f.sellable, (n) => n === 0),
   loot_rule: (p, f) => known(f.lootRules, (r) => Object.values(r).some((v) => v === 'sell' || v === 'deposit')),
   weapon_changed: (p, f) => known(f.weapon, (w) => w !== START_EQUIPMENT.weapon),
+  /* worn armor or a shield, the pieces Defense trains in (core/vitals.js wearsArmour over the server's worn set) */
+  armoured: (p, f) => known(f.armoured, (a) => a === true),
+  unarmoured: (p, f) => known(f.armoured, (a) => a === false),
+  /* the bag holds at least `n` of the fuels Inner Flame 1 burns (Bones and the family fuels) */
+  fuel_held: (p, f) => known(f.bag, (b) => FIRST_FUELS.reduce((n, id) => n + (Number(b[id]) || 0), 0) >= p.n),
   upgrades: (p, f) => known(f.upgrades, (u) => u.length > 0),
   upgrades_none: (p, f) => known(f.upgrades, (u) => u.length === 0),
   bag_full: (p, f) => (f.stacks == null || !f.bagCap ? null : f.stacks >= Math.ceil(f.bagCap * BAG_NEAR_FULL)),
@@ -445,7 +490,7 @@ const FACTS = Object.freeze({
 });
 const PARAMS = Object.freeze({ enter: ['hunt'], been: ['hunt'], not_elsewhere: ['hunt'], unlock: ['hunt'], level_at: ['at'], skill_xp: ['skill'],
   tally_taken: ['task'], hunt_age: ['min', 'past'], pull: ['ground', 'pocket'], eaten_at_least: ['n'], heroes: ['atLeast'], drink_slot: ['item'],
-  carries: ['item'], kills: ['atLeast'] });
+  carries: ['item'], kills: ['atLeast'], fuel_held: ['n'] });
 
 /* One fact as true / false / null; `any` is true once one is, null when none is and one is unknown. */
 function judge(d, f, c) {
@@ -698,12 +743,28 @@ const SAY = Object.freeze({
   party_own: (f) => {
     const o = (heroesOn(f) || []).find((x) => x.slot !== f.self && x.open === true && x.hunting === false && x.name);
     if (!o) return null;
-    return { text: 'Your heroes can share a hunt. Right-click (long-press on a phone) ' + o.name + '\'s tab and choose Invite to party; your own heroes join at once. A shield tank holds the pack and a staff heals.', other: o.slot };
+    return { text: 'Your heroes can share a hunt. Right-click (long-press on a phone) ' + o.name + '\'s tab and choose Invite to party; your own heroes join at once. A shield tank holds the pack and a staff heals. Then the Party window\'s Your party tab shows everyone in it.', other: o.slot };
   },
   equip_upgrades: (f) => {
     const ids = (f.upgrades || []).filter((id) => name(id));
     if (!ids.length) return null;
     return { text: 'You found ' + listed(ids.slice(0, 2).map(name)) + (ids.length > 2 ? ' and more' : '') + '. Gear goes on in town: open your bag and press Equip upgrades.' };
+  },
+  stitch_cloak: () => {
+    const r = (ARTISAN_RECIPES.crafting || []).find((x) => x.output === 'graypelt_cloak');
+    if (!r || !CLOAK || !Number.isInteger(CLOAK_PELTS)) return null;
+    return { text: 'You\'re Level ' + CLOAK.reqLv + ', so you can wear ' + anA(CLOAK.n) + '. Open Gathering and crafting, press Crafting, then Start on ' + r.name + ' ('
+      + name('wolf_pelt') + ' ×' + CLOAK_PELTS + ' each), then put it on from your bag.' };
+  },
+  fuel_hearth: (f) => {
+    /* the bag's biggest first-rung fuel stack: the one the card rings and names */
+    const top = f.bag ? FIRST_FUELS.map((id) => [id, Number(f.bag[id]) || 0]).sort((a, b) => b[1] - a[1])[0] : null;
+    if (!top || !(top[1] > 0) || !name(top[0])) return null;
+    const n = top[1], what = name(top[0]);
+    return { text: 'Your bag holds ' + what + ' ×' + n + '. Burn it in the Great Hearth to raise your Inner Flame: your hero recovers health and mana faster on every hunt, '
+      + FLAME_PCT + '% faster by Inner Flame ' + FLAME_AT + '. Open your bag, press the ' + what + ', then Fuel all.', fuel: top[0],
+    /* "Fuel all" without its count: the button counts Storage too (skills from storage, Tyler 2026-10-25) */
+    textIn: 'Press the ' + what + ', then Fuel all. Your hero walks to the Great Hearth and burns them.' };
   },
   storage: (f) => {
     if (f.stacks == null || !f.bagCap) return null;
@@ -783,8 +844,8 @@ export function cardFor(card, facts) {
   const item = card.ring && card.ring.item;
   const barSlot = Number.isInteger(said.barSlot) ? said.barSlot : item && at(item) >= 0 ? at(item) : null;
   const hooks = (card.hooks || []).map((h) => h.replace('{store}', said.store || '').replace('{other}', said.other === undefined ? '' : String(said.other))
-    .replace('{slot}', barSlot === null ? '' : String(barSlot)));
-  return Object.freeze({ ...card, text, barSlot, goal: Number.isFinite(said.goal) ? said.goal : null, textIn: card.inWindow || null, hooks: Object.freeze(hooks) });
+    .replace('{slot}', barSlot === null ? '' : String(barSlot)).replace('{fuel}', said.fuel || ''));
+  return Object.freeze({ ...card, text, barSlot, goal: Number.isFinite(said.goal) ? said.goal : null, textIn: said.textIn || card.inWindow || null, hooks: Object.freeze(hooks) });
 }
 
 /* ── AFTER THE GUIDE: WHAT NEXT ───────────────────────────────────────────
@@ -841,6 +902,21 @@ function readyWords(ready) {
 const PARTY_HOW = 'Invite a friend, or make a second hero: up to four of yours can hunt at once.';
 /* A ground built for a party: a pocket of it needs one (hunt-grounds.js minParty). */
 const partyGround = (hunt) => Object.values(HUNT_GROUNDS).some((g) => g.hunt === hunt && g.pockets.some((p) => (p.minParty || 1) > 1));
+
+/* "Graypelt Cloak is made in Crafting from Wolf Pelt ×6.": the first gear piece worn at Level `lv` that a bench makes,
+   that the next-gear words `said` name and the role wears; '' when none. Inputs as the home card writes them (name ×n). */
+function madeWords(lv, said, role) {
+  for (const [skill, list] of Object.entries(ARTISAN_RECIPES)) {
+    for (const r of list || []) {
+      const it = r.output ? ITEMS[r.output] : null;
+      if (!it || it.reqSkill !== LEVEL_REQ || it.reqLv !== lv || !it.n || !said.includes(it.n) || (role && !wornByRole(r.output, role))) continue;
+      const ins = Object.entries(r.inputs || (r.input ? { [r.input]: 1 } : {}));
+      if (!ins.length || !SKILLS_DEF[skill] || ins.some(([id]) => !name(id))) continue;
+      return it.n + ' is made in ' + SKILLS_DEF[skill].name + ' from ' + listed(ins.map(([id, n]) => name(id) + ' ×' + n)) + '.';
+    }
+  }
+  return '';
+}
 
 /**
  * The goal line after the guide, or null (nothing left to name). `facts`: { charLevel, role, skillLevel, defenseXp, land,
@@ -899,6 +975,10 @@ export function nextGoal(facts) {
   if (gat) {
     lines.push('Next gear at Level ' + gat[1] + ': ' + gear.slice(gat[0].length) + '.');
     ids.push('gear', gat[1]);
+    /* A piece that line names and a bench makes: where and from what (the Graypelt Cloak, lane/b-first-hour: a made
+       piece no line said how to get was a goal with no way). The first such piece only. */
+    const made = madeWords(Number(gat[1]), gear, role);
+    if (made) lines.push(made);
   }
   const skill = ROLE_SKILL[facts.role];
   if (skill && Number.isInteger(facts.skillLevel)) {

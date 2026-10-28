@@ -48,9 +48,10 @@
 //       not accept it AND the column the engine's self-configuring switch reads
 //       does not exist, so the engine cannot propose it
 //   KW  the two frac files' single-writer scans, as narrowed 2026-10-13, are one
-//       predicate; on the chain they name nothing, and they still name a
-//       planted body that mentions xp_frac and a party settle that mentions it
-//       OUTSIDE its allowlist
+//       predicate; on the chain they name nothing but the registered READERS
+//       (FRAC_READERS, each proven to write nothing and to be reachable by no
+//       client or engine role), and they still name a planted body that
+//       mentions xp_frac and a party settle that mentions it OUTSIDE its allowlist
 //   P   ★ party-split parity, ARMED, as hr_engine: a two-member party window
 //       whose two (different) member deltas carry xp, xp_frac, a pet XP op and
 //       companion_xp_frac PAYS, and each member's gold, skill XP + remainders
@@ -401,6 +402,32 @@ async function dbArms(db, { log = () => {} } = {}) {
   return red;
 }
 
+/* THE REMAINDER'S REGISTERED READERS. The frac files' scan allows hr_apply (the one WRITER) and hr_state_of (the
+   envelope that projects it). A later function that only READS the remainder is listed here, with the file that made
+   it and why, and is PROVEN a reader on every run (readerProof): its code writes nothing (no insert / update / delete /
+   merge / truncate / dynamic execute), it is SECURITY DEFINER-owned and no client or engine role executes it. The scan
+   at the chain end must then name exactly these: an unlisted name is red, a listed reader that writes is red, and a
+   listed name the chain no longer holds is red (a stale entry is how an allowlist grows past its proof). */
+const FRAC_READERS = Object.freeze({
+  hr_hunt_member_state: '2027-02-02-settle-cost.sql: one hunt member\'s engine inputs, hr_state_of\'s own skills cell { xp, frac } '
+    + 'copied for the settle read (tests/hunt-sessions-settle.mjs MEMBER-STATE proves the parity)',
+});
+async function readerProof(db, name) {
+  const r = (await db.query(`select p.prosrc, p.prosecdef, p.oid::regprocedure::text as sig from pg_proc p
+                               join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname = $1`, [name])).rows;
+  if (r.length !== 1) return `KW: the registered frac reader ${name} is ${r.length ? 'overloaded' : 'not on the chain'} — the entry is stale`;
+  const code = r[0].prosrc.replace(/--[^\n]*/g, '').replace(/\/\*[\s\S]*?\*\//g, '');
+  const write = /\b(insert\s+into|update\s+[a-z_."]+\s+set|delete\s+from|merge\s+into|truncate|execute)\b/i.exec(code);
+  if (write) return `KW: the registered frac reader ${name} WRITES (${write[0]}) — a reader of the remainder must not`;
+  if (!r[0].prosecdef) return `KW: the registered frac reader ${name} is not SECURITY DEFINER-owned`;
+  for (const role of ['anon', 'authenticated', 'service_role', 'hr_engine', 'hr_tick']) {
+    const has = (await db.query(`select exists (select 1 from pg_roles where rolname = $1)
+                                        and has_function_privilege($1, $2::regprocedure, 'execute') as x`, [role, r[0].sig])).rows[0].x;
+    if (has) return `KW: the registered frac reader ${name} is executable by ${role}`;
+  }
+  return null;
+}
+
 /** The narrowed single-writer scan, cut out of each frac file's §4(b). */
 async function scanArm(db, fracSql) {
   const red = [];
@@ -410,8 +437,16 @@ async function scanArm(db, fracSql) {
   });
   if (preds.some((p) => !p)) { red.push('KW: a frac file\'s single-writer scan could not be found'); return red; }
   if (preds[0] !== preds[1]) red.push('KW: the two frac files\' single-writer scans are no longer the same predicate');
-  const scan = async () => (await db.query(preds[0].replace(/;$/, ''))).rows[0].string_agg;
+  /* The frac files' predicate, run as written; its answer minus the registered readers is what must be empty. */
+  const named = async () => String((await db.query(preds[0].replace(/;$/, ''))).rows[0].string_agg || '').split(',').filter(Boolean);
+  const scan = async () => (await named()).filter((n) => !Object.prototype.hasOwnProperty.call(FRAC_READERS, n)).join(',') || null;
   if ((await scan()) !== null) red.push(`KW: on the chain the scan names ${await scan()}`);
+  const onChain = await named();
+  for (const n of Object.keys(FRAC_READERS)) {
+    if (!onChain.includes(n)) { red.push(`KW: the registered frac reader ${n} no longer names xp_frac on the chain — the entry is stale`); continue; }
+    const why = await readerProof(db, n);
+    if (why) red.push(why);
+  }
   await db.exec("create function public.zz_frac_probe() returns int language sql as $f$ select 1 /* xp_frac */ $f$;");
   const planted = await scan();
   await db.exec('drop function public.zz_frac_probe();');
@@ -524,6 +559,7 @@ async function main() {
   if (control.length) { console.error(`harness: the unmutated control is red (${control.join(' | ')})`); process.exit(2); }
   const settleDef = (await installed(db)).settleDef;
   const applyDef = (await installed(db)).applyDef;
+  const memberDef = (await db.query(`select pg_get_functiondef('public.hr_hunt_member_state(uuid,integer)'::regprocedure) d`)).rows[0].d.replace(/\r/g, '');
   const PARTY = settleDef !== null;   // false since the core rebuild: the party mutants are retired with their function
   const bodyMutant = (def, from, to) => async () => {
     if (def.split(from).length !== 2) throw Object.assign(new Error(`anchor matched ${def.split(from).length - 1}x: ${from}`), { harness: true });
@@ -578,6 +614,14 @@ async function main() {
       plant: async () => { await db.exec('alter table public.player_state add column ammo_carry numeric'); return async () => { await db.exec('alter table public.player_state drop column ammo_carry'); }; } },
     { party: true, name: 'the single-writer scan is narrowed to nothing', arms: /^KW:/,
       frac: fracSql.map((s) => s.replace("then regexp_replace(p.prosrc, 'c_delta_ok\\s+constant\\s+text\\[\\]\\s*:=\\s*array\\[[^]]*\\];', '')", "then ''")) },
+    /* The registered READER (FRAC_READERS) earns its place on every run: one that writes the remainder, or that the
+       engine can call, is red. */
+    { name: 'a registered frac reader writes the remainder', arms: /^KW:/,
+      plant: bodyMutant(memberDef, '  v_vit := public.hr_vitals_of(p_user, v_st.slot);\n',
+        '  v_vit := public.hr_vitals_of(p_user, v_st.slot);\n  update public.player_skills set xp_frac = xp_frac where false;\n') },
+    { name: 'a registered frac reader is engine-executable', arms: /^KW:/,
+      plant: async () => { await db.exec('grant execute on function public.hr_hunt_member_state(uuid, integer) to hr_engine');
+        return async () => { await db.exec('revoke execute on function public.hr_hunt_member_state(uuid, integer) from hr_engine'); }; } },
   ];
   let survived = 0;
   const retired = MUTANTS.filter((m) => m.party && !PARTY);

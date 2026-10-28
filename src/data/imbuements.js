@@ -98,6 +98,12 @@ export const IMBUE_ITEMS = Object.freeze({
   dented_copper_pot: row('Dented Copper Pot', '🥘', 40, 'ward'),
   foremans_lash: row('Foreman\'s Lash', '➰', 46, 'life_leech'),
   coppercaps_tallow: row('Coppercap\'s Tallow', '🕯️', 52, 'element_ward'),
+  /* Wickstead (lane b-greenhaven-6, designer 2026-10-28): the farm's vermin and the road's Turncoats. A caster's ground
+     beside the Thicket's physical three: Mana Leech, Ward and Element Ward, with the rats' Keen. */
+  granary_whisker: row('Granary Rat Whisker', '🐀', 9, 'keen'),
+  barn_wasp_sting: row('Barn Wasp Sting', '🐝', 11, 'mana_leech'),
+  loft_web: row('Loft Web', '🕸️', 13, 'ward'),
+  torn_company_badge: row('Torn Company Badge', '🎖️', 16, 'element_ward'),
 });
 
 /* The flavour lines (src/data/item-descriptions.js): what it is, where it comes from. */
@@ -122,6 +128,10 @@ export const IMBUE_DESC = Object.freeze({
   hive_wasp_stinger: 'The barbed stinger of a Hive Wasp from the mill cellar, still sharp enough to draw blood',
   glowing_copper_fleck: 'A fleck of copper from the Warrens that still glows from the spring water, picked out by a scavenger',
   skulkers_shiv: 'The thin blade a Goblin Skulker carries for the back of a party, sharpened on the gallery walls',
+  granary_whisker: 'A stiff whisker off a Granary Rat, the rats grown fat on what Wickstead left in its granary',
+  barn_wasp_sting: 'The sting of a Barn Wasp from the Wickstead orchard, where the wasps nest in the old trees',
+  loft_web: 'A wad of the thick web the Barn Spiders spin across the Wickstead hay loft',
+  torn_company_badge: 'A free company\'s badge a Turncoat cut off his coat when he deserted. The threads still hang from it',
   dented_copper_pot: 'The copper pot a Goblin Digger wears over its eyes, dented by every blade that ever rang off it',
   foremans_lash: 'The knotted lash a Hobgoblin Foreman keeps the diggers working with',
   coppercaps_tallow: 'The tallow Chief Coppercap rubs into his skin. It is why frost slides off him',

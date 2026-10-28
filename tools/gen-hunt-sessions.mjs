@@ -183,7 +183,9 @@ export const WORLD_FIELDS_READ = Object.freeze({
    2027-02-01-level-curve.generated.sql (which moves the curve functions off them first). */
 /* THE FIRST-HOUR RUNG (lane b-first-hour, 2026-10-28): 2027-02-01 is APPLIED history; the Graypelt Cloak's vendor value
    lands in this forward file, the same full replace, applied after 2027-02-05-first-hour-bench-inputs.generated.sql. */
-export const OUT_NAME = '2027-02-05-first-hour-hunt-sessions-catalogue.generated.sql';
+/* WICKSTEAD (lane b-greenhaven-6, 2026-10-28): 2027-02-05 is APPLIED history; the staged farm ground's four imbuement items'
+   vendor values land in this forward file, the same full replace, applied after 2027-02-06-wickstead-items-catalogue. */
+export const OUT_NAME = '2027-02-06-wickstead-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);

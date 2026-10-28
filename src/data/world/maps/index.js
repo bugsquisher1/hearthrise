@@ -8,6 +8,7 @@ import meadowbrookThicket from './meadowbrook_thicket.js?v=0.2.59';
 import coppercapWarrens from './coppercap_warrens.js?v=0.2.59';
 import mosslightGlade from './mosslight_glade.js?v=0.2.59';
 import sandboxHd64 from './sandbox_hd64.js?v=0.2.59';
+import wickstead from './wickstead.js?v=0.2.59';
 
 export const WORLD_MAPS = Object.freeze([millCellar, townCommon, homeCottage, millraceSewer, meadowbrookThicket, coppercapWarrens, mosslightGlade, sandboxHd64]);
 
@@ -15,7 +16,8 @@ export const WORLD_MAPS = Object.freeze([millCellar, townCommon, homeCottage, mi
    engine, its painted ground art is not done yet. No client draws it (src/world reads WORLD_MAPS only);
    tests/world-core.mjs lints it like any map except for the ground art. It moves to WORLD_MAPS, and its
    hunt loses `staged`, when the art lands (tests/hunt-core/forest-cave.mjs staged-until-art). */
-export const STAGED_MAPS = Object.freeze([]);
+/* Wickstead (lane b-greenhaven-6, 2026-10-28): its grid, packs and drops are fitted; its painted ground is the asset lane's. */
+export const STAGED_MAPS = Object.freeze([wickstead]);
 
 /** The row of map `id`, shipped or staged, or null: the engine's grid reader (src/core/hunt-ground.js). */
 export function mapRowOf(id) {

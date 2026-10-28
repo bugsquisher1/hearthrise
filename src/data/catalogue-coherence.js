@@ -103,6 +103,8 @@ export const VENDOR_TRASH = Object.freeze(['sticky_core', 'goblin_ear', 'goblin_
      pieces until the Trophy Room wall hangs boss trophies (it hangs Bestiary mounts only today). */
   'giant_rat_hide', 'hive_wasp_stinger', 'glowing_copper_fleck', 'skulkers_shiv', 'dented_copper_pot', 'foremans_lash', 'coppercaps_tallow',
   'rat_kings_crown', 'coppercaps_cauldron',
+  /* Wickstead's four (lane b-greenhaven-6), the same promise. */
+  'granary_whisker', 'barn_wasp_sting', 'loft_web', 'torn_company_badge',
 ]);
 
 /* ── AWAITING THE ROSTER — catalogued, kept, and deliberately unobtainable ───
@@ -173,7 +175,7 @@ export const AWAITING_ROSTER = Object.freeze([
    planned ground or system, (b) needed now (its source is a listing away), (c) no home in
    Early Access, listed for Tyler's keep-or-cut. */
 export const UNREACHABLE_FATES = Object.freeze({
-  staged:     Object.freeze({ bucket: 'a', door: 'its staged ground opens (Mosslight Glade, waiting on its art)', open: Object.freeze({ grounds: HUNT_GROUNDS }) }),
+  staged:     Object.freeze({ bucket: 'a', door: 'its staged ground opens (Wickstead, waiting on its painted ground)', open: Object.freeze({ grounds: HUNT_GROUNDS }) }),
   premium:    Object.freeze({ bucket: 'a', door: 'premium sells and the daily login claim pays', open: Object.freeze({ premium: true }) }),
   greenhaven: Object.freeze({ bucket: 'a', door: 'a Greenhaven ground not yet built puts it on one of its creatures' }),
   later:      Object.freeze({ bucket: 'c', door: 'none in Early Access: kept for a later region, or cut (Tyler)' }),
@@ -184,18 +186,23 @@ export const UNREACHABLE_FATES = Object.freeze({
    Only `staged` may grow, and only with a ground whose opening the guard proves; every
    other fate is held under UNREACHABLE_CEILING. */
 export const UNREACHABLE = Object.freeze({
-  /* Empty since Mosslight Glade opened on its art (lane b-mosslight-art, v0.2.31): its drops and the Magic Essence line
-     (deep runes, the rune bar) are reachable. A ground staged again may refill it, with the guard's proof of its opening. */
-  staged: Object.freeze([]),
+  /* Wickstead (lane b-greenhaven-6, 2026-10-28), staged until its painted ground: the first tier-2 gloves, belts and
+     jewellery (its Rares) and its Turncoats' Bramble Blade, out of `greenhaven`. The day it opens this empties again. */
+  staged: Object.freeze([
+    'iron_gauntlets', 'studded_gloves', 'adept_gloves', 'iron_belt', 'studded_belt', 'adept_belt',
+    'banded_signet', 'wolfbone_torc', 'fang_studs', 'bramble_blade',
+    /* and its four imbuement items, new with it */
+    'granary_whisker', 'barn_wasp_sting', 'loft_web', 'torn_company_badge',
+  ]),
   premium: Object.freeze(['oak_practice_blade']),
   /* Tier 1-3 gear and Greenhaven-fit materials (roads, greenwood, farm edge, ruins) for the region's next
      grounds. Gloves, belts and the caster's cloth line have NO reachable piece today. */
   greenhaven: Object.freeze([
-    'bronze_gauntlets', 'iron_gauntlets', 'steel_gauntlets', 'studded_gloves', 'boarhide_gloves', 'apprentice_gloves',
-    'adept_gloves', 'scholar_gloves', 'leather_belt', 'iron_belt', 'steel_belt', 'studded_belt', 'boarhide_belt',
-    'apprentice_belt', 'adept_belt', 'scholar_belt',
-        'bramble_blade', 'rat_stick',
-    'fang_studs', 'wolfbone_torc', 'spidersilk_choker', 'banded_signet', 'tusker_charm', 'packlord_band',
+    'bronze_gauntlets', 'steel_gauntlets', 'boarhide_gloves', 'apprentice_gloves',
+    'scholar_gloves', 'leather_belt', 'steel_belt', 'boarhide_belt',
+    'apprentice_belt', 'scholar_belt',
+    'rat_stick',
+    'spidersilk_choker', 'tusker_charm', 'packlord_band',
     'mirewort_drops', 'ancient_fragment', 'cracked_spellstone', 'grave_dust', 'razor_claw', 'bear_pelt', 'bear_claw',
     'raw_bear_meat', 'cooked_bear_meat', 'bear_claw_pie',
   ]),
@@ -231,7 +238,8 @@ export const UNREACHABLE = Object.freeze({
    ladder makes six greenhaven rows (Oak Wand, Oakboard Spellbook, Iron Warhammer, Apprentice and Adept Slippers,
    Adept Robe Top); the Longbow left `staged` (made at Crafting 15 too). 134 -> 133 (lane b-loot-bands): Old Grayjaw's
    Rare row sources the Studded Leather Coif. 133 -> 132: the Sewer's kobolds drop the Iron Boots; 132 -> 131: Rook hides the Boarhide Coif; 131 -> 129: the Warrens drop the Steel and Scholar boots.  129 -> 125: the Warrens' willow Rares. */
-export const UNREACHABLE_CEILING = 125;
+/* 125 -> 115 (lane b-greenhaven-6): Wickstead's ten move to `staged` (C11 proves its opening sources them). */
+export const UNREACHABLE_CEILING = 115;
 
 /**
  * id -> the first reachable door (a label). `opts` opens planned doors for C11's proof:

@@ -209,9 +209,13 @@ export const HUNT_TUTORIAL = Object.freeze([
     'characters', { kind: 'heroes', atLeast: 2 },
     { reactive: true, knowledge: true, when: [{ kind: 'hunt_age', min: MORE_HEROES_MS, past: CELLAR }, { kind: 'one_hero' }],
       hooks: ['.char-tool[data-app="characters"]', '.char-pick[data-app="create"]'] }),
+  /* Gated on THIS hero's Level (the server's level_xp), not only on the account having a second hero in town: a
+     reactive card here interrupts the chain, so a Level 2 hero beside an older one was asked to party before its own
+     Cellar steps (played on live 10-28, Pellow beside Corliss). Past the Cellar stretch it fits. */
   step('party_own', 'Hunt together',
     'Your heroes can share a hunt. Right-click (long-press on a phone) another hero\'s tab and choose Invite to party; your own heroes join at once. Then the Party window\'s Your party tab shows everyone in it.',
-    'strip', { kind: 'partied' }, { reactive: true, when: [IN_TOWN, { kind: 'own_hero_in_town' }], hooks: ['.char-tab[data-slot="{other}"]'] }),
+    'strip', { kind: 'partied' }, { reactive: true, when: [IN_TOWN, { kind: 'level_at', at: HUNT_INDEX[THICKET].band[0] }, { kind: 'own_hero_in_town' }],
+      hooks: ['.char-tab[data-slot="{other}"]'] }),
   step('equip_upgrades', 'Wear what you found',
     'You found gear that beats what you wear. Gear goes on in town: open your bag and press Equip upgrades.',
     'inventory', { kind: 'upgrades_none' }, { reactive: true, when: [IN_TOWN, { kind: 'upgrades' }],

@@ -704,6 +704,14 @@ const cases = {
     for (const id of ['spell_runes', 'food_when', 'bless', 'tamsins_task']) if (!seen.includes(id)) return 'a second hero never meets ' + id + ' (' + seen.join(' > ') + ')';
     const first = walkChain(M, T, { roster: [{ slot: 0, level: 1, name: 'New', open: true, hunting: false }, { slot: 1, level: M.tut.KNOWN_LEVEL, name: 'Young', open: false, hunting: false }], self: 0 }).map((x) => x.id);
     if (!first.includes('first_kill') || !first.includes('styles')) return 'a hero whose only other hero is Level ' + M.tut.KNOWN_LEVEL + ' skips the lessons';
+    /* A CELLAR HERO'S OWN STEP FIRST (played on live 10-28: Pellow, Level 2 in town, was shown "Hunt together" because
+       Corliss, Level 6, stood in town): the party card waits for THIS hero to pass the Cellar stretch */
+    const pair = { roster: [{ slot: 0, level: 2, name: 'Pellow', open: true, hunting: false }, { slot: 1, level: 6, name: 'Corliss', open: true, hunting: false }], self: 0, name: 'Pellow' };
+    const floor = M.HUNTS.meadowbrook_thicket.band[0];
+    for (let lv = 1; lv < floor; lv++) {
+      const c = M.tut.currentCard(tutAt(M, T, lv, { ...pair, visited: new Set(['mill_cellar']), levelXp: M.xp.charXpForLevel(lv) + 3 }));
+      if (c && c.id === 'party_own') return 'a Level ' + lv + ' hero in the Cellar stretch is asked to Hunt together before its own steps';
+    }
     return null;
   },
   'tutorial-no-wall': (M) => {

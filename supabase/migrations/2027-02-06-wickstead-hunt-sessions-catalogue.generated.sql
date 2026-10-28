@@ -8,10 +8,10 @@
 --   src/data/premium.js, src/core/hunt/world-state.js and the vendor price
 --   (hr-accrue/catalogue.js). Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: cf92cac925d104711f35dff1b67da1d0c4c2bca8e53299556f61c20a9eb14603
---   82 supplies, 125 hunts (named + training), 47 limits, 12 end reasons,
+--   digest: fbebf0e6392a39a0d438a0ca8efa494bbd575973030aa072fd0d3038f6de198b
+--   82 supplies, 126 hunts (named + training), 47 limits, 12 end reasons,
 --   544 vendor values, 25 store supplies paid per use, 5 target modes,
---   4 lanes, 16 abilities, 10 action-set options, 5 hunt grounds
+--   4 lanes, 16 abilities, 10 action-set options, 6 hunt grounds
 --
 -- SUPERSEDES 2027-01-31-hunt-sessions-catalogue.generated.sql (lane/b-inner-flame, applied
 -- before this file; history once applied: never regenerated): every table below is
@@ -596,7 +596,8 @@ insert into public.hr_hunt_grounds (hunt_id, ground_id, pockets, spawns, respawn
   ('meadowbrook_thicket', 'meadowbrook_thicket', 6, 13, 60000, 2, '{8,8,8,8}'::int[]),
   ('mill_cellar', 'mill_cellar', 2, 5, 30000, 4, '{8,8,8,8}'::int[]),
   ('millrace_sewer', 'millrace_sewer', 6, 19, 90000, 4, '{8,8,10,12}'::int[]),
-  ('mosslight_glade', 'mosslight_glade', 6, 13, 60000, 4, '{8,8,8,8}'::int[]);
+  ('mosslight_glade', 'mosslight_glade', 6, 13, 60000, 4, '{8,8,8,8}'::int[]),
+  ('wickstead', 'wickstead', 6, 12, 60000, 4, '{8,8,8,8}'::int[]);
 insert into public.hr_hunt_ground_spawns (hunt_id, monster_id, n) values
   ('coppercap_warrens', 'chief_coppercap', 1),
   ('coppercap_warrens', 'goblin_digger', 5),
@@ -621,9 +622,15 @@ insert into public.hr_hunt_ground_spawns (hunt_id, monster_id, n) values
   ('mosslight_glade', 'glade_poacher', 2),
   ('mosslight_glade', 'goblin_sluicer', 1),
   ('mosslight_glade', 'rook_poacher', 1),
-  ('mosslight_glade', 'walking_vine', 3);
+  ('mosslight_glade', 'walking_vine', 3),
+  ('wickstead', 'barn_spider', 2),
+  ('wickstead', 'barn_wasp', 1),
+  ('wickstead', 'granary_rat', 8),
+  ('wickstead', 'turncoat', 1);
 delete from public.hr_hunt_roster;
 insert into public.hr_hunt_roster (monster_id) values
+  ('barn_spider'),
+  ('barn_wasp'),
   ('briarcoat_wolf'),
   ('carrion_crow'),
   ('chief_coppercap'),
@@ -636,6 +643,7 @@ insert into public.hr_hunt_roster (monster_id) values
   ('goblin_scavenger'),
   ('goblin_skulker'),
   ('goblin_sluicer'),
+  ('granary_rat'),
   ('gray_whelp'),
   ('gray_wolf'),
   ('grayjaw'),
@@ -647,6 +655,7 @@ insert into public.hr_hunt_roster (monster_id) values
   ('rook_poacher'),
   ('slime'),
   ('sump_slime'),
+  ('turncoat'),
   ('walking_vine');
 delete from public.hr_hunt_weapons;
 insert into public.hr_hunt_weapons (item_id, weapon_type) values
@@ -861,6 +870,7 @@ insert into public.hr_hunt_travel (hunt_id, travel_s, training) values
   ('watchknight', 0, true),
   ('water_elemental', 0, true),
   ('weak_skeleton', 0, true),
+  ('wickstead', 0, false),
   ('wight', 0, true),
   ('wild_boar', 0, true),
   ('winter_wolf', 0, true),
@@ -1512,7 +1522,7 @@ do $$
 declare v_role text; v_t text;
 begin
   if (select count(*) from public.hr_hunt_supplies) <> 82
-     or (select count(*) from public.hr_hunt_travel) <> 125
+     or (select count(*) from public.hr_hunt_travel) <> 126
      or (select count(*) from public.hr_hunt_limits) <> 47
      or (select count(*) from public.hr_hunt_end_reasons) <> 12
      or (select count(*) from public.hr_hunt_vendor_value) <> 544
@@ -1526,10 +1536,10 @@ begin
      or (select count(*) from public.hr_hunt_set_options) <> 10
      or (select count(*) from public.hr_hunt_kill_bounds) <> 138
      or (select count(*) from public.hr_hunt_abilities) <> 16
-     or (select count(*) from public.hr_hunt_grounds) <> 5
+     or (select count(*) from public.hr_hunt_grounds) <> 6
      or (select count(*) from public.hr_hunt_grounds where density_max is null) <> 0
-     or (select count(*) from public.hr_hunt_ground_spawns) <> 24
-     or (select count(*) from public.hr_hunt_roster) <> 24
+     or (select count(*) from public.hr_hunt_ground_spawns) <> 28
+     or (select count(*) from public.hr_hunt_roster) <> 28
      or (select count(*) from public.hr_hunt_world_shape) <> 1
      or (select count(*) from public.hr_premium_login_reward) <> 1
      or (select count(*) from public.hr_hunt_weapons) <> 66

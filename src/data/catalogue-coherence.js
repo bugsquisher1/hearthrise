@@ -186,14 +186,9 @@ export const UNREACHABLE_FATES = Object.freeze({
    Only `staged` may grow, and only with a ground whose opening the guard proves; every
    other fate is held under UNREACHABLE_CEILING. */
 export const UNREACHABLE = Object.freeze({
-  /* Wickstead (lane b-greenhaven-6, 2026-10-28), staged until its painted ground: the first tier-2 gloves, belts and
-     jewellery (its Rares) and its Turncoats' Bramble Blade, out of `greenhaven`. The day it opens this empties again. */
-  staged: Object.freeze([
-    'iron_gauntlets', 'studded_gloves', 'adept_gloves', 'iron_belt', 'studded_belt', 'adept_belt',
-    'banded_signet', 'wolfbone_torc', 'fang_studs', 'bramble_blade',
-    /* and its four imbuement items, new with it */
-    'granary_whisker', 'barn_wasp_sting', 'loft_web', 'torn_company_badge',
-  ]),
+  /* Empty since Wickstead opened on its painted ground (lane b-wickstead-art, 2026-10-28): its tier-2 gloves, belts and
+     jewelry, the Bramble Blade and its four imbuement items are reachable. A ground staged again may refill it. */
+  staged: Object.freeze([]),
   premium: Object.freeze(['oak_practice_blade']),
   /* Tier 1-3 gear and Greenhaven-fit materials (roads, greenwood, farm edge, ruins) for the region's next
      grounds. Gloves, belts and the caster's cloth line have NO reachable piece today. */

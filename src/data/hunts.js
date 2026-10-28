@@ -150,7 +150,7 @@ export const HUNTS = Object.freeze([
     band: [8, 18],
     spawns: [{ monster: 'granary_rat', w: 14, rarity: 'common' }, { monster: 'barn_wasp', w: 4, rarity: 'uncommon' },
       { monster: 'barn_spider', w: 4, rarity: 'uncommon' }, { monster: 'turncoat', w: 2, rarity: 'rare' }],
-    family: 'Vermin', art: 'granary_rat', travelS: 0, pull: 4, respawnMs: 60000, staged: true,
+    family: 'Vermin', art: 'granary_rat', travelS: 0, pull: 4, respawnMs: 60000,
   },
 ]);
 

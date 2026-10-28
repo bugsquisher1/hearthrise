@@ -9,9 +9,9 @@
 // the cattle ford (y30-32, three wide) to the Cart Shed. Every open tile lies in an open 3x3 except the
 // footbridge. The hedges and the wood ('#') block a step and a shot and count as trees.
 //
-// ART: STAGED (src/data/hunts.js `staged`; this map is in STAGED_MAPS). Its ground `wickstead_ground` is not painted
-// yet: the asset lane paints it from these rows in the Meadowbrook's tileset family (as the Glade's 4589f28b was),
-// with a dirt track along the route. Every placed object is an existing style-1 sprite (mill, sewer, common,
+// ART: OPEN (lane b-wickstead-art, 2026-10-28). Its ground `wickstead_ground` (art/world/stead) is PixelLab map
+// efbc2aa2, painted from these rows in the Meadowbrook's tileset family (as the Glade's 4589f28b was), with a dirt
+// track along the route. Every placed object is an existing style-1 sprite (mill, sewer, common,
 // cottage, forest and warren sets). The four creatures reuse shipped style-1 units, the same animal under a new
 // row (as the Drain Rat is the cellar's Giant Rat): Granary Rat = rat, Barn Wasp = hive_wasp, Barn Spider =
 // cistern_spider, Turncoat = glade_poacher (hunt-grounds.js header).

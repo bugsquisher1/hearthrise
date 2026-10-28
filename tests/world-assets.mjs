@@ -106,6 +106,11 @@ const REQUIRED = {
   rat: { set: 'hunt', class: 'vermin', anims: ['idle', 'walk'], dirs: FACINGS },
   slime: { set: 'hunt', class: 'vermin', anims: ['idle', 'walk'], dirs: FACINGS },
   hive_wasp: { set: 'mill', class: 'vermin_flier', anims: ['idle', 'walk'], dirs: FACINGS },
+  // Wickstead's rat, wasp and spider (lane b-wickstead-art, 2026-10-28): the shipped rat, hive wasp and cistern
+  // spider under their own rows, so the same clips as theirs (the live-ground contract checks the blow and fall)
+  granary_rat: { set: 'stead', class: 'vermin', anims: ['idle', 'walk'], dirs: FACINGS },
+  barn_wasp: { set: 'stead', class: 'vermin_flier', anims: ['idle', 'walk'], dirs: FACINGS },
+  barn_spider: { set: 'stead', class: 'vermin', anims: ['idle', 'walk'], dirs: FACINGS },
   loot_bag: { set: 'mill', class: 'clutter', anims: ['idle'], dirs: PROP },
   // town stations: combat at the mill hatch, gather at the woodpile, artisan at the anvil;
   // the crier speaks from the notice board
@@ -140,7 +145,9 @@ const REQUIRED = {
     ['goblin_digger', 'warren', 'vermin'], ['hobgoblin_foreman', 'warren', 'character'], ['chief_coppercap', 'warren', 'brute'],
     /* Mosslight Glade's five (lane b-mosslight-art, 2026-10-22) */
     ['carrion_crow', 'glade', 'vermin_flier'], ['glade_poacher', 'glade', 'character'], ['walking_vine', 'glade', 'vermin'],
-    ['goblin_sluicer', 'glade', 'vermin'], ['rook_poacher', 'glade', 'character']]
+    ['goblin_sluicer', 'glade', 'vermin'], ['rook_poacher', 'glade', 'character'],
+    /* Wickstead's Turncoat (lane b-wickstead-art, 2026-10-28): the glade poacher under its own row */
+    ['turncoat', 'stead', 'character']]
     .map(([id, set, cls]) => [id, { set, class: cls, anims: ['idle', 'walk', 'attack'], dirs: FACINGS, also: { death: UNIT } }])),
   // their gather nodes (hunt-grounds.js GROUND_NODE_KINDS): a full and a spent sprite each
   ...Object.fromEntries([['mb_hollow_oak', 'sapling'], ['mb_hollow_oak_stump', 'wreck'], ['mb_oak_stump', 'wreck'], ['mb_pine_stump', 'decal'],
@@ -150,7 +157,7 @@ const REQUIRED = {
 };
 // every reachable map's ground: one painted style-1 ground each (tools/world-art/port-pixellab.mjs)
 const REQUIRED_TERRAIN = { sewer_ground: 'sewer', cellar_ground: 'mill', common_ground: 'common', cottage_ground: 'cottage',
-  meadowbrook_ground: 'forest', warrens_ground: 'warren', mosslight_ground: 'glade' };
+  meadowbrook_ground: 'forest', warrens_ground: 'warren', mosslight_ground: 'glade', wickstead_ground: 'stead' };
 
 // THE LIVE-GROUND CONTRACT: what a kill on a walked ground asks the renderer for. The sprite id is the
 // monster id (src/hunt-view/scene.js spriteOf, src/world/choreo.js corpses); the clips are the ones the

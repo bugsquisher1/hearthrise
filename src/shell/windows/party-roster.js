@@ -16,12 +16,12 @@
 // one intent each), off from the press until the server answered; the tab
 // changes only from the re-read envelope.
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.59';
-import { huntName } from '../../session/party-sections.js?v=0.2.59';
-import { rosterOf, stateWords, leaveOrDisband } from '../widgets/party-panel.js?v=0.2.59';
-import { patchRoleGlyph } from '../widgets/bits.js?v=0.2.59';
-import { glyphSvg } from '../launcher.js?v=0.2.59';
-import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.59';
+import { HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.60';
+import { huntName } from '../../session/party-sections.js?v=0.2.60';
+import { rosterOf, stateWords, leaveOrDisband } from '../widgets/party-panel.js?v=0.2.60';
+import { patchRoleGlyph } from '../widgets/bits.js?v=0.2.60';
+import { glyphSvg } from '../launcher.js?v=0.2.60';
+import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.60';
 
 /** The tab's skeleton (built once with the window). */
 export function rosterHtml() {

@@ -9,7 +9,7 @@
 // 1 and the stack the server last sent; the owner sends that count as its
 // intent and the counts on screen change only from the re-read envelope.
 // ════════════════════════════════════════════════════════════════════════
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.59';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.60';
 
 /** A whole number clamped to 1..max (a typed "", "abc" or 0 reads as 1). */
 export function clampAmount(v, max) {

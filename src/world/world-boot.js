@@ -26,33 +26,33 @@
 // scene drawing from it shows. The first scene opens whole; a later one (a ground entered, the town after
 // a hunt) switches once its sheets have arrived, the last frame holding meanwhile.
 // ════════════════════════════════════════════════════════════════════════
-import { BUILD } from '../build-info.js?v=0.2.59';
-import { MATERIALS, OPEN_CLASSES, LIGHTS } from '../data/world/terrain.js?v=0.2.59';
-import { WORLD_MAPS, SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.59';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.59';
-import { MONSTERS } from '../data/monsters.js?v=0.2.59';
-import { compileMap } from './core/map-compile.js?v=0.2.59';
-import { createBook, STUB_SPRITE } from './core/book.js?v=0.2.59';
-import { fpsFor, MOBILE_QUERY } from './core/camera.js?v=0.2.59';
-import { heroBuilding, roofTargets, stepAlpha } from './core/roofs.js?v=0.2.59';
-import { readScene, setChoice, heroPosOn, notePos, forgetPos } from './store.js?v=0.2.59';
-import { loadManifests, createSceneImages, loadAtlasSet } from './atlas.js?v=0.2.59';
-import { sceneSetsSliced } from './scene-sets.js?v=0.2.59';
-import { createGridArt, sandboxExtras, presenceFor } from './sandbox-scene.js?v=0.2.59';
-import { createCanvasBackend } from './render/canvas-backend.js?v=0.2.59';
-import { huntOfMap } from './hunt-maps.js?v=0.2.59';
-import { createHuntScene } from './hunt-scene.js?v=0.2.59';
-import { liveSceneOf, endLiveScene } from '../hunt-view/scene.js?v=0.2.59';
-import { huntOf } from '../session/hunt-sections.js?v=0.2.59';
-import { createWalkScene } from './walk-scene.js?v=0.2.59';
-import { createTownZoom } from './town-zoom.js?v=0.2.59';
-import { homeMapFor, homeEnv } from './home-scene.js?v=0.2.59';
-import { runAction } from './steer-local.js?v=0.2.59';
-import { heroSprite } from '../session/hero-look.js?v=0.2.59';
-import { keyBelongsToField } from '../utils/dom.js?v=0.2.59';
-import { homeOf } from '../session/home-sections.js?v=0.2.59';
-import { skillsOf } from '../session/item-sections.js?v=0.2.59';
-import { createHearthView } from './hearth-burn.js?v=0.2.59';
+import { BUILD } from '../build-info.js?v=0.2.60';
+import { MATERIALS, OPEN_CLASSES, LIGHTS } from '../data/world/terrain.js?v=0.2.60';
+import { WORLD_MAPS, SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.60';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.60';
+import { MONSTERS } from '../data/monsters.js?v=0.2.60';
+import { compileMap } from './core/map-compile.js?v=0.2.60';
+import { createBook, STUB_SPRITE } from './core/book.js?v=0.2.60';
+import { fpsFor, MOBILE_QUERY } from './core/camera.js?v=0.2.60';
+import { heroBuilding, roofTargets, stepAlpha } from './core/roofs.js?v=0.2.60';
+import { readScene, setChoice, heroPosOn, notePos, forgetPos } from './store.js?v=0.2.60';
+import { loadManifests, createSceneImages, loadAtlasSet } from './atlas.js?v=0.2.60';
+import { sceneSetsSliced } from './scene-sets.js?v=0.2.60';
+import { createGridArt, sandboxExtras, presenceFor } from './sandbox-scene.js?v=0.2.60';
+import { createCanvasBackend } from './render/canvas-backend.js?v=0.2.60';
+import { huntOfMap } from './hunt-maps.js?v=0.2.60';
+import { createHuntScene } from './hunt-scene.js?v=0.2.60';
+import { liveSceneOf, endLiveScene } from '../hunt-view/scene.js?v=0.2.60';
+import { huntOf } from '../session/hunt-sections.js?v=0.2.60';
+import { createWalkScene } from './walk-scene.js?v=0.2.60';
+import { createTownZoom } from './town-zoom.js?v=0.2.60';
+import { homeMapFor, homeEnv } from './home-scene.js?v=0.2.60';
+import { runAction } from './steer-local.js?v=0.2.60';
+import { heroSprite } from '../session/hero-look.js?v=0.2.60';
+import { keyBelongsToField } from '../utils/dom.js?v=0.2.60';
+import { homeOf } from '../session/home-sections.js?v=0.2.60';
+import { skillsOf } from '../session/item-sections.js?v=0.2.60';
+import { createHearthView } from './hearth-burn.js?v=0.2.60';
 
 /* THE KEYS (desktop): WASD and the arrows, by physical key (e.code, so a
    non-QWERTY layout walks with the same hand). Two held at once walk the

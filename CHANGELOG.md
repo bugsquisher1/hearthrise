@@ -5,6 +5,10 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.60 — 2026-10-28 (Smoother Havora)
+
+**Less stutter in town.** Havora now loads and draws its streets in small steps instead of all at once, so walking around town and arriving back from a hunt stay smooth, even on slower computers. The town looks exactly the same.
+
 ## v0.2.59 — 2026-10-28 (A smoother first hour)
 
 **A gentler start.** The first ten Levels now climb evenly instead of hitting a wall at Level 6, and the starting tips finish by Level 7.

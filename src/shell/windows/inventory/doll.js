@@ -17,20 +17,20 @@
 // `equip` intent; the doll changes only when the re-read envelope replaces
 // `equipment`.
 // ════════════════════════════════════════════════════════════════════════
-import { ITEMS } from '../../../data/items.js?v=0.2.59';
-import { EQUIP_SLOT_META, expandItemSlot } from '../../../data/gathering.js?v=0.2.59';
-import { bagOf, skillsOf, shopOf, equipmentOf } from '../../../session/item-sections.js?v=0.2.59';
-import { wornWeights, weightSentence, WEIGHT_ORDER } from '../../../data/armour-weights.js?v=0.2.59';
-import { rows, text, cls, attr, prop, element } from '../../../render/paint.js?v=0.2.59';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.59';
-import { glyphSvg } from '../../launcher.js?v=0.2.59';
-import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.59';
-import { compare, rarityOf } from '../../bag-model.js?v=0.2.59';
-import { needOf } from '../../item-lore.js?v=0.2.59';
-import { gearLocked, GEAR_HUNT_WORDS } from '../../gear-gate.js?v=0.2.59';
-import { whyLine } from '../../widgets/why-line.js?v=0.2.59';
-import { levelOf } from '../../../session/character-sections.js?v=0.2.59';
-import { showTip } from '../item-tip.js?v=0.2.59';
+import { ITEMS } from '../../../data/items.js?v=0.2.60';
+import { EQUIP_SLOT_META, expandItemSlot } from '../../../data/gathering.js?v=0.2.60';
+import { bagOf, skillsOf, shopOf, equipmentOf } from '../../../session/item-sections.js?v=0.2.60';
+import { wornWeights, weightSentence, WEIGHT_ORDER } from '../../../data/armour-weights.js?v=0.2.60';
+import { rows, text, cls, attr, prop, element } from '../../../render/paint.js?v=0.2.60';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.60';
+import { glyphSvg } from '../../launcher.js?v=0.2.60';
+import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.60';
+import { compare, rarityOf } from '../../bag-model.js?v=0.2.60';
+import { needOf } from '../../item-lore.js?v=0.2.60';
+import { gearLocked, GEAR_HUNT_WORDS } from '../../gear-gate.js?v=0.2.60';
+import { whyLine } from '../../widgets/why-line.js?v=0.2.60';
+import { levelOf } from '../../../session/character-sections.js?v=0.2.60';
+import { showTip } from '../item-tip.js?v=0.2.60';
 
 /* Body order, row by row: [slot, label, empty glyph]. */
 export const DOLL = Object.freeze([

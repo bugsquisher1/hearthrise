@@ -32,17 +32,17 @@
 //      holds a step or an event to play), so a long hunt walks only the units on
 //      screen each frame, never every monster it ever spawned.
 // ════════════════════════════════════════════════════════════════════════
-import { EVENT_FX, LOOT_FX, HIT_FX, PROJECTILE, CAST_FX } from '../data/hunt-vfx.js?v=0.2.59';
-import { outfitSprite } from '../data/hunt-outfits.js?v=0.2.59';
-import { huntOf, partyOf } from '../session/hunt-sections.js?v=0.2.59';
-import { partyPeopleOf } from '../session/party-sections.js?v=0.2.59';
-import { floatShown } from './float-prefs.js?v=0.2.59';
-import { heroSprite } from '../session/hero-look.js?v=0.2.59';
-import { abilityName, itemName } from '../shell/widgets/bits.js?v=0.2.59';
-import { STUB_SPRITE } from '../world/core/book.js?v=0.2.59';
-import { HUNT_GROUNDS } from '../data/hunt-grounds.js?v=0.2.59';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.59';
-import { levelOf } from '../session/character-sections.js?v=0.2.59';
+import { EVENT_FX, LOOT_FX, HIT_FX, PROJECTILE, CAST_FX } from '../data/hunt-vfx.js?v=0.2.60';
+import { outfitSprite } from '../data/hunt-outfits.js?v=0.2.60';
+import { huntOf, partyOf } from '../session/hunt-sections.js?v=0.2.60';
+import { partyPeopleOf } from '../session/party-sections.js?v=0.2.60';
+import { floatShown } from './float-prefs.js?v=0.2.60';
+import { heroSprite } from '../session/hero-look.js?v=0.2.60';
+import { abilityName, itemName } from '../shell/widgets/bits.js?v=0.2.60';
+import { STUB_SPRITE } from '../world/core/book.js?v=0.2.60';
+import { HUNT_GROUNDS } from '../data/hunt-grounds.js?v=0.2.60';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.60';
+import { levelOf } from '../session/character-sections.js?v=0.2.60';
 
 /* The ground's first start tile, standing (the hero before its first window). */
 function entranceOf(huntId) {

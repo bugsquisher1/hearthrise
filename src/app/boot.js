@@ -47,6 +47,7 @@ import { createSocialRealtime } from '../social/realtime.js?v=0.2.56';
 import { SocialSession } from '../social/social-session.js?v=0.2.56';
 import { escapeHtml as esc } from '../utils/dom.js?v=0.2.56';
 import { startObservability, track } from '../net/observability.js?v=0.2.56';
+import { loadGlyphs } from './glyphs-loader.js?v=0.2.56';
 import { startDiagnostics } from '../net/diagnostics.js?v=0.2.56';
 import { mountPressAck } from '../shell/press-ack.js?v=0.2.56';
 import { liveOverlayWanted, mountLiveOverlay } from './live-overlay.js?v=0.2.56';
@@ -154,6 +155,7 @@ function startApp(win) {
     if (!auth.userId()) { showAuth('sign-in'); return; }
     if (account) return;
     obs.identify(auth.userId());
+    loadGlyphs(win);   // the icon atlas, for the game screen (glyphs-loader.js): fetched while the roster is read
     const server = createServerLink({ url: SUPABASE_CONFIG.url, anonKey: SUPABASE_CONFIG.anonKey, token: auth.freshToken, renew: auth.renewToken,
       stale: () => fresh.check(true) });
     account = new AccountSession({ auth, server, tab: HS.session, channel: channelFor(client, auth),
@@ -266,6 +268,8 @@ function startApp(win) {
 
   /* The game screen: the strip once, then the viewed character's pane. */
   async function showGame() {
+    if (!strip) await loadGlyphs(win);   // the strip and the shell draw from the atlas: never mounted before it has run
+    if (!account) return;
     if (!strip) {
       clear();
       obs.screen('game');

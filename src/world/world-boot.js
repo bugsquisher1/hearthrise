@@ -32,7 +32,7 @@ import { WORLD_MAPS, SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.56';
 import { HUNT_INDEX } from '../data/hunts.js?v=0.2.56';
 import { MONSTERS } from '../data/monsters.js?v=0.2.56';
 import { compileMap } from './core/map-compile.js?v=0.2.56';
-import { groundOf } from './core/compose.js?v=0.2.56';
+import { groundOfSliced } from './core/compose.js?v=0.2.56';
 import { createBook, STUB_SPRITE } from './core/book.js?v=0.2.56';
 import { fpsFor, MOBILE_QUERY } from './core/camera.js?v=0.2.56';
 import { heroBuilding, roofTargets, stepAlpha } from './core/roofs.js?v=0.2.56';
@@ -326,8 +326,10 @@ export async function bootWorld(panel, opts) {
         waiting.add(sc.map);
         const id = sc.map;
         const task = (fn) => new Promise((done) => win.setTimeout(() => done(gone ? null : fn()), 0));
-        /* the ground first, alone (the town's is 22k dual tiles), then what the scene draws over it */
-        task(() => { const g = ROWS.get(id).grid; if (!g || g === 'base') { const m = mapOf(id); groundOf(m, book, tables, m.T || 32); } })
+        /* the ground first, in slices of its own (the town's is 22k dual tiles: compose.js groundOfSliced), then what
+           the scene draws over it; a pane closed meanwhile stops the slicing */
+        const slices = { later: (fn) => win.setTimeout(() => { if (!gone) fn(); }, 0), now: () => win.performance.now() };
+        task(() => { const g = ROWS.get(id).grid; if (!g || g === 'base') { const m = mapOf(id); return groundOfSliced(m, book, tables, m.T || 32, slices); } })
           .then(() => task(() => setsFor(id)))
           .then((need) => need && sheets.ensure(need))
           .then(() => task(() => backend.prepare(mapOf(id), artOf(id) || undefined)))

@@ -87,6 +87,11 @@ const PROBES = [
   /* every ground made (the town's is 22k dual tiles): never inside a frame, never twice for one map */
   ['src/world/core/compose.js', '  if (!g) byBook.set(book, g = groundTiles(map, book, tables, T));',
     '  if (!g) byBook.set(book, g = window.__perf ? window.__perf.ground(map, () => groundTiles(map, book, tables, T)) : groundTiles(map, book, tables, T));'],
+  /* ...and a ground made in slices (groundOfSliced, a scene being prepared): registered when kept, each slice timed */
+  ['src/world/core/compose.js', '  byBook.set(book, made);\n  return made;',
+    '  byBook.set(book, window.__perf ? window.__perf.ground(map, () => made) : made);\n  return made;'],
+  ['src/world/core/compose.js', '        const r = runFor(it, o.now, budget);',
+    '        const r = window.__perf ? window.__perf.time(\'groundSlice\', () => runFor(it, o.now, budget)) : runFor(it, o.now, budget);'],
 ];
 
 /* ── the planted defects (--mutate): each must turn a budget red ── */
@@ -520,7 +525,7 @@ function analyse(out, w0, o, srv) {
     engine: per('engine'), scene: per('scene'), draw: per('draw'), frame: per('frame'), envelope: per('envelope'), shellTick: per('shellTick'),
     domStart: w0.nodes, domEnd: hunted ? hunted[1] : out.nodes, domGrowth: hunted ? (hunted[1] - hunted[3]) - (w0.nodes - w0.lines) : null,
     logLines: Math.max(0, ...out.dom.map((d) => d[3])), addedPerMin: Math.round(out.added / minutes),
-    groundInFrame: out.c.groundInFrame || 0, groundRemade: out.c.groundRemade || 0, ground: per('ground'),
+    groundInFrame: out.c.groundInFrame || 0, groundRemade: out.c.groundRemade || 0, ground: per('ground'), groundSlice: per('groundSlice'),
     paintsInAnswers: out.c.shellPaintInEnvelope || 0, drawsInAnswers: out.c.drawInEnvelope || 0, drawsOffLoop: out.c.drawOffLoop || 0,
     analyzerPerMin: Math.round((out.c.analyzer || 0) / minutes), analyzerBehindMs: Math.round(behind), analyzerBackMs: Math.round(backMs), analyzerBacks: backs, analyzerStillMs: stillMax,
     held: held.map(([a, g, page]) => { const m = out.marks.filter((x) => x[0] <= a).pop();
@@ -560,7 +565,7 @@ function row(m) {
   return `${m.browser.padEnd(8)} ${m.size.padEnd(8)} fps ${m.fpsMedian}/${m.fpsP5} long ${m.longFrames} worst ${Math.round(m.worstFrame)} resume ${Math.round(m.resumeWorst)} stall ${Math.round(m.stallWorst)}${m.pageTimed ? '' : ' (wall)'} lt ${m.longTasks}`
     + ` | engine ${ms(m.engine)} scene ${ms(m.scene)} draw ${ms(m.draw)} frame ${ms(m.frame)} env ${ms(m.envelope)} (${m.envelope ? m.envelope.n : 0}) tick ${ms(m.shellTick)}`
     + ` | heap ${m.heapMb === null ? 'n/a' : m.heapMb.toFixed(1) + 'MB' + (m.heapRawMb != null ? ' (with the probe records ' + m.heapRawMb.toFixed(1) + ')' : '')} dom ${m.domStart}->${m.domEnd} (+${m.domGrowth}) log ${m.logLines} +${m.addedPerMin}/min`
-    + ` | ground ${ms(m.ground)} (${m.ground ? m.ground.n : 0}) in-frame ${m.groundInFrame} again ${m.groundRemade}`
+    + ` | ground ${ms(m.ground)} (${m.ground ? m.ground.n : 0}) slice ${ms(m.groundSlice)} (${m.groundSlice ? m.groundSlice.n : 0}) in-frame ${m.groundInFrame} again ${m.groundRemade}`
     + ` | paints-in-answers ${m.paintsInAnswers} draws off-loop ${m.drawsOffLoop} (in answers ${m.drawsInAnswers}) sheets ${m.sheets.bitmap} bitmap/${m.sheets.img} img`
     + ` | analyzer ${m.analyzerPerMin}/min behind ${m.analyzerBehindMs} back ${m.analyzerBackMs}x${m.analyzerBacks} still ${m.analyzerStillMs}`;
 }

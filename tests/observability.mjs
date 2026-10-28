@@ -13,7 +13,7 @@
 // rule, the page's CSP and the SDKs' own requests are the shipped ones; the two
 // ingest hosts are routed and recorded, nothing reaches the network.
 //
-//   OB-1  hearthrise.net: boot loads both SDKs from our origin and inits them:
+//   OB-1  hearthrise.net: boot loads Sentry (PostHog after sign-in, OB-12) from our origin and inits them:
 //         Sentry release = BUILD.version, environment production, every error
 //         sampled, no tracing, no replay; PostHog identified_only, autocapture
 //         and pageviews off, nothing kept on the device, every input masked,
@@ -44,6 +44,8 @@
 //         runs on the sign-in screen, its distinct id is the account id, every body it
 //         posts carries only that id, no $identify / $anon_distinct_id, no [PostHog.js] warning;
 //         and after a sign-out and a second sign-in in one load, on a fresh session)
+//   OB-12 PostHog's script is not fetched on the sign-in screen (206 KB, opt-review
+//         2026-10-28): only once the account id is known, on the next idle moment
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
 import { launchOptions } from './_chrome.mjs';
@@ -193,13 +195,15 @@ async function browserChecks(overrides) {
       const { pg, seen, close } = await page(browser, 'http://127.0.0.1:' + port, o);
       opened.push(seen);
       await pg.goto('https://hearthrise.net/play.html', { waitUntil: 'load' });
-      /* Both SDKs' scripts are in; PostHog is NOT started (OB-11): it waits for the account id. */
-      const up = await wait(pg, () => window.Sentry && window.Sentry.getClient && window.Sentry.getClient() && window.posthog && typeof window.posthog.init === 'function');
-      if (!up) fails.push('OB-1 the SDKs did not load on hearthrise.net (scripts: ' + seen.scripts.join(', ') + ')');
+      /* Sentry is in; PostHog is NOT (OB-11, OB-12): its script waits for the account id, so the sign-in screen
+         never downloads it (opt-review 2026-10-28: 206 KB of a first visit's 1.97 MB). */
+      const up = await wait(pg, () => window.Sentry && window.Sentry.getClient && window.Sentry.getClient());
+      if (!up) fails.push('OB-1 Sentry did not load on hearthrise.net (scripts: ' + seen.scripts.join(', ') + ')');
       else {
-        await pg.evaluate(() => new Promise((r) => setTimeout(r, 50)));   // past the script's own load event
-        const idle = await pg.evaluate(() => ({ loaded: !!window.posthog.__loaded, id: window.posthog.get_distinct_id ? window.posthog.get_distinct_id() : null }));
-        if (idle.loaded || seen.posthog.length) fails.push('OB-11 PostHog started on the sign-in screen, before the account id was known: ' + JSON.stringify([idle, seen.posthog]));
+        await pg.evaluate(() => new Promise((r) => setTimeout(r, 500)));   // past an idle moment: nothing may follow
+        const idle = await pg.evaluate(() => ({ sdk: typeof window.posthog }));
+        if (idle.sdk !== 'undefined' || seen.scripts.some((x) => /posthog/.test(x))) fails.push('OB-12 the PostHog script loaded on the sign-in screen: ' + JSON.stringify([idle, seen.scripts]));
+        if (seen.posthog.length) fails.push('OB-11 PostHog sent on the sign-in screen, before the account id was known: ' + JSON.stringify(seen.posthog));
         const c = await pg.evaluate(() => {
           const s = window.Sentry.getClient().getOptions();
           return { release: s.release, environment: s.environment, sampleRate: s.sampleRate, traces: s.tracesSampleRate, tracer: s.tracesSampler,
@@ -361,8 +365,10 @@ async function nodeChecks(root) {
     location: { hostname: 'hearthrise.net', search: '', href: 'https://hearthrise.net/play.html' },
     performance: { now: () => clock }, addEventListener() {}, removeEventListener() {},
     setInterval: (fn, ms) => { timers[ms] = fn; return 1; },
+    requestIdleCallback: (fn) => { idleQ.push(fn); return idleQ.length; },
     document: { visibilityState: 'visible', createElement: () => ({}), head: { appendChild(s) { if (/posthog/.test(s.src)) win.posthog = sdk; else win.Sentry = sentry; s.onload(); } } },
   };
+  const idleQ = [];
   const obs = OBS.startObservability(win);
   const tick = timers[1000];
   const beat = timers[500];
@@ -370,7 +376,10 @@ async function nodeChecks(root) {
   /* OB-11 (node): both scripts are in, and PostHog still waits; it starts WITH the account id as its bootstrap
      distinct id (memory persistence kept) and nobody calls identify() to merge an anonymous one. */
   if (inits.length) fails.push('OB-11 PostHog started before the account id was known');
+  if (win.posthog || idleQ.length) fails.push('OB-12 the PostHog script was asked for before the account id was known');
   obs.identify(UID);
+  if (win.posthog) fails.push('OB-12 the PostHog script loaded inside the sign-in, not on the next idle moment');
+  for (const fn of idleQ.splice(0)) fn();
   const boot = inits.length === 1 ? inits[0].bootstrap : null;
   if (!boot || boot.distinctID !== UID || boot.isIdentifiedID !== true || inits[0].persistence !== 'memory')
     fails.push('OB-11 PostHog did not start with the account id as its bootstrap distinct id: ' + JSON.stringify(inits.map((o) => [o.bootstrap, o.persistence])));
@@ -478,6 +487,7 @@ const MUTANTS = [
   ['a starved live view goes unreported', 'src/net/observability.js', 'else if (w.open && w.running && !running && w.starvedAt === null)', 'else if (false)'],
   ['one error loops into Sentry', 'src/net/observability.js', 'if (n > limits.perFingerprint) { held++; return null; }', 'if (false) { held++; return null; }'],
   ['no ceiling per page load', 'src/net/observability.js', 'if (!hang && sent >= limits.perLoad)', 'if (false)'],
+  ['the PostHog script loads at boot, on the sign-in screen', 'src/net/observability.js', '    else win.setTimeout(go, 0);\n  };\n', '    else win.setTimeout(go, 0);\n  };\n  loadPostHog();\n'],
   ['network weather is sent', 'src/net/observability.js', 'if (WEATHER.some((r) => r.test(headline(event)))) return null;', ''],
   ['a hang is never reported', 'src/net/diagnostics.js', 'if (late > DIAG.HANG_MS) for', 'if (false) for'],
   ['a hidden tab counts as a hang', 'src/net/diagnostics.js', 'if (!visible() || late < DIAG.JANK_MS', 'if (late < DIAG.JANK_MS'],

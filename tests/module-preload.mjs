@@ -22,7 +22,7 @@
 //         key: a second fetch, the preload wasted)
 //   MP-3  non-vacuity: the entry is found in play.html and its graph is deep
 //         (a reader that stopped at the first level would pass MP-1 vacuously)
-//   MP-4  the classic scripts at the end of the body (supabase-js, storage, glyphs)
+//   MP-4  the classic scripts at the end of the body (supabase-js, storage)
 //         are preloaded too: each blocks the parser, so unpreloaded they came one
 //         round trip after another, after the modules (measured 10-24)
 // ════════════════════════════════════════════════════════════════════════

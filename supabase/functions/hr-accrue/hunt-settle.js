@@ -142,14 +142,40 @@ export const HUNT_DEGRADABLE = Object.freeze([
 ]);
 export const HUNT_MAX_DEGRADE = 3;
 
-/* THE PER-CALL SIMULATED SPAN (P1 2026-10-20: 546 WORKER_RESOURCE_LIMIT). A
-   settle simulates at most this much of the instance's backlog; the rest stays
-   owed on its unmoved settled_to and the next fire takes the next slice (90x
-   real time at a 10 s tick). Without it an instance whose commit is refused
-   (session_moved, a tally error) re-simulates a window that grows 10 s every
-   fire, up to accrual.js HUNT_MAX_WINDOW_MS (6 h), twice per fire on a retry,
-   until the worker's CPU budget kills the whole tick and every hunt in it. */
-export const HUNT_SETTLE_SPAN_MS = 15 * 60000;
+/* THE PER-SETTLE SIMULATED SPAN, SIZED TO THE EDGE'S CPU (lane/c-tick-span, 2026-10-28; first the 546
+   WORKER_RESOURCE_LIMIT fuse of P1 2026-10-20, at 15 min). A settle simulates at most this much of the instance's
+   backlog, on either door; the rest stays owed on its unmoved settled_to and the next fire takes the next slice
+   (2027-02-04-tick-span.sql re-offers a session whose settle landed at the very next fire). Splitting a window
+   moves no outcome: the engine is cut-invariant (tests/hunt-sessions-settle.mjs TICK-1 / BOTH-PATH / PARITY,
+   tests/hunt-tick-shards.mjs OUTAGE).
+   WHY 2 MIN. Engine CPU grows with the simulated span and varies ~10x with the ground and the moment (measured
+   2026-10-28, Node, the real grounds: 0.3-1.4 ms per simulated second lightly loaded, 2.5-3.5 under load; the
+   optimization review's 4-hero p95 6.2). At 15 min one 4-hero instance cost 1-2.3 s, so after any tick outage past
+   ~4 min every 4-instance body ran over the edge's 2 s CPU limit and died on every retry: the backlog never
+   drained. 2 min is above the steady window (the 90 s flush + one 10 s cadence) and its worst slice (~0.75 s at
+   6.2 ms/s) fits beside HUNT_ENGINE_BUDGET_MS under the limit. */
+export const HUNT_SETTLE_SPAN_MS = 2 * 60000;
+
+/* THE ENGINE BUDGET, PER REQUEST (lane/c-tick-span). Measured engine time (accrueHunt is synchronous: its wall
+   is its CPU), shared by every settle of one tick body and fresh for each player door call. NO ENGINE RUN STARTS
+   AT OR PAST IT — a body's next instance is deferred (left owed and leased; the roster puts the most-behind
+   instance first in its next body), and a settle's retry or degrade step answers its last refusal instead — so a
+   request's engine CPU is at most this plus one slice: 1.0 s + ~0.75 s, under the edge's 2 s (EDGE_CPU_MS). The
+   first run of a request always starts. Pacing only: where a body stops never moves an outcome. */
+export const HUNT_ENGINE_BUDGET_MS = 1000;
+/* The edge's CPU limit per request (Supabase Edge Functions, 2 s): the bound HUNT_ENGINE_BUDGET_MS and
+   HUNT_SETTLE_SPAN_MS are sized against. tests/hunt-tick-shards.mjs OUTAGE measures a full body under it. */
+export const EDGE_CPU_MS = 2000;
+const perfNow = () => (globalThis.performance && typeof globalThis.performance.now === 'function'
+  ? globalThis.performance.now() : Date.now());
+/** One request's engine budget: `limitMs` of measured engine time, `clock` the timer (a test seam; the edge's
+    is performance.now). `spentMs`, `runs` and `maxRunMs` are what the request's engine runs measured. */
+export function engineBudget(limitMs, clock) {
+  const lim = Number(limitMs);
+  return { limitMs: Number.isFinite(lim) && lim >= 0 ? lim : HUNT_ENGINE_BUDGET_MS,
+    clock: typeof clock === 'function' ? clock : perfNow, spentMs: 0, runs: 0, maxRunMs: 0 };
+}
+const budgetSpent = (b) => b.spentMs >= b.limitMs;
 /* Refusals that mean "someone else moved the instance under us" — or, with ONE purse per account
    (2026-12-15-account-gold.sql), "another hero of the account moved the purse under us": a store bill
    the purse no longer pays (gold_short) or a gold_out end it no longer proves (another hero's coins
@@ -263,39 +289,54 @@ const refusal = (status, error, extra) => ({ status, body: { ok: false, error, .
  *                    (clamped to it; production passes none)
  * @param o.worldMaxBytes  test seam: a TIGHTER world bound (accrual.js accrueHunt
  *                    takes the smaller; production passes none)
+ * @param o.budget    the request's engineBudget (tick.js shares one across a body and admits a settle only
+ *                    while it is unspent); absent = a fresh HUNT_ENGINE_BUDGET_MS for this call. This
+ *                    settle's FIRST engine run always starts; its retry and degrade steps start only
+ *                    while the budget is unspent.
  * @returns {{ outcome: 'paid'|'nothing'|'none'|'refused'|'limited', reason?, status, body, ended? }}
  */
 export async function settleHunt(o) {
   const mode = o.mode === 'settle' ? 'settle' : 'tick';
+  const budget = o.budget && typeof o.budget === 'object' ? o.budget : engineBudget();
   let last = null;
   for (let attempt = 0; attempt < 2; attempt++) {
-    const v = await settleOnce(o, mode);
+    /* A retry is another read and another engine run: never one past the budget (its refusal stands, owed). */
+    if (attempt > 0 && budgetSpent(budget)) return last;
+    const v = await settleOnce(o, mode, budget);
     if (!retryableSettle(v)) return v;
     last = v;
   }
   return last;
 }
 
-async function settleOnce(o, mode) {
+async function settleOnce(o, mode, budget) {
   const plan = await readHuntSettle(o, mode);
   if (plan.answer) return plan.answer;
   const { user, slot } = o;
   const { envOf, fromMs } = plan;
   let toMs = plan.toMs;
   let degraded = 0;
+  /* The refusal a degrade step answers to: the one it would have escaped, were the budget not spent. */
+  let pending = null;
   /* ASK FOR LESS: half the window, so fewer swings and a smaller delta (or another
      world). The instance clock still only moves by what is settled; the rest is owed. */
   const shorter = (err, detail) => {
     const half = fromMs + Math.floor((toMs - fromMs) / 2);
-    if (degraded >= HUNT_MAX_DEGRADE || !(half > fromMs)) {
-      return { outcome: 'refused', reason: err, ...refusal(409, err, detail) };
-    }
+    pending = { outcome: 'refused', reason: err, ...refusal(409, err, detail) };
+    if (degraded >= HUNT_MAX_DEGRADE || !(half > fromMs)) return pending;
     toMs = half;
     degraded++;
     return null;
   };
   for (;;) {
-    const p = await proposeHuntSettle(plan, toMs, degraded);
+    /* NO DEGRADE STEP PAST THE BUDGET (lane/c-tick-span): this settle's first run was admitted by settleHunt's check;
+       a halved window is another engine run, so a spent budget answers the refusal it would have escaped. Nothing is
+       written; the next fire tries the instance again. */
+    if (degraded > 0 && budgetSpent(budget)) return pending;
+    const p = await proposeHuntSettle(plan, toMs, degraded, budget.clock);
+    budget.spentMs += p.engineMs;
+    budget.runs += 1;
+    budget.maxRunMs = Math.max(budget.maxRunMs, p.engineMs);
     if (!p.out.accrued && p.out.refused) {
       /* THE ENGINE REFUSED THE WINDOW (accrual.js HUNT_REFUSE): nothing was
          proposed and nothing is committed. */
@@ -322,7 +363,8 @@ async function settleOnce(o, mode) {
            into a slow body, one swing (a whole commit for two seconds of hunt; measured 2026-10-28: 61 reads and 35
            commits for one party); behind (the span cap, a halved window), it would simulate the NEXT slice in the same
            body, so a lagging party cost one slice per member — the body's engine CPU (2 s a request) multiplied by
-           its party size exactly when it is already behind. The rest is owed to the next fire (90x real time). */
+           its party size exactly when it is already behind. The rest is owed to the next fire (2027-02-04-tick-span.sql
+           re-offers a landed session at once: HUNT_SETTLE_SPAN_MS a fire, 12x real time at a 10 s tick). */
         covers: replayed ? null : (res.members || []).map((x) => String(x.user).toLowerCase() + ':' + Number(x.slot)),
         status: 200,
         body: { ...(res.state || {}), ok: true, settled: !replayed, hunt_settle: own.hunt_settle || null,
@@ -422,8 +464,12 @@ export async function readHuntSettle(o, mode) {
 
 /* (2) THE PROPOSAL: the engine over [fromMs, toMs) and every member's keyed
        share. Answers { out, commit } — `commit` is commitHuntSettle's input. */
-export async function proposeHuntSettle(plan, toMs, attempt) {
+export async function proposeHuntSettle(plan, toMs, attempt, clock) {
   const { inst, members, where, fromMs } = plan;
+  /* THE ENGINE, TIMED (lane/c-tick-span): accrueHunt is synchronous, so its wall is its CPU (GC included, which the
+     edge's limit counts too). `clock` is the request budget's timer (engineBudget); absent, performance.now. */
+  const tick = typeof clock === 'function' ? clock : perfNow;
+  const t0 = tick();
   const out = accrueHunt({
     instance: { id: String(inst.id), nextSwingAtMs: Number(inst.next_swing_at_ms), world: inst.world || null,
       worldSwing: Number(inst.world_swing) || 0 },
@@ -431,7 +477,8 @@ export async function proposeHuntSettle(plan, toMs, attempt) {
     ground: where.ground, grid: where.grid, items: ITEMS, monsters: MONSTERS, members,
     worldMaxBytes: plan.worldMaxBytes,
   });
-  if (!out.accrued) return { out, commit: null };
+  const engineMs = Math.max(0, tick() - t0);
+  if (!out.accrued) return { out, commit: null, engineMs };
   const payload = [];
   for (const p of out.members) {
     const m = members.find((x) => x.key === p.key);
@@ -440,7 +487,7 @@ export async function proposeHuntSettle(plan, toMs, attempt) {
         version: m.version, salt: String(inst.secret || ''), attempt: attempt || 0 }),
       delta: p.delta, hunt: p.hunt, analyzer: p.analyzer });
   }
-  return { out, commit: { instanceId: String(inst.id), worldSwingFrom: out.worldSwingFrom,
+  return { out, engineMs, commit: { instanceId: String(inst.id), worldSwingFrom: out.worldSwingFrom,
     settle: { to: new Date(out.settledTo).toISOString(), world_swing: out.worldSwingTo, world: out.world },
     members: payload } };
 }

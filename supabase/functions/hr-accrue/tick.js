@@ -83,7 +83,7 @@ import {
 /* The level curve, for the fold's level-up stop (settleFolded). */
 import { skillLevelFromXp } from '../../../src/core/xp.js';
 /* HUNT SESSIONS (lane C2): the one settle, and the body's `hunts` selectors. */
-import { settleHunt, parseHunts } from './hunt-settle.js';
+import { settleHunt, parseHunts, engineBudget, HUNT_ENGINE_BUDGET_MS } from './hunt-settle.js';
 /* THE CHAIN CARRIER, ONE DEFINITION, SHARED WITH THE OFFLINE GUARDS
    (the offline guards import the same module — AWAY-12).
    `shadowStateOf` serialises the engine's own output state; `applyShadowState`
@@ -1298,8 +1298,8 @@ export async function runTick(opts) {
      session hunts in, through the one hunt settle, from the instance's
      settled_to to the server's now (a second member of an instance already
      settled this fire answers not_due); an instance further behind than
-     HUNT_MAX_WINDOW_MS is caught up over successive fires. `opts.grounds` is
-     the test seam hunt-settle.js documents; production passes none.
+     hunt-settle.js HUNT_SETTLE_SPAN_MS is caught up over successive fires.
+     `opts.grounds` is the test seam hunt-settle.js documents; production passes none.
      NO SESSION'S FAILURE COSTS ANOTHER ONE ITS SETTLE. Reported under its own
      key, present only on a fire that carried hunts, so every other fire's
      summary is byte-identical. */
@@ -1308,6 +1308,14 @@ export async function runTick(opts) {
     hunts = { settled: 0, nothing: 0, none: 0, refused: 0, ended: 0, reasons: Object.create(null) };
     /* `opts.huntBudgetMs` is the guard's clock seam; index.ts never passes it. */
     const huntDeadline = t0 + (Number.isFinite(opts.huntBudgetMs) ? opts.huntBudgetMs : HUNT_BODY_BUDGET_MS);
+    /* THE BODY'S ENGINE BUDGET (lane/c-tick-span): one hunt-settle.js engineBudget shared by every settle in this body,
+       so the body's engine CPU is at most HUNT_ENGINE_BUDGET_MS plus one slice — under the edge's 2 s whatever the
+       backlog (a body that ran over died WORKER_RESOURCE_LIMIT with every settle in it, on every retry, and an outage's
+       backlog never drained). No settle STARTS once it is spent: the rest are `deferred` (reason cpu_budget), owed on
+       their unmoved clocks, leased to this body until the lease ends; the roster puts the most-behind instance first
+       in its next body (2027-02-04-tick-span.sql), so a deferral is never the same instance twice in a row.
+       `opts.engineBudgetMs` / `opts.engineClock` are the guard's seams; index.ts passes neither. */
+    const engine = engineBudget(Number.isFinite(opts.engineBudgetMs) ? opts.engineBudgetMs : HUNT_ENGINE_BUDGET_MS, opts.engineClock);
     /* ONE SETTLE AN INSTANCE A FIRE (2027-02-02-settle-cost.sql). A party's members ride one body (the roster packs an
        instance whole); the first one's landed settle settles them all and says whom (hunt-settle.js `covers`). A later
        selector of any of them is not re-read: it is `nothing`, `instance_settled`. A backlog past the span cap is the
@@ -1321,12 +1329,17 @@ export async function runTick(opts) {
         hunts.reasons.instance_settled = (hunts.reasons.instance_settled || 0) + 1;
         continue;
       }
+      if (engine.spentMs >= engine.limitMs) {
+        hunts.deferred = (hunts.deferred || 0) + 1;
+        hunts.reasons.cpu_budget = (hunts.reasons.cpu_budget || 0) + 1;
+        continue;
+      }
       let v;
       try {
         /* `opts.atMs`: the guard's clock seam (each window ends there instead of at the server's now, clamped to it;
            hunt-settle.js documents it), like `opts.grounds`; index.ts passes neither. */
         v = await settleHunt({ exec, user: sel.userId, slot: sel.slot, mode: 'tick', session: sel.session, grounds: opts.grounds,
-          ...(Number.isFinite(opts.atMs) ? { atMs: opts.atMs } : {}) });
+          budget: engine, ...(Number.isFinite(opts.atMs) ? { atMs: opts.atMs } : {}) });
       } catch (e) {
         v = { outcome: 'refused', reason: 'error:' + String((e && e.message) || e).slice(0, 64) };
       }
@@ -1336,6 +1349,8 @@ export async function runTick(opts) {
       if (v.ended) hunts.ended += 1;
       if (v.reason) hunts.reasons[v.reason] = (hunts.reasons[v.reason] || 0) + 1;
     }
+    /* What the body's engine runs measured: the operator's read of how near a body runs to the edge's CPU limit. */
+    if (engine.runs) { hunts.engine_ms = Math.round(engine.spentMs); hunts.engine_max_ms = Math.round(engine.maxRunMs); }
   }
 
   /* `probes` is present only on a fire that met a probe boundary, so every

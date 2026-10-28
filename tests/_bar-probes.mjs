@@ -33,3 +33,14 @@ export const RING_WORDS = `(() => { const m = document.querySelector('.hb-medal'
   const svg = m.querySelector('svg');
   return { n, out, bitmap: getComputedStyle(m).backgroundImage !== 'none', crisp: !svg || getComputedStyle(svg).shapeRendering === 'crispedges' || svg.getAttribute('shape-rendering') === 'crispEdges' };
 })()`;
+
+/* THE SAME CHECK AT THE WIDEST WORDS THE RING SHOWS: a two-digit XP percent (a Level spends nine tenths of its time
+   there) under a three-digit Level (Level 999 is about 22,700 hunting hours, over five years at 12 h a day, on the 10-25
+   curve), on the same faces. The fixture's own value is luck: v0.2.57 went red when the 10-25 curve moved it from "XP 0%"
+   to "XP 11%" and the Linux fallback face ran the line 0.6 px past the disc. The words are put back as they were. Page
+   source, (0, eval). */
+export const RING_WORDS_WIDEST = `(() => { const v = document.querySelector('.hb-medal .hb-xp-v'), l = document.querySelector('.hb-medal .hb-lv');
+  if (!v || !l) return { err: 'no ring words' };
+  const was = [v.textContent, l.textContent]; v.textContent = '99%'; l.textContent = '999';
+  try { return (0, eval)(${JSON.stringify(RING_WORDS)}); } finally { v.textContent = was[0]; l.textContent = was[1]; }
+})()`;

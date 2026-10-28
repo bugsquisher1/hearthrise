@@ -214,6 +214,14 @@ export const BAG_GUIDE_BY_HUNT = Object.freeze({
     melee: melee('cooked_trout', 90),
     ranged: ranged('cooked_trout', 100, 'bronze_arrows', 0),
     magic: magic('cooked_trout', 100, 'carrot_juice', 45, 'chalked_fire_rune', 600) }),
+  /* Wickstead (lane b-greenhaven-6; STAGED), PLAYED on the real settle (tests/hunt-core/forest-cave.mjs
+     wickstead-solo-floor, six seeds): a solo Melee at the floor in the start kit eats about 160 g of store heals an
+     hour, the smiths' ladder kit about 10 g; the Thicket's bill, so the Thicket's tier-1 bags. The ranged and magic
+     bags are the Thicket's shape, UNVERIFIED (not played). */
+  wickstead: Object.freeze({ tier: 1,
+    melee: melee('cooked_shrimp', 180),
+    ranged: ranged('cooked_shrimp', 200, 'bronze_arrows', 0),
+    magic: magic('cooked_shrimp', 180, 'turnip_juice', 90, 'chalked_fire_rune', 600) }),
 });
 
 /* A single-monster fight is guided by its monster's tier (melee measured:

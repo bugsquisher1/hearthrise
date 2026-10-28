@@ -8,7 +8,7 @@
 --   src/data/premium.js, src/core/hunt/world-state.js and the vendor price
 --   (hr-accrue/catalogue.js). Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: a59823054411f2e352e0a561178413dcd15974c88d607b3df443bbd47481f434
+--   digest: cf92cac925d104711f35dff1b67da1d0c4c2bca8e53299556f61c20a9eb14603
 --   82 supplies, 125 hunts (named + training), 47 limits, 12 end reasons,
 --   544 vendor values, 25 store supplies paid per use, 5 target modes,
 --   4 lanes, 16 abilities, 10 action-set options, 5 hunt grounds
@@ -433,7 +433,7 @@ insert into public.hr_hunt_kill_bounds (monster_id, gold_max, xp_max, drops) val
   ('ashwing', 656, 1913, '{"dragon_bones":1,"dragon_scale":1,"hell_ember":1,"ember_bar":1,"dragon_gem":1}'::jsonb),
   ('astrologer', 296, 956, '{"magic_essence":1,"ancient_rune":1,"rune_frag":1,"ruby":1,"yew_spellbook":1,"sorcerer_boots":1}'::jsonb),
   ('bandit_lord', 262, 930, '{"gold_ore":1,"gold_bar":1,"ruby":1,"captain_medal":1,"rune_gauntlets":1}'::jsonb),
-  ('barn_spider', 11, 195, '{"silk_thread":1,"dry_husk":1,"loft_web":1,"iron_platelegs":1,"studded_pants":1,"adept_pants":1,"iron_gauntlets":1,"studded_gloves":1,"adept_gloves":1}'::jsonb),
+  ('barn_spider', 12, 195, '{"silk_thread":1,"dry_husk":1,"loft_web":1,"iron_platelegs":1,"studded_pants":1,"adept_pants":1,"iron_gauntlets":1,"studded_gloves":1,"adept_gloves":1}'::jsonb),
   ('barn_wasp', 7, 90, '{"venom_sac":1,"dry_husk":1,"barn_wasp_sting":1,"bronze_helm":1,"leather_helmet":1,"apprentice_helmet":1,"iron_belt":1,"studded_belt":1,"adept_belt":1}'::jsonb),
   ('barrow_king', 200, 828, '{"big_bones":1,"steel_bar":1,"iron_fitting":1,"ancient_fragment":1,"barrowking_mantle":1}'::jsonb),
   ('barrow_knight', 104, 504, '{"big_bones":1,"steel_bar":1,"iron_fitting":1,"ancient_fragment":1,"mithril_gauntlets":1}'::jsonb),

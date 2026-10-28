@@ -30,6 +30,7 @@ import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.58';
 import { glyphSvg } from '../launcher.js?v=0.2.58';
 import { tickOf } from '../town-work.js?v=0.2.58';
 import { aheadXp } from '../town-ticker.js?v=0.2.58';
+import { characterSheetOf } from '../../session/character-sections.js?v=0.2.58';
 
 /* Is `level` the skill's last (a capped skill at its cap)? Combat skills have none. */
 const mastered = (id, level) => { const cap = skillCapOf(id); return cap !== null && level >= cap; };
@@ -92,6 +93,9 @@ function skillsWindow(groups) {
   render.patch = function patchSkills(body, ctx) {
     const sk = skillsOf(ctx.character);
     const tick = tickOf(ctx.character);
+    /* Inner Flame's payoff, the SERVER's engine sheet (regen_pct, the Character sheet's Regeneration line), or nothing */
+    const sheet = characterSheetOf(ctx.character);
+    const regen = sheet && sheet.combat ? sheet.combat.regenPct : null;
     const root = body.querySelector('.hw-skills');
     cls(root.querySelector('.hw-skill-none'), 'is-on', !sk);
     for (const [cat] of groups) {
@@ -103,7 +107,10 @@ function skillsWindow(groups) {
           const r = sk[id] || { xp: 0, level: 1 };
           text(li.querySelector('.hw-skill-lv'), String(r.level));
           patchSkillProgress(li, id, r, aheadXp(tick, id));
-          const next = nextUnlock(id, r.level);
+          /* Inner Flame's payoff on its own line (lane/b-first-hour): the recovery the server's sheet says it gives now,
+             before its next fuel; nothing until the server has said. */
+          const flame = id === 'inner_flame' && regen !== null && regen > 100 ? 'Recovery +' + Math.round((regen - 100) * 10) / 10 + '%' : '';
+          const next = [flame, nextUnlock(id, r.level)].filter(Boolean).join(' · ');
           const nx = li.querySelector('.hw-skill-next');
           text(nx, next);
           attr(nx, 'title', next || null);

@@ -263,6 +263,12 @@ function walkChain(M, T, extra) {
     into_the_thicket: () => set({ huntId: 'meadowbrook_thicket', visited: new Set([...f.visited, 'meadowbrook_thicket']), sellable: null }),
     tamsin_pays: () => { L(7); set({ huntId: null, endReason: 'left', tally: { held: 0, paid: 1, weight: true }, sellable: 0 }); },
     save_setup: () => set({ presets: 1 }),
+    /* Level 7 is the day-one goals' Level (lane/b-first-hour): paid at 7, the hero meets "Make your own runes" next.
+       Its press: a rune of the bar's spell family made and carried. */
+    own_runes: () => {
+      const s = f.slots.find((x) => x && x.type === 'ability' && M.abilities.ABILITIES[x.id] && M.abilities.ABILITIES[x.id].rune);
+      set({ carried: { ...f.carried, [M.abilities.ABILITIES[s.id].rune]: 45 } });
+    },
   };
   for (let n = 0; n < 60; n++) {
     const c = M.tut.currentCard(f);
@@ -424,7 +430,7 @@ const cases = {
     const T = tutKit(M, 'tank');
     const order = walkChain(M, T).map((x) => x.id);
     const want = ['to_the_cellar', 'first_kill', 'first_level', 'plant_land', 'bar_intro', 'spell_runes', 'food_when', 'food_order', 'earn_the_thicket',
-      'leave_cellar', 'sell_loot', 'loot_rules', 'cook_catch', 'styles', 'bless', 'tamsins_task', 'into_the_thicket', 'tamsin_pays', 'save_setup', null];
+      'leave_cellar', 'sell_loot', 'loot_rules', 'cook_catch', 'styles', 'bless', 'tamsins_task', 'into_the_thicket', 'tamsin_pays', 'save_setup', 'own_runes', null];
     if (order.join() !== want.join()) return 'a sword-and-shield hero walks ' + order.join(' > ') + ', wanted ' + want.join(' > ');
     /* NO SOLO WALL: paid, a solo hero at the Sewer's floor is done (What next), at any Level up to the Sewer's top. */
     const done = walkChain(M, T).pop().facts;
@@ -646,6 +652,45 @@ const cases = {
     const runes = say(R(juiced));
     if (!runes || runes.id !== 'own_runes' || !runes.text.includes('Cut Blank Runes (4 essence make 12) and Bind Chalked Fire Runes (6 blanks make 45)')) return 'the rune card reads ' + JSON.stringify(runes && runes.text);
     if (say(R({ ...juiced, carried: { ...juiced.carried, chalked_fire_rune: 45 } }))) return 'with own runes the coach still asks: ' + say(R({ ...juiced, carried: { ...juiced.carried, chalked_fire_rune: 45 } })).id;
+    /* THE FIRST HOUR (lane/b-first-hour, designer 2026-10-28). The day-one goals open at Level 7, the Thicket's first half hour. */
+    const L7 = { ...town, presets: 1, levelXp: M.xp.charXpForLevel(7), charLevel: 7 };
+    if ((say(R({ ...L7, home: homeNext, bag: { normal_log: 3 } })) || {}).id !== 'home') return 'at Level 7 past the chain the house card is not up: ' + (say(R({ ...L7, home: homeNext, bag: { normal_log: 3 } })) || {}).id;
+    if ((say(R({ ...L7, levelXp: M.xp.charXpForLevel(6), charLevel: 6, home: homeNext, bag: { normal_log: 3 } })) || {}).id === 'home') return 'the house card came before Level 7';
+    /* The Hearth: back from the Cellar with the quarter hour's fuel (forest-cave --play: 9 Bones and 3 Lamp Jelly), the
+       card interrupts the chain, names the biggest stack and rings it, then the bag's Fuel all; Inner Flame XP ends it. */
+    const back = walkChain(M, T).find((s) => s.id === 'sell_loot').facts;
+    const fuel = say({ ...back, bag: { ...back.bag, bones: 9, lamp_jelly: 3 }, carried: { ...back.carried, bones: 9, lamp_jelly: 3 } });
+    if (!fuel || fuel.id !== 'fuel_hearth' || !fuel.text.startsWith('Your bag holds Bones ×9.') || !fuel.text.includes('Inner Flame') || !fuel.text.includes('then Fuel all.')
+      || !fuel.hooks.includes('[data-hs-win="inventory"] .hw-pocket[data-item="bones"]') || !/^Press the Bones, then Fuel all\./.test(fuel.textIn || '')) return 'the Hearth card reads ' + JSON.stringify(fuel && { id: fuel.id, text: fuel.text, hooks: fuel.hooks, textIn: fuel.textIn });
+    const pct = Math.round((M.vit.regenPermille(10) - 1000) / 10);
+    if (!fuel.text.includes(pct + '% faster by Inner Flame 10')) return 'the Hearth card does not state the engine\'s recovery (' + pct + '%): ' + fuel.text;
+    if ((say({ ...back, bag: { ...back.bag, bones: 9 } }) || {}).id === 'fuel_hearth') return 'the Hearth card asked with 9 fuel';
+    if ((say({ ...back, bag: { ...back.bag, bones: 12 }, skillXp: { ...back.skillXp, inner_flame: 16 } }) || {}).id === 'fuel_hearth') return 'the Hearth card is up after the hero fuelled';
+    if ((say({ ...back, huntId: 'mill_cellar', bag: { ...back.bag, bones: 40 } }) || {}).id === 'fuel_hearth') return 'the Hearth card is up in a hunt';
+    /* Defense that never trains: in town after a hunt wearing nothing that counts; armor or a shield worn ends it */
+    const bare = say(R({ ...town, armoured: false }));
+    if (!bare || bare.id !== 'no_defense' || !bare.text.includes('Leather Gloves')) return 'unarmoured in town the card is ' + JSON.stringify(bare && { id: bare.id, text: bare.text });
+    if (!M.items.ITEMS.leather_gloves || M.items.ITEMS.leather_gloves.n !== 'Leather Gloves') return 'the Defense card names Leather Gloves, which is not the item\'s name';
+    if ((say(R({ ...town, armoured: true })) || {}).id === 'no_defense') return 'wearing armor, the Defense card is still up';
+    /* through the real envelope: the server's worn set, read by the engine's own wearsArmour (a staff alone counts for
+       nothing; the kit's Practice Shield does) */
+    const worn = (equipment) => died({ state: { level_xp: M.xp.charXpForLevel(5) }, equipment }, { read: [] }).id;
+    if (worn({ weapon: 'practice_staff' }) !== 'no_defense') return 'through the envelope a staff-only hero in town sees ' + worn({ weapon: 'practice_staff' });
+    if (worn({ ...M.kit.START_EQUIPMENT }) === 'no_defense') return 'through the envelope the kit\'s sword and shield hero is told Defense is not training';
+    /* The first-hour rung: at the cloak's Level with the pelts, the card rings the recipe; any Crafting XP ends it */
+    const cloak = M.items.ITEMS.graypelt_cloak;
+    const stitch = (M.recipes.ARTISAN_RECIPES.crafting || []).find((r) => r.output === 'graypelt_cloak');
+    if (!cloak || !stitch || !(stitch.req <= 1) || !(cloak.reqLv > 1 && cloak.reqLv < 15)) return 'the first-hour rung is gone (a cloak worn between Level 2 and 14, made at Crafting 1)';
+    const atCloak = { ...juiced, carried: { ...juiced.carried, chalked_fire_rune: 45, wolf_pelt: stitch.inputs.wolf_pelt }, levelXp: M.xp.charXpForLevel(cloak.reqLv), charLevel: cloak.reqLv };
+    const sc = say(R(atCloak));
+    if (!sc || sc.id !== 'stitch_cloak' || !sc.text.includes('Start on ' + stitch.name + ' (Wolf Pelt ×' + stitch.inputs.wolf_pelt + ' each)') || !(sc.ring && sc.ring.work === stitch.id)) return 'the cloak card reads ' + JSON.stringify(sc && { id: sc.id, text: sc.text, ring: sc.ring });
+    if (say(R({ ...atCloak, carried: { ...atCloak.carried, wolf_pelt: stitch.inputs.wolf_pelt - 1 } }))) return 'the cloak card asked with too few pelts';
+    if (say(R({ ...atCloak, skillXp: { ...atCloak.skillXp, crafting: 30 } }))) return 'the cloak card is up after a craft';
+    /* What next names the rung and how it is made, for every role, below its Level (the line that said "Level 12: Grayjaw's Ruff") */
+    for (const role of ['tank', 'melee_dps', 'ranger', 'mage', 'healer']) {
+      const g = M.tut.nextGoal({ charLevel: cloak.reqLv - 1, role, skillLevel: 5, defenseXp: 9, land: null, inParty: false });
+      if (!g || !g.text.includes('Next gear at Level ' + cloak.reqLv + ': ' + cloak.n) || !g.text.includes(cloak.n + ' is made in Crafting from Wolf Pelt ×' + stitch.inputs.wolf_pelt + '.')) return role + ': What next reads ' + JSON.stringify(g && g.text);
+    }
     return null;
   },
   'tutorial-second-hero': (M) => {
@@ -1196,6 +1241,23 @@ const mutants = [
     edits: [['src/data/hunt-grounds.js', "pocket([15, 5, 21, 10], ['rat', 18, 7], ['rat', 19, 6]),", "pocket([15, 5, 21, 10], ['rat_king', 18, 7]),"]] },
   { name: 'the party scale is flat', case: 'party-scale',
     edits: [['src/data/hunt-grounds.js', 'perHeroPermille: 150', 'perHeroPermille: 0']] },
+  /* THE FIRST HOUR (lane/b-first-hour, 2026-10-28) */
+  { name: 'the day-one goals wait for Level 8 again (about two hours in)', case: 'tutorial-reactive',
+    edits: [['src/data/hunt-tutorial.js', 'const DAY_ONE_LEVEL = 7;', 'const DAY_ONE_LEVEL = 8;']] },
+  { name: 'the Hearth card waits for more fuel than the Cellar leaves', case: 'tutorial-reactive',
+    edits: [['src/data/hunt-tutorial.js', 'const FUEL_CARD_AT = 10;', 'const FUEL_CARD_AT = 13;']] },
+  { name: 'the Hearth card rings no bag stack', case: 'tutorial-reactive',
+    edits: [['src/data/hunt-tutorial.js', ".replace('{fuel}', said.fuel || '')", '']] },
+  { name: 'the Hearth card never ends (no Inner Flame XP seen)', case: 'tutorial-reactive',
+    edits: [['src/data/hunt-tutorial.js', "'inventory', { kind: 'skill_xp', skill: 'inner_flame' }", "'inventory', { kind: 'skill_xp', skill: 'smithing' }"]] },
+  { name: 'the Defense card never sees a hero with nothing worn that counts', case: 'tutorial-reactive',
+    edits: [['src/data/hunt-tutorial.js', 'unarmoured: (p, f) => known(f.armoured, (a) => a === false),', 'unarmoured: (p, f) => known(f.armoured, (a) => a === null),']] },
+  { name: 'the envelope says every hero wears armor (the worn set unread)', case: 'tutorial-reactive',
+    edits: [['src/session/tutorial-sections.js', 'armoured: eq ? wearsArmour(eq, ITEMS) : undefined,', 'armoured: eq ? true : undefined,']] },
+  { name: 'the cloak card asks with any pelt', case: 'tutorial-reactive',
+    edits: [['src/data/hunt-tutorial.js', 'c[p.item] >= (p.n || 1)', 'c[p.item] > 0']] },
+  { name: 'What next names the cloak but not how it is made', case: 'tutorial-reactive',
+    edits: [['src/data/hunt-tutorial.js', '    if (made) lines.push(made);\n', '']] },
   { name: 'the tutorial sends a fresh character to the sewer first', case: 'tutorial-walk-through',
     edits: [['src/data/hunt-tutorial.js', "'hunt_picker', { kind: 'enter', hunt: CELLAR },", "'hunt_picker', { kind: 'enter', hunt: 'millrace_sewer' },"]] },
   { name: 'the party-only Rat King card is back in the solo chain', case: 'tutorial-walk-through',

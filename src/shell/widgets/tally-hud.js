@@ -9,7 +9,7 @@
 // title and fold to it (src/shell/widget-move.js, Tyler 2026-10-25). Built once,
 // patched in place.
 // ════════════════════════════════════════════════════════════════════════
-import { tallyOf, tallyLine } from '../../session/tally-sections.js?v=0.2.58';
+import { tallyOf, tallyLine, waitWords } from '../../session/tally-sections.js?v=0.2.58';
 import { huntOf } from '../../session/hunt-sections.js?v=0.2.58';
 import { TALLY_KEEPER } from '../../data/tally-tasks.js?v=0.2.58';
 import { rows, text, cls, style, element } from '../../render/paint.js?v=0.2.58';
@@ -36,9 +36,12 @@ renderTallyHud.patch = function patchTallyHud(el, ctx) {
   text(el.querySelector('.hs-tally-none'), !t || held.length ? '' : 'Tamsin has kill tasks at her board in ' + TALLY_KEEPER.board + '.');
   rows(el.querySelector('.hs-tally-list'), held, {
     key: (x) => x.task,
-    build: () => element(ctx.doc, '<li class="hs-tally-row"><span></span><span class="ht-stick" aria-hidden="true"><i></i></span></li>'),
+    build: () => element(ctx.doc, '<li class="hs-tally-row"><span></span><span class="ht-stick" aria-hidden="true"><i></i></span><small class="hs-tally-wait"></small></li>'),
     patch: (li, x) => {
       text(li.querySelector('span'), tallyLine(x) + (x.done ? ' · Done' : ''));
+      /* A done task says how it gets paid (lane/b-first-hour: "200/200 · Done" never said to come home): back in town,
+         or why it waits (the tally window's own words, tally-sections.js waitWords). */
+      text(li.querySelector('.hs-tally-wait'), x.done ? waitWords(t, x, hunting).replace(/^Done\. /, '') : '');
       style(li.querySelector('.ht-stick i'), 'width', Math.round(Math.min(1, x.kills / x.target) * 100) + '%');
       cls(li, 'is-done', x.done);
     },

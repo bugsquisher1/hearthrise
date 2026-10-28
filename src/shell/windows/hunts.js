@@ -70,7 +70,7 @@ const SCRATCH = new WeakMap();
 /* `draft` is the density shown before the server has it ({ hunt, n }), `timer` its coalescing
    wait, `saving` the save in flight (its promise: Enter waits on it). `paged`: on a phone, the
    picked ground's page is open in place of the list. */
-const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { pick: null, pending: false, msg: '', draft: null, timer: null, saving: null, paged: false }; SCRATCH.set(cs, s); } return s; };
+const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { pick: null, auto: false, pending: false, msg: '', draft: null, timer: null, saving: null, paged: false }; SCRATCH.set(cs, s); } return s; };
 /* How long the step waits for the next press before it saves (one intent for a run of presses). */
 const DENSITY_SAVE_MS = 300;
 
@@ -78,7 +78,7 @@ const DENSITY_SAVE_MS = 300;
 export function pickHunt(cs, hunt) {
   if (!cs) return;
   const sc = scratchOf(cs);
-  if (huntRows().some((r) => r.hunt === hunt)) { sc.pick = hunt; sc.msg = ''; sc.paged = true; }
+  if (huntRows().some((r) => r.hunt === hunt)) { sc.pick = hunt; sc.auto = false; sc.msg = ''; sc.paged = true; }
 }
 
 /* The character's Level (the server's Level XP on the shared curve), or null. */
@@ -216,7 +216,9 @@ renderHunts.patch = function patchHunts(body, ctx) {
   const follower = !!party && !party.isLeader;
   /* The advice reads the server's levels: this hero's, or every seat's in its party (the party's levels pick). */
   const rec = recommendation(party ? party.seats.map((s) => (s.seat === party.me ? level : s.level)) : level, size, list);
-  if (!sc.pick && list.length) sc.pick = rec.row ? rec.row.hunt : list[0].hunt;
+  /* Until the player picks a line by hand the pick FOLLOWS the advice (lane/b-first-hour: the Cellar, picked for a
+     Level 1 hero, stayed picked at Level 5 for the rest of the session while the coach sent the hero to the Thicket). */
+  if ((!sc.pick || sc.auto) && list.length) { sc.pick = rec.row ? rec.row.hunt : list[0].hunt; sc.auto = true; }
   /* This hero's personal bests, the server's (hunt_bests); null = the server sent none, the lines stay empty. */
   const bests = huntBestsOf(cs);
   const tally = tallyOf(cs);
@@ -350,7 +352,7 @@ renderHunts.act = function actHunts(ctx, body, action, ev, t) {
     /* Another ground's page opens at its top, not where the last one was scrolled to. */
     const page = body.querySelector('.hw-hd-page');
     if (sc.pick !== hunt && page && page.scrollTop) page.scrollTop = 0;
-    sc.pick = hunt; sc.msg = ''; sc.paged = true; repaint();
+    sc.pick = hunt; sc.auto = false; sc.msg = ''; sc.paged = true; repaint();
     return true;
   }
   if (action === 'back') { sc.paged = false; repaint(); return true; }

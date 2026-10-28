@@ -190,6 +190,9 @@ async function checks(overrides, shots) {
         /* CW-6b (Tyler 10-19: "Oak Wand (staff)"): a wand reads (wand), a staff (staff), a spellbook (spellbook). Gear is
            worn by the hero's LEVEL since 2026-10-24, so the Magic line names its runes (a supply keeps its skill) and the
            weapons are read off the Level unlocks the coach names ("What next": src/data/hunt-tutorial.js), each role's own. */
+        /* CW-6c Inner Flame's line says what it gives now, the Regeneration line's own number (lane/b-first-hour) */
+        const flameNext = await page.evaluate(() => { const li = Array.from(document.querySelectorAll('[data-hs-win="character"] .hw-skill')).find((x) => /^\s*Inner Flame/.test(x.textContent)); return li ? li.querySelector('.hw-skill-next').textContent : ''; });
+        if (!flameNext.startsWith('Recovery +1.9%')) fails.push('CW-6c the Inner Flame line does not say its recovery: ' + JSON.stringify(flameNext));
         const magic = await page.evaluate(() => Array.from(document.querySelectorAll('[data-hs-win="character"] .hw-skill')).map((li) => li.textContent).find((t) => /^\s*Magic/.test(t)) || '');
         if (!/\(rune for staves\)/.test(magic) || /\((wand|staff|spellbook)\)/.test(magic)) fails.push('CW-6 the Magic line does not name its runes alone: ' + JSON.stringify(magic));
         const kinds = await page.evaluate(async () => {

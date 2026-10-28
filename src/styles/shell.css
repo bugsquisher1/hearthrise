@@ -58,6 +58,8 @@
 .hs-tally-none:empty { display: none; }
 .hs-tally-list { margin: 0; padding: 0; list-style: none; }
 .hs-tally-row { font-size: var(--t-micro); color: var(--ink); white-space: nowrap; font-variant-numeric: lining-nums tabular-nums; }
+.hs-tally-wait { display: block; max-width: 28ch; white-space: normal; color: var(--gold-2); }
+.hs-tally-wait:empty { display: none; }
 /* The split tally stick: a notch every tenth of the count, the server's kills as the cut part; gold once done. */
 .ht-stick { display: block; height: 8px; margin: 3px 0 2px; background-color: var(--bg-0); box-shadow: var(--steel-well);
   background-image: repeating-linear-gradient(90deg, transparent 0 calc(10% - 1px), var(--line-soft) calc(10% - 1px) 10%); }

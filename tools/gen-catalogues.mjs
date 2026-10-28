@@ -93,7 +93,10 @@ const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'))
    is APPLIED history. The skill row prayer -> inner_flame (hr_skills), the bench's rows bury_* -> fuel_<item> with the family
    fuels' rungs (hr_activities), and the eight fuels (hr_items) land in ONE forward file, the same full delete+insert replace,
    applied before 2027-01-31-inner-flame.sql (which renames the players' rows onto it). */
-const OUT = join(ROOT, 'supabase', 'migrations', '2027-01-31-items-catalogue.generated.sql');
+/* THE FIRST-HOUR RUNG (lane b-first-hour, designer 2026-10-28): 2027-01-31-items-catalogue.generated.sql is APPLIED history.
+   The Graypelt Cloak (hr_items, hr_item_slots: cape) and its Crafting recipe stitch_graypelt_cloak (hr_activities) land in
+   ONE forward file, the same full delete+insert replace. */
+const OUT = join(ROOT, 'supabase', 'migrations', '2027-02-05-first-hour-items-catalogue.generated.sql');
 /* THE SECOND GENERATED FILE (2026-09-13). hr_item_buffs is emitted as its own
    migration rather than into OUT above, and that is a deliberate operational
    call: OUT is the FOURTH file in tests/schema-apply-order.json and is already
@@ -1241,7 +1244,8 @@ end $$;
 const { recipeInputs } = await imp('src/core/artisan.js');
 const { ARTISAN_RECIPES: BENCH_RECIPES } = await imp('src/data/recipes.js');
 /* INNER FLAME (lane b-inner-flame, 2026-10-27): 2027-01-20 is APPLIED history; the fuel_<item> rows (the bury_* rows retire). */
-const OUT_BENCH_INPUTS = join(ROOT, 'supabase', 'migrations', '2027-01-31-bench-inputs.generated.sql');
+/* THE FIRST-HOUR RUNG (lane b-first-hour, 2026-10-28): 2027-01-31 is APPLIED history; stitch_graypelt_cloak's six Wolf Pelts. */
+const OUT_BENCH_INPUTS = join(ROOT, 'supabase', 'migrations', '2027-02-05-first-hour-bench-inputs.generated.sql');
 const benchInputs = {};
 {
   const known = new Set(itemIds);

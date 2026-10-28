@@ -823,9 +823,13 @@ const cases = {
     const byName = new Map(Object.entries(ITEMS).map(([id, it]) => [it.n, id]));
     const goal = (charLevel, role) => (M.tut.nextGoal({ charLevel, role, skillLevel: charLevel, defenseXp: 10, land: null }) || { text: '' }).text;
     const tank = goal(12, 'tank');
-    if (!tank.includes('Next gear at Level 15: Iron Sword (sword), Ironbound Shield (shield)')) return 'a Level-12 tank is not told the Iron Sword and its shield at Level 15: ' + tank;
+    /* Wickstead (v0.2.63) makes the Bramble Blade reachable at 15 too, so it may stand between the two: the line names both */
+    const tankGear = (/Next gear at Level 15: [^.]*/.exec(tank) || [''])[0];
+    if (!tankGear.startsWith('Next gear at Level 15: Iron Sword (sword)') || !tankGear.includes('Ironbound Shield (shield)')) return 'a Level-12 tank is not told the Iron Sword and its shield at Level 15: ' + tank;
     const mage = goal(12, 'mage');
-    if (!mage.includes('Next gear at Level 15: Oak Wand (wand), Oakboard Spellbook (spellbook), Adept Hat (helmet)')) return 'a Level-12 Mage is not told the Oak Wand at Level 15: ' + mage;
+    /* the third name moved with Wickstead (v0.2.63): its tier-2 gloves are reachable, and the Studded Vambraces carry no magic
+       penalty (leather's is round(def x 0.15) = 0 at def 2), so a classless Mage may wear them; the wand and its book lead */
+    if (!mage.includes('Next gear at Level 15: Oak Wand (wand), Oakboard Spellbook (spellbook), ')) return 'a Level-12 Mage is not told the Oak Wand at Level 15: ' + mage;
     if (!/Next at Magic level 15: Scored /.test(mage)) return 'the Mage\'s skill line lost its runes (supplies keep their skill): ' + mage;
     let named = 0;
     for (const role of ['tank', 'melee_dps', 'ranger', 'mage', 'healer']) {

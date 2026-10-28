@@ -144,13 +144,22 @@ async function sqlMutants() {
    byte-identical (schema inventory, hr_apply / hr_hunt_gate bodies + ACLs,
    catalogue rows). The §4 block of the gate (band refusal, unknown area,
    spawn-aware void, training unchanged, floor opens at 15) EXECUTES in it. */
+/* THE GATE FILES' OWN BASE: the last hunts catalogue they were written on. When gen-hunts' OUT_NAME moves to a later cut
+   (2027-02-06-wickstead, v0.2.63), a re-apply of the 2026-10 bodies at the chain's END is not their second apply (later
+   files drop and restate what they read), so they are judged on this base, and the CURRENT catalogue on its own cut: both. */
+const GATE_BASE = '2026-11-22-hunts-catalogue.generated.sql';
 async function chainArm() {
+  const red = [...await secondApply(GATE_BASE, true)];
+  if (HUNTS_NOW !== GATE_BASE) red.push(...await secondApply(HUNTS_NOW, false));
+  return red;
+}
+async function secondApply(base, gates) {
   const red = [];
   const { bootReplay, inventory } = await import('./schema-replay.mjs');
   /* Stopped at the CURRENT hunts catalogue (the latest file re-applied below): the second apply is
      judged on the chain these files were written for. A later cut is not their second apply
      (2026-11-27-account-depot.sql drops player_bank, which core-bodies' self-check reads). */
-  const { db } = await bootReplay({ upTo: HUNTS_NOW });
+  const { db } = await bootReplay({ upTo: base });
   const q = async (sql) => (await db.query(sql)).rows;
   const snap = async () => JSON.stringify([await inventory(db),
     await q(`select p.proname, md5(p.prosrc) h, p.proacl::text acl from pg_proc p join pg_namespace n on n.oid = p.pronamespace
@@ -161,11 +170,11 @@ async function chainArm() {
      then the gate, the rally pricing and the gate's chain-end restatements (the floor is a warning; the core
      rebuild reads the gate's skill levels on each skill's own curve, 2026-10-27-core-bodies.sql), and the party flow
      after it (2026-10-28-party-flow.sql drops the ground-less start core-bodies re-creates and restates its bodies) */
-  for (const f of [HUNTS_NOW, '2026-10-20-hunts-start-gate.sql', '2026-10-20-hunts-rally-kills.sql', '2026-10-25-hunt-floor-warning.sql',
+  for (const f of !gates ? [base] : [base, '2026-10-20-hunts-start-gate.sql', '2026-10-20-hunts-rally-kills.sql', '2026-10-25-hunt-floor-warning.sql',
     '2026-10-27-core-bodies.sql', '2026-10-28-party-flow.sql', '2026-10-29-party-security.sql',
     '2026-10-28-hunt-enter-after-stamina.sql', '2026-10-30-party-invite-player.sql', '2026-10-30-town-activity-yields.sql']) {
     try { await db.exec(readFileSync(join(ROOT, 'supabase', 'migrations', f), 'utf8')); } catch (e) {
-      red.push(`C1: a second apply of ${f} raised: ${String(e.message).split(String.fromCharCode(10))[0]}`);
+      red.push(`C1 (on ${base}): a second apply of ${f} raised: ${String(e.message).split(String.fromCharCode(10))[0]}`);
     }
   }
   const after = await snap();
@@ -177,7 +186,7 @@ async function chainArm() {
       for (const k of Object.keys(B[0])) if (JSON.stringify(B[0][k]) !== JSON.stringify(A[0][k])) detail += ` ${k}`;
     }
     if (which.includes('bodies')) detail += ` ${JSON.stringify(B[1])} -> ${JSON.stringify(A[1])}`;
-    red.push(`C1: a second apply changed ${which.join(', ')}${detail}`);
+    red.push(`C1 (on ${base}): a second apply changed ${which.join(', ')}${detail}`);
   }
   await db.close?.();
   return red;

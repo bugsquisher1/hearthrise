@@ -1232,6 +1232,8 @@ async function checks(overrides, shots) {
         const want = ['mill_cellar:picked:Level 1–8:in:In your range:Fits your level:New:Built for one hero',
           'meadowbrook_thicket::Level 5–15:above:Above your level::New:Built for one hero',
           'millrace_sewer::Level 8–25:above:Above your level::New:Built for a party',
+          /* Wickstead, Greenhaven's sixth (lane b-greenhaven-6, opened on its art v0.2.63): the second solo door for 8-18 */
+          'wickstead::Level 8–18:above:Above your level::New:Built for one hero',
           'mosslight_glade::Level 16–31:far:Far above your level::New:Built for one hero',
           'coppercap_warrens::Level 32–50:far:Far above your level::New:Built for a party'];
         if (list.join('|') !== want.join('|')) fails.push('AW-25 the list lines read ' + JSON.stringify(list));

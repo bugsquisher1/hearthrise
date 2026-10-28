@@ -57,8 +57,9 @@
 -- ── WHAT THE EDGE DOES WITH IT (the same lane, hr-accrue) ───────────────────
 --   hunt-settle.js HUNT_READ_SQL drops its hr_state_of term; readHuntSettle reads the
 --   caller's envelope (one statement) only when a PLAYER door returns an early answer.
---   tick.js skips a selector whose instance this fire already settled up to the server's
---   now (the read would find less than one swing to settle). DEPLOY ORDER: either order is
+--   tick.js skips a selector whose instance this fire already settled (one settle an
+--   instance a fire: caught up, the read would find under a swing; behind, the next slice
+--   is the next fire's, so a body's engine CPU never scales with party size). DEPLOY ORDER: either order is
 --   safe. The old edge on this database reads the same 11 fields from the lean member state
 --   (same shape) and its own outer hr_state_of still exists; the new edge on the old database
 --   reads full member envelopes and fetches the caller's envelope when an early answer needs it.

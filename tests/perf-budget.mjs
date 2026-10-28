@@ -354,7 +354,8 @@ async function pixelRule(browser, extra) {
 
 /* --trace: the page's tasks (devtools.timeline), its frames, GC, the compositor and the GPU process's work */
 const TRACE_CATEGORIES = ['devtools.timeline', 'disabled-by-default-devtools.timeline', 'disabled-by-default-devtools.timeline.frame',
-  'toplevel', 'v8', 'disabled-by-default-v8.gc', 'blink.user_timing', 'loading', 'netlog', 'gpu', 'cc', 'viz', 'benchmark', 'latencyInfo'];
+  'toplevel', 'v8', 'disabled-by-default-v8.gc', 'blink.user_timing', 'loading', 'netlog', 'gpu', 'cc', 'viz', 'benchmark', 'latencyInfo',
+  'skia', 'disabled-by-default-skia', 'disabled-by-default-skia.gpu', 'disabled-by-default-skia.shaders', 'disabled-by-default-gpu.service', 'disabled-by-default-gpu.decoder', 'gpu.capture'];
 
 /* ── one run ── */
 async function scenario(o) {
@@ -606,7 +607,7 @@ async function main() {
     const dump = arg('--dump', null);
     const all = [];
     for (const browser of browsers) for (const [width, height] of sizes) {
-      const m = await scenario({ browser, width, height, minutes, hiddenMs: 60000, overrides: planted() });
+      const m = await scenario({ browser, width, height, minutes, hiddenMs: 60000, overrides: planted(), trace: arg('--trace', null), traceFor: Number(arg('--trace-for', '50')) });
       all.push(m);
       console.log(row(m));
       printHeld(m);

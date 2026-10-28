@@ -1,5 +1,5 @@
 // src/world/render/null-backend.js — the backend with no screen.
-// Same interface as canvas-backend.js ({ mount, setMap, prepare, setInset, sync, snapshot, destroy }) and the
+// Same interface as canvas-backend.js ({ mount, setMap, prepare, ready, setInset, sync, snapshot, destroy }) and the
 // same compose step over the same manifest book, so a node test reads exactly the draw
 // list the canvas would paint. The tile size is the map's (map-compile.js map.T), and setMap
 // may hand a map its own art ({book, tables}: another grid's atlas), as on the canvas.
@@ -15,7 +15,9 @@ export function createNullBackend(o) {
     mount() { mounted = true; },
     setMap(m, a) { map = m; art = a || o; last = null; ground = groundTiles(m, art.book, art.tables, m.T); },
     /** The canvas makes a map's ground ahead of its first frame; here setMap does all of it. */
-    prepare() {},
+    prepare() { return Promise.resolve(); },
+    /** Nothing to bake ahead of a frame here. */
+    ready() { return true; },
     /** The covered strips, in art px here (this backend has no screen and no zoom). */
     setInset(i) { inset = i || null; },
     sync(state) {

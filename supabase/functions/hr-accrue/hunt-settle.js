@@ -20,7 +20,9 @@
 //   (1) READ, in one statement: the rate gate (player doors), the caller's open
 //       session's INSTANCE and EVERY open member of it (hr_hunt_instance_read:
 //       the instance clock and world, each member's session, bag, options and
-//       hr_state_of, the instance's keyed-seed secret), the server clock.
+//       engine inputs (hr_hunt_member_state), the instance's keyed-seed
+//       secret), the server clock. The caller's envelope only when a player
+//       door's early answer carries it (HUNT_STATE_SQL).
 //   (2) each member's perk stack (./tick-reads.js).
 //   (3) COMPUTE: accrual.js accrueHunt — the one combat loop over the instance
 //       world, one HMAC-keyed seed stream per swing and domain (./hunt-seed.js).
@@ -162,15 +164,35 @@ export function retryableSettle(v) {
 }
 
 /* THE READ. One statement: the gate is its first term on a player door (D3:
-   a call that settles nothing still spends budget), absent on the tick's. */
+   a call that settles nothing still spends budget), absent on the tick's.
+   Each member's `state` is its ENGINE INPUTS (hr_hunt_member_state, 2027-02-02-settle-cost.sql), never its
+   whole envelope, and the caller's envelope is no longer a term here: see HUNT_STATE_SQL. */
 export const HUNT_READ_SQL = `
   with g as (select case when $3::text is null then true
                          else public.hr_rate_gate($1::uuid, $2::int, $3::text) end as allowed)
   select g.allowed                                                                  as allowed,
          case when g.allowed then public.hr_hunt_instance_read($1::uuid, $2::int) end as inst,
-         case when g.allowed then public.hr_state_of($1::uuid, $2::int) end           as state,
          now()                                                                      as now
     from g`;
+
+/* THE CALLER'S ENVELOPE ON AN EARLY ANSWER (2027-02-02-settle-cost.sql). A PLAYER door's answer that settles nothing
+   (not due, below the floor, no hunt, a deploy in flight, nothing accrued) carries the caller's envelope, which the client
+   applies; a settle that lands answers the commit's own projection (hr_hunt_apply_instance's), and the world tick's
+   answers carry nothing (tick.js reads outcomes and reasons, never a body). So it is read only when an answer needs it,
+   at most once. It was a term of HUNT_READ_SQL, built on every read — the busiest statement in the database (measured
+   2026-10-28: 61 reads in 26 min at 440 ms each), read on the tick by nobody. */
+export const HUNT_STATE_SQL = 'select public.hr_state_of($1::uuid, $2::int) as state';
+function envReader(o) {
+  let memo;
+  return async () => {
+    if (o.project !== true) return null;
+    if (memo === undefined) {
+      const [s] = await o.exec(HUNT_STATE_SQL, [o.user, o.slot]);
+      memo = (s && s.state) || null;
+    }
+    return memo;
+  };
+}
 
 /* THE COMMIT. `::text::jsonb` on every pre-stringified argument — the
    transport rule tests/delta-transport.mjs grades. */
@@ -258,7 +280,7 @@ async function settleOnce(o, mode) {
   const plan = await readHuntSettle(o, mode);
   if (plan.answer) return plan.answer;
   const { user, slot } = o;
-  const { env, fromMs } = plan;
+  const { envOf, fromMs } = plan;
   let toMs = plan.toMs;
   let degraded = 0;
   /* ASK FOR LESS: half the window, so fewer swings and a smaller delta (or another
@@ -284,7 +306,7 @@ async function settleOnce(o, mode) {
     }
     if (!p.out.accrued) {
       return { outcome: 'nothing', reason: String(p.out.reason || 'nothing'), status: 200,
-        body: { ok: true, settled: false, reason: String(p.out.reason || 'nothing'), ...env } };
+        body: { ok: true, settled: false, reason: String(p.out.reason || 'nothing'), ...(await envOf()) } };
     }
     const res = await commitHuntSettle(o.exec, { ...p.commit, project: o.project === true ? { user, slot } : null });
     if (res && res.ok === true) {
@@ -295,6 +317,13 @@ async function settleOnce(o, mode) {
         outcome: replayed ? 'nothing' : 'paid',
         reason: replayed ? 'replayed' : null,
         ended,
+        /* THE MEMBERS THIS COMMIT SETTLED (2027-02-02-settle-cost.sql): ONE settle an instance a fire. tick.js skips
+           a later selector of any of them in the same fire: caught up, its read would settle nothing, or, a few seconds
+           into a slow body, one swing (a whole commit for two seconds of hunt; measured 2026-10-28: 61 reads and 35
+           commits for one party); behind (the span cap, a halved window), it would simulate the NEXT slice in the same
+           body, so a lagging party cost one slice per member — the body's engine CPU (2 s a request) multiplied by
+           its party size exactly when it is already behind. The rest is owed to the next fire (90x real time). */
+        covers: replayed ? null : (res.members || []).map((x) => String(x.user).toLowerCase() + ':' + Number(x.slot)),
         status: 200,
         body: { ...(res.state || {}), ok: true, settled: !replayed, hunt_settle: own.hunt_settle || null,
           session: own.session || null, instance: res.instance || null,
@@ -323,20 +352,23 @@ async function settleOnce(o, mode) {
 
    (1) THE READ: the gate, the instance and its members, the server clock, and
        every early answer (rate-limited, no hunt, not due, below the floor, no
-       ground, no role). Answers { answer } or the plan { env, inst, members,
-       where, fromMs, toMs }. */
+       ground, no role). Answers { answer } or the plan { envOf, inst, members,
+       where, fromMs, toMs, nowMs } (envOf: the caller's envelope, read on first ask
+       and only for a player door). */
 export async function readHuntSettle(o, mode) {
   const { exec, user, slot } = o;
   const [read] = await exec(HUNT_READ_SQL, [user, slot, mode === 'tick' ? null : (o.bucket || null)]);
   if (!read || read.allowed !== true) {
     return { answer: { outcome: 'limited', reason: 'rate_limited', ...refusal(429, 'rate_limited') } };
   }
-  const env = read.state;
-  if (!env || env.ok !== true) {
-    return { answer: { outcome: 'none', reason: 'no_character', ...refusal(409, (env && env.error) || 'no_character') } };
-  }
+  const envOf = envReader(o);
   const r = read.inst;
   if (!r || r.open !== true) {
+    /* No open hunt. A player door says which: no character at all, or none hunting (with its envelope). */
+    const env = await envOf();
+    if (env && env.ok !== true) {
+      return { answer: { outcome: 'none', reason: 'no_character', ...refusal(409, env.error || 'no_character') } };
+    }
     return { answer: { outcome: 'none', reason: 'no_hunt', ...refusal(409, 'no_hunt', { ...env, ok: false }) } };
   }
   const mine = (r.members || []).find((m) => String(m.user) === String(user) && Number(m.slot) === Number(slot));
@@ -344,24 +376,28 @@ export async function readHuntSettle(o, mode) {
     /* The roster named a session that is no longer the open one. Not this fire's. */
     return { answer: { outcome: 'none', reason: 'session_changed', ...refusal(409, 'session_changed') } };
   }
+  if (!mine.state || mine.state.ok !== true) {
+    return { answer: { outcome: 'none', reason: 'no_character', ...refusal(409, (mine.state && mine.state.error) || 'no_character') } };
+  }
   const inst = r.instance;
   if (worldShapePending(inst.world_shape)) {
     return { answer: { outcome: 'nothing', reason: 'world_shape_pending', status: 200,
-      body: { ok: true, settled: false, reason: 'world_shape_pending', ...env } } };
+      body: { ok: true, settled: false, reason: 'world_shape_pending', ...(await envOf()) } } };
   }
   /* The server clock, floored to the engine's millisecond. */
   const nowMs = Math.floor(new Date(read.now).getTime());
   const fromMs = Number(inst.settled_to_ms);
   const pending = r.members.some((m) => m.session.leave_at_ms != null || m.session.change_at_ms != null)
     || inst.enabled === false;
-  const notDue = { answer: { outcome: 'nothing', reason: 'not_due', status: 200, body: { ok: true, settled: false, reason: 'not_due', ...env } } };
-  if (!(nowMs > fromMs)) return notDue;
+  const notDue = async () => ({ answer: { outcome: 'nothing', reason: 'not_due', status: 200,
+    body: { ok: true, settled: false, reason: 'not_due', ...(await envOf()) } } });
+  if (!(nowMs > fromMs)) return notDue();
   const minMs = Number.isFinite(Number(o.minWindowMs)) ? Math.max(0, Number(o.minWindowMs))
     : (mode === 'settle' ? HUNT_SETTLE_MIN_MS : 0);
   const below = !pending && nowMs - fromMs < minMs;
   if (below && o.live !== true) {
     return { answer: { outcome: 'nothing', reason: 'below_min_span', status: 200,
-      body: { ok: true, settled: false, reason: 'below_min_span', ...env } } };
+      body: { ok: true, settled: false, reason: 'below_min_span', ...(await envOf()) } } };
   }
   const where = (o.grounds && o.grounds[inst.hunt]) || huntGroundOf(inst.hunt);
   if (!where) return { answer: { outcome: 'refused', reason: 'no_ground', ...refusal(409, 'no_ground') } };
@@ -376,12 +412,12 @@ export async function readHuntSettle(o, mode) {
      instead of a settle: nothing is priced or written. */
   if (below) {
     return { answer: { outcome: 'nothing', reason: 'below_min_span', status: 200,
-      body: { ok: true, settled: false, reason: 'below_min_span', ...env, hunt_live: huntLive(inst, members, user, slot) } } };
+      body: { ok: true, settled: false, reason: 'below_min_span', ...(await envOf()), hunt_live: huntLive(inst, members, user, slot) } } };
   }
   const endMs = Number.isFinite(Number(o.atMs)) ? Math.min(nowMs, Math.floor(Number(o.atMs))) : nowMs;
   const toMs = Math.min(endMs, fromMs + HUNT_SETTLE_SPAN_MS);
-  if (!(toMs > fromMs)) return notDue;
-  return { env, inst, members, where, fromMs, toMs, nowMs, worldMaxBytes: o.worldMaxBytes };
+  if (!(toMs > fromMs)) return notDue();
+  return { envOf, inst, members, where, fromMs, toMs, nowMs, worldMaxBytes: o.worldMaxBytes };
 }
 
 /* (2) THE PROPOSAL: the engine over [fromMs, toMs) and every member's keyed

@@ -23,6 +23,10 @@
 //   SETTLE ★ every body, driven through the shipped runTick, settles every one
 //            of its hunts: one stamped accrue row a session, each clock moved
 //            (no hunt settled twice, none dropped)
+//   FANOUT   (2027-02-03-tick-capacity.sql) the bodies a fire queues are
+//            hr_tick_config.hunt_bodies_max, not a literal 16: at one hunt a body
+//            and two bodies a fire, two of three due hunts ride and one waits;
+//            the chain carries the file's dials (body 4, 32 bodies)
 //   BUDGET   a body past its time budget STARTS no settle: every selector is
 //            `deferred`, nothing is written
 //   WORLD  ★ a window whose world would encode past the bound is REFUSED by the
@@ -188,6 +192,27 @@ const ARMS = {
   },
   'PACK-LEASE-SETTLE': async (db, M) => inTx(db, async () => (await packAndSettle(db, M, N_GUARD)).problems),
 
+  /* FANOUT (2027-02-03-tick-capacity.sql): the bodies a fire may queue are hr_tick_config.hunt_bodies_max (was the
+     literal 16 in hr_hunt_roster_sharded): at one hunt a body, two bodies a fire take two of three due hunts and the
+     third waits; three bodies take all three. The file's own dials ride the chain (body 4, 32 bodies). */
+  FANOUT: async (db, M) => inTx(db, async () => {
+    const problems = [];
+    const cfg = (await q(db, 'select hunt_body_max, hunt_bodies_max from public.hr_tick_config where id'))[0];
+    if (!cfg || cfg.hunt_body_max !== 4 || cfg.hunt_bodies_max !== 32) problems.push(`the chain's dials are ${JSON.stringify(cfg)}, not body 4 / 32 bodies`);
+    const sids = await hunters(db, M, 3);
+    await armCron(db);
+    await db.query('update public.hr_tick_config set hunt_body_max = 1, hunt_bodies_max = 2 where id');
+    await db.query('savepoint fanout');
+    const two = await fire(db);
+    const taken = two.bodies.flatMap((b) => b.hunts.map((h) => h.session_id)).filter((s) => sids.includes(s));
+    if (two.bodies.length !== 2 || taken.length !== 2) problems.push(`at 2 bodies a fire the cron queued ${two.bodies.length} bodies carrying ${taken.length} of 3 due hunts`);
+    await db.query('rollback to savepoint fanout');
+    await db.query('update public.hr_tick_config set hunt_bodies_max = 3 where id');
+    const three = await fire(db);
+    if (three.bodies.length !== 3) problems.push(`at 3 bodies a fire the cron queued ${three.bodies.length} bodies for 3 due hunts`);
+    return problems;
+  }),
+
   BUDGET: async (db, M) => inTx(db, async () => {
     const problems = [];
     const sids = await hunters(db, M, 3);
@@ -250,6 +275,8 @@ const DB_MUTANTS = [
     find: "select p.id, v_prefix || ':h' || p.b, now() + v_lease", replace: "select p.id, v_prefix || ':h0', now() + v_lease" },
   { arm: 'PACK-LEASE-SETTLE', name: 'the cron posts the packed hunts in one body', fn: 'public.hr_tick_cron_run()',
     find: '     group by r.body\n     order by r.body', replace: '     group by 0 * r.body\n     order by 0 * r.body' },
+  { arm: 'FANOUT', name: '[tick-capacity] the roster keeps the literal 16 bodies a fire', fn: 'public.hr_hunt_roster_sharded(text,integer,integer)',
+    find: '  c_bodies := least(greatest(coalesce(c_bodies, 16), 1), 64);', replace: '  c_bodies := 16;' },
 ];
 /* The §5 self-check's own bites. Each mutant RE-PINS k0's packer md5 to the
    mutated body, so the refusal must come from the behavioural gate it names
@@ -266,6 +293,25 @@ const SQL_MUTANTS = [
   { name: 'the packer rosters an online character every fire', file: MIG, expect: 'p5:',
     find: '                      then 1 else v_fold end))\n  ), pick as (', replace: '                      then 0 else v_fold end))\n  ), pick as (' },
 ];
+/* 2027-02-03-tick-capacity.sql's §5 bites: its roster body is pinned by md5 in §0 and §5(a), so a mutant of the
+   body RE-PINS both to the mutated md5 and the refusal must come from the behavioural gate named in `expect`. */
+const CAP = '2027-02-03-tick-capacity.sql';
+const CAP_MUTANTS = [
+  { name: '[tick-capacity] the roster keeps the literal 16 bodies a fire', expect: '§5(c)',
+    find: '  c_bodies := least(greatest(coalesce(c_bodies, 16), 1), 64);', replace: '  c_bodies := 16;' },
+  { name: '[tick-capacity] the dials are left as they were', expect: '§5(a)',
+    find: 'update public.hr_tick_config set hunt_body_max = 4, hunt_bodies_max = 32 where id;',
+    replace: 'update public.hr_tick_config set hunt_body_max = 12 where id;' },
+];
+function capPatches(m) {
+  const src = readFileSync(join(ROOT, 'supabase', 'migrations', CAP), 'utf8').replace(/\r\n/g, '\n');
+  const body = (t) => { const a = t.indexOf('create or replace function public.hr_hunt_roster_sharded('); const o = t.indexOf('$function$', a) + 10; return t.slice(o, t.indexOf('$function$', o)); };
+  const md5 = (t) => createHash('md5').update(t, 'utf8').digest('hex');
+  const was = md5(body(src));
+  const now = md5(body(src.replace(m.find, () => m.replace)));
+  return was === now ? [[m.find, m.replace]]
+    : [[m.find, m.replace], [`distinct from '${was}' then`, `distinct from '${now}' then`], [`<> '${was}' then`, `<> '${now}' then`]];
+}
 function packerProsrc(text) {
   const a = text.indexOf('create or replace function public.hr_hunt_roster_sharded(');
   const open = text.indexOf('$$', a) + 2;
@@ -331,7 +377,13 @@ async function main() {
       if (refused && refused.includes(m.expect)) console.log(`✓ the §5 of ${m.file} refuses (${m.expect}): ${m.name}`);
       else { console.error(`✗ ${m.file} applied: ${m.name}${refused ? ' (' + refused.slice(0, 200) + ')' : ''}`); bad++; }
     }
-    const total = MUTANTS.length + DB_MUTANTS.length + SQL_MUTANTS.length;
+    for (const m of CAP_MUTANTS) {
+      let refused = null;
+      try { await bootReplay({ patches: new Map([[CAP, capPatches(m)]]), upTo: LAST_PATCHED }); } catch (e) { refused = String(e.message); }
+      if (refused && refused.includes(m.expect)) console.log(`✓ the §5 of ${CAP} refuses (${m.expect}): ${m.name}`);
+      else { console.error(`✗ ${CAP} applied: ${m.name}${refused ? ' (' + refused.slice(0, 200) + ')' : ''}`); bad++; }
+    }
+    const total = MUTANTS.length + DB_MUTANTS.length + SQL_MUTANTS.length + CAP_MUTANTS.length;
     console.log(bad ? `hunt-tick-shards --mutate: ${bad} mutant(s) survived` : `hunt-tick-shards --mutate: all ${total} mutants killed`);
     process.exit(bad ? 1 : 0);
   }

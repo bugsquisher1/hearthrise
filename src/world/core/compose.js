@@ -33,11 +33,11 @@
 // none of them (map-compile.js L-GRID).
 // PURE: no DOM, no window, no G.
 // ════════════════════════════════════════════════════════════════════════
-import { ySort } from './zsort.js?v=0.2.57';
-import { heroBuilding } from './roofs.js?v=0.2.57';
-import { ellipseShadow, castMatrix } from './shadows.js?v=0.2.57';
-import { vertexGrid, tileKey } from './wang.js?v=0.2.57';
-import { OUTFITS } from '../../data/hunt-outfits.js?v=0.2.57';
+import { ySort } from './zsort.js?v=0.2.58';
+import { heroBuilding } from './roofs.js?v=0.2.58';
+import { ellipseShadow, castMatrix } from './shadows.js?v=0.2.58';
+import { vertexGrid, tileKey } from './wang.js?v=0.2.58';
+import { OUTFITS } from '../../data/hunt-outfits.js?v=0.2.58';
 
 /** Wall height: rock tops and capstones are raised by it. */
 export const WALL_FACE_PX = 48;
@@ -45,6 +45,8 @@ const CAP_DX = 10, CAP_H_LIFT = 68;
 const HERO_LIGHT_TILES = 4.5;
 /* A corpse sorts beneath everything standing (VW-03): its row is lowered by this many art px. */
 const UNDER = 1 << 20;
+/* One slice of a ground made off the frame path (groundOfSliced): well under a phone frame at 4x CPU. */
+const GROUND_SLICE_MS = 6;
 
 /* A Wang tile's variant per cell: an integer hash, so a tile listed in several variants (the sandbox's
    grass in its four flips) breaks its repeat instead of striping the map. */
@@ -65,7 +67,10 @@ function cellHash(x, y) {
  * draws, each other corner as the member it has a pair with (the lower when both or neither: a
  * flagstone corner at a grass/road junction reads as grass). What no pair can draw stays a tone.
  */
-export function blendTiles(map, book, T, inPatch, out) {
+export function blendTiles(map, book, T, inPatch, out) { drain(blendSteps(map, book, T, inPatch, out)); }
+
+/* blendTiles, one dual row per step (groundSteps). */
+function* blendSteps(map, book, T, inPatch, out) {
   const { pairs, alias } = map.blend;
   const terr = pairs.map((id) => ({ id, t: book.terrains[id] })).filter((p) => p.t && p.t.kind === 'wang16');
   /* THE MATERIALS AS SMALL INTEGERS (index into `known`, -1 none): a 192x116 town is 22k dual tiles, so the
@@ -116,7 +121,15 @@ export function blendTiles(map, book, T, inPatch, out) {
       const t = book.tile(terr[pick].id, KEYS[bits], cellHash(x, y));
       if (t) out.push({ set: t.set, sx: t.sx, sy: t.sy, x: x * T + H, y: y * T + H });
     }
+    yield;
   }
+}
+
+/* A step list run to its end: its return value. */
+function drain(it) {
+  let r = it.next();
+  while (!r.done) r = it.next();
+  return r.value;
 }
 
 /**
@@ -125,7 +138,12 @@ export function blendTiles(map, book, T, inPatch, out) {
  * @param {object} book createBook()
  * @param {{materials: object}} tables
  */
-export function groundTiles(map, book, tables, T) {
+export function groundTiles(map, book, tables, T) { return drain(groundSteps(map, book, tables, T)); }
+
+/* groundTiles as STEPS, one map row (or dual row) each: the town's ground is 22k dual tiles, 28-48 ms on CI and
+   ~90 ms on a phone's CPU in one go, so a scene being prepared makes it in slices (groundOfSliced). Same list,
+   same order, whichever way it is run. */
+function* groundSteps(map, book, tables, T) {
   const tiles = [], voids = [], tones = [];
   /* NO GROUND ART YET (ground: null, a town ahead of its art; map-compile.js L-KIND): every cell is a flat
      PLACEHOLDER in its material's tone, two tones checkered (--world-ground-<material>-a/-b), so the layout
@@ -152,8 +170,9 @@ export function groundTiles(map, book, tables, T) {
         }
         tones.push({ m: map.ground[y * map.w + x], alt: (x + y) & 1, x: x * T, y: y * T });
       }
+      yield;
     }
-    if (map.blend) blendTiles(map, book, T, (x, y) => !!patchAt(x, y), tiles);
+    if (map.blend) yield* blendSteps(map, book, T, (x, y) => !!patchAt(x, y), tiles);
     tiles.push(...laid);
   }
   const terr = map.groundTerrain === null ? null : book.terrains[map.groundTerrain];
@@ -172,6 +191,7 @@ export function groundTiles(map, book, tables, T) {
       const t = book.tile(map.groundTerrain, fill ? '1111' : tileKey(g, map.w, x, y), n);
       if (t) tiles.push({ set: t.set, sx: t.sx, sy: t.sy, x: x * T, y: y * T });
     }
+    yield;
   }
   for (const b of map.buildings) {
     if (b.painted) continue;
@@ -201,6 +221,50 @@ export function groundOf(map, book, tables, T) {
   if (!g) byBook.set(book, g = groundTiles(map, book, tables, T));
   return g;
 }
+/* A ground made in slices, kept like groundOf's (a reader that made it meanwhile wins: one ground per map). */
+function keep(map, book, made) {
+  let byBook = GROUNDS.get(map);
+  if (!byBook) GROUNDS.set(map, byBook = new WeakMap());
+  const had = byBook.get(book);
+  if (had) return had;
+  byBook.set(book, made);
+  return made;
+}
+
+/* One slice: steps until `budgetMs` is spent. The finished step's result, or undefined while steps remain. */
+function runFor(it, now, budgetMs) {
+  const t0 = now();
+  let r = it.next();
+  while (!r.done) {
+    if (now() - t0 >= budgetMs) return undefined;
+    r = it.next();
+  }
+  return r;
+}
+
+/**
+ * groundOf, made in SLICES of at most ~budgetMs, each slice a task of its own (`later`), so preparing a scene never
+ * holds the page for the whole ground (perf lane P2: the town's ground task was 28-48 ms on CI, 88 ms on a phone's
+ * CPU). Resolves with the ground, kept for groundOf/takeGround exactly as groundOf keeps it.
+ * @param {{later: (fn: () => void) => void, now: () => number, budgetMs?: number}} o
+ */
+export function groundOfSliced(map, book, tables, T, o) {
+  const byBook = GROUNDS.get(map);
+  const had = byBook && byBook.get(book);
+  if (had) return Promise.resolve(had);
+  const it = groundSteps(map, book, tables, T);
+  const budget = o.budgetMs || GROUND_SLICE_MS;
+  return new Promise((done, fail) => {
+    const slice = () => {
+      try {
+        const r = runFor(it, o.now, budget);
+        if (r) done(keep(map, book, r.value)); else o.later(slice);
+      } catch (e) { fail(e); }
+    };
+    slice();
+  });
+}
+
 /** The ground for its last reader (the renderer's bins): handed over and no longer kept. */
 export function takeGround(map, book, tables, T) {
   const g = groundOf(map, book, tables, T);

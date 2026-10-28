@@ -22,10 +22,10 @@ from the pacing dial (`pacing.js PACE_EXEMPT_SKILLS`): the curves were fitted to
 - **Level** (balance layer 1, lane/b-level-curve 2026-10-27, to Tyler's 10-25 pace): PACE BRACKETS (`LEVEL_CURVE`). From a
   bracket's start Level the step to the next Level costs `first + rise m + bend m^2` (m Levels into it), each bracket starting
   where the one before would have gone next; the last runs forever. SQL reads the generated `hr_level_curve` rows
-  (`tools/gen-level-curve.mjs`). L5 1,948; L10 137,918; L50 12,780,658; L200 1,175,722,533.
+  (`tools/gen-level-curve.mjs`). L5 1,938; L10 137,918 (the first ten Levels paced one by one since 10-28: steps 133, 261, 514, 1,030, 6,175, 11,231, 19,979, 35,703, 62,892, then 64,967); L50 12,780,658; L200 1,175,722,533.
   Guard (`tests/level-curve.mjs`): every `LEVEL_PACE` target within 10% on the balance simulator's committed measurement
   (`tools/balance-sim/level-pace.json`: a lone hero of each style hunting where the game recommends, to L50; past it
-  `LEVEL_PACE.contract`, what a new ground must pay). Measured 2026-10-27 (8 styles): L5 0.26 h, L10 5.9, L25 36.4, L50 173.2; past L50 at 1,086 x L^1.333 XP/h: L100 579, L200 1,737, L1000 22,709 h.
+  `LEVEL_PACE.contract`, what a new ground must pay). Measured 2026-10-28 (8 styles): L5 0.25 h, L6 0.59, L7 1.05, L8 1.87, L10 5.84, L25 36.4, L50 173.2; no Level over 2x the hours of the one before (C6); past L50 at 1,086 x L^1.333 XP/h: L100 579, L200 1,737, L1000 22,709 h.
 - **Combat skills**: XP to advance s -> s+1 = `15 x s^2 x 1.04^(s-1)` (`SKILL_CURVE`), exact integers (BigInt walk), no cap;
   SQL reads the generated `hr_skill_curve` table. Gather/artisan keep the capped 99 table (`isCapped`, `skillCapOf`).
 - Parity: `tests/core-curves.mjs` compares JS and SQL on 5,300 boundary values (curves, vitals, regen, monster levels).

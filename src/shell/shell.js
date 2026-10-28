@@ -39,24 +39,24 @@
 //
 // Mounted by src/app/world-pane.js over one character's World.
 // ════════════════════════════════════════════════════════════════════════
-import { MOBILE_QUERY } from '../world/core/camera.js?v=0.2.57';
-import { SHELL_WINDOWS } from '../data/shell-windows.js?v=0.2.57';
-import { HUD_WIDGETS } from '../data/hud-widgets.js?v=0.2.57';
-import { createWindowManager, DOCK_EDGE, HOME_BOTTOM, RESIZE_MIN } from './window-manager.js?v=0.2.57';
-import { createHud, residueStore, placeWidget, hudInsetOf, clearOfEdges, clearOfDock, stageOf, dockCap, homeAt, stackBelow, stackRoom } from './hud.js?v=0.2.57';
-import { keyLabel, glyphSvg, actCoach, heldCard, coachHtml, placeCoach, ringCoach, noteCoachSight } from './launcher.js?v=0.2.57';
-import { coachWindow } from '../data/hunt-tutorial.js?v=0.2.57';
-import { WINDOW_RENDERERS, WIDGET_RENDERERS } from './renderers.js?v=0.2.57';
-import { mountContextMenu } from './context-menu.js?v=0.2.57';
-import { menuProvidersOf } from './menu-providers.js?v=0.2.57';
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.57';
-import { followDeaths, deathPopupOf } from './death-popup.js?v=0.2.57';
-import { takeFresh } from '../hunt-view/summary-recorder.js?v=0.2.57';
-import { huntOf } from '../session/hunt-sections.js?v=0.2.57';
-import { sizeStore, gripHtml, pressGrip } from './window-sizes.js?v=0.2.57';
-import { watchTown } from '../session/town-poll.js?v=0.2.57';
-import { applyPanelAlpha, clearPanelAlpha } from './panel-alpha.js?v=0.2.57';
-import { mountWidgetMoves, paintMove } from './widget-move.js?v=0.2.57';
+import { MOBILE_QUERY } from '../world/core/camera.js?v=0.2.58';
+import { SHELL_WINDOWS } from '../data/shell-windows.js?v=0.2.58';
+import { HUD_WIDGETS } from '../data/hud-widgets.js?v=0.2.58';
+import { createWindowManager, DOCK_EDGE, HOME_BOTTOM, RESIZE_MIN } from './window-manager.js?v=0.2.58';
+import { createHud, residueStore, placeWidget, hudInsetOf, clearOfEdges, clearOfDock, stageOf, dockCap, homeAt, stackBelow, stackRoom } from './hud.js?v=0.2.58';
+import { keyLabel, glyphSvg, actCoach, heldCard, coachHtml, placeCoach, ringCoach, noteCoachSight } from './launcher.js?v=0.2.58';
+import { coachWindow } from '../data/hunt-tutorial.js?v=0.2.58';
+import { WINDOW_RENDERERS, WIDGET_RENDERERS } from './renderers.js?v=0.2.58';
+import { mountContextMenu } from './context-menu.js?v=0.2.58';
+import { menuProvidersOf } from './menu-providers.js?v=0.2.58';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.58';
+import { followDeaths, deathPopupOf } from './death-popup.js?v=0.2.58';
+import { takeFresh } from '../hunt-view/summary-recorder.js?v=0.2.58';
+import { huntOf } from '../session/hunt-sections.js?v=0.2.58';
+import { sizeStore, gripHtml, pressGrip } from './window-sizes.js?v=0.2.58';
+import { watchTown } from '../session/town-poll.js?v=0.2.58';
+import { applyPanelAlpha, clearPanelAlpha } from './panel-alpha.js?v=0.2.58';
+import { mountWidgetMoves, paintMove } from './widget-move.js?v=0.2.58';
 
 /* The components' display clock: session timers and the timeline's due events (parity SH-05, DOM 4 Hz). */
 const DISPLAY_TICK_MS = 250;
@@ -442,6 +442,11 @@ export function mountShell(root, o) {
 
   /* The display tick: components patch their clocks and play the timeline's due events. */
   function patchComponents() {
+    /* The coach FIRST, while the page is still laid out from the last frame: its ring asks what is on screen
+       (launcher.js shown, getClientRects), and asked after the patches below it forced a whole layout inside the
+       tick (perf lane 2026-10-28: up to 79 ms of an 81 ms tick at 4x CPU). A control that appears on this tick is
+       ringed on the next, 250 ms later. */
+    coach(true);
     followSummary();
     if (ctx.character && ctx.character.timeline) ctx.character.timeline.advance(ctx.now());
     /* The Work window or the bag watches the town work: the viewed character re-reads at townPollMs (town-poll.js). */
@@ -452,7 +457,6 @@ export function mountShell(root, o) {
       if (el) render.patch(el, ctx);
     }
     for (const id of wm.openIds()) if (WINDOW_RENDERERS[id] && WINDOW_RENDERERS[id].patch) refresh(id);
-    coach(true);
   }
   const ticker = host.setInterval(patchComponents, DISPLAY_TICK_MS);
 

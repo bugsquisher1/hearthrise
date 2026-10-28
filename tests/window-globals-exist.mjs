@@ -51,7 +51,7 @@ const PLATFORM = new Set([
   'addEventListener', 'removeEventListener', 'dispatchEvent', 'document', 'location', 'history', 'navigator', 'screen',
   'parent', 'top', 'opener', 'performance', 'PerformanceObserver', 'ResizeObserver', 'IntersectionObserver', 'MutationObserver',
   'requestAnimationFrame', 'cancelAnimationFrame', 'setTimeout', 'clearTimeout', 'setInterval', 'clearInterval',
-  'queueMicrotask', 'matchMedia', 'getComputedStyle', 'getSelection', 'devicePixelRatio', 'innerWidth', 'innerHeight',
+  'queueMicrotask', 'requestIdleCallback', 'matchMedia', 'getComputedStyle', 'getSelection', 'devicePixelRatio', 'innerWidth', 'innerHeight',
   'outerWidth', 'outerHeight', 'scrollX', 'scrollY', 'crypto', 'fetch', 'console', 'localStorage', 'sessionStorage',
   'indexedDB', 'caches', 'WebSocket', 'Worker', 'URL', 'Blob', 'Image', 'Event', 'CustomEvent', 'AbortController',
   'BroadcastChannel', 'CompressionStream', 'TextEncoder', 'TextDecoder', 'structuredClone', 'isSecureContext', 'origin',

@@ -17,10 +17,11 @@
 // over the replayed chain.
 //
 // THE FORWARD-FILE RULE: an applied file is history and is never regenerated in
-// place; a new curve is a new dated file (OUT_NAME). 2027-02-01 is the first
-// (lane/b-level-curve: the bracket curve replaces the 10-19 quartic, whose
-// coefficients lived in hr_hunt_limits; the 2027-02-01 hunt-sessions catalogue,
-// applied right after this file, drops those three rows).
+// place; a new curve is a new dated file (OUT_NAME). 2027-02-01 was the first
+// (lane/b-level-curve: the bracket curve replaced the 10-19 quartic, whose
+// coefficients lived in hr_hunt_limits; APPLIED 2026-10-28 with v0.2.57, history).
+// 2027-02-04-level-curve-smooth (lane/b-curve-smooth) re-shapes the first ten Levels:
+// the same table and bodies, new rows.
 //
 //   Regenerate:  node tools/gen-level-curve.mjs
 //   Verify:      node tools/gen-level-curve.mjs --check     (exit 1 on drift)
@@ -37,7 +38,7 @@ import { dirname, join } from 'node:path';
 import { isMain } from '../tests/_is-main.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-export const OUT_NAME = '2027-02-01-level-curve.generated.sql';
+export const OUT_NAME = '2027-02-04-level-curve-smooth.generated.sql';
 const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 
 /* The Levels the self-check pins: every bracket's edge, Tyler's target Levels and a deep one. */
@@ -63,25 +64,27 @@ export function buildSql(XP) {
 --   through src/core/xp.js levelCurveRows. Any hand edit FAILS
 --   \`node tools/gen-level-curve.mjs --check\`.
 --
--- WHAT: the character's Level curve becomes PACE BRACKETS (lane/b-level-curve, to
--- Tyler's balance ruling 2026-10-25 §2: L10 6 h, L25 36 h, L50 168 h ... L1000
--- 23,520 h of efficient hunting, fitted on the real engine by tools/balance-sim):
--- from a bracket's start Level the step to the next Level costs first + rise x m +
--- bend x m^2 (m Levels into the bracket). hr_level_curve holds ${rows.length} rows; the two
--- curve functions read them instead of the 10-19 quartic's hr_hunt_limits rows
--- (level_quartic / level_cubic / level_linear, dropped by the 2027-02-01 hunt-sessions
--- catalogue that applies right after this file). Signatures, volatility and grants
--- are unchanged, so every reader (the settle's death floor, hr_level_block,
--- hr_level_of, the analyzer's ETA) follows with no edit.
+-- WHAT: the character's Level curve as PACE BRACKETS (lane/b-level-curve, to Tyler's
+-- balance ruling 2026-10-25 §2: L10 6 h, L25 36 h, L50 168 h ... L1000 23,520 h of
+-- efficient hunting, held on the real engine by tools/balance-sim): from a bracket's
+-- start Level the step to the next Level costs first + rise x m + bend x m^2 (m Levels
+-- into the bracket). hr_level_curve holds ${rows.length} rows, rewritten whole; the two curve
+-- functions are restated unchanged (their signatures, volatility and grants too), so
+-- every reader (the settle's death floor, hr_level_block, hr_level_of, the analyzer's
+-- ETA) follows with no edit. SINCE 2027-02-01 (lane/b-curve-smooth, the new-player walk:
+-- five Levels in 15 min, then a 7x wall at Level 6): the first ten Levels are paced one
+-- by one, each about twice the minutes of the one before in the Mill Cellar and about
+-- 1.77x in the Thicket; from Level 10 (137,918 XP) every total is what it was.
 -- LIVE CHARACTERS: nothing is stored per Level, so a character whose Level XP now
 -- makes a different Level simply shows that Level; no row is written. The death
 -- floor is re-read at each settle, so the edge's and the server's floors agree once
 -- the hr-accrue deploy carrying the same LEVEL_CURVE follows this file (AT ONCE:
 -- between the two, a death's loss is priced on the old curve and may be refused once
 -- as death_xp_over, then settles on the next tick after the deploy).
--- ORDER: after lane/b-inner-flame's 2027-01-31 set (2027-01-31-hearth-catalogue.generated.sql
--- last); BEFORE 2027-02-01-hunt-sessions-catalogue.generated.sql (its precondition refuses until
--- this file has run). No begin/commit (CLAUDE.md §2).
+-- LIVE CHARACTERS UNDER LEVEL 10 may move a Level (5,000 XP was Level 6, now 5: Levels 5-9 cost
+-- more, 1-4 about the same); nothing is written, and from 137,918 XP on nothing changes.
+-- ORDER: any time after 2027-02-01-level-curve.generated.sql (APPLIED); the hr-accrue
+-- deploy carrying the same LEVEL_CURVE follows AT ONCE. No begin/commit (CLAUDE.md §2).
 -- ════════════════════════════════════════════════════════════════════════
 
 -- ── §0 PRECONDITIONS ─────────────────────────────────────────────────────────

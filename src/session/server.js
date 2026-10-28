@@ -33,8 +33,8 @@
 // so a routine version_conflict on a current client shows nothing.
 // ════════════════════════════════════════════════════════════════════════
 
-import { SUPABASE_CONFIG } from '../net/supabase-bootstrap.js?v=0.2.57';
-import { createIntentLedger } from './intent-ledger.js?v=0.2.57';
+import { SUPABASE_CONFIG } from '../net/supabase-bootstrap.js?v=0.2.58';
+import { createIntentLedger } from './intent-ledger.js?v=0.2.58';
 
 export const CLOSED_CODE = 'hr_closed';
 export const CLOSED_STATUS = 403;

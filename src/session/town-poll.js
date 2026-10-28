@@ -14,7 +14,7 @@
 // one, the stop, a hunt's start or the next sign-in) pays all of it.
 // Timing only: nothing here is read as owned or spent.
 // ════════════════════════════════════════════════════════════════════════
-import { SESSION_CONFIG } from './config.js?v=0.2.57';
+import { SESSION_CONFIG } from './config.js?v=0.2.58';
 
 /** Does the server say this hero works in town (a gathering node or a bench), with no hunt open? */
 export function townWorkRunning(state, hunt) {

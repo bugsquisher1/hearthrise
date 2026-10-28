@@ -712,22 +712,43 @@ async function runAll(db) {
   }
 
   // ── 9. IDEMPOTENT RE-APPLY. ─────────────────────────────────────────────
+  /* MEASURED AT THE FILE'S OWN POSITION. Its §0 asserts every hr_apply anchor exactly once before it patches, and a
+     LATER file may legitimately consume one: 2027-02-02-settle-cost.sql rewrites `v_out := public.hr_state_of(...)`
+     (the c_anchor_post line). On such a chain a re-apply of THIS file must REFUSE (it never patches blind) and leave
+     hr_apply untouched; the byte-identical re-apply is then proven on a replay up to this file, where the Coordinator's
+     retry would actually run it. On a chain that still holds the anchor (the --selftest replays, up to REPLAY_UPTO)
+     the strict re-apply runs on the chain it was given. */
   {
     const sql = (await readFile(new URL(`../supabase/migrations/${FILE}`, import.meta.url), 'utf8'))
       .replace(/\r\n/g, '\n');
-    const before = (await db.query(
+    const defOf = async (d) => (await d.query(
       `select pg_get_functiondef('public.hr_apply(uuid,int,bigint,uuid,jsonb)'::regprocedure) d`)).rows[0].d;
-    await db.exec(sql);
-    const after = (await db.query(
-      `select pg_get_functiondef('public.hr_apply(uuid,int,bigint,uuid,jsonb)'::regprocedure) d`)).rows[0].d;
-    ok(before === after,
-      're-applying the migration CHANGED hr_apply — the patch is not a no-op on re-apply, so a '
-      + 'repeated apply double-inserts the clamps');
-    const n = (after.match(/c_max_hf_per_day/g) || []).length;
-    /* declare + the `v_hf_today >= c_max_hf_per_day` test + the rejection
-       payload's `'limit', c_max_hf_per_day`. A double-applied patch doubles it. */
-    ok(n === 3, `c_max_hf_per_day appears ${n} times in hr_apply (declare + test + payload = 3); `
-      + 'more than that means the anchored patch was inserted twice');
+    const ANCHOR = '    v_out := public.hr_state_of(v_uid, v_slot);';
+    const strict = async (d, where) => {
+      const before = await defOf(d);
+      await d.exec(sql);
+      const after = await defOf(d);
+      ok(before === after,
+        `re-applying the migration (${where}) CHANGED hr_apply — the patch is not a no-op on re-apply, so a `
+        + 'repeated apply double-inserts the clamps');
+      const n = (after.match(/c_max_hf_per_day/g) || []).length;
+      /* declare + the `v_hf_today >= c_max_hf_per_day` test + the rejection
+         payload's `'limit', c_max_hf_per_day`. A double-applied patch doubles it. */
+      ok(n === 3, `c_max_hf_per_day appears ${n} times in hr_apply (declare + test + payload = 3, ${where}); `
+        + 'more than that means the anchored patch was inserted twice');
+    };
+    const head = await defOf(db);
+    if (head.split(ANCHOR).length === 2) {
+      await strict(db, 'on the chain it was given');
+    } else {
+      let refused = null;
+      try { await db.exec(sql); } catch (e) { refused = String(e.message); }
+      ok(refused !== null && refused.includes('occurs 0 times'),
+        `on a chain whose later file consumed the c_anchor_post line, a re-apply ${refused ? 'raised the wrong refusal: ' + refused.slice(0, 160) : 'APPLIED'} — it must refuse by its own exactly-once check`);
+      ok((await defOf(db)) === head, 'a refused re-apply on the chain head moved hr_apply');
+      const { db: own } = await bootReplay({ upTo: FILE });
+      try { await strict(own, `at its own position, a replay up to ${FILE}`); } finally { await own.close(); }
+    }
   }
 }
 

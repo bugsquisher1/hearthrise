@@ -22,6 +22,11 @@
 //   C4  every Level costs more XP than the one before (to Level 5,000), the first 1+
 //   C5  LEVEL_PACE.contract is today's ladder: at Levels 50, 100, 300 and 1,000 it
 //       pays within 10% of the measured ladder's own fit
+//   C6  NO WALL (the 10-28 new-player walk: Level 6 took 7x Level 5's 5 minutes, just as
+//       the hero reached the Thicket): from LEVEL_PACE.smooth.from to the ceiling, no
+//       Level takes more than LEVEL_PACE.smooth.ratio times the hours of the Level before
+//       it at the reference rate. Hours, not XP: a ground that pays three times more
+//       (the Thicket over the Cellar) must charge three times the XP for the same minutes
 // A red C1 is not a curve bug: the content moved. Re-measure (2-3 h on 4 workers:
 // eight careers of ~170 h) and re-pin, then re-fit if C2/C3 go red (a fit that moves
 // only the brackets past the ceiling, --fit --fit-past, needs no re-measure):
@@ -107,6 +112,18 @@ function judge(w) {
       if (!(Math.abs(r) <= 0.1)) { out.push(`C5: at Level ${L} the contract pays ${pct(r)} against the measured ladder (${snap.ladder.a} x L^${snap.ladder.b})`); break; }
     }
   }
+  /* C6 */
+  if (!pace.smooth) out.push('C6: LEVEL_PACE.smooth is missing');
+  else {
+    const hrs = (L) => (xpFor(L + 1) - xpFor(L)) / R(L);
+    for (let L = pace.smooth.from; L + 1 < snap.ceiling; L++) {
+      const k = hrs(L + 1) / hrs(L);
+      if (!(k <= pace.smooth.ratio)) {
+        out.push(`C6: Level ${L + 1} -> ${L + 2} takes ${(hrs(L + 1) * 60).toFixed(1)} min, ${k.toFixed(2)}x Level ${L} -> ${L + 1}'s ${(hrs(L) * 60).toFixed(1)} min (at most ${pace.smooth.ratio}x)`);
+        break;
+      }
+    }
+  }
   return { out, h, R };
 }
 
@@ -136,6 +153,9 @@ const MUTANTS = [
   ['C3', 'the Mill Cellar holds a new hero for an hour', { snap: (w) => ({ ...w.snap, measuredHours: { ...w.snap.measuredHours, [LEVEL_PACE.early.level]: 1 } }) }],
   ['C4', 'a flat Level (the same XP as the one before)', { xpFor: (L) => (L <= 40 ? XP.charXpForLevel(L) : XP.charXpForLevel(L) - (XP.charXpForLevel(41) - XP.charXpForLevel(40)) + (XP.charXpForLevel(40) - XP.charXpForLevel(39))) }],
   ['C5', 'the contract outpaces the ladder (b + 0.1)', { pace: (w) => ({ ...w.pace, contract: { ...w.pace.contract, b: w.pace.contract.b + 0.1 } }) }],
+  ['C6', 'the 10-27 first Levels back (Level 6 a 7x wall over Level 5)', { xpFor: (L) => XP.xpForLevelOn(XP.levelCurveRowsOf({ first: 60,
+    brackets: [{ from: 1, rise: 0, bend: 122 }, { from: 5, rise: 12591, bend: 0 }, ...LEVEL_CURVE.brackets.filter((b) => b.from >= 10)] }), L) }],
+  ['C6', 'a wall at Level 30 (one Level three times the one before)', { xpFor: (L) => XP.charXpForLevel(L) + (L > 30 ? 2 * (XP.charXpForLevel(31) - XP.charXpForLevel(30)) : 0) }],
 ];
 
 async function main() {

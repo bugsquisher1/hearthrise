@@ -5,6 +5,10 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.58 — 2026-10-28 (Faster hunts behind the scenes)
+
+**Snappier while you hunt.** The server does about a fifth of the work it used to each time it settles a hunt, so your buttons answer sooner and hunts left running with the browser closed keep up, even with many players online at once.
+
 ## v0.2.57 — 2026-10-27 (A longer climb)
 
 **Levels take longer, and mean more.** The level curve is retuned so a level is a real milestone: about 6 hours of hunting to reach Level 10, a day and a half to Level 25 and about a week to Level 50, with the climb past that built to last. Your XP is untouched, so your hero may now show a lower level than before.

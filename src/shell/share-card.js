@@ -15,10 +15,10 @@
 //   shareCard(doc, facts)   copy the PNG to the clipboard, else the share sheet,
 //                           else a download: { ok, how: copied | shared | saved }
 // ════════════════════════════════════════════════════════════════════════
-import { ITEMS } from '../data/items.js?v=0.2.58';
-import { PIXEL_DIR, fileFor } from '../data/item-art.js?v=0.2.58';
-import { rarityOf } from './bag-model.js?v=0.2.58';
-import { itemName } from './widgets/bits.js?v=0.2.58';
+import { ITEMS } from '../data/items.js?v=0.2.59';
+import { PIXEL_DIR, fileFor } from '../data/item-art.js?v=0.2.59';
+import { rarityOf } from './bag-model.js?v=0.2.59';
+import { itemName } from './widgets/bits.js?v=0.2.59';
 
 /* The card in CSS pixels, the integer it is exported at, and the icon's integer scale (32 px art). */
 export const CARD = Object.freeze({ w: 420, h: 200, px: 2, icon: 32, iconScale: 4 });

@@ -5,6 +5,20 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.59 — 2026-10-28 (A smoother first hour)
+
+**A gentler start.** The first ten Levels now climb evenly instead of hitting a wall at Level 6, and the starting tips finish by Level 7.
+
+**New gear at Level 8.** Stitch a Graypelt Cloak from six Wolf Pelts in Crafting. Wolf Pelts now stay in your bag when you sell loot.
+
+**Learn your Inner Flame.** After the Cellar, a tip shows you how to burn fuel, and the skill now shows how much faster you recover.
+
+**Clearer hints.** Heroes without armour are pointed to the Shop’s gloves, the Hunts window follows its recommendation until you pick a hunt yourself, and a finished task tells you when Tamsin pays.
+
+**Loads faster.** The game downloads about a quarter less before the sign-in screen, and town scenes stutter less on phones.
+
+**Back on track after an outage.** If the server falls behind, your next action catches your hunt up and goes through instead of failing.
+
 ## v0.2.58 — 2026-10-28 (Faster hunts behind the scenes)
 
 **Snappier while you hunt.** The server does about a fifth of the work it used to each time it settles a hunt, so your buttons answer sooner and hunts left running with the browser closed keep up, even with many players online at once.

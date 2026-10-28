@@ -9,7 +9,7 @@
 // zoomOf() answers null and the backend keeps the screen class's zoom (camera.js zoomFor).
 // The camera stays on the viewed hero (frameView); taps still pick by the frame drawn.
 // ════════════════════════════════════════════════════════════════════════
-import { TOWN_ZOOM } from '../data/world/view-zoom.js?v=0.2.58';
+import { TOWN_ZOOM } from '../data/world/view-zoom.js?v=0.2.59';
 
 /* deltaY a wheel turns into one step (a mouse notch is ~100 px; a trackpad's small deltas add up) */
 const WHEEL_STEP = 100;

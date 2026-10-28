@@ -10,11 +10,11 @@
 // Search filters every category by label and help text at once. Built once;
 // patched in place through paint.js, so a search or a toggle never rebuilds it.
 // ════════════════════════════════════════════════════════════════════════
-import { SETTINGS, SETTING_CATEGORIES } from '../../data/settings.js?v=0.2.58';
-import { read, write, visible, categoriesFor, search } from '../settings-model.js?v=0.2.58';
-import { keyLabel } from '../launcher.js?v=0.2.58';
-import { attr, cls, prop, text } from '../../render/paint.js?v=0.2.58';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.58';
+import { SETTINGS, SETTING_CATEGORIES } from '../../data/settings.js?v=0.2.59';
+import { read, write, visible, categoriesFor, search } from '../settings-model.js?v=0.2.59';
+import { keyLabel } from '../launcher.js?v=0.2.59';
+import { attr, cls, prop, text } from '../../render/paint.js?v=0.2.59';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.59';
 
 function control(r) {
   const sid = 'data-sid="' + esc(r.id) + '" data-hs-act="set"';

@@ -24,7 +24,7 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-10-28",
- "replay_ms": 6314,
+ "replay_ms": 5602,
  "counts": {
   "tracked_names": 700,
   "entries": 555
@@ -1335,21 +1335,23 @@
    "sig": "hr_bench_inputs()",
    "name": "hr_bench_inputs",
    "tracked_by": [
+    "chain",
     "restate"
    ],
    "touched_by": [
     "2027-01-20-bench-inputs.generated.sql",
-    "2027-01-31-bench-inputs.generated.sql"
+    "2027-01-31-bench-inputs.generated.sql",
+    "2027-02-05-first-hour-bench-inputs.generated.sql"
    ],
    "live": {
-    "md5": "3f9920838c1ea265aea8291d6e3af3fc",
-    "norm_len": 7121,
+    "md5": "d0f42422e635189cb0899942692886c8",
+    "norm_len": 7161,
     "measured": "2026-10-28",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "3f9920838c1ea265aea8291d6e3af3fc",
-    "norm_len": 7121,
+    "md5": "d0f42422e635189cb0899942692886c8",
+    "norm_len": 7161,
     "source": "computed-from-replay"
    },
    "agree": true

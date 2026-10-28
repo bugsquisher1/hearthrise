@@ -45,13 +45,13 @@
 //                 left and destroyed when it closes
 // ════════════════════════════════════════════════════════════════════════
 
-import { SESSION_CONFIG } from './config.js?v=0.2.57';
-import { CharacterSession } from './character-session.js?v=0.2.57';
-import { TownPresence } from './town-presence.js?v=0.2.57';
-import { SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.57';
-import { charLevelFromXp } from '../core/xp.js?v=0.2.57';
-import { createIntentLedger } from './intent-ledger.js?v=0.2.57';
-import { purseOf, newerPurse, storageOf } from './item-sections.js?v=0.2.57';
+import { SESSION_CONFIG } from './config.js?v=0.2.58';
+import { CharacterSession } from './character-session.js?v=0.2.58';
+import { TownPresence } from './town-presence.js?v=0.2.58';
+import { SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.58';
+import { charLevelFromXp } from '../core/xp.js?v=0.2.58';
+import { createIntentLedger } from './intent-ledger.js?v=0.2.58';
+import { purseOf, newerPurse, storageOf } from './item-sections.js?v=0.2.58';
 
 /* What the account's characters share: the depot (2026-11-27-account-depot.sql) and the
    farm land (2026-12-14-shared-farm.sql). A change to one re-reads the others. */

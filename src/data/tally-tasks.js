@@ -32,7 +32,7 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { TOWN_NAME } from './world/town/plan.js?v=0.2.57';
+import { TOWN_NAME } from './world/town/plan.js?v=0.2.58';
 
 /** Who keeps the tally, and the one line her board opens with: what she does, in plain words (Tyler 2026-10-24:
  *  "this is weird dialogue"). Client copy only: the generated catalogue holds none of it. */

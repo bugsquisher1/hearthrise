@@ -1305,10 +1305,10 @@ export async function runTick(opts) {
     /* `opts.huntBudgetMs` is the guard's clock seam; index.ts never passes it. */
     const huntDeadline = t0 + (Number.isFinite(opts.huntBudgetMs) ? opts.huntBudgetMs : HUNT_BODY_BUDGET_MS);
     /* ONE SETTLE AN INSTANCE A FIRE (2027-02-02-settle-cost.sql). A party's members ride one body (the roster packs an
-       instance whole); the first one's settle settles them all, and a landed window that reached the server's now says
-       whom it caught up (hunt-settle.js `covers`). A later selector of any of them is not re-read: it is `nothing`,
-       `instance_settled`. A window the span cap or the degrade ladder cut short covers nobody, so a party behind on its
-       backlog still takes a slice per member a fire, as before. */
+       instance whole); the first one's landed settle settles them all and says whom (hunt-settle.js `covers`). A later
+       selector of any of them is not re-read: it is `nothing`, `instance_settled`. A backlog past the span cap is the
+       next fire's slice, never a second slice in this body (its engine CPU is bounded by its instances, not their
+       party sizes). A refused or replayed settle covers nobody: the next member's selector tries the instance again. */
     const covered = new Set();
     for (const sel of body.hunts) {
       if (now() >= huntDeadline) { hunts.deferred = (hunts.deferred || 0) + 1; continue; }

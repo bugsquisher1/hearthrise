@@ -317,12 +317,13 @@ async function settleOnce(o, mode) {
         outcome: replayed ? 'nothing' : 'paid',
         reason: replayed ? 'replayed' : null,
         ended,
-        /* THE MEMBERS THIS COMMIT CAUGHT UP (2027-02-02-settle-cost.sql): a landed window that reached the read's
-           server now, unhalved, leaves every member of the instance less than one swing owed. tick.js skips a later
-           selector of any of them in the same fire: its read would settle nothing, or, a few seconds into a slow body,
-           one swing (a whole commit for two seconds of hunt; measured 2026-10-28: 61 reads, 35 commits, one party). */
-        covers: (!replayed && plan.caughtUp && degraded === 0)
-          ? (res.members || []).map((x) => String(x.user).toLowerCase() + ':' + Number(x.slot)) : null,
+        /* THE MEMBERS THIS COMMIT SETTLED (2027-02-02-settle-cost.sql): ONE settle an instance a fire. tick.js skips
+           a later selector of any of them in the same fire: caught up, its read would settle nothing, or, a few seconds
+           into a slow body, one swing (a whole commit for two seconds of hunt; measured 2026-10-28: 61 reads and 35
+           commits for one party); behind (the span cap, a halved window), it would simulate the NEXT slice in the same
+           body, so a lagging party cost one slice per member — the body's engine CPU (2 s a request) multiplied by
+           its party size exactly when it is already behind. The rest is owed to the next fire (90x real time). */
+        covers: replayed ? null : (res.members || []).map((x) => String(x.user).toLowerCase() + ':' + Number(x.slot)),
         status: 200,
         body: { ...(res.state || {}), ok: true, settled: !replayed, hunt_settle: own.hunt_settle || null,
           session: own.session || null, instance: res.instance || null,
@@ -352,8 +353,8 @@ async function settleOnce(o, mode) {
    (1) THE READ: the gate, the instance and its members, the server clock, and
        every early answer (rate-limited, no hunt, not due, below the floor, no
        ground, no role). Answers { answer } or the plan { envOf, inst, members,
-       where, fromMs, toMs, nowMs, caughtUp } (envOf: the caller's envelope, read on
-       first ask and only for a player door). */
+       where, fromMs, toMs, nowMs } (envOf: the caller's envelope, read on first ask
+       and only for a player door). */
 export async function readHuntSettle(o, mode) {
   const { exec, user, slot } = o;
   const [read] = await exec(HUNT_READ_SQL, [user, slot, mode === 'tick' ? null : (o.bucket || null)]);
@@ -416,9 +417,7 @@ export async function readHuntSettle(o, mode) {
   const endMs = Number.isFinite(Number(o.atMs)) ? Math.min(nowMs, Math.floor(Number(o.atMs))) : nowMs;
   const toMs = Math.min(endMs, fromMs + HUNT_SETTLE_SPAN_MS);
   if (!(toMs > fromMs)) return notDue();
-  /* `caughtUp`: this window ends at the read's server now (the test seam's `atMs` stands for it; no span cap), so a
-     commit of it leaves every member less than one swing owed (settleOnce `covers`). */
-  return { envOf, inst, members, where, fromMs, toMs, nowMs, caughtUp: toMs === endMs, worldMaxBytes: o.worldMaxBytes };
+  return { envOf, inst, members, where, fromMs, toMs, nowMs, worldMaxBytes: o.worldMaxBytes };
 }
 
 /* (2) THE PROPOSAL: the engine over [fromMs, toMs) and every member's keyed

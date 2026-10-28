@@ -138,8 +138,8 @@
 //              from it and from a twin read of whole envelopes are byte-identical.
 //   TICK-ONE-READ  the browser closed: one fire over a party's selectors reads and
 //              commits the instance ONCE, the rest `instance_settled`, no
-//              envelope built; a backlog past the span cap still takes a slice
-//              per selector.
+//              envelope built; a backlog past the span cap is one slice a
+//              fire, never one per member, the rest the next fire's.
 //   VIEWED-ENVELOPE  the hunt viewed: a landed settle reads no envelope beside
 //              the commit's projection; an early answer reads the caller's once
 //              and carries it; the tick's early answer carries none.
@@ -2102,7 +2102,7 @@ const DB_ARMS = {
   /* TICK-ONE-READ (2027-02-02-settle-cost.sql), THE BROWSER CLOSED: one world-tick fire over a three-hero party's three
      selectors (the roster packs an instance whole) reads the instance ONCE and commits it ONCE; the other two answer
      `instance_settled`, every member's session is settled to the instance's clock, and the tick builds no envelope.
-     A backlog past the span cap is still caught up a slice per selector (a slice that stops short covers nobody). */
+     A backlog past the span cap is one slice a fire (never one per member: a body's engine CPU), the rest the next. */
   'TICK-ONE-READ': async (db, M) => inTx(db, async () => {
     const problems = [];
     const h = await hunter(db, M, { party: [{ ...STRONG }, { ...STRONG }, { ...STRONG }] });
@@ -2125,15 +2125,23 @@ const DB_ARMS = {
     if (f1.settled !== 1 || f1.nothing !== 2 || (f1.reasons || {}).instance_settled !== 2) problems.push(`the fire answered ${JSON.stringify(f1)}`);
     const c1 = await clocks();
     if (!(Number(c1.inst) > h.from) || c1.seats.some((s) => Number(s) !== Number(c1.inst))) problems.push(`the members' clocks ${JSON.stringify(c1)} are not the instance's`);
-    /* THE BACKLOG: 20 minutes owed, past the 15-minute span cap: the first selector settles a slice, the second the rest. */
+    /* THE BACKLOG: 20 minutes owed, past the span cap: ONE slice this fire (the other selectors `instance_settled`, so
+       the body's engine work is one slice, not one per member), the rest the next fire's. */
+    const span = M.HS.HUNT_SETTLE_SPAN_MS;
     seen.length = 0;
-    const f2 = await fire(Number(c1.inst) + 20 * 60000);
-    if (f2.settled !== 2 || (f2.reasons || {}).instance_settled !== 1 || count('hr_hunt_apply_instance(') !== 2) {
-      problems.push(`a backlog past the span cap was not caught up a slice per selector: ${JSON.stringify(f2)}, ${count('hr_hunt_apply_instance(')} commit(s)`);
+    const end = Number(c1.inst) + 20 * 60000;
+    const f2 = await fire(end);
+    if (f2.settled !== 1 || (f2.reasons || {}).instance_settled !== 2 || count('hr_hunt_apply_instance(') !== 1) {
+      problems.push(`a fire over a party behind its span cap committed ${count('hr_hunt_apply_instance(')} slice(s): ${JSON.stringify(f2)} — one a fire`);
     }
     const c2 = await clocks();
-    const owedMs = Number(c1.inst) + 20 * 60000 - Number(c2.inst);
-    if (!(owedMs >= 0 && owedMs < 2000)) problems.push(`the backlog settled to ${c2.inst}, ${owedMs} ms short of ${Number(c1.inst) + 20 * 60000}`);
+    if (!(Number(c2.inst) - Number(c1.inst) <= span && Number(c2.inst) - Number(c1.inst) > span - 2000)) {
+      problems.push(`the first fire over the backlog settled ${Number(c2.inst) - Number(c1.inst)} ms, not one ${span} ms slice`);
+    }
+    const f3 = await fire(end);
+    const c3 = await clocks();
+    const owedMs = end - Number(c3.inst);
+    if (f3.settled !== 1 || !(owedMs >= 0 && owedMs < 2000)) problems.push(`the next fire did not settle the rest: ${JSON.stringify(f3)}, ${owedMs} ms still owed`);
     return problems;
   }),
   /* VIEWED-ENVELOPE (2027-02-02-settle-cost.sql), THE HUNT VIEWED: the player's own settle reads no envelope beside the
@@ -3315,8 +3323,8 @@ const MUTANTS = [
   /* SETTLE-COST (2027-02-02-settle-cost.sql) */
   { arm: 'TICK-ONE-READ', name: '[settle-cost] the tick re-reads every member of an instance it just settled', file: join(FN, 'tick.js'),
     from: "      if (covered.has(sel.userId + ':' + sel.slot)) {", to: "      if (false && covered.has(sel.userId + ':' + sel.slot)) {" },
-  { arm: 'TICK-ONE-READ', name: '[settle-cost] a slice the span cap cut short covers the party (its backlog waits a fire per slice)', file: join(FN, 'hunt-settle.js'),
-    from: '        covers: (!replayed && plan.caughtUp && degraded === 0)', to: '        covers: (!replayed && degraded === 0)' },
+  { arm: 'TICK-ONE-READ', name: '[settle-cost] a slice the span cap cut short covers nobody (a lagging party takes a slice per member a body)', file: join(FN, 'hunt-settle.js'),
+    from: '        covers: replayed ? null :', to: '        covers: (replayed || plan.toMs - plan.fromMs >= HUNT_SETTLE_SPAN_MS) ? null :' },
   { arm: 'TICK-ONE-READ', name: '[settle-cost] the read builds the caller\'s envelope again', file: join(FN, 'hunt-settle.js'),
     from: "         case when g.allowed then public.hr_hunt_instance_read($1::uuid, $2::int) end as inst,\n",
     to: "         case when g.allowed then public.hr_hunt_instance_read($1::uuid, $2::int) end as inst,\n         case when g.allowed then public.hr_state_of($1::uuid, $2::int) end as state,\n" },

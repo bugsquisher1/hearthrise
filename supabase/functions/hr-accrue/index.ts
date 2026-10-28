@@ -113,7 +113,15 @@ import { MONSTERS } from '../../../src/data/monsters.js';
    `prepare: false` is REQUIRED in transaction mode — a named prepared
    statement outlives the transaction that created it, but the backend it was
    prepared on does not, so the next statement fails with "prepared statement
-   does not exist" under load and only under load. */
+   does not exist" under load and only under load.
+   `fetch_types: false` (lane/c-settle-cost, 2026-10-28): the driver's array-type
+   discovery query ran on EVERY new connection — 397,270 times since 08-17, a
+   reconnect after each 20 s idle — and the payload binds and reads no array type.
+   Every type it does read parses from the driver's built-in table either way
+   (jsonb/json -> object, timestamptz -> Date, bool, int4, float; int8 and numeric
+   stay strings), and an array PARAMETER would be bound as `a,b` without it: every
+   array crosses as `$n::text::jsonb` or a `$n::text::<type>[]` literal.
+   tests/delta-transport.mjs T10 proves both halves on the real driver. */
 const DB_URL = Deno.env.get('HR_ENGINE_DB_URL') ?? '';
 
 /* THE TICK BEARER, READ ONCE AT MODULE LOAD. `tick.js` fails closed on an
@@ -136,6 +144,7 @@ const sql = (DB_URL && POOLER_OK)
   ? postgres(DB_URL, {
       max: 2,
       prepare: false,
+      fetch_types: false,
       idle_timeout: 20,
       connect_timeout: 10,
       onnotice: () => {},

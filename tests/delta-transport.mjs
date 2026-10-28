@@ -77,6 +77,13 @@
 //       mutation that edits a file T1/T2 already read proves nothing about T6.
 //   T7  (retired with the claim_reward verb, closed rebuild lane C2: the verb
 //       and claim-reward.js were deleted outright.)
+//   T10 NO TYPE DISCOVERY (lane/c-settle-cost, 2026-10-28): the pool options
+//       this harness runs are READ OUT OF index.ts and carry `fetch_types:
+//       false`; every scalar type the payload reads parses identically with and
+//       without discovery, side by side on the real driver; no payload SQL binds
+//       a JS array into an array-typed parameter (a control proves the driver
+//       would send `a,b`); tick.js's gather seed ladder runs on the deployed
+//       driver and answers each label's own seed.
 //   T9  PRECONDITION — THE CHAIN MUST BE PROD-SHAPED FOR `SEED_SQL`, asserted
 //       before the socket server starts and with the function names READ OUT OF
 //       set-activity.js. It exists because over pglite-socket a SQL error closes
@@ -251,6 +258,21 @@ const MUTATIONS = {
     find: "$8::uuid, $9::text::jsonb,'",
     repl: "$8::uuid, $9::jsonb,'",
   },
+  /* ── T10's mutations (lane/c-settle-cost): the option itself, and the one array bind it made unsafe. */
+  fetch_types_on: {
+    file: FN('index.ts'),
+    why: 'index.ts drops `fetch_types: false` — every new edge connection runs the driver\'s array-type '
+       + 'discovery query again before its first statement (397k of them on live since 08-17).',
+    find: '      fetch_types: false,\n',
+    repl: '',
+  },
+  bare_array_param: {
+    stagedFile: 'supabase/functions/hr-accrue/tick.js',
+    why: 'tick.js binds the gather seed ladder into a bare `$3::text[]` again — with no type discovery the '
+       + 'driver has no array serialiser and every gather settle is refused 22P02.',
+    find: "  + ' from jsonb_array_elements_text($3::text::jsonb) with ordinality l(ts, ord)';",
+    repl: "  + ' from unnest($3::text[]) with ordinality l(ts, ord)';",
+  },
   gather_interval_halved: {
     stagedFile: 'src/core/skill-sim.js',
     why: 'the gather action interval is derived at HALF its honest value — a night pays twice the '
@@ -389,6 +411,18 @@ async function loadSources(mutate) {
     }
   }
   return { src, importDir, tempBase };
+}
+
+/** index.ts's postgres.js pool options, read out of its bytes: the object literal handed to
+ *  `postgres(DB_URL, { ... })`. Literals and the `onnotice` arrow only; anything else is refused. */
+function poolOptionsOf(text) {
+  const m = /postgres\(DB_URL,\s*(\{[\s\S]*?\})\s*\)/.exec(text);
+  if (!m) { const e = new Error('index.ts no longer constructs `postgres(DB_URL, { ... })` — T10 cannot read the pool options'); e.harness = true; throw e; }
+  const body = m[1];
+  if (!/^\{(\s*[a-z_]+:\s*(true|false|\d+|\(\) => \{\}),?)*\s*\}$/.test(body)) {
+    const e = new Error(`index.ts's pool options are not plain literals: ${body.replace(/\s+/g, ' ')}`); e.harness = true; throw e;
+  }
+  return new Function(`return (${body});`)();
 }
 
 /** The cast applied to the delta argument of an `hr_apply(...)` call, read out
@@ -602,7 +636,7 @@ async function run(mutate) {
       + 'a green run means nothing.');
   }
 
-  let db = null, server = null, sql = null;
+  let db = null, server = null, sql = null, poolOpts = null, sqlPort = 0;
   try {
     ({ db } = await bootReplay());
     await db.exec(FIXTURE);
@@ -674,6 +708,7 @@ async function run(mutate) {
     }
 
     const port = await freePort();
+    sqlPort = port;
     const { PGLiteSocketServer } = await import('@electric-sql/pglite-socket');
     server = new PGLiteSocketServer({ db, port, host: '127.0.0.1', maxConnections: 4 });
     await server.start();
@@ -681,11 +716,11 @@ async function run(mutate) {
     /* THE REAL DRIVER, THE REAL OPTIONS. `prepare: false` is not a detail: it
        is what puts every statement on the describe-first path where the driver
        learns the resolved parameter type, which is the whole bug. These are
-       index.ts's pool options. */
+       index.ts's pool options, READ OUT OF ITS BYTES (T10a): a hand copy here is
+       how `fetch_types` could change in the payload and never in this harness. */
     const { default: postgres } = await import('postgres');
-    sql = postgres(`postgres://postgres@127.0.0.1:${port}/postgres`, {
-      max: 2, prepare: false, idle_timeout: 20, connect_timeout: 10, onnotice: () => {},
-    });
+    poolOpts = poolOptionsOf(src.index);
+    sql = postgres(`postgres://postgres@127.0.0.1:${port}/postgres`, poolOpts);
 
     // ── T0. THE CONTROL. ──────────────────────────────────────────────────
     {
@@ -1078,6 +1113,84 @@ async function run(mutate) {
       ok(Number(led.gold_in) === 0,
         `T8 BUDGET: a gathering night stamped gold_in=${led.gold_in} — gathering mints no gold, so `
         + "a non-zero here is another kind's value being charged to this window");
+    }
+
+    /* ── T10. NO TYPE DISCOVERY, AND NOTHING READ DIFFERENTLY FOR IT (lane/c-settle-cost). ──
+       index.ts runs postgres.js with `fetch_types: false`: the array-type query every NEW connection
+       made (397,270 times since 08-17 on live, a reconnect after each 20 s idle) is gone. What the
+       option changes is exactly one thing — the driver learns no ARRAY type — so:
+         (a) the deployed options carry it (read from index.ts's bytes, the options this harness runs);
+         (b) every scalar type the payload reads parses to the SAME JS value with and without it
+             (jsonb/json objects and scalars, int2/4/8, numeric, float8, timestamptz, timestamp, date,
+             bool, text, uuid, null), on the real driver, side by side;
+         (c) no payload SQL binds a JS array into an array-typed parameter (`$n::<type>[]` with no
+             `::text` before it): without discovery the driver sends `a,b` (the control proves it);
+         (d) the one site that did — tick.js's gather seed ladder — runs on the deployed driver and
+             answers every label's seed, each equal to hr_seed of that label alone. */
+    {
+      ok(poolOpts && poolOpts.fetch_types === false,
+        `T10a: index.ts's pool options are ${JSON.stringify(poolOpts)} — no \`fetch_types: false\`, so every `
+        + 'new edge connection runs the driver\'s array-type discovery query before its first statement');
+      const PROBE = `select '{"a":1,"b":[2,"x"],"c":{"d":null},"e":12345678901234}'::jsonb as jb, '"s"'::jsonb as jbs,
+                            '{"k":true}'::json as js, 9007199254740993::int8 as i8, 42::int4 as i4, 7::int2 as i2,
+                            12.5000::numeric as num, 0.25::float8 as f8, '2026-10-28 01:02:03.456789+00'::timestamptz as tz,
+                            '2026-10-28 01:02:03.5'::timestamp as ts, '2026-10-28'::date as d, true as b, 'txt'::text as t,
+                            '00000000-0000-4000-8000-0000000c5d01'::uuid as u, null::jsonb as nul,
+                            to_jsonb('2026-10-28 01:02:03.456789+00'::timestamptz) #>> '{}' as tztext`;
+      const withTypes = postgres(`postgres://postgres@127.0.0.1:${sqlPort}/postgres`, { ...poolOpts, fetch_types: true });
+      try {
+        const [a] = await sql.unsafe(PROBE, []);
+        const [b] = await withTypes.unsafe(PROBE, []);
+        const norm = (r) => JSON.stringify(Object.fromEntries(Object.entries(r).map(([k, v]) =>
+          [k, v instanceof Date ? ['Date', v.getTime()] : [typeof v, v]])));
+        ok(norm(a) === norm(b),
+          `T10b: a type the payload reads parses differently without type discovery: ${norm(a)} vs ${norm(b)}`);
+        ok(typeof a.jb === 'object' && a.jb.e === 12345678901234 && a.jbs === 's' && a.js.k === true
+           && a.i8 === '9007199254740993' && a.i4 === 42 && a.num === '12.5000' && a.tz instanceof Date && a.b === true
+           && a.nul === null,
+          `T10b: the deployed driver reads ${norm(a)} — not jsonb as objects, int8/numeric as exact strings, `
+          + 'timestamptz as a Date: the shapes every reader in the payload is written against');
+      } finally { await withTypes.end({ timeout: 5 }).catch(() => {}); }
+
+      const census = [];
+      for (const file of await payloadFiles(importDir)) {
+        const rel = file.slice(importDir.length + 1).replace(/\\/g, '/');
+        const raw = rel === 'index.ts' ? src.index : (await readFile(file, 'utf8')).replace(/\r\n/g, '\n');
+        /* the code, not its prose: block comments and whole-line `//` comments out (a comment may name the hazard) */
+        const text = raw.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+        for (const m of text.matchAll(/\$\d+::(?!text::)[a-z_][a-z0-9_ ]*\[\]/gi)) census.push(`${rel}: ${m[0]}`);
+      }
+      ok(census.length === 0,
+        `T10c: the payload binds ${census.length} array-typed parameter(s) [${census.join('; ')}]. With `
+        + '`fetch_types: false` postgres.js has no serialiser for an array type and sends a JS array as '
+        + '`a,b` (22P02). Bind it as `$n::text::jsonb` (JSON.stringify) or a `$n::text::<type>[]` literal.');
+
+      const TK = await import(pathToFileURL(join(importDir, 'tick.js')).href + `?t=${Date.now()}${Math.random()}`);
+      ok(typeof TK.SEED_LADDER_SQL === 'string',
+        'T10d: tick.js no longer exports SEED_LADDER_SQL — this arm cannot execute the gather seed ladder');
+      const labels = ['2026-10-28 01:02:03.456789+00', '2026-10-28 01:03:33.456789+00'];
+      const rows = await sql.begin(async (tx) => {
+        await tx`set local role hr_engine`;
+        return await tx.unsafe(TK.SEED_LADDER_SQL, [UID, 0, JSON.stringify(labels)]);
+      });
+      const single = await Promise.all(labels.map((ts) => sql.begin(async (tx) => {
+        await tx`set local role hr_engine`;
+        const [r] = await tx.unsafe(`select (public.hr_seed($1::uuid, $2::int, ${TK.SEED_LABEL_EXPR.replace('l.ts', '$3::text')}) & 4294967295)::bigint as seed`,
+          [UID, 0, ts]);
+        return r.seed;
+      })));
+      ok(rows.length === 2 && rows.every((r, i) => Number(r.ord) === i + 1 && String(r.seed) === String(single[i])),
+        `T10d: the gather seed ladder answered ${JSON.stringify(rows)} for ${labels.length} labels on the deployed driver, `
+        + `not their single seeds ${JSON.stringify(single)} in order`);
+
+      /* THE CONTROL: on the deployed options a JS array bound into `$1::text[]` really is refused. If the driver
+         ever learns array types without discovery, (c) is guarding nothing and must be re-derived. */
+      const ctl = postgres(`postgres://postgres@127.0.0.1:${sqlPort}/postgres`, { ...poolOpts, max: 1 });
+      let refused = false;
+      try { await ctl.unsafe('select array_length($1::text[], 1) as n', [['x', 'y']]); } catch { refused = true; }
+      finally { await ctl.end({ timeout: 5 }).catch(() => {}); }
+      ok(refused, 'T10-CONTROL: the deployed driver bound a JS array into $1::text[] without type discovery — '
+        + 'T10c no longer names a hazard; find out what changed in the driver before trusting it');
     }
   } catch (e) {
     if (e.harness) throw e;

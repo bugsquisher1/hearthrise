@@ -760,15 +760,19 @@ export function planSeedLabels(settle, session, fromMs, toMs, opts) {
    expression rather than restating it; the alias is `l` and the column `ts`. */
 export const SEED_LABEL_EXPR = "'accrue:' || (to_jsonb(l.ts::timestamptz) #>> '{}')";
 
+/* THE LADDER TRAVELS AS JSON TEXT (lane/c-settle-cost): index.ts runs postgres.js with `fetch_types: false`,
+   so the driver knows no ARRAY type and would bind a JS array into an array parameter as `a,b` (22P02 on
+   every gather settle). `$3::text::jsonb` is the payload's one transport rule (tests/delta-transport.mjs
+   T10): the driver passes text through untouched and the SQL does the parse. */
+export const SEED_LADDER_SQL = `select l.ord, (public.hr_seed($1::uuid, $2::int, ${SEED_LABEL_EXPR})`
+  + ' & 4294967295)::bigint as seed'
+  + ' from jsonb_array_elements_text($3::text::jsonb) with ordinality l(ts, ord)';
+
 /** `hr_seed` for a whole ladder, masked exactly as the accrue path masks it. */
 async function seedLadder(exec, sel, labels) {
   const map = new Map();
   if (labels.length === 0) return map;
-  const rows = await exec(
-    `select l.ord, (public.hr_seed($1::uuid, $2::int, ${SEED_LABEL_EXPR})`
-    + ' & 4294967295)::bigint as seed'
-    + ' from unnest($3::text[]) with ordinality l(ts, ord)',
-    [sel.userId, sel.slot, labels.map((x) => x.ts)]);
+  const rows = await exec(SEED_LADDER_SQL, [sel.userId, sel.slot, JSON.stringify(labels.map((x) => x.ts))]);
   for (const r of rows || []) {
     const i = Number(r.ord) - 1;
     if (labels[i]) map.set(labels[i].ms, Number(r.seed));

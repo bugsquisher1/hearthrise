@@ -1,20 +1,22 @@
 // src/data/world/maps/index.js — every world map, and which one each scene opens on.
 // A new map is a file in this folder plus one row below; nothing else changes.
-import millCellar from './mill_cellar.js?v=0.2.62';
-import townCommon from './town_common.js?v=0.2.62';
-import homeCottage from './home_cottage.js?v=0.2.62';
-import millraceSewer from './millrace_sewer.js?v=0.2.62';
-import meadowbrookThicket from './meadowbrook_thicket.js?v=0.2.62';
-import coppercapWarrens from './coppercap_warrens.js?v=0.2.62';
-import mosslightGlade from './mosslight_glade.js?v=0.2.62';
-import sandboxHd64 from './sandbox_hd64.js?v=0.2.62';
+import millCellar from './mill_cellar.js?v=0.2.63';
+import townCommon from './town_common.js?v=0.2.63';
+import homeCottage from './home_cottage.js?v=0.2.63';
+import millraceSewer from './millrace_sewer.js?v=0.2.63';
+import meadowbrookThicket from './meadowbrook_thicket.js?v=0.2.63';
+import coppercapWarrens from './coppercap_warrens.js?v=0.2.63';
+import mosslightGlade from './mosslight_glade.js?v=0.2.63';
+import sandboxHd64 from './sandbox_hd64.js?v=0.2.63';
+import wickstead from './wickstead.js?v=0.2.63';
 
-export const WORLD_MAPS = Object.freeze([millCellar, townCommon, homeCottage, millraceSewer, meadowbrookThicket, coppercapWarrens, mosslightGlade, sandboxHd64]);
+export const WORLD_MAPS = Object.freeze([millCellar, townCommon, homeCottage, millraceSewer, meadowbrookThicket, coppercapWarrens, mosslightGlade, wickstead, sandboxHd64]);
 
 /* STAGED MAPS: a staged hunt's map (src/data/hunts.js `staged`): its grid is authored and walked by the
    engine, its painted ground art is not done yet. No client draws it (src/world reads WORLD_MAPS only);
    tests/world-core.mjs lints it like any map except for the ground art. It moves to WORLD_MAPS, and its
    hunt loses `staged`, when the art lands (tests/hunt-core/forest-cave.mjs staged-until-art). */
+/* Empty since Wickstead opened on its painted ground (lane b-wickstead-art, 2026-10-28). */
 export const STAGED_MAPS = Object.freeze([]);
 
 /** The row of map `id`, shipped or staged, or null: the engine's grid reader (src/core/hunt-ground.js). */

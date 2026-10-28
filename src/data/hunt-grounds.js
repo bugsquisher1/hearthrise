@@ -65,6 +65,11 @@
 //                   goblins' sluice boards (the ONE 1-tile choke) the Sluice, the Springs, Rook's Hide (a
 //                   ruined spring-house) and Vine Hollow, back over the ford. Opened when its style-1
 //                   art landed (lane b-mosslight-art). Logs, and copper at the sluice.
+//   wickstead            THE FARM GROUND (designer 2026-10-28, lane b-greenhaven-6; Greenhaven's sixth, levels 8-18, solo
+//                   first, up to three more). A burned farmstead on the Thicket road where the Meadowbrook leaves the wood:
+//                   the Rick Yard and the Granary west, over the footbridge (the ONE 1-tile choke) the Barn, the Orchard
+//                   and the Burned House, back over the cattle ford to the Cart Shed. STAGED until its painted ground.
+//                   Logs: pines along the hedges, oaks in the orchard.
 // Coordinates are the world maps' tiles (src/data/world/maps/*.js); every spawn
 // and seat stands on open floor there (tests/hunt-core/sewer.mjs, forest-cave.mjs).
 //
@@ -84,6 +89,11 @@
 // Vine (the tank: slow, a blade or fire answers it), the Goblin Sluicer (the bruiser; pans the Warrens' copper,
 // soaked so fire hisses off it) and Rook the Poacher (the rare carrier, in his spring-house). Economy and the
 // fit: docs/planning/PRIORITY_BOARD.md Decisions 2026-10-21, tests/hunt-core/forest-cave.mjs glade-*.
+// THE FARM (mixed; designer 2026-10-28, lane b-greenhaven-6): the Granary Rat (swarm; fat on what the burned farm
+// left), the Barn Wasp (the skirmisher; it flies, so a bow is its answer), the Barn Spider (the tank: slow, webbed,
+// fire takes it) and the Turncoat (glass that hits hard: deserters from a free company robbing the Thicket road; the
+// rare spawn, who carries the jewellery). No named boss: the ground teaches the bow and fire beside the Thicket's
+// club. Each reuses a shipped style-1 unit (rat, hive_wasp, cistern_spider, glade_poacher); only the ground is unpainted.
 // Coin is final in the rows (DM-16). Drops feed what exists: wolf meat cooks, pelts
 // build rooms, ore smelts; fangs, ears and totems are the trophies (VENDOR_TRASH). In the Thicket
 // and the Sewer each monster also drops its own imbuement item (src/data/imbuements.js, the four loot slots).
@@ -123,9 +133,9 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_TUNING } from './hunt-tuning.js?v=0.2.62';
-import { HUNT_INDEX } from './hunts.js?v=0.2.62';
-import { MONSTERS } from './monsters.js?v=0.2.62';
+import { HUNT_TUNING } from './hunt-tuning.js?v=0.2.63';
+import { HUNT_INDEX } from './hunts.js?v=0.2.63';
+import { MONSTERS } from './monsters.js?v=0.2.63';
 
 const pocket = (room, ...spawns) => Object.freeze({ room: Object.freeze(room),
   spawns: Object.freeze(spawns.map(([monster, x, y]) => Object.freeze({ monster, x, y }))) });
@@ -319,6 +329,40 @@ export const HUNT_GROUNDS = Object.freeze({
       ['oak_tree', 24, 2, 4], ['oak_tree', 33, 10, 4],
       /* P5 Vine Hollow */
       ['normal_tree', 5, 4, 5], ['normal_tree', 15, 12, 5], ['oak_tree', 4, 10, 5],
+    ]),
+  }),
+  wickstead: Object.freeze({
+    id: 'wickstead', hunt: 'wickstead', map: 'wickstead',
+    /* the Thicket road, in from the west */
+    start: Object.freeze([[1, 20], [1, 19], [2, 20], [1, 21]]),
+    pockets: Object.freeze([
+      /* P0 the Rick Yard: rats in the hay, the first lesson */
+      box([6, 13, 21, 26], [15, 19], ['granary_rat', 'granary_rat'], ['granary_rat', 'barn_wasp', 'granary_rat', 'granary_rat', 'barn_wasp', 'granary_rat']),
+      /* P1 the Granary */
+      box([4, 2, 22, 9], [14, 5], ['granary_rat', 'granary_rat'], ['barn_wasp', 'granary_rat', 'granary_rat', 'barn_wasp', 'granary_rat', 'granary_rat']),
+      /* P2 the Barn, over the footbridge: the spiders took the loft (bring fire) */
+      box([36, 2, 55, 11], [46, 6], ['barn_spider', 'granary_rat'], ['barn_spider', 'granary_rat', 'barn_wasp', 'granary_rat', 'barn_spider', 'granary_rat']),
+      /* P3 the Orchard: wasps nest in the old trees (bring a bow) */
+      box([38, 16, 57, 25], [48, 20], ['barn_wasp', 'granary_rat'], ['barn_wasp', 'granary_rat', 'granary_rat', 'barn_wasp', 'granary_rat', 'barn_spider']),
+      /* P4 the Burned House: a Turncoat and the rats round his fire */
+      box([36, 29, 55, 37], [45, 33], ['turncoat', 'granary_rat'], ['barn_spider', 'granary_rat', 'turncoat', 'granary_rat', 'barn_wasp', 'granary_rat']),
+      /* P5 the Cart Shed, back over the ford: the robbed cart */
+      box([4, 29, 22, 37], [13, 33], ['granary_rat', 'barn_spider'], ['turncoat', 'granary_rat', 'granary_rat', 'barn_wasp', 'granary_rat', 'barn_spider']),
+    ]),
+    route: Object.freeze([0, 1, 2, 3, 4, 5]),
+    respawnMs: 60000, pullDist: 1.5, partyScale: true, groupFit: 'solo',
+    densityMax: Object.freeze([8, 8, 8, 8]),
+    /* a solo hero may pull up to 6, a pair the full box (the Thicket's slider: the same solo-first shape) */
+    density: density(6, 2, 8),
+    gather: gather(9000, [
+      /* P0 the Rick Yard: the hedge pines */
+      ['normal_tree', 7, 14, 0], ['normal_tree', 20, 14, 0], ['normal_tree', 7, 25, 0],
+      /* P1 the Granary */
+      ['normal_tree', 5, 3, 1], ['normal_tree', 21, 3, 1], ['normal_tree', 5, 9, 1],
+      /* P3 the Orchard: the farm's old oaks */
+      ['oak_tree', 39, 17, 3], ['oak_tree', 56, 17, 3], ['oak_tree', 39, 24, 3], ['oak_tree', 56, 24, 3],
+      /* P5 the Cart Shed */
+      ['normal_tree', 5, 35, 5], ['normal_tree', 21, 35, 5], ['normal_tree', 12, 37, 5],
     ]),
   }),
 });

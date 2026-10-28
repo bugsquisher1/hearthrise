@@ -12,10 +12,10 @@
 // in flight (party-intents.js setLeaveTogether), and the re-read envelope replaces
 // it; a refusal reads in words (refusal-words.js) and changes nothing.
 // ════════════════════════════════════════════════════════════════════════
-import { PARTY_COPY } from '../../data/party.js?v=0.2.62';
-import { setLeaveTogether } from '../../session/party-intents.js?v=0.2.62';
-import { runIntent } from '../intent-words.js?v=0.2.62';
-import { text, attr, prop } from '../../render/paint.js?v=0.2.62';
+import { PARTY_COPY } from '../../data/party.js?v=0.2.63';
+import { setLeaveTogether } from '../../session/party-intents.js?v=0.2.63';
+import { runIntent } from '../intent-words.js?v=0.2.63';
+import { text, attr, prop } from '../../render/paint.js?v=0.2.63';
 
 /** The box inside a member row (built once with the row; shown on the viewer's own row only). */
 export function togetherHtml() {

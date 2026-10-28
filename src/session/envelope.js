@@ -28,7 +28,7 @@
 //      frame whose `frame` is not its envelope's own version is malformed.
 // ════════════════════════════════════════════════════════════════════════
 
-import { residueOf } from './residue.js?v=0.2.62';
+import { residueOf } from './residue.js?v=0.2.63';
 
 /** Envelope keys that describe the answer, not the character. */
 const META = Object.freeze(['ok', 'error', 'accrued']);

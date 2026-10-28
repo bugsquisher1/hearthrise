@@ -68,6 +68,9 @@ const KNOWN_TWINS = [['crown_of_the_fallen_king', 'crown_shard'],
   ['giant_rat_hide', 'wolf_pelt'], ['hive_wasp_stinger', 'venom_sac'], ['glowing_copper_fleck', 'copper_ore'], ['skulkers_shiv', 'bronze_knife'],
   ['dented_copper_pot', 'copper_bar'], ['foremans_lash', 'snare_wire'], ['coppercaps_tallow', 'slime_gel'],
   ['rat_kings_crown', 'crown_of_the_fallen_king'], ['rat_kings_crown', 'crown_shard'], ['coppercaps_cauldron', 'war_crown'],
+  /* Wickstead's four imbuement items (lane b-greenhaven-6, staged; no art spend) wear a near item's icon until the Asset
+     Director draws them: a rat's whisker, a wasp's sting, a wad of web, a torn badge. */
+  ['granary_whisker', 'grayjaw_whisker'], ['barn_wasp_sting', 'culvert_bat_fang'], ['loft_web', 'silk_thread'], ['torn_company_badge', 'warlord_badge'],
   /* The five shields (src/data/shields.js, lane b-spell-roles) wear the Practice Shield's icon until the Asset Director
      draws each: a bronze rim, iron bands on oak, the Rat King's drain grate, a copper cap on steel, a steel grate. */
   ...['practice_shield', 'bronze_rimmed_shield', 'ironbound_shield', 'kingsgrate', 'coppercap_shield', 'steelgrate']

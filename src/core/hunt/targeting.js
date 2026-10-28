@@ -20,13 +20,13 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { HUNT_ROLES, CHALLENGE } from '../../data/hunt-roles.js?v=0.2.62';
-import { MONSTERS } from '../../data/monsters.js?v=0.2.62';
-import { DEFAULT_TARGET_MODE } from '../../data/rule-subjects.js?v=0.2.62';
-import { elementPermille } from '../combat.js?v=0.2.62';
-import { cheb, dist2, los } from './grid.js?v=0.2.62';
-import { unitById, leaderOf } from './movement.js?v=0.2.62';
-import { makeEvent } from './events.js?v=0.2.62';
+import { HUNT_ROLES, CHALLENGE } from '../../data/hunt-roles.js?v=0.2.63';
+import { MONSTERS } from '../../data/monsters.js?v=0.2.63';
+import { DEFAULT_TARGET_MODE } from '../../data/rule-subjects.js?v=0.2.63';
+import { elementPermille } from '../combat.js?v=0.2.63';
+import { cheb, dist2, los } from './grid.js?v=0.2.63';
+import { unitById, leaderOf } from './movement.js?v=0.2.63';
+import { makeEvent } from './events.js?v=0.2.63';
 
 /* holdMs: ms a Challenged monster stays on its challenger (no other Challenge takes it meanwhile).
    The Challenge's cooldown is the ability's own clock (abilities.js `cds`). leaderLast: the leader's last target (TG-04).

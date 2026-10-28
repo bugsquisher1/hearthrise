@@ -96,7 +96,9 @@ const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'))
 /* THE FIRST-HOUR RUNG (lane b-first-hour, designer 2026-10-28): 2027-01-31-items-catalogue.generated.sql is APPLIED history.
    The Graypelt Cloak (hr_items, hr_item_slots: cape) and its Crafting recipe stitch_graypelt_cloak (hr_activities) land in
    ONE forward file, the same full delete+insert replace. */
-const OUT = join(ROOT, 'supabase', 'migrations', '2027-02-05-first-hour-items-catalogue.generated.sql');
+/* WICKSTEAD (lane b-greenhaven-6, designer 2026-10-28): 2027-02-05-first-hour-items-catalogue.generated.sql is APPLIED history.
+   The staged farm ground's four imbuement items (hr_items) land in ONE forward file, the same full delete+insert replace. */
+const OUT = join(ROOT, 'supabase', 'migrations', '2027-02-06-wickstead-items-catalogue.generated.sql');
 /* THE SECOND GENERATED FILE (2026-09-13). hr_item_buffs is emitted as its own
    migration rather than into OUT above, and that is a deliberate operational
    call: OUT is the FOURTH file in tests/schema-apply-order.json and is already

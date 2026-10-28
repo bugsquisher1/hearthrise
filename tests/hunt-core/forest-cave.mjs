@@ -20,6 +20,9 @@
 //                       seeds; prints the practice-sword-and-Thicket-leather graduate beside it (evidence)
 //   glade-between       at each floor (6-seed median per hero-hour): the Sewer's party < the glade solo < the Warrens'
 //                       party, in net gold AND Level XP, and the glade clears +25% over its bill (the H11 gap, 16-31)
+//   wickstead-solo-floor  (Wickstead, lane b-greenhaven-6; staged, played on its fitted grid) a ladder-kit Melee alone at
+//                       its floor (L8) lives the hour on the six seeds, clears +25%, and nets and levels no worse than
+//                       the Thicket at the Thicket's floor; the start kit's hour is printed (evidence)
 //   shop-outfits-defense  the Shop's gear (designer 2026-10-22) sells no slot a walked ground's regular gear drops (a Rare
 //                       named piece may share a slot with a Shop basic), has gloves and
 //                       a belt a new hero can afford (one medium), and a start-kit Melee at the Thicket floor who buys them
@@ -44,9 +47,9 @@ import { pathToFileURL } from 'node:url';
 import { makeReport, ROOT } from './fixtures/h1.js';
 
 const V = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(ROOT, 'src/build-info.js'), 'utf8')) || [, ''])[1];
-const NEW = ['meadowbrook_thicket', 'coppercap_warrens', 'mosslight_glade'];
+const NEW = ['meadowbrook_thicket', 'coppercap_warrens', 'mosslight_glade', 'wickstead'];
 const BRIDGE = { meadowbrook_thicket: [[28, 5], [29, 5], [30, 5], [31, 5], [32, 5]], coppercap_warrens: [[51, 20], [51, 21], [51, 22]],
-  mosslight_glade: [[44, 19], [44, 20], [44, 21], [44, 22], [44, 23]] };
+  mosslight_glade: [[44, 19], [44, 20], [44, 21], [44, 22], [44, 23]], wickstead: [[28, 8], [29, 8], [30, 8], [31, 8]] };
 const MID_DENSITY = 4;
 const RING8 = [[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]];
 /* The designer's six hunt seeds (pass 2026-10-21) and the margin floor (+25%, a minimum: Tyler 10-18/10-20). */
@@ -442,9 +445,36 @@ cases['glade-between'] = async (M) => {
   return bad.length ? bad.join('; ') : null;
 };
 
+/* THE FARM GROUND (lane b-greenhaven-6, designer 2026-10-28): Wickstead is the second solo door for 8-18, beside the
+   Thicket. Played at its floor (L8) on the real settle, alone, six seeds: the ladder-kit Melee lives the hour, clears +25%
+   wherever its bill is a quarter of its income, and its median net gold and Level XP per hour are no worse than the
+   Thicket's at the Thicket's own floor (a second door must not pay less than the first). The start kit is printed. */
+const WICK = 'wickstead';
+cases['wickstead-solo-floor'] = async (M) => {
+  const P = await playOf(M);
+  const floor = floorOf(M, WICK), tf = floorOf(M, 'meadowbrook_thicket');
+  const bad = [], seen = [], kit = [], nets = [], xps = [], tn = [], tx = [];
+  for (const secret of STARTER_SEEDS) {
+    const x = P.run(WICK, floor, ['tank'], { spanMs: 3600000, secret });
+    seen.push(x.totals.falls ? 'died ' + (x.playedMs / 60000).toFixed(1) + 'm' : 'lived');
+    if (x.totals.falls || x.playedMs < 3600000) bad.push('seed ' + secret + ': ended after ' + (x.playedMs / 60000).toFixed(1) + ' min with ' + x.totals.falls + ' death(s) (' + x.ended.join(', ') + ')');
+    if (x.store >= BILL_SHARE_FOR_MARGIN * x.income && (x.income / x.store - 1) * 100 < STARTER_MARGIN_MIN) bad.push('seed ' + secret + ': ' + Math.round((x.income / x.store - 1) * 100) + '% over its bill');
+    nets.push(x.income - x.store); xps.push(x.levelXp);
+    const y = P.run(WICK, floor, ['tank'], { spanMs: 3600000, secret, equipment: M.kit.START_EQUIPMENT });
+    kit.push(y.totals.falls ? 'died ' + (y.playedMs / 60000).toFixed(1) + 'm' : 'lived ' + (y.income - y.store) + ' g');
+    const t = P.run('meadowbrook_thicket', tf, ['tank'], { spanMs: 3600000, secret });
+    tn.push(t.income - t.store); tx.push(t.levelXp);
+  }
+  console.log('    wickstead solo at L' + floor + ', ladder kit, ' + STARTER_SEEDS.length + ' seeds: ' + seen.join(' | ') + '; net ' + median(nets) + ' g/h, Level XP ' + median(xps)
+    + '/h (thicket L' + tf + ': ' + median(tn) + ' g/h, ' + median(tx) + '/h); start kit (evidence): ' + kit.join(' | '));
+  if (!(median(nets) >= median(tn))) bad.push('nets ' + median(nets) + ' g/h, under the Thicket\'s ' + median(tn));
+  if (!(median(xps) >= median(tx))) bad.push('gives ' + median(xps) + ' Level XP/h, under the Thicket\'s ' + median(tx));
+  return bad.length ? 'a ladder-kit Melee alone at the Wickstead floor: ' + bad.join('; ') : null;
+};
+
 /* The glade put back to STAGED as a whole (flag + map), so the two leak mutants below have a staged hunt to leak. */
 const RESTAGE = [['src/data/hunts.js', "art: 'carrion_crow', travelS: 0, pull: 4, respawnMs: 60000,", "art: 'carrion_crow', travelS: 0, pull: 4, respawnMs: 60000, staged: true,"],
-  ['src/data/world/maps/index.js', 'meadowbrookThicket, coppercapWarrens, mosslightGlade, sandboxHd64]);', 'meadowbrookThicket, coppercapWarrens, sandboxHd64]);'],
+  ['src/data/world/maps/index.js', 'meadowbrookThicket, coppercapWarrens, mosslightGlade, wickstead, sandboxHd64]);', 'meadowbrookThicket, coppercapWarrens, wickstead, sandboxHd64]);'],
   ['src/data/world/maps/index.js', 'export const STAGED_MAPS = Object.freeze([]);', 'export const STAGED_MAPS = Object.freeze([mosslightGlade]);']];
 const mutants = [
   /* the glade is OPEN on its art (lane b-mosslight-art): it must stay open only while its painted ground ships */
@@ -468,6 +498,11 @@ const mutants = [
     edits: [['src/data/monsters.js', 'xp: 165, gp: [4, 12]', 'xp: 165, gp: [8, 24]'], ['src/data/monsters.js', 'xp: 225, gp: [6, 18]', 'xp: 225, gp: [12, 36]'],
       ['src/data/monsters.js', 'xp: 260, gp: [4, 12]', 'xp: 260, gp: [8, 24]'], ['src/data/monsters.js', 'xp: 360, gp: [14, 34]', 'xp: 360, gp: [28, 68]'],
       ['src/data/monsters.js', 'xp: 520, gp: [16, 40]', 'xp: 520, gp: [32, 80]']] },
+  { name: 'Wickstead\'s Turncoats and spiders hit six times as hard (atk 10 -> 60, 7 -> 42)', case: 'wickstead-solo-floor',
+    edits: [['src/data/monsters.js', 'hp: 34, atk: 10, def: 3, xp: 240,', 'hp: 34, atk: 60, def: 3, xp: 240,'], ['src/data/monsters.js', 'hp: 30, atk: 7, def: 4, xp: 150,', 'hp: 30, atk: 42, def: 4, xp: 150,']] },
+  { name: 'Wickstead\'s coin cut to a third (it pays under the Thicket)', case: 'wickstead-solo-floor',
+    edits: [['src/data/monsters.js', 'xp: 56, gp: [3, 7]', 'xp: 56, gp: [1, 2]'], ['src/data/monsters.js', 'xp: 150, gp: [5, 12]', 'xp: 150, gp: [2, 4]'],
+      ['src/data/monsters.js', 'xp: 240, gp: [10, 22]', 'xp: 240, gp: [3, 7]'], ['src/data/monsters.js', 'xp: 70, gp: [3, 7]', 'xp: 70, gp: [1, 2]']] },
   { name: 'the Shop sells a helmet the Thicket wolves drop', case: 'shop-outfits-defense',
     edits: [['src/data/supply-basics.js', "  sell('copper_studs', 'gear', null, 120),", "  sell('copper_studs', 'gear', null, 120),\n  sell('leather_helmet', 'gear', null, 120),"]] },
   { name: 'the Shop stops selling gloves (no neutral first armour piece)', case: 'shop-outfits-defense',

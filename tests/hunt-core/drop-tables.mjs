@@ -62,7 +62,10 @@ const TOTAL_RISE_MAX = 0.25;    // Tyler 2026-10-23: total value up to +25% over
 /* TODAY'S PINNED VALUE: expected gold per hero-hour at the floor (coin as the settle rounds it, commons, and every row the
    band model puts at 5% or less, each at the trader's price with gear at full book), on the floor hour's kills, measured
    on next b7af6a9db before any ground converted. A conversion is held to +25% over its ground's row; never re-pinned. */
-const TOTAL_TODAY = Object.freeze({ mill_cellar: 1869, millrace_sewer: 3822, meadowbrook_thicket: 2285, coppercap_warrens: 4588, mosslight_glade: 3834 });
+const TOTAL_TODAY = Object.freeze({ mill_cellar: 1869, millrace_sewer: 3822, meadowbrook_thicket: 2285, coppercap_warrens: 4588, mosslight_glade: 3834,
+  /* a NEW ground has no pre-conversion value: its pin is its neighbours' by floor, the Thicket (L5) to the Glade (L16)
+     interpolated at Wickstead's L8 (lane b-greenhaven-6, designer 2026-10-28): 2285 + (3834 - 2285) x 3/11 */
+  wickstead: 2707 });
 const BUILD_SLOTS = Object.freeze(['helmet', 'body', 'pants', 'boots']);
 const WEIGHTS = Object.freeze(['heavy', 'medium', 'light']);
 const SLOT_WORD = Object.freeze({ helmet: 'helmet', body: 'body', pants: 'legs', boots: 'boots' });
@@ -86,8 +89,10 @@ const REFERENCE = Object.freeze({
   coppercap_warrens: { roles: PARTY, full: true },
   /* the solo spring ground (lane c-ground-16-31): a solo Melee in the ladder kit, the Thicket graduate it is built for */
   mosslight_glade: { roles: ['tank'], full: false },
+  /* the farm ground (lane b-greenhaven-6): a solo Melee in the ladder kit at 8, the Thicket's second door */
+  wickstead: { roles: ['tank'], full: false },
 });
-const GEAR_RUNS = Object.freeze(['meadowbrook_thicket', 'millrace_sewer', 'mosslight_glade']);   // the fresh-hero grounds
+const GEAR_RUNS = Object.freeze(['meadowbrook_thicket', 'millrace_sewer', 'mosslight_glade', 'wickstead']);   // the fresh-hero grounds
 /* THE PARTY GROUNDS' SECOND GROUP (a party ground is measured for a party at the floor AND solo): the Sewer's party of
    four at its floor in the full set, and the Warrens' lone hero at the card's soloFrom. `today` is that group's own
    pinned value (TOTAL_TODAY's method, next b7af6a9db). */
@@ -759,7 +764,7 @@ for (const mu of engineMutants) {
     R.ok(!!why, 'mutant "' + mu.name + '" was NOT caught by ' + mu.case);
   } finally { p.done(); }
 }
-const groundOf = (rule) => /meadowbrook_thicket|millrace_sewer|mosslight_glade|coppercap_warrens|mill_cellar/.exec(rule)[0];
+const groundOf = (rule) => /meadowbrook_thicket|millrace_sewer|mosslight_glade|coppercap_warrens|mill_cellar|wickstead/.exec(rule)[0];
 for (const mu of playMutants) {
   const MR = { fails: [], ok(c, msg) { if (!c) this.fails.push(msg); } };
   await plays(M, P, clone(M.MONSTERS, mu.edit), MR, false, [groundOf(mu.rule)], mu.fresh === true);

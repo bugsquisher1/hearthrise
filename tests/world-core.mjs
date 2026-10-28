@@ -722,7 +722,7 @@ else if (argv.includes('--hashes')) {
   const M = await load(ROOT);
   const book = M.bookm.createBook(M.manifests);
   const tables = { materials: M.terrain.MATERIALS, sprites: book.sprites, openClasses: M.terrain.OPEN_CLASSES, lights: M.terrain.LIGHTS };
-  for (const m of M.maps.WORLD_MAPS) console.log(m.id.padEnd(16), M.mapc.compileMap(m, tables).maskHash, m.maskHash ? '(row says ' + m.maskHash + ')' : '');
+  for (const m of M.maps.WORLD_MAPS.concat(M.maps.STAGED_MAPS)) console.log(m.id.padEnd(16), M.mapc.compileMap(m, tables).maskHash, m.maskHash ? '(row says ' + m.maskHash + ')' : '');
 } else {
   const M = await load(ROOT);
   const fails = await check(M);

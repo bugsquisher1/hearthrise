@@ -34,19 +34,19 @@
 // Nothing here gates or spends anything; the "Start again" button is an
 // intent (CharacterSession.restartHunt) like every other.
 // ════════════════════════════════════════════════════════════════════════
-import { ALERT_INDEX } from '../data/alerts.js?v=0.2.62';
-import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.62';
-import { ALERTS_SEEN_MAX } from '../session/residue.js?v=0.2.62';
-import { huntOf, settingsOf } from '../session/hunt-sections.js?v=0.2.62';
-import { carriedOf, nameOf } from '../session/item-sections.js?v=0.2.62';
-import { huntName, invitesOf } from '../session/party-sections.js?v=0.2.62';
-import { itemName } from './widgets/bits.js?v=0.2.62';
-import { CONSUMABLES } from '../data/consumables.js?v=0.2.62';
-import { deathSeen } from './death-popup.js?v=0.2.62';
-import { awayRecapOf, stampAway } from './away-recap.js?v=0.2.62';
-import { tallyOf, pickWords } from '../session/tally-sections.js?v=0.2.62';
-import { tallyTask } from '../data/tally-tasks.js?v=0.2.62';
-import { gold } from '../render/format.js?v=0.2.62';
+import { ALERT_INDEX } from '../data/alerts.js?v=0.2.63';
+import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.63';
+import { ALERTS_SEEN_MAX } from '../session/residue.js?v=0.2.63';
+import { huntOf, settingsOf } from '../session/hunt-sections.js?v=0.2.63';
+import { carriedOf, nameOf } from '../session/item-sections.js?v=0.2.63';
+import { huntName, invitesOf } from '../session/party-sections.js?v=0.2.63';
+import { itemName } from './widgets/bits.js?v=0.2.63';
+import { CONSUMABLES } from '../data/consumables.js?v=0.2.63';
+import { deathSeen } from './death-popup.js?v=0.2.63';
+import { awayRecapOf, stampAway } from './away-recap.js?v=0.2.63';
+import { tallyOf, pickWords } from '../session/tally-sections.js?v=0.2.63';
+import { tallyTask } from '../data/tally-tasks.js?v=0.2.63';
+import { gold } from '../render/format.js?v=0.2.63';
 
 const tallyLabel = (task) => { const t = tallyTask(task); return t ? t.label : 'a tally'; };
 

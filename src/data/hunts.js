@@ -139,6 +139,19 @@ export const HUNTS = Object.freeze([
       { monster: 'glade_poacher', w: 4, rarity: 'uncommon' }, { monster: 'goblin_sluicer', w: 2, rarity: 'rare' }],
     family: 'Vermin', art: 'carrion_crow', travelS: 0, pull: 4, respawnMs: 60000,
   },
+  /* THE FARM GROUND (lane b-greenhaven-6, designer 2026-10-28; Greenhaven's sixth, Tyler 10-15): a burned farmstead on
+     the Thicket road, where the Meadowbrook leaves the wood. Solo first (up to three more may come). The second solo
+     ground for 8-18, where the Thicket was the only one (the 10-28 new-player walk: "one solo ground L6-15"), and the
+     first door to tier-2 gloves, belts and jewellery. Walked: src/data/hunt-grounds.js `wickstead`. Weights are the
+     pockets' head-count at density 4; the Turncoats, the rare spawn, carry the jewellery. STAGED until its painted
+     ground lands (its creatures reuse shipped units: src/data/world/maps/wickstead.js). */
+  {
+    id: 'wickstead', name: 'Wickstead', theme: 'A burned farm on the Thicket road. Rats in the granary, turncoats in the house.',
+    band: [8, 18],
+    spawns: [{ monster: 'granary_rat', w: 14, rarity: 'common' }, { monster: 'barn_wasp', w: 4, rarity: 'uncommon' },
+      { monster: 'barn_spider', w: 4, rarity: 'uncommon' }, { monster: 'turncoat', w: 2, rarity: 'rare' }],
+    family: 'Vermin', art: 'granary_rat', travelS: 0, pull: 4, respawnMs: 60000,
+  },
 ]);
 
 /** The hunts a player can see and enter: every row not `staged`. */

@@ -5,6 +5,12 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.63 — 2026-10-28 (Wickstead)
+
+**A new hunting ground: Wickstead.** A burned farmstead on the Thicket road, for heroes from Level 8. Rats overrun the granary, wasps nest in the barn and spiders web the lofts. Watch for Turncoats, deserters robbing the road.
+
+**Gloves, belts and jewelry to find.** Barn Spiders drop iron, studded and adept gloves. Barn Wasps drop the matching belts. Turncoats carry the Banded Signet, the Wolfbone Torc and Fang Studs. Bows hit the wasps hard, and fire burns the spiders.
+
 ## v0.2.62 — 2026-10-28 (Smoother Havora)
 
 **Less stutter in town.** Havora now loads and draws its streets in small steps instead of all at once, so walking around town and arriving back from a hunt stay smooth, even on slower computers. The town looks exactly the same.

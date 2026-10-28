@@ -63,8 +63,8 @@
 // FAMILY_ALIAS folds the historical counts rather than stranding them.
 // ════════════════════════════════════════════════════════════════════════
 
-import { applyClassProfiles } from './monster-classes.js?v=0.2.62';
-import { MONSTER_LEVEL_BY_TIER } from './core-model.js?v=0.2.62';
+import { applyClassProfiles } from './monster-classes.js?v=0.2.63';
+import { MONSTER_LEVEL_BY_TIER } from './core-model.js?v=0.2.63';
 
 /* HUNT SPEED (HUNT_SCREEN_SPEC §3.1 #4): a row's `speed` is MILLITILES per second
    (src/data/hunt-tuning.js units; the sewer roster's values are the sim's, ASSUMED).
@@ -805,6 +805,37 @@ export const MONSTERS = {
     hp: 78, atk: 18, def: 11, xp: 520, gp: [16, 40], speed: 3200,
     drops: [{ id: 'raw_wolf_meat', ch: .7, band: 'common' }, { id: 'bones', ch: 1, band: 'common' }, { id: 'rooks_moss_charm', ch: .15, band: 'uncommon' }, { id: 'rooks_whistle', ch: .0038, band: 'rare' },
       { id: 'steel_helm', ch: .0038, band: 'rare' }, { id: 'boarhide_helmet', ch: .0038, band: 'rare' }, { id: 'scholar_helmet', ch: .0038, band: 'rare' }] },
+
+  /* ══ Wickstead, levels 8-18, solo, mixed (lane b-greenhaven-6, designer 2026-10-28): roles and economy in the
+     src/data/hunt-grounds.js header. THE LOOT BANDS: tier-1 boots (rats) and helmets (wasps), tier-2 legs (spiders) and
+     bodies (Turncoats, with their Bramble Blade), each about hourly at the floor. The Rares are the first tier-2 gloves
+     (spiders), belts (wasps) and jewellery (Turncoats), each every 10-20 h: the Shop sells the basic gloves, belt,
+     earrings, ring and necklace, so here they are the prize above it, never a regular drop. ══ */
+  granary_rat: { name: 'Granary Rat', icon: '🐀', tier: 1, level: 9, cls: 'vermin', family: 'Vermin',
+    /* the swarm: fat on the farm's grain, many and quick */
+    hp: 15, atk: 4, def: 1, xp: 56, gp: [3, 7], speed: 3400,
+    drops: [{ id: 'rat_tail', ch: .4, band: 'common' }, { id: 'bones', ch: .35, band: 'common' }, { id: 'granary_whisker', ch: .08, band: 'uncommon' },
+      { id: 'bronze_boots', ch: .0041, band: 'scarce' }, { id: 'leather_boots', ch: .0041, band: 'scarce' }, { id: 'apprentice_boots', ch: .0041, band: 'scarce' }] },
+  barn_wasp: { name: 'Barn Wasp', icon: '🐝', tier: 1, level: 11, cls: 'vermin', family: 'Vermin',
+    /* one override (weapon): it flies, so an arrow brings it down and a club swings at air */
+    weaponWeak: 'ranged', weaponResist: [],
+    hp: 13, atk: 5, def: 0, xp: 70, gp: [3, 7], speed: 4600,
+    drops: [{ id: 'venom_sac', ch: .25, band: 'common' }, { id: 'dry_husk', ch: .4, band: 'common' }, { id: 'barn_wasp_sting', ch: .08, band: 'uncommon' },
+      { id: 'bronze_helm', ch: .03, band: 'scarce' }, { id: 'leather_helmet', ch: .03, band: 'scarce' }, { id: 'apprentice_helmet', ch: .03, band: 'scarce' },
+      { id: 'iron_belt', ch: .003, band: 'rare' }, { id: 'studded_belt', ch: .003, band: 'rare' }, { id: 'adept_belt', ch: .003, band: 'rare' }] },
+  barn_spider: { name: 'Barn Spider', icon: '🕷️', tier: 2, level: 13, cls: 'vermin', family: 'Vermin',
+    /* the tank: slow and webbed in; fire takes the web */
+    elementWeak: 'ember',
+    hp: 30, atk: 7, def: 4, xp: 150, gp: [5, 12], speed: 2600,
+    drops: [{ id: 'silk_thread', ch: .4, band: 'common' }, { id: 'dry_husk', ch: .5, band: 'common' }, { id: 'loft_web', ch: .08, band: 'uncommon' },
+      { id: 'iron_platelegs', ch: .0165, band: 'scarce' }, { id: 'studded_pants', ch: .0165, band: 'scarce' }, { id: 'adept_pants', ch: .0165, band: 'scarce' },
+      { id: 'iron_gauntlets', ch: .0015, band: 'rare' }, { id: 'studded_gloves', ch: .0015, band: 'rare' }, { id: 'adept_gloves', ch: .0015, band: 'rare' }] },
+  turncoat: { name: 'Turncoat', icon: '🗡️', tier: 2, level: 16, cls: 'human', family: 'Human',
+    /* a deserter from a free company, robbing the Thicket road; glass that hits hard. The jewellery's carrier. */
+    hp: 34, atk: 10, def: 3, xp: 240, gp: [10, 22], speed: 3400,
+    drops: [{ id: 'wolf_pelt', ch: .3, band: 'common' }, { id: 'bones', ch: .5, band: 'common' }, { id: 'torn_company_badge', ch: .1, band: 'uncommon' },
+      { id: 'iron_platebody', ch: .0345, band: 'scarce' }, { id: 'studded_body', ch: .0345, band: 'scarce' }, { id: 'adept_body', ch: .0345, band: 'scarce' }, { id: 'bramble_blade', ch: .0345, band: 'scarce' },
+      { id: 'banded_signet', ch: .003, band: 'rare' }, { id: 'wolfbone_torc', ch: .003, band: 'rare' }, { id: 'fang_studs', ch: .003, band: 'rare' }] },
 };
 
 /* SEAL: write each class's profile onto its members, so `m.weaponWeak` is a

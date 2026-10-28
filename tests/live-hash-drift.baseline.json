@@ -24,7 +24,7 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-10-28",
- "replay_ms": 355839,
+ "replay_ms": 6314,
  "counts": {
   "tracked_names": 700,
   "entries": 555
@@ -2059,11 +2059,13 @@
    "sig": "hr_char_level(p_xp bigint)",
    "name": "hr_char_level",
    "tracked_by": [
+    "chain",
     "restate"
    ],
    "touched_by": [
     "2026-10-27-core-bodies.sql",
-    "2027-02-01-level-curve.generated.sql"
+    "2027-02-01-level-curve.generated.sql",
+    "2027-02-04-level-curve-smooth.generated.sql"
    ],
    "live": {
     "md5": "69699aff4af648f4338c8c614859cb48",
@@ -2082,11 +2084,13 @@
    "sig": "hr_char_xp_for_level(p_level integer)",
    "name": "hr_char_xp_for_level",
    "tracked_by": [
+    "chain",
     "restate"
    ],
    "touched_by": [
     "2026-10-27-core-bodies.sql",
-    "2027-02-01-level-curve.generated.sql"
+    "2027-02-01-level-curve.generated.sql",
+    "2027-02-04-level-curve-smooth.generated.sql"
    ],
    "live": {
     "md5": "4930375c7690cb281414bcef54ad6bd8",
@@ -6322,17 +6326,18 @@
    "touched_by": [
     "2026-11-04-hunt-tick-shards.sql",
     "2027-01-01-server-perf.sql",
-    "2027-02-03-tick-capacity.sql"
+    "2027-02-03-tick-capacity.sql",
+    "2027-02-04-tick-span.sql"
    ],
    "live": {
-    "md5": "28bd9d7f6331e1fc91d033a6afb218d9",
-    "norm_len": 4016,
+    "md5": "3b476c1dfe9a084780c8624cd489b5af",
+    "norm_len": 4583,
     "measured": "2026-10-28",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "28bd9d7f6331e1fc91d033a6afb218d9",
-    "norm_len": 4016,
+    "md5": "3b476c1dfe9a084780c8624cd489b5af",
+    "norm_len": 4583,
     "source": "computed-from-replay"
    },
    "agree": true

@@ -20,9 +20,9 @@
 //      resolution so text stays crisp.
 // Colours: --world-* tokens via `css`. Tile, chunk, zoom: the map's grid (zs = z x T / 32).
 // ════════════════════════════════════════════════════════════════════════
-import { zoomFor, frameView, cleanInset } from '../core/camera.js?v=0.2.56';
-import { composeFrame, takeGround } from '../core/compose.js?v=0.2.56';
-import { paintStub } from '../stub-atlas.js?v=0.2.56';
+import { zoomFor, frameView, cleanInset } from '../core/camera.js?v=0.2.58';
+import { composeFrame, takeGround } from '../core/compose.js?v=0.2.58';
+import { paintStub } from '../stub-atlas.js?v=0.2.58';
 
 const LIGHT_BANDS = 4;   // stepped pools: pixel-art light, no airbrush
 const FLASH_ALPHA = 0.7; // a hit's silhouette over the frame

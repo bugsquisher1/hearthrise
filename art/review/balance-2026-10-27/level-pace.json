@@ -1,0 +1,11 @@
+[
+ {"level":10,"target":6,"proposed":5.8,"measuredLow":5.7,"measuredHigh":7.3,"todayCurve":1,"measured":5.9,"errPct":-3.4,"extrapolated":false,"levelHours":2.6,"xpToReach":137918},
+ {"level":25,"target":36,"proposed":36.6,"measuredLow":35.4,"measuredHigh":42.2,"todayCurve":11,"measured":36.4,"errPct":1.6,"extrapolated":false,"levelHours":2.22,"xpToReach":1608758},
+ {"level":50,"target":168,"proposed":173.6,"measuredLow":166.2,"measuredHigh":197.4,"todayCurve":104,"measured":173.2,"errPct":3.4,"extrapolated":false,"levelHours":4.24,"xpToReach":12780658},
+ {"level":100,"target":600,"proposed":579.1,"measuredLow":null,"measuredHigh":null,"todayCurve":395,"measured":null,"errPct":-3.5,"extrapolated":true,"levelHours":10.3,"xpToReach":158978783},
+ {"level":200,"target":1680,"proposed":1737.3,"measuredLow":null,"measuredHigh":null,"todayCurve":2120,"measured":null,"errPct":3.4,"extrapolated":true,"levelHours":12.34,"xpToReach":1175722533},
+ {"level":300,"target":3120,"proposed":3011.1,"measuredLow":null,"measuredHigh":null,"todayCurve":5992,"measured":null,"errPct":-3.5,"extrapolated":true,"levelHours":13.09,"xpToReach":3356596283},
+ {"level":500,"target":6720,"proposed":6485.9,"measuredLow":null,"measuredHigh":null,"todayCurve":22711,"measured":null,"errPct":-3.5,"extrapolated":true,"levelHours":21.86,"xpToReach":14802050883},
+ {"level":750,"target":13440,"proposed":13309.8,"measuredLow":null,"measuredHigh":null,"todayCurve":66035,"measured":null,"errPct":-1,"extrapolated":true,"levelHours":32.62,"xpToReach":55085269133},
+ {"level":1000,"target":23520,"proposed":22708.8,"measuredLow":null,"measuredHigh":null,"todayCurve":141257,"measured":null,"errPct":-3.4,"extrapolated":true,"levelHours":42.46,"xpToReach":141089487383}
+]

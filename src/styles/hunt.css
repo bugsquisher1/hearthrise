@@ -314,10 +314,14 @@
 .hb-ring-xp { fill: none; stroke: var(--steel-sep); stroke-width: 5; }
 .hb-arc.is-xp { stroke: var(--gold-2); stroke-width: 5; }
 .hb-ring-disc { fill: var(--bg-0); }
-.hb-medal-in { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; line-height: 1; pointer-events: none; }
+/* The words fit the disc for the widest they get ("XP 99%" under a 3-digit Level) in the widest fallback face, not only
+   the one on screen: the wide XP line sits low where the disc is narrow, so the stack rides 4 px above centre (the short
+   "Lv" above has the room) and the Level number's line box hugs its lining digits (PH-8, HS-27: v0.2.57 red when the
+   10-25 curve put a 2-digit percent on the fixture). */
+.hb-medal-in { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; line-height: 1; padding-bottom: 8px; pointer-events: none; }
 .hb-lv-k, .hb-xp { font-size: var(--t-micro); font-weight: 700; color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; }
 .hb-xp-k { font-style: normal; }
-.hb-lv { font-family: var(--f-display); font-weight: 700; font-size: var(--t-num); color: var(--gold-2); font-variant-numeric: lining-nums tabular-nums; }
+.hb-lv { font-family: var(--f-display); font-weight: 700; font-size: var(--t-num); line-height: .8; color: var(--gold-2); font-variant-numeric: lining-nums tabular-nums; }
 /* "HP" over its number over its regen, beside the ring's upper half and toward it. */
 .hb-read { display: flex; flex-direction: column; line-height: 1.15; font-variant-numeric: lining-nums tabular-nums; align-self: start; }
 .hb-read.is-hp { grid-area: hp; align-items: flex-end; justify-self: end; }
@@ -647,6 +651,8 @@ label.st-line { cursor: pointer; }
   .hb-hub { grid-template-columns: 72px auto; grid-template-rows: repeat(4, auto); grid-template-areas: "medal hp" "medal mp" "medal stam" "medal food"; column-gap: 4px; row-gap: 0; align-content: center; align-self: center; justify-items: start; }
   .hb-medal { width: 72px; height: 72px; align-self: center; }
   .hb-lv-k, .hb-xp-k { display: none; }
+  /* no "Lv" over the number here, so nothing to ride up for: the stack sits on centre */
+  .hb-medal-in { padding-bottom: 0; }
   .hb-lv { font-size: var(--t-lead); }
   .hb-read { flex-direction: row; align-items: baseline; gap: 4px; line-height: 1.15; }
   .hb-read.is-hp, .hb-read.is-mana { align-items: baseline; justify-self: start; align-self: auto; }

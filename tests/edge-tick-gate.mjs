@@ -250,7 +250,13 @@ function fakeDb(cfg) {
     if (text.includes('current_database()')) return [{ holder: 'cron:postgres' }];
     if (/^select now\(\)/.test(text)) return [{ now: new Date(NOW_MS) }];
     if (text.includes('hr_seed')) {
-      return (params[2] || []).map((ts, i) => ({ ord: i + 1, seed: 1000 + i }));
+      /* THE SEED LADDER crosses as JSON TEXT (`$3::text::jsonb`, tick.js SEED_LADDER_SQL: the deployed driver runs
+         with fetch_types: false and binds no array). Parsed the way Postgres parses it: a JS array here is what the
+         driver would send as `a,b`, which the cast refuses, so the fake refuses it too. */
+      if (!/\$3::text::jsonb/.test(text) || typeof params[2] !== 'string') {
+        throw Object.assign(new Error('invalid input syntax for type json (the seed ladder was not bound as JSON text)'), { code: '22P02' });
+      }
+      return JSON.parse(params[2]).map((ts, i) => ({ ord: i + 1, seed: 1000 + i }));
     }
     if (text.includes('hr_state_of')) {
       o.current = `${params[0]}:${params[1]}`;

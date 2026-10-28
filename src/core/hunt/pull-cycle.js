@@ -22,19 +22,19 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { HUNT_TUNING } from '../../data/hunt-tuning.js?v=0.2.56';
-import { VITALS } from '../../data/core-model.js?v=0.2.56';
-import { MONSTERS, monsterSpeedOf } from '../../data/monsters.js?v=0.2.56';
-import { AI_REPATH_MS } from '../../data/hunt-roles.js?v=0.2.56';
-import { HUNT_GROUNDS, packHpFor, yieldPermille, routeFor, pullRows, monstersOn } from '../../data/hunt-grounds.js?v=0.2.56';
-import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.56';
-import { monsterMaxHit } from '../combat.js?v=0.2.56';
-import { cheb, dist2, freeNear, tileKey } from './grid.js?v=0.2.56';
-import { inArea, resetPack } from './leash.js?v=0.2.56';
-import { atRest, unitById, leaderOf, setGoal, clearGoal, occupancy, reachable } from './movement.js?v=0.2.56';
-import { makeEvent, trackStep } from './events.js?v=0.2.56';
-import { pickLeader, kites } from './roles.js?v=0.2.56';
-import { holderTank, turnTanks, pickInForce } from './targeting.js?v=0.2.56';
+import { HUNT_TUNING } from '../../data/hunt-tuning.js?v=0.2.58';
+import { VITALS } from '../../data/core-model.js?v=0.2.58';
+import { MONSTERS, monsterSpeedOf } from '../../data/monsters.js?v=0.2.58';
+import { AI_REPATH_MS } from '../../data/hunt-roles.js?v=0.2.58';
+import { HUNT_GROUNDS, packHpFor, yieldPermille, routeFor, pullRows, monstersOn } from '../../data/hunt-grounds.js?v=0.2.58';
+import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.58';
+import { monsterMaxHit } from '../combat.js?v=0.2.58';
+import { cheb, dist2, freeNear, tileKey } from './grid.js?v=0.2.58';
+import { inArea, resetPack } from './leash.js?v=0.2.58';
+import { atRest, unitById, leaderOf, setGoal, clearGoal, occupancy, reachable } from './movement.js?v=0.2.58';
+import { makeEvent, trackStep } from './events.js?v=0.2.58';
+import { pickLeader, kites } from './roles.js?v=0.2.58';
+import { holderTank, turnTanks, pickInForce } from './targeting.js?v=0.2.58';
 
 /* deadMs: a corpse's age. hpMilli: out-of-combat regen carried below one HP.
    phase / routeIdx / phaseMs / regroupNext / runs / nextId: the cycle. alive / respawnAtMs: a pack. */

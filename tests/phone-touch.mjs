@@ -55,7 +55,7 @@ import { readFile, mkdir } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { ROOT, serve, SDK_STUB } from './_client-harness.mjs';
-import { RING_WORDS } from './_bar-probes.mjs';
+import { RING_WORDS, RING_WORDS_WIDEST } from './_bar-probes.mjs';
 
 const clone = (o) => JSON.parse(JSON.stringify(o));
 const HUNT = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/hunt-envelope.json'), 'utf8'));
@@ -411,6 +411,8 @@ async function barFits(page, tag, fails) {
   if (f.hooks.length) fails.push('PH-7 [' + tag + '] the tutorial hooks missing, doubled or off screen: ' + f.hooks.join(', '));
   const ring = await page.evaluate((src) => (0, eval)(src), RING_WORDS);
   if (ring.err || !ring.n || ring.out.length || ring.bitmap || ring.crisp) fails.push('PH-7 [' + tag + '] the ring: ' + JSON.stringify(ring));
+  const widest = await page.evaluate((src) => (0, eval)(src), RING_WORDS_WIDEST);
+  if (widest.err || !widest.n || widest.out.length) fails.push('PH-7 [' + tag + '] the ring at its widest words (XP 99% under Level 999): ' + JSON.stringify(widest));
   /* A swipe over the slots (a sideways wheel, as a thumb scrolls) brings slots 10 and 20 into reach. */
   const g = await page.evaluate(() => window.__r('.hb-grid'));
   if (!g) { fails.push('PH-7 [' + tag + '] CONTROL: no slot block'); return; }
@@ -442,6 +444,8 @@ async function desktopBar(page, tag, fails) {
   if (d.n < 9 || d.hidden.length) fails.push('PH-8 [' + tag + '] fight controls not in view and pressable on the desktop bar: ' + d.hidden.join(', ') + ' (' + d.n + ' found)');
   const ring = await page.evaluate((src) => (0, eval)(src), RING_WORDS);
   if (ring.err || !ring.n || ring.out.length || ring.bitmap || ring.crisp) fails.push('PH-8 [' + tag + '] the ring: ' + JSON.stringify(ring));
+  const widest = await page.evaluate((src) => (0, eval)(src), RING_WORDS_WIDEST);
+  if (widest.err || !widest.n || widest.out.length) fails.push('PH-8 [' + tag + '] the ring at its widest words (XP 99% under Level 999): ' + JSON.stringify(widest));
 }
 
 /* ── PH-9 ── THE STAMINA "+" (Tyler 10-25), on a phone (844x390): it opens a panel wholly on screen with the server's quote

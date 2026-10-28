@@ -17,10 +17,10 @@
 // left as typed.
 // Anything malformed is null: a line the client cannot read is not shown.
 // ════════════════════════════════════════════════════════════════════════
-import { roleForWeapon } from '../data/hunt-roles.js?v=0.2.56';
-import { ITEMS } from '../data/items.js?v=0.2.56';
-import { CHAT_LIMITS } from '../data/chat-channels.js?v=0.2.56';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.56';
+import { roleForWeapon } from '../data/hunt-roles.js?v=0.2.58';
+import { ITEMS } from '../data/items.js?v=0.2.58';
+import { CHAT_LIMITS } from '../data/chat-channels.js?v=0.2.58';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.58';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const CHANNEL = /^(global|trade|system|local:[a-z0-9_]{1,64}|party:[0-9a-f-]{36})$/;

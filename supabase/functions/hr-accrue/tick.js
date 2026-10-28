@@ -760,15 +760,19 @@ export function planSeedLabels(settle, session, fromMs, toMs, opts) {
    expression rather than restating it; the alias is `l` and the column `ts`. */
 export const SEED_LABEL_EXPR = "'accrue:' || (to_jsonb(l.ts::timestamptz) #>> '{}')";
 
+/* THE LADDER TRAVELS AS JSON TEXT (lane/c-settle-cost): index.ts runs postgres.js with `fetch_types: false`,
+   so the driver knows no ARRAY type and would bind a JS array into an array parameter as `a,b` (22P02 on
+   every gather settle). `$3::text::jsonb` is the payload's one transport rule (tests/delta-transport.mjs
+   T10): the driver passes text through untouched and the SQL does the parse. */
+export const SEED_LADDER_SQL = `select l.ord, (public.hr_seed($1::uuid, $2::int, ${SEED_LABEL_EXPR})`
+  + ' & 4294967295)::bigint as seed'
+  + ' from jsonb_array_elements_text($3::text::jsonb) with ordinality l(ts, ord)';
+
 /** `hr_seed` for a whole ladder, masked exactly as the accrue path masks it. */
 async function seedLadder(exec, sel, labels) {
   const map = new Map();
   if (labels.length === 0) return map;
-  const rows = await exec(
-    `select l.ord, (public.hr_seed($1::uuid, $2::int, ${SEED_LABEL_EXPR})`
-    + ' & 4294967295)::bigint as seed'
-    + ' from unnest($3::text[]) with ordinality l(ts, ord)',
-    [sel.userId, sel.slot, labels.map((x) => x.ts)]);
+  const rows = await exec(SEED_LADDER_SQL, [sel.userId, sel.slot, JSON.stringify(labels.map((x) => x.ts))]);
   for (const r of rows || []) {
     const i = Number(r.ord) - 1;
     if (labels[i]) map.set(labels[i].ms, Number(r.seed));
@@ -1304,14 +1308,29 @@ export async function runTick(opts) {
     hunts = { settled: 0, nothing: 0, none: 0, refused: 0, ended: 0, reasons: Object.create(null) };
     /* `opts.huntBudgetMs` is the guard's clock seam; index.ts never passes it. */
     const huntDeadline = t0 + (Number.isFinite(opts.huntBudgetMs) ? opts.huntBudgetMs : HUNT_BODY_BUDGET_MS);
+    /* ONE SETTLE AN INSTANCE A FIRE (2027-02-02-settle-cost.sql). A party's members ride one body (the roster packs an
+       instance whole); the first one's landed settle settles them all and says whom (hunt-settle.js `covers`). A later
+       selector of any of them is not re-read: it is `nothing`, `instance_settled`. A backlog past the span cap is the
+       next fire's slice, never a second slice in this body (its engine CPU is bounded by its instances, not their
+       party sizes). A refused or replayed settle covers nobody: the next member's selector tries the instance again. */
+    const covered = new Set();
     for (const sel of body.hunts) {
       if (now() >= huntDeadline) { hunts.deferred = (hunts.deferred || 0) + 1; continue; }
+      if (covered.has(sel.userId + ':' + sel.slot)) {
+        hunts.nothing += 1;
+        hunts.reasons.instance_settled = (hunts.reasons.instance_settled || 0) + 1;
+        continue;
+      }
       let v;
       try {
-        v = await settleHunt({ exec, user: sel.userId, slot: sel.slot, mode: 'tick', session: sel.session, grounds: opts.grounds });
+        /* `opts.atMs`: the guard's clock seam (each window ends there instead of at the server's now, clamped to it;
+           hunt-settle.js documents it), like `opts.grounds`; index.ts passes neither. */
+        v = await settleHunt({ exec, user: sel.userId, slot: sel.slot, mode: 'tick', session: sel.session, grounds: opts.grounds,
+          ...(Number.isFinite(opts.atMs) ? { atMs: opts.atMs } : {}) });
       } catch (e) {
         v = { outcome: 'refused', reason: 'error:' + String((e && e.message) || e).slice(0, 64) };
       }
+      if (Array.isArray(v.covers)) for (const c of v.covers) covered.add(c);
       const k = v.outcome === 'paid' ? 'settled' : (v.outcome in hunts ? v.outcome : 'refused');
       hunts[k] += 1;
       if (v.ended) hunts.ended += 1;

@@ -1,16 +1,16 @@
 // ITEMS — extracted from hearthrise-phaseA.html
 
-import { GEAR_ITEMS } from './gear-tiers.js?v=0.2.56';
-import { WAVE3_ITEMS } from './wave3-uniques.js?v=0.2.56';
-import { SLOT_ITEMS } from './slot-ladders.js?v=0.2.56';
-import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=0.2.56';
-import { LIB2_ITEMS } from './library2-items.js?v=0.2.56';
-import { STONECRAFT_ITEMS } from './stonecraft.js?v=0.2.56';
-import { BOSS_FORGE_ITEMS } from './boss-forge.js?v=0.2.56';
-import { CHAMPION_ITEMS } from './champions.js?v=0.2.56';
-import { DRINK_ITEMS } from './drinks.js?v=0.2.56';
-import { IMBUE_ITEMS } from './imbuements.js?v=0.2.56';
-import { SHIELD_ITEMS } from './shields.js?v=0.2.56';
+import { GEAR_ITEMS } from './gear-tiers.js?v=0.2.58';
+import { WAVE3_ITEMS } from './wave3-uniques.js?v=0.2.58';
+import { SLOT_ITEMS } from './slot-ladders.js?v=0.2.58';
+import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=0.2.58';
+import { LIB2_ITEMS } from './library2-items.js?v=0.2.58';
+import { STONECRAFT_ITEMS } from './stonecraft.js?v=0.2.58';
+import { BOSS_FORGE_ITEMS } from './boss-forge.js?v=0.2.58';
+import { CHAMPION_ITEMS } from './champions.js?v=0.2.58';
+import { DRINK_ITEMS } from './drinks.js?v=0.2.58';
+import { IMBUE_ITEMS } from './imbuements.js?v=0.2.58';
+import { SHIELD_ITEMS } from './shields.js?v=0.2.58';
 
 export const ITEMS={
   /* b215: the generated tier ladder (7 material tiers × every armour slot ×

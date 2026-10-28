@@ -14,7 +14,9 @@
 // rather than not at all; the next load tries again.
 // ════════════════════════════════════════════════════════════════════════
 
-const ATLAS = new URL('../data/glyphs.js?v=0.2.56', import.meta.url).href;
+import { BUILD } from '../build-info.js?v=0.2.58';
+
+const ATLAS = new URL('../data/glyphs.js', import.meta.url).href + '?v=' + BUILD.cache;
 const PENDING = new WeakMap();
 
 /** The atlas on `win` (window.HR_GLYPHS): one <script> per page, a promise that settles when it has run or failed. */

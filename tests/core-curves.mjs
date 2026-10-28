@@ -24,6 +24,8 @@ import { SKILLS_DEF } from '../src/data/skills.js';
 import { MONSTERS, monsterLevelOf } from '../src/data/monsters.js';
 
 const LEVELS = [...Array.from({ length: 120 }, (_, i) => i + 1), 150, 199, 200, 201, 250, 300, 400];
+/* the character's Level curve also past them: its late brackets' edges and deep into the last one (it runs forever) */
+const CHAR_LEVELS = [...LEVELS, 299, 301, 500, 750, 1000, 2500, 10000];
 const COMBAT = Object.keys(SKILLS_DEF).filter((k) => SKILLS_DEF[k].cat === 'combat');
 const CAPPED = Object.keys(SKILLS_DEF).filter((k) => SKILLS_DEF[k].cat !== 'combat').slice(0, 2);
 
@@ -40,9 +42,9 @@ async function readSql(db) {
   const one = async (sql, args) => (await db.query(sql, args)).rows;
   const lv = LEVELS;
   const out = {};
-  out.charXp = await one('select l, public.hr_char_xp_for_level(l)::text as v from unnest($1::int[]) l', [lv]);
+  out.charXp = await one('select l, public.hr_char_xp_for_level(l)::text as v from unnest($1::int[]) l', [CHAR_LEVELS]);
   const xs = [];
-  for (const l of lv) { const x = XP.charXpForLevel(l); xs.push(x - 1, x, x + 1); }
+  for (const l of CHAR_LEVELS) { const x = XP.charXpForLevel(l); xs.push(x - 1, x, x + 1); }
   out.charLevel = await one('select x::text as x, public.hr_char_level(x) as v from unnest($1::bigint[]) x', [xs.filter((x) => x >= 0).map(String)]);
   out.skill = [];
   for (const s of [...COMBAT, ...CAPPED]) {

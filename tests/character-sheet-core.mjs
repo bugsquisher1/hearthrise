@@ -71,13 +71,15 @@ async function rules(root) {
   const perks = { ok: true, rooms: {}, plots: {}, propertyTier: 0, unlockedRecipes: {}, renownAllXp: 0.03, clanPerks: {}, castle: null };
   /* A live +10% combat-XP food buff, so the combat part is not zero (a sheet that folded it into perks shows). */
   const buffs = [{ type: 'combat_xp', magnitude: 10, from: new Date(Date.now() - 60000).toISOString(), until: new Date(Date.now() + 3600000).toISOString() }];
-  const env = { ok: true, state: { level_xp: 21591 }, skills: { melee: { xp: 4700, level: 20 } }, equipment: { cape: 'chitinweave_cloak' }, buffs };
+  /* Level 10's Level XP on the shipped curve (never a typed total: the curve is data, lane/b-level-curve) */
+  const L10_XP = (await imp('src/core/xp.js')).charXpForLevel(10);
+  const env = { ok: true, state: { level_xp: L10_XP }, skills: { melee: { xp: 4700, level: 20 } }, equipment: { cape: 'chitinweave_cloak' }, buffs };
   const sh = S.characterSheetOf(env, perks, Date.now());
   const lasting = P.xpMultiplierParts(AC.bonusFor(perks, null));
   if (Math.abs(sh.xp.perks - lasting.all) > 1e-4 || !(sh.xp.combat > 0.09) || sh.xp.buffs !== 0 || 'gear' in sh.xp) fails.push('CS-X1 the sheet\'s XP parts ' + JSON.stringify(sh.xp) + ' are not grantXp\'s (' + JSON.stringify(lasting) + ')');
-  if (sh.level !== 10) fails.push('CS-X1 the sheet reads Level ' + sh.level + ' off 21,591 Level XP, not 10');
+  if (sh.level !== 10) fails.push('CS-X1 the sheet reads Level ' + sh.level + ' off ' + L10_XP + ' Level XP, not 10');
   // CS-M1
-  const armoured = Object.assign({}, env, { state: { level_xp: 21591 }, equipment: { helmet: 'bronze_helm', body: 'leather_body', belt: 'apprentice_belt' } });
+  const armoured = Object.assign({}, env, { state: { level_xp: L10_XP }, equipment: { helmet: 'bronze_helm', body: 'leather_body', belt: 'apprentice_belt' } });
   const sm = S.characterSheetOf(armoured, perks, Date.now());
   const MIT = await imp('src/core/mitigation.js');
   const { ITEMS } = await imp('src/data/items.js');

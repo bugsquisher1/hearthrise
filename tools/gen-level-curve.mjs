@@ -38,7 +38,9 @@ import { dirname, join } from 'node:path';
 import { isMain } from '../tests/_is-main.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-export const OUT_NAME = '2027-02-04-level-curve-smooth.generated.sql';
+/* 2027-02-07-level-curve-wickstead (lane/a-v0263-reds): Wickstead opened (8-18 solo, v0.2.63), so the pace was re-measured
+   (plans pace + ladder) and the brackets re-fitted (pace.mjs --fit); 2027-02-04 is APPLIED history. Same table, new rows. */
+export const OUT_NAME = '2027-02-07-level-curve-wickstead.generated.sql';
 const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 
 /* The Levels the self-check pins: every bracket's edge, Tyler's target Levels and a deep one. */

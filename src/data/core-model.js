@@ -36,21 +36,24 @@
    10-27 curve's to the XP (from 137,918 XP at Level 10 on, nothing moved). The XP step
    jumps 6x at Level 5 because the Thicket pays three times the Cellar. Then the rest of
    today's content (10), the long climb (50, 300). */
+/* RE-FITTED 2026-10-28 (lane/a-v0263-reds): Wickstead (8-18 solo) opened and pays the 8-15 stretch faster, so the pace
+   was re-measured (plans pace + ladder) and pace.mjs --fit re-fitted the brackets (minimax 3.4%); Levels 6-8 then eased
+   by hand so no Level is 2x the one before (C6). Forward file 2027-02-07-level-curve-wickstead. */
 export const LEVEL_CURVE = Object.freeze({
-  first: 133,
+  first: 127,
   brackets: Object.freeze([
-    Object.freeze({ from: 1, rise: 128, bend: 0 }),
-    Object.freeze({ from: 2, rise: 253, bend: 0 }),
-    Object.freeze({ from: 3, rise: 516, bend: 0 }),
-    Object.freeze({ from: 4, rise: 5145, bend: 0 }),
-    Object.freeze({ from: 5, rise: 5056, bend: 0 }),
-    Object.freeze({ from: 6, rise: 8748, bend: 0 }),
-    Object.freeze({ from: 7, rise: 15724, bend: 0 }),
-    Object.freeze({ from: 8, rise: 27189, bend: 0 }),
-    Object.freeze({ from: 9, rise: 2075, bend: 0 }),
-    Object.freeze({ from: 10, rise: 0, bend: 489 }),
-    Object.freeze({ from: 50, rise: 80832, bend: 119 }),
-    Object.freeze({ from: 300, rise: 211914, bend: 578 }),
+    Object.freeze({ from: 1, rise: 127, bend: 0 }),
+    Object.freeze({ from: 2, rise: 254, bend: 0 }),
+    Object.freeze({ from: 3, rise: 521, bend: 0 }),
+    Object.freeze({ from: 4, rise: 5246, bend: 0 }),
+    Object.freeze({ from: 5, rise: 6604, bend: 0 }),
+    Object.freeze({ from: 6, rise: 12700, bend: 0 }),
+    Object.freeze({ from: 7, rise: 21334, bend: 0 }),
+    Object.freeze({ from: 8, rise: 18461, bend: 0 }),
+    Object.freeze({ from: 9, rise: 1, bend: 0 }),
+    Object.freeze({ from: 10, rise: 0, bend: 497 }),
+    Object.freeze({ from: 50, rise: 80221, bend: 123 }),
+    Object.freeze({ from: 300, rise: 210858, bend: 580 }),
   ]),
 });
 

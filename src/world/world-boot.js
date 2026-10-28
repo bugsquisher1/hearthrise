@@ -26,34 +26,33 @@
 // scene drawing from it shows. The first scene opens whole; a later one (a ground entered, the town after
 // a hunt) switches once its sheets have arrived, the last frame holding meanwhile.
 // ════════════════════════════════════════════════════════════════════════
-import { BUILD } from '../build-info.js?v=0.2.61';
-import { MATERIALS, OPEN_CLASSES, LIGHTS } from '../data/world/terrain.js?v=0.2.61';
-import { WORLD_MAPS, SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.61';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.61';
-import { MONSTERS } from '../data/monsters.js?v=0.2.61';
-import { compileMap } from './core/map-compile.js?v=0.2.61';
-import { groundOfSliced } from './core/compose.js?v=0.2.61';
-import { createBook, STUB_SPRITE } from './core/book.js?v=0.2.61';
-import { fpsFor, MOBILE_QUERY } from './core/camera.js?v=0.2.61';
-import { heroBuilding, roofTargets, stepAlpha } from './core/roofs.js?v=0.2.61';
-import { readScene, setChoice, heroPosOn, notePos, forgetPos } from './store.js?v=0.2.61';
-import { loadManifests, createSceneImages, loadAtlasSet } from './atlas.js?v=0.2.61';
-import { sceneSets } from './scene-sets.js?v=0.2.61';
-import { createGridArt, sandboxExtras, presenceFor } from './sandbox-scene.js?v=0.2.61';
-import { createCanvasBackend } from './render/canvas-backend.js?v=0.2.61';
-import { huntOfMap } from './hunt-maps.js?v=0.2.61';
-import { createHuntScene } from './hunt-scene.js?v=0.2.61';
-import { liveSceneOf, endLiveScene } from '../hunt-view/scene.js?v=0.2.61';
-import { huntOf } from '../session/hunt-sections.js?v=0.2.61';
-import { createWalkScene } from './walk-scene.js?v=0.2.61';
-import { createTownZoom } from './town-zoom.js?v=0.2.61';
-import { homeMapFor, homeEnv } from './home-scene.js?v=0.2.61';
-import { runAction } from './steer-local.js?v=0.2.61';
-import { heroSprite } from '../session/hero-look.js?v=0.2.61';
-import { keyBelongsToField } from '../utils/dom.js?v=0.2.61';
-import { homeOf } from '../session/home-sections.js?v=0.2.61';
-import { skillsOf } from '../session/item-sections.js?v=0.2.61';
-import { createHearthView } from './hearth-burn.js?v=0.2.61';
+import { BUILD } from '../build-info.js?v=0.2.62';
+import { MATERIALS, OPEN_CLASSES, LIGHTS } from '../data/world/terrain.js?v=0.2.62';
+import { WORLD_MAPS, SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.62';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.62';
+import { MONSTERS } from '../data/monsters.js?v=0.2.62';
+import { compileMap } from './core/map-compile.js?v=0.2.62';
+import { createBook, STUB_SPRITE } from './core/book.js?v=0.2.62';
+import { fpsFor, MOBILE_QUERY } from './core/camera.js?v=0.2.62';
+import { heroBuilding, roofTargets, stepAlpha } from './core/roofs.js?v=0.2.62';
+import { readScene, setChoice, heroPosOn, notePos, forgetPos } from './store.js?v=0.2.62';
+import { loadManifests, createSceneImages, loadAtlasSet } from './atlas.js?v=0.2.62';
+import { sceneSetsSliced } from './scene-sets.js?v=0.2.62';
+import { createGridArt, sandboxExtras, presenceFor } from './sandbox-scene.js?v=0.2.62';
+import { createCanvasBackend } from './render/canvas-backend.js?v=0.2.62';
+import { huntOfMap } from './hunt-maps.js?v=0.2.62';
+import { createHuntScene } from './hunt-scene.js?v=0.2.62';
+import { liveSceneOf, endLiveScene } from '../hunt-view/scene.js?v=0.2.62';
+import { huntOf } from '../session/hunt-sections.js?v=0.2.62';
+import { createWalkScene } from './walk-scene.js?v=0.2.62';
+import { createTownZoom } from './town-zoom.js?v=0.2.62';
+import { homeMapFor, homeEnv } from './home-scene.js?v=0.2.62';
+import { runAction } from './steer-local.js?v=0.2.62';
+import { heroSprite } from '../session/hero-look.js?v=0.2.62';
+import { keyBelongsToField } from '../utils/dom.js?v=0.2.62';
+import { homeOf } from '../session/home-sections.js?v=0.2.62';
+import { skillsOf } from '../session/item-sections.js?v=0.2.62';
+import { createHearthView } from './hearth-burn.js?v=0.2.62';
 
 /* THE KEYS (desktop): WASD and the arrows, by physical key (e.code, so a
    non-QWERTY layout walks with the same hand). Two held at once walk the
@@ -171,18 +170,27 @@ export async function bootWorld(panel, opts) {
     if (!compiled.has(id)) compiled.set(id, compileMap(ROWS.get(id), (artOf(id) || { tables }).tables));
     return compiled.get(id);
   };
-  /* THE SHEETS A BASE-GRID SCENE DRAWS FROM (scene-sets.js), once per map; another grid's art is gridArt's. */
+  /* EVERY HEAVY STEP OF A SCENE runs in slices, each a task of its own (compose.js sliced); a pane closed stops them */
+  let gone = false;   // destroyed
+  const slices = { later: (fn) => win.setTimeout(() => { if (!gone) fn(); }, 0), now: () => win.performance.now() };
+  /* THE SHEETS A BASE-GRID SCENE DRAWS FROM (scene-sets.js; its ground first), once per map; another grid's art is gridArt's. */
   const needs = new Map();
-  const setsFor = (id) => {
+  const setsOf = async (id) => {
     const grid = ROWS.get(id).grid;
-    if (!needs.has(id)) needs.set(id, grid && grid !== 'base' ? [] : sceneSets(mapOf(id), ROWS.get(id), book, tables));
+    if (!needs.has(id)) needs.set(id, grid && grid !== 'base' ? [] : await sceneSetsSliced(mapOf(id), ROWS.get(id), book, tables, slices));
     return needs.get(id);
   };
+  /* A SCENE MADE READY: its sheets, those sheets loaded, its ground binned for the chunks (tests/perf-budget.mjs PB-HELD) */
+  const prepareScene = async (id) => {
+    await sheets.ensure(await setsOf(id));
+    if (gone) return;   // a sheet landing after the pane closed ends here; sync() checks again
+    await backend.prepare(mapOf(id), artOf(id) || undefined, slices);
+  };
   const homeNow = createHomeReader(character);
-  /* THE FIRST SCENE OPENS WHOLE: its sheets load before the first frame (another grid's scene opens on the Common
+  /* THE FIRST SCENE OPENS WHOLE: made ready before the first frame (another grid's scene opens on the Common
      while its own art loads, route below). */
   const first = readScene(view(), homeMapFor(homeNow().tier)).map;
-  await sheets.ensure(setsFor(setsFor(first).length ? first : SCENE_MAPS.town));
+  await prepareScene((await setsOf(first)).length ? first : SCENE_MAPS.town);
   stage.querySelectorAll('.world-status').forEach((el) => el.remove());
   backend.mount(stage);
 
@@ -198,7 +206,7 @@ export async function bootWorld(panel, opts) {
   const mq = typeof win.matchMedia === 'function' ? win.matchMedia(MOBILE_QUERY) : null;
   /* THE TOWN ZOOM (town-zoom.js): the viewer's pick over the town, the screen class's anywhere else */
   const zoom = createTownZoom({ win, doc, stage, character, mq, onChange: () => { if (!running) sync(); } });
-  let running = false, raf = 0, last = 0, frames = 0, scene = null, roofAlpha = {}, gone = false;   // gone: destroyed
+  let running = false, raf = 0, last = 0, frames = 0, scene = null, roofAlpha = {};
   let walk = null, lastWalk = null;
   let walkPlaced = true, walkStand = null;   // the town walk began on the server's place; the stand key (station:stand:since) it last walked to
   const town = opts.town || null;
@@ -332,14 +340,7 @@ export async function bootWorld(panel, opts) {
       if (!waiting.has(sc.map)) {
         waiting.add(sc.map);
         const id = sc.map;
-        const task = (fn) => new Promise((done) => win.setTimeout(() => done(gone ? null : fn()), 0));
-        /* the ground first, in slices of its own (the town's is 22k dual tiles: compose.js groundOfSliced), then what
-           the scene draws over it; a pane closed meanwhile stops the slicing */
-        const slices = { later: (fn) => win.setTimeout(() => { if (!gone) fn(); }, 0), now: () => win.performance.now() };
-        task(() => { const g = ROWS.get(id).grid; if (!g || g === 'base') { const m = mapOf(id); return groundOfSliced(m, book, tables, m.T || 32, slices); } })
-          .then(() => task(() => setsFor(id)))
-          .then((need) => need && sheets.ensure(need))
-          .then(() => task(() => backend.prepare(mapOf(id), artOf(id) || undefined)))
+        new Promise((done) => win.setTimeout(done, 0)).then(() => (gone ? null : prepareScene(id)))
           .then(() => { waiting.delete(id); if (!running) sync(); },
             (e) => console.error('[world] the scene "' + id + '" could not be prepared', e));
       }
@@ -376,6 +377,8 @@ export async function bootWorld(panel, opts) {
     }
     const targets = roofTargets(map.buildings, heroBuilding(map.buildings, cast.hero));
     for (const id of Object.keys(targets)) roofAlpha[id] = id in roofAlpha ? stepAlpha(roofAlpha[id], targets[id], dt) : targets[id];
+    /* a new map's (or zoom's) first view bakes its ground a slice a frame first: the last frame stays meanwhile */
+    if (!backend.ready(cast)) return;
     backend.sync(Object.assign({ name: sc.kind === 'hunt' ? null : name, roofAlpha, t: now }, cast));
     frames++;
   }

@@ -22,19 +22,19 @@
 // keyBelongsToField (src/utils/dom.js), which the World and the window keys
 // read too — so W types while the field has focus and walks once it is left.
 // ════════════════════════════════════════════════════════════════════════
-import { CHAT_TABS, WHISPER } from '../../data/chat-channels.js?v=0.2.61';
-import { refusalWords } from '../intent-words.js?v=0.2.61';
-import { ROLE_GLYPH } from '../../data/hunt-hud.js?v=0.2.61';
-import { HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.61';
-import { isWhisperTab } from '../../social/whispers.js?v=0.2.61';
-import { linkLabel } from '../../social/chat-lines.js?v=0.2.61';
-import { combatHtml, patchCombat, actCombat } from './chat-combat.js?v=0.2.61';
-import { showTip, hideTip } from './item-tip.js?v=0.2.61';
-import { rarityOf } from '../bag-model.js?v=0.2.61';
-import { glyphSvg } from '../launcher.js?v=0.2.61';
-import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.61';
-import { escapeHtml as esc, keyBelongsToField } from '../../utils/dom.js?v=0.2.61';
-import { playerTargetOf } from '../context-menu.js?v=0.2.61';
+import { CHAT_TABS, WHISPER } from '../../data/chat-channels.js?v=0.2.62';
+import { refusalWords } from '../intent-words.js?v=0.2.62';
+import { ROLE_GLYPH } from '../../data/hunt-hud.js?v=0.2.62';
+import { HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.62';
+import { isWhisperTab } from '../../social/whispers.js?v=0.2.62';
+import { linkLabel } from '../../social/chat-lines.js?v=0.2.62';
+import { combatHtml, patchCombat, actCombat } from './chat-combat.js?v=0.2.62';
+import { showTip, hideTip } from './item-tip.js?v=0.2.62';
+import { rarityOf } from '../bag-model.js?v=0.2.62';
+import { glyphSvg } from '../launcher.js?v=0.2.62';
+import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.62';
+import { escapeHtml as esc, keyBelongsToField } from '../../utils/dom.js?v=0.2.62';
+import { playerTargetOf } from '../context-menu.js?v=0.2.62';
 
 const STATE = new WeakMap();
 const ROW = Object.freeze(Object.fromEntries(CHAT_TABS.map((t) => [t.id, t])));

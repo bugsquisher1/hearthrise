@@ -18,8 +18,8 @@
 // Reading `hunt`: the server's session record sits under `hunt.session` (the
 // section view) and, in the client fixture, flat on `hunt`. Both are read.
 // ════════════════════════════════════════════════════════════════════════
-import { sanitizeSummary, sanitizeSummaries } from '../session/hunt-summaries.js?v=0.2.61';
-import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.61';
+import { sanitizeSummary, sanitizeSummaries } from '../session/hunt-summaries.js?v=0.2.62';
+import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.62';
 
 export { sanitizeSummaries };
 

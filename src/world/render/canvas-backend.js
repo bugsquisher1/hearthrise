@@ -1,14 +1,14 @@
 // ════════════════════════════════════════════════════════════════════════
 // src/world/render/canvas-backend.js — THE WORLD ON A 2D CANVAS.
 //
-// Interface { mount, setMap, prepare, setInset, sync, snapshot, destroy } — the same as
+// Interface { mount, setMap, prepare, ready, setInset, sync, snapshot, destroy } — the same as
 // null-backend.js, and both draw composeFrame()'s list over the same manifest
 // book, so what the node tests assert is what this paints. The screen adds
 // pick / screenOf: a tap's client point ↔ the last frame's tiles and sprites.
 //
 // One frame:
 //   1. compose at ART resolution (the map's T) on an offscreen canvas: ground
-//      chunks (16x16 tiles, baked once per map from groundTiles()), decals,
+//      chunks (16x16 tiles, ground-chunks.js: baked in slices, ahead of the view), decals,
 //      the ONE shadow mask at --world-shadow-alpha (ellipses, polygons and
 //      cast silhouettes sheared by castMatrix), the y-sorted sprites, the
 //      raised layer (rock tops, capstones, roofs), then light: the map's
@@ -20,13 +20,16 @@
 //      resolution so text stays crisp.
 // Colours: --world-* tokens via `css`. Tile, chunk, zoom: the map's grid (zs = z x T / 32).
 // ════════════════════════════════════════════════════════════════════════
-import { zoomFor, frameView, cleanInset } from '../core/camera.js?v=0.2.61';
-import { composeFrame, takeGround } from '../core/compose.js?v=0.2.61';
-import { paintStub } from '../stub-atlas.js?v=0.2.61';
+import { zoomFor, frameView, cleanInset } from '../core/camera.js?v=0.2.62';
+import { composeFrame } from '../core/compose.js?v=0.2.62';
+import { createGroundChunks } from './ground-chunks.js?v=0.2.62';
+import { paintStub } from '../stub-atlas.js?v=0.2.62';
 
 const LIGHT_BANDS = 4;   // stepped pools: pixel-art light, no airbrush
 const FLASH_ALPHA = 0.7; // a hit's silhouette over the frame
 const CHUNK_KEEP = 24;   // baked ground chunks kept (LRU): a 192 x 116 town is 96 of ~1 MB each
+const WARM_MS = 8;       // a new map's first view: ground baked per frame while the last frame stays
+const AHEAD_MS = 6;      // the chunks just off screen: baked per idle slice, so walking onto one bakes nothing
 
 /**
  * @param {{win: Window, doc: Document, book: object, images: object, tables: object,
@@ -46,10 +49,12 @@ export function createCanvasBackend(o) {
   lit.c.addEventListener('contextrestored', () => { litSig = null; });
   const stubs = new Map();
   let host = null, canvas = null, ctx = null, ro = null, onResize = null;
-  let map = null, chunks = new Map();
+  let map = null;
+  const ground = createGroundChunks({ doc, tone, now: () => win.performance.now() });
+  let hold = true, ring = [], aheadId = 0;   // hold: a new view's ground is not baked yet (ready())
   let z = 2, dpr = 1, W = 1, H = 1, dirty = true, inset = cleanInset(null);
-  /* the viewer's zoom (camera.js zoomFor pick; null: the screen class's); chunks kept: two screens' worth */
-  let zoomPick = null, keep = CHUNK_KEEP;
+  /* the viewer's zoom (camera.js zoomFor pick; null: the screen class's) */
+  let zoomPick = null;
   let T = 32, CHUNK = 16 * T, zs = z;
   /* Ease after an inset change (camera.js easedCam); the FIRST inset is the start, never eased (hero switch). */
   let lastCam = null, camFrom = null, insetSince = -Infinity, insetHeard = false;
@@ -82,78 +87,6 @@ export function createCanvasBackend(o) {
       stubs.set(d.w + 'x' + d.h, s);
     }
     return { img: s, sx: 0, sy: 0 };
-  }
-
-  function chunk(cx, cy) {
-    const key = chunkKey(cx, cy);
-    let c = chunks.get(key);
-    if (c) { chunks.delete(key); chunks.set(key, c); return c; }
-    if (chunks.size >= keep) chunks.delete(chunks.keys().next().value);
-    c = doc.createElement('canvas');
-    c.width = CHUNK; c.height = CHUNK;
-    const g = c.getContext('2d');
-    g.imageSmoothingEnabled = false;
-    const x0 = cx * CHUNK, y0 = cy * CHUNK;
-    const own = binned.cells.get(key) || NONE;
-    g.fillStyle = tone('void');
-    for (let i = 0, v = own.voids; i < v.length; i += 2) g.fillRect(v[i] - x0, v[i + 1] - y0, T, T);
-    /* placeholder tones (a town ahead of its ground art): one token per material and parity, read once per chunk */
-    const tones = new Map();
-    for (let i = 0, t = own.tones; i < t.length; i += 3) {
-      const k = binned.names[t[i]];
-      if (!tones.has(k)) tones.set(k, tone(k));
-      g.fillStyle = tones.get(k);
-      g.fillRect(t[i + 1] - x0, t[i + 2] - y0, T, T);
-    }
-    for (let i = 0, t = own.tiles; i < t.length; i += 5) {
-      const img = images[binned.names[t[i]]];
-      if (img) g.drawImage(img, t[i + 1], t[i + 2], T, T, t[i + 3] - x0, t[i + 4] - y0, T, T);
-    }
-    chunks.set(key, c);
-    return c;
-  }
-
-  /* THE GROUND BY CHUNK, binned once per map into packed numbers (voids x,y; tones name,x,y; tiles set,sx,sy,x,y):
-     a chunk bakes from its own cells. prepare() bins the next map when its sheets land, and the bins are KEPT per
-     map, so the town shown again after a hunt never re-makes its ground inside a frame (tests/perf-budget.mjs). */
-  const NONE = Object.freeze({ voids: [], tones: [], tiles: [] });
-  const BINS = new WeakMap();   // map → { book, bins }
-  const EMPTY = () => ({ cells: new Map(), names: [] });
-  let binned = EMPTY();
-  /* a chunk's key: one number per (cx, cy), the dual grid's -1 column included (never a string per tile) */
-  const chunkKey = (cx, cy) => cy * 65536 + cx;
-  function bin(gr, T, CHUNK) {
-    const cells = new Map(), names = [], nameAt = new Map();
-    const name = (s) => { let i = nameAt.get(s); if (i === undefined) { i = names.length; names.push(s); nameAt.set(s, i); } return i; };
-    /* a tone's name per material and parity, made once per map rather than once per cell */
-    const toneAt = new Map();
-    const toneName = (m, alt) => { const k = alt ? 'b' + m : 'a' + m; let i = toneAt.get(k); if (i === undefined) toneAt.set(k, i = name('ground-' + m + (alt ? '-b' : '-a'))); return i; };
-    const into = (kind, t, a, b, c, d, e) => {
-      for (let cy = Math.floor(t.y / CHUNK); cy * CHUNK < t.y + T; cy++) {
-        for (let cx = Math.floor(t.x / CHUNK); cx * CHUNK < t.x + T; cx++) {
-          const k = chunkKey(cx, cy);
-          let bk = cells.get(k);
-          if (!bk) cells.set(k, bk = { voids: [], tones: [], tiles: [] });
-          const out = bk[kind];
-          if (kind === 'voids') out.push(a, b);
-          else if (kind === 'tones') out.push(a, b, c);
-          else out.push(a, b, c, d, e);
-        }
-      }
-    };
-    for (const t of gr.voids) into('voids', t, t.x, t.y);
-    for (const t of gr.tones) into('tones', t, toneName(t.m, t.alt), t.x, t.y);
-    for (const t of gr.tiles) into('tiles', t, name(t.set), t.sx, t.sy, t.x, t.y);
-    for (const b of cells.values()) for (const kind of ['voids', 'tones', 'tiles']) b[kind] = Int32Array.from(b[kind]);
-    return { cells, names };
-  }
-  function binsFor(m, a) {
-    const kept = BINS.get(m);
-    if (kept && kept.book === a.book) return kept.bins;
-    const t = m.T || 32;
-    const bins = bin(takeGround(m, a.book, a.tables, t), t, 16 * t);
-    BINS.set(m, { book: a.book, bins });
-    return bins;
   }
 
   function blit(g, d, view) {
@@ -450,17 +383,36 @@ export function createCanvasBackend(o) {
     ctx.textBaseline = 'bottom';
   }
 
+  function viewOf(state, t0) {
+    /* ONE zoom for every scene (measure()); the camera looks at the hero (or `state.camera`) inside, and keeps
+       the hero in, the part of the stage the docked windows leave uncovered */
+    const k = dpr / z;
+    return frameView(state.camera || state.hero, W / z, H / z, map, z, T,
+      { inset: { left: inset.left * k, right: inset.right * k, top: inset.top * k, bottom: inset.bottom * k }, keep: state.hero,
+        from: camFrom, sinceMs: t0 - insetSince });
+  }
+  /** The [cx, cy] chunks on the map under `view` grown by `pad` art px on every side. */
+  function chunksOf(view, pad) {
+    const out = [], mw = map.w * T, mh = map.h * T;
+    for (let cy = Math.floor((view.oy - pad) / CHUNK); cy * CHUNK < view.oy + view.h + pad; cy++) {
+      for (let cx = Math.floor((view.ox - pad) / CHUNK); cx * CHUNK < view.ox + view.w + pad; cx++) {
+        if (cx < 0 || cy < 0 || cx * CHUNK >= mw || cy * CHUNK >= mh) continue;
+        out.push([cx, cy]);
+      }
+    }
+    return out;
+  }
+  const later = (fn) => (win.requestIdleCallback ? win.requestIdleCallback(fn, { timeout: 250 }) : win.setTimeout(fn, 0));
+  const unlater = (id) => (win.cancelIdleCallback ? win.cancelIdleCallback(id) : win.clearTimeout(id));
+  function bakeAhead() {
+    aheadId = 0;
+    if (map && !ground.bake(ring, win.performance.now() + AHEAD_MS)) aheadId = later(bakeAhead);
+  }
+
   function draw(state) {
     const t0 = win.performance.now();
     if (dirty) measure();
-    /* ONE zoom for every scene (measure(), from the window alone). The camera
-       looks at the hero (or the point a walk scene leans it toward,
-       `state.camera`) inside the part of the stage the docked windows leave
-       uncovered, and keeps the hero in that part. */
-    const k = dpr / z;
-    const fv = frameView(state.camera || state.hero, W / z, H / z, map, z, T,
-      { inset: { left: inset.left * k, right: inset.right * k, top: inset.top * k, bottom: inset.bottom * k }, keep: state.hero,
-        from: camFrom, sinceMs: t0 - insetSince });
+    const fv = viewOf(state, t0);
     lastCam = fv.cam;
     const { view, plan } = fv;
     sizeTo(comp.c, view.w, view.h);
@@ -471,14 +423,11 @@ export function createCanvasBackend(o) {
     g.globalCompositeOperation = 'source-over';
     g.fillStyle = tone('void');
     g.fillRect(0, 0, view.w, view.h);
-    const mw = map.w * T, mh = map.h * T;
-    keep = Math.max(CHUNK_KEEP, 2 * (Math.ceil(view.w / CHUNK) + 1) * (Math.ceil(view.h / CHUNK) + 1));
-    for (let cy = Math.floor(view.oy / CHUNK); cy * CHUNK < view.oy + view.h; cy++) {
-      for (let cx = Math.floor(view.ox / CHUNK); cx * CHUNK < view.ox + view.w; cx++) {
-        if (cx < 0 || cy < 0 || cx * CHUNK >= mw || cy * CHUNK >= mh) continue;
-        g.drawImage(chunk(cx, cy), cx * CHUNK - view.ox, cy * CHUNK - view.oy);
-      }
-    }
+    for (const [cx, cy] of chunksOf(view, 0)) g.drawImage(ground.get(cx, cy), cx * CHUNK - view.ox, cy * CHUNK - view.oy);
+    ring = chunksOf(view, CHUNK / 2);   // half a chunk off screen, baked in idle time (bakeAhead); the LRU keeps two rings
+    ground.fit(Math.max(CHUNK_KEEP, 2 * ring.length));
+    if (!aheadId && !ground.whole(ring)) aheadId = later(bakeAhead);
+    hold = false;
     for (const d of list.decals) blit(g, d, view);
     shadows(g, list, view);
     for (const d of list.sprites) {
@@ -528,15 +477,26 @@ export function createCanvasBackend(o) {
       if (art) ({ book, images, tables } = art); else ({ book, images, tables } = o);
       T = m.T || 32; CHUNK = 16 * T;
       dirty = true;
-      binned = binsFor(m, { book, tables });
-      chunks = new Map();
+      ground.use(m, { book, tables, images });
+      hold = true;
       last = null;
       lastCam = camFrom = null;   // a new map never eases in from the old one
     },
-    prepare(m, art) { binsFor(m, art || o); },
+    /** Bin map `m`'s ground ahead of its first frame: at once, or in slices (`sl`, compose.js sliced) → a promise. */
+    prepare(m, art, sl) { return ground.prepare(m, art || o, sl); },
+    /** May the next sync draw? A new map's (or zoom's) view first bakes its ground, WARM_MS a frame; the frame after draws. */
+    ready(state) {
+      if (!hold || !map || !canvas) return true;
+      if (dirty) measure();
+      const t0 = win.performance.now();
+      const shown = chunksOf(viewOf(state, t0).view, 0);
+      if (ground.whole(shown)) { hold = false; return true; }
+      ground.bake(shown, t0 + WARM_MS);
+      return false;
+    },
     sync(state) { if (map && canvas) draw(state); },
     /** The viewer's zoom (CSS px per base art px; null: the screen class's), from the next frame on. */
-    setZoom(v) { const next = Number.isFinite(v) && v > 0 ? v : null; if (next !== zoomPick) { zoomPick = next; dirty = true; lastCam = camFrom = null; } },
+    setZoom(v) { const next = Number.isFinite(v) && v > 0 ? v : null; if (next !== zoomPick) { zoomPick = next; dirty = true; hold = true; lastCam = camFrom = null; } },
     /**
      * THE CAMERA INSET: the strips of the stage a docked window covers, in CSS
      * px ({left, right, top, bottom}; null uncovers it). The camera frames the
@@ -597,8 +557,9 @@ export function createCanvasBackend(o) {
       if (canvas) canvas.remove();
       host = canvas = ctx = ro = onResize = map = last = lastView = null;
       plateHits = [];
-      chunks = new Map();
-      binned = EMPTY();
+      if (aheadId) unlater(aheadId);
+      aheadId = 0; ring = [];
+      ground.clear();
     },
   };
 }

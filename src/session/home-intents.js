@@ -15,8 +15,8 @@
 // character of the account: their `home`, `depot` and `bank` sections changed
 // too. A refusal re-reads nobody and carries the server's code and counts.
 // ════════════════════════════════════════════════════════════════════════
-import { askVia } from './intent-ledger.js?v=0.2.61';
-import { refusalOf } from './refusal.js?v=0.2.61';
+import { askVia } from './intent-ledger.js?v=0.2.62';
+import { refusalOf } from './refusal.js?v=0.2.62';
 
 const ID = /^[a-z0-9_]{1,64}$/;
 const OFFER = /^(?:property|room)\.[a-z0-9_]{1,40}(?:\.[0-9]{1,2})?$/;

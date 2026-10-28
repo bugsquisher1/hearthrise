@@ -13,19 +13,19 @@
 //   needOf(id, sk, lv)  "Needs Melee 30 — you have 20" / "Needs Level 30 — you're 28", against the server's numbers
 //   flavourOf(id)   the item's one-line description, or ''
 // ════════════════════════════════════════════════════════════════════════
-import { ITEMS } from '../data/items.js?v=0.2.61';
-import { LEVEL_REQ } from '../data/gear-tiers.js?v=0.2.61';
-import { DRINK_ITEMS, DRINK_RECIPES, DRINK_DESC } from '../data/drinks.js?v=0.2.61';
-import { MONSTERS } from '../data/monsters.js?v=0.2.61';
-import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.61';
-import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOT_META } from '../data/gathering.js?v=0.2.61';
-import { SHOP_OFFERS } from '../data/shops.js?v=0.2.61';
-import { SKILLS_DEF } from '../data/skills.js?v=0.2.61';
-import { ITEM_DESC } from '../data/item-descriptions.js?v=0.2.61';
-import { itemName, monsterName } from './widgets/bits.js?v=0.2.61';
-import { kindOf, riteOf, cookOf, namedFuelOf } from './bag-model.js?v=0.2.61';
-import { FLAMES } from '../data/hearth.js?v=0.2.61';
-import { SHOP_LISTED_OFFER_IDS } from '../data/supply-basics.js?v=0.2.61';
+import { ITEMS } from '../data/items.js?v=0.2.62';
+import { LEVEL_REQ } from '../data/gear-tiers.js?v=0.2.62';
+import { DRINK_ITEMS, DRINK_RECIPES, DRINK_DESC } from '../data/drinks.js?v=0.2.62';
+import { MONSTERS } from '../data/monsters.js?v=0.2.62';
+import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.62';
+import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOT_META } from '../data/gathering.js?v=0.2.62';
+import { SHOP_OFFERS } from '../data/shops.js?v=0.2.62';
+import { SKILLS_DEF } from '../data/skills.js?v=0.2.62';
+import { ITEM_DESC } from '../data/item-descriptions.js?v=0.2.62';
+import { itemName, monsterName } from './widgets/bits.js?v=0.2.62';
+import { kindOf, riteOf, cookOf, namedFuelOf } from './bag-model.js?v=0.2.62';
+import { FLAMES } from '../data/hearth.js?v=0.2.62';
+import { SHOP_LISTED_OFFER_IDS } from '../data/supply-basics.js?v=0.2.62';
 
 const skillName = (id) => (SKILLS_DEF[id] && SKILLS_DEF[id].name) || id;
 const RARITY = Object.freeze({ common: 'Common', uncommon: 'Uncommon', rare: 'Rare', epic: 'Epic', legendary: 'Legendary', mythic: 'Mythic', unique: 'Unique' });

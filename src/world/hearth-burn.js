@@ -20,7 +20,7 @@
 // the plain fire (never a missing sprite).
 // PURE: no DOM, no window, no clock of its own (the caller passes `now`).
 // ════════════════════════════════════════════════════════════════════════
-import { FLAMES, BURN_SHOW, HEARTH_FUELS, NAMED_FUELS, fuelRecipeId } from '../data/hearth.js?v=0.2.61';
+import { FLAMES, BURN_SHOW, HEARTH_FUELS, NAMED_FUELS, fuelRecipeId } from '../data/hearth.js?v=0.2.62';
 
 const CHUNK_OF_RECIPE = new Map(HEARTH_FUELS.map((f) => [fuelRecipeId(f.item), f.chunk]));
 const FLARE_MS = 700;        // the flare's 6 frames at 10 fps, and a beat for the sparks

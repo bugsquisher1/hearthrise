@@ -1,0 +1,1072 @@
+{
+ "at": "2026-10-28T01:16:43.785Z",
+ "db": [
+  {
+   "db_b": 710143123,
+   "max_conn": 60,
+   "shared_buffers_8k": "32768",
+   "pss_track": "top",
+   "track_functions": "none",
+   "pss_reset": "2026-08-17 07:46:57.831199+00"
+  }
+ ],
+ "biggest": [
+  {
+   "rel": "net._http_response",
+   "total_b": 210255872,
+   "heap_b": 207462400,
+   "idx_b": 2703360,
+   "est_rows": 0,
+   "live": 0,
+   "dead": 0,
+   "last_autovacuum": null
+  },
+  {
+   "rel": "realtime.messages_2026_10_26",
+   "total_b": 97271808,
+   "heap_b": 663552,
+   "idx_b": 770048,
+   "est_rows": 3842,
+   "live": 3881,
+   "dead": 6,
+   "last_autovacuum": "2026-10-26 23:34:04.318937+00"
+  },
+  {
+   "rel": "public.player_ledger",
+   "total_b": 92758016,
+   "heap_b": 67805184,
+   "idx_b": 24895488,
+   "est_rows": 148055,
+   "live": 148421,
+   "dead": 492,
+   "last_autovacuum": "2026-10-27 11:19:40.625717+00"
+  },
+  {
+   "rel": "cron.job_run_details",
+   "total_b": 82853888,
+   "heap_b": 71507968,
+   "idx_b": 11288576,
+   "est_rows": 112830,
+   "live": 106790,
+   "dead": 12693,
+   "last_autovacuum": "2026-10-27 07:07:25.938314+00"
+  },
+  {
+   "rel": "realtime.messages_2026_10_24",
+   "total_b": 66682880,
+   "heap_b": 524288,
+   "idx_b": 598016,
+   "est_rows": 2899,
+   "live": 2985,
+   "dead": 280,
+   "last_autovacuum": "2026-10-24 20:54:41.076465+00"
+  },
+  {
+   "rel": "realtime.messages_2026_10_25",
+   "total_b": 59031552,
+   "heap_b": 475136,
+   "idx_b": 557056,
+   "est_rows": 2548,
+   "live": 2682,
+   "dead": 185,
+   "last_autovacuum": "2026-10-25 22:36:53.575297+00"
+  },
+  {
+   "rel": "public.hr_tick_cron_log",
+   "total_b": 28803072,
+   "heap_b": 24797184,
+   "idx_b": 3964928,
+   "est_rows": 60361,
+   "live": 60599,
+   "dead": 4313,
+   "last_autovacuum": "2026-10-27 12:37:41.083103+00"
+  },
+  {
+   "rel": "realtime.messages_2026_10_27",
+   "total_b": 22806528,
+   "heap_b": 188416,
+   "idx_b": 245760,
+   "est_rows": 976,
+   "live": 993,
+   "dead": 148,
+   "last_autovacuum": "2026-10-27 19:09:58.275862+00"
+  },
+  {
+   "rel": "public.player_intents",
+   "total_b": 6070272,
+   "heap_b": 2154496,
+   "idx_b": 3874816,
+   "est_rows": 10773,
+   "live": 11224,
+   "dead": 2136,
+   "last_autovacuum": "2026-10-27 22:17:07.321314+00"
+  },
+  {
+   "rel": "public.hr_db_samples",
+   "total_b": 1335296,
+   "heap_b": 1220608,
+   "idx_b": 73728,
+   "est_rows": 720,
+   "live": 720,
+   "dead": 99,
+   "last_autovacuum": "2026-10-24 00:07:42.512515+00"
+  },
+  {
+   "rel": "auth.refresh_tokens",
+   "total_b": 999424,
+   "heap_b": 344064,
+   "idx_b": 614400,
+   "est_rows": 2032,
+   "live": 2074,
+   "dead": 428,
+   "last_autovacuum": "2026-10-22 23:40:29.527486+00"
+  },
+  {
+   "rel": "public.maintenance_log",
+   "total_b": 729088,
+   "heap_b": 466944,
+   "idx_b": 221184,
+   "est_rows": 1919,
+   "live": 1932,
+   "dead": 2,
+   "last_autovacuum": "2026-10-06 13:07:23.819122+00"
+  },
+  {
+   "rel": "net.http_request_queue",
+   "total_b": 671744,
+   "heap_b": 114688,
+   "idx_b": 0,
+   "est_rows": 0,
+   "live": 33,
+   "dead": 49,
+   "last_autovacuum": "2026-10-28 00:35:13.244262+00"
+  },
+  {
+   "rel": "public.player_state",
+   "total_b": 573440,
+   "heap_b": 196608,
+   "idx_b": 32768,
+   "est_rows": 15,
+   "live": 15,
+   "dead": 42,
+   "last_autovacuum": "2026-10-28 01:10:15.011255+00"
+  },
+  {
+   "rel": "public.hunt_session_tally",
+   "total_b": 466944,
+   "heap_b": 409600,
+   "idx_b": 16384,
+   "est_rows": 175,
+   "live": 175,
+   "dead": 45,
+   "last_autovacuum": "2026-10-28 01:10:14.984917+00"
+  },
+  {
+   "rel": "public.player_inventory",
+   "total_b": 466944,
+   "heap_b": 122880,
+   "idx_b": 303104,
+   "est_rows": 694,
+   "live": 694,
+   "dead": 165,
+   "last_autovacuum": "2026-10-28 00:35:13.253802+00"
+  },
+  {
+   "rel": "public.hunt_instances",
+   "total_b": 434176,
+   "heap_b": 327680,
+   "idx_b": 16384,
+   "est_rows": 143,
+   "live": 143,
+   "dead": 17,
+   "last_autovacuum": "2026-10-27 21:08:03.912545+00"
+  },
+  {
+   "rel": "public.hunt_session_events",
+   "total_b": 417792,
+   "heap_b": 204800,
+   "idx_b": 172032,
+   "est_rows": 1145,
+   "live": 1275,
+   "dead": 143,
+   "last_autovacuum": "2026-10-24 19:32:37.169076+00"
+  },
+  {
+   "rel": "public.player_progress",
+   "total_b": 385024,
+   "heap_b": 163840,
+   "idx_b": 180224,
+   "est_rows": 1228,
+   "live": 1228,
+   "dead": 297,
+   "last_autovacuum": "2026-10-28 01:08:14.837335+00"
+  },
+  {
+   "rel": "public.player_skills",
+   "total_b": 376832,
+   "heap_b": 98304,
+   "idx_b": 237568,
+   "est_rows": 195,
+   "live": 195,
+   "dead": 25,
+   "last_autovacuum": "2026-10-28 01:13:15.118513+00"
+  },
+  {
+   "rel": "public.hr_town_stands",
+   "total_b": 327680,
+   "heap_b": 90112,
+   "idx_b": 196608,
+   "est_rows": 644,
+   "live": 644,
+   "dead": 0,
+   "last_autovacuum": "2026-10-27 20:55:03.431974+00"
+  },
+  {
+   "rel": "auth.users",
+   "total_b": 294912,
+   "heap_b": 40960,
+   "idx_b": 212992,
+   "est_rows": 63,
+   "live": 63,
+   "dead": 6,
+   "last_autovacuum": "2026-10-26 07:02:17.158186+00"
+  },
+  {
+   "rel": "public.bug_reports",
+   "total_b": 253952,
+   "heap_b": 106496,
+   "idx_b": 98304,
+   "est_rows": 27,
+   "live": 39,
+   "dead": 2,
+   "last_autovacuum": null
+  },
+  {
+   "rel": "supabase_migrations.schema_migrations",
+   "total_b": 253952,
+   "heap_b": 24576,
+   "idx_b": 32768,
+   "est_rows": 0,
+   "live": 0,
+   "dead": 0,
+   "last_autovacuum": null
+  },
+  {
+   "rel": "realtime.subscription",
+   "total_b": 237568,
+   "heap_b": 49152,
+   "idx_b": 147456,
+   "est_rows": 4,
+   "live": 0,
+   "dead": 49,
+   "last_autovacuum": "2026-10-24 00:47:44.373886+00"
+  }
+ ],
+ "db_by_day": [
+  {
+   "d": "2026-09-28 00:00:00+00",
+   "max_mb": 158,
+   "max_conns": 25,
+   "ledger_rows": 25979,
+   "ledger_mb": 13
+  },
+  {
+   "d": "2026-09-29 00:00:00+00",
+   "max_mb": 176,
+   "max_conns": 26,
+   "ledger_rows": 26109,
+   "ledger_mb": 13
+  },
+  {
+   "d": "2026-09-30 00:00:00+00",
+   "max_mb": 192,
+   "max_conns": 23,
+   "ledger_rows": 26135,
+   "ledger_mb": 13
+  },
+  {
+   "d": "2026-10-01 00:00:00+00",
+   "max_mb": 195,
+   "max_conns": 21,
+   "ledger_rows": 26159,
+   "ledger_mb": 13
+  },
+  {
+   "d": "2026-10-02 00:00:00+00",
+   "max_mb": 197,
+   "max_conns": 21,
+   "ledger_rows": 26186,
+   "ledger_mb": 13
+  },
+  {
+   "d": "2026-10-03 00:00:00+00",
+   "max_mb": 199,
+   "max_conns": 26,
+   "ledger_rows": 26260,
+   "ledger_mb": 13
+  },
+  {
+   "d": "2026-10-04 00:00:00+00",
+   "max_mb": 201,
+   "max_conns": 25,
+   "ledger_rows": 26372,
+   "ledger_mb": 13
+  },
+  {
+   "d": "2026-10-05 00:00:00+00",
+   "max_mb": 208,
+   "max_conns": 27,
+   "ledger_rows": 27178,
+   "ledger_mb": 13
+  },
+  {
+   "d": "2026-10-06 00:00:00+00",
+   "max_mb": 226,
+   "max_conns": 25,
+   "ledger_rows": 27272,
+   "ledger_mb": 13
+  },
+  {
+   "d": "2026-10-07 00:00:00+00",
+   "max_mb": 244,
+   "max_conns": 28,
+   "ledger_rows": 27877,
+   "ledger_mb": 14
+  },
+  {
+   "d": "2026-10-08 00:00:00+00",
+   "max_mb": 263,
+   "max_conns": 24,
+   "ledger_rows": 28690,
+   "ledger_mb": 14
+  },
+  {
+   "d": "2026-10-09 00:00:00+00",
+   "max_mb": 282,
+   "max_conns": 24,
+   "ledger_rows": 30069,
+   "ledger_mb": 15
+  },
+  {
+   "d": "2026-10-10 00:00:00+00",
+   "max_mb": 290,
+   "max_conns": 23,
+   "ledger_rows": 30288,
+   "ledger_mb": 15
+  },
+  {
+   "d": "2026-10-11 00:00:00+00",
+   "max_mb": 301,
+   "max_conns": 26,
+   "ledger_rows": 30747,
+   "ledger_mb": 15
+  },
+  {
+   "d": "2026-10-12 00:00:00+00",
+   "max_mb": 317,
+   "max_conns": 28,
+   "ledger_rows": 31587,
+   "ledger_mb": 16
+  },
+  {
+   "d": "2026-10-13 00:00:00+00",
+   "max_mb": 322,
+   "max_conns": 31,
+   "ledger_rows": 31760,
+   "ledger_mb": 16
+  },
+  {
+   "d": "2026-10-14 00:00:00+00",
+   "max_mb": 327,
+   "max_conns": 26,
+   "ledger_rows": 32310,
+   "ledger_mb": 16
+  },
+  {
+   "d": "2026-10-15 00:00:00+00",
+   "max_mb": 327,
+   "max_conns": 24,
+   "ledger_rows": 32496,
+   "ledger_mb": 17
+  },
+  {
+   "d": "2026-10-16 00:00:00+00",
+   "max_mb": 294,
+   "max_conns": 22,
+   "ledger_rows": 900,
+   "ledger_mb": 0
+  },
+  {
+   "d": "2026-10-17 00:00:00+00",
+   "max_mb": 297,
+   "max_conns": 21,
+   "ledger_rows": 900,
+   "ledger_mb": 0
+  },
+  {
+   "d": "2026-10-18 00:00:00+00",
+   "max_mb": 299,
+   "max_conns": 21,
+   "ledger_rows": 900,
+   "ledger_mb": 0
+  },
+  {
+   "d": "2026-10-19 00:00:00+00",
+   "max_mb": 307,
+   "max_conns": 27,
+   "ledger_rows": 2965,
+   "ledger_mb": 1
+  },
+  {
+   "d": "2026-10-20 00:00:00+00",
+   "max_mb": 320,
+   "max_conns": 30,
+   "ledger_rows": 11036,
+   "ledger_mb": 6
+  },
+  {
+   "d": "2026-10-21 00:00:00+00",
+   "max_mb": 338,
+   "max_conns": 27,
+   "ledger_rows": 30100,
+   "ledger_mb": 17
+  },
+  {
+   "d": "2026-10-22 00:00:00+00",
+   "max_mb": 365,
+   "max_conns": 33,
+   "ledger_rows": 62759,
+   "ledger_mb": 36
+  },
+  {
+   "d": "2026-10-23 00:00:00+00",
+   "max_mb": 397,
+   "max_conns": 44,
+   "ledger_rows": 99477,
+   "ledger_mb": 59
+  },
+  {
+   "d": "2026-10-24 00:00:00+00",
+   "max_mb": 471,
+   "max_conns": 31,
+   "ledger_rows": 112303,
+   "ledger_mb": 67
+  },
+  {
+   "d": "2026-10-25 00:00:00+00",
+   "max_mb": 533,
+   "max_conns": 41,
+   "ledger_rows": 118658,
+   "ledger_mb": 71
+  },
+  {
+   "d": "2026-10-26 00:00:00+00",
+   "max_mb": 628,
+   "max_conns": 25,
+   "ledger_rows": 131658,
+   "ledger_mb": 78
+  },
+  {
+   "d": "2026-10-27 00:00:00+00",
+   "max_mb": 675,
+   "max_conns": 24,
+   "ledger_rows": 145966,
+   "ledger_mb": 87
+  },
+  {
+   "d": "2026-10-28 00:00:00+00",
+   "max_mb": 677,
+   "max_conns": 15,
+   "ledger_rows": 148310,
+   "ledger_mb": 88
+  }
+ ],
+ "realtime_partitions": [
+  {
+   "part": "messages_2026_10_24",
+   "total_b": 66682880,
+   "est_rows": 2899
+  },
+  {
+   "part": "messages_2026_10_25",
+   "total_b": 59031552,
+   "est_rows": 2548
+  },
+  {
+   "part": "messages_2026_10_26",
+   "total_b": 97271808,
+   "est_rows": 3842
+  },
+  {
+   "part": "messages_2026_10_27",
+   "total_b": 22806528,
+   "est_rows": 976
+  },
+  {
+   "part": "messages_2026_10_28",
+   "total_b": 49152,
+   "est_rows": 0
+  },
+  {
+   "part": "messages_2026_10_29",
+   "total_b": 24576,
+   "est_rows": 0
+  },
+  {
+   "part": "messages_2026_10_30",
+   "total_b": 24576,
+   "est_rows": 0
+  }
+ ],
+ "ledger_by_day": [
+  {
+   "d": "2026-10-20 00:00:00+00",
+   "n": 7477,
+   "chars": 4
+  },
+  {
+   "d": "2026-10-21 00:00:00+00",
+   "n": 20060,
+   "chars": 4
+  },
+  {
+   "d": "2026-10-22 00:00:00+00",
+   "n": 32102,
+   "chars": 8
+  },
+  {
+   "d": "2026-10-23 00:00:00+00",
+   "n": 36288,
+   "chars": 8
+  },
+  {
+   "d": "2026-10-24 00:00:00+00",
+   "n": 13081,
+   "chars": 11
+  },
+  {
+   "d": "2026-10-25 00:00:00+00",
+   "n": 7699,
+   "chars": 11
+  },
+  {
+   "d": "2026-10-26 00:00:00+00",
+   "n": 12697,
+   "chars": 12
+  },
+  {
+   "d": "2026-10-27 00:00:00+00",
+   "n": 14468,
+   "chars": 13
+  },
+  {
+   "d": "2026-10-28 00:00:00+00",
+   "n": 904,
+   "chars": 7
+  }
+ ],
+ "ledger_kinds_1d": [
+  {
+   "kind": "gather",
+   "n": 5048
+  },
+  {
+   "kind": "combat",
+   "n": 3779
+  },
+  {
+   "kind": "hunt",
+   "n": 2168
+  },
+  {
+   "kind": "renown",
+   "n": 1914
+  },
+  {
+   "kind": "craft",
+   "n": 1018
+  },
+  {
+   "kind": "farm",
+   "n": 127
+  },
+  {
+   "kind": "admin",
+   "n": 68
+  },
+  {
+   "kind": "bank",
+   "n": 48
+  },
+  {
+   "kind": "equip",
+   "n": 21
+  },
+  {
+   "kind": "shop",
+   "n": 20
+  },
+  {
+   "kind": "accrue",
+   "n": 9
+  },
+  {
+   "kind": "hero_slot",
+   "n": 2
+  }
+ ],
+ "hunt_seat_hours": [
+  {
+   "d": "2026-10-22 00:00:00+00",
+   "seat_hours": "23.0"
+  },
+  {
+   "d": "2026-10-23 00:00:00+00",
+   "seat_hours": "69.7"
+  },
+  {
+   "d": "2026-10-24 00:00:00+00",
+   "seat_hours": "45.5"
+  },
+  {
+   "d": "2026-10-25 00:00:00+00",
+   "seat_hours": "14.2"
+  },
+  {
+   "d": "2026-10-26 00:00:00+00",
+   "seat_hours": "34.0"
+  },
+  {
+   "d": "2026-10-27 00:00:00+00",
+   "seat_hours": "47.4"
+  },
+  {
+   "d": "2026-10-28 00:00:00+00",
+   "seat_hours": "5.1"
+  }
+ ],
+ "cron_24h": [
+  {
+   "jobname": "hr-tick-run",
+   "schedule": "10 seconds",
+   "runs": 8626,
+   "avg_ms": "28",
+   "max_ms": "299",
+   "failed": 0
+  },
+  {
+   "jobname": "hr-town-refresh",
+   "schedule": "25 seconds",
+   "runs": 3454,
+   "avg_ms": "9",
+   "max_ms": "46",
+   "failed": 0
+  },
+  {
+   "jobname": "hr-tick-enrol",
+   "schedule": "* * * * *",
+   "runs": 1440,
+   "avg_ms": "30",
+   "max_ms": "162",
+   "failed": 0
+  },
+  {
+   "jobname": "hr-hunt-party-sweep",
+   "schedule": "* * * * *",
+   "runs": 1440,
+   "avg_ms": "16",
+   "max_ms": "82",
+   "failed": 0
+  },
+  {
+   "jobname": "hearthrise-leaderboards",
+   "schedule": "*/5 * * * *",
+   "runs": 288,
+   "avg_ms": "98",
+   "max_ms": "315",
+   "failed": 0
+  },
+  {
+   "jobname": "hr-slot-health",
+   "schedule": "*/5 * * * *",
+   "runs": 288,
+   "avg_ms": "44",
+   "max_ms": "102",
+   "failed": 0
+  },
+  {
+   "jobname": "hr-market-expire",
+   "schedule": "*/5 * * * *",
+   "runs": 288,
+   "avg_ms": "35",
+   "max_ms": "122",
+   "failed": 0
+  },
+  {
+   "jobname": "hr-party-reap",
+   "schedule": "*/10 * * * *",
+   "runs": 144,
+   "avg_ms": "25",
+   "max_ms": "111",
+   "failed": 0
+  },
+  {
+   "jobname": "hr-tick-cron-log-prune",
+   "schedule": "37 * * * *",
+   "runs": 24,
+   "avg_ms": "543",
+   "max_ms": "942",
+   "failed": 0
+  },
+  {
+   "jobname": "hr-tick-probe-prune",
+   "schedule": "29 * * * *",
+   "runs": 24,
+   "avg_ms": "23",
+   "max_ms": "51",
+   "failed": 0
+  },
+  {
+   "jobname": "hr-intents-prune",
+   "schedule": "17 * * * *",
+   "runs": 24,
+   "avg_ms": "57",
+   "max_ms": "179",
+   "failed": 0
+  },
+  {
+   "jobname": "hr-cron-health",
+   "schedule": "7 * * * *",
+   "runs": 24,
+   "avg_ms": "864",
+   "max_ms": "1435",
+   "failed": 0
+  },
+  {
+   "jobname": "hr-ledger-prune",
+   "schedule": "7 * * * *",
+   "runs": 24,
+   "avg_ms": "29",
+   "max_ms": "56",
+   "failed": 0
+  },
+  {
+   "jobname": "hr-tick-shadow-prune",
+   "schedule": "27 * * * *",
+   "runs": 24,
+   "avg_ms": "19",
+   "max_ms": "30",
+   "failed": 0
+  },
+  {
+   "jobname": "trim-chat-messages",
+   "schedule": "15 3 * * *",
+   "runs": 1,
+   "avg_ms": "8",
+   "max_ms": "8",
+   "failed": 0
+  },
+  {
+   "jobname": "hr-combat-xp-credit-prune",
+   "schedule": "33 4 * * *",
+   "runs": 1,
+   "avg_ms": "29",
+   "max_ms": "29",
+   "failed": 0
+  },
+  {
+   "jobname": "trim-game-events",
+   "schedule": "0 3 * * *",
+   "runs": 1,
+   "avg_ms": "196",
+   "max_ms": "196",
+   "failed": 0
+  },
+  {
+   "jobname": "hr-grant-hygiene",
+   "schedule": "50 4 * * *",
+   "runs": 1,
+   "avg_ms": "436",
+   "max_ms": "436",
+   "failed": 0
+  },
+  {
+   "jobname": "trim-chat-whispers",
+   "schedule": "25 3 * * *",
+   "runs": 1,
+   "avg_ms": "13",
+   "max_ms": "13",
+   "failed": 0
+  },
+  {
+   "jobname": "hr-progress-prune",
+   "schedule": "25 4 * * *",
+   "runs": 1,
+   "avg_ms": "9",
+   "max_ms": "9",
+   "failed": 0
+  },
+  {
+   "jobname": "hr-rejections-prune",
+   "schedule": "35 4 * * *",
+   "runs": 1,
+   "avg_ms": "12",
+   "max_ms": "12",
+   "failed": 0
+  },
+  {
+   "jobname": "hr-kill-credit-prune",
+   "schedule": "40 4 * * *",
+   "runs": 1,
+   "avg_ms": "22",
+   "max_ms": "22",
+   "failed": 0
+  },
+  {
+   "jobname": "hr-market-sales-prune",
+   "schedule": "45 3 * * *",
+   "runs": 1,
+   "avg_ms": "59",
+   "max_ms": "59",
+   "failed": 0
+  }
+ ],
+ "tick_log_24h": [
+  {
+   "outcome": "posted",
+   "n": 2292,
+   "avg_rostered": "1.31",
+   "max_rostered": 3,
+   "avg_ms": "25",
+   "max_ms": 83
+  },
+  {
+   "outcome": "empty",
+   "n": 6334,
+   "avg_rostered": "0.00",
+   "max_rostered": 0,
+   "avg_ms": "17",
+   "max_ms": 136
+  }
+ ],
+ "pg_net": [
+  {
+   "live_rows": 719,
+   "content_b": 88464,
+   "total_b": 210264064,
+   "last_autovacuum": null,
+   "requests_ever": 126913
+  }
+ ],
+ "hot_catalog_scans": [
+  {
+   "relname": "hr_hunt_limits",
+   "live": 50,
+   "seq_scan": 314982802,
+   "seq_tup_read": 8564964977,
+   "idx_scan": 15230
+  },
+  {
+   "relname": "hr_skills",
+   "live": 13,
+   "seq_scan": 24706365,
+   "seq_tup_read": 259502111,
+   "idx_scan": 11
+  },
+  {
+   "relname": "hr_items",
+   "live": 564,
+   "seq_scan": 6280544,
+   "seq_tup_read": 1120654670,
+   "idx_scan": 13637110
+  },
+  {
+   "relname": "hr_unlocks",
+   "live": 59,
+   "seq_scan": 4960267,
+   "seq_tup_read": 310860611,
+   "idx_scan": 5415567
+  },
+  {
+   "relname": "hr_hunt_abilities",
+   "live": 16,
+   "seq_scan": 4911376,
+   "seq_tup_read": 36659716,
+   "idx_scan": 1154
+  },
+  {
+   "relname": "hr_hero_slots",
+   "live": 4,
+   "seq_scan": 4889087,
+   "seq_tup_read": 18927798,
+   "idx_scan": 1106375
+  },
+  {
+   "relname": "hunt_party_members",
+   "live": 4,
+   "seq_scan": 4702770,
+   "seq_tup_read": 21849074,
+   "idx_scan": 513710
+  },
+  {
+   "relname": "player_equipment",
+   "live": 97,
+   "seq_scan": 4226536,
+   "seq_tup_read": 262596855,
+   "idx_scan": 1688185
+  },
+  {
+   "relname": "hunt_parties",
+   "live": 35,
+   "seq_scan": 4173005,
+   "seq_tup_read": 77888209,
+   "idx_scan": 113850
+  },
+  {
+   "relname": "player_skills",
+   "live": 195,
+   "seq_scan": 2491696,
+   "seq_tup_read": 184740586,
+   "idx_scan": 5371088
+  },
+  {
+   "relname": "hr_outfits",
+   "live": 8,
+   "seq_scan": 2185040,
+   "seq_tup_read": 17480303,
+   "idx_scan": 57
+  },
+  {
+   "relname": "hr_tick_config",
+   "live": 1,
+   "seq_scan": 2070506,
+   "seq_tup_read": 2070505,
+   "idx_scan": 686
+  }
+ ],
+ "frame_sample": [
+  {
+   "total_b": 39060,
+   "env_section_bytes": {
+    "ok": 4,
+    "now": 34,
+    "bank": 33,
+    "home": 2900,
+    "hunt": 2884,
+    "name": 9,
+    "role": 36,
+    "shop": 2394,
+    "buffs": 2,
+    "depot": 887,
+    "level": 55,
+    "login": 104,
+    "party": 1723,
+    "place": 38,
+    "state": 691,
+    "tally": 391,
+    "bounty": 4,
+    "outfit": 178,
+    "rename": 95,
+    "skills": 612,
+    "traits": 2,
+    "vitals": 63,
+    "account": 98,
+    "enchant": 2,
+    "premium": 120,
+    "stamina": 92,
+    "version": 3,
+    "progress": 420,
+    "bag_rules": 41,
+    "bench_run": 14,
+    "blessings": 227,
+    "death_log": 239,
+    "equipment": 26,
+    "farm_land": 1002,
+    "inventory": 939,
+    "companions": 53,
+    "hero_slots": 12,
+    "hunt_bests": 281,
+    "hunt_setup": 65,
+    "party_seek": 4,
+    "gem_unlocks": 17,
+    "must_rename": 5,
+    "renown_high": 3,
+    "total_level": 2,
+    "client_state": 3566,
+    "hunt_density": 65,
+    "hunt_presets": 2,
+    "party_people": 362,
+    "skill_inputs": 28,
+    "hunt_analyzer": 11589,
+    "hunt_settings": 5398,
+    "party_invites": 2,
+    "stamina_refill": 177,
+    "character_sheet": 121,
+    "unlocked_recipes": 2,
+    "dungeon_cooldowns": 2,
+    "inventory_complete": 4,
+    "progress_truncated": 5
+   }
+  }
+ ],
+ "disk_util": {
+  "timestamp": "2026-10-28T01:14:07Z",
+  "metrics": {
+   "fs_size_bytes": 2077073408,
+   "fs_avail_bytes": 1033682944,
+   "fs_used_bytes": 1043390464
+  }
+ },
+ "disk": {
+  "attributes": {
+   "iops": 3000,
+   "size_gb": 2,
+   "throughput_mibps": 125,
+   "type": "gp3"
+  }
+ },
+ "realtime_config": {
+  "private_only": null,
+  "connection_pool": 2,
+  "postgres_changes_pool": null,
+  "max_concurrent_users": 200,
+  "max_events_per_second": 100,
+  "max_bytes_per_second": 100000,
+  "max_channels_per_client": 100,
+  "max_joins_per_second": 100,
+  "max_presence_events_per_second": 20,
+  "max_payload_size_in_kb": 256,
+  "suspend": false,
+  "presence_enabled": false,
+  "admin_suspended_at": null
+ },
+ "addons": [
+  {
+   "type": "compute_instance",
+   "variant": {
+    "id": "ci_micro",
+    "name": "Micro",
+    "price": {
+     "description": "$0.01344/hour (~$10/month)",
+     "type": "usage",
+     "interval": "hourly",
+     "amount": 0.01344
+    },
+    "meta": {
+     "cpu_cores": 2,
+     "cpu_dedicated": false,
+     "memory_gb": 1,
+     "baseline_disk_io_mbs": 87,
+     "max_disk_io_mbs": 2085,
+     "connections_direct": 60,
+     "connections_pooler": 200,
+     "supported_cloud_providers": [
+      "AWS",
+      "AWS_K8S",
+      "AWS_NIMBUS"
+     ]
+    }
+   }
+  }
+ ]
+}

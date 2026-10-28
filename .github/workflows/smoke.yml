@@ -3194,9 +3194,13 @@ jobs:
   # mutate = ~613 s (10.2 min). Budget = x2 = 20.4, rounded up to 21.
   # + hunt-tick-shards (2026-10-21, measured locally): 12 s plain + 61 s
   # mutate = ~686 s (11.4 min). Budget = x2 = 22.9, rounded up to 23.
+  # 2026-10-28: MEASURED on GitHub 22.1 min (run 40519116420, v0.2.54) and
+  # over 23 on run 40609031329 (Inner Flame's 2027-01-31 chain lengthens every
+  # replay; cancelled mid-step, no assertion failed). Budget 30 until the job is
+  # split (optimization review).
   db-replay-8:
     runs-on: ubuntu-latest
-    timeout-minutes: 23
+    timeout-minutes: 30
 
     steps:
       - uses: actions/checkout@v4

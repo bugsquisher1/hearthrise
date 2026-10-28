@@ -1,0 +1,356 @@
+{
+ "url": "https://hearthrise.net/play.html",
+ "at": "2026-10-28T01:19:58.962Z",
+ "runs": [
+  {
+   "profile": "desktop-1440x900",
+   "cold": {
+    "visit": "cold",
+    "requests": 358,
+    "transferred_kb": 1973.9,
+    "protocols": [
+     "h2"
+    ],
+    "wall_load_ms": 2052,
+    "wall_sign_in_form_ms": 2079,
+    "nav": {
+     "ttfb": 578,
+     "dcl": 1831,
+     "load": 2049
+    },
+    "long_tasks": 0,
+    "long_task_ms": 0,
+    "worst_long_task_ms": 0,
+    "dom_nodes": 386,
+    "js_heap_mb": 7.7,
+    "by_kind": {
+     "html": {
+      "n": 1,
+      "kb": 4.1,
+      "cached": 0
+     },
+     "js": {
+      "n": 340,
+      "kb": 1652,
+      "cached": 0
+     },
+     "css": {
+      "n": 8,
+      "kb": 65,
+      "cached": 0
+     },
+     "other": {
+      "n": 2,
+      "kb": 1.7,
+      "cached": 0
+     },
+     "image": {
+      "n": 4,
+      "kb": 179.1,
+      "cached": 0
+     },
+     "font": {
+      "n": 3,
+      "kb": 72,
+      "cached": 0
+     }
+    },
+    "biggest": [
+     {
+      "url": "src/vendor/posthog-js-1.436.1.full.no-external.js",
+      "kb": 206.4
+     },
+     {
+      "url": "assets/brand/hearthrise-crest.png?v=0.2.54",
+      "kb": 177.9
+     },
+     {
+      "url": "src/data/glyphs.js?v=0.2.54",
+      "kb": 104.3
+     },
+     {
+      "url": "src/vendor/supabase-js-2.103.0.umd.js?v=0.2.54",
+      "kb": 47.9
+     },
+     {
+      "url": "src/vendor/sentry-browser-11.4.0.min.js",
+      "kb": 31.3
+     },
+     {
+      "url": "s/cinzel/v26/8vIJ7ww63mVu7gt79mT7.woff2",
+      "kb": 25.4
+     },
+     {
+      "url": "s/alegreyasans/v28/5aUz9_-1phKLFgshYDvh6Vwt7VptvQ.woff2",
+      "kb": 23.7
+     },
+     {
+      "url": "src/data/items.js?v=0.2.54",
+      "kb": 23.6
+     }
+    ]
+   },
+   "warm": {
+    "visit": "warm",
+    "requests": 358,
+    "transferred_kb": 0.1,
+    "protocols": [
+     "h2"
+    ],
+    "wall_load_ms": 492,
+    "wall_sign_in_form_ms": 519,
+    "nav": {
+     "ttfb": 9,
+     "dcl": 134,
+     "load": 187
+    },
+    "long_tasks": 0,
+    "long_task_ms": 0,
+    "worst_long_task_ms": 0,
+    "dom_nodes": 386,
+    "js_heap_mb": 12.2,
+    "by_kind": {
+     "html": {
+      "n": 1,
+      "kb": 0,
+      "cached": 1
+     },
+     "js": {
+      "n": 340,
+      "kb": 0,
+      "cached": 0
+     },
+     "other": {
+      "n": 2,
+      "kb": 0.1,
+      "cached": 0
+     },
+     "css": {
+      "n": 8,
+      "kb": 0,
+      "cached": 0
+     },
+     "font": {
+      "n": 3,
+      "kb": 0,
+      "cached": 0
+     },
+     "image": {
+      "n": 4,
+      "kb": 0,
+      "cached": 0
+     }
+    },
+    "biggest": [
+     {
+      "url": "api/4511870595039232/envelope/?sentry_version=7&sentry_key=f19b6d8040e",
+      "kb": 0.1
+     },
+     {
+      "url": "play.html",
+      "kb": 0
+     },
+     {
+      "url": "src/platform/https-upgrade.js?v=0.2.54",
+      "kb": 0
+     },
+     {
+      "url": "src/platform/sw-killswitch.js?v=0.2.54",
+      "kb": 0
+     },
+     {
+      "url": "css2?family=Cinzel:wght@400;600;700&family=Alegreya+Sans:wght@400;500;",
+      "kb": 0
+     },
+     {
+      "url": "src/styles/tokens.css?v=0.2.54",
+      "kb": 0
+     },
+     {
+      "url": "src/styles/world.css?v=0.2.54",
+      "kb": 0
+     },
+     {
+      "url": "src/styles/shell.css?v=0.2.54",
+      "kb": 0
+     }
+    ]
+   }
+  },
+  {
+   "profile": "phone-922x423-cpu4x-fast4g",
+   "cold": {
+    "visit": "cold",
+    "requests": 358,
+    "transferred_kb": 1973.5,
+    "protocols": [
+     "h2"
+    ],
+    "wall_load_ms": 2759,
+    "wall_sign_in_form_ms": 2833,
+    "nav": {
+     "ttfb": 78,
+     "dcl": 2186,
+     "load": 2757
+    },
+    "long_tasks": 3,
+    "long_task_ms": 344,
+    "worst_long_task_ms": 127,
+    "dom_nodes": 386,
+    "js_heap_mb": 7.8,
+    "by_kind": {
+     "html": {
+      "n": 1,
+      "kb": 4.1,
+      "cached": 0
+     },
+     "js": {
+      "n": 340,
+      "kb": 1651.8,
+      "cached": 0
+     },
+     "css": {
+      "n": 8,
+      "kb": 64.8,
+      "cached": 0
+     },
+     "other": {
+      "n": 2,
+      "kb": 1.7,
+      "cached": 0
+     },
+     "image": {
+      "n": 4,
+      "kb": 179,
+      "cached": 0
+     },
+     "font": {
+      "n": 3,
+      "kb": 72,
+      "cached": 0
+     }
+    },
+    "biggest": [
+     {
+      "url": "src/vendor/posthog-js-1.436.1.full.no-external.js",
+      "kb": 206.3
+     },
+     {
+      "url": "assets/brand/hearthrise-crest.png?v=0.2.54",
+      "kb": 178.1
+     },
+     {
+      "url": "src/data/glyphs.js?v=0.2.54",
+      "kb": 104.4
+     },
+     {
+      "url": "src/vendor/supabase-js-2.103.0.umd.js?v=0.2.54",
+      "kb": 48.1
+     },
+     {
+      "url": "src/vendor/sentry-browser-11.4.0.min.js",
+      "kb": 31.3
+     },
+     {
+      "url": "s/cinzel/v26/8vIJ7ww63mVu7gt79mT7.woff2",
+      "kb": 25.8
+     },
+     {
+      "url": "src/data/items.js?v=0.2.54",
+      "kb": 23.6
+     },
+     {
+      "url": "s/alegreyasans/v28/5aUz9_-1phKLFgshYDvh6Vwt7VptvQ.woff2",
+      "kb": 23.3
+     }
+    ]
+   },
+   "warm": {
+    "visit": "warm",
+    "requests": 358,
+    "transferred_kb": 0.1,
+    "protocols": [
+     "h2"
+    ],
+    "wall_load_ms": 605,
+    "wall_sign_in_form_ms": 672,
+    "nav": {
+     "ttfb": 1,
+     "dcl": 215,
+     "load": 383
+    },
+    "long_tasks": 2,
+    "long_task_ms": 173,
+    "worst_long_task_ms": 97,
+    "dom_nodes": 386,
+    "js_heap_mb": 12.3,
+    "by_kind": {
+     "html": {
+      "n": 1,
+      "kb": 0,
+      "cached": 1
+     },
+     "js": {
+      "n": 340,
+      "kb": 0,
+      "cached": 0
+     },
+     "other": {
+      "n": 2,
+      "kb": 0.1,
+      "cached": 0
+     },
+     "css": {
+      "n": 8,
+      "kb": 0,
+      "cached": 0
+     },
+     "font": {
+      "n": 3,
+      "kb": 0,
+      "cached": 0
+     },
+     "image": {
+      "n": 4,
+      "kb": 0,
+      "cached": 0
+     }
+    },
+    "biggest": [
+     {
+      "url": "api/4511870595039232/envelope/?sentry_version=7&sentry_key=f19b6d8040e",
+      "kb": 0.1
+     },
+     {
+      "url": "play.html",
+      "kb": 0
+     },
+     {
+      "url": "src/platform/https-upgrade.js?v=0.2.54",
+      "kb": 0
+     },
+     {
+      "url": "src/platform/sw-killswitch.js?v=0.2.54",
+      "kb": 0
+     },
+     {
+      "url": "css2?family=Cinzel:wght@400;600;700&family=Alegreya+Sans:wght@400;500;",
+      "kb": 0
+     },
+     {
+      "url": "src/styles/tokens.css?v=0.2.54",
+      "kb": 0
+     },
+     {
+      "url": "src/styles/world.css?v=0.2.54",
+      "kb": 0
+     },
+     {
+      "url": "src/styles/shell.css?v=0.2.54",
+      "kb": 0
+     }
+    ]
+   }
+  }
+ ]
+}

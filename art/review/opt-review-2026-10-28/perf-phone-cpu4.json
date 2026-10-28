@@ -1,0 +1,2153 @@
+[
+ {
+  "browser": "chromium",
+  "size": "922x423",
+  "minutes": 8.01,
+  "fpsMedian": 60,
+  "fpsP5": 52,
+  "longFrames": 34,
+  "worstFrame": 516.0000000059663,
+  "resumeWorst": 33.399999999965075,
+  "stallWorst": 133.20000000000437,
+  "pageTimed": true,
+  "longTasks": 63,
+  "engine": {
+   "n": 8161,
+   "avg": 0.19040558754579795,
+   "max": 117.5,
+   "over": 20
+  },
+  "scene": {
+   "n": 8161,
+   "avg": 0.7464403872096411,
+   "max": 32.20000000298023,
+   "over": 23
+  },
+  "draw": {
+   "n": 12929,
+   "avg": 9.078583030422138,
+   "max": 527.5999999940395,
+   "over": 1499
+  },
+  "frame": {
+   "n": 12926,
+   "avg": 10.108525452601334,
+   "max": 528.7999999970198,
+   "over": 1977
+  },
+  "envelope": {
+   "n": 30,
+   "avg": 12.990000001589458,
+   "max": 78.29999999701977,
+   "over": 10
+  },
+  "shellTick": {
+   "n": 1969,
+   "avg": 9.332300660413736,
+   "max": 101.59999999403954,
+   "over": 245
+  },
+  "domStart": 1011,
+  "domEnd": 867,
+  "domGrowth": -144,
+  "logLines": 0,
+  "addedPerMin": 262,
+  "groundInFrame": 0,
+  "groundRemade": 0,
+  "ground": {
+   "n": 2,
+   "avg": 47.79999999701977,
+   "max": 88.29999999701977,
+   "over": 1
+  },
+  "paintsInAnswers": 0,
+  "drawsInAnswers": 0,
+  "drawsOffLoop": 1,
+  "analyzerPerMin": 161,
+  "analyzerBehindMs": 958,
+  "analyzerBackMs": 0,
+  "analyzerBacks": 0,
+  "analyzerStillMs": 32240,
+  "held": [
+   {
+    "at": 9303,
+    "after": "start +9304",
+    "gap": 83,
+    "page": 82,
+    "loaf": [
+     [
+      28314.39999999106,
+      73,
+      6.5,
+      28330.89999999106,
+      28386.70000000298,
+      [
+       [
+        "FrameRequestCallback",
+        "user-callback",
+        "world-boot.js?v=0.2.54:frame@24456",
+        56,
+        0,
+        28331
+       ]
+      ]
+     ]
+    ],
+    "spans": [
+     "draw 55",
+     "frame 56"
+    ]
+   },
+   {
+    "at": 14320,
+    "after": "start +14320",
+    "gap": 133,
+    "page": 127,
+    "loaf": [
+     [
+      33280.59999999404,
+      67.79999999701977,
+      0,
+      33343.59999999404,
+      33348.09999999404,
+      []
+     ],
+     [
+      33352.29999999702,
+      106.59999999403954,
+      56.5,
+      33352.39999999106,
+      33458,
+      [
+       [
+        "FrameRequestCallback",
+        "user-callback",
+        "world-boot.js?v=0.2.54:frame@24456",
+        105,
+        0,
+        33353
+       ]
+      ]
+     ]
+    ],
+    "spans": [
+     "draw 104",
+     "frame 105"
+    ]
+   },
+   {
+    "at": 30719,
+    "after": "start +30719",
+    "gap": 183,
+    "page": 106,
+    "loaf": [
+     [
+      49743.70000000298,
+      201.79999999701977,
+      72.8,
+      49945.39999999106,
+      49945.5,
+      []
+     ]
+    ],
+    "spans": []
+   },
+   {
+    "at": 31503,
+    "after": "start +31503",
+    "gap": 100,
+    "page": 97,
+    "loaf": [
+     [
+      50525.39999999106,
+      106.5,
+      56.3,
+      50627.5,
+      50631.20000000298,
+      [
+       [
+        "TimerHandler:setInterval",
+        "user-callback",
+        "shell.js?v=0.2.54:@27274",
+        102,
+        1,
+        50526
+       ]
+      ]
+     ]
+    ],
+    "spans": [
+     "shellTick 102"
+    ]
+   },
+   {
+    "at": 40236,
+    "after": "start +40236",
+    "gap": 67,
+    "page": 64,
+    "loaf": [
+     [
+      59246.59999999404,
+      85.29999999701977,
+      17.5,
+      59264.5,
+      59331.70000000298,
+      [
+       [
+        "FrameRequestCallback",
+        "user-callback",
+        "world-boot.js?v=0.2.54:frame@24456",
+        67,
+        0,
+        59265
+       ]
+      ]
+     ]
+    ],
+    "spans": [
+     "draw 67",
+     "frame 67"
+    ]
+   },
+   {
+    "at": 40369,
+    "after": "start +40369",
+    "gap": 183,
+    "page": 182,
+    "loaf": [],
+    "spans": []
+   },
+   {
+    "at": 41169,
+    "after": "start +41169",
+    "gap": 150,
+    "page": 66,
+    "loaf": [
+     [
+      60181.79999999702,
+      180.20000000298023,
+      32.3,
+      60360.29999999702,
+      60362,
+      []
+     ]
+    ],
+    "spans": []
+   },
+   {
+    "at": 42085,
+    "after": "start +42086",
+    "gap": 100,
+    "page": 66,
+    "loaf": [
+     [
+      61097.89999999106,
+      115.70000000298023,
+      17.4,
+      61146.29999999702,
+      61213.5,
+      [
+       [
+        "FrameRequestCallback",
+        "user-callback",
+        "world-boot.js?v=0.2.54:frame@24456",
+        67,
+        0,
+        61146
+       ]
+      ]
+     ]
+    ],
+    "spans": [
+     "draw 66",
+     "frame 67"
+    ]
+   },
+   {
+    "at": 42919,
+    "after": "start +42919",
+    "gap": 67,
+    "page": 65,
+    "loaf": [
+     [
+      61946.89999999106,
+      68.90000000596046,
+      18.8,
+      61947,
+      62015.70000000298,
+      [
+       [
+        "FrameRequestCallback",
+        "user-callback",
+        "world-boot.js?v=0.2.54:frame@24456",
+        68,
+        0,
+        61947
+       ]
+      ]
+     ]
+    ],
+    "spans": [
+     "draw 50",
+     "frame 51"
+    ]
+   },
+   {
+    "at": 54968,
+    "after": "start +54968",
+    "gap": 83,
+    "page": 83,
+    "loaf": [
+     [
+      73978.70000000298,
+      107,
+      40.1,
+      73995.5,
+      74083.59999999404,
+      [
+       [
+        "FrameRequestCallback",
+        "user-callback",
+        "world-boot.js?v=0.2.54:frame@24456",
+        88,
+        0,
+        73996
+       ]
+      ]
+     ]
+    ],
+    "spans": [
+     "draw 87",
+     "frame 88"
+    ]
+   },
+   {
+    "at": 61535,
+    "after": "start +61535",
+    "gap": 67,
+    "page": 67,
+    "loaf": [
+     [
+      80553.79999999702,
+      81.40000000596046,
+      31.3,
+      80635.09999999404,
+      80635.20000000298,
+      [
+       [
+        "TimerHandler:setInterval",
+        "user-callback",
+        "shell.js?v=0.2.54:@27274",
+        81,
+        0,
+        80554
+       ]
+      ]
+     ]
+    ],
+    "spans": [
+     "shellTick 81"
+    ]
+   },
+   {
+    "at": 65368,
+    "after": "start +65368",
+    "gap": 167,
+    "page": 79,
+    "loaf": [
+     [
+      84380.39999999106,
+      183.5,
+      32.1,
+      84482,
+      84563.79999999702,
+      [
+       [
+        "FrameRequestCallback",
+        "user-callback",
+        "world-boot.js?v=0.2.54:frame@24456",
+        82,
+        0,
+        84482
+       ]
+      ]
+     ]
+    ],
+    "spans": [
+     "draw 79",
+     "frame 82"
+    ]
+   },
+   {
+    "at": 71801,
+    "after": "start +71801",
+    "gap": 517,
+    "page": 516,
+    "loaf": [
+     [
+      90820.59999999404,
+      537,
+      479.6,
+      90828.29999999702,
+      91357.5,
+      [
+       [
+        "FrameRequestCallback",
+        "user-callback",
+        "world-boot.js?v=0.2.54:frame@24456",
+        529,
+        0,
+        90828
+       ]
+      ]
+     ]
+    ],
+    "spans": [
+     "draw 528",
+     "frame 529"
+    ]
+   },
+   {
+    "at": 72334,
+    "after": "start +72334",
+    "gap": 83,
+    "page": 65,
+    "loaf": [
+     [
+      91365.70000000298,
+      83,
+      19.6,
+      91405.39999999106,
+      91448.39999999106,
+      [
+       [
+        "TimerHandler:setInterval",
+        "user-callback",
+        "shell.js?v=0.2.54:@27274",
+        13,
+        1,
+        91366
+       ],
+       [
+        "FrameRequestCallback",
+        "user-callback",
+        ":@-1",
+        17,
+        0,
+        91431
+       ]
+      ]
+     ]
+    ],
+    "spans": []
+   },
+   {
+    "at": 72751,
+    "after": "switch B +416",
+    "gap": 67,
+    "page": 67,
+    "loaf": [
+     [
+      91776.09999999404,
+      77.6000000089407,
+      27,
+      91850.70000000298,
+      91853.5,
+      [
+       [
+        "TimerHandler:setInterval",
+        "user-callback",
+        "shell.js?v=0.2.54:@27274",
+        74,
+        1,
+        91776
+       ]
+      ]
+     ]
+    ],
+    "spans": [
+     "shellTick 74"
+    ]
+   },
+   {
+    "at": 80384,
+    "after": "switch B +8049",
+    "gap": 100,
+    "page": 100,
+    "loaf": [
+     [
+      99395.39999999106,
+      118.70000000298023,
+      53.4,
+      99411,
+      99514,
+      [
+       [
+        "FrameRequestCallback",
+        "user-callback",
+        "world-boot.js?v=0.2.54:frame@24456",
+        103,
+        0,
+        99411
+       ]
+      ]
+     ]
+    ],
+    "spans": [
+     "scene 16",
+     "draw 87",
+     "frame 103"
+    ]
+   },
+   {
+    "at": 87317,
+    "after": "switch B +14982",
+    "gap": 83,
+    "page": 71,
+    "loaf": [
+     [
+      106328.09999999404,
+      99,
+      21.8,
+      106355.79999999702,
+      106427,
+      [
+       [
+        "FrameRequestCallback",
+        "user-callback",
+        "world-boot.js?v=0.2.54:frame@24456",
+        71,
+        0,
+        106356
+       ]
+      ]
+     ]
+    ],
+    "spans": [
+     "scene 32",
+     "draw 38",
+     "frame 71"
+    ]
+   },
+   {
+    "at": 118432,
+    "after": "switch B +46098",
+    "gap": 67,
+    "page": 50,
+    "loaf": [],
+    "spans": []
+   },
+   {
+    "at": 128765,
+    "after": "switch A +8601",
+    "gap": 83,
+    "page": 72,
+    "loaf": [
+     [
+      147803.29999999702,
+      71.29999999701977,
+      21.3,
+      147803.39999999106,
+      147874.5,
+      [
+       [
+        "FrameRequestCallback",
+        "user-callback",
+        "world-boot.js?v=0.2.54:frame@24456",
+        71,
+        0,
+        147803
+       ]
+      ]
+     ]
+    ],
+    "spans": [
+     "shellTick 32",
+     "draw 71",
+     "frame 71"
+    ]
+   },
+   {
+    "at": 134565,
+    "after": "switch A +14401",
+    "gap": 67,
+    "page": 61,
+    "loaf": [
+     [
+      153596.89999999106,
+      63.70000000298023,
+      13.6,
+      153597,
+      153660.39999999106,
+      [
+       [
+        "FrameRequestCallback",
+        "user-callback",
+        "world-boot.js?v=0.2.54:frame@24456",
+        56,
+        0,
+        153604
+       ]
+      ]
+     ]
+    ],
+    "spans": [
+     "draw 55",
+     "frame 56"
+    ]
+   },
+   {
+    "at": 134682,
+    "after": "switch A +14518",
+    "gap": 67,
+    "page": 60,
+    "loaf": [
+     [
+      153703.89999999106,
+      75.5,
+      14.1,
+      153716.59999999404,
+      153719.89999999106,
+      []
+     ]
+    ],
+    "spans": []
+   },
+   {
+    "at": 138482,
+    "after": "switch A +18318",
+    "gap": 67,
+    "page": 59,
+    "loaf": [
+     [
+      157507.29999999702,
+      67,
+      8.4,
+      157516.09999999404,
+      157574.20000000298,
+      [
+       [
+        "FrameRequestCallback",
+        "user-callback",
+        "world-boot.js?v=0.2.54:frame@24456",
+        58,
+        0,
+        157516
+       ]
+      ]
+     ]
+    ],
+    "spans": [
+     "draw 42",
+     "frame 58"
+    ]
+   },
+   {
+    "at": 146048,
+    "after": "switch A +25884",
+    "gap": 67,
+    "page": 50,
+    "loaf": [
+     [
+      165072.59999999404,
+      76.6000000089407,
+      8.4,
+      165091.20000000298,
+      165149.09999999404,
+      [
+       [
+        "FrameRequestCallback",
+        "user-callback",
+        "world-boot.js?v=0.2.54:frame@24456",
+        58,
+        0,
+        165092
+       ]
+      ]
+     ]
+    ],
+    "spans": [
+     "scene 19",
+     "draw 38",
+     "frame 57"
+    ]
+   },
+   {
+    "at": 156064,
+    "after": "switch A +35900",
+    "gap": 67,
+    "page": 64,
+    "loaf": [
+     [
+      175075.39999999106,
+      65.40000000596046,
+      0,
+      175094.20000000298,
+      175140,
+      [
+       [
+        "FrameRequestCallback",
+        "user-callback",
+        "world-boot.js?v=0.2.54:frame@24456",
+        45,
+        0,
+        175094
+       ]
+      ]
+     ]
+    ],
+    "spans": [
+     "draw 32",
+     "frame 45"
+    ]
+   },
+   {
+    "at": 164747,
+    "after": "switch A +44583",
+    "gap": 83,
+    "page": 82,
+    "loaf": [
+     [
+      183773.29999999702,
+      84.40000000596046,
+      34.3,
+      183856.39999999106,
+      183857.29999999702,
+      [
+       [
+        "TimerHandler:setInterval",
+        "user-callback",
+        "shell.js?v=0.2.54:@27274",
+        83,
+        1,
+        183773
+       ]
+      ]
+     ]
+    ],
+    "spans": [
+     "shellTick 83"
+    ]
+   },
+   {
+    "at": 175730,
+    "after": "storm +7559",
+    "gap": 100,
+    "page": 71,
+    "loaf": [
+     [
+      194743.29999999702,
+      111.59999999403954,
+      48.4,
+      194827.79999999702,
+      194852.20000000298,
+      [
+       [
+        "Response.json.then",
+        "resolve-promise",
+        "server.js?v=0.2.54:@5179",
+        71,
+        30,
+        194756
+       ],
+       [
+        "FrameRequestCallback",
+        "user-callback",
+        "world-boot.js?v=0.2.54:frame@24456",
+        23,
+        6,
+        194829
+       ]
+      ]
+     ]
+    ],
+    "spans": [
+     "envelope 32",
+     "shellPaint 39",
+     "frame 23"
+    ]
+   },
+   {
+    "at": 304108,
+    "after": "shown +3953",
+    "gap": 83,
+    "page": 74,
+    "loaf": [
+     [
+      323121,
+      103.20000000298023,
+      43.3,
+      323209.39999999106,
+      323223.09999999404,
+      [
+       [
+        "Response.json.then",
+        "resolve-promise",
+        "server.js?v=0.2.54:@5179",
+        78,
+        34,
+        323131
+       ],
+       [
+        "FrameRequestCallback",
+        "user-callback",
+        "world-boot.js?v=0.2.54:frame@24456",
+        13,
+        0,
+        323210
+       ]
+      ]
+     ]
+    ],
+    "spans": [
+     "envelope 20",
+     "shellPaint 59"
+    ]
+   },
+   {
+    "at": 320174,
+    "after": "shown +20019",
+    "gap": 167,
+    "page": 141,
+    "loaf": [
+     [
+      339193.799999997,
+      170.29999999701977,
+      119.2,
+      339343.799999997,
+      339352.299999997,
+      [
+       [
+        "Response.json.then",
+        "resolve-promise",
+        "server.js?v=0.2.54:@5179",
+        149,
+        67,
+        339194
+       ]
+      ]
+     ]
+    ],
+    "spans": [
+     "envelope 18",
+     "shellPaint 43"
+    ]
+   },
+   {
+    "at": 320341,
+    "after": "shown +20185",
+    "gap": 133,
+    "page": 109,
+    "loaf": [
+     [
+      339375.200000003,
+      125.29999999701977,
+      61.3,
+      339498.200000003,
+      339500.299999997,
+      [
+       [
+        "TimerHandler:setInterval",
+        "user-callback",
+        "shell.js?v=0.2.54:@27274",
+        8,
+        0,
+        339378
+       ],
+       [
+        "TimerHandler:setTimeout",
+        "user-callback",
+        "world-boot.js?v=0.2.54:@18867",
+        109,
+        0,
+        339389
+       ]
+      ]
+     ]
+    ],
+    "spans": [
+     "ground 88"
+    ]
+   },
+   {
+    "at": 320574,
+    "after": "shown +20419",
+    "gap": 67,
+    "page": 56,
+    "loaf": [
+     [
+      339593.5,
+      84.5,
+      0,
+      339676.09999999404,
+      339676.700000003,
+      []
+     ]
+    ],
+    "spans": []
+   },
+   {
+    "at": 320641,
+    "after": "shown +20485",
+    "gap": 167,
+    "page": 154,
+    "loaf": [
+     [
+      339593.5,
+      84.5,
+      0,
+      339676.09999999404,
+      339676.700000003,
+      []
+     ],
+     [
+      339679.39999999106,
+      163.40000000596046,
+      0,
+      339840.89999999106,
+      339841.299999997,
+      []
+     ]
+    ],
+    "spans": []
+   },
+   {
+    "at": 320808,
+    "after": "shown +20652",
+    "gap": 150,
+    "page": 105,
+    "loaf": [
+     [
+      339679.39999999106,
+      163.40000000596046,
+      0,
+      339840.89999999106,
+      339841.299999997,
+      []
+     ],
+     [
+      339843.200000003,
+      152.5,
+      87.6,
+      339885.700000003,
+      339994.89999999106,
+      [
+       [
+        "TimerHandler:setTimeout",
+        "user-callback",
+        "world-boot.js?v=0.2.54:@18867",
+        27,
+        0,
+        339843
+       ],
+       [
+        "TimerHandler:setInterval",
+        "user-callback",
+        "shell.js?v=0.2.54:@27274",
+        9,
+        0,
+        339876
+       ],
+       [
+        "FrameRequestCallback",
+        "user-callback",
+        "world-boot.js?v=0.2.54:frame@24456",
+        109,
+        7,
+        339886
+       ]
+      ]
+     ]
+    ],
+    "spans": [
+     "draw 94",
+     "frame 106"
+    ]
+   },
+   {
+    "at": 441636,
+    "after": "death +105450",
+    "gap": 67,
+    "page": 54,
+    "loaf": [],
+    "spans": [
+     "draw 43",
+     "frame 44"
+    ]
+   },
+   {
+    "at": 474385,
+    "after": "death +138199",
+    "gap": 67,
+    "page": 66,
+    "loaf": [
+     [
+      493410.5,
+      67.20000000298023,
+      16,
+      493435.299999997,
+      493477.59999999404,
+      [
+       [
+        "FrameRequestCallback",
+        "user-callback",
+        "world-boot.js?v=0.2.54:frame@24456",
+        42,
+        0,
+        493435
+       ]
+      ]
+     ]
+    ],
+    "spans": [
+     "draw 41",
+     "frame 42"
+    ]
+   }
+  ],
+  "path": {
+   "trimmed_array_len": 545,
+   "first": [
+    [
+     1964,
+     [
+      [
+       1,
+       1,
+       21,
+       "idle",
+       "viewed"
+      ]
+     ]
+    ],
+    [
+     3094.2000000029802,
+     [
+      [
+       19,
+       28,
+       27,
+       "idle",
+       "culvert_bat"
+      ],
+      [
+       20,
+       29,
+       26,
+       "idle",
+       "culvert_bat"
+      ],
+      [
+       21,
+       30,
+       28,
+       "idle",
+       "culvert_bat"
+      ],
+      [
+       22,
+       30,
+       26,
+       "idle",
+       "culvert_bat"
+      ],
+      [
+       23,
+       29,
+       28,
+       "idle",
+       "culvert_bat"
+      ],
+      [
+       24,
+       28,
+       26,
+       "idle",
+       "culvert_bat"
+      ],
+      [
+       25,
+       28,
+       28,
+       "idle",
+       "culvert_bat"
+      ],
+      [
+       26,
+       41,
+       5,
+       "idle",
+       "cistern_spider"
+      ],
+      [
+       27,
+       43,
+       5,
+       "idle",
+       "cistern_spider"
+      ],
+      [
+       28,
+       42,
+       4,
+       "idle",
+       "culvert_bat"
+      ],
+      [
+       29,
+       44,
+       6,
+       "idle",
+       "culvert_bat"
+      ],
+      [
+       30,
+       40,
+       4,
+       "idle",
+       "cistern_spider"
+      ],
+      [
+       31,
+       43,
+       4,
+       "idle",
+       "cistern_spider"
+      ],
+      [
+       32,
+       41,
+       3,
+       "idle",
+       "culvert_bat"
+      ],
+      [
+       33,
+       44,
+       5,
+       "idle",
+       "culvert_bat"
+      ],
+      [
+       34,
+       43,
+       35,
+       "idle",
+       "kobold_tosher"
+      ],
+      [
+       35,
+       44,
+       34,
+       "idle",
+       "kobold_tosher"
+      ],
+      [
+       36,
+       45,
+       35,
+       "idle",
+       "kobold_tosher"
+      ],
+      [
+       37,
+       42,
+       34,
+       "idle",
+       "kobold_tosher"
+      ],
+      [
+       38,
+       43,
+       33,
+       "idle",
+       "kobold_tosher"
+      ],
+      [
+       39,
+       45,
+       34,
+       "idle",
+       "kobold_tosher"
+      ],
+      [
+       40,
+       43,
+       34,
+       "idle",
+       "kobold_tosher"
+      ],
+      [
+       41,
+       44,
+       33,
+       "idle",
+       "kobold_tosher"
+      ],
+      [
+       42,
+       55,
+       23,
+       "idle",
+       "rat_king"
+      ],
+      [
+       43,
+       54,
+       21,
+       "idle",
+       "drain_rat"
+      ],
+      [
+       44,
+       54,
+       25,
+       "idle",
+       "drain_rat"
+      ],
+      [
+       45,
+       53,
+       20,
+       "idle",
+       "drain_rat"
+      ],
+      [
+       46,
+       53,
+       24,
+       "idle",
+       "drain_rat"
+      ],
+      [
+       47,
+       54,
+       20,
+       "idle",
+       "drain_rat"
+      ],
+      [
+       48,
+       54,
+       24,
+       "idle",
+       "drain_rat"
+      ],
+      [
+       49,
+       55,
+       20,
+       "idle",
+       "drain_rat"
+      ],
+      [
+       50,
+       27,
+       28,
+       "idle",
+       "outfit_berserker"
+      ],
+      [
+       1,
+       29,
+       27,
+       "idle",
+       "viewed"
+      ]
+     ]
+    ],
+    [
+     3583.2000000029802,
+     [
+      [
+       19,
+       28,
+       27,
+       "idle",
+       "culvert_bat"
+      ],
+      [
+       20,
+       29,
+       26,
+       "idle",
+       "culvert_bat"
+      ],
+      [
+       21,
+       30,
+       28,
+       "idle",
+       "culvert_bat"
+      ],
+      [
+       22,
+       30,
+       26,
+       "idle",
+       "culvert_bat"
+      ],
+      [
+       23,
+       29,
+       28,
+       "idle",
+       "culvert_bat"
+      ],
+      [
+       24,
+       28,
+       26,
+       "idle",
+       "culvert_bat"
+      ],
+      [
+       25,
+       28,
+       28,
+       "idle",
+       "culvert_bat"
+      ],
+      [
+       26,
+       41,
+       5,
+       "idle",
+       "cistern_spider"
+      ],
+      [
+       27,
+       43,
+       5,
+       "idle",
+       "cistern_spider"
+      ],
+      [
+       28,
+       42,
+       4,
+       "idle",
+       "culvert_bat"
+      ],
+      [
+       29,
+       44,
+       6,
+       "idle",
+       "culvert_bat"
+      ],
+      [
+       30,
+       40,
+       4,
+       "idle",
+       "cistern_spider"
+      ],
+      [
+       31,
+       43,
+       4,
+       "idle",
+       "cistern_spider"
+      ],
+      [
+       32,
+       41,
+       3,
+       "idle",
+       "culvert_bat"
+      ],
+      [
+       33,
+       44,
+       5,
+       "idle",
+       "culvert_bat"
+      ],
+      [
+       34,
+       43,
+       35,
+       "idle",
+       "kobold_tosher"
+      ],
+      [
+       35,
+       44,
+       34,
+       "idle",
+       "kobold_tosher"
+      ],
+      [
+       36,
+       45,
+       35,
+       "idle",
+       "kobold_tosher"
+      ],
+      [
+       37,
+       42,
+       34,
+       "idle",
+       "kobold_tosher"
+      ],
+      [
+       38,
+       43,
+       33,
+       "idle",
+       "kobold_tosher"
+      ],
+      [
+       39,
+       45,
+       34,
+       "idle",
+       "kobold_tosher"
+      ],
+      [
+       40,
+       43,
+       34,
+       "idle",
+       "kobold_tosher"
+      ],
+      [
+       41,
+       44,
+       33,
+       "idle",
+       "kobold_tosher"
+      ],
+      [
+       42,
+       55,
+       23,
+       "idle",
+       "rat_king"
+      ],
+      [
+       43,
+       54,
+       21,
+       "idle",
+       "drain_rat"
+      ],
+      [
+       44,
+       54,
+       25,
+       "idle",
+       "drain_rat"
+      ],
+      [
+       45,
+       53,
+       20,
+       "idle",
+       "drain_rat"
+      ],
+      [
+       46,
+       53,
+       24,
+       "idle",
+       "drain_rat"
+      ],
+      [
+       47,
+       54,
+       20,
+       "idle",
+       "drain_rat"
+      ],
+      [
+       48,
+       54,
+       24,
+       "idle",
+       "drain_rat"
+      ],
+      [
+       49,
+       55,
+       20,
+       "idle",
+       "drain_rat"
+      ],
+      [
+       50,
+       27,
+       28,
+       "idle",
+       "outfit_berserker"
+      ],
+      [
+       1,
+       29,
+       27,
+       "idle",
+       "viewed"
+      ]
+     ]
+    ],
+    [
+     4081.8999999910593,
+     [
+      [
+       19,
+       28,
+       27,
+       "idle",
+       "culvert_bat"
+      ],
+      [
+       20,
+       29,
+       26,
+       "idle",
+       "culvert_bat"
+      ],
+      [
+       21,
+       30,
+       28,
+       "idle",
+       "culvert_bat"
+      ],
+      [
+       22,
+       30,
+       26,
+       "idle",
+       "culvert_bat"
+      ],
+      [
+       23,
+       29,
+       28,
+       "idle",
+       "culvert_bat"
+      ],
+      [
+       24,
+       28,
+       26,
+       "idle",
+       "culvert_bat"
+      ],
+      [
+       25,
+       28,
+       28,
+       "idle",
+       "culvert_bat"
+      ],
+      [
+       26,
+       41,
+       5,
+       "idle",
+       "cistern_spider"
+      ],
+      [
+       27,
+       43,
+       5,
+       "idle",
+       "cistern_spider"
+      ],
+      [
+       28,
+       42,
+       4,
+       "idle",
+       "culvert_bat"
+      ],
+      [
+       29,
+       44,
+       6,
+       "idle",
+       "culvert_bat"
+      ],
+      [
+       30,
+       40,
+       4,
+       "idle",
+       "cistern_spider"
+      ],
+      [
+       31,
+       43,
+       4,
+       "idle",
+       "cistern_spider"
+      ],
+      [
+       32,
+       41,
+       3,
+       "idle",
+       "culvert_bat"
+      ],
+      [
+       33,
+       44,
+       5,
+       "idle",
+       "culvert_bat"
+      ],
+      [
+       34,
+       43,
+       35,
+       "idle",
+       "kobold_tosher"
+      ],
+      [
+       35,
+       44,
+       34,
+       "idle",
+       "kobold_tosher"
+      ],
+      [
+       36,
+       45,
+       35,
+       "idle",
+       "kobold_tosher"
+      ],
+      [
+       37,
+       42,
+       34,
+       "idle",
+       "kobold_tosher"
+      ],
+      [
+       38,
+       43,
+       33,
+       "idle",
+       "kobold_tosher"
+      ],
+      [
+       39,
+       45,
+       34,
+       "idle",
+       "kobold_tosher"
+      ],
+      [
+       40,
+       43,
+       34,
+       "idle",
+       "kobold_tosher"
+      ],
+      [
+       41,
+       44,
+       33,
+       "idle",
+       "kobold_tosher"
+      ],
+      [
+       42,
+       55,
+       23,
+       "idle",
+       "rat_king"
+      ],
+      [
+       43,
+       54,
+       21,
+       "idle",
+       "drain_rat"
+      ],
+      [
+       44,
+       54,
+       25,
+       "idle",
+       "drain_rat"
+      ],
+      [
+       45,
+       53,
+       20,
+       "idle",
+       "drain_rat"
+      ],
+      [
+       46,
+       53,
+       24,
+       "idle",
+       "drain_rat"
+      ],
+      [
+       47,
+       54,
+       20,
+       "idle",
+       "drain_rat"
+      ],
+      [
+       48,
+       54,
+       24,
+       "idle",
+       "drain_rat"
+      ],
+      [
+       49,
+       55,
+       20,
+       "idle",
+       "drain_rat"
+      ],
+      [
+       50,
+       27,
+       28,
+       "idle",
+       "outfit_berserker"
+      ],
+      [
+       1,
+       29,
+       27,
+       "idle",
+       "viewed"
+      ]
+     ]
+    ],
+    [
+     4601.5,
+     [
+      [
+       19,
+       28,
+       27,
+       "death",
+       "culvert_bat"
+      ],
+      [
+       20,
+       29,
+       26,
+       "idle",
+       "culvert_bat"
+      ],
+      [
+       21,
+       30,
+       28,
+       "idle",
+       "culvert_bat"
+      ],
+      [
+       22,
+       30,
+       26,
+       "idle",
+       "culvert_bat"
+      ],
+      [
+       23,
+       29,
+       28,
+       "idle",
+       "culvert_bat"
+      ],
+      [
+       24,
+       28,
+       26,
+       "idle",
+       "culvert_bat"
+      ],
+      [
+       25,
+       28,
+       28,
+       "idle",
+       "culvert_bat"
+      ],
+      [
+       26,
+       41,
+       5,
+       "idle",
+       "cistern_spider"
+      ],
+      [
+       27,
+       43,
+       5,
+       "idle",
+       "cistern_spider"
+      ],
+      [
+       28,
+       42,
+       4,
+       "idle",
+       "culvert_bat"
+      ],
+      [
+       29,
+       44,
+       6,
+       "idle",
+       "culvert_bat"
+      ],
+      [
+       30,
+       40,
+       4,
+       "idle",
+       "cistern_spider"
+      ],
+      [
+       31,
+       43,
+       4,
+       "idle",
+       "cistern_spider"
+      ],
+      [
+       32,
+       41,
+       3,
+       "idle",
+       "culvert_bat"
+      ],
+      [
+       33,
+       44,
+       5,
+       "idle",
+       "culvert_bat"
+      ],
+      [
+       34,
+       43,
+       35,
+       "idle",
+       "kobold_tosher"
+      ],
+      [
+       35,
+       44,
+       34,
+       "idle",
+       "kobold_tosher"
+      ],
+      [
+       36,
+       45,
+       35,
+       "idle",
+       "kobold_tosher"
+      ],
+      [
+       37,
+       42,
+       34,
+       "idle",
+       "kobold_tosher"
+      ],
+      [
+       38,
+       43,
+       33,
+       "idle",
+       "kobold_tosher"
+      ],
+      [
+       39,
+       45,
+       34,
+       "idle",
+       "kobold_tosher"
+      ],
+      [
+       40,
+       43,
+       34,
+       "idle",
+       "kobold_tosher"
+      ],
+      [
+       41,
+       44,
+       33,
+       "idle",
+       "kobold_tosher"
+      ],
+      [
+       42,
+       55,
+       23,
+       "idle",
+       "rat_king"
+      ],
+      [
+       43,
+       54,
+       21,
+       "idle",
+       "drain_rat"
+      ],
+      [
+       44,
+       54,
+       25,
+       "idle",
+       "drain_rat"
+      ],
+      [
+       45,
+       53,
+       20,
+       "idle",
+       "drain_rat"
+      ],
+      [
+       46,
+       53,
+       24,
+       "idle",
+       "drain_rat"
+      ],
+      [
+       47,
+       54,
+       20,
+       "idle",
+       "drain_rat"
+      ],
+      [
+       48,
+       54,
+       24,
+       "idle",
+       "drain_rat"
+      ],
+      [
+       49,
+       55,
+       20,
+       "idle",
+       "drain_rat"
+      ],
+      [
+       50,
+       27.19,
+       27.81,
+       "walk",
+       "outfit_berserker"
+      ],
+      [
+       1,
+       29,
+       27,
+       "idle",
+       "viewed"
+      ]
+     ]
+    ]
+   ]
+  },
+  "marks": [
+   [
+    19026.39999999106,
+    "start"
+   ],
+   [
+    91361.20000000298,
+    "switch B"
+   ],
+   [
+    139190.59999999404,
+    "switch A"
+   ],
+   [
+    187197.20000000298,
+    "storm"
+   ],
+   [
+    207192,
+    "storm end"
+   ],
+   [
+    259193.09999999404,
+    "hidden"
+   ],
+   [
+    319182.299999997,
+    "shown"
+   ],
+   [
+    355212.59999999404,
+    "death"
+   ]
+  ],
+  "runAway": {
+   "1": {
+    "tiles": 0,
+    "walkMs": 0,
+    "drawnUntilMs": 16449
+   },
+   "50": {
+    "tiles": 0,
+    "walkMs": 0,
+    "drawnUntilMs": 16449
+   }
+  },
+  "samples": {
+   "trimmed_array_len": 1989,
+   "first": [
+    [
+     1793150439173,
+     449.70000000298023,
+     null,
+     null,
+     null,
+     null
+    ],
+    [
+     1793150439530,
+     806.2000000029802,
+     null,
+     null,
+     null,
+     null
+    ],
+    [
+     1793150439653,
+     929.0999999940395,
+     null,
+     null,
+     null,
+     null
+    ],
+    [
+     1793150439900,
+     1175.5999999940395,
+     null,
+     null,
+     null,
+     null
+    ],
+    [
+     1793150440097,
+     1372.3999999910593,
+     null,
+     null,
+     null,
+     null
+    ]
+   ]
+  },
+  "dom": {
+   "trimmed_array_len": 249,
+   "first": [
+    [
+     2314.7999999970198,
+     896,
+     55,
+     0
+    ],
+    [
+     4136.399999991059,
+     898,
+     71,
+     0
+    ],
+    [
+     6123.5,
+     898,
+     82,
+     0
+    ],
+    [
+     8122.79999999702,
+     898,
+     98,
+     0
+    ],
+    [
+     10121.59999999404,
+     898,
+     114,
+     0
+    ]
+   ]
+  },
+  "sheets": {
+   "bitmap": 7,
+   "img": 0
+  },
+  "heapMb": 2.2661972045898438,
+  "heapRawMb": 3.8333892822265625,
+  "errors": [
+   "switch: page.click: Timeout 30000ms exceeded.",
+   "switch: page.click: Timeout 30000ms exceeded."
+  ],
+  "endedAt": 1793150761447,
+  "opt": {
+   "cpu": 4,
+   "calls": {
+    "hr_put_client_state": 17,
+    "hr-accrue": 21,
+    "hr_social_state": 16,
+    "hr_players_online": 16,
+    "hr_load": 7,
+    "hr_chat_recent": 1,
+    "hr_town_view": 81,
+    "hr_town_here": 7
+   },
+   "boot": {
+    "load_ms": 1182,
+    "characters_ms": 1535,
+    "play_to_hunt_view_ms": 1187
+   },
+   "bytes": {
+    "html": {
+     "n": 1,
+     "kb": 26.2
+    },
+    "js": {
+     "n": 340,
+     "kb": 3542.3
+    },
+    "other": {
+     "n": 177,
+     "kb": 632
+    },
+    "css": {
+     "n": 8,
+     "kb": 230.6
+    },
+    "png": {
+     "n": 23,
+     "kb": 2689.7
+    },
+    "json": {
+     "n": 10,
+     "kb": 340.6
+    }
+   },
+   "t0": 1793150441444,
+   "run_minutes": 8.32
+  }
+ }
+]

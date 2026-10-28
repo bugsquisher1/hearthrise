@@ -11,9 +11,8 @@ const M = {
   // ── DB time (pg_stat_statements diff A->C, 26.17 min, one unwatched party instance of 4 heroes: server-window-a-c.json) ──
   db_ms_per_unwatched_hero_min: 51957 / 26.17 / 4,     // MEASURED: hr_engine total (read 26858 + apply 15992 + tick_settle 4361 + state 3953 + perks 766 ms)
   settles_per_min_unwatched: 35 / 26.17,               // MEASURED: 35 hr_hunt_apply_instance calls in the window
-  settles_per_min_watched: 6,                          // DESIGN: the 10 s pg_cron tick settles a watched hunt each fire
-  client_polls_per_min_watched: 60 / 16,               // CODE: SESSION_CONFIG.huntPollMs = 16000 (a hunt_settle each)
-  db_ms_per_player_poll: 440,                          // MEASURED: HUNT_READ_SQL mean in the window (a poll inside the floor reads, settles nothing)
+  settles_per_min_watched: 60 / 16,                    // CODE: a VIEWED hunt is settled by its client's hunt_settle every SESSION_CONFIG.huntPollMs = 16 s (>= HUNT_SETTLE_MIN_MS 15 s);
+                                                       // the tick's roster only flushes a session owed 90 s (hr_tick_config flush 90, fold 1)
   db_fixed_ms_per_min: 1673 / 6.27,                    // MEASURED (A->B): cron jobs (tick run, leaderboards, enrol, sweep, town refresh, ...)
   db_core_ms_per_min: 60000,
   micro_cores: 2,                                      // MEASURED: billing/addons ci_micro cpu_cores 2, cpu_dedicated false
@@ -21,11 +20,11 @@ const M = {
   // ── realtime frames (realtime.messages, 10-24..10-27) ──
   frame_payload_kb: 50,                                // MEASURED: avg 48.8-54.8 KB/frame/day, max 69 KB; one frame = the whole envelope
   frame_disk_kb: 97271808 / 3842 / 1024,               // MEASURED: partition 10_26 total bytes / rows (TOAST-compressed on disk)
-  frames_per_watched_hero_min: 6,                      // DESIGN: one per settle per online member
+  frames_per_watched_hero_min: 60 / 16,                // DESIGN (2026-12-25-frame-push-revive.sql): the whole character per committed settle while a client has it open
   realtime_partition_days: 3.5,                        // MEASURED: partitions 10_24..10_27 kept, older dropped
   // ── disk (Management API /config/disk/util) ──
   disk_total_gb: 2077073408 / 1e9, disk_used_gb: 1043390464 / 1e9,   // MEASURED
-  autoscale_at: 0.9, autoscale_growth: 0.5, autoscale_cooldown_h: 6,  // ASSUMED: Supabase documented defaults (config returns null = defaults)
+  autoscale_at: 0.9, autoscale_growth: 0.5, autoscale_per_24h: 4, read_only_at: 0.95, autoscale_cooldown_h: 6,  // DOCS (database-size guide, 2026-10): +50 % at 90 %, at most 4 resizes per rolling 24 h, read-only at 95 % once the quota is spent (config/disk/autoscale returns null = defaults)
   // ── ledger (player_ledger, 10-27) ──
   ledger_rows_per_unwatched_hero_min: 297 / 26.17 / 4, // MEASURED: 297 inserts in the A->C window, 4 heroes
   ledger_bytes_per_row: 92569600 / 148055,             // MEASURED: total relation bytes / rows (heap + 3 indexes)
@@ -37,14 +36,15 @@ const M = {
   // ── connections ──
   pooler_clients: 200, direct: 60,                     // MEASURED: billing/addons
   // ── edge ──
-  edge_cpu_limit_ms: 2000, hunt_body_max: 12,          // DOCS: 2 s CPU per request; CODE/DB: hr_tick_config.hunt_body_max
+  edge_cpu_limit_ms: 2000, hunt_body_max: 12, tick_shards: 1, tick_cadence_s: 10, pg_net_timeout_s: 9,   // DOCS: 2 s CPU per request; MEASURED: hr_tick_config (shards 1, hunt_body_max 12)
+  db_ms_per_instance_settle_party4: 51957 / 35,        // MEASURED: hr_engine ms per hr_hunt_apply_instance in the window (party of 4)
   engine_cpu_ms_party4_90s: 172, engine_cpu_ms_party4_10s: 31,   // MEASURED (engine-bench.mjs, Node on Tyler's PC; Deno edge likely slower)
 };
 
 function at(n, watchedShare) {
   const w = n * watchedShare, u = n - w;
   const perSettle = M.db_ms_per_unwatched_hero_min / M.settles_per_min_unwatched;   // DB ms per hero per settle
-  const dbMsMin = u * M.db_ms_per_unwatched_hero_min + w * (perSettle * M.settles_per_min_watched + M.client_polls_per_min_watched * M.db_ms_per_player_poll / 4)
+  const dbMsMin = u * M.db_ms_per_unwatched_hero_min + w * perSettle * M.settles_per_min_watched
     + M.db_fixed_ms_per_min;
   const cores = dbMsMin / M.db_core_ms_per_min;
   const frameDiskGbH = w * M.frames_per_watched_hero_min * 60 * M.frame_disk_kb / 1e6;
@@ -64,16 +64,17 @@ function at(n, watchedShare) {
   };
 }
 /* THE DISK, SIMULATED: from today's used/total, frames + ledger landing at the steady rate of N heroes, the
-   documented autoscale (+50 % at 90 %, then a cooldown) — the hour the volume is FULL (the database goes read-only),
+   documented autoscale (+50 % at 90 %, at most 4 resizes per rolling 24 h) — the hour the database goes READ-ONLY (95 % with the quota spent),
    or null if it survives 72 h. `startGb` lets the same run price a pre-sized volume (Pro includes 8 GB). */
 function diskFullHour(n, watchedShare, startGb) {
   const r = at(n, watchedShare);
   const rate = r.frame_disk_gb_per_hour + r.ledger_gb_per_day / 24;
-  let size = startGb || M.disk_total_gb, used = M.disk_used_gb, ready = 0;
+  let size = startGb || M.disk_total_gb, used = M.disk_used_gb; const resizes = [];
   for (let h = 0; h <= 72; h += 0.1) {
     used += rate * 0.1;
-    if (used >= size) return +h.toFixed(1);
-    if (used >= size * M.autoscale_at && h >= ready) { size *= 1 + M.autoscale_growth; ready = h + M.autoscale_cooldown_h; }
+    const recent = resizes.filter((t) => t > h - 24).length;
+    if (used >= size * M.autoscale_at && recent < M.autoscale_per_24h) { size *= 1 + M.autoscale_growth; resizes.push(h); continue; }
+    if (used >= size * M.read_only_at) return +h.toFixed(1);
   }
   return null;
 }
@@ -91,6 +92,9 @@ const res = {
     disk_90pct_within_6h_heroes: first((n) => { const h = at(n, share).hours_to_disk_full_from_now; return h !== null && h < M.autoscale_cooldown_h; }),
     ledger_prune_falls_behind_heroes: first((n) => !at(n, share).ledger_prune_keeps_up),
     edge_cpu_body_of_12_party4_90s_ms: M.hunt_body_max * M.engine_cpu_ms_party4_90s,
+    tick_instance_settles_per_min_max: M.tick_shards * M.hunt_body_max * 60 / M.tick_cadence_s,
+    tick_unwatched_instances_max_at_measured_rate: Math.floor(M.tick_shards * M.hunt_body_max * 60 / M.tick_cadence_s / M.settles_per_min_unwatched),
+    tick_body_of_12_db_s_party4: +(M.hunt_body_max * M.db_ms_per_instance_settle_party4 / 1000).toFixed(1),
   },
 };
 if (process.argv[2]) writeFileSync(process.argv[2], JSON.stringify(res, null, 1));

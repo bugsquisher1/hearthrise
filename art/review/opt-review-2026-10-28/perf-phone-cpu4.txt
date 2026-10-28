@@ -1,0 +1,38 @@
+   opt: {"cpu":4,"calls":{"hr_put_client_state":17,"hr-accrue":21,"hr_social_state":16,"hr_players_online":16,"hr_load":7,"hr_chat_recent":1,"hr_town_view":81,"hr_town_here":7},"boot":{"load_ms":1182,"characters_ms":1535,"play_to_hunt_view_ms":1187},"bytes":{"html":{"n":1,"kb":26.2},"js":{"n":340,"kb":3542.3},"other":{"n":177,"kb":632},"css":{"n":8,"kb":230.6},"png":{"n":23,"kb":2689.7},"json":{"n":10,"kb":340.6}},"t0":1793150441444,"run_minutes":8.32}
+chromium 922x423  fps 60/52 long 34 worst 516 resume 33 stall 133 lt 63 | engine 0.19/117.5 scene 0.75/32.2 draw 9.08/527.6 frame 10.11/528.8 env 12.99/78.3 (30) tick 9.33/101.6 | heap 2.3MB (with the probe records 3.8) dom 1011->867 (+-144) log 0 +262/min | ground 47.80/88.3 (2) in-frame 0 again 0 | paints-in-answers 0 draws off-loop 1 (in answers 0) sheets 7 bitmap/0 img | analyzer 161/min behind 958 back 0x0 still 32240
+   held 82 ms (gap 83) at 9303 ms, start +9304: frame 73 block 7 render 57 style+layout 1 [world-boot.js?v=0.2.54:frame@24456 FrameRequestCallback 56ms] {draw 55, frame 56}
+   held 127 ms (gap 133) at 14320 ms, start +14320: frame 68 block 0 render 5 style+layout 0 [] / frame 107 block 57 render 107 style+layout 1 [world-boot.js?v=0.2.54:frame@24456 FrameRequestCallback 105ms] {draw 104, frame 105}
+   held 106 ms (gap 183) at 30719 ms, start +30719: frame 202 block 73 render 0 style+layout 0 []
+   held 97 ms (gap 100) at 31503 ms, start +31503: frame 107 block 56 render 4 style+layout 1 [shell.js?v=0.2.54:@27274 TimerHandler:setInterval 102ms layout 1] {shellTick 102}
+   held 64 ms (gap 67) at 40236 ms, start +40236: frame 85 block 18 render 67 style+layout 0 [world-boot.js?v=0.2.54:frame@24456 FrameRequestCallback 67ms] {draw 67, frame 67}
+   held 182 ms (gap 183) at 40369 ms, start +40369: no frame attribution
+   held 66 ms (gap 150) at 41169 ms, start +41169: frame 180 block 32 render 2 style+layout 0 []
+   held 66 ms (gap 100) at 42085 ms, start +42086: frame 116 block 17 render 67 style+layout 0 [world-boot.js?v=0.2.54:frame@24456 FrameRequestCallback 67ms] {draw 66, frame 67}
+   held 65 ms (gap 67) at 42919 ms, start +42919: frame 69 block 19 render 69 style+layout 0 [world-boot.js?v=0.2.54:frame@24456 FrameRequestCallback 68ms] {draw 50, frame 51}
+   held 83 ms (gap 83) at 54968 ms, start +54968: frame 107 block 40 render 90 style+layout 2 [world-boot.js?v=0.2.54:frame@24456 FrameRequestCallback 88ms] {draw 87, frame 88}
+   held 67 ms (gap 67) at 61535 ms, start +61535: frame 81 block 31 render 0 style+layout 0 [shell.js?v=0.2.54:@27274 TimerHandler:setInterval 81ms] {shellTick 81}
+   held 79 ms (gap 167) at 65368 ms, start +65368: frame 184 block 32 render 82 style+layout 0 [world-boot.js?v=0.2.54:frame@24456 FrameRequestCallback 82ms] {draw 79, frame 82}
+   held 516 ms (gap 517) at 71801 ms, start +71801: frame 537 block 480 render 529 style+layout 0 [world-boot.js?v=0.2.54:frame@24456 FrameRequestCallback 529ms] {draw 528, frame 529}
+   held 65 ms (gap 83) at 72334 ms, start +72334: frame 83 block 20 render 43 style+layout 0 [shell.js?v=0.2.54:@27274 TimerHandler:setInterval 13ms layout 1; :@-1 FrameRequestCallback 17ms]
+   held 67 ms (gap 67) at 72751 ms, switch B +416: frame 78 block 27 render 3 style+layout 0 [shell.js?v=0.2.54:@27274 TimerHandler:setInterval 74ms layout 1] {shellTick 74}
+   held 100 ms (gap 100) at 80384 ms, switch B +8049: frame 119 block 53 render 103 style+layout 0 [world-boot.js?v=0.2.54:frame@24456 FrameRequestCallback 103ms] {scene 16, draw 87, frame 103}
+   held 71 ms (gap 83) at 87317 ms, switch B +14982: frame 99 block 22 render 71 style+layout 0 [world-boot.js?v=0.2.54:frame@24456 FrameRequestCallback 71ms] {scene 32, draw 38, frame 71}
+   held 50 ms (gap 67) at 118432 ms, switch B +46098: no frame attribution
+   held 72 ms (gap 83) at 128765 ms, switch A +8601: frame 71 block 21 render 71 style+layout 0 [world-boot.js?v=0.2.54:frame@24456 FrameRequestCallback 71ms] {shellTick 32, draw 71, frame 71}
+   held 61 ms (gap 67) at 134565 ms, switch A +14401: frame 64 block 14 render 64 style+layout 0 [world-boot.js?v=0.2.54:frame@24456 FrameRequestCallback 56ms] {draw 55, frame 56}
+   held 60 ms (gap 67) at 134682 ms, switch A +14518: frame 76 block 14 render 63 style+layout 60 []
+   held 59 ms (gap 67) at 138482 ms, switch A +18318: frame 67 block 8 render 58 style+layout 0 [world-boot.js?v=0.2.54:frame@24456 FrameRequestCallback 58ms] {draw 42, frame 58}
+   held 50 ms (gap 67) at 146048 ms, switch A +25884: frame 77 block 8 render 58 style+layout 0 [world-boot.js?v=0.2.54:frame@24456 FrameRequestCallback 58ms] {scene 19, draw 38, frame 57}
+   held 64 ms (gap 67) at 156064 ms, switch A +35900: frame 65 block 0 render 47 style+layout 1 [world-boot.js?v=0.2.54:frame@24456 FrameRequestCallback 45ms] {draw 32, frame 45}
+   held 82 ms (gap 83) at 164747 ms, switch A +44583: frame 84 block 34 render 1 style+layout 0 [shell.js?v=0.2.54:@27274 TimerHandler:setInterval 83ms layout 1] {shellTick 83}
+   held 71 ms (gap 100) at 175730 ms, storm +7559: frame 112 block 48 render 27 style+layout 3 [server.js?v=0.2.54:@5179 Response.json.then 71ms layout 30; world-boot.js?v=0.2.54:frame@24456 FrameRequestCallback 23ms layout 6] {envelope 32, shellPaint 39, frame 23}
+   held 74 ms (gap 83) at 304108 ms, shown +3953: frame 103 block 43 render 15 style+layout 1 [server.js?v=0.2.54:@5179 Response.json.then 78ms layout 34; world-boot.js?v=0.2.54:frame@24456 FrameRequestCallback 13ms] {envelope 20, shellPaint 59}
+   held 141 ms (gap 167) at 320174 ms, shown +20019: frame 170 block 119 render 20 style+layout 12 [server.js?v=0.2.54:@5179 Response.json.then 149ms layout 67] {envelope 18, shellPaint 43}
+   held 109 ms (gap 133) at 320341 ms, shown +20185: frame 125 block 61 render 2 style+layout 0 [shell.js?v=0.2.54:@27274 TimerHandler:setInterval 8ms; world-boot.js?v=0.2.54:@18867 TimerHandler:setTimeout 109ms] {ground 88}
+   held 56 ms (gap 67) at 320574 ms, shown +20419: frame 85 block 0 render 2 style+layout 1 []
+   held 154 ms (gap 167) at 320641 ms, shown +20485: frame 85 block 0 render 2 style+layout 1 [] / frame 163 block 0 render 2 style+layout 2 []
+   held 105 ms (gap 150) at 320808 ms, shown +20652: frame 163 block 0 render 2 style+layout 2 [] / frame 153 block 88 render 110 style+layout 1 [world-boot.js?v=0.2.54:@18867 TimerHandler:setTimeout 27ms; shell.js?v=0.2.54:@27274 TimerHandler:setInterval 9ms; world-boot.js?v=0.2.54:frame@24456 FrameRequestCallback 109ms layout 7] {draw 94, frame 106}
+   held 54 ms (gap 67) at 441636 ms, death +105450: no frame attribution {draw 43, frame 44}
+   held 66 ms (gap 67) at 474385 ms, death +138199: frame 67 block 16 render 42 style+layout 0 [world-boot.js?v=0.2.54:frame@24456 FrameRequestCallback 42ms] {draw 41, frame 42}
+   errors: switch: page.click: Timeout 30000ms exceeded. | switch: page.click: Timeout 30000ms exceeded.
+EXIT 0

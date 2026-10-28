@@ -22,7 +22,9 @@ const patch = (from, to) => { if (!src.includes(from)) { console.error('perf-var
 patch("    const cdp = o.browser === 'chromium' ? await ctx.newCDPSession(page) : null;\n",
   "    const cdp = o.browser === 'chromium' ? await ctx.newCDPSession(page) : null;\n" +
   "    const __opt = { cpu: Number(process.env.OPT_CPU || 1), calls: Object.create(null), boot: {} }; (globalThis.__opt = globalThis.__opt || []).push(__opt);\n" +
-  "    if (cdp && __opt.cpu > 1) await cdp.send('Emulation.setCPUThrottlingRate', { rate: __opt.cpu });\n");
+  "    if (cdp && __opt.cpu > 1) await cdp.send('Emulation.setCPUThrottlingRate', { rate: __opt.cpu });\n" +
+  "    __opt.bytes = Object.create(null); page.on('requestfinished', async (rq) => { try { const u = rq.url().split('?')[0]; const ext = (u.match(/\\.([a-z0-9]+)$/i) || [, 'other'])[1].toLowerCase();\n" +
+  "      const z = (await rq.sizes()).responseBodySize || 0; const b = __opt.bytes[ext] || (__opt.bytes[ext] = { n: 0, kb: 0 }); b.n++; b.kb = +(b.kb + z / 1024).toFixed(1); } catch (e) {} });\n");
 patch("      return r.fulfill({ contentType: 'application/json', body: JSON.stringify(srv.answer(name, args)) });",
   "      { const __o = globalThis.__opt[globalThis.__opt.length - 1]; const __k = name + (args && args.op ? ':' + args.op : '') + (args && args.verb ? ':' + args.verb : ''); __o.calls[__k] = (__o.calls[__k] || 0) + 1; }\n" +
   "      return r.fulfill({ contentType: 'application/json', body: JSON.stringify(srv.answer(name, args)) });");

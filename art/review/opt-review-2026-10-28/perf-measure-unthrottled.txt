@@ -1,0 +1,5 @@
+chromium 1440x900 fps 60/60 long 1 worst 54 resume 17 stall 117 lt 3 | engine 0.04/19.3 scene 0.24/16.3 draw 6.70/41.8 frame 7.04/44.5 env 4.27/9.9 (29) tick 3.45/14.6 | heap 2.7MB (with the probe records 4.9) dom 1151->1143 (+-141) log 200 +338/min | ground 19.15/70.0 (4) in-frame 0 again 0 | paints-in-answers 0 draws off-loop 3 (in answers 0) sheets 7 bitmap/0 img | analyzer 132/min behind 1114 back 0x0 still 47991
+   held 54 ms (gap 67) at 90264 ms, switch B +86: frame 73 block 17 render 10 style+layout 1 [atlas.js?v=0.2.54:@1735 import.then 58ms layout 14; world-boot.js?v=0.2.54:frame@24456 FrameRequestCallback 6ms] {draw 22}
+chromium 922x423  fps 60/60 long 0 worst 50 resume 17 stall 0 lt 1 | engine 0.07/22.7 scene 0.23/2.9 draw 2.50/23.7 frame 2.78/28.6 env 4.05/19.4 (31) tick 2.62/9.5 | heap 2.0MB (with the probe records 3.3) dom 1009->878 (+-131) log 0 +252/min | ground 22.55/42.0 (2) in-frame 0 again 0 | paints-in-answers 0 draws off-loop 1 (in answers 0) sheets 7 bitmap/0 img | analyzer 137/min behind 1237 back 0x0 still 31756
+   errors: switch: page.click: Timeout 30000ms exceeded. | switch: page.click: Timeout 30000ms exceeded.
+EXIT 0

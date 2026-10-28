@@ -1,0 +1,55 @@
+{
+ "node": "v24.15.0",
+ "hunt": "millrace_sewer",
+ "density": 8,
+ "runs": [
+  {
+   "heroes": 1,
+   "window_s": 10,
+   "cpu_ms_p50": 16,
+   "cpu_ms_p95": 79,
+   "wall_ms_p50": 9.52,
+   "body_of_12_cpu_ms_p50": 192
+  },
+  {
+   "heroes": 1,
+   "window_s": 90,
+   "cpu_ms_p50": 78,
+   "cpu_ms_p95": 188,
+   "wall_ms_p50": 59.99,
+   "body_of_12_cpu_ms_p50": 936
+  },
+  {
+   "heroes": 2,
+   "window_s": 10,
+   "cpu_ms_p50": 15,
+   "cpu_ms_p95": 47,
+   "wall_ms_p50": 8.06,
+   "body_of_12_cpu_ms_p50": 180
+  },
+  {
+   "heroes": 2,
+   "window_s": 90,
+   "cpu_ms_p50": 93,
+   "cpu_ms_p95": 125,
+   "wall_ms_p50": 84.53,
+   "body_of_12_cpu_ms_p50": 1116
+  },
+  {
+   "heroes": 4,
+   "window_s": 10,
+   "cpu_ms_p50": 31,
+   "cpu_ms_p95": 63,
+   "wall_ms_p50": 650.95,
+   "body_of_12_cpu_ms_p50": 372
+  },
+  {
+   "heroes": 4,
+   "window_s": 90,
+   "cpu_ms_p50": 172,
+   "cpu_ms_p95": 562,
+   "wall_ms_p50": 189.56,
+   "body_of_12_cpu_ms_p50": 2064
+  }
+ ]
+}

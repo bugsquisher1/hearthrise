@@ -1,0 +1,141 @@
+{
+ "play_html_kb": 26.2,
+ "modulepreload_links": 332,
+ "module_entries": [
+  "src/app/boot.js"
+ ],
+ "classic_scripts": [
+  "src/platform/https-upgrade.js",
+  "src/platform/sw-killswitch.js",
+  "src/vendor/supabase-js-2.103.0.umd.js",
+  "src/platform/storage.js",
+  "src/data/glyphs.js"
+ ],
+ "stylesheets": [
+  "src/styles/tokens.css",
+  "src/styles/world.css",
+  "src/styles/shell.css",
+  "src/styles/hunt.css",
+  "src/styles/windows.css",
+  "src/styles/summary.css",
+  "src/styles/character.css",
+  "src/styles/app.css"
+ ],
+ "static_graph_modules": 305,
+ "dynamic_import_targets": 1,
+ "static_graph_bytes": {
+  "files": 305,
+  "raw_kb": 3036.1,
+  "gzip_kb": 1092.7,
+  "brotli_kb": 942.3
+ },
+ "preload_bytes": {
+  "files": 332,
+  "raw_kb": 3271.4,
+  "gzip_kb": 1179.4,
+  "brotli_kb": 1018.1
+ },
+ "css_bytes": {
+  "files": 8,
+  "raw_kb": 230.5,
+  "gzip_kb": 62.3,
+  "brotli_kb": 53.3
+ },
+ "classic_bytes": {
+  "files": 5,
+  "raw_kb": 440.5,
+  "gzip_kb": 153.3,
+  "brotli_kb": 126
+ },
+ "import_chain_depth": 22,
+ "in_graph_not_preloaded": 0,
+ "preloaded_not_in_static_graph": 27,
+ "preloaded_not_in_static_graph_sample": [
+  "src/data/hunt-vfx.js",
+  "src/data/world/house-layouts.js",
+  "src/data/world/sandbox.js",
+  "src/hunt-view/scene.js",
+  "src/world/choreo.js",
+  "src/world/core/compose.js",
+  "src/world/core/grid.js",
+  "src/world/core/map-compile.js",
+  "src/world/core/path.js",
+  "src/world/core/roofs.js"
+ ],
+ "biggest_modules": [
+  {
+   "file": "src/data/hunt-tutorial.js",
+   "kb": 68.7
+  },
+  {
+   "file": "src/data/monsters.js",
+   "kb": 67
+  },
+  {
+   "file": "src/data/items.js",
+   "kb": 66.3
+  },
+  {
+   "file": "src/data/item-descriptions.js",
+   "kb": 43.1
+  },
+  {
+   "file": "src/data/hunt-grounds.js",
+   "kb": 40.4
+  },
+  {
+   "file": "src/session/character-session.js",
+   "kb": 38.4
+  },
+  {
+   "file": "src/core/artisan-sim.js",
+   "kb": 37.2
+  },
+  {
+   "file": "src/data/recipes.js",
+   "kb": 36.2
+  },
+  {
+   "file": "src/data/item-authority.js",
+   "kb": 34.1
+  },
+  {
+   "file": "src/core/hunt/conditions.js",
+   "kb": 33.7
+  },
+  {
+   "file": "src/shell/shell.js",
+   "kb": 33.3
+  },
+  {
+   "file": "src/core/goals.js",
+   "kb": 31.9
+  },
+  {
+   "file": "src/data/shops.js",
+   "kb": 29
+  },
+  {
+   "file": "src/core/skill-sim.js",
+   "kb": 28
+  },
+  {
+   "file": "src/core/member.js",
+   "kb": 27.7
+  }
+ ],
+ "image_dirs": {
+  "assets/icons-bundle": {
+   "files": 1230,
+   "mb": 26.23
+  },
+  "assets/world": {
+   "files": 11,
+   "mb": 3.85
+  },
+  "assets": {
+   "files": 1384,
+   "mb": 136.43
+  }
+ }
+}

@@ -1,0 +1,74 @@
+{
+  "review": "Hearthrise optimization review, reliability-engineer, lane/r-opt-review, measured 2026-10-28 00:49-01:40 UTC",
+  "load_during_window": "live: 1 account, 4 heroes in one unwatched millrace_sewer party instance (hunt-health), 2-4 daily users; numbers are per unit and projected",
+  "own_measurement_cost": "my read-only probes cost 49.6 s of DB time in the 26-min window, mostly one 34.7 s realtime.messages payload scan (not repeated; growth.mjs samples one row instead)",
+  "files": {
+    "server-window-a-c.json": "pg_stat_statements + table counters, 26.17 min live window (diff of two snapshots)",
+    "server-window-b-c.json": "same, 19.9 min sub-window",
+    "edge-logs-24h.json": "hr-accrue execution_time_ms by door (tick vs player), runtime boots, postgres slow/deadlock lines",
+    "growth.json": "table sizes, hr_db_samples history, realtime partitions, ledger per day, cron cost, pg_net, disk, realtime + compute config",
+    "engine-bench.json": "CPU ms of the shipped accrueHunt per instance window (Node, Tyler's PC)",
+    "capacity.json": "capacity model output (inputs labelled MEASURED / ASSUMED / DOCS / CODE)",
+    "client-static.json": "play.html module graph + bytes from the files",
+    "client-cold.json": "live hearthrise.net cold + warm load to the sign-in form, desktop and phone 4x CPU / fast 4G",
+    "perf-phone-cpu4.json": "tests/perf-budget.mjs scenario at 922x423 with 4x CPU throttling + boot timing + call counts"
+  },
+  "measured": {
+    "db": {
+      "compute": "Micro: 2 shared ARM cores, 1 GB RAM, 60 direct / 200 pooler connections, baseline disk IO 87 Mb/s",
+      "db_size_mb": 677, "fs_size_gb": 2.08, "fs_used_gb": 1.04, "max_wal_size_mb": 4096,
+      "db_growth_mb_per_day_10_24_to_10_28": 70,
+      "conns_now": 15, "conns_max_seen_10_23": 44,
+      "pss_track": "top", "track_functions": "none", "pss_reset": "2026-08-17"
+    },
+    "hunt_settle_window_26min": {
+      "hunt_read_calls": 61, "hunt_read_mean_ms": 440,
+      "apply_instance_calls": 35, "apply_instance_mean_ms": 457, "apply_wal_kb_each": 59.5,
+      "hr_engine_db_ms_per_min": 1985, "db_ms_per_unwatched_hero_min": 496,
+      "ledger_rows_per_hero_min": 2.84, "ledger_bytes_per_row": 625
+    },
+    "hot_catalog_lookups_since_08_17": { "hr_hunt_limits_seq_scans": 314816417, "rows_read": 8560183816, "per_apply_instance_equiv": 6400,
+      "cause_evidence": "hr_hunt_limit/hr_char_xp_for_level/hr_max_hp are SQL helpers with SET search_path (not inlinable), called inside settle/state loops" },
+    "edge_24h": {
+      "player_post": { "n": 3641, "p50_ms": 666, "p95_ms": 1413, "p99_ms": 2200, "max_ms": 133990 },
+      "tick_post": { "n": 2399, "p50_ms": 678, "p95_ms": 3525, "p99_ms": 4154, "max_ms": 5496 },
+      "get_no_db": { "n": 388, "p50_ms": 260, "p95_ms": 364 },
+      "cold_boots_last_hour": "96 boots / 159 invocations (60 %), avg boot 77 ms",
+      "postgres_js_type_fetches_since_08_17": 397270,
+      "deadlocks_24h": 1
+    },
+    "frames": {
+      "per_frame_kb_avg_by_day": { "10-24": 48.2, "10-25": 47.7, "10-26": 53.5, "10-27": 50.0 }, "max_kb": 67.4, "sample_kb": 38.1,
+      "sample_sections_kb": { "hunt_analyzer": 11.6, "hunt_settings": 5.4, "client_state": 3.6, "home": 2.9, "hunt": 2.9, "shop": 2.4, "party": 1.7, "farm_land": 1.0, "inventory": 0.9, "depot": 0.9 },
+      "frames_per_day": { "10-24": 2940, "10-25": 2674, "10-26": 3866 },
+      "partition_mb": { "10-24": 63, "10-25": 56, "10-26": 92, "10-27": 21 },
+      "disk_kb_per_frame": 24.7
+    },
+    "realtime_config": { "max_concurrent_users": 200, "max_events_per_second": 100, "max_payload_size_in_kb": 256, "max_joins_per_second": 100,
+      "plan_limits_docs": { "pro": "500 conns / 500 msg/s / 3000 KB", "pro_no_spend_cap": "10000 conns / 2500 msg/s / 3000 KB" } },
+    "tick_config": { "cadence_s": 10, "flush_s": 90, "fold_windows": 1, "shards": 1, "hunt_body_max": 12, "catchup_windows": 1, "frame_push": true,
+      "ceiling_instance_settles_per_min": 72, "body_of_12_party4_db_s": 17.8, "pg_net_timeout_s": 9, "hunt_body_budget_s": 20,
+      "sized_on": "2026-10-21: ~0.6 s fixed + ~0.3 s per instance (2026-11-04-hunt-tick-shards.sql); measured now 1.48 s DB per party-of-4 instance settle",
+      "tick_post_last_3h": "~120/h, avg 1.44-1.51 s, p95 3.9-4.0 s with 1-3 rostered" },
+    "pg_net_response": { "total_mb": 200.5, "live_rows": 719, "content_kb": 86, "last_autovacuum": null, "requests_ever": 126913 },
+    "ledger": { "rows": 148432, "total_mb": 88, "rows_10_27": 14468, "seat_hours_10_27": 47.4, "retain_days": 90, "prune_cap_rows_per_day": 480000 },
+    "cron_24h": { "hr-tick-run": "8626 runs, 27.7 ms avg", "hr-cron-health": "24 runs, 837 ms avg", "hearthrise-leaderboards": "288 runs, 97.5 ms avg", "failed": 0 },
+    "engine_cpu_ms_node": { "solo_10s": 16, "solo_90s": 78, "party4_10s": 31, "party4_90s": 172, "party4_90s_p95": 562, "body_of_12_party4_90s": 2064, "edge_cpu_limit": 2000 },
+    "client": {
+      "static": { "modulepreload_links": 332, "static_graph_modules": 305, "js_raw_kb": 3271, "js_brotli_kb": 1018, "classic_kb_raw": 440, "css_raw_kb": 230, "import_chain_depth": 22 },
+      "cold_live_desktop": { "requests": 358, "transferred_kb": 1974, "js_files": 340, "js_kb": 1652, "sign_in_form_ms": 2079, "dcl_ms": 1831, "ttfb_ms": 578, "long_tasks": 0 },
+      "cold_live_phone_cpu4_fast4g": { "requests": 358, "transferred_kb": 1974, "sign_in_form_ms": 2833, "long_tasks": 3, "long_task_ms": 344, "worst_ms": 127 },
+      "warm_live": { "desktop_sign_in_ms": 519, "phone_sign_in_ms": 672, "transferred_kb": 0.1 },
+      "hunt_10min_desktop_1440x900": { "fps_median": 60, "fps_p5": 60, "long_frames": 1, "worst_ms": 54, "env_apply_ms_mean": 4.27, "env_apply_ms_max": 9.9, "frame_ms_mean": 7.04, "heap_growth_mb": 2.7, "dom": "1151->1143" },
+      "hunt_10min_phone_922x423": { "fps_median": 60, "fps_p5": 60, "long_frames": 0, "worst_ms": 50, "env_apply_ms_mean": 4.05, "env_apply_ms_max": 19.4, "heap_growth_mb": 2.0, "dom": "1009->878", "note": "hero-switch clicks timed out at 922x423 (harness: .char-tab not clickable on phone)" },
+      "hunt_8min_phone_922x423_cpu4x": { "fps_median": 60, "fps_p5": 52, "long_frames_over_50ms": 34, "worst_ms": 516,
+        "draw_ms_mean": 9.08, "draw_ms_max": 527.6, "env_apply_ms_mean": 12.99, "env_apply_ms_max": 78.3, "shell_tick_ms_mean": 9.33, "shell_tick_ms_max": 101.6,
+        "ground_build_ms_max": 88.3, "heap_growth_mb": 2.3, "dom": "1011->867",
+        "held_by": "world-boot.js frame draw 50-110 ms (most), one 529 ms draw at 71.8 s; shell.js display tick 74-102 ms; server.js Response.json.then 71-149 ms incl. 30-67 ms layout",
+        "boot_stub_server_ms": { "load": 1182, "character_list": 1535, "play_to_hunt_view": 1187 },
+        "client_calls_8_3_min": { "hr_town_view": 81, "hr-accrue": 21, "hr_put_client_state": 17, "hr_social_state": 16, "hr_players_online": 16, "hr_load": 7, "hr_town_here": 7, "hr_chat_recent": 1 },
+        "client_calls_per_min": 20,
+        "bytes_to_hunt_view_raw_kb": { "js": 3542, "png": 2690, "json": 341, "css": 231, "other": 632 } }
+    }
+  }
+}

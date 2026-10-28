@@ -352,6 +352,10 @@ async function pixelRule(browser, extra) {
   } finally { await b.close(); server.close(); }
 }
 
+/* --trace: the page's tasks (devtools.timeline), its frames, GC, the compositor and the GPU process's work */
+const TRACE_CATEGORIES = ['devtools.timeline', 'disabled-by-default-devtools.timeline', 'disabled-by-default-devtools.timeline.frame',
+  'toplevel', 'v8', 'disabled-by-default-v8.gc', 'blink.user_timing', 'loading', 'netlog', 'gpu', 'cc', 'viz', 'benchmark', 'latencyInfo'];
+
 /* ── one run ── */
 async function scenario(o) {
   const pw = await import('playwright');
@@ -385,6 +389,10 @@ async function scenario(o) {
     await page.click('.auth-submit');
     await page.waitForSelector('[data-app="play"][data-slot="0"]');
     await page.click('[data-app="play"][data-slot="0"]');
+    /* --trace FILE (Chromium): a Chrome trace of every process (renderer, GPU, browser) from the hero's open, for
+       --trace-for seconds (default 50: the warm-up and the first social answers), to name what a held frame was */
+    const traced = cdp && o.trace ? browser.startTracing(page, { path: o.trace, categories: TRACE_CATEGORIES })
+      .then(() => page.waitForTimeout((o.traceFor || 50) * 1000)).then(() => browser.stopTracing()) : null;
     await page.waitForSelector('.hs-launchers');
     const showAnalyzer = async () => { if (await page.$('.ha-analyzer') === null || !(await page.isVisible('.ha-analyzer'))) {
       const b = await page.$('[data-hs-act="details"]'); if (b) await b.click({ timeout: 5000 }).catch((e) => errors.push('analyzer: ' + e.message.split('\n')[0])); } };
@@ -421,6 +429,7 @@ async function scenario(o) {
     await at(D * 0.7); await page.evaluate(() => { window.__perf.trackOn = true; window.__perf.mark('death'); });
     srv.deathIn(0);
     await at(D);
+    if (traced) await traced;
     if (cdp && o.profile) (await import('node:fs')).writeFileSync(o.profile, JSON.stringify((await cdp.send('Profiler.stop')).profile));
     const h1raw = await heap();
     const out = await page.evaluate(() => { const P = window.__perf; P.stopped = true;
@@ -610,7 +619,7 @@ async function main() {
   const pix = await pixelRule(browser);
   if (process.argv.includes('--pix')) { for (const f of pix) console.log('  ✗ ' + f); process.exit(pix.length ? 1 : 0); }
   const m = await scenario({ browser, width: 1440, height: 900, minutes: Number(arg('--minutes', '4')), hiddenMs: 30000, overrides: planted(), profile: arg('--profile', null), snapshots: arg('--snapshots', null),
-    second: arg('--second', 'melee_dps'), viewAtDeath: Number(arg('--view-death', '0')) });
+    second: arg('--second', 'melee_dps'), viewAtDeath: Number(arg('--view-death', '0')), trace: arg('--trace', null), traceFor: Number(arg('--trace-for', '50')) });
   console.log(row(m));
   printHeld(m);
   if (arg('--dump', null)) (await import('node:fs')).writeFileSync(arg('--dump', null), JSON.stringify(m));

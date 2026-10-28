@@ -379,7 +379,13 @@ async function nodeChecks(root) {
   if (win.posthog || idleQ.length) fails.push('OB-12 the PostHog script was asked for before the account id was known');
   obs.identify(UID);
   if (win.posthog) fails.push('OB-12 the PostHog script loaded inside the sign-in, not on the next idle moment');
+  /* OB-11: the script now loads only after a sign-in (OB-12), so the one way it can land with NO account behind it is
+     a sign-out while it is on its way: it must not start then (an anonymous id), only at the next sign-in. */
+  obs.forget();
   for (const fn of idleQ.splice(0)) fn();
+  if (!win.posthog) fails.push('OB-12 the PostHog script did not load on the idle moment after the sign-in');
+  if (inits.length) fails.push('OB-11 PostHog started with no account behind it (signed out while its script loaded): ' + JSON.stringify(inits.map((o) => o.bootstrap)));
+  obs.identify(UID);
   const boot = inits.length === 1 ? inits[0].bootstrap : null;
   if (!boot || boot.distinctID !== UID || boot.isIdentifiedID !== true || inits[0].persistence !== 'memory')
     fails.push('OB-11 PostHog did not start with the account id as its bootstrap distinct id: ' + JSON.stringify(inits.map((o) => [o.bootstrap, o.persistence])));

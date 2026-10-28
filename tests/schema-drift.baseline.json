@@ -6,11 +6,11 @@
   "schema change was intended — the diff of this file is the review surface.",
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
- "generated": "2026-10-27",
- "digest": "877ac482919a0926ffe5e5c3e5e82b84e1effd92ac28b104cdfd85ebbf146a1a",
+ "generated": "2026-10-28",
+ "digest": "74d863854c104663562c0027db87db4078ce12db48c8f01787d50c71ce606945",
  "counts": {
   "relations": 239,
-  "functions": 569,
+  "functions": 570,
   "policies": 115,
   "indexes": 340,
   "triggers": 53,
@@ -512,6 +512,7 @@
    "hr_hunt_lock(p_user uuid, p_slot integer)",
    "hr_hunt_loot_rules(p_user uuid, p_slot integer, p_session uuid, p_intent uuid, p_items jsonb, p_at timestamp with time zone)",
    "hr_hunt_member_read(p_s hunt_sessions)",
+   "hr_hunt_member_state(p_user uuid, p_slot integer)",
    "hr_hunt_new_session(p_user uuid, p_slot integer, p_hunt text, p_prev uuid, p_preset integer, p_hours integer)",
    "hr_hunt_open_of(p_user uuid, p_slot integer)",
    "hr_hunt_open_session(p_user uuid, p_slot integer, p_hunt text, p_prev uuid, p_preset integer, p_hours integer, p_instance uuid, p_from timestamp with time zone, p_seat integer)",

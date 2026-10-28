@@ -1304,14 +1304,29 @@ export async function runTick(opts) {
     hunts = { settled: 0, nothing: 0, none: 0, refused: 0, ended: 0, reasons: Object.create(null) };
     /* `opts.huntBudgetMs` is the guard's clock seam; index.ts never passes it. */
     const huntDeadline = t0 + (Number.isFinite(opts.huntBudgetMs) ? opts.huntBudgetMs : HUNT_BODY_BUDGET_MS);
+    /* ONE SETTLE AN INSTANCE A FIRE (2027-02-02-settle-cost.sql). A party's members ride one body (the roster packs an
+       instance whole); the first one's settle settles them all, and a landed window that reached the server's now says
+       whom it caught up (hunt-settle.js `covers`). A later selector of any of them is not re-read: it is `nothing`,
+       `instance_settled`. A window the span cap or the degrade ladder cut short covers nobody, so a party behind on its
+       backlog still takes a slice per member a fire, as before. */
+    const covered = new Set();
     for (const sel of body.hunts) {
       if (now() >= huntDeadline) { hunts.deferred = (hunts.deferred || 0) + 1; continue; }
+      if (covered.has(sel.userId + ':' + sel.slot)) {
+        hunts.nothing += 1;
+        hunts.reasons.instance_settled = (hunts.reasons.instance_settled || 0) + 1;
+        continue;
+      }
       let v;
       try {
-        v = await settleHunt({ exec, user: sel.userId, slot: sel.slot, mode: 'tick', session: sel.session, grounds: opts.grounds });
+        /* `opts.atMs`: the guard's clock seam (each window ends there instead of at the server's now, clamped to it;
+           hunt-settle.js documents it), like `opts.grounds`; index.ts passes neither. */
+        v = await settleHunt({ exec, user: sel.userId, slot: sel.slot, mode: 'tick', session: sel.session, grounds: opts.grounds,
+          ...(Number.isFinite(opts.atMs) ? { atMs: opts.atMs } : {}) });
       } catch (e) {
         v = { outcome: 'refused', reason: 'error:' + String((e && e.message) || e).slice(0, 64) };
       }
+      if (Array.isArray(v.covers)) for (const c of v.covers) covered.add(c);
       const k = v.outcome === 'paid' ? 'settled' : (v.outcome in hunts ? v.outcome : 'refused');
       hunts[k] += 1;
       if (v.ended) hunts.ended += 1;

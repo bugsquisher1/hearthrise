@@ -132,6 +132,17 @@
 //   PARTY      two characters in one party hunt ONE instance: one world, both
 //              paid, kills journalled each, gold split; a settle missing a
 //              member is refused member_set.
+//   MEMBER-STATE  (2027-02-02-settle-cost.sql) the read hands each member its
+//              engine inputs (hr_hunt_member_state): the engine input built from
+//              it is the one built from hr_state_of, and three windows proposed
+//              from it and from a twin read of whole envelopes are byte-identical.
+//   TICK-ONE-READ  the browser closed: one fire over a party's selectors reads and
+//              commits the instance ONCE, the rest `instance_settled`, no
+//              envelope built; a backlog past the span cap still takes a slice
+//              per selector.
+//   VIEWED-ENVELOPE  the hunt viewed: a landed settle reads no envelope beside
+//              the commit's projection; an early answer reads the caller's once
+//              and carries it; the tick's early answer carries none.
 //   PARTY-RESTART  a restarted instance (no world, a kept swing counter) settles on from it.
 //   PARTY-LEAVE  LEAVE TOGETHER through the chain, BOTH PATHS (tick windows = browser closed,
 //              a player's instants = viewed, the same rows): the box on by default, set only
@@ -2035,6 +2046,125 @@ const DB_ARMS = {
     if (units.size !== 2 || units.has(null)) problems.push(`the members' units are ${[...units]}`);
     return problems;
   }),
+  /* MEMBER-STATE (2027-02-02-settle-cost.sql): the read hands each member its ENGINE INPUTS (hr_hunt_member_state),
+     not its envelope. (1) For heroes that exercise every field (a carried remainder, buffs live and spent, deaths
+     today and before, HP stored above the derived max, premium, a purse), the engine input built from the lean state
+     is the one built from hr_state_of, in one statement. (2) THE PROPOSAL: three windows of a three-hero party
+     proposed from the lean read and from a twin read that hands members hr_state_of are byte-identical — every
+     member's delta, session half, analyzer, version and derived intent key, and the world — so what lands is too. */
+  'MEMBER-STATE': async (db, M) => inTx(db, async () => {
+    const problems = [];
+    const EV = await import(pathToFileURL(join(M.root, FN, 'envelope.js')).href);
+    const h = await hunter(db, M, { party: [{ ...STRONG }, { ...STRONG, premium: true, skillsXp: { magic: 777 } }, { ...STRONG }] });
+    await db.query(`update public.player_state set hp = 99999, buffs = $2::jsonb where user_id = $1 and slot = 0`, [UIDS[1], JSON.stringify([
+      { type: 'regen', magnitude: 3, until: new Date(Date.now() + 1200000).toISOString(), from: new Date(Date.now() - 60000).toISOString(), scale: 1.25 },
+      { type: 'atk', magnitude: 2, until: new Date(Date.now() - 300000).toISOString() }])]);
+    await db.query(`update public.player_skills set xp_frac = 0.4375 where user_id = $1 and slot = 0 and skill_id = 'melee'`, [UIDS[1]]);
+    await db.query(`insert into public.player_progress (user_id, slot, kind, key, period_key, value) values ($1, 0, 'stat', 'deaths', '', 4),
+                      ($1, 0, 'stat', 'deaths', public.hr_utc_day_key(now()), 2) on conflict (user_id, slot, kind, key, period_key) do update set value = excluded.value`, [UIDS[1]]);
+    const pick = (env) => {
+      const e = EV.engineInputsFromEnvelope(env, 0);
+      return { ok: env.ok, version: env.version, skills: e.skills, xpFrac: e.xpFrac, levelXp: e.levelXp, hp: e.hp, gold: e.gold,
+        equipment: e.equipment, inventory: e.inventory, buffs: e.buffs, deathsTodayBefore: e.deathsTodayBefore,
+        deathsLifetimeBefore: e.deathsLifetimeBefore, hearthfindReady: e.hearthfindReady, relic: env.account_bestiary ?? null };
+    };
+    for (const u of UIDS.slice(0, 3)) {
+      const [r] = await q(db, 'select public.hr_state_of($1::uuid, 0) as full, public.hr_hunt_member_state($1::uuid, 0) as lean', [u]);
+      if (canon(pick(r.lean)) !== canon(pick(r.full))) problems.push(`hero ${u.slice(-2)}: the lean engine input differs from hr_state_of's ${firstDiff(canon(pick(r.full)), canon(pick(r.lean)))}`);
+    }
+    const [x] = await q(db, 'select public.hr_hunt_member_state($1::uuid, 0) as lean', [UIDS[1]]);
+    const st = (x.lean && x.lean.state) || {};
+    if (!(st.hp < 99999 && st.deaths_today === 2 && st.deaths_lifetime === 4 && (x.lean.buffs || []).length === 2
+          && Number(x.lean.skills.melee.frac) === 0.4375)) problems.push(`CONTROL: the dressed hero does not exercise every field: ${JSON.stringify(st)}`);
+    /* THE TWIN READ: today's body with each member's state = hr_state_of (the pre-image's line), as hr_engine. */
+    const def = String(await one(db, `select pg_get_functiondef('public.hr_hunt_instance_read(uuid,integer)'::regprocedure)`)).split(String.fromCharCode(13)).join('');
+    const twin = def.replace('public.hr_hunt_instance_read(', 'public.hr_hunt_instance_read_full(')
+      .replace("'state', public.hr_hunt_member_state(h.user_id, h.slot))", "'state', public.hr_state_of(h.user_id, h.slot))");
+    if (twin === def || twin.includes('hr_hunt_member_state(h.')) return [...problems, 'HARNESS: the twin read could not be built from the live body'];
+    await db.exec(twin);
+    await db.exec('grant execute on function public.hr_hunt_instance_read_full(uuid, integer) to hr_engine');
+    const exec = makeExec(db);
+    const full = (sql, p) => exec(sql.replace('public.hr_hunt_instance_read(', 'public.hr_hunt_instance_read_full('), p);
+    for (let w = 1; w <= 3; w++) {
+      const at = h.from + w * 90000;
+      const lean = await M.HS.readHuntSettle({ exec, user: UID, slot: 0, grounds: groundsOf(M), atMs: at }, 'tick');
+      const fat = await M.HS.readHuntSettle({ exec: full, user: UID, slot: 0, grounds: groundsOf(M), atMs: at }, 'tick');
+      if (lean.answer || fat.answer) return [...problems, `CONTROL: window ${w} answered ${JSON.stringify((lean.answer || fat.answer)).slice(0, 200)}`];
+      const pl = await M.HS.proposeHuntSettle(lean, lean.toMs, 0);
+      const pf = await M.HS.proposeHuntSettle(fat, fat.toMs, 0);
+      if (!pl.out.accrued) return [...problems, `CONTROL: window ${w} accrued nothing (${pl.out.reason})`];
+      if (canon(pl.commit) !== canon(pf.commit)) problems.push(`window ${w}: the lean read proposed a different commit ${firstDiff(canon(pf.commit), canon(pl.commit))}`);
+      const res = await M.HS.commitHuntSettle(exec, { ...pl.commit, project: null });
+      if (!res || res.ok !== true) return [...problems, `CONTROL: window ${w} was refused: ${JSON.stringify(res).slice(0, 200)}`];
+    }
+    return problems;
+  }),
+  /* TICK-ONE-READ (2027-02-02-settle-cost.sql), THE BROWSER CLOSED: one world-tick fire over a three-hero party's three
+     selectors (the roster packs an instance whole) reads the instance ONCE and commits it ONCE; the other two answer
+     `instance_settled`, every member's session is settled to the instance's clock, and the tick builds no envelope.
+     A backlog past the span cap is still caught up a slice per selector (a slice that stops short covers nobody). */
+  'TICK-ONE-READ': async (db, M) => inTx(db, async () => {
+    const problems = [];
+    const h = await hunter(db, M, { party: [{ ...STRONG }, { ...STRONG }, { ...STRONG }] });
+    await db.query('update public.hr_tick_config set enabled = true where id');
+    const base = makeExec(db);
+    const seen = [];
+    const exec = async (sql, p) => { seen.push(String(sql)); return base(sql, p); };
+    const count = (needle) => seen.filter((s) => s.includes(needle)).length;
+    const sel = h.sids.map((sid, i) => ({ user_id: UIDS[i], slot: 0, session_id: sid }));
+    const fire = async (atMs) => (await M.TK.runTick({ exec, grounds: groundsOf(M), atMs,
+      body: { op: 'tick', roster: [], cadence_ms: 10000, flush_ms: 90000, hunts: sel } })).body.hunts || {};
+    const clocks = async () => q(db, `select (select floor(extract(epoch from settled_to) * 1000)::bigint from public.hunt_instances where id = $2) as inst,
+                                       array_agg(floor(extract(epoch from h.settled_to) * 1000)::bigint order by h.user_id) as seats
+                                  from public.hunt_sessions h where h.id = any($1::uuid[])`, [h.sids, h.inst]).then((r) => r[0]);
+    const f1 = await fire(h.from + 90000);
+    if (count('hr_hunt_instance_read(') !== 1 || count('hr_hunt_apply_instance(') !== 1) {
+      problems.push(`one fire over the party read the instance ${count('hr_hunt_instance_read(')} time(s) and committed it ${count('hr_hunt_apply_instance(')} time(s), not once each`);
+    }
+    if (count('hr_state_of(') !== 0) problems.push(`the tick built ${count('hr_state_of(')} envelope(s) nobody reads`);
+    if (f1.settled !== 1 || f1.nothing !== 2 || (f1.reasons || {}).instance_settled !== 2) problems.push(`the fire answered ${JSON.stringify(f1)}`);
+    const c1 = await clocks();
+    if (!(Number(c1.inst) > h.from) || c1.seats.some((s) => Number(s) !== Number(c1.inst))) problems.push(`the members' clocks ${JSON.stringify(c1)} are not the instance's`);
+    /* THE BACKLOG: 20 minutes owed, past the 15-minute span cap: the first selector settles a slice, the second the rest. */
+    seen.length = 0;
+    const f2 = await fire(Number(c1.inst) + 20 * 60000);
+    if (f2.settled !== 2 || (f2.reasons || {}).instance_settled !== 1 || count('hr_hunt_apply_instance(') !== 2) {
+      problems.push(`a backlog past the span cap was not caught up a slice per selector: ${JSON.stringify(f2)}, ${count('hr_hunt_apply_instance(')} commit(s)`);
+    }
+    const c2 = await clocks();
+    const owedMs = Number(c1.inst) + 20 * 60000 - Number(c2.inst);
+    if (!(owedMs >= 0 && owedMs < 2000)) problems.push(`the backlog settled to ${c2.inst}, ${owedMs} ms short of ${Number(c1.inst) + 20 * 60000}`);
+    return problems;
+  }),
+  /* VIEWED-ENVELOPE (2027-02-02-settle-cost.sql), THE HUNT VIEWED: the player's own settle reads no envelope beside the
+     instance; a landed window answers the commit's projection, an early answer (nothing yet to settle) reads the
+     caller's envelope ONCE and carries it, and the tick door's early answer carries none. */
+  'VIEWED-ENVELOPE': async (db, M) => inTx(db, async () => {
+    const problems = [];
+    /* A minute behind: one viewed settle reaches the server's now, and the next is inside the 15 s floor. */
+    const h = await hunter(db, M, { party: [{ ...STRONG, minutesAgo: 1 }, { ...STRONG }] });
+    const base = makeExec(db);
+    const seen = [];
+    const exec = async (sql, p) => { seen.push(String(sql)); return base(sql, p); };
+    const envs = () => seen.filter((s) => s.includes('hr_state_of(')).length;
+    const player = () => M.HS.settleHunt({ exec, user: UID, slot: 0, mode: 'settle', bucket: null, project: true, live: true, grounds: groundsOf(M) });
+    const v1 = await player();
+    if (v1.outcome !== 'paid' || !v1.body || !v1.body.state || !v1.body.skills || !v1.body.hunt_check) problems.push(`the viewed settle answered ${v1.outcome}/${v1.reason} without the commit's projection`);
+    if (envs() !== 0) problems.push(`a landed viewed settle read ${envs()} envelope(s) beside the commit's own`);
+    seen.length = 0;
+    const v2 = await player();
+    const [st] = await q(db, 'select public.hr_state_of($1::uuid, 0) as s', [UID]);
+    /* (inside this arm's transaction now() stands still, so the second ask is `not_due`: an early answer all the same) */
+    if (v2.outcome !== 'nothing' || !['not_due', 'below_min_span'].includes(v2.reason)) problems.push(`CONTROL: the early viewed settle answered ${v2.outcome}/${v2.reason}`);
+    if (envs() !== 1 || !v2.body.state || v2.body.version !== st.s.version || v2.body.state.gold !== st.s.state.gold) {
+      problems.push(`the early viewed answer read ${envs()} envelope(s) and carries ${JSON.stringify(v2.body.state && { v: v2.body.version, gold: v2.body.state.gold })}, not the caller's (v ${st.s.version})`);
+    }
+    seen.length = 0;
+    const at = Number(await one(db, 'select floor(extract(epoch from settled_to) * 1000)::bigint from public.hunt_instances where id = $1', [h.inst]));
+    const t = await M.HS.settleHunt({ exec, user: UID, slot: 0, mode: 'tick', grounds: groundsOf(M), atMs: at });
+    if (t.outcome !== 'nothing' || envs() !== 0 || (t.body && 'state' in t.body)) problems.push(`the tick door's early answer (${t.outcome}/${t.reason}) read ${envs()} envelope(s) or carries one`);
+    return problems;
+  }),
   /* PARTY-LEAVE (Tyler 2026-10-22, "Leave if anyone leaves the hunt or dies"), through the replayed chain
      (2026-12-18-party-leave-together.sql), BOTH PATHS: a party of four, seats 0-1 on the default box, seat 2 the
      leaver, seat 3 unticks its OWN box in town (a stranger's set moves no other hero's). The read carries every
@@ -3182,6 +3312,18 @@ const MUTANTS = [
     from: '    _hold: Number.isInteger(inst.hold_seat) ? inst.hold_seat : null,\n', to: '    _hold: null,\n' },
   { arm: 'HOLD-SEAT', name: 'every hero carries the hold seat, not only the leader', file: 'src/core/hunt-spawn.js',
     from: 'hold: o.lead === true && Number.isInteger(o.hold) && o.hold >= 0 ? o.hold : null,', to: 'hold: Number.isInteger(o.hold) && o.hold >= 0 ? o.hold : null,' },
+  /* SETTLE-COST (2027-02-02-settle-cost.sql) */
+  { arm: 'TICK-ONE-READ', name: '[settle-cost] the tick re-reads every member of an instance it just settled', file: join(FN, 'tick.js'),
+    from: "      if (covered.has(sel.userId + ':' + sel.slot)) {", to: "      if (false && covered.has(sel.userId + ':' + sel.slot)) {" },
+  { arm: 'TICK-ONE-READ', name: '[settle-cost] a slice the span cap cut short covers the party (its backlog waits a fire per slice)', file: join(FN, 'hunt-settle.js'),
+    from: '        covers: (!replayed && plan.caughtUp && degraded === 0)', to: '        covers: (!replayed && degraded === 0)' },
+  { arm: 'TICK-ONE-READ', name: '[settle-cost] the read builds the caller\'s envelope again', file: join(FN, 'hunt-settle.js'),
+    from: "         case when g.allowed then public.hr_hunt_instance_read($1::uuid, $2::int) end as inst,\n",
+    to: "         case when g.allowed then public.hr_hunt_instance_read($1::uuid, $2::int) end as inst,\n         case when g.allowed then public.hr_state_of($1::uuid, $2::int) end as state,\n" },
+  { arm: 'VIEWED-ENVELOPE', name: '[settle-cost] a viewed early answer carries no envelope', file: join(FN, 'hunt-settle.js'),
+    from: '    if (o.project !== true) return null;\n    if (memo === undefined) {', to: '    return null;\n    if (memo === undefined) {' },
+  { arm: 'VIEWED-ENVELOPE', name: '[settle-cost] the tick door reads an envelope for its early answer', file: join(FN, 'hunt-settle.js'),
+    from: '    if (o.project !== true) return null;\n    if (memo === undefined) {', to: '    if (memo === undefined) {' },
 ];
 
 /* DB mutants: planted in a LIVE function body of the booted chain, the arm run, the body restored. */
@@ -3366,6 +3508,15 @@ const DB_MUTANTS = [
     replace: "      when 'heals_out' then true or not exists (select 1 from public.hunt_bag b join public.hr_hunt_supplies p on p.item_id = b.item_id" },
   { arm: 'TICK-0', name: 'the cron queues its hunts body with no selectors', fn: 'public.hr_tick_cron_run()',
     find: "'hunts', v_hb.sel)::text);", replace: "'hunts', '[]'::jsonb)::text);" },
+  /* SETTLE-COST (2027-02-02-settle-cost.sql): each engine input the lean member state carries, dropped or re-derived. */
+  { arm: 'MEMBER-STATE', name: '[settle-cost] the lean state skips the HP clamp', fn: 'public.hr_hunt_member_state(uuid,integer)',
+    find: "'hp', least(v_st.hp, (v_vit->>'max_hp')::int),", replace: "'hp', v_st.hp," },
+  { arm: 'MEMBER-STATE', name: '[settle-cost] the lean state forgets today\'s deaths', fn: 'public.hr_hunt_member_state(uuid,integer)',
+    find: "and pp.period_key = public.hr_utc_day_key(now())), 0)),", replace: "and pp.period_key = 'never'), 0))," },
+  { arm: 'MEMBER-STATE', name: '[settle-cost] the lean state drops the carried XP remainder', fn: 'public.hr_hunt_member_state(uuid,integer)',
+    find: "jsonb_build_object('xp', xp, 'frac', xp_frac)", replace: "jsonb_build_object('xp', xp)" },
+  { arm: 'MEMBER-STATE', name: '[settle-cost] the lean state reads the hero\'s own gold, not the account purse', fn: 'public.hr_hunt_member_state(uuid,integer)',
+    find: "'gold', coalesce((select w.gold from public.account_wallet w where w.user_id = p_user), 0),", replace: "'gold', 0," },
 ];
 
 /* SQL mutants: planted in a migration's TEXT; its own §4 must refuse each. The
@@ -3424,6 +3575,12 @@ const SQL_MUTANTS = [
     replace: "revoke execute on function public.hr_hunt_apply_instance(uuid, bigint, jsonb, jsonb, uuid, int) from anon, service_role, hr_tick;\ngrant execute on function public.hr_hunt_apply_instance(uuid, bigint, jsonb, jsonb, uuid, int) to authenticated;" },
   { file: '2026-10-23-hunt-party.sql', name: 'a party takes a fifth member', find: "  if (select count(*) from public.hunt_party_members m where m.party_id = p_party) >= v_p.max_size then",
     replace: "  if (select count(*) from public.hunt_party_members m where m.party_id = p_party) > v_p.max_size then" },
+  { file: '2027-02-02-settle-cost.sql', name: '[settle-cost] the lean member state skips the HP clamp', find: "      'hp', least(v_st.hp, (v_vit->>'max_hp')::int),",
+    replace: "      'hp', v_st.hp," },
+  { file: '2027-02-02-settle-cost.sql', name: '[settle-cost] hr_apply builds the envelope inside an instance settle anyway', find: "E'    v_out := case when current_setting(''hr.frame_defer'', true) = ''instance''\\n'",
+    replace: "E'    v_out := case when current_setting(''hr.frame_defer'', true) = ''never''\\n'" },
+  { file: '2027-02-02-settle-cost.sql', name: '[settle-cost] the lean member state is engine-executable', find: "      execute format('revoke all on function public.hr_hunt_member_state(uuid, integer) from %I', v_role); end if;",
+    replace: "      execute format('grant execute on function public.hr_hunt_member_state(uuid, integer) to %I', v_role); end if;" },
   { file: '2026-10-23-hunt-party.sql', name: 'a groundless hunt is entered', find: "  if not exists (select 1 from public.hr_hunt_grounds g where g.hunt_id = p_hunt) then\n    return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'no_ground')); end if;\n  if p_preset is null",
     replace: '  if p_preset is null' },
 ];

@@ -24,10 +24,10 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-10-28",
- "replay_ms": 9171,
+ "replay_ms": 355839,
  "counts": {
-  "tracked_names": 699,
-  "entries": 554
+  "tracked_names": 700,
+  "entries": 555
  },
  "functions": [
   {
@@ -1105,17 +1105,18 @@
     "2026-12-15-account-gold.sql",
     "2027-01-14-gear-by-level.sql",
     "2027-01-24-skills-from-storage.sql",
-    "2027-01-31-inner-flame.sql"
+    "2027-01-31-inner-flame.sql",
+    "2027-02-02-settle-cost.sql"
    ],
    "live": {
-    "md5": "0de5db1de096314580c845ec52661299",
-    "norm_len": 135933,
+    "md5": "57c2e721b51013bccef357e5464f8749",
+    "norm_len": 136486,
     "measured": "2026-10-28",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "0de5db1de096314580c845ec52661299",
-    "norm_len": 135933,
+    "md5": "57c2e721b51013bccef357e5464f8749",
+    "norm_len": 136486,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -5343,17 +5344,18 @@
     "2026-11-16-hunt-density-bounds.sql",
     "2026-12-08-party-hold.sql",
     "2026-12-11-hunt-deploy-no-forfeit.sql",
-    "2026-12-18-party-leave-together.sql"
+    "2026-12-18-party-leave-together.sql",
+    "2027-02-02-settle-cost.sql"
    ],
    "live": {
-    "md5": "c455bda9abb929fd172efb1c0970002c",
-    "norm_len": 3933,
+    "md5": "bd7149cb924e768b3b2427a4fd252e14",
+    "norm_len": 4164,
     "measured": "2026-10-28",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "c455bda9abb929fd172efb1c0970002c",
-    "norm_len": 3933,
+    "md5": "bd7149cb924e768b3b2427a4fd252e14",
+    "norm_len": 4164,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -5543,6 +5545,28 @@
    "replay": {
     "md5": "14cd77882a9bfba0be7624652017aaf6",
     "norm_len": 3137,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_hunt_member_state(p_user uuid, p_slot integer)",
+   "name": "hr_hunt_member_state",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "2027-02-02-settle-cost.sql"
+   ],
+   "live": {
+    "md5": "bb248b1f9110151713ae4da9495a36cc",
+    "norm_len": 2964,
+    "measured": "2026-10-28",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "bb248b1f9110151713ae4da9495a36cc",
+    "norm_len": 2964,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -6291,22 +6315,24 @@
    "sig": "hr_hunt_roster_sharded(p_prefix text, p_body_max integer, p_lease_ms integer)",
    "name": "hr_hunt_roster_sharded",
    "tracked_by": [
+    "chain",
     "pin",
     "restate"
    ],
    "touched_by": [
     "2026-11-04-hunt-tick-shards.sql",
-    "2027-01-01-server-perf.sql"
+    "2027-01-01-server-perf.sql",
+    "2027-02-03-tick-capacity.sql"
    ],
    "live": {
-    "md5": "ac4886c8f9f13ce7808985ce0a3f1c7e",
-    "norm_len": 3809,
+    "md5": "28bd9d7f6331e1fc91d033a6afb218d9",
+    "norm_len": 4016,
     "measured": "2026-10-28",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "ac4886c8f9f13ce7808985ce0a3f1c7e",
-    "norm_len": 3809,
+    "md5": "28bd9d7f6331e1fc91d033a6afb218d9",
+    "norm_len": 4016,
     "source": "computed-from-replay"
    },
    "agree": true

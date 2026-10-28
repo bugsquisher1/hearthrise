@@ -51,6 +51,7 @@ import { createIntentLedger } from './intent-ledger.js?v=0.2.57';
 import { ReadGate } from './read-gate.js?v=0.2.57';
 import { frameTopic, reconnectDelay } from './frame-channel.js?v=0.2.57';
 import { refusalOf, settleRefusalOf } from './refusal.js?v=0.2.57';
+import { catchUpLink, newIdem } from './catch-up.js?v=0.2.57';
 import { SERVER_ONLY_EVENTS } from '../core/hunt/events.js?v=0.2.57';
 
 export const FRAME_EVENT = 'frame';
@@ -64,11 +65,6 @@ const ITEM = /^[a-z0-9_]{1,64}$/;
 const HUNT_ID = /^[a-z0-9_]{1,64}$/;
 const LOOT_RULES = Object.freeze(['keep', 'deposit', 'sell', 'ignore']);
 export { frameTopic };   // the push channel's topic rule lives in frame-channel.js
-
-function newIdem() {
-  const c = globalThis.crypto;
-  return c && typeof c.randomUUID === 'function' ? c.randomUUID() : Date.now() + '-' + Math.floor(Math.random() * 1e9);
-}
 
 export class CharacterSession {
   /**
@@ -87,7 +83,7 @@ export class CharacterSession {
     if (!Number.isInteger(o.slot) || o.slot < 0 || o.slot > SESSION_CONFIG.maxSlot) throw new RangeError('bad slot ' + o.slot);
     this.slot = o.slot;
     this.uid = o.uid;
-    this._server = o.server;
+    this._server = catchUpLink(o.server, { hunting: () => this._huntOpen(), catchUp: () => this.hello() });   // catch-up.js
     /** The account's asks in flight (intent-ledger.js): the server link's, shared by every character. */
     this.intents = o.intents || (o.server && o.server.intents) || createIntentLedger();
     this._channel = o.channel || null;

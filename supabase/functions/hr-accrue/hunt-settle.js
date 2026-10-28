@@ -294,11 +294,38 @@ const refusal = (status, error, extra) => ({ status, body: { ok: false, error, .
  *                    while it is unspent); absent = a fresh HUNT_ENGINE_BUDGET_MS for this call. This
  *                    settle's FIRST engine run always starts; its retry and degrade steps start only
  *                    while the budget is unspent.
- * @returns {{ outcome: 'paid'|'nothing'|'none'|'refused'|'limited', reason?, status, body, ended? }}
+ * @returns {{ outcome: 'paid'|'nothing'|'none'|'refused'|'limited', reason?, status, body, ended?, behindMs? }}
+ *          A player door's paid body carries `hunt_behind_ms`: how far the instance still is behind the server's now
+ *          (0 = caught up), and `hunt_slices` when it took more than one.
  */
 export async function settleHunt(o) {
   const mode = o.mode === 'settle' ? 'settle' : 'tick';
   const budget = o.budget && typeof o.budget === 'object' ? o.budget : engineBudget();
+  const first = await settleRetried(o, mode, budget);
+  /* THE TICK SETTLES ONE SLICE AN INSTANCE A FIRE (tick.js `covered`, fair across a body); the next fire takes the next. */
+  if (mode !== 'settle' || first.outcome !== 'paid') return first;
+  /* THE PLAYER DOOR CATCHES UP (lane/c-tick-span). After a tick outage the hunt can be minutes behind, and every
+     settle-before-mutate verb and settings edit refuses `settle_first` until it is not. So a player's own settle (the
+     hunt re-read, a verb's collect) takes slice after slice, oldest first, while the instance is still behind and ITS
+     OWN budget (fresh a call) is unspent, at most HUNT_PLAYER_SLICES_MAX: one 2-min slice each, every one its own read,
+     engine run and commit, exactly the windows the tick would have cut (the engine is cut-invariant). A later slice's
+     refusal or early answer leaves the landed ones landed and the rest owed; the answer is the LAST commit's envelope. */
+  const slices = [first];
+  while (slices.length < HUNT_PLAYER_SLICES_MAX && !slices[slices.length - 1].ended
+         && slices[slices.length - 1].behindMs > 0 && !budgetSpent(budget)) {
+    const v = await settleRetried({ ...o, bucket: null }, mode, budget);
+    if (v.outcome !== 'paid') break;
+    slices.push(v);
+  }
+  return caughtUp(slices, o);
+}
+
+/* The most slices one player call settles (16 min of hunt): the call's DB work stays bounded (one read and one commit
+   a slice) whatever its engine budget leaves; the hunt re-read (16 s) and the tick take the rest. */
+export const HUNT_PLAYER_SLICES_MAX = 8;
+
+/* One settle with its one retry on a race (RETRYABLE), never a retry past the budget. */
+async function settleRetried(o, mode, budget) {
   let last = null;
   for (let attempt = 0; attempt < 2; attempt++) {
     /* A retry is another read and another engine run: never one past the budget (its refusal stands, owed). */
@@ -308,6 +335,25 @@ export async function settleHunt(o) {
     last = v;
   }
   return last;
+}
+
+/* A player door's answer over its slices: the last commit's envelope, how far behind it leaves the hunt, and (viewed)
+   ONE timeline from the first slice's start to the last's end — tracks and events in order (an event's id is its
+   instant's, the same however the windows were cut), each monster as it stood when it first appeared. */
+async function caughtUp(slices, o) {
+  const last = slices[slices.length - 1];
+  const extra = { hunt_behind_ms: last.behindMs, ...(slices.length > 1 ? { hunt_slices: slices.length } : {}) };
+  if (slices.length > 1 && o.project === true) {
+    const tl = slices.map((s) => s.timeline);
+    const units = {};
+    for (let i = tl.length - 1; i >= 0; i--) Object.assign(units, tl[i].units || {});
+    Object.assign(extra, huntTimeline(tl.flatMap((t) => t.track || []), tl.flatMap((t) => t.events || []), tl[0].fromMs,
+      tl[tl.length - 1].toMs, tl[tl.length - 1].nowMs, units));
+  }
+  /* the last landed slice was cut short (the budget or the slice cap stopped the catch-up): its commit built no
+     envelope, so the caller's is read once (HUNT_STATE_SQL), under the answer's own keys */
+  const env = o.project === true && !last.projected ? await envReader(o)() : null;
+  return { ...last, body: { ...(env || {}), ...last.body, ...extra } };
 }
 
 async function settleOnce(o, mode, budget) {
@@ -350,7 +396,10 @@ async function settleOnce(o, mode, budget) {
       return { outcome: 'nothing', reason: String(p.out.reason || 'nothing'), status: 200,
         body: { ok: true, settled: false, reason: String(p.out.reason || 'nothing'), ...(await envOf()) } };
     }
-    const res = await commitHuntSettle(o.exec, { ...p.commit, project: o.project === true ? { user, slot } : null });
+    /* A player door's slice the span cap cut short is not its answer (the catch-up takes the next): it builds no
+       envelope (settle-cost's rule); the answer reads the caller's once, after the last (caughtUp). */
+    const projected = o.project === true && !(mode === 'settle' && plan.toMs < plan.endMs);
+    const res = await commitHuntSettle(o.exec, { ...p.commit, project: projected ? { user, slot } : null });
     if (res && res.ok === true) {
       const own = (res.members || []).find((x) => String(x.user) === String(user) && Number(x.slot) === Number(slot)) || {};
       const ended = own.hunt_settle && own.hunt_settle.ended ? String(own.hunt_settle.ended) : null;
@@ -367,6 +416,12 @@ async function settleOnce(o, mode, budget) {
            its party size exactly when it is already behind. The rest is owed to the next fire (2027-02-04-tick-span.sql
            re-offers a landed session at once: HUNT_SETTLE_SPAN_MS a fire, 12x real time at a 10 s tick). */
         covers: replayed ? null : (res.members || []).map((x) => String(x.user).toLowerCase() + ':' + Number(x.slot)),
+        /* how far this commit leaves the instance behind the instant it was asked to reach (the span cap, a halved
+           window): the player door's catch-up reads it; the slice's own timeline, for one merged answer */
+        behindMs: replayed ? 0 : Math.max(0, plan.endMs - p.out.settledTo),
+        projected,
+        timeline: o.project === true ? { track: p.out.track, events: p.out.events, units: p.out.units, fromMs,
+          toMs: p.out.settledTo, nowMs: plan.nowMs } : null,
         status: 200,
         body: { ...(res.state || {}), ok: true, settled: !replayed, hunt_settle: own.hunt_settle || null,
           session: own.session || null, instance: res.instance || null,
@@ -460,7 +515,7 @@ export async function readHuntSettle(o, mode) {
   const endMs = Number.isFinite(Number(o.atMs)) ? Math.min(nowMs, Math.floor(Number(o.atMs))) : nowMs;
   const toMs = Math.min(endMs, fromMs + HUNT_SETTLE_SPAN_MS);
   if (!(toMs > fromMs)) return notDue();
-  return { envOf, inst, members, where, fromMs, toMs, nowMs, worldMaxBytes: o.worldMaxBytes };
+  return { envOf, inst, members, where, fromMs, toMs, endMs, nowMs, worldMaxBytes: o.worldMaxBytes };
 }
 
 /* (2) THE PROPOSAL: the engine over [fromMs, toMs) and every member's keyed

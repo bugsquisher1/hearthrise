@@ -48,6 +48,14 @@
 //   LADDER   a settle's degrade steps and its retry run no engine past the budget
 //            (world_too_large: 2 runs, not 4; session_moved: no retry), each with
 //            its control under an unspent budget
+//   CATCH-UP ★ after a 10-min outage a hero's mid-hunt verb (a settings edit; an engine verb's settle-before-
+//            mutate) is never left failing: refused only `settle_first` (the "catching up" words) until the
+//            player's own settle — the hunt re-read, a verb's collect, what the client's catch-up runs — takes
+//            slice after slice within ITS OWN budget, then it lands, within 3 rounds. BOTH PATHS: browser
+//            closed (two tick fires, then the player returns) and hunt viewed (the player's own settles alone).
+//            The caught-up answer: hunt_behind_ms under the 20 s slack, hunt_slices > 1, one timeline from
+//            the first slice's start, the envelope current, its engine under EDGE_CPU_MS; the rows both paths
+//            write are the same
 //   OUTAGE ★ THE BUG (lane/c-settle-cost): a 30-min tick outage under a FULL body
 //            (4 four-hero parties on the real Millrace Sewer) drains through the
 //            real cron (hr_tick_cron_run: the reclaim, the order, the fan-out) and
@@ -568,6 +576,94 @@ const SPAN_ARMS = {
     const two = M.HS.engineBudget(1e9, fakeClock(1200));
     const d = await M.HS.settleHunt({ exec: racing(), user: UID0, slot: 0, mode: 'tick', session: sid, grounds: groundsOf(M), budget: two });
     if (d.outcome !== 'paid' || two.runs !== 2) problems.push(`CONTROL: a raced settle under an unspent budget answered ${d.outcome}/${d.reason} after ${two.runs} runs (want paid after the retry)`);
+    return problems;
+  }),
+
+  'CATCH-UP': async (db, M) => inTx(db, async () => {
+    const problems = [];
+    const fx = await outageParties(db, M, 1, 4, OUTAGE_HUNT);
+    const p = fx[0];
+    const lead = p.uids[0];
+    await armSpan(db);
+    const t = `date_trunc('second', now() - interval '10 minutes')`;
+    await db.query(`update public.hunt_sessions set entered_at = ${t} - interval '1 minute', hunt_from = ${t}, settled_to = ${t}, next_swing_at = ${t} where id = any ($1::uuid[])`, [p.sids]);
+    await db.query(`update public.hunt_instances set settled_to = ${t}, next_swing_at = ${t} where id = $1`, [p.inst]);
+    const exec = makeExec(db);
+    const preset = Number(await one(db, 'select preset from public.hunt_sessions where id = $1', [p.sids[0]]));
+    const nowMs = Number(await one(db, 'select floor(extract(epoch from now()) * 1000)::bigint'));
+    const clock = async () => Number(await one(db, 'select floor(extract(epoch from settled_to) * 1000)::bigint from public.hunt_instances where id = $1', [p.inst]));
+    /* the player's mid-hunt settings edit, as the client sends it (a NEW key each ask) */
+    const verb = async () => {
+      await db.query(`select set_config('request.jwt.claim.sub', $1, true)`, [lead]);
+      await db.query('delete from public.hr_rate_counters where user_id = $1', [lead]);
+      const r = await one(db, 'select public.hr_action_set_options(0, $1, $2::jsonb, $3::uuid)', [preset, JSON.stringify({ stance: 'offensive' }), idem()]);
+      await db.query(`select set_config('request.jwt.claim.sub', '', true)`);
+      return r;
+    };
+    /* the player's own settle (the hunt re-read the client's catch-up runs), its engine on the CPU clock */
+    const playerSettle = async () => {
+      const budget = M.HS.engineBudget(undefined, cpuClock);
+      const v = await M.HS.settleHunt({ exec, user: lead, slot: 0, mode: 'settle', bucket: null, project: true, live: true, budget });
+      return { v, budget };
+    };
+    const until = async (label, settle) => {
+      const seen = [];
+      for (let round = 0; round < 3; round++) {
+        const r = await verb();
+        if (r && r.ok === true) return { rounds: round, seen };
+        seen.push(r && r.error);
+        if (!r || r.error !== 'settle_first') { problems.push(`${label}: the verb answered ${JSON.stringify(r).slice(0, 200)}, not the catching-up refusal`); return null; }
+        await settle();
+      }
+      problems.push(`${label}: the verb still refused ${JSON.stringify(seen)} after 3 catch-up rounds`);
+      return null;
+    };
+    const caught = [];
+    const viaPlayer = async () => {
+      const from = await clock();
+      const { v, budget } = await playerSettle();
+      caught.push({ v, budget, from });
+    };
+    await db.query('savepoint catch_up');
+
+    /* BROWSER CLOSED: the tick has taken two slices, the player returns and edits its setup */
+    const sel = p.uids.map((u, i) => ({ user_id: u, slot: 0, session_id: p.sids[i] }));
+    for (let k = 0; k < 2; k++) await M.TK.runTick({ exec, engineClock: cpuClock, body: { op: 'tick', roster: [], cadence_ms: 10000, flush_ms: 90000, hunts: sel } });
+    if (!(nowMs - (await clock()) > 20000)) problems.push('CONTROL closed: two tick fires already caught the hunt up');
+    const a = await until('browser closed', viaPlayer);
+    if (a && !a.seen.length) problems.push('CONTROL closed: the verb was never refused (no outage to catch up)');
+    const closedSnaps = [];
+    for (let i = 0; i < p.sids.length; i++) closedSnaps.push(await snapshot(db, p.sids[i], p.uids[i]));
+    await db.query('rollback to savepoint catch_up');
+
+    /* HUNT VIEWED: the player's own settles alone (the 16 s re-read), the verb pressed at once */
+    await db.query(`insert into public.character_presence (user_id, slot, seen_at) values ($1, 0, now())
+                      on conflict (user_id, slot) do update set seen_at = excluded.seen_at`, [lead]);
+    const b = await until('hunt viewed', viaPlayer);
+    const viewedSnaps = [];
+    for (let i = 0; i < p.sids.length; i++) viewedSnaps.push(await snapshot(db, p.sids[i], p.uids[i]));
+    /* the engine verbs' settle-before-mutate (set-activity.js collectCurrentWindow) catches up the same way: rolled back */
+    await db.query('rollback to savepoint catch_up');
+    const env = await one(db, 'select public.hr_state_of($1::uuid, 0)', [lead]);
+    const col = await M.SA.collectCurrentWindow({ exec, user: lead, slot: 0, env, st: env.state || {}, nowMs, capMs: 8 * 3600000, pointerSurvives: true });
+    if (!col || col.outcome !== 'paid' || !(nowMs - (await clock()) < 20000 || (col.env && col.env.hunt_behind_ms > 0))) {
+      problems.push(`a verb's settle-before-mutate after a 10-min outage answered ${col && col.outcome}/${col && (col.reason || col.error)}, ${nowMs - (await clock())} ms behind`);
+    }
+
+    /* THE CAUGHT-UP ANSWERS */
+    for (const c of caught) {
+      const body = c.v.body || {};
+      if (c.v.outcome !== 'paid') { problems.push(`a catch-up settle answered ${c.v.outcome}/${c.v.reason}`); continue; }
+      if (!(c.budget.spentMs < M.HS.EDGE_CPU_MS)) problems.push(`a catch-up call ran ${Math.round(c.budget.spentMs)} ms of engine (${c.budget.runs} runs), over ${M.HS.EDGE_CPU_MS}`);
+      if (!Number.isFinite(body.hunt_behind_ms)) problems.push('a catch-up answer carries no hunt_behind_ms');
+      if (!body.state || !Number.isSafeInteger(body.version)) problems.push('a catch-up answer carries no envelope');
+      if (body.hunt_slices > 1 && body.hunt_from_ms !== c.from) problems.push(`a ${body.hunt_slices}-slice answer's timeline starts at ${body.hunt_from_ms}, not the first slice's ${c.from}`);
+    }
+    if (!caught.some((c) => (c.v.body || {}).hunt_slices > 1)) problems.push(`CONTROL: no catch-up took more than one slice (${JSON.stringify(caught.map((c) => (c.v.body || {}).hunt_slices))})`);
+    const final = caught[caught.length - 1];
+    if (final && !((final.v.body || {}).hunt_behind_ms < 20000)) problems.push(`the last catch-up left the hunt ${(final.v.body || {}).hunt_behind_ms} ms behind, past the 20 s slack`);
+    if (canon(closedSnaps) !== canon(viewedSnaps)) problems.push(`the browser-closed and viewed catch-ups wrote different rows ${firstDiff(canon(closedSnaps), canon(viewedSnaps))}`);
+    if (process.env.HR_SPAN_REPORT) console.log(`CATCH-UP: closed ${JSON.stringify(a)}, viewed ${JSON.stringify(b)}, answers ${JSON.stringify(caught.map((c) => ({ slices: c.v.body.hunt_slices || 1, behind: c.v.body.hunt_behind_ms, engine: Math.round(c.budget.spentMs), runs: c.budget.runs })))}`);
     return problems;
   }),
 

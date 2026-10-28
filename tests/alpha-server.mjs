@@ -466,11 +466,10 @@ export function memberPlant(find, repl) {
   return { file: MEMBER_LAST, fn: 'hr_hunt_apply_member', find, repl };
 }
 const MUTANTS = [
-  /* hr_apply's LAST author is 2027-01-31-inner-flame.sql §2(e) (one anchored edit of the installed text; its §0 pins
-     the pre-image, 2027-01-24-skills-from-storage.sql's patched body, so a plant in an earlier file trips that pin): the
-     defect rides §2(e) as one more edit of the body it executes. The anchor sits in that do-block, in no function body
-     of the text, so the mutant names its body (`fn`). */
-  { arm: 'A-LOCK', file: '2027-01-31-inner-flame.sql', fn: 'hr_apply', why: 'hr_apply no longer refuses a locked sale',
+  /* hr_apply's LAST author is 2027-02-02-settle-cost.sql §3 (one anchored edit of the installed text, after
+     2027-01-31-inner-flame.sql §2(e)): the defect rides §3 as one more edit of the body it executes. The anchor sits in
+     that do-block, in no function body of the text, so the mutant names its body (`fn`). */
+  { arm: 'A-LOCK', file: '2027-02-02-settle-cost.sql', fn: 'hr_apply', why: 'hr_apply no longer refuses a locked sale',
     find: '  execute replace(v_def, c_old, c_new);',
     repl: '  execute replace(replace(v_def, c_old, c_new), $l$        if v_n < 0 and coalesce(v_this_intent, \'\') ~ \'^vendor_sell(_many)?(:|$)\' and public.hr_item_locked(v_uid, v_slot, k) then$l$,\n    $l$        if false and coalesce(v_this_intent, \'\') ~ \'^vendor_sell(_many)?(:|$)\' and public.hr_item_locked(v_uid, v_slot, k) then$l$);' },
   /* hr_hunt_loot_rules is RESTATED last by 2027-01-23-loot-dispatch.sql (md5-pinned to its pre-image); hr_hunt_apply_member
@@ -516,8 +515,9 @@ const MUTANTS = [
   { arm: 'A-BLESS-ATTENDED', file: '2026-10-25-blessings.sql', why: 'a death does not use the blessings up',
     find: '  delete from public.player_blessings where user_id = p_user and slot = p_slot and tier = any (v_tiers);', repl: '  perform 1;' },
   /* hr_hunt_party_start is RESTATED last by 2027-01-19-play-cap.sql (after 2026-12-07-party-finder.sql): the mutant is planted in the body that runs. */
-  /* A KICK SENDS NOBODY HOME (Coordinator ruling 2026-10-23): the engine's read never flags the removed member. */
-  { arm: 'A-PARTY', file: '2026-12-18-party-leave-together.sql', why: "a kicked member's end sends the ticked leader home",
+  /* A KICK SENDS NOBODY HOME (Coordinator ruling 2026-10-23): the engine's read never flags the removed member.
+     hr_hunt_instance_read is RESTATED last by 2027-02-02-settle-cost.sql (its §0 pins the 12-18 image): planted there. */
+  { arm: 'A-PARTY', file: '2027-02-02-settle-cost.sql', why: "a kicked member's end sends the ticked leader home",
     find: "'kicked', exists (select 1 from public.hunt_parties p where p.id = v_i.id)", repl: "'kicked', false and exists (select 1 from public.hunt_parties p where p.id = v_i.id)" },
   { arm: 'A-PARTY', file: '2027-01-19-play-cap.sql', why: "the shared start loads the leader's bag into every member",
     find: 'public.hr_hunt_saved_bag(v_m.user_id, v_m.slot),', repl: 'public.hr_hunt_saved_bag(v_uid, p_slot),' },

@@ -32,7 +32,7 @@ export const WAVE3_DESC = {
   'hollow_sigil_ring': 'A band of spent runes bound around a dark wizard\'s sigil — it whispers the next spell before you cast it.',
   'fangdart_recurve': 'Strung with dire-wolf sinew and tipped in torn fangs and night-bone shot — light, quick, and it finds the soft place between ribs.',
   'alphaheart_longbow': 'Carved around the single fang of a pack-alpha; the bow remembers what it means to lead the hunt.',
-  'nightstalker_pelt': 'Panther-hide stitched with shadow-silk and clawed clasps — armour that would rather you were never seen.',
+  'nightstalker_pelt': 'Panther-hide stitched with shadow-silk and clawed clasps — armor that would rather you were never seen.',
   'warband_bulwark': 'A brute\'s shed bone-plating hammered over a steel frame — it hits back as hard as it holds.',
-  'chitinweave_cloak': 'Overlapping void-carapace plates sewn onto a panther\'s shadow — weightless armour that seems to shrug the world off your shoulders.',
+  'chitinweave_cloak': 'Overlapping void-carapace plates sewn onto a panther\'s shadow — weightless armor that seems to shrug the world off your shoulders.',
 };

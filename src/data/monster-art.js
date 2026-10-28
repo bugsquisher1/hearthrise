@@ -159,7 +159,7 @@ export const SHIPPED = Object.freeze([
 export const WAVE1_REJECTED = Object.freeze({
   cyclops: 'two eyes. The id, the name and the subject line all say one.',
   void_mote: 'a heavy goggled humanoid in a headscarf; the subject is a small hovering hole in the world.',
-  elder_cinder: 'no coals, no ash, no core glow — a plain grey brute, indistinguishable at render size from ogre / rock_troll / mountain_troll, all of which ship.',
+  elder_cinder: 'no coals, no ash, no core glow — a plain gray brute, indistinguishable at render size from ogre / rock_troll / mountain_troll, all of which ship.',
 });
 
 

@@ -66,7 +66,7 @@ export function validate() {
     if (typeof r.label !== 'string' || !r.label) out.push(id + ': no label');
     if (typeof r.premium !== 'boolean') out.push(id + ': premium must be true or false');
     for (const g of r.regions) if (!REGION_LABEL[g]) out.push(id + ': region ' + g + ' has no label');
-    if (r.regions.length > MASK_COLOURS.length) out.push(id + ': more regions than mask colours');
+    if (r.regions.length > MASK_COLOURS.length) out.push(id + ': more regions than mask colors');
   }
   if (!Number.isInteger(DYE_COUNT) || DYE_COUNT < 1 || DYE_COUNT > 64) out.push('DYE_COUNT must be 1..64');
   for (const g of BASE_REGIONS) {

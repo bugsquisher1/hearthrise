@@ -72,7 +72,7 @@ export const MONSTER_CLASSES = Object.freeze({
   },
   humanoid: {
     id: 'humanoid', name: 'Humanoid', order: 4,
-    line: 'Goblins, trolls, ogres, giants. Armoured, drops gear, hits hard.',
+    line: 'Goblins, trolls, ogres, giants. Armored, drops gear, hits hard.',
     weaponWeak: 'sword', weaponResist: [],
     elementWeak: 'poison', elementResist: [], elementImmune: [],
   },

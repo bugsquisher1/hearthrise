@@ -25,7 +25,9 @@
 //                 name from src/data/items.js
 //   double-space  two spaces between words         → one
 //   dot-spacing   "·" touching a word on one side  → " · "
-//   spelling      "Defence" — the skill catalogue says "Defense"
+//   spelling      a British form (armour, colour, centre, grey, favourite,
+//                 defence, cancelled, -ise…) — player copy is American
+//                 (Tyler 2026-10-28); one-word labels are read too
 // plus a SHRINK-ONLY RATCHET on filler fantasy words in NAMES (DESIGN_STANDARDS
 // §2): Shadow, Void, Ancient, Eternal, Dark, Forgotten (whole word, any case)
 // in the `name`/`label`/`title`/`n` field of a data row under src/data/**.
@@ -170,8 +172,29 @@ export function lintText(text, pluralRe) {
   if (segs.some((seg) => !/\n/.test(seg) && /[A-Za-z0-9.,!?;:’']  +[A-Za-z0-9(]/.test(seg))) hits.push('double-space');
   if (segs.some((seg) => /[A-Za-z0-9)%]·|·[A-Za-z0-9(]/.test(seg))) hits.push('dot-spacing');
   if (pluralRe && pluralRe.test(t)) hits.push('article');
-  if (/\bDefence\b/.test(t)) hits.push('spelling');
+  if (britishWords(t).length) hits.push('spelling');
   return hits;
+}
+
+/* AMERICAN SPELLING in player copy (Tyler 2026-10-28: "centre in the change
+   log? Center."). A British form read as a whole word — not part of an id,
+   a path, a class or a selector ("armour-weights.js", `[data-combat="defence"]`
+   stay silent: code names are not copy). The fix is the American form. */
+export const BRITISH_RE = new RegExp('(?<![-\\w/.$])(?:'
+  + 'armour(?:s|ed|ing|er|ers|y)?|colour(?:s|ed|ful|ing|less)?|centre[sd]?|jeweller(?:y|s)?'
+  + '|grey(?:s|ed|ish|er)?|favourite[s]?|honour(?:s|ed|able|ing)?|behaviour(?:s|al)?|(?:centi|kilo|milli)?metre[s]?'
+  + '|travell(?:ing|ed|er|ers)|cancell(?:ed|ing)|levell(?:ed|ing|er|ers)|labell(?:ed|ing)|defence[s]?|offence[s]?'
+  + '|practis(?:e|ed|es|ing)|plough(?:s|ed|ing)?|mould(?:s|ed|ing|y|ering)?|storey[s]?|smoulder(?:s|ed|ing)?'
+  + '|sombre|savoury|rumour[s]?|flavour(?:s|ed|ful)?|valour|vapour[s]?|harbour(?:s|ed)?|labour(?:s|ed|er)?'
+  + '|neighbour(?:s|ing|hood)?|odour[s]?|splendour|theatre[s]?|fibre[s]?|sabre[s]?|lustre|spectre[s]?|sceptre[s]?'
+  + '|paralys(?:e|ed|es|ing)|analys(?:e|ed|es|ing)|sulphur|prised'
+  + '|(?:organi|recogni|reali|apologi|prioriti|customi|finali|minimi|maximi|optimi|summari|speciali|visuali'
+  + '|authori|categori|carameli|personali|standardi|memori|critici|stabili|neutrali|normali|utili|crystalli'
+  + '|materiali|mobili|immobili|sympathi|energi|harmoni|fertili|sterili|weaponi)s(?:e|ed|es|ing|ation|ations)'
+  + ')(?![-\\w/])', 'gi');
+export function britishWords(text) {
+  const t = String(text).replace(/<[^>]*>/g, ' ').replace(/\[[^\]]*\]/g, ' ');
+  return [...t.matchAll(BRITISH_RE)].map((m) => m[0]);
 }
 
 /* A waiver is one known literal the next edge deploy removes (edge-bundled
@@ -196,8 +219,12 @@ export async function scan(root, opts = {}) {
   for (const f of files) {
     const src = readFileSync(f, 'utf8');
     for (const { text, at } of stringLiterals(src)) {
-      if (!prose(text) || devOnly(src, at)) continue;
-      const rules = lintText(text, pluralRe);
+      if (devOnly(src, at)) continue;
+      /* A one-word label ("Armour", ' colour ') is copy too for spelling: a
+         capitalised word or one with a space round it. A bare lower-case
+         token ('armour', 'armour/helm') is an id, never read. */
+      const rules = prose(text) ? lintText(text, pluralRe)
+        : (/^[A-Z]|\s/.test(text) && britishWords(text).length ? ['spelling'] : []);
       if (!rules.length) continue;
       const line = src.slice(0, at).split('\n').length;
       for (const rule of rules) {
@@ -303,6 +330,11 @@ async function selftest() {
       ['double-space', "export const a = 'Your crops are  ready to pick';"],
       ['dot-spacing', "export const a = 'Lv 3 ·4h grow';"],
       ['spelling', "export const a = 'Requires Defence 30 to wear';"],
+      ['spelling', "export const TIP = { absorb: 'Heavy armour: the share of every blow it takes.' };"],
+      ['spelling', "export const a = [{ key: 'armor', label: 'Armour' }];"],
+      ['spelling', "export const a = r + ' colour ' + i;"],
+      ['spelling', "export const a = 'Pick your favourite grey cloak from the centre rack';"],
+      ['spelling', "export const a = 'Organise the bag: it was cancelled while travelling';"],
     ];
     for (const [rule, body] of cases) {
       writeFileSync(plant, '// planted\n' + body + '\n');
@@ -311,6 +343,12 @@ async function selftest() {
       console.log(`  ${hit ? 'caught' : 'MISSED'}  ${rule}`);
       if (!hit) bad++;
     }
+    // Code names are not copy: an id, an import path, a selector, a class.
+    writeFileSync(plant, "import { W } from './armour-weights.js';\nexport const a = ['armour', 'armour/helm', '[data-combat=\"defence\"] b', '<i class=\"hw-tip-flavour\">Gray wool</i>', 'Hearthrise rises at sunrise'];\n");
+    const ids = await scan(HERE_ROOT, { files: [plant] });
+    const idLeak = ids.findings.some((f) => f.rule === 'spelling');
+    console.log(`  ${idLeak ? 'FALSE-POSITIVE' : 'ignored'}  spelling in ids / paths / selectors / classes`);
+    if (idLeak) bad++;
     // A comment is not copy.
     writeFileSync(plant, "/* 'Smith 60 items in all' */\n// 'item(s)' 'an Apprentice Gloves'\nexport const a = 1;\n");
     const c = await scan(HERE_ROOT, { files: [plant] });

@@ -26,20 +26,20 @@ import { combatLedger } from '../skills.js?v=0.2.63';
 
 /* [key, label] of each number line; a line shows only when its value exists. */
 const VITALS = Object.freeze([['hp', 'Max health'], ['mana', 'Max mana'], ['regen', 'Regeneration'], ['speed', 'Speed'], ['cap', 'Capacity'], ['stamina', 'Stamina']]);
-const COMBAT = Object.freeze([['damage', 'Damage'], ['accuracy', 'Hit chance'], ['crit', 'Critical chance'], ['defence', 'Defence'],
+const COMBAT = Object.freeze([['damage', 'Damage'], ['accuracy', 'Hit chance'], ['crit', 'Critical chance'], ['defence', 'Defense'],
   ['dodge', 'Dodge'], ['absorb', 'Absorb'], ['ward', 'Ward']]);
 /* What each armour line means, for its tooltip (ruling K7: Heavy = Absorb, Medium = Dodge, Light = Ward;
    a blow meets them in that order: dodge, absorb, resistances, ward, then health). */
 const COMBAT_TIPS = Object.freeze({
   defence: 'Your Defense skill, shield and cape make monsters miss more often.',
-  dodge: 'Medium armour: the chance a blow misses you completely.',
-  absorb: 'Heavy armour: the share of every blow that lands which your armour takes.',
-  ward: 'Light armour: a flat amount taken off every blow that lands. Best against many small blows.',
+  dodge: 'Medium armor: the chance a blow misses you completely.',
+  absorb: 'Heavy armor: the share of every blow that lands which your armor takes.',
+  ward: 'Light armor: a flat amount taken off every blow that lands. Best against many small blows.',
 });
 const XP_SOURCES = Object.freeze([['perks', 'Home and renown'], ['buffs', 'Food and drink'], ['combat', 'Combat skills only']]);
 /* What Level is, for its tooltip (CORE_MODEL.md §1-2). */
 const LEVEL_TIP = 'Level rises only from monsters you defeat. Each Level adds max health and max mana; '
-  + 'heavy armour adds more health, light armour more mana. Dying costs a little Level XP, never a Level.';
+  + 'heavy armor adds more health, light armor more mana. Dying costs a little Level XP, never a Level.';
 
 const lineHtml = ([k, l], kind, tips) => '<div class="hw-cs-line" data-' + kind + '="' + k + '"'
   + (tips && tips[k] ? ' title="' + esc(tips[k]) + '"' : '') + '><dt>' + esc(l) + '</dt><dd></dd></div>';
@@ -107,7 +107,7 @@ export function patchSheet(body, ctx, drawPortrait, asked) {
   combatLedger.patch(root, ctx);
   /* The engine's numbers, only while its sheet is fresh. */
   line(root, '[data-combat="damage"]', c && c.damage ? c.damage.min + '–' + c.damage.max : null);
-  line(root, '[data-combat="accuracy"]', c && c.accuracyPct !== null ? c.accuracyPct + '% against no armour' : null);
+  line(root, '[data-combat="accuracy"]', c && c.accuracyPct !== null ? c.accuracyPct + '% against no armor' : null);
   line(root, '[data-combat="crit"]', c && c.critPct !== null ? c.critPct + '%' : null);
   line(root, '[data-combat="defence"]', c && c.defence !== null ? whole(c.defence) : null);
   /* The armour's mitigation (ruling K7), the engine's numbers at this Level. */

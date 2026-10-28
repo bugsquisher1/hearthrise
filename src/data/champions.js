@@ -63,7 +63,7 @@ export const CHAMPION_DESC = {
   tusker_charm: 'A cracked tusk from the oldest boar in the woods, strung on a thong to make its wearer braver than is wise',
   packlord_band: 'A crude iron band the Packlord wore on one claw, and the gnolls followed whoever held it',
   mirewort_drops: 'Two beads of bog-amber with a sprig of mirewort sealed inside, humming faintly when a spell is near',
-  barrowking_mantle: 'The mouldering cloak of a king who would not stay buried, and it still remembers how to hold a line',
+  barrowking_mantle: 'The moldering cloak of a king who would not stay buried, and it still remembers how to hold a line',
   jarls_rimetorc: 'A torc of frozen iron worn by the Frost Jarl; it never warms, and neither does the one who wears it',
 };
 

@@ -621,7 +621,7 @@ export const DERIVED_PRICES = [
       "growth": 1.32,
       "slots": 20
     },
-    "server_needs": "player_state must hold the purchase COUNT; the server recomputes the price from it. Unbounded — the client has no cap, so the server needs one before it authorises this."
+    "server_needs": "player_state must hold the purchase COUNT; the server recomputes the price from it. Unbounded — the client has no cap, so the server needs one before it authorizes this."
   },
   {
     "id": "vendor.sell",

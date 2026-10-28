@@ -212,7 +212,7 @@ export function validate() {
   const out = [];
   const step = HUNT_TUNING.stepMs;
   for (const [lane, ms] of Object.entries(ABILITY_LANES)) if (!Number.isInteger(ms) || ms <= 0 || ms % step) out.push('lane ' + lane + ' ' + ms + ' ms is not a whole number of sub-steps');
-  for (const [d, row] of Object.entries(DISCIPLINES)) if (!/^[a-z_]{1,32}$/.test(d) || !['melee', 'ranged', 'magic'].includes(row.skill)) out.push('discipline ' + d + ': a [a-z_] id levelling on melee, ranged or magic');
+  for (const [d, row] of Object.entries(DISCIPLINES)) if (!/^[a-z_]{1,32}$/.test(d) || !['melee', 'ranged', 'magic'].includes(row.skill)) out.push('discipline ' + d + ': a [a-z_] id leveling on melee, ranged or magic');
   const per = Object.fromEntries(DISCIPLINE_IDS.map((d) => [d, 0]));
   for (const r of Object.values(ABILITIES)) {
     const bad = (m) => out.push(r.id + ': ' + m);

@@ -296,7 +296,7 @@ export const LIB2_DESC = {
   rat_stick: 'A stick. Weighted at one end, worn smooth at the other. It is very good at rats',
 
   chitin_helmet: 'A coif plated in overlapping vermin shell, lighter than leather and colder to the touch',
-  chitin_body: 'Chitin scales laid like roof tiles, stitched to a hide backing — armour grown, not skinned',
+  chitin_body: 'Chitin scales laid like roof tiles, stitched to a hide backing — armor grown, not skinned',
   chitin_pants: 'Segmented chitin chaps that click faintly with every stride',
   chitin_boots: 'Shell-capped boots that turn a bite the way tanned hide never could',
   chitin_gloves: 'Vambraces of banded chitin, clawed at the knuckle out of habit rather than design',
@@ -332,7 +332,7 @@ export const LIB2_DESC = {
 
   coarse_whetstone: 'A rough field stone that puts an edge on anything and a good edge on nothing',
   copper_whetstone: 'A copper-bound stone, the first one worth keeping in the pack',
-  iron_whetstone: 'An iron-backed whetstone with a groove worn down its centre',
+  iron_whetstone: 'An iron-backed whetstone with a groove worn down its center',
   steel_whetstone: 'A close-grained stone that leaves an edge you can hear',
   mithril_whetstone: 'A pale stone that takes almost nothing off and gives a great deal back',
   rune_whetstone: 'A marked whetstone that sharpens a little more than the honing accounts for',

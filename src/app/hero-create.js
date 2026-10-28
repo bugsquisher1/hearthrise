@@ -110,7 +110,7 @@ export function renderHeroCreate(card, o) {
     let h = '';
     for (let i = 0; i < DYE_COUNT; i++) {
       h += '<button type="button" class="hero-dye" data-hero-region="' + g + '" data-hero-dye="' + i + '" style="--hero-dye: var(--dye-' + i + ')"'
-        + ' aria-label="' + REGION_LABEL[g] + ' colour ' + (i + 1) + '" aria-pressed="' + (colors[g] === i) + '"></button>';
+        + ' aria-label="' + REGION_LABEL[g] + ' color ' + (i + 1) + '" aria-pressed="' + (colors[g] === i) + '"></button>';
     }
     return h;
   };

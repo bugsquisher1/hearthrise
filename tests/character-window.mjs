@@ -176,7 +176,7 @@ async function checks(overrides, shots) {
         if (tabs.join('|') !== 'Character|Outfit|Deaths') fails.push('CW-1 the tabs are ' + tabs.join('|'));
         /* CW-2: exactly the section's numbers. */
         const L = await lines(page);
-        const want = { Damage: '1–17', 'Hit chance': '74.5% against no armour', 'Critical chance': '4.5%', Defence: '23', Dodge: '12.5% of blows', Absorb: '31% of each blow', Ward: '4 off each blow', 'Max mana': '60', 'Max health': '220',
+        const want = { Damage: '1–17', 'Hit chance': '74.5% against no armor', 'Critical chance': '4.5%', Defense: '23', Dodge: '12.5% of blows', Absorb: '31% of each blow', Ward: '4 off each blow', 'Max mana': '60', 'Max health': '220',
           Regeneration: '+1.9% (Inner Flame)', 'Home and renown': '+2%', Total: '+2%' };
         for (const [k, v] of Object.entries(want)) if (L[k] !== v) fails.push('CW-2 ' + k + ' reads ' + JSON.stringify(L[k]) + ', the server sent ' + v);
         if ('Prayer ward' in L || 'Gear' in L || 'Food and drink' in L) fails.push('CW-3 a zero line is drawn: ' + JSON.stringify(L));
@@ -261,7 +261,7 @@ async function checks(overrides, shots) {
         await push(page, s);
         await page.waitForTimeout(1000);
         const L = await lines(page);
-        for (const k of ['Damage', 'Hit chance', 'Critical chance', 'Defence', 'Dodge', 'Absorb', 'Ward', 'Speed', 'Total']) if (k in L) fails.push('CW-3 a stale sheet still draws ' + k + ' = ' + L[k]);
+        for (const k of ['Damage', 'Hit chance', 'Critical chance', 'Defense', 'Dodge', 'Absorb', 'Ward', 'Speed', 'Total']) if (k in L) fails.push('CW-3 a stale sheet still draws ' + k + ' = ' + L[k]);
         if (L['Max health'] !== '220') fails.push('CW-3 the server-owned max health is gone with the stale sheet: ' + JSON.stringify(L));
         /* Max mana is a vital like max health (Tyler 10-19): the server's hunt vitals carry it when the sheet is stale. */
         if (L['Max mana'] !== '60') fails.push('CW-3 max mana went with the stale sheet instead of reading the server vitals: ' + JSON.stringify(L));

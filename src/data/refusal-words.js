@@ -137,9 +137,9 @@ export const REFUSAL_WORDS = Object.freeze({
   slot_not_owned: 'That hero slot is not yours yet.',
   slot_cap: 'You have every hero slot there is.',
   requires_previous_slot: 'Buy the slot before it first.',
-  bad_colors: 'Pick a colour for every part.',
-  bad_region: 'Pick a colour for every part.',
-  bad_dye: 'Pick a colour for every part.',
+  bad_colors: 'Pick a color for every part.',
+  bad_region: 'Pick a color for every part.',
+  bad_dye: 'Pick a color for every part.',
   /* The action bar (bar-draft.js). */
   no_bar: 'Start a hunt to set up the action bar.',
   bar_full: 'The action bar is full. Empty a slot first.',
@@ -240,7 +240,7 @@ export const REFUSAL_WORDS = Object.freeze({
   not_held: 'You do not hold that task.',
   already_held: 'You already hold that task.',
   bad_order: 'Each armor slot can only be in the order once.',
-  bad_weight: 'Pick heavy, medium or light armour.',
+  bad_weight: 'Pick heavy, medium or light armor.',
   /* Older features a server body can still answer with. */
   on_cooldown: 'That is cooling down. Try again shortly.',
   not_yet: 'Not yet. Try again later.',

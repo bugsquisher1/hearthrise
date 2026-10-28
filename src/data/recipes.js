@@ -328,7 +328,7 @@ export const ARTISAN_CATEGORIES = {
     { key: 'sawmill',    label: 'Sawmill' },
     { key: 'ammunition', label: 'Ammunition' },
     { key: 'weapons',    label: 'Weapons' },
-    { key: 'armour',     label: 'Armour' },
+    { key: 'armour',     label: 'Armor' },
     { key: 'castle',     label: 'Building Materials' },
   ],
   cooking: [

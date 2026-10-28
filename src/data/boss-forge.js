@@ -78,7 +78,7 @@ export const BOSS_TROPHIES = Object.freeze([
   Object.freeze({ item: 'voidwoven_sigil', dungeon: 'voidbringer', boss: 'The Riftmaw',
     line: 'Pinned above the hearth, still slowly moving. The fire leans toward it.' }),
   Object.freeze({ item: 'dragon_relic', dungeon: 'ancient_wyrm', boss: 'Elderscale',
-    line: 'The centre of the hall. Guests stop talking when they see it.' }),
+    line: 'The center of the hall. Guests stop talking when they see it.' }),
 ]);
 
 /** How many of the boss trophies a holder owns, from a {id: qty} map (or

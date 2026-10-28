@@ -44,7 +44,7 @@ export const DRINK_RECIPES = Object.freeze([
 export const DRINK_DESC = Object.freeze({
   turnip_juice: 'Pressed turnip, earthy and thin, and enough to steady a beginner\'s spells',
   carrot_juice: 'Sweet carrot juice that clears the head between casts',
-  tomato_juice: 'Rich tomato juice, a caster\'s favourite on a long hunt',
+  tomato_juice: 'Rich tomato juice, a caster\'s favorite on a long hunt',
   pumpkin_cider: 'Spiced pumpkin cider that warms the hands and refills the well of mana',
   goldenroot_tea: 'Goldenroot steeped slow, bright gold and humming with power',
   emberfruit_cordial: 'A fiery emberfruit cordial for casters who fight the strongest foes',

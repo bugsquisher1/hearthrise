@@ -124,7 +124,7 @@ export const IMBUE_DESC = Object.freeze({
   mosslight_tendril: 'A tendril of the spring moss a Walking Vine drags with it. It still glows a little',
   sluice_crust: 'The green crust that dries on a Goblin Sluicer\'s pan where the copper water runs off',
   rooks_moss_charm: 'A pouch of glowing moss Rook wears round his neck against the spring water\'s green sickness',
-  giant_rat_hide: 'A scrap of tough hide off a Giant Rat from under the mill, for the imbuer who wards armour',
+  giant_rat_hide: 'A scrap of tough hide off a Giant Rat from under the mill, for the imbuer who wards armor',
   hive_wasp_stinger: 'The barbed stinger of a Hive Wasp from the mill cellar, still sharp enough to draw blood',
   glowing_copper_fleck: 'A fleck of copper from the Warrens that still glows from the spring water, picked out by a scavenger',
   skulkers_shiv: 'The thin blade a Goblin Skulker carries for the back of a party, sharpened on the gallery walls',

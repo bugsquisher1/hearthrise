@@ -227,7 +227,7 @@ export const SLOT_DESC = {
   rubyfire_studs: 'Rubies caught in runed settings that catch the light like a struck spark',
   dragon_gem_earrings: 'The gemcutter\'s masterwork: a dragon\'s heart-gem split in two and hung where it can see everything you fight',
 
-  woolen_cloak: 'Honest wool against honest weather — the first cloak that is warmer than a rumour',
+  woolen_cloak: 'Honest wool against honest weather — the first cloak that is warmer than a rumor',
   houndskin_cloak: 'Hound-pelt lined with bat-leather, cut short so it never catches on a swing',
   trollhide_cape: 'Troll hide over bear pelt, thick enough to blunt a blade and heavy enough to notice',
   shadowsilk_cape: 'Panther-shadow woven on a spider\'s loom — it hangs perfectly still even when you do not',

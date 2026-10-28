@@ -755,13 +755,17 @@ export const MONSTERS = {
     hp: 170, atk: 30, def: 12, xp: 1122, gp: [14, 34], speed: 4400,
     drops: [{ id: 'goblin_ear', ch: .6, band: 'common' }, { id: 'bones', ch: .5, band: 'common' }, { id: 'iron_ore', ch: .2, band: 'common' }, { id: 'skulkers_shiv', ch: .08, band: 'uncommon' },
       { id: 'steel_platebody', ch: .05, band: 'scarce' }, { id: 'boarhide_body', ch: .05, band: 'scarce' }, { id: 'scholar_body', ch: .05, band: 'scarce' },
-      { id: 'willow_longbow', ch: .0062, band: 'rare' }, { id: 'willow_crossbow', ch: .0062, band: 'rare' }] },
+      { id: 'willow_longbow', ch: .0062, band: 'rare' }, { id: 'willow_crossbow', ch: .0062, band: 'rare' },
+      /* the first tier-3 gloves (lane b-unsourced-items): a Rare, since the Shop owns the slot's basic */
+      { id: 'steel_gauntlets', ch: .0062, band: 'rare' }, { id: 'boarhide_gloves', ch: .0062, band: 'rare' }, { id: 'scholar_gloves', ch: .0062, band: 'rare' }] },
   goblin_digger: { name: 'Goblin Digger', icon: '👺', tier: 3, level: 40, cls: 'humanoid', family: 'Humanoid', formation: true,
     /* one override (weapon): the copper pot over its eyes turns a blade; a hammer rings it. */
     weaponWeak: 'hammer', weaponResist: ['sword'],
     hp: 240, atk: 26, def: 20, xp: 1452, gp: [16, 39], speed: 2600,
     drops: [{ id: 'copper_ore', ch: .8, band: 'common' }, { id: 'coal', ch: .4, band: 'common' }, { id: 'bones', ch: .5, band: 'common' }, { id: 'goblin_ear', ch: .4, band: 'common' }, { id: 'dented_copper_pot', ch: .08, band: 'uncommon' },
-      { id: 'steel_helm', ch: .035, band: 'scarce' }, { id: 'boarhide_helmet', ch: .035, band: 'scarce' }, { id: 'scholar_helmet', ch: .035, band: 'scarce' }, { id: 'steel_warhammer', ch: .035, band: 'scarce' }] },
+      { id: 'steel_helm', ch: .035, band: 'scarce' }, { id: 'boarhide_helmet', ch: .035, band: 'scarce' }, { id: 'scholar_helmet', ch: .035, band: 'scarce' }, { id: 'steel_warhammer', ch: .035, band: 'scarce' },
+      /* the first tier-3 belts (lane b-unsourced-items), Rares above the Shop's basic belt */
+      { id: 'steel_belt', ch: .0044, band: 'rare' }, { id: 'boarhide_belt', ch: .0044, band: 'rare' }, { id: 'scholar_belt', ch: .0044, band: 'rare' }] },
   hobgoblin_foreman: { name: 'Hobgoblin Foreman', icon: '👹', tier: 3, level: 46, cls: 'humanoid', family: 'Humanoid', formation: true,
     hp: 300, atk: 30, def: 22, xp: 2112, gp: [29, 67], speed: 3000,
     drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'iron_ore', ch: .6, band: 'common' }, { id: 'coal', ch: .6, band: 'common' }, { id: 'foremans_lash', ch: .08, band: 'uncommon' },

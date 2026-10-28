@@ -185,7 +185,9 @@ export const WORLD_FIELDS_READ = Object.freeze({
    lands in this forward file, the same full replace, applied after 2027-02-05-first-hour-bench-inputs.generated.sql. */
 /* WICKSTEAD (lane b-greenhaven-6, 2026-10-28): 2027-02-05 is APPLIED history; the staged farm ground's four imbuement items'
    vendor values land in this forward file, the same full replace, applied after 2027-02-06-wickstead-items-catalogue. */
-export const OUT_NAME = '2027-02-06-wickstead-hunt-sessions-catalogue.generated.sql';
+/* THE UNSOURCED ITEMS (lane b-unsourced-items, 2026-10-28): 2027-02-06 is APPLIED history; the Warrens' six tier-3 glove and belt
+   Rares join the skulker's and digger's kill bounds in this forward file, applied after 2027-02-08-unsourced-bench-inputs. */
+export const OUT_NAME = '2027-02-08-unsourced-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);

@@ -193,9 +193,6 @@ export const UNREACHABLE = Object.freeze({
   /* Tier 1-3 gear and Greenhaven-fit materials (roads, greenwood, farm edge, ruins) for the region's next
      grounds. Gloves, belts and the caster's cloth line have NO reachable piece today. */
   greenhaven: Object.freeze([
-    'bronze_gauntlets', 'steel_gauntlets', 'boarhide_gloves', 'apprentice_gloves',
-    'scholar_gloves', 'leather_belt', 'steel_belt', 'boarhide_belt',
-    'apprentice_belt', 'scholar_belt',
     'rat_stick',
     'spidersilk_choker', 'tusker_charm', 'packlord_band',
     'mirewort_drops', 'ancient_fragment', 'cracked_spellstone', 'grave_dust', 'razor_claw', 'bear_pelt', 'bear_claw',
@@ -234,7 +231,8 @@ export const UNREACHABLE = Object.freeze({
    Adept Robe Top); the Longbow left `staged` (made at Crafting 15 too). 134 -> 133 (lane b-loot-bands): Old Grayjaw's
    Rare row sources the Studded Leather Coif. 133 -> 132: the Sewer's kobolds drop the Iron Boots; 132 -> 131: Rook hides the Boarhide Coif; 131 -> 129: the Warrens drop the Steel and Scholar boots.  129 -> 125: the Warrens' willow Rares. */
 /* 125 -> 115 (lane b-greenhaven-6): Wickstead's ten move to `staged` (C11 proves its opening sources them). */
-export const UNREACHABLE_CEILING = 115;
+/* 115 -> 105 (lane b-unsourced-items): the tier-1 gloves and sashes are made (style-gear.js), the tier-3 ones are Warrens Rares. */
+export const UNREACHABLE_CEILING = 105;
 
 /**
  * id -> the first reachable door (a label). `opts` opens planned doors for C11's proof:

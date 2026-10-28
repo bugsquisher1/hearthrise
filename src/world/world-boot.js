@@ -148,7 +148,16 @@ export async function bootWorld(panel, opts) {
   const stage = panel.querySelector('.world-stage');
   const chrome = panel.querySelector('.world-chrome');
   const styles = win.getComputedStyle(doc.body);
-  const css = (name) => styles.getPropertyValue(name).trim();
+  /* THE WORLD'S TOKENS, READ ONCE (perf lane 2026-10-28): the canvas asks for --world-* colours dozens of times a frame,
+     and each read of the live computed style re-ran style for whatever the shell had just written (4.7 s of a 4-minute
+     phone profile at 4x CPU). Kept until the page's styling can have changed: an attribute on <html>/<body> (a
+     theme, a class) or a resize (a media query). */
+  const tokens = new Map();
+  const css = (name) => { let v = tokens.get(name); if (v === undefined) tokens.set(name, v = styles.getPropertyValue(name).trim()); return v; };
+  const forgetTokens = () => tokens.clear();
+  const tokenWatch = typeof win.MutationObserver === 'function' ? new win.MutationObserver(forgetTokens) : null;
+  if (tokenWatch) { tokenWatch.observe(doc.documentElement, { attributes: true }); tokenWatch.observe(doc.body, { attributes: true }); }
+  win.addEventListener('resize', forgetTokens);
   /* EVERY manifest (the book: footprints and sets), but an image only when a scene drawing from it shows. */
   const book = createBook(await loadManifests({ doc, version: BUILD.cache }));
   /* A sprite no loaded atlas carries compiles as a one-tile stub, never a crash. */
@@ -508,6 +517,8 @@ export async function bootWorld(panel, opts) {
     setInset(o) { if (gone) return; backend.setInset(o); if (panel.classList.contains('active') && !(running && live())) step(0); },
     destroy() {
       gone = true;
+      if (tokenWatch) tokenWatch.disconnect();
+      win.removeEventListener('resize', forgetTokens);
       if (raf) win.cancelAnimationFrame(raf);
       raf = 0; running = false;
       /* the live scene stays the character's (S5): shown again, it still knows every death it played */

@@ -341,8 +341,10 @@ async function propose(M, d, uid, slot, atMs) {
 const G5_SEED = Object.freeze({ secret: 'g5', instance: '00000000-0000-4000-8000-000000000005' });
 const commit = (M, d, p) =>M.HS.commitHuntSettle(d.exec, { ...p.commit, project: null });
 const memberOf = (p, uid, slot) => p.commit.members.find((m) => String(m.user) === String(uid) && Number(m.slot) === slot);
-/* A bill the purse cannot pay however much a window sells on pickup (well under the food lane's 361 uses a window). */
-const OVER = 2000;
+/* A bill the purse cannot pay however much a window sells on pickup, and inside the food lane's uses bound so the refusal is
+   the purse's (gold_short), not too_many_uses: a window is at most hunt-settle.js HUNT_SETTLE_SPAN_MS (2 min since
+   lane/c-tick-span; was 15), whose lane allows 120 s / 2.5 s + 1 = 49 uses, and this bill is ~27 (300 / 14 over the purse). */
+const OVER = 300;
 /* WHAT A MEMBER'S WINDOW ALREADY MOVES besides the planted bill: its coins, the loot it sold to cover a use (+) and
    the store uses the ENGINE bought itself (-), priced from the server's own catalogue. A sized bill is planted ON
    TOP of these, so it is sized against this net. */
@@ -623,8 +625,11 @@ async function huntArms(mutate, M) {
       }
       return d.exec(text, params);
     };
-    const v = await M.HS.settleHunt(door === 'tick' ? { exec: racing, user: u, slot: 0, mode: 'tick', grounds: {} }
-      : { exec: racing, user: u, slot: 0, mode: 'settle', bucket: null, project: true, live: true, grounds: {} });
+    /* G4 grades the race's re-read, not the engine budget (tests/hunt-tick-shards.mjs LADDER proves a retry never runs
+       past it, on a fake clock): an unbounded budget, so a loaded box's wall clock cannot skip the retry under test */
+    const wide = () => M.HS.engineBudget(1e9);
+    const v = await M.HS.settleHunt(door === 'tick' ? { exec: racing, user: u, slot: 0, mode: 'tick', grounds: {}, budget: wide() }
+      : { exec: racing, user: u, slot: 0, mode: 'settle', bucket: null, project: true, live: true, grounds: {}, budget: wide() });
     ok(!first && v && v.outcome === 'paid', `G4 ${door}: settleHunt after a raced first attempt answered ${JSON.stringify(v && { outcome: v.outcome, reason: v.reason })}`);
     const c = await chain(d, u);
     ok(!c.bad.length && c.end === c.purse && c.purse >= 0, `G4 ${door}: the ledger chain ${JSON.stringify(c.bad)} ends ${c.end}, purse ${c.purse}`);

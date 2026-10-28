@@ -15,7 +15,9 @@
 //   IS-1  every RPC the client names (`rpc('<name>'`) is on CLIENT_RPCS;
 //   IS-2  the edge is called with the character's slot and nothing else
 //         (`accrue({ slot: this.slot })`), or — in CharacterSession.edgeIntent
-//         only — with the body src/session/edge-intents.js builds;
+//         only — with the body src/session/edge-intents.js builds; the session's
+//         catch-up layer (src/session/catch-up.js, lane/c-tick-span) forwards the
+//         body it was handed as it is, or under a new intentId, and nothing else;
 //   IS-5  that builder's EDGE_INTENTS is exactly CLIENT_EDGE_INTENTS below
 //         (each verb with the only fields it may carry: names and counts), no
 //         field is named like a value (price, gold, cost, total, amount, ask),
@@ -40,6 +42,8 @@ import { fileURLToPath } from 'node:url';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const CLIENT_DIRS = ['src/app', 'src/session', 'src/shell', 'src/net', 'src/world', 'src/platform', 'src/render', 'src/hunt-view', 'src/social'];
 const LINK = 'src/session/server.js';
+/* The session's catch-up retry (a settle_first refusal mid-hunt, asked again under a NEW key): a pass-through. */
+const CATCH = 'src/session/catch-up.js';
 
 /* The client's whole RPC surface, each with what it is for. */
 export const CLIENT_RPCS = Object.freeze({
@@ -221,7 +225,9 @@ export function check(files) {
       const arg = m[1].replace(/\s+/g, '');
       const built = arg === 'body' && f === 'src/session/character-session.js'
         && /constbody=edgeBody\(this\.slot,verb,fields,newIdem\(\)\);if\(!body\)return/.test(code.replace(/\s+/g, ''));
-      if (arg !== '{slot:this.slot}' && !built) problems.push(`IS-2 ${f} sends the edge ${m[1].trim()} — the client may name its slot, or an edgeBody-built item intent, and nothing else`);
+      const forwarded = f === CATCH && (arg === 'body'
+        || (arg === 'next' && /constnext=\{\.\.\.body,intentId:newIdem\(\)\};returnserver\.accrue\(next\)/.test(code.replace(/\s+/g, ''))));
+      if (arg !== '{slot:this.slot}' && !built && !forwarded) problems.push(`IS-2 ${f} sends the edge ${m[1].trim()} — the client may name its slot, or an edgeBody-built item intent, and nothing else`);
     }
     for (const m of code.matchAll(/\bedgeIntent\(\s*'([a-z_]+)'/g)) {
       edgeCalled.add(m[1]);
@@ -269,6 +275,8 @@ if (process.argv.includes('--selftest')) {
     ['a new RPC the list does not name', plant('src/app/boot.js', "server.rpc('hr_vendor_sell', { p_item: 'ore', p_qty: 9 });"), 'IS-1'],
     ['the edge sent an amount', plant('src/session/character-session.js', 'this._server.accrue({ slot: this.slot, gold: 500 });'), 'IS-2'],
     ['the edge sent a hand-built body outside the builder', plant('src/app/boot.js', 'server.accrue(body);'), 'IS-2'],
+    ['the catch-up layer adds a field to the body it forwards', { ...real, [CATCH]: real[CATCH].replace('const next = { ...body, intentId: newIdem() };', 'const next = { ...body, intentId: newIdem(), gold: 500 };') }, 'IS-2'],
+    ['a body forwarded under a new key outside the catch-up layer', plant('src/app/boot.js', 'const next = { ...body, intentId: newIdem() }; server.accrue(next);'), 'IS-2'],
     ['an engine intent the pin does not name', plant('src/shell/windows/inventory/actions.js', "cs.edgeIntent('grant_gold', { qty: 5 });"), 'IS-5'],
     ['the builder grew a price field', { ...real, [EDGE]: real[EDGE].replace("shop_buy: Object.freeze(['offer', 'qty']),", "shop_buy: Object.freeze(['offer', 'qty', 'price']),") }, 'IS-5'],
     ['the builder grew a verb', { ...real, [EDGE]: real[EDGE].replace("eat: Object.freeze(['item']),", "eat: Object.freeze(['item']),\n  grant_gold: Object.freeze(['qty']),") }, 'IS-5'],

@@ -442,6 +442,11 @@ export function mountShell(root, o) {
 
   /* The display tick: components patch their clocks and play the timeline's due events. */
   function patchComponents() {
+    /* The coach FIRST, while the page is still laid out from the last frame: its ring asks what is on screen
+       (launcher.js shown, getClientRects), and asked after the patches below it forced a whole layout inside the
+       tick (perf lane 2026-10-28: up to 79 ms of an 81 ms tick at 4x CPU). A control that appears on this tick is
+       ringed on the next, 250 ms later. */
+    coach(true);
     followSummary();
     if (ctx.character && ctx.character.timeline) ctx.character.timeline.advance(ctx.now());
     /* The Work window or the bag watches the town work: the viewed character re-reads at townPollMs (town-poll.js). */
@@ -452,7 +457,6 @@ export function mountShell(root, o) {
       if (el) render.patch(el, ctx);
     }
     for (const id of wm.openIds()) if (WINDOW_RENDERERS[id] && WINDOW_RENDERERS[id].patch) refresh(id);
-    coach(true);
   }
   const ticker = host.setInterval(patchComponents, DISPLAY_TICK_MS);
 

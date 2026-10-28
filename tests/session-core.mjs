@@ -626,6 +626,56 @@ async function rules(M) {
     return calls.slice(-2).join(',') === 'hr_item_lock,hr_load' || 'an RPC intent no longer re-reads: ' + calls.join(',');
   });
 
+  /* CATCH-1 (lane/c-tick-span): after a tick outage the server refuses a mid-hunt verb `settle_first` until the hunt is
+     settled. The session runs the hunter's own settle ONCE (it catches the hunt up, hunt-settle.js) and asks the verb
+     ONCE more under a NEW key — an RPC intent and an engine intent alike; a read and the settle itself pass through;
+     in town the refusal stands as it came; a hunt still behind after the one catch-up answers its refusal (one retry). */
+  await t('CATCH-1', async () => {
+    const calls = [];
+    let behind = 1;   // how many more asks the server refuses settle_first
+    let hunting = true;
+    let ver = 4;
+    const hunt = () => (hunting ? { hunt: { session_id: 'h1', hunt_id: 'mill_cellar', ended: false } } : {});
+    const refuse = { ok: false, error: 'settle_first', unsettled_ms: 600000 };
+    const srv = {
+      rpc: async (name, args) => {
+        calls.push([name, args && (args.p_idem || null)]);
+        if (name === 'hr_load') return { ok: true, status: 200, body: env(ver++, hunt()), closed: false };
+        if (behind > 0) { behind--; return { ok: true, status: 200, body: refuse, closed: false }; }
+        return { ok: true, status: 200, body: { ok: true }, closed: false };
+      },
+      accrue: async (body) => {
+        calls.push(['accrue', body.intentId || null]);
+        if (body.intentId && behind > 0) { behind--; return { ok: true, status: 200, body: refuse, closed: false }; }
+        return { ok: true, status: 200, body: Object.assign({ ok: true, accrued: true, hunt_behind_ms: 0 }, env(ver++, hunt())), closed: false };
+      },
+    };
+    const cs = new C.CharacterSession({ slot: 0, uid: UID, server: srv, ...timers });
+    await cs.load();
+    const names = () => calls.map((c) => c[0]).join(',');
+    calls.length = 0;
+    const a = await cs.setHuntOptions(0, { stance: 'balanced' });
+    const opts = calls.filter((c) => c[0] === 'hr_action_set_options');
+    if (!a.ok) return 'a settings edit refused settle_first mid-hunt was not caught up and asked again: ' + JSON.stringify(a);
+    if (!names().startsWith('hr_action_set_options,accrue,hr_action_set_options')) return 'the catch-up did not run the hunter\'s settle between the two asks: ' + names();
+    if (opts.length !== 2 || !opts[0][1] || opts[0][1] === opts[1][1]) return 'the second ask did not carry a NEW key: ' + JSON.stringify(opts);
+    if (calls.find((c) => c[0] === 'accrue')[1] !== null) return 'the catch-up settle carried an intent key';
+    /* an engine intent (a purchase, a meal) the same way */
+    calls.length = 0; behind = 1;
+    const e = await cs.edgeIntent('eat', { item: 'cooked_shrimp' });
+    const eats = calls.filter((c) => c[0] === 'accrue' && c[1]);
+    if (!e.ok || eats.length !== 2 || eats[0][1] === eats[1][1] || calls.filter((c) => c[0] === 'accrue' && !c[1]).length !== 1) {
+      return 'an engine intent refused settle_first was not caught up once and asked again under a new key: ' + JSON.stringify(calls); }
+    /* still behind after the one catch-up: the refusal stands (its words), exactly one retry */
+    calls.length = 0; behind = 2;
+    const s = await cs.setHuntOptions(0, { stance: 'balanced' });
+    if (s.ok || s.error !== 'settle_first' || calls.filter((c) => c[0] === 'hr_action_set_options').length !== 2) return 'a hunt still behind was retried other than once: ' + names();
+    /* in town nothing is caught up: the refusal comes back as it came, one ask */
+    hunting = false; await cs.load(); calls.length = 0; behind = 1;
+    const town = await cs.lockItem('iron_sword', true);
+    return (!town.ok && town.error === 'settle_first' && names() === 'hr_item_lock') || 'in town a settle_first refusal was retried: ' + names();
+  });
+
   /* HUNT-1 (ATTENDED, live v0.2.1 "Mill Cellar shows no monsters"): frames never carry `hunt` and the world
      tick flushes a session only every 90 s, so while a hunt is open the character itself asks the hunter's
      settle (one hello per huntPollMs); the answer's track reaches the timeline, and an ended hunt stops it. */
@@ -1518,6 +1568,11 @@ async function viewRules(base) {
 
 /* ── THE MUTANTS: each must turn at least one rule red. ── */
 const MUTANTS = [
+  ['[tick-span] a mid-hunt verb refused settle_first is not caught up', 'src/session/catch-up.js', '    if (!catchingUp(ans) || !o.hunting()) return ans;', '    return ans;'],
+  ['[tick-span] the catch-up retry reuses the refused key', 'src/session/catch-up.js', "() => server.rpc(name, { ...args, p_idem: newIdem() })", '() => server.rpc(name, args)'],
+  ['[tick-span] the catch-up retries without settling first', 'src/session/catch-up.js', '    try { await o.catchUp(); } catch (e) { /* the retry\'s own answer says what the server holds */ }\n', ''],
+  ['[tick-span] an engine intent\'s catch-up retry reuses the refused key', 'src/session/catch-up.js', 'const next = { ...body, intentId: newIdem() }; return server.accrue(next);', 'return server.accrue(body);'],
+  ['[tick-span] a refusal in town is caught up too', 'src/session/catch-up.js', '    if (!catchingUp(ans) || !o.hunting()) return ans;', '    if (!catchingUp(ans)) return ans;'],
   ['an engine answer costs a second round trip', 'src/session/character-session.js', "{ if (!(carries && this._take(ans.body, 'load')) && !(await this.load())) await this.resync(); return { ok: true }; }", '{ if (!(await this.load())) await this.resync(); return { ok: true }; }'],
   ['every intent answer is taken as the envelope', 'src/session/character-session.js', '_settled(await send(), carries === true)', '_settled(await send(), true)'],
   ['merge, not replace', 'src/session/envelope.js', '  const data = {};\n  for (const k of Object.keys(env))', '  const data = Object.assign({}, current ? current.data : {});\n  for (const k of Object.keys(env))'],

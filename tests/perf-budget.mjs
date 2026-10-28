@@ -62,6 +62,8 @@ const BUDGET = Object.freeze({
   analyzerBackMs: 1500,    // the clock never runs backwards more than this
   paintsInAnswers: 2,      // shell repaints made INSIDE an applied answer (its cascade of emits is painted once, after it)
   drawsOffLoop: 6,         // World canvas draws outside the frame loop while it runs (mounts, a shown tab), never one per answer
+  tokenReadsInDraw: 200,   // --world-* tokens read off the live style inside draws after the warm-up (kept: a few re-reads after a
+                           // theme or resize; unkept: ~30 a frame, perf lane 2026-10-28)
 });
 
 /* ── the page's probes (served copies only: the shipped files never carry them) ── */
@@ -87,6 +89,11 @@ const PROBES = [
   /* every ground made (the town's is 22k dual tiles): never inside a frame, never twice for one map */
   ['src/world/core/compose.js', '  if (!g) byBook.set(book, g = groundTiles(map, book, tables, T));',
     '  if (!g) byBook.set(book, g = window.__perf ? window.__perf.ground(map, () => groundTiles(map, book, tables, T)) : groundTiles(map, book, tables, T));'],
+  /* ...and a ground made in slices (groundOfSliced, a scene being prepared): registered when kept, each slice timed */
+  ['src/world/core/compose.js', '  byBook.set(book, made);\n  return made;',
+    '  byBook.set(book, window.__perf ? window.__perf.ground(map, () => made) : made);\n  return made;'],
+  ['src/world/core/compose.js', '        const r = runFor(it, o.now, budget);',
+    '        const r = window.__perf ? window.__perf.time(\'groundSlice\', () => runFor(it, o.now, budget)) : runFor(it, o.now, budget);'],
 ];
 
 /* ── the planted defects (--mutate): each must turn a budget red ── */
@@ -114,6 +121,8 @@ const MUTANTS = [
     '    if (!needs.has(sc.map) || !sheets.ready(needs.get(sc.map)) || waiting.has(sc.map)) {', '    if (!sheets.ready(setsFor(sc.map)) || waiting.has(sc.map)) {', /^ground/, 'scenario', 4],
   ['the renderer makes the ground again instead of taking the one its sheets were read from', 'src/world/core/compose.js',
     '  const g = groundOf(map, book, tables, T);\n  GROUNDS.get(map).delete(book);', '  if (GROUNDS.has(map)) GROUNDS.get(map).delete(book);\n  const g = groundOf(map, book, tables, T);\n  GROUNDS.get(map).delete(book);', /^ground/, 'scenario', 4],
+  ['the World reads its tokens off the live style on every draw (4.7 s of a 4-minute phone profile at 4x CPU)', 'src/world/world-boot.js',
+    '  const css = (name) => { let v = tokens.get(name);', '  const css = (name) => { tokens.clear(); let v = tokens.get(name);', /^tokens/, 'scenario', 2],
   ["the light layer kept although the hero's lamp moved",'src/world/render/canvas-backend.js',
     "for (const p of points) sig += '|' + p.x + ',' + p.y + ',' + p.r + ',' + tone('light-' + p.tint);", "for (const p of points) sig += '|' + p.r;", /^PB-PIX/, 'pix'],
 ];
@@ -143,6 +152,10 @@ const INIT = `(() => {
     try { return fn(); } finally { depth[k]--; const d = performance.now() - a;
     const r = P.t[k] || (P.t[k] = { n: 0, ms: 0, max: 0, over: 0 }); r.n++; r.ms += d; if (d > r.max) r.max = d; if (d > 16) { r.over++; if (!P.stopped && P.spans.length < 5000) P.spans.push([a, d, k]); } } };
   P.count = (k) => { P.c[k] = (P.c[k] || 0) + 1; };
+  /* PB-TOKENS: a --world-* token read off the live computed style INSIDE a canvas draw (it re-runs style for whatever
+     the shell just wrote); the World keeps its tokens (world-boot.js css) */
+  const gpv = CSSStyleDeclaration.prototype.getPropertyValue;
+  CSSStyleDeclaration.prototype.getPropertyValue = function (n) { if (depth.draw && typeof n === 'string' && n.startsWith('--world-')) P.count('tokenReadsInDraw'); return gpv.call(this, n); };
   const grounds = new WeakSet();
   P.ground = (map, fn) => { if (depth.frame && !document.hidden) P.count('groundInFrame'); if (grounds.has(map)) P.count('groundRemade'); grounds.add(map); return P.time('ground', fn); };
   P.mark = (name) => P.marks.push([performance.now(), name]);
@@ -520,7 +533,7 @@ function analyse(out, w0, o, srv) {
     engine: per('engine'), scene: per('scene'), draw: per('draw'), frame: per('frame'), envelope: per('envelope'), shellTick: per('shellTick'),
     domStart: w0.nodes, domEnd: hunted ? hunted[1] : out.nodes, domGrowth: hunted ? (hunted[1] - hunted[3]) - (w0.nodes - w0.lines) : null,
     logLines: Math.max(0, ...out.dom.map((d) => d[3])), addedPerMin: Math.round(out.added / minutes),
-    groundInFrame: out.c.groundInFrame || 0, groundRemade: out.c.groundRemade || 0, ground: per('ground'),
+    groundInFrame: out.c.groundInFrame || 0, groundRemade: out.c.groundRemade || 0, ground: per('ground'), groundSlice: per('groundSlice'), tokenReadsInDraw: out.c.tokenReadsInDraw || 0,
     paintsInAnswers: out.c.shellPaintInEnvelope || 0, drawsInAnswers: out.c.drawInEnvelope || 0, drawsOffLoop: out.c.drawOffLoop || 0,
     analyzerPerMin: Math.round((out.c.analyzer || 0) / minutes), analyzerBehindMs: Math.round(behind), analyzerBackMs: Math.round(backMs), analyzerBacks: backs, analyzerStillMs: stillMax,
     held: held.map(([a, g, page]) => { const m = out.marks.filter((x) => x[0] <= a).pop();
@@ -551,6 +564,7 @@ function budgetFails(m) {
   /* PB-HELD (main run 40417203016, a 117 ms frame back from the hunt): the town's ground was made inside the frame
      that entered it and again when its sheets landed. A scene's ground is made once, in a task of its own. */
   if (m.groundInFrame || m.groundRemade) f.push(`ground: a map's ground made ${m.groundInFrame} time(s) inside a frame, ${m.groundRemade} time(s) again for a map that had one (budget 0, compose.js groundOf)`);
+  if (!(m.tokenReadsInDraw <= b.tokenReadsInDraw)) f.push(`tokens: ${m.tokenReadsInDraw} --world-* reads off the live style inside canvas draws (budget ${b.tokenReadsInDraw}, world-boot.js css keeps them)`);
   if (!(m.drawsOffLoop <= b.drawsOffLoop)) f.push(`repaint: ${m.drawsOffLoop} World draws outside the frame loop, ${m.drawsInAnswers} of them inside answers (budget ${b.drawsOffLoop})`);
   return f;
 }
@@ -560,7 +574,7 @@ function row(m) {
   return `${m.browser.padEnd(8)} ${m.size.padEnd(8)} fps ${m.fpsMedian}/${m.fpsP5} long ${m.longFrames} worst ${Math.round(m.worstFrame)} resume ${Math.round(m.resumeWorst)} stall ${Math.round(m.stallWorst)}${m.pageTimed ? '' : ' (wall)'} lt ${m.longTasks}`
     + ` | engine ${ms(m.engine)} scene ${ms(m.scene)} draw ${ms(m.draw)} frame ${ms(m.frame)} env ${ms(m.envelope)} (${m.envelope ? m.envelope.n : 0}) tick ${ms(m.shellTick)}`
     + ` | heap ${m.heapMb === null ? 'n/a' : m.heapMb.toFixed(1) + 'MB' + (m.heapRawMb != null ? ' (with the probe records ' + m.heapRawMb.toFixed(1) + ')' : '')} dom ${m.domStart}->${m.domEnd} (+${m.domGrowth}) log ${m.logLines} +${m.addedPerMin}/min`
-    + ` | ground ${ms(m.ground)} (${m.ground ? m.ground.n : 0}) in-frame ${m.groundInFrame} again ${m.groundRemade}`
+    + ` | ground ${ms(m.ground)} (${m.ground ? m.ground.n : 0}) slice ${ms(m.groundSlice)} (${m.groundSlice ? m.groundSlice.n : 0}) in-frame ${m.groundInFrame} again ${m.groundRemade} tokens-in-draw ${m.tokenReadsInDraw}`
     + ` | paints-in-answers ${m.paintsInAnswers} draws off-loop ${m.drawsOffLoop} (in answers ${m.drawsInAnswers}) sheets ${m.sheets.bitmap} bitmap/${m.sheets.img} img`
     + ` | analyzer ${m.analyzerPerMin}/min behind ${m.analyzerBehindMs} back ${m.analyzerBackMs}x${m.analyzerBacks} still ${m.analyzerStillMs}`;
 }

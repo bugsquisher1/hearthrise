@@ -15,25 +15,39 @@
 /* THE LEVEL CURVE (balance layer 1, lane/b-level-curve 2026-10-27; Tyler's balance
    ruling 2026-10-25 §2; replaces the 10-19 quartic, which on the same measurement took
    Level 10 in about 1 h and Level 1000 in about 150,000 h; no single polynomial fits
-   the ruling's table within 20%). The XP one Level costs, in PACE BRACKETS: from Level `from` (until
-   the next bracket) the step from Level L to L+1 costs
+   the ruling's table within 20%). The XP one Level costs, in PACE BRACKETS: from Level
+   `from` (until the next bracket) the step from Level L to L+1 costs
        first + rise x m + bend x m^2,   m = L - from,
    `first` being the first bracket's own step (Level 1 -> 2) and, for every later
-   bracket, the step the bracket before it would have charged next, so a step never
-   jumps and every Level costs more than the one before (rise + bend >= 1). The last
-   bracket runs forever (Levels are endless). Total XP to reach a Level is an exact
-   integer in every runtime (src/core/xp.js; the server's hr_level_curve rows are
-   generated from these by tools/gen-level-curve.mjs). Fitted by the balance
-   simulator (tools/balance-sim/pace.mjs) to LEVEL_PACE below on the real engine: to
-   Level 50 the measured Level XP an hour of a hero hunting where the game recommends,
-   past it LEVEL_PACE.contract. The brackets: 1 the Mill Cellar's first levels (Level 5
-   in about a quarter of an hour, the tutorial's promise), 5 the first ground, 10 the
-   rest of today's content, 50 and 300 the long climb. */
+   bracket, the step the bracket before it would have charged next (so a one-Level
+   bracket's rise is simply the next step minus its own); every Level costs more than the
+   one before (rise + bend >= 1) and the last bracket runs forever (Levels are endless).
+   Total XP to reach a Level is an exact integer in every runtime (src/core/xp.js; the
+   server's hr_level_curve rows are generated from these by tools/gen-level-curve.mjs).
+   Held by tests/level-curve.mjs to LEVEL_PACE below on the balance simulator's real-engine
+   measurement (tools/balance-sim/pace.mjs): to Level 50 the Level XP an hour of a hero
+   hunting where the game recommends, past it LEVEL_PACE.contract.
+   THE FIRST TEN LEVELS ARE PACED ONE BY ONE (lane/b-curve-smooth 2026-10-28; the new-player
+   walk: the 10-27 curve gave five Levels in 15 min, then a 7x wall at Level 6 just as the
+   hero entered the Thicket). Each Level takes about twice the minutes of the one before
+   in the Mill Cellar (1, 2, 4, 8: Level 5 in a quarter of an hour, the tutorial's
+   promise), the Thicket's first Level twice the Cellar's last, then each about 1.77x
+   (16, 28, 49, 86, 152 min) into Level 10's step, which with every Level after it is the
+   10-27 curve's to the XP (from 137,918 XP at Level 10 on, nothing moved). The XP step
+   jumps 6x at Level 5 because the Thicket pays three times the Cellar. Then the rest of
+   today's content (10), the long climb (50, 300). */
 export const LEVEL_CURVE = Object.freeze({
-  first: 60,
+  first: 133,
   brackets: Object.freeze([
-    Object.freeze({ from: 1, rise: 0, bend: 122 }),
-    Object.freeze({ from: 5, rise: 12591, bend: 0 }),
+    Object.freeze({ from: 1, rise: 128, bend: 0 }),
+    Object.freeze({ from: 2, rise: 253, bend: 0 }),
+    Object.freeze({ from: 3, rise: 516, bend: 0 }),
+    Object.freeze({ from: 4, rise: 5145, bend: 0 }),
+    Object.freeze({ from: 5, rise: 5056, bend: 0 }),
+    Object.freeze({ from: 6, rise: 8748, bend: 0 }),
+    Object.freeze({ from: 7, rise: 15724, bend: 0 }),
+    Object.freeze({ from: 8, rise: 27189, bend: 0 }),
+    Object.freeze({ from: 9, rise: 2075, bend: 0 }),
     Object.freeze({ from: 10, rise: 0, bend: 489 }),
     Object.freeze({ from: 50, rise: 80832, bend: 119 }),
     Object.freeze({ from: 300, rise: 211914, bend: 578 }),
@@ -47,6 +61,10 @@ export const LEVEL_CURVE = Object.freeze({
    early      Level `level` within `hours` (the fit aims at `aim`): the tutorial's
               "about a quarter of an hour" in the Mill Cellar before the Thicket opens
               (hunt-tutorial.js earn_the_thicket); the guard checks the careers
+   smooth     from Level `from` to the ceiling, no Level takes more than `ratio` times the
+              hours of the Level before it at the reference rate (no wall: the 10-27
+              curve's Level 6 took 7x Level 5's); a ground that pays more may make the
+              next Level quicker
    contract   past the last Level the simulator can measure (no ground beyond it), a
               ground pays a x Level^b Level XP an hour at its own Level: the trend of
               today's solo grounds in their bands (Cellar, Thicket, Glade, Warrens:
@@ -59,6 +77,7 @@ export const LEVEL_PACE = Object.freeze({
   tolerance: 0.1,
   early: Object.freeze({ level: 5, hours: Object.freeze([0.15, 0.35]), aim: 0.25 }),
   contract: Object.freeze({ a: 1086, b: 1.333 }),
+  smooth: Object.freeze({ from: 1, ratio: 2 }),
 });
 
 /* THE UNCAPPED SKILL CURVE (Q2): Melee, Ranged, Magic, Defense, Inner Flame.

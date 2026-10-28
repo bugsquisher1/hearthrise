@@ -441,6 +441,20 @@ function check(M) {
       ok('W3', bad.length === 0, id + ': ' + bad.length + ' fill tiles are out of their ' + cols + 'x' + rws + ' cycle');
     }
     ok('W3', (book.terrains[compiled('mill_cellar').groundTerrain] || {}).kind === 'fill', 'the Mill Cellar floor must be a fill (its painted style-1 ground), never a Wang patch that reads as a raised slab');
+    /* W4 (perf lane P2): a scene's ground made in SLICES (compose.js groundOfSliced, the World's prepare task) is the
+       list groundTiles makes in one go, and a big ground really is cut up: the town's was one 28-48 ms task on CI,
+       88 ms on a phone's CPU. A fake clock: one tick per step, a 20-tick budget. */
+    for (const id of Object.keys(rows)) {
+      const m = Object.assign({}, compiled(id));   // a map of its own: nothing kept for it yet
+      const q = [];
+      let clock = 0, slices = 0;
+      M.compose.groundOfSliced(m, book, tables, T, { later: (fn) => q.push(fn), now: () => clock++, budgetMs: 20 });
+      slices = 1;
+      while (q.length) { slices++; q.shift()(); }
+      const kept = M.compose.takeGround(m, book, tables, T);
+      ok('W4', JSON.stringify(kept) === JSON.stringify(M.compose.groundTiles(m, book, tables, T)), id + ': the ground made in slices differs from the ground made in one go');
+      if (m.h > 40) ok('W4', slices >= m.h / 20, id + ': its ' + m.h + '-row ground was made in ' + slices + ' slice(s): a scene being prepared holds the page for the whole ground');
+    }
   });
 
   fam('G', () => {
@@ -574,7 +588,9 @@ const MUTANTS = [
   ['W2', 'the map\'s ambient loop never plays', 'src/world/core/compose.js', [["const i = Math.floor((Math.max(0, state.t || 0) * (s.anims[name].fps || 0)) / 1000) % n;", 'const i = 0;']]],
   ['W2', 'a ground with no art lays nothing', 'src/world/core/compose.js', [['tones.push({ m: map.ground[y * map.w + x]', 'void ({ m: map.ground[y * map.w + x]']]],
   ['W2', 'the blend drawn on the cell grid, not the dual grid', 'src/world/core/compose.js', [['x: x * T + H, y: y * T + H', 'x: x * T, y: y * T']]],
-  ['W2', 'the blend laid over the patches', 'src/world/core/compose.js', [['    if (map.blend) blendTiles(map, book, T, (x, y) => !!patchAt(x, y), tiles);\n    tiles.push(...laid);', '    tiles.push(...laid);\n    if (map.blend) blendTiles(map, book, T, (x, y) => !!patchAt(x, y), tiles);']]],
+  ['W2', 'the blend laid over the patches', 'src/world/core/compose.js', [['    if (map.blend) yield* blendSteps(map, book, T, (x, y) => !!patchAt(x, y), tiles);\n    tiles.push(...laid);', '    tiles.push(...laid);\n    if (map.blend) yield* blendSteps(map, book, T, (x, y) => !!patchAt(x, y), tiles);']]],
+  ['W4', 'a scene\'s ground made in one task again (no slice budget)', 'src/world/core/compose.js', [['    if (now() - t0 >= budgetMs) return undefined;\n', '']]],
+  ['W4', 'a slice that skips the rest of the ground', 'src/world/core/compose.js', [['        if (r) done(keep(map, book, r.value)); else o.later(slice);', '        if (r) done(keep(map, book, r.value)); else done(keep(map, book, { tiles: [], voids: [], tones: [] }));']]],
   ['W2', 'a hole corner (cliff) leaves its dual tile undrawn', 'src/world/core/compose.js', [['for (let i = 0; i < 4; i++) if (c[i] < 0) c[i] = most;', 'if (c.some((m) => m < 0)) continue;']]],
   ['W2', 'a third material drawn as the upper of the pair', 'src/world/core/compose.js', [['(m !== lo && !pairM[m * K + lo] && pairM[m * K + up])', '(m !== lo)']]],
   ['L1', 'every window of a map is let off the tree rule', 'src/world/core/map-compile.js', [['if (2 * greenIn(wx, wy) < ww * wh) continue;', 'continue;']]],

@@ -88,16 +88,22 @@ export function referenceRate(snap, contract) {
 const readRows = (dir) => (dir && existsSync(join(dir, 'cells.jsonl')) ? readFileSync(join(dir, 'cells.jsonl'), 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)) : []);
 const median = (v) => { const x = v.filter((y) => Number.isFinite(y)).sort((a, b) => a - b); if (!x.length) return null; return x.length % 2 ? x[(x.length - 1) / 2] : (x[x.length / 2 - 1] + x[x.length / 2]) / 2; };
 
-/** Per Level, each solo career's mean Level XP an hour over the chunks that spent time at that Level (a chunk covers
-    its start Level through the Level it ended on); the median over styles. */
+/** Per Level, each solo career's mean Level XP an hour over the chunks that STARTED at that Level (a chunk hunts the
+    ground the game recommends at its start, so this is the pay of that Level's ground); a Level no chunk started at (passed
+    inside one chunk) takes the chunks that spanned it. The median over styles. (Until 2026-10-28 every spanning chunk
+    counted, so the Level a ground opens at read part of the ground before it: L5 at 15.8k, the Cellar's 7.7k blended into
+    the Thicket's 24k.) */
 function ratesOf(careers) {
   const per = {};
   for (const c of careers) {
     const t = c.trace;
+    const started = {}, spanned = {};
     for (let i = 0; i < t.length; i++) {
       const from = t[i].levels[0], to = i + 1 < t.length ? t[i + 1].levels[0] : (c.reached ? c.reached[0] : from);
-      for (let L = from; L <= to; L++) ((per[L] = per[L] || {})[c.id] = per[L][c.id] || []).push(t[i].xpPerH[0]);
+      (started[from] = started[from] || []).push(t[i].xpPerH[0]);
+      for (let L = from; L <= to; L++) (spanned[L] = spanned[L] || []).push(t[i].xpPerH[0]);
     }
+    for (const L of Object.keys(spanned)) ((per[L] = per[L] || {})[c.id] = started[L] || spanned[L]);
   }
   const out = {};
   for (const L of Object.keys(per).map(Number).sort((a, b) => a - b)) out[L] = Math.round(median(Object.values(per[L]).map((a) => a.reduce((s, x) => s + x, 0) / a.length)));
@@ -136,7 +142,7 @@ function careerSummary(c, levels) {
  * froms: bracket start Levels; rate(L); targets [[L, h]]; early { level, hours: [lo, hi] }; minFirst (XP of Level 1->2);
  * firstMinutes (the first Level-up at most this many minutes). Answers { curve, err } with whole-number rows.
  */
-export function fitCurve({ froms, rate, targets, early, minFirst = 60, firstMinutes = 1, maxLevel = 1001, hold = null }) {
+export function fitCurve({ froms, rate, targets, early, minFirst = 60, firstMinutes = 1, maxLevel = 1001, hold = null, holdFrom = null, smooth = null }) {
   /* variables: first, then per bracket rise and bend; the step at each Level is a linear combination of them */
   const NV = 1 + 2 * froms.length;
   const iRise = (b) => 1 + 2 * b, iBend = (b) => 2 + 2 * b;
@@ -171,6 +177,27 @@ export function fitCurve({ froms, rate, targets, early, minFirst = 60, firstMinu
     fix(0, hold.first);
     froms.forEach((from, b) => { const hb = hold.brackets.find((x) => x.from === from); if (hb && from < hold.below) { fix(iRise(b), hb.rise); fix(iBend(b), hb.bend); } });
   }
+  if (holdFrom) {
+    /* `holdFrom` { level, curve, step }: every bracket from `level` on keeps its rise and bend, and the step at `level`
+       (which the brackets below it hand on) stays `step`, so every Level from there costs what it did */
+    const fix = (j, v) => { const c = new Array(NV).fill(0); c[j] = 1; add(c, 0, v); add(c.map((x) => -x), 0, -v); };
+    froms.forEach((from, b) => { const hb = holdFrom.curve.brackets.find((x) => x.from === from); if (hb && from >= holdFrom.level) { fix(iRise(b), hb.rise); fix(iBend(b), hb.bend); } });
+    const s = steps[holdFrom.level - 1];
+    add(s, 0, holdFrom.step); add(s.map((x) => -x), 0, -holdFrom.step);
+  }
+  if (smooth) {
+    /* THE CLIMB'S SMOOTHNESS: `smooth` is a list of bands { from, to, lo, hi }: for every Level L from `from` to `to`, the
+       hours Level L+1 takes (its step over the reference rate) are between lo and hi times the hours Level L takes (lo 0:
+       no floor) — a smooth climb, no flat run and then a wall */
+    const tv = (L) => steps[L - 1].map((x) => x / Math.max(1, rate(L)));
+    for (const band of smooth) {
+      for (let L = band.from; L <= band.to; L++) {
+        const a = tv(L), b = tv(L + 1);
+        if (band.hi) add(b.map((x, j) => x - band.hi * a[j]), 0, 0);
+        if (band.lo) add(b.map((x, j) => band.lo * a[j] - x), 0, 0);
+      }
+    }
+  }
   if (early && !(hold && early.level < hold.below)) {
     /* the early Level lands at its aim (a 2% band, so the LP keeps room), never outside the window the guard checks */
     const e = hoursVec(early.level);
@@ -178,14 +205,42 @@ export function fitCurve({ froms, rate, targets, early, minFirst = 60, firstMinu
     add(e, 0, hi); add(e.map((x) => -x), 0, -lo);
   }
   const res = simplex(new Array(NV).fill(0).concat([1]), A, B);
-  if (!res) return null;
+  if (!res) { if (process.env.PACE_DEBUG) console.error("LP infeasible"); return null; }
   const x = res.x.slice(0, NV).map((v, j) => v / sc[j]);
   const curve = { first: Math.max(minFirst, Math.round(x[0])), brackets: froms.map((from, b) => {
     let rise = Math.round(x[iRise(b)]), bend = Math.round(x[iBend(b)]);
     if (rise + bend < 1) rise = 1;
     return { from, rise, bend };
   }) };
+  if (holdFrom && !exactStepAt(curve, holdFrom.level, holdFrom.step)) { if (process.env.PACE_DEBUG) console.error("exactStepAt failed", JSON.stringify(curve)); return null; }
   return { curve, lpErr: res.x[NV] };
+}
+
+/** The XP the step from Level L to L+1 costs on a curve shaped like LEVEL_CURVE (the plain walk of its brackets). */
+function stepOf(curve, L) {
+  const bs = curve.brackets;
+  let first = curve.first, bi = 0;
+  while (bi + 1 < bs.length && bs[bi + 1].from <= L) { const len = bs[bi + 1].from - bs[bi].from; first += bs[bi].rise * len + bs[bi].bend * len * len; bi++; }
+  const m = L - bs[bi].from;
+  return first + bs[bi].rise * m + bs[bi].bend * m * m;
+}
+/* After rounding, make the step at `level` exactly `step` (so every Level from there costs what it did): the last bracket
+   below `level` takes the whole-number rise that lands it, its bend (and the bracket before's rise, which moves where it
+   starts) nudged by a few XP when that rise would not be whole. Edits `curve` in place; false when no nudge lands it. */
+function exactStepAt(curve, level, step) {
+  const b = curve.brackets.filter((x) => x.from < level).length - 1;
+  const br = curve.brackets[b], prev = b > 0 ? curve.brackets[b - 1] : null, len = level - br.from;
+  const prevRise = prev ? prev.rise : 0;
+  for (const j of prev ? [0, 1, -1, 2, -2, 3, -3, 4, -4] : [0]) {
+    if (prev) { if (prevRise + j < 0 || prevRise + j + prev.bend < 1) continue; prev.rise = prevRise + j; }
+    const firstB = stepOf(curve, br.from);
+    for (let k = 0; k <= 8; k++) for (const bend of [br.bend + k, br.bend - k]) {
+      const rise = (step - firstB - bend * len * len) / len;
+      if (bend >= 0 && Number.isInteger(rise) && rise >= 0 && rise + bend >= 1) { br.rise = rise; br.bend = bend; return stepOf(curve, level) === step; }
+    }
+  }
+  if (prev) prev.rise = prevRise;
+  return false;
 }
 
 /* ── RUN ── */
@@ -261,16 +316,33 @@ async function main() {
   snap.death = death;
 
   if (flag('fit')) {
-    const froms = LEVEL_CURVE.brackets.map((b) => b.from);
+    /* --hold-from L --froms 1,3,5,7: re-shape only the brackets below Level L (start Levels --froms), every Level from L
+       on costing what it does now; --smooth-hi / --smooth-lo bound how much longer one Level takes than the one before
+       (LEVEL_PACE.smooth by default) */
+    const holdLevel = Number(arg('hold-from', 0)) || null;
+    const froms = holdLevel ? [...arg('froms', '1').split(',').map(Number), ...LEVEL_CURVE.brackets.filter((b) => b.from >= holdLevel).map((b) => b.from)]
+      : LEVEL_CURVE.brackets.map((b) => b.from);
     /* --fit-past: re-fit only the brackets from the ceiling on (a new contract, no re-measure: the careers never pass it) */
     const hold = flag('fit-past') ? { ...LEVEL_CURVE, below: ceiling } : null;
-    const f = fitCurve({ froms, rate: R, targets: LEVEL_PACE.targets, early: LEVEL_PACE.early, hold });
+    const holdFrom = holdLevel ? { level: holdLevel, curve: LEVEL_CURVE, step: XP.charXpForLevel(holdLevel + 1) - XP.charXpForLevel(holdLevel) } : null;
+    /* the guard's rule (LEVEL_PACE.smooth: no Level below the ceiling more than `ratio` times the hours of the one before)
+       plus --bands "from:to:lo:hi,..." (e.g. "5:9:1.4:1.8": Levels 5-10 each 1.4-1.8x the one before) */
+    const smooth = [{ from: (LEVEL_PACE.smooth && LEVEL_PACE.smooth.from) || 1, to: ceiling - 2, lo: 0, hi: (LEVEL_PACE.smooth && LEVEL_PACE.smooth.ratio) || 2 },
+      ...arg('bands', '').split(',').filter(Boolean).map((s) => { const [from, to, lo, hi] = s.split(':').map(Number); return { from, to, lo, hi }; })];
+    const f = fitCurve({ froms, rate: R, targets: LEVEL_PACE.targets, early: LEVEL_PACE.early, hold, holdFrom, smooth, firstMinutes: Number(arg('first-minutes', 1)) });
     if (!f) { console.error('pace --fit: no curve meets the constraints'); process.exit(1); }
     const rows = XP.levelCurveRowsOf(f.curve);
-    const fh = hoursTo((L) => XP.xpForLevelOn(rows, L), R, [2, ...(LEVEL_PACE.early ? [LEVEL_PACE.early.level] : []), ...targetLevels]);
+    const xpOn = (L) => XP.xpForLevelOn(rows, L);
+    const fh = hoursTo(xpOn, R, [2, ...(LEVEL_PACE.early ? [LEVEL_PACE.early.level] : []), ...targetLevels]);
     console.log('\nFIT (minimax ' + (f.lpErr * 100).toFixed(1) + '% before rounding): ' + JSON.stringify(f.curve));
     console.log('  ' + LEVEL_PACE.targets.map(([L, T]) => 'L' + L + ' ' + fh[L].toFixed(1) + ' h (' + ((fh[L] / T - 1) * 100).toFixed(1) + '%)').join(', ')
       + '; Level 2 in ' + (fh[2] * 60).toFixed(1) + ' min' + (LEVEL_PACE.early ? ', Level ' + LEVEL_PACE.early.level + ' in ' + fh[LEVEL_PACE.early.level].toFixed(2) + ' h' : ''));
+    const per = (L, f2) => (f2(L + 1) - f2(L)) / R(L) * 60;
+    console.log('  Level -> next: XP step / minutes (ratio to the Level before), fit vs today:');
+    for (let L = 1; L <= 16; L++) {
+      console.log('   L' + L + ': ' + (xpOn(L + 1) - xpOn(L)) + ' XP / ' + per(L, xpOn).toFixed(1) + ' min' + (L > 1 ? ' (x' + (per(L, xpOn) / per(L - 1, xpOn)).toFixed(2) + ')' : '')
+        + '   | today ' + (XP.charXpForLevel(L + 1) - XP.charXpForLevel(L)) + ' XP / ' + per(L, XP.charXpForLevel).toFixed(1) + ' min');
+    }
   }
   if (flag('write')) { writeFileSync(SNAPSHOT, JSON.stringify(snap, null, 1) + '\n'); console.log('pace: wrote ' + SNAPSHOT.replace(ROOT, '.')); }
   const dash = arg('dash', null);

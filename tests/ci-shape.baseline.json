@@ -144,6 +144,8 @@
     "node tools/mutant-gate.mjs node tests/client-state-retired-fields-adversarial.mjs --selftest": "db-replay-3",
     "node tests/buff-queue.mjs": "db-replay-3",
     "node tools/mutant-gate.mjs node tests/buff-queue.mjs --selftest": "db-replay-3",
+    "node tests/hunt-tick-shards.mjs --outage": "db-replay-3",
+    "node tools/mutant-gate.mjs node tests/hunt-tick-shards.mjs --mutate --outage": "db-replay-3",
     "node tests/world-tick-parity.mjs": "db-replay-5",
     "node tools/mutant-gate.mjs node tests/world-tick-parity.mjs --mutate": "db-replay-5",
     "node tests/world-tick-double-pay.mjs": "db-replay-5",

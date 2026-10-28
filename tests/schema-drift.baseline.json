@@ -7,7 +7,7 @@
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
  "generated": "2026-10-28",
- "digest": "1812e03edc43dc7391ddf1e8e603813551b39ade9d16c2118ae3721efdf67d1a",
+ "digest": "82481ae103017a33f9611cfeee7cd276318c101340c24265101eea16593647d5",
  "counts": {
   "relations": 239,
   "functions": 570,
@@ -15,7 +15,7 @@
   "indexes": 340,
   "triggers": 53,
   "constraints": 901,
-  "columns": 1352,
+  "columns": 1353,
   "rls": 215,
   "event_triggers": 1
  },
@@ -3267,6 +3267,7 @@
    "hunt_tick_lease.holder text NOT NULL",
    "hunt_tick_lease.lease_until timestamp with time zone NOT NULL",
    "hunt_tick_lease.session_id uuid NOT NULL",
+   "hunt_tick_lease.settled_to timestamp with time zone",
    "hunt_world_shape_move.id boolean NOT NULL",
    "hunt_world_shape_move.moved_at timestamp with time zone NOT NULL",
    "hunt_world_shape_move.prev_shape bigint",

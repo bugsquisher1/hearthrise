@@ -11,7 +11,7 @@
 import { pathToFileURL } from 'node:url';
 import { join } from 'node:path';
 
-const COMBAT = ['melee', 'ranged', 'magic', 'defense', 'prayer'];
+/* the combat skills a career records: the runner's (src/data/skills.js COMBAT_SKILLS), never a typed list */
 
 /**
  * job = { id, party: [style], startLevel (1), targetLevel, maxHours, chunkH (1), density (null = as built),
@@ -62,7 +62,7 @@ export function runCareer(R, job) {
     hours += h;
     trace.push({ chunk, hours: Math.round(hours * 100) / 100, ground, levels, deaths: m.heroes.map((x) => x.deaths),
       xpPerH: m.heroes.map((x) => x.levelXpPerH), profitPerH: m.heroes.map((x) => x.profitPerH),
-      skills: seats.map((s) => Object.fromEntries(COMBAT.map((k) => [k, XP.skillLevelFromXp(k, s.skills[k] || 0)]))) });
+      skills: seats.map((s) => Object.fromEntries(R.COMBAT_SKILLS.map((k) => [k, XP.skillLevelFromXp(k, s.skills[k] || 0)]))) });
     chunk++;
   }
   return { id: job.id, kind: 'career', party: job.party, ...(Number.isInteger(job.density) ? { density: job.density } : {}), startLevel: job.startLevel || 1, targetLevel: job.targetLevel, hours: Math.round(hours * 100) / 100,

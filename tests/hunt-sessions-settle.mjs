@@ -1644,9 +1644,13 @@ const DB_ARMS = {
     await db.query('savepoint parity');
     const runs = {};
     for (const [door, go] of [
-      ['tick', () => M.HS.settleHunt({ exec, user: UID, slot: 0, mode: 'tick', session: sid, grounds: groundsOf(M) })],
-      ['settle', () => M.HS.settleHunt({ exec, user: UID, slot: 0, mode: 'settle', minWindowMs: 0, grounds: groundsOf(M) })],
-      ['pieces', async () => { const now = Number(await one(db, 'select floor(extract(epoch from now()) * 1000)::bigint')); return settleSlice(db, M, now, {}); }],
+      /* 10 min owed, so each door lands it slice by slice (HUNT_SETTLE_SPAN_MS, lane/c-tick-span): the tick ONE slice a
+         fire (fired until it has nothing more), the player's door slice after slice a call (its catch-up), the pieces
+         slice by slice; all three must write the same rows */
+      ['tick', async () => { let last = null; for (let k = 0; k < 12; k++) { const r = await M.HS.settleHunt({ exec, user: UID, slot: 0, mode: 'tick', session: sid, grounds: groundsOf(M) }); if (r.outcome !== 'paid') break; last = r; } return last; }],
+      /* (the player's re-read asks again while its answer says behind: its own budget, on a wall clock, may stop a call early) */
+      ['settle', async () => { let last = null; for (let k = 0; k < 12; k++) { const r = await M.HS.settleHunt({ exec, user: UID, slot: 0, mode: 'settle', minWindowMs: 0, grounds: groundsOf(M) }); if (r.outcome !== 'paid') break; last = r; if (!(r.body && r.body.hunt_behind_ms > 0)) break; } return last; }],
+      ['pieces', async () => { const now = Number(await one(db, 'select floor(extract(epoch from now()) * 1000)::bigint')); return settleTo(db, M, now, {}); }],
     ]) {
       const r = await go();
       if (door !== 'pieces' && (!r || r.outcome !== 'paid')) problems.push(`CONTROL: the ${door} door did not pay (${r && r.outcome}/${r && r.reason})`);
@@ -2125,23 +2129,29 @@ const DB_ARMS = {
     if (f1.settled !== 1 || f1.nothing !== 2 || (f1.reasons || {}).instance_settled !== 2) problems.push(`the fire answered ${JSON.stringify(f1)}`);
     const c1 = await clocks();
     if (!(Number(c1.inst) > h.from) || c1.seats.some((s) => Number(s) !== Number(c1.inst))) problems.push(`the members' clocks ${JSON.stringify(c1)} are not the instance's`);
-    /* THE BACKLOG: 20 minutes owed, past the span cap: ONE slice this fire (the other selectors `instance_settled`, so
-       the body's engine work is one slice, not one per member), the rest the next fire's. */
+    /* THE BACKLOG: 20 minutes owed, past the span cap: ONE slice a fire (the other selectors `instance_settled`, so
+       the body's engine work is one slice, not one per member), the rest the next fires', slice by slice
+       (lane/c-tick-span: HUNT_SETTLE_SPAN_MS is 2 min, so 20 min is ten fires, never one more). */
     const span = M.HS.HUNT_SETTLE_SPAN_MS;
-    seen.length = 0;
     const end = Number(c1.inst) + 20 * 60000;
-    const f2 = await fire(end);
-    if (f2.settled !== 1 || (f2.reasons || {}).instance_settled !== 2 || count('hr_hunt_apply_instance(') !== 1) {
-      problems.push(`a fire over a party behind its span cap committed ${count('hr_hunt_apply_instance(')} slice(s): ${JSON.stringify(f2)} — one a fire`);
+    const want = Math.ceil((end - Number(c1.inst)) / span);
+    let at = Number(c1.inst);
+    let fires = 0;
+    for (; fires < want + 2 && end - at >= 2000; fires++) {
+      seen.length = 0;
+      const f = await fire(end);
+      const c = await clocks();
+      const moved = Number(c.inst) - at;
+      if (f.settled !== 1 || (f.reasons || {}).instance_settled !== 2 || count('hr_hunt_apply_instance(') !== 1) {
+        problems.push(`fire ${fires + 1} over a party behind its span cap committed ${count('hr_hunt_apply_instance(')} slice(s): ${JSON.stringify(f)} — one a fire`);
+        break;
+      }
+      /* every slice but the last is one whole span (a swing boundary short of it at most) */
+      if (!(moved <= span && (moved > span - 2000 || end - Number(c.inst) < 2000))) problems.push(`fire ${fires + 1} settled ${moved} ms, not one ${span} ms slice`);
+      if (c.seats.some((x) => Number(x) !== Number(c.inst))) problems.push(`after fire ${fires + 1} the members' clocks ${JSON.stringify(c)} are not the instance's`);
+      at = Number(c.inst);
     }
-    const c2 = await clocks();
-    if (!(Number(c2.inst) - Number(c1.inst) <= span && Number(c2.inst) - Number(c1.inst) > span - 2000)) {
-      problems.push(`the first fire over the backlog settled ${Number(c2.inst) - Number(c1.inst)} ms, not one ${span} ms slice`);
-    }
-    const f3 = await fire(end);
-    const c3 = await clocks();
-    const owedMs = end - Number(c3.inst);
-    if (f3.settled !== 1 || !(owedMs >= 0 && owedMs < 2000)) problems.push(`the next fire did not settle the rest: ${JSON.stringify(f3)}, ${owedMs} ms still owed`);
+    if (fires !== want || !(end - at >= 0 && end - at < 2000)) problems.push(`20 min owed took ${fires} fire(s) (want ${want}: one ${span} ms slice each) and ${end - at} ms are still owed`);
     return problems;
   }),
   /* VIEWED-ENVELOPE (2027-02-02-settle-cost.sql), THE HUNT VIEWED: the player's own settle reads no envelope beside the
@@ -2659,7 +2669,9 @@ const DB_ARMS = {
           await staleKey(8);
         }
         let r = null;
-        for (let i = 0; i < 4; i++) {
+        /* its own settles, slice by slice: a 22-min backlog is ceil(22 min / HUNT_SETTLE_SPAN_MS) of them (lane/c-tick-span) */
+        const slices = Math.ceil(22 * 60000 / M.HS.HUNT_SETTLE_SPAN_MS) + 2;
+        for (let i = 0; i < slices; i++) {
           r = await M.HS.settleHunt({ exec, user: UID, slot: 0, mode: door, grounds: groundsOf(M),
             ...(door === 'tick' ? { session: h.sid } : { minWindowMs: 0 }) });
           if (!r || r.outcome !== 'paid' || r.ended) break;
@@ -2910,11 +2922,17 @@ const DB_ARMS = {
     return problems;
   }),
   /* P1 2026-10-20 (546 WORKER_RESOURCE_LIMIT): a refused instance re-simulated its whole growing
-     backlog every fire. One settle simulates at most HUNT_SETTLE_SPAN_MS; the rest is owed. */
+     backlog every fire. One settle simulates at most HUNT_SETTLE_SPAN_MS; the rest is owed.
+     lane/c-tick-span: the span is sized to the edge's CPU — above the steady window (the 90 s flush + a 10 s
+     cadence, or every steady settle would lag) and at most 3 min (a 4-hero slice at the measured p95 rate must fit
+     beside HUNT_ENGINE_BUDGET_MS under EDGE_CPU_MS; tests/hunt-tick-shards.mjs OUTAGE measures it). */
   SPAN: async (db, M) => inTx(db, async () => {
     const problems = [];
     const span = M.HS.HUNT_SETTLE_SPAN_MS;
-    if (!(span > 0 && span <= 30 * 60000)) return [`HUNT_SETTLE_SPAN_MS is ${span}, not a bound of at most 30 min`];
+    if (!(span >= 100000 && span <= 3 * 60000)) return [`HUNT_SETTLE_SPAN_MS is ${span}, not between the 100 s steady window and 3 min`];
+    if (!(M.HS.HUNT_ENGINE_BUDGET_MS > 0 && M.HS.HUNT_ENGINE_BUDGET_MS + span * 6.2 / 1000 < M.HS.EDGE_CPU_MS)) {
+      problems.push(`HUNT_ENGINE_BUDGET_MS ${M.HS.HUNT_ENGINE_BUDGET_MS} + one ${span} ms slice at the 4-hero p95 rate (6.2 ms a simulated second) is not under EDGE_CPU_MS ${M.HS.EDGE_CPU_MS}`);
+    }
     const { from } = await hunter(db, M, { ...STRONG, minutesAgo: 120 });
     const plan = await M.HS.readHuntSettle({ exec: makeExec(db), user: UID, slot: 0, grounds: groundsOf(M) }, 'tick');
     if (plan.answer) return [`a 2 h backlog was not offered: ${JSON.stringify(plan.answer.reason)}`];
@@ -3085,6 +3103,10 @@ const MUTANTS = [
     to: "    if (v.outcome === 'nothing' || v.outcome === 'none') {" },
   { arm: 'SPAN', name: '[546 P1] a settle simulates the whole backlog again', file: join(FN, 'hunt-settle.js'),
     from: '  const toMs = Math.min(endMs, fromMs + HUNT_SETTLE_SPAN_MS);', to: '  const toMs = endMs;' },
+  { arm: 'SPAN', name: '[tick-span] the settle span is the pre-fix 15 min (a backlog body runs past the edge CPU)', file: join(FN, 'hunt-settle.js'),
+    from: 'export const HUNT_SETTLE_SPAN_MS = 2 * 60000;', to: 'export const HUNT_SETTLE_SPAN_MS = 15 * 60000;' },
+  { arm: 'SPAN', name: '[tick-span] the engine budget leaves no room for one slice under the edge CPU', file: join(FN, 'hunt-settle.js'),
+    from: 'export const HUNT_ENGINE_BUDGET_MS = 800;', to: 'export const HUNT_ENGINE_BUDGET_MS = 1600;' },
   { arm: 'TICK-2', name: '[C2 away ctx] the instance span runs with ctx.away again', file: join(FN, 'accrual.js'),
     from: '    { toMs, tickMs, seed, ground: inp.ground,', to: '    { away: true, toMs, tickMs, seed, ground: inp.ground,' },
   { arm: 'TICK-2', name: '[C2 absence watermark] the window starts at a presence watermark', file: join(FN, 'accrual.js'),
@@ -3664,6 +3686,6 @@ async function main() {
 
 /* The PGlite harness, for tests/envelope-contract.mjs (the real projections fed to the client's readers). */
 export const HARNESS = Object.freeze({ ROOT, UIDS, STRONG, DOOMED, mixedRow, loadEdge, pinDice, hunter, character, settleTo, run, ticksOf,
-  one, q, inTx, makeExec, groundsOf });
+  one, q, inTx, makeExec, groundsOf, snapshot, canon, firstDiff });
 
 if (isMain(import.meta.url)) main();

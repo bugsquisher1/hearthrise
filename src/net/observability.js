@@ -14,7 +14,7 @@
 //            id, swing and live-engine state; release = BUILD.version; no tracing,
 //            no replay; user = the account id; URLs leave without query or fragment
 //   PostHog  identified_only profiles keyed by the account id, kept in memory only,
-//            started only once the account id is known (its bootstrap distinct id: no
+//            its script fetched (on idle) and started only once the account id is known (its bootstrap distinct id: no
 //            anonymous id is ever minted or merged, nothing runs on the sign-in screen);
 //            no autocapture or pageviews; session replay only while the game
 //            screen shows, every input masked, chat text masked (.ph-mask),
@@ -41,6 +41,7 @@ const QUEUE_MAX = 20;        // events held while PostHog loads
 const STALL_MAX = 50;        // live_view_stall per page load: a stuck loop must not spend the quota
 const STALL_POLL_MS = 1000;  // how often a running live engine is looked at (starving emits nothing)
 const HANG_PRINT = 'main-thread-hang';
+const POSTHOG_IDLE_MAX_MS = 3000;   // PostHog's script waits for an idle moment after sign-in, at most this long
 
 /** What one page load may send to Sentry: each error a few times, and a ceiling over all of them. */
 export const SEND_LIMITS = Object.freeze({ perFingerprint: 5, perLoad: 25 });
@@ -250,12 +251,22 @@ export function startObservability(win, cfg = OBSERVABILITY_CONFIG) {
     if (st.game) ph.startSessionRecording();
     for (const [n, p] of st.queue.splice(0)) safe(() => ph.capture(n, p));
   };
-  load(doc, cfg.posthog.scripts, () => {
-    const P = win.posthog;
-    if (!P || typeof P.init !== 'function') return;
-    phSdk = P;
-    safe(startPostHog);
-  });
+  /* Its 200 KB script is fetched only once an account is known, when the page is next idle: the sign-in
+     screen never pays for it (opt-review 2026-10-28: a quarter of a first visit's bytes), and nothing can be
+     sent before then anyway. Sentry stays first, above, so a boot error is still caught. */
+  let phLoading = false;
+  const loadPostHog = () => {
+    if (phLoading) return;
+    phLoading = true;
+    const go = () => load(doc, cfg.posthog.scripts, () => {
+      const P = win.posthog;
+      if (!P || typeof P.init !== 'function') return;
+      phSdk = P;
+      safe(startPostHog);
+    });
+    if (typeof win.requestIdleCallback === 'function') win.requestIdleCallback(go, { timeout: POSTHOG_IDLE_MAX_MS });
+    else win.setTimeout(go, 0);
+  };
 
   /* An event with no account behind it has no distinct id to carry: it is not sent, and not held for
      whoever signs in next. */
@@ -296,6 +307,7 @@ export function startObservability(win, cfg = OBSERVABILITY_CONFIG) {
       st.uid = typeof uid === 'string' && uid ? uid : null;
       if (!st.uid) return;
       if (sentry) safe(() => sentry.setUser({ id: st.uid }));
+      safe(loadPostHog);
       safe(startPostHog);
     },
     /* PostHog's identity is replaced at the next sign-in (startPostHog); until then `send` has no uid, so

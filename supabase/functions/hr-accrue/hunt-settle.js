@@ -330,9 +330,9 @@ async function settleOnce(o, mode, budget) {
     return null;
   };
   for (;;) {
-    /* NO DEGRADE STEP PAST THE BUDGET (lane/c-tick-span): this settle's first run was admitted by settleHunt's check;
-       a halved window is another engine run, so a spent budget answers the refusal it would have escaped. Nothing is
-       written; the next fire tries the instance again. */
+    /* NO DEGRADE STEP PAST THE BUDGET (lane/c-tick-span): this settle's first run was admitted by its caller (tick.js
+       checks the body's shared budget; a player door's is fresh); a halved window is another engine run, so a spent
+       budget answers the refusal it would have escaped. Nothing is written; the next fire tries the instance again. */
     if (degraded > 0 && budgetSpent(budget)) return pending;
     const p = await proposeHuntSettle(plan, toMs, degraded, budget.clock);
     budget.spentMs += p.engineMs;

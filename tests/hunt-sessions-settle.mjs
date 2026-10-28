@@ -2665,7 +2665,9 @@ const DB_ARMS = {
           await staleKey(8);
         }
         let r = null;
-        for (let i = 0; i < 4; i++) {
+        /* its own settles, slice by slice: a 22-min backlog is ceil(22 min / HUNT_SETTLE_SPAN_MS) of them (lane/c-tick-span) */
+        const slices = Math.ceil(22 * 60000 / M.HS.HUNT_SETTLE_SPAN_MS) + 2;
+        for (let i = 0; i < slices; i++) {
           r = await M.HS.settleHunt({ exec, user: UID, slot: 0, mode: door, grounds: groundsOf(M),
             ...(door === 'tick' ? { session: h.sid } : { minWindowMs: 0 }) });
           if (!r || r.outcome !== 'paid' || r.ended) break;
@@ -3097,6 +3099,10 @@ const MUTANTS = [
     to: "    if (v.outcome === 'nothing' || v.outcome === 'none') {" },
   { arm: 'SPAN', name: '[546 P1] a settle simulates the whole backlog again', file: join(FN, 'hunt-settle.js'),
     from: '  const toMs = Math.min(endMs, fromMs + HUNT_SETTLE_SPAN_MS);', to: '  const toMs = endMs;' },
+  { arm: 'SPAN', name: '[tick-span] the settle span is the pre-fix 15 min (a backlog body runs past the edge CPU)', file: join(FN, 'hunt-settle.js'),
+    from: 'export const HUNT_SETTLE_SPAN_MS = 2 * 60000;', to: 'export const HUNT_SETTLE_SPAN_MS = 15 * 60000;' },
+  { arm: 'SPAN', name: '[tick-span] the engine budget leaves no room for one slice under the edge CPU', file: join(FN, 'hunt-settle.js'),
+    from: 'export const HUNT_ENGINE_BUDGET_MS = 800;', to: 'export const HUNT_ENGINE_BUDGET_MS = 1600;' },
   { arm: 'TICK-2', name: '[C2 away ctx] the instance span runs with ctx.away again', file: join(FN, 'accrual.js'),
     from: '    { toMs, tickMs, seed, ground: inp.ground,', to: '    { away: true, toMs, tickMs, seed, ground: inp.ground,' },
   { arm: 'TICK-2', name: '[C2 absence watermark] the window starts at a presence watermark', file: join(FN, 'accrual.js'),

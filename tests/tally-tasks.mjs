@@ -304,8 +304,11 @@ const ARMS = {
     const exec = H.makeExec(db);
     await finish(db, U, CELLAR);
     await leaveAt(db, H, U, h.sid, h.from + 2 * 60000);
-    /* The ending window, committed, then the SAME commit again (a retried request). */
+    /* The ending window, committed, then the SAME commit again (a retried request). Settled to 90 s first, so the
+       ending window [90 s, 3 min] is one settle's span (hunt-settle.js HUNT_SETTLE_SPAN_MS, 2 min since lane/c-tick-span). */
+    await H.settleTo(db, M, h.from + 90000);
     const plan = await M.HS.readHuntSettle({ exec, user: U, slot: 0, grounds: H.groundsOf(M), atMs: h.from + 3 * 60000 }, 'tick');
+    if (!plan.answer && plan.toMs !== h.from + 3 * 60000) return [`CONTROL: the ending window ends at +${plan.toMs - h.from} ms, not +180000 (past the span?)`];
     if (plan.answer) return ['CONTROL: the read answered ' + JSON.stringify(plan.answer).slice(0, 200)];
     const p = await M.HS.proposeHuntSettle(plan, plan.toMs, 0);
     const first = await M.HS.commitHuntSettle(exec, { ...p.commit, project: null });

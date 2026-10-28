@@ -757,6 +757,7 @@ async function main() {
         if (src.split(m.from).length !== 2) { console.error(`✗ mutant "${m.name}": marker not found exactly once in ${m.file}`); bad++; continue; }
         writeFileSync(p, src.replace(m.from, () => m.to));
         const res = await runArms(dir, db, [m.arm]);
+        if (process.env.HR_SPAN_REPORT) for (const x of (res[m.arm] || []).slice(0, 4)) console.log(`    ${x}`);
         if (res[m.arm] && res[m.arm].length) console.log(`✓ ${m.arm} goes red on: ${m.name}`);
         else { console.error(`✗ ${m.arm} stayed GREEN on: ${m.name}`); bad++; }
       } finally { rmSync(dir, { recursive: true, force: true }); }

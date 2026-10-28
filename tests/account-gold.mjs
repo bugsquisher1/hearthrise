@@ -341,8 +341,10 @@ async function propose(M, d, uid, slot, atMs) {
 const G5_SEED = Object.freeze({ secret: 'g5', instance: '00000000-0000-4000-8000-000000000005' });
 const commit = (M, d, p) =>M.HS.commitHuntSettle(d.exec, { ...p.commit, project: null });
 const memberOf = (p, uid, slot) => p.commit.members.find((m) => String(m.user) === String(uid) && Number(m.slot) === slot);
-/* A bill the purse cannot pay however much a window sells on pickup (well under the food lane's 361 uses a window). */
-const OVER = 2000;
+/* A bill the purse cannot pay however much a window sells on pickup, and inside the food lane's uses bound so the refusal is
+   the purse's (gold_short), not too_many_uses: a window is at most hunt-settle.js HUNT_SETTLE_SPAN_MS (2 min since
+   lane/c-tick-span; was 15), whose lane allows 120 s / 2.5 s + 1 = 49 uses, and this bill is ~27 (300 / 14 over the purse). */
+const OVER = 300;
 /* WHAT A MEMBER'S WINDOW ALREADY MOVES besides the planted bill: its coins, the loot it sold to cover a use (+) and
    the store uses the ENGINE bought itself (-), priced from the server's own catalogue. A sized bill is planted ON
    TOP of these, so it is sized against this net. */

@@ -1312,8 +1312,8 @@ export async function runTick(opts) {
        so the body's engine CPU is at most HUNT_ENGINE_BUDGET_MS plus one slice — under the edge's 2 s whatever the
        backlog (a body that ran over died WORKER_RESOURCE_LIMIT with every settle in it, on every retry, and an outage's
        backlog never drained). No settle STARTS once it is spent: the rest are `deferred` (reason cpu_budget), owed on
-       their unmoved clocks, leased to this body until the lease ends; the roster puts the most-behind instance first
-       in its next body (2027-02-04-tick-span.sql), so a deferral is never the same instance twice in a row.
+       their unmoved clocks, leased to this body until the lease ends; the roster orders a body most behind first
+       (2027-02-04-tick-span.sql): the longer an instance waits, the earlier it rides, and a body's head always runs.
        `opts.engineBudgetMs` / `opts.engineClock` are the guard's seams; index.ts passes neither. */
     const engine = engineBudget(Number.isFinite(opts.engineBudgetMs) ? opts.engineBudgetMs : HUNT_ENGINE_BUDGET_MS, opts.engineClock);
     /* ONE SETTLE AN INSTANCE A FIRE (2027-02-02-settle-cost.sql). A party's members ride one body (the roster packs an

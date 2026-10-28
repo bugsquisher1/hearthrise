@@ -302,6 +302,8 @@ async function makeServer(db, M) {
       await clearGate();
       return asUser(uid, async () => (await q(sql, params))[0].r);
     },
+    /** The longest window one settle simulates (hunt-settle.js HUNT_SETTLE_SPAN_MS): a stretch lands in slices. */
+    huntSpanMs: M.hs.HUNT_SETTLE_SPAN_MS,
     /** The hunt's settle: settleHunt, the function the world tick runs. */
     async huntSettle(uid, atMs) {
       await clearGate();
@@ -430,7 +432,10 @@ async function huntWindow(S, uid, mins, t) {
   const endAt = clock0 === null ? null : clock0 - WINDOW_SLACK_S * 1000;
   let c = null;
   let paid = false;
-  for (let k = 0; k < 200; k++) {   // successive fires: a settle simulates at most HUNT_SETTLE_SPAN_MS
+  /* successive fires: a settle simulates at most HUNT_SETTLE_SPAN_MS (2 min, lane/c-tick-span), so a stretch of
+     `mins` is ceil(mins / span) slices; two more for the slack and the swing boundaries */
+  const slices = Math.ceil((mins * MIN + WINDOW_SLACK_S) * 1000 / S.huntSpanMs) + 2;
+  for (let k = 0; k < slices; k++) {
     c = await S.huntSettle(uid, endAt);
     if (c.outcome === 'paid') paid = true;
     const sess = await S.session(uid);

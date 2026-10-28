@@ -153,16 +153,17 @@ export const HUNT_MAX_DEGRADE = 3;
    optimization review's 4-hero p95 6.2). At 15 min one 4-hero instance cost 1-2.3 s, so after any tick outage past
    ~4 min every 4-instance body ran over the edge's 2 s CPU limit and died on every retry: the backlog never
    drained. 2 min is above the steady window (the 90 s flush + one 10 s cadence) and its worst slice (~0.75 s at
-   6.2 ms/s) fits beside HUNT_ENGINE_BUDGET_MS under the limit. */
+   6.2 ms/s) fits beside HUNT_ENGINE_BUDGET_MS under the limit with room for an edge 1.6x slower than that bench. */
 export const HUNT_SETTLE_SPAN_MS = 2 * 60000;
 
 /* THE ENGINE BUDGET, PER REQUEST (lane/c-tick-span). Measured engine time (accrueHunt is synchronous: its wall
    is its CPU), shared by every settle of one tick body and fresh for each player door call. NO ENGINE RUN STARTS
    AT OR PAST IT — a body's next instance is deferred (left owed and leased; the roster puts the most-behind
    instance first in its next body), and a settle's retry or degrade step answers its last refusal instead — so a
-   request's engine CPU is at most this plus one slice: 1.0 s + ~0.75 s, under the edge's 2 s (EDGE_CPU_MS). The
-   first run of a request always starts. Pacing only: where a body stops never moves an outcome. */
-export const HUNT_ENGINE_BUDGET_MS = 1000;
+   request's engine CPU is at most this plus one slice: 0.8 s + ~0.75 s, under the edge's 2 s (EDGE_CPU_MS). A full
+   body at the steady window (4 x ~0.19 s at the 4-hero mean) runs whole. The first run of a request always starts.
+   Pacing only: where a body stops never moves an outcome. */
+export const HUNT_ENGINE_BUDGET_MS = 800;
 /* The edge's CPU limit per request (Supabase Edge Functions, 2 s): the bound HUNT_ENGINE_BUDGET_MS and
    HUNT_SETTLE_SPAN_MS are sized against. tests/hunt-tick-shards.mjs OUTAGE measures a full body under it. */
 export const EDGE_CPU_MS = 2000;

@@ -2403,6 +2403,22 @@ jobs:
           node tests/buff-queue.mjs
           node tools/mutant-gate.mjs node tests/buff-queue.mjs --selftest
 
+      # A TICK OUTAGE DRAINS (lane/c-tick-span, 2027-02-04-tick-span.sql + hunt-settle.js
+      # HUNT_SETTLE_SPAN_MS / HUNT_ENGINE_BUDGET_MS). tests/hunt-tick-shards.mjs OUTAGE, its
+      # own step HERE because it replays a 30-min outage of a full body (4 four-hero parties on
+      # the real Millrace Sewer) twice through the real cron and the shipped runTick: db-replay-8,
+      # which runs the rest of that file, measured 22.1 of its 30 min. It must drain within
+      # 2 x ceil(30 min / (span - cadence)) fires with every body's engine CPU under the edge's
+      # 2 s, both paths (browser closed; two heroes viewing), no time lost or doubled, tally =
+      # ledger, and both paths write the rows the pre-fix 15-min windows write. --mutate
+      # --outage plants THE BUG (the 15-min span). MEASURED 2026-10-28 locally on a busy box:
+      # plain ~4 min, the mutant ~1.5 min; this job's fast runs were 8.5 min against 21.
+      - name: Hunt tick span — a 30-min outage drains, every body under the edge's CPU
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/hunt-tick-shards.mjs --outage
+          node tools/mutant-gate.mjs node tests/hunt-tick-shards.mjs --mutate --outage
+
   # ── db-replay-5 ── SPLIT OUT OF db-replay-3 2026-10-06 (CI-SPLIT-5). The
   # GitHub run for e585a031 (branch next, run 37470960216) CANCELLED db-replay-3
   # at its own 19-min timeout after 1151 s, every step green; the five runs
@@ -3317,7 +3333,10 @@ jobs:
       # every hunt once through the shipped runTick; a body past its budget starts
       # nothing; an oversized world is refused, never committed. --load is the
       # 100-hunt measurement (local, not a gate). Measured 2026-10-21 locally:
-      # plain 12 s, --mutate (11 mutants) 61 s.
+      # plain 12 s, --mutate (11 mutants) 61 s. + lane/c-tick-span (2026-10-28):
+      # RECLAIM (a landed settle's lease ends at the next fire), FUSE (a body runs most
+      # behind first and starts nothing past its engine budget), LADDER (no degrade or
+      # retry past it), SPAN-IDEM; 13 mutants more. OUTAGE runs in db-replay-3.
       - name: Hunt tick shards — packed bodies, leases, budget, world bound
         if: ${{ !cancelled() }}
         run: |

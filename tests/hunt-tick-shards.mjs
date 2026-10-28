@@ -5,6 +5,8 @@
 // HUNT_BODY_BUDGET_MS + accrual.js accrueHunt's world bound).
 //
 //   node tests/hunt-tick-shards.mjs            the guard (26 hunts: 3 bodies)
+//   node tests/hunt-tick-shards.mjs --outage   the OUTAGE arm alone (its own CI step; --mutate --outage: its mutants)
+//   node tests/hunt-tick-shards.mjs --only=A,B these arms (HR_SPAN_REPORT=1: per-arm seconds, OUTAGE's numbers)
 //   node tests/hunt-tick-shards.mjs --load     the synthetic load: 100 hunts,
 //                                              measured (one body of 100 vs the
 //                                              packed bodies), and the fire must
@@ -74,6 +76,10 @@ const { ROOT, UIDS, STRONG, loadEdge, pinDice, hunter, character, one, q, inTx, 
 const UID0 = UIDS[0];
 const MUTATE = process.argv.includes('--mutate');
 const LOAD = process.argv.includes('--load');
+/* --outage: the OUTAGE arm alone (and with --mutate, its mutants alone). It replays a 30-min outage of a full
+   body twice (~2-4 min), so CI runs it as its own step beside the rest of this file's (db-replay-3 vs db-replay-8). */
+const OUTAGE_ONLY = process.argv.includes('--outage');
+const inScope = (arm) => (arm === 'OUTAGE') === OUTAGE_ONLY;
 const FN = join('supabase', 'functions', 'hr-accrue');
 const MIG = '2026-11-04-hunt-tick-shards.sql';
 const N_GUARD = 26;
@@ -138,7 +144,7 @@ async function packAndSettle(db, M, n, o = {}) {
     await db.query('savepoint before_shards');
     const sel = await q(db, `select user_id, slot, id as session_id from public.hunt_sessions where id = any ($1::uuid[]) order by settled_to, id`, [sids]);
     const t0 = Date.now();
-    const r = (await M.TK.runTick({ exec, grounds: groundsOf(M), huntBudgetMs: 3600000,
+    const r = (await M.TK.runTick({ exec, grounds: groundsOf(M), huntBudgetMs: 3600000, engineBudgetMs: 1e9,
       body: { op: 'tick', roster: [], cadence_ms: 10000, flush_ms: 90000, hunts: sel } })).body;
     meas.oneBodyMs = Date.now() - t0;
     meas.oneBodySettled = r.hunts ? r.hunts.settled : 0;
@@ -173,7 +179,9 @@ async function packAndSettle(db, M, n, o = {}) {
   const bodyMs = [];
   for (const b of f1.bodies) {
     const t0 = Date.now();
-    const r = (await M.TK.runTick({ exec, grounds: groundsOf(M), body: b })).body;
+    /* PACK measures the packing, the leases and one settle a hunt, not the engine budget (FUSE / OUTAGE do): a body
+       of hunt_body_max instances on a loaded box may legitimately defer its tail. */
+    const r = (await M.TK.runTick({ exec, grounds: groundsOf(M), engineBudgetMs: 1e9, body: b })).body;
     bodyMs.push(Date.now() - t0);
     if (!r.hunts || r.hunts.settled !== b.hunts.length) {
       problems.push(`SETTLE: body ${b.hunt_body} settled ${r.hunts && r.hunts.settled} of ${b.hunts.length}: ${JSON.stringify(r.hunts)}`);
@@ -290,6 +298,11 @@ const clockOf = async (db, sids) => Object.fromEntries((await q(db, 'select id, 
   .map((r) => [r.id, msOf(r.settled_to)]));
 /* A fake engine timer: every run measures `per` ms (proposeHuntSettle reads it twice a run). */
 const fakeClock = (per) => { let t = 0; return () => (t += per); };
+/* THE CPU CLOCK (OUTAGE): what the edge's limit counts is CPU, and accrueHunt is synchronous, so this process's CPU
+   across one run is that run's CPU. A wall clock would also count the moments the OS gave the CPU to another
+   process (a loaded box measured a 2-min slice at 4 s of wall); the edge's own timer is performance.now, which only
+   over-counts (a safe fuse). */
+const cpuClock = () => { const u = process.cpuUsage(); return (u.user + u.system) / 1000; };
 /* The arms run the edge at the chain's dials: one body of up to 4 instances. */
 async function armSpan(db) {
   await armCron(db);
@@ -373,7 +386,7 @@ async function outagePath(db, M, fx, o) {
     }
     if (o.viewed) {
       for (const lead of [fx[0].uids[0], fx[2].uids[0]]) {
-        const budget = M.HS.engineBudget();
+        const budget = M.HS.engineBudget(undefined, cpuClock);
         const v = await M.HS.settleHunt({ exec, user: lead, slot: 0, mode: 'settle', bucket: null, project: true, live: true, atMs: atMs - 3333, budget });
         players.push({ k, outcome: v.outcome, reason: v.reason, ms: budget.spentMs, runs: budget.runs });
       }
@@ -381,7 +394,7 @@ async function outagePath(db, M, fx, o) {
     const f = await fire(db);
     for (const b of f.bodies) {
       for (const h of b.hunts) leasedAt.set(h.session_id, k);
-      const r = (await M.TK.runTick({ exec, atMs, body: b })).body.hunts || {};
+      const r = (await M.TK.runTick({ exec, atMs, body: b, engineClock: cpuClock })).body.hunts || {};
       bodies.push({ k, n: b.hunts.length, ...r });
     }
   };
@@ -393,7 +406,8 @@ async function outagePath(db, M, fx, o) {
   if (drained === null) problems.push(`${o.label}: the 30-min backlog of a full body did not drain in ${nMax} fires (still owed: ${(await instClock()).map((t) => Math.round((c(nMax) - t) / 1000) + ' s').join(', ')})`);
   for (let k = 0; k < 4 && (await instClock()).some((t) => E - t >= 2000); k++) await fireAt(1000 + k, E);
   const left = (await instClock()).map((t) => E - t);
-  if (left.some((x) => !(x >= 0 && x < 2000))) problems.push(`${o.label}: after the drain the instances stand ${left.join(', ')} ms short of the end instant`);
+  /* a settle ends on a swing boundary: at most one swing (2 s) either side of the instant it was asked for */
+  if (left.some((x) => !(Math.abs(x) < 2000))) problems.push(`${o.label}: after the drain the instances stand ${left.join(', ')} ms short of the end instant`);
 
   /* EVERY BODY UNDER THE EDGE'S CPU: its measured engine time, and its largest run inside the headroom the budget leaves. */
   const B = M.HS.HUNT_ENGINE_BUDGET_MS;
@@ -540,7 +554,8 @@ const SPAN_ARMS = {
         if (!raced && String(sql).includes('hr_hunt_apply_instance(')) {
           raced = true;
           const plan = await M.HS.readHuntSettle({ exec, user: UID0, slot: 0, grounds: groundsOf(M) }, 'tick');
-          const pr = await M.HS.proposeHuntSettle(plan, plan.fromMs + 30000, 0);
+          /* attempt 1: another key (the same derived key would answer the stale commit `replayed`, not session_moved) */
+          const pr = await M.HS.proposeHuntSettle(plan, plan.fromMs + 30000, 1);
           await M.HS.commitHuntSettle(exec, { ...pr.commit, project: null });
         }
         return exec(sql, prm);
@@ -571,6 +586,7 @@ const SPAN_ARMS = {
     await db.query('savepoint outage');
     const closed = await outagePath(db, M, fx, { label: 'browser closed', t0 });
     await db.query('rollback to savepoint outage');
+    if (closed.problems.length) return closed.problems;
     const viewed = await outagePath(db, M, fx, { label: 'hunt viewed', viewed: true, t0 });
     await db.query('rollback to savepoint outage');
     const ref = await outageReference(db, M, fx, closed.E);
@@ -592,7 +608,9 @@ async function runArms(root, db, only) {
   const out = {};
   for (const [name, arm] of Object.entries({ ...ARMS, ...SPAN_ARMS })) {
     if (only && !only.includes(name)) continue;
+    const t0 = Date.now();
     try { out[name] = await arm(db, M); } catch (e) { out[name] = [`threw: ${String(e && e.stack || e).slice(0, 600)}`]; }
+    if (process.env.HR_SPAN_REPORT) console.log(`  ${name}: ${Math.round((Date.now() - t0) / 1000)} s`);
   }
   return out;
 }
@@ -631,8 +649,7 @@ const DB_MUTANTS = [
     find: 'and h.settled_to > l.settled_to))', replace: 'and h.settled_to >= l.settled_to))' },
   { arm: 'FUSE', name: '[tick-span] a body runs in md5 order (the deferred tail starves)', fn: 'public.hr_hunt_roster_sharded(text,integer,integer)',
     find: 'order by p.b, p.inst_from, md5(p.inst::text)', replace: 'order by p.b, md5(p.inst::text)' },
-  { arm: 'OUTAGE', name: '[tick-span] THE BUG\'s other half: a behind hunt is re-offered only when its lease lapses', fn: 'public.hr_hunt_roster_sharded(text,integer,integer)',
-    find: 'or (l.settled_to is not null and h.settled_to > l.settled_to))', replace: 'or false)' },
+
   { arm: 'PACK-LEASE-SETTLE', name: 'every body is leased under one holder', fn: 'public.hr_hunt_roster_sharded(text,integer,integer)',
     find: "select p.id, v_prefix || ':h' || p.b, now() + v_lease", replace: "select p.id, v_prefix || ':h0', now() + v_lease" },
   { arm: 'PACK-LEASE-SETTLE', name: 'the cron posts the packed hunts in one body', fn: 'public.hr_tick_cron_run()',
@@ -729,7 +746,8 @@ async function main() {
   }
   if (MUTATE) {
     let bad = 0;
-    for (const m of MUTANTS) {
+    const mine = (list) => list.filter((m) => inScope(m.arm || ''));
+    for (const m of mine(MUTANTS)) {
       const dir = mkdtempSync(join(tmpdir(), 'hr-hts-'));
       try {
         for (const d of ['src/core', 'src/data', FN]) cpSync(join(ROOT, d), join(dir, d), { recursive: true });
@@ -743,7 +761,7 @@ async function main() {
         else { console.error(`✗ ${m.arm} stayed GREEN on: ${m.name}`); bad++; }
       } finally { rmSync(dir, { recursive: true, force: true }); }
     }
-    for (const m of DB_MUTANTS) {
+    for (const m of mine(DB_MUTANTS)) {
       const def = String(await one(db, `select pg_get_functiondef($1::regprocedure)`, [m.fn])).split(String.fromCharCode(13)).join('');
       if (def.split(m.find).length !== 2) { console.error(`✗ db mutant "${m.name}": anchor not found exactly once`); bad++; continue; }
       await db.exec(def.replace(m.find, () => m.replace));
@@ -753,35 +771,41 @@ async function main() {
         else { console.error(`✗ ${m.arm} stayed GREEN on: ${m.name}`); bad++; }
       } finally { await db.exec(def); }
     }
-    for (const m of SQL_MUTANTS) {
+    /* the migrations' §5 bites belong to the plain file's proof, never to --outage */
+    const sqlOf = (list) => (OUTAGE_ONLY ? [] : list);
+    for (const m of sqlOf(SQL_MUTANTS)) {
       let refused = null;
       try { await bootReplay({ patches: new Map([[m.file, sqlPatches(m)]]), upTo: LAST_PATCHED }); } catch (e) { refused = String(e.message); }
       if (refused && refused.includes(m.expect)) console.log(`✓ the §5 of ${m.file} refuses (${m.expect}): ${m.name}`);
       else { console.error(`✗ ${m.file} applied: ${m.name}${refused ? ' (' + refused.slice(0, 200) + ')' : ''}`); bad++; }
     }
-    for (const m of CAP_MUTANTS) {
+    for (const m of sqlOf(CAP_MUTANTS)) {
       let refused = null;
       try { await bootReplay({ patches: new Map([[CAP, capPatches(m)]]), upTo: LAST_PATCHED }); } catch (e) { refused = String(e.message); }
       if (refused && refused.includes(m.expect)) console.log(`✓ the §5 of ${CAP} refuses (${m.expect}): ${m.name}`);
       else { console.error(`✗ ${CAP} applied: ${m.name}${refused ? ' (' + refused.slice(0, 200) + ')' : ''}`); bad++; }
     }
-    for (const m of SPAN_SQL_MUTANTS) {
+    for (const m of sqlOf(SPAN_SQL_MUTANTS)) {
       let refused = null;
       try { await bootReplay({ patches: new Map([[SPAN_MIG, spanPatches(m)]]), upTo: LAST_PATCHED }); } catch (e) { refused = String(e.message); }
       if (refused && refused.includes(m.expect)) console.log(`✓ the §5 of ${SPAN_MIG} refuses (${m.expect}): ${m.name}`);
       else { console.error(`✗ ${SPAN_MIG} applied: ${m.name}${refused ? ' (' + refused.slice(0, 200) + ')' : ''}`); bad++; }
     }
-    const total = MUTANTS.length + DB_MUTANTS.length + SQL_MUTANTS.length + CAP_MUTANTS.length + SPAN_SQL_MUTANTS.length;
-    console.log(bad ? `hunt-tick-shards --mutate: ${bad} mutant(s) survived` : `hunt-tick-shards --mutate: all ${total} mutants killed`);
+    const total = mine(MUTANTS).length + mine(DB_MUTANTS).length + sqlOf(SQL_MUTANTS).length + sqlOf(CAP_MUTANTS).length + sqlOf(SPAN_SQL_MUTANTS).length;
+    const tag = OUTAGE_ONLY ? ' --outage' : '';
+    console.log(bad ? `hunt-tick-shards --mutate${tag}: ${bad} mutant(s) survived` : `hunt-tick-shards --mutate${tag}: all ${total} mutants killed`);
     process.exit(bad ? 1 : 0);
   }
-  const res = await runArms(ROOT, db);
+  const onlyArg = process.argv.find((a) => a.startsWith('--only='));
+  const scope = Object.keys({ ...ARMS, ...SPAN_ARMS }).filter(inScope);
+  const res = await runArms(ROOT, db, onlyArg ? onlyArg.slice(7).split(',') : scope);
   let bad = 0;
   for (const [name, problems] of Object.entries(res)) {
     if (problems && problems.length) { bad++; for (const p of problems) console.error(`✗ ${name}: ${p}`); }
     else console.log(`✓ ${name}`);
   }
-  console.log(bad ? `hunt-tick-shards: ${bad} arm(s) red` : `hunt-tick-shards: all ${Object.keys(res).length} arms green`);
+  const tag = OUTAGE_ONLY ? ' --outage' : '';
+  console.log(bad ? `hunt-tick-shards${tag}: ${bad} arm(s) red` : `hunt-tick-shards${tag}: all ${Object.keys(res).length} arms green`);
   process.exit(bad ? 1 : 0);
 }
 

@@ -3,15 +3,15 @@
 // voice, original IP. Surfaced in the item detail/tooltip (the "what is it" line).
 // SAFE TO EXTEND: an item with no entry here just shows no flavour line — nothing breaks.
 
-import { WAVE3_DESC } from './wave3-uniques.js?v=0.2.59';
-import { SLOT_DESC } from './slot-ladders.js?v=0.2.59';
-import { LIB2_DESC } from './library2-items.js?v=0.2.59';
-import { BOSS_FORGE_DESC } from './boss-forge.js?v=0.2.59';
-import { CHAMPION_DESC } from './champions.js?v=0.2.59';
-import { DRINK_DESC } from './drinks.js?v=0.2.59';
-import { IMBUE_DESC } from './imbuements.js?v=0.2.59';
-import { STYLE_GEAR_DESC } from './style-gear.js?v=0.2.59';
-import { SHIELD_DESC } from './shields.js?v=0.2.59';
+import { WAVE3_DESC } from './wave3-uniques.js?v=0.2.61';
+import { SLOT_DESC } from './slot-ladders.js?v=0.2.61';
+import { LIB2_DESC } from './library2-items.js?v=0.2.61';
+import { BOSS_FORGE_DESC } from './boss-forge.js?v=0.2.61';
+import { CHAMPION_DESC } from './champions.js?v=0.2.61';
+import { DRINK_DESC } from './drinks.js?v=0.2.61';
+import { IMBUE_DESC } from './imbuements.js?v=0.2.61';
+import { STYLE_GEAR_DESC } from './style-gear.js?v=0.2.61';
+import { SHIELD_DESC } from './shields.js?v=0.2.61';
 
 export const ITEM_DESC = {
   /* Mage = wand + spellbook; Healer = staff (Tyler 2026-10-19). */

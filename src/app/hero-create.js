@@ -20,10 +20,10 @@
 // the prefix, and the step's .hc-body laid every chat line out (2026-10-24).
 // ════════════════════════════════════════════════════════════════════════
 
-import { HOW_YOU_FIGHT, HOW_YOU_FIGHT_LEAD } from '../data/how-to-play.js?v=0.2.59';
-import { BASE_REGIONS, BASE_DEFAULT_COLORS, DYE_COUNT, REGION_LABEL } from '../data/outfits.js?v=0.2.59';
-import { HERO_BASE_ROWS, HERO_BASE_W, HERO_BASE_H, HERO_BASE_LEGEND, HERO_SHADE_PERMILLE } from '../data/hero-base.js?v=0.2.59';
-import { refusalWords } from '../shell/intent-words.js?v=0.2.59';
+import { HOW_YOU_FIGHT, HOW_YOU_FIGHT_LEAD } from '../data/how-to-play.js?v=0.2.61';
+import { BASE_REGIONS, BASE_DEFAULT_COLORS, DYE_COUNT, REGION_LABEL } from '../data/outfits.js?v=0.2.61';
+import { HERO_BASE_ROWS, HERO_BASE_W, HERO_BASE_H, HERO_BASE_LEGEND, HERO_SHADE_PERMILLE } from '../data/hero-base.js?v=0.2.61';
+import { refusalWords } from '../shell/intent-words.js?v=0.2.61';
 
 /* The preview's integer scale: 16 x 24 cells at 8 = 128 x 192 px. */
 export const PREVIEW_SCALE = 8;

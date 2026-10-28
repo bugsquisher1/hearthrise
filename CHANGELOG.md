@@ -13,7 +13,7 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 
 **Learn your Inner Flame.** After the Cellar, a tip shows you how to burn fuel, and the skill now shows how much faster you recover.
 
-**Clearer hints.** Heroes without armour are pointed to the Shop’s gloves, the Hunts window follows its recommendation until you pick a hunt yourself, and a finished task tells you when Tamsin pays.
+**Clearer hints.** Heroes without armor are pointed to the Shop’s gloves, the Hunts window follows its recommendation until you pick a hunt yourself, and a finished task tells you when Tamsin pays.
 
 **Loads faster.** The game downloads about a quarter less before the sign-in screen, and town scenes stutter less on phones.
 
@@ -41,7 +41,7 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 
 **Fuel the hearth.** Right-click bones in your bag and choose Fuel the hearth (or Fuel all). Your hero walks to the Hearth, throws them in, and the fire flares. Creatures with no bones now drop hearth fuel of their own.
 
-**Rare fuels light the square.** A few rare named fuels burn the Hearth in their own colour (amber, honey, marsh-blue, mosslight and verdigris) for everyone in town for a while, and the square's chat says who lit it.
+**Rare fuels light the square.** A few rare named fuels burn the Hearth in their own color (amber, honey, marsh-blue, mosslight and verdigris) for everyone in town for a while, and the square's chat says who lit it.
 
 ## v0.2.54 — 2026-10-27 (Havora's harbour)
 
@@ -71,7 +71,7 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 
 ## v0.2.50 — 2026-10-26 (Welcome to Havora)
 
-**The town is now Havora.** A whole city to walk: arrive through the gatehouse, follow the main road over the bridge, and you reach Hearth Square, where the Great Hearth burns at the centre of town. The Shop and Storage face the fire, Tamsin's board stands beside it, and the kill-task hunter waits at the barracks.
+**The town is now Havora.** A whole city to walk: arrive through the gatehouse, follow the main road over the bridge, and you reach Hearth Square, where the Great Hearth burns at the center of town. The Shop and Storage face the fire, Tamsin's board stands beside it, and the kill-task hunter waits at the barracks.
 
 **Every skill has its place.** Mine in the mountain to the east, chop in the Westwood beyond the western wall, fish from the shore and the riverbank, farm the plots by the sea, and work at the smithy and the tavern kitchen. Your heroes stand at the work they are doing, each on their own spot.
 
@@ -197,9 +197,9 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 
 ## v0.2.37 — 2026-10-23 (Worth the hunt)
 
-**New loot on every ground.** Each monster now drops a full spread: creature parts, a crafting material, and gear for every armour weight (heavy, medium and light), so every build finds its next upgrade about once an hour as it moves up the grounds. Rare pieces turn up every few hours with a louder moment when they drop, and the Rat King and Chief Coppercap each guard a Trophy worth chasing. No gear is bound any more: everything you find can be stored or sold. The Hunts page shows the gear each ground drops for your armour.
+**New loot on every ground.** Each monster now drops a full spread: creature parts, a crafting material, and gear for every armor weight (heavy, medium and light), so every build finds its next upgrade about once an hour as it moves up the grounds. Rare pieces turn up every few hours with a louder moment when they drop, and the Rat King and Chief Coppercap each guard a Trophy worth chasing. No gear is bound any more: everything you find can be stored or sold. The Hunts page shows the gear each ground drops for your armor.
 
-**Meet Tamsin Reeve, the Common's tally-keeper.** Take up to three kill tasks at her board (Q), hunt, and she pays you when you're back in town: gold, plus the next piece of gear you're missing for your armour. Your progress shows on the hunt cards.
+**Meet Tamsin Reeve, the Common's tally-keeper.** Take up to three kill tasks at her board (Q), hunt, and she pays you when you're back in town: gold, plus the next piece of gear you're missing for your armor. Your progress shows on the hunt cards.
 
 **Fixed:** the farm hint no longer says nothing grows while your shared land is full of crops.
 
@@ -235,7 +235,7 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 
 **Tanks pull what they hold.** The tank holding the pack this lap now makes the pull, so another tank no longer takes the pack away right after it. A tank that already has every monster shows its Challenge slot as Holding.
 
-**Other heroes look like themselves in town,** in their own outfit, instead of all wearing the same knight armour.
+**Other heroes look like themselves in town,** in their own outfit, instead of all wearing the same knight armor.
 
 **Updates no longer end your hunt.** A hunt keeps running through an update and is paid for the time it was waiting.
 
@@ -255,9 +255,9 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 
 **Cleared out:** raid strikes, world events and clan board tasks from an earlier version of the game. Live world events will come back, built new.
 
-## v0.2.31 — 2026-10-22 (A home, a farm, and armour that matters)
+## v0.2.31 — 2026-10-22 (A home, a farm, and armor that matters)
 
-**Armour you choose.** Heavy armour absorbs blows, medium armour dodges them, light armour wards them. Each suits a different way to fight, and your Character sheet shows your Dodge, Absorb and Ward.
+**Armor you choose.** Heavy armor absorbs blows, medium armor dodges them, light armor wards them. Each suits a different way to fight, and your Character sheet shows your Dodge, Absorb and Ward.
 
 **Your farm and your house.** The Farm window (J) lets you plant, water and harvest; harvesting plants the same crop again. The House window (E) shows your home, its rooms and what each does, and storage chests that give your account's shared storage more room. Storage is now shared by all your heroes and can be sorted and searched.
 
@@ -311,7 +311,7 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 
 **Your best on every hunting ground.** Each card in the hunt list now shows your hero's best XP per hour and best balance per hour there, Solo and Party apart, from any finished hunt of 10 minutes or more. The hunt summary shows balance per hour for everyone.
 
-**Iron and steel armour now beat bronze.** Some iron and steel pieces were missing their armour type, so iron plate gave less health than bronze. Every armour piece now gets stronger as its tier goes up. Iron and steel plate also carry the same small ranged and magic accuracy cost as bronze plate.
+**Iron and steel armor now beat bronze.** Some iron and steel pieces were missing their armor type, so iron plate gave less health than bronze. Every armor piece now gets stronger as its tier goes up. Iron and steel plate also carry the same small ranged and magic accuracy cost as bronze plate.
 
 **A much weaker tank no longer holds the pack.** When two tanks share a party and one is far weaker, the stronger tank holds every lap instead of taking turns, so the weaker one stops dying at the back of the Sewer.
 
@@ -351,7 +351,7 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 
 **Much better loot.** Low-level gear drops far more often, including bodies and legs, which had no source before; a new hero should fill every gear slot within a few hours of hunting. The Sewer now pays well over its supply cost instead of losing gold.
 
-**Make your hero.** Creating a hero opens a short step: pick a name and the colours of their head, body, legs and feet, then enter town. Every new hero starts with all six practice weapon sets, so you can try every role.
+**Make your hero.** Creating a hero opens a short step: pick a name and the colors of their head, body, legs and feet, then enter town. Every new hero starts with all six practice weapon sets, so you can try every role.
 
 **The Shop sells gear and tools.** Food, drink, ammo and runes are no longer sold in the Shop: pick them on your action bar and they are paid for as you use them.
 

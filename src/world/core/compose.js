@@ -252,13 +252,24 @@ export function groundOfSliced(map, book, tables, T, o) {
   const byBook = GROUNDS.get(map);
   const had = byBook && byBook.get(book);
   if (had) return Promise.resolve(had);
-  const it = groundSteps(map, book, tables, T);
+  return sliced(groundSteps(map, book, tables, T), o, (made) => keep(map, book, made));
+}
+
+/**
+ * Any STEPS generator run in slices of at most ~budgetMs, each a task of its own (`later`): the ground here, a
+ * scene's sheets (scene-sets.js) and its chunk bins (ground-chunks.js). Resolves with finish(the generator's
+ * result), finish run in the last slice itself (a ground is kept the moment it is made).
+ * @param {Iterator} it
+ * @param {{later: (fn: () => void) => void, now: () => number, budgetMs?: number}} o
+ * @param {(v: any) => any} [finish]
+ */
+export function sliced(it, o, finish = (v) => v) {
   const budget = o.budgetMs || GROUND_SLICE_MS;
   return new Promise((done, fail) => {
     const slice = () => {
       try {
         const r = runFor(it, o.now, budget);
-        if (r) done(keep(map, book, r.value)); else o.later(slice);
+        if (r) done(finish(r.value)); else o.later(slice);
       } catch (e) { fail(e); }
     };
     slice();

@@ -51,30 +51,31 @@ const argv = process.argv.slice(2);
 async function load(base) {
   const imp = (p) => import(pathToFileURL(join(base, p)).href + V);
   const [grid, zsort, roofs, shadows, camera, mapc, path, wang, route, compose, nullb, bookm, maps, terrain, hunts, sets, budget,
-    sceneSets, outfits, grounds, vfx, layouts, homeScene] = await Promise.all([
+    sceneSets, outfits, grounds, vfx, layouts, homeScene, chunksM, canvasM] = await Promise.all([
     'src/world/core/grid.js', 'src/world/core/zsort.js', 'src/world/core/roofs.js', 'src/world/core/shadows.js',
     'src/world/core/camera.js', 'src/world/core/map-compile.js', 'src/world/core/path.js', 'src/world/core/wang.js',
     'src/world/core/scene-route.js', 'src/world/core/compose.js', 'src/world/render/null-backend.js',
     'src/world/core/book.js', 'src/data/world/maps/index.js', 'src/data/world/terrain.js', 'src/data/hunts.js',
     'src/data/world/atlas-sets.js', 'src/data/world/art-budget.js',
     'src/world/scene-sets.js', 'src/data/hunt-outfits.js', 'src/data/hunt-grounds.js', 'src/data/hunt-vfx.js',
-    'src/data/world/house-layouts.js', 'src/world/home-scene.js',
+    'src/data/world/house-layouts.js', 'src/world/home-scene.js', 'src/world/render/ground-chunks.js', 'src/world/render/canvas-backend.js',
   ].map(imp));
   const manifests = {};
   /* every set on any grid (atlas-sets.js LOADED_SETS): the sandbox map lints against its own grid's art */
   for (const set of sets.LOADED_SETS) manifests[set] = JSON.parse(readFileSync(join(base, 'assets/world/atlas-' + set + '.json'), 'utf8'));
   return { grid, zsort, roofs, shadows, camera, mapc, path, wang, route, compose, nullb, bookm, maps, terrain, hunts, budget, manifests,
-    sceneSets, outfits, grounds, vfx, layouts, homeScene, atlasSets: sets,
+    sceneSets, outfits, grounds, vfx, layouts, homeScene, atlasSets: sets, chunksM, canvasM,
     canvasSrc: readFileSync(join(base, 'src/world/render/canvas-backend.js'), 'utf8'),
     worldCss: readFileSync(join(ROOT, 'src/styles/world.css'), 'utf8'), tokensCss: readFileSync(join(ROOT, 'src/styles/tokens.css'), 'utf8') };
 }
 
 /** Every check, against one loaded module set. Returns [{ id, msg }] failures. */
-function check(M) {
+async function check(M) {
   const fails = [];
   const ok = (id, cond, msg) => { if (!cond) fails.push({ id, msg }); };
   /* A family that throws is red for that family (a mutant may crash a rule, not the guard). */
   const fam = (id, body) => { try { body(); } catch (e) { fails.push({ id: id + '!', msg: 'threw: ' + (e && e.message) }); } };
+  const famAsync = async (id, body) => { try { await body(); } catch (e) { fails.push({ id: id + '!', msg: 'threw: ' + (e && e.message) }); } };
   const T = M.grid.T;
   const book = M.bookm.createBook(M.manifests);
   const tables = { materials: M.terrain.MATERIALS, sprites: book.sprites, openClasses: M.terrain.OPEN_CLASSES,
@@ -457,6 +458,89 @@ function check(M) {
     }
   });
 
+  /* W5 (perf lane 10-28, Havora on v0.2.59: the scene's sheets and bins were single 12-28 ms tasks and the first
+     view's chunk bakes one 30-110 ms frame): a scene being PREPARED runs in slices with the same result as one go; a
+     chunk bakes in slices to the same paint calls as one go; and a new map's first view waits (ready()) until its
+     ground is baked, so no FRAME bakes it. A fake clock ticks once per look: nothing here reads the wall clock. */
+  await famAsync('W5', async () => {
+    const q = [];
+    let clock = 0;
+    const sl = { later: (fn) => q.push(fn), now: () => clock++, budgetMs: 1 };
+    const drive = async (p) => {
+      let n = 1;
+      for (;;) { await new Promise((r) => setImmediate(r)); if (!q.length) break; n++; q.shift()(); }
+      return [await p, n];
+    };
+    /* a canvas whose 2d context logs its paint calls; anything else asked of it answers with itself */
+    const canvases = [];
+    const mockCanvas = () => {
+      const log = [];
+      const st = { fillStyle: '' };
+      const g = new Proxy(st, {
+        get: (t, k) => (k in t ? t[k]
+          : k === 'fillRect' ? (...a) => log.push('f' + (typeof t.fillStyle === 'string' ? t.fillStyle : '?') + ':' + a.join(','))
+          : k === 'drawImage' ? (...a) => log.push('d' + (a[0] && typeof a[0].id === 'string' ? a[0].id : '?') + ':' + a.slice(1).join(','))
+          : () => g),
+      });
+      const c = { width: 0, height: 0, log, getContext: () => g, addEventListener() {}, setAttribute() {}, remove() {},
+        getBoundingClientRect: () => ({ left: 0, top: 0, width: 1440, height: 900 }) };
+      canvases.push(c);
+      return c;
+    };
+    const doc = { createElement: mockCanvas };
+    const images = new Proxy({}, { get: (t, k) => (typeof k === 'string' ? { id: k } : undefined) });
+    const tone = (n) => 'tone(' + n + ')';
+    const row = rows.town_common;
+    const fresh = () => Object.assign({}, compiled('town_common'));   // a map of its own: nothing kept for it yet
+    /* the scene's sheets: sliced, the same sets */
+    const [sets, setSlices] = await drive(M.sceneSets.sceneSetsSliced(fresh(), row, book, tables, sl));
+    ok('W5', JSON.stringify(sets) === JSON.stringify(M.sceneSets.sceneSets(fresh(), row, book, tables)),
+      'the town\'s sheets made in slices differ from its sheets made in one go');
+    ok('W5', setSlices >= fresh().h + 2, 'the town\'s sheets (its ground, the whole-map passes) were made in ' + setSlices + ' slice(s): one long task');
+    /* its chunk bins: sliced, the same bins */
+    const mk = () => M.chunksM.createGroundChunks({ doc, tone, now: () => clock++ });
+    const m1 = fresh(), m2 = fresh(), a = mk(), b = mk();
+    const one = a.prepare(m1, { book, tables });
+    const [two, binSlices] = await drive(b.prepare(m2, { book, tables }, sl));
+    const flat = (bins) => JSON.stringify([bins.names, [...bins.cells].map(([k, v]) => [k, [...v.voids], [...v.tones], [...v.tiles]])]);
+    ok('W5', flat(one) === flat(two), 'the town\'s chunk bins made in slices differ from its bins made in one go');
+    ok('W5', binSlices >= 10, 'the town\'s chunk bins were made in ' + binSlices + ' slice(s): one long task');
+    /* a chunk baked in slices paints exactly the calls one go paints, never more than a slice's worth a call */
+    a.use(m1, { book, tables, images }); b.use(m2, { book, tables, images });
+    const list = [[3, 2], [4, 2], [5, 3]];
+    const whole = list.map(([cx, cy]) => a.get(cx, cy).log.join('|'));
+    const from = canvases.length;
+    const painted = () => canvases.slice(from).reduce((n, c) => n + c.log.length, 0);
+    let calls = 0, worst = 0;
+    for (;;) {
+      const was = painted();
+      const done = b.bake(list, clock + 8);
+      worst = Math.max(worst, painted() - was);
+      calls++;
+      if (done || calls > 10000) break;
+    }
+    ok('W5', whole.every((l) => l.length > 0) && list.every(([cx, cy], i) => b.get(cx, cy).log.join('|') === whole[i]),
+      'a chunk baked in slices paints different calls from one baked in one go');
+    ok('W5', calls > list.length && worst <= (8 + list.length) * 16, 'the chunks were baked in ' + calls + ' call(s), up to ' + worst + ' paint calls in one: a bake is one long task');
+    /* the canvas: a new map's first view is baked by ready(), a slice a frame, never inside the frame that draws it */
+    const win = { innerWidth: 1440, innerHeight: 900, devicePixelRatio: 1, performance: { now: () => clock++ }, addEventListener() {}, removeEventListener() {},
+      setTimeout: (fn) => q.push(fn), clearTimeout() {}, requestIdleCallback: (fn) => q.push(fn), cancelIdleCallback() {} };
+    const cb = M.canvasM.createCanvasBackend({ win, doc, book, images, tables, css: tone });
+    cb.mount({ appendChild() {}, getBoundingClientRect: () => ({ left: 0, top: 0, width: 1440, height: 900 }) });
+    const m3 = fresh();
+    cb.setMap(m3);
+    const at = row.start || [Math.floor(m3.w / 2), Math.floor(m3.h / 2)];
+    const state = { hero: { x: at[0], y: at[1] }, t: 0 };
+    let held = 0;
+    while (!cb.ready(state) && held < 10000) held++;
+    const chunkCount = () => canvases.filter((c) => c.width === 16 * T && c.height === 16 * T).length;
+    const baked = chunkCount();
+    cb.sync(state);
+    ok('W5', held >= 2 && baked > 0 && chunkCount() === baked,
+      'a new map\'s first frame must wait for its view\'s ground (held ' + held + ' frame(s), ' + (chunkCount() - baked) + ' chunk(s) baked inside the frame)');
+    q.length = 0;
+  });
+
   fam('G', () => {
     const idx = M.route.huntMapIndex(M.maps.WORLD_MAPS, M.hunts.HUNT_INDEX);
     const S = (a, c) => M.route.sceneFor(a, c, idx, M.maps.SCENE_MAPS);
@@ -590,7 +674,12 @@ const MUTANTS = [
   ['W2', 'the blend drawn on the cell grid, not the dual grid', 'src/world/core/compose.js', [['x: x * T + H, y: y * T + H', 'x: x * T, y: y * T']]],
   ['W2', 'the blend laid over the patches', 'src/world/core/compose.js', [['    if (map.blend) yield* blendSteps(map, book, T, (x, y) => !!patchAt(x, y), tiles);\n    tiles.push(...laid);', '    tiles.push(...laid);\n    if (map.blend) yield* blendSteps(map, book, T, (x, y) => !!patchAt(x, y), tiles);']]],
   ['W4', 'a scene\'s ground made in one task again (no slice budget)', 'src/world/core/compose.js', [['    if (now() - t0 >= budgetMs) return undefined;\n', '']]],
-  ['W4', 'a slice that skips the rest of the ground', 'src/world/core/compose.js', [['        if (r) done(keep(map, book, r.value)); else o.later(slice);', '        if (r) done(keep(map, book, r.value)); else done(keep(map, book, { tiles: [], voids: [], tones: [] }));']]],
+  ['W4', 'a slice that skips the rest of the ground', 'src/world/core/compose.js', [['        if (r) done(finish(r.value)); else o.later(slice);', '        if (r) done(finish(r.value)); else done(finish({ tiles: [], voids: [], tones: [] }));']]],
+  ['W5', 'a scene\'s sheets made in one task again', 'src/world/scene-sets.js', [['export function sceneSetsSliced(map, row, book, tables, o) {\n', 'export function sceneSetsSliced(map, row, book, tables, o) {\n  return Promise.resolve(sceneSets(map, row, book, tables));\n']]],
+  ['W5', 'a map\'s chunk bins made in one task again', 'src/world/render/ground-chunks.js', [['    prepare(m, art, sl) { return sl ? binsSliced(m, art, sl) : binsFor(m, art); },', '    prepare(m, art, sl) { return binsFor(m, art); },']]],
+  ['W5', 'a chunk baked past its deadline (one long task)', 'src/world/render/ground-chunks.js', [['    const spent = () => timed && ++n % CHECK_EVERY === 0 && now() >= until;', '    const spent = () => false;']]],
+  ['W5', 'a resumed chunk skips the tile it stopped at', 'src/world/render/ground-chunks.js', [['    for (const t = own.tiles; j.i < t.length; j.i += 5) {\n      if (spent()) return false;', '    for (const t = own.tiles; j.i < t.length; j.i += 5) {\n      if (spent()) { j.i += 5; return false; }']]],
+  ['W5', 'a new map drawn before its view\'s ground is baked', 'src/world/render/canvas-backend.js', [['      if (!hold || !map || !canvas) return true;', '      return true;']]],
   ['W2', 'a hole corner (cliff) leaves its dual tile undrawn', 'src/world/core/compose.js', [['for (let i = 0; i < 4; i++) if (c[i] < 0) c[i] = most;', 'if (c.some((m) => m < 0)) continue;']]],
   ['W2', 'a third material drawn as the upper of the pair', 'src/world/core/compose.js', [['(m !== lo && !pairM[m * K + lo] && pairM[m * K + up])', '(m !== lo)']]],
   ['L1', 'every window of a map is let off the tree rule', 'src/world/core/map-compile.js', [['if (2 * greenIn(wx, wy) < ww * wh) continue;', 'continue;']]],
@@ -609,7 +698,7 @@ async function selftest() {
   let bad = 0;
   const clean = copyTree();
   try {
-    const f = check(await load(clean));
+    const f = await check(await load(clean));
     if (f.length) { console.log('  ✗ clean control is RED: ' + f.map((x) => x.id + ' ' + x.msg).join(' | ')); bad++; }
     else console.log('  ✓ clean control — an unmutated copy is green');
   } finally { rmSync(clean, { recursive: true, force: true }); }
@@ -617,7 +706,7 @@ async function selftest() {
     const dir = copyTree();
     try {
       plantIn(dir, rel, edits);
-      const f = check(await load(dir));
+      const f = await check(await load(dir));
       if (f.some((x) => x.id === id || x.id === id[0] + '!')) console.log('  ✓ ' + id + ' caught: ' + why);
       else { console.log('  ✗ ' + id + ' NOT CAUGHT: ' + why + (f.length ? ' (red elsewhere: ' + [...new Set(f.map((x) => x.id))].join(',') + ')' : '')); bad++; }
     } catch (e) {
@@ -636,7 +725,7 @@ else if (argv.includes('--hashes')) {
   for (const m of M.maps.WORLD_MAPS) console.log(m.id.padEnd(16), M.mapc.compileMap(m, tables).maskHash, m.maskHash ? '(row says ' + m.maskHash + ')' : '');
 } else {
   const M = await load(ROOT);
-  const fails = check(M);
+  const fails = await check(M);
   if (fails.length) {
     for (const f of fails) console.error('  ✗ ' + f.id + '  ' + f.msg);
     console.error('world-core: ' + fails.length + ' failure(s)');

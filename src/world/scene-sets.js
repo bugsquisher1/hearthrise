@@ -20,7 +20,7 @@
 // tests/world-core.mjs (family A) proves it covers what each shipped scene draws, and no more.
 // PURE: no DOM, no window, no G.
 // ════════════════════════════════════════════════════════════════════════
-import { groundOf, composeFrame } from './core/compose.js?v=0.2.59';
+import { groundOf, groundOfSliced, composeFrame, sliced } from './core/compose.js?v=0.2.59';
 import { HUNT_INDEX } from '../data/hunts.js?v=0.2.59';
 import { HUNT_GROUNDS, gatherNodesOf } from '../data/hunt-grounds.js?v=0.2.59';
 import { OUTFITS } from '../data/hunt-outfits.js?v=0.2.59';
@@ -65,6 +65,19 @@ function actorIds(row) {
  * @param {{materials: object}} tables
  */
 export function sceneSets(map, row, book, tables) {
+  const it = sceneSetsSteps(map, row, book, tables);
+  let r = it.next();
+  while (!r.done) r = it.next();
+  return r.value;
+}
+
+/** sceneSets in slices (compose.js sliced): the town's whole-map passes were one 12-28 ms task (perf lane 10-28). */
+export function sceneSetsSliced(map, row, book, tables, o) {
+  return groundOfSliced(map, book, tables, map.T || 32, o).then(() => sliced(sceneSetsSteps(map, row, book, tables), o));
+}
+
+/* sceneSets as STEPS: the ground's tiles, each whole-map compose, the actors; the same sets whichever way it runs */
+function* sceneSetsSteps(map, row, book, tables) {
   const sets = new Set();
   const note = (s) => { if (s) sets.add(s); return s; };
   const rec = Object.assign({}, book, {
@@ -75,11 +88,14 @@ export function sceneSets(map, row, book, tables) {
   const whole = { ox: 0, oy: 0, w: map.w * T, h: map.h * T };
   /* the ground's sheets are its tiles' (every terrain lookup that draws is a tile): the one shared ground, not a second pass */
   for (const t of groundOf(map, book, tables, T).tiles) note(t.set);
+  yield;
   composeFrame(map, rec, { hero: null }, whole, tables, T);
+  yield;
   /* inside a walk-in building its inside walls show (compose.js: the hero's own building) */
   for (const b of map.buildings) {
     if (b.closed || b.painted) continue;
     composeFrame(map, rec, { hero: { x: b.rect.x + 1, y: b.rect.y + 1 } }, whole, tables, T);
+    yield;
   }
   for (const id of actorIds(row)) note(book.frame(id).set);
   return Array.from(sets).sort();

@@ -457,26 +457,24 @@ async function blessArm(db, { H, M }, attended) {
 // ═══════════════════════════════════════════════════════════════════════
 /* Each mutant: the file, its [find, replace], the arm that must go red. The file's own
    self-check is turned into an uncalled function so the defect reaches the arm. */
-/* hr_hunt_apply_member's LAST author is 2027-01-20-tutorial-facts.sql §2 (one anchored edit of the installed text; its §0
-   pins the pre-image, 2026-12-15-account-gold.sql's body, so a plant there trips that pin and the chain never boots): a
-   member-settle defect rides §2 as a second edit of the body it installs. The anchor sits in §2's do-block, in no
-   function body of the text, so the mutant names its body (`fn`). Shared with tests/settle-hooks.mjs. */
-export const MEMBER_LAST = '2027-01-20-tutorial-facts.sql';
+/* hr_hunt_apply_member's LAST author is 2027-01-31-inner-flame.sql §2(d): restated WHOLE from the live body (its §0
+   pins the pre-image, 2027-01-20-tutorial-facts.sql's patched body, so a plant in any earlier file trips that pin and the
+   chain never boots). A member-settle defect is planted straight into that restated body, the text that runs.
+   Shared with tests/settle-hooks.mjs. */
+export const MEMBER_LAST = '2027-01-31-inner-flame.sql';
 export function memberPlant(find, repl) {
-  if (find.includes('$l$') || repl.includes('$l$')) throw new Error('memberPlant: the edit may not hold $l$');
-  return { file: MEMBER_LAST, fn: 'hr_hunt_apply_member', find: '  execute replace(v_def, a1, r1);',
-    repl: '  execute replace(replace(v_def, a1, r1), $l$' + find + '$l$, $l$' + repl + '$l$);' };
+  return { file: MEMBER_LAST, fn: 'hr_hunt_apply_member', find, repl };
 }
 const MUTANTS = [
-  /* hr_apply's LAST author is 2027-01-24-skills-from-storage.sql §2 (five anchored edits of the installed text; its
-     §0 pins the pre-image, gear-by-level's live body, so a plant in an earlier file trips that pin): the defect rides
-     §2 as one more edit of the body it executes. The anchor sits in §2's do-block, in no function body of the text,
-     so the mutant names its body (`fn`). */
-  { arm: 'A-LOCK', file: '2027-01-24-skills-from-storage.sql', fn: 'hr_apply', why: 'hr_apply no longer refuses a locked sale',
-    find: '  end loop;\n  execute v_def;',
-    repl: '  end loop;\n  execute replace(v_def, $l$        if v_n < 0 and coalesce(v_this_intent, \'\') ~ \'^vendor_sell(_many)?(:|$)\' and public.hr_item_locked(v_uid, v_slot, k) then$l$,\n    $l$        if false and coalesce(v_this_intent, \'\') ~ \'^vendor_sell(_many)?(:|$)\' and public.hr_item_locked(v_uid, v_slot, k) then$l$);' },
+  /* hr_apply's LAST author is 2027-01-31-inner-flame.sql §2(e) (one anchored edit of the installed text; its §0 pins
+     the pre-image, 2027-01-24-skills-from-storage.sql's patched body, so a plant in an earlier file trips that pin): the
+     defect rides §2(e) as one more edit of the body it executes. The anchor sits in that do-block, in no function body
+     of the text, so the mutant names its body (`fn`). */
+  { arm: 'A-LOCK', file: '2027-01-31-inner-flame.sql', fn: 'hr_apply', why: 'hr_apply no longer refuses a locked sale',
+    find: '  execute replace(v_def, c_old, c_new);',
+    repl: '  execute replace(replace(v_def, c_old, c_new), $l$        if v_n < 0 and coalesce(v_this_intent, \'\') ~ \'^vendor_sell(_many)?(:|$)\' and public.hr_item_locked(v_uid, v_slot, k) then$l$,\n    $l$        if false and coalesce(v_this_intent, \'\') ~ \'^vendor_sell(_many)?(:|$)\' and public.hr_item_locked(v_uid, v_slot, k) then$l$);' },
   /* hr_hunt_loot_rules is RESTATED last by 2027-01-23-loot-dispatch.sql (md5-pinned to its pre-image); hr_hunt_apply_member
-     is patched last by 2027-01-20-tutorial-facts.sql (memberPlant): each mutant is planted in the body that runs. */
+     is restated last by 2027-01-31-inner-flame.sql (memberPlant): each mutant is planted in the body that runs. */
   { arm: 'A-LOOT-AWAY', why: 'the settle no longer runs the loot filter',
     ...memberPlant("  v_loot := public.hr_hunt_loot_rules(p_user, p_slot, p_session, p_intent, p_delta->'items', v_to);", '  v_loot := null;') },
   { arm: 'A-LOOT-ATTENDED', file: '2027-01-23-loot-dispatch.sql', why: 'a sell plan acts at pickup again',
@@ -611,7 +609,8 @@ async function main() {
   const inBody = staleAnchors([{ arm: 'SELFTEST', file: '2026-12-15-account-gold.sql', find: '      if public.hr_purse_of(v_u) < v_f then\n' }]);
   if (!inBody.some((s) => s.includes('hr_hunt_apply_instance'))) { console.error('✗ ANCHOR selftest: a plant in 12-15\'s superseded hr_hunt_apply_instance was not flagged'); process.exit(1); }
   /* ...and a plant in a body a later file PATCHES under an md5 pin (12-15's hr_hunt_apply_member, edited in place by
-     2027-01-20-tutorial-facts.sql's execute replace(pg_get_functiondef(..))) must be flagged: a patch is an author. */
+     2027-01-20-tutorial-facts.sql's execute replace(pg_get_functiondef(..)), then restated whole by MEMBER_LAST) must
+     be flagged, naming the LAST author: a patch is an author, and so is the restatement after it. */
   const patched = staleAnchors([{ arm: 'SELFTEST', file: '2026-12-15-account-gold.sql', find: '    v_bless := public.hr_blessing_take(p_user, p_slot, p_session, v_dx, v_s.settled_to);' }], { patches: true });
   if (!patched.some((s) => s.includes(MEMBER_LAST))) { console.error('✗ ANCHOR selftest: a plant in 12-15\'s pin-patched hr_hunt_apply_member was not flagged'); process.exit(1); }
   const stale = staleAnchors(MUTANTS, { patches: true });

@@ -21,8 +21,7 @@
 // one record of where this body stands in town (placeOn: a switch is not a move).
 // A fight on a hunt no map renders shows town or home with a slim banner offering the mapped hunt.
 // THE 64 PX SANDBOX: another art grid, loaded on first entry; its presence rule is sandbox-scene.js.
-// THE GREAT HEARTH (hearth-burn.js): in town the frame also carries the fuel throws, the named flame's colour
-// and the hero's "+N Inner Flame", all from what the server said (the pointer, the stands, the town read).
+// THE GREAT HEARTH (hearth-burn.js): a town frame's fuel throws, flame colour and "+N Inner Flame", from server answers.
 // THE ART BY SCENE (atlas.js, scene-sets.js): every manifest on the first open, but a sheet only when a
 // scene drawing from it shows. The first scene opens whole; a later one (a ground entered, the town after
 // a hunt) switches once its sheets have arrived, the last frame holding meanwhile.
@@ -199,9 +198,8 @@ export async function bootWorld(panel, opts) {
   const readEnv = createEnvReader(homeNow, town);
   let hearthView = null, hearthMap = null;
 
-  /* THE GREAT HEARTH in a town frame (hearth-burn.js): the throws, the colour, the "+N Inner Flame"; display only */
+  /* THE GREAT HEARTH in a town frame, display only; the book's own sprites (an unloaded colour draws the plain fire) */
   function hearthState(map, f, now) {
-    /* the book's own sprites, never the stub proxy: a colour whose art is not loaded draws the plain fire */
     if (hearthMap !== map) { hearthMap = map; hearthView = createHearthView(map, { sprites: book.sprites }); }
     const s = character && typeof character.read === 'function' ? character.read('state') : null;
     const sk = character ? skillsOf(character) : null;

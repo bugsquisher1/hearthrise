@@ -90,8 +90,11 @@ const OWN_SQL = '2026-10-09-xp-frac-carry.sql';
    levelling run to the old 9aabde49, 2374 + 4 rare drops); every other event type, kills and items unchanged. */
 /* RE-MEASURED loot bands phase C (2026-10-23): the Slime's Sticky Core is its 8% Uncommon now, so no rare_drop event:
    n 4496 -> 4478 and the hash back to the pre-loot-loop 439f106a (the same stream, minus those events); cores 18 -> 63. */
+/* RE-MEASURED Inner Flame (2026-10-27, lane/b-inner-flame): the Slime has no skeleton, so its bones row is its family's
+   Hearth fuel, Lamp Jelly, at the same chance (src/data/monsters.js, src/data/hearth.js FAMILY_FUELS; Tyler 10-25). Only
+   that id moved: n 4478, hash 439f106a and 687 kills are unchanged, and the 213 bones are 213 Lamp Jelly. */
 const PRE_CHANGE_DRAWS = { n: 4478, hash: '439f106a', kills: 687,
-  items: '{"bones":213,"slime_gel":633,"sticky_core":63}' };   // re-measured lane S1 (instance engine; n = events)
+  items: '{"lamp_jelly":213,"slime_gel":633,"sticky_core":63}' };   // re-measured lane S1 (instance engine; n = events)
 /* AND A LEVELLING HERO (every combat skill at 5, 30 minutes): the DRAW STREAM is
    pinned (count + hash), the outcomes deliberately are not. Measured on both
    trees: the same 2,360 draws, but 131 -> 130 kills — the carry pays the XP the

@@ -11,6 +11,8 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 
 **Gloves, belts and jewelry to find.** Barn Spiders drop iron, studded and adept gloves. Barn Wasps drop the matching belts. Turncoats carry the Banded Signet, the Wolfbone Torc and Fang Studs. Bows hit the wasps hard, and fire burns the spiders.
 
+**Consistent spelling.** Item names, tooltips and messages now use one spelling throughout (armor, color, gray).
+
 ## v0.2.62 — 2026-10-28 (Smoother Havora)
 
 **Less stutter in town.** Havora now loads and draws its streets in small steps instead of all at once, so walking around town and arriving back from a hunt stay smooth, even on slower computers. The town looks exactly the same.

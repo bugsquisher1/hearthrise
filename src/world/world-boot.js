@@ -183,6 +183,7 @@ export async function bootWorld(panel, opts) {
   /* A SCENE MADE READY: its sheets, those sheets loaded, its ground binned for the chunks (tests/perf-budget.mjs PB-HELD) */
   const prepareScene = async (id) => {
     await sheets.ensure(await setsOf(id));
+    if (gone) return;   // a sheet landing after the pane closed ends here; sync() checks again
     await backend.prepare(mapOf(id), artOf(id) || undefined, slices);
   };
   const homeNow = createHomeReader(character);

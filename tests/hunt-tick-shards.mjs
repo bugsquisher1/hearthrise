@@ -5,7 +5,8 @@
 // HUNT_BODY_BUDGET_MS + accrual.js accrueHunt's world bound).
 //
 //   node tests/hunt-tick-shards.mjs            the guard (26 hunts: 3 bodies)
-//   node tests/hunt-tick-shards.mjs --outage   the OUTAGE arm alone (its own CI step; --mutate --outage: its mutants)
+//   node tests/hunt-tick-shards.mjs --outage   OUTAGE + CATCH-UP alone (their own CI step; --mutate --outage: their
+//                                              mutants and 2027-02-04-tick-span.sql's §5 bites)
 //   node tests/hunt-tick-shards.mjs --only=A,B these arms (HR_SPAN_REPORT=1: per-arm seconds, OUTAGE's numbers)
 //   node tests/hunt-tick-shards.mjs --load     the synthetic load: 100 hunts,
 //                                              measured (one body of 100 vs the
@@ -84,10 +85,12 @@ const { ROOT, UIDS, STRONG, loadEdge, pinDice, hunter, character, one, q, inTx, 
 const UID0 = UIDS[0];
 const MUTATE = process.argv.includes('--mutate');
 const LOAD = process.argv.includes('--load');
-/* --outage: the OUTAGE arm alone (and with --mutate, its mutants alone). It replays a 30-min outage of a full
-   body twice (~2-4 min), so CI runs it as its own step beside the rest of this file's (db-replay-3 vs db-replay-8). */
+/* --outage: the tick-span step alone — OUTAGE and CATCH-UP (real 4-hero parties on the real ground, ~4-5 min), and with
+   --mutate their mutants and 2027-02-04-tick-span.sql's §5 bites (a replay of their own) — so CI runs it as its own step
+   beside the rest of this file's (db-replay-3 vs db-replay-8, which measured 22.1 of its 30 min before this lane). */
 const OUTAGE_ONLY = process.argv.includes('--outage');
-const inScope = (arm) => (arm === 'OUTAGE') === OUTAGE_ONLY;
+const SPAN_STEP = new Set(['OUTAGE', 'CATCH-UP']);
+const inScope = (arm) => SPAN_STEP.has(arm) === OUTAGE_ONLY;
 const FN = join('supabase', 'functions', 'hr-accrue');
 const MIG = '2026-11-04-hunt-tick-shards.sql';
 const N_GUARD = 26;
@@ -576,6 +579,25 @@ const SPAN_ARMS = {
     const two = M.HS.engineBudget(1e9, fakeClock(1200));
     const d = await M.HS.settleHunt({ exec: racing(), user: UID0, slot: 0, mode: 'tick', session: sid, grounds: groundsOf(M), budget: two });
     if (d.outcome !== 'paid' || two.runs !== 2) problems.push(`CONTROL: a raced settle under an unspent budget answered ${d.outcome}/${d.reason} after ${two.runs} runs (want paid after the retry)`);
+    /* THE PLAYER DOOR'S CATCH-UP stops at its budget (25 min owed, 600 ms a run, 800 ms): two slices, no more; neither
+       capped commit builds an envelope, the answer reads the caller's ONCE; the tick door takes one slice whatever is owed */
+    await db.query('rollback to savepoint ladder');
+    const seen = [];
+    const spy = async (sql, prm) => { seen.push([String(sql), prm]); return exec(sql, prm); };
+    const pb = M.HS.engineBudget(800, fakeClock(600));
+    const pl = await M.HS.settleHunt({ exec: spy, user: UID0, slot: 0, mode: 'settle', bucket: null, project: true, live: true, grounds: groundsOf(M), budget: pb });
+    const applies = seen.filter(([s]) => s.includes('hr_hunt_apply_instance('));
+    const states = seen.filter(([s]) => s.includes('hr_state_of(')).length;
+    if (pl.outcome !== 'paid' || pb.runs !== 2 || (pl.body || {}).hunt_slices !== 2 || !((pl.body || {}).hunt_behind_ms > 60000)) {
+      problems.push(`a player's catch-up at 600 ms a run and an 800 ms budget answered ${pl.outcome} after ${pb.runs} runs, ${JSON.stringify(pl.body && { slices: pl.body.hunt_slices, behind: pl.body.hunt_behind_ms })}; want 2 slices, still behind`);
+    }
+    if (applies.length !== 2 || applies.some(([, prm]) => prm[4] !== null) || states !== 1 || !(pl.body && pl.body.state)) {
+      problems.push(`the catch-up's capped commits projected ${applies.filter(([, prm]) => prm[4] !== null).length} envelope(s) and the answer read ${states} (want 0 and 1, and an envelope on the answer)`);
+    }
+    await db.query('rollback to savepoint ladder');
+    const tb = M.HS.engineBudget(1e9, fakeClock(600));
+    const tk = await M.HS.settleHunt({ exec, user: UID0, slot: 0, mode: 'tick', session: sid, grounds: groundsOf(M), budget: tb });
+    if (tk.outcome !== 'paid' || tb.runs !== 1) problems.push(`CONTROL: the tick door took ${tb.runs} slice(s) of a 25-min backlog (one a fire)`);
     return problems;
   }),
 
@@ -729,6 +751,12 @@ const MUTANTS = [
     from: '    if (degraded > 0 && budgetSpent(budget)) return pending;\n', to: '' },
   { arm: 'LADDER', name: '[tick-span] a retry runs the engine past the budget', file: join(FN, 'hunt-settle.js'),
     from: '    if (attempt > 0 && budgetSpent(budget)) return last;\n', to: '' },
+  { arm: 'LADDER', name: '[tick-span] the player door catches up past its budget', file: join(FN, 'hunt-settle.js'),
+    from: '         && slices[slices.length - 1].behindMs > 0 && !budgetSpent(budget)) {', to: '         && slices[slices.length - 1].behindMs > 0) {' },
+  { arm: 'LADDER', name: '[tick-span] every catch-up slice builds an envelope', file: join(FN, 'hunt-settle.js'),
+    from: "    const projected = o.project === true && !(mode === 'settle' && plan.toMs < plan.endMs);", to: '    const projected = o.project === true;' },
+  { arm: 'CATCH-UP', name: '[tick-span] the player door settles one slice a call (a mid-hunt verb fails for minutes)', file: join(FN, 'hunt-settle.js'),
+    from: "  if (mode !== 'settle' || first.outcome !== 'paid') return first;", to: '  return first;' },
   { arm: 'OUTAGE', name: '[tick-span] THE BUG: the settle span is the pre-fix 15 min', file: join(FN, 'hunt-settle.js'),
     from: 'export const HUNT_SETTLE_SPAN_MS = 2 * 60000;', to: 'export const HUNT_SETTLE_SPAN_MS = 15 * 60000;' },
 ];
@@ -868,8 +896,8 @@ async function main() {
         else { console.error(`✗ ${m.arm} stayed GREEN on: ${m.name}`); bad++; }
       } finally { await db.exec(def); }
     }
-    /* the migrations' §5 bites belong to the plain file's proof, never to --outage */
-    const sqlOf = (list) => (OUTAGE_ONLY ? [] : list);
+    /* the older migrations' §5 bites belong to the plain file's proof; this lane's file's to --outage */
+    const sqlOf = (list) => ((list === SPAN_SQL_MUTANTS) === OUTAGE_ONLY ? list : []);
     for (const m of sqlOf(SQL_MUTANTS)) {
       let refused = null;
       try { await bootReplay({ patches: new Map([[m.file, sqlPatches(m)]]), upTo: LAST_PATCHED }); } catch (e) { refused = String(e.message); }

@@ -2410,9 +2410,12 @@ jobs:
       # which runs the rest of that file, measured 22.1 of its 30 min. It must drain within
       # 2 x ceil(30 min / (span - cadence)) fires with every body's engine CPU under the edge's
       # 2 s, both paths (browser closed; two heroes viewing), no time lost or doubled, tally =
-      # ledger, and both paths write the rows the pre-fix 15-min windows write. --mutate
-      # --outage plants THE BUG (the 15-min span). MEASURED 2026-10-28 locally on a busy box:
-      # plain ~4 min, the mutant ~1.5 min; this job's fast runs were 8.5 min against 21.
+      # ledger, and both paths write the rows the pre-fix 15-min windows write. CATCH-UP: after a
+      # 10-min outage a mid-hunt verb is refused only settle_first until the player's own settle
+      # catches the hunt up slice by slice within its budget, then it lands (both paths, <= 3
+      # rounds). --mutate --outage plants THE BUG (the 15-min span), a one-slice player door, and
+      # 2027-02-04-tick-span.sql's four §5 bites. MEASURED 2026-10-28 locally on a busy box:
+      # plain ~4.5 min, mutants ~6 min (the §5 replays); this job's fast runs were 8.5 min of 21.
       - name: Hunt tick span — a 30-min outage drains, every body under the edge's CPU
         if: ${{ !cancelled() }}
         run: |
@@ -3336,7 +3339,8 @@ jobs:
       # plain 12 s, --mutate (11 mutants) 61 s. + lane/c-tick-span (2026-10-28):
       # RECLAIM (a landed settle's lease ends at the next fire), FUSE (a body runs most
       # behind first and starts nothing past its engine budget), LADDER (no degrade or
-      # retry past it), SPAN-IDEM; 13 mutants more. OUTAGE runs in db-replay-3.
+      # retry past it, a player's catch-up stops at it), SPAN-IDEM; 13 mutants more. OUTAGE,
+      # CATCH-UP and the 2027-02-04 §5 bites run in db-replay-3.
       - name: Hunt tick shards — packed bodies, leases, budget, world bound
         if: ${{ !cancelled() }}
         run: |

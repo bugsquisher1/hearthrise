@@ -46,7 +46,7 @@ export function catchUpLink(server, o) {
       ? once(() => server.rpc(name, args), () => server.rpc(name, { ...args, p_idem: newIdem() }))
       : server.rpc(name, args)) },
     accrue: { value: (body) => (body && typeof body.intentId === 'string'
-      ? once(() => server.accrue(body), () => server.accrue({ ...body, intentId: newIdem() }))
+      ? once(() => server.accrue(body), () => { const next = { ...body, intentId: newIdem() }; return server.accrue(next); })
       : server.accrue(body)) },
   });
 }

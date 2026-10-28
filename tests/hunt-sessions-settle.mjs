@@ -1644,9 +1644,12 @@ const DB_ARMS = {
     await db.query('savepoint parity');
     const runs = {};
     for (const [door, go] of [
-      ['tick', () => M.HS.settleHunt({ exec, user: UID, slot: 0, mode: 'tick', session: sid, grounds: groundsOf(M) })],
+      /* 10 min owed, so each door lands it slice by slice (HUNT_SETTLE_SPAN_MS, lane/c-tick-span): the tick ONE slice a
+         fire (fired until it has nothing more), the player's door every slice in ONE call (its catch-up), the pieces
+         slice by slice; all three must write the same rows */
+      ['tick', async () => { let last = null; for (let k = 0; k < 12; k++) { const r = await M.HS.settleHunt({ exec, user: UID, slot: 0, mode: 'tick', session: sid, grounds: groundsOf(M) }); if (r.outcome !== 'paid') break; last = r; } return last; }],
       ['settle', () => M.HS.settleHunt({ exec, user: UID, slot: 0, mode: 'settle', minWindowMs: 0, grounds: groundsOf(M) })],
-      ['pieces', async () => { const now = Number(await one(db, 'select floor(extract(epoch from now()) * 1000)::bigint')); return settleSlice(db, M, now, {}); }],
+      ['pieces', async () => { const now = Number(await one(db, 'select floor(extract(epoch from now()) * 1000)::bigint')); return settleTo(db, M, now, {}); }],
     ]) {
       const r = await go();
       if (door !== 'pieces' && (!r || r.outcome !== 'paid')) problems.push(`CONTROL: the ${door} door did not pay (${r && r.outcome}/${r && r.reason})`);

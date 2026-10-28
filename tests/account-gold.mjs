@@ -625,8 +625,11 @@ async function huntArms(mutate, M) {
       }
       return d.exec(text, params);
     };
-    const v = await M.HS.settleHunt(door === 'tick' ? { exec: racing, user: u, slot: 0, mode: 'tick', grounds: {} }
-      : { exec: racing, user: u, slot: 0, mode: 'settle', bucket: null, project: true, live: true, grounds: {} });
+    /* G4 grades the race's re-read, not the engine budget (tests/hunt-tick-shards.mjs LADDER proves a retry never runs
+       past it, on a fake clock): an unbounded budget, so a loaded box's wall clock cannot skip the retry under test */
+    const wide = () => M.HS.engineBudget(1e9);
+    const v = await M.HS.settleHunt(door === 'tick' ? { exec: racing, user: u, slot: 0, mode: 'tick', grounds: {}, budget: wide() }
+      : { exec: racing, user: u, slot: 0, mode: 'settle', bucket: null, project: true, live: true, grounds: {}, budget: wide() });
     ok(!first && v && v.outcome === 'paid', `G4 ${door}: settleHunt after a raced first attempt answered ${JSON.stringify(v && { outcome: v.outcome, reason: v.reason })}`);
     const c = await chain(d, u);
     ok(!c.bad.length && c.end === c.purse && c.purse >= 0, `G4 ${door}: the ledger chain ${JSON.stringify(c.bad)} ends ${c.end}, purse ${c.purse}`);

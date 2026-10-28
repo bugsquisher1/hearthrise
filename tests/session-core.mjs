@@ -1571,6 +1571,7 @@ const MUTANTS = [
   ['[tick-span] a mid-hunt verb refused settle_first is not caught up', 'src/session/catch-up.js', '    if (!catchingUp(ans) || !o.hunting()) return ans;', '    return ans;'],
   ['[tick-span] the catch-up retry reuses the refused key', 'src/session/catch-up.js', "() => server.rpc(name, { ...args, p_idem: newIdem() })", '() => server.rpc(name, args)'],
   ['[tick-span] the catch-up retries without settling first', 'src/session/catch-up.js', '    try { await o.catchUp(); } catch (e) { /* the retry\'s own answer says what the server holds */ }\n', ''],
+  ['[tick-span] an engine intent\'s catch-up retry reuses the refused key', 'src/session/catch-up.js', 'const next = { ...body, intentId: newIdem() }; return server.accrue(next);', 'return server.accrue(body);'],
   ['[tick-span] a refusal in town is caught up too', 'src/session/catch-up.js', '    if (!catchingUp(ans) || !o.hunting()) return ans;', '    if (!catchingUp(ans)) return ans;'],
   ['an engine answer costs a second round trip', 'src/session/character-session.js', "{ if (!(carries && this._take(ans.body, 'load')) && !(await this.load())) await this.resync(); return { ok: true }; }", '{ if (!(await this.load())) await this.resync(); return { ok: true }; }'],
   ['every intent answer is taken as the envelope', 'src/session/character-session.js', '_settled(await send(), carries === true)', '_settled(await send(), true)'],

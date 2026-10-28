@@ -3339,7 +3339,7 @@ jobs:
       # plain 12 s, --mutate (11 mutants) 61 s. + lane/c-tick-span (2026-10-28):
       # RECLAIM (a landed settle's lease ends at the next fire), FUSE (a body runs most
       # behind first and starts nothing past its engine budget), LADDER (no degrade or
-      # retry past it, a player's catch-up stops at it), SPAN-IDEM; 13 mutants more. OUTAGE,
+      # retry past it, a player's catch-up stops at it), SPAN-IDEM; 11 mutants more. OUTAGE,
       # CATCH-UP and the 2027-02-04 §5 bites run in db-replay-3.
       - name: Hunt tick shards — packed bodies, leases, budget, world bound
         if: ${{ !cancelled() }}

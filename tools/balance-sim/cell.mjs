@@ -46,6 +46,8 @@ export async function loadCellRunner(root) {
   const XP = await import(u('src/core/xp.js') + v);
   const MIT = await import(u('src/core/mitigation.js') + v);
   const VIT = await import(u('src/core/vitals.js') + v);
+  /* every combat skill (src/data/skills.js: Inner Flame since lane/b-inner-flame), the ones a career records */
+  const { COMBAT_SKILLS } = await import(u('src/data/skills.js') + v);
   const G = await import(u('src/data/hunt-grounds.js'));
   const { HUNT_INDEX } = await import(u('src/data/hunts.js'));
   const { START_BAR } = await import(u('src/data/start-kit.js'));
@@ -349,7 +351,7 @@ export async function loadCellRunner(root) {
   }
   const msS = (ms) => (ms === null ? null : round(ms / 1000, 1));
 
-  return { runCell, STYLES, gear, XP };
+  return { runCell, STYLES, gear, XP, COMBAT_SKILLS };
 }
 
 /* THE RULING'S DIFFICULTY BANDS (§3): a cell's band by its typical encounter minimum HP and by its deaths per

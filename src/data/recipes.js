@@ -322,6 +322,7 @@ export const ARTISAN_CATEGORIES = {
     { key: 'tools',      label: 'Tools' },
     { key: 'whetstones', label: 'Whetstones' },
     { key: 'weapons',    label: 'Weapons & Shields' },
+    { key: 'armour',     label: 'Armor' },
     { key: 'castle',     label: 'Building Materials' },
   ],
   crafting: [
@@ -368,6 +369,7 @@ export function recipeCategory(skillId, recipe, items = ITEMS) {
     if (/_bar$/.test(outId)) return 'smelting';   // ore → bar
     if (type === 'ammo') return 'whetstones';     // strB stones, ammo slot
     if (type === 'weapon' || type === 'offhand') return 'weapons';   // the style ladder: hatchets, the club; the shields
+    if (type === 'armor') return 'armour';        // the Bronze Gauntlets (lane b-unsourced-items)
     if (isCastleGood(out)) return 'castle';       // Iron Fitting
     return null;
   }

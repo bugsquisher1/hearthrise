@@ -37,7 +37,9 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
    file, which rewrites the same tables. */
 /* v0.2.31 integration: Mosslight Glade OPEN on its art (lane b-mosslight-art) landed in 2026-11-22 (APPLIED history).
    Wickstead opens on its painted ground (lane b-wickstead-art, 2026-10-28) in this forward file. */
-export const OUT_NAME = '2027-02-06-wickstead-hunts-catalogue.generated.sql';
+/* 2027-02-06 is APPLIED history. The Orchard Boar (Wickstead) and the Brook Bear (Mosslight Glade) join the spawn mixes
+   (lane b-unsourced-items, 2026-10-28) in this forward file. */
+export const OUT_NAME = '2027-02-08-unsourced-hunts-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);

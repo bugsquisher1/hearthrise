@@ -107,6 +107,8 @@ export const ITEMS={
   dire_fang:{n:'Dire Fang',icon:'🦷',v:150},alpha_fang:{n:'Alpha Fang',icon:'🦷',v:450},grave_dust:{n:'Grave Dust',icon:'⚱️',v:95},
   /* Mosslight Glade's rare (lane c-ground-16-31): Rook the Poacher, the ground's one carrier. */
   rooks_whistle:{n:'Rook\'s Whistle',icon:'🎶',v:500},
+  /* The Orchard Boar's bristles (lane b-unsourced-items): trader's goods, like the wolves' fangs. */
+  boar_bristle:{n:'Boar Bristle',icon:'🐗',v:5},
   /* The bosses' Trophies (designer 2026-10-23): each boss's one named prize, about every 140 h, tradeable. */
   rat_kings_crown:{n:'Rat King\'s Crown',icon:'👑',v:4000,type:'trophy',tag:'trophy',rarity:'legendary'},
   coppercaps_cauldron:{n:'Coppercap\'s Cauldron',icon:'🥘',v:7500,type:'trophy',tag:'trophy',rarity:'legendary'},

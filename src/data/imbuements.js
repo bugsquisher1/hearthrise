@@ -104,6 +104,9 @@ export const IMBUE_ITEMS = Object.freeze({
   barn_wasp_sting: row('Barn Wasp Sting', '🐝', 11, 'mana_leech'),
   loft_web: row('Loft Web', '🕸️', 13, 'ward'),
   torn_company_badge: row('Torn Company Badge', '🎖️', 16, 'element_ward'),
+  /* The boar and the bear (lane b-unsourced-items; art lane b-boar-bear-art) */
+  orchard_boar_tusk: row('Orchard Boar Tusk', '🐗', 12, 'ward'),
+  brook_bear_tooth: row('Brook Bear Tooth', '🐻', 24, 'life_leech'),
 });
 
 /* The flavour lines (src/data/item-descriptions.js): what it is, where it comes from. */
@@ -131,6 +134,8 @@ export const IMBUE_DESC = Object.freeze({
   granary_whisker: 'A stiff whisker off a Granary Rat, the rats grown fat on what Wickstead left in its granary',
   barn_wasp_sting: 'The sting of a Barn Wasp from the Wickstead orchard, where the wasps nest in the old trees',
   loft_web: 'A wad of the thick web the Barn Spiders spin across the Wickstead hay loft',
+  orchard_boar_tusk: 'A short yellowed tusk off an Orchard Boar, the boars grown fat on the Wickstead windfalls',
+  brook_bear_tooth: 'A worn tooth from a Brook Bear, the bears that fish the Meadowbrook where it rises',
   torn_company_badge: 'A free company\'s badge a Turncoat cut off his coat when he deserted. The threads still hang from it',
   dented_copper_pot: 'The copper pot a Goblin Digger wears over its eyes, dented by every blade that ever rang off it',
   foremans_lash: 'The knotted lash a Hobgoblin Foreman keeps the diggers working with',

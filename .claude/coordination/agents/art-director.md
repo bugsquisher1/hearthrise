@@ -3102,3 +3102,18 @@ decals. Lessons: (1) a PixelLab painted ground is its tileset cut on the dual gr
 Common ground shares base tiles; (2) draw a PixelLab pair the way PixelLab does (dual grid, corners on cell centres): a
 2-wide road stays 2 wide, no vertex melting; (3) a decal made for one floor is not wear for another (grey puddles on dirt
 read as holes); (4) this session had no PixelLab tools: check the tool list before accepting a generation brief.
+
+## 2026-10-29 — lane/b-muster-barrows-art: the Muster Barrows (ground, Barrow Knight, Captain Hask, props, icons) + Ford polish
+No PixelLab MCP tools again, but the REST API (~/.pixellab-token, read in-script, never printed) does everything the MCP
+pipeline did except Map Workshop maps. 323 subscription generations (2991.4 -> 2668.4), $0 credits.
+Ground without Map Workshop: a Map Workshop ground IS its tilesets' tiles on the dual grid (2214 of the Ford's 2301 cuts are
+tileset tiles), so port-pixellab.mjs `paint` lays a grid brief's PAINT rows from GET /tilesets JSON, blending 3-terrain
+vertices from quadrants, and `retile` re-lays a painted ground when one terrain is regenerated. Lessons: (1) chain a new pro
+tileset with lower/upper_base_tile_id + the base fill as reference image: a base on the LOWER side came back pixel-identical
+every time; on the UPPER side it held beside grass/mud/river but drifted beside a thicket: put the partner that must not
+drift on the lower side and check the fill hash; (2) v3 animations keep the idle as frame 0 (7 frames for 6): drop it;
+(3) diagonal facings (sw, nw) keep painting sword glints and sparkles despite "no effects": retry in a NEW animation group
+(a group's description is inherited), worded "nothing else appears in the frame"; (4) a blade held point-down in a rotation
+is two columns wide, so footRow seats the unit on its tip: --foot-cols 4; (5) the hop: --overflow crop never lifts a blow (a
+pike tip loses 1-2 px at the frame edge) and ramps a fall's lift over the clip; (6) an orphan rule can mask a palette defect:
+the Ford's five unwired icons were never palette-locked, and ITEM_ART_AHEAD let the guard see them.

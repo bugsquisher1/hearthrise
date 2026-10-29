@@ -122,3 +122,17 @@ patch is havora_square_plaza (square_plaza + a baked kerb ring: decals on the ed
 scree decals: town/mountain.js. maskHash d639329e. Shots: art/review/havora-art-3-2026-10-26/ (11 views + 3 extras).
 Still open: the 4x4 smithy and mill look small beside the new lots; the mountain is flat rock (no cliff faces); the arrival
 yard is a wide bare dirt field. PixelLab: 620 subscription generations (4319.4 → 3699.4), no USD credits.
+
+## 2026-10-29 · art lane (b-muster-barrows-art) → Game Designer (Muster Barrows rows) + Coordinator · the Barrow March's second ground
+Built on lane/b-hasks-ford-art (merged in; that lane is not on main). New set art/world/muster (ATLAS_SETS row): the painted
+ground muster_barrows_ground (60x40, organic, 1070 open, every one in an open 3x3, all reachable from the road in at (0,8-11)),
+barrow_knight + captain_hask (class brute; Hask has a `special` clip, 8 facings), 16 mu_* props. Grid, pockets and 63 prop
+placements: art/briefs/muster-barrows-grid-2026-10-29.txt. Pikeman and Wight are the Ford's sprites (art/world/march).
+For the designer: (1) the map row + hunt-grounds pockets from the brief; (2) item rows for the two icons drawn ahead,
+sergeant_spur (the Barrow Knight's imbuement) and hasks_coin (Captain Hask's), then delete them from ITEM_ART_AHEAD in
+src/data/item-art.js (the Ford's five are listed there too until lane/b-hasks-ford lands); (3) in hasks_ford.js swap the
+outdoor `crates` (x24 y9, reads as a ladder) for `mu_crates` (the Ford brief already says so). barrowking_mantle and
+captains_ribblade were redrawn in place (same ids). Ford polish done in the shared assets: barrow turf and ford shallows
+retiled from new chained pro tilesets; pikeman/bannerman re-seated (no hop on a blow; a fall's lift is spread over the clip).
+For the Asset Director: the shared indoor `crates` (sewer set; mill cellar, warrens, glade, wickstead) still reads as a
+ladder; mu_crates has grass at its base, so it is not an indoor swap.

@@ -365,22 +365,6 @@ async function pure() {
   if (Object.keys(under.ops).length) fails.push('AW-21 a Level-14 hero (Defense 99) would put on ' + ops(under));
   const blind = plan({ weapon: 'bronze_sword' }, [['iron_helm']], null, null);
   if (Object.keys(blind.ops).length) fails.push('AW-21 with no server Level Equip upgrades would put on ' + ops(blind));
-  /* A tie between armor weights goes to the weight the hero chose at Tamsin's (playtest 2026-10-29: a tank paid in
-     heavy came home from the Thicket with a Bronze Platebody and a Leather Body and wore neither). No weight chosen,
-     or none of that weight in the bag: the tie stands, the player's call. */
-  const found = [['bronze_platebody'], ['leather_body'], ['bronze_boots'], ['leather_boots']].map(([id]) => ({ id, qty: 1 }));
-  const kit = { weapon: 'practice_sword', shield: 'practice_shield' };
-  const tieOf = (prefer) => upgradePlan({ equipment: kit, bag: found, skills: lv1, level: 5, prefer });
-  const tieOps = ['', 'heavy', 'medium', 'light'].map((w) => ops(tieOf(w || null)) + '/' + tieOf(w || null).choices.length).join(' | ');
-  if (tieOps !== '{}/2 | {"body":"bronze_platebody","boots":"bronze_boots"}/0 | {"body":"leather_body","boots":"leather_boots"}/0 | {}/2')
-    fails.push('AW-21 the weight chosen at Tamsin\'s settles a tie as ' + tieOps);
-  /* "Decide once": the shop's section bids only on what the bag holds, so a stack sold since (0 in the bag) is never
-     called unsellable (playtest 2026-10-29: the coach rang a Sell its row had switched off). */
-  const { planBlock } = await imp('src/shell/loot-dispatch.js');
-  const noBid = new Map([['bones', 1]]);
-  const planSaid = [planBlock('rat_tail', 'sell', noBid, false), planBlock('rat_tail', 'sell', noBid, true), planBlock('rat_tail', 'sell', noBid),
-    planBlock('practice_bow', 'sell', noBid, false)].join('|');
-  if (planSaid !== '|The shop does not buy this.|The shop does not buy this.|The shop does not buy back your starting kit.') fails.push('AW-21 a loot plan off for a stack not held reads ' + JSON.stringify(planSaid));
   /* AW-22: town work. The client may declare a gathering node (never a fight); a skill shows what its server level opens,
      then the next two; a row refuses in words from the server's level and bag. */
   if (!edgeBody(0, 'set_activity', { activity: { kind: 'gather', id: 'copper_rock' } }, 'x')) fails.push('AW-22 edgeBody refused a gathering node');
@@ -394,7 +378,7 @@ async function pure() {
     workBlock(wcs(1, {}), workRow('artisan', 'forge_bronze_axe'), false), workBlock(wcs(1, { copper_ore: 2 }), bronze, false), String(runsOf(bronze.row, { copper_ore: 11 })),
     workBlock(wcs(1, {}), bronze, false)];
   if (said.join('|') !== 'Needs 2 Copper Ore (you have 1).|Not while a hunt is running.|You need Smithing 3 to make Bronze Axe. You have 1.||5|No Copper Ore in your bag.') fails.push('AW-22 the work rows say ' + JSON.stringify(said));
-  return fails.concat(await huntsPure(imp), await tickerRules(ROOT), await armourWordRules(ROOT));
+  return fails.concat(await huntsPure(imp), await tickerRules(ROOT), await armourWordRules(ROOT), await planRules(ROOT));
 }
 
 /* AW-25 .. AW-28 PURE: the Hunts page's facts from the data rows and its lines from the server's sections. */
@@ -510,6 +494,34 @@ async function huntsPure(imp) {
    server's own span loop on the envelope's numbers. `base` is the repo, or a temp copy of src a ticker mutant was
    planted into (TICKER_MUTANTS below). */
 /* AW-34 PURE (the armor weights' words), run on `base` so the `armor words:` mutants judge a planted copy of src. */
+/* AW-21 PLANS (pure): the two playtest 2026-10-29 rules, over the src at `base`. Their own function so `--mutate` judges
+   their mutants (names starting 'plans:') on a temp copy of src: a mutant run skips pure() and the page never
+   reaches either rule (run 40830396041: both escaped). */
+async function planRules(base) {
+  const fails = [];
+  const imp = (p) => import(pathToFileURL(join(base, p)).href);
+  const UP = await imp('src/shell/upgrade-plan.js');
+  const lv1 = { defense: { level: 1 }, melee: { level: 1 }, ranged: { level: 1 }, magic: { level: 1 } };
+  const ops2 = (p) => JSON.stringify(Object.fromEntries(Object.entries(p.ops).sort(([a], [b]) => (a < b ? -1 : 1))));
+  /* A tie between armor weights goes to the weight the hero chose at Tamsin's (playtest 2026-10-29: a tank paid in
+     heavy came home from the Thicket with a Bronze Platebody and a Leather Body and wore neither). No weight chosen,
+     or none of that weight in the bag: the tie stands, the player's call. */
+  const found = [['bronze_platebody'], ['leather_body'], ['bronze_boots'], ['leather_boots']].map(([id]) => ({ id, qty: 1 }));
+  const kit = { weapon: 'practice_sword', shield: 'practice_shield' };
+  const tieOf = (prefer) => UP.upgradePlan({ equipment: kit, bag: found, skills: lv1, level: 5, prefer });
+  const tieOps = ['', 'heavy', 'medium', 'light'].map((w) => ops2(tieOf(w || null)) + '/' + tieOf(w || null).choices.length).join(' | ');
+  if (tieOps !== '{}/2 | {"body":"bronze_platebody","boots":"bronze_boots"}/0 | {"body":"leather_body","boots":"leather_boots"}/0 | {}/2')
+    fails.push('AW-21 the weight chosen at Tamsin\'s settles a tie as ' + tieOps);
+  /* "Decide once": the shop's section bids only on what the bag holds, so a stack sold since (0 in the bag) is never
+     called unsellable (playtest 2026-10-29: the coach rang a Sell its row had switched off). */
+  const { planBlock } = await imp('src/shell/loot-dispatch.js');
+  const noBid = new Map([['bones', 1]]);
+  const planSaid = [planBlock('rat_tail', 'sell', noBid, false), planBlock('rat_tail', 'sell', noBid, true), planBlock('rat_tail', 'sell', noBid),
+    planBlock('practice_bow', 'sell', noBid, false)].join('|');
+  if (planSaid !== '|The shop does not buy this.|The shop does not buy this.|The shop does not buy back your starting kit.') fails.push('AW-21 a loot plan off for a stack not held reads ' + JSON.stringify(planSaid));
+  return fails;
+}
+
 async function armourWordRules(base) {
   const fails = [];
   const imp = (p) => import(pathToFileURL(join(base, p)).href);
@@ -2186,7 +2198,7 @@ const MUTANTS = [
   ['armor weight: the doll line counts the bag, not the worn set', 'src/shell/windows/inventory/doll.js', "for (const x of wornWeights(eq))", "for (const x of wornWeights(Object.fromEntries((bagOf(st.cs) || []).map((r, i) => [i, r.id]))))"],
   ['armor weight: the tooltip drops the weight line', 'src/shell/windows/item-tip.js', '  if (wt) h +=', '  if (wt && false) h +='],
   ['armor weight: the share is not the server sum', 'src/data/armour-weights.js', "const pct = (pm) => '+' + (Math.round(pm) / 10) + '%';", "const pct = (pm) => '+' + (Math.round(pm) / 10 + 1) + '%';"],
-  ['armor words: the coach card stops naming the weights', 'src/data/hunt-tutorial.js', "pays you in. ' + WEIGHTS_SAID + ' ' + pick", "pays you in. ' + pick"],
+  ['armor words: the coach card stops naming the weights', 'src/data/hunt-tutorial.js', "away. ' + WEIGHTS_SAID + pick", "away. ' + pick"],
   ['armor words: the Help note forgets medium', 'src/data/how-to-play.js', "    + WEIGHT_ORDER.map(weightSentence).join(' ') + ' Pieces", "    + WEIGHT_ORDER.filter((w) => w !== 'medium').map(weightSentence).join(' ') + ' Pieces"],
   ['a bag icon draws at 1.5x in its well', 'src/styles/windows.css', '.hw-pocket .hw-ico .hh-icon, .hw-slot .hw-ico .hh-icon { width: 32px; height: 32px; }', '.hw-pocket .hw-ico .hh-icon, .hw-slot .hw-ico .hh-icon { width: 48px; height: 48px; }'],
   ['the Shop lines go 2x again', 'src/styles/windows.css', '.hw-line .hw-ico .hh-icon { width: 32px; height: 32px; }', '.hw-line .hw-ico .hh-icon { width: 64px; height: 64px; }'],
@@ -2201,8 +2213,8 @@ const MUTANTS = [
   ['an equip in flight is not marked', 'src/shell/windows/inventory/actions.js', '  sc.wearing = { slots: [slot], items: id ? [id] : [] };\n', ''],
   ['Equip upgrades swaps the weapon', 'src/shell/upgrade-plan.js', "const STYLE_SLOTS = new Set(['weapon', 'shield', 'ammo']);", "const STYLE_SLOTS = new Set(['shield', 'ammo']);"],
   ['Equip upgrades wears what the hero cannot use yet', 'src/shell/upgrade-plan.js', '  return have !== null && have >= it.reqLv;', '  return true;'],
-  ['Equip upgrades forgets the weight chosen at Tamsin\'s', 'src/shell/upgrade-plan.js', '    if (mine.length) front = mine;', '    if (mine.length) front = front.slice();'],
-  ['a Sell plan for a stack not held reads unsellable', 'src/shell/loot-dispatch.js', "if (plan === 'sell' && held && bids && !bids.has(id))", "if (plan === 'sell' && bids && !bids.has(id))"],
+  ['plans: Equip upgrades forgets the weight chosen at Tamsin\'s', 'src/shell/upgrade-plan.js', '    if (mine.length) front = mine;', '    if (mine.length) front = front.slice();'],
+  ['plans: a Sell plan for a stack not held reads unsellable', 'src/shell/loot-dispatch.js', "if (plan === 'sell' && held && bids && !bids.has(id))", "if (plan === 'sell' && bids && !bids.has(id))"],
   ['Equip upgrades marks nothing in flight', 'src/shell/widgets/upgrade-line.js', '  sc.wearing = { slots, items: slots.map((s) => plan.ops[s]) };\n', ''],
   ['Equip upgrades sends one intent per piece', 'src/shell/widgets/upgrade-line.js', "    try { return await cs.edgeIntent('equip', { equip: Object.assign({}, plan.ops) }); } finally { sc.wearing = null; }", "    try { let r; for (const s of slots) r = await cs.edgeIntent('equip', { equip: { [s]: plan.ops[s] } }); return r; } finally { sc.wearing = null; }"],
   ['a level refusal reads as a bare refusal', 'src/data/refusal-words.js', "  requirement_not_met: 'You don\\'t meet that item\\'s requirement yet. Nothing was put on.',\n", ''],
@@ -2335,7 +2347,7 @@ async function main() {
   const sharded = shardOf(MUTANTS);
   const mine = sharded && only ? sharded.filter(([n]) => n.startsWith(only)) : sharded;
   if (!mine || !mine.length) { console.log('  ✗ HARNESS: bad --shard (want --shard=K/N with 1 <= K <= N) or no mutant matches --only'); process.exit(2); }
-  const pureOnly = mine.every(([n]) => n.startsWith('ticker:') || n.startsWith('armor words:'));
+  const pureOnly = mine.every(([n]) => n.startsWith('ticker:') || n.startsWith('armor words:') || n.startsWith('plans:'));
   const clean = await cleanControl(() => (pureOnly ? pure() : checks(null, null)));
   console.log(clean.line);
   if (clean.code) process.exit(clean.code);
@@ -2350,7 +2362,7 @@ async function main() {
       over[f] = text.replace(x, y);
     }
     if (missing) { console.log('  ✗ ' + name + ' — HARNESS: anchor not found in ' + missing); counts.harness++; continue; }
-    const v = await judge(() => (name.startsWith('edgeBody') ? pureMutant(over[file]) : name.startsWith('ticker:') ? tickerMutant(over) : name.startsWith('armor words:') ? tickerMutant(over, armourWordRules) : checks(over, null)));
+    const v = await judge(() => (name.startsWith('edgeBody') ? pureMutant(over[file]) : name.startsWith('ticker:') ? tickerMutant(over) : name.startsWith('armor words:') ? tickerMutant(over, armourWordRules) : name.startsWith('plans:') ? tickerMutant(over, planRules) : checks(over, null)));
     console.log(report(name, v, counts));
   }
   console.log(exitOf(counts) ? 'alpha-windows --mutate: ' + counts.escaped + ' escaped, ' + counts.harness + ' HARNESS (not catches)' : 'alpha-windows --mutate: ' + mine.length + '/' + mine.length + ' mutants caught, each by a named rule' + (mine === MUTANTS ? '' : ' (' + (only ? '--only=' + only + ', ' : '') + 'of ' + MUTANTS.length + ')'));

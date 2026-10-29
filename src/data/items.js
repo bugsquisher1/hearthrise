@@ -110,7 +110,7 @@ export const ITEMS={
   /* The Orchard Boar's bristles (lane b-unsourced-items): trader's goods, like the wolves' fangs. */
   boar_bristle:{n:'Boar Bristle',icon:'🐗',v:5},
   /* The Bannerman's Rare (Hask's Ford, lane b-hasks-ford): a Hearth fuel, a burst of Inner Flame (src/data/hearth.js). */
-  company_colours:{n:'Company Colours',icon:'🚩',v:600},
+  company_colours:{n:'Company Colors',icon:'🚩',v:600},
   /* The bosses' Trophies (designer 2026-10-23): each boss's one named prize, about every 140 h, tradeable. */
   rat_kings_crown:{n:'Rat King\'s Crown',icon:'👑',v:4000,type:'trophy',tag:'trophy',rarity:'legendary'},
   coppercaps_cauldron:{n:'Coppercap\'s Cauldron',icon:'🥘',v:7500,type:'trophy',tag:'trophy',rarity:'legendary'},

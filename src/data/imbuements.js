@@ -111,7 +111,7 @@ export const IMBUE_ITEMS = Object.freeze({
   pike_band: row('Pike Band', '💀', 46, 'keen'),
   ford_weed: row('Ford Weed', '🌿', 50, 'ward'),
   ledger_leaf: row('Ledger Leaf', '📜', 53, 'mana_leech'),
-  colour_thread: row('Colour Thread', '🚩', 58, 'element_ward'),
+  colour_thread: row('Color Thread', '🚩', 58, 'element_ward'),
 });
 
 /* The flavour lines (src/data/item-descriptions.js): what it is, where it comes from. */
@@ -143,7 +143,7 @@ export const IMBUE_DESC = Object.freeze({
   pike_band: 'The iron band off a Banded Pikeman\'s pike shaft, stamped with the company\'s mark',
   ford_weed: 'River weed grown through a Fordsunk\'s coat in the years it lay in Hask\'s Ford',
   ledger_leaf: 'A page from a Wight\'s stores ledger. Every line is a debt the company was never paid',
-  colour_thread: 'A thread of the Banded Company\'s colours, pulled from the flag a Bannerman still holds',
+  colour_thread: 'A thread of the Banded Company\'s colors, pulled from the flag a Bannerman still holds',
   brook_bear_tooth: 'A worn tooth from a Brook Bear, the bears that fish the Meadowbrook where it rises',
   torn_company_badge: 'The Banded Company\'s badge a Turncoat cut off his coat when he deserted the March. The threads still hang from it',
   dented_copper_pot: 'The copper pot a Goblin Digger wears over its eyes, dented by every blade that ever rang off it',

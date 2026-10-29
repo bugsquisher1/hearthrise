@@ -1280,7 +1280,9 @@ async function checks(overrides, shots) {
           /* Wickstead, Greenhaven's sixth (lane b-greenhaven-6, opened on its art v0.2.63): the second solo door for 8-18 */
           'wickstead::Level 8–18:above:Above your level::New:Built for one hero',
           'mosslight_glade::Level 16–31:far:Far above your level::New:Built for one hero',
-          'coppercap_warrens::Level 32–50:far:Far above your level::New:Built for a party'];
+          'coppercap_warrens::Level 32–50:far:Far above your level::New:Built for a party',
+          /* Hask's Ford, the Barrow March's first ground (lane b-hasks-ford, opened on its art): the solo door for 45-60 */
+          'hasks_ford::Level 45–60:far:Far above your level::New:Built for one hero'];
         if (list.join('|') !== want.join('|')) fails.push('AW-25 the list lines read ' + JSON.stringify(list));
         /* The picked ground's page: who lives here as the world draws them, at a whole-number scale on one ground line. */
         const page1 = () => page.evaluate((w) => {

@@ -43,22 +43,25 @@
    RE-FITTED 2026-10-29 (lane/a-pull-freeze, Coordinator ruling): with every pack down a hero now walks on to the next
    spawn instead of standing on the pocket it cleared (report #69), so Levels 5-15 earn 7-12% more an hour (the Thicket,
    Wickstead) and 16-49 1-3% (the Glade); Level 25 fell to 32 h. Re-measured (plans pace + ladder) and re-fitted by
-   pace.mjs --fit (minimax 3.3%). Forward file 2027-02-09-walk-on-level-curve. */
+   pace.mjs --fit (minimax 3.3%). Forward file 2027-02-09-walk-on-level-curve.
+   RE-FITTED 2026-10-29 (lane/b-hasks-ford): Hask's Ford (45-60 solo) opened and the ceiling rose 50 -> 60; Level 50
+   measured 148 h against the 168 target (-12%). Re-measured on the walk-on engine (plans pace + ladder) and re-fitted by
+   pace.mjs --fit (minimax 2.3%). Forward file 2027-02-11-hasks-ford-level-curve. */
 export const LEVEL_CURVE = Object.freeze({
   first: 127,
   brackets: Object.freeze([
     Object.freeze({ from: 1, rise: 127, bend: 0 }),
     Object.freeze({ from: 2, rise: 254, bend: 0 }),
     Object.freeze({ from: 3, rise: 521, bend: 0 }),
-    Object.freeze({ from: 4, rise: 5535, bend: 0 }),
-    Object.freeze({ from: 5, rise: 7009, bend: 0 }),
-    Object.freeze({ from: 6, rise: 13939, bend: 0 }),
-    Object.freeze({ from: 7, rise: 28376, bend: 0 }),
-    Object.freeze({ from: 8, rise: 16156, bend: 0 }),
+    Object.freeze({ from: 4, rise: 5539, bend: 0 }),
+    Object.freeze({ from: 5, rise: 7041, bend: 0 }),
+    Object.freeze({ from: 6, rise: 14139, bend: 0 }),
+    Object.freeze({ from: 7, rise: 30768, bend: 0 }),
+    Object.freeze({ from: 8, rise: 9364, bend: 0 }),
     Object.freeze({ from: 9, rise: 1, bend: 0 }),
-    Object.freeze({ from: 10, rise: 0, bend: 504 }),
-    Object.freeze({ from: 50, rise: 79325, bend: 129 }),
-    Object.freeze({ from: 300, rise: 209310, bend: 584 }),
+    Object.freeze({ from: 10, rise: 0, bend: 635 }),
+    Object.freeze({ from: 50, rise: 67463, bend: 204 }),
+    Object.freeze({ from: 300, rise: 187487, bend: 633 }),
   ]),
 });
 

@@ -3,7 +3,6 @@
   "hits": {
     "src/data/gathering.js#Ancient Runewood": "Ancient",
     "src/data/items.js#Ancient Claw": "Ancient",
-    "src/data/items.js#Ancient Fragment": "Ancient",
     "src/data/items.js#Ancient Rune": "Ancient",
     "src/data/items.js#Dark Sigil": "Dark",
     "src/data/items.js#Shadow Pelt": "Shadow",

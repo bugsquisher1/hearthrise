@@ -584,7 +584,12 @@ export function render(src) {
 --   ${r.vendor.length} vendor values, ${r.basics.length} store supplies paid per use, ${r.targets.length} target modes,
 --   ${r.lanes.length} lanes, ${r.abilities.length} abilities, ${r.setOptions.length} action-set options, ${r.grounds.length} hunt grounds
 --
--- NEW IN 2027-02-09 (lane/a-pull-freeze, Coordinator ruling 2026-10-29, report #69): the Mill Cellar's
+-- NEW IN 2027-02-11 (lane/b-hasks-ford, designer 2026-10-29): Hask's Ford OPEN, the Barrow March's first
+-- ground (Levels 45-60, solo): its hr_hunt_grounds row, travel, packs, kill bounds, roster, the four Undead
+-- training hunts and five vendor values. Same wholesale rewrite; the hr-accrue edge carrying the merged
+-- src/data deploys at the same cut. ORDER: after the APPLIED 2027-02-10-artisan-tick.sql.
+--
+-- CARRIED FROM 2027-02-09 (APPLIED 10-29; lane/a-pull-freeze, report #69): the Mill Cellar's
 -- hr_hunt_grounds.respawn_ms 30000 -> 32000 (a hero with every pack down now walks on to the next spawn;
 -- 32 s keeps the measured floor pay and first-Level pace). EDGE FIRST: the settle's kill bound
 -- (spawns x (window / respawn_ms + 2)) TIGHTENS, so the hr-accrue edge carrying the 32 s ground deploys

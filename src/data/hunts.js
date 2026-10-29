@@ -160,7 +160,7 @@ export const HUNTS = Object.freeze([
      them, and only the Hearth's fire lays the dead to rest (Wickstead's Turncoats are its last deserters).
      HASK'S FORD (lane b-hasks-ford, 2026-10-29; art lane b-hasks-ford-art): the region's first ground, solo first, up the
      road from Wickstead. Walked: src/data/hunt-grounds.js `hasks_ford`. Weights are the pockets' head-count at density
-     4; the Bannerman, the rare spawn, holds the Toll Stone and the Muster Line and carries the Company Colours. */
+     4; the Bannerman, the rare spawn, holds the Toll Stone and the Muster Line and carries the Company Colors. */
   {
     id: 'hasks_ford', name: 'Hask\'s Ford', theme: 'The Banded Company died holding this ford, and nobody burned them.',
     band: [45, 60],

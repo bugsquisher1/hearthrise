@@ -577,8 +577,11 @@ async function run(mutate) {
     ok(cat.SHOP_BUYBACK_RATE === 0.5,
       `G1: the server caps buy-back at ${cat.SHOP_BUYBACK_RATE} of the shop price; the ruling (b565) is 0.5`);
     const LB = await import('../src/data/loot-bands.js');
-    ok(JSON.stringify(LB.VENDOR_GEAR_RATES) === '[0.5,0.5,0.14]',
-      `G1: the trader pays worn gear ${JSON.stringify(LB.VENDOR_GEAR_RATES)} of book value by tier; the ruling (Tyler 2026-10-23, loot bands) is [0.5, 0.5, 0.14]`);
+    /* tier 4 (designer, lane b-hasks-ford 2026-10-29): 0.075, the LOWEST share at which every tier-4 piece still sells
+       for its tier-3 twin (the binding pair: Mithril Sword 1,500 x 0.075 = 112 against Steel Sword 800 x 0.14 = 112;
+       armour and the other weapons are 3x book, so 0.047 would do for them); Hask's Ford's caps are met by its drops. */
+    ok(JSON.stringify(LB.VENDOR_GEAR_RATES) === '[0.5,0.5,0.14,0.075]',
+      `G1: the trader pays worn gear ${JSON.stringify(LB.VENDOR_GEAR_RATES)} of book value by tier; the ruling (Tyler 2026-10-23, loot bands; tier 4 the designer 2026-10-29) is [0.5, 0.5, 0.14, 0.075]`);
     const { ITEMS } = await import('../src/data/items.js');
     /* THE RULING'S NUMBERS, per unit, as the server pays them. */
     const BUYBACK_EXPECT = {

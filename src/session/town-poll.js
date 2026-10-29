@@ -41,10 +41,29 @@ const ASKS = new WeakMap();
  */
 export function watchTown(cs) {
   if (!cs || typeof cs.read !== 'function' || typeof cs.hello !== 'function') return false;
+  return askTown(cs, townWorkRunning(cs.read('state'), cs.read('hunt')));
+}
+
+/**
+ * A BENCH WHOSE SUPPLY IS SPENT IS SETTLED, WATCHED OR NOT (report #68, live v0.2.63). The engine stops a bench only
+ * when a settle finds its input gone, and nothing settled an unviewed hero (or a closed bag): the server's pointer, and
+ * so the bag line, the roster and the hero's body at the Hearth, kept saying "Fueling" with the fuel long spent. The
+ * shell's display tick calls this for EVERY open character with town-work.js benchSpentAtMs (the server-clock instant
+ * its own record says the run is spent): one hello once that has passed, at most one per townPollMs. The answer
+ * (idle) REPLACES the record (§6), and the server's pointer write moves the town body. Returns true when it asked.
+ */
+export function settleSpentBench(cs, spentAtMs) {
+  if (!cs || typeof cs.read !== 'function' || typeof cs.hello !== 'function' || !Number.isFinite(spentAtMs)) return false;
+  const serverNow = typeof cs.serverNow === 'function' ? cs.serverNow() : null;
+  if (!Number.isFinite(serverNow) || serverNow < spentAtMs) return false;
+  return askTown(cs, townWorkRunning(cs.read('state'), cs.read('hunt')));
+}
+
+function askTown(cs, running) {
   let a = ASKS.get(cs);
   if (!a) { a = { at: null, busy: false }; ASKS.set(cs, a); }
   const now = typeof cs.now === 'function' ? cs.now() : Date.now();
-  if (!townAskDue(townWorkRunning(cs.read('state'), cs.read('hunt')), a.busy, a.at, cs.receivedAt, now)) return false;
+  if (!townAskDue(running, a.busy, a.at, cs.receivedAt, now)) return false;
   a.busy = true;
   a.at = now;
   Promise.resolve().then(() => cs.hello()).catch(() => false).then(() => { a.busy = false; });

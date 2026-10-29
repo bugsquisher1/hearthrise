@@ -17,10 +17,10 @@
 // PURE ESM. No DOM, no window, no timers, no Math.random.
 // ============================================================
 
-import { skillLevelFromXp } from './xp.js?v=0.2.64';
-import { pacedXp } from './pacing.js?v=0.2.64';
-import { spendRestedCharge } from './rested.js?v=0.2.64';
-import { advanceToolCarry } from './tools.js?v=0.2.64';
+import { skillLevelFromXp } from './xp.js?v=0.2.65';
+import { pacedXp } from './pacing.js?v=0.2.65';
+import { spendRestedCharge } from './rested.js?v=0.2.65';
+import { advanceToolCarry } from './tools.js?v=0.2.65';
 
 /* The skills the `combatXP` bonus channel pays: the four trained in a fight
    (CORE_MODEL.md §4). Inner Flame trains at the Great Hearth, not in a fight. ONE list,

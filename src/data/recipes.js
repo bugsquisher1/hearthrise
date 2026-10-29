@@ -16,13 +16,13 @@
 /* The fletching ladder (arrows). Crafted gear — the generated gear-tiers
    recipes, the wave-3 uniques, the library-2 sets, the boss forge and the
    jewellery/cape rows — was deleted in the 2026-10-14 demolition. */
-import { SLOT_RECIPES } from './slot-ladders.js?v=0.2.64';
-import { ITEMS, foodClassOf } from './items.js?v=0.2.64';
-import { STONECRAFT_RECIPES } from './stonecraft.js?v=0.2.64';
-import { DRINK_RECIPES } from './drinks.js?v=0.2.64';
-import { HEARTH_FUELS, fuelRecipeId } from './hearth.js?v=0.2.64';
-import { STYLE_GEAR_RECIPES } from './style-gear.js?v=0.2.64';
-import { SHIELD_RECIPES } from './shields.js?v=0.2.64';
+import { SLOT_RECIPES } from './slot-ladders.js?v=0.2.65';
+import { ITEMS, foodClassOf } from './items.js?v=0.2.65';
+import { STONECRAFT_RECIPES } from './stonecraft.js?v=0.2.65';
+import { DRINK_RECIPES } from './drinks.js?v=0.2.65';
+import { HEARTH_FUELS, fuelRecipeId } from './hearth.js?v=0.2.65';
+import { STYLE_GEAR_RECIPES } from './style-gear.js?v=0.2.65';
+import { SHIELD_RECIPES } from './shields.js?v=0.2.65';
 const BASE_RECIPES = {
   cooking: [
     // Fish — original starter chain

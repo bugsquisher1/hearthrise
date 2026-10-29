@@ -80,6 +80,11 @@ import {
   CHANNEL as GATHER_CHANNEL, DEFAULT_CADENCE_MS, DEFAULT_FLUSH_MS,
   sessionFromRoster as gatherSessionFromRoster, settleGatherSession, foldWindowIntents,
 } from './tick-gather.js';
+/* THE ARTISAN CHANNEL (2026-10-29, lane/c-playtest-open): a town bench run, the Great Hearth's fuel included,
+   settled by the server whether or not its owner's browser is open (report #68). */
+import {
+  CHANNEL as ARTISAN_CHANNEL, sessionFromRoster as artisanSessionFromRoster, settleArtisanSession,
+} from './tick-artisan.js';
 /* The level curve, for the fold's level-up stop (settleFolded). */
 import { skillLevelFromXp } from '../../../src/core/xp.js';
 /* HUNT SESSIONS (lane C2): the one settle, and the body's `hunts` selectors. */
@@ -127,15 +132,25 @@ export const CHANNELS = Object.freeze({
     sessionFromRoster: gatherSessionFromRoster,
     settle: settleGatherSession,
   }),
+  /* ONE engine call per window over [mark, mark + flush], the owner's own accrue
+     made by the server (./tick-artisan.js header). The run ends when the engine
+     says so (`activity: idle` in its delta), so a spent bench leaves its stand
+     within a flush whoever is watching. */
+  [ARTISAN_CHANNEL]: Object.freeze({
+    channel: ARTISAN_CHANNEL,
+    sessionFromRoster: artisanSessionFromRoster,
+    settle: settleArtisanSession,
+  }),
 });
 
 /* ── CHANNELS THE DATABASE ADMITS AND THIS FILE CANNOT SETTLE ────────────────
    `hr_tick_config_channels_ck` (2026-09-22-world-tick-combat-channel.sql §1)
-   is `channels <@ array['combat','gather','artisan']`, so `artisan` is a value
-   an operator CAN put in that column today. There is no artisan settler: the
-   channel is declared here, by name and with its reason, so that
+   is `channels <@ array['combat','gather','artisan']`: any value an operator
+   CAN put in that column and this file does not drive is declared here, by
+   name and with its reason (today: `combat`, retired to the hunt cohort;
+   `artisan` is driven since 2026-10-29), so that
 
-     (a) `tickOne` refuses an artisan character with `channel_not_driven`
+     (a) `tickOne` refuses such a character with `channel_not_driven`
          rather than fencing it under someone else's channel, and
      (b) the guard can assert that every channel the CHECK admits is either
          DRIVEN or DECLARED-UNDRIVEN — so a fourth value added to that CHECK
@@ -147,8 +162,9 @@ export const CHANNELS = Object.freeze({
    journalled. It still costs them a roster slot per fire, which is why this is
    a declaration and not a silent default. */
 export const UNDRIVEN_CHANNELS = Object.freeze({
-  artisan: 'no artisan settler exists; the channel is admitted by '
-    + 'hr_tick_config_channels_ck but must never be armed until one ships',
+  /* `artisan` was declared here until 2026-10-29 ("no artisan settler exists"):
+     ./tick-artisan.js is that settler, driven above, armed by
+     2027-02-10-artisan-tick.sql. */
   /* THE SOLO COMBAT CHANNEL IS RETIRED (ruling HR-2026-10-14, lane C2). A solo
      fight exists only inside a hunt session, and a session is settled by the
      `hunts` cohort (hr_hunt_roster -> ./hunt-settle.js), never by the channel

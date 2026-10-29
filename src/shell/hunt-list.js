@@ -26,12 +26,12 @@
 // Nothing here is a gate: the server checks the band, the stamina and the
 // stock when the player presses Enter, and says why it refuses.
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_GROUNDS, PARTY_SCALE } from '../data/hunt-grounds.js?v=0.2.64';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.64';
-import { MONSTERS } from '../data/monsters.js?v=0.2.64';
-import { SUPPLIES } from '../data/supplies.js?v=0.2.64';
-import { SESSION_LIMITS } from '../data/hunt-sessions.js?v=0.2.64';
-import { whole, gold } from '../render/format.js?v=0.2.64';
+import { HUNT_GROUNDS, PARTY_SCALE } from '../data/hunt-grounds.js?v=0.2.65';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.65';
+import { MONSTERS } from '../data/monsters.js?v=0.2.65';
+import { SUPPLIES } from '../data/supplies.js?v=0.2.65';
+import { SESSION_LIMITS } from '../data/hunt-sessions.js?v=0.2.65';
+import { whole, gold } from '../render/format.js?v=0.2.65';
 
 const PACK_QTY_MAX = 100000;
 const COUNT_WORDS = Object.freeze(['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight']);

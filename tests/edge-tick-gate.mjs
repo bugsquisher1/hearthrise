@@ -1001,15 +1001,19 @@ async function runArms(mod) {
        cannot tell a legitimately-registered settler from a module somebody
        added to get a payload green. The set itself is the claim now, so adding
        or removing ANY entry goes red and has to be argued for here. */
+    /* 2026-10-29 (lane/c-playtest-open): + tick-artisan.js, the artisan channel's settler (report #68: a
+       spent Hearth/bench run nobody settled kept "Fueling"). It is a registered settler like tick-gather.js:
+       tick.js's CHANNELS drives it, it reaches shadowTick (the tick caller), and T-F1h fences it the same. */
     const EXPECTED_TICK_MODULES = [
       'supabase/functions/hr-accrue/tick.js',
       'supabase/functions/hr-accrue/tick-gather.js',
+      'supabase/functions/hr-accrue/tick-artisan.js',
       'supabase/functions/hr-accrue/tick-shadow.js',
       'supabase/functions/hr-accrue/tick-contract.js',
     ];
     ok(JSON.stringify([...TICK_MODULES].sort()) === JSON.stringify([...EXPECTED_TICK_MODULES].sort())
       && TICK_MODULES.every((m) => m.startsWith('supabase/functions/hr-accrue/tick')),
-      'T-F1g — the allowlist is these four NAMED files (tick-combat.js left with the solo combat channel, lane C2), not a directory or a prefix',
+      'T-F1g — the allowlist is these five NAMED files (tick-combat.js left with the solo combat channel, lane C2; tick-artisan.js joined 2026-10-29), not a directory or a prefix',
       `allowlist drifted: ${JSON.stringify(TICK_MODULES)}`);
 
     /* T-F1h — a registered settler is fenced exactly as the entry is.

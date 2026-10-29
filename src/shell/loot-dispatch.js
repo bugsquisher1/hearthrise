@@ -16,12 +16,12 @@
 // The Inventory (its item menu, its This hunt tab, its tools row) and the Storage
 // window read this; the bag and Storage change only from the re-read envelope.
 // ════════════════════════════════════════════════════════════════════════
-import { START_INVENTORY, START_EQUIPMENT } from '../data/start-kit.js?v=0.2.64';
-import { bagOf, rulesOf } from '../session/item-sections.js?v=0.2.64';
-import { huntOf } from '../session/hunt-sections.js?v=0.2.64';
-import { whole, gold } from '../render/format.js?v=0.2.64';
-import { dispatchLoot } from '../session/loot-intents.js?v=0.2.64';
-import { runIntent, refusalWords } from './intent-words.js?v=0.2.64';
+import { START_INVENTORY, START_EQUIPMENT } from '../data/start-kit.js?v=0.2.65';
+import { bagOf, rulesOf } from '../session/item-sections.js?v=0.2.65';
+import { huntOf } from '../session/hunt-sections.js?v=0.2.65';
+import { whole, gold } from '../render/format.js?v=0.2.65';
+import { dispatchLoot } from '../session/loot-intents.js?v=0.2.65';
+import { runIntent, refusalWords } from './intent-words.js?v=0.2.65';
 
 /** The three plans, then the pickup filter: [rule, words, group]. The rule is the server's word (player_item_rules.loot_rule). */
 export const LOOT_CHOICES = Object.freeze([
@@ -39,11 +39,14 @@ export const planWords = (rule) => WORDS.get(rule || 'keep') || WORDS.get('keep'
 const KIT = new Set([...Object.keys(START_INVENTORY), ...Object.values(START_EQUIPMENT)]);
 const MOVES = new Set(['deposit', 'sell']);
 
-/** Why `plan` is off for item `id`, or '' — the server's two refusals by item, said before the press. `bids`: the shop's. */
-export function planBlock(id, plan, bids) {
+/** Why `plan` is off for item `id`, or '' — the server's two refusals by item, said before the press. `bids`: the shop's.
+    The shop's section bids only on what the bag HOLDS (hr_shop_view), so a stack the bag no longer holds (sold at
+    the shop after this hunt: playtest 2026-10-29, "Decide once" rang a Sell its row called off) has no bid to read:
+    pass `held` false and the server's own refusal answers the press. */
+export function planBlock(id, plan, bids, held = true) {
   if (!MOVES.has(plan)) return '';
   if (plan === 'sell' && KIT.has(id)) return 'The shop does not buy back your starting kit.';
-  if (plan === 'sell' && bids && !bids.has(id)) return 'The shop does not buy this.';
+  if (plan === 'sell' && held && bids && !bids.has(id)) return 'The shop does not buy this.';
   return '';
 }
 

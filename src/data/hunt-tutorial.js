@@ -63,28 +63,28 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_INDEX } from './hunts.js?v=0.2.64';
-import { HUNT_GROUNDS } from './hunt-grounds.js?v=0.2.64';
-import { END_ORDER, DEATH_XP_LOSS, STAMINA_LOW_MIN } from './hunt-sessions.js?v=0.2.64';
-import { nextUnlock } from './skill-unlocks.js?v=0.2.64';
-import { SKILLS_DEF } from './skills.js?v=0.2.64';
-import { CROPS, TREES, ROCKS } from './gathering.js?v=0.2.64';
-import { tallyTask } from './tally-tasks.js?v=0.2.64';
-import { WEIGHT_ORDER, weightShort } from './armour-weights.js?v=0.2.64';
-import { ITEMS } from './items.js?v=0.2.64';
-import { BASIC_INDEX } from './supply-basics.js?v=0.2.64';
-import { LEVEL_REQ } from './gear-tiers.js?v=0.2.64';
-import { roleWeaponOf, WEAPON_ROLES, SHIELD_ARM } from './hunt-roles.js?v=0.2.64';
-import { isShield } from './shields.js?v=0.2.64';
-import { deriveProfile } from '../core/member.js?v=0.2.64';
-import { ABILITIES } from './abilities.js?v=0.2.64';
-import { CONSUMABLES } from './consumables.js?v=0.2.64';
-import { RUNE_FAMILIES, runeId } from './runes.js?v=0.2.64';
-import { ARTISAN_RECIPES } from './recipes.js?v=0.2.64';
-import { HUNT_STANCES, ROLE_DEFAULTS } from './rule-subjects.js?v=0.2.64';
-import { START_EQUIPMENT, START_BAR } from './start-kit.js?v=0.2.64';
-import { HEARTH_FUELS } from './hearth.js?v=0.2.64';
-import { regenPermille } from '../core/vitals.js?v=0.2.64';
+import { HUNT_INDEX } from './hunts.js?v=0.2.65';
+import { HUNT_GROUNDS } from './hunt-grounds.js?v=0.2.65';
+import { END_ORDER, DEATH_XP_LOSS, STAMINA_LOW_MIN } from './hunt-sessions.js?v=0.2.65';
+import { nextUnlock } from './skill-unlocks.js?v=0.2.65';
+import { SKILLS_DEF } from './skills.js?v=0.2.65';
+import { CROPS, TREES, ROCKS } from './gathering.js?v=0.2.65';
+import { tallyTask } from './tally-tasks.js?v=0.2.65';
+import { WEIGHT_ORDER, weightShort } from './armour-weights.js?v=0.2.65';
+import { ITEMS } from './items.js?v=0.2.65';
+import { BASIC_INDEX } from './supply-basics.js?v=0.2.65';
+import { LEVEL_REQ } from './gear-tiers.js?v=0.2.65';
+import { roleWeaponOf, WEAPON_ROLES, SHIELD_ARM } from './hunt-roles.js?v=0.2.65';
+import { isShield } from './shields.js?v=0.2.65';
+import { deriveProfile } from '../core/member.js?v=0.2.65';
+import { ABILITIES } from './abilities.js?v=0.2.65';
+import { CONSUMABLES } from './consumables.js?v=0.2.65';
+import { RUNE_FAMILIES, runeId } from './runes.js?v=0.2.65';
+import { ARTISAN_RECIPES } from './recipes.js?v=0.2.65';
+import { HUNT_STANCES, ROLE_DEFAULTS } from './rule-subjects.js?v=0.2.65';
+import { START_EQUIPMENT, START_BAR } from './start-kit.js?v=0.2.65';
+import { HEARTH_FUELS } from './hearth.js?v=0.2.65';
+import { regenPermille } from '../core/vitals.js?v=0.2.65';
 
 /* The surfaces a card may point at: `window` the shell window (src/data/shell-windows.js) its controls live in (the
    card shows INSIDE it while it is open), `icon` its way starts at that window's icon, and what the coach rings
@@ -176,13 +176,17 @@ export const HUNT_TUTORIAL = Object.freeze([
   step('to_the_cellar', 'Rats in the mill',
     'The miller has rats in his grain. Open Hunts and enter the Mill Cellar.',
     'hunt_picker', { kind: 'enter', hunt: CELLAR },
-    { inWindow: 'Press Enter on the Mill Cellar. Your hero walks in and fights on its own.' }),
+    /* "Press the Mill Cellar, then Enter": on a phone the sheet opens on the list, so the first press is the row
+       (playtest 2026-10-29: the card said Enter while the ring sat on the row) */
+    { inWindow: 'Press the Mill Cellar, then Enter. Your hero walks in and fights on its own.' }),
   /* ── B. The first hunt: the cards the server finishes on its own come first (AUTO_KINDS) ── */
   step('first_kill', 'Your hero fights alone',
     'You don\'t click to attack. Your hero walks to the rats, swings, and picks the next one.',
     'world', { kind: 'kills', atLeast: 1 }, { knowledge: true }),
-  step('first_level', 'Level 2',
-    'Every kill pays Level XP. Each Level gives you more health and mana and opens new grounds and gear.',
+  /* Shown from the first kill until Level 2 lands, so it never names the Level (playtest 2026-10-29: "Level 2" sat
+     over a bar that read Lv 1). */
+  step('first_level', 'Your first Level',
+    'Every kill pays Level XP and fills the ring around your Level. Each Level gives you more health and mana and opens new grounds and gear.',
     'hud_vitals', { kind: 'level' }, { knowledge: true, hooks: ['[data-coach-hook="level"]'] }),
   /* ── Reactive cards that interrupt the chain (after the first-minute cards, so the shell's "passed" rule never
      replays one of those). Each starts on its own fact and explains what just happened. ── */
@@ -268,9 +272,9 @@ export const HUNT_TUTORIAL = Object.freeze([
     'hunt_topbar', { kind: 'ended', reason: 'left' }),
   /* ── C. The first return: sell or keep, cook, styles, Blessings before danger, Tamsin ── */
   step('sell_loot', 'Sell what only pays coin',
-    'Open the Shop and press Sell. Sell all loot sells the parts that are only worth gold, and keeps your Bones (fuel for the Great Hearth, which raises your Inner Flame) and food you can cook. Point at anything to see what it\'s for.',
+    'Open the Shop and press Sell. Sell all loot sells the parts that are only worth gold, and keeps fuel for the Great Hearth (it raises your Inner Flame) and food you can cook. Point at anything to see what it\'s for.',
     'shop', { kind: 'any', of: [{ kind: 'loot_sold' }, { kind: 'been', hunt: THICKET }] },
-    { when: [IN_TOWN, { kind: 'sellable' }], inWindow: 'Press Sell, then Sell all loot. It keeps your Bones (fuel for the Great Hearth, which raises your Inner Flame) and food you can cook.',
+    { when: [IN_TOWN, { kind: 'sellable' }], inWindow: 'Press Sell, then Sell all loot. It keeps fuel for the Great Hearth and food you can cook.',
       hooks: ['[data-hs-win="shop"] .hw-tab[data-tab="sell"]', '[data-hs-win="shop"] [data-hs-act="sell-loot"]', '[data-hs-win="shop"] [data-coach-hook="sell-confirm"]'] }),
   step('loot_rules', 'Decide once',
     'Open your bag\'s This hunt tab and give each thing you don\'t need a plan: Sell, or Deposit in storage. Back in town, Dispatch loot does every plan in one press.',
@@ -279,7 +283,8 @@ export const HUNT_TUTORIAL = Object.freeze([
       hooks: ['[data-hs-win="inventory"] .hw-tab[data-tab="hunt"]', '[data-hs-win="inventory"] [data-rule-item][data-coin]'] }),
   step('cook_catch', 'Cook your catch',
     'Open Gathering and crafting, press Cooking, then Start on Cook Shrimp. Your Raw Shrimp become the Cooked Shrimp your {slot:cooked_shrimp} eats.',
-    'crafting', { kind: 'skill_xp', skill: 'cooking' }, { when: [IN_TOWN], ring: { skill: 'cooking', work: 'cook_shrimp' } }),
+    'crafting', { kind: 'skill_xp', skill: 'cooking' }, { when: [IN_TOWN], ring: { skill: 'cooking', work: 'cook_shrimp' },
+      inWindow: 'Press Cooking, then Start on Cook Shrimp. Your Raw Shrimp become the Cooked Shrimp your {slot:cooked_shrimp} eats.' }),
   step('styles', 'Every weapon is a style',
     'There\'s no class to pick: the weapon you hold decides how you fight.',
     'inventory', { kind: 'any', of: [READ, { kind: 'weapon_changed' }] },
@@ -289,8 +294,8 @@ export const HUNT_TUTORIAL = Object.freeze([
     'services', { kind: 'blessed' }, { when: [IN_TOWN, { kind: 'level_at', at: HUNT_INDEX[THICKET].band[0] }, { kind: 'below_free' }],
       inWindow: 'Press Services, then Bless on each of the three Blessings.', hooks: TO_BLESS }),
   step('tamsins_task', 'Tamsin\'s wolves',
-    'Tamsin pays for kills. Open her tally and pick the armor weight she pays you in. ' + WEIGHTS_SAID + ' Then Take ' + WOLVES.count + ' ' + WOLVES.label
-      + '. Every kill counts, even while you\'re away.',
+    'Tamsin pays for kills. Open her tally, pick the armor weight she pays you in, then Take ' + WOLVES.count + ' ' + WOLVES.label
+      + '. Every kill counts, even while you\'re away. ' + WEIGHTS_SAID,
     'tally', { kind: 'tally_taken', task: WOLVES.id }, { when: [IN_TOWN], ring: { task: WOLVES.id } }),
   step('into_the_thicket', 'Into the Thicket',
     'Open Hunts and pick ' + HUNT_INDEX[THICKET].name + '. Your hero walks from clearing to clearing by itself and fights each pack it finds.',
@@ -699,11 +704,13 @@ const SAY = Object.freeze({
       + '% of your Level XP, never a Level. Blessings protect up to ' + Math.round(b.best / 10) + '% of that, and they\'re free until Level ' + b.freeUntil
       + ': open the Shop\'s Services tab and Bless all ' + inWords(b.of) + '.' };
   },
+  /* The way first, then what each weight gives (playtest 2026-10-29: on a phone the card's foot, "Then Take 200 Gray
+     Wolves", was cut off under four sentences about armor). */
   tamsins_task: (f) => {
     const w = WEIGHT_FOR_ROLE[f.role];
-    const pick = w ? uc(w) + ' suits ' + ROLE_WORDS[f.role] + '. Then' : 'Then';
-    return { text: 'Tamsin pays for kills. Open her tally and pick the armor weight she pays you in. ' + WEIGHTS_SAID + ' ' + pick + ' Take ' + WOLVES.count + ' ' + WOLVES.label
-      + ': every kill counts, even while you\'re away.' };
+    const pick = w ? ' ' + uc(w) + ' suits ' + ROLE_WORDS[f.role] + '.' : '';
+    return { text: 'Tamsin pays for kills. Open her tally, pick the armor weight she pays you in, then Take ' + WOLVES.count + ' ' + WOLVES.label
+      + ': every kill counts, even while you\'re away. ' + WEIGHTS_SAID + pick };
   },
   first_death: (f) => {
     const d = f.death, b = f.blessings;
@@ -765,7 +772,7 @@ const SAY = Object.freeze({
     const top = f.bag ? FIRST_FUELS.map((id) => [id, Number(f.bag[id]) || 0]).sort((a, b) => b[1] - a[1])[0] : null;
     if (!top || !(top[1] > 0) || !name(top[0])) return null;
     const n = top[1], what = name(top[0]);
-    return { text: 'Your bag holds ' + what + ' ×' + n + '. Burn it in the Great Hearth to raise your Inner Flame: your hero recovers health and mana faster on every hunt, '
+    return { text: 'Your bag holds ' + what + ' ×' + n + '. Burn them in the Great Hearth to raise your Inner Flame: your hero recovers health and mana faster on every hunt, '
       + FLAME_PCT + '% faster by Inner Flame ' + FLAME_AT + '. Open your bag, press the ' + what + ', then Fuel all.', fuel: top[0],
     /* "Fuel all" without its count: the button counts Storage too (skills from storage, Tyler 2026-10-25) */
     textIn: 'Press the ' + what + ', then Fuel all. Your hero walks to the Great Hearth and burns them.' };
@@ -844,12 +851,15 @@ export function cardFor(card, facts) {
   const said = stated(card, f);
   if (!said) return null;
   const at = (id) => (Array.isArray(f.slots) ? f.slots.findIndex((a) => !!a && a.type === 'consume' && a.id === id) : -1);
-  const text = said.text.replace(SLOT_TOKEN, (m, id) => (at(id) >= 0 ? 'slot ' + (at(id) + 1) : 'the ' + (name(id) || id) + ' slot'));
+  /* {slot:<item>} becomes the server's slot, in the card's words and its words inside the window alike */
+  const slotted = (w) => w.replace(SLOT_TOKEN, (m, id) => (at(id) >= 0 ? 'slot ' + (at(id) + 1) : 'the ' + (name(id) || id) + ' slot'));
+  const text = said.text;
   const item = card.ring && card.ring.item;
   const barSlot = Number.isInteger(said.barSlot) ? said.barSlot : item && at(item) >= 0 ? at(item) : null;
   const hooks = (card.hooks || []).map((h) => h.replace('{store}', said.store || '').replace('{other}', said.other === undefined ? '' : String(said.other))
     .replace('{slot}', barSlot === null ? '' : String(barSlot)).replace('{fuel}', said.fuel || ''));
-  return Object.freeze({ ...card, text, barSlot, goal: Number.isFinite(said.goal) ? said.goal : null, textIn: said.textIn || card.inWindow || null, hooks: Object.freeze(hooks) });
+  const textIn = said.textIn || card.inWindow || null;
+  return Object.freeze({ ...card, text: slotted(text), barSlot, goal: Number.isFinite(said.goal) ? said.goal : null, textIn: textIn && slotted(textIn), hooks: Object.freeze(hooks) });
 }
 
 /* ── AFTER THE GUIDE: WHAT NEXT ───────────────────────────────────────────

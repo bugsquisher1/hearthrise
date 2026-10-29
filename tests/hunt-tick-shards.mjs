@@ -364,6 +364,8 @@ async function outageParties(db, M, n, size, hunt) {
   return out;
 }
 const OUTAGE_MS = 30 * 60000;
+/* The optimization review's 4-hero engine p95 per simulated second (hunt-settle.js WHY 2 MIN), the rate the span is sized on. */
+const P95_ENGINE_MS_PER_SIM_S = 6.2;
 const OUTAGE_HUNT = 'millrace_sewer';
 /* One path of the outage, from the savepoint the fixture stands at: fires every 10 s of SIMULATED time c_k (the
    database clock is the transaction's, frozen, so every simulated instant sits in its past and the edge settles to
@@ -435,15 +437,27 @@ async function outagePath(db, M, fx, o) {
   if (o.viewed && !players.some((pl) => pl.outcome === 'paid')) problems.push(`CONTROL ${o.label}: no player settle landed (${JSON.stringify(players.slice(0, 3))})`);
 
   /* NO LOST OR DOUBLED TIME; TALLY = LEDGER. */
+  let maxWindowMs = 0;
   for (const sid of allSids) {
     const [r] = await q(db, `select floor(extract(epoch from h.settled_to) * 1000)::bigint as to_ms,
         (select coalesce(sum((l.meta->>'ms')::bigint), 0) from public.player_ledger l where l.session_id = h.id and l.kind = 'combat' and l.intent = 'accrue') as ms,
+        (select coalesce(max((l.meta->>'ms')::bigint), 0) from public.player_ledger l where l.session_id = h.id and l.kind = 'combat' and l.intent = 'accrue') as max_ms,
         (select coalesce(sum(case when jsonb_typeof(l.meta->'kills') = 'number' then (l.meta->>'kills')::int else 0 end), 0) from public.player_ledger l where l.session_id = h.id) as lkills,
         (select coalesce(sum(case when l.kind <> 'hunt' then l.gold else 0 end), 0) from public.player_ledger l where l.session_id = h.id) as lcoins,
         t.kills as tkills, t.coins as tcoins
       from public.hunt_sessions h left join public.hunt_session_tally t on t.session_id = h.id where h.id = $1`, [sid]);
+    maxWindowMs = Math.max(maxWindowMs, Number(r.max_ms));
     if (Number(r.ms) !== Number(r.to_ms) - o.t0) { problems.push(`${o.label}: session ${sid.slice(-4)} journalled ${r.ms} ms of hunt for a clock that moved ${Number(r.to_ms) - o.t0} ms (time lost or doubled)`); break; }
     if (Number(r.tkills) !== Number(r.lkills) || Number(r.tcoins) !== Number(r.lcoins)) { problems.push(`${o.label}: session ${sid.slice(-4)} tally ${r.tkills}/${r.tcoins} != ledger ${r.lkills}/${r.lcoins}`); break; }
+  }
+  /* EVERY RUN SIZED FOR THE EDGE, ON ANY BOX (lane/a-v0263-reds2): the CPU checks above read this process's clock, and
+     a fast runner ran a pre-fix 15-min 4-hero window in under the ~1.2 s of headroom (run 40789905806: the mutant
+     survived). The largest window the drain actually journalled, priced at the 4-hero p95 the span is sized on
+     (hunt-settle.js WHY 2 MIN: 6.2 ms of engine per simulated second), must fit beside the budget under the limit:
+     2 min = 744 ms + 800 < 2000; 15 min = 5580 ms. Deterministic: the ledger's window ms, not a timer. */
+  if (!(maxWindowMs > 0)) problems.push(`CONTROL ${o.label}: no combat window was journalled`);
+  else if (!((maxWindowMs / 1000) * P95_ENGINE_MS_PER_SIM_S + B < M.HS.EDGE_CPU_MS)) {
+    problems.push(`${o.label}: a run settled a ${Math.round(maxWindowMs / 1000)} s window; at the 4-hero p95 (${P95_ENGINE_MS_PER_SIM_S} ms/s) that is ${Math.round((maxWindowMs / 1000) * P95_ENGINE_MS_PER_SIM_S)} ms beside the ${B} ms budget, over the edge's ${M.HS.EDGE_CPU_MS} ms`);
   }
   const snaps = [];
   for (const p of fx) for (let i = 0; i < p.sids.length; i++) snaps.push(await snapshot(db, p.sids[i], p.uids[i]));

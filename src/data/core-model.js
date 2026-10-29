@@ -33,7 +33,8 @@
    in the Mill Cellar (1, 2, 4, 8: Level 5 in a quarter of an hour, the tutorial's
    promise), the Thicket's first Level twice the Cellar's last, then each about 1.77x
    (16, 28, 49, 86, 152 min) into Level 10's step, which with every Level after it is the
-   10-27 curve's to the XP (from 137,918 XP at Level 10 on, nothing moved). The XP step
+   10-27 curve's to the XP (137,918 XP at Level 10; the Wickstead re-fit below moved every
+   bracket, Level 10 is now 158,938). The XP step
    jumps 6x at Level 5 because the Thicket pays three times the Cellar. Then the rest of
    today's content (10), the long climb (50, 300). */
 /* RE-FITTED 2026-10-28 (lane/a-v0263-reds): Wickstead (8-18 solo) opened and pays the 8-15 stretch faster, so the pace

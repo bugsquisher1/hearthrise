@@ -196,7 +196,7 @@ export const UNREACHABLE = Object.freeze({
      grounds. Gloves, belts and the caster's cloth line have NO reachable piece today. */
   greenhaven: Object.freeze([
     'rat_stick',
-    'spidersilk_choker', 'packlord_band',
+    'spidersilk_choker', 'tusker_charm', 'packlord_band',
     'mirewort_drops', 'ancient_fragment', 'cracked_spellstone', 'grave_dust', 'razor_claw',
   ]),
   /* Tier 4+ ladder rungs, the old roster's uniques, and the dragon, undead, demon, troll and void materials
@@ -234,8 +234,8 @@ export const UNREACHABLE = Object.freeze({
    Rare row sources the Studded Leather Coif. 133 -> 132: the Sewer's kobolds drop the Iron Boots; 132 -> 131: Rook hides the Boarhide Coif; 131 -> 129: the Warrens drop the Steel and Scholar boots.  129 -> 125: the Warrens' willow Rares. */
 /* 125 -> 115 (lane b-greenhaven-6): Wickstead's ten move to `staged` (C11 proves its opening sources them). */
 /* 115 -> 105 (lane b-unsourced-items): the tier-1 gloves and sashes are made (style-gear.js), the tier-3 ones are Warrens Rares. */
-/* 105 -> 100: the Orchard Boar's Tusker's Charm and the Brook Bear's meat and claw (and the two dishes they cook). */
-export const UNREACHABLE_CEILING = 100;
+/* 105 -> 101: the Brook Bear's meat and claw (and the two dishes they cook); the Bear Pelt waits in `later` with its feast. */
+export const UNREACHABLE_CEILING = 101;
 
 /**
  * id -> the first reachable door (a label). `opts` opens planned doors for C11's proof:

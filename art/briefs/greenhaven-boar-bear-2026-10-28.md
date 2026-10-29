@@ -33,7 +33,7 @@ wired until the sprites land. No placeholder art, and no sprite borrowed from an
 ## What the designer wires when the art lands (data only, one batch of ≤20 rows)
 | Creature | Ground and pocket | Rows |
 |---|---|---|
-| Orchard Boar | Wickstead P3 the Orchard (two pack slots), uncommon | Commons: bones and Raw Wolf Meat (the Thicket's cooking line; no new meat without a recipe); its own imbuement item; Rare: Tusker's Charm (necklace L8), ~15 h |
+| Orchard Boar | Wickstead P3 the Orchard (two pack slots), uncommon | WIRED 2026-10-28: Boar Bristle (trader's goods) and bones; Orchard Boar Tusk (imbuement). No Rare: the Tusker's Charm is Old Tusker's champion relic (one source, w0f-fun-content), so it waits for Old Tusker to join the Orchard with his own larger art |
 | Brook Bear | Mosslight P3 the Springs and P5 Vine Hollow, uncommon | Commons: Raw Bear Meat (Cooking: cook_bear_meat), Bear Pelt; Uncommon: its own imbuement item; Bear Claw (Cooking: cook_bear_pie) as a second Common or a Scarce-band material |
 
 Then the spawn weights, `forest-cave` spawn-mix and drop-tables paces are re-measured on the real settle.

@@ -843,8 +843,9 @@ export const MONSTERS = {
     /* the orchard's tank (lane b-unsourced-items): its thick skull rings a hammer off; a blade finds the flank */
     weaponWeak: 'sword', weaponResist: ['hammer'],
     hp: 16, atk: 5, def: 2, xp: 95, gp: [3, 8], speed: 3000,
-    drops: [{ id: 'boar_bristle', ch: .6, band: 'common' }, { id: 'bones', ch: .5, band: 'common' }, { id: 'orchard_boar_tusk', ch: .08, band: 'uncommon' },
-      { id: 'tusker_charm', ch: .003, band: 'rare' }] },
+    /* no Rare: the Tusker's Charm is Old Tusker's relic, ONE source (tests/w0f-fun-content.mjs); he joins the Orchard as its
+       champion with his own (larger) art, the next batch */
+    drops: [{ id: 'boar_bristle', ch: .6, band: 'common' }, { id: 'bones', ch: .5, band: 'common' }, { id: 'orchard_boar_tusk', ch: .08, band: 'uncommon' }] },
   turncoat: { name: 'Turncoat', icon: '🗡️', tier: 2, level: 16, cls: 'human', family: 'Human',
     /* a deserter from a free company, robbing the Thicket road; glass that hits hard. The jewellery's carrier. */
     hp: 34, atk: 10, def: 3, xp: 240, gp: [10, 22], speed: 3400,

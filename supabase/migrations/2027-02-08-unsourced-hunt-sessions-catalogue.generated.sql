@@ -8,7 +8,7 @@
 --   src/data/premium.js, src/core/hunt/world-state.js and the vendor price
 --   (hr-accrue/catalogue.js). Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: c748e79f5c8bed39e610767461476708d9f2016d5c59a6a30bdfb04d57b442b1
+--   digest: b167ddc62eca3c3e4489d1cc25fe6665832e9e20d08d975c2a077529e40a31e4
 --   82 supplies, 128 hunts (named + training), 47 limits, 12 end reasons,
 --   547 vendor values, 25 store supplies paid per use, 5 target modes,
 --   4 lanes, 16 abilities, 10 action-set options, 6 hunt grounds
@@ -520,7 +520,7 @@ insert into public.hr_hunt_kill_bounds (monster_id, gold_max, xp_max, drops) val
   ('ogre', 110, 530, '{"troll_hide":1,"big_bones":1,"brute_plate":1,"raw_bear_meat":1,"mithril_belt":1}'::jsonb),
   ('old_tusker', 15, 79, '{"bones":1,"raw_wolf_meat":1,"wolf_pelt":1,"small_fang":1,"tusker_charm":1}'::jsonb),
   ('ooze', 14, 81, '{"slime_gel":1,"bone_chips":1,"iron_boots":1}'::jsonb),
-  ('orchard_boar', 8, 119, '{"boar_bristle":1,"bones":1,"orchard_boar_tusk":1,"tusker_charm":1}'::jsonb),
+  ('orchard_boar', 8, 119, '{"boar_bristle":1,"bones":1,"orchard_boar_tusk":1}'::jsonb),
   ('panther', 210, 828, '{"shadow_pelt":1,"razor_claw":1,"ruby":1,"raw_panther_meat":1,"panthers_eye_pendant":1}'::jsonb),
   ('plague_swarm', 82, 360, '{"plague_ichor":1,"venom_sac":1,"swarm_heart":1,"field_cookbook":1}'::jsonb),
   ('rat', 4, 41, '{"rat_tail":1,"small_fang":1,"wheat":1,"bones":1,"giant_rat_hide":1}'::jsonb),

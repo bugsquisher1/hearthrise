@@ -33,7 +33,7 @@
   "Classifications are AUTHORED, never generated — deciding what a restore owes",
   "a table is a judgement, and --write preserves whatever is already here."
  ],
- "generated": "2026-10-28",
+ "generated": "2026-10-29",
  "production": {
   "measured": "2026-08-30",
   "project": "nezapsylztqbbwuwembx (hearthrise-testing, Postgres 17.6, us-west-2, Micro compute)",
@@ -832,7 +832,7 @@
   },
   "hr_activities": {
    "class": "seeded",
-   "replay": 343,
+   "replay": 345,
    "note": "Generated from src/data/*.js by tools/gen-catalogues.mjs; content guarded by --check as a smoke preflight. 344 rows on 2026-08-15, 508 now. Rebuilt from repo, never restored."
   },
   "hr_blessing_rule": {
@@ -1086,7 +1086,7 @@
   },
   "hr_hunt_ground_spawns": {
    "class": "seeded",
-   "replay": 28,
+   "replay": 29,
    "note": "Generated catalogue (2026-10-23-hunt-sessions-catalogue.generated.sql, tools/gen-hunt-sessions.mjs --check from src/data): each ground's monsters and counts, the kill bound's spawn term. Rebuilt from repo, never restored; nothing player-owned."
   },
   "hr_hunt_grounds": {
@@ -1096,7 +1096,7 @@
   },
   "hr_hunt_kill_bounds": {
    "class": "seeded",
-   "replay": 138,
+   "replay": 140,
    "note": "Generated catalogue (2026-10-22-hunt-sessions-catalogue.generated.sql, tools/gen-hunt-sessions.mjs --check): the most one kill of each monster can pay (gold, XP, drops), read by the value bound (2026-10-22-hunt-sessions-value-bound.sql). Rebuilt from repo, never restored."
   },
   "hr_hunt_lanes": {
@@ -1126,7 +1126,7 @@
   },
   "hr_hunt_roster": {
    "class": "seeded",
-   "replay": 28,
+   "replay": 30,
    "note": "Generated catalogue (2026-11-21-hunt-sessions-catalogue.generated.sql, tools/gen-hunt-sessions.mjs --check from src/data/hunt-grounds.js reachableOf): every monster a player can meet on the open grounds. Empty = the Bestiary total reads 0 and every monster milestone refuses roster_too_small. Rebuilt from repo, never restored; nothing player-owned."
   },
   "hr_hunt_set_options": {
@@ -1141,7 +1141,7 @@
   },
   "hr_hunt_spawns": {
    "class": "seeded",
-   "replay": 32,
+   "replay": 34,
    "note": "Generated catalogue (2026-10-20-hunts-catalogue.generated.sql, tools/gen-hunts.mjs --check from src/data/hunts.js): which monsters each named hunt spawns and their weights. Rebuilt from repo, never restored; nothing player-owned."
   },
   "hr_hunt_stances": {
@@ -1162,12 +1162,12 @@
   },
   "hr_hunt_travel": {
    "class": "seeded",
-   "replay": 126,
+   "replay": 128,
    "note": "Generated catalogue (2026-10-21-hunt-sessions-catalogue.generated.sql (tools/gen-hunt-sessions.mjs --check from src/data)): every hunt a session may be entered on: the 4 named hunts and the 94 non-boss, non-champion training monsters, with their walk time. An EMPTY rebuild refuses every enter (unknown_hunt, fail closed). Rebuilt from repo, never restored; nothing player-owned."
   },
   "hr_hunt_vendor_value": {
    "class": "seeded",
-   "replay": 544,
+   "replay": 547,
    "note": "Generated catalogue (2026-10-21-hunt-sessions-catalogue.generated.sql (tools/gen-hunt-sessions.mjs --check from src/data)): the vendor bid per item (vendorPriceOf), read only by hr_hunt_analyzer for Gold-at-vendor-value and Waste. Moves no value. Rebuilt from repo, never restored; nothing player-owned."
   },
   "hr_hunt_weapon_roles": {
@@ -1207,7 +1207,7 @@
   },
   "hr_items": {
    "class": "seeded",
-   "replay": 569,
+   "replay": 572,
    "note": "Generated catalogue — the market tradeable allowlist and every item's server-side truth. 426 rows on 2026-08-15, 515 on 2026-09-06, 519 now (+4 Hearthfind trophies, 2026-09-08). Content digest guarded by tools/gen-catalogues.mjs --check as a smoke preflight."
   },
   "hr_kill_credit_log": {

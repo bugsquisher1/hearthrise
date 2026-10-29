@@ -105,6 +105,8 @@ export const VENDOR_TRASH = Object.freeze(['sticky_core', 'goblin_ear', 'goblin_
   'rat_kings_crown', 'coppercaps_cauldron',
   /* Wickstead's four (lane b-greenhaven-6), the same promise. */
   'granary_whisker', 'barn_wasp_sting', 'loft_web', 'torn_company_badge',
+  /* the boar and the bear (lane b-unsourced-items): their imbuement items, and the boar's bristles */
+  'orchard_boar_tusk', 'brook_bear_tooth', 'boar_bristle',
 ]);
 
 /* ── AWAITING THE ROSTER — catalogued, kept, and deliberately unobtainable ───
@@ -194,9 +196,8 @@ export const UNREACHABLE = Object.freeze({
      grounds. Gloves, belts and the caster's cloth line have NO reachable piece today. */
   greenhaven: Object.freeze([
     'rat_stick',
-    'spidersilk_choker', 'tusker_charm', 'packlord_band',
-    'mirewort_drops', 'ancient_fragment', 'cracked_spellstone', 'grave_dust', 'razor_claw', 'bear_pelt', 'bear_claw',
-    'raw_bear_meat', 'cooked_bear_meat', 'bear_claw_pie',
+    'spidersilk_choker', 'packlord_band',
+    'mirewort_drops', 'ancient_fragment', 'cracked_spellstone', 'grave_dust', 'razor_claw',
   ]),
   /* Tier 4+ ladder rungs, the old roster's uniques, and the dragon, undead, demon, troll and void materials
      with the late recipes they feed (Cooking 25 panther and 70+, Inner Flame 35+, Crafting 60 keystones). */
@@ -212,7 +213,8 @@ export const UNREACHABLE = Object.freeze({
     'keystone',
     'dragon_bones', 'troll_hide', 'vamp_dust', 'demon_shard', 'dragon_scale', 'lich_soul', 'ancient_rune',
     'dragon_gem', 'wraith_veil', 'void_chitin', 'void_core', 'ancient_claw', 'raw_panther_meat', 'cooked_panther_meat',
-    'hunters_feast', 'dragon_stew', 'lich_soul_soup', 'void_banquet', 'soul_recipe', 'marrow_cookbook',
+    /* the Bear Pelt waits with its one consumer, the Hunter's Feast (troll hide): the Brook Bear drops the meat and claw */
+    'bear_pelt', 'hunters_feast', 'dragon_stew', 'lich_soul_soup', 'void_banquet', 'soul_recipe', 'marrow_cookbook',
     'field_cookbook', 'emberheart',
   ]),
   /* Vendor trash of creatures with no home in the plan: no recipe, room or quest reads them. */
@@ -232,7 +234,8 @@ export const UNREACHABLE = Object.freeze({
    Rare row sources the Studded Leather Coif. 133 -> 132: the Sewer's kobolds drop the Iron Boots; 132 -> 131: Rook hides the Boarhide Coif; 131 -> 129: the Warrens drop the Steel and Scholar boots.  129 -> 125: the Warrens' willow Rares. */
 /* 125 -> 115 (lane b-greenhaven-6): Wickstead's ten move to `staged` (C11 proves its opening sources them). */
 /* 115 -> 105 (lane b-unsourced-items): the tier-1 gloves and sashes are made (style-gear.js), the tier-3 ones are Warrens Rares. */
-export const UNREACHABLE_CEILING = 105;
+/* 105 -> 100: the Orchard Boar's Tusker's Charm and the Brook Bear's meat and claw (and the two dishes they cook). */
+export const UNREACHABLE_CEILING = 100;
 
 /**
  * id -> the first reachable door (a label). `opts` opens planned doors for C11's proof:

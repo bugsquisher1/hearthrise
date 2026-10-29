@@ -77,6 +77,7 @@ export const ITEM_DESC = {
   'adept_pants': 'An adept\'s robe bottoms, finer cloth woven for a caster growing into their craft',
   'alpha_cloak': 'Alpha-beast pelt worn as a cape, warding blows and sharpening the strike',
   'alpha_fang': 'The great fang of a pack alpha, a rare and coveted trophy',
+  'boar_bristle': 'A tuft of stiff back bristle off an Orchard Boar. The brush-maker in town buys them',
   'rooks_whistle': 'The bone whistle Rook calls the Mosslight crows with. A collector in town pays well for it',
   'rat_kings_crown': 'The Rat King\'s whole crown, hammered from the Millrace\'s drain grates. Few hunters ever lift it off him',
   'coppercaps_cauldron': 'The polished cauldron Chief Coppercap wears for a crown, dented from every fight in the Warrens',

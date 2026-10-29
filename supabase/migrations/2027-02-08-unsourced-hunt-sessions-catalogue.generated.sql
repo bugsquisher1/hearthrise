@@ -8,9 +8,9 @@
 --   src/data/premium.js, src/core/hunt/world-state.js and the vendor price
 --   (hr-accrue/catalogue.js). Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: 706df8779a324e21d7bc41990cdd8422fed6ad1e5885eb826743b282aa05c826
---   82 supplies, 126 hunts (named + training), 47 limits, 12 end reasons,
---   544 vendor values, 25 store supplies paid per use, 5 target modes,
+--   digest: c748e79f5c8bed39e610767461476708d9f2016d5c59a6a30bdfb04d57b442b1
+--   82 supplies, 128 hunts (named + training), 47 limits, 12 end reasons,
+--   547 vendor values, 25 store supplies paid per use, 5 target modes,
 --   4 lanes, 16 abilities, 10 action-set options, 6 hunt grounds
 --
 -- SUPERSEDES 2027-01-31-hunt-sessions-catalogue.generated.sql (lane/b-inner-flame, applied
@@ -441,6 +441,7 @@ insert into public.hr_hunt_kill_bounds (monster_id, gold_max, xp_max, drops) val
   ('bog_vine', 42, 209, '{"willow_log":1,"silk_thread":1,"moonbloom":1,"steel_gauntlets":1}'::jsonb),
   ('briarcoat_wolf', 5, 85, '{"wolf_pelt":1,"bones":1,"briar_burr":1,"bronze_platelegs":1,"leather_pants":1,"apprentice_pants":1}'::jsonb),
   ('broodmother', 572, 1728, '{"silk_thread":1,"spider_eye":1,"void_chitin":1,"swarm_heart":1,"shadow_thread":1,"chitinweave_cloak":1}'::jsonb),
+  ('brook_bear', 36, 531, '{"raw_bear_meat":1,"bear_claw":1,"brook_bear_tooth":1}'::jsonb),
   ('carnivorous_plant', 100, 465, '{"maple_log":1,"moonbloom":1,"goldenroot":1,"emberfruit":1}'::jsonb),
   ('carrion_crow', 12, 210, '{"bone_chips":1,"crow_quill":1,"iron_boots":1,"studded_boots":1,"adept_boots":1}'::jsonb),
   ('carrion_swarm', 236, 857, '{"plague_ichor":1,"swarm_heart":1,"venom_sac":1}'::jsonb),
@@ -519,6 +520,7 @@ insert into public.hr_hunt_kill_bounds (monster_id, gold_max, xp_max, drops) val
   ('ogre', 110, 530, '{"troll_hide":1,"big_bones":1,"brute_plate":1,"raw_bear_meat":1,"mithril_belt":1}'::jsonb),
   ('old_tusker', 15, 79, '{"bones":1,"raw_wolf_meat":1,"wolf_pelt":1,"small_fang":1,"tusker_charm":1}'::jsonb),
   ('ooze', 14, 81, '{"slime_gel":1,"bone_chips":1,"iron_boots":1}'::jsonb),
+  ('orchard_boar', 8, 119, '{"boar_bristle":1,"bones":1,"orchard_boar_tusk":1,"tusker_charm":1}'::jsonb),
   ('panther', 210, 828, '{"shadow_pelt":1,"razor_claw":1,"ruby":1,"raw_panther_meat":1,"panthers_eye_pendant":1}'::jsonb),
   ('plague_swarm', 82, 360, '{"plague_ichor":1,"venom_sac":1,"swarm_heart":1,"field_cookbook":1}'::jsonb),
   ('rat', 4, 41, '{"rat_tail":1,"small_fang":1,"wheat":1,"bones":1,"giant_rat_hide":1}'::jsonb),
@@ -625,13 +627,15 @@ insert into public.hr_hunt_ground_spawns (hunt_id, monster_id, n) values
   ('mosslight_glade', 'walking_vine', 3),
   ('wickstead', 'barn_spider', 2),
   ('wickstead', 'barn_wasp', 1),
-  ('wickstead', 'granary_rat', 8),
+  ('wickstead', 'granary_rat', 7),
+  ('wickstead', 'orchard_boar', 1),
   ('wickstead', 'turncoat', 1);
 delete from public.hr_hunt_roster;
 insert into public.hr_hunt_roster (monster_id) values
   ('barn_spider'),
   ('barn_wasp'),
   ('briarcoat_wolf'),
+  ('brook_bear'),
   ('carrion_crow'),
   ('chief_coppercap'),
   ('cistern_spider'),
@@ -650,6 +654,7 @@ insert into public.hr_hunt_roster (monster_id) values
   ('hive_wasp'),
   ('hobgoblin_foreman'),
   ('kobold_tosher'),
+  ('orchard_boar'),
   ('rat'),
   ('rat_king'),
   ('rook_poacher'),
@@ -767,6 +772,7 @@ insert into public.hr_hunt_travel (hunt_id, travel_s, training) values
   ('bog_vine', 0, true),
   ('bramble_edge', 0, false),
   ('briarcoat_wolf', 0, true),
+  ('brook_bear', 0, true),
   ('carnivorous_plant', 0, true),
   ('carrion_crow', 0, true),
   ('carrion_swarm', 0, true),
@@ -838,6 +844,7 @@ insert into public.hr_hunt_travel (hunt_id, travel_s, training) values
   ('nightmare', 0, true),
   ('ogre', 0, true),
   ('ooze', 0, true),
+  ('orchard_boar', 0, true),
   ('panther', 0, true),
   ('plague_swarm', 0, true),
   ('rat', 0, true),
@@ -1012,6 +1019,7 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('bear_claw_pie', 280),
   ('bear_pelt', 52),
   ('big_bones', 1),
+  ('boar_bristle', 5),
   ('boarhide_belt', 39),
   ('boarhide_body', 147),
   ('boarhide_boots', 39),
@@ -1036,6 +1044,7 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('bronze_platelegs', 65),
   ('bronze_rimmed_shield', 35),
   ('bronze_sword', 25),
+  ('brook_bear_tooth', 9),
   ('brute_plate', 26),
   ('burnt_food', 1),
   ('captain_medal', 700),
@@ -1284,6 +1293,7 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('oak_spellbook', 52),
   ('oak_staff', 65),
   ('oak_wand', 57),
+  ('orchard_boar_tusk', 4),
   ('packlord_band', 210),
   ('panthers_eye_pendant', 1904),
   ('pikeperch', 5),
@@ -1522,10 +1532,10 @@ do $$
 declare v_role text; v_t text;
 begin
   if (select count(*) from public.hr_hunt_supplies) <> 82
-     or (select count(*) from public.hr_hunt_travel) <> 126
+     or (select count(*) from public.hr_hunt_travel) <> 128
      or (select count(*) from public.hr_hunt_limits) <> 47
      or (select count(*) from public.hr_hunt_end_reasons) <> 12
-     or (select count(*) from public.hr_hunt_vendor_value) <> 544
+     or (select count(*) from public.hr_hunt_vendor_value) <> 547
      or (select count(*) from public.hr_hunt_basic_supplies) <> 25
      or (select count(*) from public.hr_hunt_cover_items) <> 0
      or exists (select 1 from public.hr_hunt_basic_supplies where cardinality(coalesce(tiers, '{}'::int[])) > 0)
@@ -1534,12 +1544,12 @@ begin
      or (select count(*) from public.hr_hunt_resumable_kinds) <> 3
      or (select count(*) from public.hr_hunt_lanes) <> 4
      or (select count(*) from public.hr_hunt_set_options) <> 10
-     or (select count(*) from public.hr_hunt_kill_bounds) <> 138
+     or (select count(*) from public.hr_hunt_kill_bounds) <> 140
      or (select count(*) from public.hr_hunt_abilities) <> 16
      or (select count(*) from public.hr_hunt_grounds) <> 6
      or (select count(*) from public.hr_hunt_grounds where density_max is null) <> 0
-     or (select count(*) from public.hr_hunt_ground_spawns) <> 28
-     or (select count(*) from public.hr_hunt_roster) <> 28
+     or (select count(*) from public.hr_hunt_ground_spawns) <> 29
+     or (select count(*) from public.hr_hunt_roster) <> 30
      or (select count(*) from public.hr_hunt_world_shape) <> 1
      or (select count(*) from public.hr_premium_login_reward) <> 1
      or (select count(*) from public.hr_hunt_weapons) <> 66

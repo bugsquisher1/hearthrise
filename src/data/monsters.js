@@ -787,7 +787,7 @@ export const MONSTERS = {
     /* one override (weapon): a bird in the open, so an arrow brings it down and a club swings at air. */
     weaponWeak: 'ranged', weaponResist: [],
     hp: 30, atk: 10, def: 1, xp: 165, gp: [4, 12], speed: 4400,
-    drops: [{ id: 'bone_chips', ch: .5, band: 'common' }, { id: 'crow_quill', ch: .08, band: 'uncommon' }, { id: 'iron_boots', ch: .0095, band: 'scarce' }, { id: 'studded_boots', ch: .0095, band: 'scarce' }, { id: 'adept_boots', ch: .0095, band: 'scarce' }] },
+    drops: [{ id: 'bone_chips', ch: .5, band: 'common' }, { id: 'crow_quill', ch: .08, band: 'uncommon' }, { id: 'iron_boots', ch: .0114, band: 'scarce' }, { id: 'studded_boots', ch: .0114, band: 'scarce' }, { id: 'adept_boots', ch: .0114, band: 'scarce' }] },
   glade_poacher: { name: 'Glade Poacher', icon: '🏹', tier: 2, level: 19, cls: 'human', family: 'Human',
     /* glass that hits like a cart: the ground's hardest blow before the sluice */
     hp: 32, atk: 12, def: 2, xp: 225, gp: [6, 18], speed: 3400,
@@ -809,6 +809,11 @@ export const MONSTERS = {
     hp: 78, atk: 18, def: 11, xp: 520, gp: [16, 40], speed: 3200,
     drops: [{ id: 'raw_wolf_meat', ch: .7, band: 'common' }, { id: 'bones', ch: 1, band: 'common' }, { id: 'rooks_moss_charm', ch: .15, band: 'uncommon' }, { id: 'rooks_whistle', ch: .0038, band: 'rare' },
       { id: 'steel_helm', ch: .0038, band: 'rare' }, { id: 'boarhide_helmet', ch: .0038, band: 'rare' }, { id: 'scholar_helmet', ch: .0038, band: 'rare' }] },
+  brook_bear: { name: 'Brook Bear', icon: '🐻', tier: 3, level: 24, cls: 'mammal', family: 'Mammal',
+    /* the springs' bruiser (lane b-unsourced-items): it fishes the Meadowbrook; the wet coat sheds frost, fire takes it */
+    elementWeak: 'ember', elementResist: ['frost'],
+    hp: 74, atk: 18, def: 8, xp: 420, gp: [14, 36], speed: 3000,
+    drops: [{ id: 'raw_bear_meat', ch: .6, band: 'common' }, { id: 'bear_claw', ch: .25, band: 'common' }, { id: 'brook_bear_tooth', ch: .08, band: 'uncommon' }] },
 
   /* ══ Wickstead, levels 8-18, solo, mixed (lane b-greenhaven-6, designer 2026-10-28): roles and economy in the
      src/data/hunt-grounds.js header. THE LOOT BANDS: tier-1 boots (rats) and helmets (wasps), tier-2 legs (spiders) and
@@ -819,7 +824,7 @@ export const MONSTERS = {
     /* the swarm: fat on the farm's grain, many and quick */
     hp: 15, atk: 4, def: 1, xp: 56, gp: [3, 7], speed: 3400,
     drops: [{ id: 'rat_tail', ch: .4, band: 'common' }, { id: 'bones', ch: .35, band: 'common' }, { id: 'granary_whisker', ch: .08, band: 'uncommon' },
-      { id: 'bronze_boots', ch: .0041, band: 'scarce' }, { id: 'leather_boots', ch: .0041, band: 'scarce' }, { id: 'apprentice_boots', ch: .0041, band: 'scarce' }] },
+      { id: 'bronze_boots', ch: .0049, band: 'scarce' }, { id: 'leather_boots', ch: .0049, band: 'scarce' }, { id: 'apprentice_boots', ch: .0049, band: 'scarce' }] },
   barn_wasp: { name: 'Barn Wasp', icon: '🐝', tier: 1, level: 11, cls: 'vermin', family: 'Vermin',
     /* one override (weapon): it flies, so an arrow brings it down and a club swings at air */
     weaponWeak: 'ranged', weaponResist: [],
@@ -834,6 +839,12 @@ export const MONSTERS = {
     drops: [{ id: 'silk_thread', ch: .4, band: 'common' }, { id: 'dry_husk', ch: .5, band: 'common' }, { id: 'loft_web', ch: .08, band: 'uncommon' },
       { id: 'iron_platelegs', ch: .0165, band: 'scarce' }, { id: 'studded_pants', ch: .0165, band: 'scarce' }, { id: 'adept_pants', ch: .0165, band: 'scarce' },
       { id: 'iron_gauntlets', ch: .0015, band: 'rare' }, { id: 'studded_gloves', ch: .0015, band: 'rare' }, { id: 'adept_gloves', ch: .0015, band: 'rare' }] },
+  orchard_boar: { name: 'Orchard Boar', icon: '🐗', tier: 1, level: 12, cls: 'mammal', family: 'Mammal',
+    /* the orchard's tank (lane b-unsourced-items): its thick skull rings a hammer off; a blade finds the flank */
+    weaponWeak: 'sword', weaponResist: ['hammer'],
+    hp: 16, atk: 5, def: 2, xp: 95, gp: [3, 8], speed: 3000,
+    drops: [{ id: 'boar_bristle', ch: .6, band: 'common' }, { id: 'bones', ch: .5, band: 'common' }, { id: 'orchard_boar_tusk', ch: .08, band: 'uncommon' },
+      { id: 'tusker_charm', ch: .003, band: 'rare' }] },
   turncoat: { name: 'Turncoat', icon: '🗡️', tier: 2, level: 16, cls: 'human', family: 'Human',
     /* a deserter from a free company, robbing the Thicket road; glass that hits hard. The jewellery's carrier. */
     hp: 34, atk: 10, def: 3, xp: 240, gp: [10, 22], speed: 3400,

@@ -6,10 +6,10 @@
 --   `node tools/gen-catalogues.mjs --check`, which is a preflight in
 --   tests/run-sql-tests.mjs. Edit src/data/*.js and regenerate.
 --
---   catalogue digest: fce090f4e3ceaa2cf6c587d92309c16d39fd40a963477e402f0c87253c9933eb
---   rows: 569 items (6 untradeable) ·
+--   catalogue digest: 6a1282599a73a9713ab38bbfd3d1058f331a9ee0e27ce920c43213021396024e
+--   rows: 572 items (6 untradeable) ·
 --         324 item-slot pairs · 14 equip slots ·
---         13 skills · 9 crops · 343 activities ·
+--         13 skills · 9 crops · 345 activities ·
 --         0 runes
 --
 -- APPLY ORDER: 2026-08-11-player-state.sql → THIS FILE → 2026-08-11-apply-engine.sql
@@ -237,6 +237,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('bear_claw_pie','Bear Claw Pie',true,null,280,null,null,384,false,null,false),
   ('bear_pelt','Bear Pelt',true,null,260,null,null,null,false,null,false),
   ('big_bones','Big Bones',true,null,3,null,null,null,false,null,false),
+  ('boar_bristle','Boar Bristle',true,null,5,null,null,null,false,null,false),
   ('boarhide_belt','Boarhide Belt',true,'armor',280,'level',30,null,false,'medium',false),
   ('boarhide_body','Boarhide Body',true,'armor',1050,'level',30,null,false,'medium',false),
   ('boarhide_boots','Boarhide Boots',true,'armor',280,'level',30,null,false,'medium',false),
@@ -262,6 +263,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('bronze_platelegs','Bronze Platelegs',true,'armor',130,'level',1,null,false,'heavy',false),
   ('bronze_rimmed_shield','Bronze-Rimmed Shield',true,'offhand',70,'level',1,null,false,null,false),
   ('bronze_sword','Bronze Sword',true,'weapon',50,'level',1,null,false,null,false),
+  ('brook_bear_tooth','Brook Bear Tooth',true,null,48,null,null,null,false,null,false),
   ('brute_plate','Brute Plate',true,null,130,null,null,null,false,null,false),
   ('burnt_food','Burnt Food',true,null,1,null,null,null,false,null,false),
   ('captain_medal','Captain Medal',true,null,700,null,null,null,false,null,false),
@@ -522,6 +524,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('oak_spellbook','Oakboard Spellbook',true,'offhand',105,'level',15,null,false,null,false),
   ('oak_staff','Oak Staff',true,'weapon',130,'level',15,null,false,null,true),
   ('oak_wand','Oak Wand',true,'weapon',115,'level',15,null,false,null,false),
+  ('orchard_boar_tusk','Orchard Boar Tusk',true,null,24,null,null,null,false,null,false),
   ('packlord_band','Packlord''s Band',true,'jewelry',420,'level',22,null,false,null,false),
   ('panthers_eye_pendant','Panther''s Eye Pendant',true,'jewelry',13600,'level',68,null,false,null,false),
   ('pikeperch','Raw Pikeperch',true,null,27,null,null,96,true,null,false),
@@ -1313,6 +1316,7 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp, 
   ('combat','bog_vine',null,null,70,false,35),
   ('combat','briarcoat_wolf',null,null,16,false,10),
   ('combat','broodmother',null,null,402,true,130),
+  ('combat','brook_bear',null,null,74,false,24),
   ('combat','carnivorous_plant',null,null,138,false,60),
   ('combat','carrion_crow',null,null,30,false,16),
   ('combat','carrion_swarm',null,null,198,false,90),
@@ -1391,6 +1395,7 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp, 
   ('combat','ogre',null,null,160,false,60),
   ('combat','old_tusker',null,null,30,false,5),
   ('combat','ooze',null,null,33,false,15),
+  ('combat','orchard_boar',null,null,16,false,12),
   ('combat','panther',null,null,205,false,90),
   ('combat','plague_swarm',null,null,100,false,60),
   ('combat','rat',null,null,9,false,2),
@@ -2031,7 +2036,7 @@ insert into public.hr_feast_foods (item_id, heals) values
 on conflict (item_id) do update set heals = excluded.heals;
 
 insert into public.hr_catalogue_meta (only_row, digest, generated_at)
-  values (true, 'fce090f4e3ceaa2cf6c587d92309c16d39fd40a963477e402f0c87253c9933eb', now())
+  values (true, '6a1282599a73a9713ab38bbfd3d1058f331a9ee0e27ce920c43213021396024e', now())
   on conflict (only_row) do update set digest = excluded.digest, generated_at = excluded.generated_at;
 
 -- ── RLS + grants. Catalogues are world-readable (the client renders from the
@@ -2059,13 +2064,13 @@ do $$
 declare v_bad int; v_n int;
 begin
   select count(*) into v_n from public.hr_items;
-  if v_n <> 569 then raise exception 'hr_items has % rows, generator emitted 569', v_n; end if;
+  if v_n <> 572 then raise exception 'hr_items has % rows, generator emitted 572', v_n; end if;
   select count(*) into v_n from public.hr_items where not tradeable;
   if v_n <> 6 then
     raise exception 'untradeable count is %, generator emitted 6', v_n;
   end if;
   select count(*) into v_n from public.hr_activities;
-  if v_n <> 343 then raise exception 'hr_activities has % rows, expected 343', v_n; end if;
+  if v_n <> 345 then raise exception 'hr_activities has % rows, expected 345', v_n; end if;
 
   -- MONSTER HP. The count is asserted for the same reason auto_eatable's is: a
   -- re-apply against a database that created hr_activities before the column
@@ -2073,8 +2078,8 @@ begin
   -- does not fail — it makes hr_apply's carried-fight clamp ADMIT ANYTHING,
   -- which is the "assertion that asserts nothing" family in SQL form.
   select count(*) into v_n from public.hr_activities where kind = 'combat' and max_hp is not null;
-  if v_n <> 138 then
-    raise exception 'combat activities with a max_hp: %, generator emitted 138 — '
+  if v_n <> 140 then
+    raise exception 'combat activities with a max_hp: %, generator emitted 140 — '
       'hr_apply''s carried-fight clamp would be vacuous for the rest', v_n;
   end if;
   -- ...and the converse, so a non-combat row can never acquire a fight ceiling
@@ -2251,7 +2256,7 @@ begin
    where c.regrow_limit is distinct from v.lim;
   if v_bad > 0 then raise exception '% crop(s) land a regrow_limit the generator did not emit', v_bad; end if;
 
-  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest fce090f4e3ceaa2cf6c587d92309c16d39fd40a963477e402f0c87253c9933eb',
+  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 6a1282599a73a9713ab38bbfd3d1058f331a9ee0e27ce920c43213021396024e',
     (select count(*) from public.hr_items), (select count(*) from public.hr_activities),
     (select count(*) from public.hr_runes);
 end $$;

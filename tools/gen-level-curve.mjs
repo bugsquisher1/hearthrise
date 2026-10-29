@@ -42,7 +42,10 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
    (plans pace + ladder) and the brackets re-fitted (pace.mjs --fit); 2027-02-04 is APPLIED history. Same table, new rows. */
 /* 2027-02-08-unsourced-level-curve (lane b-unsourced-items): 2027-02-07 is APPLIED history. The boar and the bear moved the
    measured pace, and Level 5 -> 6 sat at 2.01x the step before (C6); Levels 4-5 eased by hand, nothing else moves. */
-export const OUT_NAME = '2027-02-08-unsourced-level-curve.generated.sql';
+/* 2027-02-09-walk-on-level-curve (lane/a-pull-freeze, Coordinator ruling 2026-10-29): 2027-02-08 is APPLIED history. With
+   every pack down a hero now walks on to the next spawn (report #69), so Levels 5-15 earn 7-12% more an hour and Level 25
+   fell to 32 h; re-measured (plans pace + ladder) and re-fitted by pace.mjs --fit (minimax 3.3%). Same table, new rows. */
+export const OUT_NAME = '2027-02-09-walk-on-level-curve.generated.sql';
 const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 
 /* The Levels the self-check pins: every bracket's edge, Tyler's target Levels and a deep one. */
@@ -87,8 +90,14 @@ export function buildSql(XP) {
 -- as death_xp_over, then settles on the next tick after the deploy).
 -- LIVE CHARACTERS UNDER LEVEL 10 may move a Level (5,000 XP was Level 6, now 5: Levels 5-9 cost
 -- more, 1-4 about the same); nothing is written, and from 137,918 XP on nothing changes.
+-- NEW IN 2027-02-09 (lane/a-pull-freeze, Coordinator ruling 2026-10-29): with every pack
+-- down a hero walks on to the next spawn (report #69), so the pace was re-measured and every
+-- bracket from Level 4 re-fitted (Level 10 at 177,499 XP, was 157,965; Level 5's total is
+-- unchanged): live characters from Level 6 up may read a Level lower; nothing is written.
 -- ORDER: any time after 2027-02-01-level-curve.generated.sql (APPLIED); the hr-accrue
--- deploy carrying the same LEVEL_CURVE follows AT ONCE. No begin/commit (CLAUDE.md §2).
+-- deploy carrying the same LEVEL_CURVE follows AT ONCE. With 2027-02-09: apply this file,
+-- deploy hr-accrue at once, then apply 2027-02-09-cellar-respawn (its kill bound wants the
+-- edge first). No begin/commit (CLAUDE.md §2).
 -- ════════════════════════════════════════════════════════════════════════
 
 -- ── §0 PRECONDITIONS ─────────────────────────────────────────────────────────

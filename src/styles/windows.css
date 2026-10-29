@@ -410,9 +410,10 @@
 .hw-skill-list { display: grid; grid-template-columns: 1fr; gap: 0 12px; margin: 0; padding: 0; list-style: none; }
 /* ONE LINE A SKILL, THEN ITS UNLOCK (2026-10-22: the XP to go on a line of its own cost Gathering and crafting
    ~130 px at 1440x900, where the docked window stops above the bar and must not scroll, AW-17): glyph, name, the
-   progress bar, the XP to go and the level on the first line; the unlock under the name. */
+   progress bar, the XP to go and the level on the first line; the unlock under the name. 2px/3px a row (v0.2.64: the
+   Leather Belt wrapped Crafting's unlock to two lines and the window grew 7 px past its 516). */
 .hw-skill { min-width: 0; display: grid; grid-template-columns: 18px max-content minmax(24px, 1fr) minmax(0, auto) auto; grid-template-areas: "glyph name bar xp lv" ". next next next next";
-  align-items: center; column-gap: 6px; row-gap: 1px; padding: 3px 0 4px; border-top: 1px solid var(--line-soft); }
+  align-items: center; column-gap: 6px; row-gap: 1px; padding: 2px 0 3px; border-top: 1px solid var(--line-soft); }
 .hw-skill-top, .hw-skill-mid { display: contents; }
 .hw-skill-glyph { grid-area: glyph; }
 .hw-skill-name { grid-area: name; }

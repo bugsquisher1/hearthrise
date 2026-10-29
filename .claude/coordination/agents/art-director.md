@@ -3102,3 +3102,11 @@ decals. Lessons: (1) a PixelLab painted ground is its tileset cut on the dual gr
 Common ground shares base tiles; (2) draw a PixelLab pair the way PixelLab does (dual grid, corners on cell centres): a
 2-wide road stays 2 wide, no vertex melting; (3) a decal made for one floor is not wear for another (grey puddles on dirt
 read as holes); (4) this session had no PixelLab tools: check the tool list before accepting a generation brief.
+
+### 2026-10-29 lane/a-phone-coach-layout (first-hour playtest #10)
+The phone coach card under the hunt bar stands at the bar's right end and counts in the camera inset (shell.js insetNow),
+so the camera frames hero + party beside it (922/844 clear; desktop identical). An ended hunt's bar hides while its
+summary is open (both sizes; on desktop it was a redundant "Mill Cellar Summary"). Lessons: (1) measure figures with the
+served `window.__world` hook (screenOf on stats().hunt.hero/units), never by eye; (2) moving the card alone fails at
+844 (5 px) and the inset alone pushes the party under the Party panel: it took both; (3) 667x375 cannot fit a 260 px card
+beside a hero-centred fight: a party member 2 tiles left goes under the Party panel there (open, outside this brief).

@@ -137,7 +137,7 @@
 //         puts ONE residue `panelAlpha: 70`, fades a window's floor to 0.7 while its title
 //         stays solid, and after a reload the windows are still at 0.7 and the slider says 70%
 //   AW-31 THE CLEAN RETURN (designer walk 2026-10-25 #5, #6; Tyler 2026-10-25 Services in the Shop): a hero leaving the
-//         Cellar gets the summary as the one notice (no analyzer, party panel or "has ended" toast); its main press is
+//         Cellar gets the summary as the one notice (no analyzer, party panel, hunt bar or "has ended" toast); its main press is
 //         the tutorial card's next step ("Next: Sell what only pays coin", Hunt again second), which opens the Shop with
 //         the card inside it while the hunt bar leaves with the summary; the ring walks the Sell tab -> Sell all loot ->
 //         the confirmation's Sell, and the confirmation is in view inside the window (it sat under a long list); no
@@ -1518,7 +1518,8 @@ async function checks(overrides, shots) {
         await wait(page, () => document.querySelector('[data-hs-win="hunt-summary"] [data-hs-built]'), null, 3000);
         await page.waitForTimeout(300);
         const town = await look();
-        if (town.analyzer || town.party || town.toast || !town.summary) fails.push('AW-31 back in town the screen holds more than the summary: ' + JSON.stringify(town));
+        /* ...and no hunt bar: with the summary open it would hold only a Summary press for it (first-hour playtest 10-29 #10) */
+        if (town.analyzer || town.party || town.bar || town.toast || !town.summary) fails.push('AW-31 back in town the screen holds more than the summary: ' + JSON.stringify(town));
         /* the card's next step is the summary's main press, Hunt again the second */
         if (town.next !== 'Next: Sell what only pays coin' || town.againMain !== false) fails.push('AW-31 the summary\'s main press is ' + JSON.stringify(town) + ', want "Next: Sell what only pays coin" over Hunt again');
         if (shots) await shot(page, 'alpha-1440x900-return-summary');
@@ -2275,6 +2276,7 @@ const MUTANTS = [
   ['coach: R opens nothing once Services left the icon row (AW-31)', 'src/data/shell-windows.js', ", tabKeys: Object.freeze({ r: 'services' }) }),", ' }),'],
   ['coach: "Decide once" rings Bones for the shop (AW-31)', 'src/shell/windows/inventory/grid.js', "attr(sel, 'data-coin', coin.has(l.item) ? '' : null);", "attr(sel, 'data-coin', '');"],
   ['coach: R over the open Shop never switches it to Services (AW-31)', 'src/shell/shell.js', '    for (const id of wm.openIds()) if (wm.wantsTab(id)) refresh(id);\n', ''],
+  ['coach: an ended hunt\'s bar stays over its open summary (AW-31)', 'src/shell/shell.js', " && !wm.isOpen('hunt-summary');", ';'],
   /* The Hunts window, master-detail (designer plan 2026-10-22): AW-25 .. AW-29. */
   ['AW-25 every creature reads common', 'src/shell/hunt-ground-facts.js', "  if (share >= SHARE_BANDS.common) return 'common';", "  return 'common';"],
   ['AW-25 a Scarce piece reads as the ground\'s Rare (odds, not the band)', 'src/shell/hunt-ground-facts.js', 'd.ch < 1 && REVEAL_BANDS.includes(bandOf(d));', 'd.ch < 1 && d.ch <= 0.05;'],

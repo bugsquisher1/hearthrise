@@ -122,7 +122,9 @@ export function mountShell(root, o) {
     if (!opts.inHunt || !opts.inHunt()) return false;
     const h = huntOf(opts.character);
     if (!h || !h.ended) return true;
-    return id === 'hunt-topbar' && summaryClosed !== h.sessionId;
+    /* ...and none while that summary is open: the bar would hold only a Summary press for the window already on
+       screen (first-hour playtest 10-29 #10: on a phone, its ground's name given way to the sheet, an empty box). */
+    return id === 'hunt-topbar' && summaryClosed !== h.sessionId && !wm.isOpen('hunt-summary');
   };
   const hud = createHud({
     widgets: HUD_WIDGETS,
@@ -381,12 +383,18 @@ export function mountShell(root, o) {
   function insetNow() {
     const b = shell.getBoundingClientRect();
     const widgets = [];
+    const rel = (r, left = r.left - b.left) => ({ left, top: r.top - b.top, width: r.width, height: r.height });
     for (const el of worldHud.querySelectorAll('[data-hs-widget]')) {
       if (hud.isMoved(el.getAttribute('data-hs-widget'))) continue;   // the player's own, like a floating window
       const r = el.getBoundingClientRect();
       const left = dockHome.has(el) ? dockHome.get(el) : r.left - b.left;
-      widgets.push({ anchor: hud.layoutOf(el.getAttribute('data-hs-widget')).anchor, rect: { left, top: r.top - b.top, width: r.width, height: r.height } });
+      widgets.push({ anchor: hud.layoutOf(el.getAttribute('data-hs-widget')).anchor, rect: rel(r, left) });
     }
+    /* THE PHONE'S COACH NEVER LIES ON THE HERO (first-hour playtest 10-29 #10): the open card under the hunt bar stands
+       at the bar's right end (shell.css) and the camera frames the World beside it, as it does beside a panel. */
+    const card = phoneMq.matches && worldHud.querySelector('[data-hs-widget="hunt-topbar"] > .hs-pointer:not(.is-min)');
+    const cr = card && card.getBoundingClientRect();
+    if (cr) widgets.push({ anchor: cr.left + cr.width / 2 - b.left < b.width / 2 ? 'tl' : 'tr', rect: rel(cr) });
     return hudInsetOf(widgets, { width: b.width, height: b.height });
   }
   function publishInset() {

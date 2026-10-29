@@ -48,6 +48,10 @@
 //        ONE hr_stamina_refill at that price, Buy off until the answer, the stamina from the re-read; a refusal in
 //        words; refills used up or too little gold turn Buy off with the reason and keep the "+"; the premium note
 //        for a hero without premium only
+//   PH-10 THE COACH NEVER LIES ON THE FIGHT (922x423, 844x390; first-hour playtest 10-29 #10: the card covered the hero
+//        mid-fight): in a hunt, the open card under the hunt bar crosses neither the viewed hero nor a party member
+//        (each figure's tile and the name plate over it), nor does the camera push them under the Party panel to
+//        make room; the card stays on screen. At 1440x900 it is on screen
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
 import { leaseBrowser } from './_chrome.mjs';
@@ -72,6 +76,13 @@ function longBag(env) {
   env.shop = Object.assign({}, env.shop, { offers: env.shop.offers.concat([{ offer: 'supply.bronze_axe', item: 'bronze_axe', kind: 'tool', price: 120 },
     { offer: 'supply.leather_gloves', item: 'leather_gloves', kind: 'gear', price: 160 }]) });
 }
+
+/* A read-only hook, served (never written to the tree): the World pane's runtime on window.__world (PH-10 reads the
+   figures' screen spots), as tests/window-camera.mjs serves it. */
+const PANE = 'src/app/world-pane.js';
+const paneSrc = await readFile(join(ROOT, PANE), 'utf8');
+if (!paneSrc.includes('    runtime.sync();\n')) throw new Error('phone-touch: the World hook anchor moved');
+const WORLD_HOOK = { [PANE]: paneSrc.replace('    runtime.sync();\n', '    runtime.sync();\n    window.__world = runtime;\n') };
 
 const PHONES = [{ width: 667, height: 375 }, { width: 844, height: 390 }, { width: 922, height: 423 }];
 const tagOf = (vp) => vp.width + 'x' + vp.height;
@@ -388,6 +399,33 @@ async function coachFits(page, tag, fails, phone) {
 }
 function window_onScreen(r, vp) { return !!r && r.left >= -0.5 && r.top >= -0.5 && r.right <= vp.width + 0.5 && r.bottom <= vp.height + 0.5; }
 
+/* ── PH-10 ── The first card of a hunt ("Your hero fights alone"): the hero and each party member, as boxes on screen
+   (the figure's tile and the name plate a tile over it), never under the card. */
+async function coachOffFight(page, tag, fails, phone, crew) {
+  const f = await page.evaluate((units) => {
+    const w = window.__world, s = w && w.stats();
+    if (!s || !s.hunt || !s.hunt.hero) return null;
+    const p = document.querySelector('[data-hs-widget="hunt-topbar"] > .hs-pointer:not(.is-min)');
+    const t = 32 * s.z / s.dpr;
+    const box = (x, y) => { const q = w.screenOf(x, y); return { left: q.x - t / 2, right: q.x + t / 2, top: q.y - 1.5 * t, bottom: q.y + t / 2 }; };
+    const mates = (s.hunt.units || []).filter((u) => units.includes(u.unit) && u.unit !== s.hunt.hero.unit);
+    return { card: p && window.__r(p), id: p && p.getAttribute('data-tutorial'), party: window.__r('.hp-party'),
+      figures: [['the hero', box(s.hunt.hero.x, s.hunt.hero.y)]].concat(mates.map((u) => ['party unit ' + u.unit, box(u.x, u.y)])) };
+  }, crew);
+  if (!f) { fails.push('PH-10 [' + tag + '] CONTROL: no World runtime or no hero in the hunt'); return; }
+  if (!f.card) { fails.push('PH-10 [' + tag + '] CONTROL: no open coach card under the hunt bar'); return; }
+  if (f.figures.length !== crew.length) { fails.push('PH-10 [' + tag + '] CONTROL: ' + f.figures.length + ' figures drawn, want the hero and ' + (crew.length - 1) + ' party member(s)'); return; }
+  if (!window_onScreen(f.card, page.viewportSize())) { fails.push('PH-10 [' + tag + '] the coach card runs off the screen: ' + JSON.stringify(f.card)); return; }
+  if (!phone) return;
+  const hit = f.figures.filter(([, b]) => window_cross(f.card, b)).map(([n, b]) => n + ' at ' + Math.round(b.left) + '..' + Math.round(b.right));
+  if (hit.length) fails.push('PH-10 [' + tag + '] the coach card (' + f.id + ', ' + Math.round(f.card.left) + '..' + Math.round(f.card.right) + ' x '
+    + Math.round(f.card.top) + '..' + Math.round(f.card.bottom) + ') lies on ' + hit.join(', '));
+  /* ...and a card that only pushes the fight under the Party panel has hidden it all the same */
+  if (!f.party) { fails.push('PH-10 [' + tag + '] CONTROL: no Party panel'); return; }
+  const under = f.figures.filter(([, b]) => window_cross(f.party, b)).map(([n, b]) => n + ' at ' + Math.round(b.left) + '..' + Math.round(b.right));
+  if (under.length) fails.push('PH-10 [' + tag + '] with the coach card up the camera puts ' + under.join(', ') + ' under the Party panel (its right edge ' + Math.round(f.party.right) + ')');
+}
+
 /* ── PH-7 ── THE PHONE'S OWN BAR (Tyler 10-25: "Not having it there is dangerous for the player"; "mobile needs its own
    bar"). Every fight control and the stamina "+" on screen, uncut by any box that clips it and pressable where it is
    drawn; the tutorial's hooks each on one shown element; the ring's words inside its disc; the last column of slots
@@ -512,7 +550,7 @@ async function rules(overrides, shots, { stopAtFirst = false, blocks = null } = 
   const fails = [];
   const STOP = Symbol('first red');
   if (stopAtFirst) fails.push = function (...a) { Array.prototype.push.apply(this, a); throw STOP; };
-  const { server, port } = await serve(overrides);
+  const { server, port } = await serve(Object.assign({}, WORLD_HOOK, overrides));
   const base = 'http://127.0.0.1:' + port;
   const browser = await leaseBrowser(chromium);
   const opened = [];
@@ -607,6 +645,14 @@ async function rules(overrides, shots, { stopAtFirst = false, blocks = null } = 
         await done(o, tag);
       }
     }
+    for (const vp of run('fight') ? [{ width: 922, height: 423 }, { width: 844, height: 390 }, { width: 1440, height: 900 }] : []) { // PH-10
+      const tag = tagOf(vp);
+      const o = await open(vp, HUNT, (env) => { env.state = Object.assign({}, env.state, { level_xp: 0 }); }, { settle: 1500 });
+      if (!o.up) { fails.push('PH-10 [' + tag + '] the hunt did not mount'); await o.ctx.close(); continue; }
+      await shot(o.page, 'coach-fight-' + tag);
+      await coachOffFight(o.page, tag, fails, vp.width < 1024, HUNT.party.members.map((m) => m.unit));
+      await done(o, tag);
+    }
     for (const vp of run('bar') ? PHONES : []) { // PH-7
       const tag = tagOf(vp);
       const o = await open(vp, HUNT);
@@ -690,7 +736,7 @@ async function moreShots(open, shot) {
 
 /* The pages each rule reads: a mutant named for a rule runs those alone, or the pages its own fifth field names
    (PH-5's hunt bar and analyzer tabs are measured on the hunt pages, its Shop, tooltip and Equip in town). */
-const BLOCKS_OF = Object.freeze({ 'PH-1': ['configure'], 'PH-2': ['hunt'], 'PH-3': ['portrait'], 'PH-4': ['town'], 'PH-5': ['town'], 'PH-6': ['coach'], 'PH-7': ['bar'], 'PH-8': ['desk'], 'PH-9': ['stamina'] });
+const BLOCKS_OF = Object.freeze({ 'PH-1': ['configure'], 'PH-2': ['hunt'], 'PH-3': ['portrait'], 'PH-4': ['town'], 'PH-5': ['town'], 'PH-6': ['coach'], 'PH-7': ['bar'], 'PH-8': ['desk'], 'PH-9': ['stamina'], 'PH-10': ['fight'] });
 /* Each planted defect undoes one fix; each must turn a rule red. */
 const MUTANTS = [
   ['PH-1 the configure sheet\'s list does not scroll', 'src/styles/hunt.css', '  .hs-win[data-hs-win="configure-action"] .ca-mid {', '  .hs-win[data-hs-win="configure-action"] .ca-mid-x {'],
@@ -734,6 +780,8 @@ const MUTANTS = [
   ['PH-9 Buy stays on when a refill cannot be bought', 'src/shell/widgets/stamina-buy.js', "prop(go, 'disabled', !!why || s.pending);", "prop(go, 'disabled', s.pending);"],
   ['PH-9 Buy stays on while the refill is in flight', 'src/shell/widgets/stamina-buy.js', "prop(go, 'disabled', !!why || s.pending);", "prop(go, 'disabled', !!why);"],
   ['PH-9 the stamina panel is wider than a phone', 'src/styles/hunt.css', '.hb-buy { display: none; position: absolute; bottom: calc(100% + 6px); width: 280px;', '.hb-buy { display: none; position: absolute; bottom: calc(100% + 6px); width: 900px;'],
+  ['PH-10 the phone card hangs at the hunt bar\'s left end, over the hero', 'src/styles/shell.css', '  .hs-widget.is-hunt-topbar > .hs-pointer { left: auto; right: 0; }\n', ''],
+  ['PH-10 the camera frames the fight under the card', 'src/shell/shell.js', '    const card = phoneMq.matches && worldHud', '    const card = false && worldHud'],
   ['PH-6 the coach is capped on a desktop too', 'src/styles/shell.css', '.hs-pointer:not(.is-min) { padding-right: 34px; }', '.hs-pointer:not(.is-min) { padding-right: 34px; max-height: 200px; overflow-y: auto; }'],
 ];
 
@@ -748,7 +796,7 @@ async function main() {
   if (!process.argv.includes('--mutate')) {
     const fails = await rules(null, shots, { blocks });
     for (const f of fails) console.log('  ✗ ' + f);
-    console.log(fails.length ? 'phone-touch: ' + fails.length + ' rule(s) RED' : 'phone-touch: the configure sheet scrolls with Save in reach, Hunt details toggles and the analyzer closes clear of the hunt bar, portrait asks to turn, Settings and the bag answer a thumb, a long coach ends above the action bar, the phone bar keeps every fight control in reach, the desktop bar keeps its 64 px icons, the stamina + buys at the server\'s quote' + (shots ? ' (shots in ' + shots + ')' : ''));
+    console.log(fails.length ? 'phone-touch: ' + fails.length + ' rule(s) RED' : 'phone-touch: the configure sheet scrolls with Save in reach, Hunt details toggles and the analyzer closes clear of the hunt bar, portrait asks to turn, Settings and the bag answer a thumb, a long coach ends above the action bar and never lies on the fight, the phone bar keeps every fight control in reach, the desktop bar keeps its 64 px icons, the stamina + buys at the server\'s quote' + (shots ? ' (shots in ' + shots + ')' : ''));
     process.exit(fails.length ? 1 : 0);
   }
   const clean = await rules(null, null);

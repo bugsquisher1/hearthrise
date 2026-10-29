@@ -854,7 +854,7 @@ export const MONSTERS = {
     /* the swarm: the company's dead foot, still in its files; a blade skates off the ribs, a hammer breaks them */
     weaponResist: ['sword'],
     hp: 165, atk: 36, def: 18, xp: 1300, gp: [17, 41], speed: 3400,
-    drops: [{ id: 'bones', ch: .5, band: 'common' }, { id: 'ancient_fragment', ch: .08, band: 'common' }, { id: 'pike_band', ch: .08, band: 'uncommon' },
+    drops: [{ id: 'bones', ch: .5, band: 'common' }, { id: 'ancient_fragment', ch: .16, band: 'common' }, { id: 'pike_band', ch: .08, band: 'uncommon' },
       { id: 'mithril_boots', ch: .014, band: 'scarce' }, { id: 'snakeskin_boots', ch: .014, band: 'scarce' }, { id: 'warlock_boots', ch: .014, band: 'scarce' },
       { id: 'mithril_helm', ch: .014, band: 'scarce' }, { id: 'snakeskin_helmet', ch: .014, band: 'scarce' }, { id: 'warlock_helmet', ch: .014, band: 'scarce' }] },
   fordsunk: { name: 'Fordsunk', icon: '🌊', tier: 4, level: 50, cls: 'undead', family: 'Undead', formation: true,

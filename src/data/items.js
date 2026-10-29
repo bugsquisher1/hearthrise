@@ -887,6 +887,8 @@ const RAW_DROPS = [
   'bear_pelt', 'bear_claw', 'dire_fang', 'shadow_pelt', 'razor_claw',
   'shadow_thread', 'void_chitin', 'death_steel', 'brute_plate',
   'raw_wolf_meat', 'raw_panther_meat', 'raw_bear_meat',
+  /* the Barrow Stone (Hask's Ford, designer 2026-10-29): the swarm's remains, a Keystone input in throughput, not a payout */
+  'ancient_fragment',
 ];
 
 export const RAW_MATERIAL_IDS = [...new Set([...RAW_GATHERED, ...RAW_DROPS])];

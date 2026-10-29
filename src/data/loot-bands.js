@@ -74,7 +74,7 @@ export const PENDING_ROWS = Object.freeze([]);
    against the caps by tests/hunt-core/drop-tables.mjs. PROVISIONAL. */
 /* tier 4 (Hask's Ford, designer 2026-10-29): 0.075 is the LOWEST share at which every tier-4 piece sells for its tier-3 twin
    (Mithril Sword 1,500 x 0.075 = 112 = Steel Sword 800 x 0.14; armour and the other weapons are 3x book). The Ford meets
-   its caps through its drops, not this rate (gear 40-50% of coin; the Barrow Stone halved for the total-value cap). */
+   its caps through its drops, not this rate (gear 48% of coin; the Barrow Stone sells as raw remains, src/data/items.js). */
 export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.075]);
 export const VENDOR_GEAR_TYPES = Object.freeze(['weapon', 'armor', 'offhand', 'jewelry']);
 

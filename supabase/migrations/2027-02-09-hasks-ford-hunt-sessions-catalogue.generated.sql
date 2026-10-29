@@ -8,7 +8,7 @@
 --   src/data/premium.js, src/core/hunt/world-state.js and the vendor price
 --   (hr-accrue/catalogue.js). Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: 04c92e913e55f23302e7fcadcdca8c6da2223cd9743214307be6f6286db58ea3
+--   digest: 583f0873b100d1e581eccc11b917d089bbc976c44bbc8ff8e0d6facf5b40d1d0
 --   82 supplies, 132 hunts (named + training), 47 limits, 12 end reasons,
 --   552 vendor values, 25 store supplies paid per use, 5 target modes,
 --   4 lanes, 16 abilities, 10 action-set options, 7 hunt grounds
@@ -432,9 +432,9 @@ insert into public.hr_hunt_kill_bounds (monster_id, gold_max, xp_max, drops) val
   ('archmage', 310, 1003, '{"magic_essence":1,"ancient_rune":1,"hollow_sigil":1,"yew_wand":1,"sorcerer_gloves":1}'::jsonb),
   ('ashwing', 656, 1913, '{"dragon_bones":1,"dragon_scale":1,"hell_ember":1,"ember_bar":1,"dragon_gem":1}'::jsonb),
   ('astrologer', 296, 956, '{"magic_essence":1,"ancient_rune":1,"rune_frag":1,"ruby":1,"yew_spellbook":1,"sorcerer_boots":1}'::jsonb),
-  ('banded_pikeman', 44, 1548, '{"bones":1,"ancient_fragment":1,"pike_band":1,"mithril_boots":1,"snakeskin_boots":1,"warlock_boots":1,"mithril_helm":1,"snakeskin_helmet":1,"warlock_helmet":1}'::jsonb),
+  ('banded_pikeman', 40, 1548, '{"bones":1,"ancient_fragment":1,"pike_band":1,"mithril_boots":1,"snakeskin_boots":1,"warlock_boots":1,"mithril_helm":1,"snakeskin_helmet":1,"warlock_helmet":1}'::jsonb),
   ('bandit_lord', 262, 930, '{"gold_ore":1,"gold_bar":1,"ruby":1,"captain_medal":1,"rune_gauntlets":1}'::jsonb),
-  ('bannerman', 72, 2545, '{"big_bones":1,"ancient_fragment":1,"colour_thread":1,"mithril_gauntlets":1,"snakeskin_gloves":1,"warlock_gloves":1,"mithril_belt":1,"snakeskin_belt":1,"warlock_belt":1,"company_colours":1}'::jsonb),
+  ('bannerman', 64, 2545, '{"big_bones":1,"cracked_spellstone":1,"colour_thread":1,"mithril_gauntlets":1,"snakeskin_gloves":1,"warlock_gloves":1,"mithril_belt":1,"snakeskin_belt":1,"warlock_belt":1,"company_colours":1}'::jsonb),
   ('barn_spider', 12, 195, '{"silk_thread":1,"dry_husk":1,"loft_web":1,"iron_platelegs":1,"studded_pants":1,"adept_pants":1,"iron_gauntlets":1,"studded_gloves":1,"adept_gloves":1}'::jsonb),
   ('barn_wasp', 7, 90, '{"venom_sac":1,"dry_husk":1,"barn_wasp_sting":1,"bronze_helm":1,"leather_helmet":1,"apprentice_helmet":1,"iron_belt":1,"studded_belt":1,"adept_belt":1}'::jsonb),
   ('barrow_king', 200, 828, '{"big_bones":1,"steel_bar":1,"iron_fitting":1,"ancient_fragment":1,"barrowking_mantle":1}'::jsonb),
@@ -473,7 +473,7 @@ insert into public.hr_hunt_kill_bounds (monster_id, gold_max, xp_max, drops) val
   ('elk_king', 540, 1789, '{"bear_pelt":1,"ancient_claw":1,"alpha_fang":1,"moonbloom":1}'::jsonb),
   ('fire_devil', 52, 209, '{"demon_shard":1,"coal":1,"hell_ember":1,"warlock_helmet":1}'::jsonb),
   ('fire_elemental', 6, 29, '{"coal":1,"copper_ore":1,"hell_ember":1,"apprentice_belt":1}'::jsonb),
-  ('fordsunk', 46, 1915, '{"grave_dust":1,"bones":1,"ford_weed":1,"mithril_platelegs":1,"snakeskin_pants":1,"warlock_pants":1}'::jsonb),
+  ('fordsunk', 42, 1915, '{"grave_dust":1,"bones":1,"ford_weed":1,"mithril_platelegs":1,"snakeskin_pants":1,"warlock_pants":1}'::jsonb),
   ('frost_giant', 256, 980, '{"troll_hide":1,"big_bones":1,"mithril_ore":1,"frostfin":1,"wyvernhide_gloves":1}'::jsonb),
   ('frost_jarl', 430, 1420, '{"troll_hide":1,"big_bones":1,"mithril_ore":1,"frostfin":1,"jarls_rimetorc":1}'::jsonb),
   ('fury', 288, 953, '{"demon_shard":1,"razor_claw":1,"hell_ember":1}'::jsonb),
@@ -560,7 +560,7 @@ insert into public.hr_hunt_kill_bounds (monster_id, gold_max, xp_max, drops) val
   ('watchknight', 98, 508, '{"steel_bar":1,"iron_fitting":1,"steel_helm":1,"brute_plate":1}'::jsonb),
   ('water_elemental', 16, 80, '{"trout":1,"herring":1,"magic_essence":1,"adept_belt":1}'::jsonb),
   ('weak_skeleton', 7, 33, '{"bones":1,"bone_chips":1,"ancient_fragment":1}'::jsonb),
-  ('wight', 48, 2033, '{"grave_dust":1,"cracked_spellstone":1,"ledger_leaf":1,"mithril_platebody":1,"snakeskin_body":1,"warlock_body":1}'::jsonb),
+  ('wight', 44, 2033, '{"grave_dust":1,"bones":1,"ledger_leaf":1,"mithril_platebody":1,"snakeskin_body":1,"warlock_body":1}'::jsonb),
   ('wild_boar', 6, 31, '{"wolf_pelt":1,"bones":1,"raw_wolf_meat":1,"small_fang":1,"leather_belt":1}'::jsonb),
   ('winter_wolf', 106, 486, '{"wolf_pelt":1,"dire_fang":1,"alpha_fang":1,"raw_wolf_meat":1,"snakeskin_belt":1}'::jsonb),
   ('witchs_apprentice', 7, 27, '{"magic_essence":1,"rune_frag":1,"normal_log":1,"adept_body":1}'::jsonb),

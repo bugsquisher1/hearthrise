@@ -81,7 +81,7 @@ export default Object.freeze({
     /* P2 the Low Barrows: the rank and file under the mounds */
     { id: 'hf_standing_stone', x: 45, y: 27 }, { id: 'hf_standing_stone_leaning', x: 51, y: 29 }, { id: 'hf_kerb_ring', x: 49, y: 33 }, { id: 'hf_palisade_stake', x: 42, y: 28 }, { id: 'hf_banded_shield', x: 53, y: 25 }, { id: 'skull', x: 43, y: 35 }, { id: 'bones', x: 55, y: 27 },
       /* the alder wall: the thicket is the wood; three oaks at the clearings' edges are the gather nodes (hunt-grounds.js) */
-    { id: 'oak', x: 17, y: 36 }, { id: 'oak', x: 54, y: 6 }, { id: 'oak', x: 7, y: 8 },
+    { id: 'oak', x: 17, y: 36 }, { id: 'oak', x: 5, y: 34 }, { id: 'oak', x: 54, y: 6 }, { id: 'oak', x: 7, y: 8 },
   ]),
   buildings: Object.freeze([]),
   path: Object.freeze([[4, 29], [12, 29], [12, 31], [4, 31]]),
@@ -96,5 +96,5 @@ export default Object.freeze({
   stations: Object.freeze({}),
   exits: Object.freeze([{ x: 0, y: 30, to: 'town_common' }]),
   start: Object.freeze([1, 30]),
-  maskHash: '0f4168aa',
+  maskHash: 'a1edc749',
 });

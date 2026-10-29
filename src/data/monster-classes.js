@@ -186,7 +186,7 @@ export const FORMATION_BANDS = Object.freeze({
      bill about a quarter of the income). The hunt engine's band, not the old idle tick's (TIER_BANDS 4's coin is that
      tick's: on the hunt engine it paid 11k g/h with no food eaten). No tier-4 boss yet (Captain Hask, the Muster Barrows). */
   4: Object.freeze({
-    hp: [140, 255], atk: [30, 49], def: [14, 27], xp: [1150, 2450], gpLo: [16, 36], gpHi: [39, 80],
+    hp: [140, 255], atk: [30, 49], def: [14, 27], xp: [1150, 2450], gpLo: [14, 31], gpHi: [36, 70],
   }),
 });
 

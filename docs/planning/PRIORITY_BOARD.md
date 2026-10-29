@@ -30,6 +30,15 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 ## Decisions
 _Tyler's rulings live in rulings-of-record; designer rulings inside them are recorded here._
 
+### 2026-10-29 Hask's Ford built: the Barrow March's first ground (designer, lane/b-hasks-ford): OPEN on its art
+The sample from the Barrow March spec (lane/b-undead-spec), on the art lane's ground (map ee5f44c4) and creatures.
+- **Rows:** Banded Pikeman (L46, swarm, resists blades), Fordsunk (L50, tank, resists arrows), the Wight (L53, the old roster row reshaped by purpose, resists magic) and the Bannerman (L58, rare carrier). Weights at density 4 are 12 / 6 / 4 / 2. The Company Colours is the Bannerman's Rare and a Hearth fuel rung (Inner Flame 46). Its own pale flame and chunk wait on art, then it moves to the named fuels. Ancient Fragment is renamed **Barrow Stone**. Grave Dust's text now says to burn the company's dead in the Hearth. The Banded Signet and the Turncoat's badge name the Banded Company, so a Wickstead graduate meets the mark again here.
+- **Bands:** the rows sit on a new hunt-engine band, FORMATION_BANDS[4], made from their own envelope plus 10%. TIER_BANDS[4] is the old idle tick's band: its coin floor paid 11k g/h on the hunt engine, with no food eaten.
+- **Loot:** the tier-4 set in three weights, mithril (heavy), snakeskin (medium) and warlock (light). Pikemen drop boots and helmets, Fordsunk legs, Wights bodies, the Bannerman gloves and belts as Rares. Tier-4 gear sells at 0.075 of book, which keeps gear under half the coin and every piece above its steel twin. The Keystone is now reachable (Barrow Stone + Cracked Spellstone). The unreachable ceiling went from 101 to 87.
+- **Floor** (real settle, a lone full-set Melee at 45, six seeds): 0 deaths, a 1,080 g/h store bill against 5,090 of income (+195% to +561%), 4,170 g/h net (the Warrens' party at 32 nets 3,640), and 169k Level XP/h.
+- **Curve:** the Ford made Levels 45-50 a third faster, so the brackets from Level 10 were re-fitted. Level 10 is unchanged.
+- **Not done:** the travel from Wickstead is the road-in and the text only, because every hunt's walk is 0 (Tyler 10-19). The bestiary has no per-creature text field, so the signet lives in item text instead. The Undead family merges and cuts wait: the old ids are still read by boss and lucky-find tables.
+
 ### 2026-10-28 Greenhaven's sixth ground: Wickstead, 8-18 solo (designer, lane/b-greenhaven-6): RULED, STAGED until its painted ground
 - **Band 8-18, solo first.** The 10-28 new-player walk found one solo ground for 6-15 (the Thicket) and no gloves, belts or jewellery past the Shop's basics. A 50+ capstone serves nobody before the playtest; a second 8-18 door is met in a new hero's first day. Floor 8 is where the first-hour rung lands; top 18 meets the Glade's 16.
 - **Place:** Wickstead (Old English *wic*, a farm), a burned farmstead on the Thicket road where the Meadowbrook leaves the wood. Rick Yard, Granary, the footbridge (the one choke), Barn, Orchard, Burned House, the ford back, Cart Shed.

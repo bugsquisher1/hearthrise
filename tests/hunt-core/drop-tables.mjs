@@ -691,8 +691,9 @@ const playMutants = [
 ];
 /* Planted trees (src/data, src/core, the settle), played on the ground the rule names. */
 const plantMutants = [
-  { name: 'worn gear sells at full book again', rule: 'gear-faucet: meadowbrook_thicket', edits: [['src/data/loot-bands.js', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14]);', 'export const VENDOR_GEAR_RATES = Object.freeze([1, 1, 1]);']] },
-  { name: 'tier-3 gear sells at the tier-1 rate', rule: 'gear-faucet: coppercap_warrens', edits: [['src/data/loot-bands.js', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14]);', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.5]);']] },
+  { name: 'worn gear sells at full book again', rule: 'gear-faucet: meadowbrook_thicket', edits: [['src/data/loot-bands.js', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.075]);', 'export const VENDOR_GEAR_RATES = Object.freeze([1, 1, 1, 1]);']] },
+  { name: 'tier-3 gear sells at the tier-1 rate', rule: 'gear-faucet: coppercap_warrens', edits: [['src/data/loot-bands.js', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.075]);', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.5, 0.075]);' ] ] },
+  { name: 'tier-4 gear sells at the tier-3 rate', rule: 'gear-faucet: hasks_ford', edits: [['src/data/loot-bands.js', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.075]);', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.14]);']] },
   { name: 'the roller reveals nothing (a Rare credited with no hint)', rule: 'reveal-path: meadowbrook_thicket', fresh: true,
     edits: [['src/core/drops.js', 'rare: REVEAL_BANDS.includes(band) });', 'rare: false });']] },
   { name: 'a party\'s Rare skips the rare roll (round-robin instead)', rule: 'reveal-path: millrace_sewer (party of 4)', fresh: true,

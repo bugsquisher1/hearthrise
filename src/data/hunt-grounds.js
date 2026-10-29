@@ -390,7 +390,7 @@ export const HUNT_GROUNDS = Object.freeze({
     density: density(6, 2, 8),
     gather: gather(12000, [
       /* the oaks at the clearings' edges: the Pike Files, the Muster Line, the High Barrows */
-      ['oak_tree', 17, 36, 0], ['oak_tree', 54, 6, 4], ['oak_tree', 7, 8, 5],
+      ['oak_tree', 17, 36, 0], ['oak_tree', 5, 34, 0], ['oak_tree', 54, 6, 4], ['oak_tree', 7, 8, 5],
     ]),
   }),
 });

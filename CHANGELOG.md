@@ -5,6 +5,14 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.66 — 2026-10-29 (No more standing around)
+
+**Hunts keep moving.** When every pack is down, your party now walks to the next spot and waits for the respawn there, instead of standing on the pocket it just cleared. The long pauses after a big pull are gone. Levels from 6 up now take a little more XP, so the time to each Level stays where it was.
+
+**A cleaner first bar.** A new sword hero no longer starts with a crossed-out Flame Strike. A tip in the Mill Cellar offers it when you have a slot free, and explains the rune it costs. Styles that start with a rune spell are told which rune to buy before the hunt.
+
+**Small fixes.** Equip upgrades says why when it can't choose between two pieces. Each Farm crop shows its own Farming level. "Plant your land" waits until every open plot is planted. New cooks stand at the fire, not in the road. On phones the tutorial card no longer covers your hero, and an ended hunt's empty bar no longer sits over the town.
+
 ## v0.2.65 — 2026-10-29 (A smoother first hour)
 
 **Wear what you find.** Armor you bring home is now put on for you when it beats what you wear, using the armor weight you chose with Tamsin.

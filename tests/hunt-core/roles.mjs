@@ -296,7 +296,9 @@ const cases = {
     const sword = M.hs.heroSetup({ weaponType: 'sword', options: {}, bar: [], partyRoles: [] });
     const acts = (h) => h.slots.filter((s) => s.slot.action.type === 'ability').map((s) => s.slot.action.id);
     if (tank.role !== 'tank' || !acts(tank).includes('challenge')) return 'sword and shield: role ' + tank.role + ', bar ' + acts(tank);
-    if (sword.role !== 'melee_dps' || acts(sword).includes('challenge') || !acts(sword).includes('flame_strike') || !acts(sword).includes('power_strike')) return 'a sword alone: role ' + sword.role + ', bar ' + acts(sword);
+    /* the sword's default set carries no Flame Strike (2027-02-09-starter-bar-fires, designer ruling 2026-10-29: a struck
+       spell from minute one); the "A spell costs runes" card offers it */
+    if (sword.role !== 'melee_dps' || acts(sword).includes('challenge') || acts(sword).includes('flame_strike') || !acts(sword).includes('power_strike')) return 'a sword alone: role ' + sword.role + ', bar ' + acts(sword);
     return null;
   },
   /* DISCIPLINE LISTS LIVE IN DATA ONLY (roadmap p15, audit c03): the club is its own discipline (the axes' sweep,

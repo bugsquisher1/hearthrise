@@ -8,7 +8,7 @@
 --   src/data/premium.js, src/core/hunt/world-state.js and the vendor price
 --   (hr-accrue/catalogue.js). Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: ad36663596f9f0d0a0a63bf98922780578af13f0482e3fde4986b13ebeee6037
+--   digest: 2c234273fee9c2eef4ca2fc8e0e02e9e76730a347f63e21c60ac67965df37d0f
 --   82 supplies, 132 hunts (named + training), 47 limits, 12 end reasons,
 --   552 vendor values, 25 store supplies paid per use, 5 target modes,
 --   4 lanes, 16 abilities, 10 action-set options, 7 hunt grounds
@@ -547,7 +547,7 @@ insert into public.hr_hunt_kill_bounds (monster_id, gold_max, xp_max, drops) val
   ('scarecrow', 5, 33, '{"wheat":1,"normal_log":1,"pumpkin":1,"bronze_gauntlets":1}'::jsonb),
   ('shadow_creeper', 190, 760, '{"shadow_thread":1,"silk_thread":1,"void_chitin":1,"shadowsilk_cape":1}'::jsonb),
   ('shrieker', 15, 77, '{"oak_log":1,"moonbloom":1,"goldenroot":1,"studded_helmet":1}'::jsonb),
-  ('skeleton', 20, 98, '{"bones":1,"bone_chips":1,"iron_ore":1,"ancient_fragment":1,"iron_belt":1,"willow_staff":1}'::jsonb),
+  ('skeleton', 20, 98, '{"bones":1,"bone_chips":1,"iron_ore":1,"ancient_fragment":1,"willow_staff":1}'::jsonb),
   ('slime', 3, 34, '{"slime_gel":1,"lamp_jelly":1,"sticky_core":1}'::jsonb),
   ('small_wolf', 9, 38, '{"wolf_pelt":1,"small_fang":1,"bones":1,"raw_wolf_meat":1,"wolfbone_torc":1}'::jsonb),
   ('stag', 14, 71, '{"wolf_pelt":1,"bones":1,"raw_wolf_meat":1,"studded_boots":1}'::jsonb),

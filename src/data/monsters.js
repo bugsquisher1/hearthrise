@@ -218,8 +218,8 @@ export const MONSTERS = {
   skeleton: { name: 'Skeleton', icon: '💀', tier: 2, cls: 'undead', family: 'Undead',
     hp: 35, atk: 10, def: 2, xp: 45, gp: [8, 20],
     drops: [{ id: 'bones', ch: 1 }, { id: 'bone_chips', ch: .6 }, { id: 'iron_ore', ch: .15 }, { id: 'ancient_fragment', ch: .025 },
-      { id: 'iron_belt', ch: .004, salvage: true },
-      /* the old tier-2 Wight's lucky Willow Staff, kept on its Undead twin when the Wight went to Hask's Ford (lucky-finds (e)) */
+      /* the old tier-2 Wight's lucky Willow Staff, kept on its Undead twin when the Wight went to Hask's Ford (lucky-finds (e));
+         it takes the salvage slot (one row, never both): the Iron Belt drops as a Rare on the reachable roster */
       { id: 'willow_staff', ch: .0005, lucky: true }] },
   /* THE WIGHT (Barrow March, lane b-hasks-ford 2026-10-29): the Banded Company's dead quartermaster-casters, keeping the
      ledgers by the stores at Hask's Ford. Kept by purpose from the old roster (its tier-2 row and lucky Willow Staff

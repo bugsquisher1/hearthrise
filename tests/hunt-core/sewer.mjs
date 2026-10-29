@@ -252,6 +252,14 @@ function walkChain(M, T, extra) {
       ? { ...s, usable: true, store: (f.store.find((r) => r.partner === M.abilities.ABILITIES[s.id].rune) || {}).id } : s))),
     food_when: () => { L(4); save(f.slots.map(at('cooked_shrimp', 45))); },
     food_order: () => save(f.slots.map(at('salted_shrimp', 45))),
+    /* the player takes the offer: the spell into the card's empty slot, its store rune on (the server: it can fire) */
+    first_spell: () => {
+      const c = M.tut.cardFor(M.tut.currentCard(f), f);
+      const spell = /data-id="([a-z_]+)"/.exec(c.hooks.join(' '))[1], store = /data-store="([a-z_]+)"/.exec(c.hooks.join(' '))[1];
+      const slots = f.slots.slice();
+      slots[c.barSlot] = { type: 'ability', id: spell, store, conditions: [], enabled: true, usable: true, count: null };
+      save(slots);
+    },
     earn_the_thicket: () => L(5),
     leave_cellar: () => set({ huntId: null, endReason: 'left', sellable: 5 }),
     sell_loot: () => set({ sellable: 0 }),
@@ -429,10 +437,10 @@ const cases = {
     /* THE WHOLE CHAIN, ONE HERO (2026-10-21: the launcher showed only card 1): every card in order, from facts. */
     const T = tutKit(M, 'tank');
     const order = walkChain(M, T).map((x) => x.id);
-    /* no "Spells need runes" and no "Make your own runes": the sword's default sets hold no rune spell (playtest 2026-10-29 #9:
-       Flame Strike sat struck from minute one); both cards come when the player puts a spell on the bar */
-    const want = ['to_the_cellar', 'first_kill', 'first_level', 'plant_land', 'bar_intro', 'food_when', 'food_order', 'earn_the_thicket',
-      'leave_cellar', 'sell_loot', 'loot_rules', 'cook_catch', 'styles', 'bless', 'tamsins_task', 'into_the_thicket', 'tamsin_pays', 'save_setup', null];
+    /* the sword's default sets hold no rune spell (playtest 2026-10-29 #9: Flame Strike sat struck from minute one); "A spell
+       costs runes" offers it in the Cellar, and a hero who takes it (store rune on) meets "Make your own runes" on day one */
+    const want = ['to_the_cellar', 'first_kill', 'first_level', 'plant_land', 'bar_intro', 'food_when', 'food_order', 'first_spell', 'earn_the_thicket',
+      'leave_cellar', 'sell_loot', 'loot_rules', 'cook_catch', 'styles', 'bless', 'tamsins_task', 'into_the_thicket', 'tamsin_pays', 'save_setup', 'own_runes', null];
     if (order.join() !== want.join()) return 'a sword-and-shield hero walks ' + order.join(' > ') + ', wanted ' + want.join(' > ');
     /* NO SOLO WALL: paid, a solo hero at the Sewer's floor is done (What next), at any Level up to the Sewer's top. */
     const done = walkChain(M, T).pop().facts;
@@ -519,7 +527,11 @@ const cases = {
         + ' gp) below 60%, so between 45% and 60% it eats before your own Cooked Shrimp.')) return set + ': the order card reads ' + JSON.stringify(order && order.text);
       const both = (s) => (s && s.id === 'salted_shrimp' ? { ...s, conditions: [{ metric: 'self_hp_pct', op: 'lt', value: 45 }] } : at(45)(s));
       const fixedOrder = { ...set45, slots: fixed.slots.map(both), stored: kitStored.stored.map(both) };
-      if ((say(fixedOrder) || {}).id !== 'earn_the_thicket') return set + ': with the bar set the card is ' + (say(fixedOrder) || {}).id;
+      /* a bar with no rune spell, of a style that has one, is offered it ("A spell costs runes"); Got it moves on */
+      const offer = !T.slots.some((s) => s.type === 'ability' && M.abilities.ABILITIES[s.id].rune)
+        && Object.values(M.abilities.ABILITIES).some((a) => a.active && a.rune && a.disciplines.includes(T.discipline));
+      if ((say(fixedOrder) || {}).id !== (offer ? 'first_spell' : 'earn_the_thicket')) return set + ': with the bar set the card is ' + (say(fixedOrder) || {}).id;
+      if (offer && (say({ ...fixedOrder, read: new Set([...fixedOrder.read, 'first_spell']) }) || {}).id !== 'earn_the_thicket') return set + ': after Got it on the spell offer the card is ' + (say({ ...fixedOrder, read: new Set([...fixedOrder.read, 'first_spell']) }) || {}).id;
       /* the store slot moved BEFORE the own food at the same HP: the first slot whose conditions pass fires, so it eats
          first; the card asks to move it after the own slot (lowering it to the same HP would not do) */
       const swapped = fixedOrder.slots.slice();
@@ -552,6 +564,45 @@ const cases = {
     if (cardOn(env([]), { read: ['bar_intro'] }) !== 'spell_runes') return 'through the envelope, read, the rune card is not up';
     const kitWire = T.slots.map((s) => ({ action: { type: s.type, id: s.id }, conditions: s.conditions, join: 'and' }));
     if (cardOn(env(kitWire, true), { read: ['bar_intro'] }) !== 'food_when') return 'through the envelope, the kit bar restated by a Save finishes "Eat on time": ' + cardOn(env(kitWire, true), { read: ['bar_intro'] });
+    return null;
+  },
+  'starter-bars': async (M) => {
+    /* NO UNEXPLAINED DEAD BUTTON (designer 2026-10-29, lane/a-starter-bars). A style's DEFAULT bar is what a hero sees
+       until its first Save (after that the bar is the player's): the kit's sword and shield, or a weapon taken up from
+       the bag in minute one. Per style: the sword's sets show nothing struck and offer a rune spell ("A spell costs
+       runes"); the hammer has no rune spell to strike or offer; every other style's struck rune spells are each explained
+       by "Spells need runes" (that slot, its family's store rune at the server's price), one after another, and then the
+       chain goes on to "Eat on time". (Minute one, before the card: Hunts' Before you go names each one and its fix,
+       alpha-windows AW-27.) */
+    const sets = { tank: [M.kit.START_EQUIPMENT.weapon, M.kit.START_EQUIPMENT.shield], sword: ['practice_sword'], hammer: ['practice_club'],
+      axes: ['practice_hatchets'], bow: ['practice_bow'], crossbow: ['practice_crossbow'], mage: ['practice_wand', 'practice_spellbook'], healer: ['practice_staff'] };
+    const want = { tank: '-/first_spell', sword: '-/first_spell', hammer: '-/-', axes: 'rend/-', bow: 'flame_volley/-', crossbow: 'flame_volley/-',
+      mage: 'frost_lance+arcane_barrier/-', healer: 'circle_of_renewal+green_sickness/-' };
+    const seen = [];
+    for (const [set, [weapon, shield]] of Object.entries(sets)) {
+      const K = tutKit(M, null, weapon, shield);
+      const walk = walkChain(M, K);
+      const ids = walk.map((s) => s.id);
+      const struck = K.slots.map((s, i) => (s.type === 'ability' && s.usable === false ? i : -1)).filter((i) => i >= 0);
+      const row = (struck.map((i) => K.slots[i].id).join('+') || '-') + '/' + (ids.includes('first_spell') ? 'first_spell' : '-');
+      if (row !== want[set]) return set + ': struck/offer reads ' + row + ', the ruling is ' + want[set];
+      if (!struck.length) { if (ids.includes('spell_runes')) return set + ': nothing is struck, yet "Spells need runes" is up'; seen.push(set + ' ' + row); continue; }
+      const first = walk.find((s) => s.id === 'spell_runes');
+      if (!first) return set + ': a struck slot and no "Spells need runes"';
+      let f = first.facts;
+      for (const i of struck) {
+        const c = M.tut.currentCard(f), card = c && M.tut.cardFor(c, f);
+        const st = K.store.find((r) => r.partner === M.abilities.ABILITIES[K.slots[i].id].rune);
+        if (!card || card.id !== 'spell_runes' || card.barSlot !== i || !st || !card.hooks.some((h) => h.includes('data-store="' + st.id + '"'))
+          || !card.text.includes('(' + st.price + ' gp a cast'))
+          return set + ': slot ' + (i + 1) + ' (' + K.slots[i].id + ') is struck and the card is ' + JSON.stringify(card && { id: card.id, barSlot: card.barSlot, text: card.text });
+        f = { ...f, slots: f.slots.map((s, k) => (k === i ? { ...s, usable: true, store: st.id } : s)) };
+      }
+      const next = M.tut.currentCard(f);
+      if ((next && next.id) !== 'food_when') return set + ': with every struck slot fixed the chain goes on at ' + (next && next.id) + ', not food_when';
+      seen.push(set + ' ' + row);
+    }
+    console.log('    starter bars (struck/offer): ' + seen.join(' | '));
     return null;
   },
   'tutorial-town-chain': async (M) => {
@@ -664,9 +715,10 @@ const cases = {
     if (!slotJ || slotJ.id !== 'juice_slot' || !slotJ.text.includes('My mana % below 30') || !slotJ.text.includes('before slot ' + (drink + 1))) return 'the juice slot card reads ' + JSON.stringify(slotJ && slotJ.text);
     /* the player put Flame Strike on the bar, store rune on (the kit's sword sets hold no rune spell: playtest 2026-10-29 #9) */
     const fs = { type: 'ability', id: 'flame_strike', store: 'plain_fire_rune', conditions: [], enabled: true, usable: true, count: null };
-    const juiced = { ...after, home: { owned: true, next: null }, bag: { turnip_juice: 6 }, carried: { turnip_juice: 6 }, slots: [...after.slots, fs],
+    const runeless0 = after.slots.filter((s) => !(s && s.type === 'ability' && M.abilities.ABILITIES[s.id] && M.abilities.ABILITIES[s.id].rune));
+    const juiced = { ...after, home: { owned: true, next: null }, bag: { turnip_juice: 6 }, carried: { turnip_juice: 6 }, slots: [...runeless0, fs],
       stored: [...after.stored, { type: 'consume', id: 'turnip_juice', conditions: [] }, { type: 'ability', id: 'flame_strike', conditions: [] }] };
-    if ((say(R({ ...juiced, slots: after.slots })) || {}).id === 'own_runes') return 'with no rune spell on the bar the coach asks for runes';
+    if ((say(R({ ...juiced, slots: runeless0 })) || {}).id === 'own_runes') return 'with no rune spell on the bar the coach asks for runes';
     const runes = say(R(juiced));
     if (!runes || runes.id !== 'own_runes' || !runes.text.includes('Cut Blank Runes (4 essence make 12) and Bind Chalked Fire Runes (6 blanks make 45)')) return 'the rune card reads ' + JSON.stringify(runes && runes.text);
     if (say(R({ ...juiced, carried: { ...juiced.carried, chalked_fire_rune: 45 } }))) return 'with own runes the coach still asks: ' + say(R({ ...juiced, carried: { ...juiced.carried, chalked_fire_rune: 45 } })).id;
@@ -770,7 +822,11 @@ const cases = {
     for (const s of walkChain(M, T).concat(steps)) {
       if (!s.card) continue;
       if (/\{|undefined|NaN|null|\s\s/.test(s.card.text)) return s.id + ' says: ' + s.card.text;
-      for (const [, n] of s.card.text.matchAll(/[Ss]lots? (\d+)/g)) if (!s.facts.slots || !s.facts.slots[Number(n) - 1]) return s.id + ' names slot ' + n + ', which is empty';
+      /* every slot a card names holds what it speaks of; "A spell costs runes" names the EMPTY slot to put its spell in */
+      for (const [, n] of s.card.text.matchAll(/[Ss]lots? (\d+)/g)) {
+        const held = !!(s.facts.slots && s.facts.slots[Number(n) - 1]);
+        if (s.id === 'first_spell' ? held : !held) return s.id + ' names slot ' + n + (held ? ', which is taken' : ', which is empty');
+      }
     }
     return null;
   },
@@ -1395,6 +1451,10 @@ const mutants = [
     edits: [['src/data/hunt-tutorial.js', ' && hpBelow(s) !== null && hpBelow(s) !== START_FOOD_PCT) : null),', ' && hpBelow(s) !== null) : null),']] },
   { name: 'the rune card ignores the server\'s struck state (names a spell the store already feeds)', case: 'tutorial-bar-chain',
     edits: [['src/data/hunt-tutorial.js', "s.type === 'ability' && s.usable === false && !!ABILITIES[s.id]", "s.type === 'ability' && !!ABILITIES[s.id]"]] },
+  { name: 'STARTER BARS: the sword-and-shield hero is never offered a rune spell (no rune lesson in its first hour)', case: 'starter-bars',
+    edits: [['src/data/hunt-tutorial.js', "    if (!a || !st || !name(st.id) || !fam || free < 0 || !Number.isInteger(st.price)) return null;", '    return null;']] },
+  { name: 'STARTER BARS: "Spells need runes" explains only the first struck slot (the Mage\'s second stays dead)', case: 'starter-bars',
+    edits: [['src/data/hunt-tutorial.js', "  rune_ready: (p, f) => (Array.isArray(f.slots) ? struckSpell(f) < 0 : null),", "  rune_ready: (p, f) => (Array.isArray(f.slots) ? f.slots.some((s) => s && s.usable === true && s.store) || struckSpell(f) < 0 : null),"]] },
   { name: 'the order card never sees a store slot that eats at a higher HP', case: 'tutorial-bar-chain',
     edits: [['src/data/hunt-tutorial.js', 'if (hpBelow(S) > hpBelow(O) || (s < o && hpBelow(S) >= hpBelow(O))) return', 'if (s < o && hpBelow(S) >= hpBelow(O)) return']] },
   { name: 'the order card asks while the own food is gone (the fallback working)', case: 'tutorial-bar-chain',

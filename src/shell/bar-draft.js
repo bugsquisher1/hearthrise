@@ -112,7 +112,7 @@ export function storeOf(a, rows) {
 }
 
 /* A store row's name (a label only: every number is the server's row). */
-function storeName(id) {
+export function storeName(id) {
   return BASIC_INDEX[id] ? BASIC_INDEX[id].n : String(id).replace(/_/g, ' ');
 }
 

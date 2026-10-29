@@ -20,16 +20,16 @@
 //                       characters that sit in no party (own characters join at once,
 //                       PARTY_SPEC 10-19).
 // ════════════════════════════════════════════════════════════════════════
-import { settingsOf, staminaOf } from '../session/hunt-sections.js?v=0.2.64';
-import { presetsOf, equipmentOf, goldOf, nameOf, carriedOf } from '../session/item-sections.js?v=0.2.64';
-import { partyMembershipOf } from '../session/party-sections.js?v=0.2.64';
-import { ITEMS } from '../data/items.js?v=0.2.64';
-import { HUNT_ROLES, wornRoleKey, roleForWeapon } from '../data/hunt-roles.js?v=0.2.64';
-import { CONSUMABLES } from '../data/consumables.js?v=0.2.64';
-import { ABILITIES } from '../data/abilities.js?v=0.2.64';
-import { storeOf } from './bar-draft.js?v=0.2.64';
-import { itemName, runeWords, familyCount } from './widgets/bits.js?v=0.2.64';
-import { whole, gold } from '../render/format.js?v=0.2.64';
+import { settingsOf, staminaOf } from '../session/hunt-sections.js?v=0.2.66';
+import { presetsOf, equipmentOf, goldOf, nameOf, carriedOf } from '../session/item-sections.js?v=0.2.66';
+import { partyMembershipOf } from '../session/party-sections.js?v=0.2.66';
+import { ITEMS } from '../data/items.js?v=0.2.66';
+import { HUNT_ROLES, wornRoleKey, roleForWeapon } from '../data/hunt-roles.js?v=0.2.66';
+import { CONSUMABLES } from '../data/consumables.js?v=0.2.66';
+import { ABILITIES } from '../data/abilities.js?v=0.2.66';
+import { storeOf, storeName } from './bar-draft.js?v=0.2.66';
+import { itemName, runeWords, familyCount } from './widgets/bits.js?v=0.2.66';
+import { whole, gold } from '../render/format.js?v=0.2.66';
 
 /* How many of the bar's actions a setup line shows. */
 const SETUP_ICONS = 4;
@@ -88,7 +88,10 @@ function slotSupply(sl, s, carried) {
   if (a.type === 'ability' && ABILITIES[a.id] && ABILITIES[a.id].rune) {
     /* a rune spell spends any tier of its family: count them all, say the family */
     const r = ABILITIES[a.id].rune, n = familyCount(r, carried);
-    return { kind: 'rune', spell: ABILITIES[a.id].n, own: { id: r, n, name: runeWords(r, n) }, store: off ? null : store, off };
+    /* the store's rune of that family, the way to fix a slot that casts own runes only (starter bars, 2026-10-29) */
+    const fam = Array.isArray(s.store) ? s.store.find((x) => x && x.partner === r && Number.isInteger(x.price)) : null;
+    return { kind: 'rune', spell: ABILITIES[a.id].n, own: { id: r, n, name: runeWords(r, n) }, store: off ? null : store, off,
+      fix: fam ? { name: storeName(fam.id), price: fam.price } : null };
   }
   return null;
 }
@@ -99,13 +102,19 @@ const BARE_WORDS = Object.freeze({ food: 'Nothing will be eaten', drink: 'Nothin
 function bareWords(kind, parts) {
   if (kind !== 'rune') return BARE_WORDS[kind];
   const spells = Array.from(new Set(parts.map((p) => p.spell).filter(Boolean)));
-  return spells.length ? spells.join(' and ') + ' will not fire' : 'Nothing to cast';
+  if (!spells.length) return 'Nothing to cast';
+  /* NO UNEXPLAINED DEAD BUTTON (designer 2026-10-29, lane/a-starter-bars): a style's default bar may hold a rune spell
+     that casts own runes only; before the first hunt this line is where a new hero meets it, so it says the fix */
+  const fixes = Array.from(new Map(parts.filter((p) => p.spell && p.fix).map((p) => [p.fix.name, p.fix])).values());
+  return spells.join(' and ') + ' will not fire' + (fixes.length ? '. To cast ' + (spells.length > 1 ? 'them' : 'it') + ', press ' + (spells.length > 1 ? 'each' : 'its')
+    + ' slot and pick ' + fixes.map((x) => x.name + ' (' + x.price + ' gp a cast)').join(' or ') + ' under "When your runes run out"' : '');
 }
 
 /* One part of a supply line: "20 Cooked Shrimp of yours", "no Cooked Shrimp left", "Salted Shrimp from the store, 14 gp each". */
 function partWords(p) {
   const name = p.own ? p.own.name || itemName(p.own.id) : '';
-  const own = p.own ? (p.own.n > 0 ? whole(p.own.n) + ' ' + name + ' of yours' : 'no ' + name + ' left') : null;
+  /* a rune a new hero never had is not "left": "no Fire runes of yours" */
+  const own = p.own ? (p.own.n > 0 ? whole(p.own.n) + ' ' + name + ' of yours' : 'no ' + name + (p.kind === 'rune' ? ' of yours' : ' left')) : null;
   const store = p.store ? p.store.name + ' from the store, ' + p.store.price + ' gp ' + p.store.each : null;
   return [own, store].filter(Boolean).join(', then ');
 }
@@ -139,7 +148,8 @@ export function beforeLines(cs, o) {
       const words = parts.map(partWords).filter(Boolean);
       const usable = parts.some((p) => (p.own && p.own.n > 0) || p.store);
       if (parts.some((p) => p.store)) paysStore = true;
-      out.push({ id: kind, text: KIND_WORDS[kind] + ': ' + (words.length ? words.join(', then ') : 'nothing this bar can use') + (usable ? '' : '. ' + bareWords(kind, parts)), short: !usable && kind !== 'rune' });
+      /* nothing usable: the stocks are listed, never chained with "then" (no fallback runs between empties) */
+      out.push({ id: kind, text: KIND_WORDS[kind] + ': ' + (words.length ? words.join(usable ? ', then ' : ', ') : 'nothing this bar can use') + (usable ? '' : '. ' + bareWords(kind, parts)), short: !usable && kind !== 'rune' });
     }
     if (!kinds.has('food') && !kinds.has('drink')) out.push({ id: 'none', text: 'Your bar eats and drinks nothing: HP and mana come back only between fights.', short: false });
   }

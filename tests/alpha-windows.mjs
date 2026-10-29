@@ -137,7 +137,7 @@
 //         puts ONE residue `panelAlpha: 70`, fades a window's floor to 0.7 while its title
 //         stays solid, and after a reload the windows are still at 0.7 and the slider says 70%
 //   AW-31 THE CLEAN RETURN (designer walk 2026-10-25 #5, #6; Tyler 2026-10-25 Services in the Shop): a hero leaving the
-//         Cellar gets the summary as the one notice (no analyzer, party panel or "has ended" toast); its main press is
+//         Cellar gets the summary as the one notice (no analyzer, party panel, hunt bar or "has ended" toast); its main press is
 //         the tutorial card's next step ("Next: Sell what only pays coin", Hunt again second), which opens the Shop with
 //         the card inside it while the hunt bar leaves with the summary; the ring walks the Sell tab -> Sell all loot ->
 //         the confirmation's Sell, and the confirmation is in view inside the window (it sat under a long list); no
@@ -378,7 +378,7 @@ async function pure() {
     workBlock(wcs(1, {}), workRow('artisan', 'forge_bronze_axe'), false), workBlock(wcs(1, { copper_ore: 2 }), bronze, false), String(runsOf(bronze.row, { copper_ore: 11 })),
     workBlock(wcs(1, {}), bronze, false)];
   if (said.join('|') !== 'Needs 2 Copper Ore (you have 1).|Not while a hunt is running.|You need Smithing 3 to make Bronze Axe. You have 1.||5|No Copper Ore in your bag.') fails.push('AW-22 the work rows say ' + JSON.stringify(said));
-  return fails.concat(await huntsPure(imp), await tickerRules(ROOT), await armourWordRules(ROOT));
+  return fails.concat(await huntsPure(imp), await tickerRules(ROOT), await armourWordRules(ROOT), await planRules(ROOT));
 }
 
 /* AW-25 .. AW-28 PURE: the Hunts page's facts from the data rows and its lines from the server's sections. */
@@ -470,10 +470,6 @@ async function huntsPure(imp) {
   /* (A fresh hero's starter bar and Bring your heroes are read on the page's own modules, AW-27 / AW-28 in checks.) */
   const bare = say(sess({ hunt_settings: { preset: 0, presets: [], slots: [slot('consume', 'cooked_shrimp', 0)], store: STORE }, state: { gold: 0 }, stamina: { ms: 0, max_ms: 28800000 } }));
   if (bare !== '!Food: no Cooked Shrimp left. Nothing will be eaten | !No stamina left: rest in town before you go.') fails.push('AW-27 an empty bar and no stamina read ' + JSON.stringify(bare));
-  /* A rune spell with no rune and no store behind it loses that spell only (named, not a stop); no food is said. */
-  const spell = say(sess({ hunt_settings: { preset: 0, presets: [], slots: [slot('ability', 'flame_strike', 0)], store: STORE } }));
-  /* (a rune spell spends any tier of its family, so the line names and counts the family: lane b-spell-content) */
-  if (spell !== 'Runes: no Fire runes left. Flame Strike will not fire | Your bar eats and drinks nothing: HP and mana come back only between fights.') fails.push('AW-27 a spell with no rune reads ' + JSON.stringify(spell));
   const poor = say(sess({ state: { gold: 0 }, stamina: { ms: 30 * 60000, max_ms: 28800000 } }));
   if (!/\| Stamina: 30 min left, then the hunt ends\. \| !No gold for the store: the hunt ends when your own supplies run out\.$/.test(poor)) fails.push('AW-27 low stamina and no gold read ' + JSON.stringify(poor));
   const other = say(sess({}), { other: 'Bow' });
@@ -494,6 +490,55 @@ async function huntsPure(imp) {
    server's own span loop on the envelope's numbers. `base` is the repo, or a temp copy of src a ticker mutant was
    planted into (TICKER_MUTANTS below). */
 /* AW-34 PURE (the armor weights' words), run on `base` so the `armor words:` mutants judge a planted copy of src. */
+/* AW-21 PLANS (pure): the two playtest 2026-10-29 rules, over the src at `base`. Their own function so `--mutate` judges
+   their mutants (names starting 'plans:') on a temp copy of src: a mutant run skips pure() and the page never
+   reaches either rule (run 40830396041: both escaped). */
+async function planRules(base) {
+  const fails = [];
+  const imp = (p) => import(pathToFileURL(join(base, p)).href);
+  const UP = await imp('src/shell/upgrade-plan.js');
+  const lv1 = { defense: { level: 1 }, melee: { level: 1 }, ranged: { level: 1 }, magic: { level: 1 } };
+  /* AW-27 Before you go, a rune spell's line (starter bars, lane/a-starter-bars), over the hunt-go.js at `base`. */
+  const { beforeLines } = await imp('src/shell/hunt-go.js');
+  const STORE = FIXTURE.hunt_settings.store;
+  const slot = (type, id, count) => ({ action: { type, id }, conditions: [], join: 'and', usable: true, count });
+  const sess = (o) => { const e = Object.assign({ hunt_settings: { preset: 0, presets: [], slots: [], store: STORE }, state: { gold: 500 }, inventory: {},
+    stamina: { ms: 28800000, at: '2026-10-22T00:00:00Z', max_ms: 28800000 }, equipment: { weapon: 'practice_sword' } }, o); return { read: (k) => e[k] }; };
+  const say = (cs) => beforeLines(cs).map((l) => (l.short ? '!' : '') + l.text).join(' | ');
+  /* A rune spell with no rune and no store behind it loses that spell only (named, not a stop); no food is said. */
+  const spell = say(sess({ hunt_settings: { preset: 0, presets: [], slots: [slot('ability', 'flame_strike', 0)], store: STORE } }));
+  /* (a rune spell spends any tier of its family, so the line names and counts the family: lane b-spell-content) */
+  /* ...and says the fix: a style's default bar meets a new hero here first (designer 2026-10-29, lane/a-starter-bars) */
+  if (spell !== 'Runes: no Fire runes of yours. Flame Strike will not fire. To cast it, press its slot and pick Plain Fire Rune (1 gp a cast) under "When your runes run out" | Your bar eats and drinks nothing: HP and mana come back only between fights.') fails.push('AW-27 a spell with no rune reads ' + JSON.stringify(spell));
+  /* two spells of two families (the Mage's default Frost Lance and Arcane Barrier): both named, each family's store rune */
+  const RUNES = STORE.concat([['plain_ice_rune', 'chalked_ice_rune'], ['plain_earth_rune', 'chalked_earth_rune']].map(([id, partner]) => ({ ...STORE.find((r) => r.id === 'plain_fire_rune'), id, partner })));
+  const two = say(sess({ hunt_settings: { preset: 0, presets: [], slots: [slot('ability', 'frost_lance', 0), slot('ability', 'arcane_barrier', 1)], store: RUNES } }));
+  if (!/^Runes: no Ice runes of yours, no Earth runes of yours\. Frost Lance and Arcane Barrier will not fire\. To cast them, press each slot and pick Plain Ice Rune \(1 gp a cast\) or Plain Earth Rune \(1 gp a cast\) under "When your runes run out"/.test(two))
+    fails.push('AW-27 two struck spells read ' + JSON.stringify(two));
+  const ops2 = (p) => JSON.stringify(Object.fromEntries(Object.entries(p.ops).sort(([a], [b]) => (a < b ? -1 : 1))));
+  /* A tie between armor weights goes to the weight the hero chose at Tamsin's (playtest 2026-10-29: a tank paid in
+     heavy came home from the Thicket with a Bronze Platebody and a Leather Body and wore neither). No weight chosen,
+     or none of that weight in the bag: the tie stands, the player's call. */
+  const found = [['bronze_platebody'], ['leather_body'], ['bronze_boots'], ['leather_boots']].map(([id]) => ({ id, qty: 1 }));
+  const kit = { weapon: 'practice_sword', shield: 'practice_shield' };
+  const tieOf = (prefer) => UP.upgradePlan({ equipment: kit, bag: found, skills: lv1, level: 5, prefer });
+  const tieOps = ['', 'heavy', 'medium', 'light'].map((w) => ops2(tieOf(w || null)) + '/' + tieOf(w || null).choices.length).join(' | ');
+  if (tieOps !== '{}/2 | {"body":"bronze_platebody","boots":"bronze_boots"}/0 | {"body":"leather_body","boots":"leather_boots"}/0 | {}/2')
+    fails.push('AW-21 the weight chosen at Tamsin\'s settles a tie as ' + tieOps);
+  /* A tie that stands says why the button is off (playtest 2026-10-29 #11: the line was hidden, nothing said). */
+  const tieSaid = UP.upgradeWords(tieOf(null));
+  if (tieSaid !== 'Nothing goes on by itself: each piece is better at something. Body: Bronze Platebody or Leather Body. Boots: Bronze Boots or Leather Boots. Pick on the doll, or pick an armor weight at Tamsin\'s.')
+    fails.push('AW-21 a standing tie reads ' + JSON.stringify(tieSaid));
+  /* "Decide once": the shop's section bids only on what the bag holds, so a stack sold since (0 in the bag) is never
+     called unsellable (playtest 2026-10-29: the coach rang a Sell its row had switched off). */
+  const { planBlock } = await imp('src/shell/loot-dispatch.js');
+  const noBid = new Map([['bones', 1]]);
+  const planSaid = [planBlock('rat_tail', 'sell', noBid, false), planBlock('rat_tail', 'sell', noBid, true), planBlock('rat_tail', 'sell', noBid),
+    planBlock('practice_bow', 'sell', noBid, false)].join('|');
+  if (planSaid !== '|The shop does not buy this.|The shop does not buy this.|The shop does not buy back your starting kit.') fails.push('AW-21 a loot plan off for a stack not held reads ' + JSON.stringify(planSaid));
+  return fails;
+}
+
 async function armourWordRules(base) {
   const fails = [];
   const imp = (p) => import(pathToFileURL(join(base, p)).href);
@@ -1473,7 +1518,8 @@ async function checks(overrides, shots) {
         await wait(page, () => document.querySelector('[data-hs-win="hunt-summary"] [data-hs-built]'), null, 3000);
         await page.waitForTimeout(300);
         const town = await look();
-        if (town.analyzer || town.party || town.toast || !town.summary) fails.push('AW-31 back in town the screen holds more than the summary: ' + JSON.stringify(town));
+        /* ...and no hunt bar: with the summary open it would hold only a Summary press for it (first-hour playtest 10-29 #10) */
+        if (town.analyzer || town.party || town.bar || town.toast || !town.summary) fails.push('AW-31 back in town the screen holds more than the summary: ' + JSON.stringify(town));
         /* the card's next step is the summary's main press, Hunt again the second */
         if (town.next !== 'Next: Sell what only pays coin' || town.againMain !== false) fails.push('AW-31 the summary\'s main press is ' + JSON.stringify(town) + ', want "Next: Sell what only pays coin" over Hunt again');
         if (shots) await shot(page, 'alpha-1440x900-return-summary');
@@ -2067,8 +2113,8 @@ async function checks(overrides, shots) {
           const r1 = await ringed();
           const inWin = await page.evaluate(() => { const p = document.querySelector('[data-hs-win="hunts"] > .hs-win-coach .hs-pointer'); return p ? p.textContent : null; });
           if (r1.join() !== 'mill_cellar') fails.push('AW-17b with Hunts open on the phone the ring is on ' + JSON.stringify(r1) + ', wanted the Mill Cellar line');
-          /* inside the window it says its words for there (board 2026-10-25 #20: never "Open Hunts" over the open Hunts) */
-          if (!inWin || !/Press Enter/.test(inWin) || /Open Hunts/.test(inWin)) fails.push('AW-17b the card is not inside the Hunts sheet, in its words for there: ' + JSON.stringify(inWin));
+          /* inside the window it says its words for there (board 2026-10-25 #20: never "Open Hunts" over the open Hunts), and the ringed line first (playtest 10-29) */
+          if (!inWin || !/Press the Mill Cellar, then Enter/.test(inWin) || /Open Hunts/.test(inWin)) fails.push('AW-17b the card is not inside the Hunts sheet, in its words for there: ' + JSON.stringify(inWin));
           if (shots) await shot(page, 'alpha-922x423-first-minute-hunts');
           await page.keyboard.press('Escape');
           await page.waitForTimeout(300);
@@ -2170,7 +2216,7 @@ const MUTANTS = [
   ['armor weight: the doll line counts the bag, not the worn set', 'src/shell/windows/inventory/doll.js', "for (const x of wornWeights(eq))", "for (const x of wornWeights(Object.fromEntries((bagOf(st.cs) || []).map((r, i) => [i, r.id]))))"],
   ['armor weight: the tooltip drops the weight line', 'src/shell/windows/item-tip.js', '  if (wt) h +=', '  if (wt && false) h +='],
   ['armor weight: the share is not the server sum', 'src/data/armour-weights.js', "const pct = (pm) => '+' + (Math.round(pm) / 10) + '%';", "const pct = (pm) => '+' + (Math.round(pm) / 10 + 1) + '%';"],
-  ['armor words: the coach card stops naming the weights', 'src/data/hunt-tutorial.js', "pays you in. ' + WEIGHTS_SAID + ' ' + pick", "pays you in. ' + pick"],
+  ['armor words: the coach card stops naming the weights', 'src/data/hunt-tutorial.js', "away. ' + WEIGHTS_SAID + pick", "away. ' + pick"],
   ['armor words: the Help note forgets medium', 'src/data/how-to-play.js', "    + WEIGHT_ORDER.map(weightSentence).join(' ') + ' Pieces", "    + WEIGHT_ORDER.filter((w) => w !== 'medium').map(weightSentence).join(' ') + ' Pieces"],
   ['a bag icon draws at 1.5x in its well', 'src/styles/windows.css', '.hw-pocket .hw-ico .hh-icon, .hw-slot .hw-ico .hh-icon { width: 32px; height: 32px; }', '.hw-pocket .hw-ico .hh-icon, .hw-slot .hw-ico .hh-icon { width: 48px; height: 48px; }'],
   ['the Shop lines go 2x again', 'src/styles/windows.css', '.hw-line .hw-ico .hh-icon { width: 32px; height: 32px; }', '.hw-line .hw-ico .hh-icon { width: 64px; height: 64px; }'],
@@ -2185,6 +2231,9 @@ const MUTANTS = [
   ['an equip in flight is not marked', 'src/shell/windows/inventory/actions.js', '  sc.wearing = { slots: [slot], items: id ? [id] : [] };\n', ''],
   ['Equip upgrades swaps the weapon', 'src/shell/upgrade-plan.js', "const STYLE_SLOTS = new Set(['weapon', 'shield', 'ammo']);", "const STYLE_SLOTS = new Set(['shield', 'ammo']);"],
   ['Equip upgrades wears what the hero cannot use yet', 'src/shell/upgrade-plan.js', '  return have !== null && have >= it.reqLv;', '  return true;'],
+  ['plans: Before you go names a struck spell without its fix', 'src/shell/hunt-go.js', "(fixes.length ? '. To cast '", "(fixes.length > 9 ? '. To cast '"],
+  ['plans: Equip upgrades forgets the weight chosen at Tamsin\'s', 'src/shell/upgrade-plan.js', '    if (mine.length) front = mine;', '    if (mine.length) front = front.slice();'],
+  ['plans: a Sell plan for a stack not held reads unsellable', 'src/shell/loot-dispatch.js', "if (plan === 'sell' && held && bids && !bids.has(id))", "if (plan === 'sell' && bids && !bids.has(id))"],
   ['Equip upgrades marks nothing in flight', 'src/shell/widgets/upgrade-line.js', '  sc.wearing = { slots, items: slots.map((s) => plan.ops[s]) };\n', ''],
   ['Equip upgrades sends one intent per piece', 'src/shell/widgets/upgrade-line.js', "    try { return await cs.edgeIntent('equip', { equip: Object.assign({}, plan.ops) }); } finally { sc.wearing = null; }", "    try { let r; for (const s of slots) r = await cs.edgeIntent('equip', { equip: { [s]: plan.ops[s] } }); return r; } finally { sc.wearing = null; }"],
   ['a level refusal reads as a bare refusal', 'src/data/refusal-words.js', "  requirement_not_met: 'You don\\'t meet that item\\'s requirement yet. Nothing was put on.',\n", ''],
@@ -2227,6 +2276,7 @@ const MUTANTS = [
   ['coach: R opens nothing once Services left the icon row (AW-31)', 'src/data/shell-windows.js', ", tabKeys: Object.freeze({ r: 'services' }) }),", ' }),'],
   ['coach: "Decide once" rings Bones for the shop (AW-31)', 'src/shell/windows/inventory/grid.js', "attr(sel, 'data-coin', coin.has(l.item) ? '' : null);", "attr(sel, 'data-coin', '');"],
   ['coach: R over the open Shop never switches it to Services (AW-31)', 'src/shell/shell.js', '    for (const id of wm.openIds()) if (wm.wantsTab(id)) refresh(id);\n', ''],
+  ['coach: an ended hunt\'s bar stays over its open summary (AW-31)', 'src/shell/shell.js', " && !wm.isOpen('hunt-summary');", ';'],
   /* The Hunts window, master-detail (designer plan 2026-10-22): AW-25 .. AW-29. */
   ['AW-25 every creature reads common', 'src/shell/hunt-ground-facts.js', "  if (share >= SHARE_BANDS.common) return 'common';", "  return 'common';"],
   ['AW-25 a Scarce piece reads as the ground\'s Rare (odds, not the band)', 'src/shell/hunt-ground-facts.js', 'd.ch < 1 && REVEAL_BANDS.includes(bandOf(d));', 'd.ch < 1 && d.ch <= 0.05;'],
@@ -2317,7 +2367,7 @@ async function main() {
   const sharded = shardOf(MUTANTS);
   const mine = sharded && only ? sharded.filter(([n]) => n.startsWith(only)) : sharded;
   if (!mine || !mine.length) { console.log('  ✗ HARNESS: bad --shard (want --shard=K/N with 1 <= K <= N) or no mutant matches --only'); process.exit(2); }
-  const pureOnly = mine.every(([n]) => n.startsWith('ticker:') || n.startsWith('armor words:'));
+  const pureOnly = mine.every(([n]) => n.startsWith('ticker:') || n.startsWith('armor words:') || n.startsWith('plans:'));
   const clean = await cleanControl(() => (pureOnly ? pure() : checks(null, null)));
   console.log(clean.line);
   if (clean.code) process.exit(clean.code);
@@ -2332,7 +2382,7 @@ async function main() {
       over[f] = text.replace(x, y);
     }
     if (missing) { console.log('  ✗ ' + name + ' — HARNESS: anchor not found in ' + missing); counts.harness++; continue; }
-    const v = await judge(() => (name.startsWith('edgeBody') ? pureMutant(over[file]) : name.startsWith('ticker:') ? tickerMutant(over) : name.startsWith('armor words:') ? tickerMutant(over, armourWordRules) : checks(over, null)));
+    const v = await judge(() => (name.startsWith('edgeBody') ? pureMutant(over[file]) : name.startsWith('ticker:') ? tickerMutant(over) : name.startsWith('armor words:') ? tickerMutant(over, armourWordRules) : name.startsWith('plans:') ? tickerMutant(over, planRules) : checks(over, null)));
     console.log(report(name, v, counts));
   }
   console.log(exitOf(counts) ? 'alpha-windows --mutate: ' + counts.escaped + ' escaped, ' + counts.harness + ' HARNESS (not catches)' : 'alpha-windows --mutate: ' + mine.length + '/' + mine.length + ' mutants caught, each by a named rule' + (mine === MUTANTS ? '' : ' (' + (only ? '--only=' + only + ', ' : '') + 'of ' + MUTANTS.length + ')'));

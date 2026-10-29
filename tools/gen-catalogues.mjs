@@ -100,8 +100,8 @@ const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'))
    The staged farm ground's four imbuement items (hr_items) land in ONE forward file, the same full delete+insert replace. */
 /* THE UNSOURCED ITEMS (lane b-unsourced-items, designer 2026-10-28): 2027-02-06-wickstead-items-catalogue is APPLIED history; the four
    made tier-1 gloves and sashes (hr_activities artisan rows) land in ONE forward file, the same full delete+insert replace. */
-/* HASK'S FORD (lane b-hasks-ford, designer 2026-10-29): the 2027-02-08 file is APPLIED history; the Barrow March's first ground (four imbuement items, the Company Colours, the four monsters' training rows, the Colours' fuel rung, the Barrow Stone rename) land in ONE forward file. */
-const OUT = join(ROOT, 'supabase', 'migrations', '2027-02-09-hasks-ford-items-catalogue.generated.sql');
+/* HASK'S FORD (lane b-hasks-ford, designer 2026-10-29): 2027-02-08..10 are APPLIED history; the Barrow March's first ground (four imbuement items, the Company Colours, the four monsters' training rows, the Colours' fuel rung, the Barrow Stone rename) land in ONE forward file. */
+const OUT = join(ROOT, 'supabase', 'migrations', '2027-02-11-hasks-ford-items-catalogue.generated.sql');
 /* THE SECOND GENERATED FILE (2026-09-13). hr_item_buffs is emitted as its own
    migration rather than into OUT above, and that is a deliberate operational
    call: OUT is the FOURTH file in tests/schema-apply-order.json and is already
@@ -1251,8 +1251,8 @@ const { ARTISAN_RECIPES: BENCH_RECIPES } = await imp('src/data/recipes.js');
 /* INNER FLAME (lane b-inner-flame, 2026-10-27): 2027-01-20 is APPLIED history; the fuel_<item> rows (the bury_* rows retire). */
 /* THE FIRST-HOUR RUNG (lane b-first-hour, 2026-10-28): 2027-01-31 is APPLIED history; stitch_graypelt_cloak's six Wolf Pelts. */
 /* THE UNSOURCED ITEMS (lane b-unsourced-items, 2026-10-28): 2027-02-05 is APPLIED history; the four new recipes' inputs. */
-/* HASK'S FORD (lane b-hasks-ford, designer 2026-10-29): the 2027-02-08 file is APPLIED history; fuel_company_colours' input land in ONE forward file. */
-const OUT_BENCH_INPUTS = join(ROOT, 'supabase', 'migrations', '2027-02-09-hasks-ford-bench-inputs.generated.sql');
+/* HASK'S FORD (lane b-hasks-ford, designer 2026-10-29): 2027-02-08..10 are APPLIED history; fuel_company_colours' input land in ONE forward file. */
+const OUT_BENCH_INPUTS = join(ROOT, 'supabase', 'migrations', '2027-02-11-hasks-ford-bench-inputs.generated.sql');
 const benchInputs = {};
 {
   const known = new Set(itemIds);

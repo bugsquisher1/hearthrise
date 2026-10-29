@@ -252,6 +252,14 @@ function walkChain(M, T, extra) {
       ? { ...s, usable: true, store: (f.store.find((r) => r.partner === M.abilities.ABILITIES[s.id].rune) || {}).id } : s))),
     food_when: () => { L(4); save(f.slots.map(at('cooked_shrimp', 45))); },
     food_order: () => save(f.slots.map(at('salted_shrimp', 45))),
+    /* the player takes the offer: the spell into the card's empty slot, its store rune on (the server: it can fire) */
+    first_spell: () => {
+      const c = M.tut.cardFor(M.tut.currentCard(f), f);
+      const spell = /data-id="([a-z_]+)"/.exec(c.hooks.join(' '))[1], store = /data-store="([a-z_]+)"/.exec(c.hooks.join(' '))[1];
+      const slots = f.slots.slice();
+      slots[c.barSlot] = { type: 'ability', id: spell, store, conditions: [], enabled: true, usable: true, count: null };
+      save(slots);
+    },
     earn_the_thicket: () => L(5),
     leave_cellar: () => set({ huntId: null, endReason: 'left', sellable: 5 }),
     sell_loot: () => set({ sellable: 0 }),
@@ -429,7 +437,9 @@ const cases = {
     /* THE WHOLE CHAIN, ONE HERO (2026-10-21: the launcher showed only card 1): every card in order, from facts. */
     const T = tutKit(M, 'tank');
     const order = walkChain(M, T).map((x) => x.id);
-    const want = ['to_the_cellar', 'first_kill', 'first_level', 'plant_land', 'bar_intro', 'spell_runes', 'food_when', 'food_order', 'earn_the_thicket',
+    /* the sword's default sets hold no rune spell (playtest 2026-10-29 #9: Flame Strike sat struck from minute one); "A spell
+       costs runes" offers it in the Cellar, and a hero who takes it (store rune on) meets "Make your own runes" on day one */
+    const want = ['to_the_cellar', 'first_kill', 'first_level', 'plant_land', 'bar_intro', 'food_when', 'food_order', 'first_spell', 'earn_the_thicket',
       'leave_cellar', 'sell_loot', 'loot_rules', 'cook_catch', 'styles', 'bless', 'tamsins_task', 'into_the_thicket', 'tamsin_pays', 'save_setup', 'own_runes', null];
     if (order.join() !== want.join()) return 'a sword-and-shield hero walks ' + order.join(' > ') + ', wanted ' + want.join(' > ');
     /* NO SOLO WALL: paid, a solo hero at the Sewer's floor is done (What next), at any Level up to the Sewer's top. */
@@ -517,7 +527,11 @@ const cases = {
         + ' gp) below 60%, so between 45% and 60% it eats before your own Cooked Shrimp.')) return set + ': the order card reads ' + JSON.stringify(order && order.text);
       const both = (s) => (s && s.id === 'salted_shrimp' ? { ...s, conditions: [{ metric: 'self_hp_pct', op: 'lt', value: 45 }] } : at(45)(s));
       const fixedOrder = { ...set45, slots: fixed.slots.map(both), stored: kitStored.stored.map(both) };
-      if ((say(fixedOrder) || {}).id !== 'earn_the_thicket') return set + ': with the bar set the card is ' + (say(fixedOrder) || {}).id;
+      /* a bar with no rune spell, of a style that has one, is offered it ("A spell costs runes"); Got it moves on */
+      const offer = !T.slots.some((s) => s.type === 'ability' && M.abilities.ABILITIES[s.id].rune)
+        && Object.values(M.abilities.ABILITIES).some((a) => a.active && a.rune && a.disciplines.includes(T.discipline));
+      if ((say(fixedOrder) || {}).id !== (offer ? 'first_spell' : 'earn_the_thicket')) return set + ': with the bar set the card is ' + (say(fixedOrder) || {}).id;
+      if (offer && (say({ ...fixedOrder, read: new Set([...fixedOrder.read, 'first_spell']) }) || {}).id !== 'earn_the_thicket') return set + ': after Got it on the spell offer the card is ' + (say({ ...fixedOrder, read: new Set([...fixedOrder.read, 'first_spell']) }) || {}).id;
       /* the store slot moved BEFORE the own food at the same HP: the first slot whose conditions pass fires, so it eats
          first; the card asks to move it after the own slot (lowering it to the same HP would not do) */
       const swapped = fixedOrder.slots.slice();
@@ -534,17 +548,61 @@ const cases = {
     }
     /* THROUGH THE REAL ENVELOPE (src/session/tutorial-sections.js): the server's struck state, stored bar and Got it reads */
     const tsb = await imp('src/session/tutorial-sections.js');
-    const T = tutKit(M, 'tank');
-    const env = (stored, usable) => ({ state: { level_xp: M.xp.charXpForLevel(3) }, skills: { farming: { xp: 28, level: 1 } },
+    /* the kit's sword-and-shield hero has no struck spell (its Flame Strike names the store rune): it reads the bar, then
+       eats on time; the hatchets' Rend (no store rune by default) is the struck spell the rune card speaks of */
+    const tank = tutKit(M, 'tank');
+    const T = tutKit(M, null, 'practice_hatchets');
+    const env = (stored, usable, K = T) => ({ state: { level_xp: M.xp.charXpForLevel(3) }, skills: { farming: { xp: 28, level: 1 } },
       hunt: { session_id: 's', hunt_id: 'mill_cellar', ended: false, session: {}, hero: { hp_max: 170 }, pose: { units: [] } },
-      hunt_settings: { preset: 0, role: 'tank', discipline: T.discipline, stance: 'balanced', store: T.storeRows,
-        slots: T.slots.map((s) => ({ action: { type: s.type, id: s.id }, conditions: s.conditions, join: 'and', usable: usable || s.usable, count: s.count })), bar: stored } });
+      hunt_settings: { preset: 0, role: K.role, discipline: K.discipline, stance: 'balanced', store: K.storeRows,
+        slots: K.slots.map((s) => ({ action: { type: s.type, id: s.id }, conditions: s.conditions, join: 'and', usable: usable || s.usable, count: s.count })), bar: stored } });
     const cardOn = (e, sh) => { const c = tsb.pointerCardOf({ read: (k) => e[k], slot: 0 }, sh); return c && c.id; };
-    if (cardOn(env([])) !== 'spell_runes') return 'through the envelope (no Got it recorder) a tank at Level 3 sees ' + cardOn(env([]));
+    if (tank.slots.some((s) => s.usable === false)) return 'the kit\'s sword-and-shield bar shows a struck slot: ' + tank.slots.filter((s) => s.usable === false).map((s) => s.id).join();
+    if (cardOn(env([], false, tank), { read: ['bar_intro'] }) !== 'food_when') return 'through the envelope a tank at Level 3, the bar read, sees ' + cardOn(env([], false, tank), { read: ['bar_intro'] });
+    if (cardOn(env([])) !== 'spell_runes') return 'through the envelope (no Got it recorder) a hatchet hero at Level 3 sees ' + cardOn(env([]));
     if (cardOn(env([]), { read: [] }) !== 'bar_intro') return 'through the envelope with a recorder the bar card is not up: ' + cardOn(env([]), { read: [] });
     if (cardOn(env([]), { read: ['bar_intro'] }) !== 'spell_runes') return 'through the envelope, read, the rune card is not up';
     const kitWire = T.slots.map((s) => ({ action: { type: s.type, id: s.id }, conditions: s.conditions, join: 'and' }));
     if (cardOn(env(kitWire, true), { read: ['bar_intro'] }) !== 'food_when') return 'through the envelope, the kit bar restated by a Save finishes "Eat on time": ' + cardOn(env(kitWire, true), { read: ['bar_intro'] });
+    return null;
+  },
+  'starter-bars': async (M) => {
+    /* NO UNEXPLAINED DEAD BUTTON (designer 2026-10-29, lane/a-starter-bars). A style's DEFAULT bar is what a hero sees
+       until its first Save (after that the bar is the player's): the kit's sword and shield, or a weapon taken up from
+       the bag in minute one. Per style: the sword's sets show nothing struck and offer a rune spell ("A spell costs
+       runes"); the hammer has no rune spell to strike or offer; every other style's struck rune spells are each explained
+       by "Spells need runes" (that slot, its family's store rune at the server's price), one after another, and then the
+       chain goes on to "Eat on time". (Minute one, before the card: Hunts' Before you go names each one and its fix,
+       alpha-windows AW-27.) */
+    const sets = { tank: [M.kit.START_EQUIPMENT.weapon, M.kit.START_EQUIPMENT.shield], sword: ['practice_sword'], hammer: ['practice_club'],
+      axes: ['practice_hatchets'], bow: ['practice_bow'], crossbow: ['practice_crossbow'], mage: ['practice_wand', 'practice_spellbook'], healer: ['practice_staff'] };
+    const want = { tank: '-/first_spell', sword: '-/first_spell', hammer: '-/-', axes: 'rend/-', bow: 'flame_volley/-', crossbow: 'flame_volley/-',
+      mage: 'frost_lance+arcane_barrier/-', healer: 'circle_of_renewal+green_sickness/-' };
+    const seen = [];
+    for (const [set, [weapon, shield]] of Object.entries(sets)) {
+      const K = tutKit(M, null, weapon, shield);
+      const walk = walkChain(M, K);
+      const ids = walk.map((s) => s.id);
+      const struck = K.slots.map((s, i) => (s.type === 'ability' && s.usable === false ? i : -1)).filter((i) => i >= 0);
+      const row = (struck.map((i) => K.slots[i].id).join('+') || '-') + '/' + (ids.includes('first_spell') ? 'first_spell' : '-');
+      if (row !== want[set]) return set + ': struck/offer reads ' + row + ', the ruling is ' + want[set];
+      if (!struck.length) { if (ids.includes('spell_runes')) return set + ': nothing is struck, yet "Spells need runes" is up'; seen.push(set + ' ' + row); continue; }
+      const first = walk.find((s) => s.id === 'spell_runes');
+      if (!first) return set + ': a struck slot and no "Spells need runes"';
+      let f = first.facts;
+      for (const i of struck) {
+        const c = M.tut.currentCard(f), card = c && M.tut.cardFor(c, f);
+        const st = K.store.find((r) => r.partner === M.abilities.ABILITIES[K.slots[i].id].rune);
+        if (!card || card.id !== 'spell_runes' || card.barSlot !== i || !st || !card.hooks.some((h) => h.includes('data-store="' + st.id + '"'))
+          || !card.text.includes('(' + st.price + ' gp a cast'))
+          return set + ': slot ' + (i + 1) + ' (' + K.slots[i].id + ') is struck and the card is ' + JSON.stringify(card && { id: card.id, barSlot: card.barSlot, text: card.text });
+        f = { ...f, slots: f.slots.map((s, k) => (k === i ? { ...s, usable: true, store: st.id } : s)) };
+      }
+      const next = M.tut.currentCard(f);
+      if ((next && next.id) !== 'food_when') return set + ': with every struck slot fixed the chain goes on at ' + (next && next.id) + ', not food_when';
+      seen.push(set + ' ' + row);
+    }
+    console.log('    starter bars (struck/offer): ' + seen.join(' | '));
     return null;
   },
   'tutorial-town-chain': async (M) => {
@@ -560,6 +618,13 @@ const cases = {
       || !bless.text.includes('free until Level ' + M.blessings.BLESSING_RULES.freeUntilLevel) || !bless.text.includes('Bless all three')) return 'the Blessing card reads ' + JSON.stringify(bless && bless.text);
     const tam = said('tamsins_task');
     if (!tam || !tam.text.includes('Heavy suits a shield tank') || !tam.text.includes('Take 200 Gray Wolves')) return 'Tamsin\'s card reads ' + JSON.stringify(tam && tam.text);
+    /* playtest 2026-10-29: the way comes first (on a phone the card's foot, its Take, was cut off under the armor words);
+       a card shown from the first kill until Level 2 never names the Level; words inside a window name the server's slot */
+    if (tam.text.indexOf('Take 200 Gray Wolves') > tam.text.indexOf('Heavy adds')) return 'Tamsin\'s card says the weights before the way: ' + JSON.stringify(tam.text);
+    const lv = M.tut.HUNT_TUTORIAL.find((c) => c.id === 'first_level');
+    if (!lv || /\bLevel \d/.test(lv.title + ' ' + lv.text)) return 'the first-Level card (shown at Level 1) names a Level: ' + JSON.stringify(lv && lv.title);
+    const cook = said('cook_catch');
+    if (!cook || !cook.textIn || /\{slot:/.test(cook.textIn) || !/slot \d/.test(cook.textIn)) return 'the cooking card inside its window reads ' + JSON.stringify(cook && cook.textIn);
     for (const role of ['tank', 'melee_dps', 'ranger', 'mage', 'healer']) {
       const w = M.tut.WEIGHT_FOR_ROLE[role];
       const piece = Object.entries(M.items.ITEMS).find(([, it]) => it.slot === 'helmet' && M.coreModel.ARMOUR_WEIGHT[it.armourClass] === w && it.reqLv <= 5);
@@ -648,7 +713,12 @@ const cases = {
     if (!juice || juice.id !== 'harvest_juice' || !juice.text.includes('1 turnip makes 3')) return 'the juice card reads ' + JSON.stringify(juice && juice.text);
     const slotJ = say(R({ ...after, home: { owned: true, next: null }, bag: { turnip_juice: 6 }, carried: { turnip_juice: 6 } }));
     if (!slotJ || slotJ.id !== 'juice_slot' || !slotJ.text.includes('My mana % below 30') || !slotJ.text.includes('before slot ' + (drink + 1))) return 'the juice slot card reads ' + JSON.stringify(slotJ && slotJ.text);
-    const juiced = { ...after, home: { owned: true, next: null }, bag: { turnip_juice: 6 }, carried: { turnip_juice: 6 }, stored: [...after.stored, { type: 'consume', id: 'turnip_juice', conditions: [] }] };
+    /* the player put Flame Strike on the bar, store rune on (the kit's sword sets hold no rune spell: playtest 2026-10-29 #9) */
+    const fs = { type: 'ability', id: 'flame_strike', store: 'plain_fire_rune', conditions: [], enabled: true, usable: true, count: null };
+    const runeless0 = after.slots.filter((s) => !(s && s.type === 'ability' && M.abilities.ABILITIES[s.id] && M.abilities.ABILITIES[s.id].rune));
+    const juiced = { ...after, home: { owned: true, next: null }, bag: { turnip_juice: 6 }, carried: { turnip_juice: 6 }, slots: [...runeless0, fs],
+      stored: [...after.stored, { type: 'consume', id: 'turnip_juice', conditions: [] }, { type: 'ability', id: 'flame_strike', conditions: [] }] };
+    if ((say(R({ ...juiced, slots: runeless0 })) || {}).id === 'own_runes') return 'with no rune spell on the bar the coach asks for runes';
     const runes = say(R(juiced));
     if (!runes || runes.id !== 'own_runes' || !runes.text.includes('Cut Blank Runes (4 essence make 12) and Bind Chalked Fire Runes (6 blanks make 45)')) return 'the rune card reads ' + JSON.stringify(runes && runes.text);
     if (say(R({ ...juiced, carried: { ...juiced.carried, chalked_fire_rune: 45 } }))) return 'with own runes the coach still asks: ' + say(R({ ...juiced, carried: { ...juiced.carried, chalked_fire_rune: 45 } })).id;
@@ -660,7 +730,7 @@ const cases = {
        card interrupts the chain, names the biggest stack and rings it, then the bag's Fuel all; Inner Flame XP ends it. */
     const back = walkChain(M, T).find((s) => s.id === 'sell_loot').facts;
     const fuel = say({ ...back, bag: { ...back.bag, bones: 9, lamp_jelly: 3 }, carried: { ...back.carried, bones: 9, lamp_jelly: 3 } });
-    if (!fuel || fuel.id !== 'fuel_hearth' || !fuel.text.startsWith('Your bag holds Bones ×9.') || !fuel.text.includes('Inner Flame') || !fuel.text.includes('then Fuel all.')
+    if (!fuel || fuel.id !== 'fuel_hearth' || !fuel.text.startsWith('Your bag holds Bones ×9. Burn them in') || !fuel.text.includes('Inner Flame') || !fuel.text.includes('then Fuel all.')
       || !fuel.hooks.includes('[data-hs-win="inventory"] .hw-pocket[data-item="bones"]') || !/^Press the Bones, then Fuel all\./.test(fuel.textIn || '')) return 'the Hearth card reads ' + JSON.stringify(fuel && { id: fuel.id, text: fuel.text, hooks: fuel.hooks, textIn: fuel.textIn });
     const pct = Math.round((M.vit.regenPermille(10) - 1000) / 10);
     if (!fuel.text.includes(pct + '% faster by Inner Flame 10')) return 'the Hearth card does not state the engine\'s recovery (' + pct + '%): ' + fuel.text;
@@ -693,6 +763,28 @@ const cases = {
     }
     return null;
   },
+  /* "Plant your land" asks for EACH empty plot (playtest 2026-10-29 #12: one plot finished it, a plant pays Farming XP):
+     it stays up while an open plot is bare and a seed is held; a full field, no seed, or a harvest's XP finishes it. The
+     facts' `empty` is the server's field: open plots (under the cap, not an extra) holding no crop. */
+  'tutorial-plant-every-plot': async (M) => {
+    const T = tutKit(M, 'tank');
+    const at = (land, more) => M.tut.currentCard(tutAt(M, T, 2, { huntId: 'mill_cellar', visited: new Set(['mill_cellar']),
+      skillXp: { farming: 28, cooking: 0, melee: 0 }, landPlanted: true, land, ...(more || {}) }));
+    const id = (land, more) => (at(land, more) || {}).id;
+    if (id({ ready: {}, empty: 1 }) !== 'plant_land') return 'one plot planted, one bare, seeds held: the card is ' + id({ ready: {}, empty: 1 });
+    if (id({ ready: {}, empty: 0 }) === 'plant_land') return 'every open plot planted, yet "Plant your land" is still up';
+    if (id({ ready: {}, empty: 1 }, { bag: { ...M.kit.START_INVENTORY, turnip_seed: 0 } }) === 'plant_land') return 'no seed left to plant, yet "Plant your land" is still up';
+    if (id({ ready: {}, empty: 2 }, { skillXp: { farming: M.gathering.CROPS.turnip.xp, cooking: 0, melee: 0 } }) === 'plant_land') return 'a harvested field came back bare and walled the chain';
+    /* the field not sent (an older server): Farming XP still finishes it, as before */
+    if (id(null, { landPlanted: null }) === 'plant_land') return 'with no field section, a hero with Farming XP is asked to plant';
+    const tsb = await import(pathToFileURL(join(M.root, 'src/session/tutorial-sections.js')).href + V);
+    const env = { state: { level_xp: M.xp.charXpForLevel(2) }, inventory: { turnip_seed: 7 },
+      farm_land: { cap: 2, plot_level: 1, deeds: 0, upgrade: null, plots: [{ i: 0, crop: 'turnip', ready: false, ready_in_s: 600, waterable: false, by: 0, extra: false },
+        { i: 3, crop: 'turnip', ready: true, ready_in_s: 0, waterable: false, by: 1, extra: true }] } };
+    const f = tsb.tutorialFactsOf({ read: (k) => env[k], slot: 0 });
+    if (!f || !f.land || f.land.empty !== 1) return 'through the envelope, a cap-2 field with one plot growing (and an extra) reads empty ' + (f && f.land && f.land.empty);
+    return null;
+  },
   'tutorial-second-hero': (M) => {
     /* NOTHING ASKED TWICE (first principle, Tyler 2026-10-18): once another hero on the account is past Level 5, a new
        hero skips the knowledge cards and still meets the ones that set its OWN state (its runes, its food, its Blessings). */
@@ -701,7 +793,10 @@ const cases = {
     const seen = walkChain(M, T, vet).map((x) => x.id);
     const know = M.tut.HUNT_TUTORIAL.filter((r) => r.knowledge).map((r) => r.id);
     if (seen.some((id) => know.includes(id))) return 'a second hero meets ' + seen.filter((id) => know.includes(id)).join(', ');
-    for (const id of ['spell_runes', 'food_when', 'bless', 'tamsins_task']) if (!seen.includes(id)) return 'a second hero never meets ' + id + ' (' + seen.join(' > ') + ')';
+    for (const id of ['food_when', 'bless', 'tamsins_task']) if (!seen.includes(id)) return 'a second hero never meets ' + id + ' (' + seen.join(' > ') + ')';
+    /* its runes: a hatchet hero's Rend is struck (no Rupture rune, no store rune by default), and a second hero is still told */
+    const axes = walkChain(M, tutKit(M, null, 'practice_hatchets'), vet).map((x) => x.id);
+    if (!axes.includes('spell_runes')) return 'a second hatchet hero never meets spell_runes (' + axes.join(' > ') + ')';
     const first = walkChain(M, T, { roster: [{ slot: 0, level: 1, name: 'New', open: true, hunting: false }, { slot: 1, level: M.tut.KNOWN_LEVEL, name: 'Young', open: false, hunting: false }], self: 0 }).map((x) => x.id);
     if (!first.includes('first_kill') || !first.includes('styles')) return 'a hero whose only other hero is Level ' + M.tut.KNOWN_LEVEL + ' skips the lessons';
     /* A CELLAR HERO'S OWN STEP FIRST (played on live 10-28: Pellow, Level 2 in town, was shown "Hunt together" because
@@ -727,7 +822,11 @@ const cases = {
     for (const s of walkChain(M, T).concat(steps)) {
       if (!s.card) continue;
       if (/\{|undefined|NaN|null|\s\s/.test(s.card.text)) return s.id + ' says: ' + s.card.text;
-      for (const [, n] of s.card.text.matchAll(/[Ss]lots? (\d+)/g)) if (!s.facts.slots || !s.facts.slots[Number(n) - 1]) return s.id + ' names slot ' + n + ', which is empty';
+      /* every slot a card names holds what it speaks of; "A spell costs runes" names the EMPTY slot to put its spell in */
+      for (const [, n] of s.card.text.matchAll(/[Ss]lots? (\d+)/g)) {
+        const held = !!(s.facts.slots && s.facts.slots[Number(n) - 1]);
+        if (s.id === 'first_spell' ? held : !held) return s.id + ' names slot ' + n + (held ? ', which is taken' : ', which is empty');
+      }
     }
     return null;
   },
@@ -1165,6 +1264,30 @@ const cases = {
     L.noteCoachSight(ctxOf(s2, null, 0), fs, true);
     if (L.noteCoachSight(ctxOf(s2, null, 60000), fs, true)) return 'a Got it card was marked read on sight';
 
+    /* FOLDED NEVER STICKS (Tyler 2026-10-28, "Your hero just drank" sat folded forever): a folded read-on-sight card is
+       on screen as its tab and is read there; folded or open, a card a read finishes (Got it too) has a close that
+       records the read; a card the server finishes has no close (its done is the server's) */
+    const drink = M.tut.HUNT_TUTORIAL.find((r) => r.id === 'first_drink');
+    const sf = hero(town(), { read: [], min: true, seen: 'first_drink' });
+    const tab = L.coachHtml(sf, drink);
+    if (!/is-min/.test(tab)) return 'the folded fixture did not draw a tab: ' + tab;
+    const dom = { querySelector: (sel) => (sel.includes(':not(.is-min)') && /is-min/.test(tab)) || !sel.includes('[data-tutorial="first_drink"]') ? null : {} };
+    if (!L.coachOnScreen([dom], drink)) return 'a folded read-on-sight card is not counted as on screen (it never finishes)';
+    L.noteCoachSight(ctxOf(sf, null, 0), drink, L.coachOnScreen([dom], drink));
+    if (!L.noteCoachSight(ctxOf(sf, null, L.readMs(drink) + 1), drink, L.coachOnScreen([dom], drink))) return 'a folded read-on-sight card was not read on its tab';
+    for (const [c, open] of [[drink, false], [drink, true], [fs, false], [fs, true]]) {
+      const x = hero(town(), open ? { read: [] } : { read: [], min: true, seen: c.id });
+      if (!L.coachHtml(x, c).includes('data-hs-act="coach-close"')) return (open ? 'open ' : 'folded ') + c.id + ' has no close';
+    }
+    /* the close press on the card the coach holds records its read; folded stays folded */
+    const fx = { character: hero(g.record.data, { read: KNOWN.filter((x) => x !== 'styles'), min: true }), account: null, wm: { openIds: () => [], isOpen: () => false } };
+    const held = L.heldCard(fx);
+    if (!held || !L.coachHtml(fx.character, held).includes('coach-close')) return 'the held first card (' + (held && held.id) + ') has no close';
+    L.actCoach(fx, null, 'coach-close', { type: 'click' });
+    if (!L.coachReadOf(fx.character).has(held.id)) return 'close on folded ' + held.id + ' did not record its read';
+    const srv = M.tut.HUNT_TUTORIAL.find((r) => r.done && r.done.kind !== 'read' && r.done.kind !== 'any');
+    if (L.coachHtml(hero(town(), { read: [] }), srv).includes('coach-close')) return srv.id + ' (finished by the server) offers a close';
+
     /* D4 MORE THAN ONE HERO: 5 minutes into the Thicket, one hero, two slots owned: the server's play limit and the
        roster's slots in the words; Characters, then Create hero ringed; a second hero finishes it */
     const thicket = (sessionMs) => Object.assign(JSON.parse(JSON.stringify(base)), {
@@ -1295,8 +1418,14 @@ const mutants = [
     edits: [['src/data/hunt-tutorial.js', '  skill_xp: (p, f) => known(xpIn(f, p.skill), (xp) => xp > 0),', '  skill_xp: () => true,']] },
   { name: 'a town section the server never sent walls the coach', case: 'tutorial-walk-through',
     edits: [['src/data/hunt-tutorial.js', '  tally_paid: (p, f) => !f.tally || ', '  tally_paid: (p, f) => !!f.tally && ']] },
-  { name: 'a harvest brings "Plant your land" back (the land alone judges it)', case: 'tutorial-never-backward',
-    edits: [['src/data/hunt-tutorial.js', " || xpIn(f, 'farming') > 0 || f.landPlanted === true,", ' || f.landPlanted === true,']] },
+  { name: 'a harvest brings "Plant your land" back (the land alone judges it)', case: 'tutorial-plant-every-plot',
+    edits: [['src/data/hunt-tutorial.js', "    return (xp === null && f.landPlanted == null) || xp > 0 || f.landPlanted === true;", '    return (xp === null && f.landPlanted == null) || f.landPlanted === true;']] },
+  { name: 'one plant finishes "Plant your land" again (any Farming XP)', case: 'tutorial-plant-every-plot',
+    edits: [['src/data/hunt-tutorial.js', "      return f.land.empty === 0 || (xp !== null && xp >= crop.xp) ||", "      return f.land.empty === 0 || (xp !== null && xp > 0) ||"]] },
+  { name: 'a harvested field walls the chain (no sticky XP)', case: 'tutorial-plant-every-plot',
+    edits: [['src/data/hunt-tutorial.js', "      return f.land.empty === 0 || (xp !== null && xp >= crop.xp) ||", "      return f.land.empty === 0 ||"]] },
+  { name: 'the facts count an extra plot as open land', case: 'tutorial-plant-every-plot',
+    edits: [['src/session/tutorial-sections.js', ".filter((p) => !p.extra && p.i < field.cap).length", ".length"]] },
   { name: 'Tamsin\'s card comes back the day after she paid', case: 'tutorial-never-backward',
     edits: [['src/data/hunt-tutorial.js', ' || (t.weight === true && reached(f, tallyTask(p.task).hunt))', '']] },
   { name: 'a party never meets the Sewer card', case: 'tutorial-never-backward',
@@ -1322,6 +1451,10 @@ const mutants = [
     edits: [['src/data/hunt-tutorial.js', ' && hpBelow(s) !== null && hpBelow(s) !== START_FOOD_PCT) : null),', ' && hpBelow(s) !== null) : null),']] },
   { name: 'the rune card ignores the server\'s struck state (names a spell the store already feeds)', case: 'tutorial-bar-chain',
     edits: [['src/data/hunt-tutorial.js', "s.type === 'ability' && s.usable === false && !!ABILITIES[s.id]", "s.type === 'ability' && !!ABILITIES[s.id]"]] },
+  { name: 'STARTER BARS: the sword-and-shield hero is never offered a rune spell (no rune lesson in its first hour)', case: 'starter-bars',
+    edits: [['src/data/hunt-tutorial.js', "    if (!a || !st || !name(st.id) || !fam || free < 0 || !Number.isInteger(st.price)) return null;", '    return null;']] },
+  { name: 'STARTER BARS: "Spells need runes" explains only the first struck slot (the Mage\'s second stays dead)', case: 'starter-bars',
+    edits: [['src/data/hunt-tutorial.js', "  rune_ready: (p, f) => (Array.isArray(f.slots) ? struckSpell(f) < 0 : null),", "  rune_ready: (p, f) => (Array.isArray(f.slots) ? f.slots.some((s) => s && s.usable === true && s.store) || struckSpell(f) < 0 : null),"]] },
   { name: 'the order card never sees a store slot that eats at a higher HP', case: 'tutorial-bar-chain',
     edits: [['src/data/hunt-tutorial.js', 'if (hpBelow(S) > hpBelow(O) || (s < o && hpBelow(S) >= hpBelow(O))) return', 'if (s < o && hpBelow(S) >= hpBelow(O)) return']] },
   { name: 'the order card asks while the own food is gone (the fallback working)', case: 'tutorial-bar-chain',
@@ -1372,8 +1505,10 @@ const mutants = [
     edits: [['src/shell/launcher.js', "return cs.setResidue('coach', Object.assign({}, r, { read: Array.from(read).concat(card.id).slice(-COACH_READ_MAX) }));", 'return false;']] },
   { name: 'folding the coach forgets the reads', case: 'tutorial-shell-facts',
     edits: [['src/shell/launcher.js', 'const keep = read && read.size ? { read: Array.from(read) } : {};', 'const keep = {};']] },
+  { name: 'a folded read-on-sight card is never on screen (it sits there forever, v0.2.63)', case: 'tutorial-shell-facts',
+    edits: [['src/shell/launcher.js', `'.hs-pointer[data-tutorial="' + card.id + '"]'`, `'.hs-pointer[data-tutorial="' + card.id + '"]:not(.is-min)'`]] },
   { name: 'a Got it card is marked read on sight', case: 'tutorial-shell-facts',
-    edits: [['src/shell/launcher.js', 'const readOnSight = (card) => !!card && !card.gotIt && ', 'const readOnSight = (card) => !!card && ']] },
+    edits: [['src/shell/launcher.js', 'const readOnSight = (card) => readable(card) && !card.gotIt;', 'const readOnSight = (card) => readable(card);']] },
   { name: 'a read-on-sight card is marked at once', case: 'tutorial-shell-facts',
     edits: [['src/shell/launcher.js', '  if (now - s.since < readMs(card)) return false;\n', '']] },
   { name: 'the slots owned are the heroes, not the slots', case: 'tutorial-shell-facts',

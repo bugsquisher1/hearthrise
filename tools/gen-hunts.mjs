@@ -39,8 +39,8 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
    Wickstead opens on its painted ground (lane b-wickstead-art, 2026-10-28) in this forward file. */
 /* 2027-02-06 is APPLIED history. The Orchard Boar (Wickstead) and the Brook Bear (Mosslight Glade) join the spawn mixes
    (lane b-unsourced-items, 2026-10-28) in this forward file. */
-/* HASK'S FORD (lane b-hasks-ford, designer 2026-10-29): the 2027-02-08 file is APPLIED history; the hasks_ford hunt and its spawns land in ONE forward file. */
-export const OUT_NAME = '2027-02-09-hasks-ford-hunts-catalogue.generated.sql';
+/* HASK'S FORD (lane b-hasks-ford, designer 2026-10-29): 2027-02-08..10 are APPLIED history; the hasks_ford hunt and its spawns land in ONE forward file. */
+export const OUT_NAME = '2027-02-11-hasks-ford-hunts-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);

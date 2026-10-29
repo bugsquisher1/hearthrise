@@ -860,7 +860,10 @@ const ENGINE_ARMS = {
   'RARE-DROP': async (M) => {
     const problems = [];
     const rat = M.MONSTERS.rat;
-    const rareCat = { ...M.MONSTERS, rat: { ...rat, drops: [...rat.drops, { id: 'crown_shard', ch: 0.05 }, { id: 'crown_shard', ch: 0.05 }] } };
+    /* Four 5% rows (a rare: two were ~3 shards expected): the CONTROL (two or more in 15 minutes) no longer hangs on
+       one roll; with two, a lap a few seconds shorter (report #69's walk-on) left 1. */
+    const shard = { id: 'crown_shard', ch: 0.05 };
+    const rareCat = { ...M.MONSTERS, rat: { ...rat, drops: [...rat.drops, shard, shard, shard, shard] } };
     const one = (cuts) => {
       const o = runCut(M, () => [memberIn(M, 'a', { unitId: null })], 900000, cuts, { monsters: rareCat });
       const drops = o.outs.flatMap((x) => x.events.filter((e) => e.type === 'rare_drop'));

@@ -24,7 +24,7 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-10-29",
- "replay_ms": 37940,
+ "replay_ms": 3493,
  "counts": {
   "tracked_names": 700,
   "entries": 555
@@ -2070,7 +2070,8 @@
     "2027-02-01-level-curve.generated.sql",
     "2027-02-04-level-curve-smooth.generated.sql",
     "2027-02-07-level-curve-wickstead.generated.sql",
-    "2027-02-08-unsourced-level-curve.generated.sql"
+    "2027-02-08-unsourced-level-curve.generated.sql",
+    "2027-02-09-walk-on-level-curve.generated.sql"
    ],
    "live": {
     "md5": "69699aff4af648f4338c8c614859cb48",
@@ -2097,7 +2098,8 @@
     "2027-02-01-level-curve.generated.sql",
     "2027-02-04-level-curve-smooth.generated.sql",
     "2027-02-07-level-curve-wickstead.generated.sql",
-    "2027-02-08-unsourced-level-curve.generated.sql"
+    "2027-02-08-unsourced-level-curve.generated.sql",
+    "2027-02-09-walk-on-level-curve.generated.sql"
    ],
    "live": {
     "md5": "4930375c7690cb281414bcef54ad6bd8",
@@ -12314,7 +12316,8 @@
     "2027-01-26-town-stations.generated.sql",
     "2027-01-29-havora-stations.generated.sql",
     "2027-01-30-havora-yards.generated.sql",
-    "2027-01-31-town-stations.generated.sql"
+    "2027-01-31-town-stations.generated.sql",
+    "2027-02-09-town-stations.generated.sql"
    ],
    "live": {
     "md5": "1768152bb5d23488014488973f677f6d",

@@ -43,18 +43,18 @@
 // window, no timers, no Math.random.
 // ============================================================
 
-import { COMBAT_BALANCE } from './combat.js?v=0.2.64';
-import { endReasonAt, deathXpLoss, staminaStep } from './action-rules.js?v=0.2.64';
-import { createRng } from './rng.js?v=0.2.64';
-import { densityFor, partyPick } from '../data/hunt-grounds.js?v=0.2.64';
-import { stepSwing } from './hunt/world-step.js?v=0.2.64';
-import { makeEvent, trackStep } from './hunt/events.js?v=0.2.64';
-import { newHuntWorld, joinHero, leaveHero } from './hunt-spawn.js?v=0.2.64';
-import { pullLeader } from './hunt/pull-cycle.js?v=0.2.64';
-import { rewardSwing } from './hunt-rewards.js?v=0.2.64';
+import { COMBAT_BALANCE } from './combat.js?v=0.2.66';
+import { endReasonAt, deathXpLoss, staminaStep } from './action-rules.js?v=0.2.66';
+import { createRng } from './rng.js?v=0.2.66';
+import { densityFor, partyPick } from '../data/hunt-grounds.js?v=0.2.66';
+import { stepSwing } from './hunt/world-step.js?v=0.2.66';
+import { makeEvent, trackStep } from './hunt/events.js?v=0.2.66';
+import { newHuntWorld, joinHero, leaveHero } from './hunt-spawn.js?v=0.2.66';
+import { pullLeader } from './hunt/pull-cycle.js?v=0.2.66';
+import { rewardSwing } from './hunt-rewards.js?v=0.2.66';
 
 /* The engine's front door (src/core/index.js `combatSim`). */
-export { stepSwing } from './hunt/world-step.js?v=0.2.64';
+export { stepSwing } from './hunt/world-step.js?v=0.2.66';
 
 /* WHY A COMBAT SPAN STOPPED BEFORE THE WINDOW DID — the same contract
    src/core/skill-sim.js and src/core/artisan-sim.js publish under this name.
@@ -207,7 +207,18 @@ export function simulateHuntInstance(inst, ctx) {
      sizes and fills the bar of a unit it first meets mid-window or after the snapshot stopped
      listing it (a corpse played behind the server); the window's dmg/heal events move the bar. */
   const units = {};
-  const seen = () => { if (world) for (const u of world.units) { kinds[u.id] = u.kind; if (!units[u.id]) units[u.id] = [u.kind, u.maxHp, u.hp]; } };
+  /* A unit first seen after a swing (`evs`, its events) was born inside it: its book HP is the HP it came with, that
+     swing's own HP changes taken back, as the timeline adds them again. A pack pulled in the swing it respawns (report
+     #69: the leader waits at the spawn) had its first blows counted twice: a standing monster drawn at 0 HP. */
+  const bornHp = (u, evs) => {
+    let hp = u.hp;
+    for (const e of evs) {
+      if (e.t !== u.id || !Number.isFinite(e.amount)) continue;
+      if (e.type === 'heal') hp -= e.amount; else if (e.type === 'dmg' || e.type === 'status_tick') hp += e.amount;
+    }
+    return Math.max(0, Math.min(u.maxHp, hp));
+  };
+  const seen = (evs) => { if (world) for (const u of world.units) { kinds[u.id] = u.kind; if (!units[u.id]) units[u.id] = [u.kind, u.maxHp, evs ? bornHp(u, evs) : u.hp]; } };
   seen();
   /* ANCHORS (visual only): every unit standing at the window's first instant gets a step on its
      tile, so a unit that never moves inside a window is still placed by it (the track is moves). */
@@ -306,7 +317,7 @@ export function simulateHuntInstance(inst, ctx) {
       if (fresh) { world.hold = world.holdNext; world.leader = pullLeader({ world }); fresh = false; }
       const r = stepSwing(world, { atMs, swingMs: tick, rng: createRng(seedOf(ctx, 's', sw)),
         ground: ctx.ground, grid: ctx.grid, heroes, ...(typeof ctx.xpMultOf === 'function' ? { xpMultOf: ctx.xpMultOf } : {}) });
-      seen();
+      seen(r.events);
       for (const t of r.track) track.push(t);
       for (const e of r.events) worldEvents.push(e);
       /* The rewards' own events (a party's rare roll) follow the swing's, on the server-only `r` stream. */

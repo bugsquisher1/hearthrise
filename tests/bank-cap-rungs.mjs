@@ -223,8 +223,12 @@ async function boot({ mutate, upTo } = {}) {
     return rows[0].r;
   };
 
-  /** Catalogue item ids — never invented, so the delta is one hr_apply would see. */
-  const itemIds = (await q('select item_id from public.hr_items order by item_id')).map((r) => r.item_id);
+  /** Catalogue item ids — never invented, so the delta is one hr_apply would see. Only MINTABLE ones: a hearthfind
+      trophy has one door (hr_apply refuses it in `items` as bad_hearthfind, (4a-h2)), so a fill that drew one measured
+      that refusal instead of the cap (v0.2.64 run 40809883091). The table is read only where the chain has it. */
+  const trophies = (await q("select to_regclass('public.hr_hearthfind_items') is not null as t"))[0].t
+    ? new Set((await q('select item_id from public.hr_hearthfind_items')).map((r) => r.item_id)) : new Set();
+  const itemIds = (await q('select item_id from public.hr_items order by item_id')).map((r) => r.item_id).filter((i) => !trophies.has(i));
 
   const held = async () => new Set((await q(
     'select item_id from public.player_inventory where user_id=$1 and slot=0', [uid])).map((r) => r.item_id));

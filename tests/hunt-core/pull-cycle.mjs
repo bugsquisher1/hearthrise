@@ -87,6 +87,30 @@ const cases = {
     M.hunt['pull-cycle'].respawnPacks(inst, sc2(M, 1, 8900));
     return w.packs[1].alive ? 'a pack came back before its respawn time' : null;
   },
+  /* EVERY PACK DOWN, THE LEADER WALKS ON (report #69, v0.2.63: two L45s at Wickstead stood ~7 s on the cleared
+     bottom-right pocket, then walked 10 s to a pack already back; a lone knight in the Cellar stood 18 s a lap). With
+     every pack down and the route on pocket 1, the leader leaves the pocket it cleared and waits inside pocket 1's area,
+     just outside its spawn at its pulling distance (dist + 2), never on the spawn; when pocket 1 is back it pulls it. */
+  'all-down-walks-on': (M) => {
+    const g = PARTY_GROUND();
+    const k = H(M, 1, 14, 4, 'tank');
+    const packs = g.pockets.map(() => ({ alive: false, aggro: false, holder: null, respawnAtMs: 1e9 }));
+    const inst = inst2(M, world(M, [k], { phase: 'travel', routeIdx: 1, leader: 1, packs, nextId: 2 }), g);
+    const spawn = g.pockets[1].spawns[0];
+    const sc = sc2(M, 1);
+    run(M, inst, 100, sc);
+    if (M.leash.inArea(inst, 0, k.x, k.y)) return 'every pack down: the leader still stands on the pocket it cleared at ' + k.x + ',' + k.y;
+    if (!M.leash.inArea(inst, 1, k.x, k.y)) return 'every pack down: the leader did not reach the next pocket\'s area in 10 s (at ' + k.x + ',' + k.y + ')';
+    const d = cheb(k, spawn);
+    if (d > k.dist + 2 || d < 1) return 'the leader waits ' + d + ' tile(s) from the spawn, want 1..' + (k.dist + 2) + ' (outside the spawn, at its pulling distance)';
+    const at = { x: k.x, y: k.y };
+    run(M, inst, 30, sc);
+    if (k.x !== at.x || k.y !== at.y) return 'the waiting leader wandered from ' + at.x + ',' + at.y + ' to ' + k.x + ',' + k.y;
+    inst.world.packs[1].respawnAtMs = sc.atMs;
+    let pulled = false;
+    run(M, inst, 30, sc, () => { pulled = sc.events.some((e) => e.type === 'pull' && e.pocket === 1); return !pulled; });
+    return pulled ? null : 'pocket 1 came back and the waiting leader did not pull it within 3 s';
+  },
   /* PC-02: a spawn tile someone stands on shifts to the first free tile inside the area; ids stay unique and ascending. */
   'spawn-free-tile': (M) => {
     const g = PARTY_GROUND();
@@ -264,6 +288,10 @@ const mutants = [
   { name: 'the route never loops', case: 'route-loops', edits: [[P, '{ w.routeIdx = 0; w.runs += 1; w.hold = w.holdNext; w.leader = pullLeader(inst); }', '{ w.routeIdx = inst.ground.route.length - 1; }']] },
   { name: 'the hold pick never takes force (Tyler 2026-10-22)', case: 'hold-pick-turns-at-the-lap', edits: [[P, ' w.runs += 1; w.hold = w.holdNext; w.leader', ' w.runs += 1; w.leader']] },
   { name: 'the hold pick takes force mid-pull', case: 'hold-pick-turns-at-the-lap', edits: [[P, '  w.routeIdx += 1;\n', '  w.routeIdx += 1; w.hold = w.holdNext;\n']] },
+  { name: 'every pack down, the leader stands on the pocket it cleared (report #69)', case: 'all-down-walks-on',
+    edits: [[P, '    else awaitPack(inst, k, p);\n', '']] },
+  { name: 'the waiting leader walks onto the spawn', case: 'all-down-walks-on',
+    edits: [[P, '  if (cheb(k, at) <= reach && inArea(inst, p, k.x, k.y)) { if (k.goal) clearGoal(k); return; }\n', '']] },
   { name: 'a pack respawns mid-fight', case: 'pack-not-respawn-mid-fight', edits: [[P, '    if (w.phase === PHASE.FIGHT && pocketNow(inst) === p) continue;\n', '']] },
   { name: 'a spawn ignores who stands there', case: 'spawn-free-tile',
     edits: [[P, '  const taken = (x, y) => inst.occ.mon.has(tileKey(inst.grid, x, y)) || inst.occ.hero.has(tileKey(inst.grid, x, y)) || !inArea(inst, p, x, y);', '  const taken = (x, y) => !inArea(inst, p, x, y);']] },

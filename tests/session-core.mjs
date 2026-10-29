@@ -106,6 +106,9 @@ async function load(base) {
     SI: await import(u('src/app/sign-in.js')),
     CFG: await import(u('src/session/config.js')),
     TP: await import(u('src/session/town-poll.js')),
+    TW: await import(u('src/shell/town-work.js')),
+    PS: await import(u('src/session/party-sections.js')),
+    HB: await import(u('src/world/hearth-burn.js')),
     I: await import(u('src/session/item-sections.js')),
     FI: await import(u('src/session/farm-intents.js')),
     FS: await import(u('src/session/farm-sections.js')),
@@ -158,7 +161,7 @@ const timers = { setTimer: () => 0, clearTimer: () => {} };
 async function rules(M) {
   const fails = [];
   const t = async (id, fn) => { try { const r = await fn(); if (r !== true) fails.push(id + ': ' + r); } catch (e) { fails.push(harnessFail(id, e)); } };
-  const { E, R, C, A, S, AU, NB, AR, SI, CFG, TP, I, FI, FS, XP } = M;
+  const { E, R, C, A, S, AU, NB, AR, SI, CFG, TP, TW, PS, HB, I, FI, FS, XP } = M;
 
   await t('ENV-1', () => {
     const a = E.applyEnvelope(null, env(3, { skills: { mining: 5 }, buffs: [1] })).record;
@@ -746,6 +749,54 @@ async function rules(M) {
     if (run('gather', 'normal_tree', { session_id: 'h1', ended: false })) return 'a hunter is re-read as town work (the hunt has its own re-read)';
     if (!run('gather', 'normal_tree', { session_id: 'h1', ended: true }) || !run('artisan', 'cook_shrimp')) return 'a node or a bench after a hunt is not re-read';
     return true;
+  });
+  /* TOWN-2 (report #68, live v0.2.63: "Shows me still refueling the hearth when I don't have any items"): the engine
+     stops a bench only when a settle finds its input gone, and nothing settled an UNVIEWED hero with no window open, so
+     its record (the roster's "In town, fueling…", the bag line) and its body at the Hearth kept fueling with the fuel
+     spent. Every open character's spent bench is now settled once the server's own numbers say it is spent, and the
+     idle answer REPLACES the record: the roster and the World's throw both follow it. */
+  await t('TOWN-2', async () => {
+    let clock = 1000;
+    const T0 = Date.parse('2026-10-29T02:10:00.000Z');
+    const iso = (ms) => new Date(ms).toISOString();
+    const w = TW.workRow('artisan', 'fuel_bones');
+    if (!w) return 'fuel_bones is not a bench row';
+    const step = TW.actionMs({ read: () => ({}) }, w);
+    const bones = Math.ceil((CFG.SESSION_CONFIG.townPollMs + 5000) / step);
+    const fueling = env(1, { now: iso(T0), inventory: { bones },
+      state: { gold: 1, active_kind: 'artisan', active_id: 'fuel_bones', accrued_to: iso(T0), active_since: iso(T0) } });
+    const calls = [];
+    const srv = {
+      rpc: async (name) => { calls.push(name); return { ok: true, status: 200, body: fueling, closed: false }; },
+      accrue: async (b) => {
+        calls.push('accrue:' + b.slot);
+        const now = T0 + (clock - 1000);
+        return { ok: true, status: 200, closed: false, body: Object.assign({ accrued: true }, env(2, { now: iso(now), inventory: {},
+          state: { gold: 1, active_kind: 'idle', active_id: null, accrued_to: iso(now), active_since: null } })) };
+      },
+    };
+    const cs = new C.CharacterSession({ slot: 2, uid: UID, server: srv, now: () => clock, ...timers });
+    await cs.load();
+    const spentAt = TW.benchSpentAtMs(cs);
+    if (!Number.isFinite(spentAt) || spentAt < T0 + bones * step) return 'the spent instant is not past the server\'s supply: ' + spentAt;
+    if (!/fueling/i.test(PS.assignmentOf(cs).text)) return 'the fixture is not fueling: ' + PS.assignmentOf(cs).text;
+    /* not yet spent by the server's own numbers (its watermark + its bag): nothing is asked, even past townPollMs */
+    clock = 1000 + (spentAt - T0) - 1;
+    if (TP.settleSpentBench(cs, TW.benchSpentAtMs(cs))) return 'a bench with fuel left was settled early';
+    clock = 1000 + (spentAt - T0) + 1;
+    if (!TP.settleSpentBench(cs, TW.benchSpentAtMs(cs))) return 'an unviewed bench past its spent instant was never settled (#68)';
+    for (let i = 0; i < 4; i++) await new Promise((r) => setImmediate(r));
+    if (calls.join(',') !== 'hr_load,accrue:2') return 'the settle did not reach the engine for the slot: ' + calls.join(',');
+    if (PS.assignmentOf(cs).kind !== 'idle') return 'the idle answer did not replace the record: ' + PS.assignmentOf(cs).text;
+    if (TW.benchSpentAtMs(cs) !== null || TP.settleSpentBench(cs, TW.benchSpentAtMs(cs))) return 'an idle hero is still settled as a bench';
+    /* THE WORLD (src/world/world-boot.js hearthState): the hero at its Hearth stand throws only while the server's record
+       says a bench runs; after the settle it stands idle */
+    const view = HB.createHearthView({ T: 32, ambient: [{ id: 'hearth_fire', x: 117, y: 48, lift: 86 }] }, { sprites: new Proxy({}, { get: (o, k) => ({ id: k }) }) });
+    const st = cs.read('state');
+    const at = { place: { x: 114, y: 49, gx: 114, gy: 49 }, units: [], walkers: [], me: { station: 'hearth', stand: 3, since: 1, x: 114, y: 49 },
+      active: st && st.active_kind === 'artisan' ? st.active_id : null, burn: null, flame: null, xp: 0, hero: { x: 114, y: 49 } };
+    const thrown = Array.from({ length: 30 }, (_, i) => view.frame(at, 20000 + i * 100).fx.length).reduce((a, n) => a + n, 0);
+    return thrown === 0 || 'the hero at the Hearth kept throwing after the server stopped the bench';
   });
   /* HUNT-1F (live v0.2.20, the http origin's blocked calls): an ask for the live start point that brings
      NO answer backs off like one that brings no start point; it never re-arms every liveAskMs forever. */
@@ -1673,7 +1724,10 @@ const MUTANTS = [
   ['a farm action never tells the account', 'src/session/farm-intents.js', "    if (typeof cs.onShared === 'function') cs.onShared('farm', cs.slot);\n", ''],
   ['the account ignores a farm change', 'src/session/account-session.js', "const SHARED_KINDS = new Set(['farm']);", "const SHARED_KINDS = new Set([]);"],
   ['an idle settle replaces the character','src/session/character-session.js', "if (ans.ok && ans.body && ans.body.accrued !== true) return this.load();", ""],
-  ['a watched bench waits until it is done', 'src/session/town-poll.js', "  if (!townAskDue(townWorkRunning(cs.read('state'), cs.read('hunt')), a.busy, a.at, cs.receivedAt, now)) return false;", '  return false;'],
+  ['a watched bench waits until it is done', 'src/session/town-poll.js', '  if (!townAskDue(running, a.busy, a.at, cs.receivedAt, now)) return false;', '  return false;'],
+  ['an unwatched spent bench is never settled (#68)', 'src/session/town-poll.js', '  return askTown(cs, townWorkRunning(cs.read(\'state\'), cs.read(\'hunt\')));\n}\n\nfunction askTown', '  return false;\n}\n\nfunction askTown'],
+  ['a bench is settled before its supply is spent', 'src/session/town-poll.js', '  if (!Number.isFinite(serverNow) || serverNow < spentAtMs) return false;', '  if (!Number.isFinite(serverNow)) return false;'],
+  ['the spent instant ignores the server\'s supply', 'src/shell/town-work.js', '  return from + (runs + 1) * actionMs(cs, w) + SLACK_MS;', '  return from + SLACK_MS;'],
   ['the town re-read asks every display tick', 'src/session/town-poll.js', '  return nowMs - since >= SESSION_CONFIG.townPollMs;', '  return true;'],
   ['two town re-reads in flight', 'src/session/town-poll.js', '  if (!running || busy) return false;', '  if (!running) return false;'],
   ['a hunter is re-read as town work', 'src/session/town-poll.js', "  return !(hunt && typeof hunt === 'object' && typeof hunt.session_id === 'string' && hunt.ended !== true);", '  return true;'],

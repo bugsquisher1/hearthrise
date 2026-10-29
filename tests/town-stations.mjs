@@ -27,6 +27,7 @@
 //        tile of every WAY (town/plan.js WAYS: the high street, the gate road, the bridges, the east gate,
 //        the mine road, the south road, the boardwalk) is open and reachable, so a footprint, a fence or a
 //        prop dropped on a road can never cut the town in two
+//   ST-11 a cook works at a cook fire: the kitchen's first stands (one per hero of an account) touch a spit or cauldron
 //   ST-8 arrival (the SERVER hands out the arrival station's stands, lowest first:
 //        2027-01-28-town-stands.sql): it has a primary stand for each of an account's
 //        heroes, and each of the first ones is in a landscape phone's view (844 x 390
@@ -74,6 +75,8 @@ try {
 /** A landscape phone's view (CSS px) and the town's sprite of the gate a hunt comes back through. */
 const PHONE = Object.freeze([844, 390]);
 const GATE_SPRITE = 'havora_gatehouse';
+/** ST-11: the kitchen pieces a cook cooks over (src/data/world/stations.js FIRES). */
+const COOK_FIRES = Object.freeze(['havora_cook_spit', 'havora_cook_cauldron']);
 /** ST-10: how far past a blocker a way is looked for, and the widest strip of rock that may not cut a way. */
 const DEAD_END_SPAN = 12, CLIFF_STRIP = 4;
 
@@ -247,6 +250,18 @@ function check(S, editRow = null) {
         + front + ', ' + half[0] + ' x ' + half[1] + ' tiles each side)');
     }
   }
+  /* ST-11 a cook works AT A COOK FIRE (playtest 2026-10-29 #13: the first cook stood at the bread oven's foot on the
+     yard's path): the kitchen's first stands, one per hero of an account (the server hands out the lowest free), each
+     touch a spit fire's or a cauldron's footprint */
+  const kitchen = S.STATION_BY_ID[S.ACTIVITY_STATIONS.artisan.cooking];
+  const fires = map.objects.filter((o) => COOK_FIRES.includes(o.id));
+  ok('ST-11', !!kitchen && fires.length > 0, 'no cook fire (' + COOK_FIRES.join(', ') + ') on the town map');
+  if (kitchen) {
+    for (const [x, y] of kitchen.stands.slice(0, heroes)) {
+      const at = fires.find((o) => x >= o.x - 1 && x <= o.x + (o.fw || 1) && y >= o.y - 1 && y <= o.y + (o.fh || 1));
+      ok('ST-11', !!at, 'the kitchen\'s stand ' + x + ',' + y + ' (among its first ' + heroes + ') is at no cook fire');
+    }
+  }
   return fails;
 }
 
@@ -290,6 +305,8 @@ if (process.argv.includes('--selftest')) {
     ['ST-8', 'the first arrivals stand by the tavern wall, out of a phone\'s view of the gate', (c) => {
       const g = by(c, 'gatehouse'); g.stands = g.stands.slice(g.primary).concat(g.stands.slice(0, g.primary)); }],
     ['ST-8', 'fewer arrival stands than an account\'s heroes', (c) => { by(c, 'gatehouse').primary = 3; }],
+    ['ST-11', 'the bread ovens listed first again (the first cook at the oven on the path)', (c) => {
+      const k = by(c, 'tavern_kitchen'); k.stands = k.stands.slice(8, 12).concat(k.stands.slice(0, 8), k.stands.slice(12)); }],
   ];
   /* ST-9's planted map defects: one road tile blocked by a crate; one open tile fenced in by four */
   const crate = (px, py) => { const [x, y] = M.plan.at(px, py); return { id: 'crates', x, y }; };

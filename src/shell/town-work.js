@@ -35,21 +35,21 @@
 // server's engine has certainly done since its watermark (tickOf: town-ticker.js,
 // Tyler 2026-10-23), shown as pending and never spent.
 // ════════════════════════════════════════════════════════════════════════
-import { TREES, ROCKS, FISH_SPOTS } from '../data/gathering.js?v=0.2.64';
-import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.64';
-import { ITEMS } from '../data/items.js?v=0.2.64';
-import { SKILLS_DEF } from '../data/skills.js?v=0.2.64';
-import { HUNT_TUNING } from '../data/hunt-tuning.js?v=0.2.64';
-import { indexGatherNodes, gatherIntervalMs } from '../core/skill-sim.js?v=0.2.64';
-import { indexArtisanRecipes, artisanIntervalMs, bagFullFor } from '../core/artisan-sim.js?v=0.2.64';
-import { recipeInputs } from '../core/artisan.js?v=0.2.64';
-import { pacedXp } from '../core/pacing.js?v=0.2.64';
-import { whole } from '../render/format.js?v=0.2.64';
-import { itemName } from './widgets/bits.js?v=0.2.64';
-import { skillsOf, heldOf, bagCapOf, drawsOnStorage } from '../session/item-sections.js?v=0.2.64';
-import { townWorkRunning } from '../session/town-poll.js?v=0.2.64';
-import { predictTown, aheadQty, shownQty, lineParts, aheadStored } from './town-ticker.js?v=0.2.64';
-import { skillShortWords } from './intent-words.js?v=0.2.64';
+import { TREES, ROCKS, FISH_SPOTS } from '../data/gathering.js?v=0.2.66';
+import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.66';
+import { ITEMS } from '../data/items.js?v=0.2.66';
+import { SKILLS_DEF } from '../data/skills.js?v=0.2.66';
+import { HUNT_TUNING } from '../data/hunt-tuning.js?v=0.2.66';
+import { indexGatherNodes, gatherIntervalMs } from '../core/skill-sim.js?v=0.2.66';
+import { indexArtisanRecipes, artisanIntervalMs, bagFullFor } from '../core/artisan-sim.js?v=0.2.66';
+import { recipeInputs } from '../core/artisan.js?v=0.2.66';
+import { pacedXp } from '../core/pacing.js?v=0.2.66';
+import { whole } from '../render/format.js?v=0.2.66';
+import { itemName } from './widgets/bits.js?v=0.2.66';
+import { skillsOf, heldOf, bagCapOf, drawsOnStorage } from '../session/item-sections.js?v=0.2.66';
+import { townWorkRunning } from '../session/town-poll.js?v=0.2.66';
+import { predictTown, aheadQty, shownQty, lineParts, aheadStored } from './town-ticker.js?v=0.2.66';
+import { skillShortWords } from './intent-words.js?v=0.2.66';
 
 /** Every gathering node the engine runs, by id: { skill, node }. The same index the server builds (hr-accrue catalogue.js). */
 export const GATHER_INDEX = indexGatherNodes({ woodcutting: TREES, mining: ROCKS, fishing: FISH_SPOTS });
@@ -130,6 +130,23 @@ export function leftOf(cs) {
 export function actionMs(cs, w) {
   const st = { inventory: invOf(cs), equipment: eqOf(cs) };
   return w.kind === 'gather' ? gatherIntervalMs(st, w.skill, w.row, { items: ITEMS }) : artisanIntervalMs(st, w.skill, w.row, { items: ITEMS });
+}
+
+/**
+ * The SERVER-clock ms by which the bench run the server holds has certainly spent its supply (or its count), so the
+ * engine stops it on the next settle; null for anything else (no bench, a hunt open, no watermark). From the server's
+ * own record only: its watermark, its bag + Storage, its `bench_run.left`, plus one more action (the attempt that finds
+ * the input gone) and SLACK_MS. Report #68: an unwatched bench nobody settled kept saying "Fueling" with its fuel spent.
+ */
+export function benchSpentAtMs(cs) {
+  const st = stateOf(cs);
+  const w = workOf(cs);
+  if (!w || w.kind !== 'artisan' || !townWorkRunning(st, cs.read('hunt'))) return null;
+  const from = Date.parse(st.accrued_to);
+  if (!Number.isFinite(from)) return null;
+  const left = leftOf(cs);
+  const runs = left === null ? runsOf(w.row, supplyOf(cs)) : Math.min(left, runsOf(w.row, supplyOf(cs)));
+  return from + (runs + 1) * actionMs(cs, w) + SLACK_MS;
 }
 
 /** XP one action pays at the pacing dial, whole (the server floors the same way). */

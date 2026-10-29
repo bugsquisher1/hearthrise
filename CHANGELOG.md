@@ -5,6 +5,24 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.66 — 2026-10-29 (No more standing around)
+
+**Hunts keep moving.** When every pack is down, your party now walks to the next spot and waits for the respawn there, instead of standing on the pocket it just cleared. The long pauses after a big pull are gone. Levels from 6 up now take a little more XP, so the time to each Level stays where it was.
+
+**A cleaner first bar.** A new sword hero no longer starts with a crossed-out Flame Strike. A tip in the Mill Cellar offers it when you have a slot free, and explains the rune it costs. Styles that start with a rune spell are told which rune to buy before the hunt.
+
+**Small fixes.** Equip upgrades says why when it can't choose between two pieces. Each Farm crop shows its own Farming level. "Plant your land" waits until every open plot is planted. New cooks stand at the fire, not in the road. On phones the tutorial card no longer covers your hero, and an ended hunt's empty bar no longer sits over the town.
+
+## v0.2.65 — 2026-10-29 (A smoother first hour)
+
+**Wear what you find.** Armor you bring home is now put on for you when it beats what you wear, using the armor weight you chose with Tamsin.
+
+**Clearer first steps.** The loot plan no longer says the shop won't buy things you just sold. Tips read more naturally, and "Level 2" is now "Your first Level", so it no longer shows before the bar has moved.
+
+**Better on phones.** Hero creation shows all five ways to fight, bag rows no longer break one word per line, and Tamsin's card leads with what to do.
+
+**The Hearth keeps up.** A hero whose Hearth fuel runs out now stops for everyone, even after its player has logged off.
+
 ## v0.2.64 — 2026-10-29 (Boars and bears)
 
 **Two new creatures.** The Orchard Boar now roots through Wickstead's burned orchard: low, heavy and hard to put down. Up in Mosslight Glade, the Brook Bear fishes the springs and Vine Hollow, and it hits harder than anything else there.
@@ -14,6 +32,8 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 **More gear to make and find.** Bronze Gauntlets are now forged at Smithing, on a new Armor tab. Apprentice Gloves, the Apprentice Sash and the Leather Belt are made with Crafting. Deep in the Warrens, Goblin Skulkers and Diggers rarely drop finer gloves and belts.
 
 **Early levels smoothed.** Levels 4 to 7 take a little less time, so no level suddenly takes twice as long as the one before.
+
+**Fixes.** A Hearth run that has used up its fuel now stops showing as fueling, and the hero stops throwing at the fire. A minimized tutorial tip such as "Your hero just drank" no longer sits on screen forever: it finishes on its own, and tips you only need to read now have a close button.
 
 ## v0.2.63 — 2026-10-28 (Wickstead)
 

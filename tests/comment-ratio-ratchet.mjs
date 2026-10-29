@@ -457,7 +457,10 @@ function selftest() {
   }
   console.log('  false-positive floor: the real tree reports 0 problems');
 
-  const victim = real.top[0].file;
+  /* The victim is the largest PINNED file: every arm is set from its baseline row, and the largest file today may be
+     one that entered the top 16 since the last --write (v0.2.64: hunt-tutorial.js), with no row to set from. */
+  const victim = (real.top.find((r) => base.files[r.file]) || {}).file;
+  if (!victim) { console.error('SELFTEST HARNESS: no file of the top 16 is pinned in the baseline — run --write'); return 2; }
   /* ⚠ EVERY ARM BELOW IS EXPRESSED RELATIVE TO THE CEILING, NOT TO TODAY'S TREE.
      The first version added +1 to today's counts, which only bit while the tree
      happened to sit exactly ON its baseline — the moment a build paid down

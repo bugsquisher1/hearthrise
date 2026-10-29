@@ -22,19 +22,19 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { HUNT_TUNING } from '../../data/hunt-tuning.js?v=0.2.64';
-import { VITALS } from '../../data/core-model.js?v=0.2.64';
-import { MONSTERS, monsterSpeedOf } from '../../data/monsters.js?v=0.2.64';
-import { AI_REPATH_MS } from '../../data/hunt-roles.js?v=0.2.64';
-import { HUNT_GROUNDS, packHpFor, yieldPermille, routeFor, pullRows, monstersOn } from '../../data/hunt-grounds.js?v=0.2.64';
-import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.64';
-import { monsterMaxHit } from '../combat.js?v=0.2.64';
-import { cheb, dist2, freeNear, tileKey } from './grid.js?v=0.2.64';
-import { inArea, resetPack } from './leash.js?v=0.2.64';
-import { atRest, unitById, leaderOf, setGoal, clearGoal, occupancy, reachable } from './movement.js?v=0.2.64';
-import { makeEvent, trackStep } from './events.js?v=0.2.64';
-import { pickLeader, kites } from './roles.js?v=0.2.64';
-import { holderTank, turnTanks, pickInForce } from './targeting.js?v=0.2.64';
+import { HUNT_TUNING } from '../../data/hunt-tuning.js?v=0.2.66';
+import { VITALS } from '../../data/core-model.js?v=0.2.66';
+import { MONSTERS, monsterSpeedOf } from '../../data/monsters.js?v=0.2.66';
+import { AI_REPATH_MS } from '../../data/hunt-roles.js?v=0.2.66';
+import { HUNT_GROUNDS, packHpFor, yieldPermille, routeFor, pullRows, monstersOn } from '../../data/hunt-grounds.js?v=0.2.66';
+import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.66';
+import { monsterMaxHit } from '../combat.js?v=0.2.66';
+import { cheb, dist2, freeNear, tileKey } from './grid.js?v=0.2.66';
+import { inArea, resetPack } from './leash.js?v=0.2.66';
+import { atRest, unitById, leaderOf, setGoal, clearGoal, occupancy, reachable } from './movement.js?v=0.2.66';
+import { makeEvent, trackStep } from './events.js?v=0.2.66';
+import { pickLeader, kites } from './roles.js?v=0.2.66';
+import { holderTank, turnTanks, pickInForce } from './targeting.js?v=0.2.66';
 
 /* deadMs: a corpse's age. hpMilli: out-of-combat regen carried below one HP.
    phase / routeIdx / phaseMs / regroupNext / runs / nextId: the cycle. alive / respawnAtMs: a pack. */
@@ -201,6 +201,7 @@ function travel(inst, sc, k) {
   const mons = packMonsters(inst, p);
   if (!w.packs[p].alive || !mons.length) {
     if (w.packs.some((pk) => pk.alive)) nextPocket(inst, k);
+    else awaitPack(inst, k, p);
     return;
   }
   const c = { x: mons.reduce((a, m) => a + m.x, 0) / mons.length, y: mons.reduce((a, m) => a + m.y, 0) / mons.length };
@@ -218,6 +219,25 @@ function travel(inst, sc, k) {
   occupancy(inst);
   const g = freeNear(inst.grid, Math.round(c.x), Math.round(c.y), 2, (x, y) => inst.occ.mon.has(tileKey(inst.grid, x, y)))
     || [mons[0].x, mons[0].y];
+  setGoal(inst, k, g[0], g[1]);
+  k.aiMs = AI_REPATH_MS.travel;
+}
+
+/* EVERY PACK IS DOWN (report #69, v0.2.63: two L45s at Wickstead clear the ground faster than it respawns): the
+   leader walks on to its route's pocket `p` and waits there, just outside the spawn ring at its own pulling distance
+   (a kiter's range rule pulls the moment the ring is back; anyone else walks in), never on the pocket it cleared.
+   It stood there instead: ~7 s still after the bottom-right pull, then a 10 s walk to a pack already back.
+   The spot is the pocket's pull tile, or (a pocket authored without one) the middle of its spawn rows. */
+function awaitPack(inst, k, p) {
+  const pk = inst.ground.pockets[p];
+  const at = pk.pull ? { x: pk.pull[0], y: pk.pull[1] }
+    : { x: Math.round(pk.spawns.reduce((a, s) => a + s.x, 0) / pk.spawns.length), y: Math.round(pk.spawns.reduce((a, s) => a + s.y, 0) / pk.spawns.length) };
+  const reach = (Number.isInteger(k.dist) && k.dist > 0 ? k.dist : 1) + 2;
+  if (cheb(k, at) <= reach && inArea(inst, p, k.x, k.y)) { if (k.goal) clearGoal(k); return; }
+  if (k.goal && k.aiMs > 0) return;
+  occupancy(inst);
+  const g = freeNear(inst.grid, at.x, at.y, 2, (x, y) => inst.occ.mon.has(tileKey(inst.grid, x, y)));
+  if (!g) return;
   setGoal(inst, k, g[0], g[1]);
   k.aiMs = AI_REPATH_MS.travel;
 }

@@ -133,9 +133,9 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_TUNING } from './hunt-tuning.js?v=0.2.64';
-import { HUNT_INDEX } from './hunts.js?v=0.2.64';
-import { MONSTERS } from './monsters.js?v=0.2.64';
+import { HUNT_TUNING } from './hunt-tuning.js?v=0.2.66';
+import { HUNT_INDEX } from './hunts.js?v=0.2.66';
+import { MONSTERS } from './monsters.js?v=0.2.66';
 
 const pocket = (room, ...spawns) => Object.freeze({ room: Object.freeze(room),
   spawns: Object.freeze(spawns.map(([monster, x, y]) => Object.freeze({ monster, x, y }))) });
@@ -187,7 +187,11 @@ export const HUNT_GROUNDS = Object.freeze({
       pocket([4, 5, 10, 10], ['rat', 7, 8], ['slime', 8, 6], ['hive_wasp', 5, 6]),
     ]),
     route: Object.freeze([0, 1]),
-    respawnMs: 30000, pullDist: 1.5, partyScale: true, groupFit: 'both',
+    /* 32 s (Coordinator ruling 2026-10-29, report #69): with every pack down the hero now walks on and waits at the next
+       spawn (pull-cycle.js awaitPack), where it stood ~3 s of every 30 s lap on the pocket it had cleared. 32 s keeps the
+       measured floor pay (L1 solo 1,829.5 g/h, was 1,828.5; 30 s would be 1,930, over the Thicket's: forest-cave
+       first-grounds-net-chain) and the first Levels' pace. */
+    respawnMs: 32000, pullDist: 1.5, partyScale: true, groupFit: 'both',
     /* the tutorial room allows the full box and no more: its lesson is the pull */
     densityMax: Object.freeze([8, 8, 8, 8]),
   }),

@@ -18,12 +18,12 @@
 // Every control is off while an intent is in flight; nothing changes on
 // screen until the re-read envelope says so.
 // ════════════════════════════════════════════════════════════════════════
-import { staminaRefillOf, blessingsOf, goldOf } from '../../session/item-sections.js?v=0.2.64';
-import { staminaOf } from '../../session/hunt-sections.js?v=0.2.64';
-import { text, cls, prop, rows, element } from '../../render/paint.js?v=0.2.64';
-import { whole, gold, hoursWords as hoursText } from '../../render/format.js?v=0.2.64';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.64';
-import { runIntent } from '../intent-words.js?v=0.2.64';
+import { staminaRefillOf, blessingsOf, goldOf } from '../../session/item-sections.js?v=0.2.66';
+import { staminaOf } from '../../session/hunt-sections.js?v=0.2.66';
+import { text, cls, prop, rows, element } from '../../render/paint.js?v=0.2.66';
+import { whole, gold, hoursWords as hoursText } from '../../render/format.js?v=0.2.66';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.66';
+import { runIntent } from '../intent-words.js?v=0.2.66';
 
 const ROMAN = Object.freeze(['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX']);
 const SCRATCH = new WeakMap();
@@ -88,7 +88,7 @@ export function patchServicesPane(body, ctx) {
       + '<button type="button" class="hh-tool" data-hs-act="bless" data-tier="' + t.tier + '"></button></li>'),
     patch: (li, t) => {
       const short = !t.held && next && next.tier === t.tier && purse !== null && purse < t.price ? t.price - purse : 0;
-      text(li.querySelector('small'), Math.round(t.permille / 10) + '% less XP lost' + (t.tier > 1 ? ' in all' : '') + ' · ' + (t.held ? 'owned' : t.price ? gold(t.price) : 'free')
+      text(li.querySelector('small'), Math.round(t.permille / 10) + '% less XP lost' + (t.tier > 1 ? ' with ' + (t.tier > 2 ? 'I and II' : 'I') : '') + ' · ' + (t.held ? 'owned' : t.price ? gold(t.price) : 'free')
         + (short ? ' · You need ' + gold(short) + ' more.' : ''));
       const btn = li.querySelector('button');
       text(btn, t.held ? 'Owned' : next && next.tier === t.tier ? (t.price ? 'Bless · ' + gold(t.price) : 'Bless · free') : 'Needs ' + ROMAN[t.tier - 1]);

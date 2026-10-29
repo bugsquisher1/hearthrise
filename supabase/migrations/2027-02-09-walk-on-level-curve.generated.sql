@@ -24,8 +24,14 @@
 -- as death_xp_over, then settles on the next tick after the deploy).
 -- LIVE CHARACTERS UNDER LEVEL 10 may move a Level (5,000 XP was Level 6, now 5: Levels 5-9 cost
 -- more, 1-4 about the same); nothing is written, and from 137,918 XP on nothing changes.
+-- NEW IN 2027-02-09 (lane/a-pull-freeze, Coordinator ruling 2026-10-29): with every pack
+-- down a hero walks on to the next spawn (report #69), so the pace was re-measured and every
+-- bracket from Level 4 re-fitted (Level 10 at 177,499 XP, was 157,965; Level 5's total is
+-- unchanged): live characters from Level 6 up may read a Level lower; nothing is written.
 -- ORDER: any time after 2027-02-01-level-curve.generated.sql (APPLIED); the hr-accrue
--- deploy carrying the same LEVEL_CURVE follows AT ONCE. No begin/commit (CLAUDE.md §2).
+-- deploy carrying the same LEVEL_CURVE follows AT ONCE. With 2027-02-09: apply this file,
+-- deploy hr-accrue at once, then apply 2027-02-09-cellar-respawn (its kill bound wants the
+-- edge first). No begin/commit (CLAUDE.md §2).
 -- ════════════════════════════════════════════════════════════════════════
 
 -- ── §0 PRECONDITIONS ─────────────────────────────────────────────────────────
@@ -52,15 +58,15 @@ insert into public.hr_level_curve (from_level, base_xp, first_xp, rise, bend) va
   (1, 0, 127, 127, 0),
   (2, 127, 254, 254, 0),
   (3, 381, 508, 521, 0),
-  (4, 889, 1029, 5171, 0),
-  (5, 1918, 6200, 6360, 0),
-  (6, 8118, 12560, 12440, 0),
-  (7, 20678, 25000, 21913, 0),
-  (8, 45678, 46913, 18461, 0),
-  (9, 92591, 65374, 1, 0),
-  (10, 157965, 65375, 0, 629),
-  (50, 15692625, 1071775, 68240, 199),
-  (300, 3437854250, 30569275, 188831, 630);
+  (4, 889, 1029, 5535, 0),
+  (5, 1918, 6564, 7009, 0),
+  (6, 8482, 13573, 13939, 0),
+  (7, 22055, 27512, 28376, 0),
+  (8, 49567, 55888, 16156, 0),
+  (9, 105455, 72044, 1, 0),
+  (10, 177499, 72045, 0, 504),
+  (50, 13411459, 878445, 79325, 129),
+  (300, 3369862459, 28772195, 209310, 584);
 
 -- ── §2 THE CURVE FUNCTIONS (src/core/xp.js charXpForLevel / charLevelFromXp) ──
 -- Total XP to reach a Level: its bracket's base + first m + rise m(m-1)/2 + bend (m-1)m(2m-1)/6, exact.
@@ -117,24 +123,24 @@ begin
   (1, 0, 127, 127, 0),
   (2, 127, 254, 254, 0),
   (3, 381, 508, 521, 0),
-  (4, 889, 1029, 5171, 0),
-  (5, 1918, 6200, 6360, 0),
-  (6, 8118, 12560, 12440, 0),
-  (7, 20678, 25000, 21913, 0),
-  (8, 45678, 46913, 18461, 0),
-  (9, 92591, 65374, 1, 0),
-  (10, 157965, 65375, 0, 629),
-  (50, 15692625, 1071775, 68240, 199),
-  (300, 3437854250, 30569275, 188831, 630)) d(from_level, base_xp, first_xp, rise, bend)
+  (4, 889, 1029, 5535, 0),
+  (5, 1918, 6564, 7009, 0),
+  (6, 8482, 13573, 13939, 0),
+  (7, 22055, 27512, 28376, 0),
+  (8, 49567, 55888, 16156, 0),
+  (9, 105455, 72044, 1, 0),
+  (10, 177499, 72045, 0, 504),
+  (50, 13411459, 878445, 79325, 129),
+  (300, 3369862459, 28772195, 209310, 584)) d(from_level, base_xp, first_xp, rise, bend)
                  where not exists (select 1 from public.hr_level_curve k where k.from_level = d.from_level and k.base_xp = d.base_xp
                                      and k.first_xp = d.first_xp and k.rise = d.rise and k.bend = d.bend)) then
     raise exception 'level-curve: hr_level_curve is not the generated 12-row set'; end if;
   select string_agg(p.l || ': ' || public.hr_char_xp_for_level(p.l) || ' <> ' || p.x, ', ') into v_bad
-    from (values (1, 0), (2, 127), (3, 381), (4, 889), (5, 1918), (6, 8118), (7, 20678), (8, 45678), (9, 92591), (10, 157965), (11, 223340), (25, 1777025), (49, 14670541), (50, 15692625), (51, 16764400), (100, 160919950), (200, 1160682100), (299, 3407452516), (300, 3437854250), (301, 3468423525), (500, 14976867150), (750, 55343189525), (1000, 142909574400), (5000, 24028180232400)) p(l, x)
+    from (values (1, 0), (2, 127), (3, 381), (4, 889), (5, 1918), (6, 8482), (7, 22055), (8, 49567), (9, 105455), (10, 177499), (11, 249544), (25, 1769734), (49, 12572830), (50, 13411459), (51, 14289904), (100, 159721659), (200, 1175312059), (299, 3341233960), (300, 3369862459), (301, 3398634654), (500, 14835243259), (750, 55142806759), (1000, 141345745259), (5000, 22654363761259)) p(l, x)
    where public.hr_char_xp_for_level(p.l) <> p.x;
   if v_bad is not null then raise exception 'level-curve: hr_char_xp_for_level disagrees with src/core/xp.js at %', v_bad; end if;
   select string_agg(p.l::text, ', ') into v_bad
-    from (values (1, 0), (2, 127), (3, 381), (4, 889), (5, 1918), (6, 8118), (7, 20678), (8, 45678), (9, 92591), (10, 157965), (11, 223340), (25, 1777025), (49, 14670541), (50, 15692625), (51, 16764400), (100, 160919950), (200, 1160682100), (299, 3407452516), (300, 3437854250), (301, 3468423525), (500, 14976867150), (750, 55343189525), (1000, 142909574400), (5000, 24028180232400)) p(l, x)
+    from (values (1, 0), (2, 127), (3, 381), (4, 889), (5, 1918), (6, 8482), (7, 22055), (8, 49567), (9, 105455), (10, 177499), (11, 249544), (25, 1769734), (49, 12572830), (50, 13411459), (51, 14289904), (100, 159721659), (200, 1175312059), (299, 3341233960), (300, 3369862459), (301, 3398634654), (500, 14835243259), (750, 55142806759), (1000, 141345745259), (5000, 22654363761259)) p(l, x)
    where public.hr_char_level(p.x) <> p.l
       or (p.l > 1 and public.hr_char_level(p.x - 1) <> p.l - 1)
       or public.hr_char_level(public.hr_char_xp_for_level(p.l + 1) - 1) <> p.l;

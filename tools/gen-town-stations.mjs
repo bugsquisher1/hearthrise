@@ -41,8 +41,8 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
    history (2027-01-26-town-stations.generated.sql: the 24x14 Common seed, APPLIED 10-26; 2027-01-29-havora-stations:
    Havora's first stands, APPLIED 10-26; 2027-01-30: the work yards, quarry, Westwood and farm laid out organically,
    lane/b-havora-polish, APPLIED 10-26; 2027-01-31: the Hearth's fuel stands host Inner Flame, which replaced Prayer,
-   lane/b-inner-flame). */
-export const OUT_FILE = '2027-01-31-town-stations.generated.sql';
+   lane/b-inner-flame, APPLIED 10-27; 2027-02-09: the kitchen's stands at its cook fires first, lane/a-first-hour-leftovers). */
+export const OUT_FILE = '2027-02-09-town-stations.generated.sql';
 const OUT = join(ROOT, 'supabase', 'migrations', OUT_FILE);
 
 export const ROLES = Object.freeze(['work', 'arrive', 'idle', 'visit', 'bench']);

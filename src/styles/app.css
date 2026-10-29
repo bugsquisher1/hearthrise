@@ -242,9 +242,10 @@
   .hero-form { gap: 4px; }
   .hero-dyes { grid-template-columns: repeat(16, 16px); padding: 3px; }
   .hero-dye { width: 16px; height: 16px; }
-  /* The phone keeps the rule beside the form (the list is in Settings > Help), so the card fits 423 px unscrolled. */
-  .hero-how { min-width: 9rem; padding-left: 12px; }
-  .hero-how-title, .hero-how-list { display: none; }
+  /* The phone shows How you fight too (playtest 2026-10-29: a phone player never met the five ways to fight): the
+     column takes the form's height (it adds none of its own) and scrolls, so the card still fits 423 px. */
+  .hero-body { align-items: stretch; }
+  .hero-how { min-width: 9rem; padding-left: 12px; contain: size; overflow-y: auto; }
 }
 
 /* A PHONE HELD UPRIGHT (play.html .turn-phone; QA 2026-10-24: in portrait the cards ran off the right edge and half

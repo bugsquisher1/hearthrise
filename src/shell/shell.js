@@ -39,24 +39,25 @@
 //
 // Mounted by src/app/world-pane.js over one character's World.
 // ════════════════════════════════════════════════════════════════════════
-import { MOBILE_QUERY } from '../world/core/camera.js?v=0.2.64';
-import { SHELL_WINDOWS } from '../data/shell-windows.js?v=0.2.64';
-import { HUD_WIDGETS } from '../data/hud-widgets.js?v=0.2.64';
-import { createWindowManager, DOCK_EDGE, HOME_BOTTOM, RESIZE_MIN } from './window-manager.js?v=0.2.64';
-import { createHud, residueStore, placeWidget, hudInsetOf, clearOfEdges, clearOfDock, stageOf, dockCap, homeAt, stackBelow, stackRoom } from './hud.js?v=0.2.64';
-import { keyLabel, glyphSvg, actCoach, heldCard, coachHtml, placeCoach, ringCoach, noteCoachSight } from './launcher.js?v=0.2.64';
-import { coachWindow } from '../data/hunt-tutorial.js?v=0.2.64';
-import { WINDOW_RENDERERS, WIDGET_RENDERERS } from './renderers.js?v=0.2.64';
-import { mountContextMenu } from './context-menu.js?v=0.2.64';
-import { menuProvidersOf } from './menu-providers.js?v=0.2.64';
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.64';
-import { followDeaths, deathPopupOf } from './death-popup.js?v=0.2.64';
-import { takeFresh } from '../hunt-view/summary-recorder.js?v=0.2.64';
-import { huntOf } from '../session/hunt-sections.js?v=0.2.64';
-import { sizeStore, gripHtml, pressGrip } from './window-sizes.js?v=0.2.64';
-import { watchTown } from '../session/town-poll.js?v=0.2.64';
-import { applyPanelAlpha, clearPanelAlpha } from './panel-alpha.js?v=0.2.64';
-import { mountWidgetMoves, paintMove } from './widget-move.js?v=0.2.64';
+import { MOBILE_QUERY } from '../world/core/camera.js?v=0.2.66';
+import { SHELL_WINDOWS } from '../data/shell-windows.js?v=0.2.66';
+import { HUD_WIDGETS } from '../data/hud-widgets.js?v=0.2.66';
+import { createWindowManager, DOCK_EDGE, HOME_BOTTOM, RESIZE_MIN } from './window-manager.js?v=0.2.66';
+import { createHud, residueStore, placeWidget, hudInsetOf, clearOfEdges, clearOfDock, stageOf, dockCap, homeAt, stackBelow, stackRoom } from './hud.js?v=0.2.66';
+import { keyLabel, glyphSvg, actCoach, heldCard, coachHtml, placeCoach, ringCoach, noteCoachSight, coachOnScreen } from './launcher.js?v=0.2.66';
+import { coachWindow } from '../data/hunt-tutorial.js?v=0.2.66';
+import { WINDOW_RENDERERS, WIDGET_RENDERERS } from './renderers.js?v=0.2.66';
+import { mountContextMenu } from './context-menu.js?v=0.2.66';
+import { menuProvidersOf } from './menu-providers.js?v=0.2.66';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.66';
+import { followDeaths, deathPopupOf } from './death-popup.js?v=0.2.66';
+import { takeFresh } from '../hunt-view/summary-recorder.js?v=0.2.66';
+import { huntOf } from '../session/hunt-sections.js?v=0.2.66';
+import { sizeStore, gripHtml, pressGrip } from './window-sizes.js?v=0.2.66';
+import { watchTown, settleSpentBench } from '../session/town-poll.js?v=0.2.66';
+import { benchSpentAtMs } from './town-work.js?v=0.2.66';
+import { applyPanelAlpha, clearPanelAlpha } from './panel-alpha.js?v=0.2.66';
+import { mountWidgetMoves, paintMove } from './widget-move.js?v=0.2.66';
 
 /* The components' display clock: session timers and the timeline's due events (parity SH-05, DOM 4 Hz). */
 const DISPLAY_TICK_MS = 250;
@@ -121,7 +122,9 @@ export function mountShell(root, o) {
     if (!opts.inHunt || !opts.inHunt()) return false;
     const h = huntOf(opts.character);
     if (!h || !h.ended) return true;
-    return id === 'hunt-topbar' && summaryClosed !== h.sessionId;
+    /* ...and none while that summary is open: the bar would hold only a Summary press for the window already on
+       screen (first-hour playtest 10-29 #10: on a phone, its ground's name given way to the sheet, an empty box). */
+    return id === 'hunt-topbar' && summaryClosed !== h.sessionId && !wm.isOpen('hunt-summary');
   };
   const hud = createHud({
     widgets: HUD_WIDGETS,
@@ -380,12 +383,18 @@ export function mountShell(root, o) {
   function insetNow() {
     const b = shell.getBoundingClientRect();
     const widgets = [];
+    const rel = (r, left = r.left - b.left) => ({ left, top: r.top - b.top, width: r.width, height: r.height });
     for (const el of worldHud.querySelectorAll('[data-hs-widget]')) {
       if (hud.isMoved(el.getAttribute('data-hs-widget'))) continue;   // the player's own, like a floating window
       const r = el.getBoundingClientRect();
       const left = dockHome.has(el) ? dockHome.get(el) : r.left - b.left;
-      widgets.push({ anchor: hud.layoutOf(el.getAttribute('data-hs-widget')).anchor, rect: { left, top: r.top - b.top, width: r.width, height: r.height } });
+      widgets.push({ anchor: hud.layoutOf(el.getAttribute('data-hs-widget')).anchor, rect: rel(r, left) });
     }
+    /* THE PHONE'S COACH NEVER LIES ON THE HERO (first-hour playtest 10-29 #10): the open card under the hunt bar stands
+       at the bar's right end (shell.css) and the camera frames the World beside it, as it does beside a panel. */
+    const card = phoneMq.matches && worldHud.querySelector('[data-hs-widget="hunt-topbar"] > .hs-pointer:not(.is-min)');
+    const cr = card && card.getBoundingClientRect();
+    if (cr) widgets.push({ anchor: cr.left + cr.width / 2 - b.left < b.width / 2 ? 'tl' : 'tr', rect: rel(cr) });
     return hudInsetOf(widgets, { width: b.width, height: b.height });
   }
   function publishInset() {
@@ -422,8 +431,8 @@ export function mountShell(root, o) {
     if (tick && id !== coachShown) paintWidgets();
     coachShown = id;
     ringCoach(ctx, card, ringRoots);
-    /* a card the player only has to read is marked read once its open box has been on screen its reading time */
-    if (tick) noteCoachSight(ctx, card, !!card && [shell, screen].some((r) => !!r.querySelector('.hs-pointer[data-tutorial="' + card.id + '"]:not(.is-min)')));
+    /* a card the player only has to read is marked read once it has been on screen, open or folded, its reading time */
+    if (tick) noteCoachSight(ctx, card, coachOnScreen([shell, screen], card));
   }
   /* The ring's boxes: the World shell, the screen layer, then the whole screen around them (the character strip's
      Characters button and hero tabs, src/app/character-strip.js). */
@@ -451,6 +460,8 @@ export function mountShell(root, o) {
     if (ctx.character && ctx.character.timeline) ctx.character.timeline.advance(ctx.now());
     /* The Work window or the bag watches the town work: the viewed character re-reads at townPollMs (town-poll.js). */
     if (ctx.character && (wm.isOpen('skills-trade') || wm.isOpen('inventory'))) watchTown(ctx.character);
+    /* A bench the server's own numbers say is spent is settled for EVERY open character, watched or not (report #68). */
+    for (const p of ctx.peers()) settleSpentBench(p, benchSpentAtMs(p));
     for (const row of hud.rows()) {
       const render = WIDGET_RENDERERS[row.id];
       const el = render.patch && (row.layer === 'screen' ? screenHud : worldHud).querySelector('[data-hs-widget="' + row.id + '"]');

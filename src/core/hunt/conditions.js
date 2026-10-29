@@ -52,18 +52,18 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random. Draws nothing.
 // ============================================================
 
-import { METRICS, OPERATORS, MAX_CONDITIONS, MAX_STOP_RULES, MAX_IGNORED, STOP_HOLD_MS, ACTION_TYPES, ATTACK_KINDS, EFFECT_IDS } from '../../data/condition-metrics.js?v=0.2.64';
-import { ABILITIES, suggestedTrigger } from '../../data/abilities.js?v=0.2.64';
-import { CONSUMABLES, CONSUMABLE_RULES } from '../../data/consumables.js?v=0.2.64';
-import { SUPPLIES } from '../../data/supplies.js?v=0.2.64';
-import { ITEMS } from '../../data/items.js?v=0.2.64';
-import { MONSTERS } from '../../data/monsters.js?v=0.2.64';
-import { ROLE_RULES } from '../../data/rule-subjects.js?v=0.2.64';
-import { cheb, dist2, los } from './grid.js?v=0.2.64';
-import { makeEvent } from './events.js?v=0.2.64';
-import { BASIC_INDEX } from '../../data/supply-basics.js?v=0.2.64';
-import { START_BAR } from '../../data/start-kit.js?v=0.2.64';
-import { HUNT_ROLES, shootsItem } from '../../data/hunt-roles.js?v=0.2.64';
+import { METRICS, OPERATORS, MAX_CONDITIONS, MAX_STOP_RULES, MAX_IGNORED, STOP_HOLD_MS, ACTION_TYPES, ATTACK_KINDS, EFFECT_IDS } from '../../data/condition-metrics.js?v=0.2.66';
+import { ABILITIES, suggestedTrigger } from '../../data/abilities.js?v=0.2.66';
+import { CONSUMABLES, CONSUMABLE_RULES } from '../../data/consumables.js?v=0.2.66';
+import { SUPPLIES } from '../../data/supplies.js?v=0.2.66';
+import { ITEMS } from '../../data/items.js?v=0.2.66';
+import { MONSTERS } from '../../data/monsters.js?v=0.2.66';
+import { ROLE_RULES } from '../../data/rule-subjects.js?v=0.2.66';
+import { cheb, dist2, los } from './grid.js?v=0.2.66';
+import { makeEvent } from './events.js?v=0.2.66';
+import { BASIC_INDEX } from '../../data/supply-basics.js?v=0.2.66';
+import { START_BAR } from '../../data/start-kit.js?v=0.2.66';
+import { HUNT_ROLES, shootsItem } from '../../data/hunt-roles.js?v=0.2.66';
 
 /* ruleHold: ms each stop rule has held, by its stable rule id (null = none held).
    ruleWait: the last `rule_wait` reported, per lane ('ruleId:why'), so it is reported once.

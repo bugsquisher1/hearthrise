@@ -31,19 +31,21 @@
 //     (each better at something), the slot is left and named in `choices`
 // Display and intent NAMES only: nothing here is a gate the server trusts.
 // ════════════════════════════════════════════════════════════════════════
-import { ITEMS } from '../data/items.js?v=0.2.64';
-import { EQUIP_SLOT_META, expandItemSlot } from '../data/gathering.js?v=0.2.64';
-import { ARMOUR_WEIGHT } from '../data/core-model.js?v=0.2.64';
-import { loadoutOf } from '../core/member.js?v=0.2.64';
-import { armourWeights, maxHpFor, maxManaFor } from '../core/vitals.js?v=0.2.64';
-import { itemName } from './widgets/bits.js?v=0.2.64';
-import { reqHave } from './item-lore.js?v=0.2.64';
+import { ITEMS } from '../data/items.js?v=0.2.66';
+import { EQUIP_SLOT_META, expandItemSlot } from '../data/gathering.js?v=0.2.66';
+import { ARMOUR_WEIGHT } from '../data/core-model.js?v=0.2.66';
+import { loadoutOf } from '../core/member.js?v=0.2.66';
+import { armourWeights, maxHpFor, maxManaFor } from '../core/vitals.js?v=0.2.66';
+import { itemName } from './widgets/bits.js?v=0.2.66';
+import { reqHave } from './item-lore.js?v=0.2.66';
 
 /* The slots the hands and the quiver fill: the player's own choice, never this one. */
 const STYLE_SLOTS = new Set(['weapon', 'shield', 'ammo']);
 /* Every other equip slot, in the catalogue's order (a new slot row joins with no code). */
 const UPGRADE_SLOTS = Object.freeze(Object.keys(EQUIP_SLOT_META).filter((s) => !STYLE_SLOTS.has(s)));
 const EPS = 1e-9;
+/* The armor weights a player picks (Tamsin's tally: tally-sections.js), the same words ARMOUR_WEIGHT maps to. */
+const PREFER = new Set(['heavy', 'medium', 'light']);
 const num = (v) => (Number.isFinite(v) ? v : 0);
 const weightOf = (it) => (it && ARMOUR_WEIGHT[it.armourClass]) || 'none';
 /* A piece whose worth the numbers do not hold (a bane, an away effect) is the player's call. */
@@ -108,8 +110,15 @@ function bestFor(slot, worn, left, o) {
     const after = numbersOf(Object.assign({}, worn, { [slot]: id }), o.level);
     if (dominates(after, now)) better.push({ id, after });
   }
-  const front = better.filter((c) => !better.some((x) => x !== c && dominates(x.after, c.after)));
+  let front = better.filter((c) => !better.some((x) => x !== c && dominates(x.after, c.after)));
   if (!front.length) return null;
+  /* A tie between weights is settled by the weight the player already chose (Tamsin's, the server's tally row):
+     a decision made once is not asked again (playtest 2026-10-29: a heavy-paid tank came home with a Bronze
+     Platebody and a Leather Body and wore neither). No choice made, or none of that weight: the tie stands. */
+  if (o.prefer && front.some((c) => !same(c.after, front[0].after))) {
+    const mine = front.filter((c) => weightOf(ITEMS[c.id]) === o.prefer);
+    if (mine.length) front = mine;
+  }
   front.sort((a, b) => (a.id < b.id ? -1 : 1));
   if (front.some((c) => !same(c.after, front[0].after))) return { choice: front.map((c) => c.id) };
   return { id: front[0].id, before: now, after: front[0].after };
@@ -117,8 +126,9 @@ function bestFor(slot, worn, left, o) {
 
 /**
  * What "Equip upgrades" would put on.
- * @param {{ bag: {id:string, qty:number}[], equipment: object, skills: object|null, level: number|null }} o
- *        all from the server's envelope (item-sections.js bagOf/equipmentOf/skillsOf, the Level)
+ * @param {{ bag: {id:string, qty:number}[], equipment: object, skills: object|null, level: number|null, prefer?: string|null }} o
+ *        all from the server's envelope (item-sections.js bagOf/equipmentOf/skillsOf, the Level, and `prefer`: the
+ *        armor weight the hero chose at Tamsin's, which settles a tie between weights)
  * @returns {{ ops: object, picks: {slot:string, id:string, replaces:string|null, gains:{label:string,text:string}[]}[],
  *             choices: {slot:string, ids:string[]}[] }}  `ops` is the ONE `equip` delta (empty: nothing to do)
  */
@@ -126,7 +136,8 @@ export function upgradePlan(o) {
   const worn = Object.assign({}, (o && o.equipment) || {});
   const left = new Map();
   for (const r of (o && o.bag) || []) if (r && Number.isInteger(r.qty) && r.qty > 0) left.set(r.id, r.qty);
-  const ctx = { skills: (o && o.skills) || null, level: Math.max(1, Math.floor(num(o && o.level)) || 1) };
+  const ctx = { skills: (o && o.skills) || null, level: Math.max(1, Math.floor(num(o && o.level)) || 1),
+    prefer: o && PREFER.has(o.prefer) ? o.prefer : null };
   const ops = {}, picks = [], choices = [];
   /* Empty slots first (the second ring goes beside the first, never over it), then same-weight upgrades. */
   for (const pass of [(s) => !worn[s], (s) => !!worn[s] && !(s in ops)]) {
@@ -144,13 +155,19 @@ export function upgradePlan(o) {
   return { ops, picks, choices };
 }
 
-const listWords = (parts) => (parts.length < 2 ? parts.join('') : parts.slice(0, -1).join(', ') + ' and ' + parts[parts.length - 1]);
+const listWords = (parts, last = ' and ') => (parts.length < 2 ? parts.join('') : parts.slice(0, -1).join(', ') + last + parts[parts.length - 1]);
 
 /** The preview: "Wear Leather Gloves (+1 Melee accuracy) and Bronze Belt (+2 Defense)." naming at most `names` pieces
-    with `gains` gains each (the button's title passes more). A slot left for the player says so after it. '' when
-    there is nothing to put on. */
+    with `gains` gains each (the button's title passes more). A slot left for the player says so after it. With
+    nothing to put on but a tie standing, the line says why the button is off and which pieces trade off (playtest
+    2026-10-29 #11: it said nothing). '' when there is neither. */
 export function upgradeWords(plan, names = 2, gains = 1) {
-  if (!plan || !plan.picks.length) return '';
+  if (!plan) return '';
+  if (!plan.picks.length) {
+    if (!Array.isArray(plan.choices) || !plan.choices.length) return '';
+    const ties = plan.choices.map((c) => ((EQUIP_SLOT_META[c.slot] || {}).label || c.slot) + ': ' + listWords(c.ids.map(itemName), ' or '));
+    return 'Nothing goes on by itself: each piece is better at something. ' + ties.join('. ') + '. Pick on the doll, or pick an armor weight at Tamsin\'s.';
+  }
   const byId = new Map();
   for (const p of plan.picks) { const g = byId.get(p.id); if (g) g.n++; else byId.set(p.id, { p, n: 1 }); }
   const groups = Array.from(byId.values());

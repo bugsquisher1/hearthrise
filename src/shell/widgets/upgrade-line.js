@@ -12,18 +12,21 @@
 // the hero's hunt open the button is off and the line says so (gear-gate.js):
 // the engine refuses every equip mid-hunt.
 // ════════════════════════════════════════════════════════════════════════
-import { bagOf, equipmentOf, skillsOf } from '../../session/item-sections.js?v=0.2.64';
-import { levelOf } from '../../session/character-sections.js?v=0.2.64';
-import { text, cls, prop, attr } from '../../render/paint.js?v=0.2.64';
-import { runIntent } from '../intent-words.js?v=0.2.64';
-import { upgradePlan, upgradeWords } from '../upgrade-plan.js?v=0.2.64';
-import { gearLocked, GEAR_HUNT_WORDS } from '../gear-gate.js?v=0.2.64';
-import { whyLine } from './why-line.js?v=0.2.64';
+import { bagOf, equipmentOf, skillsOf } from '../../session/item-sections.js?v=0.2.66';
+import { levelOf } from '../../session/character-sections.js?v=0.2.66';
+import { tallyOf } from '../../session/tally-sections.js?v=0.2.66';
+import { text, cls, prop, attr } from '../../render/paint.js?v=0.2.66';
+import { runIntent } from '../intent-words.js?v=0.2.66';
+import { upgradePlan, upgradeWords } from '../upgrade-plan.js?v=0.2.66';
+import { gearLocked, GEAR_HUNT_WORDS } from '../gear-gate.js?v=0.2.66';
+import { whyLine } from './why-line.js?v=0.2.66';
 
-/** This character's plan, from what the server sent (empty `ops` when nothing is better). */
+/** This character's plan, from what the server sent (empty `ops` when nothing is better); a tie between armor weights
+    goes to the weight the hero chose at Tamsin's (the server's tally row). */
 export function upgradeOf(cs) {
-  const lv = levelOf(cs);
-  return upgradePlan({ bag: bagOf(cs) || [], equipment: equipmentOf(cs) || {}, skills: skillsOf(cs), level: lv ? lv.level : null });
+  const lv = levelOf(cs), t = tallyOf(cs);
+  return upgradePlan({ bag: bagOf(cs) || [], equipment: equipmentOf(cs) || {}, skills: skillsOf(cs), level: lv ? lv.level : null,
+    prefer: t ? t.weight : null });
 }
 
 /** The line's skeleton. */
@@ -34,17 +37,19 @@ export function upgradeLineHtml() {
 }
 
 /**
- * Show the line (only when `on` and the plan puts something on), its words and the button's state. `o.locked`: the
- * server holds the hero's hunt open (the button is off, the line says why); `o.msg`: the last press's own words.
+ * Show the line (only when `on` and the plan puts something on or leaves a tie for the player), its words and the
+ * button's state. A tie alone shows its words with the button off (nothing to put on; upgradeWords says why).
+ * `o.locked`: the server holds the hero's hunt open (the button is off, the line says why); `o.msg`: the last
+ * press's own words.
  */
 export function patchUpgradeLine(root, plan, on, pending, o) {
   const opt = o || {};
   const line = root.querySelector('.hw-upgrade');
-  const show = !!on && plan.picks.length > 0;
+  const show = !!on && (plan.picks.length > 0 || (Array.isArray(plan.choices) && plan.choices.length > 0));
   cls(line, 'is-on', show);
   text(line.querySelector('.hw-upgrade-q'), show ? upgradeWords(plan) : '');
   const b = line.querySelector('button');
-  prop(b, 'disabled', !!pending || !show || !!opt.locked);
+  prop(b, 'disabled', !!pending || !plan.picks.length || !show || !!opt.locked);
   attr(b, 'title', show ? upgradeWords(plan, Infinity, Infinity) : null);
   whyLine(line.querySelector('.hw-upgrade-why'), show ? opt.msg || (opt.locked ? GEAR_HUNT_WORDS.upgrades : '') : '', !!opt.msg);
 }

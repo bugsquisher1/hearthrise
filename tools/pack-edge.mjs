@@ -548,6 +548,10 @@ export async function versionQueryGuard() {
 export const TICK_MODULES = Object.freeze([
   'supabase/functions/hr-accrue/tick.js',
   'supabase/functions/hr-accrue/tick-gather.js',
+  /* the artisan channel's settler (2026-10-29, lane/c-playtest-open): a town bench
+     run settled behind the same bearer gate; it reaches shadowTick, so it spells
+     the tick caller and must be fenced like gather's. */
+  'supabase/functions/hr-accrue/tick-artisan.js',
   /* (tick-combat.js, the solo combat channel's settler, was deleted with the
      away model — a fight is a hunt session, settled by hunt-settle.js. T-F1g
      pins the set by NAME.) */

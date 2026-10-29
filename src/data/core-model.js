@@ -39,22 +39,26 @@
    today's content (10), the long climb (50, 300). */
 /* RE-FITTED 2026-10-28 (lane/a-v0263-reds): Wickstead (8-18 solo) opened and pays the 8-15 stretch faster, so the pace
    was re-measured (plans pace + ladder) and pace.mjs --fit re-fitted the brackets (minimax 3.4%); Levels 6-8 then eased
-   by hand so no Level is 2x the one before (C6). Forward file 2027-02-07-level-curve-wickstead. */
+   by hand so no Level is 2x the one before (C6). Forward file 2027-02-07-level-curve-wickstead.
+   RE-FITTED 2026-10-29 (lane/a-pull-freeze, Coordinator ruling): with every pack down a hero now walks on to the next
+   spawn instead of standing on the pocket it cleared (report #69), so Levels 5-15 earn 7-12% more an hour (the Thicket,
+   Wickstead) and 16-49 1-3% (the Glade); Level 25 fell to 32 h. Re-measured (plans pace + ladder) and re-fitted by
+   pace.mjs --fit (minimax 3.3%). Forward file 2027-02-09-walk-on-level-curve. */
 export const LEVEL_CURVE = Object.freeze({
   first: 127,
   brackets: Object.freeze([
     Object.freeze({ from: 1, rise: 127, bend: 0 }),
     Object.freeze({ from: 2, rise: 254, bend: 0 }),
     Object.freeze({ from: 3, rise: 521, bend: 0 }),
-    Object.freeze({ from: 4, rise: 5171, bend: 0 }),
-    Object.freeze({ from: 5, rise: 6360, bend: 0 }),
-    Object.freeze({ from: 6, rise: 12440, bend: 0 }),
-    Object.freeze({ from: 7, rise: 21913, bend: 0 }),
-    Object.freeze({ from: 8, rise: 18461, bend: 0 }),
+    Object.freeze({ from: 4, rise: 5535, bend: 0 }),
+    Object.freeze({ from: 5, rise: 7009, bend: 0 }),
+    Object.freeze({ from: 6, rise: 13939, bend: 0 }),
+    Object.freeze({ from: 7, rise: 28376, bend: 0 }),
+    Object.freeze({ from: 8, rise: 16156, bend: 0 }),
     Object.freeze({ from: 9, rise: 1, bend: 0 }),
-    Object.freeze({ from: 10, rise: 0, bend: 497 }),
-    Object.freeze({ from: 50, rise: 80221, bend: 123 }),
-    Object.freeze({ from: 300, rise: 210858, bend: 580 }),
+    Object.freeze({ from: 10, rise: 0, bend: 504 }),
+    Object.freeze({ from: 50, rise: 79325, bend: 129 }),
+    Object.freeze({ from: 300, rise: 209310, bend: 584 }),
   ]),
 });
 

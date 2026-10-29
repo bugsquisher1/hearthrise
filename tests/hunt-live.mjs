@@ -23,7 +23,11 @@
 //         member sinks) are not the drops the server's commits paid; hunt_live
 //         carries no drop-stream seed. (Mutant: drops rolled on the combat stream.)
 //   LV-M  MELEE HOLDS: the engine's lone knight changes tile no more often per kill than the
-//         frozen sim's (measured) and almost never steps back and forth between swings.
+//         frozen sim's (measured) and almost never steps back and forth between swings (a step out and
+//         straight back with no kill between; in to pull and out once the pack is dead is not one).
+//   LV-DOWN EVERY PACK DOWN, THE LEADER WALKS ON (report #69): a knight that outruns the Cellar's respawn
+//         never stands on the pocket it cleared, browser closed (every swing's commit) and viewed (every
+//         commit matches the prediction).
 //   LV-P  PARTY PRIVACY (Tyler 2026-10-20): a peer's row is exactly its frozen numbers
 //         (src/core/member.js FROZEN_KEYS / FROZEN_SESSION_KEYS): no skills, gear, perks,
 //         buffs, purse, premium or bestiary; the viewer's own row stays whole.
@@ -391,24 +395,58 @@ function rules(M) {
     for (const role of ['tank', 'melee_dps']) {
       const mis = [memberOf(M, 'a', 0, role, 6)];
       const srv = server(M, mis);
-      const steps = []; let kills = 0;
+      const steps = []; const killAt = [];
       for (let t = T0 + 16000; t <= T0 + 600000; t += 16000) {
         const c = srv.commit(t);
         if (!c) continue;
         for (const st of c.tl.hunt_track) if (st.u === mis[0].unitId) steps.push(st);
-        kills += c.tl.hunt_events.filter((e) => e.type === 'kill' && e.u === mis[0].unitId).length;
+        for (const e of c.tl.hunt_events) if (e.type === 'kill' && e.u === mis[0].unitId) killAt.push(e.atMs);
       }
+      const kills = killAt.length;
       let moves = 0, flips = 0;
       for (let i = 1; i < steps.length; i++) if (steps[i].x !== steps[i - 1].x || steps[i].y !== steps[i - 1].y) moves++;
+      /* A back-and-forth is a step out and straight back with no kill between: the hero stepping between swings. A step
+         in to pull and the same step out once the pack is dead (report #69: the knight walks on to the next pocket at
+         once, by the tile it came in on) spans the fight, and is not one. */
       for (let i = 2; i < steps.length; i++) {
         const back = steps[i].x === steps[i - 2].x && steps[i].y === steps[i - 2].y;
         const moved = steps[i - 1].x !== steps[i].x || steps[i - 1].y !== steps[i].y;
-        if (back && moved) flips++;
+        const fought = killAt.some((at) => at > steps[i - 1].atMs && at <= steps[i].atMs);
+        if (back && moved && !fought) flips++;
       }
       console.log(`  LV-M ${role}: ${moves} tile changes over ${kills} kills (${(moves / Math.max(1, kills)).toFixed(2)} per kill; the sim's knight ${SIM_TILES_PER_KILL}), ${flips} back-and-forth steps in 600 s`);
       ok('LV-M', kills > 20 && moves / kills <= SIM_TILES_PER_KILL, `${role}: ${(moves / Math.max(1, kills)).toFixed(2)} tile changes per kill (sim ${SIM_TILES_PER_KILL})`);
       ok('LV-M', flips <= kills * 0.15, `${role}: ${flips} back-and-forth steps over ${kills} kills (a hero stepping between swings)`);
     }
+  }
+
+  { // LV-DOWN: EVERY PACK DOWN, THE LEADER WALKS ON, BOTH PATHS (report #69, v0.2.63: "long pauses after killing some
+    // pulls", two L45s at Wickstead; the settle never fell behind, the engine stood). A lone L6 knight clears the Cellar's
+    // two pockets faster than they respawn (30 s): it stood 18 s a lap on the pocket it had cleared, then walked on.
+    // BROWSER CLOSED: on the server's commits, every swing for 120 s, the leader never stands two swings running away
+    // from its route's pocket while every pack is down (it waits at the next one). VIEWED: every commit matches the
+    // prediction (the world hash holds every unit's tile), so the browser plays the same walk on.
+    const cellar = M.HG.huntGroundOf('mill_cellar').ground;
+    const srv = server(M, [memberOf(M, 'a', 0, 'tank', 6)]);
+    let down = 0, stood = 0, longest = 0, prev = null;
+    for (let t = T0 + M.CB.tickMs; t <= T0 + 120000; t += M.CB.tickMs) {
+      if (!srv.commit(t) || !srv.inst.world) break;
+      const w = M.WS.decode(JSON.parse(srv.inst.world));
+      const k = w.units.find((u) => u.id === w.leader);
+      const all = w.packs.every((p) => !p.alive);
+      const r = cellar.pockets[cellar.route[w.routeIdx % cellar.route.length]].room;
+      const onRoute = k.x >= r[0] && k.y >= r[1] && k.x <= r[2] && k.y <= r[3];
+      if (all) down++;
+      stood = all && w.phase === 'travel' && !onRoute && prev && prev.x === k.x && prev.y === k.y ? stood + M.CB.tickMs : 0;
+      longest = Math.max(longest, stood);
+      prev = { x: k.x, y: k.y };
+    }
+    const v = run(M, [memberOf(M, 'a', 0, 'tank', 6)], 120000);
+    const bad = v.verdicts.filter((x) => x.v !== 'match');
+    console.log(`  LV-DOWN cellar knight, 120 s: every pack down at ${down} commits, the longest stand on a cleared pocket ${longest / 1000} s; viewed ${v.verdicts.length - bad.length} of ${v.verdicts.length} commits matched`);
+    ok('LV-DOWN', down >= 5, `CONTROL: every pack was down at ${down} of the server's commits in 120 s (the knight never outran the respawn)`);
+    ok('LV-DOWN', longest <= M.CB.tickMs, `closed: with every pack down the leader stood ${longest / 1000} s on the pocket it cleared (want at most one swing: it walks on to the next)`);
+    ok('LV-DOWN', v.verdicts.length >= 7 && bad.length === 0, `viewed: ${bad.length} of ${v.verdicts.length} commits off the prediction`);
   }
 
   { // LV-T: A SECOND TANK FIGHTS (Andy / Tyler 10-20: "not moving to the mobs ... when he has to move after
@@ -901,12 +939,14 @@ function rules(M) {
     run(M, mis, 64000, {
       feed: (b) => tl.ingest(b, clientT),
       tamperAt: T0 + 20000,
-      /* Off the server's world: the hero's HP in the browser's start point is not the server's. */
+      /* Off the server's world: the hero's HP, tile and pace in the browser's start point are not the server's. Rooted
+         (speed 0), it stays off its true tile until the commit judges it: a hero that walks on with every pack down
+         (report #69) walked a one-tile error off before the commit, and no unit was left to ease. */
       tamper: (E, srv) => {
         const live = srv.live('a');
         const w = M.WS.decode(JSON.parse(live.instance.world));
         const h = w.units.find((u) => u.side === 'hero');
-        h.hp = Math.max(1, h.hp - 7); h.x = Math.max(1, h.x - 1);
+        h.hp = Math.max(1, h.hp - 7); h.x = Math.max(1, h.x - 1); h.speed = 0;
         live.instance.world = JSON.stringify(M.WS.encode(w));
         E.seed(live);
       },
@@ -1092,6 +1132,8 @@ const MUTANTS = [
   ['the reseed teleports (LV-R)', 'src/hunt-view/timeline.js', 'const dur = Math.max(easeMs || 250, Math.ceil(dist * EASE_MS_PER_TILE));', 'const dur = 1;', /^LV-R/],
   ['a restart before the next swing places units with no kind (LV-N, Andy 10-22)', 'src/hunt-view/live-engine.js', '      hp[u.id] = [u.kind, u.maxHp, u.hp];\n', '', /^LV-N/],
   ['every commit reads as a match (LV-R)', 'src/hunt-view/live-engine.js', "return h === hc.world_hash ? 'match' : 'diverged';", "return 'match';", /^LV-R/],
+  ['every pack down, the leader stands on the pocket it cleared (LV-DOWN, report #69)', 'src/core/hunt/pull-cycle.js',
+    '    else awaitPack(inst, k, p);\n', '', /^LV-DOWN: closed/],
   ['a melee hero beside its target steps to another side every repath (LV-M)', 'src/core/hunt/roles.js',
     '  if (cheb(h, tgt) <= 1 && atRest(h)) { clearGoal(h); return; }\n  if (h.aiMs > 0) return;\n  h.aiMs = AI_REPATH_MS.melee;\n  const beside = (list) => (x, y) => list.some((m) => cheb(m, { x, y }) <= 1 && (m.x !== x || m.y !== y) && standable(inst, h, m.pocket, x, y));',
     '  if (h.aiMs > 0) return;\n  h.aiMs = AI_REPATH_MS.melee;\n  const beside = (list) => (x, y) => list.some((m) => cheb(m, { x, y }) <= 1 && (m.x !== x || m.y !== y) && standable(inst, h, m.pocket, x, y)) && (x !== h.x || y !== h.y);', /^LV-M/],

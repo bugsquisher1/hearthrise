@@ -80,9 +80,12 @@ const BENCHES = [['workbench', 71, 40], ['workbench', 73, 40], ['workbench', 71,
   ['grindstone', 69, 42], ['grindstone', 75, 42]];
 /* THE TAVERN'S COOK YARD (lane/b-havora-polish 2026-10-26, Tyler: the forge-sprite fires read as a second smithy): an
    outdoor kitchen at the back door in its own style-1 art: a bread oven against the wall either side of the door, a
-   cauldron on its tripod by each, two spit fires out in the yard and the prep tables between them; two cooks at each */
-const FIRES = [['havora_bread_oven', 60, 28], ['havora_cook_cauldron', 63, 29], ['havora_bread_oven', 68, 28], ['havora_cook_cauldron', 71, 29],
-  ['havora_cook_spit', 61, 32], ['havora_cook_spit', 66, 31], ['havora_prep_table', 64, 34], ['havora_prep_table', 69, 33]];
+   cauldron on its tripod by each, two spit fires out in the yard and the prep tables between them; two cooks at each.
+   LISTED IN STAND ORDER, the cook fires first (playtest 2026-10-29 #13: the first cook, handed the lowest free stand, stood
+   at the bread oven's foot on the yard's path, "cooking in the road, not at a cook fire"): the spits out in the yard, then
+   the cauldrons, then the ovens and the prep tables for a busy kitchen (tests/town-stations.mjs ST-11). */
+const FIRES = [['havora_cook_spit', 61, 32], ['havora_cook_spit', 66, 31], ['havora_cook_cauldron', 63, 29], ['havora_cook_cauldron', 71, 29],
+  ['havora_bread_oven', 60, 28], ['havora_bread_oven', 68, 28], ['havora_prep_table', 64, 34], ['havora_prep_table', 69, 33]];
 /* the training yard: 8 dummies scattered over the yard, three fighters to a dummy */
 const DUMMIES = [['dummy', 62, 64], ['dummy', 66, 66], ['dummy', 71, 63], ['dummy', 75, 65], ['dummy', 63, 70], ['dummy', 68, 71],
   ['dummy', 73, 69], ['dummy', 76, 72]];

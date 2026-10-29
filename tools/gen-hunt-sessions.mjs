@@ -187,7 +187,10 @@ export const WORLD_FIELDS_READ = Object.freeze({
    vendor values land in this forward file, the same full replace, applied after 2027-02-06-wickstead-items-catalogue. */
 /* THE UNSOURCED ITEMS (lane b-unsourced-items, 2026-10-28): 2027-02-06 is APPLIED history; the Warrens' six tier-3 glove and belt
    Rares join the skulker's and digger's kill bounds in this forward file, applied after 2027-02-08-unsourced-bench-inputs. */
-export const OUT_NAME = '2027-02-08-unsourced-hunt-sessions-catalogue.generated.sql';
+/* THE CELLAR RESPAWN (lane/a-pull-freeze, Coordinator ruling 2026-10-29, report #69): 2027-02-08 is APPLIED history; the Mill
+   Cellar's respawn_ms 30,000 -> 32,000 lands in this forward file, the same full replace. The settle's kill bound reads
+   respawn_ms and TIGHTENS: the hr-accrue edge carrying the 32 s ground deploys BEFORE this apply. */
+export const OUT_NAME = '2027-02-09-cellar-respawn-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -579,6 +582,13 @@ export function render(src) {
 --   ${r.supplies.length} supplies, ${r.travel.length} hunts (named + training), ${nLim} limits, ${r.ends.length} end reasons,
 --   ${r.vendor.length} vendor values, ${r.basics.length} store supplies paid per use, ${r.targets.length} target modes,
 --   ${r.lanes.length} lanes, ${r.abilities.length} abilities, ${r.setOptions.length} action-set options, ${r.grounds.length} hunt grounds
+--
+-- NEW IN 2027-02-09 (lane/a-pull-freeze, Coordinator ruling 2026-10-29, report #69): the Mill Cellar's
+-- hr_hunt_grounds.respawn_ms 30000 -> 32000 (a hero with every pack down now walks on to the next spawn;
+-- 32 s keeps the measured floor pay and first-Level pace). EDGE FIRST: the settle's kill bound
+-- (spawns x (window / respawn_ms + 2)) TIGHTENS, so the hr-accrue edge carrying the 32 s ground deploys
+-- BEFORE this apply (an edge still on 30 s may kill past the new bound and have its settle refused).
+-- The self-check below asserts every ground's respawn_ms. ORDER: after the APPLIED 2027-02-08 sequence.
 --
 -- SUPERSEDES 2027-01-31-hunt-sessions-catalogue.generated.sql (lane/b-inner-flame, applied
 -- before this file; history once applied: never regenerated): every table below is
@@ -980,6 +990,10 @@ begin
                  and not exists (select 1 from public.hr_hunt_weapon_roles k where k.weapon_type = w.with_shield))
      or (select count(*) from public.hr_hunt_end_reasons where resumes) <> ${r.ends.filter((e) => e.resumes).length} then
     raise exception 'hunt-session catalogue row counts moved from the generator''s'; end if;
+  -- Every ground's respawn is the data's (the settle's kill bound reads it: 2027-02-09, the Cellar at 32 s).
+  if exists (select 1 from public.hr_hunt_grounds g where (g.ground_id, g.respawn_ms) not in
+               (${r.grounds.length ? r.grounds.map((g) => `(${sq(g.ground)}, ${g.respawn})`).join(', ') : `(null::text, null::int)`})) then
+    raise exception 'a hunt ground''s respawn_ms is not hunt-grounds.js respawnMs'; end if;
   -- The world fields the party section reads by name are all there, at the generator's positions.
   if (select fields from public.hr_hunt_world_shape) is distinct from ${sq(JSON.stringify(r.world.fields))}::jsonb
      or exists (select 1 from unnest(array[${WORLD_FIELDS_READ.unit.map(sq).join(', ')}]) n

@@ -25,7 +25,7 @@
 //                { skill, work } the skill and its recipe, { task } Tamsin's task
 //     hooks      the ring hooks the card's way needs that the client does not carry yet (lane 2 adds them); the
 //                card shows without them. Tokens: {store} (the store rune B5 names), {slot} (the card's bar slot),
-//                {other} (another hero's strip slot), {fuel} (the fuel stack the Hearth card names)
+//                {other} (another hero's strip slot), {fuel} (the fuel stack the Hearth card names), {spell} (the rune spell "A spell costs runes" offers)
 //     inWindow   the words once the card shows INSIDE its window (it no longer says "open X")
 //     when       the facts the card needs to be on the hero's way (all of them); unmet = passed by
 //     party      a PARTY card, met only by a hero in a party of 2+ whose Level opens its hunt
@@ -48,7 +48,7 @@
 //   store rows), carried { item: n } (the hunt bag in a hunt, else the bag), bag { item: n }, stacks, bagCap,
 //   bankStacks, lootRules { item: deposit|sell|ignore }, weapon (worn), armoured (wears armor or a shield), blessings { held, of, freeUntil, prices },
 //   endReason (the latest hunt's, once ended), death { xp, saved } (the newest death_log row), supplies [{ item,
-//   source, count }] (this hunt's analyzer), huntMs, hpMax, presets (saved setups), landPlanted, land { ready },
+//   source, count }] (this hunt's analyzer), huntMs, hpMax, presets (saved setups), landPlanted, land { ready, empty },
 //   home { owned, next }, gold, staminaMs, tally { held, paid, weight }, and from the SHELL (the lane 1 / lane 2
 //   interface, src/session/tutorial-sections.js pointerCardOf's second argument): read (Set of read card ids),
 //   roster [{ slot, level, name, open, hunting }], slotsOwned, playLimit, sellable (stacks Sell all loot sells
@@ -81,7 +81,7 @@ import { ABILITIES } from './abilities.js?v=0.2.65';
 import { CONSUMABLES } from './consumables.js?v=0.2.65';
 import { RUNE_FAMILIES, runeId } from './runes.js?v=0.2.65';
 import { ARTISAN_RECIPES } from './recipes.js?v=0.2.65';
-import { HUNT_STANCES, ROLE_DEFAULTS } from './rule-subjects.js?v=0.2.65';
+import { HUNT_STANCES, ROLE_DEFAULTS, ACTION_SET_LIMITS } from './rule-subjects.js?v=0.2.65';
 import { START_EQUIPMENT, START_BAR } from './start-kit.js?v=0.2.65';
 import { HEARTH_FUELS } from './hearth.js?v=0.2.65';
 import { regenPermille } from '../core/vitals.js?v=0.2.65';
@@ -250,7 +250,7 @@ export const HUNT_TUTORIAL = Object.freeze([
   step('plant_land', 'Plant your land',
     'While your hero hunts, open the Farm and plant a Turnip Seed in each empty plot. Turnips are ready in '
       + CROPS.turnip.hours + ' hours and cook into Turnip Juice, a drink.',
-    'farm', { kind: 'planted' }, { ring: { crop: 'turnip' }, inWindow: 'Press Plant on an empty plot, then Plant on Turnip. Do it again for each empty plot.' }),
+    'farm', { kind: 'planted', crop: 'turnip' }, { ring: { crop: 'turnip' }, inWindow: 'Press Plant on an empty plot, then Plant on Turnip. Do it again for each empty plot.' }),
   step('bar_intro', 'Your action bar',
     'Your hero uses this bar by itself. It tries the slots in order and uses the first one that\'s ready and whose conditions are all true.',
     'action_bar', READ, { knowledge: true, gotIt: true }),
@@ -263,6 +263,16 @@ export const HUNT_TUTORIAL = Object.freeze([
   step('food_order', 'Order matters',
     'A store food slot eats before your own food at some HP.',
     'action_bar', { kind: 'food_order' }, { when: [{ kind: 'food_order_bad' }], hooks: ['[data-hs-win="configure-action"] .ca-cond[data-cond="0"] [data-x="dec"]'] }),
+  /* A SPELL IS A CHOICE (designer 2026-10-29, lane/a-starter-bars): the kit's sword-and-shield bar holds no rune spell
+     (Flame Strike left its defaults: it sat struck from minute one), so the hero would meet neither "Spells need runes"
+     nor "Make your own runes" (Tyler 2026-10-25: the tutorial teaches spells and their runes). Here, in the Cellar, a
+     bar with no rune spell is offered one of its own style: what it adds, what each cast costs, and the store rune to
+     pick, on the real controls. Adding it or Got it finishes it; a hero who adds it with no rune met "Spells need runes". */
+  step('first_spell', 'A spell costs runes',
+    'Your bar has no spell that uses runes yet.',
+    'action_bar', { kind: 'any', of: [READ, { kind: 'rune_spell_on' }] }, { knowledge: true, gotIt: true, when: [{ kind: 'rune_spell_none' }],
+      hooks: ['[data-hs-win="configure-action"] .ca-tab[data-tab="runes"]', '[data-hs-win="configure-action"] .ca-row[data-id="{spell}"]',
+        '[data-hs-win="configure-action"] .ca-rs[data-store="{store}"]'] }),
   step('earn_the_thicket', 'Out to the brook',
     'Keep hunting here until Level ' + HUNT_INDEX[THICKET].band[0] + ', about a quarter of an hour into your first hunt; then '
       + HUNT_INDEX[THICKET].name + ' fits you. You can close the game: your hero keeps hunting until its stamina runs out, and what it earns waits for you.',
@@ -353,6 +363,8 @@ const isDrink = (s) => !!s && s.type === 'consume' && !!CONSUMABLES[s.id] && CON
 const isStore = (s) => !!s && s.type === 'consume' && !!BASIC_INDEX[s.id];
 const ownFood = (s) => isFood(s) && !isStore(s);
 const on = (s) => !!s && s.enabled !== false;
+const BAR_SLOTS = ACTION_SET_LIMITS.slots;
+const runeSpell = (s) => on(s) && s.type === 'ability' && !!ABILITIES[s.id] && !!ABILITIES[s.id].rune;
 /* The slot's first "my HP / my mana below N%" test (what Configure action's − and + move), or null. */
 const below = (s, metric) => {
   const c = s && Array.isArray(s.conditions) ? s.conditions.find((x) => x && x.metric === metric && (x.op === 'lt' || x.op === 'lte') && Number.isFinite(x.value)) : null;
@@ -439,7 +451,17 @@ const FACTS = Object.freeze({
   level_at: (p, f) => f.charLevel >= p.at,
   unlock: (p, f) => f.charLevel >= HUNT_INDEX[p.hunt].band[0],
   /* town work, judged on facts that stay (Farming and Cooking XP; the shared land) */
-  planted: (p, f) => (xpIn(f, 'farming') === null && f.landPlanted == null) || xpIn(f, 'farming') > 0 || f.landPlanted === true,
+  /* "plant a seed in EACH empty plot" (playtest 2026-10-29 #12: one plot finished it, since a plant pays Farming XP): done
+     when the shared land has no empty open plot, or the hero holds none of the card's seed (a bag the server never sent
+     is not a wall), or it has farmed past one harvest's XP (it knows the field; sticky, so a later bare plot never walls
+     the chain). Land not sent: as before. */
+  planted: (p, f) => {
+    const crop = CROPS[p.crop], xp = xpIn(f, 'farming');
+    if (f.land && Number.isInteger(f.land.empty) && crop) {
+      return f.land.empty === 0 || (xp !== null && xp >= crop.xp) || !f.bag || !(f.bag[crop.seed] > 0);
+    }
+    return (xp === null && f.landPlanted == null) || xp > 0 || f.landPlanted === true;
+  },
   skill_xp: (p, f) => known(xpIn(f, p.skill), (xp) => xp > 0),
   turnips: (p, f) => (f.land == null && f.bag == null ? null : !!(f.land && f.land.ready && f.land.ready.turnip > 0) || !!(f.bag && f.bag.turnip > 0)),
   juice_made: (p, f) => (f.bag == null ? null : f.bag.turnip_juice > 0 || FACTS.drink_slot({ item: 'turnip_juice' }, f) === true),
@@ -451,6 +473,8 @@ const FACTS = Object.freeze({
   /* the bar: what the server shows, what it stored, what it struck */
   rune_struck: (p, f) => (Array.isArray(f.slots) ? struckSpell(f) >= 0 : null),
   rune_ready: (p, f) => (Array.isArray(f.slots) ? struckSpell(f) < 0 : null),
+  rune_spell_none: (p, f) => (Array.isArray(f.slots) ? !f.slots.some(runeSpell) : null),
+  rune_spell_on: (p, f) => (Array.isArray(f.slots) ? f.slots.some(runeSpell) : null),
   food_slot: (p, f) => (Array.isArray(f.slots) ? f.slots.some((s) => on(s) && ownFood(s) && hpBelow(s) !== null) : null),
   /* the player SAVED an own food slot at an HP of their own: the stored bar, never the shown start bar, and never a
      whole-bar restatement of the kit's 60% (any Save restates every slot: "Tell your hero when" finished unseen) */
@@ -689,6 +713,24 @@ const SAY = Object.freeze({
     return { text: uc(slotWords([p.store])) + ' still buys ' + name(S.id) + ' (' + gp + ' gp) below ' + hpBelow(S) + '%, ' + why + '. Press '
       + slotWords([p.store]) + ', ' + fix.join(' and ') + ', then Save.', barSlot: p.store, goal: higher ? hpBelow(O) : null };
   },
+  first_spell: (f) => {
+    /* the first rune spell the worn weapon casts whose family the store sells, and an empty slot to put it in */
+    const a = f.discipline ? Object.values(ABILITIES).find((x) => x.active && x.rune && x.disciplines.includes(f.discipline)) : null;
+    const st = a && Array.isArray(f.store) ? f.store.find((r) => r && r.partner === a.rune) : null;
+    /* the first empty slot: a gap in the bar the server shows, else the one after its last (20 slots, ACTION_SET_LIMITS) */
+    const gap = Array.isArray(f.slots) ? f.slots.findIndex((x) => !x) : -1;
+    const free = gap >= 0 ? gap : Array.isArray(f.slots) && f.slots.length < BAR_SLOTS ? f.slots.length : -1;
+    const fam = a && ITEMS[a.rune] ? RUNE_FAMILIES[ITEMS[a.rune].family] : null;
+    if (!a || !st || !name(st.id) || !fam || free < 0 || !Number.isInteger(st.price)) return null;
+    /* measured on the real settle with the kit's sword and shield (lane/a-first-hour-leftovers, CONFLICTS.md
+       2026-10-29): Flame Strike on the store rune earns ~15% more Level XP in the Thicket and nets ~20% less gold */
+    const trade = a.id === 'flame_strike' && f.role === 'tank'
+      ? ' On the first grounds it earns about 15% more Level XP and about a fifth less gold.' : '';
+    return { text: 'Your bar has no spell that uses runes yet. ' + a.n + ' casts on its own timer beside your moves and trains Magic, and every cast uses '
+      + anA(fam.label) + ' rune. With none of your own, the store sells ' + name(st.id) + ' at ' + st.price + ' gp a cast.' + trade
+      + ' To try it, press ' + slotWords([free]) + ', then Runes, ' + a.n + ', ' + name(st.id) + ', then Save.',
+    barSlot: free, store: st.id, spell: a.id };
+  },
   leave_cellar: (f) => ({ text: 'You\'re Level ' + f.charLevel + '. Leave the hunt to go back to town. Your loot is already in your bag.' }),
   styles: () => {
     const n = (id) => name(id) || id;
@@ -857,7 +899,7 @@ export function cardFor(card, facts) {
   const item = card.ring && card.ring.item;
   const barSlot = Number.isInteger(said.barSlot) ? said.barSlot : item && at(item) >= 0 ? at(item) : null;
   const hooks = (card.hooks || []).map((h) => h.replace('{store}', said.store || '').replace('{other}', said.other === undefined ? '' : String(said.other))
-    .replace('{slot}', barSlot === null ? '' : String(barSlot)).replace('{fuel}', said.fuel || ''));
+    .replace('{slot}', barSlot === null ? '' : String(barSlot)).replace('{fuel}', said.fuel || '').replace('{spell}', said.spell || ''));
   const textIn = said.textIn || card.inWindow || null;
   return Object.freeze({ ...card, text: slotted(text), barSlot, goal: Number.isFinite(said.goal) ? said.goal : null, textIn: textIn && slotted(textIn), hooks: Object.freeze(hooks) });
 }

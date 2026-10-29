@@ -52,6 +52,8 @@ const CONTENT_MIGRATION = 'supabase/migrations/2027-01-13-spell-content.sql';
 /* The role rule sets (the Melee damage set gains the sword's Flame Strike) and the settings view that places the starter
    bar (restated: the role key's discipline) moved forward again: lane b-spell-roles, Tyler 2026-10-23. */
 const ROLES_MIGRATION = 'supabase/migrations/2027-01-13-spell-roles.sql';
+/* The role rule sets once more (Flame Strike off the sword's sets: no dead button on the starter bar, playtest 2026-10-29). */
+const BAR_MIGRATION = 'supabase/migrations/2027-02-09-starter-bar-fires.sql';
 
 async function load(root) {
   const M = await loadCore(root);
@@ -756,6 +758,19 @@ const cases = {
     const safe = run(95); const hurt = run(60);
     return safe === 'green_sickness' && hurt === 'greater_mend' ? null : 'with the tank at 95% the healer cast ' + (safe || 'nothing') + '; at 60% ' + (hurt || 'nothing');
   },
+  /* NO DEAD BUTTON ON THE STARTER BAR (playtest 2026-10-29 #9): a new hero wears the kit's sword and shield (and may drop
+     the shield: Melee damage), carries no rune, and its empty bar runs the role defaults. Every ability that bar shows
+     can fire from minute one: it spends no rune, or its slot names the store's. */
+  'starter-bar-fires': (M) => {
+    const eq = M.kit.START_EQUIPMENT;
+    if (Object.keys(M.kit.START_INVENTORY).some((id) => /_rune$/.test(id))) return 'the start kit carries a rune: re-judge this case';
+    for (const worn of [eq, { weapon: eq.weapon }]) {
+      const setup = M.heroSetup({ weaponType: M.roles.wornRoleKey(worn, M.ITEMS), options: {}, bar: [], partyRoles: [] });
+      const dead = setup.slots.filter((r) => r.slot.action.type === 'ability' && M.AD.ABILITIES[r.slot.action.id].rune && !r.slot.action.store);
+      if (dead.length) return JSON.stringify(worn) + ': the starter bar shows ' + dead.map((r) => r.slot.action.id).join(', ') + ' struck (a rune spell, no rune held, no store rune)';
+    }
+    return null;
+  },
   'density-settle': (M) => {
     const out = freshHealer(M, 'millrace_sewer', 1, 1, { density: 16 });
     const w = M.worldstate.decode(JSON.parse(out.world));
@@ -834,7 +849,9 @@ const cases = {
     try { content = readFileSync(join(M.root, CONTENT_MIGRATION), 'utf8'); } catch { return CONTENT_MIGRATION + ' is missing'; }
     let roles;
     try { roles = readFileSync(join(M.root, ROLES_MIGRATION), 'utf8'); } catch { return ROLES_MIGRATION + ' is missing'; }
-    const from = { limits: truth, 'action-ids': truth, 'role-rules': roles, metrics: content };
+    let bars;
+    try { bars = readFileSync(join(M.root, BAR_MIGRATION), 'utf8'); } catch { return BAR_MIGRATION + ' is missing'; }
+    const from = { limits: truth, 'action-ids': truth, 'role-rules': bars, metrics: content };
     for (const [tag, want] of [['metrics', metricRowsSql(M)], ['action-ids', actionIdRowsSql(M)], ['role-rules', roleRuleRowsSql(M)], ['limits', limitRowsSql(M)]]) {
       const got = between(from[tag] || sql, tag);
       if (got !== want) return 'the migration\'s ' + tag + ' block is stale (node tests/hunt-core/conditions.mjs --print)';
@@ -921,6 +938,10 @@ const mutants = [
   { name: 'the stop-rule hold is not persisted (a cut resets it)', case: 'stop-rule-span', edits: [['src/core/hunt/conditions.js', "  unit: Object.freeze([['ruleHold', 'json'], ['ruleWait', 'json']]),", "  unit: Object.freeze([['ruleWait', 'json']]),"]] },
   { name: 'the healer\'s default rule set has no attack-when-safe rule', case: 'healer-default-rules',
     edits: [['src/data/rule-subjects.js', "    slot('green_sickness', [{ metric: 'ally_hp_pct', op: 'gte', value: 70, subject: 'lowest' }])]),", '  ]),']] },
+  { name: 'the tank\'s default set holds Flame Strike again (struck from minute one)', case: 'starter-bar-fires',
+    edits: [['src/data/rule-subjects.js', "  tank: Object.freeze([slot('challenge'), slot('power_strike')]),", "  tank: Object.freeze([slot('challenge'), slot('flame_strike'), slot('power_strike')]),"]] },
+  { name: 'a sword alone casts Flame Strike again (struck from minute one)', case: 'starter-bar-fires',
+    edits: [['src/data/rule-subjects.js', "  melee_dps: Object.freeze([slot('power_strike'), slot('cleave'), slot('rend')]),", "  melee_dps: Object.freeze([slot('flame_strike'), slot('power_strike'), slot('cleave'), slot('rend')]),"]] },
   { name: 'monsters do not fill the diagonal tiles of the box', case: 'full-box', edits: [['src/core/hunt/roles.js', '  if (dx && dy && (!walkable(inst.grid, tx + dx, ty) || !walkable(inst.grid, tx, ty + dy))) return false;', '  if (dx && dy) return false;']] },
   { name: 'the smallest pick sets the pull (the rule before Tyler 10-20)', case: 'density-pull',
     edits: [['src/data/hunt-grounds.js', "  const lead = list.find((h) => h.lead === true)\n    || list", "  const lead = list.filter((h) => h.density > 0).sort((a, b) => a.density - b.density)[0]\n    || list"]] },

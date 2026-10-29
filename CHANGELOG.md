@@ -15,6 +15,8 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 
 **Early levels smoothed.** Levels 4 to 7 take a little less time, so no level suddenly takes twice as long as the one before.
 
+**Fixes.** A Hearth run that has used up its fuel now stops showing as fueling, and the hero stops throwing at the fire. A minimized tutorial tip such as "Your hero just drank" no longer sits on screen forever: it finishes on its own, and tips you only need to read now have a close button.
+
 ## v0.2.63 — 2026-10-28 (Wickstead)
 
 **A new hunting ground: Wickstead.** A burned farmstead on the Thicket road, for heroes from Level 8. Rats overrun the granary, wasps nest in the barn and spiders web the lofts. Watch for Turncoats, deserters robbing the road.

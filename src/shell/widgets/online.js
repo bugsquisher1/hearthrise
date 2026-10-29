@@ -5,8 +5,8 @@
 // (ctx.account.social.online, src/social/players-online.js); a dash while
 // there is no fresh answer. Built once; the display tick patches it in place.
 // ════════════════════════════════════════════════════════════════════════
-import { text, attr } from '../../render/paint.js?v=0.2.64';
-import { onlineWords } from '../../social/players-online.js?v=0.2.64';
+import { text, attr } from '../../render/paint.js?v=0.2.65';
+import { onlineWords } from '../../social/players-online.js?v=0.2.65';
 
 /** The skeleton (built once). */
 export function renderOnline() {

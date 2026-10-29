@@ -9618,7 +9618,7 @@
   },
   "pixellab": {
     "tool": "view_map",
-    "map": "8885b248-193d-4cae-a57f-c85409797227",
+    "map": "ee5f44c4-49da-446b-b26d-1a0de257fde1",
     "crops": [
       [
         0,
@@ -9638,5 +9638,5 @@
       ]
     ]
   },
-  "notes": "Stitched from four full-scale view_map renders (30x20 cells each) of PixelLab map 8885b248 (Hask's Ford, the Barrow March's first ground): a March tileset family of six pro sets chained off the Meadowbrook's river water (river->mud 8e85d709, river->shallows 584868a9, mud->withered grass 9a817bf5, mud->shallows 719b67f0, grass->barrow turf 06e03841, mud->barrow turf 9d10f9d3), painted from the proposed grid in art/briefs/hasks-ford-grid-2026-10-28.txt: barrow mounds, withered banks, the river across the middle with the twelve-wide ford and a four-wide cattle ford, mud shores and a trampled track. By tools/world-art/port-pixellab.mjs."
+  "notes": "Stitched from four full-scale view_map renders (30x20 cells each) of PixelLab map ee5f44c4 (Hask's Ford, the Barrow March's first ground), painted from art/briefs/hasks-ford-grid-2026-10-28.txt: the river bends in from the west, down through one wide shallow ford with two gravel bars, and out east; reed margins, an alder-thicket wall at the edge, barrow banks and mounds dividing the clearings, a trampled mud track wandering the route. March family of pro tilesets chained off the Meadowbrook river (32062820): mud, shallows, withered grass, barrow turf, alder thicket, reeds, gravel. By tools/world-art/port-pixellab.mjs."
 }

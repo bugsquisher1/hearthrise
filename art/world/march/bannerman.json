@@ -12,6 +12,12 @@
     1,
     1
   ],
+  "overhang_px": [
+    0,
+    0,
+    5,
+    0
+  ],
   "anims": [
     {
       "name": "idle",
@@ -87,5 +93,5 @@
     "n_directions": 8,
     "name": "S1 Bannerman"
   },
-  "notes": "Ported from PixelLab object 371d7c5c-7a9f-4cea-a4e1-6bb261a677ec (style 1, 48 px canvas, 8 rotations and a v3 walk) by tools/world-art/port-pixellab.mjs: pixels unscaled, each facing seated on the class anchor by whole pixels. Class brute: the banner pole carries his silhouette a head over a hero (body 46 px by height); the frame and anchor are the character class's, not a boss frame."
+  "notes": "Ported from PixelLab object 371d7c5c-7a9f-4cea-a4e1-6bb261a677ec (style 1, 48 px canvas, 8 rotations and a v3 walk) by tools/world-art/port-pixellab.mjs: pixels unscaled, each facing seated on the class anchor by whole pixels."
 }

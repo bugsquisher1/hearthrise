@@ -12,6 +12,12 @@
     1,
     1
   ],
+  "overhang_px": [
+    0,
+    0,
+    5,
+    0
+  ],
   "anims": [
     {
       "name": "idle",
@@ -87,5 +93,5 @@
     "n_directions": 8,
     "name": "S1 Banded Pikeman"
   },
-  "notes": "Ported from PixelLab object fd5d913f-f372-41a2-b45b-098b375b3570 (style 1, 48 px canvas, 8 rotations and a v3 walk) by tools/world-art/port-pixellab.mjs: pixels unscaled, each facing seated on the class anchor by whole pixels. Class brute: the upright pike carries the silhouette a head over a hero (body 49 px by height); the frame and anchor are the character class's, not a boss frame."
+  "notes": "Ported from PixelLab object fd5d913f-f372-41a2-b45b-098b375b3570 (style 1, 48 px canvas, 8 rotations and a v3 walk) by tools/world-art/port-pixellab.mjs: pixels unscaled, each facing seated on the class anchor by whole pixels."
 }

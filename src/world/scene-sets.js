@@ -20,14 +20,14 @@
 // tests/world-core.mjs (family A) proves it covers what each shipped scene draws, and no more.
 // PURE: no DOM, no window, no G.
 // ════════════════════════════════════════════════════════════════════════
-import { groundOf, groundOfSliced, composeFrame, sliced } from './core/compose.js?v=0.2.66';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.66';
-import { HUNT_GROUNDS, gatherNodesOf } from '../data/hunt-grounds.js?v=0.2.66';
-import { OUTFITS } from '../data/hunt-outfits.js?v=0.2.66';
-import { effectIds } from '../data/hunt-vfx.js?v=0.2.66';
-import { ROOM_LAYOUTS, TROPHY_MOUNT_SPRITES } from '../data/world/house-layouts.js?v=0.2.66';
-import { SANDBOX } from '../data/world/sandbox.js?v=0.2.66';
-import { furnish } from './home-scene.js?v=0.2.66';
+import { groundOf, groundOfSliced, composeFrame, sliced } from './core/compose.js?v=0.2.67';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.67';
+import { HUNT_GROUNDS, gatherNodesOf } from '../data/hunt-grounds.js?v=0.2.67';
+import { OUTFITS } from '../data/hunt-outfits.js?v=0.2.67';
+import { effectIds } from '../data/hunt-vfx.js?v=0.2.67';
+import { ROOM_LAYOUTS, TROPHY_MOUNT_SPRITES } from '../data/world/house-layouts.js?v=0.2.67';
+import { SANDBOX } from '../data/world/sandbox.js?v=0.2.67';
+import { furnish } from './home-scene.js?v=0.2.67';
 
 /** The monsters (and gather-node art) of every ground drawn on map `row` and every hunt it renders. */
 function groundIds(row, ids) {

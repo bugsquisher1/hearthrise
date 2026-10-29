@@ -5,6 +5,10 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.67 — 2026-10-29 (Ready without a snack)
+
+**Hunt Prep.** A hero whose food or drink slot is empty no longer reads "0 food" and not ready: food is optional, so it is now a heads-up, and if your bag holds other food it says which and how to put it on the bar. A ranged hero with no arrows and no store behind them now shows "0 ammo", since they cannot attack.
+
 ## v0.2.66 — 2026-10-29 (No more standing around)
 
 **Hunts keep moving.** When every pack is down, your party now walks to the next spot and waits for the respawn there, instead of standing on the pocket it just cleared. The long pauses after a big pull are gone. Levels from 6 up now take a little more XP, so the time to each Level stays where it was.

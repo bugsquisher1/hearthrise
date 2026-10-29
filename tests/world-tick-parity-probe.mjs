@@ -41,8 +41,8 @@ import { bootReplay, LAST_PATCHED, ROOT, inventory } from './schema-replay.mjs';
 import { PRE_WALLET } from './wallet-fixture.mjs';
 import { runTick, planSeedLabels, SEED_LABEL_EXPR, CHANNELS }
   from '../supabase/functions/hr-accrue/tick.js';
-import { oneSpan, probeResultOf, decodeProbeInput, probeStep, PROBE_FETCH_SQL, PROBE_COMMIT_SQL }
-  from '../supabase/functions/hr-accrue/tick-probe.js';
+import { oneSpan, probeResultOf, decodeProbeInput, probeStep, PROBE_FETCH_SQL, PROBE_COMMIT_SQL,
+  PROBE_CHANNELS, UNPROBED_CHANNELS } from '../supabase/functions/hr-accrue/tick-probe.js';
 
 const ARGS = process.argv.slice(2);
 const MUTATE = ARGS.includes('--mutate');
@@ -221,12 +221,26 @@ async function guard(db, opts) {
                                  payload_open, payload_close, result
                             from public.hr_tick_probe where status = 'closed' order by id`);
   const channelsClosed = new Set(closed.map((r) => r.channel));
-  /* Every DRIVEN channel (tick.js CHANNELS) closes a probe; since lane C2 that
-     is gather alone, and a combat probe cannot exist (PP-9 pins that). */
+  /* Every DRIVEN channel (tick.js CHANNELS) is PROBED (a one-span driver in
+     tick-probe.js, and it closes a probe here) or DECLARED UNPROBED with its
+     reason (tick-probe.js UNPROBED_CHANNELS) — never silently neither. Since
+     lane C2 the probed set is gather alone, and a combat probe cannot exist
+     (PP-9 pins that); artisan (2026-10-29) is armed directly, never shadowed,
+     and is declared. A newly driven channel with neither goes red here.
+     MUTATION PROOF (by hand, 2026-10-29): the artisan declaration renamed
+     `artisan_x` in tick-probe.js -> exit 1, PP-2b RED "driven [gather,artisan],
+     declared unprobed [artisan_x] (stale declarations: [artisan_x])"; restored -> green. */
   const driven = Object.keys(CHANNELS);
-  judge('PP-2b', driven.every((c) => channelsClosed.has(c)) && closed.length >= 2,
-    `closed probes on every driven channel [${driven}] (${closed.length} rows)`,
-    `closed probes only on [${[...channelsClosed]}] of driven [${driven}] (${closed.length} rows)`);
+  const unprobed = Object.keys(UNPROBED_CHANNELS);
+  const accounted = driven.every((c) => (PROBE_CHANNELS.includes(c) ? channelsClosed.has(c) : unprobed.includes(c)));
+  const declaredButProbed = unprobed.filter((c) => PROBE_CHANNELS.includes(c) || !driven.includes(c));
+  judge('PP-2b', accounted && declaredButProbed.length === 0 && PROBE_CHANNELS.length > 0
+      && PROBE_CHANNELS.every((c) => channelsClosed.has(c)) && closed.length >= 2,
+    `closed probes on every probed channel [${PROBE_CHANNELS}] (${closed.length} rows); driven [${driven}], `
+    + `declared unprobed [${unprobed}]`,
+    `a driven channel is neither probed nor declared, or a probed one closed nothing: closed on [${[...channelsClosed]}], `
+    + `probed [${PROBE_CHANNELS}], driven [${driven}], declared unprobed [${unprobed}] `
+    + `(stale declarations: [${declaredButProbed}]) (${closed.length} rows)`);
 
   for (const p of closed) {
     const ws = await q(`select to_jsonb(window_from) #>> '{}' as f, to_jsonb(window_to) #>> '{}' as t, version

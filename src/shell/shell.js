@@ -44,7 +44,7 @@ import { SHELL_WINDOWS } from '../data/shell-windows.js?v=0.2.64';
 import { HUD_WIDGETS } from '../data/hud-widgets.js?v=0.2.64';
 import { createWindowManager, DOCK_EDGE, HOME_BOTTOM, RESIZE_MIN } from './window-manager.js?v=0.2.64';
 import { createHud, residueStore, placeWidget, hudInsetOf, clearOfEdges, clearOfDock, stageOf, dockCap, homeAt, stackBelow, stackRoom } from './hud.js?v=0.2.64';
-import { keyLabel, glyphSvg, actCoach, heldCard, coachHtml, placeCoach, ringCoach, noteCoachSight } from './launcher.js?v=0.2.64';
+import { keyLabel, glyphSvg, actCoach, heldCard, coachHtml, placeCoach, ringCoach, noteCoachSight, coachOnScreen } from './launcher.js?v=0.2.64';
 import { coachWindow } from '../data/hunt-tutorial.js?v=0.2.64';
 import { WINDOW_RENDERERS, WIDGET_RENDERERS } from './renderers.js?v=0.2.64';
 import { mountContextMenu } from './context-menu.js?v=0.2.64';
@@ -422,8 +422,8 @@ export function mountShell(root, o) {
     if (tick && id !== coachShown) paintWidgets();
     coachShown = id;
     ringCoach(ctx, card, ringRoots);
-    /* a card the player only has to read is marked read once its open box has been on screen its reading time */
-    if (tick) noteCoachSight(ctx, card, !!card && [shell, screen].some((r) => !!r.querySelector('.hs-pointer[data-tutorial="' + card.id + '"]:not(.is-min)')));
+    /* a card the player only has to read is marked read once it has been on screen, open or folded, its reading time */
+    if (tick) noteCoachSight(ctx, card, coachOnScreen([shell, screen], card));
   }
   /* The ring's boxes: the World shell, the screen layer, then the whole screen around them (the character strip's
      Characters button and hero tabs, src/app/character-strip.js). */

@@ -522,11 +522,17 @@ async function nodeRules(M) {
     // is on screen within two answers, a live ask and one ease (liveEaseMs) and eases forward from the snapshot (T8), no frame moves a
     // unit more than half a tile (was a 3-tile leap when a poll-behind playback fell to the live delay), and every unit
     // drawn has a sprite (was a unit an older frame's pose placed with no kind, and a spawn inside the catch-up).
+    // THE CASE, BUILT ON PURPOSE (v0.2.66 run 40864729296: two LV-27 mutants escaped): the commit case switches back at
+    // 65 s, when the timeline holds units the snapshot no longer lists and the commit window that lands while joining
+    // puts a unit more than a frame's step off where the snapshot drew it. At 60 s the duo stood in a cleared pocket
+    // walking on to the next (pull-cycle.js travel, #69): the timeline listed only the two heroes, nothing was to forget
+    // and the window agreed with the snapshot, so neither mutant could bite. Both are asserted below, so the scenario
+    // can never go quiet again unseen.
     const delay = M.CFG.SESSION_CONFIG.liveDelayMs, ask = M.CFG.SESSION_CONFIG.liveAskMs, ease = M.CFG.SESSION_CONFIG.liveEaseMs, LAT = 850;
-    for (const [tag, back, quiet] of [['first ask a commit', 60000, 15000], ['first ask a start point', 53000, 0]]) {
+    for (const [tag, back, quiet] of [['first ask a commit', 65000, 15000], ['first ask a start point', 53000, 0]]) {
       const mis = [LIVE_H.memberOf(LM, 'a', 0, 'tank', 6), LIVE_H.memberOf(LM, 'b', 1, 'melee_dps', 6)];
       const SW = [LIVE_H.T0 + 30000, LIVE_H.T0 + back];
-      const r = { first: null, snapOff: null, liveAt: null, easeEndAt: null, easeTiles: 0, step: 0, speed: 0, speedPlay: 0, unnamed: 0 };
+      const r = { first: null, snapOff: null, liveAt: null, easeEndAt: null, easeTiles: 0, step: 0, speed: 0, speedPlay: 0, unnamed: 0, windowOff: 0, forgot: 0 };
       const warn = console.warn; console.warn = (...a) => { r.unnamed++; if (process.env.HR_DEBUG) warn(...a, cur - LIVE_H.T0); };
       let cur = null, prevS = null, wrapped = null;
       const prev = new Map();
@@ -535,7 +541,20 @@ async function nodeRules(M) {
           cur = s;
           if (wrapped !== cs.timeline) {
             wrapped = cs.timeline;
-            const rebase = cs.timeline.rebase;
+            const rebase = cs.timeline.rebase, forget = cs.timeline.forget;
+            /* the join forgetting a unit the snapshot no longer lists (live-link.js hold): the case the keep-units mutant needs */
+            cs.timeline.forget = (...a) => { if (cs.liveLink.joining()) r.forgot++; return forget.apply(cs.timeline, a); };
+            /* a server window that lands while joining: how far its newest step puts a unit off where it is drawn (the
+               leap the window-over-snapshot mutant plays) */
+            const from = cs.liveLink.from.bind(cs.liveLink);
+            cs.liveLink.from = (body) => {
+              if (cs.liveLink.joining() && body && Array.isArray(body.hunt_track)) {
+                const last = new Map();
+                for (const st of body.hunt_track) if (st && (!last.has(st.u) || st.atMs >= last.get(st.u).atMs)) last.set(st.u, st);
+                for (const st of last.values()) { const p = cs.timeline.positionAt(st.u, cs.now()); if (p) r.windowOff = Math.max(r.windowOff, Math.hypot(st.x - p.x, st.y - p.y)); }
+              }
+              return from(body);
+            };
             /* the restart's ease after the switch: how far it carries a unit, and when the last one lands */
             cs.timeline.rebase = (at, pos, ease, ends) => {
               if (cur >= SW[1]) for (const [u, xy] of pos) { const p = cs.timeline.positionAt(u, cs.now()); if (p) r.easeTiles = Math.max(r.easeTiles, Math.hypot(xy[0] - p.x, xy[1] - p.y)); }
@@ -570,11 +589,12 @@ async function nodeRules(M) {
       } finally { console.warn = warn; }
       const settled = r.easeEndAt === null ? r.liveAt : Math.max(r.liveAt ?? Infinity, Math.round(r.easeEndAt - SW[1]));
       const budget = 2 * LAT + ask + ease + 100;
-      console.log(`  LV-27 switched back after 30 s (${tag}, ${LAT} ms answers): first frame ${r.first} ms after, ${r.snapOff === null ? '?' : r.snapOff.toFixed(2)} tile(s) off the server's snapshot; live ${r.liveAt} ms after, eased in by ${settled} ms (largest ease ${r.easeTiles.toFixed(2)} tiles); fastest unit ${r.speed.toFixed(2)} tiles/s (in play ${r.speedPlay.toFixed(2)}), largest frame step ${r.step.toFixed(3)} tiles; ${r.unnamed} unit(s) with no sprite`);
+      console.log(`  LV-27 switched back after 30 s (${tag}, ${LAT} ms answers): first frame ${r.first} ms after, ${r.snapOff === null ? '?' : r.snapOff.toFixed(2)} tile(s) off the server's snapshot; live ${r.liveAt} ms after, eased in by ${settled} ms (largest ease ${r.easeTiles.toFixed(2)} tiles); fastest unit ${r.speed.toFixed(2)} tiles/s (in play ${r.speedPlay.toFixed(2)}), largest frame step ${r.step.toFixed(3)} tiles; ${r.unnamed} unit(s) with no sprite; joining: a window ${r.windowOff.toFixed(2)} tiles off the drawn units, ${r.forgot} unit(s) forgotten`);
       ok('LV-27', r.snapOff !== null && r.snapOff <= 0.5, `(${tag}) the first frame back drew a unit ${r.snapOff} tiles off the server's snapshot (budget 0.5: the snapshot at once, never a playback a poll behind)`);
       ok('LV-27', r.liveAt !== null && settled <= budget, `(${tag}) the live prediction played ${r.liveAt} ms after the switch and its ease ended ${settled} ms after it (budget ${budget}: two answers, a live ask and one ease)`);
       ok('LV-27', r.step <= BUDGET.maxStepTiles, `(${tag}) a frame after the switch moved a unit ${r.step.toFixed(2)} tiles (budget ${BUDGET.maxStepTiles}: no leap)`);
       ok('LV-27', r.unnamed === 0, `(${tag}) ${r.unnamed} unit(s) were drawn with no sprite after the switch`);
+      if (tag === 'first ask a commit') ok('LV-27', r.windowOff > BUDGET.maxStepTiles && r.forgot > 0, `(${tag}) the switch back no longer builds the joining case: a window ${r.windowOff.toFixed(2)} tiles off the drawn units (want > ${BUDGET.maxStepTiles}), ${r.forgot} unit(s) the join forgot (want > 0); without both the joining mutants cannot bite`);
     }
   }
 

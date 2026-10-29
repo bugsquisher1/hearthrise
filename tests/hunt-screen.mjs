@@ -791,15 +791,25 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         const w = await page.evaluate(() => ({ msg: document.querySelector('[data-hs-win="hunts"] .hh-intent-msg').textContent,
           now: document.querySelector('[data-hs-win="hunts"] .hw-hunts-now').textContent }));
         if (/On the way/.test(w.msg) || !/You are hunting in/.test(w.now)) fails.push('HS-9 the Hunts window does not follow the server’s hunt: ' + JSON.stringify(w));
-        /* HS-10: the server says the hunt is over: the top bar keeps the summary, never Leave hunt. */
-        s.env.hunt = Object.assign({}, s.env.hunt, { ended: true });
+        /* HS-10: the server says the hunt is over: the top bar keeps the summary, never Leave hunt. Judged on a DEATH,
+           the one ended hunt whose bar a player sees (v0.2.66 shell.js huntUp: an ordinary end opens its summary at
+           once and the bar leaves with it; a death holds the summary back behind the death popup, followSummary). */
+        const hunted = clone(s.env.hunt);
+        s.env.hunt = Object.assign({}, s.env.hunt, { ended: true,
+          session: Object.assign({}, s.env.hunt.session, { end_reason: 'died', phase: 'ended' }) });
+        s.env.death_log = [{ id: 901, at: new Date().toISOString(), hunt: s.env.hunt.hunt_id, session: s.env.hunt.session_id, monster: null, xp: null, xp_lost: null }];
         await pushEnvelope(page, s);
+        await wait(page, () => !!document.querySelector('[data-hs-win="death"]'), null, 4000);
         const bar = await page.evaluate(() => {
           const b = document.querySelector('.ht-bar');
           const shown = (q) => { const n = b && b.querySelector(q); return !!n && n.getClientRects().length > 0; };
-          return b ? { leave: shown('[data-hs-act="leave"]'), details: shown('[data-hs-act="details"]'), summary: shown('[data-hs-act="summary"]') } : null;
+          return b ? { death: !!document.querySelector('[data-hs-win="death"]'), summaryWin: !!document.querySelector('[data-hs-win="hunt-summary"]'),
+            leave: shown('[data-hs-act="leave"]'), details: shown('[data-hs-act="details"]'), summary: shown('[data-hs-act="summary"]') } : null;
         });
-        if (bar && (bar.leave || bar.details || !bar.summary)) fails.push('HS-10 a hunt that is over still offers more than its summary: ' + JSON.stringify(bar));
+        if (!bar) fails.push('HS-10 a death ends the hunt and the top bar is gone (its Summary is the way back while the death popup holds the summary)');
+        else if (!bar.death || bar.summaryWin || bar.leave || bar.details || !bar.summary) fails.push('HS-10 a hunt that is over still offers more than its summary: ' + JSON.stringify(bar));
+        s.env.hunt = hunted;
+        delete s.env.death_log;
         /* HS-18 the rate that applies NOW: a hunt that is over no longer fights, so its in-fight regen is gone from the hub. */
         /* the hub stays with the bar (shown in town too: hud-widgets.js action-bar `when: 'always'`), so a missing hub is a
            rule's red, never a harness throw (v0.2.46 run 40171591445: "the bar hides in town" read null here) */
@@ -910,10 +920,10 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         /* THE CLOSE: asked a hair after leave_at, the hunt ends on screen, back in town; every line seen on the
            way is a whole number of seconds >= 1 or "Leaving now…" */
         const seen = new Set();
-        /* ended on screen: no Leave hunt, and the summary in reach (its window, opened by itself, takes the bar with it) */
+        /* ended on screen: Leave hunt HIDDEN (its own flag: with the summary open the whole bar is off, so its rects prove nothing), and the summary in reach (its window, opened by itself, takes the bar with it) */
         const done = () => { const bar = document.querySelector('.ht-bar'); const l = bar && bar.querySelector('[data-hs-act="leave"]');
           const win = !!document.querySelector('[data-hs-win="hunt-summary"]:not(.is-leaving)');
-          return (!l || l.getClientRects().length === 0) && (win || !!(bar && bar.querySelector('[data-hs-act="summary"]').getClientRects().length > 0)); };
+          return (!l || l.hidden) && (win || !!(bar && bar.querySelector('[data-hs-act="summary"]').getClientRects().length > 0)); };
         const end = await drive(page, { maxMs: LEAVE_IN + 4000, pred: done, onStep: async () => { const x = await label(); if (x && x.line) seen.add(x.t); } });
         const lineUp = await page.evaluate(() => { const l = document.querySelector('.ht-bar .ht-leaving'); return !!l && l.getClientRects().length > 0; });
         const lag = s.closedAt && leaveAt !== null ? s.closedAt - leaveAt : null;

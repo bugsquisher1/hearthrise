@@ -42,7 +42,10 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
    (plans pace + ladder) and the brackets re-fitted (pace.mjs --fit); 2027-02-04 is APPLIED history. Same table, new rows. */
 /* 2027-02-08-unsourced-level-curve (lane b-unsourced-items): 2027-02-07 is APPLIED history. The boar and the bear moved the
    measured pace, and Level 5 -> 6 sat at 2.01x the step before (C6); Levels 4-5 eased by hand, nothing else moves. */
-export const OUT_NAME = '2027-02-08-unsourced-level-curve.generated.sql';
+/* 2027-02-09-hasks-ford-level-curve (lane b-hasks-ford): 2027-02-08 is APPLIED history. Hask's Ford (45-60 solo) made
+   Levels 45-50 a third faster (L50 in 146.5 h against 168), so the brackets from Level 10 were re-fitted (pace.mjs --fit,
+   minimax 2.4%); the first ten Levels are kept as hand-eased (C6), so Level 10's total does not move. */
+export const OUT_NAME = '2027-02-09-hasks-ford-level-curve.generated.sql';
 const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 
 /* The Levels the self-check pins: every bracket's edge, Tyler's target Levels and a deep one. */

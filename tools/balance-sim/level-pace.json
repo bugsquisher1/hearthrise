@@ -1,8 +1,8 @@
 {
  "schema": "hearthrise.level-pace/1",
- "generated": "2026-10-29T02:46:51.533Z",
- "commit": "9f6606639",
- "version": "0.2.63",
+ "generated": "2026-10-29T03:17:02.383Z",
+ "commit": "ef6102f53",
+ "version": "0.2.64",
  "curve": {
   "first": 127,
   "brackets": [
@@ -68,9 +68,9 @@
    }
   ]
  },
- "fingerprint": "c5bb16f8e6a2da18",
- "ceiling": 50,
- "reference": "median of 8 solo styles, Level 1 to 50, where the Hunts window recommends, as built (tools/balance-sim plan pace)",
+ "fingerprint": "a6af95aab2f7bf3f",
+ "ceiling": 60,
+ "reference": "median of 8 solo styles, Level 1 to 60, where the Hunts window recommends, as built (tools/balance-sim plan pace)",
  "styles": [
   "hammer",
   "axes",
@@ -126,11 +126,21 @@
   "42": 81983,
   "43": 81913,
   "44": 82099,
-  "45": 82017,
-  "46": 82004,
-  "47": 82154,
-  "48": 82197,
-  "49": 82312
+  "45": 196123,
+  "46": 195119,
+  "47": 196316,
+  "48": 196861,
+  "49": 196439,
+  "50": 199051,
+  "51": 201047,
+  "52": 201641,
+  "53": 202146,
+  "54": 203555,
+  "55": 204110,
+  "56": 204136,
+  "57": 205889,
+  "58": 205899,
+  "59": 207980
  },
  "measuredHours": {
   "2": 0.02,
@@ -141,7 +151,7 @@
   "25": 34.53,
   "30": 47.765,
   "40": 92.605,
-  "50": 172.84
+  "50": 147.95
  },
  "careers": {
   "hammer": {
@@ -149,9 +159,9 @@
     "hammer"
    ],
    "density": null,
-   "hours": 172,
+   "hours": 194,
    "reached": [
-    50
+    60
    ],
    "hoursTo": {
     "2": 0.02,
@@ -162,14 +172,15 @@
     "25": 33.49,
     "30": 46.57,
     "40": 91.42,
-    "50": 171.71
+    "50": 142.56
    },
    "deaths": 0,
    "grounds": [
     "mill_cellar",
     "meadowbrook_thicket",
     "wickstead",
-    "mosslight_glade"
+    "mosslight_glade",
+    "hasks_ford"
    ],
    "skillsAt": {
     "10": {
@@ -190,7 +201,7 @@
      "melee": 50,
      "ranged": 1,
      "magic": 1,
-     "defense": 36,
+     "defense": 37,
      "inner_flame": 1
     }
    }
@@ -200,9 +211,9 @@
     "axes"
    ],
    "density": null,
-   "hours": 174,
+   "hours": 204,
    "reached": [
-    50
+    60
    ],
    "hoursTo": {
     "2": 0.02,
@@ -213,14 +224,15 @@
     "25": 33.74,
     "30": 46.98,
     "40": 92.28,
-    "50": 173.1
+    "50": 145.85
    },
    "deaths": 0,
    "grounds": [
     "mill_cellar",
     "meadowbrook_thicket",
     "wickstead",
-    "mosslight_glade"
+    "mosslight_glade",
+    "hasks_ford"
    ],
    "skillsAt": {
     "10": {
@@ -241,7 +253,7 @@
      "melee": 50,
      "ranged": 1,
      "magic": 1,
-     "defense": 37,
+     "defense": 38,
      "inner_flame": 1
     }
    }
@@ -251,9 +263,9 @@
     "sword"
    ],
    "density": null,
-   "hours": 193.75,
+   "hours": 233.75,
    "reached": [
-    50
+    60
    ],
    "hoursTo": {
     "2": 0.02,
@@ -264,14 +276,15 @@
     "25": 38.17,
     "30": 53.76,
     "40": 104.41,
-    "50": 193.42
+    "50": 165.27
    },
    "deaths": 0,
    "grounds": [
     "mill_cellar",
     "meadowbrook_thicket",
     "wickstead",
-    "mosslight_glade"
+    "mosslight_glade",
+    "hasks_ford"
    ],
    "skillsAt": {
     "10": {
@@ -292,7 +305,7 @@
      "melee": 50,
      "ranged": 1,
      "magic": 1,
-     "defense": 39,
+     "defense": 40,
      "inner_flame": 1
     }
    }
@@ -302,9 +315,9 @@
     "tank"
    ],
    "density": null,
-   "hours": 196.75,
+   "hours": 239.75,
    "reached": [
-    50
+    60
    ],
    "hoursTo": {
     "2": 0.02,
@@ -315,14 +328,15 @@
     "25": 38.57,
     "30": 54.48,
     "40": 106.14,
-    "50": 196.62
+    "50": 168.27
    },
    "deaths": 0,
    "grounds": [
     "mill_cellar",
     "meadowbrook_thicket",
     "wickstead",
-    "mosslight_glade"
+    "mosslight_glade",
+    "hasks_ford"
    ],
    "skillsAt": {
     "10": {
@@ -343,7 +357,7 @@
      "melee": 50,
      "ranged": 1,
      "magic": 1,
-     "defense": 46,
+     "defense": 47,
      "inner_flame": 1
     }
    }
@@ -353,9 +367,9 @@
     "bow"
    ],
    "density": null,
-   "hours": 173.25,
+   "hours": 212.25,
    "reached": [
-    50
+    60
    ],
    "hoursTo": {
     "2": 0.02,
@@ -366,14 +380,15 @@
     "25": 34.69,
     "30": 47.94,
     "40": 92.84,
-    "50": 172.58
+    "50": 148.2
    },
    "deaths": 0,
    "grounds": [
     "mill_cellar",
     "meadowbrook_thicket",
     "wickstead",
-    "mosslight_glade"
+    "mosslight_glade",
+    "hasks_ford"
    ],
    "skillsAt": {
     "10": {
@@ -394,7 +409,7 @@
      "melee": 1,
      "ranged": 50,
      "magic": 1,
-     "defense": 27,
+     "defense": 29,
      "inner_flame": 1
     }
    }
@@ -404,9 +419,9 @@
     "crossbow"
    ],
    "density": null,
-   "hours": 172,
+   "hours": 211,
    "reached": [
-    50
+    60
    ],
    "hoursTo": {
     "2": 0.02,
@@ -417,14 +432,15 @@
     "25": 34.37,
     "30": 47.59,
     "40": 92.37,
-    "50": 171.97
+    "50": 147.7
    },
    "deaths": 0,
    "grounds": [
     "mill_cellar",
     "meadowbrook_thicket",
     "wickstead",
-    "mosslight_glade"
+    "mosslight_glade",
+    "hasks_ford"
    ],
    "skillsAt": {
     "10": {
@@ -445,7 +461,7 @@
      "melee": 1,
      "ranged": 50,
      "magic": 1,
-     "defense": 32,
+     "defense": 33,
      "inner_flame": 1
     }
    }
@@ -455,9 +471,9 @@
     "mage"
    ],
    "density": null,
-   "hours": 165.75,
+   "hours": 188.75,
    "reached": [
-    50
+    60
    ],
    "hoursTo": {
     "2": 0.02,
@@ -468,14 +484,15 @@
     "25": 32.39,
     "30": 44.94,
     "40": 87.83,
-    "50": 164.79
+    "50": 137.29
    },
    "deaths": 0,
    "grounds": [
     "mill_cellar",
     "meadowbrook_thicket",
     "wickstead",
-    "mosslight_glade"
+    "mosslight_glade",
+    "hasks_ford"
    ],
    "skillsAt": {
     "10": {
@@ -495,8 +512,8 @@
     "49": {
      "melee": 1,
      "ranged": 1,
-     "magic": 45,
-     "defense": 22,
+     "magic": 44,
+     "defense": 25,
      "inner_flame": 1
     }
    }
@@ -506,9 +523,9 @@
     "healer"
    ],
    "density": null,
-   "hours": 181.25,
+   "hours": 206.25,
    "reached": [
-    50
+    60
    ],
    "hoursTo": {
     "2": 0.02,
@@ -519,14 +536,15 @@
     "25": 38.25,
     "30": 52.91,
     "40": 98.76,
-    "50": 180.39
+    "50": 151.73
    },
    "deaths": 0,
    "grounds": [
     "mill_cellar",
     "meadowbrook_thicket",
     "wickstead",
-    "mosslight_glade"
+    "mosslight_glade",
+    "hasks_ford"
    ],
    "skillsAt": {
     "10": {
@@ -577,12 +595,17 @@
    ],
    [
     47.5,
-    187115,
+    191595,
     "coppercap_warrens"
+   ],
+   [
+    52.5,
+    200984,
+    "hasks_ford"
    ]
   ],
-  "a": 1009,
-  "b": 1.354
+  "a": 1035,
+  "b": 1.343
  },
  "bounds": {
   "box:tank": {
@@ -753,52 +776,52 @@
   },
   "50": {
    "target": 168,
-   "hours": 172.9,
-   "err": 0.029,
-   "measured": 172.8,
-   "before": 103
+   "hours": 146.5,
+   "err": -0.128,
+   "measured": 148,
+   "before": 84
   },
   "100": {
    "target": 600,
-   "hours": 578.9,
-   "err": -0.035,
+   "hours": 558.4,
+   "err": -0.069,
    "measured": null,
-   "before": 394
+   "before": 379
   },
   "200": {
    "target": 1680,
-   "hours": 1736.4,
-   "err": 0.034,
+   "hours": 1715.9,
+   "err": 0.021,
    "measured": null,
-   "before": 2119
+   "before": 2104
   },
   "300": {
    "target": 3120,
-   "hours": 3013.2,
-   "err": -0.034,
+   "hours": 2992.6,
+   "err": -0.041,
    "measured": null,
-   "before": 5991
+   "before": 5976
   },
   "500": {
    "target": 6720,
-   "hours": 6490.5,
-   "err": -0.034,
+   "hours": 6469.9,
+   "err": -0.037,
    "measured": null,
-   "before": 22710
+   "before": 22695
   },
   "750": {
    "target": 13440,
-   "hours": 13313.8,
-   "err": -0.009,
+   "hours": 13293.2,
+   "err": -0.011,
    "measured": null,
-   "before": 66034
+   "before": 66019
   },
   "1000": {
    "target": 23520,
-   "hours": 22717.4,
-   "err": -0.034,
+   "hours": 22696.9,
+   "err": -0.035,
    "measured": null,
-   "before": 141256
+   "before": 141241
   }
  },
  "death": [
@@ -830,13 +853,13 @@
    "level": 50,
    "xpLost": 268232,
    "shareOfLevel": 0.312,
-   "unblessedHours": 1.34,
+   "unblessedHours": 1.35,
    "blessedHours": {
-    "1": 0.91,
+    "1": 0.92,
     "2": 0.5,
     "3": 0.07
    },
-   "extrapolated": true
+   "extrapolated": false
   },
   {
    "level": 100,

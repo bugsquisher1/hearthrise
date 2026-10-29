@@ -476,7 +476,7 @@ cases['wickstead-solo-floor'] = async (M) => {
 
 /* The glade put back to STAGED as a whole (flag + map), so the two leak mutants below have a staged hunt to leak. */
 const RESTAGE = [['src/data/hunts.js', "art: 'carrion_crow', travelS: 0, pull: 4, respawnMs: 60000,", "art: 'carrion_crow', travelS: 0, pull: 4, respawnMs: 60000, staged: true,"],
-  ['src/data/world/maps/index.js', 'meadowbrookThicket, coppercapWarrens, mosslightGlade, wickstead, sandboxHd64]);', 'meadowbrookThicket, coppercapWarrens, wickstead, sandboxHd64]);'],
+  ['src/data/world/maps/index.js', 'meadowbrookThicket, coppercapWarrens, mosslightGlade, wickstead, hasksFord, sandboxHd64]);', 'meadowbrookThicket, coppercapWarrens, wickstead, hasksFord, sandboxHd64]);'],
   ['src/data/world/maps/index.js', 'export const STAGED_MAPS = Object.freeze([]);', 'export const STAGED_MAPS = Object.freeze([mosslightGlade]);']];
 const mutants = [
   /* the glade is OPEN on its art (lane b-mosslight-art): it must stay open only while its painted ground ships */

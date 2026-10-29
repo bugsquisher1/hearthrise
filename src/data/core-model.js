@@ -52,9 +52,9 @@ export const LEVEL_CURVE = Object.freeze({
     Object.freeze({ from: 7, rise: 21913, bend: 0 }),
     Object.freeze({ from: 8, rise: 18461, bend: 0 }),
     Object.freeze({ from: 9, rise: 1, bend: 0 }),
-    Object.freeze({ from: 10, rise: 0, bend: 497 }),
-    Object.freeze({ from: 50, rise: 80221, bend: 123 }),
-    Object.freeze({ from: 300, rise: 210858, bend: 580 }),
+    Object.freeze({ from: 10, rise: 0, bend: 629 }),
+    Object.freeze({ from: 50, rise: 68240, bend: 199 }),
+    Object.freeze({ from: 300, rise: 188831, bend: 630 }),
   ]),
 });
 

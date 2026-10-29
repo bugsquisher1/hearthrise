@@ -21,7 +21,7 @@
 // Each is one ask in the account's intent ledger (askVia), so the pressed control
 // waits on it.
 // ════════════════════════════════════════════════════════════════════════
-import { askVia } from './intent-ledger.js?v=0.2.64';
+import { askVia } from './intent-ledger.js?v=0.2.65';
 
 const CROP = /^[a-z_]{1,32}$/;
 const MAX_PLOT = 127;   // the server's index fuse (an extra plot may sit past 63)

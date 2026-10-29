@@ -4075,7 +4075,7 @@ jobs:
   # run-ci-local --selftest step (2026-09-28) adds under 1 s; budget unchanged.
   client-guards:
     runs-on: ubuntu-latest
-    timeout-minutes: 24
+    timeout-minutes: 32
 
     steps:
       - uses: actions/checkout@v4

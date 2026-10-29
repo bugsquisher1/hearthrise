@@ -135,8 +135,8 @@ export const HUNTS = Object.freeze([
   {
     id: 'mosslight_glade', name: 'Mosslight Glade', theme: 'The Meadowbrook rises here, and the copper water makes the moss glow.',
     band: [16, 31],
-    spawns: [{ monster: 'carrion_crow', w: 12, rarity: 'common' }, { monster: 'walking_vine', w: 5, rarity: 'uncommon' },
-      { monster: 'glade_poacher', w: 4, rarity: 'uncommon' }, { monster: 'goblin_sluicer', w: 2, rarity: 'rare' }],
+    spawns: [{ monster: 'carrion_crow', w: 10, rarity: 'common' }, { monster: 'walking_vine', w: 5, rarity: 'uncommon' },
+      { monster: 'glade_poacher', w: 4, rarity: 'uncommon' }, { monster: 'brook_bear', w: 2, rarity: 'uncommon' }, { monster: 'goblin_sluicer', w: 2, rarity: 'rare' }],
     family: 'Vermin', art: 'carrion_crow', travelS: 0, pull: 4, respawnMs: 60000,
   },
   /* THE FARM GROUND (lane b-greenhaven-6, designer 2026-10-28; Greenhaven's sixth, Tyler 10-15): a burned farmstead on
@@ -148,8 +148,8 @@ export const HUNTS = Object.freeze([
   {
     id: 'wickstead', name: 'Wickstead', theme: 'A burned farm on the Thicket road. Rats in the granary, turncoats in the house.',
     band: [8, 18],
-    spawns: [{ monster: 'granary_rat', w: 14, rarity: 'common' }, { monster: 'barn_wasp', w: 4, rarity: 'uncommon' },
-      { monster: 'barn_spider', w: 4, rarity: 'uncommon' }, { monster: 'turncoat', w: 2, rarity: 'rare' }],
+    spawns: [{ monster: 'granary_rat', w: 13, rarity: 'common' }, { monster: 'barn_spider', w: 4, rarity: 'uncommon' },
+      { monster: 'barn_wasp', w: 3, rarity: 'uncommon' }, { monster: 'orchard_boar', w: 2, rarity: 'uncommon' }, { monster: 'turncoat', w: 2, rarity: 'rare' }],
     family: 'Vermin', art: 'granary_rat', travelS: 0, pull: 4, respawnMs: 60000,
   },
 ]);

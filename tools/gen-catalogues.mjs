@@ -98,7 +98,9 @@ const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'))
    ONE forward file, the same full delete+insert replace. */
 /* WICKSTEAD (lane b-greenhaven-6, designer 2026-10-28): 2027-02-05-first-hour-items-catalogue.generated.sql is APPLIED history.
    The staged farm ground's four imbuement items (hr_items) land in ONE forward file, the same full delete+insert replace. */
-const OUT = join(ROOT, 'supabase', 'migrations', '2027-02-06-wickstead-items-catalogue.generated.sql');
+/* THE UNSOURCED ITEMS (lane b-unsourced-items, designer 2026-10-28): 2027-02-06-wickstead-items-catalogue is APPLIED history; the four
+   made tier-1 gloves and sashes (hr_activities artisan rows) land in ONE forward file, the same full delete+insert replace. */
+const OUT = join(ROOT, 'supabase', 'migrations', '2027-02-08-unsourced-items-catalogue.generated.sql');
 /* THE SECOND GENERATED FILE (2026-09-13). hr_item_buffs is emitted as its own
    migration rather than into OUT above, and that is a deliberate operational
    call: OUT is the FOURTH file in tests/schema-apply-order.json and is already
@@ -1247,7 +1249,8 @@ const { recipeInputs } = await imp('src/core/artisan.js');
 const { ARTISAN_RECIPES: BENCH_RECIPES } = await imp('src/data/recipes.js');
 /* INNER FLAME (lane b-inner-flame, 2026-10-27): 2027-01-20 is APPLIED history; the fuel_<item> rows (the bury_* rows retire). */
 /* THE FIRST-HOUR RUNG (lane b-first-hour, 2026-10-28): 2027-01-31 is APPLIED history; stitch_graypelt_cloak's six Wolf Pelts. */
-const OUT_BENCH_INPUTS = join(ROOT, 'supabase', 'migrations', '2027-02-05-first-hour-bench-inputs.generated.sql');
+/* THE UNSOURCED ITEMS (lane b-unsourced-items, 2026-10-28): 2027-02-05 is APPLIED history; the four new recipes' inputs. */
+const OUT_BENCH_INPUTS = join(ROOT, 'supabase', 'migrations', '2027-02-08-unsourced-bench-inputs.generated.sql');
 const benchInputs = {};
 {
   const known = new Set(itemIds);

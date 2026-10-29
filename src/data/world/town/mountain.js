@@ -2,8 +2,8 @@
 // the cliff rock (ground.js '^') so the mountain is not one flat field of stone. Deterministic: a cell takes a decal
 // when its hash picks it and no decal sits within two cells, so a rebuild lays the same stones. Plan coordinates.
 // PURE ESM. Display data only: decals are open, nothing here changes what blocks a step.
-import { GROUND_ROWS } from './ground.js?v=0.2.63';
-import { WEST } from './plan.js?v=0.2.63';
+import { GROUND_ROWS } from './ground.js?v=0.2.64';
+import { WEST } from './plan.js?v=0.2.64';
 
 const IDS = ['havora_scree_a', 'havora_scree_b', 'havora_scree_c', 'havora_scree_d'];
 const hash = (x, y) => (((x * 73856093) ^ (y * 19349663)) >>> 0) % 997;

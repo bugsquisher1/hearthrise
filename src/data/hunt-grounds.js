@@ -133,9 +133,9 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_TUNING } from './hunt-tuning.js?v=0.2.63';
-import { HUNT_INDEX } from './hunts.js?v=0.2.63';
-import { MONSTERS } from './monsters.js?v=0.2.63';
+import { HUNT_TUNING } from './hunt-tuning.js?v=0.2.64';
+import { HUNT_INDEX } from './hunts.js?v=0.2.64';
+import { MONSTERS } from './monsters.js?v=0.2.64';
 
 const pocket = (room, ...spawns) => Object.freeze({ room: Object.freeze(room),
   spawns: Object.freeze(spawns.map(([monster, x, y]) => Object.freeze({ monster, x, y }))) });
@@ -307,11 +307,11 @@ export const HUNT_GROUNDS = Object.freeze({
       /* P2 the Sluice, over the boards: goblins washing the Warrens' ore in the spring run */
       box([40, 11, 52, 18], [46, 14], ['goblin_sluicer', 'carrion_crow'], ['carrion_crow', 'goblin_sluicer', 'carrion_crow', 'walking_vine', 'carrion_crow', 'glade_poacher']),
       /* P3 the Mosslight Springs: the vines in the glowing moss (bring fire, or a blade) */
-      box([40, 1, 57, 8], [50, 4], ['walking_vine', 'walking_vine'], ['carrion_crow', 'walking_vine', 'carrion_crow', 'goblin_sluicer', 'walking_vine', 'carrion_crow']),
+      box([40, 1, 57, 8], [50, 4], ['walking_vine', 'walking_vine'], ['brook_bear', 'walking_vine', 'carrion_crow', 'goblin_sluicer', 'walking_vine', 'carrion_crow']),
       /* P4 Rook's Hide: the ruined spring-house, Rook and his two */
       box([22, 1, 35, 12], [28, 6], ['rook_poacher', 'glade_poacher', 'carrion_crow'], ['carrion_crow', 'glade_poacher', 'carrion_crow', 'walking_vine', 'carrion_crow']),
       /* P5 Vine Hollow, back over the ford */
-      box([3, 2, 17, 13], [10, 8], ['walking_vine', 'carrion_crow'], ['carrion_crow', 'walking_vine', 'glade_poacher', 'carrion_crow', 'carrion_crow', 'walking_vine']),
+      box([3, 2, 17, 13], [10, 8], ['walking_vine', 'carrion_crow'], ['brook_bear', 'walking_vine', 'glade_poacher', 'carrion_crow', 'carrion_crow', 'walking_vine']),
     ]),
     route: Object.freeze([0, 1, 2, 3, 4, 5]),
     respawnMs: 60000, pullDist: 1.5, partyScale: true, groupFit: 'solo',
@@ -343,7 +343,7 @@ export const HUNT_GROUNDS = Object.freeze({
       /* P2 the Barn, over the footbridge: the spiders took the loft (bring fire) */
       box([36, 2, 55, 11], [46, 6], ['barn_spider', 'granary_rat'], ['barn_spider', 'granary_rat', 'barn_wasp', 'granary_rat', 'barn_spider', 'granary_rat']),
       /* P3 the Orchard: wasps nest in the old trees (bring a bow) */
-      box([38, 16, 57, 25], [48, 20], ['barn_wasp', 'granary_rat'], ['barn_wasp', 'granary_rat', 'granary_rat', 'barn_wasp', 'granary_rat', 'barn_spider']),
+      box([38, 16, 57, 25], [48, 20], ['orchard_boar', 'barn_wasp'], ['orchard_boar', 'granary_rat', 'barn_wasp', 'granary_rat', 'barn_wasp', 'barn_spider']),
       /* P4 the Burned House: a Turncoat and the rats round his fire */
       box([36, 29, 55, 37], [45, 33], ['turncoat', 'granary_rat'], ['barn_spider', 'granary_rat', 'turncoat', 'granary_rat', 'barn_wasp', 'granary_rat']),
       /* P5 the Cart Shed, back over the ford: the robbed cart */

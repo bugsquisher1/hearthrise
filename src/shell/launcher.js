@@ -6,18 +6,18 @@
 // The row is drawn from the window catalogue, so it lists only windows that
 // exist, and it is the `launchers` HUD widget, which can never be hidden.
 // ════════════════════════════════════════════════════════════════════════
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.63';
-import { pointerCardOf } from '../session/tutorial-sections.js?v=0.2.63';
-import { HUNT_TUTORIAL, AUTO_KINDS, coachIcon } from '../data/hunt-tutorial.js?v=0.2.63';
-import { tallyOf } from '../session/tally-sections.js?v=0.2.63';
-import { bagOf, rulesOf, shopOf, equipmentOf, nameOf, skillsOf } from '../session/item-sections.js?v=0.2.63';
-import { levelOf } from '../session/character-sections.js?v=0.2.63';
-import { huntOf } from '../session/hunt-sections.js?v=0.2.63';
-import { COACH_READ_MAX } from '../session/residue.js?v=0.2.63';
-import { lootSale } from './bag-model.js?v=0.2.63';
-import { upgradeOf } from './widgets/upgrade-line.js?v=0.2.63';
-import { revealInWindow, glyphSvg } from './widgets/bits.js?v=0.2.63';
-import { draftOf, serverBar } from './bar-draft.js?v=0.2.63';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.64';
+import { pointerCardOf } from '../session/tutorial-sections.js?v=0.2.64';
+import { HUNT_TUTORIAL, AUTO_KINDS, coachIcon } from '../data/hunt-tutorial.js?v=0.2.64';
+import { tallyOf } from '../session/tally-sections.js?v=0.2.64';
+import { bagOf, rulesOf, shopOf, equipmentOf, nameOf, skillsOf } from '../session/item-sections.js?v=0.2.64';
+import { levelOf } from '../session/character-sections.js?v=0.2.64';
+import { huntOf } from '../session/hunt-sections.js?v=0.2.64';
+import { COACH_READ_MAX } from '../session/residue.js?v=0.2.64';
+import { lootSale } from './bag-model.js?v=0.2.64';
+import { upgradeOf } from './widgets/upgrade-line.js?v=0.2.64';
+import { revealInWindow, glyphSvg } from './widgets/bits.js?v=0.2.64';
+import { draftOf, serverBar } from './bar-draft.js?v=0.2.64';
 
 /** The chip text for a row's shortcut key: 'b' -> 'B', 'enter' -> 'Enter'. */
 export function keyLabel(key) {
@@ -118,13 +118,22 @@ export function markCoachRead(cs, card) {
   return cs.setResidue('coach', Object.assign({}, r, { read: Array.from(read).concat(card.id).slice(-COACH_READ_MAX) }));
 }
 
-/* A card read on sight: it finishes on its read and has no Got it (you ate, you drank, stamina is low). */
-const readOnSight = (card) => !!card && !card.gotIt && !!card.done && (card.done.kind === 'read'
+/* A card a read finishes (read on sight, or its Got it): the player may close it, which records the read. A card that
+   finishes on a server fact cannot be closed by a click (CLAUDE.md §6: its done is the server's); it only folds. */
+const readable = (card) => !!card && !!card.done && (card.done.kind === 'read'
   || (card.done.kind === 'any' && card.done.of.some((d) => d.kind === 'read')));
+/* A card read on sight: it finishes on its read and has no Got it (you ate, you drank, stamina is low). */
+const readOnSight = (card) => readable(card) && !card.gotIt;
 const SIGHT = new WeakMap();
+/** Whether `card` is on screen in any of `roots`, open OR folded to its tab: a folded read-on-sight card is read on
+ *  its tab too, or it would sit there forever (Tyler 2026-10-28, "Your hero just drank" stuck folded). */
+export function coachOnScreen(roots, card) {
+  return !!card && roots.some((r) => !!r && !!r.querySelector('.hs-pointer[data-tutorial="' + card.id + '"]'));
+}
 /**
- * The display tick's read-on-sight clock: `onScreen` = the card's open box is on screen now. A read-on-sight card
- * that has stayed on screen its reading time is recorded read (markCoachRead) and gives way. True when written.
+ * The display tick's read-on-sight clock: `onScreen` = the card is on screen now, open or folded (coachOnScreen). A
+ * read-on-sight card that has stayed on screen its reading time is recorded read (markCoachRead) and gives way.
+ * True when written.
  */
 export function noteCoachSight(ctx, card, onScreen) {
   const cs = ctx.character;
@@ -165,19 +174,22 @@ export function heldCard(ctx) {
 export function coachHtml(cs, card, inWin) {
   if (inWin && card.textIn) card = Object.assign({}, card, { text: card.textIn });
   const { min, fresh } = coachFoldOf(cs, card);
+  /* Close (x): only where a read finishes the card and this client can record it; it records the read. */
+  const close = readable(card) && coachReadOf(cs) ? '<button type="button" class="hs-coach-close" data-hs-act="coach-close" aria-label="Close '
+    + esc(card.title) + '" title="Close"></button>' : '';
   /* data-coach: what the box shows (the card, folded or not, marked or not); the hunt bar redraws when it changes. */
-  const head = '<p class="hs-pointer' + (min ? ' is-min' : '') + '" role="note" data-tutorial="' + esc(card.id) + '" data-coach="'
+  const head = '<p class="hs-pointer' + (min ? ' is-min' : '') + (close ? ' has-close' : '') + '" role="note" data-tutorial="' + esc(card.id) + '" data-coach="'
     + esc(card.id + (min ? (fresh ? ':new' : ':min') : '')) + '"' + (card.anchor ? ' data-anchor="' + esc(card.anchor) + '"' : '') + '>';
   if (min) {
     return head + '<button type="button" class="hs-coach-tab" data-hs-act="coach-open" aria-expanded="false" aria-label="'
       + esc(card.title + (fresh ? ', something new' : '') + ': show') + '">' + esc(card.title)
-      + (fresh ? '<i class="hs-coach-new" aria-hidden="true"></i>' : '') + '</button></p>';
+      + (fresh ? '<i class="hs-coach-new" aria-hidden="true"></i>' : '') + '</button>' + close + '</p>';
   }
   /* A card that teaches and asks for nothing finishes on its Got it (residue `coach.read`, markCoachRead); it is
      offered only where this client can record the press, so it is never a button that does nothing. */
   const got = card.gotIt && coachReadOf(cs) ? ' <button type="button" class="hs-coach-got" data-hs-act="coach-got">Got it</button>' : '';
   return head + '<button type="button" class="hs-coach-min" data-hs-act="coach-min" aria-expanded="true" aria-label="Minimize '
-    + esc(card.title) + '" title="Minimize"></button><b>' + esc(card.title) + '</b> <span class="hs-coach-text">' + esc(card.text) + '</span>' + got + '</p>';
+    + esc(card.title) + '" title="Minimize"></button>' + close + '<b>' + esc(card.title) + '</b> <span class="hs-coach-text">' + esc(card.text) + '</span>' + got + '</p>';
 }
 
 /**
@@ -203,14 +215,16 @@ export function placeCoach(el, html) {
   if (key && !(have && have.getAttribute('data-coach') === key)) el.insertAdjacentHTML('beforeend', html);
 }
 
-/** The coach's fold and open presses, from wherever it is drawn (this row, the hunt top bar, a window). True when handled. */
+/** The coach's fold, open, Got it and close presses, from wherever it is drawn (this row, the hunt top bar, a window).
+ *  Close records the read of a card a read finishes; any other card it only folds. True when handled. */
 export function actCoach(ctx, el, action, ev) {
-  if (action !== 'coach-min' && action !== 'coach-open' && action !== 'coach-got') return false;
+  if (action !== 'coach-min' && action !== 'coach-open' && action !== 'coach-got' && action !== 'coach-close') return false;
   if (ev.type !== 'click') return true;
   const cs = ctx.character;
   const card = cs && heldCard(ctx);
   if (!card || typeof cs.setResidue !== 'function') return true;
   if (action === 'coach-got') { if (card.gotIt) markCoachRead(cs, card); return true; }
+  if (action === 'coach-close') { if (readable(card)) { markCoachRead(cs, card); return true; } action = 'coach-min'; }
   const doc = el.ownerDocument;
   const hadFocus = !!doc && !!doc.activeElement && el.contains(doc.activeElement);
   /* Opening clears the mark: the card the player now sees is the one they have seen. The reads stay. */

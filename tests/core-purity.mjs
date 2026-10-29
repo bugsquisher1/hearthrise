@@ -215,10 +215,10 @@ export async function coreAnchorGuard() {
     if (xp.xpForLevel(99) !== 13034431) problems.push('xpForLevel(99) drifted');
     if (xp.xpForLevel(120) !== xp.xpForLevel(99)) problems.push('xpForLevel must clamp above 99');
     if (xp.xpToNext(13034431) !== 0) problems.push('xpToNext at cap must be 0');
-    /* The core rebuild's curves (CORE_MODEL.md §2): Level from 0 XP is 1, Level 10 costs 158,938 (re-fitted for Wickstead,
+    /* The core rebuild's curves (CORE_MODEL.md §2): Level from 0 XP is 1, Level 10 costs 157,965 (re-fitted for the boar and bear, v0.2.64, 2027-02-08-unsourced-level-curve; 158,938 for Wickstead,
        v0.2.63, 2027-02-07-level-curve-wickstead; was 137,918 on the 10-25 pace curve, 21,591 on the old quartic), and a
        combat skill is uncapped (the full JS = SQL parity is tests/core-curves.mjs). */
-    if (xp.charLevelFromXp(0) !== 1 || xp.charXpForLevel(10) !== 158938) problems.push('the Level curve anchors drifted (L1 at 0, L10 at 158,938)');
+    if (xp.charLevelFromXp(0) !== 1 || xp.charXpForLevel(10) !== 157965) problems.push('the Level curve anchors drifted (L1 at 0, L10 at 157,965)');
     if (xp.skillLevelFromXp('melee', xp.skillXpForLevel('melee', 150)) !== 150) problems.push('a combat skill no longer climbs past 99');
     if (xp.skillLevelFromXp('mining', 99999999) !== 99) problems.push('a gathering skill no longer caps at 99');
 

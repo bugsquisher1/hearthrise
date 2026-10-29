@@ -5,6 +5,18 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.64 — 2026-10-29 (Boars and bears)
+
+**Two new creatures.** The Orchard Boar now roots through Wickstead's burned orchard: low, heavy and hard to put down. Up in Mosslight Glade, the Brook Bear fishes the springs and Vine Hollow, and it hits harder than anything else there.
+
+**Bear on the menu.** Brook Bears drop Raw Bear Meat and Bear Claws, so the two bear dishes in Cooking can finally be made.
+
+**More gear to make and find.** Bronze Gauntlets are now forged at Smithing, on a new Armor tab. Apprentice Gloves, the Apprentice Sash and the Leather Belt are made with Crafting. Deep in the Warrens, Goblin Skulkers and Diggers rarely drop finer gloves and belts.
+
+**Early levels smoothed.** Levels 4 to 7 take a little less time, so no level suddenly takes twice as long as the one before.
+
+**Fixes.** A Hearth run that has used up its fuel now stops showing as fueling, and the hero stops throwing at the fire. A minimized tutorial tip such as "Your hero just drank" no longer sits on screen forever: it finishes on its own, and tips you only need to read now have a close button.
+
 ## v0.2.63 — 2026-10-28 (Wickstead)
 
 **A new hunting ground: Wickstead.** A burned farmstead on the Thicket road, for heroes from Level 8. Rats overrun the granary, wasps nest in the barn and spiders web the lofts. Watch for Turncoats, deserters robbing the road.

@@ -40,7 +40,9 @@ import { isMain } from '../tests/_is-main.mjs';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 /* 2027-02-07-level-curve-wickstead (lane/a-v0263-reds): Wickstead opened (8-18 solo, v0.2.63), so the pace was re-measured
    (plans pace + ladder) and the brackets re-fitted (pace.mjs --fit); 2027-02-04 is APPLIED history. Same table, new rows. */
-export const OUT_NAME = '2027-02-07-level-curve-wickstead.generated.sql';
+/* 2027-02-08-unsourced-level-curve (lane b-unsourced-items): 2027-02-07 is APPLIED history. The boar and the bear moved the
+   measured pace, and Level 5 -> 6 sat at 2.01x the step before (C6); Levels 4-5 eased by hand, nothing else moves. */
+export const OUT_NAME = '2027-02-08-unsourced-level-curve.generated.sql';
 const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 
 /* The Levels the self-check pins: every bracket's edge, Tyler's target Levels and a deep one. */

@@ -1165,6 +1165,30 @@ const cases = {
     L.noteCoachSight(ctxOf(s2, null, 0), fs, true);
     if (L.noteCoachSight(ctxOf(s2, null, 60000), fs, true)) return 'a Got it card was marked read on sight';
 
+    /* FOLDED NEVER STICKS (Tyler 2026-10-28, "Your hero just drank" sat folded forever): a folded read-on-sight card is
+       on screen as its tab and is read there; folded or open, a card a read finishes (Got it too) has a close that
+       records the read; a card the server finishes has no close (its done is the server's) */
+    const drink = M.tut.HUNT_TUTORIAL.find((r) => r.id === 'first_drink');
+    const sf = hero(town(), { read: [], min: true, seen: 'first_drink' });
+    const tab = L.coachHtml(sf, drink);
+    if (!/is-min/.test(tab)) return 'the folded fixture did not draw a tab: ' + tab;
+    const dom = { querySelector: (sel) => (sel.includes(':not(.is-min)') && /is-min/.test(tab)) || !sel.includes('[data-tutorial="first_drink"]') ? null : {} };
+    if (!L.coachOnScreen([dom], drink)) return 'a folded read-on-sight card is not counted as on screen (it never finishes)';
+    L.noteCoachSight(ctxOf(sf, null, 0), drink, L.coachOnScreen([dom], drink));
+    if (!L.noteCoachSight(ctxOf(sf, null, L.readMs(drink) + 1), drink, L.coachOnScreen([dom], drink))) return 'a folded read-on-sight card was not read on its tab';
+    for (const [c, open] of [[drink, false], [drink, true], [fs, false], [fs, true]]) {
+      const x = hero(town(), open ? { read: [] } : { read: [], min: true, seen: c.id });
+      if (!L.coachHtml(x, c).includes('data-hs-act="coach-close"')) return (open ? 'open ' : 'folded ') + c.id + ' has no close';
+    }
+    /* the close press on the card the coach holds records its read; folded stays folded */
+    const fx = { character: hero(g.record.data, { read: KNOWN.filter((x) => x !== 'styles'), min: true }), account: null, wm: { openIds: () => [], isOpen: () => false } };
+    const held = L.heldCard(fx);
+    if (!held || !L.coachHtml(fx.character, held).includes('coach-close')) return 'the held first card (' + (held && held.id) + ') has no close';
+    L.actCoach(fx, null, 'coach-close', { type: 'click' });
+    if (!L.coachReadOf(fx.character).has(held.id)) return 'close on folded ' + held.id + ' did not record its read';
+    const srv = M.tut.HUNT_TUTORIAL.find((r) => r.done && r.done.kind !== 'read' && r.done.kind !== 'any');
+    if (L.coachHtml(hero(town(), { read: [] }), srv).includes('coach-close')) return srv.id + ' (finished by the server) offers a close';
+
     /* D4 MORE THAN ONE HERO: 5 minutes into the Thicket, one hero, two slots owned: the server's play limit and the
        roster's slots in the words; Characters, then Create hero ringed; a second hero finishes it */
     const thicket = (sessionMs) => Object.assign(JSON.parse(JSON.stringify(base)), {
@@ -1372,8 +1396,10 @@ const mutants = [
     edits: [['src/shell/launcher.js', "return cs.setResidue('coach', Object.assign({}, r, { read: Array.from(read).concat(card.id).slice(-COACH_READ_MAX) }));", 'return false;']] },
   { name: 'folding the coach forgets the reads', case: 'tutorial-shell-facts',
     edits: [['src/shell/launcher.js', 'const keep = read && read.size ? { read: Array.from(read) } : {};', 'const keep = {};']] },
+  { name: 'a folded read-on-sight card is never on screen (it sits there forever, v0.2.63)', case: 'tutorial-shell-facts',
+    edits: [['src/shell/launcher.js', `'.hs-pointer[data-tutorial="' + card.id + '"]'`, `'.hs-pointer[data-tutorial="' + card.id + '"]:not(.is-min)'`]] },
   { name: 'a Got it card is marked read on sight', case: 'tutorial-shell-facts',
-    edits: [['src/shell/launcher.js', 'const readOnSight = (card) => !!card && !card.gotIt && ', 'const readOnSight = (card) => !!card && ']] },
+    edits: [['src/shell/launcher.js', 'const readOnSight = (card) => readable(card) && !card.gotIt;', 'const readOnSight = (card) => readable(card);']] },
   { name: 'a read-on-sight card is marked at once', case: 'tutorial-shell-facts',
     edits: [['src/shell/launcher.js', '  if (now - s.since < readMs(card)) return false;\n', '']] },
   { name: 'the slots owned are the heroes, not the slots', case: 'tutorial-shell-facts',

@@ -53,7 +53,7 @@ export const STYLE_LADDER = Object.freeze({
 });
 
 /* The light line, made: tier 1 (Apprentice, Defense 1) and tier 2 (Adept, Defense 15); helmet, body, legs, boots.
-   Gloves and belt come from the Shop's outfitter for every style. Scholar (tier 3) is the next batch. */
+   Gloves and belt: the Shop's outfitter sells medium gloves and a heavy belt; the other weights' tier-1 pair is made below. Scholar (tier 3) is the next batch. */
 export const CLOTH_LADDER = Object.freeze({
   1: Object.freeze(['apprentice_helmet', 'apprentice_body', 'apprentice_pants', 'apprentice_boots']),
   2: Object.freeze(['adept_helmet', 'adept_body', 'adept_pants', 'adept_boots']),
@@ -65,6 +65,9 @@ export const STYLE_GEAR_RECIPES = Object.freeze({
   smithing: Object.freeze([
     r('forge_iron_hatchets',  'Forge Iron Hatchets',  '🪓', { iron_bar: 2, normal_plank: 1 }, 'iron_hatchets',  120, 15, 3400),
     r('forge_iron_warhammer', 'Forge Iron Warhammer', '🔨', { iron_bar: 3, normal_plank: 2 }, 'iron_warhammer', 150, 15, 3600),
+    /* THE OTHER WEIGHTS' FIRST GLOVES AND SASH (lane b-unsourced-items, designer 2026-10-28): the Shop sells medium gloves and a
+       heavy belt; the rest of the tier-1 pair is made, so a hero picks a weight in those slots too (made > bought, Tyler 10-14). */
+    r('forge_bronze_gauntlets', 'Forge Bronze Gauntlets', '🧤', { bronze_bar: 2 }, 'bronze_gauntlets', 40, 4, 2800),
   ]),
   crafting: Object.freeze([
     /* Tier-2 weapons: oak stock at Crafting 15, the level they are worn at. */
@@ -78,6 +81,10 @@ export const STYLE_GEAR_RECIPES = Object.freeze({
     r('sew_apprentice_helmet', 'Sew Apprentice Hat',         '🧵', { silk_thread: 1 }, 'apprentice_helmet', 16, 3, 2800),
     r('sew_apprentice_pants',  'Sew Apprentice Robe Bottom', '🧵', { silk_thread: 2 }, 'apprentice_pants',  28, 6, 3000),
     r('sew_apprentice_body',   'Sew Apprentice Robe Top',    '🧵', { silk_thread: 3 }, 'apprentice_body',   40, 9, 3200),
+    r('sew_apprentice_gloves', 'Sew Apprentice Gloves',      '🧵', { silk_thread: 1 }, 'apprentice_gloves', 14, 2, 2800),
+    r('sew_apprentice_belt',   'Sew Apprentice Sash',        '🧵', { silk_thread: 1 }, 'apprentice_belt',   16, 4, 2800),
+    /* the Thicket's pelt, cut to a strap: the medium belt the Shop does not sell */
+    r('stitch_leather_belt',   'Stitch Leather Belt',        '🧵', { wolf_pelt: 1 },   'leather_belt',      16, 3, 2800),
     /* Adept cloth (worn at Level 15): silk lined with the Culvert Bat's wing leather. */
     r('sew_adept_boots',  'Sew Adept Slippers',    '🧵', { silk_thread: 1, bat_wing: 2 }, 'adept_boots',  70,  15, 3200),
     r('sew_adept_helmet', 'Sew Adept Hat',         '🧵', { silk_thread: 2, bat_wing: 1 }, 'adept_helmet', 85,  17, 3200),

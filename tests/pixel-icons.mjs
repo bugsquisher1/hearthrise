@@ -71,6 +71,8 @@ const KNOWN_TWINS = [['crown_of_the_fallen_king', 'crown_shard'],
   /* Wickstead's four imbuement items (lane b-greenhaven-6, staged; no art spend) wear a near item's icon until the Asset
      Director draws them: a rat's whisker, a wasp's sting, a wad of web, a torn badge. */
   ['granary_whisker', 'grayjaw_whisker'], ['barn_wasp_sting', 'culvert_bat_fang'], ['loft_web', 'silk_thread'], ['torn_company_badge', 'warlord_badge'],
+  /* the Orchard Boar's and Brook Bear's three (lane b-unsourced-items): a bristle tuft, a tusk, a tooth, until drawn */
+  ['boar_bristle', 'dire_hackle'], ['orchard_boar_tusk', 'alpha_fang'], ['brook_bear_tooth', 'small_fang'],
   /* The five shields (src/data/shields.js, lane b-spell-roles) wear the Practice Shield's icon until the Asset Director
      draws each: a bronze rim, iron bands on oak, the Rat King's drain grate, a copper cap on steel, a steel grate. */
   ...['practice_shield', 'bronze_rimmed_shield', 'ironbound_shield', 'kingsgrate', 'coppercap_shield', 'steelgrate']

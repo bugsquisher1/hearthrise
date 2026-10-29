@@ -179,6 +179,16 @@ export function shadowTick(char, fromMs, toMs, catalogues, opts) {
        "the column does not exist for this character", and emitting the key
        against an hr_apply that does not implement it is a 409. */
     nodes: catalogues.nodes,
+    /* THE ARTISAN CHANNEL'S INPUTS (2026-10-29, tick-artisan.js): the recipe
+       index, the artisan gate and "make N"'s count, each named exactly as the
+       accrue path names it (index.ts runAccrual: `recipes`, `unlockedRecipes`,
+       and `activeLeft` through engineInputsFromEnvelope). PRESENT ONLY WHEN THE
+       CHANNEL CARRIES THEM: gather's catalogues have no `recipes`, its session
+       no `unlockedRecipes` key and a null `activeLeft`, so a gather window's
+       input object is byte-identical to before. */
+    ...(catalogues.recipes ? { recipes: catalogues.recipes } : {}),
+    ...(Object.prototype.hasOwnProperty.call(char, 'unlockedRecipes') ? { unlockedRecipes: char.unlockedRecipes } : {}),
+    ...(Number.isInteger(char.activeLeft) ? { activeLeft: char.activeLeft } : {}),
     /* NOT from the envelope: `hr_perks_of` is its own read, made by tick.js
        (1b) and carried on the session (2026-09-28); a fixture's pinned value
        offline. Absent ⇒ zero perks, the under-paying direction. */

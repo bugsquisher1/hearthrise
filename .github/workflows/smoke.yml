@@ -2554,6 +2554,17 @@ jobs:
         if: ${{ !cancelled() }}
         run: node tests/world-tick-edge-contract.mjs
 
+      # THE ARTISAN CHANNEL (2027-02-10-artisan-tick.sql + hr-accrue tick-artisan.js; report #68).
+      # The owner's browser CLOSED: a spent Hearth run is enrolled, leased and settled to idle by
+      # the shipped runTick in one fire (one craft row, src tick), another player's town read stops
+      # showing it working, the tick pays what the owner's own stop pays, a long run is settled one
+      # window a fire and keeps running, a second fire pays nothing. --mutate: 4 edge-copy + 4 SQL.
+      - name: World tick — a town bench run is settled by the server, browser closed
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/artisan-tick.mjs
+          node tools/mutant-gate.mjs node tests/artisan-tick.mjs --mutate
+
       # ── AND WHAT DOES THE ENTRY HAND THE ENGINE? (2026-09-22, the gather
       # shadow's first armed measurement.) Every row in hr_tick_shadow for a
       # Mining 61-64 character on mithril_rock came back `would_ticks: 0,

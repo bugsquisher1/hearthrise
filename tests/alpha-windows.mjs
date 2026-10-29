@@ -374,6 +374,10 @@ async function pure() {
   const tieOps = ['', 'heavy', 'medium', 'light'].map((w) => ops(tieOf(w || null)) + '/' + tieOf(w || null).choices.length).join(' | ');
   if (tieOps !== '{}/2 | {"body":"bronze_platebody","boots":"bronze_boots"}/0 | {"body":"leather_body","boots":"leather_boots"}/0 | {}/2')
     fails.push('AW-21 the weight chosen at Tamsin\'s settles a tie as ' + tieOps);
+  /* A tie that stands says why the button is off (playtest 2026-10-29 #11: the line was hidden, nothing said). */
+  const tieSaid = upgradeWords(tieOf(null));
+  if (tieSaid !== 'Nothing goes on by itself: each piece is better at something. Body: Bronze Platebody or Leather Body. Boots: Bronze Boots or Leather Boots. Pick on the doll, or pick an armor weight at Tamsin\'s.')
+    fails.push('AW-21 a standing tie reads ' + JSON.stringify(tieSaid));
   /* "Decide once": the shop's section bids only on what the bag holds, so a stack sold since (0 in the bag) is never
      called unsellable (playtest 2026-10-29: the coach rang a Sell its row had switched off). */
   const { planBlock } = await imp('src/shell/loot-dispatch.js');

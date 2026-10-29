@@ -429,8 +429,10 @@ const cases = {
     /* THE WHOLE CHAIN, ONE HERO (2026-10-21: the launcher showed only card 1): every card in order, from facts. */
     const T = tutKit(M, 'tank');
     const order = walkChain(M, T).map((x) => x.id);
-    const want = ['to_the_cellar', 'first_kill', 'first_level', 'plant_land', 'bar_intro', 'spell_runes', 'food_when', 'food_order', 'earn_the_thicket',
-      'leave_cellar', 'sell_loot', 'loot_rules', 'cook_catch', 'styles', 'bless', 'tamsins_task', 'into_the_thicket', 'tamsin_pays', 'save_setup', 'own_runes', null];
+    /* no "Spells need runes" and no "Make your own runes": the sword's default sets hold no rune spell (playtest 2026-10-29 #9:
+       Flame Strike sat struck from minute one); both cards come when the player puts a spell on the bar */
+    const want = ['to_the_cellar', 'first_kill', 'first_level', 'plant_land', 'bar_intro', 'food_when', 'food_order', 'earn_the_thicket',
+      'leave_cellar', 'sell_loot', 'loot_rules', 'cook_catch', 'styles', 'bless', 'tamsins_task', 'into_the_thicket', 'tamsin_pays', 'save_setup', null];
     if (order.join() !== want.join()) return 'a sword-and-shield hero walks ' + order.join(' > ') + ', wanted ' + want.join(' > ');
     /* NO SOLO WALL: paid, a solo hero at the Sewer's floor is done (What next), at any Level up to the Sewer's top. */
     const done = walkChain(M, T).pop().facts;
@@ -534,13 +536,18 @@ const cases = {
     }
     /* THROUGH THE REAL ENVELOPE (src/session/tutorial-sections.js): the server's struck state, stored bar and Got it reads */
     const tsb = await imp('src/session/tutorial-sections.js');
-    const T = tutKit(M, 'tank');
-    const env = (stored, usable) => ({ state: { level_xp: M.xp.charXpForLevel(3) }, skills: { farming: { xp: 28, level: 1 } },
+    /* the kit's sword-and-shield hero has no struck spell (its Flame Strike names the store rune): it reads the bar, then
+       eats on time; the hatchets' Rend (no store rune by default) is the struck spell the rune card speaks of */
+    const tank = tutKit(M, 'tank');
+    const T = tutKit(M, null, 'practice_hatchets');
+    const env = (stored, usable, K = T) => ({ state: { level_xp: M.xp.charXpForLevel(3) }, skills: { farming: { xp: 28, level: 1 } },
       hunt: { session_id: 's', hunt_id: 'mill_cellar', ended: false, session: {}, hero: { hp_max: 170 }, pose: { units: [] } },
-      hunt_settings: { preset: 0, role: 'tank', discipline: T.discipline, stance: 'balanced', store: T.storeRows,
-        slots: T.slots.map((s) => ({ action: { type: s.type, id: s.id }, conditions: s.conditions, join: 'and', usable: usable || s.usable, count: s.count })), bar: stored } });
+      hunt_settings: { preset: 0, role: K.role, discipline: K.discipline, stance: 'balanced', store: K.storeRows,
+        slots: K.slots.map((s) => ({ action: { type: s.type, id: s.id }, conditions: s.conditions, join: 'and', usable: usable || s.usable, count: s.count })), bar: stored } });
     const cardOn = (e, sh) => { const c = tsb.pointerCardOf({ read: (k) => e[k], slot: 0 }, sh); return c && c.id; };
-    if (cardOn(env([])) !== 'spell_runes') return 'through the envelope (no Got it recorder) a tank at Level 3 sees ' + cardOn(env([]));
+    if (tank.slots.some((s) => s.usable === false)) return 'the kit\'s sword-and-shield bar shows a struck slot: ' + tank.slots.filter((s) => s.usable === false).map((s) => s.id).join();
+    if (cardOn(env([], false, tank), { read: ['bar_intro'] }) !== 'food_when') return 'through the envelope a tank at Level 3, the bar read, sees ' + cardOn(env([], false, tank), { read: ['bar_intro'] });
+    if (cardOn(env([])) !== 'spell_runes') return 'through the envelope (no Got it recorder) a hatchet hero at Level 3 sees ' + cardOn(env([]));
     if (cardOn(env([]), { read: [] }) !== 'bar_intro') return 'through the envelope with a recorder the bar card is not up: ' + cardOn(env([]), { read: [] });
     if (cardOn(env([]), { read: ['bar_intro'] }) !== 'spell_runes') return 'through the envelope, read, the rune card is not up';
     const kitWire = T.slots.map((s) => ({ action: { type: s.type, id: s.id }, conditions: s.conditions, join: 'and' }));
@@ -655,7 +662,11 @@ const cases = {
     if (!juice || juice.id !== 'harvest_juice' || !juice.text.includes('1 turnip makes 3')) return 'the juice card reads ' + JSON.stringify(juice && juice.text);
     const slotJ = say(R({ ...after, home: { owned: true, next: null }, bag: { turnip_juice: 6 }, carried: { turnip_juice: 6 } }));
     if (!slotJ || slotJ.id !== 'juice_slot' || !slotJ.text.includes('My mana % below 30') || !slotJ.text.includes('before slot ' + (drink + 1))) return 'the juice slot card reads ' + JSON.stringify(slotJ && slotJ.text);
-    const juiced = { ...after, home: { owned: true, next: null }, bag: { turnip_juice: 6 }, carried: { turnip_juice: 6 }, stored: [...after.stored, { type: 'consume', id: 'turnip_juice', conditions: [] }] };
+    /* the player put Flame Strike on the bar, store rune on (the kit's sword sets hold no rune spell: playtest 2026-10-29 #9) */
+    const fs = { type: 'ability', id: 'flame_strike', store: 'plain_fire_rune', conditions: [], enabled: true, usable: true, count: null };
+    const juiced = { ...after, home: { owned: true, next: null }, bag: { turnip_juice: 6 }, carried: { turnip_juice: 6 }, slots: [...after.slots, fs],
+      stored: [...after.stored, { type: 'consume', id: 'turnip_juice', conditions: [] }, { type: 'ability', id: 'flame_strike', conditions: [] }] };
+    if ((say(R({ ...juiced, slots: after.slots })) || {}).id === 'own_runes') return 'with no rune spell on the bar the coach asks for runes';
     const runes = say(R(juiced));
     if (!runes || runes.id !== 'own_runes' || !runes.text.includes('Cut Blank Runes (4 essence make 12) and Bind Chalked Fire Runes (6 blanks make 45)')) return 'the rune card reads ' + JSON.stringify(runes && runes.text);
     if (say(R({ ...juiced, carried: { ...juiced.carried, chalked_fire_rune: 45 } }))) return 'with own runes the coach still asks: ' + say(R({ ...juiced, carried: { ...juiced.carried, chalked_fire_rune: 45 } })).id;
@@ -700,6 +711,28 @@ const cases = {
     }
     return null;
   },
+  /* "Plant your land" asks for EACH empty plot (playtest 2026-10-29 #12: one plot finished it, a plant pays Farming XP):
+     it stays up while an open plot is bare and a seed is held; a full field, no seed, or a harvest's XP finishes it. The
+     facts' `empty` is the server's field: open plots (under the cap, not an extra) holding no crop. */
+  'tutorial-plant-every-plot': async (M) => {
+    const T = tutKit(M, 'tank');
+    const at = (land, more) => M.tut.currentCard(tutAt(M, T, 2, { huntId: 'mill_cellar', visited: new Set(['mill_cellar']),
+      skillXp: { farming: 28, cooking: 0, melee: 0 }, landPlanted: true, land, ...(more || {}) }));
+    const id = (land, more) => (at(land, more) || {}).id;
+    if (id({ ready: {}, empty: 1 }) !== 'plant_land') return 'one plot planted, one bare, seeds held: the card is ' + id({ ready: {}, empty: 1 });
+    if (id({ ready: {}, empty: 0 }) === 'plant_land') return 'every open plot planted, yet "Plant your land" is still up';
+    if (id({ ready: {}, empty: 1 }, { bag: { ...M.kit.START_INVENTORY, turnip_seed: 0 } }) === 'plant_land') return 'no seed left to plant, yet "Plant your land" is still up';
+    if (id({ ready: {}, empty: 2 }, { skillXp: { farming: M.gathering.CROPS.turnip.xp, cooking: 0, melee: 0 } }) === 'plant_land') return 'a harvested field came back bare and walled the chain';
+    /* the field not sent (an older server): Farming XP still finishes it, as before */
+    if (id(null, { landPlanted: null }) === 'plant_land') return 'with no field section, a hero with Farming XP is asked to plant';
+    const tsb = await import(pathToFileURL(join(M.root, 'src/session/tutorial-sections.js')).href + V);
+    const env = { state: { level_xp: M.xp.charXpForLevel(2) }, inventory: { turnip_seed: 7 },
+      farm_land: { cap: 2, plot_level: 1, deeds: 0, upgrade: null, plots: [{ i: 0, crop: 'turnip', ready: false, ready_in_s: 600, waterable: false, by: 0, extra: false },
+        { i: 3, crop: 'turnip', ready: true, ready_in_s: 0, waterable: false, by: 1, extra: true }] } };
+    const f = tsb.tutorialFactsOf({ read: (k) => env[k], slot: 0 });
+    if (!f || !f.land || f.land.empty !== 1) return 'through the envelope, a cap-2 field with one plot growing (and an extra) reads empty ' + (f && f.land && f.land.empty);
+    return null;
+  },
   'tutorial-second-hero': (M) => {
     /* NOTHING ASKED TWICE (first principle, Tyler 2026-10-18): once another hero on the account is past Level 5, a new
        hero skips the knowledge cards and still meets the ones that set its OWN state (its runes, its food, its Blessings). */
@@ -708,7 +741,10 @@ const cases = {
     const seen = walkChain(M, T, vet).map((x) => x.id);
     const know = M.tut.HUNT_TUTORIAL.filter((r) => r.knowledge).map((r) => r.id);
     if (seen.some((id) => know.includes(id))) return 'a second hero meets ' + seen.filter((id) => know.includes(id)).join(', ');
-    for (const id of ['spell_runes', 'food_when', 'bless', 'tamsins_task']) if (!seen.includes(id)) return 'a second hero never meets ' + id + ' (' + seen.join(' > ') + ')';
+    for (const id of ['food_when', 'bless', 'tamsins_task']) if (!seen.includes(id)) return 'a second hero never meets ' + id + ' (' + seen.join(' > ') + ')';
+    /* its runes: a hatchet hero's Rend is struck (no Rupture rune, no store rune by default), and a second hero is still told */
+    const axes = walkChain(M, tutKit(M, null, 'practice_hatchets'), vet).map((x) => x.id);
+    if (!axes.includes('spell_runes')) return 'a second hatchet hero never meets spell_runes (' + axes.join(' > ') + ')';
     const first = walkChain(M, T, { roster: [{ slot: 0, level: 1, name: 'New', open: true, hunting: false }, { slot: 1, level: M.tut.KNOWN_LEVEL, name: 'Young', open: false, hunting: false }], self: 0 }).map((x) => x.id);
     if (!first.includes('first_kill') || !first.includes('styles')) return 'a hero whose only other hero is Level ' + M.tut.KNOWN_LEVEL + ' skips the lessons';
     /* A CELLAR HERO'S OWN STEP FIRST (played on live 10-28: Pellow, Level 2 in town, was shown "Hunt together" because
@@ -1326,8 +1362,14 @@ const mutants = [
     edits: [['src/data/hunt-tutorial.js', '  skill_xp: (p, f) => known(xpIn(f, p.skill), (xp) => xp > 0),', '  skill_xp: () => true,']] },
   { name: 'a town section the server never sent walls the coach', case: 'tutorial-walk-through',
     edits: [['src/data/hunt-tutorial.js', '  tally_paid: (p, f) => !f.tally || ', '  tally_paid: (p, f) => !!f.tally && ']] },
-  { name: 'a harvest brings "Plant your land" back (the land alone judges it)', case: 'tutorial-never-backward',
-    edits: [['src/data/hunt-tutorial.js', " || xpIn(f, 'farming') > 0 || f.landPlanted === true,", ' || f.landPlanted === true,']] },
+  { name: 'a harvest brings "Plant your land" back (the land alone judges it)', case: 'tutorial-plant-every-plot',
+    edits: [['src/data/hunt-tutorial.js', "    return (xp === null && f.landPlanted == null) || xp > 0 || f.landPlanted === true;", '    return (xp === null && f.landPlanted == null) || f.landPlanted === true;']] },
+  { name: 'one plant finishes "Plant your land" again (any Farming XP)', case: 'tutorial-plant-every-plot',
+    edits: [['src/data/hunt-tutorial.js', "      return f.land.empty === 0 || (xp !== null && xp >= crop.xp) ||", "      return f.land.empty === 0 || (xp !== null && xp > 0) ||"]] },
+  { name: 'a harvested field walls the chain (no sticky XP)', case: 'tutorial-plant-every-plot',
+    edits: [['src/data/hunt-tutorial.js', "      return f.land.empty === 0 || (xp !== null && xp >= crop.xp) ||", "      return f.land.empty === 0 ||"]] },
+  { name: 'the facts count an extra plot as open land', case: 'tutorial-plant-every-plot',
+    edits: [['src/session/tutorial-sections.js', ".filter((p) => !p.extra && p.i < field.cap).length", ".length"]] },
   { name: 'Tamsin\'s card comes back the day after she paid', case: 'tutorial-never-backward',
     edits: [['src/data/hunt-tutorial.js', ' || (t.weight === true && reached(f, tallyTask(p.task).hunt))', '']] },
   { name: 'a party never meets the Sewer card', case: 'tutorial-never-backward',

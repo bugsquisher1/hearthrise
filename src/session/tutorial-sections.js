@@ -136,7 +136,9 @@ export function tutorialFactsOf(cs, sh) {
     supplies: an && !an.ended && open ? an.hero.supplies : null, huntMs: an && open ? an.sessionMs : null,
     hpMax: heroVitalsOf(cs).hpMax,
     presets: presets ? presets.length : null,
-    landPlanted: field ? field.plots.size > 0 : null, land: field ? { ready } : null,
+    /* `empty`: the field's open plots holding no crop (an extra plot past the cap is not open land) */
+    landPlanted: field ? field.plots.size > 0 : null,
+    land: field ? { ready, empty: Math.max(0, field.cap - Array.from(field.plots.values()).filter((p) => !p.extra && p.i < field.cap).length) } : null,
     home: homeFacts(cs), gold: goldOf(cs),
     staminaMs: stamina ? stamina.msLeft : null,
     tally: tally ? { held: tally.held.length, paid: tally.recent.length, weight: !!tally.weight } : null,

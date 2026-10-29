@@ -155,13 +155,19 @@ export function upgradePlan(o) {
   return { ops, picks, choices };
 }
 
-const listWords = (parts) => (parts.length < 2 ? parts.join('') : parts.slice(0, -1).join(', ') + ' and ' + parts[parts.length - 1]);
+const listWords = (parts, last = ' and ') => (parts.length < 2 ? parts.join('') : parts.slice(0, -1).join(', ') + last + parts[parts.length - 1]);
 
 /** The preview: "Wear Leather Gloves (+1 Melee accuracy) and Bronze Belt (+2 Defense)." naming at most `names` pieces
-    with `gains` gains each (the button's title passes more). A slot left for the player says so after it. '' when
-    there is nothing to put on. */
+    with `gains` gains each (the button's title passes more). A slot left for the player says so after it. With
+    nothing to put on but a tie standing, the line says why the button is off and which pieces trade off (playtest
+    2026-10-29 #11: it said nothing). '' when there is neither. */
 export function upgradeWords(plan, names = 2, gains = 1) {
-  if (!plan || !plan.picks.length) return '';
+  if (!plan) return '';
+  if (!plan.picks.length) {
+    if (!Array.isArray(plan.choices) || !plan.choices.length) return '';
+    const ties = plan.choices.map((c) => ((EQUIP_SLOT_META[c.slot] || {}).label || c.slot) + ': ' + listWords(c.ids.map(itemName), ' or '));
+    return 'Nothing goes on by itself: each piece is better at something. ' + ties.join('. ') + '. Pick on the doll, or pick an armor weight at Tamsin\'s.';
+  }
   const byId = new Map();
   for (const p of plan.picks) { const g = byId.get(p.id); if (g) g.n++; else byId.set(p.id, { p, n: 1 }); }
   const groups = Array.from(byId.values());

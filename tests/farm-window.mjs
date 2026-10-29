@@ -145,6 +145,9 @@ async function checks(overrides) {
         const carrot = await txt(page, W + '.hw-seeds li[data-crop="carrot"] small');
         if (!/8 seeds in your bag/.test(turnip || '') || !/Needs Farming 10/.test(carrot || '')) fails.push('FW-2 the picker reads turnip ' + JSON.stringify(turnip) + ', carrot ' + JSON.stringify(carrot));
         if (!(await page.evaluate(() => document.querySelector('[data-hs-win="farm"] .hw-seeds li[data-crop="carrot"] button').disabled))) fails.push('FW-2 carrot can be planted at Farming 1');
+        /* the tier line agrees with the picker (playtest 2026-10-29 #12): the soil needs Farming 5, the carrot itself 10 */
+        const tier = await txt(page, W + '.hw-tier');
+        if (!/Tier 2 adds Carrot \(Farming 10 to plant\): .*, at Farming 5\./.test(tier || '')) fails.push('FW-2 the tier line reads ' + JSON.stringify(tier) + ' beside "Needs Farming 10"');
         await press(page, W + '.hw-seeds li[data-crop="turnip"] button', 'FW-2');
         await page.waitForTimeout(60);
         if (!(await page.evaluate(() => document.querySelector('[data-hs-win="farm"] [data-hs-act="water"]').disabled))) fails.push('FW-2 a control stayed on while the plant was in flight');

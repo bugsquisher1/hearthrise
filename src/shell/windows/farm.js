@@ -180,7 +180,10 @@ function patchTier(root, st) {
   const lv = st.land.plotLevel;
   const up = st.land.upgrade;
   const grows = unlockedCrops(lv).map(cropName).join(', ');
-  const adds = up ? unlockedCrops(up.level).filter((id) => requiredPlotLevel(id) === up.level).map(cropName).join(', ') : '';
+  /* A crop the tier opens may need more Farming to plant than the soil asks (playtest 2026-10-29 #12: "Tier 2 adds Carrot
+     ... at Farming 5" beside "Carrot: Needs Farming 10"): its own level is said beside it, from the same CROPS row. */
+  const adds = up ? unlockedCrops(up.level).filter((id) => requiredPlotLevel(id) === up.level)
+    .map((id) => cropName(id) + (CROPS[id] && CROPS[id].req > up.farming ? ' (Farming ' + CROPS[id].req + ' to plant)' : '')).join(', ') : '';
   text(root.querySelector('.hw-tier'), 'Tier ' + lv + ' grows ' + grows + '.'
     + (up ? ' Tier ' + up.level + ' adds ' + adds + ': ' + gold(up.gold) + (up.deeds ? ' (or ' + whole(up.deeds) + ' Farmer\'s Deed' + (up.deeds === 1 ? '' : 's') + ')' : '') + ', at Farming ' + up.farming + '.' : ' Your plots are at the top tier.'));
   const btn = root.querySelector('[data-hs-act="upgrade"]');

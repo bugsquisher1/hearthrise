@@ -48,7 +48,7 @@
 //   store rows), carried { item: n } (the hunt bag in a hunt, else the bag), bag { item: n }, stacks, bagCap,
 //   bankStacks, lootRules { item: deposit|sell|ignore }, weapon (worn), armoured (wears armor or a shield), blessings { held, of, freeUntil, prices },
 //   endReason (the latest hunt's, once ended), death { xp, saved } (the newest death_log row), supplies [{ item,
-//   source, count }] (this hunt's analyzer), huntMs, hpMax, presets (saved setups), landPlanted, land { ready },
+//   source, count }] (this hunt's analyzer), huntMs, hpMax, presets (saved setups), landPlanted, land { ready, empty },
 //   home { owned, next }, gold, staminaMs, tally { held, paid, weight }, and from the SHELL (the lane 1 / lane 2
 //   interface, src/session/tutorial-sections.js pointerCardOf's second argument): read (Set of read card ids),
 //   roster [{ slot, level, name, open, hunting }], slotsOwned, playLimit, sellable (stacks Sell all loot sells
@@ -250,7 +250,7 @@ export const HUNT_TUTORIAL = Object.freeze([
   step('plant_land', 'Plant your land',
     'While your hero hunts, open the Farm and plant a Turnip Seed in each empty plot. Turnips are ready in '
       + CROPS.turnip.hours + ' hours and cook into Turnip Juice, a drink.',
-    'farm', { kind: 'planted' }, { ring: { crop: 'turnip' }, inWindow: 'Press Plant on an empty plot, then Plant on Turnip. Do it again for each empty plot.' }),
+    'farm', { kind: 'planted', crop: 'turnip' }, { ring: { crop: 'turnip' }, inWindow: 'Press Plant on an empty plot, then Plant on Turnip. Do it again for each empty plot.' }),
   step('bar_intro', 'Your action bar',
     'Your hero uses this bar by itself. It tries the slots in order and uses the first one that\'s ready and whose conditions are all true.',
     'action_bar', READ, { knowledge: true, gotIt: true }),
@@ -439,7 +439,17 @@ const FACTS = Object.freeze({
   level_at: (p, f) => f.charLevel >= p.at,
   unlock: (p, f) => f.charLevel >= HUNT_INDEX[p.hunt].band[0],
   /* town work, judged on facts that stay (Farming and Cooking XP; the shared land) */
-  planted: (p, f) => (xpIn(f, 'farming') === null && f.landPlanted == null) || xpIn(f, 'farming') > 0 || f.landPlanted === true,
+  /* "plant a seed in EACH empty plot" (playtest 2026-10-29 #12: one plot finished it, since a plant pays Farming XP): done
+     when the shared land has no empty open plot, or the hero holds none of the card's seed (a bag the server never sent
+     is not a wall), or it has farmed past one harvest's XP (it knows the field; sticky, so a later bare plot never walls
+     the chain). Land not sent: as before. */
+  planted: (p, f) => {
+    const crop = CROPS[p.crop], xp = xpIn(f, 'farming');
+    if (f.land && Number.isInteger(f.land.empty) && crop) {
+      return f.land.empty === 0 || (xp !== null && xp >= crop.xp) || !f.bag || !(f.bag[crop.seed] > 0);
+    }
+    return (xp === null && f.landPlanted == null) || xp > 0 || f.landPlanted === true;
+  },
   skill_xp: (p, f) => known(xpIn(f, p.skill), (xp) => xp > 0),
   turnips: (p, f) => (f.land == null && f.bag == null ? null : !!(f.land && f.land.ready && f.land.ready.turnip > 0) || !!(f.bag && f.bag.turnip > 0)),
   juice_made: (p, f) => (f.bag == null ? null : f.bag.turnip_juice > 0 || FACTS.drink_slot({ item: 'turnip_juice' }, f) === true),

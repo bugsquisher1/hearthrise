@@ -42,11 +42,11 @@ Same method as 10-24 (real `play.html` at release/v0.2.64 in headless Chromium; 
 | 6 | "Level 2" card over a bar reading Lv 1 | FIXED: "Your first Level" |
 | 7 | Phone: "Press Enter" while the ring sits on the Mill Cellar line | FIXED: "Press the Mill Cellar, then Enter" |
 | 8 | Robotic: "up to 5 heroes in all", "63% less XP lost in all", "Burn it" (Bones), Sell card "keeps your Bones" after they burned, cooking card says "Open" inside its window | FIXED; copy-lint's in-all rule now reads a literal glued to its number |
-| 9 | Starter bar's Flame Strike struck + "no Fire runes left" from minute one | DEFERRED (server: the default bar is restated by `hr_hunt_role_rules`; 10-24 #4) |
+| 9 | Starter bar's Flame Strike struck + "no Fire runes left" from minute one | FIXED (lane/a-first-hour-leftovers): Flame Strike off the sword's default sets (STAGED `2027-02-09-starter-bar-fires.sql`, edge moves); the store-rune door was measured (nets -20% at the Cellar/Thicket, drop-tables 18 bands red) and is the designer's call. Still struck by default for a weapon switched to: Rend, Flame Volley, Frost Lance, Arcane Barrier, Circle of Renewal, Green Sickness (designer) |
 | 10 | Phone: the coach card covers the hero mid-fight; an empty "Summary" hunt bar stays over the town | HANDOFF Art Director (layout) |
-| 11 | Equip upgrades says nothing when a tie stands (no weight picked) | OPEN, S: show the "pick one" line with the button off |
-| 12 | Farm: "Tier 2 adds Carrot ... at Farming 5" beside "Carrot: Needs Farming 10"; "Plant your land" done after one plot | OPEN, S copy/data |
-| 13 | Cooking: the hero cooks standing in the road, not at a cook fire | HANDOFF Systems (town stands, real town plan L2/L3) |
+| 11 | Equip upgrades says nothing when a tie stands (no weight picked) | FIXED: the line says why (each piece better at something, which pieces) with the button off |
+| 12 | Farm: "Tier 2 adds Carrot ... at Farming 5" beside "Carrot: Needs Farming 10"; "Plant your land" done after one plot | FIXED: the tier line names the crop's own Farming ("Carrot (Farming 10 to plant)"); the card stays until every open plot is planted (or no seed, or a harvest's XP) |
+| 13 | Cooking: the hero cooks standing in the road, not at a cook fire | FIXED: the kitchen's first stands are at the spit fires and cauldrons (STAGED `2027-02-09-town-stations.generated.sql`, ST-11) |
 
 ### 2026-10-28 Greenhaven's sixth ground: Wickstead, 8-18 solo (designer, lane/b-greenhaven-6): RULED, STAGED until its painted ground
 - **Band 8-18, solo first.** The 10-28 new-player walk found one solo ground for 6-15 (the Thicket) and no gloves, belts or jewellery past the Shop's basics. A 50+ capstone serves nobody before the playtest; a second 8-18 door is met in a new hero's first day. Floor 8 is where the first-hour rung lands; top 18 meets the Glade's 16.

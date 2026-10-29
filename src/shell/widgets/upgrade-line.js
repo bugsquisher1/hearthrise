@@ -37,17 +37,19 @@ export function upgradeLineHtml() {
 }
 
 /**
- * Show the line (only when `on` and the plan puts something on), its words and the button's state. `o.locked`: the
- * server holds the hero's hunt open (the button is off, the line says why); `o.msg`: the last press's own words.
+ * Show the line (only when `on` and the plan puts something on or leaves a tie for the player), its words and the
+ * button's state. A tie alone shows its words with the button off (nothing to put on; upgradeWords says why).
+ * `o.locked`: the server holds the hero's hunt open (the button is off, the line says why); `o.msg`: the last
+ * press's own words.
  */
 export function patchUpgradeLine(root, plan, on, pending, o) {
   const opt = o || {};
   const line = root.querySelector('.hw-upgrade');
-  const show = !!on && plan.picks.length > 0;
+  const show = !!on && (plan.picks.length > 0 || (Array.isArray(plan.choices) && plan.choices.length > 0));
   cls(line, 'is-on', show);
   text(line.querySelector('.hw-upgrade-q'), show ? upgradeWords(plan) : '');
   const b = line.querySelector('button');
-  prop(b, 'disabled', !!pending || !show || !!opt.locked);
+  prop(b, 'disabled', !!pending || !plan.picks.length || !show || !!opt.locked);
   attr(b, 'title', show ? upgradeWords(plan, Infinity, Infinity) : null);
   whyLine(line.querySelector('.hw-upgrade-why'), show ? opt.msg || (opt.locked ? GEAR_HUNT_WORDS.upgrades : '') : '', !!opt.msg);
 }

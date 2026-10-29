@@ -87,12 +87,21 @@ const slot = (id, conditions, join) => Object.freeze({ id: 'd_' + id,
    core area spell, always has the mana it needs (measured: unconditioned, Frost Lance cast every 6 s and its drinks
    took the floor Mage under its +25%, drop-tables caster-floor). */
 const SPARE_MANA = Object.freeze([{ metric: 'self_mana_pct', op: 'gte', value: 50 }]);
+/* NO DEAD BUTTON ON THE STARTER BAR (playtest 2026-10-29 #9, 10-24 #4): the sword's Flame Strike sat on every new
+   hero's bar struck "no Fire runes left" from minute one (the kit carries no rune, Tyler 2026-10-23). It is off the
+   sword's default sets; the player adds it from Configure action's Spells tab, store rune on (1 gp a cast), and
+   "Spells need runes" / "Make your own runes" teach it then. A struck slot never fires, so the measured hunts do not
+   move. The other door, a store rune on the default slot, was MEASURED (forest-cave and drop-tables, ladder kit,
+   6-seed medians, before -> after): net g/h Cellar 1,828 -> 1,425, Thicket 1,844 -> 1,472, Sewer party 2,024 -> 1,911,
+   Thicket Level XP/h 20.9k -> 24.1k, and drop-tables went red on 18 pace/value bands (Sewer gear every 0.7 h, Thicket
+   2,859 g per hero-hour): a balance change, the designer's to make. Pinned: tests/hunt-core/conditions.mjs
+   starter-bar-fires. */
 export const ROLE_RULES = Object.freeze({
-  tank: Object.freeze([slot('challenge'), slot('flame_strike'), slot('power_strike')]),
+  tank: Object.freeze([slot('challenge'), slot('power_strike')]),
   /* One Melee damage set for every key that plays it (hunt-spawn heroSetup keeps the slots its discipline holds): a
-     sword alone casts Flame Strike then Power Strike, two axes Power Strike, Cleave and Rend, a club or bare hands
-     Power Strike and Cleave (roadmap p15). */
-  melee_dps: Object.freeze([slot('flame_strike'), slot('power_strike'), slot('cleave'), slot('rend')]),
+     sword alone casts Power Strike, two axes Power Strike, Cleave and Rend, a club or bare hands Power Strike and
+     Cleave (roadmap p15). */
+  melee_dps: Object.freeze([slot('power_strike'), slot('cleave'), slot('rend')]),
   ranger: Object.freeze([slot('hunters_mark'), slot('flame_volley'), slot('precision_shot')]),
   mage: Object.freeze([slot('fireball'), slot('frost_lance', SPARE_MANA), slot('arcane_barrier')]),
   healer: Object.freeze([slot('greater_mend'), slot('circle_of_renewal'),

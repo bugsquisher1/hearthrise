@@ -132,6 +132,23 @@ export function actionMs(cs, w) {
   return w.kind === 'gather' ? gatherIntervalMs(st, w.skill, w.row, { items: ITEMS }) : artisanIntervalMs(st, w.skill, w.row, { items: ITEMS });
 }
 
+/**
+ * The SERVER-clock ms by which the bench run the server holds has certainly spent its supply (or its count), so the
+ * engine stops it on the next settle; null for anything else (no bench, a hunt open, no watermark). From the server's
+ * own record only: its watermark, its bag + Storage, its `bench_run.left`, plus one more action (the attempt that finds
+ * the input gone) and SLACK_MS. Report #68: an unwatched bench nobody settled kept saying "Fueling" with its fuel spent.
+ */
+export function benchSpentAtMs(cs) {
+  const st = stateOf(cs);
+  const w = workOf(cs);
+  if (!w || w.kind !== 'artisan' || !townWorkRunning(st, cs.read('hunt'))) return null;
+  const from = Date.parse(st.accrued_to);
+  if (!Number.isFinite(from)) return null;
+  const left = leftOf(cs);
+  const runs = left === null ? runsOf(w.row, supplyOf(cs)) : Math.min(left, runsOf(w.row, supplyOf(cs)));
+  return from + (runs + 1) * actionMs(cs, w) + SLACK_MS;
+}
+
 /** XP one action pays at the pacing dial, whole (the server floors the same way). */
 export function xpEach(w) { return Math.floor(pacedXp(w.skill, w.row.xp)); }
 

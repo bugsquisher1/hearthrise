@@ -54,7 +54,8 @@ import { followDeaths, deathPopupOf } from './death-popup.js?v=0.2.63';
 import { takeFresh } from '../hunt-view/summary-recorder.js?v=0.2.63';
 import { huntOf } from '../session/hunt-sections.js?v=0.2.63';
 import { sizeStore, gripHtml, pressGrip } from './window-sizes.js?v=0.2.63';
-import { watchTown } from '../session/town-poll.js?v=0.2.63';
+import { watchTown, settleSpentBench } from '../session/town-poll.js?v=0.2.63';
+import { benchSpentAtMs } from './town-work.js?v=0.2.63';
 import { applyPanelAlpha, clearPanelAlpha } from './panel-alpha.js?v=0.2.63';
 import { mountWidgetMoves, paintMove } from './widget-move.js?v=0.2.63';
 
@@ -451,6 +452,8 @@ export function mountShell(root, o) {
     if (ctx.character && ctx.character.timeline) ctx.character.timeline.advance(ctx.now());
     /* The Work window or the bag watches the town work: the viewed character re-reads at townPollMs (town-poll.js). */
     if (ctx.character && (wm.isOpen('skills-trade') || wm.isOpen('inventory'))) watchTown(ctx.character);
+    /* A bench the server's own numbers say is spent is settled for EVERY open character, watched or not (report #68). */
+    for (const p of ctx.peers()) settleSpentBench(p, benchSpentAtMs(p));
     for (const row of hud.rows()) {
       const render = WIDGET_RENDERERS[row.id];
       const el = render.patch && (row.layer === 'screen' ? screenHud : worldHud).querySelector('[data-hs-widget="' + row.id + '"]');

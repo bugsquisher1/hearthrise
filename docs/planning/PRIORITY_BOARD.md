@@ -30,6 +30,58 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 ## Decisions
 _Tyler's rulings live in rulings-of-record; designer rulings inside them are recorded here._
 
+### 2026-10-28 The region after Greenhaven: the Barrow March, an Undead region (designer, lane/b-undead-spec): SPEC ONLY, nothing built
+Tyler 10-28: "i think Undead for the next round of hunts would be cool." This is the design; the build comes after Early Access content is signed off.
+
+**The lore root.** Wickstead's Turncoats wear the Banded Company's signet (the Banded Signet's text: "the signet a free company issues to its own"). The spec answers whose war that was. Havora hired the Banded Company to hold the march east of Greenhaven. Its captain, Hask, sold the company's ford to the raiders and rode off. The company died at the ford and in the barrows behind it, and no one burned them. In Greenhaven's belief only the Hearth's fire lays the dead to rest. That is why Havora keeps a great hearth, and why the dead of the March still walk. The Turncoats are the company's last deserters, which is why the region's first ground sits up the road from Wickstead.
+- **The loop it plugs into:** the March is where Inner Flame's middle rungs come from. Its remains are Hearth fuels already in the data: Grave Dust (Inner Flame 46), Razor Claw (52), Vampire Dust (58, renamed Pyre Ash), Wraith Veil (72) and Lich Soul (86, renamed Bound Soul). Hunting the dead and burning them in Havora's Hearth is the story and the skill at once. The keystone inputs come from the barrows too. Ancient Fragment (renamed Barrow Stone, the cut stone of the barrows) and Cracked Spellstone feed `craft_keystone` (Crafting 60). That Keystone and the Ancient Rune (renamed Chantry Rune) pay for the high-end home in `shops.js` (2 Keystones, 12 runes). Every item named here has a source in this spec and an existing use.
+- **Naming voice** (it goes in the region's data header before any row): the soldier's words of a free company (banded, pike, muster, colours, ford, sergeant), the chantry's church words (prior, keener, bell), and the March's place words (barrow, ford, pyre). People get one short name: Hask, Ebbe. Banned: Ancient, Shadow, Dark, Eternal, Forgotten, and "Lich" or "Reaper" as names.
+
+**The existing Undead family, keep / merge / cut** (the class profile stays: weak to hammers and fire, resists frost, immune to poison):
+| Today | Ruling | Becomes |
+|---|---|---|
+| weak_skeleton, skeleton | MERGE | **Banded Pikeman** (the company's dead foot) |
+| zombie, drowned_dead | MERGE | **Fordsunk** (the dead who went into the ford) |
+| wight | KEEP | **Wight** (a real word: the company's dead quartermaster-casters) |
+| ghoul | KEEP | **Ghoul** (the corpse-eaters of the Pyre Field; Razor Claw) |
+| wraith | KEEP, rename | **Unburned** (what is left when nobody lit the pyre; Wraith Veil) |
+| barrow_knight | KEEP | **Barrow Knight** (the company's mounted sergeants, buried armed) |
+| barrow_king (champion) | MERGE | **Captain Hask**, a boss (keeps the Barrow-King's Mantle, renamed Hask's Mantle; Captain's Ribblade is his blade) |
+| death_knight | MERGE into Barrow Knight | (a re-skin with bigger numbers, DESIGN_STANDARDS §5) |
+| grave_banshee | KEEP, rename | **Keener** (the company's paid mourner, still keening) |
+| revenant | KEEP | **Revenant** (the chantry's oath-bound guard) |
+| lich ("Ancient Lich") | KEEP, rename | **Prior Ebbe**, the region boss (the company's priest who bound the dead to their oath when Hask broke his) |
+| vampire_bride, grim_reaper | CUT | no vampires and no reaper in this story. Vampire Dust's id stays as Pyre Ash. |
+
+**The grounds** (continue from Greenhaven's top, the Warrens' 32-50; every one has a full box of 8):
+| Ground | Band | Fit | Creatures (role) | Sources | Boss / carrier |
+|---|---|---|---|---|---|
+| **Hask's Ford** (THE SAMPLE, below) | 45-60 | solo | Pikeman (swarm), Fordsunk (tank), Wight (caster), Bannerman (rare) | Grave Dust, Barrow Stone, Cracked Spellstone, mithril scarce set | Bannerman carries the Company Colours |
+| **the Muster Barrows** | 55-75 | party | Pikeman, Barrow Knight (bruiser), Wight | Barrow Stone, Big Bones, the Captain's Ribblade (Hask's Rare) | **Captain Hask** (boss, Hask's Mantle trophy) |
+| **the Pyre Field** | 70-90 | solo | Ghoul (skirmisher), Unburned (caster), Keener (rare) | Razor Claw, Pyre Ash, Wraith Veil | Keener carries the Wraithsilk Shroud |
+| **Ebbe's Chantry** | 85-110 | party | Revenant (tank), Unburned, Keener | Chantry Rune, Bound Soul | **Prior Ebbe** (region boss; Bound Soul named fuel) |
+A fifth ground ("the Raiders' Camp", the people Hask sold the ford to, living creatures) is the option if the region needs a non-undead break; it is not in this spec.
+
+**THE SAMPLE: Hask's Ford, 45-60, solo first (5 rows; numbers PROVISIONAL until played on the real settle):**
+| Row | Role, damage, weak / resist | Habitat, behaviour | Loot (band) |
+|---|---|---|---|
+| Banded Pikeman, L46, weight 12 common | swarm, physical pierce; weak hammer (class), resists sword (blades skate off ribs) | the ford's shallows, in loose files of three | Bones (common, Hearth fuel), Barrow Stone (common, keystone), its own imbuement item (uncommon), mithril boots and helmets (scarce) |
+| Fordsunk, L50, weight 6 uncommon | tank, crush; weak fire, resists ranged (arrows sink into the bloat) | waist-deep in the ford, slow | Grave Dust (common, Inner Flame 46), imbuement item, mithril legs (scarce) |
+| Wight, L53, weight 4 uncommon | caster, frost bolts; weak fire, resists magic | on the far bank by the company's stores | Grave Dust, Cracked Spellstone (common, keystone), imbuement item, mithril bodies (scarce) |
+| Bannerman, L58, weight 2 rare | bruiser, holds the colours; weak hammer, resists frost | at the ford's toll stone, where Hask took the coin | Big Bones, imbuement item; Rares (each ~15 h): the next tier's gloves and belt, and the **Company Colours**: a named Hearth fuel (one per ground) that turns the Hearth pale for the square for a while (Tyler 10-25) |
+| Company Colours (item) | Hearth fuel, a burst of Inner Flame XP | Bannerman only | rare; never sold to the trader |
+- **The first-hour-in-region moment:** the first Grave Dust drops on the first kill or two. Its text says to burn it in the Hearth to lay the company to rest. Back in Havora, the Fuel the Hearth line names the Banded Company, and the bestiary entry for the Pikeman shows the Banded Signet's mark from Wickstead. A Greenhaven graduate meets the same signet twice and the region explains it. No scroll of backstory (§3).
+- **Hours to beat at the floor** (to measure, not asserted): +25% over the bill, 0 deaths for a full-set Melee at 45, and XP/h between the Warrens' party and the Barrows' party.
+
+**Art brief list (to size PixelLab):**
+| Asset | Count | Spec |
+|---|---|---|
+| Creatures, regular | 9 (Pikeman, Fordsunk, Wight, Bannerman, Barrow Knight, Ghoul, Unburned, Keener, Revenant) | style 1, beast/character frame 64x64, **8 facings** for idle, walk and attack, death and corpse as dire_gray; 9 × 8 facings × (1 idle + 6 walk + 6 attack) + death/corpse |
+| Bosses | 2 (Captain Hask, Prior Ebbe) | the 64 px boss canvas like the Rat King, 8 facings, walk + attack + a special-attack clip (bosses only, Tyler 10-15) |
+| Painted grounds | 4 (60 x 40 tiles each) | one new March tileset family (muddy ford, barrow turf, ash field, chantry flagstones); the Ford reuses the Meadowbrook water edges |
+| Item icons | about 12 (4 imbuement items for the sample ground, about 8 more for the rest, the Company Colours and 3 named fuels) | 32 px pixel items, the active set's rules |
+| Renames only (no art) | Barrow Stone, Chantry Rune, Pyre Ash, Bound Soul, Hask's Mantle, Unburned, Keener, Prior Ebbe | data rows |
+
 ### 2026-10-28 Greenhaven's sixth ground: Wickstead, 8-18 solo (designer, lane/b-greenhaven-6): RULED, STAGED until its painted ground
 - **Band 8-18, solo first.** The 10-28 new-player walk found one solo ground for 6-15 (the Thicket) and no gloves, belts or jewellery past the Shop's basics. A 50+ capstone serves nobody before the playtest; a second 8-18 door is met in a new hero's first day. Floor 8 is where the first-hour rung lands; top 18 meets the Glade's 16.
 - **Place:** Wickstead (Old English *wic*, a farm), a burned farmstead on the Thicket road where the Meadowbrook leaves the wood. Rick Yard, Granary, the footbridge (the one choke), Barn, Orchard, Burned House, the ford back, Cart Shed.

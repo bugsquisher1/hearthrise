@@ -201,6 +201,7 @@ function travel(inst, sc, k) {
   const mons = packMonsters(inst, p);
   if (!w.packs[p].alive || !mons.length) {
     if (w.packs.some((pk) => pk.alive)) nextPocket(inst, k);
+    else awaitPack(inst, k, p);
     return;
   }
   const c = { x: mons.reduce((a, m) => a + m.x, 0) / mons.length, y: mons.reduce((a, m) => a + m.y, 0) / mons.length };
@@ -218,6 +219,25 @@ function travel(inst, sc, k) {
   occupancy(inst);
   const g = freeNear(inst.grid, Math.round(c.x), Math.round(c.y), 2, (x, y) => inst.occ.mon.has(tileKey(inst.grid, x, y)))
     || [mons[0].x, mons[0].y];
+  setGoal(inst, k, g[0], g[1]);
+  k.aiMs = AI_REPATH_MS.travel;
+}
+
+/* EVERY PACK IS DOWN (report #69, v0.2.63: two L45s at Wickstead clear the ground faster than it respawns): the
+   leader walks on to its route's pocket `p` and waits there, just outside the spawn ring at its own pulling distance
+   (a kiter's range rule pulls the moment the ring is back; anyone else walks in), never on the pocket it cleared.
+   It stood there instead: ~7 s still after the bottom-right pull, then a 10 s walk to a pack already back.
+   The spot is the pocket's pull tile, or (a pocket authored without one) the middle of its spawn rows. */
+function awaitPack(inst, k, p) {
+  const pk = inst.ground.pockets[p];
+  const at = pk.pull ? { x: pk.pull[0], y: pk.pull[1] }
+    : { x: Math.round(pk.spawns.reduce((a, s) => a + s.x, 0) / pk.spawns.length), y: Math.round(pk.spawns.reduce((a, s) => a + s.y, 0) / pk.spawns.length) };
+  const reach = (Number.isInteger(k.dist) && k.dist > 0 ? k.dist : 1) + 2;
+  if (cheb(k, at) <= reach && inArea(inst, p, k.x, k.y)) { if (k.goal) clearGoal(k); return; }
+  if (k.goal && k.aiMs > 0) return;
+  occupancy(inst);
+  const g = freeNear(inst.grid, at.x, at.y, 2, (x, y) => inst.occ.mon.has(tileKey(inst.grid, x, y)));
+  if (!g) return;
   setGoal(inst, k, g[0], g[1]);
   k.aiMs = AI_REPATH_MS.travel;
 }

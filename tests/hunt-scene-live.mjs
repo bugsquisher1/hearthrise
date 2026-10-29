@@ -7,7 +7,7 @@
 //   node tests/hunt-scene-live.mjs --mutate   every planted defect must turn its rule RED
 //   node tests/hunt-scene-live.mjs --mutate --only LV-22   just the mutants whose name holds that text
 //
-// mutant-anchors: src/session/character-session.js src/session/hunt-poll.js src/session/live-link.js src/session/config.js src/session/hunt-sections.js src/shell/widgets/vitals-hub.js src/shell/widgets/party-panel.js src/session/character-sections.js src/hunt-view/scene.js src/hunt-view/timeline.js src/hunt-view/live-engine.js
+// mutant-anchors: src/session/character-session.js src/session/hunt-poll.js src/session/live-link.js src/session/config.js src/session/hunt-sections.js src/shell/widgets/vitals-hub.js src/shell/widgets/party-panel.js src/session/character-sections.js src/hunt-view/scene.js src/hunt-view/timeline.js src/hunt-view/live-engine.js src/core/combat-sim.js
 // mutant-writes-tree: no — mutants are planted into a temp copy of src/
 //
 // The REAL CharacterSession, timeline, live engine and scene over a scripted
@@ -1189,6 +1189,9 @@ const MUTANTS = [
   ['missed swings are played at once (LV-10)', 'src/session/live-link.js', '    if (this.engine.behindMs(now) > this._tl.delayMs()) {', '    if (false) {', /^LV-10/],
   ['the poll waits for the ordinary poll however short the look-ahead (LV-11)', 'src/session/hunt-poll.js', ', liveLink.refillDelayMs() ?? SESSION_CONFIG.huntPollMs);', ', SESSION_CONFIG.huntPollMs);', /^LV-11/],
   ['a death inside a catch-up is not played (LV-12)', 'src/session/live-link.js', '    for (const ev of res.kills) {', '    for (const ev of []) {', /^LV-12/],
+  /* report #69: the leader waits at the spawn, so a pack is hit in the swing it respawns: booked at its after-swing HP,
+     those first blows counted twice (a standing monster with an empty bar) */
+  ['a monster born in a swing is booked at its HP after it (LV-5/LV-12, report #69)', 'src/core/combat-sim.js', '      seen(r.events);', '      seen();', /^LV-(5|12):/],
   ['a dropped event stays remembered (LV-12)', 'src/hunt-view/timeline.js', '{ seen.delete(queue[i].key); queue.splice(i, 1); }', '{ queue.splice(i, 1); }', /^LV-12/],
   ['a revived monster pops up (LV-13)', 'src/hunt-view/scene.js', '        if (t !== null) risen.set(u, t);\n', '', /^LV-13/],
   ['a monster the restart no longer has keeps standing (LV-13)', 'src/hunt-view/scene.js', '        dead.set(u, onScreen && standing.has(u) ? t : t - SCENE_TIMING.corpseMs);\n', '', /^LV-13/],

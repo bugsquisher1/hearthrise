@@ -1,0 +1,125 @@
+The Muster Barrows, the walk grid (art lane b-muster-barrows-art, 2026-10-29; organic, the Barrow March's second ground, 55-75 party).
+The painted ground art/world/muster/muster_barrows_ground matches these rows cell for cell (tools/world-art/port-pixellab.mjs paint
+reads the PAINT rows below). The designer owns the final rows (src/data/world/maps/); if they move, repaint from this file.
+
+Legend: # blocks a step and a shot (alder thicket, barrow mounds, reed beds)  . open ground (withered grass, the mud track)
+Lint (scratch tool, the KIT 4b rules): 1070 open tiles, 1070 of them in an open 3x3, 1070 reachable from the road in at (0,8-11).
+
+The road comes in from Hask's Ford on the west edge (y8-11), from the Ford's Muster Line. No river: a field of burial mounds in
+the alder wood behind the ford, where the Banded Company buried its dead and never burned them. Larger pockets than the Ford (a party
+ground), joined by 3-5 wide lanes; a 2-wide trampled mud track runs two routes (road in > P0 > P1 > P4, and P0 > north lane > P2 > P4)
+and a spur P1 > P5. Islands of thicket break every clearing; no pocket is a rectangle and no two are the same shape.
+Pockets (irregular clearings):
+  P0 the Muster Field       x1-19 y4-16   the open field where the company mustered; an old barrow in its north-west corner
+  P1 the Long Barrows      x19-37 y13-29 two long mounds lying north-west to south-east, the track in the sunken lane between them
+  P2 the Sergeants' Row    x34-58 y3-15  four round barrows along the north edge, the mounted sergeants' (Barrow Knights)
+  P3 the Wet Hollow        x4-18 y24-38  a reed bed in the middle; reached down a lane from P0
+  P4 the Captain's Barrow  x37-57 y21-38 the great mound (x45-55 y31-36) and its forecourt, ringed by standing stones: Captain Hask
+  P5 the Biers             x19-33 y29-38 the company's dead laid out for a pyre nobody lit; a wet patch
+
+ROWS (y0 at the top):
+    '############################################################',
+    '############################################################',
+    '############################################################',
+    '######################################...###################',
+    '###############...####################...###################',
+    '#######....................###########...###################',
+    '#######........................#######...###################',
+    '#...##....................................##.......#########',
+    '.......................................................#####',
+    '...................#########...........................#####',
+    '...................#############.......................#####',
+    '...................#################...................#####',
+    '###................##################..................#####',
+    '###...............################.....................#####',
+    '#####...............##...######.......##...............#####',
+    '######...............#...######.......####..............####',
+    '#######........#.........######.....########............####',
+    '#########......##.........######.....########...........####',
+    '#########.....####..........####.....################...####',
+    '#########....######...........##.....###############....####',
+    '#########...########................###############.....####',
+    '#########...#######................################.....####',
+    '#########....######.................######....#####......###',
+    '##########...######....###..........######.....####......###',
+    '######...#...######....#####........######...............###',
+    '####.........######....######........####................###',
+    '####.........######....#######.........#.................###',
+    '####..............#....##########.......................####',
+    '####..............##....############...................#####',
+    '#####....###......##....##############.................#####',
+    '##############....###....###....######.................#####',
+    '######...#####......#............#####.........#############',
+    '######...#####...................######.......##############',
+    '######....####...................######......###############',
+    '######.........###...........############....###############',
+    '######.........########......############.....##############',
+    '#########......########......#############.....#############',
+    '############...#########.....#############.....#############',
+    '##########################...##############....#############',
+    '############################################################',
+
+PAINT (T alder thicket, G withered grass, M mud track, B barrow turf, R reed bed; every pair a PixelLab pro tileset, chained):
+    TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
+    TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
+    TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
+    TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTGGGTTTTTTTTTTTTTTTTTTT
+    TTTTBBTTTTTTTTTGGGTTTTTTTTTTTTTTTTTTTTGGGTTTTTTBBTTTTTTTTTTT
+    TTTBBBBGGGGGGGGGGGGGGGGGGGGTTTTTTTTTTTGGGBBBTTBBBBTTBBTTTTTT
+    TTTBBBBGGGGGGGGGGGGGMMMMMMGGGGGTTTTTTTGGGBBBBTBBBBTBBBBTTTTT
+    TGGGBBGGGGGGGGGGGGMMMMMMMMMMMMGGGGGGGGGGGGBBGGGGGGGBBBBTTTTT
+    GGGGGGGGGGGGGGGGMMGGGGGGGGGGGMMMMMMMGGGGGGGGGGGGGGGGGGGTTTTT
+    GMMMMMMGGGGGGGMMMMGTTTTTTTTTGGGGGMMMMMGGGGGGGGGGGGGGGGGBBTTT
+    GMMMMMMMMMMGGMMMMMGTTTTTTTTTTTTTGGGGGMMGGGGGGGGGGGGGGGGBBBTT
+    GGGGGMMMMMMMMMMMGGGTTTTTTTTTTTTTTTTTGGMMGGGGGGGGGGGGGGGBBBTT
+    TTTGGGGGGGMMMMMGGGGTTTTTTTTTTTTTTTTTTGMMMMGMMMMMMMMMMGGTBTTT
+    TTTGGGGGGGGGGMMMMGTTTTTTTTTTTTTTTTGGGGGGGMMMMMMMMMMMMMGTTTTT
+    TTTTTGGGGGGGGGMMMGGGTTGGGBBTTTTGGGGGGGTTGGGMMMGGMMMMMMGTTTTT
+    TTTTTTGGGGGGGGGGGMMGGTGGGBBBBBTGGGGGGGTTTTGGGGGGGGGGMMGGTTTT
+    TTTTTTTGGGGGGGGTGGMMGGGGGBBBBBBGGGGGTTTTTTTTGGGGGGGGMMMGTTTT
+    TTTTTTTTTGGGGGGTTGGMMGGGGGBBBBBBGGGGGTTTTTTTTGGGGGGGGGMGTTTT
+    TTTTTTTTTGGGGGTTTTGGMMGGGGGGBBBBGGGGGTTTTTTTTTTTTTTTTGMGTTTT
+    TTTTTTTTTGGGGTTTTTTGGMGGGGGGGGBBGGGGGTTTTTTTTTTTTTTTGGMGTTTT
+    TTTTTTTTTGGGTTTTTTTTGMMMMMMMMGGGGGGGTTTTTTTTTTTTTTTGGMMGTTTT
+    TTTTTTTTTGGGTTTTTTTGGMMMMMMMMMGGGGGTTTTTTTTTTTTTTTTGMMMGTTTT
+    TTTTTTTTTGGGGTTTTTTGGMMGGGGMMMMMGGGGTTBBBTGGGGTTTTTGMMMGGTTT
+    TTTTTTTTTTGGGTTTTTTGMMMBBBGGGMMMMGGGTBBBBBGGGGGTTTTGMMGGGTTT
+    TTTTTTGGGTGGGTTTTTTGMMGBBBBBGGMMMMGGTTBBBBGGGGGGGGGGMMGGGTTT
+    TTTTGGGGGGGGGTTTTTTGMMGTBBBBBGGMMMMGGTTBBGGGGGGGGGMMMGGGGTTT
+    TTTTGGGGGGGGGTTTTTTGMMGTTBBBBBGGGGMMGGGTGGGGGGGGMMMMGGGGGTTT
+    TTTTGGGGGGGGGGGGGGTGGMGTTTTBBBTTTGGGGMGGGMMMMMGGMMMGGGGGTTTT
+    TTTTGGGGGGGGGGGGGGTTGMGGTTTTTTTTTTTTGGGMMMMMMMMMMMGGGGGTTTTT
+    TTTTTGGGGRRRGGGGGGTTGGMGTTTTTTTTTTTTTTGGGGMMMMMMMGGGGGGTTTTT
+    TTTTTTTTRRRRRRGGGGTTTGMGGTTTGGGGTTTTTTGGGGGGGGGGGGGGGGGTTTTT
+    TTTTTTGGGRRRRRGGGGGGTGMMGGGGGGGGGTTTTTGGGGGGGGGBBBBBBBTTTTTT
+    TTTTTTGGGRRRRRGGGGGGGGGGMMMMGGGGGTTTTTTGGGGGGGBBBBBBBBBTTTTT
+    TTTTTTGGGGRRRRGGGGGGGGGGGGMMGGGGGTTTTTTGGGGGGBBBBBBBBBBBTTTT
+    TTTTTTGGGGGGGGGTTTGGGGGGGGGGGRRRTTTTTTTTTGGGGBBBBBBBBBBBTTTT
+    TTTTTTGGGGGGGGGTTTTTTTTGGGGGGRRRTTTTTTTTTGGGGGBBBBBBBBTTTTTT
+    TTTTTTTTTGGGGGGTTTTTTTTGGGGGGTTTTTTTTTTTTTGGGGGBBBBBBTTTTTTT
+    TTTTTTTTTTTTGGGTTTTTTTTTGGGGGTTTTTTTTTTTTTGGGGGTTTTTTTTTTTTT
+    TTTTTTTTTTTTTTTTTTTTTTTTTTGGGTTTTTTTTTTTTTTGGGGTTTTTTTTTTTTT
+    TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
+
+PROPS (map objects, {id, x, y}: the sprite stands on that cell, as Wickstead's objects do). mu_* are the Muster set (art/world/muster),
+hf_* the Ford's (art/world/march), the rest shipped style-1 sprites. Solid props stand on open grass, never on the track; reeds stand
+on reed cells, trees on the thicket. Keep spawn tiles clear of the solid ones when the packs are placed.
+  /* P0 the Muster Field: where the company mustered under Hask; the road in from Hask's Ford */
+  { id: 'mu_weapon_rack', x: 8, y: 5 }, { id: 'mu_weapon_rack', x: 13, y: 5 }, { id: 'hf_pike_stakes', x: 16, y: 6 }, { id: 'mu_drum_split', x: 11, y: 7 }, { id: 'mu_kerbstones', x: 7, y: 7 }, { id: 'hf_helm_heap', x: 6, y: 8 }, { id: 'bones', x: 12, y: 9 }, { id: 'mu_crates', x: 18, y: 10 }, { id: 'mu_standard_fallen', x: 5, y: 12 }, { id: 'hf_tent_torn', x: 9, y: 13 }, { id: 'hf_pikes_fallen', x: 16, y: 12 },
+  /* P1 the Long Barrows: the rank and file under two long mounds, a sunken lane between them */
+  { id: 'mu_barrow_door', x: 32, y: 18 }, { id: 'mu_sword_marker', x: 24, y: 14 }, { id: 'mu_urns', x: 23, y: 16 }, { id: 'mu_grave_open', x: 33, y: 16 }, { id: 'mu_kerbstones', x: 30, y: 20 }, { id: 'mu_coffin_lid', x: 26, y: 22 }, { id: 'skull', x: 34, y: 22 }, { id: 'mu_sword_marker', x: 30, y: 26 },
+  /* P2 the Sergeants' Row: the mounted sergeants buried armed, a sword before each barrow and their horses beside them */
+  { id: 'mu_shields_leaning', x: 39, y: 6 }, { id: 'mu_sword_marker', x: 42, y: 8 }, { id: 'mu_sword_marker', x: 48, y: 7 }, { id: 'mu_sword_marker', x: 53, y: 8 }, { id: 'mu_sword_marker', x: 54, y: 12 }, { id: 'mu_horse_skull', x: 45, y: 10 }, { id: 'mu_horse_skull', x: 51, y: 10 }, { id: 'hf_banded_shield', x: 42, y: 11 }, { id: 'mu_grave_goods', x: 49, y: 9 },
+  /* P4 the Captain's Barrow: the great mound and its forecourt, ringed by standing stones; Captain Hask holds it */
+  { id: 'mu_barrow_door', x: 50, y: 30 }, { id: 'mu_grave_goods', x: 53, y: 29 }, { id: 'mu_standard_fallen', x: 44, y: 31 }, { id: 'hf_standing_stone', x: 42, y: 26 }, { id: 'hf_standing_stone_leaning', x: 55, y: 27 }, { id: 'hf_standing_stone', x: 44, y: 35 }, { id: 'bone_pile', x: 41, y: 33 }, { id: 'skull', x: 46, y: 24 }, { id: 'mu_bier_unburned', x: 39, y: 29 }, { id: 'mu_cairn', x: 43, y: 22 },
+  /* P3 the Wet Hollow: a reed bed where the ground never dried; urns and a kerb ring half sunk */
+  { id: 'mb_reeds', x: 10, y: 31 }, { id: 'mb_reeds', x: 12, y: 32 }, { id: 'mb_reeds', x: 9, y: 29 }, { id: 'hf_kerb_ring', x: 6, y: 26 }, { id: 'mu_urns', x: 15, y: 28 }, { id: 'bones', x: 8, y: 35 }, { id: 'mu_cairn', x: 12, y: 26 }, { id: 'mu_dead_hawthorn', x: 7, y: 33 },
+  /* P5 the Biers: the company's dead laid out for a pyre nobody lit */
+  { id: 'mu_bier_unburned', x: 30, y: 31 }, { id: 'mu_bier_unburned', x: 27, y: 34 }, { id: 'mu_bier_unburned', x: 24, y: 35 }, { id: 'hf_pyre_unlit', x: 31, y: 33 }, { id: 'mu_coffin_lid', x: 26, y: 36 }, { id: 'mu_grave_open', x: 20, y: 33 }, { id: 'mb_reeds', x: 30, y: 34 }, { id: 'mu_dead_hawthorn', x: 19, y: 31 },
+  /* the alder wall: trees standing out of the thicket at the clearings' edges */
+  { id: 'westwood_ash', x: 15, y: 3 }, { id: 'oak', x: 19, y: 9 }, { id: 'westwood_ash', x: 37, y: 5 }, { id: 'oak', x: 57, y: 8 }, { id: 'westwood_ash', x: 3, y: 27 }, { id: 'oak', x: 18, y: 28 }, { id: 'westwood_ash', x: 36, y: 30 }, { id: 'oak', x: 57, y: 30 }, { id: 'westwood_ash', x: 13, y: 23 },
+
+CREATURES (art/world/muster unless named): banded_pikeman and wight (art/world/march, shared with the Ford), barrow_knight (brute),
+captain_hask (brute, the boss: walk, attack, special, death, corpse). Imbuement icons drawn ahead of their rows: sergeant_spur (the
+Barrow Knight's), hasks_coin (Captain Hask's: a coin of the price he took for the ford); Hask's Mantle (barrowking_mantle) and the
+Captain's Ribblade (captains_ribblade) redrawn in the March's style.

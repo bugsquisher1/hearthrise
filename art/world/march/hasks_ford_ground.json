@@ -9636,7 +9636,27 @@
         30,
         20
       ]
-    ]
+    ],
+    "retiled": {
+      "swap": [
+        "24778cd6=c1295240",
+        "953fdb33=40e321d1",
+        "5afbf6da=40e321d1"
+      ],
+      "tilesets": [
+        "01014c39-90a4-483a-b14d-0e8f6a117f8e",
+        "074e66cf-785a-4fe5-b00c-cd9da2f9dd45",
+        "4004bd16-a3be-44a4-8752-8462ce5427ab",
+        "4a3822fd-ece9-4cbe-81b6-a43e98153a9e",
+        "77869a44-e3d1-4c98-80de-4c2b3beea86f",
+        "7ec1b34b-cb91-46ab-be85-4691a0cf4b01",
+        "82b5e18b-baf3-4e49-8a4d-f50f31c67841",
+        "9a817bf5-7444-4a77-8f3b-b0b61eed4258",
+        "a16e2cb5-5f05-4dbb-b230-5cae403ca499",
+        "d2acf6a0-7c4a-49ff-af74-48981e769ebf",
+        "deb9194f-162c-41a5-af8a-5a7937ed898d"
+      ]
+    }
   },
-  "notes": "Stitched from four full-scale view_map renders (30x20 cells each) of PixelLab map ee5f44c4 (Hask's Ford, the Barrow March's first ground), painted from art/briefs/hasks-ford-grid-2026-10-28.txt: the river bends in from the west, down through one wide shallow ford with two gravel bars, and out east; reed margins, an alder-thicket wall at the edge, barrow banks and mounds dividing the clearings, a trampled mud track wandering the route. March family of pro tilesets chained off the Meadowbrook river (32062820): mud, shallows, withered grass, barrow turf, alder thicket, reeds, gravel. By tools/world-art/port-pixellab.mjs."
+  "notes": "Stitched from four full-scale view_map renders (30x20 cells each) of PixelLab map ee5f44c4 (Hask's Ford, the Barrow March's first ground), painted from art/briefs/hasks-ford-grid-2026-10-28.txt: the river bends in from the west, down through one wide shallow ford with two gravel bars, and out east; reed margins, an alder-thicket wall at the edge, barrow banks and mounds dividing the clearings, a trampled mud track wandering the route. March family of pro tilesets chained off the Meadowbrook river (32062820): mud, shallows, withered grass, barrow turf, alder thicket, reeds, gravel. By tools/world-art/port-pixellab.mjs. Retiled 2026-10-29 (lane b-muster-barrows-art): the barrow turf (was a flat purple) and the ford shallows (read as brown silt) were regenerated as chained PixelLab pro tilesets and every cut that drew them re-laid from the new sets."
 }

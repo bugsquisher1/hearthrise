@@ -19,7 +19,7 @@
 //
 // The pixels are never scaled or redrawn (ART_DIRECTION §2); build.mjs locks them to the
 // palette and checks them against the budget like every other source.
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { decodePNG, encodePNG, createImage, blit } from './png.mjs';
 import { T, CLASSES, FACINGS } from '../../src/data/world/art-budget.js';
@@ -164,6 +164,91 @@ function lowestRow(img) {
   return -1;
 }
 
+/* ── paint / retile: grounds drawn from PixelLab pro tilesets on the dual grid ─────────────────────────── */
+/** The PAINT rows of a grid brief (the lines after a `PAINT` line, quotes and commas stripped, up to a blank line). */
+function paintRows(text) {
+  const lines = text.split(/\r?\n/), at = lines.findIndex((l) => /^\s*PAINT\b/.test(l));
+  if (at < 0) throw new Error('the grid has no PAINT section');
+  const rows = [];
+  for (const l of lines.slice(at + 1)) { const r = l.replace(/['",\s]/g, ''); if (!r) break; rows.push(r); }
+  if (!rows.length || rows.some((r) => r.length !== rows[0].length)) throw new Error('PAINT rows are empty or ragged');
+  return rows;
+}
+/**
+ * The tiles of the named tilesets (DIR/<anything>.json holding a GET /tilesets/{id} response whose tileset id,
+ * taken from its tiles' set, is in `use`; a file names its set by `tileset_id` or its filename's id).
+ * tileFor(corners NW NE SW SE as terrain ids) is the tile drawing them (null when none can); cornersOf(hash) reads
+ * a cut back as its corner terrains.
+ */
+function tileBook(dirPath, use) {
+  const sets = [];
+  for (const f of readdirSync(dirPath).filter((f) => f.endsWith('.json'))) {
+    const j = JSON.parse(readFileSync(join(dirPath, f), 'utf8'));
+    if (!j.metadata || !j.tileset) continue;
+    const id = j.tileset_id || (j.metadata.tileset_id) || f.replace(/\.json$/, '');
+    const hit = use.find((u) => id.startsWith(u) || f.startsWith(u));
+    if (!hit) continue;
+    const { lower, upper } = j.metadata.terrain_ids;
+    const tiles = {};
+    for (const t of j.tileset.tiles) {
+      const key = ['NW', 'NE', 'SW', 'SE'].map((c) => (t.corners[c] === 'upper' ? '1' : '0')).join('');
+      tiles[key] = decodePNG(Buffer.from(t.image.base64, 'base64'));
+    }
+    sets.push({ id: hit, full: id, lower, upper, tiles, prompts: j.metadata.terrain_prompts });
+  }
+  const missing = use.filter((u) => !sets.some((s) => s.id === u));
+  if (missing.length) throw new Error('tilesets not in ' + dirPath + ': ' + missing.join(', '));
+  const ids = [...new Set(sets.flatMap((s) => [s.lower, s.upper]))];
+  const terrain = (p) => { const m = ids.filter((t) => t.startsWith(p)); if (m.length !== 1) throw new Error('terrain ' + p + ' matches ' + m.length + ' of the sets\' terrains'); return m[0]; };
+  const name = (t) => { const s = sets.find((s) => s.lower === t || s.upper === t); return t.slice(0, 8) + ' (' + (s.lower === t ? s.prompts.lower : s.prompts.upper).split(/[,]/)[0] + ')'; };
+  const usedIds = new Set();
+  const tileFor = (c) => {
+    const m = [...new Set(c)];
+    if (m.length > 2) return null;
+    if (m.length === 1) {
+      /* the base tile most of the sets share (a set chained by reference image alone can redraw its partner's base) */
+      const have = sets.filter((s) => s.lower === m[0] || s.upper === m[0]).map((s) => ({ s, im: s.tiles[s.lower === m[0] ? '0000' : '1111'] }));
+      const votes = new Map();
+      for (const h of have) { const k = tileHash(h.im, 0, 0); votes.set(k, (votes.get(k) || 0) + 1); }
+      const best = have.find((h) => votes.get(tileHash(h.im, 0, 0)) === Math.max(...votes.values()));
+      usedIds.add(best.s.id);
+      return best.im;
+    }
+    const s = sets.find((s) => (s.lower === m[0] && s.upper === m[1]) || (s.lower === m[1] && s.upper === m[0]));
+    if (!s) return null;
+    usedIds.add(s.id);
+    return s.tiles[c.map((t) => (t === s.upper ? '1' : '0')).join('')];
+  };
+  const byHash = new Map();
+  for (const s of sets) for (const [key, im] of Object.entries(s.tiles)) {
+    const hsh = tileHash(im, 0, 0);
+    if (!byHash.has(hsh)) byHash.set(hsh, [...key].map((b) => (b === '1' ? s.upper : s.lower)));
+  }
+  return { terrain, name, tileFor, cornersOf: (hsh) => byHash.get(hsh) || null, used: () => sets.filter((s) => usedIds.has(s.id)).map((s) => s.full) };
+}
+
+/**
+ * A vertex no single set draws (three or four terrains round it, as where a clearing, a mound and the thicket
+ * meet): each 16 px quarter is cut from the pair tile of its own corner's terrain and a neighbour terrain it
+ * meets (the edge neighbours first), every corner of that tile set to one of the two. Null when a pair it needs
+ * has no set.
+ */
+const QUADS = [[0, 1, 2, 0, 0], [1, 0, 3, 1, 0], [2, 0, 3, 0, 1], [3, 1, 2, 1, 1]];
+function blendTile(book, k) {
+  const H2 = T / 2, out = createImage(T, T);
+  for (const [ci, n1, n2, qx, qy] of QUADS) {
+    const others = [...new Set([k[n1], k[n2], k[3 - ci]].filter((t) => t !== k[ci]))];
+    let tile = null;
+    for (const X of others.length ? others : [k[ci]]) {
+      tile = book.tileFor(k.map((t) => (t === k[ci] ? k[ci] : X)));
+      if (tile) break;
+    }
+    if (!tile) return null;
+    blit(out, tile, qx * H2, qy * H2, H2, H2, qx * H2, qy * H2);
+  }
+  return out;
+}
+
 function main() {
   const o = args(process.argv.slice(2));
   const cmd = o._[0];
@@ -240,10 +325,11 @@ function main() {
     const walkOf = (d) => { const out = []; for (let i = 0; existsSync(join(o.dir, 'walk', NAME[d], i + '.png')); i++) out.push(join(o.dir, 'walk', NAME[d], i + '.png')); return out; };
     const anims = [{ name: 'idle', fps: 5, loop: true, frames: Object.fromEntries(FACINGS.map((d) => [d, [rot(d)]])) }];
     if (FACINGS.every((d) => walkOf(d).length)) anims.push({ name: 'walk', fps: 10, loop: true, frames: Object.fromEntries(FACINGS.map((d) => [d, walkOf(d)])) });
-    /* the combat clips (choreo.js plays `attack` on a blow and `death` on a fall), in whichever facings
-       DIR holds as <clip>/<facing>/<i>.png; a facing it lacks falls back to the renderer's 's' */
+    /* the combat clips (choreo.js plays `attack` on a blow and `death` on a fall; a boss's `special` is its special
+       attack, Tyler 10-15), in whichever facings DIR holds as <clip>/<facing>/<i>.png; a facing it lacks falls back
+       to the renderer's 's' */
     const clipOf = (name, d) => { const out = []; for (let i = 0; existsSync(join(o.dir, name, NAME[d], i + '.png')); i++) out.push(join(o.dir, name, NAME[d], i + '.png')); return out; };
-    for (const name of ['attack', 'death']) {
+    for (const name of ['attack', 'special', 'death']) {
       const have = FACINGS.filter((d) => clipOf(name, d).length);
       if (have.includes('s')) anims.push({ name, fps: 10, loop: false, frames: Object.fromEntries(have.map((d) => [d, clipOf(name, d)])) });
     }
@@ -256,17 +342,30 @@ function main() {
     /* --seat idle (a walking unit whose pike, banner or falling body reaches below its feet): PixelLab draws every
        clip on its rotation's canvas, so each frame keeps the idle's offset (the rotation's foot row, the validator's
        measure, on the anchor) and is lifted only as far as keeps its lowest pixel in the frame. What still reaches
-       below the anchor is declared as overhang_px. The default seats each clip facing by its own lowest pixel. */
-    const idleFoot = o.seat === 'idle' ? Object.fromEntries(FACINGS.map((d) => [d, measureFrame(decodePNG(readFileSync(rot(d)))).foot])) : null;
+       below the anchor is declared as overhang_px. The default seats each clip facing by its own lowest pixel.
+       --overflow crop (with --seat idle): no frame is ever lifted, so the body never hops off its feet on a blow or
+       a fall; the few pixels of pike or pole that reach past the frame's bottom edge are cut instead. */
+    /* --foot-cols N: the rotation's foot is the lowest row at least N columns bottom out on (default 2, the validator's
+       footRow); a unit that holds a blade point-down below its feet in a rotation needs a wider foot (4) to be seated on
+       its boots, not on the blade's tip */
+    const footOf = (img) => { const m = measureFrame(img); if (!o['foot-cols']) return m.foot; const n = Number(o['foot-cols']); for (let y = m.box.y1; y >= m.box.y0; y--) { let hits = 0; for (let x = m.box.x0; x <= m.box.x1; x++) if (m.profile[x] === y) hits++; if (hits >= n) return y; } return m.foot; };
+    const idleFoot = o.seat === 'idle' ? Object.fromEntries(FACINGS.map((d) => [d, footOf(decodePNG(readFileSync(rot(d))))])) : null;
     let r = 0, reach = 0;
     for (const a of anims) for (const d of facingsOf(a)) {
       const imgs = a.frames[d].map((f) => decodePNG(readFileSync(f)));
       const lowest = Math.max(...imgs.map(lowestRow));
       /* a flier falls from its hover to the floor: its fall and corpse rest on the anchor row like every body */
       const dy = (flier && a.name !== 'death' && a.name !== 'corpse' ? ay - hover : ay) - lowest, dx = ax - Math.floor(imgs[0].width / 2);
+      /* --overflow crop: a fall (death, and the corpse it leaves) still has to stay whole in the frame, so its lift is
+         spread over the clip, never more than a pixel or two a frame and never back down: the body settles, it does
+         not jump. The corpse holds the fall's last lift. */
+      const need = imgs.map((img) => Math.max(0, (ay - (idleFoot ? idleFoot[d] : 0)) - (fh - 1 - lowestRow(img))));
+      const fall = a.name === 'death' || a.name === 'corpse';
+      const deathNeed = fall && idleFoot && o.overflow === 'crop' ? (() => { const dn = anims.find((x) => x.name === 'death').frames[d].map((f) => decodePNG(readFileSync(f))).map((img) => Math.max(0, (ay - idleFoot[d]) - (fh - 1 - lowestRow(img)))); const top = Math.max(...dn); let run = 0; return dn.map((v, i) => (run = Math.max(run, v, Math.ceil(top * i / Math.max(1, dn.length - 1))))); })() : null;
       imgs.forEach((img, i) => {
-        const fdy = idleFoot ? Math.min(ay - idleFoot[d], fh - 1 - lowestRow(img)) : dy;
-        if (idleFoot) reach = Math.max(reach, lowestRow(img) + fdy - ay);
+        const lift = !deathNeed ? 0 : a.name === 'corpse' ? deathNeed[deathNeed.length - 1] : Math.max(deathNeed[i], need[i]);
+        const fdy = idleFoot ? (o.overflow === 'crop' ? ay - idleFoot[d] - lift : Math.min(ay - idleFoot[d], fh - 1 - lowestRow(img))) : dy;
+        if (idleFoot) reach = Math.max(reach, Math.min(fh - 1, lowestRow(img) + fdy) - ay);
         const frame = createImage(fw, fh);
         blit(frame, img, 0, 0, img.width, img.height, dx, fdy, true);
         blit(sheet, frame, 0, 0, fw, fh, i * fw, r * fh);
@@ -324,7 +423,81 @@ function main() {
     };
     writeFileSync(join(dir, o.id + '.json'), JSON.stringify(sc, null, 2) + '\n');
     console.log('  ✓ ' + o.set + '/' + o.id + ' wang16 ' + lo + '/' + up + ': ' + cells.length + ' tiles' + (composed.length ? ', composed ' + composed.join(' ') : '') + ' · per key ' + Object.keys(tiles).sort().map((k) => k + ':' + tiles[k].length).join(' '));
-  } else throw new Error('usage: port-pixellab.mjs map|object|sheet|unit|wang …');
+  } else if (cmd === 'paint') {
+    /* --grid FILE --tilesets DIR --use ID,… --legend L=TERRAIN,… [--note "…"]
+       A painted ground drawn the way Map Workshop draws one, from PixelLab pro tilesets (the GET /tilesets/{id}
+       JSON, one file per set in DIR): the grid's PAINT rows give each map cell a material, and every 32 px tile
+       sits on the DUAL grid, its four corners on four cell centres (the edge cells continue past the border).
+       One material is its base tile; two are the tile of the pair's set whose corners match. Chained sets share
+       their base tiles pixel for pixel (one terrain id each), so the paint is exactly the sets' own tiles. Three
+       materials round one vertex are blended from quadrants (blendTile); a pair no set draws refuses the grid. */
+    const rows = paintRows(readFileSync(o.grid, 'utf8'));
+    const h = rows.length, w = rows[0].length;
+    const legend = Object.fromEntries(o.legend.split(',').map((p) => p.split('=')));
+    const book = tileBook(o.tilesets, o.use.split(','));
+    const terrain = (ch) => { const p = legend[ch]; if (!p) throw new Error(o.id + ': no legend entry for ' + ch); return book.terrain(p); };
+    const out = createImage(w * T, h * T), bad = [];
+    let blends = 0;
+    const cell = (x, y) => terrain(rows[Math.min(h - 1, Math.max(0, y))][Math.min(w - 1, Math.max(0, x))]);
+    for (let vy = -1; vy < h; vy++) for (let vx = -1; vx < w; vx++) {
+      const c = [cell(vx, vy), cell(vx + 1, vy), cell(vx, vy + 1), cell(vx + 1, vy + 1)];
+      const tile = book.tileFor(c) || blendTile(book, c);
+      if (tile && new Set(c).size > 2) blends++;
+      if (!tile) { bad.push(vx + ',' + vy + ' ' + [...new Set(c.map((t) => book.name(t)))].join('+')); continue; }
+      blit(out, tile, 0, 0, T, T, vx * T + T / 2, vy * T + T / 2);
+    }
+    if (bad.length) throw new Error(o.id + ': ' + bad.length + ' vertices no set can draw: ' + bad.slice(0, 12).join(' · '));
+    writeFileSync(join(dir, o.id + '.png'), encodePNG(out));
+    const sc = paintedSidecar({ id: o.id, mapId: null, w, h, material: o.material || 'terrain', note: o.note, crops: [] });
+    sc.pixellab = { tool: 'create-tileset (pro), dual-grid paint', tileset: book.used().join(','), grid: o.grid.replace(/\\/g, '/').replace(/^.*?(art\/briefs\/)/, '$1') };
+    sc.notes = o.note || 'Painted from ' + sc.pixellab.grid + ' with the tiles of ' + book.used().length + ' PixelLab pro tilesets on the dual grid by tools/world-art/port-pixellab.mjs paint; pixels unscaled.';
+    writeFileSync(join(dir, o.id + '.json'), JSON.stringify(sc, null, 2) + '\n');
+    console.log('  ✓ ' + o.set + '/' + o.id + ': painted ' + w + 'x' + h + ' from ' + book.used().length + ' tilesets, ' + blends + ' three-terrain vertices blended from quadrants');
+  } else if (cmd === 'retile') {
+    /* --tilesets DIR --use ID,… --swap OLD_TERRAIN=NEW_TERRAIN,… [--note "…"]
+       Re-lay a painted ground's tiles for a terrain that was regenerated: every 32 px dual-grid cut that IS a
+       tile of one of the sets (pixel for pixel) is read back as its four corner terrains, the swapped terrains are
+       replaced, and the cut is redrawn from the set of the new pair. Cuts that match no set are left as painted. */
+    const g = JSON.parse(readFileSync(join(dir, o.id + '.json'), 'utf8'));
+    const img = decodePNG(readFileSync(join(dir, g.source)));
+    const book = tileBook(o.tilesets, o.use.split(','));
+    const swap = Object.fromEntries(o.swap.split(',').map((p) => p.split('=').map((t) => book.terrain(t))));
+    let n = 0, swapped = 0, unread = 0, composed = 0;
+    /* each map cell's terrain, read from any cut that is a set's tile (a cell centre is a corner of four cuts) */
+    const cw = Math.round(img.width / T), cells = new Map(), unreadCuts = [];
+    const cellAt = (x, y) => cells.get(y * cw + x);
+    for (let y = T / 2; y + T <= img.height; y += T) for (let x = T / 2; x + T <= img.width; x += T) {
+      const c = book.cornersOf(tileHash(img, x, y)), vx = (x - T / 2) / T, vy = (y - T / 2) / T;
+      if (c) [[0, 0], [1, 0], [0, 1], [1, 1]].forEach(([dx, dy], i) => cells.set((vy + dy) * cw + vx + dx, c[i]));
+    }
+    for (let y = T / 2; y + T <= img.height; y += T) for (let x = T / 2; x + T <= img.width; x += T) {
+      n++;
+      const c = book.cornersOf(tileHash(img, x, y));
+      if (!c) { unread++; unreadCuts.push([x, y]); continue; }
+      if (!c.some((t) => swap[t])) continue;
+      const tile = book.tileFor(c.map((t) => swap[t] || t));
+      if (!tile) throw new Error(o.id + ': no set draws ' + c.map((t) => book.name(swap[t] || t)).join('+') + ' at ' + x + ',' + y);
+      blit(img, tile, 0, 0, T, T, x, y);
+      swapped++;
+    }
+    /* A cut no set drew (three terrains round one vertex: Map Workshop's own blend) that touches a swapped terrain is
+       re-laid quadrant by quadrant: each 16 px quarter from the pair tile of its own corner's terrain and the
+       neighbour terrain it meets, so no pixel of the old terrain is left in it. */
+    for (const [x, y] of unreadCuts) {
+      const vx = (x - T / 2) / T, vy = (y - T / 2) / T;
+      const old = [cellAt(vx, vy), cellAt(vx + 1, vy), cellAt(vx, vy + 1), cellAt(vx + 1, vy + 1)];
+      if (old.some((t) => !t) || !old.some((t) => swap[t])) continue;
+      const tile = blendTile(book, old.map((t) => swap[t] || t));
+      if (!tile) continue;
+      blit(img, tile, 0, 0, T, T, x, y);
+      composed++;
+    }
+    writeFileSync(join(dir, g.source), encodePNG(img));
+    g.pixellab = { ...g.pixellab, retiled: { swap: o.swap.split(','), tilesets: book.used() } };
+    if (o.note) g.notes += ' ' + o.note;
+    writeFileSync(join(dir, o.id + '.json'), JSON.stringify(g, null, 2) + '\n');
+    console.log('  ✓ ' + o.set + '/' + o.id + ': ' + swapped + ' of ' + n + ' cuts re-laid, ' + composed + ' of ' + unread + ' blends no set drew composed from quadrants');
+  } else throw new Error('usage: port-pixellab.mjs map|object|sheet|unit|wang|paint|retile …');
 }
 if (isMain(import.meta.url)) {
   try { main(); } catch (e) { console.error('port-pixellab: ' + (e && e.message || e)); process.exit(2); }

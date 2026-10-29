@@ -1,0 +1,35 @@
+{
+  "id": "mu_cairn",
+  "class": "wreck",
+  "style": "s1",
+  "material": "stone",
+  "source": "mu_cairn.png",
+  "frame": [
+    54,
+    39
+  ],
+  "anchor_px": [
+    27,
+    38
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_image_pro_flash",
+    "image": "e1802e87-fb7d-4f29-a88e-731a36bff5e2",
+    "cell": 2
+  },
+  "notes": "Cell 2 of a 4x4 style-1 prop sheet (PixelLab image e1802e87-fb7d-4f29-a88e-731a36bff5e2, style image a Map Workshop prop of the kit), cut to its opaque box by tools/world-art/port-pixellab.mjs; pixels unscaled."
+}

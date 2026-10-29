@@ -110,7 +110,7 @@ reeds stand on reed cells, trees on the thicket. Keep spawn tiles clear of the s
   /* the Ford: stepping stones over the bars, reeds at the water */
   { id: 'mb_stepping_stones', x: 27, y: 19 }, { id: 'mb_stepping_stones', x: 30, y: 23 }, { id: 'mb_reeds', x: 20, y: 17 }, { id: 'mb_reeds', x: 36, y: 17 }, { id: 'mb_reeds', x: 12, y: 13 }, { id: 'mb_reeds', x: 47, y: 12 }, { id: 'mb_reeds', x: 5, y: 18 }, { id: 'mb_reeds', x: 52, y: 19 }, { id: 'mb_reeds', x: 41, y: 22 }, { id: 'mb_reeds', x: 18, y: 23 },
   /* P3 the Company Stores: the company's broken stores and wagons */
-  { id: 'hf_tent_torn', x: 25, y: 5 }, { id: 'hf_stores_heap', x: 33, y: 7 }, { id: 'hf_wagon_tipped', x: 35, y: 12 }, { id: 'crates', x: 24, y: 9 }, { id: 'barrels', x: 31, y: 9 }, { id: 'barrel_broken', x: 37, y: 11 }, { id: 'sack_pile', x: 26, y: 11 }, { id: 'cart_wheel', x: 33, y: 13 },
+  { id: 'hf_tent_torn', x: 25, y: 5 }, { id: 'hf_stores_heap', x: 33, y: 7 }, { id: 'hf_wagon_tipped', x: 35, y: 12 }, { id: 'mu_crates', x: 24, y: 9 }, { id: 'barrels', x: 31, y: 9 }, { id: 'barrel_broken', x: 37, y: 11 }, { id: 'sack_pile', x: 26, y: 11 }, { id: 'cart_wheel', x: 33, y: 13 },
   /* P4 the Muster Line: the broken palisade the company camped behind */
   { id: 'hf_palisade_broken', x: 46, y: 4 }, { id: 'hf_palisade_stake', x: 50, y: 3 }, { id: 'hf_palisade_stake', x: 44, y: 5 }, { id: 'hf_pike_stakes', x: 54, y: 8 }, { id: 'hf_tent_torn', x: 52, y: 10 }, { id: 'hf_pikes_fallen', x: 47, y: 9 }, { id: 'hf_helm_heap', x: 42, y: 9 },
   /* P5 the High Barrows: standing stones over the officers */

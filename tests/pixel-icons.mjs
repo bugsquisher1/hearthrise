@@ -160,7 +160,9 @@ export async function checkWiring(root) {
 
 async function loadIds() {
   const { ITEMS } = await import(pathToFileURL(join(ROOT, 'src/data/items.js')).href);
-  return Object.keys(ITEMS);
+  const { ITEM_ART_AHEAD } = await import(pathToFileURL(join(ROOT, 'src/data/item-art.js')).href);
+  // icons drawn ahead of their row must exist and obey every rule; once the row lands the id is counted once
+  return [...new Set([...Object.keys(ITEMS), ...ITEM_ART_AHEAD])];
 }
 
 async function loadSupplyIds() {

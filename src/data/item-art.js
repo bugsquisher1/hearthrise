@@ -353,6 +353,13 @@ export const SUPPLY_DIR = 'assets/icons-bundle/pixel/supplies/';
 /* Supply icons drawn before their BASIC_SUPPLIES row lands (the store rune for Flame Strike). Delete the id here
    the day its row ships: the row itself then carries it. tests/pixel-icons.mjs requires the file for each. */
 export const SUPPLY_ART_AHEAD = Object.freeze([]);   // plain_fire_rune's row landed (supply-basics.js)
+/* Item icons drawn before their ITEMS row lands (the same rule as SUPPLY_ART_AHEAD): the Barrow March's imbuement items
+   and Company Colors from the art lanes b-hasks-ford-art and b-muster-barrows-art. tests/pixel-icons.mjs requires the
+   file for each and counts it once its row ships; delete the id here the day its row lands. */
+export const ITEM_ART_AHEAD = Object.freeze([
+  'pike_band', 'ford_weed', 'ledger_leaf', 'colour_thread', 'company_colours',   // Hask's Ford (rows: lane b-hasks-ford)
+  'sergeant_spur', 'hasks_coin',                                                 // the Muster Barrows: the Barrow Knight's and Captain Hask's
+]);
 
 /** `<PIXEL_DIR><id>.png` for every id given. */
 export function pixelIconMap(ids) {

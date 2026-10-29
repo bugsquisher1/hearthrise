@@ -10,7 +10,7 @@
 import { readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { lagVerdict, WATCHED_SQL } from './lib/hunt-lag.mjs';
+import { lagVerdict, WATCHED_SQL, watchedOf } from './lib/hunt-lag.mjs';
 
 const REF = 'nezapsylztqbbwuwembx';
 const tok = readFileSync(join(homedir(), '.supabase-token'), 'utf8').trim();
@@ -28,7 +28,7 @@ async function q(sql) {
 
 const HUNTS = `select left(i.id::text, 8) inst, i.hunt_id, i.kind, count(*) heroes,
   string_agg(left(s.user_id::text, 8) || ':' || s.slot || (case when s.leave_at is not null then ' leaving' else '' end), ' ', ) who,
-  round(extract(epoch from now() - i.settled_to)) lag_s, i.world_swing, array_agg(distinct s.user_id::text) users, round(extract(epoch from now() - min(s.entered_at)) / 60) mins
+  round(extract(epoch from now() - i.settled_to)) lag_s, i.world_swing, array_agg(s.user_id::text || ':' || s.slot) seats, round(extract(epoch from now() - min(s.entered_at)) / 60) mins
   from public.hunt_sessions s join public.hunt_instances i on i.id = s.instance_id
   where s.ended_at is null group by i.id order by lag_s desc`.replace(', ' + ')', ')');
 const RATE = `select left(user_id::text, 8) u, bucket, sum(n) n from public.hr_rate_counters
@@ -39,13 +39,13 @@ const REFUSED = `select left(user_id::text, 8) u, code, intent, sum(n) n, max(la
 
 async function once() {
   const [hunts, rate, refused, watchedRows, tick] = await Promise.all([q(HUNTS), q(RATE), q(REFUSED), q(WATCHED_SQL), q(TICK)]);
-  const watching = new Set(watchedRows.map((r) => r.u));
+  const watched = watchedOf(watchedRows);
   const cfg = { flushS: Number((tick[0] || {}).flush_seconds) || 90, cadenceS: Number((tick[0] || {}).cadence_seconds) || 10 };
   console.log(`\nHunt health at ${new Date().toLocaleTimeString()}`);
   if (!hunts.length) console.log('  no open hunts');
   for (const h of hunts) {
-    const users = Array.isArray(h.users) ? h.users : String(h.users || '').replace(/[{}]/g, '').split(',');
-    const v = lagVerdict({ lagS: Number(h.lag_s), watched: users.some((u) => watching.has(u)), ...cfg });
+    const seats = (Array.isArray(h.seats) ? h.seats : String(h.seats || '').replace(/[{}]/g, '').split(',')).map((x) => [x.slice(0, x.lastIndexOf(':')), x.slice(x.lastIndexOf(':') + 1)]);
+    const v = lagVerdict({ lagS: Number(h.lag_s), watched: watched(seats), ...cfg });
     const flag = v.code === 'ok' ? `  (${v.note})` : `  << ${v.note}`;
     console.log(`  ${h.inst} ${h.hunt_id} ${h.kind} ×${h.heroes} [${h.who}] lag ${h.lag_s}s, swing ${h.world_swing}, ${h.mins} min${flag}`);
   }

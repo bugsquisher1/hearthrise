@@ -96,11 +96,30 @@ function slotSupply(sl, s, carried) {
   return null;
 }
 
-/* What a kind with nothing usable means for the hunt. Food, drink and ammo leave the hero bare (a short
-   line); a rune spell that cannot fire only loses that spell, and says which. */
-const BARE_WORDS = Object.freeze({ food: 'Nothing will be eaten', drink: 'Nothing will be drunk', ammo: 'Nothing to shoot' });
-function bareWords(kind, parts) {
-  if (kind !== 'rune') return BARE_WORDS[kind];
+/* What a kind with nothing usable means for the hunt. Empty ammo leaves a hero that shoots unable to attack (a
+   short line). An empty food or drink slot is a heads-up, never a stop: hunting without them is a fair choice, HP
+   and mana come back between fights (designer 2026-10-29, Tyler's "0 food" report); food the bag carries but the bar
+   does not name is said with the fix. A rune spell that cannot fire only loses that spell, and says which. */
+export const BARE_WORDS = Object.freeze({ food: 'Nothing will be eaten: HP comes back only between fights',
+  drink: 'Nothing will be drunk: mana comes back only between fights', ammo: 'Nothing to shoot' });
+/** The kinds an empty slot of which stops nothing: food and drink (a heads-up line). */
+export const HEADS_UP_KINDS = Object.freeze(new Set(['food', 'drink']));
+
+/**
+ * "You carry 12 Trout: put it on the bar to eat it", or '': the biggest own stack of a food or drink in `rows`
+ * (the server's bag) that the bar does not name (`named`, a Set of item ids). Display only.
+ */
+export function spareWords(kind, rows, named) {
+  let best = null;
+  for (const r of rows || []) {
+    const c = CONSUMABLES[r.id];
+    if (c && c.kind === kind && c.source !== 'store' && !named.has(r.id) && r.qty > 0 && (!best || r.qty > best.qty)) best = r;
+  }
+  return best ? 'You carry ' + whole(best.qty) + ' ' + itemName(best.id) + ': put it on the bar to ' + (kind === 'food' ? 'eat' : 'drink') + ' it' : '';
+}
+
+function bareWords(kind, parts, carried) {
+  if (kind !== 'rune') return spareWords(kind, carried, new Set(parts.map((p) => (p.own ? p.own.id : null)))) || BARE_WORDS[kind];
   const spells = Array.from(new Set(parts.map((p) => p.spell).filter(Boolean)));
   if (!spells.length) return 'Nothing to cast';
   /* NO UNEXPLAINED DEAD BUTTON (designer 2026-10-29, lane/a-starter-bars): a style's default bar may hold a rune spell
@@ -149,7 +168,7 @@ export function beforeLines(cs, o) {
       const usable = parts.some((p) => (p.own && p.own.n > 0) || p.store);
       if (parts.some((p) => p.store)) paysStore = true;
       /* nothing usable: the stocks are listed, never chained with "then" (no fallback runs between empties) */
-      out.push({ id: kind, text: KIND_WORDS[kind] + ': ' + (words.length ? words.join(usable ? ', then ' : ', ') : 'nothing this bar can use') + (usable ? '' : '. ' + bareWords(kind, parts)), short: !usable && kind !== 'rune' });
+      out.push({ id: kind, text: KIND_WORDS[kind] + ': ' + (words.length ? words.join(usable ? ', then ' : ', ') : 'nothing this bar can use') + (usable ? '' : '. ' + bareWords(kind, parts, carried)), short: !usable && kind !== 'rune' && !HEADS_UP_KINDS.has(kind) });
     }
     if (!kinds.has('food') && !kinds.has('drink')) out.push({ id: 'none', text: 'Your bar eats and drinks nothing: HP and mana come back only between fights.', short: false });
   }

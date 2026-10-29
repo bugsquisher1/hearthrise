@@ -72,6 +72,18 @@ const ONE_SPAN = Object.freeze({
 });
 export const PROBE_CHANNELS = Object.freeze(Object.keys(ONE_SPAN));
 
+/* DRIVEN CHANNELS THE PROBE DOES NOT PRICE, each with its reason (the same
+   partition rule as tick.js UNDRIVEN_CHANNELS): the probe is the SHADOW-mode
+   parity instrument an arm is earned on, so a driven channel either has a
+   one-span driver above or is declared here. tests/world-tick-parity-probe.mjs
+   PP-2b requires every driven channel to be one or the other. */
+export const UNPROBED_CHANNELS = Object.freeze({
+  artisan: 'armed directly by 2027-02-10-artisan-tick.sql, never shadowed: a window is ONE engine call over '
+    + '[mark, mark + flush], the owner\'s own accrue made by the server (tick-artisan.js); its parity with the '
+    + 'owner\'s settle is tests/artisan-tick.mjs A-PARITY. A disarm-only kill would shadow it unprobed '
+    + '(probeStep answers probe_channel_not_probed), which is why its kill removes it from channels too',
+});
+
 /* ── THE STAGGER ────────────────────────────────────────────────────────────
    A stable per-character phase in [0, PROBE_SPAN_MS). A hash, not a random
    draw: the boundary must be the same on every fire and every isolate, and it

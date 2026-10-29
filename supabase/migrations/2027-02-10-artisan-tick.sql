@@ -65,12 +65,13 @@
 --   never per action. hr_tick_enrolment: one row per enrolment, never per fire.
 --
 -- ── COST (100x players: ~2,400 heroes) ───────────────────────────────────────
---   Rows: <= 960 craft rows/day per CONTINUOUSLY running unviewed bench; bench
---   runs are supply-bound (minutes to hours), so ~10 % of heroes on a 4 h bench
---   a day is ~38k rows/day (8 % of hr_ledger_prune's 480k/day ceiling). Owned
---   rows: at most one per (hero, channel), capped at 100 by the fuse. Edge: one
---   artisan window is ~1 ms of engine; the gather body it rides is the cost
---   tick-capacity measured (~45-60 ms a visit).
+--   Rows: <= 960 craft rows/day (86,400 s / 90 s) per CONTINUOUSLY running bench,
+--   viewed or not; bench runs are supply-bound (minutes to hours), so an
+--   ESTIMATE of ~10 % of heroes on a 4 h bench a day is ~38k rows/day (8 % of
+--   hr_ledger_prune's 480k/day ceiling). Owned rows: at most one per (hero,
+--   channel), capped at 100 by the fuse. Edge: one engine call per window over at
+--   most one flush of actions (140 bones in tests/artisan-tick.mjs A-RUNNING); the
+--   gather body it rides costs what tick-capacity measured (~45-60 ms a visit).
 --
 -- ── EXPLOIT SURFACE DELTA ────────────────────────────────────────────────────
 --   No grant, policy or client RPC changes. The new paying path is the tick's,
@@ -81,12 +82,15 @@
 --   anyway: the change is WHO settles, never the price.
 --
 -- ── REVERSIBILITY ────────────────────────────────────────────────────────────
---   Kill (money): update public.hr_tick_config set armed_channels =
---     array_remove(armed_channels, 'artisan') where id;   (the fence then shadows
---     artisan; enrolment stops by itself, it needs the channel armed)
+--   Kill (money and load, one statement):
+--     update public.hr_tick_config set armed_channels = array_remove(armed_channels, 'artisan'),
+--                                      channels       = array_remove(channels, 'artisan') where id;
+--     (the roster stops leasing artisan heroes; enrolment stops by itself, it needs the channel
+--      armed. Disarming ALONE would leave the fence shadowing every window into hr_tick_shadow.)
 --   Kill (cohort): select public.hr_tick_unenrol('artisan');
---   Full undo: both, then remove 'artisan' from channels and delete the cohort row.
---   Nothing pays twice and no owed time is lost either way: the watermark is the handover.
+--   Full undo: both, then delete the cohort row (the widened CHECKs are inert).
+--   Nothing pays twice and no owed time is lost either way: the watermark is the handover, and
+--   every unsettled bench is paid by its owner's next accrue, as before this file.
 -- ════════════════════════════════════════════════════════════════════════
 
 -- ── §0 PRECONDITIONS — FAIL CLOSED ──────────────────────────────────────────
@@ -161,7 +165,7 @@ declare
   v_u      constant uuid := '000000c1-0000-0000-0000-0000000000e5';   -- a hero fuelling the Hearth, browser closed
   c_holder constant text := 'artisan-tick-selfcheck';
   v_cfg    public.hr_tick_config%rowtype;
-  v_enrol  jsonb; v_r jsonb; v_r2 jsonb; v_n int; v_ver bigint; v_from timestamptz; v_to timestamptz;
+  v_enrol  jsonb; v_r jsonb; v_r2 jsonb; v_n int; v_try int; v_ver bigint; v_from timestamptz; v_to timestamptz;
   v_intent uuid := '000000c1-0000-0000-0000-0000000000e6';
   v_kind   text; v_led int; v_led2 int; r text;
 begin
@@ -198,7 +202,12 @@ begin
       on conflict (user_id, slot) do update set real_return_at = excluded.real_return_at;
     end if;
 
-    v_enrol := public.hr_tick_enrol(200);
+    -- (the minute cron may hold the enroller's try-lock for a few ms: ask again rather than read 'locked' as a defect)
+    for v_try in 1..10 loop
+      v_enrol := public.hr_tick_enrol(200);
+      exit when v_enrol->>'outcome' is distinct from 'locked';
+      perform pg_sleep(0.2);
+    end loop;
     if not exists (select 1 from public.hr_tick_ownership where user_id = v_u and slot = 0 and channel = 'artisan' and owned)
        or not exists (select 1 from public.hr_tick_enrolment where user_id = v_u and slot = 0 and channel = 'artisan'
                        and event = 'enrol' and reason = 'cohort') then

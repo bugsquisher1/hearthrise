@@ -240,7 +240,25 @@ async function main() {
       await prepare(db);
       const { tick, setActivity } = await loadEdge(ROOT);
       console.log('\nartisan-tick — a town bench run settled by the server, owner\'s browser closed\n');
+      /* A-IDEM: a second apply of the file (its §4 included) moves nothing: the config row keeps its tuple and
+         stamp, the cohort rows and the two CHECKs are identical. */
+      const SNAP = `select 'cfg' k, c.channels::text || '|' || c.armed_channels::text || '|' || c.updated_at::text || '|' || c.ctid::text v
+                      from public.hr_tick_config c
+                    union all select 'coh:' || channel, permille || '|' || max_owned || '|' || fresh_s || '|' || coalesce(note, '') || '|' || ctid::text
+                      from public.hr_tick_cohort
+                    union all select 'ck:' || conname, pg_get_constraintdef(oid) from pg_constraint
+                     where conname in ('hr_tick_cohort_channel_ck', 'hr_tick_enrolment_channel_ck')
+                    order by 1`;
+      const s1 = JSON.stringify((await db.query(SNAP)).rows);
+      const src = readFileSync(join(ROOT, 'supabase', 'migrations', MIG), 'utf8').replace(/\r\n/g, '\n');
+      let again = null;
+      try { await db.exec(`begin;\n${src}\ncommit;`); } catch (e) { await db.exec('rollback').catch(() => {}); again = String(e.message).split('\n')[0]; }
+      const s2 = JSON.stringify((await db.query(SNAP)).rows);
+      const idem = again === null && s1 === s2;
+      console.log(idem ? '  ✓ A-IDEM — a second apply (its §4 included) moves nothing: config tuple, cohort rows, CHECKs identical'
+        : `  ✗ A-IDEM — the second apply ${again ? 'refused: ' + again : 'moved state'}`);
       const red = await arms(db, tick, setActivity);
+      if (!idem) red.set('A-IDEM', 'second apply');
       console.log(red.size ? `\nartisan-tick: RED (${red.size})` : '\nartisan-tick: green');
       process.exitCode = red.size ? 1 : 0;
     } catch (e) {

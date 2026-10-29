@@ -29,23 +29,23 @@
 // PURE ESM. No DOM. Imports cleanly in Node, Deno and the browser.
 // ============================================================
 
-import { ITEMS } from './items.js?v=0.2.63';
-import { ARTISAN_RECIPES } from './recipes.js?v=0.2.63';
-import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=0.2.63';
-import { SKILLS_DEF } from './skills.js?v=0.2.63';
-import { SHOP_OFFERS } from './shops.js?v=0.2.63';
-import { SHOP_LISTED_OFFER_IDS } from './supply-basics.js?v=0.2.63';
-import { START_INVENTORY, START_EQUIPMENT } from './start-kit.js?v=0.2.63';
-import { PREMIUM_LOGIN_REWARD } from './premium.js?v=0.2.63';
-import { HEARTHFIND_ITEMS, HEARTHFIND_TABLE } from './hearthfind.js?v=0.2.63';
-import { EFFECT_KINDS } from './item-effects.js?v=0.2.63';
-import { MONSTERS } from './monsters.js?v=0.2.63';
-import { NAMED_FUELS } from './hearth.js?v=0.2.63';
-import { HUNT_GROUNDS, OPEN_GROUNDS } from './hunt-grounds.js?v=0.2.63';
-import { HUNT_INDEX } from './hunts.js?v=0.2.63';
+import { ITEMS } from './items.js?v=0.2.64';
+import { ARTISAN_RECIPES } from './recipes.js?v=0.2.64';
+import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=0.2.64';
+import { SKILLS_DEF } from './skills.js?v=0.2.64';
+import { SHOP_OFFERS } from './shops.js?v=0.2.64';
+import { SHOP_LISTED_OFFER_IDS } from './supply-basics.js?v=0.2.64';
+import { START_INVENTORY, START_EQUIPMENT } from './start-kit.js?v=0.2.64';
+import { PREMIUM_LOGIN_REWARD } from './premium.js?v=0.2.64';
+import { HEARTHFIND_ITEMS, HEARTHFIND_TABLE } from './hearthfind.js?v=0.2.64';
+import { EFFECT_KINDS } from './item-effects.js?v=0.2.64';
+import { MONSTERS } from './monsters.js?v=0.2.64';
+import { NAMED_FUELS } from './hearth.js?v=0.2.64';
+import { HUNT_GROUNDS, OPEN_GROUNDS } from './hunt-grounds.js?v=0.2.64';
+import { HUNT_INDEX } from './hunts.js?v=0.2.64';
 import {
   gatherProductIds, cropProductIds, seedIds, combatDropIds, artisanOutputIds,
-} from './item-authority.js?v=0.2.63';
+} from './item-authority.js?v=0.2.64';
 
 /* The data identities this module reads, re-exported so a Node guard can mutate
    the SAME objects (a bare import without the ?v= query is a second module
@@ -105,6 +105,8 @@ export const VENDOR_TRASH = Object.freeze(['sticky_core', 'goblin_ear', 'goblin_
   'rat_kings_crown', 'coppercaps_cauldron',
   /* Wickstead's four (lane b-greenhaven-6), the same promise. */
   'granary_whisker', 'barn_wasp_sting', 'loft_web', 'torn_company_badge',
+  /* the boar and the bear (lane b-unsourced-items): their imbuement items, and the boar's bristles */
+  'orchard_boar_tusk', 'brook_bear_tooth', 'boar_bristle',
 ]);
 
 /* ── AWAITING THE ROSTER — catalogued, kept, and deliberately unobtainable ───
@@ -193,13 +195,9 @@ export const UNREACHABLE = Object.freeze({
   /* Tier 1-3 gear and Greenhaven-fit materials (roads, greenwood, farm edge, ruins) for the region's next
      grounds. Gloves, belts and the caster's cloth line have NO reachable piece today. */
   greenhaven: Object.freeze([
-    'bronze_gauntlets', 'steel_gauntlets', 'boarhide_gloves', 'apprentice_gloves',
-    'scholar_gloves', 'leather_belt', 'steel_belt', 'boarhide_belt',
-    'apprentice_belt', 'scholar_belt',
     'rat_stick',
     'spidersilk_choker', 'tusker_charm', 'packlord_band',
-    'mirewort_drops', 'ancient_fragment', 'cracked_spellstone', 'grave_dust', 'razor_claw', 'bear_pelt', 'bear_claw',
-    'raw_bear_meat', 'cooked_bear_meat', 'bear_claw_pie',
+    'mirewort_drops', 'ancient_fragment', 'cracked_spellstone', 'grave_dust', 'razor_claw',
   ]),
   /* Tier 4+ ladder rungs, the old roster's uniques, and the dragon, undead, demon, troll and void materials
      with the late recipes they feed (Cooking 25 panther and 70+, Inner Flame 35+, Crafting 60 keystones). */
@@ -215,7 +213,8 @@ export const UNREACHABLE = Object.freeze({
     'keystone',
     'dragon_bones', 'troll_hide', 'vamp_dust', 'demon_shard', 'dragon_scale', 'lich_soul', 'ancient_rune',
     'dragon_gem', 'wraith_veil', 'void_chitin', 'void_core', 'ancient_claw', 'raw_panther_meat', 'cooked_panther_meat',
-    'hunters_feast', 'dragon_stew', 'lich_soul_soup', 'void_banquet', 'soul_recipe', 'marrow_cookbook',
+    /* the Bear Pelt waits with its one consumer, the Hunter's Feast (troll hide): the Brook Bear drops the meat and claw */
+    'bear_pelt', 'hunters_feast', 'dragon_stew', 'lich_soul_soup', 'void_banquet', 'soul_recipe', 'marrow_cookbook',
     'field_cookbook', 'emberheart',
   ]),
   /* Vendor trash of creatures with no home in the plan: no recipe, room or quest reads them. */
@@ -234,7 +233,9 @@ export const UNREACHABLE = Object.freeze({
    Adept Robe Top); the Longbow left `staged` (made at Crafting 15 too). 134 -> 133 (lane b-loot-bands): Old Grayjaw's
    Rare row sources the Studded Leather Coif. 133 -> 132: the Sewer's kobolds drop the Iron Boots; 132 -> 131: Rook hides the Boarhide Coif; 131 -> 129: the Warrens drop the Steel and Scholar boots.  129 -> 125: the Warrens' willow Rares. */
 /* 125 -> 115 (lane b-greenhaven-6): Wickstead's ten move to `staged` (C11 proves its opening sources them). */
-export const UNREACHABLE_CEILING = 115;
+/* 115 -> 105 (lane b-unsourced-items): the tier-1 gloves and sashes are made (style-gear.js), the tier-3 ones are Warrens Rares. */
+/* 105 -> 101: the Brook Bear's meat and claw (and the two dishes they cook); the Bear Pelt waits in `later` with its feast. */
+export const UNREACHABLE_CEILING = 101;
 
 /**
  * id -> the first reachable door (a label). `opts` opens planned doors for C11's proof:

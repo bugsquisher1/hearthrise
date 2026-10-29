@@ -1,16 +1,16 @@
 // ITEMS — extracted from hearthrise-phaseA.html
 
-import { GEAR_ITEMS } from './gear-tiers.js?v=0.2.63';
-import { WAVE3_ITEMS } from './wave3-uniques.js?v=0.2.63';
-import { SLOT_ITEMS } from './slot-ladders.js?v=0.2.63';
-import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=0.2.63';
-import { LIB2_ITEMS } from './library2-items.js?v=0.2.63';
-import { STONECRAFT_ITEMS } from './stonecraft.js?v=0.2.63';
-import { BOSS_FORGE_ITEMS } from './boss-forge.js?v=0.2.63';
-import { CHAMPION_ITEMS } from './champions.js?v=0.2.63';
-import { DRINK_ITEMS } from './drinks.js?v=0.2.63';
-import { IMBUE_ITEMS } from './imbuements.js?v=0.2.63';
-import { SHIELD_ITEMS } from './shields.js?v=0.2.63';
+import { GEAR_ITEMS } from './gear-tiers.js?v=0.2.64';
+import { WAVE3_ITEMS } from './wave3-uniques.js?v=0.2.64';
+import { SLOT_ITEMS } from './slot-ladders.js?v=0.2.64';
+import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=0.2.64';
+import { LIB2_ITEMS } from './library2-items.js?v=0.2.64';
+import { STONECRAFT_ITEMS } from './stonecraft.js?v=0.2.64';
+import { BOSS_FORGE_ITEMS } from './boss-forge.js?v=0.2.64';
+import { CHAMPION_ITEMS } from './champions.js?v=0.2.64';
+import { DRINK_ITEMS } from './drinks.js?v=0.2.64';
+import { IMBUE_ITEMS } from './imbuements.js?v=0.2.64';
+import { SHIELD_ITEMS } from './shields.js?v=0.2.64';
 
 export const ITEMS={
   /* b215: the generated tier ladder (7 material tiers × every armour slot ×
@@ -107,6 +107,8 @@ export const ITEMS={
   dire_fang:{n:'Dire Fang',icon:'🦷',v:150},alpha_fang:{n:'Alpha Fang',icon:'🦷',v:450},grave_dust:{n:'Grave Dust',icon:'⚱️',v:95},
   /* Mosslight Glade's rare (lane c-ground-16-31): Rook the Poacher, the ground's one carrier. */
   rooks_whistle:{n:'Rook\'s Whistle',icon:'🎶',v:500},
+  /* The Orchard Boar's bristles (lane b-unsourced-items): trader's goods, like the wolves' fangs. */
+  boar_bristle:{n:'Boar Bristle',icon:'🐗',v:5},
   /* The bosses' Trophies (designer 2026-10-23): each boss's one named prize, about every 140 h, tradeable. */
   rat_kings_crown:{n:'Rat King\'s Crown',icon:'👑',v:4000,type:'trophy',tag:'trophy',rarity:'legendary'},
   coppercaps_cauldron:{n:'Coppercap\'s Cauldron',icon:'🥘',v:7500,type:'trophy',tag:'trophy',rarity:'legendary'},

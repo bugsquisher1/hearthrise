@@ -63,28 +63,28 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_INDEX } from './hunts.js?v=0.2.63';
-import { HUNT_GROUNDS } from './hunt-grounds.js?v=0.2.63';
-import { END_ORDER, DEATH_XP_LOSS, STAMINA_LOW_MIN } from './hunt-sessions.js?v=0.2.63';
-import { nextUnlock } from './skill-unlocks.js?v=0.2.63';
-import { SKILLS_DEF } from './skills.js?v=0.2.63';
-import { CROPS, TREES, ROCKS } from './gathering.js?v=0.2.63';
-import { tallyTask } from './tally-tasks.js?v=0.2.63';
-import { WEIGHT_ORDER, weightShort } from './armour-weights.js?v=0.2.63';
-import { ITEMS } from './items.js?v=0.2.63';
-import { BASIC_INDEX } from './supply-basics.js?v=0.2.63';
-import { LEVEL_REQ } from './gear-tiers.js?v=0.2.63';
-import { roleWeaponOf, WEAPON_ROLES, SHIELD_ARM } from './hunt-roles.js?v=0.2.63';
-import { isShield } from './shields.js?v=0.2.63';
-import { deriveProfile } from '../core/member.js?v=0.2.63';
-import { ABILITIES } from './abilities.js?v=0.2.63';
-import { CONSUMABLES } from './consumables.js?v=0.2.63';
-import { RUNE_FAMILIES, runeId } from './runes.js?v=0.2.63';
-import { ARTISAN_RECIPES } from './recipes.js?v=0.2.63';
-import { HUNT_STANCES, ROLE_DEFAULTS } from './rule-subjects.js?v=0.2.63';
-import { START_EQUIPMENT, START_BAR } from './start-kit.js?v=0.2.63';
-import { HEARTH_FUELS } from './hearth.js?v=0.2.63';
-import { regenPermille } from '../core/vitals.js?v=0.2.63';
+import { HUNT_INDEX } from './hunts.js?v=0.2.64';
+import { HUNT_GROUNDS } from './hunt-grounds.js?v=0.2.64';
+import { END_ORDER, DEATH_XP_LOSS, STAMINA_LOW_MIN } from './hunt-sessions.js?v=0.2.64';
+import { nextUnlock } from './skill-unlocks.js?v=0.2.64';
+import { SKILLS_DEF } from './skills.js?v=0.2.64';
+import { CROPS, TREES, ROCKS } from './gathering.js?v=0.2.64';
+import { tallyTask } from './tally-tasks.js?v=0.2.64';
+import { WEIGHT_ORDER, weightShort } from './armour-weights.js?v=0.2.64';
+import { ITEMS } from './items.js?v=0.2.64';
+import { BASIC_INDEX } from './supply-basics.js?v=0.2.64';
+import { LEVEL_REQ } from './gear-tiers.js?v=0.2.64';
+import { roleWeaponOf, WEAPON_ROLES, SHIELD_ARM } from './hunt-roles.js?v=0.2.64';
+import { isShield } from './shields.js?v=0.2.64';
+import { deriveProfile } from '../core/member.js?v=0.2.64';
+import { ABILITIES } from './abilities.js?v=0.2.64';
+import { CONSUMABLES } from './consumables.js?v=0.2.64';
+import { RUNE_FAMILIES, runeId } from './runes.js?v=0.2.64';
+import { ARTISAN_RECIPES } from './recipes.js?v=0.2.64';
+import { HUNT_STANCES, ROLE_DEFAULTS } from './rule-subjects.js?v=0.2.64';
+import { START_EQUIPMENT, START_BAR } from './start-kit.js?v=0.2.64';
+import { HEARTH_FUELS } from './hearth.js?v=0.2.64';
+import { regenPermille } from '../core/vitals.js?v=0.2.64';
 
 /* The surfaces a card may point at: `window` the shell window (src/data/shell-windows.js) its controls live in (the
    card shows INSIDE it while it is open), `icon` its way starts at that window's icon, and what the coach rings

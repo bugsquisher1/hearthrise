@@ -16,13 +16,13 @@
 /* The fletching ladder (arrows). Crafted gear — the generated gear-tiers
    recipes, the wave-3 uniques, the library-2 sets, the boss forge and the
    jewellery/cape rows — was deleted in the 2026-10-14 demolition. */
-import { SLOT_RECIPES } from './slot-ladders.js?v=0.2.63';
-import { ITEMS, foodClassOf } from './items.js?v=0.2.63';
-import { STONECRAFT_RECIPES } from './stonecraft.js?v=0.2.63';
-import { DRINK_RECIPES } from './drinks.js?v=0.2.63';
-import { HEARTH_FUELS, fuelRecipeId } from './hearth.js?v=0.2.63';
-import { STYLE_GEAR_RECIPES } from './style-gear.js?v=0.2.63';
-import { SHIELD_RECIPES } from './shields.js?v=0.2.63';
+import { SLOT_RECIPES } from './slot-ladders.js?v=0.2.64';
+import { ITEMS, foodClassOf } from './items.js?v=0.2.64';
+import { STONECRAFT_RECIPES } from './stonecraft.js?v=0.2.64';
+import { DRINK_RECIPES } from './drinks.js?v=0.2.64';
+import { HEARTH_FUELS, fuelRecipeId } from './hearth.js?v=0.2.64';
+import { STYLE_GEAR_RECIPES } from './style-gear.js?v=0.2.64';
+import { SHIELD_RECIPES } from './shields.js?v=0.2.64';
 const BASE_RECIPES = {
   cooking: [
     // Fish — original starter chain
@@ -322,6 +322,7 @@ export const ARTISAN_CATEGORIES = {
     { key: 'tools',      label: 'Tools' },
     { key: 'whetstones', label: 'Whetstones' },
     { key: 'weapons',    label: 'Weapons & Shields' },
+    { key: 'armour',     label: 'Armor' },
     { key: 'castle',     label: 'Building Materials' },
   ],
   crafting: [
@@ -368,6 +369,7 @@ export function recipeCategory(skillId, recipe, items = ITEMS) {
     if (/_bar$/.test(outId)) return 'smelting';   // ore → bar
     if (type === 'ammo') return 'whetstones';     // strB stones, ammo slot
     if (type === 'weapon' || type === 'offhand') return 'weapons';   // the style ladder: hatchets, the club; the shields
+    if (type === 'armor') return 'armour';        // the Bronze Gauntlets (lane b-unsourced-items)
     if (isCastleGood(out)) return 'castle';       // Iron Fitting
     return null;
   }

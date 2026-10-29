@@ -63,8 +63,8 @@
 // FAMILY_ALIAS folds the historical counts rather than stranding them.
 // ════════════════════════════════════════════════════════════════════════
 
-import { applyClassProfiles } from './monster-classes.js?v=0.2.63';
-import { MONSTER_LEVEL_BY_TIER } from './core-model.js?v=0.2.63';
+import { applyClassProfiles } from './monster-classes.js?v=0.2.64';
+import { MONSTER_LEVEL_BY_TIER } from './core-model.js?v=0.2.64';
 
 /* HUNT SPEED (HUNT_SCREEN_SPEC §3.1 #4): a row's `speed` is MILLITILES per second
    (src/data/hunt-tuning.js units; the sewer roster's values are the sim's, ASSUMED).
@@ -755,13 +755,17 @@ export const MONSTERS = {
     hp: 170, atk: 30, def: 12, xp: 1122, gp: [14, 34], speed: 4400,
     drops: [{ id: 'goblin_ear', ch: .6, band: 'common' }, { id: 'bones', ch: .5, band: 'common' }, { id: 'iron_ore', ch: .2, band: 'common' }, { id: 'skulkers_shiv', ch: .08, band: 'uncommon' },
       { id: 'steel_platebody', ch: .05, band: 'scarce' }, { id: 'boarhide_body', ch: .05, band: 'scarce' }, { id: 'scholar_body', ch: .05, band: 'scarce' },
-      { id: 'willow_longbow', ch: .0062, band: 'rare' }, { id: 'willow_crossbow', ch: .0062, band: 'rare' }] },
+      { id: 'willow_longbow', ch: .0062, band: 'rare' }, { id: 'willow_crossbow', ch: .0062, band: 'rare' },
+      /* the first tier-3 gloves (lane b-unsourced-items): a Rare, since the Shop owns the slot's basic */
+      { id: 'steel_gauntlets', ch: .0062, band: 'rare' }, { id: 'boarhide_gloves', ch: .0062, band: 'rare' }, { id: 'scholar_gloves', ch: .0062, band: 'rare' }] },
   goblin_digger: { name: 'Goblin Digger', icon: '👺', tier: 3, level: 40, cls: 'humanoid', family: 'Humanoid', formation: true,
     /* one override (weapon): the copper pot over its eyes turns a blade; a hammer rings it. */
     weaponWeak: 'hammer', weaponResist: ['sword'],
     hp: 240, atk: 26, def: 20, xp: 1452, gp: [16, 39], speed: 2600,
     drops: [{ id: 'copper_ore', ch: .8, band: 'common' }, { id: 'coal', ch: .4, band: 'common' }, { id: 'bones', ch: .5, band: 'common' }, { id: 'goblin_ear', ch: .4, band: 'common' }, { id: 'dented_copper_pot', ch: .08, band: 'uncommon' },
-      { id: 'steel_helm', ch: .035, band: 'scarce' }, { id: 'boarhide_helmet', ch: .035, band: 'scarce' }, { id: 'scholar_helmet', ch: .035, band: 'scarce' }, { id: 'steel_warhammer', ch: .035, band: 'scarce' }] },
+      { id: 'steel_helm', ch: .035, band: 'scarce' }, { id: 'boarhide_helmet', ch: .035, band: 'scarce' }, { id: 'scholar_helmet', ch: .035, band: 'scarce' }, { id: 'steel_warhammer', ch: .035, band: 'scarce' },
+      /* the first tier-3 belts (lane b-unsourced-items), Rares above the Shop's basic belt */
+      { id: 'steel_belt', ch: .0027, band: 'rare' }, { id: 'boarhide_belt', ch: .0027, band: 'rare' }, { id: 'scholar_belt', ch: .0027, band: 'rare' }] },
   hobgoblin_foreman: { name: 'Hobgoblin Foreman', icon: '👹', tier: 3, level: 46, cls: 'humanoid', family: 'Humanoid', formation: true,
     hp: 300, atk: 30, def: 22, xp: 2112, gp: [29, 67], speed: 3000,
     drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'iron_ore', ch: .6, band: 'common' }, { id: 'coal', ch: .6, band: 'common' }, { id: 'foremans_lash', ch: .08, band: 'uncommon' },
@@ -783,7 +787,7 @@ export const MONSTERS = {
     /* one override (weapon): a bird in the open, so an arrow brings it down and a club swings at air. */
     weaponWeak: 'ranged', weaponResist: [],
     hp: 30, atk: 10, def: 1, xp: 165, gp: [4, 12], speed: 4400,
-    drops: [{ id: 'bone_chips', ch: .5, band: 'common' }, { id: 'crow_quill', ch: .08, band: 'uncommon' }, { id: 'iron_boots', ch: .0095, band: 'scarce' }, { id: 'studded_boots', ch: .0095, band: 'scarce' }, { id: 'adept_boots', ch: .0095, band: 'scarce' }] },
+    drops: [{ id: 'bone_chips', ch: .5, band: 'common' }, { id: 'crow_quill', ch: .08, band: 'uncommon' }, { id: 'iron_boots', ch: .0114, band: 'scarce' }, { id: 'studded_boots', ch: .0114, band: 'scarce' }, { id: 'adept_boots', ch: .0114, band: 'scarce' }] },
   glade_poacher: { name: 'Glade Poacher', icon: '🏹', tier: 2, level: 19, cls: 'human', family: 'Human',
     /* glass that hits like a cart: the ground's hardest blow before the sluice */
     hp: 32, atk: 12, def: 2, xp: 225, gp: [6, 18], speed: 3400,
@@ -805,6 +809,11 @@ export const MONSTERS = {
     hp: 78, atk: 18, def: 11, xp: 520, gp: [16, 40], speed: 3200,
     drops: [{ id: 'raw_wolf_meat', ch: .7, band: 'common' }, { id: 'bones', ch: 1, band: 'common' }, { id: 'rooks_moss_charm', ch: .15, band: 'uncommon' }, { id: 'rooks_whistle', ch: .0038, band: 'rare' },
       { id: 'steel_helm', ch: .0038, band: 'rare' }, { id: 'boarhide_helmet', ch: .0038, band: 'rare' }, { id: 'scholar_helmet', ch: .0038, band: 'rare' }] },
+  brook_bear: { name: 'Brook Bear', icon: '🐻', tier: 3, level: 24, cls: 'mammal', family: 'Mammal',
+    /* the springs' bruiser (lane b-unsourced-items): it fishes the Meadowbrook; the wet coat sheds frost, fire takes it */
+    elementWeak: 'ember', elementResist: ['frost'],
+    hp: 74, atk: 18, def: 8, xp: 420, gp: [14, 36], speed: 3000,
+    drops: [{ id: 'raw_bear_meat', ch: .6, band: 'common' }, { id: 'bear_claw', ch: .25, band: 'common' }, { id: 'brook_bear_tooth', ch: .08, band: 'uncommon' }] },
 
   /* ══ Wickstead, levels 8-18, solo, mixed (lane b-greenhaven-6, designer 2026-10-28): roles and economy in the
      src/data/hunt-grounds.js header. THE LOOT BANDS: tier-1 boots (rats) and helmets (wasps), tier-2 legs (spiders) and
@@ -815,7 +824,7 @@ export const MONSTERS = {
     /* the swarm: fat on the farm's grain, many and quick */
     hp: 15, atk: 4, def: 1, xp: 56, gp: [3, 7], speed: 3400,
     drops: [{ id: 'rat_tail', ch: .4, band: 'common' }, { id: 'bones', ch: .35, band: 'common' }, { id: 'granary_whisker', ch: .08, band: 'uncommon' },
-      { id: 'bronze_boots', ch: .0041, band: 'scarce' }, { id: 'leather_boots', ch: .0041, band: 'scarce' }, { id: 'apprentice_boots', ch: .0041, band: 'scarce' }] },
+      { id: 'bronze_boots', ch: .0049, band: 'scarce' }, { id: 'leather_boots', ch: .0049, band: 'scarce' }, { id: 'apprentice_boots', ch: .0049, band: 'scarce' }] },
   barn_wasp: { name: 'Barn Wasp', icon: '🐝', tier: 1, level: 11, cls: 'vermin', family: 'Vermin',
     /* one override (weapon): it flies, so an arrow brings it down and a club swings at air */
     weaponWeak: 'ranged', weaponResist: [],
@@ -830,6 +839,13 @@ export const MONSTERS = {
     drops: [{ id: 'silk_thread', ch: .4, band: 'common' }, { id: 'dry_husk', ch: .5, band: 'common' }, { id: 'loft_web', ch: .08, band: 'uncommon' },
       { id: 'iron_platelegs', ch: .0165, band: 'scarce' }, { id: 'studded_pants', ch: .0165, band: 'scarce' }, { id: 'adept_pants', ch: .0165, band: 'scarce' },
       { id: 'iron_gauntlets', ch: .0015, band: 'rare' }, { id: 'studded_gloves', ch: .0015, band: 'rare' }, { id: 'adept_gloves', ch: .0015, band: 'rare' }] },
+  orchard_boar: { name: 'Orchard Boar', icon: '🐗', tier: 1, level: 12, cls: 'mammal', family: 'Mammal',
+    /* the orchard's tank (lane b-unsourced-items): its thick skull rings a hammer off; a blade finds the flank */
+    weaponWeak: 'sword', weaponResist: ['hammer'],
+    hp: 16, atk: 5, def: 2, xp: 95, gp: [3, 8], speed: 3000,
+    /* no Rare: the Tusker's Charm is Old Tusker's relic, ONE source (tests/w0f-fun-content.mjs); he joins the Orchard as its
+       champion with his own (larger) art, the next batch */
+    drops: [{ id: 'boar_bristle', ch: .6, band: 'common' }, { id: 'bones', ch: .5, band: 'common' }, { id: 'orchard_boar_tusk', ch: .08, band: 'uncommon' }] },
   turncoat: { name: 'Turncoat', icon: '🗡️', tier: 2, level: 16, cls: 'human', family: 'Human',
     /* a deserter from a free company, robbing the Thicket road; glass that hits hard. The jewellery's carrier. */
     hp: 34, atk: 10, def: 3, xp: 240, gp: [10, 22], speed: 3400,

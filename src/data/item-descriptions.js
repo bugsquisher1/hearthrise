@@ -3,15 +3,15 @@
 // voice, original IP. Surfaced in the item detail/tooltip (the "what is it" line).
 // SAFE TO EXTEND: an item with no entry here just shows no flavour line — nothing breaks.
 
-import { WAVE3_DESC } from './wave3-uniques.js?v=0.2.63';
-import { SLOT_DESC } from './slot-ladders.js?v=0.2.63';
-import { LIB2_DESC } from './library2-items.js?v=0.2.63';
-import { BOSS_FORGE_DESC } from './boss-forge.js?v=0.2.63';
-import { CHAMPION_DESC } from './champions.js?v=0.2.63';
-import { DRINK_DESC } from './drinks.js?v=0.2.63';
-import { IMBUE_DESC } from './imbuements.js?v=0.2.63';
-import { STYLE_GEAR_DESC } from './style-gear.js?v=0.2.63';
-import { SHIELD_DESC } from './shields.js?v=0.2.63';
+import { WAVE3_DESC } from './wave3-uniques.js?v=0.2.64';
+import { SLOT_DESC } from './slot-ladders.js?v=0.2.64';
+import { LIB2_DESC } from './library2-items.js?v=0.2.64';
+import { BOSS_FORGE_DESC } from './boss-forge.js?v=0.2.64';
+import { CHAMPION_DESC } from './champions.js?v=0.2.64';
+import { DRINK_DESC } from './drinks.js?v=0.2.64';
+import { IMBUE_DESC } from './imbuements.js?v=0.2.64';
+import { STYLE_GEAR_DESC } from './style-gear.js?v=0.2.64';
+import { SHIELD_DESC } from './shields.js?v=0.2.64';
 
 export const ITEM_DESC = {
   /* Mage = wand + spellbook; Healer = staff (Tyler 2026-10-19). */
@@ -77,6 +77,7 @@ export const ITEM_DESC = {
   'adept_pants': 'An adept\'s robe bottoms, finer cloth woven for a caster growing into their craft',
   'alpha_cloak': 'Alpha-beast pelt worn as a cape, warding blows and sharpening the strike',
   'alpha_fang': 'The great fang of a pack alpha, a rare and coveted trophy',
+  'boar_bristle': 'A tuft of stiff back bristle off an Orchard Boar. The brush-maker in town buys them',
   'rooks_whistle': 'The bone whistle Rook calls the Mosslight crows with. A collector in town pays well for it',
   'rat_kings_crown': 'The Rat King\'s whole crown, hammered from the Millrace\'s drain grates. Few hunters ever lift it off him',
   'coppercaps_cauldron': 'The polished cauldron Chief Coppercap wears for a crown, dented from every fight in the Warrens',

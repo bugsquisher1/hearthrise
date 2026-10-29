@@ -1,0 +1,35 @@
+{
+  "id": "hf_ford_marker",
+  "class": "fixture",
+  "style": "s1",
+  "material": "wood",
+  "source": "hf_ford_marker.png",
+  "frame": [
+    36,
+    50
+  ],
+  "anchor_px": [
+    18,
+    49
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_image_pro_flash",
+    "image": "7bfee120-494d-5b9c-8eb8-9a4c90d10c2b",
+    "cell": 14
+  },
+  "notes": "Cell 14 of a 4x4 style-1 prop sheet (PixelLab image 7bfee120-494d-5b9c-8eb8-9a4c90d10c2b, style image a Map Workshop prop of the kit), cut to its opaque box by tools/world-art/port-pixellab.mjs; pixels unscaled."
+}

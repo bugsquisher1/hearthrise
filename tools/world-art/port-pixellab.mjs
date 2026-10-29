@@ -24,6 +24,7 @@ import { join } from 'node:path';
 import { decodePNG, encodePNG, createImage, blit } from './png.mjs';
 import { T, CLASSES, FACINGS } from '../../src/data/world/art-budget.js';
 import { ROOT, ART_DIR } from './build.mjs';
+import { measureFrame } from './measure.mjs';
 import { isMain } from '../../tests/_is-main.mjs';
 
 /** Every --key value (repeatable keys collect into arrays). */
@@ -252,15 +253,22 @@ function main() {
     const facingsOf = (a) => FACINGS.filter((d) => a.frames[d] && a.frames[d].length);
     const cols = Math.max(...anims.map((a) => Math.max(...facingsOf(a).map((d) => a.frames[d].length))));
     const sheet = createImage(cols * fw, anims.reduce((n, a) => n + facingsOf(a).length, 0) * fh);
-    let r = 0;
+    /* --seat idle (a walking unit whose pike, banner or falling body reaches below its feet): PixelLab draws every
+       clip on its rotation's canvas, so each frame keeps the idle's offset (the rotation's foot row, the validator's
+       measure, on the anchor) and is lifted only as far as keeps its lowest pixel in the frame. What still reaches
+       below the anchor is declared as overhang_px. The default seats each clip facing by its own lowest pixel. */
+    const idleFoot = o.seat === 'idle' ? Object.fromEntries(FACINGS.map((d) => [d, measureFrame(decodePNG(readFileSync(rot(d)))).foot])) : null;
+    let r = 0, reach = 0;
     for (const a of anims) for (const d of facingsOf(a)) {
       const imgs = a.frames[d].map((f) => decodePNG(readFileSync(f)));
       const lowest = Math.max(...imgs.map(lowestRow));
       /* a flier falls from its hover to the floor: its fall and corpse rest on the anchor row like every body */
       const dy = (flier && a.name !== 'death' && a.name !== 'corpse' ? ay - hover : ay) - lowest, dx = ax - Math.floor(imgs[0].width / 2);
       imgs.forEach((img, i) => {
+        const fdy = idleFoot ? Math.min(ay - idleFoot[d], fh - 1 - lowestRow(img)) : dy;
+        if (idleFoot) reach = Math.max(reach, lowestRow(img) + fdy - ay);
         const frame = createImage(fw, fh);
-        blit(frame, img, 0, 0, img.width, img.height, dx, dy, true);
+        blit(frame, img, 0, 0, img.width, img.height, dx, fdy, true);
         blit(sheet, frame, 0, 0, fw, fh, i * fw, r * fh);
       });
       r++;
@@ -269,6 +277,7 @@ function main() {
     const sc = {
       id: o.id, class: o.class, style: 's1', material: o.material || 'unit', source: o.id + '.png', anchor_px: [ax, ay], footprint: [1, 1],
       ...(flier ? { hover_px: hover } : {}),
+      ...(idleFoot && reach > 0 ? { overhang_px: [0, 0, reach, 0] } : {}),
       anims: anims.map((a) => ({ name: a.name, fps: a.fps, loop: a.loop, dirs: Object.fromEntries(facingsOf(a).map((d) => [d, a.frames[d].length])) })),
       pixellab: { tool: 'create_object_pro_flash', object: o.object, n_directions: 8, ...(o.name ? { name: o.name } : {}) },
       notes: 'Ported from PixelLab object ' + o.object + ' (style 1, 48 px canvas, 8 rotations' + (anims.length > 1 ? ' and a v3 walk' : '') + ') by tools/world-art/port-pixellab.mjs: pixels unscaled, each facing seated on the class anchor by whole pixels.',

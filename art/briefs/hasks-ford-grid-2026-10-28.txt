@@ -1,0 +1,121 @@
+Hask's Ford, the walk grid (art lane b-hasks-ford-art, 2026-10-28; v2 organic, replaces the rejected rectangle grid).
+The painted ground art/world/march/hasks_ford_ground (PixelLab map ee5f44c4) matches these rows cell for cell. The designer owns the final
+rows (src/data/world/maps/); if they move, the paint moves with them.
+
+Legend: # blocks a step and a shot (alder thicket wall, reed beds, barrow mounds)  . bank ground  ~ deep river (blocks)  : the ford (walkable)
+Lint (scratch tool, same rules as KIT 4b): 886 open tiles, every one in an open 3x3, all reachable from the road in at (0,29-31).
+
+The river comes in from the west at y11-16, bends down through the ford and leaves east at y12-15. ONE crossing: the Ford, x22-36 y18-24,
+shallow water with two gravel bars (x25-29 y20-21, x31-33 y22-23), mud landings north (x27-31 y14-17) and south (x25-31 y25-28).
+Pockets (irregular clearings):
+  P0 the Pike Files  x3-18 y25-37   the road in from Wickstead enters at the west edge, y29-31
+  P1 the Toll Stone  x19-37 y25-35  the south landing of the Ford
+  P2 the Low Barrows x40-56 y23-37  barrow mounds split it (x45-47 y31-33, x52-54 y32-35) and a barrow bank on its north
+  P3 the Company Stores x22-38 y3-15  the north landing of the Ford
+  P4 the Muster Line x40-57 y3-11
+  P5 the High Barrows x6-20 y4-11  ringed by barrow banks, a mound in the middle (x10-12 y4-6)
+Lanes are 3 wide and wander; a 2-wide trampled mud track runs the route (road in > P0 > P1 > Ford > P3 > P5, P3 > P4, P1 > P2).
+
+ROWS (y0 at the top):
+    '############################################################',
+    '############################################################',
+    '############################################################',
+    '#############################################.......########',
+    '#######################.....###############...........######',
+    '######...#####...#####.......#############.............#####',
+    '######....###.....#................######..............#####',
+    '######...............................##.................####',
+    '#######..................................................###',
+    '########.............##....................##............###',
+    '#############.......####................##########.......###',
+    '~~############.....#####...............############.....####',
+    '~~~~~~~###################.............###################~~',
+    '~~~~~~~~~~#################............#################~~~~',
+    '~~~~~~~~~~~~###############.....#.....########~~~~~~~~~~~~~~',
+    '~~~~~~~~~~~~~~#############.....############~~~~~~~~~~~~~~~~',
+    '~~~~~~~~~~~~~~~~###########.....#########~~~~~~~~~~~~~~~~~~~',
+    '#####~~~~~~~~~~~~~~########.....######~~~~~~~~~~~~~~~~~~~~~~',
+    '#########~~~~~~~~~~~~~~###:::::::##~~~~~~~~~~~~~~~~~~~~~~###',
+    '###########~~~~~~~~~~~::::::::::::::~~~~~~~~~~~~############',
+    '#############~~~~~~~~~:::::::::::::::~~~~~~~~###############',
+    '###############~~~~~~~:::::::::::::::~~~~~~#################',
+    '##################~~~~:::::::::::::::~~~####################',
+    '######################~~:::::::::::::#############.....#####',
+    '##########################::::::::::#############.......####',
+    '####.....###############.......##################.......####',
+    '###.......############...........#############..........####',
+    '###..........########.............#######...#...........####',
+    '###...........#######...............#####...............####',
+    '...............#.....................##................#####',
+    '.....................................................#######',
+    '..............................................#......#######',
+    '####..............#.....................#....###....########',
+    '####.................................###......##....########',
+    '#####......................####.....###.......##############',
+    '######.............##.....#############.......##############',
+    '###########.......#####################.......##############',
+    '#############...########################.....###############',
+    '############################################################',
+    '############################################################',
+
+PAINT (T alder thicket, R reed bed, B barrow turf, G withered grass, M mud track/bank, W river, S ford shallows, V gravel bar):
+    TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
+    TTTTTTTTBBBBBBBTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
+    TTTTTTBBBBBBBBBBBTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
+    TTTTBBBBTTTTTTTBBBBTTTTTTTTTTTTTTTTTTTTTTTTTTGGGGGGGTTTTTTTT
+    TTTTBBBTTTBBBTTTBBBTTTTGGGGGTTTTTTTTTTTTTTTGGGGGGGGGGGTTTTTT
+    TTTBBBGGGBBBBBGGGBBBTRGGGGGGGTTTTTTTTTTTTTGGGGGGGGGGGGGTTTTT
+    TTTBBTGGGGBBBGGGGGBGGGMMMMMGGGGGGGGTTTTRRGGMMMMMMMGGGGGTTTTT
+    TTTBBBGGGGGGMMMMGMMMMMMMMMMMMGGGGGGGGRRGMMMMMMMMMMMGGGGGTTTT
+    TTTTBBBGGGGGGMMMMMMMMGGGGGGMMMGGGGGGGGMMMMMGGGGGGGGGGGGGGTTT
+    TTTTTTBBGGGGGGGGGGGGGRTGGGGGMMGGGGGGMMMMMGGRTGGGGGGGGGGGGTTT
+    RRRRRTTTTTTBBGGGGGGGTTTTGGGGGMMMMMMMMMMGRRTTTTTTTTGGGGGGGTTR
+    WWRRRRRRRRTTTBGGGGGTTTTTGGGGGMMMMMMMGGGRTTTTTTTTTTTGGGGGTRRR
+    WWWWWWWRRRRRTTTTTTTTTTTTTTGGGMMGGGGGGGGRTTTTTTTRRRRRRRRRRRWW
+    WWWWWWWWWWRRRRTTTTTTTTTTTTTGGMMGGGGGGGGTTTTTTRRRRRRRRRRRWWWW
+    WWWWWWWWWWWWRRRRTTTTTTTTTTTGMMMGTGGGGGTTTTRRRRWWWWWWWWWWWWWW
+    WWWWWWWWWWWWWWRRRRTTTTTTTTRGMMMGRTTTTTTRRRRRWWWWWWWWWWWWWWWW
+    WWWWWWWWWWWWWWWWRRRRRRRRRRRMMMMMRRRTRRRRRWWWWWWWWWWWWWWWWWWW
+    RRRRRWWWWWWWWWWWWWWRRRRRRRRMMMMMRRRRRRWWWWWWWWWWWWWWWWWWWWWW
+    TTRRRRRRRWWWWWWWWWWWWWWRRRSSSSSSSRRWWWWWWWWWWWWWWWWWWWWWWRRR
+    TTTTTTTRRRRWWWWWWWWWWWSSSSSSSSSSSSSSWWWWWWWWWWWWRRRRRRRRRRRT
+    TTTTTTTTTRRRRWWWWWWWWWSSSVVVVVSSSSSSSWWWWWWWWRRRRRRRRRRRRTTT
+    TTTTTTTTTTTRRRRWWWWWWWSSSVVVVVSSSSSSSWWWWWWRRRRTTTTTTTTTTTTT
+    TTTTTTTTTTTTTRRRRRWWWWSSSSSSSSSVVVSSSWWWRRRRTTTTTTTTTTTTTTTT
+    TTTTTTTTTTTTTTTRRRRRRRWWSSSSSSSVVVSSSRRRRRTTTBBBBBGGGGGTTTTT
+    TTTTTTTTTTTTTTTTTTTRRRRRRRSSSSSSSSSSRRRTTTTBBBBBBGGGGGGGTTTT
+    TTTTGGGGGTTTTTTTTTTTTTRRGMMMMMMRRRRRRRRTBBBBBBTBBGGGGGGGTTTT
+    TTTGGGGGGGTTTTTTTTTTTTGGGMMMMMMMGRRRTTTTBBBBBBGGGGGGGGGGTTTT
+    TTRGGGGGGGGGGTTTTTTTTGGGGGGMMMGGGGTTTTBBBGGGBGGGGGGGGGGGTTTT
+    RRRGGGGGGGGGGGTTTTTTTGGGGGMMMGGGGGGGTTTTBGGGGGGGGGGGGGGGTTTT
+    GMMMMMMGGGGGGGGRGGGGGGGGMMMMMMMGGGGGGRRGGGGGGGGGGGGGGGGTTTTT
+    MMMMMMMMMMGGGGGMMMMMMMMMMMMGMMMMMMGGGGMMMMMMGGGGGGGGGBBBTTTT
+    GGGGGGGMMMMMMMMMMMGMMMMMMGGGGGGMMMMMMMMMMMMMMMBGGGGGGBBTTTTT
+    TTTTGGGGGGGGGGGGGGRGGGGGGGGGGGGGGGGGGGGGBGGGMBBBGGGGBBBTTTTT
+    TTTTGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGTBBGGGGGGBTGGGGBBBTTTTT
+    TTTTTGGGGGGGGGGGGGGGGGGGGGGTTTTGGGGGTTTGGGGGGGTTTTBBBBTTTTTT
+    TTTTTTGGGGGGGGGGGGGTTGGGGGTTTTTTTTTTTTTGGGGGGGTBBBBBBBTTTTTT
+    TTTTTTTTTTTGGGGGGGTTTTTTTTTTTTTTTTTTTTTGGGGGGGBBBBBBTTTTTTTT
+    TTTTTTTTTTTTTGGGTTTTTTTTTTTTTTTTTTTTTTTTGGGGGBBBBBTTTTTTTTTT
+    TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
+    TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
+
+PROPS (map objects, {id, x, y}: the sprite stands on that cell, as Wickstead's objects do). hf_* are the new march set (lane b-hasks-ford-art);
+the rest are shipped style-1 sprites (forest, mill, sewer, cottage, common). Solid props stand on open grass, never on the track;
+reeds stand on reed cells, trees on the thicket. Keep spawn tiles clear of the solid ones when the packs are placed.
+  /* P0 the Pike Files: the company died in its files; nobody burned them */
+  { id: 'hf_pyre_unlit', x: 9, y: 34 }, { id: 'hf_pike_stakes', x: 5, y: 27 }, { id: 'hf_pike_stakes', x: 14, y: 33 }, { id: 'hf_pikes_fallen', x: 11, y: 28 }, { id: 'bones', x: 7, y: 33 }, { id: 'skull', x: 16, y: 35 }, { id: 'hf_banded_shield', x: 13, y: 36 }, { id: 'mb_fallen_log', x: 4, y: 32 },
+  /* P1 the Toll Stone: where Hask took the coin for the ford */
+  { id: 'hf_toll_stone', x: 23, y: 26 }, { id: 'coins_scattered', x: 24, y: 28 }, { id: 'hf_ford_marker', x: 32, y: 26 }, { id: 'hf_helm_heap', x: 21, y: 33 }, { id: 'hf_pike_stakes', x: 35, y: 28 }, { id: 'bone_pile', x: 33, y: 34 }, { id: 'hf_rowboat_sunk', x: 21, y: 24 },
+  /* the Ford: stepping stones over the bars, reeds at the water */
+  { id: 'mb_stepping_stones', x: 27, y: 19 }, { id: 'mb_stepping_stones', x: 30, y: 23 }, { id: 'mb_reeds', x: 20, y: 17 }, { id: 'mb_reeds', x: 36, y: 17 }, { id: 'mb_reeds', x: 12, y: 13 }, { id: 'mb_reeds', x: 47, y: 12 }, { id: 'mb_reeds', x: 5, y: 18 }, { id: 'mb_reeds', x: 52, y: 19 }, { id: 'mb_reeds', x: 41, y: 22 }, { id: 'mb_reeds', x: 18, y: 23 },
+  /* P3 the Company Stores: the company's broken stores and wagons */
+  { id: 'hf_tent_torn', x: 25, y: 5 }, { id: 'hf_stores_heap', x: 33, y: 7 }, { id: 'hf_wagon_tipped', x: 35, y: 12 }, { id: 'crates', x: 24, y: 9 }, { id: 'barrels', x: 31, y: 9 }, { id: 'barrel_broken', x: 37, y: 11 }, { id: 'sack_pile', x: 26, y: 11 }, { id: 'cart_wheel', x: 33, y: 13 },
+  /* P4 the Muster Line: the broken palisade the company camped behind */
+  { id: 'hf_palisade_broken', x: 46, y: 4 }, { id: 'hf_palisade_stake', x: 50, y: 3 }, { id: 'hf_palisade_stake', x: 44, y: 5 }, { id: 'hf_pike_stakes', x: 54, y: 8 }, { id: 'hf_tent_torn', x: 52, y: 10 }, { id: 'hf_pikes_fallen', x: 47, y: 9 }, { id: 'hf_helm_heap', x: 42, y: 9 },
+  /* P5 the High Barrows: standing stones over the officers */
+  { id: 'hf_standing_stone', x: 8, y: 5 }, { id: 'hf_standing_stone_leaning', x: 15, y: 5 }, { id: 'hf_kerb_ring', x: 10, y: 9 }, { id: 'skull', x: 17, y: 10 }, { id: 'bone_pile', x: 14, y: 10 }, { id: 'hf_standing_stone', x: 19, y: 6 },
+  /* P2 the Low Barrows: the rank and file under the mounds */
+  { id: 'hf_standing_stone', x: 45, y: 27 }, { id: 'hf_standing_stone_leaning', x: 51, y: 29 }, { id: 'hf_kerb_ring', x: 49, y: 33 }, { id: 'hf_palisade_stake', x: 42, y: 28 }, { id: 'hf_banded_shield', x: 53, y: 25 }, { id: 'skull', x: 43, y: 35 }, { id: 'bones', x: 55, y: 27 },
+  /* the alder wall: trees standing out of the thicket at the clearings */
+  { id: 'westwood_ash', x: 20, y: 3 }, { id: 'oak', x: 40, y: 4 }, { id: 'westwood_ash', x: 2, y: 26 }, { id: 'oak', x: 19, y: 35 }, { id: 'westwood_ash', x: 37, y: 36 }, { id: 'oak', x: 57, y: 27 }, { id: 'westwood_ash', x: 40, y: 13 }, { id: 'oak', x: 11, y: 11 },

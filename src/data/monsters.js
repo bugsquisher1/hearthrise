@@ -219,10 +219,15 @@ export const MONSTERS = {
     hp: 35, atk: 10, def: 2, xp: 45, gp: [8, 20],
     drops: [{ id: 'bones', ch: 1 }, { id: 'bone_chips', ch: .6 }, { id: 'iron_ore', ch: .15 }, { id: 'ancient_fragment', ch: .025 },
       { id: 'iron_belt', ch: .004, salvage: true }] },
-  wight: { name: 'Wight', icon: '🪦', tier: 2, cls: 'undead', family: 'Undead',
-    hp: 30, atk: 10, def: 3, xp: 42, gp: [7, 18],
-    drops: [{ id: 'grave_dust', ch: .45 }, { id: 'bones', ch: 1 }, { id: 'bone_chips', ch: .4 },
-      { id: 'willow_staff', ch: .0005, lucky: true }] },
+  /* THE WIGHT (Barrow March, lane b-hasks-ford 2026-10-29): the Banded Company's dead quartermaster-casters, keeping the
+     ledgers by the stores at Hask's Ford. Kept by purpose from the old roster (its tier-2 row and lucky Willow Staff
+     retire with it). */
+  wight: { name: 'Wight', icon: '🪦', tier: 4, level: 53, cls: 'undead', family: 'Undead', formation: true,
+    /* one override (weapon): a spell sinks into the cold; a hammer still breaks it */
+    weaponResist: ['magic'],
+    hp: 155, atk: 42, def: 16, xp: 1800, gp: [20, 48], speed: 3200,
+    drops: [{ id: 'grave_dust', ch: .25, band: 'common' }, { id: 'cracked_spellstone', ch: .1, band: 'common' }, { id: 'ledger_leaf', ch: .08, band: 'uncommon' },
+      { id: 'mithril_platebody', ch: .03, band: 'scarce' }, { id: 'snakeskin_body', ch: .03, band: 'scarce' }, { id: 'warlock_body', ch: .03, band: 'scarce' }] },
   nightmare: { name: 'Nightmare', icon: '🐴', tier: 2, cls: 'demon', family: 'Demon',
     hp: 28, atk: 11, def: 2, xp: 46, gp: [8, 20],
     drops: [{ id: 'demon_shard', ch: .2 }, { id: 'coal', ch: .4 }, { id: 'bones', ch: .8 },
@@ -839,6 +844,31 @@ export const MONSTERS = {
     drops: [{ id: 'silk_thread', ch: .4, band: 'common' }, { id: 'dry_husk', ch: .5, band: 'common' }, { id: 'loft_web', ch: .08, band: 'uncommon' },
       { id: 'iron_platelegs', ch: .0165, band: 'scarce' }, { id: 'studded_pants', ch: .0165, band: 'scarce' }, { id: 'adept_pants', ch: .0165, band: 'scarce' },
       { id: 'iron_gauntlets', ch: .0015, band: 'rare' }, { id: 'studded_gloves', ch: .0015, band: 'rare' }, { id: 'adept_gloves', ch: .0015, band: 'rare' }] },
+  /* ══ Hask's Ford, levels 45-60, solo (THE BARROW MARCH, lane b-hasks-ford 2026-10-29; naming voice in src/data/hunts.js).
+     The Banded Company's dead. THE LOOT BANDS: the tier-4 set in three weights about hourly (Pikemen boots and helmets,
+     Fordsunk legs, Wights bodies); the Bannerman's Rares the tier-4 gloves and belts and the Company Colours. Grave Dust
+     and Barrow Stone are the March's remains: Hearth fuel (Inner Flame 46) and a Keystone input (Crafting 60). ══ */
+  banded_pikeman: { name: 'Banded Pikeman', icon: '💀', tier: 4, level: 46, cls: 'undead', family: 'Undead', formation: true,
+    /* the swarm: the company's dead foot, still in its files; a blade skates off the ribs, a hammer breaks them */
+    weaponResist: ['sword'],
+    hp: 165, atk: 36, def: 18, xp: 1300, gp: [18, 44], speed: 3400,
+    drops: [{ id: 'bones', ch: .5, band: 'common' }, { id: 'ancient_fragment', ch: .15, band: 'common' }, { id: 'pike_band', ch: .08, band: 'uncommon' },
+      { id: 'mithril_boots', ch: .009, band: 'scarce' }, { id: 'snakeskin_boots', ch: .009, band: 'scarce' }, { id: 'warlock_boots', ch: .009, band: 'scarce' },
+      { id: 'mithril_helm', ch: .009, band: 'scarce' }, { id: 'snakeskin_helmet', ch: .009, band: 'scarce' }, { id: 'warlock_helmet', ch: .009, band: 'scarce' }] },
+  fordsunk: { name: 'Fordsunk', icon: '🌊', tier: 4, level: 50, cls: 'undead', family: 'Undead', formation: true,
+    /* the tank: the dead who went into the ford, bloated and slow; arrows sink into the bloat */
+    weaponResist: ['ranged'],
+    hp: 210, atk: 34, def: 24, xp: 1600, gp: [20, 46], speed: 2400,
+    drops: [{ id: 'grave_dust', ch: .3, band: 'common' }, { id: 'bones', ch: .5, band: 'common' }, { id: 'ford_weed', ch: .08, band: 'uncommon' },
+      { id: 'mithril_platelegs', ch: .025, band: 'scarce' }, { id: 'snakeskin_pants', ch: .025, band: 'scarce' }, { id: 'warlock_pants', ch: .025, band: 'scarce' }] },
+  bannerman: { name: 'Bannerman', icon: '🚩', tier: 4, level: 58, cls: 'undead', family: 'Undead', formation: true,
+    /* the rare carrier: the company's dead sergeant, still holding the colours at the toll stone */
+    weaponResist: ['ranged'],
+    hp: 230, atk: 44, def: 24, xp: 2200, gp: [32, 72], speed: 3000,
+    drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'ancient_fragment', ch: .3, band: 'common' }, { id: 'colour_thread', ch: .15, band: 'uncommon' },
+      { id: 'mithril_gauntlets', ch: .004, band: 'rare' }, { id: 'snakeskin_gloves', ch: .004, band: 'rare' }, { id: 'warlock_gloves', ch: .004, band: 'rare' },
+      { id: 'mithril_belt', ch: .004, band: 'rare' }, { id: 'snakeskin_belt', ch: .004, band: 'rare' }, { id: 'warlock_belt', ch: .004, band: 'rare' },
+      { id: 'company_colours', ch: .004, band: 'rare' }] },
   orchard_boar: { name: 'Orchard Boar', icon: '🐗', tier: 1, level: 12, cls: 'mammal', family: 'Mammal',
     /* the orchard's tank (lane b-unsourced-items): its thick skull rings a hammer off; a blade finds the flank */
     weaponWeak: 'sword', weaponResist: ['hammer'],

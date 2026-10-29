@@ -47,9 +47,11 @@ import { pathToFileURL } from 'node:url';
 import { makeReport, ROOT } from './fixtures/h1.js';
 
 const V = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(ROOT, 'src/build-info.js'), 'utf8')) || [, ''])[1];
-const NEW = ['meadowbrook_thicket', 'coppercap_warrens', 'mosslight_glade', 'wickstead'];
+const NEW = ['meadowbrook_thicket', 'coppercap_warrens', 'mosslight_glade', 'wickstead', 'hasks_ford'];
 const BRIDGE = { meadowbrook_thicket: [[28, 5], [29, 5], [30, 5], [31, 5], [32, 5]], coppercap_warrens: [[51, 20], [51, 21], [51, 22]],
-  mosslight_glade: [[44, 19], [44, 20], [44, 21], [44, 22], [44, 23]], wickstead: [[28, 8], [29, 8], [30, 8], [31, 8]] };
+  mosslight_glade: [[44, 19], [44, 20], [44, 21], [44, 22], [44, 23]], wickstead: [[28, 8], [29, 8], [30, 8], [31, 8]],
+  /* the Ford is wide (15 tiles of shallows); its middle row is the one line every crossing walks */
+  hasks_ford: [[22, 21], [23, 21], [24, 21], [25, 21], [26, 21], [27, 21], [28, 21], [29, 21], [30, 21], [31, 21], [32, 21], [33, 21], [34, 21], [35, 21], [36, 21]] };
 const MID_DENSITY = 4;
 const RING8 = [[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]];
 /* The designer's six hunt seeds (pass 2026-10-21) and the margin floor (+25%, a minimum: Tyler 10-18/10-20). */

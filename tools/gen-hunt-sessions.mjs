@@ -187,7 +187,8 @@ export const WORLD_FIELDS_READ = Object.freeze({
    vendor values land in this forward file, the same full replace, applied after 2027-02-06-wickstead-items-catalogue. */
 /* THE UNSOURCED ITEMS (lane b-unsourced-items, 2026-10-28): 2027-02-06 is APPLIED history; the Warrens' six tier-3 glove and belt
    Rares join the skulker's and digger's kill bounds in this forward file, applied after 2027-02-08-unsourced-bench-inputs. */
-export const OUT_NAME = '2027-02-08-unsourced-hunt-sessions-catalogue.generated.sql';
+/* HASK'S FORD (lane b-hasks-ford, designer 2026-10-29): the 2027-02-08 file is APPLIED history; its ground, travel, kill bounds, roster and vendor values land in ONE forward file. */
+export const OUT_NAME = '2027-02-09-hasks-ford-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);

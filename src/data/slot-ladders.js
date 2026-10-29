@@ -238,7 +238,7 @@ export const SLOT_DESC = {
   warlords_torc: 'Two warlords\' badges melted into one collar — the second one was not given willingly',
   dawnbound_amulet: 'Dawnsteel and dragon-gem hung on gold, an amulet a kingdom would notice missing',
 
-  banded_signet: 'Bronze banded over copper, the signet a free company issues to its own',
+  banded_signet: 'Bronze banded over copper, the signet the Banded Company issued to its own. Its dead still wear it at Hask\'s Ford',
   ruby_signet: 'A ruby the size of a thumbnail on a mithril band — it makes the hand it is on obvious',
   spellstone_ring: 'A warlock\'s cracked spellstone bound in runes, whispering the next word before you reach it',
   dawnforged_signet: 'Dawnsteel, death-steel and gold, forged into a ring that outlasts the finger wearing it',

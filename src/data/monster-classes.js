@@ -181,6 +181,13 @@ export const FORMATION_BANDS = Object.freeze({
     hp: [135, 330], atk: [20, 44], def: [9, 24], xp: [125, 350], gpLo: [9, 31], gpHi: [21, 72],
     boss: Object.freeze({ hp: [1000, 1210], atk: [26, 29], def: [25, 31], xp: [1080, 1320], gpLo: [68, 100], gpHi: [155, 227] }),
   }),
+  /* TIER 4 (2026-10-29, Hask's Ford, the Barrow March's first ground, lane b-hasks-ford): the envelope of its four rows,
+     widened about 10% each way, after the real-engine floor play (a lone full-set Melee at 45, six seeds: no death, the
+     bill about a quarter of the income). The hunt engine's band, not the old idle tick's (TIER_BANDS 4's coin is that
+     tick's: on the hunt engine it paid 11k g/h with no food eaten). No tier-4 boss yet (Captain Hask, the Muster Barrows). */
+  4: Object.freeze({
+    hp: [140, 255], atk: [30, 49], def: [14, 27], xp: [1150, 2450], gpLo: [16, 36], gpHi: [39, 80],
+  }),
 });
 
 /** The band a formation row of `tier` is held to for `stat` (`boss` picks the boss band), or null. */

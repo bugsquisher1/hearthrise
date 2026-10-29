@@ -65,7 +65,10 @@ const TOTAL_RISE_MAX = 0.25;    // Tyler 2026-10-23: total value up to +25% over
 const TOTAL_TODAY = Object.freeze({ mill_cellar: 1869, millrace_sewer: 3822, meadowbrook_thicket: 2285, coppercap_warrens: 4588, mosslight_glade: 3834,
   /* a NEW ground has no pre-conversion value: its pin is its neighbours' by floor, the Thicket (L5) to the Glade (L16)
      interpolated at Wickstead's L8 (lane b-greenhaven-6, designer 2026-10-28): 2285 + (3834 - 2285) x 3/11 */
-  wickstead: 2707 });
+  wickstead: 2707,
+  /* Hask's Ford's pin is what the game already pays the same hero at the same Level: a lone full-set Melee at 45 in the
+     Warrens (BAND_ALT.coppercap_warrens.today), the designer's pick (lane b-hasks-ford) */
+  hasks_ford: 5226 });
 const BUILD_SLOTS = Object.freeze(['helmet', 'body', 'pants', 'boots']);
 const WEIGHTS = Object.freeze(['heavy', 'medium', 'light']);
 const SLOT_WORD = Object.freeze({ helmet: 'helmet', body: 'body', pants: 'legs', boots: 'boots' });
@@ -91,6 +94,8 @@ const REFERENCE = Object.freeze({
   mosslight_glade: { roles: ['tank'], full: false },
   /* the farm ground (lane b-greenhaven-6): a solo Melee in the ladder kit at 8, the Thicket's second door */
   wickstead: { roles: ['tank'], full: false },
+  /* the Barrow March's first ground (lane b-hasks-ford): a lone Melee in the full own-tier set at 45, as the Warrens' party */
+  hasks_ford: { roles: ['tank'], full: true },
 });
 const GEAR_RUNS = Object.freeze(['meadowbrook_thicket', 'millrace_sewer', 'mosslight_glade', 'wickstead']);   // the fresh-hero grounds
 /* THE PARTY GROUNDS' SECOND GROUP (a party ground is measured for a party at the floor AND solo): the Sewer's party of
@@ -764,7 +769,7 @@ for (const mu of engineMutants) {
     R.ok(!!why, 'mutant "' + mu.name + '" was NOT caught by ' + mu.case);
   } finally { p.done(); }
 }
-const groundOf = (rule) => /meadowbrook_thicket|millrace_sewer|mosslight_glade|coppercap_warrens|mill_cellar|wickstead/.exec(rule)[0];
+const groundOf = (rule) => /meadowbrook_thicket|millrace_sewer|mosslight_glade|coppercap_warrens|mill_cellar|wickstead|hasks_ford/.exec(rule)[0];
 for (const mu of playMutants) {
   const MR = { fails: [], ok(c, msg) { if (!c) this.fails.push(msg); } };
   await plays(M, P, clone(M.MONSTERS, mu.edit), MR, false, [groundOf(mu.rule)], mu.fresh === true);

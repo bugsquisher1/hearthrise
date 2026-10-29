@@ -101,7 +101,7 @@ export const ITEMS={
   rat_tail:{n:'Rat Tail',icon:'🐀',v:6},
   /* The Rat King's shard (15%, ~3 an hour for a full party): sold, the sewer's profit. */
   crown_shard:{n:'Crown Shard',icon:'👑',v:150},small_fang:{n:'Small Fang',icon:'🦷',v:15},
-  bone_chips:{n:'Bone Chips',icon:'🦴',v:10},ancient_fragment:{n:'Ancient Fragment',icon:'🏺',v:85},goblin_totem:{n:'Goblin Totem',icon:'🗿',v:120},
+  bone_chips:{n:'Bone Chips',icon:'🦴',v:10},ancient_fragment:{n:'Barrow Stone',icon:'🏺',v:85},goblin_totem:{n:'Goblin Totem',icon:'🗿',v:120},
   night_fang:{n:'Night Fang',icon:'🦇',v:90},dark_sigil:{n:'Dark Sigil',icon:'🔯',v:180},venom_sac:{n:'Venom Sac',icon:'🟣',v:75},
   silk_thread:{n:'Silk Thread',icon:'🧵',v:55},spider_eye:{n:'Spider Eye',icon:'👁️',v:220},brute_plate:{n:'Brute Plate',icon:'🛡️',v:130},
   dire_fang:{n:'Dire Fang',icon:'🦷',v:150},alpha_fang:{n:'Alpha Fang',icon:'🦷',v:450},grave_dust:{n:'Grave Dust',icon:'⚱️',v:95},
@@ -109,6 +109,8 @@ export const ITEMS={
   rooks_whistle:{n:'Rook\'s Whistle',icon:'🎶',v:500},
   /* The Orchard Boar's bristles (lane b-unsourced-items): trader's goods, like the wolves' fangs. */
   boar_bristle:{n:'Boar Bristle',icon:'🐗',v:5},
+  /* The Bannerman's Rare (Hask's Ford, lane b-hasks-ford): a Hearth fuel, a burst of Inner Flame (src/data/hearth.js). */
+  company_colours:{n:'Company Colours',icon:'🚩',v:600},
   /* The bosses' Trophies (designer 2026-10-23): each boss's one named prize, about every 140 h, tradeable. */
   rat_kings_crown:{n:'Rat King\'s Crown',icon:'👑',v:4000,type:'trophy',tag:'trophy',rarity:'legendary'},
   coppercaps_cauldron:{n:'Coppercap\'s Cauldron',icon:'🥘',v:7500,type:'trophy',tag:'trophy',rarity:'legendary'},

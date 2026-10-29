@@ -152,6 +152,22 @@ export const HUNTS = Object.freeze([
       { monster: 'barn_wasp', w: 3, rarity: 'uncommon' }, { monster: 'orchard_boar', w: 2, rarity: 'uncommon' }, { monster: 'turncoat', w: 2, rarity: 'rare' }],
     family: 'Vermin', art: 'granary_rat', travelS: 0, pull: 4, respawnMs: 60000,
   },
+  /* THE BARROW MARCH (designer 2026-10-28, docs/planning/PRIORITY_BOARD.md Decisions; the region after Greenhaven).
+     NAMING VOICE: a free company's soldier words (banded, pike, muster, colours, ford, sergeant), the chantry's church
+     words (prior, keener, bell) and the March's place words (barrow, ford, pyre); people get one short name (Hask, Ebbe).
+     Never Ancient, Shadow, Dark, Eternal, Forgotten, nor "Lich" or "Reaper" as a name. The story: Havora hired the
+     Banded Company to hold the March; its captain Hask sold the ford and rode off; the company died here and nobody burned
+     them, and only the Hearth's fire lays the dead to rest (Wickstead's Turncoats are its last deserters).
+     HASK'S FORD (lane b-hasks-ford, 2026-10-29; art lane b-hasks-ford-art): the region's first ground, solo first, up the
+     road from Wickstead. Walked: src/data/hunt-grounds.js `hasks_ford`. Weights are the pockets' head-count at density
+     4; the Bannerman, the rare spawn, holds the Toll Stone and the Muster Line and carries the Company Colours. */
+  {
+    id: 'hasks_ford', name: 'Hask\'s Ford', theme: 'The Banded Company died holding this ford, and nobody burned them.',
+    band: [45, 60],
+    spawns: [{ monster: 'banded_pikeman', w: 12, rarity: 'common' }, { monster: 'fordsunk', w: 6, rarity: 'uncommon' },
+      { monster: 'wight', w: 4, rarity: 'uncommon' }, { monster: 'bannerman', w: 2, rarity: 'rare' }],
+    family: 'Undead', art: 'banded_pikeman', travelS: 0, pull: 4, respawnMs: 60000,
+  },
 ]);
 
 /** The hunts a player can see and enter: every row not `staged`. */

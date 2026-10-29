@@ -59,6 +59,9 @@ export const HEARTH_FUELS = Object.freeze([
   /* the higher rungs keep their inputs, levels and XP (designer 2026-09-12); only the rite verbs are gone */
   fuel('bone_chips', 105, 40, 2200, 'fuel_bone'),
   fuel('grave_dust', 155, 46, 2400, 'fuel_bone'),
+  /* the Bannerman's Company Colours (Hask's Ford): a Rare, about every 15 h, burnt for a burst; cloth, so the cloth chunk.
+     Its own pale flame and chunk wait on art (the named-fuel row then moves to NAMED_FUELS) */
+  fuel('company_colours', 1500, 46, 2400, 'fuel_dry_husk'),
   fuel('razor_claw', 212, 52, 2500, 'fuel_bone'),
   fuel('vamp_dust', 295, 58, 2600, 'fuel_bone'),
   fuel('demon_shard', 420, 65, 2800, 'fuel_coal'),

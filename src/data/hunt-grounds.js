@@ -365,6 +365,34 @@ export const HUNT_GROUNDS = Object.freeze({
       ['normal_tree', 5, 35, 5], ['normal_tree', 21, 35, 5], ['normal_tree', 12, 37, 5],
     ]),
   }),
+  hasks_ford: Object.freeze({
+    id: 'hasks_ford', hunt: 'hasks_ford', map: 'hasks_ford',
+    /* the road in from Wickstead, on the west edge */
+    start: Object.freeze([[1, 30], [1, 29], [2, 30], [1, 31]]),
+    pockets: Object.freeze([
+      /* P0 the Pike Files: the company died in its files, and nobody burned them */
+      box([3, 25, 18, 37], [10, 31], ['banded_pikeman', 'fordsunk'], ['banded_pikeman', 'fordsunk', 'banded_pikeman', 'wight', 'banded_pikeman', 'banded_pikeman']),
+      /* P1 the Toll Stone: where Hask took the coin for the ford; the Bannerman holds it */
+      box([19, 25, 37, 35], [28, 30], ['bannerman', 'banded_pikeman'], ['banded_pikeman', 'fordsunk', 'banded_pikeman', 'wight', 'fordsunk', 'banded_pikeman']),
+      /* P2 the Low Barrows: the rank and file under the mounds */
+      box([40, 23, 56, 37], [49, 29], ['banded_pikeman', 'wight'], ['banded_pikeman', 'fordsunk', 'banded_pikeman', 'fordsunk', 'banded_pikeman', 'bannerman']),
+      /* P3 the Company Stores, over the Ford: the Wights keep the ledgers */
+      box([22, 3, 38, 15], [29, 9], ['wight', 'banded_pikeman'], ['banded_pikeman', 'fordsunk', 'banded_pikeman', 'banded_pikeman', 'wight', 'fordsunk']),
+      /* P4 the Muster Line: the broken palisade, the Colours still up */
+      box([40, 3, 57, 11], [48, 7], ['banded_pikeman', 'banded_pikeman'], ['bannerman', 'wight', 'banded_pikeman', 'fordsunk', 'banded_pikeman', 'banded_pikeman']),
+      /* P5 the High Barrows: the officers under the standing stones */
+      box([6, 4, 20, 11], [15, 8], ['fordsunk', 'banded_pikeman'], ['wight', 'banded_pikeman', 'banded_pikeman', 'fordsunk', 'wight', 'banded_pikeman']),
+    ]),
+    route: Object.freeze([0, 1, 2, 3, 4, 5]),
+    respawnMs: 60000, pullDist: 1.5, partyScale: true, groupFit: 'solo',
+    densityMax: Object.freeze([8, 8, 8, 8]),
+    /* a solo hero may pull up to 6, a pair the full box (the Thicket's slider: the same solo-first shape) */
+    density: density(6, 2, 8),
+    gather: gather(12000, [
+      /* the oaks at the clearings' edges: the Pike Files, the Muster Line, the High Barrows */
+      ['oak_tree', 17, 36, 0], ['oak_tree', 54, 6, 4], ['oak_tree', 7, 8, 5],
+    ]),
+  }),
 });
 
 /** The grounds a player can enter: every row whose hunt is not `staged` (hunts.js). The server catalogue reads these. */

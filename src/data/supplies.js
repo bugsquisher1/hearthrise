@@ -218,6 +218,12 @@ export const BAG_GUIDE_BY_HUNT = Object.freeze({
      wickstead-solo-floor, six seeds): a solo Melee at the floor in the start kit eats about 160 g of store heals an
      hour, the smiths' ladder kit about 10 g; the Thicket's bill, so the Thicket's tier-1 bags. The ranged and magic
      bags are the Thicket's shape, UNVERIFIED (not played). */
+  /* Hask's Ford (lane b-hasks-ford): tier 4, the tier-4 guide's swordfish; the ranged and magic bags the Warrens' shape,
+     UNVERIFIED (not played). */
+  hasks_ford: Object.freeze({ tier: 4,
+    melee: melee('cooked_swordfish', 80),
+    ranged: ranged('cooked_swordfish', 80, 'barbed_arrows', 5100),
+    magic: magic('cooked_swordfish', 100, 'carrot_juice', 40, 'chalked_fire_rune', 650) }),
   wickstead: Object.freeze({ tier: 1,
     melee: melee('cooked_shrimp', 180),
     ranged: ranged('cooked_shrimp', 200, 'bronze_arrows', 0),

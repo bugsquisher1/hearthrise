@@ -107,6 +107,8 @@ export const VENDOR_TRASH = Object.freeze(['sticky_core', 'goblin_ear', 'goblin_
   'granary_whisker', 'barn_wasp_sting', 'loft_web', 'torn_company_badge',
   /* the boar and the bear (lane b-unsourced-items): their imbuement items, and the boar's bristles */
   'orchard_boar_tusk', 'brook_bear_tooth', 'boar_bristle',
+  /* Hask's Ford's four (lane b-hasks-ford), the same promise */
+  'pike_band', 'ford_weed', 'ledger_leaf', 'colour_thread',
 ]);
 
 /* ── AWAITING THE ROSTER — catalogued, kept, and deliberately unobtainable ───
@@ -136,14 +138,14 @@ export const AWAITING_ROSTER = Object.freeze([
   'ember_platelegs', 'ember_sword', 'ember_warhammer', 'fangdart_recurve', 'gold_amulet',
   'gold_ring', 'heartgarnet_maul', 'hollow_sigil_ring', 'houndskin_cloak',
   'lexarch_seal',
-  'maple_rod', 'maple_staff', 'mithril_helm',
-  'mithril_platebody', 'mithril_platelegs', 'mithril_sword', 'mithril_warhammer',
+  'maple_rod', 'maple_staff', 
+  'mithril_sword', 'mithril_warhammer',
   'nightstalker_pelt', 'plaguewarden_greaves', 'quiet_coat', 'regent_helm',
   'riftmaw_carapace', 'riftmaw_husk', 'ruby_signet', 'rubyfire_studs',
   'rune_hammer', 'rune_helm', 'rune_knife', 'rune_needle', 'rune_platebody',
   'rune_platelegs', 'rune_warhammer', 'runewood_bow', 'runewood_rod',
-  'slagheart_core', 'slagheart_platebody', 'snakeskin_body',
-  'snakeskin_helmet', 'snakeskin_pants', 'sorcerer_body', 'sorcerer_helmet', 'sorcerer_pants',
+  'slagheart_core', 'slagheart_platebody', 
+  'sorcerer_body', 'sorcerer_helmet', 'sorcerer_pants',
   'spellstone_ring', 'spidereye_studs', 'steel_hammer', 'steel_knife',
   'steel_needle',
   'verdite_blade', 'verdite_helm', 'verdite_platebody',
@@ -151,7 +153,7 @@ export const AWAITING_ROSTER = Object.freeze([
   'voidhide_boots', 'voidhide_gloves', 'voidhide_helmet', 'voidhide_pants', 'voidmaw_scepter',
   'voidweave_belt', 'voidweave_body', 'voidweave_boots', 'voidweave_gloves',
   'voidweave_helmet', 'voidweave_pants', 'voidwoven_sigil', 'warband_bulwark',
-  'warboss_standard', 'warden_girdle', 'warden_seal', 'warlock_body', 'warlock_pants',
+  'warboss_standard', 'warden_girdle', 'warden_seal', 
   'wartusk_cleaver', 'watchknight_belt', 'watchknight_body', 'watchknight_boots',
   'watchknight_gloves', 'watchknight_helmet', 'watchknight_pants', 'whispering_codex',
   'widows_fang', 'willow_rod', 'woolen_cloak', 'wyrm_gilding', 'wyrmgilt_mantle',
@@ -197,20 +199,20 @@ export const UNREACHABLE = Object.freeze({
   greenhaven: Object.freeze([
     'rat_stick',
     'spidersilk_choker', 'tusker_charm', 'packlord_band',
-    'mirewort_drops', 'ancient_fragment', 'cracked_spellstone', 'grave_dust', 'razor_claw',
+    'mirewort_drops', 'razor_claw',
   ]),
   /* Tier 4+ ladder rungs, the old roster's uniques, and the dragon, undead, demon, troll and void materials
      with the late recipes they feed (Cooking 25 panther and 70+, Inner Flame 35+, Crafting 60 keystones). */
   later: Object.freeze([
-    'mithril_boots', 'rune_boots', 'mithril_gauntlets', 'rune_gauntlets', 'ember_gauntlets', 'mithril_belt',
-    'rune_belt', 'snakeskin_boots', 'wyvernhide_boots', 'snakeskin_gloves', 'wyvernhide_gloves', 'snakeskin_belt',
-    'wyvernhide_belt', 'warlock_helmet', 'warlock_boots', 'sorcerer_boots', 'archmage_boots', 'warlock_gloves',
-    'sorcerer_gloves', 'archmage_gloves', 'warlock_belt', 'sorcerer_belt', 'rune_sword', 'maple_bow', 'yew_bow',
+    'rune_boots', 'rune_gauntlets', 'ember_gauntlets', 
+    'rune_belt', 'wyvernhide_boots', 'wyvernhide_gloves', 
+    'wyvernhide_belt', 'sorcerer_boots', 'archmage_boots', 
+    'sorcerer_gloves', 'archmage_gloves', 'sorcerer_belt', 'rune_sword', 'maple_bow', 'yew_bow',
     'yew_staff', 'runewood_staff', 'maple_wand', 'yew_wand', 'runewood_wand', 'maple_spellbook', 'yew_spellbook',
     'runewood_codex', 'emberfang_blade', 'panthers_eye_pendant', 'wraithsilk_shroud', 'chitinweave_cloak',
     'wraithglass_drops', 'trollhide_cape', 'shadowsilk_cape', 'warlords_torc', 'lazlos_maul', 'dragonrib_bow',
     'void_censer', 'barrowking_mantle', 'jarls_rimetorc', 'captains_ribblade', 'chief_blade', 'alpha_cloak',
-    'keystone',
+
     'dragon_bones', 'troll_hide', 'vamp_dust', 'demon_shard', 'dragon_scale', 'lich_soul', 'ancient_rune',
     'dragon_gem', 'wraith_veil', 'void_chitin', 'void_core', 'ancient_claw', 'raw_panther_meat', 'cooked_panther_meat',
     /* the Bear Pelt waits with its one consumer, the Hunter's Feast (troll hide): the Brook Bear drops the meat and claw */
@@ -235,7 +237,9 @@ export const UNREACHABLE = Object.freeze({
 /* 125 -> 115 (lane b-greenhaven-6): Wickstead's ten move to `staged` (C11 proves its opening sources them). */
 /* 115 -> 105 (lane b-unsourced-items): the tier-1 gloves and sashes are made (style-gear.js), the tier-3 ones are Warrens Rares. */
 /* 105 -> 101: the Brook Bear's meat and claw (and the two dishes they cook); the Bear Pelt waits in `later` with its feast. */
-export const UNREACHABLE_CEILING = 101;
+/* 101 -> 87 (lane b-hasks-ford): Hask's Ford sources the tier-4 boots, helmets, gloves and belts, Grave Dust, Barrow Stone
+   and Cracked Spellstone, and so the Keystone they set. */
+export const UNREACHABLE_CEILING = 87;
 
 /**
  * id -> the first reachable door (a label). `opts` opens planned doors for C11's proof:

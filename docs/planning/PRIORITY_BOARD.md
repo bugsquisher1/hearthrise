@@ -30,6 +30,24 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 ## Decisions
 _Tyler's rulings live in rulings-of-record; designer rulings inside them are recorded here._
 
+### 2026-10-29 First-hour playtest before the Discord playtest (designer, lane/b-playtest-first-hour): PLAYED, fixes in the lane
+Same method as 10-24 (real `play.html` at release/v0.2.64 in headless Chromium; the replayed chain answering `/rest/v1/rpc/*`; the real `hr-accrue` handler; only waiting compressed, the open hunt's clocks AND the world JSON's epoch values shifted together, or the hero idles after a skip). Marlow at 1440x900, Tessaly touch-emulated at 922x423, ~50 min each. Shots: `art/review/playtest-first-hour-2026-10-29/`. Since 10-24 the chain rings every control, survives a reload, teaches farm/bar/runes/food/order/hearth/sell/plans/cook/styles/Blessings/Tamsin; the summary's primary follows the card; new accounts read "Up to 4 can play at once". Measured: Level 5 at ~16 min in the Cellar (6,947 Level XP/h on a clean skip; the "quarter of an hour" holds), Thicket 23.4k Level XP/h, 2,235 gp/h balance.
+| # | Moment (first-hour value order) | Ruling |
+|---|---|---|
+| 1 | "Decide once" rings a loot-plan menu whose Sell is OFF ("The shop does not buy this") for every stack just sold at the Shop: the bids only cover held stacks | FIXED: no claim for a stack not held (`loot-dispatch.js` planBlock) |
+| 2 | Back from the Thicket with a Bronze Platebody and a Leather Body, the hero wears neither: Equip upgrades sees a tie, its line is hidden, no card | FIXED: the weight picked at Tamsin's settles the tie (first principle: a choice made once); the Wear card now fires |
+| 3 | Phone: hero creation hides the five ways to fight | FIXED: the column scrolls beside the form |
+| 4 | Phone: This hunt rows read one word a line | FIXED: the plan menu wraps under the name |
+| 5 | Phone: Tamsin's card cut off before "Take 200 Gray Wolves" | FIXED: the way first, then the weights |
+| 6 | "Level 2" card over a bar reading Lv 1 | FIXED: "Your first Level" |
+| 7 | Phone: "Press Enter" while the ring sits on the Mill Cellar line | FIXED: "Press the Mill Cellar, then Enter" |
+| 8 | Robotic: "up to 5 heroes in all", "63% less XP lost in all", "Burn it" (Bones), Sell card "keeps your Bones" after they burned, cooking card says "Open" inside its window | FIXED; copy-lint's in-all rule now reads a literal glued to its number |
+| 9 | Starter bar's Flame Strike struck + "no Fire runes left" from minute one | DEFERRED (server: the default bar is restated by `hr_hunt_role_rules`; 10-24 #4) |
+| 10 | Phone: the coach card covers the hero mid-fight; an empty "Summary" hunt bar stays over the town | HANDOFF Art Director (layout) |
+| 11 | Equip upgrades says nothing when a tie stands (no weight picked) | OPEN, S: show the "pick one" line with the button off |
+| 12 | Farm: "Tier 2 adds Carrot ... at Farming 5" beside "Carrot: Needs Farming 10"; "Plant your land" done after one plot | OPEN, S copy/data |
+| 13 | Cooking: the hero cooks standing in the road, not at a cook fire | HANDOFF Systems (town stands, real town plan L2/L3) |
+
 ### 2026-10-28 Greenhaven's sixth ground: Wickstead, 8-18 solo (designer, lane/b-greenhaven-6): RULED, STAGED until its painted ground
 - **Band 8-18, solo first.** The 10-28 new-player walk found one solo ground for 6-15 (the Thicket) and no gloves, belts or jewellery past the Shop's basics. A 50+ capstone serves nobody before the playtest; a second 8-18 door is met in a new hero's first day. Floor 8 is where the first-hour rung lands; top 18 meets the Glade's 16.
 - **Place:** Wickstead (Old English *wic*, a farm), a burned farmstead on the Thicket road where the Meadowbrook leaves the wood. Rick Yard, Granary, the footbridge (the one choke), Barn, Orchard, Burned House, the ford back, Cart Shed.

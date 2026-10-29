@@ -27,7 +27,8 @@
 //   dot-spacing   "·" touching a word on one side  → " · "
 //   spelling      a British form (armour, colour, centre, grey, favourite,
 //                 defence, cancelled, -ise…) — player copy is American
-//                 (Tyler 2026-10-28); one-word labels are read too
+//                 (Tyler 2026-10-28); one-word labels are read too, and so is
+//                 every CHANGELOG.md entry from v0.2.64 on (the welcome modal's text)
 // plus a SHRINK-ONLY RATCHET on filler fantasy words in NAMES (DESIGN_STANDARDS
 // §2): Shadow, Void, Ancient, Eternal, Dark, Forgotten (whole word, any case)
 // in the `name`/`label`/`title`/`n` field of a data row under src/data/**.
@@ -166,7 +167,8 @@ export function pluralArticleRe(plurals) {
 export function lintText(text, pluralRe) {
   const hits = [];
   const t = text.replace(/<[^>]*>/g, ' \u0000 ');   // tags are not copy; keep a gap marker
-  if (/\b\d[\d,]*\s+[a-z]+(\s+[a-z]+)?\s+in all\b|§\s+[a-z]+(\s+[a-z]+)?\s+in all\b/i.test(t)) hits.push('in-all');
+  /* also a literal glued to the number before it ("' + n + ' heroes in all'", "' in all'"): it starts with the space */
+  if (/\b\d[\d,]*\s+[a-z]+(\s+[a-z]+)?\s+in all\b|§\s+[a-z]+(\s+[a-z]+)?\s+in all\b|^\s+(?:[a-z]+\s+){0,2}in all\b/i.test(t)) hits.push('in-all');
   if (/[A-Za-z]\(s\)/.test(t)) hits.push('plural-hack');
   const segs = t.split('\u0000');
   if (segs.some((seg) => !/\n/.test(seg) && /[A-Za-z0-9.,!?;:’']  +[A-Za-z0-9(]/.test(seg))) hits.push('double-space');
@@ -195,6 +197,25 @@ export const BRITISH_RE = new RegExp('(?<![-\\w/.$])(?:'
 export function britishWords(text) {
   const t = String(text).replace(/<[^>]*>/g, ' ').replace(/\[[^\]]*\]/g, ' ');
   return [...t.matchAll(BRITISH_RE)].map((m) => m[0]);
+}
+
+/* THE CHANGELOG IS PLAYER TEXT TOO (the welcome modal reads it; the Discord note is cut from it): every entry from
+   CHANGELOG_FROM on is read for British spelling, `code` and link targets skipped. Older entries are history and are
+   left as they shipped (Tyler 2026-10-28: the sweep starts at v0.2.64). */
+export const CHANGELOG_FROM = '0.2.64';
+const semver = (v) => v.split('.').map(Number);
+const atLeast = (v, from) => { const a = semver(v), b = semver(from); for (let i = 0; i < 3; i++) if (a[i] !== b[i]) return a[i] > b[i]; return true; };
+export function changelogFindings(text, file = 'CHANGELOG.md') {
+  const out = [];
+  let on = false;
+  String(text).split(/\r?\n/).forEach((line, i) => {
+    const h = /^## v(\d+\.\d+\.\d+)\b/.exec(line);
+    if (h) on = atLeast(h[1], CHANGELOG_FROM);
+    if (!on) return;
+    const words = britishWords(line.replace(/`[^`]*`/g, ' ').replace(/\]\([^)]*\)/g, ']'));
+    if (words.length) out.push({ file, line: i + 1, rule: 'spelling', text: words.join(', ') + ' — ' + line.slice(0, 90) });
+  });
+  return out;
 }
 
 /* A waiver is one known literal the next edge deploy removes (edge-bundled
@@ -306,6 +327,7 @@ async function gate(root, report) {
   const { files, plurals, findings } = await scan(root);
   const baseline = readNamesBaseline();
   findings.push(...nameFindings(dataNames(root), baseline));
+  findings.push(...changelogFindings(readFileSync(join(root, 'CHANGELOG.md'), 'utf8')));
   if (report || findings.length) for (const f of findings) console.log(`  ${f.rule.padEnd(12)} ${f.file}:${f.line}  ${f.text}`);
   console.log(`copy-lint: ${files} files, ${plurals} plural item names, ${Object.keys(baseline).length} pinned filler name(s), ${findings.length} slip(s)`);
   return findings.length ? 1 : 0;
@@ -325,6 +347,8 @@ async function selftest() {
     const plant = join(tmp, '__copy_lint_plant.js');
     const cases = [
       ['in-all', "export const a = { label: 'Smith 60 items in all' };"],
+      ['in-all', "export const a = 'Costs 9 gold, up to ' + n + ' heroes in all.';"],
+      ['in-all', "export const a = pct + '% less XP lost' + (t > 1 ? ' in all' : '');"],
       ['plural-hack', "export const a = `${n} item(s) left in your bag`;"],
       ['article', "export const a = 'Craft an Apprentice Gloves first';"],
       ['double-space', "export const a = 'Your crops are  ready to pick';"],
@@ -342,6 +366,16 @@ async function selftest() {
       const hit = r.findings.some((f) => f.rule === rule && f.file.endsWith('__copy_lint_plant.js'));
       console.log(`  ${hit ? 'caught' : 'MISSED'}  ${rule}`);
       if (!hit) bad++;
+    }
+    // The CHANGELOG: an entry from CHANGELOG_FROM on is read (the real file is green), an older one is history,
+    // and a British word in `code` or a link target is not copy.
+    const log = (v) => '# Changelog\n\n## v' + v + ' — 2026-10-30 (Colors)\n\n**Armor.** The grey cloak is your favourite.\n`armour-weights.js` [notes](docs/armour.md)\n';
+    const cl = [changelogFindings(readFileSync(join(HERE_ROOT, 'CHANGELOG.md'), 'utf8')).length === 0,
+      changelogFindings(log('0.2.65')).length === 1 && /grey, favourite/.test(changelogFindings(log('0.2.65'))[0].text),
+      changelogFindings(log('0.2.63')).length === 0];
+    for (const [ok, what] of [[cl[0], 'the CHANGELOG is green'], [cl[1], 'spelling in a CHANGELOG entry from ' + CHANGELOG_FROM], [cl[2], 'an older CHANGELOG entry is left as it shipped']]) {
+      console.log(`  ${ok ? 'ok    ' : 'FAILED'}  ${what}`);
+      if (!ok) bad++;
     }
     // Code names are not copy: an id, an import path, a selector, a class.
     writeFileSync(plant, "import { W } from './armour-weights.js';\nexport const a = ['armour', 'armour/helm', '[data-combat=\"defence\"] b', '<i class=\"hw-tip-flavour\">Gray wool</i>', 'Hearthrise rises at sunrise'];\n");

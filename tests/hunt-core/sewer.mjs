@@ -560,6 +560,13 @@ const cases = {
       || !bless.text.includes('free until Level ' + M.blessings.BLESSING_RULES.freeUntilLevel) || !bless.text.includes('Bless all three')) return 'the Blessing card reads ' + JSON.stringify(bless && bless.text);
     const tam = said('tamsins_task');
     if (!tam || !tam.text.includes('Heavy suits a shield tank') || !tam.text.includes('Take 200 Gray Wolves')) return 'Tamsin\'s card reads ' + JSON.stringify(tam && tam.text);
+    /* playtest 2026-10-29: the way comes first (on a phone the card's foot, its Take, was cut off under the armor words);
+       a card shown from the first kill until Level 2 never names the Level; words inside a window name the server's slot */
+    if (tam.text.indexOf('Take 200 Gray Wolves') > tam.text.indexOf('Heavy adds')) return 'Tamsin\'s card says the weights before the way: ' + JSON.stringify(tam.text);
+    const lv = M.tut.HUNT_TUTORIAL.find((c) => c.id === 'first_level');
+    if (!lv || /\bLevel \d/.test(lv.title + ' ' + lv.text)) return 'the first-Level card (shown at Level 1) names a Level: ' + JSON.stringify(lv && lv.title);
+    const cook = said('cook_catch');
+    if (!cook || !cook.textIn || /\{slot:/.test(cook.textIn) || !/slot \d/.test(cook.textIn)) return 'the cooking card inside its window reads ' + JSON.stringify(cook && cook.textIn);
     for (const role of ['tank', 'melee_dps', 'ranger', 'mage', 'healer']) {
       const w = M.tut.WEIGHT_FOR_ROLE[role];
       const piece = Object.entries(M.items.ITEMS).find(([, it]) => it.slot === 'helmet' && M.coreModel.ARMOUR_WEIGHT[it.armourClass] === w && it.reqLv <= 5);
@@ -660,7 +667,7 @@ const cases = {
        card interrupts the chain, names the biggest stack and rings it, then the bag's Fuel all; Inner Flame XP ends it. */
     const back = walkChain(M, T).find((s) => s.id === 'sell_loot').facts;
     const fuel = say({ ...back, bag: { ...back.bag, bones: 9, lamp_jelly: 3 }, carried: { ...back.carried, bones: 9, lamp_jelly: 3 } });
-    if (!fuel || fuel.id !== 'fuel_hearth' || !fuel.text.startsWith('Your bag holds Bones ×9.') || !fuel.text.includes('Inner Flame') || !fuel.text.includes('then Fuel all.')
+    if (!fuel || fuel.id !== 'fuel_hearth' || !fuel.text.startsWith('Your bag holds Bones ×9. Burn them in') || !fuel.text.includes('Inner Flame') || !fuel.text.includes('then Fuel all.')
       || !fuel.hooks.includes('[data-hs-win="inventory"] .hw-pocket[data-item="bones"]') || !/^Press the Bones, then Fuel all\./.test(fuel.textIn || '')) return 'the Hearth card reads ' + JSON.stringify(fuel && { id: fuel.id, text: fuel.text, hooks: fuel.hooks, textIn: fuel.textIn });
     const pct = Math.round((M.vit.regenPermille(10) - 1000) / 10);
     if (!fuel.text.includes(pct + '% faster by Inner Flame 10')) return 'the Hearth card does not state the engine\'s recovery (' + pct + '%): ' + fuel.text;

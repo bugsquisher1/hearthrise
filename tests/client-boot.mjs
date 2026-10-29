@@ -313,6 +313,13 @@ async function checks(overrides) {
         const step = await wait(page, () => document.querySelector('.hero-name') && document.querySelectorAll('.hero-region').length === 4 && document.querySelector('.hero-preview'));
         if (!step) fails.push('B-9 Create did not open the creation step (sent ' + JSON.stringify(o.created) + ')');
         else {
+          /* On a 922x423 phone the five ways to fight show too (playtest 2026-10-29: the phone hid them), in a column
+             that scrolls, and Enter town still fits the screen. */
+          await page.setViewportSize({ width: 922, height: 423 });
+          const phone = await page.evaluate(() => { const l = document.querySelector('.hero-how-list'), b = document.querySelector('.hero-confirm');
+            return { list: !!l && l.getClientRects().length > 0, fits: !!b && b.getBoundingClientRect().bottom <= innerHeight }; });
+          if (!phone.list || !phone.fits) fails.push('B-9 on a 922x423 phone How you fight lists its styles: ' + phone.list + '; Enter town fits: ' + phone.fits);
+          await page.setViewportSize({ width: 1280, height: 720 });
           await page.click('.hero-dye[data-hero-region="body"][data-hero-dye="6"]');
           await page.click('.hero-confirm');
           const short = await page.evaluate(() => document.querySelector('.auth-message').textContent);

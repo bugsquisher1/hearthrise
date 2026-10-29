@@ -14,16 +14,19 @@
 // ════════════════════════════════════════════════════════════════════════
 import { bagOf, equipmentOf, skillsOf } from '../../session/item-sections.js?v=0.2.64';
 import { levelOf } from '../../session/character-sections.js?v=0.2.64';
+import { tallyOf } from '../../session/tally-sections.js?v=0.2.64';
 import { text, cls, prop, attr } from '../../render/paint.js?v=0.2.64';
 import { runIntent } from '../intent-words.js?v=0.2.64';
 import { upgradePlan, upgradeWords } from '../upgrade-plan.js?v=0.2.64';
 import { gearLocked, GEAR_HUNT_WORDS } from '../gear-gate.js?v=0.2.64';
 import { whyLine } from './why-line.js?v=0.2.64';
 
-/** This character's plan, from what the server sent (empty `ops` when nothing is better). */
+/** This character's plan, from what the server sent (empty `ops` when nothing is better); a tie between armor weights
+    goes to the weight the hero chose at Tamsin's (the server's tally row). */
 export function upgradeOf(cs) {
-  const lv = levelOf(cs);
-  return upgradePlan({ bag: bagOf(cs) || [], equipment: equipmentOf(cs) || {}, skills: skillsOf(cs), level: lv ? lv.level : null });
+  const lv = levelOf(cs), t = tallyOf(cs);
+  return upgradePlan({ bag: bagOf(cs) || [], equipment: equipmentOf(cs) || {}, skills: skillsOf(cs), level: lv ? lv.level : null,
+    prefer: t ? t.weight : null });
 }
 
 /** The line's skeleton. */

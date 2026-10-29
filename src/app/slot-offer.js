@@ -72,7 +72,7 @@ export function slotOfferHtml(offer, roster, o = {}) {
   const short = offer.cost - purse.gold;
   return '<section class="slot-offer" data-slot-id="' + offer.slotId + '">'
     + '<p class="slot-offer-lead">' + (nth ? 'A ' + nth + ' hero slot' : 'Another hero slot') + ' costs ' + whole(offer.cost) + ' gold'
-    + (offer.max ? ', up to ' + offer.max + ' heroes in all' : '') + '.</p>'
+    + (offer.max ? '; an account holds up to ' + offer.max + ' heroes' : '') + '.</p>'
     + '<p class="slot-offer-purse">Your gold: ' + whole(purse.gold) + '</p>'
     + (short > 0 ? '<p class="slot-offer-short">You need ' + whole(short) + ' more gold.</p>' : '')
     + '<button type="button" class="slot-offer-buy" data-app="buy-slot" data-slot-id="' + offer.slotId + '" data-pay="' + actor + '"'

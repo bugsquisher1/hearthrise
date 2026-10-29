@@ -365,6 +365,22 @@ async function pure() {
   if (Object.keys(under.ops).length) fails.push('AW-21 a Level-14 hero (Defense 99) would put on ' + ops(under));
   const blind = plan({ weapon: 'bronze_sword' }, [['iron_helm']], null, null);
   if (Object.keys(blind.ops).length) fails.push('AW-21 with no server Level Equip upgrades would put on ' + ops(blind));
+  /* A tie between armor weights goes to the weight the hero chose at Tamsin's (playtest 2026-10-29: a tank paid in
+     heavy came home from the Thicket with a Bronze Platebody and a Leather Body and wore neither). No weight chosen,
+     or none of that weight in the bag: the tie stands, the player's call. */
+  const found = [['bronze_platebody'], ['leather_body'], ['bronze_boots'], ['leather_boots']].map(([id]) => ({ id, qty: 1 }));
+  const kit = { weapon: 'practice_sword', shield: 'practice_shield' };
+  const tieOf = (prefer) => upgradePlan({ equipment: kit, bag: found, skills: lv1, level: 5, prefer });
+  const tieOps = ['', 'heavy', 'medium', 'light'].map((w) => ops(tieOf(w || null)) + '/' + tieOf(w || null).choices.length).join(' | ');
+  if (tieOps !== '{}/2 | {"body":"bronze_platebody","boots":"bronze_boots"}/0 | {"body":"leather_body","boots":"leather_boots"}/0 | {}/2')
+    fails.push('AW-21 the weight chosen at Tamsin\'s settles a tie as ' + tieOps);
+  /* "Decide once": the shop's section bids only on what the bag holds, so a stack sold since (0 in the bag) is never
+     called unsellable (playtest 2026-10-29: the coach rang a Sell its row had switched off). */
+  const { planBlock } = await imp('src/shell/loot-dispatch.js');
+  const noBid = new Map([['bones', 1]]);
+  const planSaid = [planBlock('rat_tail', 'sell', noBid, false), planBlock('rat_tail', 'sell', noBid, true), planBlock('rat_tail', 'sell', noBid),
+    planBlock('practice_bow', 'sell', noBid, false)].join('|');
+  if (planSaid !== '|The shop does not buy this.|The shop does not buy this.|The shop does not buy back your starting kit.') fails.push('AW-21 a loot plan off for a stack not held reads ' + JSON.stringify(planSaid));
   /* AW-22: town work. The client may declare a gathering node (never a fight); a skill shows what its server level opens,
      then the next two; a row refuses in words from the server's level and bag. */
   if (!edgeBody(0, 'set_activity', { activity: { kind: 'gather', id: 'copper_rock' } }, 'x')) fails.push('AW-22 edgeBody refused a gathering node');
@@ -2067,8 +2083,8 @@ async function checks(overrides, shots) {
           const r1 = await ringed();
           const inWin = await page.evaluate(() => { const p = document.querySelector('[data-hs-win="hunts"] > .hs-win-coach .hs-pointer'); return p ? p.textContent : null; });
           if (r1.join() !== 'mill_cellar') fails.push('AW-17b with Hunts open on the phone the ring is on ' + JSON.stringify(r1) + ', wanted the Mill Cellar line');
-          /* inside the window it says its words for there (board 2026-10-25 #20: never "Open Hunts" over the open Hunts) */
-          if (!inWin || !/Press Enter/.test(inWin) || /Open Hunts/.test(inWin)) fails.push('AW-17b the card is not inside the Hunts sheet, in its words for there: ' + JSON.stringify(inWin));
+          /* inside the window it says its words for there (board 2026-10-25 #20: never "Open Hunts" over the open Hunts), and the ringed line first (playtest 10-29) */
+          if (!inWin || !/Press the Mill Cellar, then Enter/.test(inWin) || /Open Hunts/.test(inWin)) fails.push('AW-17b the card is not inside the Hunts sheet, in its words for there: ' + JSON.stringify(inWin));
           if (shots) await shot(page, 'alpha-922x423-first-minute-hunts');
           await page.keyboard.press('Escape');
           await page.waitForTimeout(300);
@@ -2185,6 +2201,8 @@ const MUTANTS = [
   ['an equip in flight is not marked', 'src/shell/windows/inventory/actions.js', '  sc.wearing = { slots: [slot], items: id ? [id] : [] };\n', ''],
   ['Equip upgrades swaps the weapon', 'src/shell/upgrade-plan.js', "const STYLE_SLOTS = new Set(['weapon', 'shield', 'ammo']);", "const STYLE_SLOTS = new Set(['shield', 'ammo']);"],
   ['Equip upgrades wears what the hero cannot use yet', 'src/shell/upgrade-plan.js', '  return have !== null && have >= it.reqLv;', '  return true;'],
+  ['Equip upgrades forgets the weight chosen at Tamsin\'s', 'src/shell/upgrade-plan.js', '    if (mine.length) front = mine;', '    if (mine.length) front = front.slice();'],
+  ['a Sell plan for a stack not held reads unsellable', 'src/shell/loot-dispatch.js', "if (plan === 'sell' && held && bids && !bids.has(id))", "if (plan === 'sell' && bids && !bids.has(id))"],
   ['Equip upgrades marks nothing in flight', 'src/shell/widgets/upgrade-line.js', '  sc.wearing = { slots, items: slots.map((s) => plan.ops[s]) };\n', ''],
   ['Equip upgrades sends one intent per piece', 'src/shell/widgets/upgrade-line.js', "    try { return await cs.edgeIntent('equip', { equip: Object.assign({}, plan.ops) }); } finally { sc.wearing = null; }", "    try { let r; for (const s of slots) r = await cs.edgeIntent('equip', { equip: { [s]: plan.ops[s] } }); return r; } finally { sc.wearing = null; }"],
   ['a level refusal reads as a bare refusal', 'src/data/refusal-words.js', "  requirement_not_met: 'You don\\'t meet that item\\'s requirement yet. Nothing was put on.',\n", ''],

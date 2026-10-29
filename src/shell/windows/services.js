@@ -88,7 +88,7 @@ export function patchServicesPane(body, ctx) {
       + '<button type="button" class="hh-tool" data-hs-act="bless" data-tier="' + t.tier + '"></button></li>'),
     patch: (li, t) => {
       const short = !t.held && next && next.tier === t.tier && purse !== null && purse < t.price ? t.price - purse : 0;
-      text(li.querySelector('small'), Math.round(t.permille / 10) + '% less XP lost' + (t.tier > 1 ? ' in all' : '') + ' · ' + (t.held ? 'owned' : t.price ? gold(t.price) : 'free')
+      text(li.querySelector('small'), Math.round(t.permille / 10) + '% less XP lost' + (t.tier > 1 ? ' with ' + (t.tier > 2 ? 'I and II' : 'I') : '') + ' · ' + (t.held ? 'owned' : t.price ? gold(t.price) : 'free')
         + (short ? ' · You need ' + gold(short) + ' more.' : ''));
       const btn = li.querySelector('button');
       text(btn, t.held ? 'Owned' : next && next.tier === t.tier ? (t.price ? 'Bless · ' + gold(t.price) : 'Bless · free') : 'Needs ' + ROMAN[t.tier - 1]);

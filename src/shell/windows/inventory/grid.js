@@ -214,12 +214,12 @@ function patchHuntPane(root, st, ctx) {
     patch: (li, l) => {
       const inBag = st.qty.get(l.item) || 0;
       /* a plan the server refuses for this item (its starting kit, no shop price) is off, its reason on the row's line */
-      const offWhy = [...new Set(LOOT_CHOICES.map(([v]) => planBlock(l.item, v, bids)).filter(Boolean))].join(' ');
+      const offWhy = [...new Set(LOOT_CHOICES.map(([v]) => planBlock(l.item, v, bids, inBag > 0)).filter(Boolean))].join(' ');
       text(li.querySelector('small'), '×' + whole(l.count) + ' this hunt · ' + whole(inBag) + ' in the bag' + (offWhy ? ' · ' + offWhy : ''));
       const sel = li.querySelector('select');
       if (st.rules) prop(sel, 'value', st.rules.loot[l.item] || 'keep');
       prop(sel, 'disabled', st.sc.pending || !st.rules);
-      for (const o of sel.options) { const why = planBlock(l.item, o.value, bids); prop(o, 'disabled', !!why); attr(o, 'title', why || null); }
+      for (const o of sel.options) { const why = planBlock(l.item, o.value, bids, inBag > 0); prop(o, 'disabled', !!why); attr(o, 'title', why || null); }
       /* a stack that only pays coin (what Sell all loot sells): the row the coach's "Decide once" rings, never the
          Bones a skill trains on (played 2026-10-25: the first row, Bones, was ringed for "Sell at the shop") */
       attr(sel, 'data-coin', coin.has(l.item) ? '' : null);

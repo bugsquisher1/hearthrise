@@ -307,6 +307,10 @@
     pointer-events: auto;
   }
   .hs-win-coach > .hs-pointer { margin: 6px 10px 0; }
+  /* The card under the hunt bar stands at the bar's right end, its tip under Leave (first-hour playtest 10-29 #10:
+     at the left end it lay over the hero mid-fight); the camera frames the World beside it (shell.js insetNow). */
+  .hs-widget.is-hunt-topbar > .hs-pointer { left: auto; right: 0; }
+  .hs-widget.is-hunt-topbar > .hs-pointer::before { left: auto; right: 10px; }
   .hs-coach-got { min-height: var(--tap); }
   /* A card about the action bar stands just above the bar on a phone (board 2026-10-25 sample s7: under the hunt bar it
      hung far from its slot): its foot 8 px over the bar's top, the host's --coach-room below the host's own foot

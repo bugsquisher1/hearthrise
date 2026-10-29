@@ -910,8 +910,10 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         /* THE CLOSE: asked a hair after leave_at, the hunt ends on screen, back in town; every line seen on the
            way is a whole number of seconds >= 1 or "Leaving now…" */
         const seen = new Set();
+        /* ended on screen: no Leave hunt, and the summary in reach (its window, opened by itself, takes the bar with it) */
         const done = () => { const bar = document.querySelector('.ht-bar'); const l = bar && bar.querySelector('[data-hs-act="leave"]');
-          return !!(bar && l && l.getClientRects().length === 0 && bar.querySelector('[data-hs-act="summary"]').getClientRects().length > 0); };
+          const win = !!document.querySelector('[data-hs-win="hunt-summary"]:not(.is-leaving)');
+          return (!l || l.getClientRects().length === 0) && (win || !!(bar && bar.querySelector('[data-hs-act="summary"]').getClientRects().length > 0)); };
         const end = await drive(page, { maxMs: LEAVE_IN + 4000, pred: done, onStep: async () => { const x = await label(); if (x && x.line) seen.add(x.t); } });
         const lineUp = await page.evaluate(() => { const l = document.querySelector('.ht-bar .ht-leaving'); return !!l && l.getClientRects().length > 0; });
         const lag = s.closedAt && leaveAt !== null ? s.closedAt - leaveAt : null;

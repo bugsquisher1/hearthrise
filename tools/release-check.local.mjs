@@ -46,8 +46,10 @@ for (;;) {
   const [rel, main, live, edge] = await Promise.all([ciVerdict(`release/v${ver}`), ciVerdict('main'), liveVersion(), edgeVerdict()]);
   const pages = live === ver ? `pages: serving v${live}` : `pages: serving v${live}, not v${ver} yet`;
   console.log(`\nv${ver} at ${new Date().toLocaleTimeString()}\n  ${rel.line}\n  ${main.line}\n  ${pages}\n  ${edge}`);
-  if (!wait || (rel.done && live === ver)) {
+  /* --wait stops as soon as the release run finishes: a red never reaches Pages, and waiting on Pages then hung silent for 10 h (10-29) */
+  if (!wait || rel.done) {
     console.log(rel.ok && live === ver ? 'VERDICT: shipped and green' : rel.done && !rel.ok ? 'VERDICT: red, see above' : 'VERDICT: not finished');
+    process.exitCode = rel.done && !rel.ok ? 1 : 0;
     break;
   }
   await new Promise((r) => setTimeout(r, 60000));

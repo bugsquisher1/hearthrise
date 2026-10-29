@@ -9,8 +9,9 @@ import coppercapWarrens from './coppercap_warrens.js?v=0.2.64';
 import mosslightGlade from './mosslight_glade.js?v=0.2.64';
 import sandboxHd64 from './sandbox_hd64.js?v=0.2.64';
 import wickstead from './wickstead.js?v=0.2.64';
+import hasksFord from './hasks_ford.js?v=0.2.64';
 
-export const WORLD_MAPS = Object.freeze([millCellar, townCommon, homeCottage, millraceSewer, meadowbrookThicket, coppercapWarrens, mosslightGlade, wickstead, sandboxHd64]);
+export const WORLD_MAPS = Object.freeze([millCellar, townCommon, homeCottage, millraceSewer, meadowbrookThicket, coppercapWarrens, mosslightGlade, wickstead, hasksFord, sandboxHd64]);
 
 /* STAGED MAPS: a staged hunt's map (src/data/hunts.js `staged`): its grid is authored and walked by the
    engine, its painted ground art is not done yet. No client draws it (src/world reads WORLD_MAPS only);

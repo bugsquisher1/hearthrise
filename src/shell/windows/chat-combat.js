@@ -9,11 +9,11 @@
 // patched in place; the list keeps its scroll unless the player was already at
 // the bottom.
 // ════════════════════════════════════════════════════════════════════════
-import { LOG_TYPES } from '../../data/combat-text.js?v=0.2.63';
-import { logFor } from '../../hunt-view/combat-log.js?v=0.2.63';
-import { huntOf } from '../../session/hunt-sections.js?v=0.2.63';
-import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.63';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.63';
+import { LOG_TYPES } from '../../data/combat-text.js?v=0.2.64';
+import { logFor } from '../../hunt-view/combat-log.js?v=0.2.64';
+import { huntOf } from '../../session/hunt-sections.js?v=0.2.64';
+import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.64';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.64';
 
 function prefsOf(cs) {
   const p = cs && cs.record && cs.record.residue && cs.record.residue.combatLog;

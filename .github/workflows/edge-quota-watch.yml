@@ -9,8 +9,9 @@
 # run-rate, and posts to Discord when the projection crosses 50 / 75 / 90 % of
 # the 2M Pro quota — weeks of warning before the first overage dollar.
 #
-# Quiet by design: under 50 % it posts NOTHING. An API failure posts once (a
-# watch that can die silently is not a watch — the b319/cron-health lesson).
+# Quiet by design: under 50 % it posts NOTHING. An API failure posts once AND
+# fails the run (a watch that can die silently is not a watch — the
+# b319/cron-health lesson; it did: green daily with empty secrets, 10-29).
 #
 # Secrets required (repo Settings → Secrets and variables → Actions):
 #   SUPABASE_ACCESS_TOKEN   — the Management API token (same one used locally)
@@ -49,15 +50,24 @@ jobs:
           }
           END=$(date -u +%Y-%m-%dT%H:%M:%SZ)
           START=$(date -u -d '24 hours ago' +%Y-%m-%dT%H:%M:%SZ)
-          SQL='select%20count(*)%20as%20n%20from%20function_edge_logs'
-          BODY=$(curl -s --max-time 60 \
-            "https://api.supabase.com/v1/projects/${PROJECT_REF}/analytics/endpoints/logs.all?sql=${SQL}&iso_timestamp_start=${START}&iso_timestamp_end=${END}" \
+          # logs.all answers 410 Gone since Supabase's 2026 logs migration; its replacement takes
+          # ClickHouse SQL over one `logs` table keyed by `source`, a window of at most 24 h
+          # (tools/load-probe.mjs logsQuery is the same read).
+          BODY=$(curl -s --max-time 60 --get \
+            "https://api.supabase.com/v1/projects/${PROJECT_REF}/analytics/endpoints/logs" \
+            --data-urlencode "sql=select count() as n from logs where source = 'function_edge_logs'" \
+            --data-urlencode "iso_timestamp_start=${START}" \
+            --data-urlencode "iso_timestamp_end=${END}" \
             -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}") || BODY=""
           N=$(echo "$BODY" | jq -r '.result[0].n // empty' 2>/dev/null)
           if [ -z "$N" ]; then
             echo "API read failed; body: $(echo "$BODY" | head -c 200)"
             post "⚠️ **edge-quota-watch could not read the invocation count** — the watch itself needs attention (Management API/token). Spend Cap is OFF, so this is the only early warning; please check."
-            exit 0
+            # RED, not green: with an empty DISCORD_ALERT_WEBHOOK the post above goes nowhere, and a
+            # green run that read nothing is the silent death this watch exists to prevent (run
+            # 40941581337, 10-29: green, "API read failed", both secrets empty). A red run notifies the owner.
+            echo "::error::edge-quota-watch read no invocation count (set SUPABASE_ACCESS_TOKEN and DISCORD_ALERT_WEBHOOK repo secrets)"
+            exit 1
           fi
           MONTHLY=$(( N * 31 ))
           PCT=$(( MONTHLY * 100 / QUOTA_MONTH ))

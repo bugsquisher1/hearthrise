@@ -962,6 +962,48 @@ async function rules(M) {
     return cs.leaveCountdown() === null || 'a new hunt shows the last hunt’s leave countdown: ' + JSON.stringify(cs.leaveCountdown());
   });
 
+  /* LEAVE-4 (report #71, live v0.2.67): the server closed a pending leave (a forfeit) between the browser's closing
+     asks; the bar said "Still processing your leave…" for 7 s after the hunt had ended, because the asks stopped
+     short of the late mark and 'late' was the clock's guess. Now one ask lands just past the mark and 'late' waits
+     for the server's word: a hunt the server already closed never reads late. */
+  await t('LEAVE-4', async () => {
+    const S0 = Date.parse('2031-01-01T00:00:00Z');
+    const iso = (ms) => new Date(ms).toISOString();
+    const LEAVE_AT = 7000, MARK = LEAVE_AT + 16000;
+    let clientT = 0, v = 1, closed = false;
+    const hunt = () => ({ session_id: 'h1', hunt_id: 'mill_cellar', ended: closed,
+      session: { id: 'h1', leave_at: closed ? null : iso(S0 + LEAVE_AT), phase: closed ? 'ended' : 'leaving', end_reason: closed ? 'left' : null } });
+    const body = () => env(++v, { now: iso(S0 + clientT), hunt: hunt() });
+    const srv = {
+      rpc: async () => ({ ok: true, status: 200, body: body(), closed: false }),
+      accrue: async () => ({ ok: true, status: 200, body: Object.assign({ accrued: true }, body()), closed: false }),
+    };
+    const armed = [];
+    const cs = new C.CharacterSession({ slot: 0, uid: UID, server: srv, now: () => clientT,
+      setTimer: (fn, ms) => { armed.push({ fn, ms, at: clientT, live: true }); return armed.length; },
+      clearTimer: (id) => { if (armed[id - 1]) armed[id - 1].live = false; } });
+    const asks = [];
+    /* the clock runs to `t`, every timer due on the way firing at its own instant */
+    const runTo = async (t) => {
+      for (;;) {
+        const due = armed.filter((x) => x.live && x.at + x.ms <= t).sort((a, b) => (a.at + a.ms) - (b.at + b.ms))[0];
+        if (!due) break;
+        due.live = false; clientT = Math.max(clientT, due.at + due.ms); asks.push(clientT);
+        await due.fn();
+        for (let i = 0; i < 5; i++) await new Promise((r) => setImmediate(r));
+      }
+      clientT = t;
+    };
+    await cs.load();
+    await runTo(LEAVE_AT + 9600);   // the closing asks past leave_at: all answered "still open"
+    closed = true;                  // then the server ends the hunt (a forfeit); nothing tells the browser
+    await runTo(MARK + 1);
+    const cd = cs.leaveCountdown();
+    if (!cd || cd.phase === 'late') return 'the bar says the leave is still processing though the server was not asked past the mark (asks ' + asks + '): ' + JSON.stringify(cd);
+    await runTo(MARK + 1000);
+    return cs.leaveCountdown() === null || 'no closing ask within 1 s of the late mark found the closed hunt (asks ' + asks + '): ' + JSON.stringify(cs.leaveCountdown());
+  });
+
   const mkAccount = (srv, o = {}) => {
     const tab = memStore();
     const auth = { userId: () => UID, token: () => 'jwt', signOut: async () => { auth.out = true; } };
@@ -1703,7 +1745,10 @@ const MUTANTS = [
   ['the countdown waits for the settle after the leave', 'src/session/character-session.js', "      this._leaveAsk = leaveAskOf(ans.body.session);\n", ""],
   ['the leave answer is held for another session', 'src/session/hunt-leave.js', "ask.session === h.session_id ? ask.at : null", "ask.at"],
   ['the countdown reads 0 past leave_at', 'src/session/hunt-leave.js', "  if (left > 0) return { phase: 'counting', s: Math.ceil(left / 1000) };", "  if (left > -SESSION_CONFIG.leaveLateMs) return { phase: 'counting', s: Math.ceil(left / 1000) };"],
-  ['a late leave is never told apart', 'src/session/hunt-leave.js', "phase: left > -SESSION_CONFIG.leaveLateMs ? 'now' : 'late'", "phase: 'now'"],
+  ['a late leave is never told apart', 'src/session/hunt-leave.js', "phase: now >= mark && told ? 'late' : 'now'", "phase: 'now'"],
+  ['[#71] a late leave is called before the server said so', 'src/session/hunt-leave.js', "phase: now >= mark && told ? 'late' : 'now'", "phase: now >= mark ? 'late' : 'now'"],
+  ['[#71] no close is asked at the late mark', 'src/session/hunt-leave.js', ", Math.ceil(SESSION_CONFIG.leaveLateMs + left) + SESSION_CONFIG.leaveSlackMs);", ', Infinity);'],
+  ['[#71] the bar forgets what the server last said', 'src/session/character-session.js', "heardOf(this.timeline, [this.receivedAt, this._answeredAt], this._asking ? this._askedAt : null)", "null"],
   ['the close is timed on the device clock', 'src/session/character-session.js', "  serverNow() { return this.timeline.serverNowAt(this._now()); }", "  serverNow() { return Date.now(); }"],
   ['a stale token is sent as it is', 'src/net/auth.js', '    if (lasts(session)) return tokenOf(session);\n    if (!session) return null;', '    if (session) return tokenOf(session);\n    if (!session) return null;'],
   ['a 401 is not renewed', 'src/session/server.js', 'if (res.status === 401 && o.renew)', 'if (false && o.renew)'],

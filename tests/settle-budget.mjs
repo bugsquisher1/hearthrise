@@ -181,7 +181,7 @@ async function main() {
   const x = await measure();
   const red = judge(x, src);
   const p = await parity(x.db);
-  const same = p.restored && p.preImages === 59 && p.diffs.length === 0 && p.heroes === 4 && p.sessions >= 4;
+  const same = p.restored && p.preImages === 58 && p.diffs.length === 0 && p.heroes === 4 && p.sessions >= 4;
   if (!same) red.push('SB-4');
   console.log(`  ${same ? '✓' : '✗'} SB-4 — ${p.compared} answers (${p.bytes.toLocaleString('en-US')} bytes: envelopes, hr_load, engine inputs, `
     + `vitals, renown, hunt views of ${p.heroes} hunting heroes) byte-identical before and after this lane's files`

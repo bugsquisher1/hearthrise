@@ -5,15 +5,15 @@
 --   `node tools/gen-plan-cache.mjs --check`. lane/c-settle-cost-2, backend-architect, 2026-10-30.
 --   STAGED. Game CLOSED: applies on its passing §2 (CLAUDE.md §2), one file via the Coordinator's apply tool,
 --   never inside begin/commit, never 00:00-00:10 UTC.
---   digest: f760635042571f02722a42d5e59e1ff7337bde6a9af989db557fc3565b48b83c
---   56 functions.
+--   digest: a2d4941988673baadcc579cd3bb1b224e1e82e9bd4aa919b04d99fe08f9b55d1
+--   55 functions.
 --
 -- ── WHY (measured, not guessed) ─────────────────────────────────────────────
 -- Production is PostgreSQL 17. A LANGUAGE sql function with a SET clause is never inlined, and 17 parses, rewrites and
 -- plans its body again for every statement execution that calls it; 18 (PGlite, the replay) caches that plan, which
 -- is why no replay measurement ever showed it. Live, read-only, 2026-10-30: five one-line helpers 0.8 ms, hr_vitals_of
 -- 2.25 ms a call (inlined by hand into one query: 1.1 ms), hr_home_view's body 1.6 ms of planning alone. On a local
--- PostgreSQL 17 replay of this chain (tools/pg-replay.mjs), a watched 4-hero settle calls these 56 functions
+-- PostgreSQL 17 replay of this chain (tools/pg-replay.mjs), a watched 4-hero settle calls these 55 functions
 -- about 3,000 times; the same body as plpgsql costs 2-7x less a call wherever its caller runs it as its own statement
 -- (hr_renown_of 2.70 -> 0.64 ms, hr_hunt_weapon_of 0.40 -> 0.05, hr_skill_level 0.18 -> 0.07) and the same per row of
 -- one statement. The before/after of the whole settle is in the lane report.
@@ -65,7 +65,6 @@ begin
     ('public.hr_character_name_view(uuid,integer)', 'a60cb40546c77753ef345697797bbd11', 'a4a5d783eb4e24c1fd66ccf178e2d156'),
     ('public.hr_death_log_view(uuid,integer)', '5082be0374d9eaff31f59cbf666aa5eb', '950094fdab0f4c665e26a289bf5bf61f'),
     ('public.hr_depot_cap(uuid)', '0174f75e35b34bcdee75ecf96eb21f6d', '1180679abaa09da84294b714309d8ce6'),
-    ('public.hr_depot_view(uuid,integer)', '3c98663be8aab51dd028808ec6c6357a', '3bede393154405c8f772cb182e85f0a8'),
     ('public.hr_dungeon_cooldowns(uuid,integer)', '82d63835c3f0be53a15882298e27b0ef', 'ac1df9f760a395b79db564f516851a5b'),
     ('public.hr_farm_plot_cap(uuid)', 'a6587ff991c1ab77715221881e73ddf5', '485b11f6f274489585960cc932898271'),
     ('public.hr_farm_plot_level(uuid)', '17ad42dbf99281da61e017206912d4fb', 'e5812a61c21c55bbe381e5564c144605'),
@@ -372,47 +371,6 @@ begin
        + coalesce((select sum(c.stacks) from public.account_storage_chests a
                      join public.hr_storage_chests c on c.chest_id = a.chest_id
                     where a.user_id = p_user), 0)::int
-  ) as hr_q(v) limit 1);
-end
-$plc$;
-
-create or replace function public.hr_depot_view(p_user uuid, p_slot integer)
- returns jsonb
- language plpgsql
- stable
- security definer
- parallel unsafe
- cost 100
- set search_path = public, pg_catalog
-as $plc$
--- PLAN-CACHE (2027-02-10-settle-plan-cache.generated.sql): the SQL body below, verbatim, planned once per backend.
-#variable_conflict use_column
-begin
-  return (select hr_q.v from (
-
-  with ch as (
-    select c.*, (a.chest_id is not null) as built
-      from public.hr_storage_chests c
-      left join public.account_storage_chests a on a.user_id = p_user and a.chest_id = c.chest_id),
-  nx as (select * from ch where not built order by ord limit 1),
-  t as (select public.hr_account_property_tier(p_user) as tier),
-  rm as (select (select count(*) from public.account_bank where user_id = p_user) as used,
-                public.hr_storage_room_used(p_user) as room_used)
-  select jsonb_build_object(
-    'used', (select used from rm),
-    'reserved', (select room_used - used from rm),
-    'room_used', (select room_used from rm),
-    'cap', public.hr_depot_cap(p_user),
-    'base', (select base_stacks from public.hr_depot_config where only_row),
-    'tier', (select tier from t),
-    'chests', coalesce((select jsonb_agg(jsonb_build_object('chest', chest_id, 'name', name, 'stacks', stacks,
-        'tier', req_property_tier, 'gold', gold, 'items', items, 'built', built) order by ord) from ch), '[]'::jsonb),
-    'next', (select jsonb_build_object('chest', nx.chest_id, 'name', nx.name, 'stacks', nx.stacks, 'tier', nx.req_property_tier,
-        'gold', nx.gold, 'items', nx.items,
-        'can_build', nx.req_property_tier <= (select tier from t),
-        'why', case when nx.req_property_tier > (select tier from t) then 'needs_property_tier' end)
-      from nx))
-   where exists (select 1 from public.player_state ps where ps.user_id = p_user and ps.slot = p_slot)
   ) as hr_q(v) limit 1);
 end
 $plc$;
@@ -1677,7 +1635,6 @@ begin
     ('public.hr_character_name_view(uuid,integer)', 'a4a5d783eb4e24c1fd66ccf178e2d156', 's', true, false, 'u', '["search_path=public, pg_catalog"]'),
     ('public.hr_death_log_view(uuid,integer)', '950094fdab0f4c665e26a289bf5bf61f', 's', false, false, 'u', '["search_path=public, pg_catalog"]'),
     ('public.hr_depot_cap(uuid)', '1180679abaa09da84294b714309d8ce6', 's', true, false, 'u', '["search_path=public, pg_catalog"]'),
-    ('public.hr_depot_view(uuid,integer)', '3bede393154405c8f772cb182e85f0a8', 's', true, false, 'u', '["search_path=public, pg_catalog"]'),
     ('public.hr_dungeon_cooldowns(uuid,integer)', 'ac1df9f760a395b79db564f516851a5b', 's', true, false, 'u', '["search_path=public"]'),
     ('public.hr_farm_plot_cap(uuid)', '485b11f6f274489585960cc932898271', 's', true, false, 'u', '["search_path=public, pg_temp"]'),
     ('public.hr_farm_plot_level(uuid)', 'e5812a61c21c55bbe381e5564c144605', 's', true, false, 'u', '["search_path=public, pg_temp"]'),
@@ -1978,45 +1935,6 @@ $sqlpre$$pre$;
            union select '00000000-0000-0000-0000-000000000000'::uuid) t(x)) p0(x)
            where public.hr_depot_cap(p0.x)::text is distinct from pg_temp.hrpc_hr_depot_cap(p0.x)::text$probe$ into v_n, v_ex;
     if v_n <> 0 then raise exception 'plan-cache §2(b): hr_depot_cap answers differently from its SQL pre-image on % input(s), e.g. (%)', v_n, v_ex; end if;
-    v_total := v_total + 1;
-
-    execute $pre$create or replace function pg_temp.hrpc_hr_depot_view(p_user uuid, p_slot integer)
- returns jsonb
- language sql
- stable
- security definer
- parallel unsafe
- cost 100
- set search_path = public, pg_catalog
-as $sqlpre$
-  with ch as (
-    select c.*, (a.chest_id is not null) as built
-      from public.hr_storage_chests c
-      left join public.account_storage_chests a on a.user_id = p_user and a.chest_id = c.chest_id),
-  nx as (select * from ch where not built order by ord limit 1),
-  t as (select public.hr_account_property_tier(p_user) as tier),
-  rm as (select (select count(*) from public.account_bank where user_id = p_user) as used,
-                public.hr_storage_room_used(p_user) as room_used)
-  select jsonb_build_object(
-    'used', (select used from rm),
-    'reserved', (select room_used - used from rm),
-    'room_used', (select room_used from rm),
-    'cap', public.hr_depot_cap(p_user),
-    'base', (select base_stacks from public.hr_depot_config where only_row),
-    'tier', (select tier from t),
-    'chests', coalesce((select jsonb_agg(jsonb_build_object('chest', chest_id, 'name', name, 'stacks', stacks,
-        'tier', req_property_tier, 'gold', gold, 'items', items, 'built', built) order by ord) from ch), '[]'::jsonb),
-    'next', (select jsonb_build_object('chest', nx.chest_id, 'name', nx.name, 'stacks', nx.stacks, 'tier', nx.req_property_tier,
-        'gold', nx.gold, 'items', nx.items,
-        'can_build', nx.req_property_tier <= (select tier from t),
-        'why', case when nx.req_property_tier > (select tier from t) then 'needs_property_tier' end)
-      from nx))
-   where exists (select 1 from public.player_state ps where ps.user_id = p_user and ps.slot = p_slot)
-$sqlpre$$pre$;
-    execute $probe$select count(*)::int as n, min(concat_ws(' / ', coalesce(w.a1::text, 'null'), coalesce(w.a2::text, 'null'))) as example
-            from (select user_id, slot from public.player_state union all select '00000000-0000-0000-0000-000000000000'::uuid, 0) w(a1, a2)
-           where public.hr_depot_view(w.a1, w.a2)::text is distinct from pg_temp.hrpc_hr_depot_view(w.a1, w.a2)::text$probe$ into v_n, v_ex;
-    if v_n <> 0 then raise exception 'plan-cache §2(b): hr_depot_view answers differently from its SQL pre-image on % input(s), e.g. (%)', v_n, v_ex; end if;
     v_total := v_total + 1;
 
     execute $pre$create or replace function pg_temp.hrpc_hr_dungeon_cooldowns(p_user uuid, p_slot integer)
@@ -3190,7 +3108,7 @@ $sqlpre$$pre$;
     if v_n <> 0 then raise exception 'plan-cache §2(b): hr_vitals_of answers differently from its SQL pre-image on % input(s), e.g. (%)', v_n, v_ex; end if;
     v_total := v_total + 1;
 
-    if v_total <> 56 then raise exception 'plan-cache §2(b)-harness: % of 56 functions probed', v_total; end if;
+    if v_total <> 55 then raise exception 'plan-cache §2(b)-harness: % of 55 functions probed', v_total; end if;
     raise exception 'plan-cache §2: ok' using errcode = 'P0001';
   exception when sqlstate 'P0001' then
     if sqlerrm <> 'plan-cache §2: ok' then raise; end if;

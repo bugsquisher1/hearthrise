@@ -10,7 +10,7 @@
 // MASTER-DETAIL (designer plan 2026-10-22, B #1; Tyler 10-22: "the 'Hunts' page
 // could use some work"). The list is one LINE per hunt ground (src/shell/hunt-list.js,
 // from the data rows): its name, its band against the hero's Level in words and a
-// tone, a solo / party glyph, this hero's best Level XP an hour there (or "New"),
+// tone, a solo / party glyph, this hero's best Level XP an hour there (or "No best yet"),
 // and "Fits your level" on the recommendation's line. The picked ground gets ONE
 // page beside it (src/shell/windows/hunt-detail.js: its theme, who lives there,
 // the rare and its carrier, the hero's bests), then the pull size, and the
@@ -46,25 +46,25 @@
 // server's `leader_densities`) with no step, and the server refuses a member's
 // pick (hr_hunt_density_set `not_leader`).
 // ════════════════════════════════════════════════════════════════════════
-import { huntOf, huntBagOf, settingsOf, huntBestsOf, huntDensityOf } from '../../session/hunt-sections.js?v=0.2.70';
-import { bagOf, equipmentOf } from '../../session/item-sections.js?v=0.2.70';
-import { wornWeightOf } from '../hunt-ground-facts.js?v=0.2.70';
-import { levelOf as levelRowOf } from '../../session/character-sections.js?v=0.2.70';
-import { huntName, partyMembershipOf } from '../../session/party-sections.js?v=0.2.70';
-import { startPartyHunt, settleTownActivity } from '../../session/party-intents.js?v=0.2.70';
-import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.70';
-import { whole } from '../../render/format.js?v=0.2.70';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.70';
-import { itemName } from '../widgets/bits.js?v=0.2.70';
-import { glyphSvg } from '../launcher.js?v=0.2.70';
-import { runIntent, refusalText } from '../intent-words.js?v=0.2.70';
-import { HUNT_GROUNDS, densityFor, DENSITY_PICK } from '../../data/hunt-grounds.js?v=0.2.70';
-import { huntRows, densityWords, rangeWords, groupWords, heroWords, packFor, bestLine, fitWords, ABOVE_LEVEL_WORDS, recommendation } from '../hunt-list.js?v=0.2.70';
-import { detailHtml, patchGround, goHtml, patchGo } from './hunt-detail.js?v=0.2.70';
-import { setupsOf, beforeLines, freeHeroes } from '../hunt-go.js?v=0.2.70';
-import { inviteOwn } from '../../session/party-intents.js?v=0.2.70';
-import { openFinderOn } from './party-finder.js?v=0.2.70';
-import { tallyOf, heldOn, tallyLine } from '../../session/tally-sections.js?v=0.2.70';
+import { huntOf, huntBagOf, settingsOf, huntBestsOf, huntDensityOf } from '../../session/hunt-sections.js?v=0.2.71';
+import { bagOf, equipmentOf } from '../../session/item-sections.js?v=0.2.71';
+import { wornWeightOf } from '../hunt-ground-facts.js?v=0.2.71';
+import { levelOf as levelRowOf } from '../../session/character-sections.js?v=0.2.71';
+import { huntName, partyMembershipOf } from '../../session/party-sections.js?v=0.2.71';
+import { startPartyHunt, settleTownActivity } from '../../session/party-intents.js?v=0.2.71';
+import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.71';
+import { whole } from '../../render/format.js?v=0.2.71';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.71';
+import { itemName } from '../widgets/bits.js?v=0.2.71';
+import { glyphSvg } from '../launcher.js?v=0.2.71';
+import { runIntent, refusalText } from '../intent-words.js?v=0.2.71';
+import { HUNT_GROUNDS, densityFor, DENSITY_PICK } from '../../data/hunt-grounds.js?v=0.2.71';
+import { huntRows, densityWords, rangeWords, groupWords, heroWords, packFor, bestLine, fitWords, ABOVE_LEVEL_WORDS, recommendation } from '../hunt-list.js?v=0.2.71';
+import { detailHtml, patchGround, goHtml, patchGo } from './hunt-detail.js?v=0.2.71';
+import { setupsOf, beforeLines, freeHeroes } from '../hunt-go.js?v=0.2.71';
+import { inviteOwn } from '../../session/party-intents.js?v=0.2.71';
+import { openFinderOn } from './party-finder.js?v=0.2.71';
+import { tallyOf, heldOn, tallyLine } from '../../session/tally-sections.js?v=0.2.71';
 
 const SCRATCH = new WeakMap();
 /* `draft` is the density shown before the server has it ({ hunt, n }), `timer` its coalescing

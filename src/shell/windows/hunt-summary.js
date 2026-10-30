@@ -17,17 +17,17 @@
 // when the session ends. Numbers come from the server's sections only.
 // Built once, patched in place (src/render/paint.js).
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.70';
-import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.70';
-import { whole, gold, clock } from '../../render/format.js?v=0.2.70';
-import { itemName, itemIconHtml } from '../widgets/bits.js?v=0.2.70';
-import { runIntent } from '../intent-words.js?v=0.2.70';
-import { endedSessionOf, sanitizeSummaries, huntAgainOf, endWords } from '../../hunt-view/summary-model.js?v=0.2.70';
-import { observeSessions } from '../../session/character-session.js?v=0.2.70';
-import { attach, summariesOf, liveDeaths } from '../../hunt-view/summary-recorder.js?v=0.2.70';
-import { nameOf } from '../../session/item-sections.js?v=0.2.70';
-import { heldCard } from '../launcher.js?v=0.2.70';
-import { coachWindow, coachTab } from '../../data/hunt-tutorial.js?v=0.2.70';
+import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.71';
+import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.71';
+import { whole, gold, clock } from '../../render/format.js?v=0.2.71';
+import { itemName, itemIconHtml } from '../widgets/bits.js?v=0.2.71';
+import { runIntent } from '../intent-words.js?v=0.2.71';
+import { endedSessionOf, sanitizeSummaries, huntAgainOf, endWords } from '../../hunt-view/summary-model.js?v=0.2.71';
+import { observeSessions } from '../../session/character-session.js?v=0.2.71';
+import { attach, summariesOf, liveDeaths } from '../../hunt-view/summary-recorder.js?v=0.2.71';
+import { nameOf } from '../../session/item-sections.js?v=0.2.71';
+import { heldCard } from '../launcher.js?v=0.2.71';
+import { coachWindow, coachTab } from '../../data/hunt-tutorial.js?v=0.2.71';
 
 /* The tutorial card up now (a card of the guide, never the "What next" line), or null. */
 const nextStepOf = (ctx) => { const c = ctx.character ? heldCard(ctx) : null; return c && c.done ? c : null; };
@@ -38,10 +38,12 @@ observeSessions(attach);
 const SCRATCH = new WeakMap();
 const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { pending: false, msg: '', pick: null }; SCRATCH.set(cs, s); } return s; };
 /* ── The window ── */
-/* Balance per hour shows for everyone; Level XP per hour before bonuses only when the server sent it (premium, the
-   10-19 analyzer ruling). XP here is LEVEL XP; training XP is the premium analyzer's Training tab (Tyler 2026-10-22). */
+/* The hunt's balance shows for everyone; balance per hour once the server rates the hunt (10 minutes of it: a shorter
+   hunt showed a bare "–" there, core-loop play 2026-10-30); Level XP per hour before bonuses only when the server sent
+   it (premium, the 10-19 analyzer ruling). XP here is LEVEL XP; training XP is the premium analyzer's Training tab
+   (Tyler 2026-10-22). */
 const STATS = Object.freeze([['ms', 'Time', clock], ['kills', 'Monsters', whole], ['xp', 'Level XP', whole], ['gold', 'Gold', gold], ['lootValue', 'Loot value (unsold)', gold, true],
-  ['balanceH', 'Balance per hour', gold], ['rawXpH', 'Level XP per hour before bonuses', whole, true]]);
+  ['balance', 'Balance', gold, true], ['balanceH', 'Balance per hour', gold, true], ['rawXpH', 'Level XP per hour before bonuses', whole, true]]);
 
 /** The skeleton (built once). */
 export function renderHuntSummary() {

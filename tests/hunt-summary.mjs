@@ -160,6 +160,9 @@ async function runTests(M) {
     eq(s.supplies, [['wheat_bread', 'own', 12], ['wheat_bread', 'store', 4]], 'bag vs store');
     /* Brannoc 10-22: gold is the coin received; the loot's shop value is its own line, kept on the stored card. */
     eq([s.lootValue, MD.sanitizeSummaries([s])[0].lootValue, MD.buildSummary(ended(), null, []).lootValue], [406, 406, null], 'loot value (unsold) is its own figure, never in gold');
+    /* The hunt's own balance is on the card from the first kill, rated or not (core-loop play 2026-10-30), and kept. */
+    const unrated = MD.buildSummary(ended(), { ...an, hero: { ...an.hero, balance: 2228, perHour: { ...an.hero.perHour, balance: null } } }, []);
+    eq([unrated.balance, unrated.balanceH, MD.sanitizeSummaries([unrated])[0].balance], [2228, null, 2228], 'the balance shows before the per-hour rate does');
     eq(s.loot[0], ['cheese', 9], 'top loot first');
     const free = MD.buildSummary(ended(), null, []);
     eq([free.ms, free.kills, free.xp, free.gold, free.loot, free.supplies], [60000, 7, 70, 30, [['rat_tail', 4]], [['wheat_bread', 'own', 3]]], 'the free character reads the session tally (XP = its Level key, not the skills)');
@@ -318,6 +321,8 @@ const MUTANTS = [
   { test: 'S4', file: MODEL, from: "loot.sort((a, b) => b[1] - a[1]);", to: '' },
   { test: 'S4', file: MODEL, from: 'balanceH: ph ? ph.balance : null,', to: 'balanceH: ph ? ph.gold : null,' },
   { test: 'S4', file: SUMMARIES, from: 'lootValue: num(v.lootValue), ', to: '' },
+  { test: 'S4', file: SUMMARIES, from: 'balance: num(v.balance), ', to: '' },
+  { test: 'S4', file: MODEL, from: 'balance: hero ? hero.balance : null,', to: 'balance: null,' },
   { test: 'S4', file: SUMMARIES, from: 'balanceH: num(v.balanceH), rawXpH: num(v.rawXpH),', to: 'balanceH: num(v.balanceH),' },
   { test: 'S4', file: MODEL, from: 'isObj(t.xp) ? num(t.xp.level) : num(t.xp)', to: 'num(t.xp)' },
   { test: 'S5', file: MODEL, from: "hunt: summary.hunt, preset: summary.preset, hours: summary.hoursLimit,", to: "hunt: summary.hunt, preset: 0, hours: summary.hoursLimit," },

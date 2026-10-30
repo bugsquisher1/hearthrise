@@ -18,11 +18,13 @@ const gh = async (p) => (await fetch(`https://api.github.com/repos/${REPO}${p}`,
 
 async function ciVerdict(branch) {
   const runs = (await gh(`/actions/runs?branch=${encodeURIComponent(branch)}&per_page=5`)).workflow_runs || [];
-  const w = runs.find((r) => r.name === 'smoke');
+  /* by workflow PATH: a run whose workflow file fails to load is named after the file, not 'smoke' (10-30: the watcher read the older run) */
+  const w = runs.find((r) => r.path === '.github/workflows/smoke.yml' || r.name === 'smoke');
   if (!w) return { done: false, line: `${branch}: no smoke run yet` };
   if (w.status !== 'completed') return { done: false, line: `${branch}: ${w.status} (${w.head_sha.slice(0, 9)})` };
   if (w.conclusion === 'success') return { done: true, ok: true, line: `${branch}: GREEN (${w.head_sha.slice(0, 9)})` };
   const jobs = ((await gh(`/actions/runs/${w.id}/jobs?per_page=50`)).jobs || []).filter((j) => j.conclusion !== 'success');
+  if (!jobs.length) return { done: true, ok: false, line: `${branch}: RED (${w.head_sha.slice(0, 9)}) with NO jobs: the workflow file failed to load ${w.html_url}` };
   const why = jobs.map((j) => `    ✗ ${j.name}: ${(j.steps || []).filter((s) => s.conclusion === 'failure').map((s) => s.name).join(' | ') || j.conclusion}`);
   return { done: true, ok: false, line: `${branch}: RED (${w.head_sha.slice(0, 9)}) ${w.html_url}\n` + why.join('\n') };
 }

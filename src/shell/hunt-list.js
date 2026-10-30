@@ -20,18 +20,18 @@
 //                        every stack, at most the server's line cap
 //   bestWords(b, hunt)  this hero's personal bests on the ground, alone and
 //                        in a party, from the server's `hunt_bests` section
-//                        (one "Not hunted yet" line when it has none)
-//   bestLine(b, hunt)   the list line's best Level XP an hour, or "New"
+//                        (one "No best here yet" line when it has none)
+//   bestLine(b, hunt)   the list line's best Level XP an hour, or "No best yet"
 //   fitWords(row, lv)   the list line's band against the Level, and its tone
 // Nothing here is a gate: the server checks the band, the stamina and the
 // stock when the player presses Enter, and says why it refuses.
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_GROUNDS, PARTY_SCALE } from '../data/hunt-grounds.js?v=0.2.70';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.70';
-import { MONSTERS } from '../data/monsters.js?v=0.2.70';
-import { SUPPLIES } from '../data/supplies.js?v=0.2.70';
-import { SESSION_LIMITS } from '../data/hunt-sessions.js?v=0.2.70';
-import { whole, gold } from '../render/format.js?v=0.2.70';
+import { HUNT_GROUNDS, PARTY_SCALE } from '../data/hunt-grounds.js?v=0.2.71';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.71';
+import { MONSTERS } from '../data/monsters.js?v=0.2.71';
+import { SUPPLIES } from '../data/supplies.js?v=0.2.71';
+import { SESSION_LIMITS } from '../data/hunt-sessions.js?v=0.2.71';
+import { whole, gold } from '../render/format.js?v=0.2.71';
 
 const PACK_QTY_MAX = 100000;
 const COUNT_WORDS = Object.freeze(['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight']);
@@ -163,18 +163,20 @@ export function bestWords(bests, hunt) {
   const line = (b) => whole(b.xpH) + ' Level XP per hour · balance ' + gold(b.balanceH) + ' per hour';
   const solo = g.solo ? 'Best alone: ' + line(g.solo) : null;
   const party = g.party ? 'Best in a party: ' + line(g.party) : null;
-  return { solo, party, none: solo || party ? null : 'Not hunted yet. A hunt of ' + Math.round(bests.minMs / 60000) + ' min or more sets your best.' };
+  return { solo, party, none: solo || party ? null : 'No best here yet. A hunt of ' + Math.round(bests.minMs / 60000) + ' min or more sets your best.' };
 }
 
 /**
  * The list line's best: this hero's higher Level XP an hour on the ground, alone or in a party
- * ("Best 12,400 Level XP/h"), or "New" when it has none there. Null when the server sent no section.
+ * ("Best 12,400 Level XP/h"), or "No best yet" when it has none there (never "New" or "Not hunted yet": a hunt
+ * under 10 minutes sets no best, and Pellow's twice-hunted Mill Cellar read "New", core-loop play 2026-10-30).
+ * Null when the server sent no section.
  */
 export function bestLine(bests, hunt) {
   if (!bests) return null;
   const g = bests.grounds[hunt] || {};
   const xp = Math.max(g.solo ? g.solo.xpH : -Infinity, g.party ? g.party.xpH : -Infinity);
-  return Number.isFinite(xp) ? 'Best ' + whole(xp) + ' Level XP/h' : 'New';
+  return Number.isFinite(xp) ? 'Best ' + whole(xp) + ' Level XP/h' : 'No best yet';
 }
 
 /**

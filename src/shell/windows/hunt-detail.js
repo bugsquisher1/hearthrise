@@ -12,7 +12,7 @@
 //                   common it is (src/shell/hunt-ground-facts.js)
 //   what drops      the gear, a line a tier in each armour weight (the hero's own first), then
 //                   every Rare and Trophy with its carrier; each with its chance per kill
-//   your best       the server's hunt_bests, or ONE "Not hunted yet"
+//   your best       the server's hunt_bests, or ONE "No best here yet"
 // then the pull size (src/shell/windows/hunts.js) and the going-hunting part
 // (goHtml / patchGo, from src/shell/hunt-go.js): Go as (the setups as lines, the
 // one in use first choice), Before you go (what the bar spends and what it costs)
@@ -20,14 +20,14 @@
 // Enter sits at the page's foot. This module draws; it holds no state and sends
 // nothing (hunts.js owns every press).
 // ════════════════════════════════════════════════════════════════════════
-import { rows, text, cls, prop, attr, style, element } from '../../render/paint.js?v=0.2.70';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.70';
-import { itemIconHtml, actionIconHtml } from '../widgets/bits.js?v=0.2.70';
-import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.70';
-import { bandWords, fitWords, heroWords, partyNote, bestWords } from '../hunt-list.js?v=0.2.70';
-import { residentsOf, scarceSetOf, raresOf } from '../hunt-ground-facts.js?v=0.2.70';
-import { creatureArt, drawCreature, PORTRAIT_DIR } from '../../render/creature-sprite.js?v=0.2.70';
-import { chance } from '../../render/format.js?v=0.2.70';
+import { rows, text, cls, prop, attr, style, element } from '../../render/paint.js?v=0.2.71';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.71';
+import { itemIconHtml, actionIconHtml } from '../widgets/bits.js?v=0.2.71';
+import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.71';
+import { bandWords, fitWords, heroWords, partyNote, bestWords } from '../hunt-list.js?v=0.2.71';
+import { residentsOf, scarceSetOf, raresOf } from '../hunt-ground-facts.js?v=0.2.71';
+import { creatureArt, drawCreature, PORTRAIT_DIR } from '../../render/creature-sprite.js?v=0.2.71';
+import { chance } from '../../render/format.js?v=0.2.71';
 
 /* The world's one density (ART_DIRECTION §2): every art pixel is 2x2 screen px; each creature faces the player
    (Tyler 2026-10-24), the portrait's front pose, so the line reads as one. */
@@ -204,7 +204,7 @@ export function patchGround(det, ctx, r, o) {
   const said = partyNote(r.hunt);
   text(note, said);
   prop(note, 'hidden', !said);
-  /* This hero's bests here (the server's hunt_bests): a line per mode it has, else one "Not hunted yet". */
+  /* This hero's bests here (the server's hunt_bests): a line per mode it has, else one "No best here yet". */
   const best = bestWords(bests, r.hunt);
   /* No hunt_bests section from the server: no heading over nothing. */
   prop(det.querySelector('.hw-hd-bests'), 'hidden', !best);

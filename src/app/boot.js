@@ -31,29 +31,29 @@
 // retried in the background.
 // ════════════════════════════════════════════════════════════════════════
 
-import { SUPABASE_CONFIG, createSupabaseClient } from '../net/supabase-bootstrap.js?v=0.2.70';
-import { createAuth, AUTH_COPY } from '../net/auth.js?v=0.2.70';
-import { SESSION_CONFIG } from '../session/config.js?v=0.2.70';
-import { createServerLink } from '../session/server.js?v=0.2.70';
-import { AccountSession } from '../session/account-session.js?v=0.2.70';
-import { FRAME_EVENT } from '../session/character-session.js?v=0.2.70';
-import { renderAuthScreen, AUTH_BRAND } from './sign-in.js?v=0.2.70';
-import { mountWorldPane } from './world-pane.js?v=0.2.70';
-import { mountCharacterStrip, stripTargetOf } from './character-strip.js?v=0.2.70';
-import { renderHeroCreate } from './hero-create.js?v=0.2.70';
-import { slotOfferHtml, slotRefusalText } from './slot-offer.js?v=0.2.70';
-import { createAlertCenter } from '../shell/alerts.js?v=0.2.70';
-import { createSocialRealtime } from '../social/realtime.js?v=0.2.70';
-import { SocialSession } from '../social/social-session.js?v=0.2.70';
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.70';
-import { startObservability, track } from '../net/observability.js?v=0.2.70';
-import { loadGlyphs } from './glyphs-loader.js?v=0.2.70';
-import { startDiagnostics } from '../net/diagnostics.js?v=0.2.70';
-import { mountPressAck } from '../shell/press-ack.js?v=0.2.70';
-import { liveOverlayWanted, mountLiveOverlay } from './live-overlay.js?v=0.2.70';
-import { mountNewVersion } from './new-version.js?v=0.2.70';
-import { pointerCardOf } from '../session/tutorial-sections.js?v=0.2.70';
-import { coachFactsOf } from '../shell/launcher.js?v=0.2.70';
+import { SUPABASE_CONFIG, createSupabaseClient } from '../net/supabase-bootstrap.js?v=0.2.71';
+import { createAuth, AUTH_COPY } from '../net/auth.js?v=0.2.71';
+import { SESSION_CONFIG } from '../session/config.js?v=0.2.71';
+import { createServerLink } from '../session/server.js?v=0.2.71';
+import { AccountSession } from '../session/account-session.js?v=0.2.71';
+import { FRAME_EVENT } from '../session/character-session.js?v=0.2.71';
+import { renderAuthScreen, AUTH_BRAND } from './sign-in.js?v=0.2.71';
+import { mountWorldPane } from './world-pane.js?v=0.2.71';
+import { mountCharacterStrip, stripTargetOf } from './character-strip.js?v=0.2.71';
+import { renderHeroCreate } from './hero-create.js?v=0.2.71';
+import { slotOfferHtml, slotRefusalText } from './slot-offer.js?v=0.2.71';
+import { createAlertCenter } from '../shell/alerts.js?v=0.2.71';
+import { createSocialRealtime } from '../social/realtime.js?v=0.2.71';
+import { SocialSession } from '../social/social-session.js?v=0.2.71';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.71';
+import { startObservability, track } from '../net/observability.js?v=0.2.71';
+import { loadGlyphs } from './glyphs-loader.js?v=0.2.71';
+import { startDiagnostics } from '../net/diagnostics.js?v=0.2.71';
+import { mountPressAck } from '../shell/press-ack.js?v=0.2.71';
+import { liveOverlayWanted, mountLiveOverlay } from './live-overlay.js?v=0.2.71';
+import { mountNewVersion } from './new-version.js?v=0.2.71';
+import { pointerCardOf } from '../session/tutorial-sections.js?v=0.2.71';
+import { coachFactsOf } from '../shell/launcher.js?v=0.2.71';
 
 const DISCORD = 'https://discord.gg/eJrUSUJM3M';
 
@@ -189,7 +189,7 @@ function startApp(win) {
     const rows = roster.map((r) => '<li class="char-row' + (r.exists ? '' : ' is-empty') + '">'
       + '<button type="button" class="char-pick" ' + (r.exists ? 'data-app="play"' : 'data-app="create"') + ' data-slot="' + r.slot + '">'
       + '<span class="char-name"><b>' + (r.exists ? esc(r.name || 'Unnamed hero') : r.unnamed ? 'Unnamed hero' : 'Empty slot') + '</b>'
-      + (r.exists && r.level ? ' <small class="char-level">Level ' + r.level + '</small>' : '') + '</span> '
+      + (r.exists && r.level ? ' <small class="char-level">Level ' + r.level + (r.doing ? ' · ' + esc(r.doing) : '') + '</small>' : '') + '</span> '
       + '<span class="char-go">' + (r.exists ? (open.has(r.slot) ? 'Show' : 'Play') : r.unnamed ? 'Name hero' : 'Create hero') + '</span>'
       + '</button></li>').join('');
     /* the server's play-at-once limit, never a client fallback (board 2026-10-25 #8: an empty account read "One can play

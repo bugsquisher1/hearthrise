@@ -6,18 +6,18 @@
 // The row is drawn from the window catalogue, so it lists only windows that
 // exist, and it is the `launchers` HUD widget, which can never be hidden.
 // ════════════════════════════════════════════════════════════════════════
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.69';
-import { pointerCardOf } from '../session/tutorial-sections.js?v=0.2.69';
-import { HUNT_TUTORIAL, AUTO_KINDS, coachIcon } from '../data/hunt-tutorial.js?v=0.2.69';
-import { tallyOf } from '../session/tally-sections.js?v=0.2.69';
-import { bagOf, rulesOf, shopOf, equipmentOf, nameOf, skillsOf } from '../session/item-sections.js?v=0.2.69';
-import { levelOf } from '../session/character-sections.js?v=0.2.69';
-import { huntOf } from '../session/hunt-sections.js?v=0.2.69';
-import { COACH_READ_MAX } from '../session/residue.js?v=0.2.69';
-import { lootSale } from './bag-model.js?v=0.2.69';
-import { upgradeOf } from './widgets/upgrade-line.js?v=0.2.69';
-import { revealInWindow, glyphSvg } from './widgets/bits.js?v=0.2.69';
-import { draftOf, serverBar } from './bar-draft.js?v=0.2.69';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.70';
+import { pointerCardOf } from '../session/tutorial-sections.js?v=0.2.70';
+import { HUNT_TUTORIAL, AUTO_KINDS, coachIcon } from '../data/hunt-tutorial.js?v=0.2.70';
+import { tallyOf } from '../session/tally-sections.js?v=0.2.70';
+import { bagOf, rulesOf, shopOf, equipmentOf, nameOf, skillsOf } from '../session/item-sections.js?v=0.2.70';
+import { levelOf } from '../session/character-sections.js?v=0.2.70';
+import { huntOf } from '../session/hunt-sections.js?v=0.2.70';
+import { COACH_READ_MAX } from '../session/residue.js?v=0.2.70';
+import { lootSale } from './bag-model.js?v=0.2.70';
+import { upgradeOf } from './widgets/upgrade-line.js?v=0.2.70';
+import { revealInWindow, glyphSvg } from './widgets/bits.js?v=0.2.70';
+import { draftOf, serverBar } from './bar-draft.js?v=0.2.70';
 
 /** The chip text for a row's shortcut key: 'b' -> 'B', 'enter' -> 'Enter'. */
 export function keyLabel(key) {

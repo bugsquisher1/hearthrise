@@ -38,21 +38,21 @@
 // only things it sends of its own are the allowlisted residue and intents.
 // ════════════════════════════════════════════════════════════════════════
 
-import { applyEnvelope, frameEnvelope, withResidue } from './envelope.js?v=0.2.67';
-import { createTimeline } from '../hunt-view/timeline.js?v=0.2.67';
-import { LiveLink } from './live-link.js?v=0.2.67';
-import { RESIDUE_FIELDS, sanitizeResidueField, unconfirmedResidue } from './residue.js?v=0.2.67';
-import { SESSION_CONFIG } from './config.js?v=0.2.67';
-import { edgeBody, edgeRead } from './edge-intents.js?v=0.2.67';
-import { leaveAskOf, pendingLeaveAt, leaveCountdown, heardOf, closeInMs } from './hunt-leave.js?v=0.2.67';
-import { HuntPoll, pollDelayMs } from './hunt-poll.js?v=0.2.67';
-import { AskPacer } from './ask-pacer.js?v=0.2.67';
-import { createIntentLedger } from './intent-ledger.js?v=0.2.67';
-import { ReadGate } from './read-gate.js?v=0.2.67';
-import { frameTopic, reconnectDelay } from './frame-channel.js?v=0.2.67';
-import { refusalOf, settleRefusalOf } from './refusal.js?v=0.2.67';
-import { catchUpLink, newIdem } from './catch-up.js?v=0.2.67';
-import { SERVER_ONLY_EVENTS } from '../core/hunt/events.js?v=0.2.67';
+import { applyEnvelope, frameEnvelope, withResidue } from './envelope.js?v=0.2.70';
+import { createTimeline } from '../hunt-view/timeline.js?v=0.2.70';
+import { LiveLink } from './live-link.js?v=0.2.70';
+import { RESIDUE_FIELDS, sanitizeResidueField, unconfirmedResidue } from './residue.js?v=0.2.70';
+import { SESSION_CONFIG } from './config.js?v=0.2.70';
+import { edgeBody, edgeRead } from './edge-intents.js?v=0.2.70';
+import { leaveAskOf, pendingLeaveAt, leaveCountdown, heardOf, closeInMs } from './hunt-leave.js?v=0.2.70';
+import { HuntPoll, pollDelayMs } from './hunt-poll.js?v=0.2.70';
+import { AskPacer } from './ask-pacer.js?v=0.2.70';
+import { createIntentLedger } from './intent-ledger.js?v=0.2.70';
+import { ReadGate } from './read-gate.js?v=0.2.70';
+import { frameTopic, reconnectDelay } from './frame-channel.js?v=0.2.70';
+import { refusalOf, settleRefusalOf } from './refusal.js?v=0.2.70';
+import { catchUpLink, newIdem } from './catch-up.js?v=0.2.70';
+import { SERVER_ONLY_EVENTS } from '../core/hunt/events.js?v=0.2.70';
 
 export const FRAME_EVENT = 'frame';
 

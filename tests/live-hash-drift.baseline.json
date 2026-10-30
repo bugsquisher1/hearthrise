@@ -24,7 +24,7 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-10-30",
- "replay_ms": 143617,
+ "replay_ms": 103141,
  "counts": {
   "tracked_names": 700,
   "entries": 555
@@ -5035,22 +5035,24 @@
    "sig": "hr_hunt_density_freeze()",
    "name": "hr_hunt_density_freeze",
    "tracked_by": [
+    "chain",
     "pin",
     "restate"
    ],
    "touched_by": [
     "2026-11-16-hunt-density-bounds.sql",
-    "2026-11-17-hunt-density-home.sql"
+    "2026-11-17-hunt-density-home.sql",
+    "2027-02-10-party-instance-reset.sql"
    ],
    "live": {
-    "md5": "3b9dfe0b16f29ade246c55ab13ce3a96",
-    "norm_len": 484,
+    "md5": "b64edca5916a820eb6c0ba970fa09269",
+    "norm_len": 769,
     "measured": "2026-10-30",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "3b9dfe0b16f29ade246c55ab13ce3a96",
-    "norm_len": 484,
+    "md5": "b64edca5916a820eb6c0ba970fa09269",
+    "norm_len": 769,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -5059,6 +5061,7 @@
    "sig": "hr_hunt_density_pick(p_instance uuid, p_user uuid, p_slot integer)",
    "name": "hr_hunt_density_pick",
    "tracked_by": [
+    "pin",
     "restate"
    ],
    "touched_by": [
@@ -5187,17 +5190,18 @@
     "2026-10-28-party-flow.sql",
     "2026-10-30-town-activity-yields.sql",
     "2026-12-05-hunt-setup-per-ground.sql",
-    "2027-01-19-play-cap.sql"
+    "2027-01-19-play-cap.sql",
+    "2027-02-10-party-instance-reset.sql"
    ],
    "live": {
-    "md5": "66348aae99ceb9309700681674f5105c",
-    "norm_len": 7272,
+    "md5": "97467f6c56f2a9b8b9e0c096f984a187",
+    "norm_len": 7752,
     "measured": "2026-10-30",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "66348aae99ceb9309700681674f5105c",
-    "norm_len": 7272,
+    "md5": "97467f6c56f2a9b8b9e0c096f984a187",
+    "norm_len": 7752,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -6483,22 +6487,24 @@
    "sig": "hr_hunt_settle_refused(p_instance uuid, p_world_from bigint, p_first jsonb, p_answer jsonb)",
    "name": "hr_hunt_settle_refused",
    "tracked_by": [
+    "chain",
     "pin",
     "restate"
    ],
    "touched_by": [
     "2026-11-16-hunt-density-bounds.sql",
-    "2027-01-22-party-settle-isolation.sql"
+    "2027-01-22-party-settle-isolation.sql",
+    "2027-02-10-party-instance-reset.sql"
    ],
    "live": {
-    "md5": "5c90976ca747f281caafe1a92c3d1ac8",
-    "norm_len": 2872,
+    "md5": "2f914374f8c2c72d50cba83912a9412e",
+    "norm_len": 4088,
     "measured": "2026-10-30",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "5c90976ca747f281caafe1a92c3d1ac8",
-    "norm_len": 2872,
+    "md5": "2f914374f8c2c72d50cba83912a9412e",
+    "norm_len": 4088,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -9153,6 +9159,7 @@
    "sig": "hr_play_lock_for(p_uid uuid)",
    "name": "hr_play_lock_for",
    "tracked_by": [
+    "pin",
     "restate"
    ],
    "touched_by": [

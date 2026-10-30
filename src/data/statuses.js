@@ -36,8 +36,8 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_TUNING } from './hunt-tuning.js?v=0.2.69';
-import { PHYSICAL, isElement } from './elements.js?v=0.2.69';
+import { HUNT_TUNING } from './hunt-tuning.js?v=0.2.70';
+import { PHYSICAL, isElement } from './elements.js?v=0.2.70';
 
 /* The five rune tiers (src/data/runes.js): Rend's bleed lands +10% a tier above Chalked (ASSUMED, the designer
    re-tunes in the balance phase), so a Graven Rupture Rune's bleed ticks 1.4x a Chalked one's. */

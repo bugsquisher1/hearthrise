@@ -354,6 +354,14 @@ async function run(mutate) {
 
   // ══ M0 · A SECOND APPLY IS BYTE-IDENTICAL (schema, bodies, config row) ════
   await leg(async () => {
+    /* AT THIS FILE'S OWN CHAIN POSITION (lane/c-settle-cost-2, 2026-10-30). "Is this file idempotent" is asked where
+       the file is the chain end: re-applied over the WHOLE chain it restores its detector (link 21 of
+       HR_GRANT_HYGIENE_CHAIN) over a later link's, and its own self-check then reads every later engine grant as
+       outside the allowlist (link 22, 2027-02-10-settle-reads.sql's hr_accrue_read: the raise this leg first hit).
+       A mutated replay already stops at this file (LAST_PATCHED); the plain one boots a second database up to it, so
+       every later leg still runs on the true chain end. tests/buff-queue.mjs [14b]/[14c] made the same move. */
+    const own = (mutate || has('no-selfcheck')) ? db : (await bootReplay({ upTo: MIG })).db;
+    const q = async (sql, p) => (await own.query(sql, p)).rows;
     /* A body a LATER file restates (2027-01-21-market-same-network.sql: the two reads that look at
        market_sales) is that file's to keep byte-identical (tests/market-edge.mjs E10); re-applying this
        older file over it restores this file's image by design. Derived from the apply order, never typed. */
@@ -368,7 +376,7 @@ async function run(mutate) {
                                and (p.proname like 'hr\\_market%' or p.proname like 'hr\\_storage\\_room%'
                                  or p.proname in ('hr_bank_move', 'hr_depot_view', 'hr_name_restamp', 'hr_assert_grant_hygiene'))
                              order by 2`)).filter((r) => !later.has(r.n));
-    const before = JSON.stringify([await inventory(db), await bodies(), await q('select * from public.hr_market_config')]);
+    const before = JSON.stringify([await inventory(own), await bodies(), await q('select * from public.hr_market_config')]);
     /* The SAME text the chain applied — a mutant's too — or this leg would restore the clean bodies
        under every later leg and grade a mutant by "the body changed" instead of by behaviour. */
     let sql = (await readFile(join(ROOT, 'supabase', 'migrations', MIG), 'utf8')).replace(/\r\n/g, '\n');
@@ -376,9 +384,9 @@ async function run(mutate) {
       sql = sql.replace(find, () => repl);
     }
     let err = null;
-    try { await db.exec(`begin;\n${sql}\ncommit;`); } catch (e) { err = e; await db.exec('rollback').catch(() => {}); }
+    try { await own.exec(`begin;\n${sql}\ncommit;`); } catch (e) { err = e; await own.exec('rollback').catch(() => {}); }
     ok(!err, `M0: a second apply raised: ${err && String(err.message).split('\n')[0]}`);
-    ok(JSON.stringify([await inventory(db), await bodies(), await q('select * from public.hr_market_config')]) === before,
+    ok(JSON.stringify([await inventory(own), await bodies(), await q('select * from public.hr_market_config')]) === before,
       'M0: a second apply changed the schema, a body, an ACL or the config row (an operator\'s tuning must survive a re-apply)');
     ok(enabledDefault === false, 'M0: the market switch is not OFF after the chain (it must ship OFF)');
   });

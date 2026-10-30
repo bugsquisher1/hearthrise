@@ -651,6 +651,9 @@ const ALSO_LINTED = [
   /* THE ACCOUNT MARKET (lane c-market-account, 2026-10-24): the market verbs re-keyed on the
      account (engine-only), hr_bank_move restated, and link 21 of HR_GRANT_HYGIENE_CHAIN. */
   '2027-01-12-market-account.sql',
+  /* THE SETTLE READS (lane/c-settle-cost-2, 2026-10-30): hr_accrue_read (engine-only) and link 22 of
+     HR_GRANT_HYGIENE_CHAIN, so the grant lints read its revoke-then-grant. */
+  '2027-02-10-settle-reads.sql',
   /* LINKS OF HR_APPLY_CHAIN / HR_STATE_OF_CHAIN that were never listed (2026-10-24, lane b-ci-speed):
      the derivation walk reads `sources`, so an unlisted link read as '' and failed "cannot extract the
      body" (4 of the 16 static reds since 2026-10-27), and the c_delta_keys lint read nothing (1 more). */
@@ -1021,8 +1024,11 @@ const HR_GRANT_HYGIENE_CHAIN = [
   // link 21 (lane c-market-account) — the account market's six engine entries (three
   // re-keyed writers, three names-free reads), INSERTED at the head of c_engine_allow,
   // so its declared-removals list stays EMPTY (the dropped v2 signatures keep their stale
-  // TEXT). Its base is link 20's TARGET. It is the new last toucher.
+  // TEXT). Its base is link 20's TARGET.
   '2027-01-12-market-account.sql',
+  // link 22 (lane/c-settle-cost-2) — the accrue read's one engine entry (hr_accrue_read), INSERTED at the head of
+  // c_engine_allow, so its declared-removals list stays EMPTY. Its base is link 21's TARGET. It is the new last toucher.
+  '2027-02-10-settle-reads.sql',
 ];
 
 const HR_RATE_GATE_CHAIN = [

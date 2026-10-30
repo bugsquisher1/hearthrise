@@ -5,15 +5,15 @@
 --   `node tools/gen-plan-cache.mjs --check`. lane/c-settle-cost-2, backend-architect, 2026-10-30.
 --   STAGED. Game CLOSED: applies on its passing §2 (CLAUDE.md §2), one file via the Coordinator's apply tool,
 --   never inside begin/commit, never 00:00-00:10 UTC.
---   digest: 4ad09409a54752bd68c4db75a9a2c374376adab5c7a5aa396c5077f7d7953460
---   53 functions.
+--   digest: e1e1cfa170e4436abd69ee851b9ce875fe07c3d23dc120e61fb606c2ca19eab8
+--   50 functions.
 --
 -- ── WHY (measured, not guessed) ─────────────────────────────────────────────
 -- Production is PostgreSQL 17. A LANGUAGE sql function with a SET clause is never inlined, and 17 parses, rewrites and
 -- plans its body again for every statement execution that calls it; 18 (PGlite, the replay) caches that plan, which
 -- is why no replay measurement ever showed it. Live, read-only, 2026-10-30: five one-line helpers 0.8 ms, hr_vitals_of
 -- 2.25 ms a call (inlined by hand into one query: 1.1 ms), hr_home_view's body 1.6 ms of planning alone. On a local
--- PostgreSQL 17 replay of this chain (tools/pg-replay.mjs), a watched 4-hero settle calls these 53 functions
+-- PostgreSQL 17 replay of this chain (tools/pg-replay.mjs), a watched 4-hero settle calls these 50 functions
 -- about 3,000 times; the same body as plpgsql costs 2-7x less a call wherever its caller runs it as its own statement
 -- (hr_renown_of 2.70 -> 0.64 ms, hr_hunt_weapon_of 0.40 -> 0.05, hr_skill_level 0.18 -> 0.07) and the same per row of
 -- one statement. The before/after of the whole settle is in the lane report.
@@ -94,9 +94,6 @@ begin
     ('public.hr_party_away(uuid,integer,timestamp with time zone)', 'c9c3ca6fe45a87fc7cbe1cf051ef995b', 'fa5b13ca8f83b169727673060d3a79aa'),
     ('public.hr_party_invites_view(uuid,integer)', '6be8f9a7857df5098d2e30e1e3817f0f', 'b92c5e44f6c6e47c28f05f3a13e12dc5'),
     ('public.hr_party_seek_view(uuid,integer)', '91772d58761b7e324fda316991019458', '3e62b982cd7df3e1a91ffde3217f5794'),
-    ('public.hr_premium_active(uuid,integer,timestamp with time zone)', 'fc3930c936fd0ab70e8e26033e8edb02', '1b7f1250d24c246a29df1f3d38e27399'),
-    ('public.hr_premium_until(uuid,integer)', 'd9755164bb43d724cca8ce9203f6417e', '90a711aec206cd2d90d31f944846a920'),
-    ('public.hr_premium_view(uuid,integer)', 'ac7de9672554f03912e8d7cf197856b1', 'ef621cdc2bb0c4532679c629a065d142'),
     ('public.hr_recipes_of(uuid,integer)', 'a4512846a8c11ba1ae360ce63e9cf073', 'b3ad733081f12ffffdd5a19a00732fab'),
     ('public.hr_regen_permille(integer)', 'db33bcc28bf3cb430f77463f47a2eb8b', '7f7791b55addaf3b09580260a43499c1'),
     ('public.hr_renown_of(uuid,integer)', '2b62783dbef7e393c3a173d9b234320b', '11df531e2fad58c647fd247436983c2a'),
@@ -1127,74 +1124,6 @@ begin
 end
 $plc$;
 
-create or replace function public.hr_premium_active(p_user uuid, p_slot integer, p_at timestamp with time zone)
- returns boolean
- language plpgsql
- stable
- parallel unsafe
- cost 100
- set search_path = public, pg_catalog
-as $plc$
--- PLAN-CACHE (2027-02-10-settle-plan-cache.generated.sql): the SQL body below, verbatim, planned once per backend.
-#variable_conflict use_column
-begin
-  return (select hr_q.v from (
-
-  -- BETA-PREMIUM (2026-12-17-beta-premium.sql): every premium decision goes through here or
-  -- hr_premium_until; nothing else reads the column or the switch.
-  select coalesce(public.hr_premium_until(p_user, p_slot) > coalesce(p_at, now()), false)
-  ) as hr_q(v) limit 1);
-end
-$plc$;
-
-create or replace function public.hr_premium_until(p_user uuid, p_slot integer)
- returns timestamp with time zone
- language plpgsql
- stable
- parallel unsafe
- cost 100
- set search_path = public, pg_catalog
-as $plc$
--- PLAN-CACHE (2027-02-10-settle-plan-cache.generated.sql): the SQL body below, verbatim, planned once per backend.
-#variable_conflict use_column
-begin
-  return (select hr_q.v from (
-
-  -- BETA-PREMIUM (2026-12-17-beta-premium.sql): THE ONLY READER of the beta switch and of
-  -- player_state.premium_until. While hr_flags `beta_premium` is on, every character is premium
-  -- with no end (+infinity); otherwise its own premium_until (null = free). No row = no character = null.
-  select case when public.hr_flag_on('beta_premium') then 'infinity'::timestamptz else ps.premium_until end
-    from public.player_state ps where ps.user_id = p_user and ps.slot = p_slot
-  ) as hr_q(v) limit 1);
-end
-$plc$;
-
-create or replace function public.hr_premium_view(p_user uuid, p_slot integer)
- returns jsonb
- language plpgsql
- stable
- parallel unsafe
- cost 100
- set search_path = public, pg_catalog
-as $plc$
--- PLAN-CACHE (2027-02-10-settle-plan-cache.generated.sql): the SQL body below, verbatim, planned once per backend.
-#variable_conflict use_column
-begin
-  return (select hr_q.v from (
-
-  -- BETA-PREMIUM (2026-12-17-beta-premium.sql): active and perks through hr_premium_active.
-  select jsonb_build_object(
-    'until', ps.premium_until,
-    'active', a.prem,
-    'stamina_max_ms', public.hr_stamina_cap(p_user, p_slot, now()),
-    'perks', jsonb_build_object('analyzer', a.prem, 'outfits', a.prem, 'login', a.prem))
-    from public.player_state ps
-    cross join lateral (select public.hr_premium_active(p_user, p_slot, now()) as prem) a
-   where ps.user_id = p_user and ps.slot = p_slot
-  ) as hr_q(v) limit 1);
-end
-$plc$;
-
 create or replace function public.hr_recipes_of(p_user uuid, p_slot integer)
  returns jsonb
  language plpgsql
@@ -1577,9 +1506,6 @@ begin
     ('public.hr_party_away(uuid,integer,timestamp with time zone)', 'fa5b13ca8f83b169727673060d3a79aa', 's', false, false, 'u', '["search_path=public, pg_catalog"]'),
     ('public.hr_party_invites_view(uuid,integer)', 'b92c5e44f6c6e47c28f05f3a13e12dc5', 's', true, false, 'u', '["search_path=public, pg_catalog"]'),
     ('public.hr_party_seek_view(uuid,integer)', '3e62b982cd7df3e1a91ffde3217f5794', 's', false, false, 'u', '["search_path=public, pg_catalog"]'),
-    ('public.hr_premium_active(uuid,integer,timestamp with time zone)', '1b7f1250d24c246a29df1f3d38e27399', 's', false, false, 'u', '["search_path=public, pg_catalog"]'),
-    ('public.hr_premium_until(uuid,integer)', '90a711aec206cd2d90d31f944846a920', 's', false, false, 'u', '["search_path=public, pg_catalog"]'),
-    ('public.hr_premium_view(uuid,integer)', 'ef621cdc2bb0c4532679c629a065d142', 's', false, false, 'u', '["search_path=public, pg_catalog"]'),
     ('public.hr_recipes_of(uuid,integer)', 'b3ad733081f12ffffdd5a19a00732fab', 's', false, false, 'u', '["search_path=public"]'),
     ('public.hr_regen_permille(integer)', '7f7791b55addaf3b09580260a43499c1', 's', false, false, 'u', '["search_path=public, pg_catalog"]'),
     ('public.hr_renown_of(uuid,integer)', '11df531e2fad58c647fd247436983c2a', 's', true, false, 'u', '["search_path=public, pg_temp"]'),
@@ -2558,68 +2484,6 @@ $sqlpre$$pre$;
     if v_n <> 0 then raise exception 'plan-cache §2(b): hr_party_seek_view answers differently from its SQL pre-image on % input(s), e.g. (%)', v_n, v_ex; end if;
     v_total := v_total + 1;
 
-    execute $pre$create or replace function pg_temp.hrpc_hr_premium_active(p_user uuid, p_slot integer, p_at timestamp with time zone)
- returns boolean
- language sql
- stable
- parallel unsafe
- cost 100
- set search_path = public, pg_catalog
-as $sqlpre$
-  -- BETA-PREMIUM (2026-12-17-beta-premium.sql): every premium decision goes through here or
-  -- hr_premium_until; nothing else reads the column or the switch.
-  select coalesce(public.hr_premium_until(p_user, p_slot) > coalesce(p_at, now()), false)
-$sqlpre$$pre$;
-    execute $probe$select count(*)::int as n, min(concat_ws(' / ', coalesce(w.a1::text, 'null'), coalesce(w.a2::text, 'null'), coalesce(p2.x::text, 'null'))) as example
-            from (select user_id, slot from public.player_state union all select '00000000-0000-0000-0000-000000000000'::uuid, 0) w(a1, a2) cross join (select x from unnest(array[now(), now() - interval '1 day', now() + interval '1 day', null]::timestamptz[]) x) p2(x)
-           where public.hr_premium_active(w.a1, w.a2, p2.x)::text is distinct from pg_temp.hrpc_hr_premium_active(w.a1, w.a2, p2.x)::text$probe$ into v_n, v_ex;
-    if v_n <> 0 then raise exception 'plan-cache §2(b): hr_premium_active answers differently from its SQL pre-image on % input(s), e.g. (%)', v_n, v_ex; end if;
-    v_total := v_total + 1;
-
-    execute $pre$create or replace function pg_temp.hrpc_hr_premium_until(p_user uuid, p_slot integer)
- returns timestamp with time zone
- language sql
- stable
- parallel unsafe
- cost 100
- set search_path = public, pg_catalog
-as $sqlpre$
-  -- BETA-PREMIUM (2026-12-17-beta-premium.sql): THE ONLY READER of the beta switch and of
-  -- player_state.premium_until. While hr_flags `beta_premium` is on, every character is premium
-  -- with no end (+infinity); otherwise its own premium_until (null = free). No row = no character = null.
-  select case when public.hr_flag_on('beta_premium') then 'infinity'::timestamptz else ps.premium_until end
-    from public.player_state ps where ps.user_id = p_user and ps.slot = p_slot
-$sqlpre$$pre$;
-    execute $probe$select count(*)::int as n, min(concat_ws(' / ', coalesce(w.a1::text, 'null'), coalesce(w.a2::text, 'null'))) as example
-            from (select user_id, slot from public.player_state union all select '00000000-0000-0000-0000-000000000000'::uuid, 0) w(a1, a2)
-           where public.hr_premium_until(w.a1, w.a2)::text is distinct from pg_temp.hrpc_hr_premium_until(w.a1, w.a2)::text$probe$ into v_n, v_ex;
-    if v_n <> 0 then raise exception 'plan-cache §2(b): hr_premium_until answers differently from its SQL pre-image on % input(s), e.g. (%)', v_n, v_ex; end if;
-    v_total := v_total + 1;
-
-    execute $pre$create or replace function pg_temp.hrpc_hr_premium_view(p_user uuid, p_slot integer)
- returns jsonb
- language sql
- stable
- parallel unsafe
- cost 100
- set search_path = public, pg_catalog
-as $sqlpre$
-  -- BETA-PREMIUM (2026-12-17-beta-premium.sql): active and perks through hr_premium_active.
-  select jsonb_build_object(
-    'until', ps.premium_until,
-    'active', a.prem,
-    'stamina_max_ms', public.hr_stamina_cap(p_user, p_slot, now()),
-    'perks', jsonb_build_object('analyzer', a.prem, 'outfits', a.prem, 'login', a.prem))
-    from public.player_state ps
-    cross join lateral (select public.hr_premium_active(p_user, p_slot, now()) as prem) a
-   where ps.user_id = p_user and ps.slot = p_slot
-$sqlpre$$pre$;
-    execute $probe$select count(*)::int as n, min(concat_ws(' / ', coalesce(w.a1::text, 'null'), coalesce(w.a2::text, 'null'))) as example
-            from (select user_id, slot from public.player_state union all select '00000000-0000-0000-0000-000000000000'::uuid, 0) w(a1, a2)
-           where public.hr_premium_view(w.a1, w.a2)::text is distinct from pg_temp.hrpc_hr_premium_view(w.a1, w.a2)::text$probe$ into v_n, v_ex;
-    if v_n <> 0 then raise exception 'plan-cache §2(b): hr_premium_view answers differently from its SQL pre-image on % input(s), e.g. (%)', v_n, v_ex; end if;
-    v_total := v_total + 1;
-
     execute $pre$create or replace function pg_temp.hrpc_hr_recipes_of(p_user uuid, p_slot integer)
  returns jsonb
  language sql
@@ -2938,7 +2802,7 @@ $sqlpre$$pre$;
     if v_n <> 0 then raise exception 'plan-cache §2(b): hr_vitals_of answers differently from its SQL pre-image on % input(s), e.g. (%)', v_n, v_ex; end if;
     v_total := v_total + 1;
 
-    if v_total <> 53 then raise exception 'plan-cache §2(b)-harness: % of 53 functions probed', v_total; end if;
+    if v_total <> 50 then raise exception 'plan-cache §2(b)-harness: % of 50 functions probed', v_total; end if;
     raise exception 'plan-cache §2: ok' using errcode = 'P0001';
   exception when sqlstate 'P0001' then
     if sqlerrm <> 'plan-cache §2: ok' then raise; end if;

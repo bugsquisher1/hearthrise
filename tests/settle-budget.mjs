@@ -41,6 +41,10 @@ export const BUDGET = Object.freeze({ stateOf: 16, frames: 9, asks: 4, weapon: 1
 export const ALLOW = Object.freeze({
   hr_char_xp_for_level: 'tools/gen-level-curve.mjs owns its body; the next curve file moves it',
   hr_hunt_member_read: 'one plan per instance read (row pattern); a full-chain mutant patches it in its own file',
+  /* tests/hunt-sessions-settle.mjs BETA re-applies 2026-12-17-beta-premium.sql at chain end and requires these three
+     definitions unmoved: they move when that arm re-applies at the file's own position (handed off) */
+  hr_premium_until: 'hunt-sessions-settle BETA re-applies beta-premium.sql at chain end',
+  hr_premium_active: 'hunt-sessions-settle BETA re-applies beta-premium.sql at chain end',
 });
 
 /** One measurement: the viewed door's counters over WINDOWS settles, and the hot SQL functions. */
@@ -187,7 +191,7 @@ async function main() {
   const x = await measure();
   const red = judge(x, src);
   const p = await parity(x.db);
-  const same = p.restored && p.preImages === 56 && p.diffs.length === 0 && p.heroes === 4 && p.sessions >= 4;
+  const same = p.restored && p.preImages === 53 && p.diffs.length === 0 && p.heroes === 4 && p.sessions >= 4;
   if (!same) red.push('SB-4');
   console.log(`  ${same ? '✓' : '✗'} SB-4 — ${p.compared} answers (${p.bytes.toLocaleString('en-US')} bytes: envelopes, hr_load, engine inputs, `
     + `vitals, renown, hunt views of ${p.heroes} hunting heroes) byte-identical before and after this lane's files`

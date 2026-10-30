@@ -385,6 +385,16 @@ export const LINKS = [
     target: '2027-01-12-market-account.sql',
     patchIds: ['market_account'],
   },
+  /* Link 22 (lane/c-settle-cost-2, 2026-10-30) — THE ACCRUE READ. 2027-02-10-settle-reads.sql
+     adds hr_accrue_read, the state term of index.ts's accrue read (a hunter's seven scalars,
+     anyone else's envelope). One entry at the HEAD of c_engine_allow, an INSERTION, so its
+     declared-removals list in tests/run-sql-tests.mjs PART 1f-ii is EMPTY. Its base is link
+     21's TARGET. It is the new last toucher. */
+  {
+    base: '2027-01-12-market-account.sql',
+    target: '2027-02-10-settle-reads.sql',
+    patchIds: ['settle_reads'],
+  },
 ];
 
 const OPEN = 'create or replace function public.hr_assert_grant_hygiene(';
@@ -418,6 +428,23 @@ export function innerBody(block) {
    already authorised for." Both justifications below re-derive that claim
    rather than asserting it — see the migration header for the long form. */
 export const PATCHES = [
+  {
+    id: 'settle_reads',
+    name: 'the c_engine_allow array head (link 22)',
+    find: '  c_engine_allow constant text[] := array[\n',
+    add: `    -- ── ADDED 2027-02-10 — THE ACCRUE READ (lane/c-settle-cost-2) ─────────
+    -- At the HEAD, an INSERTION: it removes nothing, so PART 1f-ii grades this
+    -- link with an EMPTY declared-removals list.
+    --
+    -- READ-ONLY: index.ts's accrue read for the VERIFIED subject's own hero (the
+    -- slot is a row the caller owns). With no open hunt it is hr_state_of, the
+    -- envelope the engine already reads; with one, seven of that envelope's own
+    -- scalars (the pointer, the version, the clock, the rested bank). It writes
+    -- nothing, takes no value, names no other player.
+    'hr_accrue_read(uuid,integer)',
+`,
+    where: 'after',
+  },
   {
     id: 'market_account',
     name: 'the c_engine_allow array head (link 21)',

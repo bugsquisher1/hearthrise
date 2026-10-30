@@ -3401,6 +3401,18 @@ jobs:
           node tests/hunt-sessions-settle.mjs
           node tests/hunt-sessions-settle.mjs --closed
           node tools/mutant-gate.mjs node tests/hunt-sessions-settle.mjs --mutate
+      # WHAT ONE WATCHED SETTLE MAY CALL (lane/c-settle-cost-2, 2026-10-30): tools/settle-cost.mjs's viewed door
+      # (four heroes, frames on, live's 4 live asks per 3 settles) on the replay, CALL COUNTS, never ms: hr_state_of
+      # <= 5.33 a settle (SB-1), the weapon lookup read once (SB-2), no stable SQL helper re-planned per call on
+      # PostgreSQL 17 (SB-3), and the lane's two files change no envelope, engine input or hunt view byte (SB-4).
+      # --mutate: the hunter's hello reads the envelope again (index.ts text and the bench), a per-row weapon
+      # lookup, a helper back to SQL, a helper answering one key differently.
+      - name: Settle budget — calls a watched 4-hero settle may make; the plan-cache files change no byte
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/gen-plan-cache.mjs --check
+          node tests/settle-budget.mjs
+          node tools/mutant-gate.mjs node tests/settle-budget.mjs --mutate
       # THE WORLD TICK'S HUNT SETTLES, PACKED BY LOAD (2026-11-04-hunt-tick-shards.sql,
       # tick.js HUNT_BODY_BUDGET_MS, accrual.js accrueHunt's world bound): one fire
       # over 26 due hunts queues 3 bodies of <= hunt_body_max, disjoint, each

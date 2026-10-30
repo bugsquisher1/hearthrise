@@ -145,6 +145,9 @@ function probeSql(f) {
 /** Read each pre-image from `db` (a replay of the chain up to the file before this one). */
 export async function readPreImages(db) {
   const out = [];
+  /* every type and function name printed schema-qualified (public.hunt_sessions, public.hr_x(..)): the file never
+     leans on the search_path it is applied under */
+  await db.exec('set search_path = pg_catalog');
   for (const name of FNS) {
     const r = await db.query(`select p.proname, pg_get_function_arguments(p.oid) args, p.oid::regprocedure::text sig,
         pg_get_function_result(p.oid) result, l.lanname, p.provolatile, p.prosecdef, p.proisstrict, p.proleakproof, p.proparallel,
@@ -156,12 +159,13 @@ export async function readPreImages(db) {
     if (f.lanname !== 'sql' || f.proretset || f.provolatile !== 's' || f.typtype === 'c' || f.typtype === 'p') {
       throw new Error(`${name}: not a stable scalar SQL function (${f.lanname}, retset ${f.proretset}, vol ${f.provolatile}, typtype ${f.typtype})`);
     }
-    f.argtypes = (Array.isArray(f.argtypes) ? f.argtypes : String(f.argtypes).replace(/^\{|\}$/g, '').split(',')).map((x) => x.replace(/^"|"$/g, ''));
+    f.argtypes = (Array.isArray(f.argtypes) ? f.argtypes : String(f.argtypes).replace(/^\{|\}$/g, '').split(',')).map((x) => x.replace(/^"|"$/g, '').replace(/^public\./, ''));
     f.pre_md5 = md5(f.prosrc);
     f.plbody = plpgsqlBody(f.prosrc);
     f.post_md5 = md5(f.plbody);
     out.push(f);
   }
+  await db.exec('reset search_path');
   return out;
 }
 

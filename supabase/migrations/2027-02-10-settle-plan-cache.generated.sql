@@ -77,7 +77,7 @@ begin
     ('public.hr_hunt_bests_view(uuid,integer)', '756ffab0428455fb99b20aa1a36cf96d', '63a0fda740e1143f7a62b4be7095ecb7'),
     ('public.hr_hunt_density_view(uuid,integer)', '2bf4fbef1dfdab3cce4a96da29b03f5a', '96dedf92ab611b8e593a6c055abe1543'),
     ('public.hr_hunt_limit(text)', 'c320e5f37069cf26f8cdeb4338db9644', '5d5dac60c606d93e4047b1cff2550952'),
-    ('public.hr_hunt_member_read(hunt_sessions)', '9ca8292dcb783ca29605e75812d4641c', 'd8b2d8017f1cf075cf1f08afbf0f926b'),
+    ('public.hr_hunt_member_read(public.hunt_sessions)', '9ca8292dcb783ca29605e75812d4641c', 'd8b2d8017f1cf075cf1f08afbf0f926b'),
     ('public.hr_hunt_party_of(uuid,integer)', '94941bf5f1e8b1b2b033d01933e4b6c8', '169977bfd7f2b8e8fad257fb36c72f4a'),
     ('public.hr_hunt_presets_view(uuid,integer)', '81f9baf49d7d5ac19fe13770d7b21ec6', '80167dba911a1d5dbc20813bd01d64a3'),
     ('public.hr_hunt_role_default(text,text[])', 'e8c7374aecc6612e06446c289d3a5dd3', '31d7a3c80faca7cb082953b32d5cf6dc'),
@@ -749,7 +749,7 @@ begin
 end
 $plc$;
 
-create or replace function public.hr_hunt_member_read(p_s hunt_sessions)
+create or replace function public.hr_hunt_member_read(p_s public.hunt_sessions)
  returns jsonb
  language plpgsql
  stable
@@ -1689,7 +1689,7 @@ begin
     ('public.hr_hunt_bests_view(uuid,integer)', '63a0fda740e1143f7a62b4be7095ecb7', 's', false, false, 'u', '["search_path=public, pg_catalog"]'),
     ('public.hr_hunt_density_view(uuid,integer)', '96dedf92ab611b8e593a6c055abe1543', 's', false, false, 'u', '["search_path=public, pg_catalog"]'),
     ('public.hr_hunt_limit(text)', '5d5dac60c606d93e4047b1cff2550952', 's', false, false, 'u', '["search_path=public, pg_catalog"]'),
-    ('public.hr_hunt_member_read(hunt_sessions)', 'd8b2d8017f1cf075cf1f08afbf0f926b', 's', true, false, 'u', '["search_path=public, pg_catalog"]'),
+    ('public.hr_hunt_member_read(public.hunt_sessions)', 'd8b2d8017f1cf075cf1f08afbf0f926b', 's', true, false, 'u', '["search_path=public, pg_catalog"]'),
     ('public.hr_hunt_party_of(uuid,integer)', '169977bfd7f2b8e8fad257fb36c72f4a', 's', false, false, 'u', '["search_path=public, pg_catalog"]'),
     ('public.hr_hunt_presets_view(uuid,integer)', '80167dba911a1d5dbc20813bd01d64a3', 's', true, false, 'u', '["search_path=public, pg_catalog"]'),
     ('public.hr_hunt_role_default(text,text[])', '31d7a3c80faca7cb082953b32d5cf6dc', 's', false, false, 'u', '["search_path=public, pg_catalog"]'),
@@ -2336,7 +2336,7 @@ $sqlpre$$pre$;
     if v_n <> 0 then raise exception 'plan-cache §2(b): hr_hunt_limit answers differently from its SQL pre-image on % input(s), e.g. (%)', v_n, v_ex; end if;
     v_total := v_total + 1;
 
-    execute $pre$create or replace function pg_temp.hrpc_hr_hunt_member_read(p_s hunt_sessions)
+    execute $pre$create or replace function pg_temp.hrpc_hr_hunt_member_read(p_s public.hunt_sessions)
  returns jsonb
  language sql
  stable

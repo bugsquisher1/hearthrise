@@ -20,7 +20,7 @@
 //   SB-1  hr_state_of <= 16 calls over the 3 settles (5.33 a settle: the 1.33 live asks' early answers, the commit's
 //         projection, one frame for each of the 3 other members). Was 23 (7.67) before the lane: every hello built the
 //         hunter's whole envelope first and dropped it. CONTROL: 9 frames pushed and 4 early asks answered.
-//   SB-2  hr_hunt_weapon_of <= BUDGET.weapon calls over the 3 settles (was 1,242: hr_hunt_role_of and hr_role_view
+//   SB-2  hr_hunt_weapon_of <= 120 calls over the 3 settles (96 measured; was 1,242: hr_hunt_role_of and hr_role_view
 //         called it once per hr_hunt_weapon_roles row their filter scanned).
 //   SB-3  no STABLE, scalar, LANGUAGE sql function in public is called 7 or more times a settle: PostgreSQL 17
 //         (production) re-plans such a body on every statement that calls it (2027-02-10-settle-plan-cache.generated.sql;
@@ -32,7 +32,7 @@ import { isMain } from './_is-main.mjs';
 import { ROOT } from './schema-replay.mjs';
 
 const WINDOWS = 3;
-export const BUDGET = Object.freeze({ stateOf: 16, frames: 9, asks: 4, weapon: 400, sqlHot: 7 });
+export const BUDGET = Object.freeze({ stateOf: 16, frames: 9, asks: 4, weapon: 120, sqlHot: 7 });
 /* hr_char_xp_for_level is written by tools/gen-level-curve.mjs (every curve file restates it as SQL): its language
    moves in that generator, handed off by lane/c-settle-cost-2 (2026-10-30). Nothing else may sit here without a why. */
 export const ALLOW = Object.freeze({ hr_char_xp_for_level: 'tools/gen-level-curve.mjs owns its body; the next curve file moves it' });

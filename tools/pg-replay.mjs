@@ -118,10 +118,12 @@ export async function chainTemplate({ log = () => {} } = {}) {
 /**
  * A FRESH DATABASE with the whole chain applied, on PostgreSQL 17, in PGlite's shape:
  * { query(text, params) -> { rows }, exec(text), close() }. One connection (session state — role, GUCs, an open
- * transaction — persists between calls, as on PGlite).
+ * transaction — persists between calls, as on PGlite). `template`: clone that chain database instead (a BEFORE build kept
+ * from an older tree, for an interleaved before/after on one server).
  */
-export async function bootPg({ log } = {}) {
-  const tpl = await chainTemplate({ log });
+export async function bootPg({ log, template } = {}) {
+  if (template) await ensureServer();
+  const tpl = template || await chainTemplate({ log });
   const name = 'hr_m_' + randomUUID().replace(/-/g, '').slice(0, 12);
   const admin = connect('postgres');
   try { await admin.unsafe(`create database ${name} template ${tpl}`); } finally { await admin.end({ timeout: 5 }); }

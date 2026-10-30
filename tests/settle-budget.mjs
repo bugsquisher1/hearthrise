@@ -53,25 +53,32 @@ export async function measure({ plant = null, helloState = null } = {}) {
   const sqlStable = new Set(lang.filter((x) => x.lanname === 'sql' && x.provolatile === 's' && !x.proretset).map((x) => x.proname));
   const hot = r.functions.filter((f) => sqlStable.has(f.fn) && f.calls_per_settle >= BUDGET.sqlHot && !ALLOW[f.fn])
     .map((f) => `${f.fn} ${f.calls_per_settle}/settle`);
-  return { r, stateOf: calls('hr_state_of'), weapon: calls('hr_hunt_weapon_of'), frames: Math.round(r.frames_per_window * r.windows),
+  return { db, r, stateOf: calls('hr_state_of'), weapon: calls('hr_hunt_weapon_of'), frames: Math.round(r.frames_per_window * r.windows),
     asks: Math.round(r.early_asks_per_window * r.windows), hot };
 }
 
-/* SB-4 — THE SAME BYTES. This lane's two files, applied INSIDE ONE TRANSACTION over a chain that has just hunted
-   (the viewed door on the chain before them: four heroes mid-hunt, tallies, frames, a party), change no answer a
-   client or the engine reads: every hero's envelope (hr_state_of, the frames' payload, and hr_load, the browser's own
-   read), engine inputs (hr_hunt_member_state, hr_hunt_instance_read, hr_perks_of), vitals and the hunt view, compared
-   as TEXT before and after. One transaction means one now(): nothing is masked. */
+/* SB-4 — THE SAME BYTES. On the chain that has just hunted (measure's database: four heroes mid-hunt, tallies, frames, a
+   party), inside ONE transaction: every answer a client or the engine reads is taken with this lane's functions, then
+   with their PRE-IMAGES restored (the exact bodies the lane's own files carry for their self-checks, put back under
+   their public names), and compared as TEXT: every hero's envelope (hr_state_of, the frames' payload, and hr_load, the
+   browser's own read), engine inputs (hr_hunt_member_state, hr_hunt_instance_read, hr_perks_of), vitals, renown and the
+   hunt views. One transaction means one now(): nothing is masked. */
 export const LANE_FILES = Object.freeze(['2027-02-10-settle-plan-cache.generated.sql', '2027-02-10-settle-reads.sql']);
-export async function parity({ plantAfter = null } = {}) {
-  const { bootReplay, manifest } = await import('./schema-replay.mjs');
-  const SC = await import('../tools/settle-cost.mjs');
-  const order = (await manifest()).order;
-  const upTo = order[order.indexOf(LANE_FILES[0]) - 1];
-  const { db } = await bootReplay({ upTo });
-  const m = await SC.prepare({ db, heroes: 4, windows: 2, door: 'viewed', helloState: 'legacy' });
-  await m.warm();
-  await m.step(2);
+const PRE_NAMES = Object.freeze({ hrsr_role_of: 'hr_hunt_role_of', hrsr_role_view: 'hr_role_view', hrsr_sections: 'hr_state_sections_of' });
+/** The pre-image DDL the lane's files carry (their pg_temp copies), renamed back to the public functions they were. */
+export function preImages() {
+  const out = [];
+  for (const f of LANE_FILES) {
+    const text = readFileSync(join(ROOT, 'supabase', 'migrations', f), 'utf8').replace(/\r\n/g, '\n');
+    for (const m of text.matchAll(/execute (\$pre\d*\$)create (?:or replace )?function pg_temp\.(hrpc_|hrsr_)([a-z0-9_]+)\(([\s\S]*?)\1;/g)) {
+      const name = m[2] === 'hrpc_' ? m[3] : PRE_NAMES['hrsr_' + m[3]];
+      if (!name) throw new Error(`settle-budget: ${f} carries a pre-image pg_temp.${m[2]}${m[3]} this guard cannot name`);
+      out.push({ name, ddl: `create or replace function public.${name}(${m[4]}` });
+    }
+  }
+  return out;
+}
+export async function parity(db, { plantAfter = null } = {}) {
   const heroes = (await db.query('select user_id::text as u from public.player_state order by user_id')).rows.map((x) => x.u);
   const sessions = (await db.query('select id::text as s from public.hunt_sessions order by id')).rows.map((x) => x.s);
   const snap = async () => {
@@ -89,17 +96,19 @@ export async function parity({ plantAfter = null } = {}) {
     for (const s of sessions) out.push([`hunt_view ${s}`, (await db.query('select public.hr_hunt_view($1::uuid)::text as v', [s])).rows[0].v]);
     return out;
   };
+  const pre = preImages();
+  await db.exec('reset role');
   await db.query('begin');
   try {
-    const before = await snap();
-    for (const f of LANE_FILES) await db.exec(readFileSync(join(ROOT, 'supabase', 'migrations', f), 'utf8').replace(/\r\n/g, '\n'));
     if (plantAfter) await db.exec(plantAfter);
     const after = await snap();
-    const lang = (await db.query(`select count(*)::int n from pg_proc p join pg_language l on l.oid = p.prolang
-       where p.oid = 'public.hr_hunt_limit(text)'::regprocedure and l.lanname = 'plpgsql'`)).rows[0].n;
+    for (const x of pre) await db.exec(x.ddl);
+    const restored = (await db.query(`select count(*)::int n from pg_proc p join pg_language l on l.oid = p.prolang
+       where p.oid = 'public.hr_hunt_limit(text)'::regprocedure and l.lanname = 'sql'`)).rows[0].n === 1;
+    const before = await snap();
     const diffs = before.filter(([k, v], i) => after[i][0] !== k || after[i][1] !== v).map(([k]) => k);
     const bytes = before.reduce((n, [, v]) => n + (v ? v.length : 0), 0);
-    return { compared: before.length, bytes, diffs, applied: lang === 1, heroes: heroes.length, sessions: sessions.length };
+    return { compared: before.length, bytes, diffs, restored, preImages: pre.length, heroes: heroes.length, sessions: sessions.length };
   } finally { await db.query('rollback'); }
 }
 
@@ -151,7 +160,7 @@ async function main() {
     console.log(`  ${sb0 ? '✓' : '✗'} indexReadsEnvelope — SB-0 ${sb0 ? 'red' : 'SURVIVED'} (index.ts reads hr_state_of for every hello)`);
     if (!sb0) bad++;
     /* SB-4's mutant: a converted helper that answers one key differently (the hero's base HP), planted after the files. */
-    const p = await parity({ plantAfter: `create or replace function public.hr_hunt_limit(p_key text) returns integer language plpgsql stable
+    const p = await parity((await measure()).db, { plantAfter: `create or replace function public.hr_hunt_limit(p_key text) returns integer language plpgsql stable
       set search_path = public, pg_catalog as $m$ begin return (select value from public.hr_hunt_limits where key = p_key)
         + case when p_key = 'hp_base' then 1 else 0 end; end $m$;` });
     const sb4 = p.diffs.length > 0;
@@ -171,12 +180,12 @@ async function main() {
   console.log('\nsettle-budget: one watched 4-hero party, ' + WINDOWS + ' settles (tools/settle-cost.mjs --door=viewed, PGlite)');
   const x = await measure();
   const red = judge(x, src);
-  const p = await parity();
-  const same = p.applied && p.diffs.length === 0 && p.heroes === 4 && p.sessions >= 4;
+  const p = await parity(x.db);
+  const same = p.restored && p.preImages === 59 && p.diffs.length === 0 && p.heroes === 4 && p.sessions >= 4;
   if (!same) red.push('SB-4');
   console.log(`  ${same ? '✓' : '✗'} SB-4 — ${p.compared} answers (${p.bytes.toLocaleString('en-US')} bytes: envelopes, hr_load, engine inputs, `
     + `vitals, renown, hunt views of ${p.heroes} hunting heroes) byte-identical before and after this lane's files`
-    + (p.diffs.length ? `; MOVED: ${p.diffs.slice(0, 6).join(', ')}` : '') + (p.applied ? '' : '; the files did not land'));
+    + ` (${p.preImages} pre-images restored)` + (p.diffs.length ? `; MOVED: ${p.diffs.slice(0, 6).join(', ')}` : '') + (p.restored ? '' : '; the pre-images did not land'));
   console.log(red.length ? `\n✗ settle-budget: ${red.join(', ')}` : '\n✓ settle-budget: every call budget holds');
   process.exit(red.length ? 1 : 0);
 }

@@ -9,13 +9,13 @@
 // close lands, and a plain "still processing" line if it is late.
 // "Ready in" and the "»" buttons of the reference are NOT built (TB-03, TB-04: purpose unknown, Tyler 10-17).
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.70';
-import { huntOf, analyzerOf, sessionClockMs, serverNowOf } from '../../session/hunt-sections.js?v=0.2.70';
-import { text, prop, attr } from '../../render/paint.js?v=0.2.70';
-import { clock } from '../../render/format.js?v=0.2.70';
-import { track } from '../../net/observability.js?v=0.2.70';
-import { refusalText } from '../intent-words.js?v=0.2.70';
-import { pointerFor, actCoach, placeCoach } from '../launcher.js?v=0.2.70';
+import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.71';
+import { huntOf, analyzerOf, sessionClockMs, serverNowOf } from '../../session/hunt-sections.js?v=0.2.71';
+import { text, prop, attr } from '../../render/paint.js?v=0.2.71';
+import { clock } from '../../render/format.js?v=0.2.71';
+import { track } from '../../net/observability.js?v=0.2.71';
+import { refusalText } from '../intent-words.js?v=0.2.71';
+import { pointerFor, actCoach, placeCoach } from '../launcher.js?v=0.2.71';
 
 /* The pending leave's line, per CharacterSession.leaveCountdown phase (null: the press is still out). */
 const LEAVING = Object.freeze({ asked: 'Leaving…', now: 'Leaving now…', late: 'Still processing your leave…' });
@@ -41,7 +41,10 @@ renderHuntTopbar.patch = function patchHuntTopbar(el, ctx) {
   const h = huntOf(ctx.character);
   const a = analyzerOf(ctx.character);
   const ground = h && h.huntId && HUNT_INDEX[h.huntId];
-  text(el.querySelector('.ht-ground'), ground ? ground.name : h ? 'Hunting' : '');
+  /* Over, the hero stands in town: the plaque names the hunt as the LAST one, never as where the hero is (core-loop
+     play 2026-10-30: Corliss in Havora read "Wickstead · Summary"). */
+  const gname = ground ? ground.name : h ? 'Hunting' : '';
+  text(el.querySelector('.ht-ground'), h && h.ended && ground ? 'Last hunt: ' + gname : gname);
   const ms = sessionClockMs(a, serverNowOf(ctx.character));
   text(el.querySelector('.ht-clock'), ms === null ? '' : clock(ms));
   const leave = el.querySelector('.is-leave');

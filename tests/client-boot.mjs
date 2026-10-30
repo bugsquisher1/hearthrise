@@ -5,7 +5,7 @@
 //   node tests/client-boot.mjs           the boot checks
 //   node tests/client-boot.mjs --mutate  every planted defect must turn a check RED
 //
-// mutant-anchors: src/app/boot.js src/app/slot-offer.js src/app/world-pane.js src/net/auth.js src/world/world-boot.js src/render/images.js index.html
+// mutant-anchors: src/app/boot.js src/app/slot-offer.js src/app/world-pane.js src/net/auth.js src/world/world-boot.js src/world/prewarm.js src/render/images.js index.html
 //
 // The server is stubbed at the edges the client really uses: supabase-js (the
 // vendored UMD is replaced by a fake whose auth keeps its session in the
@@ -30,6 +30,8 @@
 //   B-14 THE TOWN'S SHEETS COME WITH THE ACCOUNT (perf lane 10-29: a cold Play waited 1.56 s
 //        for them): none on the sign-in screen, the town's own sets on the characters screen
 //        before any Play (src/world/prewarm.js), and the World never fetches one again
+//   B-15 A SESSION THAT ENDS WHILE THE TOWN PREWARM RUNS STOPS IT (v0.2.71 merge, B-10 sent 5 calls):
+//        signed out with the atlas manifests still held, the page asks for no sheet afterwards
 //   B-4  a second character opens beside the first (two topics, one strip)
 //   B-5  sign out -> the sign-in screen, and no copy of the session is left in
 //        localStorage or sessionStorage (auth key, sb-*, the tab id)
@@ -119,7 +121,9 @@ async function stubServer(page, o) {
         const b = o.heroes[slot] ? envelope(slot, 1, { name: o.heroes[slot], hero_slots: slots, account,
           /* THE ACCOUNT PURSE (one per account): every hero states it; a lagging hero states an older version. */
           state: { active_kind: 'idle', gold: o.purse !== undefined ? (o.lag && o.lag[slot] ? o.lag[slot].gold : o.purse) : 0,
-            gold_v: o.purse !== undefined ? (o.lag && o.lag[slot] ? o.lag[slot].v : o.goldV) : 0, level_xp: LEVEL_10_XP } })
+            gold_v: o.purse !== undefined ? (o.lag && o.lag[slot] ? o.lag[slot].v : o.goldV) : 0, level_xp: LEVEL_10_XP },
+          /* B-9h: a hero the server holds in an open hunt ({ slot: hunt id }) */
+          ...(o.hunting && o.hunting[slot] ? { hunt: { session_id: '5d1c0f2e-0000-4000-8000-00000000000' + slot, hunt_id: o.hunting[slot], ended: false } } : {}) })
           : { ok: false, error: 'no_character', hero_slots: slots };
         return r.fulfill({ contentType: 'application/json', body: JSON.stringify(name === 'hr-accrue' ? Object.assign({ accrued: true }, b) : b) });
       }
@@ -306,6 +310,22 @@ async function checks(overrides) {
       await ctx.close();
     }
 
+    { // B-9h THE PICKER SAYS WHO IS HUNTING (core-loop play 2026-10-30; board 10-28 P3): a hero mid-hunt reads where;
+      // one idle in town reads its name and Level only
+      const o = { heroes: { 0: 'Tester', 1: 'Runner' }, hunting: { 1: 'mill_cellar' }, created: [] };
+      const { ctx, page } = await fresh(o);
+      await page.goto(base + '/play.html', { waitUntil: 'load' });
+      await wait(page, () => document.querySelector('form[data-auth="sign-in"]'));
+      await page.fill('input[name=email]', 'qa@example.test');
+      await page.fill('input[name=password]', 'not-a-real-password');
+      await page.click('.auth-submit');
+      await wait(page, () => document.querySelector('[data-app="play"][data-slot="1"]'));
+      const rows = await page.evaluate(() => Array.from(document.querySelectorAll('.char-row')).map((li) => li.textContent.replace(/\s+/g, ' ').trim()));
+      if (rows.length !== 2 || !/^Tester Level 10 ?Play$/.test(rows[0]) || !/^Runner Level 10 · Hunting in Mill Cellar ?Play$/.test(rows[1]))
+        fails.push('B-9h the picker does not say which hero is hunting: ' + JSON.stringify(rows));
+      await ctx.close();
+    }
+
     { // B-9 one hero, two owned slots: name + level, Create hero (name + colours), both after a reload
       const o = { heroes: { 0: 'Tester' }, created: [] };
       const { ctx, page, errors } = await fresh(o);
@@ -417,6 +437,29 @@ async function checks(overrides) {
       await ctx.close();
     }
 
+    { // B-15 a session that ends while the town prewarm runs stops it: no sheet is asked for a dead account
+      const { ctx, page } = await fresh({});
+      let release = null, held = 0;
+      const gate = new Promise((r) => { release = r; });
+      const sheets = [];
+      page.on('request', (q) => { if (sheetOf(q.url())) sheets.push(q.url()); });
+      await page.route('**/assets/world/atlas-*.json*', async (r) => { held++; await gate; return r.continue(); });
+      await page.goto(base + '/play.html', { waitUntil: 'load' });
+      await wait(page, () => document.querySelector('form[data-auth="sign-in"]'));
+      await page.fill('input[name=email]', 'qa@example.test');
+      await page.fill('input[name=password]', 'not-a-real-password');
+      await page.click('.auth-submit');
+      await wait(page, () => document.querySelector('[data-app="sign-out"]') && document.querySelector('[data-app="play"]'));
+      for (let i = 0; i < 100 && !held; i++) await page.waitForTimeout(50);
+      await page.click('[data-app="sign-out"]');
+      await wait(page, () => document.querySelector('form[data-auth="sign-in"]'));
+      release();
+      await page.waitForTimeout(1500);
+      if (!held) fails.push('B-15 harness: the town prewarm never asked for the atlas manifests');
+      else if (sheets.length) fails.push('B-15 the prewarm of a signed-out account asked for ' + sheets.length + ' sheet(s): ' + sheets.map(sheetOf).join(', '));
+      await ctx.close();
+    }
+
     { // B-7
       const { ctx, page } = await fresh({ closed: true });
       await page.goto(base + '/play.html', { waitUntil: 'load' });
@@ -453,6 +496,7 @@ const MUTANTS = [
   ['a dead session stays in the game', 'src/app/boot.js', "else if (ev === 'signed-out' || ev === 'expired') sessionEnded();", "else if (ev === 'signed-out') sessionEnded();"],
   ['the closed answer is ignored', 'src/app/boot.js', "if (why === 'closed-game') showClosed();", "if (why === 'never') showClosed();"],
   ['the town\'s sheets wait for Play again', 'src/app/boot.js', "    import('../world/prewarm.js?v=", "    Promise.resolve({ prewarmTown() {} }, '../world/prewarm.js?v="],
+  ["a signed-out account's prewarm runs on (B-15)", 'src/world/prewarm.js', '  if (run) run.stopped = true;', '  void run;'],
   ['the World fetches a prewarmed sheet again', 'src/render/images.js', '  let ready = HELD.get(url);\n  if (ready) return ready;', '  let ready = null;'],
   ['the World downloads every sheet on Play', 'src/world/world-boot.js', '    await sheets.ensure(await setsOf(id));',
     '    await setsOf(id);\n    await sheets.ensure(Array.from(new Set(Object.keys(book.sprites).map((sid) => book.frame(sid).set))));'],

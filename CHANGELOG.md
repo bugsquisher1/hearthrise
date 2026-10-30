@@ -5,6 +5,16 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.71 — 2026-10-30 (Clearer between hunts)
+
+**After a hunt.** The summary always shows what the hunt earned, even a short one. In town the hunt sign reads “Last hunt: Wickstead” instead of looking like you are still there.
+
+**Picking a hero.** The character list says when a hero is out hunting, and where.
+
+**Getting ready.** Hunt Prep shows how much stamina is left, and the Hunts list says “No best yet” instead of “New” on a ground you have already hunted.
+
+**Wording.** Action bar tips read “When my HP is below 50%”, and the bag no longer tells you to open the bag.
+
 ## v0.2.70 — 2026-10-30 (Parties and leaving)
 
 **Party pulls follow your pick.** A party kept the number of monsters per pull from its first hunt on every hunt after it, so a party that once picked 3 stayed at 3. Each new hunt now uses the number you pick.

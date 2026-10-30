@@ -45,6 +45,11 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 /* 2027-02-09-walk-on-level-curve (lane/a-pull-freeze, Coordinator ruling 2026-10-29): 2027-02-08 is APPLIED history. With
    every pack down a hero now walks on to the next spawn (report #69), so Levels 5-15 earn 7-12% more an hour and Level 25
    fell to 32 h; re-measured (plans pace + ladder) and re-fitted by pace.mjs --fit (minimax 3.3%). Same table, new rows. */
+/* ⚠ THE NEXT CURVE FILE (lane/c-envelope-diff, 2026-10-30): 2027-02-11-settle-plan-cache-2.generated.sql restates
+   hr_char_xp_for_level as LANGUAGE plpgsql (its SQL body verbatim inside `return (select hr_q.v from ( .. ) as hr_q(v)
+   limit 1)`), because PostgreSQL 17 re-plans a SQL body on every call (32 a watched settle). A new curve file placed after
+   it must emit that plpgsql form too, or tests/settle-budget.mjs SB-3 goes red naming this generator. The template below
+   is unchanged on purpose: it must keep writing the APPLIED file named here byte for byte (--check). */
 export const OUT_NAME = '2027-02-09-walk-on-level-curve.generated.sql';
 const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 

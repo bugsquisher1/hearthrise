@@ -38,6 +38,21 @@
 // where it is (or that guard moves its re-apply to the file's own chain position first).
 // The self-check (§2) proves every converted function answers exactly what its SQL pre-image answers, as text, over
 // probe inputs drawn from the database it is applied to (every character on production).
+//
+// PASS 2 (lane/c-envelope-diff, 2026-10-30) WRITES supabase/migrations/2027-02-11-settle-plan-cache-2.generated.sql:
+// the rest of the class. Pass 1 took STABLE scalar helpers called 7+ times a settle; a watched 4-hero settle on the
+// PostgreSQL 17 replay still spent ~32 % of its DB time in LANGUAGE sql bodies re-planned per call: IMMUTABLE ones
+// (hr_jsonb_add, 303 calls a settle; hr_hunt_tally_add), SET-RETURNING ones (hr_unlock_levels, 0.9 ms a call), the
+// sections called once an envelope (hr_depot_view, hr_premium_view), and two pass 1 had to leave:
+//   · hr_premium_until/active/view: tests/hunt-sessions-settle.mjs BETA now re-applies 2026-12-17-beta-premium.sql at
+//     that file's own chain position (market-v2 M0's move), so a later restatement no longer reads as "a second apply
+//     moved them";
+//   · hr_depot_view: market-v2 M0 re-applies at its own position and leaves a body a later file restates to that file;
+//   · hr_char_xp_for_level: restated here; the NEXT curve file tools/gen-level-curve.mjs writes must emit it as
+//     plpgsql too (tests/settle-budget.mjs SB-3 goes red on a SQL copy, naming the generator).
+// A set-returning body becomes `return query <body>` (rows compared as a multiset: a SQL function's row order is no
+// contract). Still left, each for a guard that cannot move here: hr_hunt_member_read, hr_shop_view (full-chain
+// mutants patch them in their own files, see above). Volatile SQL (hr_admitted, an RLS predicate) is not this class.
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { createHash } from 'node:crypto';
@@ -81,6 +96,42 @@ const SETS = {
   hunt_sessions: `select h from public.hunt_sessions h order by h.entered_at desc limit 100`,
 };
 
+/* PASS 2: the file, its functions (sorted) and the probe sets its argument types need beyond SETS. */
+export const FILE2 = '2027-02-11-settle-plan-cache-2.generated.sql';
+const OUT2 = join(ROOT, 'supabase', 'migrations', FILE2);
+export const FNS2 = [
+  'hr_bestiary_of', 'hr_char_xp_for_level', 'hr_collection_of', 'hr_depot_view', 'hr_frame_topic', 'hr_gold_kind',
+  'hr_hunt_analyzer_basic', 'hr_hunt_open_of', 'hr_hunt_tally_add', 'hr_hunt_tally_ok', 'hr_jsonb_add', 'hr_premium_active',
+  'hr_premium_until', 'hr_premium_view', 'hr_skill_inputs_view', 'hr_trophy_of', 'hr_unlock_levels', 'hr_utc_day_start',
+];
+/* Flat {key: number} maps (a tally's xp / raw_xp / loot / supplies / bought) and the analyzer's nested ones (dealt /
+   taken / healed: {total, byX: {key: number}}), the shapes the settle hands these helpers: literals at the edges, and
+   the six newest sessions' own tallies. Every input is one both images take without raising. */
+const FLAT = `select x from (select unnest(array[null, '{}', '{"a":1}', '{"a":1.5,"b":-2}', '{"a":0,"b":0.25}', '{"level":120,"melee":33,"defense":4}',
+           '{"a":12345678901234567890}', '{"cooked_shrimp":3,"bronze_arrow":250}']::jsonb[])
+           union select v.x from (select t.* from public.hunt_session_tally t order by t.session_id desc limit 6) t
+           cross join lateral (values (t.xp), (t.raw_xp), (t.loot), (t.supplies), (t.bought)) v(x)) s(x)`;
+const NESTED = `select x from (select unnest(array[null, '{}', '{"a":1}', '{"total":3}', '{"total":3,"byMonster":{"rat":2}}',
+           '{"total":1,"byMonster":{"rat":1,"bat":4},"byElement":{"fire":2}}', '{"total":5,"byAbility":{"slash":5},"byElement":{"physical":5}}',
+           '{"bySource":{"cooked_shrimp":7}}', '{"total":2,"byMonster":{"rat":1}}', '{"zzz":1}', '{"a":{"b":1}}']::jsonb[])
+           union select v.x from (select t.* from public.hunt_session_tally t order by t.session_id desc limit 6) t
+           cross join lateral (values (t.dealt), (t.taken), (t.healed)) v(x)) s(x)`;
+const PROBE2 = {
+  hr_jsonb_add: [FLAT, FLAT],
+  hr_hunt_tally_add: [NESTED, NESTED],
+  hr_hunt_tally_ok: [NESTED, `select x::text[] from unnest(array[null, '{}', '{byAbility,byElement}', '{byMonster,byElement}', '{bySource}', '{total}']) x`],
+  /* every character's own analyzer (premium's full shape) and the edges basic must survive */
+  hr_hunt_analyzer_basic: [`select x from (select public.hr_hunt_analyzer_of(user_id, slot, null) from public.player_state
+           union select unnest(array[null, '{}', '[]', '7', '{"session":{"id":"s"}}', '{"hero":{"per_hour":5}}',
+             '{"hero":{"per_hour":{"xp":1,"gold":2,"balance":3,"kills":4}},"wall_ms":9}']::jsonb[])) s(x)`],
+  /* every branch of the ledger's gold kinds, the escaped `_` included */
+  hr_gold_kind: [`select x from unnest(array[null, 'wallet', 'hero_slot', 'farm', 'shop', 'clan', 'trade', 'trait', 'accrue', 'worker', 'gather',
+             'craft', 'combat', 'hunt', 'x']) x`,
+    `select x from unnest(array[null, 'tally_pay:1', 'tallyXpay:1', 'supply_buy', 'vendor_cover', 'loot_sell', 'stamina_refill:1', 'stamina_refillX1',
+             'blessing_buy:2', 'hero_rename:3', 'storage_chest:4', 'farm_plant', 'vendor_sell', 'vendor_sell_many', 'create_character', 'x']) x`,
+    `select x from unnest(array[null, ${ZERO}]) x`],
+};
+
 const md5 = (s) => createHash('md5').update(s.replace(/\r/g, ''), 'utf8').digest('hex');
 
 /** `sql` with its comments, string literals, quoted identifiers and dollar-quoted strings blanked: what is left is
@@ -104,18 +155,31 @@ export function sqlSkeleton(sql) {
   return out;
 }
 
-/** The plpgsql body for a scalar SQL body (see the header). */
-export function plpgsqlBody(sqlBody) {
+/** The one statement of a SQL body, its own closing `;` dropped (a second statement throws). */
+function oneStatement(sqlBody) {
   let body = sqlBody.replace(/\r/g, '');
   /* the one statement's own closing `;` (a comment may follow it) is dropped; any other `;` is a second statement */
   const sk = sqlSkeleton(body);
   const last = sk.trimEnd().length - 1;
   if (last >= 0 && sk[last] === ';') body = body.slice(0, last) + body.slice(last + 1);
   if (sqlSkeleton(body).includes(';')) throw new Error('a body with more than one statement cannot be restated this way');
-  body = body.replace(/\s+$/, '');
+  return body.replace(/\s+$/, '');
+}
+
+/** The plpgsql body for a scalar SQL body (see the header). `file` names the migration in its first line. */
+export function plpgsqlBody(sqlBody, file = FILE) {
+  const body = oneStatement(sqlBody);
   /* a trailing line comment would swallow the closing parenthesis: the body ends on its own line, so it cannot */
-  return `\n-- PLAN-CACHE (${FILE}): the SQL body below, verbatim, planned once per backend.\n#variable_conflict use_column\n`
+  return `\n-- PLAN-CACHE (${file}): the SQL body below, verbatim, planned once per backend.\n#variable_conflict use_column\n`
     + `begin\n  return (select hr_q.v from (\n${body}\n  ) as hr_q(v) limit 1);\nend\n`;
+}
+
+/** The plpgsql body for a SET-RETURNING SQL body (pass 2): its rows, `return query`, the body verbatim. A RETURNS TABLE
+    column is a plpgsql variable; `use_column` makes every name that is also a column the column, the SQL rule. */
+export function plpgsqlSetBody(sqlBody, file = FILE2) {
+  const body = oneStatement(sqlBody);
+  return `\n-- PLAN-CACHE (${file}): the SQL body below, verbatim, planned once per backend.\n#variable_conflict use_column\n`
+    + `begin\n  return query\n${body}\n  ;\nend\n`;
 }
 
 /** A dollar tag that does not occur in `text`. */
@@ -131,6 +195,7 @@ function createSql(f, language, body, schemaName = 'public', name = f.proname) {
   if (f.proleakproof) parts.push(' leakproof');
   parts.push(` parallel ${({ s: 'safe', r: 'restricted', u: 'unsafe' })[f.proparallel]}`);
   parts.push(` cost ${Number(f.procost)}`);
+  if (f.proretset) parts.push(` rows ${Number(f.prorows)}`);
   for (const c of f.proconfig || []) { const i = c.indexOf('='); parts.push(` set ${c.slice(0, i)} = ${c.slice(i + 1)}`); }
   return parts.join('\n') + `\nas ${tag}${body}${tag}`;
 }
@@ -152,26 +217,54 @@ function probeSql(f) {
            where public.${f.proname}(${a})::text is distinct from pg_temp.hrpc_${f.proname}(${a})::text`;
 }
 
-/** Read each pre-image from `db` (a replay of the chain up to the file before this one). */
-export async function readPreImages(db) {
+/** The pass-2 probe query: per argument a probe set (PROBE2's, else SETS' by type); a set-returning function's rows
+    compared as a sorted array of row texts. Counts the inputs on which the two images answer differently. */
+function probeSql2(f) {
+  const types = f.argtypes;
+  const own = PROBE2[f.proname] || [];
+  const from = []; const args = [];
+  let i = 0;
+  if (types[0] === 'uuid' && types[1] === 'integer' && !own.length) { from.push(`(${SETS.who}) w(a1, a2)`); args.push('w.a1', 'w.a2'); i = 2; }
+  for (let k = 0; i < types.length; i++, k++) {
+    const set = own[k] || SETS[types[i]];
+    if (!set) throw new Error(`${f.proname}: no probe set for argument type ${types[i]}`);
+    from.push(`(${set}) p${i}(x)`); args.push(`p${i}.x`);
+  }
+  const a = args.join(', ');
+  const answer = (schema, name) => (f.proretset
+    ? `(select coalesce(array_agg(r::text order by r::text), '{}') from ${schema}.${name}(${a}) r)`
+    : `${schema}.${name}(${a})::text`);
+  return `select count(*)::int as n, min(concat_ws(' / ', ${args.map((x) => `coalesce(${x}::text, 'null')`).join(', ')})) as example
+            from ${from.join(' cross join ')}
+           where ${answer('public', f.proname)} is distinct from ${answer('pg_temp', 'hrpc_' + f.proname)}`;
+}
+
+/** Read each pre-image from `db` (a replay of the chain up to the file before this one). Pass 1 (`FNS`) takes STABLE
+    scalar SQL functions only; pass 2 (`FNS2`, `{ pass: 2 }`) STABLE or IMMUTABLE ones, scalar or set-returning. */
+export async function readPreImages(db, { pass = 1 } = {}) {
   const out = [];
   /* every type and function name printed schema-qualified (public.hunt_sessions, public.hr_x(..)): the file never
      leans on the search_path it is applied under */
   await db.exec('set search_path = pg_catalog');
-  for (const name of FNS) {
+  for (const name of pass === 2 ? FNS2 : FNS) {
     const r = await db.query(`select p.proname, pg_get_function_arguments(p.oid) args, p.oid::regprocedure::text sig,
         pg_get_function_result(p.oid) result, l.lanname, p.provolatile, p.prosecdef, p.proisstrict, p.proleakproof, p.proparallel,
-        p.procost, p.proretset, p.proconfig, p.prosrc, p.proargtypes::regtype[]::text[] argtypes, t.typtype
+        p.procost, p.prorows, p.proretset, p.proconfig, p.prosrc, p.proargtypes::regtype[]::text[] argtypes, t.typtype
         from pg_proc p join pg_namespace n on n.oid = p.pronamespace join pg_language l on l.oid = p.prolang join pg_type t on t.oid = p.prorettype
        where n.nspname = 'public' and p.proname = $1`, [name]);
     if (r.rows.length !== 1) throw new Error(`${name}: ${r.rows.length} overloads in public (expected exactly one)`);
     const f = r.rows[0];
-    if (f.lanname !== 'sql' || f.proretset || f.provolatile !== 's' || f.typtype === 'c' || f.typtype === 'p') {
-      throw new Error(`${name}: not a stable scalar SQL function (${f.lanname}, retset ${f.proretset}, vol ${f.provolatile}, typtype ${f.typtype})`);
+    const shape = pass === 2
+      ? f.lanname === 'sql' && (f.provolatile === 's' || f.provolatile === 'i')
+        && (f.proretset ? f.typtype === 'p' && /^TABLE\(/.test(f.result) : f.typtype !== 'c' && f.typtype !== 'p')
+      : f.lanname === 'sql' && !f.proretset && f.provolatile === 's' && f.typtype !== 'c' && f.typtype !== 'p';
+    if (!shape) {
+      throw new Error(`${name}: not a ${pass === 2 ? 'stable/immutable SQL function (scalar, or RETURNS TABLE)' : 'stable scalar SQL function'}`
+        + ` (${f.lanname}, retset ${f.proretset}, vol ${f.provolatile}, typtype ${f.typtype})`);
     }
     f.argtypes = (Array.isArray(f.argtypes) ? f.argtypes : String(f.argtypes).replace(/^\{|\}$/g, '').split(',')).map((x) => x.replace(/^"|"$/g, '').replace(/^public\./, ''));
     f.pre_md5 = md5(f.prosrc);
-    f.plbody = plpgsqlBody(f.prosrc);
+    f.plbody = pass === 2 ? (f.proretset ? plpgsqlSetBody(f.prosrc) : plpgsqlBody(f.prosrc, FILE2)) : plpgsqlBody(f.prosrc);
     f.post_md5 = md5(f.plbody);
     out.push(f);
   }
@@ -252,6 +345,15 @@ ${fns.map((f) => `    ('public.${f.sig.replace(/^public[.]/, '')}', '${f.pre_md5
   end loop;
 end $pin$;
 `);
+  return L.join('\n') + bodySql(fns, 1);
+}
+
+/** §1 and §2 of a pass's file: the bodies, then the executed self-check (pass 2 also pins a set-returning shape and
+    probes with probeSql2). Pass 1's text is exactly what it always was (its file is APPLIED: --check holds it). */
+function bodySql(fns, pass) {
+  const tag = pass === 2 ? 'plan-cache-2' : 'plan-cache';
+  const probe = pass === 2 ? probeSql2 : probeSql;
+  const L = [''];
   L.push(`-- ── §1 THE SAME BODIES, PLANNED ONCE PER BACKEND ─────────────────────────────`);
   for (const f of fns) L.push(createSql(f, 'plpgsql', f.plbody) + ';\n');
   /* §2 */
@@ -259,18 +361,18 @@ end $pin$;
 -- Fails on the pre-image (every function still sql) and on any body, property or answer that moved.
 do $check$
 declare
-  c_probe constant uuid := '000000d6-0000-4000-a000-00005e77c0de';
+  c_probe constant uuid := '${pass === 2 ? '000000d6-0000-4000-a000-00005e77c0df' : '000000d6-0000-4000-a000-00005e77c0de'}';
   r record; v jsonb; v_n int; v_ex text; v_total int := 0;
 begin
-  -- (a) THE SHAPE: plpgsql, the pinned body, every kept property.
+  -- (a) THE SHAPE: plpgsql, the pinned body, every kept property${pass === 2 ? ' (a set-returning one stays set-returning)' : ''}.
   for r in select * from (values
-${fns.map((f) => `    ('public.${f.sig.replace(/^public[.]/, '')}', '${f.post_md5}', '${f.provolatile}', ${f.prosecdef}, ${f.proisstrict}, '${f.proparallel}', ${f.proconfig ? `'${JSON.stringify(f.proconfig).replace(/'/g, "''")}'` : 'null'})`).join(',\n')}
-  ) as t(sig, post, vol, secdef, isstrict, par, cfg) loop
+${fns.map((f) => `    ('public.${f.sig.replace(/^public[.]/, '')}', '${f.post_md5}', '${f.provolatile}', ${f.prosecdef}, ${f.proisstrict}, '${f.proparallel}', ${f.proconfig ? `'${JSON.stringify(f.proconfig).replace(/'/g, "''")}'` : 'null'}${pass === 2 ? `, ${f.proretset}` : ''})`).join(',\n')}
+  ) as t(sig, post, vol, secdef, isstrict, par, cfg${pass === 2 ? ', retset' : ''}) loop
     if not exists (select 1 from pg_proc p join pg_language l on l.oid = p.prolang
                     where p.oid = to_regprocedure(r.sig) and l.lanname = 'plpgsql' and md5(replace(p.prosrc, chr(13), '')) = r.post
                       and p.provolatile = r.vol and p.prosecdef = r.secdef and p.proisstrict = r.isstrict and p.proparallel = r.par
-                      and coalesce(to_jsonb(p.proconfig)::text, 'null') = coalesce(r.cfg::jsonb::text, 'null')) then
-      raise exception 'plan-cache §2(a): % is not this file''s plpgsql image with its properties kept', r.sig;
+                      and coalesce(to_jsonb(p.proconfig)::text, 'null') = coalesce(r.cfg::jsonb::text, 'null')${pass === 2 ? ' and p.proretset = r.retset' : ''}) then
+      raise exception '${tag} §2(a): % is not this file''s plpgsql image with its properties kept', r.sig;
     end if;
   end loop;
 
@@ -278,11 +380,11 @@ ${fns.map((f) => `    ('public.${f.sig.replace(/^public[.]/, '')}', '${f.post_md
     -- A PROBE HERO, so the replay (no characters yet) exercises every (uuid, integer) body; production adds its own.
     insert into auth.users (id) values (c_probe) on conflict (id) do nothing;
     if to_regclass('public.hr_access_allowlist') is not null then
-      insert into public.hr_access_allowlist (user_id, note) values (c_probe, 'plan-cache §2 probe') on conflict (user_id) do nothing;
+      insert into public.hr_access_allowlist (user_id, note) values (c_probe, '${tag} §2 probe') on conflict (user_id) do nothing;
     end if;
     perform set_config('request.jwt.claim.sub', c_probe::text, true);
     v := public.hr_create_character(0);
-    if coalesce(v->>'ok', v->>'created', '') <> 'true' then raise exception 'plan-cache §2-harness: hr_create_character refused: %', v; end if;
+    if coalesce(v->>'ok', v->>'created', '') <> 'true' then raise exception '${tag} §2-harness: hr_create_character refused: %', v; end if;
     perform set_config('request.jwt.claim.sub', '', true);
 
     -- (b) THE ANSWERS: each function against its SQL pre-image (a pg_temp copy), as text, over the probe inputs.
@@ -290,40 +392,130 @@ ${fns.map((f) => `    ('public.${f.sig.replace(/^public[.]/, '')}', '${f.post_md
   for (const f of fns) {
     const pre = createSql(f, 'sql', f.prosrc.replace(/\r/g, ''), 'pg_temp', 'hrpc_' + f.proname);
     const q = tagFor(pre, 'pre');
-    const p = tagFor(probeSql(f), 'probe');
+    const p = tagFor(probe(f), 'probe');
     L.push(`    execute ${q}${pre}${q};
-    execute ${p}${probeSql(f)}${p} into v_n, v_ex;
-    if v_n <> 0 then raise exception 'plan-cache §2(b): ${f.proname} answers differently from its SQL pre-image on % input(s), e.g. (%)', v_n, v_ex; end if;
+    execute ${p}${probe(f)}${p} into v_n, v_ex;
+    if v_n <> 0 then raise exception '${tag} §2(b): ${f.proname} answers differently from its SQL pre-image on % input(s), e.g. (%)', v_n, v_ex; end if;
     v_total := v_total + 1;
 `);
   }
-  L.push(`    if v_total <> ${fns.length} then raise exception 'plan-cache §2(b)-harness: % of ${fns.length} functions probed', v_total; end if;
-    raise exception 'plan-cache §2: ok' using errcode = 'P0001';
+  L.push(`    if v_total <> ${fns.length} then raise exception '${tag} §2(b)-harness: % of ${fns.length} functions probed', v_total; end if;
+    raise exception '${tag} §2: ok' using errcode = 'P0001';
   exception when sqlstate 'P0001' then
-    if sqlerrm <> 'plan-cache §2: ok' then raise; end if;
+    if sqlerrm <> '${tag} §2: ok' then raise; end if;
   end;
 end $check$;
 `);
   return L.join('\n');
 }
 
+/** Pass 2's migration text (FILE2): its own header and pins, then bodySql. */
+export function buildSql2(fns) {
+  const digest = createHash('sha256').update(fns.map((f) => f.proname + ':' + f.pre_md5).join('\n')).digest('hex');
+  const L = [];
+  L.push(`-- ════════════════════════════════════════════════════════════════════════
+-- Hearthrise — THE REST OF THE SETTLE'S SQL HELPERS KEEP THEIR PLANS  (GENERATED — DO NOT EDIT)
+--
+--   Written by tools/gen-plan-cache.mjs (pass 2) from the replayed chain (the pre-images below). Any hand edit FAILS
+--   \`node tools/gen-plan-cache.mjs --check\`. lane/c-envelope-diff, backend-architect, 2026-10-30.
+--   STAGED. Game CLOSED: applies on its passing §2 (CLAUDE.md §2), one file via the Coordinator's apply tool,
+--   never inside begin/commit, never 00:00-00:10 UTC.
+--   digest: ${digest}
+--   ${fns.length} functions.
+--
+-- ── WHY (measured, not guessed) ─────────────────────────────────────────────
+-- The brief was a per-section envelope diff. Measured first (tools/settle-cost.mjs --pg --door=viewed, PostgreSQL 17,
+-- a watched 4-hero settle): building envelopes is about half the settle's DB time (5.33 builds a settle), but the
+-- sections a settle CHANGES are the expensive ones (hunt_analyzer 10.7 ms, hunt 4.4, hunt_settings 4.1, party 3.1,
+-- character_sheet 2.5, stamina_refill 1.3, shop 1.1: ~24 of a 33 ms section build); the 23 sections that never moved
+-- over 31 consecutive answers and frames cost ~9.5 ms. Skipping their build saves at most ~50 ms a settle (~7 %) and
+-- needs server-proven per-section versions over account-shared and clock-read inputs. Not this file.
+-- What the same measure names instead: ~32 % of the settle's DB time inside LANGUAGE sql bodies that PostgreSQL 17
+-- re-plans on every call (2027-02-10-settle-plan-cache.generated.sql took the stable scalar ones called 7+ times a
+-- settle; these are the rest): hr_jsonb_add 303 calls a settle, IMMUTABLE (the analyzer's tallies and hr_apply's),
+-- hr_premium_until 124, hr_premium_active 91, hr_hunt_tally_add 92, hr_char_xp_for_level 32, hr_unlock_levels 22
+-- (SET-RETURNING, 0.9 ms a call), the once-an-envelope sections hr_depot_view and hr_premium_view, and the hello's
+-- set-returning reads. The before/after of the whole settle is in the lane report.
+--
+-- ── THE CONTRACT ────────────────────────────────────────────────────────────
+-- §1 Each function below keeps its name, arguments, return type (RETURNS TABLE kept), volatility (IMMUTABLE kept),
+--    SECURITY DEFINER, STRICT, PARALLEL, COST, ROWS and SET clauses (owner and grants are kept by CREATE OR REPLACE);
+--    only its LANGUAGE moves, sql -> plpgsql, and its body is the SQL pre-image VERBATIM inside
+--        #variable_conflict use_column     (a column and a parameter of one name: the column, as in a SQL function)
+--        scalar:          return (select hr_q.v from ( <pre-image> ) as hr_q(v) limit 1);
+--        set-returning:   return query <pre-image>;
+--    No caller changes. Every function here has a SET clause, so none was ever inlined: no call site loses an inlining.
+-- §2 The executed self-check: every function is plpgsql with exactly the pinned body and kept properties, and answers
+--    exactly what its SQL pre-image answers, as TEXT (a set-returning one: its rows as a sorted multiset), over probe
+--    inputs drawn from the database the file is applied to: every character, the six newest hunts' own tallies, every
+--    analyzer, the gold kinds' every branch. The pre-images run as pg_temp copies, rolled back with the probe.
+--
+-- ── CONCURRENCY / IDEMPOTENCY ───────────────────────────────────────────────
+--   No row moves. CREATE OR REPLACE takes each function's lock for the instant it swaps; a statement already running
+--   keeps the plan it started with. A second apply finds every post-image (§0 accepts it) and rewrites the same text.
+--
+-- ── SECURITY SURFACE (for the EA review: CLAUDE.md §3.7) ─────────────────────
+--   NONE ADDED. No function changes who may call it (grants kept), whose rights it runs with (SECURITY DEFINER kept),
+--   or the search_path it runs under (SET kept). The bodies are the pre-images' own SQL. The one premium check
+--   (hr_premium_until, the beta switch's only reader) keeps its text; tests/hunt-sessions-settle.mjs BETA reads it.
+--
+-- ── COST ────────────────────────────────────────────────────────────────────
+--   Rows/bytes: none. Memory: each backend keeps the cached plans of these bodies (a few hundred KB at most).
+--
+-- ── REVERSIBILITY ───────────────────────────────────────────────────────────
+--   Each pre-image is in this file (§2's pg_temp copies, verbatim): restate it under its own name to undo. No data.
+--
+-- ORDER: after 2027-02-10-settle-reads.sql (the chain end). EDGE: none. No begin/commit.
+-- ════════════════════════════════════════════════════════════════════════
+`);
+  L.push(`-- ── §0 PRECONDITIONS AND PINS — FAIL CLOSED ────────────────────────────────
+-- Each function is its measured pre-image (this tool read it) or this file's own post-image (a second apply).
+do $pin$
+declare r record; v_md5 text; v_lang text;
+begin
+  for r in select * from (values
+${fns.map((f) => `    ('public.${f.sig.replace(/^public[.]/, '')}', '${f.pre_md5}', '${f.post_md5}')`).join(',\n')}
+  ) as t(sig, pre, post) loop
+    if to_regprocedure(r.sig) is null then raise exception 'PRECONDITION: % is absent', r.sig; end if;
+    select md5(replace(p.prosrc, chr(13), '')), l.lanname into v_md5, v_lang
+      from pg_proc p join pg_language l on l.oid = p.prolang where p.oid = to_regprocedure(r.sig);
+    if not ((v_lang = 'sql' and v_md5 = r.pre) or (v_lang = 'plpgsql' and v_md5 = r.post)) then
+      raise exception 'PIN: % is neither its pre-image (sql %) nor this file''s post-image (plpgsql %): % % - another file moved it; re-run tools/gen-plan-cache.mjs',
+        r.sig, r.pre, r.post, v_lang, v_md5;
+    end if;
+  end loop;
+end $pin$;
+`);
+  return L.join('\n') + bodySql(fns, 2);
+}
+
+/* Each pass: its file, its pre-images (the chain replayed up to the file before it) and its text. */
+const PASSES = [
+  { file: FILE, out: OUT, pass: 1, build: buildSql },
+  { file: FILE2, out: OUT2, pass: 2, build: buildSql2 },
+];
+
 async function main() {
   const check = process.argv.includes('--check');
   const order = JSON.parse(readFileSync(join(ROOT, 'tests', 'schema-apply-order.json'), 'utf8')).order;
-  const at = order.indexOf(FILE);
-  const upTo = at > 0 ? order[at - 1] : order[order.length - 1];
   const { bootReplay } = await import('../tests/schema-replay.mjs');
-  const { db } = await bootReplay({ upTo });
-  const fns = await readPreImages(db);
-  const sql = buildSql(fns);
-  if (check) {
-    const have = existsSync(OUT) ? readFileSync(OUT, 'utf8').replace(/\r\n/g, '\n') : '';
-    if (have !== sql) { console.error(`✗ ${FILE} is not what tools/gen-plan-cache.mjs writes (replayed up to ${upTo}). Re-run it.`); process.exit(1); }
-    console.log(`✓ ${FILE}: ${fns.length} functions, matches its pre-images (replayed up to ${upTo})`);
-    process.exit(0);
+  let bad = 0;
+  for (const P of PASSES) {
+    const at = order.indexOf(P.file);
+    const upTo = at > 0 ? order[at - 1] : order[order.length - 1];
+    const { db } = await bootReplay({ upTo });
+    const fns = await readPreImages(db, { pass: P.pass });
+    const sql = P.build(fns);
+    await db.close?.();
+    if (check) {
+      const have = existsSync(P.out) ? readFileSync(P.out, 'utf8').replace(/\r\n/g, '\n') : '';
+      if (have !== sql) { console.error(`✗ ${P.file} is not what tools/gen-plan-cache.mjs writes (replayed up to ${upTo}). Re-run it.`); bad++; continue; }
+      console.log(`✓ ${P.file}: ${fns.length} functions, matches its pre-images (replayed up to ${upTo})`);
+      continue;
+    }
+    writeFileSync(P.out, sql);
+    console.log(`wrote ${P.file}: ${fns.length} functions, ${sql.length} bytes (pre-images replayed up to ${upTo})`);
   }
-  writeFileSync(OUT, sql);
-  console.log(`wrote ${FILE}: ${fns.length} functions, ${sql.length} bytes (pre-images replayed up to ${upTo})`);
-  process.exit(0);
+  process.exit(bad ? 1 : 0);
 }
 if (isMain(import.meta.url)) main().catch((e) => { console.error('gen-plan-cache: ' + (e && e.stack || e)); process.exit(1); });

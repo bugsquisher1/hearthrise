@@ -1392,6 +1392,48 @@ async function inTx(db, fn) {
   try { return await fn(); } finally { await db.query('rollback'); }
 }
 
+/* BETA's SECOND APPLY: byte-identical, and it never turns back on a switch an operator turned off (the EA wipe). Judged AS
+   OF the file (PARTY-LEAVE-IDEM's move; lane/c-envelope-diff, 2026-10-30): re-applied over the WHOLE chain it would put its
+   own SQL bodies back over a later file's (2027-02-11-settle-plan-cache-2.generated.sql restates the three premium helpers
+   as plpgsql, their bodies verbatim), which is that file's to keep, not a defect of this one. So it boots the chain TO the
+   file, carries over from `main` (the whole chain) every image body no LATER file authors (a DB mutant planted there rides
+   with it), turns the switch off, and re-applies. */
+const BETA_FILE = '2026-12-17-beta-premium.sql';
+const BETA_SIGS = ['public.hr_premium_until(uuid,integer)', 'public.hr_premium_active(uuid,integer,timestamp with time zone)',
+  'public.hr_premium_view(uuid,integer)', 'public.hr_stamina_of(uuid,integer,timestamp with time zone)'];
+async function betaSecondApply(main) {
+  const order = JSON.parse(readFileSync(join(ROOT, 'tests', 'schema-apply-order.json'), 'utf8')).order;
+  const later = order.slice(order.indexOf(BETA_FILE) + 1).map((f) => readFileSync(join(ROOT, 'supabase', 'migrations', f), 'utf8'));
+  const authoredLater = (sig) => {
+    const fn = sig.slice('public.'.length, sig.indexOf('('));
+    const re = new RegExp('create\\s+or\\s+replace\\s+function\\s+(?:public\\.)?' + fn + '\\s*\\(|pg_get_functiondef\\(\\s*\'(?:public\\.)?' + fn + '\\(', 'i');
+    return later.some((t) => re.test(t));
+  };
+  const { bootReplay } = await import('./schema-replay.mjs');
+  const { db } = await bootReplay({ upTo: BETA_FILE });
+  try {
+    return await inTx(db, async () => {
+      for (const sig of BETA_SIGS) {
+        if (authoredLater(sig)) continue;
+        await db.exec(String(await one(main, 'select pg_get_functiondef($1::regprocedure)', [sig])));
+      }
+      await db.query("update public.hr_flags set enabled = false where key = 'beta_premium'");
+      const image = () => one(db, `select jsonb_build_object('defs', (select jsonb_object_agg(p.oid::regprocedure::text, md5(pg_get_functiondef(p.oid)) || ':' || coalesce(p.proacl::text, ''))
+                                      from pg_proc p where p.oid in (select to_regprocedure(s) from unnest($1::text[]) s)),
+                                   'flags', (select jsonb_object_agg(key, enabled) from public.hr_flags))`, [BETA_SIGS]);
+      const before = await image();
+      if (!before.defs || Object.keys(before.defs).length !== BETA_SIGS.length) return [`CONTROL: the replay to ${BETA_FILE} holds ${JSON.stringify(before.defs)}`];
+      try { await db.exec(readFileSync(join(ROOT, 'supabase', 'migrations', BETA_FILE), 'utf8').replace(/\r\n/g, '\n')); }
+      catch (e) { return [`the second apply RAISED: ${String(e.message).split('\n')[0]}`]; }
+      const after = await image();
+      const out = [];
+      if (canon(after) !== canon(before)) out.push(`a second apply moved ${firstDiff(canon(before), canon(after))}`);
+      if (!before.flags || before.flags.beta_premium !== false) out.push('CONTROL: the switch was not off before the second apply');
+      return out;
+    });
+  } finally { await db.close?.(); }
+}
+
 /* The fixture ground's catalogue rows (the generator's own row builder). */
 async function installGround(db, row = groundRow) {
   fixtureRow = row;
@@ -2099,16 +2141,7 @@ const DB_ARMS = {
       if (/beta_premium/.test(code(b.src)) && b.sig !== 'hr_premium_until(uuid,integer)') problems.push(`${b.sig} reads the beta switch past the one check`);
     }
     if (!bodies.some((b) => b.sig === 'hr_premium_until(uuid,integer)' && /beta_premium/.test(code(b.src)))) problems.push('hr_premium_until does not read the switch');
-    /* A SECOND APPLY is byte-identical and never turns back on a switch an operator turned off (the EA wipe). */
-    const image = () => one(db, `select jsonb_build_object('defs', (select jsonb_object_agg(p.oid::regprocedure::text, md5(pg_get_functiondef(p.oid)) || ':' || coalesce(p.proacl::text, ''))
-                                    from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-                                   where n.nspname = 'public' and p.proname in ('hr_premium_until', 'hr_premium_active', 'hr_premium_view', 'hr_stamina_of')),
-                                 'flags', (select jsonb_object_agg(key, enabled) from public.hr_flags))`);
-    const before = await image();
-    await db.exec(readFileSync(join(ROOT, 'supabase', 'migrations', '2026-12-17-beta-premium.sql'), 'utf8').replace(/\r\n/g, '\n'));
-    const after = await image();
-    if (canon(after) !== canon(before)) problems.push(`a second apply moved ${firstDiff(canon(before), canon(after))}`);
-    if (!before.flags || before.flags.beta_premium !== false) problems.push('CONTROL: the switch was not off before the second apply');
+    problems.push(...await betaSecondApply(db));
     return problems;
   }),
   PARTY: async (db, M) => inTx(db, async () => {

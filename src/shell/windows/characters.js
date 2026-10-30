@@ -19,17 +19,17 @@
 // the server refuses rather than charge another sum. Refusals in plain words.
 // Built once, patched in place.
 // ════════════════════════════════════════════════════════════════════════
-import { ALERT_KINDS } from '../../data/alerts.js?v=0.2.71';
-import { summaryOf } from '../command-model.js?v=0.2.71';
-import { alertShown, setAlertShown } from '../alerts.js?v=0.2.71';
-import { huntName } from '../../session/party-sections.js?v=0.2.71';
-import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.71';
-import { gold, whole, hoursMinutes } from '../../render/format.js?v=0.2.71';
-import { renameOf, goldOf } from '../../session/item-sections.js?v=0.2.71';
-import { runIntent } from '../intent-words.js?v=0.2.71';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.71';
-import { gaugeHtml, patchGauge, patchRoleGlyph } from '../widgets/bits.js?v=0.2.71';
-import { glyphSvg } from '../launcher.js?v=0.2.71';
+import { ALERT_KINDS } from '../../data/alerts.js?v=0.2.72';
+import { summaryOf } from '../command-model.js?v=0.2.72';
+import { alertShown, setAlertShown } from '../alerts.js?v=0.2.72';
+import { huntName } from '../../session/party-sections.js?v=0.2.72';
+import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.72';
+import { gold, whole, hoursMinutes } from '../../render/format.js?v=0.2.72';
+import { renameOf, goldOf } from '../../session/item-sections.js?v=0.2.72';
+import { runIntent } from '../intent-words.js?v=0.2.72';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.72';
+import { gaugeHtml, patchGauge, patchRoleGlyph } from '../widgets/bits.js?v=0.2.72';
+import { glyphSvg } from '../launcher.js?v=0.2.72';
 
 /* The rename panel's scratch, per viewed character: which hero, the typed name, the confirm step. */
 const SCRATCH = new WeakMap();

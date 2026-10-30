@@ -915,6 +915,20 @@ const ENGINE_ARMS = {
       problems.push(`the hunt ended at ${dead.hunt.ended.at}, not the boundary after the death (${new Date(d.atMs).toISOString()})`);
     }
     if (dead.delta.hp !== dead.maxHp) problems.push(`a dead hero came home at ${dead.delta.hp} of ${dead.maxHp} HP — back in town at full`);
+    /* A DEATH STOPS THE HERO WHERE IT FELL (every end now comes home at full HP, so the HP above no longer tells a
+       death from a hero that got back up): from the death instant to its end the dead hero takes no step, lands no
+       blow and is dealt none, with the browser closed (one span) and viewed (the cuts below). */
+    const stillActs = (run) => {
+      const m = run.outs.flatMap((o) => o.members).find((x) => x.summary.deathLog.length);
+      if (!m) return 'never died';
+      const id = m.summary.unitIdEver; const at = m.summary.deathLog[0].atMs;
+      const steps = run.outs.flatMap((o) => o.track || []).filter((s) => s.u === id && s.atMs > at).length;
+      const blows = run.outs.flatMap((o) => o.events || []).filter((e) => e.atMs > at && (e.u === id || e.t === id)
+        && ['dmg', 'miss', 'kill', 'heal', 'cast', 'shot', 'status_tick', 'shield', 'challenge', 'mark'].includes(e.type)).length;
+      return steps || blows ? `${steps} step(s) and ${blows} blow(s) after its death at +${at - T0} ms` : null;
+    };
+    const awayActs = stillActs(away);
+    if (awayActs) problems.push(`browser closed: the dead hero acted on: ${awayActs}`);
     const loss = dead.hunt.death_xp && dead.hunt.death_xp[0];
     if (!loss || !(loss.level > 0) || !(loss.melee > 0)) problems.push(`the death cost ${JSON.stringify(loss)}, not the Level and the combat skills`);
     /* ATTENDED: the same hunt cut at odd instants (one of them inside the death's swing) dies the same way. */
@@ -924,6 +938,8 @@ const ENGINE_ARMS = {
     const ad = am.find((x) => x.summary.deathLog.length);
     const sig = (x) => x && canon({ at: x.summary.deathLog[0].atMs, m: x.summary.deathLog[0].monster, end: x.hunt.ended, dx: x.hunt.death_xp });
     if (sig(ad) !== sig(dead)) problems.push(`the attended cut died differently from one span ${firstDiff(sig(dead) || '', sig(ad) || '')}`);
+    const attActs = stillActs(att);
+    if (attActs) problems.push(`viewed: the dead hero acted on: ${attActs}`);
     return problems;
   },
 

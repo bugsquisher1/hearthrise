@@ -97,7 +97,7 @@
 //   HS-24 THE PICKER'S PERSONAL BESTS (designer 2026-10-21, master-detail 2026-10-22): each
 //         ground's list line shows the server's best Level XP an hour ("Best 12,400 Level XP/h")
 //         or "New"; its page a line per mode ("Best alone: 12,400 Level XP per hour · balance
-//         3,100 gp per hour") or ONE "Not hunted yet", >= 12 px, and the next envelope REPLACES
+//         3,100 gp per hour") or ONE "No best here yet", >= 12 px, and the next envelope REPLACES
 //         them (never merged)
 //   The desktop bar's 64 px icons, its fight controls and ring (Tyler 10-25) and the stamina "+" are tests/phone-touch.mjs
 //   PH-8 and PH-9: this suite's mutant shards are full (--shard-plan books each within 18 min).
@@ -804,10 +804,13 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           const b = document.querySelector('.ht-bar');
           const shown = (q) => { const n = b && b.querySelector(q); return !!n && n.getClientRects().length > 0; };
           return b ? { death: !!document.querySelector('[data-hs-win="death"]'), summaryWin: !!document.querySelector('[data-hs-win="hunt-summary"]'),
-            leave: shown('[data-hs-act="leave"]'), details: shown('[data-hs-act="details"]'), summary: shown('[data-hs-act="summary"]') } : null;
+            leave: shown('[data-hs-act="leave"]'), details: shown('[data-hs-act="details"]'), summary: shown('[data-hs-act="summary"]'),
+            ground: b.querySelector('.ht-ground').textContent } : null;
         });
         if (!bar) fails.push('HS-10 a death ends the hunt and the top bar is gone (its Summary is the way back while the death popup holds the summary)');
         else if (!bar.death || bar.summaryWin || bar.leave || bar.details || !bar.summary) fails.push('HS-10 a hunt that is over still offers more than its summary: ' + JSON.stringify(bar));
+        /* ...and names the hunt as the LAST one: the hero is in town (core-loop play 2026-10-30: "Wickstead" over Havora). */
+        else if (!/^Last hunt: \S/.test(bar.ground)) fails.push('HS-10 a hunt that is over is named as if the hero were there: ' + JSON.stringify(bar.ground));
         s.env.hunt = hunted;
         delete s.env.death_log;
         /* HS-18 the rate that applies NOW: a hunt that is over no longer fights, so its in-fight regen is gone from the hub. */
@@ -820,6 +823,8 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         await pushEnvelope(page, s);
         const live = await page.evaluate(() => { const n = document.querySelector('.ht-bar [data-hs-act="leave"]'); return !!n && n.getClientRects().length > 0; });
         if (!live) fails.push('HS-10 a running hunt shows no Leave hunt');
+        const liveName = await page.evaluate(() => document.querySelector('.ht-bar .ht-ground').textContent);
+        if (/Last hunt/.test(liveName)) fails.push('HS-10 a running hunt is named as the last one: ' + JSON.stringify(liveName));
         /* HS-10b (visual gate v0.2.23 P1): the tutorial card of a hunting hero hangs UNDER the top bar and never
            covers it (Leave hunt is what the Cash in card points at); with a window open there is no card at all. */
         s.env.state = Object.assign({}, s.env.state, { level_xp: 0 });
@@ -1088,7 +1093,8 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           await page.click('.hc-foot [data-x="save"]');
           const mid = await page.evaluate(() => Array.from(document.querySelectorAll('.ca-form button, .ca-form select, .ca-form input')).every((b) => b.disabled));
           if (!mid) fails.push('HS-7 Configure action stayed on while its intent was in flight');
-          if (!/at or below 50%/.test(tipBefore)) fails.push('HS-7 the slot tooltip did not show the server’s setup: ' + tipBefore);
+          /* ...as a plain sentence, the words Configure action uses (core-loop play 2026-10-30: "When My HP % below 50%.") */
+          if (!/When my HP is at or below 50%\./.test(tipBefore)) fails.push('HS-7 the slot tooltip did not show the server’s setup in plain words: ' + tipBefore);
           await until(() => s.sent('hr_action_set_options').length >= 1);
           s.release('options');
           const sent = s.calls.filter((c) => c.name === 'hr_action_set_options').map((c) => c.body.p_opts);
@@ -1099,7 +1105,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           }
           const done = await wait(page, () => !document.querySelector('[data-hs-win="configure-action"]'), null);
           const tipAfter = await page.evaluate(() => { const li = document.querySelector('.hb-slot[data-slot="2"]'); li.dispatchEvent(new MouseEvent('mouseover', { bubbles: true })); return document.querySelector('.hb-tip').textContent; });
-          if (!done || !/below 40%/.test(tipAfter)) fails.push('HS-7 after the server confirmed, the slot did not show the server’s new test and close: ' + tipAfter);
+          if (!done || !/When my HP is below 40%\./.test(tipAfter)) fails.push('HS-7 after the server confirmed, the slot did not show the server’s new test and close: ' + tipAfter);
           /* A refusal: shown inline on the condition the server names; the server's bar stays. */
           s.optionsReply = { ok: false, error: 'bad_value', slot: 0, condition: 0 };
           await page.click('.hb-slot[data-slot="0"]');
@@ -1323,7 +1329,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
     }
 
     { // HS-24 THE PICKER'S PERSONAL BESTS are the server's (hunt_bests), replaced by each envelope: the list line's best
-      // (or "New") and the ground's page (a line per mode, or ONE "Not hunted yet", designer plan 2026-10-22 B #1)
+      // (or "No best yet") and the ground's page (a line per mode, or ONE "No best here yet", designer plan 2026-10-22 B #1)
       const { ctx, page, s, errors, up } = await open({ town: true, prep: (sc) => {
         sc.env.hunt_bests = { min_ms: 600000, grounds: { mill_cellar: { solo: { xp_h: 12400, balance_h: 3100 } } } };
       } });
@@ -1345,7 +1351,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           fails.push('HS-24 the picker does not show the server’s personal bests: ' + JSON.stringify(a));
         }
         const none = await card('meadowbrook_thicket');
-        if (!none || none.line !== 'New' || none.page.join('|') !== 'Not hunted yet. A hunt of 10 min or more sets your best.') fails.push('HS-24 a ground with no best does not say so once: ' + JSON.stringify(none));
+        if (!none || none.line !== 'No best yet' || none.page.join('|') !== 'No best here yet. A hunt of 10 min or more sets your best.') fails.push('HS-24 a ground with no best does not say so once: ' + JSON.stringify(none));
         /* The next envelope REPLACES the bests (a better party hunt landed, the solo one is gone from this read). */
         s.env.hunt_bests = { min_ms: 600000, grounds: { mill_cellar: { party: { xp_h: 20500, balance_h: -450 } } } };
         await pushEnvelope(page, s);
@@ -1358,7 +1364,10 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       await ctx.close();
     }
 
-    for (const premium of [true, false]) { // HS-25 THE HUNT SUMMARY shows the server's balance per hour to everyone; raw XP per hour only to premium
+    /* HS-25 THE HUNT SUMMARY shows the hunt's balance and the server's balance per hour to everyone; raw XP per hour only
+       to premium. A hunt under the server's 10-minute rate window (`short`: no per_hour) shows its balance and no
+       per-hour row at all, never a bare "–" (core-loop play 2026-10-30: a new hero's first 4-minute hunt). */
+    for (const [premium, short] of [[true, false], [false, false], [false, true]]) {
       const { ctx, page, s, up } = await open({ prep: (sc) => {
         sc.keepResidue = true;   // the stored summary is display residue: the server hands it back on a re-read
         sc.residueLate = true;   // ...but stores each put only when the test lands it (the crossed re-read below)
@@ -1368,14 +1377,15 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         sc.env.hunt_analyzer.tier = 'basic';
         delete sc.env.hunt_analyzer.hero.per_hour.raw_xp;
         delete sc.env.hunt_analyzer.hero.per_hour.waste;
+        if (short) delete sc.env.hunt_analyzer.hero.per_hour;
       } });
-      const tag = premium ? 'premium' : 'free';
+      const tag = premium ? 'premium' : short ? 'short free' : 'free';
       if (up) {
         s.env.hunt = Object.assign({}, s.env.hunt, { ended: true });
         await pushEnvelope(page, s);
         /* A freshly ended hunt opens its summary; if it has not yet, the top bar's Summary does. */
         if (!(await wait(page, () => document.querySelector('[data-hs-win="hunt-summary"]'), null, 2000))) await page.click('.ht-bar [data-hs-act="summary"]').catch(() => {});
-        const shown = await wait(page, () => { const d = document.querySelector('[data-hs-win="hunt-summary"] .hsum-card.is-on [data-stat="balanceH"]'); return d && d.textContent !== ''; }, null, 4000);
+        const shown = await wait(page, () => { const d = document.querySelector('[data-hs-win="hunt-summary"] .hsum-card.is-on [data-stat="balance"]'); return d && d.textContent !== ''; }, null, 4000);
         /* and it stays: a re-read after the end (before or after the residue put) keeps the card */
         await pushEnvelope(page, s);
         /* THE CROSSED RE-READ, forced (it was a 1-in-N flake, 2026-10-22): the put has gone (nothing is pending in
@@ -1392,12 +1402,13 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         const got = await page.evaluate(() => {
           const v = (k) => { const d = document.querySelector('[data-hs-win="hunt-summary"] [data-stat="' + k + '"]'); return d && d.parentNode.getClientRects().length > 0 ? d.textContent : null; };
           const w = document.querySelector('[data-hs-win="hunt-summary"]');
-          return { balanceH: v('balanceH'), rawXpH: v('rawXpH'), win: !!w, card: !!(w && w.querySelector('.hsum-card.is-on')),
+          return { balance: v('balance'), balanceH: v('balanceH'), rawXpH: v('rawXpH'), win: !!w, card: !!(w && w.querySelector('.hsum-card.is-on')),
             text: w ? w.textContent.slice(0, 160) : null };
         });
         const ph = FIXTURE.hunt_analyzer.hero.per_hour;
-        const want = { balanceH: ph.balance.toLocaleString('en-US') + ' gp', rawXpH: premium ? ph.raw_xp.toLocaleString('en-US') : null };
-        if (!shown || got.balanceH !== want.balanceH || got.rawXpH !== want.rawXpH) fails.push('HS-25 the ' + tag + ' summary shows ' + JSON.stringify(got) + '; the server sent ' + JSON.stringify(want));
+        const want = { balance: FIXTURE.hunt_analyzer.hero.balance.toLocaleString('en-US') + ' gp',
+          balanceH: short ? null : ph.balance.toLocaleString('en-US') + ' gp', rawXpH: premium ? ph.raw_xp.toLocaleString('en-US') : null };
+        if (!shown || got.balance !== want.balance || got.balanceH !== want.balanceH || got.rawXpH !== want.rawXpH) fails.push('HS-25 the ' + tag + ' summary shows ' + JSON.stringify(got) + '; the server sent ' + JSON.stringify(want));
       } else fails.push('HS-25 the ' + tag + ' screen did not mount');
       await ctx.close();
     }
@@ -1828,6 +1839,7 @@ const MUTANTS = [
   ['the analyzer keeps the last numbers when the section goes', 'src/session/hunt-sections.js', "  const a = section(cs, 'hunt_analyzer');\n", "  const a = section(cs, 'hunt_analyzer') || globalThis.__lastA;\n  globalThis.__lastA = a;\n"],
   ['the metric picker is a hard-coded list', 'src/shell/windows/configure-action.js', "options(METRICS.map((m) => [m.id, m.say]))", "options([['self_hp_pct', 'My HP %'], ['self_mana_pct', 'My mana %']])"],
   ['the controls stay on while a bar intent is in flight', 'src/shell/windows/configure-action.js', '  const off = s.pending;', '  const off = false;'],
+  ['a slot tooltip words its test as a form label', 'src/shell/bar-draft.js', "  const op = OPERATORS[c.op] ? OPERATORS[c.op].say : c.op;", "  const op = OPERATORS[c.op] ? OPERATORS[c.op].label : c.op;"],
   ['a server validation error is not shown inline', 'src/shell/bar-draft.js', '  else { s.error = r;', '  else { s.error = null;'],
   ['the bar hides in town', 'src/data/hud-widgets.js', "removable: true, when: 'always',\n    phone: Object.freeze({ dy: 2 }),", "removable: true, when: 'hunt',\n    phone: Object.freeze({ dy: 2 }),"],
   ['the Food run is sorted by name, not gold per point', 'src/shell/action-table.js', "const byValue = (a, b) => ((a.per === null) - (b.per === null)) || ((a.per || 0) - (b.per || 0))", "const byValue = (a, b) => 0 || 0"],

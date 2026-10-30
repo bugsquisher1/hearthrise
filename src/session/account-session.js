@@ -50,6 +50,7 @@ import { CharacterSession } from './character-session.js?v=0.2.70';
 import { TownPresence } from './town-presence.js?v=0.2.70';
 import { SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.70';
 import { charLevelFromXp } from '../core/xp.js?v=0.2.70';
+import { assignmentOf } from './party-sections.js?v=0.2.70';
 import { createIntentLedger } from './intent-ledger.js?v=0.2.70';
 import { purseOf, newerPurse, storageOf } from './item-sections.js?v=0.2.70';
 
@@ -74,16 +75,26 @@ export function accountLimitOf(read) {
 }
 
 /** A roster row's hero, from one hr_load answer: its name, Level (the server's state.level_xp on the
-    shared curve, CORE_MODEL.md §1) and the ACCOUNT purse it read (state.gold at version state.gold_v:
-    the same gold on every hero), or nulls. Pure. */
+    shared curve, CORE_MODEL.md §1), the ACCOUNT purse it read (state.gold at version state.gold_v:
+    the same gold on every hero) and what it is doing when that is more than standing idle in town
+    ("Hunting in Mill Cellar", "In town, fishing at the Shrimp Spot": party-sections.js assignmentOf, the
+    words the character strip uses), or nulls. Pure. */
 export function heroOf(body) {
-  if (!body || body.ok !== true) return { name: null, level: null, gold: null, goldV: null };
+  if (!body || body.ok !== true) return { name: null, level: null, gold: null, goldV: null, doing: null };
   const name = typeof body.name === 'string' && body.name.trim() ? body.name.trim().slice(0, 40) : null;
   const st = body.state && typeof body.state === 'object' ? body.state : {};
   const lx = st.level_xp;
   return { name, level: Number.isSafeInteger(lx) && lx >= 0 ? charLevelFromXp(lx) : null,
     gold: Number.isSafeInteger(st.gold) && st.gold >= 0 ? st.gold : null,
-    goldV: Number.isSafeInteger(st.gold_v) && st.gold_v >= 0 ? st.gold_v : null };
+    goldV: Number.isSafeInteger(st.gold_v) && st.gold_v >= 0 ? st.gold_v : null,
+    /* The picker said only "Level 2 · Play" for a hero mid-hunt (core-loop play 2026-10-30; board 10-28 P3). */
+    doing: doingOf(body) };
+}
+
+/* What an hr_load answer says its hero is doing, in the strip's words; null when idle in town or unread. */
+function doingOf(body) {
+  const a = assignmentOf({ read: (k) => body[k] });
+  return a.kind === 'hunting' || a.kind === 'busy' ? a.text : null;
 }
 
 /** The next hero slot the server sells, from an `account` section: { slotId, cost, max }, or null

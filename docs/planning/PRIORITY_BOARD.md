@@ -30,6 +30,19 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 ## Decisions
 _Tyler's rulings live in rulings-of-record; designer rulings inside them are recorded here._
 
+### 2026-10-30 Core loop, fresh and returning (designer, lane/b-core-loop-basics): PLAYED on live v0.2.70 as QA (Pellow L2→3 in the Cellar, reload mid-hunt, leave, summary, bag, Shop; Corliss L12 back after a day), fixes in the lane
+| # | Moment (first-hour value order) | Ruling |
+|---|---|---|
+| 1 | Town HP never heals: Pellow stood at 135/160 for four days and entered the Cellar hurt (`member.js:184` seeds a hunt from `state.hp`; `combat-sim.js` endMember keeps the HP on every end but a death) | DESIGN, Systems (engine): every hunt end walks home at full HP and mana, as a death already does; town shows mana full already (Tyler 10-19). No money surface; a leave to heal still waits out its countdown |
+| 2 | Summary: "Balance per hour –" on every hunt under 10 min, so a new hero's first hunts never say if they paid | FIXED: the hunt's own Balance (the server's) shows; the per-hour row only once rated |
+| 3 | In Havora the hunt plaque reads "Wickstead · Summary" as if the hero were there | FIXED: "Last hunt: Wickstead" |
+| 4 | Picker: "Pellow Level 2 · Play" for a hero mid-hunt (10-28 P3) | FIXED: "Level 2 · Hunting in Mill Cellar" (the strip's words) |
+| 5 | Hunt prep: "Stamina left" with no amount; "on this hunt" for a hero in town | FIXED: "Stamina: 7 h 30 m left"; "on your last hunt" |
+| 6 | Slot tooltip: "When My HP % below 50%." | FIXED: "When my HP is below 50%." (Configure action's own words) |
+| 7 | Hunts: "New" and "Not hunted yet" on a ground hunted twice (a best needs 10 min) | FIXED: "No best yet" / "No best here yet" |
+| 8 | Every reload lands on the picker and each hero is re-picked: a decision repeated by hand | OPEN, client: reopen this tab's heroes after a reload (tab store); B-9 pins today's picker |
+| 9 | Bag and Storage: "Give an item one from its menu in the Inventory (B)", said inside the Inventory | FIXED: "...set to Deposit in storage or Sell yet. Open an item’s menu in the bag to choose where it goes." |
+
 ### 2026-10-29 First-hour playtest before the Discord playtest (designer, lane/b-playtest-first-hour): PLAYED, fixes in the lane
 Same method as 10-24 (real `play.html` at release/v0.2.64 in headless Chromium; the replayed chain answering `/rest/v1/rpc/*`; the real `hr-accrue` handler; only waiting compressed, the open hunt's clocks AND the world JSON's epoch values shifted together, or the hero idles after a skip). Marlow at 1440x900, Tessaly touch-emulated at 922x423, ~50 min each. Shots: `art/review/playtest-first-hour-2026-10-29/`. Since 10-24 the chain rings every control, survives a reload, teaches farm/bar/runes/food/order/hearth/sell/plans/cook/styles/Blessings/Tamsin; the summary's primary follows the card; new accounts read "Up to 4 can play at once". Measured: Level 5 at ~16 min in the Cellar (6,947 Level XP/h on a clean skip; the "quarter of an hour" holds), Thicket 23.4k Level XP/h, 2,235 gp/h balance.
 | # | Moment (first-hour value order) | Ruling |

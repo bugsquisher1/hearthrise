@@ -12,7 +12,7 @@
 //                   common it is (src/shell/hunt-ground-facts.js)
 //   what drops      the gear, a line a tier in each armour weight (the hero's own first), then
 //                   every Rare and Trophy with its carrier; each with its chance per kill
-//   your best       the server's hunt_bests, or ONE "Not hunted yet"
+//   your best       the server's hunt_bests, or ONE "No best here yet"
 // then the pull size (src/shell/windows/hunts.js) and the going-hunting part
 // (goHtml / patchGo, from src/shell/hunt-go.js): Go as (the setups as lines, the
 // one in use first choice), Before you go (what the bar spends and what it costs)
@@ -204,7 +204,7 @@ export function patchGround(det, ctx, r, o) {
   const said = partyNote(r.hunt);
   text(note, said);
   prop(note, 'hidden', !said);
-  /* This hero's bests here (the server's hunt_bests): a line per mode it has, else one "Not hunted yet". */
+  /* This hero's bests here (the server's hunt_bests): a line per mode it has, else one "No best here yet". */
   const best = bestWords(bests, r.hunt);
   /* No hunt_bests section from the server: no heading over nothing. */
   prop(det.querySelector('.hw-hd-bests'), 'hidden', !best);

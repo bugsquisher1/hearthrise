@@ -41,7 +41,10 @@ renderHuntTopbar.patch = function patchHuntTopbar(el, ctx) {
   const h = huntOf(ctx.character);
   const a = analyzerOf(ctx.character);
   const ground = h && h.huntId && HUNT_INDEX[h.huntId];
-  text(el.querySelector('.ht-ground'), ground ? ground.name : h ? 'Hunting' : '');
+  /* Over, the hero stands in town: the plaque names the hunt as the LAST one, never as where the hero is (core-loop
+     play 2026-10-30: Corliss in Havora read "Wickstead · Summary"). */
+  const gname = ground ? ground.name : h ? 'Hunting' : '';
+  text(el.querySelector('.ht-ground'), h && h.ended && ground ? 'Last hunt: ' + gname : gname);
   const ms = sessionClockMs(a, serverNowOf(ctx.character));
   text(el.querySelector('.ht-clock'), ms === null ? '' : clock(ms));
   const leave = el.querySelector('.is-leave');

@@ -153,13 +153,29 @@ function valueWords(c, m) {
   return String(c.value);
 }
 
-/** One condition in words: "My HP % at or below 50%". */
+/* Whose effect, as the subject of a sentence (an effect test reads "my target lacks Burn", "I have Shielded"). */
+const EFFECT_WHO = Object.freeze({ target: 'my target', self: 'I', ally: 'the ally I would heal' });
+
+/** One condition as a plain sentence, in the words Configure action uses (the registry's `say`): "my HP is at or
+    below 50%", "the HP of the lowest ally is below 60%", "the number of allies under half health is above 1". Never
+    the picker's labels ("My HP % below 50%" read like a form field on every slot's tooltip, core-loop play 2026-10-30). */
 export function conditionWords(c) {
   const m = METRIC.get(c.metric);
   if (!m) return c.metric;
-  const what = m.label + (c.subject && m.subject ? ' (' + (m.subject[c.subject] || c.subject) + ')' : '');
-  if (m.value === 'bool') return what + ((c.op === 'eq') === (c.value === true) ? '' : ' is false');
-  return what + ' ' + (OPERATORS[c.op] ? OPERATORS[c.op].label : c.op) + ' ' + valueWords(c, m);
+  const op = OPERATORS[c.op] ? OPERATORS[c.op].say : c.op;
+  if (m.value === 'bool') {
+    const what = m.label.charAt(0).toLowerCase() + m.label.slice(1);
+    return (c.op === 'eq') === (c.value === true) ? what : what.replace(' is ', ' is not ');
+  }
+  if (m.value === 'effect') {
+    const who = EFFECT_WHO[c.subject] || EFFECT_WHO.target;
+    const verb = who === 'I' ? (c.op === 'has_effect' ? 'have' : 'lack') : op;
+    return who + ' ' + verb + ' ' + valueWords(c, m);
+  }
+  const whose = c.subject && m.subject ? ' ' + (m.subject[c.subject] || c.subject) : '';
+  /* a count of things reads as "the number of ..." (allies, monsters); a count left in the bag already says "what" */
+  const what = m.value === 'count' && !/^what /.test(m.say) ? 'the number of ' + m.say.replace(/^the /, '') : m.say;
+  return what + whose + ' ' + op + ' ' + valueWords(c, m);
 }
 
 

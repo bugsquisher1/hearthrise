@@ -10,12 +10,12 @@
 //
 //   readinessOf(cs) → { name, ready, checks: [{ id, ok, text }], short: [words] }
 // ════════════════════════════════════════════════════════════════════════
-import { settingsOf, staminaOf, analyzerOf } from '../session/hunt-sections.js?v=0.2.70';
+import { settingsOf, staminaOf, analyzerOf, huntOf } from '../session/hunt-sections.js?v=0.2.70';
 import { bagOf, equipmentOf, goldOf, nameOf } from '../session/item-sections.js?v=0.2.70';
 import { kindOf } from './bag-model.js?v=0.2.70';
 import { itemName } from './widgets/bits.js?v=0.2.70';
 import { storeOf } from './bar-draft.js?v=0.2.70';
-import { whole } from '../render/format.js?v=0.2.70';
+import { whole, hoursWords } from '../render/format.js?v=0.2.70';
 import { CONSUMABLES } from '../data/consumables.js?v=0.2.70';
 import { BARE_WORDS, HEADS_UP_KINDS, spareWords } from './hunt-go.js?v=0.2.70';
 
@@ -80,7 +80,8 @@ export function readinessOf(cs) {
 
   const st = staminaOf(cs);
   if (st) {
-    checks.push({ id: 'stamina', ok: st.msLeft > 0, text: st.msLeft > 0 ? 'Stamina left' : 'No stamina left: rest first' });
+    /* How much, never a bare "Stamina left" (core-loop play 2026-10-30): the server's stamina, in hours and minutes. */
+    checks.push({ id: 'stamina', ok: st.msLeft > 0, text: st.msLeft > 0 ? 'Stamina: ' + hoursWords(st.msLeft) + ' left' : 'No stamina left: rest first' });
     if (!(st.msLeft > 0)) short.push('no stamina');
   }
   const gp = goldOf(cs);
@@ -88,7 +89,11 @@ export function readinessOf(cs) {
   if (gp !== null) {
     const an = analyzerOf(cs);
     const spend = an && an.hero.perHour.waste > 0 ? an.hero.perHour.waste : null;
-    checks.push({ id: 'gold-now', ok: true, text: 'Gold: ' + whole(gp) + ' gp' + (spend ? ' · supplies about ' + whole(spend) + ' gp an hour on this hunt, about ' + (Math.floor((gp / spend) * 10) / 10) + ' h of gold' : '') });
+    /* The analyzer stays on the LAST hunt once it ends: in town it is "your last hunt", never "this hunt" (core-loop
+       play 2026-10-30: Corliss in Havora read "on this hunt"). */
+    const h = huntOf(cs);
+    const which = h && !h.ended ? 'this hunt' : 'your last hunt';
+    checks.push({ id: 'gold-now', ok: true, text: 'Gold: ' + whole(gp) + ' gp' + (spend ? ' · supplies about ' + whole(spend) + ' gp an hour on ' + which + ', about ' + (Math.floor((gp / spend) * 10) / 10) + ' h of gold' : '') });
   }
   return { name, ready: short.length === 0, checks, short };
 }

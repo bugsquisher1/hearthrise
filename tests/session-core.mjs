@@ -1155,12 +1155,16 @@ async function rules(M) {
   await t('ACC-2', async () => {
     /* each hero by its server name and its Level from the server's Level XP (Level 10's total on the shipped curve) */
     /* gold is the ACCOUNT purse each hero's answer states, with the wallet version it was read at (goldV) */
-    const srv = fakeServer({ 0: env(1, { hero_slots: [0, 2, 3, 99, -1, 'x'], name: 'Tester', state: { gold: 1, gold_v: 4, level_xp: XP.charXpForLevel(10) } }), 2: env(1),
+    /* ...and what a hero is doing when it is more than idle in town: the picker said only "Level 2 · Play" over a
+       hero mid-hunt (core-loop play 2026-10-30). Slot 0 hunts; slot 2 stands idle and says nothing. */
+    const srv = fakeServer({ 0: env(1, { hero_slots: [0, 2, 3, 99, -1, 'x'], name: 'Tester', state: { gold: 1, gold_v: 4, level_xp: XP.charXpForLevel(10) },
+      hunt: { session_id: 'sess-1', hunt_id: 'mill_cellar', ended: false } }), 2: env(1),
       3: { ok: false, error: 'needs_name', hero_slots: [0, 2, 3] } });
     const acc = mkAccount(srv);
     const r = await acc.roster();
-    if (JSON.stringify(r) !== JSON.stringify([{ slot: 0, exists: true, unnamed: false, name: 'Tester', level: 10, gold: 1, goldV: 4 }, { slot: 2, exists: true, unnamed: false, name: null, level: null, gold: 1, goldV: null },
-      { slot: 3, exists: false, unnamed: true, name: null, level: null, gold: null, goldV: null }])) return 'roster was ' + JSON.stringify(r);
+    if (JSON.stringify(r) !== JSON.stringify([{ slot: 0, exists: true, unnamed: false, name: 'Tester', level: 10, gold: 1, goldV: 4, doing: 'Hunting in Mill Cellar' },
+      { slot: 2, exists: true, unnamed: false, name: null, level: null, gold: 1, goldV: null, doing: null },
+      { slot: 3, exists: false, unnamed: true, name: null, level: null, gold: null, goldV: null, doing: null }])) return 'roster was ' + JSON.stringify(r);
     srv.calls.length = 0;
     const ok = await acc.create(3, 'Fennick', { head: 1, body: 2, legs: 3, feet: 4 });
     const no = await acc.create(3, 'Taken', { head: 1, body: 2, legs: 3, feet: 4 });
@@ -1679,6 +1683,7 @@ const MUTANTS = [
   ['one topic for every slot', 'src/session/frame-channel.js', "return 'hr:' + uid.toLowerCase() + ':' + slot;", "return 'hr:' + uid.toLowerCase();"],
   ['the slot offer is made up on this side', 'src/session/account-session.js', '    || !Number.isSafeInteger(o.cost_gold) || o.cost_gold < 1) return null;', '    || false) return null;'],
   ['a slot purchase sends a price', 'src/session/account-session.js', "{ p_slot_id: slotId, p_slot: paySlot, p_idem: newIdem() }", "{ p_slot_id: slotId, p_slot: paySlot, p_price: this.slotOffer && this.slotOffer.cost, p_idem: newIdem() }"],
+  ['the roster never says a hero is hunting', 'src/session/account-session.js', '    doing: doingOf(body) };', '    doing: null };'],
   ['the paying hero keeps its old gold', 'src/session/account-session.js', '      if (cs) await cs.load();\n', ''],
   ['a lost channel waits out the deferral', 'src/session/character-session.js', '      if (this._fed && this._huntOpen()) { this._fed = false; this._poll.arm(this._pace.waitMs()); }\n', ''],
   ['a frame never marks the re-read as fed', 'src/session/character-session.js', '    this._fed = deferred === true;', '    this._fed = false;'],

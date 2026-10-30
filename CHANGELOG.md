@@ -5,6 +5,14 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.73 — 2026-10-30 (Faster and smoother)
+
+**Faster start after an update.** After each update, getting from Play to town took about 1.5 s; it now takes about 0.3 s.
+
+**Smoother town.** The town draws only what is on screen, so it no longer stutters on slower computers.
+
+**Smoother hunts.** The hunt screen updates its numbers with less work, so a four-hero party stutters less.
+
 ## v0.2.72 — 2026-10-30 (Home and healed)
 
 **Back to full health.** However a hunt ends (you leave, stamina or supplies run out), your hero now comes home at full HP. Before, only a death refilled it, so a hero who left hurt started the next hunt hurt.

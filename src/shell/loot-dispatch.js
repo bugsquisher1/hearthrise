@@ -16,12 +16,12 @@
 // The Inventory (its item menu, its This hunt tab, its tools row) and the Storage
 // window read this; the bag and Storage change only from the re-read envelope.
 // ════════════════════════════════════════════════════════════════════════
-import { START_INVENTORY, START_EQUIPMENT } from '../data/start-kit.js?v=0.2.72';
-import { bagOf, rulesOf } from '../session/item-sections.js?v=0.2.72';
-import { huntOf } from '../session/hunt-sections.js?v=0.2.72';
-import { whole, gold } from '../render/format.js?v=0.2.72';
-import { dispatchLoot } from '../session/loot-intents.js?v=0.2.72';
-import { runIntent, refusalWords } from './intent-words.js?v=0.2.72';
+import { START_INVENTORY, START_EQUIPMENT } from '../data/start-kit.js?v=0.2.73';
+import { bagOf, rulesOf } from '../session/item-sections.js?v=0.2.73';
+import { huntOf } from '../session/hunt-sections.js?v=0.2.73';
+import { whole, gold } from '../render/format.js?v=0.2.73';
+import { dispatchLoot } from '../session/loot-intents.js?v=0.2.73';
+import { runIntent, refusalWords } from './intent-words.js?v=0.2.73';
 
 /** The three plans, then the pickup filter: [rule, words, group]. The rule is the server's word (player_item_rules.loot_rule). */
 export const LOOT_CHOICES = Object.freeze([

@@ -45,14 +45,14 @@
 //                 left and destroyed when it closes
 // ════════════════════════════════════════════════════════════════════════
 
-import { SESSION_CONFIG } from './config.js?v=0.2.72';
-import { CharacterSession } from './character-session.js?v=0.2.72';
-import { TownPresence } from './town-presence.js?v=0.2.72';
-import { SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.72';
-import { charLevelFromXp } from '../core/xp.js?v=0.2.72';
-import { assignmentOf } from './party-sections.js?v=0.2.72';
-import { createIntentLedger } from './intent-ledger.js?v=0.2.72';
-import { purseOf, newerPurse, storageOf } from './item-sections.js?v=0.2.72';
+import { SESSION_CONFIG } from './config.js?v=0.2.73';
+import { CharacterSession } from './character-session.js?v=0.2.73';
+import { TownPresence } from './town-presence.js?v=0.2.73';
+import { SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.73';
+import { charLevelFromXp } from '../core/xp.js?v=0.2.73';
+import { assignmentOf } from './party-sections.js?v=0.2.73';
+import { createIntentLedger } from './intent-ledger.js?v=0.2.73';
+import { purseOf, newerPurse, storageOf } from './item-sections.js?v=0.2.73';
 
 /* What the account's characters share: the depot (2026-11-27-account-depot.sql) and the
    farm land (2026-12-14-shared-farm.sql). A change to one re-reads the others. */

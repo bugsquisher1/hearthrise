@@ -17,12 +17,12 @@
 // (stopPrewarm), and a session that ends stops it too. A stopped pass slices nothing more
 // and asks for no sheet.
 // ════════════════════════════════════════════════════════════════════════
-import { BUILD } from '../build-info.js?v=0.2.71';
-import { WORLD_MAPS, SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.71';
-import { compileMap } from './core/map-compile.js?v=0.2.71';
-import { createBook } from './core/book.js?v=0.2.71';
-import { loadManifests, loadAtlasImage, baseTables } from './atlas.js?v=0.2.71';
-import { sceneSetsSliced } from './scene-sets.js?v=0.2.71';
+import { BUILD } from '../build-info.js?v=0.2.73';
+import { WORLD_MAPS, SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.73';
+import { compileMap } from './core/map-compile.js?v=0.2.73';
+import { createBook } from './core/book.js?v=0.2.73';
+import { loadManifests, loadAtlasImage, baseTables } from './atlas.js?v=0.2.73';
+import { sceneSetsSliced } from './scene-sets.js?v=0.2.73';
 
 const RUNS = new WeakMap();   // win -> { stopped, sets (the town's, once made), done: Promise<string[]> }
 

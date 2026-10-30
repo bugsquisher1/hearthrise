@@ -9,13 +9,13 @@
 // Display only: it reads the catalogue (src/shell/item-lore.js) and the
 // numbers the window hands it from the envelope, and sends nothing.
 // ════════════════════════════════════════════════════════════════════════
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.72';
-import { whole, gold } from '../../render/format.js?v=0.2.72';
-import { itemName } from '../widgets/bits.js?v=0.2.72';
-import { kindWords, sourcesOf, usesOf, flavourOf, needOf } from '../item-lore.js?v=0.2.72';
-import { statLines, compare, rarityOf } from '../bag-model.js?v=0.2.72';
-import { planWords } from '../loot-dispatch.js?v=0.2.72';
-import { pieceWords } from '../../data/armour-weights.js?v=0.2.72';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.73';
+import { whole, gold } from '../../render/format.js?v=0.2.73';
+import { itemName } from '../widgets/bits.js?v=0.2.73';
+import { kindWords, sourcesOf, usesOf, flavourOf, needOf } from '../item-lore.js?v=0.2.73';
+import { statLines, compare, rarityOf } from '../bag-model.js?v=0.2.73';
+import { planWords } from '../loot-dispatch.js?v=0.2.73';
+import { pieceWords } from '../../data/armour-weights.js?v=0.2.73';
 
 const GAP = 10;
 

@@ -1,5 +1,5 @@
 -- ════════════════════════════════════════════════════════════════════════
--- Hearthrise — A HUNTER'S HELLO BUILDS NO ENVELOPE THE ANSWER THROWS AWAY; THE ROLE IS READ ONCE
+-- Hearthrise — A HUNTER'S HELLO BUILDS NO ENVELOPE THE ANSWER THROWS AWAY; THE ROLE IS READ ONCE; THE SECTIONS IN ONE BUILD
 -- (lane/c-settle-cost-2, backend-architect, 2026-10-30; Tyler 10-30: "optimization, core loop, basics MOST important").
 -- STAGED. Game CLOSED: applies on its passing §5 (CLAUDE.md §2), one file via the Coordinator's apply tool,
 -- never inside begin/commit, never 00:00-00:10 UTC.
@@ -32,6 +32,9 @@
 --    rule) and the worn weapon's key read ONCE, `= (select public.hr_hunt_weapon_of(..))`, instead of once for every
 --    hr_hunt_weapon_roles row the filter scans (12 rows: 54 hr_hunt_weapon_of calls a projection, 414 a watched
 --    settle). hr_hunt_weapon_of is STABLE: the same answer either way, now as one InitPlan. Every other line verbatim.
+-- §3b hr_state_sections_of RESTATED: every registry row folded into ONE jsonb_build_object in ONE dynamic statement
+--    (the same section calls, keys and values) instead of thirty EXECUTEs and thirty `||`, each of which decoded and
+--    re-encoded the whole growing object: 16 ms of a 115 ms projection on PostgreSQL 17. The registry (X7) is unchanged.
 -- §4 grants; §5 the executed self-check.
 --
 -- ── CONCURRENCY / IDEMPOTENCY ───────────────────────────────────────────────
@@ -46,11 +49,12 @@
 --
 -- ── COST ────────────────────────────────────────────────────────────────────
 --   Rows/bytes: none. Per watched 4-hero settle: hr_state_of 7.67 -> 5.33 calls (the before/after table is in the
---   lane report); hr_hunt_weapon_of 414 -> 104 calls.
+--   lane report); hr_hunt_weapon_of 414 -> 32 calls (PGlite; 75 on PostgreSQL 17, whose planner scans the 12-row
+--   table hr_hunt_settings_view filters per row); a projection's section build 16 ms -> ~2 ms.
 --
 -- ── REVERSIBILITY ───────────────────────────────────────────────────────────
---   Drop hr_accrue_read (the edge falls back on 42883 to the old statement, which it keeps verbatim); restate hr_hunt_role_of / hr_role_view
---   from 2027-01-25-town-defaults.sql / their own SQL pre-images in §5. No data.
+--   Drop hr_accrue_read (the edge falls back on 42883 to the old statement, which it keeps verbatim); restate hr_hunt_role_of / hr_role_view /
+--   hr_state_sections_of from their pre-images (verbatim in §5's pg_temp copies). No data.
 --
 -- ORDER: after 2027-02-10-settle-plan-cache.generated.sql. EDGE: hr-accrue moves in the same lane (index.ts's accrue
 --   read, in a savepoint); either order is safe (the new edge falls back on 42883; the old edge never calls §1).
@@ -70,7 +74,8 @@ begin
     ('public.hr_state_of(uuid,integer)',     'plpgsql', 'e0a71bfea1bf596df13f9cbfc59f5cf3', null::text),
     ('public.hr_hunt_open_of(uuid,integer)', null,      'e81bf96fc9bb15c16238c2e981f41fb1', null),
     ('public.hr_hunt_role_of(uuid,integer)', 'sql',     'a2bec8197365cd274da24d3b9dc7997b', 'a99235b8f466eadf09967002566e9a49'),
-    ('public.hr_role_view(uuid,integer)',    'sql',     '304d6a0dd0807debe588153d4ec0734e', 'e9f2d51798d5bd2ee5c8a14fe9685d73')
+    ('public.hr_role_view(uuid,integer)',    'sql',     '304d6a0dd0807debe588153d4ec0734e', 'e9f2d51798d5bd2ee5c8a14fe9685d73'),
+    ('public.hr_state_sections_of(uuid,integer)', 'plpgsql', 'b451a588890152ef8ca20c20f315fdbe', '6fd4f6ee89976974e799053fbd742d2b')
   ) as t(sig, lang, pre, post) loop
     select md5(replace(p.prosrc, chr(13), '')), l.lanname into v_md5, v_lang
       from pg_proc p join pg_language l on l.oid = p.prolang where p.oid = to_regprocedure(r.sig);
@@ -167,6 +172,28 @@ begin
 end
 $plc$;
 
+-- ── §3b THE SECTION REGISTRY IN ONE STATEMENT ───────────────────────────────
+create or replace function public.hr_state_sections_of(p_user uuid, p_slot integer)
+ returns jsonb
+ language plpgsql
+ stable
+ security definer
+ parallel unsafe
+ cost 100
+ set search_path = public, pg_catalog
+as $fn$
+-- SETTLE-READS (2027-02-10-settle-reads.sql): every hr_state_sections row, folded into ONE jsonb_build_object in ONE
+-- statement (the registry still decides which sections there are: architecture contracts X7). It was one EXECUTE and
+-- one `||` per section, thirty of each, and each `||` decoded and re-encoded the whole growing object (~42 KB): 16 ms a
+-- projection on PostgreSQL 17, a sixth of hr_state_of. The same calls, keys and values; one build.
+declare v_sql text; v_out jsonb;
+begin
+  select string_agg(format('%L, public.%I($1, $2)', s.key, s.fn), ', ' order by s.key) into v_sql
+    from public.hr_state_sections s;
+  execute 'select jsonb_build_object(' || coalesce(v_sql, '') || ')' into v_out using p_user, p_slot;
+  return v_out;
+end $fn$;
+
 -- ── §4 GRANTS: revoke-then-grant; §1 reaches the engine only ────────────────
 do $grants$
 begin
@@ -188,8 +215,10 @@ declare
 begin
   -- (a) THE SHAPE: the two restated bodies, plpgsql, their properties kept; §1 reaches hr_engine and nothing else.
   if (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = 'public.hr_hunt_role_of(uuid,integer)'::regprocedure) <> 'a99235b8f466eadf09967002566e9a49'
-     or (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = 'public.hr_role_view(uuid,integer)'::regprocedure) <> 'e9f2d51798d5bd2ee5c8a14fe9685d73' then
-    raise exception 'settle-reads §5(a): hr_hunt_role_of / hr_role_view are not this file''s images'; end if;
+     or (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = 'public.hr_role_view(uuid,integer)'::regprocedure) <> 'e9f2d51798d5bd2ee5c8a14fe9685d73'
+     or (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = 'public.hr_state_sections_of(uuid,integer)'::regprocedure) <> '6fd4f6ee89976974e799053fbd742d2b'
+     or not (select prosecdef from pg_proc where oid = 'public.hr_state_sections_of(uuid,integer)'::regprocedure) then
+    raise exception 'settle-reads §5(a): hr_hunt_role_of / hr_role_view / hr_state_sections_of are not this file''s images'; end if;
   if exists (select 1 from pg_proc p join pg_language l on l.oid = p.prolang
               where p.oid in ('public.hr_hunt_role_of(uuid,integer)'::regprocedure, 'public.hr_role_view(uuid,integer)'::regprocedure)
                 and (l.lanname <> 'plpgsql' or p.provolatile <> 's' or p.proconfig is distinct from array['search_path=public, pg_catalog']))
@@ -277,6 +306,26 @@ $b$$pre$;
     if v_n <> 0 then raise exception 'settle-reads §5(c): the role answers moved for % hero(es), e.g. %', v_n, v_ex; end if;
     if public.hr_hunt_role_of(c_hunt, 0) is null or public.hr_role_view(c_hunt, 0) is null then
       raise exception 'settle-reads §5(c)-harness: the probe hunter has no role to compare'; end if;
+
+    -- (d) THE SECTIONS: one statement answers, as text, exactly what the thirty-EXECUTE loop answered (a pg_temp copy of
+    --     the pre-image), for every character and none; and the hunter's envelope still carries every registry key.
+    execute $pre$create function pg_temp.hrsr_sections(p_user uuid, p_slot integer) returns jsonb language plpgsql stable
+      security definer set search_path = public, pg_catalog as $b$
+declare v_out jsonb := '{}'::jsonb; v_r record; v_v jsonb;
+begin
+  for v_r in select key, fn from public.hr_state_sections order by key loop
+    execute format('select public.%I($1, $2)', v_r.fn) into v_v using p_user, p_slot;
+    v_out := v_out || jsonb_build_object(v_r.key, v_v);
+  end loop;
+  return v_out;
+end $b$$pre$;
+    select count(*)::int, min(w.u::text || '/' || w.s) into v_n, v_ex
+      from (select user_id, slot from public.player_state union all select c_none, 0) w(u, s)
+     where public.hr_state_sections_of(w.u, w.s)::text is distinct from pg_temp.hrsr_sections(w.u, w.s)::text;
+    if v_n <> 0 then raise exception 'settle-reads §5(d): the sections moved for % hero(es), e.g. %', v_n, v_ex; end if;
+    if exists (select 1 from public.hr_state_sections s where not (public.hr_state_of(c_hunt, 0) ? s.key))
+       or (select count(*) from public.hr_state_sections) < 1 then
+      raise exception 'settle-reads §5(d)-harness: the hunter''s envelope lacks a registry key, or there is no registry'; end if;
 
     raise exception 'settle-reads §5: ok' using errcode = 'P0001';
   exception when sqlstate 'P0001' then

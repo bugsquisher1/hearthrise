@@ -49,7 +49,7 @@ const LABELS = [
 const labelOf = (sql) => (LABELS.find(([k]) => k(sql)) || [null, 'tick: ' + sql.replace(/\s+/g, ' ').trim().slice(0, 50)])[1];
 
 export async function prepare({ heroes = 4, windows = 8, hunt = 'millrace_sewer', windowMs = 90000, door = 'fire', db: given,
-  upTo, edgeRoot, pg = false, helloState = null } = {}) {
+  upTo, edgeRoot, pg = false, helloState = null, anchorMs = null } = {}) {
   if (!['fire', 'player', 'pieces', 'viewed'].includes(door)) throw new Error('door is fire | player | pieces | viewed');
   if (pg && upTo) throw new Error('--pg replays this tree\'s whole chain; --upto is PGlite only');
   const H = (await import('../tests/hunt-sessions-settle.mjs')).HARNESS;
@@ -102,7 +102,9 @@ export async function prepare({ heroes = 4, windows = 8, hunt = 'millrace_sewer'
   }
   await db.query(`select set_config('request.jwt.claim.sub', '', true)`);
   const back = (windows + 2) * windowMs;
-  const t = `date_trunc('second', now() - make_interval(secs => ${Math.ceil(back / 1000)}))`;
+  /* anchorMs: the hunt's start instant, the SAME for a before and an after run (the engine is seeded, so two runs from one
+     anchor propose the same worlds and rows; only values read off the server clock itself differ) */
+  const t = Number.isFinite(anchorMs) ? `to_timestamp(${Math.floor(anchorMs / 1000)})` : `date_trunc('second', now() - make_interval(secs => ${Math.ceil(back / 1000)}))`;
   for (const sid of sids) {
     await db.query(`update public.hunt_sessions set entered_at = ${t} - interval '1 minute', hunt_from = ${t}, settled_to = ${t}, next_swing_at = ${t} where id = $1`, [sid]);
   }
@@ -324,8 +326,10 @@ export async function measure(o = {}) {
 /** BEFORE and AFTER in one process, their windows INTERLEAVED (a, b, a, b ...): whatever else loads the machine
     loads both alike, so their milliseconds compare. */
 export async function compare(a, b, windows) {
-  const ma = await prepare({ ...a, windows });
-  const mb = await prepare({ ...b, windows });
+  /* one hunt start for both (a minute of slack for the second fixture), so their settles are the same settles */
+  const anchorMs = Math.floor((Date.now() - (windows + 3) * (a.windowMs || 90000)) / 1000) * 1000;
+  const ma = await prepare({ ...a, windows, anchorMs });
+  const mb = await prepare({ ...b, windows, anchorMs });
   await ma.warm(); await mb.warm();
   for (let w = 2; w <= windows + 1; w++) { await ma.step(w); await mb.step(w); }
   return [await ma.report(), await mb.report()];

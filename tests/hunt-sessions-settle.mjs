@@ -194,8 +194,9 @@
 //   FORFEIT    the sixth refused commit in a row forfeits the window: ended `left`
 //              (Leave pressed) or `server` (browser closed) at the last accepted
 //              boundary, purse unmoved, one window_forfeit row, bag home; a landed
-//              commit starts the count over. A member's own refusal counts on its
-//              seat, an instance refusal on the instance; each count starts over.
+//              commit starts the count over. A member's own-state refusal counts on
+//              its seat; a world code (#73: kills_over, value_over, ...) and an
+//              instance refusal on the instance; each count starts over.
 //   DEPLOY     a deploy never ends a hunt: a catalogue world-shape move with the edge
 //              landing before or after it (v0.2.32 live). Catalogue first: the old
 //              engine's settles are held (never counted); edge first: the new engine
@@ -2772,27 +2773,38 @@ const DB_ARMS = {
       return r;
     };
     const open = async () => (await one(db, 'select count(*) from public.hunt_sessions where id = $1 and ended_at is null', [h.sid])) > 0;
-    await db.query('savepoint forfeit');
-    /* Consecutive: five refusals, a landed window, five more: the hunt never forfeits. */
-    let r = await refuse(5);
-    if (!r.res || r.res.error !== 'kills_over' || r.res.forfeit || !(await open())) problems.push(`five refusals answered ${JSON.stringify(r.res).slice(0, 200)}`);
-    const honest = await settleTo(db, M, h.from + 120000, { raw: true });
-    if (!honest.res || honest.res.ok !== true) problems.push(`a landed window after five refusals answered ${JSON.stringify(honest.res).slice(0, 200)}`);
-    r = await refuse(5, h.from + 180000);
-    if (r.res.forfeit || !(await open())) problems.push('five refusals after a landed window forfeited the hunt (the count did not start over)');
-    await db.query('rollback to savepoint forfeit');
-    /* The INSTANCE's own refusals (a malformed world swing: no member's half is reached) count on the instance, never
-       on a seat (2027-01-22-party-settle-isolation.sql); a landed commit starts that count over too. */
-    const forgedWorld = (c) => { c.settle.world_swing = 'x'; };
     const counts = async () => (await q(db, 'select (select refusals from public.hunt_instances where id = $1) i, (select refusals from public.hunt_sessions where id = $2) s', [h.inst, h.sid]))[0];
-    for (let i = 0; i < 5; i++) r = await settleTo(db, M, h.from + 120000, { tamper: forgedWorld });
-    let c = await counts();
-    if (!r.res || r.res.error !== 'bad_world_swing' || r.res.forfeit || c.i !== 5 || c.s !== 0) problems.push(`five instance refusals answered ${JSON.stringify(r.res).slice(0, 160)}, counts ${JSON.stringify(c)}`);
-    if (!(await settleTo(db, M, h.from + 120000, { raw: true })).res?.ok) problems.push('a landed window after five instance refusals was refused');
-    for (let i = 0; i < 5; i++) r = await settleTo(db, M, h.from + 180000, { tamper: forgedWorld });
-    c = await counts();
-    if (r.res.forfeit || !(await open()) || c.i !== 5) problems.push(`five instance refusals after a landed window forfeited the hunt or kept the old count (${JSON.stringify(c)})`);
-    await db.query('rollback to savepoint forfeit');
+    /* Consecutive, per counter: five refusals, a landed window, five more: the hunt never forfeits, and each time the
+       five sit on the counter the code belongs to (`on`: 'seat' or 'instance'), the other at 0. A landed commit that
+       kept the old count would make the sixth forfeit here. Each leg is judged alone (its own savepoint). */
+    const consecutive = async (label, tamper, code, on) => {
+      const want = on === 'seat' ? { i: 0, s: 5 } : { i: 5, s: 0 };
+      await db.query('savepoint forfeit');
+      for (const [round, toMs] of [['five', h.from + 120000], ['five more after a landed window', h.from + 180000]]) {
+        if (round !== 'five') {
+          const honest = await settleTo(db, M, h.from + 120000, { raw: true });
+          if (!honest.res || honest.res.ok !== true) { problems.push(`${label}: a landed window after five refusals answered ${JSON.stringify(honest.res).slice(0, 200)}`); break; }
+        }
+        let r = null;
+        for (let i = 0; i < 5 && !r?.res?.forfeit; i++) r = await settleTo(db, M, toMs, { tamper });
+        const c = await counts();
+        if (!r.res || r.res.error !== code || r.res.forfeit || !(await open()) || c.i !== want.i || c.s !== want.s) {
+          problems.push(`${label}: ${round} ${code} refusals answered ${JSON.stringify(r.res || r).slice(0, 160)}, counts ${JSON.stringify(c)}, want ${JSON.stringify(want)} and the hunt open`
+            + (round === 'five' ? '' : ` (the landed commit did not start the ${on}'s count over)`));
+          break;
+        }
+      }
+      await db.query('rollback to savepoint forfeit');
+    };
+    /* THE SEAT (2027-01-22-party-settle-isolation.sql): an OWN-STATE code (the member's own half raises it: here a
+       store buy of an id the store does not sell) counts on the member's seat, never on the instance. */
+    await consecutive('own state', (c) => { c.members[0].hunt.buys = { dragon_scale: 1 }; }, 'not_for_sale', 'seat');
+    /* THE INSTANCE, A WORLD CODE (#73, 2027-02-10-party-instance-reset.sql): the engine's kills past the ground's bound
+       trip inside the member's half, yet count on the instance, never on the seat. */
+    await consecutive('world code', forged, 'kills_over', 'instance');
+    /* THE INSTANCE'S OWN (a malformed world swing: no member's half is reached; 2027-01-22-party-settle-isolation.sql). */
+    await consecutive('instance own', (c) => { c.settle.world_swing = 'x'; }, 'bad_world_swing', 'instance');
+    let r;
     for (const [label, leave, want] of [['hunt viewed, Leave pressed', true, 'left'], ['browser closed, no Leave', false, 'server']]) {
       if (leave) {
         await asUser(db, UID);
@@ -3468,7 +3480,8 @@ const DB_MUTANTS = [
     find: '   where id = new.instance_id and density is null;', replace: '   where false;' },
   { arm: 'FORFEIT', name: '[#57] a refused window is never forfeited (the hero is trapped)', fn: SR,
     find: '  if v_n >= c_forfeit_after then', replace: '  if false then' },
-  { arm: 'FORFEIT', name: 'a landed commit keeps the refusal count', fn: AI,
+  /* (the instance twin of the seat's below: caught by the world-code leg, kills_over, and the instance's own, bad_world_swing) */
+  { arm: 'FORFEIT', name: '[#73] a landed commit keeps the instance\'s refusal count (a world code\'s too)', fn: AI,
     find: 'settled_to = v_to, next_swing_at = v_to, refusals = 0, version = version + 1', replace: 'settled_to = v_to, next_swing_at = v_to, version = version + 1' },
   /* PARTY ISOLATION (2027-01-22-party-settle-isolation.sql, threat model #7): each leg goes red on its own defect. */
   { arm: 'FORFEIT', name: '[party isolation] a landed commit keeps the seat\'s refusal count', fn: AI,

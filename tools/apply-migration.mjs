@@ -55,10 +55,20 @@ const fns = [...sql.matchAll(/create\s+or\s+replace\s+function\s+(?:public\.)?([
   .map((m) => m[1]);
 const uniq = [...new Set(fns)];
 
+/* A LOCK WAIT IS BOUNDED (lane/c-reliability-basics, 2026-10-30). The file runs as ONE implicit
+   transaction, so `set local` holds for every statement in it and ends with it. Without a bound, a
+   statement that wants ACCESS EXCLUSIVE on a hot table (player_state, hunt_sessions) queues behind the
+   settles in flight, and every settle after it queues behind the migration: the world stalls for as
+   long as the wait lasts. 2026-10-29 08:37 UTC an apply deadlocked with the world tick on player_state /
+   hunt_sessions (cron.job_run_details, hr-tick-run). Settle transactions hold their locks well under a
+   second (live: hr_hunt_apply_instance 0.36-0.46 s), so 5 s only refuses a wait that was going to stall
+   players; the file is then rolled back whole (lock_not_available) and re-applied a minute later. */
+const LOCK_BOUND = "set local lock_timeout = '5s';\n";
+
 (async () => {
   console.log(`${file}: ${sql.length} bytes, replaces ${uniq.length} function(s): ${uniq.join(', ') || '(none)'}`);
   if (!verifyOnly) {
-    const res = await q(sql);
+    const res = await q(LOCK_BOUND + sql);
     console.log('apply result:', res.slice(0, 300) || '[] (clean)');
   }
   if (uniq.length) {

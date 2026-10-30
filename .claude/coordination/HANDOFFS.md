@@ -122,3 +122,18 @@ patch is havora_square_plaza (square_plaza + a baked kerb ring: decals on the ed
 scree decals: town/mountain.js. maskHash d639329e. Shots: art/review/havora-art-3-2026-10-26/ (11 views + 3 extras).
 Still open: the 4x4 smithy and mill look small beside the new lots; the mountain is flat rock (no cliff faces); the arrival
 yard is a wide bare dirt field. PixelLab: 620 subscription generations (4319.4 → 3699.4), no USD credits.
+
+## 2026-10-30 · backend-architect (lane/c-settle-cost-2) → systems-engineer, level-curve owner, next lane C · the watched settle
+- **systems-engineer (client contract; not done here, every envelope stayed byte-identical):** a watched 4-hero party still
+  builds 5.33 whole hr_state_of envelopes a landed settle (tests/settle-budget.mjs SB-1): 1.33 for the live view's asks answered
+  below the floor (an envelope at the version the client already holds), 1 for the commit, 3 frames for the account's other
+  open heroes, each the whole 65 KB record. Levers, yours to rule: a live ask that names the version it holds and gets no
+  envelope when unchanged; frames for an unviewed hero coalesced or narrowed. Measure: `node tools/settle-cost.mjs --door=viewed [--pg]`.
+- **gen-level-curve.mjs owner:** hr_char_xp_for_level is the one hot SET-clause SQL function left (46 calls a watched settle,
+  re-planned per statement on PostgreSQL 17). The next curve file should write it as plpgsql (tools/gen-plan-cache.mjs
+  plpgsqlBody), then drop it from tests/settle-budget.mjs ALLOW.
+- **next lane touching hr_hunt_settings_view:** its two `w.weapon_type = public.hr_hunt_weapon_of(..)` filters still scan
+  hr_hunt_weapon_roles per row (24 calls a projection); hoist as `(select ..)` as 2027-02-10-settle-reads.sql §2 does.
+  hr_state_sections_of's 30 EXECUTEs are ~8 % of a projection on PostgreSQL 17.
+- **every perf lane:** PGlite is PostgreSQL 18, which caches SQL-function plans production (17) re-plans; time server changes
+  with `node tools/pg-replay.mjs` + `tools/settle-cost.mjs --pg` (a local PostgreSQL 17, HR_PG_BIN); call counts on either.

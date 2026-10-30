@@ -11,11 +11,12 @@
 // World's first open then finds decoded. Display art only; a sheet that fails here is
 // fetched again by the World, which logs it.
 //
-// ONE PASS AT A TIME (client-boot B-10, v0.2.71 merge: the work ran on beside the World's
-// own pass and a session that died just after Play sent 5 calls, not 3): the World takes
-// the sets made here when they are done (prewarmedSets) and stops a pass still running
-// (stopPrewarm), and a session that ends stops it too. A stopped pass slices nothing more
-// and asks for no sheet.
+// ONE PASS AT A TIME, ONE SESSION (client-boot B-10/B-15): the World takes the sets made here when
+// they are done (prewarmedSets) and stops a pass still running (stopPrewarm). The pass belongs to the
+// account that started it (o.alive, src/app/boot.js): asked before every slice and before EACH sheet,
+// one sheet at a time, so a session that ends (signed out, refused) asks for no sheet afterwards,
+// whatever the pass was doing (release/v0.2.73 run 41045835796: a stop sent as a message missed
+// the pass on CI and all six sheets were fetched for a signed-out account).
 // ════════════════════════════════════════════════════════════════════════
 import { BUILD } from '../build-info.js?v=0.2.73';
 import { WORLD_MAPS, SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.73';
@@ -24,30 +25,36 @@ import { createBook } from './core/book.js?v=0.2.73';
 import { loadManifests, loadAtlasImage, baseTables } from './atlas.js?v=0.2.73';
 import { sceneSetsSliced } from './scene-sets.js?v=0.2.73';
 
-const RUNS = new WeakMap();   // win -> { stopped, sets (the town's, once made), done: Promise<string[]> }
+const RUNS = new WeakMap();   // win -> { stopped, live(), sets (the town's, once made), done: Promise<string[]> }
 
 /**
- * Fetch and decode the town's sheets, once per page. Resolves to the sets asked for ([] when none were).
+ * Fetch and decode the town's sheets, once per page and session. Resolves to the sets asked for ([] when none were).
  * @param {Window} win
+ * @param {{alive?: () => boolean}} [opt]  the session this pass works for is still the page's (false: stop now)
  * @returns {Promise<string[]>}
  */
-export function prewarmTown(win) {
+export function prewarmTown(win, opt = {}) {
   const had = RUNS.get(win);
-  if (had && (!had.stopped || had.sets)) return had.done;   // a pass stopped before its sets were made may run again (a second sign-in)
-  const run = { stopped: false, sets: null, done: null };
+  if (had && (had.live() || had.sets)) return had.done;   // a pass stopped before its sets were made may run again (a second sign-in)
+  const alive = typeof opt.alive === 'function' ? opt.alive : () => true;
+  const run = { stopped: false, sets: null, done: null, live: () => !run.stopped && alive() };
   const o = { doc: win.document, version: BUILD.cache };
-  /* the World's own slicing (world-boot.js): the whole-map passes never hold the characters screen; a stopped
-     pass schedules nothing more (its promise is left unsettled and dropped with it) */
-  const slices = { later: (fn) => { if (!run.stopped) win.setTimeout(() => { if (!run.stopped) fn(); }, 0); }, now: () => win.performance.now() };
+  /* the World's own slicing (world-boot.js): the whole-map passes never hold the characters screen; a pass that is
+     no longer live schedules nothing more (its promise is left unsettled and dropped with it) */
+  const slices = { later: (fn) => { if (run.live()) win.setTimeout(() => { if (run.live()) fn(); }, 0); }, now: () => win.performance.now() };
   const row = WORLD_MAPS.find((m) => m.id === SCENE_MAPS.town);
   run.done = loadManifests(o).then((manifests) => {
-    if (run.stopped) return [];
+    if (!run.live()) return [];
     const book = createBook(manifests), tables = baseTables(book);
     return sceneSetsSliced(compileMap(row, tables), row, book, tables, slices);
-  }).then((sets) => {
-    if (run.stopped) return [];
+  }).then(async (sets) => {
+    if (!run.live()) return [];
     run.sets = sets;
-    return Promise.all(sets.map((set) => loadAtlasImage(o, set).catch(() => null))).then(() => sets);
+    for (const set of sets) {
+      if (!run.live()) break;   // the session ended (or the World took over) since the last sheet
+      await loadAtlasImage(o, set).catch(() => null);
+    }
+    return sets;
   }, () => []);
   RUNS.set(win, run);
   return run.done;

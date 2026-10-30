@@ -66,7 +66,9 @@ export async function measure({ plant = null, helloState = null } = {}) {
   const hot = r.functions.filter((f) => sqlStable.has(f.fn) && f.calls_per_settle >= BUDGET.sqlHot && !ALLOW[f.fn])
     .map((f) => `${f.fn} ${f.calls_per_settle}/settle`);
   /* SB-2: every hero's role read, index scans off; the calls of each counted alone */
-  await db.exec('reset role; set enable_indexscan = off; set enable_bitmapscan = off; set enable_indexonlyscan = off');
+  /* every cached plan dropped (the settle's, made with index scans on: PostgreSQL 18 also caches SQL-function plans), so
+     the role reads are planned now, under the pinned settings */
+  await db.exec('reset role; set enable_indexscan = off; set enable_bitmapscan = off; set enable_indexonlyscan = off; discard plans');
   const flush = async () => { try { await db.query('select pg_stat_force_next_flush()'); } catch { /* PG < 15 */ } await db.query('select 1');
     try { await db.query('select pg_stat_clear_snapshot()'); } catch { /* none */ } };
   await flush(); await db.query('select pg_stat_reset()');
@@ -75,7 +77,7 @@ export async function measure({ plant = null, helloState = null } = {}) {
   const fc = async (fn) => Number(((await db.query(`select calls from pg_stat_user_functions where schemaname = 'public' and funcname = $1`, [fn])).rows[0] || { calls: 0 }).calls);
   const roleReads = (await fc('hr_hunt_role_of')) + (await fc('hr_role_view'));
   const weaponPerRole = roleReads ? (await fc('hr_hunt_weapon_of')) / roleReads : Infinity;
-  await db.exec('reset enable_indexscan; reset enable_bitmapscan; reset enable_indexonlyscan');
+  await db.exec('reset enable_indexscan; reset enable_bitmapscan; reset enable_indexonlyscan; discard plans');
   return { db, r, stateOf: calls('hr_state_of'), weapon: calls('hr_hunt_weapon_of'), weaponPerRole, roleReads,
     frames: Math.round(r.frames_per_window * r.windows), asks: Math.round(r.early_asks_per_window * r.windows), hot };
 }

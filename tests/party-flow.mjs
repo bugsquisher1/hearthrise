@@ -5,7 +5,7 @@
 //   node tests/party-flow.mjs            the guard (every arm)
 //   node tests/party-flow.mjs --mutate   every planted defect must be CAUGHT by its arm
 //
-// mutant-anchors: supabase/migrations/2026-10-28-party-flow.sql supabase/migrations/2026-10-29-party-security.sql supabase/migrations/2026-10-30-party-invite-player.sql supabase/migrations/2026-10-30-town-activity-yields.sql supabase/migrations/2026-12-05-hunt-setup-per-ground.sql supabase/migrations/2026-12-07-party-finder.sql supabase/migrations/2027-01-19-play-cap.sql src/shell/menu-providers.js
+// mutant-anchors: supabase/migrations/2026-10-28-party-flow.sql supabase/migrations/2026-10-29-party-security.sql supabase/migrations/2026-10-30-party-invite-player.sql supabase/migrations/2026-10-30-town-activity-yields.sql supabase/migrations/2026-12-05-hunt-setup-per-ground.sql supabase/migrations/2026-12-07-party-finder.sql supabase/migrations/2027-01-19-play-cap.sql supabase/migrations/2027-02-10-party-instance-reset.sql src/shell/menu-providers.js
 // mutant-writes-tree: no — each mutant is ONE statement of its migration, patched in memory and run on the chain end inside a rolled-back transaction
 //
 // Ships with supabase/migrations/2026-10-28-party-flow.sql (PARTY_SPEC.md,
@@ -35,6 +35,8 @@
 //               settle ends it, so it is out of every later split), a walking one pends at its
 //               live horizon (2026-10-31-live-horizon.sql: no door ends a hunt at once), and its
 //               seat goes now
+//   PF-RESTART  (#60) the real Start twice on one party instance: the second hunt plays the
+//               leader's NEW density pick and none of the first hunt's strikes
 //   PF-M8       (#4) the dormant M8 verbs and their baseline rows are gone
 //   PF-IDEM     a second apply of both files is byte-identical
 //   PF-GRANT    the four verbs are authenticated-only; the sweep and the
@@ -64,6 +66,8 @@ const SETUP = '2026-12-05-hunt-setup-per-ground.sql';
 const FINDER = '2026-12-07-party-finder.sql';
 /* 2027-01-19-play-cap.sql restates hr_party_seat_ready and hr_hunt_party_start last (the play cap): their mutants plant there. */
 const PLAY = '2027-01-19-play-cap.sql';
+/* 2027-02-10-party-instance-reset.sql restates hr_hunt_enter_for last (#60: the restart resets density and strikes). */
+const RESET = '2027-02-10-party-instance-reset.sql';
 const SRC = (f = FILE) => readFileSync(join(ROOT, 'supabase', 'migrations', f), 'utf8').replace(/\r\n/g, '\n');
 const U = ['000000c0-0000-4000-8000-0000000f1001', '000000c0-0000-4000-8000-0000000f1002', '000000c0-0000-4000-8000-0000000f1003'];
 const [A, B, C] = U;
@@ -350,6 +354,46 @@ const ARMS = {
     return p;
   },
 
+  /* #60 (P1, live 10-29): a party's instance IS its party id, reused for every hunt it starts; the restart never cleared
+     the density frozen on it (nor its strikes), so a party played its FIRST hunt's pick on every later hunt and ground.
+     The real Start, twice (2027-02-10-party-instance-reset.sql): the leader picks 3 and the party hunts; the hunt ends
+     with strikes on the instance; the leader picks the ground's ceiling and starts again: the instance, and what the
+     engine reads for every member, hold the new pick and no strikes. */
+  'PF-RESTART': async (db) => {
+    const { hunt } = await world(db);
+    const p = await threeOf(db);
+    const pid = await partyOf(db, A);
+    const ceiling = Number(await one(db, `select least(coalesce(public.hr_hunt_limit('density_max'), 0)::int, coalesce((select max(m) from unnest(g.density_max) m), 0), 8)
+                                           from public.hr_hunt_grounds g where g.hunt_id = $1`, [hunt]));
+    if (!(ceiling >= 4)) return [...p, `HARNESS: the ground's density ceiling ${ceiling} is under 4`];
+    const pick = (n) => as(db, A, 'select public.hr_hunt_density_set(0, $1, $2::int, $3::uuid)', [hunt, n, idem()]);
+    const inst = async () => (await db.query('select density, refusals, hunt_id from public.hunt_instances where id = $1', [pid])).rows[0];
+    const played = async () => {
+      const r = await one(db, 'select public.hr_hunt_instance_read($1::uuid, 0)', [A]);
+      return ((r && r.members) || []).map((m) => m.session && m.session.options && m.session.options.density);
+    };
+    if (err(await pick(3)) !== 'ok') return [...p, 'HARNESS: the leader could not pick density 3'];
+    if (err(await start(db, A, hunt)) !== 'ok') return [...p, 'HARNESS: the first start was refused'];
+    const first = await inst();
+    if (!first || first.density !== 3) p.push(`the first hunt froze density ${first && first.density}, the leader picked 3`);
+    /* the hunt ends with a refused window's strikes left on the instance; every seat's hunt closes */
+    await db.query('update public.hunt_instances set refusals = 4 where id = $1', [pid]);
+    for (const { id } of (await db.query('select id from public.hunt_sessions where instance_id = $1 and ended_at is null', [pid])).rows) {
+      await db.query(`select public.hr_hunt_close($1::uuid, 'left', now(), true)`, [id]);
+    }
+    await db.query("update public.player_state set active_kind = 'idle', active_id = null where user_id = any ($1::uuid[])", [U]);
+    await db.query('delete from public.hr_rate_counters');
+    if (err(await pick(ceiling)) !== 'ok') return [...p, `HARNESS: the leader could not pick density ${ceiling}`];
+    const s = await start(db, A, hunt);
+    if (err(s) !== 'ok' || s.entered !== 3) return [...p, 'HARNESS: the restart did not walk all three in: ' + JSON.stringify(s)];
+    const again = await inst();
+    if (again.density !== ceiling) p.push(`the restarted hunt plays density ${again.density}, the leader picked ${ceiling} (the first hunt's ${first && first.density} kept)`);
+    if (again.refusals !== 0) p.push(`the restarted hunt inherited ${again.refusals} strikes from the last one`);
+    const eng = await played();
+    if (eng.length !== 3 || eng.some((d) => d !== ceiling)) p.push(`the engine reads density ${JSON.stringify(eng)} for the members, want ${ceiling} each`);
+    return p;
+  },
+
   /* LIVE v0.2.11: right-clicking an unnamed player ("Adventurer") offered no Invite to party. The target is
      built the way the game builds it: hr_town_view's REAL answer on this chain -> walkerOf -> the town scene's
      ref.player -> worldTargetOf -> the one menu; its press goes through the real party-intents to the real RPC. */
@@ -484,6 +528,9 @@ MUTANTS.push(
     repl: '  if false then' },
   { arm: 'PF-BLOCK', file: INV, why: 'an invite ignores a member’s block',
     find: 'and m.user_id <> p_t_user and public.hr_social_blocked(p_t_user, m.user_id))) then', repl: 'and false)) then' },
+  { arm: 'PF-RESTART', file: RESET, why: '[#60] a restarted party instance keeps its first hunt\'s density and strikes',
+    find: '                                       density = null, refusals = 0, version = version + 1\n',
+    repl: '                                       version = version + 1\n' },
   { arm: 'PF-KICK-HUNT', file: LIVE, why: 'a kicked hunter keeps hunting and sharing',
     find: '  if v_s.id is not null and v_s.instance_id = v_pid then\n    v_leaving := true;', repl: '  if false then\n    v_leaving := true;' },
   { arm: 'PF-KICK-HUNT', file: LIVE, why: 'a kick pends a walking hunter at now(), inside the look-ahead its viewer was shown',

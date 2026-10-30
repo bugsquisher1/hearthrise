@@ -2,7 +2,7 @@
 // src/shell/readiness.js — IS THIS CHARACTER READY TO HUNT? (QoL 2, Tyler 10-18)
 //
 // PURE. The readiness checklist the hunt prep window shows for every open
-// character before a hunt starts ("Druid: 0 drinks"). It reads only what the
+// character before a hunt starts ("Ranger: 0 ammo"). It reads only what the
 // server projected into that character's envelope — the worn set, the action
 // bar, the bag, stamina and gold — and
 // says what is missing. Display only: it gates nothing (the server decides
@@ -10,13 +10,14 @@
 //
 //   readinessOf(cs) → { name, ready, checks: [{ id, ok, text }], short: [words] }
 // ════════════════════════════════════════════════════════════════════════
-import { settingsOf, staminaOf, analyzerOf } from '../session/hunt-sections.js?v=0.2.66';
-import { bagOf, equipmentOf, goldOf, nameOf } from '../session/item-sections.js?v=0.2.66';
-import { kindOf } from './bag-model.js?v=0.2.66';
-import { itemName } from './widgets/bits.js?v=0.2.66';
-import { storeOf } from './bar-draft.js?v=0.2.66';
-import { whole } from '../render/format.js?v=0.2.66';
-import { CONSUMABLES } from '../data/consumables.js?v=0.2.66';
+import { settingsOf, staminaOf, analyzerOf } from '../session/hunt-sections.js?v=0.2.70';
+import { bagOf, equipmentOf, goldOf, nameOf } from '../session/item-sections.js?v=0.2.70';
+import { kindOf } from './bag-model.js?v=0.2.70';
+import { itemName } from './widgets/bits.js?v=0.2.70';
+import { storeOf } from './bar-draft.js?v=0.2.70';
+import { whole } from '../render/format.js?v=0.2.70';
+import { CONSUMABLES } from '../data/consumables.js?v=0.2.70';
+import { BARE_WORDS, HEADS_UP_KINDS, spareWords } from './hunt-go.js?v=0.2.70';
 
 const PLURAL = Object.freeze({ food: 'food', drink: 'drinks', ammo: 'ammo' });
 const PLURAL_CAP = Object.freeze({ food: 'Food', drink: 'Drink', ammo: 'Ammo' });
@@ -47,23 +48,33 @@ export function readinessOf(cs) {
        it, paid per use (bar-draft.js storeOf): nobody has to buy first (Tyler 10-18). */
     const byKind = { food: new Set(), drink: new Set(), ammo: new Set() };
     const backed = {};
+    /* A kind the bar spends at all: a loaded-ammo slot with no arrows in the bag still says so (and stops a shooter). */
+    const wants = {};
     const storeOn = s.supplySource === 'store' || s.onEmpty === 'switch';
     for (const sl of s.slots) {
       if (sl.empty || sl.action.type === 'ability') continue;
       const k = slotKind(sl.item);
       if (!byKind[k]) continue;
+      wants[k] = true;
       if (!KIND_OF_SLOT[sl.item] && !storeItem(sl.item)) byKind[k].add(sl.item);
       const st = storeOn ? storeOf(sl.action, s.store) : null;
       if (st && (!backed[k] || (st.price !== null && st.price < backed[k].price))) backed[k] = st;
       if (KIND_OF_SLOT[sl.item]) for (const r of bag) if (kindOf(r.id) === k) byKind[k].add(r.id);
     }
     for (const [k, ids] of Object.entries(byKind)) {
-      if (!ids.size && !backed[k]) continue;
+      if (!wants[k]) continue;
       const n = Array.from(ids).reduce((t, id) => t + (have.get(id) || 0), 0);
       const st = backed[k];
       const store = st ? (st.price === null ? 'then the store as used' : 'then the store, ' + st.price + ' gp each as used') : '';
-      checks.push({ id: k, ok: n > 0 || !!st, text: st ? PLURAL_CAP[k] + ': ' + (n > 0 ? whole(n) + ' of your own, ' + store : store.replace(/^then the store/, 'the store')) : whole(n) + ' ' + PLURAL[k] + ' for the bar' });
-      if (n === 0 && !st) short.push('0 ' + PLURAL[k]);
+      /* An empty food or drink slot is a heads-up, never a blocker (designer 2026-10-29, Tyler's "0 food" report): it
+         names the empty stock and, when the bag carries food the bar does not name, the fix. Empty ammo stops a shooter. */
+      const out = n === 0 && !st;
+      const heads = HEADS_UP_KINDS.has(k);
+      const named = Array.from(ids).map(itemName);
+      const text = out ? PLURAL_CAP[k] + ': ' + (named.length ? 'no ' + named.join(' or ') + ' left' : 'none for the bar') + '. ' + ((heads && spareWords(k, bag, ids)) || BARE_WORDS[k])
+        : st ? PLURAL_CAP[k] + ': ' + (n > 0 ? whole(n) + ' of your own, ' + store : store.replace(/^then the store/, 'the store')) : whole(n) + ' ' + PLURAL[k] + ' for the bar';
+      checks.push({ id: k, ok: !out || heads, text });
+      if (out && !heads) short.push('0 ' + PLURAL[k]);
     }
   } else checks.push({ id: 'bar', ok: true, text: 'The action bar is set when a hunt is chosen' });
 
@@ -82,7 +93,7 @@ export function readinessOf(cs) {
   return { name, ready: short.length === 0, checks, short };
 }
 
-/** "Druid: 0 drinks, no stamina" or "Tyler: ready". */
+/** "Ranger: 0 ammo, no stamina" or "Tyler: ready" (an empty food or drink slot is a heads-up, never short). */
 export function readinessLine(r) {
   return r.name + ': ' + (r.ready ? 'ready' : r.short.join(', '));
 }

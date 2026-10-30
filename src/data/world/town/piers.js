@@ -4,8 +4,8 @@
 // where it leaves the quay, a middle slice (three variants by row, so the boards and pilings never repeat in step) and the
 // end at its head. Plan coordinates [id, x, y] (town/plan.js). The cells stay planks: what blocks a step is unchanged.
 // PURE ESM. Display data only.
-import { GROUND_ROWS } from './ground.js?v=0.2.66';
-import { WEST } from './plan.js?v=0.2.66';
+import { GROUND_ROWS } from './ground.js?v=0.2.70';
+import { WEST } from './plan.js?v=0.2.70';
 
 const at = (x, y) => (y >= 0 && y < GROUND_ROWS.length ? GROUND_ROWS[y][x] : '');
 function lay() {

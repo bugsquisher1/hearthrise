@@ -469,7 +469,7 @@ async function huntsPure(imp) {
   const say = (cs, o) => beforeLines(cs, o).map((l) => (l.short ? '!' : '') + l.text).join(' | ');
   /* (A fresh hero's starter bar and Bring your heroes are read on the page's own modules, AW-27 / AW-28 in checks.) */
   const bare = say(sess({ hunt_settings: { preset: 0, presets: [], slots: [slot('consume', 'cooked_shrimp', 0)], store: STORE }, state: { gold: 0 }, stamina: { ms: 0, max_ms: 28800000 } }));
-  if (bare !== '!Food: no Cooked Shrimp left. Nothing will be eaten | !No stamina left: rest in town before you go.') fails.push('AW-27 an empty bar and no stamina read ' + JSON.stringify(bare));
+  if (bare !== 'Food: no Cooked Shrimp left. Nothing will be eaten: HP comes back only between fights | !No stamina left: rest in town before you go.') fails.push('AW-27 an empty bar and no stamina read ' + JSON.stringify(bare));
   const poor = say(sess({ state: { gold: 0 }, stamina: { ms: 30 * 60000, max_ms: 28800000 } }));
   if (!/\| Stamina: 30 min left, then the hunt ends\. \| !No gold for the store: the hunt ends when your own supplies run out\.$/.test(poor)) fails.push('AW-27 low stamina and no gold read ' + JSON.stringify(poor));
   const other = say(sess({}), { other: 'Bow' });
@@ -515,6 +515,18 @@ async function planRules(base) {
   const two = say(sess({ hunt_settings: { preset: 0, presets: [], slots: [slot('ability', 'frost_lance', 0), slot('ability', 'arcane_barrier', 1)], store: RUNES } }));
   if (!/^Runes: no Ice runes of yours, no Earth runes of yours\. Frost Lance and Arcane Barrier will not fire\. To cast them, press each slot and pick Plain Ice Rune \(1 gp a cast\) or Plain Earth Rune \(1 gp a cast\) under "When your runes run out"/.test(two))
     fails.push('AW-27 two struck spells read ' + JSON.stringify(two));
+  /* AW-8 / AW-27 AN EMPTY FOOD SLOT IS A HEADS-UP, NOT A BLOCKER (Tyler 10-29: "0 food" in Hunt prep on a hero that
+     carries food the bar does not name and is not getting hit). Both surfaces say the empty stock and the bag's spare
+     food with the fix, and neither calls it short; empty ammo on a shooter's bar still stops it. */
+  const { readinessOf, readinessLine } = await imp('src/shell/readiness.js');
+  const noStore = (slots, inv) => sess({ hunt_settings: { preset: 0, presets: [], slots, store: STORE, supplySource: 'own', onEmpty: 'stop' }, inventory: inv, name: 'Brannoc' });
+  const fed = noStore([slot('consume', 'cooked_shrimp', 0)], { cooked_trout: 12 });
+  const fedR = readinessOf(fed);
+  const fedSaid = [readinessLine(fedR), fedR.checks.filter((c) => c.id === 'food').map((c) => (c.ok ? '' : '!') + c.text).join(), say(fed)].join(' || ');
+  if (fedSaid !== 'Brannoc: ready || Food: no Cooked Shrimp left. You carry 12 Cooked Trout: put it on the bar to eat it || Food: no Cooked Shrimp left. You carry 12 Cooked Trout: put it on the bar to eat it')
+    fails.push('AW-8 an empty food slot with spare food in the bag reads ' + JSON.stringify(fedSaid));
+  const shooter = readinessOf(noStore([{ action: { type: 'attack_with_item', id: 'loaded' }, conditions: [], join: 'and', usable: true }], {}));
+  if (readinessLine(shooter) !== 'Brannoc: 0 ammo') fails.push('AW-8 a bar that shoots with no ammo reads ' + JSON.stringify(readinessLine(shooter)));
   const ops2 = (p) => JSON.stringify(Object.fromEntries(Object.entries(p.ops).sort(([a], [b]) => (a < b ? -1 : 1))));
   /* A tie between armor weights goes to the weight the hero chose at Tamsin's (playtest 2026-10-29: a tank paid in
      heavy came home from the Thicket with a Bronze Platebody and a Leather Body and wore neither). No weight chosen,
@@ -2234,6 +2246,7 @@ const MUTANTS = [
   ['Equip upgrades swaps the weapon', 'src/shell/upgrade-plan.js', "const STYLE_SLOTS = new Set(['weapon', 'shield', 'ammo']);", "const STYLE_SLOTS = new Set(['shield', 'ammo']);"],
   ['Equip upgrades wears what the hero cannot use yet', 'src/shell/upgrade-plan.js', '  return have !== null && have >= it.reqLv;', '  return true;'],
   ['plans: Before you go names a struck spell without its fix', 'src/shell/hunt-go.js', "(fixes.length ? '. To cast '", "(fixes.length > 9 ? '. To cast '"],
+  ['plans: Hunt prep calls an empty food slot short', 'src/shell/readiness.js', '      if (out && !heads) short.push(', '      if (out) short.push('],
   ['plans: Equip upgrades forgets the weight chosen at Tamsin\'s', 'src/shell/upgrade-plan.js', '    if (mine.length) front = mine;', '    if (mine.length) front = front.slice();'],
   ['plans: a Sell plan for a stack not held reads unsellable', 'src/shell/loot-dispatch.js', "if (plan === 'sell' && held && bids && !bids.has(id))", "if (plan === 'sell' && bids && !bids.has(id))"],
   ['Equip upgrades marks nothing in flight', 'src/shell/widgets/upgrade-line.js', '  sc.wearing = { slots, items: slots.map((s) => plan.ops[s]) };\n', ''],

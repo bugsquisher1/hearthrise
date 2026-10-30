@@ -38,21 +38,21 @@
 // only things it sends of its own are the allowlisted residue and intents.
 // ════════════════════════════════════════════════════════════════════════
 
-import { applyEnvelope, frameEnvelope, withResidue } from './envelope.js?v=0.2.66';
-import { createTimeline } from '../hunt-view/timeline.js?v=0.2.66';
-import { LiveLink } from './live-link.js?v=0.2.66';
-import { RESIDUE_FIELDS, sanitizeResidueField, unconfirmedResidue } from './residue.js?v=0.2.66';
-import { SESSION_CONFIG } from './config.js?v=0.2.66';
-import { edgeBody, edgeRead } from './edge-intents.js?v=0.2.66';
-import { leaveAskOf, pendingLeaveAt, leaveCountdown, closeInMs } from './hunt-leave.js?v=0.2.66';
-import { HuntPoll, pollDelayMs } from './hunt-poll.js?v=0.2.66';
-import { AskPacer } from './ask-pacer.js?v=0.2.66';
-import { createIntentLedger } from './intent-ledger.js?v=0.2.66';
-import { ReadGate } from './read-gate.js?v=0.2.66';
-import { frameTopic, reconnectDelay } from './frame-channel.js?v=0.2.66';
-import { refusalOf, settleRefusalOf } from './refusal.js?v=0.2.66';
-import { catchUpLink, newIdem } from './catch-up.js?v=0.2.66';
-import { SERVER_ONLY_EVENTS } from '../core/hunt/events.js?v=0.2.66';
+import { applyEnvelope, frameEnvelope, withResidue } from './envelope.js?v=0.2.70';
+import { createTimeline } from '../hunt-view/timeline.js?v=0.2.70';
+import { LiveLink } from './live-link.js?v=0.2.70';
+import { RESIDUE_FIELDS, sanitizeResidueField, unconfirmedResidue } from './residue.js?v=0.2.70';
+import { SESSION_CONFIG } from './config.js?v=0.2.70';
+import { edgeBody, edgeRead } from './edge-intents.js?v=0.2.70';
+import { leaveAskOf, pendingLeaveAt, leaveCountdown, heardOf, closeInMs } from './hunt-leave.js?v=0.2.70';
+import { HuntPoll, pollDelayMs } from './hunt-poll.js?v=0.2.70';
+import { AskPacer } from './ask-pacer.js?v=0.2.70';
+import { createIntentLedger } from './intent-ledger.js?v=0.2.70';
+import { ReadGate } from './read-gate.js?v=0.2.70';
+import { frameTopic, reconnectDelay } from './frame-channel.js?v=0.2.70';
+import { refusalOf, settleRefusalOf } from './refusal.js?v=0.2.70';
+import { catchUpLink, newIdem } from './catch-up.js?v=0.2.70';
+import { SERVER_ONLY_EVENTS } from '../core/hunt/events.js?v=0.2.70';
 
 export const FRAME_EVENT = 'frame';
 
@@ -113,6 +113,7 @@ export class CharacterSession {
     this.liveLink = new LiveLink({ timeline: this.timeline, now: () => this._now(), emit: (why) => this._emit(why) });
     this.live = this.liveLink.engine;
     this.receivedAt = null; this.settleRefusal = null;   // the engine's last refusal to settle (hello), or null
+    this._askedAt = null; this._answeredAt = null;   // the last settle's send and answer (client ms): a leave's 'late'
     /** The hunt session the timeline holds (a new one clears it: _play). */
     this._huntSid = null;
     for (const fn of Array.from(OBSERVERS)) fn(this);   // e.g. the hunt summary's recorder: it must hear the timeline from the first event
@@ -185,7 +186,8 @@ export class CharacterSession {
   leaveAt() { return this._huntOpen() ? pendingLeaveAt(this.read('hunt'), this._leaveAsk) : null; }
 
   /** The pending leave as the hunt bar shows it (hunt-leave.js leaveCountdown), or null when none pends. */
-  leaveCountdown() { const at = this.leaveAt(); return at === null ? null : leaveCountdown(at, this.serverNow()); }
+  leaveCountdown() { const at = this.leaveAt(); return at === null ? null : leaveCountdown(at, this.serverNow(),
+    heardOf(this.timeline, [this.receivedAt, this._answeredAt], this._asking ? this._askedAt : null)); }
 
   async _huntPoll() {
     if (this._closed || !this._huntOpen()) return;
@@ -498,12 +500,14 @@ export class CharacterSession {
     if (this._asking) { this._again = true; return this._asking; }   // asked while one is out: ONE more after it
     if (this._pace.waitMs() > 0) { if (!this._huntOpen()) this._pace.owe(() => this.hello()); return Promise.resolve(false); }
     this._pace.sent();
+    this._askedAt = this._now();
     return (this._asking = this._helloOnce().finally(() => { this._asking = null; if (this._again) { this._again = false; this.hello(); } }));
   }
 
   async _helloOnce() {
     const ans = await this._server.accrue({ slot: this.slot });
     if (this._closed) return false;
+    if (ans.status > 0 && ans.status !== 429) this._answeredAt = this._now();   // the server's word (a 429 or a lost network is not)
     /* the account's budget is spent: hold a look-ahead margin, then ONE catch-up (a hunt's own re-read retries it) */
     if (ans.status === 429) { this._pace.hold(SESSION_CONFIG.liveRefillMs); if (!this._huntOpen()) this._pace.owe(() => this.hello()); }
     /* An idle settle's {accrued:false} is not the character (read it in full: hr_load); the floor's answer to a hunter

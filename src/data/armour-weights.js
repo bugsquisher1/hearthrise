@@ -16,8 +16,8 @@
 // The share is by ARMOUR_SLOTS worn of that weight (ruling K7: mixed pieces blend,
 // no mixing penalty); shields and capes carry no weight. PURE: no DOM.
 // ════════════════════════════════════════════════════════════════════════
-import { VITALS, ARMOUR_WEIGHT, ARMOUR_SLOTS } from './core-model.js?v=0.2.66';
-import { ITEMS } from './items.js?v=0.2.66';
+import { VITALS, ARMOUR_WEIGHT, ARMOUR_SLOTS } from './core-model.js?v=0.2.70';
+import { ITEMS } from './items.js?v=0.2.70';
 
 /* pool: the vital the weight raises ('hp' | 'mana' | null), fullPm: that raise for a full set, permille. */
 const WEIGHT_RULES = Object.freeze({

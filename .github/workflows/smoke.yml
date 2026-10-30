@@ -1615,6 +1615,8 @@ jobs:
         run: |
           node tools/gen-hunt-sessions.mjs --check
           node tools/mutant-gate.mjs node tools/gen-hunt-sessions.mjs --selftest
+          node tests/settle-drop-bounds.mjs
+          node tools/mutant-gate.mjs node tests/settle-drop-bounds.mjs --mutate
           node tests/hunt-sessions-db.mjs
           node tools/mutant-gate.mjs node tests/hunt-sessions-db.mjs --mutate
 

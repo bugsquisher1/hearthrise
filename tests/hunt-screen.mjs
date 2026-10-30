@@ -1817,7 +1817,7 @@ const MUTANTS = [
   ['the tutorial card hangs over the hunt bar', 'src/styles/shell.css', '.hs-widget > .hs-pointer { left: 0; width: min(260px, 100%); }', '.hs-widget > .hs-pointer { left: 0; top: 0; width: min(260px, 100%); }'],
   ['an ended hunt still offers Leave hunt','src/shell/widgets/hunt-topbar.js', "  prop(leave, 'hidden', over && !leave.hasAttribute('data-pending'));\n", ''],
   ['Leave hunt forgets a pending leave', 'src/shell/widgets/hunt-topbar.js', "  const cd = over ? null : ctx.character.leaveCountdown();", "  const cd = null;"],
-  ['the leave countdown reads the device clock', 'src/session/character-session.js', "leaveCountdown(at, this.serverNow());", "leaveCountdown(at, Date.now());"],
+  ['the leave countdown reads the device clock', 'src/session/character-session.js', "leaveCountdown(at, this.serverNow(),", "leaveCountdown(at, Date.now(),"],
   ['the countdown waits for the settle after the press', 'src/session/character-session.js', "      this._leaveAsk = leaveAskOf(ans.body.session);\n", ""],
   ['a late close never says so', 'src/shell/widgets/hunt-topbar.js', "late: 'Still processing your leave…'", "late: 'Leaving now…'"],
   ['the countdown line is not shown', 'src/shell/widgets/hunt-topbar.js', "  prop(line, 'hidden', !leaving || over);", "  prop(line, 'hidden', true);"],

@@ -14,8 +14,8 @@
 // (set_activity on fuel_<item>: src/shell/windows/inventory/bury.js).
 // One ask in the account's intent ledger (askVia), so the pressed control waits.
 // ════════════════════════════════════════════════════════════════════════
-import { askVia } from './intent-ledger.js?v=0.2.66';
-import { NAMED_FUELS } from '../data/hearth.js?v=0.2.66';
+import { askVia } from './intent-ledger.js?v=0.2.70';
+import { NAMED_FUELS } from '../data/hearth.js?v=0.2.70';
 
 const usable = (account, cs) => !!account && !!account.server && !!cs && cs.status !== 'closed' && Number.isInteger(cs.slot);
 const int = (v) => (Number.isSafeInteger(v) ? v : null);

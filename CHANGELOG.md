@@ -5,6 +5,22 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.70 — 2026-10-30 (Parties and leaving)
+
+**Party pulls follow your pick.** A party kept the number of monsters per pull from its first hunt on every hunt after it, so a party that once picked 3 stayed at 3. Each new hunt now uses the number you pick.
+
+**A party ends together.** If the server cannot accept a party’s hunt, everyone goes home at the same moment, not one hero at a time over a few minutes.
+
+**Leaving a hunt.** “Still processing your leave…” no longer shows after the hunt has already ended.
+
+## v0.2.69 — 2026-10-30 (Mosslight Glade fixed)
+
+**Hunts in Mosslight Glade no longer end on their own.** When a Brook Bear dropped its meat, claw or tooth, the server refused the hunt’s progress and sent your hero home after a few minutes. Every Glade hunt since v0.2.64 hit this. The bear’s drops now count, and a new check covers every drop on every hunting ground. Hunts that already ended are not restored.
+
+## v0.2.67 — 2026-10-29 (Ready without a snack)
+
+**Hunt Prep.** A hero whose food or drink slot is empty no longer reads "0 food" and not ready: food is optional, so it is now a heads-up, and if your bag holds other food it says which and how to put it on the bar. A ranged hero with no arrows and no store behind them now shows "0 ammo", since they cannot attack.
+
 ## v0.2.66 — 2026-10-29 (No more standing around)
 
 **Hunts keep moving.** When every pack is down, your party now walks to the next spot and waits for the respawn there, instead of standing on the pocket it just cleared. The long pauses after a big pull are gone. Levels from 6 up now take a little more XP, so the time to each Level stays where it was.

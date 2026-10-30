@@ -37,7 +37,8 @@
 //                          empty, as applied history's bodies name it)
 //   hr_hunt_set_options    hunt-sessions.js ACTION_SET_OPTIONS (target / limit / enum / bool)
 //   hr_hunt_grounds        hunt-grounds.js HUNT_GROUNDS: per hunt, its ground, seats,
-//   hr_hunt_ground_spawns  pockets, respawn and every spawn (the settle's kill bound),
+//   hr_hunt_ground_spawns  pockets, respawn and every monster a pull can bring (each
+//                          pocket's whole pack: the settle's value bound; spawns = as built),
 //                          and density_max per party size (densityFor: the per-ground
 //                          density pick's ceiling, hr_hunt_density_set)
 //   hr_hunt_world_shape    world-state.js WORLD_VERSION + SHAPE (a world encoded under
@@ -190,7 +191,10 @@ export const WORLD_FIELDS_READ = Object.freeze({
 /* THE CELLAR RESPAWN (lane/a-pull-freeze, Coordinator ruling 2026-10-29, report #69): 2027-02-08 is APPLIED history; the Mill
    Cellar's respawn_ms 30,000 -> 32,000 lands in this forward file, the same full replace. The settle's kill bound reads
    respawn_ms and TIGHTENS: the hr-accrue edge carrying the 32 s ground deploys BEFORE this apply. */
-/* HASK'S FORD (lane b-hasks-ford, designer 2026-10-29): 2027-02-08..10 are APPLIED history; its ground, travel, kill bounds, roster and vendor values land in ONE forward file. */
+/* THE DROP BOUNDS (lane/c-bear-meat-bound, P1 2026-10-30): 2027-02-09 is APPLIED history; every monster a pull can bring
+   gets its spawn row (groundRows, the Glade's Brook Bear), and the self-check executes the settle's item bound for every
+   item a ground's monsters drop (dropNeeds), the same full replace. */
+/* HASK'S FORD (lane b-hasks-ford, designer 2026-10-29): 2027-02-08..10 are APPLIED history (the 2027-02-10 drop-bounds rows carried); its ground, travel, kill bounds, roster and vendor values land in ONE forward file. */
 export const OUT_NAME = '2027-02-11-hasks-ford-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
@@ -213,11 +217,25 @@ export function groundRows(grounds, refs = {}) {
     if (seenHunt.has(g.hunt)) throw new Error(`hunt ${g.hunt} has two grounds`);
     seenHunt.add(g.hunt);
     if (!whole(g.respawnMs) || g.respawnMs < 1000 || g.respawnMs > 600000) throw new Error(`ground ${id} respawnMs ${g.respawnMs} is not 1 s .. 10 min`);
+    /* THE SPAWN ROWS (the settle's value bound reads them: the ground's monsters' kill bounds). EVERY monster a PULL
+       can bring: each pocket's AUTHORED rows, a box's whole `pack` (else its `spawns`), the only rows hunt-grounds.js
+       pullRows ever draws from at any density (what pull-cycle.js spawnPack spawns), never only the as-built `spawns`.
+       Past a box's base a pull brings its FILL rows (its `pack` past its `spawns`); a monster standing only there (the
+       Glade's Brook Bear, v0.2.64) had no row, so every drop of it was refused value_over and the sixth refusal
+       forfeited the hunt (2026-10-30). n = its rows over those authored rows (the full-box head-count);
+       hr_hunt_grounds.spawns stays the AS-BUILT count (the kill bound's base, v_pass: unchanged). */
     const counts = {};
     let n = 0;
-    for (const p of g.pockets || []) for (const s of p.spawns || []) {
-      if (!own(monsters, s.monster)) throw new Error(`ground ${id} spawns unknown monster ${s.monster}`);
-      counts[s.monster] = (counts[s.monster] || 0) + 1; n++;
+    for (const p of g.pockets || []) {
+      for (const s of (p.pack || p.spawns || [])) {
+        if (!own(monsters, s.monster)) throw new Error(`ground ${id} spawns unknown monster ${s.monster}`);
+        counts[s.monster] = (counts[s.monster] || 0) + 1;
+      }
+      for (const s of p.spawns || []) {
+        if (!own(monsters, s.monster)) throw new Error(`ground ${id} spawns unknown monster ${s.monster}`);
+        if (!own(counts, s.monster)) counts[s.monster] = 1;   // a `spawns` row outside its `pack` (no box builds one)
+        n++;
+      }
     }
     if (!n) throw new Error(`ground ${id} spawns nothing`);
     /* THE MOST A HERO MAY PICK here, per party size 1..PARTY_SCALE.maxHeroes (densityFor's clamp, the one
@@ -230,6 +248,29 @@ export function groundRows(grounds, refs = {}) {
     for (const m of Object.keys(counts).sort()) spawns.push({ hunt: g.hunt, monster: m, n: counts[m] });
   }
   return { rows, spawns };
+}
+
+/** WHAT EACH GROUND CAN DROP (the drop-bound self-check): per hunt, every item a monster standing in any of its
+    pockets' authored rows (a box's whole `pack`, plus its `spawns`) drops, and the most rows one kill's table names
+    it (one unit a row: src/core/drops.js rollDropTable). The self-check executes the settle's item bound on the
+    APPLIED rows for each. Sorted [{ hunt, item, need }]. */
+export function dropNeeds(grounds, monsters) {
+  const need = new Map();
+  for (const id of Object.keys(grounds).sort()) {
+    const g = grounds[id];
+    const mons = new Set();
+    for (const p of g.pockets || []) for (const s of (p.pack || []).concat(p.spawns || [])) mons.add(s.monster);
+    for (const m of mons) {
+      const per = {};
+      for (const d of ((monsters[m] || {}).drops || [])) if (d && d.id && ID.test(d.id)) per[d.id] = (per[d.id] || 0) + 1;
+      for (const [item, k] of Object.entries(per)) {
+        const key = g.hunt + '\u0000' + item;
+        need.set(key, Math.max(need.get(key) || 0, k));
+      }
+    }
+  }
+  return [...need].map(([k, n]) => { const [hunt, item] = k.split('\u0000'); return { hunt, item, need: n }; })
+    .sort((a, b) => (a.hunt < b.hunt ? -1 : a.hunt > b.hunt ? 1 : a.item < b.item ? -1 : a.item > b.item ? 1 : 0));
 }
 
 /** Every input, validated and normalised into sorted rows. Throws on any defect. */
@@ -495,6 +536,8 @@ export function catalogueRows(src = {}) {
   const reach = reachableOf(S.grounds, S.hunts.reduce((a, h) => { a[h.id] = h; return a; }, {}));
   for (const id of reach.monsters) if (!ID.test(id) || !own(S.monsters, id)) throw new Error(`roster monster ${id} is not a monster id`);
   const roster = [...reach.monsters];
+  /* THE DROP BOUNDS the self-check executes (dropNeeds: each ground's items, a second derivation from the authored rows) */
+  const drops = dropNeeds(S.grounds, S.monsters);
   if (!(whole(S.worldVersion) && S.worldVersion >= 1 && whole(S.worldShape) && S.worldShape >= 0 && S.worldShape <= 0xffffffff)) {
     throw new Error(`the world shape ${S.worldVersion}/${S.worldShape} is not a version and a uint32 fingerprint`);
   }
@@ -532,7 +575,7 @@ export function catalogueRows(src = {}) {
   for (const n of WORLD_FIELDS_READ.unit) if (!own(worldFields.unit, n)) throw new Error(`world unit field ${n} (read by the party section) is not persisted`);
   for (const n of WORLD_FIELDS_READ.world) if (!own(worldFields.world, n)) throw new Error(`world field ${n} (read by the party section) is not persisted`);
   return { supplySource, onEmpty, lanes, setOptions, killBounds, supplies, travel, lim, ends, vendor, targets, resumable, basics,
-    cover, resume, eventTypes, abilities, grounds, groundSpawns, roster, world: { v: S.worldVersion, shape: S.worldShape, fields: worldFields },
+    cover, resume, eventTypes, abilities, grounds, groundSpawns, roster, drops, world: { v: S.worldVersion, shape: S.worldShape, fields: worldFields },
     login: { item: lr.item ?? null, qty: lr.qty }, weapons, weaponRoles, shields,
     defaultTarget: S.defaultTarget, slotsMax: S.setLimits.slots };
 }
@@ -587,7 +630,18 @@ export function render(src) {
 -- NEW IN 2027-02-11 (lane/b-hasks-ford, designer 2026-10-29): Hask's Ford OPEN, the Barrow March's first
 -- ground (Levels 45-60, solo): its hr_hunt_grounds row, travel, packs, kill bounds, roster, the four Undead
 -- training hunts and five vendor values. Same wholesale rewrite; the hr-accrue edge carrying the merged
--- src/data deploys at the same cut. ORDER: after the APPLIED 2027-02-10-artisan-tick.sql.
+-- src/data deploys at the same cut. ORDER: after the APPLIED 2027-02-10-party-instance-reset.sql.
+--
+-- CARRIED FROM 2027-02-10 (APPLIED; lane/c-bear-meat-bound, P1 2026-10-30): hr_hunt_ground_spawns lists EVERY monster a
+-- pull can bring (each pocket's whole pack, the rows hunt-grounds.js pullRows draws from at any density),
+-- not only each pocket's as-built rows. The Glade's Brook Bear stands only in its boxes' fill rows, so it
+-- had no spawn row: the settle's value bound for raw_bear_meat, bear_claw and brook_bear_tooth on
+-- mosslight_glade was 0, every window that dropped one was refused value_over, and the sixth refusal
+-- forfeited the hunt (meta.end server). n is now a monster's head-count over the full boxes;
+-- hr_hunt_grounds.spawns (the kill bound's base) is unchanged. The self-check below executes the
+-- settle's own item bound for every item a monster of the ground can drop (src/data/monsters.js, each
+-- pocket's pack) and refuses any under one kill's rows. Moves no value; the bound only widens to what the
+-- engine already pays.
 --
 -- CARRIED FROM 2027-02-09 (APPLIED 10-29; lane/a-pull-freeze, report #69): the Mill Cellar's
 -- hr_hunt_grounds.respawn_ms 30000 -> 32000 (a hero with every pack down now walks on to the next spawn;
@@ -1036,6 +1090,18 @@ begin
   if exists (select 1 from public.hr_hunt_ground_spawns s
                where not exists (select 1 from public.hr_hunt_kill_bounds b where b.monster_id = s.monster_id)) then
     raise exception 'a ground spawns a monster with no kill bound'; end if;
+  -- THE DROP BOUNDS (2027-02-10, the Brook Bear): every item a monster of a ground can drop (src/data/monsters.js
+  -- over each pocket's whole pack) has, on that ground, the settle's OWN item bound (hr_hunt_apply_instance (4c):
+  -- the most rows naming it over the kill bounds of the ground's spawn rows) at least the rows one kill names it.
+  -- A 0 here is a hunt the settle refuses value_over on the first such drop.
+${r.drops.length ? `  select d.hunt_id || ' ' || d.item_id into v_t from (values
+${r.drops.map((d) => `    (${sq(d.hunt)}, ${sq(d.item)}, ${d.need})`).join(',\n')}
+  ) d (hunt_id, item_id, need)
+   where coalesce((select max(coalesce((b.drops->>d.item_id)::numeric, 0)) from public.hr_hunt_kill_bounds b
+                    where b.monster_id in (select sp.monster_id from public.hr_hunt_ground_spawns sp where sp.hunt_id = d.hunt_id)), 0) < d.need
+   order by 1 limit 1;
+  if v_t is not null then
+    raise exception 'the settle''s item bound is under what a monster of the ground drops: % (hunt item)', v_t; end if;` : '  -- (no ground ships: no drop to bound)'}
   -- The Magic-XP bound covers the biggest store drink at one drink a consumable lane (else a settle that
   -- drank the basics it bought is refused as over-bound).
   if public.hr_hunt_limit('drink_mana_per_min_max')

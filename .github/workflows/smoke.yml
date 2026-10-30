@@ -1281,7 +1281,7 @@ jobs:
   # MEASURED locally 2026-10-21: install ~2 min, the run ~4.7 min, --mutate (7
   # mutants: five real-time scenarios of 2-4 min, two PB-PIX) ~16 min when the
   # gate runs it: ~23 min. Budget = x2 = 46.
-  in-page-17:
+  in-page-22:
     runs-on: ubuntu-latest
     timeout-minutes: 40
 
@@ -1308,7 +1308,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: smoke-failure-in-page-17
+          name: smoke-failure-in-page-22
           path: |
             tests/**/*.png
             tests/**/*.log

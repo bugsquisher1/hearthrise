@@ -5,6 +5,12 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.72 — 2026-10-30 (Home and healed)
+
+**Back to full health.** However a hunt ends (you leave, stamina or supplies run out), your hero now comes home at full HP. Before, only a death refilled it, so a hero who left hurt started the next hunt hurt.
+
+**Behind the scenes.** The server now cleans up a table that was quietly filling its disk, and database updates can no longer stall your hunts while they wait their turn.
+
 ## v0.2.71 — 2026-10-30 (Clearer between hunts)
 
 **After a hunt.** The summary always shows what the hunt earned, even a short one. In town the hunt sign reads “Last hunt: Wickstead” instead of looking like you are still there.

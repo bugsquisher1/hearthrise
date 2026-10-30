@@ -30,7 +30,21 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import postgres from 'postgres';
 import { isMain } from '../tests/_is-main.mjs';
-import { ROOT, chainFiles, manifest, SCAFFOLD, openTheGame, premiumPerCharacter } from '../tests/schema-replay.mjs';
+import { ROOT, chainFiles, manifest } from '../tests/schema-replay.mjs';
+
+/* THE REPLAY'S OWN PLATFORM SCAFFOLD AND AFTER-CHAIN SWITCHES, read out of tests/schema-replay.mjs's source rather than
+   copied (one place says what a rebuilt database starts with) and rather than exported (an export there would make every
+   replay guard's mutation proof re-run for a tool CI never runs: tools/mutant-gate.mjs keys on its importers). The
+   three pieces are: SCAFFOLD, and the two statements openTheGame / premiumPerCharacter execute. Missing -> a hard error. */
+async function replayPieces() {
+  const src = (await readFile(join(ROOT, 'tests', 'schema-replay.mjs'), 'utf8')).replace(/\r\n/g, '\n');
+  const one = (re, what) => { const m = re.exec(src); if (!m) throw new Error(`pg-replay: tests/schema-replay.mjs no longer carries ${what}; update tools/pg-replay.mjs`); return m[1]; };
+  return {
+    scaffold: one(/\nconst SCAFFOLD = `([\s\S]*?)`;\n/, 'its SCAFFOLD'),
+    after: [one(/\nasync function openTheGame\(db\) \{\n {2}await db\.exec\(`([\s\S]*?)`\);\n\}/, 'openTheGame'),
+      one(/\nasync function premiumPerCharacter\(db\) \{\n {2}await db\.exec\(`([\s\S]*?)`\);\n\}/, 'premiumPerCharacter')],
+  };
+}
 
 const PORT = Number(process.env.HR_PG_PORT || 55417);
 const DATA = process.env.HR_PG_DATA || join(tmpdir(), `hr-pg-replay-${PORT}`);
@@ -85,8 +99,9 @@ export async function chainTemplate({ log = () => {} } = {}) {
   const sources = [];
   for (const [name, path] of files) sources.push([name, (await readFile(path, 'utf8')).replace(/\r\n/g, '\n')]);
   const session = await sessionSql();
+  const pieces = await replayPieces();
   const h = createHash('sha256');
-  for (const part of ['pg-replay:1', fixture, SCAFFOLD, ...session, ...sources.flat()]) h.update(part).update('\0');
+  for (const part of ['pg-replay:1', fixture, pieces.scaffold, ...pieces.after, ...session, ...sources.flat()]) h.update(part).update('\0');
   const name = 'hr_chain_' + h.digest('hex').slice(0, 16);
   const admin = connect('postgres');
   try {
@@ -100,14 +115,12 @@ export async function chainTemplate({ log = () => {} } = {}) {
     try {
       for (const s of session) await db.unsafe(s);
       await db.unsafe(fixture);
-      await db.unsafe(SCAFFOLD);
+      await db.unsafe(pieces.scaffold);
       for (const [file, text] of sources) {
         try { await db.unsafe(`begin;\n${text}\ncommit;`); }
         catch (e) { await db.unsafe('rollback').catch(() => {}); throw new Error(`pg-replay: ${file} failed to apply: ${String(e.message).split('\n')[0]}`); }
       }
-      const shim = { exec: (t) => db.unsafe(t) };
-      await openTheGame(shim);
-      await premiumPerCharacter(shim);
+      for (const s of pieces.after) await db.unsafe(s);
     } finally { await db.end({ timeout: 5 }); }
     await admin.unsafe(`alter database ${building} rename to ${name}`);
     log(`pg-replay: built ${name} (${files.length} files) in ${((Date.now() - t0) / 1000).toFixed(0)} s`);

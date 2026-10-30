@@ -24,9 +24,9 @@
 //         OFF (the plan PostgreSQL 17 gives the 12-row hr_hunt_weapon_roles, and why a watched settle called it 414
 //         times there), read the worn weapon once each, not once per row their filter scans. PGlite's planner probes the
 //         primary key and hides the difference, so the plan is pinned rather than hoped for.
-//   SB-3  no STABLE or IMMUTABLE LANGUAGE sql function in public, scalar or set-returning, is called by a watched settle
-//         at all: PostgreSQL 17 (production) re-plans such a body on every statement that calls it (the replay is 18 and
-//         never shows it). 2027-02-10-settle-plan-cache.generated.sql moved the stable scalar ones called 7+ times a
+//   SB-3  no STABLE or IMMUTABLE LANGUAGE sql function in public that the planner can never inline (a SET clause or
+//         SECURITY DEFINER), scalar or set-returning, is called by a watched settle at all: PostgreSQL 17 (production)
+//         re-plans such a body on every statement that calls it (the replay is 18 and never shows it). 2027-02-10-settle-plan-cache.generated.sql moved the stable scalar ones called 7+ times a
 //         settle; 2027-02-11-settle-plan-cache-2.generated.sql the rest (lane/c-envelope-diff, 2026-10-30: they were
 //         still ~32 % of a watched settle's DB time on the PostgreSQL 17 replay). ALLOW lists each exception and why.
 //   SB-4  THE SAME BYTES (below): every read a client or the engine makes, AND one settle's every written row, under the
@@ -64,10 +64,15 @@ export async function measure({ plant = null, helloState = null } = {}) {
   for (let w = 2; w <= WINDOWS + 1; w++) await m.step(w);
   const r = await m.report();
   const calls = (fn) => Math.round(((r.functions.find((f) => f.fn === fn) || { calls_per_settle: 0 }).calls_per_settle) * r.windows);
-  const lang = (await db.query(`select p.proname, l.lanname, p.provolatile, p.proretset from pg_proc p
-      join pg_language l on l.oid = p.prolang join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public'`)).rows;
-  /* every STABLE or IMMUTABLE SQL function, scalar or set-returning (pg_stat_user_functions lists only what ran) */
-  const sqlHelpers = new Set(lang.filter((x) => x.lanname === 'sql' && (x.provolatile === 's' || x.provolatile === 'i')).map((x) => x.proname));
+  const lang = (await db.query(`select p.proname, l.lanname, p.provolatile, p.proretset, p.proconfig is not null as has_set, p.prosecdef
+      from pg_proc p join pg_language l on l.oid = p.prolang join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public'`)).rows;
+  /* every STABLE or IMMUTABLE SQL function, scalar or set-returning, that the planner can NEVER inline (a SET clause or
+     SECURITY DEFINER): those are planned per call on PostgreSQL 17. A plain one may be inlined into its caller's plan,
+     and moving it to plpgsql would take that away. Counted on ANY call: whether a helper runs can hang on the plan (the
+     role reads evaluate hr_hunt_active_set per action-set row they scan: 5 calls a settle here, none on the PostgreSQL 17
+     replay's plan, every envelope on production's whenever a hero has a set). pg_stat_user_functions lists only what ran. */
+  const sqlHelpers = new Set(lang.filter((x) => x.lanname === 'sql' && (x.provolatile === 's' || x.provolatile === 'i')
+    && (x.has_set || x.prosecdef)).map((x) => x.proname));
   const hot = r.functions.filter((f) => sqlHelpers.has(f.fn) && Number(f.calls_per_settle) > 0 && !ALLOW[f.fn])
     .map((f) => `${f.fn} ${f.calls_per_settle}/settle${SB3_HINT[f.fn] ? ' (' + SB3_HINT[f.fn] + ')' : ''}`);
   /* SB-2: every hero's role read, index scans off; the calls of each counted alone */
@@ -100,10 +105,14 @@ export async function measure({ plant = null, helloState = null } = {}) {
    transaction means one now(): nothing is masked. */
 export const LANE_FILES = Object.freeze(['2027-02-10-settle-plan-cache.generated.sql', '2027-02-10-settle-reads.sql',
   '2027-02-11-settle-plan-cache-2.generated.sql']);
-/* 50 + 3 pre-images in the 2027-02-10 files, 18 in 2027-02-11's (tools/gen-plan-cache.mjs FNS2) */
-const PRE_IMAGES = 71;
+/* 50 + 3 pre-images in the 2027-02-10 files, 19 in 2027-02-11's (tools/gen-plan-cache.mjs FNS2) */
+const PRE_IMAGES = 72;
 /* the window SB-4 settles: the one after measure()'s last (warm is window 1, the steps 2..WINDOWS+1) */
 const SB4_WINDOW = WINDOWS + 2;
+/* Columns that hold ANOTHER table's sequence value (a rolled-back savepoint does not rewind a sequence, so the same
+   window settled twice stores a different number there): a tally's high-water mark is the last ledger row's id. SB-4's
+   CONTROL names any new one. */
+const SEQUENCE_REFS = Object.freeze({ 'public.hunt_session_tally': ['ledger_hwm'] });
 const PRE_NAMES = Object.freeze({ hrsr_role_of: 'hr_hunt_role_of', hrsr_role_view: 'hr_role_view', hrsr_sections: 'hr_state_sections_of' });
 /** The pre-image DDL the lane's files carry (their pg_temp copies), renamed back to the public functions they were. */
 export function preImages() {
@@ -139,22 +148,27 @@ export async function parity(db, m, { plantAfter = null } = {}) {
     for (const s of sessions) out.push([`hunt_view ${s}`, (await db.query('select public.hr_hunt_view($1::uuid)::text as v', [s])).rows[0].v]);
     return out;
   };
-  /* THE WRITES: one window settled, then every row of every table this transaction has written so far (the list fixed on
-     the first call), minus the columns a sequence or a random uuid fills (a rolled-back savepoint does not rewind them). */
+  /* THE WRITES: one window settled, then every row of every table that settle wrote (the transaction's own counters,
+     pg_stat_xact_user_tables, before and after it; the list fixed on the first call), minus the columns a sequence or a
+     random uuid fills (a rolled-back savepoint does not rewind them). */
   let tables = null;
+  const counts = async () => Object.fromEntries((await db.query(`select schemaname || '.' || relname as t, n_tup_ins + n_tup_upd + n_tup_del as n
+                                                                  from pg_stat_xact_user_tables`)).rows.map((x) => [x.t, Number(x.n)]));
   const written = async () => {
+    const c0 = tables ? null : await counts();
     const res = await m.commitWindow(SB4_WINDOW);
     await db.exec('reset role');
     if (!tables) {
-      tables = (await db.query(`select schemaname || '.' || relname as t from pg_stat_xact_user_tables
-                                 where n_tup_ins + n_tup_upd + n_tup_del > 0 order by 1`)).rows.map((x) => x.t);
+      const c1 = await counts();
+      tables = Object.keys(c1).filter((t) => c1[t] > (c0[t] || 0)).sort();
     }
     const out = [['commit', JSON.stringify(res)]];
     for (const t of tables) {
       const [schema, name] = t.split('.');
-      const drop = (await db.query(`select coalesce(array_agg(column_name::text), '{}') as c from information_schema.columns
+      const drop = [...(await db.query(`select coalesce(array_agg(column_name::text), '{}') as c from information_schema.columns
                                      where table_schema = $1 and table_name = $2
-                                       and (column_default like 'nextval(%' or column_default like '%gen_random_uuid()%')`, [schema, name])).rows[0].c;
+                                       and (column_default like 'nextval(%' or column_default like '%gen_random_uuid()%' or is_identity = 'YES')`, [schema, name])).rows[0].c,
+        ...(SEQUENCE_REFS[t] || [])];
       out.push([`rows ${t}`, (await db.query(`select coalesce(string_agg(x, E'\\n' order by x), '') as v
                                                  from (select (to_jsonb(r) - $1::text[])::text as x from ${schema}.${name} r) s`, [drop])).rows[0].v]);
     }
@@ -169,17 +183,22 @@ export async function parity(db, m, { plantAfter = null } = {}) {
     /* every hero open in a client now (the frames' gate reads the stamp against this transaction's now()) */
     await db.query(`insert into public.character_presence (user_id, slot, seen_at) select user_id, slot, now() from public.player_state
                     on conflict (user_id, slot) do update set seen_at = excluded.seen_at`);
-    const after = await snap();
+    /* Every read and every settle starts from ONE state (sb4_w): hr_load spends a rate counter, and a settle writes one too,
+       so neither may run over the other's leftovers. */
     await db.query('savepoint sb4_w');
     const wroteAfter = await written();
     await db.query('rollback to savepoint sb4_w');
     const wroteAgain = await written();
     await db.query('rollback to savepoint sb4_w');
+    const after = await snap();
+    await db.query('rollback to savepoint sb4_w');
     for (const x of pre) await db.exec(x.ddl);
     const restored = (await db.query(`select count(*)::int n from pg_proc p join pg_language l on l.oid = p.prolang
        where p.oid in ('public.hr_hunt_limit(text)'::regprocedure, 'public.hr_jsonb_add(jsonb,jsonb)'::regprocedure) and l.lanname = 'sql'`)).rows[0].n === 2;
-    const before = await snap();
+    await db.query('savepoint sb4_pre');
     const wroteBefore = await written();
+    await db.query('rollback to savepoint sb4_pre');
+    const before = await snap();
     const diffs = [...diffOf(before, after), ...diffOf(wroteBefore, wroteAfter)];
     const bytes = [...before, ...wroteBefore].reduce((n, [, v]) => n + (v ? v.length : 0), 0);
     const paid = (() => { try { const c = JSON.parse(wroteAfter[0][1]); return !!c && c.ok === true; } catch { return false; } })();

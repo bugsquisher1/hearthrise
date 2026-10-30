@@ -5,8 +5,8 @@
 --   `node tools/gen-plan-cache.mjs --check`. lane/c-envelope-diff, backend-architect, 2026-10-30.
 --   STAGED. Game CLOSED: applies on its passing §2 (CLAUDE.md §2), one file via the Coordinator's apply tool,
 --   never inside begin/commit, never 00:00-00:10 UTC.
---   digest: 4d48b94ebcb84f3613347f1ac38b525644cbcf83ff6424e7d52b39de160a24f4
---   18 functions.
+--   digest: bfed4d7a8b6fb246e968455671fe5860953919081e5fb1c2e35e88210475cacc
+--   19 functions.
 --
 -- ── WHY (measured, not guessed) ─────────────────────────────────────────────
 -- The brief was a per-section envelope diff. Measured first (tools/settle-cost.mjs --pg --door=viewed, PostgreSQL 17,
@@ -19,8 +19,9 @@
 -- re-plans on every call (2027-02-10-settle-plan-cache.generated.sql took the stable scalar ones called 7+ times a
 -- settle; these are the rest): hr_jsonb_add 303 calls a settle, IMMUTABLE (the analyzer's tallies and hr_apply's),
 -- hr_premium_until 124, hr_premium_active 91, hr_hunt_tally_add 92, hr_char_xp_for_level 32, hr_unlock_levels 22
--- (SET-RETURNING, 0.9 ms a call), the once-an-envelope sections hr_depot_view and hr_premium_view, and the hello's
--- set-returning reads. The before/after of the whole settle is in the lane report.
+-- (SET-RETURNING, 0.9 ms a call), the once-an-envelope sections hr_depot_view and hr_premium_view, the hello's
+-- set-returning reads, and hr_hunt_active_set (plan-dependent: the role reads evaluate it per action-set row they scan;
+-- 5 calls a settle on the replay). The before/after of the whole settle is in the lane report.
 --
 -- ── THE CONTRACT ────────────────────────────────────────────────────────────
 -- §1 Each function below keeps its name, arguments, return type (RETURNS TABLE kept), volatility (IMMUTABLE kept),
@@ -65,6 +66,7 @@ begin
     ('public.hr_depot_view(uuid,integer)', '3c98663be8aab51dd028808ec6c6357a', '78dabff8a892158b148954daf15c5afe'),
     ('public.hr_frame_topic(uuid,integer)', 'ef586dfab0b6a2882407a0a0cd8cc9ab', 'c5084fa17e97fcb87fb582a83d85f0da'),
     ('public.hr_gold_kind(text,text,uuid)', '304b566454271cc37d9d2f0f51ce7c9a', 'e7809e0a81b4e9de685bde912a2f6506'),
+    ('public.hr_hunt_active_set(uuid,integer)', '828c602c03cd142ba0f5884025be1c36', '1f117a6cd0c18e63201fe5a6f51dbbfe'),
     ('public.hr_hunt_analyzer_basic(jsonb)', '632a2a2c6a40d1f6f76be07ca63b8bbd', '5dd08adae4922c52ed813399c93da73b'),
     ('public.hr_hunt_open_of(uuid,integer)', 'e81bf96fc9bb15c16238c2e981f41fb1', '8d25c6a7a46232b5862abdb4c6c30c6f'),
     ('public.hr_hunt_tally_add(jsonb,jsonb)', 'cd16f30358364a8c8012a9ad75a09472', '60c5b59fd8f11fdd48e42400495700b8'),
@@ -258,6 +260,24 @@ begin
     when p_kind = 'trait' then 'trait'
     when p_kind in ('accrue', 'worker', 'gather', 'craft', 'combat', 'farm') then 'town_work'
     else 'other' end
+  ) as hr_q(v) limit 1);
+end
+$plc$;
+
+create or replace function public.hr_hunt_active_set(p_user uuid, p_slot integer)
+ returns integer
+ language plpgsql
+ stable
+ parallel unsafe
+ cost 100
+ set search_path = public, pg_catalog
+as $plc$
+-- PLAN-CACHE (2027-02-11-settle-plan-cache-2.generated.sql): the SQL body below, verbatim, planned once per backend.
+#variable_conflict use_column
+begin
+  return (select hr_q.v from (
+
+  select coalesce((select a.action_set::int from public.player_hunt_active a where a.user_id = p_user and a.slot = p_slot), 0)
   ) as hr_q(v) limit 1);
 end
 $plc$;
@@ -599,6 +619,7 @@ begin
     ('public.hr_depot_view(uuid,integer)', '78dabff8a892158b148954daf15c5afe', 's', true, false, 'u', '["search_path=public, pg_catalog"]', false),
     ('public.hr_frame_topic(uuid,integer)', 'c5084fa17e97fcb87fb582a83d85f0da', 'i', false, false, 'u', '["search_path=public"]', false),
     ('public.hr_gold_kind(text,text,uuid)', 'e7809e0a81b4e9de685bde912a2f6506', 'i', false, false, 'u', '["search_path=public"]', false),
+    ('public.hr_hunt_active_set(uuid,integer)', '1f117a6cd0c18e63201fe5a6f51dbbfe', 's', false, false, 'u', '["search_path=public, pg_catalog"]', false),
     ('public.hr_hunt_analyzer_basic(jsonb)', '5dd08adae4922c52ed813399c93da73b', 'i', false, false, 'u', '["search_path=public, pg_catalog"]', false),
     ('public.hr_hunt_open_of(uuid,integer)', '8d25c6a7a46232b5862abdb4c6c30c6f', 's', true, false, 'u', '["search_path=public, pg_catalog"]', false),
     ('public.hr_hunt_tally_add(jsonb,jsonb)', '60c5b59fd8f11fdd48e42400495700b8', 'i', false, false, 'u', '["search_path=public, pg_catalog"]', false),
@@ -794,6 +815,22 @@ $sqlpre$$pre$;
              'blessing_buy:2', 'hero_rename:3', 'storage_chest:4', 'farm_plant', 'vendor_sell', 'vendor_sell_many', 'create_character', 'x']) x) p1(x) cross join (select x from unnest(array[null, '00000000-0000-0000-0000-000000000000'::uuid]) x) p2(x)
            where public.hr_gold_kind(p0.x, p1.x, p2.x)::text is distinct from pg_temp.hrpc_hr_gold_kind(p0.x, p1.x, p2.x)::text$probe$ into v_n, v_ex;
     if v_n <> 0 then raise exception 'plan-cache-2 §2(b): hr_gold_kind answers differently from its SQL pre-image on % input(s), e.g. (%)', v_n, v_ex; end if;
+    v_total := v_total + 1;
+
+    execute $pre$create or replace function pg_temp.hrpc_hr_hunt_active_set(p_user uuid, p_slot integer)
+ returns integer
+ language sql
+ stable
+ parallel unsafe
+ cost 100
+ set search_path = public, pg_catalog
+as $sqlpre$
+  select coalesce((select a.action_set::int from public.player_hunt_active a where a.user_id = p_user and a.slot = p_slot), 0)
+$sqlpre$$pre$;
+    execute $probe$select count(*)::int as n, min(concat_ws(' / ', coalesce(w.a1::text, 'null'), coalesce(w.a2::text, 'null'))) as example
+            from (select user_id, slot from public.player_state union all select '00000000-0000-0000-0000-000000000000'::uuid, 0) w(a1, a2)
+           where public.hr_hunt_active_set(w.a1, w.a2)::text is distinct from pg_temp.hrpc_hr_hunt_active_set(w.a1, w.a2)::text$probe$ into v_n, v_ex;
+    if v_n <> 0 then raise exception 'plan-cache-2 §2(b): hr_hunt_active_set answers differently from its SQL pre-image on % input(s), e.g. (%)', v_n, v_ex; end if;
     v_total := v_total + 1;
 
     execute $pre$create or replace function pg_temp.hrpc_hr_hunt_analyzer_basic(p_a jsonb)
@@ -1114,7 +1151,7 @@ $sqlpre$$pre$;
     if v_n <> 0 then raise exception 'plan-cache-2 §2(b): hr_utc_day_start answers differently from its SQL pre-image on % input(s), e.g. (%)', v_n, v_ex; end if;
     v_total := v_total + 1;
 
-    if v_total <> 18 then raise exception 'plan-cache-2 §2(b)-harness: % of 18 functions probed', v_total; end if;
+    if v_total <> 19 then raise exception 'plan-cache-2 §2(b)-harness: % of 19 functions probed', v_total; end if;
     raise exception 'plan-cache-2 §2: ok' using errcode = 'P0001';
   exception when sqlstate 'P0001' then
     if sqlerrm <> 'plan-cache-2 §2: ok' then raise; end if;

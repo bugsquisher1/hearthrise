@@ -6,8 +6,9 @@
 // reviewed as SQL; this tool exists so every restated body is the body the chain really runs, byte for byte, and so
 // the §0 pins are measured rather than typed.
 //
-//   node tools/gen-plan-cache.mjs          (re)write the file
-//   node tools/gen-plan-cache.mjs --check  exit 1 if the file is not what it would write
+//   node tools/gen-plan-cache.mjs          (re)write the files (pass 1, then pass 2: see PASS 2 below)
+//   node tools/gen-plan-cache.mjs --check  exit 1 if a file is not what it would write
+//   ... --pass=1|2                         one pass only
 //
 // WHAT IT DOES TO EACH FUNCTION IN `FNS`: nothing but its language. A `LANGUAGE sql` function with a `SET` clause is
 // never inlined, and PostgreSQL 17 (production) parses, rewrites and plans its body again for EVERY statement
@@ -101,7 +102,7 @@ export const FILE2 = '2027-02-11-settle-plan-cache-2.generated.sql';
 const OUT2 = join(ROOT, 'supabase', 'migrations', FILE2);
 export const FNS2 = [
   'hr_bestiary_of', 'hr_char_xp_for_level', 'hr_collection_of', 'hr_depot_view', 'hr_frame_topic', 'hr_gold_kind',
-  'hr_hunt_analyzer_basic', 'hr_hunt_open_of', 'hr_hunt_tally_add', 'hr_hunt_tally_ok', 'hr_jsonb_add', 'hr_premium_active',
+  'hr_hunt_active_set', 'hr_hunt_analyzer_basic', 'hr_hunt_open_of', 'hr_hunt_tally_add', 'hr_hunt_tally_ok', 'hr_jsonb_add', 'hr_premium_active',
   'hr_premium_until', 'hr_premium_view', 'hr_skill_inputs_view', 'hr_trophy_of', 'hr_unlock_levels', 'hr_utc_day_start',
 ];
 /* Flat {key: number} maps (a tally's xp / raw_xp / loot / supplies / bought) and the analyzer's nested ones (dealt /
@@ -434,8 +435,9 @@ export function buildSql2(fns) {
 -- re-plans on every call (2027-02-10-settle-plan-cache.generated.sql took the stable scalar ones called 7+ times a
 -- settle; these are the rest): hr_jsonb_add 303 calls a settle, IMMUTABLE (the analyzer's tallies and hr_apply's),
 -- hr_premium_until 124, hr_premium_active 91, hr_hunt_tally_add 92, hr_char_xp_for_level 32, hr_unlock_levels 22
--- (SET-RETURNING, 0.9 ms a call), the once-an-envelope sections hr_depot_view and hr_premium_view, and the hello's
--- set-returning reads. The before/after of the whole settle is in the lane report.
+-- (SET-RETURNING, 0.9 ms a call), the once-an-envelope sections hr_depot_view and hr_premium_view, the hello's
+-- set-returning reads, and hr_hunt_active_set (plan-dependent: the role reads evaluate it per action-set row they scan;
+-- 5 calls a settle on the replay). The before/after of the whole settle is in the lane report.
 --
 -- ── THE CONTRACT ────────────────────────────────────────────────────────────
 -- §1 Each function below keeps its name, arguments, return type (RETURNS TABLE kept), volatility (IMMUTABLE kept),
@@ -500,7 +502,9 @@ async function main() {
   const order = JSON.parse(readFileSync(join(ROOT, 'tests', 'schema-apply-order.json'), 'utf8')).order;
   const { bootReplay } = await import('../tests/schema-replay.mjs');
   let bad = 0;
-  for (const P of PASSES) {
+  /* --pass=N: one pass only (each replays the chain to its own file: minutes on PGlite) */
+  const only = Number((process.argv.find((a) => a.startsWith('--pass=')) || '').slice(7)) || 0;
+  for (const P of PASSES.filter((x) => !only || x.pass === only)) {
     const at = order.indexOf(P.file);
     const upTo = at > 0 ? order[at - 1] : order[order.length - 1];
     const { db } = await bootReplay({ upTo });

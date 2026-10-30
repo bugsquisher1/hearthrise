@@ -3889,6 +3889,6 @@ async function main() {
 
 /* The PGlite harness, for tests/envelope-contract.mjs (the real projections fed to the client's readers). */
 export const HARNESS = Object.freeze({ ROOT, UIDS, STRONG, DOOMED, mixedRow, loadEdge, pinDice, hunter, character, settleTo, run, ticksOf,
-  one, q, inTx, makeExec, groundsOf, snapshot, canon, firstDiff });
+  one, q, inTx, makeExec, groundsOf, snapshot, canon, firstDiff, betaSecondApply });
 
 if (isMain(import.meta.url)) main();

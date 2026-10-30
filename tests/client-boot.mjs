@@ -30,7 +30,7 @@
 //   B-14 THE TOWN'S SHEETS COME WITH THE ACCOUNT (perf lane 10-29: a cold Play waited 1.56 s
 //        for them): none on the sign-in screen, the town's own sets on the characters screen
 //        before any Play (src/world/prewarm.js), and the World never fetches one again
-//   B-15 A SESSION THAT ENDS WHILE THE TOWN PREWARM RUNS STOPS IT (v0.2.71 merge, B-10 sent 5 calls):
+//   B-15 A SESSION THAT ENDS WHILE THE TOWN PREWARM RUNS STOPS IT (v0.2.71 merge; run 41045835796: 6 sheets):
 //        signed out with the atlas manifests still held, the page asks for no sheet afterwards
 //   B-4  a second character opens beside the first (two topics, one strip)
 //   B-5  sign out -> the sign-in screen, and no copy of the session is left in
@@ -170,6 +170,14 @@ async function checks(overrides) {
       const { ctx, page, errors } = await fresh();
       const sheets = new Set(), asks = new Map();
       page.on('request', (q) => { const s = sheetOf(q.url()); if (s) { sheets.add(s); asks.set(s, (asks.get(s) || 0) + 1); } });
+      /* every image the page points at a sheet (an image cache hit makes no request, so the network alone cannot tell
+         a held sheet from one loaded again): render/images.js loads each sheet once per page */
+      await page.addInitScript(() => {
+        const d = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, 'src');
+        const loads = window.__sheetLoads = {};
+        Object.defineProperty(HTMLImageElement.prototype, 'src', { configurable: true, get() { return d.get.call(this); },
+          set(v) { const m = /\/assets\/world\/atlas-([a-z0-9_]+)\.png/.exec(String(v)); if (m) loads[m[1]] = (loads[m[1]] || 0) + 1; d.set.call(this, v); } });
+      });
       await page.goto(base + '/play.html', { waitUntil: 'load' });
       if (!(await wait(page, () => document.querySelector('form[data-auth="sign-in"]')))) fails.push('B-1 no sign-in screen');
       const atSignIn = [...sheets].sort().join();
@@ -193,6 +201,9 @@ async function checks(overrides) {
       if (got !== want || TOWN_SHEETS.sets.length >= TOWN_SHEETS.all.length) fails.push('B-3 in the Common the World downloaded the sheets ' + got + ' (it draws from ' + want + ' of ' + TOWN_SHEETS.all.length + ')');
       const twice = [...asks].filter(([, n]) => n > 1).map(([s, n]) => s + ' x' + n);
       if (twice.length) fails.push('B-14 a sheet asked for before Play was fetched again by the World: ' + twice.join(', '));
+      const loads = await page.evaluate(() => window.__sheetLoads || {});
+      const again = Object.entries(loads).filter(([, n]) => n > 1).map(([k, n]) => k + ' x' + n);
+      if (again.length) fails.push('B-14 a sheet the prewarm loaded was loaded again by the World (an image per load, not the held one): ' + again.join(', '));
       await page.click('[data-app="characters"]');
       if (!(await wait(page, () => document.querySelector('[data-app="play"][data-slot="1"]')))) fails.push('B-4 no way back to the characters screen');
       else {
@@ -442,7 +453,8 @@ async function checks(overrides) {
       let release = null, held = 0;
       const gate = new Promise((r) => { release = r; });
       const sheets = [];
-      page.on('request', (q) => { if (sheetOf(q.url())) sheets.push(q.url()); });
+      let outAt = Infinity;
+      page.on('request', (q) => { if (sheetOf(q.url())) sheets.push([Date.now(), sheetOf(q.url())]); });
       await page.route('**/assets/world/atlas-*.json*', async (r) => { held++; await gate; return r.continue(); });
       await page.goto(base + '/play.html', { waitUntil: 'load' });
       await wait(page, () => document.querySelector('form[data-auth="sign-in"]'));
@@ -451,12 +463,15 @@ async function checks(overrides) {
       await page.click('.auth-submit');
       await wait(page, () => document.querySelector('[data-app="sign-out"]') && document.querySelector('[data-app="play"]'));
       for (let i = 0; i < 100 && !held; i++) await page.waitForTimeout(50);
+      outAt = Date.now();
       await page.click('[data-app="sign-out"]');
       await wait(page, () => document.querySelector('form[data-auth="sign-in"]'));
       release();
       await page.waitForTimeout(1500);
       if (!held) fails.push('B-15 harness: the town prewarm never asked for the atlas manifests');
-      else if (sheets.length) fails.push('B-15 the prewarm of a signed-out account asked for ' + sheets.length + ' sheet(s): ' + sheets.map(sheetOf).join(', '));
+      const early = sheets.filter(([t]) => t < outAt).map(([, n]) => n), late = sheets.filter(([t]) => t >= outAt).map(([, n]) => n);
+      if (held && early.length) fails.push('B-15 harness: ' + early.length + ' sheet(s) were asked for before the sign-out with the manifests held (' + held + ' held): ' + early.join(', '));
+      if (held && late.length) fails.push('B-15 the prewarm of a signed-out account asked for ' + late.length + ' sheet(s): ' + late.join(', '));
       await ctx.close();
     }
 
@@ -496,7 +511,7 @@ const MUTANTS = [
   ['a dead session stays in the game', 'src/app/boot.js', "else if (ev === 'signed-out' || ev === 'expired') sessionEnded();", "else if (ev === 'signed-out') sessionEnded();"],
   ['the closed answer is ignored', 'src/app/boot.js', "if (why === 'closed-game') showClosed();", "if (why === 'never') showClosed();"],
   ['the town\'s sheets wait for Play again', 'src/app/boot.js', "    import('../world/prewarm.js?v=", "    Promise.resolve({ prewarmTown() {} }, '../world/prewarm.js?v="],
-  ["a signed-out account's prewarm runs on (B-15)", 'src/world/prewarm.js', '  if (run) run.stopped = true;', '  void run;'],
+  ["a signed-out account's prewarm runs on (B-15)", 'src/world/prewarm.js', 'live: () => !run.stopped && alive() };', 'live: () => !run.stopped };'],
   ['the World fetches a prewarmed sheet again', 'src/render/images.js', '  let ready = HELD.get(url);\n  if (ready) return ready;', '  let ready = null;'],
   ['the World downloads every sheet on Play', 'src/world/world-boot.js', '    await sheets.ensure(await setsOf(id));',
     '    await setsOf(id);\n    await sheets.ensure(Array.from(new Set(Object.keys(book.sprites).map((sid) => book.frame(sid).set))));'],

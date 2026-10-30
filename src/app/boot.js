@@ -130,7 +130,6 @@ function startApp(win) {
   /* The session ended under the game: close everything, then say so on the sign-in screen. */
   async function sessionEnded() {
     if (!account) return;
-    stopTownPrewarm();
     endWatchers();
     if (alerts) { alerts.destroy(); alerts = null; }
     const a = account;
@@ -145,7 +144,6 @@ function startApp(win) {
   function endWatchers() { for (const w of watchers) w.destroy(); watchers = []; }
 
   async function signOut() {
-    stopTownPrewarm();
     endWatchers();
     if (alerts) { alerts.destroy(); alerts = null; }
     if (account) { const a = account; account = null; await a.signOut(); } else await auth.signOut();
@@ -153,16 +151,15 @@ function startApp(win) {
     showAuth('sign-in');
   }
 
-  /* an ended session's town prewarm stops (src/world/prewarm.js): it slices and fetches nothing more for a dead account */
-  function stopTownPrewarm() { import('../world/prewarm.js?v=0.2.73').then((m) => m.stopPrewarm(win), () => {}); }
-
   async function startAccount() {
     if (!auth.userId()) { showAuth('sign-in'); return; }
     if (account) return;
     obs.identify(auth.userId());
     loadGlyphs(win);   // the icon atlas, for the game screen (glyphs-loader.js): fetched while the roster is read
     /* the town's sheets likewise (src/world/prewarm.js): a cold Play after a release no longer waits for 2.5 MB */
-    import('../world/prewarm.js?v=0.2.73').then((m) => { if (account) m.prewarmTown(win); }, () => {});
+    /* ...for THIS session only: the pass asks before every slice and sheet whether its account is still the page's, so a
+       sign-out or a refused session stops it at once (client-boot B-15) */
+    import('../world/prewarm.js?v=0.2.73').then((m) => { const acc = account; if (acc) m.prewarmTown(win, { alive: () => account === acc }); }, () => {});
     const server = createServerLink({ url: SUPABASE_CONFIG.url, anonKey: SUPABASE_CONFIG.anonKey, token: auth.freshToken, renew: auth.renewToken,
       stale: () => fresh.check(true) });
     account = new AccountSession({ auth, server, tab: HS.session, channel: channelFor(client, auth),

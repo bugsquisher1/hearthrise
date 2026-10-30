@@ -10,7 +10,7 @@
 // MASTER-DETAIL (designer plan 2026-10-22, B #1; Tyler 10-22: "the 'Hunts' page
 // could use some work"). The list is one LINE per hunt ground (src/shell/hunt-list.js,
 // from the data rows): its name, its band against the hero's Level in words and a
-// tone, a solo / party glyph, this hero's best Level XP an hour there (or "New"),
+// tone, a solo / party glyph, this hero's best Level XP an hour there (or "No best yet"),
 // and "Fits your level" on the recommendation's line. The picked ground gets ONE
 // page beside it (src/shell/windows/hunt-detail.js: its theme, who lives there,
 // the rare and its carrier, the hero's bests), then the pull size, and the

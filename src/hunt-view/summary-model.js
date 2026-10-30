@@ -124,6 +124,9 @@ export function buildSummary(s, an, deaths) {
     kills: hero ? hero.kills : int(t.kills), xp: hero ? hero.levelXp : isObj(t.xp) ? num(t.xp.level) : num(t.xp), gold: hero ? hero.gold : num(t.coins),
     /* `gold` is coin received (the server's coins); the loot's shop price is its own line (Brannoc 10-22). */
     lootValue: hero ? hero.lootValue : null,
+    /* The hunt's BALANCE, the server's own (coins + loot value - store supplies): it is there from the first kill,
+       where the per-hour figure waits for 10 minutes (core-loop play 2026-10-30: a first 4-minute hunt read "–"). */
+    balance: hero ? hero.balance : null,
     /* Per hour, the server's (hr_hunt_stats_of per_hour): balance for every character; Level XP before bonuses
        only when the server sent it (premium: the basic analyzer carries no raw_xp). Never divided here. */
     balanceH: ph ? ph.balance : null, rawXpH: ph ? ph.rawLevelXp : null,

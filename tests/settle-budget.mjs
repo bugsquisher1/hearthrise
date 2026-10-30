@@ -20,8 +20,10 @@
 //   SB-1  hr_state_of <= 16 calls over the 3 settles (5.33 a settle: the 1.33 live asks' early answers, the commit's
 //         projection, one frame for each of the 3 other members). Was 23 (7.67) before the lane: every hello built the
 //         hunter's whole envelope first and dropped it. CONTROL: 9 frames pushed and 4 early asks answered.
-//   SB-2  hr_hunt_weapon_of <= 120 calls over the 3 settles (96 measured; was 1,242: hr_hunt_role_of and hr_role_view
-//         called it once per hr_hunt_weapon_roles row their filter scanned).
+//   SB-2  ONE hr_hunt_weapon_of a role read: hr_hunt_role_of and hr_role_view, called for every hero with index scans
+//         OFF (the plan PostgreSQL 17 gives the 12-row hr_hunt_weapon_roles, and why a watched settle called it 414
+//         times there), read the worn weapon once each, not once per row their filter scans. PGlite's planner probes the
+//         primary key and hides the difference, so the plan is pinned rather than hoped for.
 //   SB-3  no STABLE, scalar, LANGUAGE sql function in public is called 7 or more times a settle: PostgreSQL 17
 //         (production) re-plans such a body on every statement that calls it (2027-02-10-settle-plan-cache.generated.sql;
 //         the replay is 18 and never shows it). ALLOW lists the one exception and why.
@@ -32,7 +34,7 @@ import { isMain } from './_is-main.mjs';
 import { ROOT } from './schema-replay.mjs';
 
 const WINDOWS = 3;
-export const BUDGET = Object.freeze({ stateOf: 16, frames: 9, asks: 4, weapon: 120, sqlHot: 7 });
+export const BUDGET = Object.freeze({ stateOf: 16, frames: 9, asks: 4, sqlHot: 7 });
 /* hr_char_xp_for_level is written by tools/gen-level-curve.mjs (every curve file restates it as SQL): its language
    moves in that generator, handed off by lane/c-settle-cost-2 (2026-10-30). hr_hunt_member_read runs once per member
    row of hr_hunt_instance_read's ONE statement (planned once a read, not once a call), and tests/settle-hooks.mjs's
@@ -63,8 +65,19 @@ export async function measure({ plant = null, helloState = null } = {}) {
   const sqlStable = new Set(lang.filter((x) => x.lanname === 'sql' && x.provolatile === 's' && !x.proretset).map((x) => x.proname));
   const hot = r.functions.filter((f) => sqlStable.has(f.fn) && f.calls_per_settle >= BUDGET.sqlHot && !ALLOW[f.fn])
     .map((f) => `${f.fn} ${f.calls_per_settle}/settle`);
-  return { db, r, stateOf: calls('hr_state_of'), weapon: calls('hr_hunt_weapon_of'), frames: Math.round(r.frames_per_window * r.windows),
-    asks: Math.round(r.early_asks_per_window * r.windows), hot };
+  /* SB-2: every hero's role read, index scans off; the calls of each counted alone */
+  await db.exec('reset role; set enable_indexscan = off; set enable_bitmapscan = off; set enable_indexonlyscan = off');
+  const flush = async () => { try { await db.query('select pg_stat_force_next_flush()'); } catch { /* PG < 15 */ } await db.query('select 1');
+    try { await db.query('select pg_stat_clear_snapshot()'); } catch { /* none */ } };
+  await flush(); await db.query('select pg_stat_reset()');
+  await db.query('select count(public.hr_hunt_role_of(user_id, slot)) + count(public.hr_role_view(user_id, slot)) as n from public.player_state');
+  await flush();
+  const fc = async (fn) => Number(((await db.query(`select calls from pg_stat_user_functions where schemaname = 'public' and funcname = $1`, [fn])).rows[0] || { calls: 0 }).calls);
+  const roleReads = (await fc('hr_hunt_role_of')) + (await fc('hr_role_view'));
+  const weaponPerRole = roleReads ? (await fc('hr_hunt_weapon_of')) / roleReads : Infinity;
+  await db.exec('reset enable_indexscan; reset enable_bitmapscan; reset enable_indexonlyscan');
+  return { db, r, stateOf: calls('hr_state_of'), weapon: calls('hr_hunt_weapon_of'), weaponPerRole, roleReads,
+    frames: Math.round(r.frames_per_window * r.windows), asks: Math.round(r.early_asks_per_window * r.windows), hot };
 }
 
 /* SB-4 — THE SAME BYTES. On the chain that has just hunted (measure's database: four heroes mid-hunt, tallies, frames, a
@@ -133,7 +146,8 @@ function judge(x, src, log = true) {
   ok('SB-0', helloReadsLean(src), "index.ts's accrue read takes its state from hr_accrue_read");
   ok('CONTROL', x.frames >= BUDGET.frames && x.asks === BUDGET.asks, `${x.frames} frames pushed (>= ${BUDGET.frames}), ${x.asks} early asks (${BUDGET.asks}) over ${WINDOWS} settles`);
   ok('SB-1', x.stateOf <= BUDGET.stateOf, `hr_state_of ${x.stateOf} calls over ${WINDOWS} watched settles (<= ${BUDGET.stateOf})`);
-  ok('SB-2', x.weapon <= BUDGET.weapon, `hr_hunt_weapon_of ${x.weapon} calls over ${WINDOWS} settles (<= ${BUDGET.weapon})`);
+  ok('SB-2', x.roleReads >= 8 && x.weaponPerRole <= 1, `${x.weaponPerRole} hr_hunt_weapon_of a role read over ${x.roleReads} role reads, index scans off (<= 1;`
+    + ` ${x.weapon} a ${WINDOWS}-settle run)`);
   ok('SB-3', x.hot.length === 0, x.hot.length ? `stable SQL functions re-planned per call on PostgreSQL 17: ${x.hot.join(', ')}`
     : `no stable scalar SQL function called ${BUDGET.sqlHot}+ times a settle`);
   return red;

@@ -5,6 +5,10 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.69 — 2026-10-30 (Mosslight Glade fixed)
+
+**Hunts in Mosslight Glade no longer end on their own.** When a Brook Bear dropped its meat, claw or tooth, the server refused the hunt’s progress and sent your hero home after a few minutes. Every Glade hunt since v0.2.64 hit this. The bear’s drops now count, and a new check covers every drop on every hunting ground. Hunts that already ended are not restored.
+
 ## v0.2.67 — 2026-10-29 (Ready without a snack)
 
 **Hunt Prep.** A hero whose food or drink slot is empty no longer reads "0 food" and not ready: food is optional, so it is now a heads-up, and if your bag holds other food it says which and how to put it on the bar. A ranged hero with no arrows and no store behind them now shows "0 ammo", since they cannot attack.

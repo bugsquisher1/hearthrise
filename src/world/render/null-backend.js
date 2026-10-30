@@ -3,8 +3,8 @@
 // same compose step over the same manifest book, so a node test reads exactly the draw
 // list the canvas would paint. The tile size is the map's (map-compile.js map.T), and setMap
 // may hand a map its own art ({book, tables}: another grid's atlas), as on the canvas.
-import { frameView } from '../core/camera.js?v=0.2.67';
-import { composeFrame, groundTiles } from '../core/compose.js?v=0.2.67';
+import { frameView } from '../core/camera.js?v=0.2.69';
+import { composeFrame, groundTiles } from '../core/compose.js?v=0.2.69';
 
 /** @param {{book: object, tables: object, view?: {w:number,h:number}}} o  view in art px */
 export function createNullBackend(o) {

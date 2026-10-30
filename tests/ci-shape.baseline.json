@@ -86,6 +86,8 @@
     "node tools/mutant-gate.mjs node tests/hunts-c1.mjs --mutate": "db-replay-4",
     "node tools/gen-hunt-sessions.mjs --check": "db-replay-4",
     "node tools/mutant-gate.mjs node tools/gen-hunt-sessions.mjs --selftest": "db-replay-4",
+    "node tests/settle-drop-bounds.mjs": "db-replay-4",
+    "node tools/mutant-gate.mjs node tests/settle-drop-bounds.mjs --mutate": "db-replay-4",
     "node tests/hunt-sessions-db.mjs": "db-replay-4",
     "node tools/mutant-gate.mjs node tests/hunt-sessions-db.mjs --mutate": "db-replay-4",
     "node tests/name-moderation.mjs": "db-replay-4",

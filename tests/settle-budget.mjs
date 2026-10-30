@@ -34,8 +34,14 @@ import { ROOT } from './schema-replay.mjs';
 const WINDOWS = 3;
 export const BUDGET = Object.freeze({ stateOf: 16, frames: 9, asks: 4, weapon: 120, sqlHot: 7 });
 /* hr_char_xp_for_level is written by tools/gen-level-curve.mjs (every curve file restates it as SQL): its language
-   moves in that generator, handed off by lane/c-settle-cost-2 (2026-10-30). Nothing else may sit here without a why. */
-export const ALLOW = Object.freeze({ hr_char_xp_for_level: 'tools/gen-level-curve.mjs owns its body; the next curve file moves it' });
+   moves in that generator, handed off by lane/c-settle-cost-2 (2026-10-30). hr_hunt_member_read runs once per member
+   row of hr_hunt_instance_read's ONE statement (planned once a read, not once a call), and tests/settle-hooks.mjs's
+   full-chain H-COVER mutant patches it in its own file (tools/gen-plan-cache.mjs's exclusions). Nothing else may sit
+   here without a why. */
+export const ALLOW = Object.freeze({
+  hr_char_xp_for_level: 'tools/gen-level-curve.mjs owns its body; the next curve file moves it',
+  hr_hunt_member_read: 'one plan per instance read (row pattern); a full-chain mutant patches it in its own file',
+});
 
 /** One measurement: the viewed door's counters over WINDOWS settles, and the hot SQL functions. */
 export async function measure({ plant = null, helloState = null } = {}) {

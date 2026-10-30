@@ -21,7 +21,7 @@
 //
 // PURE except for `residueStore`, the adapter onto one character's residue.
 // ════════════════════════════════════════════════════════════════════════
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.73';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.74';
 
 export const SIZE_CLASSES = Object.freeze(['desktop', 'phone']);
 export const OPACITY_MIN = 0.4;

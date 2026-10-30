@@ -5,6 +5,10 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.74 — 2026-10-30 (Lighter saves)
+
+**Lighter hunt saves.** The server now does about half the work each time it saves a hunt, so more parties can hunt at once without slowing down. Nothing changes in how hunts play.
+
 ## v0.2.73 — 2026-10-30 (Faster and smoother)
 
 **Faster start after an update.** After each update, getting from Play to town took about 1.5 s; it now takes about 0.3 s.

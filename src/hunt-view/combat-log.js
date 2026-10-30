@@ -12,10 +12,10 @@
 // Names: heroes from the `party` section, monsters from the hunt pose's unit
 // kinds (src/session/hunt-sections.js). An unknown unit reads "Someone".
 // ════════════════════════════════════════════════════════════════════════
-import { LOG_MAX_LINES } from '../data/combat-text.js?v=0.2.73';
-import { huntOf, partyOf } from '../session/hunt-sections.js?v=0.2.73';
-import { monsterName, itemName, abilityName, skillName } from '../shell/widgets/bits.js?v=0.2.73';
-import { tallyOf, tallyLine } from '../session/tally-sections.js?v=0.2.73';
+import { LOG_MAX_LINES } from '../data/combat-text.js?v=0.2.74';
+import { huntOf, partyOf } from '../session/hunt-sections.js?v=0.2.74';
+import { monsterName, itemName, abilityName, skillName } from '../shell/widgets/bits.js?v=0.2.74';
+import { tallyOf, tallyLine } from '../session/tally-sections.js?v=0.2.74';
 
 const LOGS = new WeakMap();
 

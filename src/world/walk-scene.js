@@ -19,13 +19,13 @@
 // activity's stand, goTo). Standing still for any length of time never moves it.
 // PURE: no DOM, no window, no G — world-boot.js reads those and passes `env`.
 // ════════════════════════════════════════════════════════════════════════
-import { TAP_OPENS, SITE_OPENS } from '../data/world/stations.js?v=0.2.73';
-import { createSteer, tapAction, walkClip } from './steer-local.js?v=0.2.73';
-import { createTownCast } from './town-scene.js?v=0.2.73';
-import { furnish, maskWith } from './home-scene.js?v=0.2.73';
-import { pickFacing } from './core/facing.js?v=0.2.73';
-import { GRIDS } from '../data/world/art-budget.js?v=0.2.73';
-import { OUTFITS } from '../data/hunt-outfits.js?v=0.2.73';
+import { TAP_OPENS, SITE_OPENS } from '../data/world/stations.js?v=0.2.74';
+import { createSteer, tapAction, walkClip } from './steer-local.js?v=0.2.74';
+import { createTownCast } from './town-scene.js?v=0.2.74';
+import { furnish, maskWith } from './home-scene.js?v=0.2.74';
+import { pickFacing } from './core/facing.js?v=0.2.74';
+import { GRIDS } from '../data/world/art-budget.js?v=0.2.74';
+import { OUTFITS } from '../data/hunt-outfits.js?v=0.2.74';
 
 /* How far a walked map's camera leans from the hero toward the map's `focus`:
    halfway keeps the hero on screen anywhere on a town-sized map and the plaza

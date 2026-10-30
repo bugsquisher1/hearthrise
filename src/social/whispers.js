@@ -16,9 +16,9 @@
 // (src/social/realtime.js); every (re)join of it re-reads hr_whispers_recent and
 // ADDS what the socket missed, so a blip loses nothing.
 // ════════════════════════════════════════════════════════════════════════
-import { WHISPER, CHAT_LIMITS } from '../data/chat-channels.js?v=0.2.73';
-import { lineOf, bodyOf } from './chat-lines.js?v=0.2.73';
-import { askVia } from '../session/intent-ledger.js?v=0.2.73';
+import { WHISPER, CHAT_LIMITS } from '../data/chat-channels.js?v=0.2.74';
+import { lineOf, bodyOf } from './chat-lines.js?v=0.2.74';
+import { askVia } from '../session/intent-ledger.js?v=0.2.74';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export const whisperTab = (id) => WHISPER.prefix + id;

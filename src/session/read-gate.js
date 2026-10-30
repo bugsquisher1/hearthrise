@@ -21,7 +21,7 @@
 //   stop()    cancel the trailing resync (the session closed).
 // Timing only: what a read brings is the session's to apply (CharacterSession._take).
 // ════════════════════════════════════════════════════════════════════════
-import { SESSION_CONFIG } from './config.js?v=0.2.73';
+import { SESSION_CONFIG } from './config.js?v=0.2.74';
 
 export class ReadGate {
   /** @param {{ read: () => Promise<boolean>, setTimer, clearTimer, now: () => number }} o  `read` sends ONE full read */

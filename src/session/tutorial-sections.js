@@ -21,16 +21,16 @@
 //                                and unlocked through sellPlan)
 //   upgrades    string[]         what Equip upgrades would put on (src/shell/upgrade-plan.js)
 // ════════════════════════════════════════════════════════════════════════
-import { currentCard, cardFor, nextGoal, ROLE_SKILL } from '../data/hunt-tutorial.js?v=0.2.73';
-import { levelOf, heroVitalsOf, deathLogOf } from './character-sections.js?v=0.2.73';
-import { huntOf, settingsOf, huntBestsOf, analyzerOf, staminaOf } from './hunt-sections.js?v=0.2.73';
-import { skillsOf, carriedOf, bagOf, bagCapOf, bankOf, rulesOf, equipmentOf, blessingsOf, presetsOf, nameOf, goldOf } from './item-sections.js?v=0.2.73';
-import { farmFieldOf } from './farm-sections.js?v=0.2.73';
-import { homeOf } from './home-sections.js?v=0.2.73';
-import { tallyOf } from './tally-sections.js?v=0.2.73';
-import { partyMembershipOf } from './party-sections.js?v=0.2.73';
-import { wearsArmour } from '../core/vitals.js?v=0.2.73';
-import { ITEMS } from '../data/items.js?v=0.2.73';
+import { currentCard, cardFor, nextGoal, ROLE_SKILL } from '../data/hunt-tutorial.js?v=0.2.74';
+import { levelOf, heroVitalsOf, deathLogOf } from './character-sections.js?v=0.2.74';
+import { huntOf, settingsOf, huntBestsOf, analyzerOf, staminaOf } from './hunt-sections.js?v=0.2.74';
+import { skillsOf, carriedOf, bagOf, bagCapOf, bankOf, rulesOf, equipmentOf, blessingsOf, presetsOf, nameOf, goldOf } from './item-sections.js?v=0.2.74';
+import { farmFieldOf } from './farm-sections.js?v=0.2.74';
+import { homeOf } from './home-sections.js?v=0.2.74';
+import { tallyOf } from './tally-sections.js?v=0.2.74';
+import { partyMembershipOf } from './party-sections.js?v=0.2.74';
+import { wearsArmour } from '../core/vitals.js?v=0.2.74';
+import { ITEMS } from '../data/items.js?v=0.2.74';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const ID = /^[a-z0-9_]{1,64}$/;

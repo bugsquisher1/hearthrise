@@ -27,7 +27,12 @@
 //   · hr_hunt_role_of, hr_role_view  restated by hand in 2027-02-10-settle-reads.sql (their weapon lookup is hoisted
 //                           out of a per-row filter there, beside the conversion);
 //   · hr_depot_view         2027-01-12-market-account.sql md5-pins it, and tests/market-v2.mjs M0 re-applies that file
-//                           over the whole chain: a later restatement would make its pin refuse (5 calls a settle).
+//                           over the whole chain: a later restatement would make its pin refuse (5 calls a settle);
+//   · hr_hunt_member_read, hr_shop_view  a full-chain mutant patches each in its own file (tests/settle-hooks.mjs
+//                           H-COVER in 2026-11-07-store-by-slot.sql; tests/alpha-server.mjs's shop arms in
+//                           2026-11-25-shop-seeds.sql): this file's pin would refuse the mutated pre-image before the
+//                           guard's arm could name the defect. Rule for the next conversion: a body a full-chain or
+//                           chain-end re-apply guard patches or pins stays where it is.
 // The self-check (§2) proves every converted function answers exactly what its SQL pre-image answers, as text, over
 // probe inputs drawn from the database it is applied to (every character on production).
 // ════════════════════════════════════════════════════════════════════════
@@ -47,11 +52,11 @@ export const FNS = [
   'hr_blessings_view', 'hr_character_name', 'hr_character_name_view', 'hr_death_log_view', 'hr_depot_cap',
   'hr_dungeon_cooldowns', 'hr_farm_plot_cap', 'hr_farm_plot_level', 'hr_flag_on', 'hr_gem_unlocks_of',
   'hr_hero_slots_of', 'hr_home_view', 'hr_hunt_analyzer_view', 'hr_hunt_bests_view', 'hr_hunt_density_view',
-  'hr_hunt_limit', 'hr_hunt_member_read', 'hr_hunt_party_of', 'hr_hunt_presets_view', 'hr_hunt_role_default',
+  'hr_hunt_limit', 'hr_hunt_party_of', 'hr_hunt_presets_view', 'hr_hunt_role_default',
   'hr_hunt_setup_view', 'hr_hunt_supply_of', 'hr_hunt_view', 'hr_hunt_weapon_of', 'hr_level_block', 'hr_level_from_xp',
   'hr_level_of', 'hr_login_view', 'hr_max_hp', 'hr_max_mana', 'hr_monster_level', 'hr_outfit_owned', 'hr_party_away',
   'hr_party_invites_view', 'hr_party_seek_view', 'hr_premium_active', 'hr_premium_until', 'hr_premium_view',
-  'hr_recipes_of', 'hr_regen_permille', 'hr_renown_of', 'hr_seed', 'hr_shop_view', 'hr_skill_level',
+  'hr_recipes_of', 'hr_regen_permille', 'hr_renown_of', 'hr_seed', 'hr_skill_level',
   'hr_social_party_view', 'hr_stamina_cap', 'hr_storage_room_used', 'hr_tally_section', 'hr_total_level', 'hr_vitals_of',
 ];
 

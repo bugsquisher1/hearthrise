@@ -5,15 +5,15 @@
 --   `node tools/gen-plan-cache.mjs --check`. lane/c-settle-cost-2, backend-architect, 2026-10-30.
 --   STAGED. Game CLOSED: applies on its passing §2 (CLAUDE.md §2), one file via the Coordinator's apply tool,
 --   never inside begin/commit, never 00:00-00:10 UTC.
---   digest: a2d4941988673baadcc579cd3bb1b224e1e82e9bd4aa919b04d99fe08f9b55d1
---   55 functions.
+--   digest: 4ad09409a54752bd68c4db75a9a2c374376adab5c7a5aa396c5077f7d7953460
+--   53 functions.
 --
 -- ── WHY (measured, not guessed) ─────────────────────────────────────────────
 -- Production is PostgreSQL 17. A LANGUAGE sql function with a SET clause is never inlined, and 17 parses, rewrites and
 -- plans its body again for every statement execution that calls it; 18 (PGlite, the replay) caches that plan, which
 -- is why no replay measurement ever showed it. Live, read-only, 2026-10-30: five one-line helpers 0.8 ms, hr_vitals_of
 -- 2.25 ms a call (inlined by hand into one query: 1.1 ms), hr_home_view's body 1.6 ms of planning alone. On a local
--- PostgreSQL 17 replay of this chain (tools/pg-replay.mjs), a watched 4-hero settle calls these 55 functions
+-- PostgreSQL 17 replay of this chain (tools/pg-replay.mjs), a watched 4-hero settle calls these 53 functions
 -- about 3,000 times; the same body as plpgsql costs 2-7x less a call wherever its caller runs it as its own statement
 -- (hr_renown_of 2.70 -> 0.64 ms, hr_hunt_weapon_of 0.40 -> 0.05, hr_skill_level 0.18 -> 0.07) and the same per row of
 -- one statement. The before/after of the whole settle is in the lane report.
@@ -76,7 +76,6 @@ begin
     ('public.hr_hunt_bests_view(uuid,integer)', '756ffab0428455fb99b20aa1a36cf96d', '63a0fda740e1143f7a62b4be7095ecb7'),
     ('public.hr_hunt_density_view(uuid,integer)', '2bf4fbef1dfdab3cce4a96da29b03f5a', '96dedf92ab611b8e593a6c055abe1543'),
     ('public.hr_hunt_limit(text)', 'c320e5f37069cf26f8cdeb4338db9644', '5d5dac60c606d93e4047b1cff2550952'),
-    ('public.hr_hunt_member_read(public.hunt_sessions)', '9ca8292dcb783ca29605e75812d4641c', 'd8b2d8017f1cf075cf1f08afbf0f926b'),
     ('public.hr_hunt_party_of(uuid,integer)', '94941bf5f1e8b1b2b033d01933e4b6c8', '169977bfd7f2b8e8fad257fb36c72f4a'),
     ('public.hr_hunt_presets_view(uuid,integer)', '81f9baf49d7d5ac19fe13770d7b21ec6', '80167dba911a1d5dbc20813bd01d64a3'),
     ('public.hr_hunt_role_default(text,text[])', 'e8c7374aecc6612e06446c289d3a5dd3', '31d7a3c80faca7cb082953b32d5cf6dc'),
@@ -102,7 +101,6 @@ begin
     ('public.hr_regen_permille(integer)', 'db33bcc28bf3cb430f77463f47a2eb8b', '7f7791b55addaf3b09580260a43499c1'),
     ('public.hr_renown_of(uuid,integer)', '2b62783dbef7e393c3a173d9b234320b', '11df531e2fad58c647fd247436983c2a'),
     ('public.hr_seed(uuid,integer,text)', 'f24b938460dccf8c89b224698914730f', '8929662285421a05404597fb192e19a1'),
-    ('public.hr_shop_view(uuid,integer)', '44219086f7b70305df4b4a688ead5378', '3306d4c2c7f151c4e510a24552699070'),
     ('public.hr_skill_level(text,bigint)', '0ba1199ed385dfec277c7677006e5733', '052678f95f2e9c16005a5dd91e17435b'),
     ('public.hr_social_party_view(uuid,integer)', '9cd89c0e32eeeb4d5a9ced5d23b1acb9', '3cf0aea3da0f2dcfb40188e9e10b3a76'),
     ('public.hr_stamina_cap(uuid,integer,timestamp with time zone)', '69bb68c8b4bb7360ebb77bf99360e30f', 'e339b7e0bf315f66af0fd9babfea4fe8'),
@@ -703,64 +701,6 @@ begin
   return (select hr_q.v from (
 
   select value from public.hr_hunt_limits where key = p_key
-  ) as hr_q(v) limit 1);
-end
-$plc$;
-
-create or replace function public.hr_hunt_member_read(p_s public.hunt_sessions)
- returns jsonb
- language plpgsql
- stable
- security definer
- parallel unsafe
- cost 100
- set search_path = public, pg_catalog
-as $plc$
--- PLAN-CACHE (2027-02-10-settle-plan-cache.generated.sql): the SQL body below, verbatim, planned once per backend.
-#variable_conflict use_column
-begin
-  return (select hr_q.v from (
-
-  select jsonb_build_object(
-    'id', p_s.id, 'hunt', p_s.hunt_id, 'preset', p_s.preset, 'version', p_s.version,
-    'hunt_from_ms', ceil(extract(epoch from p_s.hunt_from) * 1000)::bigint,
-    'settled_to_ms', ceil(extract(epoch from p_s.settled_to) * 1000)::bigint,
-    'next_swing_at_ms', ceil(extract(epoch from p_s.next_swing_at) * 1000)::bigint,
-    'swing_index', p_s.swing_index,
-    'hours_limit', p_s.hours_limit,
-    'leave_at_ms', case when p_s.leave_at is null then null else ceil(extract(epoch from p_s.leave_at) * 1000)::bigint end,
-    'change_at_ms', case when p_s.change_at is null then null else ceil(extract(epoch from p_s.change_at) * 1000)::bigint end,
-    'change_to', p_s.change_to,
-    'bag', coalesce((select jsonb_object_agg(b.item_id, jsonb_build_object(
-                       'loaded', b.qty_loaded, 'left', b.qty_left, 'essential', b.essential))
-                     from public.hunt_bag b where b.session_id = p_s.id), '{}'::jsonb),
-    'enabled', coalesce((select c.enabled from public.hr_hunt_config c where c.id), false),
-    -- THE STAMINA POOL AT THE WINDOW START and the cap it rests to (premium).
-    'stamina_ms', public.hr_stamina_of(p_s.user_id, p_s.slot, p_s.settled_to),
-    'stamina_max_ms', public.hr_stamina_cap(p_s.user_id, p_s.slot, p_s.settled_to),
-    -- THE STORE (catalogue). STORE-BY-SLOT (2026-11-04): a bar slot names the ONE item a
-    -- use spends (Tyler 2026-10-21); no hunt tier picks one.
-    'basics', coalesce((select jsonb_object_agg(b.basic_id, jsonb_build_object('kind', b.kind, 'price', b.price,
-                          'heals', b.heals, 'mana', b.mana, 'partner', b.partner))
-                          from public.hr_hunt_basic_supplies b), '{}'::jsonb),
-    -- THE HERO'S SETTINGS (options) and BAR, its supply setting and floor.
-    'options', coalesce((select a.options from public.player_action_sets a
-                          where a.user_id = p_s.user_id and a.slot = p_s.slot and a.preset = p_s.preset), '{}'::jsonb),
-    'bar', coalesce((select a.slots from public.player_action_sets a
-                      where a.user_id = p_s.user_id and a.slot = p_s.slot and a.preset = p_s.preset), '[]'::jsonb),
-    'gold_floor', (public.hr_hunt_supply_of(p_s.user_id, p_s.slot, p_s.preset)->>'gold_floor')::bigint,
-    'supply_source', public.hr_hunt_supply_of(p_s.user_id, p_s.slot, p_s.preset)->>'supply_source',
-    'on_empty', public.hr_hunt_supply_of(p_s.user_id, p_s.slot, p_s.preset)->>'on_empty',
-    -- WHAT SELL-TO-COVER MAY SELL: this session's own loot of the cover items, still in the bag.
-    'cover', coalesce((select jsonb_object_agg(c.item_id, jsonb_build_object('unit', c.unit,
-                 'avail', greatest(0, least(
-                   coalesce((select pi.qty from public.player_inventory pi
-                              where pi.user_id = p_s.user_id and pi.slot = p_s.slot and pi.item_id = c.item_id), 0),
-                   coalesce((t.loot->>c.item_id)::numeric, 0)::bigint - coalesce((t.covered->>c.item_id)::bigint, 0)))))
-                 from public.hr_hunt_cover_items c
-                 left join public.hunt_session_tally t on t.session_id = p_s.id
-                -- NEVER A LOCKED ITEM (hook: hr_item_locked, 2026-10-25-bag-rules.sql).
-                where not public.hr_item_locked(p_s.user_id, p_s.slot, c.item_id)), '{}'::jsonb))
   ) as hr_q(v) limit 1);
 end
 $plc$;
@@ -1419,33 +1359,6 @@ begin
 end
 $plc$;
 
-create or replace function public.hr_shop_view(p_user uuid, p_slot integer)
- returns jsonb
- language plpgsql
- stable
- security definer
- parallel unsafe
- cost 100
- set search_path = public, pg_catalog
-as $plc$
--- PLAN-CACHE (2027-02-10-settle-plan-cache.generated.sql): the SQL body below, verbatim, planned once per backend.
-#variable_conflict use_column
-begin
-  return (select hr_q.v from (
-
-  select jsonb_build_object(
-    -- the Shop keeps gear, tools and seeds; supplies come from the action bar (Tyler 2026-10-20; outfitter and seed counter, designer 2026-10-22)
-    'offers', coalesce((select jsonb_agg(jsonb_build_object('offer', o.offer_id, 'item', o.item_id, 'kind', o.kind, 'price', o.price)
-                                         order by o.kind, o.price, o.item_id)
-                          from public.hr_shop_supply_offers o where o.kind in ('tool', 'gear', 'seed')), '[]'::jsonb),
-    'bids', coalesce((select jsonb_object_agg(pi.item_id, v.unit)
-                        from public.player_inventory pi join public.hr_hunt_vendor_value v on v.item_id = pi.item_id
-                       where pi.user_id = p_user and pi.slot = p_slot and pi.qty > 0), '{}'::jsonb))
-   where exists (select 1 from public.player_state ps where ps.user_id = p_user and ps.slot = p_slot)
-  ) as hr_q(v) limit 1);
-end
-$plc$;
-
 create or replace function public.hr_skill_level(p_skill text, p_xp bigint)
  returns integer
  language plpgsql
@@ -1646,7 +1559,6 @@ begin
     ('public.hr_hunt_bests_view(uuid,integer)', '63a0fda740e1143f7a62b4be7095ecb7', 's', false, false, 'u', '["search_path=public, pg_catalog"]'),
     ('public.hr_hunt_density_view(uuid,integer)', '96dedf92ab611b8e593a6c055abe1543', 's', false, false, 'u', '["search_path=public, pg_catalog"]'),
     ('public.hr_hunt_limit(text)', '5d5dac60c606d93e4047b1cff2550952', 's', false, false, 'u', '["search_path=public, pg_catalog"]'),
-    ('public.hr_hunt_member_read(public.hunt_sessions)', 'd8b2d8017f1cf075cf1f08afbf0f926b', 's', true, false, 'u', '["search_path=public, pg_catalog"]'),
     ('public.hr_hunt_party_of(uuid,integer)', '169977bfd7f2b8e8fad257fb36c72f4a', 's', false, false, 'u', '["search_path=public, pg_catalog"]'),
     ('public.hr_hunt_presets_view(uuid,integer)', '80167dba911a1d5dbc20813bd01d64a3', 's', true, false, 'u', '["search_path=public, pg_catalog"]'),
     ('public.hr_hunt_role_default(text,text[])', '31d7a3c80faca7cb082953b32d5cf6dc', 's', false, false, 'u', '["search_path=public, pg_catalog"]'),
@@ -1672,7 +1584,6 @@ begin
     ('public.hr_regen_permille(integer)', '7f7791b55addaf3b09580260a43499c1', 's', false, false, 'u', '["search_path=public, pg_catalog"]'),
     ('public.hr_renown_of(uuid,integer)', '11df531e2fad58c647fd247436983c2a', 's', true, false, 'u', '["search_path=public, pg_temp"]'),
     ('public.hr_seed(uuid,integer,text)', '8929662285421a05404597fb192e19a1', 's', true, false, 'u', '["search_path=public"]'),
-    ('public.hr_shop_view(uuid,integer)', '3306d4c2c7f151c4e510a24552699070', 's', true, false, 'u', '["search_path=public, pg_catalog"]'),
     ('public.hr_skill_level(text,bigint)', '052678f95f2e9c16005a5dd91e17435b', 's', false, false, 'u', '["search_path=public, pg_catalog"]'),
     ('public.hr_social_party_view(uuid,integer)', '3cf0aea3da0f2dcfb40188e9e10b3a76', 's', false, false, 'u', '["search_path=public, pg_catalog"]'),
     ('public.hr_stamina_cap(uuid,integer,timestamp with time zone)', 'e339b7e0bf315f66af0fd9babfea4fe8', 's', false, false, 'u', '["search_path=public, pg_catalog"]'),
@@ -2252,62 +2163,6 @@ $sqlpre$$pre$;
            union select unnest(array[null, '', 'nope', 'melee', 'ranger', 'mage', 'healer', 'tank', 'accrue:probe'])) t(x)) p0(x)
            where public.hr_hunt_limit(p0.x)::text is distinct from pg_temp.hrpc_hr_hunt_limit(p0.x)::text$probe$ into v_n, v_ex;
     if v_n <> 0 then raise exception 'plan-cache §2(b): hr_hunt_limit answers differently from its SQL pre-image on % input(s), e.g. (%)', v_n, v_ex; end if;
-    v_total := v_total + 1;
-
-    execute $pre$create or replace function pg_temp.hrpc_hr_hunt_member_read(p_s public.hunt_sessions)
- returns jsonb
- language sql
- stable
- security definer
- parallel unsafe
- cost 100
- set search_path = public, pg_catalog
-as $sqlpre$
-  select jsonb_build_object(
-    'id', p_s.id, 'hunt', p_s.hunt_id, 'preset', p_s.preset, 'version', p_s.version,
-    'hunt_from_ms', ceil(extract(epoch from p_s.hunt_from) * 1000)::bigint,
-    'settled_to_ms', ceil(extract(epoch from p_s.settled_to) * 1000)::bigint,
-    'next_swing_at_ms', ceil(extract(epoch from p_s.next_swing_at) * 1000)::bigint,
-    'swing_index', p_s.swing_index,
-    'hours_limit', p_s.hours_limit,
-    'leave_at_ms', case when p_s.leave_at is null then null else ceil(extract(epoch from p_s.leave_at) * 1000)::bigint end,
-    'change_at_ms', case when p_s.change_at is null then null else ceil(extract(epoch from p_s.change_at) * 1000)::bigint end,
-    'change_to', p_s.change_to,
-    'bag', coalesce((select jsonb_object_agg(b.item_id, jsonb_build_object(
-                       'loaded', b.qty_loaded, 'left', b.qty_left, 'essential', b.essential))
-                     from public.hunt_bag b where b.session_id = p_s.id), '{}'::jsonb),
-    'enabled', coalesce((select c.enabled from public.hr_hunt_config c where c.id), false),
-    -- THE STAMINA POOL AT THE WINDOW START and the cap it rests to (premium).
-    'stamina_ms', public.hr_stamina_of(p_s.user_id, p_s.slot, p_s.settled_to),
-    'stamina_max_ms', public.hr_stamina_cap(p_s.user_id, p_s.slot, p_s.settled_to),
-    -- THE STORE (catalogue). STORE-BY-SLOT (2026-11-04): a bar slot names the ONE item a
-    -- use spends (Tyler 2026-10-21); no hunt tier picks one.
-    'basics', coalesce((select jsonb_object_agg(b.basic_id, jsonb_build_object('kind', b.kind, 'price', b.price,
-                          'heals', b.heals, 'mana', b.mana, 'partner', b.partner))
-                          from public.hr_hunt_basic_supplies b), '{}'::jsonb),
-    -- THE HERO'S SETTINGS (options) and BAR, its supply setting and floor.
-    'options', coalesce((select a.options from public.player_action_sets a
-                          where a.user_id = p_s.user_id and a.slot = p_s.slot and a.preset = p_s.preset), '{}'::jsonb),
-    'bar', coalesce((select a.slots from public.player_action_sets a
-                      where a.user_id = p_s.user_id and a.slot = p_s.slot and a.preset = p_s.preset), '[]'::jsonb),
-    'gold_floor', (public.hr_hunt_supply_of(p_s.user_id, p_s.slot, p_s.preset)->>'gold_floor')::bigint,
-    'supply_source', public.hr_hunt_supply_of(p_s.user_id, p_s.slot, p_s.preset)->>'supply_source',
-    'on_empty', public.hr_hunt_supply_of(p_s.user_id, p_s.slot, p_s.preset)->>'on_empty',
-    -- WHAT SELL-TO-COVER MAY SELL: this session's own loot of the cover items, still in the bag.
-    'cover', coalesce((select jsonb_object_agg(c.item_id, jsonb_build_object('unit', c.unit,
-                 'avail', greatest(0, least(
-                   coalesce((select pi.qty from public.player_inventory pi
-                              where pi.user_id = p_s.user_id and pi.slot = p_s.slot and pi.item_id = c.item_id), 0),
-                   coalesce((t.loot->>c.item_id)::numeric, 0)::bigint - coalesce((t.covered->>c.item_id)::bigint, 0)))))
-                 from public.hr_hunt_cover_items c
-                 left join public.hunt_session_tally t on t.session_id = p_s.id
-                -- NEVER A LOCKED ITEM (hook: hr_item_locked, 2026-10-25-bag-rules.sql).
-                where not public.hr_item_locked(p_s.user_id, p_s.slot, c.item_id)), '{}'::jsonb))
-$sqlpre$$pre$;
-    execute $probe$select count(*)::int as n, min(concat_ws(' / ', coalesce(p0.x::text, 'null'))) as example
-            from (select h from public.hunt_sessions h order by h.entered_at desc limit 100) p0(x)
-           where public.hr_hunt_member_read(p0.x)::text is distinct from pg_temp.hrpc_hr_hunt_member_read(p0.x)::text$probe$ into v_n, v_ex;
-    if v_n <> 0 then raise exception 'plan-cache §2(b): hr_hunt_member_read answers differently from its SQL pre-image on % input(s), e.g. (%)', v_n, v_ex; end if;
     v_total := v_total + 1;
 
     execute $pre$create or replace function pg_temp.hrpc_hr_hunt_party_of(p_user uuid, p_slot integer)
@@ -2923,31 +2778,6 @@ $sqlpre$$pre$;
     if v_n <> 0 then raise exception 'plan-cache §2(b): hr_seed answers differently from its SQL pre-image on % input(s), e.g. (%)', v_n, v_ex; end if;
     v_total := v_total + 1;
 
-    execute $pre$create or replace function pg_temp.hrpc_hr_shop_view(p_user uuid, p_slot integer)
- returns jsonb
- language sql
- stable
- security definer
- parallel unsafe
- cost 100
- set search_path = public, pg_catalog
-as $sqlpre$
-  select jsonb_build_object(
-    -- the Shop keeps gear, tools and seeds; supplies come from the action bar (Tyler 2026-10-20; outfitter and seed counter, designer 2026-10-22)
-    'offers', coalesce((select jsonb_agg(jsonb_build_object('offer', o.offer_id, 'item', o.item_id, 'kind', o.kind, 'price', o.price)
-                                         order by o.kind, o.price, o.item_id)
-                          from public.hr_shop_supply_offers o where o.kind in ('tool', 'gear', 'seed')), '[]'::jsonb),
-    'bids', coalesce((select jsonb_object_agg(pi.item_id, v.unit)
-                        from public.player_inventory pi join public.hr_hunt_vendor_value v on v.item_id = pi.item_id
-                       where pi.user_id = p_user and pi.slot = p_slot and pi.qty > 0), '{}'::jsonb))
-   where exists (select 1 from public.player_state ps where ps.user_id = p_user and ps.slot = p_slot)
-$sqlpre$$pre$;
-    execute $probe$select count(*)::int as n, min(concat_ws(' / ', coalesce(w.a1::text, 'null'), coalesce(w.a2::text, 'null'))) as example
-            from (select user_id, slot from public.player_state union all select '00000000-0000-0000-0000-000000000000'::uuid, 0) w(a1, a2)
-           where public.hr_shop_view(w.a1, w.a2)::text is distinct from pg_temp.hrpc_hr_shop_view(w.a1, w.a2)::text$probe$ into v_n, v_ex;
-    if v_n <> 0 then raise exception 'plan-cache §2(b): hr_shop_view answers differently from its SQL pre-image on % input(s), e.g. (%)', v_n, v_ex; end if;
-    v_total := v_total + 1;
-
     execute $pre$create or replace function pg_temp.hrpc_hr_skill_level(p_skill text, p_xp bigint)
  returns integer
  language sql
@@ -3108,7 +2938,7 @@ $sqlpre$$pre$;
     if v_n <> 0 then raise exception 'plan-cache §2(b): hr_vitals_of answers differently from its SQL pre-image on % input(s), e.g. (%)', v_n, v_ex; end if;
     v_total := v_total + 1;
 
-    if v_total <> 55 then raise exception 'plan-cache §2(b)-harness: % of 55 functions probed', v_total; end if;
+    if v_total <> 53 then raise exception 'plan-cache §2(b)-harness: % of 53 functions probed', v_total; end if;
     raise exception 'plan-cache §2: ok' using errcode = 'P0001';
   exception when sqlstate 'P0001' then
     if sqlerrm <> 'plan-cache §2: ok' then raise; end if;

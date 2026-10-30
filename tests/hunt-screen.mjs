@@ -421,13 +421,20 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         const nextClock = await page.evaluate(() => { const el = document.querySelector('.ha-analyzer [data-clock="next"]'); return el && el.textContent; });
         if (!/^01:(2\d|30):\d\d$/.test(String(nextClock))) fails.push('HS-4 Next level in shows "' + nextClock + '"; the server sent a Level eta of ' + FIXTURE.hunt_analyzer.hero.level.eta_h + ' h');
         /* Idle: display ticks with nothing new write nothing but the running session clocks. */
-        const idle = await page.evaluate(async () => {
+        const [idle, locales] = await page.evaluate(async () => {
           const paint = await import('/src/render/paint.js?v=0.1.0');
           const before = paint.writes();
+          /* ...and format their numbers through format.js's one formatter: toLocaleString builds a new Intl.NumberFormat
+             per call (perf lane 10-29: 1.5% of a 4x-CPU hunt, a third of the party panel's tick) */
+          const own = Number.prototype.toLocaleString;
+          let n = 0;
+          Number.prototype.toLocaleString = function (...a) { n++; return own.apply(this, a); };
           await new Promise((ok) => setTimeout(ok, 1100));
-          return paint.writes() - before;
+          Number.prototype.toLocaleString = own;
+          return [paint.writes() - before, n];
         });
         if (idle > 6) fails.push('HS-2 idle display ticks wrote ' + idle + ' DOM changes; only the session clocks may move');
+        if (locales) fails.push('HS-2 idle display ticks made ' + locales + ' toLocaleString call(s): a number format built per number (src/render/format.js keeps one)');
         /* A new envelope: the hero is hurt, the kills rise. The same nodes carry the new numbers. */
         s.env.party.members[0].hp = 90;
         s.env.hunt.hero.hp = 90;

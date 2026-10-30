@@ -541,6 +541,34 @@ async function check(M) {
     q.length = 0;
   });
 
+  /* W6 (perf lane 10-29): a frame places only the standing art near its view (it walked the town's 22,272 cells and
+     placed its 966 objects every frame, to keep the ~10% on screen), and keeps every piece the whole walk keeps, in the
+     whole walk's order. Counted (book.frame per frame), never timed. */
+  fam('W6', () => {
+    const everything = { ox: -1e6, oy: -1e6, w: 2e6, h: 2e6 };
+    const key = (d) => d.id + '@' + d.x + ',' + d.y;
+    for (const id of ['town_common', 'coppercap_warrens', 'mosslight_glade']) {
+      const m = Object.assign({}, compiled(id));
+      let calls = 0;
+      const counted = Object.assign({}, book, { frame: (...a) => { calls++; return book.frame(...a); } });
+      const all = M.compose.composeFrame(m, counted, { hero: null, t: 0 }, everything, tables, T);
+      for (const [fx, fy] of [[0.5, 0.5], [0.1, 0.15], [0.9, 0.85], [0.33, 0.7]]) {
+        const V = { ox: Math.round(fx * m.w * T - 360), oy: Math.round(fy * m.h * T - 225), w: 720, h: 450 };
+        const near = (d) => d.x < V.ox + V.w + 2 * T && d.y < V.oy + V.h + 2 * T && d.x + d.w > V.ox - 2 * T && d.y + d.h > V.oy - 2 * T;
+        calls = 0;
+        const f = M.compose.composeFrame(m, counted, { hero: null, t: 0 }, V, tables, T);
+        const drawn = f.decals.length + f.sprites.length + f.raised.length;
+        ok('W6', calls <= drawn + 8 && (m.objects.length < 300 || calls < m.objects.length / 4),
+          id + ': a ' + V.w + 'x' + V.h + ' view placed ' + calls + ' frames to draw ' + drawn + ' of the map\'s ' + m.objects.length + ' objects (every frame walks the whole map)');
+        for (const layer of ['decals', 'sprites', 'raised']) {
+          const want = all[layer].filter(near).map(key).join('|'), got = f[layer].map(key).join('|');
+          ok('W6', got === want, id + ' ' + layer + ' at (' + V.ox + ',' + V.oy + '): the frame drew ' + f[layer].length + ', the whole walk keeps '
+            + all[layer].filter(near).length + (got === want ? '' : ' (first difference near ' + (got.split('|').find((k, i) => k !== want.split('|')[i]) || 'the end') + ')'));
+        }
+      }
+    }
+  });
+
   fam('G', () => {
     const idx = M.route.huntMapIndex(M.maps.WORLD_MAPS, M.hunts.HUNT_INDEX);
     const S = (a, c) => M.route.sceneFor(a, c, idx, M.maps.SCENE_MAPS);
@@ -679,6 +707,8 @@ const MUTANTS = [
   ['W5', 'a map\'s chunk bins made in one task again', 'src/world/render/ground-chunks.js', [['    prepare(m, art, sl) { return sl ? binsSliced(m, art, sl) : binsFor(m, art); },', '    prepare(m, art, sl) { return binsFor(m, art); },']]],
   ['W5', 'a chunk baked past its deadline (one long task)', 'src/world/render/ground-chunks.js', [['    const spent = () => timed && ++n % CHECK_EVERY === 0 && now() >= until;', '    const spent = () => false;']]],
   ['W5', 'a resumed chunk skips the tile it stopped at', 'src/world/render/ground-chunks.js', [['    for (const t = own.tiles; j.i < t.length; j.i += 5) {\n      if (spent()) return false;', '    for (const t = own.tiles; j.i < t.length; j.i += 5) {\n      if (spent()) { j.i += 5; return false; }']]],
+  ['W6', 'a frame places every object of the map again', 'src/world/core/compose.js', [['    if (!near(b[4 * i], b[4 * i + 1], b[4 * i + 2], b[4 * i + 3])) continue;\n', '']]],
+  ['W6', 'the cull drops art that reaches into the view from its west edge', 'src/world/core/compose.js', [['if (!near(b[4 * i], b[4 * i + 1], b[4 * i + 2], b[4 * i + 3])) continue;', 'if (!near(b[4 * i], b[4 * i + 1], 0, b[4 * i + 3])) continue;']]],
   ['W5', 'a new map drawn before its view\'s ground is baked', 'src/world/render/canvas-backend.js', [['      if (!hold || !map || !canvas) return true;', '      return true;']]],
   ['W2', 'a hole corner (cliff) leaves its dual tile undrawn', 'src/world/core/compose.js', [['for (let i = 0; i < 4; i++) if (c[i] < 0) c[i] = most;', 'if (c.some((m) => m < 0)) continue;']]],
   ['W2', 'a third material drawn as the upper of the pair', 'src/world/core/compose.js', [['(m !== lo && !pairM[m * K + lo] && pairM[m * K + up])', '(m !== lo)']]],

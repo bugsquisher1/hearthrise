@@ -10,14 +10,14 @@
 //
 //   readinessOf(cs) → { name, ready, checks: [{ id, ok, text }], short: [words] }
 // ════════════════════════════════════════════════════════════════════════
-import { settingsOf, staminaOf, analyzerOf, huntOf } from '../session/hunt-sections.js?v=0.2.70';
-import { bagOf, equipmentOf, goldOf, nameOf } from '../session/item-sections.js?v=0.2.70';
-import { kindOf } from './bag-model.js?v=0.2.70';
-import { itemName } from './widgets/bits.js?v=0.2.70';
-import { storeOf } from './bar-draft.js?v=0.2.70';
-import { whole, hoursWords } from '../render/format.js?v=0.2.70';
-import { CONSUMABLES } from '../data/consumables.js?v=0.2.70';
-import { BARE_WORDS, HEADS_UP_KINDS, spareWords } from './hunt-go.js?v=0.2.70';
+import { settingsOf, staminaOf, analyzerOf, huntOf } from '../session/hunt-sections.js?v=0.2.71';
+import { bagOf, equipmentOf, goldOf, nameOf } from '../session/item-sections.js?v=0.2.71';
+import { kindOf } from './bag-model.js?v=0.2.71';
+import { itemName } from './widgets/bits.js?v=0.2.71';
+import { storeOf } from './bar-draft.js?v=0.2.71';
+import { whole, hoursWords } from '../render/format.js?v=0.2.71';
+import { CONSUMABLES } from '../data/consumables.js?v=0.2.71';
+import { BARE_WORDS, HEADS_UP_KINDS, spareWords } from './hunt-go.js?v=0.2.71';
 
 const PLURAL = Object.freeze({ food: 'food', drink: 'drinks', ammo: 'ammo' });
 const PLURAL_CAP = Object.freeze({ food: 'Food', drink: 'Drink', ammo: 'Ammo' });

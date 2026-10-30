@@ -167,6 +167,9 @@
 //              commit of the bones its cover sells) is refused cover_over six fires in
 //              a row; the count is ITS seat's, the sixth ends ITS hunt alone; the
 //              partner hunts on and is paid next settle; both doors, the same rows.
+//   PARTY-WORLD #73: a refusal the shared world causes (the ground's gold bound 0: value_over
+//              in seat 0's half) is counted on the INSTANCE, never a seat; the sixth ends
+//              BOTH hunts at one boundary, `server`, one window_forfeit each; both doors.
 //   PARTY-VIEW the real `party` section of a settled two-hero hunt, read by the
 //              client's own reader (src/session/hunt-sections.js partyOf), yields
 //              both members the party panel draws: unit (= the session's world
@@ -2526,6 +2529,61 @@ const DB_ARMS = {
     if (rows.tick && rows.settle && canon(rows.tick) !== canon(rows.settle)) problems.push(`the browser-closed and hunt-viewed doors wrote different rows ${firstDiff(canon(rows.tick), canon(rows.settle))}`);
     return problems;
   }),
+  /* PARTY-WORLD (#73; 2027-02-10-party-instance-reset.sql): a refusal the SHARED world causes is the instance's, though it
+     trips inside the first member's half. The live case was the ground's catalogue under-bounding what the engine drops
+     (the Mosslight spawn-row gap); here the ground's monsters' gold bound is 0, so every window that pays coins is refused
+     value_over in seat 0's half. Six fires in a row are counted on the INSTANCE (no seat charged) and the sixth ends BOTH
+     hunts at once: the same reason, at the last accepted boundary, one window_forfeit row each, nothing paid. Before the
+     fix the count was seat 0's, its sixth ended A alone and B needed six more. BOTH DOORS, the same rows: the tick
+     (browser closed) and A's own settle (hunt viewed). */
+  'PARTY-WORLD': async (db, M) => inTx(db, async () => {
+    const problems = [];
+    const h = await hunter(db, M, { party: [{ ...STRONG }, { ...STRONG }] });
+    const [A, B] = UIDS; const [sA, sB] = h.sids;
+    await settleTo(db, M, h.from + 120000);
+    const at = h.from + 300000;
+    /* THE WORLD'S FAULT: the catalogue bounds this ground's coins at 0 (no member state is touched) */
+    await db.query(`update public.hr_hunt_kill_bounds set gold_max = 0
+                     where monster_id in (select sp.monster_id from public.hr_hunt_ground_spawns sp where sp.hunt_id = 'mill_cellar')`);
+    const gold = async (u) => Number(await one(db, 'select coalesce((select w.gold from public.account_wallet w where w.user_id = $1), 0)', [u]));
+    const counts = async () => (await q(db, `select (select refusals from public.hunt_instances where id = $1) as inst,
+                                                   (select coalesce(sum(refusals), 0)::int from public.hunt_sessions where id = any($2::uuid[])) as seats`, [h.inst, h.sids]))[0];
+    const rows = {};
+    await db.query('savepoint party_world');
+    for (const door of ['tick', 'settle']) {
+      const fire = (atMs) => M.HS.settleHunt({ exec: makeExec(db), user: A, slot: 0, mode: door, grounds: groundsOf(M), atMs,
+        ...(door === 'tick' ? { session: sA } : { project: true, live: true, minWindowMs: 0 }) });
+      const g0 = [await gold(A), await gold(B)];
+      const answers = [];
+      for (let i = 1; i <= 6; i++) {
+        answers.push(await fire(at));
+        const c = await counts();
+        if (i < 6 && (c.inst !== i || c.seats !== 0)) problems.push(`${door}: world refusal ${i} counted instance ${c.inst} / seats ${c.seats}, want ${i} / 0`);
+      }
+      if (answers.some((v) => v.outcome !== 'refused' || v.reason !== 'value_over')) {
+        problems.push(`${door}: CONTROL: the six fires answered ${answers.map((v) => v.outcome + '/' + v.reason).join(', ')}, not value_over`);
+        break;
+      }
+      const s = await q(db, `select id, floor(extract(epoch from ended_at) * 1000)::bigint::text as ended_ms, end_reason, forfeit
+                               from public.hunt_sessions where id = any($1::uuid[]) order by user_id`, [h.sids]);
+      const inst = (await q(db, 'select refusals, floor(extract(epoch from settled_to) * 1000)::bigint::text as at from public.hunt_instances where id = $1', [h.inst]))[0];
+      /* THE BUG: only the culprit's seat ended; its partner hunted on into six more refusals */
+      if (s.some((r) => r.end_reason !== 'server' || r.forfeit !== true || r.ended_ms !== inst.at)) {
+        problems.push(`${door}: the sixth world refusal did not end every seat at the boundary ${inst.at}: ${JSON.stringify(s)}`);
+      }
+      if (inst.refusals !== 0) problems.push(`${door}: the instance kept ${inst.refusals} strikes after its forfeit`);
+      const forfeits = await q(db, `select session_id, meta->>'code' as code from public.player_ledger
+                                     where session_id = any($1::uuid[]) and kind = 'hunt' and intent = 'window_forfeit' and coalesce(gold, 0) = 0`, [h.sids]);
+      if (forfeits.length !== 2 || new Set(forfeits.map((f) => f.session_id)).size !== 2 || forfeits.some((f) => f.code !== 'value_over')) {
+        problems.push(`${door}: window_forfeit rows ${JSON.stringify(forfeits.map((f) => [f.session_id === sA ? 'A' : 'B', f.code]))}, want A and B once each, value_over`);
+      }
+      if (await gold(A) !== g0[0] || await gold(B) !== g0[1]) problems.push(`${door}: a refused window paid a member`);
+      rows[door] = [await snapshot(db, sA, A), await snapshot(db, sB, B)];
+      await db.query('rollback to savepoint party_world');
+    }
+    if (rows.tick && rows.settle && canon(rows.tick) !== canon(rows.settle)) problems.push(`the browser-closed and hunt-viewed doors wrote different rows ${firstDiff(canon(rows.tick), canon(rows.settle))}`);
+    return problems;
+  }),
   'PARTY-VIEW': async (db, M) => inTx(db, async () => {
     const problems = [];
     const { partyOf } = await import(pathToFileURL(join(ROOT, 'src/session/hunt-sections.js')).href);
@@ -3418,6 +3476,8 @@ const DB_MUTANTS = [
     replace: '' },
   { arm: 'PARTY-GRIEF', name: '[party isolation] a member\'s own refusal is counted on the instance again (the party forfeits)', fn: SR,
     find: "  if jsonb_typeof(p_answer->'member') = 'object'", replace: "  if false and jsonb_typeof(p_answer->'member') = 'object'" },
+  { arm: 'PARTY-WORLD', name: '[#73] a world refusal is counted on the seat that tripped it (the party forfeits one seat at a time)', fn: SR,
+    find: "    if coalesce(p_answer->>'error', '') = any (c_world) then", replace: '    if false then' },
   { arm: 'PARTY-GRIEF', name: '[party isolation] the refused exit no longer names the member it was proving', fn: AI,
     find: "      || case when v_cur is not null then jsonb_build_object('member', v_cur) else '{}'::jsonb end);", replace: '      );' },
   { arm: 'PARTY-GRIEF', name: '[party isolation] the member\'s value half is not attributed', fn: AI,

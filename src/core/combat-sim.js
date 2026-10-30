@@ -19,7 +19,8 @@
 //   the swing interval is PAID (stamina drains).
 // A hero killed in a swing DIES (Tyler 2026-10-19): its death is priced at once
 // (action-rules.js deathXpLoss) and its hunt ends `died` at its next boundary;
-// it walks home with full HP. No knockout, no falls, no resume. LEAVE TOGETHER
+// it walks home with full HP, as every end does (endMember). No knockout, no
+// falls, no resume. LEAVE TOGETHER
 // (Tyler 2026-10-22): when a member's hunt ends for its OWN reason (left, died,
 // out of stamina or supplies ...), every other member standing in the world
 // whose hero has the box "Leave if anyone leaves the hunt or dies" ticked
@@ -159,10 +160,11 @@ function endMember(m, why, atMs, world, out) {
   hs.endedReason = why;
   hs.endedAtMs = atMs;
   out.events.push(makeEvent('ended', atMs, { reason: why, ...(why === 'rule' ? { rule: hs.ruleStop } : {}) }));
-  const u = world && m.unitId !== null ? world.units.find((x) => x.id === m.unitId) : null;
-  /* A DEAD hero is back in town with full HP and mana (Tyler 2026-10-19); any
-     other end walks home with the HP it had. */
-  if (u) m.state.playerHp = u.alive ? u.hp : m.state.playerMaxHp;
+  /* EVERY END SENDS THE HERO HOME WHOLE (designer 2026-10-29, extending Tyler 2026-10-19's death rule): town is
+     safe and the next hunt starts fresh, so whatever ended it (a death, a leave, stamina, supplies, gold, a stop
+     rule, a party end) the hero is back with full HP. Mana is never stored: a hero enters every hunt full
+     (hunt-spawn.js). The settle stores this HP (accrual.js delta.hp, hr_apply clamps it to the derived max). */
+  m.state.playerHp = m.state.playerMaxHp;
   if (world && m.unitId !== null) leaveHero(world, m.unitId);
   m.left = true;
 }

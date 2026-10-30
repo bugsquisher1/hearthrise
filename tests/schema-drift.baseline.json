@@ -6,11 +6,11 @@
   "schema change was intended — the diff of this file is the review surface.",
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
- "generated": "2026-10-28",
- "digest": "82481ae103017a33f9611cfeee7cd276318c101340c24265101eea16593647d5",
+ "generated": "2026-10-30",
+ "digest": "23e14456faa72c65c4a81ce62e3d53ddc4f49a969b1738c619175bc59012e3dc",
  "counts": {
   "relations": 239,
-  "functions": 570,
+  "functions": 571,
   "policies": 115,
   "indexes": 340,
   "triggers": 53,
@@ -315,6 +315,7 @@
    "hr_account_property_tier(p_user uuid)",
    "hr_account_view(p_user uuid, p_slot integer)",
    "hr_accrue_cap_ms(p_user uuid, p_slot integer)",
+   "hr_accrue_read(p_user uuid, p_slot integer)",
    "hr_action_set_copy(p_from integer, p_to integer, p_idem uuid)",
    "hr_action_set_delete(p_slot integer, p_preset integer, p_idem uuid)",
    "hr_action_set_options(p_slot integer, p_preset integer, p_opts jsonb, p_idem uuid)",

@@ -144,7 +144,7 @@ export async function chainFiles() {
    cannot execute" gate here and FAILED it on production. Proof:
    tests/name-moderation.mjs --mutate `service_role_kept` is caught only with
    this line in place. */
-const SCAFFOLD = `
+export const SCAFFOLD = `
 alter default privileges in schema public
   grant all on tables to anon, authenticated, service_role;
 alter default privileges in schema public
@@ -521,7 +521,7 @@ export async function bootReplay({ patches, seedBefore, tolerant = false, upTo, 
    closed state passes keepClosed: true. Measured 2026-10-14: without this,
    market-intent (every guard driving the engine as a fixture player) read
    rate_limited from hr_rate_gate on its first call. */
-async function openTheGame(db) {
+export async function openTheGame(db) {
   await db.exec(`do $open$ begin
     if to_regclass('public.hr_flags') is not null then
       update public.hr_flags set enabled = false where key = 'closed_mode' and enabled;
@@ -536,7 +536,7 @@ async function openTheGame(db) {
    EA wipe will. No schema object or row count moves. The switch itself is
    proven by its own §4 and by tests/hunt-sessions-settle.mjs BETA, which turns
    it on inside its transaction. */
-async function premiumPerCharacter(db) {
+export async function premiumPerCharacter(db) {
   await db.exec(`do $beta$ begin
     if to_regclass('public.hr_flags') is not null then
       update public.hr_flags set enabled = false where key = 'beta_premium' and enabled;

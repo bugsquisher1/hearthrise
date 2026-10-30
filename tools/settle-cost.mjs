@@ -37,6 +37,9 @@ const arg = (k, d) => { const a = process.argv.find((x) => x.startsWith(`--${k}=
 
 /* The statements the edge sends, by their first distinctive call. */
 const LABELS = [
+  [(s) => s.includes('hr_accrue_cap_ms'), 'hello: state + span cap'],
+  [(s) => s.includes('hr_seed') && s.includes('hr_perks_of'), 'hello: seeds + perks'],
+  [(s) => /hr_(bestiary|trophy|collection)_of|hr_hunt_open_of|'accrue'::text/.test(s), 'hello: gate, bestiary, trophies, hunt, collection'],
   [(s) => s.includes('hr_hunt_instance_read') && s.includes('hr_state_of'), 'read (gate + instance + caller envelope)'],
   [(s) => s.includes('hr_hunt_instance_read'), 'read (gate + instance)'],
   [(s) => s.includes('hr_hunt_apply_instance'), 'apply (hr_hunt_apply_instance)'],
@@ -46,10 +49,14 @@ const LABELS = [
 const labelOf = (sql) => (LABELS.find(([k]) => k(sql)) || [null, 'tick: ' + sql.replace(/\s+/g, ' ').trim().slice(0, 50)])[1];
 
 export async function prepare({ heroes = 4, windows = 8, hunt = 'millrace_sewer', windowMs = 90000, door = 'fire', db: given,
-  upTo, edgeRoot } = {}) {
-  if (!['fire', 'player', 'pieces'].includes(door)) throw new Error('door is fire | player | pieces');
+  upTo, edgeRoot, pg = false, helloState = null } = {}) {
+  if (!['fire', 'player', 'pieces', 'viewed'].includes(door)) throw new Error('door is fire | player | pieces | viewed');
+  if (pg && upTo) throw new Error('--pg replays this tree\'s whole chain; --upto is PGlite only');
   const H = (await import('../tests/hunt-sessions-settle.mjs')).HARNESS;
   let db = given;
+  /* `pg`: the chain on a local PostgreSQL 17, production's major version (tools/pg-replay.mjs: PGlite is 18, and 18
+     caches the plans of SQL functions that 17 re-plans on every statement that calls them). */
+  if (!db && pg) ({ db } = await (await import('./pg-replay.mjs')).bootPg());
   if (!db) ({ db } = await (await import('../tests/schema-replay.mjs')).bootReplay(upTo ? { upTo } : undefined));
   await H.pinDice(db);
   const M = await H.loadEdge(edgeRoot || H.ROOT);
@@ -103,6 +110,8 @@ export async function prepare({ heroes = 4, windows = 8, hunt = 'millrace_sewer'
   await db.query(`update public.hunt_instances set settled_to = ${t}, next_swing_at = ${t} where id = $1`, [inst]);
   const from = Number(await one(db, `select floor(extract(epoch from settled_to) * 1000)::bigint from public.hunt_instances where id = $1`, [inst]));
   await db.query('commit');
+  /* production's planner reads analysed tables; a fresh PostgreSQL database has no statistics yet */
+  if (pg) await db.exec('analyze');
 
   /* THE EXEC SEAM, timed per statement (the role switch is outside the clock). */
   const stmts = new Map();
@@ -120,6 +129,44 @@ export async function prepare({ heroes = 4, windows = 8, hunt = 'millrace_sewer'
      instance whole), through the shipped tick.js runTick — browser closed, the common case. `player`: the viewed
      hero's own hunt_settle (settleHunt mode settle, project + live, as index.ts runs it) — hunt viewed. `pieces`: the
      leader's settle through the three exported pieces, no tick loop. */
+  /* THE VIEWED DOOR (lane/c-settle-cost-2): what a WATCHED party costs production, statement for statement — measured live
+     2026-10-30 05:58-05:59 UTC (pg_stat_statements, the QA account's four heroes in one party, every hero open in the
+     browser): 7 hunter hellos, 3 of them landing a settle, the other 4 the live view's asks below the floor. A hello is
+     index.ts's accrue read (the rate gate, the state + span cap, the bestiary, trophy, open-hunt and collection reads), its
+     seed read, then settleHunt (mode settle, project, live) under the requester's frame-self marker; frames are ON and
+     every member is open in a client, so a landed commit pushes one frame to each OTHER member. Per window here: one landed
+     hello, after the early ones (VIEWED_ASKS: 4 every 3 windows, live's ratio). realtime.send is a recording stub (the
+     replay has no Realtime), so the frames' bytes are kept for the before/after diff. */
+  const viewer = { user: uids[0], marker: String(uids[0]).toLowerCase() + ':0' };
+  let helloRead = null;
+  if (door === 'viewed') {
+    await db.exec(`create schema if not exists realtime;
+      create table if not exists realtime.bench_frames (n bigserial primary key, topic text, event text, payload jsonb);
+      create or replace function realtime.send(payload jsonb, event text, topic text, private boolean default true) returns void
+        language sql as $f$ insert into realtime.bench_frames (topic, event, payload) values (topic, event, payload) $f$;
+      update public.hr_tick_config set frame_push = true where id;`);
+    /* helloState: a test seam (tests/settle-budget.mjs): 'read' | 'legacy' instead of what index.ts reads */
+    helloRead = await helloStatements(edgeRoot || H.ROOT, helloState);
+  }
+  const execSelf = async (text, params) => {
+    await db.exec(`begin; set local role hr_engine; select set_config('hr.frame_self', '${viewer.marker}', true)`);
+    const t0 = performance.now();
+    try { const r = (await db.query(text, params)).rows; await db.exec('commit'); return r; }
+    catch (e) { await db.exec('rollback'); throw e; }
+    finally {
+      const ms = performance.now() - t0;
+      if (recording) { const k = labelOf(text); const s = stmts.get(k) || { calls: 0, ms: 0 }; s.calls++; s.ms += ms; stmts.set(k, s); }
+    }
+  };
+  /* index.ts's hello for a hunter, in its statements: the read transaction, the seed transaction, the hunt settle. */
+  const hello = async (o) => {
+    const u = viewer.user;
+    await db.query('insert into public.character_presence (user_id, slot, seen_at) select unnest($1::uuid[]), 0, now() on conflict (user_id, slot) do update set seen_at = excluded.seen_at', [uids]);
+    await helloRead.read(execSelf, u, 0);
+    await execSelf(`select (public.hr_seed($1::uuid, $2::int, $3) & 4294967295)::bigint as seed,
+             public.hr_seed($1::uuid, $2::int, $4)::text as salt, public.hr_perks_of($1::uuid, $2::int) as perks`, [u, 0, 'accrue:x', 'intent:accrue:x']);
+    return M.HS.settleHunt({ exec: execSelf, user: u, slot: 0, mode: 'settle', bucket: null, project: true, live: true, ...o });
+  };
   const phases = { read: 0, propose: 0, commit: 0, wall: 0 };
   const kills = [];
   const killsOf = (out) => (out.members || []).reduce((n, m) => n + Number((m.delta && m.delta.journal && m.delta.journal.meta && m.delta.journal.meta.kills) || 0), 0);
@@ -144,6 +191,19 @@ export async function prepare({ heroes = 4, windows = 8, hunt = 'millrace_sewer'
           body: { op: 'tick', roster: [], cadence_ms: 10000, flush_ms: windowMs, hunts: uids.map((u, i) => ({ user_id: u, slot: 0, session_id: sids[i] })) } })).body;
         if (!r.hunts || r.hunts.settled < 1) throw new Error('the fire settled nothing: ' + JSON.stringify(r.hunts || r));
         return { fire: r.hunts };
+      }
+      if (door === 'viewed') {
+        const w = Math.round((toMs - from) / windowMs);
+        const early = Math.floor((w * VIEWED_ASKS[0]) / VIEWED_ASKS[1]) - Math.floor(((w - 1) * VIEWED_ASKS[0]) / VIEWED_ASKS[1]);
+        for (let i = 0; i < early; i++) {
+          const a = await hello({ minWindowMs: 1e15 });
+          if (a.reason !== 'below_min_span' || !a.body.hunt_live || !a.body.state) throw new Error('an early ask did not answer the live start point: ' + JSON.stringify({ o: a.outcome, r: a.reason }));
+          if (recording) { asks++; answers.push(a.body); }
+        }
+        const v = await hello({ atMs: toMs });
+        if (v.outcome !== 'paid' || !v.body.state) throw new Error('the viewed hello settled nothing: ' + JSON.stringify({ o: v.outcome, r: v.reason }));
+        if (recording) answers.push(v.body);
+        return { player: v.outcome };
       }
       if (door === 'player') {
         const v = await M.HS.settleHunt({ exec, user: uids[0], slot: 0, mode: 'settle', bucket: null, project: true, live: true, atMs: toMs });
@@ -170,23 +230,40 @@ export async function prepare({ heroes = 4, windows = 8, hunt = 'millrace_sewer'
 
   /* warm(): one window (plan caches, first-touch rows), then the stats are zeroed; step(w): window w (2..windows+1);
      report(): the measured windows. */
-  let stat = true, rows0 = 0, settled = 0;
+  let stat = true, rows0 = 0, settled = 0, asks = 0, frames0 = 0;
+  const answers = [];
+  const framesSent = async () => (door === 'viewed' ? Number(await one(db, 'select count(*) from realtime.bench_frames')) : 0);
   const fires = [];
   return {
     async warm() {
       await settle(from + windowMs);
-      try { await db.exec(`set track_functions = 'all'`); await db.query('select pg_stat_reset()'); } catch { stat = false; }
+      try {
+        await db.exec(`set track_functions = 'all'`);
+        /* the warm window's pending counters flush first, or they land after the reset and count as a measured window */
+        try { await db.query('select pg_stat_force_next_flush()'); } catch { /* PG < 15 */ }
+        await db.query('select 1');
+        await db.query('select pg_stat_reset()');
+      } catch { stat = false; }
       rows0 = await ledgerRows();
+      frames0 = await framesSent();
     },
     async step(w) {
       recording = true;
       try { const r = await settle(from + w * windowMs); if (r.fire) fires.push(r.fire); settled++; } finally { recording = false; }
     },
     report: () => reportOf(),
+    /* the measured settles' bytes, for a before/after diff: the ledger rows, the frames pushed, the viewer's answers */
+    async evidence() {
+      const ledger = await H.q(db, `select user_id, slot, kind, intent, gold, qty, item_id, meta, purse from public.player_ledger
+                                     where session_id = any($1::uuid[]) order by id`, [sids]);
+      const pushed = door === 'viewed' ? await H.q(db, 'select topic, event, payload from realtime.bench_frames order by n') : [];
+      return { ledger, frames: pushed, answers };
+    },
   };
   async function reportOf() {
   const out = { door, heroes, hunt, windows: settled, windowMs, phases_ms_per_settle: {}, statements: [], functions: [], tables: [],
     ledger_rows_per_window: +(((await ledgerRows()) - rows0) / settled).toFixed(1),
+    ...(door === 'viewed' ? { early_asks_per_window: +(asks / settled).toFixed(2), frames_per_window: +(((await framesSent()) - frames0) / settled).toFixed(2) } : {}),
     ...(fires.length ? { fire_hunts_last: fires[fires.length - 1] } : {}) };
   for (const [k, v] of Object.entries(phases)) out.phases_ms_per_settle[k] = +(v / settled).toFixed(1);
   for (const [k, v] of stmts) out.statements.push({ statement: k, calls_per_settle: +(v.calls / settled).toFixed(2), mean_ms: +(v.ms / v.calls).toFixed(1), ms_per_settle: +(v.ms / settled).toFixed(1) });
@@ -209,12 +286,39 @@ export async function prepare({ heroes = 4, windows = 8, hunt = 'millrace_sewer'
   }
 }
 
+/* Live's ask mix: 4 early live asks for every 3 landed settles (see the viewed door). */
+const VIEWED_ASKS = [4, 3];
+
+/* index.ts's accrue read for a hunter, statement for statement (index.ts is Deno TypeScript the replay cannot import,
+   so its read is restated here): the rate gate; the state term with the span cap (hr_accrue_read where that tree's
+   index.ts reads it, 2027-02-10-settle-reads.sql, else hr_state_of); the bestiary, trophy, open-hunt and collection
+   reads. tests/settle-budget.mjs SB-0 pins this restatement to index.ts's own statement. */
+export const HELLO_STATE_SQL = {
+  read: 'select public.hr_accrue_read($1::uuid, $2::int) as state, public.hr_accrue_cap_ms($1::uuid, $2::int) as cap_ms, now() as now',
+  legacy: 'select public.hr_state_of($1::uuid, $2::int) as state, public.hr_accrue_cap_ms($1::uuid, $2::int) as cap_ms, now() as now',
+};
+async function helloStatements(root, force) {
+  const indexTs = readFileSync(join(root, 'supabase', 'functions', 'hr-accrue', 'index.ts'), 'utf8');
+  const state = force ? HELLO_STATE_SQL[force] : /public\.hr_accrue_read\(\$\{user\}::uuid, \$\{slot\}::int\)\s+as state,/.test(indexTs) ? HELLO_STATE_SQL.read : HELLO_STATE_SQL.legacy;
+  return { state, read: async (exec, u, s) => {
+    await exec(`select public.hr_rate_gate($1::uuid, $2::int, 'accrue'::text) as allowed`, [u, s]);
+    await exec(state, [u, s]);
+    await exec('select monster_id, kills from public.hr_bestiary_of($1::uuid, $2::int)', [u, s]);
+    await exec('select monster_id, stage from public.hr_trophy_of($1::uuid, $2::int)', [u, s]);
+    await exec('select public.hr_hunt_open_of($1::uuid, $2::int) as session', [u, s]);
+    await exec('select count(*)::int as n from public.hr_collection_of($1::uuid, $2::int)', [u, s]);
+  } };
+}
+
 /** One measurement: prepare, warm, `windows` windows, report. */
 export async function measure(o = {}) {
   const m = await prepare(o);
   await m.warm();
   for (let w = 2; w <= (o.windows || 8) + 1; w++) await m.step(w);
-  return m.report();
+  const r = await m.report();
+  /* --evidence=<file>: the measured settles' ledger rows, frames and answers, for a before/after byte diff */
+  if (o.evidence) writeFileSync(o.evidence, JSON.stringify(await m.evidence(), null, 1));
+  return r;
 }
 
 /** BEFORE and AFTER in one process, their windows INTERLEAVED (a, b, a, b ...): whatever else loads the machine
@@ -253,7 +357,8 @@ function print(r, top, title) {
 
 /* `--compare=<rev>`: BEFORE (`rev`'s chain and edge) and AFTER (this tree), interleaved in one process. */
 async function main() {
-  const base = { heroes: Number(arg('heroes', 4)), hunt: arg('hunt', 'millrace_sewer'), door: arg('door', 'fire') };
+  const base = { heroes: Number(arg('heroes', 4)), hunt: arg('hunt', 'millrace_sewer'), door: arg('door', 'fire'),
+    pg: process.argv.includes('--pg'), evidence: arg('evidence', null) };
   const windows = Number(arg('windows', 8));
   const top = Number(arg('top', 20));
   const rev = arg('compare', null) || arg('before', null);

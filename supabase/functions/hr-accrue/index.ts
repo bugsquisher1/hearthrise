@@ -633,11 +633,25 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
          the span cap is hr_accrue_cap_ms — hr_offline_cap_ms bounded by the
          last real return + cap, so a ticked absence is never paid twice. The
          same read in set-activity.js, claim-reward.js and spend.js;
-         tests/world-tick-presence-horizon.mjs E1 pins all four. */
-      const [row] = await tx`
+         tests/world-tick-presence-horizon.mjs E1 pins all four.
+         THE STATE TERM IS hr_accrue_read (2027-02-10-settle-reads.sql): hr_state_of for anyone not hunting; for a
+         hunter only the keys this path reads of it (the pointer computeAccrual answers hunt_open on, version, clock,
+         the rested bank) — the hello settles the hunt next and answers the commit's projection, so a whole envelope
+         here was built and dropped every hello (live 10-30: 88.5 ms, a quarter of a watched party's settle). A
+         database without it answers 42883 inside the savepoint and the statement before it runs, verbatim. */
+      let row: Row;
+      try {
+        [row] = await tx.savepoint((sp: typeof tx) => sp`
+          select public.hr_accrue_read(${user}::uuid, ${slot}::int)   as state,
+                 public.hr_accrue_cap_ms(${user}::uuid, ${slot}::int) as cap_ms,
+                 now()                                               as now`) as unknown as Row[];
+      } catch (e) {
+        if (String((e as { code?: string } | null)?.code ?? '') !== '42883') throw e;
+        [row] = await tx`
         select public.hr_state_of(${user}::uuid, ${slot}::int)      as state,
                public.hr_accrue_cap_ms(${user}::uuid, ${slot}::int)  as cap_ms,
                now()                                                as now`;
+      }
       /* ── THE BESTIARY COUNTERS RIDE THIS TRANSACTION (charms phase 1) ──────
          `hr_bestiary_of` (2026-08-20-bestiary.sql) is the dedicated read over
          the `ev:kill_monster:%` population — deliberately NOT dug out of

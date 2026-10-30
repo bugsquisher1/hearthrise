@@ -156,6 +156,8 @@ function startApp(win) {
     if (account) return;
     obs.identify(auth.userId());
     loadGlyphs(win);   // the icon atlas, for the game screen (glyphs-loader.js): fetched while the roster is read
+    /* the town's sheets likewise (src/world/prewarm.js): a cold Play after a release no longer waits for 2.5 MB */
+    import('../world/prewarm.js?v=0.2.70').then((m) => m.prewarmTown(win), () => {});
     const server = createServerLink({ url: SUPABASE_CONFIG.url, anonKey: SUPABASE_CONFIG.anonKey, token: auth.freshToken, renew: auth.renewToken,
       stale: () => fresh.check(true) });
     account = new AccountSession({ auth, server, tab: HS.session, channel: channelFor(client, auth),

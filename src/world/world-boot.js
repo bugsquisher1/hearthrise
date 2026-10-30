@@ -27,16 +27,16 @@
 // a hunt) switches once its sheets have arrived, the last frame holding meanwhile.
 // ════════════════════════════════════════════════════════════════════════
 import { BUILD } from '../build-info.js?v=0.2.70';
-import { MATERIALS, OPEN_CLASSES, LIGHTS } from '../data/world/terrain.js?v=0.2.70';
+import { OPEN_CLASSES } from '../data/world/terrain.js?v=0.2.70';
 import { WORLD_MAPS, SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.70';
 import { HUNT_INDEX } from '../data/hunts.js?v=0.2.70';
 import { MONSTERS } from '../data/monsters.js?v=0.2.70';
 import { compileMap } from './core/map-compile.js?v=0.2.70';
-import { createBook, STUB_SPRITE } from './core/book.js?v=0.2.70';
+import { createBook } from './core/book.js?v=0.2.70';
 import { fpsFor, MOBILE_QUERY } from './core/camera.js?v=0.2.70';
 import { heroBuilding, roofTargets, stepAlpha } from './core/roofs.js?v=0.2.70';
 import { readScene, setChoice, heroPosOn, notePos, forgetPos } from './store.js?v=0.2.70';
-import { loadManifests, createSceneImages, loadAtlasSet } from './atlas.js?v=0.2.70';
+import { loadManifests, createSceneImages, loadAtlasSet, baseTables } from './atlas.js?v=0.2.70';
 import { sceneSetsSliced } from './scene-sets.js?v=0.2.70';
 import { createGridArt, sandboxExtras, presenceFor } from './sandbox-scene.js?v=0.2.70';
 import { createCanvasBackend } from './render/canvas-backend.js?v=0.2.70';
@@ -158,8 +158,7 @@ export async function bootWorld(panel, opts) {
   /* EVERY manifest (the book: footprints and sets), but an image only when a scene drawing from it shows. */
   const book = createBook(await loadManifests({ doc, version: BUILD.cache }));
   /* A sprite no loaded atlas carries compiles as a one-tile stub, never a crash. */
-  const sprites = new Proxy(book.sprites, { get: (t, k) => t[k] || STUB_SPRITE });
-  const tables = { materials: MATERIALS, sprites, openClasses: OPEN_CLASSES, lights: LIGHTS };
+  const tables = baseTables(book);
   const sheets = createSceneImages({ doc, version: BUILD.cache });
   const backend = createCanvasBackend({ win, doc, book, images: sheets.images, tables, css });
   const gridArt = createGridArt({ doc, version: BUILD.cache, tables, loadSet: loadAtlasSet });

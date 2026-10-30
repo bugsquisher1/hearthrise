@@ -10,10 +10,13 @@
 // src/world/scene-sets.js derives): the town never downloads a hunting
 // ground's sheet. A manifest or an image that fails is logged and left out —
 // its sprites draw as stubs — so a slow or broken asset never blanks the pane.
+// The one exception is the town's own sets, asked for once an account is known
+// (src/world/prewarm.js), so the first Play after a release does not wait for them.
 // ════════════════════════════════════════════════════════════════════════
 import { ATLAS_SETS } from '../data/world/atlas-sets.js?v=0.2.70';
 import { atlasPaths } from '../data/world/art-budget.js?v=0.2.70';
-import { createBook } from './core/book.js?v=0.2.70';
+import { MATERIALS, OPEN_CLASSES, LIGHTS } from '../data/world/terrain.js?v=0.2.70';
+import { createBook, STUB_SPRITE } from './core/book.js?v=0.2.70';
 /* Each atlas image loads once per page (src/render/images.js): a remounted pane and the Character
    window's outfit preview reuse the decoded image instead of fetching it again. */
 import { heldImage } from '../render/images.js?v=0.2.70';
@@ -42,6 +45,11 @@ export function loadAtlasImage(o, set) {
 export async function loadAtlasSet(o, set) {
   const [manifest, image] = await Promise.all([loadAtlasManifest(o, set), loadAtlasImage(o, set)]);
   return { manifest, image };
+}
+
+/** The tables a base-grid map compiles and draws with: the terrain rows and the book's sprites (one missing compiles as a stub). */
+export function baseTables(book) {
+  return { materials: MATERIALS, sprites: new Proxy(book.sprites, { get: (t, k) => t[k] || STUB_SPRITE }), openClasses: OPEN_CLASSES, lights: LIGHTS };
 }
 
 /** Every base-grid manifest that arrived, by set; a set that failed is logged and left out. */

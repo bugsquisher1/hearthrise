@@ -5,7 +5,7 @@
 //   node tests/client-boot.mjs           the boot checks
 //   node tests/client-boot.mjs --mutate  every planted defect must turn a check RED
 //
-// mutant-anchors: src/app/boot.js src/app/slot-offer.js src/app/world-pane.js src/net/auth.js src/world/world-boot.js index.html
+// mutant-anchors: src/app/boot.js src/app/slot-offer.js src/app/world-pane.js src/net/auth.js src/world/world-boot.js src/render/images.js index.html
 //
 // The server is stubbed at the edges the client really uses: supabase-js (the
 // vendored UMD is replaced by a fake whose auth keeps its session in the
@@ -27,6 +27,9 @@
 //   B-13 A SHEET THAT LANDS AFTER ITS PANE IS GONE DOES NOTHING: a hero back from the
 //        cellar waits on the Common's sheet, the pane is closed (Characters), the sheet
 //        lands: the closed pane never wakes the hero's town presence (no walkers read)
+//   B-14 THE TOWN'S SHEETS COME WITH THE ACCOUNT (perf lane 10-29: a cold Play waited 1.56 s
+//        for them): none on the sign-in screen, the town's own sets on the characters screen
+//        before any Play (src/world/prewarm.js), and the World never fetches one again
 //   B-4  a second character opens beside the first (two topics, one strip)
 //   B-5  sign out -> the sign-in screen, and no copy of the session is left in
 //        localStorage or sessionStorage (auth key, sb-*, the tab id)
@@ -161,14 +164,20 @@ async function checks(overrides) {
 
     { // B-1 .. B-5
       const { ctx, page, errors } = await fresh();
-      const sheets = new Set();
-      page.on('request', (q) => { const s = sheetOf(q.url()); if (s) sheets.add(s); });
+      const sheets = new Set(), asks = new Map();
+      page.on('request', (q) => { const s = sheetOf(q.url()); if (s) { sheets.add(s); asks.set(s, (asks.get(s) || 0) + 1); } });
       await page.goto(base + '/play.html', { waitUntil: 'load' });
       if (!(await wait(page, () => document.querySelector('form[data-auth="sign-in"]')))) fails.push('B-1 no sign-in screen');
+      const atSignIn = [...sheets].sort().join();
       await page.fill('input[name=email]', 'qa@example.test');
       await page.fill('input[name=password]', 'not-a-real-password');
       await page.click('.auth-submit');
       if (!(await wait(page, () => document.querySelectorAll('[data-app="play"]').length === 2))) fails.push('B-2 the characters screen did not list the two owned slots');
+      /* B-14 (perf lane 10-29): the town's sheets are asked for on the characters screen, before any Play (src/world/prewarm.js) */
+      for (let i = 0; i < 300 && sheets.size < TOWN_SHEETS.sets.length; i++) await page.waitForTimeout(50);   // a loaded runner: up to 15 s
+      const beforePlay = [...sheets].sort().join();
+      if (atSignIn) fails.push('B-14 the sign-in screen already asked for the sheets ' + atSignIn + ' (only an account fetches art)');
+      if (beforePlay !== TOWN_SHEETS.sets.join()) fails.push('B-14 on the characters screen the page had asked for the sheets "' + beforePlay + '", not the town\'s ' + TOWN_SHEETS.sets.join() + ' (src/world/prewarm.js)');
       await page.click('[data-app="play"][data-slot="0"]');
       if (!(await wait(page, () => document.querySelector('#panel-world[data-slot="0"] .world-stage canvas') && document.querySelector('.hs-shell')))) fails.push('B-3 the World pane or the shell did not mount');
       const pushed = await page.evaluate((uid) => { const t = 'hr:' + uid + ':0'; const c = window.__hub.channels[t];
@@ -178,6 +187,8 @@ async function checks(overrides) {
       await page.waitForTimeout(300);
       const got = [...sheets].sort().join(), want = TOWN_SHEETS.sets.join();
       if (got !== want || TOWN_SHEETS.sets.length >= TOWN_SHEETS.all.length) fails.push('B-3 in the Common the World downloaded the sheets ' + got + ' (it draws from ' + want + ' of ' + TOWN_SHEETS.all.length + ')');
+      const twice = [...asks].filter(([, n]) => n > 1).map(([s, n]) => s + ' x' + n);
+      if (twice.length) fails.push('B-14 a sheet asked for before Play was fetched again by the World: ' + twice.join(', '));
       await page.click('[data-app="characters"]');
       if (!(await wait(page, () => document.querySelector('[data-app="play"][data-slot="1"]')))) fails.push('B-4 no way back to the characters screen');
       else {
@@ -441,6 +452,8 @@ const MUTANTS = [
     "else if (what === 'create') account.create(slot, 'New hero', { head: 13, body: 5, legs: 3, feet: 0 }).then(() => play(slot));"],
   ['a dead session stays in the game', 'src/app/boot.js', "else if (ev === 'signed-out' || ev === 'expired') sessionEnded();", "else if (ev === 'signed-out') sessionEnded();"],
   ['the closed answer is ignored', 'src/app/boot.js', "if (why === 'closed-game') showClosed();", "if (why === 'never') showClosed();"],
+  ['the town\'s sheets wait for Play again', 'src/app/boot.js', "    import('../world/prewarm.js?v=", "    Promise.resolve({ prewarmTown() {} }, '../world/prewarm.js?v="],
+  ['the World fetches a prewarmed sheet again', 'src/render/images.js', '  let ready = HELD.get(url);\n  if (ready) return ready;', '  let ready = null;'],
   ['the World downloads every sheet on Play', 'src/world/world-boot.js', '    await sheets.ensure(await setsOf(id));',
     '    await setsOf(id);\n    await sheets.ensure(Array.from(new Set(Object.keys(book.sprites).map((sid) => book.frame(sid).set))));'],
   ['a scene shows before its sheets arrive', 'src/world/world-boot.js', "could not be prepared', e));\n      }\n      return null;",

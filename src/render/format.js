@@ -10,9 +10,13 @@
 export const DASH = '–';
 const ok = (v) => typeof v === 'number' && Number.isFinite(v);
 
+/* ONE formatter (perf lane 2026-10-29): toLocaleString('en-US') builds a new Intl.NumberFormat every call, 1.5% of a
+   4x-CPU hunt's main thread from the party panel and the bar's display tick; the same rule, made once. */
+const EN_US = new Intl.NumberFormat('en-US');
+
 /** 1,234,567 */
 export function whole(v) {
-  return ok(v) ? Math.round(v).toLocaleString('en-US') : DASH;
+  return ok(v) ? EN_US.format(Math.round(v)) : DASH;
 }
 
 /** 950 / 1.2k / 34.5k / 1.2kk (the Tibia-style million mark players read on hunts). */

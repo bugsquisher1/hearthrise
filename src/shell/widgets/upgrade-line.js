@@ -12,14 +12,14 @@
 // the hero's hunt open the button is off and the line says so (gear-gate.js):
 // the engine refuses every equip mid-hunt.
 // ════════════════════════════════════════════════════════════════════════
-import { bagOf, equipmentOf, skillsOf } from '../../session/item-sections.js?v=0.2.72';
-import { levelOf } from '../../session/character-sections.js?v=0.2.72';
-import { tallyOf } from '../../session/tally-sections.js?v=0.2.72';
-import { text, cls, prop, attr } from '../../render/paint.js?v=0.2.72';
-import { runIntent } from '../intent-words.js?v=0.2.72';
-import { upgradePlan, upgradeWords } from '../upgrade-plan.js?v=0.2.72';
-import { gearLocked, GEAR_HUNT_WORDS } from '../gear-gate.js?v=0.2.72';
-import { whyLine } from './why-line.js?v=0.2.72';
+import { bagOf, equipmentOf, skillsOf } from '../../session/item-sections.js?v=0.2.73';
+import { levelOf } from '../../session/character-sections.js?v=0.2.73';
+import { tallyOf } from '../../session/tally-sections.js?v=0.2.73';
+import { text, cls, prop, attr } from '../../render/paint.js?v=0.2.73';
+import { runIntent } from '../intent-words.js?v=0.2.73';
+import { upgradePlan, upgradeWords } from '../upgrade-plan.js?v=0.2.73';
+import { gearLocked, GEAR_HUNT_WORDS } from '../gear-gate.js?v=0.2.73';
+import { whyLine } from './why-line.js?v=0.2.73';
 
 /** This character's plan, from what the server sent (empty `ops` when nothing is better); a tie between armor weights
     goes to the weight the hero chose at Tamsin's (the server's tally row). */

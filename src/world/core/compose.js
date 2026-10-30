@@ -33,11 +33,11 @@
 // none of them (map-compile.js L-GRID).
 // PURE: no DOM, no window, no G.
 // ════════════════════════════════════════════════════════════════════════
-import { ySort } from './zsort.js?v=0.2.72';
-import { heroBuilding } from './roofs.js?v=0.2.72';
-import { ellipseShadow, castMatrix } from './shadows.js?v=0.2.72';
-import { vertexGrid, tileKey } from './wang.js?v=0.2.72';
-import { OUTFITS } from '../../data/hunt-outfits.js?v=0.2.72';
+import { ySort } from './zsort.js?v=0.2.73';
+import { heroBuilding } from './roofs.js?v=0.2.73';
+import { ellipseShadow, castMatrix } from './shadows.js?v=0.2.73';
+import { vertexGrid, tileKey } from './wang.js?v=0.2.73';
+import { OUTFITS } from '../../data/hunt-outfits.js?v=0.2.73';
 
 /** Wall height: rock tops and capstones are raised by it. */
 export const WALL_FACE_PX = 48;
@@ -283,6 +283,41 @@ export function takeGround(map, book, tables, T) {
   return g;
 }
 
+/* Where sprite `id`'s frame lands for tile (tx, ty) (PLACEMENT above): its record, source rect, drawn box and footprint
+   row. One rule for a placed drawable and for the map's standing index below. */
+function frameBox(book, id, tx, ty, o, T) {
+  const s = book.sprite(id);
+  const f = book.frame(id, o.anim, o.dir, o.i);
+  let { sx, sy, w, h, ax, ay } = f;
+  if (o.crop) { const [c0, c1, c2, c3] = o.crop; sx += c0; sy += c1; w = c2 - c0; h = c3 - c1; ax -= c0; ay -= c1; }
+  const [fw, fh] = o.fp || s.footprint;
+  const x = Math.round(tx * T + Math.floor((fw * T) / 2) - ax + (o.dx || 0));
+  /* Hung art and fliers are drawn `hover` px up; a flier's shadow stays on the floor. */
+  const air = s.class === 'hanging' || s.class === 'flier' ? s.hover || 0 : 0;
+  const y = Math.round(ty * T + fh * T - 1 - ay - (o.lift || 0)) - air;
+  return { s, set: f.set, sx, sy, w, h, ax, ay, x, y, fh, air };
+}
+
+/* THE MAP'S STANDING ART, FOUND ONCE (perf lane 2026-10-29): every frame walked all the map's cells (the town's 22,272)
+   and placed all its objects (966) to keep the ~150 near its view. Kept per map for its book, materials and grid: the
+   cells that raise a wall or a rock top (row order) and each object's drawn box. A frame places only what lies near its
+   view, in the whole walk's order, so its list is the whole walk's (tests/world-core.mjs W6). */
+const STANDING = new WeakMap();
+function standingOf(map, book, tables, T) {
+  const had = STANDING.get(map);
+  if (had && had.book === book && had.materials === tables.materials && had.T === T && had.n === map.objects.length) return had;
+  const painted = !!(book.terrains[map.groundTerrain] && book.terrains[map.groundTerrain].painted);
+  const cells = [];
+  for (let y = 0; !painted && y < map.h; y++) {
+    for (let x = 0; x < map.w; x++) { const m = tables.materials[map.ground[y * map.w + x]]; if (m && m.solid && !m.flat) cells.push(x, y); }
+  }
+  const boxes = new Float64Array(map.objects.length * 4);
+  map.objects.forEach((o, i) => { const b = frameBox(book, o.id, o.x, o.y, { fp: [o.fw, o.fh] }, T); boxes.set([b.x, b.y, b.w, b.h], i * 4); });
+  const made = { book, materials: tables.materials, T, n: map.objects.length, cells: Int32Array.from(cells), boxes };
+  STANDING.set(map, made);
+  return made;
+}
+
 /**
  * @param {object} map       compileMap() output
  * @param {object} book      createBook()
@@ -301,18 +336,9 @@ export function composeFrame(map, book, state, view, tables, T) {
   let seq = 0;
 
   function place(id, tx, ty, o = {}) {
-    const s = book.sprite(id);
-    const f = book.frame(id, o.anim, o.dir, o.i);
-    let { sx, sy, w, h, ax, ay } = f;
-    if (o.crop) { const [c0, c1, c2, c3] = o.crop; sx += c0; sy += c1; w = c2 - c0; h = c3 - c1; ax -= c0; ay -= c1; }
-    const [fw, fh] = o.fp || s.footprint;
-    const x = Math.round(tx * T + Math.floor((fw * T) / 2) - ax + (o.dx || 0));
-    let y = Math.round(ty * T + fh * T - 1 - ay - (o.lift || 0));
-    /* Hung art and fliers are drawn `hover` px up; a flier's shadow stays on the floor. */
-    const air = s.class === 'hanging' || s.class === 'flier' ? s.hover || 0 : 0;
-    y -= air;
+    const { s, set, sx, sy, w, h, ax, ay, x, y, fh, air } = frameBox(book, id, tx, ty, o, T);
     const ground = s.class === 'flier' ? air : 0;
-    const d = { id, set: f.set, sx, sy, w, h, x, y, row: ty * T + fh * T - 1 + (o.bias || 0), seq: seq++, alpha: o.alpha == null ? 1 : o.alpha,
+    const d = { id, set, sx, sy, w, h, x, y, row: ty * T + fh * T - 1 + (o.bias || 0), seq: seq++, alpha: o.alpha == null ? 1 : o.alpha,
       kind: o.kind || s.layer, cls: s.class, tx, ty, ref: o.ref || null };
     if (!near(x, y, w, h)) return d;
     if (s.layer === 'decal') decals.push(d);
@@ -330,18 +356,16 @@ export function composeFrame(map, book, state, view, tables, T) {
   const paintedGround = !!(book.terrains[map.groundTerrain] && book.terrains[map.groundTerrain].painted);
   const solid = (x, y) => { const m = tables.materials[map.ground[y * map.w + x]]; return !paintedGround && !!(m && m.solid); };
   const floorAt = (x, y) => x >= 0 && y >= 0 && x < map.w && y < map.h && !solid(x, y);
-  for (let y = 0; y < map.h; y++) {
-    for (let x = 0; x < map.w; x++) {
-      if (!solid(x, y) || !near(x * T, y * T - 2 * T, T, 3 * T)) continue;
-      const mat = tables.materials[map.ground[y * map.w + x]];
-      if (mat.flat) continue;
-      const kit = mat.wall;
-      if (floorAt(x, y + 1)) { place(map.faces[x + ',' + y] || kit + '_wall', x, y, { i: x % 4, bias: -0.5, kind: 'wall' }); continue; }
-      raised.push({ id: 'void', set: null, x: x * T, y: y * T - WALL_FACE_PX, w: T, h: T, row: y * T + T - 1, seq: seq++, alpha: 1, kind: 'void' });
-      if (floorAt(x, y - 1)) place(kit + '_cap_h', x, y, { lift: CAP_H_LIFT, raised: true, shadow: false, bias: 1 });
-      if (floorAt(x + 1, y)) place(kit + '_cap', x, y, { dx: CAP_DX, lift: WALL_FACE_PX, raised: true, shadow: false, bias: 1 });
-      if (floorAt(x - 1, y)) place(kit + '_cap_w', x, y, { dx: -CAP_DX, lift: WALL_FACE_PX, raised: true, shadow: false, bias: 1 });
-    }
+  const standing = standingOf(map, book, tables, T);
+  for (let i = 0; i < standing.cells.length; i += 2) {
+    const x = standing.cells[i], y = standing.cells[i + 1];
+    if (!near(x * T, y * T - 2 * T, T, 3 * T)) continue;
+    const kit = tables.materials[map.ground[y * map.w + x]].wall;
+    if (floorAt(x, y + 1)) { place(map.faces[x + ',' + y] || kit + '_wall', x, y, { i: x % 4, bias: -0.5, kind: 'wall' }); continue; }
+    raised.push({ id: 'void', set: null, x: x * T, y: y * T - WALL_FACE_PX, w: T, h: T, row: y * T + T - 1, seq: seq++, alpha: 1, kind: 'void' });
+    if (floorAt(x, y - 1)) place(kit + '_cap_h', x, y, { lift: CAP_H_LIFT, raised: true, shadow: false, bias: 1 });
+    if (floorAt(x + 1, y)) place(kit + '_cap', x, y, { dx: CAP_DX, lift: WALL_FACE_PX, raised: true, shadow: false, bias: 1 });
+    if (floorAt(x - 1, y)) place(kit + '_cap_w', x, y, { dx: -CAP_DX, lift: WALL_FACE_PX, raised: true, shadow: false, bias: 1 });
   }
 
   for (const b of map.buildings) {
@@ -382,7 +406,11 @@ export function composeFrame(map, book, state, view, tables, T) {
     }
   }
 
-  for (const o of map.objects) place(o.id, o.x, o.y, { fp: [o.fw, o.fh] });
+  for (let i = 0, b = standing.boxes; i < map.objects.length; i++) {
+    if (!near(b[4 * i], b[4 * i + 1], b[4 * i + 2], b[4 * i + 3])) continue;
+    const o = map.objects[i];
+    place(o.id, o.x, o.y, { fp: [o.fw, o.fh] });
+  }
 
   const plates = [], bars = [], floats = [], bubbles = [], badges = [], effects = [], points = map.lights.map((l) => ({ x: l.x * T, y: l.y * T, r: l.radius * T, tint: l.tint }));
   let target = null;

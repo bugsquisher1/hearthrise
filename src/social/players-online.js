@@ -12,10 +12,11 @@
 // is malformed shows nothing ("—"), never the last number as if it were still
 // true. Nothing can spend it or gate on it.
 // ════════════════════════════════════════════════════════════════════════
+import { whole } from '../render/format.js?v=0.2.73';
 
 /** The counter's words: "3 online"; "— online" before (or without) a server answer. Pure. */
 export function onlineWords(n) {
-  return (Number.isSafeInteger(n) && n >= 0 ? n.toLocaleString('en-US') : '—') + ' online';
+  return (Number.isSafeInteger(n) && n >= 0 ? whole(n) : '—') + ' online';
 }
 
 export class PlayersOnline {

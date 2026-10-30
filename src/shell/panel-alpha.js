@@ -8,7 +8,7 @@
 // stay solid. One World pane is mounted at a time (src/app/boot.js), so its shell is
 // the one writer. A display preference: nothing gates or spends on it.
 // ════════════════════════════════════════════════════════════════════════
-import { PANEL_ALPHA } from '../data/panel-alpha.js?v=0.2.70';
+import { PANEL_ALPHA } from '../data/panel-alpha.js?v=0.2.71';
 
 /** The character's window opacity in percent (its residue, else solid). */
 function panelAlphaOf(character) {

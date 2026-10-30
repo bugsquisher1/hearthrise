@@ -113,6 +113,11 @@
 //              moved = coins − store gold, the tally's Waste carries it; under
 //              `end` the store sells nothing.
 //   END        under `end`, a dry essential heal line ends the hunt heals_out.
+//   HOME-WHOLE every end sends the hero home whole (designer 2026-10-29): a hero hurt
+//              when a Leave, stamina, supplies or gold ends its hunt is stored at full
+//              HP, the envelope draws full HP and mana in town, its next hunt enters
+//              full; with the browser closed (the tick's door) and the hunt viewed
+//              (the player's settle door and its own answer).
 //   STAMINA    the pool through the database; the cap follows premium (free
 //              8 h, premium 12 h at the window); a tampered pool is refused.
 //   RESUME     an automatic end resumes the last activity after the walk home;
@@ -1801,6 +1806,75 @@ const DB_ARMS = {
     else if (owed.error !== 'end_missing') problems.push(`a death with the hunt left running answered ${JSON.stringify(owed).slice(0, 200)}`);
     return problems;
   }),
+  /* EVERY END SENDS THE HERO HOME WHOLE (designer 2026-10-29: Pellow sat at 135/160 in town for four days and
+     started his next hunt there). A Level-10 hero that walks in at 20 of 240 HP, eats nothing on the way, and ends by
+     a Leave, stamina, supplies (heals_out) or gold (gold_out) is STORED at its full HP; the envelope the client draws
+     reads full HP and full mana in town (src/session/character-sections.js heroVitalsOf, the HUD's one reader); and
+     its next hunt enters full. BOTH PATHS: the browser closed (the tick's door) and the hunt viewed (the player's
+     settle door, project + live, whose own answer is read too). The Leave is put at 4 s (hunt_sessions.leave_at, the
+     column the engine ends on); the verb's own instant, the live horizon, is NO-DODGE's. */
+  'HOME-WHOLE': async (db, M) => inTx(db, async () => {
+    const problems = [];
+    const { heroVitalsOf } = await import(pathToFileURL(join(ROOT, 'src/session/character-sections.js')).href);
+    const exec = makeExec(db);
+    const eat = (id) => [{ action: { type: 'consume', id }, conditions: [{ metric: 'self_hp_pct', op: 'lt', value: 99 }], join: 'and' }];
+    const ENDS = {
+      left: { ...WEAK, minutesAgo: 2, leaveMs: 4000 },
+      stamina: { ...WEAK, minutesAgo: 2, stamina: 3 * 2000 },
+      heals_out: { ...WEAK, minutesAgo: 2, options: { on_empty: 'end', slots: eat('cooked_shrimp') },
+        inv: { cooked_shrimp: 1 }, bag: [{ item: 'cooked_shrimp', qty: 1, essential: true }] },
+      gold_out: { ...WEAK, minutesAgo: 2, options: { on_empty: 'switch', slots: eat('salted_shrimp') } },
+    };
+    const DOORS = {
+      'the browser closed': { door: (sid) => ({ mode: 'tick', session: sid }), cuts: [90000] },
+      'the hunt viewed': { door: () => ({ mode: 'settle', bucket: null, project: true, live: true }), cuts: [12345, 30000] },
+    };
+    /* What the client draws from an envelope: HP and mana, each against its maximum. */
+    const drawn = (env) => heroVitalsOf({ read: (k) => (env ? env[k] : undefined) });
+    for (const [why, fx] of Object.entries(ENDS)) {
+      const h = await hunter(db, M, fx);
+      if (fx.leaveMs) await db.query(`update public.hunt_sessions set leave_at = to_timestamp($2::bigint / 1000.0) where id = $1`, [h.sid, h.from + fx.leaveMs]);
+      const vit = await one(db, 'select public.hr_vitals_of($1::uuid, 0)', [UID]);
+      const maxHp = Number(vit.max_hp); const maxMana = Number(vit.max_mana);
+      if (!(Number(await one(db, 'select hp from public.player_state where user_id = $1 and slot = 0', [UID])) < maxHp * 0.2)) {
+        problems.push(`${why}: CONTROL: the hero did not walk in hurt`); continue;
+      }
+      await db.query('savepoint home_whole');
+      for (const [path, d] of Object.entries(DOORS)) {
+        const door = d.door(h.sid);
+        let answer = null;
+        for (const c of d.cuts) {
+          const r = await M.HS.settleHunt({ exec, user: UID, slot: 0, grounds: groundsOf(M), atMs: h.from + c, ...door });
+          if (!r || r.outcome !== 'paid') { problems.push(`${why} (${path}): the window to +${c} ms answered ${r && r.outcome}/${r && r.reason}`); break; }
+          answer = r;
+          if (r.ended) break;
+        }
+        const s = await snapshot(db, h.sid);
+        if (s.session.end_reason !== why) { problems.push(`${why} (${path}): CONTROL: the hunt ended ${s.session.end_reason}`); await db.query('rollback to savepoint home_whole'); continue; }
+        if (s.hp !== maxHp) problems.push(`${why} (${path}): the hero is stored at ${s.hp} of ${maxHp} HP in town, not full`);
+        const envs = [['the envelope', await one(db, 'select public.hr_state_of($1::uuid, 0)', [UID])]];
+        if (door.project) envs.push(['the settle\'s own answer', answer && answer.body]);
+        for (const [label, env] of envs) {
+          const v = drawn(env);
+          if (v.hunting || v.hp !== maxHp || v.hpMax !== maxHp || v.mana !== maxMana || v.manaMax !== maxMana) {
+            problems.push(`${why} (${path}): ${label} draws HP ${v.hp}/${v.hpMax}, mana ${v.mana}/${v.manaMax} in town (hunting ${v.hunting}), not full (${maxHp} HP, ${maxMana} mana)`);
+          }
+        }
+        /* The next hunt starts fresh. */
+        await asUser(db, UID);
+        const e = await one(db, `select public.hr_hunt_enter(0, 'mill_cellar', '[]'::jsonb, 0, null, $1::uuid)`, [idem()]);
+        await db.query(`select set_config('request.jwt.claim.sub', '', true)`);
+        if (!e || e.ok !== true) problems.push(`${why} (${path}): the next hunt was refused ${JSON.stringify(e).slice(0, 200)}`);
+        else {
+          const v = drawn(await one(db, 'select public.hr_state_of($1::uuid, 0)', [UID]));
+          if (!v.hunting || v.hp !== maxHp || v.mana !== maxMana) problems.push(`${why} (${path}): the next hunt enters at HP ${v.hp}/${v.hpMax}, mana ${v.mana}/${v.manaMax}, not full`);
+        }
+        await db.query('rollback to savepoint home_whole');
+      }
+      await db.query('rollback'); await db.query('begin');
+    }
+    return problems;
+  }),
   STAMINA: async (db, M) => inTx(db, async () => {
     const problems = [];
     const { sid, from } = await hunter(db, M, { ...STRONG, stamina: 30 * 2000 });
@@ -3307,7 +3381,11 @@ const MUTANTS = [
   { arm: 'DEATH', name: 'a death does not end the hunt', file: 'src/core/action-rules.js',
     from: '  died: (hs) => hs.died === true,', to: '  died: () => false,' },
   { arm: 'DEATH', name: 'a dead hero walks home at 0 HP', file: 'src/core/combat-sim.js',
-    from: '  if (u) m.state.playerHp = u.alive ? u.hp : m.state.playerMaxHp;', to: '  if (u) m.state.playerHp = u.alive ? u.hp : 0;' },
+    from: '  m.state.playerHp = m.state.playerMaxHp;\n', to: '' },
+  /* The pre-2026-10-29 end, restored (Pellow at 135/160): only a death sent the hero home whole. */
+  { arm: 'HOME-WHOLE', name: 'an end other than a death walks home with the HP it had', file: 'src/core/combat-sim.js',
+    from: '  m.state.playerHp = m.state.playerMaxHp;\n',
+    to: '  const u = world && m.unitId !== null ? world.units.find((x) => x.id === m.unitId) : null;\n  if (u) m.state.playerHp = u.alive ? u.hp : m.state.playerMaxHp;\n' },
   { arm: 'DEATH', name: 'a death row carries a recovery clock again', file: join(FN, 'accrual.js'),
     from: '      monster: String(d.monster || \'\'),\n      deaths_today:', to: '      monster: String(d.monster || \'\'),\n      recovery_ms: 60000,\n      deaths_today:' },
   { arm: 'DEATH', name: 'a death costs nothing', file: 'src/core/combat-sim.js',

@@ -47,6 +47,38 @@ const cases = {
     if (m.hs.endedAtMs % 2000 !== 0 || m.hs.endedAtMs <= T0) return 'the end is not on a swing boundary: ' + m.hs.endedAtMs;
     return fx.world.swing < 50 ? null : 'the world kept stepping all 50 boundaries after its only hero died';
   },
+  /* EVERY END SENDS THE HERO HOME WHOLE (designer 2026-10-29: Pellow left at 135/160 and started his next hunt
+     there). A hero that walks in at 60 of 400 HP and ends by a leave, stamina, supplies (heals_out), gold (gold_out)
+     or a stop rule is back with FULL HP, as a dead one is; in one span (the browser closed: the tick's long
+     window) and cut anywhere (the hunt viewed: a player's instants). Each end is the engine's own (a real eat,
+     a store buy the purse cannot pay, a rule met), never a planted flag; no food heals it on the way (an empty bag). */
+  'every-end-goes-home-whole': (M) => {
+    const eat = (id) => M.conditions.heroSlots([{ action: { type: 'consume', id }, conditions: [{ metric: 'self_hp_pct', op: 'lt', value: 99 }], join: 'and' }], 'melee_dps');
+    const salted = M.SB.BASIC_SUPPLIES.find((b) => b.id === 'salted_shrimp');
+    const ENDS = {
+      left: { hs: { leaveAtMs: T0 + 6000 } },
+      stamina: { hs: { staminaMs: 3 * 2000 } },
+      heals_out: { hs: { onEmpty: 'end', bag: { cooked_shrimp: { loaded: 1, essential: true } } } },
+      gold_out: { hs: { purse: 0, basics: { salted_shrimp: { kind: 'heal', price: salted.price, heals: salted.heals, partner: salted.partner } } },
+        slots: eat('salted_shrimp') },
+      rule: { stop: M.conditions.heroStopRules([{ conditions: [{ metric: 'self_hp_pct', op: 'lt', value: 99 }], join: 'and', forMs: 0 }]) },
+    };
+    for (const [why, e] of Object.entries(ENDS)) {
+      for (const [path, cuts] of [['the browser closed', []], ['the hunt viewed', cutsOf(11, 6, 30000)]]) {
+        const a = member(M, 'a', { unitId: 1, hp: 60, maxHp: 400 });
+        a.hs = M.AR.newHuntSession(Object.assign({ id: 'h1-a', instanceId: 'h1-span', huntFromMs: T0, nextSwingAtMs: T0, bag: {} }, e.hs));
+        /* The bar: its one food slot (an own stack, so an empty bag never fires it), or the case's. */
+        a.hero.slots = e.slots || eat('cooked_shrimp');
+        if (e.stop) a.hero.stopRules = e.stop;
+        const fx = spanFixture(M, 7, { spanMs: 30000, members: [a] });
+        fx.inst.world.units.find((u) => u.id === 1).hp = 60;
+        runSpan(M, fx, cuts);
+        if (a.hs.endedReason !== why) return why + ' (' + path + '): the hunt ended ' + a.hs.endedReason;
+        if (a.state.playerHp !== a.state.playerMaxHp) return why + ' (' + path + '): the hero came home at ' + a.state.playerHp + ' of ' + a.state.playerMaxHp + ' HP, not full';
+      }
+    }
+    return null;
+  },
   /* AN END IS WHERE IT IS, HOWEVER THE WINDOWS FALL (TICK-1, BOTH-PATH): a window cut just after the death
      (its end stamped after the loop) and one span (its end met at the boundary) leave the instance on the same
      swing and clock: the world is never stepped once more after its last member ended. */
@@ -104,7 +136,11 @@ const mutants = [
   { name: 'a death does not end the hunt', case: 'death-ends-the-hunt',
     edits: [['src/core/action-rules.js', '  died: (hs) => hs.died === true,', '  died: () => false,']] },
   { name: 'a dead hero comes home at 0 HP', case: 'death-ends-the-hunt',
-    edits: [['src/core/combat-sim.js', '  if (u) m.state.playerHp = u.alive ? u.hp : m.state.playerMaxHp;', '  if (u) m.state.playerHp = u.alive ? u.hp : 0;']] },
+    edits: [['src/core/combat-sim.js', '  m.state.playerHp = m.state.playerMaxHp;\n', '']] },
+  /* The pre-2026-10-29 end, restored: only a death sent the hero home whole. */
+  { name: 'an end other than a death walks home with the HP it had', case: 'every-end-goes-home-whole',
+    edits: [['src/core/combat-sim.js', '  m.state.playerHp = m.state.playerMaxHp;\n',
+      '  const u = world && m.unitId !== null ? world.units.find((x) => x.id === m.unitId) : null;\n  if (u) m.state.playerHp = u.alive ? u.hp : m.state.playerMaxHp;\n']] },
   { name: 'a death costs no XP', case: 'death-ends-the-hunt',
     edits: [['src/core/combat-sim.js', "    if (k === 'level') m.state.levelXp = (Number(m.state.levelXp) || 0) - xpLost[k];", "    if (k === 'level') m.state.levelXp = Number(m.state.levelXp) || 0;"]] },
   { name: 'a party death leaves the survivor hunting', case: 'party-death-ends-everyone',

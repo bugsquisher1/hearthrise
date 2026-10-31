@@ -591,6 +591,11 @@ async function armourWordRules(base) {
   const wornW = AW.wornWeights({ helmet: 'iron_helm', body: 'bronze_platebody', boots: 'leather_boots', pants: 'apprentice_pants', cape: Object.keys(ITEMS).find((k) => ITEMS[k].slot === 'cape'), weapon: 'iron_sword' });
   if (wornW.map((x) => x.text).join(' · ') !== '2 heavy (' + pc(VITALS.heavyHpPermille * 2 / ARMOUR_SLOTS.length) + ' max HP) · 1 medium (more blows miss) · 1 light (' + pc(VITALS.lightManaPermille / ARMOUR_SLOTS.length) + ' max mana)')
     fails.push('AW-34 the worn-weight line for 2 plate, 1 leather, 1 cloth and a cape reads ' + JSON.stringify(wornW));
+  /* Nothing worn: one plain line, never "0 heavy (+0% max HP)" beside a plate sprite (blind playtest 2026-10-31); a weight with no piece says nothing. */
+  const wornNone = AW.wornWeights({ weapon: 'iron_sword' }).map((x) => x.text).join('|');
+  if (wornNone !== 'None yet. Your outfit is only a look.||') fails.push('AW-34 the worn-weight line with no armor reads ' + JSON.stringify(wornNone));
+  const wornOne = AW.wornWeights({ helmet: 'iron_helm' }).map((x) => x.text).filter(Boolean);
+  if (wornOne.length !== 1 || !/^1 heavy \(/.test(wornOne[0])) fails.push('AW-34 one heavy piece reads ' + JSON.stringify(wornOne));
   /* the share the words say is the one the engine adds: vitals.js maxHpFor / maxManaFor at every count (L 100) */
   const { maxHpFor, maxManaFor } = await imp('src/core/vitals.js');
   for (let n = 0; n <= ARMOUR_SLOTS.length; n++) {

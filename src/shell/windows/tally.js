@@ -16,7 +16,7 @@
 // (hr_tally_view). Every control is off while an intent is in flight; the window
 // changes only from the re-read envelope and her next answer.
 // ════════════════════════════════════════════════════════════════════════
-import { tallyOf, tallyLine, waitWords, pickWords } from '../../session/tally-sections.js?v=0.2.75';
+import { tallyOf, tallyLine, waitWords, pickWords, countsWords } from '../../session/tally-sections.js?v=0.2.75';
 import { tallyBoard, takeTask, dropTask, setTally, collectTally } from '../../session/tally-intents.js?v=0.2.75';
 import { huntOf } from '../../session/hunt-sections.js?v=0.2.75';
 import { huntName } from '../../session/party-sections.js?v=0.2.75';
@@ -82,7 +82,7 @@ function patchHeld(li, h, st) {
   style(li.querySelector('.ht-stick i'), 'width', pct + '%');
   attr(li.querySelector('.ht-stick'), 'aria-valuenow', pct);
   cls(li, 'is-done', h.done);
-  text(li.querySelector('small'), h.done ? waitWords(st.t, h, st.hunting) : 'Every kill in ' + huntName(h.hunt) + ' counts, even while you\'re away.');
+  text(li.querySelector('small'), h.done ? waitWords(st.t, h, st.hunting) : countsWords(h.task, huntName(h.hunt)));
   const keep = li.querySelector('[data-hs-act="keep"]');
   prop(keep, 'checked', h.keep);
   prop(keep, 'disabled', st.sc.pending);
@@ -174,7 +174,7 @@ renderTally.act = function actTally(ctx, body, action, ev, t) {
   if (action === 'take') {
     const row = tallyTask(task);
     run(() => takeTask(ctx.account, cs, task, null), 'Taking it…',
-      () => 'Taken. Every kill in ' + (row ? huntName(row.hunt) : 'that hunt') + ' counts, even while you\'re away.');
+      () => 'Taken. ' + countsWords(task, row ? huntName(row.hunt) : 'that hunt'));
     return true;
   }
   if (action === 'drop') { run(() => dropTask(ctx.account, cs, task), 'Giving it up…', () => labelOf(task) + ': given up. Its count is gone.'); return true; }

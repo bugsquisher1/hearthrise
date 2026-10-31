@@ -211,6 +211,7 @@
 .hw-weights { display: none; margin: 6px 0 0; font-size: var(--t-micro); color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; cursor: help; }
 .hw-weights.is-on { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 12px; }
 .hw-weights span { white-space: nowrap; }
+.hw-weights span:empty { display: none; }
 .hw-weights small { font-family: var(--f-label); font-weight: 700; letter-spacing: .04em; color: var(--ink-3); }
 .hw-inv-foot { display: flex; align-items: center; gap: 10px; margin-top: 6px; font-size: var(--t-micro); color: var(--ink-2); }
 .hw-capacity { display: none; flex: 1; min-width: 0; align-items: center; gap: 6px; }

@@ -3814,3 +3814,12 @@ row. Give the head cells the rows' data-c and hide both with one selector.
   hasShot, ranger-bar shot-spell-words). Folding it into the server's struck state would make the two one rule.
 - P4, hardening: no standing guard pins "every pocket spawns its full pull at every density up to its max on the
   production grid" (measured green today for all six grounds, Sewer to 12); tests/hunt-core/pull-cycle.mjs is its home.
+
+## 2026-10-31 · qa-engineer (lane/a-party-soak) · what the party soak found and left open (fixed items are in the LANE DONE commit)
+- P3, backend-architect: hr_hunt_settle_refused counts hr_apply's `rate_limited` (240 applies a minute, an account) as a seat's strike, six a forfeit. Real time never reaches it (a 4-hero commit is 4 applies, about 6 commits a minute); the skip did. A rate limit is "owed", never a forfeit reason: make it no strike on the next settle-body change.
+- P3, game-designer + client: a kicked hero's summary says "You left the hunt." (`left`); hr_hunt_view has no kick fact.
+- P3, game-designer: a stranger's town work (gather, artisan) yielding to the leader's Start loses its unsettled stretch since the last tick (`activity_yield`): the leader's client settles only its own heroes. Bounded by the tick (90 s flush). Same-account heroes are settled first.
+- P3, game-designer: Start admits a member with seconds of stamina (no_stamina only at exactly 0); its hunt ends `stamina` after a swing and sends every ticked hero home. The strip shows the bar; nothing warns the leader.
+- P4, client: pressing Start while a leave pends reads "Everyone in the party is already hunting." (already_hunting).
+- DESIGN CALL for game-designer to overrule: a full bag never stops a hunt, loot lands past the cap (2027-02-11-hunt-loot-past-bag-cap.sql header). No ruling covers a full bag; the only other honest options are a new END_ORDER reason or loot left behind.
+- NOTE, game-designer: store `bronze_arrows` is FREE_RUNG (src/data/supply-basics.js), a Ranger on them spends nothing, against the 10-23 "1 g a shot for tiers 1-3" (provisional). Not changed.

@@ -31,7 +31,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const FILES = ['src/app/new-version.js', 'src/app/boot.js', 'src/build-info.js', 'src/session/server.js',
-  'src/session/intent-ledger.js', 'src/net/supabase-bootstrap.js'];
+  'src/session/intent-ledger.js', 'src/net/supabase-bootstrap.js', 'src/net/auth-lock.js'];
 let seq = 0;
 
 async function load(base) {

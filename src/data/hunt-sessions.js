@@ -12,9 +12,9 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_STANCES } from './rule-subjects.js?v=0.2.76';
-import { WEAPON_ROLES } from './hunt-roles.js?v=0.2.76';
-import { ACTION_SET_SKIPS } from './abilities.js?v=0.2.76';
+import { HUNT_STANCES } from './rule-subjects.js?v=0.2.77';
+import { WEAPON_ROLES } from './hunt-roles.js?v=0.2.77';
+import { ACTION_SET_SKIPS } from './abilities.js?v=0.2.77';
 
 /* Hours is an optional limit, off by default: the bag, stamina and death
    already bound a hunt, and a timer nobody asked for is a hunt that ends for no
@@ -192,9 +192,18 @@ export const STAMINA_MAX_MS = Object.freeze({ free: 8 * 3600000, premium: 12 * 3
    the purse cannot pay ends the hunt at the next boundary. `rule` (Tyler
    2026-10-18, the action engine): one of the hero's own stop rules held for its
    hold time (src/core/hunt/conditions.js checkStopRules). The server reads
+   `no_fight` (designer 2026-10-31: a hero must not sit in a hunt it can't fight in; players' archers "hunted" for
+   hours with 0 kills while the store spent 4,500-8,746 gp): nobody in the instance has landed a blow on a monster or
+   killed one for NO_FIGHT_END_MIN (combat-sim.js, the world's `fightAt`). The server reads
    this list as hr_hunt_end_reasons and as hunt_sessions.end_reason's CHECK
    (tools/gen-hunt-sessions.mjs). */
-export const END_ORDER = Object.freeze(['died', 'party_member_died', 'party_member_left', 'heals_out', 'ammo_out', 'gold_out', 'rule', 'stamina', 'hours', 'left', 'changed', 'server']);
+export const END_ORDER = Object.freeze(['died', 'party_member_died', 'party_member_left', 'heals_out', 'ammo_out', 'gold_out', 'rule', 'stamina', 'hours', 'left', 'changed', 'no_fight', 'server']);
+
+/* THE NO-FIGHT SPAN, in hunt minutes (the server reads it as hr_hunt_limits.no_fight_min). MEASURED on the real settle,
+   every ground at its floor, solo and as a party with a Healer (tests/hunt-core/no-fight.mjs quiet-gaps): the longest
+   quiet stretch of a hunt that is fighting stays well under it (respawns, walks, a wiped pocket), so only a hero who
+   cannot fight ever reaches it. */
+export const NO_FIGHT_END_MIN = 10;
 
 /* WHICH ENDS SEND THE CHARACTER BACK TO WHAT THEY WERE DOING (Tyler
    2026-10-14): every AUTOMATIC end. A hunt the player left or changed is the
@@ -203,7 +212,7 @@ export const END_ORDER = Object.freeze(['died', 'party_member_died', 'party_memb
    (player_state.last_activity_kind / _id), if that is still allowed; else
    idle in town. A data row so Huntera-style combat training can take its
    place later without touching the settle. */
-export const RESUME_AFTER_END = Object.freeze(['died', 'party_member_died', 'party_member_left', 'heals_out', 'ammo_out', 'gold_out', 'rule', 'stamina', 'hours', 'server']);
+export const RESUME_AFTER_END = Object.freeze(['died', 'party_member_died', 'party_member_left', 'heals_out', 'ammo_out', 'gold_out', 'rule', 'stamina', 'hours', 'no_fight', 'server']);
 
 /* The non-hunt activity kinds a character's "last activity" may name. `training`
    is RESERVED for the combat redesign (train a chosen combat skill in town while
@@ -241,6 +250,7 @@ export const END_REASON_COPY = Object.freeze({
   hours: Object.freeze({ one: 'Your 1-hour limit was up, so you headed home.', other: 'Your {n}-hour limit was up, so you headed home.' }),
   left: Object.freeze({ one: 'You left the hunt and walked home.' }),
   changed: Object.freeze({ one: 'You moved on to {hunt}.' }),
+  no_fight: Object.freeze({ one: `You went ${NO_FIGHT_END_MIN} minutes without landing a blow, so you headed home. Check your weapon, your ammo and your action bar.` }),
   server: Object.freeze({ one: 'The server ended the hunt. Everything you earned up to then is yours.' }),
 });
 

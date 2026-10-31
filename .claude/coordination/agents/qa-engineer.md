@@ -440,3 +440,6 @@ gathering; mobile/landscape.
 
 ### 2026-08-08 · bootstrap
 Baseline green: 175/175. No active task. QA also verifies other agents' work before integration.
+
+### 2026-10-31 · lane/a-party-soak
+A skip fires faster than the clock: read hr_apply's per-minute `apply` budget before believing a forfeit (the skip now resets it). The soak's own bookkeeping must read `supply_own` meta.items and a kill's meta.delta.i. A bot's token lives an hour. `tools/qa/party-soak.mjs` is the re-runnable half; the bag-full forfeit took 33 simulated hours to appear, so run it with `--hours 12` after any loot or catalogue change.

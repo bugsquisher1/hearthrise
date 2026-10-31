@@ -20,8 +20,8 @@
 // partner's book value per shot. A basic RUNE is the store's version of a rune an ability
 // spends (designer 2026-10-21: Plain Fire Rune, 8 g a cast, 2x the Fire Rune's
 // book; Tyler 10-15 "runes and ammo: carried first, then the store" replaces
-// the K10 no-basic-runes rule). The free tier-1 rungs (Bronze Arrows, Air Rune,
-// Coarse Whetstone) stay ordinary packed items.
+// the K10 no-basic-runes rule). The free rung (Bronze Arrows: designer 2026-10-31)
+// stays an ordinary packed item with no store row.
 //
 // THE PLAYER PICKS THE ITEM (Tyler 2026-10-21, designer-confirmed): a bar slot
 // names ONE item. A store food or drink below is an item a slot can name, bought
@@ -54,8 +54,8 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { RUNE_TIERS, runeId } from './runes.js?v=0.2.76';
-import { CRAFTED_RUNE_FAMILIES } from './stonecraft.js?v=0.2.76';
+import { RUNE_TIERS, runeId } from './runes.js?v=0.2.77';
+import { CRAFTED_RUNE_FAMILIES } from './stonecraft.js?v=0.2.77';
 
 /* A basic heal or drink gives this share of its crafted partner (floored); a
    basic arrow gives this share of its partner's ammo bonus. */

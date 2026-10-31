@@ -11,7 +11,7 @@
 // A chunk is drawn only once whole, and its calls run in the same order however it is sliced, so
 // the pixels are the one-go bake's (tests/world-core.mjs W5).
 // ════════════════════════════════════════════════════════════════════════
-import { takeGround, groundOfSliced, sliced } from '../core/compose.js?v=0.2.76';
+import { takeGround, groundOfSliced, sliced } from '../core/compose.js?v=0.2.77';
 
 const NONE = Object.freeze({ voids: [], tones: [], tiles: [] });
 const EMPTY = () => ({ cells: new Map(), names: [] });

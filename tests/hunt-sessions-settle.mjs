@@ -49,9 +49,10 @@
 //              purse; sell-to-cover sells junk only, cheapest first, above the floor.
 //   ECON-1     a fresh melee hero (0 gold, the kit's food) hunts a T1 hour on store
 //              drinks without gold_out; its kill coins pay every drink.
-//   SPLIT      party-split.js: gold even with the remainder to the first, common items
-//              round-robin; a two-hero hunt pays both, neither more than its
-//              share plus the remainders. THE RARE ROLL (Tyler L8): a rare unit goes to
+//   SPLIT      party-split.js: gold even with the remainder one coin each from a seat that
+//              moves with the kill, common items round-robin; a two-hero hunt pays both, neither
+//              more than its share plus the remainders; four heroes on small-coin kills take even
+//              coin, no seat favoured. THE RARE ROLL (Tyler L8): a rare unit goes to
 //              the highest 1-100 roll, a tie re-rolls among the tied, a winner waits
 //              until everyone in the instance has won (a leaver dropped, a joiner
 //              eligible), solo draws no die, commons keep the round-robin; a party's
@@ -111,11 +112,16 @@
 //   OWN-DRINK  an own crafted drink is spent the same way, with the browser closed
 //              (the tick's door) and the hunt viewed (the player's door); one past the
 //              bag is refused bag_short.
+//   NO-FIGHT   a hero who can't fight goes home (designer 10-31): a bare bow with the store shut ends no_fight at its hunt
+//              start + the limit's minutes, a town-side automatic end, nothing bought, browser closed and viewed; the
+//              database refuses that end before the minutes and with a kill in its window.
 //   STORE      an empty bag under the default switch buys from the store: every
 //              unit journalled supply_buy at the catalogue price, the gold
 //              moved = coins − store gold, the tally's Waste carries it; under
 //              `end` the store sells nothing.
 //   END        under `end`, a dry essential heal line ends the hunt heals_out.
+//   BAG-CAP    a full bag never stops a hunt (2027-02-11-hunt-loot-past-bag-cap.sql): loot lands past the
+//              stack cap with the browser closed and the hunt viewed; nothing is refused or forfeited.
 //   HOME-WHOLE every end sends the hero home whole (designer 2026-10-29): a hero hurt
 //              when a Leave, stamina, supplies or gold ends its hunt is stored at full
 //              HP, the envelope draws full HP and mana in town, its next hunt enters
@@ -813,11 +819,23 @@ const ENGINE_ARMS = {
     const problems = [];
     const { splitEven, itemOwner } = M.PS;
     for (const [t, n] of [[0, 1], [7, 1], [7, 2], [10, 3], [101, 4]]) {
-      const s = splitEven(t, n);
-      if (s.length !== n || s.reduce((a, b) => a + b, 0) !== t || s.some((x, i) => x !== Math.floor(t / n) + (i === 0 ? t - Math.floor(t / n) * n : 0))) {
-        problems.push(`splitEven(${t}, ${n}) = ${JSON.stringify(s)}`);
+      for (const from of [0, 1, 2, 5, -1]) {
+        const s = splitEven(t, n, from);
+        const rest = t - Math.floor(t / n) * n, first = ((from % n) + n) % n;
+        if (s.length !== n || s.reduce((a, b) => a + b, 0) !== t || s.some((x, i) => x !== Math.floor(t / n) + (((i - first + n) % n) < rest ? 1 : 0))) {
+          problems.push(`splitEven(${t}, ${n}, ${from}) = ${JSON.stringify(s)}`);
+        }
       }
     }
+    /* NO SEAT IS FAVOURED: four heroes on the cellar's small-coin kills take even coin. The whole remainder to seat 0
+       paid it 1,549 gp of 2,089 on the Mill Cellar (the party soak, 2026-10-31). */
+    const roles4 = ['melee_dps', 'melee_dps', 'melee_dps', 'melee_dps'];
+    const four = runCut(M, () => ['a', 'b', 'c', 'd'].map((key, seat) => memberIn(M, key, { unitId: null, seat, partyRoles: roles4 })), 1800000, []);
+    const coin4 = { a: 0, b: 0, c: 0, d: 0 };
+    for (const x of four.outs.flatMap((o) => o.members)) coin4[x.key] += x.delta.gold || 0;
+    const vals4 = Object.values(coin4), mean4 = vals4.reduce((a, b) => a + b, 0) / 4;
+    if (!(mean4 > 0)) problems.push('CONTROL: the four heroes earned no coin');
+    if (Math.max(...vals4) - Math.min(...vals4) > 0.25 * mean4) problems.push(`four heroes' coin ${JSON.stringify(coin4)} is not even`);
     if ([0, 1, 2, 3, 4].map((k) => itemOwner(k, 3, 2)).join() !== '2,0,1,2,0') problems.push('items do not go round-robin from the offset');
     problems.push(...rareRollRules(M));
     /* Two heroes: both are paid, and neither more than its share plus the remainders (one a kill). */
@@ -1857,6 +1875,54 @@ const DB_ARMS = {
     }
     return problems;
   }),
+  'NO-FIGHT': async (db, M) => inTx(db, async () => {
+    const problems = [];
+    const SPAN = M.HSD.NO_FIGHT_END_MIN * 60000;
+    const bare = { ...STRONG, minutesAgo: M.HSD.NO_FIGHT_END_MIN + 4, level: 30, gold: 700, inv: { practice_bow: 1 }, bag: [], options: { supply_source: 'mine', on_empty: 'end', slots: [] },
+      beforeEnter: () => admin(db, UID, { equip: { weapon: 'practice_bow', shield: null, ammo: null } }) };
+    const h = await hunter(db, M, bare);
+    const exec = makeExec(db);
+    const to = h.from + SPAN + 60000;
+    const doors = {
+      closed: { mode: 'tick', session: h.sid, cuts: ticksOf(90000, to - h.from)(h.from) },
+      viewed: { mode: 'settle', bucket: null, project: true, live: true, cuts: [h.from + 12345, h.from + 195000, h.from + 381111, h.from + 544321, to] },
+    };
+    await db.query('savepoint no_fight');
+    const seen = {};
+    for (const [path, d] of Object.entries(doors)) {
+      const { cuts, ...door } = d;
+      for (const t of cuts) {
+        const r = await M.HS.settleHunt({ exec, user: UID, slot: 0, grounds: groundsOf(M), atMs: t, ...door });
+        if (!r || (r.outcome !== 'paid' && r.outcome !== 'none')) { problems.push(`${path}: the window to +${t - h.from} ms answered ${r && r.outcome}/${r && r.reason} ${JSON.stringify(r && r.body).slice(0, 200)}`); break; }
+        if (r.outcome === 'none' || r.ended) break;
+      }
+      const s = await snapshot(db, h.sid);
+      if (s.session.end_reason !== 'no_fight') problems.push(`${path}: a bare bow ended ${s.session.end_reason} (${JSON.stringify(s.session).slice(0, 200)})`);
+      if (Date.parse(s.session.ended_at) !== h.from + SPAN) problems.push(`${path}: it ended at +${Date.parse(s.session.ended_at) - h.from} ms, not +${SPAN} ms`);
+      if (s.tally.kills) problems.push(`${path}: CONTROL: the bare bow killed ${s.tally.kills}`);
+      if (s.gold !== 700) problems.push(`${path}: the purse moved to ${s.gold} with the store shut`);
+      if (!/^idle/.test(s.active)) problems.push(`${path}: the hero is ${s.active} after the end, not back in town`);
+      if (!(s.events || []).some((e) => e[0] === 'ended' && e[2] && e[2].reason === 'no_fight')) problems.push(`${path}: no ended event names no_fight: ${JSON.stringify(s.events).slice(0, 200)}`);
+      seen[path] = { at: s.session.ended_at, swing: s.session.swing, world: s.instance.world };
+      await db.query('rollback to savepoint no_fight');
+    }
+    if (seen.closed.at !== seen.viewed.at || seen.closed.swing !== seen.viewed.swing) problems.push(`browser closed ${canon(seen.closed)} vs viewed ${canon(seen.viewed)}`);
+    /* THE PROOF: the bare bow claims the end two minutes in, no kill to count against it: refused on the minutes alone. */
+    await db.query('rollback'); await db.query('begin');
+    const e = await hunter(db, M, bare);
+    await settleTo(db, M, e.from + 60000);
+    const early = await settleTo(db, M, e.from + 120000, { tamper: (c) => { c.members[0].hunt.ended = { reason: 'no_fight', at: c.members[0].hunt.to }; } });
+    if (!early.res || early.res.error !== 'end_not_proven') problems.push(`a no_fight end two minutes in answered ${JSON.stringify(early.res).slice(0, 200)}, want end_not_proven`);
+    /* A hunter who fights claims the end after the minutes, with a kill in the window: refused, nothing moved. */
+    await db.query('rollback'); await db.query('begin');
+    const f = await hunter(db, M, { ...STRONG, minutesAgo: M.HSD.NO_FIGHT_END_MIN + 4 });
+    await settleTo(db, M, f.from + SPAN - 60000);
+    let killsInWindow = 0;
+    const x = await settleTo(db, M, f.from + SPAN + 60000, { tamper: (c) => { killsInWindow = c.members[0].delta.journal.meta.kills; c.members[0].hunt.ended = { reason: 'no_fight', at: c.members[0].hunt.to }; } });
+    if (!(killsInWindow > 0)) problems.push('CONTROL: the fighting hunter killed nothing in the forged window');
+    if (!x.res || x.res.error !== 'end_not_proven') problems.push(`a no_fight end with ${killsInWindow} kill(s) in its window answered ${JSON.stringify(x.res).slice(0, 200)}, want end_not_proven`);
+    return problems;
+  }),
   STORE: async (db, M) => inTx(db, async () => {
     const problems = [];
     const { sid, from } = await hunter(db, M, { ...WEAK, options: { supply_source: 'mine', on_empty: 'switch', gold_floor: 0 }, gold: 5000 });
@@ -1922,6 +1988,41 @@ const DB_ARMS = {
     }
     if (!owed) problems.push('CONTROL: no window carried the death');
     else if (owed.error !== 'end_missing') problems.push(`a death with the hunt left running answered ${JSON.stringify(owed).slice(0, 200)}`);
+    return problems;
+  }),
+  /* A FULL BAG NEVER STOPS A HUNT (2027-02-11-hunt-loot-past-bag-cap.sql). Found by the local-world soak: four heroes, no
+     selling, 100 kinds after 33 hunting hours, then 137 forfeits in 6. A hero whose bag holds its whole stack cap in kinds the
+     ground never drops keeps hunting: every window lands, the new kinds are credited past the cap, nothing is refused or
+     forfeited. BOTH PATHS: the browser closed (the tick's door) and the hunt viewed (the player's settle door). */
+  'BAG-CAP': async (db, M) => inTx(db, async () => {
+    const problems = [];
+    const exec = makeExec(db);
+    const DOORS = {
+      'the browser closed': (sid) => ({ mode: 'tick', session: sid }),
+      'the hunt viewed': () => ({ mode: 'settle', bucket: null, project: true, live: true }),
+    };
+    for (const [path, door] of Object.entries(DOORS)) {
+      const h = await hunter(db, M, { minutesAgo: 6, level: 12 });
+      const cap = Number(await one(db, 'select bank_cap from public.player_state where user_id = $1 and slot = 0', [UID]));
+      const drops = ['rat', 'wolf'].flatMap((k) => M.MONSTERS[k].drops.map((d) => d.id));
+      await db.query(`insert into public.player_inventory (user_id, slot, item_id, qty)
+        select $1, 0, i.item_id, 1 from public.hr_items i where not (i.item_id = any ($2::text[])) order by i.item_id limit $3
+        on conflict (user_id, slot, item_id) do nothing`, [UID, drops, cap]);
+      const stacks = async () => Number(await one(db, 'select count(*) from public.player_inventory where user_id = $1 and slot = 0', [UID]));
+      await db.query(`delete from public.player_inventory where user_id = $1 and slot = 0 and item_id in
+        (select item_id from public.player_inventory where user_id = $1 and slot = 0 order by item_id desc limit $2::int)`, [UID, Math.max(0, await stacks() - cap)]);
+      if (await stacks() !== cap) { problems.push(`${path}: CONTROL: the bag holds ${await stacks()} of ${cap} kinds`); }
+      for (let t = 60000; t <= 360000; t += 60000) {
+        const r = await M.HS.settleHunt({ exec, user: UID, slot: 0, grounds: groundsOf(M), atMs: h.from + t, ...door(h.sid) });
+        if (!r || r.outcome !== 'paid') problems.push(`${path}: the window to +${t} ms answered ${r && r.outcome}/${r && r.reason}`);
+      }
+      if (!(await stacks() > cap)) problems.push(`${path}: CONTROL: no new kind dropped in six minutes (the bag holds ${await stacks()} of ${cap})`);
+      const s = await snapshot(db, h.sid);
+      if (s.session.end_reason || s.session.forfeit) problems.push(`${path}: the hunt ended ${s.session.end_reason} (forfeit ${s.session.forfeit})`);
+      const refused = await one(db, `select count(*) from public.hr_rejections where user_id = $1 and code = 'bank_full'`, [UID]);
+      if (Number(refused) !== 0) problems.push(`${path}: ${refused} bank_full refusal row(s) for a hunter`);
+      await db.query('rollback'); await db.query('begin');
+    }
     return problems;
   }),
   /* EVERY END SENDS THE HERO HOME WHOLE (designer 2026-10-29: Pellow sat at 135/160 in town for four days and
@@ -3204,6 +3305,7 @@ const DB_ARMS = {
       ['a world of another version', (c) => { const w = JSON.parse(c.settle.world); w.v += 1; c.settle.world = JSON.stringify(w); }, 'bad_world'],
       ['a world swing running backwards', back, 'bad_world_swing'],
       ['a heals_out end with food in the bag', endAt('heals_out'), 'end_not_proven'],
+      ['a no_fight end two minutes into the hunt', endAt('no_fight'), 'end_not_proven'],
       ['a stamina end on a full pool', endAt('stamina'), 'end_not_proven'],
       ['a store buy the hero never chose', (c) => { m0(c).hunt.buys = { salted_shrimp: 1 }; }, 'store_off'],
       ['an id the store does not sell', (c) => { m0(c).hunt.buys = { dragon_scale: 1 }; }, 'not_for_sale'],
@@ -3516,7 +3618,9 @@ const MUTANTS = [
   { arm: 'SUPPLY-RULE', name: 'an unaffordable drink ends the hunt gold_out', file: 'src/core/hunt/consumables.js',
     from: "if (w.why === 'gold_short') { if (w.kind === 'food') starved = true; return { why: 'gold_short' }; }", to: "if (w.why === 'gold_short') { starved = true; return { why: 'gold_short' }; }" },
   { arm: 'SPLIT', name: 'the remainder of a split is lost', file: 'src/core/party-split.js',
-    from: '  out[0] += t - each * k;', to: '' },
+    from: '  for (let i = 0; i < t - each * k; i++) out[(from + i) % k] += 1;', to: '' },
+  { arm: 'SPLIT', name: 'the whole remainder goes to the first hero again', file: 'src/core/hunt-rewards.js',
+    from: 'present.length, (Number(monId) || 0) + (Number(world.swing) || 0));', to: 'present.length, 0);' },
   { arm: 'SPLIT', name: 'every item goes to the first hero', file: 'src/core/party-split.js',
     from: '  return (((o + Math.floor(Number(k))) % m) + m) % m;', to: '  return 0;' },
   { arm: 'SPLIT', name: 'a rare goes round-robin like a common (no rare roll)', file: 'src/core/hunt-rewards.js',
@@ -3602,6 +3706,8 @@ const MUTANTS = [
     from: '    if (m.left || !(stamped.has(m) || m.hs.partyEnd)) continue;', to: '    if (m.left || m.unitId === null || !(stamped.has(m) || m.hs.partyEnd)) continue;' },
   { arm: 'QUIVER', name: '[C2 ammoGuard] a shot is loosed but its arrow is never taken from the bag', file: 'src/core/hunt/abilities.js',
     from: '    if (!takeLine(h.hs, l, sc.atMs)) { h.hs.goldOut = true; return false; }\n    return l;', to: '    return l;' },
+  { arm: 'NO-FIGHT', name: 'the no_fight end never fires', file: 'src/core/action-rules.js',
+    from: '  no_fight: (hs, t) => Number.isInteger(hs.fightAtMs) && t - Math.max(hs.fightAtMs, Number(hs.huntFromMs) || 0) >= NO_FIGHT_END_MIN * 60000,', to: '  no_fight: () => false,' },
   { arm: 'QUIVER', name: 'the free rung is spent like a paid one', file: 'src/core/hunt/abilities.js',
     from: "    if (l.source === 'own' && ammoPerShot(itemRow(h, l.id)) === 0) return l;\n", to: '' },
   { arm: 'QUIVER', name: 'a ranged basic swings without a shot', file: 'src/core/hunt/damage.js',
@@ -3681,6 +3787,10 @@ const AI = 'public.hr_hunt_apply_instance(uuid,bigint,jsonb,jsonb,uuid,integer)'
 const SS = 'public.hr_hunt_settle_session(uuid,integer,uuid,jsonb)';
 const SR = 'public.hr_hunt_settle_refused(uuid,bigint,jsonb,jsonb)';
 const DB_MUTANTS = [
+  /* A FULL BAG NEVER STOPS A HUNT (2027-02-11-hunt-loot-past-bag-cap.sql): the settle is fused again. */
+  { arm: 'BAG-CAP', name: '[bag cap] a hunt\'s settle is refused bank_full at a full bag', fn: 'public.hr_apply(uuid,integer,bigint,uuid,jsonb)',
+    find: "if coalesce(current_setting('hr.hunt_session', true), '') = '' and v_stacks > v_st.bank_cap and v_stacks > v_stacks_before then",
+    replace: "if v_stacks > v_st.bank_cap and v_stacks > v_stacks_before then" },
   /* INNER FLAME KEEPS PRAYER'S DEATH LOSS (2027-01-31-inner-flame.sql): the death's skills are the catalogue's combat rows. */
   { arm: 'DEATHXP-FLAME', name: '[inner flame] a death no longer prices Inner Flame', fn: 'public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)',
     find: "  c_xp_skills constant text[] := array(select k.skill_id from public.hr_skills k where k.cat = 'combat' order by k.skill_id);",
@@ -3862,6 +3972,10 @@ const DB_MUTANTS = [
     find: '    if v_ok then\n      update public.player_state', replace: '    if false then\n      update public.player_state' },
   { arm: 'RESUME', name: 'a resume ignores the bench\'s inputs', fn: AM,
     find: '      and public.hr_resume_has_inputs(p_user, p_slot, v_lk, v_li);\n', replace: '      and true;\n' },
+  { arm: 'NO-FIGHT', name: 'a no_fight end is proven before its minutes', fn: SS,
+    find: "      when 'no_fight' then v_end_at >= v_s.hunt_from + make_interval(mins => public.hr_hunt_limit('no_fight_min'))\n", replace: "      when 'no_fight' then true\n" },
+  { arm: 'NO-FIGHT', name: 'a no_fight end is proven with a kill in its window', fn: SS,
+    find: "and jsonb_typeof(l.meta->'kills') = 'number' and (l.meta->>'kills')::numeric > 0)", replace: "and false)" },
   { arm: 'VALUE', name: 'a heals_out end is proven on a full bag', fn: SS,
     find: "      when 'heals_out' then not exists (select 1 from public.hunt_bag b join public.hr_hunt_supplies p on p.item_id = b.item_id",
     replace: "      when 'heals_out' then true or not exists (select 1 from public.hunt_bag b join public.hr_hunt_supplies p on p.item_id = b.item_id" },

@@ -23,7 +23,7 @@
 //
 //   title    the frame's words when they are not the label (the Market's "The Weighhouse")
 //   phoneIcon false keeps a launcher row off the phone's icon row, which holds 15 at a thumb's width on the
-//            narrowest phone (tests/phone-touch.mjs PH-11); it must be reachable another way there
+//            narrowest phone (tests/phone-touch.mjs PH-11); the All characters sheet names it under "Also here"
 //
 // The rest of the spec's catalogue (Bestiary L) lands
 // with its renderer: a launcher never opens a window that does not exist yet
@@ -56,6 +56,9 @@ export const SHELL_WINDOWS = Object.freeze([
   /* Tamsin's tally (2026-12-23-tally-tasks.sql): kill tasks counted by the server, paid in town. Her board on the
      Common opens it too (src/data/world/stations.js TAP_OPENS), and so does the HUD's tally. */
   Object.freeze({ id: 'tally', label: 'Tamsin\'s tally', key: 'q', glyph: 'navBounty', width: 460, object: 'ledger' }),
+  /* The Roll of Honor (lane/b-leaderboards, 2026-10-31): Havora's heroes in order, one board at a time, every
+     place and number the server's (src/data/honor-roll.js names the boards). */
+  Object.freeze({ id: 'honor', label: 'Roll of Honor', key: 'z', phoneIcon: false, glyph: 'uiTrophy', width: 440, object: 'book' }),
   Object.freeze({ id: 'hunt-prep', label: 'Hunt prep', key: 'p', glyph: 'uiCheck', width: 420, object: 'plain' }),
   /* Week plan step 16 + QoL 3: the party, and every open character on one screen (opened from the
      character strip's "All characters", so it takes no launcher icon). */

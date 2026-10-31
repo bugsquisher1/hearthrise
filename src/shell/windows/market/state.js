@@ -7,10 +7,10 @@
 // loses its answer keeps its gesture (sc.gesture) and its keys, so the next press sends
 // the same ones and the server replays its decision (market-intents.js).
 // ════════════════════════════════════════════════════════════════════════
-import { marketBrowse, marketItem, marketMine } from '../../../session/market-intents.js?v=0.2.76';
-import { marketKey } from '../../../session/market-gesture.js?v=0.2.76';
-import { rulesOf, summaryOf, asksOf, listingOf, historyRowOf } from '../../market-model.js?v=0.2.76';
-import { refusalText } from '../../intent-words.js?v=0.2.76';
+import { marketBrowse, marketItem, marketMine } from '../../../session/market-intents.js?v=0.2.77';
+import { marketKey } from '../../../session/market-gesture.js?v=0.2.77';
+import { rulesOf, summaryOf, asksOf, listingOf, historyRowOf } from '../../market-model.js?v=0.2.77';
+import { refusalText } from '../../intent-words.js?v=0.2.77';
 
 const SCRATCH = new WeakMap();
 /* Items for sale are a page of at most 50 a read, keyset by id: the whole catalogue is about a dozen pages. */

@@ -19,19 +19,19 @@
 // the server refuses rather than charge another sum. Refusals in plain words.
 // Built once, patched in place.
 // ════════════════════════════════════════════════════════════════════════
-import { ALERT_KINDS } from '../../data/alerts.js?v=0.2.76';
-import { summaryOf } from '../command-model.js?v=0.2.76';
-import { alertShown, setAlertShown } from '../alerts.js?v=0.2.76';
-import { huntName } from '../../session/party-sections.js?v=0.2.76';
-import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.76';
-import { gold, whole, hoursMinutes } from '../../render/format.js?v=0.2.76';
-import { renameOf, goldOf } from '../../session/item-sections.js?v=0.2.76';
-import { runIntent } from '../intent-words.js?v=0.2.76';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.76';
-import { gaugeHtml, patchGauge, patchRoleGlyph } from '../widgets/bits.js?v=0.2.76';
-import { glyphSvg, launcherRows } from '../launcher.js?v=0.2.76';
-import { entriesFor } from '../context-menu.js?v=0.2.76';
-import { menuProvidersOf } from '../menu-providers.js?v=0.2.76';
+import { ALERT_KINDS } from '../../data/alerts.js?v=0.2.77';
+import { summaryOf } from '../command-model.js?v=0.2.77';
+import { alertShown, setAlertShown } from '../alerts.js?v=0.2.77';
+import { huntName } from '../../session/party-sections.js?v=0.2.77';
+import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.77';
+import { gold, whole, hoursMinutes } from '../../render/format.js?v=0.2.77';
+import { renameOf, goldOf } from '../../session/item-sections.js?v=0.2.77';
+import { runIntent } from '../intent-words.js?v=0.2.77';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.77';
+import { gaugeHtml, patchGauge, patchRoleGlyph } from '../widgets/bits.js?v=0.2.77';
+import { glyphSvg } from '../launcher.js?v=0.2.77';
+import { entriesFor } from '../context-menu.js?v=0.2.77';
+import { menuProvidersOf } from '../menu-providers.js?v=0.2.77';
 
 /* The rename panel's scratch, per viewed character: which hero, the typed name, the confirm step. */
 const SCRATCH = new WeakMap();
@@ -41,10 +41,17 @@ const RENAME_WHY = Object.freeze({ hunt_open: ' is hunting. Rename once the hunt
 
 /* THE PHONE'S ROUTES (playtest 2026-10-31, shown under the phone query only, windows.css): a hero's Invite button (the
    right-click menu's own entry, so its rule and its words stay in one place); every icon of the top row by name, each a
-   press (the row has no words and a phone no hover); and Characters and Sign out, which no longer fit beside the row. */
-const iconListHtml = (ctx) => '<div class="hw-phone-only"><h3 class="hw-ledger-head is-on">What the icons open</h3><ul class="hw-icon-names">'
-  + launcherRows(ctx).map((r) => '<li><button type="button" class="hw-icon-name" data-hs-open="' + esc(r.id) + '">'
-    + glyphSvg(ctx.glyphs, r.glyph) + '<span>' + esc(r.label) + '</span></button></li>').join('') + '</ul></div>';
+   press (the row has no words and a phone no hover); the windows the phone's row has no room for (shell-windows.js
+   phoneIcon: they have no other press here); and Characters and Sign out, which no longer fit beside the row. */
+const iconNames = (ctx, rows) => rows.map((r) => '<li><button type="button" class="hw-icon-name" data-hs-open="' + esc(r.id) + '">'
+  + glyphSvg(ctx.glyphs, r.glyph) + '<span>' + esc(r.label) + '</span></button></li>').join('');
+const iconListHtml = (ctx) => {
+  const rows = ctx.wm.rows().filter((r) => r.launcher !== false);
+  return '<div class="hw-phone-only"><h3 class="hw-ledger-head is-on">What the icons open</h3><ul class="hw-icon-names">'
+    + iconNames(ctx, rows.filter((r) => r.phoneIcon !== false)) + '</ul>'
+    + '<h3 class="hw-ledger-head is-on">Also here</h3><ul class="hw-icon-names is-more">'
+    + iconNames(ctx, rows.filter((r) => r.phoneIcon === false)) + '</ul></div>';
+};
 const ACCOUNT_HTML = '<div class="hw-phone-only hw-account"><button type="button" class="hh-tool" data-app="characters">Character list</button>'
   + '<button type="button" class="hh-tool" data-app="sign-out">Sign out</button></div>';
 

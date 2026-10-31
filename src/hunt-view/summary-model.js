@@ -18,8 +18,8 @@
 // Reading `hunt`: the server's session record sits under `hunt.session` (the
 // section view) and, in the client fixture, flat on `hunt`. Both are read.
 // ════════════════════════════════════════════════════════════════════════
-import { sanitizeSummary, sanitizeSummaries } from '../session/hunt-summaries.js?v=0.2.76';
-import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.76';
+import { sanitizeSummary, sanitizeSummaries } from '../session/hunt-summaries.js?v=0.2.77';
+import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.77';
 
 export { sanitizeSummaries };
 
@@ -37,6 +37,7 @@ export const END_WORDS = Object.freeze({
   hours: 'The hunt reached its time limit.',
   left: 'You left the hunt.',
   changed: 'You moved on to another hunt.',
+  no_fight: END_REASON_COPY.no_fight.one,
   server: 'The hunt was ended by the server.',
 });
 

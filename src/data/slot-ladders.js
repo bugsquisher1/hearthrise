@@ -57,11 +57,14 @@ export const SLOT_ITEMS = {
      that costs two, is a data change and not a code change.
 
      `ammoPerShot: 0` on Bronze Arrows is deliberate and is a ruling, not an
-     oversight: a tier-1 ranged player fires ~13,900 arrows across an 8-hour
-     absence and grosses ~18,600 gold doing it, so there is NO integer price at
-     which tier-1 ammo costs less than a third of the income it earns. The first
-     rung is therefore free — training arrows — and the supply loop starts at
-     tier 2, where the same 13,600 arrows cost ~27% of gross at book value.
+     oversight (designer 2026-10-31, PRIORITY_BOARD Decisions, flagged for Tyler):
+     at the store's smallest price, 1 g a shot, shots take 46-64% of a bow's income
+     on the first grounds and buy no XP, so there is NO integer price at which this
+     arrow costs less than a third of the income it earns. Bronze is therefore the
+     one free arrow, with no store row; paying starts at the next one, Iron Arrows
+     at 1 g a shot. The rule: a basic attack costs nothing you can run out of; what
+     is better costs. Air Runes no longer exist, and Coarse Whetstones wear at 0.02
+     a swing.
 
      THESE ARE SPENT (E1, 2026-08-31). `src/core/ammo.js spendForSwings` is
      called by `src/core/combat-sim.js simulateTick` on every swing, live and

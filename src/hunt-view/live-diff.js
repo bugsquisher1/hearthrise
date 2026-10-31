@@ -10,7 +10,7 @@
 // PURE (no DOM). Display and telemetry only: nothing here feeds the hunt.
 // ════════════════════════════════════════════════════════════════════════
 
-import { FIELDS, decode, reconcileText } from '../core/hunt/world-state.js?v=0.2.76';
+import { FIELDS, decode, reconcileText } from '../core/hunt/world-state.js?v=0.2.77';
 
 /* The most field lines a report carries; `count` and `by` say how many there were. */
 const KEEP_LINES = 8;

@@ -17,18 +17,18 @@
 // when the session ends. Numbers come from the server's sections only.
 // Built once, patched in place (src/render/paint.js).
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.76';
-import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.76';
-import { whole, gold, clock } from '../../render/format.js?v=0.2.76';
-import { itemName, itemIconHtml } from '../widgets/bits.js?v=0.2.76';
-import { runIntent } from '../intent-words.js?v=0.2.76';
-import { endedSessionOf, sanitizeSummaries, huntAgainOf, againWithBag, endWords } from '../../hunt-view/summary-model.js?v=0.2.76';
-import { packFor } from '../hunt-list.js?v=0.2.76';
-import { observeSessions } from '../../session/character-session.js?v=0.2.76';
-import { attach, summariesOf, liveDeaths } from '../../hunt-view/summary-recorder.js?v=0.2.76';
-import { nameOf, bagOf } from '../../session/item-sections.js?v=0.2.76';
-import { heldCard } from '../launcher.js?v=0.2.76';
-import { coachWindow, coachTab } from '../../data/hunt-tutorial.js?v=0.2.76';
+import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.77';
+import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.77';
+import { whole, gold, clock } from '../../render/format.js?v=0.2.77';
+import { itemName, itemIconHtml } from '../widgets/bits.js?v=0.2.77';
+import { runIntent } from '../intent-words.js?v=0.2.77';
+import { endedSessionOf, sanitizeSummaries, huntAgainOf, againWithBag, endWords } from '../../hunt-view/summary-model.js?v=0.2.77';
+import { packFor } from '../hunt-list.js?v=0.2.77';
+import { observeSessions } from '../../session/character-session.js?v=0.2.77';
+import { attach, summariesOf, liveDeaths } from '../../hunt-view/summary-recorder.js?v=0.2.77';
+import { nameOf, bagOf } from '../../session/item-sections.js?v=0.2.77';
+import { heldCard } from '../launcher.js?v=0.2.77';
+import { coachWindow, coachTab } from '../../data/hunt-tutorial.js?v=0.2.77';
 
 /* The tutorial card up now (a card of the guide, never the "What next" line), or null. */
 const nextStepOf = (ctx) => { const c = ctx.character ? heldCard(ctx) : null; return c && c.done ? c : null; };

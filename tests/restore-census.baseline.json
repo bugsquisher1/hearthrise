@@ -598,6 +598,7 @@
   "hr_tick_horizon_log": "A PARKING JOURNAL, NOT A LEDGER. One row per absence that reached its presence horizon under the armed tick, keyed per (user, slot, anchor). No settle reads it to decide a number; only the lag judge reads it, to tell a parked character (paid in full, waiting) from a stuck one. Losing every row costs history and makes the lag judge call parked characters stuck until they return - loud, never value.",
   "party_hunt_tally": "Display aggregate of player_ledger rows (per-hunt xp/gold/kills per member). It carries a user_id but no value of its own: the ledger, which is restore_only, is the record and every number here is a sum of its rows. Losing every row costs the Hunt card its running totals for in-flight hunts, never a coin, item, XP point or rank; the §2 backfill of 2026-10-15-party-hunt-view.sql regenerates it from a restored ledger.",
   "hr_access_allowlist": "Closed mode's admitted accounts. Player-scoped by user_id, but it holds no value a player earned: it is an operator's access list, and losing every row closes the game to the testers (fail-closed) until an operator re-adds them. Nothing a player owns, ranks or trades is derived from it.",
+  "hr_lb_hidden": "Leaderboard moderation state (2027-02-12-leaderboard-heroes.sql): which accounts and heroes the boards leave out. It carries no player VALUE (a lost row takes nothing a player earned; the boards are derived), and the Coordinator re-adds a row with one insert. Same ruling as hr_access_allowlist.",
   "hunt_party_invites": "Ephemeral party invites (an hour at most, used up by accept / decline). Player-scoped by to_user / from_user, but they hold no value: losing every row costs pending invites only, and the parties themselves (hunt_parties, restore_only) are untouched.",
   "social_presence": "A presence stamp, not progress: one row per account saying when its client last polled hr_social_state. Every row is rewritten within 30 s of the player being online again, and the only thing it answers is a friend's online dot. Losing every row costs nobody anything.",
   "town_positions": "A display position, not progress: one row per account saying which town tile its hero stands on. Every row is rewritten within 10 s of the player being in town again and older than 30 s is never read. Losing every row costs nobody anything.",
@@ -830,6 +831,11 @@
    "class": "restore_only",
    "wiped_at_cutover": false,
    "note": "CLOSED MODE's admitted accounts (2026-10-21-closed-mode.sql): who may play while hr_flags.closed_mode is on. Seeded on production by a join on auth.users (Tyler + QA), so a rebuild creates it EMPTY and only a backup brings the rows back. Losing it locks the admitted testers out of a closed game until an operator re-adds them (one insert each) — the fail-closed direction; no player value (see player_value_exempt)."
+  },
+  "hr_lb_hidden": {
+   "class": "restore_only",
+   "wiped_at_cutover": false,
+   "note": "The accounts (slot null) and heroes the leaderboards leave out: test, banned, or a name under review (2027-02-12-leaderboard-heroes.sql). The QA account is seeded by a join on auth.users, so a rebuild creates it EMPTY and only a backup brings rows back. Losing it puts hidden accounts and names back on the public boards until the Coordinator re-adds them (one insert each). Server-only; no client grant."
   },
   "hr_activities": {
    "class": "seeded",
@@ -1082,7 +1088,7 @@
   },
   "hr_hunt_end_reasons": {
    "class": "seeded",
-   "replay": 12,
+   "replay": 13,
    "note": "Generated catalogue (2026-10-21-hunt-sessions-catalogue.generated.sql (tools/gen-hunt-sessions.mjs --check from src/data)): END_ORDER (src/data/hunt-sessions.js): the reasons the settle applier may end a hunt with. Rebuilt from repo, never restored; nothing player-owned."
   },
   "hr_hunt_ground_spawns": {
@@ -1107,7 +1113,7 @@
   },
   "hr_hunt_limits": {
    "class": "seeded",
-   "replay": 47,
+   "replay": 48,
    "note": "Generated catalogue (2026-10-21-hunt-sessions-catalogue.generated.sql (tools/gen-hunt-sessions.mjs --check from src/data)): the session limits (presets, slots, conditions, bag lines, falls and hours ranges, cooldowns, vigour_low threshold, sessions kept). Every RPC reads them; a missing key fails the RPC closed. Rebuilt from repo, never restored; nothing player-owned."
   },
   "hr_hunt_resumable_kinds": {

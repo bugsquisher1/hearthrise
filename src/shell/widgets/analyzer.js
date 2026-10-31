@@ -30,14 +30,14 @@
 // never steps back; display only, the next envelope replaces it. The view, tab
 // and folds are display scratch on the panel.
 // ════════════════════════════════════════════════════════════════════════
-import { analyzerOf, isPremium, sessionClockMs, serverNowOf } from '../../session/hunt-sections.js?v=0.2.76';
-import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.76';
-import { whole, gold, clock, hoursMinutes } from '../../render/format.js?v=0.2.76';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.76';
-import { panelHtml, itemIconHtml, itemName, monsterName, abilityName, elementName, skillName } from './bits.js?v=0.2.76';
-import { ANALYZER_RATE_AFTER_MS } from '../../data/hunt-sessions.js?v=0.2.76';
-import { glyphSvg } from '../launcher.js?v=0.2.76';
-import { foldButtonHtml } from '../widget-move.js?v=0.2.76';
+import { analyzerOf, isPremium, sessionClockMs, serverNowOf } from '../../session/hunt-sections.js?v=0.2.77';
+import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.77';
+import { whole, gold, clock, hoursMinutes } from '../../render/format.js?v=0.2.77';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.77';
+import { panelHtml, itemIconHtml, itemName, monsterName, abilityName, elementName, skillName } from './bits.js?v=0.2.77';
+import { ANALYZER_RATE_AFTER_MS } from '../../data/hunt-sessions.js?v=0.2.77';
+import { glyphSvg } from '../launcher.js?v=0.2.77';
+import { foldButtonHtml } from '../widget-move.js?v=0.2.77';
 
 /* Before the server's rate window the rates are null: the totals show, and this line says when the rest will. */
 const RATE_LATER = 'Per hour after ' + Math.round(ANALYZER_RATE_AFTER_MS / 60000) + ' min.';

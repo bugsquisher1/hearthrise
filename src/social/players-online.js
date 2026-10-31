@@ -12,7 +12,7 @@
 // is malformed shows nothing ("—"), never the last number as if it were still
 // true. Nothing can spend it or gate on it.
 // ════════════════════════════════════════════════════════════════════════
-import { whole } from '../render/format.js?v=0.2.76';
+import { whole } from '../render/format.js?v=0.2.77';
 
 /** The counter's words: "3 online"; "— online" before (or without) a server answer. Pure. */
 export function onlineWords(n) {

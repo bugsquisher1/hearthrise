@@ -64,6 +64,8 @@
 //   LV-RANGER A RANGER'S BAR (Andy 2026-10-23, Fremulon): a bow with NO ammo worn, a Copper Whetstone
 //         slot ahead of its arrows: it shoots only its arrows (never the whetstone) and Precision Shot
 //         casts on them, on the server's commits (browser closed) and in the prediction (viewed).
+//   LV-NOFIGHT A HERO WHO CAN'T FIGHT GOES HOME (designer 10-31): a bare bow with the store shut ends no_fight at its
+//         span on the server's commits; viewed, the prediction stops there too and every commit before it matches.
 //   LV-RR THE PARTY'S RARE ROLL IS THE SERVER'S (Tyler L8; rulings: loot rolls use a server-only
 //         stream): with every monster carrying rare rows, the server's commits roll rares
 //         (`rare_roll`, each Crown Shard to its winner) and the browser's prediction, which
@@ -116,6 +118,7 @@ async function load(base) {
     AC: await u(FN + '/accrual.js'),
     HS: await u(FN + '/hunt-settle.js'),
     LE: await u('src/hunt-view/live-engine.js'),
+    HSD: await u('src/data/hunt-sessions.js'),
     TL: await u('src/hunt-view/timeline.js'),
     HT: await u('src/core/hunt-track.js'),
     HG: await u('src/core/hunt-ground.js'),
@@ -182,7 +185,7 @@ function server(M, mis, o) {
         for (const [id, n] of Object.entries(h.buys || {})) buys[id] = (buys[id] || 0) + n;
       }
       inst.world = r.world; inst.settled_to_ms = r.settledTo; inst.next_swing_at_ms = r.settledTo; inst.world_swing = r.worldSwingTo;
-      return { tl, check: { world_swing: r.worldSwingTo, settled_to_ms: r.settledTo, world_hash: M.HT.worldHash(r.world), seeds: M.HS.liveSeeds(inst, r.worldSwingTo) } };
+      return { tl, ends: r.members.map((p) => p.hunt.ended).filter(Boolean), check: { world_swing: r.worldSwingTo, settled_to_ms: r.settledTo, world_hash: M.HT.worldHash(r.world), seeds: M.HS.liveSeeds(inst, r.worldSwingTo) } };
     },
   };
 }
@@ -1161,6 +1164,29 @@ function rules(M) {
       'viewed: the browser predicted casts ' + JSON.stringify(casts(viewedEvs)) + ' and ' + shots(viewedEvs).length + ' shots');
     ok('LV-RANGER', bad.length === 0, bad.length + ' commit(s) did not match the prediction');
   }
+  { /* LV-NOFIGHT a hero who can't fight goes home, viewed and with the browser closed */
+    const SPAN = M.HSD.NO_FIGHT_END_MIN * 60000;
+    const mi = memberOf(M, 'a', 0, 'ranger', 30);
+    mi.equipment = { weapon: 'shortbow' };
+    mi.huntSession = Object.assign({}, mi.huntSession, { bag: {}, supplySource: 'mine', onEmpty: 'end' });
+    mi.hero = M.SPAWN.heroSetup({ weaponType: 'ranged', options: {}, partyRoles: ['ranger'], bar: [] });
+    const srv = server(M, [mi]);
+    const E = M.LE.createLiveEngine({ items: M.ITEMS, monsters: M.MONSTERS });
+    E.seed(srv.live(mi.user, 0));
+    const verdicts = []; let end = null;
+    for (let t = T0; t <= T0 + SPAN + 32000 && !end; t += 100) {
+      E.advance(t, () => {});
+      if ((t - T0) % 16000 === 0 && t > T0) {
+        const c = srv.commit(t);
+        if (!c) continue;
+        if (c.ends.length) end = c.ends[0]; else verdicts.push(E.reconcile(c.check));
+      }
+    }
+    const off = verdicts.filter((v) => v !== 'match');
+    console.log('  LV-NOFIGHT: browser closed, ' + JSON.stringify(end) + '; viewed, ' + verdicts.length + ' commits before it, ' + off.length + ' off');
+    ok('LV-NOFIGHT', !!end && end.reason === 'no_fight' && Date.parse(end.at) === T0 + SPAN, 'browser closed: a bare bow ended ' + JSON.stringify(end) + ', want no_fight at +' + SPAN + ' ms');
+    ok('LV-NOFIGHT', verdicts.length > 30 && off.length === 0, 'viewed: ' + off.length + ' of ' + verdicts.length + ' commits did not match the prediction');
+  }
   return fails;
 }
 const sorted = (o) => Object.fromEntries(Object.entries(o).sort());
@@ -1169,6 +1195,7 @@ const MUTANTS = [
   /* A real per-frame slowdown: every 100th frame step does 60 ms of work, in every play (LV-E budget). */
   ['a frame step stalls 60 ms every 100 frames (LV-E budget)', 'src/session/live-link.js', '  advance(clientNow) {\n',
     '  advance(clientNow) {\n    this.__n = (this.__n || 0) + 1;\n    if (this.__n % 100 === 0) { const t = performance.now(); while (performance.now() - t < 60); }\n', /^LV-E: a frame step took/],
+  ['the no_fight end never fires (LV-NOFIGHT)', 'src/core/action-rules.js', '  no_fight: (hs, t) => Number.isInteger(hs.fightAtMs) && t - Math.max(hs.fightAtMs, Number(hs.huntFromMs) || 0) >= NO_FIGHT_END_MIN * 60000,', '  no_fight: () => false,', /^LV-NOFIGHT/],
   ['drops rolled on the combat stream (LV-L)', 'src/core/combat-sim.js', "rng: createRng(seedOf(ctx, 'r', sw))", "rng: createRng(seedOf(ctx, 's', sw))", /^LV-L/],
   ['the prediction shows its own rare rolls (LV-RR)', 'src/hunt-view/live-engine.js', 'sim.events.filter(predicted)', 'sim.events', /^LV-RR/],
   ['the rare roll\'s rotation back in the reconcile key (LV-RR)', 'src/core/hunt/world-state.js', '  for (const [i, kind] of SERVER_ONLY_AT) w[i] = KINDS[kind].blank();\n', '', /^LV-RR/],

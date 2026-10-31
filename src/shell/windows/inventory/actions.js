@@ -30,25 +30,25 @@
 // open doll slot and the "new" marks. No key here is a walk key: selling is
 // Delete, so W, A, S and D always reach the World (Tyler 10-18).
 // ════════════════════════════════════════════════════════════════════════
-import { kindOf, equipSlotFor, equipOps, markSeen, namedFuelOf, styleWords } from '../../bag-model.js?v=0.2.76';
-import { assignToBar, barKind, barIndexOf, barKeyLabel } from '../../bar-assign.js?v=0.2.76';
-import { runIntent } from '../../intent-words.js?v=0.2.76';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.76';
-import { gold } from '../../../render/format.js?v=0.2.76';
-import { itemName } from '../../widgets/bits.js?v=0.2.76';
-import { showTip, hideTip } from '../item-tip.js?v=0.2.76';
-import { openFloatMenu, closeFloatMenu } from '../float-menu.js?v=0.2.76';
-import { offerForSale } from '../market/state.js?v=0.2.76';
-import { stateOf, scratchOf, seenOf, confirmFor, setPref, eatBlock } from './state.js?v=0.2.76';
-import { LOOT_CHOICES, planBlock, dispatchWords } from '../../loot-dispatch.js?v=0.2.76';
-import { dispatchLoot } from '../../../session/loot-intents.js?v=0.2.76';
-import { fitsSlot, dollTip, DRAG_WORN } from './doll.js?v=0.2.76';
-import { askElsewhere } from './elsewhere.js?v=0.2.76';
-import { skillsOf, bagOf } from '../../../session/item-sections.js?v=0.2.76';
-import { buryRecipeOf, buryLabel, buryBlock, startBury, stopBury, buryQty, namedBlock, burnNamed } from './bury.js?v=0.2.76';
-import { equipUpgrades } from '../../widgets/upgrade-line.js?v=0.2.76';
-import { wearBlock } from '../../gear-gate.js?v=0.2.76';
-import { levelOf } from '../../../session/character-sections.js?v=0.2.76';
+import { kindOf, equipSlotFor, equipOps, markSeen, namedFuelOf, styleWords } from '../../bag-model.js?v=0.2.77';
+import { assignToBar, barKind, barIndexOf, barKeyLabel } from '../../bar-assign.js?v=0.2.77';
+import { runIntent } from '../../intent-words.js?v=0.2.77';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.77';
+import { gold } from '../../../render/format.js?v=0.2.77';
+import { itemName } from '../../widgets/bits.js?v=0.2.77';
+import { showTip, hideTip } from '../item-tip.js?v=0.2.77';
+import { openFloatMenu, closeFloatMenu } from '../float-menu.js?v=0.2.77';
+import { offerForSale } from '../market/state.js?v=0.2.77';
+import { stateOf, scratchOf, seenOf, confirmFor, setPref, eatBlock } from './state.js?v=0.2.77';
+import { LOOT_CHOICES, planBlock, dispatchWords } from '../../loot-dispatch.js?v=0.2.77';
+import { dispatchLoot } from '../../../session/loot-intents.js?v=0.2.77';
+import { fitsSlot, dollTip, DRAG_WORN } from './doll.js?v=0.2.77';
+import { askElsewhere } from './elsewhere.js?v=0.2.77';
+import { skillsOf, bagOf } from '../../../session/item-sections.js?v=0.2.77';
+import { buryRecipeOf, buryLabel, buryBlock, startBury, stopBury, buryQty, namedBlock, burnNamed } from './bury.js?v=0.2.77';
+import { equipUpgrades } from '../../widgets/upgrade-line.js?v=0.2.77';
+import { wearBlock } from '../../gear-gate.js?v=0.2.77';
+import { levelOf } from '../../../session/character-sections.js?v=0.2.77';
 
 const heroLevel = (cs) => { const lv = levelOf(cs); return lv ? lv.level : null; };
 

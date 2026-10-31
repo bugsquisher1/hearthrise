@@ -16,11 +16,11 @@
 // no pixels. THE GROUND IS KEPT WHILE THE CAMERA STANDS (groundLayer); moving, a frame composes it directly.
 // Colours: --world-* tokens via `css`. Tile, chunk, zoom: the map's grid (zs = z x T / 32).
 // ════════════════════════════════════════════════════════════════════════
-import { zoomFor, frameView, cleanInset } from '../core/camera.js?v=0.2.76';
-import { composeFrame } from '../core/compose.js?v=0.2.76';
-import { createGroundChunks } from './ground-chunks.js?v=0.2.76';
-import { createFrameSig } from './frame-sig.js?v=0.2.76';
-import { paintStub } from '../stub-atlas.js?v=0.2.76';
+import { zoomFor, frameView, cleanInset } from '../core/camera.js?v=0.2.77';
+import { composeFrame } from '../core/compose.js?v=0.2.77';
+import { createGroundChunks } from './ground-chunks.js?v=0.2.77';
+import { createFrameSig } from './frame-sig.js?v=0.2.77';
+import { paintStub } from '../stub-atlas.js?v=0.2.77';
 
 const LIGHT_BANDS = 4;   // stepped pools: pixel-art light, no airbrush
 const FLASH_ALPHA = 0.7; // a hit's silhouette over the frame

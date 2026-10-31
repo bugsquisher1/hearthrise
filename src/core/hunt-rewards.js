@@ -37,16 +37,16 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { MONSTERS, monsterLevelOf } from '../data/monsters.js?v=0.2.76';
-import { rollDropTable } from './drops.js?v=0.2.76';
-import { yieldOf } from './hunt/damage.js?v=0.2.76';
-import { applyGoldFind } from './pacing.js?v=0.2.76';
-import { COMBAT_XP } from '../data/core-model.js?v=0.2.76';
-import { FAMILY_SKILL, DAMAGE_XP_FAMILIES } from '../data/skills.js?v=0.2.76';
-import { resolveHearthfind } from './hearthfind.js?v=0.2.76';
-import { magicXpFor } from './hunt/xp-share.js?v=0.2.76';
-import { splitEven, itemOwner, rareRoll } from './party-split.js?v=0.2.76';
-import { makeEvent } from './hunt/events.js?v=0.2.76';
+import { MONSTERS, monsterLevelOf } from '../data/monsters.js?v=0.2.77';
+import { rollDropTable } from './drops.js?v=0.2.77';
+import { yieldOf } from './hunt/damage.js?v=0.2.77';
+import { applyGoldFind } from './pacing.js?v=0.2.77';
+import { COMBAT_XP } from '../data/core-model.js?v=0.2.77';
+import { FAMILY_SKILL, DAMAGE_XP_FAMILIES } from '../data/skills.js?v=0.2.77';
+import { resolveHearthfind } from './hearthfind.js?v=0.2.77';
+import { magicXpFor } from './hunt/xp-share.js?v=0.2.77';
+import { splitEven, itemOwner, rareRoll } from './party-split.js?v=0.2.77';
+import { makeEvent } from './hunt/events.js?v=0.2.77';
 
 const call = (fx, name, ...args) => (fx && typeof fx[name] === 'function' ? fx[name](...args) : undefined);
 
@@ -72,7 +72,7 @@ function countKill(m, kind) {
 /* A monster kill's gold and drops, split across `present` (members in unit-id
    order; `ids` their unit ids), and the Hearthfind for `killer`. A rare unit
    goes to the rare roll, its rotation kept on `world.rareWon`. */
-function payKill(present, ids, killer, kind, ctx, yieldPm, world, atMs) {
+function payKill(present, ids, killer, kind, ctx, yieldPm, world, atMs, monId) {
   const row = (ctx.monsters || MONSTERS)[kind];
   if (!row) return;
   const rng = ctx.rng;
@@ -80,7 +80,9 @@ function payKill(present, ids, killer, kind, ctx, yieldPm, world, atMs) {
      roll pay `y` of the row's, the same draws in the same order. */
   const y = yieldPm / 1000;
   const gp = Array.isArray(row.gp) ? Math.round(rng.int(row.gp[0], row.gp[1]) * y) : 0;
-  const shares = splitEven(Math.max(0, gp), present.length);
+  /* The remainder's first seat moves with the kill: the dead monster's unit and the swing, both on the stored world, so
+     any cut of the windows pays the same shares, and no die is drawn (the loot stream below stays where it was). */
+  const shares = splitEven(Math.max(0, gp), present.length, (Number(monId) || 0) + (Number(world.swing) || 0));
   present.forEach((m, i) => {
     const g = applyGoldFind(shares[i], m.bonus);
     if (g > 0) { m.state.gold = (m.state.gold || 0) + g; call(m.fx, 'onLoot', g, row); }
@@ -177,7 +179,7 @@ export function rewardSwing(members, events, world, ctx) {
         if (!t) break;
         if (t.side === 'mon') {
           const ids = presentIds();
-          if (ids.length) payKill(ids.map((id) => members.get(id)), ids, members.get(ev.u) || null, t.kind, ctx, yieldOf(t), world, ev.atMs);
+          if (ids.length) payKill(ids.map((id) => members.get(id)), ids, members.get(ev.u) || null, t.kind, ctx, yieldOf(t), world, ev.atMs, ev.t);
         } else if (members.has(ev.t)) {
           const k = unitOf(ev.u);
           deaths.push({ unit: ev.t, atMs: ev.atMs, monster: k && k.side === 'mon' ? k.kind : '' });

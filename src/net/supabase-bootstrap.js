@@ -8,8 +8,11 @@
 // createSupabaseClient builds the supabase-js client the account session uses
 // for auth and the push channel. Its session lives in the storage the caller
 // hands it (src/platform/storage.js — the device store or the tab store), under
-// one key, so sign-out knows exactly what to clear.
+// one key, so sign-out knows exactly what to clear. Its auth steps run under OUR lock
+// (authLockFor, src/net/auth-lock.js): a session that still lasts waits on no other tab.
 // ════════════════════════════════════════════════════════════════════════
+
+import { createAuthLock } from './auth-lock.js?v=0.2.77';
 
 export const SUPABASE_CONFIG = Object.freeze({
   url: 'https://nezapsylztqbbwuwembx.supabase.co',
@@ -29,14 +32,30 @@ function storageAdapter(store) {
 }
 
 /**
+ * The lock for the session one store keeps: it asks the other tabs only when that session is near its refresh.
+ * @param {Window} win
+ * @param {object} store         a HearthriseStorage store
+ * @param {string} storageKey
+ */
+export function authLockFor(win, store, storageKey) {
+  return createAuthLock({
+    locks: win.navigator ? win.navigator.locks : undefined,
+    expiresAt: () => {
+      try { const s = JSON.parse(store.get(storageKey) || 'null'); return s && Number.isFinite(s.expires_at) ? s.expires_at : null; } catch (e) { return null; }
+    },
+  });
+}
+
+/**
  * @param {object} sdk           the supabase-js namespace (window.supabase from the vendored UMD)
  * @param {object} store         a HearthriseStorage store
  * @param {string} storageKey
+ * @param {Function} lock        its auth steps' lock (authLockFor(...).lock)
  * @param {object} [cfg]         defaults to SUPABASE_CONFIG
  */
-export function createSupabaseClient(sdk, store, storageKey, cfg = SUPABASE_CONFIG) {
+export function createSupabaseClient(sdk, store, storageKey, lock, cfg = SUPABASE_CONFIG) {
   if (!sdk || typeof sdk.createClient !== 'function') throw new Error('supabase-js did not load');
   return sdk.createClient(cfg.url, cfg.anonKey, {
-    auth: { storage: storageAdapter(store), storageKey, persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
+    auth: { storage: storageAdapter(store), storageKey, persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, lock },
   });
 }

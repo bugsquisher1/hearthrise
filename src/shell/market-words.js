@@ -6,8 +6,8 @@
 // or section gives. intent-words.js refusalText asks here first for a market verb; a code
 // not named here reads from src/data/refusal-words.js like every other.
 // ════════════════════════════════════════════════════════════════════════
-import { whole } from '../render/format.js?v=0.2.76';
-import { depotOf, nameOf } from '../session/item-sections.js?v=0.2.76';
+import { whole } from '../render/format.js?v=0.2.77';
+import { depotOf, nameOf } from '../session/item-sections.js?v=0.2.77';
 
 const MARKET_VERBS = new Set(['market_list', 'market_buy', 'market_cancel', 'market_browse', 'market_item', 'market_mine']);
 

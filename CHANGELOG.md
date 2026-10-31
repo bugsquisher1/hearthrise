@@ -5,6 +5,18 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.77 — 2026-10-31 (The Roll of Honor)
+
+**The Roll of Honor.** A new window (Z) ranks Havora's heroes by level, total level and each skill, by hero name.
+
+**Full bags.** A hero carrying every kind of item the bag can hold no longer loses the hunt when a new kind drops.
+
+**Parties.** Coin from a party hunt now splits evenly between the members; before, the first seat took most of it. A hero idle in town now hears about party invites and changes right away.
+
+**A hero who can't fight.** A hero with nothing to attack with goes home after 10 minutes instead of standing in the hunt until stamina runs out. Bronze Arrows stay free.
+
+**Slow reloads.** Reloading no longer waits on your other game tabs, which should cut the long waits some of you saw. We now measure how long loading takes, so we can see if it's still slow for anyone.
+
 ## v0.2.76 — 2026-10-31 (A better first hour)
 
 **The bow shoots from its first press.** Equipping a bow now loads a shot, and Enter warns you if your bar has nothing to attack with. No more archers standing in a cellar buying food.

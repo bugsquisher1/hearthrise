@@ -78,7 +78,7 @@ function startApp(win) {
   /* What this load saw go wrong (src/net/diagnostics.js), on every host: a player's report attaches it.
      First, so its console copy sits under Sentry's. Then errors and replays (src/net/observability.js):
      telemetry only, nothing sent off hearthrise.net. */
-  startDiagnostics(win);
+  const diag = startDiagnostics(win);
   const obs = startObservability(win);
   const doc = win.document;
   const root = doc.getElementById('app');
@@ -88,7 +88,7 @@ function startApp(win) {
   const authLock = authLockFor(win, store, SESSION_CONFIG.authKey);
   const client = createSupabaseClient(win.supabase, store, SESSION_CONFIG.authKey, authLock.lock);
   const auth = createAuth({ client, lock: authLock, device: HS, tab: HS.session, redirectTo: win.location.origin + win.location.pathname, doc });
-  const timing = createBootTiming(win, { lockStats: authLock.stats });
+  const timing = createBootTiming(win, { lockStats: authLock.stats, perf: diag.perf });
   let account = null;
   let alerts = null;
   let watchers = [];   // the account's page-level watchers: the press acknowledgement, ?debug=live

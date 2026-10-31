@@ -136,7 +136,17 @@ async function page(browser, base, o) {
   let closing = false;
   await pg.route('https://hearthrise.net/**', async (r) => {
     if (closing) return r.abort().catch(() => {});
-    const f = r.fetch({ url: base + new URL(r.request().url()).pathname });
+    /* A page loads hundreds of modules at once; on a busy box the one-thread static server falls behind its accept queue and the
+       OS refuses a connect (ECONNREFUSED, measured 2026-10-31 on a loaded PC: 17 of 600 module fetches in an otherwise green run).
+       That is the box, not the page: the connect is tried again, a few times, before it is a harness failure. */
+    const f = (async () => {
+      for (let i = 0; ; i++) {
+        try { return await r.fetch({ url: base + new URL(r.request().url()).pathname }); } catch (e) {
+          if (i >= 5 || closing || !/ECONNREFUSED|ECONNRESET/.test(String(e && e.message))) throw e;
+          await new Promise((ok) => setTimeout(ok, 40 * (i + 1)));
+        }
+      }
+    })();
     inflight.add(f);
     let res;
     try { res = await f; } catch (e) {
@@ -345,6 +355,7 @@ async function browserChecks(overrides) {
         if (!order.every((n) => Number.isFinite(n) && n >= 0) || order.some((n, i) => i && n < order[i - 1])) fails.push('OB-15 boot_timing marks out of order: ' + JSON.stringify(order));
         if (p.screen !== 'characters' || p.navigation !== 'reload' || p.lock_asked !== 0 || p.lock_wait_ms !== 0 || p.lock_steals !== 0 || p.visibility !== 'visible' || p.was_hidden !== false || p.version !== VERSION)
           fails.push('OB-15 boot_timing says: ' + JSON.stringify([p.screen, p.navigation, p.lock_asked, p.lock_wait_ms, p.lock_steals, p.visibility, p.was_hidden, p.version]));
+        if (![p.longest_stall_ms, p.long_tasks, p.longest_task_ms].every(Number.isFinite)) fails.push('OB-15 boot_timing does not say how late the page ran: ' + JSON.stringify([p.longest_stall_ms, p.long_tasks, p.longest_task_ms]));
         if (p.distinct_id !== UID) fails.push('OB-15 boot_timing is not keyed by the account id: ' + p.distinct_id);
         if (JSON.stringify(got[0]).includes('qa@example.test')) fails.push('OB-15 boot_timing carries the email');
       }

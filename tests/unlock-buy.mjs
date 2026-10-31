@@ -203,7 +203,7 @@ const MUTATIONS = {
         + 'create table if not exists public.hr_client_write_baseline (',
   },
   detector_still_narrow: {
-    migration: '2027-01-12-market-account.sql',   // lane c-market-account: the detector's last restatement (link 21 of the hygiene chain)
+    migration: '2027-02-10-settle-reads.sql',   // the detector's last restatement (derived by tools/derive-grant-hygiene.mjs)
     why: 'C3 — check (4) goes back to TRUNCATE/REFERENCES/TRIGGER only, so a client write grant on '
        + 'a table with RLS on and no write policy is invisible again',
     /* Anchored on the BASELINE JOIN inside the LIVE detector body (the last

@@ -26,27 +26,27 @@
 // Shown in town too (Tyler 10-18: set it up before leaving). Every value is
 // the server's; the bar changes only when the re-read envelope says so.
 // ════════════════════════════════════════════════════════════════════════
-import { BAR_SLOTS } from '../../data/hunt-hud.js?v=0.2.74';
-import { ABILITIES } from '../../data/abilities.js?v=0.2.74';
-import { huntOf, settingsOf, wireSlot } from '../../session/hunt-sections.js?v=0.2.74';
-import { carriedOf } from '../../session/item-sections.js?v=0.2.74';
-import { text, cls, attr, element, keyedChild, prop } from '../../render/paint.js?v=0.2.74';
-import { whole } from '../../render/format.js?v=0.2.74';
-import { glyphSvg } from '../launcher.js?v=0.2.74';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.74';
-import { actionIconHtml } from './bits.js?v=0.2.74';
-import { hubHtml, patchHub } from './vitals-hub.js?v=0.2.74';
-import { staminaBuyHtml, patchStaminaBuy, actStaminaBuy } from './stamina-buy.js?v=0.2.74';
-import { openSlot, sendPlan, movePlan, swapPlan, insertPlan, serverBar, answerWithin } from '../bar-draft.js?v=0.2.74';
-import { actionName, factsOf, carried, supplyLines, setupWords, conflictsOf, reasonOf, holdingReason, sharedCooldownOf } from '../action-facts.js?v=0.2.74';
-import { resetConfigureView } from '../windows/configure-action.js?v=0.2.74';
-import { assignToBar, barKind } from '../bar-assign.js?v=0.2.74';
-import { DRAG_TYPE } from '../windows/inventory/actions.js?v=0.2.74';
-import { refusalWords } from '../intent-words.js?v=0.2.74';
-import { targetOptionsHtml, stanceButtonsHtml, distanceHtml, goldFloorHtml, patchControls, sendOption } from './settings-intent.js?v=0.2.74';
-import { ATTACK_KINDS } from '../../data/condition-metrics.js?v=0.2.74';
-import { nameEditorHtml, openNameEditor, nameKey } from '../inline-name.js?v=0.2.74';
-import { renameActionSet } from '../../session/preset-intents.js?v=0.2.74';
+import { BAR_SLOTS } from '../../data/hunt-hud.js?v=0.2.75';
+import { ABILITIES } from '../../data/abilities.js?v=0.2.75';
+import { huntOf, settingsOf, wireSlot } from '../../session/hunt-sections.js?v=0.2.75';
+import { carriedOf, equipmentOf } from '../../session/item-sections.js?v=0.2.75';
+import { text, cls, attr, element, keyedChild, prop } from '../../render/paint.js?v=0.2.75';
+import { whole } from '../../render/format.js?v=0.2.75';
+import { glyphSvg } from '../launcher.js?v=0.2.75';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.75';
+import { actionIconHtml } from './bits.js?v=0.2.75';
+import { hubHtml, patchHub } from './vitals-hub.js?v=0.2.75';
+import { staminaBuyHtml, patchStaminaBuy, actStaminaBuy } from './stamina-buy.js?v=0.2.75';
+import { openSlot, sendPlan, movePlan, swapPlan, insertPlan, serverBar, answerWithin } from '../bar-draft.js?v=0.2.75';
+import { actionName, factsOf, carried, supplyLines, setupWords, conflictsOf, reasonOf, holdingReason, sharedCooldownOf } from '../action-facts.js?v=0.2.75';
+import { resetConfigureView } from '../windows/configure-action.js?v=0.2.75';
+import { assignToBar, barKind } from '../bar-assign.js?v=0.2.75';
+import { DRAG_TYPE } from '../windows/inventory/actions.js?v=0.2.75';
+import { refusalWords } from '../intent-words.js?v=0.2.75';
+import { targetOptionsHtml, stanceButtonsHtml, distanceHtml, goldFloorHtml, patchControls, sendOption } from './settings-intent.js?v=0.2.75';
+import { ATTACK_KINDS } from '../../data/condition-metrics.js?v=0.2.75';
+import { nameEditorHtml, openNameEditor, nameKey } from '../inline-name.js?v=0.2.75';
+import { renameActionSet } from '../../session/preset-intents.js?v=0.2.75';
 
 const SLOTS = BAR_SLOTS.rows * BAR_SLOTS.cols;
 const SLOT_DRAG = 'application/x-hr-bar-slot';
@@ -180,7 +180,7 @@ function tipHtml(i, ctx) {
   const h = huntOf(ctx.character);
   const bag = carriedOf(ctx.character);
   const hero = h && !h.ended ? h.hero : null;
-  const why = reasonOf(s, set, bag, hero) || holdingReason(s, holdsPackNow(ctx.character, hero));
+  const why = reasonOf(s, set, bag, hero, (equipmentOf(ctx.character) || {}).ammo) || holdingReason(s, holdsPackNow(ctx.character, hero));
   const shared = sharedCooldownOf(wires, i);
   const lines = [f.cost ? (f.cost.includes('mana') ? 'Cost: ' + f.cost : f.cost) : null, f.type, f.cooldown].concat(f.effect, supplyLines(s.action, set, bag)).filter(Boolean);
   return '<b>' + esc(actionName(s.action)) + '</b><small class="hb-tip-n">Slot ' + (i + 1) + '</small>'
@@ -217,10 +217,11 @@ renderActionBar.patch = function patchActionBar(el, ctx) {
   const casts = watchCasts(el, ctx);
   const now = ctx.now();
   const holding = holdsPackNow(cs, hero);
+  const worn = (equipmentOf(cs) || {}).ammo;
   for (const li of el.querySelectorAll('.hb-slot')) {
     const i = Number(li.getAttribute('data-slot'));
     const sl = slots[i] || { empty: true };
-    patchSlot(li, sl, wires[i], ctx, bag, conflicts.get(i), reasonOf(sl, s, bag, hero) || holdingReason(sl, holding));
+    patchSlot(li, sl, wires[i], ctx, bag, conflicts.get(i), reasonOf(sl, s, bag, hero, worn) || holdingReason(sl, holding));
     patchCooldown(li, sl, casts, now);
   }
   const set = s && s.presets.find((p) => p.preset === s.preset);

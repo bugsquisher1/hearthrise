@@ -122,12 +122,16 @@ const BASE_CHARACTERS = PLAYTEST_PLAYERS * HEROES_PER_PLAYER;
    browser's POSTs to hr-accrue over 24 h to 10-30 02:30 (n = 6,546), and
    function_logs `shutdown` cpu_time_used (n = 2,691). --settle re-measures the
    database half on whatever is hunting when it runs. */
+/* 2026-10-31 (lane/c-beta-capacity): 911 -> 407 ms = the live number / the PG17 replay's 2.24x (v0.2.74, applied
+   10-30 20:33; no 4-hero party has hunted since, so this is DERIVED; the one live post-apply settle is a solo Mill
+   Cellar at 68-85 ms, against 416-463 ms for four before). Cron re-measured over 606 s with nothing hunting: 10.2 ms/s
+   (it was 3.0: that window excluded hr_cron_health and the prunes). */
 const SETTLE = {
-  measured: '2026-10-30 02:31 UTC, 1 watched 4-hero party',
+  measured: '2026-10-30 02:31 UTC 4-hero party / 2.24 (PG17 A/B, v0.2.74)',
   party_heroes: 4,
-  db_ms_per_party_settle: 911,
+  db_ms_per_party_settle: 407,
   rest_db_ms_per_player_s: 6.3,      // `authenticated` PostgREST time, one active player, same window
-  cron_db_ms_per_s: 3.0,             // hr_tick_cron_run + town refresh + enrol + sweeps, same window
+  cron_db_ms_per_s: 10.2,            // every postgres-role statement over 606 s, 10-31 03:59 UTC, nothing hunting
   poll_ms: 16000,                    // src/session/config.js huntPollMs (the player door's floor is 15 s)
   look_ahead_ms: 32000,              // tools/lib/hunt-lag.mjs LOOK_AHEAD_S: past it a watched hunt FREEZES
   edge_wall_ms: { p50: 643, p95: 1287, max: 6460 },
@@ -706,13 +710,13 @@ async function runSettle() {
 
   const prev = new Map(a.map((r) => [r.k, r]));
   const by = { engine: 0, rest: 0, cron: 0 };
-  let applies = 0; const top = [];
+  let applies = 0; let townSettles = 0; const top = [];
   for (const r of b) {
     const o = prev.get(r.k) || { calls: 0, total: 0 };
     const dc = Number(r.calls) - Number(o.calls); const dt = Number(r.total) - Number(o.total);
     if (dc <= 0) continue;
     const q = String(r.q);
-    if (r.role === 'hr_engine') { by.engine += dt; if (q.includes('hr_hunt_apply_instance')) applies += dc; }
+    if (r.role === 'hr_engine') { by.engine += dt; if (q.includes('hr_hunt_apply_instance')) applies += dc; if (q.includes('hr_tick_settle')) townSettles += dc; }
     else if (r.role === 'authenticated' || r.role === 'anon') by.rest += dt;
     else if (r.role === 'postgres' && /^select public\.hr_|^delete from public\./i.test(q)) by.cron += dt;
     else continue;
@@ -729,7 +733,11 @@ async function runSettle() {
   p(`   DB time: engine ${fx(by.engine, 0)} ms · REST ${fx(by.rest, 0)} ms · cron ${fx(by.cron, 0)} ms`
     + ` = ${fx((by.engine + by.rest + by.cron) / 10 / secs, 2)} % of one core`);
   for (const t of res.top) p(`     ${String(t.calls).padStart(5)} x ${fx(t.ms / t.calls, 1).padStart(8)} ms  ${t.role.padEnd(13)} ${t.q.slice(0, 70)}`);
-  if (applies >= 3 && heroesPerInstance) {
+  /* A town tick in the window is hr_engine time no hunt spent (10-31: 97 hr_tick_settle + 33 hr_state_of beside 5 solo
+     settles read as "1,980 ms a party"), so hr_engine / applies is only a settle's price when no town tick ran. */
+  if (townSettles > 0) {
+    p(`   => ${townSettles} town tick settles shared the window: engine time is not one settle's; the model keeps the dated measurement (${SETTLE.measured})`);
+  } else if (applies >= 3 && heroesPerInstance) {
     // One settle's engine time, scaled to the model's party size (every member is re-read and framed).
     const perSettle = by.engine / applies;
     res.override = { db_ms_per_party_settle: perSettle * (SETTLE.party_heroes / heroesPerInstance),
@@ -888,6 +896,11 @@ const LIVE_SQL = {
   pg_net: `select pg_relation_size('net._http_response') as heap_bytes,
       (select count(*) from net._http_response) as live_rows,
       (select last_vacuum from pg_stat_all_tables where relid = 'net._http_response'::regclass) as last_vacuum`,
+  /* 2027-02-11-db-retention.sql's promise, re-read forever: no frame past ~1 h + one run, nothing past 3 days + a day. */
+  retention: `select (select active from cron.job where jobname = 'hr-realtime-frame-prune') as frame_job,
+      (select extract(epoch from (now() at time zone 'utc') - min(inserted_at)) from realtime.messages where event = 'frame') as oldest_frame_s,
+      (select extract(epoch from now() - min(start_time)) from cron.job_run_details) as oldest_run_s,
+      (select extract(epoch from now() - min(at)) from public.hr_tick_cron_log) as oldest_fire_s`,
   // A per-character read that has gone sequential is the O(N-squared) failure
   // this whole exercise exists to rule out. Cheap to check, so check it forever.
   scans: `select relname, seq_scan, idx_scan, n_live_tup
@@ -983,6 +996,13 @@ async function runLive() {
   assert('net._http_response vacuumed in the last 2 h (hr-net-response-vacuum)',
     pn.last_vacuum && Date.now() - Date.parse(pn.last_vacuum) < 2 * 3600e3,
     `last vacuum ${pn.last_vacuum ?? 'NEVER'}; heap ${fx(pn.heap_bytes / 1e6, 1)} MB for ${pn.live_rows} rows`);
+  const rt = one('retention');
+  p(`   retention: oldest frame ${fx(Number(rt.oldest_frame_s) / 3600, 1)} h, cron run ${fx(Number(rt.oldest_run_s) / 86400, 1)} d, tick fire ${fx(Number(rt.oldest_fire_s) / 86400, 1)} d (job ${rt.frame_job ?? 'not applied'})`);
+  if (rt.frame_job === true) {
+    assert('no frame older than 2 h (hr-realtime-frame-prune)', !(Number(rt.oldest_frame_s) > 2 * 3600), `oldest ${fx(Number(rt.oldest_frame_s) / 3600, 1)} h`);
+    assert('the run history and the fire log keep at most 4 days', !(Number(rt.oldest_run_s) > 4 * 86400) && !(Number(rt.oldest_fire_s) > 4 * 86400),
+      `runs ${fx(Number(rt.oldest_run_s) / 86400, 1)} d, fires ${fx(Number(rt.oldest_fire_s) / 86400, 1)} d`);
+  }
   assert('no cron job failed or went inactive in 24 h', cronBad.length === 0,
     cronBad.map((j) => `${j.jobname}: ${j.fails_24h} failed${j.active ? '' : ', INACTIVE'}`).join('; ') || 'all succeeded');
 

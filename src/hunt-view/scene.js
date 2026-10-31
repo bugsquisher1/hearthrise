@@ -31,18 +31,23 @@
 //      drops it, and the timeline with it (timeline.js T11, refused while it still
 //      holds a step or an event to play), so a long hunt walks only the units on
 //      screen each frame, never every monster it ever spawned.
+//   S9 THE SERVER'S DEAD STAY DOWN: once the screen has reached the snapshot's instant, a
+//      monster the snapshot lists dead is dead on screen too, whatever the timeline last
+//      held of it: drawn standing on a current frame it falls there, else it is gone (S7).
+//      Switched back to a hero, the monsters killed meanwhile stood (at their last drawn
+//      HP, or at 0: an empty bar) until a restart felled them anew (e-20261021-mobs, Andy #65).
 // ════════════════════════════════════════════════════════════════════════
-import { EVENT_FX, LOOT_FX, HIT_FX, PROJECTILE, CAST_FX } from '../data/hunt-vfx.js?v=0.2.74';
-import { outfitSprite } from '../data/hunt-outfits.js?v=0.2.74';
-import { huntOf, partyOf } from '../session/hunt-sections.js?v=0.2.74';
-import { partyPeopleOf } from '../session/party-sections.js?v=0.2.74';
-import { floatShown } from './float-prefs.js?v=0.2.74';
-import { heroSprite } from '../session/hero-look.js?v=0.2.74';
-import { abilityName, itemName } from '../shell/widgets/bits.js?v=0.2.74';
-import { STUB_SPRITE } from '../world/core/book.js?v=0.2.74';
-import { HUNT_GROUNDS } from '../data/hunt-grounds.js?v=0.2.74';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.74';
-import { levelOf } from '../session/character-sections.js?v=0.2.74';
+import { EVENT_FX, LOOT_FX, HIT_FX, PROJECTILE, CAST_FX } from '../data/hunt-vfx.js?v=0.2.75';
+import { outfitSprite } from '../data/hunt-outfits.js?v=0.2.75';
+import { huntOf, partyOf } from '../session/hunt-sections.js?v=0.2.75';
+import { partyPeopleOf } from '../session/party-sections.js?v=0.2.75';
+import { floatShown } from './float-prefs.js?v=0.2.75';
+import { heroSprite } from '../session/hero-look.js?v=0.2.75';
+import { abilityName, itemName } from '../shell/widgets/bits.js?v=0.2.75';
+import { STUB_SPRITE } from '../world/core/book.js?v=0.2.75';
+import { HUNT_GROUNDS } from '../data/hunt-grounds.js?v=0.2.75';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.75';
+import { levelOf } from '../session/character-sections.js?v=0.2.75';
 
 /* The ground's first start tile, standing (the hero before its first window). */
 function entranceOf(huntId) {
@@ -126,6 +131,8 @@ export function readHunt(cs, peers) {
     people,
     viewed: h && h.hero.unit !== null ? h.hero.unit : selfLive && selfLive.unit !== null ? selfLive.unit : p ? p.self : null,
     viewedShield: h ? h.hero.shield : null,
+    /* the server instant the snapshot's units stand at (S9), or null */
+    poseAtMs: h ? h.poseAtMs : null,
     entrance: h ? entranceOf(h.huntId) : null,
     huntName: h && HUNT_INDEX[h.huntId] ? HUNT_INDEX[h.huntId].name : null,
     huntFromMs: h ? h.huntFromMs : null,
@@ -161,6 +168,13 @@ export function createHuntScene(o) {
 
   const isHero = (u) => read.heroes.has(u) || (read.units.get(u) || {}).side === 'hero';
   const isBoss = (u) => !!(read.units.get(u) || {}).boss;
+  /* S9: the server instant the frame being drawn shows (null before the timeline has a clock), and whether the
+     snapshot holds monster `u` dead at an instant the screen has reached. */
+  let shownAt = null;
+  const serverDead = (u) => {
+    const r = read.units.get(u);
+    return !!r && r.alive === false && r.side !== 'hero' && shownAt !== null && Number.isFinite(read.poseAtMs) && shownAt >= read.poseAtMs;
+  };
   const roleOf = (u) => (read.heroes.get(u) ? read.heroes.get(u).role : isHero(u) ? null : 'monster');
   /* A monster's kind: the snapshot's, else the timeline's unit book (a corpse played after the
      snapshot dropped it). Unknown is null and the unit is not drawn (never a stub box). */
@@ -322,7 +336,7 @@ export function createHuntScene(o) {
       /* a unit the server walks again is not dead (HP above 0 at this instant, read as its bar reads it) */
       const hpNow = typeof tl.hpAt === 'function' ? tl.hpAt(u, now) : null;
       const gone = hpNow ? hpNow.hp <= 0 : (read.units.get(u) || {}).hp === 0;
-      if (p.moving && !gone) { dead.delete(u); lie.delete(u); } else {
+      if (p.moving && !gone && !serverDead(u)) { dead.delete(u); lie.delete(u); } else {
         const age = now - died;
         if (age >= SCENE_TIMING.corpseMs) return null;
         if (age >= 0) {
@@ -417,6 +431,12 @@ export function createHuntScene(o) {
       const live = new Set(ids);
       for (const m of perUnit) for (const k of m.keys()) if (!live.has(k)) m.delete(k);
     }
+    /* S9: what the snapshot holds dead at an instant on screen is dead here; it falls only if the last frame (still
+       current) drew it standing. */
+    const server = typeof tl.serverNowAt === 'function' ? tl.serverNowAt(now) : null;
+    shownAt = server !== null && typeof tl.delayMs === 'function' ? server - tl.delayMs() : null;
+    const onScreen = drawnAt !== null && now - drawnAt <= SCENE_TIMING.staleMs;
+    for (const u of ids) if (!dead.has(u) && serverDead(u)) dead.set(u, onScreen && standing.has(u) ? now : now - SCENE_TIMING.corpseMs);
     drawnAt = now;
     standing.clear();
     for (const u of ids) {

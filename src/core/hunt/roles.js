@@ -19,12 +19,12 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { HUNT_ROLES, ROLE_ORDER, SPOT, KITE, SURROUND, AI_REPATH_MS, OPEN_GROUND } from '../../data/hunt-roles.js?v=0.2.74';
-import { ROLE_DEFAULTS, HERO_DISTANCE, DEFAULT_TARGET_MODE } from '../../data/rule-subjects.js?v=0.2.74';
-import { walkable, cheb, dist2, los, ringFree, tileKey } from './grid.js?v=0.2.74';
-import { inArea } from './leash.js?v=0.2.74';
-import { atRest, unitById, setGoal, clearGoal, candidateTiles, chooseSpot, standable, goToNearest, reachWithin } from './movement.js?v=0.2.74';
-import { roleOf, engaged, inRange, pickTargets } from './targeting.js?v=0.2.74';
+import { HUNT_ROLES, ROLE_ORDER, SPOT, KITE, SURROUND, AI_REPATH_MS, OPEN_GROUND } from '../../data/hunt-roles.js?v=0.2.75';
+import { ROLE_DEFAULTS, HERO_DISTANCE, DEFAULT_TARGET_MODE } from '../../data/rule-subjects.js?v=0.2.75';
+import { walkable, cheb, dist2, los, ringFree, tileKey } from './grid.js?v=0.2.75';
+import { inArea } from './leash.js?v=0.2.75';
+import { atRest, unitById, setGoal, clearGoal, candidateTiles, chooseSpot, standable, goToNearest, reachWithin } from './movement.js?v=0.2.75';
+import { roleOf, engaged, inRange, pickTargets } from './targeting.js?v=0.2.75';
 
 /* role/dist/chase/tmode: the hero's settings. queued: a monster with no surround slot.
    aiMs: ms until the unit re-picks its goal. */
@@ -100,7 +100,8 @@ const bits = (n) => { let c = 0; for (let v = n; v; v &= v - 1) c++; return c; }
  * walls cut its ring in two and the pack, walking in from the south-west, filled five: room 5.)
  */
 const BOX_ROOM = 16;
-const ROOM_MAX = 8 * BOX_ROOM + 8;
+/** A full box's room: every one of the eight slots fed by one stretch of ground. */
+export const ROOM_MAX = 8 * BOX_ROOM + 8;
 export function roomAt(inst, pocket, x, y) {
   const g = inst.grid;
   const R = OPEN_GROUND.wayRound; const W = 2 * R + 1;

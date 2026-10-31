@@ -30,27 +30,13 @@
 //     magnitude comes from src/data, not the wire. It is safe by CLAUDE.md's
 //     target property regardless — HP is not tradeable, rankable or
 //     contributable, so no forged value can cross into another player's economy.
-//   · During a LIVE, client-predicted fight the server pointer is IDLE and
-//     player_state.hp is STALE-FULL (measured on live QA: active_kind='idle',
-//     hp=10/10 while the client shows a goblin fight at 4 HP). The server cannot
-//     distinguish that from a genuinely-idle player at full HP. So:
-//       — The server does NOT gate on full HP. There is no `already_full`
-//         refusal: refusing it would leave the food UNDEBITED during a live
-//         fight (server hp reads full), which is exactly Paione's P0 —
-//         "I eat 1 mid-combat, it heals and the food returns to 2". The heal
-//         credit is a no-op when server hp is already full (min(max,max+h)=max);
-//         the DEBIT — the authoritative part — always lands.
-//       — Wasting a full-HP eat is refused on the CLIENT (legacy.js eatFood's
-//         b224 guard), which is the ONLY place that knows the real hp during a
-//         live fight (the client owns combat hp, see events.js NO_SYNC). The
-//         server owns the food; the client owns the fight's hp.
-//   · The client applies the heal to its combat hp locally (eatFood) and the eat
-//     transport PRESERVES that combat hp across the envelope reconcile while a
-//     fight is in flight (src/net/... wireServerEat), because accrue.js's HP
-//     floor writes an envelope's hp unconditionally during a fight (b373) and
-//     would otherwise snap the client's live hp up to the stale-full server hp.
-//     Out of combat (idle, genuinely-low server hp — e.g. post-away), the server
-//     hp IS the truth and the normal reconcile applies it.
+//   · AT FULL HP THE EAT IS REFUSED (`already_full`, the food stays; say-why,
+//     2026-10-31: "eating at full HP wastes food in town"), unless it brings a
+//     buff. The old reason for having no such gate is gone: it was the
+//     client-predicted fight (server hp read stale-full while the client fought
+//     at 4 HP, Paione's P0), and a fight is now the engine's alone. A manual eat
+//     in a hunt is refused `hunt_open` (1a), so this eat is in town, where
+//     player_state.hp IS the hero's HP (every hunt end walks home at full HP).
 //
 // ── THE BUFF MODEL (step 2, 2026-09-13) ────────────────────────────────────
 // A Feast's timed effect used to be applied by the CLIENT and by nobody else:
@@ -275,15 +261,12 @@ export async function runEat(o) {
   const serverHp = Number(st.hp) || 0;
   const maxHp = Number(st.max_hp) || 0;
 
-  /* (2) NO SERVER-SIDE "ALREADY FULL" GATE — see the header. During a live
-     client-predicted fight the server pointer is idle and server hp reads
-     STALE-FULL, so a full-hp gate here would refuse the eat, leave the food
-     UNDEBITED, and reproduce Paione's P0. The DEBIT must always land; the heal
-     credit is a harmless no-op when server hp is genuinely full. "Do not waste
-     food at full HP" is the client's call (eatFood's b224 guard), because the
-     client is the only party that knows the real hp mid-fight.
+  /* (2) AT FULL HP, AN EAT THAT WOULD BRING NOTHING IS REFUSED (see the header): no HP to heal and no buff to
+     give (a plain food, or any food the auto-eater sends) keeps the food and says why. A food that carries a buff
+     still eats: the buff is what it is for. `full` only when the server states a max (a max of 0 is broken: the
+     eat goes on and hr_apply clamps). Decided on the settled state, so the absence's damage is in it.
 
-     ⚠ AND THERE IS NO "ALREADY BUFFED" GATE HERE EITHER, for the mirror-image
+     ⚠ THERE IS NO "ALREADY BUFFED" GATE HERE, for the mirror-image
        reason: the queue's ceiling is a property of the LOCKED row, and this read
        is not under the lock. `buff_at_max` is decided inside hr_apply, where the
        queue cannot change under it; deciding it here would be a check-then-act
@@ -296,6 +279,17 @@ export async function runEat(o) {
      anyway. The clamp source is player_state.max_hp; when the separate
      HP-derivation fix makes max_hp track the hitpoints level, this tracks it
      automatically with no change here. */
+  const full = maxHp > 0 && serverHp >= maxHp;
+  if (full && !(food.hasBuff && auto !== true)) {
+    return {
+      status: 409,
+      body: await refusalBody({
+        exec, user, slot, verb: VERB,
+        refusal: { error: INTENT_ERRORS.ALREADY_FULL, detail: { item: food.item }, collected },
+        fallback: env,
+      }),
+    };
+  }
   const newHp = food.heals > 0
     ? (maxHp > 0 ? Math.min(maxHp, serverHp + food.heals) : serverHp + food.heals)
     : serverHp;
@@ -350,8 +344,9 @@ export async function runEat(o) {
      this path at all (the accrual engine's autoEat never emits `buff_apply`), which
      that arm also measures. */
   let buffSkipped = null;
+  /* ...never at full HP: the retry would buy nothing, so the food stays and the answer is buff_at_max. */
   if (res && res.ok !== true && res.error === 'buff_at_max'
-      && food.heals > 0 && delta.buff_apply !== undefined) {
+      && food.heals > 0 && delta.buff_apply !== undefined && !full) {
     buffSkipped = 'at_max';
     res = await applyDelta({
       exec, user, slot, version: settled.version, intentId, delta: eatDelta(food, newHp, true),

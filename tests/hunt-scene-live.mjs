@@ -17,7 +17,8 @@
 // hr_state_of for the QA character read from production (15:39:57 UTC 10-19).
 //
 //   LV-0  A READ ALONE DRAWS THE POSE: hr_load only (no live start point yet) draws the
-//         viewed hero and the pose's monsters (the v0.2.7 empty cellar).
+//         viewed hero and the pose's living monsters (the v0.2.7 empty cellar); a monster the pose
+//         lists dead is never drawn standing (e-20261021-mobs: it stood with an empty bar).
 //   LV-1  FROM ENTER: the hero is drawn within 1 s, walking, with the travel line
 //         ("Walking to Mill Cellar · N s"), for the whole server travel time.
 //   LV-2  LIVE: the instant the engine starts, the browser runs it: the hero moves within
@@ -52,7 +53,9 @@
 //         session as a frame: the prediction never runs dry, and it asks and reads no more than with no frames.
 //   LV-27 A HERO SWITCH (Andy #65, "freezing/catchup sprinting and jumping when toggling"): viewed again
 //         mid-hunt, the first frame shows the server's latest snapshot, the live prediction plays within two
-//         answers and a live ask and eases forward from it; no frame leaps and every unit drawn has a sprite.
+//         answers and a live ask and eases forward from it; no frame leaps and every unit drawn has a sprite;
+//         a monster the snapshot holds dead is never drawn standing once the screen reached its instant
+//         (it stood, its bar empty, until the catch-up felled it anew: e-20261021-mobs).
 //   LV-28 A HUNT THIS BUILD CANNOT PREDICT (Sentry JAVASCRIPT-4C, release 0.2.63: the edge served v0.2.64's
 //         new monsters to a page still on the last build): every start point names a monster this build lacks.
 //         No frame throws; the live view falls back to the server's windows a poll behind, asks the site once
@@ -60,6 +63,12 @@
 //   LV-29 A TAB BACK FROM THE BACKGROUND CATCHES UP IN SLICES (live: one 213-259 ms task as it came back): the
 //         catch-up's swings run at most liveCatchUpSliceMs a frame, and every frame once it has landed is the one
 //         the whole catch-up in one frame draws (the same restart, a few frames on).
+//   LV-30 THE SNAPSHOT NAMES EVERY UNIT (Andy #65, "no sprite for unit N (null)"): the hunt section's
+//         reader keeps every unit of a world the engine fills, a Sewer four at its top density included
+//         (76 units; the reader kept 64 and the newest spawns had no kind: drawn nowhere).
+//   LV-31 ANDY'S OWN PARTY SWITCHED BACK (#65): a four at the Warrens, its viewer away 30 s: once the screen reaches
+//         the snapshot's instant, no monster it holds dead is drawn standing (one placed alive before the switch stood
+//         at its last drawn HP until the catch-up felled it anew: scene.js S9), and every unit drawn has a sprite.
 //   LV-4  THE PAGE (headless Chrome, the real client, the same server answers): the hunt
 //         draws, no page error, and the frame loop holds budget against the frozen sim
 //         (prototypes/hunt-sim) measured the same way.
@@ -275,7 +284,11 @@ async function nodeRules(M) {
     const heroPose = LIVE.hunt.pose.units.find((u) => u.side === 'hero');
     const mons = LIVE.hunt.pose.units.filter((u) => u.side === 'monster');
     ok('LV-0', f.hero && Math.round(f.hero.x) === heroPose.x && Math.round(f.hero.y) === heroPose.y, `after hr_load alone the hero is not at its pose tile (${JSON.stringify(f.hero && [f.hero.x, f.hero.y])})`);
-    ok('LV-0', mons.every((p) => f.units.some((d) => d.unit === p.u)), `the pose's monsters are not drawn (${f.units.length} of ${mons.length})`);
+    const living = mons.filter((p) => p.alive !== false), corpses = mons.filter((p) => p.alive === false);
+    ok('LV-0', corpses.length > 0, 'CONTROL: the fixture pose lists no dead monster (the stand-up case cannot be checked)');
+    ok('LV-0', living.every((p) => f.units.some((d) => d.unit === p.u)), `the pose's living monsters are not drawn (${f.units.length} of ${living.length})`);
+    const stood = corpses.filter((p) => f.units.some((d) => d.unit === p.u && !d.under));
+    ok('LV-0', stood.length === 0, `a monster the pose lists dead is drawn standing (${stood.map((p) => p.u + ' ' + p.kind).join(', ')}): a corpse stood up with an empty bar`);
   }
 
   { // LV-1, LV-2, LV-5
@@ -541,16 +554,18 @@ async function nodeRules(M) {
     // unit more than half a tile (was a 3-tile leap when a poll-behind playback fell to the live delay), and every unit
     // drawn has a sprite (was a unit an older frame's pose placed with no kind, and a spawn inside the catch-up).
     // THE CASE, BUILT ON PURPOSE (v0.2.66 run 40864729296: two LV-27 mutants escaped): the commit case switches back at
-    // 65 s, when the timeline holds units the snapshot no longer lists and the commit window that lands while joining
-    // puts a unit more than a frame's step off where the snapshot drew it. At 60 s the duo stood in a cleared pocket
+    // 106 s, when the timeline holds units the snapshot no longer lists and the commit window that lands while joining
+    // puts a unit more than a frame's step off where the snapshot drew it. (It switched back at 65 s until the poses
+    // stopped placing corpses, timeline.js T12: the units the join forgot there were all corpses a pose had stood up; at
+    // 95-103 s the units stand 8 tiles off and the T8 ease alone outlasts the latency budget.) At 60 s the duo stood in a cleared pocket
     // walking on to the next (pull-cycle.js travel, #69): the timeline listed only the two heroes, nothing was to forget
     // and the window agreed with the snapshot, so neither mutant could bite. Both are asserted below, so the scenario
     // can never go quiet again unseen.
     const delay = M.CFG.SESSION_CONFIG.liveDelayMs, ask = M.CFG.SESSION_CONFIG.liveAskMs, ease = M.CFG.SESSION_CONFIG.liveEaseMs, LAT = 850;
-    for (const [tag, back, quiet] of [['first ask a commit', 65000, 15000], ['first ask a start point', 53000, 0]]) {
+    for (const [tag, back, quiet] of [['first ask a commit', 106000, 15000], ['first ask a start point', 53000, 0]]) {
       const mis = [LIVE_H.memberOf(LM, 'a', 0, 'tank', 6), LIVE_H.memberOf(LM, 'b', 1, 'melee_dps', 6)];
       const SW = [LIVE_H.T0 + 30000, LIVE_H.T0 + back];
-      const r = { first: null, snapOff: null, liveAt: null, easeEndAt: null, easeTiles: 0, step: 0, speed: 0, speedPlay: 0, unnamed: 0, windowOff: 0, forgot: 0 };
+      const r = { first: null, snapOff: null, liveAt: null, easeEndAt: null, easeTiles: 0, step: 0, speed: 0, speedPlay: 0, unnamed: 0, windowOff: 0, forgot: 0, deadSeen: 0, stood: 0, stoodIds: new Set() };
       const warn = console.warn; console.warn = (...a) => { r.unnamed++; if (process.env.HR_DEBUG) warn(...a, cur - LIVE_H.T0); };
       let cur = null, prevS = null, wrapped = null;
       const prev = new Map();
@@ -603,15 +618,28 @@ async function nodeRules(M) {
             prev.set(d.unit, { x: d.x, y: d.y });
           }
           if (s >= SW[1] && r.liveAt === null && cs.live.running() && cs.timeline.delayMs() <= delay) r.liveAt = Math.round(s - SW[1]);
+          /* the snapshot's dead, once the instant shown has reached it: none drawn standing (e-20261021-mobs) */
+          const pose = cs.read('hunt').pose;
+          const shown = cs.timeline.serverNowAt(cs.now());
+          if (s >= SW[1] && pose && Array.isArray(pose.units) && shown !== null && shown - cs.timeline.delayMs() >= pose.at_ms) {
+            for (const p of pose.units) {
+              if (p.alive !== false || p.side === 'hero') continue;
+              r.deadSeen++;
+              if (f.units.some((d) => d.unit === p.u && !d.under)) { r.stood++; r.stoodIds.add(p.u); }
+            }
+          }
         }, { viewer: 'a', unview: SW, quietBefore: quiet, clears: true, latencyMs: LAT });
       } finally { console.warn = warn; }
       const settled = r.easeEndAt === null ? r.liveAt : Math.max(r.liveAt ?? Infinity, Math.round(r.easeEndAt - SW[1]));
       const budget = 2 * LAT + ask + ease + 100;
-      console.log(`  LV-27 switched back after 30 s (${tag}, ${LAT} ms answers): first frame ${r.first} ms after, ${r.snapOff === null ? '?' : r.snapOff.toFixed(2)} tile(s) off the server's snapshot; live ${r.liveAt} ms after, eased in by ${settled} ms (largest ease ${r.easeTiles.toFixed(2)} tiles); fastest unit ${r.speed.toFixed(2)} tiles/s (in play ${r.speedPlay.toFixed(2)}), largest frame step ${r.step.toFixed(3)} tiles; ${r.unnamed} unit(s) with no sprite; joining: a window ${r.windowOff.toFixed(2)} tiles off the drawn units, ${r.forgot} unit(s) forgotten`);
+      console.log(`  LV-27 switched back after ${(SW[1] - SW[0]) / 1000} s (${tag}, ${LAT} ms answers): first frame ${r.first} ms after, ${r.snapOff === null ? '?' : r.snapOff.toFixed(2)} tile(s) off the server's snapshot; live ${r.liveAt} ms after, eased in by ${settled} ms (largest ease ${r.easeTiles.toFixed(2)} tiles); fastest unit ${r.speed.toFixed(2)} tiles/s (in play ${r.speedPlay.toFixed(2)}), largest frame step ${r.step.toFixed(3)} tiles; ${r.unnamed} unit(s) with no sprite; joining: a window ${r.windowOff.toFixed(2)} tiles off the drawn units, ${r.forgot} unit(s) forgotten`);
       ok('LV-27', r.snapOff !== null && r.snapOff <= 0.5, `(${tag}) the first frame back drew a unit ${r.snapOff} tiles off the server's snapshot (budget 0.5: the snapshot at once, never a playback a poll behind)`);
       ok('LV-27', r.liveAt !== null && settled <= budget, `(${tag}) the live prediction played ${r.liveAt} ms after the switch and its ease ended ${settled} ms after it (budget ${budget}: two answers, a live ask and one ease)`);
       ok('LV-27', r.step <= BUDGET.maxStepTiles, `(${tag}) a frame after the switch moved a unit ${r.step.toFixed(2)} tiles (budget ${BUDGET.maxStepTiles}: no leap)`);
       ok('LV-27', r.unnamed === 0, `(${tag}) ${r.unnamed} unit(s) were drawn with no sprite after the switch`);
+      console.log(`  LV-27 (${tag}) the snapshot's dead after the switch: ${r.deadSeen} unit-frame(s) listed dead, ${r.stood} drawn standing (${[...r.stoodIds].join(', ')})`);
+      ok('LV-27', r.deadSeen > 0, `(${tag}) CONTROL: no monster the snapshot holds dead was on the ground after the switch (the stand-up case went quiet)`);
+      ok('LV-27', r.stood === 0, `(${tag}) ${r.stood} unit-frame(s) after the switch drew a monster standing that the server's snapshot holds dead (${[...r.stoodIds].join(', ')}): it stood until a restart felled it anew`);
       if (tag === 'first ask a commit') ok('LV-27', r.windowOff > BUDGET.maxStepTiles && r.forgot > 0, `(${tag}) the switch back no longer builds the joining case: a window ${r.windowOff.toFixed(2)} tiles off the drawn units (want > ${BUDGET.maxStepTiles}), ${r.forgot} unit(s) the join forgot (want > 0); without both the joining mutants cannot bite`);
     }
   }
@@ -794,6 +822,75 @@ async function nodeRules(M) {
     const before = tl.hpAt(1, T + 500 - OFF), after = tl.hpAt(1, T + 10500 - OFF);
     ok('LV-21', before && before.maxHp === 150, `before the Level-up the bar's max HP is ${before && before.maxHp}, want 150`);
     ok('LV-21', after && after.maxHp === 190 && after.hp === 150, `after a batch raised max HP the bar reads ${after && after.hp}/${after && after.maxHp}, want 150/190`);
+  }
+
+  { // LV-31 ANDY'S OWN PARTY SWITCHED BACK (#65, live v0.2.45: four heroes of one account at Coppercap Warrens, toggled
+    // between). The viewer (the tank) is away 40 s to 70 s; the heroes viewed meanwhile settle and push frames (`unview`).
+    // A monster an earlier pose placed alive and the newest snapshot holds dead must not stand once the screen reaches the
+    // snapshot (it stood about half a second at its last drawn HP, then fell anew when the catch-up revived the scene).
+    const roles = ['tank', 'ranger', 'mage', 'healer'];
+    const kit = { tank: { weapon: 'steel_sword', shield: 'coppercap_shield', helmet: 'steel_helm', body: 'steel_platebody', pants: 'steel_platelegs', boots: 'steel_boots' },
+      ranger: { weapon: 'maple_bow', ammo: 'barbed_arrows', helmet: 'boarhide_helmet', body: 'boarhide_body', pants: 'boarhide_pants', boots: 'boarhide_boots' },
+      mage: { weapon: 'willow_wand', shield: 'willow_spellbook', helmet: 'scholar_helmet', body: 'scholar_body', pants: 'scholar_pants', boots: 'scholar_boots' },
+      healer: { weapon: 'willow_staff', helmet: 'scholar_helmet', body: 'scholar_body', pants: 'scholar_pants', boots: 'scholar_boots' } };
+    const mis = roles.map((role, i) => {
+      const mi = LIVE_H.memberOf(LM, 'andy', i, role, 35);
+      mi.key = 'andy:' + i; mi.slot = i; mi.sessionId = 's-andy-' + i; mi.huntId = 'coppercap_warrens'; mi.gold = 50000; mi.hp = 1e9;
+      mi.equipment = kit[role];
+      mi.skills = { ...mi.skills, magic: LM.XP.skillXpForLevel('magic', 35) };
+      mi.huntSession = Object.assign({}, mi.huntSession, { id: 's-andy-' + i, bag: role === 'ranger' ? { barbed_arrows: { loaded: 60, left: 60 } } : {} });
+      mi.hero = LM.SPAWN.heroSetup({ weaponType: LM.HR.wornRoleKey(kit[role], LM.ITEMS), options: role === 'healer' ? { role: 'healer' } : {},
+        bar: [], partyRoles: roles, leaveTogether: true, lead: i === 0 });
+      return mi;
+    });
+    const SW = [LIVE_H.T0 + 40000, LIVE_H.T0 + 70000];
+    const r = { deadSeen: 0, stood: 0, stoodIds: new Set(), unnamed: 0, frames: 0 };
+    const warn = console.warn; console.warn = () => { r.unnamed++; };
+    try {
+      await playLive(M, LM, book, mis, 90000, ({ s, f, cs }) => {
+        if (s < SW[1]) return;
+        r.frames++;
+        const pose = cs.read('hunt').pose;
+        const now = cs.timeline.serverNowAt(cs.now());
+        if (!pose || !Array.isArray(pose.units) || now === null || now - cs.timeline.delayMs() < pose.at_ms) return;
+        for (const p of pose.units) {
+          if (p.alive !== false || p.side === 'hero') continue;
+          r.deadSeen++;
+          if (f.units.some((d) => d.unit === p.u && !d.under)) { r.stood++; r.stoodIds.add(p.u); }
+        }
+      }, { hunt: 'coppercap_warrens', viewer: 'andy', unview: SW, clears: true, latencyMs: 850, fps: 30 });
+    } finally { console.warn = warn; }
+    console.log(`  LV-31 Andy's Warrens four, the tank away 30 s: ${r.frames} frames after, ${r.deadSeen} unit-frame(s) the snapshot held dead, ${r.stood} drawn standing (${[...r.stoodIds].join(', ')}), ${r.unnamed} unit(s) with no sprite`);
+    ok('LV-31', r.deadSeen > 0, 'CONTROL: no monster the snapshot holds dead was on the ground after the switch back (the stand-up case went quiet)');
+    ok('LV-31', r.stood === 0, `${r.stood} unit-frame(s) drew a monster standing that the server's snapshot holds dead (${[...r.stoodIds].join(', ')}): it stood until the catch-up felled it anew`);
+    ok('LV-31', r.unnamed === 0, `${r.unnamed} unit(s) were drawn with no sprite after the switch back`);
+  }
+
+  { // LV-30 THE SNAPSHOT NAMES EVERY UNIT (Andy #65: "[hunt-scene] no sprite for unit N (null)" in almost every report).
+    // A Sewer four at its top density on the real settle, committed every 10 s: each stored world's hunt-section pose
+    // (hr_hunt_section_view lists every unit: poseOf) read through the client's reader (hunt-sections.js huntOf), whose
+    // units name and size what the scene draws from a read alone (a reload, a hero switched back to). Every monster has
+    // its kind, the fullest world too: kept to 64, the newest spawns of a 76-unit world had none and were drawn nowhere.
+    const mis = ['tank', 'ranger', 'mage', 'healer'].map((role, i) => {
+      const mi = LIVE_H.memberOf(LM, 'q' + i, i, role, 20);
+      mi.huntId = 'millrace_sewer';
+      mi.hero = Object.assign({}, mi.hero, { density: 12 });
+      return mi;
+    });
+    const srv = LIVE_H.server(LM, mis, { hunt: 'millrace_sewer' });
+    let most = 0, worlds = 0;
+    const unnamed = new Set();
+    for (let t = LIVE_H.T0 + 10000; t <= LIVE_H.T0 + 600000; t += 10000) {
+      if (!srv.commit(t)) continue;
+      const pose = poseOf(LM, srv.inst);
+      const h = M.HSX.huntOf({ read: (k) => (k === 'hunt' ? { session_id: 's-lv28', hunt_id: 'millrace_sewer', pose } : undefined) });
+      worlds++;
+      most = Math.max(most, pose.units.length);
+      for (const p of pose.units) if (p.side === 'monster' && !((h.units.get(p.u) || {}).kind)) unnamed.add(p.u);
+    }
+    console.log(`  LV-30 Sewer four at density 12, 10 min: ${worlds} commits, at most ${most} units in one pose; ${unnamed.size} monster(s) the reader left with no kind`);
+    ok('LV-30', most > 64, `CONTROL: the fullest Sewer world listed ${most} units (want > 64: the case the old 64-unit reader cut)`);
+    ok('LV-30', unnamed.size === 0, `${unnamed.size} monster(s) of the snapshot reached the scene with no kind (${[...unnamed].slice(0, 6).join(', ')}): drawn nowhere`);
   }
 
   { // LV-18 SWITCHED AWAY AND BACK MID-HUNT (Andy 10-21: "When you tab away to another character while
@@ -1309,7 +1406,7 @@ const MUTANTS = [
   ['no stand-in before the first swing (LV-1)', 'src/hunt-view/scene.js', '    if (!hero && read.entrance) hero = (read.viewed !== null && unitAt(read.viewed, now, read.entrance)) || standIn(now);', '', /^LV-1/],
   /* Sentry JAVASCRIPT-4C: a hunt this build cannot predict never throws in the frame loop and falls back (LV-28). */
   ['a start point naming an unknown monster is run, and a swing that throws escapes (LV-28)', 'src/hunt-view/live-engine.js',
-    "fail(reasonOf(e)); return n; }", "throw e; }", /^LV-28/, [['    if (unknown.length) return fail(', '    if (false) return fail('], ['break; return fail(reasonOf(e)); }', 'break; throw e; }']]],
+    "fail(reasonOf(e)); return n; }", "throw e; }", /^LV-28/, [['    if (unknown.length) return fail(', '    if (false) return fail('], ['return true; return fail(reasonOf(e)); }', 'return true; throw e; }']]],
   ['a failed prediction keeps the live delay and asks again (LV-28)', 'src/session/live-link.js', '    if (why === null || this.failure !== null) return false;', '    if (true) return false;', /^LV-28: (the live view did not stop|after the fall-back)/],
   ['a failed prediction never asks for a newer build (LV-28)', 'src/session/live-link.js', "    if (this._stale) { try { this._stale(); }", "    if (false) { try { this._stale(); }", /^LV-28: the site was asked/],
   /* A tab back from the background catches up in slices, and lands the restart one task would have (LV-29). */
@@ -1325,7 +1422,7 @@ const MUTANTS = [
   ['a start point with a new setup is ignored when its world agrees (LV-14)', 'src/session/live-link.js', '      if (this.engine.sameSetup(body.hunt_live)\n        && this._judge(', '      if (this._judge(', /^LV-14/],
   ['a mid-hunt settings answer asks for nothing (LV-14)', 'src/session/character-session.js', ' && this._huntOpen()) this.liveLink.ask();', ' && false) this.liveLink.ask();', /^LV-14/],
   ["a matching start point's seeds are dropped (LV-8)", 'src/session/live-link.js', '&& this._judge({ world_swing: i.world_swing, world_hash: i.world_hash, seeds: body.hunt_live.seeds }) ===', '&& this.engine.check({ world_swing: i.world_swing, world_hash: i.world_hash }) ===', /^LV-8/],
-  ['missed swings are played at once (LV-10)', 'src/session/live-link.js', '    if (this.engine.behindMs(now) > this._tl.delayMs()) {', '    if (false) {', /^LV-10/],
+  ['missed swings are played at once (LV-10)', 'src/session/live-link.js', '    if (!this._catching && this.engine.behindMs(now) > this._tl.delayMs()) {', '    if (false) {', /^LV-10/],
   ['the poll waits for the ordinary poll however short the look-ahead (LV-11)', 'src/session/hunt-poll.js', ', liveLink.refillDelayMs() ?? SESSION_CONFIG.huntPollMs);', ', SESSION_CONFIG.huntPollMs);', /^LV-11/],
   ['a death inside a catch-up is not played (LV-12)', 'src/session/live-link.js', '    for (const ev of res.kills) {', '    for (const ev of []) {', /^LV-12/],
   /* report #69: the leader waits at the spawn, so a pack is hit in the swing it respawns: booked at its after-swing HP,
@@ -1362,6 +1459,11 @@ const MUTANTS = [
   /* r09: the panel's own row reads heroVitalsOf; the commit's HP is the roster row's m.hp. */
   ["the party panel reads the last commit's HP (LV-15, live v0.2.22)", 'src/shell/widgets/party-panel.js', 'level: v.level, hp: v.hp, hpMax: v.hpMax', 'level: v.level, hp: m.hp, hpMax: m.hpMax', /^LV-15/],
   ["the party panel reads a party-mate's last-commit HP (LV-15b)", 'src/shell/widgets/party-panel.js', 'const live = m.hunting ? liveHpOf(cs, m.unit) : null;', 'const live = null;', /^LV-15b/],
+  ['a pose places a corpse it never held (LV-0, timeline.js T12)', 'src/hunt-view/timeline.js', '      if (!a && p.alive === false) continue;   // T12\n', '', /^LV-0/],
+  ["the snapshot's dead stand on a switch back (LV-31, scene.js S9)", 'src/hunt-view/scene.js',
+    '    for (const u of ids) if (!dead.has(u) && serverDead(u)) dead.set(', '    for (const u of ids) if (false) dead.set(', /^LV-31/],
+  ["the snapshot's alive is not read (LV-31)", 'src/session/hunt-sections.js', 'alive: u.alive !== false });', 'alive: true });', /^LV-31/],
+  ['the snapshot reader keeps 64 units (LV-30, Andy #65)', 'src/session/hunt-sections.js', 'list(pose.units, (x) => x, POSE_UNITS_MAX)', 'list(pose.units, (x) => x, 64)', /^LV-30/],
   ["the bar keeps the hunt's first max HP (LV-21, Brannoc 10-22)", 'src/hunt-view/timeline.js', '    const max = base[2] || r.maxHp;', '    const max = r.bases[0][2] || r.maxHp;', /^LV-21/],
 ];
 

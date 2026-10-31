@@ -63,28 +63,28 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_INDEX } from './hunts.js?v=0.2.74';
-import { HUNT_GROUNDS } from './hunt-grounds.js?v=0.2.74';
-import { END_ORDER, DEATH_XP_LOSS, STAMINA_LOW_MIN } from './hunt-sessions.js?v=0.2.74';
-import { nextUnlock } from './skill-unlocks.js?v=0.2.74';
-import { SKILLS_DEF } from './skills.js?v=0.2.74';
-import { CROPS, TREES, ROCKS } from './gathering.js?v=0.2.74';
-import { tallyTask } from './tally-tasks.js?v=0.2.74';
-import { WEIGHT_ORDER, weightShort } from './armour-weights.js?v=0.2.74';
-import { ITEMS } from './items.js?v=0.2.74';
-import { BASIC_INDEX } from './supply-basics.js?v=0.2.74';
-import { LEVEL_REQ } from './gear-tiers.js?v=0.2.74';
-import { roleWeaponOf, WEAPON_ROLES, SHIELD_ARM } from './hunt-roles.js?v=0.2.74';
-import { isShield } from './shields.js?v=0.2.74';
-import { deriveProfile } from '../core/member.js?v=0.2.74';
-import { ABILITIES } from './abilities.js?v=0.2.74';
-import { CONSUMABLES } from './consumables.js?v=0.2.74';
-import { RUNE_FAMILIES, runeId } from './runes.js?v=0.2.74';
-import { ARTISAN_RECIPES } from './recipes.js?v=0.2.74';
-import { HUNT_STANCES, ROLE_DEFAULTS, ACTION_SET_LIMITS } from './rule-subjects.js?v=0.2.74';
-import { START_EQUIPMENT, START_BAR } from './start-kit.js?v=0.2.74';
-import { HEARTH_FUELS } from './hearth.js?v=0.2.74';
-import { regenPermille } from '../core/vitals.js?v=0.2.74';
+import { HUNT_INDEX } from './hunts.js?v=0.2.75';
+import { HUNT_GROUNDS } from './hunt-grounds.js?v=0.2.75';
+import { END_ORDER, DEATH_XP_LOSS, STAMINA_LOW_MIN } from './hunt-sessions.js?v=0.2.75';
+import { nextUnlock } from './skill-unlocks.js?v=0.2.75';
+import { SKILLS_DEF } from './skills.js?v=0.2.75';
+import { CROPS, TREES, ROCKS } from './gathering.js?v=0.2.75';
+import { tallyTask } from './tally-tasks.js?v=0.2.75';
+import { WEIGHT_ORDER, weightShort } from './armour-weights.js?v=0.2.75';
+import { ITEMS } from './items.js?v=0.2.75';
+import { BASIC_INDEX } from './supply-basics.js?v=0.2.75';
+import { LEVEL_REQ } from './gear-tiers.js?v=0.2.75';
+import { roleWeaponOf, WEAPON_ROLES, SHIELD_ARM } from './hunt-roles.js?v=0.2.75';
+import { isShield } from './shields.js?v=0.2.75';
+import { deriveProfile } from '../core/member.js?v=0.2.75';
+import { ABILITIES } from './abilities.js?v=0.2.75';
+import { CONSUMABLES } from './consumables.js?v=0.2.75';
+import { RUNE_FAMILIES, runeId } from './runes.js?v=0.2.75';
+import { ARTISAN_RECIPES } from './recipes.js?v=0.2.75';
+import { HUNT_STANCES, ROLE_DEFAULTS, ACTION_SET_LIMITS } from './rule-subjects.js?v=0.2.75';
+import { START_EQUIPMENT, START_BAR } from './start-kit.js?v=0.2.75';
+import { HEARTH_FUELS } from './hearth.js?v=0.2.75';
+import { regenPermille } from '../core/vitals.js?v=0.2.75';
 
 /* The surfaces a card may point at: `window` the shell window (src/data/shell-windows.js) its controls live in (the
    card shows INSIDE it while it is open), `icon` its way starts at that window's icon, and what the coach rings
@@ -312,10 +312,12 @@ export const HUNT_TUTORIAL = Object.freeze([
     'hunt_picker', { kind: 'enter', hunt: THICKET },
     { inWindow: 'Press Enter on ' + HUNT_INDEX[THICKET].name + '. Your hero walks from clearing to clearing by itself and fights each pack it finds.' }),
   /* ── D / E. The second hunt and the second return ─────────────────── */
+  /* Done when Tamsin pays, or once the hero hunts PAST the Thicket (#58, Andy: the wolves still held, out of the
+     Sewer the card sent him back to the Thicket; the tally on screen still counts them and she still pays). */
   step('tamsin_pays', 'Paid in town',
     'Hunt the Thicket until your ' + WOLVES.count + ' ' + WOLVES.label + ' are down; the tally on screen counts. Tamsin pays as you come back to town: '
       + WOLVES.gold + ' gp and a piece of armor you can wear.',
-    'world', { kind: 'tally_paid' }, { when: [{ kind: 'not_elsewhere', hunt: WOLVES.hunt }] }),
+    'world', { kind: 'any', of: [{ kind: 'tally_paid' }, { kind: 'been', hunt: WOLVES.hunt, past: true }] }, { when: [{ kind: 'not_elsewhere', hunt: WOLVES.hunt }] }),
   step('go_below', 'Into the sewer, together',
     'The Sewer is a party hunt. Pick The Sewer and Start with party: everyone walks in together. The Rat King holds the last room and only comes out for a party.',
     'hunt_picker', { kind: 'enter', hunt: 'millrace_sewer' }, { party: true }),
@@ -436,7 +438,8 @@ const FACTS = Object.freeze({
   hunting: (p, f) => !!f.huntId,
   in_town: (p, f) => !f.huntId,
   enter: (p, f) => reached(f, p.hunt) || (p.hunt === CELLAR && f.levelXp > 0),
-  been: (p, f) => reached(f, p.hunt),
+  /* `past: true`: only a ground past `hunt` counts */
+  been: (p, f) => reached(f, p.hunt, p.past === true),
   not_elsewhere: (p, f) => !f.huntId || f.huntId === p.hunt,
   /* out of that hunt now, or already hunting past it (back in it later is not a step back) */
   ended: (p, f, c) => f.huntId !== c.openedIn || (!!c.openedIn && reached(f, c.openedIn, true)),

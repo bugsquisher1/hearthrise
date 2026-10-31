@@ -5,6 +5,18 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.75 — 2026-10-31 (Back where you left off)
+
+**Reloading keeps your place.** A reload reopens the heroes you were playing instead of the character list. Reloads are faster too: the slow ones that took 5 to 12 seconds should now take about a second.
+
+**Hunts look right.** A dead monster no longer stands back up when you reload or switch heroes, and big pulls no longer lose monsters off the screen. Coming back to a hidden tab catches up smoothly instead of freezing for a moment.
+
+**A full bag no longer locks you out.** If a hunt brought your bag home over its limit, your hero couldn't equip, sell or finish town work. Now you can, though you can't add new stacks until you make room.
+
+**Tanks find open ground.** In a big pull a tank walled in against the edge of a pocket now walks to roomier ground, so the whole pack can reach it.
+
+**Small fixes.** Food isn't used up when you're already at full HP, and the bag says why. A shot spell with no ammo now says "Needs ammo" instead of looking ready. A Hearth run ends right when the last fuel burns. A forfeited hunt brings your hero home at full HP. A tomato's last harvest says "Harvest and clear plot". Tutorial tips stop sending you back to the Thicket after you've moved on.
+
 ## v0.2.74 — 2026-10-30 (Lighter saves)
 
 **Lighter hunt saves.** The server now does about half the work each time it saves a hunt, so more parties can hunt at once without slowing down. Nothing changes in how hunts play.

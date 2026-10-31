@@ -42,6 +42,8 @@
 //         role's default — a druid-clad sword hero never flips to the knight
 //   SC-10 NO SPIN: a hero standing between swings keeps facing its target; it
 //         never turns back to its last walk heading and round again each swing
+//   SC-13 A SNAPSHOT AHEAD OF THE SCREEN NEVER CUTS A DEATH SHORT (scene.js S9): a monster the
+//         pose lists dead stands until its kill plays in the window behind it, then lies as its corpse
 //   SC-12 THE LEVEL-UP MOMENT: "Level N" rises over the viewed hero once when the
 //         server's Level goes up, never on a mount or reload, and not when its
 //         Combat text toggle is off (designer 2026-10-22)
@@ -368,6 +370,20 @@ async function rules(M) {
     ok('SC-11', seen.length > 0 && up.length === 0, 'a rat killed mid-step was drawn standing in ' + up.length + ' of ' + seen.length + ' frames: ' + JSON.stringify(up[0] || null));
   }
 
+  { // SC-13: the pose (at S0 + 1200) lists the rat dead while the screen plays the window a delay behind it; its kill
+    // at S0 + 300 must still play: the snapshot's death applies only once the screen reaches the snapshot's instant
+    const clock = { t: C0 };
+    const body = envelope(7, S0);
+    body.hunt.pose.units = body.hunt.pose.units.map((p) => (p.u === 101 ? Object.assign({}, p, { alive: false }) : p));
+    const cs = session(M, clock, [body]);
+    await cs.load();
+    const v = viewer(M, cs);
+    const before = unitOf(v.at(at(S0 + 200)), 101);
+    const after = unitOf(v.at(at(S0 + 400)), 101);
+    ok('SC-13', before && !before.under && after && after.under,
+      'a snapshot ahead of the screen felled the rat before its kill played: ' + JSON.stringify({ before: before ? { under: before.under } : null, after: after ? { under: after.under } : null }));
+  }
+
   { // SC-12: the level-up moment plays once when the SERVER's Level rises, never on a mount, and obeys its toggle
     const xpAt = (L) => M.XP.charXpForLevel(L);
     const lv = (version, serverNow, L) => { const e = envelope(version, serverNow); e.state = Object.assign({}, e.state, { level_xp: xpAt(L) }); return e; };
@@ -394,7 +410,8 @@ async function rules(M) {
 
 const MUTANTS = [
   ['the walk frame counts frames drawn', 'src/hunt-view/scene.js', 'const frame = corpse ? corpse.frame : moving ? Math.floor((p.d * walk.fps * tl.tileMs) / 1000) : 0;', 'globalThis.__n = (globalThis.__n || 0) + 1;\n    const frame = corpse ? corpse.frame : moving ? globalThis.__n % 6 : 0;'],
-  ['a monster killed mid-step stands up again', 'src/hunt-view/scene.js', '      if (p.moving && !gone) { dead.delete(u);', '      if (p.moving) { dead.delete(u);'],
+  ['the snapshot fells a monster before the screen reaches it (SC-13)', 'src/hunt-view/scene.js', ' && shownAt >= read.poseAtMs;', ';'],
+  ['a monster killed mid-step stands up again', 'src/hunt-view/scene.js', '      if (p.moving && !gone && !serverDead(u)) { dead.delete(u);', '      if (p.moving && !serverDead(u)) { dead.delete(u);'],
   ['an event plays twice', 'src/hunt-view/scene.js', '    if (!ev || keys.has(ev.key)) return false;\n', '    if (!ev) return false;\n'],
   ['an effect starts when it is delivered', 'src/hunt-view/scene.js', 'const start = tl.clientAt(ev.atMs) ?? now;', 'const start = now;'],
   ['playback runs ahead of the track', 'src/hunt-view/timeline.js', 'const f = Math.min(1, (t - cur.atMs) / (cur.dur || cfg.tileMs));', 'const f = (t - cur.atMs + 200) / (cur.dur || cfg.tileMs);'],

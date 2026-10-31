@@ -46,6 +46,9 @@
 //      frame. A step or book row for it at or before the instant it was forgotten at is the
 //      past restated and is refused (a finished corpse never stands up again); a newer one is
 //      the server saying it stands, and is taken.
+//   T12 A POSE NEVER PLACES A CORPSE: a unit the snapshot lists dead that the timeline does not hold
+//      died where nothing drew it (a reload, a hero switched back to) and gets no step; placed, it
+//      stood up with an empty bar (e-20261021-mobs).
 //
 // Rendering, simulation and persistence run on independent clocks: the caller
 // asks positionAt()/advance() with its own frame clock; the server ticks at its
@@ -218,6 +221,7 @@ export function createTimeline(o) {
     for (const p of pose.units) {
       if (!p || ![p.u, p.x, p.y].every(isInt)) continue;
       const a = steps.get(p.u);
+      if (!a && p.alive === false) continue;   // T12
       const last = a && a[a.length - 1];
       if (last && last.x === p.x && last.y === p.y) continue;
       const at = last ? Math.max(pose.at_ms, last.atMs + cfg.tileMs) : pose.at_ms;

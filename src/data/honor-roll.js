@@ -30,8 +30,8 @@
 //   stonemason, bountyHunter   no such skill in the catalogue: nobody can rank.
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
-import { SKILLS_DEF } from './skills.js?v=0.2.77';
-import { SKILL_GUIDE } from './skill-guide.js?v=0.2.77';
+import { SKILLS_DEF } from './skills.js?v=0.2.78';
+import { SKILL_GUIDE } from './skill-guide.js?v=0.2.78';
 
 /* A skill board: its name from SKILLS_DEF, where it is trained from SKILL_GUIDE (one wording, the Skills window's). */
 const skill = (id, group) => Object.freeze({

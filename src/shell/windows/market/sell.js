@@ -12,18 +12,18 @@
 // as numbers with their sales count, and the player types the price, until the server's read
 // carries the sample rules. A listing's price then only ever comes from this player's eyes.
 // ════════════════════════════════════════════════════════════════════════
-import { rows, text, cls, attr, prop, element } from '../../../render/paint.js?v=0.2.77';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.77';
-import { whole } from '../../../render/format.js?v=0.2.77';
-import { ITEMS } from '../../../data/items.js?v=0.2.77';
-import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.77';
-import { bagOf, bankOf, shopOf, rulesOf as bagRulesOf, nameOf, presetsOf, goldOf } from '../../../session/item-sections.js?v=0.2.77';
-import { refusalText } from '../../intent-words.js?v=0.2.77';
-import { marketList } from '../../../session/market-intents.js?v=0.2.77';
-import { marketKey, answerLost } from '../../../session/market-gesture.js?v=0.2.77';
-import { feeOf, netEachOf, sellRowWords, goldWords, priceSample, ageWords } from '../../market-model.js?v=0.2.77';
-import { showTip, hideTip } from '../item-tip.js?v=0.2.77';
-import { viewOf, setView, readItem, readNamed, rereadAll, holdGesture, dropGesture } from './state.js?v=0.2.77';
+import { rows, text, cls, attr, prop, element } from '../../../render/paint.js?v=0.2.78';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.78';
+import { whole } from '../../../render/format.js?v=0.2.78';
+import { ITEMS } from '../../../data/items.js?v=0.2.78';
+import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.78';
+import { bagOf, bankOf, shopOf, rulesOf as bagRulesOf, nameOf, presetsOf, goldOf } from '../../../session/item-sections.js?v=0.2.78';
+import { refusalText } from '../../intent-words.js?v=0.2.78';
+import { marketList } from '../../../session/market-intents.js?v=0.2.78';
+import { marketKey, answerLost } from '../../../session/market-gesture.js?v=0.2.78';
+import { feeOf, netEachOf, sellRowWords, goldWords, priceSample, ageWords } from '../../market-model.js?v=0.2.78';
+import { showTip, hideTip } from '../item-tip.js?v=0.2.78';
+import { viewOf, setView, readItem, readNamed, rereadAll, holdGesture, dropGesture } from './state.js?v=0.2.78';
 
 /** The Sell pane's skeleton. */
 export function sellHtml() {

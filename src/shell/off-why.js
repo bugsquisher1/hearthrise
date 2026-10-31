@@ -12,7 +12,7 @@
 // A browser may keep every event from a disabled control, so the press is read from
 // the point under the finger, at the document, before anything else sees it.
 // ════════════════════════════════════════════════════════════════════════
-import { MOBILE_QUERY } from '../world/core/camera.js?v=0.2.77';
+import { MOBILE_QUERY } from '../world/core/camera.js?v=0.2.78';
 
 const WHY_LINES = '.hw-why, .hb-buy-why, .hw-work-why, .hw-slot-why, .hw-fit-need';
 const OFF = 'button:disabled';

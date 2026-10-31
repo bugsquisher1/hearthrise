@@ -35,21 +35,21 @@
 // server's engine has certainly done since its watermark (tickOf: town-ticker.js,
 // Tyler 2026-10-23), shown as pending and never spent.
 // ════════════════════════════════════════════════════════════════════════
-import { TREES, ROCKS, FISH_SPOTS } from '../data/gathering.js?v=0.2.77';
-import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.77';
-import { ITEMS } from '../data/items.js?v=0.2.77';
-import { SKILLS_DEF } from '../data/skills.js?v=0.2.77';
-import { HUNT_TUNING } from '../data/hunt-tuning.js?v=0.2.77';
-import { indexGatherNodes, gatherIntervalMs } from '../core/skill-sim.js?v=0.2.77';
-import { indexArtisanRecipes, artisanIntervalMs, bagFullFor } from '../core/artisan-sim.js?v=0.2.77';
-import { recipeInputs } from '../core/artisan.js?v=0.2.77';
-import { pacedXp } from '../core/pacing.js?v=0.2.77';
-import { whole } from '../render/format.js?v=0.2.77';
-import { itemName } from './widgets/bits.js?v=0.2.77';
-import { skillsOf, heldOf, bagCapOf, drawsOnStorage } from '../session/item-sections.js?v=0.2.77';
-import { townWorkRunning } from '../session/town-poll.js?v=0.2.77';
-import { predictTown, aheadQty, shownQty, lineParts, aheadStored } from './town-ticker.js?v=0.2.77';
-import { skillShortWords } from './intent-words.js?v=0.2.77';
+import { TREES, ROCKS, FISH_SPOTS } from '../data/gathering.js?v=0.2.78';
+import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.78';
+import { ITEMS } from '../data/items.js?v=0.2.78';
+import { SKILLS_DEF } from '../data/skills.js?v=0.2.78';
+import { HUNT_TUNING } from '../data/hunt-tuning.js?v=0.2.78';
+import { indexGatherNodes, gatherIntervalMs } from '../core/skill-sim.js?v=0.2.78';
+import { indexArtisanRecipes, artisanIntervalMs, bagFullFor } from '../core/artisan-sim.js?v=0.2.78';
+import { recipeInputs } from '../core/artisan.js?v=0.2.78';
+import { pacedXp } from '../core/pacing.js?v=0.2.78';
+import { whole } from '../render/format.js?v=0.2.78';
+import { itemName } from './widgets/bits.js?v=0.2.78';
+import { skillsOf, heldOf, bagCapOf, drawsOnStorage } from '../session/item-sections.js?v=0.2.78';
+import { townWorkRunning } from '../session/town-poll.js?v=0.2.78';
+import { predictTown, aheadQty, shownQty, lineParts, aheadStored } from './town-ticker.js?v=0.2.78';
+import { skillShortWords } from './intent-words.js?v=0.2.78';
 
 /** Every gathering node the engine runs, by id: { skill, node }. The same index the server builds (hr-accrue catalogue.js). */
 export const GATHER_INDEX = indexGatherNodes({ woodcutting: TREES, mining: ROCKS, fishing: FISH_SPOTS });

@@ -18,16 +18,16 @@
 //   riteOf / cookOf       the bench recipe that spends a whole stack (Fuel the hearth, Cook all)
 //   namedFuelOf(id)       a named Hearth fuel's row (src/data/hearth.js): burnt alone, never sold in bulk
 // ════════════════════════════════════════════════════════════════════════
-import { ITEMS } from '../data/items.js?v=0.2.77';
-import { DRINK_ITEMS } from '../data/drinks.js?v=0.2.77';
-import { MONSTERS } from '../data/monsters.js?v=0.2.77';
-import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.77';
-import { NAMED_FUELS } from '../data/hearth.js?v=0.2.77';
-import { roleForWeapon, wornRoleKey, shootsItem } from '../data/hunt-roles.js?v=0.2.77';
-import { expandItemSlot } from '../data/gathering.js?v=0.2.77';
-import { recipeInputs } from '../core/artisan.js?v=0.2.77';
-import { BAG_SEEN_MAX } from '../session/residue.js?v=0.2.77';
-import { itemName } from './widgets/bits.js?v=0.2.77';
+import { ITEMS } from '../data/items.js?v=0.2.78';
+import { DRINK_ITEMS } from '../data/drinks.js?v=0.2.78';
+import { MONSTERS } from '../data/monsters.js?v=0.2.78';
+import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.78';
+import { NAMED_FUELS } from '../data/hearth.js?v=0.2.78';
+import { roleForWeapon, wornRoleKey, shootsItem } from '../data/hunt-roles.js?v=0.2.78';
+import { expandItemSlot } from '../data/gathering.js?v=0.2.78';
+import { recipeInputs } from '../core/artisan.js?v=0.2.78';
+import { BAG_SEEN_MAX } from '../session/residue.js?v=0.2.78';
+import { itemName } from './widgets/bits.js?v=0.2.78';
 
 /* The category row, in reading order. `all` first; the rest are kinds. */
 export const BAG_CATS = Object.freeze([

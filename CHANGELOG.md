@@ -5,6 +5,14 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.78 — 2026-10-31 (The Weighhouse)
+
+**The Weighhouse.** A market for every player, kept by Aldous Pell (M). List from your bag or storage, browse by category or search, and buy from other players, all anonymously. A hero needs Level 10 to trade; below that you can still look around.
+
+**How it works.** There's a small listing fee, and the Weighhouse keeps 4% of each sale. You see both before you press. Your gold arrives the moment something sells, and whatever doesn't sell in 7 days comes back to your storage.
+
+**On phones.** Roll of Honor and Report a problem moved off the icon row to make room, and both are listed in All characters. Report a problem is also in Settings, under Help.
+
 ## v0.2.77 — 2026-10-31 (The Roll of Honor)
 
 **The Roll of Honor.** A new window (Z) ranks Havora's heroes by level, total level and each skill, by hero name.

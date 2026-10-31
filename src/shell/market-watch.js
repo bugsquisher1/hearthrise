@@ -11,8 +11,8 @@
 // listed makes no reads at all. The lines go through the alert centre, so they are also the
 // chat's System lines. Every number is the server's; nothing here gates or spends anything.
 // ════════════════════════════════════════════════════════════════════════
-import { marketMine } from '../session/market-intents.js?v=0.2.77';
-import { noticesSince, noticeLines } from './market-model.js?v=0.2.77';
+import { marketMine } from '../session/market-intents.js?v=0.2.78';
+import { noticesSince, noticeLines } from './market-model.js?v=0.2.78';
 
 const EVERY_MS = 60 * 1000;
 

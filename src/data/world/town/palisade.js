@@ -8,8 +8,8 @@
 // that starts under an east-west run (a corner) runs on from behind it. Plan coordinates [id, x, y] (town/plan.js).
 // The cells stay palisade: what blocks a step is unchanged.
 // PURE ESM. Display data only.
-import { GROUND_ROWS } from './ground.js?v=0.2.77';
-import { WEST } from './plan.js?v=0.2.77';
+import { GROUND_ROWS } from './ground.js?v=0.2.78';
+import { WEST } from './plan.js?v=0.2.78';
 
 const wall = (x, y) => y >= 0 && y < GROUND_ROWS.length && x >= 0 && GROUND_ROWS[y][x] === '|';
 function lay() {

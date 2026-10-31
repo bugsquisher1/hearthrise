@@ -24,7 +24,7 @@
 // the key, and the design retries them quietly with it, a bounded number of times.
 // ════════════════════════════════════════════════════════════════════════
 
-import { marketKey } from './market-gesture.js?v=0.2.77';
+import { marketKey } from './market-gesture.js?v=0.2.78';
 
 const usable = (cs) => !!cs && cs.status !== 'closed' && typeof cs.edgeIntent === 'function';
 const refuse = () => Promise.resolve({ ok: false, error: 'bad_intent' });

@@ -21,18 +21,18 @@
 // Every control is off while an intent is in flight; counts and gold change
 // only from the re-read envelope.
 // ════════════════════════════════════════════════════════════════════════
-import { shopOf, bagOf, rulesOf, goldOf, skillsOf } from '../../session/item-sections.js?v=0.2.77';
-import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.77';
-import { whole, gold } from '../../render/format.js?v=0.2.77';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.77';
-import { itemIconHtml, itemName } from '../widgets/bits.js?v=0.2.77';
-import { kindOf, sellPlan, lootSale, lootKept, sellQty } from '../bag-model.js?v=0.2.77';
-import { runIntent } from '../intent-words.js?v=0.2.77';
-import { showTip, hideTip } from './item-tip.js?v=0.2.77';
-import { upgradeOf, upgradeLineHtml, patchUpgradeLine, equipUpgrades } from '../widgets/upgrade-line.js?v=0.2.77';
-import { gearLocked } from '../gear-gate.js?v=0.2.77';
-import { revealInWindow } from '../widgets/bits.js?v=0.2.77';
-import { servicesPaneHtml, patchServicesPane, actServicesPane } from './services.js?v=0.2.77';
+import { shopOf, bagOf, rulesOf, goldOf, skillsOf } from '../../session/item-sections.js?v=0.2.78';
+import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.78';
+import { whole, gold } from '../../render/format.js?v=0.2.78';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.78';
+import { itemIconHtml, itemName } from '../widgets/bits.js?v=0.2.78';
+import { kindOf, sellPlan, lootSale, lootKept, sellQty } from '../bag-model.js?v=0.2.78';
+import { runIntent } from '../intent-words.js?v=0.2.78';
+import { showTip, hideTip } from './item-tip.js?v=0.2.78';
+import { upgradeOf, upgradeLineHtml, patchUpgradeLine, equipUpgrades } from '../widgets/upgrade-line.js?v=0.2.78';
+import { gearLocked } from '../gear-gate.js?v=0.2.78';
+import { revealInWindow } from '../widgets/bits.js?v=0.2.78';
+import { servicesPaneHtml, patchServicesPane, actServicesPane } from './services.js?v=0.2.78';
 
 const TABS = Object.freeze([['buy', 'Buy'], ['sell', 'Sell'], ['services', 'Services']]);
 const QTYS = Object.freeze([1, 5, 10, 25, 50, 100]);

@@ -19,19 +19,19 @@
 // the server refuses rather than charge another sum. Refusals in plain words.
 // Built once, patched in place.
 // ════════════════════════════════════════════════════════════════════════
-import { ALERT_KINDS } from '../../data/alerts.js?v=0.2.77';
-import { summaryOf } from '../command-model.js?v=0.2.77';
-import { alertShown, setAlertShown } from '../alerts.js?v=0.2.77';
-import { huntName } from '../../session/party-sections.js?v=0.2.77';
-import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.77';
-import { gold, whole, hoursMinutes } from '../../render/format.js?v=0.2.77';
-import { renameOf, goldOf } from '../../session/item-sections.js?v=0.2.77';
-import { runIntent } from '../intent-words.js?v=0.2.77';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.77';
-import { gaugeHtml, patchGauge, patchRoleGlyph } from '../widgets/bits.js?v=0.2.77';
-import { glyphSvg } from '../launcher.js?v=0.2.77';
-import { entriesFor } from '../context-menu.js?v=0.2.77';
-import { menuProvidersOf } from '../menu-providers.js?v=0.2.77';
+import { ALERT_KINDS } from '../../data/alerts.js?v=0.2.78';
+import { summaryOf } from '../command-model.js?v=0.2.78';
+import { alertShown, setAlertShown } from '../alerts.js?v=0.2.78';
+import { huntName } from '../../session/party-sections.js?v=0.2.78';
+import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.78';
+import { gold, whole, hoursMinutes } from '../../render/format.js?v=0.2.78';
+import { renameOf, goldOf } from '../../session/item-sections.js?v=0.2.78';
+import { runIntent } from '../intent-words.js?v=0.2.78';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.78';
+import { gaugeHtml, patchGauge, patchRoleGlyph } from '../widgets/bits.js?v=0.2.78';
+import { glyphSvg } from '../launcher.js?v=0.2.78';
+import { entriesFor } from '../context-menu.js?v=0.2.78';
+import { menuProvidersOf } from '../menu-providers.js?v=0.2.78';
 
 /* The rename panel's scratch, per viewed character: which hero, the typed name, the confirm step. */
 const SCRATCH = new WeakMap();

@@ -9,8 +9,8 @@
 // swaps them); a patch never writes the field's value, so a display tick
 // cannot wipe what the player is typing.
 // ════════════════════════════════════════════════════════════════════════
-import { cls } from '../render/paint.js?v=0.2.77';
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.77';
+import { cls } from '../render/paint.js?v=0.2.78';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.78';
 
 const NAME_MAX = 24;
 

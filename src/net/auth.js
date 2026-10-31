@@ -65,8 +65,8 @@
 // Ending it there signs out the whole device.
 // ════════════════════════════════════════════════════════════════════════
 
-import { SESSION_CONFIG } from '../session/config.js?v=0.2.77';
-import { PASSWORD_MIN_LENGTH } from '../data/account-rules.js?v=0.2.77';
+import { SESSION_CONFIG } from '../session/config.js?v=0.2.78';
+import { PASSWORD_MIN_LENGTH } from '../data/account-rules.js?v=0.2.78';
 
 /** A token closer than this to its expiry is refreshed before it is sent. */
 export const TOKEN_MARGIN_MS = 60000;

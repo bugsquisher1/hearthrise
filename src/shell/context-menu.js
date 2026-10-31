@@ -24,6 +24,8 @@ import { escapeHtml as esc } from '../utils/dom.js?v=0.2.75';
 import { attr } from '../render/paint.js?v=0.2.75';
 
 const LONG_PRESS_MS = 500;
+/* How long a finished action's answer stays on the menu before it closes. */
+const DONE_SHOWN_MS = 1500;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** The player an element names (data-hs-player-id / -name / -slot), or null. */
@@ -100,6 +102,9 @@ export function mountContextMenu(ctx, roots, providers) {
         ev.stopPropagation();
         btn.disabled = true;
         Promise.resolve(e.run(target, ui)).then((r) => {
+          /* Done: the answer shows a moment, then the menu leaves by itself (blind playtest 2026-10-31: it stayed up over
+             the game after "Tally joined your party."). A refusal or a look stays until the player closes it. */
+          if (r && typeof r.done === 'string') { say(r.done); view.setTimeout(() => { if (alive) closeFloatMenu(doc); }, DONE_SHOWN_MS); return; }
           if (r && typeof r.say === 'string') { say(r.say); btn.disabled = false; return; }
           if (r && r.ok === false) { say(refusalWords(r.error)); btn.disabled = false; return; }
           closeFloatMenu(doc);

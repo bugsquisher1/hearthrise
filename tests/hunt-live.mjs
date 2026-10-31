@@ -39,6 +39,10 @@
 //   LV-OPEN THE OPEN GROUND (Tyler + Andy 10-25: "the tank doesn't stand next to the wall"): a lone tank pulls the
 //         cellar's first pack of 8 from the pack area's edge; browser closed, every server commit from 32 s has all 8
 //         of his tiles held by his pack (7 before); viewed, every commit matches the prediction (same tiles, same seed).
+//   LV-RING THE RING'S ROOMY SIDE (Andy #64, "tank would have wanted to stand 1 sqm above"): at the Warrens' second
+//         pocket a full ring (density 8) closes round its centre and the west edge, where the party walks in, feeds 7
+//         box slots; the holder walks on to an edge that feeds 8 and pulls there. Browser closed: every server commit with
+//         5+ of the pull on him at rest has all of them beside him (one or two queued before). Viewed: every commit matches.
 //   LV-H  THE LOOK-AHEAD (Tyler 2026-10-20): hunt_live sends liveSeeds (16) combat seeds,
 //         one constant (src/data/hunt-tuning.js) the edge reads, and the leave horizon of
 //         2026-10-31-live-horizon.sql is exactly liveSeeds x the swing.
@@ -377,6 +381,45 @@ function rules(M) {
     ok('LV-OPEN', boxes.length >= 3 && boxes.every((n) => n === 8), `browser closed: the server's commits from 32 s held ${JSON.stringify(boxes)} of the pack beside the tank, want 8 at each (a full box)`);
     const bad = r.verdicts.filter((x) => x.v !== 'match');
     ok('LV-OPEN', r.verdicts.length >= 5 && bad.length === 0, `viewed: the browser's prediction of the open-ground pull diverged at ${bad.length} of ${r.verdicts.length} commits`);
+  }
+
+  { // LV-RING: THE RING'S ROOMY SIDE, BOTH PATHS (Andy #64, live v0.2.45 at the Warrens: "Pathing choices. In this case, tank
+    // would have wanted to stand 1 sqm above"). A tank and a healer at Coppercap Warrens, density 8 (the leader's pick), L38: the second
+    // pocket's ring of 8 closes round its free centre, so the tank walking at it was stopped by the ring on its west edge,
+    // (35, 7), where the ground feeds 7 slots (roles.js roomAt 119) and one or two monsters queued out of his reach every
+    // pull; the south and east edges feed all 8 (pull-cycle.js roomierEdge). Browser closed: every server commit (each 2 s)
+    // that finds five or more of the pull on the holder at rest finds every one of them beside him (the duo kills slowly
+    // enough for the whole eight to stand on him for several commits: 7 of 8 beside him at each before). Viewed: every
+    // commit matches.
+    const roles = ['tank', 'healer'];
+    const gear = { tank: { weapon: 'steel_sword', shield: 'coppercap_shield', helmet: 'steel_helm', body: 'steel_platebody', pants: 'steel_platelegs', boots: 'steel_boots' },
+      ranger: { weapon: 'maple_bow', ammo: 'bronze_arrows', helmet: 'boarhide_helmet', body: 'boarhide_body', pants: 'boarhide_pants', boots: 'boarhide_boots' },
+      mage: { weapon: 'willow_wand', shield: 'willow_spellbook', helmet: 'scholar_helmet', body: 'scholar_body', pants: 'scholar_pants', boots: 'scholar_boots' },
+      healer: { weapon: 'willow_staff', helmet: 'scholar_helmet', body: 'scholar_body', pants: 'scholar_pants', boots: 'scholar_boots' } };
+    const mis = roles.map((role, i) => {
+      const mi = memberOf(M, 'r' + i, i, role, 38);
+      mi.huntId = 'coppercap_warrens'; mi.gold = 50000; mi.hp = 1e9; mi.equipment = gear[role];
+      mi.skills = { ...mi.skills, magic: M.XP.skillXpForLevel('magic', 38) };
+      mi.huntSession = Object.assign({}, mi.huntSession, { bag: role === 'ranger' ? { bronze_arrows: { loaded: 60, left: 60 } } : {} });
+      mi.hero = M.SPAWN.heroSetup({ weaponType: M.HR.wornRoleKey(gear[role], M.ITEMS), options: role === 'healer' ? { role: 'healer' } : {},
+        bar: [], partyRoles: roles, leaveTogether: true, lead: i === 0 });
+      mi.hero = Object.assign({}, mi.hero, { density: 8 });
+      return mi;
+    });
+    const boxes = [];
+    const r = run(M, mis, 80000, { server: { hunt: 'coppercap_warrens' }, commitMs: 2000, onCommit: ({ srv }) => {
+      if (!srv.inst.world) return;
+      const w = M.WS.decode(JSON.parse(srv.inst.world));
+      const pk = w.packs.find((p) => p.aggro && Number.isInteger(p.holder));
+      const k = pk && w.units.find((u) => u.id === pk.holder);
+      const on = k ? w.units.filter((u) => u.side === 'mon' && u.alive && u.target === k.id) : [];
+      if (w.packs.indexOf(pk) !== 1 || on.length < 5 || on.some((u) => u.path.length)) return;
+      boxes.push(on.filter((u) => Math.max(Math.abs(u.x - k.x), Math.abs(u.y - k.y)) <= 1).length + '/' + on.length);
+    } });
+    console.log(`  LV-RING Warrens pocket 2 (index 1), a tank and a healer at density 8: the server's commits with the pull at rest on the holder held ${JSON.stringify(boxes)} beside him; ${r.verdicts.filter((x) => x.v === 'match').length} of ${r.verdicts.length} commits matched the prediction`);
+    ok('LV-RING', boxes.length >= 3 && boxes.every((b) => b.split('/')[0] === b.split('/')[1]), `browser closed: the server's commits held ${JSON.stringify(boxes)} (beside / on him) of the pull at rest on the holder, want every one beside him (none queued out of reach; at least 3 commits with 5 or more on him)`);
+    const bad = r.verdicts.filter((x) => x.v !== 'match');
+    ok('LV-RING', r.verdicts.length >= 30 && bad.length === 0, `viewed: the browser's prediction of the ring's pull diverged at ${bad.length} of ${r.verdicts.length} commits`);
   }
 
   { // LV-H: the look-ahead is ONE constant (16 swings), and a leave lands no earlier than its last swing.
@@ -1141,6 +1184,7 @@ const MUTANTS = [
   ['the holder never rotates (LV-T)', 'src/core/hunt/targeting.js', 'return tanks[runs % tanks.length];', 'return tanks[0];', /^LV-T/],
   ['a peer row carries its full setup (LV-P)', 'supabase/functions/hr-accrue/hunt-settle.js', '      if (!self) {', '      if (false) {', /^LV-P/],
   ['the look-ahead is its own number at the edge (LV-H)', 'supabase/functions/hr-accrue/hunt-settle.js', 'export const LIVE_SEEDS = HUNT_TUNING.liveSeeds;', 'export const LIVE_SEEDS = 64;', /^LV-H/],
+  ['a walled pull stays on short ground (LV-RING, Andy #64)', 'src/core/hunt/pull-cycle.js', '    if (walled && !arrived && roomierEdge(inst, k, p, Math.round(c.x), Math.round(c.y))) return;\n', '', /^LV-RING: browser closed/],
   ['the tank plants wherever the pull leaves him (LV-OPEN, Tyler + Andy 10-25)', 'src/core/hunt/roles.js', '  if (plantOpen(inst, h, onMe, near, zone)) return;\n', '', /^LV-OPEN: browser closed/],
   ["the browser's pack area is not the server's (LV-OPEN, viewed)", 'src/hunt-view/live-engine.js',
     '    const where = huntGroundOf(String(live.instance.hunt));\n',

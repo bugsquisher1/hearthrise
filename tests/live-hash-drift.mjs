@@ -1642,16 +1642,18 @@ const MUTATIONS = {
      exactly the shape of all seven divergences this baseline records. This guard
      is the only thing in the repository that can see it. */
   comment_edited_after_apply: {
-    // FINAL BODY: hr_renown_of's last author is 2027-01-31-inner-flame.sql §2(c) (a whole restatement
-    // md5-pinned to its pre-image, so a plant in any EARLIER file trips that pin and the chain stops
-    // replaying). The plant rides the restatement; the next author of hr_renown_of must move it again.
-    file: '2027-01-31-inner-flame.sql',
-    what: 'a comment is edited into hr_renown_of AFTER the file was applied, so the repo stops '
+    // FINAL BODY, PINNED BY NONE: hr_lb_skills (the ranked board's skill list) — four restatements, last
+    // 2027-01-31-total-level-flame.sql §1, and no file reads its prosrc (sweep rules restate,chain; no pin).
+    // NOT hr_renown_of (its home until 2027-02-10): 2027-02-10-settle-plan-cache.generated.sql md5-pins its
+    // pre-image AND its own post-image, so a plant in either file stops the chain replaying (a pin's catch,
+    // not this guard's). A later file that pins or restates hr_lb_skills must move this plant again.
+    file: '2027-01-31-total-level-flame.sql',
+    what: 'a comment is edited into hr_lb_skills AFTER the file was applied, so the repo stops '
         + 'describing the body production actually runs. Behaviour is unchanged, so every other '
         + 'guard in this repo stays green',
-    expect: 'replay hr_renown_of(p_user uuid, p_slot integer)',
-    find: '      -- totalLevel × 2 (sum of every skill level owned)',
-    repl: '      -- totalLevel x 2 (sum of every skill level owned) [edited after apply]',
+    expect: 'replay hr_lb_skills()',
+    find: "    'cooking','crafting','smithing','runecrafting','stonemason','bountyHunter'\n  ]\n$function$;",
+    repl: "    'cooking','crafting','smithing','runecrafting','stonemason','bountyHunter'\n  ]  -- [edited after apply]\n$function$;",
   },
   gate_bucket_added: {
     // FINAL BODY: hr_rpc_gate's last author is 2026-10-25-character-sheet.sql §2a

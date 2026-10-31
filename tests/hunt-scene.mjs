@@ -394,7 +394,7 @@ async function rules(M) {
 
 const MUTANTS = [
   ['the walk frame counts frames drawn', 'src/hunt-view/scene.js', 'const frame = corpse ? corpse.frame : moving ? Math.floor((p.d * walk.fps * tl.tileMs) / 1000) : 0;', 'globalThis.__n = (globalThis.__n || 0) + 1;\n    const frame = corpse ? corpse.frame : moving ? globalThis.__n % 6 : 0;'],
-  ['a monster killed mid-step stands up again', 'src/hunt-view/scene.js', '      if (p.moving && !gone) { dead.delete(u);', '      if (p.moving) { dead.delete(u);'],
+  ['a monster killed mid-step stands up again', 'src/hunt-view/scene.js', '      if (p.moving && !gone && !serverDead(u)) { dead.delete(u);', '      if (p.moving && !serverDead(u)) { dead.delete(u);'],
   ['an event plays twice', 'src/hunt-view/scene.js', '    if (!ev || keys.has(ev.key)) return false;\n', '    if (!ev) return false;\n'],
   ['an effect starts when it is delivered', 'src/hunt-view/scene.js', 'const start = tl.clientAt(ev.atMs) ?? now;', 'const start = now;'],
   ['playback runs ahead of the track', 'src/hunt-view/timeline.js', 'const f = Math.min(1, (t - cur.atMs) / (cur.dur || cfg.tileMs));', 'const f = (t - cur.atMs + 200) / (cur.dur || cfg.tileMs);'],

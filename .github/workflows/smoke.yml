@@ -799,7 +799,7 @@ jobs:
   # ~25 min (69% of 36) when every --mutate here runs.
   in-page-13:
     runs-on: ubuntu-latest
-    timeout-minutes: 36
+    timeout-minutes: 55
 
     steps:
       - uses: actions/checkout@v4

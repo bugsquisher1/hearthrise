@@ -569,6 +569,10 @@ export async function openWorld(o = {}) {
         from public.hunt_sessions s join public.hunt_instances i on i.id = s.instance_id where s.ended_at is null`)).rows[0].lag);
       if (lagMs < 100000) break;
       await db.query('delete from public.hunt_tick_lease');
+      /* each fire stands for minutes of the hunt's time: the per-user `apply` window (240 a minute, hr_rate_ok) starts
+         afresh, or a party of one player's heroes trips it in seconds of skip and forfeits (played 10-31: two heroes of one
+         account in the Sewer ended "server" after six rate_limited refusals; on the 10 s tick they make ~12 a minute) */
+      await db.query(`delete from public.hr_rate_counters where bucket = 'apply'`);
     }
     return { ...out, fires: fires + 1, lagMs: Math.round(lagMs), reasons };
   }

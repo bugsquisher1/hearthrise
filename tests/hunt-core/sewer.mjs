@@ -713,8 +713,15 @@ const cases = {
     if (!home || home.id !== 'home' || !home.text.includes('needs 400 gp, Normal Log ×30 and Copper Ore ×20. Normal Log so far: 3 of 30. Get more in Gathering and crafting, Woodcutting, Normal Tree.')) return 'the house card reads ' + JSON.stringify(home && home.text);
     const juice = say(R({ ...after, home: { owned: true, next: null }, land: { ready: { turnip: 2 } }, bag: {} }));
     if (!juice || juice.id !== 'harvest_juice' || !juice.text.includes('1 turnip makes 3')) return 'the juice card reads ' + JSON.stringify(juice && juice.text);
-    const slotJ = say(R({ ...after, home: { owned: true, next: null }, bag: { turnip_juice: 6 }, carried: { turnip_juice: 6 } }));
+    /* own juice in the bag: asked once a hunt has bought the store's drinks (a Mage's twenty minutes), never for a hero who
+       hardly drinks (played 10-31: a sword hero drank one store juice in twelve hours and the card hid What next for days) */
+    const storeJuice = (n) => [{ item: 'thin_turnip_juice', source: 'store', count: n }];
+    const slotJ = say(R({ ...after, home: { owned: true, next: null }, bag: { turnip_juice: 6 }, carried: { turnip_juice: 6 }, supplies: storeJuice(12) }));
     if (!slotJ || slotJ.id !== 'juice_slot' || !slotJ.text.includes('My mana % below 30') || !slotJ.text.includes('before slot ' + (drink + 1))) return 'the juice slot card reads ' + JSON.stringify(slotJ && slotJ.text);
+    for (const sup of [storeJuice(1), null]) {
+      const sip = say(R({ ...after, home: { owned: true, next: null }, bag: { turnip_juice: 6 }, carried: { turnip_juice: 6 }, supplies: sup }));
+      if (sip && sip.id === 'juice_slot') return 'a hero who bought ' + (sup ? '1 store drink' : 'nothing (in town)') + ' is asked to slot own juice';
+    }
     /* the player put Flame Strike on the bar, store rune on (the kit's sword sets hold no rune spell: playtest 2026-10-29 #9) */
     const fs = { type: 'ability', id: 'flame_strike', store: 'plain_fire_rune', conditions: [], enabled: true, usable: true, count: null };
     const runeless0 = after.slots.filter((s) => !(s && s.type === 'ability' && M.abilities.ABILITIES[s.id] && M.abilities.ABILITIES[s.id].rune));
@@ -763,6 +770,11 @@ const cases = {
       const g = M.tut.nextGoal({ charLevel: cloak.reqLv - 1, role, skillLevel: 5, defenseXp: 9, land: null, inParty: false });
       if (!g || !g.text.includes('Next gear at Level ' + cloak.reqLv + ': ' + cloak.n) || !g.text.includes(cloak.n + ' is made in Crafting from Wolf Pelt ×' + stitch.inputs.wolf_pelt + '.')) return role + ': What next reads ' + JSON.stringify(g && g.text);
     }
+    /* a bench rung above 1 names its level (played 10-31: Level 12, Smithing 1, the shield's line said nothing of 15) */
+    const shield = M.items.ITEMS.ironbound_shield;
+    const forge = (M.recipes.ARTISAN_RECIPES.smithing || []).find((r) => r.output === 'ironbound_shield');
+    const g12 = M.tut.nextGoal({ charLevel: shield.reqLv - 3, role: 'tank', skillLevel: 12, defenseXp: 9, land: null, inParty: false });
+    if (!forge || !g12 || !g12.text.includes('Ironbound Shield is made at Smithing ' + forge.req + ' from Iron Bar ×')) return 'tank at Level ' + (shield.reqLv - 3) + ': What next reads ' + JSON.stringify(g12 && g12.text);
     return null;
   },
   /* "Plant your land" asks for EACH empty plot (playtest 2026-10-29 #12: one plot finished it, a plant pays Farming XP):

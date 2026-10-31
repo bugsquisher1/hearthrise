@@ -23,8 +23,8 @@
 //   middle of Hard, so a reshuffle of the dice does not trip it and a lethal floor does).
 //
 // Measured when written (lane b-balance-baseline, 1,146 cells, tools/balance-sim/verdict-summary.json): the worst
-// first-day hero is the Healer at 0.82x the pace; the starter kit's 12-hour hunts finished 32 of 32 at the Sewer floor
-// and 192 of 192 alone at the first floors. About 45 s on one core, mutants included.
+// first-day hero is the Healer at 0.82x the pace; the practice sets' twelve-hour hunts finished 112 of 112 alone at the
+// first floors and 8 of 8 as a duo or a four at the Sewer floor. About 40 s on one core, mutants included.
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { readFileSync } from 'node:fs';

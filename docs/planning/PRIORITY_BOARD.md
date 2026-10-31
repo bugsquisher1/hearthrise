@@ -30,6 +30,70 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 ## Decisions
 _Tyler's rulings live in rulings-of-record; designer rulings inside them are recorded here._
 
+### 2026-10-31 Balance baseline against Tyler's 10-25 targets (designer, lane/b-balance-baseline): MEASURED on the real engine, no data row changed
+**Method.** `tools/balance-sim` plan `verdict` (new): 1,146 cells, 12.3k hero-hours on the real settle at v0.2.74 (c374ad2), 4 workers, 50 min. Every open ground, band ±10 Levels; seven ways to fight (sword + shield, dual axes, hammer, bow, crossbow + shield, wand + spellbook, staff); in-band gear vs the practice set alone (no armour); alone, a duo (tank + healer) and a four (+ bow + mage); density as built and the full box; 3 seeds a cell; 376 twelve-hour hunts (one segment = one unattended hunt) on the first floors and middles. Evidence: `tools/balance-sim/verdict-summary.json`, `verdict-cells.csv`; `node tools/balance-sim/verdict-table.mjs` reprints. Level hours: level-curve green on this commit (careers measured L10 6.3 h, L25 35.0 h, L50 172.6 h; L100 580 h by the contract).
+
+**Verdict** (in band, in-band gear, density as built. XP × the pace of record where the game sends a lone hero. Profit with the store bill in brackets. Min HP: the typical encounter's lowest point, as built / full box. Marks: XP · profit · deaths · difficulty; difficulty HIGH = easier than Normal. ᵖ a party ground, judged on its duo and four.)
+
+| Ground | Role | Level XP/h | Profit g/h (bill) | Deaths | Min HP % | Marks |
+|---|---|---|---|---|---|---|
+| Cellar 1-8 | tank | 7.4k (0.96×) | 2.0k (0) | 0 in 114 h | 99 / 91 | OK · OK · OK · HIGH |
+| Cellar 1-8 | melee | 8.0k (1.05×) | 2.1k (18) | 0 in 228 h | 99 / 95 | OK · OK · OK · HIGH |
+| Cellar 1-8 | ranger | 7.7k (1.00×) | 2.0k (11) | 0 in 228 h | 100 / 95 | OK · OK · OK · HIGH |
+| Cellar 1-8 | mage | 8.1k (1.06×) | 2.0k (201) | 0 in 114 h | 100 / 99 | OK · OK · OK · HIGH |
+| Cellar 1-8 | healer | 7.0k (0.91×) | 1.9k (0) | 0 in 114 h | 100 / 95 | OK · OK · OK · HIGH |
+| Thicket 5-15 | tank | 23k (0.92×) | 2.7k (3) | 0 in 114 h | 99 / 89 | OK · OK · OK · HIGH |
+| Thicket 5-15 | melee | 28k (1.14×) | 3.2k (119) | 0 in 228 h | 99 / 94 | OK · OK · OK · HIGH |
+| Thicket 5-15 | ranger | 27k (1.08×) | 3.0k (158) | 0 in 228 h | 100 / 93 | OK · OK · OK · HIGH |
+| Thicket 5-15 | mage | 29k (1.15×) | 3.0k (354) | 0 in 114 h | 100 / 98 | OK · OK · OK · HIGH |
+| Thicket 5-15 | healer | 21k (0.84×) | 2.5k (2) | 0 in 114 h | 100 / 96 | OK · OK · OK · HIGH |
+| Wickstead 8-18 | tank | 28k (0.87×) | 3.6k (1) | 0 in 114 h | 98 / 76 | OK · OK · OK · HIGH |
+| Wickstead 8-18 | melee | 34k (1.05×) | 4.2k (139) | 0 in 228 h | 98 / 86 | OK · OK · OK · HIGH |
+| Wickstead 8-18 | ranger | 32k (0.99×) | 4.0k (117) | 0 in 228 h | 100 / 95 | OK · OK · OK · HIGH |
+| Wickstead 8-18 | mage | 34k (1.06×) | 3.9k (511) | 0 in 114 h | 100 / 97 | OK · OK · OK · HIGH |
+| Wickstead 8-18 | healer | 26k (0.82×) | 3.4k (2) | 0 in 114 h | 100 / 94 | OK · OK · OK · HIGH |
+| Sewer 8-25 ᵖ | tank | 50k | 4.2k (3) | 0 in 123 h | 94 / 80 | – · OK · OK · HIGH |
+| Sewer 8-25 ᵖ | melee | no party is built round it; alone (off advice, practice set) 52 deaths in 72 h | | | | |
+| Sewer 8-25 ᵖ | ranger | 50k | 4.2k (60) | 0 in 62 h | 100 / 100 | – · OK · OK · HIGH |
+| Sewer 8-25 ᵖ | mage | 50k | 3.8k (456) | 0 in 62 h | 100 / 100 | – · OK · OK · HIGH |
+| Sewer 8-25 ᵖ | healer | 50k | 4.6k (39) | 0 in 123 h | 100 / 100 | – · OK · OK · HIGH |
+| Glade 16-31 | tank | 60k (0.77×) | 4.8k (5) | 0 in 114 h | 98 / 77 | LOW · OK · OK · HIGH |
+| Glade 16-31 | melee | 77k (0.98×) | 6.1k (59) | 0 in 228 h | 96 / 70 | OK · OK · OK · HIGH |
+| Glade 16-31 | ranger | 77k (0.97×) | 6.0k (50) | 0 in 228 h | 100 / 87 | OK · OK · OK · HIGH |
+| Glade 16-31 | mage | 85k (1.08×) | 6.5k (258) | 0 in 114 h | 100 / 91 | OK · OK · OK · HIGH |
+| Glade 16-31 | healer | 71k (0.90×) | 5.7k (4) | 0 in 114 h | 99 / 88 | OK · OK · OK · HIGH |
+| Warrens 32-50 ᵖ | tank | 159k | 5.3k (0) | 0 in 33 h | 95 / 80 | – · OK · OK · HIGH |
+| Warrens 32-50 ᵖ | melee (alone from 45) | 219k | 7.7k (0) | 0 in 12 h | 95 / 74 | – · OK · OK · HIGH |
+| Warrens 32-50 ᵖ | ranger | 167k | 5.6k (7) | 0 in 26 h | 100 / 100 | – · OK · OK · HIGH |
+| Warrens 32-50 ᵖ | mage | 186k | 6.0k (227) | 0 in 20 h | 100 / 100 | – · OK · OK · HIGH |
+| Warrens 32-50 ᵖ | healer | 165k | 6.0k (7) | 0 in 33 h | 100 / 100 | – · OK · OK · HIGH |
+
+**Every L1-25 hard target holds on the path the game advises.** On the grounds each group is sent to, in band and as built: 0 deaths and 0 close calls in gear for every way to fight, and 0 deaths in the practice set. 376 of 376 twelve-hour hunts finished, 136 of them in the practice set; the only 3 close calls were the practice-set party tank at the Sewer floor. Every hunt clears +25% over the bill. The thinnest is the Mage: +757% in gear, +371% in the practice set. The solo Healer had 0 falls in the Cellar and the Thicket (48 h each, practice staff). Gear lands 0.75-1.9 pieces an hour per slot per weight at every floor; the Cellar drops only the tutorial's helmet. Each Rare item comes about every 10.5-13.5 h: one Rare of any kind every 0.9-2.1 h, spread over 5-15 Rare rows if they share evenly (drop-tables `rare-pace` pins each row's own pace); the Cellar's single Rare every 11.6 h. Max density is 8 everywhere, and every new hero owns all six starter sets. The solo path is Cellar → Thicket at 5 → Wickstead at 8 → Glade at 16; a pair goes Cellar → Sewer at 8. A fresh duo or four in practice sets at the Sewer floor (the tutorial's "Into the sewer, together") had 0 deaths in 48 h; its tank sat in Normal (typical 61% in the first hour, 77% over 12 h). The one L1-25 practice-set cell under +25% is the Glade floor: the tank +16%, the sword alone −17%. That hero would be about 25 h in, already holding Thicket and Wickstead armour.
+
+**Top 10 discrepancies, by what a first-week player feels (first met first)**
+| # | Met at | What the player meets | Measured | Lever |
+|---|---|---|---|---|
+| 1 | L5 | No danger anywhere, so a ground above your Level pays more for nothing | In band every hunt is Easy (typical minimum 93-100%; Normal is 60-80), and Hard and Extreme do not exist in gear. Under a floor is no different. A Level 6 hero in the Glade (10 under; the server refuses only from 15 under) earns 60.5k Level XP/h with 0 deaths in 48 h in gear and 48 h in the practice set, against about 25k in the Thicket where the game sends it. L11 in the Glade: 62.5k vs about 31k at Wickstead. L22 in the Warrens: 113k vs about 75k in the Glade. "Expect losses" is not true, and a min-maxer skips the fitted pace | engine (the danger layer) |
+| 2 | L8 | A fresh party leader slides the Sewer to the full box | Practice-set duo: 13 deaths in 4.5 h, four: 23 (the tank), and the tank's bill eats its coin (+19% duo, −1% four). In gear: 0 deaths | advice (the slider) |
+| 3 | L8 | A party earns less per hero than going alone | At its better density, against the comparable solo where a lone hero is sent: duo 0.72-0.95×, four 0.69-0.90× on the Thicket, Wickstead and the Glade (less at the Cellar, and at Wickstead's top against the Glade). At the Sewer floor the duo is 1.27× (target 1.05-1.15), the four 1.06× (target 1.15-1.25). A duo out-earns a four everywhere | system (XP share) |
+| 4 | L8 | A lone fresh hero enters the Sewer | Practice set alone at L8: the tank 3 deaths and 28 close calls in 6 h, axes 31 and hammer 21 deaths in 6 h each (Culvert Bats, Cistern Spiders). The card already says "A party of 2 to 4" and the game never sends a lone hero there; in Thicket gear, 0 deaths | off advice |
+| 5 | L15 | The first smithed weapon is barely felt | Tier 1 → 2 at L16 (played at Wickstead), Level XP/h as built: sword +5%, healer +3.5%, bow and crossbow +2.7%, axes +0.8%, hammer and Mage +0.4% (target +5-8%). At the full box single-target styles gain +6-8.4% (meets the target); hammer, axes and Mage +2-4%. As built, XP/h is the ground's spawn cap, so a better weapon cannot show. Tier 2 → 3 at L31 has the same shape | follows #1 |
+| 6 | L16 | The Sewer party is outclassed by the solo Glade | At 17-25 a Sewer party earns 0.65-0.74× per hero what a lone hero earns in the Glade; a party in the Glade earns 0.86-0.93× | system (#3) |
+| 7 | L5-31 | The shield tank and the Healer level slowest | Level XP × the pace: tank 0.87-0.96 at the first floors and 0.77 in the Glade; Healer 0.82-0.91; Mage 1.06-1.15 | role parity (open, Tyler's) |
+| 8 | L5-31 | Even the full box is mostly Easy | Typical minimum at the full box: Thicket 89-98, Wickstead 76-97, Glade 70-91, Sewer party 80-100; only melee and tank reach Normal | follows #1 |
+| 9 | L32 | No solo path past the Glade | A lone hero is kept in the Glade from 32 to 50 (the Warrens is a party ground with soloFrom 45, which recommendedHunt ignores); a Warrens party earns 2.0-2.3× that | above 25 (D5, known) |
+| 10 | L45 | No tier-4 gear to reach | No weapon or armour step from L30 to 50+ | above 25 (known) |
+
+Armour meets its target per piece: one body piece one tier up cuts damage per monster swing by 5.1-5.8%; a full tier cuts it by 18-19.5%.
+
+**Fixes: none.** No L1-25 hard target fails on the advised path. Every role clears the first grounds, no ground is under +25%, no starter tank dies on a ground it is sent to, and there is no level wall (level-curve C6 green). Every miss above needs one of four things, and none is a data-row defect inside this lane's brief: an engine term (#1, #5, #8), a system rule Tyler holds (#3, #6, #7), advice copy (#2, #4), or work above Level 25 (#9, #10). **Ranked proposals (not built):**
+1. **The danger layer (#1, #5, #8).** A level-gap term on monster atk under a ground's floor. The 10-26 run saw deaths appear at +8% a Level, steeply and differently by style; it needs a calibration of 100 h a cell. Price the full box with it, so that Normal, Hard and Extreme exist. Stop-gap if wanted before the beta: `SESSION_LIMITS.belowRangeRefuse` 15 → 5 (Tyler's 10-18 floor rule; lane C, `hr_hunt_limits`).
+2. **Party XP share (#3, #6).** The 10-26 proposal m(n) = 1 + 0.055 × (n − 1), through xp-share's per-hero multiplier, puts a four at the full box at 1.20× on the party grounds. It re-opens Tyler's 10-22 "no party bonus", so it is Tyler's call. XP credit is a ranked surface: it goes into the EA Security review.
+3. **Name the danger where the choice is made (#2, #4).** The density slider names the difficulty for the worn set; the Sewer card names it for a lone hero in practice gear. Advice only: designer and art lanes.
+4. **Re-measure the weapon step (#5) after 1.** Role parity (#7) stays Tyler's open item.
+
+**Standing guard (new): `tests/hunt-core/first-week-bands.mjs`** (in run-all; about 40 s on one core). Cases: each of the seven ways to fight, alone in the practice set, at the floor of every ground the Hunts window sends a lone hero to on day one (Cellar 1, Thicket 5, Wickstead 8); and a practice-set duo and four at the first party floor (Sewer 8). The bars are absolute, never pinned: no death; no dip under 25% alone, at most one in a party; typical encounter ≥ 60% alone and ≥ 50% for the party tank; +25% over the bill; Level XP at least half the pace. 4 mutants. Culvert Bat atk 9 → 12 is caught only here: drop-tables, sewer, conditions and forest-cave stay green, because their heroes wear the ladder kit.
+
 ### 2026-10-30 Core loop, fresh and returning (designer, lane/b-core-loop-basics): PLAYED on live v0.2.70 as QA (Pellow L2→3 in the Cellar, reload mid-hunt, leave, summary, bag, Shop; Corliss L12 back after a day), fixes in the lane
 | # | Moment (first-hour value order) | Ruling |
 |---|---|---|

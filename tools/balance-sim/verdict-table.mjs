@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// tools/balance-sim/verdict.mjs — THE VERDICT: today's game against Tyler's balance ruling (2026-10-25), one screen.
+// tools/balance-sim/verdict-table.mjs — THE VERDICT: today's game against Tyler's balance ruling (2026-10-25), one screen.
 //
 //   node tools/balance-sim/sim.mjs --plan verdict [--out tools/balance-sim/out/verdict]
-//   node tools/balance-sim/verdict.mjs [--in tools/balance-sim/out/verdict] [--write]
+//   node tools/balance-sim/verdict-table.mjs [--in tools/balance-sim/out/verdict] [--write]
 //
 // Reads the verdict plan's cells (plans.mjs 'verdict': V1 solo as built, V2 solo full box, V3 the starter kit, V4
 // parties of 2 and 4, V5 upgrade steps, V6 twelve-hour hunts) and prints the ground x way-to-fight table against the

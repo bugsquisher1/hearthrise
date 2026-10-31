@@ -168,7 +168,7 @@ begin
     v := public.hr_hunt_party_invite(0, 'Probe Nudge 2', (k || '0d6e0101')::uuid);
     if coalesce(v->>'ok', '') <> 'true' then raise exception 'party-nudge §4-harness: the invite answered %', v; end if;
     if (select count(*) from realtime.messages where topic = v_t) <> v_n + 1
-       or not exists (select 1 from realtime.messages where topic = v_t and event = 'frame' and payload = '{"t":"nudge"}'::jsonb) then
+       or not exists (select 1 from realtime.messages where topic = v_t and event = 'frame' and payload - 'id' = '{"t":"nudge"}'::jsonb) then
       raise exception 'party-nudge §4(a): the invite sent % message(s) to the invited hero, want one nudge', (select count(*) from realtime.messages where topic = v_t) - v_n; end if;
     v_pid := public.hr_hunt_party_of(c_a, 0);
     v := public.hr_hunt_party_invite(0, 'Probe Nudge 3', (k || '0d6e0102')::uuid);

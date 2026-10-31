@@ -93,6 +93,62 @@ Tessaly and Brin: the mage burns 519 gp/h of store runes and juice from minute o
 | 10 | hour 20 | The party loses its pull from 16 | solo Glade 77k vs the Sewer party ~50k per hero (balance #6) | party XP share (Tyler's open item) |
 Not played: the Coppercap Warrens, a death (none happened), the Market (not in this client), a phone viewport, Hask's Ford (not on main).
 
+### 2026-10-31 First hour in every fighting style (designer, lane/b-first-hour-styles): PLAYED from the sign-in screen on the local world (tools/qa/local-world.mjs), shots art/review/first-hour-styles-2026-10-31/
+Fresh accounts: sword + shield, hatchets, bow, wand + spellbook, staff, plus a two-hero party at 922x423 touch and a death on purpose. Waiting compressed with skip, results real. Then the blind panel's list (lane/f-*).
+
+| Style | Cellar to Level 5 | Thicket | Falls | Verdict |
+|---|---|---|---|---|
+| Sword + shield | 19 min, 147 kills | 75 min, Level 7 | 0 | PASS |
+| Hatchets | 21 min, 185 kills | 20 min, 234 kills | 0 | PASS |
+| Bow | **0 kills in 7 min with 50 arrows in the bag**; fixed: 5 kills in 21 s | not re-run after the fix | 0 | FAIL, then PASS on the fix |
+| Wand + spellbook | 21 min, 182 kills | 20 min, 249 kills | 0 | PASS |
+| Staff, solo (Tyler's P1) | 20 min, 137 kills, no food eaten | 20 min, 180 kills | 0 | PASS |
+| Own party, phone | Sewer: L5 tank + L1 healer alive 10 min | | 0 | PASS once the tabs could be pressed |
+
+**Rulings**
+- **HP "+0.6/s":** the bar shows the rate a watcher can see: "+12/s rest". Between fights a hero recovers 20 times faster, and in a fight the blows drown the slow rate, so that one lives in the title. Mana unchanged.
+- **"Order matters"** is now "Your own food first", and says what it costs. It and "Eat on time" wait until the hero has eaten three times in a hunt: at minute 9 a tank had eaten once, which was the skeptic's nearest refund.
+- **A card that asks never walls.** Every first-hour card that asks for a press has a Got it. The Cellar's bar and farm lessons stand aside at Level 5, so Cash in always gets through, and return in the Thicket if undone.
+- **"Next level in: after 10 min"** is hidden until the server has a rate; the Per hour line says when it comes.
+- **A sword's first bar** (Challenge, Power Strike, food, food, drink) makes sense as it is. The trap was the store food after "Eat on time", now covered above.
+- **Starter rune spells on other styles:** each is struck and each is explained three ways (Before you go, its slot, "Spells need runes"). Keep them off the store by default: the 10-29 measurement says store runes on every default slot cost a fifth of net gold and turned drop-tables red. The veteran's "her only damage spell is dead" overstates it: the staff's basic attack made all her kills for the first 4 minutes (31 by minute 5).
+- **Order:** the weapon card comes first, before any hunt; Blessings come first on the way back. The Help page gets its own card. Leave's countdown shows no card.
+- **Cards in a hunt** fold to their title after their reading time (20 s at least), unless the player opened them. Tamsin's payment and "ran out" lines leave after 30 s.
+- **Zero-kill hunts should stop:** no kill in 10 minutes of fighting ends the hunt with its own reason and an end card that says why. It needs a new END_ORDER reason and an engine change: lane C, not built here. The door we know (bow) is shut, and Before you go warns in red.
+- **Stamina:** both numbers are true. `STAMINA_MAX_MS` is 8 h free, 12 h premium, and beta_premium makes every hero 12 h. Help now says so.
+
+**Creator colors: a missing render, not a bug.** The four picks reach the server (hr_create_hero). No world or hunt renderer reads them (no `colors` in src/world or src/hunt-view) and every outfit has `regions: []`, so no mask art exists. The real fix is mask frames per outfit (asset-director) plus one palette swap at sheet load: days of art, about a day of code. For now the step says so in one line. Decision for Tyler: keep that line until the art, or hide the color rows (CLAUDE.md §3.5 says half-built stays hidden; his 10-19 ruling asked for the step).
+
+**Ranked, not built**
+1. Zero-kill stop (lane C, above).
+2. Switching style with an own bar leaves the old style's moves struck beside the new ones. It says why, but a setup per style is the real answer: teach it at the first switch, not after the Thicket. Bites after hour 1.
+3. Tamsin pays materials once the hero already owns her pieces, and by 200 wolves drops have usually supplied them. The card now says so; her greeting still promises armor. Giving the next tier is a lane C rule change.
+4. A Level 1 sword in Wickstead (floor 8) reached Level 5 in 5 minutes with no death, against 20 in the Cellar: the warning is true but the push pays. Balance call for the sim, unverified.
+5. Icon tooltips sit under the first card; town icons have no words. Art-director.
+6. "Sell all loot" and "Dispatch loot" overlap in the first hour. Keep both for now; revisit with lane/b-core-loop-20h.
+7. "Taking a beating?" fires at 3 meals, which is ordinary eating. Watch it now that "Eat on time" shares the trigger.
+8. Invite to party's result stays in its menu until a tap elsewhere; on a phone that menu covers the hero tabs.
+
+**The other weapons, first minutes on the fixed code:** hammer 57 kills, crossbow 30 (shield kept, arrows loaded), a wand with no book 5 in 25 s. A sword set to Chase off, Distance 3 still killed 17 in under 3 minutes, so that is no trap.
+
+**Walk-through (each step from the kit and the steps before it; the machine check is tests/hunt-core/sewer.mjs `tutorial-walk-through` and `first-hour-never-walls`)**
+| Step | Card | Holds and can reach | Doable because |
+|---|---|---|---|
+| 1 | Every weapon is a style | kit: all practice weapons, worn sword and shield | Got it, or Equip in the bag |
+| 2 | Rats in the mill | Hunts window; the Cellar is open | Enter (a bow loads the kit's arrows on Equip) |
+| 3 | Plant your land | 8 Turnip Seeds, 2 plots, in a hunt | Farm plants during a hunt, or Got it |
+| 4 | Your action bar, Spells need runes, A spell costs runes | default bar, store runes 1 gp, 500 gp | Configure action opens in a hunt; each has Got it |
+| 5 | The whole picture | gear icon, Settings' Help tab | Got it |
+| 6 | Out to the brook, Cash in | Level 5 at about 20 minutes (played) | Leave hunt |
+| 7 | Before the wolves | free below Level 30 | Shop, Services, Bless |
+| 8 | Sell, Decide once, Cook your catch | loot from step 6, 10 Raw Shrimp in the kit | Shop, bag, Gathering and crafting |
+| 9 | Tamsin's wolves, Into the Thicket | Level 5, a weight to pick | Tally, then Enter |
+| 10 | Eat on time, Your own food first | has eaten three times in this hunt | Configure action, or Got it |
+
+**Card placement with lane/a-phone-reach and lane/a-numbers-agree in, fresh heroes (shots s922/, s667/):** at 922x423 and 667x375 no card ran off screen, or over the hero or Leave; cards folded in a hunt and Got it could be pressed. Found and fixed: the town card's cap was overridden, so it ran 30 px over the bar at 667; the first card's Got it fell off a phone's bag sheet; the creation step ran off the right edge at 667. The phone hero tabs are lane/a-phone-reach's fix; mine gave way to it.
+
+**Not played:** the Thicket after the bow fix; real waiting on farm and cooking clocks; live. Not reproduced: one page's bag failed to open with three heroes running on the loaded PC; a fresh page with the same weapon was fine.
+
 ### 2026-10-31 Balance baseline against Tyler's 10-25 targets (designer, lane/b-balance-baseline): MEASURED on the real engine, no data row changed
 **Method.** `tools/balance-sim` plan `verdict` (new): 1,146 cells, 12.3k hero-hours on the real settle at v0.2.74 (c374ad2), 4 workers, 50 min. Every open ground, band ±10 Levels; seven ways to fight (sword + shield, dual axes, hammer, bow, crossbow + shield, wand + spellbook, staff); in-band gear vs the practice set alone (no armour); alone, a duo (tank + healer) and a four (+ bow + mage); density as built and the full box; 3 seeds a cell; 376 twelve-hour hunts (one segment = one unattended hunt) on the first floors and middles. Evidence: `tools/balance-sim/verdict-summary.json`, `verdict-cells.csv`; `node tools/balance-sim/verdict-table.mjs` reprints. Level hours: level-curve green on this commit (careers measured L10 6.3 h, L25 35.0 h, L50 172.6 h; L100 580 h by the contract).
 

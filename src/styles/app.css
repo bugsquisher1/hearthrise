@@ -242,6 +242,7 @@
    title row would only repeat it and cost the stage a line. */
 .app.is-game:has(.ht-bar) #panel-world .world-chrome { display: none; }
 
+.hero-note { color: var(--ink-3); }
 /* THE CREATION STEP (src/app/hero-create.js), in the account card: the hero in a sunk mirror on the left (drawn at
    x4, standing on the pixel ground shadow at the same x4), its name and four colour strips beside it, then How you
    fight; the foot holds the way back and Enter town. */
@@ -273,7 +274,11 @@
   /* The phone shows How you fight too (playtest 2026-10-29: a phone player never met the five ways to fight): the
      column takes the form's height (it adds none of its own) and scrolls, so the card still fits 423 px. */
   .hero-body { align-items: stretch; }
-  .hero-how { min-width: 9rem; padding-left: 12px; contain: size; overflow-y: auto; }
+  .hero-how { min-width: 8rem; padding-left: 12px; contain: size; overflow-y: auto; }
+  /* Beside this card the crest leaves a 667 px phone 455 px: Enter town and How you fight ran off the right edge (played
+     2026-10-31). The crest stays on sign-in; this step uses the room. */
+  .auth:has(.auth-card.is-create) { gap: 0; padding: 8px 4px; }
+  .auth:has(.auth-card.is-create) .auth-brand { display: none; }
 }
 
 /* THE LOADING SHELL (play.html .boot-shell; src/platform/load-shell.js): the crest, one line and a thin bar, in the middle

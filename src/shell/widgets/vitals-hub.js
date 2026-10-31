@@ -98,11 +98,17 @@ export function patchHub(el, ctx) {
   const level = v.level;
   const xp = v.xpPct;
   const pair = (cur, max) => (ok(cur) && ok(max) ? whole(cur) + '/' + whole(max) : '–');
-  /* Per second, one decimal (huntOf: manaPerS is the server's per-minute mana_regen over 60, hpPerS the engine's in-fight rate). */
+  /* Per second, one decimal (huntOf: manaPerS is the server's per-minute mana_regen over 60). */
   const regen = (r) => (ok(r) && r > 0 ? (r < 0.05 ? '+<0.1' : '+' + r.toFixed(1)) + '/s' : '');
   text(el.querySelector('[data-v="hp"]'), pair(v.hp, v.hpMax));
   text(el.querySelector('[data-v="mana"]'), pair(v.mana, v.manaMax));
-  text(el.querySelector('[data-r="hp"]'), hero ? regen(hero.hpPerS) : '');
+  /* HP SAYS THE RATE A WATCHER CAN SEE (designer 2026-10-31): the hero recovers twenty times faster between fights, and
+     a screen reading "+0.6/s" over HP racing back looks wrong. In a fight the blows drown the slow rate, so that one is
+     the title's. Whole numbers from 5 up: it has to fit beside the medallion. */
+  const rest = hero ? hero.hpRestPerS : null;
+  const hpRate = el.querySelector('[data-r="hp"]');
+  text(hpRate, ok(rest) && rest > 0 ? '+' + (rest >= 5 ? Math.round(rest) : rest.toFixed(1)) + '/s rest' : '');
+  attr(hpRate, 'title', ok(rest) && rest > 0 ? 'Health regained each second between fights. In a fight: ' + regen(hero.hpPerS) + '.' : 'Health regained each second');
   text(el.querySelector('[data-r="mana"]'), hero ? regen(hero.manaPerS) : '');
   fill(el.querySelector('.hb-arc.is-hp'), share(v.hp, v.hpMax));
   fill(el.querySelector('.hb-arc.is-mana'), share(v.mana, v.manaMax));

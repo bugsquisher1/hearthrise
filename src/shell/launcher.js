@@ -18,6 +18,7 @@ import { lootSale } from './bag-model.js?v=0.2.75';
 import { upgradeOf } from './widgets/upgrade-line.js?v=0.2.75';
 import { revealInWindow, glyphSvg } from './widgets/bits.js?v=0.2.75';
 import { draftOf, serverBar } from './bar-draft.js?v=0.2.75';
+import { trackOnce } from '../net/observability.js?v=0.2.75';
 
 /** The chip text for a row's shortcut key: 'b' -> 'B', 'enter' -> 'Enter'. */
 export function keyLabel(key) {
@@ -39,11 +40,28 @@ export { glyphSvg };
  * and not here during a hunt: the hunt top bar draws it under itself
  * (src/shell/widgets/hunt-topbar.js), so it never covers Leave hunt or the analyzer. Display only.
  */
-export function pointerFor(ctx) {
+export function pointerFor(ctx, hunting) {
   const cs = ctx.character;
   if (!cs || ctx.wm.openIds().length > 0) return '';
   const card = heldCard(ctx);
-  return card ? coachHtml(cs, card) : '';
+  return card ? coachHtml(cs, card, false, !!hunting && restsNow(ctx, card)) : '';
+}
+
+/* THE COACH STANDS ASIDE IN A HUNT (the panel 2026-10-31: What next, Plant your land and the rest sat over the hero for a
+   whole hunt): a card open under the hunt bar folds to its title once it has had its reading time, twice over and at least
+   COACH_HUNT_OPEN_MS. The player's own press on the tab opens it for good (residue seen = this card, not min). Its ring stays.
+   Display scratch per character: gates, spends and stores nothing. */
+export const COACH_HUNT_OPEN_MS = 20000;
+const OPEN_SINCE = new WeakMap();
+function restsNow(ctx, card) {
+  const cs = ctx.character;
+  const now = typeof ctx.now === 'function' ? ctx.now() : null;
+  if (now === null) return false;
+  const r = cs.record && cs.record.residue ? cs.record.residue.coach : null;
+  if (r && r.seen === card.id && r.min !== true) return false;
+  const s = OPEN_SINCE.get(cs);
+  if (!s || s.id !== card.id) { OPEN_SINCE.set(cs, { id: card.id, since: now }); return false; }
+  return now - s.since >= Math.max(COACH_HUNT_OPEN_MS, 2 * readMs(card));
 }
 
 /* ── LONG ENOUGH TO READ (designer playtest 2026-10-24: "Your hero fights alone" and "That's a level" were never on
@@ -146,6 +164,16 @@ export function noteCoachSight(ctx, card, onScreen) {
   return markCoachRead(cs, card);
 }
 
+/* a "What next" goal comes after every card */
+const rankOf = (c) => (ORDER.has(c.id) ? ORDER.get(c.id) : HUNT_TUTORIAL.length);
+/* TELEMETRY (display only, each once per hero and card in a page load): the coach moved to `to`. A card of the tutorial is
+   `shown` as it appears; the one it gave way to is `done` when `to` comes AFTER it (going back is not progress). */
+function noteCard(cs, from, to) {
+  const slot = cs.slot;
+  if (from && ORDER.has(from.id) && rankOf(to) > rankOf(from)) trackOnce('tutorial_card', { slot, card: from.id, state: 'done' }, slot + ':' + from.id + ':done');
+  if (ORDER.has(to.id)) trackOnce('tutorial_card', { slot, card: to.id, state: 'shown' }, slot + ':' + to.id + ':shown');
+}
+
 /** The card the coach shows now: the server's (pointerCardOf, with the shell's facts: ctx.account), or one still
  *  being read (above). */
 export function heldCard(ctx) {
@@ -154,12 +182,10 @@ export function heldCard(ctx) {
   const now = typeof ctx.now === 'function' ? ctx.now() : null;
   if (!cs || now === null) return card;
   const had = HELD.get(cs);
-  const show = (c, since) => { HELD.set(cs, { card: c, since }); return c; };
+  const show = (c, since) => { if (!had || had.card.id !== c.id) noteCard(cs, had ? had.card : null, c); HELD.set(cs, { card: c, since }); return c; };
   if (!card) { HELD.delete(cs); return null; }
   if (!had || had.card.id === card.id) return show(card, had ? had.since : now);
-  /* a "What next" goal comes after every card */
-  const at = (c) => (ORDER.has(c.id) ? ORDER.get(c.id) : HUNT_TUTORIAL.length);
-  const from = at(had.card), to = at(card);
+  const from = rankOf(had.card), to = rankOf(card);
   /* back, or a goal line after a goal line: the server's at once */
   if (to <= from) return show(card, now);
   if (auto(had.card) && now - had.since < readMs(had.card)) return had.card;
@@ -171,9 +197,10 @@ export function heldCard(ctx) {
  *  own box (.hs-coach-text): on a phone a long card scrolls there, under its title and its dash (shell.css). `inWin`:
  *  drawn inside the window the card points into, where it says its words for there (card.textIn: "Press Enter",
  *  never "Open Hunts" over the open Hunts, board 2026-10-25 #20). */
-export function coachHtml(cs, card, inWin) {
+export function coachHtml(cs, card, inWin, rest) {
   if (inWin && card.textIn) card = Object.assign({}, card, { text: card.textIn });
-  const { min, fresh } = coachFoldOf(cs, card);
+  const folded = coachFoldOf(cs, card);
+  const fresh = folded.fresh, min = folded.min || !!rest;
   /* Close (x): only where a read finishes the card and this client can record it; it records the read. */
   const close = readable(card) && coachReadOf(cs) ? '<button type="button" class="hs-coach-close" data-hs-act="coach-close" aria-label="Close '
     + esc(card.title) + '" title="Close"></button>' : '';

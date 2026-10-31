@@ -24,7 +24,7 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-10-31",
- "replay_ms": 149221,
+ "replay_ms": 1221445,
  "counts": {
   "tracked_names": 702,
   "entries": 557
@@ -1415,17 +1415,18 @@
     "restate"
    ],
    "touched_by": [
-    "2026-08-20-bestiary.sql"
+    "2026-08-20-bestiary.sql",
+    "2027-02-11-settle-plan-cache-2.generated.sql"
    ],
    "live": {
-    "md5": "85d5f80c1de08f879e7942c85025b0c7",
-    "norm_len": 478,
+    "md5": "096319cae30f82fb3c3012c6d1b49afc",
+    "norm_len": 655,
     "measured": "2026-10-31",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "85d5f80c1de08f879e7942c85025b0c7",
-    "norm_len": 478,
+    "md5": "096319cae30f82fb3c3012c6d1b49afc",
+    "norm_len": 655,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -2131,17 +2132,18 @@
     "2027-02-04-level-curve-smooth.generated.sql",
     "2027-02-07-level-curve-wickstead.generated.sql",
     "2027-02-08-unsourced-level-curve.generated.sql",
-    "2027-02-09-walk-on-level-curve.generated.sql"
+    "2027-02-09-walk-on-level-curve.generated.sql",
+    "2027-02-11-settle-plan-cache-2.generated.sql"
    ],
    "live": {
-    "md5": "4930375c7690cb281414bcef54ad6bd8",
-    "norm_len": 537,
+    "md5": "4530892a83ef07aba5317747d5a9fae1",
+    "norm_len": 751,
     "measured": "2026-10-31",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "4930375c7690cb281414bcef54ad6bd8",
-    "norm_len": 537,
+    "md5": "4530892a83ef07aba5317747d5a9fae1",
+    "norm_len": 751,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -2968,17 +2970,18 @@
     "restate"
    ],
    "touched_by": [
-    "2026-08-21-collection.sql"
+    "2026-08-21-collection.sql",
+    "2027-02-11-settle-plan-cache-2.generated.sql"
    ],
    "live": {
-    "md5": "a83cecee3b69e908b87fc3c69728e37a",
-    "norm_len": 461,
+    "md5": "7c8d01d4b8bc01e4655296682d682696",
+    "norm_len": 638,
     "measured": "2026-10-31",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "a83cecee3b69e908b87fc3c69728e37a",
-    "norm_len": 461,
+    "md5": "7c8d01d4b8bc01e4655296682d682696",
+    "norm_len": 638,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -3426,22 +3429,24 @@
    "sig": "hr_depot_view(p_user uuid, p_slot integer)",
    "name": "hr_depot_view",
    "tracked_by": [
+    "chain",
     "pin",
     "restate"
    ],
    "touched_by": [
     "2026-11-28-storage-chests.sql",
-    "2027-01-12-market-account.sql"
+    "2027-01-12-market-account.sql",
+    "2027-02-11-settle-plan-cache-2.generated.sql"
    ],
    "live": {
-    "md5": "d72032600a90a85551abeca0ed5a8938",
-    "norm_len": 1570,
+    "md5": "dbd6959633f32cfeb5e01440b2d47bcc",
+    "norm_len": 1784,
     "measured": "2026-10-31",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "d72032600a90a85551abeca0ed5a8938",
-    "norm_len": 1570,
+    "md5": "dbd6959633f32cfeb5e01440b2d47bcc",
+    "norm_len": 1784,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -4106,17 +4111,18 @@
     "restate"
    ],
    "touched_by": [
-    "2026-09-22-frame-push-channel.sql"
+    "2026-09-22-frame-push-channel.sql",
+    "2027-02-11-settle-plan-cache-2.generated.sql"
    ],
    "live": {
-    "md5": "5a7327dcafa32fc5df4222d2c2011272",
-    "norm_len": 219,
+    "md5": "56489bff1d7a1f212fe14a8c7df8025c",
+    "norm_len": 433,
     "measured": "2026-10-31",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "5a7327dcafa32fc5df4222d2c2011272",
-    "norm_len": 219,
+    "md5": "56489bff1d7a1f212fe14a8c7df8025c",
+    "norm_len": 433,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -4284,22 +4290,24 @@
    "sig": "hr_gold_kind(p_kind text, p_intent text, p_session uuid)",
    "name": "hr_gold_kind",
    "tracked_by": [
+    "chain",
     "pin",
     "restate"
    ],
    "touched_by": [
     "2026-12-15-account-gold.sql",
-    "2026-12-23-tally-tasks.sql"
+    "2026-12-23-tally-tasks.sql",
+    "2027-02-11-settle-plan-cache-2.generated.sql"
    ],
    "live": {
-    "md5": "3312a15e36525ede425224db0a4a9d16",
-    "norm_len": 1092,
+    "md5": "2a09e62c83b237234ff5c51d7bbe2f60",
+    "norm_len": 1306,
     "measured": "2026-10-31",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "3312a15e36525ede425224db0a4a9d16",
-    "norm_len": 1092,
+    "md5": "2a09e62c83b237234ff5c51d7bbe2f60",
+    "norm_len": 1306,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -4562,17 +4570,18 @@
     "restate"
    ],
    "touched_by": [
-    "2026-10-25-hunt-presets.sql"
+    "2026-10-25-hunt-presets.sql",
+    "2027-02-11-settle-plan-cache-2.generated.sql"
    ],
    "live": {
-    "md5": "a774f20683a7fd8ac8978569679dca47",
-    "norm_len": 310,
+    "md5": "5f1efad0498b7c6f4e743bd0e126c278",
+    "norm_len": 524,
     "measured": "2026-10-31",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "a774f20683a7fd8ac8978569679dca47",
-    "norm_len": 310,
+    "md5": "5f1efad0498b7c6f4e743bd0e126c278",
+    "norm_len": 524,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -4631,22 +4640,24 @@
    "sig": "hr_hunt_analyzer_basic(p_a jsonb)",
    "name": "hr_hunt_analyzer_basic",
    "tracked_by": [
+    "chain",
     "pin",
     "restate"
    ],
    "touched_by": [
     "2026-10-26-hunt-analyzer-basic.sql",
-    "2026-11-04-hunt-bests.sql"
+    "2026-11-04-hunt-bests.sql",
+    "2027-02-11-settle-plan-cache-2.generated.sql"
    ],
    "live": {
-    "md5": "2ec9d3cd95f6732bedd13ce4a37b784e",
-    "norm_len": 1271,
+    "md5": "32fa7660f3127a0ff674509b04f31a8b",
+    "norm_len": 1485,
     "measured": "2026-10-31",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "2ec9d3cd95f6732bedd13ce4a37b784e",
-    "norm_len": 1271,
+    "md5": "32fa7660f3127a0ff674509b04f31a8b",
+    "norm_len": 1485,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -5676,17 +5687,18 @@
     "restate"
    ],
    "touched_by": [
-    "2026-10-22-hunt-sessions-settle.sql"
+    "2026-10-22-hunt-sessions-settle.sql",
+    "2027-02-11-settle-plan-cache-2.generated.sql"
    ],
    "live": {
-    "md5": "010b50102ec59236ff102637bff614ec",
-    "norm_len": 304,
+    "md5": "de92d699d397ab09f6dc28e32bf92613",
+    "norm_len": 518,
     "measured": "2026-10-31",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "010b50102ec59236ff102637bff614ec",
-    "norm_len": 304,
+    "md5": "de92d699d397ab09f6dc28e32bf92613",
+    "norm_len": 518,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -6796,17 +6808,18 @@
     "restate"
    ],
    "touched_by": [
-    "2026-10-23-hunt-analyzer-v2.sql"
+    "2026-10-23-hunt-analyzer-v2.sql",
+    "2027-02-11-settle-plan-cache-2.generated.sql"
    ],
    "live": {
-    "md5": "00928060fd59e4174e344c48270e2864",
-    "norm_len": 700,
+    "md5": "956975f908ddb48f2f05d23d71edbd3e",
+    "norm_len": 914,
     "measured": "2026-10-31",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "00928060fd59e4174e344c48270e2864",
-    "norm_len": 700,
+    "md5": "956975f908ddb48f2f05d23d71edbd3e",
+    "norm_len": 914,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -6818,17 +6831,18 @@
     "restate"
    ],
    "touched_by": [
-    "2026-10-23-hunt-analyzer-v2.sql"
+    "2026-10-23-hunt-analyzer-v2.sql",
+    "2027-02-11-settle-plan-cache-2.generated.sql"
    ],
    "live": {
-    "md5": "9c3ca272c2714d095200a0ec98c821f4",
-    "norm_len": 739,
+    "md5": "450400d0f37ef36c28097e1edde91348",
+    "norm_len": 953,
     "measured": "2026-10-31",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "9c3ca272c2714d095200a0ec98c821f4",
-    "norm_len": 739,
+    "md5": "450400d0f37ef36c28097e1edde91348",
+    "norm_len": 953,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -7081,17 +7095,18 @@
     "restate"
    ],
    "touched_by": [
-    "2026-10-21-hunt-sessions.sql"
+    "2026-10-21-hunt-sessions.sql",
+    "2027-02-11-settle-plan-cache-2.generated.sql"
    ],
    "live": {
-    "md5": "50756e34446ae5ea78ab35383c127516",
-    "norm_len": 451,
+    "md5": "96049ce6b9226900dc4e3f8570984808",
+    "norm_len": 665,
     "measured": "2026-10-31",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "50756e34446ae5ea78ab35383c127516",
-    "norm_len": 451,
+    "md5": "96049ce6b9226900dc4e3f8570984808",
+    "norm_len": 665,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -9433,22 +9448,24 @@
    "sig": "hr_premium_active(p_user uuid, p_slot integer, p_at timestamp with time zone)",
    "name": "hr_premium_active",
    "tracked_by": [
+    "chain",
     "pin",
     "restate"
    ],
    "touched_by": [
     "2026-10-23-character-premium.sql",
-    "2026-12-17-beta-premium.sql"
+    "2026-12-17-beta-premium.sql",
+    "2027-02-11-settle-plan-cache-2.generated.sql"
    ],
    "live": {
-    "md5": "6c63eab723ed219480cd91dcc8c8c757",
-    "norm_len": 460,
+    "md5": "667468663a9bf3854eb82324a564a7df",
+    "norm_len": 674,
     "measured": "2026-10-31",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "6c63eab723ed219480cd91dcc8c8c757",
-    "norm_len": 460,
+    "md5": "667468663a9bf3854eb82324a564a7df",
+    "norm_len": 674,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -9484,17 +9501,18 @@
     "restate"
    ],
    "touched_by": [
-    "2026-12-17-beta-premium.sql"
+    "2026-12-17-beta-premium.sql",
+    "2027-02-11-settle-plan-cache-2.generated.sql"
    ],
    "live": {
-    "md5": "66e25a9b462ce6516a02bea85f931bb9",
-    "norm_len": 670,
+    "md5": "60080320ea1bcacb73a4782c57f03ed8",
+    "norm_len": 884,
     "measured": "2026-10-31",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "66e25a9b462ce6516a02bea85f931bb9",
-    "norm_len": 670,
+    "md5": "60080320ea1bcacb73a4782c57f03ed8",
+    "norm_len": 884,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -9503,22 +9521,24 @@
    "sig": "hr_premium_view(p_user uuid, p_slot integer)",
    "name": "hr_premium_view",
    "tracked_by": [
+    "chain",
     "pin",
     "restate"
    ],
    "touched_by": [
     "2026-10-23-character-premium.sql",
-    "2026-12-17-beta-premium.sql"
+    "2026-12-17-beta-premium.sql",
+    "2027-02-11-settle-plan-cache-2.generated.sql"
    ],
    "live": {
-    "md5": "ed630fc3682133a1b1057205e8abed59",
-    "norm_len": 653,
+    "md5": "f45c9b02acfe4bc7e9d3885ff8e780c4",
+    "norm_len": 867,
     "measured": "2026-10-31",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "ed630fc3682133a1b1057205e8abed59",
-    "norm_len": 653,
+    "md5": "f45c9b02acfe4bc7e9d3885ff8e780c4",
+    "norm_len": 867,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -10585,17 +10605,18 @@
     "restate"
    ],
    "touched_by": [
-    "2027-01-24-skills-from-storage.sql"
+    "2027-01-24-skills-from-storage.sql",
+    "2027-02-11-settle-plan-cache-2.generated.sql"
    ],
    "live": {
-    "md5": "9898bca43f224f84c892ee3baaf2521b",
-    "norm_len": 588,
+    "md5": "5f87dd0f5f4be06e8878af630a3d50ad",
+    "norm_len": 802,
     "measured": "2026-10-31",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "9898bca43f224f84c892ee3baaf2521b",
-    "norm_len": 588,
+    "md5": "5f87dd0f5f4be06e8878af630a3d50ad",
+    "norm_len": 802,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -12654,17 +12675,18 @@
     "restate"
    ],
    "touched_by": [
-    "2026-09-22-trophy-claim.sql"
+    "2026-09-22-trophy-claim.sql",
+    "2027-02-11-settle-plan-cache-2.generated.sql"
    ],
    "live": {
-    "md5": "354b462137d870d88a88ddb56543b21a",
-    "norm_len": 1632,
+    "md5": "e3114e39c905376d753829b3fe4087ca",
+    "norm_len": 1809,
     "measured": "2026-10-31",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "354b462137d870d88a88ddb56543b21a",
-    "norm_len": 1632,
+    "md5": "e3114e39c905376d753829b3fe4087ca",
+    "norm_len": 1809,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -12732,17 +12754,18 @@
     "2026-08-15-perk-channel.sql",
     "2026-08-16-artisan-progress-model.sql",
     "2026-11-29-house-home.sql",
-    "2026-12-14-shared-farm.sql"
+    "2026-12-14-shared-farm.sql",
+    "2027-02-11-settle-plan-cache-2.generated.sql"
    ],
    "live": {
-    "md5": "1586b40ead4186bd20654b4c29b472e6",
-    "norm_len": 1058,
+    "md5": "dbef4be1f707cf3302ba762f1cc65c81",
+    "norm_len": 1235,
     "measured": "2026-10-31",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "1586b40ead4186bd20654b4c29b472e6",
-    "norm_len": 1058,
+    "md5": "dbef4be1f707cf3302ba762f1cc65c81",
+    "norm_len": 1235,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -12783,17 +12806,18 @@
     "restate"
    ],
    "touched_by": [
-    "2026-08-11-daily-budget.sql"
+    "2026-08-11-daily-budget.sql",
+    "2027-02-11-settle-plan-cache-2.generated.sql"
    ],
    "live": {
-    "md5": "ce348acc75e88fbbb187db35a8dd3a38",
-    "norm_len": 276,
+    "md5": "fdf336d669fba8bde7d24f64b291bb64",
+    "norm_len": 490,
     "measured": "2026-10-31",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "ce348acc75e88fbbb187db35a8dd3a38",
-    "norm_len": 276,
+    "md5": "fdf336d669fba8bde7d24f64b291bb64",
+    "norm_len": 490,
     "source": "computed-from-replay"
    },
    "agree": true

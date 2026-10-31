@@ -476,7 +476,10 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         if (h2.hp !== '220/220' || h2.mana !== '0/0' || h2.lv !== '25' || h2.xp !== 'XP 5%' || h2.hpArc !== '100' || !h2.manaShown) fails.push('HS-18 the next envelope did not replace the hub (or hid the mana gauge): ' + JSON.stringify(h2));
         /* Regen per second, one decimal: mana_regen is per MINUTE (18/min = 0.3/s); HP is the in-fight rate (220 x 3 permille x 1000 permille = 0.66/s). */
         const rg = await page.evaluate(() => [document.querySelector('[data-r="hp"]').textContent, document.querySelector('[data-r="mana"]').textContent]);
-        if (rg[0] !== '+0.7/s' || rg[1] !== '+0.3/s') fails.push('HS-18 the hub regen reads ' + JSON.stringify(rg) + ', want ["+0.7/s","+0.3/s"]');
+        if (rg[0] !== '+13/s rest' || rg[1] !== '+0.3/s') fails.push('HS-18 the hub regen reads ' + JSON.stringify(rg) + ', want ["+13/s rest","+0.3/s"]');
+        /* the rate a watcher can see on the bar, the fight's in its title (first-hour play 2026-10-31: "+0.6/s" over HP racing back) */
+        const hpTitle = await page.evaluate(() => document.querySelector('[data-r="hp"]').getAttribute('title'));
+        if (hpTitle !== 'Health regained each second between fights. In a fight: +0.7/s.') fails.push('HS-18 the hub HP rate title reads ' + JSON.stringify(hpTitle));
         /* HS-18 FOOD IS THE HUNT BAG'S (Brannoc 10-22: "Food ×0" while the server's hunt bag held 20 Cooked Shrimp; Enter
            moves the food out of the bag): the socket counts the open hunt's hunt bag, and the next envelope replaces it. */
         const foodK = () => page.evaluate(() => document.querySelector('.hb-socket.is-food .hb-socket-k').textContent);
@@ -767,9 +770,9 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           const p = document.querySelector('.ha-analyzer');
           const shown = (el) => !!el && el.getClientRects().length > 0;
           return { kills: p.querySelector('[data-sec="totals"] [data-stat="kills"]').textContent, rates: shown(p.querySelector('[data-sec="rates"] .ha-stats')),
-            line: shown(p.querySelector('.ha-later')) ? p.querySelector('.ha-later').textContent : null, next: p.querySelector('[data-clock="next"]').textContent };
+            line: shown(p.querySelector('.ha-later')) ? p.querySelector('.ha-later').textContent : null, next: p.querySelector('[data-clock="next"]').textContent, nextShown: shown(p.querySelector('[data-clock="next"]')) };
         });
-        if (!/\d/.test(early.kills) || early.rates || early.line !== 'Per hour after 10 min.' || early.next !== 'after 10 min') {
+        if (!/\d/.test(early.kills) || early.rates || early.line !== 'Per hour and your next level after 10 min.' || early.next !== '' || early.nextShown) {
           fails.push('HS-4 a session under 10 minutes (per_hour null) did not show totals plus "Per hour after 10 min.": ' + JSON.stringify(early));
         }
         s.env.hunt_analyzer = clone(FIXTURE.hunt_analyzer);
@@ -1845,7 +1848,7 @@ const MUTANTS = [
   ['the Hunts window keeps saying "On the way" while hunting', 'src/shell/windows/hunts.js', "  if (sc.msg && sc.msg === sc.enterMsg && (now || (h && h.ended))) { sc.msg = ''; sc.enterMsg = null; }\n", ''],
   ['the Hunts window stays over the hunt it entered (HS-9b, playtest 2026-10-24)', 'src/shell/windows/hunts.js', "  if (sc.closeOnHunt && now) { sc.closeOnHunt = false; queueMicrotask(() => ctx.wm.close('hunts')); }\n", ''],
   ['an edge panel never steps out of the hunt bar’s way', 'src/shell/shell.js', "        for (const p of at.push) edgeEls[p.i].style.top = p.top + 'px';\n", ''],
-  ['the hunt bar draws no tutorial card under itself', 'src/shell/widgets/hunt-topbar.js', 'const html = pointerFor(ctx);', "const html = '';"],
+  ['the hunt bar draws no tutorial card under itself', 'src/shell/widgets/hunt-topbar.js', "const html = leaving && !over ? '' : pointerFor(ctx, !over);", "const html = '';"],
   ['the tutorial card hangs over the hunt bar', 'src/styles/shell.css', '.hs-widget > .hs-pointer { left: 0; width: min(260px, 100%); }', '.hs-widget > .hs-pointer { left: 0; top: 0; width: min(260px, 100%); }'],
   ['an ended hunt still offers Leave hunt','src/shell/widgets/hunt-topbar.js', "  prop(leave, 'hidden', over && !leave.hasAttribute('data-pending'));\n", ''],
   ['Leave hunt forgets a pending leave', 'src/shell/widgets/hunt-topbar.js', "  const cd = over ? null : ctx.character.leaveCountdown();", "  const cd = null;"],

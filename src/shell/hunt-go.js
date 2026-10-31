@@ -24,7 +24,8 @@ import { settingsOf, staminaOf } from '../session/hunt-sections.js?v=0.2.75';
 import { presetsOf, equipmentOf, goldOf, nameOf, carriedOf } from '../session/item-sections.js?v=0.2.75';
 import { partyMembershipOf } from '../session/party-sections.js?v=0.2.75';
 import { ITEMS } from '../data/items.js?v=0.2.75';
-import { HUNT_ROLES, wornRoleKey, roleForWeapon } from '../data/hunt-roles.js?v=0.2.75';
+import { HUNT_ROLES, wornRoleKey, roleForWeapon, shootsItem } from '../data/hunt-roles.js?v=0.2.75';
+import { hasShot } from './action-facts.js?v=0.2.75';
 import { CONSUMABLES } from '../data/consumables.js?v=0.2.75';
 import { ABILITIES } from '../data/abilities.js?v=0.2.75';
 import { storeOf, storeName } from './bar-draft.js?v=0.2.75';
@@ -132,10 +133,37 @@ function bareWords(kind, parts, carried) {
 /* One part of a supply line: "20 Cooked Shrimp of yours", "no Cooked Shrimp left", "Salted Shrimp from the store, 14 gp each". */
 function partWords(p) {
   const name = p.own ? p.own.name || itemName(p.own.id) : '';
-  /* a rune a new hero never had is not "left": "no Fire runes of yours" */
-  const own = p.own ? (p.own.n > 0 ? whole(p.own.n) + ' ' + name + ' of yours' : 'no ' + name + (p.kind === 'rune' ? ' of yours' : ' left')) : null;
+  /* a rune a new hero never had is not "left": "no Fire runes of yours". With the store behind it the empty stock says
+     nothing ("no Fire runes of yours, then Plain Fire Rune..." read like a robot, first-hour play 2026-10-31). */
+  const own = p.own ? (p.own.n > 0 ? whole(p.own.n) + ' ' + name + ' of yours' : p.kind === 'rune' && p.store ? null : 'no ' + name + (p.kind === 'rune' ? ' of yours' : ' left')) : null;
   const store = p.store ? p.store.name + ' from the store, ' + p.store.price + ' gp ' + p.store.each : null;
   return [own, store].filter(Boolean).join(', then ');
+}
+
+/* THE RUNES LINE: what casts, in slot order, each stock or store rune once (two spells of one family name it once), then
+   the spells that will not fire and their fix. Nothing usable keeps the listed stocks (bareWords). */
+function runeLine(parts, carried) {
+  const live = parts.filter((p) => (p.own && p.own.n > 0) || p.store);
+  if (!live.length) return parts.map(partWords).filter(Boolean).join(', ') + '. ' + bareWords('rune', parts, carried);
+  const words = Array.from(new Set(live.map(partWords).filter(Boolean)));
+  const dead = parts.filter((p) => !live.includes(p) && p.spell);
+  return words.join(', then ') + (dead.length ? '. ' + bareWords('rune', dead, carried) : '');
+}
+
+/* THE SHOOTER'S LINE (first-hour play 2026-10-31): the bar names no shot for a bow that shoots what is loaded, so this
+   line is the only warning of a hero that will not attack at all. Null for a hero that does not shoot, or whose bar names
+   its ammo (that slot's own line says it). `short` when nothing can be shot. */
+function shotLine(s, cs, carried) {
+  if (!s.role || !shootsItem(s.role, { slot: 'ammo', reqSkill: 'ranged' })) return null;
+  const worn = (equipmentOf(cs) || {}).ammo || null;
+  if (worn && shootsItem(s.role, ITEMS[worn])) {
+    const n = (carried.find((r) => r.id === worn) || {}).qty || 0;
+    return s.slots.some((sl) => !sl.empty && sl.action.type === 'attack_with_item') ? null : { id: 'ammo', text: 'Ammo: ' + whole(n) + ' ' + itemName(worn) + ' of yours, loaded.', short: false };
+  }
+  if (hasShot(s, carried, worn)) return null;
+  const spare = carried.find((r) => r.qty > 0 && shootsItem(s.role, ITEMS[r.id]));
+  return { id: 'ammo', text: 'Ammo: nothing loaded, so your weapon can\'t shoot and your hero won\'t attack. '
+    + (spare ? 'Open your bag, press ' + itemName(spare.id) + ', then Put on the bar.' : 'Press an empty slot on your bar, then Ammo, and pick a shot from the store.'), short: true };
 }
 
 /**
@@ -163,12 +191,15 @@ export function beforeLines(cs, o) {
       if (!kinds.has(p.kind)) kinds.set(p.kind, []);
       kinds.get(p.kind).push(p);
     }
+    const shot = shotLine(s, cs, carried);
+    if (shot) out.push(shot);
     for (const [kind, parts] of kinds) {
       const words = parts.map(partWords).filter(Boolean);
       const usable = parts.some((p) => (p.own && p.own.n > 0) || p.store);
       if (parts.some((p) => p.store)) paysStore = true;
+      if (kind === 'rune') { out.push({ id: kind, text: KIND_WORDS[kind] + ': ' + runeLine(parts, carried), short: false }); continue; }
       /* nothing usable: the stocks are listed, never chained with "then" (no fallback runs between empties) */
-      out.push({ id: kind, text: KIND_WORDS[kind] + ': ' + (words.length ? words.join(usable ? ', then ' : ', ') : 'nothing this bar can use') + (usable ? '' : '. ' + bareWords(kind, parts, carried)), short: !usable && kind !== 'rune' && !HEADS_UP_KINDS.has(kind) });
+      out.push({ id: kind, text: KIND_WORDS[kind] + ': ' + (words.length ? words.join(usable ? ', then ' : ', ') : 'nothing this bar can use') + (usable ? '' : '. ' + bareWords(kind, parts, carried)), short: !usable && !HEADS_UP_KINDS.has(kind) });
     }
     if (!kinds.has('food') && !kinds.has('drink')) out.push({ id: 'none', text: 'Your bar eats and drinks nothing: HP and mana come back only between fights.', short: false });
   }

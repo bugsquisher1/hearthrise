@@ -333,6 +333,11 @@
     pointer-events: auto;
   }
   .hs-win-coach > .hs-pointer { margin: 6px 10px 0; }
+  /* INSIDE A SHEET the card has no --coach-room: five and a half lines, then the words scroll, so Got it stays on screen
+     (played at 667x375, 2026-10-31: the style card ran 88 px off the foot with its Got it). */
+  .hs-win-coach > .hs-pointer:not(.is-min) > .hs-coach-text { display: block; max-height: calc(5.5 * 1lh); }
+  /* The town card's own cap, past the general one above (same weight, later wins): its 50 px drop stays inside the room. */
+  .hs-launchers > .hs-pointer:not(.is-min):not([data-anchor="action_bar"]) { max-height: calc(var(--coach-room) - 58px); }
   /* The card under the hunt bar stands at the bar's right end, its tip under Leave (first-hour playtest 10-29 #10:
      at the left end it lay over the hero mid-fight); the camera frames the World beside it (shell.js insetNow). */
   .hs-widget.is-hunt-topbar > .hs-pointer { left: auto; right: 0; }

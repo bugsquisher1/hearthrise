@@ -880,6 +880,23 @@ async function rules(overrides, shots, { stopAtFirst = false, blocks = null } = 
         await done(o, tag);
       }
     }
+    /* PH-6: a fresh hero's first card, over the town and inside the bag's sheet: it ends above the bar, and its Got it is on
+       screen and can be pressed (played at 667x375, 2026-10-31: it ran off the foot, and the hero could not get past it). */
+    for (const vp of run('coach') ? PHONES : []) {
+      const tag = tagOf(vp);
+      const o = await open(vp, ALPHA, (env) => { env.hunt = null; env.state = Object.assign({}, env.state, { level_xp: 0, active_kind: null, active_id: null });
+        env.equipment = Object.assign({}, env.equipment, { weapon: 'practice_sword' }); env.client_state = Object.assign({}, env.client_state, { coach: { read: [] } }); });
+      if (!o.up) { fails.push('PH-6 [' + tag + ' first card] the town did not mount'); await o.ctx.close(); continue; }
+      const town = await o.page.evaluate(() => { const p = document.querySelector('.hs-launchers > .hs-pointer:not(.is-min)'); return p && { id: p.getAttribute('data-tutorial'), foot: window.__r(p).bottom, bar: window.__r('.hb-bar').top }; });
+      if (!town || town.id !== 'styles') fails.push('PH-6 [' + tag + ' first card] CONTROL: the first card is ' + JSON.stringify(town));
+      else if (town.foot > town.bar + 0.5) fails.push('PH-6 [' + tag + ' first card] it runs ' + Math.round(town.foot - town.bar) + ' px over the action bar');
+      await o.page.click('.hs-launchers [data-hs-open="inventory"]');
+      await wait(o.page, () => document.querySelector('.hs-win-coach .hs-coach-got'), null, 3000);
+      await shot(o.page, 'coach-first-in-bag-' + tag);
+      const got = await o.page.evaluate(() => { const b = document.querySelector('.hs-win-coach .hs-coach-got'); return b && window.__onScreen(window.__r(b)) && window.__hits(b); });
+      if (!got) fails.push('PH-6 [' + tag + ' first card] inside the bag its Got it is off screen or covered');
+      await done(o, tag);
+    }
     for (const vp of run('fight') ? [{ width: 922, height: 423 }, { width: 844, height: 390 }, { width: 1440, height: 900 }] : []) { // PH-10
       const tag = tagOf(vp);
       const o = await open(vp, HUNT, (env) => { env.state = Object.assign({}, env.state, { level_xp: 0 }); }, { settle: 1500 });

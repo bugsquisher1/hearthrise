@@ -23,6 +23,7 @@ import { DRINK_ITEMS } from '../data/drinks.js?v=0.2.75';
 import { MONSTERS } from '../data/monsters.js?v=0.2.75';
 import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.75';
 import { NAMED_FUELS } from '../data/hearth.js?v=0.2.75';
+import { roleForWeapon, wornRoleKey, shootsItem } from '../data/hunt-roles.js?v=0.2.75';
 import { expandItemSlot } from '../data/gathering.js?v=0.2.75';
 import { recipeInputs } from '../core/artisan.js?v=0.2.75';
 import { BAG_SEEN_MAX } from '../session/residue.js?v=0.2.75';
@@ -305,12 +306,53 @@ export function equipSlotFor(id, equipment) {
 /** The ONE `equip` delta that wears `id` in `slot` (null = take it off). Two hands (Tyler 2026-10-19:
  *  Healer = staff): a two-handed weapon takes the off-hand off, and an off-hand takes a two-handed
  *  weapon off, in the same delta, because hr_apply refuses the pair (two_handed) on the worn set. */
-export function equipOps(slot, id, equipment) {
+export function equipOps(slot, id, equipment, loads) {
   const ops = { [slot]: id };
   const eq = equipment || {};
   const it = id ? ITEMS[id] : null;
   if (it && slot === 'weapon' && it.twoHanded === true && eq.shield) ops.shield = null;
   const worn = eq.weapon ? ITEMS[eq.weapon] : null;
   if (it && slot === 'shield' && worn && worn.twoHanded === true) ops.weapon = null;
+  /* A BOW NEVER GOES ON EMPTY (first-hour play 2026-10-31: the kit's bow shot nothing, 0 kills in 7 minutes, with 50 arrows
+     in the bag: the engine looses only what is loaded, damage.js pickShot). Taking up a shooter loads a shot in this delta. */
+  if (it && slot === 'weapon' && loads) {
+    const shot = shotToLoad(Object.assign({}, eq, ops), loads.bag, loads.skills);
+    if (shot) ops.ammo = shot;
+  }
   return ops;
+}
+
+const STYLE_NAME = Object.freeze({ tank: 'a shield tank', melee_dps: 'a Melee hero', ranger: 'a Ranger', mage: 'a Mage', healer: 'a Healer' });
+/**
+ * What a press of Equip changed about how the hero fights, in words, or null when the style is the same: the bar's
+ * moves follow the weapon with no other sign on screen (first-hour play 2026-10-31). `eq`: the worn set; `ops`: the delta.
+ */
+export function styleWords(eq, ops) {
+  const before = roleOfSet(eq), now = roleOfSet(Object.assign({}, eq, ops));
+  if (!now || now === before) return null;
+  return 'You fight as ' + STYLE_NAME[now] + ' now, and your bar has this weapon\'s moves.' + (ops.ammo ? ' ' + itemName(ops.ammo) + ' loaded.' : '');
+}
+
+/** The role the worn set `gear` plays (the weapon and the shield beside it), or null. */
+export function roleOfSet(gear) {
+  return gear && gear.weapon && ITEMS[gear.weapon] ? roleForWeapon(wornRoleKey(gear, ITEMS)) : null;
+}
+
+/**
+ * The ammo to load for the worn set `gear`, or null: nothing when its role does not shoot or what is loaded can be shot.
+ * Of what `bag` ([{ id, qty }]) holds that the role can loose, the highest requirement the hero's `skills` meet (a stack
+ * the server would refuse is never named). Display and intent only: the server checks the delta.
+ */
+export function shotToLoad(gear, bag, skills) {
+  const role = roleOfSet(gear);
+  if (!role || (gear.ammo && shootsItem(role, ITEMS[gear.ammo]))) return null;
+  let best = null;
+  for (const r of bag || []) {
+    const it = r && r.qty > 0 ? ITEMS[r.id] : null;
+    if (!it || !shootsItem(role, it)) continue;
+    const have = skills && skills[it.reqSkill] ? skills[it.reqSkill].level : 1;
+    const need = Number(it.reqLv) || 1;
+    if (need <= have && (!best || need > best.need)) best = { id: r.id, need };
+  }
+  return best ? best.id : null;
 }

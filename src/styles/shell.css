@@ -140,6 +140,8 @@
 /* NO KEYS AND NO HOVER ON TOUCH (phone playtest 2026-10-31): no key chip on a sheet's head, no tooltip stuck on the icon a
    tap focused. A held icon says its name instead (launcher-names.js); a press on a grey button says why (off-why.js). */
 :root.is-touch .hs-win-head .hs-key, :root.is-touch .hs-launch::before { display: none; }
+/* Every key on the Controls page is one a touch screen does not have. */
+:root.is-touch .st .st-tab[data-cat="controls"] { display: none; }
 .hs-launch-name, .hs-off-why { position: fixed; z-index: 80; box-sizing: border-box; width: max-content; max-width: min(320px, calc(100vw - 8px)); margin: 0; padding: 2px 8px; pointer-events: none;
   background: var(--bg-2); border: 6px solid transparent; border-image: url('../../assets/ui/steel-frame-thin.png') 3 / 6px stretch; image-rendering: pixelated;
   font-family: var(--f-ui); font-size: var(--t-micro); line-height: 1.35; color: var(--ink); }
@@ -297,8 +299,6 @@
   .hs-launch { flex: 0 1 auto; width: 44px; min-width: 0; }
   .hs-launchers { padding-left: 4px; max-width: calc(100vw - 60px); }
   .hs-win-head .hs-key, .hs-launch::before { display: none; }
-  /* Every key on the Controls page is one a phone does not have. */
-  .st .st-tab[data-cat="controls"] { display: none; }
   /* IN TOWN THE CARD STANDS AT THE LEFT (phone playtest 2026-10-31: under the first icon it lay on the hero's name): below
      the place's name, clear of the hero at the centre and of the alerts at the right; the gold ring shows the icon, so
      no tip. A card about the bar keeps its own foot (below). */

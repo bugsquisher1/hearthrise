@@ -69,8 +69,9 @@ renderHuntTopbar.patch = function patchHuntTopbar(el, ctx) {
   const cd = over ? null : ctx.character.leaveCountdown();
   const leaving = asked || cd !== null;
   const line = el.querySelector('.ht-leaving');
+  /* The wait is timed from the last moment the line had a countdown to show. */
   if (!leaving || over) LEAVE_SINCE.delete(el);
-  else if (!LEAVE_SINCE.has(el)) LEAVE_SINCE.set(el, ctx.now());
+  else if (!LEAVE_SINCE.has(el) || (cd && cd.phase === 'counting')) LEAVE_SINCE.set(el, ctx.now());
   text(line, leaving && !over ? leavingLine(cd, ctx.now() - LEAVE_SINCE.get(el), connection.state()) : '');
   prop(line, 'hidden', !leaving || over);
   prop(el.querySelector('.ht-why'), 'hidden', over || !cd || cd.phase !== 'counting');

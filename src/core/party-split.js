@@ -10,8 +10,12 @@
 // the identity for n = 1.
 //
 //   GOLD   a kill's gold is split EVENLY between the heroes in the instance
-//          at the kill; the integer remainder goes to the first (the lowest
-//          (user_id, slot)), so nothing is minted or lost: Σ shares = total.
+//          at the kill; the integer remainder goes one coin each from a seat
+//          that moves with every kill (`start`), so nothing is minted or lost
+//          (Σ shares = total) and no seat is favoured. It went whole to the
+//          lowest (user_id, slot) until the party soak (2026-10-31): a 3-coin
+//          kill in a party of four paid seat 0 all three, and on the Mill Cellar
+//          seat 0 took 1,549 gp of 2,089 where each was owed 522.
 //   ITEMS  each COMMON unit goes ROUND-ROBIN from a seeded start: common unit k
 //          of a kill goes to heroes[(offset + k) mod n], `offset` one draw on the
 //          instance's `r` stream (src/core/hunt-rewards.js), so over a hunt every
@@ -41,15 +45,16 @@ export const PERSISTED = Object.freeze({ unit: Object.freeze([]), world: Object.
    them out (world-state.js reconcileText): a party's Rare, hourly on the loot bands, never re-seeds the live view. */
 export const SERVER_ONLY = Object.freeze({ world: Object.freeze(['rareWon']) });
 
-/** `total` split evenly into `n` whole shares, the remainder to share 0. */
-export function splitEven(total, n) {
+/** `total` split evenly into `n` whole shares, the remainder one each from share `start` (mod n). */
+export function splitEven(total, n, start = 0) {
   const t = Math.floor(Number(total));
   const k = Math.floor(Number(n));
   if (!Number.isSafeInteger(t) || t < 0) throw new Error('splitEven: total must be a whole number >= 0, got ' + total);
   if (!Number.isSafeInteger(k) || k < 1) throw new Error('splitEven: n must be a whole number >= 1, got ' + n);
   const each = Math.floor(t / k);
   const out = new Array(k).fill(each);
-  out[0] += t - each * k;
+  const from = (((Math.floor(Number(start)) || 0) % k) + k) % k;
+  for (let i = 0; i < t - each * k; i++) out[(from + i) % k] += 1;
   return out;
 }
 

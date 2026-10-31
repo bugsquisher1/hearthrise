@@ -544,6 +544,9 @@ export async function openWorld(o = {}) {
       if (bad) throw new Error('local-world: the tick answered ' + bad.status + ' ' + JSON.stringify(bad.body));
       lagMs = Number((await db.query(`select coalesce(max(extract(epoch from now() - i.settled_to) * 1000), 0)::float8 as lag
         from public.hunt_sessions s join public.hunt_instances i on i.id = s.instance_id where s.ended_at is null`)).rows[0].lag);
+      /* A skip fires faster than the clock: hr_apply's per-minute budget (240 an account, never reached in real time) reads the
+         wall clock and would refuse rate_limited, six in a row a forfeit. The stretch a skip compresses is minutes long, so the count starts over. */
+      await db.query(`delete from public.hr_rate_counters where bucket = 'apply'`);
       if (lagMs < 100000) break;
       await db.query('delete from public.hunt_tick_lease');
     }

@@ -405,6 +405,9 @@ const cases = {
     if (id(fed({ read: new Set(['first_eat', 'fight_settings', 'plant_land', 'bar_intro', 'food_when']) })) === 'food_when') return 'Got it does not pass Eat on time';
     /* the first card on a new hero is the style, one Got it from the first hunt; the Blessings come first on the way back */
     if (id(tutAt(M, K, 1)) !== 'styles') return 'a new hero starts on ' + id(tutAt(M, K, 1));
+    /* short over the town (it fits 667x375 without covering the bar), the five ways inside the bag */
+    const sc = M.tut.cardFor(M.tut.currentCard(tutAt(M, K, 1)), tutAt(M, K, 1));
+    if (sc.text.split(' ').length > 30 || !sc.text.includes('press one, then Equip') || !/heals\..*made in Gathering and crafting/.test(sc.textIn || '')) return 'the style card reads ' + JSON.stringify([sc.text, sc.textIn]);
     if (id(tutAt(M, K, 1, { read: new Set(['styles']) })) !== 'to_the_cellar') return 'after the style card comes ' + id(tutAt(M, K, 1, { read: new Set(['styles']) }));
     const back = tutAt(M, K, floor, { levelXp: M.xp.charXpForLevel(floor), visited: new Set(['mill_cellar']), sellable: 3, read: new Set(seen.concat('styles')), blessings: tutAt(M, K, floor).blessings });
     if (id(back) !== 'bless') return 'back from the Cellar the first card is ' + id(back) + ', not the Blessings';

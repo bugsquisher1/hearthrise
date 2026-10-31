@@ -370,6 +370,11 @@ async function checks(overrides) {
           const phone = await page.evaluate(() => { const l = document.querySelector('.hero-how-list'), b = document.querySelector('.hero-confirm');
             return { list: !!l && l.getClientRects().length > 0, fits: !!b && b.getBoundingClientRect().bottom <= innerHeight }; });
           if (!phone.list || !phone.fits) fails.push('B-9 on a 922x423 phone How you fight lists its styles: ' + phone.list + '; Enter town fits: ' + phone.fits);
+          /* the smallest landscape phone (667x375): nothing runs off the right edge, and the note never widens the form */
+          await page.setViewportSize({ width: 667, height: 375 });
+          const small = await page.evaluate(() => { const b = document.querySelector('.hero-confirm').getBoundingClientRect(), h = document.querySelector('.hero-how').getBoundingClientRect();
+            return { go: Math.round(b.right), how: Math.round(h.right), doc: document.documentElement.scrollWidth, W: innerWidth }; });
+          if (small.go > small.W || small.how > small.W || small.doc > small.W) fails.push('B-9 at 667x375 the creation step runs off the right edge: ' + JSON.stringify(small));
           await page.setViewportSize({ width: 1280, height: 720 });
           await page.click('.hero-dye[data-hero-region="body"][data-hero-dye="6"]');
           await page.click('.hero-confirm');

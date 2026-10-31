@@ -791,7 +791,8 @@ const SAY = Object.freeze({
   styles: () => {
     const n = (id) => name(id) || id;
     /* the switch and the door to better ones, on top of the list (Tyler 2026-10-22; style-gear.js: each rung is made at a bench) */
-    return { text: 'There\'s no class to pick: the weapon you hold decides how you fight. ' + n(START_EQUIPMENT.weapon) + ' and ' + n(START_EQUIPMENT.shield)
+    return { text: 'There\'s no class to pick: the weapon you hold is how you fight. The others are in your bag: press one, then Equip, any time in town.',
+      textIn: 'There\'s no class to pick: the weapon you hold decides how you fight. ' + n(START_EQUIPMENT.weapon) + ' and ' + n(START_EQUIPMENT.shield)
       + ' hold the monsters on you (a tank). ' + n('practice_hatchets') + ' or a ' + n('practice_club') + ' hit hardest up close. A ' + n('practice_bow') + ' or '
       + n('practice_crossbow') + ' shoots from range. A ' + n('practice_wand') + ' and ' + n('practice_spellbook') + ' cast spells. A ' + n('practice_staff')
       + ' heals. The others are in your bag: press one, then Equip, any time in town. Better ones are made in Gathering and crafting.' };

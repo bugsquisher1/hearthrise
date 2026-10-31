@@ -36,6 +36,7 @@
 <link rel="stylesheet" href="src/styles/app.css?v=0.2.75">
 <!-- MODULE PRELOAD (generated: node tests/module-preload.mjs --write). Every module the page loads, asked for at once
      while this page is parsed instead of one import level at a time; fetched, never run early. -->
+<link rel="preload" as="script" href="src/platform/load-shell.js?v=0.2.75">
 <link rel="preload" as="script" href="src/vendor/supabase-js-2.103.0.umd.js?v=0.2.75">
 <link rel="preload" as="script" href="src/platform/storage.js?v=0.2.75">
 <link rel="modulepreload" href="src/app/boot.js?v=0.2.75">
@@ -202,6 +203,7 @@
 <link rel="modulepreload" href="src/hunt-view/summary-recorder.js?v=0.2.75">
 <link rel="modulepreload" href="src/hunt-view/timeline.js?v=0.2.75">
 <link rel="modulepreload" href="src/net/auth.js?v=0.2.75">
+<link rel="modulepreload" href="src/net/connection.js?v=0.2.75">
 <link rel="modulepreload" href="src/net/diagnostics.js?v=0.2.75">
 <link rel="modulepreload" href="src/net/observability-config.js?v=0.2.75">
 <link rel="modulepreload" href="src/net/observability.js?v=0.2.75">
@@ -234,6 +236,7 @@
 <link rel="modulepreload" href="src/session/item-sections.js?v=0.2.75">
 <link rel="modulepreload" href="src/session/live-link.js?v=0.2.75">
 <link rel="modulepreload" href="src/session/loot-intents.js?v=0.2.75">
+<link rel="modulepreload" href="src/session/page-away.js?v=0.2.75">
 <link rel="modulepreload" href="src/session/party-intents.js?v=0.2.75">
 <link rel="modulepreload" href="src/session/party-sections.js?v=0.2.75">
 <link rel="modulepreload" href="src/session/preset-intents.js?v=0.2.75">
@@ -264,9 +267,11 @@
 <link rel="modulepreload" href="src/shell/inline-name.js?v=0.2.75">
 <link rel="modulepreload" href="src/shell/intent-words.js?v=0.2.75">
 <link rel="modulepreload" href="src/shell/item-lore.js?v=0.2.75">
+<link rel="modulepreload" href="src/shell/launcher-names.js?v=0.2.75">
 <link rel="modulepreload" href="src/shell/launcher.js?v=0.2.75">
 <link rel="modulepreload" href="src/shell/loot-dispatch.js?v=0.2.75">
 <link rel="modulepreload" href="src/shell/menu-providers.js?v=0.2.75">
+<link rel="modulepreload" href="src/shell/off-why.js?v=0.2.75">
 <link rel="modulepreload" href="src/shell/panel-alpha.js?v=0.2.75">
 <link rel="modulepreload" href="src/shell/press-ack.js?v=0.2.75">
 <link rel="modulepreload" href="src/shell/readiness.js?v=0.2.75">
@@ -369,6 +374,7 @@
 <link rel="modulepreload" href="src/world/hunt-scene.js?v=0.2.75">
 <link rel="modulepreload" href="src/world/prewarm.js?v=0.2.75">
 <link rel="modulepreload" href="src/world/render/canvas-backend.js?v=0.2.75">
+<link rel="modulepreload" href="src/world/render/frame-sig.js?v=0.2.75">
 <link rel="modulepreload" href="src/world/render/ground-chunks.js?v=0.2.75">
 <link rel="modulepreload" href="src/world/sandbox-scene.js?v=0.2.75">
 <link rel="modulepreload" href="src/world/scene-sets.js?v=0.2.75">
@@ -382,6 +388,14 @@
 <!-- /MODULE PRELOAD -->
 </head>
 <body class="client-page">
+<!-- THE LOADING SHELL (old-laptop player 10-31: a slow line stared at plain black until all 346 modules had arrived).
+     Painted with this page's stylesheets; the bar is src/platform/load-shell.js; boot.js takes it away with the first screen. -->
+<div class="boot-shell" role="status" aria-live="polite">
+  <img class="auth-crest" src="assets/brand/hearthrise-crest.png?v=0.2.75" alt="" width="311" height="384" decoding="async" fetchpriority="high">
+  <p class="boot-shell-line">Loading Hearthrise…</p>
+  <div class="boot-shell-bar" aria-hidden="true"><i class="boot-shell-fill"></i></div>
+</div>
+<script src="src/platform/load-shell.js?v=0.2.75"></script>
 <div class="app" id="app"></div>
 <!-- A phone held upright (QA 2026-10-24): phones are landscape-only, so ONE card over everything asks to turn it.
      Shown only by app.css's portrait touch-phone query; a desktop or a tablet never sees it. -->

@@ -25,12 +25,12 @@ import { STATUSES } from '../../data/statuses.js?v=0.2.75';
 import { settingsOf, huntOf, partyOf } from '../../session/hunt-sections.js?v=0.2.75';
 import { vitalsOf } from '../../session/party-sections.js?v=0.2.75';
 import { biggestBlowOn } from '../../core/hunt/pull-cycle.js?v=0.2.75';
-import { carriedOf } from '../../session/item-sections.js?v=0.2.75';
+import { carriedOf, equipmentOf } from '../../session/item-sections.js?v=0.2.75';
 import { rows, text, attr, prop, cls, element } from '../../render/paint.js?v=0.2.75';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.75';
 import { actionIconHtml } from '../widgets/bits.js?v=0.2.75';
 import { SLOTS, draftOf, openSlot, closeSlot, conditionFor, blankCondition, saveOpen, emptyOpen, moveSlot, startConditions, storeChoices, storeChoiceWords, storeDefault } from '../bar-draft.js?v=0.2.75';
-import { TABS, tabOf, factsOf, carried, healWarning, weaponWarning } from '../action-facts.js?v=0.2.75';
+import { TABS, tabOf, factsOf, carried, healWarning, weaponWarning, reasonOf } from '../action-facts.js?v=0.2.75';
 import { glyphSvg } from '../launcher.js?v=0.2.75';
 import { tableOf, rowIn, cellsOf, sentenceOf, compareLines, wasteLine, sourceLine, effectLine } from '../action-table.js?v=0.2.75';
 
@@ -76,6 +76,7 @@ export function renderConfigureAction(ctx) {
     + TABS.map(([k, l]) => '<button type="button" class="ca-tab" role="tab" data-hs-act="cfg" data-x="tab" data-tab="' + k + '" aria-selected="false">' + l + '</button>').join('')
     + '</span>' + move + '<button type="button" class="hs-close ca-close" data-hs-act="cfg" data-x="cancel" aria-label="Close">' + close + '</button></div>'
     + '<div class="ca-mid">'
+    + '<p class="ca-why" role="note"></p>'
     + '<div class="ca-sentence">'
     + '<p class="ca-lead"><span class="ca-verb"></span> <button type="button" class="ca-item" data-hs-act="cfg" data-x="find"></button>'
     + '<span class="ca-note"></span><span class="ca-ready"></span></p>'
@@ -176,6 +177,12 @@ renderConfigureAction.patch = function patchConfigureAction(body, ctx) {
   const picked = rowIn(table, d.action);
   /* THE TOP LINE */
   text(root.querySelector('.ca-rank'), 'Slot ' + (s.open + 1) + (s.open === 0 ? ' · tried first' : ' · tried after slot ' + s.open));
+  /* Why this slot's action will not fire, as the bar's tooltip says it: a phone has no hover and a press on a slot opens
+     this window, so the words are here, first (shown on a phone only, hunt.css). */
+  const saved = set.slots[s.open];
+  const hunt = huntOf(cs);
+  const fireWhy = saved && !saved.empty ? reasonOf(saved, set, bag, hunt && !hunt.ended ? hunt.hero : null, (equipmentOf(cs) || {}).ammo) : null;
+  text(root.querySelector('.ca-why'), fireWhy ? fireWhy.text : '');
   for (const b of root.querySelectorAll('.ca-tab')) attr(b, 'aria-selected', String(b.getAttribute('data-tab') === tab));
   /* THE SENTENCE */
   const say = sentenceOf(d.action, set.store);

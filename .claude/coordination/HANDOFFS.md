@@ -1,5 +1,9 @@
 # Handoffs
 
+### 2026-10-31 · ART DIRECTOR (lane/a-phone-reach) → lane/b-first-hour-styles (owner of src/data/hunt-tutorial.js) · tutorial words a phone cannot follow
+
+Left alone as briefed. On a phone: "Hunt together" (hunt-tutorial.js lines 220 and 802) says "Right-click (long-press on a phone) X's tab", and at 667 px there are no tabs: the route is Heroes, then Invite on the hero's row. Coach lines also name keys a phone lacks ("open the Farm (J)"). Semantic overlap to check on merge: your "cards that stand aside" against this lane's phone placement (town card at the left, `--coach-room` capped by the alert, `.is-short-room`, one alert at a time).
+
 ### 2026-10-25 · ART (lane/b-hearth-art) → MAP/BUILD LANE (L1, L4) and DESIGNER · Hearth Square art staged, on no map
 
 44 sprites and terrains in `art/world/common` (built into atlas-common), each sidecar's notes say where it sits. `great_hearth` (class landmark, footprint 11x4, anchor bottom-centre); `hearth_fire` (8@8 loop) over it at hearth px (146,238); a fuel landing plays `hearth_flare` (6@10, at 151,228) and `hearth_burn_sparks` (8@12, at 136,232); a `fuel_<family>` chunk flies from the hero's hand to hearth px (176,262) in ~300 ms on a ~26 px arc; `*_verdigris` = the named-fuel colour sample (swap fire, flare and sparks, and the point light tint); the glow = a map point light (tint `hearth`) at the firebox, r ~16 tiles plus ~8. Paving: `square_plaza` (painted 24x24, rings centred on local tile 11.5,12.5 = the hearth front) inside a kerb course of `square_grass_flag` / `square_dirt_flag` (wang16). Ring: `square_general_store`, `square_depot`, `square_bank`, `square_barracks` (class hall), `square_market_stall`, benches, 11 wear decals. Samples: `mine_mouth`, `ore_copper_rock`, `ore_coal_rock`, `rune_block`, `westwood_ash`, `westwood_yew`, `fishing_pier`. Designer: DISCOVERIES 2026-10-25 (the depot faces away from the square; store and barracks lots overlap).

@@ -32,7 +32,7 @@ renderInspect.patch = function patchInspect(body, ctx) {
       + '<small class="hi-slot">' + esc((EQUIP_SLOT_META[g.slot] && EQUIP_SLOT_META[g.slot].label) || g.slot) + '</small><b class="hi-name">' + esc(itemName(g.item)) + '</b></li>'),
     patch: () => {},
   });
-  text(body.querySelector('.hi-msg'), !v ? 'Right-click a player and pick Inspect gear.'
+  text(body.querySelector('.hi-msg'), !v ? (ctx.isPhone && ctx.isPhone() ? 'Hold a player’s name' : 'Right-click a player') + ' and pick Inspect gear.'
     : v.pending ? 'Looking…' : v.error ? refusalWords(v.error) : !v.gear.length ? 'Nothing worn.' : '');
 };
 

@@ -82,6 +82,9 @@
 //   TOK-3  a refresh the server refuses ends the session: 'expired' once, and no further call is sent
 //   TOK-4  two characters in one tab share ONE refresh
 //   TOK-5  waking a hidden tab checks the token before the next call
+//   TOK-6  THE BOOT READ NEVER WAITS ON THE AUTH LOCK (live v0.2.74, QA: a third of reloads took 5.7-11.7 s to
+//          the roster behind gotrue's 'lock:hr-auth'): with supabase-js's getSession held, a stored session that
+//          still lasts is read at once; a stale one is still supabase-js's to refresh
 //   VIEW-1 the world view reads only the character's record and its own scratch
 // ════════════════════════════════════════════════════════════════════════
 import { mkdtempSync, cpSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
@@ -1647,6 +1650,24 @@ async function rules(M) {
     await r.server.accrue({ slot: 0 });
     return (r.sent.join() === 'B' && r.n.refresh === 1) || 'the call after waking sent ' + JSON.stringify(r.sent);
   });
+  await t('TOK-6', async () => {
+    /* supabase-js with its lock held by someone else: getSession and refreshSession never answer */
+    let asked = 0;
+    const held = { auth: { getSession: () => { asked++; return new Promise(() => {}); }, refreshSession: () => new Promise(() => {}),
+      signOut: async () => {}, onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }) } };
+    const boot = async (stored) => {
+      const device = memStore();
+      device.set(CFG.SESSION_CONFIG.authKey, JSON.stringify(stored));
+      const auth = AU.createAuth({ client: held, device, tab: memStore(), redirectTo: 'https://x/', now: () => T0 });
+      const how = await Promise.race([auth.refresh().then(() => 'read'), new Promise((r) => setTimeout(() => r('waited'), 150))]);
+      return { how, auth };
+    };
+    const fresh = await boot(sess('A', T0 + 3600e3));
+    if (fresh.how !== 'read' || fresh.auth.userId() !== UID || fresh.auth.token() !== 'A' || asked !== 0)
+      return `with a lasting stored session the boot read ${fresh.how} behind the held lock (user ${fresh.auth.userId()}, getSession asked ${asked})`;
+    const stale = await boot(sess('A', T0 + 10e3));   // inside the margin: supabase-js refreshes it, behind its lock
+    return (stale.how === 'waited' && asked === 1 && stale.auth.token() === null) || `a stale stored session was used without supabase-js (${stale.how}, asked ${asked}, token ${stale.auth.token()})`;
+  });
   return fails;
 }
 
@@ -1697,6 +1718,8 @@ const MUTANTS = [
   ['the server limit is ignored above one', 'src/session/account-session.js', 'return Math.min(this.config.maxConcurrentCharacters, this._limit === null ? 1 : this._limit);', 'return Math.min(this.config.maxConcurrentCharacters, this._limit === null ? 1 : this.config.maxConcurrentCharacters);'],
   ['a switch re-reads the viewed character', 'src/session/account-session.js', "    this._chars.get(slot).setViewed(true);\n    this._emit('viewed', slot);", "    this._chars.get(slot).setViewed(true);\n    this._chars.get(slot).load();\n    this._emit('viewed', slot);"],
   ['a switch closes the others', 'src/session/account-session.js', "    this._chars.get(slot).setViewed(true);\n    this._emit('viewed', slot);", "    this._chars.get(slot).setViewed(true);\n    for (const c of this._chars.values()) if (c.slot !== slot) c._leave && (c._leave(), c._leave = null);\n    this._emit('viewed', slot);"],
+  ['the boot read waits on the auth lock (TOK-6)', 'src/net/auth.js', '    if (lasts(kept)) { session = kept; return session; }\n', ''],
+  ['a stale stored session is used as it stands (TOK-6)', 'src/net/auth.js', '    if (lasts(kept)) { session = kept; return session; }', '    if (kept) { session = kept; return session; }'],
   ['sign-out keeps sb-* keys', 'src/net/auth.js', " || k.startsWith('sb-')", ''],
   ['sign-out keeps the tab id', 'src/net/auth.js', '    if (o.tab) o.tab.remove(cfg.tabKey);\n', ''],
   ['sign-out leaves characters open', 'src/session/account-session.js', '    for (const slot of Array.from(this._chars.keys())) this.close(slot);\n', ''],

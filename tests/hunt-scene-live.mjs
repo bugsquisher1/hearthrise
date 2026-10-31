@@ -56,12 +56,19 @@
 //         answers and a live ask and eases forward from it; no frame leaps and every unit drawn has a sprite;
 //         a monster the snapshot holds dead is never drawn standing once the screen reached its instant
 //         (it stood, its bar empty, until the catch-up felled it anew: e-20261021-mobs).
-//   LV-29 ANDY'S OWN PARTY SWITCHED BACK (#65): a four at the Warrens, its viewer away 30 s: once the screen reaches
-//         the snapshot's instant, no monster it holds dead is drawn standing (one placed alive before the switch stood
-//         at its last drawn HP until the catch-up felled it anew: scene.js S9), and every unit drawn has a sprite.
-//   LV-28 THE SNAPSHOT NAMES EVERY UNIT (Andy #65, "no sprite for unit N (null)"): the hunt section's
+//   LV-28 A HUNT THIS BUILD CANNOT PREDICT (Sentry JAVASCRIPT-4C, release 0.2.63: the edge served v0.2.64's
+//         new monsters to a page still on the last build): every start point names a monster this build lacks.
+//         No frame throws; the live view falls back to the server's windows a poll behind, asks the site once
+//         whether a newer build is out (the reload banner's check), and the hunt keeps moving on screen.
+//   LV-29 A TAB BACK FROM THE BACKGROUND CATCHES UP IN SLICES (live: one 213-259 ms task as it came back): the
+//         catch-up's swings run at most liveCatchUpSliceMs a frame, and every frame once it has landed is the one
+//         the whole catch-up in one frame draws (the same restart, a few frames on).
+//   LV-30 THE SNAPSHOT NAMES EVERY UNIT (Andy #65, "no sprite for unit N (null)"): the hunt section's
 //         reader keeps every unit of a world the engine fills, a Sewer four at its top density included
 //         (76 units; the reader kept 64 and the newest spawns had no kind: drawn nowhere).
+//   LV-31 ANDY'S OWN PARTY SWITCHED BACK (#65): a four at the Warrens, its viewer away 30 s: once the screen reaches
+//         the snapshot's instant, no monster it holds dead is drawn standing (one placed alive before the switch stood
+//         at its last drawn HP until the catch-up felled it anew: scene.js S9), and every unit drawn has a sprite.
 //   LV-4  THE PAGE (headless Chrome, the real client, the same server answers): the hunt
 //         draws, no page error, and the frame loop holds budget against the frozen sim
 //         (prototypes/hunt-sim) measured the same way.
@@ -96,6 +103,9 @@ async function load(base) {
     HG: await u('src/core/hunt-ground.js'),
     AB: await u('src/shell/widgets/action-bar.js'),
     WS: await u('src/core/hunt/world-state.js'),
+    LE: await u('src/hunt-view/live-engine.js'),
+    ITEMS: (await u('src/data/items.js')).ITEMS,
+    MONSTERS: (await u('src/data/monsters.js')).MONSTERS,
     base,
   };
 }
@@ -147,7 +157,10 @@ function envFor(nowMs, enteredMs, heroes, fromMs) {
      hunt        the ground the server plays (default Mill Cellar; the members' huntId must name it)
      people      the party_people section (seat -> user, slot); peers: the account's other sessions
      outfits     { seat: outfit }: the party section's member `outfit` ({ id, colors }) by seat
-     fps         frames drawn per second (default 60; a long hunt draws fewer to stay quick) */
+     fps         frames drawn per second (default 60; a long hunt draws fewer to stay quick)
+     tamper      (body) => void: every hr-accrue answer's body, changed in place before the session reads it (LV-28)
+     onStale     told when the session asks the server link's stale() (LV-28: the reload banner's check)
+     clock       the main-thread clock a live catch-up slice is measured on (LV-29; default performance.now) */
 /* The hunt section's pose of the instance's stored world (hr_state_of hunt.pose: its units at the last commit). */
 function poseOf(LM, inst) {
   const w = LM.WS.decodeStored(JSON.parse(inst.world));
@@ -178,7 +191,10 @@ async function playLive(M, LM, book, mis, spanMs, onFrame, opt) {
   const server = {
     /* `rpc` (name, args) => answer or undefined: an intent the test answers itself (LV-14), else a read */
     rpc: async (name, args) => (o.rpc && o.rpc(name, args)) || { ok: true, body: env() },
-    accrue: async () => { const n = asked++; return wait(o.seedless && o.seedless(n) ? { ok: true, body: Object.assign(env(), { accrued: false, settled: false, reason: 'replayed' }) } : answer()); },
+    accrue: async () => { const n = asked++; const a = o.seedless && o.seedless(n) ? { ok: true, body: Object.assign(env(), { accrued: false, settled: false, reason: 'replayed' }) } : answer();
+      if (o.tamper) o.tamper(a.body);
+      return wait(a); },
+    stale: () => { if (o.onStale) o.onStale(); },
   };
   let asked = 0;
   const answer = () => {
@@ -198,7 +214,7 @@ async function playLive(M, LM, book, mis, spanMs, onFrame, opt) {
      keep the run they were measured on, where a cleared timer still fires) */
   const cs = new M.C.CharacterSession({ slot: 0, uid: '11111111-2222-3333-4444-555555555555', server,
     setTimer: (fn, ms) => { timers.push({ fn, at: clock.t + ms }); return timers.length; },
-    clearTimer: (id) => { if (o.clears && Number.isInteger(id) && id >= 1) timers[id - 1] = null; }, now: () => clock.t });
+    clearTimer: (id) => { if (o.clears && Number.isInteger(id) && id >= 1) timers[id - 1] = null; }, now: () => clock.t, clock: o.clock });
   await cs.load();
   /* ONE POSITION SOURCE: a server window played into the timeline while a prediction exists (running,
      or out of seeds and waiting for its restart) is a second source writing the prediction's units. */
@@ -241,6 +257,8 @@ async function playLive(M, LM, book, mis, spanMs, onFrame, opt) {
     if (unviewed) continue;
     if (away) { away = false; scene = mount(); }   // viewed again: a new pane, the character's scene
     cs.liveAdvance(clock.t);
+    /* a catch-up still running in slices: the last frame stays on screen (world-boot.js liveState), nothing is drawn */
+    if (typeof cs.liveLink.catchingUp === 'function' && cs.liveLink.catchingUp()) continue;
     const back = cs.takeReseeded(); if (back) scene.revive(back, clock.t);
     played.length = 0;
     cs.timeline.advance(clock.t);
@@ -626,6 +644,98 @@ async function nodeRules(M) {
     }
   }
 
+  { // LV-28 A HUNT THIS BUILD CANNOT PREDICT (Sentry JAVASCRIPT-4C, 11 events, release 0.2.63: "Cannot read properties of
+    // undefined (reading 'xp')" in damage.js landHit, unhandled in the frame loop). The edge deploys before the page, so
+    // a newer server's hunt holds a monster this build's catalogue lacks: its commits name another world (the hash) and
+    // its start points that monster. The engine threw at the first kill of it, in every frame after, and the hunt stood.
+    const NEW_KIND = 'zz_newer_server_kind';
+    const newer = (body) => {
+      if (body.hunt_check) body.hunt_check = Object.assign({}, body.hunt_check, { world_hash: 'newer:' + body.hunt_check.world_hash });
+      const i = body.hunt_live && body.hunt_live.instance;
+      if (!i || typeof i.world !== 'string') return;
+      const w = LM.WS.decodeStored(JSON.parse(i.world));
+      for (const u of w.units) if (u.side === 'mon') u.kind = NEW_KIND;
+      body.hunt_live = Object.assign({}, body.hunt_live, { instance: Object.assign({}, i, { world: JSON.stringify(LM.WS.encode(w)), world_hash: 'newer:' + i.world_hash }) });
+    };
+    let threw = null, stale = 0, frames = 0, moving = 0, cs = null, prev = null;
+    const SPAN = 70000;
+    try {
+      cs = await playLive(M, LM, book, [LIVE_H.memberOf(LM, 'a', 0, 'tank', 6)], SPAN, ({ s, f, T0 }) => {
+        if (s < T0 + SPAN - 25000) return;
+        /* the last 25 s, well after the fall-back and a server-paced delay: the picture moves (no frozen hunt) */
+        const pic = JSON.stringify([f.hero && [f.hero.x, f.hero.y], f.units.map((d) => [d.unit, d.x, d.y])]);
+        frames++; if (prev !== null && pic !== prev) moving++; prev = pic;
+      }, { tamper: newer, onStale: () => stale++ });
+    } catch (e) { threw = e; }
+    const failure = cs && cs.liveLink.failure;
+    console.log(`  LV-28 a newer server's monster in every start point: ${threw ? 'a frame THREW (' + String(threw.message).slice(0, 80) + ')' : 'no frame threw'}, failure ${JSON.stringify(failure)}, ${stale} version check(s), playback delay ${cs && cs.timeline.delayMs()} ms, ${moving}/${frames} late frames moved`);
+    ok('LV-28', threw === null, 'a frame step threw: ' + String(threw && threw.message).slice(0, 160));
+    ok('LV-28', !!cs && typeof failure === 'string' && failure.includes(NEW_KIND), `the live view did not stop on the unknown monster (failure ${JSON.stringify(failure)})`);
+    ok('LV-28', !!cs && cs.timeline.delayMs() === M.CFG.SESSION_CONFIG.huntPlaybackDelayMs && !cs.live.running() && !cs.liveLink.joining(),
+      `after the fall-back the view is not the server-paced one (delay ${cs && cs.timeline.delayMs()} ms, running ${cs && cs.live.running()})`);
+    ok('LV-28', stale === 1, `the site was asked ${stale} time(s) whether a newer build is out, want once`);
+    /* a tank that stands and fights moves in about 15 % of its frames (220/1500 live); a frozen hunt in none */
+    ok('LV-28', frames > 0 && moving >= frames * 0.05, `the hunt stood still on screen after the fall-back: ${moving} of ${frames} frames moved`);
+  }
+
+  { // LV-29 A TAB BACK FROM THE BACKGROUND CATCHES UP IN SLICES. A background tab's timers are throttled (a minute
+    // apart), so its polls bring no start point and the prediction falls behind; on the way back it ran every missed
+    // swing it had seeds for as ONE task (213-259 ms live: the page froze as it came back). The slice clock here
+    // reads one more ms at each look, so a slice runs as many swings as liveCatchUpSliceMs allows looks.
+    /* a busy fight (LV-24's Thicket duo at density 8: wolves running), hidden just after a commit handed the look-ahead its seeds */
+    const PAUSE = [LIVE_H.T0 + 33000, LIVE_H.T0 + 73000];
+    const duo = () => ['melee_dps', 'melee_dps'].map((r, i) => {
+      const mi = LIVE_H.memberOf(LM, 'ab'[i], i, r, 12);
+      mi.huntId = 'meadowbrook_thicket'; mi.hero = Object.assign({}, mi.hero, { density: 8 });
+      return mi;
+    });
+    const play = async (clock) => {
+      const out = { perFrame: [], frames: [], ran: 0, catchUps: 0 };
+      let hooked = false;
+      await playLive(M, LM, book, duo(), 80000, ({ s, f, cs }) => {
+        /* the swings each frame step runs (a start point's restart is not one: it runs in its answer); a frame step
+           whose catch-up is still slicing draws nothing, so it is counted where it runs, not here */
+        if (!hooked) {
+          hooked = true;
+          const step = cs.liveAdvance.bind(cs);
+          cs.liveAdvance = (t) => { const b = cs.live.swingIndex(); const r = step(t); const d = (cs.live.swingIndex() ?? b) - b;
+            if (cs.timeline.serverNowAt(t) >= PAUSE[1] && d > 0) { out.perFrame.push(d); out.ran += d; } return r; };
+        }
+        out.catchUps = cs.liveLink.stats.catchUps;
+        /* every frame drawn from the return on, by its instant: the picture and each bar */
+        if (s >= PAUSE[1]) out.frames.push(s + ' ' + JSON.stringify([f.hero && [f.hero.x, f.hero.y, f.hero.anim], f.units.map((d) => [d.unit, d.x, d.y, d.anim, d.frame, cs.timeline.hpAt(d.unit, cs.now())])]));
+      }, { pause: PAUSE, hold: PAUSE, clock, hunt: 'meadowbrook_thicket' });
+      return out;
+    };
+    let ticks = 0;
+    const sliced = await play(() => ++ticks);
+    const whole = await play(() => 0);   // the clock never moves: the whole catch-up in one frame (as before the slices)
+    const cap = M.CFG.SESSION_CONFIG.liveCatchUpSliceMs;
+    /* each frame the sliced run drew (it draws none while a catch-up is still slicing) is the whole run's at that instant */
+    const wholeAt = new Set(whole.frames);
+    const differ = sliced.frames.findIndex((x) => !wholeAt.has(x));
+    console.log(`  LV-29 back after 40 s in the background: the catch-up ran ${sliced.ran} swing(s) over ${sliced.perFrame.length} frame step(s) [${sliced.perFrame.join(', ')}] (in one frame: [${whole.perFrame.join(', ')}]); ${sliced.frames.length} frames drawn from the return (${whole.frames.length - sliced.frames.length} held), first not the whole run's ${differ}`);
+    ok('LV-29', Math.max(0, ...whole.perFrame) > cap, `CONTROL: the longest catch-up ran ${Math.max(0, ...whole.perFrame)} swing(s) in a frame (want over ${cap}): the case does not build a long one`);
+    ok('LV-29', sliced.perFrame.length > 1 && Math.max(...sliced.perFrame) <= cap, `a frame ran ${Math.max(0, ...sliced.perFrame)} catch-up swings (one slice is at most ${cap} looks): [${sliced.perFrame.join(', ')}]`);
+    ok('LV-29', sliced.ran === whole.ran && sliced.catchUps === whole.catchUps, `the sliced catch-up ran ${sliced.ran} swings in ${sliced.catchUps} catch-up(s), the whole one ${whole.ran} in ${whole.catchUps}`);
+    ok('LV-29', sliced.frames.length > 0 && differ === -1, `a frame the sliced catch-up drew is not the whole one's at that instant (frame ${differ} of ${sliced.frames.length})`);
+    { // ...and the run itself: from one start point, slices of three swings answer what one call does (same restart, next boundary, world)
+      const srv = LIVE_H.server(LM, duo(), { hunt: 'meadowbrook_thicket' });
+      for (let t = LIVE_H.T0 + 10000; t <= LIVE_H.T0 + 60000; t += 10000) srv.commit(t);
+      const live = srv.live('a');
+      live.seeds.list = Array.from({ length: 40 }, (_, i) => live.seeds.list[i] ?? (7919 * (i + 1)));   // seeds past the look-ahead: a long run
+      const norm = (r) => r && JSON.stringify(Object.assign({}, r, { positions: [...r.positions], alive: [...r.alive].sort((x, y) => x - y) }));
+      const A = M.LE.createLiveEngine({ items: M.ITEMS, monsters: M.MONSTERS }), B = M.LE.createLiveEngine({ items: M.ITEMS, monsters: M.MONSTERS });
+      A.seed(clone(live)); B.seed(clone(live));
+      const at = A.nextAt() + 60000;
+      const one = A.catchUp(at, 250);
+      let got, n = 0, looks = 0;
+      do { got = B.catchUpSlice(at, 250, () => ++looks % 3 !== 0); n++; } while (got === undefined && n < 100);
+      const same = norm(one) === norm(got) && A.nextAt() === B.nextAt() && A.hashAt(A.swingIndex() - 1) === B.hashAt(B.swingIndex() - 1);
+      ok('LV-29', n > 3 && same && !B.catchingUp(), `slices of three swings (${n} of them) did not answer the one-call catch-up's restart, next boundary and world (same ${same})`);
+    }
+  }
+
   { // LV-12 A DEATH INSIDE A CATCH-UP IS PLAYED: the frame loop stops for 5 s (a background tab) across two
     // kills, then catches up. No monster the server's world holds dead is drawn standing a second later, and
     // none stands at 0 HP (live v0.2.21: "the kobold was still standing at the end", its bar empty/black).
@@ -714,7 +824,7 @@ async function nodeRules(M) {
     ok('LV-21', after && after.maxHp === 190 && after.hp === 150, `after a batch raised max HP the bar reads ${after && after.hp}/${after && after.maxHp}, want 150/190`);
   }
 
-  { // LV-29 ANDY'S OWN PARTY SWITCHED BACK (#65, live v0.2.45: four heroes of one account at Coppercap Warrens, toggled
+  { // LV-31 ANDY'S OWN PARTY SWITCHED BACK (#65, live v0.2.45: four heroes of one account at Coppercap Warrens, toggled
     // between). The viewer (the tank) is away 40 s to 70 s; the heroes viewed meanwhile settle and push frames (`unview`).
     // A monster an earlier pose placed alive and the newest snapshot holds dead must not stand once the screen reaches the
     // snapshot (it stood about half a second at its last drawn HP, then fell anew when the catch-up revived the scene).
@@ -750,13 +860,13 @@ async function nodeRules(M) {
         }
       }, { hunt: 'coppercap_warrens', viewer: 'andy', unview: SW, clears: true, latencyMs: 850, fps: 30 });
     } finally { console.warn = warn; }
-    console.log(`  LV-29 Andy's Warrens four, the tank away 30 s: ${r.frames} frames after, ${r.deadSeen} unit-frame(s) the snapshot held dead, ${r.stood} drawn standing (${[...r.stoodIds].join(', ')}), ${r.unnamed} unit(s) with no sprite`);
-    ok('LV-29', r.deadSeen > 0, 'CONTROL: no monster the snapshot holds dead was on the ground after the switch back (the stand-up case went quiet)');
-    ok('LV-29', r.stood === 0, `${r.stood} unit-frame(s) drew a monster standing that the server's snapshot holds dead (${[...r.stoodIds].join(', ')}): it stood until the catch-up felled it anew`);
-    ok('LV-29', r.unnamed === 0, `${r.unnamed} unit(s) were drawn with no sprite after the switch back`);
+    console.log(`  LV-31 Andy's Warrens four, the tank away 30 s: ${r.frames} frames after, ${r.deadSeen} unit-frame(s) the snapshot held dead, ${r.stood} drawn standing (${[...r.stoodIds].join(', ')}), ${r.unnamed} unit(s) with no sprite`);
+    ok('LV-31', r.deadSeen > 0, 'CONTROL: no monster the snapshot holds dead was on the ground after the switch back (the stand-up case went quiet)');
+    ok('LV-31', r.stood === 0, `${r.stood} unit-frame(s) drew a monster standing that the server's snapshot holds dead (${[...r.stoodIds].join(', ')}): it stood until the catch-up felled it anew`);
+    ok('LV-31', r.unnamed === 0, `${r.unnamed} unit(s) were drawn with no sprite after the switch back`);
   }
 
-  { // LV-28 THE SNAPSHOT NAMES EVERY UNIT (Andy #65: "[hunt-scene] no sprite for unit N (null)" in almost every report).
+  { // LV-30 THE SNAPSHOT NAMES EVERY UNIT (Andy #65: "[hunt-scene] no sprite for unit N (null)" in almost every report).
     // A Sewer four at its top density on the real settle, committed every 10 s: each stored world's hunt-section pose
     // (hr_hunt_section_view lists every unit: poseOf) read through the client's reader (hunt-sections.js huntOf), whose
     // units name and size what the scene draws from a read alone (a reload, a hero switched back to). Every monster has
@@ -778,9 +888,9 @@ async function nodeRules(M) {
       most = Math.max(most, pose.units.length);
       for (const p of pose.units) if (p.side === 'monster' && !((h.units.get(p.u) || {}).kind)) unnamed.add(p.u);
     }
-    console.log(`  LV-28 Sewer four at density 12, 10 min: ${worlds} commits, at most ${most} units in one pose; ${unnamed.size} monster(s) the reader left with no kind`);
-    ok('LV-28', most > 64, `CONTROL: the fullest Sewer world listed ${most} units (want > 64: the case the old 64-unit reader cut)`);
-    ok('LV-28', unnamed.size === 0, `${unnamed.size} monster(s) of the snapshot reached the scene with no kind (${[...unnamed].slice(0, 6).join(', ')}): drawn nowhere`);
+    console.log(`  LV-30 Sewer four at density 12, 10 min: ${worlds} commits, at most ${most} units in one pose; ${unnamed.size} monster(s) the reader left with no kind`);
+    ok('LV-30', most > 64, `CONTROL: the fullest Sewer world listed ${most} units (want > 64: the case the old 64-unit reader cut)`);
+    ok('LV-30', unnamed.size === 0, `${unnamed.size} monster(s) of the snapshot reached the scene with no kind (${[...unnamed].slice(0, 6).join(', ')}): drawn nowhere`);
   }
 
   { // LV-18 SWITCHED AWAY AND BACK MID-HUNT (Andy 10-21: "When you tab away to another character while
@@ -1294,6 +1404,15 @@ const MUTANTS = [
     '  return on.length > 0 && on.every((m) => m.target === unit) && challengeable(inst, u).length === 0;', '  return on.length > 0;', /^LV-22/],
   ['a read carries no clock (LV-0)', 'src/session/character-session.js', '      if (Number.isSafeInteger(ms)) this.timeline.ingest({ serverNowMs: ms }, this._now());\n    }\n    const h = this.read', '    }\n    const h = this.read', /^LV-0/],
   ['no stand-in before the first swing (LV-1)', 'src/hunt-view/scene.js', '    if (!hero && read.entrance) hero = (read.viewed !== null && unitAt(read.viewed, now, read.entrance)) || standIn(now);', '', /^LV-1/],
+  /* Sentry JAVASCRIPT-4C: a hunt this build cannot predict never throws in the frame loop and falls back (LV-28). */
+  ['a start point naming an unknown monster is run, and a swing that throws escapes (LV-28)', 'src/hunt-view/live-engine.js',
+    "fail(reasonOf(e)); return n; }", "throw e; }", /^LV-28/, [['    if (unknown.length) return fail(', '    if (false) return fail('], ['break; return fail(reasonOf(e)); }', 'break; throw e; }']]],
+  ['a failed prediction keeps the live delay and asks again (LV-28)', 'src/session/live-link.js', '    if (why === null || this.failure !== null) return false;', '    if (true) return false;', /^LV-28: (the live view did not stop|after the fall-back)/],
+  ['a failed prediction never asks for a newer build (LV-28)', 'src/session/live-link.js', "    if (this._stale) { try { this._stale(); }", "    if (false) { try { this._stale(); }", /^LV-28: the site was asked/],
+  /* A tab back from the background catches up in slices, and lands the restart one task would have (LV-29). */
+  ['a catch-up runs whole in one frame (LV-29)', 'src/session/live-link.js', '() => this._clock() - t0 < SESSION_CONFIG.liveCatchUpSliceMs);', '() => true);', /^LV-29: a frame ran/],
+  ["a sliced catch-up lands at its last slice's instants (LV-29)", 'src/session/live-link.js', 'if (!this._fail() && res) this._land(c, res);', 'if (!this._fail() && res) this._land(this._instants() || c, res);', /^LV-29: a frame the sliced/],
+  ['each slice of a catch-up starts its run again (LV-29)', 'src/hunt-view/live-engine.js', '      if (!job || job.of !== st) job = forward(serverNowMs, aheadMs);', '      job = forward(serverNowMs, aheadMs);', /^LV-29/],
   ['the live view keeps the server-paced delay (LV-2)', 'src/session/live-link.js', 'this._tl.setDelay(SESSION_CONFIG.liveDelayMs);', 'void 0;', /^LV-2/],
   ['the frame loop never advances the engine (LV-2)', 'src/session/live-link.js', '    const n = this.engine.advance(now, (b) => this._tl.ingest(b, clientNow));', '    const n = 0;', /^LV-2/],
   ['a monster the snapshot dropped is unnamed (LV-5)', 'src/hunt-view/scene.js', "(typeof tl.kindOf === 'function' ? tl.kindOf(u) : null)", 'null', /^LV-5/],
@@ -1341,10 +1460,10 @@ const MUTANTS = [
   ["the party panel reads the last commit's HP (LV-15, live v0.2.22)", 'src/shell/widgets/party-panel.js', 'level: v.level, hp: v.hp, hpMax: v.hpMax', 'level: v.level, hp: m.hp, hpMax: m.hpMax', /^LV-15/],
   ["the party panel reads a party-mate's last-commit HP (LV-15b)", 'src/shell/widgets/party-panel.js', 'const live = m.hunting ? liveHpOf(cs, m.unit) : null;', 'const live = null;', /^LV-15b/],
   ['a pose places a corpse it never held (LV-0, timeline.js T12)', 'src/hunt-view/timeline.js', '      if (!a && p.alive === false) continue;   // T12\n', '', /^LV-0/],
-  ["the snapshot's dead stand on a switch back (LV-29, scene.js S9)", 'src/hunt-view/scene.js',
-    '    for (const u of ids) if (!dead.has(u) && serverDead(u)) dead.set(', '    for (const u of ids) if (false) dead.set(', /^LV-29/],
-  ["the snapshot's alive is not read (LV-29)", 'src/session/hunt-sections.js', 'alive: u.alive !== false });', 'alive: true });', /^LV-29/],
-  ['the snapshot reader keeps 64 units (LV-28, Andy #65)', 'src/session/hunt-sections.js', 'list(pose.units, (x) => x, POSE_UNITS_MAX)', 'list(pose.units, (x) => x, 64)', /^LV-28/],
+  ["the snapshot's dead stand on a switch back (LV-31, scene.js S9)", 'src/hunt-view/scene.js',
+    '    for (const u of ids) if (!dead.has(u) && serverDead(u)) dead.set(', '    for (const u of ids) if (false) dead.set(', /^LV-31/],
+  ["the snapshot's alive is not read (LV-31)", 'src/session/hunt-sections.js', 'alive: u.alive !== false });', 'alive: true });', /^LV-31/],
+  ['the snapshot reader keeps 64 units (LV-30, Andy #65)', 'src/session/hunt-sections.js', 'list(pose.units, (x) => x, POSE_UNITS_MAX)', 'list(pose.units, (x) => x, 64)', /^LV-30/],
   ["the bar keeps the hunt's first max HP (LV-21, Brannoc 10-22)", 'src/hunt-view/timeline.js', '    const max = base[2] || r.maxHp;', '    const max = r.bases[0][2] || r.maxHp;', /^LV-21/],
 ];
 
@@ -1353,15 +1472,19 @@ async function mutate() {
   /* `--only <text>`: just the mutants whose name holds <text> (a lane proves its own rule without the whole sweep) */
   const at = process.argv.indexOf('--only');
   const list = at > 0 ? MUTANTS.filter(([name]) => name.includes(String(process.argv[at + 1] || ''))) : MUTANTS;
-  for (const [name, file, from, to, arm] of list) {
+  /* `more`: further [from, to] edits in the same file, planted with the first (a rule two doors hold). */
+  for (const [name, file, from, to, arm, more] of list) {
     const base = mkdtempSync(join(tmpdir(), 'hr-hsl-'));
     try {
       cpSync(join(ROOT, 'src'), join(base, 'src'), { recursive: true });
       cpSync(join(ROOT, 'assets', 'world'), join(base, 'assets', 'world'), { recursive: true });
       const p = join(base, file);
-      const src = readFileSync(p, 'utf8');
-      if (src.split(from).length !== 2) { console.error(`harness: anchor for "${name}" not found once`); process.exit(2); }
-      writeFileSync(p, src.replace(from, to));
+      let src = readFileSync(p, 'utf8');
+      for (const [a, b] of [[from, to]].concat(more || [])) {
+        if (src.split(a).length !== 2) { console.error(`harness: anchor for "${name}" not found once`); process.exit(2); }
+        src = src.replace(a, b);
+      }
+      writeFileSync(p, src);
       let fails;
       try { fails = await nodeRules(await load(base)); } catch (e) { fails = ['threw: ' + e.message]; }
       const hit = fails.some((f) => arm.test(f));

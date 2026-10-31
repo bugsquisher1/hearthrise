@@ -11,7 +11,9 @@
 //            can never spend the plan's quota again (2026-10-21: a week of every
 //            event refused as error_usage_exceeded); plus ONE message on the first
 //            main-thread hang (src/net/diagnostics.js onHang) with each open hunt's
-//            id, swing and live-engine state; release = BUILD.version; no tracing,
+//            id, swing and live-engine state, and what held the page: the longest frames
+//            in the stall and their scripts (Chromium), the long-task counts, the last
+//            console warnings and errors; release = BUILD.version; no tracing,
 //            no replay; user = the account id; URLs leave without query or fragment
 //   PostHog  identified_only profiles keyed by the account id, kept in memory only,
 //            its script fetched (on idle) and started only once the account id is known (its bootstrap distinct id: no
@@ -41,6 +43,7 @@ const QUEUE_MAX = 20;        // events held while PostHog loads
 const STALL_MAX = 50;        // live_view_stall per page load: a stuck loop must not spend the quota
 const STALL_POLL_MS = 1000;  // how often a running live engine is looked at (starving emits nothing)
 const HANG_PRINT = 'main-thread-hang';
+const HANG_READ_MS = 1000;   // the hang report waits this long for the frame that held the page to be reported
 const POSTHOG_IDLE_MAX_MS = 3000;   // PostHog's script waits for an idle moment after sign-in, at most this long
 
 /** What one page load may send to Sentry: each error a few times, and a ceiling over all of them. */
@@ -140,7 +143,11 @@ function sentryOptions(cfg, env, S) {
   return {
     dsn: cfg.sentry.dsn, release: BUILD.version, environment: env.environment,
     sampleRate: 1, sendDefaultPii: false, replaysSessionSampleRate: 0, replaysOnErrorSampleRate: 0,
-    integrations: (defaults) => defaults.concat(typeof S.captureConsoleIntegration === 'function' ? [S.captureConsoleIntegration({ levels: ['error'] })] : []),
+    /* Without BrowserApiErrors, which wraps every timer, frame and event callback: Chromium names the script that held
+       a frame by its entry point, and wrapped, every long frame read "sentry-browser: sentryWrapped" (the hang report's
+       long_frames). An uncaught error in a callback still reaches Sentry through its global handlers. */
+    integrations: (defaults) => defaults.filter((i) => i && i.name !== 'BrowserApiErrors')
+      .concat(typeof S.captureConsoleIntegration === 'function' ? [S.captureConsoleIntegration({ levels: ['error'] })] : []),
     beforeSend(event) {
       if (event.request) { event.request.url = bare(event.request.url); delete event.request.cookies; if (event.request.headers) delete event.request.headers.Referer; }
       return gate(event);
@@ -290,15 +297,29 @@ export function startObservability(win, cfg = OBSERVABILITY_CONFIG) {
 
   /* THE HANG: the first main-thread stall over 3 s with the tab visible, ONCE per load. A stall
      throws nothing, so without this a frozen tab never reached Sentry at all. */
-  startDiagnostics(win).onHang(({ ms }) => safe(() => {
+  const diag = startDiagnostics(win);
+  diag.onHang(({ ms, from }) => safe(() => {
     if (st.hung) return;
     st.hung = true;
     const hunts = openHunts(watched);
     send('page_hang', { ms, hunts: hunts.length });
-    st.hang = (S) => S.captureMessage('The page stalled for ' + (ms / 1000).toFixed(1) + ' s', {
-      level: 'warning', fingerprint: [HANG_PRINT], tags: { hang: 'main-thread' },
-      extra: { stall_ms: ms, version: BUILD.version, hunts } });
-    if (sentry) { const h = st.hang; st.hang = null; h(sentry); }
+    /* WHAT HELD IT (Sentry JAVASCRIPT-4B: 18 stalls with nothing to name them): the stall's frames and their scripts,
+       read a moment after (Chromium reports a Long Animation Frame some time after it renders, after the heartbeat
+       that saw the stall: read at once, or a frame later, it named none), at once where no frame comes. No long frame
+       and no long task in a stall is a page that ran nothing (a suspended machine, a throttled tab). */
+    const report = () => safe(() => {
+      /* each frame's scripts as one line: Sentry keeps three levels of `extra` and would send them as "[Array]" */
+      const frames = diag.longFrames(Number.isFinite(from) ? from : 0).map((f) => ({ at: f.at, ms: f.ms, blocking: f.blocking,
+        scripts: f.scripts.map((x) => x.ms + ' ms ' + x.invoker + ' ' + x.source).join(' | ') }));
+      const held = { long_frames: frames, perf: diag.perf(),
+        recent: diag.recent().slice(-5).map((r) => ({ level: r.level, msg: r.msg.slice(0, 160) })) };
+      st.hang = (S) => S.captureMessage('The page stalled for ' + (ms / 1000).toFixed(1) + ' s', {
+        level: 'warning', fingerprint: [HANG_PRINT], tags: { hang: 'main-thread' },
+        extra: Object.assign({ stall_ms: ms, version: BUILD.version, hunts }, held) });
+      if (sentry) { const h = st.hang; st.hang = null; h(sentry); }
+    });
+    if (typeof win.requestAnimationFrame === 'function' && doc.visibilityState !== 'hidden') win.setTimeout(report, HANG_READ_MS);
+    else report();
   }));
 
   active = {

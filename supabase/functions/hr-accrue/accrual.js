@@ -898,16 +898,13 @@ export function accrueRested({ nowMs, restedAtMs, restedXp, libraryCap }) {
  *                durable expiry is the absolute `until` the server already holds,
  *                so there is nothing to write back and no way for the engine to
  *                post an arbitrary queue.
- *   deathsTodayBefore, deathsLifetimeBefore
- *                THE RECOVERY LADDER'S TWO ANCHORS. player_progress
- *                kind='stat' key='deaths' under period=<UTC day> and period=''
- *                respectively, as they stood when this window OPENED. Projected
- *                by hr_state_of as their own scalars (`deaths_today` /
- *                `deaths_lifetime`) rather than dug out of the `progress`
- *                array, which is LIMIT 1000 and truncatable — a survival
- *                mechanic must never depend on a read that can silently answer
- *                "you have never died". Absent ⇒ 0 ⇒ the day's-first-fall
- *                grace, the UNDER-charging direction.
+ *   deathsLifetimeBefore
+ *                player_progress kind='stat' key='deaths' period='' as it stood
+ *                when this window opened, for the death row's journal. No day's
+ *                count is an input: the read answers for the day the settle runs
+ *                in, which a window across UTC midnight is not the death's (the
+ *                day row is the death's own instant's, memberDelta), and a
+ *                death's price reads no counter at all (action-rules.js deathXpLoss).
  *   fight        player_state.fight — the IN-FLIGHT FIGHT at `accrued_to`,
  *                `{ monster, hp, kills }` or `{}` for none. **NULL means the
  *                column does not exist yet**, the same self-configuring switch
@@ -1194,8 +1191,8 @@ function analyzerOf(sim, unitIds, unitId) {
  * @param inp.members  [{ key, user, slot, seat, unitId, session (engine shape
  *        input), hero { role, settings, bar, actionSet, range, element },
  *        + the envelope inputs (skills, levelXp,
- *        xpFrac, hp, gold, equipment, inventory, deathsTodayBefore,
- *        deathsLifetimeBefore, perks, hearthfindReady) }]
+ *        xpFrac, hp, gold, equipment, inventory, deathsLifetimeBefore, perks,
+ *        hearthfindReady) }]
  * @returns { accrued, reason?, world, worldSwingFrom, worldSwingTo, settledTo,
  *            track, events, members: [{ key, delta, hunt }] }
  */
@@ -1302,9 +1299,10 @@ function memberDelta(s, summary, fromMs, toMs, tickMs) {
   stat('kills', stats.kills);
   stat('crits', stats.crits);
   stat('deaths', stats.deaths);
-  /* THE SECOND DEATHS ROW — each death under the UTC day of ITS OWN instant (combat-sim's deathLog, one entry per
-     stats.deaths), never the window's end: a death at 23:59:50 that a window closes after midnight is the old day's
-     on every path, so the tick's windows and a player's instants write the same row. */
+  /* THE SECOND DEATHS ROW — each death under the UTC day of ITS OWN instant, never the window's end: a death at 23:59:50
+     that a window closes after midnight is the old day's on every path, so the tick's windows and a player's instants
+     write the same row. combat-sim die() is the one writer of stats.deaths and of deathLog, one of each per death at a
+     swing's instant, so the two rows move together (BOTH-PATH-MIDNIGHT). */
   const deathDays = new Map();
   for (const d of (summary && summary.deathLog) || []) {
     const day = utcDayKey(d.atMs);
@@ -1354,13 +1352,12 @@ function memberDelta(s, summary, fromMs, toMs, tickMs) {
     if (Object.keys(fr).length) delta.xp_frac = fr;
   }
   if (progress.length) delta.progress = progress;
-  /* THE DEATH ROW (a hero dies once a hunt: the hunt ends `died`), stating the
-     window-open counters and whether food was left in the bag. */
+  /* THE DEATH ROW (a hero dies once a hunt: the hunt ends `died`), stating the lifetime count and whether food was
+     left in the bag. Not the day's count: a settle after midnight reads the new day's, one before it the death's. */
   if (Array.isArray(summary.deathLog) && summary.deathLog.length) {
     const hadFood = Object.keys(hs.bag).some((id) => SUPPLIES[id] && SUPPLIES[id].kind === 'heal' && hs.bag[id].left > 0);
     delta.deaths = summary.deathLog.slice(0, 1).map((d) => ({
       monster: String(d.monster || ''),
-      deaths_today: nat(mi.deathsTodayBefore, 0) + 1,
       deaths_lifetime: nat(mi.deathsLifetimeBefore, 0) + 1,
       food_in_bag: hadFood,
     }));

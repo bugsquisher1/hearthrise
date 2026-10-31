@@ -571,7 +571,7 @@ async function memberInput(exec, m, inst) {
     huntSession: { ...huntSessionFromRead(m.session, inst.id), kicked: m.kicked === true },
     skills: e.skills, levelXp: e.levelXp, xpFrac: e.xpFrac, hp: e.hp, gold: e.gold,
     equipment: e.equipment, inventory: e.inventory, buffs: e.buffs,
-    deathsTodayBefore: e.deathsTodayBefore, deathsLifetimeBefore: e.deathsLifetimeBefore,
+    deathsLifetimeBefore: e.deathsLifetimeBefore,
     hearthfindReady: e.hearthfindReady, perks,
     /* THE ACCOUNT BESTIARY's relic multipliers, from this member's OWN hr_state_of
        (account_bestiary.relic_mult: { monster kind: mult }), never from the request */

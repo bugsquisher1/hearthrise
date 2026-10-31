@@ -1302,10 +1302,15 @@ function memberDelta(s, summary, fromMs, toMs, tickMs) {
   stat('kills', stats.kills);
   stat('crits', stats.crits);
   stat('deaths', stats.deaths);
-  /* THE SECOND DEATHS ROW — the same integer under today's UTC period key. */
-  const deathsN = Math.floor(Number(stats.deaths) || 0);
-  const day = deathsN > 0 ? utcDayKey(toMs) : null;
-  if (day) progress.push({ kind: 'stat', key: 'deaths', period: day, add: deathsN, state: 'active' });
+  /* THE SECOND DEATHS ROW — each death under the UTC day of ITS OWN instant (combat-sim's deathLog, one entry per
+     stats.deaths), never the window's end: a death at 23:59:50 that a window closes after midnight is the old day's
+     on every path, so the tick's windows and a player's instants write the same row. */
+  const deathDays = new Map();
+  for (const d of (summary && summary.deathLog) || []) {
+    const day = utcDayKey(d.atMs);
+    if (day) deathDays.set(day, (deathDays.get(day) || 0) + 1);
+  }
+  for (const [day, n] of deathDays) progress.push({ kind: 'stat', key: 'deaths', period: day, add: n, state: 'active' });
   stat('rare_drops', stats.rareDrops);
   for (const op of goalProgressOps(s.goals, toMs, events)) progress.push(op);
   for (const op of bestiaryProgressOps(s.bestiary, events)) progress.push(op);

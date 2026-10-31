@@ -98,6 +98,8 @@
 //              irregular instants), and the bank says so
 //   BOTH-PATH  a hunt with a death settled at a player's irregular instants writes
 //              what the tick's windows write.
+//   BOTH-PATH-MIDNIGHT  the same with the death pinned just before a UTC midnight inside its tick window:
+//              the death's day row is its own instant's day on both paths (run 41149723847).
 //   NO-DODGE   a death the viewer's live seeds showed cannot be stepped around: a
 //              leave sent seconds before it still ends the hunt `died` at that swing,
 //              the same death row and end as with no leave (2026-10-31-live-horizon.sql).
@@ -1498,8 +1500,10 @@ async function hunter(db, M, o) {
     sids.push(e.session.id);
   }
   await db.query(`select set_config('request.jwt.claim.sub', '', true)`);
-  /* Backdate: every session and the instance arrive at the same whole second, `minutesAgo` ago. */
-  const t = `date_trunc('second', now() - make_interval(mins => ${Number(o.minutesAgo || (o.party && o.party[0].minutesAgo) || 10)}))`;
+  /* Backdate: every session and the instance arrive at the same whole second, `minutesAgo` ago, or at `fromMs`
+     (a pinned whole second in the past: BOTH-PATH-MIDNIGHT). */
+  const t = o.fromMs != null ? `to_timestamp(${Math.floor(Number(o.fromMs) / 1000)}::double precision)`
+    : `date_trunc('second', now() - make_interval(mins => ${Number(o.minutesAgo || (o.party && o.party[0].minutesAgo) || 10)}))`;
   for (const sid of sids) {
     await db.query(`update public.hunt_sessions set entered_at = ${t} - interval '1 minute', hunt_from = ${t}, settled_to = ${t},
                       next_swing_at = ${t} where id = $1`, [sid]);
@@ -1584,6 +1588,14 @@ async function compareRuns(db, M, fixture, cutsA, cutsB) {
 }
 const SPAN_MS = 20 * 60000;
 const ticksOf = (stepMs, spanMs) => (from) => Array.from({ length: Math.ceil(spanMs / stepMs) }, (_, i) => Math.min(from + (i + 1) * stepMs, from + spanMs));
+/* ATTENDED = a player's irregular instants, two of them around each death the tick run `a` saw. */
+const attendedCuts = (from, a) => {
+  const deaths = ((a[0] && a[0].events) || []).filter((e) => e[0] === 'death').map((e) => Date.parse(e[1]));
+  const cuts = [from + 7001, from + 33333];
+  for (const t of deaths) cuts.push(t - 1500, t + 1500);
+  cuts.push(from + SPAN_MS);
+  return [...new Set(cuts)].filter((t) => t > from && t <= from + SPAN_MS).sort((x, y) => x - y);
+};
 const STRONG = { minutesAgo: 25, level: 25, inv: { cooked_shrimp: 30 }, bag: [{ item: 'cooked_shrimp', qty: 25 }], gold: 100000 };
 const WEAK = { minutesAgo: 25, inv: {}, bag: [], gold: 0, hp: 20, options: { on_empty: 'end' },
   level: 10 };
@@ -1603,14 +1615,7 @@ const DB_ARMS = {
   'BOTH-PATH': async (db, M) => {
     const problems = [];
     /* AWAY = the tick's 90 s windows; ATTENDED = a player's irregular instants, two of them around the death. */
-    const attended = (from, a) => {
-      const deaths = ((a[0] && a[0].events) || []).filter((e) => e[0] === 'death').map((e) => Date.parse(e[1]));
-      const cuts = [from + 7001, from + 33333];
-      for (const t of deaths) cuts.push(t - 1500, t + 1500);
-      cuts.push(from + SPAN_MS);
-      return [...new Set(cuts)].filter((t) => t > from && t <= from + SPAN_MS).sort((x, y) => x - y);
-    };
-    const { a, b } = await compareRuns(db, M, DOOMED, ticksOf(90000, SPAN_MS), attended);
+    const { a, b } = await compareRuns(db, M, DOOMED, ticksOf(90000, SPAN_MS), attendedCuts);
     if (!((a[0].deaths || []).length === 1)) problems.push(`CONTROL: the weak hero did not die exactly once (${JSON.stringify(a[0].deaths)})`);
     if (a[0].session.end_reason !== 'died') problems.push(`the death ended the hunt ${a[0].session.end_reason}, not died`);
     /* The death row carries the engine's instant (the settle's death hint), inside the swing it happened in:
@@ -1620,20 +1625,46 @@ const DB_ARMS = {
     if (canon(a) !== canon(b)) problems.push(`a hunt settled at a player's instants wrote different rows from the tick's ${firstDiff(canon(a), canon(b))}`);
     return problems;
   },
+  /* BOTH-PATH ACROSS UTC MIDNIGHT (run 41149723847): the doomed hunt pinned so its death lands just before a UTC
+     midnight that falls INSIDE the tick window holding it, while the player's instant 1.5 s after the death is still
+     the old day. The death's day row is keyed by the death's own instant, so both paths write the same rows, and
+     that row is the death's day. A probe finds where in the hunt the death falls (the seed's, rewound per hunter). */
+  'BOTH-PATH-MIDNIGHT': async (db, M) => {
+    const DAY = 86400000;
+    const tick = ticksOf(90000, SPAN_MS);
+    const deathOf = (s) => Date.parse((((s && s.events) || []).find((e) => e[0] === 'death') || [])[1]);
+    const dayKey = (ms) => { const d = new Date(ms); return `${d.getUTCFullYear()}-${d.getUTCMonth() + 1}-${d.getUTCDate()}`; };
+    const probe = await inTx(db, async () => {
+      const p = await hunter(db, M, DOOMED);
+      await run(db, M, p.from, tick);
+      return { x: deathOf(await snapshot(db, p.sid, UIDS[0])) - p.from,
+        nowMs: Number(await one(db, 'select floor(extract(epoch from now()) * 1000)::bigint')) };
+    });
+    if (!(probe.x > 0)) return [`CONTROL: the probe hero did not die (${probe.x})`];
+    /* the death 20 s before midnight (23:59:40), or halfway to its tick window's close when that is nearer */
+    const before = Math.min(20000, (tick(0).find((t) => t >= probe.x) - probe.x) / 2);
+    const midnight = Math.floor((probe.nowMs - SPAN_MS - 3600000) / DAY) * DAY;
+    await rewindDice(db);
+    const { a, b, h } = await compareRuns(db, M, { ...DOOMED, fromMs: midnight - before - probe.x }, tick, attendedCuts);
+    const died = deathOf(a[0]);
+    const closes = tick(h.from).find((t) => t >= died);
+    if (!(died + 1500 < midnight && closes > midnight)) {
+      return [`CONTROL: no straddle: the death at ${new Date(died).toISOString()}, its tick window closes ${new Date(closes).toISOString()}, midnight ${new Date(midnight).toISOString()}`];
+    }
+    const problems = [];
+    if ((a[0].deaths || []).length !== 1 || a[0].session.end_reason !== 'died') problems.push(`CONTROL: the hero did not die once (${a[0].session.end_reason})`);
+    const days = Object.keys(a[0].stats || {}).filter((k) => k.startsWith('stat:deaths:') && k !== 'stat:deaths:');
+    if (days.join() !== `stat:deaths:${dayKey(died)}`) problems.push(`the tick filed the death at ${new Date(died).toISOString()} under ${days.join() || 'no day'}, not its own day ${dayKey(died)}`);
+    if (canon(a) !== canon(b)) problems.push(`across midnight a player's instants wrote different rows from the tick's ${firstDiff(canon(a), canon(b))}`);
+    return problems;
+  },
   'DEATHXP-FLAME': async (db, M) => {
     const problems = [];
     const start = M.XP.skillXpForLevel('inner_flame', 10) + 1000;
     const want = M.AR.skillDeathLoss('inner_flame', start);
     if (!(want > 0)) return [`CONTROL: a death at Inner Flame 10 + 1000 XP would cost ${want}`];
-    const attended = (from, a) => {
-      const deaths = ((a[0] && a[0].events) || []).filter((e) => e[0] === 'death').map((e) => Date.parse(e[1]));
-      const cuts = [from + 7001, from + 33333];
-      for (const t of deaths) cuts.push(t - 1500, t + 1500);
-      cuts.push(from + SPAN_MS);
-      return [...new Set(cuts)].filter((t) => t > from && t <= from + SPAN_MS).sort((x, y) => x - y);
-    };
     const FLAME = { ...DOOMED, skillsXp: { ...DOOMED.skillsXp, inner_flame: start } };
-    const { a, b } = await compareRuns(db, M, FLAME, ticksOf(90000, SPAN_MS), attended);
+    const { a, b } = await compareRuns(db, M, FLAME, ticksOf(90000, SPAN_MS), attendedCuts);
     for (const [door, s] of [['the browser closed', a[0]], ['the hunt viewed', b[0]]]) {
       if ((s.deaths || []).length !== 1) { problems.push(`CONTROL (${door}): the hero died ${(s.deaths || []).length} time(s)`); continue; }
       const price = s.death_xp || {};

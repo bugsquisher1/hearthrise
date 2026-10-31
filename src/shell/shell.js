@@ -451,6 +451,9 @@ export function mountShell(root, o) {
 
   /* The display tick: components patch their clocks and play the timeline's due events. */
   function patchComponents() {
+    /* A HIDDEN PAGE PATCHES NOTHING: nobody reads it (old-laptop player 10-31: 10% of a laptop's main thread, tab in the
+       background). The first tick after it is shown patches everything from what the server has said. */
+    if (doc.hidden) return;
     /* The coach FIRST, while the page is still laid out from the last frame: its ring asks what is on screen
        (launcher.js shown, getClientRects), and asked after the patches below it forced a whole layout inside the
        tick (perf lane 2026-10-28: up to 79 ms of an 81 ms tick at 4x CPU). A control that appears on this tick is

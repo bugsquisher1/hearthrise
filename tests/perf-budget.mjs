@@ -8,7 +8,7 @@
 //                                              --sizes 1440x900,922x423 narrow it); prints, never fails
 //   node tests/perf-budget.mjs --mutate        every planted defect must turn the budget RED
 //
-// mutant-anchors: src/world/world-boot.js src/world/core/compose.js src/world/render/canvas-backend.js src/app/world-pane.js src/shell/widgets/analyzer.js src/shell/shell.js src/session/character-session.js src/hunt-view/combat-log.js src/render/images.js
+// mutant-anchors: src/world/render/frame-sig.js src/shell/widgets/action-bar.js src/app/boot.js src/world/world-boot.js src/world/core/compose.js src/world/render/canvas-backend.js src/app/world-pane.js src/shell/widgets/analyzer.js src/shell/shell.js src/session/character-session.js src/hunt-view/combat-log.js src/render/images.js
 // mutant-writes-tree: no — probes and mutants are served from memory (tests/_client-harness.mjs serve overrides)
 //
 // THE SCENARIO (Andy, Firefox, live v0.2.23: "the page is slowing down", "the analyser seems to have slowed
@@ -29,6 +29,11 @@
 //   analyzer       patches per minute, its session clock against the hunt's real elapsed time (behind by,
 //                  and how often it ran backwards), and the longest its kill count stood still while hunting
 //   the run-away   the second hero's drawn path from the death on: how far it walks, and for how long
+//   a still world  PB-IDLE (old-laptop player 10-31): the same draw list paints nothing, the ground of a camera that stands is
+//                  composed once, and a kept frame is the frame a full redraw paints (PB-PIX); the real town after the hunt
+//                  paints what changes, never the frame rate
+//   a hidden page  PB-AWAY: past the grace it asks the server nothing, shown again it catches up at once
+//   let go         PB-LEAK: DOM nodes and listeners after a forced GC, per hero switch and per bag open in a hunt
 //   the ground     PB-HELD (main run 40417203016): every map's ground (compose.js groundOf; the town's is 22k dual
 //                  tiles) is made once, in a task of its own: never inside a frame, never twice for one map
 //   what held it   each frame the page held over 50 ms is printed with its Long Animation Frame (entry point,
@@ -64,6 +69,10 @@ const BUDGET = Object.freeze({
   drawsOffLoop: 6,         // World canvas draws outside the frame loop while it runs (mounts, a shown tab), never one per answer
   tokenReadsInDraw: 200,   // --world-* tokens read off the live style inside draws after the warm-up (kept: a few re-reads after a
                            // theme or resize; unkept: ~30 a frame, perf lane 2026-10-28)
+  idlePaintsIn10s: 300,    // PB-IDLE: a still scene whose only change is a clip's frame turning, at 60 frames a second (600 frames)
+  townPaintsPerS: 25,      // the real page standing in town after the hunt: the Great Hearth's clip at most, never the frame rate
+  leakNodesPerAct: 60,     // PB-LEAK: DOM nodes left after a forced GC per hero switch or bag open (the live page's own small growth apart from it)
+  leakListenersPerAct: 2,  // ...and listeners
 });
 
 /* ── the page's probes (served copies only: the shipped files never carry them) ── */
@@ -94,6 +103,8 @@ const PROBES = [
     '  byBook.set(book, window.__perf ? window.__perf.ground(map, () => made) : made);\n  return made;'],
   ['src/world/core/compose.js', '        const r = runFor(it, o.now, budget);',
     '        const r = window.__perf ? window.__perf.time(\'groundSlice\', () => runFor(it, o.now, budget)) : runFor(it, o.now, budget);'],
+  /* every frame the World really paints (a held one paints nothing) */
+  ['src/world/render/canvas-backend.js', '    kept.painted++;\n', '    kept.painted++; window.__perf.count(\'paint\');\n'],
 ];
 
 /* ── the planted defects (--mutate): each must turn a budget red ── */
@@ -126,6 +137,23 @@ const MUTANTS = [
     '  const css = (name) => { let v = tokens.get(name);', '  const css = (name) => { tokens.clear(); let v = tokens.get(name);', /^tokens/, 'scenario', 2],
   ["the light layer kept although the hero's lamp moved",'src/world/render/canvas-backend.js',
     "for (const p of points) sig += '|' + p.x + ',' + p.y + ',' + p.r + ',' + tone('light-' + p.tint);", "for (const p of points) sig += '|' + p.r;", /^PB-PIX/, 'pix'],
+  ['a still picture painted every frame (old-laptop player 10-31: 37% of a fast core, 99% at 4x CPU, the picture changing in 1% of samples)', 'src/world/render/canvas-backend.js',
+    'const changed = frameChanged(list, fv);', 'const changed = (frameChanged(list, fv), true);', /^PB-IDLE/, 'pix'],
+  ['a frame held although a unit\'s bar, float, effect or name moved (only the sprites compared)', 'src/world/render/canvas-backend.js',
+    '    s.add(list);\n', '    s.add(list.sprites);\n', /^PB-PIX/, 'pix'],
+  ['a frame held although a hit flash or a corpse tone changed (their fields left out of the walk)', 'src/world/render/frame-sig.js',
+    "      if (k === UNDRAWN) { put(!!v[k]); continue; }\n", "      if (k === UNDRAWN || k === 'flash' || k === 'grey') continue;\n", /^PB-PIX/, 'pix'],
+  ['the ground composed again on every paint of a camera that stands', 'src/world/render/canvas-backend.js',
+    'if (s.end()) { floorGood = false;', 'if ((s.end(), true)) { floorGood = false;', /^PB-IDLE/, 'pix'],
+  ['the ground kept although the camera moved', 'src/world/render/canvas-backend.js',
+    '    s.add(view.ox); s.add(view.oy); s.add(view.w); s.add(view.h);\n    s.add(decals);\n', '    s.add(view.w); s.add(view.h);\n    s.add(decals);\n', /^PB-PIX/, 'pix'],
+  ['the real town repainted every frame', 'src/world/render/canvas-backend.js',
+    'const changed = frameChanged(list, fv);', 'const changed = (frameChanged(list, fv), true);', /^town paints/, 'scenario', 3],
+  ['a hidden tab goes on asking (old-laptop player 10-31: 64 calls and 1.45 MB in 2 minutes hidden)', 'src/app/boot.js',
+    "  doc.addEventListener('visibilitychange', () => { if (account) account.setPageHidden(doc.hidden); });\n", '', /^hidden/, 'scenario', 3],
+  ['each bar watches the timeline with its ctx (old-laptop player 10-31: ~1,080 nodes and 35 listeners a hop, never freed)', 'src/shell/widgets/action-bar.js',
+    '  const w = cs ? CASTS.get(cs) : null;\n  if (w) return w;\n  const at = new Map();\n  const tl = cs && cs.timeline;\n  const clock = ctx.now;   // the clock alone, never the ctx\n',
+    '  if (ctx.__casts) return ctx.__casts;\n  const at = new Map();\n  ctx.__casts = { at };\n  const tl = cs && cs.timeline;\n  const clock = () => ctx.now();\n', /^leak/, 'leak'],
 ];
 
 /** The served copy of the client: every probe planted once (an anchor that moved is a harness error), then `extra`. */
@@ -321,14 +349,32 @@ const PIX_PAGE = `<!doctype html><html><head><link rel="stylesheet" href="/src/s
   const px = (id) => { const c = document.querySelector('#' + id + ' canvas'); return c.getContext('2d').getImageData(0, 0, c.width, c.height).data; };
   const out = { frames: 0, differ: [], kept: 0 };
   let hx = 20, hy = 18, rx = 14, t = 0;
-  for (let i = 0; i < 200; i++) {
+  const fxId = Object.keys(book.sprites).find((k) => book.sprites[k].anims && book.sprites[k].anims.play);
+  /* the hero stands and only one thing in the frame moves: every kind of thing a frame draws (a held frame must not miss it) */
+  const only = (i) => {
+    const s = {};
+    if (i >= 200 && i < 215) s.bar = (215 - i) / 20;
+    if (i >= 215 && i < 230) s.floats = [{ text: String(i < 222 ? 12 : 13), kind: 'hit', x: 22, y: 18, age: (i - 215) * 60, life: 1000 }];
+    if (i >= 230 && i < 245) s.fx = [{ id: fxId, x: 21, y: 18, age: (i - 230) * 40, lift: 0.5 }];
+    if (i >= 245 && i < 260) s.plate = { text: i < 252 ? 'Ada' : 'Bram', kind: 'peer' };
+    if (i >= 260 && i < 275) s.alpha = (275 - i) / 15;
+    if (i >= 275 && i < 290) s.flash = i % 2 === 0;
+    if (i >= 290 && i < 300) s.grey = (i - 290) / 10;
+    return s;
+  };
+  const framesAt = (i) => {
     t += 50;
     if (i >= 40 && i < 80) hx += 0.05;          // the hero walks (both masks follow the view)
     if (i >= 100 && i < 140) rx += 0.1;         // a monster walks past while the hero stands
     if (i === 150) { hx = 1; hy = 1; }           // into the map's corner: the camera stops at the edge...
     if (i > 150 && i < 190) { hx += 0.04; hy += 0.02; }   // ...and the hero's lamp walks across a view that stands still
-    const state = { hero: { x: hx, y: hy, anim: (i >= 40 && i < 80) || (i > 150 && i < 190) ? 'walk' : 'idle', dir: 'e' },
-      units: [{ id: 'drain_rat', x: rx, y: 19, anim: i >= 100 && i < 140 ? 'walk' : 'idle', dir: 'e' }, { id: 'drain_rat', x: 23, y: 17, anim: 'idle', dir: 's' }], t };
+    if (i === 195) { hx = 20; hy = 18; }
+    const o = only(i);
+    return { hero: { x: hx, y: hy, anim: (i >= 40 && i < 80) || (i > 150 && i < 190) ? 'walk' : 'idle', dir: 'e' }, floats: o.floats, fx: o.fx,
+      units: [{ id: 'drain_rat', x: rx, y: 19, anim: i >= 100 && i < 140 ? 'walk' : 'idle', dir: 'e', bar: o.bar, plate: o.plate, alpha: o.alpha, flash: o.flash, grey: o.grey }, { id: 'drain_rat', x: 23, y: 17, anim: 'idle', dir: 's' }], t };
+  };
+  for (let i = 0; i < 300; i++) {
+    const state = framesAt(i);
     a.sync(state); b.sync(state);
     const pa = px('a'), pb = px('b');
     let n = 0; for (let k = 0; k < pa.length; k++) if (pa[k] !== pb[k]) n++;
@@ -336,6 +382,31 @@ const PIX_PAGE = `<!doctype html><html><head><link rel="stylesheet" href="/src/s
     out.frames++;
   }
   out.kept = a.snapshot().masks;
+  /* PB-IDLE: THE SAME LIST PAINTS NOTHING. A scene that stands paints only when a clip's frame turns; the ground of a camera
+     that stands is composed once. */
+  const blits = { n: 0 };
+  const di = CanvasRenderingContext2D.prototype.drawImage;
+  CanvasRenderingContext2D.prototype.drawImage = function (...r) { blits.n++; return di.apply(this, r); };
+  const still = (clock) => ({ hero: { x: 20, y: 18, anim: 'idle', dir: 'e' }, units: [{ id: 'drain_rat', x: 23, y: 17, anim: 'idle', dir: 's' }], t: clock });
+  a.sync(still(t)); a.sync(still(t));
+  const k0 = a.snapshot().kept; blits.n = 0;
+  for (let i = 0; i < 100; i++) a.sync(still(t));
+  const k1 = a.snapshot().kept;
+  out.idle = { same: k1.painted - k0.painted, sameBlits: blits.n };
+  /* ten seconds on the clock, 60 frames a second, one effect's clip looping in it (a fire): it paints when its frame turns */
+  const k2 = a.snapshot().kept; blits.n = 0;
+  for (let i = 0; i < 600; i++) { const ms = i * 1000 / 60; a.sync(Object.assign(still(t + ms), { fx: [{ id: fxId, x: 21, y: 18, age: ms % 250, lift: 0.5 }] })); }
+  const k3 = a.snapshot().kept;
+  out.idle.clock = k3.painted - k2.painted; out.idle.clockHeld = k3.held - k2.held;
+  out.idle.floorMade = k3.floorMade - k2.floorMade; out.idle.floorKept = k3.floorKept - k2.floorKept;
+  CanvasRenderingContext2D.prototype.drawImage = di;
+  /* A press still finds this frame's record on a name a held frame kept on screen. */
+  const named = (ref) => ({ hero: { x: 20, y: 18, anim: 'idle', dir: 'e' }, units: [{ id: 'drain_rat', x: 23, y: 17, anim: 'idle', dir: 's', ref, plate: { text: 'Ada', kind: 'peer' } }], t });
+  a.sync(named({ player: { id: 'old' } }));
+  const nameAt = a.snapshot().names[0];
+  a.sync(named({ player: { id: 'new' } }));
+  const hit = nameAt ? a.pick((nameAt.l + nameAt.r) / 2, (nameAt.t + nameAt.b) / 2) : null;
+  out.idle.nameRef = hit && hit.hits[0] && hit.hits[0].ref && hit.hits[0].ref.player ? hit.hits[0].ref.player.id : null;
   window.__pix = out;
 </script></body></html>`;
 
@@ -345,8 +416,10 @@ async function pixelRule(browser, extra) {
   const H = await import('./_client-harness.mjs');
   const files = planted(extra);
   const src = files['src/world/render/canvas-backend.js'] ?? readFileSync(join(ROOT, 'src/world/render/canvas-backend.js'), 'utf8');
-  const redraw = src.replace('if (sig !== shadeSig) {', 'if (true) {').replace('if (sig !== litSig) {', 'if (true) {');
-  if (redraw === src || redraw.split('if (true) {').length !== 3) return ['PB-PIX harness: the mask signature checks in canvas-backend.js are not found'];
+  /* the backend that keeps nothing: every mask, the ground and the frame itself made again every frame */
+  const redraw = src.replace('if (sig !== shadeSig) {', 'if (true) {').replace('if (sig !== litSig) {', 'if (true) {')
+    .replace('const changed = frameChanged(list, fv);', 'const changed = (frameChanged(list, fv), true);').replace('if (s.end()) { floorGood = false;', 'if ((s.end(), true)) { floorGood = false;');
+  if (redraw === src || redraw.split('if (true) {').length !== 3 || !redraw.includes('(frameChanged(list, fv), true)') || !redraw.includes('if ((s.end(), true))')) return ['PB-PIX harness: the keep checks in canvas-backend.js are not found'];
   const { server, port } = await H.serve(Object.assign({}, files, { 'perf-pix.html': PIX_PAGE, 'src/world/render/canvas-backend.redraw.js': redraw }));
   const launch = browser === 'chromium' ? (await import('./_chrome.mjs')).launchOptions({ headless: true }) : { headless: true };
   const b = await pw[browser].launch(launch);
@@ -359,11 +432,76 @@ async function pixelRule(browser, extra) {
     const r = await page.evaluate(() => window.__pix || null);
     if (!r) return ['PB-PIX the page never finished: ' + errs.join(' | ')];
     console.log(`  PB-PIX ${browser}: ${r.frames} frames, masks drawn ${r.kept.shadow} shadow / ${r.kept.light} light, kept ${r.kept.kept}; ${r.differ.length} frame(s) differ`);
+    console.log(`  PB-IDLE ${browser}: ${JSON.stringify(r.idle)}`);
     const f = [];
-    if (r.differ.length) f.push(`PB-PIX a kept mask painted different pixels from a re-drawn one on ${r.differ.length} frame(s) (first: frame ${r.differ[0][0]}, ${r.differ[0][1]} bytes)`);
+    if (r.differ.length) f.push(`PB-PIX a kept layer painted different pixels from a re-drawn one on ${r.differ.length} frame(s) (first: frame ${r.differ[0][0]}, ${r.differ[0][1]} bytes)`);
     if (!(r.kept.kept > 0)) f.push('PB-PIX no mask was ever kept: the World re-draws both masks every frame');
+    const d = r.idle;
+    if (d.same !== 0 || d.sameBlits !== 0) f.push(`PB-IDLE the same draw list painted ${d.same} time(s) in 100 frames, ${d.sameBlits} blit(s): a still picture is drawn again`);
+    if (!(d.clock > 0 && d.clock <= BUDGET.idlePaintsIn10s)) f.push(`PB-IDLE a still scene with its clips running painted ${d.clock} frames in 10 s (budget 1..${BUDGET.idlePaintsIn10s}: only when a clip's frame turns)`);
+    if (!(d.floorKept > 0 && d.floorMade <= 1)) f.push(`PB-IDLE the ground of a camera that stands was composed ${d.floorMade} time(s), kept ${d.floorKept}: it is rebuilt every paint`);
+    if (d.nameRef !== 'new') f.push(`PB-IDLE a press on a name in a held frame found ${d.nameRef}: not this frame's record`);
     return f;
   } finally { await b.close(); server.close(); }
+}
+
+/* ── PB-LEAK: A SWITCHED-FROM PANE AND A CLOSED WINDOW ARE LET GO ──
+   The real client on the same scripted hunt, read with Chromium's own count of DOM nodes and listeners after a forced GC:
+   the document's live count cannot see a detached tree. No element handle is kept across the acts (page.click only): a
+   handle a test holds retains the tree it is in, and looks exactly like the leak this measures. */
+async function leakRule(extra) {
+  const pw = await import('playwright');
+  const srv = await makeServer();
+  const { server, port } = await srv.H.serve(planted(extra));
+  const browser = await pw.chromium.launch((await import('./_chrome.mjs')).launchOptions({ headless: true }));
+  try {
+    const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+    const page = await ctx.newPage();
+    const errors = [];
+    page.on('pageerror', (e) => errors.push(e.message));
+    await page.addInitScript(INIT);
+    await page.route('**/src/vendor/supabase-js-*.js*', (r) => r.fulfill({ contentType: 'text/javascript', body: srv.H.SDK_STUB }));
+    await page.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ contentType: 'text/css', body: '' }));
+    await page.route('https://*.ingest.sentry.io/**', (r) => r.fulfill({ status: 204, body: '' }));
+    await page.route('https://nezapsylztqbbwuwembx.supabase.co/**', async (r) => {
+      const name = r.request().url().split('?')[0].split('/').pop();
+      let args = null; try { args = r.request().postDataJSON(); } catch (e) { args = null; }
+      return r.fulfill({ contentType: 'application/json', body: JSON.stringify(srv.answer(name, args)) });
+    });
+    const cdp = await ctx.newCDPSession(page);
+    await cdp.send('Performance.enable');
+    const count = async () => {
+      for (let i = 0; i < 3; i++) { await cdp.send('HeapProfiler.collectGarbage'); await page.waitForTimeout(150); }
+      const m = Object.fromEntries((await cdp.send('Performance.getMetrics')).metrics.map((x) => [x.name, x.value]));
+      return { nodes: m.Nodes, listeners: m.JSEventListeners };
+    };
+    await page.goto('http://127.0.0.1:' + port + '/play.html', { waitUntil: 'load' });
+    await page.fill('input[name=email]', 'qa@example.test');
+    await page.fill('input[name=password]', 'not-a-real-password');
+    await page.click('.auth-submit');
+    await page.click('[data-app="play"][data-slot="0"]');
+    await page.waitForFunction(() => !!document.querySelector('.char-tab[data-slot="1"]') && !!document.querySelector('.hs-launchers'));
+    await page.waitForTimeout(6000);
+    const tab = (s) => page.click('.char-tab[data-slot="' + s + '"]');
+    const hop = async (s) => { await tab(s); await page.waitForTimeout(900); };
+    const bag = async () => { await page.click('[data-hs-open="inventory"]'); await page.waitForTimeout(350); await page.click('[data-hs-open="inventory"]'); await page.waitForTimeout(350); };
+    await hop(1); await hop(0); await bag();
+    const fails = [];
+    const per = (name, a, b, n) => {
+      const nodes = (b.nodes - a.nodes) / n, listeners = (b.listeners - a.listeners) / n;
+      console.log(`  PB-LEAK ${name}: ${nodes.toFixed(1)} nodes, ${listeners.toFixed(1)} listeners each, over ${n} (${a.nodes} -> ${b.nodes})`);
+      if (!(nodes <= BUDGET.leakNodesPerAct && listeners <= BUDGET.leakListenersPerAct)) fails.push(`leak: each ${name} left ${nodes.toFixed(0)} DOM nodes and ${listeners.toFixed(1)} listeners behind (budget ${BUDGET.leakNodesPerAct} and ${BUDGET.leakListenersPerAct})`);
+    };
+    const c0 = await count();
+    for (let i = 0; i < 10; i++) await bag();
+    const c1 = await count();
+    per('bag open in a hunt', c0, c1, 10);
+    for (let i = 0; i < 10; i++) await hop(i % 2 ? 0 : 1);
+    const c2 = await count();
+    per('hero switch in a hunt', c1, c2, 10);
+    if (errors.length) fails.push('leak: page errors: ' + errors.slice(0, 3).join(' | '));
+    return fails;
+  } finally { srv.close(); await browser.close(); server.close(); }
 }
 
 /* ── one run ── */
@@ -376,6 +514,7 @@ async function scenario(o) {
   const browser = await engine.launch(launch);
   const D = o.minutes * 60000, HID = o.hiddenMs;
   const errors = [];
+  const asked = [];   // every call the page made: [wall ms, name]
   try {
     const ctx = await browser.newContext({ viewport: { width: o.width, height: o.height } });
     const page = await ctx.newPage();
@@ -388,6 +527,7 @@ async function scenario(o) {
     await page.route('https://nezapsylztqbbwuwembx.supabase.co/**', async (r) => {
       const name = r.request().url().split('?')[0].split('/').pop();
       let args = null; try { args = r.request().postDataJSON(); } catch (e) { args = null; }
+      asked.push([Date.now(), name]);
       return r.fulfill({ contentType: 'application/json', body: JSON.stringify(srv.answer(name, args)) });
     });
     const cdp = o.browser === 'chromium' ? await ctx.newCDPSession(page) : null;
@@ -430,11 +570,23 @@ async function scenario(o) {
     await at(D * 0.35); await page.evaluate(() => window.__perf.mark('storm')); srv.S.storm = true;
     await at(D * 0.35 + 20000); srv.S.storm = false; await page.evaluate(() => window.__perf.mark('storm end'));
     await at(D * 0.5); await page.evaluate(() => window.__perf.hide(true));
+    const hiddenAt = Date.now();
     await at(D * 0.5 + HID); await page.evaluate(() => window.__perf.hide(false));
+    const shownAt = Date.now();
+    await page.waitForTimeout(3000);
+    /* PB-AWAY: past the grace a hidden page asks nothing of the engine or the character (the social poll's presence stamp apart);
+       shown again, the viewed hero's catch-up goes at once and the live view comes back on it */
+    const awayFor = (await import('../src/session/config.js')).SESSION_CONFIG.awayAfterMs;
+    const away = asked.filter(([t, n]) => t > hiddenAt + awayFor + 1000 && t < shownAt && (n === 'hr-accrue' || n === 'hr_load')).length;
+    const caught = asked.filter(([t, n]) => t >= shownAt && t < shownAt + 3000 && n === 'hr-accrue').length;
     if (o.viewAtDeath) { await at(D * 0.7 - 3000); await tab(o.viewAtDeath); }
     await at(D * 0.7); await page.evaluate(() => { window.__perf.trackOn = true; window.__perf.mark('death'); });
     srv.deathIn(0);
+    await at(D - 8000);
+    /* the town after the hunt: the last seconds, standing still */
+    const paint0 = await page.evaluate(() => window.__perf.c.paint || 0);
     await at(D);
+    const townPaintsPerS = ((await page.evaluate(() => window.__perf.c.paint || 0)) - paint0) / 8;
     if (cdp && o.profile) (await import('node:fs')).writeFileSync(o.profile, JSON.stringify((await cdp.send('Profiler.stop')).profile));
     const h1raw = await heap();
     const out = await page.evaluate(() => { const P = window.__perf; P.stopped = true;
@@ -447,7 +599,7 @@ async function scenario(o) {
       return got; });
     const h1 = await heap();
     await snap('end');
-    return Object.assign(analyse(out, w0, o, srv), { heapMb: h0 === null ? null : (h1 - h0) / 1048576,
+    return Object.assign(analyse(out, w0, o, srv), { townPaintsPerS, away, caught, awayFor, hiddenFor: shownAt - hiddenAt, heapMb: h0 === null ? null : (h1 - h0) / 1048576,
       heapRawMb: h0 === null ? null : (h1raw - h0) / 1048576, errors: errors.slice(0, 5), endedAt: srv.S.endedAt });
   } finally {
     srv.close();
@@ -566,6 +718,11 @@ function budgetFails(m) {
      that entered it and again when its sheets landed. A scene's ground is made once, in a task of its own. */
   if (m.groundInFrame || m.groundRemade) f.push(`ground: a map's ground made ${m.groundInFrame} time(s) inside a frame, ${m.groundRemade} time(s) again for a map that had one (budget 0, compose.js groundOf)`);
   if (!(m.tokenReadsInDraw <= b.tokenReadsInDraw)) f.push(`tokens: ${m.tokenReadsInDraw} --world-* reads off the live style inside canvas draws (budget ${b.tokenReadsInDraw}, world-boot.js css keeps them)`);
+  if (!(m.townPaintsPerS <= b.townPaintsPerS)) f.push(`town paints ${m.townPaintsPerS.toFixed(1)} frames a second standing still after the hunt (budget ${b.townPaintsPerS}: what changes, never the frame rate)`);
+  if (m.hiddenFor > m.awayFor + 2000) {
+    if (m.away) f.push(`hidden: the page asked the server ${m.away} time(s) while hidden past ${m.awayFor} ms (budget 0, AccountSession.setPageHidden)`);
+    if (!m.caught) f.push('hidden: shown again, the viewed hero asked no catch-up within 3 s');
+  }
   if (!(m.drawsOffLoop <= b.drawsOffLoop)) f.push(`repaint: ${m.drawsOffLoop} World draws outside the frame loop, ${m.drawsInAnswers} of them inside answers (budget ${b.drawsOffLoop})`);
   return f;
 }
@@ -596,7 +753,7 @@ async function main() {
     const only = arg('--only', null);   // a name fragment: prove just those mutants (a local re-check)
     const chosen = MUTANTS.filter((mt) => !only || mt[0].includes(only));
     for (const mt of chosen) {
-      const fails = mt[5] === 'pix' ? await pixelRule('chromium', [mt])
+      const fails = mt[5] === 'pix' ? await pixelRule('chromium', [mt]) : mt[5] === 'leak' ? await leakRule([mt])
         : budgetFails(await scenario({ browser: 'chromium', width: 1440, height: 900, minutes: mt[6] || 2, hiddenMs: 20000, overrides: planted([mt]) }));
       const hit = fails.some((x) => mt[4].test(x));
       console.log(`  ${hit ? 'caught ' : 'ESCAPED'} ${mt[0]} :: ${fails.join(' | ') || 'green'}`);
@@ -624,12 +781,13 @@ async function main() {
   const browser = arg('--browser', 'chromium');
   const pix = await pixelRule(browser);
   if (process.argv.includes('--pix')) { for (const f of pix) console.log('  ✗ ' + f); process.exit(pix.length ? 1 : 0); }
+  if (process.argv.includes('--leak')) { const l = await leakRule(); for (const f of l) console.log('  ✗ ' + f); process.exit(l.length ? 1 : 0); }
   const m = await scenario({ browser, width: 1440, height: 900, minutes: Number(arg('--minutes', '4')), hiddenMs: 30000, overrides: planted(), profile: arg('--profile', null), snapshots: arg('--snapshots', null),
     second: arg('--second', 'melee_dps'), viewAtDeath: Number(arg('--view-death', '0')) });
   console.log(row(m));
   printHeld(m);
   if (arg('--dump', null)) (await import('node:fs')).writeFileSync(arg('--dump', null), JSON.stringify(m));
-  const fails = pix.concat(budgetFails(m));
+  const fails = pix.concat(budgetFails(m), await leakRule());
   for (const f of fails) console.log('  ✗ ' + f);
   console.log(fails.length ? `perf-budget: ${fails.length} budget(s) RED` : 'perf-budget: the hunt page holds its frame, heap, DOM and analyzer budget (Sewer party, density 8, switch, alerts, hidden tab, death)');
   process.exit(fails.length ? 1 : 0);

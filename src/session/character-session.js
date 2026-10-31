@@ -99,6 +99,7 @@ export class CharacterSession {
     this._leaveAsk = null; this._asking = null; this._wholeAt = -1; this._fed = false;   // the hello in flight; the version known whole; re-read last armed by a frame
     this._pending = {}; this._sent = {};   // residue to put; residue put and not yet seen back (residue.js unconfirmedResidue)
     this._closed = false; this._viewed = o.viewed !== false;   // shown (AccountSession.view): only it streams live (setViewed)
+    this._away = false;   // the page has been hidden a while (setAway): nothing is asked or heard until it is shown
     this.lastVerdict = null;
     this._now = o.now || (() => (globalThis.performance ? globalThis.performance.now() : Date.now()));
     this._poll = new HuntPoll({ setTimer: this._setTimer, clearTimer: this._clearTimer, now: () => this._now(), fire: () => this._huntPoll() });
@@ -167,6 +168,7 @@ export class CharacterSession {
     if (this._closed || !this._huntOpen()) return;
     this._fed = deferred === true;
     const close = closeInMs(this.leaveAt(), this.serverNow());
+    if (this._away) { if (close !== null) this._poll.arm(close); return; }   // only a pending leave's close (setAway)
     const ms = Math.max(this._pace.waitMs(), this._viewed ? pollDelayMs(this.read('hunt'), this.liveLink, close) : Math.min(SESSION_CONFIG.unviewedPollMs, close ?? Infinity));
     if (deferred) this._poll.defer(ms); else this._poll.arm(ms);
   }
@@ -180,6 +182,27 @@ export class CharacterSession {
     else if (this._huntOpen()) this.liveLink.join(this.read('hunt').pose);   // the server's snapshot at once, eased forward (live-link.js)
     this._armHuntPoll();
     if (this._viewed) this.hello();
+  }
+
+  /**
+   * THE PAGE WENT AWAY, OR CAME BACK (AccountSession.setPageHidden). Away: no re-read and no pushed frames for a screen nobody
+   * sees (the hunt runs on the server regardless; only a pending leave's close is still asked). Back: the channel again and ONE
+   * catch-up, whose answer REPLACES what the screen holds (§6): a hunter's settle (a start point for the viewed one's live
+   * view: the ease is its own, live-link.js), an unviewed hunter's plain read; anyone else's the channel's join asks (_onChannel).
+   */
+  setAway(on) {
+    const away = on === true;
+    if (this._closed || this._away === away) return;
+    this._away = away;
+    if (away) {
+      this._poll.stop();
+      this._armHuntPoll();
+      if (this._retry) { this._clearTimer(this._retry); this._retry = null; }
+      this._dropChannel();
+      return;
+    }
+    const joined = this.connect();
+    if (this._huntOpen()) { if (this._viewed) this.hello(); else this.load(); this._armHuntPoll(); } else if (!joined) this.hello();
   }
 
   /** A PENDING LEAVE's server instant (ms): leave_at, else the leave's own answer (hunt-leave.js), or null. */
@@ -533,7 +556,7 @@ export class CharacterSession {
 
   /** Join the character's push topic (and re-join after a drop, with backoff). */
   connect() {
-    if (this._closed || this._leave || !this._channel) return false;
+    if (this._closed || this._away || this._leave || !this._channel) return false;
     const topic = frameTopic(this.uid, this.slot);
     if (!topic) return false;
     this._leave = this._channel(topic, (msg) => this.onFrame(msg), (st) => this._onChannel(st));

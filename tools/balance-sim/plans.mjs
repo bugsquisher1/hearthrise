@@ -168,7 +168,11 @@ export function buildPlan(name, axes, scale = 1) {
         out.push(cellOf({ ground: g.id, party: [s], level: L, hours: H(12), seeds: 4, segmentH: 12, x: 'V6' }));
         if (L <= 8) out.push(cellOf({ ground: g.id, party: [s], level: L, gear: STARTER, hours: H(12), seeds: 4, segmentH: 12, x: 'V6' }));
       }
-      if (g.groupFit !== 'solo') for (const pk of ['duo', 'four']) out.push(cellOf({ ground: g.id, party: PARTIES[pk], level: L, hours: H(12), seeds: 2, segmentH: 12, x: 'V6' + pk }));
+      if (g.groupFit !== 'solo') for (const pk of ['duo', 'four']) {
+        out.push(cellOf({ ground: g.id, party: PARTIES[pk], level: L, hours: H(12), seeds: 2, segmentH: 12, x: 'V6' + pk }));
+        /* a fresh party in the practice sets at the first party floor (the tutorial's "Into the sewer, together") */
+        if (L <= 8) out.push(cellOf({ ground: g.id, party: PARTIES[pk], level: L, gear: STARTER, hours: H(12), seeds: 4, segmentH: 12, x: 'V6' + pk }));
+      }
     }
     const rank = (j) => (/x=V6/.test(j.id) ? 0 : /x=V4/.test(j.id) ? 1 : 2);
     return out.map((j, i) => [rank(j), i, j]).sort((a, b) => a[0] - b[0] || a[1] - b[1]).map((x) => x[2]);

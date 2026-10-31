@@ -476,7 +476,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         if (h2.hp !== '220/220' || h2.mana !== '0/0' || h2.lv !== '25' || h2.xp !== 'XP 5%' || h2.hpArc !== '100' || !h2.manaShown) fails.push('HS-18 the next envelope did not replace the hub (or hid the mana gauge): ' + JSON.stringify(h2));
         /* Regen per second, one decimal: mana_regen is per MINUTE (18/min = 0.3/s); HP is the in-fight rate (220 x 3 permille x 1000 permille = 0.66/s). */
         const rg = await page.evaluate(() => [document.querySelector('[data-r="hp"]').textContent, document.querySelector('[data-r="mana"]').textContent]);
-        if (rg[0] !== '+14/s rest' || rg[1] !== '+0.3/s') fails.push('HS-18 the hub regen reads ' + JSON.stringify(rg) + ', want ["+14/s rest","+0.3/s"]');
+        if (rg[0] !== '+13/s rest' || rg[1] !== '+0.3/s') fails.push('HS-18 the hub regen reads ' + JSON.stringify(rg) + ', want ["+13/s rest","+0.3/s"]');
         /* the rate a watcher can see on the bar, the fight's in its title (first-hour play 2026-10-31: "+0.6/s" over HP racing back) */
         const hpTitle = await page.evaluate(() => document.querySelector('[data-r="hp"]').getAttribute('title'));
         if (hpTitle !== 'Health regained each second between fights. In a fight: +0.7/s.') fails.push('HS-18 the hub HP rate title reads ' + JSON.stringify(hpTitle));

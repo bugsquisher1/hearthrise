@@ -2,12 +2,12 @@
  "hr_leaderboard(p_board,p_limit,p_span)": {
   "status": 200,
   "code": "OK",
-  "shape": "obj{available,board,near,ok,rank,refreshed_at,top,total}"
+  "shape": "obj{available,board,mine,ok,refreshed_at,top,total}"
  },
  "hr_leaderboard(p_board)": {
   "status": 200,
   "code": "OK",
-  "shape": "obj{available,board,near,ok,rank,refreshed_at,top,total}"
+  "shape": "obj{available,board,mine,ok,refreshed_at,top,total}"
  },
  "hr_server_now()": {
   "status": 401,

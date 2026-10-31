@@ -12,7 +12,10 @@
 //              unhandled rejections: [{ level, msg, at }] (msg cut to MSG_MAX)
 //   perf()     { stalls, longestStallMs, longTasks, longestTaskMs } this load
 //   fps(ms)    frames drawn over the next `ms` (a Promise; null when hidden)
-//   onHang(fn) fn({ ms }) for each main-thread stall over HANG_MS
+//   onHang(fn) fn({ ms, from }) for each main-thread stall over HANG_MS (`from`: when it began, page clock)
+//   longFrames(from)  the longest Long Animation Frames since `from` (Chromium), each with its longest
+//              scripts: what ran, from which file and function (Sentry JAVASCRIPT-4B: 18 stalls of
+//              3-18 s reported with no word of what held the page)
 //
 // THE HANG. A loop that never yields throws nothing, so no error handler ever
 // sees it (Andy's frozen tab, 2026-10-21). A heartbeat every HEARTBEAT_MS
@@ -29,6 +32,8 @@ export const DIAG = Object.freeze({
   HANG_MS: 3000,
   SUSPEND_MS: 120000,
   JANK_MS: 1000,   // a stall the summary counts (perf().stalls)
+  LOAF_MAX: 20,    // Long Animation Frames kept (each over 50 ms: the browser's own threshold)
+  LOAF_TOP: 3,     // frames, and scripts per frame, a hang report names
 });
 
 const BY_WIN = new WeakMap();
@@ -81,7 +86,7 @@ export function startDiagnostics(win) {
     if (!visible() || late < DIAG.JANK_MS || late > DIAG.SUSPEND_MS) return;
     stat.stalls++;
     if (late > stat.longestStallMs) stat.longestStallMs = Math.round(late);
-    if (late > DIAG.HANG_MS) for (const fn of Array.from(hangFns)) { try { fn({ ms: Math.round(late) }); } catch (e) { /* a reader's bug */ } }
+    if (late > DIAG.HANG_MS) for (const fn of Array.from(hangFns)) { try { fn({ ms: Math.round(late), from: Math.round(t - late - DIAG.HEARTBEAT_MS) }); } catch (e) { /* a reader's bug */ } }
   };
   win.setInterval(beat, DIAG.HEARTBEAT_MS);   // for the page's life, like the page itself
 
@@ -93,6 +98,26 @@ export function startDiagnostics(win) {
       }).observe({ type: 'longtask', buffered: true });
     }
   } catch (e) { /* not supported here: the heartbeat still sees the stall */ }
+
+  /* WHAT HELD IT (Long Animation Frames, Chromium): the last LOAF_MAX, each with its longest scripts. A hang report
+     reads them at once (takeRecords: the frame that just ended may not be delivered yet when the heartbeat runs). */
+  const loaf = [];
+  let loafObs = null;
+  const keepFrames = (entries) => {
+    for (const e of entries) {
+      const scripts = Array.from(e.scripts || []).sort((a, b) => b.duration - a.duration).slice(0, DIAG.LOAF_TOP)
+        .map((x) => ({ ms: Math.round(x.duration), invoker: String(x.invoker || '').slice(0, 80),
+          source: String(x.sourceURL || '').split(/[?#]/)[0].split('/').pop() + ':' + (x.sourceFunctionName || '?') + '@' + x.sourceCharPosition }));
+      loaf.push({ at: Math.round(e.startTime), ms: Math.round(e.duration), blocking: Math.round(e.blockingDuration || 0), scripts });
+      if (loaf.length > DIAG.LOAF_MAX) loaf.shift();
+    }
+  };
+  try {
+    if (typeof win.PerformanceObserver === 'function') {
+      loafObs = new win.PerformanceObserver((list) => keepFrames(list.getEntries()));
+      loafObs.observe({ type: 'long-animation-frame', buffered: true });
+    }
+  } catch (e) { loafObs = null; /* not supported here (Firefox, Safari): a hang report names no frame */ }
 
   const api = Object.freeze({
     recent: () => ring.map((r) => Object.assign({}, r)),
@@ -112,6 +137,11 @@ export function startDiagnostics(win) {
       });
     },
     onHang(fn) { hangFns.add(fn); return () => hangFns.delete(fn); },
+    longFrames(from = 0) {
+      try { if (loafObs) keepFrames(loafObs.takeRecords()); } catch (e) { /* none pending */ }
+      return loaf.filter((f) => f.at + f.ms >= from).sort((a, b) => b.ms - a.ms).slice(0, DIAG.LOAF_TOP)
+        .map((f) => Object.assign({}, f, { scripts: f.scripts.map((x) => Object.assign({}, x)) }));
+    },
   });
   BY_WIN.set(win, api);
   return api;

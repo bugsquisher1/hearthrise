@@ -100,7 +100,8 @@ const bits = (n) => { let c = 0; for (let v = n; v; v &= v - 1) c++; return c; }
  * walls cut its ring in two and the pack, walking in from the south-west, filled five: room 5.)
  */
 const BOX_ROOM = 16;
-const ROOM_MAX = 8 * BOX_ROOM + 8;
+/** A full box's room: every one of the eight slots fed by one stretch of ground. */
+export const ROOM_MAX = 8 * BOX_ROOM + 8;
 export function roomAt(inst, pocket, x, y) {
   const g = inst.grid;
   const R = OPEN_GROUND.wayRound; const W = 2 * R + 1;

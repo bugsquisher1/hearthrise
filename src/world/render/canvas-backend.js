@@ -637,7 +637,7 @@ export function createCanvasBackend(o) {
       if (ro) ro.disconnect();
       if (onResize) win.removeEventListener('resize', onResize);
       if (doc.fonts && doc.fonts.removeEventListener) doc.fonts.removeEventListener('loadingdone', repaint);
-      if (canvas) canvas.remove();
+      if (canvas) { canvas.remove(); canvas.width = 0; canvas.height = 0; }
       host = canvas = ctx = ro = onResize = map = last = lastView = null;
       plateHits = [];
       if (aheadId) unlater(aheadId);

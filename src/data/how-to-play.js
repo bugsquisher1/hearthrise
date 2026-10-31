@@ -55,7 +55,7 @@ export const HELP_NOTES = Object.freeze([
   note('away', 'It keeps hunting with the game closed',
     'Hunts run on our server, so you can close the game and come back to what your hero earned. A hunt stops when stamina runs out, when your hero dies, when it cannot pay for supplies, or when you press Leave hunt.'),
   note('stamina', 'Stamina is hunting time',
-    'Every minute of hunting uses a minute of stamina, and every minute out of a hunt gives one back, even with the game closed. A free hero holds up to 8 hours.'),
+    'Every minute of hunting uses a minute of stamina, and every minute out of a hunt gives one back, even with the game closed. A hero holds up to 8 hours, or 12 with premium: the hourglass on your bar shows yours.'),
   note('weapon', 'Your weapon is how you fight',
     'There is no class. A sword and shield hold monsters on you, two axes or a hammer hit hard, a bow or crossbow shoots from a distance, a wand and spellbook cast spells, and a staff heals. Equip another from your bag to switch.'),
   note('supplies', 'Food and drink',

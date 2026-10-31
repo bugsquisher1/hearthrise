@@ -40,11 +40,28 @@ export { glyphSvg };
  * and not here during a hunt: the hunt top bar draws it under itself
  * (src/shell/widgets/hunt-topbar.js), so it never covers Leave hunt or the analyzer. Display only.
  */
-export function pointerFor(ctx) {
+export function pointerFor(ctx, hunting) {
   const cs = ctx.character;
   if (!cs || ctx.wm.openIds().length > 0) return '';
   const card = heldCard(ctx);
-  return card ? coachHtml(cs, card) : '';
+  return card ? coachHtml(cs, card, false, !!hunting && restsNow(ctx, card)) : '';
+}
+
+/* THE COACH STANDS ASIDE IN A HUNT (the panel 2026-10-31: What next, Plant your land and the rest sat over the hero for a
+   whole hunt): a card open under the hunt bar folds to its title once it has had its reading time, twice over and at least
+   COACH_HUNT_OPEN_MS. The player's own press on the tab opens it for good (residue seen = this card, not min). Its ring stays.
+   Display scratch per character: gates, spends and stores nothing. */
+export const COACH_HUNT_OPEN_MS = 20000;
+const OPEN_SINCE = new WeakMap();
+function restsNow(ctx, card) {
+  const cs = ctx.character;
+  const now = typeof ctx.now === 'function' ? ctx.now() : null;
+  if (now === null) return false;
+  const r = cs.record && cs.record.residue ? cs.record.residue.coach : null;
+  if (r && r.seen === card.id && r.min !== true) return false;
+  const s = OPEN_SINCE.get(cs);
+  if (!s || s.id !== card.id) { OPEN_SINCE.set(cs, { id: card.id, since: now }); return false; }
+  return now - s.since >= Math.max(COACH_HUNT_OPEN_MS, 2 * readMs(card));
 }
 
 /* ── LONG ENOUGH TO READ (designer playtest 2026-10-24: "Your hero fights alone" and "That's a level" were never on
@@ -180,9 +197,10 @@ export function heldCard(ctx) {
  *  own box (.hs-coach-text): on a phone a long card scrolls there, under its title and its dash (shell.css). `inWin`:
  *  drawn inside the window the card points into, where it says its words for there (card.textIn: "Press Enter",
  *  never "Open Hunts" over the open Hunts, board 2026-10-25 #20). */
-export function coachHtml(cs, card, inWin) {
+export function coachHtml(cs, card, inWin, rest) {
   if (inWin && card.textIn) card = Object.assign({}, card, { text: card.textIn });
-  const { min, fresh } = coachFoldOf(cs, card);
+  const folded = coachFoldOf(cs, card);
+  const fresh = folded.fresh, min = folded.min || !!rest;
   /* Close (x): only where a read finishes the card and this client can record it; it records the read. */
   const close = readable(card) && coachReadOf(cs) ? '<button type="button" class="hs-coach-close" data-hs-act="coach-close" aria-label="Close '
     + esc(card.title) + '" title="Close"></button>' : '';

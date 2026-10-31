@@ -542,6 +542,21 @@ async function planRules(base) {
   const two = say(sess({ hunt_settings: { preset: 0, presets: [], slots: [slot('ability', 'frost_lance', 0), slot('ability', 'arcane_barrier', 1)], store: RUNES } }));
   if (!/^Runes: no Ice runes of yours, no Earth runes of yours\. Frost Lance and Arcane Barrier will not fire\. To cast them, press each slot and pick Plain Ice Rune \(1 gp a cast\) or Plain Earth Rune \(1 gp a cast\) under "When your runes run out"/.test(two))
     fails.push('AW-27 two struck spells read ' + JSON.stringify(two));
+  /* AW-27 what casts, then what won't (first-hour play 2026-10-31: "no Fire runes of yours, then Plain Fire Rune from the store,
+     then no Ice runes of yours, then no Earth runes of yours"); two spells of one family name its store rune once */
+  const stored = (id, store) => ({ action: { type: 'ability', id, store }, conditions: [], join: 'and', usable: true, count: 0 });
+  const mix = say(sess({ hunt_settings: { preset: 0, presets: [], slots: [stored('fireball', 'plain_fire_rune'), slot('ability', 'frost_lance', 0)], store: RUNES } }));
+  if (!mix.startsWith('Runes: Plain Fire Rune from the store, 1 gp a cast. Frost Lance will not fire. To cast it, press its slot and pick Plain Ice Rune (1 gp a cast)')) fails.push('AW-27 a live spell beside a struck one reads ' + JSON.stringify(mix));
+  const WATER = RUNES.concat([{ ...STORE.find((r) => r.id === 'plain_fire_rune'), id: 'plain_water_rune', partner: 'chalked_water_rune' }]);
+  const same = say(sess({ hunt_settings: { preset: 0, presets: [], slots: [stored('greater_mend', 'plain_water_rune'), stored('circle_of_renewal', 'plain_water_rune')], store: WATER } }));
+  if (!same.startsWith('Runes: Plain Water Rune from the store, 1 gp a cast |')) fails.push('AW-27 two spells of one family read ' + JSON.stringify(same));
+  /* AW-27 A BOW WITH NOTHING LOADED WON'T ATTACK, AND THE PAGE SAYS SO BEFORE ENTER (the kit's bow: 0 kills in 7 minutes) */
+  const bowSet = (o) => sess({ hunt_settings: { preset: 0, presets: [], role: 'ranger', slots: [], store: STORE }, inventory: { bronze_arrows: 50 }, ...o });
+  const empty = say(bowSet({ equipment: { weapon: 'practice_bow' } }));
+  if (!empty.startsWith("!Ammo: nothing loaded, so your weapon can't shoot and your hero won't attack. Open your bag, press Bronze Arrows, then Put on the bar.")) fails.push('AW-27 a bow with nothing loaded reads ' + JSON.stringify(empty));
+  const full = say(bowSet({ equipment: { weapon: 'practice_bow', ammo: 'bronze_arrows' } }));
+  if (!full.startsWith('Ammo: 50 Bronze Arrows of yours, loaded.')) fails.push('AW-27 a loaded bow reads ' + JSON.stringify(full));
+  if (/Ammo/.test(say(sess({ hunt_settings: { preset: 0, presets: [], role: 'tank', slots: [], store: STORE } })))) fails.push('AW-27 a sword is told about ammo');
   /* AW-8 / AW-27 AN EMPTY FOOD SLOT IS A HEADS-UP, NOT A BLOCKER (Tyler 10-29: "0 food" in Hunt prep on a hero that
      carries food the bar does not name and is not getting hit). Both surfaces say the empty stock and the bag's spare
      food with the fix, and neither calls it short; empty ammo on a shooter's bar still stops it. */

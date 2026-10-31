@@ -30,7 +30,7 @@
 // open doll slot and the "new" marks. No key here is a walk key: selling is
 // Delete, so W, A, S and D always reach the World (Tyler 10-18).
 // ════════════════════════════════════════════════════════════════════════
-import { kindOf, equipSlotFor, equipOps, markSeen, namedFuelOf } from '../../bag-model.js?v=0.2.75';
+import { kindOf, equipSlotFor, equipOps, markSeen, namedFuelOf, styleWords } from '../../bag-model.js?v=0.2.75';
 import { assignToBar, barKind, barIndexOf, barKeyLabel } from '../../bar-assign.js?v=0.2.75';
 import { runIntent } from '../../intent-words.js?v=0.2.75';
 import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.75';
@@ -43,7 +43,7 @@ import { LOOT_CHOICES, planBlock, dispatchWords } from '../../loot-dispatch.js?v
 import { dispatchLoot } from '../../../session/loot-intents.js?v=0.2.75';
 import { fitsSlot, dollTip, DRAG_WORN } from './doll.js?v=0.2.75';
 import { askElsewhere } from './elsewhere.js?v=0.2.75';
-import { skillsOf } from '../../../session/item-sections.js?v=0.2.75';
+import { skillsOf, bagOf } from '../../../session/item-sections.js?v=0.2.75';
 import { buryRecipeOf, buryLabel, buryBlock, startBury, stopBury, buryQty, namedBlock, burnNamed } from './bury.js?v=0.2.75';
 import { equipUpgrades } from '../../widgets/upgrade-line.js?v=0.2.75';
 import { wearBlock } from '../../gear-gate.js?v=0.2.75';
@@ -115,10 +115,13 @@ function wear(st, repaint, slot, id, at) {
   if (sc.pending) return Promise.resolve({ ok: false, error: 'busy' });
   const why = wearBlock(st.cs, id);
   if (why) { say(st, repaint, why, at); return Promise.resolve({ ok: false, error: 'blocked' }); }
+  const ops = equipOps(slot, id, st.eq, { bag: bagOf(st.cs), skills: skillsOf(st.cs) });
+  const said = id ? styleWords(st.eq, ops) : null;
   sc.wearing = { slots: [slot], items: id ? [id] : [] };
   return send(st, repaint, async () => {
-    try { return await st.cs.edgeIntent('equip', { equip: equipOps(slot, id, st.eq) }); } finally { sc.wearing = null; }
-  }, id ? 'Equipping…' : 'Taking it off…', null, at);
+    try { return await st.cs.edgeIntent('equip', { equip: ops }); } finally { sc.wearing = null; }
+  /* a new way to fight is said on the window's own line: the stack the press was on has left the bag */
+  }, id ? 'Equipping…' : 'Taking it off…', said ? () => said : null, said ? null : at);
 }
 
 function doPrimary(st, id, repaint) {

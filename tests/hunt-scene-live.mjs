@@ -1464,7 +1464,7 @@ async function pageRules() {
     const sim = await measureFrames(simPage);
     if (process.env.HR_SHOTS) await simPage.screenshot({ path: join(process.env.HR_SHOTS, 'hunt-sim.png') });
     console.log(`  LV-4 page: game ${game.frames} frames/5 s, gap median ${game.gapMed.toFixed(1)} ms, busy ${game.busy.toFixed(1)} ms/frame; sim ${sim.frames} frames, gap ${sim.gapMed.toFixed(1)} ms, busy ${sim.busy.toFixed(1)} ms/frame; ${errors.length} error(s)`);
-    if (!/^\+\d+(\.\d)?\/s$/.test(text)) fails.push(`LV-3 the page's HP regen reads "${text}", want +N.N/s`);
+    if (!/^\+\d+(\.\d)?\/s rest$/.test(text)) fails.push(`LV-3 the page's HP regen reads "${text}", want +N/s rest`);
     if (errors.length) fails.push('LV-4 page errors: ' + errors.slice(0, 3).join(' | '));
     if (!(game.gapMed <= BUDGET.gapMedianMs)) fails.push(`LV-4 the frame loop's median gap is ${game.gapMed.toFixed(1)} ms (budget ${BUDGET.gapMedianMs})`);
     const cap = sim.busy * BUDGET.simBusyFactor + BUDGET.simBusySlackMs;

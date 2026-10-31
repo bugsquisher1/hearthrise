@@ -425,6 +425,23 @@ async function body(db, call, exec) {
       `E6b: the bag's book delta (staff off, book on) was refused or half-applied — ${JSON.stringify(r.body).slice(0, 200)}`);
     r = await call({ equip: { weapon: 'iron_sword', shield: null } });
     ok(r.status === 200 && await eqOf(db, 'weapon') === 'iron_sword', 'E6b: the sword did not go back on');
+    /* A BOW NEVER GOES ON EMPTY (first-hour play 2026-10-31: the kit's bow shot nothing, 0 kills in 7 minutes, 50 arrows in the
+       bag): the one press loads a shot in the same delta; a sword does not; what is loaded and can be shot stays; a
+       whetstone is no shot; a stack the Ranged skill cannot use is never named. */
+    const arrows = { bag: [{ id: 'bronze_arrows', qty: 50 }, { id: 'coarse_whetstone', qty: 3 }], skills: {} };
+    const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+    ok(same(equipOps('weapon', 'practice_bow', { weapon: 'practice_sword', shield: 'practice_shield' }, arrows), { weapon: 'practice_bow', shield: null, ammo: 'bronze_arrows' }),
+      'E6c: Equip on the kit bow did not load the kit arrows: ' + JSON.stringify(equipOps('weapon', 'practice_bow', { weapon: 'practice_sword', shield: 'practice_shield' }, arrows)));
+    ok(same(equipOps('weapon', 'practice_crossbow', { weapon: 'practice_staff', ammo: 'coarse_whetstone' }, arrows), { weapon: 'practice_crossbow', ammo: 'bronze_arrows' }), 'E6c: a loaded whetstone stood in for a shot');
+    ok(same(equipOps('weapon', 'practice_bow', { weapon: 'practice_staff', ammo: 'bronze_arrows' }, arrows), { weapon: 'practice_bow' }), 'E6c: what was loaded was re-sent');
+    ok(same(equipOps('weapon', 'practice_sword', {}, arrows), { weapon: 'practice_sword' }), 'E6c: a sword loaded arrows');
+    ok(same(equipOps('weapon', 'practice_bow', {}, { bag: [{ id: 'rune_arrows', qty: 9 }], skills: { ranged: { level: 1 } } }), { weapon: 'practice_bow' }), 'E6c: a stack over the Ranged level was named');
+    const g2 = await grant(db, await versionOf(db), { longbow: 1, bronze_arrows: 5 });
+    ok(g2.ok === true, 'E6c: the admin grant was refused — ' + JSON.stringify(g2).slice(0, 200));
+    r = await call({ equip: equipOps('weapon', 'longbow', { weapon: await eqOf(db, 'weapon') }, arrows) });
+    ok(r.status === 200 && await eqOf(db, 'weapon') === 'longbow' && await eqOf(db, 'ammo') === 'bronze_arrows', 'E6c: the server refused the bow-and-arrows delta — ' + JSON.stringify(r.body).slice(0, 200));
+    r = await call({ equip: { weapon: 'iron_sword', ammo: null } });
+    ok(r.status === 200 && await eqOf(db, 'weapon') === 'iron_sword', 'E6c: the sword did not go back on');
   }
 
   // ── E2g. GEAR IS WORN BY THE HERO'S LEVEL (Tyler 2026-10-24: "I think all gear should just be hero level") ──

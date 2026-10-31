@@ -129,6 +129,7 @@ export function tutorialFactsOf(cs, sh) {
     bankStacks: bank ? bank.length : null,
     lootRules: rules ? rules.loot : null,
     weapon: eq ? eq.weapon || null : undefined,
+    ammo: eq ? eq.ammo || null : undefined,
     /* wears armor or a shield, so Defense trains (the engine's own test over the server's worn set) */
     armoured: eq ? wearsArmour(eq, ITEMS) : undefined,
     blessings: blessFacts(cs), death: deathFacts(cs),

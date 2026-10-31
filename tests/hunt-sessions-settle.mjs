@@ -1857,7 +1857,7 @@ const DB_ARMS = {
         on conflict (user_id, slot, item_id) do nothing`, [UID, drops, cap]);
       const stacks = async () => Number(await one(db, 'select count(*) from public.player_inventory where user_id = $1 and slot = 0', [UID]));
       await db.query(`delete from public.player_inventory where user_id = $1 and slot = 0 and item_id in
-        (select item_id from public.player_inventory where user_id = $1 and slot = 0 order by item_id desc limit greatest(0, $2 - $3))`, [UID, await stacks(), cap]);
+        (select item_id from public.player_inventory where user_id = $1 and slot = 0 order by item_id desc limit $2::int)`, [UID, Math.max(0, await stacks() - cap)]);
       if (await stacks() !== cap) { problems.push(`${path}: CONTROL: the bag holds ${await stacks()} of ${cap} kinds`); }
       for (let t = 60000; t <= 360000; t += 60000) {
         const r = await M.HS.settleHunt({ exec, user: UID, slot: 0, grounds: groundsOf(M), atMs: h.from + t, ...door(h.sid) });

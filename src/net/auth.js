@@ -55,8 +55,8 @@
 // missing or stale one waits for supabase-js (and its lock).
 // ════════════════════════════════════════════════════════════════════════
 
-import { SESSION_CONFIG } from '../session/config.js?v=0.2.74';
-import { PASSWORD_MIN_LENGTH } from '../data/account-rules.js?v=0.2.74';
+import { SESSION_CONFIG } from '../session/config.js?v=0.2.75';
+import { PASSWORD_MIN_LENGTH } from '../data/account-rules.js?v=0.2.75';
 
 /** A token closer than this to its expiry is refreshed before it is sent. */
 export const TOKEN_MARGIN_MS = 60000;

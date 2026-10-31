@@ -34,29 +34,29 @@
 // retried in the background.
 // ════════════════════════════════════════════════════════════════════════
 
-import { SUPABASE_CONFIG, createSupabaseClient } from '../net/supabase-bootstrap.js?v=0.2.74';
-import { createAuth, AUTH_COPY } from '../net/auth.js?v=0.2.74';
-import { SESSION_CONFIG } from '../session/config.js?v=0.2.74';
-import { createServerLink } from '../session/server.js?v=0.2.74';
-import { AccountSession } from '../session/account-session.js?v=0.2.74';
-import { FRAME_EVENT } from '../session/character-session.js?v=0.2.74';
-import { renderAuthScreen, AUTH_BRAND } from './sign-in.js?v=0.2.74';
-import { mountWorldPane } from './world-pane.js?v=0.2.74';
-import { mountCharacterStrip, stripTargetOf } from './character-strip.js?v=0.2.74';
-import { renderHeroCreate } from './hero-create.js?v=0.2.74';
-import { slotOfferHtml, slotRefusalText } from './slot-offer.js?v=0.2.74';
-import { createAlertCenter } from '../shell/alerts.js?v=0.2.74';
-import { createSocialRealtime } from '../social/realtime.js?v=0.2.74';
-import { SocialSession } from '../social/social-session.js?v=0.2.74';
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.74';
-import { startObservability, track } from '../net/observability.js?v=0.2.74';
-import { loadGlyphs } from './glyphs-loader.js?v=0.2.74';
-import { startDiagnostics } from '../net/diagnostics.js?v=0.2.74';
-import { mountPressAck } from '../shell/press-ack.js?v=0.2.74';
-import { liveOverlayWanted, mountLiveOverlay } from './live-overlay.js?v=0.2.74';
-import { mountNewVersion } from './new-version.js?v=0.2.74';
-import { pointerCardOf } from '../session/tutorial-sections.js?v=0.2.74';
-import { coachFactsOf } from '../shell/launcher.js?v=0.2.74';
+import { SUPABASE_CONFIG, createSupabaseClient } from '../net/supabase-bootstrap.js?v=0.2.75';
+import { createAuth, AUTH_COPY } from '../net/auth.js?v=0.2.75';
+import { SESSION_CONFIG } from '../session/config.js?v=0.2.75';
+import { createServerLink } from '../session/server.js?v=0.2.75';
+import { AccountSession } from '../session/account-session.js?v=0.2.75';
+import { FRAME_EVENT } from '../session/character-session.js?v=0.2.75';
+import { renderAuthScreen, AUTH_BRAND } from './sign-in.js?v=0.2.75';
+import { mountWorldPane } from './world-pane.js?v=0.2.75';
+import { mountCharacterStrip, stripTargetOf } from './character-strip.js?v=0.2.75';
+import { renderHeroCreate } from './hero-create.js?v=0.2.75';
+import { slotOfferHtml, slotRefusalText } from './slot-offer.js?v=0.2.75';
+import { createAlertCenter } from '../shell/alerts.js?v=0.2.75';
+import { createSocialRealtime } from '../social/realtime.js?v=0.2.75';
+import { SocialSession } from '../social/social-session.js?v=0.2.75';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.75';
+import { startObservability, track } from '../net/observability.js?v=0.2.75';
+import { loadGlyphs } from './glyphs-loader.js?v=0.2.75';
+import { startDiagnostics } from '../net/diagnostics.js?v=0.2.75';
+import { mountPressAck } from '../shell/press-ack.js?v=0.2.75';
+import { liveOverlayWanted, mountLiveOverlay } from './live-overlay.js?v=0.2.75';
+import { mountNewVersion } from './new-version.js?v=0.2.75';
+import { pointerCardOf } from '../session/tutorial-sections.js?v=0.2.75';
+import { coachFactsOf } from '../shell/launcher.js?v=0.2.75';
 
 const DISCORD = 'https://discord.gg/eJrUSUJM3M';
 
@@ -163,7 +163,7 @@ function startApp(win) {
     /* the town's sheets likewise (src/world/prewarm.js): a cold Play after a release no longer waits for 2.5 MB */
     /* ...for THIS session only: the pass asks before every slice and sheet whether its account is still the page's, so a
        sign-out or a refused session stops it at once (client-boot B-15) */
-    import('../world/prewarm.js?v=0.2.74').then((m) => { const acc = account; if (acc) m.prewarmTown(win, { alive: () => account === acc }); }, () => {});
+    import('../world/prewarm.js?v=0.2.75').then((m) => { const acc = account; if (acc) m.prewarmTown(win, { alive: () => account === acc }); }, () => {});
     const server = createServerLink({ url: SUPABASE_CONFIG.url, anonKey: SUPABASE_CONFIG.anonKey, token: auth.freshToken, renew: auth.renewToken,
       stale: () => fresh.check(true) });
     account = new AccountSession({ auth, server, tab: HS.session, channel: channelFor(client, auth),

@@ -37,17 +37,17 @@
 //      Switched back to a hero, the monsters killed meanwhile stood (at their last drawn
 //      HP, or at 0: an empty bar) until a restart felled them anew (e-20261021-mobs, Andy #65).
 // ════════════════════════════════════════════════════════════════════════
-import { EVENT_FX, LOOT_FX, HIT_FX, PROJECTILE, CAST_FX } from '../data/hunt-vfx.js?v=0.2.74';
-import { outfitSprite } from '../data/hunt-outfits.js?v=0.2.74';
-import { huntOf, partyOf } from '../session/hunt-sections.js?v=0.2.74';
-import { partyPeopleOf } from '../session/party-sections.js?v=0.2.74';
-import { floatShown } from './float-prefs.js?v=0.2.74';
-import { heroSprite } from '../session/hero-look.js?v=0.2.74';
-import { abilityName, itemName } from '../shell/widgets/bits.js?v=0.2.74';
-import { STUB_SPRITE } from '../world/core/book.js?v=0.2.74';
-import { HUNT_GROUNDS } from '../data/hunt-grounds.js?v=0.2.74';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.74';
-import { levelOf } from '../session/character-sections.js?v=0.2.74';
+import { EVENT_FX, LOOT_FX, HIT_FX, PROJECTILE, CAST_FX } from '../data/hunt-vfx.js?v=0.2.75';
+import { outfitSprite } from '../data/hunt-outfits.js?v=0.2.75';
+import { huntOf, partyOf } from '../session/hunt-sections.js?v=0.2.75';
+import { partyPeopleOf } from '../session/party-sections.js?v=0.2.75';
+import { floatShown } from './float-prefs.js?v=0.2.75';
+import { heroSprite } from '../session/hero-look.js?v=0.2.75';
+import { abilityName, itemName } from '../shell/widgets/bits.js?v=0.2.75';
+import { STUB_SPRITE } from '../world/core/book.js?v=0.2.75';
+import { HUNT_GROUNDS } from '../data/hunt-grounds.js?v=0.2.75';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.75';
+import { levelOf } from '../session/character-sections.js?v=0.2.75';
 
 /* The ground's first start tile, standing (the hero before its first window). */
 function entranceOf(huntId) {

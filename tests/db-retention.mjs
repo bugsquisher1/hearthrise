@@ -40,10 +40,13 @@ const STUBS = `
   ) partition by range (inserted_at);
   create table realtime.messages_all partition of realtime.messages for values from ('2000-01-01') to ('2100-01-01');
   create index on realtime.messages (inserted_at desc, topic) where extension = 'broadcast' and private is true;
+  -- The replay's pg_cron shim keeps names only; production's row shape replaces it for this guard.
   create schema if not exists cron;
-  create table if not exists cron.job (jobid bigserial primary key, schedule text, command text, database text, username text,
-                                        active boolean default true, jobname text unique);
-  create or replace function cron.schedule(p_name text, p_schedule text, p_command text) returns bigint language plpgsql as $f$
+  drop table if exists cron.job cascade;
+  create table cron.job (jobid bigserial primary key, schedule text, command text, database text, username text,
+                         active boolean default true, jobname text unique);
+  drop function if exists cron.schedule(text, text, text);
+  create function cron.schedule(p_name text, p_schedule text, p_command text) returns bigint language plpgsql as $f$
   declare v bigint;
   begin
     insert into cron.job (schedule, command, database, username, jobname)
@@ -137,8 +140,8 @@ const MUTANTS = [
   { id: 'absent_raises', arm: 'R-ABSENT', why: 'a database without Realtime raises', edits: [["  if to_regclass('realtime.messages') is null then return 0; end if;\n", '']] },
   { id: 'log_keeps_week', arm: 'R-LOG', why: 'the fire log still keeps 7 days',
     edits: [["     where at < now() - interval '3 days'\n", "     where at < now() - interval '7 days'\n"], ["position($q$interval '3 days'$q$ in (select prosrc from pg_proc where oid = 'public.hr_tick_cron_log_prune(integer)'::regprocedure)) = 0", 'false']] },
-  { id: 'open_to_clients', arm: 'R-CLIENT', why: 'the prune is left executable by PUBLIC',
-    edits: [["revoke execute on function public.hr_realtime_frame_prune(int)\n  from public, anon, authenticated, service_role, hr_engine, hr_tick;\n", ''],
+  { id: 'open_to_clients', arm: 'R-CLIENT', why: 'a signed-in player can run the prune',
+    edits: [["revoke execute on function public.hr_realtime_frame_prune(int)\n  from public, anon, authenticated, service_role, hr_engine, hr_tick;\n", 'grant execute on function public.hr_realtime_frame_prune(int) to authenticated;\n'],
             ["  if has_function_privilege('authenticated', 'public.hr_realtime_frame_prune(integer)', 'execute')\n     or has_function_privilege('anon', 'public.hr_realtime_frame_prune(integer)', 'execute') then", '  if false then']] },
 ];
 

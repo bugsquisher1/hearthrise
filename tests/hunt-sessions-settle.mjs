@@ -1919,7 +1919,7 @@ const DB_ARMS = {
         r = await M.HS.commitHuntSettle(exec, { ...p.commit, project: door.project });
       }
       const s = await snapshot(db, h.sid);
-      if (!s.session.ended_at || s.session.forfeit !== true) problems.push(`${path}: CONTROL: six refusals did not forfeit: ${JSON.stringify(s.session).slice(0, 200)}`);
+      if (!s.session.ended_at || !r?.forfeit) problems.push(`${path}: CONTROL: six refusals did not forfeit: ${JSON.stringify(r).slice(0, 200)}`);
       if (s.hp !== maxHp) problems.push(`${path}: a forfeited hero is stored at ${s.hp} of ${maxHp} HP in town, not full`);
       const v = drawn(await one(db, 'select public.hr_state_of($1::uuid, 0)', [UID]));
       if (v.hunting || v.hp !== maxHp || v.hpMax !== maxHp || v.mana !== maxMana || v.manaMax !== maxMana) {

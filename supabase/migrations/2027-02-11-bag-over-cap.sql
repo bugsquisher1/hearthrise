@@ -154,7 +154,6 @@ begin
     insert into public.hr_access_allowlist (user_id, note) values (v_u, 'bag-over-cap §2 probe') on conflict (user_id) do nothing;
     v := public.hr_create_character(0);
     if coalesce(v->>'ok', '') <> 'true' then raise exception 'bag-over-cap §2: hr_create_character refused: %', v; end if;
-    perform set_config('request.jwt.claim.sub', '', true);
 
     -- The bag set to exactly its cap, of real items, with one more real item left unheld.
     update public.player_state

@@ -363,6 +363,55 @@ const cases = {
     if (!(r.kills.rat >= 1)) return 'a fresh hero killed no rat in the cellar in two minutes';
     return r.falls ? 'a fresh hero died in the cellar' : null;
   },
+  /* A CARD THAT ASKS NEVER WALLS (first-hour play 2026-10-31): a hero who only watches gets Cash in at the Thicket's floor,
+     the skipped lessons come back in the Thicket (Tyler: the bar is taught during combat), and each has its Got it. A bow
+     with nothing loaded says so before the wait for a first kill that would never come. */
+  'first-hour-never-walls': async (M) => {
+    const K = tutKit(M, null, M.kit.START_EQUIPMENT.weapon, M.kit.START_EQUIPMENT.shield);
+    const floor = M.tut.HUNT_TUTORIAL.find((r) => r.id === 'earn_the_thicket').text.match(/Level (\d+)/)[1] * 1;
+    const fresh = (L, more) => tutAt(M, K, L, { levelXp: M.xp.charXpForLevel(L), huntId: 'mill_cellar', visited: new Set(['mill_cellar']), ...(more || {}) });
+    const id = (f) => (M.tut.currentCard(f) || {}).id;
+    if (id(fresh(floor - 1)) !== 'plant_land') return 'a watcher under the floor is on ' + id(fresh(floor - 1));
+    if (id(fresh(floor)) !== 'leave_cellar') return 'a watcher at the Thicket floor is on ' + id(fresh(floor)) + ', not Cash in';
+    const thicket = fresh(floor + 1, { huntId: 'meadowbrook_thicket', visited: new Set(['mill_cellar', 'meadowbrook_thicket']) });
+    if (id(thicket) !== 'plant_land') return 'the lessons skipped in the Cellar did not come back in the Thicket: ' + id(thicket);
+    /* Got it on each asking card moves on, in order, with nothing else done */
+    let f = fresh(floor - 1);
+    const seen = [];
+    for (let n = 0; n < 12; n++) {
+      const c = M.tut.currentCard(f);
+      if (!c || !c.gotIt) { if (c && c.id !== 'earn_the_thicket') return 'after Got it on ' + seen.join(', ') + ' the chain stops on ' + c.id; break; }
+      seen.push(c.id);
+      f = { ...f, read: new Set([...f.read, c.id]) };
+    }
+    for (const want of ['plant_land', 'bar_intro', 'food_when', 'first_spell']) if (!seen.includes(want)) return want + ' was not on the way past: ' + seen.join(', ');
+    /* town: every asking card has its way past too, up to the Thicket's Enter */
+    let t = tutAt(M, K, floor, { levelXp: M.xp.charXpForLevel(floor), visited: new Set(['mill_cellar']), sellable: 3 });
+    t = { ...t, read: new Set(seen) };
+    for (let n = 0; n < 14; n++) {
+      const c = M.tut.currentCard(t);
+      if (!c) return 'the town chain ended with no Thicket card';
+      if (c.id === 'into_the_thicket') break;
+      if (!c.gotIt) return 'a town card with no way past: ' + c.id;
+      t = { ...t, read: new Set([...t.read, c.id]) };
+    }
+    /* the bow: the worn set says nothing is loaded (fact `ammo`); unknown says nothing */
+    const B = tutKit(M, null, 'practice_bow', null);
+    const bow = (more) => tutAt(M, B, 1, { ammo: null, ...(more || {}) });
+    const town = bow({ visited: new Set(['mill_cellar']) }), said = M.tut.cardFor(M.tut.currentCard(town), town);
+    if (said.id !== 'load_shot' || !said.text.includes('press Bronze Arrows, then Put on the bar') || !said.hooks.some((h) => h.includes('data-item="bronze_arrows"'))) return 'a bow with nothing loaded in town reads ' + JSON.stringify(said);
+    /* and before the first kill that would never come */
+    if (id(bow({ huntId: 'mill_cellar', visited: new Set(['mill_cellar']) })) !== 'load_shot_hunt') return 'a bow with nothing loaded in a hunt is on ' + id(bow({ huntId: 'mill_cellar', visited: new Set(['mill_cellar']) }));
+    if (id(bow({ ammo: 'bronze_arrows' })) !== 'to_the_cellar') return 'a loaded bow is on ' + id(bow({ ammo: 'bronze_arrows' }));
+    if (id(bow({ ammo: undefined })) !== 'to_the_cellar') return 'a worn set the server never sent walls the coach: ' + id(bow({ ammo: undefined }));
+    if (id(bow({ slots: [...B.slots, { type: 'attack_with_item', id: 'bronze_arrows', conditions: [], enabled: true, usable: true, count: 50 }] })) !== 'to_the_cellar') return 'arrows on the bar still read as nothing to shoot';
+    if (id(tutAt(M, K, 1, { ammo: null })) !== 'to_the_cellar') return 'a sword with no ammo is told it has nothing to shoot';
+    /* A spell costs runes: the ring walks deeper as the player goes (deepest first; launcher.js ringPlan takes the first on screen) */
+    const off = { ...fresh(floor - 1), read: new Set(seen.filter((x) => x !== 'first_spell')) };
+    const offer = M.tut.cardFor(M.tut.currentCard(off), off);
+    if (offer.id !== 'first_spell' || !/data-store/.test(offer.hooks[0]) || !/data-id/.test(offer.hooks[1]) || !/data-tab/.test(offer.hooks[2])) return 'A spell costs runes rings ' + JSON.stringify(offer.hooks);
+    return null;
+  },
   'tutorial-walk-through': async (M) => {
     const bad = M.tut.validate();
     if (bad.length) return bad.join('; ');
@@ -523,8 +572,8 @@ const cases = {
       const set45 = { ...fixed, slots: fixed.slots.map(at(45)), stored: kitStored.stored.map(at(45)) };
       const order = say(set45);
       const shop = T.slots.findIndex((s) => s.type === 'consume' && s.id === 'salted_shrimp');
-      if (!order || order.id !== 'food_order' || order.barSlot !== shop || !order.text.startsWith('Slot ' + (shop + 1) + ' still buys Salted Shrimp (' + M.basics.BASIC_INDEX.salted_shrimp.price
-        + ' gp) below 60%, so between 45% and 60% it eats before your own Cooked Shrimp.')) return set + ': the order card reads ' + JSON.stringify(order && order.text);
+      if (!order || order.id !== 'food_order' || order.barSlot !== shop || !order.text.startsWith('Salted Shrimp costs ' + M.basics.BASIC_INDEX.salted_shrimp.price
+        + ' gp a bite and eats below 60% (slot ' + (shop + 1) + '), so between 45% and 60% it eats before your own Cooked Shrimp, which is free.')) return set + ': the order card reads ' + JSON.stringify(order && order.text);
       const both = (s) => (s && s.id === 'salted_shrimp' ? { ...s, conditions: [{ metric: 'self_hp_pct', op: 'lt', value: 45 }] } : at(45)(s));
       const fixedOrder = { ...set45, slots: fixed.slots.map(both), stored: kitStored.stored.map(both) };
       /* a bar with no rune spell, of a style that has one, is offered it ("A spell costs runes"); Got it moves on */
@@ -537,7 +586,7 @@ const cases = {
       const swapped = fixedOrder.slots.slice();
       [swapped[food], swapped[shop]] = [swapped[shop], swapped[food]];
       const early = say({ ...fixedOrder, slots: swapped });
-      if (!early || early.id !== 'food_order' || early.barSlot !== food || !early.text.includes('and it comes first, so it eats before your own Cooked Shrimp. Press slot '
+      if (!early || early.id !== 'food_order' || early.barSlot !== food || !early.text.includes('and it comes first, so it eats before your own Cooked Shrimp, which is free. Press slot '
         + (food + 1) + ', press Later until it sits after slot ' + (shop + 1) + ', then Save.')) return set + ': a store slot ahead of the own food reads ' + JSON.stringify(early && early.text);
       /* the own food gone (struck "none left"): the store eating first is the fallback working, not a wrong order */
       if ((say({ ...set45, slots: set45.slots.map((s) => (s && s.id === 'cooked_shrimp' ? { ...s, count: 0 } : s)) }) || {}).id === 'food_order') return set + ': with no own food left the order card still asks';
@@ -733,7 +782,7 @@ const cases = {
     const back = walkChain(M, T).find((s) => s.id === 'sell_loot').facts;
     const fuel = say({ ...back, bag: { ...back.bag, bones: 9, lamp_jelly: 3 }, carried: { ...back.carried, bones: 9, lamp_jelly: 3 } });
     if (!fuel || fuel.id !== 'fuel_hearth' || !fuel.text.startsWith('Your bag holds Bones ×9. Burn them in') || !fuel.text.includes('Inner Flame') || !fuel.text.includes('then Fuel all.')
-      || !fuel.hooks.includes('[data-hs-win="inventory"] .hw-pocket[data-item="bones"]') || !/^Press the Bones, then Fuel all\./.test(fuel.textIn || '')) return 'the Hearth card reads ' + JSON.stringify(fuel && { id: fuel.id, text: fuel.text, hooks: fuel.hooks, textIn: fuel.textIn });
+      || !fuel.hooks.includes('[data-hs-win="inventory"]:not(:has(.hw-burying.is-on)) .hw-pocket[data-item="bones"]') || !/^Press the Bones, then Fuel all\./.test(fuel.textIn || '')) return 'the Hearth card reads ' + JSON.stringify(fuel && { id: fuel.id, text: fuel.text, hooks: fuel.hooks, textIn: fuel.textIn });
     const pct = Math.round((M.vit.regenPermille(10) - 1000) / 10);
     if (!fuel.text.includes(pct + '% faster by Inner Flame 10')) return 'the Hearth card does not state the engine\'s recovery (' + pct + '%): ' + fuel.text;
     if ((say({ ...back, bag: { ...back.bag, bones: 9 } }) || {}).id === 'fuel_hearth') return 'the Hearth card asked with 9 fuel';
@@ -819,7 +868,8 @@ const cases = {
     const steps = walkChain(M, T, { read: undefined });
     const ids = steps.map((s) => s.id);
     if (ids[ids.length - 1] !== null) return 'without the shell\'s facts the chain stops at ' + ids[ids.length - 2];
-    const reads = M.tut.HUNT_TUTORIAL.filter((r) => JSON.stringify(r.done).includes('"read"')).map((r) => r.id);
+    /* (a card that ASKS for a press still asks: Got it is only its way past where a read can be recorded, first-hour play 2026-10-31) */
+    const reads = M.tut.HUNT_TUTORIAL.filter((r) => JSON.stringify(r.done).includes('"read"') && !r.done.asks).map((r) => r.id);
     if (ids.some((id) => reads.includes(id))) return 'without a recorder the coach shows ' + ids.filter((id) => reads.includes(id)).join(', ');
     for (const s of walkChain(M, T).concat(steps)) {
       if (!s.card) continue;
@@ -1000,7 +1050,7 @@ const cases = {
     if (inserts !== 2 || !node || !/:new$/.test(node.key)) return 'the hunt bar did not redraw the coach on a new card (' + inserts + ' draws, ' + (node && node.key) + ')';
     press(cs, 'coach-open');
     const open = draw(cs);
-    if (open.includes('is-min') || open.includes('hs-coach-new') || !open.includes('Your hero walks to the rats, swings')) return 'opened, the coach is not its full text: ' + open;
+    if (open.includes('is-min') || open.includes('hs-coach-new') || !open.includes('Your hero goes after the rats, fights them')) return 'opened, the coach is not its full text: ' + open;
     press(cs, 'coach-min');
     if (draw(cs).includes('hs-coach-new')) return 'opening did not clear the mark';
     placeCoach(bar, draw(cs));
@@ -1368,6 +1418,12 @@ const mutants = [
     edits: [['src/shell/launcher.js', '/data-coach="([a-z0-9_:]+)"/', '/data-tutorial="([a-z0-9_]+)"/'],
       ['src/shell/launcher.js', "have.getAttribute('data-coach') !== key", "have.getAttribute('data-tutorial') !== key"],
       ['src/shell/launcher.js', "have.getAttribute('data-coach') === key", "have.getAttribute('data-tutorial') === key"]] },
+  { name: 'the first hunt\'s lessons wall Cash in again', case: 'first-hour-never-walls',
+    edits: [['src/data/hunt-tutorial.js', "lesson_time: (p, f) => f.charLevel < HUNT_INDEX[p.hunt].band[0] || reached(f, p.hunt),", 'lesson_time: () => true,']] },
+  { name: 'a bow with nothing loaded says nothing', case: 'first-hour-never-walls',
+    edits: [['src/data/hunt-tutorial.js', "no_shot: (p, f) => (f.ammo === undefined || !Array.isArray(f.slots) || !f.carried ? null : !canShoot(f)),", 'no_shot: () => false,']] },
+  { name: 'the coach rings the Runes tab for ever', case: 'first-hour-never-walls',
+    edits: [['src/data/hunt-tutorial.js', "hooks: ['[data-hs-win=\"configure-action\"] .ca-rs[data-store=\"{store}\"]', '[data-hs-win=\"configure-action\"] .ca-row[data-id=\"{spell}\"]',\n        '[data-hs-win=\"configure-action\"] .ca-tab[data-tab=\"runes\"]'] }),", "hooks: ['[data-hs-win=\"configure-action\"] .ca-tab[data-tab=\"runes\"]', '[data-hs-win=\"configure-action\"] .ca-row[data-id=\"{spell}\"]',\n        '[data-hs-win=\"configure-action\"] .ca-rs[data-store=\"{store}\"]'] }),"]] },
   { name: 'the card never advances past the first unmet step', case: 'tutorial-walk-through',
     edits: [['src/data/hunt-tutorial.js', '    if (judge(r.done, facts, { openedIn, id: r.id }) !== false) continue;\n', '']] },
   { name: 'the first kill does not finish its card', case: 'tutorial-walk-through',

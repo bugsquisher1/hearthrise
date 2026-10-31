@@ -20,6 +20,7 @@
 
 import { roleForWeapon } from '../data/hunt-roles.js?v=0.2.74';
 import { VITALS } from '../data/core-model.js?v=0.2.74';
+import { HUNT_TUNING } from '../data/hunt-tuning.js?v=0.2.74';
 import { HUNT_GROUNDS } from '../data/hunt-grounds.js?v=0.2.74';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -88,6 +89,9 @@ export function huntOf(cs) {
          server's max HP, mana the server's per-minute figure (Inner Flame's regen_pm is in both). */
       hpPerS: num(hero.hp_max) !== null && int(hero.regen_pm) !== null
         ? (hero.hp_max * VITALS.inFightRegenPermillePerS * hero.regen_pm) / 1e6 : null,
+      /* the engine's rate between fights (hunt-tuning.js oocRegenPermillePerS, same tick), twenty times the in-fight one */
+      hpRestPerS: num(hero.hp_max) !== null && int(hero.regen_pm) !== null
+        ? (hero.hp_max * HUNT_TUNING.oocRegenPermillePerS * hero.regen_pm) / 1e6 : null,
       manaPerS: num(hero.mana_regen) !== null ? hero.mana_regen / 60 : null,
     },
   };

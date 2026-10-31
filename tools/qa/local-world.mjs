@@ -512,6 +512,9 @@ export async function openWorld(o = {}) {
         const open = (await tx.query(`select id, instance_id from public.hunt_sessions where ended_at is null`)).rows;
         for (const s of open) await moveRow(tx, 'hunt_sessions', s.id, ms, sessionClocks, sessionJson);
         for (const id of new Set(open.map((s) => s.instance_id).filter(Boolean))) await moveRow(tx, 'hunt_instances', id, ms, instanceClocks, instanceJson);
+        /* ended sessions ride along: "the hero's latest hunt" reads entered_at, and a moved open session must stay the newest
+           (played 2026-10-31: after a skip the analyzer and the top bar showed the Cellar hunt that ended before the Thicket) */
+        await tx.query(`update public.hunt_sessions set entered_at = entered_at - make_interval(secs => $1::float8 / 1000), ended_at = ended_at - make_interval(secs => $1::float8 / 1000) where ended_at is not null`, [ms]);
         /* the stamina pool's clock rides the session's: hr_hunt_apply refuses a pool written past settled_to (stamina_ahead), and refused settles forfeit the hunt */
         await tx.query(`update public.player_state p set stamina_at = p.stamina_at - make_interval(secs => $1::float8 / 1000)
           from public.hunt_sessions s where s.ended_at is null and s.user_id = p.user_id and s.slot = p.slot and p.stamina_at is not null`, [ms]);

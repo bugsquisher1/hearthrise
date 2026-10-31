@@ -32,7 +32,7 @@ export function stripTargetOf(e) {
 
 const STRIP_HTML = '<ol class="char-tabs"></ol>'
   + '<span class="char-strip-tools">'
-  + '<button type="button" class="char-tool" data-app="all" title="Every character on one screen (O)">All characters</button>'
+  + '<button type="button" class="char-tool" data-app="all" title="Every character on one screen (O)" aria-label="All characters">All<span class="char-tool-wide"> characters</span></button>'
   + '<button type="button" class="char-tool" data-app="characters">Characters</button>'
   + '<button type="button" class="char-tool" data-app="sign-out">Sign out</button></span>';
 

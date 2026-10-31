@@ -41,6 +41,10 @@ import { foldButtonHtml } from '../widget-move.js?v=0.2.74';
 
 /* Before the server's rate window the rates are null: the totals show, and this line says when the rest will. */
 const RATE_LATER = 'Per hour after ' + Math.round(ANALYZER_RATE_AFTER_MS / 60000) + ' min.';
+const RATE_LATER_PREMIUM = 'Per hour and your next level after ' + Math.round(ANALYZER_RATE_AFTER_MS / 60000) + ' min.';
+/* A row the server prices by the whole (store supplies, loot: their totals are in the Session section) leaves its
+   column empty: a dash beside every line read as a missing price. */
+const orBlank = (v) => (v === null || v === undefined ? '' : gold(v));
 
 const TABS = Object.freeze([['session', 'Session'], ['training', 'Training'], ['taken', 'Taken'], ['dealt', 'Dealt']]);
 /* What only a premium character sees: these stats (section.stat), and every section off the Session tab. */
@@ -148,13 +152,13 @@ function patchView(root, v, ctx, premium) {
       patchList(sec.querySelector('.ha-list'), v.supplies, (it) => it.item + ':' + it.source, (li, it) => {
         text(li.querySelector('.ha-name'), itemName(it.item) + (it.source === 'own' ? ' (own)' : ' (store)'));
         text(li.querySelector('.ha-count'), '×' + whole(it.count));
-        text(li.querySelector('.ha-val'), it.source === 'own' ? 'free' : gold(it.gold));
+        text(li.querySelector('.ha-val'), it.source === 'own' ? 'free' : orBlank(it.gold));
       }, ctx);
     } else if (s.list === 'loot') {
       patchList(sec.querySelector('.ha-list'), v.loot, (it) => it.item, (li, it) => {
         text(li.querySelector('.ha-name'), itemName(it.item));
         text(li.querySelector('.ha-count'), '×' + whole(it.count));
-        text(li.querySelector('.ha-val'), gold(it.value));
+        text(li.querySelector('.ha-val'), orBlank(it.value));
       }, ctx);
     } else {
       const items = Object.entries(v[s.map]).sort((a, b) => b[1] - a[1]).map(([id, n]) => ({ id, n }));
@@ -186,8 +190,14 @@ renderAnalyzer.patch = function patchAnalyzer(el, ctx) {
   const since = ctx.character.receivedAt;
   const live = !a.ended && Number.isFinite(since) ? Math.max(0, ctx.now() - since) : 0;
   text(panel.querySelector('[data-clock="session"]'), clock(sessionClockMs(a, serverNowOf(ctx.character))));
-  if (premium) text(panel.querySelector('[data-clock="next"]'), !a.hero.rated ? 'after ' + Math.round(ANALYZER_RATE_AFTER_MS / 60000) + ' min'
-    : clock(a.nextLevelMs === null ? null : Math.max(0, a.nextLevelMs - live)));
+  /* NEXT LEVEL IN stays away until the server has a rate (first-hour play 2026-10-31: "Next level in: after 10 min" read as
+     a promise, with Level 3 landing at minute 3); the Per hour section's line says when it comes. */
+  const nextClock = panel.querySelector('[data-clock="next"]');
+  if (premium) {
+    prop(nextClock.parentElement, 'hidden', !a.hero.rated);
+    text(nextClock, a.hero.rated ? clock(a.nextLevelMs === null ? null : Math.max(0, a.nextLevelMs - live)) : '');
+    text(panel.querySelector('.ha-later'), RATE_LATER_PREMIUM);
+  } else text(panel.querySelector('.ha-later'), RATE_LATER);
   patchView(panel, scope === 'party' ? a.party : a.hero, ctx, premium);
 };
 

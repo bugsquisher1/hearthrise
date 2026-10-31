@@ -47,6 +47,9 @@ import { holderTank, roleOf, engaged, challengeable } from '../core/hunt/targeti
 
 /* How many swings of world hashes are kept to judge a server commit against. */
 const KEEP_HASHES = 64;
+/* How many swings of the world's own text are kept: a diverged verdict names what differs (worldAt, live-diff.js) when
+   the start point that corrects it lands, a moment after a commit that lies at most one look-ahead behind. */
+const KEEP_TEXTS = HUNT_TUNING.liveSeeds;
 /* The most swings one call runs (a frame's advance, a catch-up): never an unbounded loop on the main thread. */
 const MAX_SWINGS_PER_CALL = 64;
 /* A party member's purse is withheld by the server: never let the prediction end its hunt for gold. */
@@ -176,13 +179,17 @@ export function createLiveEngine(o) {
          the server passes it, so must the browser, or its first swing asks for a seed index never sent. */
       worldSwing: Math.max(0, Math.floor(Number(live.instance.world_swing) || 0)),
       seeds: { from: Number(live.seeds.from), list: live.seeds.list.slice() },
-      hashes: new Map(), starved: false, drawn: new Map(),
+      hashes: new Map(), texts: new Map(), starved: false, drawn: new Map(),
       self: (live.members.find((m) => m.self) || {}).unitId ?? null,
       setup: setupOf(live),
     };
     s.hashes.set(Number(live.instance.world_swing), live.instance.world_hash);
+    if (text !== null) s.texts.set(Number(live.instance.world_swing), text);
     return s;
   }
+
+  /* The swing a prediction runs next (the index the next world it computes is judged by follows it). */
+  const swingOf = (s) => (s.world ? s.world.swing : s.worldSwing);
 
   /* Does the prediction hold the combat seed of its next swing? Asked BEFORE the swing runs: the sim
      moves its members' sessions on before it draws the seed, so a swing that starved half-way would
@@ -213,8 +220,11 @@ export function createLiveEngine(o) {
     s.world = sim.world;
     s.next = sim.nextSwingAtMs;
     if (s.world) {
-      s.hashes.set(s.world.swing, worldHash(encodeWorld(s.world)));
+      const text = encodeWorld(s.world);
+      s.hashes.set(s.world.swing, worldHash(text));
       if (s.hashes.size > KEEP_HASHES) s.hashes.delete(s.hashes.keys().next().value);
+      s.texts.set(s.world.swing, text);
+      if (s.texts.size > KEEP_TEXTS) s.texts.delete(s.texts.keys().next().value);
     }
     const tl = huntTimeline(sim.track, sim.events.filter(predicted), at, sim.nextSwingAtMs, at, sim.units);
     const alive = new Set();
@@ -340,22 +350,27 @@ export function createLiveEngine(o) {
       return n;
     },
     /**
-     * Judge a server commit (hunt_check { world_swing, world_hash }): 'match', 'diverged', or
-     * 'unknown' (a swing this prediction has not reached or no longer remembers).
+     * Judge a server commit (hunt_check { world_swing, world_hash }): 'match', 'diverged', 'ahead' (a swing a
+     * running prediction will reach on the seeds it holds: the server settles to its own now, and the clock this
+     * prediction runs on is measured from answers that took time to arrive, so this says nothing about the world) or
+     * 'unknown' (a swing it no longer remembers, or one it can never reach: out of seeds, or ended before it).
      */
     check(hc) {
       if (!st || !hc || !isInt(hc.world_swing)) return 'unknown';
       const h = st.hashes.get(hc.world_swing);
-      if (h === undefined) return 'unknown';
+      if (h === undefined) {
+        const reach = !st.starved && !st.ended && hc.world_swing > swingOf(st) && hc.world_swing <= st.seeds.from + st.seeds.list.length;
+        return reach ? 'ahead' : 'unknown';
+      }
       return h === hc.world_hash ? 'match' : 'diverged';
     },
     /**
-     * A server commit's check (hunt_check, with the next seeds): on a match the prediction runs on with
-     * the new seeds (and resumes if it had run out); answers check()'s verdict.
+     * A server commit's check (hunt_check, with the next seeds): on a match, or a swing still ahead, the
+     * prediction runs on with the new seeds (and resumes if it had run out); answers check()'s verdict.
      */
     reconcile(hc) {
       const v = this.check(hc);
-      if (v === 'match' && hc.seeds && isInt(hc.seeds.from) && Array.isArray(hc.seeds.list)) {
+      if ((v === 'match' || v === 'ahead') && hc.seeds && isInt(hc.seeds.from) && Array.isArray(hc.seeds.list)) {
         const from = hc.seeds.from, list = hc.seeds.list;
         /* A seed below the prediction's next swing is never read again (swing() reads its own index and up),
            so it is dropped: kept from the first seed ever sent, the list and this merge grew with the hunt's
@@ -429,6 +444,8 @@ export function createLiveEngine(o) {
     heldSeeds: () => (st ? st.seeds.list.length : 0),
     /** The hash of the prediction's world at a swing (tests). */
     hashAt: (swingIndex) => (st ? st.hashes.get(swingIndex) ?? null : null),
+    /** The prediction's world text at a recent swing, or null (a diverged verdict names what differs: live-diff.js). */
+    worldAt: (swingIndex) => (st ? st.texts.get(swingIndex) ?? null : null),
     stop() { st = null; failure = null; job = null; },
   };
 }

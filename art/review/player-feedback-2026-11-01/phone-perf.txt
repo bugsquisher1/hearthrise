@@ -1,0 +1,267 @@
+HEARTHRISE, PLAYED ON A PHONE AND AN OLD LAPTOP
+Build v0.2.78 (main 621c27c0d), local world, played blind, 2026-10-31.
+Who I am: I play in landscape on the couch with my thumbs, and at the kitchen table on an old laptop.
+My opinions are marked as opinions. Everything else is something I saw or measured.
+
+VERDICT
+It works with a thumb, and nothing I did needed a mouse. No crash, no console error, no leak in 30 minutes.
+The trouble is room. On a small phone the coach cards and side sheets leave so little space that the thing
+you are told to press is hidden. At 6x CPU a town with nothing moving dropped to 44 fps, lower than a packed
+Sewer's 49 in the same session.
+"image N" below means my own screenshots, kept in my scratch folder and not committed.
+
+
+1. WHAT A HEADLESS BROWSER CAN'T TELL YOU
+- Real GPU: this was Playwright's headless Chromium on a strong desktop PC, drawing in software. Frame numbers
+  are about the main thread, not about a real phone's GPU. A real phone may be better or worse.
+- Battery and heat: not measured at all. Main-thread CPU % and requests per minute are only stand-ins.
+- Real network: everything came from 127.0.0.1. The "4G" rows are Chrome's simulation, not a radio.
+- On-screen keyboard: headless shows none. On a real phone in landscape it takes roughly half the height.
+  Every form below is likely worse than I report. Not verified.
+- Real thumbs: tap sizes are measured. Whether I'd actually miss is judgement.
+- Pull-to-refresh, notch and safe areas, app switching and tab sleep: not testable here.
+- CPU throttle is Chrome's multiplier on a fast PC, not a real old laptop (no slow disk, no thermal limit).
+- 4x and 6x numbers are noisy. Other lanes shared the machine (13 other headless Chromes at one check, CPU 34%).
+  Some 6x runs beat 4x runs. Read ranges, not single values.
+
+SUSPECTED HARNESS, NOT THE GAME
+- H1 Reload times are too high. The local server sends Cache-Control: no-store and no gzip, over HTTP/1.1,
+  and there was no service worker on 127.0.0.1. So every reload re-fetched all 379 scripts. Live should be faster.
+- H2 Server calls are slow here. One PGlite backend answered hr_load in 0.6 to 2.3 s. Worst-case reloads
+  (18 s, 34 s, 22 s) probably include that, but I did not prove it.
+- H3 The first cold load took 26.5 s because the server read files from disk for the first time. I threw it out.
+- H4 "While you were away (11 min), Couch hunted Mill Cellar: +30 Level XP, +4 gold, 2 kills" appeared at 844x390
+  after a 90-minute hunt I had never left the page for. Time skips moved the clocks, so I suspect the skip. Worth one check on live.
+- H5 Hunt length and levels came from time skips, and the Weighhouse minimum was lowered from 10 to 2 in this
+  world's memory so I could trade. No results were faked; only waiting was compressed.
+- H6 My own errors, not bugs: a CDP scroll gesture did nothing where real touch events scrolled fine; a tap at (0,0)
+  from a hidden button opened All characters; Ctrl+A with no field focused fired a hotkey. I also thought Leave
+  took over 80 s at 844 and 922. It didn't: the button goes to zero width while counting, so my wait ended early,
+  and the Shop and Weighhouse shots at those sizes were taken with the hunt still counting down.
+
+
+2. PHONE PROBLEMS
+Viewports 667x375, 844x390, 922x423, touch on. Worst first within each severity.
+
+SERIOUS
+
+P1. Coach cards eat the sheet, and hide what they tell you to press.
+  667x375. The sheet is 320x275 and the coach card sits outside the part that scrolls.
+  - Hunts, first time: coach says "Press the Mill Cellar". The list gets 58 px and one row is 87 px. The words
+    "Mill Cellar" sit under the hint line (the title is covered by .hw-hunts-now). You see "Level 1-8" and no name.
+  - Pick the ground: only "Back to the list" and Enter show. None of the ground's details are visible.
+  - Shop: coach "Before the wolves" is 156 px, leaving 79 px of scroll.
+    Press Got it and the next card appears at once, "Sell what only pays coin", leaving 40 px (image 152 shows
+    "0 in / the" and nothing else). Cards chain, so Got it doesn't get you your screen back. Only the X does.
+  - Slot setup sheet: "Your hero just ate" lands on top and the food list shrinks to about 25 px.
+  - In town, the "Every weapon is a style" card clips its own text above Got it. "Your first Level" clips too.
+  844x390 and 922x423: much better. Hunts list 93 px and 126 px; ground details 81 px and 114 px. Tight, usable.
+
+P2. Tapping an item covers its own button.
+  667x375, bag. Coach: "Press the Bones, then Fuel all." I tapped Bones.
+  - A desktop-style tooltip about 480x185 opened right over the row holding Fuel all. Still there 3 s later.
+  - Fuel all was underneath. My next tap on that spot only closed the tooltip; the count stayed 89.
+  - Third tap worked. So three taps, one of them blind.
+  Holding an item instead gave the action row with no tooltip (a hat, image 221), so hold is a way round it, if you
+  know. The same tooltip showed up uninvited at 844x390 and 922x423: opening the Shop, a Copper Studs card sat over
+  half the screen though I never tapped that row (images 228, 236). I don't know what triggered it.
+  Likely Chrome's emulated hover after a tap, which real Android also does. Worth one look on a real phone.
+
+P3. Leave and Disband are too easy to hit and can't be taken back.
+  - Hunt bar at 667x375: Summary is x 501-582, Leave is x 589-644, 7 px apart, both 40 px tall.
+  - Leave has no question. The first time it ended in under 2.5 s. Mid-fight it shows "Leaving in 33s" and the
+    button is disabled, so a second tap does nothing. I found no way to change my mind.
+  - The bar squeezes as it counts: the name becomes "Mill ..." and a tooltip gets stuck behind the Details panel.
+  - Disband: one tap, no question, party gone (see P4).
+  Opinion: on a couch this is the one I'd curse at. I wanted Summary.
+
+P4. Party sheet: Leave party and Disband are outside the sheet at every phone size.
+  Measured on the Your party tab:
+    667x375  Leave party x 629-728, Disband x 734-810, sheet ends x 658
+    844x390  Disband x 831-907, sheet ends x 835
+    922x423  Disband x 909-985, sheet ends x 913
+  Reachable only by dragging sideways inside the sheet (scrollWidth 460 vs 308). Nothing hints at it.
+  Image 169 shows "Le" at the right edge. This one breaks "every field reachable without guessing".
+
+P5. Roll of Honor and Report a problem are buried on a phone.
+  - Laptop: each has its own icon in the top bar (trophy, warning sign).
+  - Phone: neither is in the 15 icons. They sit under Heroes > All characters > "Also here", about 700 px down
+    a 235 px pane. A blind person would not look there. I found it by searching every window.
+  - Report a problem is also a button in Settings > Help, below the help text. That's a sensible place for it.
+  - Both open and fit fine once found. Report's text box and Send fit at 667x375, without a keyboard.
+
+SMALLER
+
+P6. Weighhouse at 667x375.
+  - Refresh is cut in half: x 630-701, sheet ends 658. Only "Re" shows and the row doesn't scroll.
+    844 and 922 are fine (Refresh wraps inside the sheet).
+  - Sell sheet: 138 px of scroll, with the fixed List button covering the bottom 52, so about 86 px to work in.
+    How many and Price each can't be on screen together. The Price field ends right on top of the List button.
+    With a keyboard up I expect the field or the button to vanish. Not verifiable here.
+  - Every field IS reachable by swiping, and nothing needs hover. Listing by thumb worked: price typed, "List 1 for
+    60 each", 1 gold fee charged, and the friend saw "Apprentice Hat from 60 each" at 922x423.
+  - 844x390: 201 px of scroll; 922x423: 234 px. Those are fine.
+  - Category chips: Loot, Materials, Rare, Other are off to the right at 667 with no hint (they do scroll).
+
+P7. Sort is cut off in Inventory and Storage at 667x375.
+  Select at x 608-688, sheet ends 658. It reads "Type" with its arrow gone. The same control fits in the Weighhouse.
+
+P8. Create hero: the color swatches are 16x16 with a 2 px gap, 64 of them, at all three sizes.
+  That's an 18 px pitch for a thumb. At 667x375 Enter town and Back to your characters also run 9 px off the bottom
+  (y 344 + 40 = 384) and that screen doesn't scroll. Enter town can still be pressed; its bottom is just gone.
+  At 844 and 922 the buttons fit.
+
+P9. Create account: "Back to sign in" falls off the bottom.
+  y 373, 44 tall, at 667x375 and 844x390. I found nothing that scrolls on that page at 667. The text above says
+  "sign in instead", so I don't think you're trapped (I didn't confirm that it's a link).
+  With a keyboard up, I expect Create account gets covered too. Not verifiable.
+
+P10. Action bar at 667x375.
+  - Slot 5 is half hidden. Slots 15 and 6-10 and 16-20 sit behind a ">" page button (24x74).
+  - The preset name reads "Pre...". Rename is 36x21 and Closer/Farther are 30x36, right beside each other.
+  - It sits exactly where a resting thumb goes. Tapping a slot mid-hunt opens a full-screen setup sheet that hides
+    the fight. I tapped the shrimp expecting to eat. Your hero eats on its own, so the tap only opens setup.
+    Opinion: that's where my thumb will land by accident. It costs a Cancel, not a mistake.
+
+P11. Icon bar has no words.
+  15 icons, 40x40, edge to edge along the top, at all sizes. Their names are only in title text ("Hunts (H)",
+  "Market (M)"), which a phone never shows. Touch works; you learn them by opening each. Windows give their names.
+
+P12. Hunt view at 667x375 is crowded.
+  Party panel, hunt bar, coach and the Details panel all float on a 651x325 canvas with a 100 px action bar below.
+  - In images 119 and 120 no monster was visible. In image 133 a rat and a wasp were, partly under the panels.
+  - Details panel shows about 96 px of stats, its tab "Taken" is cut off, and "Cash in" covers its close X (image 134).
+  - Details stays open after a reload. Sheets cover the hero (at 667 he's half under the sheet in town).
+  - 844x390 and 922x423 read fine.
+
+P13. Refusal text squeezed to one word per line.
+  667x375, Hunts, party with an offline member: "Nobody went in: Pantry is away." runs down a 45 px column beside
+  Start with party, name clipped (image 210). Same squeeze: the Bones row (image 143), "Nothing goes on by
+  itself" (image 146), Shop "0 in / the".
+
+P14. Party invites are quiet.
+  - The Party window says "only players you invite can join" and has no way to invite. The way is tapping a name in
+    chat (45x20 target), then Invite to party. All characters mentions it, far down. Not for someone with no chat history.
+  - Inviter: the menu closes and nothing on screen says it was sent (image 164).
+  - Invitee at 844x390: a red 1 on the hero tab and a dot on System, no toast (image 165). Join and No thanks are fine.
+  - A red 1 stayed on Heroes and on the hero's row afterwards with nothing telling me what it wants.
+
+P15. Mouse words on a phone.
+  Storage: "Shift-press moves all of it. Right-click (or hold)". Friends: "Right-click or hold a name".
+  Hold exists, but Shift has no touch version. I did not test moving a whole stack in Storage by touch.
+
+P16. Small but real tap targets (under 36 px tall). Many are 30 px: Plant, Search, Show in the finder, Add friend,
+  Save current setup, Ground and Parties-with selects, search boxes, sort selects, armor weight chips. Close X is 32x32.
+  Tabs, Got it and coach buttons (44) are good. There's a 13x13 "on" checkbox in the bag, and the alert checkboxes
+  look the same size. I did not test whether their labels take the tap.
+
+P17. Not proven, please check on a real phone: html and body have overscroll-behavior auto and touch-action auto.
+  A downward drag on the world might trigger pull-to-refresh and reload the game.
+
+WHAT WORKED
+- Portrait: a clean "Turn your phone sideways" screen.
+- Reload mid-hunt at 667x375: back in the hunt, clock and panels right, in about 6 s, no errors.
+- Touch scrolling, the Join button, Hunt again, Equip upgrades, buying, listing and selling all worked by thumb.
+- Tapping a chat name opens a proper menu, no hover needed. No text under 12 px on the town screen (the one screen
+  I counted).
+- No console errors at any point I read them, on the phone or laptop sessions, including all of the soak.
+
+
+3. THE NUMBERS
+1366x768 unless noted. Each row is one run on a shared machine; ms and % are noisy under throttle.
+"CPU" = main-thread busy % from Chrome's TaskDuration. Under throttle it is not a clean multiple.
+"fps" = how often the browser gave my own requestAnimationFrame counter a turn. It tells you the main thread had
+room, not how many pictures the game drew or a real GPU showed.
+
+Load, cold cache, sign-in form -> list -> Play -> playable
+                          form      total to playable
+  no throttle             2.4-5.5 s  3.6-8.4 s
+  4x CPU                  6.9-10.8 s 9.5-13.7 s
+  6x CPU                  5.3-6.5 s  7.8-9.8 s
+  4x + simulated 4G       9.4 s      13.8 s    (60 ms, 9 Mbps)
+  4x + simulated slow 4G  24.9 s     43.0 s    (150 ms, 1.6 Mbps)
+  Size: 381 requests and 4.2 MB before the sign-in form appears (379 script files).
+        About 410 requests and 7.4 MB by playable. Uncompressed here (H1), so bytes will be lower live.
+        The request count will not be.
+
+Reload to playable, 5 runs, sorted (seconds) (H1, H2 inflate these)
+  no throttle  4.9  5.9  7.0  7.1  18.2    median 7.0   worst 18.2
+  4x CPU       7.0  8.1 10.8 15.0  33.6    median 10.8  worst 33.6
+  6x CPU       6.4  8.3 10.4 13.1  22.2    median 10.4  worst 22.2
+  One reload's calls: hr_load x3, hr-accrue x2, hr_chat_recent x2, hr_whispers_recent x2, one each of the rest.
+  That repetition is the game, not the harness.
+
+Frame rate and long tasks
+                                   fps   p95 ms  worst ms  long tasks (max, total)   CPU
+  Town idle (30 s)       none     62.8    16.7    183      0                          13%
+                         4x       58.7    16.8     67      3 (69 ms, 191 ms)          23%
+                         6x       44.3    50.1    300      25 (299 ms, 2.6 s)         26%
+  Sewer, 6 packs of 8    none     59.9    16.8     33      0                          39%
+  + boss (30 s)          4x       56.0    16.8    167      12 (165 ms, 0.9 s)         67%
+                         6x       49.1    33.4    267      22 (269 ms, 1.6 s)         85%
+  Party, 2 heroes, Mill  none     59.6    16.7     67      0                          56%
+  Cellar, 2 packs of 8   4x       45.0    50.0    550      33 (375 ms, 3.2 s)         51%
+  (25 s)                 6x       39.4    66.6    533      44 (351 ms, 5.1 s)         69%
+  Phone 667x375, Mill    none     60.0    16.7     17      0                          15%
+  Cellar solo (15 s)     4x       52.8    33.3    133      12 (113 ms, 0.9 s)         35%
+                         6x       37.8    83.3    267      37 (258 ms, 3.7 s)         41%
+  Phone 667x375 town     none     60.0    16.8     17      0                          11%
+  Party was worse than the Sewer at far fewer monsters. I don't know why; the party hunt also ran later on a busier machine.
+
+Idle town, nothing moving, no input (30 s, no throttle)
+  CPU 13% main thread. 1,879 style recalcs (about 63 a second, i.e. every frame) and 118 layouts.
+  Counted over 10 s at 667x375 in idle town: 601 frames, 32 drawImage + 4 fillText calls, 300 DOM mutations.
+  So the world canvas is NOT being redrawn every frame (I expected it to be; it barely draws). I only counted four
+  2D canvas methods. The cost looks like the page's DOM: about 30 changes a second with nothing moving, and a style
+  recalc every frame. I don't know which element is doing it.
+  Opinion: on a laptop battery that is the first thing I'd want gone.
+
+Requests per minute
+  Town idle (60 s counted): 18 a minute. hr_town_view x8, hr_town_move x6, hr_social_state x2, hr_players_online x2.
+    hr_town_move every 10 s with no input from me. I didn't watch the hero through that minute, so if heroes wander
+    in town on their own that may be why. It's still 6 writes a minute from an idle player.
+  Hunt (30 min soak): about 9.4 a minute. hr-accrue 133, hr_social_state 62, hr_players_online 62,
+    hr_put_client_state 26 (283 in about 30 min), plus 17 static files.
+  Idle town calls the server about twice as often as a running hunt.
+
+Leak check: 30 min real time, party hunt in Mill Cellar, no throttle, forced GC before each reading
+  minute            0     3     6     9    12    15    18    21    24    27    30
+  JS heap MB      14.4  14.0  15.1  15.3  14.1  15.1  15.0  15.5  14.5  16.1  15.7
+  Chrome nodes    2085  2123  2130  2332  2155  2150  2291  2152  2151  2157  2427
+  DOM elements    1149  1177  1184  1196  1198  1196  1198  1198  1196  1198  1196
+  Listeners        143   143   143   143   143   143   143   143   143   143   143
+  fps at 15 and 30 min: 59.2 and 59.4, no long tasks, CPU 66% and 62%.
+  No leak I can see. Layouts run about 200 a minute and that stays constant. Zero console errors.
+  Node count alone stood out once: 6,238 in the Sewer at 6 packs of 8 vs about 2,100 elsewhere. It did not
+  grow over the 90 s I sampled, and I did not run the Sewer for 30 min.
+
+Opening windows, click to painted, 3 runs (ms)
+                 Weighhouse           Roll of Honor
+  no throttle    241   834   575      637   243   406
+  4x             1166  350   697      368   182   258
+  6x             1609  1219  997      569   1375  234
+  Fine. With one listing and one hero on the roll, so this says nothing about a full market.
+
+Phone sizes that matter (usable scroll height in px)
+                                   667x375   844x390   922x423
+  Hunts list with coach               58        93       126
+  Ground details with coach           ~0        81       114
+  Weighhouse sell sheet             86 (138)    201      234
+  Shop with coach chain              40-79   not seen   not seen
+  (Coach cards didn't appear in my Shop visit at 844 and 922, so those are unmeasured.)
+
+
+4. TOP 5 TO FIX, RANKED
+1. Coach cards on small phones (P1). Scroll them with the content or shrink them to a line, and stop chaining a new
+   one straight after Got it. First hour, every new phone player, and it hides the thing it names.
+2. Quiet the idle town. A style recalc every frame, about 30 DOM changes a second and 18 requests a minute (6 of them
+   hr_town_move) with no input. 44 fps and 299 ms long tasks at 6x. This is the likely battery and server bill.
+3. Make Leave and Disband safe (P3, P4). Move Disband and Leave party inside the sheet at all three sizes, allow
+   cancelling "Leaving in 33s", and put space between Summary and Leave.
+4. Tapped items (P2). No hover tooltip on touch, or put it where it can't cover the action row. Fix the blind second tap.
+5. 379 script files on first load, and repeat calls on reload (hr_load x3 and friends). 43 s on simulated slow 4G
+   at 4x CPU is where a phone player gives up. Measure this on live first, since H1 inflates my reloads.
+   The 6x frame rate in party hunts (39 fps, 5.1 s of long tasks in 25 s) comes next.
+
+Runners-up: put Roll of Honor and Report a problem where a phone can see them (P5); Weighhouse Refresh and sell-sheet
+room at 667 (P6); the 16 px swatches (P8).

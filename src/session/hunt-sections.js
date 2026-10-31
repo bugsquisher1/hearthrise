@@ -20,6 +20,7 @@
 
 import { roleForWeapon } from '../data/hunt-roles.js?v=0.2.74';
 import { VITALS } from '../data/core-model.js?v=0.2.74';
+import { HUNT_GROUNDS } from '../data/hunt-grounds.js?v=0.2.74';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
@@ -38,12 +39,17 @@ function section(cs, key) {
   return isObj(v) ? v : null;
 }
 
-/* The pose's units as unit id -> { kind, side, boss, name, hp, hpMax }: the log's names, the scene's bars. */
+/* The most units an instance's world can list: every pocket's pull at the ground's top density, standing and again as
+   corpses (a cleared pull lies while its pocket respawns), plus the ground's seats. Capped at 64, a Sewer four at density
+   12 (76 units) lost its newest spawns' kinds: the scene drew them nowhere ("no sprite for unit N (null)", Andy #65). */
+const POSE_UNITS_MAX = Math.max(...Object.values(HUNT_GROUNDS).map((g) => 2 * g.pockets.reduce((n, p) => n + Math.max(p.spawns.length, ...g.densityMax), 0) + g.start.length));
+
+/* The pose's units as unit id -> { kind, side, boss, name, hp, hpMax, alive }: the log's names, the scene's bars. */
 function unitsOf(pose) {
   const out = new Map();
-  for (const u of isObj(pose) ? list(pose.units, (x) => x, 64) : []) {
+  for (const u of isObj(pose) ? list(pose.units, (x) => x, POSE_UNITS_MAX) : []) {
     if (isObj(u) && int(u.u) !== null) out.set(u.u, { kind: str(u.kind), side: u.side === 'hero' ? 'hero' : 'monster', boss: bool(u.boss), name: str(u.name),
-      hp: num(u.hp), hpMax: num(u.hp_max) });
+      hp: num(u.hp), hpMax: num(u.hp_max), alive: u.alive !== false });
   }
   return out;
 }
@@ -70,6 +76,8 @@ export function huntOf(cs) {
     /* When the hunt's engine starts (the end of the travel, hr_hunt_travel): before it the hero walks. */
     huntFromMs: isObj(h.session) && str(h.session.hunt_from) ? Date.parse(h.session.hunt_from) || null : null,
     units: unitsOf(h.pose),
+    /* the server instant the pose's units stand at (its last commit), or null */
+    poseAtMs: isObj(h.pose) ? int(h.pose.at_ms) : null,
     hero: {
       unit: int(hero.unit), name: str(hero.name), level: int(hero.level),
       hp: num(hero.hp), hpMax: num(hero.hp_max), mana: num(hero.mana), manaMax: num(hero.mana_max),

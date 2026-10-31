@@ -636,8 +636,9 @@ async function chatFoot(page, tag, fails) {
   await page.waitForTimeout(250);
   const c = await page.evaluate(() => Object.fromEntries(['.hc-field', '.hc-send'].map((q) => { const e = document.querySelector(q), r = window.__r(e); return [q, !!r && window.__onScreen(r) && window.__hits(e) && r.height >= 40]; })));
   for (const [q, ok] of Object.entries(c)) if (!ok) fails.push('PH-13 [' + tag + '] the chat\'s ' + q + ' is off the sheet or under 40 px');
-  const title = await page.evaluate(() => { const t = document.querySelector('[data-hs-win="chat"] .hs-win-title'); const r = t.getBoundingClientRect(); return document.elementFromPoint(r.left + 8, r.top + r.height / 2) === t; });
-  if (!title) fails.push('PH-13 [' + tag + '] a tooltip lies over the sheet\'s title after the icon\'s tap');
+  /* The icon stays hovered and focused after its press: its tooltip must not be there to lie over the sheet's title. */
+  const tip = await page.evaluate(() => getComputedStyle(document.querySelector('.hs-launch[data-hs-open="chat"]'), '::before').display);
+  if (tip !== 'none') fails.push('PH-13 [' + tag + '] the pressed icon\'s tooltip lies over the sheet\'s title');
 }
 
 /* ── PH-14 ── Meaning without hover, by touch. A touch context: isMobile, hasTouch. */
@@ -675,7 +676,7 @@ async function touchMeaning(page, tag, fails) {
   if (!said || !/You need/.test(said.text) || !said.on) fails.push('PH-14 [' + tag + '] a press on the grey Buy says ' + JSON.stringify(said));
 }
 /* ...in a hunt: the slot's reason first on its sheet, Tamsin's Take says why, every grey Take on her words. */
-async function touchHunt(page, tag, fails) {
+async function touchHunt(page, s, tag, fails) {
   const slot = await page.evaluate(() => { const s = Array.from(document.querySelectorAll('.hb-slot')).find((x) => x.querySelector('.hb-why').children.length); return s ? s.getAttribute('data-slot') : null; });
   if (slot === null) { fails.push('PH-14 [' + tag + '] CONTROL: no slot with a reason on the fixture\'s bar'); return; }
   await page.tap('.hb-slot[data-slot="' + slot + '"]', { timeout: 2500 }).catch(() => null);
@@ -686,7 +687,10 @@ async function touchHunt(page, tag, fails) {
   await page.tap('.ca-close', { timeout: 2500 }).catch(() => null);
   await page.waitForTimeout(250);
   await page.tap('.hs-launch[data-hs-open="tally"]', { timeout: 2500 }).catch(() => null);
-  const line = await wait(page, () => { const l = document.querySelector('[data-hs-win="tally"] .ht-wait'); return !!l && l.getClientRects().length > 0 && /back in town/.test(l.textContent); }, null, 4000);
+  /* After her board's answer: the line once stood only until the board had loaded. */
+  for (let i = 0; i < 60 && !s.calls.some((c) => c.name === 'hr_tally_view'); i++) await page.waitForTimeout(50);
+  await page.waitForTimeout(400);
+  const line = await page.evaluate(() => { const l = document.querySelector('[data-hs-win="tally"] .ht-wait'); return !!l && l.getClientRects().length > 0 && /back in town/.test(l.textContent); });
   if (!line) fails.push('PH-14 [' + tag + '] hunting, her board does not say why every Take is grey');
 }
 
@@ -937,7 +941,7 @@ async function rules(overrides, shots, { stopAtFirst = false, blocks = null } = 
     }
     for (const vp of run('slots') ? [{ width: 667, height: 375 }, { width: 922, height: 423 }] : []) { // PH-13 chat
       const tag = tagOf(vp);
-      const o = await open(vp, HUNT, null, { touch: true });
+      const o = await open(vp, HUNT);
       if (!o.up) { fails.push('PH-13 [' + tag + '] the hunt did not mount'); await o.ctx.close(); continue; }
       await chatFoot(o.page, tag, fails);
       await shot(o.page, 'chat-' + tag);
@@ -957,8 +961,19 @@ async function rules(overrides, shots, { stopAtFirst = false, blocks = null } = 
       await done(o, tag);
       const h = await open(vp, HUNT, null, { touch: true });
       if (!h.up) { fails.push('PH-14 [' + tag + '] the hunt did not mount'); await h.ctx.close(); continue; }
-      await touchHunt(h.page, tag, fails);
+      await touchHunt(h.page, h.s, tag, fails);
       await done(h, tag);
+    }
+    if (run('meaning')) { // PH-14: a touch screen too big for the phone query has no keys and no hover either
+      const o = await open({ width: 1024, height: 768 }, ALPHA, townOnly, { touch: true });
+      if (o.up) {
+        await o.page.tap('.hs-launch[data-hs-open="shop"]', { timeout: 2500 }).catch(() => null);
+        await wait(o.page, () => document.querySelector('[data-hs-win="shop"] [data-hs-built]'), null, 4000);
+        const t = await o.page.evaluate(() => ({ chips: Array.from(document.querySelectorAll('.hs-win-head .hs-key')).filter((k) => k.getClientRects().length).length, heads: document.querySelectorAll('.hs-win-head').length, tip: getComputedStyle(document.querySelector('.hs-launch'), '::before').display }));
+        if (!t.heads) fails.push('PH-14 [1024x768 touch] CONTROL: no window opened');
+        else if (t.chips || t.tip !== 'none') fails.push('PH-14 [1024x768 touch] a touch screen shows a key chip or keeps the hover tooltip: ' + JSON.stringify(t));
+      } else fails.push('PH-14 [1024x768 touch] the town did not mount');
+      await done(o, '1024x768');
     }
     for (const vp of run('stack') ? [{ width: 667, height: 375 }, { width: 922, height: 423 }] : []) { // PH-15
       const tag = tagOf(vp);
@@ -1153,18 +1168,20 @@ async function main() {
     console.log(fails.length ? 'phone-touch: ' + fails.length + ' rule(s) RED' : 'phone-touch: the configure sheet scrolls with Save in reach, Hunt details toggles and the analyzer closes clear of the hunt bar, portrait asks to turn, Settings and the bag answer a thumb, a long coach ends above the action bar and never lies on the fight, the phone bar keeps every fight control in reach, the desktop bar keeps its 64 px icons, the stamina + buys at the server\'s quote' + (shots ? ' (shots in ' + shots + ')' : ''));
     process.exit(fails.length ? 1 : 0);
   }
-  const clean = await rules(null, null);
+  /* --mutate --only PH-n: that rule's own mutants over its own pages (the gate runs them all). */
+  const planted = oi > 0 ? MUTANTS.filter(([name]) => name.split(' ')[0] === process.argv[oi + 1]) : MUTANTS;
+  const clean = await rules(null, null, { blocks });
   if (clean.length) { console.log('  ✗ clean control RED: ' + clean.join('; ')); process.exit(1); }
   console.log('  ✓ clean control green');
   let bad = 0;
-  for (const [name, file, from, to, only] of MUTANTS) {
+  for (const [name, file, from, to, only] of planted) {
     const text = await readFile(join(ROOT, file), 'utf8');
     if (text.split(from).length !== 2) { console.log('  ✗ ' + name + ' — anchor not found once in ' + file); bad++; continue; }
     const fails = await rules({ [file]: text.replace(from, to) }, null, { stopAtFirst: true, blocks: only || BLOCKS_OF[name.split(' ')[0]] });
     if (fails.length) console.log('  ✓ ' + name + ' — caught (' + fails[0].split(' ').slice(0, 2).join(' ') + ')');
     else { console.log('  ✗ ' + name + ' — NOT caught'); bad++; }
   }
-  console.log(bad ? 'phone-touch --mutate: ' + bad + ' escaped' : 'phone-touch --mutate: ' + MUTANTS.length + '/' + MUTANTS.length + ' mutants caught');
+  console.log(bad ? 'phone-touch --mutate: ' + bad + ' escaped' : 'phone-touch --mutate: ' + planted.length + '/' + planted.length + ' mutants caught');
   process.exit(bad ? 1 : 0);
 }
 

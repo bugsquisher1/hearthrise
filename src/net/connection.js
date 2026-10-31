@@ -15,7 +15,7 @@
 
 const SLOW_MS = 8000;
 const LOST_FOR_MS = 20000;
-const TICK_MS = 1000;
+const RECHECK_EVERY_MS = 1000;
 
 export const CONNECTION_WORDS = Object.freeze({
   lost: 'No connection. Your heroes keep hunting. Reconnecting…',
@@ -92,7 +92,7 @@ export function mountConnectionLine(doc, conn) {
   const check = () => c.check();
   win.addEventListener('online', check);
   win.addEventListener('offline', check);
-  const tick = win.setInterval(check, TICK_MS);
+  const tick = win.setInterval(check, RECHECK_EVERY_MS);
   paint(c.state());
   return {
     destroy() {

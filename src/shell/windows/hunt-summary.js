@@ -22,10 +22,11 @@ import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.
 import { whole, gold, clock } from '../../render/format.js?v=0.2.75';
 import { itemName, itemIconHtml } from '../widgets/bits.js?v=0.2.75';
 import { runIntent } from '../intent-words.js?v=0.2.75';
-import { endedSessionOf, sanitizeSummaries, huntAgainOf, endWords } from '../../hunt-view/summary-model.js?v=0.2.75';
+import { endedSessionOf, sanitizeSummaries, huntAgainOf, againWithBag, endWords } from '../../hunt-view/summary-model.js?v=0.2.75';
+import { packFor } from '../hunt-list.js?v=0.2.75';
 import { observeSessions } from '../../session/character-session.js?v=0.2.75';
 import { attach, summariesOf, liveDeaths } from '../../hunt-view/summary-recorder.js?v=0.2.75';
-import { nameOf } from '../../session/item-sections.js?v=0.2.75';
+import { nameOf, bagOf } from '../../session/item-sections.js?v=0.2.75';
 import { heldCard } from '../launcher.js?v=0.2.75';
 import { coachWindow, coachTab } from '../../data/hunt-tutorial.js?v=0.2.75';
 
@@ -131,7 +132,7 @@ renderHuntSummary.patch = function patchHuntSummary(body, ctx) {
     const again = huntAgainOf(cur);
     const go = root.querySelector('[data-hs-act="again"]');
     prop(go, 'disabled', sc.pending || huntOpen || !again);
-    attr(go, 'title', huntOpen ? 'A hunt is already running.' : again ? 'Same ground, action set, limits and bag.' : 'This hunt did not keep its settings.');
+    attr(go, 'title', huntOpen ? 'A hunt is already running.' : again ? 'Same ground, action set and limits, with what your bag holds now.' : 'This hunt did not keep its settings.');
     /* Hunt again off says why on the line under it, not only in a title (say-why). */
     againWhy = huntOpen ? 'Hunt again is off: a hunt is already running.' : again ? '' : 'Hunt again is off: this hunt did not keep its settings.';
     const card = huntOpen ? null : nextStepOf(ctx);
@@ -178,7 +179,7 @@ renderHuntSummary.act = function actHuntSummary(ctx, body, action, ev, t) {
     const list = summariesOf(cs);
     const cur = list.find((s) => s.id === sc.pick) || list[0];
     const args = huntAgainOf(cur);
-    if (args) runIntent(sc, repaint, () => cs.huntAgain(args), 'Setting out…', () => 'Setting out.');
+    if (args) runIntent(sc, repaint, () => cs.huntAgain(againWithBag(args, packFor(bagOf(cs)))), 'Setting out…', () => 'Setting out.', cs);
     return true;
   }
   return false;

@@ -31,7 +31,7 @@ const style = (id, role, weapons, name, does, uses) => Object.freeze({ id, role,
 
 /* The lead line above the rows: the rule itself. The sword and shield are WORN, not in the bag (start-kit.js
    START_EQUIPMENT); a player can make more heroes and play several at once (2 slots to start, up to 4 at once). */
-export const HOW_YOU_FIGHT_LEAD = 'There\'s no class to pick. The weapon you hold is how you fight: you start with a sword and shield on, and the other starter weapons are in your bag. To switch, equip another in town. Later you can make more heroes and play up to four at once.';
+export const HOW_YOU_FIGHT_LEAD = 'There\'s no class to pick. The weapon you hold is how you fight: you start with a sword and shield on, and the other starter weapons are in your bag. To switch, equip another in town. You start with two hero slots, gold buys more, and up to four heroes can play at once.';
 
 export const HOW_YOU_FIGHT = Object.freeze([
   style('hold', 'tank', ['practice_sword', 'practice_shield'], 'Sword and shield',

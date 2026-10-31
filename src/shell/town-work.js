@@ -308,6 +308,13 @@ export function tickOf(cs) {
   return tick;
 }
 
+/** A gathering row's "N in your bag", as the line above it and the bag window show it: the server's count, plus what the
+    ticker is sure of on the node running (blind playtest 2026-10-31: "2 caught so far · 0 in your bag"). Nothing spends it. */
+export function gatherBagWords(cs, w, running) {
+  const out = productOf(w);
+  return whole(shownQty(running ? tickOf(cs) : null, out, invOf(cs)[out] || 0).qty) + ' in your bag';
+}
+
 /**
  * How far the run has got, as the line's parts [{ key, text, ahead }]: "12 cooked so far", "2 burnt", "2 more on
  * the fire", "30 Raw Shrimp left". Each number is the SERVER's bag plus the ticker's certain part (`ahead`: it

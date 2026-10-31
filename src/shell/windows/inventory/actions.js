@@ -104,7 +104,6 @@ function say(st, repaint, msg, at) {
   repaint();
 }
 
-function goldNow(cs) { const s = cs.read('state'); return s && Number.isSafeInteger(s.gold) ? s.gold : null; }
 
 /** Wear `id` in `slot`, or take the slot's piece off (`id` null): ONE `equip` intent, unless the server's sections
     already say it would be refused (gear-gate.js: a hunt running, a requirement unmet), which is said instead. From
@@ -170,13 +169,11 @@ function doSell(st, repaint) {
   const c = st.sc.confirm;
   if (!c || c.empty) return;
   const cs = st.cs;
-  const before = goldNow(cs);
   const lines = c.plan.lines;
   st.sc.confirm = null;
-  send(st, repaint, () => cs.edgeIntent('vendor_sell_many', { lines }), 'Selling…', () => {
-    const after = goldNow(cs);
+  send(st, repaint, () => cs.edgeIntent('vendor_sell_many', { lines }), 'Selling…', (r) => {
     for (const l of lines) st.sc.sel.delete(l.item);
-    return before !== null && after !== null ? 'The shop paid ' + gold(after - before) + '.' : 'Sold.';
+    return r && Number.isSafeInteger(r.paid) ? 'The shop paid ' + gold(r.paid) + '.' : 'Sold.';
   });
 }
 

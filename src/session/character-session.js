@@ -43,7 +43,7 @@ import { createTimeline } from '../hunt-view/timeline.js?v=0.2.75';
 import { LiveLink } from './live-link.js?v=0.2.75';
 import { RESIDUE_FIELDS, sanitizeResidueField, unconfirmedResidue } from './residue.js?v=0.2.75';
 import { SESSION_CONFIG } from './config.js?v=0.2.75';
-import { edgeBody, edgeRead } from './edge-intents.js?v=0.2.75';
+import { edgeBody, edgeRead, withReceipt } from './edge-intents.js?v=0.2.75';
 import { leaveAskOf, pendingLeaveAt, leaveCountdown, heardOf, closeInMs } from './hunt-leave.js?v=0.2.75';
 import { HuntPoll, pollDelayMs } from './hunt-poll.js?v=0.2.75';
 import { AskPacer } from './ask-pacer.js?v=0.2.75';
@@ -330,7 +330,7 @@ export class CharacterSession {
     if (this._closed) return { ok: false, error: 'closed' };
     const body = edgeBody(this.slot, verb, fields, newIdem());
     if (!body) return { ok: false, error: 'bad_intent' };
-    return read === true ? edgeRead(await this._server.accrue(body)) : this._ask(verb, () => this._server.accrue(body), true);
+    return read === true ? edgeRead(await this._server.accrue(body)) : withReceipt((send) => this._ask(verb, send, true), () => this._server.accrue(body));
   }
 
   /** Lock (or unlock) an item so no bulk sale can take it; the server keeps the lock. */

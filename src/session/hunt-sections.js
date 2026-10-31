@@ -265,12 +265,21 @@ const trainingOf = (m) => (isObj(m) ? Object.entries(m).filter(([k]) => k !== 'l
 /* A next-level eta in ms from the server's `eta_h` (hours) on a level or skill read; 0 (maxed) or absent reads null. */
 const etaMs = (r) => { const h = isObj(r) ? num(r.eta_h) : null; return h !== null && h > 0 ? Math.round(h * 3600000) : null; };
 
+/* The prices a character's envelope states: the store's a use (`hunt_settings.store`), the shop's bid (`shop.bids`). */
+function pricesOf(cs) {
+  const shop = section(cs, 'shop');
+  const bids = shop && isObj(shop.bids) ? shop.bids : {};
+  const set = section(cs, 'hunt_settings');
+  const store = new Map(set ? list(set.store, storeRowOf, 64).map((b) => [b.id, b.price]) : []);
+  return { bid: (id) => int(bids[id]), store: (id) => (store.has(id) ? store.get(id) : null) };
+}
+
 /* One analyzer view (hr_hunt_analyzer: kills, xp {level|skill: n}, raw_xp {level|skill: n}, coins, loot_value,
    gold (= coins + loot_value, gold_basis 'vendor_value'), waste, balance (= gold - waste),
    per_hour { xp: Level, raw_xp: Level, training_xp: the skills, gold, waste, balance }, skills { skill: { per_hour } }
    (the hero's, premium), supplies { own: {item: n}, store: {item: n}, store_gold }, loot {item: n},
    taken / dealt { total, byMonster | byAbility, byElement }). */
-function viewOf(v) {
+function viewOf(v, price) {
   if (!isObj(v)) return null;
   const ph = isObj(v.per_hour) ? v.per_hour : {};
   const sup = isObj(v.supplies) ? v.supplies : {};
@@ -293,9 +302,11 @@ function viewOf(v) {
        ANALYZER_RATE_AFTER_MS of wall time (2026-11-06-hunt-analyzer-min-window.sql). */
     rated: isObj(v.per_hour),
     perHour: { levelXp: num(ph.xp), rawLevelXp: num(ph.raw_xp), trainingXp: num(ph.training_xp), goldAndLoot: num(ph.gold), waste: num(ph.waste), balance: num(ph.balance) },
+    /* A line's gold: its count at the server's own price (the store's, hr_hunt_basic_supplies; the shop's bid), the same
+       prices the totals are made of. No price sent (the shop bids only on what the bag holds): null, the row's dash. */
     supplies: rowsOf(sup.own, ([item, n]) => ({ item, source: 'own', count: n, gold: 0 }))
-      .concat(rowsOf(sup.store, ([item, n]) => ({ item, source: 'store', count: n, gold: null }))),
-    loot: rowsOf(v.loot, ([item, n]) => ({ item, count: n, value: null })),
+      .concat(rowsOf(sup.store, ([item, n]) => ({ item, source: 'store', count: n, gold: price.store(item) === null ? null : price.store(item) * n }))),
+    loot: rowsOf(v.loot, ([item, n]) => ({ item, count: n, value: price.bid(item) === null ? null : price.bid(item) * n })),
     takenByMonster: counts(tk.byMonster), takenByElement: counts(tk.byElement),
     dealtByAbility: counts(dl.byAbility), dealtByElement: counts(dl.byElement),
   };
@@ -341,11 +352,20 @@ export function huntDensityOf(cs) {
   return densityMapOf(section(cs, 'hunt_density'));
 }
 
+/* THE PARTY'S VIEW. The server's figure sums its members' sessions, and every hero present is credited every kill
+   (hunt-rewards.js payKill), so its `kills` counts each monster once per hero (blind playtest 2026-10-31: 1,710 for 855
+   kills; the sum is right for XP and gold, which each hero really earns). A monster dies once: this hero's own count. */
+function partyViewOf(v, hero, price) {
+  const party = viewOf(v, price);
+  return party ? Object.assign(party, { kills: hero.kills }) : null;
+}
+
 /** `hunt_analyzer`: the server's session stats, hero and party. Null for a free character or no hunt. */
 export function analyzerOf(cs) {
   const a = section(cs, 'hunt_analyzer');
   if (!a) return null;
-  const hero = viewOf(a.hero);
+  const price = pricesOf(cs);
+  const hero = viewOf(a.hero, price);
   if (!hero) return null;
   /* The next Level (Level is not a skill): the server's `hero.level.eta_h` (hours). Never a skill's eta, which the server
      floors at 0 once the skill is maxed; a 0 or absent eta is unknown and reads null (the widget shows the dash). */
@@ -353,7 +373,7 @@ export function analyzerOf(cs) {
   const sess = isObj(a.session) ? a.session : {};
   const settled = str(sess.settled_to) ? Date.parse(sess.settled_to) : NaN;
   return { sessionMs: num(a.hunt_ms), settledMs: Number.isFinite(settled) ? settled : null, nextLevelMs: next,
-    ended: typeof sess.ended_at === 'string', hero, party: viewOf(a.party) };
+    ended: typeof sess.ended_at === 'string', hero, party: partyViewOf(a.party, hero, price) };
 }
 
 /** A character's server clock now (ms), or null before it has one or for a reader without one. */

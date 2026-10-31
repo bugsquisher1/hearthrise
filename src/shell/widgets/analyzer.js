@@ -152,7 +152,7 @@ function patchView(root, v, ctx, premium) {
       patchList(sec.querySelector('.ha-list'), v.supplies, (it) => it.item + ':' + it.source, (li, it) => {
         text(li.querySelector('.ha-name'), itemName(it.item) + (it.source === 'own' ? ' (own)' : ' (store)'));
         text(li.querySelector('.ha-count'), '×' + whole(it.count));
-        text(li.querySelector('.ha-val'), it.source === 'own' ? 'free' : orBlank(it.gold));
+        text(li.querySelector('.ha-val'), it.source === 'own' ? 'from bag' : orBlank(it.gold));
       }, ctx);
     } else if (s.list === 'loot') {
       patchList(sec.querySelector('.ha-list'), v.loot, (it) => it.item, (li, it) => {

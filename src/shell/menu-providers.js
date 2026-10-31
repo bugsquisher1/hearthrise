@@ -90,10 +90,10 @@ function partyEntries(ctx, cs) {
       run: async (t) => {
         if (mine(t)) {
           const r = await inviteOwn(account, cs, t.slot);
-          return { say: r.ok ? t.name + ' joined your party.' : refusalText(r) };
+          return r.ok ? { done: t.name + ' joined your party.' } : { say: refusalText(r) };
         }
         const r = t.id && UUID.test(t.id) ? await invitePlayer(account, cs, t.id, Number.isInteger(t.slot) ? t.slot : null) : await cs.inviteByName(t.name);
-        return { say: r.ok ? 'Invite sent to ' + t.name + '.' : refusalText(r) };
+        return r.ok ? { done: 'Invite sent to ' + t.name + '.' } : { say: refusalText(r) };
       },
     },
     'party-leave': {
@@ -102,7 +102,7 @@ function partyEntries(ctx, cs) {
         const o = ownOf(t);
         if (!o) return { say: refusalText({ error: 'closed' }) };
         const r = await afterLeave(account, o, () => o.leaveParty());
-        return { say: r.ok ? t.name + ' left the party.' : refusalText(r) };
+        return r.ok ? { done: t.name + ' left the party.' } : { say: refusalText(r) };
       },
     },
   };

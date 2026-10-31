@@ -59,7 +59,7 @@ import { itemName } from '../widgets/bits.js?v=0.2.75';
 import { glyphSvg } from '../launcher.js?v=0.2.75';
 import { runIntent, refusalText } from '../intent-words.js?v=0.2.75';
 import { HUNT_GROUNDS, densityFor, DENSITY_PICK } from '../../data/hunt-grounds.js?v=0.2.75';
-import { huntRows, densityWords, rangeWords, groupWords, heroWords, packFor, bestLine, fitWords, ABOVE_LEVEL_WORDS, recommendation } from '../hunt-list.js?v=0.2.75';
+import { huntRows, densityWords, densityStep, rangeWords, groupWords, heroWords, packFor, bestLine, fitWords, ABOVE_LEVEL_WORDS, recommendation } from '../hunt-list.js?v=0.2.75';
 import { detailHtml, patchGround, goHtml, patchGo } from './hunt-detail.js?v=0.2.75';
 import { setupsOf, beforeLines, freeHeroes } from '../hunt-go.js?v=0.2.75';
 import { inviteOwn } from '../../session/party-intents.js?v=0.2.75';
@@ -175,7 +175,7 @@ export function renderHunts(ctx) {
     + '<div class="hw-hunts-cols"><ul class="hw-hunt-list" role="listbox" aria-label="Hunts"></ul>'
     /* The page scrolls in its own box and Enter stands below it (windows.css), never over the lineup or the drops. */
     + '<section class="hw-hunt-detail" aria-label="The picked hunt"><div class="hw-hd-page">' + detailHtml()
-    + '<h4 class="hw-hd-h">Each pull</h4><div class="hw-pull"><p class="hw-hunt-facts"></p>'
+    + '<h4 class="hw-hd-h">The packs</h4><div class="hw-pull"><p class="hw-hunt-facts"></p>'
     + '<span class="hw-density" role="group" aria-label="Monsters each pull">'
     + '<span class="hh-step"><button type="button" class="hh-seg" data-hs-act="density" data-by="-1" aria-label="Fewer monsters">−</button>'
     + '<output class="hh-step-val"></output>'
@@ -310,11 +310,11 @@ function patchPage(det, ctx, sc, v) {
     attr(val, 'data-pending', String(!follower && !!(sc.draft || sc.saving)));
     /* The size it clamps for, named: alone, or this party's seat count (the settle's clamp). */
     text(det.querySelector('.hw-density-note'), follower ? 'Your party leader sets how many monsters each pull brings.'
-      : 'Up to ' + dn.max + ' a pull'
+      : 'A pull is one pack: up to ' + dn.max
       + (size === 1 ? ' when you hunt alone.' : ' for your party of ' + size + '. As the leader, your pick is the pull for everyone.')
       + ' Kept for this ground.');
-    prop(det.querySelector('[data-by="-1"]'), 'disabled', follower || sc.pending || !!now || dn.now <= DENSITY_PICK.min);
-    prop(det.querySelector('[data-by="1"]'), 'disabled', follower || sc.pending || !!now || dn.now >= dn.max);
+    prop(det.querySelector('[data-by="-1"]'), 'disabled', follower || sc.pending || !!now || densityStep(r, dn.now, -1, dn.max) === null);
+    prop(det.querySelector('[data-by="1"]'), 'disabled', follower || sc.pending || !!now || densityStep(r, dn.now, 1, dn.max) === null);
   }
 }
 
@@ -332,8 +332,9 @@ renderHunts.act = function actHunts(ctx, body, action, ev, t) {
     if (party && !party.isLeader) return true;
     const size = party ? party.seats.length : 1;
     const dn = shownDensity(sc, picks, hunt, size, party);
-    const n = dn ? dn.now + Number(t.getAttribute('data-by')) : NaN;
-    if (!dn || sc.pending || !(n >= DENSITY_PICK.min && n <= dn.max)) return true;
+    const row = huntRows().find((x) => x.hunt === hunt);
+    const n = dn && row ? densityStep(row, dn.now, Number(t.getAttribute('data-by')), dn.max) : null;
+    if (sc.pending || n === null) return true;
     sc.msg = '';
     /* Another ground's draft still waiting goes now (each ground keeps its own pick). */
     if (sc.draft && sc.draft.hunt !== hunt) saveDensity(cs, sc, repaint);

@@ -39,6 +39,8 @@ export const BAG_SORTS = Object.freeze([['type', 'Type'], ['value', 'Value'], ['
 const RARE_RUNGS = new Set(['epic', 'legendary', 'mythic']);
 const RARE_TAGS = new Set(['trophy', 'cosmetic', 'quest']);
 const KIND_ORDER = new Map(BAG_CATS.map(([id], i) => [id, i]));
+/* The most of one stack a sale line may name (supabase/functions/hr-accrue/request.js MAX_QTY). */
+const SELL_LINE_MAX = 1000;
 
 let DROPS = null;
 /* Every item some monster drops (the bestiary rows), built once. */
@@ -209,25 +211,43 @@ export function lootSale(items, rules, shop, skills) {
 }
 
 /**
- * The sale a bulk action would send: every chosen stack whole, minus the locked
- * ones (they are listed in `kept`, never in `lines`). `total` is at the server's
+ * WHAT "SELL ALL LOOT" LEAVES, in the same words the button is priced from (blind playtest 2026-10-31: "Sell all loot ·
+ * 423 gp" over a list worth 1,215, the rule invisible): the loot the shop bids on that the button keeps for a use
+ * (fuel, food that cooks, a material the hero can make with), { ids, worth } at the server's bids. Locked stacks are
+ * the confirmation's to say. Pure.
+ */
+export function lootKept(items, rules, shop, skills) {
+  const sold = new Set(lootToSell(items, skills));
+  const locked = rules ? rules.locked : new Set();
+  const bids = shop ? shop.bids : new Map();
+  const kept = (items || []).filter((r) => kindOf(r.id) === 'loot' && !sold.has(r.id) && !locked.has(r.id) && bids.has(r.id));
+  return { ids: kept.map((r) => r.id), worth: kept.reduce((n, r) => n + bids.get(r.id) * r.qty, 0) };
+}
+
+/** What one sale takes of a stack: the server's per-line limit (request.js MAX_QTY). */
+export const sellQty = (qty) => Math.min(qty, SELL_LINE_MAX);
+
+/**
+ * The sale a bulk action would send: every chosen stack (up to the server's limit a line, SELL_LINE_MAX), minus the
+ * locked ones (they are listed in `kept`, never in `lines`). `total` is at the server's
  * bids; a stack with no bid is `unpriced` and is not sold (the confirmation
- * cannot show what the player would get for it).
+ * cannot show what the player would get for it). `capped`: a stack held more than one sale takes.
  */
 export function sellPlan(items, ids, o) {
   const want = new Set(ids);
   const locked = (o && o.locked) || new Set();
   const bids = (o && o.bids) || new Map();
   const lines = [], kept = [], unpriced = [];
-  let total = 0;
+  let total = 0, capped = false;
   for (const { id, qty } of items) {
     if (!want.has(id)) continue;
     if (locked.has(id)) { kept.push(id); continue; }
     if (!bids.has(id)) { unpriced.push(id); continue; }
-    lines.push({ item: id, qty: Math.min(qty, 1000) });
-    total += bids.get(id) * Math.min(qty, 1000);
+    lines.push({ item: id, qty: sellQty(qty) });
+    total += bids.get(id) * sellQty(qty);
+    capped = capped || qty > SELL_LINE_MAX;
   }
-  return { lines, total, kept, unpriced };
+  return { lines, total, kept, unpriced, capped };
 }
 
 /** The bag's worth at the server's bids; `unpriced` counts the stacks it has no bid for. */

@@ -5,7 +5,7 @@
 //   node tests/observability.mjs           the checks
 //   node tests/observability.mjs --mutate  every planted defect must turn a check RED
 //
-// mutant-anchors: src/net/observability.js src/net/diagnostics.js src/net/observability-config.js src/app/boot.js src/shell/windows/chat.js src/shell/widgets/hunt-topbar.js src/shell/launcher.js play.html
+// mutant-anchors: src/net/observability.js src/net/diagnostics.js src/net/observability-config.js src/net/boot-timing.js src/app/boot.js src/shell/windows/chat.js src/shell/widgets/hunt-topbar.js src/shell/launcher.js play.html
 //
 // play.html in a real Chromium with the REAL vendored Sentry and PostHog SDKs,
 // supabase-js and the REST paths stubbed (tests/_client-harness.mjs). The page is
@@ -59,6 +59,9 @@
 //         first_gear_equipped, tutorial_card (from the shell's coach), level_reached, session_return;
 //         hunt_ended carries reseeds_total (every reseed of the load, past live_view_stall's 50);
 //         a step is sent once per scope, afresh for the next account, and a load sends at most 400 events
+//   OB-15 boot_timing (lane/a-boot-lock): ONE event for a load that signed back in from a stored session, none for a
+//         sign-in, with its marks in order, what it spent on the other tabs, the tab's visibility and how it was reached;
+//         numbers and fixed words only, keyed by the account id
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
 import { launchOptions } from './_chrome.mjs';
@@ -369,7 +372,7 @@ async function browserChecks(overrides) {
       await close();
     }
 
-    { // OB-13 .. OB-15: a brand-new account on the characters screen, the real SDK: the funnel's first step, rage and dead clicks only
+    { // OB-13, OB-14: a brand-new account on the characters screen, the real SDK: the funnel's first step, rage and dead clicks only
       const { pg, seen, close } = await page(browser, 'http://127.0.0.1:' + port, { hunt: false, fresh: true });
       opened.push(seen);
       await pg.goto('https://hearthrise.net/play.html', { waitUntil: 'load' });
@@ -414,6 +417,32 @@ async function browserChecks(overrides) {
         if (process.env.OBS_DEBUG) console.log('caps', JSON.stringify(await pg.evaluate(() => ({ caps: window.__caps, keys: Object.keys(window.posthog).filter((k) => /auto|rage|dead/i.test(k)), rc: window.posthog.config.rageclick }))));
         if (process.env.OBS_DEBUG) console.log(JSON.stringify(seen.events.map((e) => e && [e.event, e.properties && e.properties.release])));
         if (process.env.OBS_DEBUG) console.log('chains', JSON.stringify(clicks.map((e) => [e.event, e.properties.$elements_chain, e.properties.$el_text, (e.properties.$elements || []).length, Object.keys(e.properties).filter((k) => !/^\$(os|browser|device|timezone|raw|screen|viewport|lib|sdk|time|insert|host|path|current|init|config|dead_click_)/.test(k))])));
+      }
+      await close();
+    }
+
+    { // OB-15
+      const { pg, seen, close } = await page(browser, 'http://127.0.0.1:' + port, { hunt: false });
+      opened.push(seen);
+      await pg.goto('https://hearthrise.net/play.html', { waitUntil: 'load' });
+      if (!(await signIn(pg))) fails.push('OB-15 sign-in did not reach the characters screen');
+      await wait(pg, () => window.posthog && window.posthog.__loaded);
+      await pg.waitForTimeout(500);
+      await pg.reload({ waitUntil: 'load' });
+      const all = () => seen.events.filter((e) => e && e.event === 'boot_timing');
+      await until(() => all().length > 0, 15000);
+      await pg.waitForTimeout(500);
+      const got = all();
+      const p = got[0] && got[0].properties;
+      if (got.length !== 1) fails.push('OB-15 boot_timing sent ' + got.length + ' times for one sign-in and one reload, want 1');
+      else {
+        const order = [p.auth_ready_ms, p.first_read_sent_ms, p.roster_read_ms, p.drawn_ms];
+        if (!order.every((n) => Number.isFinite(n) && n >= 0) || order.some((n, i) => i && n < order[i - 1])) fails.push('OB-15 boot_timing marks out of order: ' + JSON.stringify(order));
+        if (p.screen !== 'characters' || p.navigation !== 'reload' || p.lock_asked !== 0 || p.lock_wait_ms !== 0 || p.lock_steals !== 0 || p.visibility !== 'visible' || p.was_hidden !== false || p.version !== VERSION)
+          fails.push('OB-15 boot_timing says: ' + JSON.stringify([p.screen, p.navigation, p.lock_asked, p.lock_wait_ms, p.lock_steals, p.visibility, p.was_hidden, p.version]));
+        if (![p.longest_stall_ms, p.long_tasks, p.longest_task_ms].every(Number.isFinite)) fails.push('OB-15 boot_timing does not say how late the page ran: ' + JSON.stringify([p.longest_stall_ms, p.long_tasks, p.longest_task_ms]));
+        if (p.distinct_id !== UID) fails.push('OB-15 boot_timing is not keyed by the account id: ' + p.distinct_id);
+        if (JSON.stringify(got[0]).includes('qa@example.test')) fails.push('OB-15 boot_timing carries the email');
       }
       await close();
     }
@@ -714,6 +743,10 @@ const MUTANTS = [
     'if (!ph) { ph = phSdk.init(cfg.posthog.key, Object.assign(posthogOptions(cfg, win, st.uid, (event) => sdkGate(st, event)), { bootstrap: {} })) || phSdk; ph.identify(st.uid); }'],
   ['PostHog starts before the account is known', 'src/net/observability.js', 'if (!phSdk || !st.uid || phUid === st.uid) return;', 'if (!phSdk || (st.uid && phUid === st.uid)) return;'],
   ['sign-out resets PostHog to an anonymous id', 'src/net/observability.js', 'st.queue.length = 0;', 'st.queue.length = 0; if (ph) safe(() => ph.reset());'],
+  ['boot_timing never leaves (OB-15)', 'src/net/boot-timing.js', "send('boot_timing', {", "void ('boot_timing', {"],
+  ['a sign-in reports a boot (OB-15)', 'src/net/boot-timing.js', 'wanted = stored === true;', 'wanted = true;'],
+  ['the first read is not marked (OB-15)', 'src/app/boot.js', 'timing.sending(); return t;', 'return t;'],
+  ['boot_timing is told nothing about the lock (OB-15)', 'src/net/boot-timing.js', 'lock_asked: stats.asked,', ''],
   ['an event leaves with no account behind it', 'src/net/observability.js', 'if (!st.uid) return;\n    const p = Object.assign', 'const p = Object.assign'],
   /* OB-13: rage and dead clicks, and only those, masked and bounded */
   ['rage clicks are off', 'src/net/observability.js', "rageclick: { css_selector_ignorelist: CLICK_SKIP.slice(), ignore_text_selection: true },", 'rageclick: false,'],

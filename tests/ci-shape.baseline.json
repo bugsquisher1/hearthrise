@@ -7,6 +7,8 @@
     "node tools/mutant-gate.mjs node tests/_chrome.mjs --selftest": "in-page",
     "node tests/client-boot.mjs": "in-page",
     "node tools/mutant-gate.mjs node tests/client-boot.mjs --mutate": "in-page",
+    "node tests/auth-lock.mjs": "in-page",
+    "node tools/mutant-gate.mjs node tests/auth-lock.mjs --mutate": "in-page",
     "node tests/observability.mjs": "in-page-21",
     "node tools/mutant-gate.mjs node tests/observability.mjs --mutate": "in-page-21",
     "node tests/report-problem.mjs": "in-page-21",

@@ -11,6 +11,14 @@ _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md
 
 ## Log
 
+### 2026-10-31 · Andy's reports re-triaged (lane/a-andy-reports)
+1. *A snapshot field the reader drops is a bug the tests cannot see.* The pose sent `alive` all along; unitsOf never read it, so a corpse stood up with an empty bar on every reload (the live fixture's own rat) and on every hero switch back. Grep each server field against its reader before trusting a rule built on the reader.
+2. *A reader cap is a content limit in disguise.* `list(pose.units, …, 64)` was fine until the Sewer took a four at density 12 (76 units). Derive such caps from the data (grounds × top density) so new content cannot outgrow them silently.
+3. *A fix can erase the case another rule's mutant needs.* T12 removed the pose-placed corpses LV-27's joining case was built on; its control went red, the scenario was re-chosen (106 s) and every LV-27 mutant re-proven. Keep "the case is still built" controls next to the rule.
+4. *The bar must agree with the engine, setup by setup.* ranger-bar shot-spell-words runs ten Ranger setups on the real settle and asks the bar's reason for each: a one-sided check (client words only) would have kept "ready" on a slot the engine never fires.
+5. *Measure the box at rest with the production grid and a slow party.* A four kills a d8 pull before it settles; a tank and a healer leave it on him for several commits, which is what showed Warrens pocket 1 at 7 of 8 (the ring closes round its centre; the walled pull stopped on the west edge).
+6. *Local tooling here:* `npm ci` brings PGlite (DB guards run) but its Playwright wants chromium-1234: set HR_CHROME to /opt/pw-browsers/chromium-1243/chrome-linux64/chrome. run-sql-tests' 45 static grant FAILs reproduce on origin/main's own tree.
+
 ### 2026-10-24 · CI speed (lane/b-ci-speed, tests only)
 - A wait helper that times out SILENTLY is a hidden 20 s tax and a dead check: party-ui's quietHuntPoll
   modelled a poll clock the session no longer runs for an unviewed hero. Make a missed precondition HARNESS.

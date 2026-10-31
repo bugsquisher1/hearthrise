@@ -3551,8 +3551,13 @@ const DB_MUTANTS = [
     replace: '  update public.player_state set party_leave_together = p_on where slot = p_slot;' },
   { arm: 'PARTY-LEAVE-IDEM', name: '[leave together] a second apply rewrites a body the file owns', fn: 'public.hr_party_leave_together_set(integer,boolean,uuid)',
     find: "hr_rpc_gate('party')", replace: "hr_rpc_gate('chat')" },
-  { arm: 'PARTY-LEAVE-IDEM', name: '[leave together] §0 takes a spliced body another file moved', fn: 'public.hr_hunt_view(uuid)',
-    find: "'end_by', case when", replace: "'end_by', /* moved */ case when" },
+  /* Planted on the one spliced body the arm still carries over (no later file authors it): hr_hunt_view moved to
+     2027-02-10-settle-plan-cache.generated.sql, hr_hunt_instance_read to 2027-02-02-settle-cost.sql, hr_hunt_party_view
+     to 2027-01-25-town-defaults.sql, so a plant on those never reaches the second apply. If a later file authors
+     hr_hunt_settle_session too, no spliced body is left to carry this plant and the arm needs a new delivery. */
+  { arm: 'PARTY-LEAVE-IDEM', name: '[leave together] §0 takes a spliced body another file moved', fn: SS,
+    find: "      when 'party_member_died' then coalesce((select ps.party_leave_together",
+    replace: "      when 'party_member_died' then /* moved */ coalesce((select ps.party_leave_together" },
   { arm: 'PARTY-LEAVE', name: '[leave together] a cascaded hero is closed where its window began (its stretch unsettled)', fn: SS,
     find: '    perform public.hr_hunt_close(p_session, v_end, v_end_at, true);',
     replace: "    perform public.hr_hunt_close(p_session, v_end, case when v_end like 'party_member_%' then v_s.settled_to else v_end_at end, true);" },

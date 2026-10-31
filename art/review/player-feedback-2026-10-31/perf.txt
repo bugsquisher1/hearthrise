@@ -1,0 +1,466 @@
+HEARTHRISE — PLAYER FEEDBACK, 2026-10-31
+Panelist: the old-laptop player (lane/f-perf)
+
+Who I am: six-year-old budget laptop, integrated graphics, 8 GB of RAM, a dozen tabs open, slow
+connection, sometimes Firefox. I notice every stutter and every time the fan spins up, and I quit games
+that make the machine crawl. Unlike the rest of the panel I measure as well as feel, and I put the
+numbers next to how it felt. Browser window 1366x768, mouse and keyboard, no touch.
+
+IN SHORT: quick to load on a good line and smooth on a fast CPU, but on my laptop (CPU x4) the world
+canvas eats 99% of the main thread even when the town is perfectly still, hunts run ~30 fps with
+hitches, a slow line shows 9-40 s of plain black before sign-in, every patch re-downloads all 7.5 MB,
+and inside hunts each hero hop / bag open leaks ~300-1,100 DOM nodes. Ranked list in section 15.
+Scores: load 6/10, smoothness 5/10, restraint with my machine 3/10.
+
+HOW I PLAYED AND MEASURED (read this before trusting any number)
+- The real play.html + src/ on 127.0.0.1 via tools/qa/local-world.mjs (the replayed server chain, the
+  real hr-accrue engine, real sign-up screens). Branch = origin/main + lane/t-local-world +
+  claude/upbeat-einstein-mrh0ig + claude/serene-tesla-7txs5f, all three merged with no conflict.
+  live version string: 0.2.74.
+- Browser: Chromium 153 (headless, the sandbox's own build). No Firefox in this sandbox, so every
+  Firefox remark below is a guess, not a measurement.
+- My laptop is simulated with Chrome's CPU throttle: x1 = the sandbox (Xeon 2.8 GHz vCPU, roughly a
+  decent desktop core), x4 = my laptop on a normal day with a dozen tabs, x6 = my laptop when it's hot
+  and the tabs are busy. Network: DevTools "Fast 3G" (562 ms RTT, 1.44 Mbps down, 675 kbps up) for the
+  slow-connection runs.
+- WHAT THE LOCAL SERVER FLATTERS: the server is on the same machine, so every RPC and engine call costs
+  ~0 ms of distance (real Supabase from Europe/US is 40-150 ms per round trip, more on my connection).
+  It serves files UNCOMPRESSED and over HTTP/1.1; GitHub Pages gzips text and speaks HTTP/2, so I give
+  both "bytes on the wire here" and "gzip estimate" for text files. Images don't compress, so the PNG
+  numbers are real. Every "server ms" number below is a floor, not a forecast.
+- WHAT THE SANDBOX PUNISHES: there is no GPU here. Canvas drawing is done in software on the CPU, which
+  is pessimistic next to even a weak integrated GPU. So I trust main-thread task time and long tasks
+  more than fps, and I say which is which.
+- Instruments: Long Tasks + Long Animation Frames observers (with script attribution), rAF frame
+  times, Chrome's Performance metrics (JS heap, DOM nodes, listeners, task time), a sampling CPU
+  profile for "what is on the main thread", and a byte counter on the local server's sockets (catches
+  everything, the service worker and the push socket included).
+
+────────────────────────────────────────────────────────────────────────────────────────────
+1. COLD FIRST LOAD -> SIGN-IN SCREEN
+────────────────────────────────────────────────────────────────────────────────────────────
+What I did: opened play.html in a brand-new browser profile (empty cache) and waited for the sign-in box.
+
+How it felt: on a normal line it's quick. The logo and the box appear together, nothing jumps around.
+On my slow line it's a black screen. No logo, no "loading", no progress, nothing: a flat near-black
+page (rgb 10,11,14) until the whole game has arrived, then the sign-in box pops in. At the 8-second mark
+I took a picture: 100% black. I would have hit refresh at least once, which restarts it.
+
+Numbers (time to sign-in box visible / first paint / long tasks before it):
+  CPU x1, local net ......  1.1 s / FCP 1.04 s / 2 long tasks, worst 56 ms, 109 ms total
+  CPU x4, local net ......  2.2 s / FCP 1.72 s / 3 long tasks, worst 261 ms, 522 ms total
+  CPU x6, local net ......  2.8 s / FCP 2.41 s / 5 long tasks, worst 331 ms, 821 ms total
+  CPU x1, Fast 3G ........ 40.2 s / FCP 39.7 s  (nothing painted before the box)
+  CPU x4, Fast 3G ........ 40.0 s / FCP 40.0 s  (network-bound; the CPU hardly matters here)
+What it downloads before the sign-in box: 359 requests, 4.19 MB on the wire here.
+  346 JavaScript modules = 3.96 MB raw (~1.39 MB gzipped), 8 stylesheets 240 KB (~65 KB gz),
+  play.html 27 KB, the 273 KB logo PNG. The whole game's code, its data tables (monsters.js 73 KB,
+  items.js 67 KB, hunt-tutorial.js 81 KB, item-descriptions.js 45 KB, hunt-grounds.js 44 KB, the
+  crafting simulator, the hunt engine) are all fetched to show an email box and a password box.
+Main thread before the box at x4: 1.46 s of task time, 303 ms of it script compile/run.
+Caveat that FLATTERS the slow-line number in your favour on Pages, and one that hurts it here: this
+  local server is HTTP/1.1 with no gzip, so 359 requests queue 6 at a time behind a 562 ms RTT. The
+  import graph is FLAT (343 of 359 requests are started straight from play.html, max chain depth 3),
+  which is genuinely good: on Pages (HTTP/2 + gzip) this load is bandwidth-bound, about 1.5 MB, so my
+  estimate for Fast 3G there is ~9-12 s of black screen, not 40. Still 9-12 s of black.
+Fix value: a painted shell (logo + "Loading Hearthrise..." + a bar) in play.html costs nothing and
+  turns the black wait into a wait I believe in. Loading only the sign-in screen's code first and the
+  rest while I type would cut the pre-sign-in download from ~1.5 MB gz to a few hundred KB (-70-80%,
+  ~7-9 s saved on Fast 3G).
+
+────────────────────────────────────────────────────────────────────────────────────────────
+2. SIGN-IN -> HERO LIST   and   3. HERO LIST -> TOWN
+────────────────────────────────────────────────────────────────────────────────────────────
+What I did: made an account on the real screens, signed in, made a hero, entered town. Later, with the
+hero existing, pressed Play from the hero list.
+
+How it felt: sign-in is instant locally and ~5 s on the slow line, but it says "Reading your
+characters..." under the logo the whole time, so I trusted it. Creating the hero and walking into town
+on the slow line was the second long stare: 13.5-15.4 s of "Loading the world..." in an empty frame,
+with my hero's name already in the top bar and no progress at all. Locally it's quick and smooth. Once a
+hero is open, the hero list shows "Show" instead of "Play" and hopping back is instant.
+
+Numbers:
+                        sign-in->list   create hero->town   long tasks in town entry (count/worst/total)
+  CPU x1, local .......     0.25 s          0.57 s           1 / 59 ms / 59 ms
+  CPU x4, local .......     0.33 s          1.52 s           5 / 207 ms / 510 ms
+  CPU x6, local .......     0.46 s          1.86 s          40 / 420 ms / 2865 ms (!)
+  CPU x1, Fast 3G .....     4.9 s          13.5 s
+  CPU x4, Fast 3G .....     4.9 s          14.7 s
+  Existing hero, hero list -> Play -> town: 0.44 s at x1 (1 long task 92 ms, world-boot.js).
+What downloads right after sign-in (before I've even picked a hero): 18 more files, 3.22 MB:
+  EVERY world atlas at once: atlas-havora.png 1227 KB, atlas-common.png 573 KB, atlas-hunt.png 547 KB,
+  atlas-mill.png 68 KB, cottage 54 KB, sewer 46 KB, + 11 atlas .json (~430 KB raw, ~45 KB gz), and
+  glyphs.js 249 KB. A brand-new level-1 hero standing in town downloads the hunt, sewer and mill atlases
+  it won't need for a while. Total by the time I'm standing in town: 407 requests, 7.6 MB here
+  (~4.3 MB gzipped-equivalent: 1.5 MB code + 2.9 MB PNG that can't compress further).
+Town on arrival: JS heap 11-12.5 MB, 794 DOM elements (1.5-1.8k nodes incl. text), 128 listeners.
+Fix value: atlases on demand (town's two first, hunt atlases when I open Hunts) saves ~0.7 MB before
+  town = ~4 s on Fast 3G; the 1.2 MB havora atlas is the single biggest file in the game and would
+  likely be ~40-60% smaller as an indexed-palette PNG or lossless WebP (pixel art compresses well).
+
+────────────────────────────────────────────────────────────────────────────────────────────
+4. RELOAD, CACHED SECOND LOAD, AND WHAT DOWNLOADS AFTER AN UPDATE
+────────────────────────────────────────────────────────────────────────────────────────────
+What I did: reloaded while in town (it brings me straight back into town, signed in, same hero -
+good). Then, because the local server sends "no-store" and there's no service worker (only a kill
+switch script), I made the local server answer like GitHub Pages (max-age=600 + Last-Modified/304) from
+my scratch harness, in a context with Playwright routing off (routing disables the HTTP cache), and
+measured: first visit, reload, and a reload right after a simulated release (every ?v= string and the
+build version bumped, nothing else changed).
+
+How it felt: the reload is quick and lands me where I was. The update is a second cold start.
+
+Numbers (reload -> standing in town, local net):
+  reload, CPU x1 ......... 1.8 s     reload, CPU x4 ......... 3.5 s     reload, CPU x6 ......... 4.9 s
+  Cached reload (Pages-like headers): 400 requests, 384 from cache, 16 over the network, 42 KB (all
+    API). Excellent - a warm visit costs almost nothing.
+  After a release: 389 of 400 files re-downloaded, 7.46 MB (~4.3 MB gz-equivalent). Only 11 small
+    unversioned UI PNGs stayed cached. Every atlas (2.9 MB of unchanged pixels), the vendored
+    supabase-js-2.103.0 (183 KB, already versioned in its own file name), the logo, glyphs.js: all of
+    it comes again. On Fast 3G that's ~25 s of download per patch, and you ship patches daily.
+  "Came back after 10 minutes" (cache stale, simulated with max-age=0): 395 requests, 368 of them 304
+    Not Modified, 110 KB total. On HTTP/2 that's a couple of round trips, cheap in bytes. Fine.
+Fix value: version each file by its own content hash (or only bump what changed) - saves ~7 MB raw /
+  ~4 MB gz per release for a returning player, i.e. ~95% of the post-update download when only code
+  changed, and all 2.9 MB of atlases when art didn't change.
+
+────────────────────────────────────────────────────────────────────────────────────────────
+5. STANDING IN TOWN, AND WALKING THROUGH IT
+────────────────────────────────────────────────────────────────────────────────────────────
+What I did: stood still in Havora with the mouse resting, then clicked around to walk.
+
+How it felt: at x1 it's a calm, pretty scene. At x4 (my laptop) standing still already feels heavy:
+the fan would be on and the other tabs would get sluggish, and walking is visibly choppy, about 25 fps
+with hitches when the camera pans. At x6 walking is a slideshow (14-23 fps, hitches of 120-170 ms).
+The worst part is that NOTHING is happening on screen while it works this hard.
+
+Numbers, standing still (12 s windows, one hero):
+            fps    frame p50/p95/max     frames>50ms  long tasks (worst)   main thread busy
+  x1 ...... 60     16.7 / 16.7 / 33          0          0                  37%
+  x4 ...... 31     33 / 50 / 83              7          2 (58 ms)          99%
+  x6 ...... 18     50 / 67 / 100            90        115 (91 ms; 6.4 s of long tasks in 12 s)  99%
+  During one accidental 3-minute stay in town at x4 the main thread was busy 129 s out of 180 s.
+  The picture: the repo's own pane-probe saw the town image change in 1% of samples; one still span of
+  9.9 s out of 10. So the game repaints an unchanging picture 60 times a second.
+  What's on the main thread (CPU profile, x4, 8.6 s): drawImage 49.8%, native raster "(program)" 39.5%,
+  canvas-backend.js 2.9%, world-boot.js 1.1%. Long-animation-frame attribution: world-boot.js frame()
+  (rAF), then shell.js patchComponents (a setInterval), then town-presence.js (setInterval).
+  Why it costs so much: each frame blits 3.18 million pixels = 3.6x the 1350x655 canvas. 7 big blits a
+  frame: four 512x512 ground chunks composed into a 740x393 buffer, two full copies of that buffer, then
+  the buffer scaled onto the screen canvas. 29-48 drawImage calls a frame in total. No smoothing (good,
+  crisp pixels).
+  Server traffic standing still: one hero alone, 30-50 requests/min (hr_town_view every ~2 s), ~20 KB/min.
+  With my two heroes and two friends in town: 125 requests/min (hr_town_view 90/min, hr_town_move
+  18/min), 59 KB down and 158 KB UP per minute (every request carries the ~1 KB auth token).
+Numbers, walking (two 5 s walks per rate):
+  x1 ...... 48-51 fps, p95 33 ms, max 50, 0 long tasks, busy 54%
+  x4 ...... 23-27 fps, p95 67 ms, max 100, 49 frames>50 ms in 10 s, 42 long tasks (worst 107), busy 96%
+  x6 ...... 14-23 fps, p95 67-117 ms, max 167, 78 long tasks (worst 139), busy 97%
+  Profile while walking at x4: drawImage 49.7%, raster 36.1%, all of the game's own JS < 5%.
+  hr_town_move ~1/s and hr_town_view ~1.5/s while walking.
+Software-rendering caveat: this sandbox has no GPU, so every blit is CPU work. On a laptop where Chrome
+  gives the canvas the integrated GPU, much of the drawImage cost leaves the main thread, but the GPU
+  then does the same 190 million pixels a second, which is exactly what spins my fan and drains my
+  battery. And Chrome blocklists plenty of old Intel drivers, which puts those laptops on this exact
+  software path.
+Fix value: only redraw when something changed (or cap a still town at ~10 fps), and keep the composed
+  ground buffer until the camera moves. Standing in town would drop from 37% to a few % of one core at
+  x1, from 99% to maybe 10-20% at x4. This is the single biggest "be kind to my machine" win.
+
+────────────────────────────────────────────────────────────────────────────────────────────
+6. OPENING EACH WINDOW (bag, Shop, Hunts, Character, Storage, Work, Farm + House, Party)
+────────────────────────────────────────────────────────────────────────────────────────────
+What I did: clicked each launcher in town, waited until the window showed its content, closed it. Three
+times each (x1, x4, x6). "Work" is the launcher titled "Gathering and crafting (G)".
+
+How it felt: snappy at x1, a beat late at x4 (half a second), sluggish at x6 (most near a second). No
+window ever froze, nothing jumped. The windows themselves are cheap; the town drawing behind them is
+what slows them down.
+
+Numbers, click -> window visible with content (ms), x1 / x4 / x6, and long tasks at x6:
+  Hunts .............  95 /  635 /  840   (22 long tasks, worst 108 ms)
+  Bag ............... 119 /  540 /  897   (25, worst 116) - first open also fetched 12 item icons
+  Shop .............. 119 /  477 /  950   (20, worst 127) - first open fetched 17 icons
+  Character ......... 201 /  533 /  857   (23, worst 97)  - fires an hr-accrue call each time (14 KB)
+  Storage ...........  74 /  429 /  891   (24, worst 119)
+  Work (G) .......... 108 /  470 /  769   (14, worst 74)
+  Farm ..............  83 /  531 /  738   (16, worst 69)
+  House .............  64 /  545 /  712   (7, worst 67)
+  Party .............  55 /  491 /  886   (25, worst 102)
+  The click handler itself (shell.js onClick) is only 33-59 ms at x4; the rest is world frames.
+  Memory: every window type is built once and kept (DOM nodes went 1.4k -> 10k after opening all nine,
+  JS heap 11.1 MB after GC), then 40 more open/close cycles added exactly zero nodes. Bounded, no leak.
+Fix value: mostly comes free with the town redraw fix above (x4 opens would land ~200 ms instead of
+  ~500). Character could reuse the envelope it already has instead of calling the engine.
+
+────────────────────────────────────────────────────────────────────────────────────────────
+7. ENTERING A HUNT, AND LEAVING ONE
+────────────────────────────────────────────────────────────────────────────────────────────
+What I did: Hunts -> Mill Cellar -> density all the way up -> Enter. Later left and re-entered at
+each CPU rate.
+
+How it felt: entering is quick and lively at x1; the hero walks in and rats pour in. At x4 there's a
+one-second stutter as the hunt arrives; at x6 two seconds of chop. Leaving shows "Leaving in 30s" and
+keeps fighting until the countdown ends - that's a design choice and it says so clearly, not a lag.
+Density control: "Each pull 2 packs of 2 to 3 ... - As built +". The first "+" from "As built" goes
+DOWN to "1 each" before climbing to 8 each. Odd for a "+" button (not a perf issue).
+
+Numbers, Enter -> hunt view up:
+  x1 ...... 279 ms first time, 197 ms re-entering (0-1 long task)
+  x4 ...... 1113 ms, 9 long tasks, worst 131 ms; worst frame 170 ms of which session/server.js 131 ms
+  x6 ...... 1868 ms, 49 long tasks (3.7 s), worst 196 ms; worst frame 253 ms, server.js 189 ms of it
+  Party of 4, leader presses Enter, x1: 431 ms.
+  Leave -> summary: 24-26 s at every rate (the designed 30 s countdown).
+Fix value: whatever server.js does when the hunt envelope lands (131 ms at x4) is the one bit of the
+  game's own JS that shows up as a big single task; splitting that apply over a couple of frames would
+  remove the visible hitch on entry.
+
+────────────────────────────────────────────────────────────────────────────────────────────
+8. HUNT RUNNING SOLO AT MAX DENSITY (2 packs of 8, Mill Cellar, level 1-4 hero)
+────────────────────────────────────────────────────────────────────────────────────────────
+What I did: let it run and watched, then measured.
+
+How it felt: at x1 lovely and smooth. At x4 it plays at ~30 fps with small hitches every few seconds -
+watchable, but my fan would be roaring. At x6 it's 16 fps with 100-150 ms freezes; I'd minimise it.
+Honestly it costs about the same as standing in an empty town, which tells me the fight itself isn't
+the problem.
+
+Numbers (12 s windows):
+            fps    frame p50/p95/p99/max        frames>50  long tasks (worst)               busy
+  x1 ...... 60     16.7 / 16.7 / 16.8 / 33          0       0                                 40%
+  x4 ...... 33     33 / 50 / 67 / 100              19       7 (77 ms)                         99%
+  x6 ...... 16     50 / 100 / 133 / 150           103     102 (110 ms; 6.9 s of 12 s)         99%
+  Profile x4: native raster 48.8%, drawImage 32.6%, canvas-backend.js 3.2%, world-boot.js 1.7%,
+  hunt-sections.js 1.2%, hunt-view/scene.js 0.7%. 50 drawImage calls a frame.
+  LoAF attribution over the window: world-boot.js frame() 3.7 s, shell.js patchComponents (setInterval)
+  1.06 s, session/server.js Response.json 0.2 s. ~63 style recalculations a second all session long.
+  JS heap 15.9-17.7 MB, DOM nodes ~10.7k (the kept windows), 124 listeners.
+Network in this hunt: ~10 requests/min, 123 KB/min down here. hr-accrue 4 calls/min at 28-34 KB raw,
+  6.7-6.9 KB gzipped each (~1.6 MB/hour gzipped while watching). Each reply carries the whole character
+  (home rooms, bestiary, collection...) even when it says {"accrued":false,"reason":"below_min_span"}.
+  Plus a build-info.js check once a minute (1.4 KB), social/online pings every 10 s.
+Fix value: the engine replies could be deltas or a "nothing changed" since version N: ~80-90% fewer
+  bytes and less JSON to parse on my CPU. patchComponents on a timer could run only when something it
+  shows changed.
+
+────────────────────────────────────────────────────────────────────────────────────────────
+9. PARTY OF FOUR AT MAX DENSITY
+────────────────────────────────────────────────────────────────────────────────────────────
+What I did: a fresh account gets two hero slots (the third costs 15,000 gold, an account holds up to
+five), so "four of my own" isn't reachable for a new player. I partied my two heroes (right-click my
+other hero's tab -> Invite to party: instant, nice) and invited two friends' heroes from chat (right-
+click name -> Invite). Then I froze the friends' browser tabs so only my tab loaded the machine, and
+the leader took all four into the Mill Cellar at 2 packs of 8.
+In this local world the friends' invites only appeared after THEY reloaded (the invite rows were on
+the server within a second; the Invites tab said "No invites right now" for 30+ s until reload). The
+local world only shims the push channel, so please check this on live before believing it.
+
+How it felt: four knights and a full pull at x1 is still smooth. At x4 it's ~35 fps with a few
+160-200 ms hitches; at x6 ~24 fps and choppy. Caveat: four heroes kill a pull of 16 fast and the next
+one is "back in 32 s", so in a party the screen is often four knights and two or three monsters; my
+15 s windows mix full pulls and lulls. The solo hunt kept more monsters on screen for longer.
+
+Numbers (15 s windows):
+            fps    frame p50/p95/p99/max        frames>50  long tasks (worst)               busy
+  x1 ...... 58     16.7 / 16.8 / 33 / 50            0       0                                 48%
+  x4 ...... 37     16.7 / 50 / 83 / 200            18      23 (161 ms; 1.45 s)                97%
+  x6 ...... 24     33 / 83 / 117 / 150             78      78 (123 ms; 4.8 s of 15 s)         98%
+  Profile x4: drawImage 41.7%, raster 39.5%, canvas-backend.js overlay() 2.1%.
+  JS heap 18-23 MB, DOM nodes 13.7k, listeners 163. 53 drawImage + 15 fillRect a frame.
+Network (one minute, my two heroes in the party): 37 requests, 759 KB down here:
+  hr-accrue 17 calls/min, 549 KB raw / ~108 KB gzipped; push socket 8 frames, 134 KB; social/online
+  pings 6/min each; client-state saves 4/min. ~6.5 MB/hour gzipped + push, for watching one hunt.
+
+────────────────────────────────────────────────────────────────────────────────────────────
+10. HOPPING BETWEEN HEROES
+────────────────────────────────────────────────────────────────────────────────────────────
+What I did: clicked between my two hero tabs in the top bar, both in the same party hunt.
+
+How it felt: x1 instant enough (a quarter second). x4 a noticeable 0.6 s with a hitch. x6 a full
+second. It's the kind of thing I'd do a lot in an idle game, so it should feel instant.
+
+Numbers, click -> tab shown and two frames painted:
+  x1 ...... 239-319 ms, 0 long tasks
+  x4 ...... 613-675 ms, 4-5 long tasks, worst 101 ms
+  x6 ...... 826-1042 ms, 6-14 long tasks, worst 208 ms
+  Worst frame each time is world/atlas.js resolving a promise (67-208 ms): the atlas work redone on a
+  hop. Over 14 s of hopping at x4 the profile also shows forced layout reads (get clientWidth, 438 ms)
+  and one 347 ms world frame. Each hop re-fetches chat (hr_chat_recent x2) and one engine reply
+  (~45 KB raw).
+Fix value: keep each hero's prepared atlas/scene and its chat when hopping; a hop should cost one frame
+  (~0.5 s saved per hop at x4).
+
+────────────────────────────────────────────────────────────────────────────────────────────
+11. TAB AWAY AND BACK
+────────────────────────────────────────────────────────────────────────────────────────────
+What I did: during the party hunt, switched to another tab for 90-120 s, then came back. Headless
+Chrome keeps every tab "visible", so for a fair test I also fired a real visibilitychange to "hidden"
+so the game's own away/return code ran.
+
+How it felt: coming back is good: the picture is moving again within a frame, a couple of seconds of
+chop at x4 and then normal. What bothers me is what it does while I'm NOT looking.
+
+Numbers:
+  Away 120 s (hidden), x4: the tab still made 64 server calls (24 hr-accrue, 12 social, 12 online,
+    7 client-state saves) and pulled 1.45 MB (~0.7 MB/min raw), 7 s of script in those 2 minutes,
+    ~10% of my main thread, all for a hunt the server is running anyway.
+  Away 90 s with the headless "visible" quirk, x1: 45 calls, 1.0 MB - the same.
+  Back, x4: picture moving in 27 ms; first 5 s at 27 fps, 12 long tasks (836 ms), worst 109 ms
+    (a world frame; net/diagnostics.js beat() in there too).
+  Back, x1: moving in 13 ms, 55 fps, no long tasks.
+  Real Chrome slows hidden-tab timers (to 1/s, and after 5 minutes to about once a minute), so a long
+  absence costs less than this; the first 5 minutes cost exactly this. I couldn't test Firefox here.
+Fix value: when hidden, stop polling (or one slow heartbeat a minute) and catch up once on return:
+  ~95% of background traffic and nearly all background CPU, which matters with a dozen tabs open.
+
+────────────────────────────────────────────────────────────────────────────────────────────
+12. RELOAD IN THE MIDDLE OF A HUNT
+────────────────────────────────────────────────────────────────────────────────────────────
+What I did: F5 during the party hunt.
+
+How it felt: it comes back to the same hunt with both heroes, no fuss. Slow at x6.
+
+Numbers, reload -> hunt view with Leave button and canvas up (local, cache off):
+  x1 ...... 2.7 s (0 long tasks)     x4 ...... 4.4 s (4 long tasks, worst 62)     x6 ...... 8.2 s (17
+  long tasks, 1.2 s, worst 139). Both heroes back "Hunting in Mill Cellar".
+
+────────────────────────────────────────────────────────────────────────────────────────────
+13. THE LONG SESSION (36 minutes real time, memory sampled every minute)
+────────────────────────────────────────────────────────────────────────────────────────────
+What I did: fresh world and account, my two heroes partied, Mill Cellar at 2 packs of 8, watching
+Toaster, CPU x1, the world tick firing every 10 s. Like a real player I poked at it: every 5 minutes
+opened bag, Hunts and Character; minute 12 hopped to Kettle, minute 13 back; minutes 18-20 tab hidden.
+Forced-GC checkpoints at 0/10/20/30/36. The hunt never ended (supplies held), no console errors.
+
+How it felt (x1): steady the whole time, 60 fps every single minute. Nothing got visibly worse.
+
+Numbers:
+  main thread busy ..... 38, 41, 40, 42, 43% (minutes 1-5) -> 44, 43, 44, 44, 45% (minutes 32-36)
+                         script share 22% -> 26%. A slow creep of ~6 points over 36 minutes.
+  frames ............... 60 fps, p95 16.8 ms in every minute. 12 long tasks in 36 min, worst 170 ms.
+  JS heap after GC ..... 12.4 MB (0) -> 14.9 (10) -> 15.5 (20) -> 17.1 (30) -> 16.7 MB (36);
+                         sawtooth 15-26 MB between collections. Flattening, not runaway.
+  DOM nodes after GC ... 2.8k (0) -> 5.0k (10) -> 9.3k (20) -> 11.4k (30) -> 12.4k (36), while the
+                         live page held ~1.2k elements. It rose in steps: +850-1,100 at each 5-minute
+                         window round, +1,200 and +2,000 at the two hops, +50-150 a minute otherwise.
+  listeners ............ 166 -> 201 -> 236 at the two hops (+35 each), then flat.
+  network .............. median 12 requests/min, 234 KB/min raw from the server (hr-accrue 5/min) +
+                         45 KB/min of push frames; 8.8 MB raw in 36 min (~14.7 MB/hour raw,
+                         ~3-4 MB/hour gzipped).
+  hidden (min 18-19) ... 2% busy (Chrome stopped painting), but 13-14 requests and 274-311 KB per
+                         minute: the polling did not slow down at all.
+  engine call time ..... 116 ms average in minute 1 -> 146-177 ms in minutes 30-36 (+35%), server side.
+                         Could be the local database; worth watching on live.
+
+────────────────────────────────────────────────────────────────────────────────────────────
+14. DOES IT LEAK OVER A LONG SESSION?
+────────────────────────────────────────────────────────────────────────────────────────────
+With time alone: no. 60 idle seconds in a hunt added 3 DOM nodes; the GC'd heap grew 4.3 MB in 36
+minutes and levelled off (17.1 MB at 30 min, 16.7 at 36). Task time crept up ~6 points.
+
+With actions, inside a hunt: YES. Straight after the long session, on the same page, after forced GC:
+  10x open/close the bag in a hunt ......... +5,372 DOM nodes  (~537 per open), listeners unchanged
+  10x open/close Character in a hunt ....... +2,791 DOM nodes  (~279 per open)
+  10x hop between my two heroes ............ +10,807 DOM nodes (~1,080 per hop) and +350 listeners
+                                             (+35 per hop)
+  The live document stayed at ~1,200 elements the whole time; the rest is detached DOM that something
+  still holds. In town (earlier world) 40 window opens added exactly 0 nodes, so it's something
+  hunt-only: the views that draw the hunt for the hero on screen, rebuilt and never let go.
+  An evening of 200 hops and 200 bag opens would leave ~320,000 orphaned nodes and ~7,000 listeners.
+  That's the kind of memory that pushes my 8 GB laptop into swap and makes GC pauses show up as
+  hitches after a couple of hours.
+
+────────────────────────────────────────────────────────────────────────────────────────────
+15. TOP TEN THINGS SLOWING THIS GAME FOR A REAL PLAYER (ranked for my laptop)
+────────────────────────────────────────────────────────────────────────────────────────────
+ 1. The world repaints a still picture 60 times a second. Town standing still: 37% of the main thread
+    at x1, 99% at x4 (31 fps), 99% at x6 (18 fps, 115 long tasks in 12 s); the picture changed in 1%
+    of samples. Fix: draw only on change / low idle frame rate. Saves ~30 points of a core at x1 and
+    ~80 points at x4 while idle; fan off, other tabs usable.
+ 2. Every frame rebuilds the whole ground: 3.18 M pixels blitted per frame, 3.6x the canvas (four 512x512
+    chunks -> 740x393 buffer, two buffer copies, scale to screen). drawImage + raster = 80-90% of every
+    profile; the game's own JS < 5%. Hunt at x4 33 fps p95 50 ms, x6 16 fps p95 100 ms; walking x4
+    23-27 fps. Fix: keep the composed ground until the camera moves, draw sprites over it: roughly
+    -60% pixels per frame (my estimate: x4 hunts near 50-60 fps).
+ 3. Detached DOM leaks per action in hunts: ~1,080 nodes + 35 listeners per hero hop, ~537 nodes per bag
+    open, ~279 per Character open, never freed. Fix: let the old views go. Saves all of that growth
+    (~320k nodes in a heavy evening).
+ 4. Black screen on a slow first visit: 346 JS modules (3.96 MB raw / ~1.39 MB gz) load before the sign-in
+    box, nothing is painted until then: 40 s here (HTTP/1.1), ~9-12 s estimated on Pages over Fast 3G.
+    Fix: paint a shell in play.html and load the game behind sign-in: ~1 MB gz / ~6-8 s less before
+    I can type, and something on screen in ~1 s.
+ 5. Every release re-downloads the whole game: 389 of 400 files, 7.46 MB raw (~4.3 MB gz), including
+    2.9 MB of unchanged atlases. ~25 s per patch on Fast 3G. Fix: per-file content hashes: ~4 MB saved
+    per patch when only code changed.
+ 6. A hidden tab keeps working at full rate: 64 calls and 1.45 MB in 2 minutes hidden, ~10% of my main
+    thread at x4; in the long session 13-14 requests and ~290 KB a minute while hidden. Fix: pause polls
+    when hidden, one catch-up on return: ~95% of background traffic and CPU.
+ 7. Every world atlas downloads at sign-in (2.9 MB PNG: havora 1.2 MB, common 573 KB, hunt 547 KB...),
+    so "Loading the world..." sits for 13.5-15.4 s on Fast 3G for a brand-new hero. Fix: load per area,
+    recompress pixel-art PNGs: maybe 1-1.5 MB and 5-8 s less on a slow line.
+ 8. Every engine reply is the full character (28-50 KB raw, ~6.7 KB gz), even "accrued:false,
+    below_min_span": 4-5/min solo, 17/min in a party of four (549 KB/min raw). Parsed and applied on my
+    main thread each time. Fix: deltas or "unchanged since version N": ~80-90% fewer bytes and less JSON.
+ 9. Town presence polling: hr_town_view every ~2 s standing still, ~0.7 s walking; 125 requests/min with
+    two heroes and two friends nearby, 158 KB/min of upload (headers). On a 560 ms line these queue. Fix:
+    push presence or poll slower when nothing moves: most of those requests.
+10. Main-thread spikes on hops and hunt entry: hop 0.6 s at x4 / 1.0 s at x6 (atlas.js 101-208 ms
+    tasks, forced clientWidth layouts); Enter 1.1 s at x4 / 1.9 s at x6 (session/server.js 131-189 ms
+    applying the hunt). Plus shell.js patchComponents on a timer (~3% of a hunt) and ~63 style
+    recalculations a second. Fix: cache per-hero scenes, split big applies: ~0.5 s per hop at x4.
+
+────────────────────────────────────────────────────────────────────────────────────────────
+16. WHAT'S ALREADY GOOD
+────────────────────────────────────────────────────────────────────────────────────────────
+- The game's own JavaScript is lean: under 5% of the main thread in every profile I took; window click
+  handlers 33-59 ms even at x4. The cost is pixels, not logic.
+- The import graph is flat (max depth 3), so a slow line isn't also a waterfall.
+- A warm revisit costs 42 KB with ordinary cache headers, and reload puts me back exactly where I was
+  (town, or the same hunt with both heroes): 1.8 s x1, 3.5 s x4.
+- In town, windows are built once and reused: 40 open/close cycles, zero new nodes. JS heap stays small
+  (11-23 MB) for everything on screen.
+- No console errors in any page I checked (every cold load, the friends' tabs, the 36-minute
+  session); nothing ever tried to leave the machine.
+- Coming back to the tab is instant: picture moving within 13-27 ms.
+- Hunts genuinely run on the server: with the tab hidden my CPU dropped to 2% and the hunt kept going.
+- Bandwidth for watching a solo hunt is modest: ~1.6 MB/hour gzipped.
+- Loading messages where it matters ("Reading your characters...", "Loading the world...").
+- Crisp pixels (no smoothing anywhere), no layout jumps, the name-taken message is clear.
+
+────────────────────────────────────────────────────────────────────────────────────────────
+17. WOULD MY LAPTOP'S OWNER KEEP PLAYING?
+────────────────────────────────────────────────────────────────────────────────────────────
+Yes, but only in short visits with the tab closed in between, which is backwards for a semi-idle game
+whose promise is "leave it open and watch". On my laptop the town alone pins a core (99% at x4) and
+keeps the fan going while nothing on screen moves, and the dozen other tabs would crawl. On a hot day
+(x6) hunts run at 16-24 fps with 100-200 ms freezes, so I'd stop watching. What keeps me: the server
+keeps hunting when I close the tab, the first load on a decent line is quick, and the loop is good. I'd
+tell friends with old laptops "play it, but don't leave it open", and that's the sentence you don't
+want in a review of an idle game.
+
+THE ONE THING I'D TELL THE DEVS: stop painting when nothing changed. The canvas redraws an identical
+town 60 times a second (37% of a fast core, all of mine). Draw on change, or at a low idle frame rate,
+and you fix the fan, the battery, the other tabs and most of the x4/x6 choppiness in one change.
+
+SCORES
+  Load ......... 6/10  quick on a good line (1.1 s to sign-in, 0.6 s into town) and an excellent warm
+                       revisit, but 9-12 s of black on a slow line (40 s here), 15 s of "Loading the
+                       world", and a full 7.5 MB re-download every patch.
+  Smoothness ... 5/10  60 fps everywhere at x1; ~30 fps with 50-100 ms hitches at x4; 16-24 fps with
+                       100-200 ms freezes at x6; hops and hunt entry take 0.6-1.9 s on my machine.
+  Restraint .... 3/10  100% of my main thread to show a still picture, 3.6x overdraw, full-rate polling
+                       while hidden, 125 requests a minute standing in town with company, and DOM that
+                       leaks with every hop and bag open in a hunt.
+
+────────────────────────────────────────────────────────────────────────────────────────────
+OTHER THINGS I NOTICED (not performance)
+────────────────────────────────────────────────────────────────────────────────────────────
+- Density "+" from "As built (2 to 3)" first goes DOWN to "1 each", then climbs to 8.
+- Right-click a hero tab -> "Invite to party": the menu stays open after the action ("Kettle joined
+  your party." shows inside it) until I click elsewhere.
+- Friends' party invites appeared only after the friend reloaded (local world; push is only shimmed
+  here, so check on live).
+- A brand-new account can't make "a party of four of my own heroes": two slots, then 15,000 gold each.
+- Firefox: not available in this sandbox, so not measured. Worth one run there before the beta, since
+  its canvas path differs.

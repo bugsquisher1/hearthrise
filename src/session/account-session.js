@@ -74,7 +74,7 @@ export function tabSessionId(tab, cfg = SESSION_CONFIG, make) {
 
 /** What a tab store says this tab had open for login `uid`: { slots, viewed }, at most the tab's ceiling of slots
     in the server's range with the shown one among them, or null (a fresh tab, another login, a malformed copy). Pure. */
-export function openOf(tab, uid, cfg = SESSION_CONFIG) {
+function openOf(tab, uid, cfg = SESSION_CONFIG) {
   let v = null;
   try { v = tab && uid ? JSON.parse(tab.get(cfg.openKey) || 'null') : null; } catch (e) { return null; }
   if (!v || typeof v !== 'object' || v.uid !== uid || !Array.isArray(v.slots)) return null;

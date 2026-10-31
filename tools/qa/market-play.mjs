@@ -244,9 +244,22 @@ async function main() {
     await openMarket(phone);
     const phoneRow = WIN + ' .hw-mk-browse .hw-mk-row[data-item="' + item + '"]';
     await phone.page.waitForSelector(phoneRow);
+    await phone.page.waitForTimeout(400);   // the sheet's slide-in ends
+    /* Nothing runs past the sheet's edge on any pane: GitHub's fonts are wider than this machine's. */
+    const past = async (where) => {
+      const bad = await phone.page.evaluate((w) => {
+        const edge = document.querySelector(w).getBoundingClientRect().right;
+        /* A row that scrolls sideways on purpose (the phone's category chips) is not running past anything. */
+        const scrolls = (e) => { for (let p = e.parentElement; p && p !== document.body; p = p.parentElement) { if (/auto|scroll/.test(getComputedStyle(p).overflowX)) return true; } return false; };
+        return Array.from(document.querySelectorAll(w + ' *')).filter((e) => e.getClientRects().length && e.getBoundingClientRect().width > 0 && e.getBoundingClientRect().right > edge + 1 && !scrolls(e)).map((e) => e.className || e.tagName).slice(0, 6);
+      }, WIN);
+      step('on the phone nothing runs past the sheet: ' + where, bad.length === 0, bad.join(' | '));
+    };
+    await past('Browse');
     await phone.shot('browse');
     await phone.page.click(phoneRow);
     await phone.page.waitForFunction((w) => /Buy \d/.test(document.querySelector(w + ' [data-hs-act="mk-buy"]')?.textContent || ''), WIN, { timeout: 60000 });
+    await past('the item page');
     await phone.shot('item-page');
     const reach = await phone.page.$eval(WIN + ' [data-hs-act="mk-buy"]', (b) => { const r = b.getBoundingClientRect(); return r.bottom <= window.innerHeight && r.top >= 0; });
     step('on the phone the press is on screen without scrolling', reach, 'off screen');
@@ -258,6 +271,7 @@ async function main() {
     if (first) {
       await first.click();
       await phone.page.waitForSelector(WIN + ' .hw-mk-sheet.is-on');
+      await past('the sell sheet');
       await phone.shot('sell-sheet');
       const reachList = await phone.page.$eval(WIN + ' [data-hs-act="ms-list"]', (b) => { const r = b.getBoundingClientRect(); return r.bottom <= window.innerHeight && r.top >= 0; });
       step('on the phone List is on screen without scrolling', reachList, 'off screen');
@@ -265,9 +279,12 @@ async function main() {
       step('the phone sheet does not overflow sideways', box.over === false, JSON.stringify(box));
       await phone.page.click(WIN + ' .hw-mk-sell [data-hs-act="ms-back"]');
     }
+    await past('Sell');
     await tab(phone, 'mine');
+    await past('My listings');
     await phone.shot('mine');
     await tab(phone, 'history');
+    await past('History');
     await phone.shot('history');
     const tiny = await phone.page.evaluate(() => {
       const bad = [];

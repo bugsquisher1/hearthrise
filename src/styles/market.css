@@ -98,6 +98,10 @@
   .hw-mk-greet > span { display: none; }
   .hw-mk-greet { justify-content: flex-end; margin-bottom: 2px; }
   .hw-mk .hw-tab { padding: 4px 6px; white-space: nowrap; }
+  /* The toolbar on a wider font: the search gives way, the sort keeps its select and drops its word. */
+  .hw-mk .hw-search { flex: 1 1 0; min-width: 0; }
+  .hw-mk .hw-sort { flex: none; }
+  .hw-mk .hw-sort > span { display: none; }
   .hw-mk .is-paged .hw-mk-kept { display: none; }
   /* A SHORT SCREEN CANNOT SPARE A FOOT: the whole page scrolls as one, and only the press stays pinned at the bottom
      of the sheet, always in reach (QA 10-24: Equip sat a scroll away). The 30-day line waits for a bigger screen. */

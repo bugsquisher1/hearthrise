@@ -1043,6 +1043,35 @@ async function rules(M) {
     await ro.roster();
     return ro.limit() === 3 || 'the roster read did not take the server limit (' + ro.limit() + ')';
   });
+  /* NUDGE (2027-02-11-party-nudge.sql). A hero idle in town asks the server nothing, so another player's party move reaches
+     its screen only as a state-free {t:'nudge'} on its own topic: one re-read of THAT hero, however many came at once (a
+     Start sends several); a real frame still goes to the session, and no other hero is read. */
+  await t('NUDGE-1', async () => {
+    const srv = fakeServer({ 0: env(5, said(4)), 1: env(5, said(4)) });
+    const hub = fakeHub();
+    const due = [];
+    const tm = { setTimer: (fn, ms) => { due.push({ fn, ms }); return due.length; }, clearTimer: () => {} };
+    const acc = new A.AccountSession({ auth: { userId: () => UID, token: () => 'jwt', signOut: async () => {} }, server: srv, tab: memStore(), channel: hub.channel, timers: tm });
+    for (const s of [0, 1]) await acc.open(s);
+    await new Promise((r) => setImmediate(r));
+    const loads = (s) => srv.calls.filter(([n, a]) => n === 'hr_load' && a.p_slot === s).length;
+    const before = [loads(0), loads(1)];
+    due.length = 0;
+    const topic = 'hr:' + UID + ':1';
+    if (!hub.topics.has(topic)) return 'CONTROL: hero 1 has no push topic';
+    for (let i = 0; i < 3; i++) hub.send(topic, { t: 'nudge' });
+    if (due.length !== 1) return 'three nudges armed ' + due.length + ' re-reads, want one';
+    if (loads(1) !== before[1]) return 'a nudge read before its coalescing wait';
+    due[0].fn();
+    await new Promise((r) => setImmediate(r));
+    if (loads(1) !== before[1] + 1) return 'the nudge read hero 1 ' + (loads(1) - before[1]) + ' times, want once';
+    if (loads(0) !== before[0]) return 'a nudge on hero 1 read hero 0';
+    /* The next nudge arms again; a real frame is still the session's. */
+    hub.send(topic, { t: 'nudge' });
+    if (due.length !== 2) return 'a later nudge armed nothing';
+    hub.send(topic, { t: 'state', frame: 6, env: env(6, said(4)) });
+    return acc.character(1).record.version === 6 || 'a real frame no longer reaches the session (version ' + acc.character(1).record.version + ')';
+  });
   await t('VIEW-2', async () => {
     const srv = fakeServer({ 0: env(1, said(4)), 1: env(1, said(4)), 2: env(1, said(4)) });
     const hub = fakeHub();
@@ -1834,6 +1863,9 @@ const MUTANTS = [
   ['an ask made while one is out is lost', 'src/session/character-session.js', '{ this._again = true; return this._asking; }', '{ return this._asking; }'],
   ['a refusal is asked again at once', 'src/session/character-session.js', '{ this._pace.hold(SESSION_CONFIG.liveRefillMs); if (!this._huntOpen())', '{ if (!this._huntOpen())'],
   ['a refused gap in town is never caught up', 'src/session/character-session.js', 'if (!this._huntOpen()) this._pace.owe(() => this.hello()); }', '}'],
+  /* NUDGE (2027-02-11-party-nudge.sql) */
+  ['a party nudge never re-reads the hero', 'src/session/account-session.js', "(m && m.t === 'nudge' ? this._nudged(slot) : onMsg(m))", 'onMsg(m)'],
+  ['every nudge re-reads again (no coalescing)', 'src/session/account-session.js', '    if (this._nudges.has(slot)) return;\n', ''],
   /* VIEW-3 (perf audit 10-23, Part 2: unviewed sessions off the live view) */
   ['an unviewed hero re-reads at the live pace', 'src/session/character-session.js', 'this._viewed ? pollDelayMs(', 'true ? pollDelayMs('],
   ['an unviewed hero asks the engine', 'src/session/character-session.js', 'const engine = this._viewed || this.leaveAt() !== null;', 'const engine = true;'],

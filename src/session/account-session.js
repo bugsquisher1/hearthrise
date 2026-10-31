@@ -162,6 +162,7 @@ export class AccountSession {
     this._ending = false;
     this._channel = o.channel || null;
     this._timers = o.timers || {};
+    this._nudges = new Map();
     this._chars = new Map();
     this._towns = new Map();
     this._listeners = new Set();
@@ -358,7 +359,9 @@ export class AccountSession {
     if (this._chars.size >= this.limit()) return { ok: false, reason: 'limit', limit: this.limit() };
     const uid = this.userId;
     if (!uid) return { ok: false, reason: 'signed_out' };
-    const cs = new CharacterSession({ slot, uid, server: this.server, intents: this.intents, channel: this._channel,
+    /* A PARTY NUDGE (2027-02-11-party-nudge.sql) on the hero's topic is no frame: it carries no state, only "read yourself". */
+    const channel = this._channel ? (topic, onMsg, onStatus) => this._channel(topic, (m) => (m && m.t === 'nudge' ? this._nudged(slot) : onMsg(m)), onStatus) : null;
+    const cs = new CharacterSession({ slot, uid, server: this.server, intents: this.intents, channel,
       setTimer: this._timers.setTimer, clearTimer: this._timers.clearTimer, now: this._timers.now, viewed: this.viewed === null || this.viewed === slot });
     /* The storage is the ACCOUNT's (2026-11-27-account-depot.sql): a move on one character re-reads the others. */
     cs.onShared = (kind, from) => this._sharedChanged(kind, from);
@@ -436,6 +439,18 @@ export class AccountSession {
      The depot ('bank') needs no read: the mover's own re-read is the newest Storage, which every hero shows
      (_noteStorage); a re-read per hero per move went over hr_load's budget (Andy, 2026-10-26). The farm land ('farm')
      is in each hero's envelope only: every OTHER open character re-reads (single-flight, read-gate.js). */
+  /* THE SERVER SAYS THIS HERO'S PARTY CHANGED (an invite, a member, the leader's Start, a kick): a hero idle in town asks
+     nothing on its own, so another player's move reaches its screen only this way. One re-read, however many came. */
+  _nudged(slot) {
+    if (this._nudges.has(slot)) return;
+    const set = this._timers.setTimer || ((fn, ms) => setTimeout(fn, ms));
+    this._nudges.set(slot, set(() => {
+      this._nudges.delete(slot);
+      const cs = this._chars.get(slot);
+      if (cs && cs.status !== 'closed') cs.load();
+    }, SESSION_CONFIG.nudgeMs));
+  }
+
   _sharedChanged(kind, from) {
     if (!SHARED_KINDS.has(kind)) return;
     for (const [slot, cs] of this._chars) if (slot !== from) cs.load();

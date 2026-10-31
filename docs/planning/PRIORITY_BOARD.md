@@ -72,10 +72,10 @@ Tessaly and Brin: the mage burns 519 gp/h of store runes and juice from minute o
 **Fixes in the lane** (each with a test red without it)
 | # | What | Where | Test |
 |---|---|---|---|
-| 1 | Equip upgrades takes the next armour tier though it ends a set bonus: a hero in a full Bronze plate set wore none of ten Iron Platebodies (each alone broke the +1% crit). A higher tier of the worn weight is judged with the set bonus out of both sides; the line says "Your full set's +1% critical chance ends." | `src/shell/upgrade-plan.js` | AW-21 (alpha-windows `--pure`) + a mutant row |
-| 2 | "Drink your own juice" asks mid-hunt once the store has sold 10 drinks (a Mage's 20 minutes), never for a hero who hardly drinks; the What next line is no longer hidden behind it | `src/data/hunt-tutorial.js` | sewer.mjs tutorial-reactive |
-| 3 | What next names a made piece's bench level: "Ironbound Shield is made at Smithing 15 from Iron Bar ×2 and Normal Plank ×2" | `src/data/hunt-tutorial.js` | sewer.mjs tutorial-reactive |
-| 4 | Tamsin's Wickstead task: 50 Turncoats (~1 h played), 780 gp, then Wickstead's Scarce pieces (the Iron Platebody and Platelegs first, worn at 15: a goal for Levels 8-14). STAGED lane C | `src/data/tally-tasks.js`, `2027-02-11-wickstead-tally.generated.sql` | gen-tally-tasks `--check`, the file's self-check, schema-drift, tally-tasks |
+| 1 | Equip upgrades takes the next armour tier though it ends a set bonus: a hero in a full Bronze plate set wore none of ten Iron Platebodies (each alone broke the +1% crit). A higher tier of the worn weight is judged with the set bonus out of both sides; the line says "Your full set's +1% critical chance ends." | `src/shell/upgrade-plan.js` | AW-21 in alpha-windows `planRules` + a `plans:` mutant |
+| 2 | "Drink your own juice" asks mid-hunt once the store has sold 10 drinks (a Mage's 20 minutes), never for a hero who hardly drinks; the What next line is no longer hidden behind it | `src/data/hunt-tutorial.js` | sewer.mjs tutorial-reactive + a mutant |
+| 3 | What next names a made piece's bench level: "Ironbound Shield is made at Smithing 15 from Iron Bar ×2 and Normal Plank ×2" | `src/data/hunt-tutorial.js` | sewer.mjs tutorial-reactive + a mutant |
+| 4 | Tamsin's Wickstead task: 50 Turncoats (~1 h played), 780 gp, then Wickstead's Scarce pieces (the Iron Platebody and Platelegs first, worn at 15: a goal for Levels 8-14). STAGED lane C | `src/data/tally-tasks.js`, `2027-02-11-wickstead-tally.generated.sql` | gen-tally-tasks `--check`, the file's self-check, schema-drift, tally-tasks, restore-census re-pinned |
 | 5 | Harness: a skip keeps history in order (the analyzer showed an ended hunt), `wait()` lets town time pass, each skip fire resets the per-user apply window (a party of one account's heroes forfeited "server" in seconds of skip) | `tools/qa/local-world.mjs` | smoke +2 steps; the history mutant goes red |
 
 **Top 10 remaining, by what a 20-hour player feels**

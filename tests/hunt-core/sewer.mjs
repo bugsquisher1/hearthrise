@@ -1395,6 +1395,10 @@ const mutants = [
   { name: 'the party scale is flat', case: 'party-scale',
     edits: [['src/data/hunt-grounds.js', 'perHeroPermille: 150', 'perHeroPermille: 0']] },
   /* THE FIRST HOUR (lane/b-first-hour, 2026-10-28) */
+  { name: 'the own-juice card asks a hero who hardly drinks (core-loop 10-31)', case: 'tutorial-reactive',
+    edits: [['src/data/hunt-tutorial.js', "when: [{ kind: 'carries', item: 'turnip_juice' }, { kind: 'bought_drinks', n: JUICE_BOUGHT }] }),", "when: [{ kind: 'carries', item: 'turnip_juice' }] }),"]] },
+  { name: 'What next hides a made piece\'s bench level (core-loop 10-31)', case: 'tutorial-reactive',
+    edits: [['src/data/hunt-tutorial.js', "(r.req > 1 ? 'at ' + SKILLS_DEF[skill].name + ' ' + r.req : 'in ' + SKILLS_DEF[skill].name)", "('in ' + SKILLS_DEF[skill].name)"]] },
   { name: 'the day-one goals wait for Level 8 again (about two hours in)', case: 'tutorial-reactive',
     edits: [['src/data/hunt-tutorial.js', 'const DAY_ONE_LEVEL = 7;', 'const DAY_ONE_LEVEL = 8;']] },
   { name: 'the Hearth card waits for more fuel than the Cellar leaves', case: 'tutorial-reactive',

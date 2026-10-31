@@ -300,7 +300,13 @@ async function pure() {
   const { SKILLS_DEF } = await imp('src/data/skills.js');
   const { SKILL_GUIDE } = await imp('src/data/skill-guide.js');
   for (const id of Object.keys(SKILLS_DEF)) if (!SKILL_GUIDE[id]) fails.push('AW-0 the skill ' + id + ' has no row in src/data/skill-guide.js');
-  const { edgeBody } = await imp('src/session/edge-intents.js');
+  const { edgeBody, withReceipt } = await imp('src/session/edge-intents.js');
+  /* What the shop paid is the server's receipt, never the purse's difference (blind playtest 2026-10-31: "Sell for 10,000", "The shop paid 10,012"). */
+  const askIt = (ans) => withReceipt(async (send) => { const a = await send(); return a.ok ? { ok: true } : { ok: false, error: 'no' }; }, async () => ans);
+  const sold10k = await askIt({ ok: true, body: { ok: true, receipt: { gold: 10000 } } });
+  const replayed = await askIt({ ok: true, body: { ok: true, receipt: null } });
+  const refused = await askIt({ ok: false, body: { ok: false, receipt: { gold: 5 } } });
+  if (sold10k.paid !== 10000 || 'paid' in replayed || 'paid' in refused) fails.push('AW-0 the receipt reads ' + JSON.stringify([sold10k, replayed, refused]));
   if (edgeBody(0, 'shop_buy', { offer: 'supply.wheat_bread', qty: 2, price: 1 }, 'x')) fails.push('AW-0 edgeBody let a price field through');
   if (edgeBody(0, 'grant_gold', { qty: 1 }, 'x')) fails.push('AW-0 edgeBody built an unknown verb');
   if (!edgeBody(0, 'vendor_sell_many', { lines: [{ item: 'rat_tail', qty: 3 }] }, 'x')) fails.push('AW-0 edgeBody refused a well-formed sale');

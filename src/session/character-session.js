@@ -43,7 +43,7 @@ import { createTimeline } from '../hunt-view/timeline.js?v=0.2.75';
 import { LiveLink } from './live-link.js?v=0.2.75';
 import { RESIDUE_FIELDS, sanitizeResidueField, unconfirmedResidue } from './residue.js?v=0.2.75';
 import { SESSION_CONFIG } from './config.js?v=0.2.75';
-import { edgeBody, edgeRead } from './edge-intents.js?v=0.2.75';
+import { edgeBody, edgeRead, withReceipt } from './edge-intents.js?v=0.2.75';
 import { leaveAskOf, pendingLeaveAt, leaveCountdown, heardOf, closeInMs } from './hunt-leave.js?v=0.2.75';
 import { HuntPoll, pollDelayMs } from './hunt-poll.js?v=0.2.75';
 import { AskPacer } from './ask-pacer.js?v=0.2.75';
@@ -330,17 +330,7 @@ export class CharacterSession {
     if (this._closed) return { ok: false, error: 'closed' };
     const body = edgeBody(this.slot, verb, fields, newIdem());
     if (!body) return { ok: false, error: 'bad_intent' };
-    if (read === true) return edgeRead(await this._server.accrue(body));
-    /* `paid`: the gold THIS intent moved, the server's receipt (spend.js; none on a replay). The purse moves with every
-       hero's hunt and any window settled first, so its difference is not what the shop paid (playtest 10-31: 10,000 vs 10,012). */
-    let paid = null;
-    const r = await this._ask(verb, async () => {
-      const ans = await this._server.accrue(body);
-      const receipt = ans && ans.body && ans.body.receipt;
-      if (receipt && Number.isSafeInteger(receipt.gold)) paid = receipt.gold;
-      return ans;
-    }, true);
-    return r && r.ok && paid !== null ? Object.assign({}, r, { paid }) : r;
+    return read === true ? edgeRead(await this._server.accrue(body)) : withReceipt((send) => this._ask(verb, send, true), () => this._server.accrue(body));
   }
 
   /** Lock (or unlock) an item so no bulk sale can take it; the server keeps the lock. */

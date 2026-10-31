@@ -755,7 +755,7 @@ async function main() {
     const chosen = MUTANTS.filter((mt) => !only || mt[0].includes(only));
     for (const mt of chosen) {
       const fails = mt[5] === 'pix' ? await pixelRule('chromium', [mt]) : mt[5] === 'leak' ? await leakRule([mt])
-        : budgetFails(await scenario({ browser: 'chromium', width: 1440, height: 900, minutes: mt[6] || 2, hiddenMs: 20000, overrides: planted([mt]) }));
+        : budgetFails(await scenario({ browser: 'chromium', width: 1440, height: 900, minutes: mt[6] || 2, hiddenMs: mt[7] || 20000, overrides: planted([mt]) }));
       const hit = fails.some((x) => mt[4].test(x));
       console.log(`  ${hit ? 'caught ' : 'ESCAPED'} ${mt[0]} :: ${fails.join(' | ') || 'green'}`);
       if (!hit) escaped++;
@@ -783,7 +783,7 @@ async function main() {
   const pix = await pixelRule(browser);
   if (process.argv.includes('--pix')) { for (const f of pix) console.log('  ✗ ' + f); process.exit(pix.length ? 1 : 0); }
   if (process.argv.includes('--leak')) { const l = await leakRule(); for (const f of l) console.log('  ✗ ' + f); process.exit(l.length ? 1 : 0); }
-  const m = await scenario({ browser, width: 1440, height: 900, minutes: Number(arg('--minutes', '4')), hiddenMs: 30000, overrides: planted(), profile: arg('--profile', null), snapshots: arg('--snapshots', null),
+  const m = await scenario({ browser, width: 1440, height: 900, minutes: Number(arg('--minutes', '4')), hiddenMs: 40000, overrides: planted(), profile: arg('--profile', null), snapshots: arg('--snapshots', null),
     second: arg('--second', 'melee_dps'), viewAtDeath: Number(arg('--view-death', '0')) });
   console.log(row(m));
   printHeld(m);

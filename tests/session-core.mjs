@@ -1045,7 +1045,7 @@ async function rules(M) {
   /* NUDGE (2027-02-11-party-nudge.sql). A hero idle in town asks the server nothing, so another player's party move reaches
      its screen only as a state-free {t:'nudge'} on its own topic: one re-read of THAT hero, however many came at once (a
      Start sends several); a real frame still goes to the session, and no other hero is read. */
-  await t('NUDGE', async () => {
+  await t('NUDGE-1', async () => {
     const srv = fakeServer({ 0: env(5, said(4)), 1: env(5, said(4)) });
     const hub = fakeHub();
     const due = [];

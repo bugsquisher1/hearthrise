@@ -312,10 +312,12 @@ export const HUNT_TUTORIAL = Object.freeze([
     'hunt_picker', { kind: 'enter', hunt: THICKET },
     { inWindow: 'Press Enter on ' + HUNT_INDEX[THICKET].name + '. Your hero walks from clearing to clearing by itself and fights each pack it finds.' }),
   /* ── D / E. The second hunt and the second return ─────────────────── */
+  /* Done when Tamsin pays, or once the hero hunts PAST the Thicket (#58, Andy: the wolves still held, out of the
+     Sewer the card sent him back to the Thicket; the tally on screen still counts them and she still pays). */
   step('tamsin_pays', 'Paid in town',
     'Hunt the Thicket until your ' + WOLVES.count + ' ' + WOLVES.label + ' are down; the tally on screen counts. Tamsin pays as you come back to town: '
       + WOLVES.gold + ' gp and a piece of armor you can wear.',
-    'world', { kind: 'tally_paid' }, { when: [{ kind: 'not_elsewhere', hunt: WOLVES.hunt }] }),
+    'world', { kind: 'any', of: [{ kind: 'tally_paid' }, { kind: 'been', hunt: WOLVES.hunt, past: true }] }, { when: [{ kind: 'not_elsewhere', hunt: WOLVES.hunt }] }),
   step('go_below', 'Into the sewer, together',
     'The Sewer is a party hunt. Pick The Sewer and Start with party: everyone walks in together. The Rat King holds the last room and only comes out for a party.',
     'hunt_picker', { kind: 'enter', hunt: 'millrace_sewer' }, { party: true }),
@@ -436,7 +438,8 @@ const FACTS = Object.freeze({
   hunting: (p, f) => !!f.huntId,
   in_town: (p, f) => !f.huntId,
   enter: (p, f) => reached(f, p.hunt) || (p.hunt === CELLAR && f.levelXp > 0),
-  been: (p, f) => reached(f, p.hunt),
+  /* `past: true`: only a ground past `hunt` counts */
+  been: (p, f) => reached(f, p.hunt, p.past === true),
   not_elsewhere: (p, f) => !f.huntId || f.huntId === p.hunt,
   /* out of that hunt now, or already hunting past it (back in it later is not a step back) */
   ended: (p, f, c) => f.huntId !== c.openedIn || (!!c.openedIn && reached(f, c.openedIn, true)),

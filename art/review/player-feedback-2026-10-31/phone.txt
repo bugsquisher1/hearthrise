@@ -1,0 +1,578 @@
+HEARTHRISE — a phone player's review
+Who I am: I play idle games on an Android phone, landscape, thumbs only. Five to fifteen minutes
+at a time: on the bus, on the sofa. My signal drops in the tunnel every morning.
+How I played: touch phone at 922x423 (and 667x375 for a stretch), over about three in-game days of
+short sessions, with "away" time skipped between them. Screenshots are in phone/ (names below).
+I took ~140; only these 15 are included (downscaled to phone size) to keep it light:
+  07-create-hero, 10-town-first, 13-mill-cellar-picked, 18-hunt-5s, 35-helm-expand,
+  47-hearth-30s, 54-offline-25s, 57-evening-hunt-667, 88-day2-summary, 96-all-characters,
+  100-offline-reload, 103-lunch2-in-667, 120-wren-left, 129-day3-wren, 137-day3-commute-kestrel.
+Other [names] below were taken but left out; the text says what they showed.
+(The fonts in my screenshots are the sandbox's fallbacks; I'm not counting that.)
+
+TOP FIVE, in priority order (details in the diary below):
+ 1. A new archer can't attack out of the box: no ammo slot on her bar, arrows sit in the bag. She
+    "hunted" 7.5 h for 0 kills while the store bought 8,746 gp of food. Nothing warned or stopped it.
+ 2. "Hunt summary", "Last hunt: ..." and "hunt ended" alerts are stuck on each hero's FIRST hunt;
+    later hunts never get a summary, and opening the game mid-hunt often shows that old hunt frozen.
+ 3. Phone controls you can't reach: hero tabs squashed to 12 px; at 667 px the icon bar covers
+    All characters / Characters / Sign out, hotbar slots 5-20 hide under the stance panel, and the
+    chat box starts below the screen. Party invites need a right-click/long-press on that hidden tab.
+ 4. Hover-only meaning on a touch screen: 15 unlabeled top icons, hotbar "why it won't fire"
+    reasons, keyboard-shortcut chips (H, B, Escape, Enter) on every sheet; grey buttons with no reason.
+ 5. Waiting with no word: 46 s blank cold start on slow signal, 20-33 s Leave, "Loading the world..."
+    forever offline, and stacked see-through tip/alert cards covering the hero and each other.
+
+======================================================================
+DAY 1 — MORNING BUS
+======================================================================
+
+[01-signin] Opened the game.
+  Expected: a login I can get through one-handed.
+  Got: a calm dark-and-gold sign-in, crest on the left, form on the right. Loaded in about a
+  second. Fits a landscape phone with no scrolling.
+  Felt: nice. Looks like a real game, not a web form.
+  Small: "Create an account" and "Forgot your password?" are text links only 24 px tall. I hit
+  them, but it's a thumb-stretch target, not a button.
+  Small: the email box grabs focus on open. On a real phone that throws the keyboard up straight
+  away and hides half the screen before I've even looked at it.
+
+[02-create-account, 03/04-keyboard-*] Made an account with the keyboard up.
+  Expected: the keyboard to cover everything (it usually does in landscape).
+  Got: the page scrolls so the box I'm typing in and the "Create account" button stay visible
+  above the keyboard. Good.
+  Small: on the create screen the panel's bottom border runs off the screen at 423 px tall.
+
+[05-account-made] "Check your email for a link." Then "Back to sign in"...
+  ...and the sign-in form was EMPTY. I had to type my whole email address again on a phone
+  keyboard, seconds after typing it. Carry the email across. (Password managers help some people,
+  but this is the first minute of the game.)
+  After the keyboard closed the page stayed scrolled down, so the panel's title was cut off.
+
+[06-characters] Signed in, quick (a quarter of a second here).
+  "Your characters": two empty slots, "Create hero". Big rows, easy to hit. "Sign out" is another
+  24 px link but I don't need it often, so fine.
+  "Up to 4 can play at once" but I see two slots. Made me wonder where the other two are.
+
+[07-create-hero] Create your hero.
+  Expected: name, pick a look, go.
+  Got: a big pixel preview of my hero, a name box, and four rows of 16 colour swatches (head,
+  body, legs, feet).
+  PROBLEM: each swatch is 16 x 16 px with a 2 px gap. That's a fingernail target. I tried to pick
+  the bright green shirt and landed 9 px to the right: I got teal. I had to zoom my eyes in and
+  tap dead centre to fix it. Make the swatches at least 32-40 px or put them in two rows.
+  [08/09-create-hero-howfight] The "How you fight" text on the right is a scroll box that shows a
+  third of its content. The weapon list (sword and shield / axes / bow / wand / staff), which is
+  the actually useful part, is hidden below the fold with no scroll hint, just a half-cut line.
+  I only found it because the last line was sliced in half. The big crest on the left takes a
+  quarter of the screen here; on a phone I'd rather have that room for the text.
+  The name box grabs focus too, so on a real phone the keyboard pops up over the swatches.
+  The name tag "Kestrel" was green in town, which made me smile: my shirt colour shows nowhere
+  because I'm in armour, but fine.
+
+[10-town-first] "Enter town": in town in under half a second. Gorgeous chunky pixel town, my
+  knight in the middle. A tip card: "Rats in the mill. Open Hunts and enter the Mill Cellar."
+  PROBLEM (biggest one on day 1): the top bar is FIFTEEN icons with no words. On a phone there's
+  no hover, so I have no idea which is Hunts. The names only exist as hover tooltips that read
+  "Hunts (H)", "Inventory (B)", "Settings (Escape)": keyboard shortcuts I don't have.
+  I guessed the first one (a map) and was right, but icons 7-15 were a mystery all day.
+  [11-longpress] I tried a long-press on an icon to get its name (that's what phone games do):
+  nothing showed, and when I let go it just opened the window.
+  Also: the top-left "Sign out" link is cut to "Sign o" by the icon bar running over it, and the
+  little tab with my hero's name up there is squashed to 12 px wide, so it's invisible.
+  "Sign out" being one stray tap from the Hunts icon worries me a bit.
+  The tip card sits right on top of my hero's name tag.
+  The hotbar is 20 slots in two rows, 36 px each with 2 px gaps. Usable, but tight; with 15 of
+  them empty "+" boxes it's a lot of screen for nothing on day one.
+  "Pre..." (Preset 1) is truncated; "Distance - 1 +" buttons are 30 px wide.
+
+[12/13-hunts-open, 14/15-mill-details] Hunts opens as a sheet sliding in from the right, half the
+  screen, with my town still visible on the left. That's the right idea for a phone.
+  But: the sheet shows a keyboard-shortcut chip "H" next to the close X (every sheet does: J, L,
+  ...). On a phone it's a dead button-looking box.
+  After tapping Mill Cellar, the tutorial card plus the pinned Enter button leave a ~60-100 px
+  letterbox for the actual hunt info (who lives here, drops, supplies, "Before you go"). I read
+  it three lines at a time. "Before you go: Food 20 Cooked Shrimp, then Salted Shrimp from the
+  store 14 gp each..." is important and I'd never have seen it without digging.
+  Minimising the tip card ("-", a good 44 px target) helps.
+  LOVED: the big gold Enter button pinned to the bottom of the sheet. Exactly where my right thumb
+  rests.
+
+[16-18-hunt-*] Entered the Mill Cellar: 0.2 s. My knight walked in and started hitting rats by
+  himself. Smooth 60 fps, no hitch. Rats, slimes and a wasp, corpses left on the floor. This is
+  the moment the game clicked for me: it looks alive.
+  The level ring fills visibly (44% in 35 s). I reached level 2 inside two minutes. Good hook.
+  Overlays: a Party panel top-left (my own HP/MP, which is also in the hotbar: duplicate),
+  the hunt bar top-right (Mill Cellar, timer, Details, Summary, Leave) and a tip card. On a 423 px
+  tall screen that's a lot of boxes over the fight; the fight is in a ~420 x 230 window.
+[20-coach-expand] A collapsed tip "Your first Level ■". The square doesn't look tappable but is.
+[21-summary-live] I tapped "Summary" mid-hunt expecting "what have I earned so far".
+  Got: "No hunts have ended yet." That's the wrong button for that question; it's "Details".
+  Two buttons, and the obvious name is the useless one while a hunt runs.
+  Also, opening any sheet covers the hunt bar (timer, Leave) completely.
+[23-details-live] Details is the good stuff: 17 kills, 261 XP, 25 gp, 44 gp of loot, loot list.
+  But it's a floating box inside the hunt with room for four lines, a tab cut to "Tal...", and
+  the line "Next level in after 10 min", which reads like a typo (I think it means "the estimate
+  shows after 10 min").
+
+[24-30-farm] The tip said plant turnips while the hero hunts. I found the Farm only because the
+  icon was highlighted gold (thank you).
+  Plant -> a crop list scrolls in by itself -> Plant on Turnip. Then Water: "grows twice as fast
+  for 2 hours". Turnip art is lovely. Each plant took a quarter second.
+  The first "Plant" buttons sit at the very bottom edge, half cut off at 423 px. "Planted by..."
+  is truncated. Fine though: four taps per plot, done.
+  LOVED: this is exactly the two-minute bus thing I want. Start a hunt, plant, water, pocket it.
+
+Session 1 total: about 6 minutes from install to hunting + farming. Zero console errors, zero
+waits worth mentioning (everything answered in under half a second here).
+
+======================================================================
+DAY 1 — LUNCH, canteen wifi (slow: ~750 kbps, 400 ms)
+======================================================================
+
+[31-chars-lunch] Opened the game on bad signal with a cold cache.
+  WAIT: 46 seconds of nothing before the sign-in form appeared. That's the "is it broken?" zone;
+  on a real phone I'd have switched apps. Then 8 s to sign in, then 10 s after "Play" before
+  the hunt showed. ~65 s door to door on canteen signal. (Second opens with a warm cache were
+  much better, see later.) A loading bar or even a static "Hearthrise" splash in the first
+  second would help a lot.
+  The character list now says "Kestrel, Level 5, Hunting in Mill Cellar". LOVED that line: I know
+  everything before I tap Play.
+  Under it: "A third hero slot costs 15,000 gold... You need 13,891 more gold. Buy a hero slot".
+  A bit of a shop poster on my character screen, but OK.
+
+[32-lunch-hunt] Straight back into the hunt, Details still open from this morning:
+  57 minutes, 430 kills, Level 5, 629 gp, 1,149 gp of unsold loot, three helmets dropped.
+  The server really did keep going while my phone was in my pocket. That's the promise of the
+  game and it delivered.
+  MISSING: a "while you were away" moment. I had to read a dense stats box to find out what
+  happened. One card: "+3 levels, 430 kills, 3 helmets, 629 gp" with the drops as icons, then
+  get out of my way.
+
+[33-bag, 34-helm-tap, 35-helm-expand] I wanted to put on a helmet.
+  The bag looks like a real bag: a paper doll on the left, an icon grid on the right. Proper.
+  But: the category tabs (All / Gear / Food / Drinks / Ammo & runes / Loot / Materials / Rare /
+  Other) run off the right edge; "Materials" is cut and the rest are off-screen. The Sort
+  dropdown is cut too.
+  Tapping the Bronze Helm: a card with a greyed "Equip" and "the shop pays 35 gp". No stats.
+  I still don't know what the helm DOES or whether the Coif is better. "Nothing goes on by
+  itself: each piece is better at something" — then tell me what.
+  The reason Equip is grey ("Leave the hunt to change gear") is below the fold, off-screen.
+  The expand icon opens a right-click style menu (Equip / Sell... / Lock / Select / Link in chat
+  / Loot plan / Keep in bag / Deposit in storage / Sell / On pickup / Don't pick up) that runs off
+  the bottom of the screen. This is a desktop context menu, not a phone sheet.
+
+[37-39 leave] So I tapped Leave.
+  WAIT: "Leaving..." for 33 seconds. (The same leave took ~50 s in a clean run on good signal, so
+  it's not just my wifi.) No progress, no explanation, Leave just says "Leaving...". On a phone
+  that's a long time to stare at a button.
+  [39-left-summary] Then a lovely clear summary: Time 57:29, 451 monsters, 6,945 XP, 659 gp,
+  loot 1,234 gp, balance per hour. Big readable numbers. "Next: Feed the Hearth / Hunt again /
+  Open bag" are below the fold, so I didn't see them until later.
+  Odd: after "You left the hunt" the left side still showed my hero swinging at a rat in the
+  cellar for a few seconds.
+[41/42-helm-on] Back in town, Equip lit up; 0.7 s and the helm was on (+8 max HP). Good.
+
+[43-48 hearth] A tip: "Feed the Hearth: press the Bones, then Fuel all." Did it: "Bones x51,
+  10 being used", and my knight walked across town over a little bridge. Charming.
+  Then it got noisy:
+  - after I closed the bag the SAME tip came back telling me to do what I'd just done
+    ("Your bag holds Bones x51... press the Bones, then Fuel all"). Did it work or not?
+  - then "Your action bar" appeared on top of my hero, its text clipped mid-sentence inside the
+    card ("the slots in order" cut in half, no scroll), with a "Got it" button;
+  - then "Eat on time", also clipped mid-sentence ("HP is below 60%. A...").
+  Four tutorial cards in about two minutes, two of them unreadable at this size, and the hearth
+  itself showed me nothing burning. I never found out if my bones burned before I went hunting.
+
+[50/51-thicket] Level 5 opened Meadowbrook Thicket ("Fits your level"). Wolves in long grass;
+  new place, new monsters, big upgrade in feel. Enter took 1.4 s. This is a good "one useful thing"
+  for a lunch break: notice a new ground, move up.
+
+[52-55 offline] Tunnel test: I went offline for ~30 s mid-hunt and tapped "Offensive".
+  - The hunt kept animating like nothing happened (fine, it's a picture), but the kill counter sat
+    at 0 the whole time while my knight visibly fought. Mixed message.
+  - My Offensive tap was refused: "No connection. Nothing was changed." Honest and correct!
+    But that message was faint text tucked BEHIND the Details box; I almost missed it. No
+    offline banner anywhere.
+  - Back online it caught up by itself in ~14 s: 11 kills had happened on the server while I was
+    in the tunnel. Offensive then stuck on the next tap. No reload needed. Good recovery.
+
+======================================================================
+DAY 1 — EVENING TRAIN (smaller phone now: 667 x 375, decent 4G)
+======================================================================
+
+[56-evening-open-667] Opened again. Still signed in (good). 13.5 s to my character list on 4G with
+  a warm cache. Kestrel: "Level 9, Hunting in Meadowbrook Thicket". Gold 7,484.
+  Every time my browser kills the tab I land on the character list and need one more tap on Play.
+  (A pull-to-refresh, by contrast, reopens straight into my hero. Nice.) With one hero, take me
+  straight in.
+
+[57/58-evening-hunt-667] BUG, the big one of day 1. Play -> 1.9 s -> my hunt. But:
+  - the hunt bar says "Meadowb... 00:57:29" and the timer is FROZEN at 00:57:29, which is the
+    length of this morning's Mill Cellar hunt;
+  - Details says "Hunt ended. This is the session summary." and shows the Mill Cellar numbers
+    (451 kills, 6,945 XP, 659 gp, rat tails);
+  - "Next level in 09:22:07", also frozen;
+  - meanwhile my knight is clearly fighting in the Thicket (+15 XP floating up, HP moving, ring
+    6% -> 7% in a minute), and [60-evening-summary] Summary says "Hunt again is off: a hunt is
+    already running".
+  [59-evening-reloaded] A full refresh (18 s on 4G) didn't fix it.
+  So the game is running my Thicket hunt and showing me the Mill Cellar one. I have no idea what
+  the Thicket earned me in 4.5 hours. On a phone, glancing at the hunt IS the game, so this is
+  the worst place for stale numbers.
+  Repro as I played it: hunt A ~1 h -> Leave (summary) -> enter hunt B -> lose signal ~30 s ->
+  close the tab -> come back hours later -> Play.
+
+[57-evening-hunt-667] At 667 x 375 the bottom bar breaks: hotbar slots 5-10 and 15-20 are drawn
+  UNDER the Offensive/Balanced/Defensive panel. Only slots 1-4 and 11-14 show. Slot 5 is my
+  drink; I can't see it or tap it (a tap there hits "Offensive").
+  The hunt name is cut to "Meadowb...", "Preset 1" to "Pr...", and the top-left "All characters /
+  Characters / Sign out" links disappear entirely (fine by me, honestly).
+  "Food x0" in red-ish on the hotbar: my 20 shrimp are gone. Slot 3 now shows a little store-bag
+  badge, which I think means it buys Salted Shrimp from the store. I only know that because I
+  dug through "Before you go" this morning. A one-line "Out of your food, buying from the store"
+  would stop me panicking.
+
+======================================================================
+DAY 1 — SOFA, good wifi, 922 x 423, about 15 minutes
+======================================================================
+
+[62-sofa-open] On good wifi: 1 s to the character list, 0.3 s after Play I'm in. That's the speed
+  I want every time. Still the frozen 00:57:29 timer and the old cellar numbers, now at Level 10.
+
+[63/64-sofa-left] I tapped Leave to finally see what the Thicket earned... and got "Last hunt:
+  Mill Cellar" in town and the morning's Mill Cellar summary again. The Thicket hunt (most of
+  the day) never got a summary at all.
+[66-sofa-bag] The loot DID arrive: 872 Raw Wolf Meat, 317 Wolf Pelt, 1,363 Bones, 14 kinds of
+  armour drops, gold 1,159 -> 12,031. And rare drops: Iron Helm, Grayjaw's Ruff, Studded Leather
+  Body (the Hunts page says 0.17% each). Nobody told me! No popup, no summary, no glow. Finding a
+  rare in my bag by accident is the most exciting thing that happened all day and the game
+  stayed silent. That's a missed moment.
+
+  Accidental tap: I went to close a sheet with the X and landed on "Home" ("Your Cottage").
+  The X sits at a different height when I'm in a hunt (top) vs in town (lower, under the
+  Town/Home buttons), so muscle memory sends my thumb to "Home". Pin the X in one place.
+
+[67-71 gear] "Equip upgrades" is a big gold button... that's greyed out ("each piece is better
+  at something"). A big disabled button is confusing on touch: it looks broken.
+  Tapping a slot on the doll (Body) DOES list my options with real stats, colour-coded:
+  "Bronze Platebody +6 Defense, -2 Ranged accuracy, -3 Magic accuracy  Wear". LOVED this. It's
+  exactly what was missing at lunch. But the list appears far below the bag grid, out of sight;
+  I had to scroll down to find it after tapping the slot. Show it right where I tapped, or as its
+  own sheet. "Wear" is plain text, not a button-looking thing.
+  Put on platebody, platelegs, boots in ~0.15 s each. Max HP 251 -> 284.
+  The Iron Helm says "Needs Level 15", fine, now I know.
+
+[72-75 shop] Selling 1,000+ items on a phone was my worry. The Shop's "Sell" tab is a single list
+  with a price per stack and a "Sell all loot" button. Good.
+  But "Sell all loot · 1,221 gp" quietly skipped my four biggest stacks (pelts 2,219 gp, bones,
+  wolf meat, venom). The confirm said "Sell 12 stacks?" which is how I noticed. Also 1,363 bones
+  at 1 gp each say "Sell · 1,000 gp". There's a rule I can't see (a cap? kept for crafting?).
+  Tell me in the list: "kept: used in Cooking", "1,000 gp a day max", whatever it is.
+  Meanwhile the bag's "Dispatch loot" wants me to set each item's menu to Sell first. One stack
+  at a time through a context menu on a phone? No. The Shop list is the way; the bag should
+  just send me there.
+  Every sell answered instantly. Gold 12,031 -> 15,471.
+
+[76-79 cooking] Out of food, so I tried to cook my 872 wolf meat: "You need Cooking 5". Fair. I
+  cooked my 10 shrimp instead: "Cooking Raw Shrimp: 0 cooked so far, 10 left. It stops when they
+  run out. Stop". Clear and honest. 45 s later: Food x6 (4 burnt). Good little loop.
+  Every skill on the skills page tells me what it unlocks next ("Next at level 5: Cooked Wolf
+  Meat"). LOVED: that's the hook that makes me want to come back.
+
+[80/81 stamina] The "+" by my stamina (3h32 left) opened a small popover: "One refill: +4 h for
+  1,400 gp. Bought today 0 of 6. Each one costs more. [Buy +4 h]". Clear. One tap, instant,
+  7h33. The popover sat on top of a tip card, and its close "x" is small, but it works.
+
+[82 overnight] Entered the Thicket again for the night: 0.16 s, and this time the timer counted
+  up from 00:00:03 and Details showed THIS hunt (17 kills...). So the stale numbers are not every
+  time; it's the reopen-after-hours path.
+
+[83-85 settings] Settings: a search box, then groups. In Interface I can hide the Party panel,
+  the hunt analyzer etc. Turning off Party (it repeats my own HP bar when I'm alone) gave the fight
+  half the screen back. Great option, but I'd never have looked there; on a phone with one hero,
+  hide it by default. The checkboxes are 20 px. Again a keyboard chip: "Escape" next to the X.
+
+======================================================================
+DAY 2 — MORNING, in bed (good wifi)
+======================================================================
+
+[86-day2-chars] 0.9 s to my characters: "Kestrel, Level 12" (no "hunting" line, so it stopped).
+  Gold 25,636. Play -> 0.3 s.
+[87-day2-open] Kestrel standing in town. Banner: "Last hunt: Mill Cellar". Wrong: last night's
+  hunt was the Thicket. Nothing says WHY the hunt stopped (I'm guessing stamina: 0:29h left).
+  [88-day2-summary] Summary: the Mill Cellar hunt from yesterday at 5:56 AM, for the third time.
+  So in two days I've had exactly one hunt summary, for my first hunt. The Thicket runs (day and
+  night, about 15 hours of hunting) never got one. The Hunts list DOES know about them ("Best
+  24,251 Level XP/h" on the Thicket), so the server has it; the summary just never moves on.
+  For an idle game this is THE morning moment ("what did my hero do overnight?") and it's broken.
+
+  Tip card "Wear what you found: You found Grayjaw's Ruff... press Equip upgrades." This time
+  Equip upgrades was lit and put the Ruff on as my cape in one tap. That's how I want it.
+
+[90/91-stamina] Refill is now 1,814 gp, then 2,027. I bought two: 8h29 of stamina.
+  What I never found out: does stamina come back by itself if I wait? The popover only offers
+  gold. If it regenerates, say "full again in X h for free"; if it doesn't, that's a big deal
+  for a commuter and I'd want to know before I spend.
+  (The "Bought today" counter didn't reset overnight in my test, but my overnight was simulated,
+  so I'm not counting that.)
+[92/93-wickstead] Hunts list now shows my bests per ground and "Fits your level" on Wickstead.
+  Enter: 0.16 s. Rats and spiders on a farm road. Four minutes, done, phone down.
+  Small: Wickstead looks exactly like the Thicket (same grass and dirt path); the description says
+  "a burned farm... rats in the granary, turncoats in the house", but I saw grass.
+
+======================================================================
+DAY 2 — MORNING COMMUTE (patchy 3G: ~1.5 Mbps, 300 ms) — a second hero
+======================================================================
+
+30 s to the character list on 3G (warm cache). Slow, but at least I can see something.
+
+[94/95-hero2-*] I had a free slot, so I made Wren. Hero creation again: the swatches are only
+  usable if I aim dead centre (see day 1). 14 s on 3G to land in town, then the same first tip
+  as Kestrel's ("Rats in the mill"), fine for a new hero.
+  PROBLEM: with two heroes, how do I switch? The hero tabs at the top-left ("Kestrel", "Wren")
+  are each squashed to 12 px wide and stacked on top of each other under "All characters". They
+  are invisible and untappable on a phone. (When the icon bar isn't drawn, e.g. while loading,
+  the "Kestrel" tab shows up properly with a shield icon, so it's the icon bar crushing them.)
+[96-all-characters] "All characters" saved me: a sheet listing both heroes with HP, MP, stamina,
+  gold, what they're doing, and a "Show" button. LOVED this; it's the best phone screen in the
+  game. Make it the home of the top-left corner.
+  Small: Kestrel's row says "Hunting in Wickstead" and also "Ready to hunt" in green.
+  The party help says "Right-click a player, or one of your character tabs, to invite. Party (Y)
+  finds open parties." There's no right-click or Y key on a phone.
+[97-wren-bow] Bag -> Practice Bow -> Equip. Wren's sprite turned into a blonde archer (my yellow
+  hair choice finally visible!) and the hotbar rebuilt itself for the bow. Lovely.
+  Layout bug in the bag footer: "13 of 100 s[checkbox]Advanced view" — the checkbox and two
+  labels overlap.
+[98-wren-hunt] Mill Cellar for Wren: 0.85 s on 3G.
+  Hidden in "Before you go", which I only see if I scroll the hunt sheet: "Runes: no Fire runes of
+  yours. Flame Volley will not fire. To cast it, press its slot and pick Plain Fire Rune (1 gp a
+  cast) under 'When your runes run out'." So a brand-new archer's starter skill silently does
+  nothing unless I find this. That warning should be a big amber line next to Enter, or the
+  default should just be "buy the 1 gp rune".
+  The Party panel I turned off for Kestrel is back for Wren: the setting is per hero. I expected
+  "my phone, my layout".
+[99-kestrel-shown] All characters -> Show -> Kestrel: 7.5 s on 3G. Kestrel's Wickstead hunt shows
+  the RIGHT live numbers (47 min, 464 kills, 29k XP/h). So the stale-hunt bug is not every time.
+
+[100/101-offline-reload] Tunnel + Chrome reloading the tab (it does that when memory is tight):
+  The game shell came up from cache (good!) but sat on "Loading the world..." for 35+ s with no
+  "you're offline" message and only one hero tab. As soon as signal came back it fixed itself
+  with no tap needed and both heroes reappeared. Recovery is great; the waiting screen just
+  needs to say "No signal, your heroes keep hunting, we'll reconnect".
+
+======================================================================
+DAY 2 — LUNCH, small phone (667 x 375), good wifi. Timed: open -> one useful thing -> close.
+======================================================================
+
+[102-lunch2-chars-667] 1 s to the list: "Kestrel Level 14 · Hunting in Wickstead", "Wren Level 1
+  · Hunting in Mill Cellar". Play -> in at 1.5 s from opening. Fast.
+[103-lunch2-in-667] The stale-hunt bug again on a fresh open: "Wickstead 00:57:29 — Hunt ended.
+  This is the session summary", with day 1's Mill Cellar numbers (451 kills, 6,945 XP).
+  My pattern now: when I OPEN the game onto a hero who is already hunting, the hunt panel shows
+  my first-ever hunt, frozen. When I start a hunt in the open page, or switch heroes with "Show",
+  it's right. Four times out of four on a fresh open.
+
+[105-lunch2-state] PROBLEM (small phones): at 667 px wide the icon bar starts at the left edge
+  and covers "All characters", "Characters", "Sign out" AND the hero tabs completely. I tapped
+  where "All characters" was and the bag opened. I checked every pixel up there: only icons.
+  [107-settings-account-667] Settings at this size lists Interface / Combat text / Chat & Social /
+  Controls / Help: no Account, so no Sign out there either. On a small phone the ONLY way to
+  reach Wren or sign out is to kill the tab and reopen. I gave up on checking Wren this session.
+
+[108-111-tally-667] The target icon is "Tamsin's tally": kill tasks for gold + a guaranteed armour
+  piece of the weight I pick. Good system; the text explaining heavy/medium/light is genuinely
+  helpful. I picked Heavy, then tapped Take on "200 Gray Wolves"... nothing. All five "Take"
+  buttons were greyed with no reason shown. (After leaving the hunt they worked, so I guess
+  "you must be in town", but nobody said so.) "Every kill in Meadowbrook Thicket counts, even
+  while you're away." LOVED that line.
+[112-lunch2-left] Leave on GOOD wifi: 27 s. The Leave button vanished immediately and nothing told
+  me what was happening for 27 seconds. Then "Last hunt: Mill Cellar" again (it was Wickstead).
+[113/114] Took the task in town, Hunts -> Thicket -> Enter: 0.12 s.
+  At 667 the Details box covers a third of the fight and has room for exactly one line
+  ("Monsters killed 0"). My task count (0/200) isn't on the hunt screen anywhere.
+
+  TOTAL: 2 min 37 s from tapping the icon to my hero hunting again with a task. Of that, 27 s was
+  waiting for Leave and ~30 s was me hunting for a reason the Take button was grey. Without those
+  it'd be a perfect 90-second session.
+
+======================================================================
+DAY 2 — EVENING, sofa (922 x 423, good wifi). The archer disaster.
+======================================================================
+
+[115-evening2-chars] "Kestrel Level 15 · Hunting in Meadowbrook Thicket". "Wren Level 1 · Hunting
+  in Mill Cellar". Level ONE after a whole day? Kestrel was level 5 after his first hour there.
+[116/117-wren-*] Opened Wren. Mill Cellar, 07:36:01. Rats chewing on her, "Your hero just ate",
+  ring at 0%. Details:
+     Monsters killed 0 · Level XP 0 · Supplies cost 8,746 gp · Balance -8,746 gp
+     Salted Shrimp (store) x554 · Thin Turnip Juice (store) x99
+  She never fired a shot in seven and a half hours, and the game quietly bought 554 shrimp and 99
+  juices with my (shared) gold to keep her standing there. Nothing stopped the hunt, nothing
+  warned me, the character list just said "Hunting in Mill Cellar" all day.
+  WHY: the hotbar's skills need ammo or runes. She had 50 Bronze Arrows IN HER BAG the whole time,
+  but the archer's starting bar has no "Ammo" slot, so the bow never loaded them. The only
+  explanation lives in hover text on the slots ("Needs ammo for each cast: you carry none your
+  weapon shoots, and no ammo slot buys any. Put arrows or bolts on the bar (Ammo) to cast it."),
+  which a phone never shows. On screen all I had was a thin red slash across two icons.
+  And "Before you go" this morning warned me about Fire runes but said nothing about arrows.
+  This is the worst thing that happened to me in three days. If I were a real new player I'd
+  have deleted the game: I picked "bow" on the create screen's own list, did what it said
+  ("equip another in town"), and lost 8,700 gold and a day.
+  Please: (1) give a bow an ammo slot that loads what's in the bag by default; (2) if a hero has
+  dealt zero damage for, say, 2 minutes, stop the hunt and tell me why, instead of buying food
+  forever; (3) put "can't attack: no arrows on the bar" in big letters on the hunt screen and on
+  the character list.
+[118-120 leave] Leave showed "Leaving in 20s" on the button this time (a countdown! good, at least
+  I know). Wren's summary appeared properly (her first hunt): "07:36:50 · Monsters 0 · Level XP 0 ·
+  Balance -8,746 gp". Seeing that red number was painful.
+[121 shop] Looked for arrows in the Shop: it sells Gear, Tools and Seeds. No ammo at all.
+  Services: Wren's stamina refill is 500 gp (Kestrel's are much dearer); Blessings are free below
+  Level 30, so I took one (fine, though "a death uses them all up" scared me).
+[122-125 hotbar] Tapping a hotbar slot opens a full-screen slot editor (Spells / Runes /
+  Food & drink / Ammo). On a phone this is actually good: big rows, a Save button bottom-right.
+  But: Precision Shot's own card says "Costs only mana. Requires: Bow or Crossbow or Bow or
+  crossbow." (word salad, and no mention of arrows). I had to open an EMPTY slot and go to the
+  Ammo tab to find "Bronze Arrows +2 · You carry x50". Picked it, Save.
+[126-wren-fixed-60s] Back in the cellar: 8 kills and 119 XP in the first minute. So she works,
+  once you know the secret. With only 50 arrows I expect this to break again soon.
+
+[127-farm-day2] Turnips: "1 h 26 m left". (In my test setup only hunt clocks jump forward when I'm
+  "away", so I can't judge farm timings fairly. Not counting it.)
+
+======================================================================
+DAY 3 — MORNING (922 x 423, good wifi)
+======================================================================
+
+[128-day3-chars] Kestrel Level 15, Wren Level 7 (she climbed 6 levels overnight once she could
+  shoot). Gold 32,865. Both idle.
+[129-day3-wren] Opened Wren. Both heroes standing side by side in town, "Kestrel · 15" and "Wren"
+  over their heads. I liked seeing them together.
+  Three cards stacked on the right: a tip "Hunt together" and two alerts ("Kestrel's hunt in Mill
+  Cellar has ended. Start again" / "Tamsin paid Kestrel 480 gp and 5 Raw Wolf Meat for Gray
+  Wolves. Open your inventory"). The cards are see-through and overlap, so the tip's text bleeds
+  through the alerts and neither is readable (see the screenshot).
+  - "Kestrel's hunt in MILL CELLAR has ended": he was in Meadowbrook Thicket. Same stale-first-
+    hunt bug, now in the alerts too.
+  - Nothing says why either hunt ended. Stamina? Food? Gold? A death? I had to guess.
+  - Tamsin's board promised "gold, plus a piece of armor you can wear". The payment was 480 gp and
+    5 wolf meat. No armour. (Maybe it went somewhere I didn't see; the alert didn't say.)
+  - Kestrel's stamina was back to 7:58h by itself, so stamina DOES refill while idle. The stamina
+    popover never says that; I paid 3,800 gp for refills yesterday that I might not have needed.
+[130-day3-wren-summary] Summary for Wren: her FIRST hunt again (the 0-kill one). So it's not a
+  Kestrel thing: for every hero, Summary is stuck on the very first hunt they ever did.
+[131/132-longpress] The "Hunt together" tip says "Right-click (long-press on a phone) Kestrel's tab
+  and choose Invite to party". Kestrel's tab is the invisible 12 px sliver; my long-press landed on
+  "All characters". The "All characters" sheet says "Right-click a player, or one of your character
+  tabs, to invite. Party (Y) finds open parties." So on a phone I couldn't make my own two heroes
+  hunt together. That's a feature I'd have loved.
+[133/134-glade] Kestrel to Mosslight Glade: "This hunt is above your level, expect losses." Clear
+  warning, I like that it lets me choose. Another see-through alert sat on top of the Details box.
+[135/136-wren] Wren's ammo slot: I swapped to Steel Arrows ("The store sells it at 1 g a shot").
+  NOW "Before you go" shows "Ammo: no Steel Arrows left, then Plain Steel Arrows from the store,
+  1 gp each". So the warning list knows about ammo — it just never warned me when she had NO ammo
+  slot at all, which is the case that actually hurts. Wren: 4 kills in 30 s, 5 gp of arrows.
+
+======================================================================
+DAY 3 — COMMUTE, small phone (667 x 375), emulating a mid-range Android (CPU 4x slower), 4G
+======================================================================
+
+[137-day3-commute-kestrel] 10 s to my characters, 4.6 s after Play to the hunt. Kestrel survived
+  the "above your level" Glade: Level 16, ~60k XP/h (twice the Thicket), 470 kills, 3 food eaten.
+  Very satisfying risk/reward. And THIS time the hunt panel showed the right hunt on open (Glade,
+  01:02:20). So the stale bug is intermittent: wrong on 3 of the 4 opens where the hero was on a
+  later hunt (day 1 evening, day 1 night, day 2 lunch), right this time.
+  PERFORMANCE on the slowed-down phone: 59 fps in the hunt, worst frame 83 ms, two frames over
+  50 ms in 6 s. Crows, poachers, numbers flying. Smooth. Never once felt sluggish to tap.
+  Crows and glade poachers look great at this size, by the way.
+
+[138-142-chat-667] Chat sheet: Global / Local / System / Combat tabs, "Nothing said here yet".
+  The message box starts BELOW the bottom edge: only its top border shows, and tapping that sliver
+  hits the panel, not the box. I had to drag the sheet up to find it. Then "hi from the bus" sent
+  fine ("06:31 Kestrel [16]: hi from the bus"). Pin the input to the bottom of the sheet.
+  Also: a keyboard chip "Enter" sits next to the close X here.
+  (Side note for desktop people: when I typed while the box WASN'T focused, my letters fired
+  shortcuts — "U" flipped the sheet to "HUD layout". On a phone the keyboard won't open unless the
+  box is focused, so this mostly bites keyboard users.)
+
+======================================================================
+DAY 3 — EVENING, sofa (922 x 423, good wifi)
+======================================================================
+
+[143-day3-evening] Kestrel Level 20 (from 16 this morning), Wren Level 9, gold 56,594.
+  Both stopped. Kestrel's stamina 0:05h, so I assume that's why, but nothing says so.
+  "Last hunt: Mill Cellar" (he was in Mosslight Glade). Alert: "Wren's hunt in Mill Cellar has
+  ended" (she was in Meadowbrook Thicket). Every "last hunt" / "hunt ended" label I saw after
+  day 1 named the wrong place.
+  The "Hunt together" tip is back, pointing at a tab I still can't see.
+  The two of them standing side by side in the square, "Wren · 9" and "Kestrel" overhead: that
+  still makes me smile. I'd like to see them in the same hunt.
+[144-farm-day3] Turnips still 1 h 20 m (real clock; not judged).
+
+No console errors in three days of play, apart from my own deliberate offline tests.
+
+======================================================================
+SUMMARY
+======================================================================
+
+WHAT I LOVED
+- My hero keeps hunting with the phone in my pocket, and the server is honest about it: kills,
+  XP, loot and gold really were there when I came back, every time, even after tunnels.
+- The look. Chunky, readable pixel art: rats, wolves, crows, poachers, a knight with a red plume,
+  a blonde archer. 60 fps even on an emulated mid-range phone. Not one hitch I could feel.
+- The first five minutes: create, tap Hunts, tap Enter, and a knight is fighting rats on his own.
+  Level 2 in under two minutes. The ring filling up is a great hook.
+- Sheets that slide in from the right with the world still visible on the left. The pinned gold
+  Enter button. The "All characters" sheet. The full-screen hotbar slot editor. These feel made
+  for a phone.
+- Small honest touches: "No connection. Nothing was changed.", "Leaving in 20s", "This hunt is
+  above your level, expect losses", "Every kill counts, even while you're away", the stamina
+  popover's plain prices, colour-coded gear stats on the doll, "Next at level 5: Cooked Wolf Meat".
+- Recovering from bad signal without me doing anything.
+
+WAITS AND HITCHES I NOTED
+- First open on slow signal with a cold cache: 46 s of blank before the sign-in form (750 kbps).
+  On 3G with a warm cache, 30 s to my characters. On good wifi: ~1 s. Then Play: 0.3 s (wifi),
+  ~10 s (canteen), 4.6 s (mid-range phone on 4G).
+- Leave: 20-33 s every time, on any signal. Sometimes with a "Leaving in 20s" countdown, sometimes
+  just "Leaving..." or a vanished button.
+- Switching heroes: ~7.5 s on 3G.
+- Everything else (enter hunt, equip, sell, plant, cook, buy stamina) answered in under a second.
+
+WOULD I KEEP THIS ON MY PHONE?
+  Yes, but on probation. The core is exactly what I want from a commute idle game: a living little
+  fight I can glance at, real progress while I'm away, and two-minute decisions (new ground, new
+  gear, a task, a refill). But two things nearly made me uninstall: an archer that silently did
+  nothing for seven hours while spending 8,700 of my gold, and a summary/"last hunt" that has been
+  wrong since my first hour. The first one breaks trust; the second one breaks the "what did my
+  hero do while I was away?" moment, which is the whole reason to open an idle game.
+
+BEST TWO-MINUTE SESSION
+  Open -> "All characters" -> see both heroes and what they're doing -> tap the one that stopped ->
+  Hunts -> the ground that says "Fits your level" -> Enter. Bonus round on the sofa: Shop -> Sell
+  -> Sell all loot, then tap a doll slot and wear whatever is green. My day-2 lunch did a full
+  leave / take a task / re-enter in 2 min 37 s, and half of that was the Leave wait.
+
+WHAT I COULD NOT DO ON A PHONE
+- Find out what most of the 15 top icons are without opening each one (names are hover-only).
+- Switch heroes or sign out on a 667 px phone (the icon bar covers those links completely).
+- Use the hero tabs at all on any size (squashed to 12 px).
+- Invite my own hero to a party ("right-click / long-press the tab": the tab can't be hit).
+- Read why a hotbar skill isn't working (the reason lives in hover text; I only see a red slash).
+- See hotbar slots 5-10 and 15-20 on a 667 px phone (they're drawn under the stance panel).
+- Type in chat on a 667 px phone without first dragging the sheet to find the box.
+- Pick a hero colour reliably (16 px swatches).
+- See an item's stats from the bag grid (only from the doll's slot list).
+
+THE ONE THING I'D TELL THE DEVS
+  Make "while you were away" true and loud. When I open the game, show me what each hero did since
+  I last looked (where, how long, kills, XP, levels, gold, drops, and WHY it stopped), and if a
+  hero has done nothing for minutes ("can't attack: no arrows on the bar", "out of gold"), stop
+  it and tell me in red, on the character list, before it costs me a day.
+
+SCORES (out of 10)
+  Usability: 5  — sheets, big Enter and All characters are right; tiny/hidden top-left, hover-only
+                  labels, cut-off controls at 667 px and the silent archer pull it down.
+  Fun:       7  — the fights look alive, levels and new grounds come quickly, gear and tasks give me
+                  real two-minute decisions. Would be 8 with working summaries and parties.
+  Speed:     7  — 60 fps everywhere, sub-second actions on wifi; docked for the 46 s cold start on
+                  slow signal and the 20-33 s Leave.

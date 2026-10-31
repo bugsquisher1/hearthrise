@@ -46,7 +46,7 @@ import { createAlertCenter } from '../shell/alerts.js?v=0.2.74';
 import { createSocialRealtime } from '../social/realtime.js?v=0.2.74';
 import { SocialSession } from '../social/social-session.js?v=0.2.74';
 import { escapeHtml as esc } from '../utils/dom.js?v=0.2.74';
-import { startObservability, track } from '../net/observability.js?v=0.2.74';
+import { startObservability, track, trackOnce } from '../net/observability.js?v=0.2.74';
 import { loadGlyphs } from './glyphs-loader.js?v=0.2.74';
 import { startDiagnostics } from '../net/diagnostics.js?v=0.2.74';
 import { mountPressAck } from '../shell/press-ack.js?v=0.2.74';
@@ -187,6 +187,8 @@ function startApp(win) {
     if (a !== account || a.closedGame) return;
     roster = read;
     rosterSlots = roster.filter((r) => r.exists).map((r) => r.slot);
+    /* funnel: an account that got this far and has no hero yet is a new sign-up (telemetry only; the form itself has no account id to send under) */
+    if (roster.length && !rosterSlots.length) trackOnce('signup_done', {}, 'account');
     const open = new Set(a.characters().map((c) => c.slot));
     /* Each owned slot: its hero by name and Level (the server's), or an empty slot to create in; the whole
        row is the press. Every account owns two (Tyler 10-17); the next one for sale is offered under the list. */

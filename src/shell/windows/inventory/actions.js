@@ -38,7 +38,7 @@ import { gold } from '../../../render/format.js?v=0.2.74';
 import { itemName } from '../../widgets/bits.js?v=0.2.74';
 import { showTip, hideTip } from '../item-tip.js?v=0.2.74';
 import { openFloatMenu, closeFloatMenu } from '../float-menu.js?v=0.2.74';
-import { stateOf, scratchOf, seenOf, confirmFor, setPref } from './state.js?v=0.2.74';
+import { stateOf, scratchOf, seenOf, confirmFor, setPref, eatBlock } from './state.js?v=0.2.74';
 import { LOOT_CHOICES, planBlock, dispatchWords } from '../../loot-dispatch.js?v=0.2.74';
 import { dispatchLoot } from '../../../session/loot-intents.js?v=0.2.74';
 import { fitsSlot, dollTip, DRAG_WORN } from './doll.js?v=0.2.74';
@@ -129,7 +129,9 @@ function doPrimary(st, id, repaint) {
     const slot = equipSlotFor(id, st.eq);
     if (slot) wear(st, repaint, slot, id, 'pick:' + id);
   } else if (k === 'food') {
-    send(st, repaint, () => cs.edgeIntent('eat', { item: id }), 'Eating…');
+    const why = eatBlock(cs, id);
+    if (why) say(st, repaint, why, 'pick:' + id);
+    else send(st, repaint, () => cs.edgeIntent('eat', { item: id }), 'Eating…');
   } else if (barKind(id) && st.bar && barIndexOf(cs, id) < 0) {
     send(st, repaint, () => assignToBar(cs, id), 'Putting it on the bar…');
   } else if (buryRecipeOf(id)) doBury(st, id, repaint);
@@ -212,7 +214,8 @@ function openMenu(ctx, body, st, id, at, repaint) {
   let h = '<b class="hw-menu-title">' + esc(itemName(id)) + '</b>';
   const block = k === 'gear' ? wearBlock(st.cs, id) || (equipSlotFor(id, st.eq) ? '' : itemName(id) + ' does not go in any slot.') : '';
   if (k === 'gear') h += item('m-equip', 'Equip', !block, '', block);
-  if (k === 'food') h += item('m-eat', 'Eat', true);
+  const eatWhy = k === 'food' ? eatBlock(st.cs, id) : '';
+  if (k === 'food') h += item('m-eat', 'Eat', !eatWhy, '', eatWhy);
   const br = buryRecipeOf(id);
   const brWhy = br ? buryBlock(st.cs, br) : '';
   /* a fuel stack offers ONE ("Fuel the hearth", a bench count of one) beside the whole stack ("Fuel all N", Tyler 10-25) */

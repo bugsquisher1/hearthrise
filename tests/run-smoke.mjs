@@ -1174,8 +1174,8 @@ const run = async () => {
        the real migration chain in PGlite: an eat DEBITS the food server-side
        (the P0 — a client-only debit was restored by the absolute reconcile, so
        the food "returned"), CREDITS the heal clamped to max_hp, is idempotent on
-       replay (no double-debit), DEBITS even at full server hp (the live-combat
-       case — no already_full gate), refuses insufficient_item / intent_mismatch,
+       replay (no double-debit), refuses a full-HP eat that brings no buff
+       (already_full, nothing debited), refuses insufficient_item / intent_mismatch,
        and every stateful refusal carries the envelope. */
     const eatProblems = await eatIntentGuards();
     if (eatProblems.length) {

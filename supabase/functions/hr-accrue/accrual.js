@@ -2316,8 +2316,9 @@ function accrueArtisan(inp, span) {
      gather path makes, over the same `sliceSpan` primitive (artisan-sim.js:355).
      A bench that ran out of inputs or hit its gate leaves `remainder >= stepMs`
      and refusal (c) stamps `now()`, so the `activity: idle` statement below is
-     never re-opened. */
-  const settledTo = settledWatermarkMs(span, summary, summary.intervalMs,
+     never re-opened. A run that stops on the action that spent its last input (report
+     #68) may leave less than a step: any stopped run is stamped `now()` outright. */
+  const settledTo = stopped ? nowMs : settledWatermarkMs(span, summary, summary.intervalMs,
     { caller: accrualCaller(inp) });
 
   const delta = {

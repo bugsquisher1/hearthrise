@@ -137,11 +137,12 @@ function patchPlot(li, i, st, now) {
   /* Each label says what its verb does (Tyler 10-25, "farming is hard to understand"): an extra plot never replants. */
   text(harvest, extra ? 'Harvest' : vine ? (more === null ? 'Harvest (it grows back)' : 'Harvest (grows back ' + times(more) + ')') : 'Harvest and replant');
   prop(harvest, 'disabled', st.sc.pending);
+  /* A regrowing crop never reads "Harvest only" (report #66): on its last harvest that press withers it and clears the plot. */
   const act = li.querySelector('.hw-plot-do');
   const verb = !p ? 'plant' : p.ready ? (extra ? '' : vine ? 'clear' : 'leave') : p.waterable ? 'water' : '';
   attr(act, 'data-hs-act', verb || null);
   cls(act, 'is-off', !verb);
-  text(act, verb === 'plant' ? 'Plant' : verb === 'leave' ? 'Harvest only' : verb === 'clear' ? 'Harvest and clear plot' : verb === 'water' ? 'Water' : p ? 'Watered' : '');
+  text(act, verb === 'plant' ? 'Plant' : verb === 'leave' ? (regrow ? 'Harvest and clear plot' : 'Harvest only') : verb === 'clear' ? 'Harvest and clear plot' : verb === 'water' ? 'Water' : p ? 'Watered' : '');
   prop(act, 'disabled', !verb || st.sc.pending);
 }
 

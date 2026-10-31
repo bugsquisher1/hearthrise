@@ -82,6 +82,8 @@ Fresh accounts: sword + shield, hatchets, bow, wand + spellbook, staff, plus a t
 | 9 | Tamsin's wolves, Into the Thicket | Level 5, a weight to pick | Tally, then Enter |
 | 10 | Eat on time, Your own food first | has eaten three times in this hunt | Configure action, or Got it |
 
+**Card placement with lane/a-phone-reach and lane/a-numbers-agree in, fresh heroes (shots s922/, s667/):** at 922x423 and 667x375 no card ran off screen, or over the hero or Leave; cards folded in a hunt and Got it could be pressed. Found and fixed: the town card's cap was overridden, so it ran 30 px over the bar at 667; the first card's Got it fell off a phone's bag sheet; the creation step ran off the right edge at 667. The phone hero tabs are lane/a-phone-reach's fix; mine gave way to it.
+
 **Not played:** the Thicket after the bow fix; real waiting on farm and cooking clocks; live. Not reproduced: one page's bag failed to open with three heroes running on the loaded PC; a fresh page with the same weapon was fine.
 
 ### 2026-10-31 Balance baseline against Tyler's 10-25 targets (designer, lane/b-balance-baseline): MEASURED on the real engine, no data row changed

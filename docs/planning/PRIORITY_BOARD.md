@@ -66,7 +66,23 @@ Fresh accounts: sword + shield, hatchets, bow, wand + spellbook, staff, plus a t
 7. "Taking a beating?" fires at 3 meals, which is ordinary eating. Watch it now that "Eat on time" shares the trigger.
 8. Invite to party's result stays in its menu until a tap elsewhere; on a phone that menu covers the hero tabs.
 
-**Not played:** hammer, crossbow and a wand without a book past their first minute; Thicket after the bow fix; real waiting on farm and cooking clocks; live.
+**The other weapons, first minutes on the fixed code:** hammer 57 kills, crossbow 30 (shield kept, arrows loaded), a wand with no book 5 in 25 s. A sword set to Chase off, Distance 3 still killed 17 in under 3 minutes, so that is no trap.
+
+**Walk-through (each step from the kit and the steps before it; the machine check is tests/hunt-core/sewer.mjs `tutorial-walk-through` and `first-hour-never-walls`)**
+| Step | Card | Holds and can reach | Doable because |
+|---|---|---|---|
+| 1 | Every weapon is a style | kit: all practice weapons, worn sword and shield | Got it, or Equip in the bag |
+| 2 | Rats in the mill | Hunts window; the Cellar is open | Enter (a bow loads the kit's arrows on Equip) |
+| 3 | Plant your land | 8 Turnip Seeds, 2 plots, in a hunt | Farm plants during a hunt, or Got it |
+| 4 | Your action bar, Spells need runes, A spell costs runes | default bar, store runes 1 gp, 500 gp | Configure action opens in a hunt; each has Got it |
+| 5 | The whole picture | gear icon, Settings' Help tab | Got it |
+| 6 | Out to the brook, Cash in | Level 5 at about 20 minutes (played) | Leave hunt |
+| 7 | Before the wolves | free below Level 30 | Shop, Services, Bless |
+| 8 | Sell, Decide once, Cook your catch | loot from step 6, 10 Raw Shrimp in the kit | Shop, bag, Gathering and crafting |
+| 9 | Tamsin's wolves, Into the Thicket | Level 5, a weight to pick | Tally, then Enter |
+| 10 | Eat on time, Your own food first | has eaten three times in this hunt | Configure action, or Got it |
+
+**Not played:** the Thicket after the bow fix; real waiting on farm and cooking clocks; live. Not reproduced: one page's bag failed to open with three heroes running on the loaded PC; a fresh page with the same weapon was fine.
 
 ### 2026-10-30 Core loop, fresh and returning (designer, lane/b-core-loop-basics): PLAYED on live v0.2.70 as QA (Pellow L2→3 in the Cellar, reload mid-hunt, leave, summary, bag, Shop; Corliss L12 back after a day), fixes in the lane
 | # | Moment (first-hour value order) | Ruling |

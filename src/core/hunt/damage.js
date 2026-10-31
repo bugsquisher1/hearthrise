@@ -45,10 +45,12 @@ import { BASIC_EFFECT_SHARE } from '../../data/supply-basics.js?v=0.2.76';
 const BASIC_SHOT_PM = Math.round(BASIC_EFFECT_SHARE * 1000);
 
 /* stance: the hero's setting. acc (permille), maxHit, def, element: its combat snapshot.
-   swingLeftMs: ms until the unit may swing again. */
+   swingLeftMs: ms until the unit may swing again.
+   fightAt (world): the instant a blow last landed on a monster, the no-fight end's clock (action-rules.js `no_fight`):
+   stored with the world, so every settle cut reads the same boundary. */
 export const PERSISTED = Object.freeze({
   unit: Object.freeze([['stance', 'str'], ['acc', 'int'], ['maxHit', 'int'], ['def', 'int'], ['element', 'str'], ['swingLeftMs', 'int']]),
-  world: Object.freeze([]),
+  world: Object.freeze([['fightAt', 'int']]),
   pack: Object.freeze([]),
 });
 
@@ -123,6 +125,7 @@ export function landHit(inst, sc, source, target, amount, element, ability, crit
   const u = source ? source.id : null;
   if (r.immune) sc.emit(makeEvent('immune', sc.atMs, { u, t: target.id }));
   else {
+    if (target.side === 'mon') inst.world.fightAt = sc.atMs;
     sc.emit(makeEvent('dmg', sc.atMs, { u, t: target.id, amount: r.dmg,
       ability: (ability && ability.id) || 'basic', element: element || null, ...(crit ? { crit: true } : {}),
       ...(ability && ability.dot ? { dot: true } : {}) }));

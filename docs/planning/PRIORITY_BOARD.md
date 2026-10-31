@@ -160,7 +160,7 @@ Fresh accounts: sword + shield, hatchets, bow, wand + spellbook, staff, plus a t
 **Creator colors: a missing render, not a bug.** The four picks reach the server (hr_create_hero). No world or hunt renderer reads them (no `colors` in src/world or src/hunt-view) and every outfit has `regions: []`, so no mask art exists. The real fix is mask frames per outfit (asset-director) plus one palette swap at sheet load: days of art, about a day of code. For now the step says so in one line. Decision for Tyler: keep that line until the art, or hide the color rows (CLAUDE.md §3.5 says half-built stays hidden; his 10-19 ruling asked for the step).
 
 **Ranked, not built**
-1. Zero-kill stop (lane C, above).
+1. Zero-kill stop: built, the `no_fight` end (lane/a-no-fight, 2026-10-31: 10 hunt minutes with no blow landed by anyone in the instance).
 2. Switching style with an own bar leaves the old style's moves struck beside the new ones. It says why, but a setup per style is the real answer: teach it at the first switch, not after the Thicket. Bites after hour 1.
 3. Tamsin pays materials once the hero already owns her pieces, and by 200 wolves drops have usually supplied them. The card now says so; her greeting still promises armor. Giving the next tier is a lane C rule change.
 4. A Level 1 sword in Wickstead (floor 8) reached Level 5 in 5 minutes with no death, against 20 in the Cellar: the warning is true but the push pays. Balance call for the sim, unverified.

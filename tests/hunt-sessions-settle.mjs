@@ -112,6 +112,9 @@
 //   OWN-DRINK  an own crafted drink is spent the same way, with the browser closed
 //              (the tick's door) and the hunt viewed (the player's door); one past the
 //              bag is refused bag_short.
+//   NO-FIGHT   a hero who can't fight goes home (designer 10-31): a bare bow with the store shut ends no_fight at its hunt
+//              start + the limit's minutes, a town-side automatic end, nothing bought, browser closed and viewed; the
+//              database refuses that end before the minutes and with a kill in its window.
 //   STORE      an empty bag under the default switch buys from the store: every
 //              unit journalled supply_buy at the catalogue price, the gold
 //              moved = coins − store gold, the tally's Waste carries it; under
@@ -1872,6 +1875,54 @@ const DB_ARMS = {
     }
     return problems;
   }),
+  'NO-FIGHT': async (db, M) => inTx(db, async () => {
+    const problems = [];
+    const SPAN = M.HSD.NO_FIGHT_END_MIN * 60000;
+    const bare = { ...STRONG, minutesAgo: M.HSD.NO_FIGHT_END_MIN + 4, level: 30, gold: 700, inv: { practice_bow: 1 }, bag: [], options: { supply_source: 'mine', on_empty: 'end', slots: [] },
+      beforeEnter: () => admin(db, UID, { equip: { weapon: 'practice_bow', shield: null, ammo: null } }) };
+    const h = await hunter(db, M, bare);
+    const exec = makeExec(db);
+    const to = h.from + SPAN + 60000;
+    const doors = {
+      closed: { mode: 'tick', session: h.sid, cuts: ticksOf(90000, to - h.from)(h.from) },
+      viewed: { mode: 'settle', bucket: null, project: true, live: true, cuts: [h.from + 12345, h.from + 195000, h.from + 381111, h.from + 544321, to] },
+    };
+    await db.query('savepoint no_fight');
+    const seen = {};
+    for (const [path, d] of Object.entries(doors)) {
+      const { cuts, ...door } = d;
+      for (const t of cuts) {
+        const r = await M.HS.settleHunt({ exec, user: UID, slot: 0, grounds: groundsOf(M), atMs: t, ...door });
+        if (!r || (r.outcome !== 'paid' && r.outcome !== 'none')) { problems.push(`${path}: the window to +${t - h.from} ms answered ${r && r.outcome}/${r && r.reason} ${JSON.stringify(r && r.body).slice(0, 200)}`); break; }
+        if (r.outcome === 'none' || r.ended) break;
+      }
+      const s = await snapshot(db, h.sid);
+      if (s.session.end_reason !== 'no_fight') problems.push(`${path}: a bare bow ended ${s.session.end_reason} (${JSON.stringify(s.session).slice(0, 200)})`);
+      if (Date.parse(s.session.ended_at) !== h.from + SPAN) problems.push(`${path}: it ended at +${Date.parse(s.session.ended_at) - h.from} ms, not +${SPAN} ms`);
+      if (s.tally.kills) problems.push(`${path}: CONTROL: the bare bow killed ${s.tally.kills}`);
+      if (s.gold !== 700) problems.push(`${path}: the purse moved to ${s.gold} with the store shut`);
+      if (!/^idle/.test(s.active)) problems.push(`${path}: the hero is ${s.active} after the end, not back in town`);
+      if (!(s.events || []).some((e) => e[0] === 'ended' && e[2] && e[2].reason === 'no_fight')) problems.push(`${path}: no ended event names no_fight: ${JSON.stringify(s.events).slice(0, 200)}`);
+      seen[path] = { at: s.session.ended_at, swing: s.session.swing, world: s.instance.world };
+      await db.query('rollback to savepoint no_fight');
+    }
+    if (seen.closed.at !== seen.viewed.at || seen.closed.swing !== seen.viewed.swing) problems.push(`browser closed ${canon(seen.closed)} vs viewed ${canon(seen.viewed)}`);
+    /* THE PROOF: the bare bow claims the end two minutes in, no kill to count against it: refused on the minutes alone. */
+    await db.query('rollback'); await db.query('begin');
+    const e = await hunter(db, M, bare);
+    await settleTo(db, M, e.from + 60000);
+    const early = await settleTo(db, M, e.from + 120000, { tamper: (c) => { c.members[0].hunt.ended = { reason: 'no_fight', at: c.members[0].hunt.to }; } });
+    if (!early.res || early.res.error !== 'end_not_proven') problems.push(`a no_fight end two minutes in answered ${JSON.stringify(early.res).slice(0, 200)}, want end_not_proven`);
+    /* A hunter who fights claims the end after the minutes, with a kill in the window: refused, nothing moved. */
+    await db.query('rollback'); await db.query('begin');
+    const f = await hunter(db, M, { ...STRONG, minutesAgo: M.HSD.NO_FIGHT_END_MIN + 4 });
+    await settleTo(db, M, f.from + SPAN - 60000);
+    let killsInWindow = 0;
+    const x = await settleTo(db, M, f.from + SPAN + 60000, { tamper: (c) => { killsInWindow = c.members[0].delta.journal.meta.kills; c.members[0].hunt.ended = { reason: 'no_fight', at: c.members[0].hunt.to }; } });
+    if (!(killsInWindow > 0)) problems.push('CONTROL: the fighting hunter killed nothing in the forged window');
+    if (!x.res || x.res.error !== 'end_not_proven') problems.push(`a no_fight end with ${killsInWindow} kill(s) in its window answered ${JSON.stringify(x.res).slice(0, 200)}, want end_not_proven`);
+    return problems;
+  }),
   STORE: async (db, M) => inTx(db, async () => {
     const problems = [];
     const { sid, from } = await hunter(db, M, { ...WEAK, options: { supply_source: 'mine', on_empty: 'switch', gold_floor: 0 }, gold: 5000 });
@@ -3254,6 +3305,7 @@ const DB_ARMS = {
       ['a world of another version', (c) => { const w = JSON.parse(c.settle.world); w.v += 1; c.settle.world = JSON.stringify(w); }, 'bad_world'],
       ['a world swing running backwards', back, 'bad_world_swing'],
       ['a heals_out end with food in the bag', endAt('heals_out'), 'end_not_proven'],
+      ['a no_fight end two minutes into the hunt', endAt('no_fight'), 'end_not_proven'],
       ['a stamina end on a full pool', endAt('stamina'), 'end_not_proven'],
       ['a store buy the hero never chose', (c) => { m0(c).hunt.buys = { salted_shrimp: 1 }; }, 'store_off'],
       ['an id the store does not sell', (c) => { m0(c).hunt.buys = { dragon_scale: 1 }; }, 'not_for_sale'],
@@ -3654,6 +3706,8 @@ const MUTANTS = [
     from: '    if (m.left || !(stamped.has(m) || m.hs.partyEnd)) continue;', to: '    if (m.left || m.unitId === null || !(stamped.has(m) || m.hs.partyEnd)) continue;' },
   { arm: 'QUIVER', name: '[C2 ammoGuard] a shot is loosed but its arrow is never taken from the bag', file: 'src/core/hunt/abilities.js',
     from: '    if (!takeLine(h.hs, l, sc.atMs)) { h.hs.goldOut = true; return false; }\n    return l;', to: '    return l;' },
+  { arm: 'NO-FIGHT', name: 'the no_fight end never fires', file: 'src/core/action-rules.js',
+    from: '  no_fight: (hs, t) => Number.isInteger(hs.fightAtMs) && t - Math.max(hs.fightAtMs, Number(hs.huntFromMs) || 0) >= NO_FIGHT_END_MIN * 60000,', to: '  no_fight: () => false,' },
   { arm: 'QUIVER', name: 'the free rung is spent like a paid one', file: 'src/core/hunt/abilities.js',
     from: "    if (l.source === 'own' && ammoPerShot(itemRow(h, l.id)) === 0) return l;\n", to: '' },
   { arm: 'QUIVER', name: 'a ranged basic swings without a shot', file: 'src/core/hunt/damage.js',
@@ -3918,6 +3972,10 @@ const DB_MUTANTS = [
     find: '    if v_ok then\n      update public.player_state', replace: '    if false then\n      update public.player_state' },
   { arm: 'RESUME', name: 'a resume ignores the bench\'s inputs', fn: AM,
     find: '      and public.hr_resume_has_inputs(p_user, p_slot, v_lk, v_li);\n', replace: '      and true;\n' },
+  { arm: 'NO-FIGHT', name: 'a no_fight end is proven before its minutes', fn: SS,
+    find: "      when 'no_fight' then v_end_at >= v_s.hunt_from + make_interval(mins => public.hr_hunt_limit('no_fight_min'))\n", replace: "      when 'no_fight' then true\n" },
+  { arm: 'NO-FIGHT', name: 'a no_fight end is proven with a kill in its window', fn: SS,
+    find: "and jsonb_typeof(l.meta->'kills') = 'number' and (l.meta->>'kills')::numeric > 0)", replace: "and false)" },
   { arm: 'VALUE', name: 'a heals_out end is proven on a full bag', fn: SS,
     find: "      when 'heals_out' then not exists (select 1 from public.hunt_bag b join public.hr_hunt_supplies p on p.item_id = b.item_id",
     replace: "      when 'heals_out' then true or not exists (select 1 from public.hunt_bag b join public.hr_hunt_supplies p on p.item_id = b.item_id" },

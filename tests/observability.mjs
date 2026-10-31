@@ -5,7 +5,7 @@
 //   node tests/observability.mjs           the checks
 //   node tests/observability.mjs --mutate  every planted defect must turn a check RED
 //
-// mutant-anchors: src/net/observability.js src/net/diagnostics.js src/net/observability-config.js src/app/boot.js src/shell/windows/chat.js src/shell/widgets/hunt-topbar.js play.html
+// mutant-anchors: src/net/observability.js src/net/diagnostics.js src/net/observability-config.js src/app/boot.js src/shell/windows/chat.js src/shell/widgets/hunt-topbar.js src/shell/launcher.js play.html
 //
 // play.html in a real Chromium with the REAL vendored Sentry and PostHog SDKs,
 // supabase-js and the REST paths stubbed (tests/_client-harness.mjs). The page is
@@ -46,6 +46,19 @@
 //         and after a sign-out and a second sign-in in one load, on a fresh session)
 //   OB-12 PostHog's script is not fetched on the sign-in screen (206 KB, opt-review
 //         2026-10-28): only once the account id is known, on the next idle moment
+//   OB-13 where a new player gets stuck (2026-10-31): RAGE and DEAD clicks are on and ordinary
+//         clicks are not. (node) the SDK's options (autocapture for 'click' only, no pageviews or
+//         heatmaps, every text masked, every input masked) and its one gate (before_send): $autocapture
+//         never passes, a click event passes from the characters and game screens only, with an account,
+//         20 of each kind per load; every event carries release = BUILD.version. (browser, the real SDK
+//         with the project's real remote config) a rage click and a dead click arrive as the element's
+//         tag and classes; no click in the chat mask, .ph-no-capture or a field does, and none carries
+//         a button's text, a title, an aria-label, a value or a placeholder
+//   OB-14 the funnel (display-only, each step once per its scope: observability.js header): signup_done
+//         (a new account on the characters screen), first_town, first_hunt_left, first_sale,
+//         first_gear_equipped, tutorial_card (from the shell's coach), level_reached, session_return;
+//         hunt_ended carries reseeds_total (every reseed of the load, past live_view_stall's 50);
+//         a step is sent once per scope, afresh for the next account, and a load sends at most 400 events
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
 import { launchOptions } from './_chrome.mjs';
@@ -62,6 +75,11 @@ const VERSION = /version:\s*'([^']+)'/.exec(BUILD_SRC)[1];
 const V = '?v=' + /cache:\s*'([^']+)'/.exec(BUILD_SRC)[1];
 const HUNT = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/hunt-envelope.json'), 'utf8'));
 const SENTRY = /\.ingest\.us\.sentry\.io\//;
+/* What the project's own /flags/?config=true and /array/<key>/config answer (read from the live endpoints 2026-10-31): the SDK's
+   autocapture, and with it rage clicks, starts only once the server has said `autocapture_opt_out` (false = allowed); elements
+   travel as one chain string. */
+const PH_FLAGS = JSON.stringify({ featureFlags: {}, featureFlagPayloads: {}, errorsWhileComputingFlags: false, flags: {}, autocapture_opt_out: false,
+  elementsChainAsString: true, captureDeadClicks: false, heatmaps: false, autocaptureExceptions: false });
 const POSTHOG = /^https:\/\/us(?:-assets)?\.i\.posthog\.com\//;
 
 function envelope(version) {
@@ -133,7 +151,17 @@ async function page(browser, base, o) {
   let closing = false;
   await pg.route('https://hearthrise.net/**', async (r) => {
     if (closing) return r.abort().catch(() => {});
-    const f = r.fetch({ url: base + new URL(r.request().url()).pathname });
+    /* A page loads hundreds of modules at once; on a busy box the one-thread static server falls behind its accept queue and the
+       OS refuses a connect (ECONNREFUSED, measured 2026-10-31 on a loaded PC: 17 of 600 module fetches in an otherwise green run).
+       That is the box, not the page: the connect is tried again, a few times, before it is a harness failure. */
+    const f = (async () => {
+      for (let i = 0; ; i++) {
+        try { return await r.fetch({ url: base + new URL(r.request().url()).pathname }); } catch (e) {
+          if (i >= 5 || closing || !/ECONNREFUSED|ECONNRESET/.test(String(e && e.message))) throw e;
+          await new Promise((ok) => setTimeout(ok, 40 * (i + 1)));
+        }
+      }
+    })();
     inflight.add(f);
     let res;
     try { res = await f; } catch (e) {
@@ -147,13 +175,16 @@ async function page(browser, base, o) {
   await pg.route(SENTRY, (r) => { seen.sentry.push(r.request().postData() || ''); return r.fulfill({ status: 200, contentType: 'application/json', body: '{}' }); });
   await pg.route(POSTHOG, (r) => {
     const req = r.request();
-    seen.posthog.push(new URL(req.url()).pathname);
-    seen.events.push(...posthogEvents(req));
-    return r.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
+    const path = new URL(req.url()).pathname;
+    seen.posthog.push(path);
+    seen.events.push(...posthogEvents(req).filter((e) => e && e.event));   // the flags call's body is no event
+    return r.fulfill({ status: 200, contentType: 'application/json', body: path === '/flags/' || /^\/array\/[^/]+\/config$/.test(path) ? PH_FLAGS : '{}' });
   });
   let v = 0;
   await pg.route('https://nezapsylztqbbwuwembx.supabase.co/**', (r) => {
     const name = r.request().url().split('?')[0].split('/').pop();
+    /* a brand-new account: slot 0 is not named yet, so no hero exists (the roster the characters screen reads) */
+    if (o.fresh && name === 'hr_load') return r.fulfill({ contentType: 'application/json', body: JSON.stringify({ ok: false, error: 'needs_name', hero_slots: [0, 1], account: { max_concurrent: 4 } }) });
     if (name === 'hr_hunt_leave') { o.left = true; return r.fulfill({ contentType: 'application/json', body: '{"ok":true}' }); }
     if (name === 'hr_load' || name === 'hr-accrue') {
       v++;
@@ -173,12 +204,12 @@ async function page(browser, base, o) {
   return { pg, seen, close };
 }
 
-async function signIn(pg) {
+async function signIn(pg, reach = '[data-app="play"][data-slot="0"]') {
   await wait(pg, () => document.querySelector('form[data-auth="sign-in"]'));
   await pg.fill('input[name=email]', 'qa@example.test');
   await pg.fill('input[name=password]', 'not-a-real-password');
   await pg.click('.auth-submit');
-  return wait(pg, () => document.querySelector('[data-app="play"][data-slot="0"]'));
+  return wait(pg, (sel) => document.querySelector(sel), reach);
 }
 
 async function browserChecks(overrides) {
@@ -225,7 +256,8 @@ async function browserChecks(overrides) {
             external: p.disable_external_dependency_loading, rec: p.disable_session_recording, persistence: p.persistence,
             boot: p.bootstrap || null, id: window.posthog.get_distinct_id() };
         });
-        if (c.profiles !== 'identified_only' || c.autocapture !== false || c.pageview !== false || c.external !== true) fails.push('OB-1 PostHog profiles/autocapture/pageview/external: ' + JSON.stringify(c));
+        /* autocapture is on for clicks alone, to raise rage clicks (OB-13); no pageviews */
+        if (c.profiles !== 'identified_only' || !c.autocapture || JSON.stringify(c.autocapture.dom_event_allowlist) !== '["click"]' || c.pageview !== false || c.external !== true) fails.push('OB-1 PostHog profiles/autocapture/pageview/external: ' + JSON.stringify(c));
         if (c.maskInputs !== true || c.maskText !== '.ph-mask, input, textarea') fails.push('OB-1 PostHog replay masking: ' + JSON.stringify([c.maskInputs, c.maskText]));
         if (c.rec !== true) fails.push('OB-3 replay is on at the characters screen (it names the email)');
         if (c.persistence !== 'memory') fails.push('OB-1 PostHog keeps its ids on the device: persistence ' + c.persistence);
@@ -277,9 +309,23 @@ async function browserChecks(overrides) {
       if (!(await wait(pg, () => document.querySelector('[data-hs-widget="hunt-topbar"] [data-hs-act="leave"]:not([hidden])')))) fails.push('OB-4 the hunt never showed its Leave button');
       else await pg.click('[data-hs-widget="hunt-topbar"] [data-hs-act="leave"]');
       const ev = (n) => seen.events.find((e) => e && e.event === n);
-      await until(() => ev('hunt_started') && ev('leave_hunt_clicked') && ev('hunt_ended'), 12000);
+      await until(() => ev('hunt_started') && ev('leave_hunt_clicked') && ev('hunt_ended') && ev('first_hunt_left') && ev('tutorial_card'), 12000);
       const st = ev('hunt_started');
       const en = ev('hunt_ended');
+      if (process.env.OBS_DEBUG) console.log('pageA', JSON.stringify(seen.events.map((e) => e && [e.event, e.properties && e.properties.release, e.event === 'tutorial_card' ? [e.properties.card, e.properties.state] : undefined])));
+      /* OB-13/14, the real SDK: every event it queued carries the release; the hero's first town, its first hunt left (with the
+         reason) and the hunt's reseed total reach PostHog from the real server answers */
+      const noRelease = seen.events.filter((e) => e && (!e.properties || e.properties.release !== VERSION));
+      if (noRelease.length) fails.push('OB-13 an event carries no release (' + VERSION + '): ' + noRelease.slice(0, 3).map((e) => e.event).join(','));
+      if (!ev('first_town') || ev('first_town').properties.slot !== 0) fails.push('OB-14 no first_town for the hero\'s first read: ' + JSON.stringify(ev('first_town') && ev('first_town').properties));
+      const fl = ev('first_hunt_left');
+      if (!fl || fl.properties.slot !== 0 || fl.properties.reason !== 'left') fails.push('OB-14 first_hunt_left: ' + JSON.stringify(fl && fl.properties));
+      if (!en || !Number.isInteger(en.properties.reseeds_total)) fails.push('OB-14 hunt_ended carries no reseeds_total: ' + JSON.stringify(en && en.properties.reseeds_total));
+      if (seen.events.filter((e) => e && e.event === 'first_town' && e.properties.slot === 0).length !== 1) fails.push('OB-14 first_town was sent more than once for one hero in one load');
+      /* the coach's card, from the shell (launcher.js heldCard): shown as it appears, done as the next one takes over */
+      const cards = seen.events.filter((e) => e && e.event === 'tutorial_card' && e.properties.slot === 0);
+      if (!cards.some((e) => e.properties.state === 'shown' && /^[a-z0-9_]+$/.test(e.properties.card)) || cards.some((e) => !/^(shown|done)$/.test(e.properties.state)))
+        fails.push('OB-14 tutorial_card: ' + JSON.stringify(cards.map((e) => [e.properties.card, e.properties.state])));
       if (!st || st.properties.hunt !== HUNT.hunt.hunt_id || st.properties.party_size !== HUNT.party.members.length || st.properties.density !== (HUNT.hunt_density ? (HUNT.hunt_density[HUNT.hunt.hunt_id] ?? 0) : null))
         fails.push('OB-4 hunt_started: ' + JSON.stringify(st && { hunt: st.properties.hunt, party: st.properties.party_size, density: st.properties.density }) + ' (events: ' + seen.events.map((e) => e && e.event).join(',') + ')');
       if (!ev('leave_hunt_clicked')) fails.push('OB-4 no leave_hunt_clicked');
@@ -319,6 +365,55 @@ async function browserChecks(overrides) {
         if (distinctIds(seen.events).some((x) => x !== UID)) fails.push('OB-11 PostHog posted a distinct id that is not the account id around the second sign-in: ' + JSON.stringify([...new Set(distinctIds(seen.events))]));
         if (JSON.stringify(seen.events).includes('$anon_distinct_id') || seen.events.some((e) => e && e.event === '$identify')) fails.push('OB-11 the second sign-in merged an anonymous id onto the person');
         if (seen.warns.length) fails.push('OB-11 PostHog warned at the second sign-in: ' + seen.warns[0].slice(0, 200));
+      }
+      await close();
+    }
+
+    { // OB-13 .. OB-15: a brand-new account on the characters screen, the real SDK: the funnel's first step, rage and dead clicks only
+      const { pg, seen, close } = await page(browser, 'http://127.0.0.1:' + port, { hunt: false, fresh: true });
+      opened.push(seen);
+      await pg.goto('https://hearthrise.net/play.html', { waitUntil: 'load' });
+      if (!(await signIn(pg, '[data-app="create"][data-slot="0"]'))) fails.push('OB-14 a new account did not reach the characters screen');
+      else if (!(await wait(pg, () => window.posthog && window.posthog.__loaded))) fails.push('OB-14 PostHog did not start for the new account');
+      else {
+        /* Probes in the page, none of them the game's: a plain button, the same inside the chat's mask, inside .ph-no-capture,
+           a field, and a dead spot. Every word that must never leave the browser is a secret in the test's own words. */
+        await pg.evaluate(() => {
+          const host = document.createElement('div');
+          host.style.cssText = 'position:fixed;left:8px;top:8px;z-index:99999;display:flex;flex-direction:column;gap:8px;padding:8px;background:#222';
+          host.innerHTML = '<button type="button" class="obs-ok" title="obs-title-secret" aria-label="obs-aria-secret">obs-text-secret</button>'
+            + '<div class="ph-mask"><button type="button" class="obs-masked">obs-chat-secret</button></div>'
+            + '<div class="ph-no-capture"><button type="button" class="obs-blocked">obs-blocked-secret</button></div>'
+            + '<input class="obs-field" value="obs-value-secret" placeholder="obs-placeholder-secret">'
+            + '<div class="obs-dead">obs-dead-text</div>'
+            + '<div class="ph-mask"><div class="obs-dead-masked">obs-dead-chat-secret</div></div>';
+          document.body.appendChild(host);
+        });
+        /* four clicks in the same spot in one go (Playwright's clickCount): a rage click by the SDK's own rule (3 within a second and 30 px) */
+        if (process.env.OBS_DEBUG) await pg.evaluate(() => { const o = window.posthog.capture; window.__caps = []; window.posthog.capture = function (n) { window.__caps.push(n); return o.apply(this, arguments); }; });
+        const burst = async (sel) => { await pg.click(sel, { clickCount: 4, delay: 0 }); await pg.waitForTimeout(1200); };
+        await burst('.obs-masked');
+        await burst('.obs-blocked');
+        await burst('.obs-field');
+        await burst('.obs-ok');
+        await pg.click('.obs-dead-masked');
+        await pg.waitForTimeout(3500);
+        await pg.click('.obs-dead');
+        const has = (n, cls) => seen.events.some((e) => e && e.event === n && JSON.stringify(e.properties).includes(cls));
+        await until(() => has('$rageclick', 'obs-ok') && has('$dead_click', 'obs-dead') && seen.events.some((e) => e && e.event === 'signup_done'), 14000);
+        if (!seen.events.some((e) => e && e.event === 'signup_done' && e.properties.distinct_id === UID)) fails.push('OB-14 signup_done never arrived for an account with no hero yet (events: ' + seen.events.map((e) => e && e.event).join(',') + ')');
+        if (!has('$rageclick', 'obs-ok')) fails.push('OB-13 a rage click on the characters screen never reached PostHog (events: ' + seen.events.map((e) => e && e.event).join(',') + ')');
+        if (!has('$dead_click', 'obs-dead')) fails.push('OB-13 a dead click on the characters screen never reached PostHog (events: ' + seen.events.map((e) => e && e.event).join(',') + ')');
+        if (seen.events.some((e) => e && e.event === '$autocapture')) fails.push('OB-13 an ordinary click was sent ($autocapture)');
+        for (const cls of ['obs-masked', 'obs-blocked', 'obs-field', 'obs-dead-masked']) if (seen.events.some((e) => e && /^\$(rageclick|dead_click|autocapture)$/.test(e.event) && JSON.stringify(e.properties).includes(cls)))
+          fails.push('OB-13 a click inside ' + cls + ' (the chat mask, .ph-no-capture, a field) was sent');
+        const clicks = seen.events.filter((e) => e && /^\$(rageclick|dead_click)$/.test(e.event));
+        for (const secret of ['obs-text-secret', 'obs-title-secret', 'obs-aria-secret', 'obs-value-secret', 'obs-placeholder-secret', 'obs-dead-text', 'qa@example.test'])
+          if (JSON.stringify(clicks).includes(secret)) fails.push('OB-13 a click event carries the page\'s words: ' + secret);
+        if (process.env.OBS_DEBUG) console.log('paths', JSON.stringify([...new Set(seen.posthog)]), await pg.evaluate(() => { const a = window.posthog.autocapture; return JSON.stringify({ en: a && a.isEnabled, init: a && a._initialized, got: a && a._hasReceivedConfigResponse, dis: a && a._isDisabledServerSide, cfg: a && a._config }); }));
+        if (process.env.OBS_DEBUG) console.log('caps', JSON.stringify(await pg.evaluate(() => ({ caps: window.__caps, keys: Object.keys(window.posthog).filter((k) => /auto|rage|dead/i.test(k)), rc: window.posthog.config.rageclick }))));
+        if (process.env.OBS_DEBUG) console.log(JSON.stringify(seen.events.map((e) => e && [e.event, e.properties && e.properties.release])));
+        if (process.env.OBS_DEBUG) console.log('chains', JSON.stringify(clicks.map((e) => [e.event, e.properties.$elements_chain, e.properties.$el_text, (e.properties.$elements || []).length, Object.keys(e.properties).filter((k) => !/^\$(os|browser|device|timezone|raw|screen|viewport|lib|sdk|time|insert|host|path|current|init|config|dead_click_)/.test(k))])));
       }
       await close();
     }
@@ -459,6 +554,44 @@ async function nodeChecks(root) {
   if (n !== OBS.SEND_LIMITS.perLoad) fails.push('OB-9 100 different errors took the load to ' + n + ' sent, want the ceiling ' + OBS.SEND_LIMITS.perLoad);
   if (!pass({ message: 'The page stalled for 4.0 s', fingerprint: ['main-thread-hang'] })) fails.push('OB-9 the hang message was held back by the full gate');
 
+  /* OB-14 (node): the funnel, read off the server's answers. The first read of a hero that never hunted is its first town; the
+     hunt that ends is its first hunt left, and hunt_ended carries EVERY reseed this load saw (live_view_stall stopped at 50 of them). */
+  const ev = (n) => events.filter(([x]) => x === n).map(([, p]) => p);
+  const XP = await import(u('src/core/xp.js'));
+  const more = (slot, read) => new CS.CharacterSession({ slot, uid: UID, server: { rpc: async () => ({ ok: true, body: read() }) }, setTimer: () => 0, clearTimer() {} });
+  if (JSON.stringify(ev('first_town')) !== JSON.stringify([{ slot: 0 }])) fails.push('OB-14 first_town for a hero that never hunted: ' + JSON.stringify(ev('first_town')));
+  body = huntBody(3, true); await cs.load();
+  const over = ev('hunt_ended');
+  /* 83 real reseeds this load (2 + 1 + the 80 in OB-7; the catch-up between them corrects nothing and is no reseed); live_view_stall stopped at 50 */
+  if (over.length !== 1 || over[0].reseeds_total !== 83) fails.push('OB-14 hunt_ended reseeds_total (83 real reseeds this load, live_view_stall capped at 50): ' + JSON.stringify(over));
+  if (JSON.stringify(ev('first_hunt_left')) !== JSON.stringify([{ slot: 0, reason: 'left', seconds: 300 }])) fails.push('OB-14 first_hunt_left: ' + JSON.stringify(ev('first_hunt_left')));
+  body = huntBody(4, false); await cs.load(); cs._emit('reseed');
+  body = huntBody(5, true); await cs.load();
+  if (ev('first_hunt_left').length !== 1) fails.push('OB-14 first_hunt_left was sent for a second hunt');
+  /* a hero that has hunted before: no first town, no first hunt left; its Level rising is a level reached, each Level once */
+  let xp1 = XP.charXpForLevel(2);
+  let v1 = 0;
+  const hero1 = more(1, () => Object.assign(huntBody(++v1, true), { now: '2026-10-17T00:05:00Z', state: { active_kind: 'idle', gold: 0, level_xp: xp1 } }));
+  await hero1.load();
+  if (ev('first_town').length !== 1) fails.push('OB-14 first_town was sent for a hero with a hunt on record');
+  xp1 = XP.charXpForLevel(3); await hero1.load(); await hero1.load();
+  xp1 = XP.charXpForLevel(4); await hero1.load();
+  xp1 = XP.charXpForLevel(2); await hero1.load();
+  xp1 = XP.charXpForLevel(4); await hero1.load();
+  if (JSON.stringify(ev('level_reached')) !== JSON.stringify([{ slot: 1, level: 3 }, { slot: 1, level: 4 }])) fails.push('OB-14 level_reached: ' + JSON.stringify(ev('level_reached')));
+  /* a hero whose last hunt is over when first read: minutes since it ended, by the server's clock */
+  const back = more(2, () => Object.assign(huntBody(1, true), { now: new Date(Date.parse('2026-10-17T00:05:00Z') + 90 * 60000).toISOString(), hunt_server_now_ms: Date.parse('2026-10-17T00:05:00Z') + 90 * 60000 }));
+  await back.load();
+  if (JSON.stringify(ev('session_return').filter((p) => p.slot === 2)) !== JSON.stringify([{ slot: 2, minutes: 90, reason: 'left' }])) fails.push('OB-14 session_return: ' + JSON.stringify(ev('session_return')));
+  /* a sale and an equip the server confirmed (the account's intent ledger); a refused ask, and a Dispatch loot that sold nothing, are neither */
+  await cs.intents.track('equip', async () => ({ ok: false, error: 'refused' }));
+  await cs.intents.track('loot_dispatch', async () => ({ ok: true, dispatch: { stored: { stacks: 3 }, sold: { stacks: 0, gold: 0 } } }));
+  if (ev('first_sale').length || ev('first_gear_equipped').length) fails.push('OB-14 a refused equip or a dispatch that sold nothing counted: ' + JSON.stringify([ev('first_sale'), ev('first_gear_equipped')]));
+  await cs.intents.track('vendor_sell_many', async () => ({ ok: true }));
+  await hero1.intents.track('equip', async () => ({ ok: true }));
+  await cs.intents.track('equip', async () => ({ ok: true }));
+  if (ev('first_sale').length !== 1 || ev('first_gear_equipped').length !== 1) fails.push('OB-14 first_sale / first_gear_equipped (once each per account): ' + JSON.stringify([ev('first_sale'), ev('first_gear_equipped')]));
+
   /* OB-11: sign out, then a second account in the same load: nothing leaves in between (no account, no
      distinct id), and the same instance is re-seeded with the new id (never a bare reset() to an anonymous id). */
   const UID2 = '00000000-0000-4000-8000-0000000000b2';
@@ -471,6 +604,53 @@ async function nodeChecks(root) {
   if (events.length !== sent + 1 || events[events.length - 1][0] !== 'second_account') fails.push('OB-11 an event left with no account behind it, or the second account\'s did not: ' + JSON.stringify(events.slice(sent).map(([n]) => n)));
   if (re.length !== 1 || !re[0] || !re[0].bootstrap || re[0].bootstrap.distinctID !== UID2 || re[0].bootstrap.isIdentifiedID !== true || inits.length !== 1 || calls.identify)
     fails.push('OB-11 the second account did not re-seed PostHog with its own id: ' + JSON.stringify([re, inits.length, calls.identify]));
+
+  /* OB-13 (node): rage and dead clicks ONLY, masked and bounded. The options the SDK starts with, and the one gate every event it
+     queues goes through (before_send): ordinary clicks never leave, a click event leaves from the characters and game screens
+     only, with an account, CLICK_MAX of each kind; every event carries the release. */
+  const o = inits[0];
+  const skip = (c) => !!c && Array.isArray(c.css_selector_ignorelist) && ['.ph-no-capture', '.ph-mask', 'input', 'textarea'].every((s) => c.css_selector_ignorelist.includes(s));
+  if (!o.rageclick || !skip(o.rageclick)) fails.push('OB-13 rage clicks are off, or do not skip .ph-mask / .ph-no-capture / fields: ' + JSON.stringify(o.rageclick));
+  if (!o.capture_dead_clicks || !skip(o.capture_dead_clicks) || o.capture_dead_clicks.capture_dead_swipes !== false) fails.push('OB-13 dead clicks are off, or do not skip .ph-mask / .ph-no-capture / fields: ' + JSON.stringify(o.capture_dead_clicks));
+  if (!o.autocapture || JSON.stringify(o.autocapture.dom_event_allowlist) !== '["click"]' || !['value', 'title', 'aria-label', 'placeholder'].every((a) => o.autocapture.element_attribute_ignorelist.includes(a)))
+    fails.push('OB-13 autocapture is not limited to clicks without the attributes that hold words: ' + JSON.stringify(o.autocapture));
+  if (o.mask_all_text !== true || o.capture_pageview !== false || o.capture_pageleave !== false || o.capture_heatmaps !== false || o.session_recording.maskAllInputs !== true)
+    fails.push('OB-13 a click event may carry text, or pageviews/heatmaps are on: ' + JSON.stringify([o.mask_all_text, o.capture_pageview, o.capture_heatmaps]));
+  const gate = typeof o.before_send === 'function' ? o.before_send : (e) => e;
+  const via = (name, props) => gate({ event: name, properties: Object.assign({}, props) });
+  if (via('$autocapture') !== null) fails.push('OB-13 an ordinary click ($autocapture) passed the gate');
+  obs.screen('auth');
+  if (via('$rageclick') !== null || via('$dead_click') !== null) fails.push('OB-13 a click event left from the sign-in screen');
+  obs.screen('closed');
+  if (via('$rageclick') !== null) fails.push('OB-13 a click event left from the closed notice');
+  obs.screen('characters');
+  const passed = via('$rageclick', { a: 1 });
+  if (!passed || passed.properties.a !== 1 || passed.properties.release !== VERSION) fails.push('OB-13 a rage click on the characters screen did not pass with the release: ' + JSON.stringify(passed));
+  obs.screen('game');
+  let rageOut = 1, deadOut = 0;
+  for (let i = 0; i < 40; i++) { if (via('$rageclick')) rageOut++; if (via('$dead_click')) deadOut++; }
+  if (rageOut !== 20 || deadOut !== 20) fails.push('OB-13 CLICK_MAX is 20 of each kind per load, got ' + rageOut + ' rage and ' + deadOut + ' dead');
+  const stamped = via('hunt_started', { hunt: 'x' });
+  if (!stamped || stamped.properties.hunt !== 'x' || stamped.properties.release !== VERSION) fails.push('OB-13 an ordinary event does not carry the release: ' + JSON.stringify(stamped));
+  if (!via('$snapshot', { s: 1 }) || via('$snapshot').properties.release !== VERSION) fails.push('OB-13 a replay snapshot was dropped or has no release');
+
+  /* OB-14 (node): a funnel step is sent once per scope for an account, afresh for the next one; EVENT_MAX caps a load whatever loops. */
+  const base = events.length;
+  OBS.trackOnce('tutorial_card', { slot: 0, card: 'c1', state: 'shown' }, '0:c1:shown');
+  OBS.trackOnce('tutorial_card', { slot: 0, card: 'c1', state: 'shown' }, '0:c1:shown');
+  OBS.trackOnce('tutorial_card', { slot: 0, card: 'c1', state: 'done' }, '0:c1:done');
+  if (events.length - base !== 2) fails.push('OB-14 a funnel step went out ' + (events.length - base) + ' times for 2 scopes');
+  obs.forget();
+  OBS.trackOnce('tutorial_card', { slot: 0, card: 'c1', state: 'shown' }, '0:c1:shown');
+  if (events.length - base !== 2) fails.push('OB-14 a funnel step went out with no account behind it');
+  obs.identify(UID);
+  OBS.trackOnce('tutorial_card', { slot: 0, card: 'c1', state: 'shown' }, '0:c1:shown');
+  if (events.length - base !== 3) fails.push('OB-14 the next account\'s funnel did not start afresh');
+  /* ...and a Dispatch loot that sold stacks is the next account's first sale, as the shop's sale was the last one's */
+  await cs.intents.track('loot_dispatch', async () => ({ ok: true, dispatch: { stored: { stacks: 1 }, sold: { stacks: 2, gold: 40 } } }));
+  if (ev('first_sale').length !== 2) fails.push('OB-14 a Dispatch loot that sold stacks was not a first sale: ' + JSON.stringify(ev('first_sale')));
+  for (let i = 0; i < 1000; i++) obs.track('loop_probe', { i });
+  if (events.length !== 400) fails.push('OB-14 EVENT_MAX is 400 named events per load, got ' + events.length);
   return fails;
 }
 
@@ -496,7 +676,10 @@ async function checks(overrides) {
     root = tmp;
   }
   try {
-    return [...await hashChecks(root), ...await nodeChecks(root), ...await browserChecks(overrides)];
+    const early = [...await hashChecks(root), ...await nodeChecks(root)];
+    /* a planted defect the pinned hashes or the node arm already catch is caught: its browser run (about 100 s) would add nothing to the verdict */
+    if (overrides && early.length) return early;
+    return [...early, ...await browserChecks(overrides)];
   } finally { if (tmp) await rm(tmp, { recursive: true, force: true }); }
 }
 
@@ -527,11 +710,41 @@ const MUTANTS = [
   ['Sentry wraps every callback again', 'src/net/observability.js', ".filter((i) => i && i.name !== 'BrowserApiErrors')", ''],
   ['a vendored SDK is swapped', 'src/net/observability-config.js', "integrity: 'sha384-yR8W", "integrity: 'sha384-xR8W"],
   ['PostHog starts without the account id as its distinct id', 'src/net/observability.js', 'bootstrap: { distinctID: uid, isIdentifiedID: true },', ''],
-  ['identify() merges an anonymous id onto the person', 'src/net/observability.js', 'if (!ph) ph = phSdk.init(cfg.posthog.key, posthogOptions(cfg, win, st.uid)) || phSdk;',
-    'if (!ph) { ph = phSdk.init(cfg.posthog.key, Object.assign(posthogOptions(cfg, win, st.uid), { bootstrap: {} })) || phSdk; ph.identify(st.uid); }'],
+  ['identify() merges an anonymous id onto the person', 'src/net/observability.js', 'if (!ph) ph = phSdk.init(cfg.posthog.key, posthogOptions(cfg, win, st.uid, (event) => sdkGate(st, event))) || phSdk;',
+    'if (!ph) { ph = phSdk.init(cfg.posthog.key, Object.assign(posthogOptions(cfg, win, st.uid, (event) => sdkGate(st, event)), { bootstrap: {} })) || phSdk; ph.identify(st.uid); }'],
   ['PostHog starts before the account is known', 'src/net/observability.js', 'if (!phSdk || !st.uid || phUid === st.uid) return;', 'if (!phSdk || (st.uid && phUid === st.uid)) return;'],
   ['sign-out resets PostHog to an anonymous id', 'src/net/observability.js', 'st.queue.length = 0;', 'st.queue.length = 0; if (ph) safe(() => ph.reset());'],
   ['an event leaves with no account behind it', 'src/net/observability.js', 'if (!st.uid) return;\n    const p = Object.assign', 'const p = Object.assign'],
+  /* OB-13: rage and dead clicks, and only those, masked and bounded */
+  ['rage clicks are off', 'src/net/observability.js', "rageclick: { css_selector_ignorelist: CLICK_SKIP.slice(), ignore_text_selection: true },", 'rageclick: false,'],
+  ['dead clicks are off', 'src/net/observability.js', 'capture_dead_clicks: { css_selector_ignorelist: CLICK_SKIP.slice(), element_attribute_ignorelist: CLICK_ATTRS.slice(), capture_dead_swipes: false },', 'capture_dead_clicks: false,'],
+  ['autocapture is off, so no rage click is ever raised', 'src/net/observability.js', "autocapture: { dom_event_allowlist: ['click'], element_attribute_ignorelist: CLICK_ATTRS.slice() },", 'autocapture: false,'],
+  ['every ordinary click is sent', 'src/net/observability.js', "if (n === '$autocapture') return null;", ''],
+  ['autocapture sees changes and submits too', 'src/net/observability.js', "autocapture: { dom_event_allowlist: ['click'],", 'autocapture: { dom_event_allowlist: undefined,'],
+  ['a click event carries the button\'s text', 'src/net/observability.js', 'mask_all_text: true, before_send: gate,', 'before_send: gate,'],
+  ['a click event carries titles, labels and values', 'src/net/observability.js', "const CLICK_ATTRS = ['value', 'placeholder', 'title', 'aria-label', 'alt', 'href', 'src', 'name'];", 'const CLICK_ATTRS = [];'],
+  ['a click in the chat mask is sent', 'src/net/observability.js', "const CLICK_SKIP = ['.ph-no-capture', '.ph-mask', ", "const CLICK_SKIP = ['.ph-no-capture', "],
+  ['a click in a field is sent', 'src/net/observability.js', "'input', 'textarea', 'select', '[contenteditable]'];", "'select'];"],
+  ['a click is sent from the sign-in screen or with no account', 'src/net/observability.js', 'if (!st.uid || !CLICK_SCREENS.has(st.screen)) return null;', 'if (false) return null;'],
+  ['the click kinds have no ceiling', 'src/net/observability.js', 'if (st.clicks[n] > CLICK_MAX) return null;', ''],
+  ['the events carry no release', 'src/net/observability.js', 'if (event) event.properties = Object.assign({}, event.properties, { release: BUILD.version });', ''],
+  /* OB-14: the funnel and its bounds */
+  ['a load sends without end', 'src/net/observability.js', 'if (st.sent >= EVENT_MAX) return;', ''],
+  ['a funnel step repeats', 'src/net/observability.js', 'if (!st.uid || st.onceKeys.has(key)) return;', 'if (!st.uid) return;'],
+  ['the next account inherits the last one\'s funnel', 'src/net/observability.js', 'if (next !== st.uid) st.onceKeys.clear();', ''],
+  ['hunt_ended counts no reseeds', 'src/net/observability.js', 'w.reseeds++; w.count();', 'w.reseeds++;'],
+  ['hunt_ended counts a catch-up as a reseed', 'src/net/observability.js', "} else { w.stall('catchup', now - w.caughtAt); w.caughtAt = now; }", "} else { w.count(); w.stall('catchup', now - w.caughtAt); w.caughtAt = now; }"],
+  ['hunt_ended drops the reseed total', 'src/net/observability.js', 'send(\'hunt_ended\', Object.assign({ reseeds_total: w.total() }, ended));', 'send(\'hunt_ended\', ended);'],
+  ['first_town is never sent', 'src/net/observability.js', "if (!s) once('first_town', { slot }, 'town:' + slot);", "if (false) once('first_town', { slot }, 'town:' + slot);"],
+  ['first_hunt_left is never sent', 'src/net/observability.js', "if (w.never) { w.never = false; send('first_hunt_left'", "if (false) { w.never = false; send('first_hunt_left'"],
+  ['level_reached is never sent', 'src/net/observability.js', 'if (w.level !== null && lv.level > w.level) once(', 'if (false) once('],
+  ['session_return is never sent', 'src/net/observability.js', "else if (s.ended && s.endedMs !== null && typeof cs.serverNow === 'function') {", 'else if (false) {'],
+  ['first_sale is never sent', 'src/net/observability.js', "if (e.verb === 'vendor_sell_many' || (e.verb === 'loot_dispatch'", "if (e.verb === 'nothing' || (e.verb === 'loot_dispatch'"],
+  ['a dispatch that sold nothing is a sale', 'src/net/observability.js', 'r.dispatch.sold && r.dispatch.sold.stacks > 0', 'r.dispatch'],
+  ['first_gear_equipped is never sent', 'src/net/observability.js', "else if (e.verb === 'equip') once(", 'else if (false) once('],
+  ['a refused ask counts as a step', 'src/net/observability.js', "const r = kind === 'end' && e.result && e.result.ok ? e.result : null;", "const r = kind === 'end' && e.result ? e.result : null;"],
+  ['signup_done is never sent', 'src/app/boot.js', "if (roster.length && !rosterSlots.length) trackOnce('signup_done', {}, 'account');", ''],
+  ['the coach\'s cards are never reported', 'src/shell/launcher.js', 'if (!had || had.card.id !== c.id) noteCard(cs, had ? had.card : null, c);', ''],
 ];
 
 async function main() {
@@ -545,7 +758,11 @@ async function main() {
   const clean = await checks(null);
   if (clean.length) { console.log('  ✗ clean control RED: ' + clean.join('; ')); process.exit(1); }
   console.log('  ✓ clean control green');
+  /* --only=<pattern>: just the mutants whose name matches the regular expression (a way to re-prove a few after an edit; the sweep runs them all) */
+  const onlyArg = (process.argv.find((a) => a.startsWith('--only=')) || '').slice(7);
+  const only = onlyArg ? new RegExp(onlyArg, 'i') : null;
   for (const [name, file, from, to] of MUTANTS) {
+    if (only && !only.test(name)) continue;
     const text = await readFile(join(ROOT, file), 'utf8');
     if (!text.includes(from)) { console.log('  ✗ ' + name + ' — anchor not found in ' + file); bad++; continue; }
     const fails = await checks({ [file]: text.replace(from, to) });
@@ -555,7 +772,8 @@ async function main() {
     else if (fails.length) console.log('  ✓ ' + name + ' — caught (' + fails[0].split(' ')[0] + ')');
     else { console.log('  ✗ ' + name + ' — NOT caught'); bad++; }
   }
-  console.log(bad ? 'observability --mutate: ' + bad + ' escaped' : 'observability --mutate: ' + MUTANTS.length + '/' + MUTANTS.length + ' mutants caught');
+  const ran = only ? MUTANTS.filter(([name]) => only.test(name)).length : MUTANTS.length;
+  console.log(bad ? 'observability --mutate: ' + bad + ' escaped' : 'observability --mutate: ' + ran + '/' + ran + ' mutants caught');
   process.exit(bad ? 1 : 0);
 }
 main();

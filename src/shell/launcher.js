@@ -18,6 +18,7 @@ import { lootSale } from './bag-model.js?v=0.2.75';
 import { upgradeOf } from './widgets/upgrade-line.js?v=0.2.75';
 import { revealInWindow, glyphSvg } from './widgets/bits.js?v=0.2.75';
 import { draftOf, serverBar } from './bar-draft.js?v=0.2.75';
+import { trackOnce } from '../net/observability.js?v=0.2.75';
 
 /** The chip text for a row's shortcut key: 'b' -> 'B', 'enter' -> 'Enter'. */
 export function keyLabel(key) {
@@ -146,6 +147,16 @@ export function noteCoachSight(ctx, card, onScreen) {
   return markCoachRead(cs, card);
 }
 
+/* a "What next" goal comes after every card */
+const rankOf = (c) => (ORDER.has(c.id) ? ORDER.get(c.id) : HUNT_TUTORIAL.length);
+/* TELEMETRY (display only, each once per hero and card in a page load): the coach moved to `to`. A card of the tutorial is
+   `shown` as it appears; the one it gave way to is `done` when `to` comes AFTER it (going back is not progress). */
+function noteCard(cs, from, to) {
+  const slot = cs.slot;
+  if (from && ORDER.has(from.id) && rankOf(to) > rankOf(from)) trackOnce('tutorial_card', { slot, card: from.id, state: 'done' }, slot + ':' + from.id + ':done');
+  if (ORDER.has(to.id)) trackOnce('tutorial_card', { slot, card: to.id, state: 'shown' }, slot + ':' + to.id + ':shown');
+}
+
 /** The card the coach shows now: the server's (pointerCardOf, with the shell's facts: ctx.account), or one still
  *  being read (above). */
 export function heldCard(ctx) {
@@ -154,12 +165,10 @@ export function heldCard(ctx) {
   const now = typeof ctx.now === 'function' ? ctx.now() : null;
   if (!cs || now === null) return card;
   const had = HELD.get(cs);
-  const show = (c, since) => { HELD.set(cs, { card: c, since }); return c; };
+  const show = (c, since) => { if (!had || had.card.id !== c.id) noteCard(cs, had ? had.card : null, c); HELD.set(cs, { card: c, since }); return c; };
   if (!card) { HELD.delete(cs); return null; }
   if (!had || had.card.id === card.id) return show(card, had ? had.since : now);
-  /* a "What next" goal comes after every card */
-  const at = (c) => (ORDER.has(c.id) ? ORDER.get(c.id) : HUNT_TUTORIAL.length);
-  const from = at(had.card), to = at(card);
+  const from = rankOf(had.card), to = rankOf(card);
   /* back, or a goal line after a goal line: the server's at once */
   if (to <= from) return show(card, now);
   if (auto(had.card) && now - had.since < readMs(had.card)) return had.card;

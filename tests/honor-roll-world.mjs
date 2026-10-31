@@ -49,9 +49,11 @@ const readRoll = (page) => page.evaluate(() => {
     empty: w.querySelector('.hr-empty.is-on') ? w.querySelector('.hr-empty').textContent : '',
     you: w.querySelector('.hr-you.is-on') ? w.querySelector('.hr-you-line').textContent : '',
     next: w.querySelector('.hr-you-next').textContent,
-    width: Math.round(w.getBoundingClientRect().width), height: Math.round(w.getBoundingClientRect().height),
+    width: Math.round(w.getBoundingClientRect().width), right: Math.round(w.getBoundingClientRect().right),
+    bottom: Math.round(w.getBoundingClientRect().bottom), vw: innerWidth, vh: innerHeight,
   };
 });
+const ordinal = (n) => n + ((n % 100 >= 11 && n % 100 <= 13) ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' })[n % 10] || 'th');
 const waitRoll = (page, fn, arg) => page.waitForFunction(fn, arg, { timeout: 30000 }).then(() => true, () => false);
 const pick = async (page, board) => {
   await page.selectOption('[data-hs-win="honor"] select[data-hs-act="board"]', board);
@@ -98,9 +100,13 @@ try {
   const opened = await waitRoll(a.page, () => document.querySelectorAll('[data-hs-win="honor"] .hr-roll:not(.hr-near) > .hr-line').length === 2);
   const r1 = await readRoll(a.page);
   step('HW-2 Z opens the Roll of Honor on the Level board with both heroes', opened && r1 && r1.title === 'Level' && r1.lines.length === 2, JSON.stringify(r1));
-  const want = xp.map((r) => r.name + ' Level ' + r.level);
-  step('HW-2 the heroes by their own names, in the server\'s order, with the server\'s level',
-    r1 && r1.lines.map((l) => l.name + ' ' + l.value).join() === want.join(), JSON.stringify({ got: r1 && r1.lines, want }));
+  /* The server's order (rank: score, then a stable tiebreak) and its places (a tie is one place twice); each level must
+     also be hr_char_level of that hero's Level XP in player_state, the column the settle writes. */
+  const ranked = await sql(`select name, level, place from public.leaderboard_ranked where board = 'level' order by rank`);
+  const want = ranked.map((r) => ordinal(Number(r.place)) + ' ' + r.name + ' Level ' + r.level);
+  const levelsTrue = ranked.length === xp.length && ranked.every((r) => xp.some((h) => h.name === r.name && Number(h.level) === Number(r.level)));
+  step('HW-2 the heroes by their own names, in the server\'s order and places, with the server\'s level', levelsTrue
+    && r1 && r1.lines.map((l) => l.place + ' ' + l.name + ' ' + l.value).join() === want.join(), JSON.stringify({ got: r1 && r1.lines, want, xp }));
   const mineLine = r1 && r1.lines.find((l) => l.name === 'Brannoc');
   const theirs = r1 && r1.lines.find((l) => l.name === 'Osric');
   step('HW-3 the viewer\'s hero is marked "Your hero"; the other is not', mineLine && mineLine.viewed && mineLine.tag === 'Your hero'
@@ -125,16 +131,19 @@ try {
   const launch = await b.page.$('[data-hs-open="honor"]');
   if (launch) await launch.click(); else await b.page.keyboard.press('z');
   const phone = await waitRoll(b.page, () => document.querySelectorAll('[data-hs-win="honor"] .hr-roll:not(.hr-near) > .hr-line').length === 2);
+  await b.page.waitForTimeout(600);   // the 120 ms slide-in ends and the World makes room for the sheet
   const r4 = await readRoll(b.page);
   const osric = r4 && r4.lines.find((l) => l.name === 'Osric');
   step('HW-5 the phone (922x423) reads the same roll in a sheet, its own hero marked', phone && osric && osric.viewed && osric.tag === 'Your hero'
-    && r4.width <= 461 && r4.height >= 380, JSON.stringify(r4));
+    && r4.width <= 400 && r4.right <= r4.vw && r4.bottom <= r4.vh, JSON.stringify(r4));
   await b.shot('honor-level-phone');
   // ── HW-6 ──
   await sql(`insert into public.hr_lb_hidden (user_id, slot, reason, note)
                select ps.user_id, null, 'test', 'honor-roll-world HW-6' from public.character_names ps where ps.name = 'Osric'`);
   await sql('select public.hr_leaderboard_refresh(true)');
+  await a.page.evaluate(() => document.activeElement && document.activeElement.blur());   // keys go to the shell, not the picker
   await a.page.keyboard.press('Escape');
+  await a.page.waitForFunction(() => !document.querySelector('[data-hs-win="honor"]'), null, { timeout: 5000 }).catch(() => {});
   await a.page.keyboard.press('z');
   const one = await waitRoll(a.page, () => {
     const w = document.querySelector('[data-hs-win="honor"]');

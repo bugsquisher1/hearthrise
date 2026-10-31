@@ -123,7 +123,7 @@ renderHonor.patch = function patchHonor(body, ctx) {
   text(root.querySelector('.hr-title'), b.label);
   text(root.querySelector('.hr-why'), b.why);
   const n = roll ? roll.total : null;
-  text(root.querySelector('.hr-count'), n === null ? '' : n === 1 ? '1 hero on this roll' : whole(n) + ' heroes on this roll');
+  text(root.querySelector('.hr-count'), !n ? '' : n === 1 ? '1 hero on this roll' : whole(n) + ' heroes on this roll');   // an empty roll says so below
   text(root.querySelector('.hr-fresh'), roll ? freshWords(roll.refreshedAt, Date.now()) : '');
   lineRows(root.querySelector('.hr-roll:not(.hr-near)'), roll ? roll.top : [], st, ctx.doc);
   const empty = root.querySelector('.hr-empty');

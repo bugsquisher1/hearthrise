@@ -248,7 +248,7 @@ export async function bootWorld(panel, opts) {
     /* A CATCH-UP STILL RUNNING IN SLICES (a tab back from the background, live-link.js advance): the last frame stays on
        screen until it lands. Drawn meanwhile, the stale picture became the scene's present and the span skipped played
        its deaths anew where today's one-task catch-up lets them lie (tests/hunt-scene-live.mjs LV-29). */
-    if (typeof character.liveCatchingUp === 'function' && character.liveCatchingUp()) return null;
+    if (character.liveLink && character.liveLink.catchingUp()) return null;
     const back = typeof character.takeReseeded === 'function' ? character.takeReseeded() : null;
     if (back) scene.revive(back, now);
     /* what the live view did (verdicts, restarts), readable from the page for a live check: data-live */

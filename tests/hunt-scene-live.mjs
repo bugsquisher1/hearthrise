@@ -249,7 +249,7 @@ async function playLive(M, LM, book, mis, spanMs, onFrame, opt) {
     if (away) { away = false; scene = mount(); }   // viewed again: a new pane, the character's scene
     cs.liveAdvance(clock.t);
     /* a catch-up still running in slices: the last frame stays on screen (world-boot.js liveState), nothing is drawn */
-    if (typeof cs.liveCatchingUp === 'function' && cs.liveCatchingUp()) continue;
+    if (typeof cs.liveLink.catchingUp === 'function' && cs.liveLink.catchingUp()) continue;
     const back = cs.takeReseeded(); if (back) scene.revive(back, clock.t);
     played.length = 0;
     cs.timeline.advance(clock.t);

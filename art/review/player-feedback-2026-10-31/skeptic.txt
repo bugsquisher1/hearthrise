@@ -1,0 +1,403 @@
+HEARTHRISE — blind panel, player: "the Steam skeptic"
+Played 2026-10-31. Desktop browser, 1920x1080, mouse and keyboard.
+Build: origin/main c374ad2 + lane/t-local-world + claude/upbeat-einstein-mrh0ig + claude/serene-tesla-7txs5f
+(all three merged clean, no conflicts), played through tools/qa/local-world.mjs.
+
+Who I am: I've refunded a lot of games. Asset-flip idlers, AI-looking dashboards, "early access"
+that never finished. I give a game 30 minutes, then I write the review. I'm fair. I'm not patient.
+
+Minute marks are my play clock: real time on screen plus any time I spent "away" (world.skip).
+Shot names refer to the screenshots in skeptic/ (only the best 15 are committed, downscaled).
+Fallback fonts are a sandbox artifact (no Google Fonts here); I don't count them against the game.
+
+────────────────────────────────────────────────────────────────────────────────────────────────
+PLAY LOG
+────────────────────────────────────────────────────────────────────────────────────────────────
+
+[0:00] FIRST SCREEN — sign-in. (01-sign-in, 02-crest-zoom)
+  Doing: opened the game.
+  Expected: a title screen that tells me what kind of game this is. Some art, a peek at the world,
+  maybe a tagline.
+  Got: a gold crest on the left, a small sign-in box on the right, and a lot of black. About 70% of
+  a 1920x1080 screen is empty. No world, no character, no tagline, no sound, nothing moving.
+  Felt: wary right away. I zoomed into the crest. The sun has tree-ring texture, the scrollwork is
+  soft, mirrored filler, and the shading is smooth airbrushed brass. It reads like an AI-generated
+  logo, which is the exact thing I've been burned by. It's also not pixel art, so I have no idea
+  yet what the game itself will look like. Page loaded in about 1.4 s, so no complaint there.
+  The sign-in box is tasteful: a thin steel frame, square pixel corner studs, a faint dot texture.
+  That frame is the first thing that looks like someone chose it.
+
+[0:30] CREATE ACCOUNT. (03-create-account, 04-create-weak-password, 05-account-created)
+  Doing: tried "hunter2" like I always do.
+  Got: "Use at least 10 characters." in red. Clear and fast. The hint line above says the same thing
+  ("At least 10 characters."), so the message is printed twice, but fine.
+  Then: "Check your email for a link to finish creating your account." An email-confirm wall before
+  I've seen one pixel of the game. On Steam this would be a Steam login, so I'll let it go for the
+  browser build, but in a browser it's a real drop-off point. (The local world confirms at once.)
+  Small thing: "If you already have an account, sign in instead." is plain text, not a link. The
+  link is at the bottom.
+
+[0:50] CHARACTER SELECT. (06-after-sign-in)
+  Got: "Your characters. Signed in as skeptic@local-world.test. Up to 4 can play at once." and then
+  TWO "Empty slot / Create hero" rows. So is it 4 or 2? Either say why two are locked or don't
+  say 4. First contradiction, in the first minute.
+  Felt: still a form in a black void. Three screens in, and I haven't seen the game yet.
+  Sign-in to this screen: 0.3 s. Snappy.
+
+[1:10] CREATE YOUR HERO. (07-create-hero, 10-hero-dressed)
+  Doing: making a character.
+  Got: a name box, four rows of 19 colour swatches (head/body/legs/feet), a little paper-doll, and a
+  "How you fight" column.
+  The good: "There's no class to pick. The weapon you hold is how you fight." That's one clear
+  sentence, written by a person. Each weapon gets one line and its running cost (food, arrows, mana).
+  I respect that a lot more than a 4-page class picker.
+  The less good: it's still a wall of reading before I've played a second. And the paper-doll is a
+  very crude, static 16-px mannequin with black lines down its torso for arms. No idle bob, no turn.
+  Colours change instantly, which is nice.
+  The layout jumps: the crest slides left to make room. Not a big deal, it just doesn't feel planned.
+
+[1:50] ENTER TOWN — first look at the actual game. (12-town-arrival)
+  Load: world canvas up in 0.63 s, HUD in 0.69 s. Fast. Steady 60 fps (p50 16.7 ms, worst 16.8 ms).
+  First impression: OK, there's a real game here. Pixel-art town, a river, a bridge, a stone plaza.
+  Then, within ten seconds:
+  - MY HERO ISN'T MY HERO. (13-town-hero-zoom) I made a grey-haired guy in a teal shirt and dark trousers.
+    The world shows a full-plate knight with a red plume and a blue-and-gold shield. None of my
+    colours are on him. Then why did I spend a minute picking them? The paper-doll and the world
+    sprite are also two different art styles (crude chibi vs. a detailed sprite).
+  - Default zoom is way in. The first screen is mostly three different stone textures side by side
+    at different scales: small light-grey bricks, a dark strip, giant flagstones. (14-town-ground-zoom)
+    The light-grey brick road is flat and low-contrast and looks like a placeholder tile. The knight's
+    pixels are finer than the road's pixels: mixed pixel density, the classic asset-pack tell.
+  - The HUD bar: "Offens...", "Balanc...", "Defen..." truncated, at 1920 px wide. There is room.
+    That's sloppy, and it's on screen from the first minute.
+  - The opening quest card is short and plain: "Rats in the mill. The miller has rats in his grain.
+    Open Hunts and enter the Mill Cellar." Fine. It points at the right icon. It doesn't lecture.
+
+[3:10] ZOOMED OUT. (15-town-zoomed-out)
+  Doing: pressed zoom-out until it went grey (one or two steps; that's the whole range).
+  Got: this is the first screenshot I'd show someone. A big stone hearth with a live fire in the
+  middle of a circular plaza, market stalls with striped awnings, a river with a timber bridge,
+  half-timbered houses, a notice board with a guard. The hearth in the middle of town plus the
+  name "Hearthrise" made me smile for the first time. That's identity.
+  But: the river is two straight-edged rectangles of water with a hard jog where they meet, and no
+  bank or shoreline. The whole bottom half of the screen is flat brown dirt with a few leaf
+  decals. A signpost says "To the sandbox". Sandbox? That's a dev word. It reads like a test map
+  someone forgot to rename. "1 online", and it's me.
+
+[3:30] THE TOP BAR. (16-hover-tally)
+  15 unlabeled icons from minute one: Hunts, Inventory, Character, Gathering and crafting,
+  Storage, Shop, Farm, House, "Tamsin's tally", Hunt prep, Party, Chat, Friends, Settings, Report.
+  Nothing is unlocked gradually. This is the "pile of systems" smell I was afraid of. Hovering
+  works and gives a name and hotkey, but the quest card covers the tooltip (I read "...sin's tally Q").
+  Icon styles are mixed: some are little pixel drawings (rat head, backpack, helmet), some are
+  generic vector glyphs (a checkmark, a speech bubble, mixer sliders, a warning triangle).
+
+[4:00] HUNTS WINDOW. (17-hunts-window, 18-hunts-detail-scrolled)
+  Doing: clicked the icon the quest pointed at.
+  Got: a proper two-pane RPG window: six grounds on the left, the Mill Cellar on the right with
+  its monsters (Giant Rat, Slime, Hive Wasp, decent little pixel sprites), drops and rare drops.
+  The good: "Damp sacks, gnawed grain and things that buzz in the dark." That's a person writing.
+  Ground names (Meadowbrook Thicket, Wickstead, Mosslight Glade, Coppercap Warrens) are specific,
+  not "Dark Forest of Shadows". I noticed, and it counted.
+  The bad:
+  - Drop rates to three decimals ("Queen's Comb 0.072%") at minute four. That's a wiki page,
+    not an invitation.
+  - "Bronze, Leather, Apprentice: helmets 0.65%" is hard to parse.
+  - "Level 2 · uncommonLevel 4 · uncommon": the Slime and Hive Wasp captions run into each other.
+  - The same instruction twice, one line apart: "Press the Mill Cellar, then Enter. Your hero walks
+    in and fights on its own." / "Pick a hunt, then Enter. Your hero walks there and fights on its own."
+  - Scroll down: "Each pull: 2 packs of 2 to 3 · back in 32 s", a "− As built +" stepper, "Up to
+    8 a pull when you hunt alone. Kept for this ground." I've played MMOs for 20 years and I still
+    had to think about "As built". A new player won't know what a pull is.
+  - "Before you go" is useful: my 20 shrimp first, then store-bought Salted Shrimp at 14 gp, Thin
+    Turnip Juice at 10 gp, paid from my 500 gp as I go. Clear. I like "Thin Turnip Juice".
+
+[4:25] INTO THE MILL CELLAR. (20-hunt-start, 21/22/23-fight)
+  Enter to fighting: 1.0 s. Hunting holds 60 fps (p50 16.7 ms, worst frame 33 ms in 5 s).
+  Got: a single lit room. Brick wall with two torches, grain sacks, barrels, clay pots, a millstone,
+  a candle, a wasp hive hanging in the corner, a brazier, a skull, bones, mould patches. Rats,
+  a slime, a wasp. My knight walks over and starts swinging. Small damage numbers pop up.
+  Felt: this is the best thing so far. It's a cellar under a mill. The props tell me that without a
+  word: grain sacks and a millstone, because the quest said the miller has rats in his grain.
+  That's the "things connect" feeling I look for and rarely get.
+  But: the room is one screen floating in a black void with soft round light blobs drawn over the
+  pixels (smooth gradients on pixel art; the purist in me twitches). The right panel is a "Hunt
+  analyzer" with Monsters killed / Level XP / Gold / Loot value (unsold) / Supplies cost /
+  "Balance (gold + loot value − supplies)", and tabs Session / Training / Taken / Dea... (the last
+  tab is cut off at 1920 px). The left panel says "DPS and HPS". In minute five, the game is
+  showing me a spreadsheet next to the fight.
+  Tips arrive one at a time while I watch ("Your hero fights alone. You don't click to attack.").
+  That's the right way to teach. It doesn't lecture.
+
+[5:30] LEVEL 2, after 1 min 05 s of hunting. (25-level-up-0)
+  Got: a gold "Level 2" floating over my head, and the HP bar went 150 → 160. That's it. No flash,
+  no ring burst, no pause. The XP ring on the HUD quietly resets to 10%.
+  Felt: almost nothing. The first level-up is a free dopamine hit, and it's left on the table.
+  The next tip already wants me elsewhere: "Plant your land. While your hero hunts, open the Farm
+  and plant a Turnip Seed... Turnips are ready in 4 hours". A 4-hour timer in minute six. I get it,
+  it's an idle game, that's the "come back later" hook. Noted.
+  ODD: the loot list in the analyzer went backwards once. At 0:23 it listed Rat Tail ×2, Bones,
+  Lamp Jelly, Slime Gel. In the level-up shot at 1:05 it listed only Bones ×2 and Rat Tail ×2.
+  Ten seconds later all four were back. I sampled it every 150 ms for 30 s after that and it
+  didn't happen again (it updates in ~10 s jumps). Seen once, with a screenshot. For a game that
+  says the server is the truth, a loot list that un-drops items is the wrong kind of surprise.
+  Between pulls the room goes empty and my knight stands there. "Back in 32 s".
+
+  CORRECTION to the "loot went backwards" note above: I was wrong. The loot list didn't lose
+  anything. The analyzer is a scroll box with a HIDDEN scrollbar (571 px of content in a 390 px
+  box, scrollbar width 0), so only the first two loot rows ever show and the sort order changes.
+  The real bug is smaller and still real: a list that hides most of what I've earned, with no
+  scrollbar, no fade and no "+5 more". I had to read the page text to know I'd got Lamp Jelly,
+  Giant Rat Hide, Silk Thread, Small Fang and Wheat.
+
+[6:50] THE FARM, opened mid-hunt as the tip asked. (27-farm, 28-farm-plant-picker, 30-farm-planted-2)
+  Got: two empty plots drawn as two blank dark squares. No soil, no fence, no little field. A
+  farm that's two grey boxes and a paragraph. "Your heroes share this land. The hero you are
+  playing plants their own seeds and keeps the crop and the Farming XP." So is it shared or not?
+  Then "Plot tier: Tier 1 grows Turnip. Tier 2 adds Carrot (Farming 10 to plant), Wheat (Farming 20
+  to plant): 500 gp (or 1 Farmer's Deed), at Farming 5." Four numbers and a currency in one line.
+  The seed list is nice to look at: little seed-packet icons, nine crops up to Moonbloom at 22 h.
+  Planted turnips: the plot immediately shows a fully-grown turnip with "4 h left". No sprout
+  stage. "Planted by W..." is truncated for a six-letter name. "Water" halves the timer for
+  free. A free button that only makes the timer shorter is a chore, not a choice.
+  Opening the Farm also shoves the Hunt analyzer left over the room. Four panels on screen.
+
+[7:50] THE ACTION BAR TIP, and the thing that might actually be this game's hook.
+  (33-slot-6-picker, 34-slot-6-condition, 36-bar-after-save)
+  Tip: "Your hero uses this bar by itself. It tries the slots in order and uses the first one
+  that's ready and whose conditions are all true." Clicking an empty slot opens "Configure action":
+  a spell table (Challenge, Flame Strike, Power Strike, Mend, Cleave, Rend...) and a condition builder:
+  "Cast Mend when my HP is below 50%", with choices like "allies under", "the monsters it would
+  hit", "my target being a boss", "what is left in the bag". That's a gambit system. Programming
+  your hero is a real idea for an idle game, and it's the first thing that made me lean in.
+  Polish: the spell table uses 60% of the dialog's width, yet the Rune column wraps "1 / Rupture /
+  rune" onto three lines. Spell icons don't match: most are framed squares, Mend and Rend are tiny
+  unframed glyphs that look unfinished. The detail pane showed "Power Strike. Costs only mana.
+  Requires: Shield." while Mend was the one selected.
+
+[9:00] WATCHING. (38..41-watch, 4 frames 10 s apart)
+  Two of the four frames: an empty room, my knight standing among corpses. When there is action,
+  the feedback is decent: a white slash crescent, "miss", "+15 XP". 6 kills in 50 s.
+  The tip card stays pinned over the top of the room until I do what it says.
+
+[9:40] THE SHRIMP TUTORIAL. (42-slot-3-config, 44-after-eat-tip, 45-after-order-tip)
+  Tip 1, "Eat on time": "A Cooked Shrimp heals 96, and at 60% of your 170 HP you're missing 68, so
+  28 of it is wasted. Press slot 3, press − until it reads 50% (only 11 is wasted there...)".
+  Did it. Tip 2, "Order matters": "Slot 4 still buys Salted Shrimp (14 gp) below 60%, so between
+  50% and 60% it eats before your own Cooked Shrimp. Press slot 4, make it 50% or lower." So the
+  second lesson exists to fix a problem the first lesson created, on a default bar the GAME set
+  up. Did it. Tip 3, "A spell costs runes": Flame Strike "earns about 15% more Level XP and about a
+  fifth less gold", and here's the four-press path to set it up.
+  Felt: at minute ten I've spent three minutes optimising shrimp. The maths is correct and somebody
+  clearly cared about it, but this is the moment I'd alt-tab. Ship a default bar that's already
+  right, and make the first lesson "here's a choice that changes what you SEE", not one that saves
+  17 HP of shrimp.
+
+[10:40] INVENTORY. (46-inventory)
+  Got: equipment silhouettes on the left, a bag of small pixel icons on the right (the other four
+  starter weapons, then loot: rat tails, slime gel, bones, a fang, silk thread, wheat). Decent
+  icons. Filter tabs: All / Gear / Food / Drinks / Ammo & runes / Loot / Materials / Rare / Other.
+  "Dispatch loot: Worth 124 gp (7 unpriced). Your hero is out hunting. Dispatch loot works in town."
+  Contradiction: "Armor worn: 0 heavy (+0% max HP) 0 medium 0 light". I'm wearing no armour. The
+  sprite in the world is in full plate with a plumed helm.
+  Bleed-through: the Hunt analyzer panel is see-through. With the inventory open it slides left over
+  the room, and the combat text ("Power Strike", damage numbers, "Wardle") shows through it,
+  right on top of "Per hour after 10 min.". It looks broken.
+
+[11:00] CHARACTER and OUTFIT. (47-character, 48-outfit, 49/50-outfit previews)
+  Character tab: five combat skills, each with "Next at level 15: Copper Whetstone (whetstone for
+  blades)" etc., plus Damage 1-5, "Hit chance 63% against no armor" (the label wraps to two lines),
+  Critical, Defense, Dodge, Absorb, Ward, Bestiary 3 of 30. A wall of numbers. "Inner Flame" is a nice
+  skill name that ties into the hearth, and "Next at level 15: Big Bones" made me snort.
+  Outfit tab: this explains the knight. Your look is an OUTFIT: Plate Harness (default), Fur Wraps,
+  Hooded Leathers, Scholar's Robe, Grove Robe, and three marked "Premium". The outfit sprites are
+  well drawn and have personality. But none of them use the head/body/legs/feet colours I picked at
+  creation. As far as I can find, the colour picker does nothing. Either use the dyes or delete
+  the screen. Also: "Looks only. How you fight comes from the weapon you hold." Then the Hooded
+  Leathers preview holds a bow and Fur Wraps holds two axes, while I fight with a sword.
+  "Premium" outfits in the first 11 minutes is a flag for my kind of player. Cosmetic-only is
+  fine, but I'll be watching for where else "Premium" shows up.
+
+[11:30] ═══ MINUTE-12 CHECKPOINT: do I refund? ═══
+  Not yet, but it's on probation, and it was close.
+  Why I almost did: three screens of black void before the game; a crest that looks AI-made; a
+  character creator whose colours vanish; 15 systems on the bar from minute one; a hunt I can't
+  touch that's empty half the time; and the minute-8 to minute-10 stretch spent shaving 17 HP of
+  waste off shrimp. That's a lot of my patience spent on things that aren't the game.
+  Why I didn't: the cellar is a real place made by a person (grain sacks and a millstone because
+  the miller has rats), the town has a hearth at its centre that gives the name a meaning, the
+  writing is plain and specific with no filler fantasy words, and the action-bar condition editor is
+  a genuine idea I haven't seen done this way in an idle game. Nothing here looks like a
+  generated dashboard once you're inside. It looks like a dense MMO client.
+
+[12:00 → 22:15] AWAY. Closed the tab with the hunt running; came back 10 minutes later.
+  (51-return-first-screen)
+  Reopening: page load 1.0 s, straight back into the running hunt in 1.4 s, still signed in. Good.
+  The hunt really did keep going without me: level 4 → 5, kills 57 → 142, session totals 2,186 XP and 511 gp of value.
+  The per-hour block had filled in: 7,339 XP/h, 1,716 gp/h, "Next level in 00:51:27".
+  What I expected: a "while you were away" card. "+1 level, 85 kills, best loot: Venom Sac".
+  What I got: the same room, the same rune tip I'd ignored, my knight standing in an empty cellar.
+  I had to read the corner of the HUD to see I'd gained a level.
+  Felt: cheated out of the one moment an idle game lives on. The return should be the best
+  ten seconds of the session, and it's the quietest. (20 Cooked Shrimp, still 20. In 18 minutes
+  I never needed to eat. So the shrimp tutorial was about a resource that didn't matter yet.)
+
+[22:30] LEAVING THE HUNT. (53-hunt-summary, 54-after-leave)
+  "Leave hunt" starts a 10-second countdown ("Leaving in 9s"); a "Cash in" tip popped up at the
+  same moment, telling me to do what I was already doing.
+  Then: back in town AT THE GATE. A stone gatehouse with twin towers and a portcullis, a palisade,
+  a tavern with a mug sign, barrels, a well, the river. Coming home through the gate after a hunt
+  is a small storytelling touch, and this is the best-looking screen in the game. (54-after-leave)
+  The Hunt summary is clean: Time 18:18, Monsters 145, Level XP 2,233, Gold 206, Loot value
+  (unsold) 313, Balance 519, top loot with icons, and "Next: Feed the Hearth".
+
+[23:00] FEED THE HEARTH: the moment the game made sense to me. (56-bones-menu, 57..61-walk, 62-at-the-hearth)
+  The Bones tooltip: "Fuel for the Great Hearth in Havora: burn them there to raise your Inner Flame."
+  Rats drop bones, bones feed the hearth in the middle of the town, the hearth trains Inner Flame,
+  Inner Flame makes you recover faster on every hunt. The game's NAME, its town's centrepiece
+  and a skill are one idea. That's design, not a pile of systems. First time I felt something
+  that wasn't irritation. (Inner Flame went 1 → 4, recovery +1.9% → +7.4%.)
+  "Fuel all 17" and my hero walks himself across town: over the bridge, past a manor and a row of
+  houses, into the plaza. The camera pulls back and follows. The town is bigger and more varied
+  than the first screen let on.
+  BUT: I never saw the burn. No flare, no "+Inner Flame" over the fire, nothing I caught in five
+  frames. The best idea in the game happens off-camera. Make the hearth roar.
+  SPEED: this walk is where it stuttered. 27 fps average, median frame 33 ms, worst 117 ms, 8
+  frames over 50 ms in 3 s while the camera tracked across town. Standing still in town before
+  that: a locked 60. After arriving: 40 fps, worst 67 ms. Not terrible, but noticeable on a 1080p
+  desktop, and it's the one place the game felt cheap.
+  Status line truncated: "In town, fuelling the Great H...".
+  Tooltip writing is good: "A scrap of tough hide off a Giant Rat from under the mill, for the imbuer
+  who wards armor". Then two lines down: "Used for: Sell it at the shop". The flavour promises a use
+  the game doesn't have.
+
+[24:30] THE SHOP. (63-shop, 64-shop-sell, 66-sold)
+  A list: icon, name, "120 gp each · 0 in the / bag" (that line wraps on EVERY row), quantity
+  dropdown, Buy. No shopkeeper, no line of dialogue, no sense of a place, even though the plaza
+  outside has striped market stalls. This is the one window that does feel like a generated
+  dashboard. The Hunter Necklace icon is a thin dark ring on a dark background, almost invisible.
+  Sell tab: "Sell all loot · 140 gp". Smart: it keeps hearth fuel and food you can cook.
+  But the hunt summary told me "Loot value (unsold) 313 gp" and "Balance 519 gp". The shop pays 140.
+  The headline number counted Wheat (120) and Bones I was never meant to sell. Say "sellable: 140,
+  kept: 173" or don't call it loot value.
+  The confirm says "Sell 6 stacks?" over a list of eight loot stacks (176 gp) without saying which
+  two it keeps. Sale itself: 0.4 s. 706 → 846 gp.
+
+[26:10] TAMSIN'S TALLY (the 9th icon). (67-tally, 68-tally-taken)
+  A kill-task giver, and she has a voice: "Take a task from my board and go hunting. When the
+  count's done, I'll pay you in town: gold, plus a piece of armor you can wear." So THAT'S where
+  armour comes from. Her board has "The Rat King, 5 times — The Sewer, best with a party". Good.
+  But I found her by poking icons at minute 26, after 145 rat kills that counted for nothing. The
+  tutorial walked me through shrimp thresholds and never said "take Tamsin's rat task first".
+  Each armour slot has a button labelled "Earlier". Earlier what?
+  Took "200 Gray Wolves": "Every kill in Meadowbrook Thicket counts, even while you're away."
+
+[26:50] MEADOWBROOK THICKET. (70-meadowbrook, 72-meadowbrook-tally, 73-after-reload)
+  Entered in 0.57 s, locked 60 fps. A forest clearing: dirt paths, pines and oaks, a woodpile, a
+  stump with an axe in it, mushrooms, a brook along the edge, and no black void, the ground fills
+  the screen. "Gray wolves den in the thicket along the brook." A named rare, "Old Grayjaw".
+  Three minutes later (skip) the wolves are actually hurting me: HP 109/190, three shrimp eaten,
+  and a tip: "Taking a beating? Try the stance on your bar: Defensive takes 15% less damage and
+  deals 10% less". THAT is a good tutorial: it shows up when the problem does. Food finally matters,
+  27 minutes after the game made me tune it.
+  Numbers disagree again: 32 kills, tally 11/200. Only the Gray Wolf species counts, not Whelps or
+  Briarcoats. "Every kill in Meadowbrook Thicket counts" is false as written.
+  Combat text piles up into an unreadable stack over my head: "Power Strike / +8 / Wardle / +29 XP".
+
+[31:00] RELOAD. Back in the running hunt in 1.45 s; farm still there (1 h 50 m left); tally kept.
+  Zero console errors in the whole session. Nothing crashed, nothing got stuck, nothing reset.
+
+────────────────────────────────────────────────────────────────────────────────────────────────
+SPEED / STUTTER NOTES (all measured, 1920x1080, headless Chromium)
+────────────────────────────────────────────────────────────────────────────────────────────────
+  First page load 1.4 s. Sign-in 0.3 s. Town after "Enter town" 0.63 s. Hunt entry 1.0 s and 0.57 s.
+  Leave hunt: a 10 s countdown by design. Sell all loot: 0.4 s. Return after closing the tab 1.4 s.
+  Reload 1.45 s.
+  Frame rate: town idle 60 (worst frame 16.8 ms); Mill Cellar 60 (worst 33 ms); Thicket 60.
+  STUTTER: the auto-walk to the Great Hearth with the camera tracking: 27 fps average, median frame
+  33 ms, worst 117 ms, 8 frames over 50 ms in 3 s. Right after, standing in the plaza: 40 fps, worst
+  67 ms. It's the one place the game felt cheap.
+  The analyzer updates in ~10 s jumps (kills 12 → 15 → 16), which reads as laggy next to a 60 fps fight.
+  Not counted: the first load showed 22 module files at ~0.83 s each, all at once. That's this local
+  harness reading files cold, not the game.
+
+────────────────────────────────────────────────────────────────────────────────────────────────
+WHAT GENUINELY IMPRESSED ME (I don't say this often)
+────────────────────────────────────────────────────────────────────────────────────────────────
+  1. The Great Hearth loop. Rats drop bones, bones fuel the hearth in the middle of town, the hearth
+     raises Inner Flame, Inner Flame makes every hunt recover faster. The title, the town's centrepiece
+     and a skill are one idea. That's the opposite of a pile of systems.
+  2. The hunting grounds are places. The Mill Cellar has grain sacks and a millstone because the
+     miller has rats in his grain. The Thicket has a woodpile and an axe in a stump. Somebody placed
+     those.
+  3. The action bar condition editor ("Cast Mend when my HP is below 50%", "allies under", "my target
+     being a boss", "what is left in the bag"). Programming your hero is a real idea for an idle game.
+  4. The writing. "Damp sacks, gnawed grain and things that buzz in the dark." "Thin Turnip Juice."
+     "Next at level 15: Big Bones." No Shadow, no Void, no Ancient. Specific and dry.
+  5. The town gate you come home through after a hunt. Best-looking screen in the game.
+  6. It's fast and it never broke. Server-side hunting that kept going when I closed the tab, a
+     reload that put me back exactly where I was, zero console errors.
+
+────────────────────────────────────────────────────────────────────────────────────────────────
+HANDCRAFTED OR GENERATED?
+────────────────────────────────────────────────────────────────────────────────────────────────
+  Outside the game (sign-in, characters, creator): it looks generated. A black void, an airbrushed
+  AI-style crest, a crude paper-doll. Inside the world: handcrafted, and consistent within itself
+  (one top-down perspective, one muted palette), though the town floor mixes three stone textures
+  at different scales, the water is straight-edged rectangles, the knight's pixels are finer than
+  the road's, and smooth round light blobs sit on top of the pixel art. The windows are a dense,
+  competent MMO client, not a generated dashboard, except the Shop, which is a list.
+  Would I recognise it from a screenshot without the logo? The hearth plaza and the gatehouse, yes.
+  The windows, no: dark panels, gold serif titles, a hundred numbers. That could be anything.
+  Placeholder-looking: "To the sandbox" signpost; the two-grey-box farm; turnips fully grown at
+  "4 h left"; the Mend and Rend spell icons; the hero creator's colours that go nowhere.
+
+────────────────────────────────────────────────────────────────────────────────────────────────
+STEAM REVIEW
+────────────────────────────────────────────────────────────────────────────────────────────────
+  👍 RECOMMENDED (barely). 0.5 hrs on record.
+
+  Hearthrise hides a real game under a spreadsheet. The first three screens are a black void and a
+  crest that looks like it came out of an image generator. The character creator lets you pick
+  four colours that appear nowhere. At minute nine the tutorial has you doing arithmetic on shrimp.
+  I had the refund page open.
+
+  Then it clicks. Every hunting ground is a place someone built: a cellar full of grain sacks under a
+  mill with a rat problem, a wolf thicket with an axe left in a stump. Monsters drop bones, you burn
+  them in the Great Hearth in the town square, and that makes you tougher. The name means something.
+  You can program your hero's action bar with real conditions. It's fast, it never crashed, and
+  your hero really does keep hunting after you close the tab.
+
+  But coming back is silent, half the windows are walls of numbers, and labels are cut off at
+  1080p. Buy it for the hearth, not the UI.
+
+  Refund minute: none. Closest call: 9:40 to 10:20, the shrimp-threshold tutorial.
+  Screenshot to MOCK it: 12-town-arrival (the first in-game frame: three different stone floors,
+    a knight that isn't the hero you just made, "Offens... Balanc... Defen...", 15 unlabelled icons).
+    Runner-up: 01-sign-in (the void and the crest).
+  Screenshot to SELL it: 54-after-leave (home through the gatehouse, tavern and river, the hunt summary
+    beside it). Runner-up: 70-meadowbrook.
+
+  THE ONE THING I'D TELL THE DEVS:
+  Your best idea (rats → bones → the Great Hearth → Inner Flame) shows up at minute 23 and happens
+  off-camera. Put it in minute two and make the hearth roar when I feed it. And when I come back
+  from being away, tell me what my hero did. Those two moments ARE the game.
+
+  SCORES (out of 10)
+    Looks  6 — the world is handsome and consistent with itself; the front door, the creator and the
+               windows drag it down.
+    Hook   4 — the first feeling came at minute 23; the return-from-away beat is missing entirely.
+    Polish 5 — never broke, but truncated labels at 1920, a hidden scrollbar, a see-through panel,
+               and numbers that disagree with each other (loot value 313 vs shop 140; "every kill
+               counts" vs 11/200; plate sprite vs "0 heavy"; "up to 4" vs 2 slots).
+    Speed  8 — sub-1.5 s everywhere and 60 fps in hunts; one real stutter on the town auto-walk.
+
+────────────────────────────────────────────────────────────────────────────────────────────────
+SCREENSHOTS COMMITTED (skeptic/, downscaled to 960 px wide)
+────────────────────────────────────────────────────────────────────────────────────────────────
+  01-sign-in · 02-crest-zoom · 10-hero-dressed · 12-town-arrival · 15-town-zoomed-out ·
+  17-hunts-window · 20-hunt-start · 34-slot-6-condition · 46-inventory · 51-return-first-screen ·
+  54-after-leave · 56-bones-menu · 63-shop · 70-meadowbrook · 73-after-reload
+  Other shot names in this log (25-level-up-0, 27-farm, 30-farm-planted-2, 33-slot-6-picker,
+  44/45 tutorial, 47-character, 48-outfit, 57..62 hearth walk, 64/66 shop, 67/68 tally) were taken
+  and read but not committed (15-shot cap).

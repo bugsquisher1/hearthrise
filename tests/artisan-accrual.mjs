@@ -23,6 +23,9 @@
 //   T4  EXHAUSTION IS A STOP, NOT A REFUSAL, NOT A CONFISCATION: the worked
 //       time is paid, the remainder idles, and the POINTER IS CLEARED so the
 //       next accrual is not answered "nothing" forever.
+//   T4c THE ACTION THAT SPENDS THE LAST FUEL ENDS THE RUN (report #68, "still
+//       fueling the hearth" with none left): a window that closes right after the
+//       last Bones clears the pointer in THAT settle, watermark now, not a settle later.
 //   T5  THE GATE IS SERVER-SIDE. `unlockedRecipes` comes from `hr_perks_of`;
 //       a client that claims a scroll it has no progress row for gets nothing,
 //       and an absent map is LOCKED rather than open.
@@ -620,6 +623,21 @@ function materialGuard() {
     'T4b: an empty-bag run did not clear the pointer');
   ok(empty.accrued && !empty.delta.items && !empty.delta.xp,
     `T4b: an empty-bag run proposed ${JSON.stringify(empty.delta)} — it must move no value at all`);
+
+  /* ── T4c. THE LAST FUEL SPENT ENDS THE RUN IN THAT SETTLE (report #68). 30 Bones, a window of 30 and a half
+     actions: all 30 burn, and the hero is idle now, not "fueling" with none left until a later settle. */
+  const fuel = ARTISAN_RECIPES_ALL.fuel_bones;
+  ok(!!fuel, 'T4c: no fuel_bones recipe: the Hearth arm has no anchor');
+  if (fuel) {
+    const iv = call({ activeId: 'fuel_bones', inventory: { bones: 1e6 } }).summary.intervalMs;
+    const nowMs = FROM_MS + Math.floor(30.5 * iv);
+    const last = call({ activeId: 'fuel_bones', inventory: { bones: 30 }, nowMs });
+    ok(last.accrued === true && last.summary.ticks === 30 && (last.delta.items || {}).bones === -30,
+      `T4c: 30 Bones over 30.5 actions answered ${JSON.stringify({ a: last.accrued, r: last.reason, t: last.summary && last.summary.ticks })}`);
+    ok(last.accrued && last.delta.activity && last.delta.activity.kind === 'idle' && last.delta.accrued_to === new Date(nowMs).toISOString(),
+      `T4c: the settle that burned the last Bones left the pointer at ${JSON.stringify(last.delta && last.delta.activity)} `
+      + `(watermark ${last.delta && last.delta.accrued_to}): the hero shows fueling with none left until a later settle`);
+  }
 }
 
 // ════════════════════════════════════════════════════════════════════════

@@ -107,13 +107,11 @@ export function contractGuard() {
     'C2: `constructor` was not refused unknown_item (catalogueGet defence)');
 
   ok(STATELESS_REFUSALS.includes(INTENT_ERRORS.ITEM_NOT_FOOD), 'C3: item_not_food must be stateless (pre-DB)');
-  /* ⚠ THE FIX: there is NO server-side already_full gate. During a live
-     client-predicted fight the server pointer is idle and server hp reads
-     stale-FULL, so gating there refused the eat, left the food undebited, and
-     reproduced Paione's P0. The server always debits; full-hp waste is the
-     client's call (eatFood's b224 guard, which knows the real combat hp). */
-  ok(INTENT_ERRORS.ALREADY_FULL === undefined,
-    'C3: an already_full code exists — it must not; that server gate reproduced the live-combat P0');
+  /* A FULL-HP EAT IS REFUSED, AND SAYS WHY (2026-10-31). The gate was once absent on purpose: a client-predicted
+     fight read stale-full on the server (Paione's P0). Fights are the engine's now and a manual eat in a hunt is
+     hunt_open (E9), so the server's hp is the hero's. It is decided after the read, so it carries the envelope. */
+  ok(INTENT_ERRORS.ALREADY_FULL === 'already_full' && refusalCarriesState('already_full') === true,
+    'C3: there is no already_full code carrying the envelope — a full-HP eat in town spends the food for nothing');
   ok(refusalCarriesState('insufficient_item') === true,
     'C3: insufficient_item must carry state so the client reconciles a refused over-eat');
 }
@@ -207,24 +205,21 @@ async function body(db, call) {
     ok(await hpOf(db) === maxHp, `E6: hp is ${await hpOf(db)}, must clamp to max_hp ${maxHp}`);
   }
 
-  // E7. THE LIVE-COMBAT CASE (Paione's actual P0). During a live
-  // client-predicted fight the SERVER sees idle + FULL hp, while the client is
-  // at low combat hp. The eat MUST still DEBIT the food server-side (the old
-  // already_full gate refused here → food undebited → "it heals and returns").
-  // hp full is modelled by setting server hp = max_hp; the debit must land and
-  // the heal is a harmless no-op. (The client-side "heal the combat hp and do
-  // not let the envelope snap it" half is asserted by the browser smoke suite,
-  // EAT-COMBAT-HP; it cannot be exercised in this SQL-only harness.)
+  // E7. AT FULL HP IN TOWN THE EAT IS REFUSED AND THE FOOD STAYS (2026-10-31: "eating at full HP wastes food in
+  // town"; say-why). A plain food: already_full, nothing leaves the bag, HP unmoved, the envelope carried. A food
+  // that carries a buff still eats at full HP (the buff is the point): it is debited once.
   {
-    ok((await admin(db, { items: { turnip: 1 }, hp: maxHp })).ok === true, 'E7-SETUP: admin refused');
+    ok((await admin(db, { items: { turnip: 1, roasted_carrot: 1 }, hp: maxHp })).ok === true, 'E7-SETUP: admin refused');
     const before = await invOf(db, 'turnip');
     const r = await call({ item: 'turnip' });
-    ok(r.status === 200 && r.body.ok === true,
-      `E7: an eat at FULL server hp was refused — ${r.status} ${JSON.stringify(r.body).slice(0, 200)}. `
-      + 'This is Paione\'s live-combat P0: the food must debit even when the server reads full.');
-    ok(await invOf(db, 'turnip') === before - 1,
-      `E7: the food was NOT debited at full server hp (turnip ${await invOf(db, 'turnip')}, expected ${before - 1}) — the dupe persists in live combat`);
-    ok(await hpOf(db) === maxHp, `E7: hp moved above max — clamp broken (${await hpOf(db)} vs ${maxHp})`);
+    ok(r.status === 409 && r.body.error === 'already_full' && r.body.state,
+      `E7: an eat at full HP in town returned ${r.status} ${JSON.stringify(r.body).slice(0, 200)} (want 409 already_full with the envelope)`);
+    ok(await invOf(db, 'turnip') === before,
+      `E7: the food was spent at full HP (turnip ${await invOf(db, 'turnip')}, expected ${before}): eaten for nothing`);
+    ok(await hpOf(db) === maxHp, `E7: a refused full-HP eat moved hp (${await hpOf(db)} vs ${maxHp})`);
+    const b = await call({ item: 'roasted_carrot' });
+    ok(b.status === 200 && b.body.ok === true && await invOf(db, 'roasted_carrot') === 0,
+      `E7: a food with a buff at full HP did not eat (${b.status} ${JSON.stringify(b.body).slice(0, 200)}): its buff is the point`);
   }
 
   // E8. INTENT_MISMATCH — one key reused for a DIFFERENT food is refused loudly.

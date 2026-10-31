@@ -98,6 +98,7 @@ function patchBuy(root, st, ctx) {
         const b = li.querySelector('[data-hs-act="buy"]');
         text(b, 'Buy ' + n + ' · ' + gold(o.price * n));
         prop(b, 'disabled', st.sc.pending || short > 0);
+        attr(b, 'data-off-why', short ? 'You need ' + gold(short) + ' more.' : null);
       },
     });
   }

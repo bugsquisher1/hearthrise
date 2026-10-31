@@ -43,6 +43,8 @@ const labelOf = (task) => { const t = tallyTask(task); return t ? t.label.charAt
 /* "120 Giant Rats"; one named creature reads "The Rat King, 5 times". */
 const titleOf = (task, n) => { const t = tallyTask(task); return t && /^the /.test(t.label) ? labelOf(task) + ', ' + whole(n) + ' times' : whole(n) + ' ' + labelOf(task); };
 
+const HUNTING_WHY = 'Her board is in ' + TALLY_KEEPER.board + ': take tasks when you are back in town.';
+
 /** The skeleton (built once per opening): her board is asked for afresh. */
 export function renderTally(ctx) {
   if (ctx && ctx.character) { const sc = scratchOf(ctx.character); sc.stale = true; sc.collected = null; sc.msg = ''; }
@@ -57,8 +59,7 @@ export function renderTally(ctx) {
     + '<div class="ht-weights" role="group" aria-label="The armor weight she pays you in">'
     + TALLY_RULES.weights.map((w) => '<button type="button" class="hh-seg" data-hs-act="weight" data-weight="' + w + '" aria-pressed="false" title="' + esc(weightSentence(w)) + '">' + WEIGHT_WORDS[w] + '</button>').join('')
     + '</div><ol class="ht-order" aria-label="The order she pays armor slots in"></ol>'
-    + '<h3 class="hw-ledger-head is-on">Her board</h3><ul class="hw-ledger ht-board"></ul>'
-    + '<p class="hh-empty ht-wait">Loading her board…</p>'
+    + '<h3 class="hw-ledger-head is-on">Her board</h3><p class="hh-empty ht-wait">Loading her board…</p><ul class="hw-ledger ht-board"></ul>'
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></div>';
 }
 
@@ -98,6 +99,9 @@ function patchOffer(li, r, st) {
   const why = r.held ? 'Held' : st.t && st.t.held.length >= st.t.heldMax ? 'Full' : '';
   text(btn, why || 'Take');
   prop(btn, 'disabled', !!why || st.sc.pending || st.hunting || !st.t || !st.t.weight);
+  /* What a press on the grey button says (src/shell/off-why.js). */
+  attr(btn, 'data-off-why', r.held ? 'You already have this task.' : why ? 'You hold as many tasks as she gives. Give one up first.'
+    : st.hunting ? HUNTING_WHY : st.t && !st.t.weight ? 'Pick the armor weight she pays you in first.' : null);
 }
 
 /* Her slot order: each slot with an "Earlier" press (the first cannot move up). */
@@ -135,8 +139,9 @@ renderTally.patch = function patchTally(body, ctx) {
   patchOrder(root, st);
   const board = sc.board ? sc.board.board : [];
   rows(root.querySelector('.ht-board'), board, { key: (r) => r.task, build: (r) => element(ctx.doc, boardHtml(r)), patch: (li, r) => patchOffer(li, r, st) });
-  cls(root.querySelector('.ht-wait'), 'is-on', !sc.board);
-  text(root.querySelector('.ht-wait'), st.hunting ? 'Her board is in ' + TALLY_KEEPER.board + ': take tasks when you are back in town.' : 'Loading her board…');
+  /* Hunting, the line stands however much of her board is loaded: every Take is off for this reason (phone playtest 10-31). */
+  cls(root.querySelector('.ht-wait'), 'is-on', !sc.board || st.hunting);
+  text(root.querySelector('.ht-wait'), st.hunting ? HUNTING_WHY : 'Loading her board…');
   const repaint = () => ctx.refresh('tally');
   /* HER ANSWER, once per opening and after every intent (a read, never the record). */
   if (sc.stale && !sc.asking && ctx.account) {

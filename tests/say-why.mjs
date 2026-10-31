@@ -232,6 +232,7 @@ export const REASONS = Object.freeze({
   'src/shell/windows/characters.js': [
     { cond: "x.slot === ctx.character.slot || !ctx.goTo", words: "'On screen'", where: 'the button reads On screen' },
     { cond: '!can', words: "' You have ' + gold(purse) + '.'", where: 'the rename quote: price, why not available, or the gold you have' },
+    { cond: 'can.entry.off', words: 'text(inv, can ? can.entry.label', where: 'the phone\'s Invite: an off entry reads its reason as its label ("Party full")' },
   ],
   'src/shell/windows/character/outfit.js': [
     { cond: '!owned || !changed', words: "'Premium · not owned'", where: 'the outfit tile says not owned; Save needs a change' },

@@ -593,11 +593,24 @@ label.st-line { cursor: pointer; }
 .st-help { display: none; margin: 2px 0 0; font-size: var(--t-micro); color: var(--ink-3); line-height: 1.4; }
 .st-row:hover .st-help, .st-row:focus-within .st-help { display: block; }
 
+.hb-page, .ca-why { display: none; }
 /* ── Phone, landscape: compact bar, one swipeable slot row, plaque to the editor ── */
 @keyframes ca-sheet { from { transform: translateX(16px); opacity: 0; } to { transform: none; opacity: 1; } }
 @media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
   /* The phone keeps its sheet as it was: opaque, so nothing of the bar under it reads through (see-through is desktop only). */
   .hs-win[data-hs-win="chat"] { background: var(--bg-1); }
+  /* THE MESSAGE BOX STAYS ON THE SHEET (phone playtest 2026-10-31: at 667 px it started below the screen): the log gives
+     way, its minimum heights are a desktop's, and the input stands thumb-sized at the sheet's foot. */
+  .hs-win[data-hs-win="chat"] .hs-win-body { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+  .hs-win[data-hs-win="chat"] .hc-chat { flex: 1; min-height: 0; }
+  .hs-win[data-hs-win="chat"] .hc-pane.is-on { min-height: 0; overflow: hidden; }
+  .hs-win[data-hs-win="chat"] .hc-logs { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  .hs-win[data-hs-win="chat"] .hc-log { flex: 1; min-height: 0; max-height: none; }
+  .hc-input { flex: none; }
+  .hc-field, .hc-send { min-height: 40px; }
+  .hc-msg:empty { display: none; }
+  /* Why this slot will not fire, first thing on its sheet: a phone has no tooltip to read it in (configure-action.js). */
+  .ca-why:not(:empty) { display: block; flex: none; margin: 4px 0 0; padding: 2px 8px; font-size: var(--t-micro); color: var(--gold-2); box-shadow: inset 4px 0 0 var(--gold); }
   /* SETTINGS BY TOUCH (QA 10-24: a press on the words did nothing, the boxes were 13 px, the slider 14 px tall):
      each control's line is its label (settings.js), 44 px tall; the boxes are 20 px; the slider's own target is
      44 px tall, its sunk 14 px track (shell.css's slider) and a larger plate drawn inside it. */
@@ -630,6 +643,10 @@ label.st-line { cursor: pointer; }
   .hb-hub, .hb-grid > .hb-slots:first-child, .hb-grid > .hb-slots:last-child { order: 0; }
   .hb-grid { order: 1; display: flex; gap: 2px; min-width: 0; overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x proximity; scrollbar-width: none; }
   .hb-grid::-webkit-scrollbar { display: none; }
+  /* The slots' page press (action-bar.js): only where ten columns do not fit; a gold chevron, the bar's "+" gold. */
+  .hb-page:not([hidden]) { order: 1; flex: none; display: grid; place-items: center; align-self: center; width: 24px; height: 74px; padding: 0; border: 0; background: var(--bg-1); color: var(--gold-2); font-family: var(--f-ui); font-size: var(--t-lead); font-weight: 700; line-height: 1; cursor: pointer; }
+  .hb-page::before { content: '\203A'; }
+  .hb-page.is-back::before { content: '\2039'; }
   .hb-plaque { order: 2; }
   /* The hub never gives way; the setup name truncates first (the plaque shrinks a hundred times faster), then the slots swipe. */
   .hb-hub { flex: none; }
@@ -675,7 +692,7 @@ label.st-line { cursor: pointer; }
   .hb-chase { grid-area: chase; }
   .hb-dist { grid-area: dist; gap: 4px; margin-left: 0; }
   .hb-plaque .hh-tool, .hb-plaque .hh-seg { min-height: 36px; }
-  .hb-stance .hh-seg { flex: 1 0 auto; padding: 0 6px; }
+  .hb-stance .hh-seg { flex: 1 0 auto; padding: 0 clamp(2px, calc((100vw - 667px) / 30), 6px); }
   .hb-dist .hb-label { letter-spacing: 0; }
   .hb-dist .hh-step .hh-seg { min-width: 30px; }
   .hb-pl-more { position: fixed; top: 0; right: 0; bottom: 0; width: 280px; display: flex; flex-direction: column; justify-content: center; gap: 8px; padding: 12px; z-index: auto;

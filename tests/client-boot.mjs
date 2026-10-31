@@ -528,7 +528,7 @@ const MUTANTS = [
   ['Create skips the name and colours step', 'src/app/boot.js', "else if (what === 'create') showCreate(slot);",
     "else if (what === 'create') account.create(slot, 'New hero', { head: 13, body: 5, legs: 3, feet: 0 }).then(() => play(slot));"],
   ['a reload lands on the characters screen again (B-9)', 'src/app/boot.js', '    else if (auth.userId()) startAccount(true);', '    else if (auth.userId()) startAccount(false);'],
-  ['a reload reopens a hero the server no longer holds (B-9)', 'src/app/boot.js', "const held = was ? was.slots.filter((s) => rosterSlots.includes(s)) : [];", 'const held = was ? was.slots : [];'],
+  ['a reload whose shown hero does not load stays on the reading screen (B-9)', 'src/app/boot.js', 'if (was && await play(was.viewed, was.slots)) return;', 'if (was) { await play(was.viewed, was.slots); return; }'],
   ['a dead session stays in the game', 'src/app/boot.js', "else if (ev === 'signed-out' || ev === 'expired') sessionEnded();", "else if (ev === 'signed-out') sessionEnded();"],
   ['the closed answer is ignored', 'src/app/boot.js', "if (why === 'closed-game') showClosed();", "if (why === 'never') showClosed();"],
   ['the town\'s sheets wait for Play again', 'src/app/boot.js', "    import('../world/prewarm.js?v=", "    Promise.resolve({ prewarmTown() {} }, '../world/prewarm.js?v="],

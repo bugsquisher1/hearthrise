@@ -1778,7 +1778,7 @@ const MUTANTS = [
   ['a watched bench waits until it is done', 'src/session/town-poll.js', '  if (!townAskDue(running, a.busy, a.at, cs.receivedAt, now)) return false;', '  return false;'],
   ['an unwatched spent bench is never settled (#68)', 'src/session/town-poll.js', '  return askTown(cs, townWorkRunning(cs.read(\'state\'), cs.read(\'hunt\')));\n}\n\nfunction askTown', '  return false;\n}\n\nfunction askTown'],
   ['a bench is settled before its supply is spent', 'src/session/town-poll.js', '  if (!Number.isFinite(serverNow) || serverNow < spentAtMs) return false;', '  if (!Number.isFinite(serverNow)) return false;'],
-  ['the spent instant ignores the server\'s supply', 'src/shell/town-work.js', '  return from + (runs + 1) * actionMs(cs, w) + SLACK_MS;', '  return from + SLACK_MS;'],
+  ['the spent instant ignores the server\'s supply', 'src/shell/town-work.js', '  return from + runs * actionMs(cs, w) + SLACK_MS;', '  return from + SLACK_MS;'],
   ['the town re-read asks every display tick', 'src/session/town-poll.js', '  return nowMs - since >= SESSION_CONFIG.townPollMs;', '  return true;'],
   ['two town re-reads in flight', 'src/session/town-poll.js', '  if (!running || busy) return false;', '  if (!running) return false;'],
   ['a hunter is re-read as town work', 'src/session/town-poll.js', "  return !(hunt && typeof hunt === 'object' && typeof hunt.session_id === 'string' && hunt.ended !== true);", '  return true;'],

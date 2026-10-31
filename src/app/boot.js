@@ -18,9 +18,9 @@
 // switch remounts only the pane; the shown character streams live and the others play on the server (a plain
 // read a minute, CharacterSession.setViewed). A reload signs back in from the stored session and
 // reopens the heroes this tab had open, showing the one it showed (AccountSession.lastOpen, the tab
-// store; designer 10-30 #8: a hero picked once is never picked again by hand), as far as the server's
-// roster still holds them; a shown hero it no longer holds, or one that does not load, falls back to
-// the characters screen. A fresh tab, a sign-in and a sign-out start at the characters screen.
+// store; designer 10-30 #8: a hero picked once is never picked again by hand), as far as the server
+// still loads them: a shown hero it no longer holds does not load, and the characters screen is drawn
+// instead. A fresh tab, a sign-in and a sign-out start at the characters screen.
 //
 // THE CLOSED GAME: the server refuses a non-allowlisted account (403
 // hr_closed); the first such answer replaces everything with the closed notice.
@@ -181,8 +181,8 @@ function startApp(win) {
     await showCharacters(null, resume ? account.lastOpen() : null);
   }
 
-  /* `was`: what this tab had open before a reload ({ slots, viewed }): once the roster is read, the heroes it still
-     holds reopen and the shown one is shown, with no list drawn; else (or if the shown one does not load) the list. */
+  /* `was`: what this tab had open before a reload ({ slots, viewed }): once the roster is read, those heroes reopen and
+     the shown one is shown, with no list drawn; if the shown one does not load (the server no longer holds it), the list. */
   async function showCharacters(note, was) {
     clear();
     obs.screen('characters');
@@ -194,8 +194,7 @@ function startApp(win) {
     if (a !== account || a.closedGame) return;
     roster = read;
     rosterSlots = roster.filter((r) => r.exists).map((r) => r.slot);
-    const held = was ? was.slots.filter((s) => rosterSlots.includes(s)) : [];
-    if (held.includes(was && was.viewed) && await play(was.viewed, held)) return;
+    if (was && await play(was.viewed, was.slots)) return;
     if (a !== account || a.closedGame) return;
     const open = new Set(a.characters().map((c) => c.slot));
     /* Each owned slot: its hero by name and Level (the server's), or an empty slot to create in; the whole

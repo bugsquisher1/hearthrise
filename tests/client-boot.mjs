@@ -34,7 +34,7 @@
 //        signed out with the atlas manifests still held, the page asks for no sheet afterwards
 //   B-4  a second character opens beside the first (two topics, one strip)
 //   B-5  sign out -> the sign-in screen, and no copy of the session is left in
-//        localStorage or sessionStorage (auth key, sb-*, the tab id)
+//        localStorage or sessionStorage (auth key, sb-*, the tab id, the heroes it had open)
 //   B-6  a password-reset link (#type=recovery) opens the set-new-password screen
 //   B-7  a 403 hr_closed answer shows the closed notice, not the game
 //   B-8  a hunting character (tests/fixtures/hunt-envelope.json) mounts the hunt
@@ -45,8 +45,11 @@
 //        Level, the empty owned slot offers Create hero, which opens the creation
 //        step (Tyler 2026-10-20: a name and four colours, the hero enters town only
 //        on Confirm): nothing is sent until Enter town, then ONE hr_create_hero for
-//        that slot with the typed name and the picked colours plays it, and after a
-//        reload both heroes list by name
+//        that slot with the typed name and the picked colours plays it. A RELOAD REOPENS
+//        THE TAB'S HEROES (designer 10-30 #8: a hero picked once is never re-picked):
+//        the shown hero is shown again and the other plays beside it, nothing pressed;
+//        a fresh tab lists both heroes by name; once the server no longer holds the
+//        shown hero a reload falls back to the characters screen
 //   B-11 BUY A HERO SLOT (tracker r45; Tyler 10-17: up to five, for gold): the roster offers the
 //        server's next slot at the server's price, paid from "Your gold" — ONE purse per account
 //        (Tyler 10-23), so there is no payer to pick; short of gold it cannot be pressed and says
@@ -216,7 +219,7 @@ async function checks(overrides) {
       await page.click('[data-app="sign-out"]');
       if (!(await wait(page, () => document.querySelector('form[data-auth="sign-in"]')))) fails.push('B-5 sign-out did not return to sign-in');
       const left = await page.evaluate(() => [...Object.keys(localStorage), ...Object.keys(sessionStorage)]
-        .filter((k) => k === 'hr-auth' || k.startsWith('hr-auth-') || k.startsWith('sb-') || k === 'hr-tab-id' || k === 'hearthrise:supabaseSession'));
+        .filter((k) => k === 'hr-auth' || k.startsWith('hr-auth-') || k.startsWith('sb-') || k === 'hr-tab-id' || k === 'hr-open' || k === 'hearthrise:supabaseSession'));
       if (left.length) fails.push('B-5 session copies left after sign-out: ' + left.join(', '));
       const topics = await page.evaluate(() => Object.keys(window.__hub.channels));
       if (topics.length) fails.push('B-5 character topics still joined after sign-out: ' + topics.join(', '));
@@ -373,11 +376,27 @@ async function checks(overrides) {
         const c = o.created[0];
         if (o.created.length !== 1 || c.slot !== 1 || c.name !== 'Fennick' || !c.colors || c.colors.body !== 6 || Object.keys(c.colors).join() !== 'head,body,legs,feet' || !played)
           fails.push('B-9 Enter town sent ' + JSON.stringify(o.created) + (played ? '' : ' and did not play the new hero'));
+        /* The reload: Fennick is shown again and Tester plays beside it, with no characters screen and no press. */
+        const named = () => Array.from(document.querySelectorAll('.char-tab[data-app="show"] .char-tab-name')).map((n) => n.textContent).join() === 'Tester,Fennick';
+        await wait(page, named);
         await page.reload({ waitUntil: 'load' });
-        await wait(page, () => document.querySelectorAll('[data-app="play"]').length === 2 || document.querySelector('.hs-launchers'));
-        if (!(await page.$('[data-app="play"][data-slot="1"]'))) { await page.click('[data-app="characters"]').catch(() => {}); await wait(page, () => document.querySelectorAll('[data-app="play"]').length === 2); }
-        const after = await page.evaluate(() => Array.from(document.querySelectorAll('.char-row .char-name')).map((n) => n.textContent.replace(/\s+/g, ' ').trim()));
-        if (after.length !== 2 || !/^Tester/.test(after[0]) || !/^Fennick/.test(after[1])) fails.push('B-9 after a reload the heroes list as ' + JSON.stringify(after));
+        const back = await wait(page, () => document.querySelector('#panel-world[data-slot="1"]') && Array.from(document.querySelectorAll('.char-tab[data-app="show"] .char-tab-name')).map((n) => n.textContent).join() === 'Tester,Fennick');
+        if (!back || await page.$('.char-list')) fails.push('B-9 a reload did not reopen the tab\'s two heroes on Fennick: '
+          + JSON.stringify(await page.evaluate(() => ({ shown: (document.querySelector('#panel-world') || { dataset: {} }).dataset.slot,
+            tabs: Array.from(document.querySelectorAll('.char-tab[data-app="show"]')).map((t) => t.textContent.replace(/\s+/g, ' ').trim()), list: !!document.querySelector('.char-list') }))));
+        /* A fresh tab (its own tab store) starts at the characters screen, both heroes by name. */
+        const tab = await ctx.newPage();
+        await stubServer(tab, o);
+        await tab.goto(base + '/play.html', { waitUntil: 'load' });
+        await wait(tab, () => document.querySelectorAll('[data-app="play"]').length === 2);
+        const after = await tab.evaluate(() => Array.from(document.querySelectorAll('.char-row .char-name')).map((n) => n.textContent.replace(/\s+/g, ' ').trim()));
+        if (after.length !== 2 || !/^Tester/.test(after[0]) || !/^Fennick/.test(after[1])) fails.push('B-9 a fresh tab lists the heroes as ' + JSON.stringify(after));
+        await tab.close();
+        /* The server no longer holds Fennick: the reload falls back to the characters screen. */
+        delete o.heroes[1];
+        await page.reload({ waitUntil: 'load' });
+        const safe = await wait(page, () => document.querySelector('[data-app="play"][data-slot="0"]') && document.querySelector('[data-app="create"][data-slot="1"]'));
+        if (!safe || await page.$('#panel-world')) fails.push('B-9 a reload whose shown hero the server no longer holds did not fall back to the characters screen');
       }
       if (errors.length) fails.push('B-9 console errors: ' + errors.slice(0, 3).join(' | '));
       await ctx.close();
@@ -508,6 +527,8 @@ const MUTANTS = [
   ['an empty owned slot offers no Create', 'src/app/boot.js', `: 'data-app="create"') + ' data-slot="'`, `: 'data-app="nothing"') + ' data-slot="'`],
   ['Create skips the name and colours step', 'src/app/boot.js', "else if (what === 'create') showCreate(slot);",
     "else if (what === 'create') account.create(slot, 'New hero', { head: 13, body: 5, legs: 3, feet: 0 }).then(() => play(slot));"],
+  ['a reload lands on the characters screen again (B-9)', 'src/app/boot.js', '    else if (auth.userId()) startAccount(true);', '    else if (auth.userId()) startAccount(false);'],
+  ['a reload whose shown hero does not load stays on the reading screen (B-9)', 'src/app/boot.js', 'if (was && await play(was.viewed, was.slots)) return;', 'if (was) { await play(was.viewed, was.slots); return; }'],
   ['a dead session stays in the game', 'src/app/boot.js', "else if (ev === 'signed-out' || ev === 'expired') sessionEnded();", "else if (ev === 'signed-out') sessionEnded();"],
   ['the closed answer is ignored', 'src/app/boot.js', "if (why === 'closed-game') showClosed();", "if (why === 'never') showClosed();"],
   ['the town\'s sheets wait for Play again', 'src/app/boot.js', "    import('../world/prewarm.js?v=", "    Promise.resolve({ prewarmTown() {} }, '../world/prewarm.js?v="],
@@ -524,7 +545,7 @@ async function main() {
   if (!process.argv.includes('--mutate')) {
     const fails = await checks(null);
     for (const f of fails) console.log('  ✗ ' + f);
-    console.log(fails.length ? 'client-boot: ' + fails.length + ' check(s) RED' : 'client-boot: both pages boot; sign-in, play (the Common sheets only), a scene switched whole, a late sheet on a closed pane, two characters, one hero + a named, coloured hero created in the second slot, sign-out, a dead session, reset and closed all hold');
+    console.log(fails.length ? 'client-boot: ' + fails.length + ' check(s) RED' : 'client-boot: both pages boot; sign-in, play (the Common sheets only), a scene switched whole, a late sheet on a closed pane, two characters, one hero + a named, coloured hero created in the second slot, the open heroes back after a reload, sign-out, a dead session, reset and closed all hold');
     process.exit(fails.length ? 1 : 0);
   }
   let bad = 0;

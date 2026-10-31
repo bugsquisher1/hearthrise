@@ -782,13 +782,13 @@ export const INTENT_ERRORS = Object.freeze({
                          owns no copy. THIS IS THE DUPE/OVER-EAT REFUSAL — the
                          debit IS the ownership check, exactly as for equip.
 
-     ⚠ THERE IS NO `already_full` CODE, AND ITS ABSENCE IS THE FIX. An earlier
-       revision gated a full-HP eat server-side; but during a live
-       client-predicted fight the server pointer is idle and server hp reads
-       stale-FULL, so that gate refused the eat, left the food UNDEBITED, and
-       reproduced Paione's P0 exactly. The server always debits (the heal is a
-       no-op at full server hp); wasting food at full HP is the client's call. */
+       already_full      409 — at full HP (town: a manual eat in a hunt is
+                         `hunt_open`), an eat that brings no buff. Nothing is
+                         debited; it carries the envelope. It was once absent on
+                         purpose (a client-predicted fight read stale-full on the
+                         server, Paione's P0); fights are the engine's now. */
   ITEM_NOT_FOOD: 'item_not_food',
+  ALREADY_FULL: 'already_full',
 
 
   /* ── THE TROPHY CLAIM VERB (docs/design/BESTIARY_LADDER.md §4) ────────────
@@ -900,9 +900,8 @@ export const STATELESS_REFUSALS = Object.freeze([
      ITEMS catalogue BEFORE the rate gate and before any database work, exactly
      like `item_not_sellable`, so reading a state envelope for it is the database
      work the shape check exists to avoid. `bad_item` / `unknown_item` are
-     already on this list above (shared with vendor_sell). There is no
-     `already_full` — the server never gates a full-hp eat (see the eat error
-     block above for why that gate reproduced the live-combat P0). */
+     already on this list above (shared with vendor_sell). `already_full` is NOT
+     here: it is decided on the settled state, so it carries the envelope. */
   INTENT_ERRORS.ITEM_NOT_FOOD,
   /* THE TROPHY CLAIM — its ONE shape refusal, answered from the parsed request
      BEFORE the rate gate and before any database work, exactly like bad_offer.

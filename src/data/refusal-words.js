@@ -75,6 +75,8 @@ export const REFUSAL_WORDS = Object.freeze({
   item_locked: 'That item is locked. Unlock it first.',
   item_not_sellable: 'The shop does not buy that item.',
   item_not_food: 'That is not something you can eat.',
+  /* eat.js: at full HP an eat that brings no buff is refused and the food stays (2026-10-31) */
+  already_full: 'Your HP is already full, so the food stays in your bag.',
   not_auto_eatable: 'That is not something you can eat.',
   not_tradeable: 'That item cannot be traded.',
   not_in_bag: 'That item is not in your bag.',

@@ -20,8 +20,7 @@
 // partner's book value per shot. A basic RUNE is the store's version of a rune an ability
 // spends (designer 2026-10-21: Plain Fire Rune, 8 g a cast, 2x the Fire Rune's
 // book; Tyler 10-15 "runes and ammo: carried first, then the store" replaces
-// the K10 no-basic-runes rule). The free tier-1 rungs (Bronze Arrows, Air Rune,
-// Coarse Whetstone) stay ordinary packed items.
+// the K10 no-basic-runes rule).
 //
 // THE PLAYER PICKS THE ITEM (Tyler 2026-10-21, designer-confirmed): a bar slot
 // names ONE item. A store food or drink below is an item a slot can name, bought
@@ -89,7 +88,9 @@ export const BASIC_SUPPLIES = Object.freeze([
   mana('thin_emberfruit_cordial', 'Thin Emberfruit Cordial', 'emberfruit_cordial', 480, 233),
   /* (Tyler 2026-10-23: "like anything else the arrows should then be bought from the store".) Iron Arrows ran out
      with no store row and the Ranger hunted on with no basic attack; priced by the rule, BASIC_AMMO_PREMIUM x its
-     partner's book value (1 g). */
+     partner's book value (1 g). Bronze Arrows too (lane/a-arrow-cost, 2026-10-31: no free rung; the designer's 10-23
+     1 g a shot for tiers 1-3; their book is 0, so the rule's floor holds at the tier's price). */
+  shot('plain_bronze_arrows', 'Plain Bronze Arrows', 'bronze_arrows', 1),
   shot('plain_iron_arrows', 'Plain Iron Arrows', 'iron_arrows', 1),
   shot('plain_barbed_arrows', 'Plain Barbed Arrows', 'barbed_arrows', 1),
   shot('plain_iron_bolts', 'Plain Iron Bolts', 'iron_bolts', 1),
@@ -119,14 +120,12 @@ export const BASIC_INDEX = Object.freeze(BASIC_SUPPLIES.reduce((acc, b) => { acc
    partner of a store row above, or it is listed here with the reason it needs none. tests/supplies-catalogue.mjs
    B5 holds both directions: an unlisted line with no partner is red, and so is a listed one that has a partner. */
 const BY_SLOT = 'a food or drink slot names ONE item (Tyler 2026-10-21): when it runs out the next slot fires, and any store food or drink can stand there';
-const FREE_RUNG = 'the free tier-1 rung (ammoPerShot 0): a shot never spends it, so it never runs out';
 const HONE = 'a whetstone is melee\'s ceiling, not its swing (R5): when the last one wears the sword swings on unsharpened';
 const DEEPER_TIER = 'the store sells each family ONE basic rune, version I at the store\'s share (Tyler 2026-10-23): a deeper tier is bound at Runecrafting, never bought, and once it is gone the spell casts the next tier the hero carries, then the store\'s';
 export const NO_STORE_PARTNER = Object.freeze(Object.assign(Object.create(null), {
   turnip_mash: BY_SLOT, cooked_herring: BY_SLOT, cooked_wolf_meat: BY_SLOT, cooked_panther_meat: BY_SLOT, cooked_pikeperch: BY_SLOT,
   cooked_copper_crab: BY_SLOT, wheat_bread: BY_SLOT, cooked_silverfin: BY_SLOT, baked_potato: BY_SLOT, cooked_goldgill: BY_SLOT,
   cooked_bear_meat: BY_SLOT, river_chowder: BY_SLOT, cooked_frostfin: BY_SLOT, cooked_moonfish: BY_SLOT,
-  bronze_arrows: FREE_RUNG,
   coarse_whetstone: HONE, copper_whetstone: HONE, iron_whetstone: HONE, steel_whetstone: HONE, mithril_whetstone: HONE,
   rune_whetstone: HONE, dawn_whetstone: HONE,
   /* every rune above the Chalked tier of every crafted family (stonecraft.js CRAFTED_RUNE_FAMILIES) */

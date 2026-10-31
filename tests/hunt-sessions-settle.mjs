@@ -1114,12 +1114,32 @@ const ENGINE_ARMS = {
     const end = r.find((x) => x.hunt.ended);
     if (used !== 40) problems.push(`a 40-arrow bag loosed ${used} arrows`);
     if (!end || end.hunt.ended.reason !== 'ammo_out') problems.push(`the dry quiver ended ${JSON.stringify(end && end.hunt.ended)}, not ammo_out`);
-    /* THE FREE RUNG (ammoPerShot 0): one Bronze Arrow in the bag shoots all window and is never spent. */
-    const free = runCut(M, ranger('bronze_arrows', 1), 600000, []);
-    const f = free.outs.flatMap((o) => o.members);
-    const shots = free.outs.reduce((a, o) => a + o.events.filter((e) => e.type === 'dmg' && e.ability === 'basic').length, 0);
-    if (f.some((x) => (x.hunt.uses.bronze_arrows || 0) > 0)) problems.push('the free rung was spent from the bag');
-    if (!(shots > 10)) problems.push(`one free arrow shot ${shots} basics in ten minutes — the free rung does not shoot`);
+    /* NO FREE RUNG (Tyler 10-15: "Arrows keep a per-shot cost"; 10-23: bought from the store per use): a shot of Bronze
+       Arrows leaves the bag like any other. Under `end`, 40 fire 40. Under the default, the bag first, then one store
+       shot a basic at its price, the same however the windows are cut (the browser closed: one span; a player's
+       irregular settles: the cuts), and the purse pays exactly the tally's buys. */
+    const dry = runCut(M, ranger('bronze_arrows', 40), 1800000, []);
+    const d = dry.outs.flatMap((o) => o.members);
+    const spent = d.reduce((a, x) => a + (x.hunt.uses.bronze_arrows || 0), 0);
+    const dryEnd = d.find((x) => x.hunt.ended);
+    if (spent !== 40) problems.push(`a 40-Bronze bag loosed ${spent} arrows (the free rung back?)`);
+    if (!dryEnd || dryEnd.hunt.ended.reason !== 'ammo_out') problems.push(`the dry Bronze quiver ended ${JSON.stringify(dryEnd && dryEnd.hunt.ended)}, not ammo_out`);
+    const fed = () => [memberIn(M, 'a', { role: 'ranger', bar: ['hunters_mark'], bag: { bronze_arrows: { loaded: 30, left: 30, essential: true } },
+      equipment: { weapon: 'oak_shortbow', ammo: 'bronze_arrows' }, gold: 50000, level: 30 })];
+    const ledger = (r) => {
+      const ms = r.outs.flatMap((o) => o.members);
+      const sum = (f) => ms.reduce((a, x) => a + (x.hunt[f].bronze_arrows || 0), 0);
+      const bought = ms.reduce((a, x) => a + (x.hunt.buys.plain_bronze_arrows || 0), 0);
+      const basics = r.outs.reduce((a, o) => a + o.events.filter((e) => e.type === 'dmg' && e.ability === 'basic').length, 0);
+      return { own: sum('uses'), bought, basics };
+    };
+    const closed = ledger(runCut(M, fed, 600000, []));
+    const viewed = ledger(runCut(M, fed, 600000, [T0 + 12345, T0 + 95000, T0 + 181111, T0 + 400000]));
+    if (closed.own !== 30) problems.push(`the default spent ${closed.own} of 30 carried Bronze Arrows`);
+    if (!(closed.bought > 10)) problems.push(`the default bought ${closed.bought} Plain Bronze Arrows once its 30 were gone (the store does not stand behind Bronze?)`);
+    if (M.SB.BASIC_INDEX.plain_bronze_arrows.partner !== 'bronze_arrows') problems.push('Plain Bronze Arrows are not the Bronze Arrows\' store row');
+    if (closed.own + closed.bought !== closed.basics) problems.push(`${closed.basics} basics paid ${closed.own} own + ${closed.bought} store shots: a shot went unpaid`);
+    if (canon(closed) !== canon(viewed)) problems.push(`one span ${canon(closed)} vs cut windows ${canon(viewed)}: the shots depend on the cut`);
     return problems;
   },
 
@@ -3450,8 +3470,10 @@ const MUTANTS = [
     from: '    if (m.left || !(stamped.has(m) || m.hs.partyEnd)) continue;', to: '    if (m.left || m.unitId === null || !(stamped.has(m) || m.hs.partyEnd)) continue;' },
   { arm: 'QUIVER', name: '[C2 ammoGuard] a shot is loosed but its arrow is never taken from the bag', file: 'src/core/hunt/abilities.js',
     from: '    if (!takeLine(h.hs, l, sc.atMs)) { h.hs.goldOut = true; return false; }\n    return l;', to: '    return l;' },
-  { arm: 'QUIVER', name: 'the free rung is spent like a paid one', file: 'src/core/hunt/abilities.js',
-    from: "    if (l.source === 'own' && ammoPerShot(itemRow(h, l.id)) === 0) return l;\n", to: '' },
+  { arm: 'QUIVER', name: 'Bronze Arrows are a free rung again (a shot never leaves the bag)', file: 'src/core/hunt/abilities.js',
+    from: '    if (!takeLine(h.hs, l, sc.atMs)) { h.hs.goldOut = true; return false; }\n    return l;', to: "    if (l.source === 'own' && l.id === 'bronze_arrows') return l;\n    if (!takeLine(h.hs, l, sc.atMs)) { h.hs.goldOut = true; return false; }\n    return l;" },
+  { arm: 'QUIVER', name: 'the store has no row behind Bronze Arrows', file: 'src/data/supply-basics.js',
+    from: "  shot('plain_bronze_arrows', 'Plain Bronze Arrows', 'bronze_arrows', 1),\n", to: '' },
   { arm: 'QUIVER', name: 'a ranged basic swings without a shot', file: 'src/core/hunt/damage.js',
     from: '    const paid = cost ? payBasic(inst, u, cost, sc) : true;', to: '    const paid = true;' },
   { arm: 'QUIVER', name: '[C2 skipFoodDebit] a carried use is not debited', file: 'src/core/action-rules.js',

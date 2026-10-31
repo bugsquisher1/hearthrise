@@ -56,18 +56,12 @@ export const SLOT_ITEMS = {
      DATA so a future "one arrow in five is recovered" perk, or a heavy bolt
      that costs two, is a data change and not a code change.
 
-     `ammoPerShot: 0` on Bronze Arrows is deliberate and is a ruling, not an
-     oversight: a tier-1 ranged player fires ~13,900 arrows across an 8-hour
-     absence and grosses ~18,600 gold doing it, so there is NO integer price at
-     which tier-1 ammo costs less than a third of the income it earns. The first
-     rung is therefore free — training arrows — and the supply loop starts at
-     tier 2, where the same 13,600 arrows cost ~27% of gross at book value.
-
-     THESE ARE SPENT (E1, 2026-08-31). `src/core/ammo.js spendForSwings` is
-     called by `src/core/combat-sim.js simulateTick` on every swing, live and
-     away, and the debit lands in the server accrual's signed `items` delta.
-     Before that date `ammoPerShot` was inert and this block said so.  */
-  bronze_arrows:    { n: 'Bronze Arrows',      icon: '🏹', v: 0,  type: 'ammo', slot: 'ammo', tier: 1, rarity: 'common',    reqSkill: 'ranged', reqLv: 1,  rangeAtkB: 2, rangeStrB: 2,  ammoPerShot: 0 },
+     EVERY ARROW IS SPENT, THE FIRST RUNG TOO (Tyler 2026-10-15: "Arrows keep a
+     per-shot cost"; 2026-10-23: every spent supply is bought from the store per
+     use). A shot leaves the bag, then buys its plain partner from the store
+     (src/core/hunt/abilities.js payBasic; src/data/supply-basics.js). Bronze
+     Arrows were a free rung (ammoPerShot 0) until lane/a-arrow-cost, 2026-10-31. */
+  bronze_arrows:    { n: 'Bronze Arrows',      icon: '🏹', v: 0,  type: 'ammo', slot: 'ammo', tier: 1, rarity: 'common',    reqSkill: 'ranged', reqLv: 1,  rangeAtkB: 2, rangeStrB: 2,  ammoPerShot: 1 },
   barbed_arrows:    { n: 'Barbed Arrows',      icon: '🏹', v: 1,  type: 'ammo', slot: 'ammo', tier: 2, rarity: 'uncommon',  reqSkill: 'ranged', reqLv: 15, rangeAtkB: 3, rangeStrB: 3,  ammoPerShot: 1 },
   steel_arrows:     { n: 'Steel Arrows',       icon: '🏹', v: 1,  type: 'ammo', slot: 'ammo', tier: 3, rarity: 'rare',      reqSkill: 'ranged', reqLv: 30, rangeAtkB: 4, rangeStrB: 5,  critB: 0.01,  ammoPerShot: 1 },
   mithril_arrows:   { n: 'Mithril Arrows',     icon: '🏹', v: 4,  type: 'ammo', slot: 'ammo', tier: 4, rarity: 'epic',      reqSkill: 'ranged', reqLv: 45,               rangeStrB: 8,  critB: 0.01,  ammoPerShot: 1 },

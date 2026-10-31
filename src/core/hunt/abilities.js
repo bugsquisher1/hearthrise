@@ -49,7 +49,6 @@ import { landHit } from './damage.js?v=0.2.74';
 import { challengeable, challengeFrom, holderTank } from './targeting.js?v=0.2.74';
 import { applyStatus, statusRow } from './status.js?v=0.2.74';
 import { levelOf } from '../xp.js?v=0.2.74';
-import { ammoPerShot } from '../ammo.js?v=0.2.74';
 import { ITEMS } from '../../data/items.js?v=0.2.74';
 import { isRune } from '../../data/supplies.js?v=0.2.74';
 import { slotsFor, pickSlot, bestAim, itemRow, ignores, DEFAULT_ATTACK_ROW, attackOrder } from './conditions.js?v=0.2.74';
@@ -184,9 +183,7 @@ function suppliesFor(h, row, store, ammo) {
     if (r.why) return r;
     lines.push(r.line); version = r.version; pm = r.pm;
   }
-  /* The free rung (ammoPerShot 0): a carried stack of it never depletes, so a cast needs no shot lines. */
-  const freeShot = !!ammo && ammoPerShot(itemRow(h, ammo)) === 0 && int(h.hs.bag && h.hs.bag[ammo] && h.hs.bag[ammo].left) > 0;
-  if (row.ammo > 0 && !freeShot) {
+  if (row.ammo > 0) {
     if (!ammo) return { why: 'no_ammo' };
     /* Own shots first, the rest from the store shot behind the line (one resolver). */
     const line = h.hs.bag && h.hs.bag[ammo];
@@ -425,9 +422,6 @@ export function payBasic(inst, hero, cost, sc) {
     const l = h && id ? shotLine(h, id) : { why: 'none' };
     /* OUT OF GOLD FOR A BASIC SUPPLY ENDS THE HUNT (Tyler 10-14): the shot the hero takes cannot be paid. */
     if (!l.id || l.why) { if (l.why === 'gold_short') h.hs.goldOut = true; return false; }
-    /* THE FREE RUNG (src/core/ammo.js ammoPerShot 0, the tier-1 rung of every
-       ladder): a loaded stack of it looses its shot and never depletes. */
-    if (l.source === 'own' && ammoPerShot(itemRow(h, l.id)) === 0) return l;
     if (!takeLine(h.hs, l, sc.atMs)) { h.hs.goldOut = true; return false; }
     return l;
   }

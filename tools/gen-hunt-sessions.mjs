@@ -128,7 +128,7 @@ import { SUPPLIES, COMBAT_BUFF_TYPES } from '../src/data/supplies.js';
 import { BASIC_SUPPLIES } from '../src/data/supply-basics.js';
 import { DRINK_ITEMS } from '../src/data/drinks.js';
 import { ACTION_SET_LIMITS, TARGET_MODES, DEFAULT_TARGET_MODE, HERO_DISTANCE } from '../src/data/rule-subjects.js';
-import { SESSION_LIMITS, END_ORDER, STAMINA_LOW_MIN, SESSIONS_KEPT, DEATH_XP_LOSS, DEATH_XP_BASE, STAMINA_MAX_MS,
+import { SESSION_LIMITS, END_ORDER, NO_FIGHT_END_MIN, STAMINA_LOW_MIN, SESSIONS_KEPT, DEATH_XP_LOSS, DEATH_XP_BASE, STAMINA_MAX_MS,
   RESUMABLE_KINDS, RESUME_AFTER_END, GOLD_FLOOR, SUPPLY_SOURCE, ON_EMPTY, ACTION_SET_OPTIONS, VALUE_HEADROOM,
   DEFAULT_RESUME, EVENT_COPY, GATHER_SHARE, coverSellable } from '../src/data/hunt-sessions.js';
 import { CONSUMABLE_RULES } from '../src/data/consumables.js';
@@ -194,7 +194,10 @@ export const WORLD_FIELDS_READ = Object.freeze({
 /* THE DROP BOUNDS (lane/c-bear-meat-bound, P1 2026-10-30): 2027-02-09 is APPLIED history; every monster a pull can bring
    gets its spawn row (groundRows, the Glade's Brook Bear), and the self-check executes the settle's item bound for every
    item a ground's monsters drop (dropNeeds), the same full replace. */
-export const OUT_NAME = '2027-02-10-drop-bounds-hunt-sessions-catalogue.generated.sql';
+/* THE ARROW'S COST AND THE NO-FIGHT END (lane/a-arrow-cost, 2026-10-31): 2027-02-10 is APPLIED history; the store's Plain
+   Bronze Arrows, END_ORDER's no_fight + its limit, and the world's fightAt (a new shape) land in this forward file, the same
+   full replace, applied right before 2027-02-11-no-fight-settle.sql. */
+export const OUT_NAME = '2027-02-11-arrow-cost-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -384,6 +387,8 @@ export function catalogueRows(src = {}) {
     party_max: S.partyMax,
     /* The level floor is a warning: refused only this many levels under band[0] (Tyler 10-18). */
     below_range_refuse: S.sessionLimits.belowRangeRefuse,
+    /* The no-fight end's span (hr_hunt_settle_session proves a no_fight end against it). */
+    no_fight_min: NO_FIGHT_END_MIN,
     max_concurrent: S.maxConcurrent,
     /* The hero's regen rates the hunt section shows (abilities.js / hunt-tuning.js, one source). */
     mana_regen_pct_min: S.manaRegenPct,
@@ -626,7 +631,14 @@ export function render(src) {
 --   ${r.vendor.length} vendor values, ${r.basics.length} store supplies paid per use, ${r.targets.length} target modes,
 --   ${r.lanes.length} lanes, ${r.abilities.length} abilities, ${r.setOptions.length} action-set options, ${r.grounds.length} hunt grounds
 --
--- NEW IN 2027-02-10 (lane/c-bear-meat-bound, P1 2026-10-30): hr_hunt_ground_spawns lists EVERY monster a
+-- NEW IN 2027-02-11 (lane/a-arrow-cost, 2026-10-31): the store's Plain Bronze Arrows (1 g a shot: Tyler 10-15 "Arrows keep
+-- a per-shot cost", no free rung); END_ORDER's no_fight (designer 10-31: a hero must not sit in a hunt it can't fight in)
+-- in hr_hunt_end_reasons and hunt_sessions.end_reason's CHECK, its span in hr_hunt_limits.no_fight_min; the world's
+-- shape gains fightAt, so hr_hunt_world_shape is rewritten. A catalogue and an edge landing seconds apart propose
+-- nothing while the shapes differ (hunt-settle.js worldShapePending). ORDER: right before 2027-02-11-no-fight-settle.sql,
+-- which proves the new end. EDGE: the hr-accrue carrying this world deploys with these two files.
+--
+-- CARRIED FROM 2027-02-10 (APPLIED 10-30; lane/c-bear-meat-bound): hr_hunt_ground_spawns lists EVERY monster a
 -- pull can bring (each pocket's whole pack, the rows hunt-grounds.js pullRows draws from at any density),
 -- not only each pocket's as-built rows. The Glade's Brook Bear stands only in its boxes' fill rows, so it
 -- had no spawn row: the settle's value bound for raw_bear_meat, bear_claw and brook_bear_tooth on

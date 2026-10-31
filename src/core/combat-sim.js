@@ -242,8 +242,10 @@ export function simulateHuntInstance(inst, ctx) {
   }
 
   while (atMs < toMs && members.some((m) => !m.left)) {
-    // (0) LEAVE TOGETHER: every member whose own end holds at this boundary sends the ticked others home with
+    // (0) THE NO-FIGHT CLOCK (designer 2026-10-31) for the end checks: the world's own, a hero not yet in it has none.
+    //     LEAVE TOGETHER: every member whose own end holds at this boundary sends the ticked others home with
     //     it, here (they meet the flag in the end checks below), however the members are ordered.
+    for (const m of members) m.hs.fightAtMs = world && m.unitId !== null ? world.fightAt : null;
     const own = new Map();
     for (const m of members) {
       if (m.left || m.hs.nextSwingAtMs > atMs) continue;
@@ -269,6 +271,8 @@ export function simulateHuntInstance(inst, ctx) {
           fresh = true;
           /* A restarted instance's fresh world counts on from its stored swing (the seed index never repeats). */
           world.swing = Math.max(0, Math.floor(Number(inst.worldSwing) || 0));
+          /* A fresh world's quiet starts now: a restart (a party change, a deploy) never ends a fighting hunt. */
+          world.fightAt = atMs;
           m.unitId = world.units[0].id; anchor(atMs); seen();
         } else {
           m.unitId = joinHero(world, ctx.ground, heroOf(m), m.seat);

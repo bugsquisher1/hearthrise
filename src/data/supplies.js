@@ -167,15 +167,15 @@ const magic = (heal, qty, drink, dq, ammo, aq) => Object.freeze({
 export const BAG_GUIDE_BY_HUNT = Object.freeze({
   mill_cellar: Object.freeze({ tier: 1,
     melee: melee('cooked_shrimp', 105),
-    ranged: ranged('cooked_shrimp', 145, 'bronze_arrows', 0),
+    ranged: ranged('cooked_shrimp', 145, 'bronze_arrows', 5100),
     magic: magic('cooked_shrimp', 135, 'turnip_juice', 65, 'chalked_fire_rune', 600) }),
   bramble_edge: Object.freeze({ tier: 1,
     melee: melee('cooked_shrimp', 170),
-    ranged: ranged('cooked_shrimp', 235, 'bronze_arrows', 0),
+    ranged: ranged('cooked_shrimp', 235, 'bronze_arrows', 5100),
     magic: magic('cooked_shrimp', 220, 'turnip_juice', 110, 'chalked_fire_rune', 600) }),
   goblin_warren: Object.freeze({ tier: 1,
     melee: melee('cooked_shrimp', 110),
-    ranged: ranged('cooked_shrimp', 205, 'bronze_arrows', 0),
+    ranged: ranged('cooked_shrimp', 205, 'bronze_arrows', 5100),
     magic: magic('cooked_shrimp', 180, 'turnip_juice', 90, 'chalked_fire_rune', 600) }),
   ridge_camp: Object.freeze({ tier: 2,
     melee: melee('cooked_trout', 35),
@@ -197,7 +197,7 @@ export const BAG_GUIDE_BY_HUNT = Object.freeze({
      180 shrimp over three hours at the kit's heal; the wolves' raw meat cooks back into the same bag. */
   meadowbrook_thicket: Object.freeze({ tier: 1,
     melee: melee('cooked_shrimp', 180),
-    ranged: ranged('cooked_shrimp', 200, 'bronze_arrows', 0),
+    ranged: ranged('cooked_shrimp', 200, 'bronze_arrows', 5100),
     magic: magic('cooked_shrimp', 180, 'turnip_juice', 90, 'chalked_fire_rune', 600) }),
   /* The Coppercap Warrens: every goblin row is tier 3 (lv 34-52), so the store food is the tier-3 row
      (Salted Lobster, 180 g for 216 HP, 0.83 g an HP; the tier-4 Swordfish it named was 1.50 g an HP:
@@ -212,7 +212,7 @@ export const BAG_GUIDE_BY_HUNT = Object.freeze({
      The ranged and magic bags are the tier-2 guide's shape, UNVERIFIED (not played). */
   mosslight_glade: Object.freeze({ tier: 2,
     melee: melee('cooked_trout', 90),
-    ranged: ranged('cooked_trout', 100, 'bronze_arrows', 0),
+    ranged: ranged('cooked_trout', 100, 'bronze_arrows', 5100),
     magic: magic('cooked_trout', 100, 'carrot_juice', 45, 'chalked_fire_rune', 600) }),
   /* Wickstead (lane b-greenhaven-6; STAGED), PLAYED on the real settle (tests/hunt-core/forest-cave.mjs
      wickstead-solo-floor, six seeds): a solo Melee at the floor in the start kit eats about 160 g of store heals an
@@ -220,7 +220,7 @@ export const BAG_GUIDE_BY_HUNT = Object.freeze({
      bags are the Thicket's shape, UNVERIFIED (not played). */
   wickstead: Object.freeze({ tier: 1,
     melee: melee('cooked_shrimp', 180),
-    ranged: ranged('cooked_shrimp', 200, 'bronze_arrows', 0),
+    ranged: ranged('cooked_shrimp', 200, 'bronze_arrows', 5100),
     magic: magic('cooked_shrimp', 180, 'turnip_juice', 90, 'chalked_fire_rune', 600) }),
 });
 

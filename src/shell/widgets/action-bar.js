@@ -200,6 +200,8 @@ function atEnd(grid) { return grid.scrollLeft + grid.clientWidth >= grid.scrollW
 function watchPage(el) {
   if (PAGED.has(el)) return;
   PAGED.add(el);
+  const win = el.ownerDocument && el.ownerDocument.defaultView;
+  if (!win) return;
   const grid = el.querySelector('.hb-grid'), press = el.querySelector('.hb-page');
   const sync = () => {
     const over = grid.scrollWidth > grid.clientWidth + 1;
@@ -207,7 +209,7 @@ function watchPage(el) {
     cls(press, 'is-back', over && atEnd(grid));
     attr(press, 'aria-label', over && atEnd(grid) ? 'Back to slot 1' : 'More slots');
   };
-  new el.ownerDocument.defaultView.ResizeObserver(sync).observe(grid);
+  new win.ResizeObserver(sync).observe(grid);
   grid.addEventListener('scroll', sync, { passive: true });
 }
 function pageSlots(el) {

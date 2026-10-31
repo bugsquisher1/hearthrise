@@ -75,7 +75,8 @@ export function tabSessionId(tab, cfg = SESSION_CONFIG, make) {
 /** What a tab store says this tab had open for login `uid`: { slots, viewed }, at most the tab's ceiling of slots
     in the server's range with the shown one among them, or null (a fresh tab, another login, a malformed copy). Pure. */
 export function openOf(tab, uid, cfg = SESSION_CONFIG) {
-  const v = tab && uid ? tab.getJSON(cfg.openKey, null) : null;
+  let v = null;
+  try { v = tab && uid ? JSON.parse(tab.get(cfg.openKey) || 'null') : null; } catch (e) { return null; }
   if (!v || typeof v !== 'object' || v.uid !== uid || !Array.isArray(v.slots)) return null;
   const slots = Array.from(new Set(v.slots.filter((s) => Number.isInteger(s) && s >= 0 && s <= cfg.maxSlot))).slice(0, cfg.maxConcurrentCharacters);
   return slots.includes(v.viewed) ? { slots, viewed: v.viewed } : null;
@@ -233,7 +234,7 @@ export class AccountSession {
   /* This tab's open heroes and the shown one, kept in the tab store for its next load (lastOpen); not while signing out. */
   _keepOpen() {
     if (!this._tab || this._ending) return;
-    this._tab.setJSON(this.config.openKey, { uid: this.userId, slots: this.characters().map((c) => c.slot), viewed: this.viewed });
+    this._tab.set(this.config.openKey, JSON.stringify({ uid: this.userId, slots: this.characters().map((c) => c.slot), viewed: this.viewed }));
   }
 
   /** Show another open character. Only the pointer moves; every CharacterSession is left exactly as it was. */

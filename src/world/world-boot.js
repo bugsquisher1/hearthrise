@@ -453,6 +453,16 @@ export async function bootWorld(panel, opts) {
   function onFocusIn(e) { if (keyBelongsToField(e.target, '')) letGo(); }
 
   const live = () => panel.classList.contains('active') && !doc.hidden;
+  /* A FRAME THAT THROWS never stops the loop (the next frame is asked for before the step runs) and is said ONCE per
+     error, not every frame: a throw repeated each frame (Sentry JAVASCRIPT-4C, the live engine on a monster this build
+     did not know: src/hunt-view/live-engine.js failed()) went out unhandled 60 times a second while the picture stood. */
+  const said = new Set();
+  function failedFrame(e) {
+    const key = String((e && e.message) || e);
+    if (said.has(key) || said.size >= 20) return;
+    said.add(key);
+    console.error('[world] a frame failed', e);
+  }
   function frame(t) {
     raf = 0;
     if (!live()) { running = false; return; }
@@ -460,7 +470,7 @@ export async function bootWorld(panel, opts) {
     if (last && t - last < 1000 / fpsFor(!!(mq && mq.matches)) - 2) return;
     const dt = last ? t - last : 0;
     last = t;
-    step(dt);
+    try { step(dt); } catch (e) { failedFrame(e); }
   }
   function sync() {
     /* One frame NOW whenever the pane is in front and its loop is not already
@@ -472,7 +482,7 @@ export async function bootWorld(panel, opts) {
        decision still runs. A sheet or grid art landing after destroy() draws nothing (the presence stays parked). */
     if (gone) return;
     if (panel.classList.contains('active') && !(running && live())) {
-      try { step(0); } catch (e) { console.error('[world] a frame failed', e); }
+      try { step(0); } catch (e) { failedFrame(e); }
     }
     if (live()) {
       if (!running) { running = true; last = 0; raf = win.requestAnimationFrame(frame); }

@@ -618,7 +618,7 @@ async function nodeRules(M) {
       if (!i || typeof i.world !== 'string') return;
       const w = LM.WS.decodeStored(JSON.parse(i.world));
       for (const u of w.units) if (u.side === 'mon') u.kind = NEW_KIND;
-      body.hunt_live = Object.assign({}, body.hunt_live, { instance: Object.assign({}, i, { world: JSON.stringify(LM.WS.encode(w)) }) });
+      body.hunt_live = Object.assign({}, body.hunt_live, { instance: Object.assign({}, i, { world: JSON.stringify(LM.WS.encode(w)), world_hash: 'newer:' + i.world_hash }) });
     };
     let threw = null, stale = 0, frames = 0, moving = 0, cs = null, prev = null;
     const SPAN = 70000;
@@ -637,7 +637,8 @@ async function nodeRules(M) {
     ok('LV-28', !!cs && cs.timeline.delayMs() === M.CFG.SESSION_CONFIG.huntPlaybackDelayMs && !cs.live.running() && !cs.liveLink.joining(),
       `after the fall-back the view is not the server-paced one (delay ${cs && cs.timeline.delayMs()} ms, running ${cs && cs.live.running()})`);
     ok('LV-28', stale === 1, `the site was asked ${stale} time(s) whether a newer build is out, want once`);
-    ok('LV-28', frames > 0 && moving >= frames * 0.2, `the hunt stood still on screen after the fall-back: ${moving} of ${frames} frames moved`);
+    /* a tank that stands and fights moves in about 15 % of its frames (220/1500 live); a frozen hunt in none */
+    ok('LV-28', frames > 0 && moving >= frames * 0.05, `the hunt stood still on screen after the fall-back: ${moving} of ${frames} frames moved`);
   }
 
   { // LV-12 A DEATH INSIDE A CATCH-UP IS PLAYED: the frame loop stops for 5 s (a background tab) across two
@@ -1241,7 +1242,7 @@ const MUTANTS = [
   ['no stand-in before the first swing (LV-1)', 'src/hunt-view/scene.js', '    if (!hero && read.entrance) hero = (read.viewed !== null && unitAt(read.viewed, now, read.entrance)) || standIn(now);', '', /^LV-1/],
   /* Sentry JAVASCRIPT-4C: a hunt this build cannot predict never throws in the frame loop and falls back (LV-28). */
   ['a start point naming an unknown monster is run, and a swing that throws escapes (LV-28)', 'src/hunt-view/live-engine.js',
-    "fail(reasonOf(e)); return n; }", "throw e; }", /^LV-28: a frame step threw/, [['    if (unknown.length) return fail(', '    if (false) return fail(']]],
+    "fail(reasonOf(e)); return n; }", "throw e; }", /^LV-28/, [['    if (unknown.length) return fail(', '    if (false) return fail('], ['break; return fail(reasonOf(e)); }', 'break; throw e; }']]],
   ['a failed prediction keeps the live delay and asks again (LV-28)', 'src/session/live-link.js', '    if (why === null || this.failure !== null) return false;', '    if (true) return false;', /^LV-28: (the live view did not stop|after the fall-back)/],
   ['a failed prediction never asks for a newer build (LV-28)', 'src/session/live-link.js', "    if (this._stale) { try { this._stale(); }", "    if (false) { try { this._stale(); }", /^LV-28: the site was asked/],
   ['the live view keeps the server-paced delay (LV-2)', 'src/session/live-link.js', 'this._tl.setDelay(SESSION_CONFIG.liveDelayMs);', 'void 0;', /^LV-2/],

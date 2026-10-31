@@ -24,10 +24,10 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-10-31",
- "replay_ms": 153228,
+ "replay_ms": 102848,
  "counts": {
-  "tracked_names": 704,
-  "entries": 559
+  "tracked_names": 705,
+  "entries": 560
  },
  "functions": [
   {
@@ -7162,21 +7162,24 @@
    "sig": "hr_lb_boards()",
    "name": "hr_lb_boards",
    "tracked_by": [
+    "chain",
+    "pin",
     "restate"
    ],
    "touched_by": [
     "2026-08-08-leaderboards.sql",
-    "2026-10-27-core-bodies.sql"
+    "2026-10-27-core-bodies.sql",
+    "2027-02-12-leaderboard-heroes.sql"
    ],
    "live": {
-    "md5": "7061c5fb3a0d283b1faf7d12693ed983",
-    "norm_len": 253,
+    "md5": "2d0d586a2a9ef77c9f7f711b6b9b79e5",
+    "norm_len": 231,
     "measured": "2026-10-31",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "7061c5fb3a0d283b1faf7d12693ed983",
-    "norm_len": 253,
+    "md5": "2d0d586a2a9ef77c9f7f711b6b9b79e5",
+    "norm_len": 231,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -7221,6 +7224,28 @@
    "replay": {
     "md5": "16454f1e0d29ad26b26fa1d263d445f8",
     "norm_len": 315,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_lb_row(r leaderboard_ranked, p_viewer uuid)",
+   "name": "hr_lb_row",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "2027-02-12-leaderboard-heroes.sql"
+   ],
+   "live": {
+    "md5": "678ea62be0eb8aed2260f7aca6b5c418",
+    "norm_len": 498,
+    "measured": "2026-10-31",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "678ea62be0eb8aed2260f7aca6b5c418",
+    "norm_len": 498,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -7277,6 +7302,7 @@
    "sig": "hr_leaderboard(p_board text, p_limit integer, p_span integer)",
    "name": "hr_leaderboard",
    "tracked_by": [
+    "pin",
     "restate"
    ],
    "touched_by": [
@@ -7299,20 +7325,22 @@
    "sig": "hr_leaderboard__ungated(p_board text, p_limit integer, p_span integer)",
    "name": "hr_leaderboard__ungated",
    "tracked_by": [
+    "pin",
     "restate"
    ],
    "touched_by": [
-    "2026-08-18-leaderboard-server-source.sql"
+    "2026-08-18-leaderboard-server-source.sql",
+    "2027-02-12-leaderboard-heroes.sql"
    ],
    "live": {
-    "md5": "97373a9ef632ffb814e7f192bfad8ba9",
-    "norm_len": 2795,
+    "md5": "550fd799d43b2eeaed60f27830c79c0f",
+    "norm_len": 2269,
     "measured": "2026-10-31",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "97373a9ef632ffb814e7f192bfad8ba9",
-    "norm_len": 2795,
+    "md5": "550fd799d43b2eeaed60f27830c79c0f",
+    "norm_len": 2269,
     "source": "computed-from-replay"
    },
    "agree": true

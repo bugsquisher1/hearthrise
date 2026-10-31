@@ -1,0 +1,111 @@
+/* ════════════════════════════════════════════════════════════════════════
+   src/styles/market.css — THE WEIGHHOUSE (src/shell/windows/market/).
+   A window on desktop, the same component as a slide-out sheet on a phone. It reads as a
+   counting-house ledger in the Forged Steel window: the list and the page are the two steel
+   panels of the Hunts window; asks and sales are ruled ledger lines, never cards. Charcoal
+   and Gold, tokens only.
+   ════════════════════════════════════════════════════════════════════════ */
+.hs-win[data-hs-win="market"] .hs-win-body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+.hw-mk { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.hw-mk-greet { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin: 0 2px 6px; font-size: var(--t-small); font-style: italic; color: var(--ink-2); }
+.hw-mk-purse { flex: none; font-style: normal; font-size: var(--t-small); color: var(--gold-2); font-variant-numeric: lining-nums tabular-nums; }
+.hw-mk .hw-tabs { align-items: flex-end; }
+.hw-mk-refresh { margin-left: auto; margin-bottom: 2px; }
+.hw-mk-state { margin: 0 2px 8px; color: var(--ink); }
+.hw-mk-state[hidden] { display: none; }
+.hw-mk-msg { flex: none; margin-top: 6px; }
+.hw-mk-msg:empty { display: none; }
+
+/* The panes fill the window; the list and the page scroll in their own panels. */
+.hw-mk .hw-pane.is-on { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.hw-mk-cols { flex: 1; min-height: 0; display: grid; grid-template-columns: 320px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); column-gap: 12px; }
+.hw-mk-cols[hidden] { display: none; }
+.hw-mk-list { min-height: 0; overflow: auto; margin: 0; padding: 0; list-style: none; background: var(--fill-1); border: 2px solid var(--steel-edge); }
+.hw-mk-row { display: flex; align-items: center; gap: 8px; padding: 6px 10px 6px 12px; border-bottom: 2px solid var(--steel-sep); cursor: pointer; }
+.hw-mk-row:last-child { border-bottom: 0; }
+.hw-mk-row:hover { background: var(--fill-2); }
+.hw-mk-row.is-picked { background: var(--fill-3); box-shadow: inset 0 0 0 2px var(--gold), inset 6px 0 0 var(--gold), inset 8px 4px 0 var(--fill-0); }
+.hw-mk-row:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: -2px; }
+.hw-mk-row .hw-ico { width: 40px; height: 40px; }
+.hw-mk-row .hw-ico .hh-icon { width: 32px; height: 32px; }
+.hw-mk-row .hw-line-name small { white-space: normal; line-height: 1.25; }
+.hw-mk-page { min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--fill-1); border: 2px solid var(--steel-edge); border-left-color: var(--steel-rule); }
+.hw-mk-page[hidden] { display: none; }
+.hw-mk-head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.hw-mk-title { min-width: 0; }
+.hw-mk-kind { padding: 0; }
+.hw-mk-kind::before, .hw-mk-kind::after { display: none; }
+.hw-mk-lore { margin: 0 0 6px; font-size: var(--t-small); line-height: 1.4; color: var(--ink-2); }
+.hw-mk-lore:empty, .hw-mk-price:empty { display: none; }
+.hw-mk-price { margin: 0; font-size: var(--t-small); color: var(--ink); font-variant-numeric: lining-nums tabular-nums; }
+
+/* The asks: a ledger, the price in gold, how many, and your own with Cancel. */
+.hw-mk-asks, .hw-mk-sales { margin: 0; padding: 0; list-style: none; }
+.hw-mk-ask { display: flex; flex-wrap: wrap; align-items: center; column-gap: 12px; min-height: 30px; border-top: 2px solid var(--steel-sep); font-variant-numeric: lining-nums tabular-nums; }
+.hw-mk-ask-p { min-width: 96px; color: var(--gold-2); }
+.hw-mk-ask-n { color: var(--ink); }
+.hw-mk-ask-own { margin-left: auto; display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.hw-mk-yours { font-size: var(--t-micro); color: var(--ink-2); }
+.hw-mk-asks-none[hidden] { display: none; }
+
+/* Buy: quantity, where it goes, the one press and what it leaves. */
+.hw-mk-buy { display: none; margin-top: 10px; padding-top: 10px; border-top: 2px solid var(--steel-rule); }
+.hw-mk-buy.is-on { display: block; }
+.hw-mk-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.hw-mk-chips .hh-num { width: 88px; }
+.hw-mk-chips .hh-seg[hidden] { display: none; }
+.hw-mk-goes { display: flex; align-items: center; gap: 6px; margin-top: 8px; font-size: var(--t-small); color: var(--ink-2); }
+.hw-mk-do { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+.hw-mk-forget[hidden] { display: none; }
+.hw-mk-after, .hw-mk-warn { margin: 6px 0 0; }
+.hw-mk-after:empty, .hw-mk-warn:empty { display: none; }
+.hw-mk-warn { color: var(--gold-2); }
+
+/* The 30-day line: one bar a day it sold, gold on steel, pixels not curves. */
+.hw-mk-line { display: flex; align-items: flex-end; gap: 2px; height: 48px; padding: 2px 0; border-bottom: 2px solid var(--steel-rule); }
+.hw-mk-line[hidden] { display: none; }
+.hw-mk-bar { display: block; flex: 0 1 12px; min-width: 2px; background: var(--gold); }
+.hw-mk-line-note { margin: 4px 0 0; }
+.hw-mk-line-note[hidden] { display: none; }
+.hw-mk-sale { min-height: 24px; font-size: var(--t-small); color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; }
+.hw-mk-page .hw-hd-h[hidden] { display: none; }
+
+/* Sell. */
+.hw-mk-from { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
+.hw-mk-sheet { display: none; }
+.hw-mk-sheet.is-on { display: block; }
+.hw-mk-pickone[hidden] { display: none; }
+.hw-mk-facts { display: grid; grid-template-columns: max-content minmax(0, 1fr); column-gap: 12px; row-gap: 2px; margin: 0 0 10px; font-size: var(--t-small); font-variant-numeric: lining-nums tabular-nums; }
+.hw-mk-facts dt { color: var(--ink-2); }
+.hw-mk-facts dd { margin: 0; color: var(--ink); }
+.hw-mk-field { display: flex; flex-wrap: wrap; align-items: center; column-gap: 10px; row-gap: 4px; margin-bottom: 8px; font-size: var(--t-small); color: var(--ink-2); }
+.hw-mk-field > label { min-width: 72px; }
+.hw-mk-terms { margin: 8px 0 0; font-size: var(--t-small); line-height: 1.4; color: var(--ink); }
+.hw-mk-terms:empty { display: none; }
+.hw-mk-kept { flex: none; margin: 6px 2px 0; }
+.hw-mk-kept:empty { display: none; }
+
+/* The empty market, and an empty book: said plainly, with the way forward. */
+.hw-mk-invite { display: none; flex: 1; flex-direction: column; align-items: flex-start; justify-content: center; gap: 10px; padding: 20px 24px; background: var(--fill-1); border: 2px solid var(--steel-edge); }
+.hw-mk-invite.is-on { display: flex; }
+.hw-mk-invite-p { margin: 0; max-width: 52ch; line-height: 1.45; color: var(--ink); }
+.hw-mk-none { display: none; flex-direction: column; align-items: flex-start; gap: 8px; }
+.hw-mk-none.is-on { display: flex; }
+.hw-mk-book { overflow: auto; }
+.hw-mk-book .hw-line-name b { white-space: normal; font-weight: 500; }
+.hw-mk-hist-none[hidden] { display: none; }
+
+/* THE SHEET ON A PHONE: the list first; a pick opens its page in the list's place, with the way back on top. */
+@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
+  .hw-mk-greet > span { display: none; }
+  .hw-mk-greet { justify-content: flex-end; margin-bottom: 2px; }
+  .hw-mk-cols { display: flex; flex-direction: column; }
+  .hw-mk-list { flex: 1 1 auto; }
+  .hw-mk-page { display: none; }
+  .hw-mk-row { min-height: 44px; }
+  .hw-mk .is-paged .hw-mk-list, .hw-mk .is-paged .hw-find, .hw-mk .is-paged .hw-cats, .hw-mk .is-paged .hw-mk-from { display: none; }
+  .hw-mk .is-paged .hw-mk-page:not([hidden]) { display: flex; flex: 1 1 auto; }
+  .hw-mk .hh-seg, .hw-mk .hh-select, .hw-mk .hh-num, .hw-mk .hh-tool { min-height: 40px; }
+  .hw-mk-invite { padding: 12px 14px; }
+  .hw-mk-facts { margin-bottom: 6px; }
+}

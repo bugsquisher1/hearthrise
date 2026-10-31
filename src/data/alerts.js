@@ -34,6 +34,8 @@ export const ALERT_KINDS = Object.freeze([
   Object.freeze({ id: 'invite', label: 'Party invites', glyph: 'uiPeople', action: 'join', button: 'Join', decline: 'No thanks' }),
   /* Tamsin paid a tally (2026-12-23-tally-tasks.sql): her gold and her pick, once per payment the server made. */
   Object.freeze({ id: 'tally', label: 'Tamsin pays for a task', glyph: 'navBounty', action: 'bag', button: 'Open your inventory', fadeMs: 30000 }),
+  /* The Weighhouse (market design 2026-10-24): a sale, or goods back in Storage, batched per minute (src/shell/market-watch.js). */
+  Object.freeze({ id: 'market', label: 'Weighhouse sales', glyph: 'navMarket', action: 'market', button: 'Open the market', fadeMs: 30000 }),
 ]);
 
 export const ALERT_INDEX = Object.freeze(Object.fromEntries(ALERT_KINDS.map((k) => [k.id, k])));

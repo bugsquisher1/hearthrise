@@ -325,10 +325,10 @@ export class CharacterSession {
 
   /** An item intent through the engine (EDGE_INTENTS fields only); the screen changes only from the server's envelope, the
       engine's answer applied as it stands, ONE round trip (r16). `read`: a market read (no envelope, nothing applied:
-      edgeRead hands back the server's answer). The price, the stock and the result are the server's. */
-  async edgeIntent(verb, fields, read) {
+      edgeRead hands back the server's answer). The server prices it. `intentId`: a gesture's own key, resent after a lost answer (market-intents.js). */
+  async edgeIntent(verb, fields, read, intentId) {
     if (this._closed) return { ok: false, error: 'closed' };
-    const body = edgeBody(this.slot, verb, fields, newIdem());
+    const body = edgeBody(this.slot, verb, fields, intentId || newIdem());
     if (!body) return { ok: false, error: 'bad_intent' };
     return read === true ? edgeRead(await this._server.accrue(body)) : withReceipt((send) => this._ask(verb, send, true), () => this._server.accrue(body));
   }

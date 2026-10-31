@@ -20,6 +20,7 @@
 //   E1  the switch OFF: market_closed, bare, the gate spent first; mine still answers
 //   E2  the happy path through the CLIENT plumbing (src/session/market-intents.js):
 //       list from the bag -> browse -> item page -> buy into Storage -> mine -> cancel
+//   E2b a lost answer: the client resends the SAME key and the server replays (market review change 4)
 //   E3  idempotent: a replayed list / buy moves nothing; a reused key is intent_mismatch
 //   E4  the same-network sale: flagged in market_sales, absent from every history read
 //   E5  settle first on the bag path only (an unsettled town worker); the RPC alone refuses
@@ -32,7 +33,7 @@
 // WHAT IT CANNOT EXERCISE: true concurrency (PGlite is one backend) — the threat
 // model's race legs (#2 four parallel lists at 49 open; #3 a party settle and a buy
 // into one bag) need a multi-connection database; the Deno shell and the JWT.
-// mutant-anchors: supabase/functions/hr-accrue/market.js supabase/functions/hr-accrue/request.js supabase/functions/hr-accrue/intents.js src/session/edge-intents.js supabase/migrations/2027-01-21-market-same-network.sql
+// mutant-anchors: src/session/market-intents.js supabase/functions/hr-accrue/market.js supabase/functions/hr-accrue/request.js supabase/functions/hr-accrue/intents.js src/session/edge-intents.js supabase/migrations/2027-01-21-market-same-network.sql
 // ════════════════════════════════════════════════════════════════════════
 import { readFile, writeFile, mkdtemp, cp } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -49,6 +50,12 @@ const FN = (f) => join(ROOT, 'supabase', 'functions', 'hr-accrue', f);
 /* ── THE MUTATION CATALOGUE: each plants a real defect, in the edge bytes (a temp
    copy) or in the migration's text (the replay). ─────────────────────────── */
 const MUTANTS = {
+  resend_mints_a_key: {
+    why: 'the market review\'s finding 4: a press after a lost answer sends a NEW key, so the server buys a second time',
+    patches: [['src/session/market-intents.js',
+      "  const key = o.key || marketKey();\n  return written(account, cs, () => cs.edgeIntent('market_buy', fields, false, key));",
+      "  return written(account, cs, () => cs.edgeIntent('market_buy', fields, false, marketKey()));"]],
+  },
   buy_forwards_ask: {
     why: 'THE ONE THAT MATTERS: market_buy forwards a caller-supplied price where the buyer\'s ceiling goes, so a '
        + 'hostile body sets what it agrees to pay from a field the buyer never declared',
@@ -278,6 +285,8 @@ async function run(mutation) {
   const ITEM = goods[0].item_id; const FLOOR = Number(goods[0].f);
   const gate = () => q('delete from public.hr_rate_counters');
   const cfg = (on) => q('update public.hr_market_config set enabled = $1 where only_row', [on]);
+  /* The fixture's heroes are fresh; the Level rule is tests/market-v2.mjs M5b's. */
+  await q('update public.hr_market_config set min_level = 1 where only_row');
   const bag = async (u) => Number((await one('select coalesce((select qty from public.player_inventory where user_id = $1 and slot = 0 and item_id = $2), 0)::text q', [u, ITEM])).q);
   const store = async (u) => Number((await one('select coalesce((select qty from public.account_bank where user_id = $1 and item_id = $2), 0)::text q', [u, ITEM])).q);
   const purse = async (u) => Number((await one('select coalesce((select gold from public.account_wallet where user_id = $1), 0)::text g', [u])).g);
@@ -303,8 +312,8 @@ async function run(mutation) {
   /* A CharacterSession as far as market-intents.js sees one: edgeBody -> the edge -> the answer. */
   const session = (user) => ({
     slot: 0, status: 'ready',
-    async edgeIntent(verb, fields, read) {
-      const body = ei.edgeBody(0, verb, fields, uuid());
+    async edgeIntent(verb, fields, read, intentId) {
+      const body = ei.edgeBody(0, verb, fields, intentId || uuid());
       if (!body) return { ok: false, error: 'bad_intent' };
       const out = await call(user, body);
       const ans = { ok: out.status === 200, status: out.status, body: out.body };
@@ -374,6 +383,34 @@ async function run(mutation) {
     ok(c.ok === true && c.body.receipt && c.body.receipt.qty === 3 && c.body.receipt.to === 'storage', `E2: the cancel answered ${brief(c)}`);
     ok((await escrow()) === 0 && (await store(A)) === 3, 'E2: the cancel did not return the units to Storage');
     ok((await goldAll()) === g0 && (await itemsAll()) === i0, 'E2 CONSERVATION: gold (purses + cut + fees) or items moved');
+  });
+
+  // ══ E2b · A LOST ANSWER IS RESENT WITH ITS OWN KEY (market review finding 4) ═══════
+  await leg(async () => {
+    const seen = [];
+    let drop = 1;
+    /* The server does the work and the browser never hears: exactly what a dropped connection looks like. */
+    const flaky = { slot: 0, status: 'ready', async edgeIntent(verb, fields, read, intentId) {
+      seen.push(intentId);
+      const ans = await sB.edgeIntent(verb, fields, read, intentId);
+      if (drop-- > 0) return { ok: false, error: 'network' };
+      return ans;
+    } };
+    const l = await mi.marketList(account, sA, { source: 'bag', item: ITEM, qty: 2, askEach: FLOOR, key: mi.marketKey() });
+    ok(l.ok === true, `E2b-CONTROL: the list refused ${brief(l)}`);
+    const id = l.body.receipt.listing_id;
+    const pb = await purse(B); const sb = await store(B);
+    const key = mi.marketKey();
+    const first = await mi.marketBuy(account, flaky, { listing: id, qty: 1, maxEach: FLOOR, key });
+    ok(mi.answerLost(first), `E2b: a dropped answer is not read as lost: ${brief(first)}`);
+    ok((await store(B)) === sb + 1, 'E2b-CONTROL: the server did not do the work behind the lost answer');
+    const again = await mi.marketBuy(account, flaky, { listing: id, qty: 1, maxEach: FLOOR, key });
+    ok(again.ok === true && again.body.replayed === true, `E2b: the resend was not answered as a replay: ${brief(again)}`);
+    ok(seen.length === 2 && seen[0] === key && seen[1] === key, `E2b: the resend did not carry the gesture's key: ${JSON.stringify(seen)}`);
+    ok((await store(B)) === sb + 1 && (await purse(B)) === pb - FLOOR, `E2b: a lost answer bought twice: paid ${pb - (await purse(B))}`);
+    /* A refusal is an answer, never a lost one: a press after it is a new gesture. */
+    ok(!mi.answerLost({ ok: false, error: 'gone' }) && !mi.answerLost({ ok: true }), 'E2b: a definite answer read as lost');
+    await mi.marketCancel(account, sA, id);
   });
 
   // ══ E3 · IDEMPOTENCY ════════════════════════════════════════════════════

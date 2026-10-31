@@ -154,7 +154,7 @@ export function mountShell(root, o) {
     el.setAttribute('role', 'dialog');
     el.setAttribute('aria-label', row.label);
     el.innerHTML = '<header class="hs-win-head" data-hs-drag="' + esc(row.id) + '">' + glyphSvg(ctx.glyphs, row.glyph)
-      + '<h2 class="hs-win-title">' + esc(row.label) + '</h2><kbd class="hs-key">' + esc(keyLabel(row.key)) + '</kbd>'
+      + '<h2 class="hs-win-title">' + esc(row.title || row.label) + '</h2><kbd class="hs-key">' + esc(keyLabel(row.key)) + '</kbd>'
       + '<button type="button" class="hs-close" data-hs-close="' + esc(row.id) + '" aria-label="Close ' + esc(row.label) + '">' + glyphSvg(ctx.glyphs, 'uiClose') + '</button></header>'
       /* the coach's card when it points into this window (coach() below), above the body: it covers nothing */
       + '<div class="hs-win-coach"></div>'

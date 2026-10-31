@@ -18,6 +18,7 @@ import { levelOf } from '../session/character-sections.js?v=0.2.76';
 import { needOf, needWords } from './item-lore.js?v=0.2.76';
 import { whole } from '../render/format.js?v=0.2.76';
 import { SKILLS_DEF } from '../data/skills.js?v=0.2.76';
+import { marketRefusal } from './market-words.js?v=0.2.76';
 
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 
@@ -86,6 +87,9 @@ const SEAT_WORDS = Object.freeze({
  * the numbers (with `cs`, the hero's own level too). Pure.
  */
 export function refusalText(r, cs) {
+  /* The Weighhouse's refusals name the server's own numbers (market-words.js). */
+  const market = marketRefusal(r, cs);
+  if (market) return market;
   const seats = r && Array.isArray(r.seats) ? r.seats : [];
   if (r && r.error === 'not_ready' && seats.length) {
     return 'Nobody went in: ' + seats.map((x) => x.name + ' ' + (x.error === 'hunt_open' && x.hunt && HUNT_INDEX[x.hunt]

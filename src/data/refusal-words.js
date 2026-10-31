@@ -18,9 +18,34 @@ import { MAX_CONDITIONS, MAX_IGNORED } from './condition-metrics.js?v=0.2.76';
 
 export const REFUSAL_FALLBACK = 'That did not go through, so nothing was changed. Try again in a moment.';
 
+/* The Weighhouse's refusals (2027-01-12-market-account.sql's taxonomy; the design's words: PRIORITY_BOARD "Marketplace design").
+   One with the server's number or the hero's name is src/shell/market-words.js's. */
+const MARKET_WORDS = Object.freeze({
+  market_closed: 'The Weighhouse isn\'t trading right now. Your listings are safe, and you can still take them back.',
+  rate_limited: 'Too fast. Wait a moment and try again.',
+  not_tradeable: 'Starter kit, gifts and trophies can\'t be sold to other players.',
+  item_locked: 'This is locked. Unlock it in your bag to list it.',
+  gone: 'Someone bought those first.',
+  expired: 'That listing just ran out.',
+  own_listing: 'That\'s your own listing. Cancel it in My listings to take it back.',
+  storage_full: 'Your storage is full. Send it to a hero\'s bag, or make room.',
+  market_spend_daily_cap: 'That\'s the most the market lets you spend in one day. Try again after the daily reset.',
+  market_proceeds_daily_cap: 'This listing can\'t be bought right now. Try the next one.',
+  price_above_max: 'That listing costs more than the price you agreed to, so nothing was bought.',
+  listing_too_large: 'That\'s too much gold for one listing. List fewer, or ask less.',
+  trade_too_large: 'That\'s too much gold for one purchase. Buy fewer.',
+  not_yours: 'That isn\'t one of your listings.',
+});
+
 /* A code that reads better for the verb the engine refused (its answer echoes `verb`): verb -> code -> line, checked
    before REFUSAL_WORDS. Gear is changed in town (equip.js refuses an equip while the hero's hunt is open). */
 export const REFUSAL_VERB_WORDS = Object.freeze({
+  market_list: MARKET_WORDS,
+  market_cancel: MARKET_WORDS,
+  market_buy: MARKET_WORDS,
+  market_browse: MARKET_WORDS,
+  market_item: MARKET_WORDS,
+  market_mine: MARKET_WORDS,
   equip: Object.freeze({ hunt_open: 'Leave the hunt to change gear.' }),
   /* Dispatch loot (2027-01-23-loot-dispatch.sql): Storage is at home and the shop in town. */
   loot_dispatch: Object.freeze({
@@ -35,6 +60,19 @@ export const REFUSAL_VERB_WORDS = Object.freeze({
 });
 
 export const REFUSAL_WORDS = Object.freeze({
+  /* The Weighhouse: market-words.js says these with the server's numbers. */
+  market_closed: MARKET_WORDS.market_closed,
+  market_locked: 'The Weighhouse only trades with heroes of a higher Level. Keep hunting.',
+  market_spend_daily_cap: MARKET_WORDS.market_spend_daily_cap,
+  market_proceeds_daily_cap: MARKET_WORDS.market_proceeds_daily_cap,
+  price_below_shop: 'That\'s less than the shop pays. Ask at least that, or sell it at the shop.',
+  price_above_cap: 'That\'s more than this can be listed for.',
+  price_above_max: MARKET_WORDS.price_above_max,
+  storage_no_room: 'Unsold items come back to your storage, and it has no room for a new kind.',
+  list_daily_cap: 'That\'s the most listings for one day. You can list again after the daily reset.',
+  listing_too_large: MARKET_WORDS.listing_too_large,
+  trade_too_large: MARKET_WORDS.trade_too_large,
+  item_locked: MARKET_WORDS.item_locked,
   /* The connection and the session. */
   rate_limited: 'Too many changes at once. Try again in a moment.',
   /* The Great Hearth (2027-01-31-inner-flame.sql hr_hearth_burn; intent-words.js adds the numbers it sent) */

@@ -111,9 +111,11 @@ renderStorage.patch = function patchStorage(body, ctx) {
     : !bank ? 'Reading your storage…' : 'Press a stack to move one across. Shift-press moves all of it. Right-click (or hold) to choose how many.');
   const depot = depotOf(cs);
   patchSide(root, ctx, 'bank', bank || [], view(bank || [], Object.assign({ seen: marks || residueOf(cs).storeSeen || {} }, o)), off, depot);
-  text(root.querySelector('.hw-store-room'), !depot ? '' : depot.next
+  /* "73 of 100 stacks. 2 more are kept free for your market listings." (a listing's return always has its place) */
+  const kept = depot && depot.reserved ? whole(depot.reserved) + (depot.reserved === 1 ? ' more is' : ' more are') + ' kept free for your market listings. ' : '';
+  text(root.querySelector('.hw-store-room'), !depot ? '' : kept + (depot.next
     ? 'More room comes from storage chests, built in the House (E). Next: the ' + depot.next.name + ', ' + whole(depot.next.stacks) + ' more stacks.'
-    : 'Every storage chest is built.');
+    : 'Every storage chest is built.'));
   patchSide(root, ctx, 'bag', bag || [], view(bag || [], Object.assign({ seen: bagSeenOf(cs, bag || []) }, o)), off);
   /* Dispatch loot: off with the server-sections' reason; a hunt's reason is the note above, any other is said here. */
   const dWhy = dispatchBlock(cs);

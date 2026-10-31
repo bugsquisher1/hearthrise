@@ -245,6 +245,8 @@ export function createAlertCenter(account) {
   for (const cs of account.characters()) watch(cs.slot);
 
   return {
+    /** A line this centre did not read off a record (the Weighhouse's notices, market-watch.js): fired once by its id. */
+    say(cs, c) { if (fire(cs, c)) changed(); },
     /** The alerts on screen, newest first. */
     list: () => alerts.slice(),
     /** How many alerts one character has waiting (the strip's badge). */

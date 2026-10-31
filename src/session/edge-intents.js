@@ -166,13 +166,18 @@ export function edgeBody(slot, verb, fields, intentId) {
  */
 export async function withReceipt(ask, send) {
   let paid = null;
+  let receipt = null;
+  let replayed = false;
   const r = await ask(async () => {
     const ans = await send();
-    const receipt = ans && ans.body && ans.body.receipt;
+    receipt = ans && ans.body && ans.body.receipt && typeof ans.body.receipt === 'object' ? ans.body.receipt : null;
+    replayed = !!(ans && ans.body && ans.body.replayed === true);
     if (receipt && Number.isSafeInteger(receipt.gold)) paid = receipt.gold;
     return ans;
   });
-  return r && r.ok && paid !== null ? Object.assign({}, r, { paid }) : r;
+  if (!r || !r.ok) return r;
+  /* `receipt`: the market's own object (listed, bought, cancelled), null on a replay; the envelope says the balance either way. */
+  return Object.assign({}, r, paid !== null ? { paid } : null, receipt ? { receipt } : null, replayed ? { replayed } : null);
 }
 
 /**

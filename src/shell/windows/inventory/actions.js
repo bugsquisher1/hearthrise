@@ -38,6 +38,7 @@ import { gold } from '../../../render/format.js?v=0.2.76';
 import { itemName } from '../../widgets/bits.js?v=0.2.76';
 import { showTip, hideTip } from '../item-tip.js?v=0.2.76';
 import { openFloatMenu, closeFloatMenu } from '../float-menu.js?v=0.2.76';
+import { offerForSale } from '../market/state.js?v=0.2.76';
 import { stateOf, scratchOf, seenOf, confirmFor, setPref, eatBlock } from './state.js?v=0.2.76';
 import { LOOT_CHOICES, planBlock, dispatchWords } from '../../loot-dispatch.js?v=0.2.76';
 import { dispatchLoot } from '../../../session/loot-intents.js?v=0.2.76';
@@ -227,6 +228,7 @@ function openMenu(ctx, body, st, id, at, repaint) {
   if (barKind(id)) h += item('m-bar', bi >= 0 ? 'On the bar (key ' + barKeyLabel(bi) + ')' : 'Put on the bar', !!st.bar && bi < 0, '', st.bar ? '' : 'The bar is still loading.');
   const sellWhy = locked ? '' : !st.shop ? 'The shop is still loading.' : st.shop.bids.has(id) ? '' : 'The shop does not buy this.';
   h += item('m-sell', locked ? 'Sell (unlock it first)' : 'Sell…', !locked && !sellWhy, '', sellWhy);
+  h += item('m-market', 'List on the market…', !locked, '', locked ? 'This is locked. Unlock it in your bag to list it.' : '');
   h += item('m-lock', locked ? 'Unlock' : 'Lock', !!st.rules);
   h += item('m-select', sc.sel.has(id) ? 'Unselect' : 'Select', true);
   h += item('m-link', 'Link in chat', !!(ctx.account && ctx.account.social));
@@ -437,6 +439,7 @@ export function actInventory(ctx, body, action, ev, t, repaint) {
     case 'm-hearth': doNamed(st, id, repaint); return true;
     case 'm-bar': send(st, repaint, () => assignToBar(st.cs, id), 'Putting it on the bar…'); return true;
     case 'm-sell': askSell(st, [id], 'Sell', repaint); return true;
+    case 'm-market': closeMenu(ctx, st); offerForSale(ctx, id, 'bag'); return true;
     case 'm-lock': doLock(st, id, repaint); return true;
     case 'm-select': toggleSel(sc, id); sc.menu = null; repaint(); return true;
     case 'm-link': linkInChat(ctx, id); closeMenu(ctx, st); return true;

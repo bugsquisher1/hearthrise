@@ -120,6 +120,20 @@ function sanitizeStoreView(v) {
   return out;
 }
 
+/** The market window's remembered view: the category, the sort, where a purchase goes, which stack it sells from. */
+function sanitizeMarketView(v) {
+  const out = {};
+  if (!isObj(v)) return out;
+  if (typeof v.cat === 'string' && ID.test(v.cat)) out.cat = v.cat;
+  if (typeof v.sort === 'string' && ID.test(v.sort)) out.sort = v.sort;
+  if (v.deliver === 'storage' || v.deliver === 'bag') out.deliver = v.deliver;
+  if (v.source === 'storage' || v.source === 'bag') out.source = v.source;
+  return out;
+}
+
+/** The server time of the last market sale this player was told about (src/shell/market-watch.js). */
+const sanitizeMarketSeen = (v) => (Number.isSafeInteger(v) && v >= 0 ? v : 0);
+
 export const ALERTS_SEEN_MAX = 64;
 const ALERT_ID = /^[a-z]{1,8}:[A-Za-z0-9_:.-]{1,120}$/;
 
@@ -203,6 +217,8 @@ const SANITIZERS = Object.freeze({
   winSize: sanitizeWinSize,         // display preference: a resizable window's size (src/shell/window-sizes.js); gates and spends nothing
   panelAlpha: sanitizePanelAlpha,   // display preference: the window opacity, a percent (src/shell/panel-alpha.js); gates and spends nothing
   coach: sanitizeCoach,             // display state: the coach line folded to its title and the cards read (src/shell/launcher.js); gates and spends nothing
+  marketView: sanitizeMarketView,   // display preference: the market window's category, sort, delivery and source; the server still decides each press
+  marketSeen: sanitizeMarketSeen,   // display state: the newest market sale already told (src/shell/market-watch.js); gates and spends nothing
   townZoom: sanitizeTownZoom,       // display preference: the town view's zoom (src/world/town-zoom.js); gates and spends nothing
 });
 

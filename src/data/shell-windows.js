@@ -21,7 +21,9 @@
 //   height   the starting height of a home or resizable row, CSS px
 //   tabKeys  { letter: tab }: more shortcuts, each opening this window on that tab (window-manager.js openTab)
 //
-// The rest of the spec's catalogue (Bestiary L, Market M) lands
+//   title    the frame's words when they are not the label (the Market's "The Weighhouse")
+//
+// The rest of the spec's catalogue (Bestiary L) lands
 // with its renderer: a launcher never opens a window that does not exist yet
 // (§1). Chat opens on Global (or the tab it showed last).
 //
@@ -42,6 +44,8 @@ export const SHELL_WINDOWS = Object.freeze([
   /* Services (stamina, Blessings) is the Shop's third tab (Tyler 2026-10-25: "Lets move services to the 'shop' menu"):
      its old key R opens the Shop on it. */
   Object.freeze({ id: 'shop', label: 'Shop', key: 'v', glyph: 'navStore', width: 480, object: 'ledger', tabKeys: Object.freeze({ r: 'services' }) }),
+  /* The Weighhouse (market design 2026-10-24): one window with four tabs, for every hero, hunting or not. */
+  Object.freeze({ id: 'market', label: 'Market', title: 'The Weighhouse', key: 'm', glyph: 'navMarket', width: 820, object: 'ledger' }),
   /* The farm plots (P1 2026-10-22: no client door to farming). Per hero: each hero has its own plots on the server. */
   Object.freeze({ id: 'farm', label: 'Farm', key: 'j', glyph: 'uiSprout', width: 440, object: 'plain' }),
   /* Lane S2: stamina refills, blessings and the character's name, each priced by the server. */

@@ -24,7 +24,8 @@
 //   P1 anonymity ........ M2 (no client read; no account id or name in any ledger
 //                          row, receipt or read; the counterparty only in market_sales)
 //   P2 same-account buy . M9 (any hero of the seller's account: own_listing)
-//   P3 listable ......... M5 (kit, premium, value-0, untradeable; drift vs src/data)
+//   P3 listable ......... M5 (kit, premium, the bond, value-0, untradeable; drift vs src/data)
+//   #9 eligibility ...... M5b (a fresh account lists and buys nothing; cancel and reads stay open)
 //   P4 town work ........ M29 (a craft delta after the listing: insufficient_item)
 //   P5 settle-first ..... M28 (bag verbs only; a hunting hero is not stalled)
 //   P6 packed supplies .. M30 (a hunt's bag is unreachable from list and Storage)
@@ -42,7 +43,7 @@
 // A mutant the migration's own §9 refuses to install counts as CAUGHT (a broken
 // market that cannot be installed is the strongest outcome); every other mutant must
 // be caught by a leg here. A mutation nothing catches is SLIPPED and exits 1.
-// mutant-anchors: supabase/migrations/2027-01-12-market-account.sql
+// mutant-anchors: supabase/migrations/2027-01-12-market-account.sql supabase/migrations/2027-02-13-market-premium-bond.sql supabase/migrations/2027-02-13-market-eligibility.sql
 // ════════════════════════════════════════════════════════════════════════
 
 import { readFile } from 'node:fs/promises';
@@ -50,8 +51,11 @@ import { join } from 'node:path';
 import { bootReplay, LAST_PATCHED, ROOT, inventory } from './schema-replay.mjs';
 import { START_INVENTORY, START_EQUIPMENT } from '../src/data/start-kit.js';
 import { PREMIUM_LOGIN_REWARD } from '../src/data/premium.js';
+import { ITEMS } from '../src/data/items.js';
 
 const MIG = '2027-01-12-market-account.sql';
+const BOND = '2027-02-13-market-premium-bond.sql';
+const ELIGIBLE = '2027-02-13-market-eligibility.sql';
 
 /* ── THE MUTATION CATALOGUE ─────────────────────────────────────────────────
    Each plants a real defect in the migration's text. `pairs` when a rule is stated
@@ -88,6 +92,24 @@ const MUTATIONS = {
       ['  if v_route_user = v_uid then\n', '  if v_route_user = v_uid and false then\n'],
       ['  if v_row.user_id <> v_route_user or v_row.user_id = v_uid then', '  if v_row.user_id <> v_route_user then'],
     ],
+  },
+  listable_takes_the_bond: {
+    file: BOND,
+    why: 'the market review\'s change 1: the listable rule forgets the premium bond, so an IAP item trades for gold with no cap',
+    pairs: [['          and not exists (select 1 from public.hr_market_premium_items b where b.item_id = i.item_id)) as listable,',
+      '          ) as listable,']],
+  },
+  fresh_account_lists: {
+    file: ELIGIBLE,
+    why: 'threat model #9: the listing gate is not attached, so a scripted alt lists junk for its main to buy',
+    pairs: [['create trigger trg_market_listing_gate\n  before insert on public.market_listings\n  for each row execute function public.hr_market_listing_gate();',
+      '-- MUTATED: no listing gate']],
+  },
+  fresh_account_buys: {
+    file: ELIGIBLE,
+    why: 'threat model #9: the sale gate is not attached, so a scripted alt pays its 500 gold to a main for junk at the ceiling',
+    pairs: [['create trigger trg_market_sale_gate\n  before insert on public.market_sales\n  for each row execute function public.hr_market_sale_gate();',
+      '-- MUTATED: no sale gate']],
   },
   listable_takes_kit: {
     why: 'threat model #4: the listable rule forgets the start kit, so a new hero\'s kit becomes market gold',
@@ -241,7 +263,7 @@ async function boot(mutate) {
   if (mutate || has('no-selfcheck')) {
     const m = mutate ? MUTATIONS[mutate] : { pairs: [] };
     if (!m) { const e = new Error(`unknown mutation "${mutate}"`); e.harness = true; throw e; }
-    patches = new Map([[MIG, has('no-selfcheck') ? [...m.pairs, SELF_CHECK_OFF] : m.pairs]]);
+    patches = new Map(m.file ? [[m.file, m.pairs]] : [[MIG, has('no-selfcheck') ? [...m.pairs, SELF_CHECK_OFF] : m.pairs]]);
   }
   try {
     return (await bootReplay(patches ? { patches, upTo: LAST_PATCHED } : {})).db;
@@ -298,7 +320,8 @@ async function run(mutate) {
   }
   await q("select set_config('request.jwt.claim.sub', '', false)");
   const enabledDefault = (await one('select enabled from public.hr_market_config')).enabled;
-  await cfg('enabled = true');
+  /* The fixture's heroes are fresh, and the Level rule is M5b's: everything else trades at Level 1. */
+  await cfg('enabled = true, min_level = 1');
 
   /* THE GOODS, chosen by property from the server's own generated catalogue, never by name. */
   const goods = await q(`select item_id, floor_each::text f, ceiling_each::text c from public.hr_market_items
@@ -496,7 +519,8 @@ async function run(mutate) {
   await leg(async () => {
     await stock();
     const kit = [...Object.keys(START_INVENTORY), ...Object.values(START_EQUIPMENT)];
-    const banned = [...kit, ...(PREMIUM_LOGIN_REWARD.item ? [PREMIUM_LOGIN_REWARD.item] : [])];
+    const bond = Object.keys(ITEMS).filter((id) => ITEMS[id].premium === true);
+    const banned = [...kit, ...bond, ...(PREMIUM_LOGIN_REWARD.item ? [PREMIUM_LOGIN_REWARD.item] : [])];
     const zero = (await one('select item_id from public.hr_items where tradeable and value <= 0 order by item_id limit 1')).item_id;
     const untrade = (await one('select item_id from public.hr_items where not tradeable order by item_id limit 1')).item_id;
     for (const id of [...banned, zero, untrade]) {
@@ -510,11 +534,47 @@ async function run(mutate) {
     const view = await q('select item_id, listable, why from public.hr_market_items');
     const byId = new Map(view.map((r) => [r.item_id, r]));
     for (const id of banned) ok(byId.has(id) && byId.get(id).listable === false, `M5 DRIFT: src/data names ${id} in the kit/premium and the server lists it`);
+    /* THE BOND'S OWN LIST IS THE DATA'S: a new premium:true row with no row here goes red, and so does a stale row. */
+    ok(bond.length > 0, 'M5: no premium item in src/data: the bond leg is vacuous');
+    const listed = (await q('select item_id from public.hr_market_premium_items order by item_id')).map((r) => r.item_id);
+    ok(JSON.stringify(listed) === JSON.stringify(bond.slice().sort()), `M5 DRIFT: hr_market_premium_items ${JSON.stringify(listed)} is not src/data's premium:true rows ${JSON.stringify(bond)}`);
+    for (const id of bond) ok(byId.get(id).why === 'premium', `M5: ${id} is unlistable for the wrong reason: ${byId.get(id).why}`);
     const bad = await one(`select count(*)::int n from public.hr_market_items m join public.hr_items i using (item_id)
                             left join public.hr_hunt_vendor_value v using (item_id)
                            where m.listable and (not i.tradeable or i.value <= 0 or v.item_id is null)`);
     ok(bad.n === 0, `M5: ${bad.n} listable item(s) are untradeable, worthless or have no shop bid`);
     ok(view.filter((r) => r.listable).length > 0 && view.filter((r) => !r.listable).length > 0, 'M5: the rule is vacuous or total');
+  });
+
+  // ══ M5b · THE LEVEL RULE (threat model #9): list AND buy; a fresh account's own goods are never held ══
+  await leg(async () => {
+    await stock();
+    const open = await list({ user: A, item: ITEM, qty: 2, ask: ASK });
+    ok(open && open.ok === true, `M5b-CONTROL: the fixture listing refused ${brief(open)}`);
+    const id = open.listed.listing_id;
+    await cfg('min_level = 10');
+    try {
+      const s0 = await snap();
+      const l = await list({ user: C, item: ITEM, qty: 1, ask: ASK });
+      ok(l && l.error === 'market_locked' && l.min_level === 10, `M5b: a fresh account listed: ${brief(l)}`);
+      const b = await buy({ user: C, listing: id, qty: 1, max: ASK });
+      ok(b && b.error === 'market_locked' && b.min_level === 10, `M5b: a fresh account bought: ${brief(b)}`);
+      ok(JSON.stringify(await snap()) === JSON.stringify(s0), 'M5b: a refused list or buy moved gold or goods');
+      const m = await mine(C);
+      ok(m && m.ok === true && m.locked === true && m.rules.min_level === 10, `M5b: mine does not tell the window: ${brief(m)}`);
+      const page = await itemPage(C, ITEM);
+      ok(page && page.ok === true, `M5b: the reads must stay open below the rule: ${brief(page)}`);
+      ok((await cancel({ user: A, listing: id })).ok === true, 'M5b: the rule held the owner\'s own cancel');
+      /* Any one hero at the Level opens the account, not just the acting one. */
+      await q(`update public.player_state set level_xp = public.hr_char_xp_for_level(10) where user_id = $1 and slot = 1`, [A]);
+      const grown = await list({ user: A, item: ITEM, qty: 1, ask: ASK });
+      ok(grown && grown.ok === true, `M5b: an account with a hero at the Level was refused: ${brief(grown)}`);
+      ok((await mine(A)).locked === false, 'M5b: mine says locked for an account at the Level');
+      await cancel({ user: A, listing: grown.listed.listing_id });
+    } finally {
+      await cfg('min_level = 1');
+      await q('update public.player_state set level_xp = 0 where user_id = $1 and slot = 1', [A]);
+    }
   });
 
   // ══ M6 · EXACTLY ONCE UNDER REPLAY ═══════════════════════════════════════

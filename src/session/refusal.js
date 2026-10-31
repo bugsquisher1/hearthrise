@@ -28,8 +28,17 @@ function floorOf(os) {
   return { level: Math.max(1, o.band_min - under + 1), have: o.combat_level, hunt: typeof o.id === 'string' && HUNT.test(o.id) ? o.id : null };
 }
 
-/** { ok:false, error, verb, slot, condition, field, item, counts, floor, reason } from a refused answer { ok, body, error }; `verb`
- *  is the engine's echo of the intent refused (its words may differ by verb: refusal-words.js REFUSAL_VERB_WORDS). */
+/* The whole numbers a market refusal states (2027-01-12-market-account.sql's taxonomy), one level down or on the answer:
+   src/shell/market-words.js says them. Null when it stated none. */
+const FIGURES = Object.freeze(['floor', 'ceiling', 'limit', 'used', 'cap', 'available', 'ask_each', 'have', 'need', 'min_level']);
+function figuresOf(b, d) {
+  const out = {};
+  for (const k of FIGURES) { const v = n(b[k]) !== null ? b[k] : d[k]; if (n(v) !== null) out[k] = v; }
+  return Object.keys(out).length ? out : null;
+}
+
+/** { ok:false, error, verb, slot, condition, field, item, counts, floor, reason, figures } from a refused answer { ok, body, error };
+ *  `verb` is the engine's echo of the intent refused (its words may differ by verb: refusal-words.js REFUSAL_VERB_WORDS). */
 export function refusalOf(ans) {
   const b = ans.body && typeof ans.body === 'object' ? ans.body : {};
   const d = b.detail && typeof b.detail === 'object' ? b.detail : {};
@@ -41,6 +50,7 @@ export function refusalOf(ans) {
     field: typeof b.field === 'string' ? b.field.slice(0, 32) : null, item,
     counts: countsOf(named),
     floor: floorOf([b, d, d.detail]),
+    figures: figuresOf(b, d),
     reason: typeof b.reason === 'string' && /^[a-z_]{1,24}$/.test(b.reason) ? b.reason : null };
 }
 

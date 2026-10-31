@@ -231,7 +231,7 @@ export function depotOf(cs) {
   const d = accountSection(cs, 'depot');
   if (!isObj(d) || count(d.used) === null || !count(d.cap)) return null;
   const n = isObj(d.next) && str(d.next.name, 40) && count(d.next.stacks) ? { name: d.next.name, stacks: d.next.stacks } : null;
-  return { used: d.used, cap: d.cap, next: n };
+  return { used: d.used, cap: d.cap, next: n, reserved: count(d.reserved) || 0 };
 }
 
 /** `state.bank_cap`: how many stacks the bag holds (hr_apply's and hr_bank_move's bag fuse), or null. */

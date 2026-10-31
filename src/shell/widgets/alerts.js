@@ -22,7 +22,7 @@ import { glyphSvg } from '../launcher.js?v=0.2.76';
 import { refusalWords } from '../intent-words.js?v=0.2.76';
 import { cardFacts, shareCard } from '../share-card.js?v=0.2.76';
 
-const OPENS = Object.freeze({ bag: 'inventory', show: null });
+const OPENS = Object.freeze({ bag: 'inventory', show: null, market: 'market' });
 /* What the line says once its card was made (src/shell/share-card.js shareCard's answer). */
 const SHARE_WORDS = Object.freeze({
   copied: 'Card copied: paste it anywhere.', shared: 'Card shared.', saved: 'Card saved to your downloads.',

@@ -53,6 +53,9 @@ import { startObservability, track } from '../net/observability.js?v=0.2.75';
 import { loadGlyphs } from './glyphs-loader.js?v=0.2.75';
 import { startDiagnostics } from '../net/diagnostics.js?v=0.2.75';
 import { mountPressAck } from '../shell/press-ack.js?v=0.2.75';
+import { mountOffWhy } from '../shell/off-why.js?v=0.2.75';
+import { mountLauncherNames } from '../shell/launcher-names.js?v=0.2.75';
+import { connection, mountConnectionLine } from '../net/connection.js?v=0.2.75';
 import { liveOverlayWanted, mountLiveOverlay } from './live-overlay.js?v=0.2.75';
 import { mountNewVersion } from './new-version.js?v=0.2.75';
 import { pointerCardOf } from '../session/tutorial-sections.js?v=0.2.75';
@@ -81,6 +84,9 @@ function startApp(win) {
   const obs = startObservability(win);
   const doc = win.document;
   const root = doc.getElementById('app');
+  /* A touch-only screen of any size has no keys and no hover (app.css, shell.css :root.is-touch; a media query for it
+     would be a new spelling, tests/breakpoint-guard.mjs). */
+  doc.documentElement.classList.toggle('is-touch', win.matchMedia('(hover: none) and (pointer: coarse)').matches);
   const fresh = mountNewVersion(win);
   const HS = win.HearthriseStorage;
   const store = SESSION_CONFIG.authStore === 'tab' ? HS.session : HS;
@@ -164,7 +170,7 @@ function startApp(win) {
     /* ...for THIS session only: the pass asks before every slice and sheet whether its account is still the page's, so a
        sign-out or a refused session stops it at once (client-boot B-15) */
     import('../world/prewarm.js?v=0.2.75').then((m) => { const acc = account; if (acc) m.prewarmTown(win, { alive: () => account === acc }); }, () => {});
-    const server = createServerLink({ url: SUPABASE_CONFIG.url, anonKey: SUPABASE_CONFIG.anonKey, token: auth.freshToken, renew: auth.renewToken,
+    const server = createServerLink({ url: SUPABASE_CONFIG.url, anonKey: SUPABASE_CONFIG.anonKey, token: auth.freshToken, renew: auth.renewToken, watch: connection,
       stale: () => fresh.check(true) });
     account = new AccountSession({ auth, server, tab: HS.session, channel: channelFor(client, auth),
       social: (acc) => new SocialSession({ account: acc, realtime: createSocialRealtime(client, auth.token) }) });
@@ -174,7 +180,7 @@ function startApp(win) {
     });
     alerts = createAlertCenter(account);
     /* Every press answers at once (src/shell/press-ack.js); ?debug=live adds the corner (live-overlay.js). */
-    watchers = [mountPressAck(doc, account.intents)];
+    watchers = [mountPressAck(doc, account.intents), mountConnectionLine(doc), mountOffWhy(doc), mountLauncherNames(doc)];
     if (liveOverlayWanted(win.location.search)) watchers.push(mountLiveOverlay(win, account));
     account.social.chat.followAlerts(alerts);   // the alerts are also the chat's System lines
     if (!resume) account.forgetOpen();

@@ -123,6 +123,7 @@ export function patchSlotLine(root, st, ctx) {
      else the line holds its last press's answer. */
   const locked = gearLocked(st.cs);
   prop(wr.querySelector('button'), 'disabled', sc.pending || !worn || locked);
+  attr(wr.querySelector('button'), 'data-off-why', locked ? GEAR_HUNT_WORDS.one : null);
   const said = sc.msgAt === 'slot' && !!sc.msg;
   whyLine(line.querySelector('.hw-slot-why'), said ? sc.msg : locked ? GEAR_HUNT_WORDS.one : '', said);
   const fits = fitsFor(sc.slot, bagOf(st.cs) || [], eq);
@@ -145,6 +146,7 @@ export function patchSlotLine(root, st, ctx) {
       const short = !!need && need.short;
       text(li.querySelector('.hw-fit-need'), short ? need.text : '');
       prop(li.querySelector('button'), 'disabled', sc.pending || locked || short);
+      attr(li.querySelector('button'), 'data-off-why', short ? need.text : locked ? GEAR_HUNT_WORDS.one : null);
     },
   });
   cls(line.querySelector('.hw-nofit'), 'is-on', !fits.length);

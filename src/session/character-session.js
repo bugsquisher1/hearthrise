@@ -76,7 +76,7 @@ export class CharacterSession {
    *        joins a private broadcast topic; returns the leave function
    * @param {(fn: Function, ms: number) => any} [o.setTimer]
    * @param {(t: any) => void} [o.clearTimer]
-   * @param {() => number} [o.now]   the display clock (ms) the timeline plays on
+   * @param {() => number} [o.now]   the display clock (ms) the timeline plays on ([o.clock]: the one a live catch-up slice is timed on)
    * @param {object} [o.intents]  the account's intent ledger (default: the server link's)
    */
   constructor(o) {
@@ -110,7 +110,7 @@ export class CharacterSession {
       forgetMs: SESSION_CONFIG.huntPlaybackDelayMs + 15000 });
     /* THE LIVE VIEW (option B): the instance engine run in the browser from the server's start
        point, prediction only; `live` is its engine (the scene reads its heroes). */
-    this.liveLink = new LiveLink({ timeline: this.timeline, now: () => this._now(), emit: (why) => this._emit(why) });
+    this.liveLink = new LiveLink({ timeline: this.timeline, now: () => this._now(), emit: (why) => this._emit(why), clock: o.clock, stale: () => this._server && this._server.stale && this._server.stale() });
     this.live = this.liveLink.engine;
     this.receivedAt = null; this.settleRefusal = null;   // the engine's last refusal to settle (hello), or null
     this._askedAt = null; this._answeredAt = null;   // the last settle's send and answer (client ms): a leave's 'late'

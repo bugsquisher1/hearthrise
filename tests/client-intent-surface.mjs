@@ -224,7 +224,7 @@ export function check(files) {
       if (f === LINK) continue;
       const arg = m[1].replace(/\s+/g, '');
       const built = arg === 'body' && f === 'src/session/character-session.js'
-        && /constbody=edgeBody\(this\.slot,verb,fields,newIdem\(\)\);if\(!body\)return/.test(code.replace(/\s+/g, ''));
+        && /constbody=edgeBody\(this\.slot,verb,fields,intentId\|\|newIdem\(\)\);if\(!body\)return/.test(code.replace(/\s+/g, ''));
       const forwarded = f === CATCH && (arg === 'body'
         || (arg === 'next' && /constnext=\{\.\.\.body,intentId:newIdem\(\)\};returnserver\.accrue\(next\)/.test(code.replace(/\s+/g, ''))));
       if (arg !== '{slot:this.slot}' && !built && !forwarded) problems.push(`IS-2 ${f} sends the edge ${m[1].trim()} — the client may name its slot, or an edgeBody-built item intent, and nothing else`);

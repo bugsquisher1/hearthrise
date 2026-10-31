@@ -7,7 +7,8 @@
 // loses its answer keeps its gesture (sc.gesture) and its keys, so the next press sends
 // the same ones and the server replays its decision (market-intents.js).
 // ════════════════════════════════════════════════════════════════════════
-import { marketBrowse, marketItem, marketMine, marketKey, answerLost } from '../../../session/market-intents.js?v=0.2.76';
+import { marketBrowse, marketItem, marketMine } from '../../../session/market-intents.js?v=0.2.76';
+import { marketKey } from '../../../session/market-gesture.js?v=0.2.76';
 import { rulesOf, summaryOf, asksOf, listingOf, historyRowOf } from '../../market-model.js?v=0.2.76';
 import { refusalText } from '../../intent-words.js?v=0.2.76';
 
@@ -150,8 +151,6 @@ export function cancelKey(sc, listing) {
   if (!sc.cancels.has(listing)) sc.cancels.set(listing, marketKey());
   return sc.cancels.get(listing);
 }
-
-export { answerLost };
 
 /** Open the Sell tab on one stack: the bag's "List on the market…", and History's "List again". */
 export function offerForSale(ctx, id, source, o) {

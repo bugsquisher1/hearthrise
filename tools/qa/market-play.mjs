@@ -117,7 +117,8 @@ async function main() {
       await seller.page.click(WIN + ' [data-hs-act="ms-list"]');
       return waitWin(seller, /Listed 1 /);
     };
-    const bag0 = Number((await one(`select qty::text q from public.player_inventory where item_id = $1 and slot = 0 and user_id = (select id from auth.users order by created_at limit 1)`, [item]))?.q || 0);
+    const sellerId = (await one('select user_id from public.player_state limit 1')).user_id;
+    const bag0 = Number((await one('select qty::text q from public.player_inventory where item_id = $1 and slot = 0 and user_id = $2', [item, sellerId]))?.q || 0);
     step('list one from the bag', await listOne(ask), await winText(seller));
     await seller.page.waitForFunction((w) => !document.querySelector(w + ' .hw-mk.is-pending'), WIN);
     step('list a second', await listOne(ask + 1), await winText(seller));
@@ -126,9 +127,8 @@ async function main() {
     await seller.page.waitForFunction((w) => !document.querySelector(w + ' .hw-mk.is-pending'), WIN);
     const lst = await q('select id, user_id, qty::int qty, ask_each::int ask from public.market_listings order by ask_each');
     step('the server holds three listings', lst.length === 3 && lst.every((l) => l.qty === 1), JSON.stringify(lst));
-    const sellerId = lst[0].user_id;
     const bagNow = Number((await one('select qty::text q from public.player_inventory where item_id = $1 and slot = 0 and user_id = $2', [item, sellerId]))?.q || 0);
-    step('the units left the bag', bagNow === bag0 - 3 || (bag0 === 0 && bagNow >= 0), JSON.stringify({ bag0, bagNow }));
+    step('the units left the bag', bagNow === bag0 - 3, JSON.stringify({ bag0, bagNow }));
 
     await seller.reload();
     await openMarket(seller);

@@ -68,6 +68,7 @@ const SPEAK = ['runIntent', 'refusalText', 'refusalWords'];
 const QUIET = Object.freeze({
   settleTownActivity: 'a best-effort collect before a start; the start itself is the intent that answers',
   "edgeIntent('sheet'": 'the Character window asks for its sheet on opening; a read, never a press',
+  'r = await marketMine(cs); } catch': 'the sale notices\' background read (market-watch.js); a refusal leaves nothing new to tell, and the next read tries again',
   'stopWork(cs, send)).then': 'the armed stop (town-work.js) answers through the `send` its start was given: the window\'s runIntent',
 });
 const RESERVED = new Set(['if', 'for', 'while', 'switch', 'catch', 'function', 'return']);
@@ -180,6 +181,15 @@ const BUSY = /!?\(?\b(?:st\.|sc\.|s\.|o\.|a\.|party\.|st\.sc\.)*(?:pending|sendi
  * why, which must be in the file. `where` names where they show. The report's table is this list.
  */
 export const REASONS = Object.freeze({
+  'src/shell/windows/market/browse.js': [
+    { cond: '!plan.qty', words: "'You need ' + goldWords(-left) + ' more.'", where: 'Buy: the line under it says what the purse is short of, and data-off-why says it on a press; with nothing to buy the page says none are for sale' },
+    { cond: 'v.off || !!g', words: "No answer from the Weighhouse. Press again", where: 'while a lost answer is out, only Try again and Forget it stay on; the window\'s line says why' },
+  ],
+  'src/shell/windows/market/sell.js': [
+    { cond: 'sug === null', words: "!s ? '…'", where: 'Suggested: off only until the server has said the item\'s floor and ceiling; the facts read … until then' },
+    { cond: '!s || !!why || !!shortFee', words: "text(foot.querySelector('.hw-mk-why'), why || shortFee || f.msg);", where: 'List: its own line says the reason (locked, how many, under the shop, over the most, short of the fee)' },
+    { cond: 'v.off || !!g', words: "No answer from the Weighhouse. Press again", where: 'while a lost answer is out, only Try again and Forget it stay on; the window\'s line says why' },
+  ],
   'src/shell/windows/inventory/actions.js': [
     { cond: 'on && !sc.pending', words: "'<small class=\"hw-mi-why\" data-why=\"'", where: 'every item-menu entry that is off: its own line under it (Cook all, Equip, Sell, Lock, Put on the bar, Link in chat)' },
   ],

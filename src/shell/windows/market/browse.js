@@ -22,10 +22,11 @@ import { huntOf, settingsOf } from '../../../session/hunt-sections.js?v=0.2.76';
 import { BAG_CATS } from '../../bag-model.js?v=0.2.76';
 import { kindWords, sourcesOf, usesOf, flavourOf } from '../../item-lore.js?v=0.2.76';
 import { refusalText } from '../../intent-words.js?v=0.2.76';
-import { marketBuy, marketCancel, marketKey } from '../../../session/market-intents.js?v=0.2.76';
+import { marketBuy, marketCancel } from '../../../session/market-intents.js?v=0.2.76';
+import { marketKey, answerLost } from '../../../session/market-gesture.js?v=0.2.76';
 import { MARKET_SORTS, BUY_CHIPS, planBuy, mostAffordable, browseRows, searchIds, rowWords, noneWords, ageWords, goldWords, priceSample } from '../../market-model.js?v=0.2.76';
 import { showTip, hideTip } from '../item-tip.js?v=0.2.76';
-import { viewOf, setView, readItem, rereadAll, searchSoon, holdGesture, dropGesture, cancelKey, answerLost } from './state.js?v=0.2.76';
+import { viewOf, setView, readItem, rereadAll, searchSoon, holdGesture, dropGesture, cancelKey } from './state.js?v=0.2.76';
 
 const SEARCH_MAX = 50;
 const LOST_WORDS = 'No answer from the Weighhouse. Press again: it won\'t buy twice.';
@@ -45,15 +46,15 @@ export function browseHtml(ctx) {
     + '<div class="hw-mk-head"><span class="hw-ico hw-mk-ico"></span><div class="hw-mk-title"><h3 class="hw-hd-name hw-mk-name"></h3><p class="hw-hd-band hw-mk-kind"></p></div></div>'
     + '<p class="hw-mk-lore"></p>'
     + '<p class="hw-mk-price"></p>'
-    + '<h4 class="hw-hd-h">For sale</h4><ul class="hw-mk-asks"></ul><p class="hh-empty hw-mk-asks-none is-on"></p>'
-    + buyHtml()
+    + '<h4 class="hw-hd-h">For sale</h4><ul class="hw-mk-asks"></ul><p class="hh-empty hw-mk-asks-none"></p>'
     + '<h4 class="hw-hd-h hw-mk-line-h">The last 30 days</h4><div class="hw-mk-line" role="img"></div><p class="hs-note hw-mk-line-note"></p>'
     + '<h4 class="hw-hd-h hw-mk-sales-h">Last sales</h4><ul class="hw-mk-sales"></ul>'
-    + '</div></section></div></section>';
+    /* Buy stands at the page's foot OUTSIDE its scroller, as the Hunts window's Enter does: never below the fold. */
+    + '</div>' + buyHtml() + '</section></div></section>';
 }
 
 function buyHtml() {
-  return '<div class="hw-mk-buy">'
+  return '<div class="hw-mk-foot hw-mk-buy">'
     + '<div class="hw-mk-chips" role="group" aria-label="How many">' + BUY_CHIPS.map(([v, l]) => '<button type="button" class="hh-seg" data-hs-act="mk-want" data-want="' + v + '" aria-pressed="false">' + esc(l) + '</button>').join('')
     + '<input type="number" min="1" step="1" class="hh-num hw-mk-count" data-hs-act="mk-count" aria-label="How many"></div>'
     + '<label class="hw-mk-goes"><span>Goes to:</span><select class="hh-select" data-hs-act="mk-deliver"><option value="storage">Storage</option><option value="bag"></option></select></label>'
@@ -199,7 +200,7 @@ function patchPage(root, v) {
   const none = root.querySelector('.hw-mk-asks-none');
   const empty = page && !page.asks.length;
   text(none, !page ? '' : empty ? (s ? noneWords(s, now) : 'No one is selling this.') : '');
-  prop(none, 'hidden', !empty);
+  cls(none, 'is-on', !!empty);
   if (page) { patchBuy(root, v, page); patchLine(root, ctx, page); } else cls(root.querySelector('.hw-mk-buy'), 'is-on', false);
 }
 
@@ -211,10 +212,7 @@ export function patchBrowse(v) {
   const input = pane.querySelector('.hw-q');
   if (ctx.doc.activeElement !== input) prop(input, 'value', sc.query);
   prop(pane.querySelector('[data-hs-act="mk-sort"]'), 'value', view.sort);
-  for (const b of pane.querySelectorAll('.hw-cat')) {
-    attr(b, 'aria-pressed', String(b.getAttribute('data-cat') === view.cat));
-    prop(b, 'disabled', !!sc.query);
-  }
+  for (const b of pane.querySelectorAll('.hw-cat')) attr(b, 'aria-pressed', String(!sc.query && b.getAttribute('data-cat') === view.cat));
   const list = listOf(sc, view);
   /* THE EMPTY MARKET READS AS AN INVITATION: said only once the server has answered that nothing is for sale. */
   const bare = sc.forSale !== null && !sc.forSale.length && !sc.query && !sc.closed;
@@ -247,12 +245,12 @@ async function runBuy(o, plan, deliver) {
   sc.pending = true;
   sc.msg = 'Buying…';
   repaint();
-  let stop = null;
+  let stop = null, said = '';
   while (g.lines.length) {
     const l = g.lines[0];
     let r;
     try { r = await marketBuy(ctx.account, cs, { listing: l.listing, qty: l.qty, maxEach: l.each, deliver: g.deliver, key: l.key }); } catch (e) { r = { ok: false, error: 'network' }; }
-    if (!r.ok) { stop = r; break; }
+    if (!r.ok) { stop = r; said = refusalText(r, cs); break; }
     g.bought += l.qty;
     g.spent += l.qty * l.each;
     g.lines.shift();
@@ -265,7 +263,7 @@ async function runBuy(o, plan, deliver) {
   const raced = stop && ['gone', 'not_enough', 'expired'].includes(stop.error);
   sc.msg = !stop ? done + (g.deliver === 'storage' ? ' It\'s in your storage.' : ' It\'s in your bag.')
     : raced && g.bought ? done + ' The rest sold first, so nothing more was charged. The next prices are below.'
-    : (done ? done + ' ' : '') + refusalText(stop, cs);
+    : (done ? done + ' ' : '') + said;
   if (!stop) sc.want = 1;
   repaint();
   await rereadAll(ctx, cs, sc);
@@ -303,7 +301,8 @@ export function actBrowse(o, action, ev, t) {
     return false;
   }
   if (ev.type !== 'click') return false;
-  if (action === 'mk-cat') { setView(cs, 'cat', t.getAttribute('data-cat')); repaint(); return true; }
+  /* A category leaves the search: a search covers every kind, a category shows what is for sale. */
+  if (action === 'mk-cat') { sc.query = ''; setView(cs, 'cat', t.getAttribute('data-cat')); repaint(); return true; }
   if (action === 'mk-back') { sc.paged = false; repaint(); return true; }
   if (action === 'mk-to-sell') { sc.tab = 'sell'; sc.msg = ''; repaint(); return true; }
   if (action === 'mk-want') {

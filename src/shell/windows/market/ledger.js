@@ -19,9 +19,9 @@ import { cancelListing } from './browse.js?v=0.2.76';
 /** The two ledger panes' skeletons. */
 export function ledgerHtml() {
   return '<section class="hw-pane hw-mk-book" data-pane="mine"><ul class="hw-ledger hw-mk-mine"></ul>'
-    + '<div class="hw-mk-none"><p class="hh-empty is-on hw-mk-none-p"></p><button type="button" class="hw-primary is-on" data-hs-act="mk-to-sell">List something</button></div>'
+    + '<div class="hw-mk-none"><p class="hh-empty hw-mk-none-p"></p><button type="button" class="hw-primary is-on" data-hs-act="mk-to-sell">List something</button></div>'
     + '<p class="hw-cap hw-mk-caps"></p></section>'
-    + '<section class="hw-pane hw-mk-book" data-pane="history"><ul class="hw-ledger hw-mk-hist"></ul><p class="hh-empty is-on hw-mk-hist-none"></p></section>';
+    + '<section class="hw-pane hw-mk-book" data-pane="history"><ul class="hw-ledger hw-mk-hist"></ul><p class="hh-empty hw-mk-hist-none"></p></section>';
 }
 
 /* The hero a listing came from, by the server's slot: this account's own, never another's. */
@@ -44,11 +44,12 @@ export function patchLedger(v) {
       patch: (li, l) => {
         const by = heroName(ctx, l.hero);
         text(li.querySelector('small'), listingWords(l, now) + (by ? ' · listed by ' + by : ''));
-        prop(li.querySelector('button'), 'disabled', sc.pending || !mine);
+        prop(li.querySelector('button'), 'disabled', sc.pending);
       },
     });
     const bare = !!mine && !list.length;
     cls(root.querySelector('.hw-mk-none'), 'is-on', bare);
+    cls(root.querySelector('.hw-mk-none-p'), 'is-on', bare);
     text(root.querySelector('.hw-mk-none-p'), 'You have nothing listed. Anything you list stays here until it sells, and you can take it back any time.');
     const t = mine ? mine.today : {};
     text(root.querySelector('.hw-mk-caps'), !mine || !sc.rules ? '' : whole(list.length) + ' of ' + whole(sc.rules.maxListings) + ' listings up · ' + whole(Number(t.listed) || 0) + ' of ' + whole(sc.rules.maxListsPerDay) + ' listed today');
@@ -72,7 +73,7 @@ export function patchLedger(v) {
   });
   const none = root.querySelector('.hw-mk-hist-none');
   text(none, mine && !hist.length ? 'Nothing yet. Your sales, purchases and returns stay here for 30 days.' : '');
-  prop(none, 'hidden', !(mine && !hist.length));
+  cls(none, 'is-on', !!(mine && !hist.length));
 }
 
 /** The ledger's presses. True when one was handled. */

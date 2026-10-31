@@ -46,7 +46,9 @@ export function catchUpLink(server, o) {
       ? once(() => server.rpc(name, args), () => server.rpc(name, { ...args, p_idem: newIdem() }))
       : server.rpc(name, args)) },
     accrue: { value: (body) => (body && typeof body.intentId === 'string'
-      ? once(() => server.accrue(body), () => { const next = { ...body, intentId: newIdem() }; return server.accrue(next); })
+      /* A market gesture keeps its one key (market-intents.js): settle_first took no claim on it, and an answer lost after
+         this retry must replay when the player presses again, not buy twice under a key the window never saw. */
+      ? once(() => server.accrue(body), () => { if (/^market_/.test(String(body.verb))) return server.accrue(body); const next = { ...body, intentId: newIdem() }; return server.accrue(next); })
       : server.accrue(body)) },
   });
 }

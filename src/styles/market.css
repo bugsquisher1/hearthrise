@@ -46,11 +46,10 @@
 .hw-mk-ask-n { color: var(--ink); }
 .hw-mk-ask-own { margin-left: auto; display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .hw-mk-yours { font-size: var(--t-micro); color: var(--ink-2); }
-.hw-mk-asks-none[hidden] { display: none; }
 
 /* Buy: quantity, where it goes, the one press and what it leaves. */
-.hw-mk-buy { display: none; margin-top: 10px; padding-top: 10px; border-top: 2px solid var(--steel-rule); }
-.hw-mk-buy.is-on { display: block; }
+.hw-mk-foot { display: none; flex: none; padding: 8px 18px 10px; border-top: 2px solid var(--steel-rule); }
+.hw-mk-foot.is-on { display: block; }
 .hw-mk-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
 .hw-mk-chips .hh-num { width: 88px; }
 .hw-mk-chips .hh-seg[hidden] { display: none; }
@@ -74,13 +73,12 @@
 .hw-mk-from { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
 .hw-mk-sheet { display: none; }
 .hw-mk-sheet.is-on { display: block; }
-.hw-mk-pickone[hidden] { display: none; }
 .hw-mk-facts { display: grid; grid-template-columns: max-content minmax(0, 1fr); column-gap: 12px; row-gap: 2px; margin: 0 0 10px; font-size: var(--t-small); font-variant-numeric: lining-nums tabular-nums; }
 .hw-mk-facts dt { color: var(--ink-2); }
 .hw-mk-facts dd { margin: 0; color: var(--ink); }
 .hw-mk-field { display: flex; flex-wrap: wrap; align-items: center; column-gap: 10px; row-gap: 4px; margin-bottom: 8px; font-size: var(--t-small); color: var(--ink-2); }
 .hw-mk-field > label { min-width: 72px; }
-.hw-mk-terms { margin: 8px 0 0; font-size: var(--t-small); line-height: 1.4; color: var(--ink); }
+.hw-mk-terms { margin: 0; font-size: var(--t-small); line-height: 1.4; color: var(--ink); }
 .hw-mk-terms:empty { display: none; }
 .hw-mk-kept { flex: none; margin: 6px 2px 0; }
 .hw-mk-kept:empty { display: none; }
@@ -93,7 +91,6 @@
 .hw-mk-none.is-on { display: flex; }
 .hw-mk-book { overflow: auto; }
 .hw-mk-book .hw-line-name b { white-space: normal; font-weight: 500; }
-.hw-mk-hist-none[hidden] { display: none; }
 
 /* THE SHEET ON A PHONE: the list first; a pick opens its page in the list's place, with the way back on top. */
 @media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
@@ -106,6 +103,7 @@
   .hw-mk .is-paged .hw-mk-list, .hw-mk .is-paged .hw-find, .hw-mk .is-paged .hw-cats, .hw-mk .is-paged .hw-mk-from { display: none; }
   .hw-mk .is-paged .hw-mk-page:not([hidden]) { display: flex; flex: 1 1 auto; }
   .hw-mk .hh-seg, .hw-mk .hh-select, .hw-mk .hh-num, .hw-mk .hh-tool { min-height: 40px; }
+  .hw-mk-foot { padding: 6px 12px 8px; }
   .hw-mk-invite { padding: 12px 14px; }
   .hw-mk-facts { margin-bottom: 6px; }
 }

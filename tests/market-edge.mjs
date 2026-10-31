@@ -182,6 +182,7 @@ async function loadModules(edgePatches) {
     mk: await imp('supabase/functions/hr-accrue/market.js'),
     ei: await imp('src/session/edge-intents.js'),
     mi: await imp('src/session/market-intents.js'),
+    mg: await imp('src/session/market-gesture.js'),
   };
 }
 
@@ -203,7 +204,7 @@ async function run(mutation) {
   const sqlMut = all.filter(([f]) => f === MIG_PATH).map(([, a, b]) => [a, b]);
   const sqlPairs = sqlMut.length ? [...sqlMut, ...SELF_CHECK_SILENCE.map(([, a, b]) => [a, b])] : [];
   const mods = await loadModules(edgePatches);
-  const { req, it, mk, ei, mi } = mods;
+  const { req, it, mk, ei, mi, mg } = mods;
 
   // ══ E0 · THE WIRE CONTRACT, no database ═══════════════════════════════
   const VERBS = ['market_list', 'market_cancel', 'market_buy', 'market_browse', 'market_item', 'market_mine'];
@@ -396,20 +397,20 @@ async function run(mutation) {
       if (drop-- > 0) return { ok: false, error: 'network' };
       return ans;
     } };
-    const l = await mi.marketList(account, sA, { source: 'bag', item: ITEM, qty: 2, askEach: FLOOR, key: mi.marketKey() });
+    const l = await mi.marketList(account, sA, { source: 'bag', item: ITEM, qty: 2, askEach: FLOOR, key: mg.marketKey() });
     ok(l.ok === true, `E2b-CONTROL: the list refused ${brief(l)}`);
     const id = l.body.receipt.listing_id;
     const pb = await purse(B); const sb = await store(B);
-    const key = mi.marketKey();
+    const key = mg.marketKey();
     const first = await mi.marketBuy(account, flaky, { listing: id, qty: 1, maxEach: FLOOR, key });
-    ok(mi.answerLost(first), `E2b: a dropped answer is not read as lost: ${brief(first)}`);
+    ok(mg.answerLost(first), `E2b: a dropped answer is not read as lost: ${brief(first)}`);
     ok((await store(B)) === sb + 1, 'E2b-CONTROL: the server did not do the work behind the lost answer');
     const again = await mi.marketBuy(account, flaky, { listing: id, qty: 1, maxEach: FLOOR, key });
     ok(again.ok === true && again.body.replayed === true, `E2b: the resend was not answered as a replay: ${brief(again)}`);
     ok(seen.length === 2 && seen[0] === key && seen[1] === key, `E2b: the resend did not carry the gesture's key: ${JSON.stringify(seen)}`);
     ok((await store(B)) === sb + 1 && (await purse(B)) === pb - FLOOR, `E2b: a lost answer bought twice: paid ${pb - (await purse(B))}`);
     /* A refusal is an answer, never a lost one: a press after it is a new gesture. */
-    ok(!mi.answerLost({ ok: false, error: 'gone' }) && !mi.answerLost({ ok: true }), 'E2b: a definite answer read as lost');
+    ok(!mg.answerLost({ ok: false, error: 'gone' }) && !mg.answerLost({ ok: true }), 'E2b: a definite answer read as lost');
     await mi.marketCancel(account, sA, id);
   });
 

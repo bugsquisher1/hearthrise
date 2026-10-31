@@ -19,10 +19,11 @@ import { ITEMS } from '../../../data/items.js?v=0.2.76';
 import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.76';
 import { bagOf, bankOf, shopOf, rulesOf as bagRulesOf, nameOf, presetsOf, goldOf } from '../../../session/item-sections.js?v=0.2.76';
 import { refusalText } from '../../intent-words.js?v=0.2.76';
-import { marketList, marketKey } from '../../../session/market-intents.js?v=0.2.76';
+import { marketList } from '../../../session/market-intents.js?v=0.2.76';
+import { marketKey, answerLost } from '../../../session/market-gesture.js?v=0.2.76';
 import { feeOf, netEachOf, sellRowWords, goldWords, priceSample, ageWords } from '../../market-model.js?v=0.2.76';
 import { showTip, hideTip } from '../item-tip.js?v=0.2.76';
-import { viewOf, setView, readItem, readNamed, rereadAll, holdGesture, dropGesture, answerLost } from './state.js?v=0.2.76';
+import { viewOf, setView, readItem, readNamed, rereadAll, holdGesture, dropGesture } from './state.js?v=0.2.76';
 
 /** The Sell pane's skeleton. */
 export function sellHtml() {
@@ -32,17 +33,19 @@ export function sellHtml() {
     + '<div class="hw-mk-cols"><ul class="hw-mk-list" role="listbox" aria-label="What to sell"></ul>'
     + '<section class="hw-mk-page" aria-label="The picked stack"><div class="hw-hd-page">'
     + '<button type="button" class="hh-tool hw-hd-back" data-hs-act="ms-back">Back to the list</button>'
-    + '<p class="hh-empty hw-mk-pickone is-on">Pick a stack to see what it would fetch.</p>'
+    + '<p class="hh-empty hw-mk-pickone">Pick a stack to see what it would fetch.</p>'
     + '<div class="hw-mk-sheet"><div class="hw-mk-head"><span class="hw-ico hw-mk-ico"></span><div class="hw-mk-title"><h3 class="hw-hd-name hw-mk-name"></h3><p class="hw-hd-band hw-mk-kind"></p></div></div>'
     + '<dl class="hw-mk-facts"><dt>The shop pays</dt><dd data-f="shop"></dd><dt>Lowest now</dt><dd data-f="low"></dd><dt>Last sold</dt><dd data-f="last"></dd></dl>'
     + '<div class="hw-mk-field"><label for="hw-mk-qty">How many</label><span class="hw-mk-chips"><input id="hw-mk-qty" type="number" min="1" step="1" class="hh-num" data-hs-act="ms-qty">'
     + '<button type="button" class="hh-seg" data-hs-act="ms-share" data-share="all">All</button><button type="button" class="hh-seg" data-hs-act="ms-share" data-share="half">Half</button></span></div>'
     + '<div class="hw-mk-field"><label for="hw-mk-ask">Price each</label><span class="hw-mk-chips"><input id="hw-mk-ask" type="number" min="1" step="1" class="hh-num" data-hs-act="ms-ask">'
     + '<button type="button" class="hh-seg" data-hs-act="ms-chip" data-chip="suggested"></button><button type="button" class="hh-seg" data-hs-act="ms-chip" data-chip="last"></button></span></div>'
-    + '<p class="hw-mk-terms"></p><p class="hs-note hw-mk-warn"></p><p class="hw-why hw-mk-why"></p>'
+    + '</div></div>'
+    /* The terms and List stand at the foot OUTSIDE the scroller: what it costs is read right beside the press. */
+    + '<div class="hw-mk-foot hw-mk-sellfoot"><p class="hw-mk-terms"></p><p class="hs-note hw-mk-warn"></p><p class="hw-why hw-mk-why"></p>'
     + '<div class="hw-mk-do"><button type="button" class="hw-primary is-on" data-hs-act="ms-list"></button>'
-    + '<button type="button" class="hh-tool hw-mk-forget" data-hs-act="ms-forget" hidden>Forget it</button></div>'
-    + '</div></div></section></div>'
+    + '<button type="button" class="hh-tool hw-mk-forget" data-hs-act="ms-forget" hidden>Forget it</button></div></div>'
+    + '</section></div>'
     + '<p class="hs-note hw-mk-kept"></p></section>';
 }
 
@@ -85,8 +88,10 @@ function patchSheet(pane, v, have, source) {
   const id = f.pick;
   const sheet = pane.querySelector('.hw-mk-sheet');
   const on = !!id && !!have;
+  const foot = pane.querySelector('.hw-mk-sellfoot');
   cls(sheet, 'is-on', on);
-  prop(pane.querySelector('.hw-mk-pickone'), 'hidden', on);
+  cls(foot, 'is-on', on);
+  cls(pane.querySelector('.hw-mk-pickone'), 'is-on', !on);
   if (!on) return;
   const ico = sheet.querySelector('.hw-mk-ico');
   if (ico.getAttribute('data-item') !== id) { attr(ico, 'data-item', id); ico.innerHTML = itemIconHtml(ctx.glyphs, id); }
@@ -134,16 +139,16 @@ function patchSheet(pane, v, have, source) {
   const purse = goldOf(cs);
   const fee = rules && qty && ask ? feeOf(rules, qty, ask) : null;
   const shortFee = fee !== null && purse !== null && purse < fee ? 'The listing fee is ' + goldWords(fee) + '.' : '';
-  text(sheet.querySelector('.hw-mk-terms'), rules && fee !== null && !why
+  text(foot.querySelector('.hw-mk-terms'), rules && fee !== null && !why
     ? 'Listing fee: ' + goldWords(fee) + ' now (kept if it doesn\'t sell). When one sells, the Weighhouse keeps ' + (rules.cutBp / 100) + '%: you get ' + whole(netEachOf(rules, ask)) + ' each. Listed for ' + Math.round(rules.ttlH / 24) + ' days; anything unsold comes back to your storage.'
     : '');
-  text(sheet.querySelector('.hw-mk-warn'), setupNaming(cs, id));
-  text(sheet.querySelector('.hw-mk-why'), why || shortFee || f.msg);
-  const press = sheet.querySelector('[data-hs-act="ms-list"]');
+  text(foot.querySelector('.hw-mk-warn'), setupNaming(cs, id));
+  text(foot.querySelector('.hw-mk-why'), why || shortFee || f.msg);
+  const press = foot.querySelector('[data-hs-act="ms-list"]');
   text(press, g ? 'Try again' : qty && ask ? 'List ' + whole(qty) + ' for ' + whole(ask) + ' each' : 'List');
   prop(press, 'disabled', v.off || !s || !!why || !!shortFee);
   attr(press, 'data-off-why', v.offWhy || why || shortFee || null);
-  prop(sheet.querySelector('.hw-mk-forget'), 'hidden', !g);
+  prop(foot.querySelector('.hw-mk-forget'), 'hidden', !g);
 }
 
 /** Paint the Sell pane. */
@@ -193,6 +198,7 @@ async function runList(o) {
   let r;
   try { r = await marketList(ctx.account, cs, { source: g.source, item: g.item, qty: g.qty, askEach: g.ask, key: g.key }); } catch (e) { r = { ok: false, error: 'network' }; }
   sc.pending = false;
+  const said = r.ok ? '' : refusalText(r, cs);
   if (answerLost(r)) { sc.msg = 'No answer from the Weighhouse. Press again: it won\'t list twice.'; repaint(); return; }
   dropGesture(sc);
   if (r.ok) {
@@ -200,7 +206,7 @@ async function runList(o) {
     sc.msg = 'Listed ' + whole(g.qty) + ' ' + itemName(g.item) + ' for ' + whole(g.ask) + ' each.' + fee;
     f.pick = null; f.qty = ''; f.ask = ''; f.filled = null;
     sc.paged = false;
-  } else sc.msg = refusalText(r, cs);
+  } else sc.msg = said;
   repaint();
   await rereadAll(ctx, cs, sc);
 }

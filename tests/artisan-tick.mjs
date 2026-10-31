@@ -8,7 +8,7 @@
 //   node tests/artisan-tick.mjs            the guard (the whole replayed chain, the shipped runTick)
 //   node tests/artisan-tick.mjs --mutate   every planted defect (edge copy or SQL) must turn its arm red
 //
-// mutant-anchors: supabase/migrations/2027-02-10-artisan-tick.sql, supabase/functions/hr-accrue/tick-artisan.js, supabase/functions/hr-accrue/tick.js, supabase/functions/hr-accrue/tick-shadow.js
+// mutant-anchors: supabase/migrations/2027-02-10-artisan-tick.sql, supabase/migrations/2027-02-11-bag-over-cap.sql, supabase/functions/hr-accrue/tick-artisan.js, supabase/functions/hr-accrue/tick.js, supabase/functions/hr-accrue/tick-shadow.js
 //
 // Every hero here is created through hr_create_hero and then put on a bench the
 // way the settle writes it (the pointer, the bag); NONE has a heartbeat, a
@@ -27,6 +27,8 @@
 //   A-RUNNING  a run with 1,000 bones is settled one flush (90 s) a fire: the bag and
 //              the XP move, the run is NOT ended, one row per window.
 //   A-ONCE     a second fire over the spent hero pays nothing and journals nothing.
+//   A-OVERCAP  a bag one stack over its cap (a hunt came home) still burns bones, on the tick's door and the
+//              owner's own stop (2027-02-11-bag-over-cap.sql; live bf18bd7f:0 wedged 9.7 h on 10-30).
 //
 // Exit: 0 green · 1 red · 2 harness.
 // ════════════════════════════════════════════════════════════════════════
@@ -187,6 +189,35 @@ async function arms(db, tick, setActivity) {
       && rr.length === 1 && movedMs > 0 && movedMs <= 90000,
     `a long run is settled one window a fire and keeps running (${1000 - ra.bones} bones, watermark +${movedMs} ms, one row)`,
     `a running bench was not settled as a window: ${js({ rb, ra, rows: rr.length, movedMs })}`);
+
+  /* ── A-OVERCAP (2027-02-11-bag-over-cap.sql, live bf18bd7f:0 10-30): a hunt's bag came home over the cap, then the
+        hero resumed the Hearth. A bench that only burns bones is paid on BOTH doors; a new stack is still refused. ── */
+  const overBag = async () => {
+    const h = await hearthHero(db, 1000);
+    const cap = await one(db, 'select bank_cap from public.player_state where user_id = $1 and slot = 0', [h]);
+    await db.query(`insert into public.player_inventory (user_id, slot, item_id, qty)
+                    select $1, 0, i.item_id, 1 from public.hr_items i
+                     where not exists (select 1 from public.player_inventory p where p.user_id = $1 and p.slot = 0 and p.item_id = i.item_id)
+                     order by i.item_id
+                     limit greatest(0, $2::int + 1 - (select count(*)::int from public.player_inventory p where p.user_id = $1 and p.slot = 0))`, [h, cap]);
+    const stacks = await one(db, 'select count(*)::int from public.player_inventory where user_id = $1 and slot = 0', [h]);
+    return { h, cap, stacks };
+  };
+  const ot = await overBag();
+  const otb = await stateOf(db, ot.h);
+  const of1 = await fire(db, tick, [ot.h]);
+  const ota = await stateOf(db, ot.h);
+  const otRows = await craftRows(db, ot.h);
+  const overTick = ot.stacks === ot.cap + 1 && ota.bones < otb.bones && Number(ota.xp) > Number(otb.xp) && otRows.length === 1
+    && ota.active_kind === 'artisan' && Date.parse(ota.accrued_to) > Date.parse(otb.accrued_to);
+  const oo = await overBag();
+  const oob = await stateOf(db, oo.h);
+  const oStop = await setActivity({ exec: engineExec(db), user: oo.h, slot: 0, intentId: idem(), activity: { kind: 'idle', id: null } });
+  const ooa = await stateOf(db, oo.h);
+  const overOwner = oo.stacks === oo.cap + 1 && ooa.active_kind === 'idle' && ooa.bones < oob.bones && Number(ooa.xp) > Number(oob.xp);
+  arm('A-OVERCAP', overTick && overOwner,
+    `a bag at cap + 1 (${ot.stacks} of ${ot.cap}) burns bones on the tick's door (${otb.bones - ota.bones}, one row) and on the owner's own stop (${oob.bones - ooa.bones})`,
+    `an over-cap bag wedged the bench: ${js({ tick: { stacks: ot.stacks, cap: ot.cap, otb, ota, rows: otRows.length, fire: of1 }, owner: { stacks: oo.stacks, oob, ooa, stop: oStop && (oStop.body || oStop) } }).slice(0, 700)}`);
   return red;
 }
 
@@ -230,6 +261,13 @@ const SQL_MUTANTS = [
     expect: /hr_tick_enrolment_channel_ck/,
     edits: [["    alter table public.hr_tick_enrolment add constraint hr_tick_enrolment_channel_ck\n      check (channel in ('gather', 'artisan'));",
              "    alter table public.hr_tick_enrolment add constraint hr_tick_enrolment_channel_ck\n      check (channel in ('gather', 'artisan_x'));"]] },
+  /* 2027-02-11-bag-over-cap.sql: the old absolute test (its §2 v3 refuses the file). */
+  { id: 'over_cap_wedges', arm: 'A-OVERCAP', file: '2027-02-11-bag-over-cap.sql', expect: /bag-over-cap §2 v3/,
+    why: 'an over-cap bag refuses every item delta (the wedge, live bf18bd7f:0)',
+    edits: [['      if v_stacks > v_st.bank_cap and v_stacks > v_stacks_before then', '      if v_stacks > v_st.bank_cap then']] },
+  { id: 'over_cap_grows', arm: 'A-OVERCAP', file: '2027-02-11-bag-over-cap.sql', expect: /bag-over-cap §2 v[25]/,
+    why: 'the cap stops biting altogether',
+    edits: [['      if v_stacks > v_st.bank_cap and v_stacks > v_stacks_before then', '      if false then']] },
 ];
 
 async function main() {
@@ -290,11 +328,11 @@ async function main() {
   } finally { await db.close().catch(() => {}); }
   for (const mu of SQL_MUTANTS) {
     let mdb;
-    try { ({ db: mdb } = await bootReplay(CONTROL ? {} : { patches: new Map([[MIG, mu.edits]]), upTo: LAST_PATCHED })); }
+    try { ({ db: mdb } = await bootReplay(CONTROL ? {} : { patches: new Map([[mu.file || MIG, mu.edits]]), upTo: LAST_PATCHED })); }
     catch (e) {
       if (e && e.harness) { console.error(`artisan-tick: HARNESS — mutant ${mu.id}: ${e.message}`); process.exit(2); }
       const msg = String(e.message);
-      const refused = msg.includes(`${MIG} failed to apply`) && (mu.expect || /artisan-tick §4/).test(msg);
+      const refused = msg.includes(`${mu.file || MIG} failed to apply`) && (mu.expect || /artisan-tick §4/).test(msg);
       console.log(refused ? `  ✓ ${mu.id} — refused by the file's own §4 (${mu.why}): ${msg.split('\n')[1].trim().slice(0, 140)}`
         : `  ✗ ${mu.id} — the chain failed for another reason: ${msg.split('\n').slice(0, 2).join(' ').slice(0, 200)}`);
       if (!refused) survived++;

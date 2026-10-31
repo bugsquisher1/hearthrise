@@ -17,15 +17,15 @@
 // yards, all one tileset family chained from the same grass and dirt tiles), drawn on the dual grid
 // (compose.js blendTiles); Hearth Square's paving is a patch over it. A material no pair draws yet
 // (a placeholder site) stays a placeholder tone.
-import { at, TOWN_NAME, TOWN_MAP } from '../town/plan.js?v=0.2.74';
-import { GROUND_ROWS } from '../town/ground.js?v=0.2.74';
-import { SITES, SCENERY, EXITS, PATCHES, AMBIENT, BLEND } from '../town/sites.js?v=0.2.74';
-import { GREENERY } from '../town/greenery.js?v=0.2.74';
-import { WEAR } from '../town/wear.js?v=0.2.74';
-import { PALISADE } from '../town/palisade.js?v=0.2.74';
-import { SCREE } from '../town/mountain.js?v=0.2.74';
-import { PIERS } from '../town/piers.js?v=0.2.74';
-import { STATIONS, STATION_BY_ID, ACTIVITY_STATIONS } from '../stations.js?v=0.2.74';
+import { at, TOWN_NAME, TOWN_MAP } from '../town/plan.js?v=0.2.75';
+import { GROUND_ROWS } from '../town/ground.js?v=0.2.75';
+import { SITES, SCENERY, EXITS, PATCHES, AMBIENT, BLEND } from '../town/sites.js?v=0.2.75';
+import { GREENERY } from '../town/greenery.js?v=0.2.75';
+import { WEAR } from '../town/wear.js?v=0.2.75';
+import { PALISADE } from '../town/palisade.js?v=0.2.75';
+import { SCREE } from '../town/mountain.js?v=0.2.75';
+import { PIERS } from '../town/piers.js?v=0.2.75';
+import { STATIONS, STATION_BY_ID, ACTIVITY_STATIONS } from '../stations.js?v=0.2.75';
 
 const tile = (x, y) => { const [mx, my] = at(x, y); return { x: mx, y: my }; };
 /** A placeholder footprint: a painted, closed building with its door mid-side. */

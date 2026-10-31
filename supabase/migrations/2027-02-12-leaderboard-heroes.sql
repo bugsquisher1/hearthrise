@@ -76,8 +76,15 @@
 --   lock. `refresh ... concurrently` diffs, and no ranked column moves on its own (no
 --   timestamps; place/level move only with the score), so a quiet refresh rewrites nothing
 --   (tests/leaderboard-server-source.mjs LB-12). Rows: heroes x (2 + skills trained), about
---   15 per hero. The cost per refresh is one pass over player_state + player_skills of the
---   ranked heroes plus one hr_character_name lookup per hero; measured in the lane's commit.
+--   15 per hero. MEASURED on the replayed chain in PGlite (single-threaded WASM, slower than the
+--   production Postgres; read these as upper bounds, not production numbers):
+--     43 heroes / 606 rows       refresh 78 ms plain, 114-125 ms concurrently
+--     2,003 heroes / 30,006 rows refresh 2.3 s plain, 2.7 s concurrently; 1.7 s of it is
+--                                hr_skill_level over 26k player_skills rows (the same per-row
+--                                cost the slot-0 view paid; heroes, not accounts, now set the count)
+--     the read, 2,003 heroes     70-80 ms (25 rows: mostly hr_name_blocked on the returned names);
+--                                265 ms at the 100-row clamp with p_span 5
+--   At the 20-account beta (about 40 heroes) that is ~0.1 s per refresh x 288 cron refreshes a day.
 --
 -- ── EXPLOIT SURFACE ─────────────────────────────────────────────────────────────────────
 --   Read-only. Every score is a server column (player_state.level_xp, player_skills.xp); the

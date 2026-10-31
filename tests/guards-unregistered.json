@@ -19,6 +19,16 @@
   ],
   "reviewed": "2026-09-06 (cleanup program, slice 2)",
   "guards": {
+    "honor-roll-world.mjs": {
+      "reason": "A MANUAL WALK, like `node tools/qa/local-world.mjs smoke`: two brand-new accounts play the real play.html and the real hr-accrue engine on the replayed chain and read the Roll of Honor. It needs Node 23.6+ (the engine is type-stripped; CI pins Node 20) and replays the whole chain on a machine's first run, so it cannot be a CI step. CI guards both halves without it: tests/leaderboard-server-source.mjs (the server, mutation-proven) and tests/honor-window.mjs (the window, mutation-proven).",
+      "owner": "qa-engineer",
+      "disposition": "intentional-tool",
+      "verified": {
+        "asserts": true,
+        "selftest": false,
+        "runner": "by hand: /opt/node24/bin/node tests/honor-roll-world.mjs --shots DIR"
+      }
+    },
     "_utc-clock-shim.mjs": {
       "reason": "NOT A GUARD — it asserts nothing about the game; it exits non-zero only on its own misconfiguration (no offset, a pin without a chain index). It is a `node --import` PRELOAD, used only by tests/utc-midnight-replay.mjs, which injects the database clock (since 2026-10-11: file i of the chain pinned to midnight + k s + i ms, reads advancing 1 us, never the wall clock) so a chain replay can be driven across the day boundary at any machine load (PGlite serves now() from the host JS clock; verified to the millisecond 2026-09-16). guard-hygiene's chain detector looks for `node tests/<file>` and cannot see a spawnSync `--import` argument, so it reads as an orphan. Named here rather than taught to the detector because widening that detector to match any string mention of a tests/ filename would let a real orphan hide behind a comment.",
       "owner": "reliability-engineer",

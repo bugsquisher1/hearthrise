@@ -746,6 +746,16 @@ jobs:
           node tests/tally-window.mjs
           node tools/mutant-gate.mjs node tests/tally-window.mjs --mutate
 
+      # THE ROLL OF HONOR ON SCREEN (lane/b-leaderboards): Z opens it; the server's rows,
+      # places (a tie is one place twice) and marks; ONE read naming a board only; the
+      # viewed hero found off the top list; empty boards honest; refusals in words and not
+      # hammered; only sourced boards offered; a sheet on the phone. --mutate plants nine.
+      - name: Roll of Honor window (play.html)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/honor-window.mjs
+          node tools/mutant-gate.mjs node tests/honor-window.mjs --mutate
+
       # THE CHARACTER WINDOW (2026-10-25): the outfit catalogue is GENERATED
       # (gen-outfits --check); one XP formula, the sheet reads only what its
       # fingerprint covers, every put carries the engine version

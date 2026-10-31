@@ -6,19 +6,19 @@
 // The row is drawn from the window catalogue, so it lists only windows that
 // exist, and it is the `launchers` HUD widget, which can never be hidden.
 // ════════════════════════════════════════════════════════════════════════
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.76';
-import { pointerCardOf } from '../session/tutorial-sections.js?v=0.2.76';
-import { HUNT_TUTORIAL, AUTO_KINDS, coachIcon } from '../data/hunt-tutorial.js?v=0.2.76';
-import { tallyOf } from '../session/tally-sections.js?v=0.2.76';
-import { bagOf, rulesOf, shopOf, equipmentOf, nameOf, skillsOf } from '../session/item-sections.js?v=0.2.76';
-import { levelOf } from '../session/character-sections.js?v=0.2.76';
-import { huntOf } from '../session/hunt-sections.js?v=0.2.76';
-import { COACH_READ_MAX } from '../session/residue.js?v=0.2.76';
-import { lootSale } from './bag-model.js?v=0.2.76';
-import { upgradeOf } from './widgets/upgrade-line.js?v=0.2.76';
-import { revealInWindow, glyphSvg } from './widgets/bits.js?v=0.2.76';
-import { draftOf, serverBar } from './bar-draft.js?v=0.2.76';
-import { trackOnce } from '../net/observability.js?v=0.2.76';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.77';
+import { pointerCardOf } from '../session/tutorial-sections.js?v=0.2.77';
+import { HUNT_TUTORIAL, AUTO_KINDS, coachIcon } from '../data/hunt-tutorial.js?v=0.2.77';
+import { tallyOf } from '../session/tally-sections.js?v=0.2.77';
+import { bagOf, rulesOf, shopOf, equipmentOf, nameOf, skillsOf } from '../session/item-sections.js?v=0.2.77';
+import { levelOf } from '../session/character-sections.js?v=0.2.77';
+import { huntOf } from '../session/hunt-sections.js?v=0.2.77';
+import { COACH_READ_MAX } from '../session/residue.js?v=0.2.77';
+import { lootSale } from './bag-model.js?v=0.2.77';
+import { upgradeOf } from './widgets/upgrade-line.js?v=0.2.77';
+import { revealInWindow, glyphSvg } from './widgets/bits.js?v=0.2.77';
+import { draftOf, serverBar } from './bar-draft.js?v=0.2.77';
+import { trackOnce } from '../net/observability.js?v=0.2.77';
 
 /** The chip text for a row's shortcut key: 'b' -> 'B', 'enter' -> 'Enter'. */
 export function keyLabel(key) {

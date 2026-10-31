@@ -10,10 +10,10 @@
 // (the `role` item section), else the tank's outfit. There is no other hero sprite.
 // PURE ESM: reads a CharacterSession's sections, never a global.
 // ════════════════════════════════════════════════════════════════════════
-import { outfitSprite } from '../data/hunt-outfits.js?v=0.2.76';
-import { partyOf } from './hunt-sections.js?v=0.2.76';
-import { roleOf } from './item-sections.js?v=0.2.76';
-import { outfitOf } from './character-sections.js?v=0.2.76';
+import { outfitSprite } from '../data/hunt-outfits.js?v=0.2.77';
+import { partyOf } from './hunt-sections.js?v=0.2.77';
+import { roleOf } from './item-sections.js?v=0.2.77';
+import { outfitOf } from './character-sections.js?v=0.2.77';
 
 /** The sprite id of this character's hero: the hunt's outfit sprite, failing safe to the knight's. */
 export function heroSprite(cs) {

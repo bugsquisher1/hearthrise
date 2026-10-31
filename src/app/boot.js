@@ -34,33 +34,33 @@
 // retried in the background.
 // ════════════════════════════════════════════════════════════════════════
 
-import { SUPABASE_CONFIG, createSupabaseClient, authLockFor } from '../net/supabase-bootstrap.js?v=0.2.76';
-import { createBootTiming } from '../net/boot-timing.js?v=0.2.76';
-import { createAuth, AUTH_COPY } from '../net/auth.js?v=0.2.76';
-import { SESSION_CONFIG } from '../session/config.js?v=0.2.76';
-import { createServerLink } from '../session/server.js?v=0.2.76';
-import { AccountSession } from '../session/account-session.js?v=0.2.76';
-import { FRAME_EVENT } from '../session/character-session.js?v=0.2.76';
-import { renderAuthScreen, AUTH_BRAND } from './sign-in.js?v=0.2.76';
-import { mountWorldPane } from './world-pane.js?v=0.2.76';
-import { mountCharacterStrip, stripTargetOf } from './character-strip.js?v=0.2.76';
-import { renderHeroCreate } from './hero-create.js?v=0.2.76';
-import { slotOfferHtml, slotRefusalText, playLineOf } from './slot-offer.js?v=0.2.76';
-import { createAlertCenter } from '../shell/alerts.js?v=0.2.76';
-import { createSocialRealtime } from '../social/realtime.js?v=0.2.76';
-import { SocialSession } from '../social/social-session.js?v=0.2.76';
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.76';
-import { startObservability, track, trackOnce } from '../net/observability.js?v=0.2.76';
-import { loadGlyphs } from './glyphs-loader.js?v=0.2.76';
-import { startDiagnostics } from '../net/diagnostics.js?v=0.2.76';
-import { mountPressAck } from '../shell/press-ack.js?v=0.2.76';
-import { mountOffWhy } from '../shell/off-why.js?v=0.2.76';
-import { mountLauncherNames } from '../shell/launcher-names.js?v=0.2.76';
-import { connection, mountConnectionLine } from '../net/connection.js?v=0.2.76';
-import { liveOverlayWanted, mountLiveOverlay } from './live-overlay.js?v=0.2.76';
-import { mountNewVersion } from './new-version.js?v=0.2.76';
-import { pointerCardOf } from '../session/tutorial-sections.js?v=0.2.76';
-import { coachFactsOf } from '../shell/launcher.js?v=0.2.76';
+import { SUPABASE_CONFIG, createSupabaseClient, authLockFor } from '../net/supabase-bootstrap.js?v=0.2.77';
+import { createBootTiming } from '../net/boot-timing.js?v=0.2.77';
+import { createAuth, AUTH_COPY } from '../net/auth.js?v=0.2.77';
+import { SESSION_CONFIG } from '../session/config.js?v=0.2.77';
+import { createServerLink } from '../session/server.js?v=0.2.77';
+import { AccountSession } from '../session/account-session.js?v=0.2.77';
+import { FRAME_EVENT } from '../session/character-session.js?v=0.2.77';
+import { renderAuthScreen, AUTH_BRAND } from './sign-in.js?v=0.2.77';
+import { mountWorldPane } from './world-pane.js?v=0.2.77';
+import { mountCharacterStrip, stripTargetOf } from './character-strip.js?v=0.2.77';
+import { renderHeroCreate } from './hero-create.js?v=0.2.77';
+import { slotOfferHtml, slotRefusalText, playLineOf } from './slot-offer.js?v=0.2.77';
+import { createAlertCenter } from '../shell/alerts.js?v=0.2.77';
+import { createSocialRealtime } from '../social/realtime.js?v=0.2.77';
+import { SocialSession } from '../social/social-session.js?v=0.2.77';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.77';
+import { startObservability, track, trackOnce } from '../net/observability.js?v=0.2.77';
+import { loadGlyphs } from './glyphs-loader.js?v=0.2.77';
+import { startDiagnostics } from '../net/diagnostics.js?v=0.2.77';
+import { mountPressAck } from '../shell/press-ack.js?v=0.2.77';
+import { mountOffWhy } from '../shell/off-why.js?v=0.2.77';
+import { mountLauncherNames } from '../shell/launcher-names.js?v=0.2.77';
+import { connection, mountConnectionLine } from '../net/connection.js?v=0.2.77';
+import { liveOverlayWanted, mountLiveOverlay } from './live-overlay.js?v=0.2.77';
+import { mountNewVersion } from './new-version.js?v=0.2.77';
+import { pointerCardOf } from '../session/tutorial-sections.js?v=0.2.77';
+import { coachFactsOf } from '../shell/launcher.js?v=0.2.77';
 
 const DISCORD = 'https://discord.gg/eJrUSUJM3M';
 
@@ -175,7 +175,7 @@ function startApp(win) {
     /* the town's sheets likewise (src/world/prewarm.js): a cold Play after a release no longer waits for 2.5 MB */
     /* ...for THIS session only: the pass asks before every slice and sheet whether its account is still the page's, so a
        sign-out or a refused session stops it at once (client-boot B-15) */
-    import('../world/prewarm.js?v=0.2.76').then((m) => { const acc = account; if (acc) m.prewarmTown(win, { alive: () => account === acc }); }, () => {});
+    import('../world/prewarm.js?v=0.2.77').then((m) => { const acc = account; if (acc) m.prewarmTown(win, { alive: () => account === acc }); }, () => {});
     /* the token's answer is the moment the first read leaves (boot-timing.js): whatever it waited on is before that */
     const tokenForCall = async () => { const t = await auth.freshToken(); timing.sending(); return t; };
     const server = createServerLink({ url: SUPABASE_CONFIG.url, anonKey: SUPABASE_CONFIG.anonKey, token: tokenForCall, renew: auth.renewToken, watch: connection,

@@ -158,7 +158,9 @@ function shotLine(s, cs, carried) {
   const worn = (equipmentOf(cs) || {}).ammo || null;
   if (worn && shootsItem(s.role, ITEMS[worn])) {
     const n = (carried.find((r) => r.id === worn) || {}).qty || 0;
-    return s.slots.some((sl) => !sl.empty && sl.action.type === 'attack_with_item') ? null : { id: 'ammo', text: 'Ammo: ' + whole(n) + ' ' + itemName(worn) + ' of yours, loaded.', short: false };
+    if (s.slots.some((sl) => !sl.empty && sl.action.type === 'attack_with_item')) return null;
+    /* The free rung (Bronze Arrows, designer 2026-10-31) shows no count: "49 of yours" read as 49 shots left. */
+    return { id: 'ammo', text: Number(ITEMS[worn].ammoPerShot) > 0 ? 'Ammo: ' + whole(n) + ' ' + itemName(worn) + ' of yours, loaded.' : 'Ammo: ' + itemName(worn) + ' loaded. They never run out.', short: false };
   }
   if (hasShot(s, carried, worn)) return null;
   const spare = carried.find((r) => r.qty > 0 && shootsItem(s.role, ITEMS[r.id]));

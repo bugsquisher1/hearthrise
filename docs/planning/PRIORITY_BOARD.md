@@ -30,6 +30,46 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 ## Decisions
 _Tyler's rulings live in rulings-of-record; designer rulings inside them are recorded here._
 
+### 2026-10-31 Does the first arrow cost? (designer): BRONZE ARROWS STAY FREE. **This departs from a plain reading of Tyler's 10-15 words; he can overrule it**
+**Ruling, exact numbers.** Bronze Arrows stay `ammoPerShot: 0`, rangeAtkB 2, rangeStrB 2, with no store row and `NO_STORE_PARTNER` as it is. The kit keeps 50. Paying starts at the next arrow, which already exists: Iron Arrows (Ranged 1, `ammoPerShot: 1`, rangeStrB 3, crit 1%, store 1 g a shot), then Barbed (Ranged 15, store 1 g a shot). No coin, floor or kit number moves. lane/a-arrow-cost's Bronze cost does not ship.
+
+**Do Tyler's rulings reach the rung?**
+- 10-23 ("when carried stock runs out... bought from the store"): no. It is conditional on running out, and Bronze never does. Every arrow that can run out already has its store row.
+- 10-15 ("Arrows keep a per-shot cost"): by its plain words, yes, so this is the departure. "Keep" was said while Bronze was already free (since 08-14) and answered a question about staff and wand basics, so it can be read as "don't drop the cost arrows have". Nothing shows he had the free rung in mind. Newer beats older only if it reaches, so I am not claiming the point: it is his to overrule.
+
+**Why, measured** (lane/a-arrow-cost, real settle, 1 h, practice bow, 3 seeds; other styles from the balance baseline above).
+| | Cellar L1 | Thicket L5 | Thicket L15 |
+|---|---|---|---|
+| Income with free arrows, g/h | 1,765 | 1,949 | 2,358 |
+| At 1 g a shot, g/h | 945 | 704 | 1,199 |
+| Shots' share of income | 46% | 64% | 49% |
+
+- 1 g is the smallest price the store has, so the 08-14 reasoning still holds: no integer price stays under a third of income.
+- XP/h does not move, so the bill buys nothing. A Ranger would pay about 830 to 1,400 g/h on the first grounds, against melee 18 to 119 and the Mage 201 to 354, for the same pace (Ranger 1.00 to 1.08× against Mage 1.06 to 1.15×). In the Sewer party it pays 1,643 g/h.
+- Coin alone doesn't cover it: my archer earned about 750 g/h in coin in the Cellar against an 820 g/h bill, so the income is unsold loot. With 500 g and the 300 g floor that is gold_out at minute 53 to 84, with 950 to 1,650 g of commons in the bag. A newcomer sent home broke by the style they picked is the same failure as the 0-kill archer.
+- Keeping it free needs no migration, no Sewer coin change and no edge deploy before Sunday's beta; `first-grounds-net-chain` stays green.
+
+**Rejected.** *Starter stack plus coin* (say 1,000 Bronze, Sewer coin +13%): moves the cliff to about hour 1, into the Thicket's 1,245 g/h bill, and moves a money surface days before the beta, unmeasured past the Sewer. *Cost starting at Barbed only*: that is this ruling minus Iron, which is already paid. *One arrow spent per five shots*: fair, but it needs engine work and doesn't fix the price of the Sewer.
+
+**The other rungs.** The lane touched neither, and neither makes Bronze inconsistent. Air Runes no longer exist. Coarse Whetstones already wear at 0.02 a swing, with no store row, and a sword swings on without one. The rule is now: **a basic attack costs nothing you can run out of** (a swing is free, a caster's basic costs mana that comes back, Bronze is free); what is better costs. The comments at `src/data/slot-ladders.js:59` and `src/core/ammo.js:212` still say every tier-1 rung is free. They are stale on that point and change with the next edge deploy, since ammo.js is in the bundle.
+
+**Walk-through: a fresh archer's first hour** (M = played on the fixed code, S = balance sim, P = projected from those rates).
+| Minute | What happens | Holds | Why it works |
+|---|---|---|---|
+| 0 | "Every weapon is a style", press Practice Bow, Equip (M) | 500 g, 20 Cooked Shrimp, 50 Bronze | The same press loads Bronze; "You fight as a Ranger now" |
+| 1 | Hunts, Mill Cellar: "Ammo: Bronze Arrows loaded. They never run out." Enter (M) | same | No arrow bill; juice 10 gp a drink |
+| 1-2 | First kills: 5 in 21 s (M) | coin arriving | Bronze is loaded |
+| 2-18 | Plant, bar and rune cards. Flame Volley stays struck unless the player picks a 1 g rune (M) | 7,355 Level XP/h, 1,958 g/h gold + loot, 159 g/h supplies (M) | Gold rises all the way: never near the 300 g floor |
+| about 20 | Level 5, Cash in, Blessings free, Sell all loot about 250 g, cook, Tamsin (M, other styles; P for the archer) | about 900 g | Nothing here needs an arrow |
+| 25-60 | Thicket: 24,572 Level XP/h, 1,949 g/h, 0 deaths in 228 h (S) | about 2,000 g in gold and unsold loot by minute 60, Level 6 to 7 (P) | No gold_out path: the bill is drinks |
+| Any time | Wants more damage: press an empty slot, Ammo, Iron Arrows at 1 g a shot | | A real decision: free or stronger. Whether Iron is worth 1 g is **unverified** |
+
+Not played: the Thicket as an archer on the fixed code. Next check for the balance sim: a Ranger on free Bronze against Iron and Barbed at each floor, so paid arrows are worth buying and free Bronze isn't best forever.
+
+**If Tyler overrules:** keep lane/a-arrow-cost's cost, add 1,000 Bronze to the kit, Sewer coin +13%, and re-measure gold_out and net-chain before any beta.
+
+**The no_fight stop ships regardless** (10 hunt minutes with no blow landed by anyone in the instance). Bronze free and Equip loading shut the door we know; a hero can still reach no attack another way (arrows moved to Storage, a setup with nothing loaded), and it would burn stamina and the store for hours. The lane measured normal quiet stretches well under 10 minutes, and the end card says what to check. It shares commit 037ad3d8a and the generated catalogue with the Bronze cost, so the lane must split them: drop `plain_bronze_arrows` and the `ammoPerShot` change, regenerate the catalogue, keep `no_fight`. That is a lane C server and edge change.
+
 ### 2026-10-31 First hour in every fighting style (designer, lane/b-first-hour-styles): PLAYED from the sign-in screen on the local world (tools/qa/local-world.mjs), shots art/review/first-hour-styles-2026-10-31/
 Fresh accounts: sword + shield, hatchets, bow, wand + spellbook, staff, plus a two-hero party at 922x423 touch and a death on purpose. Waiting compressed with skip, results real. Then the blind panel's list (lane/f-*).
 

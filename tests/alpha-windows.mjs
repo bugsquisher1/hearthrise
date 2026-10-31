@@ -555,7 +555,9 @@ async function planRules(base) {
   const empty = say(bowSet({ equipment: { weapon: 'practice_bow' } }));
   if (!empty.startsWith("!Ammo: nothing loaded, so your weapon can't shoot and your hero won't attack. Open your bag, press Bronze Arrows, then Put on the bar.")) fails.push('AW-27 a bow with nothing loaded reads ' + JSON.stringify(empty));
   const full = say(bowSet({ equipment: { weapon: 'practice_bow', ammo: 'bronze_arrows' } }));
-  if (!full.startsWith('Ammo: 50 Bronze Arrows of yours, loaded.')) fails.push('AW-27 a loaded bow reads ' + JSON.stringify(full));
+  if (!full.startsWith('Ammo: Bronze Arrows loaded. They never run out.')) fails.push('AW-27 a bow with the free arrow reads ' + JSON.stringify(full));
+  const paid = say(bowSet({ equipment: { weapon: 'practice_bow', ammo: 'iron_arrows' }, inventory: { iron_arrows: 9 } }));
+  if (!paid.startsWith('Ammo: 9 Iron Arrows of yours, loaded.')) fails.push('AW-27 a bow with a paid arrow reads ' + JSON.stringify(paid));
   if (/Ammo/.test(say(sess({ hunt_settings: { preset: 0, presets: [], role: 'tank', slots: [], store: STORE } })))) fails.push('AW-27 a sword is told about ammo');
   /* AW-8 / AW-27 AN EMPTY FOOD SLOT IS A HEADS-UP, NOT A BLOCKER (Tyler 10-29: "0 food" in Hunt prep on a hero that
      carries food the bar does not name and is not getting hit). Both surfaces say the empty stock and the bag's spare

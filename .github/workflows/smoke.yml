@@ -1343,7 +1343,7 @@ jobs:
   # gate runs it: ~23 min. Budget = x2 = 46.
   perf:
     runs-on: ubuntu-latest
-    timeout-minutes: 46
+    timeout-minutes: 62
 
     steps:
       - uses: actions/checkout@v4

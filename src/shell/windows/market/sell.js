@@ -29,7 +29,7 @@ import { viewOf, setView, readItem, readNamed, rereadAll, holdGesture, dropGestu
 export function sellHtml() {
   return '<section class="hw-pane hw-mk-sell" data-pane="sell"><div class="hw-mk-from" role="group" aria-label="Sell from">'
     + '<button type="button" class="hh-seg" data-hs-act="ms-from" data-from="bag" aria-pressed="true"></button>'
-    + '<button type="button" class="hh-seg" data-hs-act="ms-from" data-from="storage" aria-pressed="false">Storage</button></div>'
+    + '<button type="button" class="hh-seg" data-hs-act="ms-from" data-from="storage" aria-pressed="false">Storage</button><p class="hs-note hw-mk-kept"></p></div>'
     + '<div class="hw-mk-cols"><ul class="hw-mk-list" role="listbox" aria-label="What to sell"></ul>'
     + '<section class="hw-mk-page" aria-label="The picked stack"><div class="hw-hd-page">'
     + '<button type="button" class="hh-tool hw-hd-back" data-hs-act="ms-back">Back to the list</button>'
@@ -45,8 +45,7 @@ export function sellHtml() {
     + '<div class="hw-mk-foot hw-mk-sellfoot"><p class="hw-mk-terms"></p><p class="hs-note hw-mk-warn"></p><p class="hw-why hw-mk-why"></p>'
     + '<div class="hw-mk-do"><button type="button" class="hw-primary is-on" data-hs-act="ms-list"></button>'
     + '<button type="button" class="hh-tool hw-mk-forget" data-hs-act="ms-forget" hidden>Forget it</button></div></div>'
-    + '</section></div>'
-    + '<p class="hs-note hw-mk-kept"></p></section>';
+    + '</section></div></section>';
 }
 
 /* The stacks of the chosen source that the server would list (or has not ruled on yet). */
@@ -142,7 +141,9 @@ function patchSheet(pane, v, have, source) {
   text(foot.querySelector('.hw-mk-terms'), rules && fee !== null && !why
     ? 'Listing fee: ' + goldWords(fee) + ' now (kept if it doesn\'t sell). When one sells, the Weighhouse keeps ' + (rules.cutBp / 100) + '%: you get ' + whole(netEachOf(rules, ask)) + ' each. Listed for ' + Math.round(rules.ttlH / 24) + ' days; anything unsold comes back to your storage.'
     : '');
-  text(foot.querySelector('.hw-mk-warn'), setupNaming(cs, id));
+  /* A sale that pays less than the shop would is the seller's call, and the sheet says so (a 1-gold ask nets 0 after the cut). */
+  const under = rules && ask && bid !== null && netEachOf(rules, ask) < bid ? 'At this price the shop pays you more than a sale would.' : '';
+  text(foot.querySelector('.hw-mk-warn'), [under, setupNaming(cs, id)].filter(Boolean).join(' '));
   text(foot.querySelector('.hw-mk-why'), why || shortFee || f.msg);
   const press = foot.querySelector('[data-hs-act="ms-list"]');
   text(press, g ? 'Try again' : qty && ask ? 'List ' + whole(qty) + ' for ' + whole(ask) + ' each' : 'List');
@@ -182,6 +183,7 @@ export function patchSell(v) {
   text(pane.querySelector('.hw-mk-kept'), !shown.length && !kept.length ? (source === 'storage' ? 'Your storage is empty.' : 'This bag is empty. Loot from a hunt lands here.')
     : kept.length ? whole(kept.length) + (kept.length === 1 ? ' stack' : ' stacks') + ' here can\'t be sold to other players: starter kit, gifts and trophies.' : '');
   cls(pane, 'is-paged', sc.paged && !!f.pick);
+  cls(pane, 'is-bare', !shown.length);
   patchSheet(pane, v, f.pick ? [...shown, ...kept].find((r) => r.id === f.pick) : null, source);
 }
 

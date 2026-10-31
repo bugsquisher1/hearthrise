@@ -20,7 +20,7 @@ import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.76';
 import { goldOf, nameOf } from '../../../session/item-sections.js?v=0.2.76';
 import { huntOf, settingsOf } from '../../../session/hunt-sections.js?v=0.2.76';
 import { BAG_CATS } from '../../bag-model.js?v=0.2.76';
-import { kindWords, sourcesOf, usesOf, flavourOf } from '../../item-lore.js?v=0.2.76';
+import { kindWords, sourcesOf, flavourOf } from '../../item-lore.js?v=0.2.76';
 import { refusalText } from '../../intent-words.js?v=0.2.76';
 import { marketBuy, marketCancel } from '../../../session/market-intents.js?v=0.2.76';
 import { marketKey, answerLost } from '../../../session/market-gesture.js?v=0.2.76';
@@ -44,11 +44,11 @@ export function browseHtml(ctx) {
     + '<section class="hw-mk-page" aria-label="The picked item"><div class="hw-hd-page">'
     + '<button type="button" class="hh-tool hw-hd-back" data-hs-act="mk-back">Back to the list</button>'
     + '<div class="hw-mk-head"><span class="hw-ico hw-mk-ico"></span><div class="hw-mk-title"><h3 class="hw-hd-name hw-mk-name"></h3><p class="hw-hd-band hw-mk-kind"></p></div></div>'
-    + '<p class="hw-mk-lore"></p>'
     + '<p class="hw-mk-price"></p>'
     + '<h4 class="hw-hd-h">For sale</h4><ul class="hw-mk-asks"></ul><p class="hh-empty hw-mk-asks-none"></p>'
     + '<h4 class="hw-hd-h hw-mk-line-h">The last 30 days</h4><div class="hw-mk-line" role="img"></div><p class="hs-note hw-mk-line-note"></p>'
     + '<h4 class="hw-hd-h hw-mk-sales-h">Last sales</h4><ul class="hw-mk-sales"></ul>'
+    + '<p class="hw-mk-lore"></p>'
     /* Buy stands at the page's foot OUTSIDE its scroller, as the Hunts window's Enter does: never below the fold. */
     + '</div>' + buyHtml() + '</section></div></section>';
 }
@@ -57,8 +57,8 @@ function buyHtml() {
   return '<div class="hw-mk-foot hw-mk-buy">'
     + '<div class="hw-mk-chips" role="group" aria-label="How many">' + BUY_CHIPS.map(([v, l]) => '<button type="button" class="hh-seg" data-hs-act="mk-want" data-want="' + v + '" aria-pressed="false">' + esc(l) + '</button>').join('')
     + '<input type="number" min="1" step="1" class="hh-num hw-mk-count" data-hs-act="mk-count" aria-label="How many"></div>'
-    + '<label class="hw-mk-goes"><span>Goes to:</span><select class="hh-select" data-hs-act="mk-deliver"><option value="storage">Storage</option><option value="bag"></option></select></label>'
-    + '<div class="hw-mk-do"><button type="button" class="hw-primary is-on" data-hs-act="mk-buy"></button>'
+    + '<div class="hw-mk-do"><label class="hw-mk-goes"><span>Goes to:</span><select class="hh-select" data-hs-act="mk-deliver" aria-label="Goes to"><option value="storage">Storage</option><option value="bag"></option></select></label>'
+    + '<button type="button" class="hw-primary is-on" data-hs-act="mk-buy"></button>'
     + '<button type="button" class="hh-tool hw-mk-forget" data-hs-act="mk-forget" hidden>Forget it</button></div>'
     + '<p class="hs-note hw-mk-after"></p><p class="hs-note hw-mk-warn"></p></div>';
 }
@@ -188,8 +188,7 @@ function patchPage(root, v) {
   if (ico.getAttribute('data-item') !== id) { attr(ico, 'data-item', id); ico.innerHTML = itemIconHtml(ctx.glyphs, id); }
   text(root.querySelector('.hw-mk-name'), itemName(id));
   text(root.querySelector('.hw-mk-kind'), kindWords(id));
-  const lore = [flavourOf(id), ...sourcesOf(id).slice(0, 2), ...usesOf(id).slice(0, 1)].filter(Boolean);
-  text(root.querySelector('.hw-mk-lore'), lore.join(' · '));
+  text(root.querySelector('.hw-mk-lore'), [flavourOf(id), sourcesOf(id)[0]].filter(Boolean).join(' · '));
   const page = sc.page && sc.page.id === id ? sc.page : null;
   const s = page ? page.item : sc.known.get(id) || null;
   const sample = page ? priceSample(page) : null;

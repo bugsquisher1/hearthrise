@@ -552,6 +552,8 @@ async function run(mutate) {
     const open = await list({ user: A, item: ITEM, qty: 2, ask: ASK });
     ok(open && open.ok === true, `M5b-CONTROL: the fixture listing refused ${brief(open)}`);
     const id = open.listed.listing_id;
+    await q(`insert into public.player_inventory (user_id, slot, item_id, qty) values ($1, 0, $2, 1)
+             on conflict (user_id, slot, item_id) do update set qty = 1`, [C, ITEM]);
     await cfg('min_level = 10');
     try {
       const s0 = await snap();
@@ -559,7 +561,8 @@ async function run(mutate) {
       ok(l && l.error === 'market_locked' && l.min_level === 10, `M5b: a fresh account listed: ${brief(l)}`);
       const b = await buy({ user: C, listing: id, qty: 1, max: ASK });
       ok(b && b.error === 'market_locked' && b.min_level === 10, `M5b: a fresh account bought: ${brief(b)}`);
-      ok(JSON.stringify(await snap()) === JSON.stringify(s0), 'M5b: a refused list or buy moved gold or goods');
+      const text = (s) => JSON.stringify(s, (k, v) => (typeof v === 'bigint' ? String(v) : v));
+      ok(text(await snap()) === text(s0), 'M5b: a refused list or buy moved gold or goods');
       const m = await mine(C);
       ok(m && m.ok === true && m.locked === true && m.rules.min_level === 10, `M5b: mine does not tell the window: ${brief(m)}`);
       const page = await itemPage(C, ITEM);

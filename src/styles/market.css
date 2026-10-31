@@ -31,11 +31,11 @@
 .hw-mk-row .hw-line-name small { white-space: normal; line-height: 1.25; }
 .hw-mk-page { min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--fill-1); border: 2px solid var(--steel-edge); border-left-color: var(--steel-rule); }
 .hw-mk-page[hidden] { display: none; }
-.hw-mk-head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.hw-mk-head { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
 .hw-mk-title { min-width: 0; }
 .hw-mk-kind { padding: 0; }
 .hw-mk-kind::before, .hw-mk-kind::after { display: none; }
-.hw-mk-lore { margin: 0 0 6px; font-size: var(--t-small); line-height: 1.4; color: var(--ink-2); }
+.hw-mk-lore { margin: 12px 0 0; font-size: var(--t-small); line-height: 1.4; color: var(--ink-2); }
 .hw-mk-lore:empty, .hw-mk-price:empty { display: none; }
 .hw-mk-price { margin: 0; font-size: var(--t-small); color: var(--ink); font-variant-numeric: lining-nums tabular-nums; }
 
@@ -53,10 +53,11 @@
 .hw-mk-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
 .hw-mk-chips .hh-num { width: 88px; }
 .hw-mk-chips .hh-seg[hidden] { display: none; }
-.hw-mk-goes { display: flex; align-items: center; gap: 6px; margin-top: 8px; font-size: var(--t-small); color: var(--ink-2); }
-.hw-mk-do { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+.hw-mk-goes { display: flex; align-items: center; gap: 6px; font-size: var(--t-small); color: var(--ink-2); }
+.hw-mk-do { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 8px; }
+.hw-mk-do .hw-primary { margin-left: auto; }
 .hw-mk-forget[hidden] { display: none; }
-.hw-mk-after, .hw-mk-warn { margin: 6px 0 0; }
+.hw-mk-after, .hw-mk-warn { margin: 4px 0 0; font-size: var(--t-micro); }
 .hw-mk-after:empty, .hw-mk-warn:empty { display: none; }
 .hw-mk-warn { color: var(--gold-2); }
 
@@ -70,17 +71,17 @@
 .hw-mk-page .hw-hd-h[hidden] { display: none; }
 
 /* Sell. */
-.hw-mk-from { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
+.hw-mk-from { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-bottom: 8px; }
 .hw-mk-sheet { display: none; }
 .hw-mk-sheet.is-on { display: block; }
-.hw-mk-facts { display: grid; grid-template-columns: max-content minmax(0, 1fr); column-gap: 12px; row-gap: 2px; margin: 0 0 10px; font-size: var(--t-small); font-variant-numeric: lining-nums tabular-nums; }
+.hw-mk-facts { display: grid; grid-template-columns: max-content minmax(0, 1fr); column-gap: 12px; row-gap: 0; margin: 0 0 8px; font-size: var(--t-small); font-variant-numeric: lining-nums tabular-nums; }
 .hw-mk-facts dt { color: var(--ink-2); }
 .hw-mk-facts dd { margin: 0; color: var(--ink); }
-.hw-mk-field { display: flex; flex-wrap: wrap; align-items: center; column-gap: 10px; row-gap: 4px; margin-bottom: 8px; font-size: var(--t-small); color: var(--ink-2); }
+.hw-mk-field { display: flex; flex-wrap: wrap; align-items: center; column-gap: 10px; row-gap: 4px; margin-bottom: 6px; font-size: var(--t-small); color: var(--ink-2); }
 .hw-mk-field > label { min-width: 72px; }
-.hw-mk-terms { margin: 0; font-size: var(--t-small); line-height: 1.4; color: var(--ink); }
+.hw-mk-terms { margin: 0; font-size: var(--t-micro); line-height: 1.35; color: var(--ink); }
 .hw-mk-terms:empty { display: none; }
-.hw-mk-kept { flex: none; margin: 6px 2px 0; }
+.hw-mk-kept { flex: 1 1 200px; margin: 0 0 0 10px; text-align: right; }
 .hw-mk-kept:empty { display: none; }
 
 /* The empty market, and an empty book: said plainly, with the way forward. */
@@ -96,14 +97,33 @@
 @media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
   .hw-mk-greet > span { display: none; }
   .hw-mk-greet { justify-content: flex-end; margin-bottom: 2px; }
+  .hw-mk .hw-tab { padding: 4px 6px; white-space: nowrap; }
+  .hw-mk .is-paged .hw-mk-kept { display: none; }
+  /* A SHORT SCREEN CANNOT SPARE A FOOT: the whole page scrolls as one, and only the press stays pinned at the bottom
+     of the sheet, always in reach (QA 10-24: Equip sat a scroll away). The 30-day line waits for a bigger screen. */
+  .hw-mk-page .hw-hd-page { flex: none; overflow: visible; }
+  .hw-mk-head .hw-ico { width: 40px; height: 40px; }
+  .hw-mk-head .hw-ico .hh-icon { width: 32px; height: 32px; }
+  .hw-mk-foot { padding: 0; border-top: 0; }
+  .hw-mk-foot.is-on { display: contents; }
+  .hw-mk-foot > :not(.hw-mk-do) { margin: 4px 12px; }
+  .hw-mk-foot > :empty { display: none; }
+  .hw-mk-do { position: sticky; bottom: 0; z-index: 1; flex-wrap: nowrap; margin: 6px 0 0; padding: 6px 12px; background: var(--fill-1); border-top: 2px solid var(--steel-rule); }
+  .hw-mk-do .hw-primary { flex: none; }
+  .hw-mk-goes { flex: 1 1 0; min-width: 0; }
+  .hw-mk-goes > span { display: none; }
+  .hw-mk-goes .hh-select { width: 100%; min-width: 0; }
+  .hw-mk-line, .hw-mk-line-h, .hw-mk-line-note { display: none; }
+  /* Under a list it costs two rows of a short screen: said only when it is why the list is empty. */
+  .hw-mk-kept { display: none; flex-basis: 100%; margin: 2px 0 0; text-align: left; }
+  .hw-mk-sell.is-bare .hw-mk-kept { display: block; }
   .hw-mk-cols { display: flex; flex-direction: column; }
   .hw-mk-list { flex: 1 1 auto; }
   .hw-mk-page { display: none; }
   .hw-mk-row { min-height: 44px; }
   .hw-mk .is-paged .hw-mk-list, .hw-mk .is-paged .hw-find, .hw-mk .is-paged .hw-cats, .hw-mk .is-paged .hw-mk-from { display: none; }
-  .hw-mk .is-paged .hw-mk-page:not([hidden]) { display: flex; flex: 1 1 auto; }
+  .hw-mk .is-paged .hw-mk-page:not([hidden]) { display: block; flex: 1 1 auto; overflow: auto; }
   .hw-mk .hh-seg, .hw-mk .hh-select, .hw-mk .hh-num, .hw-mk .hh-tool { min-height: 40px; }
-  .hw-mk-foot { padding: 6px 12px 8px; }
   .hw-mk-invite { padding: 12px 14px; }
   .hw-mk-facts { margin-bottom: 6px; }
 }

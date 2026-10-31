@@ -1253,6 +1253,11 @@
    },
    "note": "The single-row market tuning table: house tax in basis points, listing TTL, per-seller listing cap, per-listing qty ceiling, and the per-trade GROSS ceiling that makes the overflow argument a bound rather than a hope. Seeded `on conflict do nothing` (2026-08-17-market-v2.sql:547), so a rebuild restores the AUTHORED DEFAULTS and silently reverts any live economy tuning. All six columns match their defaults today; the class records the mechanism, and the recorded live_value is what a rebuild re-applies from."
   },
+  "hr_market_premium_items": {
+   "class": "seeded",
+   "replay": 1,
+   "note": "The items src/data/items.js marks premium:true, which the market never lists (2027-02-13-market-premium-bond.sql, written on every apply; tests/market-v2.mjs M5 pins it to the data). Lost empty: the premium bond reads as listable until a replay restores it."
+  },
   "hr_name_blocklist": {
    "class": "seeded",
    "replay": 94,

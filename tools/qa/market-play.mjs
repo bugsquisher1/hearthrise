@@ -219,6 +219,9 @@ async function main() {
     await seller.page.waitForSelector(WIN + ' .hw-mk-sheet.is-on');
     const again = await seller.page.$eval(WIN + ' .hw-mk-sell', (el) => el.innerText);
     step('List again opens the sheet on Storage', /in your storage/.test(again), again);
+    await seller.page.waitForFunction((w) => { const b = document.querySelector(w + ' [data-hs-act="ms-list"]'); return b && !b.disabled; }, WIN, { timeout: 60000 });
+    await seller.page.click(WIN + ' [data-hs-act="ms-list"]');
+    step('list from Storage', await waitWin(seller, /Listed 1 /), await winText(seller));
 
     /* The phone: the same component as a sheet, 922x423. */
     await seller.page.click(WIN + ' .hw-tab[data-tab="browse"]').catch(() => {});
@@ -227,7 +230,15 @@ async function main() {
     if (await phone.page.$('[data-app="play"]')) await phone.page.click('[data-app="play"]').catch(() => {});
     await phone.page.waitForSelector('[data-hs-open="market"]');
     await openMarket(phone);
+    const phoneRow = WIN + ' .hw-mk-browse .hw-mk-row[data-item="' + item + '"]';
+    await phone.page.waitForSelector(phoneRow);
     await phone.shot('browse');
+    await phone.page.click(phoneRow);
+    await phone.page.waitForFunction((w) => /Buy \d/.test(document.querySelector(w + ' [data-hs-act="mk-buy"]')?.textContent || ''), WIN, { timeout: 60000 });
+    await phone.shot('item-page');
+    const reach = await phone.page.$eval(WIN + ' [data-hs-act="mk-buy"]', (b) => { const r = b.getBoundingClientRect(); return r.bottom <= window.innerHeight && r.top >= 0; });
+    step('on the phone the press is on screen without scrolling', reach, 'off screen');
+    await phone.page.click(WIN + ' [data-hs-act="mk-back"]');
     await tab(phone, 'sell');
     await phone.page.waitForSelector(WIN + ' .hw-mk-sell .hw-mk-row', { timeout: 60000 }).catch(() => {});
     await phone.shot('sell-list');
@@ -236,6 +247,8 @@ async function main() {
       await first.click();
       await phone.page.waitForSelector(WIN + ' .hw-mk-sheet.is-on');
       await phone.shot('sell-sheet');
+      const reachList = await phone.page.$eval(WIN + ' [data-hs-act="ms-list"]', (b) => { const r = b.getBoundingClientRect(); return r.bottom <= window.innerHeight && r.top >= 0; });
+      step('on the phone List is on screen without scrolling', reachList, 'off screen');
       const box = await phone.page.$eval(WIN, (w) => { const r = w.getBoundingClientRect(); return { w: r.width, h: r.height, over: w.scrollWidth > w.clientWidth + 1 }; });
       step('the phone sheet does not overflow sideways', box.over === false, JSON.stringify(box));
       await phone.page.click(WIN + ' .hw-mk-sell [data-hs-act="ms-back"]');

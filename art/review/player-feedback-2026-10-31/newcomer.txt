@@ -1,0 +1,330 @@
+HEARTHRISE — first two evenings, from a total newcomer
+Posted by: Pip's player (came over from the stream Discord)
+Date: 2026-10-31 · desktop browser, 1440x900, mouse + keyboard
+
+About me: phone games and a bit of Stardew. Never played an MMO, Tibia, Huntera or an idle game.
+I don't know what DPS, tank, aggro or "stamina" mean in game-speak. I gave it two evenings.
+
+How I played (so you can weigh this): the real game on a local test server, not the live site.
+"Waiting" was done with a time-skip button instead of real hours. A few odd things are probably
+caused by that skip, and I've put those in their own section at the bottom so you don't chase them.
+Screenshots are in newcomer/ next to this file (01..15).
+
+
+================================================================
+EVENING ONE (sign-up and about an hour)
+================================================================
+
+1. SIGNING UP
+   Doing: made an account. I typo'd the second password on purpose.
+   Expected: the usual.
+   Happened: a clear "The two passwords do not match." Fixed it, then "Check your email for a
+   link". Back to sign in, and I was in within a blink (about 0.2 s).
+   Felt: fine, painless. Nothing tells me what kind of game this IS before I sign up, though.
+   Screenshot: (not kept)
+
+2. "YOUR CHARACTERS"
+   Doing: first screen after logging in.
+   Happened: "Up to 4 can play at once." but I only see 2 slots. Huh? (Later I learnt a 3rd slot
+   costs 15,000 gold.) The idea of more than one hero at once didn't mean anything to me yet.
+   Felt: a bit confused, but OK.
+
+3. HERO CREATOR  <- LOVED IT
+   Doing: named my hero Pip, picked yellow hair, a green shirt, brown trousers.
+   Happened: a cute chunky pixel preview updates as you click colours. The "How you fight"
+   text is short and readable ("There's no class to pick. The weapon you hold is how you fight").
+   Felt: smiled. Felt like my own little guy.
+   Screenshot: 01-hero-creator.png
+
+4. ...AND THEN MY COLOURS WERE GONE
+   Doing: pressed Enter town.
+   Expected: my green-shirt blondie in town.
+   Happened: a grey armoured knight with a red plume walked out. None of my colours anywhere.
+   The Outfit tab later lists "Plate Harness", "Grove Robe" etc, but never my colours. Same thing
+   happened with my second hero.
+   Felt: honestly a little deflated. The first thing I made in your game didn't stick.
+   Screenshot: 02-town-first-look.png
+
+5. FIRST LOOK AT TOWN: TOO MANY BUTTONS
+   Doing: just looking around.
+   Happened: the town art is gorgeous (barn, cobbles, a big round stone square). But:
+   - 15 small icons across the top with no words. Hovering shows a name, but the first one I
+     hovered ("Inv...") was hidden UNDER the quest box.
+   - Bottom bar: 20 numbered boxes, HP/MP ring, an hourglass "12:00h", "Food x20", "Charm",
+     "Setup Preset 1", "Target: Nearest", "Offens... Balanc... Defen...", "Chase", "Distance - 1 +".
+     I didn't know what any of the right-hand half meant and was scared to touch it.
+   - The quest box was great though: "Rats in the mill. Open Hunts and enter the Mill Cellar."
+     with the right icon lit up in gold. I just did what it said.
+   Felt: overwhelmed for a second, then rescued by the quest box.
+   Screenshot: 02-town-first-look.png
+
+6. THE HUNTS WINDOW
+   Happened: lovely monster portraits (rat, slime, wasp) and "Fits your level" in green told me
+   where to go. The details below were gibberish to me: "Each pull: 2 packs of 2 to 3 · back in
+   32 s", "As built + / -", "Up to 8 a pull when you hunt alone", "Gold: 500 gp pays the store as
+   you use it" (what store? I'm in a cellar!).
+   Felt: liked the top half, skipped the bottom half.
+   Screenshot: 03-hunts-window.png
+
+7. FIRST FIGHT  <- LOVED IT
+   Doing: pressed Enter.
+   Happened: instantly in the Mill Cellar (well under a second). The cellar is SO cosy: sacks,
+   jars, a millstone, a little brazier. A tip said "You don't click to attack. Your hero walks to
+   the rats, swings, and picks the next one." That's exactly the sentence I needed.
+   "Power Strike" and "+15 XP" pop up over Pip. Level 2 in about 80 seconds.
+   Smooth as butter (I checked: a steady 60 fps).
+   Small thing: top right says "Next level in: after 10 min" while the ring says I'm 84% there.
+   It reads like the next level comes in 10 minutes.
+   Felt: this is the "ohh, I get it" moment. Very satisfying.
+   Screenshot: 04-first-fight.png
+
+8. FARMING WHILE I HUNT  <- LOVED IT
+   Doing: a tip said "Plant your land", so I opened Farm.
+   Happened: 2 plots, plant turnips, press Water ("grows twice as fast for 2 hours"). Tiny turnip
+   drawings with "2 h left". Pip kept hunting the whole time.
+   Felt: my Stardew brain lit up. Doing two things at once is the hook for me.
+   Small thing: hovering the Turnip Seed in my bag says "Used for: Sell it at the shop." I just
+   planted them!
+   Screenshot: 05-farm-while-hunting.png
+
+9. THE "ACTION BAR" TIP HID ITSELF
+   Happened: after farming, a tip appeared already folded up into a tiny strip that just said
+   "Your action bar". I nearly missed it. Opened, it said the bar "uses the first one that's ready
+   and whose conditions are all true". Conditions?
+   Felt: shrug.
+
+10. "EAT ON TIME" — THIS FELT LIKE HOMEWORK
+    Doing: after skipping 10 minutes, a tip told me to change when Pip eats.
+    Happened: "A Cooked Shrimp heals 96, and at 60% of your 170 HP you're missing 68, so 28 of it
+    is wasted. Press slot 3, press - until it reads 50% (only 11 is wasted there...)".
+    The slot opens a screen that looks like programming: "when [my HP] [is below] [60] %",
+    "+ Add a condition", and a big table with "g per HP, cheapest first". I did what it said.
+    Then straight away ANOTHER tip: "slot 4 still buys Salted Shrimp below 60%... make it 50%".
+    Then another one about Flame Strike and runes ("press slot 6, then Runes, Flame Strike, Plain
+    Fire Rune, then Save").
+    Felt: like a maths lesson stacked on a coding lesson. I did them because I'm obedient, not
+    because I understood why. I never once saw Pip in danger, so "wasted 28 HP" meant nothing.
+    Screenshot: 06-eat-on-time-config.png
+
+11. THE MOST IMPORTANT SENTENCE CAME 15 MINUTES IN
+    Happened: a tip: "You can close the game: your hero keeps hunting until its stamina runs out,
+    and what it earns waits for you."
+    Felt: WAIT, WHAT. That changes everything about how I'd play. This should be on the very
+    first screen, not 15 minutes in. Also I still didn't know what stamina meant here.
+
+12. I MISSED MY LEVEL-UPS
+    Happened: Level 5 happened while I had a window open. Next time I looked, the number had just
+    changed. I did catch a floating "Level 3" and "Level 6" over Pip once each, which was nice,
+    but there's nothing that stays to tell me "you levelled up, here's what you got".
+    Felt: robbed of a little party.
+
+13. LEAVING THE HUNT TAKES A WHILE
+    Happened: pressed Leave hunt; it says "Leaving in 24s" and counts down, about 20 seconds in
+    total. Nothing explains why I wait.
+    Felt: a bit impatient, the only slow thing all night.
+
+14. HUNT SUMMARY  <- LIKED IT
+    Happened: clean card: time 17 min, 142 monsters, 547 gp. A big gold button "Next: Wear what you
+    found" -> Equip upgrades -> done in one click (a Bronze Helm).
+    Felt: easy and rewarding. That gold "Next:" button is the best thing in the UI.
+    Screenshot: 07-hunt-summary.png
+
+15. FEEDING THE HEARTH: NOTHING HAPPENED?
+    Doing: tip said press Bones, then Fuel all.
+    Happened: Pip WALKED across town (over a river, past a watermill, really pretty) to a big stone
+    hearth... and stood there. No fire, no sparkle, no number. Status went back to "idle".
+    The hearth even looks unlit. I don't know if it worked or what "Inner Flame" is.
+    Felt: the walk was charming, the payoff was nothing.
+    Screenshot: 08-great-hearth-nothing-happens.png
+
+16. CLICKING A PERSON  <- LOVED THE IDEA
+    Doing: I clicked the lady by the notice board, just to see.
+    Happened: Pip walked over and "Tamsin's tally" opened: kill tasks for gold and armour. Clicking
+    a person in the world WORKS. Great.
+    But: every "Take" button was greyed out with no reason. I finally worked out I had to pick
+    Heavy / Medium / Light "armor she pays you in" (which sits ABOVE the board) first. There's
+    also a list "1. Head Earlier, 2. Body Earlier..." — what does "Earlier" mean?
+    Took "200 Gray Wolves" in Meadowbrook Thicket.
+    Felt: delight, then a frustrating minute.
+    Screenshot: 09-tamsin-take-greyed-out.png
+
+17. SELLING
+    Happened: Shop -> Sell tab -> "Sell all loot · 129 gp" -> "Sell 6 stacks?" -> done. It kept my
+    wheat and shrimp on purpose. Easy.
+
+18. MEADOWBROOK THICKET + THE HOUSE
+    Happened: a grassy path with bushes, wolves and lots of "miss" popping up. A little "Tally:
+    Gray Wolves 1/200" box on screen, nice. I peeked at House: Wanderer's Camp -> Homestead ->
+    Farmstead -> Manor -> Keep -> Hearthrise Castle, with a Garden, Kitchen, Forge, Library...
+    Felt: THAT is a goal I understand. I want the castle. (Needs 20 Copper Ore and 30 logs, shown in
+    red; no idea yet where those come from.)
+
+19. CHAT
+    Happened: typed "hi! anyone here from the stream?" -> shows up with a timestamp and my level.
+    Nobody else around ("1 online"). The Combat tab says things like "Pip hits Someone for 1.",
+    "Pip defeats Someone." — most monsters are called "Someone" (only Giant Rat had a name).
+    Felt: lonely, and "Someone" made me laugh.
+    Screenshot: 10-combat-log-someone.png
+
+20. SECOND HERO (BRAMBLE)
+    Doing: tip said I could run more heroes, so I made Bramble and picked red/yellow colours.
+    Happened: grey knight again (colours ignored again). I wanted an archer, so I equipped the
+    Practice Bow from the bag. Bramble turned into a blonde archer and the bottom bar rearranged
+    itself by magic. Cool! Sent Bramble to the Mill Cellar. The hero tabs top-left (Pip / Bramble)
+    and the "All characters" window are neat.
+    Odd: the bow's tooltip lists "Melee accuracy +5, Melee damage +3".
+    Odd: "2 online" — for a second I thought someone joined, but it's just my two heroes.
+    Odd: money. "Bag 645 gp" / "Bag 26 gp" in one window, "Your gold 1,794 gp" in another, "shared
+    purse" in the House. Where does my money live?
+    Closed the browser for the night: Pip hunting wolves, Bramble hunting rats, turnips growing.
+
+
+================================================================
+EVENING TWO (came back "the next day", about an hour)
+================================================================
+
+21. COMING BACK  <- NICE
+    Happened: signed in (fast). Characters screen: Pip Level 9 (was 6)! Bramble... Level 1?
+    In town Pip and Bramble stand side by side, which is adorable. Tally says "Gray Wolves 200/200 ·
+    Done. Visit Tamsin to be paid." A toast: "Bramble's hunt in Mill Cellar has ended."
+    But I didn't get a "while you were away" story for Pip: why did the hunt stop, what did I earn
+    overnight? I had to guess. (Could be my time-skip, see the bottom.)
+    Screenshot: 11-evening2-return.png
+
+22. BRAMBLE: 4 HOURS, ZERO KILLS, 4,524 GOLD GONE  <- I NEARLY QUIT HERE
+    Doing: clicked Bramble's summary.
+    Happened: "Your hunt was stopped because the server could not accept its last few minutes;
+    nothing from them was counted." Time 4:00:18. Monsters 0. Level XP 0. Balance -4,524 gp.
+    Supplies used: all 20 of my own Cooked Shrimp, 286 Salted Shrimp bought from the store, 52
+    Turnip Juice bought from the store. The suggested "Next:" was "Defense isn't training" ->
+    buy Leather Gloves.
+    So my archer stood in a cellar for four hours being nibbled by rats, eating shrimp I paid for
+    out of the money my OTHER hero earned, and never fired a single arrow.
+    Why (I had to hover every slot to find it): slot 3 Precision Shot said "Needs ammo for each
+    cast: you carry none your weapon shoots, and no ammo slot buys any. Put arrows or bolts on the
+    bar (Ammo) to cast it." Slot 2 Flame Volley needed Fire runes I don't have. Meanwhile 50 Bronze
+    Arrows were sitting in Bramble's bag the whole time. Equipping the bow built the bar for me but
+    didn't put the arrows on it, and nothing warned me when I pressed Enter.
+    Felt: gutted, and a bit cheated. The summary blamed "the server" and suggested gloves, which
+    sent me the wrong way. A newcomer who doesn't hover every slot would just think the game is
+    broken and leave.
+    Screenshots: 12-archer-4h-zero-kills.png, 13-archer-dead-bar.png
+
+23. FIXING IT MYSELF
+    Doing: empty slot 7 -> Ammo -> Bronze Arrows -> Save. Back to the cellar.
+    Happened: the hunt screen now says "Ammo: 50 Bronze Arrows of yours", and Bramble got 5 kills in
+    30 seconds and was Level 5 after 23 minutes. The "Spells need runes" tip only showed up NOW,
+    after the disaster.
+    Felt: relieved, and a little proud I figured it out. But I shouldn't have had to.
+
+24. TAMSIN PAID ME... NO ARMOUR
+    Happened: "Tamsin paid Pip 480 gp and 5 Raw Wolf Meat for Gray Wolves." Both the tip and Tamsin
+    herself promised "480 gp and a piece of armor you can wear". I'd picked Heavy. No armour.
+    Felt: like I'd been short-changed.
+    Screenshot: 14-tips-and-toasts-over-hero.png (the toast on the left)
+
+25. WICKSTEAD  <- LOOT HIGH
+    Happened: "A burned farm on the Thicket road. Rats in the granary, turncoats in the house." —
+    best blurb in the game (though I mostly saw grass and a ploughed field, not a burned farm).
+    20 minutes: 214 kills, and an Iron Platebody, a Studded Leather Body, an Adept Sash dropped!
+    The Iron Platebody's tooltip was perfect: compares to what I wear, then "Needs Level 15 —
+    you're 9". "Wear what you found" put on three Bronze pieces in one click.
+    But: the "What next" tip box and the Tamsin toast sat on top of my hero for the whole hunt.
+    The Tamsin toast never went away on its own: it was still there an hour later.
+    Screenshot: 14-tips-and-toasts-over-hero.png
+
+26. PARTY
+    Doing: tip said right-click Bramble's tab -> Invite to party, "your own heroes join at once".
+    Happened: "Bramble is hunting. Invite them once that hunt ends." Clear enough, but the tip made
+    it sound instant. I gave up on parties.
+
+27. COOKING AND FISHING  <- LOVED IT
+    Happened: Cooking: Pip WALKED to a spit-roast campfire in town and the panel said "3 cooked so
+    far, 1 burnt, 1 more on the fire". Fishing: Pip walked down to the river bank and stood fishing; "It
+    keeps going while you are away".
+    Felt: this is the cosy bit I came for. Best moment of the two nights.
+    Small thing: the fishing panel said "2 caught so far · 0 in your bag" while my bag had 5 raw
+    shrimp.
+    Screenshot: 15-cooking-campfire.png
+
+28. TIPS IN THE WRONG ORDER
+    Happened: on evening 2 I got "Every weapon is a style" (a long box explaining sword/bow/wand
+    etc. — it covered Pip completely) — AFTER my archer disaster. Then "Before the wolves: Out past
+    the Cellar you can die... costs 2% of your Level XP... Blessings are free until Level 30" —
+    AFTER I'd already done the wolves AND Wickstead. Blessings themselves were one click each in
+    Shop > Services. Easy, I just wish I'd known on day one.
+
+29. THE HELP PAGE IS THE BEST THING YOU'VE WRITTEN
+    Happened: found Settings > Help by accident on evening 2. "Your hero fights by itself", "It keeps
+    hunting with the game closed", "Stamina is hunting time", "Your weapon is how you fight".
+    This is everything I needed on day one, in plain words. It's buried behind a gear icon.
+    Also it says "A free hero holds up to 8 hours" of stamina, but my bar and the Shop said 12 h.
+
+
+================================================================
+SPEED / LAG
+================================================================
+Everything felt quick. Rough numbers from my session (local test server, so the live site will
+add some network time):
+- Page load about 1 s; sign in 0.2-0.3 s; Enter town 0.45-0.7 s; Enter a hunt 0.2-0.6 s;
+  page reload back into a running hunt about 1.3-1.4 s.
+- Hunts ran at a steady 60 fps; I never saw a stutter or freeze. No error messages at all.
+- The only thing that felt slow was the ~20 s "Leaving in..." countdown, and the Mill Cellar
+  sometimes left Pip standing alone for 10 seconds waiting for rats to come back.
+(Fonts looked plain in my browser; I'm told that's my test setup, so I'm ignoring it.)
+
+
+================================================================
+PROBABLY MY TIME-SKIP TOOL, NOT THE GAME (please double-check, don't chase blindly)
+================================================================
+- Twice, right after skipping time, the Hunt analyzer said "Hunt ended. This is the session
+  summary." and showed my PREVIOUS hunt's numbers while I was clearly still hunting (the XP ring
+  kept going up, and the hunt clock froze). It stayed that way after a reload.
+- Both heroes' overnight hunts ended with "the server could not accept its last few minutes;
+  nothing from them was counted". I skipped in big 2-hour chunks, so this may be the skip. But if
+  a real player ever sees that sentence, "nothing was counted" reads like "you lost everything".
+- My turnips never ripened overnight; the skip doesn't move farm clocks.
+- Pip's summary on evening 2 showed the old Mill Cellar run instead of the overnight wolf hunt.
+
+
+================================================================
+THE QUESTIONS
+================================================================
+
+Would I come back tomorrow, and why?
+  Yes, probably. Pip is level 9 with an Iron Platebody waiting at 15, there's a castle to build,
+  turnips to check, and the cooking/fishing bits are cosy. And I like that my heroes keep going
+  while I'm away. But if I hadn't worked out the archer's arrows myself, I'd have written the game
+  off as broken on evening two.
+
+The one thing I'd tell the devs:
+  Never let a hero start (or keep running) a hunt it can't fight in. If the bar can't attack (no
+  arrows on it, no runes), say so in big letters when I press Enter, and stop the hunt after a
+  minute of zero kills instead of quietly burning 4,500 gold for four hours.
+
+What did I never understand?
+  - The right side of the bottom bar: Setup/Preset 1, Target (Nearest / Lowest HP / Highest % life
+    / Strongest / Follow the leader), Offensive/Balanced/Defensive, Chase vs Distance, Charm.
+  - Action bar "conditions" and "tried after slot 2" order. Why I'd ever change them.
+  - "Each pull", "packs", "As built", "DPS and HPS", "Costs are personal".
+  - Inner Flame, Ward, Absorb, "Hit chance 62% against no armor". What the Great Hearth did.
+  - "Earlier" next to each armour slot on Tamsin's board.
+  - Where my gold lives (bag gold vs "Your gold" vs shared purse) and why one hero can spend the
+    other's money.
+  - Why my chosen colours vanished.
+  - Stamina: 8 h or 12 h? What happens at 0?
+
+When was I most tempted to quit?
+  Reading Bramble's summary: 4 hours, 0 monsters, -4,524 gp, "nothing from them was counted",
+  and the game's advice was to buy gloves. Runner-up: the "eat on time" maths-tip chain on night
+  one.
+
+Best moment?
+  Pip walking over to the spit-roast in town and the panel saying "3 cooked so far, 1 burnt,
+  1 more on the fire". Close second: the first fight in the Mill Cellar with "+15 XP" popping and
+  "you don't click to attack" finally making it click.
+
+Scores
+  Fun:     7/10  (gorgeous, cosy, plays itself nicely; the archer disaster cost points)
+  Clarity: 4/10  (great one-line quest box and Help page; everything else is jargon or late tips)
+  Speed:   9/10  (snappy everywhere, steady 60 fps; only the leave countdown drags)

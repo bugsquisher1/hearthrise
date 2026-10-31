@@ -6,11 +6,11 @@
   "schema change was intended — the diff of this file is the review surface.",
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
- "generated": "2026-10-30",
- "digest": "23e14456faa72c65c4a81ce62e3d53ddc4f49a969b1738c619175bc59012e3dc",
+ "generated": "2026-10-31",
+ "digest": "b262fdbcbb6d52133ca5bc674851365c70de3a4c81c93f85f06dfbdc5fc5f958",
  "counts": {
   "relations": 239,
-  "functions": 571,
+  "functions": 572,
   "policies": 115,
   "indexes": 340,
   "triggers": 53,
@@ -691,6 +691,7 @@
    "hr_rate_ok(p_user uuid, p_bucket text, p_limit integer, p_window interval)",
    "hr_rate_over(p_user uuid, p_bucket text)",
    "hr_rate_sample_weight(p_over bigint)",
+   "hr_realtime_frame_prune(p_limit integer)",
    "hr_realtime_policies()",
    "hr_recipe_learn(p_item text, p_slot integer, p_idem uuid)",
    "hr_recipe_learn__ungated(p_item text, p_slot integer, p_idem uuid)",

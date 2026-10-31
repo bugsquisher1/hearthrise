@@ -104,9 +104,9 @@
 
 /* Landscape phone: the crest (1:2) beside the card, both inside 423 px with no scroll. */
 @media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
-  .auth { flex-wrap: nowrap; gap: 40px; padding: 8px 16px; }
+  .auth { flex-wrap: nowrap; gap: 40px; padding: 4px 16px; }
   .auth-crest { width: 156px; height: 192px; }
-  .auth-card { gap: 8px; padding: 0 16px 12px; }
+  .auth-card { gap: 6px; padding: 0 16px 12px; }
   .auth-title { min-height: 40px; margin: 0 -16px 0; padding: 4px 16px; }
   .auth-field input { min-height: 36px; }
   .auth-submit { min-height: 40px; }
@@ -220,6 +220,7 @@
   .char-strip-tools { order: -1; height: 40px; }
   .char-tool { position: relative; height: 40px; padding: 0 4px; font-size: var(--t-micro); font-weight: 700; color: var(--ink-2); }
   .char-tool:not(.is-all), .char-tool-wide { display: none; }
+  .char-tool.is-all { box-sizing: border-box; width: 58px; padding: 0; } /* the row gives back 60 px (shell.css), whichever font the word lands in */
   .char-tool-short { display: inline; }
   .char-tool .char-all-badge.is-on { display: block; position: absolute; top: 0; right: 0; min-width: 16px; height: 16px; padding: 0 3px; line-height: 16px; }
   .char-tabs { flex: 1 1 0; height: 40px; overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain; scrollbar-width: none; }

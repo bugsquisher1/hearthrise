@@ -148,8 +148,7 @@ export async function bootWorld(panel, opts) {
   const stage = panel.querySelector('.world-stage');
   const chrome = panel.querySelector('.world-chrome');
   const styles = win.getComputedStyle(doc.body);
-  /* THE WORLD'S TOKENS, READ ONCE: a live computed-style read per colour re-ran style dozens of times a frame (perf lane
-     2026-10-28); kept until an <html>/<body> attribute (theme, class) or a resize (media query) can change them. */
+  /* THE WORLD'S TOKENS, READ ONCE (a read per colour re-ran style dozens of times a frame), until an <html>/<body> attribute or a resize can change them. */
   const tokens = new Map();
   const css = (name) => { let v = tokens.get(name); if (v === undefined) tokens.set(name, v = styles.getPropertyValue(name).trim()); return v; };
   /* ...and a changed token is the one change a draw list cannot show: the next frame paints whatever it holds */

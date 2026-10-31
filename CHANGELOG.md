@@ -11,7 +11,7 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 
 **Tips stay out of your way.** Cards come in a better order, the ones that ask something have a Got it button, and in a hunt they fold after 20 seconds. The Help page has its own card now, and it has the stamina numbers right.
 
-**Phones.** Hero tabs are big enough to press, a Heroes button brings them back on small screens, the rest of the hotbar is one press away, and chat sits on screen. A held icon shows its name, a grey button says why, and the game tells you when your connection is the reason you're waiting.
+**Phones.** Hero tabs are big enough to press, a Heroes button brings them back on small screens, the rest of the hotbar is one press away, and chat sits on screen. A held icon shows its name, a gray button says why, and the game tells you when your connection is the reason you're waiting.
 
 **Easier on your computer.** A still town no longer repaints sixty times a second, so older laptops should run quieter. Switching heroes no longer slowly fills up memory, and a hidden tab does far less. Slow first visits now show a loading screen instead of black.
 

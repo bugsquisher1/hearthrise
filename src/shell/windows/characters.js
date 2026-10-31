@@ -190,7 +190,7 @@ renderCharacters.act = function actCharacters(ctx, body, action, ev, t) {
     sc.inviting = true; sc.partyMsg = 'Sending…';
     repaint();
     Promise.resolve(can.entry.run(can.target, { open: (id) => ctx.show(id) })).then((r) => r, () => ({ say: 'That did not work. Try again.' })).then((r) => {
-      sc.inviting = false; sc.partyMsg = r && r.say ? r.say : '';
+      sc.inviting = false; sc.partyMsg = (r && (r.say || r.done)) || '';
       repaint();
     });
     return true;

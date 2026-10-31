@@ -7,22 +7,13 @@
 // pick / screenOf: a tap's client point ↔ the last frame's tiles and sprites.
 //
 // One frame:
-//   1. compose at ART resolution (the map's T) on an offscreen canvas: ground
-//      chunks (16x16 tiles, ground-chunks.js: baked in slices, ahead of the view), decals,
-//      the ONE shadow mask at --world-shadow-alpha (ellipses, polygons and
-//      cast silhouettes sheared by castMatrix), the y-sorted sprites, the
-//      raised layer (rock tops, capstones, roofs), then light: the map's
-//      ambient multiplied with stepped point-light pools added in, and a
-//      vignette outdoors; both masks are re-drawn only on a changed signature;
-//   2. copy it to the screen in ONE nearest-neighbour drawImage at zoom z,
-//      offset by the camera's whole-device-pixel remainder (core/camera.js);
-//   3. draw the nameplates, the walk mark and speech bubbles at SCREEN
-//      resolution so text stays crisp.
-// A FRAME IS PAINTED ONLY WHEN ITS DRAW LIST CHANGED (frame-sig.js, tests/perf-budget.mjs PB-IDLE): composeFrame
-// runs every frame, and a list equal to the one on the canvas leaves the canvas as it is. So anything that animates
-// (a walker, a fire's clip, a hit) paints on the frame it changes, at full rate, and a still town costs no pixels.
-// THE GROUND IS KEPT WHILE THE CAMERA STANDS (groundLayer): void, chunks and decals, composed once for that view.
-// Moving, a frame composes them directly: nothing is copied twice on the way to the screen.
+//   1. compose at ART resolution (the map's T) offscreen: ground chunks (ground-chunks.js), decals, the ONE shadow
+//      mask (--world-shadow-alpha; casts sheared by castMatrix), y-sorted sprites, the raised layer, then light:
+//      ambient with stepped point-light pools and a vignette outdoors; masks redraw only on a changed signature;
+//   2. copy it to the screen in ONE nearest-neighbour drawImage at zoom z, offset by the camera's remainder (camera.js);
+//   3. draw nameplates, the walk mark and speech bubbles at SCREEN resolution so text stays crisp.
+// A FRAME IS PAINTED ONLY WHEN ITS DRAW LIST CHANGED (frame-sig.js, tests/perf-budget.mjs PB-IDLE): a still town costs
+// no pixels. THE GROUND IS KEPT WHILE THE CAMERA STANDS (groundLayer); moving, a frame composes it directly.
 // Colours: --world-* tokens via `css`. Tile, chunk, zoom: the map's grid (zs = z x T / 32).
 // ════════════════════════════════════════════════════════════════════════
 import { zoomFor, frameView, cleanInset } from '../core/camera.js?v=0.2.76';
@@ -541,9 +532,8 @@ export function createCanvasBackend(o) {
       canvas.setAttribute('aria-label', 'The world');
       host.appendChild(canvas);
       ctx = canvas.getContext('2d', OPAQUE);
-      /* a canvas the browser lost and gave back is blank, and a held frame would leave it so */
+      /* a canvas given back is blank; the names' letters change shape when the web font lands */
       canvas.addEventListener('contextrestored', repaint);
-      /* the names' letters change shape when the web font lands */
       if (doc.fonts && doc.fonts.addEventListener) doc.fonts.addEventListener('loadingdone', repaint);
       dirty = true;
       if (typeof win.ResizeObserver === 'function') { ro = new win.ResizeObserver(() => { dirty = true; }); ro.observe(host); }
@@ -579,11 +569,7 @@ export function createCanvasBackend(o) {
     invalidate() { repaint(); floorGood = false; shadeSig = litSig = rimSig = null; },
     /** The viewer's zoom (CSS px per base art px; null: the screen class's), from the next frame on. */
     setZoom(v) { const next = Number.isFinite(v) && v > 0 ? v : null; if (next !== zoomPick) { zoomPick = next; dirty = true; hold = true; lastCam = camFrom = null; } },
-    /**
-     * THE CAMERA INSET: the strips of the stage a docked window covers, in CSS
-     * px ({left, right, top, bottom}; null uncovers it). The camera frames the
-     * rest, so the hero is never under a window; the art still draws there.
-     */
+    /** THE CAMERA INSET: the CSS px strips a docked window covers ({left, right, top, bottom}; null uncovers); the camera frames the rest. */
     setInset(o) {
       const next = cleanInset(o), first = !insetHeard;
       insetHeard = true;
@@ -592,11 +578,7 @@ export function createCanvasBackend(o) {
       insetSince = win.performance.now();
       inset = next;
     },
-    /**
-     * What is under a client point in the last frame: { tile: [x, y], hits } —
-     * hits are the drawn props, units and decals there, top-most first. Under a
-     * roof that is showing, nothing below it is hit (the tap is on the building).
-     */
+    /** Under a client point in the last frame: { tile: [x, y], hits }, top-most first; a showing roof hides what is below it. */
     pick(clientX, clientY) {
       const p = last && canvas && toArt(clientX, clientY);
       if (!p) return null;

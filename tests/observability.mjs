@@ -630,8 +630,8 @@ async function nodeChecks(root) {
   let rageOut = 1, deadOut = 0;
   for (let i = 0; i < 40; i++) { if (via('$rageclick')) rageOut++; if (via('$dead_click')) deadOut++; }
   if (rageOut !== 20 || deadOut !== 20) fails.push('OB-13 CLICK_MAX is 20 of each kind per load, got ' + rageOut + ' rage and ' + deadOut + ' dead');
-  const named = via('hunt_started', { hunt: 'x' });
-  if (!named || named.properties.hunt !== 'x' || named.properties.release !== VERSION) fails.push('OB-13 an ordinary event does not carry the release: ' + JSON.stringify(named));
+  const stamped = via('hunt_started', { hunt: 'x' });
+  if (!stamped || stamped.properties.hunt !== 'x' || stamped.properties.release !== VERSION) fails.push('OB-13 an ordinary event does not carry the release: ' + JSON.stringify(stamped));
   if (!via('$snapshot', { s: 1 }) || via('$snapshot').properties.release !== VERSION) fails.push('OB-13 a replay snapshot was dropped or has no release');
 
   /* OB-14 (node): a funnel step is sent once per scope for an account, afresh for the next one; EVENT_MAX caps a load whatever loops. */

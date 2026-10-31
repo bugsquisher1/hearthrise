@@ -16,11 +16,21 @@ import { clock } from '../../render/format.js?v=0.2.75';
 import { track } from '../../net/observability.js?v=0.2.75';
 import { refusalText } from '../intent-words.js?v=0.2.75';
 import { pointerFor, actCoach, placeCoach } from '../launcher.js?v=0.2.75';
+import { connection } from '../../net/connection.js?v=0.2.75';
 
 /* The pending leave's line, per CharacterSession.leaveCountdown phase (null: the press is still out). */
 const LEAVING = Object.freeze({ asked: 'Leaving…', now: 'Leaving now…', late: 'Still processing your leave…' });
-function leavingLine(cd) {
-  return cd && cd.phase === 'counting' ? 'Leaving in ' + cd.s + 's' : LEAVING[cd ? cd.phase : 'asked'] || LEAVING.asked;
+/* NEVER A SILENT WAIT (phone playtest 2026-10-31: 20-33 s on "Leaving…" on bad signal): past a moment with no countdown
+   the line says what it is waiting for, and says so when the connection is gone. */
+const WAIT_WORDS_MS = 4000;
+const LEAVE_WAIT = Object.freeze({ lost: 'No connection yet…', slow: 'Waiting for the server…' });
+const LEAVE_WHY = 'Your hero finishes the fight under way, then heads home.';
+const LEAVE_SINCE = new WeakMap();   // the bar -> when its pending leave was first drawn (display only)
+function leavingLine(cd, waitedMs, state) {
+  if (cd && cd.phase === 'counting') return 'Leaving in ' + cd.s + 's';
+  if (state === 'lost') return LEAVE_WAIT.lost;
+  if (cd && cd.phase === 'late') return LEAVING.late;
+  return waitedMs >= WAIT_WORDS_MS ? LEAVE_WAIT.slow : LEAVING[cd ? cd.phase : 'asked'] || LEAVING.asked;
 }
 
 /** The skeleton (built once). */
@@ -32,7 +42,9 @@ export function renderHuntTopbar() {
     + '<button type="button" class="hh-tool" data-hs-act="summary">Summary</button>'
     + '<span class="ht-leaving" role="timer" hidden></span>'
     + '<button type="button" class="hh-tool is-leave" data-hs-act="leave" aria-label="Leave hunt">Leave<span class="ht-wide"> hunt</span></button>'
-    + '<span class="hh-intent-msg" role="status" aria-live="polite"></span></div>';
+    + '<span class="hh-intent-msg" role="status" aria-live="polite"></span></div>'
+    /* The phone's one line under the bar while a leave counts down (hunt.css): what the wait is for. */
+    + '<p class="ht-why" hidden>' + LEAVE_WHY + '</p>';
 }
 
 renderHuntTopbar.patch = function patchHuntTopbar(el, ctx) {
@@ -57,8 +69,11 @@ renderHuntTopbar.patch = function patchHuntTopbar(el, ctx) {
   const cd = over ? null : ctx.character.leaveCountdown();
   const leaving = asked || cd !== null;
   const line = el.querySelector('.ht-leaving');
-  text(line, leaving && !over ? leavingLine(cd) : '');
+  if (!leaving || over) LEAVE_SINCE.delete(el);
+  else if (!LEAVE_SINCE.has(el)) LEAVE_SINCE.set(el, ctx.now());
+  text(line, leaving && !over ? leavingLine(cd, ctx.now() - LEAVE_SINCE.get(el), connection.state()) : '');
   prop(line, 'hidden', !leaving || over);
+  prop(el.querySelector('.ht-why'), 'hidden', over || !cd || cd.phase !== 'counting');
   attr(leave, 'data-leaving', leaving);
   prop(leave, 'disabled', over || leaving);
   /* A hunt that is over (the hero is back in town) keeps only the way back to its summary (Tyler 10-19):

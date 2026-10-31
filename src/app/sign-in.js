@@ -14,6 +14,7 @@
 import { escapeHtml as esc } from '../utils/dom.js?v=0.2.75';
 import { AUTH_COPY } from '../net/auth.js?v=0.2.75';
 import { PASSWORD_MIN_LENGTH } from '../data/account-rules.js?v=0.2.75';
+import { MOBILE_QUERY } from '../world/core/camera.js?v=0.2.75';
 
 const FIELD = {
   email: '<label class="auth-field"><span>Email</span><input name="email" type="email" autocomplete="email" required></label>',
@@ -78,6 +79,13 @@ export function renderAuthScreen(box, auth, mode, on) {
     say(r.message, r.ok);
     if (r.ok && (mode === 'sign-in' || mode === 'set-password')) on.signedIn();
   });
-  const first = form.querySelector('input');
-  if (first) first.focus();
+  focusOffTouch(form.querySelector('input'));
+}
+
+/**
+ * Focus a screen's first field where a keyboard is there anyway. On a phone or a touch screen a focus throws the
+ * keyboard up over a screen the player has not read yet (phone playtest 2026-10-31): the first press does it.
+ */
+export function focusOffTouch(input) {
+  if (input && !input.ownerDocument.defaultView.matchMedia('(pointer: coarse), ' + MOBILE_QUERY).matches) input.focus();
 }

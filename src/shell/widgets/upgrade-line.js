@@ -51,6 +51,7 @@ export function patchUpgradeLine(root, plan, on, pending, o) {
   const b = line.querySelector('button');
   prop(b, 'disabled', !!pending || !plan.picks.length || !show || !!opt.locked);
   attr(b, 'title', show ? upgradeWords(plan, Infinity, Infinity) : null);
+  attr(b, 'data-off-why', show && opt.locked ? GEAR_HUNT_WORDS.upgrades : null);
   whyLine(line.querySelector('.hw-upgrade-why'), show ? opt.msg || (opt.locked ? GEAR_HUNT_WORDS.upgrades : '') : '', !!opt.msg);
 }
 

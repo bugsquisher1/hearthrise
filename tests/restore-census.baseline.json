@@ -408,6 +408,7 @@
    "hr-market-sales-prune | 45 3 * * * | select public.market_sales_prune()",
    "hr-party-reap | */10 * * * * | select public.hr_party_reap_stale(200)",
    "hr-progress-prune | 25 4 * * * | select public.hr_progress_prune()",
+   "hr-realtime-frame-prune | 3-59/10 * * * * | select public.hr_realtime_frame_prune(20000)",
    "hr-rejections-prune | 35 4 * * * | select public.hr_rejections_prune()",
    "hr-slot-health | */5 * * * * | select public.hr_slot_health_alert()",
    "hr-tick-cron-log-prune | 37 * * * * | select public.hr_tick_cron_log_prune(20000)",

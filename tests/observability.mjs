@@ -427,9 +427,11 @@ async function browserChecks(overrides) {
       await pg.goto('https://hearthrise.net/play.html', { waitUntil: 'load' });
       if (!(await signIn(pg))) fails.push('OB-15 sign-in did not reach the characters screen');
       await wait(pg, () => window.posthog && window.posthog.__loaded);
-      await pg.waitForTimeout(500);
-      await pg.reload({ waitUntil: 'load' });
       const all = () => seen.events.filter((e) => e && e.event === 'boot_timing');
+      /* past PostHog's 3 s batch: a reload sooner drops whatever a sign-in queued, and the count below could not see it */
+      await until(() => all().length > 0, 4000);
+      if (all().length) fails.push('OB-15 a sign-in sent boot_timing');
+      await pg.reload({ waitUntil: 'load' });
       await until(() => all().length > 0, 15000);
       await pg.waitForTimeout(500);
       const got = all();

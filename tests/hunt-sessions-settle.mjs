@@ -1933,6 +1933,52 @@ const DB_ARMS = {
     }
     return problems;
   }),
+  /* A FORFEIT COMES HOME FULL TOO (2027-02-11-forfeit-home-whole.sql). Six refused windows end the hunt with no engine
+     (nothing of the window is credited), so the rule above needs its own write: stored HP, the envelope's HP and mana,
+     and the next hunt, on BOTH doors: the browser closed (the tick) and the hunt viewed (the player's settle). */
+  'FORFEIT-HOME-WHOLE': async (db, M) => inTx(db, async () => {
+    const problems = [];
+    const { heroVitalsOf } = await import(pathToFileURL(join(ROOT, 'src/session/character-sections.js')).href);
+    const drawn = (env) => heroVitalsOf({ read: (k) => (env ? env[k] : undefined) });
+    const exec = makeExec(db);
+    const DOORS = {
+      'the browser closed': { mode: 'tick', project: null },
+      'the hunt viewed': { mode: 'settle', project: { user: UID, slot: 0 } },
+    };
+    for (const [path, door] of Object.entries(DOORS)) {
+      const h = await hunter(db, M, { ...WEAK, minutesAgo: 2 });
+      const vit = await one(db, 'select public.hr_vitals_of($1::uuid, 0)', [UID]);
+      const maxHp = Number(vit.max_hp); const maxMana = Number(vit.max_mana);
+      if (!(Number(await one(db, 'select hp from public.player_state where user_id = $1 and slot = 0', [UID])) < maxHp * 0.2)) {
+        problems.push(`${path}: CONTROL: the hero did not walk in hurt`); await db.query('rollback'); await db.query('begin'); continue;
+      }
+      let r = null;
+      for (let i = 0; i < 6 && !r?.forfeit; i++) {
+        const plan = await M.HS.readHuntSettle({ exec, user: UID, slot: 0, grounds: groundsOf(M), atMs: h.from + 30000 }, door.mode);
+        if (plan.answer) { problems.push(`${path}: refusal ${i + 1} was not offered: ${JSON.stringify(plan.answer).slice(0, 200)}`); break; }
+        const p = await M.HS.proposeHuntSettle(plan, plan.toMs, 0);
+        p.commit.members[0].delta.journal.meta.kills = 100000;
+        r = await M.HS.commitHuntSettle(exec, { ...p.commit, project: door.project });
+      }
+      const s = await snapshot(db, h.sid);
+      if (!s.session.ended_at || !r?.forfeit) problems.push(`${path}: CONTROL: six refusals did not forfeit: ${JSON.stringify(r).slice(0, 200)}`);
+      if (s.hp !== maxHp) problems.push(`${path}: a forfeited hero is stored at ${s.hp} of ${maxHp} HP in town, not full`);
+      const v = drawn(await one(db, 'select public.hr_state_of($1::uuid, 0)', [UID]));
+      if (v.hunting || v.hp !== maxHp || v.hpMax !== maxHp || v.mana !== maxMana || v.manaMax !== maxMana) {
+        problems.push(`${path}: the envelope draws HP ${v.hp}/${v.hpMax}, mana ${v.mana}/${v.manaMax} in town (hunting ${v.hunting}), not full (${maxHp} HP, ${maxMana} mana)`);
+      }
+      await asUser(db, UID);
+      const e = await one(db, `select public.hr_hunt_enter(0, 'mill_cellar', '[]'::jsonb, 0, null, $1::uuid)`, [idem()]);
+      await db.query(`select set_config('request.jwt.claim.sub', '', true)`);
+      if (!e || e.ok !== true) problems.push(`${path}: the next hunt was refused ${JSON.stringify(e).slice(0, 200)}`);
+      else {
+        const n = drawn(await one(db, 'select public.hr_state_of($1::uuid, 0)', [UID]));
+        if (!n.hunting || n.hp !== maxHp || n.mana !== maxMana) problems.push(`${path}: the next hunt enters at HP ${n.hp}/${n.hpMax}, mana ${n.mana}/${n.manaMax}, not full`);
+      }
+      await db.query('rollback'); await db.query('begin');
+    }
+    return problems;
+  }),
   STAMINA: async (db, M) => inTx(db, async () => {
     const problems = [];
     const { sid, from } = await hunter(db, M, { ...STRONG, stamina: 30 * 2000 });
@@ -3431,10 +3477,14 @@ const MUTANTS = [
     from: '  died: (hs) => hs.died === true,', to: '  died: () => false,' },
   { arm: 'DEATH', name: 'a dead hero walks home at 0 HP', file: 'src/core/combat-sim.js',
     from: '  m.state.playerHp = m.state.playerMaxHp;\n', to: '' },
-  /* The pre-2026-10-29 end, restored (Pellow at 135/160): only a death sent the hero home whole. */
+  /* The pre-2026-10-29 end, restored (Pellow at 135/160): only a death sent the hero home whole. hr_hunt_close also
+     writes max HP since 2027-02-11-forfeit-home-whole.sql, so that write is off for this mutant (`dbOff`): the engine's
+     own end must still bring the hero home whole. FORFEIT-HOME-WHOLE proves the close's write alone. */
   { arm: 'HOME-WHOLE', name: 'an end other than a death walks home with the HP it had', file: 'src/core/combat-sim.js',
     from: '  m.state.playerHp = m.state.playerMaxHp;\n',
-    to: '  const u = world && m.unitId !== null ? world.units.find((x) => x.id === m.unitId) : null;\n  if (u) m.state.playerHp = u.alive ? u.hp : m.state.playerMaxHp;\n' },
+    to: '  const u = world && m.unitId !== null ? world.units.find((x) => x.id === m.unitId) : null;\n  if (u) m.state.playerHp = u.alive ? u.hp : m.state.playerMaxHp;\n',
+    dbOff: { fn: 'public.hr_hunt_close(uuid,text,timestamp with time zone,boolean)',
+      find: "       set hp = (public.hr_vitals_of(v_s.user_id, v_s.slot) ->> 'max_hp')::int\n", replace: '       set hp = hp\n' } },
   { arm: 'DEATH', name: 'a death row carries a recovery clock again', file: join(FN, 'accrual.js'),
     from: '      monster: String(d.monster || \'\'),\n      deaths_today:', to: '      monster: String(d.monster || \'\'),\n      recovery_ms: 60000,\n      deaths_today:' },
   { arm: 'DEATH', name: 'a death costs nothing', file: 'src/core/combat-sim.js',
@@ -3636,6 +3686,8 @@ const DB_MUTANTS = [
   /* (re-anchored on 2027-01-22-party-settle-isolation.sql: every seat ends through hr_hunt_forfeit_seat) */
   { arm: 'FORFEIT', name: 'a forfeit ends the hunt now instead of at the last accepted boundary', fn: 'public.hr_hunt_forfeit_seat(uuid,uuid,text,jsonb,integer)',
     find: "  perform public.hr_hunt_close(v_s.id, v_end, v_i.settled_to, true);", replace: "  perform public.hr_hunt_close(v_s.id, v_end, now(), true);" },
+  { arm: 'FORFEIT-HOME-WHOLE', name: 'a forfeited hero keeps the HP it had (the close writes no max HP)', fn: 'public.hr_hunt_close(uuid,text,timestamp with time zone,boolean)',
+    find: "       set hp = (public.hr_vitals_of(v_s.user_id, v_s.slot) ->> 'max_hp')::int\n", replace: '       set hp = hp\n' },
   { arm: 'DEPLOY', name: '[deploy v0.2.32] a world of the shape the catalogue just replaced counts toward the forfeit again', fn: AI,
     find: "        return public.hr_hunt_settle_held(p_instance, p_world_from, v_first, jsonb_build_object('ok', false, 'error', 'world_shape_moved',",
     replace: "        return public.hr_hunt_settle_refused(p_instance, p_world_from, v_first, jsonb_build_object('ok', false, 'error', 'world_shape_moved'," },
@@ -3848,7 +3900,12 @@ async function main() {
     const picked = (list) => list.filter((m) => !pick || m.name.includes(pick));
     for (const m of picked(MUTANTS)) {
       const dir = mkdtempSync(join(tmpdir(), 'hr-s1-'));
+      const offDef = m.dbOff ? String(await one(db, `select pg_get_functiondef($1::regprocedure)`, [m.dbOff.fn])).split(String.fromCharCode(13)).join('') : null;
       try {
+        if (offDef) {
+          if (offDef.split(m.dbOff.find).length !== 2) { console.error(`✗ mutant "${m.name}": dbOff anchor not found exactly once`); bad++; continue; }
+          await db.exec(offDef.replace(m.dbOff.find, () => m.dbOff.replace));
+        }
         for (const d of ['src/core', 'src/data', FN]) cpSync(join(ROOT, d), join(dir, d), { recursive: true });
         cpSync(join(ROOT, 'src/build-info.js'), join(dir, 'src/build-info.js'));
         const p = join(dir, m.file);
@@ -3858,7 +3915,7 @@ async function main() {
         const res = await runArms(dir, db, [m.arm]);
         if (res[m.arm] && res[m.arm].length) console.log(`✓ ${m.arm} goes red on: ${m.name}`);
         else { console.error(`✗ ${m.arm} stayed GREEN on: ${m.name}`); bad++; }
-      } finally { rmSync(dir, { recursive: true, force: true }); }
+      } finally { if (offDef) await db.exec(offDef); rmSync(dir, { recursive: true, force: true }); }
     }
     for (const m of picked(DB_MUTANTS)) {
       const def = String(await one(db, `select pg_get_functiondef($1::regprocedure)`, [m.fn])).split(String.fromCharCode(13)).join('');

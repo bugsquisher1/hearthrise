@@ -258,7 +258,9 @@ async function browserChecks(overrides) {
       await until(() => looped('A') >= 5 && looped('B') >= 5 && looped('end') === 1, 15000);
       const loops = ['A', 'B'].map(looped);
       if (loops.some((n) => n !== 5)) fails.push('OB-10 a looped console.error reached Sentry ' + loops.join(' and ') + ' times, want 5 each');
-      await pg.evaluate(() => { const t = performance.now(); while (performance.now() - t < 4200) { /* the stall */ } });
+      /* the stall as a task of the page's own (a timer), as a real one is: one run straight from the test's evaluate is no
+         frame of the page's, and Chromium reports no Long Animation Frame for it */
+      await pg.evaluate(() => new Promise((ok) => setTimeout(() => { const t = performance.now(); while (performance.now() - t < 4200) { /* the stall */ } ok(); }, 0)));
       const stalled = () => seen.sentry.filter((b) => /^The page stalled/.test(sentryLine(b))).map(sentryEvent);
       if (!(await until(() => stalled().length > 0))) fails.push('OB-10 a 4 s main-thread stall never reached Sentry');
       else {
@@ -267,6 +269,10 @@ async function browserChecks(overrides) {
         const hunt = hang[0].extra && Array.isArray(hang[0].extra.hunts) ? hang[0].extra.hunts[0] : null;
         if (hang.length !== 1 || JSON.stringify(hang[0].fingerprint) !== '["main-thread-hang"]' || !hunt || hunt.hunt !== HUNT.hunt.hunt_id)
           fails.push('OB-10 the hang message: ' + hang.length + ' sent, fingerprint ' + JSON.stringify(hang[0].fingerprint) + ', hunt ' + JSON.stringify(hunt));
+        /* Chromium names the frame that held it: the 4 s loop above, the script that ran it (Long Animation Frames) */
+        const lf = (hang[0].extra && hang[0].extra.long_frames) || [];
+        if (!(lf.length > 0 && lf[0].ms >= 4000 && /setTimeout/.test(lf[0].scripts) && !/sentry/i.test(lf[0].scripts)))
+          fails.push('OB-10 the hang message does not name the frame that held the page and its own script: ' + JSON.stringify(lf).slice(0, 300));
       }
       if (!(await wait(pg, () => document.querySelector('[data-hs-widget="hunt-topbar"] [data-hs-act="leave"]:not([hidden])')))) fails.push('OB-4 the hunt never showed its Leave button');
       else await pg.click('[data-hs-widget="hunt-topbar"] [data-hs-act="leave"]');
@@ -424,6 +430,9 @@ async function nodeChecks(root) {
       fails.push('OB-10 the hang message carries ' + JSON.stringify(c).slice(0, 200));
     if (!h || h.hunt !== HUNT.hunt.hunt_id || h.session !== HUNT.hunt.session_id || !('swing' in h) || !('running' in h) || !h.stats)
       fails.push('OB-10 the hang message does not name the open hunt and its engine: ' + JSON.stringify(h));
+    /* ...and what held the page (Sentry JAVASCRIPT-4B): its frames (none here: no Long Animation Frames in node), the long-task counts, the last warnings */
+    if (!Array.isArray(c.extra.long_frames) || !c.extra.perf || !Number.isFinite(c.extra.perf.longTasks) || !Array.isArray(c.extra.recent))
+      fails.push('OB-10 the hang message does not say what held the page: ' + JSON.stringify({ long_frames: c.extra.long_frames, perf: c.extra.perf, recent: c.extra.recent }));
   }
 
   /* OB-9: the send gate, through the beforeSend Sentry is given. */
@@ -498,6 +507,10 @@ const MUTANTS = [
   ['a hang is never reported', 'src/net/diagnostics.js', 'if (late > DIAG.HANG_MS) for', 'if (false) for'],
   ['a hidden tab counts as a hang', 'src/net/diagnostics.js', 'if (!visible() || late < DIAG.JANK_MS', 'if (late < DIAG.JANK_MS'],
   ['every stall sends a hang', 'src/net/observability.js', 'if (st.hung) return;', ''],
+  /* Sentry JAVASCRIPT-4B: the hang report names the frame that held the page, by the page's own script (OB-10). */
+  ['the hang report names no frame', 'src/net/diagnostics.js', '      return loaf.filter((f) => f.at + f.ms >= from)', '      return [].filter((f) => f.at + f.ms >= from)'],
+  ['the hang report reads its frames at once', 'src/net/observability.js', 'win.setTimeout(report, HANG_READ_MS);', 'report();'],
+  ['Sentry wraps every callback again', 'src/net/observability.js', ".filter((i) => i && i.name !== 'BrowserApiErrors')", ''],
   ['a vendored SDK is swapped', 'src/net/observability-config.js', "integrity: 'sha384-yR8W", "integrity: 'sha384-xR8W"],
   ['PostHog starts without the account id as its distinct id', 'src/net/observability.js', 'bootstrap: { distinctID: uid, isIdentifiedID: true },', ''],
   ['identify() merges an anonymous id onto the person', 'src/net/observability.js', 'if (!ph) ph = phSdk.init(cfg.posthog.key, posthogOptions(cfg, win, st.uid)) || phSdk;',

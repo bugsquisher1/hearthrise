@@ -635,6 +635,8 @@ const cases = {
     /* hunting ANOTHER ground (the Glade), the Thicket's payment card is not the one up (#25 of the walk) */
     const held = steps.find((s) => s.id === 'tamsin_pays').facts;
     if ((M.tut.currentCard({ ...held, huntId: 'mosslight_glade' }) || {}).id === 'tamsin_pays') return 'hunting the Glade, the coach still says to hunt the Thicket';
+    /* back below it (the Cellar), the card waits too: it is about the Thicket, never shown while hunting elsewhere */
+    if ((M.tut.currentCard({ ...held, huntId: 'mill_cellar' }) || {}).id === 'tamsin_pays') return 'hunting the Cellar, the coach still says to hunt the Thicket';
     /* Cash in tells the truth: loot is in the bag as it drops (the old card said it goes there when you leave) */
     const cash = said('leave_cellar');
     if (!cash || /when you do/.test(cash.text) || !cash.text.includes('already in your bag')) return 'the Cash in card reads ' + JSON.stringify(cash && cash.text);
@@ -1148,6 +1150,10 @@ const cases = {
       ['in the Thicket, the Sewer open', env(S, 'meadowbrook_thicket', false), 'tamsin_pays'],
       ['town, out of the Thicket', env(S, 'meadowbrook_thicket', true, TB), 'tamsin_pays'],
       ['reload in town', env(S, 'meadowbrook_thicket', true, TB), 'tamsin_pays'],
+      /* Andy's flow (#58): on to the Sewer with the wolves still held; out of it the card stays forward */
+      ['in the Sewer, the wolves still held', env(S, 'millrace_sewer', false, TB), 'goal'],
+      ['town, out of the Sewer, the wolves still held', env(S, 'millrace_sewer', true, TB), 'goal'],
+      ['reload in town, the wolves still held', env(S, 'millrace_sewer', true, TB), 'goal'],
       ['paid on the way back', env(S, 'meadowbrook_thicket', true, TB, { tally: tally(0, 1) }), 'goal'],
       ['in the Sewer', env(S, 'millrace_sewer', false, TB, { tally: tally(0, 1) }), 'goal'],
       ['town, out of a short Sewer hunt', env(S, 'millrace_sewer', true, TB, { tally: tally(0, 1) }), 'goal'],
@@ -1404,6 +1410,8 @@ const mutants = [
     edits: [['src/session/tutorial-sections.js', '  if (h && h.huntId) visited.add(h.huntId);\n', '']] },
   { name: 'back in the Cellar after the Thicket, the "Cash in" card returns (#58)', case: 'tutorial-never-backward',
     edits: [['src/data/hunt-tutorial.js', ' || (!!c.openedIn && reached(f, c.openedIn, true))', '']] },
+  { name: 'out of the Sewer with the wolves held, the Thicket card returns (#58, Andy)', case: 'tutorial-never-backward',
+    edits: [['src/data/hunt-tutorial.js', "{ kind: 'any', of: [{ kind: 'tally_paid' }, { kind: 'been', hunt: WOLVES.hunt, past: true }] }", "{ kind: 'tally_paid' }"]] },
   { name: 'the pointer ignores the personal-best grounds (#58)', case: 'tutorial-never-backward',
     edits: [['src/session/tutorial-sections.js', 'new Set(Object.keys((bests || {}).grounds || {}))', 'new Set()']] },
   { name: 'the Thicket is skipped: the cellar unlocks the sewer', case: 'tutorial-walk-through',
@@ -1491,7 +1499,7 @@ const mutants = [
         "  step('home', 'Build your home', 'x', 'house', { kind: 'home_owned' }, { reactive: true, dayOne: true, when: [IN_TOWN, { kind: 'level_at', at: DAY_ONE_LEVEL }, { kind: 'home_unowned' }] }),\n"],
       ['src/data/hunt-tutorial.js', "  step('home', 'Build your home',\n    'Your first house needs gold, ore and logs: start with logs in Gathering and crafting, Woodcutting.',\n    'house', { kind: 'home_owned' }, { reactive: true, dayOne: true, when: [IN_TOWN, { kind: 'level_at', at: DAY_ONE_LEVEL }, { kind: 'home_unowned' }] }),\n", '']] },
   { name: 'Tamsin\'s payment card shows while the hero hunts another ground', case: 'tutorial-town-chain',
-    edits: [['src/data/hunt-tutorial.js', "'world', { kind: 'tally_paid' }, { when: [{ kind: 'not_elsewhere', hunt: WOLVES.hunt }] }),", "'world', { kind: 'tally_paid' }),"]] },
+    edits: [['src/data/hunt-tutorial.js', "{ kind: 'been', hunt: WOLVES.hunt, past: true }] }, { when: [{ kind: 'not_elsewhere', hunt: WOLVES.hunt }] }),", "{ kind: 'been', hunt: WOLVES.hunt, past: true }] }),"]] },
   { name: 'the first-return cards come back after the Thicket', case: 'tutorial-town-chain',
     edits: [['src/data/hunt-tutorial.js', "'shop', { kind: 'any', of: [{ kind: 'loot_sold' }, { kind: 'been', hunt: THICKET }] },", "'shop', { kind: 'loot_sold' },"]] },
   { name: 'the shown first-minute cards come after the reactive ones (the shell would replay them)', case: 'tutorial-walk-through',

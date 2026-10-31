@@ -22,6 +22,9 @@ export const SESSION_CONFIG = Object.freeze({
   authKey: 'hr-auth',
   /** The tab's own session id (sessionStorage), so two tabs are two sessions. */
   tabKey: 'hr-tab-id',
+  /** The heroes this tab has open and the one it shows (sessionStorage), so a reload reopens them instead of the
+      characters screen (designer 10-30 #8). Display state, never authority: the roster decides what exists. */
+  openKey: 'hr-open',
   /** Pre-reset keys that may still hold a token on this device; sign-out removes them too. */
   retiredAuthKeys: Object.freeze(['hearthrise:supabaseSession']),
   /** A residue write waits this long for more changes before it is sent (one put per burst). */
@@ -67,6 +70,9 @@ export const SESSION_CONFIG = Object.freeze({
   liveDelayMs: 150,
   /** A reconcile eases each unit onto the server's world over at least this long (timeline.js T8). */
   liveEaseMs: 250,
+  /** A CATCH-UP (a tab back from the background) runs at most this much main-thread time a frame, in whole swings
+      (src/session/live-link.js advance): half a 60 fps frame, so the page answers while the hunt catches up. */
+  liveCatchUpSliceMs: 8,
   /** Without a live start point, ask this soon (the floor answers with hunt_live, writing nothing),
       doubling per answer that brought none, up to huntPollMs, and never before the hunt's first
       boundary (src/session/live-link.js askDelayMs). */

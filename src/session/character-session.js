@@ -38,21 +38,21 @@
 // only things it sends of its own are the allowlisted residue and intents.
 // ════════════════════════════════════════════════════════════════════════
 
-import { applyEnvelope, frameEnvelope, withResidue } from './envelope.js?v=0.2.74';
-import { createTimeline } from '../hunt-view/timeline.js?v=0.2.74';
-import { LiveLink } from './live-link.js?v=0.2.74';
-import { RESIDUE_FIELDS, sanitizeResidueField, unconfirmedResidue } from './residue.js?v=0.2.74';
-import { SESSION_CONFIG } from './config.js?v=0.2.74';
-import { edgeBody, edgeRead } from './edge-intents.js?v=0.2.74';
-import { leaveAskOf, pendingLeaveAt, leaveCountdown, heardOf, closeInMs } from './hunt-leave.js?v=0.2.74';
-import { HuntPoll, pollDelayMs } from './hunt-poll.js?v=0.2.74';
-import { AskPacer } from './ask-pacer.js?v=0.2.74';
-import { createIntentLedger } from './intent-ledger.js?v=0.2.74';
-import { ReadGate } from './read-gate.js?v=0.2.74';
-import { frameTopic, reconnectDelay } from './frame-channel.js?v=0.2.74';
-import { refusalOf, settleRefusalOf } from './refusal.js?v=0.2.74';
-import { catchUpLink, newIdem } from './catch-up.js?v=0.2.74';
-import { SERVER_ONLY_EVENTS } from '../core/hunt/events.js?v=0.2.74';
+import { applyEnvelope, frameEnvelope, withResidue } from './envelope.js?v=0.2.75';
+import { createTimeline } from '../hunt-view/timeline.js?v=0.2.75';
+import { LiveLink } from './live-link.js?v=0.2.75';
+import { RESIDUE_FIELDS, sanitizeResidueField, unconfirmedResidue } from './residue.js?v=0.2.75';
+import { SESSION_CONFIG } from './config.js?v=0.2.75';
+import { edgeBody, edgeRead } from './edge-intents.js?v=0.2.75';
+import { leaveAskOf, pendingLeaveAt, leaveCountdown, heardOf, closeInMs } from './hunt-leave.js?v=0.2.75';
+import { HuntPoll, pollDelayMs } from './hunt-poll.js?v=0.2.75';
+import { AskPacer } from './ask-pacer.js?v=0.2.75';
+import { createIntentLedger } from './intent-ledger.js?v=0.2.75';
+import { ReadGate } from './read-gate.js?v=0.2.75';
+import { frameTopic, reconnectDelay } from './frame-channel.js?v=0.2.75';
+import { refusalOf, settleRefusalOf } from './refusal.js?v=0.2.75';
+import { catchUpLink, newIdem } from './catch-up.js?v=0.2.75';
+import { SERVER_ONLY_EVENTS } from '../core/hunt/events.js?v=0.2.75';
 
 export const FRAME_EVENT = 'frame';
 
@@ -76,7 +76,7 @@ export class CharacterSession {
    *        joins a private broadcast topic; returns the leave function
    * @param {(fn: Function, ms: number) => any} [o.setTimer]
    * @param {(t: any) => void} [o.clearTimer]
-   * @param {() => number} [o.now]   the display clock (ms) the timeline plays on
+   * @param {() => number} [o.now]   the display clock (ms) the timeline plays on ([o.clock]: the one a live catch-up slice is timed on)
    * @param {object} [o.intents]  the account's intent ledger (default: the server link's)
    */
   constructor(o) {
@@ -110,7 +110,7 @@ export class CharacterSession {
       forgetMs: SESSION_CONFIG.huntPlaybackDelayMs + 15000 });
     /* THE LIVE VIEW (option B): the instance engine run in the browser from the server's start
        point, prediction only; `live` is its engine (the scene reads its heroes). */
-    this.liveLink = new LiveLink({ timeline: this.timeline, now: () => this._now(), emit: (why) => this._emit(why) });
+    this.liveLink = new LiveLink({ timeline: this.timeline, now: () => this._now(), emit: (why) => this._emit(why), clock: o.clock, stale: () => this._server && this._server.stale && this._server.stale() });
     this.live = this.liveLink.engine;
     this.receivedAt = null; this.settleRefusal = null;   // the engine's last refusal to settle (hello), or null
     this._askedAt = null; this._answeredAt = null;   // the last settle's send and answer (client ms): a leave's 'late'

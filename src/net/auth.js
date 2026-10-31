@@ -22,7 +22,8 @@
 // SIGN-OUT CLEARS EVERY COPY: supabase-js forgets the session, then every key
 // that can hold a token on this device — the auth key in BOTH the device and
 // the tab store, any `sb-*` key, the retired pre-reset keys — and the tab's
-// session id, so the next sign-in is a new session.
+// session id and the heroes it had open, so the next sign-in is a new session
+// that starts at the characters screen.
 //
 // THE RECOVERY LINK: a password-reset email opens the client with a recovery
 // token in the URL; supabase-js signs the link in and reports PASSWORD_RECOVERY,
@@ -42,10 +43,20 @@
 //   'expired' so the app shows sign-in. A refresh lost to the network keeps the
 //   session and simply sends nothing this time.
 //   Waking a hidden tab checks the token before anything else is sent.
+//
+// THE BOOT READ NEVER WAITS ON THE AUTH LOCK (QA on live v0.2.74: a third of
+// reloads reached the roster in 5.7-11.7 s instead of 1.1 s, each with gotrue's
+// 'Lock "lock:hr-auth" was not released within 5000ms ... Forcefully acquiring').
+// supabase-js serialises getSession behind a cross-tab Web Lock; whoever holds it
+// (another tab refreshing, this page's own refresh in flight, a frozen tab) kept
+// the first read, and the roster with it, waiting until supabase-js stole the lock
+// at 5 s. refresh() now reads a stored session that still lasts straight from the
+// store supabase-js keeps it in, which is what getSession would answer; only a
+// missing or stale one waits for supabase-js (and its lock).
 // ════════════════════════════════════════════════════════════════════════
 
-import { SESSION_CONFIG } from '../session/config.js?v=0.2.74';
-import { PASSWORD_MIN_LENGTH } from '../data/account-rules.js?v=0.2.74';
+import { SESSION_CONFIG } from '../session/config.js?v=0.2.75';
+import { PASSWORD_MIN_LENGTH } from '../data/account-rules.js?v=0.2.75';
 
 /** A token closer than this to its expiry is refreshed before it is sent. */
 export const TOKEN_MARGIN_MS = 60000;
@@ -131,6 +142,7 @@ const copyFor = (error, says, other) => { const key = authErrorCopy(error); retu
  * @param {object} [o.config]    defaults to SESSION_CONFIG
  * @param {object} [o.doc]       the document, to check the token when a hidden tab wakes
  * @param {() => number} [o.now] the clock, for tests
+ * @param {object} [o.store]     the store supabase-js keeps the session in (default: config authStore's)
  */
 export function createAuth(o) {
   const cfg = o.config || SESSION_CONFIG;
@@ -141,13 +153,27 @@ export function createAuth(o) {
   const changeFns = new Set();
   const tell = (ev) => { for (const fn of Array.from(changeFns)) { try { fn(ev); } catch (e) { console.error('[auth] a listener failed', e); } } };
 
+  const tokenOf = (s) => (s && s.access_token) || null;
+  const lasts = (s) => !!tokenOf(s) && (!s.expires_at || s.expires_at * 1000 - now() > TOKEN_MARGIN_MS);
+  const sessionStore = o.store || (cfg.authStore === 'tab' ? o.tab : o.device);
+
+  /* The session supabase-js stored, read without its lock: one whole session (a token, a refresh token, its expiry
+     and its user), else null. Never throws. */
+  function storedSession() {
+    try {
+      const s = sessionStore ? JSON.parse(sessionStore.get(cfg.authKey) || 'null') : null;
+      const whole = !!s && typeof s.access_token === 'string' && typeof s.refresh_token === 'string'
+        && Number.isFinite(s.expires_at) && !!s.user && typeof s.user.id === 'string';
+      return whole ? s : null;
+    } catch (e) { return null; }
+  }
+
   async function refresh() {
+    const kept = storedSession();
+    if (lasts(kept)) { session = kept; return session; }
     try { const { data } = await auth.getSession(); session = (data && data.session) || null; } catch (e) { session = null; }
     return session;
   }
-
-  const tokenOf = (s) => (s && s.access_token) || null;
-  const lasts = (s) => !!tokenOf(s) && (!s.expires_at || s.expires_at * 1000 - now() > TOKEN_MARGIN_MS);
 
   /* The session is over: forget it here and tell the app once. */
   function expire() {
@@ -205,7 +231,7 @@ export function createAuth(o) {
       for (const k of store.keys()) if (k === cfg.authKey || k.startsWith(cfg.authKey + '-') || k.startsWith('sb-')) store.remove(k);
       for (const k of cfg.retiredAuthKeys) store.remove(k);
     }
-    if (o.tab) o.tab.remove(cfg.tabKey);
+    if (o.tab) { o.tab.remove(cfg.tabKey); o.tab.remove(cfg.openKey); }
   }
 
   return {

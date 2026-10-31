@@ -68,11 +68,22 @@ export async function loadGear(root) {
 
   /**
    * The worn set of `style` at Level `L`. opts: { tierOffset, only, heavyShield, line (another armour line),
-   * armourSlots (default all six; the reachable ones are filled), noArmour, ammo (an item for the ammo slot) }.
+   * armourSlots (default all six; the reachable ones are filled), noArmour, ammo (an item for the ammo slot),
+   * starter (the start kit's pieces only) }.
    */
   function kitOf(style, L, opts = {}) {
     const S = STYLES[style];
     if (!S) throw new Error('balance-sim: unknown style ' + style);
+    /* THE STARTER KIT (`starter`): what a fresh hero owns, whatever its Level: the style's practice weapon and off-hand
+       (STARTER_SETS: all six sets are in every new hero's bag), no armour (the start kit holds none) */
+    if (opts.starter === true) {
+      const set = { weapon: practiceFor(S.weapon) };
+      if (S.offhand === 'shield') set.shield = ITEMS.practice_shield ? 'practice_shield' : null;
+      else if (S.offhand === 'spellbook') set.shield = practiceFor('spellbook');
+      if (S.role === 'ranger') set.ammo = opts.ammo || 'bronze_arrows';
+      for (const k of Object.keys(set)) if (!set[k] || (k !== 'ammo' && !starters.has(set[k]))) delete set[k];
+      return set;
+    }
     const off = (group) => (opts.only === group || opts.only === 'all' ? (opts.tierOffset || 0) : 0);
     const set = {};
     set.weapon = pick(ladder[S.weapon] || [], L, off('weapon'), practiceFor(S.weapon));

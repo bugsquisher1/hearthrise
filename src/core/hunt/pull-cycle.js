@@ -22,19 +22,19 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { HUNT_TUNING } from '../../data/hunt-tuning.js?v=0.2.74';
-import { VITALS } from '../../data/core-model.js?v=0.2.74';
-import { MONSTERS, monsterSpeedOf } from '../../data/monsters.js?v=0.2.74';
-import { AI_REPATH_MS } from '../../data/hunt-roles.js?v=0.2.74';
-import { HUNT_GROUNDS, packHpFor, yieldPermille, routeFor, pullRows, monstersOn } from '../../data/hunt-grounds.js?v=0.2.74';
-import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.74';
-import { monsterMaxHit } from '../combat.js?v=0.2.74';
-import { cheb, dist2, freeNear, tileKey } from './grid.js?v=0.2.74';
-import { inArea, resetPack } from './leash.js?v=0.2.74';
-import { atRest, unitById, leaderOf, setGoal, clearGoal, occupancy, reachable } from './movement.js?v=0.2.74';
-import { makeEvent, trackStep } from './events.js?v=0.2.74';
-import { pickLeader, kites } from './roles.js?v=0.2.74';
-import { holderTank, turnTanks, pickInForce } from './targeting.js?v=0.2.74';
+import { HUNT_TUNING } from '../../data/hunt-tuning.js?v=0.2.75';
+import { VITALS } from '../../data/core-model.js?v=0.2.75';
+import { MONSTERS, monsterSpeedOf } from '../../data/monsters.js?v=0.2.75';
+import { AI_REPATH_MS } from '../../data/hunt-roles.js?v=0.2.75';
+import { HUNT_GROUNDS, packHpFor, yieldPermille, routeFor, pullRows, monstersOn } from '../../data/hunt-grounds.js?v=0.2.75';
+import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.75';
+import { monsterMaxHit } from '../combat.js?v=0.2.75';
+import { cheb, dist2, freeNear, tileKey, walkable } from './grid.js?v=0.2.75';
+import { inArea, resetPack } from './leash.js?v=0.2.75';
+import { atRest, unitById, leaderOf, setGoal, clearGoal, occupancy, reachable, goToNearest } from './movement.js?v=0.2.75';
+import { makeEvent, trackStep } from './events.js?v=0.2.75';
+import { pickLeader, kites, roomAt, ROOM_MAX } from './roles.js?v=0.2.75';
+import { holderTank, turnTanks, pickInForce } from './targeting.js?v=0.2.75';
 
 /* deadMs: a corpse's age. hpMilli: out-of-combat regen carried below one HP.
    phase / routeIdx / phaseMs / regroupNext / runs / nextId: the cycle. alive / respawnAtMs: a pack. */
@@ -214,13 +214,45 @@ function travel(inst, sc, k) {
   const step = k.path && k.path[0];
   const walled = !kites(k) && !!step && !!k.goal && atRest(k) && mons.some((m) => m.x === step[0] && m.y === step[1])
     && !!occupancy(inst) && !reachable(inst, k, k.goal[0], k.goal[1]);
-  if (here && (dist2(k, c) <= inst.ground.pullDist * inst.ground.pullDist || arrived || walled)) { startPull(inst, sc, k, p); return; }
+  if (here && (dist2(k, c) <= inst.ground.pullDist * inst.ground.pullDist || arrived || walled)) {
+    if (walled && !arrived && roomierEdge(inst, k, p, Math.round(c.x), Math.round(c.y))) return;
+    startPull(inst, sc, k, p);
+    return;
+  }
   if (k.goal && k.aiMs > 0) return;
   occupancy(inst);
   const g = freeNear(inst.grid, Math.round(c.x), Math.round(c.y), 2, (x, y) => inst.occ.mon.has(tileKey(inst.grid, x, y)))
     || [mons[0].x, mons[0].y];
   setGoal(inst, k, g[0], g[1]);
   k.aiMs = AI_REPATH_MS.travel;
+}
+
+/* A WALLED PULL ON SHORT GROUND (Andy #64, v0.2.45 at the Warrens: "tank would have wanted to stand 1 sqm above"). A full
+   ring (density 8) closes round its free centre, so the leader walking to it pulls from wherever the ring first blocks his
+   path; on the wrong side of the ring the ground there feeds fewer than eight slots (roles.js roomAt: Warrens pocket 1's
+   west edge, room 119, one or two monsters queued out of his reach every pull) while its east edge feeds all eight. Short
+   of a full box, he walks on to the free tile within two of the centre, inside the pack area, with the most room he can
+   reach (strictly more than his own, the nearest of those) and pulls on arriving; nothing pulls him until then. A walled
+   pull that already has a full box is untouched. Answers whether he walks on. */
+function roomierEdge(inst, k, p, cx, cy) {
+  const here = roomAt(inst, p, k.x, k.y);
+  if (here >= ROOM_MAX) return false;
+  const byRoom = new Map();
+  for (let y = cy - 2; y <= cy + 2; y++) {
+    for (let x = cx - 2; x <= cx + 2; x++) {
+      if (!walkable(inst.grid, x, y) || inst.occ.mon.has(tileKey(inst.grid, x, y)) || !inArea(inst, p, x, y)) continue;
+      const r = roomAt(inst, p, x, y);
+      if (r <= here) continue;
+      if (!byRoom.has(r)) byRoom.set(r, new Set());
+      byRoom.get(r).add(tileKey(inst.grid, x, y));
+    }
+  }
+  for (const r of [...byRoom.keys()].sort((a, b) => b - a)) {
+    const tiles = byRoom.get(r);
+    const at = goToNearest(inst, k, (x, y) => tiles.has(tileKey(inst.grid, x, y)));
+    if (at && k.goal) { k.aiMs = AI_REPATH_MS.travel; return true; }
+  }
+  return false;
 }
 
 /* EVERY PACK IS DOWN (report #69, v0.2.63: two L45s at Wickstead clear the ground faster than it respawns): the

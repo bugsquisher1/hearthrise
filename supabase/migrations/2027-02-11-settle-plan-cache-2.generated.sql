@@ -51,7 +51,7 @@
 -- ── REVERSIBILITY ───────────────────────────────────────────────────────────
 --   Each pre-image is in this file (§2's pg_temp copies, verbatim): restate it under its own name to undo. No data.
 --
--- ORDER: after 2027-02-10-settle-reads.sql (the chain end). EDGE: none. No begin/commit.
+-- ORDER: after 2027-02-11-db-retention.sql (the chain end). EDGE: none. No begin/commit.
 -- ════════════════════════════════════════════════════════════════════════
 
 -- ── §0 PRECONDITIONS AND PINS — FAIL CLOSED ────────────────────────────────

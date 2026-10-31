@@ -18,23 +18,23 @@
 // action is ONE intent with the controls off until the server answers
 // (actions.js). Patched in place (src/render/paint.js).
 // ════════════════════════════════════════════════════════════════════════
-import { BAG_CATS, BAG_SORTS, isNew, bagValue, lootToSell } from '../../bag-model.js?v=0.2.74';
-import { skillsOf } from '../../../session/item-sections.js?v=0.2.74';
-import { barIndexOf, barKeyLabel } from '../../bar-assign.js?v=0.2.74';
-import { rows, text, cls, attr, prop, element } from '../../../render/paint.js?v=0.2.74';
-import { whole, gold } from '../../../render/format.js?v=0.2.74';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.74';
-import { glyphSvg } from '../../launcher.js?v=0.2.74';
-import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.74';
-import { primaryOf, confirmWords, huntLoot } from './state.js?v=0.2.74';
-import { LOOT_CHOICES, planBlock, dispatchBlock } from '../../loot-dispatch.js?v=0.2.74';
-import { pocketHtml, patchCount } from './pockets.js?v=0.2.74';
-import { elsewhereHtml, patchElsewhere } from './elsewhere.js?v=0.2.74';
-import { buryParts, buryBlock, buryRecipeOf, namedBlock } from './bury.js?v=0.2.74';
-import { shownQty, aheadQty, paintLine } from '../../town-ticker.js?v=0.2.74';
-import { upgradeLineHtml, patchUpgradeLine } from '../../widgets/upgrade-line.js?v=0.2.74';
-import { wearBlock, gearLocked } from '../../gear-gate.js?v=0.2.74';
-import { whyLine } from '../../widgets/why-line.js?v=0.2.74';
+import { BAG_CATS, BAG_SORTS, isNew, bagValue, lootToSell } from '../../bag-model.js?v=0.2.75';
+import { skillsOf } from '../../../session/item-sections.js?v=0.2.75';
+import { barIndexOf, barKeyLabel } from '../../bar-assign.js?v=0.2.75';
+import { rows, text, cls, attr, prop, element } from '../../../render/paint.js?v=0.2.75';
+import { whole, gold } from '../../../render/format.js?v=0.2.75';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.75';
+import { glyphSvg } from '../../launcher.js?v=0.2.75';
+import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.75';
+import { primaryOf, confirmWords, huntLoot, eatBlock } from './state.js?v=0.2.75';
+import { LOOT_CHOICES, planBlock, dispatchBlock } from '../../loot-dispatch.js?v=0.2.75';
+import { pocketHtml, patchCount } from './pockets.js?v=0.2.75';
+import { elsewhereHtml, patchElsewhere } from './elsewhere.js?v=0.2.75';
+import { buryParts, buryBlock, buryRecipeOf, namedBlock } from './bury.js?v=0.2.75';
+import { shownQty, aheadQty, paintLine } from '../../town-ticker.js?v=0.2.75';
+import { upgradeLineHtml, patchUpgradeLine } from '../../widgets/upgrade-line.js?v=0.2.75';
+import { wearBlock, gearLocked } from '../../gear-gate.js?v=0.2.75';
+import { whyLine } from '../../widgets/why-line.js?v=0.2.75';
 
 /* The This hunt row's choices: the three plans, then the pickup filter (loot-dispatch.js). */
 const RULE_OPTIONS = '<optgroup label="Loot plan">' + LOOT_CHOICES.filter((c) => c[2] === 'plan').map(([v, w]) => '<option value="' + v + '">' + esc(w) + '</option>').join('')
@@ -150,11 +150,13 @@ export function patchTools(root, st, ctx) {
   const buryWhy = prim && prim[0] === 'bury' ? buryBlock(st.cs, buryRecipeOf(cur)) : prim && prim[0] === 'hearth' ? namedBlock(st.cs, cur) : '';
   /* Equip the server's sections already refuse (a hunt running, a requirement unmet: gear-gate.js) is off, and says why. */
   const wearWhy = prim && prim[0] === 'equip' ? wearBlock(st.cs, cur) : '';
-  prop(pb, 'disabled', sc.pending || !prim || !!wearWhy);
-  attr(pb, 'title', buryWhy || wearWhy || null);
+  /* ...and Eat at full HP (state.js eatBlock: the engine's already_full) */
+  const eatWhy = prim && prim[0] === 'eat' ? eatBlock(st.cs, cur) : '';
+  prop(pb, 'disabled', sc.pending || !prim || !!wearWhy || !!eatWhy);
+  attr(pb, 'title', buryWhy || wearWhy || eatWhy || null);
   /* The picked line's words: its last press's answer, else why its action is off. */
   const pickSaid = !!cur && sc.msgAt === 'pick:' + cur && !!sc.msg;
-  whyLine(root.querySelector('.hw-pick-why'), !cur ? '' : (pickSaid ? sc.msg : wearWhy || buryWhy), pickSaid);
+  whyLine(root.querySelector('.hw-pick-why'), !cur ? '' : (pickSaid ? sc.msg : wearWhy || buryWhy || eatWhy), pickSaid);
   patchUpgradeLine(root, st.upgrade, onBag, sc.pending, { locked: gearLocked(st.cs), msg: sc.msgAt === 'upgrade' ? sc.msg : '' });
   const line = buryParts(st.cs);
   const bl = root.querySelector('.hw-burying');

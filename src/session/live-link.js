@@ -10,22 +10,35 @@
 //   hunt_check  a commit: confirm the prediction (and take the next seeds), or
 //               ask at once for a fresh start point
 // Prediction only: nothing here is spent, credited or shown as owned.
+//
+// A HUNT THIS BUILD CANNOT PREDICT (live-engine.js failed(): a monster or ground a
+// newer server knows, a swing that threw; Sentry JAVASCRIPT-4C) is not asked again
+// until the hunt ends (off): the view plays the server's own windows a poll behind,
+// as it does before a start point lands, and the site is asked whether it serves a
+// newer build (`stale`: src/app/new-version.js raises the reload banner if so).
 // ════════════════════════════════════════════════════════════════════════
 
-import { createLiveEngine } from '../hunt-view/live-engine.js?v=0.2.74';
-import { ITEMS } from '../data/items.js?v=0.2.74';
-import { MONSTERS } from '../data/monsters.js?v=0.2.74';
-import { SESSION_CONFIG } from './config.js?v=0.2.74';
+import { createLiveEngine } from '../hunt-view/live-engine.js?v=0.2.75';
+import { ITEMS } from '../data/items.js?v=0.2.75';
+import { MONSTERS } from '../data/monsters.js?v=0.2.75';
+import { SESSION_CONFIG } from './config.js?v=0.2.75';
 
 export class LiveLink {
   /**
-   * @param {{timeline: object, now: () => number, emit: (why: string) => void}} o
+   * @param {{timeline: object, now: () => number, emit: (why: string) => void, stale?: () => void, clock?: () => number}} o
+   *   `clock`: the main-thread clock a catch-up slice is measured on (performance.now; `now` may be a test's display clock)
    */
   constructor(o) {
     this.engine = createLiveEngine({ items: ITEMS, monsters: MONSTERS });
     this._tl = o.timeline;
     this._now = o.now;
     this._emit = o.emit;
+    this._stale = typeof o.stale === 'function' ? o.stale : null;
+    this._clock = typeof o.clock === 'function' ? o.clock : () => (globalThis.performance ? globalThis.performance.now() : Date.now());
+    /** A catch-up run in slices (advance): the instants of its first slice, landed whole when its last runs. */
+    this._catching = null;
+    /** Why this hunt cannot be predicted here (_fail), or null: the view plays the server's windows until off(). */
+    this.failure = null;
     /** Ask the server for a start point at once (CharacterSession's poll reads it). */
     this.want = false;
     this._tries = 0;
@@ -33,7 +46,7 @@ export class LiveLink {
     this._reseeded = null;
     this._joining = false;
     /** What the live view did (tools: the world stage's data-live): each commit's verdict, every restart. */
-    this.stats = { match: 0, diverged: 0, unknown: 0, reseeds: 0, catchUps: 0, starves: 0 };
+    this.stats = { match: 0, diverged: 0, unknown: 0, reseeds: 0, catchUps: 0, starves: 0, failures: 0 };
     this._wasStalled = false;
     /** The server's settle watermark (ms) its last commit or start point stated: display only (?debug=live's settle lag). */
     this.settledToMs = null;
@@ -56,7 +69,7 @@ export class LiveLink {
    * pose placed it with no kind: "[hunt-scene] no sprite for unit N (null)" on the way back, Andy #65).
    */
   join(pose) {
-    if (this.engine.running() || this.engine.stalled()) return;
+    if (this.failure !== null || this.engine.running() || this.engine.stalled()) return;
     const live = SESSION_CONFIG.liveDelayMs;
     this._joining = true;
     this._tl.setDelay(live);
@@ -77,7 +90,25 @@ export class LiveLink {
   /** The hunt is over (or there is none): back to the server-paced view. */
   off() {
     if (this.engine.running() || this.engine.stalled() || this._joining) { this.engine.stop(); this._tl.setDelay(SESSION_CONFIG.huntPlaybackDelayMs); }
-    this.want = false; this._tries = 0; this._joining = false;
+    this.want = false; this._tries = 0; this._joining = false; this.failure = null; this._catching = null;
+  }
+
+  /*
+   * THE PREDICTION CANNOT RUN THIS HUNT (engine.failed()): back to the server-paced view, as off() leaves it, for the
+   * rest of the hunt (no start point is asked: it would name the same thing), said once, and the site asked whether it
+   * serves a newer build. Answers whether it failed now.
+   */
+  _fail() {
+    const why = this.engine.failed();
+    if (why === null || this.failure !== null) return false;
+    this.failure = why;
+    this.stats.failures++;
+    this.engine.stop();
+    this._tl.setDelay(SESSION_CONFIG.huntPlaybackDelayMs);
+    this.want = false; this._tries = 0; this._joining = false; this._catching = null;
+    console.error('[live] the live view stopped (' + why + '): the hunt plays from the server');
+    if (this._stale) { try { this._stale(); } catch (e) { /* the check reports itself */ } }
+    return true;
   }
 
   /** One server answer while a hunt is open. */
@@ -85,6 +116,7 @@ export class LiveLink {
     this.hold(body.hunt && body.hunt.pose);   // joining: the answer's snapshot forgets what the server no longer lists
     const before = this.engine.seededUntil();
     this._take(body);
+    if (this._fail()) return;
     /* An answer that left the look-ahead short makes the next early ask wait twice as long (refillDelayMs). */
     const after = this.engine.seededUntil();
     const now = this._tl.serverNowAt(this._now());
@@ -95,6 +127,7 @@ export class LiveLink {
   _take(body) {
     const st = body.hunt_check ? body.hunt_check.settled_to_ms : body.hunt_live && body.hunt_live.instance ? body.hunt_live.instance.settled_to_ms : null;
     if (Number.isSafeInteger(st) && st > 0) this.settledToMs = st;
+    if (this.failure !== null) return;
     if (!body.hunt_live && !body.hunt_check && this.engine.running()) return;
     const ms = Number.isSafeInteger(body.hunt_server_now_ms) ? body.hunt_server_now_ms
       : typeof body.now === 'string' ? Math.floor(Date.parse(body.now)) : NaN;
@@ -178,13 +211,24 @@ export class LiveLink {
    * inside the skipped span plays now, its victim at 0 HP, so no monster is left standing.
    */
   _restart(run) {
+    const c = this._instants();
+    if (!c) return;
+    this._catching = null;   // a restart from a start point replaces a catch-up still running in slices
+    const res = run(c.at, c.ease);
+    if (res) this._land(c, res);
+  }
+
+  /* The instants a restart runs to and lands at: the client clock, the server instant on screen, the ease. */
+  _instants() {
     const client = this._now();
     const server = this._tl.serverNowAt(client);
-    if (server === null) return;
-    const at = Math.floor(server - this._tl.delayMs());
-    const ease = SESSION_CONFIG.liveEaseMs;
-    const res = run(at, ease);
-    if (!res) return;
+    if (server === null) return null;
+    return { client, at: Math.floor(server - this._tl.delayMs()), ease: SESSION_CONFIG.liveEaseMs };
+  }
+
+  /* The drawing restarted from `res` (the engine's fastForward answer) at the instants `c` (_instants). */
+  _land(c, res) {
+    const { client, at, ease } = c;
     const ends = new Map();
     this._tl.rebase(at, res.positions, ease, ends);
     for (const ev of res.kills) {
@@ -198,20 +242,35 @@ export class LiveLink {
     this._emit('reseed');
   }
 
+  /** A catch-up still running in slices (advance): the frame loop keeps its last frame on screen until it lands. */
+  catchingUp() { return this._catching !== null; }
+
   /** The frame loop's step: run the engine to the server's clock now. */
   advance(clientNow) {
-    if (!this.engine.running()) return 0;
+    if (!this.engine.running()) { this._catching = null; return 0; }
     const now = this._tl.serverNowAt(clientNow);
     if (now === null) return 0;
     /* Behind the screen (a background tab's paused frame loop, a start point from the last commit, a
        restart after the look-ahead ran dry): a swing whose start is already on screen is not fed (its
-       first steps would be drawn at once, a jump); it is run unplayed and the drawing eases on. */
-    if (this.engine.behindMs(now) > this._tl.delayMs()) {
-      this.stats.catchUps++;
-      this._restart((at, ahead) => this.engine.catchUp(at, ahead));
+       first steps would be drawn at once, a jump); it is run unplayed and the drawing eases on.
+       IN SLICES: a tab back from the background ran up to 64 swings as ONE task of 213-259 ms (the page froze
+       as it came back); each frame now runs at most liveCatchUpSliceMs of them while the picture holds, and the
+       restart lands whole with its first slice's instants: the same swings, answer and restart, a few frames on. */
+    if (this._catching && !this.engine.catchingUp()) this._catching = null;   // replaced meanwhile (a start point's restart)
+    if (!this._catching && this.engine.behindMs(now) > this._tl.delayMs()) {
+      this._catching = this._instants();
+      if (this._catching) this.stats.catchUps++;
+    }
+    if (this._catching) {
+      const c = this._catching, t0 = this._clock();
+      const res = this.engine.catchUpSlice(c.at, c.ease, () => this._clock() - t0 < SESSION_CONFIG.liveCatchUpSliceMs);
+      if (res === undefined) return 0;
+      this._catching = null;
+      if (!this._fail() && res) this._land(c, res);
       return 0;
     }
     const n = this.engine.advance(now, (b) => this._tl.ingest(b, clientNow));
+    if (this._fail()) return n;
     const dry = this.engine.stalled();
     if (dry && !this._wasStalled) this.stats.starves++;
     this._wasStalled = dry;

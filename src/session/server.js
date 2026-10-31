@@ -30,11 +30,14 @@
 // an old client rubber-banding against a newer server sees on every ask. Such an
 // answer calls `o.stale()` (src/app/new-version.js check(true)): the client asks
 // which build the site serves, and only a different one raises the reload banner,
-// so a routine version_conflict on a current client shows nothing.
+// so a routine version_conflict on a current client shows nothing. The link's
+// own stale() does the same for what an answer held rather than how it was
+// refused (src/session/live-link.js: a start point naming a monster this build
+// does not know).
 // ════════════════════════════════════════════════════════════════════════
 
-import { SUPABASE_CONFIG } from '../net/supabase-bootstrap.js?v=0.2.74';
-import { createIntentLedger } from './intent-ledger.js?v=0.2.74';
+import { SUPABASE_CONFIG } from '../net/supabase-bootstrap.js?v=0.2.75';
+import { createIntentLedger } from './intent-ledger.js?v=0.2.75';
 
 export const CLOSED_CODE = 'hr_closed';
 export const CLOSED_STATUS = 403;
@@ -113,5 +116,7 @@ export function createServerLink(o) {
     accrue: (body) => post('/functions/v1/hr-accrue?forceFunctionRegion=' + SUPABASE_CONFIG.functionRegion, body),
     report: (body) => post('/functions/v1/bug-report-bridge', body),
     intents: createIntentLedger(),
+    /** Something an answer HELD looks like a newer server's (the live view: a monster this build does not know): `o.stale`. */
+    stale: () => { if (o.stale) { try { o.stale(); } catch (e) { /* the check reports itself */ } } },
   });
 }

@@ -26,34 +26,34 @@
 // scene drawing from it shows. The first scene opens whole; a later one (a ground entered, the town after
 // a hunt) switches once its sheets have arrived, the last frame holding meanwhile.
 // ════════════════════════════════════════════════════════════════════════
-import { BUILD } from '../build-info.js?v=0.2.74';
-import { OPEN_CLASSES } from '../data/world/terrain.js?v=0.2.74';
-import { WORLD_MAPS, SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.74';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.74';
-import { MONSTERS } from '../data/monsters.js?v=0.2.74';
-import { compileMap } from './core/map-compile.js?v=0.2.74';
-import { createBook } from './core/book.js?v=0.2.74';
-import { fpsFor, MOBILE_QUERY } from './core/camera.js?v=0.2.74';
-import { heroBuilding, roofTargets, stepAlpha } from './core/roofs.js?v=0.2.74';
-import { readScene, setChoice, heroPosOn, notePos, forgetPos } from './store.js?v=0.2.74';
-import { loadManifests, createSceneImages, loadAtlasSet, baseTables } from './atlas.js?v=0.2.74';
-import { sceneSetsSliced } from './scene-sets.js?v=0.2.74';
-import { prewarmedSets, stopPrewarm } from './prewarm.js?v=0.2.74';
-import { createGridArt, sandboxExtras, presenceFor } from './sandbox-scene.js?v=0.2.74';
-import { createCanvasBackend } from './render/canvas-backend.js?v=0.2.74';
-import { huntOfMap } from './hunt-maps.js?v=0.2.74';
-import { createHuntScene } from './hunt-scene.js?v=0.2.74';
-import { liveSceneOf, endLiveScene } from '../hunt-view/scene.js?v=0.2.74';
-import { huntOf } from '../session/hunt-sections.js?v=0.2.74';
-import { createWalkScene } from './walk-scene.js?v=0.2.74';
-import { createTownZoom } from './town-zoom.js?v=0.2.74';
-import { homeMapFor, homeEnv } from './home-scene.js?v=0.2.74';
-import { runAction } from './steer-local.js?v=0.2.74';
-import { heroSprite } from '../session/hero-look.js?v=0.2.74';
-import { keyBelongsToField } from '../utils/dom.js?v=0.2.74';
-import { homeOf } from '../session/home-sections.js?v=0.2.74';
-import { skillsOf } from '../session/item-sections.js?v=0.2.74';
-import { createHearthView } from './hearth-burn.js?v=0.2.74';
+import { BUILD } from '../build-info.js?v=0.2.75';
+import { OPEN_CLASSES } from '../data/world/terrain.js?v=0.2.75';
+import { WORLD_MAPS, SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.75';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.75';
+import { MONSTERS } from '../data/monsters.js?v=0.2.75';
+import { compileMap } from './core/map-compile.js?v=0.2.75';
+import { createBook } from './core/book.js?v=0.2.75';
+import { fpsFor, MOBILE_QUERY } from './core/camera.js?v=0.2.75';
+import { heroBuilding, roofTargets, stepAlpha } from './core/roofs.js?v=0.2.75';
+import { readScene, setChoice, heroPosOn, notePos, forgetPos } from './store.js?v=0.2.75';
+import { loadManifests, createSceneImages, loadAtlasSet, baseTables } from './atlas.js?v=0.2.75';
+import { sceneSetsSliced } from './scene-sets.js?v=0.2.75';
+import { prewarmedSets, stopPrewarm } from './prewarm.js?v=0.2.75';
+import { createGridArt, sandboxExtras, presenceFor } from './sandbox-scene.js?v=0.2.75';
+import { createCanvasBackend } from './render/canvas-backend.js?v=0.2.75';
+import { huntOfMap } from './hunt-maps.js?v=0.2.75';
+import { createHuntScene } from './hunt-scene.js?v=0.2.75';
+import { liveSceneOf, endLiveScene } from '../hunt-view/scene.js?v=0.2.75';
+import { huntOf } from '../session/hunt-sections.js?v=0.2.75';
+import { createWalkScene } from './walk-scene.js?v=0.2.75';
+import { createTownZoom } from './town-zoom.js?v=0.2.75';
+import { homeMapFor, homeEnv } from './home-scene.js?v=0.2.75';
+import { runAction } from './steer-local.js?v=0.2.75';
+import { heroSprite } from '../session/hero-look.js?v=0.2.75';
+import { keyBelongsToField } from '../utils/dom.js?v=0.2.75';
+import { homeOf } from '../session/home-sections.js?v=0.2.75';
+import { skillsOf } from '../session/item-sections.js?v=0.2.75';
+import { createHearthView } from './hearth-burn.js?v=0.2.75';
 
 /* THE KEYS (desktop): WASD and the arrows, by physical key (e.code, so a
    non-QWERTY layout walks with the same hand). Two held at once walk the
@@ -245,6 +245,8 @@ export async function bootWorld(panel, opts) {
     const now = character.now();
     /* the live view's engine runs to now first (src/session/live-link.js) */
     if (typeof character.liveAdvance === 'function') character.liveAdvance(now);
+    /* A CATCH-UP STILL RUNNING IN SLICES (live-link.js advance): the last frame stays until it lands, or the skipped span replays its deaths (LV-29). */
+    if (character.liveLink && character.liveLink.catchingUp()) return null;
     const back = typeof character.takeReseeded === 'function' ? character.takeReseeded() : null;
     if (back) scene.revive(back, now);
     /* what the live view did (verdicts, restarts), readable from the page for a live check: data-live */
@@ -372,6 +374,7 @@ export async function bootWorld(panel, opts) {
     let cast;
     if (sc.kind === 'hunt') {
       cast = huntState(G, sc, map, name, now);
+      if (!cast) return;   // a live catch-up still running in slices: the last frame stays on screen
       walk = null; lastWalk = null; keys.clear(); forgetPos(G);   // back in town: on the stand the server gives it
       if (town) town.show(null);
     } else {
@@ -453,6 +456,15 @@ export async function bootWorld(panel, opts) {
   function onFocusIn(e) { if (keyBelongsToField(e.target, '')) letGo(); }
 
   const live = () => panel.classList.contains('active') && !doc.hidden;
+  /* A FRAME THAT THROWS never stops the loop (the next frame is asked for before the step runs) and is
+     said ONCE per error, not 60 times a second (Sentry JAVASCRIPT-4C). */
+  const said = new Set();
+  function failedFrame(e) {
+    const key = String((e && e.message) || e);
+    if (said.has(key) || said.size >= 20) return;
+    said.add(key);
+    console.error('[world] a frame failed', e);
+  }
   function frame(t) {
     raf = 0;
     if (!live()) { running = false; return; }
@@ -460,7 +472,7 @@ export async function bootWorld(panel, opts) {
     if (last && t - last < 1000 / fpsFor(!!(mq && mq.matches)) - 2) return;
     const dt = last ? t - last : 0;
     last = t;
-    step(dt);
+    try { step(dt); } catch (e) { failedFrame(e); }
   }
   function sync() {
     /* One frame NOW whenever the pane is in front and its loop is not already
@@ -472,7 +484,7 @@ export async function bootWorld(panel, opts) {
        decision still runs. A sheet or grid art landing after destroy() draws nothing (the presence stays parked). */
     if (gone) return;
     if (panel.classList.contains('active') && !(running && live())) {
-      try { step(0); } catch (e) { console.error('[world] a frame failed', e); }
+      try { step(0); } catch (e) { failedFrame(e); }
     }
     if (live()) {
       if (!running) { running = true; last = 0; raf = win.requestAnimationFrame(frame); }

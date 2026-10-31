@@ -1707,7 +1707,7 @@ async function checks(overrides, shots) {
           await page.waitForTimeout(800);
           s.reply = { ok: true };
           const said = await msgSeen();
-          if (!said || said.text !== 'You no longer have that many.') fails.push('AW-18b a refused deposit says ' + JSON.stringify(said && said.text));
+          if (!said || said.text !== 'You no longer have that many Copper Ore.') fails.push('AW-18b a refused deposit says ' + JSON.stringify(said && said.text));
           else if (!said.shown) fails.push('AW-18b the refusal of a deposit is out of sight (under the grids, where a full bag scrolls it away)');
           if ((await sc('bag', 'copper_ore')) !== '7') fails.push('AW-18b a refused deposit moved the bag to ' + (await sc('bag', 'copper_ore')));
           await page.click(W18 + '[data-side="bag"] .hw-pocket[data-item="bronze_arrows"]', { modifiers: ['Shift'] });

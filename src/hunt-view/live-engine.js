@@ -151,6 +151,8 @@ export function createLiveEngine(o) {
   /* Why the last start point or swing could not run (failed()), or null. */
   let failure = null;
   const fail = (why) => { failure = why; st = null; return null; };
+  /* A catch-up run in slices (catchUpSlice): forward()'s run, kept for the prediction it steps. */
+  let job = null;
 
   function start(live) {
     failure = null;
@@ -234,8 +236,11 @@ export function createLiveEngine(o) {
    *                    drawn falling, never left standing at its last tile (live v0.2.21 "the kobold
    *                    was still standing at the end"); their ids are the engine's, so a death the
    *                    screen already played is not played twice (timeline.js T1)
+   * A RUN IN SLICES (catchUpSlice): forward() is that run kept between calls; run(more) asks `more()` after
+   * each swing whether this call may run another, and answers true when done, false while swings remain,
+   * null when one threw. The same swings, the same `until`, the same answer as one call (fastForward).
    */
-  function fastForward(serverNowMs, aheadMs) {
+  function forward(serverNowMs, aheadMs) {
     const until = serverNowMs + Math.max(0, Math.floor(Number(aheadMs) || 0));
     const pos = new Map(), killed = new Set(), hp = {}, kills = [], track = [], events = [];
     /* Every unit the start point's world holds is named and sized from that world, as combat-sim's own
@@ -247,32 +252,47 @@ export function createLiveEngine(o) {
       if (u.alive) pos.set(u.id, [u.x, u.y]);
       hp[u.id] = [u.kind, u.maxHp, u.hp];
     }
-    for (let n = 0; st.next <= until && n < MAX_SWINGS_PER_CALL; n++) {
-      let tl;
-      try { tl = swing(st); } catch (e) { if (e && e.starved) st.starved = true; if (e && (e.starved || e.ended)) break; return fail(reasonOf(e)); }
-      for (const [k, v] of Object.entries(tl.hunt_units || {})) hp[k] = v.slice();
-      for (const s of tl.hunt_track) { if (s.atMs <= until) pos.set(s.u, [s.x, s.y]); else track.push(s); }
-      for (const ev of tl.hunt_events) {
-        if (ev.atMs > until) { events.push(ev); continue; }
-        if (ev.type === 'kill' && isInt(ev.t)) { killed.add(ev.t); kills.push(ev); }
-        const r = hp[ev.t];
-        if (r && Number.isFinite(ev.amount) && (ev.type === 'dmg' || ev.type === 'heal' || ev.type === 'status_tick')) {
-          r[2] = Math.max(0, Math.min(r[1], r[2] + (ev.type === 'heal' ? ev.amount : -ev.amount)));
+    const of = st;
+    let n = 0;
+    const due = () => st.next <= until && n < MAX_SWINGS_PER_CALL;
+    function run(more) {
+      while (due()) {
+        let tl;
+        try { tl = swing(st); } catch (e) { if (e && e.starved) st.starved = true; if (e && (e.starved || e.ended)) return true; return fail(reasonOf(e)); }
+        n++;
+        for (const [k, v] of Object.entries(tl.hunt_units || {})) hp[k] = v.slice();
+        for (const s of tl.hunt_track) { if (s.atMs <= until) pos.set(s.u, [s.x, s.y]); else track.push(s); }
+        for (const ev of tl.hunt_events) {
+          if (ev.atMs > until) { events.push(ev); continue; }
+          if (ev.type === 'kill' && isInt(ev.t)) { killed.add(ev.t); kills.push(ev); }
+          const r = hp[ev.t];
+          if (r && Number.isFinite(ev.amount) && (ev.type === 'dmg' || ev.type === 'heal' || ev.type === 'status_tick')) {
+            r[2] = Math.max(0, Math.min(r[1], r[2] + (ev.type === 'heal' ? ev.amount : -ev.amount)));
+          }
         }
+        if (more && !more()) return !due();
       }
+      return true;
     }
-    const positions = new Map(), alive = new Set(), units = {}, fallen = {};
-    for (const u of killed) if (hp[u]) fallen[u] = [hp[u][0], hp[u][1], 0];
-    for (const [u, xy] of pos) {
-      if (killed.has(u)) continue;
-      positions.set(u, xy); alive.add(u);
-      if (hp[u]) units[u] = hp[u];
+    function result() {
+      const positions = new Map(), alive = new Set(), units = {}, fallen = {};
+      for (const u of killed) if (hp[u]) fallen[u] = [hp[u][0], hp[u][1], 0];
+      for (const [u, xy] of pos) {
+        if (killed.has(u)) continue;
+        positions.set(u, xy); alive.add(u);
+        if (hp[u]) units[u] = hp[u];
+      }
+      /* a unit that first appears after `until` (a respawn) is alive too: its steps are played on, and it is
+         named and sized from the swing that spawned it (the run's unit book), or the scene cannot draw it until
+         the next swing names it ("[hunt-scene] no sprite for unit 6..17 (null)", Andy #65 at a switch) */
+      for (const s of track) { alive.add(s.u); if (!units[s.u] && !killed.has(s.u) && hp[s.u]) units[s.u] = hp[s.u]; }
+      return { positions, alive, units, fallen, fromMs: until, track, events, kills };
     }
-    /* a unit that first appears after `until` (a respawn) is alive too: its steps are played on, and it is
-       named and sized from the swing that spawned it (the run's unit book), or the scene cannot draw it until
-       the next swing names it ("[hunt-scene] no sprite for unit 6..17 (null)", Andy #65 at a switch) */
-    for (const s of track) { alive.add(s.u); if (!units[s.u] && !killed.has(s.u) && hp[s.u]) units[s.u] = hp[s.u]; }
-    return { positions, alive, units, fallen, fromMs: until, track, events, kills };
+    return { of, run, result };
+  }
+  function fastForward(serverNowMs, aheadMs) {
+    const f = forward(serverNowMs, aheadMs);
+    return f.run(null) ? f.result() : null;
   }
 
   return {
@@ -374,6 +394,22 @@ export function createLiveEngine(o) {
      */
     catchUp(serverNowMs, aheadMs) { return st && !st.starved && !st.ended ? fastForward(serverNowMs, aheadMs) : null; },
     /**
+     * catchUp IN SLICES (a tab back from the background: up to MAX_SWINGS_PER_CALL swings as one task of 213-259 ms):
+     * the same run, `more()` asked after each swing whether this call may run another. Answers catchUp's answer
+     * once the run is done, undefined while swings remain (call again: the run keeps the instants of its first
+     * call), null when no prediction runs (or a swing threw: failed()). A restart (seed, reseed) drops the run.
+     */
+    catchUpSlice(serverNowMs, aheadMs, more) {
+      if (!st || st.starved || st.ended) { job = null; return null; }
+      if (!job || job.of !== st) job = forward(serverNowMs, aheadMs);
+      const done = job.run(more);
+      if (done === false) return undefined;
+      const j = job; job = null;
+      return done === null ? null : j.result();
+    },
+    /** Is a sliced catch-up under way (catchUpSlice answered undefined) for the prediction running now? */
+    catchingUp: () => !!job && !!st && job.of === st,
+    /**
      * The server instant the look-ahead runs out: the boundary of the first swing it holds no combat
      * seed for (null when not running). The session asks for more before it comes (live-link.js
      * refillDelayMs), so the prediction never stands waiting for seeds.
@@ -393,6 +429,6 @@ export function createLiveEngine(o) {
     heldSeeds: () => (st ? st.seeds.list.length : 0),
     /** The hash of the prediction's world at a swing (tests). */
     hashAt: (swingIndex) => (st ? st.hashes.get(swingIndex) ?? null : null),
-    stop() { st = null; failure = null; },
+    stop() { st = null; failure = null; job = null; },
   };
 }

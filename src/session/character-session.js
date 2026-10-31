@@ -77,6 +77,7 @@ export class CharacterSession {
    * @param {(fn: Function, ms: number) => any} [o.setTimer]
    * @param {(t: any) => void} [o.clearTimer]
    * @param {() => number} [o.now]   the display clock (ms) the timeline plays on
+   * @param {() => number} [o.clock] the main-thread clock a live catch-up slice is measured on (live-link.js; performance.now)
    * @param {object} [o.intents]  the account's intent ledger (default: the server link's)
    */
   constructor(o) {
@@ -111,7 +112,7 @@ export class CharacterSession {
     /* THE LIVE VIEW (option B): the instance engine run in the browser from the server's start
        point, prediction only; `live` is its engine (the scene reads its heroes). */
     this.liveLink = new LiveLink({ timeline: this.timeline, now: () => this._now(), emit: (why) => this._emit(why),
-      stale: () => { if (this._server && typeof this._server.stale === 'function') this._server.stale(); } });
+      stale: () => { if (this._server && typeof this._server.stale === 'function') this._server.stale(); }, clock: o.clock });
     this.live = this.liveLink.engine;
     this.receivedAt = null; this.settleRefusal = null;   // the engine's last refusal to settle (hello), or null
     this._askedAt = null; this._answeredAt = null;   // the last settle's send and answer (client ms): a leave's 'late'

@@ -30,6 +30,44 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 ## Decisions
 _Tyler's rulings live in rulings-of-record; designer rulings inside them are recorded here._
 
+### 2026-10-31 First hour in every fighting style (designer, lane/b-first-hour-styles): PLAYED from the sign-in screen on the local world (tools/qa/local-world.mjs), shots art/review/first-hour-styles-2026-10-31/
+Fresh accounts: sword + shield, hatchets, bow, wand + spellbook, staff, plus a two-hero party at 922x423 touch and a death on purpose. Waiting compressed with skip, results real. Then the blind panel's list (lane/f-*).
+
+| Style | Cellar to Level 5 | Thicket | Falls | Verdict |
+|---|---|---|---|---|
+| Sword + shield | 19 min, 147 kills | 75 min, Level 7 | 0 | PASS |
+| Hatchets | 21 min, 185 kills | 20 min, 234 kills | 0 | PASS |
+| Bow | **0 kills in 7 min with 50 arrows in the bag**; fixed: 5 kills in 21 s | not re-run after the fix | 0 | FAIL, then PASS on the fix |
+| Wand + spellbook | 21 min, 182 kills | 20 min, 249 kills | 0 | PASS |
+| Staff, solo (Tyler's P1) | 20 min, 137 kills, no food eaten | 20 min, 180 kills | 0 | PASS |
+| Own party, phone | Sewer: L5 tank + L1 healer alive 10 min | | 0 | PASS once the tabs could be pressed |
+
+**Rulings**
+- **HP "+0.6/s":** the bar shows the rate a watcher can see: "+12/s rest". Between fights a hero recovers 20 times faster, and in a fight the blows drown the slow rate, so that one lives in the title. Mana unchanged.
+- **"Order matters"** is now "Your own food first", and says what it costs. It and "Eat on time" wait until the hero has eaten three times in a hunt: at minute 9 a tank had eaten once, which was the skeptic's nearest refund.
+- **A card that asks never walls.** Every first-hour card that asks for a press has a Got it. The Cellar's bar and farm lessons stand aside at Level 5, so Cash in always gets through, and return in the Thicket if undone.
+- **"Next level in: after 10 min"** is hidden until the server has a rate; the Per hour line says when it comes.
+- **A sword's first bar** (Challenge, Power Strike, food, food, drink) makes sense as it is. The trap was the store food after "Eat on time", now covered above.
+- **Starter rune spells on other styles:** each is struck and each is explained three ways (Before you go, its slot, "Spells need runes"). Keep them off the store by default: the 10-29 measurement says store runes on every default slot cost a fifth of net gold and turned drop-tables red. The veteran's "her only damage spell is dead" overstates it: the staff's basic attack made all her kills for the first 4 minutes (31 by minute 5).
+- **Order:** the weapon card comes first, before any hunt; Blessings come first on the way back. The Help page gets its own card. Leave's countdown shows no card.
+- **Cards in a hunt** fold to their title after their reading time (20 s at least), unless the player opened them. Tamsin's payment and "ran out" lines leave after 30 s.
+- **Zero-kill hunts should stop:** no kill in 10 minutes of fighting ends the hunt with its own reason and an end card that says why. It needs a new END_ORDER reason and an engine change: lane C, not built here. The door we know (bow) is shut, and Before you go warns in red.
+- **Stamina:** both numbers are true. `STAMINA_MAX_MS` is 8 h free, 12 h premium, and beta_premium makes every hero 12 h. Help now says so.
+
+**Creator colors: a missing render, not a bug.** The four picks reach the server (hr_create_hero). No world or hunt renderer reads them (no `colors` in src/world or src/hunt-view) and every outfit has `regions: []`, so no mask art exists. The real fix is mask frames per outfit (asset-director) plus one palette swap at sheet load: days of art, about a day of code. For now the step says so in one line. Decision for Tyler: keep that line until the art, or hide the color rows (CLAUDE.md §3.5 says half-built stays hidden; his 10-19 ruling asked for the step).
+
+**Ranked, not built**
+1. Zero-kill stop (lane C, above).
+2. Switching style with an own bar leaves the old style's moves struck beside the new ones. It says why, but a setup per style is the real answer: teach it at the first switch, not after the Thicket. Bites after hour 1.
+3. Tamsin pays materials once the hero already owns her pieces, and by 200 wolves drops have usually supplied them. The card now says so; her greeting still promises armor. Giving the next tier is a lane C rule change.
+4. A Level 1 sword in Wickstead (floor 8) reached Level 5 in 5 minutes with no death, against 20 in the Cellar: the warning is true but the push pays. Balance call for the sim, unverified.
+5. Icon tooltips sit under the first card; town icons have no words. Art-director.
+6. "Sell all loot" and "Dispatch loot" overlap in the first hour. Keep both for now; revisit with lane/b-core-loop-20h.
+7. "Taking a beating?" fires at 3 meals, which is ordinary eating. Watch it now that "Eat on time" shares the trigger.
+8. Invite to party's result stays in its menu until a tap elsewhere; on a phone that menu covers the hero tabs.
+
+**Not played:** hammer, crossbow and a wand without a book past their first minute; Thicket after the bow fix; real waiting on farm and cooking clocks; live.
+
 ### 2026-10-30 Core loop, fresh and returning (designer, lane/b-core-loop-basics): PLAYED on live v0.2.70 as QA (Pellow L2→3 in the Cellar, reload mid-hunt, leave, summary, bag, Shop; Corliss L12 back after a day), fixes in the lane
 | # | Moment (first-hour value order) | Ruling |
 |---|---|---|

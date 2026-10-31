@@ -69,7 +69,8 @@ renderHuntTopbar.patch = function patchHuntTopbar(el, ctx) {
   attr(details, 'aria-pressed', String(!!ctx.hud && ctx.hud.isShown('analyzer')));
   prop(el.querySelector('.ht-clock'), 'hidden', over);
   /* The tutorial card hangs UNDER this bar while a hunt is open (the launcher's would cover Leave hunt). */
-  const html = pointerFor(ctx);
+  /* Nothing while the leave runs: "Cash in, leave the hunt" popped up during its countdown (the panel 2026-10-31). */
+  const html = leaving && !over ? '' : pointerFor(ctx, !over);
   placeCoach(el, html);
 };
 

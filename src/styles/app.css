@@ -218,6 +218,7 @@
    title row would only repeat it and cost the stage a line. */
 .app.is-game:has(.ht-bar) #panel-world .world-chrome { display: none; }
 
+.hero-note { margin: 4px 0 0; font-size: var(--t-micro); color: var(--ink-3); }
 /* THE CREATION STEP (src/app/hero-create.js), in the account card: the hero in a sunk mirror on the left (drawn at
    x4, standing on the pixel ground shadow at the same x4), its name and four colour strips beside it, then How you
    fight; the foot holds the way back and Enter town. */

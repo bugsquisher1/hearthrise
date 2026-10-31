@@ -105,6 +105,7 @@ export const TUTORIAL_ANCHORS = Object.freeze({
   /* Services is the Shop's third tab (Tyler 2026-10-25): the Shop's icon, its Services tab, then the next Bless */
   services: anchor('the Shop\'s Services tab (src/shell/windows/services.js): the Shop\'s icon, the Services tab, then the control', 'shop', true, 'services'),
   storage: anchor('Storage (src/shell/windows/storage.js): its icon', 'storage', true),
+  settings: anchor('Settings (src/shell/windows/settings.js): its icon, then the Help tab', 'settings', true),
   hunt_prep: anchor('Hunt prep (src/shell/windows/hunt-prep.js): the bar\'s setup corner, then Save current setup', 'hunt-prep', true),
   house: anchor('the House (src/shell/windows/house.js): its icon, then Buy', 'house', true),
   characters: anchor('the character strip\'s Characters button, then Create hero on the characters screen', 'characters'),
@@ -181,6 +182,12 @@ const SERVICES_TAB = '[data-hs-win="shop"] .hw-tab[data-tab="services"]';
 const TO_BLESS = [SERVICES_TAB, '[data-hs-win="shop"] [data-hs-act="bless"]:not([disabled])'];
 
 export const HUNT_TUTORIAL = Object.freeze([
+  /* ── THE WEAPON IS THE STYLE, BEFORE ANY HUNT (the panel 2026-10-31: it came after the archer's disaster). One Got it, or
+     a weapon taken up, and the first hunt's card follows. ── */
+  step('styles', 'Every weapon is a style',
+    'There\'s no class to pick: the weapon you hold decides how you fight.',
+    'inventory', { kind: 'any', of: [READ, { kind: 'weapon_changed' }] },
+    { knowledge: true, gotIt: true, when: [IN_TOWN], hooks: ['[data-hs-win="inventory"] .hw-slot[data-slot="weapon"]'] }),
   /* ── A. Before the first pull ───────────────────────────────────────── */
   step('to_the_cellar', 'Rats in the mill',
     'The miller has rats in his grain. Open Hunts and enter the Mill Cellar.',
@@ -279,7 +286,7 @@ export const HUNT_TUTORIAL = Object.freeze([
     'action_bar', orGotIt({ kind: 'rune_ready' }), { gotIt: true, when: [LESSON, { kind: 'rune_struck' }], hooks: ['[data-hs-win="configure-action"] .ca-rs[data-store="{store}"]'] }),
   step('food_when', 'Eat on time',
     'A food slot on your bar eats for you below an HP you set.',
-    'action_bar', orGotIt({ kind: 'food_cond' }), { gotIt: true, when: [LESSON, { kind: 'food_slot' }], hooks: ['[data-hs-win="configure-action"] .ca-cond[data-cond="0"] [data-x="dec"]'] }),
+    'action_bar', orGotIt({ kind: 'food_cond' }), { gotIt: true, when: [{ kind: 'eaten_at_least', n: BEATING_EATS }, { kind: 'food_slot' }], hooks: ['[data-hs-win="configure-action"] .ca-cond[data-cond="0"] [data-x="dec"]'] }),
   /* Was "Order matters": the lesson is what it costs, not slot arithmetic (first-hour play 2026-10-31). */
   step('food_order', 'Your own food first',
     'A store food slot eats before your own food at some HP.',
@@ -295,6 +302,10 @@ export const HUNT_TUTORIAL = Object.freeze([
       /* deepest first: the first on screen is ringed (launcher.js ringPlan), so the ring walks tab -> spell -> rune */
       hooks: ['[data-hs-win="configure-action"] .ca-rs[data-store="{store}"]', '[data-hs-win="configure-action"] .ca-row[data-id="{spell}"]',
         '[data-hs-win="configure-action"] .ca-tab[data-tab="runes"]'] }),
+  /* THE HELP PAGE, POINTED AT (the panel: "the best thing you've written, buried behind a gear icon"). */
+  step('help_page', 'The whole picture',
+    'The gear icon at the top right opens Settings, and its Help page explains hunting, supplies, loot, gear and dying in plain words. It\'s there whenever you want it.',
+    'settings', READ, { knowledge: true, gotIt: true, when: [LESSON], hooks: ['[data-hs-win="settings"] .st-tab[data-cat="help"]'] }),
   step('earn_the_thicket', 'Out to the brook',
     'Keep hunting here until Level ' + HUNT_INDEX[THICKET].band[0] + ', about a quarter of an hour into your first hunt; then '
       + HUNT_INDEX[THICKET].name + ' fits you. You can close the game: your hero keeps hunting until its stamina runs out, and what it earns waits for you.',
@@ -303,6 +314,12 @@ export const HUNT_TUTORIAL = Object.freeze([
     'Leave the hunt to go back to town. Your loot is already in your bag.',
     'hunt_topbar', { kind: 'ended', reason: 'left' }),
   /* ── C. The first return: sell or keep, cook, styles, Blessings before danger, Tamsin ── */
+  /* Blessings first on the way back: they are one press and the next ground is where a hero can die (the panel: "Before the
+     wolves" came after the wolves). */
+  step('bless', 'Before the wolves',
+    'Out past the Cellar you can die. Blessings protect most of what a death costs, and they\'re free for now: open the Shop\'s Services tab and Bless all three.',
+    'services', orGotIt({ kind: 'blessed' }), { gotIt: true, when: [IN_TOWN, { kind: 'level_at', at: HUNT_INDEX[THICKET].band[0] }, { kind: 'below_free' }],
+      inWindow: 'Press Services, then Bless on each of the three Blessings.', hooks: TO_BLESS }),
   step('sell_loot', 'Sell what only pays coin',
     'Open the Shop and press Sell. Sell all loot sells the parts that are only worth gold, and keeps fuel for the Great Hearth (it raises your Inner Flame) and food you can cook. Point at anything to see what it\'s for.',
     'shop', { kind: 'any', asks: true, of: [READ, { kind: 'loot_sold' }, { kind: 'been', hunt: THICKET }] },
@@ -317,14 +334,6 @@ export const HUNT_TUTORIAL = Object.freeze([
     'Open Gathering and crafting, press Cooking, then Start on Cook Shrimp. Your Raw Shrimp become the Cooked Shrimp your {slot:cooked_shrimp} eats.',
     'crafting', orGotIt({ kind: 'skill_xp', skill: 'cooking' }), { gotIt: true, when: [IN_TOWN], ring: { skill: 'cooking', work: 'cook_shrimp' },
       inWindow: 'Press Cooking, then Start on Cook Shrimp. Your Raw Shrimp become the Cooked Shrimp your {slot:cooked_shrimp} eats.' }),
-  step('styles', 'Every weapon is a style',
-    'There\'s no class to pick: the weapon you hold decides how you fight.',
-    'inventory', { kind: 'any', of: [READ, { kind: 'weapon_changed' }] },
-    { knowledge: true, gotIt: true, when: [IN_TOWN], hooks: ['[data-hs-win="inventory"] .hw-slot[data-slot="weapon"]'] }),
-  step('bless', 'Before the wolves',
-    'Out past the Cellar you can die. Blessings protect most of what a death costs, and they\'re free for now: open the Shop\'s Services tab and Bless all three.',
-    'services', orGotIt({ kind: 'blessed' }), { gotIt: true, when: [IN_TOWN, { kind: 'level_at', at: HUNT_INDEX[THICKET].band[0] }, { kind: 'below_free' }],
-      inWindow: 'Press Services, then Bless on each of the three Blessings.', hooks: TO_BLESS }),
   step('tamsins_task', 'Tamsin\'s wolves',
     'Tamsin pays for kills. Open her tally, pick the armor weight she pays you in, then Take ' + WOLVES.count + ' ' + WOLVES.label
       + '. Every kill counts, even while you\'re away. ' + WEIGHTS_SAID,
@@ -338,7 +347,7 @@ export const HUNT_TUTORIAL = Object.freeze([
      Sewer the card sent him back to the Thicket; the tally on screen still counts them and she still pays). */
   step('tamsin_pays', 'Paid in town',
     'Hunt the Thicket until your ' + WOLVES.count + ' ' + WOLVES.label + ' are down; the tally on screen counts. Tamsin pays as you come back to town: '
-      + WOLVES.gold + ' gp and a piece of armor you can wear.',
+      + WOLVES.gold + ' gp and a piece of armor you don\'t own yet, or materials if you own them all.',
     'world', { kind: 'any', of: [{ kind: 'tally_paid' }, { kind: 'been', hunt: WOLVES.hunt, past: true }] }, { when: [{ kind: 'not_elsewhere', hunt: WOLVES.hunt }] }),
   step('go_below', 'Into the sewer, together',
     'The Sewer is a party hunt. Pick The Sewer and Start with party: everyone walks in together. The Rat King holds the last room and only comes out for a party.',
@@ -785,7 +794,7 @@ const SAY = Object.freeze({
     return { text: 'There\'s no class to pick: the weapon you hold decides how you fight. ' + n(START_EQUIPMENT.weapon) + ' and ' + n(START_EQUIPMENT.shield)
       + ' hold the monsters on you (a tank). ' + n('practice_hatchets') + ' or a ' + n('practice_club') + ' hit hardest up close. A ' + n('practice_bow') + ' or '
       + n('practice_crossbow') + ' shoots from range. A ' + n('practice_wand') + ' and ' + n('practice_spellbook') + ' cast spells. A ' + n('practice_staff')
-      + ' heals. All of them are in your bag: press one, then Equip, any time in town. Better ones are made in Gathering and crafting.' };
+      + ' heals. The others are in your bag: press one, then Equip, any time in town. Better ones are made in Gathering and crafting.' };
   },
   bless: (f) => {
     const b = f.blessings;
@@ -823,7 +832,7 @@ const SAY = Object.freeze({
     const gp = st >= 0 ? priceOf(f, f.slots[st].id) : null;
     const then = st >= 0 && gp !== null ? '; after that ' + slotWords([st]) + ' buys ' + name(f.slots[st].id) + ' at ' + gp + ' gp' : '';
     return { text: 'Your HP fell under ' + hpBelow(f.slots[i]) + '%, so ' + slotWords([i]) + ' ate ' + anA(name(item)) + '.'
-      + (Number.isInteger(left) ? ' You have ' + left + ' left' + then + '.' : '') + ' Cook more to keep your gold.', barSlot: i };
+      + (Number.isInteger(left) ? (left > 0 ? ' You have ' + left + ' left' : ' That was your last one') + then + '.' : '') + ' Cook more to keep your gold.', barSlot: i };
   },
   first_drink: (f) => {
     const i = slotOf(f, (s) => isDrink(s) && below(s, 'self_mana_pct') !== null);

@@ -212,6 +212,12 @@ async function checks(overrides) {
           && window.__hub.channels['hr:' + uid + ':0'] && window.__hub.channels['hr:' + uid + ':1']
           && document.querySelector('#panel-world[data-slot="1"]'), UID);
         if (!two) fails.push('B-4 a second character did not open beside the first');
+        /* B-4 ON A PHONE EACH HERO HAS A TAB YOU CAN PRESS (first-hour play 2026-10-31: at 922x423 the tools and the icon row
+           left each tab 12 px; no hero could be seen or switched to, and Invite to party starts on that tab). */
+        await page.setViewportSize({ width: 922, height: 423 });
+        const tabs = await page.evaluate(() => Array.from(document.querySelectorAll('.char-tab[data-app="show"]')).map((b) => Math.round(b.getBoundingClientRect().width)));
+        await page.setViewportSize({ width: 1280, height: 720 });
+        if (tabs.length !== 2 || tabs.some((w) => w < 44)) fails.push('B-4 on a 922x423 phone the hero tabs are ' + tabs.join(' and ') + ' px wide, too narrow to press');
       }
       await page.click('[data-app="sign-out"]');
       if (!(await wait(page, () => document.querySelector('form[data-auth="sign-in"]')))) fails.push('B-5 sign-out did not return to sign-in');

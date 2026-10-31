@@ -120,6 +120,9 @@ export function renderHeroCreate(card, o) {
     + '<div class="hero-form">'
     + '<label class="auth-field">Name<input type="text" class="hero-name" maxlength="20" autocomplete="off" spellcheck="false" placeholder="3 to 20 letters"></label>'
     + BASE_REGIONS.map((g) => '<fieldset class="hero-region"><legend>' + REGION_LABEL[g] + '</legend><div class="hero-dyes">' + swatches(g) + '</div></fieldset>').join('')
+    /* THE WORLD DRAWS NO DYE YET (the panel 2026-10-31: "None of my colours anywhere"): no outfit has its mask art (outfits.js
+       regions: []), so the step says so rather than let the first thing a player makes vanish. */
+    + '<p class="hero-note">Your colors are saved with your hero. In the world your hero wears the outfit of the weapon it holds, and outfits can\'t be dyed yet.</p>'
     + '</div>' + howYouFightHtml() + '</div>'
     + '<p class="auth-message" role="status" aria-live="polite"></p>'
     + '<div class="auth-foot"><button type="button" class="auth-link hero-back">Back to your characters</button>'

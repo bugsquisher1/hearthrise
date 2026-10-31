@@ -93,10 +93,10 @@ export function patchHub(el, ctx) {
   text(el.querySelector('[data-v="mana"]'), pair(v.mana, v.manaMax));
   /* HP SAYS THE RATE A WATCHER CAN SEE (designer 2026-10-31): the hero recovers twenty times faster between fights, and
      a screen reading "+0.6/s" over HP racing back looks wrong. In a fight the blows drown the slow rate, so that one is
-     the title's. Whole numbers from 10 up: it has to fit beside the medallion. */
+     the title's. Whole numbers from 5 up: it has to fit beside the medallion. */
   const rest = hero ? hero.hpRestPerS : null;
   const hpRate = el.querySelector('[data-r="hp"]');
-  text(hpRate, ok(rest) && rest > 0 ? '+' + (rest >= 10 ? Math.round(rest) : rest.toFixed(1)) + '/s rest' : '');
+  text(hpRate, ok(rest) && rest > 0 ? '+' + (rest >= 5 ? Math.round(rest) : rest.toFixed(1)) + '/s rest' : '');
   attr(hpRate, 'title', ok(rest) && rest > 0 ? 'Health regained each second between fights. In a fight: ' + regen(hero.hpPerS) + '.' : 'Health regained each second');
   text(el.querySelector('[data-r="mana"]'), hero ? regen(hero.manaPerS) : '');
   fill(el.querySelector('.hb-arc.is-hp'), share(v.hp, v.hpMax));

@@ -108,6 +108,9 @@ function startApp(win) {
 
   function clear() {
     paneSeq++;
+    /* the first screen takes over from the loading shell play.html paints (src/platform/load-shell.js) */
+    const loading = doc.querySelector('.boot-shell');
+    if (loading) loading.remove();
     if (creating) { creating.destroy(); creating = null; }
     if (pane) { pane.destroy(); pane = null; }
     if (strip) { strip.destroy(); strip = null; }
@@ -178,6 +181,7 @@ function startApp(win) {
       if (why === 'closed-game') showClosed();
       else if (why === 'viewed' && strip) showPane();
     });
+    account.setPageHidden(doc.hidden);   // opened behind another tab: visibilitychange has nothing to say yet
     alerts = createAlertCenter(account);
     /* Every press answers at once (src/shell/press-ack.js); ?debug=live adds the corner (live-overlay.js). */
     watchers = [mountPressAck(doc, account.intents), mountConnectionLine(doc), mountOffWhy(doc), mountLauncherNames(doc)];
@@ -351,6 +355,9 @@ function startApp(win) {
     else if (what === 'create') showCreate(slot);
     else if (what === 'buy-slot') buySlot(Number(t.getAttribute('data-slot-id')), Number(t.getAttribute('data-pay')));
   });
+
+  /* A HIDDEN PAGE ASKS NOTHING (AccountSession.setPageHidden): the hunts run on the server; shown again, one catch-up. */
+  doc.addEventListener('visibilitychange', () => { if (account) account.setPageHidden(doc.hidden); });
 
   auth.onChange((ev) => {
     if (ev === 'recovery') showAuth('set-password');

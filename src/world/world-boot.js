@@ -152,7 +152,9 @@ export async function bootWorld(panel, opts) {
      2026-10-28); kept until an <html>/<body> attribute (theme, class) or a resize (media query) can change them. */
   const tokens = new Map();
   const css = (name) => { let v = tokens.get(name); if (v === undefined) tokens.set(name, v = styles.getPropertyValue(name).trim()); return v; };
-  const forgetTokens = () => tokens.clear();
+  /* ...and a changed token is the one change a draw list cannot show: the next frame paints whatever it holds */
+  let tokensChanged = null;
+  const forgetTokens = () => { tokens.clear(); if (tokensChanged) tokensChanged(); };
   const tokenWatch = typeof win.MutationObserver === 'function' ? new win.MutationObserver(forgetTokens) : null;
   if (tokenWatch) { tokenWatch.observe(doc.documentElement, { attributes: true }); tokenWatch.observe(doc.body, { attributes: true }); }
   win.addEventListener('resize', forgetTokens);
@@ -162,6 +164,7 @@ export async function bootWorld(panel, opts) {
   const tables = baseTables(book);
   const sheets = createSceneImages({ doc, version: BUILD.cache });
   const backend = createCanvasBackend({ win, doc, book, images: sheets.images, tables, css });
+  tokensChanged = () => backend.invalidate();
   const gridArt = createGridArt({ doc, version: BUILD.cache, tables, loadSet: loadAtlasSet });
   const artOf = (id) => gridArt.art(ROWS.get(id).grid);
   const character = opts.character || null;

@@ -449,7 +449,7 @@ export function mountShell(root, o) {
     if (cs && takeFresh(cs) && !deathPopupOf(cs) && !wm.isOpen('death')) queueMicrotask(() => wm.open('hunt-summary'));
   }
 
-  /* The display tick: components patch their clocks and play the timeline's due events. */
+  /* The display tick: components patch their clocks and play the timeline's due events. A hidden page patches nothing (nobody reads it). */
   function patchComponents() {
     /* The coach FIRST, while the page is still laid out from the last frame: its ring asks what is on screen
        (launcher.js shown, getClientRects), and asked after the patches below it forced a whole layout inside the
@@ -469,7 +469,7 @@ export function mountShell(root, o) {
     }
     for (const id of wm.openIds()) if (WINDOW_RENDERERS[id] && WINDOW_RENDERERS[id].patch) refresh(id);
   }
-  const ticker = host.setInterval(patchComponents, DISPLAY_TICK_MS);
+  const ticker = host.setInterval(() => { if (!doc.hidden) patchComponents(); }, DISPLAY_TICK_MS);
 
   /* A component's own control: [data-hs-act] inside a widget or a window body. */
   function onAct(e) {

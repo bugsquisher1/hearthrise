@@ -483,7 +483,9 @@ export function composeFrame(map, book, state, view, tables, T) {
     const i = Math.floor((Math.max(0, state.t || 0) * (s.anims[name].fps || 0)) / 1000) % n;
     const f = book.frame(id, name, 's', i);
     const px = Math.round((a.x + 0.5) * T), py = Math.round((a.y + 1) * T - 1 - (a.lift || 0));
-    if (!near(px - f.ax, py - f.ay, f.w, f.h)) continue;
+    /* a loop off the view is no change at all (the World paints only what changes): the view itself, no margin, as an effect casts nothing */
+    const lx = px - f.ax, ly = py - f.ay;
+    if (!(lx < view.ox + view.w && ly < view.oy + view.h && lx + f.w > view.ox && ly + f.h > view.oy)) continue;
     effects.push({ id, set: f.set, sx: f.sx, sy: f.sy, w: f.w, h: f.h, x: px - f.ax, y: py - f.ay, cx: px, cy: py, ax: f.ax, ay: f.ay,
       blend: s.blend === 'add' ? 'add' : 'over', angle: 0 });
   }

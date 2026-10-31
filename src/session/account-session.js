@@ -174,6 +174,28 @@ export class AccountSession {
     this._storage = null;   // { at, bank, depot }: the newest account Storage any open hero read (item-sections.js storageOf)
     this._seenBanks = new WeakSet();   // the envelopes' `bank` objects already noted (a re-render brings no new one)
     this.social = o.social ? o.social(this) : null;
+    this._away = false;        // the page has been hidden longer than awayAfterMs
+    this._awayTimer = null;
+  }
+
+  /**
+   * THE PAGE WAS HIDDEN, OR SHOWN (boot.js, visibilitychange). Hidden past config.awayAfterMs, every session stops asking;
+   * shown again each asks ONE catch-up (CharacterSession.setAway, SocialSession.setAway). Nothing the server runs waits on this:
+   * hunts settle on its own tick, and a town body keeps its keepalive (playing = standing in town for everyone, Tyler 10-19).
+   */
+  setPageHidden(hidden) {
+    const clear = this._timers.clearTimer || ((t) => clearTimeout(t));
+    if (this._awayTimer !== null) { clear(this._awayTimer); this._awayTimer = null; }
+    if (hidden === true) {
+      if (this._away || this._ending) return;
+      const set = this._timers.setTimer || ((fn, ms) => setTimeout(fn, ms));
+      this._awayTimer = set(() => { this._awayTimer = null; this._setAway(true); }, this.config.awayAfterMs);
+    } else if (this._away) this._setAway(false);
+  }
+  _setAway(on) {
+    this._away = on;
+    for (const cs of this._chars.values()) cs.setAway(on);
+    if (this.social) this.social.setAway(on);
   }
 
   /** The account's gold, { gold, v }: the newest purse any open hero has read, or null. */
@@ -355,6 +377,7 @@ export class AccountSession {
       this.close(slot);
       return { ok: false, reason };
     }
+    cs.setAway(this._away);   // opened in a page that is away (a reload behind another tab): it joins when the page is shown
     cs.connect();
     /* Playing = standing in town for everyone (Tyler 2026-10-19), viewed or not: a body from the
        moment it opens (a reload or login too), on the stand the SERVER gives it (its activity's
@@ -434,6 +457,7 @@ export class AccountSession {
   /** Close every character, then forget the login everywhere on this device. */
   async signOut() {
     this._ending = true;   // the closes below are not what this tab had open; auth.signOut removes the record
+    if (this._awayTimer !== null) { (this._timers.clearTimer || ((t) => clearTimeout(t)))(this._awayTimer); this._awayTimer = null; }
     for (const slot of Array.from(this._chars.keys())) this.close(slot);
     if (this.social) { this.social.destroy(); this.social = null; }
     await this.auth.signOut();

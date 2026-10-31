@@ -12,9 +12,12 @@
 //                  still inside the 30 s freshness (server 30/min)
 //   pollMs         hr_town_view is read this often while a town is DRAWN (server 45/min): a frame that
 //                  asks for the people (walkers()); a hidden tab or a pane not drawing reads nobody
+//   idlePollMs     ...and this often once `idleAfterQuiet` answers in a row said nothing new and the hero stands (a town
+//                  at rest, 30 reads a minute for nothing: old-laptop player 10-31); any change, anyone walking, or the
+//                  hero's own step goes back to pollMs at once. A whole multiple of pollMs (the poll's timer asks)
 //   fullEveryMs    a WHOLE answer at least this often (the reads between ask only for what changed; the
 //                  server answers whole a cursor older than 60 s)
-//   staleMs        a walker list older than this shows nobody, never ghosts
+//   staleMs        a walker list older than this shows nobody, never ghosts (twice idlePollMs: a read at rest that runs late is no ghost)
 //   cap            walkers drawn at most: the server's view cap (TOWN_INSTANCE.cap, the one number)
 //   snapTiles      a peer drawn this many tiles from where the server says it is
 //                  jumps there instead of walking (a door, an exit, a long gap)
@@ -26,8 +29,10 @@ export const TOWN_PRESENCE = Object.freeze({
   keepaliveMs: 10000,
   parkedKeepaliveMs: 20000,
   pollMs: 2000,
+  idlePollMs: 6000,
+  idleAfterQuiet: 3,
   fullEveryMs: 30000,
-  staleMs: 8000,
+  staleMs: 12000,
   cap: TOWN_INSTANCE.cap,
   snapTiles: 6,
 });

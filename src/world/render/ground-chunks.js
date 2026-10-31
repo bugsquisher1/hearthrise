@@ -122,8 +122,16 @@ export function createGroundChunks(o) {
     return true;
   }
   function store(key, c) {
-    if (chunks.size >= keep) chunks.delete(chunks.keys().next().value);
+    if (chunks.size >= keep) { const k = chunks.keys().next().value; release(chunks.get(k)); chunks.delete(k); }
     chunks.set(key, c);
+  }
+  /* A chunk let go gives its pixels back at once (~1 MB each): left to the collector, a pane's worth of them came due as one
+     long pause inside a later frame (tests/perf-budget.mjs, 166-318 ms after a hero switch once the old panes were let go). */
+  function release(c) { c.width = 0; c.height = 0; }
+  function drop() {
+    for (const c of chunks.values()) release(c);
+    for (const j of jobs.values()) release(j.c);
+    chunks = new Map(); jobs = new Map();
   }
 
   return {
@@ -132,7 +140,7 @@ export function createGroundChunks(o) {
       T = m.T || 32; CHUNK = 16 * T;
       binned = binsFor(m, art);
       images = art.images || {};
-      chunks = new Map(); jobs = new Map();
+      drop();
     },
     /** Bin map `m` ahead of its first frame: at once, or in slices (`sl`, compose.js sliced) → a promise. */
     prepare(m, art, sl) { return sl ? binsSliced(m, art, sl) : binsFor(m, art); },
@@ -164,6 +172,6 @@ export function createGroundChunks(o) {
       }
       return true;
     },
-    clear() { chunks = new Map(); jobs = new Map(); binned = EMPTY(); images = {}; },
+    clear() { drop(); binned = EMPTY(); images = {}; },
   };
 }

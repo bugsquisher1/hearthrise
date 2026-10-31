@@ -276,6 +276,17 @@
   .hero-how { min-width: 9rem; padding-left: 12px; contain: size; overflow-y: auto; }
 }
 
+/* THE LOADING SHELL (play.html .boot-shell; src/platform/load-shell.js): the crest, one line and a thin bar, in the middle
+   of the page until the first screen takes over. */
+.boot-shell { position: fixed; inset: 0; pointer-events: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 16px; }
+.boot-shell-line { margin: 0; font-family: var(--f-ui); font-size: 15px; color: var(--ink); text-align: center; }
+.boot-shell-bar { width: min(280px, 70vw); height: 4px; background: var(--line); }
+.boot-shell-fill { display: block; width: 0; height: 100%; background: var(--gold); transition: width .2s linear; }
+@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
+  .boot-shell .auth-crest { width: 78px; height: 96px; }
+}
+@media (prefers-reduced-motion: reduce) { .boot-shell-fill { transition: none; } }
+
 /* A PHONE HELD UPRIGHT (play.html .turn-phone; QA 2026-10-24: in portrait the cards ran off the right edge and half
    the icon row and the bar were off screen). Phones are landscape-only (CLAUDE.md §1): a touch phone held upright
    sees the crest and ONE steel card (the account screens' pieces, by their classes) over everything, and nothing

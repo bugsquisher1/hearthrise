@@ -5,7 +5,7 @@
 //   node tests/client-boot.mjs           the boot checks
 //   node tests/client-boot.mjs --mutate  every planted defect must turn a check RED
 //
-// mutant-anchors: src/app/boot.js src/app/slot-offer.js src/app/world-pane.js src/net/auth.js src/world/world-boot.js src/world/prewarm.js src/render/images.js index.html
+// mutant-anchors: src/platform/load-shell.js play.html src/app/boot.js src/app/slot-offer.js src/app/world-pane.js src/net/auth.js src/world/world-boot.js src/world/prewarm.js src/render/images.js index.html
 //
 // The server is stubbed at the edges the client really uses: supabase-js (the
 // vendored UMD is replaced by a fake whose auth keeps its session in the
@@ -15,6 +15,8 @@
 //
 //   N-1  hearthrise.net/ (index.html) is the static notice: the Discord link, no app
 //        script, and /prototypes/hunt-sim/ still serves
+//   B-16 a slow first visit paints a loading shell (crest, line, a bar that moves) before the page's modules run; the first
+//        screen takes over from it; a module that cannot load says so
 //   B-1  play.html boots to the sign-in screen with zero console errors
 //   B-2  sign in -> the characters screen lists the server's owned slots
 //   B-3  Play -> the World pane (a canvas) and the shell mount for that character;
@@ -167,6 +169,33 @@ async function checks(overrides) {
       if (hs.status() !== 200) fails.push('N-1 /prototypes/hunt-sim/ answered ' + hs.status());
       if (errors.length) fails.push('N-1 console errors: ' + errors.join(' | '));
       await ctx.close();
+    }
+
+    { // B-16 A SLOW FIRST VISIT SEES A SHELL (old-laptop player 10-31: plain black until all 346 modules had arrived): with the page's
+      // entry module held on the wire, the crest, the line and the bar are on screen and the page has painted; the bar
+      // moves as modules land; the sign-in screen takes over from it. A module that cannot load says so.
+      const { ctx, page, errors } = await fresh();
+      let free = null;
+      const held = new Promise((r) => { free = r; });
+      await page.route('**/src/app/boot.js*', async (r) => { await held; return r.fallback(); });
+      await page.goto(base + '/play.html', { waitUntil: 'commit' });
+      const shown = await wait(page, () => { const s = document.querySelector('.boot-shell'), l = s && s.querySelector('.boot-shell-line'), i = s && s.querySelector('img');
+        return s && l && /Loading Hearthrise/.test(l.textContent) && s.getBoundingClientRect().width > 0 && i && getComputedStyle(s).display !== 'none'
+          && performance.getEntriesByName('first-contentful-paint').length > 0; });
+      if (!shown) fails.push('B-16 with the modules still on their way nothing was painted: no crest and no "Loading Hearthrise" on screen');
+      const bar = await wait(page, () => { const f = document.querySelector('.boot-shell-fill'); return f && parseFloat(f.style.width) > 0; });
+      if (!bar) fails.push('B-16 the loading bar never moved as the modules landed');
+      if (await page.$('form[data-auth="sign-in"]')) fails.push('B-16 the sign-in screen came before its module');
+      free();
+      if (!(await wait(page, () => document.querySelector('form[data-auth="sign-in"]') && !document.querySelector('.boot-shell')))) fails.push('B-16 the shell did not give way to the sign-in screen');
+      if (errors.length) fails.push('B-16 console errors: ' + errors.join(' | '));
+      await ctx.close();
+      /* a module that cannot load says so (the wait never runs for ever) */
+      const dead = await fresh();
+      await dead.page.route('**/src/app/boot.js*', (r) => r.abort());
+      await dead.page.goto(base + '/play.html', { waitUntil: 'commit' });
+      if (!(await wait(dead.page, () => /could not finish loading/.test((document.querySelector('.boot-shell-line') || {}).textContent || '')))) fails.push('B-16 a module that could not load left the shell saying it is still loading');
+      await dead.ctx.close();
     }
 
     { // B-1 .. B-5
@@ -512,6 +541,10 @@ async function checks(overrides) {
 }
 
 const MUTANTS = [
+  ['the loading shell stays over the first screen', 'src/app/boot.js', '    if (loading) loading.remove();\n', ''],
+  ['the loading bar never moves', 'src/platform/load-shell.js', '      paint();\n', ''],
+  ['a module that cannot load is not said', 'src/platform/load-shell.js', "    failed = true;\n", "    return;\n"],
+  ['the page paints no loading shell', 'play.html', '<p class="boot-shell-line">Loading Hearthrise…</p>', ''],
   ['no hero slot is offered', 'src/app/slot-offer.js', "  if (!offer || !purse || actor === null) return '';", "  return '';"],
   ['the oldest hero answer is the purse', 'src/app/slot-offer.js', '    if (!best || v > best.v) best = { gold: r.gold, v };', '    if (!best || v < best.v) best = { gold: r.gold, v };'],
   ['the buy button stays lit while buying', 'src/app/slot-offer.js', "(o.pending || short > 0 ? ' disabled' : '')", "(short > 0 ? ' disabled' : '')"],
@@ -552,7 +585,9 @@ async function main() {
   const clean = await checks(null);
   if (clean.length) { console.log('  ✗ clean control RED: ' + clean.join('; ')); process.exit(1); }
   console.log('  ✓ clean control green');
-  for (const [name, file, from, to] of MUTANTS) {
+  const onlyAt = process.argv.indexOf('--only');   // a name fragment: prove just those mutants (a local re-check)
+  const chosen = MUTANTS.filter((m) => onlyAt < 0 || m[0].includes(process.argv[onlyAt + 1]));
+  for (const [name, file, from, to] of chosen) {
     let text = await readFile(join(ROOT, file), 'utf8');
     const pairs = Array.isArray(from) ? from : [[from, to]];
     const missing = pairs.find(([a]) => !text.includes(a));
@@ -562,7 +597,7 @@ async function main() {
     if (fails.length) console.log('  ✓ ' + name + ' — caught (' + fails[0].split(' ')[0] + ')');
     else { console.log('  ✗ ' + name + ' — NOT caught'); bad++; }
   }
-  console.log(bad ? 'client-boot --mutate: ' + bad + ' escaped' : 'client-boot --mutate: ' + MUTANTS.length + '/' + MUTANTS.length + ' mutants caught');
+  console.log(bad ? 'client-boot --mutate: ' + bad + ' escaped' : 'client-boot --mutate: ' + chosen.length + '/' + chosen.length + ' mutants caught');
   process.exit(bad ? 1 : 0);
 }
 main();

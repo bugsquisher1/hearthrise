@@ -1,0 +1,431 @@
+HEARTHRISE — first impressions from a Tibia lifer
+Posted by: an old Edron knight (20 yrs Tibia on and off, some OSRS, some Huntera). Desktop, 1920x1080, Chrome.
+Played on a local copy of the real game; waiting skipped with a time-skip, results are what the server gave me.
+Screenshots: art/review/player-feedback-2026-10-31/veteran/NN-name.png (15 kept, half size).
+A tag like [shot 05-cellar-analyzer-30m] names the screenshot for that moment; other [tags] are moments I
+looked at without keeping a shot.
+
+=====================================================================
+DAY ONE — SIGN-IN AND CHARACTER LIST
+=====================================================================
+
+[shot 01-signin] Opened the page. Crest on the left, a small sign-in box on the right, the rest of a 1080p
+screen is black. Loaded in about a second, no hitching. The crest is nice. It looks like a launcher, not a
+game, which is fine for a login. Making an account was three fields and done; no captcha, no fuss.
+
+[characters] "Your characters. Up to 4 can play at once." ...and it shows me TWO slots. Which is it, 2 or 4?
+First thing I read contradicts the first thing I see. Small, but a vet notices this stuff. If the other two are
+premium or unlock later, say so on the slot ("locked — unlocks at ..."), don't just leave them out.
+
+[shot 02-create-hero] Character creation: name, then Head/Body/Legs/Feet colour rows with 16 swatches each.
+I've seen that exact four-part outfit colouring for twenty years. It works, it's what I'd want, but let's not
+pretend it's new. "There's no class to pick. The weapon you hold is how you fight" — I like that. Five roles
+spelled out in one line each (tank / two-hander / ranged / wand / staff healer). Clear. No stats to roll,
+no 40-minute character creator. Spaces are allowed in names ("Ottmar Grimbeard"), good.
+
+[shot 03-town-first] Into Havora. Took ~1.5 s from "Enter town" to standing in the square. Top-down pixel town,
+water, a wooden bridge, cobbles, a big stone plaza. Feels like home, honestly — the camera angle and the
+tile look are in the family I grew up on. Two gripes right away:
+  - Scale. My knight is maybe a third the height of ONE paving stone. The plaza stones read like boulders.
+    The town tiles and the character sprites don't feel like they're on the same grid.
+  - Fifteen tiny unlabeled icons across the top right. Hovering gives a name, but on first sight it's a
+    row of hieroglyphs. And a signpost in the middle of my capital city that says "To the sandbox". Sandbox?
+    That's a dev word, not a place name.
+Action bar at the bottom: 20 slots, slot 1 already has a "challenge" (shield) and slot 2 a power strike,
+then shrimp, salted shrimp and turnip juice. HP 150, MP 100, Food x20, stamina 12:00h with a + to buy more,
+a Charm slot. Setup "Preset 1", Target: Nearest/Lowest HP/Highest % life/Strongest/Follow the leader,
+Offensive/Balanced/Defensive, Chase, Distance. OK. Now we're talking. That's a real fight-config panel,
+the kind of thing a Tibia player spends hours fiddling with. Promising.
+
+[shot 04-hunts-window] Hunts window. Six grounds: Mill Cellar 1-8, Meadowbrook Thicket 5-15, The Sewer 8-25,
+Wickstead 8-18, Mosslight Glade 16-31, Coppercap Warrens 32-50. Each shows who lives there (Giant Rat lv2
+common, Slime lv2 uncommon, Hive Wasp lv4 uncommon), drop chances AS PERCENTAGES (helmets 0.65% per kill,
+Queen's Comb 0.072% from the wasp), the respawn ("2 packs of 2 to 3 · back in 32 s"), and the supply bill
+(own food first, then store shrimp 14 gp each, juice 10 gp each, "500 gp pays the store as you use it").
+  LOVED: exact drop rates and exact respawn on the spot list. In Tibia we spent years datamining that stuff
+  off fan wikis. Here it's on the tin. Some people will say it kills the mystery; I say it respects my time.
+  LOVED: the store auto-buys supplies as I use them. No more "ran out of mana pots at the bottom of a cave".
+  WORRY: six grounds for levels 1-50. That's thin. In Tibia a level-30 has a dozen viable spots per vocation.
+  If there's only one spot per band, there's no "spot", there's just "the next one", and no reason to fight
+  over a respawn.
+[character sheet] Character sheet: Melee/Ranged/Magic/Defense/Inner Flame skills, each 1, 15 XP to 2.
+"Next at level 15: Copper Whetstone". Damage 1-4, hit 60% vs no armor, Defense 3, Dodge/Absorb/Ward.
+Bestiary 0 of 30. Speed 3.2 tiles/s. Capacity in bag SPACES (100), not weight. I'll live without cap
+management, but I'll miss it a bit — cap was half the decision about what loot to keep.
+[inventory] Paperdoll on the left (head, neck, body, legs, feet, two hands, rings, etc), grid bag on
+the right with shortcuts printed underneath (/ search, Delete sell, L lock, Ctrl+A). Keyboard bag handling!
+Someone on the team has actually played these games. "Dispatch loot: worth 206 gp (9 unpriced)" — a
+one-button sell/deposit. Good.
+[gathering & crafting] Gathering and crafting: woodcutting, mining, fishing, farming, cooking, crafting,
+smithing, runecrafting. Each with "next at level X: thing". That's OSRS DNA (the 83 XP to level 2 is a wink
+at the OSRS curve, I see you). We'll see if any of it feeds the hunting, or if it's eight parallel bars.
+[shop] Shop sells gloves, belts, a ring, a cape, a necklace, tools, seeds. "Helmets, bodies, legs and
+boots come from monsters." Good — armor is loot, not a shop list. That's the right call.
+
+=====================================================================
+FIRST HUNT — MILL CELLAR (level 1)
+=====================================================================
+
+[cellar, first seconds] Set Offensive + Chase (rats don't hurt), picked Mill Cellar, pressed Enter. 0.35 s later I'm
+in. Steady 60 fps on the hunt view, worst frame 33 ms over a 10 s sample. No stutter. Good.
+The cellar is ONE room, one screen: sacks, barrels, a millstone, braziers, cobwebs, a wasp hive up in the
+corner. It's well dressed, honestly — nicest-looking rat room I've seen in a browser game. But it's an
+arena, not a cave. In Tibia the Rookgaard sewer is a tunnel you walk; you choose which way to go, you
+lure, you know where the respawns are. Here the rats spawn into a room and my knight auto-fights them.
+"Your hero fights alone. You don't click to attack." Fine, that's the idle contract. I knew that coming in.
+[cellar, 34 s] 34 seconds: 5 kills, 77 XP, 60% to level 2. The Hunt Analyzer on the right is... the Tibia
+hunt analyzer. Session / XP / Gold / Loot value / Supplies / Balance / per hour. Not "inspired by", that's
+the same panel, same words. I'll be honest: I'm happy it's here, it's the single most useful window Tibia
+ever added, but if you're worried about looking like a copy, this is the first thing CipSoft fans will
+screenshot. Make it yours (a ledger page? a hunting journal?) but keep every number.
+
+[shot 05-cellar-analyzer-30m] Closed the browser, came back 30 minutes later. Level 5. 242 kills, 3,726 XP,
+352 gp + 605 gp loot = 957 gp balance, 0 gp supplies (ate one of my own shrimp). XP/h 7,215, balance/h
+1,853 gp. Next level in 00:39. It kept fighting with the tab closed. THAT is the hook for me — I can go to
+work and my knight's still killing rats.
+  - A little notice popped: "Your HP fell under 60%, so slot 3 ate a Cooked Shrimp. You have 19 left; after
+    that slot 4 buys Salted Shrimp at 14 gp." That's exactly the kind of explanation I want. More of these.
+  - Loot list: Rat Tail x58, Slime Gel x33, Bones x32, Small Fang x20, Wheat x16 (wheat? off a rat — ok,
+    it's a mill, I'll allow it), Lamp Jelly x9, Venom Sac x7, Giant Rat Hide x5, Bronze Helm x2, Leather Coif
+    x2, Silk Thread x2, Hive Wasp Stinger x1. Proper creature products. Every item has a dash "–" where I'd
+    expect its value. The total says 605 gp but I can't see which line made it. In Tibia's loot analyzer
+    each line shows its value. That's the column that tells me what to pick up next time. Add it.
+  - The analyzer is tall and the loot list falls off the bottom of the panel; the tab row "Session /
+    Training / Taken / Dea…" is clipped at 1920 wide. Fourth tab is literally cut in half.
+[analyzer tabs] Training tab: Melee +1,462 (2,784/h, next level in 0:02h), Defense +401. Taken: Hive Wasp
+895, Giant Rat 667, Slime 144 — the wasps are the ones biting, which matches the level 4 next to their name.
+Dealt: Power Strike 537, Basic attack 438. That's real info.
+  Oddity: "Dealt" totals 975 damage for 242 kills, while I've TAKEN 1,706. Four damage per kill? Either
+  rats have 4 HP or the Dealt tab isn't counting the whole session. Something's off there.
+
+[hour-one summary] Pressed Leave hunt. "Leaving in 30s" — my knight has to walk out, can't log out mid-
+fight. Good, that's a rule I respect (Tibia's battle sign, basically). Summary card: 1h12, 568 monsters,
+8,743 XP, 834 gp + 1,499 gp loot, balance/h 1,925 gp, XP/h 7,216. Level 6. A "Next: Feed the Hearth"
+button. The analyzer said next level in 1:50 at this spot, so the cellar is done for me; it told me when to
+move on without telling me. That's how it should be.
+
+[shot 06-item-bronze-helm] Clicked the Bronze Helm. THIS tooltip is good:
+  Defense +3, Ranged accuracy -1, Magic accuracy -2 ("against an empty slot" in green/red),
+  "Heavy armor: adds max HP and absorbs part of each blow. This piece: +4.6% max HP, of the +28% a full
+  heavy set of 6 gives", Comes from: Hive Wasp, Gray Wolf, Barn Wasp. Value: shop pays 35 gp.
+  Loot plan: Keep in bag.
+  That's a real item. Trade-offs (heavy = HP and absorb but hurts casting), a set bonus I can work toward,
+  where it drops, what it sells for. I immediately know Leather Coif is the medium version and Apprentice Hat
+  the light one. The armor-weight triangle is the first thing that made me think "ok, there's a system".
+  The bag even says "Nothing goes on by itself: each piece is better at something." Respect.
+  Gripe: "Equip upgrades" was greyed out with no hint why (because nothing is strictly better, which the
+  text says further down, but the button should say it).
+[shot 07-feed-hearth] Bones -> "Fuel all 66" -> my knight walks to the Great Hearth and burns them for Inner
+Flame XP (my regen skill). That's bury-bones-for-Prayer from OSRS with a new coat. Fine. It's a sink for
+junk and it ties bones to a combat stat, which I like. Bugs I saw:
+  - The bag cell says 54 while the line under it says "x66 · 12 being used".
+  - The status "Fueling the Great Hearth with Bones: 54 Bones left. Your bag and Inner Flame XP update as it
+    goes" is cut off at the bottom of the inventory window at 1080p.
+  - "Fuel all 66" stays lit and pressable while the line below says "Already fueling ... Stop it first."
+
+[item menu / loot plans] Right-click an item: Loot plan (Keep in bag / Deposit in storage / Sell) and On pickup
+(Don't pick up). A loot filter AND auto-sell rules per item. Set rat tails, fangs, venom sacs, stingers,
+hides, cores and wheat to Sell, pressed Dispatch loot: "Sold 7 for 1,108 gp." That's a loot bot I don't get
+banned for. Wonderful. This is where the "wasted time" in old MMOs went to die, and I don't miss it.
+Item flavour text: hovering everything I looted, I found
+  - Giant Rat Hide "for the imbuer who wards armor" — Used for: Sell it at the shop.
+  - Sticky Core "for the imbuer who wards gear against the elements" — Used for: Sell it at the shop.
+  - Venom Sac "milked for poisons and blade coatings" — Used for: Sell it at the shop.
+  The text promises an imbuing system (yes, I know exactly which game that's from) and the item says
+  "vendor it". Either build the imbuer or stop writing cheques the game can't cash. Right now it reads like
+  the description was written for a game that doesn't exist yet.
+  - Best money in the cellar is WHEAT at 10 gp each (54 = 540 gp) — more than every rat part combined.
+    Rats dropping the highest-value loot as grain is funny, and honestly kind of charming for a mill.
+[shop gear] Bought Bronze-Rimmed Shield, Bronze Belt, Copper Ring, Copper Studs, Traveler Cape (1,020 gp).
+  - Shop tooltips for the Bronze-Rimmed Shield, Traveler Cape and Hunter Necklace show NO stats at all.
+    The cape says it "eases the road and sharpens what you learn" — sounds like an XP bonus? Tell me the
+    number. I paid 300 gp for vibes.
+  - Every shop item says "Value: The shop has not priced this yet." The shop I'm standing in, that's
+    selling it to me, hasn't priced it. Reads like a placeholder.
+  - Gloves are medium armor ("makes more blows miss you"), belt is heavy. 2 heavy pieces = +9.3% max HP.
+    Max HP went 209 -> 218. Melee skill 8, Defense 5, Inner Flame 6 (+10.7% regen from burnt bones).
+
+=====================================================================
+MEADOWBROOK THICKET (level 6)
+=====================================================================
+[thicket card] Gray Whelp lv5, Gray Wolf lv8, Briarcoat Wolf lv10 uncommon, Dire Gray lv13 rare, Old
+Grayjaw lv15 rare. Gear drops 2.2% per kill (bronze/leather/apprentice helmets, bodies, legs, boots), and
+the named rare Old Grayjaw drops Alpha Fang, Iron Helm, Studded Leather Coif, Adept Hat, Grayjaw's Ruff at
+0.17% each. "6 packs of 2 to 3 · back in 60 s". "Alone or with up to 1 more."
+  A wolf den with an alpha that has its own loot table. THAT is a hunting ground. I want to see Grayjaw.
+[shot 08-thicket] Outdoors: a brook on the left, log bridge, dirt path winding through, oaks and pines, wolves
+coming in from the right. This is the first screen that made me grin. The forest is lovely pixel work.
+Another tutorial bubble: "Plant your land: while your hero hunts, open the Farm and plant a Turnip Seed".
+The game keeps nudging me toward farming while I'm trying to watch my first wolf fight. Let me hunt.
+
+[thicket, 1 h] One hour in the Thicket. Level 7. 570 kills, 22,528 XP (22k/h — triple the cellar),
+1,421 gp + 1,060 gp loot, balance 2,444/h. Old Grayjaw showed up (it hit me for 933 total) and the gear
+rain started: 3 Bronze Helm, 2 Leather Coif, 2 Leather Chaps, Adept Hat, Apprentice Robe Top, Bronze
+Platelegs, Leather Boots. Wolf loot: Raw Wolf Meat x108 (cooking!), Wolf Pelt x36, Gray Dewclaw, Briar Burr,
+Whelp Milk Tooth, Grayjaw Whisker. Creature-specific junk with names. I like it.
+The map scrolls with my knight — it's not one screen, it's a proper patch of forest with paths. Good.
+  BIG PROBLEM, for me: "Supplies cost 0 gp". A full hour fighting wolves up to level 15 — including the
+  level-15 alpha — at level 6-7 and I didn't eat a single shrimp. HP 217/229 when I looked. In Tibia the
+  whole game is the balance line: XP vs. waste. If my supplies are zero, the analyzer's best number is
+  meaningless and "is this spot profitable" is always yes. I want to sweat a bit. Make wolves bite.
+  Melee 6,651 XP/h, Defense 4,278/h in Training. Skills tick nicely.
+Another popup: "More than one hero... you can play up to 4 heroes at once, and you own 2 hero slots."
+OK, so the character screen line was "4 at once, you own 2". Fine. Making an alt.
+
+=====================================================================
+THE ALT — WENNA ASHGROVE, STAFF (healer)
+=====================================================================
+[healer created] Made a second hero, equipped the Practice Staff from her bag; the action bar swapped itself
+to Greater Mend / Circle of Renewal / Green Sickness / food / drink. Gold is shared across the account
+(her bag shows my knight's gold, still climbing while he hunts). OK.
+Spells cost mana AND a rune per cast. Runes. Of course there are runes. I'm home.
+[shot 09-slot-editor] Clicked an action-bar slot and got the "Configure action" editor:
+  "Cast Green Sickness when [the HP of] [the lowest ally] [is at or above] 70 %   + Add a condition"
+  with options for my HP / my mana / an ally's HP / allies under X / monsters it would hit / my target
+  being a boss / what's left in the bag / an effect, per role (Melee, Ranger, Mage, Healer). Slot order
+  matters ("tried after slot 2", Earlier/Later). When runes run out: carried only, or buy the store's rune
+  per cast.
+  LOVED. This is the system. It's the healing-hotkey setup I used to sweat over, crossed with a
+  priority list. "Heal the lowest ally under 70%, else AoE if 2+ allies under 80%, else poison the pack
+  if everyone's above 70%" — that's a real healer brain and I wrote it myself. This is the depth I came for.
+  TRAP for new players: out of the box Circle of Renewal and Green Sickness are set to "Carried runes only"
+  and she carries ZERO runes. Their icons are crossed out on the bar. A fresh healer walks into her first
+  hunt with her only damage spell dead. Greater Mend defaults to buying store runes; the other two don't.
+  Make the default consistent (store rune, 1 gp, as used) or put a big "no runes" warning on Enter.
+[healer in the cellar] Fixed both to the store rune and sent her into the Mill Cellar. 2 kills in 30 s,
+supplies 2 gp (two poison runes). Two heroes hunting at once, "2 online". Off to work.
+
+=====================================================================
+DAY TWO — THE STUCK ANALYZER, A HEAVY SET, WICKSTEAD
+=====================================================================
+[shot 10-stuck-analyzer-bug] BUG, and a bad one for my kind of player. Came back after 90 minutes with both heroes
+out. My knight's top bar says "Meadowbrook Thicket 01:12:42" and the analyzer says "Hunt ended. This is the
+session summary." — showing my OLD Mill Cellar numbers (568 kills, 8,743 XP, 01:12:42). The level ring was
+moving (Lv 8, 30% -> 31%) so he was clearly still fighting wolves, but the clock was frozen and the
+analyzer was a corpse. Reloaded: same. Waited 30 s: same. The "Summary" button opens the Mill Cellar
+summary and says "Hunt again is off: a hunt is already running." Wenna's analyzer, next tab over, was fine.
+It started after I made the second hero; before that the Thicket analyzer was live and correct.
+Then I left the Thicket and the town bar says "Last hunt: Mill Cellar". My 2.5 hours in the Thicket have
+NO summary at all. The only trace is "Best 22,524 Level XP/h" on the hunts list. For a game that sells
+itself on the analyzer, losing the analyzer is losing the game. Fix this first.
+
+[knight heavy set] Sorted the knight's bag. 2.5 h of wolves gave me: 449 bones, 292 raw wolf meat, 88 wolf
+pelts, 23 dewclaws, 13 Grayjaw whiskers, a Den Knot, and a pile of armor: Bronze Platebody x3, Platelegs x2,
+Bronze Boots x2, Bronze Helm x4, five Leather Coifs, leathers, apprentice cloth, Adept Hat, Iron Helm
+("Needs Level 15 — you're 8"). Put on the bronze body/legs/boots: 5 heavy pieces = +23.3% max HP.
+  - Every tooltip compares against what I'm wearing ("Against your Bronze Helm: +2 Defense −1 Magic
+    accuracy"). Lovely. That's what I want from loot.
+  - The "Deposit in storage" plan + Dispatch: "Stored 4 stacks, sold 10 for 792 gp." Moved the cloth
+    pieces to storage for my healer. Two-click alt-gearing. Good.
+  - Den Knot: "Burn it in the Great Hearth for a burst of Inner Flame; Havora's fire turns deep amber for
+    all Havora." A drop that changes the town for everyone. THAT is a shared-world idea. More of that.
+  - WHERE ARE THE WEAPONS? Level 8, three and a half hours of hunting, still swinging the Practice Sword I
+    spawned with. Not one weapon drop, the shop sells none. Every armor slot has 3 tiers of loot competing
+    for it and the one slot that matters most to a knight is frozen. The Sewer card lists Iron Sword, so
+    it's coming — but by now in Tibia I'd have upgraded twice. A weapon upgrade is the most exciting drop
+    in the genre. Give me one early.
+  - Junk that's just "sell it": dewclaw 3 gp, milk tooth 2 gp, burr 4 gp, hackle 5 gp, whisker 6 gp.
+    Fine as flavour, every creature having its own trophy is very Tibia, I like it. But wolf pelt (7 gp)
+    actually crafts into a Graypelt Cloak and wolf meat cooks at Cooking 5. Those are the good ones.
+
+[wickstead / sewer / glade cards] Read three cards before choosing:
+  - The Sewer, 8-25: "A party of 2 to 4." Drain Rats, Culvert Bats, Kobold Toshers, Cistern Spiders, and the
+    Rat King (lv 25, boss): "wants a party of two or more. Alone, you skip that hall." Weapon drops: Iron
+    Sword, Oak Wand/Staff/Spellbook, Iron Hatchets/Warhammer, Longbow. Crown Shard / Kingsgrate / Rat King's
+    Crown (0.1%). "The rats answer to someone." — there's a story thread from the cellar to the sewer to a
+    king. I noticed. Good.
+  - Wickstead, 8-18: "A burned farm on the Thicket road. Rats in the granary, turncoats in the house."
+    Granary Rat, Barn Spider, Barn Wasp, Orchard Boar, Turncoat (lv16 rare). Bramble Blade.
+  - Mosslight Glade, 16-31: "This hunt is above your level, expect losses." Carrion Crow, Walking Vine,
+    Glade Poacher, Goblin Sluicer, Rook the Poacher. "copper water makes the moss glow."
+  The ground descriptions are short and actually good. Places connect: the brook from the Thicket rises in
+  the Glade, the rats under the mill lead to the sewer under town. Somebody wrote a world, not a list.
+
+=====================================================================
+THE PARTY — THE SEWER (knight lv 9 + healer lv 7)
+=====================================================================
+[party invite] Making a party with my own two heroes: right-click the OTHER hero's tab -> "Invite to party".
+Right-clicking your own tab only offers "Inspect gear", which is what I tried first because the coach said
+"right-click Wenna Ashgrove's tab" while I was viewing Wenna. Once found, it's instant: "your own heroes join
+at once". Party window: You lead. Pick a hunt and press Start with party.
+[shot 11-sewer-card-party] Sewer card switched to "chance per kill, in a party of 2" and the drop rates went up
+(bodies/legs 2.7% -> 3.5%). "As the leader, your pick is the pull for everyone." "Leave if anyone leaves the
+hunt or dies" checkbox. Before you go lists every rune source in order. Clear.
+[shot 12-sewer-party] The Sewer is a real layout: corridors and side rooms off a main channel, torches on
+the walls. That's a dungeon, not an arena. Best map so far. Knight on Defensive up front, healer behind.
+  Small things: the healer's Target box reads "Follow Wenna Ashgrove" — she's the leader, following herself.
+  Miss text and damage numbers print on top of each other ("mis7").
+[sewer, 1 h] One hour: healer 40,519 XP/h (she did 6,800/h solo in the cellar — SIX times more), balance
+2,825/h, supplies 1,096/h. Taken tab on the healer: "Nothing yet." The knight held every single monster for
+an hour. That's the shield-tank fantasy working, and it's exactly what the class blurb promised.
+  But: knight's supplies, an hour in a level 8-25 dungeon at level 9 = 0 gp. AGAIN. He never eats because
+  she heals him. Fine in a party (that's her job), but solo he never ate either.
+[shot 13-sewer-3h-party-analyzer] Three hours in. Both heroes get the SAME full XP (41,602 each at 1h) — party XP isn't split.
+Party scope: 85,641 XP/h combined, 8,147 gp/h balance. Healer to lv 9, knight lv 11.
+  LOOT: Rat King's Crown (listed at 0.1%!), Rat King's Knot, Crown Shard, Kingsgrate, Iron Sword (FINALLY),
+  Oak Staff, Longbow, Iron Hatchets, Iron Helms, Iron Boots, Studded Leather pieces, Adept Hats/Slippers,
+  Cistern Venom Glands... That's the loot screen I wanted to see three hours ago. Boss drops in a party
+  ground with a named king — this is the best hour the game gave me.
+  Is a party worth it? Ridiculously. 6x the XP for the healer, ~2x for the tank, plus a boss you can't
+  even see solo. Maybe too much: it makes solo pointless. In Tibia, party hunting is a 20-30% bonus,
+  not a 600% one.
+  Analyzer, Party scope: "Monsters killed 1,710" — that's 855 kills counted once per hero. We killed 855
+  monsters together, not 1,710. Gold and XP sums are fine, the kill count is double-counted.
+
+[gear after the sewer] Every single tier-2 drop says "Needs Level 15 — you're 11" (knight) / "you're 9" (healer).
+Iron Sword, Iron Helm, Iron Boots, Oak Staff, Kingsgrate — a whole bag of upgrades I can stare at but not
+wear. Level gates on gear are fine (Tibia has them), but one gate at 15 for EVERYTHING in the next tier
+makes all the excitement of the boss drops land at once, three levels later, instead of trickling in.
+  Rat King's Crown, the 0.1% drop off the first boss: "The shop pays 4,000 gp." That's it? The rarest thing
+  I've looted is vendor trash with nice flavour text. In Tibia a boss's signature drop is something you
+  wear, display in your house or brag about. Let me put the crown on a shelf in my House, or wear it as a
+  hat with a stat, or make it the trophy that opens something. 4,000 gp is just a big rat tail.
+  Rat King's Knot: burn it and "the fire burns marsh-gas blue for all Havora". Again, love these.
+  Kingsgrate: "the Rat King's drain grate, bent into a buckler: it stops a blow and drags at your swing"
+  (+7 Def, -4 to everything else) and smiths into a "Steelgrate". That's a boss item with a personality.
+
+=====================================================================
+PUSHING TOO HIGH — AND NOT DYING
+=====================================================================
+[knight in the glade] Knight, level 11, alone, Offensive, into Mosslight Glade (16-31, "This hunt is above your
+level, expect losses"). I expected to die inside 20 minutes and write a paragraph about the death screen.
+1h31 later: level 12, 57,686 XP/h (more than the party Sewer!), 4,406 gp/h, HP never under 282/308, five
+shrimp eaten. No losses. Character sheet explains it: "Absorb 50.1% of each blow" from five pieces of
+starter BRONZE. Half of every hit gone at level 11. Heavy armor is way overtuned.
+[healer in the glade] Fine, the squishy one then. Healer, level 9, light cloth, alone, Mosslight Glade.
+41 minutes: 57,935 XP/h, HP dipped to 176/230 once, self-heals with Greater Mend, 1,388 gp/h of runes and
+juice, +2,331 gp/h balance. Didn't die either.
+  So: going FIVE TO SEVEN levels above a ground's floor is the best XP in the game and it's free. "Expect
+  losses" is a lie. The level ranges on the hunt list don't mean anything. In Tibia, the first lesson is
+  that the wrong cave kills you; that fear is what makes a good spot a good spot and makes a party worth
+  having. Without risk, the whole "pick your spot, read your analyzer, decide if it's profitable" loop
+  collapses to "pick the highest one that lets you in".
+  I wanted to die. I tried. I couldn't. I'd call that the biggest design problem in the game.
+[warrens] Coppercap Warrens (32-50, "A party of 2 to 4, or alone from Level 45"): "You are too far below
+this hunt to enter it yet." Fair gate. BUT in a party the "Start with party" button stays lit; I pressed it
+and nothing happened. No message, no refusal text, nothing. Grey it out or tell me why.
+  Also: Mosslight Glade still says "No best yet" for both heroes after 1h31 and 41 min there (Wickstead and
+  the Sewer recorded fine).
+[shot 14-glade-healer-solo] "The copper water makes the moss glow" — the Glade looks like the Thicket: grass,
+dirt path, oaks, a brazier. I didn't see glowing moss or copper water anywhere. Write the map to match the
+card or the card to match the map. And the "Plant your land" coach bubble has been sitting on top of every
+hunt view for eight hours now. It never left. It's covering the fight.
+
+[stamina] The knight went back into the Glade with 1:50h of stamina left; I closed the browser for two hours.
+Came back: "In town, idle", stamina 0:16h, level 13. The hunt ended because I ran out of stamina — I assume —
+because NOTHING says so. No summary for that hunt (the Summary button shows the previous Glade hunt from
+hours earlier), no "your hero came home: out of stamina". That's the most important message an idle game
+can give when you come back, and it's missing. Stamina itself: 12 h a day, refill "+4 h for 1,600 gp",
+6 a day, each costs more. Coming from Tibia's 42 h with a green-hour bonus, 12 h is tight but honest.
+Also, three of my nine hunts have no summary at all (Thicket 2.5 h, Wickstead 2 h, the stamina one).
+[after the sewer] After the party left the Sewer, my knight was suddenly "In town, fueling the Great Hearth
+with Bones" all on his own. I never asked him to. Maybe it's a feature (auto-burn bones on return)? If so,
+tell me; if not, it's a bug that ate 300 bones I might have sold.
+[loot plans] The Sell/Deposit rules I set on the knight don't carry to the healer. Every hero sets up
+"rat tails = sell" again. One loot list per account, please (or a "copy from" button).
+[shot 15-tally] Found Tamsin's tally after 20 hours: kill tasks (120 Giant Rats, 200 Gray Wolves, the Rat King
+5 times, 60 Glade Poachers, 30 Goblin Diggers), 3 paid a day, paid in gold plus an armor piece of the
+weight you choose. That's exactly the thing a hunter wants a reason to do — and in 20 hours the game never
+once pointed me at it. The coach spent all that time telling me to plant turnips instead.
+[house] House: Wanderer's Camp -> Hearthside Homestead -> ... -> Hearthrise Castle, rooms including a Trophy
+Room (tier IV). If that's where the Rat King's Crown goes, tell me on the crown.
+
+=====================================================================
+PERFORMANCE (desktop, 1920x1080, Chrome)
+=====================================================================
+Nothing to complain about. Cold load to in-game ~2.2 s every time. Hunt view a locked 60 fps in every
+ground (worst single frame 33 ms over 10-15 s samples, zero frames over 50 ms), JS heap 22-38 MB. Town
+view 60 fps, worst 17 ms. Opening the bag cost one 67 ms frame. Entering a hunt: 0.35 s. Switching
+between my two heroes' tabs: instant enough that I stopped noticing. The only "wait" in the whole game
+is the 30 s walk-out when you leave a hunt, and that one's on purpose. No stutter, no lag, no errors in
+the console all session. Whoever built the client: well done.
+
+=====================================================================
+WHERE I ENDED (about 22 hours of hunting, waiting skipped)
+=====================================================================
+Ottmar Grimbeard, sword & shield, level 13 (~12 h): Mill Cellar 1h12, Thicket 2.5 h, Wickstead 2 h,
+  Sewer 3 h in party, Mosslight Glade 1.5 h + 1.8 h (stamina ran out). Melee 22, Defense 21.
+Wenna Ashgrove, staff healer, level 12 (~10 h): Mill Cellar 3.6 h, Sewer 3 h in party, Glade 3.6 h solo.
+Account gold ~44,000. Deaths: 0. "No deaths on record."
+
+=====================================================================
+THE VERDICT
+=====================================================================
+WHAT I LOVED
+  - The action-slot condition editor. "Cast X when [the HP of] [the lowest ally] [is below] 70%", stacked
+    conditions, slot priority, rune source per slot. It's a healing/attack script I write myself, inside
+    the rules. This is the deep system, and it's genuinely fresh in a browser idle game.
+  - Item tooltips: stats against what I'm wearing, heavy/medium/light trade-offs with set bonuses, where it
+    drops, what it sells for, what it crafts into. The armor-weight triangle is the best idea in the loot.
+  - Exact drop rates and respawn timers on every hunting ground card. Respects my time.
+  - Loot plans + Dispatch loot (Sell / Deposit / Don't pick up). The cleanest loot handling I've used.
+  - Hunts keep going with the browser closed. Two heroes hunting at once. Partying my own heroes in two
+    clicks.
+  - The Sewer with the Rat King: a real dungeon layout, a named boss you need a party for, and a loot table
+    with a crown, a buckler made of a drain grate and a knot that turns the town's fire blue for everyone.
+  - The world writing. Mill rats -> the sewer under town -> "the rats answer to someone" -> the Rat King.
+    The brook in the Thicket rises in the Glade. Creatures drop their own body parts. It hangs together.
+  - The hunt analyzer itself. Yes it's Tibia's, and yes I'm glad.
+
+WHAT FEELS COPIED OR THIN
+  - Copied (and I don't mind most of it, but you should know how it reads): four-part outfit colours,
+    the hunt analyzer panel word for word, runes for spells, 12 h stamina with paid refills, kill-task
+    board, burying bones for a regen skill (OSRS), the 83 XP to level 2 on every trade skill (OSRS), item
+    text about "the imbuer" (Tibia). Tibia vets will spot every one in their first hour.
+  - Thin: six hunting grounds for levels 1-50, one per band, so there's no choosing a spot, only the next
+    one. No danger. No weapon drops until hour seven. Supplies that don't matter for a knight. "Imbuer"
+    flavour on items that only sell. The Glade card says glowing moss and copper water; the map is a green
+    forest like the Thicket.
+
+THE ONE THING I'D TELL THE DEVS
+  Make hunting dangerous. Right now the best XP in the game comes from walking five to seven levels above a
+  ground's range, alone, and nothing can kill you (bronze heavy armor absorbs 50% of every blow at level
+  11). Without risk the analyzer has nothing to measure, supplies don't matter, parties are just multipliers,
+  and "expect losses" is a lie. Tibia is a game about the fear of the wrong cave. Give me that fear and
+  every good system you've built (the editor, the analyzer, the armor triangle, the party grounds) suddenly
+  has a reason to exist.
+
+BEST SYSTEM: the action-bar condition editor ("Configure action"). Runner-up: item tooltips + armor weights.
+WORST SYSTEM: risk and death — there effectively isn't any. Close second: the hunt analyzer's reliability
+  (frozen on an old hunt after reload, three hunt summaries missing, no end reason when stamina ran out).
+
+WHAT I EXPECTED THAT WASN'T THERE
+  - Dying. A death screen, a death penalty, a reason to bring a healer.
+  - Weapon upgrades early, and boss rares that are worth more than gold.
+  - Other players: a market, trading my Rat King's Crown, seeing another party in the Sewer, fighting over a
+    respawn. "2 online" was always just me.
+  - Supplies as a real cost for a melee character (food/potions mattering on the knight's analyzer).
+  - Per-item value in the analyzer's loot list (every line is a "–").
+  - The imbuing system the item descriptions keep promising.
+  - Someone pointing me at Tamsin's kill tasks instead of the turnip patch.
+
+WOULD I STILL BE PLAYING IN A MONTH?
+  Honestly: the first week, yes. The condition editor and the Sewer party night are the real thing, and
+  being able to leave two heroes hunting while I'm at work is exactly my kind of game. A month? Not as it
+  plays today. By day three I'd worked out that the answer to every hunt is "the highest one that lets me
+  in", nothing can kill me, and the loot I care about is locked behind level 15 or sells for gold. That's a
+  spreadsheet, not a hunt. Add risk, a few more grounds per level band, early weapons and a player market,
+  and I'd put the serious hours in. The bones are good.
+
+SCORES
+  Depth: 7/10  (the editor, the armor weights and the party grounds are real depth; risk, weapons and the
+               number of spots drag it down)
+  Fun:   6/10  (the Sewer party night was a 9; the Glade "push" with no danger was a 3)
+  Speed: 9/10  (performance is excellent: 60 fps everywhere, ~2 s loads, no stutter. Pacing is quick too —
+               level 13 in 12 hours — maybe a touch too quick for a "slow and deep" crowd)
+
+TOP FIVE, IN ORDER
+  1. No danger: can't die solo 5-7 levels above a ground; bronze heavy set absorbs 50%; above-range grounds
+     are the best XP. "Expect losses" never happened. Fix the risk model first.
+  2. Analyzer/summary reliability: after a reload the viewed hero's analyzer and hunt clock froze on the
+     PREVIOUS ended hunt (Mill Cellar) while he levelled in the Thicket/Wickstead; three hunts have no
+     summary; a stamina-ended hunt gives no reason on return.
+  3. Party balance and plumbing: party = 6x the healer's solo XP (full XP each, not split); Party-scope kill
+     count is double-counted (1,710 for 855 kills); "Start with party" on a gated ground silently does
+     nothing; a new healer's Circle of Renewal and Green Sickness default to "carried runes only" with zero
+     runes, so her only damage spell is dead on arrival.
+  4. Loot pacing: no weapon until the party Sewer (~hour 7); every tier-2 piece gated at level 15 at once;
+     the 0.1% Rat King's Crown is 4,000 gp vendor trash; "imbuer" item text with no imbuing.
+  5. Supply economics: the knight spent 0 gp on supplies in 12 hours; analyzer loot lines show no per-item
+     value; loot plans are per hero, not per account; the coach pushed farming for 20 hours and never
+     mentioned Tamsin's kill tasks; the "Plant your land" bubble sat over the hunt view the whole time.

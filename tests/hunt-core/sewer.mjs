@@ -635,6 +635,8 @@ const cases = {
     /* hunting ANOTHER ground (the Glade), the Thicket's payment card is not the one up (#25 of the walk) */
     const held = steps.find((s) => s.id === 'tamsin_pays').facts;
     if ((M.tut.currentCard({ ...held, huntId: 'mosslight_glade' }) || {}).id === 'tamsin_pays') return 'hunting the Glade, the coach still says to hunt the Thicket';
+    /* back below it (the Cellar), the card waits too: it is about the Thicket, never shown while hunting elsewhere */
+    if ((M.tut.currentCard({ ...held, huntId: 'mill_cellar' }) || {}).id === 'tamsin_pays') return 'hunting the Cellar, the coach still says to hunt the Thicket';
     /* Cash in tells the truth: loot is in the bag as it drops (the old card said it goes there when you leave) */
     const cash = said('leave_cellar');
     if (!cash || /when you do/.test(cash.text) || !cash.text.includes('already in your bag')) return 'the Cash in card reads ' + JSON.stringify(cash && cash.text);
@@ -1497,7 +1499,7 @@ const mutants = [
         "  step('home', 'Build your home', 'x', 'house', { kind: 'home_owned' }, { reactive: true, dayOne: true, when: [IN_TOWN, { kind: 'level_at', at: DAY_ONE_LEVEL }, { kind: 'home_unowned' }] }),\n"],
       ['src/data/hunt-tutorial.js', "  step('home', 'Build your home',\n    'Your first house needs gold, ore and logs: start with logs in Gathering and crafting, Woodcutting.',\n    'house', { kind: 'home_owned' }, { reactive: true, dayOne: true, when: [IN_TOWN, { kind: 'level_at', at: DAY_ONE_LEVEL }, { kind: 'home_unowned' }] }),\n", '']] },
   { name: 'Tamsin\'s payment card shows while the hero hunts another ground', case: 'tutorial-town-chain',
-    edits: [['src/data/hunt-tutorial.js', "'world', { kind: 'tally_paid' }, { when: [{ kind: 'not_elsewhere', hunt: WOLVES.hunt }] }),", "'world', { kind: 'tally_paid' }),"]] },
+    edits: [['src/data/hunt-tutorial.js', "{ kind: 'been', hunt: WOLVES.hunt, past: true }] }, { when: [{ kind: 'not_elsewhere', hunt: WOLVES.hunt }] }),", "{ kind: 'been', hunt: WOLVES.hunt, past: true }] }),"]] },
   { name: 'the first-return cards come back after the Thicket', case: 'tutorial-town-chain',
     edits: [['src/data/hunt-tutorial.js', "'shop', { kind: 'any', of: [{ kind: 'loot_sold' }, { kind: 'been', hunt: THICKET }] },", "'shop', { kind: 'loot_sold' },"]] },
   { name: 'the shown first-minute cards come after the reactive ones (the shell would replay them)', case: 'tutorial-walk-through',

@@ -30,7 +30,10 @@ import { dirname, join } from 'node:path';
 import { isMain } from '../tests/_is-main.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-export const OUT_FILE = '2026-12-23-tally-catalogue.generated.sql';
+/* 2026-12-23-tally-catalogue.generated.sql is APPLIED history (5 tasks). Wickstead's task (lane/b-core-loop-20h,
+   2026-10-31) lands in this forward file, which rewrites the same tables: it must follow 2027-02-06's Wickstead hunt
+   catalogue, or the chain has no ground to name. */
+export const OUT_FILE = '2027-02-11-wickstead-tally.generated.sql';
 const OUT = join(ROOT, 'supabase', 'migrations', OUT_FILE);
 
 const lit = (s) => "'" + String(s).replace(/'/g, "''") + "'";

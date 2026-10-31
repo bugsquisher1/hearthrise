@@ -149,6 +149,10 @@ const MORE_HEROES_MS = 5 * 60000;
 const BEATING_EATS = 3;
 /* The bag counts as nearly full at this share of its stacks (the designer's 80 of 100). */
 const BAG_NEAR_FULL = 0.8;
+/* "Drink your own juice" waits for a hunt that has bought this many of the store's drinks (designer 2026-10-31,
+   lane/b-core-loop-20h, played: a sword hero carrying Turnip Juice drank ONE store juice in twelve hours, and the card
+   sat over the town's What next line for two days; a Mage buys about 35 an hour, 10 is under twenty minutes of hers). */
+const JUICE_BOUGHT = 10;
 /* The Level the house and own-rune cards wait for (the designer's day-one plan: past the Thicket's first half hour).
    8 -> 7 (designer 2026-10-28, lane/b-first-hour): on the 10-25 curve Level 8 is about two hours in, so the day-one goals
    sat unseen through a first evening; Level 7 is about 40 minutes, the Thicket's first half hour. */
@@ -363,7 +367,8 @@ export const HUNT_TUTORIAL = Object.freeze([
     'farm', { kind: 'juice_made' }, { reactive: true, dayOne: true, when: [IN_TOWN, { kind: 'turnips' }] }),
   step('juice_slot', 'Drink your own juice',
     'Put your Turnip Juice in a drink slot before the store\'s juice: your own drinks cost nothing.',
-    'action_bar', { kind: 'drink_slot', item: 'turnip_juice' }, { reactive: true, dayOne: true, when: [{ kind: 'carries', item: 'turnip_juice' }] }),
+    'action_bar', { kind: 'drink_slot', item: 'turnip_juice' }, { reactive: true, dayOne: true,
+      when: [{ kind: 'carries', item: 'turnip_juice' }, { kind: 'bought_drinks', n: JUICE_BOUGHT }] }),
   step('home', 'Build your home',
     'Your first house needs gold, ore and logs: start with logs in Gathering and crafting, Woodcutting.',
     'house', { kind: 'home_owned' }, { reactive: true, dayOne: true, when: [IN_TOWN, { kind: 'level_at', at: DAY_ONE_LEVEL }, { kind: 'home_unowned' }] }),
@@ -536,6 +541,7 @@ const FACTS = Object.freeze({
   /* this hunt, as the analyzer counts it */
   ate: (p, f) => known(used(f, 'food', 'own'), (r) => r.length > 0),
   drank: (p, f) => known(used(f, 'drink'), (r) => r.length > 0),
+  bought_drinks: (p, f) => known(used(f, 'drink', 'store'), (r) => sum(r) >= p.n),
   eaten_at_least: (p, f) => known(used(f, 'food'), (r) => sum(r) >= p.n),
   stamina_low: (p, f) => known(f.staminaMs, (ms) => ms <= STAMINA_LOW_MIN * 60000),
   /* the bag, loot and gear */
@@ -569,7 +575,7 @@ const FACTS = Object.freeze({
 });
 const PARAMS = Object.freeze({ lesson_time: ['hunt'], enter: ['hunt'], been: ['hunt'], not_elsewhere: ['hunt'], unlock: ['hunt'], level_at: ['at'], skill_xp: ['skill'],
   tally_taken: ['task'], hunt_age: ['min', 'past'], pull: ['ground', 'pocket'], eaten_at_least: ['n'], heroes: ['atLeast'], drink_slot: ['item'],
-  carries: ['item'], kills: ['atLeast'], fuel_held: ['n'] });
+  carries: ['item'], kills: ['atLeast'], fuel_held: ['n'], bought_drinks: ['n'] });
 
 /* One fact as true / false / null; `any` is true once one is, null when none is and one is unknown. */
 function judge(d, f, c) {
@@ -1018,7 +1024,9 @@ const PARTY_HOW = 'Invite a friend, or make a second hero: up to four of yours c
 const partyGround = (hunt) => Object.values(HUNT_GROUNDS).some((g) => g.hunt === hunt && g.pockets.some((p) => (p.minParty || 1) > 1));
 
 /* "Graypelt Cloak is made in Crafting from Wolf Pelt ×6.": the first gear piece worn at Level `lv` that a bench makes,
-   that the next-gear words `said` name and the role wears; '' when none. Inputs as the home card writes them (name ×n). */
+   that the next-gear words `said` name and the role wears; '' when none. Inputs as the home card writes them (name ×n).
+   A bench rung above 1 says its level: "Ironbound Shield is made at Smithing 15 from ..." (lane/b-core-loop-20h, played:
+   a Level 12 tank read the shield's recipe with Smithing 1 and Mining 1 and no word that the bench wants 15). */
 function madeWords(lv, said, role) {
   for (const [skill, list] of Object.entries(ARTISAN_RECIPES)) {
     for (const r of list || []) {
@@ -1026,7 +1034,8 @@ function madeWords(lv, said, role) {
       if (!it || it.reqSkill !== LEVEL_REQ || it.reqLv !== lv || !it.n || !said.includes(it.n) || (role && !wornByRole(r.output, role))) continue;
       const ins = Object.entries(r.inputs || (r.input ? { [r.input]: 1 } : {}));
       if (!ins.length || !SKILLS_DEF[skill] || ins.some(([id]) => !name(id))) continue;
-      return it.n + ' is made in ' + SKILLS_DEF[skill].name + ' from ' + listed(ins.map(([id, n]) => name(id) + ' ×' + n)) + '.';
+      return it.n + ' is made ' + (r.req > 1 ? 'at ' + SKILLS_DEF[skill].name + ' ' + r.req : 'in ' + SKILLS_DEF[skill].name)
+        + ' from ' + listed(ins.map(([id, n]) => name(id) + ' ×' + n)) + '.';
     }
   }
   return '';

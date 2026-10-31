@@ -22,7 +22,8 @@
 // SIGN-OUT CLEARS EVERY COPY: supabase-js forgets the session, then every key
 // that can hold a token on this device — the auth key in BOTH the device and
 // the tab store, any `sb-*` key, the retired pre-reset keys — and the tab's
-// session id, so the next sign-in is a new session.
+// session id and the heroes it had open, so the next sign-in is a new session
+// that starts at the characters screen.
 //
 // THE RECOVERY LINK: a password-reset email opens the client with a recovery
 // token in the URL; supabase-js signs the link in and reports PASSWORD_RECOVERY,
@@ -230,7 +231,7 @@ export function createAuth(o) {
       for (const k of store.keys()) if (k === cfg.authKey || k.startsWith(cfg.authKey + '-') || k.startsWith('sb-')) store.remove(k);
       for (const k of cfg.retiredAuthKeys) store.remove(k);
     }
-    if (o.tab) o.tab.remove(cfg.tabKey);
+    if (o.tab) { o.tab.remove(cfg.tabKey); o.tab.remove(cfg.openKey); }
   }
 
   return {

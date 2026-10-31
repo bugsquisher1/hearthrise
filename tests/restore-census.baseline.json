@@ -33,7 +33,7 @@
   "Classifications are AUTHORED, never generated — deciding what a restore owes",
   "a table is a judgement, and --write preserves whatever is already here."
  ],
- "generated": "2026-10-29",
+ "generated": "2026-10-31",
  "production": {
   "measured": "2026-08-30",
   "project": "nezapsylztqbbwuwembx (hearthrise-testing, Postgres 17.6, us-west-2, Micro compute)",
@@ -1390,17 +1390,17 @@
   },
   "hr_tally_materials": {
    "class": "seeded",
-   "replay": 13,
+   "replay": 15,
    "note": "Generated catalogue (2026-12-23-tally-catalogue.generated.sql from src/data/tally-tasks.js): each kill task's materials, Tamsin's pick once every piece of its ground is given. Rebuilt from repo, never restored."
   },
   "hr_tally_pieces": {
    "class": "seeded",
-   "replay": 51,
+   "replay": 63,
    "note": "Generated catalogue (2026-12-23-tally-catalogue.generated.sql, derived from the loot bands: the Scarce armour rows of each ground's monsters): every piece Tamsin can give on a ground, with its weight, slot and tier. Rebuilt from repo, never restored."
   },
   "hr_tally_tasks": {
    "class": "seeded",
-   "replay": 5,
+   "replay": 6,
    "note": "Generated catalogue (2026-12-23-tally-catalogue.generated.sql from src/data/tally-tasks.js TALLY_TASKS): each kill task's ground, monster, count and gold. UPSERTED; hero_tally_tasks references it. Rebuilt from repo, never restored."
   },
   "hr_tick_cohort": {

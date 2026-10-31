@@ -30,6 +30,69 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 ## Decisions
 _Tyler's rulings live in rulings-of-record; designer rulings inside them are recorded here._
 
+### 2026-10-31 Core loop, hours 1 to 20 and on (designer, lane/b-core-loop-20h): PLAYED on the local world, fixes in the lane
+**Method.** The real `play.html` on `tools/qa/local-world.mjs` (the replayed chain, the real `hr-accrue`), v0.2.74 plus the a-andy-reports and live-view-robust fixes, 1440x900. Real sessions: an evening of 45-50 minutes, a hunt left running overnight with the browser closed, a morning and an evening return, with town time passing between (the harness's new `wait()`: stamina rests, crops grow, a gathering or bench job runs on; only waiting is compressed). **Marlow** (sword and shield, solo all the way): 27.6 h hunted over three days, Level 18. **Tessaly** (wand) and **Brin** (staff), one account, a party from Level 8: 11.7 h, Levels 14 and 13. Past hour 20: `tools/balance-sim/level-pace.json` and the 10-31 balance verdict (lane/b-balance-baseline), not re-measured. Shots: `art/review/core-loop-20h-2026-10-31/` (21).
+
+**Verdict.** Yes for the first day, not yet for the second and third. The semi-idle promise holds: close the game, come back to a summary, Levels, a bag of loot and a purse; the Sewer party and the Glade at 16 (2.1x Wickstead's XP an hour, a Level an hour) are the two moments that feel like a game opening up. Between them the screen stops saying what you are working toward. On the hero's way from Level 8 to 15 (hours 2 to 18) it named one Thicket boss Rare, then nothing until the Iron tier; the coach sat on a drink card a sword hero never needed; Tamsin's armour was used up by one night of drops; gold climbed to 64k with nothing past a 360 gp ring to spend it on in sight; and when the Iron tier came, Equip upgrades would not put it on. Every system works; few tell the player why it matters at hour 10. Past hour 20 the solo road narrows to one ground, a flat 84k XP an hour and no gear from Level 30 to 50 (125 h), which is where the most active real player sits.
+
+**Marlow's days** (the screen's goal is the coach line or What next)
+| Hunted | Level | Gold | Worn | Goal on screen | What happened, what it felt like |
+|---|---|---|---|---|---|
+| 0.8 h (eve 1) | 6 | 1,480 | Practice sword and shield | the tutorial chain | Cellar 21 min (7.2k XP/h), sell, cook, bless, Tamsin (Heavy), Thicket 25 min: clear |
+| 10.3 h (morning 2) | 10 | 14,771 | nothing on the body all night | a 9-hour-old "Your hero just drank" card, then "Drink your own juice" | 9.5 h overnight in the Thicket: 5,529 kills, 2,649 gp/h, 23k XP/h, ~140 armour pieces dropped, none worn until town. Equip upgrades + the Shop's jewellery: a good ten minutes. Tamsin paid the Bronze Helm, then offered 480 gp + 6 Bones |
+| 12.5 h (eve 2) | 11 | 24,432 | Bronze set + Shop jewellery + Graypelt Cloak | "Drink your own juice" (one store juice drunk in 12 h) | Wickstead until stamina (30k XP/h, 3.9k gp/h); Dispatch sold 21 stacks for 4,377 gp in one press; the Homestead and its Garden (400 gp, 20 ore, 30 logs gathered in minutes) |
+| 18.1 h (morning 3) | 13 | 40,925 | same | same | Wickstead 5.6 h, then the hero went back to chopping on its own when stamina ran out (6.4 h: 4,818 logs, Woodcutting 4 → 37). Mining 21 and Smithing 16 in about an hour of town time; forged the Ironbound Shield (Level 15) |
+| 25.6 h (eve 3) | 16 | 58,141 | Bronze set | "Wear what you found: Wolfbone Torc" | Wickstead 7.75 h (4.0k gp/h). Ten Iron Platebodies, eleven Platelegs, an Iron Helm in the bag; Equip upgrades put on only the Torc (fixed below). Put Iron on by hand, then the shield and Bramble Blade (nothing points at them) |
+| 27.6 h | 18 | 64,450 | Iron body, legs, helm; Ironbound; Bramble Blade | (now) Next ground Warrens 32, next gear Level 18, then Level 30 | Glade 2 h: 64.9k XP/h, 4.9k gp/h, 0 gp of supplies (never ate). The best two hours of the three days |
+Tessaly and Brin: the mage burns 519 gp/h of store runes and juice from minute one (54 runes and 12 juices in the Cellar's 20 minutes). A second hero at Level 6 of the first: Cellar 25 min, Thicket 3 h, both at 8 by about 4 h; right-click the tab, Invite to party, Start with party. Sewer duo, a mage and a healer with no tank: 47-50k XP/h each, 0 deaths in 7.4 h, 3,961 gp/h after a 600 gp/h bill (1,425 runes, 242 juices). At the same hours the party heroes are three Levels ahead of Marlow.
+
+**Per system** (purpose: the player problem, the decision, what it plugs into)
+| System | Purpose | Use in 20 h | Ruling |
+|---|---|---|---|
+| Hunting, ground choice | where stamina goes; ground by Level, style, party; feeds loot, Tamsin, the bestiary | every hour | KEEP. Fix: no danger anywhere (balance #1), so the choice is XP only |
+| Loot, selling, Dispatch | decide once what each drop is for; feeds gold, fuel, crafts | every return | KEEP. Dispatch and loot plans are the first principle working. Sell all loot leaves ~100 spare armour pieces |
+| Gold and what it buys | the purse's chase | piles up: 14.8k at hour 10, 64k at hour 28 (party: 52k at 11.7 h) | FIX: real sinks exist (hero slots 15k / 40k / 120k, chests 1.5k to 90k, the house deeds) and no screen points at them; the Shop's gear tops out at 360 gp |
+| Gear per slot | the hour and day chase | tier 1 every slot by hour 10; tier 2 at Level 15 (hour 18-22); none from 18 to 30; tier 3 is the party Warrens | FIXED the set-bonus lock; FIX the 18 → 30 hole (content) |
+| Shop | the outfitter for slots monsters don't drop | hour 1 to 2 | KEEP |
+| Smithing | bars, tools, shields, house fittings | one real product for a sword hero in 20 h (the Ironbound Shield); the Iron Sword is a drop only | KEEP; FIXED: its goal line names Smithing 15 |
+| Crafting | cloth and leather lines, bows and wands, planks | the Graypelt Cloak (first craft), planks | KEEP |
+| Cooking | food and drink for the bar | casters' juice only; Marlow 0 food in 4 h of Glade, 1,031 Raw Wolf Meat never cooked | KEEP; its consumer is danger (engine) |
+| Fishing | food | 0 on both accounts; only the Fieldworth deed asks for it | KEEP, flagged: zero use in 20 h |
+| Mining, Woodcutting | ore and logs for smithing, planks, the house | Mining 1 → 21 in 40 min; Woodcutting 4 → 37 in one night | KEEP; FIX: tell the player the hero goes back to its gathering job when a hunt ends |
+| Farm | turnips into juice for casters | 2 → 3 plots; two plots made 15 juice | KEEP (caster value) |
+| Hearth, Inner Flame | bones become regen | 1,657 Bones in one press; +24% regen by Inner Flame 16 | KEEP: the best sink in the game |
+| Tamsin's tally | an hour goal inside a long hunt | the wolves once; her armour gone after one night of drops; no task at Wickstead | FIX: Wickstead task STAGED; her pick after the Scarce pieces (proposal) |
+| Blessings | price a death | free below 30: no decision in 20 h, no deaths seen | KEEP |
+| Bestiary | collection, small bonuses | a bar on the Character sheet ("13 of 30") | FIX: show what each stage pays where the hero hunts |
+| House, Storage | the long gold and materials chase | Homestead and Garden by hour 12; storage never pressed (bag 62 of 100 at Level 16) | KEEP; rooms are thin (Kitchen: cooking 2% faster) |
+| Parties | the faster road from 8 | Sewer duo 1.5-2x solo XP | KEEP; solo Glade out-earns it from 16 (balance #6, Tyler's) |
+| More heroes | play more than one | the second hero is easy to make and hunts beside the first | KEEP; every reload re-asks which heroes play (10-30 #8, open) |
+| Stamina | caps a day at 12 h | ends hunts cleanly; the hero returns to its last town job | KEEP |
+
+**Fixes in the lane** (each with a test red without it)
+| # | What | Where | Test |
+|---|---|---|---|
+| 1 | Equip upgrades takes the next armour tier though it ends a set bonus: a hero in a full Bronze plate set wore none of ten Iron Platebodies (each alone broke the +1% crit). A higher tier of the worn weight is judged with the set bonus out of both sides; the line says "Your full set's +1% critical chance ends." | `src/shell/upgrade-plan.js` | AW-21 (alpha-windows `--pure`) + a mutant row |
+| 2 | "Drink your own juice" asks mid-hunt once the store has sold 10 drinks (a Mage's 20 minutes), never for a hero who hardly drinks; the What next line is no longer hidden behind it | `src/data/hunt-tutorial.js` | sewer.mjs tutorial-reactive |
+| 3 | What next names a made piece's bench level: "Ironbound Shield is made at Smithing 15 from Iron Bar ×2 and Normal Plank ×2" | `src/data/hunt-tutorial.js` | sewer.mjs tutorial-reactive |
+| 4 | Tamsin's Wickstead task: 50 Turncoats (~1 h played), 780 gp, then Wickstead's Scarce pieces (the Iron Platebody and Platelegs first, worn at 15: a goal for Levels 8-14). STAGED lane C | `src/data/tally-tasks.js`, `2027-02-11-wickstead-tally.generated.sql` | gen-tally-tasks `--check`, the file's self-check, schema-drift, tally-tasks |
+| 5 | Harness: a skip keeps history in order (the analyzer showed an ended hunt), `wait()` lets town time pass, each skip fire resets the per-user apply window (a party of one account's heroes forfeited "server" in seconds of skip) | `tools/qa/local-world.mjs` | smoke +2 steps; the history mutant goes red |
+
+**Top 10 remaining, by what a 20-hour player feels**
+| # | Met at | Problem | Evidence | Proposal (owner) |
+|---|---|---|---|---|
+| 1 | hour 6 | Gold has no visible use | 14.8k at hour 10, 64k at hour 28; nothing on any screen but the picker's slot line names a use | What next names the next purchase the purse covers: the third hero slot first ("another hero hunts beside this one"), then the next chest and house deed. Client only (designer + systems) |
+| 2 | hours 2-18 | Level 8 to 15 names one goal: a Thicket boss Rare at 12 | 15.6 h between Wickstead and the Iron tier; Wickstead's own Rares (Wolfbone Torc 16, Fang Studs and Banded Signet 18) can't be worn on the ground that drops them | Wickstead's Rares at Levels 12-14 (`items.js` reqLv; lane C regenerated catalogue; designer) |
+| 3 | hour 10 | Tamsin pays junk after the first night | her pick skips pieces the hero holds; the Thicket drops every one overnight; she paid Raw Wolf Meat ×5 on the mage's first task | after the ground's Scarce pieces, the next tier's piece in the chosen weight from the next ground, once each (lane C + Security) |
+| 4 | hour 12 | Stamina-out time is idle unless a gather job ran before the hunt | the return anchor works (6.4 h of chopping) but nothing says so | Hunt prep says what the hero does when the hunt ends, and offers the last gather (client; the envelope needs the anchor) |
+| 5 | hour 22 | No gear from Level 18 to 30, none at all past 30 for a lone hero | 25.5 h then 125 h at a flat 84-85k XP/h; only two authored pieces between 19 and 29 (Packlord Band 22, Houndskin Cloak 28), both unsourced | a tier step at the Glade's top (sample of 5); the Warrens alone from 45 in the Hunts window (balance #9); Hask's Ford is not on main and was not judged |
+| 6 | hour 10 | No danger, so food, cooking and fishing have no consumer for a melee hero | Marlow ate nothing in 4 h of Glade; 1,031 Raw Wolf Meat uncooked; Fishing 0 on both accounts | the danger layer (balance proposal 1; engine) |
+| 7 | hour 25 | A better weapon or shield in the bag is never pointed at | the forged Ironbound Shield and a Bramble Blade sat unworn; Equip upgrades leaves the hands to the player (ruling 10-16, kept) | the bag line names them without wearing them ("beats your Practice Shield: +3 Defense") (client) |
+| 8 | hour 10 | The return lands on a stale reactive card | "Your hero just drank" from nine hours earlier over the hunt view | a reactive card older than the away time is marked read on return (client) |
+| 9 | any | The Bestiary is a bar | "13 of 30 creatures slain"; its class and creature stages are never shown | the hunt card names the stage and what it pays here (art + client) |
+| 10 | hour 20 | The party loses its pull from 16 | solo Glade 77k vs the Sewer party ~50k per hero (balance #6) | party XP share (Tyler's open item) |
+Not played: the Coppercap Warrens, a death (none happened), the Market (not in this client), a phone viewport, Hask's Ford (not on main).
+
 ### 2026-10-30 Core loop, fresh and returning (designer, lane/b-core-loop-basics): PLAYED on live v0.2.70 as QA (Pellow L2→3 in the Cellar, reload mid-hunt, leave, summary, bag, Shop; Corliss L12 back after a day), fixes in the lane
 | # | Moment (first-hour value order) | Ruling |
 |---|---|---|

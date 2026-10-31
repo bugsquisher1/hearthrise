@@ -46,9 +46,7 @@ import { pathToFileURL } from 'node:url';
 import { isMain } from './_is-main.mjs';
 
 const MIG = '2026-12-23-tally-tasks.sql';
-/* the generator's current file (it moves forward when the last one is APPLIED history): a second apply of an older
-   catalogue would rewrite the rows the chain's last one wrote */
-const { OUT_FILE: CAT } = await import('../tools/gen-tally-tasks.mjs');
+const CAT = '2026-12-23-tally-catalogue.generated.sql';
 const CELLAR = 'cellar_giant_rats';
 const THICKET = 'thicket_gray_wolves';
 const idem = () => crypto.randomUUID();

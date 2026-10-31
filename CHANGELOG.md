@@ -5,6 +5,22 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.76 — 2026-10-31 (A better first hour)
+
+**The bow shoots from its first press.** Equipping a bow now loads a shot, and Enter warns you if your bar has nothing to attack with. No more archers standing in a cellar buying food.
+
+**Tips stay out of your way.** Cards come in a better order, the ones that ask something have a Got it button, and in a hunt they fold after 20 seconds. The Help page has its own card now, and it has the stamina numbers right.
+
+**Phones.** Hero tabs are big enough to press, a Heroes button brings them back on small screens, the rest of the hotbar is one press away, and chat sits on screen. A held icon shows its name, a grey button says why, and the game tells you when your connection is the reason you're waiting.
+
+**Easier on your computer.** A still town no longer repaints sixty times a second, so older laptops should run quieter. Switching heroes no longer slowly fills up memory, and a hidden tab does far less. Slow first visits now show a loading screen instead of black.
+
+**Numbers that add up.** The character screen says how to get more slots. The pack count goes up when you press +. The shop says what Sell all skips and when a sale is capped, and tells you exactly what it paid. The hunt bar says when food comes from the store, and party kill counts are no longer doubled.
+
+**Past the first day.** Tamsin has a new task at Wickstead. Equip upgrades now puts on a higher armor tier even if it ends a set bonus. The next-step card says what level a bench item needs.
+
+**A correction.** Last release we said slow reloads would now take about a second. Some still take longer. We're still working on it.
+
 ## v0.2.75 — 2026-10-31 (Back where you left off)
 
 **Reloading keeps your place.** A reload reopens the heroes you were playing instead of the character list. Reloads are faster too: the slow ones that took 5 to 12 seconds should now take about a second.

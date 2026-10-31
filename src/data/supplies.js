@@ -31,8 +31,8 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { ITEMS, foodClassOf } from './items.js?v=0.2.75';
-import { isRune as isRuneItem } from './runes.js?v=0.2.75';
+import { ITEMS, foodClassOf } from './items.js?v=0.2.76';
+import { isRune as isRuneItem } from './runes.js?v=0.2.76';
 
 export const SUPPLY_KINDS = Object.freeze(['heal', 'mana', 'ammo', 'buff']);
 
@@ -102,7 +102,7 @@ export function supplyKindOf(item) {
     (designer 2026-10-21, Bible §18; Tyler 2026-10-23: runes fuel spells, caster basics cost mana):
     its store row is bought when a spell's slot names it (src/core/hunt/conditions.js storeFits),
     never by a basic shot, and no attack slot may name a rune. */
-export { isRune } from './runes.js?v=0.2.75';
+export { isRune } from './runes.js?v=0.2.76';
 
 /** id -> { id, kind, essential, heals, buff }. Null prototype; values from ITEMS. */
 export const SUPPLIES = Object.freeze(SUPPLY_ROWS.reduce((acc, [kind, id, essential]) => {

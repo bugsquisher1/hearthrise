@@ -1,0 +1,211 @@
+HEARTHRISE, PLAYED BLIND. Tibia veteran, idle-game optimizer. v0.2.78 in a local world.
+Accounts: vet (heroes Grimgar, Pellow) and ally (hero Sorrel). Viewport 1440x900.
+About 20 hunting hours on Grimgar, 11.5 on Sorrel, 4 on Pellow.
+What I say below is what I saw on screen. My opinions are marked as opinions.
+
+NOT PLAYED, so don't read my verdict as covering it: gathering, cooking, crafting, smithing,
+runes, farm, house, storage, Dispatch loot, chat, friends. All my trade skills stayed at 1.
+Some of the long chase may live there. I judged the hunting game.
+
+NOT REACHED: a full bag. Best was 90 of 100 spaces at hour 20, and that took shop purchases to
+get there. FOUR HEROES: I bought the third slot (15,000) and could not afford the fourth (40,000).
+I ended with 2 heroes on the account, 1 slot empty.
+
+----------------------------------------------------------------
+WHAT I DID, BY HOUR (Grimgar's hunting time)
+----------------------------------------------------------------
+0:00-1:02   Mill Cellar. L1 to L5 (85%). 490 kills, 7,240 XP/h, 1,988 gp/h. Fueled bones. Took
+            Tamsin's rat task.
+1:02-12:04  Meadowbrook Thicket. I meant to go back to the Cellar: the list had moved its pick to
+            the ground that fits my level and I pressed Enter without looking. Closed the tab 8 h,
+            then 3 h 20. Stamina ran out and he walked home. L5 to L11 (18%). 6,482 kills,
+            23,187 XP/h, 2,775 gp/h.
+            Rested 8 h. Stamina comes back 1:1. 16k gold. Reached Level 10, listed on the Weighhouse.
+12:04-12:52 Wickstead alone. 28,602 XP/h, 3,450 gp/h, no food used.
+12:52-13:54 Wickstead in a party with Sorrel. 20,848 XP/h each. See PARTY.
+13:54-14:55 Mill Cellar with a bow, Ranged skill 1. Rat task finished.
+14:55-15:05 Bow with no arrows (0 kills), then no weapon at all (37 kills in 5 min).
+15:05-17:59 Mosslight Glade at L11, "above your level, expect losses". L11 to L14. 1,232 kills,
+            55,857 XP/h, 4,382 gp/h balance. Tab closed for the first 30 min.
+            Bought slot 3, made Pellow. Pellow hunted the Cellar with the tab closed for 4 h (third
+            long absence): L1 to L7.
+18:00-20:02 The Sewer alone. 43,507 XP/h, 5,344 gp/h balance: the best money I found.
+
+----------------------------------------------------------------
+NUMBERS THAT ADD UP (I checked; this is good and a veteran notices)
+----------------------------------------------------------------
+Loot lines sum to the loot value (26 lines = 11,664). Balance = gold + loot - supplies. Per-hour
+figures match totals over time. Supplies = count x price (87 x 14 + 10 = 1,228). Gold after the
+hunt = before + earned - supplies (1,219 + 16,211 - 1,368 = 16,062). Worth drops by the bid of
+what you wear (35 + 90 + 65 + 25 = 215). Roll of Honor XP = sum of my hunts (7,546 + 255,743 =
+263,289). Death: 5,394 + 161 + 63 = 5,618 on the Deaths tab. Set bonus 4.6% x 6 = 28%. Analyzer and
+summary agree to within the seconds between reading them. The item tooltip is excellent.
+
+----------------------------------------------------------------
+NUMBERS THAT DON'T ADD UP
+----------------------------------------------------------------
+1. Bones. Thicket summary: Bones x1,954, inside "Loot value (unsold) 15,766 gp". Bag afterward: 0
+   Bones. Bag worth went 1,506 to 15,138 (+13,632, not +15,766; the 2,134 gap is the 1,954 of
+   bones plus 180 I can't name exactly, likely the 20 shrimp eaten). Inner Flame went 5 to 16.
+   Sorrel, who never pressed Fuel, kept 1,420 Bones and Inner Flame 1. See BUG 1.
+2. Weighhouse quote against payment. 10 pelts at 35: quote says "you get 33 each" = 330. Paid 336.
+   1 pelt at 35: paid 33. So the 4% is real on the total, and the each-figure is floored. Selling
+   in one lot pays better than selling singly. In my favor, but it isn't the number shown.
+3. At price 8 the quote says "you get 7 each" with the shop paying 7, and no warning; at 7 it warns.
+   The true take at 8 on a lot is 7.68, so the warning is right and the "7" is what misleads.
+   Also: at 5 it says "The shop pays 7 for one. Ask at least that", but asking exactly 7 still warns
+   that the shop pays more. The real floor is 8.
+4. "Listed for 7 days" against "6 days left" on the listing immediately after.
+5. Return notice "the Weighhouse sold 1 lot for 350 gold". I received 336. It also appeared an hour
+   after the sale, when I'd already read it in History.
+6. Roll of Honor 475,750 XP against my own sum of about 477,600. "Updated 2 minutes ago", and 2 min
+   at 55k/h is about that gap, so this is the refresh, not an error. Ranks were correct every time
+   I looked after a refresh.
+7. Absorb 49.5% at L11 and 45.3% at L14 with the same four pieces on. Nothing says why. The tooltip
+   gives max HP% and "absorbs part of each blow", with no number.
+8. Hero creation: bow "uses arrows or bolts". Hunt prep: "Bronze Arrows loaded. They never run out."
+   60 min of shooting confirmed that. Then why does the stack have a count?
+9. Tamsin: "gold, plus a piece of armor". The rat task paid 100 gp + 4 Slime Gel, no armor. In 2 of
+   her other offers the armor is the same Iron Helm.
+
+----------------------------------------------------------------
+RATES (solo unless noted) - this table is my main finding
+----------------------------------------------------------------
+Ground         Hero                          kills/h  XP/h    balance gp/h
+Mill Cellar    L1 sword                      ~470     7,240   1,988
+Mill Cellar    L11 bow, Ranged 1             ~473     7,277   1,760
+Mill Cellar    L11 bare hands (5 min only)   ~432     -       -
+Thicket        L5-L11 Grimgar                ~588     23,187  2,775
+Thicket        L5-L10 Sorrel                 ~580     22,888  2,520
+Wickstead      L11 armored                   ~568     28,602  3,450
+Wickstead      party of 2, each              ~666     20,848  ~3,000
+Mosslight      L11-14 armored                ~425     55,857  4,382
+Mosslight      L10 no armor (43 min)         ~416     54,446  2,008
+Sewer          L10 no armor (35 min)         ~285     40,458  3,809
+Sewer          L14 armored                   ~304     43,507  5,344
+
+What it says: on every ground I could compare, income is set by the ground, not the hero. Level,
+weapon, skill and armor did not move kills/h. Armor moves only the food bill. In the Glade that was
+42 gp for 30 min armored against 1,904 gp for 43 min unarmored. Caveat: small samples, and I never
+equipped the Iron Swords that dropped, so a real weapon upgrade is untested.
+
+----------------------------------------------------------------
+PARTY
+----------------------------------------------------------------
+Same ground, same "As built" pull, 2 melee shield heroes (L11, L10):
+                  solo            party of 2, per head     change
+XP/h              28,602          20,848                   -27%
+gold+loot/h       3,450           ~3,000                   -13%
+Pair total XP/h   57,204          41,800 (analyzer)        -27%
+Kills             568/h           666/h (shared)           +17% for double the heroes
+XP split evenly (21,670 each). Loot rolled separately. All internally consistent.
+So two players in one party earn less than two players alone, in the game called multiplayer. I
+did not test a healer, a mage, a bigger pull or the Warrens, and those may change it. The flow
+itself is clean: right-click, Invite, Join, Start with party. Leader leaves, everyone goes home,
+and the summary says why.
+
+----------------------------------------------------------------
+DANGER
+----------------------------------------------------------------
+I did not die once by playing. L10 with no armor survived "above your level, expect losses" and
+earned 54k XP/h. The Sewer ("A party of 2 to 4") was soloable at L10 with no armor.
+To get a death I needed: under-leveled, no armor, a bow with no arrows so no attacks, and ALL food
+slots emptied. Then I died within minutes.
+The death itself is good: clear modal, killed by what, cost itemized, back in town at full health.
+5,394 Level XP looks like 2% of lifetime XP (about 270k). XP 27% to 20%, level kept.
+Opinion: the only risk in the game I saw is the shop bill. A Tibia player will find that strange.
+
+----------------------------------------------------------------
+PACING AND THE CHASE
+----------------------------------------------------------------
+XP per level: L1 127, L5 6,564, L10 72,045, L11 72,549, L14 80,109. It climbs 11x in five levels,
+then goes nearly flat. Hours per level at my best rate: L5-L6 about 17 min, L10-L14 about 1.4 h in
+the Glade.
+Stamina caps real play at 12 h per day plus refills. 20 hunting hours is about two real days, not
+two weeks.
+
+HOUR 5: Strong. Thicket pays 3x the Cellar, armor pieces drop, the hero looks like he's winning.
+HOUR 12: Weak. The Weighhouse opens at L10, which is a real moment. But I hit the stamina wall,
+  levels slow to 3 h each at Thicket rates, and the only signpost is a label telling me not to go
+  to the ground that would double my XP. I found that by ignoring the warning.
+HOUR 20: Thin in what I played. L15-ish, 27k gold before the slot. Visible goals: L32 for the
+  Warrens (about 30 more hours at Glade rates, my estimate), 40,000 for slot 4, Melee 30 for a
+  better whetstone, the bestiary (13 of 30 at hour 13), rare drops at 0.07-0.3%. Nothing changes what my hero does
+  hour to hour. If the middle game is meant to be trade skills, nothing pulled me there; the one
+  nudge I saw was "Plant your land".
+
+----------------------------------------------------------------
+ECONOMY
+----------------------------------------------------------------
+Income 2.7k-5.3k gp/h against shop gear at 120-360 gp. By hour 12 I had 16k and nothing to buy
+except a 15,000 slot. Gear drops as vendor stacks: Bronze Helm x16, Leather Chaps x16.
+Stamina refill: +3 h 31 for 1,319 gp, about 375 gp per hour of hunting that earns 4,000+. No
+decision: always buy. (Only the first price seen; "each one costs more", 6 a day.)
+Tamsin's rat task pays 100 gp for roughly 25 min of work worth about 700 gp. Her armor rewards may
+be the real pay; I only completed the one that gives none.
+Weighhouse: works end to end. Level 10 gate is per account, as it says ("on any hero"): a L1 alt
+on my account traded freely. Locked heroes get a disabled Buy with a clear reason. At a price under
+the shop's bid the List button dims and the reason shows (I didn't press it). Fee (1%, rounded up: 4 on 350, 1 on 35) matches. Buyer and
+seller histories match. Suggested price was 5x the bid on an empty market (35 on 7). With 2 players
+I can't judge prices.
+A new hero added 500 gold to the shared purse (12,941 to 13,441). Costs 15k+ to reach, so no farm
+that I can see, but I didn't test deleting and remaking.
+
+----------------------------------------------------------------
+BUGS (repro, then what I saw)
+----------------------------------------------------------------
+1. Fuel keeps burning into the next hunt, and the loot still counts it.
+   Press Bones > Fuel all, let it run partway, then enter a hunt. 11 h later: every Bone from the
+   hunt gone, Inner Flame up 11 levels, summary still says Bones x1,954 in "unsold" loot value. No
+   word anywhere that this happened. The burn stopped after that hunt: the next hunt kept 72 Bones.
+   Inferred from before/after, I didn't watch the job run. Inner Flame +24% regen is a nice gift;
+   the unasked spend and the overstated balance are the bug.
+2. Sewer's rule text is wrong. It reads "A party of 2 to 4." A lone L10 walks in and it's the best
+   money on the list. Compare Warrens: "A party of 2 to 4, or alone from Level 45", and it does
+   gate me.
+3. Bow with no arrows can still Enter. Prep warns clearly, then nothing on the hunt screen. Sorrel
+   lost 10 min of stamina and 784 gp to 56 shrimp before "You went 10 minutes without landing a
+   blow, so you headed home." The safety stop is good; a warning on the hunt screen is missing.
+4. No weapon at all: prep says nothing, the style reads "Melee", and he fights with fists.
+5. Tamsin task not on the chosen ground gives no warning. I ran 11 h at 0/120 Giant Rats, shown in
+   the Tally box the whole time, because the list had changed its pick.
+6. Spell detail text: "Requires: Bow or Crossbow or Bow or crossbow."
+7. Tamsin's armor slots each read "Earlier", which looks like a status but seems to be a reorder
+   button.
+8. Find a party's second filter showed "Needs a shield" before I touched it, though "Any party" is
+   in the list.
+9. Hunts "+" for pull size: pressed 8 times in the Glade, the label stayed "As built" and "6 packs of
+   2 to 3". Can't tell if it did anything. Not sure this is a bug.
+10. "3 online" with 2 people signed in. It appears to count heroes.
+11. HP stayed 250/296 after 8 h in town, before and after a reload, following a max HP rise from
+    armor. It filled once a hunt began. Might be intended; looks wrong.
+
+SUSPECT THE HARNESS, NOT THE GAME (time skip compresses waiting):
+- "While you were away (10 min)" after 200 min away. The (14 min) version appeared while Sorrel's
+  tab was open the whole time, and those toasts stack.
+- Later hunt dated before an earlier one: Thicket 4:49 PM listed after Cellar 5:03 PM.
+- Stamina stuck at 0:23 in an open tab through an 8 h wait, then 8:29 after reload.
+- Roll of Honor "No hero has earned a level yet" 4 minutes after a 1 h hunt: real refresh clock
+  against skipped game time.
+- Leave hunt took over 30 s once, on a 2:53 session. Other lanes were loading this PC.
+- My own errors, not bugs: one invite click hit help text instead of the menu; one no-food test was
+  invalid because a food slot was still on the bar.
+
+----------------------------------------------------------------
+TOP 5 TO FIX, RANKED
+----------------------------------------------------------------
+1. Level bands don't mean anything. "Expect losses" is the best XP on the list and it's safe, even
+   unarmored. Make the warning true with real danger, or say what it really costs.
+2. Parties earn less per head than solo: -27% XP, -13% coin on the same ground. Fix this before a
+   multiplayer playtest, or tell players which composition pays.
+3. Hero power doesn't move income. Kills/h is set by the ground, across level, weapon, skill and
+   armor. A min-maxer has nothing to optimize but ground choice and the food bill. Verify with a
+   real weapon upgrade first; I didn't test one.
+4. Fuel: stop the job when a hunt starts (or ask), and take burned Bones out of "unsold" loot value.
+5. The hour 12 to 20 chase. Gold has one real sink and drops are vendor stacks. Give a mid-game
+   target that changes what the hero does, and point at it on screen. Trade skills may be the
+   answer; I never felt pulled to them, and I didn't play them.
+
+VERDICT (opinion): The arithmetic is honest and the screens explain themselves, better than most
+idle games I've read. But the first 20 hours have no danger, parties pay less than solo, and hero
+power barely shows in the numbers. I'd keep reading, and I'd stop trusting the labels by hour 12.

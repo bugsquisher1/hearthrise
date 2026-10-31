@@ -144,6 +144,18 @@ async function main() {
     await buyer.page.waitForSelector(row);
     const line = await buyer.page.$eval(row, (li) => li.innerText);
     step('browse: one row for the item, lowest ask, how many', new RegExp('from ' + ask.toLocaleString('en-US') + ' each · 3 for sale').test(line), line);
+    /* A search covers what is not listed too, and says so; a category shows what is for sale. */
+    await buyer.page.fill(WIN + ' .hw-mk-browse .hw-q', 'coal');
+    const coal = WIN + ' .hw-mk-browse .hw-mk-row[data-item="coal"]';
+    await buyer.page.waitForSelector(coal, { timeout: 60000 });
+    const coalLine = await buyer.page.$eval(coal, (li) => li.innerText);
+    step('search: an item nobody lists reads honestly', /No one is selling this/.test(coalLine), coalLine);
+    await buyer.page.fill(WIN + ' .hw-mk-browse .hw-q', '');
+    await buyer.page.click(WIN + ' .hw-mk-browse .hw-cat[data-cat="gear"]');
+    await buyer.page.waitForFunction((r) => !document.querySelector(r), row, { timeout: 30000 });
+    step('a category hides what is not of its kind', true);
+    await buyer.page.click(WIN + ' .hw-mk-browse .hw-cat[data-cat="all"]');
+    await buyer.page.waitForSelector(row);
     await buyer.page.click(row);
     await buyer.page.waitForFunction((w) => /Buy 1 for/.test(document.querySelector(w + ' [data-hs-act="mk-buy"]')?.textContent || ''), WIN, { timeout: 60000 });
     const page = await winText(buyer);

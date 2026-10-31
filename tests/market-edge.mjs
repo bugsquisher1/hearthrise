@@ -287,7 +287,8 @@ async function run(mutation) {
   const gate = () => q('delete from public.hr_rate_counters');
   const cfg = (on) => q('update public.hr_market_config set enabled = $1 where only_row', [on]);
   /* The fixture's heroes are fresh; the Level rule is tests/market-v2.mjs M5b's. */
-  await q('update public.hr_market_config set min_level = 1 where only_row');
+  await q(`do $d$ begin if exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'hr_market_config' and column_name = 'min_level')
+           then execute 'update public.hr_market_config set min_level = 1 where only_row'; end if; end $d$`);   // a mutant's replay may stop before that file
   const bag = async (u) => Number((await one('select coalesce((select qty from public.player_inventory where user_id = $1 and slot = 0 and item_id = $2), 0)::text q', [u, ITEM])).q);
   const store = async (u) => Number((await one('select coalesce((select qty from public.account_bank where user_id = $1 and item_id = $2), 0)::text q', [u, ITEM])).q);
   const purse = async (u) => Number((await one('select coalesce((select gold from public.account_wallet where user_id = $1), 0)::text g', [u])).g);

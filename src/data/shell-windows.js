@@ -22,6 +22,8 @@
 //   tabKeys  { letter: tab }: more shortcuts, each opening this window on that tab (window-manager.js openTab)
 //
 //   title    the frame's words when they are not the label (the Market's "The Weighhouse")
+//   phoneIcon false keeps a launcher row off the phone's icon row, which holds 15 at a thumb's width on the
+//            narrowest phone (tests/phone-touch.mjs PH-11); it must be reachable another way there
 //
 // The rest of the spec's catalogue (Bestiary L) lands
 // with its renderer: a launcher never opens a window that does not exist yet
@@ -72,6 +74,6 @@ export const SHELL_WINDOWS = Object.freeze([
   Object.freeze({ id: 'friends', label: 'Friends', key: 'n', glyph: 'navProfile', width: 380, object: 'ledger' }),
   Object.freeze({ id: 'inspect', label: 'Inspect', key: 'i', glyph: 'navCharacter', width: 340, object: 'doll', launcher: false }),
   Object.freeze({ id: 'settings', label: 'Settings', key: 'escape', glyph: 'uiSettings', width: 540, object: 'plain', escape: true }),
-  /* A player's problem report, straight to the team through the bug-report bridge (also in Settings, Help). */
-  Object.freeze({ id: 'report', label: 'Report a problem', key: 'f', glyph: 'uiWarn', width: 420, object: 'plain' }),
+  /* A player's problem report, straight to the team through the bug-report bridge (also in Settings, Help: a phone's way in). */
+  Object.freeze({ id: 'report', label: 'Report a problem', key: 'f', phoneIcon: false, glyph: 'uiWarn', width: 420, object: 'plain' }),
 ]);

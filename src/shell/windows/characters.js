@@ -29,7 +29,7 @@ import { renameOf, goldOf } from '../../session/item-sections.js?v=0.2.76';
 import { runIntent } from '../intent-words.js?v=0.2.76';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.76';
 import { gaugeHtml, patchGauge, patchRoleGlyph } from '../widgets/bits.js?v=0.2.76';
-import { glyphSvg } from '../launcher.js?v=0.2.76';
+import { glyphSvg, launcherRows } from '../launcher.js?v=0.2.76';
 import { entriesFor } from '../context-menu.js?v=0.2.76';
 import { menuProvidersOf } from '../menu-providers.js?v=0.2.76';
 
@@ -43,7 +43,7 @@ const RENAME_WHY = Object.freeze({ hunt_open: ' is hunting. Rename once the hunt
    right-click menu's own entry, so its rule and its words stay in one place); every icon of the top row by name, each a
    press (the row has no words and a phone no hover); and Characters and Sign out, which no longer fit beside the row. */
 const iconListHtml = (ctx) => '<div class="hw-phone-only"><h3 class="hw-ledger-head is-on">What the icons open</h3><ul class="hw-icon-names">'
-  + ctx.wm.rows().filter((r) => r.launcher !== false).map((r) => '<li><button type="button" class="hw-icon-name" data-hs-open="' + esc(r.id) + '">'
+  + launcherRows(ctx).map((r) => '<li><button type="button" class="hw-icon-name" data-hs-open="' + esc(r.id) + '">'
     + glyphSvg(ctx.glyphs, r.glyph) + '<span>' + esc(r.label) + '</span></button></li>').join('') + '</ul></div>';
 const ACCOUNT_HTML = '<div class="hw-phone-only hw-account"><button type="button" class="hh-tool" data-app="characters">Character list</button>'
   + '<button type="button" class="hh-tool" data-app="sign-out">Sign out</button></div>';

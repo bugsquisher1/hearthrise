@@ -69,7 +69,9 @@ async function openGame(browser, port, viewport, io, fails, env = HUNT) {
   await pg.click('.auth-submit');
   if (!(await wait(pg, () => document.querySelector('[data-app="play"][data-slot="0"]')))) { fails.push('RP-1 sign-in did not reach the characters screen'); return null; }
   await pg.click('[data-app="play"][data-slot="0"]');
-  if (!(await wait(pg, () => document.querySelector('[data-hs-open="report"]')))) { fails.push('RP-1 the launcher row has no Report a problem'); return null; }
+  /* The desktop row has its icon; a phone's row holds 15 at a thumb's width, and its way in is Settings, Help (phoneChecks). */
+  if (viewport.width > 1024 && !(await wait(pg, () => document.querySelector('[data-hs-open="report"]')))) { fails.push('RP-1 the launcher row has no Report a problem'); return null; }
+  if (!(await wait(pg, () => document.querySelector('.hs-launchers')))) { fails.push('RP-1 the launcher row did not come up'); return null; }
   return { ctx, pg };
 }
 
@@ -79,8 +81,10 @@ async function phoneChecks(browser, port, fails) {
   const g = await openGame(browser, port, { width: 922, height: 423 }, io, fails, TOWN);
   if (!g) return;
   const { ctx, pg } = g;
-  await pg.click('[data-hs-open="report"]');
-  if (!(await wait(pg, (w) => document.querySelector(w + ' .rp-text'), WIN))) { fails.push('RP-6 the launcher did not open the report sheet'); await ctx.close(); return; }
+  await pg.click('[data-hs-open="settings"]');
+  await pg.click('[data-hs-win="settings"] .st-tab[data-cat="help"]');
+  await pg.click('[data-hs-win="settings"] [data-hs-act="run"][data-sid="help.report"]');
+  if (!(await wait(pg, (w) => document.querySelector(w + ' .rp-text'), WIN))) { fails.push('RP-6 Settings, Help did not open the report sheet'); await ctx.close(); return; }
   await pg.fill(WIN + ' .rp-text', 'A second report.');
   await pg.click(WIN + ' [data-hs-act="send"]');
   if (!(await wait(pg, (w) => /Try again in/.test(document.querySelector(w + ' .rp-said').textContent), WIN))) fails.push('RP-6 the phone sheet shows no refusal line');

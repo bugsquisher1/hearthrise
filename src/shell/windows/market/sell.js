@@ -129,7 +129,8 @@ function patchSheet(pane, v, have, source) {
   const qty = g ? g.qty : whole0(f.qty), ask = g ? g.ask : whole0(f.ask);
   const rules = sc.rules;
   const locked = (bagRulesOf(cs) || { locked: new Set() }).locked.has(id);
-  const why = locked ? 'This is locked. Unlock it in your bag to list it.'
+  const why = s && !s.listable ? 'Starter kit, gifts and trophies can\'t be sold to other players.'
+    : locked ? 'This is locked. Unlock it in your bag to list it.'
     : !qty ? 'Say how many.' : qty > have.qty ? 'You only have ' + whole(have.qty) + '.'
     : !ask ? 'Set a price.'
     : s && s.floor !== null && ask < s.floor ? 'The shop pays ' + whole(s.floor) + ' for one. Ask at least that, or sell it at the shop.'
@@ -165,6 +166,8 @@ export function patchSell(v) {
     prop(b, 'disabled', sc.pending);
     if (b.getAttribute('data-from') === 'bag') text(b, heroBag);
   }
+  /* A stack picked from elsewhere (the bag's menu, List again) reads its own page once. */
+  if (f.pick && f.readFor !== f.pick) { f.readFor = f.pick; readItem(ctx, cs, sc, f.pick); }
   const { shown, kept } = stacksOf(cs, sc, source);
   const ids = shown.map((r) => r.id);
   if (ids.length) readNamed(ctx, cs, sc, ids);

@@ -320,8 +320,12 @@ async function run(mutate) {
   }
   await q("select set_config('request.jwt.claim.sub', '', false)");
   const enabledDefault = (await one('select enabled from public.hr_market_config')).enabled;
+  /* A mutant's replay stops at the file it patches, so a later file's rule may not be in this database yet. */
+  const hasLevelRule = (await q("select 1 from information_schema.columns where table_schema = 'public' and table_name = 'hr_market_config' and column_name = 'min_level'")).length > 0;
+  const hasBondList = (await one("select to_regclass('public.hr_market_premium_items') is not null as x")).x === true;
+  if (!mutate && !(hasLevelRule && hasBondList)) { const e = new Error('fixture: the whole chain ran and the Level rule or the bond list is missing'); e.harness = true; throw e; }
   /* The fixture's heroes are fresh, and the Level rule is M5b's: everything else trades at Level 1. */
-  await cfg('enabled = true, min_level = 1');
+  await cfg(hasLevelRule ? 'enabled = true, min_level = 1' : 'enabled = true');
 
   /* THE GOODS, chosen by property from the server's own generated catalogue, never by name. */
   const goods = await q(`select item_id, floor_each::text f, ceiling_each::text c from public.hr_market_items
@@ -519,7 +523,7 @@ async function run(mutate) {
   await leg(async () => {
     await stock();
     const kit = [...Object.keys(START_INVENTORY), ...Object.values(START_EQUIPMENT)];
-    const bond = Object.keys(ITEMS).filter((id) => ITEMS[id].premium === true);
+    const bond = hasBondList ? Object.keys(ITEMS).filter((id) => ITEMS[id].premium === true) : [];
     const banned = [...kit, ...bond, ...(PREMIUM_LOGIN_REWARD.item ? [PREMIUM_LOGIN_REWARD.item] : [])];
     const zero = (await one('select item_id from public.hr_items where tradeable and value <= 0 order by item_id limit 1')).item_id;
     const untrade = (await one('select item_id from public.hr_items where not tradeable order by item_id limit 1')).item_id;
@@ -535,8 +539,8 @@ async function run(mutate) {
     const byId = new Map(view.map((r) => [r.item_id, r]));
     for (const id of banned) ok(byId.has(id) && byId.get(id).listable === false, `M5 DRIFT: src/data names ${id} in the kit/premium and the server lists it`);
     /* THE BOND'S OWN LIST IS THE DATA'S: a new premium:true row with no row here goes red, and so does a stale row. */
-    ok(bond.length > 0, 'M5: no premium item in src/data: the bond leg is vacuous');
-    const listed = (await q('select item_id from public.hr_market_premium_items order by item_id')).map((r) => r.item_id);
+    ok(!hasBondList || bond.length > 0, 'M5: no premium item in src/data: the bond leg is vacuous');
+    const listed = hasBondList ? (await q('select item_id from public.hr_market_premium_items order by item_id')).map((r) => r.item_id) : [];
     ok(JSON.stringify(listed) === JSON.stringify(bond.slice().sort()), `M5 DRIFT: hr_market_premium_items ${JSON.stringify(listed)} is not src/data's premium:true rows ${JSON.stringify(bond)}`);
     for (const id of bond) ok(byId.get(id).why === 'premium', `M5: ${id} is unlistable for the wrong reason: ${byId.get(id).why}`);
     const bad = await one(`select count(*)::int n from public.hr_market_items m join public.hr_items i using (item_id)
@@ -547,7 +551,7 @@ async function run(mutate) {
   });
 
   // ══ M5b · THE LEVEL RULE (threat model #9): list AND buy; a fresh account's own goods are never held ══
-  await leg(async () => {
+  if (hasLevelRule) await leg(async () => {
     await stock();
     const open = await list({ user: A, item: ITEM, qty: 2, ask: ASK });
     ok(open && open.ok === true, `M5b-CONTROL: the fixture listing refused ${brief(open)}`);

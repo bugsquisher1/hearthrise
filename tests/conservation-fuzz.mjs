@@ -1294,7 +1294,10 @@ async function runFuzz({ seed, ops, injection }) {
   const activities = await q("select kind, activity_id from hr_activities where req_lv is null order by kind, activity_id limit 200");
   /* THE MARKET SHIPS OFF (2027-01-12-market-account.sql §2): the fuzz plays it, so it switches it on,
      the operator's one UPDATE. It moves no value and no schema object. */
-  await q('update hr_market_config set enabled = true, min_level = 1 where only_row');   // the fixture's heroes are fresh
+  await q('update hr_market_config set enabled = true where only_row');
+  /* The fixture's heroes are fresh; a mutant's replay may stop before the Level rule's file. */
+  await q(`do $d$ begin if exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'hr_market_config' and column_name = 'min_level')
+           then execute 'update public.hr_market_config set min_level = 1 where only_row'; end if; end $d$`);
   const cfg = (await q('select house_tax_bp, listing_ttl_h, max_listings, max_qty, list_fee_bp, list_fee_min from hr_market_config'))[0];
   const TAX_BP = Number(cfg.house_tax_bp);
   const FEE_BP = Number(cfg.list_fee_bp); const FEE_MIN = Number(cfg.list_fee_min);

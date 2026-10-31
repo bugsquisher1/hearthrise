@@ -1059,7 +1059,9 @@ async function main() {
   if (clean.length) { console.log('  ✗ clean control RED: ' + clean.join('; ')); process.exit(1); }
   console.log('  ✓ clean control green');
   let bad = 0;
-  for (const [name, file, from, to] of PURE_MUTANTS) {
+  const onlyAt = process.argv.indexOf('--only');   // a name fragment: prove just those pure mutants (a local re-check)
+  const pure = PURE_MUTANTS.filter((m) => onlyAt < 0 || m[0].includes(process.argv[onlyAt + 1]));
+  for (const [name, file, from, to] of pure) {
     const tmp = copySrc();
     try {
       const text = readFileSync(join(tmp, file), 'utf8');
@@ -1079,7 +1081,7 @@ async function main() {
     if (fails.length) console.log('  ✓ ' + name + ' — caught (' + fails[0].split(' ')[0] + ')');
     else { console.log('  ✗ ' + name + ' — NOT caught'); bad++; }
   }
-  const n = PURE_MUTANTS.length + (onlyPure ? 0 : PAGE_MUTANTS.length);
+  const n = pure.length + (onlyPure ? 0 : PAGE_MUTANTS.length);
   console.log(bad ? 'town-walk --mutate: ' + bad + ' escaped' : 'town-walk --mutate: ' + n + '/' + n + ' mutants caught');
   process.exit(bad ? 1 : 0);
 }

@@ -104,7 +104,7 @@ const PROBES = [
   ['src/world/core/compose.js', '        const r = runFor(it, o.now, budget);',
     '        const r = window.__perf ? window.__perf.time(\'groundSlice\', () => runFor(it, o.now, budget)) : runFor(it, o.now, budget);'],
   /* every frame the World really paints (a held one paints nothing) */
-  ['src/world/render/canvas-backend.js', '    kept.painted++;\n', '    kept.painted++; window.__perf.count(\'paint\');\n'],
+  ['src/world/render/canvas-backend.js', '    kept.painted++;\n', '    kept.painted++; if (window.__perf) window.__perf.count(\'paint\');\n'],
 ];
 
 /* ── the planted defects (--mutate): each must turn a budget red ── */

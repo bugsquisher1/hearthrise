@@ -585,7 +585,9 @@ async function main() {
   const clean = await checks(null);
   if (clean.length) { console.log('  ✗ clean control RED: ' + clean.join('; ')); process.exit(1); }
   console.log('  ✓ clean control green');
-  for (const [name, file, from, to] of MUTANTS) {
+  const onlyAt = process.argv.indexOf('--only');   // a name fragment: prove just those mutants (a local re-check)
+  const chosen = MUTANTS.filter((m) => onlyAt < 0 || m[0].includes(process.argv[onlyAt + 1]));
+  for (const [name, file, from, to] of chosen) {
     let text = await readFile(join(ROOT, file), 'utf8');
     const pairs = Array.isArray(from) ? from : [[from, to]];
     const missing = pairs.find(([a]) => !text.includes(a));
@@ -595,7 +597,7 @@ async function main() {
     if (fails.length) console.log('  ✓ ' + name + ' — caught (' + fails[0].split(' ')[0] + ')');
     else { console.log('  ✗ ' + name + ' — NOT caught'); bad++; }
   }
-  console.log(bad ? 'client-boot --mutate: ' + bad + ' escaped' : 'client-boot --mutate: ' + MUTANTS.length + '/' + MUTANTS.length + ' mutants caught');
+  console.log(bad ? 'client-boot --mutate: ' + bad + ' escaped' : 'client-boot --mutate: ' + chosen.length + '/' + chosen.length + ' mutants caught');
   process.exit(bad ? 1 : 0);
 }
 main();

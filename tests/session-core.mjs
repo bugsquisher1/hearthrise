@@ -1905,14 +1905,15 @@ async function main() {
   if (!mutate) {
     const fails = [...await rules(await load(ROOT)), ...await viewRules(ROOT)];
     for (const f of fails) console.log('  ✗ ' + f);
-    console.log(fails.length ? 'session-core: ' + fails.length + ' rule(s) RED' : 'session-core: every session rule holds (42 rules)');
+    console.log(fails.length ? 'session-core: ' + fails.length + ' rule(s) RED' : 'session-core: every session rule holds (43 rules)');
     process.exit(fails.length ? 1 : 0);
   }
   const clean = await cleanControl(async () => rules(await load(ROOT)));
   console.log(clean.line);
   if (clean.code) process.exit(clean.code);
   const counts = { caught: 0, harness: 0, escaped: 0 };
-  for (const [name, file, from, to] of MUTANTS) {
+  const onlyAt = process.argv.indexOf('--only');   // a name fragment: prove just those mutants (a local re-check)
+  for (const [name, file, from, to] of MUTANTS.filter((m) => onlyAt < 0 || m[0].includes(process.argv[onlyAt + 1]))) {
     const tmp = mkdtempSync(join(tmpdir(), 'hr-session-'));
     try {
       copyTree(tmp);
@@ -1922,7 +1923,7 @@ async function main() {
       console.log(report(name, await judge(async () => rules(await load(tmp))), counts));
     } finally { rmSync(tmp, { recursive: true, force: true }); }
   }
-  console.log(exitOf(counts) ? 'session-core --mutate: ' + counts.escaped + ' escaped, ' + counts.harness + ' HARNESS (not catches)' : 'session-core --mutate: ' + MUTANTS.length + '/' + MUTANTS.length + ' mutants caught, each by a named rule');
+  console.log(exitOf(counts) ? 'session-core --mutate: ' + counts.escaped + ' escaped, ' + counts.harness + ' HARNESS (not catches)' : 'session-core --mutate: ' + counts.caught + '/' + (onlyAt < 0 ? MUTANTS.length : counts.caught) + ' mutants caught, each by a named rule');
   process.exit(exitOf(counts));
 }
 main();

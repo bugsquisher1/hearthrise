@@ -104,7 +104,6 @@ function say(st, repaint, msg, at) {
   repaint();
 }
 
-function goldNow(cs) { const s = cs.read('state'); return s && Number.isSafeInteger(s.gold) ? s.gold : null; }
 
 /** Wear `id` in `slot`, or take the slot's piece off (`id` null): ONE `equip` intent, unless the server's sections
     already say it would be refused (gear-gate.js: a hunt running, a requirement unmet), which is said instead. From

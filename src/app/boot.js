@@ -44,7 +44,7 @@ import { renderAuthScreen, AUTH_BRAND } from './sign-in.js?v=0.2.75';
 import { mountWorldPane } from './world-pane.js?v=0.2.75';
 import { mountCharacterStrip, stripTargetOf } from './character-strip.js?v=0.2.75';
 import { renderHeroCreate } from './hero-create.js?v=0.2.75';
-import { slotOfferHtml, slotRefusalText } from './slot-offer.js?v=0.2.75';
+import { slotOfferHtml, slotRefusalText, playLineOf } from './slot-offer.js?v=0.2.75';
 import { createAlertCenter } from '../shell/alerts.js?v=0.2.75';
 import { createSocialRealtime } from '../social/realtime.js?v=0.2.75';
 import { SocialSession } from '../social/social-session.js?v=0.2.75';
@@ -207,8 +207,7 @@ function startApp(win) {
       + '</button></li>').join('');
     /* the server's play-at-once limit, never a client fallback (board 2026-10-25 #8: an empty account read "One can play
        at a time." because the server had not said yet); unsaid, nothing is said */
-    const lim = a.statedLimit();
-    const playLine = lim === null ? '' : lim > 1 ? 'Up to ' + Math.min(lim, a.limit()) + ' can play at once.' : 'One can play at a time.';
+    const playLine = playLineOf(a.statedLimit(), a.limit(), roster.length, a.slotOffer);
     root.querySelector('.auth-card').innerHTML = '<h1 class="auth-title">Your characters</h1>'
       + '<p class="auth-lead">Signed in as ' + esc(auth.email() || 'you') + '. ' + playLine + '</p>'
       + '<ul class="char-list">' + (rows || '<li class="char-row">The server did not answer. Reload to try again.</li>') + '</ul>'

@@ -74,6 +74,8 @@
 .hw-confirm-q { margin: 0; font-weight: 700; color: var(--ink); }
 .hw-confirm-note { margin: 2px 0 0; font-size: var(--t-micro); color: var(--ink-2); }
 .hw-confirm-note:empty { display: none; }
+.hw-sell-note { margin: 6px 0 0; font-size: var(--t-micro); color: var(--ink-2); }
+.hw-sell-note:empty { display: none; }
 .hw-confirm-do { display: flex; gap: 6px; margin-top: 8px; }
 .hw-confirm-do .hw-primary { display: inline-block; }
 .hw-pane:has(.hw-confirm.is-on) .hw-pick .hw-primary { display: none; }

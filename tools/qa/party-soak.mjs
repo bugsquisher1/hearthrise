@@ -42,9 +42,15 @@ function kitOf(L, role) {
 
 const world = await openWorld({ tickMs: false });
 const q = async (sql, p) => (await world.db.query(sql, p)).rows;
-const post = async (path, body, token) => {
-  const res = await fetch(world.origin + path, { method: 'POST', headers: { 'content-type': 'application/json', ...(token ? { authorization: 'Bearer ' + token } : {}) }, body: JSON.stringify(body) });
-  return { status: res.status, body: await res.json().catch(() => null) };
+const post = async (path, body, token, again = true) => {
+  try {
+    const res = await fetch(world.origin + path, { method: 'POST', headers: { 'content-type': 'application/json', ...(token ? { authorization: 'Bearer ' + token } : {}) }, body: JSON.stringify(body) });
+    return { status: res.status, body: await res.json().catch(() => null) };
+  } catch (e) {
+    /* a kept-alive socket the local server just timed out (every verb here carries its idempotency key, so a repeat is a replay) */
+    if (!again) throw e;
+    return post(path, body, token, false);
+  }
 };
 const EMAIL = 'soak@local-world.test';
 await post('/auth/v1/signup', { email: EMAIL, password: PASSWORD });
@@ -87,15 +93,17 @@ async function books() {
     items: Object.fromEntries(items.map((r) => [r.item_id, Number(r.n)])),
     last: (await q('select coalesce(max(id), 0)::bigint as i from public.player_ledger where user_id = $1', [uid]))[0].i };
 }
-/* What moved against what the ledger says moved: [] is even. A store use is bought and spent at once (its qty is no stock). */
+/* What moved against what the ledger says moved: [] is even. A store use is bought and spent at once (its qty is no
+   stock); an own use (supply_own) names its units in meta.items, spent; a kill's loot rides in meta.delta.i. */
 async function drift(before) {
   const now = await books();
   const led = {};
   let gold = 0;
-  for (const r of await q(`select intent, item_id, qty, gold, meta->'delta'->'i' as loot from public.player_ledger where user_id = $1 and id > $2`, [uid, before.last])) {
+  for (const r of await q(`select intent, item_id, qty, gold, meta->'delta'->'i' as loot, meta->'items' as used from public.player_ledger where user_id = $1 and id > $2`, [uid, before.last])) {
     gold += Number(r.gold || 0);
     if (r.item_id && r.intent !== 'supply_buy') led[r.item_id] = (led[r.item_id] || 0) + Number(r.qty || 0);
     for (const [id, n] of Object.entries(r.loot || {})) led[id] = (led[id] || 0) + Number(n);
+    if (r.intent === 'supply_own') for (const [id, n] of Object.entries(r.used || {})) led[id] = (led[id] || 0) - Number(n);
   }
   const out = now.gold - before.gold === gold ? [] : [`gold: the purse moved ${now.gold - before.gold}, the ledger says ${gold}`];
   for (const id of new Set([...Object.keys(before.items), ...Object.keys(now.items), ...Object.keys(led)])) {

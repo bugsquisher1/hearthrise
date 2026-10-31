@@ -17,7 +17,8 @@
 //
 // PLANS: smoke (one cell) · cost (what an hour of each ground costs) · baseline (tonight's subset: S1 careers, S2 the
 // solo grid as built, S3 the full box, S4 parties, S5 upgrade steps, S6 healing configs, S7 deep runs) · career /
-// career8 (lives as built / at the full box) · whatif, whatif2, whatif3 (candidate changes on the same dice) · full
+// career8 (lives as built / at the full box) · whatif, whatif2, whatif3 (candidate changes on the same dice) · verdict
+// (today's game against the ruling, the starter kit and the first week first: verdict-table.mjs reads it) · full
 // (the same matrix at 24 h x 4 seeds: about 88k hero-hours, about 28 h at 4 workers on this PC, measured 4.6 worker-s
 // a hero-hour on the baseline).
 //

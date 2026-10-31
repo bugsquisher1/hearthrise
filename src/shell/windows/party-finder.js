@@ -125,7 +125,7 @@ function search(cs, sc, repaint) {
     const r = await cs.findParties(hunt, weapon);
     sc.found = r.ok ? finderRows(r.body) : null;
     sc.findMsg = !r.ok ? refusalWords(r.error) : sc.found && sc.found.length ? ''
-      : (hunt ? 'No open party lists ' + huntName(hunt) + ' right now. ' : 'No open party matches. ') + 'Right-click a player to invite them and start your own.';
+      : (hunt ? 'No open party lists ' + huntName(hunt) + ' right now. ' : 'No open party matches. ') + 'Right-click or hold a player’s name to invite them and start your own.';
     return { ok: true };
   }, 'Searching…', () => '');
 }

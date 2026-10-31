@@ -37,7 +37,7 @@ export function renderFriends() {
     + '<button type="button" class="hh-tool" data-hs-act="ask">Add friend</button></div>'
     + '<p class="hf-msg" role="status" aria-live="polite"></p>'
     + '<h3 class="hs-sub hf-head is-in">Asks for you</h3><ul class="hf-list is-in"></ul>'
-    + '<h3 class="hs-sub">Friends</h3><ul class="hf-list is-friends"></ul><p class="hh-empty hf-none">No friends yet. Right-click a name in chat to add one.</p>'
+    + '<h3 class="hs-sub">Friends</h3><ul class="hf-list is-friends"></ul><p class="hh-empty hf-none">No friends yet. Right-click or hold a name in chat to add one.</p>'
     + '<h3 class="hs-sub hf-head is-out">Your asks</h3><ul class="hf-list is-out"></ul>' + blocksHtml() + '</div>';
 }
 

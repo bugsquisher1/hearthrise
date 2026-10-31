@@ -119,6 +119,7 @@ export function renderActionBar(ctx) {
     + '<div class="hb-grid">'
     + '<ol class="hb-slots" aria-label="Slots 1 to 5 and 11 to 15, slot 1 tried first">' + side(false) + '</ol>'
     + '<ol class="hb-slots" aria-label="Slots 6 to 10 and 16 to 20">' + side(true) + '</ol></div>'
+    + '<button type="button" class="hb-page" data-hs-act="slot-page" aria-label="More slots" hidden></button>'
     /* THE FIGHT PANEL (Tyler 10-19 and 10-25: "Not having it there is dangerous for the player"): the setup, its
        target, stance, chase and distance sit ON the bar's right, always in view; each control is ONE intent and
        stays off until the server answers (settings-intent.js). The sliders open what does not fit: the gold to
@@ -191,6 +192,29 @@ function tipHtml(i, ctx) {
     + (conflict ? '<p class="is-warn">' + esc(conflict.why) + '</p>' : '');
 }
 
+/* THE SLOTS' PAGE PRESS (phone playtest 2026-10-31: at 667 px slots 5-10 and 15-20 read as gone, a swipe nobody tries): on
+   a phone too narrow for ten columns a gold press beside the slots brings the rest on screen and back. Measured, never a
+   width in this file; the desktop's grid has no box of its own (hunt.css) and measures nothing to page. */
+const PAGED = new WeakSet();
+function atEnd(grid) { return grid.scrollLeft + grid.clientWidth >= grid.scrollWidth - 1; }
+function watchPage(el) {
+  if (PAGED.has(el)) return;
+  PAGED.add(el);
+  const grid = el.querySelector('.hb-grid'), press = el.querySelector('.hb-page');
+  const sync = () => {
+    const over = grid.scrollWidth > grid.clientWidth + 1;
+    prop(press, 'hidden', !over);
+    cls(press, 'is-back', over && atEnd(grid));
+    attr(press, 'aria-label', over && atEnd(grid) ? 'Back to slot 1' : 'More slots');
+  };
+  new el.ownerDocument.defaultView.ResizeObserver(sync).observe(grid);
+  grid.addEventListener('scroll', sync, { passive: true });
+}
+function pageSlots(el) {
+  const grid = el.querySelector('.hb-grid');
+  grid.scrollLeft = atEnd(grid) ? 0 : grid.scrollWidth;
+}
+
 function showTip(el, li, ctx) {
   const tip = el.querySelector('.hb-tip');
   const i = Number(li.getAttribute('data-slot'));
@@ -207,6 +231,7 @@ renderActionBar.patch = function patchActionBar(el, ctx) {
   const h = huntOf(cs);
   const s = settingsOf(cs);
   cls(el.querySelector('.hb-bar'), 'is-town', !h);
+  watchPage(el);
   patchHub(el, ctx);
   patchStaminaBuy(el, ctx);
   const slots = s ? Array.from({ length: SLOTS }, (_, i) => s.slots[i] || { empty: true }) : [];
@@ -372,6 +397,7 @@ renderActionBar.act = function actActionBar(ctx, el, action, ev, t) {
     return;
   }
   if (action === 'set-rename-key') return renameSet(ctx, el, ev, t);
+  if (action === 'slot-page' && ev.type === 'click') { pageSlots(el); return; }
   if (action === 'setups' && ev.type === 'click') { ctx.show('hunt-prep'); return; }
   if (action.startsWith('stam-')) { actStaminaBuy(ctx, el, action, ev, () => renderActionBar.patch(el, ctx)); return; }
   if (action === 'panel' && ev.type === 'click') { setPanel(ctx, el, !PANEL.has(el)); return; }

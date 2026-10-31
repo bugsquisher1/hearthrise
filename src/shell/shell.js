@@ -64,7 +64,7 @@ const DISPLAY_TICK_MS = 250;
 /* How far a press on a window's head must travel before it is a drag (a click never floats a window). */
 const DRAG_SLOP_PX = 5;
 /* The widgets the coach card hangs under (launcher.js: the icon row in town, the hunt bar in a hunt). */
-const COACH_HOSTS = '[data-hs-widget="launchers"], [data-hs-widget="hunt-topbar"]';
+const COACH_HOSTS = '[data-hs-widget="launchers"], [data-hs-widget="hunt-topbar"]', SHORT_ROOM = 112;
 /* The DOM events a renderer may opt into with `.events` (click and change always reach `.act`). */
 const EXTRA_EVENTS = Object.freeze(['input', 'keydown', 'contextmenu', 'pointerdown', 'pointerup', 'pointercancel',
   'dragstart', 'dragover', 'dragleave', 'drop', 'dragend', 'mouseover', 'mouseout', 'focusin']);
@@ -283,16 +283,16 @@ export function mountShell(root, o) {
     roomForCoach();
   }
 
-  /* The coach card hangs under its host (the hunt bar in a hunt, the icon row in town: launcher.js) and must end
-     above the action bar. Each host widget carries --coach-room, the px from its foot to the bar's top (the World's
-     foot when no bar shows), whether or not a card shows yet (a display tick may draw one); the phone caps the card
-     to it (shell.css). Measured after every repaint and resize, never a constant. */
+  /* --coach-room per host: its foot to the bar's top (or the World's foot), the phone's cap on the card; in a hunt card and alert share the right edge: to the alert's top. */
   function roomForCoach() {
     const bar = worldHud.querySelector('[data-hs-widget="action-bar"]');
     const floor = bar && bar.offsetWidth ? bar.getBoundingClientRect().top : worldHud.getBoundingClientRect().bottom;
+    const alert = phoneMq.matches && screenHud.querySelector('.hw-alerts:not(.is-empty)');
     for (const w of [worldHud, screenHud].flatMap((b) => Array.from(b.querySelectorAll(COACH_HOSTS)))) {
-      const v = Math.max(0, Math.floor(floor - w.getBoundingClientRect().bottom)) + 'px';
-      if (w.style.getPropertyValue('--coach-room') !== v) w.style.setProperty('--coach-room', v);
+      const shared = alert && w.matches('.is-hunt-topbar') ? alert.getBoundingClientRect().top - 8 : floor;
+      const room = Math.max(0, Math.floor(Math.min(floor, shared) - w.getBoundingClientRect().bottom));
+      w.classList.toggle('is-short-room', !!alert && room < SHORT_ROOM);
+      if (w.style.getPropertyValue('--coach-room') !== room + 'px') w.style.setProperty('--coach-room', room + 'px');
     }
   }
 

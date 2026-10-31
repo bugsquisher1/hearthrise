@@ -8,7 +8,7 @@
 //   node tests/phone-touch.mjs --shots <dir>  also write the visual-gate screenshots (667x375, 844x390,
 //                                             922x423, portrait 390x844 and desktop 1440x900, fonts loaded)
 //
-// mutant-anchors: src/styles/hunt.css src/styles/windows.css src/styles/shell.css src/styles/app.css src/shell/shell.js play.html src/shell/windows/configure-action.js src/shell/widgets/hunt-topbar.js src/shell/widgets/analyzer.js src/shell/windows/settings.js src/data/hud-widgets.js
+// mutant-anchors: src/styles/hunt.css src/styles/windows.css src/styles/shell.css src/styles/app.css src/shell/shell.js play.html src/shell/windows/configure-action.js src/shell/widgets/hunt-topbar.js src/shell/widgets/analyzer.js src/shell/windows/settings.js src/data/hud-widgets.js src/shell/windows/characters.js src/shell/widgets/action-bar.js src/shell/launcher-names.js src/shell/off-why.js src/shell/windows/tally.js src/shell/windows/shop.js src/app/world-pane.js src/app/sign-in.js src/app/boot.js src/net/connection.js
 // mutant-writes-tree: no — page mutants are served overrides
 //
 // QA's phone playtest (2026-10-24) scored mobile 4/10. play.html with supabase-js and the REST paths stubbed
@@ -52,6 +52,25 @@
 //        mid-fight): in a hunt, the open card under the hunt bar crosses neither the viewed hero nor a party member
 //        (each figure's tile and the name plate over it), nor does the camera push them under the Party panel to
 //        make room; the card stays on screen. At 1440x900 it is on screen
+//   A phone player's three days (2026-10-31, art/review/player-feedback-2026-10-31/phone.txt on lane/f-phone):
+//   PH-11 THE STRIP (667x375, 844x390, 922x423): "Heroes" a 40 px press clear of the icon row, every icon on screen and
+//         at least 40 px wide, a shown hero tab at least 44 px wide and clear of the row, the strip no taller than 40 px;
+//         its sheet names every icon (each >= 44 px, each opens its window) and holds Character list and Sign out in
+//         reach. At 1440x900 the strip keeps its three words, the chips stay, none of the phone's routes show
+//   PH-12 INVITE WITHOUT A LONG PRESS (the same sizes): with two heroes the other's row has a visible Invite, ONE
+//         hr_hunt_party_invite_own for its slot, the answer in words; the sheet tells a phone no "right-click" or key
+//   PH-13 NOTHING LOST OFF THE EDGE (667x375; the chat at 922x423 too): a gold press beside the slots brings 10 and 20 on
+//         screen and back; the chat's box and Send on the sheet, 40 px tall, no tooltip left on the sheet's title
+//   PH-14 MEANING WITHOUT HOVER (touch, 667x375 and 922x423): a held icon names itself and opens nothing, a tap opens; no
+//         key chip on a sheet; a press on a grey Buy says why beside it; a slot's sheet says why it will not fire;
+//         hunting, Tamsin's board says why every Take is grey
+//   PH-15 ONE CARD AT A TIME (667x375, 922x423): three alerts show as one solid card and a count, clear of the bar and of
+//         the coach card; in town the card stands clear of the hero's column and the place's name
+//   PH-16 NEVER A SILENT WAIT (667x375): with the world's module held, offline says so on the waiting line and the
+//         connection's line, and both clear back online; a leave with no answer says it waits, and says the connection is
+//         gone; a counting leave says what the wait is for, under the bar
+//   PH-17 THE DOOR (phones, 1440x900): no focus on a phone (it throws the keyboard up), links >= 44 px, nothing scrolls;
+//         a desktop keeps the first field's focus
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
 import { leaseBrowser } from './_chrome.mjs';
@@ -113,6 +132,9 @@ async function stub(page, s, fonts) {
     if (name === 'hr_put_client_state') { s.residue = Object.assign({}, s.residue, body.p_patch || {}); return json({ ok: true }); }
     /* PH-9: a stamina refill, held while s.holdRefill (s.releaseRefill answers it); s.onRefill is the server. */
     if (name === 'hr_stamina_refill' && s.onRefill) { if (s.holdRefill) await new Promise((ok) => { s.releaseRefill = ok; }); return json(s.onRefill(body)); }
+    /* PH-14: her board; PH-16: a leave whose answer does not come (a tunnel). */
+    if (name === 'hr_tally_view') return json({ ok: true, board: [], hunting: true });
+    if (name === 'hr_hunt_leave' && s.holdLeave) return undefined;
     return json({ ok: true });
   });
 }
@@ -544,6 +566,214 @@ async function staminaBuy(open, fails, done) {
   }
 }
 
+/* ── PH-11 to PH-17 ── A PHONE PLAYER'S THREE DAYS (art/review/player-feedback-2026-10-31/phone.txt, lane/f-phone). */
+/* ── PH-11 ── The strip: nothing under the icon row, nothing squashed; All characters holds every way a phone lost. */
+const twoHeroes = (env) => { env.hero_slots = [0, 1]; env.account = Object.assign({}, env.account, { max_concurrent: 4 }); env.party = null; env.party_invites = []; };
+async function stripReach(page, tag, fails) {
+  const f = await page.evaluate(() => {
+    const all = document.querySelector('.char-tool.is-all'), box = document.querySelector('.char-tabs');
+    const shown = (e) => e.getClientRects().length > 0;
+    return { all: window.__r(all), hit: window.__hits(all), row: window.__r('.hs-launchers'), word: all.scrollWidth <= all.clientWidth + 1,
+      strip: window.__r('.char-strip'), stage: window.__r('.world-stage'),
+      icons: Array.from(document.querySelectorAll('.hs-launch')).map((e) => window.__r(e)),
+      tabsBox: shown(box) ? window.__r(box) : null, tabs: shown(box) ? Array.from(box.querySelectorAll('.char-tab')).map((e) => window.__r(e)) : [],
+      tools: Array.from(document.querySelectorAll('.char-tool:not(.is-all)')).filter(shown).length };
+  });
+  if (!f.all || !window_onScreen(f.all, page.viewportSize()) || !f.hit || f.all.height < 40) fails.push('PH-11 [' + tag + '] All characters is not a thumb\'s press on screen: ' + JSON.stringify(f.all) + ' hit ' + f.hit);
+  else if (window_cross(f.all, f.row)) fails.push('PH-11 [' + tag + '] the icon row lies over All characters: ' + JSON.stringify([f.all, f.row]));
+  if (!f.word) fails.push('PH-11 [' + tag + '] All characters\' word is cut');
+  if (f.tools) fails.push('PH-11 [' + tag + '] ' + f.tools + ' more word(s) still stand in the strip');
+  if (f.icons.length < 10 || f.icons.some((r) => r.width < 39.5 || !window_onScreen(r, page.viewportSize()))) fails.push('PH-11 [' + tag + '] an icon is under 40 px wide or off screen: ' + JSON.stringify(f.icons[0]));
+  if (f.tabsBox && (f.tabsBox.width < 44 || window_cross(f.tabsBox, f.row))) fails.push('PH-11 [' + tag + '] the tabs get ' + Math.round(f.tabsBox.width) + ' px, or run under the icons');
+  if (f.tabs.some((r) => r.width < 44 || r.height < 40)) fails.push('PH-11 [' + tag + '] a hero tab is squashed: ' + JSON.stringify(f.tabs));
+  if (f.strip.height > 40) fails.push('PH-11 [' + tag + '] the strip costs the World ' + f.strip.height + ' px');
+  await page.click('.char-tool.is-all', { timeout: 2500 }).catch(() => null);
+  if (!(await wait(page, () => document.querySelector('[data-hs-win="characters"] .hw-char'), null, 4000))) { fails.push('PH-11 [' + tag + '] All characters did not open'); return; }
+  await page.waitForTimeout(250);
+  const names = await page.evaluate(() => { const rows = Array.from(document.querySelectorAll('[data-hs-win="characters"] .hw-icon-name'));
+    return { n: rows.length, icons: document.querySelectorAll('.hs-launch').length, small: rows.filter((r) => r.getBoundingClientRect().height < 44).length, empty: rows.filter((r) => !r.textContent.trim()).length }; });
+  if (names.n !== names.icons || names.small || names.empty) fails.push('PH-11 [' + tag + '] the sheet does not name every icon at a thumb\'s size: ' + JSON.stringify(names));
+  for (const q of ['[data-hs-win="characters"] [data-app="characters"]', '[data-hs-win="characters"] [data-app="sign-out"]']) {
+    const ok = await page.evaluate((s) => { const e = document.querySelector(s); if (!e || !e.getClientRects().length) return 'none'; e.scrollIntoView({ block: 'center' }); const r = window.__r(e); return window.__onScreen(r) && window.__hits(e) && r.height >= 44 ? 'ok' : JSON.stringify(r); }, q);
+    if (ok !== 'ok') fails.push('PH-11 [' + tag + '] ' + q + ' is out of reach in the sheet: ' + ok);
+  }
+  /* A named icon opens its window. */
+  await page.evaluate(() => document.querySelector('[data-hs-win="characters"] .hw-icon-name[data-hs-open="inventory"]').click());
+  if (!(await wait(page, () => document.querySelector('[data-hs-win="inventory"]'), null, 3000))) fails.push('PH-11 [' + tag + '] a named icon opens nothing');
+}
+/* ...and a hero's Invite: a visible press, ONE ask for that slot, its answer in words; a phone reads no "right-click". */
+async function inviteByPress(o, tag, fails) {
+  const { page, s } = o;
+  await page.click('.char-tool.is-all', { timeout: 2500 }).catch(() => null);
+  if (!(await wait(page, () => document.querySelectorAll('[data-hs-win="characters"] .hw-char').length === 2, null, 6000))) { fails.push('PH-12 [' + tag + '] CONTROL: not two heroes in the sheet'); return; }
+  await page.waitForTimeout(250);
+  const line = await page.evaluate(() => document.querySelector('.hw-parties-line').textContent);
+  if (/right-click|\(Y\)/i.test(line)) fails.push('PH-12 [' + tag + '] the sheet tells a phone: ' + line);
+  const inv = await page.evaluate(() => { const b = Array.from(document.querySelectorAll('.hw-char-invite')).filter((e) => e.getClientRects().length); if (b.length !== 1) return 'shown on ' + b.length + ' rows'; b[0].scrollIntoView({ block: 'nearest' }); const r = window.__r(b[0]); return window.__onScreen(r) && window.__hits(b[0]) && r.height >= 40 ? 'ok' : JSON.stringify(r); });
+  if (inv !== 'ok') { fails.push('PH-12 [' + tag + '] no Invite a thumb can press on the other hero: ' + inv); return; }
+  await page.click('.hw-char-invite:not([hidden])', { timeout: 2500 }).catch(() => null);
+  for (let i = 0; i < 40 && !s.calls.some((c) => c.name === 'hr_hunt_party_invite_own'); i++) await page.waitForTimeout(50);
+  const sent = s.calls.filter((c) => c.name === 'hr_hunt_party_invite_own');
+  if (sent.length !== 1 || sent[0].body.p_other_slot !== 1) fails.push('PH-12 [' + tag + '] Invite sent ' + JSON.stringify(sent.map((c) => c.body)));
+  if (!(await wait(page, () => { const m = document.querySelector('.hw-parties-msg'); return m && m.textContent && !/Sending/.test(m.textContent); }, null, 4000))) fails.push('PH-12 [' + tag + '] Invite\'s answer says nothing');
+}
+
+/* ── PH-13 ── The slots' page press, and the chat's input on the sheet. */
+async function slotPage(page, tag, fails) {
+  const on = await page.evaluate(() => { const b = document.querySelector('.hb-page'); return !!b && b.getClientRects().length > 0 && window.__hits(b); });
+  if (!on) { fails.push('PH-13 [' + tag + '] slots 10 and 20 are cut and nothing on screen says so'); return; }
+  const at = (n) => page.evaluate((i) => { const s = document.querySelector('.hb-slot[data-slot="' + i + '"]'), g = window.__r('.hb-grid'), r = window.__r(s); return window.__onScreen(r) && window.__hits(s) && r.left >= g.left - 0.5 && r.right <= g.right + 0.5; }, n);
+  await page.click('.hb-page', { timeout: 2500 }).catch(() => null);
+  await page.waitForTimeout(200);
+  if (!(await at(9)) || !(await at(19))) fails.push('PH-13 [' + tag + '] the press does not bring slots 10 and 20 on screen');
+  await page.click('.hb-page', { timeout: 2500 }).catch(() => null);
+  await page.waitForTimeout(200);
+  if (!(await at(0)) || !(await at(10))) fails.push('PH-13 [' + tag + '] a second press does not bring slots 1 and 11 back');
+}
+async function chatFoot(page, tag, fails) {
+  await page.click('.hs-launch[data-hs-open="chat"]', { timeout: 2500 }).catch(() => null);
+  if (!(await wait(page, () => document.querySelector('[data-hs-win="chat"] .hc-field'), null, 4000))) { fails.push('PH-13 [' + tag + '] the chat did not open'); return; }
+  await page.waitForTimeout(250);
+  const c = await page.evaluate(() => Object.fromEntries(['.hc-field', '.hc-send'].map((q) => { const e = document.querySelector(q), r = window.__r(e); return [q, !!r && window.__onScreen(r) && window.__hits(e) && r.height >= 40]; })));
+  for (const [q, ok] of Object.entries(c)) if (!ok) fails.push('PH-13 [' + tag + '] the chat\'s ' + q + ' is off the sheet or under 40 px');
+  const title = await page.evaluate(() => { const t = document.querySelector('[data-hs-win="chat"] .hs-win-title'); const r = t.getBoundingClientRect(); return document.elementFromPoint(r.left + 8, r.top + r.height / 2) === t; });
+  if (!title) fails.push('PH-13 [' + tag + '] a tooltip lies over the sheet\'s title after the icon\'s tap');
+}
+
+/* ── PH-14 ── Meaning without hover, by touch. A touch context: isMobile, hasTouch. */
+const holdIcon = (page, id, ms) => page.evaluate(async ([i, t]) => {
+  const icon = document.querySelector('.hs-launch[data-hs-open="' + i + '"]');
+  const b = icon.getBoundingClientRect(), at = { bubbles: true, pointerType: 'touch', clientX: b.left + 8, clientY: b.top + 8 };
+  icon.dispatchEvent(new PointerEvent('pointerdown', at));
+  await new Promise((ok) => setTimeout(ok, t));
+  const n = document.querySelector('.hs-launch-name');
+  const r = n && n.getBoundingClientRect();
+  const out = { name: n ? n.textContent : null, on: !!r && r.left >= 0 && r.right <= innerWidth && r.bottom <= innerHeight };
+  icon.dispatchEvent(new PointerEvent('pointerup', at));
+  icon.click();
+  return out;
+}, [id, ms]);
+async function touchMeaning(page, tag, fails) {
+  const held = await holdIcon(page, 'inventory', 550);
+  if (held.name !== 'Inventory' || !held.on) fails.push('PH-14 [' + tag + '] a held icon names nothing: ' + JSON.stringify(held));
+  await page.waitForTimeout(200);
+  if (await page.$('[data-hs-win="inventory"]:not(.is-leaving)')) fails.push('PH-14 [' + tag + '] letting go of a held icon opened its window');
+  const tipOff = await page.evaluate(() => getComputedStyle(document.querySelector('.hs-launch'), '::before').display);
+  if (tipOff !== 'none') fails.push('PH-14 [' + tag + '] the hover tooltip still waits on the icon for a focus to stick it');
+  /* A tap still opens at once, and no sheet shows a keyboard's chip. */
+  await page.tap('.hs-launch[data-hs-open="shop"]', { timeout: 2500 }).catch(() => null);
+  if (!(await wait(page, () => document.querySelector('[data-hs-win="shop"] [data-hs-built]'), null, 4000))) { fails.push('PH-14 [' + tag + '] a tap on an icon opened nothing'); return; }
+  await page.waitForTimeout(250);
+  const chips = await page.evaluate(() => Array.from(document.querySelectorAll('.hs-win-head .hs-key')).filter((k) => k.getClientRects().length).map((k) => k.textContent));
+  if (chips.length) fails.push('PH-14 [' + tag + '] a sheet shows the key chip ' + chips.join(' '));
+  /* A press on a grey Buy says why, on screen, beside it. */
+  const buy = await page.evaluate(() => { const b = document.querySelector('[data-hs-win="shop"] [data-hs-act="buy"]:disabled'); if (!b) return null; b.scrollIntoView({ block: 'center' }); const r = window.__r(b); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
+  if (!buy) { fails.push('PH-14 [' + tag + '] CONTROL: no grey Buy with the purse emptied'); return; }
+  await page.touchscreen.tap(buy.x, buy.y);
+  await page.waitForTimeout(150);
+  const said = await page.evaluate(() => { const e = document.querySelector('.hs-off-why'); return e && { text: e.textContent, on: window.__onScreen(window.__r(e)) }; });
+  if (!said || !/You need/.test(said.text) || !said.on) fails.push('PH-14 [' + tag + '] a press on the grey Buy says ' + JSON.stringify(said));
+}
+/* ...in a hunt: the slot's reason first on its sheet, Tamsin's Take says why, every grey Take on her words. */
+async function touchHunt(page, tag, fails) {
+  const slot = await page.evaluate(() => { const s = Array.from(document.querySelectorAll('.hb-slot')).find((x) => x.querySelector('.hb-why').children.length); return s ? s.getAttribute('data-slot') : null; });
+  if (slot === null) { fails.push('PH-14 [' + tag + '] CONTROL: no slot with a reason on the fixture\'s bar'); return; }
+  await page.tap('.hb-slot[data-slot="' + slot + '"]', { timeout: 2500 }).catch(() => null);
+  if (!(await wait(page, () => document.querySelector('[data-hs-win="configure-action"] .ca-rank'), null, 4000))) { fails.push('PH-14 [' + tag + '] a tap on the slot opened nothing'); return; }
+  await page.waitForTimeout(250);
+  const why = await page.evaluate(() => { const e = document.querySelector('.ca-why'), r = window.__r(e); return { text: e.textContent, on: !!r && window.__onScreen(r) }; });
+  if (!why.text || !why.on) fails.push('PH-14 [' + tag + '] the slot\'s sheet does not say why it will not fire: ' + JSON.stringify(why));
+  await page.tap('.ca-close', { timeout: 2500 }).catch(() => null);
+  await page.waitForTimeout(250);
+  await page.tap('.hs-launch[data-hs-open="tally"]', { timeout: 2500 }).catch(() => null);
+  const line = await wait(page, () => { const l = document.querySelector('[data-hs-win="tally"] .ht-wait'); return !!l && l.getClientRects().length > 0 && /back in town/.test(l.textContent); }, null, 4000);
+  if (!line) fails.push('PH-14 [' + tag + '] hunting, her board does not say why every Take is grey');
+}
+
+/* ── PH-15 ── One solid alert, clear of the card; the town's card clear of the hero. */
+async function alertStack(page, tag, fails) {
+  await wait(page, () => document.querySelector('.hw-alert'), null, 6000);
+  await page.waitForTimeout(250);
+  const a = await page.evaluate(() => { const list = Array.from(document.querySelectorAll('.hw-alert')); const shown = list.filter((e) => e.getClientRects().length);
+    const card = document.querySelector('.hs-widget > .hs-pointer:not(.is-min)'); const more = document.querySelector('.hw-alerts-more');
+    return { all: list.length, shown: shown.length, box: shown[0] ? window.__r(shown[0]) : null, bg: shown[0] ? getComputedStyle(shown[0]).backgroundColor : '', card: card ? window.__r(card) : null, more: more && more.textContent, moreOn: !!more && window.__onScreen(window.__r(more)), bar: window.__r('.hb-bar') }; });
+  if (a.all < 3) { fails.push('PH-15 [' + tag + '] CONTROL: ' + a.all + ' alerts from three invites'); return; }
+  if (a.shown !== 1) fails.push('PH-15 [' + tag + '] ' + a.shown + ' alerts stacked at phone size');
+  if (/rgba?\([^)]*,\s*0?\.\d+\)|\/ 0?\.\d/.test(a.bg) || a.bg === 'transparent') fails.push('PH-15 [' + tag + '] the alert is see-through: ' + a.bg);
+  if (a.more !== (a.all - 1) + ' more' || !a.moreOn) fails.push('PH-15 [' + tag + '] nothing counts the alerts waiting: ' + a.more);
+  if (a.box && a.box.bottom > a.bar.top) fails.push('PH-15 [' + tag + '] the alert runs onto the bar');
+  if (a.card && a.box && window_cross(a.card, a.box)) fails.push('PH-15 [' + tag + '] the card and the alert lie on each other: ' + JSON.stringify([a.card, a.box]));
+}
+async function townCard(page, tag, fails, vp) {
+  const c = await page.evaluate(() => { const p = document.querySelector('.hs-launchers > .hs-pointer:not(.is-min)'); return p ? window.__r(p) : null; });
+  if (!c) { fails.push('PH-15 [' + tag + '] CONTROL: no open card in town'); return; }
+  const hero = { left: vp.width / 2 - 40, right: vp.width / 2 + 40, top: 0, bottom: vp.height };
+  if (window_cross(c, hero)) fails.push('PH-15 [' + tag + '] the town\'s card lies on the hero\'s column: ' + JSON.stringify(c));
+  if (!window_onScreen(c, vp)) fails.push('PH-15 [' + tag + '] the town\'s card runs off the screen: ' + JSON.stringify(c));
+  const chrome = await page.evaluate(() => window.__r('.world-chrome'));
+  if (chrome && c.top < chrome.bottom - 0.5) fails.push('PH-15 [' + tag + '] the town\'s card lies over the place\'s name');
+}
+
+/* ── PH-16 ── Words while waiting: the world's line and the connection's, a leave with no answer, a leave counting down. */
+async function waitWords(browser, base, tag, vp, fails) {
+  const ctx = await browser.newContext({ viewport: vp });
+  try {
+    const page = await ctx.newPage();
+    page.setDefaultTimeout(8000);
+    const s = scripted(ALPHA, (env) => { env.hunt = null; });
+    await stub(page, s, false);
+    /* The world's module never arrives: the pane stays on its line. */
+    await page.route('**/src/world/world-boot.js*', () => undefined);
+    await page.goto(base + '/play.html', { waitUntil: 'domcontentloaded', timeout: LOAD_MS * 2 });
+    await wait(page, () => document.querySelector('form[data-auth="sign-in"], [data-app="play"]'));
+    if (await page.$('form[data-auth="sign-in"]')) {
+      await page.fill('input[name=email]', 'qa@example.test');
+      await page.fill('input[name=password]', 'not-a-real-password');
+      await page.click('.auth-submit');
+    }
+    await wait(page, () => document.querySelector('[data-app="play"][data-slot="0"]'));
+    await page.click('[data-app="play"][data-slot="0"]');
+    if (!(await wait(page, () => document.querySelector('.world-status')))) { fails.push('PH-16 [' + tag + '] CONTROL: no waiting line'); return; }
+    await ctx.setOffline(true);
+    const off = await wait(page, () => /No connection/.test(document.querySelector('.world-status').textContent) && /No connection/.test((document.querySelector('.conn-line') || {}).textContent || ''), null, 3000);
+    if (!off) fails.push('PH-16 [' + tag + '] offline, the wait reads: ' + JSON.stringify(await page.evaluate(() => [document.querySelector('.world-status').textContent, (document.querySelector('.conn-line') || {}).textContent])));
+    await ctx.setOffline(false);
+    const back = await wait(page, () => { const l = document.querySelector('.conn-line'); return !/No connection/.test(document.querySelector('.world-status').textContent) && (!l || l.hidden); }, null, 3000);
+    if (!back) fails.push('PH-16 [' + tag + '] back online, the "no connection" words stayed');
+  } finally { await ctx.close(); }
+}
+async function leaveWords(page, s, ctx, tag, fails) {
+  s.holdLeave = true;
+  await page.click('.ht-bar [data-hs-act="leave"]', { timeout: 2500 }).catch(() => null);
+  const line = () => page.evaluate(() => (document.querySelector('.ht-leaving') || {}).textContent);
+  const onBar = () => page.evaluate(() => { const l = document.querySelector('.ht-leaving'); return !!l && !l.hidden && window.__onScreen(window.__r(l)); });
+  if (!(await wait(page, () => /^Leaving/.test((document.querySelector('.ht-leaving') || {}).textContent || ''), null, 2000))) fails.push('PH-16 [' + tag + '] the press reads: ' + await line());
+  if (!(await wait(page, () => /Waiting for the server/.test(document.querySelector('.ht-leaving').textContent), null, 6000))) fails.push('PH-16 [' + tag + '] a leave with no answer still reads: ' + await line());
+  if (!(await onBar())) fails.push('PH-16 [' + tag + '] the leave\'s words are not on screen');
+  await ctx.setOffline(true);
+  if (!(await wait(page, () => /No connection/.test(document.querySelector('.ht-leaving').textContent), null, 3000))) fails.push('PH-16 [' + tag + '] with the connection gone the leave reads: ' + await line());
+  await ctx.setOffline(false);
+}
+
+/* ── PH-17 ── The door: no keyboard thrown up on a phone, links a thumb can hit, and the desktop keeps its focus. */
+async function doorRule(browser, base, vp, phone, fails) {
+  const tag = tagOf(vp);
+  const ctx = await browser.newContext({ viewport: vp });
+  try {
+    const page = await ctx.newPage();
+    await stub(page, scripted(ALPHA), false);
+    await page.goto(base + '/play.html', { waitUntil: 'domcontentloaded', timeout: LOAD_MS * 2 });
+    await wait(page, () => document.querySelector('form[data-auth="sign-in"]'));
+    await page.waitForTimeout(200);
+    const d = await page.evaluate(() => ({ focus: document.activeElement && document.activeElement.tagName, links: Array.from(document.querySelectorAll('.auth-link')).map((a) => a.getBoundingClientRect().height),
+      over: document.scrollingElement.scrollHeight - innerHeight }));
+    if (phone && d.focus === 'INPUT') fails.push('PH-17 [' + tag + '] the email box takes the focus: a phone throws its keyboard up');
+    if (!phone && d.focus !== 'INPUT') fails.push('PH-17 [' + tag + '] a desktop lost the first field\'s focus (' + d.focus + ')');
+    if (phone && (!d.links.length || Math.min(...d.links) < 44)) fails.push('PH-17 [' + tag + '] the links are ' + d.links.join(', ') + ' px tall (want >= 44)');
+    if (phone && d.over > 0) fails.push('PH-17 [' + tag + '] the sign-in runs ' + d.over + ' px past the screen');
+  } finally { await ctx.close(); }
+}
+
 async function rules(overrides, shots, { stopAtFirst = false, blocks = null } = {}) {
   /* `blocks`: a mutant runs only the pages its rule reads (BLOCKS_OF), so --mutate costs seconds a mutant, not the suite. */
   const run = (b) => !blocks || blocks.includes(b);
@@ -555,7 +785,7 @@ async function rules(overrides, shots, { stopAtFirst = false, blocks = null } = 
   const browser = await leaseBrowser(chromium);
   const opened = [];
   const open = async (vp, fixture, prep, o = {}) => {
-    const ctx = await browser.newContext({ viewport: vp });
+    const ctx = await browser.newContext(o.touch ? { viewport: vp, hasTouch: true, isMobile: true } : { viewport: vp });
     opened.push(ctx);
     const page = await ctx.newPage();
     page.setDefaultTimeout(8000);
@@ -670,6 +900,97 @@ async function rules(overrides, shots, { stopAtFirst = false, blocks = null } = 
       await done(o, tag);
     }
     if (run('stamina')) await staminaBuy(open, fails, done); // PH-9
+    const townOnly = (env) => { env.hunt = null; env.state = Object.assign({}, env.state, { active_kind: null, active_id: null }); };
+    for (const vp of run('strip') ? PHONES : []) { // PH-11, PH-12
+      const tag = tagOf(vp);
+      const o = await open(vp, ALPHA, townOnly);
+      if (!o.up) { fails.push('PH-11 [' + tag + '] the town did not mount'); await o.ctx.close(); continue; }
+      await shot(o.page, 'strip-' + tag);
+      await stripReach(o.page, tag, fails);
+      await done(o, tag);
+      const two = await open(vp, ALPHA, (env) => { townOnly(env); twoHeroes(env); });
+      if (!two.up) { fails.push('PH-12 [' + tag + '] the town did not mount'); await two.ctx.close(); continue; }
+      await inviteByPress(two, tag, fails);
+      await shot(two.page, 'all-characters-' + tag);
+      await done(two, tag);
+    }
+    if (run('strip')) { // The desktop keeps its strip, its chips and its sheet.
+      const o = await open({ width: 1440, height: 900 }, ALPHA, townOnly);
+      if (o.up) {
+        await o.page.click('.char-tool.is-all');
+        await wait(o.page, () => document.querySelector('[data-hs-win="characters"] .hw-char'), null, 4000);
+        const d = await o.page.evaluate(() => { const shown = (q) => Array.from(document.querySelectorAll(q)).filter((e) => e.getClientRects().length).length;
+          return { phoneOnly: shown('.hw-phone-only') + shown('.hw-char-invite') + shown('.char-tool-short'), tools: shown('.char-tool'), chip: shown('.hs-win-head .hs-key'), left: window.__r('.hs-launchers').width }; });
+        if (d.phoneOnly) fails.push('PH-11 [1440x900] the phone\'s routes show on a desktop');
+        if (d.tools !== 3) fails.push('PH-11 [1440x900] the desktop strip has ' + d.tools + ' words, not its three');
+        if (d.chip < 1) fails.push('PH-11 [1440x900] the desktop lost a window\'s key chip');
+      } else fails.push('PH-11 [1440x900] the town did not mount');
+      await done(o, '1440x900');
+    }
+    for (const vp of run('slots') ? [{ width: 667, height: 375 }] : []) { // PH-13
+      const tag = tagOf(vp);
+      const o = await open(vp, HUNT);
+      if (!o.up) { fails.push('PH-13 [' + tag + '] the hunt did not mount'); await o.ctx.close(); continue; }
+      await slotPage(o.page, tag, fails);
+      await done(o, tag);
+    }
+    for (const vp of run('slots') ? [{ width: 667, height: 375 }, { width: 922, height: 423 }] : []) { // PH-13 chat
+      const tag = tagOf(vp);
+      const o = await open(vp, HUNT, null, { touch: true });
+      if (!o.up) { fails.push('PH-13 [' + tag + '] the hunt did not mount'); await o.ctx.close(); continue; }
+      await chatFoot(o.page, tag, fails);
+      await shot(o.page, 'chat-' + tag);
+      await done(o, tag);
+    }
+    if (run('slots')) {
+      const o = await open({ width: 1440, height: 900 }, HUNT);
+      if (o.up && await o.page.evaluate(() => { const b = document.querySelector('.hb-page'); return !!b && b.getClientRects().length > 0; })) fails.push('PH-13 [1440x900] the page press shows on a desktop');
+      await done(o, '1440x900');
+    }
+    for (const vp of run('meaning') ? [{ width: 667, height: 375 }, { width: 922, height: 423 }] : []) { // PH-14
+      const tag = tagOf(vp);
+      const o = await open(vp, ALPHA, (env) => { townOnly(env); longBag(env); env.state = Object.assign({}, env.state, { gold: 0 }); if (env.account) env.account = Object.assign({}, env.account, { gold: 0 }); }, { touch: true });
+      if (!o.up) { fails.push('PH-14 [' + tag + '] the town did not mount'); await o.ctx.close(); continue; }
+      await touchMeaning(o.page, tag, fails);
+      await shot(o.page, 'grey-why-' + tag);
+      await done(o, tag);
+      const h = await open(vp, HUNT, null, { touch: true });
+      if (!h.up) { fails.push('PH-14 [' + tag + '] the hunt did not mount'); await h.ctx.close(); continue; }
+      await touchHunt(h.page, tag, fails);
+      await done(h, tag);
+    }
+    for (const vp of run('stack') ? [{ width: 667, height: 375 }, { width: 922, height: 423 }] : []) { // PH-15
+      const tag = tagOf(vp);
+      const invites = (env) => { env.party_invites = [1, 2, 3].map((n) => ({ id: '00000000-0000-4000-8000-00000000000' + n, hunt: 'mill_cellar', from: 'Mira' })); };
+      const o = await open(vp, HUNT, invites);
+      if (!o.up) { fails.push('PH-15 [' + tag + '] the hunt did not mount'); await o.ctx.close(); continue; }
+      await alertStack(o.page, tag + ' hunt', fails);
+      await shot(o.page, 'alert-over-card-' + tag);
+      await done(o, tag);
+      const t = await open(vp, ALPHA, (env) => { townOnly(env); longCoach(env); townOnly(env); });
+      if (!t.up) { fails.push('PH-15 [' + tag + '] the town did not mount'); await t.ctx.close(); continue; }
+      await townCard(t.page, tag, fails, vp);
+      await shot(t.page, 'town-card-' + tag);
+      await done(t, tag);
+    }
+    for (const vp of run('waits') ? [{ width: 667, height: 375 }] : []) { // PH-16
+      const tag = tagOf(vp);
+      await waitWords(browser, base, tag, vp, fails);
+      const o = await open(vp, HUNT);
+      if (!o.up) { fails.push('PH-16 [' + tag + '] the hunt did not mount'); await o.ctx.close(); continue; }
+      await leaveWords(o.page, o.s, o.ctx, tag, fails);
+      await o.ctx.close();
+      const c = await open(vp, HUNT, (env) => { env.hunt.session = Object.assign({}, env.hunt.session, { id: env.hunt.session_id, leave_at: new Date(env.hunt_server_now_ms + 90000).toISOString(), phase: 'leaving' }); });
+      if (!c.up) { fails.push('PH-16 [' + tag + '] the leaving hunt did not mount'); await c.ctx.close(); continue; }
+      const why = await c.page.evaluate(() => { const w = document.querySelector('.ht-why'), r = window.__r(w), bar = window.__r('.ht-bar'); return { text: w.textContent, on: !!r && window.__onScreen(r), clear: !!r && r.top >= bar.bottom - 0.5, sized: !!r && parseFloat(getComputedStyle(w).fontSize) >= 12 }; });
+      if (!why.text || !why.on || !why.clear || !why.sized) fails.push('PH-16 [' + tag + '] a counting leave does not say what the wait is for: ' + JSON.stringify(why));
+      await shot(c.page, 'leave-why-' + tag);
+      await done(c, tag);
+    }
+    if (run('door')) { // PH-17
+      for (const vp of PHONES) await doorRule(browser, base, vp, true, fails);
+      await doorRule(browser, base, { width: 1440, height: 900 }, false, fails);
+    }
     if (shots && !blocks) await moreShots(open, shot);
   } catch (e) {
     /* the array's own push: under stopAtFirst `fails.push` throws, and a throw here would leave rules() rejected */
@@ -736,7 +1057,7 @@ async function moreShots(open, shot) {
 
 /* The pages each rule reads: a mutant named for a rule runs those alone, or the pages its own fifth field names
    (PH-5's hunt bar and analyzer tabs are measured on the hunt pages, its Shop, tooltip and Equip in town). */
-const BLOCKS_OF = Object.freeze({ 'PH-1': ['configure'], 'PH-2': ['hunt'], 'PH-3': ['portrait'], 'PH-4': ['town'], 'PH-5': ['town'], 'PH-6': ['coach'], 'PH-7': ['bar'], 'PH-8': ['desk'], 'PH-9': ['stamina'], 'PH-10': ['fight'] });
+const BLOCKS_OF = Object.freeze({ 'PH-1': ['configure'], 'PH-2': ['hunt'], 'PH-3': ['portrait'], 'PH-4': ['town'], 'PH-5': ['town'], 'PH-6': ['coach'], 'PH-7': ['bar'], 'PH-8': ['desk'], 'PH-9': ['stamina'], 'PH-10': ['fight'], 'PH-11': ['strip'], 'PH-12': ['strip'], 'PH-13': ['slots'], 'PH-14': ['meaning'], 'PH-15': ['stack'], 'PH-16': ['waits'], 'PH-17': ['door'] });
 /* Each planted defect undoes one fix; each must turn a rule red. */
 const MUTANTS = [
   ['PH-1 the configure sheet\'s list does not scroll', 'src/styles/hunt.css', '  .hs-win[data-hs-win="configure-action"] .ca-mid {', '  .hs-win[data-hs-win="configure-action"] .ca-mid-x {'],
@@ -782,6 +1103,38 @@ const MUTANTS = [
   ['PH-9 the stamina panel is wider than a phone', 'src/styles/hunt.css', '.hb-buy { display: none; position: absolute; bottom: calc(100% + 6px); width: 280px;', '.hb-buy { display: none; position: absolute; bottom: calc(100% + 6px); width: 900px;'],
   ['PH-10 the phone card hangs at the hunt bar\'s left end, over the hero', 'src/styles/shell.css', '  .hs-widget.is-hunt-topbar > .hs-pointer { left: auto; right: 0; }\n', ''],
   ['PH-10 the camera frames the fight under the card', 'src/shell/shell.js', '    const card = phoneMq.matches && worldHud', '    const card = false && worldHud'],
+  ['PH-11 the icon row keeps its 44 px at 667, over the strip\'s word', 'src/styles/shell.css', '  .hs-launchers { padding-left: 4px; max-width: calc(100vw - 60px); }', '  .hs-launchers { padding-left: 4px; }'],
+  ['PH-11 the tabs squash to a sliver', 'src/styles/app.css', '  @container char-strip (max-width: 150px) { .char-tabs { display: none; } }\n', '  .char-tab { min-width: 0; width: 12px; padding: 0; }\n'],
+  ['PH-11 the three words stay in the strip', 'src/styles/app.css', '  .char-tool:not(.is-all), .char-tool-wide { display: none; }', '  .char-tool-wide { display: none; }'],
+  ['PH-11 the sheet names no icons', 'src/shell/windows/characters.js', '    + iconListHtml(ctx)\n', ''],
+  ['PH-11 no way to sign out on a phone', 'src/shell/windows/characters.js', '    + ACCOUNT_HTML\n', ''],
+  ['PH-11 the phone\'s routes show on a desktop', 'src/styles/windows.css', '.hw-phone-only, .hw-char-invite { display: none; }', '.hw-phone-only { display: block; } .hw-char-invite { display: none; }'],
+  ['PH-12 no Invite on the other hero', 'src/shell/windows/characters.js', "prop(inv, 'hidden', !can);", "prop(inv, 'hidden', true);"],
+  ['PH-12 the sheet still says right-click', 'src/shell/windows/characters.js', "(ctx.isPhone && ctx.isPhone() ? 'Press Invite", "(false ? 'Press Invite"],
+  ['PH-13 no page press', 'src/shell/widgets/action-bar.js', "    prop(press, 'hidden', !over);\n", ''],
+  ['PH-13 the page press goes nowhere', 'src/shell/widgets/action-bar.js', "  grid.scrollLeft = atEnd(grid) ? 0 : grid.scrollWidth;\n", ''],
+  ['PH-13 the chat\'s box starts below the screen', 'src/styles/hunt.css', '  .hs-win[data-hs-win="chat"] .hc-chat { flex: 1; min-height: 0; }\n', '  .hs-win[data-hs-win="chat"] .hc-chat { min-height: 520px; }\n'],
+  ['PH-13 the icon\'s tooltip stays on a tapped sheet', 'src/styles/shell.css', '  .hs-win-head .hs-key, .hs-launch::before { display: none; }\n', '  .hs-win-head .hs-key { display: none; }\n'],
+  ['PH-14 a held icon says nothing', 'src/shell/launcher-names.js', 'swallow = true; show(icon); }', 'swallow = true; }'],
+  ['PH-14 letting go of a held icon opens it', 'src/shell/launcher-names.js', "function onClick(e) { if (swallow && ", "function onClick(e) { if (false && "],
+  ['PH-14 the key chips stay on touch', 'src/styles/shell.css', ':root.is-touch .hs-win-head .hs-key, :root.is-touch .hs-launch::before { display: none; }', ':root.is-touch .hs-launch::before { display: none; }'],
+  ['PH-14 a grey button says nothing', 'src/shell/off-why.js', "if (words) show(b, words); else hide();", "hide();"],
+  ['PH-14 a slot\'s sheet does not say why', 'src/shell/windows/configure-action.js', "text(root.querySelector('.ca-why'), fireWhy ? fireWhy.text : '');", ''],
+  ['PH-14 her board does not say why while it is loaded', 'src/shell/windows/tally.js', "'is-on', !sc.board || st.hunting);", "'is-on', !sc.board);"],
+  ['PH-15 every alert stacks on a phone', 'src/styles/windows.css', '  .hw-alert-list > .hw-alert:not(:first-child) { display: none; }\n', ''],
+  ['PH-15 the alert is see-through', 'src/styles/windows.css', 'padding: 0 0 0 10px; background: var(--bg-2); }', 'padding: 0 0 0 10px; }'],
+  ['PH-15 nothing counts the alerts behind', 'src/styles/windows.css', '  .hw-alerts-more:not(:empty) { display: block; }\n', ''],
+  ['PH-15 the card runs under the alert', 'src/shell/shell.js', "const shared = alert && w.matches('.is-hunt-topbar') ? alert.getBoundingClientRect().top - 8 : floor;", 'const shared = floor;'],
+  ['PH-15 the town\'s card hangs on the hero', 'src/styles/shell.css', '  .hs-launchers > .hs-pointer { left: auto; right: calc(100vw - 268px); }\n', ''],
+  ['PH-16 the world waits in silence', 'src/app/world-pane.js', 'statusEl.textContent = loadingWords(connection.state(), Date.now() - waitFrom, firstWords);', 'statusEl.textContent = firstWords;'],
+  ['PH-16 no connection line', 'src/app/boot.js', 'mountConnectionLine(doc), ', ''],
+  ['PH-16 the connection line never clears', 'src/net/connection.js', "    line.hidden = s === 'ok';\n", '    if (s !== \'ok\') line.hidden = false;\n'],
+  ['PH-16 a leave with no answer stays on "Leaving"', 'src/shell/widgets/hunt-topbar.js', "return waitedMs >= WAIT_WORDS_MS ? LEAVE_WAIT.slow : LEAVING", "return LEAVING"],
+  ['PH-16 a leave does not know the connection went', 'src/shell/widgets/hunt-topbar.js', "  if (state === 'lost') return LEAVE_WAIT.lost;\n", ''],
+  ['PH-16 a counting leave does not say why', 'src/shell/widgets/hunt-topbar.js', "prop(el.querySelector('.ht-why'), 'hidden', over || !cd || cd.phase !== 'counting');", ''],
+  ['PH-17 the email box throws the keyboard up', 'src/app/sign-in.js', "if (input && !input.ownerDocument.defaultView.matchMedia('(pointer: coarse), ' + MOBILE_QUERY).matches) input.focus();", 'if (input) input.focus();'],
+  ['PH-17 a desktop loses its focus', 'src/app/sign-in.js', "if (input && !input.ownerDocument.defaultView.matchMedia('(pointer: coarse), ' + MOBILE_QUERY).matches) input.focus();", 'void input;'],
+  ['PH-17 the links are 24 px', 'src/styles/app.css', '  .auth-link { min-height: var(--tap); padding: 0 8px; }\n', ''],
   ['PH-6 the coach is capped on a desktop too', 'src/styles/shell.css', '.hs-pointer:not(.is-min) { padding-right: 34px; }', '.hs-pointer:not(.is-min) { padding-right: 34px; max-height: 200px; overflow-y: auto; }'],
 ];
 

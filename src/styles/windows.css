@@ -621,6 +621,8 @@
   /* All characters: Invite under Rename, the icons by name in two columns of thumb-sized presses, the account at the foot. */
   .hw-phone-only { display: block; }
   .hw-char-invite:not([hidden]) { display: inline-grid; place-items: center; min-height: 40px; }
+  .hw-char { flex-wrap: wrap; }
+  .hw-char-do { flex: 1 0 100%; flex-direction: row; justify-content: flex-end; }
   .hw-char-do .hh-tool { min-height: 40px; }
   .hw-icon-names { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px 8px; margin: 0 0 8px; padding: 0; list-style: none; }
   .hw-icon-name { display: flex; align-items: center; gap: 8px; width: 100%; min-height: var(--tap); padding: 0 4px; border: 0; background: none; color: var(--ink-2); font: inherit; font-size: var(--t-micro); text-align: left; cursor: pointer; }

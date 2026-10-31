@@ -22,6 +22,9 @@ export const SESSION_CONFIG = Object.freeze({
   authKey: 'hr-auth',
   /** The tab's own session id (sessionStorage), so two tabs are two sessions. */
   tabKey: 'hr-tab-id',
+  /** The heroes this tab has open and the one it shows (sessionStorage), so a reload reopens them instead of the
+      characters screen (designer 10-30 #8). Display state, never authority: the roster decides what exists. */
+  openKey: 'hr-open',
   /** Pre-reset keys that may still hold a token on this device; sign-out removes them too. */
   retiredAuthKeys: Object.freeze(['hearthrise:supabaseSession']),
   /** A residue write waits this long for more changes before it is sent (one put per burst). */

@@ -27,7 +27,7 @@
 // way the world tick does, through the signed tick request. Every ENDED session's clocks move back with it, so history
 // keeps its order (the newest session by entered_at is still the newest: the analyzer, the summary and the coach read
 // it that way). A WAIT is a skip in which town time passes too: a hero not hunting rests (stamina_at), the shared land's
-// crops grow (planted_at, waterings), and a bench job runs on (active_since, accrued_to). Only waiting moves, never a result.
+// crops grow (planted_at, waterings), and a bench or gathering job runs on (active_since, accrued_to). Only waiting moves, never a result.
 // Only this process's in-memory database moves.
 //
 // SAFE BY CONSTRUCTION: refuses to start when any environment value names the production project; the client's
@@ -532,7 +532,7 @@ export async function openWorld(o = {}) {
           const idle = `not exists (select 1 from public.hunt_sessions s where s.ended_at is null and s.user_id = p.user_id and s.slot = p.slot)`;
           await tx.query(`update public.player_state p set stamina_at = p.stamina_at - ${back} where p.stamina_at is not null and ${idle}`, [ms]);
           await tx.query(`update public.player_state p set active_since = p.active_since - ${back}, accrued_to = p.accrued_to - ${back}
-            where p.active_kind = 'artisan' and p.active_since is not null and p.accrued_to is not null and ${idle}`, [ms]);
+            where p.active_kind in ('artisan', 'gather') and p.active_since is not null and p.accrued_to is not null and ${idle}`, [ms]);
           await tx.query(`update public.account_farm_plots set planted_at = planted_at - ${back},
             waterings = array(select w - ${back} from unnest(waterings) w)`, [ms]);
         }

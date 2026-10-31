@@ -365,6 +365,13 @@ async function pure() {
   if (Object.keys(under.ops).length) fails.push('AW-21 a Level-14 hero (Defense 99) would put on ' + ops(under));
   const blind = plan({ weapon: 'bronze_sword' }, [['iron_helm']], null, null);
   if (Object.keys(blind.ops).length) fails.push('AW-21 with no server Level Equip upgrades would put on ' + ops(blind));
+  /* A TIER STEP (designer ruling 2026-10-31, played: Marlow, Level 16 in a full Bronze plate set, wore none of ten Iron
+     Platebodies, since each one alone broke the set's +1% critical chance): the next tier of the worn weight goes on, and
+     the line names the set bonus it ends. */
+  const bronzeSet = { weapon: 'bronze_sword', helmet: 'bronze_helm', body: 'bronze_platebody', pants: 'bronze_platelegs', boots: 'bronze_boots', belt: 'bronze_belt' };
+  const step = plan(bronzeSet, [['iron_platebody'], ['iron_platelegs'], ['iron_helm']], lv1, 16);
+  if (ops(step) !== '{"body":"iron_platebody","helmet":"iron_helm","pants":"iron_platelegs"}' || !upgradeWords(step).endsWith('Your full set\'s +1% critical chance ends.')) fails.push('AW-21 a full Bronze set at Level 16 would put on ' + ops(step) + ': ' + upgradeWords(step));
+  if (/critical chance ends/.test(upgradeWords(plan({ weapon: 'bronze_sword', body: 'bronze_platebody' }, [['iron_platebody']], lv1, 16)))) fails.push('AW-21 a step that ends no set says it ends one');
   /* AW-22: town work. The client may declare a gathering node (never a fight); a skill shows what its server level opens,
      then the next two; a row refuses in words from the server's level and bag. */
   if (!edgeBody(0, 'set_activity', { activity: { kind: 'gather', id: 'copper_rock' } }, 'x')) fails.push('AW-22 edgeBody refused a gathering node');
@@ -2252,6 +2259,7 @@ const MUTANTS = [
   ['an equip in flight is not marked', 'src/shell/windows/inventory/actions.js', '  sc.wearing = { slots: [slot], items: id ? [id] : [] };\n', ''],
   ['Equip upgrades swaps the weapon', 'src/shell/upgrade-plan.js', "const STYLE_SLOTS = new Set(['weapon', 'shield', 'ammo']);", "const STYLE_SLOTS = new Set(['shield', 'ammo']);"],
   ['Equip upgrades wears what the hero cannot use yet', 'src/shell/upgrade-plan.js', '  return have !== null && have >= it.reqLv;', '  return true;'],
+  ['Equip upgrades lets a set bonus hold a hero below the next tier', 'src/shell/upgrade-plan.js', '  const set = !fits.some((id) => tierStep(ITEMS[id], curIt));', '  const set = true;'],
   ['plans: Before you go names a struck spell without its fix', 'src/shell/hunt-go.js', "(fixes.length ? '. To cast '", "(fixes.length > 9 ? '. To cast '"],
   ['plans: Hunt prep calls an empty food slot short', 'src/shell/readiness.js', '      if (out && !heads) short.push(', '      if (out) short.push('],
   ['plans: Hunt prep says stamina with no amount', 'src/shell/readiness.js', "'Stamina: ' + hoursWords(st.msLeft) + ' left'", "'Stamina left'"],

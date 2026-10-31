@@ -17,6 +17,12 @@
 //                    (src/core/vitals.js: armour weight against the Level)
 //   strictly better  no number lower and at least one higher, over the WHOLE worn
 //                    set (so breaking a set bonus or a -1 accuracy penalty counts)
+//   a tier step      a higher material tier of the weight worn is judged with the
+//                    set bonus left out of both sides, and the line says which set
+//                    bonus it ends (designer ruling 2026-10-31, played: Marlow, Level
+//                    16 in a full Bronze plate set, wore none of ten Iron Platebodies,
+//                    because each one alone broke the set's +1% critical chance). The
+//                    set rewards finishing a tier; it never holds a hero below one.
 // WHAT IT NEVER DOES (the decisions, 2026-10-22):
 //   · never touches the weapon, the off-hand or the ammo: the
 //     hands set the style and the role (ruling 2026-10-16) and the player picks
@@ -59,8 +65,8 @@ function meets(it, skills, level) {
   return have !== null && have >= it.reqLv;
 }
 
-/* The numbers a worn set fights with, for the style its weapon sets. */
-function numbersOf(worn, level) {
+/* The numbers a worn set fights with, for the style its weapon sets; `set` false leaves the set bonus out. */
+function numbersOf(worn, level, set = true) {
   const { eq, setBonus, profile } = loadoutOf(worn, ITEMS);
   let acc = 0, dmg = 0;
   for (const id of Object.values(worn)) {
@@ -70,9 +76,12 @@ function numbersOf(worn, level) {
     dmg += num(it[profile.strengthBonusField]);
   }
   const w = armourWeights(worn, ITEMS);
-  return { acc, dmg, def: num(eq.defB), crit: num(eq.critB) + (setBonus ? num(setBonus.critB) : 0),
+  return { acc, dmg, def: num(eq.defB), crit: num(eq.critB) + (set && setBonus ? num(setBonus.critB) : 0),
     hp: maxHpFor(level, w.heavy), mana: maxManaFor(level, w.light), style: profile.accuracySkill };
 }
+
+/* A worn armour piece, and in the bag one of its weight from a higher material tier. */
+const tierStep = (it, cur) => !!cur && it.type === 'armor' && cur.type === 'armor' && num(it.tier) > num(cur.tier);
 
 const DIMS = Object.freeze(['acc', 'dmg', 'def', 'crit', 'hp', 'mana']);
 function dominates(a, b) {
@@ -101,13 +110,19 @@ function bestFor(slot, worn, left, o) {
   const cur = worn[slot] || null;
   const curIt = cur ? ITEMS[cur] : null;
   if (curIt && unpriced(curIt)) return null;
-  const now = numbersOf(worn, o.level);
-  const better = [];
+  const fits = [];
   for (const [id, n] of left) {
     const it = ITEMS[id];
     if (n < 1 || !it || !it.slot || !expandItemSlot(it.slot).includes(slot) || unpriced(it) || !meets(it, o.skills, o.level)) continue;
     if (curIt && weightOf(it) !== weightOf(curIt)) continue;
-    const after = numbersOf(Object.assign({}, worn, { [slot]: id }), o.level);
+    fits.push(id);
+  }
+  /* A tier step in the bag: every piece for this slot is judged with the set bonus out of both sides (the header). */
+  const set = !fits.some((id) => tierStep(ITEMS[id], curIt));
+  const now = numbersOf(worn, o.level, set);
+  const better = [];
+  for (const id of fits) {
+    const after = numbersOf(Object.assign({}, worn, { [slot]: id }), o.level, set);
     if (dominates(after, now)) better.push({ id, after });
   }
   let front = better.filter((c) => !better.some((x) => x !== c && dominates(x.after, c.after)));
@@ -146,7 +161,9 @@ export function upgradePlan(o) {
       const b = bestFor(slot, worn, left, ctx);
       if (!b) continue;
       if (b.choice) { choices.push({ slot, ids: b.choice }); continue; }
-      picks.push({ slot, id: b.id, replaces: worn[slot] || null, gains: gainsOf(b.before, b.after) });
+      /* the set bonus this pick ends, if it ends one (crit lost with the set counted, the line's words) */
+      const lost = numbersOf(worn, ctx.level).crit - numbersOf(Object.assign({}, worn, { [slot]: b.id }), ctx.level).crit;
+      picks.push({ slot, id: b.id, replaces: worn[slot] || null, gains: gainsOf(b.before, b.after), ...(lost > EPS ? { ends: lost } : {}) });
       ops[slot] = b.id;
       worn[slot] = b.id;
       left.set(b.id, left.get(b.id) - 1);
@@ -175,5 +192,7 @@ export function upgradeWords(plan, names = 2, gains = 1) {
   const more = groups.length - named.length;
   if (more > 0) named.push(more + (more === 1 ? ' more piece' : ' more pieces'));
   const left = plan.choices.map((c) => (EQUIP_SLOT_META[c.slot] || {}).label || c.slot);
-  return 'Wear ' + listWords(named) + '.' + (left.length ? ' ' + listWords(left) + ': two pieces trade off, so pick on the doll.' : '');
+  const ends = plan.picks.reduce((n, p) => n + num(p.ends), 0);
+  return 'Wear ' + listWords(named) + '.' + (ends > EPS ? ' Your full set\'s +' + (Math.round(ends * 1000) / 10) + '% critical chance ends.' : '')
+    + (left.length ? ' ' + listWords(left) + ': two pieces trade off, so pick on the doll.' : '');
 }

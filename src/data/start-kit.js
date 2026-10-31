@@ -106,7 +106,7 @@ export const START_SKILL_XP = Object.freeze({});
 
    ── W0 · EVERY STYLE STARTS SUPPLIED (coherence audit Top-10 #7, 2026-10-09) ──
    An empty ammo slot on a bow now counts as "run dry" (x0.25 max hit,
-   src/core/ammo.js AMMO_EMPTY_SLOT_IS_DRY), so the kit carries the FREE tier-1
+   src/core/ammo.js AMMO_EMPTY_SLOT_IS_DRY), so the kit carries the FREE
    arrow (`ammoPerShot: 0`, never depletes) and the first whetstones. It carries
    NO rune (Tyler 2026-10-23): a rune fuels a spell, never a staff's or a wand's
    blow (a caster's basic costs mana), and a new Mage's Fireball casts on the

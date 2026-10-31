@@ -20,7 +20,7 @@
 // ============================================================
 
 import { SUPPLIES } from '../data/supplies.js?v=0.2.75';
-import { END_ORDER, DEATH_XP_LOSS, DEATH_XP_BASE, GOLD_FLOOR, SUPPLY_SOURCE, ON_EMPTY } from '../data/hunt-sessions.js?v=0.2.75';
+import { END_ORDER, NO_FIGHT_END_MIN, DEATH_XP_LOSS, DEATH_XP_BASE, GOLD_FLOOR, SUPPLY_SOURCE, ON_EMPTY } from '../data/hunt-sessions.js?v=0.2.75';
 import { CONSUMABLES } from '../data/consumables.js?v=0.2.75';
 import { COMBAT_SKILLS } from '../data/skills.js?v=0.2.75';
 import { skillLevelFromXp, skillXpForLevel, charLevelFromXp, charXpForLevel } from './xp.js?v=0.2.75';
@@ -256,6 +256,10 @@ const END_CHECKS = Object.freeze({
   hours: (hs, t) => Number(hs.hoursLimit) > 0 && t - hs.huntFromMs >= Number(hs.hoursLimit) * 3600000,
   left: (hs, t) => at(hs.leaveAtMs, t),
   changed: (hs, t) => at(hs.changeAtMs, t),
+  /* THE NO-FIGHT END (designer 2026-10-31): `fightAtMs` is this boundary's reading of the world's last blow on a monster
+     (combat-sim.js; null while the hero is not in a world), the hero's own hunt start the floor, so a member who just
+     joined a quiet world gets its whole span. A party that kills keeps every member in, a healer who deals nothing too. */
+  no_fight: (hs, t) => Number.isInteger(hs.fightAtMs) && t - Math.max(hs.fightAtMs, Number(hs.huntFromMs) || 0) >= NO_FIGHT_END_MIN * 60000,
   server: (hs, t) => at(hs.stopAtMs, t),
 });
 for (const k of END_ORDER) {

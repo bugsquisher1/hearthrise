@@ -37,6 +37,7 @@ export const END_WORDS = Object.freeze({
   hours: 'The hunt reached its time limit.',
   left: 'You left the hunt.',
   changed: 'You moved on to another hunt.',
+  no_fight: END_REASON_COPY.no_fight.one,
   server: 'The hunt was ended by the server.',
 });
 

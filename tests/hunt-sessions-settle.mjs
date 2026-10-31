@@ -3444,10 +3444,14 @@ const MUTANTS = [
     from: '  died: (hs) => hs.died === true,', to: '  died: () => false,' },
   { arm: 'DEATH', name: 'a dead hero walks home at 0 HP', file: 'src/core/combat-sim.js',
     from: '  m.state.playerHp = m.state.playerMaxHp;\n', to: '' },
-  /* The pre-2026-10-29 end, restored (Pellow at 135/160): only a death sent the hero home whole. */
+  /* The pre-2026-10-29 end, restored (Pellow at 135/160): only a death sent the hero home whole. hr_hunt_close also
+     writes max HP since 2027-02-11-forfeit-home-whole.sql, so that write is off for this mutant (`dbOff`): the engine's
+     own end must still bring the hero home whole. FORFEIT-HOME-WHOLE proves the close's write alone. */
   { arm: 'HOME-WHOLE', name: 'an end other than a death walks home with the HP it had', file: 'src/core/combat-sim.js',
     from: '  m.state.playerHp = m.state.playerMaxHp;\n',
-    to: '  const u = world && m.unitId !== null ? world.units.find((x) => x.id === m.unitId) : null;\n  if (u) m.state.playerHp = u.alive ? u.hp : m.state.playerMaxHp;\n' },
+    to: '  const u = world && m.unitId !== null ? world.units.find((x) => x.id === m.unitId) : null;\n  if (u) m.state.playerHp = u.alive ? u.hp : m.state.playerMaxHp;\n',
+    dbOff: { fn: 'public.hr_hunt_close(uuid,text,timestamp with time zone,boolean)',
+      find: "       set hp = (public.hr_vitals_of(v_s.user_id, v_s.slot) ->> 'max_hp')::int\n", replace: '       set hp = hp\n' } },
   { arm: 'DEATH', name: 'a death row carries a recovery clock again', file: join(FN, 'accrual.js'),
     from: '      monster: String(d.monster || \'\'),\n      deaths_today:', to: '      monster: String(d.monster || \'\'),\n      recovery_ms: 60000,\n      deaths_today:' },
   { arm: 'DEATH', name: 'a death costs nothing', file: 'src/core/combat-sim.js',
@@ -3863,7 +3867,12 @@ async function main() {
     const picked = (list) => list.filter((m) => !pick || m.name.includes(pick));
     for (const m of picked(MUTANTS)) {
       const dir = mkdtempSync(join(tmpdir(), 'hr-s1-'));
+      const offDef = m.dbOff ? String(await one(db, `select pg_get_functiondef($1::regprocedure)`, [m.dbOff.fn])).split(String.fromCharCode(13)).join('') : null;
       try {
+        if (offDef) {
+          if (offDef.split(m.dbOff.find).length !== 2) { console.error(`✗ mutant "${m.name}": dbOff anchor not found exactly once`); bad++; continue; }
+          await db.exec(offDef.replace(m.dbOff.find, () => m.dbOff.replace));
+        }
         for (const d of ['src/core', 'src/data', FN]) cpSync(join(ROOT, d), join(dir, d), { recursive: true });
         cpSync(join(ROOT, 'src/build-info.js'), join(dir, 'src/build-info.js'));
         const p = join(dir, m.file);
@@ -3873,7 +3882,7 @@ async function main() {
         const res = await runArms(dir, db, [m.arm]);
         if (res[m.arm] && res[m.arm].length) console.log(`✓ ${m.arm} goes red on: ${m.name}`);
         else { console.error(`✗ ${m.arm} stayed GREEN on: ${m.name}`); bad++; }
-      } finally { rmSync(dir, { recursive: true, force: true }); }
+      } finally { if (offDef) await db.exec(offDef); rmSync(dir, { recursive: true, force: true }); }
     }
     for (const m of picked(DB_MUTANTS)) {
       const def = String(await one(db, `select pg_get_functiondef($1::regprocedure)`, [m.fn])).split(String.fromCharCode(13)).join('');

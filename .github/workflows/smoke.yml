@@ -2615,6 +2615,15 @@ jobs:
           node tests/artisan-tick.mjs
           node tools/mutant-gate.mjs node tests/artisan-tick.mjs --mutate
 
+      # WHAT THE DATABASE STOPS KEEPING (2027-02-11-db-retention.sql): frames past an hour go, chat
+      # lines stay, a run is bounded; the file's own §4 against stub Realtime + pg_cron schemas (PGlite
+      # has neither, so the chain replay skips those claims). --mutate: 6.
+      - name: DB retention — frames, the fire log, the run history
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/db-retention.mjs
+          node tools/mutant-gate.mjs node tests/db-retention.mjs --mutate
+
       # ── AND WHAT DOES THE ENTRY HAND THE ENGINE? (2026-09-22, the gather
       # shadow's first armed measurement.) Every row in hr_tick_shadow for a
       # Mining 61-64 character on mithril_rock came back `would_ticks: 0,

@@ -32,8 +32,8 @@
 //   FW-8  A CROP THAT REGROWS (report #66: "Harvest only" on a tomato grew it back): a
 //         growing tomato says how often it grows back (the server's regrows_left); a ready
 //         one offers "Harvest (grows back N more times)" (ONE hr_farm_harvest) and "Harvest
-//         and clear plot" (ONE hr_farm_harvest_clear); on its last harvest it reads like
-//         any crop (Harvest and replant / Harvest only)
+//         and clear plot" (ONE hr_farm_harvest_clear); on its last harvest Harvest and replant
+//         / Harvest and clear plot (it withers), never "Harvest only"
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
 import { leaseBrowser } from './_chrome.mjs';
@@ -60,7 +60,7 @@ const EXTRA_HARVEST = { ok: true, plot: 3, crop: 'turnip', produce: 'turnip', qt
 const HARVEST = { ok: true, plot: 1, crop: 'turnip', produce: 'turnip', qty: 3, xp: 1008, regrew: false, withered: false,
   replant: { ok: true, bought: 0, plot: 1, crop: 'turnip' } };
 /* Report #66: tomatoes REGROW. Room for 3: plot 0 growing (the server says 4 more regrows), plot 1
-   ready (3 more), plot 2 ready on its LAST harvest (0 more: it withers, so it reads like any crop). */
+   ready (3 more), plot 2 ready on its LAST harvest (0 more: it withers, so its no-replant press clears the plot). */
 const REGROW = {
   farm_land: { cap: 3, plot_level: 4, deeds: 0, upgrade: null,
     plots: [{ i: 0, crop: 'tomato', ready: false, ready_in_s: 3600, waterable: false, regrows_left: 4, by: 0, by_name: 'Alda', extra: false },
@@ -218,7 +218,7 @@ async function checks(overrides) {
         if (JSON.stringify(l1) !== JSON.stringify([['leave', 'Harvest (grows back 3 more times)'], ['clear', 'Harvest and clear plot']])) fails.push('FW-8 the ready tomato\'s buttons read ' + JSON.stringify(l1));
         const l2 = await labels(2);
         const by2 = await txt(page, W + '.hw-plot[data-plot="2"] .hw-plot-by');
-        if (JSON.stringify(l2) !== JSON.stringify([['harvest', 'Harvest and replant'], ['leave', 'Harvest only']]) || !/Last harvest: the plant withers after it$/.test(by2 || '')) fails.push('FW-8 the last-harvest tomato reads ' + JSON.stringify([l2, by2]));
+        if (JSON.stringify(l2) !== JSON.stringify([['harvest', 'Harvest and replant'], ['leave', 'Harvest and clear plot']]) || !/Last harvest: the plant withers after it$/.test(by2 || '')) fails.push('FW-8 the last-harvest tomato reads ' + JSON.stringify([l2, by2]));
         await press(page, W + '.hw-plot[data-plot="1"] [data-hs-act="clear"]', 'FW-8');
         await idle(page);
         const cl = s.calls.filter((c) => /harvest/.test(c.name));
@@ -263,10 +263,11 @@ const MUTANTS = [
   ['an extra plot is not drawn', 'src/shell/windows/farm.js', '(_, i) => i).concat(extras);', '(_, i) => i);'],
   ['an extra plot is replanted', 'src/shell/windows/farm.js', "attr(harvest, 'data-hs-act', extra || vine ? 'leave' : 'harvest');", "attr(harvest, 'data-hs-act', vine ? 'leave' : 'harvest');"],
   ['the replant button reads plain Harvest (Tyler 10-25)', 'src/shell/windows/farm.js', "text(harvest, extra ? 'Harvest' : vine ?", "text(harvest, true ? 'Harvest' : vine ?"],
-  ['the no-replant button reads Leave it empty (Tyler 10-25)', 'src/shell/windows/farm.js', "verb === 'leave' ? 'Harvest only' :", "verb === 'leave' ? 'Leave it empty' :"],
+  ['the no-replant button reads Leave it empty (Tyler 10-25)', 'src/shell/windows/farm.js', "(regrow ? 'Harvest and clear plot' : 'Harvest only')", "(regrow ? 'Harvest and clear plot' : 'Leave it empty')"],
   ['the extra plot\'s button says replant (Tyler 10-25)', 'src/shell/windows/farm.js', "text(harvest, extra ? 'Harvest' : vine ?", "text(harvest, false ? 'Harvest' : vine ?"],
   /* Report #66: a regrowing crop (tomato) said "Harvest only" and grew back. */
   ['a regrowing crop offers Harvest only (#66)', 'src/shell/windows/farm.js', "const vine = regrow && more !== 0;", "const vine = false;"],
+  ['a tomato on its last harvest offers Harvest only (#66)', 'src/shell/windows/farm.js', "(regrow ? 'Harvest and clear plot' : 'Harvest only')", "'Harvest only'"],
   ['a regrowing plot never says it grows back (#66)', 'src/shell/windows/farm.js', "    + (!regrow ? '' :", "    + (true ? '' :"],
   ['clear sends the plain harvest (#66)', 'src/session/farm-intents.js', "rpc('hr_farm_harvest_clear', {", "rpc('hr_farm_harvest', {"],
   ['the regrow count is not the server\'s (#66)', 'src/session/farm-sections.js', 'regrowsLeft: count(p.regrows_left)', 'regrowsLeft: 4'],

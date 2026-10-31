@@ -115,7 +115,7 @@ export async function loadCellRunner(root) {
       mit: MIT.mitigationFor(kits[i], ITEMS, levels[i]),
       vit: VIT.vitalsOf({ levelXp: XP.charXpForLevel(levels[i]), skills: {}, equipment: kits[i], items: ITEMS }),
       hours: 0, levelXp: 0, skillXp: {}, coin: 0, loot: { common: 0, uncommon: 0, scarce: 0, rare: 0, trophy: 0, other: 0 }, lootN: 0,
-      rareItems: [], store: 0, buys: {}, uses: {}, deaths: 0, killers: {}, xpLostLevel: 0, deathLevelXpLost: [],
+      rareItems: [], gear: {}, store: 0, buys: {}, uses: {}, deaths: 0, killers: {}, xpLostLevel: 0, deathLevelXpLost: [],
       xpLostSkill: {}, dealt: 0, dealtBy: {}, taken: 0, takenBy: {}, healIn: { food: 0, self: 0, ally: 0 }, healOut: 0, shieldIn: 0,
       blowsLanded: 0, blowsMissed: 0, dodged: 0, eats: { own: 0, store: 0 }, drinks: { own: 0, store: 0 }, casts: {}, castGold: 0,
       manaShots: 0, enc: [], close: 0, dips: 0, ttdClose: [], ended: {} }));
@@ -253,6 +253,9 @@ export async function loadCellRunner(root) {
             for (const [id, n] of Object.entries(d.items || {})) {
               const b = band[id] || 'other';
               h.loot[b in h.loot ? b : 'other'] += n * vendor(id); h.lootN += n;
+              /* worn gear by slot and weight (the ruling's "a piece an hour per slot per weight"), any band */
+              const it = ITEMS[id];
+              if (it && it.type === 'armor' && it.armourClass) h.gear[it.slot + ':' + it.armourClass] = (h.gear[it.slot + ':' + it.armourClass] || 0) + n;
             }
             for (const rd of (hu.hints && hu.hints.rare_drop) || []) h.rareItems.push(rd.item);
             for (const [id, n] of Object.entries(hu.buys || {})) { h.buys[id] = (h.buys[id] || 0) + n; h.store += n * ((basics[id] || {}).price || 0); }
@@ -315,6 +318,7 @@ export async function loadCellRunner(root) {
         incomePerH: per(income), raresPerH: per(rares), storePerH: per(h.store), profitPerH: per(income - h.store),
         netWithRaresPerH: per(income + rares - h.store), margin: h.store > 0 ? round(income / h.store - 1, 3) : null,
         buysPerH: Object.fromEntries(Object.entries(h.buys).map(([k, n]) => [k, round(n / hr, 1)])),
+        gearPerH: Object.fromEntries(Object.entries(h.gear).map(([k, n]) => [k, round(n / hr, 2)])),
         rareItems: h.rareItems.length, rareEveryH: h.rareItems.length ? round(h.hours / h.rareItems.length, 1) : null,
         deaths: h.deaths, deathsPer1000h: deaths, killers: h.killers,
         levelXpLostPerDeath: round(lostMean, 0), deathCostHours: lostMean !== null && xph > 0 ? round(lostMean / xph, 2) : null,

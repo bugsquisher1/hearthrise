@@ -36,7 +36,7 @@ const uniq = (xs) => [...new Set(xs)].sort((a, b) => a - b);
 const levelsOf = (band, wide) => uniq([band[0] - 10, band[0] - 5, band[0], Math.round((band[0] + band[1]) / 2), band[1], band[1] + 5, ...(wide ? [band[1] + 10] : [])].filter((l) => l >= 1));
 const inBand = (band) => uniq([band[0], Math.round((band[0] + band[1]) / 2), band[1]]);
 const tag = (o) => Object.entries(o).filter(([, v]) => v !== undefined && v !== null).map(([k, v]) => k + '=' + (Array.isArray(v) ? v.join('+') : typeof v === 'object' ? JSON.stringify(v) : v)).join(',');
-const cellOf = (o) => ({ id: tag({ g: o.ground, p: o.party, L: o.level, d: o.density, gear: o.gear, bar: o.bar, sup: o.supply, h: o.hours, s: o.seeds, x: o.x }), ...o });
+const cellOf = (o) => ({ id: tag({ g: o.ground, p: o.party, L: o.level, d: o.density, gear: o.gear, bar: o.bar, sup: o.supply, h: o.hours, s: o.seeds, seg: o.segmentH, x: o.x }), ...o });
 
 /**
  * The plans. `scale` multiplies hours (the smoke and estimate modes). Each answers [cells | careers].
@@ -129,6 +129,49 @@ export function buildPlan(name, axes, scale = 1) {
       for (const [x, k] of steps) out.push({ ...cellOf({ ...r, hours: H(3), seeds: 2, x }), whatIf: { monsters: { '*': { atk: '*' + Math.round((1 + k * gap) * 100) / 100 } } } });
     }
     return out;
+  }
+  if (name === 'verdict') {
+    /* THE VERDICT (lane b-balance-baseline, 2026-10-31): today's game against the ruling, ground x way to fight, and the
+       first week first. Every open ground, every style, Level band +-10; in-band gear vs THE STARTER KIT (the practice
+       set alone, no armour: a fresh hero) through Level 25; solo and parties of 2 and 4; density as built (the low pull)
+       and the full box (8); three seeds a cell. V1 solo as built, V2 solo full box in band, V3 the starter kit, V4
+       parties, V5 the upgrade steps at each tier Level, V6 TWELVE-HOUR HUNTS (one segment = one unattended hunt: does
+       it finish?) on the first grounds' floor and middle, four seeds each. */
+    const STARTER = { starter: true };
+    const early = G.filter((g) => g.band[0] <= 16);
+    for (const g of G) {
+      const lv = levelsOf(g.band, true), ib = inBand(g.band);
+      for (const s of SOLO_STYLES) {
+        for (const L of lv) out.push(cellOf({ ground: g.id, party: [s], level: L, hours: H(2), seeds: 3, x: 'V1' }));
+        for (const L of ib) out.push(cellOf({ ground: g.id, party: [s], level: L, density: 8, hours: H(1.5), seeds: 3, x: 'V2' }));
+        if (g.band[0] > 16) continue;
+        for (const L of lv.filter((l) => l <= 25)) {
+          out.push(cellOf({ ground: g.id, party: [s], level: L, gear: STARTER, hours: H(2), seeds: 3, x: 'V3' }));
+          if (ib.includes(L)) out.push(cellOf({ ground: g.id, party: [s], level: L, density: 8, gear: STARTER, hours: H(1.5), seeds: 3, x: 'V3' }));
+        }
+      }
+      for (const pk of ['duo', 'four']) for (const L of ib) for (const density of [null, 8]) {
+        out.push(cellOf({ ground: g.id, party: PARTIES[pk], level: L, density, hours: H(1.5), seeds: 3, x: 'V4' + pk }));
+        if (L <= 25 && g.band[0] <= 16) out.push(cellOf({ ground: g.id, party: PARTIES[pk], level: L, density, gear: STARTER, hours: H(1.5), seeds: 3, x: 'V4' + pk }));
+      }
+    }
+    for (const T of axes.tierLevels.filter((t) => t > 1 && t <= 50)) {
+      const g = G.filter((x) => x.groupFit !== 'party' && x.band[0] <= T).pop();
+      for (const s of SOLO_STYLES) for (const only of [null, 'weapon', 'armour', 'body']) for (const density of [null, 8]) {
+        out.push(cellOf({ ground: g.id, party: [s], level: T + 1, density, gear: only ? { tierOffset: -1, only } : null, hours: H(2), seeds: 3, x: 'V5' }));
+      }
+    }
+    for (const g of early) for (const L of uniq([g.band[0], Math.round((g.band[0] + g.band[1]) / 2)])) {
+      const party = (s) => (g.groupFit === 'party' ? null : [s]);
+      for (const s of ['tank', 'hammer', 'axes', 'bow', 'crossbow', 'mage', 'healer']) {
+        if (!party(s)) continue;
+        out.push(cellOf({ ground: g.id, party: [s], level: L, hours: H(12), seeds: 4, segmentH: 12, x: 'V6' }));
+        if (L <= 8) out.push(cellOf({ ground: g.id, party: [s], level: L, gear: STARTER, hours: H(12), seeds: 4, segmentH: 12, x: 'V6' }));
+      }
+      if (g.groupFit !== 'solo') for (const pk of ['duo', 'four']) out.push(cellOf({ ground: g.id, party: PARTIES[pk], level: L, hours: H(12), seeds: 2, segmentH: 12, x: 'V6' + pk }));
+    }
+    const rank = (j) => (/x=V6/.test(j.id) ? 0 : /x=V4/.test(j.id) ? 1 : 2);
+    return out.map((j, i) => [rank(j), i, j]).sort((a, b) => a[0] - b[0] || a[1] - b[1]).map((x) => x[2]);
   }
   if (name === 'career8') {
     /* the same lives at the full box (density 8: the "reasonably efficient" pick wherever it stays safe) */

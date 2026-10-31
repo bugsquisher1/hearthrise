@@ -264,6 +264,8 @@ jobs:
           node tools/mutant-gate.mjs node tests/_chrome.mjs --selftest
           node tests/client-boot.mjs
           node tools/mutant-gate.mjs node tests/client-boot.mjs --mutate
+          node tests/auth-lock.mjs
+          node tools/mutant-gate.mjs node tests/auth-lock.mjs --mutate
 
       # A failing run is far easier to diagnose with the page state attached.
       - name: Upload failure artifacts

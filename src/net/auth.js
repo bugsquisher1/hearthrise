@@ -52,7 +52,17 @@
 // the first read, and the roster with it, waiting until supabase-js stole the lock
 // at 5 s. refresh() now reads a stored session that still lasts straight from the
 // store supabase-js keeps it in, which is what getSession would answer; only a
-// missing or stale one waits for supabase-js (and its lock).
+// missing or stale one waits for supabase-js.
+//
+// AND SUPABASE-JS ITSELF ASKS NO OTHER TAB UNLESS A REFRESH IS DUE (lane/a-boot-lock,
+// src/net/auth-lock.js is its `auth.lock`): on the local world, a stale token behind a
+// tab that never lets go took 7.5-12.5 s to the roster with 1-4 forced steals, because each
+// request queued in the holder was granted to it in turn. A forced refresh here says so
+// (o.lock.refreshing), since its token's expiry says it needs no lock: one refresher across tabs.
+//
+// A THROWN ERROR IS NOT A REFUSAL. Only the auth server's own answer ends a session; a step that
+// failed for any other reason (the lock, say) keeps the session and sends nothing this time.
+// Ending it there signs out the whole device.
 // ════════════════════════════════════════════════════════════════════════
 
 import { SESSION_CONFIG } from '../session/config.js?v=0.2.75';
@@ -143,6 +153,7 @@ const copyFor = (error, says, other) => { const key = authErrorCopy(error); retu
  * @param {object} [o.doc]       the document, to check the token when a hidden tab wakes
  * @param {() => number} [o.now] the clock, for tests
  * @param {object} [o.store]     the store supabase-js keeps the session in (default: config authStore's)
+ * @param {object} [o.lock]      supabase-js's lock (src/net/auth-lock.js), told of a forced refresh
  */
 export function createAuth(o) {
   const cfg = o.config || SESSION_CONFIG;
@@ -150,6 +161,7 @@ export function createAuth(o) {
   const now = o.now || (() => Date.now());
   let session = null;
   let renewing = null;
+  const forcedRefresh = (fn) => (o.lock ? o.lock.refreshing(fn) : fn());
   const changeFns = new Set();
   const tell = (ev) => { for (const fn of Array.from(changeFns)) { try { fn(ev); } catch (e) { console.error('[auth] a listener failed', e); } } };
 
@@ -194,13 +206,13 @@ export function createAuth(o) {
           const s = (data && data.session) || null;
           if (lasts(s)) { session = s; return tokenOf(s); }
         }
-        const { data, error } = await auth.refreshSession();
+        const { data, error } = await forcedRefresh(() => auth.refreshSession());
         const s = (data && data.session) || null;
         if (lasts(s)) { session = s; return tokenOf(s); }
         if (error && isRetryable(error)) return null;
         return expire();
       } catch (e) {
-        return isRetryable(e) ? null : expire();
+        return e && e.__isAuthError === true && !isRetryable(e) ? expire() : null;
       }
     })();
     renewing = p;

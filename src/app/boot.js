@@ -34,7 +34,8 @@
 // retried in the background.
 // ════════════════════════════════════════════════════════════════════════
 
-import { SUPABASE_CONFIG, createSupabaseClient } from '../net/supabase-bootstrap.js?v=0.2.75';
+import { SUPABASE_CONFIG, createSupabaseClient, authLockFor } from '../net/supabase-bootstrap.js?v=0.2.75';
+import { createBootTiming } from '../net/boot-timing.js?v=0.2.75';
 import { createAuth, AUTH_COPY } from '../net/auth.js?v=0.2.75';
 import { SESSION_CONFIG } from '../session/config.js?v=0.2.75';
 import { createServerLink } from '../session/server.js?v=0.2.75';
@@ -84,8 +85,10 @@ function startApp(win) {
   const fresh = mountNewVersion(win);
   const HS = win.HearthriseStorage;
   const store = SESSION_CONFIG.authStore === 'tab' ? HS.session : HS;
-  const client = createSupabaseClient(win.supabase, store, SESSION_CONFIG.authKey);
-  const auth = createAuth({ client, device: HS, tab: HS.session, redirectTo: win.location.origin + win.location.pathname, doc });
+  const authLock = authLockFor(win, store, SESSION_CONFIG.authKey);
+  const client = createSupabaseClient(win.supabase, store, SESSION_CONFIG.authKey, authLock.lock);
+  const auth = createAuth({ client, lock: authLock, device: HS, tab: HS.session, redirectTo: win.location.origin + win.location.pathname, doc });
+  const timing = createBootTiming(win, { lockStats: authLock.stats });
   let account = null;
   let alerts = null;
   let watchers = [];   // the account's page-level watchers: the press acknowledgement, ?debug=live
@@ -164,7 +167,9 @@ function startApp(win) {
     /* ...for THIS session only: the pass asks before every slice and sheet whether its account is still the page's, so a
        sign-out or a refused session stops it at once (client-boot B-15) */
     import('../world/prewarm.js?v=0.2.75').then((m) => { const acc = account; if (acc) m.prewarmTown(win, { alive: () => account === acc }); }, () => {});
-    const server = createServerLink({ url: SUPABASE_CONFIG.url, anonKey: SUPABASE_CONFIG.anonKey, token: auth.freshToken, renew: auth.renewToken,
+    /* the token's answer is the moment the first read leaves (boot-timing.js): whatever it waited on is before that */
+    const tokenForCall = async () => { const t = await auth.freshToken(); timing.sending(); return t; };
+    const server = createServerLink({ url: SUPABASE_CONFIG.url, anonKey: SUPABASE_CONFIG.anonKey, token: tokenForCall, renew: auth.renewToken,
       stale: () => fresh.check(true) });
     account = new AccountSession({ auth, server, tab: HS.session, channel: channelFor(client, auth),
       social: (acc) => new SocialSession({ account: acc, realtime: createSocialRealtime(client, auth.token) }) });
@@ -191,6 +196,7 @@ function startApp(win) {
       + '<p class="auth-lead" role="status">Reading your characters…</p></div></main>';
     const a = account;
     const read = await a.roster();
+    timing.read();
     if (a !== account || a.closedGame) return;
     roster = read;
     rosterSlots = roster.filter((r) => r.exists).map((r) => r.slot);
@@ -216,6 +222,7 @@ function startApp(win) {
       + '<p class="auth-message' + (note ? ' is-good' : '') + '" role="status" aria-live="polite">' + esc(note || '') + '</p>'
       + '<p class="auth-links"><button type="button" class="auth-link" data-app="sign-out">Sign out</button></p>';
     ringCharacters(a, root.querySelector('.auth-card'));
+    timing.drawn('characters');
   }
 
   /* THE COACH ON THE CHARACTERS SCREEN (board 2026-10-25 D4 "More than one hero"): the game's shell is gone here, so the
@@ -279,6 +286,7 @@ function startApp(win) {
     if (a !== account) return false;
     a.view(slot);
     await showGame();
+    timing.drawn('game');
     /* the account's other characters play too (in town for everyone), unviewed */
     if (account === a) await a.openOthers(others);
     return true;
@@ -352,6 +360,7 @@ function startApp(win) {
   });
 
   auth.refresh().then(() => {
+    timing.authReady(!recovering && !!auth.userId());
     if (recovering) showAuth('set-password');
     else if (auth.userId()) startAccount(true);
     else showAuth('sign-in');

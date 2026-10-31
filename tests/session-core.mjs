@@ -85,6 +85,8 @@
 //   TOK-6  THE BOOT READ NEVER WAITS ON THE AUTH LOCK (live v0.2.74, QA: a third of reloads took 5.7-11.7 s to
 //          the roster behind gotrue's 'lock:hr-auth'): with supabase-js's getSession held, a stored session that
 //          still lasts is read at once; a stale one is still supabase-js's to refresh
+//   TOK-7  A THROWN ERROR IS NOT A REFUSAL (a lock that failed, say): the session stays and nobody hears 'expired';
+//          an auth error the server threw still ends it
 //   VIEW-1 the world view reads only the character's record and its own scratch
 // ════════════════════════════════════════════════════════════════════════
 import { mkdtempSync, cpSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
@@ -1668,6 +1670,23 @@ async function rules(M) {
     const stale = await boot(sess('A', T0 + 10e3));   // inside the margin: supabase-js refreshes it, behind its lock
     return (stale.how === 'waited' && asked === 1 && stale.auth.token() === null) || `a stale stored session was used without supabase-js (${stale.how}, asked ${asked}, token ${stale.auth.token()})`;
   });
+  await t('TOK-7', async () => {
+    const rig = (thrown) => {
+      const heard = [];
+      const auth = AU.createAuth({ client: { auth: { getSession: async () => ({ data: { session: sess('A', T0 + 3600e3) } }), refreshSession: async () => { throw thrown; },
+        signOut: async () => {}, onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }) } }, device: memStore(), tab: memStore(), redirectTo: 'https://x/', now: () => T0 });
+      auth.onChange((ev) => heard.push(ev));
+      return { auth, heard };
+    };
+    const stuck = rig(Object.assign(new Error('Lock "lock:hr-auth" was released because another request stole it'), { isAcquireTimeout: true }));
+    await stuck.auth.refresh();
+    const got = await stuck.auth.renewToken('A');
+    if (got !== null || stuck.heard.includes('expired') || stuck.auth.userId() !== UID) return 'a lock that failed ended the session: ' + JSON.stringify([got, stuck.heard, stuck.auth.userId()]);
+    const refused = rig(Object.assign(new Error('Invalid Refresh Token'), { __isAuthError: true, status: 400 }));
+    await refused.auth.refresh();
+    await refused.auth.renewToken('A');
+    return (refused.heard.join() === 'expired' && refused.auth.userId() === null) || 'an auth error the server threw did not end the session: ' + JSON.stringify(refused.heard);
+  });
   return fails;
 }
 
@@ -1783,6 +1802,7 @@ const MUTANTS = [
   ['a 401 is not renewed', 'src/session/server.js', 'if (res.status === 401 && o.renew)', 'if (false && o.renew)'],
   ['every caller refreshes on its own', 'src/net/auth.js', '    if (renewing) return renewing;\n', ''],
   ['a refused refresh keeps the dead session', 'src/net/auth.js', "    session = null;\n    tell('expired');", "    tell('expired');"],
+  ['a thrown lock error ends the session', 'src/net/auth.js', 'return e && e.__isAuthError === true && !isRetryable(e) ? expire() : null;', 'return isRetryable(e) ? null : expire();'],
   ['waking a hidden tab checks nothing', 'src/net/auth.js', "if (o.doc.visibilityState === 'visible') freshToken();", "if (false) freshToken();"],
   ['a failed live ask re-arms at once, forever', 'src/session/character-session.js', 'if (!took && engine) this.liveLink.missed();', ''],
   ['the live ask gives up after two tries', 'src/session/live-link.js', '      this.want = true;\n      this._tries++;', '      this.want = this._tries < 2;\n      if (this.want) this._tries++;'],

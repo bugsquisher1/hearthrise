@@ -643,6 +643,10 @@ export function createCanvasBackend(o) {
       if (aheadId) unlater(aheadId);
       aheadId = 0; ring = [];
       ground.clear();
+      /* every layer's pixels back at once, the atlas-sized variants above all (ground-chunks.js release: the pane's canvases
+         left to the collector came due as one long pause in a later frame) */
+      for (const c of [comp.c, floor.c, shade.c, lit.c, rim.c, ...variants.values(), ...stubs.values()]) if (c) { c.width = 0; c.height = 0; }
+      variants.clear(); stubs.clear();
     },
   };
 }

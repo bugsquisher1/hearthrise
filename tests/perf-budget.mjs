@@ -150,7 +150,7 @@ const MUTANTS = [
   ['the real town repainted every frame', 'src/world/render/canvas-backend.js',
     'const changed = frameChanged(list, fv);', 'const changed = (frameChanged(list, fv), true);', /^town paints/, 'scenario', 3],
   ['a hidden tab goes on asking (old-laptop player 10-31: 64 calls and 1.45 MB in 2 minutes hidden)', 'src/app/boot.js',
-    "  doc.addEventListener('visibilitychange', () => { if (account) account.setPageHidden(doc.hidden); });\n", '', /^hidden/, 'scenario', 3],
+    "  doc.addEventListener('visibilitychange', () => { if (account) account.setPageHidden(doc.hidden); });\n", '', /^hidden/, 'scenario', 4, 40000],
   ['each bar watches the timeline with its ctx (old-laptop player 10-31: ~1,080 nodes and 35 listeners a hop, never freed)', 'src/shell/widgets/action-bar.js',
     '  const w = cs ? CASTS.get(cs) : null;\n  if (w) return w;\n  const at = new Map();\n  const tl = cs && cs.timeline;\n  const clock = ctx.now;   // the clock alone, never the ctx\n',
     '  if (ctx.__casts) return ctx.__casts;\n  const at = new Map();\n  ctx.__casts = { at };\n  const tl = cs && cs.timeline;\n  const clock = () => ctx.now();\n', /^leak/, 'leak'],

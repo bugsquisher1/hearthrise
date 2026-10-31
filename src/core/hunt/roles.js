@@ -360,10 +360,13 @@ function keepDistance(inst, h, mons) {
   if (gap(h.x, h.y) >= want && !h.path.length) return;
   if (h.goal && h.path.length && gap(h.goal[0], h.goal[1]) >= want) return;
   const [cx, cy] = meanOf(mons);
-  const here = Math.hypot(h.x - cx, h.y - cy);
+  /* Math.sqrt, never Math.hypot: the spec leaves hypot's last bit to each JS engine (V8 differs from the rounded root
+     on a third of integer pairs), and this comparison must come out the same on the edge and in any browser. */
+  const fromMean = (x, y) => Math.sqrt((x - cx) * (x - cx) + (y - cy) * (y - cy));
+  const here = fromMean(h.x, h.y);
   let best = null; let bs = Infinity;
   for (const [x, y] of candidateTiles(inst, h, pocket, h.x, h.y, KITE.searchRadius)) {
-    if (Math.hypot(x - cx, y - cy) - here <= KITE.awayMin) continue;
+    if (fromMean(x, y) - here <= KITE.awayMin) continue;
     const g = gap(x, y);
     if (g < minGap) continue;
     const p = { x, y };

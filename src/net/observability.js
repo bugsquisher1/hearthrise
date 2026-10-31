@@ -41,6 +41,7 @@ import { endedSessionOf } from '../hunt-view/summary-model.js?v=0.2.74';
 const EARLY_MAX = 10;        // errors held while Sentry loads
 const QUEUE_MAX = 20;        // events held while PostHog loads
 const STALL_MAX = 50;        // live_view_stall per page load: a stuck loop must not spend the quota
+const DIFF_MAX = 12;         // live_diverged per page load: the first few name a cause; the rest would repeat it
 const STALL_POLL_MS = 1000;  // how often a running live engine is looked at (starving emits nothing)
 const HANG_PRINT = 'main-thread-hang';
 const HANG_READ_MS = 1000;   // the hang report waits this long for the frame that held the page to be reported
@@ -204,9 +205,20 @@ function watchHunt(cs, w, now, send) {
 function watchLive(cs, w, why, now) {
   /* a prediction that ran to the hunt's end (live-link.js ended) is not starving */
   const running = !!(cs.live && (cs.live.running() || (typeof cs.live.ended === 'function' && cs.live.ended())));
-  if (why === 'reseed') { w.reseeds++; w.stall('reseed', now - w.since); w.since = now; }
-  else if (why === 'live') { if (w.starvedAt !== null) { w.stall('starve', now - w.starvedAt); w.starvedAt = null; } w.since = now; }
-  else if (w.open && w.running && !running && w.starvedAt === null) w.starvedAt = now;
+  if (why === 'reseed') {
+    /* 'reseed' is every eased restart: a correction from the server's world, or a catch-up (a frame late over a swing
+       boundary, a tab back from the background) that corrected nothing. Counted as one, a slow machine read as a
+       server disagreement. */
+    const did = cs.liveStats().reseeds;
+    if (did !== w.reseedsSeen) {
+      w.reseedsSeen = did; w.reseeds++; w.stall('reseed', now - w.since); w.since = now;
+      const d = cs.liveLink && typeof cs.liveLink.takeDiff === 'function' ? cs.liveLink.takeDiff() : null;
+      if (d) w.diverged(d);
+    } else { w.stall('catchup', now - w.caughtAt); w.caughtAt = now; }
+  } else if (why === 'live') { if (w.starvedAt !== null) { w.stall('starve', now - w.starvedAt); w.starvedAt = null; } w.since = now; w.caughtAt = now; }
+  /* A prediction that STOPPED is not one that starved: a viewed hero switched away from drops its engine (live-link.js
+     off), and its "starve" read the time the player spent on another hero. Out of seeds it holds a world (stalled). */
+  else if (w.open && w.running && !running && w.starvedAt === null && cs.live.stalled()) w.starvedAt = now;
   w.running = running;
 }
 
@@ -223,7 +235,7 @@ export function startObservability(win, cfg = OBSERVABILITY_CONFIG) {
   if (!env.send) return Object.assign({}, NOOP, { environment: env.environment });
   const doc = win.document;
   const now = () => (win.performance ? win.performance.now() : Date.now());
-  const st = { uid: null, game: false, queue: [], stalls: 0, hung: false, hang: null };
+  const st = { uid: null, game: false, queue: [], stalls: 0, diffs: 0, hung: false, hang: null };
   let sentry = null;
   let ph = null;       // the PostHog instance, started by the first account id
   let phSdk = null;    // window.posthog once its script has loaded: nothing runs until an account is known
@@ -284,8 +296,11 @@ export function startObservability(win, cfg = OBSERVABILITY_CONFIG) {
   };
   const watched = new Map();
   observeSessions((cs) => {
-    const w = { seen: false, open: false, sid: null, running: false, since: now(), starvedAt: null, reseeds: 0,
-      stall: (kind, ms) => { if (st.stalls < STALL_MAX) { st.stalls++; send('live_view_stall', { kind, ms: Math.round(ms), reseeds: w.reseeds }); } } };
+    const w = { seen: false, open: false, sid: null, running: false, since: now(), caughtAt: now(), starvedAt: null, reseeds: 0, reseedsSeen: 0,
+      stall: (kind, ms) => { if (st.stalls < STALL_MAX) { st.stalls++; send('live_view_stall', { kind, ms: Math.round(ms), reseeds: w.reseeds }); } },
+      /* WHAT DIFFERED at a correction (live-diff.js), with the build that predicted it: a tab left on an older build
+         than the server's differs at every commit, and this event names that or the input that really differs. */
+      diverged: (d) => { if (st.diffs < DIFF_MAX) { st.diffs++; send('live_diverged', { version: BUILD.version, hunt: d.hunt, swing: d.swing, count: d.count, by: d.by, lines: d.lines, page_s: Math.round(now() / 1000) }); } } };
     watched.set(cs, w);
     cs.subscribe((c, why) => safe(() => {
       if (why === 'closed') { watched.delete(cs); return; }

@@ -398,20 +398,31 @@ async function nodeChecks(root) {
   if (calls.identify) fails.push('OB-11 identify() was called ' + calls.identify + ' time(s): it merges an anonymous id onto the person');
   let body = null;
   const cs = new CS.CharacterSession({ slot: 0, uid: UID, server: { rpc: async () => ({ ok: true, body }) }, setTimer: () => 0, clearTimer() {} });
-  let running = true;
+  let running = true, holdsWorld = true;
   cs.live.running = () => running;
+  cs.live.stalled = () => !running && holdsWorld;  // out of seeds it holds a world; switched away from it holds none
   body = envelope(1); await cs.load();
   body = huntBody(2, false); await cs.load();
   cs._emit('live');                               // the engine seeded (live-link.js emits 'live')
   clock += 4000; running = false; tick();         // it starves between answers: nothing is emitted
   clock += 2500; tick();
   clock += 500; running = true; cs._emit('live'); // the next start point lands
-  clock += 3000; cs._emit('reseed');
-  clock += 1000; cs._emit('reseed');
+  const reseed = () => { cs.liveLink.stats.reseeds++; cs._emit('reseed'); };
+  clock += 3000; reseed();
+  clock += 1000; reseed();
+  /* a catch-up restarts the drawing too and corrects nothing: its own kind, and a correction's clock runs on past it */
+  clock += 500; cs._emit('reseed');
+  clock += 500; cs.liveLink.lastDiff = { swing: 40, hunt: 'mill_cellar', count: 2, by: { 'peer.hp': 2 }, lines: ['peer:tank.hp 10|12'] }; cs.liveLink._diffOut = true; reseed();
+  /* a viewed hero switched away from drops its engine (live-link.js off): no starve, whatever the time on the other hero */
+  holdsWorld = false; running = false; tick();
+  clock += 30000; running = true; holdsWorld = true; cs._emit('live');
   const stalls = events.filter(([n]) => n === 'live_view_stall').map(([, p]) => p);
-  const want = [{ kind: 'starve', ms: 3000, reseeds: 0 }, { kind: 'reseed', ms: 3000, reseeds: 1 }, { kind: 'reseed', ms: 1000, reseeds: 2 }];
+  const want = [{ kind: 'starve', ms: 3000, reseeds: 0 }, { kind: 'reseed', ms: 3000, reseeds: 1 }, { kind: 'reseed', ms: 1000, reseeds: 2 },
+    { kind: 'catchup', ms: 4500, reseeds: 2 }, { kind: 'reseed', ms: 1000, reseeds: 3 }];
   if (JSON.stringify(stalls) !== JSON.stringify(want)) fails.push('OB-7 live_view_stall sent ' + JSON.stringify(stalls) + ', want ' + JSON.stringify(want));
-  for (let i = 0; i < 80; i++) cs._emit('reseed');
+  const named = events.filter(([n]) => n === 'live_diverged').map(([, p]) => p);
+  if (named.length !== 1 || named[0].count !== 2 || named[0].hunt !== 'mill_cellar' || named[0].by['peer.hp'] !== 2 || !named[0].version) fails.push('OB-7 a correction did not name what differed: ' + JSON.stringify(named));
+  for (let i = 0; i < 80; i++) reseed();
   if (events.filter(([n]) => n === 'live_view_stall').length !== 50) fails.push('OB-7 the per-load cap did not hold: ' + events.filter(([n]) => n === 'live_view_stall').length);
   if (events.filter(([n]) => n === 'hunt_started').length !== 1) fails.push('OB-7 hunt_started ' + events.filter(([n]) => n === 'hunt_started').length + ' times for one seen start');
 
@@ -499,7 +510,10 @@ const MUTANTS = [
   ['console.error is not captured', 'src/net/observability.js', "[S.captureConsoleIntegration({ levels: ['error'] })]", '[]'],
   ['the chat is not masked', 'src/shell/windows/chat.js', 'class="hc-chat ph-mask"', 'class="hc-chat"'],
   ['the CSP drops the PostHog host', 'play.html', ' https://us.i.posthog.com ', ' '],
-  ['a starved live view goes unreported', 'src/net/observability.js', 'else if (w.open && w.running && !running && w.starvedAt === null)', 'else if (false)'],
+  ['a starved live view goes unreported', 'src/net/observability.js', 'else if (w.open && w.running && !running && w.starvedAt === null && cs.live.stalled())', 'else if (false)'],
+  ['a hero switched away from reads as a starve', 'src/net/observability.js', 'w.starvedAt === null && cs.live.stalled())', 'w.starvedAt === null)'],
+  ['a catch-up reads as a correction from the server', 'src/net/observability.js', 'if (did !== w.reseedsSeen) {', 'if (true) {'],
+  ['a correction goes out without what differed', 'src/net/observability.js', 'if (d) w.diverged(d);', ''],
   ['one error loops into Sentry', 'src/net/observability.js', 'if (n > limits.perFingerprint) { held++; return null; }', 'if (false) { held++; return null; }'],
   ['no ceiling per page load', 'src/net/observability.js', 'if (!hang && sent >= limits.perLoad)', 'if (false)'],
   ['the PostHog script loads at boot, on the sign-in screen', 'src/net/observability.js', '    else win.setTimeout(go, 0);\n  };\n', '    else win.setTimeout(go, 0);\n  };\n  loadPostHog();\n'],

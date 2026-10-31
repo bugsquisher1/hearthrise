@@ -216,7 +216,7 @@ export const REASONS = Object.freeze({
   ],
   'src/shell/windows/hunts.js': [
     { cond: 'follower', words: "'Your party leader picks the hunt and starts it.", where: 'the page lead for a party member' },
-    { cond: 'dn.now <= DENSITY_PICK.min', words: "'Up to ' + dn.max + ' a pull'", where: 'the density note states the bounds' },
+    { cond: 'densityStep(r, dn.now, -1, dn.max) === null', words: "'A pull is one pack: up to ' + dn.max", where: 'the density note states the bounds' },
     { cond: '!!now', words: 'carriedWords(carried)', where: 'a running hunt: the page says what it carries; the top bar has Leave' },
   ],
   'src/shell/windows/hunt-detail.js': [

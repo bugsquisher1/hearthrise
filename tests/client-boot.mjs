@@ -445,6 +445,9 @@ async function checks(overrides) {
         return b ? { text: b.textContent.trim(), off: b.disabled, pay: b.getAttribute('data-pay'), short: (document.querySelector('.slot-offer-short') || {}).textContent || '',
           purse: (document.querySelector('.slot-offer-purse') || {}).textContent || '', picker: !!document.querySelector('select') } : null; });
       const b0 = shown ? await btn() : null;
+      /* "Up to 4" beside two slots says how the other two come, at the server's price (blind playtest 2026-10-31). */
+      const lead = await page.evaluate(() => (document.querySelector('.auth-lead') || {}).textContent || '');
+      if (!/You own 2 hero slots, and up to 4 heroes can play at once\. More slots cost gold: the third is 15,000\./.test(lead)) fails.push('B-11 the line over the roster reads ' + JSON.stringify(lead));
       /* 14,100 at wallet version 7 is the purse; Fennick's older answer (90,000 at version 3) is not. */
       if (!b0 || b0.text !== 'Buy a hero slot — 15,000 gold' || !b0.off || b0.pay !== '0' || b0.picker
         || b0.purse !== 'Your gold: 14,100' || !/^You need 900 more gold./.test(b0.short)) fails.push('B-11 the offer short of gold reads ' + JSON.stringify(b0) + ' (expected Your gold: 14,100, 900 short, off, no payer to pick)');

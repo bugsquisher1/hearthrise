@@ -156,6 +156,16 @@ export function huntAgainOf(summary) {
 }
 
 /**
+ * Hunt again with what the bag holds NOW (`pack`: hunt-list.js packFor, Enter's own), never the old hunt's loaded counts:
+ * the supplies it ate are gone, so the old counts were refused as "You no longer have that many." while Enter went in
+ * at once (blind playtest 2026-10-31). What stays the old hunt's: the ground, the set, the limits, its essential marks.
+ */
+export function againWithBag(args, pack) {
+  const essential = new Set(args.bag.filter((l) => l.essential === true).map((l) => l.item));
+  return Object.assign({}, args, { bag: pack.map((l) => (essential.has(l.item) ? { item: l.item, qty: l.qty, essential: true } : { item: l.item, qty: l.qty })) });
+}
+
+/**
  * A hero's last-seen vitals and the event buffer for one character's current
  * hunt. `names.name(u)` / `names.isHero(u)` resolve at arrival (the pose
  * forgets a unit once it is gone). An event id counts once; the buffer is the

@@ -123,6 +123,9 @@ const CLAIMS = {
     if (bare !== 'Iron Platelegs needs Level 15.') out.push('RW3 without a character it reads ' + JSON.stringify(bare));
     const noItem = M.IW.refusalText({ ok: false, error: 'requirement_not_met' });
     if (noItem === M.RW.REFUSAL_FALLBACK || !/requirement/.test(noItem)) out.push('RW3 with no item named it reads ' + JSON.stringify(noItem));
+    /* "You no longer have that many." of WHAT (blind playtest 2026-10-31): the item the server named. */
+    const short = M.IW.refusalText({ ok: false, error: 'insufficient_item', item: 'cooked_shrimp' });
+    if (short !== 'You no longer have that many Cooked Shrimp.') out.push('RW3 a short stack reads ' + JSON.stringify(short));
     return out;
   },
   RW4: async (M) => {

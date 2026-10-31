@@ -158,6 +158,24 @@ export function edgeBody(slot, verb, fields, intentId) {
 }
 
 /**
+ * An intent's answer with `paid`: the gold THIS intent moved, the server's receipt (spend.js; none on a replay). The
+ * purse moves with every hero's hunt and any window settled first, so its difference is not what the shop paid
+ * (blind playtest 2026-10-31: "Sell for 10,000", "The shop paid 10,012").
+ * @param ask   (send) => the session's tracked answer
+ * @param send  () => the engine's raw answer
+ */
+export async function withReceipt(ask, send) {
+  let paid = null;
+  const r = await ask(async () => {
+    const ans = await send();
+    const receipt = ans && ans.body && ans.body.receipt;
+    if (receipt && Number.isSafeInteger(receipt.gold)) paid = receipt.gold;
+    return ans;
+  });
+  return r && r.ok && paid !== null ? Object.assign({}, r, { paid }) : r;
+}
+
+/**
  * A READ through the engine (the market's browse / item / mine): the server's answer as it stands, or its refusal.
  * Nothing is applied: a read carries no envelope and changes nothing on screen by itself.
  * @param {{ ok:boolean, body:any, error?:string }} ans

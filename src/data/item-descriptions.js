@@ -402,7 +402,7 @@ export const ITEM_DESC = {
   'steel_platelegs': 'Tempered steel legguards for a fighter who means to hold the line',
   'steel_sword': 'Tempered steel blade that holds its edge through a hard fight',
   'steel_warhammer': 'Tempered steel warhammer, brutal crushing power for a strong arm',
-  'sticky_core': 'The gluey core of a cellar slime, for the imbuer who wards gear against the elements',
+  'sticky_core': 'The gluey core of a cellar slime. It sticks to everything it touches',
   'stone_maul': 'Crude stone-headed maul that crushes what it cannot cut',
   'studded_belt': 'A stud-riveted leather belt, a sturdier brace for a ranger climbing past the basics',
   'studded_body': 'A stud-riveted leather jerkin, tougher cover that still lets the bowstring sing',

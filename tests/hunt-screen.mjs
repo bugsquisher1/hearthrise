@@ -487,6 +487,18 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         await pushEnvelope(page, s);
         const f2 = await foodK();
         if (f1 !== 'Food ×20' || f2 !== 'Food ×17') fails.push('HS-18 the food socket reads ' + JSON.stringify([f1, f2]) + ' while the hunt bag held 20 then 17 Cooked Shrimp');
+        /* Out of own food with a store food on the bar it says so and names the price (blind playtest 2026-10-31: "Food ×0" while the hero ate store shrimp). */
+        s.env.hunt.session.bag = [];
+        const barWas = s.env.hunt_settings.slots;
+        s.env.hunt_settings.slots = [{ action: { type: 'consume', id: 'salted_shrimp' }, conditions: [] }];
+        await pushEnvelope(page, s);
+        const f3 = await page.evaluate(() => { const e = document.querySelector('.hb-socket.is-food'); return [e.querySelector('.hb-socket-k').textContent, e.title]; });
+        if (f3[0] !== 'Food: store' || !/Salted Shrimp at 14 gp each/.test(f3[1])) fails.push('HS-18 out of own food with store shrimp on the bar, the socket reads ' + JSON.stringify(f3));
+        s.env.hunt_settings.slots = [];
+        await pushEnvelope(page, s);
+        const f4 = await foodK();
+        if (f4 !== 'Food ×0') fails.push('HS-18 with no food and none on the bar, the socket reads ' + JSON.stringify(f4));
+        s.env.hunt_settings.slots = barWas;
         delete s.env.hunt.session;
         Object.assign(s.env.hunt.hero, { mana: 40, mana_max: 60, hp: 180, level: 24, xp_pct: 0.62 });   // back to the fixture for the screenshots
         s.env.state = Object.assign({}, s.env.state, { level_xp: FIXTURE.state.level_xp });
@@ -1590,7 +1602,9 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       const plusOn = await page.evaluate(() => {
         const b = document.querySelector('.hw-hunt-detail .hw-density [data-by="1"]');
         if (b.disabled) return false;
-        for (let i = 0; i < 4; i++) document.querySelector('.hw-hunt-detail .hw-density [data-by="1"]').click();
+        /* a quick run of presses up to 5 each ("As built" stands among the picks, at its packs' size) */
+        const v = () => document.querySelector('.hw-hunt-detail .hw-density .hh-step-val').textContent;
+        for (let i = 0; i < 8 && v() !== '5 each'; i++) document.querySelector('.hw-hunt-detail .hw-density [data-by="1"]').click();
         return true;
       });
       if (!plusOn) fails.push('HS-8 the density + is off below the ground’s most');

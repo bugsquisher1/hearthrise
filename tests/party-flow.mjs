@@ -68,6 +68,8 @@ const FINDER = '2026-12-07-party-finder.sql';
 const PLAY = '2027-01-19-play-cap.sql';
 /* 2027-02-10-party-instance-reset.sql restates hr_hunt_enter_for last (#60: the restart resets density and strikes). */
 const RESET = '2027-02-10-party-instance-reset.sql';
+/* 2027-02-11-party-nudge.sql: a party move reaches another player's open client. */
+const NUDGE = '2027-02-11-party-nudge.sql';
 const SRC = (f = FILE) => readFileSync(join(ROOT, 'supabase', 'migrations', f), 'utf8').replace(/\r\n/g, '\n');
 const U = ['000000c0-0000-4000-8000-0000000f1001', '000000c0-0000-4000-8000-0000000f1002', '000000c0-0000-4000-8000-0000000f1003'];
 const [A, B, C] = U;
@@ -327,6 +329,44 @@ const ARMS = {
     return p;
   },
 
+  /* A hero idle in town asks nothing, so another player's move reaches its open screen only as a nudge on its own topic
+     (2027-02-11-party-nudge.sql): the invite (its toast), the leader's Start, a kick; never a hero closed in every client,
+     never the caller's own (its client re-reads itself), never with frames off. */
+  'PF-NUDGE': async (db) => {
+    const { hunt } = await world(db);
+    await db.exec(`create schema if not exists realtime;
+      create table if not exists realtime.messages (id uuid primary key default gen_random_uuid(), topic text not null, extension text not null default 'broadcast',
+        event text, payload jsonb, private boolean, inserted_at timestamptz not null default now());
+      create or replace function realtime.send(payload jsonb, event text, topic text, private boolean default true) returns void language sql as
+        'insert into realtime.messages (topic, extension, event, payload, private) values ($3, ''broadcast'', $2, $1, $4)';
+      update public.hr_tick_config set frame_push = true where id;`);
+    await db.query('insert into public.character_presence (user_id, slot, seen_at) values ($1, 0, now()) on conflict (user_id, slot) do update set seen_at = now()', [B]);
+    await db.query('delete from public.character_presence where user_id = $1', [C]);
+    const nudges = async (uid) => Number(await one(db, `select count(*) from realtime.messages where topic = public.hr_frame_topic($1, 0) and event = 'frame' and payload = '{"t":"nudge"}'::jsonb`, [uid]));
+    const out = [];
+    if (err(await invite(db, A, 'Flow B')) !== 'ok') out.push('HARNESS: the invite was refused');
+    if (await nudges(B) !== 1) out.push(`the invite sent B ${await nudges(B)} nudge(s), want 1 (its toast never shows)`);
+    if (err(await invite(db, A, 'Flow C')) !== 'ok') out.push('HARNESS: the second invite was refused');
+    if (await nudges(C) !== 0) out.push('a hero open in no client was nudged');
+    if (await nudges(A) !== 0) out.push('the caller was nudged for its own invite');
+    if (err(await accept(db, B)) !== 'ok') out.push('HARNESS: the accept was refused');
+    if (await nudges(B) !== 1) out.push('B was nudged for its own accept');
+    const before = await nudges(B);
+    await db.query('delete from public.hr_rate_counters');
+    if (err(await start(db, A, hunt)) !== 'ok') out.push('HARNESS: the start was refused');
+    if (!(await nudges(B) > before)) out.push('the leader\'s Start did not reach B (its screen shows town while its hero hunts)');
+    const afterStart = await nudges(B);
+    const seat = await one(db, 'select seat from public.hunt_party_members where user_id = $1', [B]);
+    await db.query('delete from public.hr_rate_counters');
+    if (err(await kick(db, A, seat)) !== 'ok') out.push('HARNESS: the kick was refused');
+    if (await nudges(B) !== afterStart + 1) out.push('the kick did not reach the kicked hero');
+    await db.exec('update public.hr_tick_config set frame_push = false where id');
+    const off = await nudges(B);
+    await db.query('delete from public.hr_rate_counters');
+    if (err(await invite(db, A, 'Flow B')) !== 'ok') out.push('HARNESS: the invite with frames off was refused');
+    if (await nudges(B) !== off) out.push('a nudge went out with frames off');
+    return out;
+  },
   'PF-KICK-HUNT': async (db) => {
     const { hunt } = await world(db);
     const p = await threeOf(db);
@@ -481,6 +521,13 @@ const ARMS = {
    must go red. Only the statement carrying the anchor runs (see plantedStatements). */
 const MUTANTS = [
   /* The invite body that runs is 2026-10-30-party-invite-player.sql's hr_party_invite_core: its mutants plant there. */
+  { arm: 'PF-NUDGE', file: NUDGE, why: 'an invite reaches nobody\'s open screen',
+    find: 'create trigger hr_party_nudge_invite after insert on public.hunt_party_invites\n  for each row execute function public.hr_party_nudge_trg();', repl: '' },
+  { arm: 'PF-NUDGE', file: NUDGE, why: 'the caller is nudged for its own move',
+    find: '    if auth.uid() is not distinct from p_user then return; end if;\n', repl: '' },
+  { arm: 'PF-NUDGE', file: NUDGE, why: 'a hero open in no client is nudged',
+    find: '    if not public.hr_frame_wanted(p_user, p_slot) then return; end if;\n    perform realtime.send(jsonb_build_object(\'t\', \'nudge\')',
+    repl: '    perform realtime.send(jsonb_build_object(\'t\', \'nudge\')' },
   { arm: 'PF-INVITE', file: INV, why: 'the first invite needs a party made first',
     find: '      v_pid := public.hr_party_open(p_uid, p_slot);\n    end if;\n    select * into v_p',
     repl: "      return jsonb_build_object('ok', false, 'error', 'no_party');\n    end if;\n    select * into v_p" },

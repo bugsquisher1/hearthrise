@@ -45,6 +45,8 @@ export const SESSION_CONFIG = Object.freeze({
       plain read (hr_load: never the engine's budget, no live view), so its strip and alerts learn of a hunt's end
       within a minute; the server settles it meanwhile (the world tick, or the party's viewed member). */
   unviewedPollMs: 60000,
+  /** How long a party nudge waits before its one re-read, so a Start's several nudges read once (account-session.js _nudged). */
+  nudgeMs: 400,
   /** A re-read after a refusal (or a re-read that did not land) goes at once, then at most one per this window,
       doubling for each that follows close on the last up to resyncMaxMs (src/session/read-gate.js): N refused
       presses cost one bounded read each window, never N. */

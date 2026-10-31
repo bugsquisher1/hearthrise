@@ -469,7 +469,14 @@ export class CharacterSession {
     if (this._closed) return { ok: false, error: 'closed' };
     /* below_range: the server admitted a hunt under its level floor (the floor is a warning, Tyler 10-18). */
     if (ans.ok && ans.body && ans.body.ok === true && ans.body.below_range === true) { await this.load(); return { ok: true, belowRange: true }; }
-    if (ans.ok && ans.body && ans.body.ok === true) { if (!(carries && this._take(ans.body, 'load')) && !(await this.load())) await this.resync(); return { ok: true }; }
+    if (ans.ok && ans.body && ans.body.ok === true) {
+      /* The gold THIS intent moved, the server's receipt (spend.js; null on a replay): the purse moves with every hero's
+         hunt and any window settled first, so a purse difference is not what the shop paid (playtest 10-31: 10,000 vs 10,012). */
+      const receipt = ans.body.receipt;
+      const paid = receipt && Number.isSafeInteger(receipt.gold) ? receipt.gold : null;
+      if (!(carries && this._take(ans.body, 'load')) && !(await this.load())) await this.resync();
+      return paid === null ? { ok: true } : { ok: true, paid };
+    }
     return refusalOf(ans);   // the server's detail (slot, condition, field, item) back to the editor as sent
   }
 

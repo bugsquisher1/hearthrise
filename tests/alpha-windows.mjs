@@ -386,9 +386,18 @@ async function huntsPure(imp) {
   const fails = [];
   const { residentsOf, scarceSetOf, raresOf, wornWeightOf } = await imp('src/shell/hunt-ground-facts.js');
   const { MONSTERS } = await imp('src/data/monsters.js');
-  const { huntRows, fitWords, bestLine, bestWords } = await imp('src/shell/hunt-list.js');
+  const { huntRows, fitWords, bestLine, bestWords, densityStep } = await imp('src/shell/hunt-list.js');
   const { setupsOf, beforeLines, freeHeroes } = await imp('src/shell/hunt-go.js');
   const STORE = FIXTURE.hunt_settings.store;
+  /* MORE MONSTERS IS NEVER FEWER (blind playtest 2026-10-31: + on "As built (2 to 3)" went down to "1 each", - was off):
+     "As built" stands among the picks at its packs' size, both ways; a built size equal to a pick takes its place. */
+  const walk = (r, from, by, max) => { const out = []; for (let n = densityStep(r, from, by, max); n !== null; n = densityStep(r, n, by, max)) out.push(n); return out.join(); };
+  const uneven = { packMin: 2, packMax: 3 }, even = { packMin: 3, packMax: 3 };
+  if (walk(uneven, 0, 1, 5) !== '3,4,5') fails.push('AW-25 + from As built (2 to 3) walks ' + walk(uneven, 0, 1, 5));
+  if (walk(uneven, 0, -1, 5) !== '2,1') fails.push('AW-25 - from As built (2 to 3) walks ' + walk(uneven, 0, -1, 5));
+  if (walk(uneven, 1, 1, 5) !== '2,0,3,4,5') fails.push('AW-25 + from 1 each walks ' + walk(uneven, 1, 1, 5));
+  if (walk(uneven, 5, -1, 5) !== '4,3,0,2,1') fails.push('AW-25 - from 5 each walks ' + walk(uneven, 5, -1, 5));
+  if (walk(even, 0, 1, 5) !== '4,5' || walk(even, 5, -1, 5) !== '4,0,2,1') fails.push('AW-25 packs of 3 walk up ' + walk(even, 0, 1, 5) + ' and down ' + walk(even, 5, -1, 5) + ' (As built stands for 3 each)');
   /* Who lives here: each creature's share of the ground's spawn points (Tyler 10-18: a common majority, some uncommon, a rare). */
   const cellar = residentsOf('mill_cellar').map((m) => m.id + ':' + m.band + ':' + m.level).join();
   if (cellar !== 'rat:common:2,slime:uncommon:2,hive_wasp:uncommon:4') fails.push('AW-25 the Mill Cellar lives as ' + cellar);

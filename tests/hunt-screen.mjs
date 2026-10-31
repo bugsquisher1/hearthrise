@@ -1590,7 +1590,9 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       const plusOn = await page.evaluate(() => {
         const b = document.querySelector('.hw-hunt-detail .hw-density [data-by="1"]');
         if (b.disabled) return false;
-        for (let i = 0; i < 4; i++) document.querySelector('.hw-hunt-detail .hw-density [data-by="1"]').click();
+        /* a quick run of presses up to 5 each ("As built" stands among the picks, at its packs' size) */
+        const v = () => document.querySelector('.hw-hunt-detail .hw-density .hh-step-val').textContent;
+        for (let i = 0; i < 8 && v() !== '5 each'; i++) document.querySelector('.hw-hunt-detail .hw-density [data-by="1"]').click();
         return true;
       });
       if (!plusOn) fails.push('HS-8 the density + is off below the ground’s most');

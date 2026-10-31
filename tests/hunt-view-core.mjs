@@ -182,6 +182,20 @@ async function rules(M) {
       await cs.load();
       ok('SEC-1', M.H.analyzerOf(cs).nextLevelMs === null, 'a ' + JSON.stringify(bad) + ' Level eta must read unknown (null, shown as the dash), got ' + M.H.analyzerOf(cs).nextLevelMs);
     }
+    /* SEC-5 A LINE'S GOLD (blind playtest 2026-10-31: every loot and supply row read "–" over a total that was a number):
+       the count at the server's own price, the shop's bid and the store's; no price sent reads null (the row's dash). */
+    body = clone(FIXTURE); body.version += 8;
+    body.shop = { offers: [], bids: { rat_tail: 6 } };
+    body.hunt_analyzer.hero.supplies.store = { salted_shrimp: 3, nothing_sold_here: 2 };
+    await cs.load();
+    {
+      const v = M.H.analyzerOf(cs).hero;
+      const line = (l, k) => l.find((x) => x.item === k);
+      ok('SEC-5', line(v.loot, 'rat_tail').value === 6 * FIXTURE.hunt_analyzer.hero.loot.rat_tail, 'a loot row at the shop\'s bid reads ' + JSON.stringify(line(v.loot, 'rat_tail')));
+      ok('SEC-5', line(v.loot, 'slime_gel').value === null, 'a loot row with no bid reads ' + JSON.stringify(line(v.loot, 'slime_gel')));
+      ok('SEC-5', line(v.supplies, 'salted_shrimp').gold === 3 * 14, 'a store row at the store\'s price reads ' + JSON.stringify(line(v.supplies, 'salted_shrimp')));
+      ok('SEC-5', line(v.supplies, 'nothing_sold_here').gold === null, 'a store row with no price reads ' + JSON.stringify(line(v.supplies, 'nothing_sold_here')));
+    }
     /* SEC-4 THE HUNT BAG (Brannoc 10-22: "Food ×0" with 20 Cooked Shrimp in it): an open hunt's carried supplies are
        the server's hunt.session.bag `left`, largest first; an empty line drops; an ended hunt carries none (null). */
     body = clone(FIXTURE); body.version += 9;

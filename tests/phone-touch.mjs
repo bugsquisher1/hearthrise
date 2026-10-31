@@ -750,6 +750,7 @@ async function leaveWords(page, s, ctx, tag, fails) {
   if (!(await wait(page, () => /^Leaving/.test((document.querySelector('.ht-leaving') || {}).textContent || ''), null, 2000))) fails.push('PH-16 [' + tag + '] the press reads: ' + await line());
   if (!(await wait(page, () => /Waiting for the server/.test(document.querySelector('.ht-leaving').textContent), null, 6000))) fails.push('PH-16 [' + tag + '] a leave with no answer still reads: ' + await line());
   if (!(await onBar())) fails.push('PH-16 [' + tag + '] the leave\'s words are not on screen');
+  if (!(await wait(page, () => /Slow connection/.test((document.querySelector('.conn-line') || {}).textContent || ''), null, 8000))) fails.push('PH-16 [' + tag + '] an ask out for 8 s does not say the connection is slow');
   await ctx.setOffline(true);
   if (!(await wait(page, () => /No connection/.test(document.querySelector('.ht-leaving').textContent), null, 3000))) fails.push('PH-16 [' + tag + '] with the connection gone the leave reads: ' + await line());
   await ctx.setOffline(false);
@@ -1132,8 +1133,8 @@ const MUTANTS = [
   ['PH-16 a leave with no answer stays on "Leaving"', 'src/shell/widgets/hunt-topbar.js', "return waitedMs >= WAIT_WORDS_MS ? LEAVE_WAIT.slow : LEAVING", "return LEAVING"],
   ['PH-16 a leave does not know the connection went', 'src/shell/widgets/hunt-topbar.js', "  if (state === 'lost') return LEAVE_WAIT.lost;\n", ''],
   ['PH-16 a counting leave does not say why', 'src/shell/widgets/hunt-topbar.js', "prop(el.querySelector('.ht-why'), 'hidden', over || !cd || cd.phase !== 'counting');", ''],
-  ['PH-17 the email box throws the keyboard up', 'src/app/sign-in.js', "if (input && !input.ownerDocument.defaultView.matchMedia('(pointer: coarse), ' + MOBILE_QUERY).matches) input.focus();", 'if (input) input.focus();'],
-  ['PH-17 a desktop loses its focus', 'src/app/sign-in.js', "if (input && !input.ownerDocument.defaultView.matchMedia('(pointer: coarse), ' + MOBILE_QUERY).matches) input.focus();", 'void input;'],
+  ['PH-17 the email box throws the keyboard up', 'src/app/sign-in.js', "if (!win || !win.matchMedia('(pointer: coarse), ' + MOBILE_QUERY).matches) input.focus();", 'input.focus();'],
+  ['PH-17 a desktop loses its focus', 'src/app/sign-in.js', "if (!win || !win.matchMedia('(pointer: coarse), ' + MOBILE_QUERY).matches) input.focus();", 'void win;'],
   ['PH-17 the links are 24 px', 'src/styles/app.css', '  .auth-link { min-height: var(--tap); padding: 0 8px; }\n', ''],
   ['PH-6 the coach is capped on a desktop too', 'src/styles/shell.css', '.hs-pointer:not(.is-min) { padding-right: 34px; }', '.hs-pointer:not(.is-min) { padding-right: 34px; max-height: 200px; overflow-y: auto; }'],
 ];

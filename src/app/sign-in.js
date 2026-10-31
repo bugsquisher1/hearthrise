@@ -87,5 +87,7 @@ export function renderAuthScreen(box, auth, mode, on) {
  * keyboard up over a screen the player has not read yet (phone playtest 2026-10-31): the first press does it.
  */
 export function focusOffTouch(input) {
-  if (input && !input.ownerDocument.defaultView.matchMedia('(pointer: coarse), ' + MOBILE_QUERY).matches) input.focus();
+  if (!input) return;
+  const win = input.ownerDocument && input.ownerDocument.defaultView;
+  if (!win || !win.matchMedia('(pointer: coarse), ' + MOBILE_QUERY).matches) input.focus();
 }

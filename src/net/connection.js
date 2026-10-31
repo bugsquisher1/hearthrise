@@ -34,7 +34,7 @@ export function loadingWords(state, waitedMs, first) {
  * The state machine, over its clock and the browser's flag. Pure of the DOM.
  * @param {{now?: () => number, online?: () => boolean}} [o]
  */
-export function createConnection(o) {
+function createConnection(o) {
   const opt = o || {};
   const now = opt.now || (() => Date.now());
   const online = opt.online || (() => true);

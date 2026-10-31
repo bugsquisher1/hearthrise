@@ -20,8 +20,8 @@ const CLIMB = 4;
 const READ_MS = 4000;
 const EDGE_PX = 4;
 
-/** The words for a control that is off, or ''. Exported for its rule (tests/phone-touch.mjs PH-13). */
-export function offWords(b) {
+/** The words for a control that is off, or ''. */
+function offWords(b) {
   const own = b.getAttribute('data-off-why') || b.getAttribute('title');
   if (own) return own;
   for (let a = b.parentElement, i = 0; a && i < CLIMB; a = a.parentElement, i++) {

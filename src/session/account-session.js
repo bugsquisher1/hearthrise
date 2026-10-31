@@ -457,6 +457,7 @@ export class AccountSession {
   /** Close every character, then forget the login everywhere on this device. */
   async signOut() {
     this._ending = true;   // the closes below are not what this tab had open; auth.signOut removes the record
+    if (this._awayTimer !== null) { (this._timers.clearTimer || ((t) => clearTimeout(t)))(this._awayTimer); this._awayTimer = null; }
     for (const slot of Array.from(this._chars.keys())) this.close(slot);
     if (this.social) { this.social.destroy(); this.social = null; }
     await this.auth.signOut();

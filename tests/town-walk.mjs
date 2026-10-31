@@ -7,6 +7,7 @@
 //   node tests/town-walk.mjs --mutate       every planted defect must turn a rule RED
 //   node tests/town-walk.mjs --shots <dir>  also write the visual-gate screenshot (1440x900)
 //
+// TW-31 a town at rest reads every idlePollMs; anyone moving, or the hero's own step, brings back pollMs at once.
 // mutant-anchors: src/session/town-presence.js src/session/account-session.js src/world/world-boot.js src/world/walk-scene.js src/world/sandbox-scene.js src/app/world-pane.js supabase/migrations/2027-01-28-town-stands.sql
 // mutant-writes-tree: no — pure mutants plant into a temp copy of src/, page mutants into served overrides
 //

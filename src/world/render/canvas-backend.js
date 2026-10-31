@@ -37,6 +37,9 @@ const CHUNK_KEEP = 24;   // baked ground chunks kept (LRU): a 192 x 116 town is 
 const WARM_MS = 8;       // a new map's first view: ground baked per frame while the last frame stays
 const AHEAD_MS = 6;      // the chunks just off screen: baked per idle slice, so walking onto one bakes nothing
 const OPAQUE = Object.freeze({ alpha: false });   // a layer every frame covers whole: the browser copies it, never blends it
+/* A held picture is painted again this often, whatever the list says: a canvas a browser blanked without telling (no
+   contextrestored) heals itself rather than staying blank. A tenth of a percent of what a still town used to paint. */
+const HEAL_MS = 5000;
 
 /**
  * @param {{win: Window, doc: Document, book: object, images: object, tables: object,
@@ -53,7 +56,7 @@ export function createCanvasBackend(o) {
   const masks = { shadow: 0, light: 0, vignette: 0, kept: 0 };
   /* THE FRAME AND THE GROUND ARE KEPT (frame-sig.js): what is on the canvas, and what the ground layer holds. */
   const frameSig = createFrameSig(), floorSig = createFrameSig();
-  let floorGood = false;
+  let floorGood = false, paintedAt = -Infinity;
   const kept = { painted: 0, held: 0, floorMade: 0, floorKept: 0 };
   const repaint = () => { frameSig.forget(); };
   /* a canvas the browser lost and gave back is blank: draw its mask (and so the frame) again */
@@ -489,7 +492,7 @@ export function createCanvasBackend(o) {
     frames++;
     last = list;
     lastView = fv;
-    if (!changed) {
+    if (!changed && t0 - paintedAt < HEAL_MS) {
       /* the same picture: nothing is painted, and what a press on a name finds is this frame's record */
       let i = 0;
       for (const p of platesOf(list)) if (p.ref) plateHits[i++].ref = p.ref;
@@ -497,6 +500,7 @@ export function createCanvasBackend(o) {
       return;
     }
     kept.painted++;
+    paintedAt = t0;
     sizeTo(comp.c, view.w, view.h);
     const g = comp.g;
     g.imageSmoothingEnabled = false;

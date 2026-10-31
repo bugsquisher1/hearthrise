@@ -52,6 +52,7 @@
 //   ACC-1  at most the server's concurrent limit open (within the tab's ceiling); close frees a place
 //   ACC-4  the limit is the SERVER's (account.max_concurrent): a smaller one holds, an unstated one
 //          allows one character, a larger one is capped by the tab's ceiling
+//   AWAY-TAB a glance at another tab changes nothing; hidden past awayAfterMs a page asks and hears nothing; shown again, ONE catch-up per hero
 //   VIEW-2 switching the viewed character asks the newly viewed one ONE settle and nothing else: statuses,
 //          topics, listeners and every other character's calls are exactly as before
 //   VIEW-3 only the viewed character streams live (CLAUDE.md §6): in a four-hero party hunt the viewed one asks
@@ -1840,9 +1841,9 @@ const MUTANTS = [
   ['a switch asks nothing of the newly viewed hero', 'src/session/character-session.js', '    if (this._viewed) this.hello();\n', ''],
   /* AWAY-TAB (old-laptop player 10-31) */
   ['a page away goes on re-reading', 'src/session/character-session.js', '    if (this._away) { if (close !== null) this._poll.arm(close); return; }   // only a pending leave\'s close (setAway)\n', ''],
-  ['a page away keeps the push channels', 'src/session/character-session.js', "      if (this._retry) { this._clearTimer(this._retry); this._retry = null; }\n      this._dropChannel();\n      return;\n    }\n    const joined", "      return;\n    }\n    const joined"],
-  ['a page back asks no catch-up', 'src/session/character-session.js', "    if (this._huntOpen()) { if (this._viewed) this.hello(); else this.load(); this._armHuntPoll(); } else if (!joined) this.hello();\n", '    this._armHuntPoll();\n'],
-  ['a page back never joins its channel', 'src/session/character-session.js', '    const joined = this.connect();\n', '    const joined = false;\n'],
+  ['a page away keeps the push channels', 'src/session/page-away.js', '    cs._dropChannel();\n', ''],
+  ['a page back asks no catch-up', 'src/session/page-away.js', "  if (cs._huntOpen()) { if (cs._viewed) cs.hello(); else cs.load(); cs._armHuntPoll(); } else if (!joined) cs.hello();\n", '  cs._armHuntPoll();\n'],
+  ['a page back never joins its channel', 'src/session/page-away.js', '  const joined = cs.connect();\n', '  const joined = false;\n'],
   ['a pending leave waits for the page to come back', 'src/session/character-session.js', '    if (this._away) { if (close !== null) this._poll.arm(close); return; }', '    if (this._away) return;'],
   ['a glance at another tab goes away at once', 'src/session/account-session.js', '}, this.config.awayAfterMs);', '}, 0);'],
   ['a page that never goes away', 'src/session/account-session.js', '    for (const cs of this._chars.values()) cs.setAway(on);\n', ''],

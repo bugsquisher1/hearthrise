@@ -9,9 +9,8 @@
 // read or write each other.
 //
 //   load() / resync()  hr_load(p_slot) — the full read; REPLACES the record; single-flight, bounded (read-gate.js)
-//   connect()          subscribe to the push topic; on every join one `hello`
-//                      (hr-accrue {slot}) re-reads the whole state (hunting: the
-//                      hunt re-read does), so a gap is closed; a frame is the whole character at a
+//   connect()          subscribe to the push topic; on every join one `hello` (hr-accrue {slot}) re-reads the whole state (hunting:
+//                      the hunt re-read does), so a gap is closed; a frame is the whole character at a
 //                      commit (envelope.js E2): it replaces the record like a load, never asks the engine
 //   setResidue(f, v)   a display preference: the residue changes at once, one hr_put_client_state per burst
 //   setHuntOptions(p, o) the hunt settings INTENT (hr_action_set_options); the new settings arrive only in the re-read
@@ -21,21 +20,17 @@
 //   moveStorage(i,n,d) the ACCOUNT storage INTENT (hr_bank_move), re-read (every hero shows it: bankOf); refused: resync()
 //   edgeIntent(v, f)   an item intent through the engine (equip, sell, buy, eat; edge-intents.js): names and counts only
 //   lockItem / setLootRule / savePreset / applyPreset   the bag rules and the hunt presets: one intent each, re-read
-//   joinParty / leaveParty / kickSeat / inviteByName / answerInvite / restartHunt   the party and hunt-again
-//                      intents, re-read the same way (party-intents.js startPartyHunt re-reads every own seat)
-//   saveOutfit(o, c)   the outfit INTENT (hr_outfit_set), re-read the same way
-//   findParties        the party finder, a read whose rows are never the record
-//   hunt re-read       while a hunt is open, one hello per hunt-poll.js (the hunter's settle: state, track, events)
-//                      until it ended, paced (ask-pacer.js); a frame (a member's settle, the tick) defers it
-//   timeline           the settle responses' visual timeline (src/hunt-view/timeline.js), never the record
-//   now()              the display clock the timeline plays on
+//   joinParty / leaveParty / kickSeat / inviteByName / answerInvite / restartHunt   the party and hunt-again intents, re-read the same way (party-intents.js startPartyHunt re-reads every own seat)
+//   saveOutfit(o, c) / findParties   the outfit INTENT (hr_outfit_set), re-read the same way; the party finder, a read whose rows are never the record
+//   hunt re-read       while a hunt is open, one hello per hunt-poll.js (the hunter's settle: state, track, events) until it ended, paced (ask-pacer.js); a frame defers it
+//   setAway(on)        the page went away or came back (page-away.js): nothing asked or heard; back, ONE catch-up
+//   timeline / now()   the settle responses' visual timeline (src/hunt-view/timeline.js), never the record; the display clock it plays on
 //   intents            the account's asks in flight (intent-ledger.js), each tracked from its send to the re-read envelope
 //   subscribe(fn)      fn(session, why) after every applied change
 //   notePurse() / noteStorage()  another hero read a newer ACCOUNT purse / Storage (AccountSession): re-render
 //   close()            leave the topic, cancel timers, forget the record
 //
-// It authors no number: the record changes only from a server answer, and the
-// only things it sends of its own are the allowlisted residue and intents.
+// It authors no number: the record changes only from a server answer, and it sends of its own only the allowlisted residue and intents.
 // ════════════════════════════════════════════════════════════════════════
 
 import { applyEnvelope, frameEnvelope, withResidue } from './envelope.js?v=0.2.75';
@@ -52,6 +47,7 @@ import { ReadGate } from './read-gate.js?v=0.2.75';
 import { frameTopic, reconnectDelay } from './frame-channel.js?v=0.2.75';
 import { refusalOf, settleRefusalOf } from './refusal.js?v=0.2.75';
 import { catchUpLink, newIdem } from './catch-up.js?v=0.2.75';
+import { pageAway } from './page-away.js?v=0.2.75';
 import { SERVER_ONLY_EVENTS } from '../core/hunt/events.js?v=0.2.75';
 
 export const FRAME_EVENT = 'frame';
@@ -98,8 +94,7 @@ export class CharacterSession {
     this._residueTimer = null;
     this._leaveAsk = null; this._asking = null; this._wholeAt = -1; this._fed = false;   // the hello in flight; the version known whole; re-read last armed by a frame
     this._pending = {}; this._sent = {};   // residue to put; residue put and not yet seen back (residue.js unconfirmedResidue)
-    this._closed = false; this._viewed = o.viewed !== false;   // shown (AccountSession.view): only it streams live (setViewed)
-    this._away = false;   // the page has been hidden a while (setAway): nothing is asked or heard until it is shown
+    this._closed = false; this._viewed = o.viewed !== false; this._away = false;   // shown (AccountSession.view): only it streams live (setViewed); away: setAway
     this.lastVerdict = null;
     this._now = o.now || (() => (globalThis.performance ? globalThis.performance.now() : Date.now()));
     this._poll = new HuntPoll({ setTimer: this._setTimer, clearTimer: this._clearTimer, now: () => this._now(), fire: () => this._huntPoll() });
@@ -184,26 +179,8 @@ export class CharacterSession {
     if (this._viewed) this.hello();
   }
 
-  /**
-   * THE PAGE WENT AWAY, OR CAME BACK (AccountSession.setPageHidden). Away: no re-read and no pushed frames for a screen nobody
-   * sees (the hunt runs on the server regardless; only a pending leave's close is still asked). Back: the channel again and ONE
-   * catch-up, whose answer REPLACES what the screen holds (§6): a hunter's settle (a start point for the viewed one's live
-   * view: the ease is its own, live-link.js), an unviewed hunter's plain read; anyone else's the channel's join asks (_onChannel).
-   */
-  setAway(on) {
-    const away = on === true;
-    if (this._closed || this._away === away) return;
-    this._away = away;
-    if (away) {
-      this._poll.stop();
-      this._armHuntPoll();
-      if (this._retry) { this._clearTimer(this._retry); this._retry = null; }
-      this._dropChannel();
-      return;
-    }
-    const joined = this.connect();
-    if (this._huntOpen()) { if (this._viewed) this.hello(); else this.load(); this._armHuntPoll(); } else if (!joined) this.hello();
-  }
+  /** The page went away, or came back (AccountSession.setPageHidden; page-away.js). */
+  setAway(on) { pageAway(this, on === true); }
 
   /** A PENDING LEAVE's server instant (ms): leave_at, else the leave's own answer (hunt-leave.js), or null. */
   leaveAt() { return this._huntOpen() ? pendingLeaveAt(this.read('hunt'), this._leaveAsk) : null; }

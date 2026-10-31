@@ -17,11 +17,13 @@
   var failed = false;
   function paint() { if (fill && total) fill.style.width = Math.min(100, Math.round(landed / total * 100)) + '%'; }
   try {
-    new win.PerformanceObserver(function (list) {
+    var watching = new win.PerformanceObserver(function (list) {
+      if (!shell.parentNode) { watching.disconnect(); return; }   // the first screen has taken over
       var entries = list.getEntries();
       for (var i = 0; i < entries.length; i++) if (/\.js(\?|$)/.test(entries[i].name)) landed++;
       paint();
-    }).observe({ type: 'resource', buffered: true });
+    });
+    watching.observe({ type: 'resource', buffered: true });
   } catch (e) { /* no observer here: the words alone say it is loading */ }
   /* a script of this page's own that did not load (resource errors do not bubble: captured) */
   win.addEventListener('error', function (e) {

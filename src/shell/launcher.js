@@ -263,13 +263,19 @@ export function actCoach(ctx, el, action, ev) {
   return true;
 }
 
+/* The rows the icon row shows on this screen: a phone holds fewer (src/data/shell-windows.js phoneIcon). */
+function launcherRows(ctx) {
+  const phone = typeof ctx.isPhone === 'function' && ctx.isPhone();
+  return ctx.wm.rows().filter((r) => r.launcher !== false && !(phone && r.phoneIcon === false));
+}
+
 /** The `launchers` widget body: one button per window row that has a launcher. The coach's ring is drawn here when
  *  the card's way starts at an icon (src/data/hunt-tutorial.js coachIcon), last of the button's attributes, exactly
  *  as ringCoach (below) would set it, so a repaint never finds this row changed. */
 export function renderLaunchers(ctx) {
   const open = new Set(ctx.wm.openIds());
   const ring = ctx.character ? coachIcon(heldCard(ctx), (id) => open.has(id)) : null;
-  const buttons = ctx.wm.rows().filter((r) => r.launcher !== false).map((r) => {
+  const buttons = launcherRows(ctx).map((r) => {
     const on = open.has(r.id);
     const key = keyLabel(r.key);
     return '<button type="button" class="hs-launch' + (on ? ' is-open' : '') + '" data-hs-open="' + esc(r.id) + '"'

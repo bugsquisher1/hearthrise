@@ -466,12 +466,13 @@ export function memberPlant(find, repl) {
   return { file: MEMBER_LAST, fn: 'hr_hunt_apply_member', find, repl };
 }
 const MUTANTS = [
-  /* hr_apply's LAST author is 2027-02-11-bag-over-cap.sql §1 (three anchored edits of the installed text): the defect
-     rides §1 as one more edit of the body it executes. The anchor sits in that do-block, in no function body of the
-     text, so the mutant names its body (`fn`). */
-  { arm: 'A-LOCK', file: '2027-02-11-bag-over-cap.sql', fn: 'hr_apply', why: 'hr_apply no longer refuses a locked sale',
-    find: '  execute v_def;',
-    repl: '  execute replace(v_def, $l$        if v_n < 0 and coalesce(v_this_intent, \'\') ~ \'^vendor_sell(_many)?(:|$)\' and public.hr_item_locked(v_uid, v_slot, k) then$l$,\n    $l$        if false and coalesce(v_this_intent, \'\') ~ \'^vendor_sell(_many)?(:|$)\' and public.hr_item_locked(v_uid, v_slot, k) then$l$);' },
+  /* hr_apply's LAST author is 2027-02-11-hunt-loot-past-bag-cap.sql §1 (one anchored edit of the installed text): the
+     defect rides §1 as one more edit of the body it executes, and §2's landed-image pin is blinded (`also`). The anchor
+     sits in that do-block, in no function body of the text, so the mutant names its body (`fn`). */
+  { arm: 'A-LOCK', file: '2027-02-11-hunt-loot-past-bag-cap.sql', fn: 'hr_apply', why: 'hr_apply no longer refuses a locked sale',
+    also: [["'::regprocedure) <> '0c899a4a8ac29c95953f09081ef22aa0' then", "'::regprocedure) <> '0c899a4a8ac29c95953f09081ef22aa0' and false then"]],
+    find: '  execute replace(v_def, c_a, c_r);',
+    repl: '  execute replace(replace(v_def, c_a, c_r), $l$        if v_n < 0 and coalesce(v_this_intent, \'\') ~ \'^vendor_sell(_many)?(:|$)\' and public.hr_item_locked(v_uid, v_slot, k) then$l$,\n    $l$        if false and coalesce(v_this_intent, \'\') ~ \'^vendor_sell(_many)?(:|$)\' and public.hr_item_locked(v_uid, v_slot, k) then$l$);' },
   /* hr_hunt_loot_rules is RESTATED last by 2027-01-23-loot-dispatch.sql (md5-pinned to its pre-image); hr_hunt_apply_member
      is restated last by 2027-01-31-inner-flame.sql (memberPlant): each mutant is planted in the body that runs. */
   { arm: 'A-LOOT-AWAY', why: 'the settle no longer runs the loot filter',
@@ -627,7 +628,7 @@ async function main() {
          LAST S2 file), so every mutant replays the whole chain: stopping at the patched file would
          leave the hook uncalled and the arm red for the wrong reason. */
       const last = mu.file === S2_FILES[S2_FILES.length - 1];
-      ({ db } = await bootReplay({ patches: new Map([[mu.file, [selfCheckOff(mu.file), [mu.find, mu.repl]]]]),
+      ({ db } = await bootReplay({ patches: new Map([[mu.file, [selfCheckOff(mu.file), ...(mu.also || []), [mu.find, mu.repl]]]]),
         upTo: last ? LAST_PATCHED : undefined,
         fullChain: last ? undefined : 'the S2 hooks are called by 2026-10-25-settle-hooks.sql, which must run after the patched file for its arm to see the defect' }));
     } catch (e) { console.error(`✗ HARNESS ${mu.arm} (${mu.why}): the patched chain would not boot: ${String(e.message).split('\n').slice(0, 2).join(' ')}`); missed++; continue; }

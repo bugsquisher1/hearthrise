@@ -255,6 +255,7 @@ import { setGold } from './_gold.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const MUTATE = process.argv.includes('--mutate');
+let AS_OF_PLANT = null;
 const CLOSED = process.argv.includes('--closed');
 const FN = join('supabase', 'functions', 'hr-accrue');
 const UIDS = ['00000000-0000-4000-8000-0000000c5d01', '00000000-0000-4000-8000-0000000c5d02',
@@ -2676,6 +2677,7 @@ const DB_ARMS = {
      apply ("another file moved it"); the property under test is this file's own idempotency. So the arm boots the chain
      TO this file, and carries over from the whole chain every body no LATER file authors (a DB mutant planted there
      rides with it). */
+  /* AS_OF_PLANT: a DB mutant `asOf` is planted on the arm's own chain: no later file left a spliced body to carry it. */
   'PARTY-LEAVE-IDEM': async (main) => {
     const FILE = '2026-12-18-party-leave-together.sql';
     const SIGS = ['public.hr_hunt_party_view(uuid,integer)', 'public.hr_hunt_instance_read(uuid,integer)',
@@ -2694,6 +2696,11 @@ const DB_ARMS = {
         for (const sig of SIGS) {
           if (authoredLater(sig)) continue;
           await db.exec(String(await one(main, 'select pg_get_functiondef($1::regprocedure)', [sig])));
+        }
+        if (AS_OF_PLANT) {
+          const d = String(await one(db, 'select pg_get_functiondef($1::regprocedure)', [AS_OF_PLANT.fn])).split(String.fromCharCode(13)).join('');
+          if (d.split(AS_OF_PLANT.find).length !== 2) { AS_OF_PLANT.missed = true; return ['HARNESS: the plant\'s anchor is not in the body as of the file']; }
+          await db.exec(d.replace(AS_OF_PLANT.find, () => AS_OF_PLANT.replace));
         }
         const shape = async () => JSON.stringify({
           bodies: await Promise.all(SIGS.map((s) => one(db, `select md5(replace(prosrc, chr(13), '')) || ':' || coalesce(array_to_string(proacl, ','), '') from pg_proc where oid = $1::regprocedure`, [s]))),
@@ -3813,11 +3820,10 @@ const DB_MUTANTS = [
     replace: '  update public.player_state set party_leave_together = p_on where slot = p_slot;' },
   { arm: 'PARTY-LEAVE-IDEM', name: '[leave together] a second apply rewrites a body the file owns', fn: 'public.hr_party_leave_together_set(integer,boolean,uuid)',
     find: "hr_rpc_gate('party')", replace: "hr_rpc_gate('chat')" },
-  /* Planted on the one spliced body the arm still carries over (no later file authors it): hr_hunt_view moved to
-     2027-02-10-settle-plan-cache.generated.sql, hr_hunt_instance_read to 2027-02-02-settle-cost.sql, hr_hunt_party_view
-     to 2027-01-25-town-defaults.sql, so a plant on those never reaches the second apply. If a later file authors
-     hr_hunt_settle_session too, no spliced body is left to carry this plant and the arm needs a new delivery. */
-  { arm: 'PARTY-LEAVE-IDEM', name: '[leave together] §0 takes a spliced body another file moved', fn: SS,
+  /* `asOf`: every spliced body now has a later author (hr_hunt_view 2027-02-10-settle-plan-cache.generated.sql,
+     hr_hunt_instance_read 2027-02-02-settle-cost.sql, hr_hunt_party_view 2027-01-25-town-defaults.sql,
+     hr_hunt_settle_session 2027-02-11-no-fight-settle.sql), so none is carried over: the plant goes on the arm's chain. */
+  { arm: 'PARTY-LEAVE-IDEM', name: '[leave together] §0 takes a spliced body another file moved', fn: SS, asOf: true,
     find: "      when 'party_member_died' then coalesce((select ps.party_leave_together",
     replace: "      when 'party_member_died' then /* moved */ coalesce((select ps.party_leave_together" },
   { arm: 'PARTY-LEAVE', name: '[leave together] a cascaded hero is closed where its window began (its stretch unsettled)', fn: SS,
@@ -4107,12 +4113,14 @@ async function main() {
     for (const m of picked(DB_MUTANTS)) {
       const def = String(await one(db, `select pg_get_functiondef($1::regprocedure)`, [m.fn])).split(String.fromCharCode(13)).join('');
       if (def.split(m.find).length !== 2) { console.error(`✗ db mutant "${m.name}": anchor not found exactly once`); bad++; continue; }
-      await db.exec(def.replace(m.find, () => m.replace));
+      if (m.asOf) AS_OF_PLANT = { fn: m.fn, find: m.find, replace: m.replace, missed: false };
+      else await db.exec(def.replace(m.find, () => m.replace));
       try {
         const res = await runArms(ROOT, db, [m.arm]);
-        if (res[m.arm] && res[m.arm].length) console.log(`✓ ${m.arm} goes red on: ${m.name}`);
+        if (AS_OF_PLANT && AS_OF_PLANT.missed) { console.error(`✗ db mutant "${m.name}": anchor not in the body as of its arm's file`); bad++; }
+        else if (res[m.arm] && res[m.arm].length) console.log(`✓ ${m.arm} goes red on: ${m.name}`);
         else { console.error(`✗ ${m.arm} stayed GREEN on: ${m.name}`); bad++; }
-      } finally { await db.exec(def); }
+      } finally { AS_OF_PLANT = null; await db.exec(def); }
     }
     for (const m of picked(SQL_MUTANTS)) {
       let refused = null;

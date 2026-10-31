@@ -41,10 +41,17 @@ const RENAME_WHY = Object.freeze({ hunt_open: ' is hunting. Rename once the hunt
 
 /* THE PHONE'S ROUTES (playtest 2026-10-31, shown under the phone query only, windows.css): a hero's Invite button (the
    right-click menu's own entry, so its rule and its words stay in one place); every icon of the top row by name, each a
-   press (the row has no words and a phone no hover); and Characters and Sign out, which no longer fit beside the row. */
-const iconListHtml = (ctx) => '<div class="hw-phone-only"><h3 class="hw-ledger-head is-on">What the icons open</h3><ul class="hw-icon-names">'
-  + ctx.wm.rows().filter((r) => r.launcher !== false).map((r) => '<li><button type="button" class="hw-icon-name" data-hs-open="' + esc(r.id) + '">'
-    + glyphSvg(ctx.glyphs, r.glyph) + '<span>' + esc(r.label) + '</span></button></li>').join('') + '</ul></div>';
+   press (the row has no words and a phone no hover); the windows the phone's row has no room for (shell-windows.js
+   phoneIcon: they have no other press here); and Characters and Sign out, which no longer fit beside the row. */
+const iconNames = (ctx, rows) => rows.map((r) => '<li><button type="button" class="hw-icon-name" data-hs-open="' + esc(r.id) + '">'
+  + glyphSvg(ctx.glyphs, r.glyph) + '<span>' + esc(r.label) + '</span></button></li>').join('');
+const iconListHtml = (ctx) => {
+  const rows = ctx.wm.rows().filter((r) => r.launcher !== false);
+  return '<div class="hw-phone-only"><h3 class="hw-ledger-head is-on">What the icons open</h3><ul class="hw-icon-names">'
+    + iconNames(ctx, rows.filter((r) => r.phoneIcon !== false)) + '</ul>'
+    + '<h3 class="hw-ledger-head is-on">Also here</h3><ul class="hw-icon-names is-more">'
+    + iconNames(ctx, rows.filter((r) => r.phoneIcon === false)) + '</ul></div>';
+};
 const ACCOUNT_HTML = '<div class="hw-phone-only hw-account"><button type="button" class="hh-tool" data-app="characters">Character list</button>'
   + '<button type="button" class="hh-tool" data-app="sign-out">Sign out</button></div>';
 

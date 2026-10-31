@@ -20,6 +20,8 @@
 //   resizable true: a grip resizes it, the size kept per character (src/shell/window-sizes.js)
 //   height   the starting height of a home or resizable row, CSS px
 //   tabKeys  { letter: tab }: more shortcuts, each opening this window on that tab (window-manager.js openTab)
+//   phoneIcon false keeps a launcher row off the phone's icon row, which holds 15 at a thumb's width on the
+//            narrowest phone (tests/phone-touch.mjs PH-11); the All characters sheet names it under "Also here"
 //
 // The rest of the spec's catalogue (Bestiary L, Market M) lands
 // with its renderer: a launcher never opens a window that does not exist yet
@@ -52,7 +54,7 @@ export const SHELL_WINDOWS = Object.freeze([
   Object.freeze({ id: 'tally', label: 'Tamsin\'s tally', key: 'q', glyph: 'navBounty', width: 460, object: 'ledger' }),
   /* The Roll of Honor (lane/b-leaderboards, 2026-10-31): Havora's heroes in order, one board at a time, every
      place and number the server's (src/data/honor-roll.js names the boards). */
-  Object.freeze({ id: 'honor', label: 'Roll of Honor', key: 'z', glyph: 'uiTrophy', width: 440, object: 'book' }),
+  Object.freeze({ id: 'honor', label: 'Roll of Honor', key: 'z', phoneIcon: false, glyph: 'uiTrophy', width: 440, object: 'book' }),
   Object.freeze({ id: 'hunt-prep', label: 'Hunt prep', key: 'p', glyph: 'uiCheck', width: 420, object: 'plain' }),
   /* Week plan step 16 + QoL 3: the party, and every open character on one screen (opened from the
      character strip's "All characters", so it takes no launcher icon). */

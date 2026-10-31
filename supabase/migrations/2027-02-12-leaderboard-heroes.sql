@@ -376,7 +376,7 @@ begin
     update public.player_state set level_xp = 50000 where user_id = v_a and slot = 1;
     update public.player_state set level_xp = 900 where user_id = v_b and slot = 0;
     update public.player_skills set xp = 20011 where user_id = v_a and slot = 1 and skill_id = 'mining';
-    update public.player_skills set xp = 7919 where (user_id, slot) in ((v_a, 0), (v_b, 0)) and skill_id = 'mining';
+    update public.player_skills set xp = 7919 where user_id in (v_a, v_b) and slot = 0 and skill_id = 'mining';
     refresh materialized view public.leaderboard_ranked;
     update public.leaderboard_meta set refreshed_at = now() where id = 1;
 

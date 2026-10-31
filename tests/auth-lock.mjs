@@ -90,6 +90,9 @@ const stealWarnings = (page) => page.evaluate(() => window.__warns.filter((w) =>
 
 async function checks(overrides) {
   const fails = [];
+  /* A planted defect is caught at its first red arm: the arms after it would each wait out their 120 s on a page it broke
+     (one mutant took 254 s and run 41226511232's job hit its limit). A clean run still runs every arm. */
+  const caught = () => !!overrides && fails.length > 0;
   const { server, port } = await serve(overrides);
   const base = 'http://127.0.0.1:' + port;
   const browser = await leaseBrowser(chromium);
@@ -128,6 +131,7 @@ async function checks(overrides) {
       if (warns.length) fails.push('AL-1 supabase-js forced the lock ' + warns.length + ' time(s)');
       await ctx.close();
     }
+    if (caught()) return fails;
     { // AL-2
       const { ctx, stub, holderPage } = await profile(sessionOf('tok-0', 'rt-0', IN_WINDOW), { refreshMs: 1500 });
       const a = holderPage;
@@ -142,6 +146,7 @@ async function checks(overrides) {
       if (!got || got.refresh_token !== 'rt-1') fails.push('AL-2 the store holds ' + (got && got.refresh_token));
       await ctx.close();
     }
+    if (caught()) return fails;
     { // AL-3
       const { ctx, stub, holderPage } = await profile(sessionOf('tok-0', 'rt-0', IN_WINDOW));
       await holdFor(holderPage);
@@ -155,6 +160,7 @@ async function checks(overrides) {
       if (warns.length) fails.push('AL-3 supabase-js forced the lock ' + warns.length + ' time(s)');
       await ctx.close();
     }
+    if (caught()) return fails;
     { // AL-4
       const { ctx, stub, holderPage } = await profile(sessionOf('tok-0', 'rt-0', LASTING), { dead: ['tok-0'], refreshMs: 500, together: 2 });
       const a = holderPage;
@@ -165,6 +171,7 @@ async function checks(overrides) {
       if (stub.refused.length) fails.push('AL-4 two tabs rotated one refresh token at once: refused ' + stub.refused.join() + ' of ' + stub.refreshes.join());
       await ctx.close();
     }
+    if (caught()) return fails;
     { // AL-5: sign-out
       const { ctx, holderPage } = await profile(sessionOf('tok-0', 'rt-0', LASTING));
       await holdFor(holderPage);
@@ -180,6 +187,7 @@ async function checks(overrides) {
       }
       await ctx.close();
     }
+    if (caught()) return fails;
     { // AL-5: a dead session, refused at boot (the stale token) and under the game (a 401 whose refresh is refused)
       const { ctx } = await profile(sessionOf('tok-0', 'rt-0', IN_WINDOW), { refuseAll: true });
       const page = await ctx.newPage();
@@ -196,6 +204,7 @@ async function checks(overrides) {
       }
       await under.ctx.close();
     }
+    if (caught()) return fails;
     { // AL-6
       const ctx = await browser.newContext();
       const page = await ctx.newPage();

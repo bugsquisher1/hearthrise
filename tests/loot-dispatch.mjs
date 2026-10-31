@@ -34,7 +34,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { bootReplay, inventory, LAST_PATCHED, ROOT } from './schema-replay.mjs';
+import { bootReplay, inventory, ROOT } from './schema-replay.mjs';
 import { isMain } from './_is-main.mjs';
 import { goldOf } from './_gold.mjs';
 
@@ -327,7 +327,10 @@ async function main() {
   let missed = 0;
   for (const mu of MUTANTS) {
     let db;
-    try { ({ db } = await bootReplay({ patches: new Map([[FILE, [selfCheckOff(), ...(mu.pairs || [[mu.find, mu.repl]])]]]), upTo: LAST_PATCHED })); }
+    try { ({ db } = await bootReplay({ patches: new Map([[FILE, [selfCheckOff(), ...(mu.pairs || [[mu.find, mu.repl]])]]]),
+      /* The arms play a real hunt on today's engine: a chain cut here holds an older world shape (2027-02-11-no-fight's
+         catalogue moved it), so every settle answers world_shape_pending and the hunt picks up nothing. */
+      fullChain: 'the arms play a hunt on the engine of today, which needs the catalogue and world shape of the files after this one' })); }
     catch (e) { console.error(`✗ HARNESS ${mu.arm} (${mu.why}): the patched chain would not boot: ${String(e.message).split('\n').slice(0, 2).join(' ')}`); missed++; continue; }
     await ctx.H.pinDice(db);
     const [r] = await runArms(db, ctx, [mu.arm]);

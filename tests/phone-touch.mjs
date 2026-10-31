@@ -590,13 +590,23 @@ async function stripReach(page, tag, fails) {
   await page.click('.char-tool.is-all', { timeout: 2500 }).catch(() => null);
   if (!(await wait(page, () => document.querySelector('[data-hs-win="characters"] .hw-char'), null, 4000))) { fails.push('PH-11 [' + tag + '] All characters did not open'); return; }
   await page.waitForTimeout(250);
-  const names = await page.evaluate(() => { const rows = Array.from(document.querySelectorAll('[data-hs-win="characters"] .hw-icon-name'));
+  const names = await page.evaluate(() => { const rows = Array.from(document.querySelectorAll('[data-hs-win="characters"] .hw-icon-names:not(.is-more) .hw-icon-name'));
     return { n: rows.length, icons: document.querySelectorAll('.hs-launch').length, small: rows.filter((r) => r.getBoundingClientRect().height < 44).length, empty: rows.filter((r) => !r.textContent.trim()).length }; });
   if (names.n !== names.icons || names.small || names.empty) fails.push('PH-11 [' + tag + '] the sheet does not name every icon at a thumb\'s size: ' + JSON.stringify(names));
   for (const q of ['[data-hs-win="characters"] [data-app="characters"]', '[data-hs-win="characters"] [data-app="sign-out"]']) {
     const ok = await page.evaluate((s) => { const e = document.querySelector(s); if (!e || !e.getClientRects().length) return 'none'; e.scrollIntoView({ block: 'center' }); const r = window.__r(e); return window.__onScreen(r) && window.__hits(e) && r.height >= 44 ? 'ok' : JSON.stringify(r); }, q);
     if (ok !== 'ok') fails.push('PH-11 [' + tag + '] ' + q + ' is out of reach in the sheet: ' + ok);
   }
+  /* What the row has no room for has its one press here: named, at a thumb's size, and it opens. */
+  const more = await page.evaluate(() => { const rows = Array.from(document.querySelectorAll('[data-hs-win="characters"] .hw-icon-names.is-more .hw-icon-name'));
+    return { ids: rows.map((r) => r.getAttribute('data-hs-open')).sort(), small: rows.filter((r) => r.getBoundingClientRect().height < 44).length, empty: rows.filter((r) => !r.textContent.trim()).length,
+      onRow: !!document.querySelector('.hs-launch[data-hs-open="honor"]') }; });
+  if (more.ids.join() !== 'honor' || more.small || more.empty) fails.push('PH-11 [' + tag + '] the sheet does not name what the row left out: ' + JSON.stringify(more));
+  if (more.onRow) fails.push('PH-11 [' + tag + '] the Roll of Honor is still on the row: ' + JSON.stringify(more));
+  await page.evaluate(() => document.querySelector('[data-hs-win="characters"] .hw-icon-name[data-hs-open="honor"]').click());
+  if (!(await wait(page, () => document.querySelector('[data-hs-win="honor"]'), null, 3000))) fails.push('PH-11 [' + tag + '] the Roll of Honor cannot be opened on a phone');
+  await page.click('.char-tool.is-all', { timeout: 2500 }).catch(() => null);
+  await wait(page, () => document.querySelector('[data-hs-win="characters"] .hw-char'), null, 4000);
   /* A named icon opens its window. */
   await page.evaluate(() => document.querySelector('[data-hs-win="characters"] .hw-icon-name[data-hs-open="inventory"]').click());
   if (!(await wait(page, () => document.querySelector('[data-hs-win="inventory"]'), null, 3000))) fails.push('PH-11 [' + tag + '] a named icon opens nothing');
@@ -1140,6 +1150,8 @@ const MUTANTS = [
   ['PH-11 the tabs squash to a sliver', 'src/styles/app.css', '  @container char-strip (max-width: 150px) { .char-tabs { display: none; } }\n', '  .char-tab { min-width: 0; width: 12px; padding: 0; }\n'],
   ['PH-11 the three words stay in the strip', 'src/styles/app.css', '  .char-tool:not(.is-all), .char-tool-wide { display: none; }', '  .char-tool-wide { display: none; }'],
   ['PH-11 the sheet names no icons', 'src/shell/windows/characters.js', '    + iconListHtml(ctx)\n', ''],
+  ['PH-11 the Roll of Honor has no press on a phone', 'src/shell/windows/characters.js', "    + iconNames(ctx, rows.filter((r) => r.phoneIcon === false)) + '</ul></div>';", "    + '</ul></div>';"],
+  ['PH-11 a sixteenth icon squeezes the row', 'src/data/shell-windows.js', "key: 'z', phoneIcon: false, glyph: 'uiTrophy'", "key: 'z', glyph: 'uiTrophy'"],
   ['PH-11 no way to sign out on a phone', 'src/shell/windows/characters.js', '    + ACCOUNT_HTML\n', ''],
   ['PH-11 the phone\'s routes show on a desktop', 'src/styles/windows.css', '.hw-phone-only, .hw-char-invite { display: none; }', '.hw-phone-only { display: block; } .hw-char-invite { display: none; }'],
   ['PH-12 no Invite on the other hero', 'src/shell/windows/characters.js', "prop(inv, 'hidden', !can);", "prop(inv, 'hidden', true);"],

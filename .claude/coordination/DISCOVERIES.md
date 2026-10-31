@@ -3801,3 +3801,16 @@ row. Give the head cells the rows' data-c and hide both with one selector.
 - The plaza's puddle decals are grey stone stains: on dirt they read as holes. Dirt needs its own wear decals.
 - This agent session had NO PixelLab tools (deferred, no tool search) and the token route is blocked by the permission
   classifier: buildings, the bridge, walls, rock, sand, planks and tilled soil could not be generated tonight.
+
+## 2026-10-31 · qa-engineer (lane/a-andy-reports) · what Andy's reports left open (fixed items are in the LANE DONE commit)
+- P3, systems-engineer / game-designer: with TWO tanks at density 8 the off-tank stands in the holder's box. Warrens
+  pockets 2 and 4 (Andy's tank+tank+ranger+healer, L38, real settle, commits every 2 s): 7 of 8 beside the holder at
+  rest, 8 of 8 with one tank. The second tank's mark walk (roles.js closeIn) takes a box slot; not the #64 terrain cause.
+- P3, backend-architect / game-designer (lane C): a Thicket hunt under 10 minutes leaves no server record (hunt_bests
+  starts at 10 min), so a hero who goes Thicket (short) -> Cellar gets "Cash in" and "Tamsin's wolves" back
+  (tutorial-sections.js `visited`). Needs a durable visited-grounds fact in the envelope; #58's own flow is fixed.
+- P4, backend-architect (lane C): hr_hunt_settings_view `usable` for an ability checks discipline and runes, not the
+  shots a shot spell spends; the bar now strikes it client-side from the bag and the store rows (action-facts.js
+  hasShot, ranger-bar shot-spell-words). Folding it into the server's struck state would make the two one rule.
+- P4, hardening: no standing guard pins "every pocket spawns its full pull at every density up to its max on the
+  production grid" (measured green today for all six grounds, Sewer to 12); tests/hunt-core/pull-cycle.mjs is its home.

@@ -74,7 +74,7 @@ const PROBES = [
     '    const f = window.__perf.time(\'scene\', () => { tl.advance(now); return scene.frame(now); });\n    window.__perf.track(now, f);'],
   ['src/world/world-boot.js', '    backend.sync(Object.assign({ name: sc.kind === \'hunt\' ? null : name, roofAlpha, t: now }, cast));',
     '    window.__perf.time(\'draw\', () => backend.sync(Object.assign({ name: sc.kind === \'hunt\' ? null : name, roofAlpha, t: now }, cast)));'],
-  ['src/world/world-boot.js', '    last = t;\n    step(dt);', '    last = t;\n    window.__perf.time(\'frame\', () => step(dt));'],
+  ['src/world/world-boot.js', '    last = t;\n    try { step(dt); }', '    last = t;\n    try { window.__perf.time(\'frame\', () => step(dt)); }'],
   ['src/shell/shell.js', 'const ticker = host.setInterval(patchComponents, DISPLAY_TICK_MS);',
     'const ticker = host.setInterval(() => window.__perf.time(\'shellTick\', patchComponents), DISPLAY_TICK_MS);'],
   ['src/shell/shell.js', '    paint() { followSummary(); paintWidgets(); for (const id of wm.openIds()) if (WINDOW_RENDERERS[id] && WINDOW_RENDERERS[id].patch) refresh(id); coach(); },',

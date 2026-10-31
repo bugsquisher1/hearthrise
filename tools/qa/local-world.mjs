@@ -8,29 +8,35 @@
 // a small GoTrue shim (sign-up from the real screen, real ES256 tokens the real jwt.js verifies).
 //
 //   node tools/qa/local-world.mjs smoke [--shots DIR] [--viewport 1280x720] [--touch]
-//        fresh account -> hero -> Mill Cellar -> skip -> leave -> summary -> bag -> reload. Exit 0 green, 1 red, 2 harness, 3 refused.
+//        fresh account -> hero -> Mill Cellar -> skip -> leave -> summary -> bag -> reload -> a 2nd hunt skipped past the 1st -> a town wait. Exit 0 green, 1 red, 2 harness, 3 refused.
 //        A machine's first run replays the whole chain (about 6 min; tests/pglite-template.mjs then caches it), so this is a
 //        manual tool, not a CI guard. HR_LOCAL_WORLD_TRACE=1 logs every call over 500 ms. HR_CHROME picks the browser (tests/_chrome.mjs).
 //   node tools/qa/local-world.mjs serve [--port 8787] [--no-tick]    a world for any browser: http://127.0.0.1:8787/play.html
 //   node tools/qa/local-world.mjs skip 30 [--port 8787]              skip 30 minutes in a world that is serving
+//   node tools/qa/local-world.mjs wait 480 [--port 8787]             8 hours pass for everyone: hunts, and town too
 //   node tools/qa/local-world.mjs --selftest                         the production refusal + the skip's mover, planted
 //
 //   import { openWorld } from './tools/qa/local-world.mjs';
 //   const world = await openWorld();                     // { url, db, skip, tick, play, close }; one world per process
 //   const p = await world.play({ account: 'marlow', viewport: { width: 1440, height: 900 }, touch: false, shots: 'art/review/x' });
-//   await p.createHero('Marlow');  await p.enterHunt('mill_cellar');  await world.skip(30);
+//   await p.createHero('Marlow');  await p.enterHunt('mill_cellar');  await world.skip(30);  await world.wait(480);
 //   await p.shot('after');  p.text();  p.errors;  p.offsite;  p.page /* raw Playwright */;  await p.reload();  await world.close();
 //
 // A TIME SKIP compresses waiting and fakes no result: every open hunt's clocks AND every epoch value in its
 // world JSON move back together (a hero idles if only one moves), then the real engine settles the window the
-// way the world tick does, through the signed tick request. Only this process's in-memory database moves.
+// way the world tick does, through the signed tick request. Every ENDED session's clocks move back with it, so history
+// keeps its order (the newest session by entered_at is still the newest: the analyzer, the summary and the coach read
+// it that way). A WAIT is a skip in which town time passes too: a hero not hunting rests (stamina_at), the shared land's
+// crops grow (planted_at, waterings), and a bench or gathering job runs on (active_since, accrued_to). Only waiting moves, never a result.
+// Only this process's in-memory database moves.
 //
 // SAFE BY CONSTRUCTION: refuses to start when any environment value names the production project; the client's
 // project URL is rewritten to this server as the file is served; the engine's env is a closed map, never
 // process.env; postgres.js resolves to the shim, so no socket can open; every non-local fetch in this process
 // and every non-local browser request is refused and listed. It never reads ~/.supabase-token.
 //
-// NOT COVERED: time skip of farm, cooking or gathering clocks (hunts only); pushes authorize nobody (any joined
+// NOT COVERED: a wait never crosses a UTC day key (Tamsin's and the stamina shop's per-day counts keep today's);
+// pushes authorize nobody (any joined
 // topic hears its frames); bug reports are kept in memory; emails (a new account is confirmed at once); Sentry
 // and PostHog; PostgREST table reads (the client makes none); true concurrency (PGlite is one backend).
 // mutant-anchors: none — --selftest plants its own values; a manual tool, not a CI guard
@@ -419,6 +425,7 @@ export async function openWorld(o = {}) {
       }
       if (p === '/functions/v1/bug-report-bridge') { reports.push(JSON.parse(await readBody(req))); return send(res, 200, { ok: true }); }
       if (p === '/__world/skip') return send(res, 200, await world.skip(Number(url.searchParams.get('minutes'))));
+      if (p === '/__world/wait') return send(res, 200, await world.wait(Number(url.searchParams.get('minutes'))));
       if (p === '/__world/status') return send(res, 200, { ok: true, offsite, reports: reports.length, pushed: push.pushed() });
       if (req.method !== 'GET' && req.method !== 'HEAD') return send(res, 405, null);
       return await serveStatic(res, decodeURIComponent(p), origin, held);
@@ -499,7 +506,7 @@ export async function openWorld(o = {}) {
   const world = {
     url: origin + '/play.html', origin, db, offsite, reports, tick, pushed: () => push.pushed(),
     /** Skip `minutes` for every open hunt: move its clocks and world together, then settle the way the tick does. */
-    async skip(minutes) {
+    async skip(minutes, how = {}) {
       if (!(minutes > 0)) throw new Error('local-world: skip(minutes) wants a positive number');
       const ms = Math.round(minutes * 60000);
       if (ticking) await ticking.catch(() => {});
@@ -515,10 +522,26 @@ export async function openWorld(o = {}) {
         /* the stamina pool's clock rides the session's: hr_hunt_apply refuses a pool written past settled_to (stamina_ahead), and refused settles forfeit the hunt */
         await tx.query(`update public.player_state p set stamina_at = p.stamina_at - make_interval(secs => $1::float8 / 1000)
           from public.hunt_sessions s where s.ended_at is null and s.user_id = p.user_id and s.slot = p.slot and p.stamina_at is not null`, [ms]);
+        /* History moves with the clock: an open session moved behind an ended one would read as the older (played 10-31: the
+           Thicket's analyzer showed the Cellar hunt that ended before it, "Hunt ended", after a skip of 25 minutes) */
+        for (const s of (await tx.query(`select id from public.hunt_sessions where ended_at is not null`)).rows) {
+          await moveRow(tx, 'hunt_sessions', s.id, ms, [...sessionClocks, 'ended_at'], []);
+        }
+        if (how.town) {
+          const back = `make_interval(secs => $1::float8 / 1000)`;
+          const idle = `not exists (select 1 from public.hunt_sessions s where s.ended_at is null and s.user_id = p.user_id and s.slot = p.slot)`;
+          await tx.query(`update public.player_state p set stamina_at = p.stamina_at - ${back} where p.stamina_at is not null and ${idle}`, [ms]);
+          await tx.query(`update public.player_state p set active_since = p.active_since - ${back}, accrued_to = p.accrued_to - ${back}
+            where p.active_kind in ('artisan', 'gather') and p.active_since is not null and p.accrued_to is not null and ${idle}`, [ms]);
+          await tx.query(`update public.account_farm_plots set planted_at = planted_at - ${back},
+            waterings = array(select w - ${back} from unnest(waterings) w)`, [ms]);
+        }
         return open.length;
       });
       return settleUp({ moved, minutes });
     },
+    /** `minutes` pass for everyone: every open hunt as skip() moves it, and town time too (rest, crops, a bench job). */
+    wait(minutes) { return world.skip(minutes, { town: true }); },
     play: (opts) => play(world, opts),
     async close() {
       if (ticker) clearInterval(ticker);
@@ -546,6 +569,10 @@ export async function openWorld(o = {}) {
         from public.hunt_sessions s join public.hunt_instances i on i.id = s.instance_id where s.ended_at is null`)).rows[0].lag);
       if (lagMs < 100000) break;
       await db.query('delete from public.hunt_tick_lease');
+      /* each fire stands for minutes of the hunt's time: the per-user `apply` window (240 a minute, hr_rate_ok) starts
+         afresh, or a party of one player's heroes trips it in seconds of skip and forfeits (played 10-31: two heroes of one
+         account in the Sewer ended "server" after six rate_limited refusals; on the 10 s tick they make ~12 a minute) */
+      await db.query(`delete from public.hr_rate_counters where bucket = 'apply'`);
     }
     return { ...out, fires: fires + 1, lagMs: Math.round(lagMs), reasons };
   }
@@ -677,6 +704,23 @@ async function smoke({ shots, viewport, touch }) {
     const again = await bagOf();
     await p.shot('bag-after-reload');
     step('reload: the bag comes back from the server, loot included', /bones /.test(bag) && bag === again, bag + ' VS ' + again);
+    /* A second hunt skipped further than the first one lasted: still the newest, so the analyzer reads IT (the skip moves
+       ended sessions too; without that the open hunt's entered_at fell behind the ended one's and read "Hunt ended"). */
+    await p.page.click('[data-hs-open="hunts"]');
+    await p.page.click('.hw-hunt[data-hunt="mill_cellar"]');
+    await p.page.click('.hw-hunt-enter');
+    await p.page.waitForSelector('[data-hs-act="leave"]');
+    await world.skip(20);
+    const newest = await sql(`select (public.hr_hunt_analyzer_of(s.user_id, s.slot, null)->'session'->>'ended_at') is null as open
+      from public.hunt_sessions s where s.ended_at is null`);
+    step('a skip keeps history in order: the open hunt is still the newest session', newest && newest.open === true, JSON.stringify(newest));
+    await p.page.click('[data-hs-act="leave"]');
+    await p.page.waitForFunction(() => /Mill Cellar/.test(document.querySelector('.hsum-card .hsum-title')?.textContent || ''), null, { timeout: 60000 });
+    const rest = `select public.hr_stamina_of(user_id, slot, now())::bigint as ms from public.player_state limit 1`;
+    const tired = await sql(rest);
+    await world.wait(30);
+    const rested = await sql(rest);
+    step('a wait rests a hero in town (30 min of stamina back)', Number(rested.ms) - Number(tired.ms) >= 29 * 60000, JSON.stringify({ tired, rested }));
     step('no console errors', p.errors.length === 0, p.errors.slice(0, 5).join(' | '));
     step('nothing left the machine', p.offsite.length === 0 && world.offsite.length === 0, [...p.offsite, ...world.offsite].slice(0, 5).join(' | '));
   } catch (e) {
@@ -721,12 +765,12 @@ if (isMain(import.meta.url)) {
   } else if (cmd === 'serve') {
     const world = await openWorld({ port: Number(opt('--port') || 8787), tickMs: args.includes('--no-tick') ? false : 10000, liveFiles: true });
     console.log('local-world: open ' + world.url + '   (Ctrl-C ends the world; nothing is kept)');
-  } else if (cmd === 'skip') {
-    const res = await fetch('http://127.0.0.1:' + Number(opt('--port') || 8787) + '/__world/skip?minutes=' + Number(args[1]));
+  } else if (cmd === 'skip' || cmd === 'wait') {
+    const res = await fetch('http://127.0.0.1:' + Number(opt('--port') || 8787) + '/__world/' + cmd + '?minutes=' + Number(args[1]));
     console.log(await res.text());
     process.exit(res.ok ? 0 : 1);
   } else {
-    console.error('usage: node tools/qa/local-world.mjs smoke | serve | skip <minutes> | --selftest (see the header)');
+    console.error('usage: node tools/qa/local-world.mjs smoke | serve | skip <minutes> | wait <minutes> | --selftest (see the header)');
     process.exit(2);
   }
 }

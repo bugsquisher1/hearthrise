@@ -196,15 +196,11 @@ async function rules(M) {
       ok('SEC-5', line(v.supplies, 'salted_shrimp').gold === 3 * 14, 'a store row at the store\'s price reads ' + JSON.stringify(line(v.supplies, 'salted_shrimp')));
       ok('SEC-5', line(v.supplies, 'nothing_sold_here').gold === null, 'a store row with no price reads ' + JSON.stringify(line(v.supplies, 'nothing_sold_here')));
     }
-    /* SEC-5 OWN ARROWS (the same playtest: 50 gone, never listed): the hunt bag's loaded less left names what the tally left out;
-       a line the tally already counts keeps one row, and an untouched line none. */
+    /* The party's kills: a monster dies once (blind playtest 2026-10-31: 1,710 for 855), though every hero present is credited it. */
     body = clone(FIXTURE); body.version += 8;
-    body.hunt.session = { bag: [{ item: 'bronze_arrows', loaded: 50, left: 12 }, { item: 'wheat_bread', loaded: 20, left: 8 }, { item: 'chalked_fire_rune', loaded: 5, left: 5 }] };
+    body.hunt_analyzer.party.kills = 2 * FIXTURE.hunt_analyzer.hero.kills;
     await cs.load();
-    {
-      const own = M.H.analyzerOf(cs).hero.supplies.filter((x) => x.source === 'own').map((x) => x.item + ':' + x.count).join();
-      ok('SEC-5', own === 'bronze_arrows:38,wheat_bread:12', 'own rows from the hunt bag read ' + own);
-    }
+    ok('SEC-5', M.H.analyzerOf(cs).party.kills === FIXTURE.hunt_analyzer.hero.kills, 'the party\'s kills read ' + M.H.analyzerOf(cs).party.kills);
     /* SEC-4 THE HUNT BAG (Brannoc 10-22: "Food ×0" with 20 Cooked Shrimp in it): an open hunt's carried supplies are
        the server's hunt.session.bag `left`, largest first; an empty line drops; an ended hunt carries none (null). */
     body = clone(FIXTURE); body.version += 9;

@@ -274,10 +274,10 @@
   /* The phone shows How you fight too (playtest 2026-10-29: a phone player never met the five ways to fight): the
      column takes the form's height (it adds none of its own) and scrolls, so the card still fits 423 px. */
   .hero-body { align-items: stretch; }
-  .hero-how { min-width: 9rem; padding-left: 12px; contain: size; overflow-y: auto; }
+  .hero-how { min-width: 8rem; padding-left: 12px; contain: size; overflow-y: auto; }
   /* Beside this card the crest leaves a 667 px phone 455 px: Enter town and How you fight ran off the right edge (played
      2026-10-31). The crest stays on sign-in; this step uses the room. */
-  .auth:has(.auth-card.is-create) { gap: 0; }
+  .auth:has(.auth-card.is-create) { gap: 0; padding: 8px 4px; }
   .auth:has(.auth-card.is-create) .auth-brand { display: none; }
 }
 

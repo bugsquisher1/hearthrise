@@ -94,7 +94,7 @@ export function mountContextMenu(ctx, roots, providers) {
       el.textContent = text;
       el.hidden = false;
     };
-    openFloatMenu(doc, html, at, {
+    const owner = {
       label: 'Actions for ' + title,
       onAct: (action, ev, btn) => {
         const e = list.find((x) => x.id === action);
@@ -104,7 +104,7 @@ export function mountContextMenu(ctx, roots, providers) {
         Promise.resolve(e.run(target, ui)).then((r) => {
           /* Done: the answer shows a moment, then the menu leaves by itself (blind playtest 2026-10-31: it stayed up over
              the game after "Tally joined your party."). A refusal or a look stays until the player closes it. */
-          if (r && typeof r.done === 'string') { say(r.done); view.setTimeout(() => { if (alive) closeFloatMenu(doc); }, DONE_SHOWN_MS); return; }
+          if (r && typeof r.done === 'string') { say(r.done); view.setTimeout(() => closeFloatMenu(doc, owner), DONE_SHOWN_MS); return; }
           if (r && typeof r.say === 'string') { say(r.say); btn.disabled = false; return; }
           if (r && r.ok === false) { say(refusalWords(r.error)); btn.disabled = false; return; }
           closeFloatMenu(doc);
@@ -112,7 +112,8 @@ export function mountContextMenu(ctx, roots, providers) {
       },
       onClose: () => {},
       alive: () => alive,
-    });
+    };
+    openFloatMenu(doc, html, at, owner);
     return true;
   }
 

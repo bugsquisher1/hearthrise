@@ -330,7 +330,17 @@ export class CharacterSession {
     if (this._closed) return { ok: false, error: 'closed' };
     const body = edgeBody(this.slot, verb, fields, newIdem());
     if (!body) return { ok: false, error: 'bad_intent' };
-    return read === true ? edgeRead(await this._server.accrue(body)) : this._ask(verb, () => this._server.accrue(body), true);
+    if (read === true) return edgeRead(await this._server.accrue(body));
+    /* `paid`: the gold THIS intent moved, the server's receipt (spend.js; none on a replay). The purse moves with every
+       hero's hunt and any window settled first, so its difference is not what the shop paid (playtest 10-31: 10,000 vs 10,012). */
+    let paid = null;
+    const r = await this._ask(verb, async () => {
+      const ans = await this._server.accrue(body);
+      const receipt = ans && ans.body && ans.body.receipt;
+      if (receipt && Number.isSafeInteger(receipt.gold)) paid = receipt.gold;
+      return ans;
+    }, true);
+    return r && r.ok && paid !== null ? Object.assign({}, r, { paid }) : r;
   }
 
   /** Lock (or unlock) an item so no bulk sale can take it; the server keeps the lock. */
@@ -469,14 +479,7 @@ export class CharacterSession {
     if (this._closed) return { ok: false, error: 'closed' };
     /* below_range: the server admitted a hunt under its level floor (the floor is a warning, Tyler 10-18). */
     if (ans.ok && ans.body && ans.body.ok === true && ans.body.below_range === true) { await this.load(); return { ok: true, belowRange: true }; }
-    if (ans.ok && ans.body && ans.body.ok === true) {
-      /* The gold THIS intent moved, the server's receipt (spend.js; null on a replay): the purse moves with every hero's
-         hunt and any window settled first, so a purse difference is not what the shop paid (playtest 10-31: 10,000 vs 10,012). */
-      const receipt = ans.body.receipt;
-      const paid = receipt && Number.isSafeInteger(receipt.gold) ? receipt.gold : null;
-      if (!(carries && this._take(ans.body, 'load')) && !(await this.load())) await this.resync();
-      return paid === null ? { ok: true } : { ok: true, paid };
-    }
+    if (ans.ok && ans.body && ans.body.ok === true) { if (!(carries && this._take(ans.body, 'load')) && !(await this.load())) await this.resync(); return { ok: true }; }
     return refusalOf(ans);   // the server's detail (slot, condition, field, item) back to the editor as sent
   }
 

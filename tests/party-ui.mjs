@@ -1042,7 +1042,7 @@ async function pageRules(overrides, shots) {
         const io = sent(s, 'hr_hunt_party_invite_own').slice(before);
         if (io.length !== 1 || Object.keys(io[0].body).sort().join() !== 'p_idem,p_other_slot,p_slot' || io[0].body.p_slot !== 0 || io[0].body.p_other_slot !== 1) fails.push('UI-7 [' + tag + '] Invite sent ' + JSON.stringify(io.map((c) => c.body)));
         /* A finished action's menu leaves by itself once its answer has shown (blind playtest 2026-10-31: it stayed up). */
-        if (!(await wait(page, () => !document.querySelector('.hw-menu'), null, 5000))) fails.push('UI-7 [' + tag + '] the menu stayed open after the invite: ' + JSON.stringify(await page.evaluate(() => (document.querySelector('.hw-menu') || {}).innerText)));
+        if (!(await wait(page, () => !document.querySelector('.hw-menu.is-on'), null, 5000))) fails.push('UI-7 [' + tag + '] the menu stayed open after the invite: ' + JSON.stringify(await page.evaluate(() => (document.querySelector('.hw-menu') || {}).innerText)));
       }
       const m0 = await menuIds(0);
       if (!m0.includes('party-leave') || m0.includes('party-invite')) fails.push('UI-7 [' + tag + '] tab 0 offers ' + JSON.stringify(m0));

@@ -5,7 +5,7 @@
 //   node tests/party-flow.mjs            the guard (every arm)
 //   node tests/party-flow.mjs --mutate   every planted defect must be CAUGHT by its arm
 //
-// mutant-anchors: supabase/migrations/2026-10-28-party-flow.sql supabase/migrations/2026-10-29-party-security.sql supabase/migrations/2026-10-30-party-invite-player.sql supabase/migrations/2026-10-30-town-activity-yields.sql supabase/migrations/2026-12-05-hunt-setup-per-ground.sql supabase/migrations/2026-12-07-party-finder.sql supabase/migrations/2027-01-19-play-cap.sql supabase/migrations/2027-02-10-party-instance-reset.sql src/shell/menu-providers.js
+// mutant-anchors: supabase/migrations/2027-02-11-party-nudge.sql supabase/migrations/2026-10-28-party-flow.sql supabase/migrations/2026-10-29-party-security.sql supabase/migrations/2026-10-30-party-invite-player.sql supabase/migrations/2026-10-30-town-activity-yields.sql supabase/migrations/2026-12-05-hunt-setup-per-ground.sql supabase/migrations/2026-12-07-party-finder.sql supabase/migrations/2027-01-19-play-cap.sql supabase/migrations/2027-02-10-party-instance-reset.sql src/shell/menu-providers.js
 // mutant-writes-tree: no — each mutant is ONE statement of its migration, patched in memory and run on the chain end inside a rolled-back transaction
 //
 // Ships with supabase/migrations/2026-10-28-party-flow.sql (PARTY_SPEC.md,
@@ -522,7 +522,7 @@ const ARMS = {
 const MUTANTS = [
   /* The invite body that runs is 2026-10-30-party-invite-player.sql's hr_party_invite_core: its mutants plant there. */
   { arm: 'PF-NUDGE', file: NUDGE, why: 'an invite reaches nobody\'s open screen',
-    find: 'create trigger hr_party_nudge_invite after insert on public.hunt_party_invites\n  for each row execute function public.hr_party_nudge_trg();', repl: '' },
+    find: '    perform public.hr_party_nudge(new.to_user, new.to_slot);\n', repl: '    perform 1;\n' },
   { arm: 'PF-NUDGE', file: NUDGE, why: 'the caller is nudged for its own move',
     find: '    if auth.uid() is not distinct from p_user then return; end if;\n', repl: '' },
   { arm: 'PF-NUDGE', file: NUDGE, why: 'a hero open in no client is nudged',

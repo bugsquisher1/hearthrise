@@ -419,6 +419,17 @@ export function simulateArtisanSpan(state, ctx) {
         toolDouble: toolDouble(tool), toolXpB: toolXpB(tool),
       };
       let done = 0;
+      /* Out of an input for the next action: the stop, with what ran out and the rate it was spent at. */
+      const outOfSupply = () => {
+        const missing = missingInput(recipe, state.supply || state.inventory);
+        if (missing === null) return false;
+        stopReason = STOP_REASON.SUPPLIES;
+        stoppedById = missing;
+        const need = (recipeInputs(recipe) || {})[missing] || 1;
+        stoppedPerHour = Math.round(need * 3600000 / Math.max(1, stepMs));
+        call(fx, 'onStop', stopReason, skill, targetId, missing);
+        return true;
+      };
       for (let i = 0; i < n; i++) {
         /* ── THE CALLER'S BUDGET, CHECKED FIRST. Before the supply check and
            before the gate, deliberately: those two report WHY THE BENCH cannot
@@ -434,15 +445,7 @@ export function simulateArtisanSpan(state, ctx) {
         /* The supply pre-check. Captured HERE rather than read at report time:
            the caller's refusal path clears the activity pointer, so anything
            downstream asking "what was running?" would find null. */
-        const missing = missingInput(recipe, state.supply || state.inventory);
-        if (missing !== null) {
-          stopReason = STOP_REASON.SUPPLIES;
-          stoppedById = missing;
-          const need = (recipeInputs(recipe) || {})[missing] || 1;
-          stoppedPerHour = Math.round(need * 3600000 / Math.max(1, stepMs));
-          call(fx, 'onStop', stopReason, skill, targetId, missing);
-          return done;                       // fewer than n → the span stops here
-        }
+        if (outOfSupply()) return done;      // fewer than n → the span stops here
         if (!gateOk(recipe, state.unlockedRecipes)) {
           stopReason = STOP_REASON.GATE;
           stoppedById = recipe.gated || targetId;
@@ -471,6 +474,10 @@ export function simulateArtisanSpan(state, ctx) {
         toolDoubles += r.res.toolDoubles || 0;
         done++;
         budgetLeft--;
+        /* THE ACTION THAT SPENT THE LAST INPUT ENDS THE RUN (report #68: "still fueling the hearth" with no fuel
+           left). Checked only before an action, a window that closed right after the last Bones left the run
+           going with none, until a later settle tried the next one: every path, viewed, unviewed or ticked. */
+        if (outOfSupply()) return done;
       }
       return done;
     },

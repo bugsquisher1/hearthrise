@@ -17,7 +17,10 @@
 // Which open character is shown is AccountSession.viewed, a view pointer; a
 // switch remounts only the pane; the shown character streams live and the others play on the server (a plain
 // read a minute, CharacterSession.setViewed). A reload signs back in from the stored session and
-// starts at the characters screen.
+// reopens the heroes this tab had open, showing the one it showed (AccountSession.lastOpen, the tab
+// store; designer 10-30 #8: a hero picked once is never picked again by hand), as far as the server
+// still loads them: a shown hero it no longer holds does not load, and the characters screen is drawn
+// instead. A fresh tab, a sign-in and a sign-out start at the characters screen.
 //
 // THE CLOSED GAME: the server refuses a non-allowlisted account (403
 // hr_closed); the first such answer replaces everything with the closed notice.
@@ -112,7 +115,7 @@ function startApp(win) {
     const box = doc.createElement('main');
     box.className = 'auth';
     root.appendChild(box);
-    renderAuthScreen(box, auth, mode, { signedIn: () => startAccount() });
+    renderAuthScreen(box, auth, mode, { signedIn: () => startAccount(false) });
   }
 
   function showClosed() {
@@ -151,7 +154,8 @@ function startApp(win) {
     showAuth('sign-in');
   }
 
-  async function startAccount() {
+  /* `resume`: this load signed back in from the stored session (a reload), so the tab's heroes reopen. */
+  async function startAccount(resume) {
     if (!auth.userId()) { showAuth('sign-in'); return; }
     if (account) return;
     obs.identify(auth.userId());
@@ -173,10 +177,13 @@ function startApp(win) {
     watchers = [mountPressAck(doc, account.intents)];
     if (liveOverlayWanted(win.location.search)) watchers.push(mountLiveOverlay(win, account));
     account.social.chat.followAlerts(alerts);   // the alerts are also the chat's System lines
-    await showCharacters();
+    if (!resume) account.forgetOpen();
+    await showCharacters(null, resume ? account.lastOpen() : null);
   }
 
-  async function showCharacters(note) {
+  /* `was`: what this tab had open before a reload ({ slots, viewed }): once the roster is read, those heroes reopen and
+     the shown one is shown, with no list drawn; if the shown one does not load (the server no longer holds it), the list. */
+  async function showCharacters(note, was) {
     clear();
     obs.screen('characters');
     root.className = 'app is-auth';
@@ -187,6 +194,8 @@ function startApp(win) {
     if (a !== account || a.closedGame) return;
     roster = read;
     rosterSlots = roster.filter((r) => r.exists).map((r) => r.slot);
+    if (was && await play(was.viewed, was.slots)) return;
+    if (a !== account || a.closedGame) return;
     const open = new Set(a.characters().map((c) => c.slot));
     /* Each owned slot: its hero by name and Level (the server's), or an empty slot to create in; the whole
        row is the press. Every account owns two (Tyler 10-17); the next one for sale is offered under the list. */
@@ -256,18 +265,23 @@ function startApp(win) {
     });
   }
 
-  async function play(slot) {
-    const r = await account.open(slot);
+  /* Play one hero, then open `others` beside it (a press: every hero the roster holds; a reload: the ones the tab had
+     open). False when it could not open. */
+  async function play(slot, others = rosterSlots) {
+    const a = account;
+    const r = await a.open(slot);
     if (!r.ok) {
       const m = root.querySelector('.auth-message');
       if (m) m.textContent = r.reason === 'limit' ? 'Close a character first: ' + (r.limit > 1 ? r.limit + ' are' : 'one is') + ' already playing.'
         : 'That character could not be loaded. Try again in a minute.';
-      return;
+      return false;
     }
-    account.view(slot);
+    if (a !== account) return false;
+    a.view(slot);
     await showGame();
     /* the account's other characters play too (in town for everyone), unviewed */
-    if (account) await account.openOthers(rosterSlots);
+    if (account === a) await a.openOthers(others);
+    return true;
   }
 
   /* The game screen: the strip once, then the viewed character's pane. */
@@ -339,7 +353,7 @@ function startApp(win) {
 
   auth.refresh().then(() => {
     if (recovering) showAuth('set-password');
-    else if (auth.userId()) startAccount();
+    else if (auth.userId()) startAccount(true);
     else showAuth('sign-in');
   });
   return { auth, account: () => account };

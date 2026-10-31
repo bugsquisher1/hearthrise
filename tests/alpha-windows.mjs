@@ -300,7 +300,13 @@ async function pure() {
   const { SKILLS_DEF } = await imp('src/data/skills.js');
   const { SKILL_GUIDE } = await imp('src/data/skill-guide.js');
   for (const id of Object.keys(SKILLS_DEF)) if (!SKILL_GUIDE[id]) fails.push('AW-0 the skill ' + id + ' has no row in src/data/skill-guide.js');
-  const { edgeBody } = await imp('src/session/edge-intents.js');
+  const { edgeBody, withReceipt } = await imp('src/session/edge-intents.js');
+  /* What the shop paid is the server's receipt, never the purse's difference (blind playtest 2026-10-31: "Sell for 10,000", "The shop paid 10,012"). */
+  const askIt = (ans) => withReceipt(async (send) => { const a = await send(); return a.ok ? { ok: true } : { ok: false, error: 'no' }; }, async () => ans);
+  const sold10k = await askIt({ ok: true, body: { ok: true, receipt: { gold: 10000 } } });
+  const replayed = await askIt({ ok: true, body: { ok: true, receipt: null } });
+  const refused = await askIt({ ok: false, body: { ok: false, receipt: { gold: 5 } } });
+  if (sold10k.paid !== 10000 || 'paid' in replayed || 'paid' in refused) fails.push('AW-0 the receipt reads ' + JSON.stringify([sold10k, replayed, refused]));
   if (edgeBody(0, 'shop_buy', { offer: 'supply.wheat_bread', qty: 2, price: 1 }, 'x')) fails.push('AW-0 edgeBody let a price field through');
   if (edgeBody(0, 'grant_gold', { qty: 1 }, 'x')) fails.push('AW-0 edgeBody built an unknown verb');
   if (!edgeBody(0, 'vendor_sell_many', { lines: [{ item: 'rat_tail', qty: 3 }] }, 'x')) fails.push('AW-0 edgeBody refused a well-formed sale');
@@ -321,6 +327,18 @@ async function pure() {
   const crafter = lootToSell([{ id: 'silk_thread', qty: 6 }, { id: 'slime_gel', qty: 3 }, { id: 'rat_tail', qty: 2 }], { crafting: { xp: 0, level: 1 } });
   if (crafter.join(',') !== 'slime_gel,rat_tail') fails.push('AW-0 a Crafting 1 hero\'s Sell all loot sells ' + crafter.join(', ') + ' (want slime_gel, rat_tail: Silk Thread is its Crafting 1 thread)');
   if (lootToSell([{ id: 'slime_gel', qty: 3 }], { crafting: { xp: 0, level: 30 } }).length) fails.push('AW-0 a Crafting 30 hero\'s Sell all loot sells its Slime Gel');
+  /* WHAT THE PRICE LEAVES OUT (blind playtest 2026-10-31: "Sell all loot · 423 gp" over a list worth 1,215; "×2,004 · 1 gp
+     each · Sell · 1,000 gp"): the loot the button keeps is named with its worth, and a stack past one sale's limit is marked. */
+  {
+    const { lootKept, lootSale, sellQty } = await imp('src/shell/bag-model.js');
+    const bag = [{ id: 'bones', qty: 10 }, { id: 'rat_tail', qty: 2004 }, { id: 'den_knot', qty: 1 }, { id: 'lamp_jelly', qty: 1 }];
+    const shop = { bids: new Map([['bones', 1], ['rat_tail', 1], ['lamp_jelly', 9]]) };
+    const kept = lootKept(bag, { locked: new Set() }, shop, null);
+    if (kept.ids.join() !== 'bones,lamp_jelly' || kept.worth !== 19) fails.push('AW-0 Sell all loot says it keeps ' + JSON.stringify(kept));
+    const sale = lootSale(bag, { locked: new Set() }, shop, null);
+    if (sale.total !== 1000 || sale.capped !== true || sellQty(2004) !== 1000) fails.push('AW-0 the sale of ×2,004 at 1 gp reads ' + JSON.stringify(sale));
+    if (lootKept(bag, { locked: new Set(['bones']) }, shop, null).worth !== 9) fails.push('AW-0 a locked stack is counted among what Sell all loot keeps');
+  }
   const bones = usesOf('bones');
   if (!bones.some((l) => /^Burn it in the Great Hearth to train Inner Flame/.test(l)) || bones.some((l) => /sell/i.test(l))) fails.push('AW-0 the bones tooltip reads ' + JSON.stringify(bones));
   const knot = usesOf('den_knot');
@@ -386,9 +404,18 @@ async function huntsPure(imp) {
   const fails = [];
   const { residentsOf, scarceSetOf, raresOf, wornWeightOf } = await imp('src/shell/hunt-ground-facts.js');
   const { MONSTERS } = await imp('src/data/monsters.js');
-  const { huntRows, fitWords, bestLine, bestWords } = await imp('src/shell/hunt-list.js');
+  const { huntRows, fitWords, bestLine, bestWords, densityStep } = await imp('src/shell/hunt-list.js');
   const { setupsOf, beforeLines, freeHeroes } = await imp('src/shell/hunt-go.js');
   const STORE = FIXTURE.hunt_settings.store;
+  /* MORE MONSTERS IS NEVER FEWER (blind playtest 2026-10-31: + on "As built (2 to 3)" went down to "1 each", - was off):
+     "As built" stands among the picks at its packs' size, both ways; a built size equal to a pick takes its place. */
+  const walk = (r, from, by, max) => { const out = []; for (let n = densityStep(r, from, by, max); n !== null; n = densityStep(r, n, by, max)) out.push(n); return out.join(); };
+  const uneven = { packMin: 2, packMax: 3 }, even = { packMin: 3, packMax: 3 };
+  if (walk(uneven, 0, 1, 5) !== '3,4,5') fails.push('AW-25 + from As built (2 to 3) walks ' + walk(uneven, 0, 1, 5));
+  if (walk(uneven, 0, -1, 5) !== '2,1') fails.push('AW-25 - from As built (2 to 3) walks ' + walk(uneven, 0, -1, 5));
+  if (walk(uneven, 1, 1, 5) !== '2,0,3,4,5') fails.push('AW-25 + from 1 each walks ' + walk(uneven, 1, 1, 5));
+  if (walk(uneven, 5, -1, 5) !== '4,3,0,2,1') fails.push('AW-25 - from 5 each walks ' + walk(uneven, 5, -1, 5));
+  if (walk(even, 0, 1, 5) !== '4,5' || walk(even, 5, -1, 5) !== '4,0,2,1') fails.push('AW-25 packs of 3 walk up ' + walk(even, 0, 1, 5) + ' and down ' + walk(even, 5, -1, 5) + ' (As built stands for 3 each)');
   /* Who lives here: each creature's share of the ground's spawn points (Tyler 10-18: a common majority, some uncommon, a rare). */
   const cellar = residentsOf('mill_cellar').map((m) => m.id + ':' + m.band + ':' + m.level).join();
   if (cellar !== 'rat:common:2,slime:uncommon:2,hive_wasp:uncommon:4') fails.push('AW-25 the Mill Cellar lives as ' + cellar);
@@ -591,6 +618,11 @@ async function armourWordRules(base) {
   const wornW = AW.wornWeights({ helmet: 'iron_helm', body: 'bronze_platebody', boots: 'leather_boots', pants: 'apprentice_pants', cape: Object.keys(ITEMS).find((k) => ITEMS[k].slot === 'cape'), weapon: 'iron_sword' });
   if (wornW.map((x) => x.text).join(' · ') !== '2 heavy (' + pc(VITALS.heavyHpPermille * 2 / ARMOUR_SLOTS.length) + ' max HP) · 1 medium (more blows miss) · 1 light (' + pc(VITALS.lightManaPermille / ARMOUR_SLOTS.length) + ' max mana)')
     fails.push('AW-34 the worn-weight line for 2 plate, 1 leather, 1 cloth and a cape reads ' + JSON.stringify(wornW));
+  /* Nothing worn: one plain line, never "0 heavy (+0% max HP)" beside a plate sprite (blind playtest 2026-10-31); a weight with no piece says nothing. */
+  const wornNone = AW.wornWeights({ weapon: 'iron_sword' }).map((x) => x.text).join('|');
+  if (wornNone !== 'None yet. Your outfit is only a look.||') fails.push('AW-34 the worn-weight line with no armor reads ' + JSON.stringify(wornNone));
+  const wornOne = AW.wornWeights({ helmet: 'iron_helm' }).map((x) => x.text).filter(Boolean);
+  if (wornOne.length !== 1 || !/^1 heavy \(/.test(wornOne[0])) fails.push('AW-34 one heavy piece reads ' + JSON.stringify(wornOne));
   /* the share the words say is the one the engine adds: vitals.js maxHpFor / maxManaFor at every count (L 100) */
   const { maxHpFor, maxManaFor } = await imp('src/core/vitals.js');
   for (let n = 0; n <= ARMOUR_SLOTS.length; n++) {
@@ -654,6 +686,9 @@ async function tickerRules(base) {
   const line1 = TW.nowParts(cs1);
   const ahead1 = line1.filter((p) => p.ahead).map((p) => p.text).join('|');
   if (ahead1 !== '42 in your bag') fails.push('TK-1 the work line marks ' + JSON.stringify(ahead1) + ' as pending, want "42 in your bag"');
+  /* The row under the line says the same number; a row that is not running keeps the server's (blind playtest 2026-10-31: "2 caught so far · 0 in your bag"). */
+  const rowWords = [TW.gatherBagWords(cs1, TW.workOf(cs1), true), TW.gatherBagWords(cs1, TW.workOf(cs1), false)].join('|');
+  if (rowWords !== '42 in your bag|40 in your bag') fails.push('TK-1 the gathering row reads ' + rowWords + ', want 42 running and 40 stopped');
 
   /* TK-2: a payout REPLACES: the server's bag and watermark, and the count restarts from them (no double count). */
   pay(cs1, envOf('gather', 'normal_tree', { normal_log: 42 }, { state: { active_kind: 'gather', active_id: 'normal_tree', active_since: iso(T0), accrued_to: iso(T0 + 2 * step) } }));
@@ -1681,7 +1716,7 @@ async function checks(overrides, shots) {
           await page.waitForTimeout(800);
           s.reply = { ok: true };
           const said = await msgSeen();
-          if (!said || said.text !== 'You no longer have that many.') fails.push('AW-18b a refused deposit says ' + JSON.stringify(said && said.text));
+          if (!said || said.text !== 'You no longer have that many Copper Ore.') fails.push('AW-18b a refused deposit says ' + JSON.stringify(said && said.text));
           else if (!said.shown) fails.push('AW-18b the refusal of a deposit is out of sight (under the grids, where a full bag scrolls it away)');
           if ((await sc('bag', 'copper_ore')) !== '7') fails.push('AW-18b a refused deposit moved the bag to ' + (await sc('bag', 'copper_ore')));
           await page.click(W18 + '[data-side="bag"] .hw-pocket[data-item="bronze_arrows"]', { modifiers: ['Shift'] });

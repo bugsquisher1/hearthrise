@@ -204,7 +204,7 @@ async function checks(overrides, shots) {
         await wait(page, () => document.querySelectorAll('[data-hs-win="tally"] .ht-offer').length === 3, null, 4000);
         if (errors.length) fails.push('TW-1 console errors: ' + errors.join(' | ').slice(0, 300));
         const lines = await page.evaluate(() => [...document.querySelectorAll('[data-hs-win="tally"] .ht-tally')].map((li) => li.querySelector('b').textContent + '|' + li.querySelector('small').textContent));
-        if (lines.length !== 2 || lines[0] !== 'Gray Wolves 112/200|Every kill in Meadowbrook Thicket counts, even while you\'re away.' || !/^Giant Rats 120\/120\|Done\./.test(lines[1])) fails.push('TW-1 her tallies read ' + JSON.stringify(lines));
+        if (lines.length !== 2 || lines[0] !== 'Gray Wolves 112/200|Only Gray Wolves in Meadowbrook Thicket count, even while you\'re away.' || !/^Giant Rats 120\/120\|Done\./.test(lines[1])) fails.push('TW-1 her tallies read ' + JSON.stringify(lines));
         /* TW-9 her words on screen say what happens, in plain English (Tyler 2026-10-24: "this is weird dialogue") */
         const said = await page.evaluate(() => ({ hi: (document.querySelector('[data-hs-win="tally"] .ht-keeper .hs-note') || {}).textContent,
           all: (document.querySelector('[data-hs-win="tally"]') || {}).textContent + ' ' + (document.querySelector('.hs-tally') || {}).textContent }));

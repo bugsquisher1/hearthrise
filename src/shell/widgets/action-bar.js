@@ -55,28 +55,31 @@ const KINDS = new Set(Object.keys(ATTACK_KINDS));
 const PRESS = new WeakMap();   // the bar element -> { timer, held }
 const DROP = new WeakMap();    // the bar element -> { from, to, off } while the drop menu is open
 const PANEL = new WeakMap();   // the bar element -> the open sheet's listener cleanup (phone)
-const CASTS = new WeakMap();   // the bar element -> { cs, off, at: Map(ability -> client ms of the hero's last cast) }
+const CASTS = new WeakMap();   // the CharacterSession -> { at: Map(ability -> client ms of the hero's last cast) }
 const RENAMING = new WeakSet(); // the bar elements whose set rename is with the server (its name control stays off)
 
 /* THE COOLDOWN EMBER (the sim's, Tyler 10-19): when the server's timeline plays the viewed hero's
    `cast` of an ability, its slot cools for that ability's catalogue cooldown (cdMs, the clock the
    engine runs): a veil over the slot, an ember rising from the bottom as the cooldown runs out, and
-   the seconds left. Played in step with the scene (timeline.subscribe), from server events only. */
-function watchCasts(el, ctx) {
+   the seconds left. Played in step with the scene (timeline.subscribe), from server events only.
+   ONE WATCHER PER CHARACTER, for its session's life: the timeline outlives every bar drawn over it, so a watcher made
+   per bar (holding its ctx, and through it the whole shell) kept each pane a hop left behind (old-laptop player 10-31:
+   ~1,080 nodes and 35 listeners a hop, never freed; tests/perf-budget.mjs PB-LEAK). */
+function watchCasts(ctx) {
   const cs = ctx.character;
-  const w = CASTS.get(el);
-  if (w && w.cs === cs) return w;
-  if (w) w.off();
+  const w = cs ? CASTS.get(cs) : null;
+  if (w) return w;
   const at = new Map();
   const tl = cs && cs.timeline;
-  const off = tl && typeof tl.subscribe === 'function' ? tl.subscribe((ev) => {
+  const clock = ctx.now;   // the clock alone, never the ctx
+  if (tl && typeof tl.subscribe === 'function') tl.subscribe((ev) => {
     const h = huntOf(cs);
     if (!ev || ev.type !== 'cast' || !ABILITIES[ev.ability] || !h || ev.u !== h.hero.unit) return;
     const c = typeof tl.clientAt === 'function' ? tl.clientAt(ev.atMs) : null;
-    at.set(ev.ability, Number.isFinite(c) ? c : ctx.now());
-  }) : () => {};
-  const out = { cs, off, at };
-  CASTS.set(el, out);
+    at.set(ev.ability, Number.isFinite(c) ? c : clock());
+  });
+  const out = { at };
+  if (cs) CASTS.set(cs, out);
   return out;
 }
 
@@ -119,6 +122,7 @@ export function renderActionBar(ctx) {
     + '<div class="hb-grid">'
     + '<ol class="hb-slots" aria-label="Slots 1 to 5 and 11 to 15, slot 1 tried first">' + side(false) + '</ol>'
     + '<ol class="hb-slots" aria-label="Slots 6 to 10 and 16 to 20">' + side(true) + '</ol></div>'
+    + '<button type="button" class="hb-page" data-hs-act="slot-page" aria-label="More slots" hidden></button>'
     /* THE FIGHT PANEL (Tyler 10-19 and 10-25: "Not having it there is dangerous for the player"): the setup, its
        target, stance, chase and distance sit ON the bar's right, always in view; each control is ONE intent and
        stays off until the server answers (settings-intent.js). The sliders open what does not fit: the gold to
@@ -191,6 +195,29 @@ function tipHtml(i, ctx) {
     + (conflict ? '<p class="is-warn">' + esc(conflict.why) + '</p>' : '');
 }
 
+/* THE SLOTS' PAGE PRESS (phone playtest 2026-10-31: at 667 px slots 5-10 and 15-20 read as gone, a swipe nobody tries): on
+   a phone too narrow for ten columns a gold press beside the slots brings the rest on screen and back. Measured, never a
+   width in this file; the desktop's grid has no box of its own (hunt.css) and measures nothing to page. */
+const PAGED = new WeakSet();
+function atEnd(grid) { return grid.scrollLeft + grid.clientWidth >= grid.scrollWidth - 1; }
+function watchPage(el) {
+  if (PAGED.has(el)) return;
+  PAGED.add(el);
+  const grid = el.querySelector('.hb-grid'), press = el.querySelector('.hb-page');
+  const sync = () => {
+    const over = grid.scrollWidth > grid.clientWidth + 1;
+    prop(press, 'hidden', !over);
+    cls(press, 'is-back', over && atEnd(grid));
+    attr(press, 'aria-label', over && atEnd(grid) ? 'Back to slot 1' : 'More slots');
+  };
+  new el.ownerDocument.defaultView.ResizeObserver(sync).observe(grid);
+  grid.addEventListener('scroll', sync, { passive: true });
+}
+function pageSlots(el) {
+  const grid = el.querySelector('.hb-grid');
+  grid.scrollLeft = atEnd(grid) ? 0 : grid.scrollWidth;
+}
+
 function showTip(el, li, ctx) {
   const tip = el.querySelector('.hb-tip');
   const i = Number(li.getAttribute('data-slot'));
@@ -207,6 +234,7 @@ renderActionBar.patch = function patchActionBar(el, ctx) {
   const h = huntOf(cs);
   const s = settingsOf(cs);
   cls(el.querySelector('.hb-bar'), 'is-town', !h);
+  watchPage(el);
   patchHub(el, ctx);
   patchStaminaBuy(el, ctx);
   const slots = s ? Array.from({ length: SLOTS }, (_, i) => s.slots[i] || { empty: true }) : [];
@@ -214,7 +242,7 @@ renderActionBar.patch = function patchActionBar(el, ctx) {
   const conflicts = s ? conflictsOf(wires, s) : new Map();
   const bag = carriedOf(cs);
   const hero = h && !h.ended ? h.hero : null;
-  const casts = watchCasts(el, ctx);
+  const casts = watchCasts(ctx);
   const now = ctx.now();
   const holding = holdsPackNow(cs, hero);
   const worn = (equipmentOf(cs) || {}).ammo;
@@ -372,6 +400,7 @@ renderActionBar.act = function actActionBar(ctx, el, action, ev, t) {
     return;
   }
   if (action === 'set-rename-key') return renameSet(ctx, el, ev, t);
+  if (action === 'slot-page' && ev.type === 'click') { pageSlots(el); return; }
   if (action === 'setups' && ev.type === 'click') { ctx.show('hunt-prep'); return; }
   if (action.startsWith('stam-')) { actStaminaBuy(ctx, el, action, ev, () => renderActionBar.patch(el, ctx)); return; }
   if (action === 'panel' && ev.type === 'click') { setPanel(ctx, el, !PANEL.has(el)); return; }

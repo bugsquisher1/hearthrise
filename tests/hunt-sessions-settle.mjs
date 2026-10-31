@@ -98,6 +98,9 @@
 //              irregular instants), and the bank says so
 //   BOTH-PATH  a hunt with a death settled at a player's irregular instants writes
 //              what the tick's windows write.
+//   BOTH-PATH-MIDNIGHT  the same on a pinned server clock, a second death of the day at 23:59:40: the browser closed,
+//              its window closes after midnight; the hunt viewed, before it. Its day row is its own instant's day,
+//              the lifetime row moves with it, and both paths write the same rows (run 41149723847).
 //   NO-DODGE   a death the viewer's live seeds showed cannot be stepped around: a
 //              leave sent seconds before it still ends the hunt `died` at that swing,
 //              the same death row and end as with no leave (2026-10-31-live-horizon.sql).
@@ -1392,6 +1395,48 @@ async function inTx(db, fn) {
   try { return await fn(); } finally { await db.query('rollback'); }
 }
 
+/* BETA's SECOND APPLY: byte-identical, and it never turns back on a switch an operator turned off (the EA wipe). Judged AS
+   OF the file (PARTY-LEAVE-IDEM's move; lane/c-envelope-diff, 2026-10-30): re-applied over the WHOLE chain it would put its
+   own SQL bodies back over a later file's (2027-02-11-settle-plan-cache-2.generated.sql restates the three premium helpers
+   as plpgsql, their bodies verbatim), which is that file's to keep, not a defect of this one. So it boots the chain TO the
+   file, carries over from `main` (the whole chain) every image body no LATER file authors (a DB mutant planted there rides
+   with it), turns the switch off, and re-applies. */
+const BETA_FILE = '2026-12-17-beta-premium.sql';
+const BETA_SIGS = ['public.hr_premium_until(uuid,integer)', 'public.hr_premium_active(uuid,integer,timestamp with time zone)',
+  'public.hr_premium_view(uuid,integer)', 'public.hr_stamina_of(uuid,integer,timestamp with time zone)'];
+async function betaSecondApply(main) {
+  const order = JSON.parse(readFileSync(join(ROOT, 'tests', 'schema-apply-order.json'), 'utf8')).order;
+  const later = order.slice(order.indexOf(BETA_FILE) + 1).map((f) => readFileSync(join(ROOT, 'supabase', 'migrations', f), 'utf8'));
+  const authoredLater = (sig) => {
+    const fn = sig.slice('public.'.length, sig.indexOf('('));
+    const re = new RegExp('create\\s+or\\s+replace\\s+function\\s+(?:public\\.)?' + fn + '\\s*\\(|pg_get_functiondef\\(\\s*\'(?:public\\.)?' + fn + '\\(', 'i');
+    return later.some((t) => re.test(t));
+  };
+  const { bootReplay } = await import('./schema-replay.mjs');
+  const { db } = await bootReplay({ upTo: BETA_FILE });
+  try {
+    return await inTx(db, async () => {
+      for (const sig of BETA_SIGS) {
+        if (authoredLater(sig)) continue;
+        await db.exec(String(await one(main, 'select pg_get_functiondef($1::regprocedure)', [sig])));
+      }
+      await db.query("update public.hr_flags set enabled = false where key = 'beta_premium'");
+      const image = () => one(db, `select jsonb_build_object('defs', (select jsonb_object_agg(p.oid::regprocedure::text, md5(pg_get_functiondef(p.oid)) || ':' || coalesce(p.proacl::text, ''))
+                                      from pg_proc p where p.oid in (select to_regprocedure(s) from unnest($1::text[]) s)),
+                                   'flags', (select jsonb_object_agg(key, enabled) from public.hr_flags))`, [BETA_SIGS]);
+      const before = await image();
+      if (!before.defs || Object.keys(before.defs).length !== BETA_SIGS.length) return [`CONTROL: the replay to ${BETA_FILE} holds ${JSON.stringify(before.defs)}`];
+      try { await db.exec(readFileSync(join(ROOT, 'supabase', 'migrations', BETA_FILE), 'utf8').replace(/\r\n/g, '\n')); }
+      catch (e) { return [`the second apply RAISED: ${String(e.message).split('\n')[0]}`]; }
+      const after = await image();
+      const out = [];
+      if (canon(after) !== canon(before)) out.push(`a second apply moved ${firstDiff(canon(before), canon(after))}`);
+      if (!before.flags || before.flags.beta_premium !== false) out.push('CONTROL: the switch was not off before the second apply');
+      return out;
+    });
+  } finally { await db.close?.(); }
+}
+
 /* The fixture ground's catalogue rows (the generator's own row builder). */
 async function installGround(db, row = groundRow) {
   fixtureRow = row;
@@ -1498,8 +1543,10 @@ async function hunter(db, M, o) {
     sids.push(e.session.id);
   }
   await db.query(`select set_config('request.jwt.claim.sub', '', true)`);
-  /* Backdate: every session and the instance arrive at the same whole second, `minutesAgo` ago. */
-  const t = `date_trunc('second', now() - make_interval(mins => ${Number(o.minutesAgo || (o.party && o.party[0].minutesAgo) || 10)}))`;
+  /* Backdate: every session and the instance arrive at the same whole second, `minutesAgo` ago, or at `fromMs`
+     (a pinned whole second in the past: BOTH-PATH-MIDNIGHT). */
+  const t = o.fromMs != null ? `to_timestamp(${Math.floor(Number(o.fromMs) / 1000)}::double precision)`
+    : `date_trunc('second', now() - make_interval(mins => ${Number(o.minutesAgo || (o.party && o.party[0].minutesAgo) || 10)}))`;
   for (const sid of sids) {
     await db.query(`update public.hunt_sessions set entered_at = ${t} - interval '1 minute', hunt_from = ${t}, settled_to = ${t},
                       next_swing_at = ${t} where id = $1`, [sid]);
@@ -1523,6 +1570,7 @@ async function settleTo(db, M, toMs, o = {}) {
   }
 }
 async function settleSlice(db, M, toMs, o) {
+  if (o.clock) await o.clock(toMs);
   const exec = makeExec(db);
   const plan = await M.HS.readHuntSettle({ exec, user: o.user || UID, slot: 0, grounds: groundsOf(M), atMs: toMs }, 'tick');
   if (plan.answer) return { skipped: plan.answer.reason };
@@ -1584,6 +1632,14 @@ async function compareRuns(db, M, fixture, cutsA, cutsB) {
 }
 const SPAN_MS = 20 * 60000;
 const ticksOf = (stepMs, spanMs) => (from) => Array.from({ length: Math.ceil(spanMs / stepMs) }, (_, i) => Math.min(from + (i + 1) * stepMs, from + spanMs));
+/* ATTENDED = a player's irregular instants, two of them around each death the tick run `a` saw. */
+const attendedCuts = (from, a) => {
+  const deaths = ((a[0] && a[0].events) || []).filter((e) => e[0] === 'death').map((e) => Date.parse(e[1]));
+  const cuts = [from + 7001, from + 33333];
+  for (const t of deaths) cuts.push(t - 1500, t + 1500);
+  cuts.push(from + SPAN_MS);
+  return [...new Set(cuts)].filter((t) => t > from && t <= from + SPAN_MS).sort((x, y) => x - y);
+};
 const STRONG = { minutesAgo: 25, level: 25, inv: { cooked_shrimp: 30 }, bag: [{ item: 'cooked_shrimp', qty: 25 }], gold: 100000 };
 const WEAK = { minutesAgo: 25, inv: {}, bag: [], gold: 0, hp: 20, options: { on_empty: 'end' },
   level: 10 };
@@ -1603,14 +1659,7 @@ const DB_ARMS = {
   'BOTH-PATH': async (db, M) => {
     const problems = [];
     /* AWAY = the tick's 90 s windows; ATTENDED = a player's irregular instants, two of them around the death. */
-    const attended = (from, a) => {
-      const deaths = ((a[0] && a[0].events) || []).filter((e) => e[0] === 'death').map((e) => Date.parse(e[1]));
-      const cuts = [from + 7001, from + 33333];
-      for (const t of deaths) cuts.push(t - 1500, t + 1500);
-      cuts.push(from + SPAN_MS);
-      return [...new Set(cuts)].filter((t) => t > from && t <= from + SPAN_MS).sort((x, y) => x - y);
-    };
-    const { a, b } = await compareRuns(db, M, DOOMED, ticksOf(90000, SPAN_MS), attended);
+    const { a, b } = await compareRuns(db, M, DOOMED, ticksOf(90000, SPAN_MS), attendedCuts);
     if (!((a[0].deaths || []).length === 1)) problems.push(`CONTROL: the weak hero did not die exactly once (${JSON.stringify(a[0].deaths)})`);
     if (a[0].session.end_reason !== 'died') problems.push(`the death ended the hunt ${a[0].session.end_reason}, not died`);
     /* The death row carries the engine's instant (the settle's death hint), inside the swing it happened in:
@@ -1620,20 +1669,73 @@ const DB_ARMS = {
     if (canon(a) !== canon(b)) problems.push(`a hunt settled at a player's instants wrote different rows from the tick's ${firstDiff(canon(a), canon(b))}`);
     return problems;
   },
+  /* BOTH-PATH ACROSS UTC MIDNIGHT (run 41149723847). The server clock is pinned, so the arm never reads the wall clock
+     and each settle runs at its cut's instant, as in production. A hero with two deaths already that day dies at
+     23:59:40. The browser closed: the tick window holding the death closes after midnight. The hunt viewed: the
+     player's instant 1.5 s after it is still the old day. Both paths file the death under its own day and write the
+     same rows. A probe finds where in the hunt the death falls (the seed's, rewound per hunter). */
+  'BOTH-PATH-MIDNIGHT': async (db, M) => {
+    const MIDNIGHT = Date.UTC(2026, 9, 31);
+    const OLD_DAY = '2026-10-30';
+    const NEW_DAY = '2026-10-31';
+    /* pinDice's now() reads this setting; it ends with the arm's transaction. */
+    const pinNow = (ms) => db.query(`select set_config('hr.test_now', $1, true)`, [new Date(ms).toISOString()]);
+    const onClock = { clock: pinNow };
+    const tick = ticksOf(90000, SPAN_MS);
+    const deathOf = (s) => Date.parse((((s && s.events) || []).find((e) => e[0] === 'death') || [])[1]);
+    const probe = await inTx(db, async () => {
+      const from = MIDNIGHT - 3600000;
+      await pinNow(from);
+      const p = await hunter(db, M, { ...DOOMED, fromMs: from });
+      await run(db, M, p.from, tick, onClock);
+      return deathOf(await snapshot(db, p.sid, UIDS[0])) - p.from;
+    });
+    if (!(probe > 0)) return [`CONTROL: the probe hero did not die (${probe})`];
+    await rewindDice(db);
+    const { a, b, closes, viewedCloses, died } = await inTx(db, async () => {
+      const fromMs = Math.ceil((MIDNIGHT - 20000 - probe) / 1000) * 1000;
+      await pinNow(fromMs);
+      const h = await hunter(db, M, { ...DOOMED, fromMs });
+      await db.query(`insert into public.player_progress (user_id, slot, kind, key, period_key, value)
+        values ($1, 0, 'stat', 'deaths', '', 5), ($1, 0, 'stat', 'deaths', $2, 2)`, [UIDS[0], OLD_DAY]);
+      const go = async (cuts) => { await run(db, M, h.from, cuts, onClock); return snapshot(db, h.sid, UIDS[0]); };
+      /* THE BROWSER CLOSED: no tick between the death and midnight, so its window closes in the new day. */
+      const dead = h.from + probe;
+      const closedCuts = (f) => tick(f).filter((t) => t < dead || t > MIDNIGHT);
+      await db.query('savepoint midnight_runs');
+      const x = await go(closedCuts);
+      await db.query('rollback to savepoint midnight_runs');
+      await pinNow(h.from);
+      /* THE HUNT VIEWED: a player's instants, the one after the death still in the old day. */
+      const viewedCuts = (f) => attendedCuts(f, [x]);
+      const y = await go(viewedCuts);
+      const at = deathOf(x);
+      return { a: x, b: y, died: at,
+        closes: closedCuts(h.from).find((t) => t >= at), viewedCloses: viewedCuts(h.from).find((t) => t > at) };
+    });
+    if (new Date(died).toISOString().slice(0, 19) !== '2026-10-30T23:59:40') return [`CONTROL: the death is not pinned at 23:59:40: ${new Date(died).toISOString()}`];
+    if (!(closes > MIDNIGHT && viewedCloses < MIDNIGHT)) return [`CONTROL: no straddle: the tick window closes ${new Date(closes).toISOString()}, the player's ${new Date(viewedCloses).toISOString()}`];
+    const problems = [];
+    for (const [door, s] of [['the browser closed', a], ['the hunt viewed', b]]) {
+      if ((s.deaths || []).length !== 1 || s.session.end_reason !== 'died') problems.push(`CONTROL (${door}): the hero did not die once (${s.session.end_reason})`);
+      const rows = s.stats || {};
+      if (rows[`stat:deaths:${OLD_DAY}`] !== 3) problems.push(`${door}: the death's day ${OLD_DAY} reads ${rows[`stat:deaths:${OLD_DAY}`]}, not 2 + 1`);
+      if (`stat:deaths:${NEW_DAY}` in rows) problems.push(`${door}: the death at 23:59:40 was filed under the new day ${NEW_DAY}`);
+      /* stats.deaths and deathLog: the lifetime row and the day row move by the same one. */
+      if (rows['stat:deaths:'] !== 6) problems.push(`${door}: the lifetime row reads ${rows['stat:deaths:']}, not 5 + 1, beside a day row of ${rows[`stat:deaths:${OLD_DAY}`]}`);
+      /* The settle can only read the day it runs in, so the row states no day's count at all. */
+      if (s.deaths && s.deaths[0] && s.deaths[0][1] !== '0') problems.push(`${door}: the death row states a day's count (${s.deaths[0][1]})`);
+    }
+    if (canon(a) !== canon(b)) problems.push(`across midnight a player's instants wrote different rows from the tick's ${firstDiff(canon(a), canon(b))}`);
+    return problems;
+  },
   'DEATHXP-FLAME': async (db, M) => {
     const problems = [];
     const start = M.XP.skillXpForLevel('inner_flame', 10) + 1000;
     const want = M.AR.skillDeathLoss('inner_flame', start);
     if (!(want > 0)) return [`CONTROL: a death at Inner Flame 10 + 1000 XP would cost ${want}`];
-    const attended = (from, a) => {
-      const deaths = ((a[0] && a[0].events) || []).filter((e) => e[0] === 'death').map((e) => Date.parse(e[1]));
-      const cuts = [from + 7001, from + 33333];
-      for (const t of deaths) cuts.push(t - 1500, t + 1500);
-      cuts.push(from + SPAN_MS);
-      return [...new Set(cuts)].filter((t) => t > from && t <= from + SPAN_MS).sort((x, y) => x - y);
-    };
     const FLAME = { ...DOOMED, skillsXp: { ...DOOMED.skillsXp, inner_flame: start } };
-    const { a, b } = await compareRuns(db, M, FLAME, ticksOf(90000, SPAN_MS), attended);
+    const { a, b } = await compareRuns(db, M, FLAME, ticksOf(90000, SPAN_MS), attendedCuts);
     for (const [door, s] of [['the browser closed', a[0]], ['the hunt viewed', b[0]]]) {
       if ((s.deaths || []).length !== 1) { problems.push(`CONTROL (${door}): the hero died ${(s.deaths || []).length} time(s)`); continue; }
       const price = s.death_xp || {};
@@ -2145,16 +2247,7 @@ const DB_ARMS = {
       if (/beta_premium/.test(code(b.src)) && b.sig !== 'hr_premium_until(uuid,integer)') problems.push(`${b.sig} reads the beta switch past the one check`);
     }
     if (!bodies.some((b) => b.sig === 'hr_premium_until(uuid,integer)' && /beta_premium/.test(code(b.src)))) problems.push('hr_premium_until does not read the switch');
-    /* A SECOND APPLY is byte-identical and never turns back on a switch an operator turned off (the EA wipe). */
-    const image = () => one(db, `select jsonb_build_object('defs', (select jsonb_object_agg(p.oid::regprocedure::text, md5(pg_get_functiondef(p.oid)) || ':' || coalesce(p.proacl::text, ''))
-                                    from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-                                   where n.nspname = 'public' and p.proname in ('hr_premium_until', 'hr_premium_active', 'hr_premium_view', 'hr_stamina_of')),
-                                 'flags', (select jsonb_object_agg(key, enabled) from public.hr_flags))`);
-    const before = await image();
-    await db.exec(readFileSync(join(ROOT, 'supabase', 'migrations', '2026-12-17-beta-premium.sql'), 'utf8').replace(/\r\n/g, '\n'));
-    const after = await image();
-    if (canon(after) !== canon(before)) problems.push(`a second apply moved ${firstDiff(canon(before), canon(after))}`);
-    if (!before.flags || before.flags.beta_premium !== false) problems.push('CONTROL: the switch was not off before the second apply');
+    problems.push(...await betaSecondApply(db));
     return problems;
   }),
   PARTY: async (db, M) => inTx(db, async () => {
@@ -3453,7 +3546,16 @@ const MUTANTS = [
     dbOff: { fn: 'public.hr_hunt_close(uuid,text,timestamp with time zone,boolean)',
       find: "       set hp = (public.hr_vitals_of(v_s.user_id, v_s.slot) ->> 'max_hp')::int\n", replace: '       set hp = hp\n' } },
   { arm: 'DEATH', name: 'a death row carries a recovery clock again', file: join(FN, 'accrual.js'),
-    from: '      monster: String(d.monster || \'\'),\n      deaths_today:', to: '      monster: String(d.monster || \'\'),\n      recovery_ms: 60000,\n      deaths_today:' },
+    from: '      monster: String(d.monster || \'\'),\n      deaths_lifetime:', to: '      monster: String(d.monster || \'\'),\n      recovery_ms: 60000,\n      deaths_lifetime:' },
+  /* Run 41149723847: the day row keyed by the window's end, the instant only the viewed path shares with the death. */
+  { arm: 'BOTH-PATH-MIDNIGHT', name: 'a death is filed under the day its window closes in', file: join(FN, 'accrual.js'),
+    from: '    const day = utcDayKey(d.atMs);', to: '    const day = utcDayKey(toMs);' },
+  { arm: 'BOTH-PATH-MIDNIGHT', name: 'the death row states the count of a day the settle read', file: join(FN, 'accrual.js'),
+    from: '      monster: String(d.monster || \'\'),\n      deaths_lifetime:', to: '      monster: String(d.monster || \'\'),\n      deaths_today: 1,\n      deaths_lifetime:' },
+  { arm: 'BOTH-PATH-MIDNIGHT', name: 'stats.deaths and the day row disagree', file: join(FN, 'accrual.js'),
+    from: "  stat('deaths', stats.deaths);", to: "  stat('deaths', (stats.deaths || 0) * 2);" },
+  { arm: 'BOTH-PATH-MIDNIGHT', name: 'a death with no deathLog row', file: 'src/core/combat-sim.js',
+    from: '  out.deathLog.push({ atMs: f.atMs, monster: f.monster, xpLost });\n', to: '' },
   { arm: 'DEATH', name: 'a death costs nothing', file: 'src/core/combat-sim.js',
     from: '  const xpLost = deathXpLoss(m.state);', to: '  const xpLost = {};' },
   { arm: 'DEATH', name: 'a dead hero gets back up (the hunt goes on)', file: 'src/core/hunt/pull-cycle.js',
@@ -3848,7 +3950,11 @@ async function pinDice(db) {
   await db.query(`update public.hr_server_secrets set secret = sha256(convert_to('hunt-sessions-settle:fixed-prng:2', 'utf8')) where name = 'prng'`);
   await db.exec(`create sequence if not exists public.hr_test_uuid_seq;
     create or replace function pg_catalog.gen_random_uuid() returns uuid language sql volatile as
-      $f$ select ('00000000-0000-4000-8000-' || lpad(to_hex(nextval('public.hr_test_uuid_seq')), 12, '0'))::uuid $f$;`);
+      $f$ select ('00000000-0000-4000-8000-' || lpad(to_hex(nextval('public.hr_test_uuid_seq')), 12, '0'))::uuid $f$;
+    /* AN ARM CAN PIN THE SERVER CLOCK (hr.test_now, one transaction); unpinned, now() is what it always is. Installed once,
+       here and not in the arm: a plan inlines a built-in's body and a rollback does not invalidate that plan. */
+    create or replace function pg_catalog.now() returns timestamptz language sql stable as
+      $f$ select coalesce(nullif(current_setting('hr.test_now', true), '')::timestamptz, transaction_timestamp()) $f$;`);
 }
 const rewindDice = (db) => db.query(`select setval('public.hr_test_uuid_seq', 1000, false)`);
 function e2harness(msg) { return /patch anchor matched|produced identical SQL|did not land verbatim/.test(msg); }
@@ -3918,6 +4024,6 @@ async function main() {
 
 /* The PGlite harness, for tests/envelope-contract.mjs (the real projections fed to the client's readers). */
 export const HARNESS = Object.freeze({ ROOT, UIDS, STRONG, DOOMED, mixedRow, loadEdge, pinDice, hunter, character, settleTo, run, ticksOf,
-  one, q, inTx, makeExec, groundsOf, snapshot, canon, firstDiff });
+  one, q, inTx, makeExec, groundsOf, snapshot, canon, firstDiff, betaSecondApply });
 
 if (isMain(import.meta.url)) main();

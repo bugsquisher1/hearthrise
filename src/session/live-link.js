@@ -11,6 +11,14 @@
 //               ask at once for a fresh start point
 // Prediction only: nothing here is spent, credited or shown as owned.
 //
+// A SWING NOT REACHED YET IS NOT A DIFFERENCE. The server settles to its own now and the clock the prediction runs
+// on is measured from answers that took time to arrive (timeline.js T3), so a commit can name a swing the prediction
+// reaches a moment later. It runs on with the commit's seeds and the verdict waits for that swing (_held): restarted
+// for it instead, a page whose first answers landed late re-seeded at every commit, with nothing different.
+//
+// A real difference names itself: the start point that corrects it holds the server's world of a swing the prediction
+// still has too (live-diff.js), and takeDiff() hands that to telemetry and the bug report.
+//
 // A HUNT THIS BUILD CANNOT PREDICT (live-engine.js failed(): a monster or ground a
 // newer server knows, a swing that threw; Sentry JAVASCRIPT-4C) is not asked again
 // until the hunt ends (off): the view plays the server's own windows a poll behind,
@@ -19,14 +27,16 @@
 // ════════════════════════════════════════════════════════════════════════
 
 import { createLiveEngine } from '../hunt-view/live-engine.js?v=0.2.75';
+import { worldDiff } from '../hunt-view/live-diff.js?v=0.2.75';
 import { ITEMS } from '../data/items.js?v=0.2.75';
 import { MONSTERS } from '../data/monsters.js?v=0.2.75';
 import { SESSION_CONFIG } from './config.js?v=0.2.75';
 
 export class LiveLink {
   /**
-   * @param {{timeline: object, now: () => number, emit: (why: string) => void, stale?: () => void, clock?: () => number}} o
+   * @param {{timeline: object, now: () => number, emit: (why: string) => void, stale?: () => void, clock?: () => number, asked?: () => void}} o
    *   `clock`: the main-thread clock a catch-up slice is measured on (performance.now; `now` may be a test's display clock)
+   *   `asked`: `want` rose between answers (a held verdict went against the prediction): arm the next ask now
    */
   constructor(o) {
     this.engine = createLiveEngine({ items: ITEMS, monsters: MONSTERS });
@@ -34,6 +44,12 @@ export class LiveLink {
     this._now = o.now;
     this._emit = o.emit;
     this._stale = typeof o.stale === 'function' ? o.stale : null;
+    this._asked = typeof o.asked === 'function' ? o.asked : null;
+    /* A commit's { world_swing, world_hash } the prediction has not reached yet: judged when it does. */
+    this._held = null;
+    /* What differed at the last correction (worldDiff, with its swing), until takeDiff() or the next one. */
+    this.lastDiff = null;
+    this._diffOut = false;
     this._clock = typeof o.clock === 'function' ? o.clock : () => (globalThis.performance ? globalThis.performance.now() : Date.now());
     /** A catch-up run in slices (advance): the instants of its first slice, landed whole when its last runs. */
     this._catching = null;
@@ -90,7 +106,7 @@ export class LiveLink {
   /** The hunt is over (or there is none): back to the server-paced view. */
   off() {
     if (this.engine.running() || this.engine.stalled() || this._joining) { this.engine.stop(); this._tl.setDelay(SESSION_CONFIG.huntPlaybackDelayMs); }
-    this.want = false; this._tries = 0; this._joining = false; this.failure = null; this._catching = null;
+    this.want = false; this._tries = 0; this._joining = false; this.failure = null; this._catching = null; this._held = null;
   }
 
   /*
@@ -150,13 +166,16 @@ export class LiveLink {
       const i = body.hunt_live.instance;
       /* An ENDED prediction (the hunt's end foreseen: a death, a leave) is judged the same way: a start
          point it agrees with leaves it standing, one past or off it restarts it, eased. */
-      if (this.engine.sameSetup(body.hunt_live)
-        && this._judge({ world_swing: i.world_swing, world_hash: i.world_hash, seeds: body.hunt_live.seeds }) === 'match') return;
+      const same = this.engine.sameSetup(body.hunt_live);
+      const v = same ? this._judge({ world_swing: i.world_swing, world_hash: i.world_hash, seeds: body.hunt_live.seeds }) : null;
+      if (v === 'match' || v === 'ahead') return;
       /* Off the server's world: restart from it, eased (never fed: the swings it runs to catch up are
          already in the past). */
-      if (now !== null) { this.stats.reseeds++; this._restart((at, ahead) => this.engine.reseed(body.hunt_live, at, ahead)); }
+      if (v === 'diverged') this._noteDiff(i);
+      if (now !== null) { this.stats.reseeds++; this._held = null; this._restart((at, ahead) => this.engine.reseed(body.hunt_live, at, ahead)); }
     } else if (body.hunt_check && (this.engine.running() || this.engine.ended())) {
-      if (this._judge(body.hunt_check) !== 'match') this.want = true;
+      const v = this._judge(body.hunt_check);
+      if (v !== 'match' && v !== 'ahead') this.want = true;
     } else if (!this.engine.running() && !this.engine.ended()) {
       /* No start point in this answer (not due yet, a settle, or a plain read): ask again, backing
          off to the ordinary poll (askDelayMs). Never give up while the hunt is open: a view that
@@ -166,7 +185,32 @@ export class LiveLink {
     }
   }
 
-  _judge(hc) { const v = this.engine.reconcile(hc); if (Object.hasOwn(this.stats, v)) this.stats[v]++; return v; }
+  _judge(hc) {
+    const v = this.engine.reconcile(hc);
+    if (v === 'ahead') this._held = { world_swing: hc.world_swing, world_hash: hc.world_hash };
+    else if (Object.hasOwn(this.stats, v)) this.stats[v]++;
+    return v;
+  }
+
+  /* The frame loop's look at a verdict held for a swing not reached then (_judge). */
+  _judgeHeld() {
+    if (this._held === null) return;
+    const v = this.engine.check(this._held);
+    if (v === 'ahead') return;
+    this._held = null;
+    if (Object.hasOwn(this.stats, v)) this.stats[v]++;
+    if (v !== 'match') { this.want = true; if (this._asked) this._asked(); }
+  }
+
+  /* A start point the prediction differs from: name what differs while it still holds that swing (live-diff.js). */
+  _noteDiff(i) {
+    const mine = this.engine.worldAt(i.world_swing);
+    const diff = mine && typeof i.world === 'string' ? worldDiff(mine, i.world, this.engine.selfUnit()) : null;
+    if (diff) { this.lastDiff = Object.assign({ swing: i.world_swing, hunt: i.hunt }, diff); this._diffOut = true; }
+  }
+
+  /** What differed at the last correction, once (telemetry); `lastDiff` keeps it for a bug report. Null when none is new. */
+  takeDiff() { const d = this._diffOut ? this.lastDiff : null; this._diffOut = false; return d; }
 
   /** A setup intent the server took mid-hunt: ask for a start point at once (it carries the new setup). */
   ask() { if (this.engine.running() || this.engine.stalled()) { this.want = true; this._tries = 0; } }
@@ -266,11 +310,12 @@ export class LiveLink {
       const res = this.engine.catchUpSlice(c.at, c.ease, () => this._clock() - t0 < SESSION_CONFIG.liveCatchUpSliceMs);
       if (res === undefined) return 0;
       this._catching = null;
-      if (!this._fail() && res) this._land(c, res);
+      if (!this._fail() && res) { this._land(c, res); this._judgeHeld(); }
       return 0;
     }
     const n = this.engine.advance(now, (b) => this._tl.ingest(b, clientNow));
     if (this._fail()) return n;
+    if (n > 0) this._judgeHeld();
     const dry = this.engine.stalled();
     if (dry && !this._wasStalled) this.stats.starves++;
     this._wasStalled = dry;

@@ -1,5 +1,24 @@
 # Art Director — running log
 
+## 2026-10-31 - the phone a thumb can reach (lane/a-phone-reach, from set/v0.2.75)
+
+A simulated phone player's named problems, fixed without moving the layout. Lessons worth keeping:
+
+- **A row with no room gets one word, and the sheet behind it takes the rest.** "Heroes" opens All characters, which now
+  also holds Character list, Sign out, a visible Invite and every icon by name. Squeezing three links and four tabs beside
+  fifteen icons was never going to work at 667 px.
+- **`flex: 0 1 44px` with `width: auto` collapses a shrink-to-fit row** to its glyphs' 22 px: the widget sizes from
+  max-content, which ignores flex-basis. `width: 44px; flex: 0 1 auto` keeps the intrinsic size and still gives way.
+- **The strip's own height can pay for itself:** 40 px tall with the pane's top padding down to 2 px leaves the World where
+  it was, and the row's two halves share one foot.
+- **A swipe nobody tries is a hidden control.** PH-7 proved slots 10 and 20 reachable by a swipe, and a player still reported
+  them gone. The gold page press is what made them findable; a passing reach test did not prove discoverable.
+- **A reason in a `title` is no reason on a phone.** `off-why.js` reads the press from the point under the finger at the
+  document, because a browser may keep every event from a disabled control.
+- **`:root.is-touch` instead of a media query:** `(hover: none)` alone would be a new spelling for the breakpoint guard. The
+  class is set once at boot and the frozen set stays frozen.
+- shell.js sits at exactly the 600-line cap: page-level watchers belong in boot.js's `watchers`, not the shell.
+
 ## 2026-10-22 - the Hunts window becomes a list and a page (lane/b-hunts-detail, from release/v0.2.31)
 
 Built the designer's 10-22 plan items B #1, A #1, A #5 and B #3, client only, from fields the

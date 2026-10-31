@@ -26,7 +26,7 @@ import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.
 import { whole, gold } from '../../render/format.js?v=0.2.75';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.75';
 import { itemIconHtml, itemName } from '../widgets/bits.js?v=0.2.75';
-import { kindOf, sellPlan, lootSale } from '../bag-model.js?v=0.2.75';
+import { kindOf, sellPlan, lootSale, lootKept, sellQty } from '../bag-model.js?v=0.2.75';
 import { runIntent } from '../intent-words.js?v=0.2.75';
 import { showTip, hideTip } from './item-tip.js?v=0.2.75';
 import { upgradeOf, upgradeLineHtml, patchUpgradeLine, equipUpgrades } from '../widgets/upgrade-line.js?v=0.2.75';
@@ -60,7 +60,7 @@ export function renderShop() {
       + '<ul class="hw-ledger hw-buy-list" data-kind="' + kind + '"></ul>').join('')
     + '<p class="hh-empty hw-buy-none">The shop has no prices for you yet.</p>' + upgradeLineHtml() + '</section>'
     + '<section class="hw-pane" data-pane="sell">'
-    + '<div class="hw-tools"><button type="button" class="hh-tool" data-hs-act="sell-loot"></button></div>'
+    + '<div class="hw-tools"><button type="button" class="hh-tool" data-hs-act="sell-loot"></button></div><p class="hw-sell-note"></p>'
     /* the confirmation beside the press, never under the list (the coach rings its Sell: data-coach-hook) */
     + '<div class="hw-confirm" role="alertdialog" aria-label="Confirm the sale"><p class="hw-confirm-q"></p><p class="hw-confirm-note"></p>'
     + '<div class="hw-confirm-do"><button type="button" class="hw-primary" data-hs-act="confirm-yes" data-coach-hook="sell-confirm"></button>'
@@ -98,6 +98,7 @@ function patchBuy(root, st, ctx) {
         const b = li.querySelector('[data-hs-act="buy"]');
         text(b, 'Buy ' + n + ' · ' + gold(o.price * n));
         prop(b, 'disabled', st.sc.pending || short > 0);
+        attr(b, 'data-off-why', short ? 'You need ' + gold(short) + ' more.' : null);
       },
     });
   }
@@ -107,10 +108,21 @@ function patchBuy(root, st, ctx) {
     { locked: gearLocked(st.cs), msg: st.sc.msgAt === 'upgrade' ? st.sc.msg : '' });
 }
 
+/* What Sell all loot leaves out and why, so its price and the list under it add up (say-why). */
+function sellNote(plan, kept) {
+  const parts = [];
+  if (kept.ids.length) parts.push('It keeps ' + whole(kept.ids.length) + (kept.ids.length === 1 ? ' stack' : ' stacks') + ' worth ' + gold(kept.worth) + ' that you can use: fuel, food to cook and materials. Sell those by hand if you want the gold.');
+  if (plan.capped) parts.push('One sale takes up to ' + whole(sellQty(Infinity)) + ' of a stack.');
+  return parts.join(' ');
+}
+
 function patchSell(root, st, ctx) {
   const sc = st.sc;
   const locked = st.rules ? st.rules.locked : new Set();
   const bids = st.shop ? st.shop.bids : new Map();
+  const plan = lootSale(st.items, st.rules, st.shop, skillsOf(st.cs));
+  const kept = lootKept(st.items, st.rules, st.shop, skillsOf(st.cs));
+  const keptLoot = new Set(kept.ids);
   const list = st.items.filter((r) => bids.has(r.id)).sort((a, b) => (kindOf(b.id) === 'loot') - (kindOf(a.id) === 'loot') || bids.get(b.id) * b.qty - bids.get(a.id) * a.qty);
   rows(root.querySelector('.hw-sell-list'), list, {
     key: (r) => r.id,
@@ -119,17 +131,19 @@ function patchSell(root, st, ctx) {
       + '<button type="button" class="hh-tool" data-hs-act="sell" data-item="' + esc(r.id) + '"></button></li>'),
     patch: (li, r) => {
       const isLocked = locked.has(r.id);
-      text(li.querySelector('small'), '×' + whole(r.qty) + ' · ' + gold(bids.get(r.id)) + ' each' + (isLocked ? ' · locked' : ''));
+      text(li.querySelector('small'), '×' + whole(r.qty) + ' · ' + gold(bids.get(r.id)) + ' each' + (isLocked ? ' · locked' : keptLoot.has(r.id) ? ' · Sell all loot keeps it' : ''));
       const b = li.querySelector('button');
-      text(b, isLocked ? 'Locked' : 'Sell · ' + gold(bids.get(r.id) * Math.min(r.qty, 1000)));
+      /* One sale takes up to the server's limit of a stack: a bigger stack's button says how many, so its price adds up. */
+      const take = sellQty(r.qty);
+      text(b, isLocked ? 'Locked' : 'Sell ' + (take < r.qty ? whole(take) + ' ' : '') + '· ' + gold(bids.get(r.id) * take));
       prop(b, 'disabled', sc.pending || isLocked);
     },
   });
   cls(root.querySelector('.hw-sell-none'), 'is-on', !list.length);
-  const plan = lootSale(st.items, st.rules, st.shop, skillsOf(st.cs));
   const lb = root.querySelector('[data-hs-act="sell-loot"]');
   text(lb, 'Sell all loot' + (plan.lines.length ? ' · ' + gold(plan.total) : ''));
   prop(lb, 'disabled', sc.pending || !plan.lines.length);
+  text(root.querySelector('.hw-sell-note'), sellNote(plan, kept));
   const cf = root.querySelector('[data-pane="sell"] .hw-confirm');
   const opening = !!sc.confirm && !cf.classList.contains('is-on');
   cls(cf, 'is-on', !!sc.confirm);
@@ -192,11 +206,10 @@ renderShop.act = function actShop(ctx, body, action, ev, t) {
   if (action === 'buy') {
     const offer = t.getAttribute('data-offer');
     const o = shop ? shop.offers.find((x) => x.offer === offer) : null;
-    const before = goldOf(cs);
     sc.wear = false;
     sc.msgAt = null;
     runIntent(sc, repaint, () => cs.edgeIntent('shop_buy', { offer, qty: sc.qty[offer] || 1 }), 'Buying…',
-      () => { sc.wear = !!o && o.kind === 'gear'; const after = goldOf(cs); return before !== null && after !== null ? 'Paid ' + gold(before - after) + '.' : 'Bought.'; });
+      (r) => { sc.wear = !!o && o.kind === 'gear'; return r && Number.isSafeInteger(r.paid) ? 'Paid ' + gold(Math.abs(r.paid)) + '.' : 'Bought.'; });
     return true;
   }
   if (action === 'equip-upgrades') { equipUpgrades(cs, sc, repaint, upgradeOf(cs)); return true; }
@@ -212,11 +225,10 @@ renderShop.act = function actShop(ctx, body, action, ev, t) {
   if (action === 'confirm-no') { sc.confirm = null; repaint(); return true; }
   if (action === 'confirm-yes' && sc.confirm) {
     const lines = sc.confirm.lines;
-    const before = goldOf(cs);
     sc.confirm = null;
     sc.msgAt = null;
     runIntent(sc, repaint, () => cs.edgeIntent('vendor_sell_many', { lines }), 'Selling…',
-      () => { const after = goldOf(cs); return before !== null && after !== null ? 'The shop paid ' + gold(after - before) + '.' : 'Sold.'; });
+      (r) => (r && Number.isSafeInteger(r.paid) ? 'The shop paid ' + gold(r.paid) + '.' : 'Sold.'));
     return true;
   }
   return false;

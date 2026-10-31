@@ -44,7 +44,7 @@ import { renderAuthScreen, AUTH_BRAND } from './sign-in.js?v=0.2.75';
 import { mountWorldPane } from './world-pane.js?v=0.2.75';
 import { mountCharacterStrip, stripTargetOf } from './character-strip.js?v=0.2.75';
 import { renderHeroCreate } from './hero-create.js?v=0.2.75';
-import { slotOfferHtml, slotRefusalText } from './slot-offer.js?v=0.2.75';
+import { slotOfferHtml, slotRefusalText, playLineOf } from './slot-offer.js?v=0.2.75';
 import { createAlertCenter } from '../shell/alerts.js?v=0.2.75';
 import { createSocialRealtime } from '../social/realtime.js?v=0.2.75';
 import { SocialSession } from '../social/social-session.js?v=0.2.75';
@@ -53,6 +53,9 @@ import { startObservability, track } from '../net/observability.js?v=0.2.75';
 import { loadGlyphs } from './glyphs-loader.js?v=0.2.75';
 import { startDiagnostics } from '../net/diagnostics.js?v=0.2.75';
 import { mountPressAck } from '../shell/press-ack.js?v=0.2.75';
+import { mountOffWhy } from '../shell/off-why.js?v=0.2.75';
+import { mountLauncherNames } from '../shell/launcher-names.js?v=0.2.75';
+import { connection, mountConnectionLine } from '../net/connection.js?v=0.2.75';
 import { liveOverlayWanted, mountLiveOverlay } from './live-overlay.js?v=0.2.75';
 import { mountNewVersion } from './new-version.js?v=0.2.75';
 import { pointerCardOf } from '../session/tutorial-sections.js?v=0.2.75';
@@ -81,6 +84,9 @@ function startApp(win) {
   const obs = startObservability(win);
   const doc = win.document;
   const root = doc.getElementById('app');
+  /* A touch-only screen of any size has no keys and no hover (app.css, shell.css :root.is-touch; a media query for it
+     would be a new spelling, tests/breakpoint-guard.mjs). */
+  doc.documentElement.classList.toggle('is-touch', win.matchMedia('(hover: none) and (pointer: coarse)').matches);
   const fresh = mountNewVersion(win);
   const HS = win.HearthriseStorage;
   const store = SESSION_CONFIG.authStore === 'tab' ? HS.session : HS;
@@ -102,6 +108,9 @@ function startApp(win) {
 
   function clear() {
     paneSeq++;
+    /* the first screen takes over from the loading shell play.html paints (src/platform/load-shell.js) */
+    const loading = doc.querySelector('.boot-shell');
+    if (loading) loading.remove();
     if (creating) { creating.destroy(); creating = null; }
     if (pane) { pane.destroy(); pane = null; }
     if (strip) { strip.destroy(); strip = null; }
@@ -164,7 +173,7 @@ function startApp(win) {
     /* ...for THIS session only: the pass asks before every slice and sheet whether its account is still the page's, so a
        sign-out or a refused session stops it at once (client-boot B-15) */
     import('../world/prewarm.js?v=0.2.75').then((m) => { const acc = account; if (acc) m.prewarmTown(win, { alive: () => account === acc }); }, () => {});
-    const server = createServerLink({ url: SUPABASE_CONFIG.url, anonKey: SUPABASE_CONFIG.anonKey, token: auth.freshToken, renew: auth.renewToken,
+    const server = createServerLink({ url: SUPABASE_CONFIG.url, anonKey: SUPABASE_CONFIG.anonKey, token: auth.freshToken, renew: auth.renewToken, watch: connection,
       stale: () => fresh.check(true) });
     account = new AccountSession({ auth, server, tab: HS.session, channel: channelFor(client, auth),
       social: (acc) => new SocialSession({ account: acc, realtime: createSocialRealtime(client, auth.token) }) });
@@ -172,9 +181,10 @@ function startApp(win) {
       if (why === 'closed-game') showClosed();
       else if (why === 'viewed' && strip) showPane();
     });
+    account.setPageHidden(doc.hidden);   // opened behind another tab: visibilitychange has nothing to say yet
     alerts = createAlertCenter(account);
     /* Every press answers at once (src/shell/press-ack.js); ?debug=live adds the corner (live-overlay.js). */
-    watchers = [mountPressAck(doc, account.intents)];
+    watchers = [mountPressAck(doc, account.intents), mountConnectionLine(doc), mountOffWhy(doc), mountLauncherNames(doc)];
     if (liveOverlayWanted(win.location.search)) watchers.push(mountLiveOverlay(win, account));
     account.social.chat.followAlerts(alerts);   // the alerts are also the chat's System lines
     if (!resume) account.forgetOpen();
@@ -207,8 +217,7 @@ function startApp(win) {
       + '</button></li>').join('');
     /* the server's play-at-once limit, never a client fallback (board 2026-10-25 #8: an empty account read "One can play
        at a time." because the server had not said yet); unsaid, nothing is said */
-    const lim = a.statedLimit();
-    const playLine = lim === null ? '' : lim > 1 ? 'Up to ' + Math.min(lim, a.limit()) + ' can play at once.' : 'One can play at a time.';
+    const playLine = playLineOf(a.statedLimit(), a.limit(), roster.length, a.slotOffer);
     root.querySelector('.auth-card').innerHTML = '<h1 class="auth-title">Your characters</h1>'
       + '<p class="auth-lead">Signed in as ' + esc(auth.email() || 'you') + '. ' + playLine + '</p>'
       + '<ul class="char-list">' + (rows || '<li class="char-row">The server did not answer. Reload to try again.</li>') + '</ul>'
@@ -345,6 +354,9 @@ function startApp(win) {
     else if (what === 'create') showCreate(slot);
     else if (what === 'buy-slot') buySlot(Number(t.getAttribute('data-slot-id')), Number(t.getAttribute('data-pay')));
   });
+
+  /* A HIDDEN PAGE ASKS NOTHING (AccountSession.setPageHidden): the hunts run on the server; shown again, one catch-up. */
+  doc.addEventListener('visibilitychange', () => { if (account) account.setPageHidden(doc.hidden); });
 
   auth.onChange((ev) => {
     if (ev === 'recovery') showAuth('set-password');

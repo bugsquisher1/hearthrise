@@ -173,6 +173,11 @@ async function runTests(M) {
     eq(MD.huntAgainOf(s), { hunt: 'mill_cellar', preset: 1, hours: 2,
       bag: [{ item: 'wheat_bread', qty: 20 }, { item: 'goldenroot_tea', qty: 10, essential: true }] }, 'same ground, set, limits, bag');
     eq(MD.huntAgainOf(Object.assign({}, s, { hunt: null })), null, 'no ground, no card button');
+    /* The bag it carries is the one it holds now (blind playtest 2026-10-31: the old hunt's 20 shrimp, all eaten, were refused
+       "You no longer have that many."), keeping the old hunt's essential marks. */
+    eq(MD.againWithBag(MD.huntAgainOf(s), [{ item: 'goldenroot_tea', qty: 3 }, { item: 'cooked_shrimp', qty: 2 }]).bag,
+      [{ item: 'goldenroot_tea', qty: 3, essential: true }, { item: 'cooked_shrimp', qty: 2 }], 'what the bag holds now');
+    eq(MD.againWithBag(MD.huntAgainOf(s), []).bag, [], 'an empty bag goes on store supplies, as Enter does');
   });
 
   await t('S6 a forfeited hunt says why in plain words, never "by the server"', () => {

@@ -37,6 +37,10 @@ export const SESSION_CONFIG = Object.freeze({
       (hunt-settle.js HUNT_SETTLE_MIN_MS, 15 s) so each ask pays a window; the world tick only flushes a
       session owed 90 s or more, so without this an attended hunt shows nothing for a minute and a half. */
   huntPollMs: 16000,
+  /** A page hidden this long stops asking (AccountSession.setPageHidden; old-laptop player 10-31: 64 calls and 1.45 MB in
+      2 minutes hidden, for hunts the server runs anyway), and asks ONE catch-up per character when it is shown again. A
+      glance at another tab, under this, changes nothing. Under the look-ahead (liveRefillMs + its seeds) on purpose. */
+  awayAfterMs: 15000,
   /** The engine reads (hr-accrue {slot}) ONE character sends a minute, sustained (src/session/ask-pacer.js).
       hr_rate_gate's `accrue` budget, 30 a minute, is the ACCOUNT's: maxConcurrentCharacters x this stays
       under it (4 x 6 = 24); the hunt re-read every huntPollMs is 3.75 of it. */

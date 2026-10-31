@@ -30,12 +30,31 @@ import { runIntent } from '../intent-words.js?v=0.2.75';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.75';
 import { gaugeHtml, patchGauge, patchRoleGlyph } from '../widgets/bits.js?v=0.2.75';
 import { glyphSvg } from '../launcher.js?v=0.2.75';
+import { entriesFor } from '../context-menu.js?v=0.2.75';
+import { menuProvidersOf } from '../menu-providers.js?v=0.2.75';
 
 /* The rename panel's scratch, per viewed character: which hero, the typed name, the confirm step. */
 const SCRATCH = new WeakMap();
-const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { slot: null, typed: '', confirm: false, pending: false, msg: '' }; SCRATCH.set(cs, s); } return s; };
+const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { slot: null, typed: '', confirm: false, pending: false, msg: '', inviting: false, partyMsg: '' }; SCRATCH.set(cs, s); } return s; };
 const cleanName = (v) => String(v || '').trim().replace(/\s+/g, ' ');
 const RENAME_WHY = Object.freeze({ hunt_open: ' is hunting. Rename once the hunt ends.', renamed_today: ' changed name today. One change a day.' });
+
+/* THE PHONE'S ROUTES (playtest 2026-10-31, shown under the phone query only, windows.css): a hero's Invite button (the
+   right-click menu's own entry, so its rule and its words stay in one place); every icon of the top row by name, each a
+   press (the row has no words and a phone no hover); and Characters and Sign out, which no longer fit beside the row. */
+const iconListHtml = (ctx) => '<div class="hw-phone-only"><h3 class="hw-ledger-head is-on">What the icons open</h3><ul class="hw-icon-names">'
+  + ctx.wm.rows().filter((r) => r.launcher !== false).map((r) => '<li><button type="button" class="hw-icon-name" data-hs-open="' + esc(r.id) + '">'
+    + glyphSvg(ctx.glyphs, r.glyph) + '<span>' + esc(r.label) + '</span></button></li>').join('') + '</ul></div>';
+const ACCOUNT_HTML = '<div class="hw-phone-only hw-account"><button type="button" class="hh-tool" data-app="characters">Character list</button>'
+  + '<button type="button" class="hh-tool" data-app="sign-out">Sign out</button></div>';
+
+/** The Invite entry for one of this account's other heroes, or null (the viewed hero, or one already in a party). */
+function inviteEntry(ctx, x) {
+  if (!ctx.account || x.slot === ctx.character.slot) return null;
+  const target = { kind: 'player', id: ctx.account.userId, name: x.name, slot: x.slot };
+  const e = entriesFor(target, menuProvidersOf(ctx)).find((m) => m.id === 'party-invite');
+  return e ? { entry: e, target } : null;
+}
 
 /** The skeleton (built once per opening). */
 export function renderCharacters(ctx) {
@@ -51,10 +70,12 @@ export function renderCharacters(ctx) {
     + '<button type="button" class="hh-tool" data-hs-act="rename-no">Cancel</button></div></div>'
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></div>'
     + '<h3 class="hw-ledger-head is-on">Parties</h3>'
-    + '<p class="hs-note hw-parties-line"></p>'
+    + '<p class="hs-note hw-parties-line"></p><p class="hh-intent-msg hw-parties-msg" role="status" aria-live="polite"></p>'
+    + iconListHtml(ctx)
     + '<h3 class="hw-ledger-head is-on hw-alerts-head"></h3>'
     + '<ul class="hw-alert-kinds">' + ALERT_KINDS.map((k) => '<li><label class="hs-hudset-show">'
       + '<input type="checkbox" data-hs-act="alert-kind" data-kind="' + esc(k.id) + '"> ' + glyphSvg(ctx.glyphs, k.glyph) + ' ' + esc(k.label) + '</label></li>').join('') + '</ul>'
+    + ACCOUNT_HTML
     + '</div>';
 }
 
@@ -66,7 +87,8 @@ function charRow(ctx) {
     + '<div class="hw-char-gauges">' + gaugeHtml('hp', 'Health') + gaugeHtml('mana', 'Mana') + gaugeHtml('stamina', 'Stamina') + '</div>'
     + '<p class="hw-char-facts"><span class="hw-char-bag"></span><span class="hw-char-ready"></span><span class="hw-char-party"></span></p></div>'
     + '<span class="hw-char-do"><button type="button" class="hh-tool hw-char-show" data-hs-act="show">Show</button>'
-    + '<button type="button" class="hh-tool hw-char-rename" data-hs-act="rename">Rename</button></span></li>');
+    + '<button type="button" class="hh-tool hw-char-rename" data-hs-act="rename">Rename</button>'
+    + '<button type="button" class="hh-tool hw-char-invite" data-hs-act="invite" hidden></button></span></li>');
 }
 
 function patchRow(li, x, ctx) {
@@ -92,6 +114,12 @@ function patchRow(li, x, ctx) {
   const ren = li.querySelector('.hw-char-rename');
   ren.setAttribute('data-slot', String(x.slot));
   prop(ren, 'disabled', scratchOf(ctx.character).pending);
+  const inv = li.querySelector('.hw-char-invite');
+  const can = inviteEntry(ctx, x);
+  inv.setAttribute('data-slot', String(x.slot));
+  prop(inv, 'hidden', !can);
+  text(inv, can ? can.entry.label : '');
+  prop(inv, 'disabled', scratchOf(ctx.character).inviting || (!!can && can.entry.off));
 }
 
 /** The rename panel: the chosen hero's quote, the account's gold, the typed name and the confirm step. */
@@ -141,7 +169,9 @@ renderCharacters.patch = function patchCharacters(body, ctx) {
   });
   const inParty = peers.filter((cs) => summaryOf(cs).party).length;
   text(root.querySelector('.hw-parties-line'), (inParty ? inParty + ' of your ' + peers.length + ' characters ' + (inParty === 1 ? 'is' : 'are') + ' in a party. '
-    : 'None of your characters is in a party. ') + 'Right-click a player, or one of your character tabs, to invite. Party (Y) finds open parties.');
+    : 'None of your characters is in a party. ') + (ctx.isPhone && ctx.isPhone() ? 'Press Invite on a hero to bring it into your party, or hold a player’s name. The Party window finds open parties.'
+      : 'Right-click a player, or one of your character tabs, to invite. Party (Y) finds open parties.'));
+  text(root.querySelector('.hw-parties-msg'), scratchOf(ctx.character).partyMsg);
   patchRename(root, ctx, peers);
   text(root.querySelector('.hw-alerts-head'), 'Alerts from ' + summaryOf(ctx.character).name);
   for (const box of root.querySelectorAll('[data-hs-act="alert-kind"]')) prop(box, 'checked', alertShown(ctx.character, box.getAttribute('data-kind')));
@@ -153,6 +183,18 @@ renderCharacters.act = function actCharacters(ctx, body, action, ev, t) {
   if (action === 'show') { if (ctx.goTo) ctx.goTo(Number(t.getAttribute('data-slot'))); return true; }
   const sc = scratchOf(ctx.character);
   const repaint = () => renderCharacters.patch(body, ctx);
+  if (action === 'invite') {
+    const x = ctx.peers().map((cs) => summaryOf(cs, ctx.alerts)).find((p) => p.slot === Number(t.getAttribute('data-slot')));
+    const can = x && inviteEntry(ctx, x);
+    if (!can || sc.inviting) return true;
+    sc.inviting = true; sc.partyMsg = 'Sending…';
+    repaint();
+    Promise.resolve(can.entry.run(can.target, { open: (id) => ctx.show(id) })).then((r) => r, () => ({ say: 'That did not work. Try again.' })).then((r) => {
+      sc.inviting = false; sc.partyMsg = r && r.say ? r.say : '';
+      repaint();
+    });
+    return true;
+  }
   if (action === 'rename') {
     if (sc.pending) return true;
     sc.slot = Number(t.getAttribute('data-slot')); sc.confirm = false; sc.msg = '';

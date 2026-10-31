@@ -30,7 +30,6 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 ## Decisions
 _Tyler's rulings live in rulings-of-record; designer rulings inside them are recorded here._
 
-<<<<<<< HEAD
 ### 2026-10-31 First hour in every fighting style (designer, lane/b-first-hour-styles): PLAYED from the sign-in screen on the local world (tools/qa/local-world.mjs), shots art/review/first-hour-styles-2026-10-31/
 Fresh accounts: sword + shield, hatchets, bow, wand + spellbook, staff, plus a two-hero party at 922x423 touch and a death on purpose. Waiting compressed with skip, results real. Then the blind panel's list (lane/f-*).
 
@@ -84,7 +83,7 @@ Fresh accounts: sword + shield, hatchets, bow, wand + spellbook, staff, plus a t
 | 10 | Eat on time, Your own food first | has eaten three times in this hunt | Configure action, or Got it |
 
 **Not played:** the Thicket after the bow fix; real waiting on farm and cooking clocks; live. Not reproduced: one page's bag failed to open with three heroes running on the loaded PC; a fresh page with the same weapon was fine.
-=======
+
 ### 2026-10-31 Balance baseline against Tyler's 10-25 targets (designer, lane/b-balance-baseline): MEASURED on the real engine, no data row changed
 **Method.** `tools/balance-sim` plan `verdict` (new): 1,146 cells, 12.3k hero-hours on the real settle at v0.2.74 (c374ad2), 4 workers, 50 min. Every open ground, band ±10 Levels; seven ways to fight (sword + shield, dual axes, hammer, bow, crossbow + shield, wand + spellbook, staff); in-band gear vs the practice set alone (no armour); alone, a duo (tank + healer) and a four (+ bow + mage); density as built and the full box; 3 seeds a cell; 376 twelve-hour hunts (one segment = one unattended hunt) on the first floors and middles. Evidence: `tools/balance-sim/verdict-summary.json`, `verdict-cells.csv`; `node tools/balance-sim/verdict-table.mjs` reprints. Level hours: level-curve green on this commit (careers measured L10 6.3 h, L25 35.0 h, L50 172.6 h; L100 580 h by the contract).
 
@@ -148,7 +147,6 @@ Armour meets its target per piece: one body piece one tier up cuts damage per mo
 4. **Re-measure the weapon step (#5) after 1.** Role parity (#7) stays Tyler's open item.
 
 **Standing guard (new): `tests/hunt-core/first-week-bands.mjs`** (in run-all; about 40 s on one core). Cases: each of the seven ways to fight, alone in the practice set, at the floor of every ground the Hunts window sends a lone hero to on day one (Cellar 1, Thicket 5, Wickstead 8); and a practice-set duo and four at the first party floor (Sewer 8). The bars are absolute, never pinned: no death; no dip under 25% alone, at most one in a party; typical encounter ≥ 60% alone and ≥ 50% for the party tank; +25% over the bill; Level XP at least half the pace. 4 mutants. Culvert Bat atk 9 → 12 is caught only here: drop-tables, sewer, conditions and forest-cave stay green, because their heroes wear the ladder kit.
->>>>>>> origin/main
 
 ### 2026-10-30 Core loop, fresh and returning (designer, lane/b-core-loop-basics): PLAYED on live v0.2.70 as QA (Pellow L2→3 in the Cellar, reload mid-hunt, leave, summary, bag, Shop; Corliss L12 back after a day), fixes in the lane
 | # | Moment (first-hour value order) | Ruling |

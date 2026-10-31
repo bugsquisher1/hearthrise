@@ -789,13 +789,11 @@ const SAY = Object.freeze({
   },
   leave_cellar: (f) => ({ text: 'You\'re Level ' + f.charLevel + '. Leave the hunt to go back to town. Your loot is already in your bag.' }),
   styles: () => {
-    const n = (id) => name(id) || id;
     /* the switch and the door to better ones, on top of the list (Tyler 2026-10-22; style-gear.js: each rung is made at a bench) */
-    return { text: 'There\'s no class to pick: the weapon you hold is how you fight. The others are in your bag: press one, then Equip, any time in town.',
-      textIn: 'There\'s no class to pick: the weapon you hold decides how you fight. ' + n(START_EQUIPMENT.weapon) + ' and ' + n(START_EQUIPMENT.shield)
-      + ' hold the monsters on you (a tank). ' + n('practice_hatchets') + ' or a ' + n('practice_club') + ' hit hardest up close. A ' + n('practice_bow') + ' or '
-      + n('practice_crossbow') + ' shoots from range. A ' + n('practice_wand') + ' and ' + n('practice_spellbook') + ' cast spells. A ' + n('practice_staff')
-      + ' heals. The others are in your bag: press one, then Equip, any time in town. Better ones are made in Gathering and crafting.' };
+    /* Short: over the town and inside a phone's bag sheet the long list cut Got it off the screen (played at 922x423). The
+       creation step and Help carry each style's fuller words. */
+    return { text: 'No class to pick: the weapon you hold is how you fight. Press another in your bag, then Equip, any time in town.',
+      textIn: 'Sword and shield hold the monsters on you. Hatchets or a club hit hardest. A bow or crossbow shoots from range. A wand and book cast spells. A staff heals. Press one, then Equip, any time in town. Better ones are made in Gathering and crafting.' };
   },
   bless: (f) => {
     const b = f.blessings;

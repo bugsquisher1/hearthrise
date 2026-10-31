@@ -35,6 +35,7 @@ import { renderOnline } from './widgets/online.js?v=0.2.76';
 import { renderHouse } from './windows/house.js?v=0.2.76';
 import { renderFarm } from './windows/farm.js?v=0.2.76';
 import { renderTally } from './windows/tally.js?v=0.2.76';
+import { renderHonor } from './windows/honor.js?v=0.2.76';
 import { renderTallyHud } from './widgets/tally-hud.js?v=0.2.76';
 
 /* A renderer with `.patch` is a component: built once, then patched in place (src/shell/shell.js). */
@@ -47,6 +48,7 @@ export const WINDOW_RENDERERS = Object.freeze({
   shop: renderShop,
   farm: renderFarm,
   tally: renderTally,
+  honor: renderHonor,
   house: renderHouse,
   'hunt-prep': renderHuntPrep,
   'hunt-party': renderParty,

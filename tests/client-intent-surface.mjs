@@ -70,6 +70,8 @@ export const CLIENT_RPCS = Object.freeze({
   hr_hunt_preset_delete: 'remove one of this character’s saved setups (preset-intents.js deleteSetup)',
   hr_action_set_rename: 'name the action set the bar shows (preset-intents.js renameActionSet)',
   hr_account_items: 'where an item is across this account, a read (AccountSession.findItems)',
+  /* The Roll of Honor (2027-02-12-leaderboard-heroes.sql): a board id and a row count; places, names and numbers are the server's. */
+  hr_leaderboard: 'one board of the Roll of Honor: its top heroes and this account\'s own heroes on it, a read (honor-roll.js readBoard)',
   /* The party (S1, 2026-10-23-hunt-party.sql): slot + party id or seat only; no user id crosses. */
   hr_hunt_party_join: 'take a free seat in an open party by its id (CharacterSession.joinParty)',
   hr_hunt_party_leave: 'leave this character’s party (CharacterSession.leaveParty)',

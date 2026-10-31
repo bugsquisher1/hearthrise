@@ -245,6 +245,10 @@ export async function bootWorld(panel, opts) {
     const now = character.now();
     /* the live view's engine runs to now first (src/session/live-link.js) */
     if (typeof character.liveAdvance === 'function') character.liveAdvance(now);
+    /* A CATCH-UP STILL RUNNING IN SLICES (a tab back from the background, live-link.js advance): the last frame stays on
+       screen until it lands. Drawn meanwhile, the stale picture became the scene's present and the span skipped played
+       its deaths anew where today's one-task catch-up lets them lie (tests/hunt-scene-live.mjs LV-29). */
+    if (typeof character.liveCatchingUp === 'function' && character.liveCatchingUp()) return null;
     const back = typeof character.takeReseeded === 'function' ? character.takeReseeded() : null;
     if (back) scene.revive(back, now);
     /* what the live view did (verdicts, restarts), readable from the page for a live check: data-live */
@@ -372,6 +376,7 @@ export async function bootWorld(panel, opts) {
     let cast;
     if (sc.kind === 'hunt') {
       cast = huntState(G, sc, map, name, now);
+      if (!cast) return;   // a live catch-up still running in slices: the last frame stays on screen
       walk = null; lastWalk = null; keys.clear(); forgetPos(G);   // back in town: on the stand the server gives it
       if (town) town.show(null);
     } else {

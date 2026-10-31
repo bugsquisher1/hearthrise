@@ -243,6 +243,9 @@ export class CharacterSession {
   /** The frame loop's step: run the live engine to the server's clock now (the viewed character). */
   liveAdvance(clientNow) { return this.liveLink.advance(clientNow); }
 
+  /** A live catch-up still running in slices (live-link.js catchingUp): the frame loop draws nothing new until it lands. */
+  liveCatchingUp() { return this.liveLink.catchingUp(); }
+
   /** What the live view did: verdicts of the server's commits and every restart (live-link.js stats). */
   liveStats() { return Object.assign({}, this.liveLink.stats); }
 

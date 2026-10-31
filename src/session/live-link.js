@@ -242,6 +242,9 @@ export class LiveLink {
     this._emit('reseed');
   }
 
+  /** A catch-up still running in slices (advance): the frame loop keeps its last frame on screen until it lands. */
+  catchingUp() { return this._catching !== null; }
+
   /** The frame loop's step: run the engine to the server's clock now. */
   advance(clientNow) {
     if (!this.engine.running()) { this._catching = null; return 0; }

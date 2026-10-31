@@ -57,6 +57,9 @@
 //         new monsters to a page still on the last build): every start point names a monster this build lacks.
 //         No frame throws; the live view falls back to the server's windows a poll behind, asks the site once
 //         whether a newer build is out (the reload banner's check), and the hunt keeps moving on screen.
+//   LV-29 A TAB BACK FROM THE BACKGROUND CATCHES UP IN SLICES (live: one 213-259 ms task as it came back): the
+//         catch-up's swings run at most liveCatchUpSliceMs a frame, and every frame once it has landed is the one
+//         the whole catch-up in one frame draws (the same restart, a few frames on).
 //   LV-4  THE PAGE (headless Chrome, the real client, the same server answers): the hunt
 //         draws, no page error, and the frame loop holds budget against the frozen sim
 //         (prototypes/hunt-sim) measured the same way.
@@ -91,6 +94,9 @@ async function load(base) {
     HG: await u('src/core/hunt-ground.js'),
     AB: await u('src/shell/widgets/action-bar.js'),
     WS: await u('src/core/hunt/world-state.js'),
+    LE: await u('src/hunt-view/live-engine.js'),
+    ITEMS: (await u('src/data/items.js')).ITEMS,
+    MONSTERS: (await u('src/data/monsters.js')).MONSTERS,
     base,
   };
 }
@@ -144,7 +150,8 @@ function envFor(nowMs, enteredMs, heroes, fromMs) {
      outfits     { seat: outfit }: the party section's member `outfit` ({ id, colors }) by seat
      fps         frames drawn per second (default 60; a long hunt draws fewer to stay quick)
      tamper      (body) => void: every hr-accrue answer's body, changed in place before the session reads it (LV-28)
-     onStale     told when the session asks the server link's stale() (LV-28: the reload banner's check) */
+     onStale     told when the session asks the server link's stale() (LV-28: the reload banner's check)
+     clock       the main-thread clock a live catch-up slice is measured on (LV-29; default performance.now) */
 /* The hunt section's pose of the instance's stored world (hr_state_of hunt.pose: its units at the last commit). */
 function poseOf(LM, inst) {
   const w = LM.WS.decodeStored(JSON.parse(inst.world));
@@ -198,7 +205,7 @@ async function playLive(M, LM, book, mis, spanMs, onFrame, opt) {
      keep the run they were measured on, where a cleared timer still fires) */
   const cs = new M.C.CharacterSession({ slot: 0, uid: '11111111-2222-3333-4444-555555555555', server,
     setTimer: (fn, ms) => { timers.push({ fn, at: clock.t + ms }); return timers.length; },
-    clearTimer: (id) => { if (o.clears && Number.isInteger(id) && id >= 1) timers[id - 1] = null; }, now: () => clock.t });
+    clearTimer: (id) => { if (o.clears && Number.isInteger(id) && id >= 1) timers[id - 1] = null; }, now: () => clock.t, clock: o.clock });
   await cs.load();
   /* ONE POSITION SOURCE: a server window played into the timeline while a prediction exists (running,
      or out of seeds and waiting for its restart) is a second source writing the prediction's units. */
@@ -241,6 +248,8 @@ async function playLive(M, LM, book, mis, spanMs, onFrame, opt) {
     if (unviewed) continue;
     if (away) { away = false; scene = mount(); }   // viewed again: a new pane, the character's scene
     cs.liveAdvance(clock.t);
+    /* a catch-up still running in slices: the last frame stays on screen (world-boot.js liveState), nothing is drawn */
+    if (typeof cs.liveCatchingUp === 'function' && cs.liveCatchingUp()) continue;
     const back = cs.takeReseeded(); if (back) scene.revive(back, clock.t);
     played.length = 0;
     cs.timeline.advance(clock.t);
@@ -639,6 +648,64 @@ async function nodeRules(M) {
     ok('LV-28', stale === 1, `the site was asked ${stale} time(s) whether a newer build is out, want once`);
     /* a tank that stands and fights moves in about 15 % of its frames (220/1500 live); a frozen hunt in none */
     ok('LV-28', frames > 0 && moving >= frames * 0.05, `the hunt stood still on screen after the fall-back: ${moving} of ${frames} frames moved`);
+  }
+
+  { // LV-29 A TAB BACK FROM THE BACKGROUND CATCHES UP IN SLICES. A background tab's timers are throttled (a minute
+    // apart), so its polls bring no start point and the prediction falls behind; on the way back it ran every missed
+    // swing it had seeds for as ONE task (213-259 ms live: the page froze as it came back). The slice clock here
+    // reads one more ms at each look, so a slice runs as many swings as liveCatchUpSliceMs allows looks.
+    /* a busy fight (LV-24's Thicket duo at density 8: wolves running), hidden just after a commit handed the look-ahead its seeds */
+    const PAUSE = [LIVE_H.T0 + 33000, LIVE_H.T0 + 73000];
+    const duo = () => ['melee_dps', 'melee_dps'].map((r, i) => {
+      const mi = LIVE_H.memberOf(LM, 'ab'[i], i, r, 12);
+      mi.huntId = 'meadowbrook_thicket'; mi.hero = Object.assign({}, mi.hero, { density: 8 });
+      return mi;
+    });
+    const play = async (clock) => {
+      const out = { perFrame: [], frames: [], ran: 0, catchUps: 0 };
+      let hooked = false;
+      await playLive(M, LM, book, duo(), 80000, ({ s, f, cs }) => {
+        /* the swings each frame step runs (a start point's restart is not one: it runs in its answer); a frame step
+           whose catch-up is still slicing draws nothing, so it is counted where it runs, not here */
+        if (!hooked) {
+          hooked = true;
+          const step = cs.liveAdvance.bind(cs);
+          cs.liveAdvance = (t) => { const b = cs.live.swingIndex(); const r = step(t); const d = (cs.live.swingIndex() ?? b) - b;
+            if (cs.timeline.serverNowAt(t) >= PAUSE[1] && d > 0) { out.perFrame.push(d); out.ran += d; } return r; };
+        }
+        out.catchUps = cs.liveLink.stats.catchUps;
+        /* every frame drawn from the return on, by its instant: the picture and each bar */
+        if (s >= PAUSE[1]) out.frames.push(s + ' ' + JSON.stringify([f.hero && [f.hero.x, f.hero.y, f.hero.anim], f.units.map((d) => [d.unit, d.x, d.y, d.anim, d.frame, cs.timeline.hpAt(d.unit, cs.now())])]));
+      }, { pause: PAUSE, hold: PAUSE, clock, hunt: 'meadowbrook_thicket' });
+      return out;
+    };
+    let ticks = 0;
+    const sliced = await play(() => ++ticks);
+    const whole = await play(() => 0);   // the clock never moves: the whole catch-up in one frame (as before the slices)
+    const cap = M.CFG.SESSION_CONFIG.liveCatchUpSliceMs;
+    /* each frame the sliced run drew (it draws none while a catch-up is still slicing) is the whole run's at that instant */
+    const wholeAt = new Set(whole.frames);
+    const differ = sliced.frames.findIndex((x) => !wholeAt.has(x));
+    console.log(`  LV-29 back after 40 s in the background: the catch-up ran ${sliced.ran} swing(s) over ${sliced.perFrame.length} frame step(s) [${sliced.perFrame.join(', ')}] (in one frame: [${whole.perFrame.join(', ')}]); ${sliced.frames.length} frames drawn from the return (${whole.frames.length - sliced.frames.length} held), first not the whole run's ${differ}`);
+    ok('LV-29', Math.max(0, ...whole.perFrame) > cap, `CONTROL: the longest catch-up ran ${Math.max(0, ...whole.perFrame)} swing(s) in a frame (want over ${cap}): the case does not build a long one`);
+    ok('LV-29', sliced.perFrame.length > 1 && Math.max(...sliced.perFrame) <= cap, `a frame ran ${Math.max(0, ...sliced.perFrame)} catch-up swings (one slice is at most ${cap} looks): [${sliced.perFrame.join(', ')}]`);
+    ok('LV-29', sliced.ran === whole.ran && sliced.catchUps === whole.catchUps, `the sliced catch-up ran ${sliced.ran} swings in ${sliced.catchUps} catch-up(s), the whole one ${whole.ran} in ${whole.catchUps}`);
+    ok('LV-29', sliced.frames.length > 0 && differ === -1, `a frame the sliced catch-up drew is not the whole one's at that instant (frame ${differ} of ${sliced.frames.length})`);
+    { // ...and the run itself: from one start point, slices of three swings answer what one call does (same restart, next boundary, world)
+      const srv = LIVE_H.server(LM, duo(), { hunt: 'meadowbrook_thicket' });
+      for (let t = LIVE_H.T0 + 10000; t <= LIVE_H.T0 + 60000; t += 10000) srv.commit(t);
+      const live = srv.live('a');
+      live.seeds.list = Array.from({ length: 40 }, (_, i) => live.seeds.list[i] ?? (7919 * (i + 1)));   // seeds past the look-ahead: a long run
+      const norm = (r) => r && JSON.stringify(Object.assign({}, r, { positions: [...r.positions], alive: [...r.alive].sort((x, y) => x - y) }));
+      const A = M.LE.createLiveEngine({ items: M.ITEMS, monsters: M.MONSTERS }), B = M.LE.createLiveEngine({ items: M.ITEMS, monsters: M.MONSTERS });
+      A.seed(clone(live)); B.seed(clone(live));
+      const at = A.nextAt() + 60000;
+      const one = A.catchUp(at, 250);
+      let got, n = 0, looks = 0;
+      do { got = B.catchUpSlice(at, 250, () => ++looks % 3 !== 0); n++; } while (got === undefined && n < 100);
+      const same = norm(one) === norm(got) && A.nextAt() === B.nextAt() && A.hashAt(A.swingIndex() - 1) === B.hashAt(B.swingIndex() - 1);
+      ok('LV-29', n > 3 && same && !B.catchingUp(), `slices of three swings (${n} of them) did not answer the one-call catch-up's restart, next boundary and world (same ${same})`);
+    }
   }
 
   { // LV-12 A DEATH INSIDE A CATCH-UP IS PLAYED: the frame loop stops for 5 s (a background tab) across two
@@ -1245,6 +1312,10 @@ const MUTANTS = [
     "fail(reasonOf(e)); return n; }", "throw e; }", /^LV-28/, [['    if (unknown.length) return fail(', '    if (false) return fail('], ['break; return fail(reasonOf(e)); }', 'break; throw e; }']]],
   ['a failed prediction keeps the live delay and asks again (LV-28)', 'src/session/live-link.js', '    if (why === null || this.failure !== null) return false;', '    if (true) return false;', /^LV-28: (the live view did not stop|after the fall-back)/],
   ['a failed prediction never asks for a newer build (LV-28)', 'src/session/live-link.js', "    if (this._stale) { try { this._stale(); }", "    if (false) { try { this._stale(); }", /^LV-28: the site was asked/],
+  /* A tab back from the background catches up in slices, and lands the restart one task would have (LV-29). */
+  ['a catch-up runs whole in one frame (LV-29)', 'src/session/live-link.js', '() => this._clock() - t0 < SESSION_CONFIG.liveCatchUpSliceMs);', '() => true);', /^LV-29: a frame ran/],
+  ["a sliced catch-up lands at its last slice's instants (LV-29)", 'src/session/live-link.js', 'if (!this._fail() && res) this._land(c, res);', 'if (!this._fail() && res) this._land(this._instants() || c, res);', /^LV-29: a frame the sliced/],
+  ['each slice of a catch-up starts its run again (LV-29)', 'src/hunt-view/live-engine.js', '      if (!job || job.of !== st) job = forward(serverNowMs, aheadMs);', '      job = forward(serverNowMs, aheadMs);', /^LV-29/],
   ['the live view keeps the server-paced delay (LV-2)', 'src/session/live-link.js', 'this._tl.setDelay(SESSION_CONFIG.liveDelayMs);', 'void 0;', /^LV-2/],
   ['the frame loop never advances the engine (LV-2)', 'src/session/live-link.js', '    const n = this.engine.advance(now, (b) => this._tl.ingest(b, clientNow));', '    const n = 0;', /^LV-2/],
   ['a monster the snapshot dropped is unnamed (LV-5)', 'src/hunt-view/scene.js', "(typeof tl.kindOf === 'function' ? tl.kindOf(u) : null)", 'null', /^LV-5/],

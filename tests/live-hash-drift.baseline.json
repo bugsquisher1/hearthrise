@@ -24,10 +24,10 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-10-31",
- "replay_ms": 102848,
+ "replay_ms": 113367,
  "counts": {
-  "tracked_names": 705,
-  "entries": 560
+  "tracked_names": 708,
+  "entries": 563
  },
  "functions": [
   {
@@ -2097,6 +2097,7 @@
    "name": "hr_char_level",
    "tracked_by": [
     "chain",
+    "pin",
     "restate"
    ],
    "touched_by": [
@@ -7794,6 +7795,29 @@
    "agree": true
   },
   {
+   "sig": "hr_market_eligible(p_user uuid)",
+   "name": "hr_market_eligible",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-02-13-market-eligibility.sql"
+   ],
+   "live": {
+    "md5": "056beb6114283331e59a30ffa51dd8cc",
+    "norm_len": 355,
+    "measured": "2026-10-31",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "056beb6114283331e59a30ffa51dd8cc",
+    "norm_len": 355,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
    "sig": "hr_market_expire(p_limit integer, p_only uuid)",
    "name": "hr_market_expire",
    "tracked_by": [
@@ -7890,6 +7914,29 @@
    "agree": true
   },
   {
+   "sig": "hr_market_listing_gate()",
+   "name": "hr_market_listing_gate",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-02-13-market-eligibility.sql"
+   ],
+   "live": {
+    "md5": "cbf89da79caca1933c3d2b8dc2bea571",
+    "norm_len": 382,
+    "measured": "2026-10-31",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "cbf89da79caca1933c3d2b8dc2bea571",
+    "norm_len": 382,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
    "sig": "hr_market_listing_immutable()",
    "name": "hr_market_listing_immutable",
    "tracked_by": [
@@ -7917,20 +7964,22 @@
    "sig": "hr_market_mine(p_user uuid, p_slot integer)",
    "name": "hr_market_mine",
    "tracked_by": [
+    "pin",
     "restate"
    ],
    "touched_by": [
-    "2027-01-12-market-account.sql"
+    "2027-01-12-market-account.sql",
+    "2027-02-13-market-eligibility.sql"
    ],
    "live": {
-    "md5": "dc4d9557bcd53f14f5e509564f80f2ae",
-    "norm_len": 2712,
+    "md5": "38ad0bcf70aa7f36057f3a9fa6e094f9",
+    "norm_len": 2760,
     "measured": "2026-10-31",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "dc4d9557bcd53f14f5e509564f80f2ae",
-    "norm_len": 2712,
+    "md5": "38ad0bcf70aa7f36057f3a9fa6e094f9",
+    "norm_len": 2760,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -7966,17 +8015,41 @@
     "restate"
    ],
    "touched_by": [
-    "2027-01-12-market-account.sql"
+    "2027-01-12-market-account.sql",
+    "2027-02-13-market-eligibility.sql"
    ],
    "live": {
-    "md5": "d7de4dbfb67c7c8d7b8a17a4c3ce9e76",
-    "norm_len": 579,
+    "md5": "8e667ce8b858309d9b7be59667245bc3",
+    "norm_len": 605,
     "measured": "2026-10-31",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "d7de4dbfb67c7c8d7b8a17a4c3ce9e76",
-    "norm_len": 579,
+    "md5": "8e667ce8b858309d9b7be59667245bc3",
+    "norm_len": 605,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_market_sale_gate()",
+   "name": "hr_market_sale_gate",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-02-13-market-eligibility.sql"
+   ],
+   "live": {
+    "md5": "95c3791a94cc512e358048fa18c535c7",
+    "norm_len": 385,
+    "measured": "2026-10-31",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "95c3791a94cc512e358048fa18c535c7",
+    "norm_len": 385,
     "source": "computed-from-replay"
    },
    "agree": true

@@ -10,6 +10,12 @@
 //   hunt_check  a commit: confirm the prediction (and take the next seeds), or
 //               ask at once for a fresh start point
 // Prediction only: nothing here is spent, credited or shown as owned.
+//
+// A HUNT THIS BUILD CANNOT PREDICT (live-engine.js failed(): a monster or ground a
+// newer server knows, a swing that threw; Sentry JAVASCRIPT-4C) is not asked again
+// until the hunt ends (off): the view plays the server's own windows a poll behind,
+// as it does before a start point lands, and the site is asked whether it serves a
+// newer build (`stale`: src/app/new-version.js raises the reload banner if so).
 // ════════════════════════════════════════════════════════════════════════
 
 import { createLiveEngine } from '../hunt-view/live-engine.js?v=0.2.74';
@@ -19,13 +25,16 @@ import { SESSION_CONFIG } from './config.js?v=0.2.74';
 
 export class LiveLink {
   /**
-   * @param {{timeline: object, now: () => number, emit: (why: string) => void}} o
+   * @param {{timeline: object, now: () => number, emit: (why: string) => void, stale?: () => void}} o
    */
   constructor(o) {
     this.engine = createLiveEngine({ items: ITEMS, monsters: MONSTERS });
     this._tl = o.timeline;
     this._now = o.now;
     this._emit = o.emit;
+    this._stale = typeof o.stale === 'function' ? o.stale : null;
+    /** Why this hunt cannot be predicted here (_fail), or null: the view plays the server's windows until off(). */
+    this.failure = null;
     /** Ask the server for a start point at once (CharacterSession's poll reads it). */
     this.want = false;
     this._tries = 0;
@@ -33,7 +42,7 @@ export class LiveLink {
     this._reseeded = null;
     this._joining = false;
     /** What the live view did (tools: the world stage's data-live): each commit's verdict, every restart. */
-    this.stats = { match: 0, diverged: 0, unknown: 0, reseeds: 0, catchUps: 0, starves: 0 };
+    this.stats = { match: 0, diverged: 0, unknown: 0, reseeds: 0, catchUps: 0, starves: 0, failures: 0 };
     this._wasStalled = false;
     /** The server's settle watermark (ms) its last commit or start point stated: display only (?debug=live's settle lag). */
     this.settledToMs = null;
@@ -56,7 +65,7 @@ export class LiveLink {
    * pose placed it with no kind: "[hunt-scene] no sprite for unit N (null)" on the way back, Andy #65).
    */
   join(pose) {
-    if (this.engine.running() || this.engine.stalled()) return;
+    if (this.failure !== null || this.engine.running() || this.engine.stalled()) return;
     const live = SESSION_CONFIG.liveDelayMs;
     this._joining = true;
     this._tl.setDelay(live);
@@ -77,7 +86,25 @@ export class LiveLink {
   /** The hunt is over (or there is none): back to the server-paced view. */
   off() {
     if (this.engine.running() || this.engine.stalled() || this._joining) { this.engine.stop(); this._tl.setDelay(SESSION_CONFIG.huntPlaybackDelayMs); }
+    this.want = false; this._tries = 0; this._joining = false; this.failure = null;
+  }
+
+  /*
+   * THE PREDICTION CANNOT RUN THIS HUNT (engine.failed()): back to the server-paced view, as off() leaves it, for the
+   * rest of the hunt (no start point is asked: it would name the same thing), said once, and the site asked whether it
+   * serves a newer build. Answers whether it failed now.
+   */
+  _fail() {
+    const why = this.engine.failed();
+    if (why === null || this.failure !== null) return false;
+    this.failure = why;
+    this.stats.failures++;
+    this.engine.stop();
+    this._tl.setDelay(SESSION_CONFIG.huntPlaybackDelayMs);
     this.want = false; this._tries = 0; this._joining = false;
+    console.error('[live] the live view stopped (' + why + '): the hunt plays from the server');
+    if (this._stale) { try { this._stale(); } catch (e) { /* the check reports itself */ } }
+    return true;
   }
 
   /** One server answer while a hunt is open. */
@@ -85,6 +112,7 @@ export class LiveLink {
     this.hold(body.hunt && body.hunt.pose);   // joining: the answer's snapshot forgets what the server no longer lists
     const before = this.engine.seededUntil();
     this._take(body);
+    if (this._fail()) return;
     /* An answer that left the look-ahead short makes the next early ask wait twice as long (refillDelayMs). */
     const after = this.engine.seededUntil();
     const now = this._tl.serverNowAt(this._now());
@@ -95,6 +123,7 @@ export class LiveLink {
   _take(body) {
     const st = body.hunt_check ? body.hunt_check.settled_to_ms : body.hunt_live && body.hunt_live.instance ? body.hunt_live.instance.settled_to_ms : null;
     if (Number.isSafeInteger(st) && st > 0) this.settledToMs = st;
+    if (this.failure !== null) return;
     if (!body.hunt_live && !body.hunt_check && this.engine.running()) return;
     const ms = Number.isSafeInteger(body.hunt_server_now_ms) ? body.hunt_server_now_ms
       : typeof body.now === 'string' ? Math.floor(Date.parse(body.now)) : NaN;
@@ -209,9 +238,11 @@ export class LiveLink {
     if (this.engine.behindMs(now) > this._tl.delayMs()) {
       this.stats.catchUps++;
       this._restart((at, ahead) => this.engine.catchUp(at, ahead));
+      this._fail();
       return 0;
     }
     const n = this.engine.advance(now, (b) => this._tl.ingest(b, clientNow));
+    if (this._fail()) return n;
     const dry = this.engine.stalled();
     if (dry && !this._wasStalled) this.stats.starves++;
     this._wasStalled = dry;

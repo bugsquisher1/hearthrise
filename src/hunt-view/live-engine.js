@@ -23,6 +23,14 @@
 // world, fast-forwards it to now, and eases every unit from where it is drawn to
 // where it truly stands (timeline.rebase), never a teleport.
 //
+// A START POINT THIS BUILD CANNOT RUN (Sentry JAVASCRIPT-4C, release 0.2.63): the edge deploys before
+// the client, so a tab still on the last build was handed worlds holding v0.2.64's Orchard Boar and
+// Brook Bear; its engine threw reading the unknown kind's XP (damage.js landHit) in every frame and the
+// hunt stood still until a reload. A world naming a monster, or a hunt naming a ground, this build's
+// catalogues lack is not run, and a swing that throws stops the prediction: either way failed() names
+// why and the live view plays the server's own windows (src/session/live-link.js). src/core is not
+// touched: the server's results are the server's, this boundary only declines to predict them.
+//
 // PURE (no DOM). The caller owns the clock.
 // ════════════════════════════════════════════════════════════════════════
 
@@ -53,6 +61,11 @@ const encodeWorld = (w) => JSON.stringify(encodeWorldRow(w));
    at every settle, so a start point naming another one is a setup changed mid-hunt (r10). */
 const setupOf = (live) => JSON.stringify(live.members.map((m) => [String(m.key), (m.frozen ? m.frozen.hero : m.hero) ?? null])
   .sort((a, b) => (a[0] < b[0] ? -1 : 1)));
+/* The monster kinds of `world` this build's catalogue lacks (a newer server's), in first-seen order. */
+const unknownKinds = (world, monsters) => [...new Set((world ? world.units : [])
+  .filter((u) => u.side === 'mon' && !Object.hasOwn(monsters, u.kind)).map((u) => String(u.kind)))];
+/* An engine error as the reason failed() gives. */
+const reasonOf = (e) => String((e && e.message) || e).slice(0, 200);
 
 /*
  * THE DRAWN TIMING OF A SWING'S STEPS (display only: nothing reads it back). The engine stamps a step
@@ -135,16 +148,25 @@ function holdsPackOf(world, unit) {
 export function createLiveEngine(o) {
   const items = o.items, monsters = o.monsters;
   let st = null;
+  /* Why the last start point or swing could not run (failed()), or null. */
+  let failure = null;
+  const fail = (why) => { failure = why; st = null; return null; };
 
   function start(live) {
+    failure = null;
     if (!live || live.v !== 1 || !live.instance || !live.seeds || !Array.isArray(live.members)) return null;
     const where = huntGroundOf(String(live.instance.hunt));
-    if (!where) return null;
+    if (!where) return fail('no ground for the hunt ' + String(live.instance.hunt).slice(0, 60));
     const text = typeof live.instance.world === 'string' ? live.instance.world : null;
-    const world = text ? decodeWorldRow(JSON.parse(text)) : null;
-    const sides = live.members.slice().sort((a, b) => (a.key < b.key ? -1 : 1))
-      .map((mi) => (mi.frozen ? frozenSide(mi)
-        : memberSide(Object.assign({}, mi, { gold: isInt(mi.gold) ? mi.gold : UNKNOWN_PURSE }), { items })));
+    let world, sides;
+    try {
+      world = text ? decodeWorldRow(JSON.parse(text)) : null;
+      sides = live.members.slice().sort((a, b) => (a.key < b.key ? -1 : 1))
+        .map((mi) => (mi.frozen ? frozenSide(mi)
+          : memberSide(Object.assign({}, mi, { gold: isInt(mi.gold) ? mi.gold : UNKNOWN_PURSE }), { items })));
+    } catch (e) { return fail('a start point this build cannot read: ' + reasonOf(e)); }
+    const unknown = unknownKinds(world, monsters);
+    if (unknown.length) return fail('unknown monster ' + unknown.join(', ').slice(0, 120));
     const s = {
       instance: String(live.instance.id),
       world, next: Number(live.instance.next_swing_at_ms), where, sides,
@@ -227,7 +249,7 @@ export function createLiveEngine(o) {
     }
     for (let n = 0; st.next <= until && n < MAX_SWINGS_PER_CALL; n++) {
       let tl;
-      try { tl = swing(st); } catch (e) { if (e && e.starved) st.starved = true; if (e && (e.starved || e.ended)) break; throw e; }
+      try { tl = swing(st); } catch (e) { if (e && e.starved) st.starved = true; if (e && (e.starved || e.ended)) break; return fail(reasonOf(e)); }
       for (const [k, v] of Object.entries(tl.hunt_units || {})) hp[k] = v.slice();
       for (const s of tl.hunt_track) { if (s.atMs <= until) pos.set(s.u, [s.x, s.y]); else track.push(s); }
       for (const ev of tl.hunt_events) {
@@ -265,6 +287,11 @@ export function createLiveEngine(o) {
     running: () => !!st && !st.starved && !st.ended,
     /** Did the prediction run to the instance's end (every member left)? It holds its world and runs nothing more. */
     ended: () => !!st && st.ended === true,
+    /**
+     * Why the prediction could not run (a start point naming a monster or ground this build lacks, one it cannot
+     * read, a swing that threw), or null. It holds no world then: running(), stalled() and ended() are all false.
+     */
+    failed: () => failure,
     /** The viewed character's unit in the instance (null before the first swing places it). */
     selfUnit: () => (st ? (st.sides.find((x) => x.mi && x.mi.self) || {}).member?.unitId ?? st.self : null),
     /** Every hero of the instance: [{ unit, seat, self, role }] (unit null before its first swing). */
@@ -286,7 +313,7 @@ export function createLiveEngine(o) {
       let n = 0;
       while (st.next <= serverNowMs && n < MAX_SWINGS_PER_CALL) {
         let tl;
-        try { tl = swing(st); } catch (e) { if (e && e.starved) st.starved = true; if (e && (e.starved || e.ended)) break; throw e; }
+        try { tl = swing(st); } catch (e) { if (e && e.starved) st.starved = true; if (e && (e.starved || e.ended)) break; fail(reasonOf(e)); return n; }
         n++;
         feed({ track: tl.hunt_track, events: tl.hunt_events, units: tl.hunt_units, fromMs: tl.hunt_from_ms });
       }
@@ -366,6 +393,6 @@ export function createLiveEngine(o) {
     heldSeeds: () => (st ? st.seeds.list.length : 0),
     /** The hash of the prediction's world at a swing (tests). */
     hashAt: (swingIndex) => (st ? st.hashes.get(swingIndex) ?? null : null),
-    stop() { st = null; },
+    stop() { st = null; failure = null; },
   };
 }

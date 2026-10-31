@@ -53,6 +53,10 @@
 //   LV-27 A HERO SWITCH (Andy #65, "freezing/catchup sprinting and jumping when toggling"): viewed again
 //         mid-hunt, the first frame shows the server's latest snapshot, the live prediction plays within two
 //         answers and a live ask and eases forward from it; no frame leaps and every unit drawn has a sprite.
+//   LV-28 A HUNT THIS BUILD CANNOT PREDICT (Sentry JAVASCRIPT-4C, release 0.2.63: the edge served v0.2.64's
+//         new monsters to a page still on the last build): every start point names a monster this build lacks.
+//         No frame throws; the live view falls back to the server's windows a poll behind, asks the site once
+//         whether a newer build is out (the reload banner's check), and the hunt keeps moving on screen.
 //   LV-4  THE PAGE (headless Chrome, the real client, the same server answers): the hunt
 //         draws, no page error, and the frame loop holds budget against the frozen sim
 //         (prototypes/hunt-sim) measured the same way.
@@ -138,7 +142,9 @@ function envFor(nowMs, enteredMs, heroes, fromMs) {
      hunt        the ground the server plays (default Mill Cellar; the members' huntId must name it)
      people      the party_people section (seat -> user, slot); peers: the account's other sessions
      outfits     { seat: outfit }: the party section's member `outfit` ({ id, colors }) by seat
-     fps         frames drawn per second (default 60; a long hunt draws fewer to stay quick) */
+     fps         frames drawn per second (default 60; a long hunt draws fewer to stay quick)
+     tamper      (body) => void: every hr-accrue answer's body, changed in place before the session reads it (LV-28)
+     onStale     told when the session asks the server link's stale() (LV-28: the reload banner's check) */
 /* The hunt section's pose of the instance's stored world (hr_state_of hunt.pose: its units at the last commit). */
 function poseOf(LM, inst) {
   const w = LM.WS.decodeStored(JSON.parse(inst.world));
@@ -169,7 +175,10 @@ async function playLive(M, LM, book, mis, spanMs, onFrame, opt) {
   const server = {
     /* `rpc` (name, args) => answer or undefined: an intent the test answers itself (LV-14), else a read */
     rpc: async (name, args) => (o.rpc && o.rpc(name, args)) || { ok: true, body: env() },
-    accrue: async () => { const n = asked++; return wait(o.seedless && o.seedless(n) ? { ok: true, body: Object.assign(env(), { accrued: false, settled: false, reason: 'replayed' }) } : answer()); },
+    accrue: async () => { const n = asked++; const a = o.seedless && o.seedless(n) ? { ok: true, body: Object.assign(env(), { accrued: false, settled: false, reason: 'replayed' }) } : answer();
+      if (o.tamper) o.tamper(a.body);
+      return wait(a); },
+    stale: () => { if (o.onStale) o.onStale(); },
   };
   let asked = 0;
   const answer = () => {
@@ -596,6 +605,39 @@ async function nodeRules(M) {
       ok('LV-27', r.unnamed === 0, `(${tag}) ${r.unnamed} unit(s) were drawn with no sprite after the switch`);
       if (tag === 'first ask a commit') ok('LV-27', r.windowOff > BUDGET.maxStepTiles && r.forgot > 0, `(${tag}) the switch back no longer builds the joining case: a window ${r.windowOff.toFixed(2)} tiles off the drawn units (want > ${BUDGET.maxStepTiles}), ${r.forgot} unit(s) the join forgot (want > 0); without both the joining mutants cannot bite`);
     }
+  }
+
+  { // LV-28 A HUNT THIS BUILD CANNOT PREDICT (Sentry JAVASCRIPT-4C, 11 events, release 0.2.63: "Cannot read properties of
+    // undefined (reading 'xp')" in damage.js landHit, unhandled in the frame loop). The edge deploys before the page, so
+    // a newer server's hunt holds a monster this build's catalogue lacks: its commits name another world (the hash) and
+    // its start points that monster. The engine threw at the first kill of it, in every frame after, and the hunt stood.
+    const NEW_KIND = 'zz_newer_server_kind';
+    const newer = (body) => {
+      if (body.hunt_check) body.hunt_check = Object.assign({}, body.hunt_check, { world_hash: 'newer:' + body.hunt_check.world_hash });
+      const i = body.hunt_live && body.hunt_live.instance;
+      if (!i || typeof i.world !== 'string') return;
+      const w = LM.WS.decodeStored(JSON.parse(i.world));
+      for (const u of w.units) if (u.side === 'mon') u.kind = NEW_KIND;
+      body.hunt_live = Object.assign({}, body.hunt_live, { instance: Object.assign({}, i, { world: JSON.stringify(LM.WS.encode(w)) }) });
+    };
+    let threw = null, stale = 0, frames = 0, moving = 0, cs = null, prev = null;
+    const SPAN = 70000;
+    try {
+      cs = await playLive(M, LM, book, [LIVE_H.memberOf(LM, 'a', 0, 'tank', 6)], SPAN, ({ s, f, T0 }) => {
+        if (s < T0 + SPAN - 25000) return;
+        /* the last 25 s, well after the fall-back and a server-paced delay: the picture moves (no frozen hunt) */
+        const pic = JSON.stringify([f.hero && [f.hero.x, f.hero.y], f.units.map((d) => [d.unit, d.x, d.y])]);
+        frames++; if (prev !== null && pic !== prev) moving++; prev = pic;
+      }, { tamper: newer, onStale: () => stale++ });
+    } catch (e) { threw = e; }
+    const failure = cs && cs.liveLink.failure;
+    console.log(`  LV-28 a newer server's monster in every start point: ${threw ? 'a frame THREW (' + String(threw.message).slice(0, 80) + ')' : 'no frame threw'}, failure ${JSON.stringify(failure)}, ${stale} version check(s), playback delay ${cs && cs.timeline.delayMs()} ms, ${moving}/${frames} late frames moved`);
+    ok('LV-28', threw === null, 'a frame step threw: ' + String(threw && threw.message).slice(0, 160));
+    ok('LV-28', !!cs && typeof failure === 'string' && failure.includes(NEW_KIND), `the live view did not stop on the unknown monster (failure ${JSON.stringify(failure)})`);
+    ok('LV-28', !!cs && cs.timeline.delayMs() === M.CFG.SESSION_CONFIG.huntPlaybackDelayMs && !cs.live.running() && !cs.liveLink.joining(),
+      `after the fall-back the view is not the server-paced one (delay ${cs && cs.timeline.delayMs()} ms, running ${cs && cs.live.running()})`);
+    ok('LV-28', stale === 1, `the site was asked ${stale} time(s) whether a newer build is out, want once`);
+    ok('LV-28', frames > 0 && moving >= frames * 0.2, `the hunt stood still on screen after the fall-back: ${moving} of ${frames} frames moved`);
   }
 
   { // LV-12 A DEATH INSIDE A CATCH-UP IS PLAYED: the frame loop stops for 5 s (a background tab) across two
@@ -1197,6 +1239,11 @@ const MUTANTS = [
     '  return on.length > 0 && on.every((m) => m.target === unit) && challengeable(inst, u).length === 0;', '  return on.length > 0;', /^LV-22/],
   ['a read carries no clock (LV-0)', 'src/session/character-session.js', '      if (Number.isSafeInteger(ms)) this.timeline.ingest({ serverNowMs: ms }, this._now());\n    }\n    const h = this.read', '    }\n    const h = this.read', /^LV-0/],
   ['no stand-in before the first swing (LV-1)', 'src/hunt-view/scene.js', '    if (!hero && read.entrance) hero = (read.viewed !== null && unitAt(read.viewed, now, read.entrance)) || standIn(now);', '', /^LV-1/],
+  /* Sentry JAVASCRIPT-4C: a hunt this build cannot predict never throws in the frame loop and falls back (LV-28). */
+  ['a start point naming an unknown monster is run, and a swing that throws escapes (LV-28)', 'src/hunt-view/live-engine.js',
+    "fail(reasonOf(e)); return n; }", "throw e; }", /^LV-28: a frame step threw/, [['    if (unknown.length) return fail(', '    if (false) return fail(']]],
+  ['a failed prediction keeps the live delay and asks again (LV-28)', 'src/session/live-link.js', '    if (why === null || this.failure !== null) return false;', '    if (true) return false;', /^LV-28: (the live view did not stop|after the fall-back)/],
+  ['a failed prediction never asks for a newer build (LV-28)', 'src/session/live-link.js', "    if (this._stale) { try { this._stale(); }", "    if (false) { try { this._stale(); }", /^LV-28: the site was asked/],
   ['the live view keeps the server-paced delay (LV-2)', 'src/session/live-link.js', 'this._tl.setDelay(SESSION_CONFIG.liveDelayMs);', 'void 0;', /^LV-2/],
   ['the frame loop never advances the engine (LV-2)', 'src/session/live-link.js', '    const n = this.engine.advance(now, (b) => this._tl.ingest(b, clientNow));', '    const n = 0;', /^LV-2/],
   ['a monster the snapshot dropped is unnamed (LV-5)', 'src/hunt-view/scene.js', "(typeof tl.kindOf === 'function' ? tl.kindOf(u) : null)", 'null', /^LV-5/],
@@ -1251,15 +1298,19 @@ async function mutate() {
   /* `--only <text>`: just the mutants whose name holds <text> (a lane proves its own rule without the whole sweep) */
   const at = process.argv.indexOf('--only');
   const list = at > 0 ? MUTANTS.filter(([name]) => name.includes(String(process.argv[at + 1] || ''))) : MUTANTS;
-  for (const [name, file, from, to, arm] of list) {
+  /* `more`: further [from, to] edits in the same file, planted with the first (a rule two doors hold). */
+  for (const [name, file, from, to, arm, more] of list) {
     const base = mkdtempSync(join(tmpdir(), 'hr-hsl-'));
     try {
       cpSync(join(ROOT, 'src'), join(base, 'src'), { recursive: true });
       cpSync(join(ROOT, 'assets', 'world'), join(base, 'assets', 'world'), { recursive: true });
       const p = join(base, file);
-      const src = readFileSync(p, 'utf8');
-      if (src.split(from).length !== 2) { console.error(`harness: anchor for "${name}" not found once`); process.exit(2); }
-      writeFileSync(p, src.replace(from, to));
+      let src = readFileSync(p, 'utf8');
+      for (const [a, b] of [[from, to]].concat(more || [])) {
+        if (src.split(a).length !== 2) { console.error(`harness: anchor for "${name}" not found once`); process.exit(2); }
+        src = src.replace(a, b);
+      }
+      writeFileSync(p, src);
       let fails;
       try { fails = await nodeRules(await load(base)); } catch (e) { fails = ['threw: ' + e.message]; }
       const hit = fails.some((f) => arm.test(f));

@@ -114,6 +114,8 @@ export function refusalText(r, cs) {
     return 'Not enough ' + ITEMS[r.item].n + ': you have ' + whole(c.bag) + ' in your bag and ' + whole(c.storage)
       + ' in Storage, and it takes ' + whole(c.need) + '.';
   }
+  /* "That many" of WHAT (blind playtest 2026-10-31): the item the server's refusal named. */
+  if (r && (r.error === 'insufficient_item' || r.error === 'bag_short') && r.item && own(ITEMS, r.item)) return 'You no longer have that many ' + ITEMS[r.item].n + '.';
   return refusalWords(r && r.error, r && r.verb);
 }
 

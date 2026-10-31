@@ -73,8 +73,14 @@ export function pieceWords(id) {
 export function wornWeights(equipment) {
   const n = { heavy: 0, medium: 0, light: 0 };
   for (const id of Object.values(equipment || {})) { const w = id ? weightOf(id) : null; if (w) n[w] += 1; }
-  return WEIGHT_ORDER.map((w) => {
+  /* Nothing worn says so, once, and why the hero still looks armored (blind playtest 2026-10-31: a plate sprite beside
+     "0 heavy (+0% max HP) 0 medium 0 light"); a weight with no piece says nothing. */
+  const none = WEIGHT_ORDER.every((w) => !n[w]);
+  return WEIGHT_ORDER.map((w, i) => {
     const r = WEIGHT_RULES[w];
-    return { w, n: n[w], text: n[w] + ' ' + w + (r.pool ? ' (' + pct(sharePm(w, n[w])) + ' ' + POOL_WORDS[r.pool] + ')' : n[w] ? ' (more blows miss)' : '') };
+    if (!n[w]) return { w, n: 0, text: none && i === 0 ? NONE_WORN : '' };
+    return { w, n: n[w], text: n[w] + ' ' + w + (r.pool ? ' (' + pct(sharePm(w, n[w])) + ' ' + POOL_WORDS[r.pool] + ')' : ' (more blows miss)') };
   });
 }
+
+const NONE_WORN = 'None yet. Your outfit is only a look.';

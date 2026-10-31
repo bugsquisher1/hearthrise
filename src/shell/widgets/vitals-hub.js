@@ -23,10 +23,10 @@
 // ════════════════════════════════════════════════════════════════════════
 import { CONSUMABLES } from '../../data/consumables.js?v=0.2.75';
 import { heroVitalsOf } from '../../session/character-sections.js?v=0.2.75';
-import { huntOf, huntBagOf, staminaOf } from '../../session/hunt-sections.js?v=0.2.75';
+import { huntOf, huntBagOf, staminaOf, settingsOf } from '../../session/hunt-sections.js?v=0.2.75';
 import { carriedOf } from '../../session/item-sections.js?v=0.2.75';
 import { text, attr } from '../../render/paint.js?v=0.2.75';
-import { whole, hoursMinutes } from '../../render/format.js?v=0.2.75';
+import { whole, gold, hoursMinutes } from '../../render/format.js?v=0.2.75';
 import { glyphSvg } from '../launcher.js?v=0.2.75';
 import { itemIconHtml, itemName } from './bits.js?v=0.2.75';
 import { staminaPlusHtml } from './stamina-buy.js?v=0.2.75';
@@ -73,6 +73,17 @@ function foodOf(bag) {
   return { n, top: top ? top.id : null };
 }
 
+/* The store food the bar names first (a slot on, its store partner or the row itself), as the server prices it, or null. */
+function storeFoodOf(settings) {
+  if (!settings) return null;
+  for (const s of settings.slots) {
+    if (s.empty || s.enabled === false || s.action.type !== 'consume') continue;
+    const row = settings.store.find((b) => b.kind === 'heal' && b.id === (s.action.store || s.action.id));
+    if (row) return row;
+  }
+  return null;
+}
+
 function fill(el, f) { attr(el, 'stroke-dasharray', (Math.round(f * 1000) / 10) + ' 100'); }
 
 /** Patch the hub under `el` (the bar widget) from the character's envelope. */
@@ -110,8 +121,14 @@ export function patchHub(el, ctx) {
   const food = foodOf(carriedOf(cs));
   const sock = el.querySelector('.hb-socket.is-food');
   const ico = sock.querySelector('.hb-socket-ico');
-  if (ico.getAttribute('data-for') !== String(food.top)) { ico.innerHTML = food.top ? itemIconHtml(ctx.glyphs, food.top) : glyphSvg(ctx.glyphs, 'uiFood'); attr(ico, 'data-for', String(food.top)); }
-  text(sock.querySelector('.hb-socket-k'), 'Food ×' + whole(food.n));
+  /* Out of own food with a store food on the bar, the socket says that's what the hero eats (blind playtest 2026-10-31:
+     "Food ×0" while the hero ate store shrimp every 30 s). Its price is the server's (hunt_settings.store). */
+  const store = food.n > 0 ? null : storeFoodOf(settingsOf(cs));
+  const icon = food.top || (store && store.id);
+  if (ico.getAttribute('data-for') !== String(icon)) { ico.innerHTML = icon ? itemIconHtml(ctx.glyphs, icon) : glyphSvg(ctx.glyphs, 'uiFood'); attr(ico, 'data-for', String(icon)); }
+  text(sock.querySelector('.hb-socket-k'), store ? 'Food: store' : 'Food ×' + whole(food.n));
   const where = huntBagOf(cs) ? 'the hunt bag' : 'the bag';
-  attr(sock, 'title', food.top ? whole(food.n) + ' food in ' + where + ' (most: ' + itemName(food.top) + ')' : 'No food in ' + where + ': a store food on the bar buys as used');
+  attr(sock, 'title', food.top ? whole(food.n) + ' food in ' + where + ' (most: ' + itemName(food.top) + ')'
+    : store ? 'No food in ' + where + ': your bar buys ' + itemName(store.id) + ' at ' + gold(store.price) + ' each as it is used'
+    : 'No food in ' + where + ' and no store food on your bar');
 }

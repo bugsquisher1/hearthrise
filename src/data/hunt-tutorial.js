@@ -336,7 +336,7 @@ export const HUNT_TUTORIAL = Object.freeze([
       inWindow: 'Press Cooking, then Start on Cook Shrimp. Your Raw Shrimp become the Cooked Shrimp your {slot:cooked_shrimp} eats.' }),
   step('tamsins_task', 'Tamsin\'s wolves',
     'Tamsin pays for kills. Open her tally, pick the armor weight she pays you in, then Take ' + WOLVES.count + ' ' + WOLVES.label
-      + '. Every kill counts, even while you\'re away. ' + WEIGHTS_SAID,
+      + '. Each one counts, even while you\'re away. ' + WEIGHTS_SAID,
     'tally', orGotIt({ kind: 'tally_taken', task: WOLVES.id }), { gotIt: true, when: [IN_TOWN], ring: { task: WOLVES.id } }),
   step('into_the_thicket', 'Into the Thicket',
     'Open Hunts and pick ' + HUNT_INDEX[THICKET].name + '. Your hero walks from clearing to clearing by itself and fights each pack it finds.',
@@ -808,9 +808,9 @@ const SAY = Object.freeze({
     const w = WEIGHT_FOR_ROLE[f.role];
     const pick = w ? ' ' + uc(w) + ' suits ' + ROLE_WORDS[f.role] + '.' : '';
     return { text: 'Tamsin pays for kills. Open her tally, pick the armor weight she pays you in, then Take ' + WOLVES.count + ' ' + WOLVES.label
-      + ': every kill counts, even while you\'re away. ' + WEIGHTS_SAID + pick,
+      + ': each one counts, even while you\'re away. ' + WEIGHTS_SAID + pick,
     /* inside her window it no longer says "open her tally" (the window's own lines say what each weight does) */
-    textIn: 'Pick the armor weight she pays you in, then Take ' + WOLVES.count + ' ' + WOLVES.label + ': every kill counts, even while you\'re away.' + pick };
+    textIn: 'Pick the armor weight she pays you in, then Take ' + WOLVES.count + ' ' + WOLVES.label + ': each one counts, even while you\'re away.' + pick };
   },
   first_death: (f) => {
     const d = f.death, b = f.blessings;

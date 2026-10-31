@@ -77,6 +77,14 @@ export function tallyLine(h) {
   return label + ' ' + h.kills + '/' + h.target;
 }
 
+/** What counts toward a task, in words: its monster alone, not the ground's every kill (blind playtest 2026-10-31: "Every
+    kill in Meadowbrook Thicket counts" over 32 kills and 11/200). `where`: the ground's name. Pure. */
+export function countsWords(task, where) {
+  const row = tallyTask(task);
+  if (!row) return 'It counts while you\'re away.';
+  return 'Only ' + row.label + ' in ' + where + (/^the /i.test(row.label) ? ' counts' : ' count') + ', even while you\'re away.';
+}
+
 /** Her pick in words: "an Apprentice Hat", "4 Slime Gel" (`nameOf` names an item id). */
 export function pickWords(pick, nameOf) {
   if (!pick || !pick.item) return '';

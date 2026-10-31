@@ -55,28 +55,31 @@ const KINDS = new Set(Object.keys(ATTACK_KINDS));
 const PRESS = new WeakMap();   // the bar element -> { timer, held }
 const DROP = new WeakMap();    // the bar element -> { from, to, off } while the drop menu is open
 const PANEL = new WeakMap();   // the bar element -> the open sheet's listener cleanup (phone)
-const CASTS = new WeakMap();   // the bar element -> { cs, off, at: Map(ability -> client ms of the hero's last cast) }
+const CASTS = new WeakMap();   // the CharacterSession -> { at: Map(ability -> client ms of the hero's last cast) }
 const RENAMING = new WeakSet(); // the bar elements whose set rename is with the server (its name control stays off)
 
 /* THE COOLDOWN EMBER (the sim's, Tyler 10-19): when the server's timeline plays the viewed hero's
    `cast` of an ability, its slot cools for that ability's catalogue cooldown (cdMs, the clock the
    engine runs): a veil over the slot, an ember rising from the bottom as the cooldown runs out, and
-   the seconds left. Played in step with the scene (timeline.subscribe), from server events only. */
-function watchCasts(el, ctx) {
+   the seconds left. Played in step with the scene (timeline.subscribe), from server events only.
+   ONE WATCHER PER CHARACTER, for its session's life: the timeline outlives every bar drawn over it, so a watcher made
+   per bar (holding its ctx, and through it the whole shell) kept each pane a hop left behind (old-laptop player 10-31:
+   ~1,080 nodes and 35 listeners a hop, never freed; tests/perf-budget.mjs PB-LEAK). */
+function watchCasts(ctx) {
   const cs = ctx.character;
-  const w = CASTS.get(el);
-  if (w && w.cs === cs) return w;
-  if (w) w.off();
+  const w = cs ? CASTS.get(cs) : null;
+  if (w) return w;
   const at = new Map();
   const tl = cs && cs.timeline;
-  const off = tl && typeof tl.subscribe === 'function' ? tl.subscribe((ev) => {
+  const clock = ctx.now;   // the clock alone, never the ctx
+  if (tl && typeof tl.subscribe === 'function') tl.subscribe((ev) => {
     const h = huntOf(cs);
     if (!ev || ev.type !== 'cast' || !ABILITIES[ev.ability] || !h || ev.u !== h.hero.unit) return;
     const c = typeof tl.clientAt === 'function' ? tl.clientAt(ev.atMs) : null;
-    at.set(ev.ability, Number.isFinite(c) ? c : ctx.now());
-  }) : () => {};
-  const out = { cs, off, at };
-  CASTS.set(el, out);
+    at.set(ev.ability, Number.isFinite(c) ? c : clock());
+  });
+  const out = { at };
+  if (cs) CASTS.set(cs, out);
   return out;
 }
 
@@ -239,7 +242,7 @@ renderActionBar.patch = function patchActionBar(el, ctx) {
   const conflicts = s ? conflictsOf(wires, s) : new Map();
   const bag = carriedOf(cs);
   const hero = h && !h.ended ? h.hero : null;
-  const casts = watchCasts(el, ctx);
+  const casts = watchCasts(ctx);
   const now = ctx.now();
   const holding = holdsPackNow(cs, hero);
   const worn = (equipmentOf(cs) || {}).ammo;

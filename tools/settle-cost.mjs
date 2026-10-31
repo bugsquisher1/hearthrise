@@ -254,6 +254,17 @@ export async function prepare({ heroes = 4, windows = 8, hunt = 'millrace_sewer'
       try { const r = await settle(from + w * windowMs); if (r.fire) fires.push(r.fire); settled++; } finally { recording = false; }
     },
     report: () => reportOf(),
+    /* ONE WINDOW (w) of the leader's instance through the three exported pieces (read, propose, commit), statement by
+       statement as hr_engine with no transaction control of its own: tests/settle-budget.mjs SB-4 settles the same window
+       twice inside one transaction (a savepoint between) and compares every row it wrote. Not recorded. */
+    async commitWindow(w) {
+      const plan = await M.HS.readHuntSettle({ exec, user: uids[0], slot: 0, atMs: from + w * windowMs }, 'tick');
+      if (plan.answer) return { skipped: plan.answer.reason };
+      const p = await M.HS.proposeHuntSettle(plan, plan.toMs, 0);
+      if (!p.out.accrued) return { skipped: p.out.reason };
+      return M.HS.commitHuntSettle(exec, { ...p.commit, project: null });
+    },
+    users: uids,
     /* the measured settles' bytes, for a before/after diff: the ledger rows, the frames pushed, the viewer's answers */
     async evidence() {
       const ledger = await H.q(db, `select user_id, slot, kind, intent, gold, qty, item_id, meta, purse from public.player_ledger

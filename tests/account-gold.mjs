@@ -70,6 +70,7 @@ import { tmpdir } from 'node:os';
 import { pathToFileURL } from 'node:url';
 import { bootReplay, ROOT, inventory, manifest } from './schema-replay.mjs';
 import { HARNESS } from './hunt-sessions-settle.mjs';
+import { WORLD_VERSION, SHAPE, FIELDS } from '../src/core/hunt/world-state.js';
 
 const MIG = '2026-12-15-account-gold.sql';
 const PREV = await (async () => { const o = (await manifest()).order; return o[o.indexOf(MIG) - 1]; })();
@@ -577,6 +578,12 @@ async function huntArms(mutate, M) {
   const m = mutate && MUTATIONS[mutate];
   const end = m && m.kind === 'sql' && fileOf(m) !== MIG ? fileOf(m) : CHAIN_END;
   const { db } = await bootReplay({ patches: chainPatches(mutate), upTo: end });
+  /* That cut holds an older world shape (2027-02-11-no-fight's catalogue moved it) and the engine is today's, so every
+     settle would answer world_shape_pending and no arm would run. The row is the catalogue's, as today's engine reads it. */
+  if (end !== CHAIN_END) {
+    await db.query('delete from public.hr_hunt_world_shape');
+    await db.query('insert into public.hr_hunt_world_shape (id, version, shape, fields) values (true, $1, $2, $3::jsonb)', [WORLD_VERSION, SHAPE, JSON.stringify(FIELDS)]);
+  }
   const d = drivers(db);
 
   // G2 and G8 AT THE CHAIN END: the envelope's last author still projects one purse, and no body reads a per-hero one.

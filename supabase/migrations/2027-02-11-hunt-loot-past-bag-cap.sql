@@ -3,6 +3,7 @@
 -- STAGED. Pre-EA (CLAUDE.md §2): applies on its passing §3, one file via the Coordinator's
 -- apply tool, never inside begin/commit, never 00:00–00:10 UTC. On the EA Security list (hr_apply).
 -- DB-ONLY: no hr-accrue change (pack-edge --hash unmoved by this file), no client change.
+-- RESTATEMENT-DEBT-ACK: hr_apply (the economy's single write path, 155k chars) takes ONE anchored edit in §1, a stamp read at the stack fuse; restating the whole body to change one condition risks more than the splice its §0 and §2 pins hold. This line was added after the apply (patch-chain-guard, run 41226511232): no body moved.
 --
 -- ── ROOT CAUSE ──────────────────────────────────────────────────────────────
 -- hr_apply's stack fuse (player_state.bank_cap, 100 kinds) refuses `bank_full` when a delta takes the

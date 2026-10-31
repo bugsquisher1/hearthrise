@@ -20,8 +20,7 @@
 //   resizable true: a grip resizes it, the size kept per character (src/shell/window-sizes.js)
 //   height   the starting height of a home or resizable row, CSS px
 //   tabKeys  { letter: tab }: more shortcuts, each opening this window on that tab (window-manager.js openTab)
-//
-//   title    the frame's words when they are not the label (the Market's "The Weighhouse")
+//   title   the frame's words when they are not the label (the Market's "The Weighhouse")
 //   phoneIcon false keeps a launcher row off the phone's icon row, which holds 15 at a thumb's width on the
 //            narrowest phone (tests/phone-touch.mjs PH-11); the All characters sheet names it under "Also here"
 //

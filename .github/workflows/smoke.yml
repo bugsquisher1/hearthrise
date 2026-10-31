@@ -264,8 +264,6 @@ jobs:
           node tools/mutant-gate.mjs node tests/_chrome.mjs --selftest
           node tests/client-boot.mjs
           node tools/mutant-gate.mjs node tests/client-boot.mjs --mutate
-          node tests/auth-lock.mjs
-          node tools/mutant-gate.mjs node tests/auth-lock.mjs --mutate
 
       # A failing run is far easier to diagnose with the page state attached.
       - name: Upload failure artifacts
@@ -1321,6 +1319,49 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: smoke-failure-in-page-22
+          path: |
+            tests/**/*.png
+            tests/**/*.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # ── in-page-23 ── THE AUTH LOCK, SPLIT OUT OF in-page 2026-10-31. release/v0.2.77 (run
+  # 41226511232) CANCELLED in-page at its 30 min with 0 failures, 3 mutants into auth-lock
+  # --mutate: setup 1 + node suite 8.5 + client boot 0.5 (--mutate 13.6) left 6 min for a proof
+  # of ~15. A mutant now stops at its first red arm. MEASURED on Tyler's PC under load: 0.4 +
+  # 11.1 min, not yet on a runner. 1 + 0.4 + 11.1 = 12.5; x2 = 25, 28 so the apt stall
+  # (12.5 + 12.2 = 24.7) keeps 12% slack.
+  in-page-23:
+    runs-on: ubuntu-latest
+    timeout-minutes: 28
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Do NOT leave the token in .git/config where every later step —
+          # including npm lifecycle scripts — can read it and `git push`.
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Playwright + Chromium
+        uses: ./.github/actions/playwright-chromium
+
+      # supabase-js asks no other tab unless a refresh is due (src/net/auth-lock.js): a held
+      # lock never delays the roster, one refresher across tabs, sign-out and a dead session hold.
+      - name: Auth lock (play.html)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/auth-lock.mjs
+          node tools/mutant-gate.mjs node tests/auth-lock.mjs --mutate
+
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-failure-in-page-23
           path: |
             tests/**/*.png
             tests/**/*.log

@@ -10,6 +10,9 @@
 //                   world tick runs, ten-minute windows, nobody watching): no whetstone is ever shot, his arrows are,
 //                   and Precision Shot, Hunter's Mark and Flame Volley all cast on their lane.
 //   client-words    the bar and Configure action say why such a slot never fires (the engine's rule, in words).
+//   shot-spell-words a shot spell the engine never casts is struck on the bar with its reason (Andy #62, v0.2.34:
+//                   Precision Shot and Flame Volley read ready and never fired): ten Ranger setups on the real settle,
+//                   the bar's reason (action-facts.js reasonOf) strikes Precision Shot exactly when the engine casts it 0 times.
 //
 // The viewed half (the browser's engine predicts the same casts and shots, every commit matching):
 // tests/hunt-live.mjs LV-RANGER.
@@ -112,6 +115,54 @@ async function clientWords(root) {
     : 'the Ammo run for a bow: Iron Arrows ' + JSON.stringify(row('iron_arrows')) + ', Iron Bolts ' + JSON.stringify(row('iron_bolts'));
 }
 
+/* A SHOT SPELL THE ENGINE NEVER CASTS IS STRUCK, WITH ITS REASON (Andy #62). Each setup plays five minutes of the Sewer
+   with a tank on the real settle (nobody watching) and asks the bar's reason for Precision Shot as the action bar does
+   (the worn ammo passed: action-bar.js). Struck exactly when the engine cast it 0 times: no shot anywhere, a worn or
+   slotted arrow with none carried and the store off, a whetstone, an arrow carried but neither worn nor on the bar. */
+async function shotSpellWords(root) {
+  const P = await loadPlay(root);
+  const imp = (p) => import(pathToFileURL(join(root, p)).href + V);
+  const F = await imp('src/shell/action-facts.js'), SB = await imp('src/data/supply-basics.js');
+  const store = SB.BASIC_SUPPLIES.map((b) => ({ id: b.id, kind: b.kind, partner: b.partner, price: b.price }));
+  const off = { supplySource: 'mine', onEmpty: 'end' };
+  const CASES = [
+    ['no arrows anywhere', null, {}, [], {}],
+    ['Bronze worn and carried', 'bronze_arrows', { bronze_arrows: { loaded: 50 } }, [], {}],
+    ['Bronze worn, none carried', 'bronze_arrows', {}, [], {}],
+    ['Barbed worn, none carried, store on', 'barbed_arrows', {}, [], {}],
+    ['Barbed worn, none carried, store off', 'barbed_arrows', {}, [], off],
+    ['a Barbed slot, none carried, store on', null, {}, [atk('barbed_arrows')], {}],
+    ['a Barbed slot, none carried, store off', null, {}, [atk('barbed_arrows')], off],
+    ['a whetstone slot, carried', null, { copper_whetstone: { loaded: 50 } }, [atk('copper_whetstone')], {}],
+    ['Iron Arrows carried, neither worn nor on the bar', null, { iron_arrows: { loaded: 50 } }, [], {}],
+    ['an Iron Bolts slot, carried', null, { iron_bolts: { loaded: 50 } }, [atk('iron_bolts')], {}],
+  ];
+  const bad = [];
+  let cast = 0, struck = 0;
+  for (const [label, ammo, bag, extra, sess] of CASES) {
+    let n = 0, unit = null;
+    P.run('millrace_sewer', 20, ['ranger', 'tank'], {
+      spanMs: 300000, session: { ...sess },
+      equipment: (role, seat, L) => { const k = P.kitFor(L, role); if (role === 'ranger') { delete k.ammo; if (ammo) k.ammo = ammo; } return k; },
+      bag: (role) => (role === 'ranger' ? JSON.parse(JSON.stringify(bag)) : {}),
+      bar: (role) => (role === 'ranger' ? [ab('precision_shot'), ...extra] : []),
+      onWindow: (out) => {
+        const r = out.members.find((p) => p.key === 'ranger0');
+        unit = r.hunt.unit_id ?? unit;
+        for (const e of out.events || []) if (e.u === unit && e.type === 'cast' && e.ability === 'precision_shot') n++;
+      },
+    });
+    const set = { role: 'ranger', discipline: 'ranged', supplySource: sess.supplySource || 'mine', onEmpty: sess.onEmpty || 'switch', store,
+      slots: [ab('precision_shot'), ...extra].map((x) => ({ empty: false, enabled: true, usable: true, ...x })) };
+    const why = F.reasonOf(set.slots[0], set, Object.entries(bag).map(([id, l]) => ({ id, qty: l.loaded })), null, ammo);
+    const off2 = !!why && why.strike;
+    if (n > 0) cast++; else struck++;
+    if ((n > 0) === off2 || (off2 && why.code !== 'ammo')) bad.push(label + ': the engine cast Precision Shot ' + n + ' times, the bar reads ' + JSON.stringify(why));
+  }
+  if (!cast || !struck) return 'CONTROL: ' + cast + ' setup(s) cast and ' + struck + ' never did (want both)';
+  return bad.length ? bad.join(' | ') : null;
+}
+
 const R = makeReport('hunt-core/ranger-bar');
 let why = null;
 try { why = judge(fremulonHour(await loadPlay(ROOT)), false); } catch (e) { why = 'threw ' + (e && e.stack || e); }
@@ -119,6 +170,22 @@ R.ok(!why, 'fremulon-hour: ' + why);
 let words = null;
 try { words = await clientWords(ROOT); } catch (e) { words = 'threw ' + (e && e.stack || e); }
 R.ok(!words, 'client-words: ' + words);
+let shots = null;
+try { shots = await shotSpellWords(ROOT); } catch (e) { shots = 'threw ' + (e && e.stack || e); }
+R.ok(!shots, 'shot-spell-words: ' + shots);
+const SHOT_MUTANTS = [
+  { name: 'the bar reads a shot spell with no shot as ready (Andy #62)', edits: [['src/shell/action-facts.js', '    if (r.ammo > 0 && set && !hasShot(set, bag, worn)) {', '    if (false) {']] },
+  { name: 'the bar counts the store behind an arrow while the store is off', edits: [['src/shell/action-facts.js', '    if (storeOn && storeOf({ type: \'attack_with_item\', id }, set.store)) return true;', '    if (storeOf({ type: \'attack_with_item\', id }, set.store)) return true;']] },
+  { name: 'the bar forgets the worn ammo', edits: [['src/shell/action-facts.js', '  const ids = new Set([worn]);', '  const ids = new Set();']] },
+];
+for (const mu of SHOT_MUTANTS) {
+  const p = plant(mu.edits, ['src', ...PLAY_TREES]);
+  try {
+    let w = null;
+    try { w = await shotSpellWords(p.root); } catch (e) { w = 'threw ' + e.message; }
+    R.ok(!!w && !w.startsWith('CONTROL') && !w.startsWith('threw'), 'mutant "' + mu.name + '" was NOT caught by shot-spell-words (' + w + ')');
+  } finally { p.done(); }
+}
 const CLIENT_MUTANTS = [
   { name: 'the bar shows a bow\'s whetstone slot as ready',
     edits: [['src/shell/action-facts.js', "  if (shot) return { code: 'weapon', text: shot, glyph: 'uiLock', strike: true };\n", '']] },
@@ -151,5 +218,5 @@ for (const mu of MUTANTS) {
     R.ok(!!w && !w.startsWith('CONTROL') && !w.startsWith('threw'), 'mutant "' + mu.name + '" was NOT caught by fremulon-hour (' + w + ')');
   } finally { p.done(); }
 }
-if (!R.fails.length) console.log('  2 cases, ' + (MUTANTS.length + CLIENT_MUTANTS.length) + ' mutants caught');
+if (!R.fails.length) console.log('  3 cases, ' + (MUTANTS.length + CLIENT_MUTANTS.length + SHOT_MUTANTS.length) + ' mutants caught');
 R.finish();

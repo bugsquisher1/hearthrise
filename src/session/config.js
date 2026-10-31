@@ -67,6 +67,9 @@ export const SESSION_CONFIG = Object.freeze({
   liveDelayMs: 150,
   /** A reconcile eases each unit onto the server's world over at least this long (timeline.js T8). */
   liveEaseMs: 250,
+  /** A CATCH-UP (a tab back from the background) runs at most this much main-thread time a frame, in whole swings
+      (src/session/live-link.js advance): half a 60 fps frame, so the page answers while the hunt catches up. */
+  liveCatchUpSliceMs: 8,
   /** Without a live start point, ask this soon (the floor answers with hunt_live, writing nothing),
       doubling per answer that brought none, up to huntPollMs, and never before the hunt's first
       boundary (src/session/live-link.js askDelayMs). */

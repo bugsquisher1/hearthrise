@@ -29,7 +29,7 @@
 import { BAR_SLOTS } from '../../data/hunt-hud.js?v=0.2.74';
 import { ABILITIES } from '../../data/abilities.js?v=0.2.74';
 import { huntOf, settingsOf, wireSlot } from '../../session/hunt-sections.js?v=0.2.74';
-import { carriedOf } from '../../session/item-sections.js?v=0.2.74';
+import { carriedOf, equipmentOf } from '../../session/item-sections.js?v=0.2.74';
 import { text, cls, attr, element, keyedChild, prop } from '../../render/paint.js?v=0.2.74';
 import { whole } from '../../render/format.js?v=0.2.74';
 import { glyphSvg } from '../launcher.js?v=0.2.74';
@@ -180,7 +180,7 @@ function tipHtml(i, ctx) {
   const h = huntOf(ctx.character);
   const bag = carriedOf(ctx.character);
   const hero = h && !h.ended ? h.hero : null;
-  const why = reasonOf(s, set, bag, hero) || holdingReason(s, holdsPackNow(ctx.character, hero));
+  const why = reasonOf(s, set, bag, hero, (equipmentOf(ctx.character) || {}).ammo) || holdingReason(s, holdsPackNow(ctx.character, hero));
   const shared = sharedCooldownOf(wires, i);
   const lines = [f.cost ? (f.cost.includes('mana') ? 'Cost: ' + f.cost : f.cost) : null, f.type, f.cooldown].concat(f.effect, supplyLines(s.action, set, bag)).filter(Boolean);
   return '<b>' + esc(actionName(s.action)) + '</b><small class="hb-tip-n">Slot ' + (i + 1) + '</small>'
@@ -217,10 +217,11 @@ renderActionBar.patch = function patchActionBar(el, ctx) {
   const casts = watchCasts(el, ctx);
   const now = ctx.now();
   const holding = holdsPackNow(cs, hero);
+  const worn = (equipmentOf(cs) || {}).ammo;
   for (const li of el.querySelectorAll('.hb-slot')) {
     const i = Number(li.getAttribute('data-slot'));
     const sl = slots[i] || { empty: true };
-    patchSlot(li, sl, wires[i], ctx, bag, conflicts.get(i), reasonOf(sl, s, bag, hero) || holdingReason(sl, holding));
+    patchSlot(li, sl, wires[i], ctx, bag, conflicts.get(i), reasonOf(sl, s, bag, hero, worn) || holdingReason(sl, holding));
     patchCooldown(li, sl, casts, now);
   }
   const set = s && s.presets.find((p) => p.preset === s.preset);

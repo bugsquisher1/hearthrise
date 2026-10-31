@@ -184,7 +184,7 @@ async function rules(M) {
     }
     /* SEC-5 A LINE'S GOLD (blind playtest 2026-10-31: every loot and supply row read "–" over a total that was a number):
        the count at the server's own price, the shop's bid and the store's; no price sent reads null (the row's dash). */
-    body = clone(FIXTURE); body.version += 8;
+    body = clone(FIXTURE); body.version += 7;
     body.shop = { offers: [], bids: { rat_tail: 6 } };
     body.hunt_analyzer.hero.supplies.store = { salted_shrimp: 3, nothing_sold_here: 2 };
     await cs.load();
@@ -195,6 +195,15 @@ async function rules(M) {
       ok('SEC-5', line(v.loot, 'slime_gel').value === null, 'a loot row with no bid reads ' + JSON.stringify(line(v.loot, 'slime_gel')));
       ok('SEC-5', line(v.supplies, 'salted_shrimp').gold === 3 * 14, 'a store row at the store\'s price reads ' + JSON.stringify(line(v.supplies, 'salted_shrimp')));
       ok('SEC-5', line(v.supplies, 'nothing_sold_here').gold === null, 'a store row with no price reads ' + JSON.stringify(line(v.supplies, 'nothing_sold_here')));
+    }
+    /* SEC-5 OWN ARROWS (the same playtest: 50 gone, never listed): the hunt bag's loaded less left names what the tally left out;
+       a line the tally already counts keeps one row, and an untouched line none. */
+    body = clone(FIXTURE); body.version += 8;
+    body.hunt.session = { bag: [{ item: 'bronze_arrows', loaded: 50, left: 12 }, { item: 'wheat_bread', loaded: 20, left: 8 }, { item: 'chalked_fire_rune', loaded: 5, left: 5 }] };
+    await cs.load();
+    {
+      const own = M.H.analyzerOf(cs).hero.supplies.filter((x) => x.source === 'own').map((x) => x.item + ':' + x.count).join();
+      ok('SEC-5', own === 'bronze_arrows:38,wheat_bread:12', 'own rows from the hunt bag read ' + own);
     }
     /* SEC-4 THE HUNT BAG (Brannoc 10-22: "Food ×0" with 20 Cooked Shrimp in it): an open hunt's carried supplies are
        the server's hunt.session.bag `left`, largest first; an empty line drops; an ended hunt carries none (null). */

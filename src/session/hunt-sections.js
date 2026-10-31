@@ -356,13 +356,31 @@ function partyViewOf(v, hero, price) {
   return party ? Object.assign(party, { kills: hero.kills }) : null;
 }
 
+/* WHAT LEFT THE HUNT BAG. The server's tally lists own food and drink but not own shots (blind playtest 2026-10-31: 50 Bronze
+   Arrows gone, the supplies list never named them; the settle's `uses` take them from the bag untallied), and its hunt
+   bag says what each line loaded and has left: a line that lost more than the tally says shows what it lost. */
+function withBagUse(hero, cs) {
+  const h = section(cs, 'hunt');
+  const bag = h && isObj(h.session) && Array.isArray(h.session.bag) ? h.session.bag.slice(0, 64) : [];
+  for (const l of bag) {
+    const used = isObj(l) && str(l.item) && int(l.loaded) !== null && int(l.left) !== null ? l.loaded - l.left : 0;
+    if (used <= 0) continue;
+    const row = hero.supplies.find((x) => x.item === l.item && x.source === 'own');
+    if (row) row.count = Math.max(row.count, used);
+    else hero.supplies.push({ item: l.item, source: 'own', count: used, gold: 0 });
+  }
+  hero.supplies.sort((x, y) => (x.source === y.source ? y.count - x.count || (x.item < y.item ? -1 : 1) : x.source === 'own' ? -1 : 1));
+  return hero;
+}
+
 /** `hunt_analyzer`: the server's session stats, hero and party. Null for a free character or no hunt. */
 export function analyzerOf(cs) {
   const a = section(cs, 'hunt_analyzer');
   if (!a) return null;
   const price = pricesOf(cs);
-  const hero = viewOf(a.hero, price);
-  if (!hero) return null;
+  const seen = viewOf(a.hero, price);
+  if (!seen) return null;
+  const hero = withBagUse(seen, cs);
   /* The next Level (Level is not a skill): the server's `hero.level.eta_h` (hours). Never a skill's eta, which the server
      floors at 0 once the skill is maxed; a 0 or absent eta is unknown and reads null (the widget shows the dash). */
   const next = etaMs(a.hero.level);

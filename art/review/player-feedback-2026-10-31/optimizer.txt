@@ -1,0 +1,355 @@
+HEARTHRISE — OPTIMIZER'S NOTES (blind playtest, 2026-10-31)
+Who: idle-game min-maxer. Melvor, Idle Clans, a spreadsheet for everything. Desktop, 2560x1440.
+Format per entry: doing / expected / happened / felt / shot / numbers.
+Screenshots: art/review/player-feedback-2026-10-31/optimizer/NN-name.png. I took 73; the 15 committed (half-size,
+  256 colours) are: 01 04 07 11 15 20 21 24 31 37 54 57 62 63 66. Other NN names below were local captures only.
+Setup: lane/f-optimizer = origin/main + lane/t-local-world + claude/upbeat-einstein-mrh0ig + claude/serene-tesla-7txs5f,
+  all three merged with no conflicts. tools/qa/local-world.mjs needs Node 23.6+; this sandbox had Node 22.23, so I ran
+  it on a Node 24.22 tarball (sha256-checked) with HR_CHROME at the preinstalled Chromium. Smoke green in 18 s.
+  Time away = the tool's skip (hunts only; fishing/cooking/fueling/farm were real time).
+==========================================================================================
+
+[00:00] SIGN-UP -> CHARACTER LIST                                         shot: 01-characters
+ doing:    made an account from the sign-in screen, landed on "Your characters".
+ expected: four slots, since the header says "Up to 4 can play at once".
+ happened: TWO slots ("Empty slot / Create hero" x2). The copy promises 4, the list shows 2.
+ felt:     first two numbers I read on the first screen already disagree (4 vs 2). Probably
+           slots unlock later, but nothing on this screen says how or when. Tell me the gate.
+ also:     at 2560x1440 the whole thing is a ~320px card in the middle of a black void.
+           Logo + card fill maybe 15% of the screen. Fine, but the text is small at this res.
+
+[00:01] HERO CREATION                                                     shot: 02-create-hero
+ doing:    Create hero on slot 1.
+ happened: name + 4 colour rows, and a "How you fight" explainer: no classes, the weapon IS
+           the class; sword+shield tanks (food), axes/hammer hit hardest (food), bow (arrows +
+           food), wand (mana, drinks), staff heals (mana, drinks).
+ felt:     LOVE this. No class lock means I can min-max per hunt instead of rerolling. As an
+           optimizer my first question is immediately "which weapon has the best XP/h and
+           which has the cheapest upkeep", and the screen already tells me the upkeep axis
+           (food vs arrows vs mana). Good, honest first screen.
+ nit:      "Later you can make more heroes and play up to four at once" — again, *when*?
+
+[00:03] TOWN + FIRST HUNT: MILL CELLAR, AS BUILT, BALANCED, SWORD+SHIELD    shots: 03-town, 04-hunts-window, 06-hunt-entered
+ doing:    Hunts (H) -> Mill Cellar -> Enter. Start: 500 gp, 20 Cooked Shrimp, 7 practice weapons, 50 arrows.
+ expected: a hunt card that tells me XP/h and gp/h before I commit (Melvor shows it per monster).
+ happened: the card shows level range, monsters, drop % per kill (0.65% helmets, 0.072% Queen's Comb),
+           "Each pull: 2 packs of 2 to 3, back in 32 s", a density stepper, preset, and a "Before you go"
+           costing block (food: your 20 shrimp, then store Salted Shrimp 14 gp; drink 10 gp; "500 gp pays
+           the store as you use it"). No XP/h or gp/h estimate until I've hunted it ("No best yet").
+ felt:     the drop % and the supply cost line are exactly the stuff I want. The "Your best here" row
+           that fills after a 10-min hunt is a great idea. I'd still like a projected rate on the card.
+ perf:     2560x1440, 60 fps in the cellar, worst frame 50 ms on entry, 17 ms steady. Smooth.
+
+[00:35] 30 MIN AWAY, BACK TO THE CELLAR                                   shots: 07-mill-after-30, 11-mill-summary, 12-bag-after-mill
+ numbers (analyzer at 30:29):  237 kills, 3,649 Level XP, 353 gp, loot 687 gp, supplies 0, balance 1,040.
+          Per hour: 7,196 XP/h, 2,051 gp/h (gold+loot). Lv 1 -> 5. 1 Cooked Shrimp eaten in 30 min.
+          Live check after the skip: 5 kills in 40 s = 7.5/min vs 7.9/min across the skip. The away rate
+          and the watched rate MATCH. That is the single most important thing an idle game can get right.
+ leave -> summary: 32:24, 254 monsters, 3,907 XP, 378 gp, loot 704, balance 1,082, 2,004 gp/h, 7,235 XP/h.
+ bag check: purse 500 -> 878 = +378, matches summary gold EXACTLY. Every loot stack in the bag matches the
+          summary's counts (Rat Tail 57, Wheat 29, Slime Gel 25, Bones 23, Small Fang 17, Venom Sac 10...).
+          Bag "Worth" 206 -> 901 = +695; summary loot value 704. The 9 gp gap = the one shrimp I ate
+          (206 - 9 + 704 = 901). It ADDS UP. Huge respect. I came in expecting to catch it lying.
+ XP per kill 15.4, gold per kill 1.49 — both identical in every window I measured later.
+ nit:      Loot collected rows all show "–" where a value should be, but the total "Loot value 687 gp"
+           is a number. Give me per-row value; I want to know which drop carries the ground.
+ nit:      HP max showed 150/150 at Lv5 for a few seconds, then 190/190. Stale max HP after level-up.
+ nit:      Analyzer "Dealt 968" after 237 kills while "Taken 1,760". Dealt looks like it only counts what
+           I watched, not the away part? If Dealt and Taken cover different windows, say so.
+
+[00:36] SECOND HERO + THE SLOT WALL                                       shots: 13-characters-2, 14-hero2-town
+ doing:    Characters -> second slot -> made "Ledger".
+ happened: "A third hero slot costs 15,000 gold; an account holds up to 5 heroes. You need 14,122 more."
+           So: 2 free slots, slot 3 = 15k gold. Header still says "Up to 4 can play at once".
+ found:    THE PURSE IS ACCOUNT-WIDE. Tally had 878; after making Ledger the purse read 1,387 on Tally's bag
+           (878 + Ledger's 500 starting gold + 9 he'd already looted). Fine design, but nothing says so.
+           Every number labelled "Your gold" should say "account gold" or "shared purse". I only found out
+           because the hunt card's "Gold: 1,387 gp pays the store" didn't match the 878 I'd just written down.
+ felt:     15k for slot 3 at ~700 gp/h raw gold is ~20 h of one hero. That's the first real chase. Good.
+ question: does every new hero bring 500 gp into the shared purse? (see exploit section)
+
+[00:37] DENSITY: THE STEPPER IS BACKWARDS AT FIRST PRESS                  shot: 15-density-8
+ doing:    pressed "+" (aria "More monsters") on Mill Cellar.
+ expected: As built (2 to 3) -> 3 or 4 each.
+ happened: As built "2 packs of 2 to 3" -> "+" -> "2 packs of 1"  (FEWER). Then 2,3,4...8 each. "−" is
+           disabled at As built, so the only way to get 1-each is pressing "More monsters". Backwards.
+ also:     "2 packs of 8" next to "Up to 8 a pull when you hunt alone". 2 x 8 = 16 monsters in the room
+           (I counted 16 on screen, shot 16). Either "8 a pull" means per pack or the label is wrong.
+ also:     density is per hero ("Kept for this ground"): Tally's Mill Cellar was still As built. OK.
+
+[01:08] DENSITY 8 vs AS BUILT (same ground, both heroes Lv1->5-ish, Balanced, sword)  shot: 20-ledger-density8-after-30
+             As built (Tally, 32 min)    8 each (Ledger, 31 min)
+ kills       254                         529
+ XP/h        7,235                       15,249     (x2.1)
+ gold+loot/h 2,004                       3,544
+ supplies/h  0 (1 own shrimp, "free")    1,164      (20 own shrimp + 37 Salted @14 + 9 juice @10 = 608 gp ✓)
+ balance/h   2,004                       2,381
+ XP/kill 15.06 and gold/kill 1.46 — identical. Density is pure throughput; it costs you in food.
+ verdict:  max density is strictly better for XP and still slightly better for balance — at Lv1 it never
+           came close to killing me. There's no real trade-off yet; "+" until it's disabled is the answer.
+ math check: 37x14 + 9x10 = 608 = the "Supplies cost" line. ✓  But the per-row cost column is "–" again.
+ nit:      "Cooked Shrimp (own) x20 — free". It is not free: it's 20 shrimp I could have sold. Balance
+           over-reports by whatever own food is worth. Price own supplies at their sell value.
+
+[01:08] MEADOWBROOK THICKET at Lv5, As built                              shots: 17-meadowbrook-card, 18-meadowbrook-start
+ card:     "6 packs of 2 to 3 · back in 60 s", 5 wolf types, 2.2% gear drops, 7 rare drops at ~0.17%.
+ 30 min:   262 kills, 10,290 XP (20,346 XP/h!), 649 gp, loot 552, supplies 10 gp (15 own shrimp eaten +
+           1 store juice), balance 2,355 gp/h.
+ felt:     this is the first "aha": moving up one ground at Lv5 is x2.8 XP/h. Wolves hit hard enough to eat
+           a shrimp every 2 min, though. My 19 shrimp won't last an hour; then it's 14 gp per shrimp.
+
+[01:10] STANCES, 15-MIN WINDOWS, Mill Cellar 8-each, Ledger Lv5->7      shot: 23-ledger-offensive-15
+             kills   XP/h     gold   loot   supplies   balance/h  food used
+ Offensive*  253     15,140   361    532    286        2,413      19 shrimp + 2 juice   (*Lv5-6)
+ Defensive   232     13,928   339    596     48        3,536       2 shrimp + 2 juice
+ Balanced    264     15,847   382    790    150        4,073      10 shrimp + 1 juice
+ Offensive   264     15,850   400    667    136        3,711       9 shrimp + 1 juice
+ Every supplies line checks out to the gp (e.g. 10x14 + 1x10 = 150).
+ finding:  Balanced and Offensive killed EXACTLY the same 264 in 15:06, same 3,976 XP. On this ground
+           Offensive does nothing for kill speed. Training split DOES move: Offensive put 61% of Level XP into
+           training (Melee 6,315/h, Defense 3,428/h) vs ~50% on Balanced. So stance = which skill you train,
+           not how fast you kill. If that's the design, say it on the button ("Offensive: trains Melee").
+           Defensive: -12% XP for 1/3 of the food. Cheap AFK option.
+ loot RNG swings balance/h between windows by ±25% (532..790 loot). 15-min samples are too noisy for
+           gold; I'd want "Your best here" to show an average, not a best.
+
+[01:12] "HUNT AGAIN" REFUSES WITH A RIDDLE                                shot: 21-hunt-again-stuck
+ doing:    summary -> Hunt again (after Ledger burned all 20 own Cooked Shrimp).
+ happened: nothing; a grey line under the button: "You no longer have that many." That many WHAT?
+           Entering the same ground from the Hunts window worked instantly (it just buys Salted Shrimp).
+           So Hunt again replays the old food plan and dies on it. Should fall back like Enter does.
+
+[01:13] SWITCHING HEROES BROKE THE ANALYZER (Tally)                       shot: 24-tally-analyzer-after-switch
+ doing:    Tally in Meadowbrook ~1h35m, I'd been on Ledger's tab, clicked back to Tally.
+ happened: hunt bar "Meadowbrook Thicket 00:32:24" frozen, analyzer "Hunt ended. This is the session
+           summary." showing TALLY'S OLD MILL CELLAR run (254 kills, 3,907 XP) and Ledger's "Next level
+           in 01:34". Stayed frozen 40 s, survived a full page reload. Leaving Meadowbrook then showed NO
+           summary at all — "Last hunt: Mill Cellar". A 1h40m hunt's summary just never existed for me.
+           Same after the overnight (below), on BOTH heroes, and Inventory > "This hunt" also shows the old
+           hunt. Two numbers that disagree is my pet hate; here the whole panel is someone else's hunt.
+ (for the triager: every time this happened I had used the panel's time-skip, which moves an open hunt's
+           start time back; the ended hunts it confuses with may now look "newer". Could be the tool, but
+           the client should never prefer an ended hunt over the hunt the hero is IN.)
+
+[01:15] STALE COACH TOASTS + "Food x0"                                    shot: 20-ledger-density8-after-30
+ - "Your hero just ate ... You have 0 left; after that slot 4 buys Salted Shrimp" was still on screen
+   after 37 Salted Shrimp had been bought. A toast that never updates reads as a live readout.
+ - HUD "Food x0" while the hero is happily eating store shrimp every 30 s. Show "Food: store (14 gp)".
+ - In-hunt max HP stuck at 150 on Ledger at Lv5 (110/150), 190/190 the moment he left. Display only? Or does
+   the hero really fight the whole hunt on his entry-level max HP? I can't tell, and I care.
+
+[01:20] SELLING. "SELL ALL LOOT" ISN'T ALL LOOT                           shots: 36-shop, 37-shop-sell, 40-after-sell-all
+ doing:    Shop (V) > Sell. Header button "Sell all loot · 423 gp". The 16 loot rows under it add to 1,215 gp.
+ happened: confirm said "Sell 11 stacks? Sell for 423 gp". Paid exactly 423 (purse 4,522 -> 4,945 ✓).
+           It skipped Wolf Pelt (399 gp!), Raw Wolf Meat, Bones, Silk Thread, Lamp Jelly — I assume because
+           they're crafting inputs. Fine rule, invisible. Mark which rows the button will sell, or call it
+           "Sell junk". As shown, 423 next to a 1,215 list looks like the shop is short-changing me.
+ GOOD:     analyzer "Loot value" = shop sell price, to the gp. Tally's first cellar run: 57 Rat Tail x1 +
+           29 Wheat x10 + 10 Venom x15 + ... = 704 = the summary's 704. Wheat (10 gp) and Venom Sac (15 gp)
+           carry the Mill Cellar. Wolf Pelt (7 gp) carries Meadowbrook.
+ GOOD:     item tooltip: "Value: The shop pays 1 gp each · 279 gp for 279", Comes from, Used for, Loot plan.
+           That tooltip is a guide-writer's dream. (It covers the Fuel all button while open, though.)
+ sell/rebuy: shop only buys seeds/tools/trinkets; seeds sell at 2 vs buy 5. No loop. Good.
+
+[01:25] BONES -> GREAT HEARTH                                             shots: 33-fuel-all-after, 42-character
+ 279 Bones (279 gp at the shop) took Inner Flame 1 -> 8 = +13.7% HP/MP regen on every hunt, permanent.
+ Burns ~1 bone/s in real time; starting a hunt stops it (49 bones left unburned, no warning).
+ verdict:  burn, never sell. 279 gp for a permanent regen buff is the best gold-to-power trade I found.
+
+[01:30] SERVICES: STAMINA + BLESSINGS                                     shot: 38-shop-services
+ Stamina 12 h cap. Refill: 2 h 1 m for 555 gp, 6 per day, "each one costs more".
+ Math: Mill 8-each balance ~4,000 gp/h -> 2 h of hunting = ~8,000 gp for 555. Buy every refill, every day,
+ until the price passes ~8k. Blessings free below Lv30.
+ Stamina drains 1:1 with hunting (12:00 -> 11:29 in 30 min) and refills in town (Ledger was back to 12:00h
+ after the night). Hunting AT 12:00 cap wastes regen; leave heroes in town only when below cap.
+
+[01:35] THE OVERNIGHT (10.5 h away, both heroes)                          shots: 43-tally-overnight-summary, 44-ledger-overnight-summary
+ setup:    Tally -> Meadowbrook as built, Balanced. Ledger -> Mill Cellar 8-each, Offensive. Purse 5,017.
+           Tally had 10:00h stamina, Ledger ~11h, both buying food from the purse.
+ expected: Tally stops at ~10 h (stamina), Ledger runs ~10.5 h. Wake up to two summaries.
+ happened: BOTH heroes "In town, idle", Lv 9 and Lv 8. No deaths ("No deaths on record").
+           No summary for either hunt — the summary window shows hunts from yesterday (see 01:13).
+           Inventory "This hunt" also shows an old hunt. Purse 5,017 -> 16,287 (+11,270).
+           "Your best here" updated: Mill 8-each 17,152 XP/h, 4,373 gp/h; Meadowbrook 22,742 XP/h, 2,811 gp/h.
+           Bag deltas Ledger: Rat Tail +1,195, Wheat +504, Bones +606. Tally: Wolf Pelt +146, Raw Wolf Meat +422.
+ the catch: both hunts stopped at exactly 4:00 (240 min) with stamina, food money and HP to spare.
+           Nothing on the hunt card, the hunt bar or anywhere I looked says hunts end at 4 hours.
+           (Triager: the server row says end_reason "server" at 240 min on both. If 4 h is a rule, it needs to be
+           on the card and in the summary; if it isn't, it's a bug.)
+ does it add up?  I CAN'T TELL, and that's the finding. With two heroes on one purse and no summaries,
+           there's no screen that splits +11,270 into "Tally earned / Ledger earned / food cost". The per-hour
+           bests x 4 h say balance ~28.7k, but balance includes unsold loot. My rough gold-only estimate
+           (gold/kill x kills - food) lands near 8-11k, so +11,270 is plausible. Plausible isn't verified.
+ felt:     the whole point of an idle game is coming back to a receipt. I came back to an old receipt.
+
+[01:40] SLOT 3: 15,000 GOLD, ONE CLICK                                    shots: 48-slot-buy, 49-characters-3
+ - "Buy a hero slot — 15,000 gold" spent 15k on a single click, no "are you sure". Biggest purchase in the game
+   so far and the only one without a confirm (Sell all loot HAS a confirm for 423 gp).
+ - Slot 4 = 40,000. "An account holds up to 5 heroes" but "Up to 4 can play at once". So slot 5 is a bench.
+ - New hero brings +500 gp into the shared purse (1,287 -> 1,787), 20 Cooked Shrimp, 50 arrows, 10 whetstones,
+   8 turnip seeds. No delete-hero button anywhere, so no "make hero, take 500, delete, repeat" loop. Good.
+
+[01:45] WEAPONS: THE BOW TRAP                                              shots: 51-bow-equipped, 54-abacus-bow-30, 56-slot-config, 57-ammo-tab, 59-abacus-bow-fixed-30
+ doing:    new hero Abacus, equipped the Practice Bow from the bag ("Equip"), Mill Cellar as built — the same test
+           Tally did with the sword at Lv1, so I'd get a clean sword-vs-bow number.
+ happened: 30 min: 0 kills, 0 XP, 0 gold. Ate all 20 own shrimp + 22 store shrimp + 7 juice: balance -378 gp.
+           Dealt: "Nothing yet". The bar's own hover text says why: "Precision Shot: Needs ammo ... you carry
+           none your weapon shoots ... Put arrows or bolts on the bar (Ammo)". I had 50 Bronze Arrows IN THE BAG.
+           Equipping a bow doesn't put arrows on the bar, the hunt card didn't warn, Enter let me in, and the
+           summary's advice afterwards was "Next: Defense isn't training". Nothing ever said "you can't attack".
+ fix (as a player): slot 11 -> Configure action -> Ammo -> Bronze Arrows -> Save. The Ammo tab is good: damage,
+           gp per shot, what you carry, cheapest first (Iron Arrows +3 @1 gp, Mithril +8 @4 ... Dawnpoint +18 @12).
+ then:     bow Lv1, Mill as built, 31 min: 250 kills, 7,473 XP/h, balance 1,794 gp/h, ate NO food (5 juice only).
+           Sword Lv1 same ground: 7,235 XP/h, 2,004 gp/h. So the bow is +3% XP and food-free... but all 50 arrows
+           were gone after this one run and the supplies list never mentioned arrows (own ammo isn't listed or
+           priced). Bronze Arrows show "—" for price: the store doesn't sell them. Hidden cost, invisible counter.
+ verdict:  the bow is fine once fed. A new player who picks the bow first loses their whole starting food and
+           thinks the game is broken. I'd block Enter (or auto-load the arrows) when the weapon can't attack.
+
+[02:20] GROUNDS AT Lv8-9 (30-min windows, 3 heroes at once)                shots: 52-ledger-sewer-30, 53-tally-wickstead-30, 58-ledger-wickstead-d8-30
+                          density   XP/h     gold+loot/h  supplies/h  balance/h  food
+ Mill Cellar (Lv7-8)      8 each    17,152   —            —           4,373      ~45 shrimp/h   ("best here", 4 h)
+ Meadowbrook (Lv7-9)      as built  22,742   —            —           2,811      ~30 shrimp/h   ("best here", 4 h)
+ Wickstead (Lv9)          as built  27,304   3,979        0           3,979      NONE (Inner Flame 8)
+ Wickstead (Lv9)          8 each    41,858   5,625        2,489       3,136      176 shrimp/h
+ The Sewer alone (Lv8-9)  as built  37,429   4,082        2,462       1,620      176 shrimp/h
+ - Wickstead as built is the gold king at Lv9: zero supplies, ~4k gp/h. Wickstead 8-each is the XP king: +53%
+   XP for -21% balance. That IS a real trade-off; the first one I've found. Good.
+ - The Sewer card says "A party of 2 to 4" and "Alone, you skip that hall" (Rat King) — but it let me in solo,
+   and solo it's the worst gold ground I measured. Fair: the card warned me.
+ - Wickstead drop table is great reading: 9 rare trinkets at 0.083-0.17%, and Studded/Iron gear at 1.1%.
+ - perf: 3 heroes hunting, viewing one: 60 fps, worst frame 17 ms. Switching hero tabs ~1.5-2.9 s each.
+
+ STALE ANALYZER, AGAIN: after the hero switch, Tally (hunting Wickstead) showed "Hunt ended" + her very first Mill
+ Cellar run (254 kills, 3,907 XP) next to "Next level in 02:30:32". Repeats every time I go Ledger -> Tally.
+
+[06:30] GRINDING TO SLOT 4 (4 h away, 3 heroes)                             shots: 62-sell-wheat
+ setup:    Tally Wickstead as built, Ledger Mill 8-each, Abacus (back on sword+shield) Mill 8-each. Purse 4,635.
+ after:    purse 23,671 = +19,036 in 4 h (4,759 net gold/h for 3 heroes, before selling a single item).
+           ALL THREE analyzers then showed "Hunt ended" + some older hunt. Again no way to split the 19k by hero.
+ selling:  "Sell all loot" per hero paid 2,637 / 8,267 / 4,082 (purse moved by exactly those). ✓
+ NUMBERS THAT DISAGREE in the Sell list:
+           "Rat Tail ×2,004 · 1 gp each · Sell · 1,000 gp"   (2,004 x 1 = 2,004)
+           "Bones ×1,566 · 1 gp each · Sell · 1,000 gp"
+           "Wheat ×1,206 · 10 gp each · Sell · 10,000 gp"    (= 12,060)
+           Pressing it asks "Sell Wheat ×1,000?" — there's a hidden 1,000-per-sale cap. Fine, but print it on the row.
+           And then: confirm said "Sell for 10,000 gp", the result line said "The shop paid 10,012 gp", the purse
+           moved +10,012. A 12 gp gap between the confirm and the receipt. Tiny. Exactly what I hate.
+ Ledger had 1,206 Wheat at 10 gp — the single best "loot" in the early game is grain from the mill rats. Funny.
+ Slot 4 bought at 48,839 -> 8,839 (40k, again no confirm). New hero +500 gp. Slot 5 = 120,000.
+ Hunting while selling works: the shop is open mid-hunt for every hero. Good for an idle game.
+
+[06:40] FOUR HEROES AT ONCE — PERFORMANCE                                   shot: 63-four-heroes
+ 3 hunting + 1 fishing, viewing each in turn at 2560x1440:
+   Ledger (Mill 16 mobs) 60 fps, worst frame 50 ms | Tally (Wickstead) 60 / 17 ms | Abacus 60 / 33 ms | Margin (town) 60 / 17 ms
+   Tab switch 440-640 ms. JS heap 54-70 MB. Zero long tasks recorded. No stutter I could see or measure.
+ Honestly better than I expected. The only "slow" thing is that the hero tab strip doesn't say anything
+ numeric (gp/h, stamina) for the heroes I'm not looking at — with 4 heroes I want a one-line ledger per tab.
+
+[06:45] STAMINA REFILLS (Tally, Lv11)                                       shots: 66-stamina-refills, 67-stamina-after
+ Refill 1: "Restores 4 h for 1,500 gp" (375 gp/h) at 6h48m. Purse -1,500 exactly, HUD 6:48 -> 10:48. ✓
+ Refill 2: "Restores 1 h 12 m for 510 gp" (425 gp/h) — capped by the 12 h max.
+ Earlier at Lv7 it was "2 h 1 m for 555 gp" (275 gp/h). So the rate climbs per refill and (I think) with level.
+ Math: Wickstead earns ~4,000 gp/h; stamina costs ~400 gp/h. Buy all 6 every day. It's a 10% tax, not a choice.
+ Wish: show the gp/h of the refill next to the button. I had to divide by hand.
+
+[06:50] FISHING + COOKING (Margin, Lv1, real time — the away clock doesn't cover these)   shots: 65-margin-fishing, 68-cooking
+ Fishing, Shrimp Spot: card says 5.6 s, 4 XP. Measured 18 fish in 103 s = 5.7 s. ✓  (~640 shrimp/h, ~2,560 XP/h)
+ counters drift: at the same instant "16 caught", XP implied 17 fish, bag showed +13. Bag catches up in jumps.
+ Cooking shrimp: card "3.8 s · 11 XP each · burns up to 25%". Measured 8 done in 42 s (~4.2 s), 3 of the first 8 burnt (37%) —
+           but over 16 it settled at 4 burnt = 25%, so "up to 25%" held. My sample was just early. ✓
+ economics: fish 5.7 s + cook ~4 s = ~10 s per shrimp, minus burns -> ~280 cooked/h. Each one replaces a 14 gp
+ Salted Shrimp a hunter buys, so a fisher-cook "earns" ~3,900 gp/h in food not bought. Same as one Wickstead hunter,
+ more clicks, plus Fishing/Cooking XP. Not dominant at Lv1; probably better once Cooking stops burning.
+ missing: there's no "fish then cook" chain. I have to come back and press Cook. For an idle game, chain it.
+
+[07:00] WEAPONS AT Lv1, Mill Cellar as built, ~30 min each                   shot: 73-margin-axes-30
+                     XP/h    balance/h   food            notes
+ Sword + shield      7,235   2,004       1 shrimp        tanky, "free"
+ Bow (once fed)      7,473   1,794       0 (+5 juice)    50 arrows gone in one run, never shown as a cost
+ Two axes            8,015   1,926       0 (+5 juice)    best XP; bar ships with Rend, which needs runes
+ Wand / staff        not tested (out of time).
+ The hunt card DOES warn "no Rupture runes, Rend will not fire" for axes — but said nothing when the bow had no
+ ammo at all. The rune warning is exactly what the bow needed. Same check, please.
+
+[07:05] OTHER SYSTEMS, QUICK LOOK                                           shots: 69-tamsins-tally, 70-farm, 71-house
+ - Tamsin's kill tasks: 3 paid a day; 120 Giant Rats -> 100 gp + 4 Slime Gel + an armor piece of the weight
+   you pick. The gold is nothing next to 4k/h; the armor piece is the point. Every "Take" button is greyed out
+   while the hero hunts and nothing says why (I guess "come to town"). Tell me.
+ - Farm: 2 shared plots, Turnip in 4 h -> 3 Turnip Juice (store sells juice at 10 gp). That's ~15 gp/h for the
+   account. Couldn't test yields (real-time 4 h). As gold it's pointless; as a juice source for mana users, maybe.
+ - House: Homestead deed 400 gp + 20 Copper Ore + 30 Logs; storage chests need logs. Gathering finally has a
+   consumer here — good, that's what will make me train Woodcutting/Mining.
+ - Leave-at-the-right-moment: re-entering gives a full room (14 kills in the first 32 s), but leaving takes ~20 s
+   of walking, so 5 leave/enter cycles averaged 17.4 kills/min vs 17 steady. No exploit. Well designed.
+ - Switching heroes mid-hunt: no gain, no loss — the hunts keep going on the server. Only the analyzer suffers.
+ - Selling then rebuying: the shop doesn't buy back anything it sells at a profit (seeds 5 -> 2). No loop.
+ - Refills: no loop either; it's a straight gp -> hours trade that is always worth taking.
+ - Drop rates: card says Meadowbrook gear 2.2%/kill; first 30-min window gave 10 pieces in 262 kills (3.8%).
+   Over longer runs I can't count kills (stale analyzer), so I can't confirm the cards. I'd love a per-ground
+   "kills / drops seen" line in the bestiary — that's the number every wiki will want.
+
+==========================================================================================
+THE GUIDE-WRITER'S SUMMARY
+==========================================================================================
+
+DOMINANT STRATEGY (first day, as far as I got: Lv 1 -> 11)
+ 1. Lv1-5: Mill Cellar, density "+" until it greys out (8 each). x2.1 XP vs as built and still +20% balance.
+    Pick two axes (+11% XP vs sword, eats no food at Lv1) — put arrows on the bar first if you insist on the bow.
+ 2. Burn every Bone in the Great Hearth. Never sell them. 279 bones = Inner Flame 8 = +13.7% regen forever, and that
+    regen is what let Tally hunt Wickstead with ZERO food.
+ 3. Lv8+: Wickstead. As built for gold (~4,000 gp/h, no supplies), 8-each for XP (~42k XP/h, ~3,100 gp/h).
+    Skip The Sewer solo (1,620 gp/h, eats 176 shrimp/h).
+ 4. Buy every stamina refill (~375-425 gp per hour of hunting vs ~4,000 earned).
+ 5. Re-enter hunts every 4 h (they stop at 4:00 whatever your stamina says).
+ 6. Hoard Wheat from the Mill and sell it 1,000 at a time (10 gp each — the best "loot" I found). Use "Sell all
+    loot" for junk, then sell Wheat/Silk/gear by hand.
+ 7. Slot 3 at 15k (about 3 h of 2 heroes), slot 4 at 40k (about 4 h of 3 heroes + selling). I reached 4 heroes
+    in about 7 hours of game time. Slot 5 at 120k is the first real wall.
+
+NUMBERS THAT DISAGREED
+ - "Up to 4 can play at once" vs 2 slots on a new account (needs 15k + 40k gold; not said where it's promised).
+ - Density "+" (More monsters) on "As built (2 to 3)" goes DOWN to "1 each". "2 packs of 8" next to "Up to 8 a pull".
+ - Shop: "Sell all loot · 423 gp" over a list worth 1,215 (it skips crafting materials, silently).
+ - Shop: "Rat Tail ×2,004 · 1 gp each · Sell · 1,000 gp" (hidden 1,000-per-sale cap); "Sell for 10,000" paid 10,012.
+ - Analyzer/hunt bar/summary/"This hunt" show an older, ended hunt after a hero switch or time away (every hero,
+   every time). The worst one, because it's the screen I trust most.
+ - Two overnight hunts ended at exactly 4:00 with ~6 h of stamina left; no message, no summary.
+ - Supplies: own food shown as "free"; own arrows not listed at all; per-row costs and per-row loot values "–".
+ - In-hunt max HP stuck at the entry value after level-ups (110/150 at Lv5 -> 190/190 in town).
+ - HUD "Food x0" while the hero eats store shrimp; coach toast "You have 0 left" frozen for 30+ minutes.
+ - Fishing "caught so far" vs bag count vs XP drift by up to 3 at the same moment.
+ - "Hunt again" -> "You no longer have that many." (of what?)
+
+WHAT'S POINTLESS (for gold, so far)
+ - Kill-task gold (100-1,090 gp a day). Farming turnips. Selling bones. Offensive stance on Mill Cellar (same 264
+   kills as Balanced). The Sewer alone. Fishing+cooking at Lv1 roughly ties a hunter, with more clicks.
+ - Not pointless, just unclear: armor weights. Heavy/medium/light percentages exist on Tamsin's page ("up to
+   +28% HP for a full set") but the bag shows "+0% max HP" lines and never a number per piece.
+
+WHAT'S THE ACTUAL CHASE AFTER A WEEK
+ - Slot 5 (120k) and keeping 4 heroes in stamina refills. Rare drops (Rat King's Crown 0.1%, Grayjaw's Ruff
+   0.17%) and the trinket table at Wickstead. The House tiers (Homestead -> Castle) — this is where Woodcutting and
+   Mining finally pay, and it's the first sink big enough to matter. Mosslight Glade (16-31) and Coppercap (32-50)
+   for the next XP tier. Inner Flame levels from bones.
+ - Missing for me: a reason to keep the gold. After slot 5 I don't see a gold sink besides refills.
+
+WOULD I KEEP PLAYING?
+ Yes, for at least the week. The away-rate matches the watched rate, the gold arithmetic is honest to the gp
+ wherever I could actually see both sides, the hunt card's drop % and supply costing are better than most idle
+ games ship with, and density vs stance vs ground is a real optimisation space (Wickstead 8-each vs as built is
+ a genuine trade-off). Four heroes ran at a flat 60 fps on 2560x1440 with no stutter. What would make me quit is
+ the receipts: an idle game lives on "you were away, here's what happened", and right now I mostly came back to a
+ stale panel and had to divide purse deltas by hand.
+
+THE ONE THING I'D TELL THE DEVS
+ The analyzer is the best thing in your game and it lies after every hero switch or time away. Make the panel
+ always show the hunt the hero is IN, and give every ended hunt (including the 4 h stop) a summary I can find.
+
+SCORES (out of 10)
+ Depth:              7   density x stance x weapon x ground x Inner Flame is a real sheet; crafting barely touched.
+ Fairness:           8   no exploits found through normal controls; no sell/rebuy, refill or leave/re-enter loop.
+                         The bow-with-no-ammo trap and the silent 4 h stop cost real resources though.
+ Clarity of numbers: 5   per-session numbers reconcile to the gp; long-run numbers (stale panels, purse shared
+                         by 4 heroes, no 4 h notice, hidden sell caps) can't be checked at all.
+ Speed:              9   60 fps with 4 heroes, 0.4-0.6 s hero switches, ~50-70 MB heap. Leaving a hunt takes ~20 s.

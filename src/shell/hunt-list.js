@@ -9,6 +9,8 @@
 //   densityWords(row, n)  "6 packs of 7 · back in 60 s": the pull size the
 //                        server spawns at density `n` (the pick clamped to the
 //                        ground); the room as built only at 0
+//   densityStep(row, now, by, max)  the pick one press of the step reaches: picks in
+//                        order of size, "as built" standing among them
 //   bandWords(row, lv)  "Level 1 to 8" (+ ", you are 3" when known)
 //   recommendation(levels, size)  the Hunts window's default pick for this hero
 //                        or this party's levels, and a plain note when no ground
@@ -26,12 +28,12 @@
 // Nothing here is a gate: the server checks the band, the stamina and the
 // stock when the player presses Enter, and says why it refuses.
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_GROUNDS, PARTY_SCALE } from '../data/hunt-grounds.js?v=0.2.74';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.74';
-import { MONSTERS } from '../data/monsters.js?v=0.2.74';
-import { SUPPLIES } from '../data/supplies.js?v=0.2.74';
-import { SESSION_LIMITS } from '../data/hunt-sessions.js?v=0.2.74';
-import { whole, gold } from '../render/format.js?v=0.2.74';
+import { HUNT_GROUNDS, PARTY_SCALE } from '../data/hunt-grounds.js?v=0.2.75';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.75';
+import { MONSTERS } from '../data/monsters.js?v=0.2.75';
+import { SUPPLIES } from '../data/supplies.js?v=0.2.75';
+import { SESSION_LIMITS } from '../data/hunt-sessions.js?v=0.2.75';
+import { whole, gold } from '../render/format.js?v=0.2.75';
 
 const PACK_QTY_MAX = 100000;
 const COUNT_WORDS = Object.freeze(['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight']);
@@ -82,6 +84,24 @@ export function densityWords(r, n) {
   const packs = r.packs + (r.packs === 1 ? ' pack' : ' packs');
   const size = picked ? ' of ' + n : ' of ' + built;
   return packs + size + (r.boss ? ', a boss' : '') + ' · back in ' + r.respawnS + ' s';
+}
+
+/**
+ * THE PICK ONE PRESS REACHES. "As built" (0) is a room, not a number: it stands where its packs' size stands among the
+ * picks, so "More monsters" never brings fewer (blind playtest 2026-10-31: + on "As built (2 to 3)" went to "1 each",
+ * and − was off). `by`: 1 or -1; `max`: the most this group may pick. Null at either end. A built size equal to a pick
+ * takes that pick's place going up and going down, so no press does nothing on screen. Pure.
+ */
+export function densityStep(r, now, by, max) {
+  const size = (n) => (n > 0 ? n : (r.packMin + r.packMax) / 2);
+  let best = null;
+  for (let n = 0; n <= max; n++) {
+    const d = (size(n) - size(now)) * by;
+    if (d <= 0) continue;
+    const had = best === null ? Infinity : (size(best) - size(now)) * by;
+    if (d < had || (d === had && n === 0)) best = n;
+  }
+  return best;
 }
 
 /** The ground's level band in words, and where the character stands when its level is known. */

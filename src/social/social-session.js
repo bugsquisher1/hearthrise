@@ -19,13 +19,13 @@
 //               rows), for the shell's one context menu
 //   want(tab)   ask the chat window to show a tab (a new whisper)
 // ════════════════════════════════════════════════════════════════════════
-import { CHAT_LIMITS } from '../data/chat-channels.js?v=0.2.74';
-import { ChatStore } from './chat-store.js?v=0.2.74';
-import { WhisperStore } from './whispers.js?v=0.2.74';
-import { FriendStore } from './friends.js?v=0.2.74';
-import { BlockStore } from './blocks.js?v=0.2.74';
-import { inspectOf } from './inspect.js?v=0.2.74';
-import { PlayersOnline } from './players-online.js?v=0.2.74';
+import { CHAT_LIMITS } from '../data/chat-channels.js?v=0.2.75';
+import { ChatStore } from './chat-store.js?v=0.2.75';
+import { WhisperStore } from './whispers.js?v=0.2.75';
+import { FriendStore } from './friends.js?v=0.2.75';
+import { BlockStore } from './blocks.js?v=0.2.75';
+import { inspectOf } from './inspect.js?v=0.2.75';
+import { PlayersOnline } from './players-online.js?v=0.2.75';
 
 export class SocialSession {
   /**
@@ -39,6 +39,8 @@ export class SocialSession {
     this._timers = o.timers || {};
     this._listeners = new Set();
     this._poll = null;
+    this._away = false; this._askedAt = -Infinity;   // setAway; the last social poll
+    this._nowMs = this._timers.now || (() => Date.now());
     this.inspected = null;
     this.wanted = null;
     const reread = () => this.reread();
@@ -65,10 +67,18 @@ export class SocialSession {
   start() {
     if (this._poll !== null) return;
     const set = this._timers.setTimer || ((fn, ms) => setInterval(fn, ms));
-    this._poll = set(() => { this._presence(); }, CHAT_LIMITS.friendsPollMs);
+    this._poll = set(() => { if (!this._away || this._nowMs() - this._askedAt >= CHAT_LIMITS.friendsPollAwayMs) this._presence(); }, CHAT_LIMITS.friendsPollMs);
     this.chat.start();
     this.whispers.load();
     this._presence();
+  }
+
+  /** The page has been hidden a while (AccountSession.setPageHidden): the poll slows to the presence stamp that keeps this
+      account online for its friends; shown again it reads at once. Chat and whispers are pushed, not polled: they stay. */
+  setAway(on) {
+    const was = this._away === true;
+    this._away = on === true;
+    if (was && !this._away && this._poll !== null) this._presence();
   }
 
   /* One social poll: the friends read (the account's presence for its friends), then the online count
@@ -76,6 +86,7 @@ export class SocialSession {
      only when the read answered: a session the server refused (signed out, offline) sends one call a poll,
      never two (client-boot B-10), and shows no count. */
   async _presence() {
+    this._askedAt = this._nowMs();
     let read = false;
     try { read = await this.reread(); } catch (e) { read = false; }
     if (!read) { this.online.clear(); return null; }

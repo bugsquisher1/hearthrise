@@ -26,34 +26,34 @@
 // scene drawing from it shows. The first scene opens whole; a later one (a ground entered, the town after
 // a hunt) switches once its sheets have arrived, the last frame holding meanwhile.
 // ════════════════════════════════════════════════════════════════════════
-import { BUILD } from '../build-info.js?v=0.2.74';
-import { OPEN_CLASSES } from '../data/world/terrain.js?v=0.2.74';
-import { WORLD_MAPS, SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.74';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.74';
-import { MONSTERS } from '../data/monsters.js?v=0.2.74';
-import { compileMap } from './core/map-compile.js?v=0.2.74';
-import { createBook } from './core/book.js?v=0.2.74';
-import { fpsFor, MOBILE_QUERY } from './core/camera.js?v=0.2.74';
-import { heroBuilding, roofTargets, stepAlpha } from './core/roofs.js?v=0.2.74';
-import { readScene, setChoice, heroPosOn, notePos, forgetPos } from './store.js?v=0.2.74';
-import { loadManifests, createSceneImages, loadAtlasSet, baseTables } from './atlas.js?v=0.2.74';
-import { sceneSetsSliced } from './scene-sets.js?v=0.2.74';
-import { prewarmedSets, stopPrewarm } from './prewarm.js?v=0.2.74';
-import { createGridArt, sandboxExtras, presenceFor } from './sandbox-scene.js?v=0.2.74';
-import { createCanvasBackend } from './render/canvas-backend.js?v=0.2.74';
-import { huntOfMap } from './hunt-maps.js?v=0.2.74';
-import { createHuntScene } from './hunt-scene.js?v=0.2.74';
-import { liveSceneOf, endLiveScene } from '../hunt-view/scene.js?v=0.2.74';
-import { huntOf } from '../session/hunt-sections.js?v=0.2.74';
-import { createWalkScene } from './walk-scene.js?v=0.2.74';
-import { createTownZoom } from './town-zoom.js?v=0.2.74';
-import { homeMapFor, homeEnv } from './home-scene.js?v=0.2.74';
-import { runAction } from './steer-local.js?v=0.2.74';
-import { heroSprite } from '../session/hero-look.js?v=0.2.74';
-import { keyBelongsToField } from '../utils/dom.js?v=0.2.74';
-import { homeOf } from '../session/home-sections.js?v=0.2.74';
-import { skillsOf } from '../session/item-sections.js?v=0.2.74';
-import { createHearthView } from './hearth-burn.js?v=0.2.74';
+import { BUILD } from '../build-info.js?v=0.2.75';
+import { OPEN_CLASSES } from '../data/world/terrain.js?v=0.2.75';
+import { WORLD_MAPS, SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.75';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.75';
+import { MONSTERS } from '../data/monsters.js?v=0.2.75';
+import { compileMap } from './core/map-compile.js?v=0.2.75';
+import { createBook } from './core/book.js?v=0.2.75';
+import { fpsFor, MOBILE_QUERY } from './core/camera.js?v=0.2.75';
+import { heroBuilding, roofTargets, stepAlpha } from './core/roofs.js?v=0.2.75';
+import { readScene, setChoice, heroPosOn, notePos, forgetPos } from './store.js?v=0.2.75';
+import { loadManifests, createSceneImages, loadAtlasSet, baseTables } from './atlas.js?v=0.2.75';
+import { sceneSetsSliced } from './scene-sets.js?v=0.2.75';
+import { prewarmedSets, stopPrewarm } from './prewarm.js?v=0.2.75';
+import { createGridArt, sandboxExtras, presenceFor } from './sandbox-scene.js?v=0.2.75';
+import { createCanvasBackend } from './render/canvas-backend.js?v=0.2.75';
+import { huntOfMap } from './hunt-maps.js?v=0.2.75';
+import { createHuntScene } from './hunt-scene.js?v=0.2.75';
+import { liveSceneOf, endLiveScene } from '../hunt-view/scene.js?v=0.2.75';
+import { huntOf } from '../session/hunt-sections.js?v=0.2.75';
+import { createWalkScene } from './walk-scene.js?v=0.2.75';
+import { createTownZoom } from './town-zoom.js?v=0.2.75';
+import { homeMapFor, homeEnv } from './home-scene.js?v=0.2.75';
+import { runAction } from './steer-local.js?v=0.2.75';
+import { heroSprite } from '../session/hero-look.js?v=0.2.75';
+import { keyBelongsToField } from '../utils/dom.js?v=0.2.75';
+import { homeOf } from '../session/home-sections.js?v=0.2.75';
+import { skillsOf } from '../session/item-sections.js?v=0.2.75';
+import { createHearthView } from './hearth-burn.js?v=0.2.75';
 
 /* THE KEYS (desktop): WASD and the arrows, by physical key (e.code, so a
    non-QWERTY layout walks with the same hand). Two held at once walk the
@@ -152,7 +152,9 @@ export async function bootWorld(panel, opts) {
      2026-10-28); kept until an <html>/<body> attribute (theme, class) or a resize (media query) can change them. */
   const tokens = new Map();
   const css = (name) => { let v = tokens.get(name); if (v === undefined) tokens.set(name, v = styles.getPropertyValue(name).trim()); return v; };
-  const forgetTokens = () => tokens.clear();
+  /* ...and a changed token is the one change a draw list cannot show: the next frame paints whatever it holds */
+  let tokensChanged = null;
+  const forgetTokens = () => { tokens.clear(); if (tokensChanged) tokensChanged(); };
   const tokenWatch = typeof win.MutationObserver === 'function' ? new win.MutationObserver(forgetTokens) : null;
   if (tokenWatch) { tokenWatch.observe(doc.documentElement, { attributes: true }); tokenWatch.observe(doc.body, { attributes: true }); }
   win.addEventListener('resize', forgetTokens);
@@ -162,6 +164,7 @@ export async function bootWorld(panel, opts) {
   const tables = baseTables(book);
   const sheets = createSceneImages({ doc, version: BUILD.cache });
   const backend = createCanvasBackend({ win, doc, book, images: sheets.images, tables, css });
+  tokensChanged = () => backend.invalidate();
   const gridArt = createGridArt({ doc, version: BUILD.cache, tables, loadSet: loadAtlasSet });
   const artOf = (id) => gridArt.art(ROWS.get(id).grid);
   const character = opts.character || null;
@@ -245,9 +248,7 @@ export async function bootWorld(panel, opts) {
     const now = character.now();
     /* the live view's engine runs to now first (src/session/live-link.js) */
     if (typeof character.liveAdvance === 'function') character.liveAdvance(now);
-    /* A CATCH-UP STILL RUNNING IN SLICES (a tab back from the background, live-link.js advance): the last frame stays on
-       screen until it lands. Drawn meanwhile, the stale picture became the scene's present and the span skipped played
-       its deaths anew where today's one-task catch-up lets them lie (tests/hunt-scene-live.mjs LV-29). */
+    /* A CATCH-UP STILL RUNNING IN SLICES (live-link.js advance): the last frame stays until it lands, or the skipped span replays its deaths (LV-29). */
     if (character.liveLink && character.liveLink.catchingUp()) return null;
     const back = typeof character.takeReseeded === 'function' ? character.takeReseeded() : null;
     if (back) scene.revive(back, now);
@@ -458,9 +459,8 @@ export async function bootWorld(panel, opts) {
   function onFocusIn(e) { if (keyBelongsToField(e.target, '')) letGo(); }
 
   const live = () => panel.classList.contains('active') && !doc.hidden;
-  /* A FRAME THAT THROWS never stops the loop (the next frame is asked for before the step runs) and is said ONCE per
-     error, not every frame: a throw repeated each frame (Sentry JAVASCRIPT-4C, the live engine on a monster this build
-     did not know: src/hunt-view/live-engine.js failed()) went out unhandled 60 times a second while the picture stood. */
+  /* A FRAME THAT THROWS never stops the loop (the next frame is asked for before the step runs) and is
+     said ONCE per error, not 60 times a second (Sentry JAVASCRIPT-4C). */
   const said = new Set();
   function failedFrame(e) {
     const key = String((e && e.message) || e);

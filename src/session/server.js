@@ -36,8 +36,8 @@
 // does not know).
 // ════════════════════════════════════════════════════════════════════════
 
-import { SUPABASE_CONFIG } from '../net/supabase-bootstrap.js?v=0.2.74';
-import { createIntentLedger } from './intent-ledger.js?v=0.2.74';
+import { SUPABASE_CONFIG } from '../net/supabase-bootstrap.js?v=0.2.75';
+import { createIntentLedger } from './intent-ledger.js?v=0.2.75';
 
 export const CLOSED_CODE = 'hr_closed';
 export const CLOSED_STATUS = 403;
@@ -78,6 +78,7 @@ function looksStale(status, body) {
  * @param {(bad: string) => string|null|Promise<string|null>} [o.renew]  a new token after a 401, or null
  * @param {typeof fetch} [o.fetch]
  * @param {() => void} [o.stale]  told when an answer looks like a stale client's
+ * @param {object} [o.watch]      told of each ask, answer and network failure (src/net/connection.js): the words only
  */
 export function createServerLink(o) {
   const base = String(o.url || '').replace(/\/+$/, '');
@@ -92,6 +93,7 @@ export function createServerLink(o) {
     try { jwt = await o.token(); } catch (e) { jwt = null; }
     if (!jwt) return { ok: false, status: 0, error: 'no_token', closed: false };
     let res;
+    const ask = o.watch ? o.watch.asked() : 0;
     try {
       res = await send(path, payload, jwt);
       if (res.status === 401 && o.renew) {
@@ -100,8 +102,10 @@ export function createServerLink(o) {
         if (next && next !== jwt) res = await send(path, payload, next);
       }
     } catch (e) {
+      if (o.watch) o.watch.failed(ask);
       return { ok: false, status: 0, error: 'network', closed: false };
     }
+    if (o.watch) o.watch.answered(ask);
     let body = null;
     try { body = await res.json(); } catch (e) { body = null; }
     const closed = isClosedAnswer(res.status, body);

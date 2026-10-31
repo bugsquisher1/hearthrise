@@ -16,8 +16,8 @@
 // The share is by ARMOUR_SLOTS worn of that weight (ruling K7: mixed pieces blend,
 // no mixing penalty); shields and capes carry no weight. PURE: no DOM.
 // ════════════════════════════════════════════════════════════════════════
-import { VITALS, ARMOUR_WEIGHT, ARMOUR_SLOTS } from './core-model.js?v=0.2.74';
-import { ITEMS } from './items.js?v=0.2.74';
+import { VITALS, ARMOUR_WEIGHT, ARMOUR_SLOTS } from './core-model.js?v=0.2.75';
+import { ITEMS } from './items.js?v=0.2.75';
 
 /* pool: the vital the weight raises ('hp' | 'mana' | null), fullPm: that raise for a full set, permille. */
 const WEIGHT_RULES = Object.freeze({
@@ -73,8 +73,14 @@ export function pieceWords(id) {
 export function wornWeights(equipment) {
   const n = { heavy: 0, medium: 0, light: 0 };
   for (const id of Object.values(equipment || {})) { const w = id ? weightOf(id) : null; if (w) n[w] += 1; }
-  return WEIGHT_ORDER.map((w) => {
+  /* Nothing worn says so, once, and why the hero still looks armored (blind playtest 2026-10-31: a plate sprite beside
+     "0 heavy (+0% max HP) 0 medium 0 light"); a weight with no piece says nothing. */
+  const none = WEIGHT_ORDER.every((w) => !n[w]);
+  return WEIGHT_ORDER.map((w, i) => {
     const r = WEIGHT_RULES[w];
-    return { w, n: n[w], text: n[w] + ' ' + w + (r.pool ? ' (' + pct(sharePm(w, n[w])) + ' ' + POOL_WORDS[r.pool] + ')' : n[w] ? ' (more blows miss)' : '') };
+    if (!n[w]) return { w, n: 0, text: none && i === 0 ? NONE_WORN : '' };
+    return { w, n: n[w], text: n[w] + ' ' + w + (r.pool ? ' (' + pct(sharePm(w, n[w])) + ' ' + POOL_WORDS[r.pool] + ')' : ' (more blows miss)') };
   });
 }
+
+const NONE_WORN = 'None yet. Your outfit is only a look.';

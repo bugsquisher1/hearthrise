@@ -34,19 +34,19 @@
 // Nothing here gates or spends anything; the "Start again" button is an
 // intent (CharacterSession.restartHunt) like every other.
 // ════════════════════════════════════════════════════════════════════════
-import { ALERT_INDEX } from '../data/alerts.js?v=0.2.74';
-import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.74';
-import { ALERTS_SEEN_MAX } from '../session/residue.js?v=0.2.74';
-import { huntOf, settingsOf } from '../session/hunt-sections.js?v=0.2.74';
-import { carriedOf, nameOf } from '../session/item-sections.js?v=0.2.74';
-import { huntName, invitesOf } from '../session/party-sections.js?v=0.2.74';
-import { itemName } from './widgets/bits.js?v=0.2.74';
-import { CONSUMABLES } from '../data/consumables.js?v=0.2.74';
-import { deathSeen } from './death-popup.js?v=0.2.74';
-import { awayRecapOf, stampAway } from './away-recap.js?v=0.2.74';
-import { tallyOf, pickWords } from '../session/tally-sections.js?v=0.2.74';
-import { tallyTask } from '../data/tally-tasks.js?v=0.2.74';
-import { gold } from '../render/format.js?v=0.2.74';
+import { ALERT_INDEX } from '../data/alerts.js?v=0.2.75';
+import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.75';
+import { ALERTS_SEEN_MAX } from '../session/residue.js?v=0.2.75';
+import { huntOf, settingsOf } from '../session/hunt-sections.js?v=0.2.75';
+import { carriedOf, nameOf } from '../session/item-sections.js?v=0.2.75';
+import { huntName, invitesOf } from '../session/party-sections.js?v=0.2.75';
+import { itemName } from './widgets/bits.js?v=0.2.75';
+import { CONSUMABLES } from '../data/consumables.js?v=0.2.75';
+import { deathSeen } from './death-popup.js?v=0.2.75';
+import { awayRecapOf, stampAway } from './away-recap.js?v=0.2.75';
+import { tallyOf, pickWords } from '../session/tally-sections.js?v=0.2.75';
+import { tallyTask } from '../data/tally-tasks.js?v=0.2.75';
+import { gold } from '../render/format.js?v=0.2.75';
 
 const tallyLabel = (task) => { const t = tallyTask(task); return t ? t.label : 'a tally'; };
 
@@ -189,6 +189,7 @@ export function createAlertCenter(account) {
     alerts.unshift(Object.assign({ key: 'a' + (++n), slot: cs.slot, action: kind.action, button: kind.button, decline: kind.decline || null,
       share: kind.share || null, glyph: kind.glyph, pending: false, msg: '' }, c));
     if (alerts.length > 32) alerts.length = 32;
+    if (kind.fadeMs) { const key = alerts[0].key; setTimeout(() => { const i = alerts.findIndex((a) => a.key === key); if (i >= 0) { alerts.splice(i, 1); changed(); } }, kind.fadeMs); }
     const r = residueOf(cs);
     cs.setResidue('alerts', { off: Array.isArray(r.off) ? r.off : [], seen: (Array.isArray(stored) ? stored : []).concat(c.id).slice(-ALERTS_SEEN_MAX) });
     return true;

@@ -525,6 +525,7 @@ async function check(M) {
     /* the canvas: a new map's first view is baked by ready(), a slice a frame, never inside the frame that draws it */
     const win = { innerWidth: 1440, innerHeight: 900, devicePixelRatio: 1, performance: { now: () => clock++ }, addEventListener() {}, removeEventListener() {},
       setTimeout: (fn) => q.push(fn), clearTimeout() {}, requestIdleCallback: (fn) => q.push(fn), cancelIdleCallback() {} };
+    const paneFrom = canvases.length;
     const cb = M.canvasM.createCanvasBackend({ win, doc, book, images, tables, css: tone });
     cb.mount({ appendChild() {}, getBoundingClientRect: () => ({ left: 0, top: 0, width: 1440, height: 900 }) });
     const m3 = fresh();
@@ -538,6 +539,10 @@ async function check(M) {
     cb.sync(state);
     ok('W5', held >= 2 && baked > 0 && chunkCount() === baked,
       'a new map\'s first frame must wait for its view\'s ground (held ' + held + ' frame(s), ' + (chunkCount() - baked) + ' chunk(s) baked inside the frame)');
+    /* W5: a pane let go gives every canvas back at once (left to the collector they came due as a 166-318 ms pause in a later frame, perf-budget long frames) */
+    cb.destroy();
+    const kept = canvases.slice(paneFrom).filter((c) => c.width || c.height);
+    ok('W5', canvases.length > paneFrom + 5 && kept.length === 0, 'a destroyed backend still holds ' + kept.length + ' canvas(es) with pixels of its ' + (canvases.length - paneFrom));
     q.length = 0;
   });
 
@@ -709,6 +714,8 @@ const MUTANTS = [
   ['W5', 'a resumed chunk skips the tile it stopped at', 'src/world/render/ground-chunks.js', [['    for (const t = own.tiles; j.i < t.length; j.i += 5) {\n      if (spent()) return false;', '    for (const t = own.tiles; j.i < t.length; j.i += 5) {\n      if (spent()) { j.i += 5; return false; }']]],
   ['W6', 'a frame places every object of the map again', 'src/world/core/compose.js', [['    if (!near(b[4 * i], b[4 * i + 1], b[4 * i + 2], b[4 * i + 3])) continue;\n', '']]],
   ['W6', 'the cull drops art that reaches into the view from its west edge', 'src/world/core/compose.js', [['if (!near(b[4 * i], b[4 * i + 1], b[4 * i + 2], b[4 * i + 3])) continue;', 'if (!near(b[4 * i], b[4 * i + 1], 0, b[4 * i + 3])) continue;']]],
+  ['W5', 'a pane let go leaves its canvases to the collector', 'src/world/render/canvas-backend.js', [['if (c) { c.width = 0; c.height = 0; }', 'if (c) { }']]],
+  ['W5', 'a chunk let go keeps its pixels', 'src/world/render/ground-chunks.js', [['  function release(c) { c.width = 0; c.height = 0; }', '  function release(c) { }']]],
   ['W5', 'a new map drawn before its view\'s ground is baked', 'src/world/render/canvas-backend.js', [['      if (!hold || !map || !canvas) return true;', '      return true;']]],
   ['W2', 'a hole corner (cliff) leaves its dual tile undrawn', 'src/world/core/compose.js', [['for (let i = 0; i < 4; i++) if (c[i] < 0) c[i] = most;', 'if (c.some((m) => m < 0)) continue;']]],
   ['W2', 'a third material drawn as the upper of the pair', 'src/world/core/compose.js', [['(m !== lo && !pairM[m * K + lo] && pairM[m * K + up])', '(m !== lo)']]],

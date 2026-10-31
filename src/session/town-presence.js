@@ -14,7 +14,8 @@
 // stations.js), so no two bodies share one and an unviewed hero stands at its
 // work, never at the gate. This presence never names a tile the server did not
 // give it or its player did not walk to:
-//   hr_town_view   every pollMs while a town is DRAWN: the people in this
+//   hr_town_view   every pollMs while a town is DRAWN (every idlePollMs while nothing
+//                  in it moves: readDue): the people in this
 //                  character's town instance and around its view (the `area`
 //                  the server answers), as the server names them (id, slot, name,
 //                  level, role, outfit, tiles, facing, station, work), and `me`,
@@ -43,7 +44,7 @@
 // When the server moves the stand (a new activity, back from a hunt, a counter)
 // the World walks the hero there from where it is (me(), display only).
 // ════════════════════════════════════════════════════════════════════════
-import { TOWN_PRESENCE, TOWN_DIRS } from '../data/town-presence.js?v=0.2.74';
+import { TOWN_PRESENCE, TOWN_DIRS } from '../data/town-presence.js?v=0.2.75';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MAP_ID = /^[a-z0-9_]{1,40}$/;
@@ -148,6 +149,9 @@ export class TownPresence {
     this._parked = false;     // not on screen, still standing in town (another character is viewed)
     this._hereAt = -Infinity; // the last parked keepalive
     this._drawnAt = -Infinity;            // the last frame that asked for the people (walkers())
+    this._readAskedAt = -Infinity;        // the last read asked
+    this._heard = null;                   // what the last answer said (_quietAfter)
+    this._quiet = 0;                      // answers in a row that said nothing new
   }
 
   subscribe(fn) { this._listeners.add(fn); return () => this._listeners.delete(fn); }
@@ -164,6 +168,7 @@ export class TownPresence {
     }
     this._parked = false;
     this._map = m;
+    this._quiet = 0; this._heard = null;
     this._known = new Map(); this._walkers = []; this._readAt = null; this._cursor = null; this._readCenter = null; this._want = null; this._hearth = null;
     if (this._timer !== null) { this._clear(this._timer); this._timer = null; }
     if (m) {
@@ -179,6 +184,7 @@ export class TownPresence {
   publish(p) {
     const place = placeOf(p);
     if (!place || place.map !== this._map || this._dead) return false;
+    if (!samePlace(place, this._want)) this._quiet = 0;   // the hero's own step: who is near it changes
     this._center = [place.x, place.y];
     /* NOTHING BEFORE THE SERVER'S STAND: until it is known the hero has not been placed, and where the World
        shows it is the client's guess (the map's start), never a tile to tell anyone */
@@ -292,7 +298,25 @@ export class TownPresence {
     }
     if (this._want && this._now() - this._sentAt >= this.limits.keepaliveMs) this._flush(true);
     /* READ ONLY WHAT IS DRAWN (perf audit 10-23: 30 reads a minute with no town on screen): a frame asked lately */
-    if (this._now() - this._drawnAt <= 2 * this.limits.pollMs) this.read();
+    if (this._now() - this._drawnAt <= 2 * this.limits.pollMs && this._readDue()) this.read();
+  }
+
+  /* A TOWN AT REST IS READ SLOWER (TOWN_PRESENCE.idlePollMs): the poll keeps its pace while anything changes. */
+  _readDue() {
+    const L = this.limits;
+    return this._quiet < L.idleAfterQuiet || this._now() - this._readAskedAt >= L.idlePollMs;
+  }
+
+  /* After an answer: did it say anything new? A walker still on its way counts as news: it is about to move again. */
+  _quietAfter(list) {
+    let heard = this._hearth ? this._hearth.flame : '';
+    let walking = false;
+    for (const w of list) {
+      heard += '|' + keyOf(w) + ':' + w.x + ',' + w.y + ',' + w.gx + ',' + w.gy + ',' + w.dir + ',' + w.station + ',' + w.work + ',' + w.outfit;
+      if (w.x !== w.gx || w.y !== w.gy) walking = true;
+    }
+    this._quiet = walking || heard !== this._heard ? 0 : this._quiet + 1;
+    this._heard = heard;
   }
 
   /** One hr_town_view read for the shown map. A read asked while one is out waits for it and reads once more
@@ -308,6 +332,7 @@ export class TownPresence {
 
   async _readOnce(map) {
     const now = this._now();
+    this._readAskedAt = now;
     const whole = this._cursor === null || now - this._fullAt >= this.limits.fullEveryMs;
     const c = this._center || (this._me && this._me.map === map ? [this._me.x, this._me.y] : null);
     const prev = whole ? null : this._readCenter;
@@ -339,6 +364,7 @@ export class TownPresence {
     const list = [];
     for (const w of this._known.values()) { if (list.length >= this.limits.cap) break; list.push(w); }
     this._walkers = list;
+    this._quietAfter(list);
     if (Number.isFinite(b.cursor)) this._cursor = b.cursor;
     this._readCenter = c;
     this._noteMe(b.me);

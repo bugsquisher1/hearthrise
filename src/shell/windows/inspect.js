@@ -7,13 +7,13 @@
 // a bank. Hovering an item opens the shared item tooltip (./item-tip.js).
 // Nothing here can change anything.
 // ════════════════════════════════════════════════════════════════════════
-import { refusalWords } from '../intent-words.js?v=0.2.74';
-import { EQUIP_SLOT_META } from '../../data/gathering.js?v=0.2.74';
-import { HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.74';
-import { itemName, itemIconHtml } from '../widgets/bits.js?v=0.2.74';
-import { showTip, hideTip } from './item-tip.js?v=0.2.74';
-import { rows, text, element } from '../../render/paint.js?v=0.2.74';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.74';
+import { refusalWords } from '../intent-words.js?v=0.2.75';
+import { EQUIP_SLOT_META } from '../../data/gathering.js?v=0.2.75';
+import { HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.75';
+import { itemName, itemIconHtml } from '../widgets/bits.js?v=0.2.75';
+import { showTip, hideTip } from './item-tip.js?v=0.2.75';
+import { rows, text, element } from '../../render/paint.js?v=0.2.75';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.75';
 
 export function renderInspect() {
   return '<div class="hi-inspect"><h3 class="hs-sub hi-who"></h3><p class="hi-line"></p>'
@@ -32,7 +32,7 @@ renderInspect.patch = function patchInspect(body, ctx) {
       + '<small class="hi-slot">' + esc((EQUIP_SLOT_META[g.slot] && EQUIP_SLOT_META[g.slot].label) || g.slot) + '</small><b class="hi-name">' + esc(itemName(g.item)) + '</b></li>'),
     patch: () => {},
   });
-  text(body.querySelector('.hi-msg'), !v ? 'Right-click a player and pick Inspect gear.'
+  text(body.querySelector('.hi-msg'), !v ? (ctx.isPhone && ctx.isPhone() ? 'Hold a player’s name' : 'Right-click a player') + ' and pick Inspect gear.'
     : v.pending ? 'Looking…' : v.error ? refusalWords(v.error) : !v.gear.length ? 'Nothing worn.' : '');
 };
 

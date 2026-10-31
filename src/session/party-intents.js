@@ -29,8 +29,8 @@
 // Each verb is ONE ask in the account's intent ledger (cs.intents, intent-ledger.js)
 // from its send until those re-reads are applied: the pressed control waits on it.
 // ════════════════════════════════════════════════════════════════════════
-import { partyMembershipOf } from './party-sections.js?v=0.2.74';
-import { askVia } from './intent-ledger.js?v=0.2.74';
+import { partyMembershipOf } from './party-sections.js?v=0.2.75';
+import { askVia } from './intent-ledger.js?v=0.2.75';
 
 const HUNT_ID = /^[a-z0-9_]{1,64}$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

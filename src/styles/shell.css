@@ -137,6 +137,16 @@
   opacity: 0; pointer-events: none; transition: opacity 120ms ease-out;
 }
 .hs-launch:hover::before, .hs-launch:focus-visible::before { opacity: 1; }
+/* NO KEYS AND NO HOVER ON TOUCH (phone playtest 2026-10-31): no key chip on a sheet's head, no tooltip stuck on the icon a
+   tap focused. A held icon says its name instead (launcher-names.js); a press on a grey button says why (off-why.js). */
+:root.is-touch .hs-win-head .hs-key, :root.is-touch .hs-launch::before { display: none; }
+/* Every key on the Controls page is one a touch screen does not have. */
+:root.is-touch .st .st-tab[data-cat="controls"] { display: none; }
+.hs-launch-name, .hs-off-why { position: fixed; z-index: 80; box-sizing: border-box; width: max-content; max-width: min(320px, calc(100vw - 8px)); margin: 0; padding: 2px 8px; pointer-events: none;
+  background: var(--bg-2); border: 6px solid transparent; border-image: url('../../assets/ui/steel-frame-thin.png') 3 / 6px stretch; image-rendering: pixelated;
+  font-family: var(--f-ui); font-size: var(--t-micro); line-height: 1.35; color: var(--ink); }
+.hs-launch-name { font-weight: 700; }
+.hs-launch { -webkit-touch-callout: none; }
 
 /* ══ FORGED STEEL: the one chrome (Tyler approved the skin on 2026-10-24; ART_DIRECTION §9, §10) ══
    Every window wears one thin steel frame with a square stud in each corner (assets/ui/steel-frame.png, 6 art
@@ -281,10 +291,26 @@
 .hs-quiet:hover { color: var(--ink); border-color: var(--line); }
 .hs-quiet:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: 2px; }
 
+.ht-why { display: none; }
 /* ── Phone, landscape: a scaled desktop with ONE full-height side sheet ── */
 @media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
-  .hs-launch { width: 44px; }
-  .hs-launchers { padding-left: 4px; }
+  /* The row gives 60 px back at the left for the strip's one word (app.css): at 667 px each icon gives up its last 4 px,
+     and a row of more icons narrows them rather than covering it. */
+  .hs-launch { flex: 0 1 auto; width: 44px; min-width: 0; }
+  .hs-launchers { padding-left: 4px; max-width: calc(100vw - 60px); }
+  .hs-win-head .hs-key, .hs-launch::before { display: none; }
+  /* IN TOWN THE CARD STANDS AT THE LEFT (phone playtest 2026-10-31: under the first icon it lay on the hero's name): below
+     the place's name, clear of the hero at the centre and of the alerts at the right; the gold ring shows the icon, so
+     no tip. A card about the bar keeps its own foot (below). */
+  .hs-launchers > .hs-pointer { left: auto; right: calc(100vw - 268px); }
+  .hs-launchers > .hs-pointer::before { display: none; }
+  .hs-launchers > .hs-pointer:not(.is-min) { top: calc(100% + 50px); max-height: calc(var(--coach-room) - 58px); }
+  .hs-launchers > .hs-pointer:not(.is-min) > .hs-coach-text { max-height: calc(round(down, var(--coach-room) - 80px - 1.5lh, 1lh) + .5lh); }
+  /* An alert under the card leaves it too little room (shell.js roomForCoach): the card keeps its title until it closes. */
+  .hs-widget.is-short-room > .hs-pointer:not(.is-min) > :is(.hs-coach-text, .hs-coach-got) { display: none; }
+  /* While a leave counts down: what the wait is for, in one line under the hunt bar (hunt-topbar.js), the card aside. */
+  .ht-why:not([hidden]) { display: block; position: absolute; top: 100%; right: 0; width: max-content; max-width: 100%; margin: 4px 0 0; padding: 2px 8px; background: var(--bg-2); font-size: var(--t-micro); color: var(--ink-2); }
+  .hs-widget.is-hunt-topbar:has(.ht-why:not([hidden])) > .hs-pointer { display: none; }
   .hs-pointer:not(.is-min) { padding-right: calc(var(--tap) + 4px); }
   .hs-coach-min { top: 0; right: 0; width: var(--tap); height: var(--tap); }
   .hs-coach-close { top: 0; right: 0; width: var(--tap); height: var(--tap); }
@@ -307,6 +333,11 @@
     pointer-events: auto;
   }
   .hs-win-coach > .hs-pointer { margin: 6px 10px 0; }
+  /* INSIDE A SHEET the card has no --coach-room: five and a half lines, then the words scroll, so Got it stays on screen
+     (played at 667x375, 2026-10-31: the style card ran 88 px off the foot with its Got it). */
+  .hs-win-coach > .hs-pointer:not(.is-min) > .hs-coach-text { display: block; max-height: calc(5.5 * 1lh); }
+  /* The town card's own cap, past the general one above (same weight, later wins): its 50 px drop stays inside the room. */
+  .hs-launchers > .hs-pointer:not(.is-min):not([data-anchor="action_bar"]) { max-height: calc(var(--coach-room) - 58px); }
   /* The card under the hunt bar stands at the bar's right end, its tip under Leave (first-hour playtest 10-29 #10:
      at the left end it lay over the hero mid-fight); the camera frames the World beside it (shell.js insetNow). */
   .hs-widget.is-hunt-topbar > .hs-pointer { left: auto; right: 0; }

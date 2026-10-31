@@ -14,7 +14,7 @@
 // PURE: strings in, strings out. src/app/boot.js mounts and wires it.
 // ════════════════════════════════════════════════════════════════════════
 
-import { whole } from '../render/format.js?v=0.2.74';
+import { whole } from '../render/format.js?v=0.2.75';
 
 const ORDINAL = Object.freeze(['first', 'second', 'third', 'fourth', 'fifth', 'sixth']);
 
@@ -35,6 +35,24 @@ export function slotRefusalText(r) {
     return Number.isSafeInteger(r.shortBy) && r.shortBy > 0 ? 'You need ' + whole(r.shortBy) + ' more gold.' : 'You do not have enough gold.';
   }
   return (r && REFUSAL[r.reason]) || 'The hero slot could not be bought. Try again in a minute.';
+}
+
+/**
+ * The line above the roster: how many may play at once AND how many this account can field, so "Up to 4" never stands
+ * beside two slots with no word on the other two (blind playtest 2026-10-31). '' until the server has said. Pure.
+ * @param stated  AccountSession.statedLimit(): the server's limit, or null
+ * @param limit   AccountSession.limit(): that, under the tab's ceiling
+ * @param owned   the roster's slots
+ * @param offer   AccountSession.slotOffer
+ */
+export function playLineOf(stated, limit, owned, offer) {
+  if (stated === null) return '';
+  if (stated <= 1) return 'One can play at a time.';
+  const most = Math.min(stated, limit);
+  if (!(owned < most)) return 'Up to ' + most + ' can play at once.';
+  const nth = offer ? ORDINAL[offer.slotId] : null;
+  return 'You own ' + owned + ' hero ' + (owned === 1 ? 'slot' : 'slots') + ', and up to ' + most + ' heroes can play at once. More slots cost gold'
+    + (nth ? ': the ' + nth + ' is ' + whole(offer.cost) + '.' : '.');
 }
 
 /**

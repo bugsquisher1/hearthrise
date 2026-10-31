@@ -52,6 +52,7 @@
 //   ACC-1  at most the server's concurrent limit open (within the tab's ceiling); close frees a place
 //   ACC-4  the limit is the SERVER's (account.max_concurrent): a smaller one holds, an unstated one
 //          allows one character, a larger one is capped by the tab's ceiling
+//   AWAY-TAB a glance at another tab changes nothing; hidden past awayAfterMs a page asks and hears nothing; shown again, ONE catch-up per hero
 //   VIEW-2 switching the viewed character asks the newly viewed one ONE settle and nothing else: statuses,
 //          topics, listeners and every other character's calls are exactly as before
 //   VIEW-3 only the viewed character streams live (CLAUDE.md §6): in a four-hero party hunt the viewed one asks
@@ -1094,6 +1095,83 @@ async function rules(M) {
     if (sent !== JSON.stringify([['accrue', { slot: 1 }], ['accrue', { slot: 2 }], ['accrue', { slot: 0 }]])) return 'a switch sent ' + sent + ' (one settle of the newly viewed character each)';
     return heard.every((h) => /^[0-2]:hello$/.test(h)) || 'a switch made characters emit: ' + heard.join(',');
   });
+  /* AWAY-TAB (old-laptop player 10-31: 64 calls and 1.45 MB in 2 minutes hidden, for hunts the server runs anyway). A glance at
+     another tab changes nothing; hidden past awayAfterMs a hunter asks nothing and hears nothing (only a pending leave's close
+     still goes); shown again each hero asks ONE catch-up, joins its channel again, and its answer replaces what it held. */
+  await t('AWAY-TAB', async () => {
+    const clock = { t: 0 };
+    let tid = 0;
+    const timers = new Map();
+    const add = (fn, ms, every) => { timers.set(++tid, { fn, at: clock.t + Math.max(0, ms), every }); return tid; };
+    const tm = { setTimer: (fn, ms) => add(fn, ms, 0), clearTimer: (i) => timers.delete(i), setInterval: (fn, ms) => add(fn, ms, ms), clearInterval: (i) => timers.delete(i), now: () => clock.t };
+    const calls = [];
+    const ver = [10, 20];
+    const envOf = (s) => env(ver[s], { account: { max_concurrent: 4 }, hunt: { session_id: 'h' + s, hunt_id: 'mill_cellar', ended: false } });
+    const srv = {
+      rpc: async (name, args) => { calls.push({ at: clock.t, name, slot: args && args.p_slot });
+        return name === 'hr_load' ? { ok: true, status: 200, body: envOf(args.p_slot), closed: false } : { ok: true, status: 200, body: { ok: true }, closed: false }; },
+      accrue: async (b) => { calls.push({ at: clock.t, name: 'accrue', slot: b.slot }); return { ok: true, status: 200, body: Object.assign({ accrued: true }, envOf(b.slot)), closed: false }; },
+    };
+    const auth = { userId: () => UID, token: () => 'jwt', signOut: async () => {} };
+    const hub = fakeHub();
+    const acc = new A.AccountSession({ auth, server: srv, tab: memStore(), channel: hub.channel, timers: tm });
+    const settle = async () => { for (let k = 0; k < 6; k++) await new Promise((r) => setImmediate(r)); };
+    const run = async (until) => { for (; clock.t < until; clock.t += 500) { for (const [i, x] of Array.from(timers)) if (x.at <= clock.t && timers.has(i)) { if (x.every) x.at += x.every; else timers.delete(i); x.fn(); await settle(); } await settle(); } };
+    for (const s of [0, 1]) if (!(await acc.open(s)).ok) return 'hero ' + s + ' did not open';
+    await run(60000);
+    const topicsUp = hub.topics.size;
+    if (topicsUp !== 2) return 'two heroes hold ' + topicsUp + ' push topics';
+    const engineOrRead = (a, b) => calls.filter((c) => c.at >= a && c.at < b && (c.name === 'accrue' || c.name === 'hr_load'));
+    /* a glance: hidden under awayAfterMs, nothing changes and nothing extra is asked */
+    const AWAY = CFG.SESSION_CONFIG.awayAfterMs;
+    let at = clock.t;
+    acc.setPageHidden(true);
+    await run(at + AWAY - 2000);
+    acc.setPageHidden(false);
+    await settle();
+    if (hub.topics.size !== topicsUp) return 'a glance at another tab left the push topics';
+    const glance = engineOrRead(clock.t, clock.t + 1);
+    if (glance.length) return 'coming back from a glance asked ' + JSON.stringify(glance.map((c) => c.name));
+    await run(clock.t + 20000);
+    /* away: past the grace nothing is asked at all, for minutes */
+    acc.setPageHidden(true);
+    at = clock.t;
+    await run(at + AWAY + 1000);
+    if (hub.topics.size !== 0) return 'a page away for ' + AWAY + ' ms still holds ' + hub.topics.size + ' push topics';
+    const from = clock.t;
+    await run(from + 5 * 60000);
+    const asked = engineOrRead(from, clock.t);
+    if (asked.length) return 'a page away asked ' + asked.length + ' times in 5 minutes: ' + JSON.stringify(asked.slice(0, 4).map((c) => c.slot + ':' + c.name));
+    /* back: ONE settle of the viewed hero, ONE plain read of the other, both channels, and the server's versions replace what the page held */
+    ver[0] += 7; ver[1] += 7;
+    const back = clock.t;
+    acc.setPageHidden(false);
+    await settle();
+    const first = engineOrRead(back, back + 1).map((c) => c.slot + ':' + c.name).sort().join();
+    if (first !== '0:accrue,1:hr_load') return 'the page came back asking ' + first + ' (one settle of the viewed hero, one read of the other)';
+    if (hub.topics.size !== 2) return 'back, the page holds ' + hub.topics.size + ' push topics';
+    for (const s of [0, 1]) if (acc.character(s).record.version !== ver[s]) return 'back, hero ' + s + ' shows version ' + acc.character(s).record.version + ', the server ' + ver[s];
+    /* ...and the re-reads run again */
+    await run(back + 2 * CFG.SESSION_CONFIG.huntPollMs);
+    if (!engineOrRead(back + 1, clock.t).some((c) => c.slot === 0 && c.name === 'accrue')) return 'back, the viewed hero never asked again';
+    /* a pending leave's close still goes while away */
+    acc.setPageHidden(true);
+    await run(clock.t + AWAY + 1000);
+    const cs = acc.character(0);
+    const armed = clock.t;
+    cs._leaveAsk = { at: null };
+    const real = cs.leaveAt;
+    cs.leaveAt = () => (clock.t < armed + 30000 ? 1 : null);
+    const serverNow = cs.serverNow;
+    cs.serverNow = () => 1 - (armed + 10000 - clock.t);
+    cs._armHuntPoll();
+    await run(armed + 15000);
+    cs.leaveAt = real; cs.serverNow = serverNow;
+    if (!calls.some((c) => c.at >= armed && c.at <= armed + 15000 && c.slot === 0 && c.name === 'accrue')) return 'a pending leave was not closed while the page was away';
+
+    acc.setPageHidden(false);
+    return true;
+  });
   /* VIEW-3 (perf audit 10-23, Tyler: unviewed sessions off the live view; CLAUDE.md §6 "only the viewed character
      streams live; the others keep playing on the server"). Four heroes of one account in one party hunt, slot 0
      viewed: the viewed session asks at most 5 times a minute, an unviewed one makes at most 1 call a minute and never
@@ -1750,7 +1828,8 @@ const MUTANTS = [
   ['the boot read waits on the auth lock (TOK-6)', 'src/net/auth.js', '    if (lasts(kept)) { session = kept; return session; }\n', ''],
   ['a stale stored session is used as it stands (TOK-6)', 'src/net/auth.js', '    if (lasts(kept)) { session = kept; return session; }', '    if (kept) { session = kept; return session; }'],
   ['sign-out keeps sb-* keys', 'src/net/auth.js', " || k.startsWith('sb-')", ''],
-  ['sign-out keeps the tab id', 'src/net/auth.js', '    if (o.tab) o.tab.remove(cfg.tabKey);\n', ''],
+  ['sign-out keeps the tab id', 'src/net/auth.js', ' o.tab.remove(cfg.tabKey);', ''],
+  ['sign-out keeps the heroes the tab had open', 'src/net/auth.js', ' o.tab.remove(cfg.openKey);', ''],
   ['sign-out leaves characters open', 'src/session/account-session.js', '    for (const slot of Array.from(this._chars.keys())) this.close(slot);\n', ''],
   ["existing email told apart by its message","src/net/auth.js","  [/already (registered|exists)/i, 'signUpSent'],\n",""],
   ["existing email told apart by its code","src/net/auth.js","  user_already_exists: 'signUpSent', email_exists: 'signUpSent',","  user_already_exists: 'signUpFailed', email_exists: 'signUpFailed',"],
@@ -1792,6 +1871,14 @@ const MUTANTS = [
   ['an unviewed hero asks the engine', 'src/session/character-session.js', 'const engine = this._viewed || this.leaveAt() !== null;', 'const engine = true;'],
   ['an unviewed hero reads itself every ten minutes', 'src/session/character-session.js', 'Math.min(SESSION_CONFIG.unviewedPollMs, close ?? Infinity)', 'Math.min(10 * SESSION_CONFIG.unviewedPollMs, close ?? Infinity)'],
   ['a switch asks nothing of the newly viewed hero', 'src/session/character-session.js', '    if (this._viewed) this.hello();\n', ''],
+  /* AWAY-TAB (old-laptop player 10-31) */
+  ['a page away goes on re-reading', 'src/session/character-session.js', '    if (this._away) { if (close !== null) this._poll.arm(close); return; }   // only a pending leave\'s close (setAway)\n', ''],
+  ['a page away keeps the push channels', 'src/session/page-away.js', '    cs._dropChannel();\n', ''],
+  ['a page back asks no catch-up', 'src/session/page-away.js', "  if (cs._huntOpen()) { if (cs._viewed) cs.hello(); else cs.load(); cs._armHuntPoll(); } else if (!joined) cs.hello();\n", '  cs._armHuntPoll();\n'],
+  ['a page back never joins its channel', 'src/session/page-away.js', '  const joined = cs.connect();\n', '  const joined = false;\n'],
+  ['a pending leave waits for the page to come back', 'src/session/character-session.js', '    if (this._away) { if (close !== null) this._poll.arm(close); return; }', '    if (this._away) return;'],
+  ['a glance at another tab goes away at once', 'src/session/account-session.js', '}, this.config.awayAfterMs);', '}, 0);'],
+  ['a page that never goes away', 'src/session/account-session.js', '    for (const cs of this._chars.values()) cs.setAway(on);\n', ''],
   ['a switch never tells the sessions', 'src/session/account-session.js', '    if (was) was.setViewed(false);\n    this._chars.get(slot).setViewed(true);\n', ''],
   /* ASK-2 (perf audit 10-23, the leave-together storm) */
   ['an idle answer at the record\'s version is re-read in full', 'src/session/character-session.js', "    if (Number.isSafeInteger(v) && ans.body.accrued !== true && this._huntOpen() && v <= this._wholeAt) return false;\n", ''],
@@ -1832,7 +1919,7 @@ const MUTANTS = [
   ['a watched bench waits until it is done', 'src/session/town-poll.js', '  if (!townAskDue(running, a.busy, a.at, cs.receivedAt, now)) return false;', '  return false;'],
   ['an unwatched spent bench is never settled (#68)', 'src/session/town-poll.js', '  return askTown(cs, townWorkRunning(cs.read(\'state\'), cs.read(\'hunt\')));\n}\n\nfunction askTown', '  return false;\n}\n\nfunction askTown'],
   ['a bench is settled before its supply is spent', 'src/session/town-poll.js', '  if (!Number.isFinite(serverNow) || serverNow < spentAtMs) return false;', '  if (!Number.isFinite(serverNow)) return false;'],
-  ['the spent instant ignores the server\'s supply', 'src/shell/town-work.js', '  return from + (runs + 1) * actionMs(cs, w) + SLACK_MS;', '  return from + SLACK_MS;'],
+  ['the spent instant ignores the server\'s supply', 'src/shell/town-work.js', '  return from + runs * actionMs(cs, w) + SLACK_MS;', '  return from + SLACK_MS;'],
   ['the town re-read asks every display tick', 'src/session/town-poll.js', '  return nowMs - since >= SESSION_CONFIG.townPollMs;', '  return true;'],
   ['two town re-reads in flight', 'src/session/town-poll.js', '  if (!running || busy) return false;', '  if (!running) return false;'],
   ['a hunter is re-read as town work', 'src/session/town-poll.js', "  return !(hunt && typeof hunt === 'object' && typeof hunt.session_id === 'string' && hunt.ended !== true);", '  return true;'],
@@ -1850,14 +1937,15 @@ async function main() {
   if (!mutate) {
     const fails = [...await rules(await load(ROOT)), ...await viewRules(ROOT)];
     for (const f of fails) console.log('  ✗ ' + f);
-    console.log(fails.length ? 'session-core: ' + fails.length + ' rule(s) RED' : 'session-core: every session rule holds (42 rules)');
+    console.log(fails.length ? 'session-core: ' + fails.length + ' rule(s) RED' : 'session-core: every session rule holds (43 rules)');
     process.exit(fails.length ? 1 : 0);
   }
   const clean = await cleanControl(async () => rules(await load(ROOT)));
   console.log(clean.line);
   if (clean.code) process.exit(clean.code);
   const counts = { caught: 0, harness: 0, escaped: 0 };
-  for (const [name, file, from, to] of MUTANTS) {
+  const onlyAt = process.argv.indexOf('--only');   // a name fragment: prove just those mutants (a local re-check)
+  for (const [name, file, from, to] of MUTANTS.filter((m) => onlyAt < 0 || m[0].includes(process.argv[onlyAt + 1]))) {
     const tmp = mkdtempSync(join(tmpdir(), 'hr-session-'));
     try {
       copyTree(tmp);
@@ -1867,7 +1955,7 @@ async function main() {
       console.log(report(name, await judge(async () => rules(await load(tmp))), counts));
     } finally { rmSync(tmp, { recursive: true, force: true }); }
   }
-  console.log(exitOf(counts) ? 'session-core --mutate: ' + counts.escaped + ' escaped, ' + counts.harness + ' HARNESS (not catches)' : 'session-core --mutate: ' + MUTANTS.length + '/' + MUTANTS.length + ' mutants caught, each by a named rule');
+  console.log(exitOf(counts) ? 'session-core --mutate: ' + counts.escaped + ' escaped, ' + counts.harness + ' HARNESS (not catches)' : 'session-core --mutate: ' + counts.caught + '/' + (onlyAt < 0 ? MUTANTS.length : counts.caught) + ' mutants caught, each by a named rule');
   process.exit(exitOf(counts));
 }
 main();

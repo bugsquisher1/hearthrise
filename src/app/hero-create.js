@@ -20,10 +20,11 @@
 // the prefix, and the step's .hc-body laid every chat line out (2026-10-24).
 // ════════════════════════════════════════════════════════════════════════
 
-import { HOW_YOU_FIGHT, HOW_YOU_FIGHT_LEAD } from '../data/how-to-play.js?v=0.2.74';
-import { BASE_REGIONS, BASE_DEFAULT_COLORS, DYE_COUNT, REGION_LABEL } from '../data/outfits.js?v=0.2.74';
-import { HERO_BASE_ROWS, HERO_BASE_W, HERO_BASE_H, HERO_BASE_LEGEND, HERO_SHADE_PERMILLE } from '../data/hero-base.js?v=0.2.74';
-import { refusalWords } from '../shell/intent-words.js?v=0.2.74';
+import { HOW_YOU_FIGHT, HOW_YOU_FIGHT_LEAD } from '../data/how-to-play.js?v=0.2.75';
+import { BASE_REGIONS, BASE_DEFAULT_COLORS, DYE_COUNT, REGION_LABEL } from '../data/outfits.js?v=0.2.75';
+import { HERO_BASE_ROWS, HERO_BASE_W, HERO_BASE_H, HERO_BASE_LEGEND, HERO_SHADE_PERMILLE } from '../data/hero-base.js?v=0.2.75';
+import { refusalWords } from '../shell/intent-words.js?v=0.2.75';
+import { focusOffTouch } from './sign-in.js?v=0.2.75';
 
 /* The preview's integer scale: 16 x 24 cells at 8 = 128 x 192 px. */
 export const PREVIEW_SCALE = 8;
@@ -80,7 +81,11 @@ export function heroCells(colors, colorOf) {
 /** The "How you fight" column: the rule, then one line per way to fight. Pure. */
 export function howYouFightHtml() {
   return '<section class="hero-how" aria-labelledby="hero-how-title"><h2 class="hero-how-title hs-sub" id="hero-how-title">How you fight</h2>'
-    + '<p class="hero-how-lead">' + HOW_YOU_FIGHT_LEAD + '</p><ul class="hero-how-list">'
+    + '<p class="hero-how-lead">' + HOW_YOU_FIGHT_LEAD + '</p>'
+    /* THE WORLD DRAWS NO DYE YET (the panel 2026-10-31: "None of my colours anywhere"): no outfit has its mask art (outfits.js
+       regions: []), so the step says so rather than let the first thing a player makes vanish. */
+    + '<p class="hero-how-lead hero-note">Your colors are saved with your hero. In the world your hero wears the outfit of the weapon it holds, and outfits can\'t be dyed yet.</p>'
+    + '<ul class="hero-how-list">'
     + HOW_YOU_FIGHT.map((r) => '<li data-style="' + r.id + '"><b>' + r.name + '</b> ' + r.does + ' <span class="hero-how-uses">' + r.uses + '</span></li>').join('')
     + '</ul></section>';
 }
@@ -165,7 +170,7 @@ export function renderHeroCreate(card, o) {
   const onKey = (e) => { if (e.key === 'Enter' && e.target === input) submit(); };
   card.addEventListener('click', onClick);
   card.addEventListener('keydown', onKey);
-  input.focus();
+  focusOffTouch(input);
   return {
     colors: () => Object.assign({}, colors),
     destroy() { gone = true; card.removeEventListener('click', onClick); card.removeEventListener('keydown', onKey); },

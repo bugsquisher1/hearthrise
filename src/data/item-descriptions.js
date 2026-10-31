@@ -3,15 +3,15 @@
 // voice, original IP. Surfaced in the item detail/tooltip (the "what is it" line).
 // SAFE TO EXTEND: an item with no entry here just shows no flavour line — nothing breaks.
 
-import { WAVE3_DESC } from './wave3-uniques.js?v=0.2.74';
-import { SLOT_DESC } from './slot-ladders.js?v=0.2.74';
-import { LIB2_DESC } from './library2-items.js?v=0.2.74';
-import { BOSS_FORGE_DESC } from './boss-forge.js?v=0.2.74';
-import { CHAMPION_DESC } from './champions.js?v=0.2.74';
-import { DRINK_DESC } from './drinks.js?v=0.2.74';
-import { IMBUE_DESC } from './imbuements.js?v=0.2.74';
-import { STYLE_GEAR_DESC } from './style-gear.js?v=0.2.74';
-import { SHIELD_DESC } from './shields.js?v=0.2.74';
+import { WAVE3_DESC } from './wave3-uniques.js?v=0.2.75';
+import { SLOT_DESC } from './slot-ladders.js?v=0.2.75';
+import { LIB2_DESC } from './library2-items.js?v=0.2.75';
+import { BOSS_FORGE_DESC } from './boss-forge.js?v=0.2.75';
+import { CHAMPION_DESC } from './champions.js?v=0.2.75';
+import { DRINK_DESC } from './drinks.js?v=0.2.75';
+import { IMBUE_DESC } from './imbuements.js?v=0.2.75';
+import { STYLE_GEAR_DESC } from './style-gear.js?v=0.2.75';
+import { SHIELD_DESC } from './shields.js?v=0.2.75';
 
 export const ITEM_DESC = {
   /* Mage = wand + spellbook; Healer = staff (Tyler 2026-10-19). */
@@ -402,7 +402,7 @@ export const ITEM_DESC = {
   'steel_platelegs': 'Tempered steel legguards for a fighter who means to hold the line',
   'steel_sword': 'Tempered steel blade that holds its edge through a hard fight',
   'steel_warhammer': 'Tempered steel warhammer, brutal crushing power for a strong arm',
-  'sticky_core': 'The gluey core of a cellar slime, for the imbuer who wards gear against the elements',
+  'sticky_core': 'The gluey core of a cellar slime. It sticks to everything it touches',
   'stone_maul': 'Crude stone-headed maul that crushes what it cannot cut',
   'studded_belt': 'A stud-riveted leather belt, a sturdier brace for a ranger climbing past the basics',
   'studded_body': 'A stud-riveted leather jerkin, tougher cover that still lets the bowstring sing',

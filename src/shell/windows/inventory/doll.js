@@ -17,20 +17,20 @@
 // `equip` intent; the doll changes only when the re-read envelope replaces
 // `equipment`.
 // ════════════════════════════════════════════════════════════════════════
-import { ITEMS } from '../../../data/items.js?v=0.2.74';
-import { EQUIP_SLOT_META, expandItemSlot } from '../../../data/gathering.js?v=0.2.74';
-import { bagOf, skillsOf, shopOf, equipmentOf } from '../../../session/item-sections.js?v=0.2.74';
-import { wornWeights, weightSentence, WEIGHT_ORDER } from '../../../data/armour-weights.js?v=0.2.74';
-import { rows, text, cls, attr, prop, element } from '../../../render/paint.js?v=0.2.74';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.74';
-import { glyphSvg } from '../../launcher.js?v=0.2.74';
-import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.74';
-import { compare, rarityOf } from '../../bag-model.js?v=0.2.74';
-import { needOf } from '../../item-lore.js?v=0.2.74';
-import { gearLocked, GEAR_HUNT_WORDS } from '../../gear-gate.js?v=0.2.74';
-import { whyLine } from '../../widgets/why-line.js?v=0.2.74';
-import { levelOf } from '../../../session/character-sections.js?v=0.2.74';
-import { showTip } from '../item-tip.js?v=0.2.74';
+import { ITEMS } from '../../../data/items.js?v=0.2.75';
+import { EQUIP_SLOT_META, expandItemSlot } from '../../../data/gathering.js?v=0.2.75';
+import { bagOf, skillsOf, shopOf, equipmentOf } from '../../../session/item-sections.js?v=0.2.75';
+import { wornWeights, weightSentence, WEIGHT_ORDER } from '../../../data/armour-weights.js?v=0.2.75';
+import { rows, text, cls, attr, prop, element } from '../../../render/paint.js?v=0.2.75';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.75';
+import { glyphSvg } from '../../launcher.js?v=0.2.75';
+import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.75';
+import { compare, rarityOf } from '../../bag-model.js?v=0.2.75';
+import { needOf } from '../../item-lore.js?v=0.2.75';
+import { gearLocked, GEAR_HUNT_WORDS } from '../../gear-gate.js?v=0.2.75';
+import { whyLine } from '../../widgets/why-line.js?v=0.2.75';
+import { levelOf } from '../../../session/character-sections.js?v=0.2.75';
+import { showTip } from '../item-tip.js?v=0.2.75';
 
 /* Body order, row by row: [slot, label, empty glyph]. */
 export const DOLL = Object.freeze([
@@ -123,6 +123,7 @@ export function patchSlotLine(root, st, ctx) {
      else the line holds its last press's answer. */
   const locked = gearLocked(st.cs);
   prop(wr.querySelector('button'), 'disabled', sc.pending || !worn || locked);
+  attr(wr.querySelector('button'), 'data-off-why', locked ? GEAR_HUNT_WORDS.one : null);
   const said = sc.msgAt === 'slot' && !!sc.msg;
   whyLine(line.querySelector('.hw-slot-why'), said ? sc.msg : locked ? GEAR_HUNT_WORDS.one : '', said);
   const fits = fitsFor(sc.slot, bagOf(st.cs) || [], eq);
@@ -145,6 +146,7 @@ export function patchSlotLine(root, st, ctx) {
       const short = !!need && need.short;
       text(li.querySelector('.hw-fit-need'), short ? need.text : '');
       prop(li.querySelector('button'), 'disabled', sc.pending || locked || short);
+      attr(li.querySelector('button'), 'data-off-why', short ? need.text : locked ? GEAR_HUNT_WORDS.one : null);
     },
   });
   cls(line.querySelector('.hw-nofit'), 'is-on', !fits.length);

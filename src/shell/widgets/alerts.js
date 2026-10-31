@@ -16,11 +16,11 @@
 //                                answerInvite INTENT, the same way (PARTY_SPEC
 //                                §1.3: the toast reaches a player anywhere)
 // ════════════════════════════════════════════════════════════════════════
-import { ALERTS_SHOWN } from '../../data/alerts.js?v=0.2.74';
-import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.74';
-import { glyphSvg } from '../launcher.js?v=0.2.74';
-import { refusalWords } from '../intent-words.js?v=0.2.74';
-import { cardFacts, shareCard } from '../share-card.js?v=0.2.74';
+import { ALERTS_SHOWN } from '../../data/alerts.js?v=0.2.75';
+import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.75';
+import { glyphSvg } from '../launcher.js?v=0.2.75';
+import { refusalWords } from '../intent-words.js?v=0.2.75';
+import { cardFacts, shareCard } from '../share-card.js?v=0.2.75';
 
 const OPENS = Object.freeze({ bag: 'inventory', show: null });
 /* What the line says once its card was made (src/shell/share-card.js shareCard's answer). */
@@ -31,7 +31,7 @@ const SHARE_WORDS = Object.freeze({
 
 /** The skeleton (built once). */
 export function renderAlerts() {
-  return '<section class="hw-alerts is-empty" aria-label="Alerts"><ol class="hw-alert-list" aria-live="polite"></ol></section>';
+  return '<section class="hw-alerts is-empty" aria-label="Alerts"><p class="hw-alerts-more"></p><ol class="hw-alert-list" aria-live="polite"></ol></section>';
 }
 
 function alertRow(ctx) {
@@ -45,6 +45,7 @@ function alertRow(ctx) {
 renderAlerts.patch = function patchAlerts(el, ctx) {
   const list = ctx.alerts ? ctx.alerts.list().slice(0, ALERTS_SHOWN) : [];
   cls(el.querySelector('.hw-alerts'), 'is-empty', !list.length);
+  text(el.querySelector('.hw-alerts-more'), list.length > 1 ? (list.length - 1) + ' more' : '');
   rows(el.querySelector('.hw-alert-list'), list, {
     key: (a) => a.key,
     build: (a) => {

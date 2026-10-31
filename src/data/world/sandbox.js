@@ -18,14 +18,14 @@
 // tests/world-sandbox.mjs prints a reminder while it is open.
 // ════════════════════════════════════════════════════════════════════════
 
-import { at, TOWN_MAP, TOWN_NAME } from './town/plan.js?v=0.2.74';
+import { at, TOWN_MAP, TOWN_NAME } from './town/plan.js?v=0.2.75';
 
 export const SANDBOX = Object.freeze({
   open: true,
   map: 'sandbox_hd64',
   /* the way in: the Common's own signpost art on an open tile of the Common, never blocking a step */
   /* (in Hearth Square's forecourt, plan 102,58: town/plan.js) */
-  entry: Object.freeze({ map: TOWN_MAP, at: at(102, 58), sprite: 'signpost', plate: 'To the sandbox' }),
+  entry: Object.freeze({ map: TOWN_MAP, at: at(102, 58), sprite: 'signpost', plate: 'To the practice yard' }),
   /* the way out, beside the sandbox's start */
   exit: Object.freeze({ at: Object.freeze([13, 12]), sprite: 'sandbox_sign', plate: 'Back to ' + TOWN_NAME }),
   /* the hero there: the 64 px hero (the 32 px outfits are not on this grid) */

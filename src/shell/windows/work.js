@@ -23,19 +23,19 @@
 // (src/shell/town-ticker.js), as pending; the rows' numbers stay the server's.
 // Farming has no door here: it is grown in plots, which this window does not run.
 // ════════════════════════════════════════════════════════════════════════
-import { SKILLS_DEF } from '../../data/skills.js?v=0.2.74';
-import { SKILL_GUIDE } from '../../data/skill-guide.js?v=0.2.74';
-import { recipeInputs, burnPct } from '../../core/artisan.js?v=0.2.74';
-import { skillsOf, heldOf, drawsOnStorage } from '../../session/item-sections.js?v=0.2.74';
-import { huntOf } from '../../session/hunt-sections.js?v=0.2.74';
-import { text, cls, prop, attr, rows, element } from '../../render/paint.js?v=0.2.74';
-import { whole } from '../../render/format.js?v=0.2.74';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.74';
-import { itemName, itemIconHtml } from '../widgets/bits.js?v=0.2.74';
-import { runIntent } from '../intent-words.js?v=0.2.74';
-import { renderTradeSkills, skillBarHtml, patchSkillProgress } from './skills.js?v=0.2.74';
-import { GATHER_INDEX, BENCH_INDEX, workRow, workOf, productOf, yieldOf, runsOf, actionMs, xpEach, workBlock, startWork, stopWork, nowParts, tickOf, BENCH_COUNTS, defaultCount, leftOf } from '../town-work.js?v=0.2.74';
-import { aheadXp, paintLine } from '../town-ticker.js?v=0.2.74';
+import { SKILLS_DEF } from '../../data/skills.js?v=0.2.75';
+import { SKILL_GUIDE } from '../../data/skill-guide.js?v=0.2.75';
+import { recipeInputs, burnPct } from '../../core/artisan.js?v=0.2.75';
+import { skillsOf, heldOf, drawsOnStorage } from '../../session/item-sections.js?v=0.2.75';
+import { huntOf } from '../../session/hunt-sections.js?v=0.2.75';
+import { text, cls, prop, attr, rows, element } from '../../render/paint.js?v=0.2.75';
+import { whole } from '../../render/format.js?v=0.2.75';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.75';
+import { itemName, itemIconHtml } from '../widgets/bits.js?v=0.2.75';
+import { runIntent } from '../intent-words.js?v=0.2.75';
+import { renderTradeSkills, skillBarHtml, patchSkillProgress } from './skills.js?v=0.2.75';
+import { GATHER_INDEX, BENCH_INDEX, workRow, workOf, productOf, yieldOf, runsOf, actionMs, xpEach, workBlock, startWork, stopWork, nowParts, gatherBagWords, tickOf, BENCH_COUNTS, defaultCount, leftOf } from '../town-work.js?v=0.2.75';
+import { aheadXp, paintLine } from '../town-ticker.js?v=0.2.75';
 
 /* How many rows above the level a skill shows: the next things to aim at. */
 const AHEAD = 2;
@@ -92,7 +92,6 @@ function rowHtml(g, w) {
 }
 
 function patchRow(li, w, cs, sc, on, hunting, lv) {
-  const inv = (cs.read('inventory')) || {};
   const each = secs(actionMs(cs, w)) + ' · ' + whole(xpEach(w)) + ' XP each';
   const out = productOf(w);
   const gather = w.kind === 'gather';
@@ -107,7 +106,7 @@ function patchRow(li, w, cs, sc, on, hunting, lv) {
   const runs = runsOf(w.row, heldOf(cs));
   const makes = (pick === 'all' ? 'Makes up to ' + whole(runs * yieldOf(w))
     : 'Makes ' + whole(Math.min(pick, runs) * yieldOf(w)) + ' of up to ' + whole(runs * yieldOf(w)));
-  const have = gather ? whole(inv[out] || 0) + ' in your bag'
+  const have = gather ? gatherBagWords(cs, w, running)
     : makes + ' · ' + each + (burn ? ' · burns up to ' + burn + '%' : '');
   /* Running: the server's count left on this run ("3 left"), or nothing when it runs until the bag is out. */
   const left = running && !gather ? leftOf(cs) : null;

@@ -347,7 +347,7 @@ const mutants = [
   { name: 'the kiter never closes in', case: 'kiter-closes-in-when-out-of-range', edits: [[R, '    if (best) setGoal(inst, h, best[0], best[1]);\n    return;', '    return;']] },
   { name: 'the kiter closes in from outside the area', case: 'kiter-closes-in-when-out-of-range',
     edits: [[R, '    for (const [x, y] of candidateTiles(inst, h, pocket, n.x, n.y, want)) {', '    for (const [x, y] of [[4, 8], [5, 8], [6, 8], [7, 8], [8, 8], [9, 8], [10, 8], [11, 8], [12, 8], [13, 8], [14, 8]]) {']] },
-  { name: 'the retreat may go toward the pack', case: 'kite-retreats-away-from-pack', edits: [[R, '    if (Math.hypot(x - cx, y - cy) - here <= KITE.awayMin) continue;\n', '']] },
+  { name: 'the retreat may go toward the pack', case: 'kite-retreats-away-from-pack', edits: [[R, '    if (fromMean(x, y) - here <= KITE.awayMin) continue;\n', '']] },
   { name: 'no Melee does not change chase', case: 'defaults-per-role', edits: [[R, '    chase: HUNT_ROLES[role].melee ? d.chase : (noMelee ? false : d.chase),', '    chase: d.chase,']] },
   { name: 'the leader is the first hero by id', case: 'pull-leader-order', edits: [[R, "    const r = u.side === 'hero' ? ROLE_ORDER.indexOf(u.role) : -1;", "    const r = u.side === 'hero' && ROLE_ORDER.includes(u.role) ? 0 : -1;"]] },
   { name: 'a staff offers the Mage too', case: 'role-from-weapon', edits: [['src/data/hunt-roles.js', "  staff: key(['healer'], 'restoration'),", "  staff: key(['mage', 'healer'], 'restoration'),"]] },

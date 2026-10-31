@@ -5,7 +5,7 @@
 //   node tests/client-boot.mjs           the boot checks
 //   node tests/client-boot.mjs --mutate  every planted defect must turn a check RED
 //
-// mutant-anchors: src/app/boot.js src/app/slot-offer.js src/app/world-pane.js src/net/auth.js src/world/world-boot.js src/world/prewarm.js src/render/images.js index.html
+// mutant-anchors: src/platform/load-shell.js play.html src/app/boot.js src/app/slot-offer.js src/app/world-pane.js src/net/auth.js src/world/world-boot.js src/world/prewarm.js src/render/images.js index.html
 //
 // The server is stubbed at the edges the client really uses: supabase-js (the
 // vendored UMD is replaced by a fake whose auth keeps its session in the
@@ -15,6 +15,8 @@
 //
 //   N-1  hearthrise.net/ (index.html) is the static notice: the Discord link, no app
 //        script, and /prototypes/hunt-sim/ still serves
+//   B-16 a slow first visit paints a loading shell (crest, line, a bar that moves) before the page's modules run; the first
+//        screen takes over from it; a module that cannot load says so
 //   B-1  play.html boots to the sign-in screen with zero console errors
 //   B-2  sign in -> the characters screen lists the server's owned slots
 //   B-3  Play -> the World pane (a canvas) and the shell mount for that character;
@@ -34,7 +36,7 @@
 //        signed out with the atlas manifests still held, the page asks for no sheet afterwards
 //   B-4  a second character opens beside the first (two topics, one strip)
 //   B-5  sign out -> the sign-in screen, and no copy of the session is left in
-//        localStorage or sessionStorage (auth key, sb-*, the tab id)
+//        localStorage or sessionStorage (auth key, sb-*, the tab id, the heroes it had open)
 //   B-6  a password-reset link (#type=recovery) opens the set-new-password screen
 //   B-7  a 403 hr_closed answer shows the closed notice, not the game
 //   B-8  a hunting character (tests/fixtures/hunt-envelope.json) mounts the hunt
@@ -45,8 +47,11 @@
 //        Level, the empty owned slot offers Create hero, which opens the creation
 //        step (Tyler 2026-10-20: a name and four colours, the hero enters town only
 //        on Confirm): nothing is sent until Enter town, then ONE hr_create_hero for
-//        that slot with the typed name and the picked colours plays it, and after a
-//        reload both heroes list by name
+//        that slot with the typed name and the picked colours plays it. A RELOAD REOPENS
+//        THE TAB'S HEROES (designer 10-30 #8: a hero picked once is never re-picked):
+//        the shown hero is shown again and the other plays beside it, nothing pressed;
+//        a fresh tab lists both heroes by name; once the server no longer holds the
+//        shown hero a reload falls back to the characters screen
 //   B-11 BUY A HERO SLOT (tracker r45; Tyler 10-17: up to five, for gold): the roster offers the
 //        server's next slot at the server's price, paid from "Your gold" — ONE purse per account
 //        (Tyler 10-23), so there is no payer to pick; short of gold it cannot be pressed and says
@@ -166,6 +171,33 @@ async function checks(overrides) {
       await ctx.close();
     }
 
+    { // B-16 A SLOW FIRST VISIT SEES A SHELL (old-laptop player 10-31: plain black until all 346 modules had arrived): with the page's
+      // entry module held on the wire, the crest, the line and the bar are on screen and the page has painted; the bar
+      // moves as modules land; the sign-in screen takes over from it. A module that cannot load says so.
+      const { ctx, page, errors } = await fresh();
+      let free = null;
+      const held = new Promise((r) => { free = r; });
+      await page.route('**/src/app/boot.js*', async (r) => { await held; return r.fallback(); });
+      await page.goto(base + '/play.html', { waitUntil: 'commit' });
+      const shown = await wait(page, () => { const s = document.querySelector('.boot-shell'), l = s && s.querySelector('.boot-shell-line'), i = s && s.querySelector('img');
+        return s && l && /Loading Hearthrise/.test(l.textContent) && s.getBoundingClientRect().width > 0 && i && getComputedStyle(s).display !== 'none'
+          && performance.getEntriesByName('first-contentful-paint').length > 0; });
+      if (!shown) fails.push('B-16 with the modules still on their way nothing was painted: no crest and no "Loading Hearthrise" on screen');
+      const bar = await wait(page, () => { const f = document.querySelector('.boot-shell-fill'); return f && parseFloat(f.style.width) > 0; });
+      if (!bar) fails.push('B-16 the loading bar never moved as the modules landed');
+      if (await page.$('form[data-auth="sign-in"]')) fails.push('B-16 the sign-in screen came before its module');
+      free();
+      if (!(await wait(page, () => document.querySelector('form[data-auth="sign-in"]') && !document.querySelector('.boot-shell')))) fails.push('B-16 the shell did not give way to the sign-in screen');
+      if (errors.length) fails.push('B-16 console errors: ' + errors.join(' | '));
+      await ctx.close();
+      /* a module that cannot load says so (the wait never runs for ever) */
+      const dead = await fresh();
+      await dead.page.route('**/src/app/boot.js*', (r) => r.abort());
+      await dead.page.goto(base + '/play.html', { waitUntil: 'commit' });
+      if (!(await wait(dead.page, () => /could not finish loading/.test((document.querySelector('.boot-shell-line') || {}).textContent || '')))) fails.push('B-16 a module that could not load left the shell saying it is still loading');
+      await dead.ctx.close();
+    }
+
     { // B-1 .. B-5
       const { ctx, page, errors } = await fresh();
       const sheets = new Set(), asks = new Map();
@@ -212,11 +244,17 @@ async function checks(overrides) {
           && window.__hub.channels['hr:' + uid + ':0'] && window.__hub.channels['hr:' + uid + ':1']
           && document.querySelector('#panel-world[data-slot="1"]'), UID);
         if (!two) fails.push('B-4 a second character did not open beside the first');
+        /* B-4 ON A PHONE EACH HERO HAS A TAB YOU CAN PRESS (first-hour play 2026-10-31: at 922x423 the tools and the icon row
+           left each tab 12 px; no hero could be seen or switched to, and Invite to party starts on that tab). */
+        await page.setViewportSize({ width: 922, height: 423 });
+        const tabs = await page.evaluate(() => Array.from(document.querySelectorAll('.char-tab[data-app="show"]')).map((b) => Math.round(b.getBoundingClientRect().width)));
+        await page.setViewportSize({ width: 1280, height: 720 });
+        if (tabs.length !== 2 || tabs.some((w) => w < 44)) fails.push('B-4 on a 922x423 phone the hero tabs are ' + tabs.join(' and ') + ' px wide, too narrow to press');
       }
       await page.click('[data-app="sign-out"]');
       if (!(await wait(page, () => document.querySelector('form[data-auth="sign-in"]')))) fails.push('B-5 sign-out did not return to sign-in');
       const left = await page.evaluate(() => [...Object.keys(localStorage), ...Object.keys(sessionStorage)]
-        .filter((k) => k === 'hr-auth' || k.startsWith('hr-auth-') || k.startsWith('sb-') || k === 'hr-tab-id' || k === 'hearthrise:supabaseSession'));
+        .filter((k) => k === 'hr-auth' || k.startsWith('hr-auth-') || k.startsWith('sb-') || k === 'hr-tab-id' || k === 'hr-open' || k === 'hearthrise:supabaseSession'));
       if (left.length) fails.push('B-5 session copies left after sign-out: ' + left.join(', '));
       const topics = await page.evaluate(() => Object.keys(window.__hub.channels));
       if (topics.length) fails.push('B-5 character topics still joined after sign-out: ' + topics.join(', '));
@@ -361,6 +399,11 @@ async function checks(overrides) {
           const phone = await page.evaluate(() => { const l = document.querySelector('.hero-how-list'), b = document.querySelector('.hero-confirm');
             return { list: !!l && l.getClientRects().length > 0, fits: !!b && b.getBoundingClientRect().bottom <= innerHeight }; });
           if (!phone.list || !phone.fits) fails.push('B-9 on a 922x423 phone How you fight lists its styles: ' + phone.list + '; Enter town fits: ' + phone.fits);
+          /* the smallest landscape phone (667x375): nothing runs off the right edge, and the note never widens the form */
+          await page.setViewportSize({ width: 667, height: 375 });
+          const small = await page.evaluate(() => { const b = document.querySelector('.hero-confirm').getBoundingClientRect(), h = document.querySelector('.hero-how').getBoundingClientRect();
+            return { go: Math.round(b.right), how: Math.round(h.right), doc: document.documentElement.scrollWidth, W: innerWidth }; });
+          if (small.go > small.W || small.how > small.W || small.doc > small.W) fails.push('B-9 at 667x375 the creation step runs off the right edge: ' + JSON.stringify(small));
           await page.setViewportSize({ width: 1280, height: 720 });
           await page.click('.hero-dye[data-hero-region="body"][data-hero-dye="6"]');
           await page.click('.hero-confirm');
@@ -373,11 +416,27 @@ async function checks(overrides) {
         const c = o.created[0];
         if (o.created.length !== 1 || c.slot !== 1 || c.name !== 'Fennick' || !c.colors || c.colors.body !== 6 || Object.keys(c.colors).join() !== 'head,body,legs,feet' || !played)
           fails.push('B-9 Enter town sent ' + JSON.stringify(o.created) + (played ? '' : ' and did not play the new hero'));
+        /* The reload: Fennick is shown again and Tester plays beside it, with no characters screen and no press. */
+        const named = () => Array.from(document.querySelectorAll('.char-tab[data-app="show"] .char-tab-name')).map((n) => n.textContent).join() === 'Tester,Fennick';
+        await wait(page, named);
         await page.reload({ waitUntil: 'load' });
-        await wait(page, () => document.querySelectorAll('[data-app="play"]').length === 2 || document.querySelector('.hs-launchers'));
-        if (!(await page.$('[data-app="play"][data-slot="1"]'))) { await page.click('[data-app="characters"]').catch(() => {}); await wait(page, () => document.querySelectorAll('[data-app="play"]').length === 2); }
-        const after = await page.evaluate(() => Array.from(document.querySelectorAll('.char-row .char-name')).map((n) => n.textContent.replace(/\s+/g, ' ').trim()));
-        if (after.length !== 2 || !/^Tester/.test(after[0]) || !/^Fennick/.test(after[1])) fails.push('B-9 after a reload the heroes list as ' + JSON.stringify(after));
+        const back = await wait(page, () => document.querySelector('#panel-world[data-slot="1"]') && Array.from(document.querySelectorAll('.char-tab[data-app="show"] .char-tab-name')).map((n) => n.textContent).join() === 'Tester,Fennick');
+        if (!back || await page.$('.char-list')) fails.push('B-9 a reload did not reopen the tab\'s two heroes on Fennick: '
+          + JSON.stringify(await page.evaluate(() => ({ shown: (document.querySelector('#panel-world') || { dataset: {} }).dataset.slot,
+            tabs: Array.from(document.querySelectorAll('.char-tab[data-app="show"]')).map((t) => t.textContent.replace(/\s+/g, ' ').trim()), list: !!document.querySelector('.char-list') }))));
+        /* A fresh tab (its own tab store) starts at the characters screen, both heroes by name. */
+        const tab = await ctx.newPage();
+        await stubServer(tab, o);
+        await tab.goto(base + '/play.html', { waitUntil: 'load' });
+        await wait(tab, () => document.querySelectorAll('[data-app="play"]').length === 2);
+        const after = await tab.evaluate(() => Array.from(document.querySelectorAll('.char-row .char-name')).map((n) => n.textContent.replace(/\s+/g, ' ').trim()));
+        if (after.length !== 2 || !/^Tester/.test(after[0]) || !/^Fennick/.test(after[1])) fails.push('B-9 a fresh tab lists the heroes as ' + JSON.stringify(after));
+        await tab.close();
+        /* The server no longer holds Fennick: the reload falls back to the characters screen. */
+        delete o.heroes[1];
+        await page.reload({ waitUntil: 'load' });
+        const safe = await wait(page, () => document.querySelector('[data-app="play"][data-slot="0"]') && document.querySelector('[data-app="create"][data-slot="1"]'));
+        if (!safe || await page.$('#panel-world')) fails.push('B-9 a reload whose shown hero the server no longer holds did not fall back to the characters screen');
       }
       if (errors.length) fails.push('B-9 console errors: ' + errors.slice(0, 3).join(' | '));
       await ctx.close();
@@ -397,6 +456,9 @@ async function checks(overrides) {
         return b ? { text: b.textContent.trim(), off: b.disabled, pay: b.getAttribute('data-pay'), short: (document.querySelector('.slot-offer-short') || {}).textContent || '',
           purse: (document.querySelector('.slot-offer-purse') || {}).textContent || '', picker: !!document.querySelector('select') } : null; });
       const b0 = shown ? await btn() : null;
+      /* "Up to 4" beside two slots says how the other two come, at the server's price (blind playtest 2026-10-31). */
+      const lead = await page.evaluate(() => (document.querySelector('.auth-lead') || {}).textContent || '');
+      if (!/You own 2 hero slots, and up to 4 heroes can play at once\. More slots cost gold: the third is 15,000\./.test(lead)) fails.push('B-11 the line over the roster reads ' + JSON.stringify(lead));
       /* 14,100 at wallet version 7 is the purse; Fennick's older answer (90,000 at version 3) is not. */
       if (!b0 || b0.text !== 'Buy a hero slot — 15,000 gold' || !b0.off || b0.pay !== '0' || b0.picker
         || b0.purse !== 'Your gold: 14,100' || !/^You need 900 more gold./.test(b0.short)) fails.push('B-11 the offer short of gold reads ' + JSON.stringify(b0) + ' (expected Your gold: 14,100, 900 short, off, no payer to pick)');
@@ -493,6 +555,10 @@ async function checks(overrides) {
 }
 
 const MUTANTS = [
+  ['the loading shell stays over the first screen', 'src/app/boot.js', '    if (loading) loading.remove();\n', ''],
+  ['the loading bar never moves', 'src/platform/load-shell.js', '      paint();\n', ''],
+  ['a module that cannot load is not said', 'src/platform/load-shell.js', "    failed = true;\n", "    return;\n"],
+  ['the page paints no loading shell', 'play.html', '<p class="boot-shell-line">Loading Hearthrise…</p>', ''],
   ['no hero slot is offered', 'src/app/slot-offer.js', "  if (!offer || !purse || actor === null) return '';", "  return '';"],
   ['the oldest hero answer is the purse', 'src/app/slot-offer.js', '    if (!best || v > best.v) best = { gold: r.gold, v };', '    if (!best || v < best.v) best = { gold: r.gold, v };'],
   ['the buy button stays lit while buying', 'src/app/slot-offer.js', "(o.pending || short > 0 ? ' disabled' : '')", "(short > 0 ? ' disabled' : '')"],
@@ -508,6 +574,8 @@ const MUTANTS = [
   ['an empty owned slot offers no Create', 'src/app/boot.js', `: 'data-app="create"') + ' data-slot="'`, `: 'data-app="nothing"') + ' data-slot="'`],
   ['Create skips the name and colours step', 'src/app/boot.js', "else if (what === 'create') showCreate(slot);",
     "else if (what === 'create') account.create(slot, 'New hero', { head: 13, body: 5, legs: 3, feet: 0 }).then(() => play(slot));"],
+  ['a reload lands on the characters screen again (B-9)', 'src/app/boot.js', '    else if (auth.userId()) startAccount(true);', '    else if (auth.userId()) startAccount(false);'],
+  ['a reload whose shown hero does not load stays on the reading screen (B-9)', 'src/app/boot.js', 'if (was && await play(was.viewed, was.slots)) return;', 'if (was) { await play(was.viewed, was.slots); return; }'],
   ['a dead session stays in the game', 'src/app/boot.js', "else if (ev === 'signed-out' || ev === 'expired') sessionEnded();", "else if (ev === 'signed-out') sessionEnded();"],
   ['the closed answer is ignored', 'src/app/boot.js', "if (why === 'closed-game') showClosed();", "if (why === 'never') showClosed();"],
   ['the town\'s sheets wait for Play again', 'src/app/boot.js', "    import('../world/prewarm.js?v=", "    Promise.resolve({ prewarmTown() {} }, '../world/prewarm.js?v="],
@@ -524,14 +592,16 @@ async function main() {
   if (!process.argv.includes('--mutate')) {
     const fails = await checks(null);
     for (const f of fails) console.log('  ✗ ' + f);
-    console.log(fails.length ? 'client-boot: ' + fails.length + ' check(s) RED' : 'client-boot: both pages boot; sign-in, play (the Common sheets only), a scene switched whole, a late sheet on a closed pane, two characters, one hero + a named, coloured hero created in the second slot, sign-out, a dead session, reset and closed all hold');
+    console.log(fails.length ? 'client-boot: ' + fails.length + ' check(s) RED' : 'client-boot: both pages boot; sign-in, play (the Common sheets only), a scene switched whole, a late sheet on a closed pane, two characters, one hero + a named, coloured hero created in the second slot, the open heroes back after a reload, sign-out, a dead session, reset and closed all hold');
     process.exit(fails.length ? 1 : 0);
   }
   let bad = 0;
   const clean = await checks(null);
   if (clean.length) { console.log('  ✗ clean control RED: ' + clean.join('; ')); process.exit(1); }
   console.log('  ✓ clean control green');
-  for (const [name, file, from, to] of MUTANTS) {
+  const onlyAt = process.argv.indexOf('--only');   // a name fragment: prove just those mutants (a local re-check)
+  const chosen = MUTANTS.filter((m) => onlyAt < 0 || m[0].includes(process.argv[onlyAt + 1]));
+  for (const [name, file, from, to] of chosen) {
     let text = await readFile(join(ROOT, file), 'utf8');
     const pairs = Array.isArray(from) ? from : [[from, to]];
     const missing = pairs.find(([a]) => !text.includes(a));
@@ -541,7 +611,7 @@ async function main() {
     if (fails.length) console.log('  ✓ ' + name + ' — caught (' + fails[0].split(' ')[0] + ')');
     else { console.log('  ✗ ' + name + ' — NOT caught'); bad++; }
   }
-  console.log(bad ? 'client-boot --mutate: ' + bad + ' escaped' : 'client-boot --mutate: ' + MUTANTS.length + '/' + MUTANTS.length + ' mutants caught');
+  console.log(bad ? 'client-boot --mutate: ' + bad + ' escaped' : 'client-boot --mutate: ' + chosen.length + '/' + chosen.length + ' mutants caught');
   process.exit(bad ? 1 : 0);
 }
 main();

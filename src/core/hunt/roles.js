@@ -19,12 +19,12 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { HUNT_ROLES, ROLE_ORDER, SPOT, KITE, SURROUND, AI_REPATH_MS, OPEN_GROUND } from '../../data/hunt-roles.js?v=0.2.74';
-import { ROLE_DEFAULTS, HERO_DISTANCE, DEFAULT_TARGET_MODE } from '../../data/rule-subjects.js?v=0.2.74';
-import { walkable, cheb, dist2, los, ringFree, tileKey } from './grid.js?v=0.2.74';
-import { inArea } from './leash.js?v=0.2.74';
-import { atRest, unitById, setGoal, clearGoal, candidateTiles, chooseSpot, standable, goToNearest, reachWithin } from './movement.js?v=0.2.74';
-import { roleOf, engaged, inRange, pickTargets } from './targeting.js?v=0.2.74';
+import { HUNT_ROLES, ROLE_ORDER, SPOT, KITE, SURROUND, AI_REPATH_MS, OPEN_GROUND } from '../../data/hunt-roles.js?v=0.2.75';
+import { ROLE_DEFAULTS, HERO_DISTANCE, DEFAULT_TARGET_MODE } from '../../data/rule-subjects.js?v=0.2.75';
+import { walkable, cheb, dist2, los, ringFree, tileKey } from './grid.js?v=0.2.75';
+import { inArea } from './leash.js?v=0.2.75';
+import { atRest, unitById, setGoal, clearGoal, candidateTiles, chooseSpot, standable, goToNearest, reachWithin } from './movement.js?v=0.2.75';
+import { roleOf, engaged, inRange, pickTargets } from './targeting.js?v=0.2.75';
 
 /* role/dist/chase/tmode: the hero's settings. queued: a monster with no surround slot.
    aiMs: ms until the unit re-picks its goal. */
@@ -360,10 +360,13 @@ function keepDistance(inst, h, mons) {
   if (gap(h.x, h.y) >= want && !h.path.length) return;
   if (h.goal && h.path.length && gap(h.goal[0], h.goal[1]) >= want) return;
   const [cx, cy] = meanOf(mons);
-  const here = Math.hypot(h.x - cx, h.y - cy);
+  /* Math.sqrt, never Math.hypot: the spec leaves hypot's last bit to each JS engine (V8 differs from the rounded root
+     on a third of integer pairs), and this comparison must come out the same on the edge and in any browser. */
+  const fromMean = (x, y) => Math.sqrt((x - cx) * (x - cx) + (y - cy) * (y - cy));
+  const here = fromMean(h.x, h.y);
   let best = null; let bs = Infinity;
   for (const [x, y] of candidateTiles(inst, h, pocket, h.x, h.y, KITE.searchRadius)) {
-    if (Math.hypot(x - cx, y - cy) - here <= KITE.awayMin) continue;
+    if (fromMean(x, y) - here <= KITE.awayMin) continue;
     const g = gap(x, y);
     if (g < minGap) continue;
     const p = { x, y };

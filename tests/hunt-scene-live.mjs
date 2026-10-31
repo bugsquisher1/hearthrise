@@ -69,6 +69,10 @@
 //   LV-31 ANDY'S OWN PARTY SWITCHED BACK (#65): a four at the Warrens, its viewer away 30 s: once the screen reaches
 //         the snapshot's instant, no monster it holds dead is drawn standing (one placed alive before the switch stood
 //         at its last drawn HP until the catch-up felled it anew: scene.js S9), and every unit drawn has a sprite.
+//   LV-32 A SWING NOT REACHED YET IS NOT A DIFFERENCE (a correction every 17 s on real players): a page whose clock runs
+//         late judges each commit and start point when the prediction reaches its swing, no restart; a held verdict
+//         that differs asks at once; the correcting start point names what differed (live-diff.js).
+//   LV-33 EVERY BROWSER COMPUTES THE SERVER'S WORLD: no engine file reads a Math function the spec leaves to each JS engine.
 //   LV-4  THE PAGE (headless Chrome, the real client, the same server answers): the hunt
 //         draws, no page error, and the frame loop holds budget against the frozen sim
 //         (prototypes/hunt-sim) measured the same way.
@@ -866,6 +870,86 @@ async function nodeRules(M) {
     ok('LV-31', r.unnamed === 0, `${r.unnamed} unit(s) were drawn with no sprite after the switch back`);
   }
 
+  { // LV-32 A SWING NOT REACHED YET IS NOT A DIFFERENCE (live_view_stall on real players, a correction every 17 s: one
+    // poll). A page whose first answers landed late runs its clock behind the server's (timeline.js T3 moves a tenth of
+    // the way per answer), so each commit names a swing the prediction reaches a moment later. Restarted for it, the
+    // page re-seeded at every commit with nothing different. Both ways an answer comes: a commit, and a start point
+    // (another client of the party settled first). A real difference is still corrected, and names itself.
+    const { LiveLink } = await import(pathToFileURL(join(M.base, 'src/session/live-link.js')).href + V);
+    const T0 = LIVE_H.T0, LATE = 3000;
+    const run = (answer) => {
+      const mis = [LIVE_H.memberOf(LM, 'a', 0, 'tank', 6), LIVE_H.memberOf(LM, 'b', 1, 'melee_dps', 6)];
+      const srv = LIVE_H.server(LM, mis);
+      let clock = T0 + LATE, asked = 0;
+      const tl = M.TL.createTimeline({ delayMs: M.CFG.SESSION_CONFIG.liveDelayMs });
+      const link = new LiveLink({ timeline: tl, now: () => clock, emit: () => {}, asked: () => { asked++; } });
+      link.from({ hunt_live: srv.live('a'), hunt_server_now_ms: T0 });   // the first answer lands 3 s after the server stamped it
+      const frames = (to) => { for (; clock <= to; clock += 16) link.advance(clock); };
+      const lags = [];
+      for (let n = 1; n <= 8; n++) {
+        const at = T0 + n * 16000;
+        frames(at);
+        const c = srv.commit(at);
+        /* the answer is on time from here on; the clock has only moved its tenth per answer */
+        const reached = link.engine.hashAt(c.check.world_swing) !== null;
+        lags.push(reached);
+        link.from(answer === 'commit' ? { hunt_check: c.check, hunt_server_now_ms: at } : { hunt_live: srv.live('a'), hunt_server_now_ms: at });
+      }
+      frames(T0 + 8 * 16000 + LATE + 2100);
+      return { stats: link.stats, want: link.want, asked, ahead: lags.filter((r) => !r).length, link, srv, frames: (t) => frames(t), now: () => clock };
+    };
+    for (const answer of ['commit', 'start point']) {
+      const r = run(answer);
+      console.log(`  LV-32 a clock 3 s late, every ${answer}: ${r.ahead} of 8 named a swing not reached; match ${r.stats.match}, diverged ${r.stats.diverged}, unknown ${r.stats.unknown}, reseeds ${r.stats.reseeds}`);
+      ok('LV-32', r.ahead >= 4, `CONTROL (${answer}): only ${r.ahead} of 8 answers named a swing the late clock had not reached`);
+      ok('LV-32', r.stats.reseeds === 0 && !r.want, `(${answer}) ${r.stats.reseeds} restart(s) and want ${r.want} with nothing different: a swing not reached yet was taken for a difference`);
+      ok('LV-32', r.stats.diverged === 0 && r.stats.match >= 7, `(${answer}) the verdicts held for a later swing did not land: match ${r.stats.match}, diverged ${r.stats.diverged}`);
+    }
+    /* a held verdict that goes against the prediction asks at once; the start point corrects it and names what differs */
+    {
+      const mis = [LIVE_H.memberOf(LM, 'a', 0, 'tank', 6), LIVE_H.memberOf(LM, 'b', 1, 'melee_dps', 6)];
+      const srv = LIVE_H.server(LM, mis);
+      let clock = T0 + LATE, asked = 0;
+      const tl = M.TL.createTimeline({ delayMs: M.CFG.SESSION_CONFIG.liveDelayMs });
+      const link = new LiveLink({ timeline: tl, now: () => clock, emit: () => {}, asked: () => { asked++; } });
+      link.from({ hunt_live: srv.live('a'), hunt_server_now_ms: T0 });
+      const frames = (to) => { for (; clock <= to; clock += 16) link.advance(clock); };
+      const at = T0 + 16000;
+      frames(at);
+      const c = srv.commit(at);
+      link.from({ hunt_check: Object.assign({}, c.check, { world_hash: 'deadbeef' }), hunt_server_now_ms: at });
+      ok('LV-32', !link.want && asked === 0 && link.stats.diverged === 0, 'a commit for a swing not reached was judged before the prediction reached it');
+      frames(at + LATE);
+      ok('LV-32', link.want && asked === 1 && link.stats.diverged === 1, `a held verdict that differs did not ask at once: want ${link.want}, asked ${asked}, diverged ${link.stats.diverged}`);
+      const enc = JSON.parse(srv.inst.world);
+      const hpAt = M.WS.FIELDS.unit.findIndex(([f]) => f === 'hp');
+      const row = enc.u.find((u) => u[1] === 'mon');
+      row[hpAt] += 1;
+      srv.inst.world = JSON.stringify(enc);
+      link.from({ hunt_live: srv.live('a'), hunt_server_now_ms: clock });
+      const d = link.takeDiff();
+      ok('LV-32', link.stats.reseeds === 1, `a start point that differs did not restart the prediction: ${link.stats.reseeds} restart(s)`);
+      ok('LV-32', !!d && d.count === 1 && d.by['mon.hp'] === 1 && d.lines.length === 1, 'the correction did not name what differed: ' + JSON.stringify(d));
+      ok('LV-32', link.takeDiff() === null && link.lastDiff === d, 'telemetry took what differed twice, or the bug report lost it');
+    }
+  }
+
+  { // LV-33 EVERY BROWSER COMPUTES THE SERVER'S WORLD: the engine reads no Math function whose last bit the spec leaves
+    // to each JS engine (V8's Math.hypot differs from the rounded root on a third of integer pairs; roles.js's kite
+    // compared two of them), so a Firefox prediction cannot leave the edge's V8 on one. sqrt and the rounders are exact.
+    const { readdirSync } = await import('node:fs');
+    const core = ['combat-sim', 'combat', 'member', 'hunt-rewards', 'action-rules', 'mitigation', 'vitals', 'xp', 'progression', 'buffs', 'perks', 'rng', 'ammo', 'hunt-ground', 'hunt-spawn', 'hunt-track', 'party-split']
+      .map((f) => 'src/core/' + f + '.js');
+    const hunt = readdirSync(join(M.base, 'src/core/hunt')).filter((f) => f.endsWith('.js')).map((f) => 'src/core/hunt/' + f);
+    const bad = [];
+    for (const f of [...core, ...hunt]) {
+      const code = readFileSync(join(M.base, f), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+      for (const [m] of code.matchAll(/Math\.(hypot|pow|exp|expm1|log|log2|log10|log1p|sin|cos|tan|asin|acos|atan|atan2|sinh|cosh|tanh|cbrt)\b|\w\s\*\*\s\w/g)) bad.push(f + ': ' + m);
+    }
+    console.log(`  LV-33 ${core.length + hunt.length} engine files read: ${bad.length} use(s) of last-bit Math`);
+    ok('LV-33', bad.length === 0, 'the engine reads Math a browser may answer differently from the edge: ' + bad.slice(0, 5).join(', '));
+  }
+
   { // LV-30 THE SNAPSHOT NAMES EVERY UNIT (Andy #65: "[hunt-scene] no sprite for unit N (null)" in almost every report).
     // A Sewer four at its top density on the real settle, committed every 10 s: each stored world's hunt-section pose
     // (hr_hunt_section_view lists every unit: poseOf) read through the client's reader (hunt-sections.js huntOf), whose
@@ -1380,7 +1464,7 @@ async function pageRules() {
     const sim = await measureFrames(simPage);
     if (process.env.HR_SHOTS) await simPage.screenshot({ path: join(process.env.HR_SHOTS, 'hunt-sim.png') });
     console.log(`  LV-4 page: game ${game.frames} frames/5 s, gap median ${game.gapMed.toFixed(1)} ms, busy ${game.busy.toFixed(1)} ms/frame; sim ${sim.frames} frames, gap ${sim.gapMed.toFixed(1)} ms, busy ${sim.busy.toFixed(1)} ms/frame; ${errors.length} error(s)`);
-    if (!/^\+\d+(\.\d)?\/s$/.test(text)) fails.push(`LV-3 the page's HP regen reads "${text}", want +N.N/s`);
+    if (!/^\+\d+(\.\d)?\/s rest$/.test(text)) fails.push(`LV-3 the page's HP regen reads "${text}", want +N/s rest`);
     if (errors.length) fails.push('LV-4 page errors: ' + errors.slice(0, 3).join(' | '));
     if (!(game.gapMed <= BUDGET.gapMedianMs)) fails.push(`LV-4 the frame loop's median gap is ${game.gapMed.toFixed(1)} ms (budget ${BUDGET.gapMedianMs})`);
     const cap = sim.busy * BUDGET.simBusyFactor + BUDGET.simBusySlackMs;
@@ -1407,11 +1491,18 @@ const MUTANTS = [
   /* Sentry JAVASCRIPT-4C: a hunt this build cannot predict never throws in the frame loop and falls back (LV-28). */
   ['a start point naming an unknown monster is run, and a swing that throws escapes (LV-28)', 'src/hunt-view/live-engine.js',
     "fail(reasonOf(e)); return n; }", "throw e; }", /^LV-28/, [['    if (unknown.length) return fail(', '    if (false) return fail('], ['return true; return fail(reasonOf(e)); }', 'return true; throw e; }']]],
+  ['a swing not reached yet restarts the prediction (LV-32)', 'src/hunt-view/live-engine.js', "        return reach ? 'ahead' : 'unknown';", "        return 'unknown';", /^LV-32/],
+  ['a start point for a swing not reached yet restarts the prediction (LV-32)', 'src/session/live-link.js', "      if (v === 'match' || v === 'ahead') return;", "      if (v === 'match') return;", /^LV-32: \(start point\)/],
+  ['a commit for a swing not reached yet asks for a start point (LV-32)', 'src/session/live-link.js', "      if (v !== 'match' && v !== 'ahead') this.want = true;", "      if (v !== 'match') this.want = true;", /^LV-32: \(commit\)/],
+  ['a held verdict is never judged (LV-32)', 'src/session/live-link.js', '    if (n > 0) this._judgeHeld();\n', '', /^LV-32: \(/],
+  ['a held verdict that differs waits for the next poll (LV-32)', 'src/session/live-link.js', 'this.want = true; if (this._asked) this._asked(); }', 'this.want = true; }', /^LV-32: a held verdict/],
+  ['a correction does not name what differed (LV-32)', 'src/session/live-link.js', "      if (v === 'diverged') this._noteDiff(i);\n", '', /^LV-32: the correction/],
+  ['the kite compares a last-bit Math (LV-33)', 'src/core/hunt/roles.js', 'const fromMean = (x, y) => Math.sqrt((x - cx) * (x - cx) + (y - cy) * (y - cy));', 'const fromMean = (x, y) => Math.hypot(x - cx, y - cy);', /^LV-33/],
   ['a failed prediction keeps the live delay and asks again (LV-28)', 'src/session/live-link.js', '    if (why === null || this.failure !== null) return false;', '    if (true) return false;', /^LV-28: (the live view did not stop|after the fall-back)/],
   ['a failed prediction never asks for a newer build (LV-28)', 'src/session/live-link.js', "    if (this._stale) { try { this._stale(); }", "    if (false) { try { this._stale(); }", /^LV-28: the site was asked/],
   /* A tab back from the background catches up in slices, and lands the restart one task would have (LV-29). */
   ['a catch-up runs whole in one frame (LV-29)', 'src/session/live-link.js', '() => this._clock() - t0 < SESSION_CONFIG.liveCatchUpSliceMs);', '() => true);', /^LV-29: a frame ran/],
-  ["a sliced catch-up lands at its last slice's instants (LV-29)", 'src/session/live-link.js', 'if (!this._fail() && res) this._land(c, res);', 'if (!this._fail() && res) this._land(this._instants() || c, res);', /^LV-29: a frame the sliced/],
+  ["a sliced catch-up lands at its last slice's instants (LV-29)", 'src/session/live-link.js', 'if (!this._fail() && res) { this._land(c, res);', 'if (!this._fail() && res) { this._land(this._instants() || c, res);', /^LV-29: a frame the sliced/],
   ['each slice of a catch-up starts its run again (LV-29)', 'src/hunt-view/live-engine.js', '      if (!job || job.of !== st) job = forward(serverNowMs, aheadMs);', '      job = forward(serverNowMs, aheadMs);', /^LV-29/],
   ['the live view keeps the server-paced delay (LV-2)', 'src/session/live-link.js', 'this._tl.setDelay(SESSION_CONFIG.liveDelayMs);', 'void 0;', /^LV-2/],
   ['the frame loop never advances the engine (LV-2)', 'src/session/live-link.js', '    const n = this.engine.advance(now, (b) => this._tl.ingest(b, clientNow));', '    const n = 0;', /^LV-2/],
@@ -1419,9 +1510,9 @@ const MUTANTS = [
   ["a bar is the snapshot's HP (LV-5)", 'src/hunt-view/scene.js', "const played = typeof tl.hpAt !== 'function' ? null : tl.hpAt(u, now);", 'const played = null;', /^LV-5/],
   ['steps drawn at their sub-step stamp over one tile time (LV-2)', 'src/hunt-view/live-engine.js', '    timeSteps(tl.hunt_track, (id) => speeds.get(id), s.drawn);\n', '', /^LV-2/],
   ['the live ask gives up after two tries (LV-7)', 'src/session/live-link.js', '    return Math.min(SESSION_CONFIG.huntPollMs, Math.max(back, until));', '    return this._tries > 2 ? null : SESSION_CONFIG.liveAskMs;', /^LV-7/],
-  ['a start point with a new setup is ignored when its world agrees (LV-14)', 'src/session/live-link.js', '      if (this.engine.sameSetup(body.hunt_live)\n        && this._judge(', '      if (this._judge(', /^LV-14/],
+  ['a start point with a new setup is ignored when its world agrees (LV-14)', 'src/session/live-link.js', '      const same = this.engine.sameSetup(body.hunt_live);', '      const same = true;', /^LV-14/],
   ['a mid-hunt settings answer asks for nothing (LV-14)', 'src/session/character-session.js', ' && this._huntOpen()) this.liveLink.ask();', ' && false) this.liveLink.ask();', /^LV-14/],
-  ["a matching start point's seeds are dropped (LV-8)", 'src/session/live-link.js', '&& this._judge({ world_swing: i.world_swing, world_hash: i.world_hash, seeds: body.hunt_live.seeds }) ===', '&& this.engine.check({ world_swing: i.world_swing, world_hash: i.world_hash }) ===', /^LV-8/],
+  ["a matching start point's seeds are dropped (LV-8)", 'src/session/live-link.js', 'const v = same ? this._judge({ world_swing: i.world_swing, world_hash: i.world_hash, seeds: body.hunt_live.seeds }) : null;', 'const v = same ? this.engine.check({ world_swing: i.world_swing, world_hash: i.world_hash }) : null;', /^LV-8/],
   ['missed swings are played at once (LV-10)', 'src/session/live-link.js', '    if (!this._catching && this.engine.behindMs(now) > this._tl.delayMs()) {', '    if (false) {', /^LV-10/],
   ['the poll waits for the ordinary poll however short the look-ahead (LV-11)', 'src/session/hunt-poll.js', ', liveLink.refillDelayMs() ?? SESSION_CONFIG.huntPollMs);', ', SESSION_CONFIG.huntPollMs);', /^LV-11/],
   ['a death inside a catch-up is not played (LV-12)', 'src/session/live-link.js', '    for (const ev of res.kills) {', '    for (const ev of []) {', /^LV-12/],

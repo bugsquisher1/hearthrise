@@ -476,7 +476,10 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         if (h2.hp !== '220/220' || h2.mana !== '0/0' || h2.lv !== '25' || h2.xp !== 'XP 5%' || h2.hpArc !== '100' || !h2.manaShown) fails.push('HS-18 the next envelope did not replace the hub (or hid the mana gauge): ' + JSON.stringify(h2));
         /* Regen per second, one decimal: mana_regen is per MINUTE (18/min = 0.3/s); HP is the in-fight rate (220 x 3 permille x 1000 permille = 0.66/s). */
         const rg = await page.evaluate(() => [document.querySelector('[data-r="hp"]').textContent, document.querySelector('[data-r="mana"]').textContent]);
-        if (rg[0] !== '+0.7/s' || rg[1] !== '+0.3/s') fails.push('HS-18 the hub regen reads ' + JSON.stringify(rg) + ', want ["+0.7/s","+0.3/s"]');
+        if (rg[0] !== '+13/s rest' || rg[1] !== '+0.3/s') fails.push('HS-18 the hub regen reads ' + JSON.stringify(rg) + ', want ["+13/s rest","+0.3/s"]');
+        /* the rate a watcher can see on the bar, the fight's in its title (first-hour play 2026-10-31: "+0.6/s" over HP racing back) */
+        const hpTitle = await page.evaluate(() => document.querySelector('[data-r="hp"]').getAttribute('title'));
+        if (hpTitle !== 'Health regained each second between fights. In a fight: +0.7/s.') fails.push('HS-18 the hub HP rate title reads ' + JSON.stringify(hpTitle));
         /* HS-18 FOOD IS THE HUNT BAG'S (Brannoc 10-22: "Food ×0" while the server's hunt bag held 20 Cooked Shrimp; Enter
            moves the food out of the bag): the socket counts the open hunt's hunt bag, and the next envelope replaces it. */
         const foodK = () => page.evaluate(() => document.querySelector('.hb-socket.is-food .hb-socket-k').textContent);
@@ -487,6 +490,18 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         await pushEnvelope(page, s);
         const f2 = await foodK();
         if (f1 !== 'Food ×20' || f2 !== 'Food ×17') fails.push('HS-18 the food socket reads ' + JSON.stringify([f1, f2]) + ' while the hunt bag held 20 then 17 Cooked Shrimp');
+        /* Out of own food with a store food on the bar it says so and names the price (blind playtest 2026-10-31: "Food ×0" while the hero ate store shrimp). */
+        s.env.hunt.session.bag = [];
+        const barWas = s.env.hunt_settings.slots;
+        s.env.hunt_settings.slots = [{ action: { type: 'consume', id: 'salted_shrimp' }, conditions: [] }];
+        await pushEnvelope(page, s);
+        const f3 = await page.evaluate(() => { const e = document.querySelector('.hb-socket.is-food'); return [e.querySelector('.hb-socket-k').textContent, e.title]; });
+        if (f3[0] !== 'Food: store' || !/Salted Shrimp at 14 gp each/.test(f3[1])) fails.push('HS-18 out of own food with store shrimp on the bar, the socket reads ' + JSON.stringify(f3));
+        s.env.hunt_settings.slots = [];
+        await pushEnvelope(page, s);
+        const f4 = await foodK();
+        if (f4 !== 'Food ×0') fails.push('HS-18 with no food and none on the bar, the socket reads ' + JSON.stringify(f4));
+        s.env.hunt_settings.slots = barWas;
         delete s.env.hunt.session;
         Object.assign(s.env.hunt.hero, { mana: 40, mana_max: 60, hp: 180, level: 24, xp_pct: 0.62 });   // back to the fixture for the screenshots
         s.env.state = Object.assign({}, s.env.state, { level_xp: FIXTURE.state.level_xp });
@@ -755,9 +770,9 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           const p = document.querySelector('.ha-analyzer');
           const shown = (el) => !!el && el.getClientRects().length > 0;
           return { kills: p.querySelector('[data-sec="totals"] [data-stat="kills"]').textContent, rates: shown(p.querySelector('[data-sec="rates"] .ha-stats')),
-            line: shown(p.querySelector('.ha-later')) ? p.querySelector('.ha-later').textContent : null, next: p.querySelector('[data-clock="next"]').textContent };
+            line: shown(p.querySelector('.ha-later')) ? p.querySelector('.ha-later').textContent : null, next: p.querySelector('[data-clock="next"]').textContent, nextShown: shown(p.querySelector('[data-clock="next"]')) };
         });
-        if (!/\d/.test(early.kills) || early.rates || early.line !== 'Per hour after 10 min.' || early.next !== 'after 10 min') {
+        if (!/\d/.test(early.kills) || early.rates || early.line !== 'Per hour and your next level after 10 min.' || early.next !== '' || early.nextShown) {
           fails.push('HS-4 a session under 10 minutes (per_hour null) did not show totals plus "Per hour after 10 min.": ' + JSON.stringify(early));
         }
         s.env.hunt_analyzer = clone(FIXTURE.hunt_analyzer);
@@ -1590,7 +1605,9 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       const plusOn = await page.evaluate(() => {
         const b = document.querySelector('.hw-hunt-detail .hw-density [data-by="1"]');
         if (b.disabled) return false;
-        for (let i = 0; i < 4; i++) document.querySelector('.hw-hunt-detail .hw-density [data-by="1"]').click();
+        /* a quick run of presses up to 5 each ("As built" stands among the picks, at its packs' size) */
+        const v = () => document.querySelector('.hw-hunt-detail .hw-density .hh-step-val').textContent;
+        for (let i = 0; i < 8 && v() !== '5 each'; i++) document.querySelector('.hw-hunt-detail .hw-density [data-by="1"]').click();
         return true;
       });
       if (!plusOn) fails.push('HS-8 the density + is off below the ground’s most');
@@ -1831,7 +1848,7 @@ const MUTANTS = [
   ['the Hunts window keeps saying "On the way" while hunting', 'src/shell/windows/hunts.js', "  if (sc.msg && sc.msg === sc.enterMsg && (now || (h && h.ended))) { sc.msg = ''; sc.enterMsg = null; }\n", ''],
   ['the Hunts window stays over the hunt it entered (HS-9b, playtest 2026-10-24)', 'src/shell/windows/hunts.js', "  if (sc.closeOnHunt && now) { sc.closeOnHunt = false; queueMicrotask(() => ctx.wm.close('hunts')); }\n", ''],
   ['an edge panel never steps out of the hunt bar’s way', 'src/shell/shell.js', "        for (const p of at.push) edgeEls[p.i].style.top = p.top + 'px';\n", ''],
-  ['the hunt bar draws no tutorial card under itself', 'src/shell/widgets/hunt-topbar.js', 'const html = pointerFor(ctx);', "const html = '';"],
+  ['the hunt bar draws no tutorial card under itself', 'src/shell/widgets/hunt-topbar.js', "const html = leaving && !over ? '' : pointerFor(ctx, !over);", "const html = '';"],
   ['the tutorial card hangs over the hunt bar', 'src/styles/shell.css', '.hs-widget > .hs-pointer { left: 0; width: min(260px, 100%); }', '.hs-widget > .hs-pointer { left: 0; top: 0; width: min(260px, 100%); }'],
   ['an ended hunt still offers Leave hunt','src/shell/widgets/hunt-topbar.js', "  prop(leave, 'hidden', over && !leave.hasAttribute('data-pending'));\n", ''],
   ['Leave hunt forgets a pending leave', 'src/shell/widgets/hunt-topbar.js', "  const cd = over ? null : ctx.character.leaveCountdown();", "  const cd = null;"],

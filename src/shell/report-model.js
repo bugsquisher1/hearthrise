@@ -18,9 +18,9 @@
 // No identity field: the bridge names the reporter from the verified token.
 // Every bound is the bridge's own (index.ts MAX_*), so nothing is cut there.
 // ════════════════════════════════════════════════════════════════════════
-import { BUILD } from '../build-info.js?v=0.2.74';
-import { huntOf } from '../session/hunt-sections.js?v=0.2.74';
-import { partyMembershipOf, huntName } from '../session/party-sections.js?v=0.2.74';
+import { BUILD } from '../build-info.js?v=0.2.75';
+import { huntOf } from '../session/hunt-sections.js?v=0.2.75';
+import { partyMembershipOf, huntName } from '../session/party-sections.js?v=0.2.75';
 
 export const REPORT_LIMITS = Object.freeze({
   summary: 200, text: 4000, errors: 20, errorMsg: 500,
@@ -41,7 +41,8 @@ function huntState(cs) {
     id: h.huntId, ground: h.huntId ? huntName(h.huntId) : null, session: h.sessionId,
     party: p ? { id: p.id, seats: p.seats.map((s) => ({ seat: s.seat, name: short(s.name, 40) })) } : null,
     live: { running: call(live.running), ended: call(live.ended), stalled: call(live.stalled), swing: call(live.swingIndex),
-      stats: typeof cs.liveStats === 'function' ? cs.liveStats() : null },
+      stats: typeof cs.liveStats === 'function' ? cs.liveStats() : null,
+      diff: cs.liveLink && cs.liveLink.lastDiff ? cs.liveLink.lastDiff : null },
   };
 }
 
@@ -87,7 +88,7 @@ export function reportBody(o) {
     perf: { fps: o.fps, stalls: perf.stalls, longest_stall_ms: perf.longestStallMs, long_tasks: perf.longTasks, longest_task_ms: perf.longestTaskMs },
   };
   /* Over the bridge's bound, the least needed parts go first; never the whole state. */
-  for (const cut of [() => { if (state.hunt) state.hunt.live.stats = null; }, () => { state.browser = null; }, () => { if (state.hunt) state.hunt.party = null; }]) {
+  for (const cut of [() => { if (state.hunt) state.hunt.live.diff = null; }, () => { if (state.hunt) state.hunt.live.stats = null; }, () => { state.browser = null; }, () => { if (state.hunt) state.hunt.party = null; }]) {
     if (JSON.stringify(state).length <= REPORT_LIMITS.stateChars) break;
     cut();
   }

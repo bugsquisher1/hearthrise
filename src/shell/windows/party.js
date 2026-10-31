@@ -21,12 +21,12 @@
 // Every control is one intent, off from the press until the server answered;
 // the window changes only from the re-read envelope. Nothing is predicted.
 // ════════════════════════════════════════════════════════════════════════
-import { invitesOf, partyMembershipOf, huntName } from '../../session/party-sections.js?v=0.2.74';
-import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.74';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.74';
-import { runIntent } from '../intent-words.js?v=0.2.74';
-import { finderHtml, patchFinder, actFinder, partyScratch } from './party-finder.js?v=0.2.74';
-import { rosterHtml, patchRoster, actRoster } from './party-roster.js?v=0.2.74';
+import { invitesOf, partyMembershipOf, huntName } from '../../session/party-sections.js?v=0.2.75';
+import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.75';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.75';
+import { runIntent } from '../intent-words.js?v=0.2.75';
+import { finderHtml, patchFinder, actFinder, partyScratch } from './party-finder.js?v=0.2.75';
+import { rosterHtml, patchRoster, actRoster } from './party-roster.js?v=0.2.75';
 
 const TABS = Object.freeze([['party', 'Your party'], ['invites', 'Invites'], ['find', 'Find a party']]);
 
@@ -63,7 +63,7 @@ function patchInvites(root, ctx, sc, inv) {
   const none = root.querySelector('.hw-invites-none');
   cls(none, 'is-on', !inv.length);
   text(none, partyMembershipOf(ctx.character) ? 'No invites. You are in a party: its members show on the Your party tab.'
-    : 'No invites right now. Right-click a player and choose Invite to party to start your own.');
+    : 'No invites right now. ' + (ctx.isPhone && ctx.isPhone() ? 'Hold a player’s name' : 'Right-click a player') + ' and choose Invite to party to start your own.');
 }
 
 renderParty.patch = function patchParty(body, ctx) {

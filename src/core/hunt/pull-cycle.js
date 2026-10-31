@@ -22,19 +22,19 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { HUNT_TUNING } from '../../data/hunt-tuning.js?v=0.2.74';
-import { VITALS } from '../../data/core-model.js?v=0.2.74';
-import { MONSTERS, monsterSpeedOf } from '../../data/monsters.js?v=0.2.74';
-import { AI_REPATH_MS } from '../../data/hunt-roles.js?v=0.2.74';
-import { HUNT_GROUNDS, packHpFor, yieldPermille, routeFor, pullRows, monstersOn } from '../../data/hunt-grounds.js?v=0.2.74';
-import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.74';
-import { monsterMaxHit } from '../combat.js?v=0.2.74';
-import { cheb, dist2, freeNear, tileKey, walkable } from './grid.js?v=0.2.74';
-import { inArea, resetPack } from './leash.js?v=0.2.74';
-import { atRest, unitById, leaderOf, setGoal, clearGoal, occupancy, reachable, goToNearest } from './movement.js?v=0.2.74';
-import { makeEvent, trackStep } from './events.js?v=0.2.74';
-import { pickLeader, kites, roomAt, ROOM_MAX } from './roles.js?v=0.2.74';
-import { holderTank, turnTanks, pickInForce } from './targeting.js?v=0.2.74';
+import { HUNT_TUNING } from '../../data/hunt-tuning.js?v=0.2.75';
+import { VITALS } from '../../data/core-model.js?v=0.2.75';
+import { MONSTERS, monsterSpeedOf } from '../../data/monsters.js?v=0.2.75';
+import { AI_REPATH_MS } from '../../data/hunt-roles.js?v=0.2.75';
+import { HUNT_GROUNDS, packHpFor, yieldPermille, routeFor, pullRows, monstersOn } from '../../data/hunt-grounds.js?v=0.2.75';
+import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.75';
+import { monsterMaxHit } from '../combat.js?v=0.2.75';
+import { cheb, dist2, freeNear, tileKey, walkable } from './grid.js?v=0.2.75';
+import { inArea, resetPack } from './leash.js?v=0.2.75';
+import { atRest, unitById, leaderOf, setGoal, clearGoal, occupancy, reachable, goToNearest } from './movement.js?v=0.2.75';
+import { makeEvent, trackStep } from './events.js?v=0.2.75';
+import { pickLeader, kites, roomAt, ROOM_MAX } from './roles.js?v=0.2.75';
+import { holderTank, turnTanks, pickInForce } from './targeting.js?v=0.2.75';
 
 /* deadMs: a corpse's age. hpMilli: out-of-combat regen carried below one HP.
    phase / routeIdx / phaseMs / regroupNext / runs / nextId: the cycle. alive / respawnAtMs: a pack. */

@@ -10,14 +10,14 @@
 // server's value stays on screen either way: nothing changed before it answered.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.74';
-import { ITEMS } from '../data/items.js?v=0.2.74';
-import { REFUSAL_WORDS, REFUSAL_FAMILIES, REFUSAL_FALLBACK, REFUSAL_VERB_WORDS } from '../data/refusal-words.js?v=0.2.74';
-import { skillsOf } from '../session/item-sections.js?v=0.2.74';
-import { levelOf } from '../session/character-sections.js?v=0.2.74';
-import { needOf, needWords } from './item-lore.js?v=0.2.74';
-import { whole } from '../render/format.js?v=0.2.74';
-import { SKILLS_DEF } from '../data/skills.js?v=0.2.74';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.75';
+import { ITEMS } from '../data/items.js?v=0.2.75';
+import { REFUSAL_WORDS, REFUSAL_FAMILIES, REFUSAL_FALLBACK, REFUSAL_VERB_WORDS } from '../data/refusal-words.js?v=0.2.75';
+import { skillsOf } from '../session/item-sections.js?v=0.2.75';
+import { levelOf } from '../session/character-sections.js?v=0.2.75';
+import { needOf, needWords } from './item-lore.js?v=0.2.75';
+import { whole } from '../render/format.js?v=0.2.75';
+import { SKILLS_DEF } from '../data/skills.js?v=0.2.75';
 
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 
@@ -114,6 +114,8 @@ export function refusalText(r, cs) {
     return 'Not enough ' + ITEMS[r.item].n + ': you have ' + whole(c.bag) + ' in your bag and ' + whole(c.storage)
       + ' in Storage, and it takes ' + whole(c.need) + '.';
   }
+  /* "That many" of WHAT (blind playtest 2026-10-31): the item the server's refusal named. */
+  if (r && (r.error === 'insufficient_item' || r.error === 'bag_short') && r.item && own(ITEMS, r.item)) return 'You no longer have that many ' + ITEMS[r.item].n + '.';
   return refusalWords(r && r.error, r && r.verb);
 }
 

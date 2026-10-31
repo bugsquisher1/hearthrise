@@ -32,6 +32,10 @@
 //   close(slot)   leave and forget one character
 //   view(slot)    show another open character (viewed): only it streams live; it asks one settle, the one left goes quiet
 //   limit()       how many may play at once, as the server says
+//   lastOpen()    what this tab had open when it last stood ({ slots, viewed }, the tab store: SESSION_CONFIG.openKey,
+//                 written on every open, close and view), for this login only, or null: a reload reopens those
+//                 (src/app/boot.js); display state, never authority (the roster says what still exists)
+//   forgetOpen()  drop that record (a new sign-in starts at the characters screen)
 //   findItems(q)  where an item is across this account's characters
 //                 (hr_account_items: bags and worn sets by character, and the
 //                 account's one storage, slot null; read by the server)
@@ -45,14 +49,14 @@
 //                 left and destroyed when it closes
 // ════════════════════════════════════════════════════════════════════════
 
-import { SESSION_CONFIG } from './config.js?v=0.2.74';
-import { CharacterSession } from './character-session.js?v=0.2.74';
-import { TownPresence } from './town-presence.js?v=0.2.74';
-import { SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.74';
-import { charLevelFromXp } from '../core/xp.js?v=0.2.74';
-import { assignmentOf } from './party-sections.js?v=0.2.74';
-import { createIntentLedger } from './intent-ledger.js?v=0.2.74';
-import { purseOf, newerPurse, storageOf } from './item-sections.js?v=0.2.74';
+import { SESSION_CONFIG } from './config.js?v=0.2.75';
+import { CharacterSession } from './character-session.js?v=0.2.75';
+import { TownPresence } from './town-presence.js?v=0.2.75';
+import { SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.75';
+import { charLevelFromXp } from '../core/xp.js?v=0.2.75';
+import { assignmentOf } from './party-sections.js?v=0.2.75';
+import { createIntentLedger } from './intent-ledger.js?v=0.2.75';
+import { purseOf, newerPurse, storageOf } from './item-sections.js?v=0.2.75';
 
 /* What the account's characters share: the depot (2026-11-27-account-depot.sql) and the
    farm land (2026-12-14-shared-farm.sql). A change to one re-reads the others. */
@@ -66,6 +70,16 @@ export function tabSessionId(tab, cfg = SESSION_CONFIG, make) {
   const id = make ? make() : (c && typeof c.randomUUID === 'function' ? c.randomUUID() : 't' + Date.now().toString(36) + Math.random().toString(36).slice(2));
   if (tab) tab.set(cfg.tabKey, id, { durable: true });
   return id;
+}
+
+/** What a tab store says this tab had open for login `uid`: { slots, viewed }, at most the tab's ceiling of slots
+    in the server's range with the shown one among them, or null (a fresh tab, another login, a malformed copy). Pure. */
+function openOf(tab, uid, cfg = SESSION_CONFIG) {
+  let v = null;
+  try { v = tab && uid ? JSON.parse(tab.get(cfg.openKey) || 'null') : null; } catch (e) { return null; }
+  if (!v || typeof v !== 'object' || v.uid !== uid || !Array.isArray(v.slots)) return null;
+  const slots = Array.from(new Set(v.slots.filter((s) => Number.isInteger(s) && s >= 0 && s <= cfg.maxSlot))).slice(0, cfg.maxConcurrentCharacters);
+  return slots.includes(v.viewed) ? { slots, viewed: v.viewed } : null;
 }
 
 /** `account.max_concurrent`, the server's concurrent-play limit, from one read key, or null when unstated. Pure. */
@@ -144,6 +158,8 @@ export class AccountSession {
     this.intents = (o.server && o.server.intents) || createIntentLedger();
     this.config = o.config || SESSION_CONFIG;
     this.tabId = tabSessionId(o.tab, this.config);
+    this._tab = o.tab || null;
+    this._ending = false;
     this._channel = o.channel || null;
     this._timers = o.timers || {};
     this._nudges = new Map();
@@ -159,6 +175,28 @@ export class AccountSession {
     this._storage = null;   // { at, bank, depot }: the newest account Storage any open hero read (item-sections.js storageOf)
     this._seenBanks = new WeakSet();   // the envelopes' `bank` objects already noted (a re-render brings no new one)
     this.social = o.social ? o.social(this) : null;
+    this._away = false;        // the page has been hidden longer than awayAfterMs
+    this._awayTimer = null;
+  }
+
+  /**
+   * THE PAGE WAS HIDDEN, OR SHOWN (boot.js, visibilitychange). Hidden past config.awayAfterMs, every session stops asking;
+   * shown again each asks ONE catch-up (CharacterSession.setAway, SocialSession.setAway). Nothing the server runs waits on this:
+   * hunts settle on its own tick, and a town body keeps its keepalive (playing = standing in town for everyone, Tyler 10-19).
+   */
+  setPageHidden(hidden) {
+    const clear = this._timers.clearTimer || ((t) => clearTimeout(t));
+    if (this._awayTimer !== null) { clear(this._awayTimer); this._awayTimer = null; }
+    if (hidden === true) {
+      if (this._away || this._ending) return;
+      const set = this._timers.setTimer || ((fn, ms) => setTimeout(fn, ms));
+      this._awayTimer = set(() => { this._awayTimer = null; this._setAway(true); }, this.config.awayAfterMs);
+    } else if (this._away) this._setAway(false);
+  }
+  _setAway(on) {
+    this._away = on;
+    for (const cs of this._chars.values()) cs.setAway(on);
+    if (this.social) this.social.setAway(on);
   }
 
   /** The account's gold, { gold, v }: the newest purse any open hero has read, or null. */
@@ -212,11 +250,22 @@ export class AccountSession {
       before the first read. A copy: the coach's facts (src/shell/launcher.js coachFactsOf) read it. */
   lastRoster() { return this._roster ? this._roster.map((r) => Object.assign({}, r)) : null; }
 
+  /** What this tab had open when it last stood, for this login ({ slots, viewed }), or null. */
+  lastOpen() { return openOf(this._tab, this.userId, this.config); }
+  forgetOpen() { if (this._tab) this._tab.remove(this.config.openKey); }
+
+  /* This tab's open heroes and the shown one, kept in the tab store for its next load (lastOpen); not while signing out. */
+  _keepOpen() {
+    if (!this._tab || this._ending) return;
+    this._tab.set(this.config.openKey, JSON.stringify({ uid: this.userId, slots: this.characters().map((c) => c.slot), viewed: this.viewed }));
+  }
+
   /** Show another open character. Only the pointer moves; every CharacterSession is left exactly as it was. */
   view(slot) {
     if (!this._chars.has(slot) || this.viewed === slot) return this.viewed === slot;
     const was = this._chars.get(this.viewed);
     this.viewed = slot;
+    this._keepOpen();
     /* the one left goes quiet (no live view, a plain read a minute); the one shown asks ONE settle at once */
     if (was) was.setViewed(false);
     this._chars.get(slot).setViewed(true);
@@ -331,6 +380,7 @@ export class AccountSession {
       this.close(slot);
       return { ok: false, reason };
     }
+    cs.setAway(this._away);   // opened in a page that is away (a reload behind another tab): it joins when the page is shown
     cs.connect();
     /* Playing = standing in town for everyone (Tyler 2026-10-19), viewed or not: a body from the
        moment it opens (a reload or login too), on the stand the SERVER gives it (its activity's
@@ -342,6 +392,7 @@ export class AccountSession {
     this._towns.get(slot).stand();
     if (this.viewed === null) this.viewed = slot;
     cs.setViewed(this.viewed === slot);   // only the viewed character streams live (CLAUDE.md §6)
+    this._keepOpen();
     this._emit('opened', slot);
     if (this.social) this.social.start();
     return { ok: true, session: cs };
@@ -413,12 +464,15 @@ export class AccountSession {
     if (town) { this._towns.delete(slot); town.destroy(); }
     cs.close();
     if (this.viewed === slot) { this.viewed = this._chars.size ? this.characters()[0].slot : null; if (this.viewed !== null) this._chars.get(this.viewed).setViewed(true); }
+    this._keepOpen();
     this._emit('closed', slot);
     return true;
   }
 
   /** Close every character, then forget the login everywhere on this device. */
   async signOut() {
+    this._ending = true;   // the closes below are not what this tab had open; auth.signOut removes the record
+    if (this._awayTimer !== null) { (this._timers.clearTimer || ((t) => clearTimeout(t)))(this._awayTimer); this._awayTimer = null; }
     for (const slot of Array.from(this._chars.keys())) this.close(slot);
     if (this.social) { this.social.destroy(); this.social = null; }
     await this.auth.signOut();

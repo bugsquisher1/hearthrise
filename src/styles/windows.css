@@ -74,6 +74,8 @@
 .hw-confirm-q { margin: 0; font-weight: 700; color: var(--ink); }
 .hw-confirm-note { margin: 2px 0 0; font-size: var(--t-micro); color: var(--ink-2); }
 .hw-confirm-note:empty { display: none; }
+.hw-sell-note { margin: 6px 0 0; font-size: var(--t-micro); color: var(--ink-2); }
+.hw-sell-note:empty { display: none; }
 .hw-confirm-do { display: flex; gap: 6px; margin-top: 8px; }
 .hw-confirm-do .hw-primary { display: inline-block; }
 .hw-pane:has(.hw-confirm.is-on) .hw-pick .hw-primary { display: none; }
@@ -209,6 +211,7 @@
 .hw-weights { display: none; margin: 6px 0 0; font-size: var(--t-micro); color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; cursor: help; }
 .hw-weights.is-on { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 12px; }
 .hw-weights span { white-space: nowrap; }
+.hw-weights span:empty { display: none; }
 .hw-weights small { font-family: var(--f-label); font-weight: 700; letter-spacing: .04em; color: var(--ink-3); }
 .hw-inv-foot { display: flex; align-items: center; gap: 10px; margin-top: 6px; font-size: var(--t-micro); color: var(--ink-2); }
 .hw-capacity { display: none; flex: 1; min-width: 0; align-items: center; gap: 6px; }
@@ -572,6 +575,9 @@
 .hw-char-ready.is-short { color: var(--red); }
 .hw-command .hw-tools .hw-primary:not(.is-on) { display: none; }
 .hw-char-do { display: flex; flex-direction: column; gap: 4px; }
+/* The phone's routes in this sheet (characters.js): an Invite on each other hero, the icons by name, Character list and
+   Sign out. The desktop has the strip, the tooltips and the right-click, and shows none of them. */
+.hw-phone-only, .hw-char-invite { display: none; }
 /* The rename panel (Tyler 10-22: a new name costs gold): shown only for the hero whose Rename was pressed. */
 .hw-rename { display: none; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line-soft); }
 .hw-rename.is-on { display: block; }
@@ -606,8 +612,29 @@
 .hw-alert-x .hs-glyph { width: 14px; height: 14px; }
 @media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
   .hw-alert-list { width: 300px; }
-  .hw-alert { font-size: var(--t-micro); padding: 0 0 0 10px; }
+  /* ONE CARD, SOLID (phone playtest 2026-10-31: two see-through alerts over a tip, none of them readable): the newest
+     alert alone, on the coach card's own fill, and a count of what waits behind it; closing it shows the next. */
+  .hw-alert { font-size: var(--t-micro); padding: 0 0 0 10px; background: var(--bg-2); }
+  .hw-alert-list > .hw-alert:not(:first-child) { display: none; }
+  .hw-alerts-more:not(:empty) { display: block; }
+  .hw-alert-do, .hw-alert-no, .hw-alert-share { min-height: 40px; }
+  .hw-alert-x { width: 40px; height: 40px; }
+  /* The analyzer is the player's ask, as a window is (hunt.css): the alert waits till it closes, the strip's count says so. */
+  .app:has(.hs-widget.is-analyzer) .hs-widget.is-alerts { visibility: hidden; }
+  /* All characters: Invite under Rename, the icons by name in two columns of thumb-sized presses, the account at the foot. */
+  .hw-phone-only { display: block; }
+  .hw-char-invite:not([hidden]) { display: inline-grid; place-items: center; min-height: 40px; }
+  .hw-char { flex-wrap: wrap; }
+  .hw-char-do { flex: 1 0 100%; flex-direction: row; justify-content: flex-end; }
+  .hw-char-do .hh-tool { min-height: 40px; }
+  .hw-icon-names { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px 8px; margin: 0 0 8px; padding: 0; list-style: none; }
+  .hw-icon-name { display: flex; align-items: center; gap: 8px; width: 100%; min-height: var(--tap); padding: 0 4px; border: 0; background: none; color: var(--ink-2); font: inherit; font-size: var(--t-micro); text-align: left; cursor: pointer; }
+  .hw-icon-name .hs-glyph { flex: none; }
+  .hw-account { display: flex; justify-content: space-between; gap: 8px; margin-top: 10px; padding-top: 10px; border-top: 2px solid var(--steel-sep); }
+  .hw-account .hh-tool { min-height: var(--tap); }
 }
+/* What waits behind the one alert a phone shows (above): a quiet count on the card's top edge. */
+.hw-alerts-more { display: none; position: absolute; bottom: 100%; right: 0; margin: 0; padding: 0 6px; background: var(--bg-2); font-size: var(--t-micro); color: var(--ink-2); }
 
 /* ── Report a problem (src/shell/windows/report.js): one text box, the details ride along ── */
 .rp { display: flex; flex-direction: column; gap: 8px; }

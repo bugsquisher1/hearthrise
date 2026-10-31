@@ -19,10 +19,10 @@
 // place (src/render/paint.js) on any character's change, a switch, or an
 // alert. Every number is the server's (src/shell/command-model.js).
 // ════════════════════════════════════════════════════════════════════════
-import { summaryOf } from '../shell/command-model.js?v=0.2.74';
-import { rows, text, cls, attr, style, element } from '../render/paint.js?v=0.2.74';
-import { patchRoleGlyph } from '../shell/widgets/bits.js?v=0.2.74';
-import { markPlayer, playerTargetOf } from '../shell/context-menu.js?v=0.2.74';
+import { summaryOf } from '../shell/command-model.js?v=0.2.75';
+import { rows, text, cls, attr, style, element } from '../render/paint.js?v=0.2.75';
+import { patchRoleGlyph } from '../shell/widgets/bits.js?v=0.2.75';
+import { markPlayer, playerTargetOf } from '../shell/context-menu.js?v=0.2.75';
 
 /** The menu target under a strip event: one of this account's own characters (its tab), or null. */
 export function stripTargetOf(e) {
@@ -30,9 +30,11 @@ export function stripTargetOf(e) {
   return tab ? playerTargetOf(tab) : null;
 }
 
+/* A phone has room for one word beside the icon row at its narrowest (app.css): "Heroes", carrying the alert count, and
+   the sheet it opens holds Characters and Sign out (src/shell/windows/characters.js, playtest 2026-10-31). */
 const STRIP_HTML = '<ol class="char-tabs"></ol>'
   + '<span class="char-strip-tools">'
-  + '<button type="button" class="char-tool" data-app="all" title="Every character on one screen (O)">All characters</button>'
+  + '<button type="button" class="char-tool is-all" data-app="all" aria-label="All characters" title="Every character on one screen (O)"><span class="char-tool-wide">All characters</span><span class="char-tool-short">Heroes</span><span class="char-badge char-all-badge"></span></button>'
   + '<button type="button" class="char-tool" data-app="characters">Characters</button>'
   + '<button type="button" class="char-tool" data-app="sign-out">Sign out</button></span>';
 
@@ -77,6 +79,7 @@ export function mountCharacterStrip(host, o) {
   host.setAttribute('aria-label', 'Characters');
   host.innerHTML = STRIP_HTML;
   const list = host.querySelector('.char-tabs');
+  const allBadge = host.querySelector('.char-all-badge');
   const glyphs = () => (o.glyphs ? o.glyphs() : {});
 
   /* The launcher row (a screen widget of the shell) sits over the strip's right end: keep clear of it. */
@@ -88,11 +91,15 @@ export function mountCharacterStrip(host, o) {
   function patch() {
     clearLaunchers();
     const viewed = o.account.viewed;
-    rows(list, o.account.characters().map((cs) => summaryOf(cs, o.alerts)), {
+    const all = o.account.characters().map((cs) => summaryOf(cs, o.alerts));
+    rows(list, all, {
       key: (x) => String(x.slot),
       build: () => element(doc, TAB_HTML),
       patch: (li, x) => patchTab(li, x, viewed, glyphs(), o.account.userId),
     });
+    const waiting = all.reduce((n, x) => n + x.alerts, 0);
+    text(allBadge, waiting ? String(waiting) : '');
+    cls(allBadge, 'is-on', waiting > 0);
   }
 
   const offs = new Map();

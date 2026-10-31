@@ -30,24 +30,24 @@
 // open doll slot and the "new" marks. No key here is a walk key: selling is
 // Delete, so W, A, S and D always reach the World (Tyler 10-18).
 // ════════════════════════════════════════════════════════════════════════
-import { kindOf, equipSlotFor, equipOps, markSeen, namedFuelOf } from '../../bag-model.js?v=0.2.74';
-import { assignToBar, barKind, barIndexOf, barKeyLabel } from '../../bar-assign.js?v=0.2.74';
-import { runIntent } from '../../intent-words.js?v=0.2.74';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.74';
-import { gold } from '../../../render/format.js?v=0.2.74';
-import { itemName } from '../../widgets/bits.js?v=0.2.74';
-import { showTip, hideTip } from '../item-tip.js?v=0.2.74';
-import { openFloatMenu, closeFloatMenu } from '../float-menu.js?v=0.2.74';
-import { stateOf, scratchOf, seenOf, confirmFor, setPref } from './state.js?v=0.2.74';
-import { LOOT_CHOICES, planBlock, dispatchWords } from '../../loot-dispatch.js?v=0.2.74';
-import { dispatchLoot } from '../../../session/loot-intents.js?v=0.2.74';
-import { fitsSlot, dollTip, DRAG_WORN } from './doll.js?v=0.2.74';
-import { askElsewhere } from './elsewhere.js?v=0.2.74';
-import { skillsOf } from '../../../session/item-sections.js?v=0.2.74';
-import { buryRecipeOf, buryLabel, buryBlock, startBury, stopBury, buryQty, namedBlock, burnNamed } from './bury.js?v=0.2.74';
-import { equipUpgrades } from '../../widgets/upgrade-line.js?v=0.2.74';
-import { wearBlock } from '../../gear-gate.js?v=0.2.74';
-import { levelOf } from '../../../session/character-sections.js?v=0.2.74';
+import { kindOf, equipSlotFor, equipOps, markSeen, namedFuelOf, styleWords } from '../../bag-model.js?v=0.2.75';
+import { assignToBar, barKind, barIndexOf, barKeyLabel } from '../../bar-assign.js?v=0.2.75';
+import { runIntent } from '../../intent-words.js?v=0.2.75';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.75';
+import { gold } from '../../../render/format.js?v=0.2.75';
+import { itemName } from '../../widgets/bits.js?v=0.2.75';
+import { showTip, hideTip } from '../item-tip.js?v=0.2.75';
+import { openFloatMenu, closeFloatMenu } from '../float-menu.js?v=0.2.75';
+import { stateOf, scratchOf, seenOf, confirmFor, setPref, eatBlock } from './state.js?v=0.2.75';
+import { LOOT_CHOICES, planBlock, dispatchWords } from '../../loot-dispatch.js?v=0.2.75';
+import { dispatchLoot } from '../../../session/loot-intents.js?v=0.2.75';
+import { fitsSlot, dollTip, DRAG_WORN } from './doll.js?v=0.2.75';
+import { askElsewhere } from './elsewhere.js?v=0.2.75';
+import { skillsOf, bagOf } from '../../../session/item-sections.js?v=0.2.75';
+import { buryRecipeOf, buryLabel, buryBlock, startBury, stopBury, buryQty, namedBlock, burnNamed } from './bury.js?v=0.2.75';
+import { equipUpgrades } from '../../widgets/upgrade-line.js?v=0.2.75';
+import { wearBlock } from '../../gear-gate.js?v=0.2.75';
+import { levelOf } from '../../../session/character-sections.js?v=0.2.75';
 
 const heroLevel = (cs) => { const lv = levelOf(cs); return lv ? lv.level : null; };
 
@@ -104,7 +104,6 @@ function say(st, repaint, msg, at) {
   repaint();
 }
 
-function goldNow(cs) { const s = cs.read('state'); return s && Number.isSafeInteger(s.gold) ? s.gold : null; }
 
 /** Wear `id` in `slot`, or take the slot's piece off (`id` null): ONE `equip` intent, unless the server's sections
     already say it would be refused (gear-gate.js: a hunt running, a requirement unmet), which is said instead. From
@@ -116,10 +115,13 @@ function wear(st, repaint, slot, id, at) {
   if (sc.pending) return Promise.resolve({ ok: false, error: 'busy' });
   const why = wearBlock(st.cs, id);
   if (why) { say(st, repaint, why, at); return Promise.resolve({ ok: false, error: 'blocked' }); }
+  const ops = equipOps(slot, id, st.eq, { bag: bagOf(st.cs), skills: skillsOf(st.cs) });
+  const said = id ? styleWords(st.eq, ops) : null;
   sc.wearing = { slots: [slot], items: id ? [id] : [] };
   return send(st, repaint, async () => {
-    try { return await st.cs.edgeIntent('equip', { equip: equipOps(slot, id, st.eq) }); } finally { sc.wearing = null; }
-  }, id ? 'Equipping…' : 'Taking it off…', null, at);
+    try { return await st.cs.edgeIntent('equip', { equip: ops }); } finally { sc.wearing = null; }
+  /* a new way to fight is said on the window's own line: the stack the press was on has left the bag */
+  }, id ? 'Equipping…' : 'Taking it off…', said ? () => said : null, said ? null : at);
 }
 
 function doPrimary(st, id, repaint) {
@@ -129,7 +131,9 @@ function doPrimary(st, id, repaint) {
     const slot = equipSlotFor(id, st.eq);
     if (slot) wear(st, repaint, slot, id, 'pick:' + id);
   } else if (k === 'food') {
-    send(st, repaint, () => cs.edgeIntent('eat', { item: id }), 'Eating…');
+    const why = eatBlock(cs, id);
+    if (why) say(st, repaint, why, 'pick:' + id);
+    else send(st, repaint, () => cs.edgeIntent('eat', { item: id }), 'Eating…');
   } else if (barKind(id) && st.bar && barIndexOf(cs, id) < 0) {
     send(st, repaint, () => assignToBar(cs, id), 'Putting it on the bar…');
   } else if (buryRecipeOf(id)) doBury(st, id, repaint);
@@ -165,13 +169,11 @@ function doSell(st, repaint) {
   const c = st.sc.confirm;
   if (!c || c.empty) return;
   const cs = st.cs;
-  const before = goldNow(cs);
   const lines = c.plan.lines;
   st.sc.confirm = null;
-  send(st, repaint, () => cs.edgeIntent('vendor_sell_many', { lines }), 'Selling…', () => {
-    const after = goldNow(cs);
+  send(st, repaint, () => cs.edgeIntent('vendor_sell_many', { lines }), 'Selling…', (r) => {
     for (const l of lines) st.sc.sel.delete(l.item);
-    return before !== null && after !== null ? 'The shop paid ' + gold(after - before) + '.' : 'Sold.';
+    return r && Number.isSafeInteger(r.paid) ? 'The shop paid ' + gold(r.paid) + '.' : 'Sold.';
   });
 }
 
@@ -212,7 +214,8 @@ function openMenu(ctx, body, st, id, at, repaint) {
   let h = '<b class="hw-menu-title">' + esc(itemName(id)) + '</b>';
   const block = k === 'gear' ? wearBlock(st.cs, id) || (equipSlotFor(id, st.eq) ? '' : itemName(id) + ' does not go in any slot.') : '';
   if (k === 'gear') h += item('m-equip', 'Equip', !block, '', block);
-  if (k === 'food') h += item('m-eat', 'Eat', true);
+  const eatWhy = k === 'food' ? eatBlock(st.cs, id) : '';
+  if (k === 'food') h += item('m-eat', 'Eat', !eatWhy, '', eatWhy);
   const br = buryRecipeOf(id);
   const brWhy = br ? buryBlock(st.cs, br) : '';
   /* a fuel stack offers ONE ("Fuel the hearth", a bench count of one) beside the whole stack ("Fuel all N", Tyler 10-25) */

@@ -20,14 +20,17 @@
 //                     pockets show it as pending; `items` and `qty`, which every
 //                     action reads, stay the server's.
 // ════════════════════════════════════════════════════════════════════════
-import { bagOf, bagCapOf, goldOf, rulesOf, shopOf, equipmentOf, huntLootOf } from '../../../session/item-sections.js?v=0.2.74';
-import { settingsOf, analyzerOf } from '../../../session/hunt-sections.js?v=0.2.74';
-import { BAG_CATS, BAG_SORTS, view, kindOf, equipSlotFor, sellPlan, namedFuelOf } from '../../bag-model.js?v=0.2.74';
-import { barKind, barIndexOf } from '../../bar-assign.js?v=0.2.74';
-import { itemName } from '../../widgets/bits.js?v=0.2.74';
-import { buryRecipeOf, buryLabel, buryQty } from './bury.js?v=0.2.74';
-import { upgradeOf } from '../../widgets/upgrade-line.js?v=0.2.74';
-import { tickOf } from '../../town-work.js?v=0.2.74';
+import { bagOf, bagCapOf, goldOf, rulesOf, shopOf, equipmentOf, huntLootOf } from '../../../session/item-sections.js?v=0.2.75';
+import { settingsOf, analyzerOf } from '../../../session/hunt-sections.js?v=0.2.75';
+import { BAG_CATS, BAG_SORTS, view, kindOf, equipSlotFor, sellPlan, namedFuelOf } from '../../bag-model.js?v=0.2.75';
+import { barKind, barIndexOf } from '../../bar-assign.js?v=0.2.75';
+import { itemName } from '../../widgets/bits.js?v=0.2.75';
+import { buryRecipeOf, buryLabel, buryQty } from './bury.js?v=0.2.75';
+import { upgradeOf } from '../../widgets/upgrade-line.js?v=0.2.75';
+import { tickOf } from '../../town-work.js?v=0.2.75';
+import { ITEMS } from '../../../data/items.js?v=0.2.75';
+import { REFUSAL_WORDS } from '../../../data/refusal-words.js?v=0.2.75';
+import { heroVitalsOf } from '../../../session/character-sections.js?v=0.2.75';
 
 const SCRATCH = new WeakMap();
 const CAT_IDS = new Set(BAG_CATS.map(([id]) => id));
@@ -91,6 +94,15 @@ export function huntLoot(cs) {
   if (l) return l;
   const a = analyzerOf(cs);
   return a ? a.hero.loot.map((x) => ({ item: x.item, count: x.count })) : null;
+}
+
+/** Why Eat is off for `id`, or '' (the press goes and the server answers): the engine's own refusal (eat.js
+    already_full) for a food that brings no buff while the server's HP is at its max. An unknown HP never blocks. */
+export function eatBlock(cs, id) {
+  const b = ITEMS[id] && ITEMS[id].buff;
+  if (b && typeof b === 'object' && typeof b.type === 'string') return '';
+  const v = heroVitalsOf(cs);
+  return Number.isFinite(v.hp) && Number.isFinite(v.hpMax) && v.hpMax > 0 && v.hp >= v.hpMax ? REFUSAL_WORDS.already_full : '';
 }
 
 /** The one primary action for a stack: [verb, label], or null. */

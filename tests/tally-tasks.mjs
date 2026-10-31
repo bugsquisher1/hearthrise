@@ -504,9 +504,16 @@ const ARMS = {
       if (bag !== 1) problems.push(`${path}: the reloaded bag holds ${bag} Apprentice Hat`);
       /* ONE notice: the alert centre fires it once, and a second scan of the same envelope adds none. */
       const account = { viewed: 0, characters: () => [fresh], character: () => fresh, subscribe: () => () => {} };
+      /* (the clock caught: the line leaves by itself, the panel 2026-10-31: Tamsin's payment still over the hunt an hour later) */
+      const realTimeout = globalThis.setTimeout, due = [];
+      globalThis.setTimeout = (fn, ms) => { due.push({ fn, ms }); return 0; };
       const ac = X.AL.createAlertCenter(account);
+      globalThis.setTimeout = realTimeout;
       const notes = ac.list().filter((a) => a.kind === 'tally');
       if (notes.length !== 1 || !/Tamsin paid .* for Giant Rats\./.test(notes[0].text)) problems.push(`${path}: the payment notices read ${JSON.stringify(notes)}`);
+      const fade = due.find((d) => d.ms >= 10000 && d.ms <= 60000);
+      if (!fade) problems.push(`${path}: Tamsin's payment line has no end: it would sit over the hunt until pressed`);
+      else { fade.fn(); if (ac.list().some((a) => a.kind === 'tally')) problems.push(`${path}: Tamsin's payment line outlived its time`); }
       ac.destroy();
       /* The next page (the residue remembers it): the same payment is no news. */
       const ac2 = X.AL.createAlertCenter(account);

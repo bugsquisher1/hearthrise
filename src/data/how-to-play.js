@@ -22,16 +22,16 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { ITEMS } from './items.js?v=0.2.74';
-import { HUNT_ROLES, roleForWeapon, roleKeyOf } from './hunt-roles.js?v=0.2.74';
-import { STARTER_SETS } from './start-kit.js?v=0.2.74';
-import { WEIGHT_ORDER, weightSentence } from './armour-weights.js?v=0.2.74';
+import { ITEMS } from './items.js?v=0.2.75';
+import { HUNT_ROLES, roleForWeapon, roleKeyOf } from './hunt-roles.js?v=0.2.75';
+import { STARTER_SETS } from './start-kit.js?v=0.2.75';
+import { WEIGHT_ORDER, weightSentence } from './armour-weights.js?v=0.2.75';
 
 const style = (id, role, weapons, name, does, uses) => Object.freeze({ id, role, weapons: Object.freeze(weapons), name, does, uses });
 
 /* The lead line above the rows: the rule itself. The sword and shield are WORN, not in the bag (start-kit.js
    START_EQUIPMENT); a player can make more heroes and play several at once (2 slots to start, up to 4 at once). */
-export const HOW_YOU_FIGHT_LEAD = 'There\'s no class to pick. The weapon you hold is how you fight: you start with a sword and shield on, and the other starter weapons are in your bag. To switch, equip another in town. Later you can make more heroes and play up to four at once.';
+export const HOW_YOU_FIGHT_LEAD = 'There\'s no class to pick. The weapon you hold is how you fight: you start with a sword and shield on, and the other starter weapons are in your bag. To switch, equip another in town. You start with two hero slots, gold buys more, and up to four heroes can play at once.';
 
 export const HOW_YOU_FIGHT = Object.freeze([
   style('hold', 'tank', ['practice_sword', 'practice_shield'], 'Sword and shield',
@@ -55,7 +55,7 @@ export const HELP_NOTES = Object.freeze([
   note('away', 'It keeps hunting with the game closed',
     'Hunts run on our server, so you can close the game and come back to what your hero earned. A hunt stops when stamina runs out, when your hero dies, when it cannot pay for supplies, or when you press Leave hunt.'),
   note('stamina', 'Stamina is hunting time',
-    'Every minute of hunting uses a minute of stamina, and every minute out of a hunt gives one back, even with the game closed. A free hero holds up to 8 hours.'),
+    'Every minute of hunting uses a minute of stamina, and every minute out of a hunt gives one back, even with the game closed. A hero holds up to 8 hours, or 12 with premium: the hourglass on your bar shows yours.'),
   note('weapon', 'Your weapon is how you fight',
     'There is no class. A sword and shield hold monsters on you, two axes or a hammer hit hard, a bow or crossbow shoots from a distance, a wand and spellbook cast spells, and a staff heals. Equip another from your bag to switch.'),
   note('supplies', 'Food and drink',

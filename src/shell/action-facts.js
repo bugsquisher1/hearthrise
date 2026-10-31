@@ -16,17 +16,17 @@
 //                       the first whose conditions pass AND that can act fires)
 // Display only: every number is a catalogue row or the server's projection.
 // ════════════════════════════════════════════════════════════════════════
-import { ATTACK_KINDS } from '../data/condition-metrics.js?v=0.2.74';
-import { ABILITIES } from '../data/abilities.js?v=0.2.74';
-import { aimsAtMonsters } from '../core/hunt/conditions.js?v=0.2.74';
-import { CONSUMABLES, CONSUMABLE_RULES } from '../data/consumables.js?v=0.2.74';
-import { STATUSES } from '../data/statuses.js?v=0.2.74';
-import { HUNT_ROLES, ROLE_KEYS, shootsItem } from '../data/hunt-roles.js?v=0.2.74';
-import { ITEMS } from '../data/items.js?v=0.2.74';
-import { isRune } from '../data/supplies.js?v=0.2.74';
-import { WEAPON_WORDS } from '../data/hunt-hud.js?v=0.2.74';
-import { itemName, abilityName, runeWords, familyCount } from './widgets/bits.js?v=0.2.74';
-import { storeOf, storeWords, conditionWords } from './bar-draft.js?v=0.2.74';
+import { ATTACK_KINDS } from '../data/condition-metrics.js?v=0.2.75';
+import { ABILITIES } from '../data/abilities.js?v=0.2.75';
+import { aimsAtMonsters } from '../core/hunt/conditions.js?v=0.2.75';
+import { CONSUMABLES, CONSUMABLE_RULES } from '../data/consumables.js?v=0.2.75';
+import { STATUSES } from '../data/statuses.js?v=0.2.75';
+import { HUNT_ROLES, ROLE_KEYS, shootsItem } from '../data/hunt-roles.js?v=0.2.75';
+import { ITEMS } from '../data/items.js?v=0.2.75';
+import { isRune } from '../data/supplies.js?v=0.2.75';
+import { WEAPON_WORDS } from '../data/hunt-hud.js?v=0.2.75';
+import { itemName, abilityName, runeWords, familyCount } from './widgets/bits.js?v=0.2.75';
+import { storeOf, storeWords, conditionWords } from './bar-draft.js?v=0.2.75';
 
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 const secs = (ms) => (ms % 1000 ? (ms / 1000).toFixed(1) : String(ms / 1000));
@@ -229,7 +229,7 @@ export function conflictsOf(wires) {
 /* A SHOT SPELL'S SHOTS (Andy #62: Precision Shot and Flame Volley looked ready and never fired). A cast looses what
    the attack lane would (abilities.js castShotOf): the worn ammo, or the item of an ammo slot on the bar, that the worn
    weapon shoots, carried, or bought from its store row while the store is on. With none the engine never casts it. */
-function hasShot(set, bag, worn) {
+export function hasShot(set, bag, worn) {
   const storeOn = set.supplySource === 'store' || set.onEmpty === 'switch';
   const ids = new Set([worn]);
   for (const s of set.slots || []) if (s && !s.empty && s.enabled !== false && s.action.type === 'attack_with_item') ids.add(own(ATTACK_KINDS, s.action.id) ? worn : s.action.id);
@@ -263,10 +263,11 @@ export function reasonOf(sl, set, bag, hero, worn) {
     if (!r.universal && !r.disciplines.includes(disc)) return { code: 'weapon', text: 'Your weapon can’t use this. Needs ' + weaponsFor(r.disciplines[0]) + '.', glyph: 'uiLock', strike: true };
     const storeOn = !!set && (set.supplySource === 'store' || set.onEmpty === 'switch');
     if (r.rune && !(familyCount(r.rune, bag) > 0) && !(storeOn && storeOf(a, set && set.store))) {
-      return { code: 'rune', text: 'Needs a ' + runeWords(r.rune, 1) + ' for each cast: you carry none. Pick the store’s rune for this slot to buy one as used.', glyph: 'uiChest', strike: true };
+      const rune = runeWords(r.rune, 1);
+      return { code: 'rune', text: 'Needs ' + (/^[aeiou]/i.test(rune) ? 'an ' : 'a ') + rune + ' for each cast: you carry none. Pick the store’s rune for this slot to buy one as used.', glyph: 'uiChest', strike: true };
     }
     if (r.ammo > 0 && set && !hasShot(set, bag, worn)) {
-      return { code: 'ammo', text: 'Needs ammo for each cast: you carry none your weapon shoots, and no ammo slot buys any. Put arrows or bolts on the bar (Ammo) to cast it.', glyph: 'uiChest', strike: true };
+      return { code: 'ammo', text: 'Nothing loaded to shoot. Put arrows or bolts on the bar (Ammo): this spell casts them.', glyph: 'uiChest', strike: true };
     }
     if (sl.usable === false) return { code: 'server', text: 'The server says this cannot fire now.', glyph: 'uiLock', strike: true };
     if (hero && Number.isFinite(hero.mana) && r.mana > hero.mana) return { code: 'mana', text: 'Needs ' + r.mana + ' mana, you have ' + Math.floor(hero.mana) + '.', glyph: 'uiPotion', strike: false };

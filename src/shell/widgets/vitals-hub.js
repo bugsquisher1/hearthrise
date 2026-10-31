@@ -21,15 +21,15 @@
 // heroVitalsOf, the ONE reader the Character tab shares (r09: the two said Level 4
 // and 11), stamina from staminaOf, regen from the hunt section. Built once, patched in place.
 // ════════════════════════════════════════════════════════════════════════
-import { CONSUMABLES } from '../../data/consumables.js?v=0.2.74';
-import { heroVitalsOf } from '../../session/character-sections.js?v=0.2.74';
-import { huntOf, huntBagOf, staminaOf } from '../../session/hunt-sections.js?v=0.2.74';
-import { carriedOf } from '../../session/item-sections.js?v=0.2.74';
-import { text, attr } from '../../render/paint.js?v=0.2.74';
-import { whole, hoursMinutes } from '../../render/format.js?v=0.2.74';
-import { glyphSvg } from '../launcher.js?v=0.2.74';
-import { itemIconHtml, itemName } from './bits.js?v=0.2.74';
-import { staminaPlusHtml } from './stamina-buy.js?v=0.2.74';
+import { CONSUMABLES } from '../../data/consumables.js?v=0.2.75';
+import { heroVitalsOf } from '../../session/character-sections.js?v=0.2.75';
+import { huntOf, huntBagOf, staminaOf, settingsOf } from '../../session/hunt-sections.js?v=0.2.75';
+import { carriedOf } from '../../session/item-sections.js?v=0.2.75';
+import { text, attr } from '../../render/paint.js?v=0.2.75';
+import { whole, gold, hoursMinutes } from '../../render/format.js?v=0.2.75';
+import { glyphSvg } from '../launcher.js?v=0.2.75';
+import { itemIconHtml, itemName } from './bits.js?v=0.2.75';
+import { staminaPlusHtml } from './stamina-buy.js?v=0.2.75';
 
 /* THE RING on a 120-unit grid, centre (60, 60), drawn smooth (no crispEdges) at any size the stylesheet gives it.
    From the outside in: the steel bezel (r 59), the gauge channel (r 52, 10 wide) with HP on its left from the bottom
@@ -73,6 +73,17 @@ function foodOf(bag) {
   return { n, top: top ? top.id : null };
 }
 
+/* The store food the bar names first (a slot on, its store partner or the row itself), as the server prices it, or null. */
+function storeFoodOf(settings) {
+  if (!settings) return null;
+  for (const s of settings.slots) {
+    if (s.empty || s.enabled === false || s.action.type !== 'consume') continue;
+    const row = settings.store.find((b) => b.kind === 'heal' && b.id === (s.action.store || s.action.id));
+    if (row) return row;
+  }
+  return null;
+}
+
 function fill(el, f) { attr(el, 'stroke-dasharray', (Math.round(f * 1000) / 10) + ' 100'); }
 
 /** Patch the hub under `el` (the bar widget) from the character's envelope. */
@@ -87,11 +98,17 @@ export function patchHub(el, ctx) {
   const level = v.level;
   const xp = v.xpPct;
   const pair = (cur, max) => (ok(cur) && ok(max) ? whole(cur) + '/' + whole(max) : '–');
-  /* Per second, one decimal (huntOf: manaPerS is the server's per-minute mana_regen over 60, hpPerS the engine's in-fight rate). */
+  /* Per second, one decimal (huntOf: manaPerS is the server's per-minute mana_regen over 60). */
   const regen = (r) => (ok(r) && r > 0 ? (r < 0.05 ? '+<0.1' : '+' + r.toFixed(1)) + '/s' : '');
   text(el.querySelector('[data-v="hp"]'), pair(v.hp, v.hpMax));
   text(el.querySelector('[data-v="mana"]'), pair(v.mana, v.manaMax));
-  text(el.querySelector('[data-r="hp"]'), hero ? regen(hero.hpPerS) : '');
+  /* HP SAYS THE RATE A WATCHER CAN SEE (designer 2026-10-31): the hero recovers twenty times faster between fights, and
+     a screen reading "+0.6/s" over HP racing back looks wrong. In a fight the blows drown the slow rate, so that one is
+     the title's. Whole numbers from 5 up: it has to fit beside the medallion. */
+  const rest = hero ? hero.hpRestPerS : null;
+  const hpRate = el.querySelector('[data-r="hp"]');
+  text(hpRate, ok(rest) && rest > 0 ? '+' + (rest >= 5 ? Math.round(rest) : rest.toFixed(1)) + '/s rest' : '');
+  attr(hpRate, 'title', ok(rest) && rest > 0 ? 'Health regained each second between fights. In a fight: ' + regen(hero.hpPerS) + '.' : 'Health regained each second');
   text(el.querySelector('[data-r="mana"]'), hero ? regen(hero.manaPerS) : '');
   fill(el.querySelector('.hb-arc.is-hp'), share(v.hp, v.hpMax));
   fill(el.querySelector('.hb-arc.is-mana'), share(v.mana, v.manaMax));
@@ -104,8 +121,14 @@ export function patchHub(el, ctx) {
   const food = foodOf(carriedOf(cs));
   const sock = el.querySelector('.hb-socket.is-food');
   const ico = sock.querySelector('.hb-socket-ico');
-  if (ico.getAttribute('data-for') !== String(food.top)) { ico.innerHTML = food.top ? itemIconHtml(ctx.glyphs, food.top) : glyphSvg(ctx.glyphs, 'uiFood'); attr(ico, 'data-for', String(food.top)); }
-  text(sock.querySelector('.hb-socket-k'), 'Food ×' + whole(food.n));
+  /* Out of own food with a store food on the bar, the socket says that's what the hero eats (blind playtest 2026-10-31:
+     "Food ×0" while the hero ate store shrimp every 30 s). Its price is the server's (hunt_settings.store). */
+  const store = food.n > 0 ? null : storeFoodOf(settingsOf(cs));
+  const icon = food.top || (store && store.id);
+  if (ico.getAttribute('data-for') !== String(icon)) { ico.innerHTML = icon ? itemIconHtml(ctx.glyphs, icon) : glyphSvg(ctx.glyphs, 'uiFood'); attr(ico, 'data-for', String(icon)); }
+  text(sock.querySelector('.hb-socket-k'), store ? 'Food: store' : 'Food ×' + whole(food.n));
   const where = huntBagOf(cs) ? 'the hunt bag' : 'the bag';
-  attr(sock, 'title', food.top ? whole(food.n) + ' food in ' + where + ' (most: ' + itemName(food.top) + ')' : 'No food in ' + where + ': a store food on the bar buys as used');
+  attr(sock, 'title', food.top ? whole(food.n) + ' food in ' + where + ' (most: ' + itemName(food.top) + ')'
+    : store ? 'No food in ' + where + ': your bar buys ' + itemName(store.id) + ' at ' + gold(store.price) + ' each as it is used'
+    : 'No food in ' + where + ' and no store food on your bar');
 }

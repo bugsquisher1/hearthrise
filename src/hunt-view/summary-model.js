@@ -18,8 +18,8 @@
 // Reading `hunt`: the server's session record sits under `hunt.session` (the
 // section view) and, in the client fixture, flat on `hunt`. Both are read.
 // ════════════════════════════════════════════════════════════════════════
-import { sanitizeSummary, sanitizeSummaries } from '../session/hunt-summaries.js?v=0.2.74';
-import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.74';
+import { sanitizeSummary, sanitizeSummaries } from '../session/hunt-summaries.js?v=0.2.75';
+import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.75';
 
 export { sanitizeSummaries };
 
@@ -153,6 +153,16 @@ export function huntAgainOf(summary) {
     hunt: summary.hunt, preset: summary.preset, hours: summary.hoursLimit,
     bag: summary.bag.map(([item, qty, ess]) => (ess ? { item, qty, essential: true } : { item, qty })),
   };
+}
+
+/**
+ * Hunt again with what the bag holds NOW (`pack`: hunt-list.js packFor, Enter's own), never the old hunt's loaded counts:
+ * the supplies it ate are gone, so the old counts were refused as "You no longer have that many." while Enter went in
+ * at once (blind playtest 2026-10-31). What stays the old hunt's: the ground, the set, the limits, its essential marks.
+ */
+export function againWithBag(args, pack) {
+  const essential = new Set(args.bag.filter((l) => l.essential === true).map((l) => l.item));
+  return Object.assign({}, args, { bag: pack.map((l) => (essential.has(l.item) ? { item: l.item, qty: l.qty, essential: true } : { item: l.item, qty: l.qty })) });
 }
 
 /**

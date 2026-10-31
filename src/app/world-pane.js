@@ -12,12 +12,13 @@
 // sends an intent or writes a number.
 // ════════════════════════════════════════════════════════════════════════
 
-import { worldViewOf } from './world-view.js?v=0.2.74';
-import { mountShell } from '../shell/shell.js?v=0.2.74';
-import { logFor } from '../hunt-view/combat-log.js?v=0.2.74';
-import { pickHunt } from '../shell/windows/hunts.js?v=0.2.74';
-import { worldTargetOf } from '../shell/menu-providers.js?v=0.2.74';
-import { TAP_WINDOWS } from '../data/world/stations.js?v=0.2.74';
+import { worldViewOf } from './world-view.js?v=0.2.75';
+import { mountShell } from '../shell/shell.js?v=0.2.75';
+import { logFor } from '../hunt-view/combat-log.js?v=0.2.75';
+import { pickHunt } from '../shell/windows/hunts.js?v=0.2.75';
+import { worldTargetOf } from '../shell/menu-providers.js?v=0.2.75';
+import { TAP_WINDOWS } from '../data/world/stations.js?v=0.2.75';
+import { connection, loadingWords } from '../net/connection.js?v=0.2.75';
 
 /* The windows a town keeper or station opens (a tapped prop's `window`), and nothing else. */
 const KEEPER_WINDOWS = new Set(TAP_WINDOWS);
@@ -83,9 +84,20 @@ export async function mountWorldPane(host, character, o) {
     return true;
   }
 
+  /* NEVER A SILENT WAIT (phone playtest 2026-10-31: 35 s of "Loading the world…" in a tunnel, no word about why): while
+     the world loads, its line says when the connection is gone or slow. It comes back by itself: nothing to press. */
+  const statusEl = stage.querySelector('.world-status');
+  const firstWords = statusEl.textContent;
+  const waitFrom = Date.now();
+  const sayWait = () => { statusEl.textContent = loadingWords(connection.state(), Date.now() - waitFrom, firstWords); };
+  const waitTick = doc.defaultView.setInterval(sayWait, 1000);
+  doc.defaultView.addEventListener('offline', sayWait);
+  doc.defaultView.addEventListener('online', sayWait);
+  sayWait();
+
   let runtime = null;
   try {
-    const { bootWorld } = await import('../world/world-boot.js?v=0.2.74');
+    const { bootWorld } = await import('../world/world-boot.js?v=0.2.75');
     const town = opts.account && typeof opts.account.townOf === 'function' ? opts.account.townOf(character.slot) : null;
     runtime = await bootWorld(pane, { view, character, emit, town, peers: opts.peers });
     runtime.sync();
@@ -93,6 +105,10 @@ export async function mountWorldPane(host, character, o) {
     console.error('[world] the world failed to load', e);
     const s = stage.querySelector('.world-status');
     if (s) s.textContent = 'The world could not load. Reload the page to try again.';
+  } finally {
+    doc.defaultView.clearInterval(waitTick);
+    doc.defaultView.removeEventListener('offline', sayWait);
+    doc.defaultView.removeEventListener('online', sayWait);
   }
 
   const inHunt = () => !!character.read('hunt') || !!view()._huntId;

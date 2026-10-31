@@ -110,7 +110,11 @@
   .auth-title { min-height: 40px; margin: 0 -16px 0; padding: 4px 16px; }
   .auth-field input { min-height: 36px; }
   .auth-submit { min-height: 40px; }
-  .auth-links { padding-top: 6px; }
+  .auth-links { padding-top: 2px; }
+  /* A thumb's press, not a line of text (phone playtest 2026-10-31: 24 px). */
+  .auth-link { min-height: var(--tap); padding: 0 8px; }
+  .auth-links .auth-link:first-child { margin-left: -8px; }
+  .auth-links .auth-link:last-child { margin-right: -8px; }
   .auth-foot { margin: 0 -16px -12px; padding: 6px 16px 8px; }
 }
 
@@ -202,18 +206,43 @@
 .char-strip-tools { display: flex; align-items: stretch; flex: none; }
 .char-tool { font: inherit; font-size: 0.85rem; color: var(--ink-3); background: none; border: 0; padding: 0 0.6rem; cursor: pointer; }
 .char-tool:hover { color: var(--ink); }
-/* The landscape phone keeps the strip to one line: the bars and the doing line fold away, the badge stays. */
-@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
-  .char-tab { max-width: 130px; padding: 2px 6px; }
-  .char-tab-doing, .char-bars { display: none; }
-  .char-tool { padding: 0 0.4rem; font-size: var(--t-micro); }
-}
+.char-tool-short, .char-tool .char-all-badge { display: none; }
 .game { flex: 1; min-height: 0; display: flex; flex-direction: column; position: relative; }
 .game #panel-world { flex: 1; min-height: 0; padding: 8px; }
+/* THE STRIP ON A PHONE (phone playtest 2026-10-31: the tabs squashed to 12 px, and at 667 px the icon row lay over All
+   characters, Characters and Sign out). One row 40 px tall, the icon row's own height, its foot where the World already
+   started: first "Heroes", the All characters sheet that also holds Character list and Sign out, with the count of
+   alerts waiting; then the tabs, thumb-wide and viewed one first, panning under the thumb. Where the icon row leaves no
+   room for a tab (the container query: the strip's padding already clears the row) Heroes is the way to them. */
+@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
+  .char-strip { box-sizing: border-box; height: 40px; padding-left: 2px; gap: 0; align-items: flex-start; container: char-strip / inline-size; }
+  .game #panel-world { padding-top: 2px; }
+  .char-strip-tools { order: -1; height: 40px; }
+  .char-tool { position: relative; height: 40px; padding: 0 4px; font-size: var(--t-micro); font-weight: 700; color: var(--ink-2); }
+  .char-tool:not(.is-all), .char-tool-wide { display: none; }
+  .char-tool-short { display: inline; }
+  .char-tool .char-all-badge.is-on { display: block; position: absolute; top: 0; right: 0; min-width: 16px; height: 16px; padding: 0 3px; line-height: 16px; }
+  .char-tabs { flex: 1 1 0; height: 40px; overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain; scrollbar-width: none; }
+  .char-tabs::-webkit-scrollbar { display: none; }
+  .char-tab-row { flex: none; }
+  .char-tab-row:has(.is-shown) { order: -1; }
+  .char-tab { height: 40px; min-width: var(--tap); max-width: 110px; padding: 0 6px; justify-content: center; }
+  .char-tab:not(.is-shown) .char-tab-main, .char-tab-doing, .char-bars { display: none; }
+  @container char-strip (max-width: 150px) { .char-tabs { display: none; } }
+}
+/* The connection's one line (src/net/connection.js): solid, over everything, taking no press. */
+.conn-line { position: fixed; top: 56px; left: 50%; z-index: 70; transform: translateX(-50%); box-sizing: border-box; width: max-content; max-width: calc(100vw - 24px); margin: 0; padding: 2px 10px 2px 14px; pointer-events: none;
+  background: var(--bg-2); border: 6px solid transparent; border-image: url('../../assets/ui/steel-frame-thin.png') 3 / 6px stretch; image-rendering: pixelated; box-shadow: inset 4px 0 0 var(--gold);
+  font-family: var(--f-ui); font-size: var(--t-small); color: var(--ink); }
+.conn-line[hidden] { display: none; }
+@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
+  .conn-line { top: 104px; font-size: var(--t-micro); }
+}
 /* In a hunt the top bar carries the ground's name and clock, so the pane's own
    title row would only repeat it and cost the stage a line. */
 .app.is-game:has(.ht-bar) #panel-world .world-chrome { display: none; }
 
+.hero-note { color: var(--ink-3); }
 /* THE CREATION STEP (src/app/hero-create.js), in the account card: the hero in a sunk mirror on the left (drawn at
    x4, standing on the pixel ground shadow at the same x4), its name and four colour strips beside it, then How you
    fight; the foot holds the way back and Enter town. */
@@ -245,8 +274,23 @@
   /* The phone shows How you fight too (playtest 2026-10-29: a phone player never met the five ways to fight): the
      column takes the form's height (it adds none of its own) and scrolls, so the card still fits 423 px. */
   .hero-body { align-items: stretch; }
-  .hero-how { min-width: 9rem; padding-left: 12px; contain: size; overflow-y: auto; }
+  .hero-how { min-width: 8rem; padding-left: 12px; contain: size; overflow-y: auto; }
+  /* Beside this card the crest leaves a 667 px phone 455 px: Enter town and How you fight ran off the right edge (played
+     2026-10-31). The crest stays on sign-in; this step uses the room. */
+  .auth:has(.auth-card.is-create) { gap: 0; padding: 8px 4px; }
+  .auth:has(.auth-card.is-create) .auth-brand { display: none; }
 }
+
+/* THE LOADING SHELL (play.html .boot-shell; src/platform/load-shell.js): the crest, one line and a thin bar, in the middle
+   of the page until the first screen takes over. */
+.boot-shell { position: fixed; inset: 0; pointer-events: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 16px; }
+.boot-shell-line { margin: 0; font-family: var(--f-ui); font-size: 15px; color: var(--ink); text-align: center; }
+.boot-shell-bar { width: min(280px, 70vw); height: 4px; background: var(--line); }
+.boot-shell-fill { display: block; width: 0; height: 100%; background: var(--gold); transition: width .2s linear; }
+@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
+  .boot-shell .auth-crest { width: 78px; height: 96px; }
+}
+@media (prefers-reduced-motion: reduce) { .boot-shell-fill { transition: none; } }
 
 /* A PHONE HELD UPRIGHT (play.html .turn-phone; QA 2026-10-24: in portrait the cards ran off the right edge and half
    the icon row and the bar were off screen). Phones are landscape-only (CLAUDE.md §1): a touch phone held upright

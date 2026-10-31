@@ -7,6 +7,7 @@
 //   node tests/town-walk.mjs --mutate       every planted defect must turn a rule RED
 //   node tests/town-walk.mjs --shots <dir>  also write the visual-gate screenshot (1440x900)
 //
+// TW-31 a town at rest reads every idlePollMs; anyone moving, or the hero's own step, brings back pollMs at once.
 // mutant-anchors: src/session/town-presence.js src/session/account-session.js src/world/world-boot.js src/world/walk-scene.js src/world/sandbox-scene.js src/app/world-pane.js supabase/migrations/2027-01-28-town-stands.sql
 // mutant-writes-tree: no — pure mutants plant into a temp copy of src/, page mutants into served overrides
 //
@@ -397,13 +398,50 @@ async function pureRules(M) {
     if (gone.length !== 1 || gone[0].args.p_map !== null) fail('TW-10 an unviewed character that starts a hunt did not leave town: ' + JSON.stringify(gone.map((c) => c.args)));
     tp.destroy();
   }
+  // TW-31 (old-laptop player 10-31: 30 reads a minute standing in a town where nothing moves, 90 with company): a town at
+  // rest reads every idlePollMs, never staler than staleMs; anyone moving, or the hero's own step, brings back pollMs at once
+  {
+    const sent = [];
+    let now = 0, tick = null, moved = 0;
+    const WALKER = '11111111-1111-4111-8111-111111111111';
+    const server = { rpc: (name, args) => { sent.push({ name, args, at: now });
+      const walkers = [{ id: WALKER, slot: 0, name: 'Mira', x: 10 + moved, y: 10, gx: 10 + moved, gy: 10, dir: 's' }];
+      return Promise.resolve({ ok: true, body: { ok: true, stamped: true, full: true, walkers, gone: [], cursor: now, me: { map: 'town_common', x: 6, y: 12, gx: 6, gy: 12, dir: 's', at: [6, 12], station: 'green', stand: 0, since_ms: 1 } } }); } };
+    const tp = new M.town.TownPresence({ server, slot: 0, self: () => TYLER, timers: { setTimer: (fn) => { tick = fn; return 1; }, clearTimer: () => {} }, now: () => now });
+    tp.show('town_common'); await settle();
+    const readsIn = (ms0, ms1) => sent.filter((c) => c.name === 'hr_town_view' && c.at >= ms0 && c.at < ms1).length;
+    const run = async (until) => { for (; now < until; now += L.pollMs) { tp.walkers(); tick(); await settle(); if (tp.walkers().length !== 1) fail('TW-31 the people went stale at ' + now + ' ms while the town was read at rest'); } };
+    await run(70000);
+    const rest = readsIn(10000, 70000);
+    if (rest > 60000 / L.idlePollMs + 1 || rest < 60000 / L.idlePollMs - 1) fail('TW-31 a town at rest read its people ' + rest + ' times in a minute (want every idlePollMs, ' + 60000 / L.idlePollMs + ')');
+    if (!(L.idlePollMs < L.staleMs / 1.5)) fail('TW-31 idlePollMs ' + L.idlePollMs + ' is too close to staleMs ' + L.staleMs + ': the people blink out at rest');
+    /* someone moves: the next read hears it (at most idlePollMs late), and the reads after it are at the walking pace */
+    moved = 1;
+    const t1 = now;
+    await run(t1 + L.idlePollMs + L.pollMs);
+    const heardAt = now;
+    const n0 = readsIn(0, heardAt);
+    moved = 2; await run(heardAt + L.pollMs); moved = 3; await run(heardAt + 2 * L.pollMs); moved = 4; await run(heardAt + 3 * L.pollMs);
+    if (readsIn(0, now) - n0 < 3) fail('TW-31 a town where someone moved stayed slow: ' + (readsIn(0, now) - n0) + ' reads in ' + 3 * L.pollMs + ' ms');
+    /* quiet again, then the hero steps: the next tick reads */
+    await run(now + 3 * L.idleAfterQuiet * L.idlePollMs);
+    const before = readsIn(0, now);
+    now += 100;
+    tp.publish({ map: 'town_common', x: 7, y: 12, gx: 7, gy: 12, dir: 'e' }); await settle();
+    tp.walkers(); tick(); await settle();
+    if (readsIn(0, now + 1) === before) fail('TW-31 the hero stepped in a town at rest and the next tick read nobody');
+    tp.destroy();
+  }
   // TW-17 (perf audit 10-23: the town read 30 a minute with no town drawn): a shown town reads its people on
   // the poll only while a frame asks for them (walkers()); not drawn (a hidden tab, a pane not drawing) it reads
   // nothing, and the first frame after the pause reads at once
   {
     const sent = [];
     let now = 0, tick = null;
-    const tp = new M.town.TownPresence({ server: meServer(sent), slot: 0, self: () => TYLER,
+    const meSent = meServer(sent);
+    /* someone in town keeps walking, so the town is read at its walking pace (TW-31 is the town at rest) */
+    const tp = new M.town.TownPresence({ server: { rpc: (name, args) => meSent.rpc(name, args).then((a) => (name === 'hr_town_view'
+      ? { ok: true, body: Object.assign({}, a.body, { walkers: [{ id: '11111111-1111-4111-8111-111111111111', slot: 0, name: 'Mira', x: 10, y: 10, gx: 11, gy: 10, dir: 'e' }] }) } : a)) }, slot: 0, self: () => TYLER,
       timers: { setTimer: (fn) => { tick = fn; return 1; }, clearTimer: () => {} }, now: () => now });
     tp.show('town_common'); await settle();
     const reads = () => sent.filter((c) => c.name === 'hr_town_view').length;
@@ -964,7 +1002,10 @@ const PURE_MUTANTS = [
   ['a parked body keeps alive at the walking pace', 'src/session/town-presence.js', '(this.limits.parkedKeepaliveMs || this.limits.keepaliveMs)', 'this.limits.keepaliveMs'],
   ['a parked body names the start tile', 'src/session/town-presence.js', "    return this._server.rpc('hr_town_here', { p_slot: this._slot, p_map: map }).then((ans) => {",
     "    this._server.rpc('hr_town_move', { p_slot: this._slot, p_map: map, p_x: 11, p_y: 9, p_gx: 11, p_gy: 9, p_dir: 's' });\n    return this._server.rpc('hr_town_here', { p_slot: this._slot, p_map: map }).then((ans) => {"],
-  ['a town nobody draws keeps reading', 'src/session/town-presence.js', '    if (this._now() - this._drawnAt <= 2 * this.limits.pollMs) this.read();', '    this.read();'],
+  ['a town nobody draws keeps reading', 'src/session/town-presence.js', '    if (this._now() - this._drawnAt <= 2 * this.limits.pollMs && this._readDue()) this.read();', '    if (this._readDue()) this.read();'],
+  ['a town at rest keeps reading at the walking pace', 'src/session/town-presence.js', '    return this._quiet < L.idleAfterQuiet || this._now() - this._readAskedAt >= L.idlePollMs;', '    return true;'],
+  ['a town at rest stays slow although someone moved', 'src/session/town-presence.js', '    this._quiet = walking || heard !== this._heard ? 0 : this._quiet + 1;', '    this._quiet++;'],
+  ['a town at rest stays slow although the hero stepped', 'src/session/town-presence.js', "    if (!samePlace(place, this._want)) this._quiet = 0;   // the hero's own step: who is near it changes\n", ''],
   ['a town drawn again waits for the poll', 'src/session/town-presence.js', '    if (this._map && !this._parked && now - this._drawnAt > 2 * this.limits.pollMs) this.read();\n', ''],
   ['a parked character that hunts stays in town', 'src/session/town-presence.js', '      if (this._busy()) { this._leave(); return; }\n', ''],
   ['go names more than a station', 'src/session/town-presence.js', "rpc('hr_town_go', { p_slot: this._slot, p_station: station })", "rpc('hr_town_go', { p_slot: this._slot, p_station: station, p_x: 1 })"],
@@ -1018,7 +1059,9 @@ async function main() {
   if (clean.length) { console.log('  ✗ clean control RED: ' + clean.join('; ')); process.exit(1); }
   console.log('  ✓ clean control green');
   let bad = 0;
-  for (const [name, file, from, to] of PURE_MUTANTS) {
+  const onlyAt = process.argv.indexOf('--only');   // a name fragment: prove just those pure mutants (a local re-check)
+  const pure = PURE_MUTANTS.filter((m) => onlyAt < 0 || m[0].includes(process.argv[onlyAt + 1]));
+  for (const [name, file, from, to] of pure) {
     const tmp = copySrc();
     try {
       const text = readFileSync(join(tmp, file), 'utf8');
@@ -1038,7 +1081,7 @@ async function main() {
     if (fails.length) console.log('  ✓ ' + name + ' — caught (' + fails[0].split(' ')[0] + ')');
     else { console.log('  ✗ ' + name + ' — NOT caught'); bad++; }
   }
-  const n = PURE_MUTANTS.length + (onlyPure ? 0 : PAGE_MUTANTS.length);
+  const n = pure.length + (onlyPure ? 0 : PAGE_MUTANTS.length);
   console.log(bad ? 'town-walk --mutate: ' + bad + ' escaped' : 'town-walk --mutate: ' + n + '/' + n + ' mutants caught');
   process.exit(bad ? 1 : 0);
 }

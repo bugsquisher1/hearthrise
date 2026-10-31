@@ -18,7 +18,10 @@
 //   PostHog  identified_only profiles keyed by the account id, kept in memory only,
 //            its script fetched (on idle) and started only once the account id is known (its bootstrap distinct id: no
 //            anonymous id is ever minted or merged, nothing runs on the sign-in screen);
-//            no autocapture or pageviews; session replay only while the game
+//            no pageviews and no ordinary clicks: ONLY rage clicks and dead clicks (a stuck player) are on, on the
+//            characters and game screens, as the element's tag, classes and ids (no text, no value, nothing inside
+//            .ph-no-capture, .ph-mask (the chat) or an input), each capped per load (CLICK_MAX); every event carries
+//            `release` = BUILD.version; session replay only while the game
 //            screen shows, every input masked, chat text masked (.ph-mask),
 //            .ph-no-capture blocked
 // Anywhere else (localhost, a preview host, the kill switch) nothing loads and
@@ -29,18 +32,36 @@
 // live view's own emits (live-link.js: 'live', 'reseed') and its engine's
 // running(), read and never changed; leave_hunt_clicked and character_created
 // from their buttons (track). Nothing here is ever read back by the game (§1).
+//
+// THE FUNNEL (where a new player stops), display-only, each once per its scope in one page load (PostHog's funnel takes
+// a person's first; a reload may send a step again, never more than once):
+//   signup_done        the characters screen with no hero yet (boot.js; the sign-up form cannot send: no account id
+//                      exists until the email link is opened)        per account
+//   first_town         a hero's first read, no hunt on record yet     per hero
+//   first_hunt_left    the end of the first hunt a hero ever had, seen live, with its reason   per hero
+//   first_sale         the server confirmed a sale (the shop's, or Dispatch loot with sold stacks)  per account (the intent ledger is the account's)
+//   first_gear_equipped  the server confirmed an equip                                          per account
+//   tutorial_card      the coach moved to a card ({ card, state: 'shown' | 'done' })              per hero and card
+//   level_reached      the hero's Level rose between two server answers                           per hero and level
+//   session_return     a hero's first read finds its last hunt over: minutes since it ended, by the server's clock  per hero
+// Every event is bounded: EVENT_MAX named events per load, CLICK_MAX of each click kind (a loop cannot spend the quota).
 // ════════════════════════════════════════════════════════════════════════
 
-import { OBSERVABILITY_CONFIG } from './observability-config.js?v=0.2.74';
-import { BUILD } from '../build-info.js?v=0.2.74';
-import { observeSessions } from '../session/character-session.js?v=0.2.74';
-import { partyOf, huntOf, huntDensityOf } from '../session/hunt-sections.js?v=0.2.74';
-import { startDiagnostics } from './diagnostics.js?v=0.2.74';
-import { endedSessionOf } from '../hunt-view/summary-model.js?v=0.2.74';
+import { OBSERVABILITY_CONFIG } from './observability-config.js?v=0.2.75';
+import { BUILD } from '../build-info.js?v=0.2.75';
+import { observeSessions } from '../session/character-session.js?v=0.2.75';
+import { partyOf, huntOf, huntDensityOf } from '../session/hunt-sections.js?v=0.2.75';
+import { levelOf } from '../session/character-sections.js?v=0.2.75';
+import { startDiagnostics } from './diagnostics.js?v=0.2.75';
+import { endedSessionOf } from '../hunt-view/summary-model.js?v=0.2.75';
 
 const EARLY_MAX = 10;        // errors held while Sentry loads
 const QUEUE_MAX = 20;        // events held while PostHog loads
+const EVENT_MAX = 400;       // named events per page load, all kinds together: a loop must not spend the quota
+const CLICK_MAX = 20;        // $rageclick and $dead_click, each, per page load
+const CLICK_SCREENS = new Set(['characters', 'game']);   // where those clicks may leave: signed in, past the sign-in form
 const STALL_MAX = 50;        // live_view_stall per page load: a stuck loop must not spend the quota
+const DIFF_MAX = 12;         // live_diverged per page load: the first few name a cause; the rest would repeat it
 const STALL_POLL_MS = 1000;  // how often a running live engine is looked at (starving emits nothing)
 const HANG_PRINT = 'main-thread-hang';
 const HANG_READ_MS = 1000;   // the hang report waits this long for the frame that held the page to be reported
@@ -56,7 +77,7 @@ const WEATHER = [
   /^Auto refresh tick failed with error\. This is likely a transient error\./,
 ];
 
-const NOOP = Object.freeze({ environment: 'dev', send: false, identify() {}, forget() {}, screen() {}, track() {} });
+const NOOP = Object.freeze({ environment: 'dev', send: false, identify() {}, forget() {}, screen() {}, track() {}, once() {} });
 let active = NOOP;
 
 /* Telemetry never breaks the game: every SDK call goes through here. */
@@ -159,17 +180,42 @@ function sentryOptions(cfg, env, S) {
   };
 }
 
+/* RAGE AND DEAD CLICKS ONLY. The SDK raises $rageclick from inside its autocapture (a rage click is a run of clicks it
+   sees), so autocapture is on for 'click' alone and sdkGate drops every ordinary $autocapture before it is queued. A click
+   event carries the element chain WITHOUT text (mask_all_text) and without the attributes that hold words (CLICK_ATTRS);
+   a click in a field, in the chat (.ph-mask) or inside .ph-no-capture raises nothing at all. */
+const CLICK_SKIP = ['.ph-no-capture', '.ph-mask', '.ph-no-rageclick', '.ph-no-deadclick', 'input', 'textarea', 'select', '[contenteditable]'];
+const CLICK_ATTRS = ['value', 'placeholder', 'title', 'aria-label', 'alt', 'href', 'src', 'name'];
+
+/** Every event the SDK is about to queue (PostHog's before_send): an ordinary click never leaves; a rage or dead click leaves
+    only from the characters and game screens, with an account behind it, CLICK_MAX of each kind per load; all carry the release. */
+function sdkGate(st, event) {
+  const n = event && event.event;
+  if (n === '$autocapture') return null;
+  if (n === '$rageclick' || n === '$dead_click') {
+    if (!st.uid || !CLICK_SCREENS.has(st.screen)) return null;
+    st.clicks[n] = (st.clicks[n] || 0) + 1;
+    if (st.clicks[n] > CLICK_MAX) return null;
+  }
+  if (event) event.properties = Object.assign({}, event.properties, { release: BUILD.version });
+  return event;
+}
+
 /* `uid` is the account id: PostHog starts only once it is known (startPostHog), so the account id is
    its distinct id from the very first call. Nothing is stored on the device (persistence 'memory'),
    which is why the id must be handed in: left to itself the SDK mints an anonymous id on every page
    load and identify() merges it onto the person (the SDK's own warning, Andy's report #61). */
-function posthogOptions(cfg, win, uid) {
+function posthogOptions(cfg, win, uid, gate) {
   return {
     api_host: cfg.posthog.host, person_profiles: 'identified_only',
     persistence: 'memory',
     bootstrap: { distinctID: uid, isIdentifiedID: true },
-    autocapture: false, capture_pageview: false, capture_pageleave: false, capture_dead_clicks: false, capture_heatmaps: false,
-    capture_performance: false, capture_exceptions: false, rageclick: false, disable_surveys: true,
+    autocapture: { dom_event_allowlist: ['click'], element_attribute_ignorelist: CLICK_ATTRS.slice() },
+    rageclick: { css_selector_ignorelist: CLICK_SKIP.slice(), ignore_text_selection: true },
+    capture_dead_clicks: { css_selector_ignorelist: CLICK_SKIP.slice(), element_attribute_ignorelist: CLICK_ATTRS.slice(), capture_dead_swipes: false },
+    mask_all_text: true, before_send: gate,
+    capture_pageview: false, capture_pageleave: false, capture_heatmaps: false,
+    capture_performance: false, capture_exceptions: false, disable_surveys: true,
     disable_external_dependency_loading: true, save_referrer: false, mask_personal_data_properties: true,
     get_current_url: () => bare(win.location.href),
     disable_session_recording: true,   // on only while the game screen shows (screen('game'))
@@ -181,12 +227,15 @@ function posthogOptions(cfg, win, uid) {
 function watchHunt(cs, w, now, send) {
   const s = endedSessionOf(cs);
   const open = !!s && !s.ended;
-  if (!w.seen) { if (cs.record) { w.seen = true; w.open = open; w.sid = open ? s.id : null; } return; }
+  if (!w.seen) { if (cs.record) { w.seen = true; w.open = open; w.sid = open ? s.id : null; w.never = !s; } return; }
   if (w.open && (!open || s.id !== w.sid)) {
     const e = s && s.id === w.sid ? s : null;
     if (w.starvedAt !== null) { w.stall('starve', now - w.starvedAt); w.starvedAt = null; }
-    send('hunt_ended', { reason: e ? e.reason : null,
-      seconds: e && e.enteredMs !== null && e.endedMs !== null ? Math.round((e.endedMs - e.enteredMs) / 1000) : null });
+    const ended = { reason: e ? e.reason : null,
+      seconds: e && e.enteredMs !== null && e.endedMs !== null ? Math.round((e.endedMs - e.enteredMs) / 1000) : null };
+    /* reseeds_total: every reseed this page load saw, all heroes (live_view_stall stops at STALL_MAX, this does not) */
+    send('hunt_ended', Object.assign({ reseeds_total: w.total() }, ended));
+    if (w.never) { w.never = false; send('first_hunt_left', Object.assign({ slot: cs.slot }, ended)); }   // the first hunt this hero ever had
     w.open = false; w.sid = null; w.reseeds = 0;
   }
   if (open && s.id !== w.sid) {
@@ -204,14 +253,50 @@ function watchHunt(cs, w, now, send) {
 function watchLive(cs, w, why, now) {
   /* a prediction that ran to the hunt's end (live-link.js ended) is not starving */
   const running = !!(cs.live && (cs.live.running() || (typeof cs.live.ended === 'function' && cs.live.ended())));
-  if (why === 'reseed') { w.reseeds++; w.stall('reseed', now - w.since); w.since = now; }
-  else if (why === 'live') { if (w.starvedAt !== null) { w.stall('starve', now - w.starvedAt); w.starvedAt = null; } w.since = now; }
-  else if (w.open && w.running && !running && w.starvedAt === null) w.starvedAt = now;
+  if (why === 'reseed') {
+    /* 'reseed' is every eased restart: a correction from the server's world, or a catch-up (a frame late over a swing
+       boundary, a tab back from the background) that corrected nothing. Counted as one, a slow machine read as a
+       server disagreement. */
+    const did = cs.liveStats().reseeds;
+    if (did !== w.reseedsSeen) {
+      w.reseedsSeen = did; w.reseeds++; w.count(); w.stall('reseed', now - w.since); w.since = now;
+      const d = cs.liveLink && typeof cs.liveLink.takeDiff === 'function' ? cs.liveLink.takeDiff() : null;
+      if (d) w.diverged(d);
+    } else { w.stall('catchup', now - w.caughtAt); w.caughtAt = now; }
+  } else if (why === 'live') { if (w.starvedAt !== null) { w.stall('starve', now - w.starvedAt); w.starvedAt = null; } w.since = now; w.caughtAt = now; }
+  /* A prediction that STOPPED is not one that starved: a viewed hero switched away from drops its engine (live-link.js
+     off), and its "starve" read the time the player spent on another hero. Out of seeds it holds a world (stalled). */
+  else if (w.open && w.running && !running && w.starvedAt === null && cs.live.stalled()) w.starvedAt = now;
   w.running = running;
+}
+
+/* The funnel steps read off one hero's server projection (`once(name, props, scope)`: sent at most once per scope this
+   load). The first read is the baseline: a hero in town that has never hunted is in its first town visit; a hero whose last
+   hunt is over is returning, minutes by the server's clock. Later reads: a Level above the baseline's is a level reached. */
+function watchFunnel(cs, w, once) {
+  if (!cs.record) return;
+  const lv = levelOf(cs);
+  const slot = cs.slot;
+  if (!w.based) {
+    w.based = true;
+    w.level = lv ? lv.level : null;
+    const s = endedSessionOf(cs);
+    if (!s) once('first_town', { slot }, 'town:' + slot);
+    else if (s.ended && s.endedMs !== null && typeof cs.serverNow === 'function') {
+      const t = cs.serverNow();
+      if (Number.isFinite(t)) once('session_return', { slot, minutes: Math.max(0, Math.round((t - s.endedMs) / 60000)), reason: s.reason }, 'return:' + slot);
+    }
+    return;
+  }
+  if (!lv) return;
+  if (w.level !== null && lv.level > w.level) once('level_reached', { slot, level: lv.level }, 'level:' + slot + ':' + lv.level);
+  w.level = lv.level;
 }
 
 /** One named event (telemetry only, never read back). A no-op where nothing sends. */
 export function track(name, props) { safe(() => active.track(name, props)); }
+/** One named event at most once per `scope` (a string) in this page load and account; the same no-op. */
+export function trackOnce(name, props, scope) { safe(() => active.once(name, props, scope)); }
 
 /**
  * Start telemetry for this page load (once). Returns { environment, send, identify(uid),
@@ -223,7 +308,8 @@ export function startObservability(win, cfg = OBSERVABILITY_CONFIG) {
   if (!env.send) return Object.assign({}, NOOP, { environment: env.environment });
   const doc = win.document;
   const now = () => (win.performance ? win.performance.now() : Date.now());
-  const st = { uid: null, game: false, queue: [], stalls: 0, hung: false, hang: null };
+  const st = { uid: null, game: false, screen: null, queue: [], stalls: 0, diffs: 0, hung: false, hang: null,
+    sent: 0, reseeds: 0, clicks: {}, onceKeys: new Set() };
   let sentry = null;
   let ph = null;       // the PostHog instance, started by the first account id
   let phSdk = null;    // window.posthog once its script has loaded: nothing runs until an account is known
@@ -252,7 +338,7 @@ export function startObservability(win, cfg = OBSERVABILITY_CONFIG) {
      second sign-in in the same load re-seeds the same instance with the new id the same way. */
   const startPostHog = () => {
     if (!phSdk || !st.uid || phUid === st.uid) return;
-    if (!ph) ph = phSdk.init(cfg.posthog.key, posthogOptions(cfg, win, st.uid)) || phSdk;
+    if (!ph) ph = phSdk.init(cfg.posthog.key, posthogOptions(cfg, win, st.uid, (event) => sdkGate(st, event))) || phSdk;
     else ph.reset({ bootstrap: { distinctID: st.uid, isIdentifiedID: true } });
     phUid = st.uid;
     if (st.game) ph.startSessionRecording();
@@ -278,19 +364,49 @@ export function startObservability(win, cfg = OBSERVABILITY_CONFIG) {
   /* An event with no account behind it has no distinct id to carry: it is not sent, and not held for
      whoever signs in next. */
   const send = (name, props) => {
+    if (st.sent >= EVENT_MAX) return;
     if (!st.uid) return;
     const p = Object.assign({}, props || {});
+    st.sent++;
     if (ph) safe(() => ph.capture(name, p)); else if (st.queue.length < QUEUE_MAX) st.queue.push([name, p]);
   };
+  /* A funnel step: once per scope for this account in this load (a new sign-in starts the scopes afresh). */
+  const once = (name, props, scope) => {
+    const key = name + '|' + scope;
+    if (!st.uid || st.onceKeys.has(key)) return;
+    st.onceKeys.add(key);
+    send(name, props);
+  };
   const watched = new Map();
+  const ledgers = new WeakSet();
+  /* first_sale / first_gear_equipped: the account's intent ledger (src/session/intent-ledger.js) says what the server confirmed.
+     The ledger is the account's, shared by its heroes, so these two are per account. */
+  const watchLedger = (ledger) => {
+    if (!ledger || typeof ledger.subscribe !== 'function' || ledgers.has(ledger)) return;
+    ledgers.add(ledger);
+    ledger.subscribe((kind, e) => safe(() => {
+      const r = kind === 'end' && e.result && e.result.ok ? e.result : null;
+      if (!r) return;
+      if (e.verb === 'vendor_sell_many' || (e.verb === 'loot_dispatch' && r.dispatch && r.dispatch.sold && r.dispatch.sold.stacks > 0)) once('first_sale', {}, 'sale');
+      else if (e.verb === 'equip') once('first_gear_equipped', {}, 'gear');
+    }));
+  };
   observeSessions((cs) => {
-    const w = { seen: false, open: false, sid: null, running: false, since: now(), starvedAt: null, reseeds: 0,
-      stall: (kind, ms) => { if (st.stalls < STALL_MAX) { st.stalls++; send('live_view_stall', { kind, ms: Math.round(ms), reseeds: w.reseeds }); } } };
+    const w = { seen: false, open: false, sid: null, running: false, since: now(), caughtAt: now(), starvedAt: null, reseeds: 0, reseedsSeen: 0,
+      never: false, based: false, level: null,
+      /* reseeds_total (hunt_ended): every real reseed this page load saw, all heroes, past live_view_stall's STALL_MAX */
+      total: () => st.reseeds, count: () => { st.reseeds++; },
+      stall: (kind, ms) => { if (st.stalls < STALL_MAX) { st.stalls++; send('live_view_stall', { kind, ms: Math.round(ms), reseeds: w.reseeds }); } },
+      /* WHAT DIFFERED at a correction (live-diff.js), with the build that predicted it: a tab left on an older build
+         than the server's differs at every commit, and this event names that or the input that really differs. */
+      diverged: (d) => { if (st.diffs < DIFF_MAX) { st.diffs++; send('live_diverged', { version: BUILD.version, hunt: d.hunt, swing: d.swing, count: d.count, by: d.by, lines: d.lines, page_s: Math.round(now() / 1000) }); } } };
     watched.set(cs, w);
+    watchLedger(cs.intents);
     cs.subscribe((c, why) => safe(() => {
       if (why === 'closed') { watched.delete(cs); return; }
       watchHunt(cs, w, now(), send);
       watchLive(cs, w, why, now());
+      watchFunnel(cs, w, once);
     }));
   });
   win.setInterval(() => { for (const [cs, w] of watched) if (w.open) safe(() => watchLive(cs, w, null, now())); }, STALL_POLL_MS);
@@ -325,7 +441,9 @@ export function startObservability(win, cfg = OBSERVABILITY_CONFIG) {
   active = {
     environment: env.environment, send: true,
     identify(uid) {
-      st.uid = typeof uid === 'string' && uid ? uid : null;
+      const next = typeof uid === 'string' && uid ? uid : null;
+      if (next !== st.uid) st.onceKeys.clear();
+      st.uid = next;
       if (!st.uid) return;
       if (sentry) safe(() => sentry.setUser({ id: st.uid }));
       safe(loadPostHog);
@@ -341,12 +459,14 @@ export function startObservability(win, cfg = OBSERVABILITY_CONFIG) {
     },
     /* Replay records the game screen only: never sign-in, the characters list (it names the email) or the closed notice. */
     screen(name) {
+      st.screen = name;
       const game = name === 'game';
       if (game === st.game) return;
       st.game = game;
       if (ph) safe(() => (game ? ph.startSessionRecording() : ph.stopSessionRecording()));
     },
     track: send,
+    once,
   };
   return active;
 }

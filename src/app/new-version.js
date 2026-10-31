@@ -23,8 +23,8 @@
 // can raise the banner.
 // ════════════════════════════════════════════════════════════════════════
 
-import { BUILD } from '../build-info.js?v=0.2.74';
-import { readServed } from '../session/server.js?v=0.2.74';
+import { BUILD } from '../build-info.js?v=0.2.75';
+import { readServed } from '../session/server.js?v=0.2.75';
 
 export const NEW_VERSION_COPY = Object.freeze({
   line: 'A new version of Hearthrise is out. Reload to get it.',
@@ -138,7 +138,8 @@ export function mountNewVersion(win, o = {}) {
   };
 
   function onWake() { if (doc.visibilityState !== 'hidden') api.check(); }
-  const timer = o.timers === false ? null : win.setInterval(() => api.check(), NEW_VERSION_TIMING.checkEveryMs);
+  /* a hidden page asks nothing: being shown again (onWake) asks at once */
+  const timer = o.timers === false ? null : win.setInterval(() => { if (doc.visibilityState !== 'hidden') api.check(); }, NEW_VERSION_TIMING.checkEveryMs);
   win.addEventListener('focus', onWake);
   doc.addEventListener('visibilitychange', onWake);
   return api;

@@ -18,18 +18,28 @@
 //      offset by the camera's whole-device-pixel remainder (core/camera.js);
 //   3. draw the nameplates, the walk mark and speech bubbles at SCREEN
 //      resolution so text stays crisp.
+// A FRAME IS PAINTED ONLY WHEN ITS DRAW LIST CHANGED (frame-sig.js, tests/perf-budget.mjs PB-IDLE): composeFrame
+// runs every frame, and a list equal to the one on the canvas leaves the canvas as it is. So anything that animates
+// (a walker, a fire's clip, a hit) paints on the frame it changes, at full rate, and a still town costs no pixels.
+// THE GROUND IS KEPT WHILE THE CAMERA STANDS (groundLayer): void, chunks and decals, composed once for that view.
+// Moving, a frame composes them directly: nothing is copied twice on the way to the screen.
 // Colours: --world-* tokens via `css`. Tile, chunk, zoom: the map's grid (zs = z x T / 32).
 // ════════════════════════════════════════════════════════════════════════
-import { zoomFor, frameView, cleanInset } from '../core/camera.js?v=0.2.74';
-import { composeFrame } from '../core/compose.js?v=0.2.74';
-import { createGroundChunks } from './ground-chunks.js?v=0.2.74';
-import { paintStub } from '../stub-atlas.js?v=0.2.74';
+import { zoomFor, frameView, cleanInset } from '../core/camera.js?v=0.2.75';
+import { composeFrame } from '../core/compose.js?v=0.2.75';
+import { createGroundChunks } from './ground-chunks.js?v=0.2.75';
+import { createFrameSig } from './frame-sig.js?v=0.2.75';
+import { paintStub } from '../stub-atlas.js?v=0.2.75';
 
 const LIGHT_BANDS = 4;   // stepped pools: pixel-art light, no airbrush
 const FLASH_ALPHA = 0.7; // a hit's silhouette over the frame
 const CHUNK_KEEP = 24;   // baked ground chunks kept (LRU): a 192 x 116 town is 96 of ~1 MB each
 const WARM_MS = 8;       // a new map's first view: ground baked per frame while the last frame stays
 const AHEAD_MS = 6;      // the chunks just off screen: baked per idle slice, so walking onto one bakes nothing
+const OPAQUE = Object.freeze({ alpha: false });   // a layer every frame covers whole: the browser copies it, never blends it
+/* A held picture is painted again this often, whatever the list says: a canvas a browser blanked without telling (no
+   contextrestored) heals itself rather than staying blank. A tenth of a percent of what a still town used to paint. */
+const HEAL_MS = 5000;
 
 /**
  * @param {{win: Window, doc: Document, book: object, images: object, tables: object,
@@ -39,14 +49,22 @@ export function createCanvasBackend(o) {
   const { win, doc, css } = o;
   let { book, images, tables } = o;
   const tone = (name) => css('--world-' + name);
-  const layer = () => { const c = doc.createElement('canvas'); return { c, g: c.getContext('2d') }; };
-  const comp = layer(), shade = layer(), lit = layer();
-  /* THE MASKS ARE KEPT (tests/perf-budget.mjs): two full-size raster passes most frames would repeat. */
-  let shadeSig = null, litSig = null;
-  const masks = { shadow: 0, light: 0, kept: 0 };
-  /* a canvas the browser lost and gave back is blank: draw its mask again */
-  shade.c.addEventListener('contextrestored', () => { shadeSig = null; });
-  lit.c.addEventListener('contextrestored', () => { litSig = null; });
+  const layer = (opts) => { const c = doc.createElement('canvas'); return { c, g: c.getContext('2d', opts) }; };
+  const comp = layer(OPAQUE), floor = layer(OPAQUE), shade = layer(), lit = layer(), rim = layer();
+  /* THE MASKS ARE KEPT (tests/perf-budget.mjs): full-size raster passes most frames would repeat. */
+  let shadeSig = null, litSig = null, rimSig = null;
+  const masks = { shadow: 0, light: 0, vignette: 0, kept: 0 };
+  /* THE FRAME AND THE GROUND ARE KEPT (frame-sig.js): what is on the canvas, and what the ground layer holds. */
+  const frameSig = createFrameSig(), floorSig = createFrameSig();
+  let floorGood = false, paintedAt = -Infinity;
+  const kept = { painted: 0, held: 0, floorMade: 0, floorKept: 0 };
+  const repaint = () => { frameSig.forget(); };
+  /* a canvas the browser lost and gave back is blank: draw its mask (and so the frame) again */
+  shade.c.addEventListener('contextrestored', () => { shadeSig = null; repaint(); });
+  lit.c.addEventListener('contextrestored', () => { litSig = null; repaint(); });
+  rim.c.addEventListener('contextrestored', () => { rimSig = null; repaint(); });
+  floor.c.addEventListener('contextrestored', () => { floorGood = false; repaint(); });
+  comp.c.addEventListener('contextrestored', repaint);
   const stubs = new Map();
   let host = null, canvas = null, ctx = null, ro = null, onResize = null;
   let map = null;
@@ -255,19 +273,32 @@ export function createCanvasBackend(o) {
       g.globalCompositeOperation = 'source-over';
     }
     if (vignette) {
-      const vw = fv.open.w, vh = fv.open.h;   // the vignette rings the uncovered World
-      const cx = fv.open.x + vw / 2 - view.ox, cy = fv.open.y + vh / 2 - view.oy;
-      g.save();
-      g.translate(cx, cy);
-      g.scale(vw / 2, vh / 2);
-      const v = g.createRadialGradient(0, 0, 0.55, 0, 0, 1.55);
-      v.addColorStop(0, 'transparent');
-      v.addColorStop(1, tone('vignette'));
-      g.fillStyle = v;
-      g.fillRect(-2, -2, 4, 4);
-      g.restore();
+      /* the vignette rings the uncovered World where it sits on the SCREEN: the camera's walk moves it by under an art px
+         here, so it is held on a whole one and its mask outlives the walk (a gradient per frame was a full-view raster) */
+      const vw = fv.open.w, vh = fv.open.h;
+      const cx = Math.round(fv.open.x - fv.cam.x + T + vw / 2), cy = Math.round(fv.open.y - fv.cam.y + T + vh / 2);
+      const sig = view.w + ',' + view.h + '|' + vw + ',' + vh + '|' + cx + ',' + cy + '|' + tone('vignette');
+      if (sig !== rimSig) { rimSig = sig; masks.vignette++; drawVignette(view, vw, vh, cx, cy); } else masks.kept++;
+      g.drawImage(rim.c, 0, 0);
     }
   }
+
+  function drawVignette(view, vw, vh, cx, cy) {
+    sizeTo(rim.c, view.w, view.h);
+    const r = rim.g;
+    r.setTransform(1, 0, 0, 1, 0, 0);
+    r.clearRect(0, 0, view.w, view.h);
+    r.translate(cx, cy);
+    r.scale(vw / 2, vh / 2);
+    const v = r.createRadialGradient(0, 0, 0.55, 0, 0, 1.55);
+    v.addColorStop(0, 'transparent');
+    v.addColorStop(1, tone('vignette'));
+    r.fillStyle = v;
+    r.fillRect((-1 - cx) * 2 / vw, (-1 - cy) * 2 / vh, (view.w + 2) * 2 / vw, (view.h + 2) * 2 / vh);
+    r.setTransform(1, 0, 0, 1, 0, 0);
+  }
+
+  const platesOf = (list) => list.plates.slice().sort((a, b) => (b.kind === 'self') - (a.kind === 'self'));
 
   /* Screen-resolution marks: the target square, HP bars, damage floats, then
      nameplates on top. Sizes scale with the zoom so they track the art. */
@@ -334,7 +365,7 @@ export function createCanvasBackend(o) {
        touch one already placed steps up a line until it is clear. */
     const placed = [];
     plateHits = [];
-    for (const p of list.plates.slice().sort((a, b) => (b.kind === 'self') - (a.kind === 'self'))) {
+    for (const p of platesOf(list)) {
       const px = font(p.kind === 'self' ? 5 : 4.5);
       ctx.font = '700 ' + px + 'px ' + (css('--f-ui') || 'sans-serif');
       ctx.lineWidth = Math.max(2, Math.round(px / 6));
@@ -409,26 +440,73 @@ export function createCanvasBackend(o) {
     if (map && !ground.bake(ring, win.performance.now() + AHEAD_MS)) aheadId = later(bakeAhead);
   }
 
+  /* Does this frame draw anything the canvas does not already show? Everything a paint reads: the list (walked whole),
+     where it lands, and which of its sheets have arrived (a stub box gives way to its art). */
+  function frameChanged(list, fv) {
+    const s = frameSig;
+    s.begin();
+    s.add(W); s.add(H); s.add(z); s.add(fv.view.ox); s.add(fv.view.oy); s.add(fv.view.w); s.add(fv.view.h);
+    s.add(fv.plan.dx); s.add(fv.plan.dy); s.add(fv.open.w); s.add(fv.open.h);
+    s.add(list);
+    for (const l of [list.decals, list.sprites, list.raised, list.fx]) for (const d of l) s.add(!!images[d.set]);
+    return s.end();
+  }
+
+  /* THE GROUND (void, chunks, decals) OF ONE VIEW. The camera moved: drawn straight onto the frame, as nothing can reuse
+     it. It stood for a frame: composed once into its own layer, and that layer is the ground until the camera moves or a
+     decal changes. A frame's pixels are the same either way (tests/perf-budget.mjs PB-PIX). */
+  function groundLayer(g, decals, view) {
+    const s = floorSig;
+    s.begin();
+    s.add(view.ox); s.add(view.oy); s.add(view.w); s.add(view.h);
+    s.add(decals);
+    if (s.end()) { floorGood = false; groundOn(g, decals, view); return; }
+    if (!floorGood) {
+      sizeTo(floor.c, view.w, view.h);
+      floor.g.imageSmoothingEnabled = false;
+      groundOn(floor.g, decals, view);
+      floorGood = true;
+      kept.floorMade++;
+    } else kept.floorKept++;
+    g.drawImage(floor.c, 0, 0);
+  }
+  function groundOn(g, decals, view) {
+    g.fillStyle = tone('void');
+    g.fillRect(0, 0, view.w, view.h);
+    for (const [cx, cy] of chunksOf(view, 0)) g.drawImage(ground.get(cx, cy), cx * CHUNK - view.ox, cy * CHUNK - view.oy);
+    for (const d of decals) blit(g, d, view);
+  }
+
   function draw(state) {
     const t0 = win.performance.now();
     if (dirty) measure();
     const fv = viewOf(state, t0);
     lastCam = fv.cam;
     const { view, plan } = fv;
-    sizeTo(comp.c, view.w, view.h);
     const list = composeFrame(map, book, state, view, tables, T);
-    const g = comp.g;
-    g.imageSmoothingEnabled = false;
-    g.globalAlpha = 1;
-    g.globalCompositeOperation = 'source-over';
-    g.fillStyle = tone('void');
-    g.fillRect(0, 0, view.w, view.h);
-    for (const [cx, cy] of chunksOf(view, 0)) g.drawImage(ground.get(cx, cy), cx * CHUNK - view.ox, cy * CHUNK - view.oy);
     ring = chunksOf(view, CHUNK / 2);   // half a chunk off screen, baked in idle time (bakeAhead); the LRU keeps two rings
     ground.fit(Math.max(CHUNK_KEEP, 2 * ring.length));
     if (!aheadId && !ground.whole(ring)) aheadId = later(bakeAhead);
     hold = false;
-    for (const d of list.decals) blit(g, d, view);
+    const changed = frameChanged(list, fv);
+    frames++;
+    last = list;
+    lastView = fv;
+    if (!changed && t0 - paintedAt < HEAL_MS) {
+      /* the same picture: nothing is painted, and what a press on a name finds is this frame's record */
+      let i = 0;
+      for (const p of platesOf(list)) if (p.ref) plateHits[i++].ref = p.ref;
+      kept.held++;
+      return;
+    }
+    kept.painted++;
+    paintedAt = t0;
+    sizeTo(comp.c, view.w, view.h);
+    const g = comp.g;
+    g.imageSmoothingEnabled = false;
+    g.globalAlpha = 1;
+    g.globalCompositeOperation = 'source-over';
+    groundLayer(g, list.decals, view);
     shadows(g, list, view);
     for (const d of list.sprites) {
       if (d.kind === 'unit' && (d.flash || d.grey)) blitUnit(g, d, view);
@@ -440,14 +518,11 @@ export function createCanvasBackend(o) {
     light(g, list, view, fv);
     effects(g, list, view);
     ctx.imageSmoothingEnabled = false;
-    ctx.clearRect(0, 0, W, H);
+    /* a tile of overscan on every side (core/camera.js frameView): this covers the whole canvas, so nothing is cleared */
     ctx.drawImage(comp.c, plan.dx, plan.dy, view.w * z, view.h * z);
     overlay(list, view, plan);
     msLast = win.performance.now() - t0;
-    msAvg = frames ? msAvg * 0.9 + msLast * 0.1 : msLast;
-    frames++;
-    last = list;
-    lastView = fv;
+    msAvg = kept.painted > 1 ? msAvg * 0.9 + msLast * 0.1 : msLast;
   }
 
   /** Device px on the canvas for a client point, and back: the last frame's camera. */
@@ -465,7 +540,11 @@ export function createCanvasBackend(o) {
       canvas.className = 'world-canvas';
       canvas.setAttribute('aria-label', 'The world');
       host.appendChild(canvas);
-      ctx = canvas.getContext('2d');
+      ctx = canvas.getContext('2d', OPAQUE);
+      /* a canvas the browser lost and gave back is blank, and a held frame would leave it so */
+      canvas.addEventListener('contextrestored', repaint);
+      /* the names' letters change shape when the web font lands */
+      if (doc.fonts && doc.fonts.addEventListener) doc.fonts.addEventListener('loadingdone', repaint);
       dirty = true;
       if (typeof win.ResizeObserver === 'function') { ro = new win.ResizeObserver(() => { dirty = true; }); ro.observe(host); }
       onResize = () => { dirty = true; };
@@ -480,6 +559,7 @@ export function createCanvasBackend(o) {
       ground.use(m, { book, tables, images });
       hold = true;
       last = null;
+      repaint(); floorSig.forget(); floorGood = false;
       lastCam = camFrom = null;   // a new map never eases in from the old one
     },
     /** Bin map `m`'s ground ahead of its first frame: at once, or in slices (`sl`, compose.js sliced) → a promise. */
@@ -495,6 +575,8 @@ export function createCanvasBackend(o) {
       return false;
     },
     sync(state) { if (map && canvas) draw(state); },
+    /** Something no draw list names changed (a colour token): every kept layer is made again on the next sync. */
+    invalidate() { repaint(); floorGood = false; shadeSig = litSig = rimSig = null; },
     /** The viewer's zoom (CSS px per base art px; null: the screen class's), from the next frame on. */
     setZoom(v) { const next = Number.isFinite(v) && v > 0 ? v : null; if (next !== zoomPick) { zoomPick = next; dirty = true; hold = true; lastCam = camFrom = null; } },
     /**
@@ -540,7 +622,7 @@ export function createCanvasBackend(o) {
     },
     snapshot() {
       return {
-        map: map && map.id, z, dpr, size: [W, H], frames, msAvg, msLast, inset: Object.assign({}, inset), masks: Object.assign({}, masks),
+        map: map && map.id, z, dpr, size: [W, H], frames, msAvg, msLast, inset: Object.assign({}, inset), masks: Object.assign({}, masks), kept: Object.assign({}, kept),
         heroBuilding: last ? last.heroBuilding : null,
         names: canvas ? plateHits.map((q) => {   // in CLIENT px, for a test aiming a right-click
           const r = canvas.getBoundingClientRect(), sx = r.width / W, sy = r.height / H;
@@ -554,12 +636,17 @@ export function createCanvasBackend(o) {
     destroy() {
       if (ro) ro.disconnect();
       if (onResize) win.removeEventListener('resize', onResize);
-      if (canvas) canvas.remove();
+      if (doc.fonts && doc.fonts.removeEventListener) doc.fonts.removeEventListener('loadingdone', repaint);
+      if (canvas) { canvas.remove(); canvas.width = 0; canvas.height = 0; }
       host = canvas = ctx = ro = onResize = map = last = lastView = null;
       plateHits = [];
       if (aheadId) unlater(aheadId);
       aheadId = 0; ring = [];
       ground.clear();
+      /* every layer's pixels back at once, the atlas-sized variants above all (ground-chunks.js release: the pane's canvases
+         left to the collector came due as one long pause in a later frame) */
+      for (const c of [comp.c, floor.c, shade.c, lit.c, rim.c, ...variants.values(), ...stubs.values()]) if (c) { c.width = 0; c.height = 0; }
+      variants.clear(); stubs.clear();
     },
   };
 }

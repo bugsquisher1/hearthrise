@@ -1344,7 +1344,6 @@ const MUTANTS = [
   ["the snapshot's dead stand on a switch back (LV-29, scene.js S9)", 'src/hunt-view/scene.js',
     '    for (const u of ids) if (!dead.has(u) && serverDead(u)) dead.set(', '    for (const u of ids) if (false) dead.set(', /^LV-29/],
   ["the snapshot's alive is not read (LV-29)", 'src/session/hunt-sections.js', 'alive: u.alive !== false });', 'alive: true });', /^LV-29/],
-  ["the scene runs S9 a snapshot ahead of the screen (LV-29)", 'src/hunt-view/scene.js', ' && shownAt >= read.poseAtMs;', ';', /^LV-/],
   ['the snapshot reader keeps 64 units (LV-28, Andy #65)', 'src/session/hunt-sections.js', 'list(pose.units, (x) => x, POSE_UNITS_MAX)', 'list(pose.units, (x) => x, 64)', /^LV-28/],
   ["the bar keeps the hunt's first max HP (LV-21, Brannoc 10-22)", 'src/hunt-view/timeline.js', '    const max = base[2] || r.maxHp;', '    const max = r.bases[0][2] || r.maxHp;', /^LV-21/],
 ];

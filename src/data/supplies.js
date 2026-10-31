@@ -153,8 +153,7 @@ export const HEAL_ORDER = Object.freeze(SUPPLY_ROWS.filter((r) => r[0] === H).ma
    THE CRAFTED BAG. Sized to last about BAG_TARGET_HOURS for a character at
    the hunt's entry level, per style. A mage's drink count is a DESIGN TARGET
    for the mana engine to meet (an entry mage drinks about one drink for every
-   two heals), not a measurement. Free tier-1 ammo is not counted; tier-2 ammo
-   is sized from the shots per hour above. A magic bag's runes are its core
+   two heals), not a measurement. Ammo is sized from the shots per hour above. A magic bag's runes are its core
    spell's (Fireball: the Fire family), about 200 casts an hour (measured). */
 export const BAG_TARGET_HOURS = 3;
 

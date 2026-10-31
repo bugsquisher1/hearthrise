@@ -291,7 +291,7 @@ const cases = {
       }
       return { swings, steps };
     };
-    /* his case: Bronze worn (the free rung, carried), Barbed on the bar with none carried: Bronze every shot, nothing bought */
+    /* his case: Bronze worn (carried), Barbed on the bar with none carried: Bronze every shot, nothing bought */
     const andy = play('bronze_arrows', [atk('barbed_arrows')], { bronze_arrows: { loaded: 5 } }, 3);
     if (andy.swings !== 3 || andy.steps.some((x) => /bought/.test(x))) return 'Bronze worn, Barbed on the bar (none carried): ' + JSON.stringify(andy);
     /* the order: the worn Iron until it runs out, then the bar's carried Barbed, then the store's Plain Iron (the worn ammo's partner) */

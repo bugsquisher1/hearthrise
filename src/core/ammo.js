@@ -77,9 +77,7 @@ export const AMMO_DRY_MULT = 0.25;
 
 /* (1) WHO PAYS. Does swinging this weapon family spend the ammo slot?
    Everything that swings does, because the slot's occupant is what is being
-   consumed and the item's own `ammoPerShot` already decides the rate — a rung
-   that should be free is authored `0` (every tier-1 rung is), which is a data
-   statement and not a family exemption.
+   consumed and the item's own `ammoPerShot` already decides the rate.
    `neutral` is FALSE: an unarmed player looses no arrow. That is the one
    family with no swing to charge for. */
 export const AMMO_SPEND_STYLES = Object.freeze({
@@ -140,9 +138,8 @@ export function styleNeedsAmmo(weaponType) {
    Tyler: "do it all"). An empty ammo slot on a bow or a staff is now "run
    dry", so the empty quiver stops being the dominant play and Fletching and
    Runecrafting get a buyer. What keeps it from punishing a new player: the
-   tier-1 rung of every ladder is free (`ammoPerShot: 0`, never depletes), it
-   is in the starter kit (src/data/start-kit.js) and it is on the Local Shop
-   counter, so "supplied" costs a brand-new character nothing. And the floor
+   tier-1 arrow is in the starter kit (src/data/start-kit.js) and the store sells
+   its plain partner per shot (src/data/supply-basics.js). And the floor
    argument below still holds: at low levels x0.25 and x1 are the same max hit.
    The indicator the coupling below demands ships in the same build: the
    combat rail's ammo slot carries `hr-ammo-dry` (src/features/combat-screens.js).
@@ -209,11 +206,8 @@ export const AMMO_DRY_UI_MARKER = 'hr-ammo-dry';
 /**
  * The per-swing burn of an ammo-slot item. DATA, never a branch on the id.
  *
- * `ammoPerShot: 0` is a shipped, deliberate value and not "missing": every
- * ladder's TIER-1 rung is free (Bronze Arrows, Air Runes, Coarse Whetstones),
- * because there is no integer price at which tier-1 ammo costs less than a
- * third of the income it earns. A zero here means the stack never depletes and
- * the slot is never dry — training ammo. The supply loop starts at tier 2.
+ * Every arrow and rune is 1, every whetstone 0.02 (Tyler 2026-10-15: "Arrows keep
+ * a per-shot cost"; Bronze Arrows' free rung went with lane/a-arrow-cost, 2026-10-31).
  *
  * An item with no `ammoPerShot` field burns nothing, which is the safe
  * direction: a future ammo-slot item that forgot the field is inert rather
@@ -273,7 +267,7 @@ export function consumablesPerHour(swingIntervalMs, perShot) {
 
 /**
  * How long a stack lasts, in hours. `Infinity` when nothing is spent — which
- * covers BOTH the free tier-1 rungs and melee's empty slot, so a caller never
+ * covers melee's empty slot, so a caller never
  * has to special-case "this style does not use ammo".
  */
 export function hoursOfSupply(stock, swingIntervalMs, perShot) {
@@ -334,7 +328,7 @@ export function advanceAmmoCarry(carry, ammoId, swings, perShot) {
  * The damage multiplier this loadout earns from its supply state.
  *
  * The ONE expression the fail-soft ruling reduces to, so nobody re-derives it:
- *   supplied, or a free rung, or a style that does not use ammo  -> 1
+ *   supplied, or a style that does not use ammo                  -> 1
  *   an ammo-hungry style whose paid rung has run dry             -> 0.25
  *
  * `equipped` DEFAULTS TO TRUE when the caller does not say, which keeps the
@@ -346,7 +340,7 @@ export function ammoDamageMult({ weaponType, perShot, stock, equipped }) {
   if (!styleNeedsAmmo(weaponType)) return 1;
   const loaded = (equipped === undefined) ? true : !!equipped;
   if (!loaded) return AMMO_EMPTY_SLOT_IS_DRY ? AMMO_DRY_MULT : 1;
-  if (!(Number(perShot) > 0)) return 1;      // a free tier-1 rung never runs dry
+  if (!(Number(perShot) > 0)) return 1;      // an item that burns nothing never runs dry
   return (Number(stock) || 0) > 0 ? 1 : AMMO_DRY_MULT;
 }
 

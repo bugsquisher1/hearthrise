@@ -74,7 +74,7 @@ export async function loadCellRunner(root) {
   };
   /* THE BAG: 'store' = empty (every heal and drink bought per use: the store bill is the whole supply cost);
      'own' = the ground's guide food and drink carried (crafted, own stock first, then the store). A Ranger on the
-     free Bronze Arrow carries one (ammoPerShot 0: it never runs out). */
+     kit's Bronze Arrow carries one, then buys the store's shot like any arrow. */
   const bagFor = (huntId, supply, kit) => {
     const bag = {};
     if (kit.ammo === 'bronze_arrows') bag.bronze_arrows = { loaded: 1 };

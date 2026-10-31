@@ -185,7 +185,7 @@ export async function recipeYieldGuard(overrides) {
      What is actually comparable is what the slot costs to RUN. Measured across
      all 31 ammo items, `v x ammoPerShot` is monotonic and tight:
 
-         0.00 (the free tier-1 rungs)  ...  19.80 (dawn_whetstone, tier 7)
+         0.00 (book value 0: Bronze Arrows)  ...  19.80 (dawn_whetstone, tier 7)
 
      and the shipped defect stands out immediately at **60.00 g/swing** — three
      times the most expensive consumable in the game, on a rung gating at level
@@ -200,7 +200,7 @@ export async function recipeYieldGuard(overrides) {
          buys it, that is the faucet this file exists for. All 31 declare it
          today, so this stays an assertion rather than a warning. */
       problems.push(`${id}: an ammo-slot item that does not declare \`ammoPerShot\`. `
-        + `Declare it (0 is a valid, deliberate value for a free tier-1 rung).`);
+        + `Declare it.`);
       continue;
     }
     const perSwing = (Number(def.v) || 0) * (Number(def.ammoPerShot) || 0);

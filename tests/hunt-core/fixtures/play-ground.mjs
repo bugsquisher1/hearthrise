@@ -22,7 +22,7 @@ const COMBAT = ['melee', 'ranged', 'magic', 'defense'];
     settle's rare-drop hints, item ids in order), `rareRolls` (the party's rare-roll events, item ids) and `killsBy`.
     opts: { spanMs (default thirty minutes), secret (the hunt seed), monsters (a drop-table fixture), fullSet,
     equipment (one worn set every hero wears, e.g. the start kit's; or a function (role, seat, L) -> set, one per hero),
-    bag ((role, seat, L) -> the hunt bag { item: { loaded } }; default: one free Bronze Arrow for a Ranger, else empty),
+    bag ((role, seat, L) -> the hunt bag { item: { loaded } }; default: one Bronze Arrow for a Ranger, then the store's, else empty),
     session (fields over every hero's hunt session, e.g. { goldFloor, onEmpty }; or a function (role, seat, L) -> them, one per hero),
     options ((role, seat, L) -> the hero's stored bar options, player_action_sets.options: chase, stance, distance, target_mode),
     windowMs (the settle's cut, default ten minutes: any cut walks the same swings, TICK-1; a short one lets onWindow read HP often),
@@ -131,6 +131,8 @@ export async function loadPlay(root) {
       typeof opts.start === 'function' ? opts.start : null, opts.leaveTogether === true));
     /* opts.density: the party's monster density pick (the settle clamps it to the ground) */
     if (Number.isInteger(opts.density)) for (const m of members) m.hero = Object.assign({}, m.hero, { density: opts.density });
+    /* opts.gold: every hero's purse at the start (a fresh hero's 500 g; default 50,000, enough to never matter) */
+    if (Number.isInteger(opts.gold)) for (const m of members) m.gold = opts.gold;
     /* common vs rare by the hunt's own drop rows: a loot-band row (src/data/loot-bands.js) is a common in the common and
        uncommon bands; an old-model drop at 5% or more anywhere here is a common, unless it is a trophy worth 100 g or more
        (a boss's chase item: the Crown Shard, the Alpha Fang), which is upside */

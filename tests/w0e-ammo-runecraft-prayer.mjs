@@ -14,8 +14,8 @@
 //         full strength (measured 3.4x a dry stack). The live swing
 //         (simulateTick) and the HUNT engine (computeAccrual on a hunt session,
 //         the one body the tick and the hunt verbs run — lane C2) both. The
-//         free tier-1 rung of every ladder is in the starter kit and on the shop
-//         counter, so no new player is in the penalty state.
+//         tier-1 arrow is in the starter kit and on the shop counter, so no new
+//         player is in the penalty state.
 //   RUNE  Runecrafting's level-1 loop closes with nothing else trained: mine
 //         Rune Essence -> cut Blank Runes -> bind CHALKED FIRE runes -> a Mage's
 //         Fireball spends them in a fight (Tyler 2026-10-23: runes fuel spells,
@@ -64,7 +64,7 @@ const MUTATIONS = {
   },
   shop_drops_bronze_arrows: {
     file: 'src/data/shops.js',
-    why: 'a player who sells their starter arrows can never buy the free rung back',
+    why: 'a player who sells their starter arrows can never buy the first rung back',
     find: 'grant: [{ kind: "item", id: "bronze_arrows", amount: 50 }],',
     repl: 'grant: [{ kind: "item", id: "iron_arrows", amount: 50 }],',
   },
@@ -142,13 +142,14 @@ export async function runAll({ mutate } = {}) {
 
     /* ── Fixtures, derived from the catalogue (TESTING.md fixture rule) ── */
     const ammoIds = Object.keys(ITEMS).filter((id) => ITEMS[id] && ITEMS[id].slot === 'ammo');
-    const FREE_ARROW = ammoIds.find((id) => ITEMS[id].ammoPerShot === 0 && ITEMS[id].rangeStrB);
-    const PAID_ARROW = ammoIds.find((id) => ITEMS[id].ammoPerShot === 1 && ITEMS[id].rangeStrB);
+    /* NO FREE RUNG (Tyler 10-15: "Arrows keep a per-shot cost"): the kit's tier-1 arrow is spent like any other. */
+    const KIT_ARROW = ammoIds.find((id) => ITEMS[id].tier === 1 && ITEMS[id].ammoPerShot === 1 && ITEMS[id].rangeStrB);
+    const PAID_ARROW = ammoIds.find((id) => ITEMS[id].tier >= 2 && ITEMS[id].ammoPerShot === 1 && ITEMS[id].rangeStrB);
     /* The whetstone's first rung WEARS since c-work-fixes (2026-10-22, src/data/stonecraft.js:
        a whetstone is melee's ceiling, R5, so no free stone): the fixture is the tier-1 stone. */
     const WHET = ammoIds.find((id) => ITEMS[id].tier === 1 && ITEMS[id].strB);
-    ok(!!FREE_ARROW && !!PAID_ARROW && !!WHET,
-      `A0: the catalogue lost a fixture rung (free arrow ${FREE_ARROW}, paid ${PAID_ARROW}, first whetstone ${WHET})`);
+    ok(!!KIT_ARROW && !!PAID_ARROW && !!WHET,
+      `A0: the catalogue lost a fixture rung (kit arrow ${KIT_ARROW}, paid ${PAID_ARROW}, first whetstone ${WHET})`);
     const bestOf = (type, field) => Object.keys(ITEMS)
       .filter((id) => ITEMS[id] && ITEMS[id].weaponType === type && ITEMS[id][field])
       .sort((a, b) => (ITEMS[b][field] || 0) - (ITEMS[a][field] || 0))[0];
@@ -215,43 +216,43 @@ export async function runAll({ mutate } = {}) {
       const T = 3000;
       const aEmpty = attended({ equipment: bow(null), skills: RANGED, ticks: T });
       const aDry = attended({ equipment: bow(PAID_ARROW), inventory: {}, skills: RANGED, ticks: T });
-      const aFree = attended({ equipment: bow(FREE_ARROW), inventory: { [FREE_ARROW]: 1 }, skills: RANGED, ticks: T });
+      const aKit = attended({ equipment: bow(KIT_ARROW), inventory: { [KIT_ARROW]: 5000 }, skills: RANGED, ticks: T });
       ok(aEmpty.kills <= aDry.kills,
         `A1 ATTENDED: an EMPTY quiver killed ${aEmpty.kills} against ${aDry.kills} for a quiver that `
         + 'ran dry — having no ammo must never beat running out (it was 3.4x before W0)');
-      ok(aEmpty.kills * 2 < aFree.kills,
-        `A1 ATTENDED: an empty quiver killed ${aEmpty.kills} and the FREE tier-1 rung ${aFree.kills} — `
+      ok(aEmpty.kills * 2 < aKit.kills,
+        `A1 ATTENDED: an empty quiver killed ${aEmpty.kills} and the kit's tier-1 arrow ${aKit.kills} — `
         + 'the empty slot is not being charged as run dry (x0.25)');
-      ok(!aFree.spent[FREE_ARROW],
-        `A1 ATTENDED: the free rung ${FREE_ARROW} was spent (${aFree.spent[FREE_ARROW]}) — tier 1 never depletes`);
+      ok(aKit.spent[KIT_ARROW] > 0,
+        `A1 ATTENDED: the kit's ${KIT_ARROW} was never spent — arrows keep a per-shot cost`);
 
       const sEmpty = away({ equipment: bow(null), skills: RANGED, hp: 1e6 });
       const sDry = away({ equipment: bow(PAID_ARROW), inventory: {}, skills: RANGED, hp: 1e6 });
-      const sFree = away({ equipment: bow(FREE_ARROW), inventory: { [FREE_ARROW]: 1 }, skills: RANGED, hp: 1e6 });
-      ok(sEmpty.accrued && sDry.accrued && sFree.accrued,
-        `A2 HUNT: a fixture accrued nothing (${sEmpty.reason}/${sDry.reason}/${sFree.reason})`);
-      if (sEmpty.accrued && sDry.accrued && sFree.accrued) {
+      const sKit = away({ equipment: bow(KIT_ARROW), inventory: { [KIT_ARROW]: 50000 }, skills: RANGED, hp: 1e6 });
+      ok(sEmpty.accrued && sDry.accrued && sKit.accrued,
+        `A2 HUNT: a fixture accrued nothing (${sEmpty.reason}/${sDry.reason}/${sKit.reason})`);
+      if (sEmpty.accrued && sDry.accrued && sKit.accrued) {
         ok(sEmpty.summary.kills <= sDry.summary.kills,
           `A2 HUNT: an EMPTY quiver killed ${sEmpty.summary.kills} against ${sDry.summary.kills} dry — `
           + 'the away engine still rewards not equipping ammo');
-        ok(sEmpty.summary.kills * 2 < sFree.summary.kills,
-          `A2 HUNT: empty ${sEmpty.summary.kills} vs free rung ${sFree.summary.kills} — empty slot not run dry`);
-        ok(!(sFree.hunt && sFree.hunt.uses && sFree.hunt.uses[FREE_ARROW]),
-          `A2 HUNT: the free rung ${FREE_ARROW} was spent from the bag (${JSON.stringify(sFree.hunt && sFree.hunt.uses)}) — tier 1 never depletes`);
+        ok(sEmpty.summary.kills * 2 < sKit.summary.kills,
+          `A2 HUNT: empty ${sEmpty.summary.kills} vs the kit's arrow ${sKit.summary.kills} — empty slot not run dry`);
+        ok(sKit.hunt && sKit.hunt.uses && sKit.hunt.uses[KIT_ARROW] > 0,
+          `A2 HUNT: the kit's ${KIT_ARROW} never left the bag (${JSON.stringify(sKit.hunt && sKit.hunt.uses)}) — arrows keep a per-shot cost`);
       }
 
       /* The one reader the UI asks. */
       const rd = (equipment, inventory) => AMMO.readAmmo({ equipment, inventory: inventory || {} }, { items: ITEMS });
       ok(rd({ weapon: BOW }).dry === true, 'A3: readAmmo says an empty bow slot is supplied — the indicator would never show');
       ok(rd({ weapon: STAFF }).dry === true, 'A3: readAmmo says an empty staff slot is supplied');
-      ok(rd({ weapon: BOW, ammo: FREE_ARROW }, { [FREE_ARROW]: 1 }).dry === false, 'A3: a loaded free rung reads dry');
+      ok(rd({ weapon: BOW, ammo: KIT_ARROW }, { [KIT_ARROW]: 1 }).dry === false, 'A3: a loaded stack of the kit\'s arrow reads dry');
       const sword = bestOf('sword', 'strB');
       ok(rd({ weapon: sword }).dry === false, 'A3: an empty MELEE slot reads dry — R5, melee\'s floor is free');
       ok(rd({}).dry === false, 'A3: an unarmed fighter reads dry');
 
-      /* Every ammo-hungry style starts supplied, and can buy the free rung back. (A caster needs none: its basic
+      /* Every ammo-hungry style starts supplied, and can buy the first rung back. (A caster needs none: its basic
          costs mana and a rune fuels a spell, Tyler 2026-10-23; the kit's Air Rune left with the old ladder.) */
-      for (const [label, id] of [['ranged', FREE_ARROW], ['melee', WHET]]) {
+      for (const [label, id] of [['ranged', KIT_ARROW], ['melee', WHET]]) {
         ok((START_INVENTORY[id] || 0) > 0, `A4: the starter kit has no ${id} — a new ${label} player starts unsupplied`);
         ok(SHOP_OFFERS.some((o) => (o.grant || []).some((g) => g.kind === 'item' && g.id === id)
           && (o.cost || []).every((c) => c.kind === 'currency' && c.id === 'gold')),

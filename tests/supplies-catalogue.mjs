@@ -90,7 +90,7 @@ import { isMain as isEntryModule } from './_is-main.mjs';
    conditional action engine): one of the hero's own stop rules held. */
 /* Core rebuild (Tyler 2026-10-19): a death ends the hunt (`died`); there is no falls limit. LEAVE TOGETHER (Tyler
    2026-10-22): another member's end sends a ticked hero home, `party_member_died` after a death, else `party_member_left`. */
-const RULING_END_ORDER = ['died', 'party_member_died', 'party_member_left', 'heals_out', 'ammo_out', 'gold_out', 'rule', 'stamina', 'hours', 'left', 'changed', 'server'];
+const RULING_END_ORDER = ['died', 'party_member_died', 'party_member_left', 'heals_out', 'ammo_out', 'gold_out', 'rule', 'stamina', 'hours', 'left', 'changed', 'no_fight', 'server'];
 /* vigour_low -> stamina_low (master plan row 4); `cover` = sell-to-cover (row 3). */
 const RULING_EVENTS = ['entered', 'level_up', 'rare_drop', 'death', 'slot_dry', 'stamina_low', 'cover', 'ended'];
 const PER_USE_KINDS = ['heal', 'mana', 'ammo'];   // buff is parked
@@ -198,7 +198,7 @@ function checkBasics(d, f) {
       if (!(b.price / b[key] > partnerUnit(p, b.kind))) f('B1', `'${b.id}' costs ${(b.price / b[key]).toFixed(1)} g a point, not more than '${b.partner}' at ${partnerUnit(p, b.kind).toFixed(1)}`);
     } else {
       const abilityRune = p.reqSkill === 'magic' && d.runesSpent.has(b.partner);
-      /* A shot the store sells stands behind an arrow a shot SPENDS (the free rung never runs out). */
+      /* A shot the store sells stands behind an arrow a shot SPENDS. */
       if (!abilityRune && (!(Number(p.ammoPerShot) > 0) || p.reqSkill !== 'ranged')) f('B1', `'${b.id}' partner '${b.partner}' is not a spent arrow or a rune an ability spends`);
       if (b.price < BASIC_AMMO_PREMIUM * partnerUnit(p, 'ammo')) f('B1', `'${b.id}' costs ${b.price} g a shot, under ${BASIC_AMMO_PREMIUM}x '${b.partner}'`);
     }
@@ -208,7 +208,9 @@ function checkBasics(d, f) {
   const partnered = new Set(d.basics.map((b) => b.partner));
   for (const [kind, id] of d.rows) {
     const it = d.items[id] || {};
-    if (kind === 'ammo' && it.reqSkill === 'ranged' && it.tier >= 2 && !partnered.has(id)) f('B2', `crafted arrow '${id}' (tier ${it.tier}) has no shop version`);
+    /* EVERY ARROW COSTS A SHOT AND HAS A STORE ROW (Tyler 10-15, 10-23): no free rung. */
+    if (kind === 'ammo' && it.reqSkill === 'ranged' && !(Number(it.ammoPerShot) > 0)) f('B2', `arrow '${id}' costs no shot (ammoPerShot ${it.ammoPerShot}): "Arrows keep a per-shot cost"`);
+    if (kind === 'ammo' && it.reqSkill === 'ranged' && !partnered.has(id)) f('B2', `crafted arrow '${id}' (tier ${it.tier}) has no shop version`);
     if (kind === 'ammo' && it.reqSkill === 'magic' && partnered.has(id) && !d.runesSpent.has(id)) f('B2', `rune '${id}' has a shop version, but no active ability spends it`);
     if (kind === 'ammo' && it.reqSkill === 'magic' && d.runesSpent.has(id) && !partnered.has(id)) f('B2', `rune '${id}' is spent by an ability and has no shop version: the ability cannot cast once the carried runes are gone`);
   }
@@ -288,8 +290,7 @@ function checkHuntsAndGuides(d, f) {
     if (!line) { f('G1', `${where}: no ${kind} line`); return; }
     const ok = kind === 'mana' ? staged.has(line.id) || (SUPPLIES[line.id] || {}).kind === 'mana' : (SUPPLIES[line.id] || {}).kind === kind;
     if (!ok) f('G1', `${where}: '${line.id}' is not a packed ${kind} supply`);
-    const free = kind === 'ammo' && !(Number(ITEMS[line.id] && ITEMS[line.id].ammoPerShot) > 0);
-    if (!Number.isInteger(line.qty) || line.qty < (free ? 0 : 1) || line.qty > 100000) f('G1', `${where}: qty ${line.qty} is not a whole bag line`);
+    if (!Number.isInteger(line.qty) || line.qty < 1 || line.qty > 100000) f('G1', `${where}: qty ${line.qty} is not a whole bag line`);
   };
   const styleOk = (bag, style, where) => {
     if (!bag) { f('G1', `${where}: no ${style} bag`); return; }
@@ -375,7 +376,8 @@ function selftest() {
     ['B5', 'Iron Arrows with no store row again (live 10-23: the Ranger hunted on with no basic)', (d) => { d.basics = d.basics.filter((b) => b.id !== 'plain_iron_arrows'); }],
     ['B5', 'a food listed as needing no store row while one stands behind it', (d) => { d.noPartner = { ...d.noPartner, cooked_trout: 'a stale reason that is long enough' }; }],
     ['B5', 'a reason for a line that is no supply', (d) => { d.noPartner = { ...d.noPartner, not_a_supply: 'a reason for an item nobody packs' }; }],
-    ['B1', 'a store row behind the free rung', (d) => { d.basics = d.basics.concat([{ id: 'plain_bronze_arrows', kind: 'ammo', n: 'Plain Bronze Arrows', partner: 'bronze_arrows', price: 2 }]); }],
+    ['B2', 'Bronze Arrows with no store row again (the free rung)', (d) => { d.basics = d.basics.filter((b) => b.id !== 'plain_bronze_arrows'); }],
+    ['B2', 'an arrow that costs no shot again (the free rung)', (d) => { d.items = { ...d.items, bronze_arrows: { ...d.items.bronze_arrows, ammoPerShot: 0 } }; }],
     ['B2', 'a shop rune no ability spends', (d) => { d.basics = d.basics.concat([{ id: 'plain_scored_fire_rune', kind: 'ammo', n: 'Plain Scored Fire Rune', partner: 'scored_fire_rune', price: 24 }]); }],
     ['B2', 'Flame Strike\'s rune with no store row (live 10-21: Flame Strike unusable)', (d) => { d.basics = d.basics.filter((b) => b.id !== 'plain_fire_rune'); }],
     ['B2', 'a store food served by hunt tier again', (d) => { withBasic(d, 'salted_shrimp', { tiers: [1] }); }],

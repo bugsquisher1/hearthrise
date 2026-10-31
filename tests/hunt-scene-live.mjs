@@ -1406,7 +1406,7 @@ const MUTANTS = [
   ['no stand-in before the first swing (LV-1)', 'src/hunt-view/scene.js', '    if (!hero && read.entrance) hero = (read.viewed !== null && unitAt(read.viewed, now, read.entrance)) || standIn(now);', '', /^LV-1/],
   /* Sentry JAVASCRIPT-4C: a hunt this build cannot predict never throws in the frame loop and falls back (LV-28). */
   ['a start point naming an unknown monster is run, and a swing that throws escapes (LV-28)', 'src/hunt-view/live-engine.js',
-    "fail(reasonOf(e)); return n; }", "throw e; }", /^LV-28/, [['    if (unknown.length) return fail(', '    if (false) return fail('], ['break; return fail(reasonOf(e)); }', 'break; throw e; }']]],
+    "fail(reasonOf(e)); return n; }", "throw e; }", /^LV-28/, [['    if (unknown.length) return fail(', '    if (false) return fail('], ['return true; return fail(reasonOf(e)); }', 'return true; throw e; }']]],
   ['a failed prediction keeps the live delay and asks again (LV-28)', 'src/session/live-link.js', '    if (why === null || this.failure !== null) return false;', '    if (true) return false;', /^LV-28: (the live view did not stop|after the fall-back)/],
   ['a failed prediction never asks for a newer build (LV-28)', 'src/session/live-link.js', "    if (this._stale) { try { this._stale(); }", "    if (false) { try { this._stale(); }", /^LV-28: the site was asked/],
   /* A tab back from the background catches up in slices, and lands the restart one task would have (LV-29). */
@@ -1422,7 +1422,7 @@ const MUTANTS = [
   ['a start point with a new setup is ignored when its world agrees (LV-14)', 'src/session/live-link.js', '      if (this.engine.sameSetup(body.hunt_live)\n        && this._judge(', '      if (this._judge(', /^LV-14/],
   ['a mid-hunt settings answer asks for nothing (LV-14)', 'src/session/character-session.js', ' && this._huntOpen()) this.liveLink.ask();', ' && false) this.liveLink.ask();', /^LV-14/],
   ["a matching start point's seeds are dropped (LV-8)", 'src/session/live-link.js', '&& this._judge({ world_swing: i.world_swing, world_hash: i.world_hash, seeds: body.hunt_live.seeds }) ===', '&& this.engine.check({ world_swing: i.world_swing, world_hash: i.world_hash }) ===', /^LV-8/],
-  ['missed swings are played at once (LV-10)', 'src/session/live-link.js', '    if (this.engine.behindMs(now) > this._tl.delayMs()) {', '    if (false) {', /^LV-10/],
+  ['missed swings are played at once (LV-10)', 'src/session/live-link.js', '    if (!this._catching && this.engine.behindMs(now) > this._tl.delayMs()) {', '    if (false) {', /^LV-10/],
   ['the poll waits for the ordinary poll however short the look-ahead (LV-11)', 'src/session/hunt-poll.js', ', liveLink.refillDelayMs() ?? SESSION_CONFIG.huntPollMs);', ', SESSION_CONFIG.huntPollMs);', /^LV-11/],
   ['a death inside a catch-up is not played (LV-12)', 'src/session/live-link.js', '    for (const ev of res.kills) {', '    for (const ev of []) {', /^LV-12/],
   /* report #69: the leader waits at the spawn, so a pack is hit in the swing it respawns: booked at its after-swing HP,

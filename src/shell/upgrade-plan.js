@@ -37,13 +37,13 @@
 //     (each better at something), the slot is left and named in `choices`
 // Display and intent NAMES only: nothing here is a gate the server trusts.
 // ════════════════════════════════════════════════════════════════════════
-import { ITEMS } from '../data/items.js?v=0.2.74';
-import { EQUIP_SLOT_META, expandItemSlot } from '../data/gathering.js?v=0.2.74';
-import { ARMOUR_WEIGHT } from '../data/core-model.js?v=0.2.74';
-import { loadoutOf } from '../core/member.js?v=0.2.74';
-import { armourWeights, maxHpFor, maxManaFor } from '../core/vitals.js?v=0.2.74';
-import { itemName } from './widgets/bits.js?v=0.2.74';
-import { reqHave } from './item-lore.js?v=0.2.74';
+import { ITEMS } from '../data/items.js?v=0.2.75';
+import { EQUIP_SLOT_META, expandItemSlot } from '../data/gathering.js?v=0.2.75';
+import { ARMOUR_WEIGHT } from '../data/core-model.js?v=0.2.75';
+import { loadoutOf } from '../core/member.js?v=0.2.75';
+import { armourWeights, maxHpFor, maxManaFor } from '../core/vitals.js?v=0.2.75';
+import { itemName } from './widgets/bits.js?v=0.2.75';
+import { reqHave } from './item-lore.js?v=0.2.75';
 
 /* The slots the hands and the quiver fill: the player's own choice, never this one. */
 const STYLE_SLOTS = new Set(['weapon', 'shield', 'ammo']);

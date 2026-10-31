@@ -24,7 +24,7 @@
 // party and the whispers and counts once.
 // ════════════════════════════════════════════════════════════════════════
 
-import { CHAT_LIMITS } from '../data/chat-channels.js?v=0.2.74';
+import { CHAT_LIMITS } from '../data/chat-channels.js?v=0.2.75';
 
 const PUBLIC = /^(global|system|local:[a-z0-9_]{1,64})$/;
 const PARTY = /^party:[0-9a-f-]{36}$/;

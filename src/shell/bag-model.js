@@ -323,7 +323,7 @@ export function roleOfSet(gear) {
  * Of what `bag` ([{ id, qty }]) holds that the role can loose, the highest requirement the hero's `skills` meet (a stack
  * the server would refuse is never named). Display and intent only: the server checks the delta.
  */
-export function shotToLoad(gear, bag, skills) {
+function shotToLoad(gear, bag, skills) {
   const role = roleOfSet(gear);
   if (!role || (gear.ammo && shootsItem(role, ITEMS[gear.ammo]))) return null;
   let best = null;

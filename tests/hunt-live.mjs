@@ -1171,7 +1171,8 @@ function rules(M) {
     const mi = memberOf(M, 'a', 0, 'ranger', 10);
     mi.equipment = { weapon: 'shortbow', ammo: 'bronze_arrows' };
     mi.huntSession = Object.assign({}, mi.huntSession, { bag: { bronze_arrows: { loaded: 6, left: 6 }, cooked_shrimp: { loaded: 30, left: 30, essential: true } } });
-    mi.hero = M.SPAWN.heroSetup({ weaponType: 'ranged', options: {}, partyRoles: ['ranger'], bar: [] });
+    /* The bar's one ability looses no shot, so every arrow is a basic's (an empty bar's default Precision Shot spends some). */
+    mi.hero = M.SPAWN.heroSetup({ weaponType: 'ranged', options: {}, partyRoles: ['ranger'], bar: [{ action: { type: 'ability', id: 'hunters_mark' }, conditions: [], join: 'and' }] });
     const r = run(M, [mi], 120000);
     const bad = r.verdicts.filter((x) => x.v !== 'match');
     const left = mi.huntSession.bag.bronze_arrows.left, bought = r.srv.buys.plain_bronze_arrows || 0;

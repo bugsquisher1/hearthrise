@@ -5,7 +5,7 @@
 //   node tests/party-flow.mjs            the guard (every arm)
 //   node tests/party-flow.mjs --mutate   every planted defect must be CAUGHT by its arm
 //
-// mutant-anchors: supabase/migrations/2027-02-11-party-nudge.sql supabase/migrations/2026-10-28-party-flow.sql supabase/migrations/2026-10-29-party-security.sql supabase/migrations/2026-10-30-party-invite-player.sql supabase/migrations/2026-10-30-town-activity-yields.sql supabase/migrations/2026-12-05-hunt-setup-per-ground.sql supabase/migrations/2026-12-07-party-finder.sql supabase/migrations/2027-01-19-play-cap.sql supabase/migrations/2027-02-10-party-instance-reset.sql src/shell/menu-providers.js
+// mutant-anchors: supabase/migrations/2027-02-18-party-truth.sql supabase/migrations/2027-02-11-party-nudge.sql supabase/migrations/2026-10-28-party-flow.sql supabase/migrations/2026-10-29-party-security.sql supabase/migrations/2026-10-30-party-invite-player.sql supabase/migrations/2026-10-30-town-activity-yields.sql supabase/migrations/2026-12-05-hunt-setup-per-ground.sql supabase/migrations/2026-12-07-party-finder.sql supabase/migrations/2027-01-19-play-cap.sql supabase/migrations/2027-02-10-party-instance-reset.sql src/shell/menu-providers.js
 // mutant-writes-tree: no — each mutant is ONE statement of its migration, patched in memory and run on the chain end inside a rolled-back transaction
 //
 // Ships with supabase/migrations/2026-10-28-party-flow.sql (PARTY_SPEC.md,
@@ -37,6 +37,15 @@
 //               seat goes now
 //   PF-RESTART  (#60) the real Start twice on one party instance: the second hunt plays the
 //               leader's NEW density pick and none of the first hunt's strikes
+//   PF-ROLE     (2027-02-18-party-truth.sql, blind panel 2026-11-01) a seat's weapon is what it wears NOW, in the view and
+//               the finder, with no re-forming; the frozen column is gone; a swap nudges the seat-mate's open client
+//   PF-CROSS    two friends' crossing invites: a party of one gives way to a Join, its invites with it; company refuses
+//   PF-NOTICE   a decline, a leave, a removal, a Disband and a lost seat each reach the other account, by name; none to
+//               the actor's own account; an hour and 16 rows at most; no client reads the table
+//   PF-WARN     the leader's warning: leader only, catalogue grounds only, names the seats under the floor and tells them;
+//               starts nothing, refuses nothing
+//   PF-END-WHY  a friend's end names its cause (hr_hunt_view end_by_why); a hunting seat's stamina shows only when low
+//   PF-TRUTH-IDEM a second apply of the file is byte-identical
 //   PF-M8       (#4) the dormant M8 verbs and their baseline rows are gone
 //   PF-IDEM     a second apply of both files is byte-identical
 //   PF-GRANT    the four verbs are authenticated-only; the sweep and the
@@ -70,6 +79,8 @@ const PLAY = '2027-01-19-play-cap.sql';
 const RESET = '2027-02-10-party-instance-reset.sql';
 /* 2027-02-11-party-nudge.sql: a party move reaches another player's open client. */
 const NUDGE = '2027-02-11-party-nudge.sql';
+/* 2027-02-18-party-truth.sql restates the seat, join, decline, kick, disband, leave, sweep and finder bodies last: their mutants plant there. */
+const TRUTH = '2027-02-18-party-truth.sql';
 const SRC = (f = FILE) => readFileSync(join(ROOT, 'supabase', 'migrations', f), 'utf8').replace(/\r\n/g, '\n');
 const U = ['000000c0-0000-4000-8000-0000000f1001', '000000c0-0000-4000-8000-0000000f1002', '000000c0-0000-4000-8000-0000000f1003'];
 const [A, B, C] = U;
@@ -493,6 +504,216 @@ const ARMS = {
     return p;
   },
 
+  /* THE ROLE IS WHAT IS WORN NOW (blind panel 2026-11-01): a seat's weapon was photographed at the join. */
+  'PF-ROLE': async (db) => {
+    const p = [];
+    await world(db);
+    await invite(db, A, 'Flow B');
+    await accept(db, B);
+    const pid = await partyOf(db, A);
+    const seen = async (reader, name) => {
+      const v = await one(db, 'select public.hr_state_of($1, 0)', [reader]);
+      return ((v.party || {}).members || []).find((m) => m.name === name) || {};
+    };
+    if ((await seen(A, 'Flow B')).weapon !== await one(db, 'select public.hr_hunt_weapon_of($1, 0)', [B])) p.push('the seat did not start on what it wears');
+    const wear = (uid, slot, item) => db.query(`insert into public.player_equipment (user_id, slot, equip_slot, item_id) values ($1, 0, $2, $3)
+                                                on conflict (user_id, slot, equip_slot) do update set item_id = excluded.item_id`, [uid, slot, item]);
+    /* B swaps to a bow after joining: every reader moves, with no re-forming. */
+    await db.query("delete from public.player_equipment where user_id = $1 and slot = 0 and equip_slot = 'shield'", [B]);
+    await wear(B, 'weapon', 'practice_bow');
+    if (await one(db, 'select public.hr_hunt_weapon_of($1, 0)', [B]) !== 'ranged') p.push('HARNESS: the bow plays ' + await one(db, 'select public.hr_hunt_weapon_of($1, 0)', [B]));
+    if ((await seen(A, 'Flow B')).weapon !== 'ranged') p.push('the leader\'s view of B after a swap to a bow reads ' + JSON.stringify((await seen(A, 'Flow B')).weapon));
+    if ((await seen(B, 'Flow B')).weapon !== 'ranged') p.push('B\'s own view after the swap reads ' + JSON.stringify((await seen(B, 'Flow B')).weapon));
+    /* The finder: the seat's weapon, and the filter "a party without this weapon". */
+    await list(db, A, true);
+    const rows = await finder(db, C);
+    const row = rows.find((r) => r.id === pid);
+    if (!row || (row.seats.find((s) => s.name === 'Flow B') || {}).weapon !== 'ranged') p.push('the finder lists B as ' + JSON.stringify(row && row.seats));
+    const lacking = async (w) => (((await as(db, C, 'select public.hr_hunt_party_finder(0, null, $1)', [w])) || {}).parties || []).some((r) => r.id === pid);
+    if (await lacking('ranged')) p.push('the finder says the party lacks the bow B now wears');
+    if (!(await lacking('staff'))) p.push('the finder hides a party that wears no staff');
+    /* Nothing can read a photograph again. */
+    if (await one(db, "select count(*)::int from information_schema.columns where table_schema = 'public' and table_name = 'hunt_party_members' and column_name = 'weapon_type'")) p.push('hunt_party_members.weapon_type survives');
+    /* A swap reaches the seat-mate's open client, a town read nobody asks for otherwise; a ring or a same-item write sends nothing. */
+    await db.exec(`create schema if not exists realtime;
+      create table if not exists realtime.messages (id uuid primary key default gen_random_uuid(), topic text not null, extension text not null default 'broadcast',
+        event text, payload jsonb, private boolean, inserted_at timestamptz not null default now());
+      create or replace function realtime.send(payload jsonb, event text, topic text, private boolean default true) returns void language sql as
+        'insert into realtime.messages (topic, extension, event, payload, private) values ($3, ''broadcast'', $2, $1, $4)';
+      update public.hr_tick_config set frame_push = true where id;`);
+    await db.query('insert into public.character_presence (user_id, slot, seen_at) values ($1, 0, now()) on conflict (user_id, slot) do update set seen_at = now()', [A]);
+    const nudges = () => one(db, `select count(*)::int from realtime.messages where topic = public.hr_frame_topic($1, 0) and event = 'frame' and payload = '{"t":"nudge"}'::jsonb`, [A]);
+    const n0 = await nudges();
+    await wear(B, 'weapon', 'practice_staff');
+    if (await nudges() !== n0 + 1) p.push('a swap of weapon sent the seat-mate ' + (await nudges() - n0) + ' nudge(s)');
+    await wear(B, 'weapon', 'practice_staff');
+    if (await nudges() !== n0 + 1) p.push('re-writing the same weapon nudged the seat-mate');
+    await wear(B, 'helmet', 'bronze_helm');
+    if (await nudges() !== n0 + 1) p.push('a helmet nudged the seat-mate: no role key reads it');
+    return p;
+  },
+
+  /* A CROSSING INVITE: sending an invite makes a party of one, so two friends inviting each other were both "already in a party". */
+  'PF-CROSS': async (db) => {
+    const p = [];
+    await world(db);
+    await invite(db, A, 'Flow B');
+    const pa = await partyOf(db, A);
+    await invite(db, B, 'Flow A');
+    const pb = await partyOf(db, B);
+    const r = await accept(db, A);
+    if (err(r) !== 'ok' || await partyOf(db, A) !== pb) p.push('A\'s Join on the crossing invite answered ' + JSON.stringify(r).slice(0, 200));
+    if (!(await one(db, 'select closed_at from public.hunt_parties where id = $1', [pa]))) p.push('A\'s party of one stayed open');
+    if (Number(await one(db, 'select count(*) from public.hunt_party_invites where party_id = $1', [pa])) !== 0) p.push('the given-up party\'s invite survives');
+    const inv = await one(db, "select public.hr_state_of($1, 0)->'party_invites'", [B]);
+    if (inv.length) p.push('B still sees an invite into the party that is gone: ' + JSON.stringify(inv));
+    /* With anyone else in it the party is kept, and the code is the one whose words say what to press. */
+    await invite(db, C, 'Flow A');
+    const again = await accept(db, A);
+    if (err(again) !== 'already_in_party' || await partyOf(db, A) !== pb) p.push('a hero with company answered ' + JSON.stringify(again).slice(0, 200));
+    return p;
+  },
+
+  /* THE SILENCES: a refusal, a removal, a closed party, a leaver and a lost seat each reach the other account, once, by name. */
+  'PF-NOTICE': async (db) => {
+    const p = [];
+    await world(db);
+    const notes = async (uid, slot = 0) => (await one(db, 'select public.hr_state_of($1, $2)', [uid, slot])).party_notices;
+    const has = (list, kind, who) => list.some((n) => n.kind === kind && n.who === who);
+    /* DECLINED: the inviter hears; the decliner does not; a stranger cannot read it. */
+    await invite(db, A, 'Flow B');
+    const inv = await one(db, "select public.hr_state_of($1, 0)->'party_invites'", [B]);
+    const d = await as(db, B, 'select public.hr_hunt_party_decline(0, $1::uuid, $2::uuid)', [inv[0].id, idem()]);
+    if (err(d) !== 'ok') p.push('the decline answered ' + JSON.stringify(d));
+    if (!has(await notes(A), 'declined', 'Flow B')) p.push('the inviter reads ' + JSON.stringify(await notes(A)));
+    /* The inviter stands idle in town: nothing but a nudge makes its open client read. */
+    await db.exec(`create schema if not exists realtime;
+      create table if not exists realtime.messages (id uuid primary key default gen_random_uuid(), topic text not null, extension text not null default 'broadcast',
+        event text, payload jsonb, private boolean, inserted_at timestamptz not null default now());
+      create or replace function realtime.send(payload jsonb, event text, topic text, private boolean default true) returns void language sql as
+        'insert into realtime.messages (topic, extension, event, payload, private) values ($3, ''broadcast'', $2, $1, $4)';
+      update public.hr_tick_config set frame_push = true where id;`);
+    await db.query('insert into public.character_presence (user_id, slot, seen_at) values ($1, 0, now()) on conflict (user_id, slot) do update set seen_at = now()', [A]);
+    const nudged = () => one(db, `select count(*)::int from realtime.messages where topic = public.hr_frame_topic($1, 0) and event = 'frame' and payload = '{"t":"nudge"}'::jsonb`, [A]);
+    const n0 = await nudged();
+    await invite(db, A, 'Flow B');
+    const inv2 = await one(db, "select public.hr_state_of($1, 0)->'party_invites'", [B]);
+    await as(db, B, 'select public.hr_hunt_party_decline(0, $1::uuid, $2::uuid)', [inv2[0].id, idem()]);
+    if (await nudged() !== n0 + 1) p.push('a decline sent the idle inviter ' + (await nudged() - n0) + ' nudge(s)');
+    if ((await notes(B)).length) p.push('the decliner got a notice');
+    if (await one(db, "select has_table_privilege('authenticated', 'public.party_notices', 'select') or has_table_privilege('anon', 'public.party_notices', 'select')")) p.push('a client can read party_notices');
+    /* LEFT: B joins and leaves; A hears. REMOVED: B joins and is removed; B hears. */
+    await invite(db, A, 'Flow B');
+    await accept(db, B);
+    await leave(db, B);
+    if (!has(await notes(A), 'left', 'Flow B')) p.push('the seat left behind reads ' + JSON.stringify(await notes(A)));
+    await invite(db, A, 'Flow B');
+    await accept(db, B);
+    const seat = Number(await one(db, 'select seat from public.hunt_party_members where user_id = $1', [B]));
+    await kick(db, A, seat);
+    if (!has(await notes(B), 'removed', 'Flow A')) p.push('the removed hero reads ' + JSON.stringify(await notes(B)));
+    /* DISBANDED: every other seat hears; the leader's own account is told nothing of its own move. */
+    await invite(db, A, 'Flow B');
+    await accept(db, B);
+    await own(db, A, 0, 1);
+    await disband(db, A);
+    if (!has(await notes(B), 'disbanded', 'Flow A')) p.push('a seat of the closed party reads ' + JSON.stringify(await notes(B)));
+    if ((await notes(A, 1)).some((n) => n.kind === 'disbanded')) p.push('the leader\'s own second hero was told of its own account\'s move');
+    /* DROPPED: the sweep tells the seats left. */
+    await invite(db, A, 'Flow B');
+    await accept(db, B);
+    await seen(db, B, '11 minutes');
+    await joined(db, B, '11 minutes');
+    await db.query('select public.hr_hunt_party_sweep(50)');
+    if (!has(await notes(A), 'dropped', 'Flow B')) p.push('the sweep told nobody: ' + JSON.stringify(await notes(A)));
+    /* THE HOUR AND THE CAP: an old notice leaves the section; a hero holds 16 rows however many it is sent. */
+    await db.query("update public.party_notices set at = now() - interval '2 hours' where user_id = $1 and kind = 'declined'", [A]);
+    if (has(await notes(A), 'declined', 'Flow B')) p.push('a notice two hours old is still shown');
+    for (let i = 0; i < 40; i++) await db.query("select public.hr_party_notice($1, 0, 'left', $2, 0)", [A, B]);
+    const held = Number(await one(db, 'select count(*) from public.party_notices where user_id = $1 and slot = 0', [A]));
+    if (held > 16) p.push('a hero holds ' + held + ' notices');
+    if ((await notes(A)).length > 8) p.push('the section carries ' + (await notes(A)).length);
+    return p;
+  },
+
+  /* THE LEADER'S PICK WARNS FIRST: nothing refused, nothing started; only the seats under the floor hear. */
+  'PF-WARN': async (db) => {
+    const p = [];
+    await world(db);
+    const low = await one(db, `select g.hunt_id from public.hr_hunt_grounds g join public.hr_hunts h using (hunt_id) where h.band_min > 1 order by h.band_min, g.hunt_id limit 1`);
+    const floor = Number(await one(db, 'select band_min from public.hr_hunts where hunt_id = $1', [low]));
+    const warn = (uid, hunt) => as(db, uid, 'select public.hr_hunt_party_warn(0, $1, $2::uuid)', [hunt, idem()]);
+    if (err(await warn(A, low)) !== 'no_party') p.push('a hero with no party warned');
+    await invite(db, A, 'Flow B');
+    await accept(db, B);
+    await own(db, A, 0, 1);
+    if (err(await warn(B, low)) !== 'not_leader') p.push('a member warned');
+    if (err(await warn(A, 'no_such_ground')) !== 'no_ground') p.push('a ground off the catalogue answered');
+    /* B stands at the floor's own Level: not under. A/1 stands under, and is A's: named to the leader, no row for its own account. */
+    const { charXpForLevel } = await client('src/core/xp.js');
+    await db.query('update public.player_state set level_xp = $2 where user_id = $1 and slot = 0', [B, charXpForLevel(floor)]);
+    const at = await warn(A, low);
+    if (err(at) !== 'ok' || at.floor !== floor) p.push('the leader was answered ' + JSON.stringify(at));
+    if ((at.under || []).some((s) => s.name === 'Flow B')) p.push('a seat AT the floor was warned: ' + JSON.stringify(at.under));
+    const before = await one(db, "select count(*)::int from public.party_notices where kind = 'ground_warn'");
+    if (before !== 0) p.push('a seat at the floor or the leader\'s own hero got a notice');
+    await db.query('update public.player_state set level_xp = 0 where user_id = $1 and slot = 0', [B]);
+    const under = await warn(A, low);
+    if (!(under.under || []).some((s) => s.name === 'Flow B' && s.level === 1)) p.push('the seat under the floor was not named: ' + JSON.stringify(under));
+    const note = (await one(db, 'select public.hr_state_of($1, 0)', [B])).party_notices.find((n) => n.kind === 'ground_warn');
+    if (!note || note.hunt !== low || note.who !== 'Flow A') p.push('the seat under the floor reads ' + JSON.stringify(note));
+    /* It started nothing, refused nothing: the leader's Start still walks them in. */
+    if (await one(db, 'select count(*)::int from public.hunt_sessions where instance_id = $1', [await partyOf(db, A)])) p.push('the warning opened a hunt');
+    const st = await start(db, A, low);
+    if (err(st) !== 'ok') p.push('after the warning the start answered ' + JSON.stringify(st).slice(0, 200));
+    return p;
+  },
+
+  /* WHY A FRIEND CAME HOME, and the warning before it. */
+  'PF-END-WHY': async (db) => {
+    const p = [];
+    const { hunt } = await world(db);
+    await invite(db, A, 'Flow B');
+    await accept(db, B);
+    await own(db, A, 0, 1);
+    if (err(await start(db, A, hunt)) !== 'ok') return ['HARNESS: the start was refused'];
+    const pid = await partyOf(db, A);
+    const session = (uid, slot = 0) => one(db, 'select id from public.hunt_sessions where user_id = $1 and slot = $2 and instance_id = $3 and ended_at is null', [uid, slot, pid]);
+    const [sa, sb, sa1] = [await session(A), await session(B), await session(A, 1)];
+    const row = async (reader, name) => (((await one(db, 'select public.hr_hunt_party_view($1, 0)', [reader])).members) || []).find((m) => m.name === name) || {};
+    await db.query('update public.player_state set stamina_ms = 600000, stamina_at = now() where user_id = $1 and slot = 0', [B]);
+    await db.query('update public.player_state set stamina_ms = 960000, stamina_at = now() where user_id = $1 and slot = 0', [A]);
+    if ((await row(A, 'Flow B')).stamina_low_ms !== 600000) p.push('a seat at 10 min reads ' + (await row(A, 'Flow B')).stamina_low_ms);
+    if ((await row(B, 'Flow A')).stamina_low_ms !== null) p.push('a seat at 16 min shows its pool: ' + (await row(B, 'Flow A')).stamina_low_ms);
+    /* B (seat 1) runs out; A (seat 0) and A's second hero, boxes ticked, are sent home at the same instant: the second hero's cause is
+       B's stamina, never the lower seat's own cascade. */
+    const at = await one(db, 'select now()::text');
+    await db.query("select public.hr_hunt_close($1::uuid, 'stamina', $2::timestamptz, true)", [sb, at]);
+    await db.query("select public.hr_hunt_close($1::uuid, 'party_member_left', $2::timestamptz, true)", [sa, at]);
+    await db.query("select public.hr_hunt_close($1::uuid, 'party_member_left', $2::timestamptz, true)", [sa1, at]);
+    const v = await one(db, 'select public.hr_hunt_view($1::uuid)', [sa1]);
+    if (v.end_by !== 'Flow B' || v.end_by_why !== 'stamina') p.push('the hero sent home reads by ' + v.end_by + ' why ' + v.end_by_why);
+    if ((await one(db, 'select public.hr_hunt_view($1::uuid)', [sb])).end_by_why !== null) p.push('a hero\'s own end names a cause');
+    if ((await row(A, 'Flow B')).stamina_low_ms !== null) p.push('a seat out of its hunt still shows its stamina');
+    return p;
+  },
+
+  /* A second apply of 2027-02-18-party-truth.sql over its own state is byte-identical. */
+  'PF-TRUTH-IDEM': async (chainDb) => {
+    void chainDb;
+    const { db } = await bootReplay({ upTo: TRUTH });
+    const snap = async () => JSON.stringify([await inventory(db),
+      (await db.query(`select p.oid::regprocedure::text f, md5(p.prosrc) h, coalesce(p.proacl::text, '') a from pg_proc p
+                       where p.pronamespace = 'public'::regnamespace order by 1`)).rows,
+      (await db.query('select proname, identity_args, grantee, note from public.hr_client_rpc_baseline order by 1, 2, 3')).rows,
+      (await db.query('select key, fn, note from public.hr_state_sections order by 1')).rows]);
+    const before = await snap();
+    try { await db.exec(SRC(TRUTH)); } catch (e) { await db.close().catch(() => {}); return ['the second apply RAISED: ' + String(e.message).split('\n')[0]]; }
+    const after = await snap();
+    await db.close().catch(() => {});
+    return before === after ? [] : ['a second apply moved the schema, a body, a grant or a row'];
+  },
+
   'PF-M8': async (db) => {
     const names = ['hr_party_create', 'hr_party_invite', 'hr_party_accept', 'hr_party_kick', 'hr_party_leave', 'hr_party_hunt_stop'];
     const left = (await db.query(`select proname from pg_proc where pronamespace = 'public'::regnamespace and proname = any ($1)
@@ -521,7 +742,7 @@ const ARMS = {
    must go red. Only the statement carrying the anchor runs (see plantedStatements). */
 const MUTANTS = [
   /* The invite body that runs is 2026-10-30-party-invite-player.sql's hr_party_invite_core: its mutants plant there. */
-  { arm: 'PF-NUDGE', file: NUDGE, why: 'an invite reaches nobody\'s open screen',
+  { arm: 'PF-NUDGE', file: TRUTH, why: 'an invite reaches nobody\'s open screen',
     find: '    perform public.hr_party_nudge(new.to_user, new.to_slot);\n', repl: '    perform 1;\n' },
   { arm: 'PF-NUDGE', file: NUDGE, why: 'the caller is nudged for its own move',
     find: '    if auth.uid() is not distinct from p_user then return; end if;\n', repl: '' },
@@ -539,9 +760,9 @@ const MUTANTS = [
   { arm: 'PF-OWN', file: SETUP, why: 'a ground-less party matches any hunt',
     find: '    if v_ph is distinct from p_hunt then\n      return jsonb_build_object(\'ok\', false, \'error\', \'party_hunt_mismatch\'',
     repl: '    if v_ph <> p_hunt then\n      return jsonb_build_object(\'ok\', false, \'error\', \'party_hunt_mismatch\'' },
-  { arm: 'PF-DISBAND', why: 'the party is disbanded mid-hunt',
-    find: "  if exists (select 1 from public.hunt_sessions h where h.instance_id = v_pid and h.ended_at is null) then\n    return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'party_hunting')); end if;\n  delete from public.hunt_party_invites where party_id = v_pid;",
-    repl: '  delete from public.hunt_party_invites where party_id = v_pid;' },
+  { arm: 'PF-DISBAND', file: TRUTH, why: 'the party is disbanded mid-hunt',
+    find: "  if exists (select 1 from public.hunt_sessions h where h.instance_id = v_pid and h.ended_at is null) then\n    return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'party_hunting')); end if;\n  -- PARTY-TRUTH (2027-02-18-party-truth.sql): every other seat hears",
+    repl: '  -- PARTY-TRUTH (2027-02-18-party-truth.sql): every other seat hears' },
   { arm: 'PF-START', file: PLAY, why: 'the start marches an away member in',
     find: '  if p_user is distinct from p_leader and public.hr_party_away(p_user, p_slot, p_joined) then',
     repl: '  if false then' },
@@ -551,7 +772,7 @@ const MUTANTS = [
     find: "returns interval language sql immutable set search_path = public, pg_catalog as $$ select interval '10 minutes' $$;",
     repl: "returns interval language sql immutable set search_path = public, pg_catalog as $$ select interval '75 seconds' $$;" },
   /* (the sweep proves "not hunting" twice, in its scan and again under the party lock: the mutant drops both) */
-  { arm: 'PF-KEEP', why: 'the sweep drops a hunter',
+  { arm: 'PF-KEEP', file: TRUTH, why: 'the sweep drops a hunter',
     find: '     where not exists (select 1 from public.hunt_sessions h where h.user_id = m.user_id and h.slot = m.slot and h.ended_at is null)\n       and public.hr_party_last_seen',
     repl: '     where true\n       and public.hr_party_last_seen',
     also: ['               or exists (select 1 from public.hunt_sessions h where h.user_id = v_m.user_id and h.slot = v_m.slot and h.ended_at is null);',
@@ -566,11 +787,11 @@ MUTANTS.push(
   { arm: 'PF-TOWN', file: SETUP, why: 'a gathering member refuses the start',
     find: "  if v_st.active_kind not in ('gather', 'artisan', 'training') and v_st.active_kind <> 'idle' then",
     repl: "  if v_st.active_kind <> 'idle' then" },
-  { arm: 'PF-LISTED', file: SEC, why: 'the finder’s Join seats in an unlisted party',
+  { arm: 'PF-LISTED', file: TRUTH, why: 'the finder’s Join seats in an unlisted party',
     find: "  if p_need_listed and not v_p.listed then return jsonb_build_object('ok', false, 'error', 'not_listed'); end if;\n", repl: '' },
-  { arm: 'PF-LISTED', file: FINDER, why: 'the finder lists unlisted parties',
+  { arm: 'PF-LISTED', file: TRUTH, why: 'the finder lists unlisted parties',
     find: '               where p.closed_at is null and p.listed and (p_hunt is null', repl: '               where p.closed_at is null and (p_hunt is null' },
-  { arm: 'PF-BLOCK', file: SEC, why: 'a join or an accept ignores a member’s block',
+  { arm: 'PF-BLOCK', file: TRUTH, why: 'a join or an accept ignores a member’s block',
     find: "  if exists (select 1 from public.hunt_party_members m where m.party_id = p_party and m.user_id <> p_uid\n               and public.hr_social_blocked(p_uid, m.user_id)) then",
     repl: '  if false then' },
   { arm: 'PF-BLOCK', file: INV, why: 'an invite ignores a member’s block',
@@ -578,11 +799,63 @@ MUTANTS.push(
   { arm: 'PF-RESTART', file: RESET, why: '[#60] a restarted party instance keeps its first hunt\'s density and strikes',
     find: '                                       density = null, refusals = 0, version = version + 1\n',
     repl: '                                       version = version + 1\n' },
-  { arm: 'PF-KICK-HUNT', file: LIVE, why: 'a kicked hunter keeps hunting and sharing',
+  { arm: 'PF-KICK-HUNT', file: TRUTH, why: 'a kicked hunter keeps hunting and sharing',
     find: '  if v_s.id is not null and v_s.instance_id = v_pid then\n    v_leaving := true;', repl: '  if false then\n    v_leaving := true;' },
-  { arm: 'PF-KICK-HUNT', file: LIVE, why: 'a kick pends a walking hunter at now(), inside the look-ahead its viewer was shown',
+  { arm: 'PF-KICK-HUNT', file: TRUTH, why: 'a kick pends a walking hunter at now(), inside the look-ahead its viewer was shown',
     find: '      update public.hunt_sessions set leave_at = public.hr_hunt_live_horizon_at(v_s.settled_to), version = version + 1 where id = v_s.id;\n    end if;\n  end if;\n  delete from public.hunt_party_members',
     repl: '      update public.hunt_sessions set leave_at = now(), version = version + 1 where id = v_s.id;\n    end if;\n  end if;\n  delete from public.hunt_party_members' },
+);
+
+/* The party says what the server knows (2027-02-18-party-truth.sql, blind panel 2026-11-01). */
+MUTANTS.push(
+  { arm: 'PF-ROLE', file: TRUTH, why: 'the view reads a fixed weapon, not what is worn',
+    find: "    select m.user_id, m.slot, m.seat::int as seat, public.hr_hunt_weapon_of(m.user_id, m.slot) as weapon, h.id as sid,",
+    repl: "    select m.user_id, m.slot, m.seat::int as seat, 'shield'::text as weapon, h.id as sid," },
+  { arm: 'PF-ROLE', file: TRUTH, why: 'the finder lists a fixed weapon',
+    find: "jsonb_build_object('seat', m.seat, 'weapon', public.hr_hunt_weapon_of(m.user_id, m.slot),", repl: "jsonb_build_object('seat', m.seat, 'weapon', 'shield'," },
+  { arm: 'PF-ROLE', file: TRUTH, why: 'the finder filters on no weapon',
+    find: 'and public.hr_hunt_weapon_of(m.user_id, m.slot) = p_weapon))', repl: 'and false))' },
+  { arm: 'PF-ROLE', file: TRUTH, why: 'a swap of weapon reaches no seat-mate\'s screen',
+    find: "    if v_party is null then return null; end if;\n  elsif tg_table_name = 'hunt_party_members' then", repl: "    return null;\n  elsif tg_table_name = 'hunt_party_members' then" },
+  { arm: 'PF-ROLE', file: TRUTH, why: 're-writing the same weapon nudges',
+    find: "      if tg_op = 'UPDATE' and new.item_id is not distinct from old.item_id then return null; end if;\n", repl: '' },
+  { arm: 'PF-ROLE', file: TRUTH, why: 'any worn slot nudges',
+    find: "      if new.equip_slot not in ('weapon', 'shield') then return null; end if;\n", repl: '' },
+  { arm: 'PF-CROSS', file: TRUTH, why: 'a party of one refuses a Join: the crossing invite is a dead end again',
+    find: "(v_own = p_party or exists (select 1 from public.hunt_party_members m where m.party_id = v_own\n                                                         and (m.user_id, m.slot) is distinct from (p_uid, p_slot)))",
+    repl: '(true)' },
+  { arm: 'PF-CROSS', file: TRUTH, why: 'a hero with company walks out on it for an invite',
+    find: "(v_own = p_party or exists (select 1 from public.hunt_party_members m where m.party_id = v_own\n                                                         and (m.user_id, m.slot) is distinct from (p_uid, p_slot)))",
+    repl: '(v_own = p_party)' },
+  { arm: 'PF-NOTICE', file: TRUTH, why: 'a refused invite tells nobody',
+    find: "  perform public.hr_party_notice(v_from, v_from_slot, 'declined', v_uid, p_slot);\n", repl: '' },
+  { arm: 'PF-NOTICE', file: TRUTH, why: 'a removed hero is told nothing',
+    find: "  perform public.hr_party_notice(v_t.user_id, v_t.slot, 'removed', v_uid, p_slot);\n", repl: '' },
+  { arm: 'PF-NOTICE', file: TRUTH, why: 'a closed party tells no seat',
+    find: "    perform public.hr_party_notice(v_m.user_id, v_m.slot, 'disbanded', v_uid, p_slot);\n", repl: '    perform 1;\n' },
+  { arm: 'PF-NOTICE', file: TRUTH, why: 'a leaver tells no seat',
+    find: "    perform public.hr_party_notice(v_m.user_id, v_m.slot, 'left', v_uid, p_slot);\n", repl: '    perform 1;\n' },
+  { arm: 'PF-NOTICE', file: TRUTH, why: 'a lost seat tells nobody',
+    find: "      perform public.hr_party_notice(v_o.user_id, v_o.slot, 'dropped', v_m.user_id, v_m.slot);\n", repl: '      perform 1;\n' },
+  { arm: 'PF-NOTICE', file: TRUTH, why: 'a decline reaches no idle inviter\'s screen',
+    find: "    perform public.hr_party_nudge(new.user_id, new.slot);\n    return null;\n  elsif tg_table_name = 'hunt_sessions' then", repl: "    return null;\n  elsif tg_table_name = 'hunt_sessions' then" },
+  { arm: 'PF-NOTICE', file: TRUTH, why: 'an account is told of its own move',
+    find: ' or p_actor_slot is null or p_user = p_actor then return; end if;', repl: ' or p_actor_slot is null then return; end if;' },
+  { arm: 'PF-NOTICE', file: TRUTH, why: 'a hero\'s notices pile up',
+    find: "       and (n.at <= now() - interval '1 hour'\n            or n.id in (select o.id from public.party_notices o where o.user_id = p_user and o.slot = p_slot order by o.at desc, o.id offset 15));",
+    repl: "       and (n.at <= now() - interval '1 hour');" },
+  { arm: 'PF-NOTICE', file: TRUTH, why: 'the section shows a notice past its hour',
+    find: "where n.user_id = p_user and n.slot = p_slot and n.at > now() - interval '1 hour'", repl: 'where n.user_id = p_user and n.slot = p_slot' },
+  { arm: 'PF-WARN', file: TRUTH, why: 'a member can warn the party',
+    find: "  if not (v_p.leader_user = v_uid and v_p.leader_slot = p_slot) then\n    return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'not_leader')); end if;\n  select h.band_min", repl: '  select h.band_min' },
+  { arm: 'PF-WARN', file: TRUTH, why: 'a seat at the floor is warned',
+    find: '      continue when v_lv >= v_floor;\n', repl: '' },
+  { arm: 'PF-WARN', file: TRUTH, why: 'the seat under the floor is never told',
+    find: "      perform public.hr_party_notice(v_m.user_id, v_m.slot, 'ground_warn', v_uid, p_slot, p_hunt);\n", repl: '' },
+  { arm: 'PF-END-WHY', file: TRUTH, why: 'a cascaded hero is named as the cause',
+    find: "         and o.end_reason <> all (array['party_member_died', 'party_member_left'])\n", repl: '' },
+  { arm: 'PF-END-WHY', file: TRUTH, why: 'a seat\'s whole stamina pool is shown',
+    find: 'and ps.stamina_at is not null and ps.stamina_ms <= 900000 then', repl: 'and ps.stamina_at is not null then' },
 );
 
 /* THE BODY THAT RUNS. A mutant runs ONE statement of its file on the chain end: the function create that carries

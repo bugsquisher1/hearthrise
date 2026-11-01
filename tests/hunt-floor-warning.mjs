@@ -87,11 +87,26 @@ async function run(base) {
   ok('G2', rows.filter((r) => r.groupFit === 'party').every((r) => !/^Alone/.test(HL.heroWords(r))), 'a party ground offers itself alone');
   const solo = rows.find((r) => r.groupFit !== 'party' && r.heroes > 1);
   ok('G2', !!solo && /^Alone or with up to \d more$/.test(HL.heroWords(solo)), 'a solo/both ground lost its offer: ' + (solo && HL.heroWords(solo)));
+  /* G3 (panel 2026-11-01): the words say what the server allows. It walks in PARTY.maxSize on every ground (hr_hunt_party_start has no
+     per-ground size), so no ground may name fewer: the Thicket read "up to 1 more" over its two start tiles, and 3 and 4 walked in. */
+  const most = (await import(pathToFileURL(join(base, 'src/data/party.js')).href + '?t=' + Math.random())).PARTY.maxSize;
+  for (const r of rows) {
+    const said = HL.heroWords(r);
+    const named = r.groupFit === 'party' ? Number((/ 2 to (\d+)/.exec(said) || [])[1]) : Number((/up to (\d+) more/.exec(said) || [])[1]) + 1;
+    ok('G3', named === most, r.hunt + ' reads ' + JSON.stringify(said) + ', and the server walks in ' + most);
+  }
+  /* The leader's warning (2027-02-18-party-truth.sql): only the OTHER seats under the floor; `far` lets the server's refusal speak. */
+  const glade = { band: [16, 31] };
+  const seats = { me: 0, seats: [{ seat: 0, name: 'Wren', level: 5 }, { seat: 1, name: 'Sorrel', level: 9 }, { seat: 2, name: 'Bram', level: 20 }, { seat: 3, name: 'Null', level: null }] };
+  const low = HL.seatsUnder(glade, seats);
+  ok('G3', low.under.map((s) => s.name).join() === 'Sorrel' && low.far === false, 'seatsUnder reads ' + JSON.stringify(low));
+  ok('G3', HL.seatsUnder(glade, { me: 0, seats: [{ seat: 1, name: 'Tiny', level: 1 }] }).far === true, 'a seat the server would refuse is not `far`');
+  ok('G3', /^Sorrel \(Level 9\) is under this ground’s Level 16\./.test(HL.underWords(glade, low.under)) && HL.underWords(glade, []) === '', 'the warning reads ' + HL.underWords(glade, low.under));
   /* The Hunts window is the list (hunts.js) and the picked ground's page (hunt-detail.js, master-detail 2026-10-22). */
   const win = read('src/shell/windows/hunts.js') + read('src/shell/windows/hunt-detail.js');
   ok('G2', win.includes("recommendation(party ? party.seats.map((s) => (s.seat === party.me ? level : s.level)) : level, size, list)")
     && win.includes('<p class="hs-note hw-hunts-reco" hidden></p>') && win.includes('text(reco, advice);'), 'the Hunts window does not recommend by the party\'s levels or never says the note');
-  ok('W2', win.includes("text(det.querySelector('.hw-hunt-warn'), rangeWords(r, level) || '');") && win.includes('<p class="hw-hunt-warn"></p>')
+  ok('W2', win.includes("text(det.querySelector('.hw-hunt-warn'), [rangeWords(r, level), underWords(r, under)].filter(Boolean).join(' '));") && win.includes('<p class="hw-hunt-warn"></p>')
     && win.includes("(groupWords(r, size) || heroWords(r)) + '.'"),
     'the Hunts line does not draw rangeWords');
   ok('W4', win.includes('Bigger pulls pay more once your heroes can hold them.'), 'the pull size no longer says why a bigger pull matters (first-week-bands.mjs bigger-pulls-words plays it)');
@@ -126,7 +141,10 @@ const MUTANTS = [
   ['the margin is ignored (everything under the floor is "too far")', 'src/shell/hunt-list.js', 'r.band[0] - level >= SESSION_LIMITS.belowRangeRefuse ?', 'true ?'],
   ['the margin moved off Tyler\'s 15', 'src/data/hunt-sessions.js', 'belowRangeRefuse: 15,', 'belowRangeRefuse: 10,'],
   ['the pull size says nothing of why it matters', 'src/shell/windows/hunts.js', "' Bigger pulls pay more once your heroes can hold them. Kept for this ground.'", "' Kept for this ground.'"],
-  ['the window never draws the warning', 'src/shell/windows/hunts.js', "text(det.querySelector('.hw-hunt-warn'), rangeWords(r, level) || '');", ''],
+  ['the window never draws the warning', 'src/shell/windows/hunts.js', "text(det.querySelector('.hw-hunt-warn'), [rangeWords(r, level), underWords(r, under)].filter(Boolean).join(' '));", ''],
+  ['a ground names its start tiles, not the party the server allows (G3)', 'src/shell/hunt-list.js', 'heroes: PARTY.maxSize,', 'heroes: Math.min(g.start.length, PARTY.maxSize),'],
+  ['the leader warns even when the server will refuse the start (G3)', 'src/shell/hunt-list.js', 'far: under.some((s) => r.band[0] - s.level >= SESSION_LIMITS.belowRangeRefuse)', 'far: false'],
+  ['the leader\'s warning names the leader too (G3)', 'src/shell/hunt-list.js', 's.seat !== party.me && Number.isInteger(s.level)', 'Number.isInteger(s.level)'],
   ['the session drops below_range', 'src/session/character-session.js', 'return { ok: true, belowRange: true };', 'return { ok: true };'],
   ['the gate keeps the hard floor', 'supabase/migrations/2026-10-25-hunt-floor-warning.sql', 'if v_min - v_cl >= coalesce(v_refuse, 1) then', 'if v_cl < v_min then'],
   ['the enter answer loses its flag', 'supabase/migrations/2026-10-25-party-invites.sql', "'below_range', public.hr_hunt_below_range(v_uid, p_slot, p_hunt)", "'below_range', false"],

@@ -22,7 +22,8 @@
 // What this lane asks the server for (CONFLICTS.md 2026-10-18 party UI; the
 // fixture is tests/fixtures/party-envelope.json):
 //   party_invites  [{ id, party, hunt, from }]      invites to THIS character
-//   account        { max_concurrent }               the account's concurrent-play
+//   party_notices  [{ id, kind, who, hunt }]        what another player's move did to THIS character (2027-02-18-party-truth.sql)
+//   account       { max_concurrent }               the account's concurrent-play
 //                                                   limit (read by AccountSession.limit)
 // The finder's answer (hr_hunt_party_finder) is read by finderRows.
 //
@@ -60,6 +61,8 @@ function seatOf(s) {
     level: Number.isInteger(s.level) && s.level >= 0 ? s.level : null,
     /* 2026-10-28-party-flow.sql: an away member keeps its seat for `seat_ms` more (ms; null when not away). */
     away: s.away === true, seatMs: s.away === true && num(s.seat_ms) !== null && s.seat_ms >= 0 ? s.seat_ms : null,
+    /* 2027-02-18-party-truth.sql: a hunting seat's stamina once the server says it is low (15 min or under), else null. */
+    staminaLowMs: num(s.stamina_low_ms) !== null && s.stamina_low_ms >= 0 ? s.stamina_low_ms : null,
   };
 }
 
@@ -113,6 +116,18 @@ export function invitesOf(cs) {
   for (const i of v.slice(0, 16)) {
     if (!isObj(i) || typeof i.id !== 'string' || !UUID.test(i.id)) continue;
     out.push({ id: i.id, hunt: typeof i.hunt === 'string' && HUNT.test(i.hunt) ? i.hunt : null, from: name(i.from) });
+  }
+  return out;
+}
+
+/** `party_notices` (2027-02-18-party-truth.sql): what another player's move did to THIS character: [{ id, kind, who, hunt }], or null when the server sends none. */
+export function noticesOf(cs) {
+  const v = read(cs, 'party_notices');
+  if (!Array.isArray(v)) return null;
+  const out = [];
+  for (const n of v.slice(0, 8)) {
+    if (!isObj(n) || typeof n.id !== 'string' || !UUID.test(n.id) || typeof n.kind !== 'string') continue;
+    out.push({ id: n.id, kind: n.kind, who: name(n.who), hunt: typeof n.hunt === 'string' && HUNT.test(n.hunt) ? n.hunt : null });
   }
   return out;
 }

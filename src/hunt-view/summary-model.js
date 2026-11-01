@@ -20,6 +20,7 @@
 // ════════════════════════════════════════════════════════════════════════
 import { sanitizeSummary, sanitizeSummaries } from '../session/hunt-summaries.js?v=0.2.80';
 import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.80';
+import { cameHomeWords } from '../data/party-words.js?v=0.2.80';
 
 export { sanitizeSummaries };
 
@@ -57,19 +58,17 @@ export const FORFEIT_WORDS = Object.freeze({
 });
 
 /** The plain-words end reason (`forfeit`: the server forfeited the hunt's last window); an unknown name still reads as a sentence.
-    LEAVE TOGETHER: a hero sent home by another member's end names that member (`by`, the server's end_by) and itself
-    (`hero`), "Mira left the hunt, so Oren came home too." (hunt-sessions.js END_REASON_COPY). */
-export function endWords(reason, forfeit, by, hero) {
-  if (typeof by === 'string' && by && (reason === 'party_member_left' || reason === 'party_member_died')) {
-    return END_REASON_COPY[reason].one.replace('{member}', by).replace('{name}', (typeof hero === 'string' && hero) || 'your hero');
-  }
+    LEAVE TOGETHER: a hero sent home by another member's end names that member (`by`, the server's end_by), what ended it
+    (`why`, end_by_why) and itself (`hero`), "Mira ran out of stamina, so Oren came home too." (party-words.js cameHomeWords). */
+export function endWords(reason, forfeit, by, hero, why) {
+  if (typeof by === 'string' && by && (reason === 'party_member_left' || reason === 'party_member_died')) return cameHomeWords(reason, by, why, hero);
   return (forfeit === true && FORFEIT_WORDS[reason]) || END_WORDS[reason] || 'The hunt ended.';
 }
 
 /** The end card's reason line. `msLeft`: the stamina the server says the hero has now, given only for the newest hunt with none running:
     out of stamina, the card says what it has rested back, so Hunt again is a decision and not a guess (panel 2026-11-01). */
 export function reasonWords(s, hero, msLeft) {
-  const why = s.reason ? endWords(s.reason, s.forfeit, s.by, hero) : 'The hunt ended.';
+  const why = s.reason ? endWords(s.reason, s.forfeit, s.by, hero, s.why) : 'The hunt ended.';
   if (s.reason !== 'stamina' || !Number.isFinite(msLeft)) return why;
   const m = Math.floor(msLeft / 60000);
   return why + ' Stamina now: ' + (m >= 60 ? Math.floor(m / 60) + ' h ' : '') + (m % 60) + ' min.';
@@ -105,6 +104,8 @@ export function endedSessionOf(cs) {
     forfeit: s.forfeit === true,
     /* LEAVE TOGETHER: the member whose end sent this hero home (hr_hunt_view `end_by`), or null. */
     by: typeof s.end_by === 'string' && s.end_by.trim() ? s.end_by.trim().slice(0, 40) : null,
+    /* What ended that member (hr_hunt_view `end_by_why`), or null. */
+    why: typeof s.end_by_why === 'string' ? s.end_by_why : null,
     preset: int(s.preset), hoursLimit: int(s.hours_limit),
     enteredMs: ms(s.entered_at), endedMs: ms(s.ended_at), bag,
     tally: isObj(s.tally) ? s.tally : null,
@@ -129,7 +130,7 @@ export function buildSummary(s, an, deaths) {
   const supplies = hero ? hero.supplies.filter((x) => id(x.item) && num(x.count) !== null).map((x) => [x.item, x.source, x.count])
     : countPairs(t.supplies).map(([item, n]) => [item, 'own', n]);
   return sanitizeSummary({
-    id: s.id, hunt: s.hunt, at: s.endedMs, reason: s.reason, forfeit: s.forfeit === true, by: s.by || null, ms: dur,
+    id: s.id, hunt: s.hunt, at: s.endedMs, reason: s.reason, forfeit: s.forfeit === true, by: s.by || null, why: s.why || null, ms: dur,
     /* `xp` is LEVEL XP only (the tally's `level` key), never Level plus training (Tyler 2026-10-22). */
     kills: hero ? hero.kills : int(t.kills), xp: hero ? hero.levelXp : isObj(t.xp) ? num(t.xp.level) : num(t.xp), gold: hero ? hero.gold : num(t.coins),
     /* `gold` is coin received (the server's coins); the loot's shop price is its own line (Brannoc 10-22). */

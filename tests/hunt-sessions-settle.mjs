@@ -286,6 +286,7 @@ async function loadEdge(root) {
     PS: await import(u('src/core/party-split.js')),
     HR: await import(u('src/core/hunt-rewards.js')),
     ROLES: await import(u('src/data/hunt-roles.js')),
+    PCX: await import(u('src/data/party-class-xp.js')),
     XS: await import(u('src/core/hunt/xp-share.js')),
     WS: await import(u('src/core/hunt/world-state.js')),
     GRID: await import(u('src/core/hunt/grid.js')),
@@ -2767,6 +2768,54 @@ const DB_ARMS = {
   }),
   /* PARTY-KICK (live P1 2026-10-20): hr_hunt_close (kick / an at-once leave) clears the session's unit_id
      but not the stored world; the orphan hero kept fighting, and the analyzer tally refused every settle. */
+  /* THE CLASS IS WHAT IS WORN, ON EVERY SURFACE, BOTH PATHS (blind panel 2026-11-01): a seat that swaps to a bow after joining and before the
+     hunt. The server's party section, the engine's hero, the world's unit and the pay read Ranger, with the browser closed and with the hunt
+     viewed; before 2027-02-18-party-truth.sql the section said Melee (shield) over a world that paid two classes. */
+  'PARTY-ROLE-WORN': async (db, M) => inTx(db, async () => {
+    const problems = [];
+    const exec = makeExec(db);
+    const DOORS = { 'the browser closed': { mode: 'tick' }, 'the hunt viewed': { mode: 'settle', bucket: null, project: true, live: true } };
+    for (const [path, door] of Object.entries(DOORS)) {
+      await db.query('savepoint role_worn');
+      const h = await hunter(db, M, { realGround: true, party: [{ ...STRONG }, { ...STRONG }], beforeEnter: async () => {
+        await db.query(`insert into public.player_equipment (user_id, slot, equip_slot, item_id) values ($1, 0, 'weapon', 'practice_sword')
+                        on conflict (user_id, slot, equip_slot) do update set item_id = excluded.item_id`, [UIDS[0]]);
+        await db.query(`insert into public.player_equipment (user_id, slot, equip_slot, item_id) values ($1, 0, 'shield', 'practice_shield')
+                        on conflict (user_id, slot, equip_slot) do update set item_id = excluded.item_id`, [UIDS[0]]);
+        await db.query(`insert into public.player_equipment (user_id, slot, equip_slot, item_id) values ($1, 0, 'weapon', 'practice_bow')
+                        on conflict (user_id, slot, equip_slot) do update set item_id = excluded.item_id`, [UIDS[1]]);
+        await db.query(`delete from public.player_equipment where user_id = $1 and slot = 0 and equip_slot = 'shield'`, [UIDS[1]]);
+      } });
+      let paid = 0, raw = 0, world = null;
+      for (let t = h.from + 60000; t <= h.from + 240000; t += 60000) {
+        const plan = await M.HS.readHuntSettle({ exec, user: UIDS[0], slot: 0, grounds: groundsOf(M), atMs: t, ...door }, door.mode);
+        if (plan.answer) return [...problems, path + ': the read answered ' + JSON.stringify(plan.answer).slice(0, 200)];
+        const heroes = UIDS.slice(0, 2).map((u) => plan.members.find((m) => m.user === u).hero.role).join();
+        if (heroes !== 'tank,ranger') problems.push(path + ': the engine plays ' + heroes);
+        const p = await M.HS.proposeHuntSettle(plan, plan.toMs, 0);
+        /* Each share against the table's cell: the kill's XP was 2 x raw or 2 x raw + 1 (the even share floored), xp-share.js splitKillXp. */
+        const cell = M.PCX.partyClassXp('mill_cellar', ['tank', 'ranger']).permille;
+        for (const e of p.out.events || []) if (e.type === 'xp' && e.raw > 0) {
+          paid += e.amount; raw += e.raw;
+          if (![e.raw, e.raw + 0.5].some((share) => e.amount === Math.floor((share * cell) / 1000 + 1e-9))) problems.push(path + ': a share of ' + e.raw + ' paid ' + e.amount + ', and the cell is ' + cell);
+        }
+        world = p.commit.settle.world;
+        const r = await M.HS.commitHuntSettle(exec, { ...p.commit, project: door.project || null });
+        if (!r || r.ok !== true) return [...problems, path + ': the commit answered ' + JSON.stringify(r).slice(0, 200)];
+      }
+      const units = M.WS.decode(JSON.parse(world)).units.filter((u) => u.side === 'hero').map((u) => u.role).sort().join();
+      if (units !== 'ranger,tank') problems.push(path + ': the world\'s heroes are ' + units);
+      const shown = await one(db, `select public.hr_state_of($1::uuid, 0)->'party'->'members'`, [UIDS[0]]);
+      const roles = shown.map((m) => M.ROLES.roleForWeapon(m.weapon, m.role_pick)).sort().join();
+      if (roles !== 'ranger,tank') problems.push(path + ': the party section shows ' + roles + ' over a world of ' + units);
+      /* The pay: two classes earn over the even share on this ground (1.07, the line the Party window reads); two tanks would earn it exactly. */
+      if (!raw) problems.push(path + ': CONTROL: nothing was paid in four minutes');
+      else if (!(paid > raw)) problems.push(path + ': the hunt paid ' + paid + ' on an even share of ' + raw + ': no class bonus for a tank and a ranger');
+      await db.query('rollback to savepoint role_worn');
+    }
+    return problems;
+  }),
+
   'PARTY-KICK': async (db, M) => inTx(db, async () => {
     const problems = [];
     const h = await hunter(db, M, { party: [{ ...STRONG }, { ...STRONG }] });
@@ -3821,6 +3870,8 @@ const DB_MUTANTS = [
   { arm: 'PARTY-LEAVE', name: '[leave together] the party section shows a box that is not the hero\'s', fn: 'public.hr_hunt_party_view(uuid,integer)',
     find: "    'leave_together', (select ps.party_leave_together from public.player_state ps where ps.user_id = p_user and ps.slot = p_slot));",
     replace: "    'leave_together', true);" },
+  { arm: 'PARTY-ROLE-WORN', name: '[party truth] the party section shows a fixed weapon over the world that pays the worn one', fn: 'public.hr_hunt_party_view(uuid,integer)',
+    find: 'public.hr_hunt_weapon_of(m.user_id, m.slot) as weapon, h.id as sid,', replace: "'shield'::text as weapon, h.id as sid," },
   { arm: 'PARTY-LEAVE', name: '[leave together] a cascaded hero names another cascaded hero as the one who left', fn: 'public.hr_hunt_view(uuid)',
     find: "         and o.end_reason not in ('party_member_died', 'party_member_left')\n", replace: '' },
   { arm: 'PARTY-LEAVE', name: '[leave together] one player\'s set writes every hero in that slot', fn: 'public.hr_party_leave_together_set(integer,boolean,uuid)',

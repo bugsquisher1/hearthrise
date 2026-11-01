@@ -107,9 +107,15 @@ async function settle(ctx, body, st, p, done) {
   renderFriends.patch(body, ctx);
   const r = await p;
   st.pending = false;
-  st.msg = r && r.ok === false ? refusalWords(r.error) : r && typeof r.say === 'string' ? r.say
-    : typeof done === 'function' ? done(r) || '' : done || '';
+  st.msg = answerWords(r, done);
   renderFriends.patch(body, ctx);
+}
+
+/** The line under an answer: the refusal, or a menu entry's own words ("Invite sent to Mira.": a press that worked said nothing,
+    panel 2026-11-01), else the window's. Pure; exported for tests/party-ui.mjs. */
+export function answerWords(r, done) {
+  return r && r.ok === false ? refusalWords(r.error) : r && typeof r.say === 'string' ? r.say : r && typeof r.done === 'string' ? r.done
+    : typeof done === 'function' ? done(r) || '' : done || '';
 }
 
 renderFriends.act = function actFriends(ctx, body, action, ev, t) {

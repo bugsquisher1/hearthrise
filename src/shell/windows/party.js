@@ -107,12 +107,12 @@ renderParty.act = function actParty(ctx, body, action, ev, t) {
     const box = body.querySelector('.hw-invite-in');
     const name = box.value.trim();
     if (name.length < 2) { sc.msg = 'Type the name of the player to invite.'; repaint(); return true; }
-    runIntent(sc, repaint, () => cs.inviteByName(name), 'Inviting…', () => { box.value = ''; return 'Invite sent to ' + name + '.'; });
+    runIntent(sc, repaint, () => cs.inviteByName(name).then((r) => (r.ok ? r : { ...r, verb: 'party_invite' })), 'Inviting…', () => { box.value = ''; return 'Invite sent to ' + name + '.'; });
     return true;
   }
   if (action === 'accept' || action === 'decline') {
     const yes = action === 'accept';
-    runIntent(sc, repaint, () => cs.answerInvite(t.getAttribute('data-invite'), yes), yes ? 'Joining…' : 'Declining…',
+    runIntent(sc, repaint, () => cs.answerInvite(t.getAttribute('data-invite'), yes).then((r) => (r.ok ? r : { ...r, verb: 'party_join' })), yes ? 'Joining…' : 'Declining…',
       () => (yes ? 'You joined the party.' : 'Invite declined.'));
     return true;
   }

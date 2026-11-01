@@ -66,7 +66,8 @@ import { makeDie } from './lib/slice-literal.mjs';
 import { generatedTarget } from './lib/generated-target.mjs';
 import { SHOP_OFFERS } from '../src/data/shops.js';
 import { ITEMS } from '../src/data/items.js';
-import { PROPERTY_TIERS, ROOM_RUNGS } from '../src/data/homestead-tiers.js';
+import { PROPERTY_TIERS, ROOM_RUNGS, HELD_HOME_OFFERS } from '../src/data/homestead-tiers.js';
+import { reachableSources } from '../src/data/catalogue-coherence.js';
 import {
   UNLOCK_OFFERS, UNLOCK_REFUSALS, ALL_UNLOCK_OFFER_IDS,
 } from '../supabase/functions/hr-accrue/unlock-catalogue.js';
@@ -230,10 +231,22 @@ for (const id of [...ALL_UNLOCK_OFFER_IDS].sort()) {
     refusal: null,
   });
 }
-/* ONE PRICE, the other half: every tier above the Camp is bought, by exactly one row (assertPropertyCostMatches). */
+/* ONE PRICE, the other half: every tier above the Camp is bought, by exactly one row (assertPropertyCostMatches),
+   or held by name until its content exists (homestead-tiers.js HELD_HOME_OFFERS). */
 for (let t = 1; t < TIERS.length; t++) {
-  if (!PROPERTY_SOLD.has(t)) die(`property tier ${t} (${TIERS[t].id}) has no shop row in src/data/shops.js: nothing sells it`);
+  if (!PROPERTY_SOLD.has(t) && !HELD_HOME_OFFERS.includes('property.' + TIERS[t].id)) die(`property tier ${t} (${TIERS[t].id}) has no shop row in src/data/shops.js: nothing sells it`);
 }
+/* A PRICE A PLAYER CAN PAY (lane c-house-pelts): no sellable row names an item with no door a player can walk through
+   (catalogue-coherence.js reachableSources; "has a monster row" is not enough: the Bear Pelt had six, on monsters no
+   ground spawns). Stated here and, for the row the apply really wrote, in the self-check below. */
+const reachable = reachableSources();
+const costedItems = new Set(rows.flatMap((r) => Object.keys(r.items || {})));
+const noDoor = [...costedItems].filter((id) => !reachable.has(id)).sort();
+if (noDoor.length) die(`sellable unlock offers cost items no player can reach: ${noDoor.join(', ')}. Source the item, re-cost the row, or hold it (HELD_HOME_OFFERS).`);
+const heldRowIds = rows.filter((r) => HELD_HOME_OFFERS.includes(r.offer_id)).map((r) => r.offer_id);
+if (heldRowIds.length !== HELD_HOME_OFFERS.length) die(`HELD_HOME_OFFERS names rows the catalogue does not have: ${HELD_HOME_OFFERS.filter((id) => !heldRowIds.includes(id)).join(', ')}`);
+const allCosted = new Set(SHOP_OFFERS.filter((o) => (o.grant || []).some((g) => g && g.kind === 'unlock')).flatMap((o) => (o.cost || []).filter((c) => c.kind === 'item').map((c) => c.id)));
+const deadItems = [...allCosted].filter((id) => !reachable.has(id)).sort();
 
 /* ── DEMOLITION REGEN (2026-10-14): THIS FILE NOW LANDS AT THE CHAIN END ─────
    so a family a LATER migration re-seeded under this generator's own `source`
@@ -491,6 +504,20 @@ begin
     if v_bad is not null then
       raise exception 'unlock offers costing items that are not in hr_items: %', v_bad;
     end if;
+  end if;
+
+  -- A PRICE A PLAYER CAN PAY (lane c-house-pelts). The rows held until their content exists are refused,
+  -- and no sellable row costs an item the catalogue's generator found no door to.
+  select string_agg(o.offer_id, ', ') into v_bad from public.hr_unlock_offers o
+   where o.offer_id = any (array[${heldRowIds.map(q).join(', ')}]::text[]) and o.refusal is null;
+  if v_bad is not null then
+    raise exception 'held house rows are sellable: %', v_bad;
+  end if;
+  select string_agg(o.offer_id, ', ') into v_bad from public.hr_unlock_offers o
+   where o.source = 'gen-unlock-offers' and o.refusal is null
+     and coalesce(o.items, '{}'::jsonb) ?| array[${deadItems.map(q).join(', ')}]::text[];
+  if v_bad is not null then
+    raise exception 'sellable house rows cost an item no player can reach: %', v_bad;
   end if;
 
   -- THE KITCHEN IS SELLABLE. Everything downstream of this file exists so that

@@ -76,30 +76,38 @@ end $$;
 
 -- ── §2 THE FEE, RE-DERIVED ──────────────────────────────────────────────────
 create or replace function public.hr_bench_tax_keep(p_user uuid, p_slot int)
-returns bigint language sql stable set search_path = public, pg_catalog as $$
+returns bigint language plpgsql stable set search_path = public, pg_catalog as $$
+begin
   -- The hero's own "Keep at least" on its current setup. An untouched control keeps nothing at a bench (the header).
-  select greatest(0, coalesce((select (a.options->>'gold_floor')::bigint from public.player_action_sets a
-                                where a.user_id = p_user and a.slot = p_slot and a.preset = public.hr_hunt_active_set(p_user, p_slot)), 0))
-$$;
+  return greatest(0, coalesce((select (a.options->>'gold_floor')::bigint from public.player_action_sets a
+                                where a.user_id = p_user and a.slot = p_slot and a.preset = public.hr_hunt_active_set(p_user, p_slot)), 0));
+end $$;
 revoke all on function public.hr_bench_tax_keep(uuid, int) from public, anon, authenticated, service_role;
 
--- One job's fee at a public bench, in milligold, whoever asks: 0 = no fee (no row, no bid, under the cheap goods line).
+-- THE FEE, ONE STATEMENT OF IT: per recipe with a shop bid, in milligold, whoever asks. 0 under the cheap goods line.
+create or replace view public.hr_bench_tax_fees as
+  select r.recipe_id, r.skill, r.permille, r.room, r.rung,
+         case when r.permille::bigint * v.unit * r.qty < r.free_under_mg then 0::bigint else r.permille::bigint * v.unit * r.qty end as mg
+    from public.hr_bench_tax_rates r join public.hr_hunt_vendor_value v on v.item_id = r.output;
+revoke all on table public.hr_bench_tax_fees from public, anon, authenticated, service_role;
+
+-- One job's fee at a public bench: 0 = no fee (no row, no bid, under the cheap goods line).
 create or replace function public.hr_bench_tax_mg(p_recipe text)
-returns bigint language sql stable set search_path = public, pg_catalog as $$
-  select coalesce((select case when r.permille::bigint * v.unit * r.qty < r.free_under_mg then 0 else r.permille::bigint * v.unit * r.qty end
-                     from public.hr_bench_tax_rates r join public.hr_hunt_vendor_value v on v.item_id = r.output
-                    where r.recipe_id = p_recipe), 0)
-$$;
+returns bigint language plpgsql stable set search_path = public, pg_catalog as $$
+begin
+  return coalesce((select f.mg from public.hr_bench_tax_fees f where f.recipe_id = p_recipe), 0);
+end $$;
 revoke all on function public.hr_bench_tax_mg(text) from public, anon, authenticated, service_role;
 
 -- The fee THIS account pays for a job: 0 when it owns the room at the row's rung.
 create or replace function public.hr_bench_tax_due_mg(p_user uuid, p_slot int, p_recipe text)
-returns bigint language sql stable set search_path = public, pg_catalog as $$
-  select case when exists (select 1 from public.hr_bench_tax_rates r
+returns bigint language plpgsql stable set search_path = public, pg_catalog as $$
+begin
+  return (select case when exists (select 1 from public.hr_bench_tax_rates r
                              join public.hr_unlock_levels(p_user, p_slot) l on l.unlock_id = 'room:' || r.room and l.level >= r.rung
                             where r.recipe_id = p_recipe) then 0
-              else public.hr_bench_tax_mg(p_recipe) end
-$$;
+              else public.hr_bench_tax_mg(p_recipe) end);
+end $$;
 revoke all on function public.hr_bench_tax_due_mg(uuid, int, text) from public, anon, authenticated, service_role;
 
 -- Called by hr_apply only, with the row it locked. A refusal raises through hr_reject, so the whole apply rolls back.
@@ -164,6 +172,7 @@ revoke all on function public.hr_bench_tax_settle(uuid, int, public.player_state
 -- ── §3 THE SECTION: THE ENGINE'S SWITCH AND THE WORK WINDOW'S WORDS ─────────
 -- now_mg: the running job's fee, the engine's only input (0: no tax). fees: what each recipe this hero's level opens takes, for
 -- the Work window; a skill whose room the account owns sends none. rooms: per skill, the share, the room, owned or not.
+-- A hunting hero reads this on every settle and can start no bench: it gets the carry and the run, and nothing is joined.
 create or replace function public.hr_bench_tax_view(p_user uuid, p_slot int)
 returns jsonb language plpgsql stable set search_path = public, pg_catalog as $$
 declare v_st record; v_rooms jsonb; v_fees jsonb;
@@ -171,6 +180,9 @@ begin
   select ps.bench_tax_carry_mg as carry, ps.bench_tax_run as run, ps.active_kind as kind, ps.active_id as id into v_st
     from public.player_state ps where ps.user_id = p_user and ps.slot = p_slot;
   if not found then return null; end if;
+  if v_st.kind = 'combat' then
+    return jsonb_build_object('rooms', '{}'::jsonb, 'fees', '{}'::jsonb, 'carry_mg', v_st.carry, 'run', v_st.run, 'now_mg', 0, 'keep', 0);
+  end if;
   with skills as (
     select r.skill, min(r.permille) as permille, min(r.room) as room, min(r.rung) as rung from public.hr_bench_tax_rates r group by r.skill
   ), owned as (
@@ -178,9 +190,9 @@ begin
            coalesce((select public.hr_skill_level(k.skill_id, k.xp) from public.player_skills k where k.user_id = p_user and k.slot = p_slot and k.skill_id = s.skill), 1) as lv
       from skills s
   ), recipes as (
-    select r.recipe_id, public.hr_bench_tax_mg(r.recipe_id) as mg from public.hr_bench_tax_rates r
-      join owned o on o.skill = r.skill and not o.free
-      join public.hr_activities a on a.kind = 'artisan' and a.activity_id = r.recipe_id
+    select f.recipe_id, f.mg from public.hr_bench_tax_fees f
+      join owned o on o.skill = f.skill and not o.free
+      join public.hr_activities a on a.kind = 'artisan' and a.activity_id = f.recipe_id
      where coalesce(a.req_lv, 1) <= o.lv
   )
   select (select jsonb_object_agg(o.skill, jsonb_build_object('permille', o.permille, 'room', o.room, 'free', o.free)) from owned o),
@@ -323,6 +335,8 @@ declare
   v_fn text;
 begin
   -- (a) NO CLIENT REACHES THE NEW SURFACE.
+  if has_table_privilege('authenticated', 'public.hr_bench_tax_fees', 'select') or has_table_privilege('anon', 'public.hr_bench_tax_fees', 'select') then
+    raise exception 'bench-tax §5(a): a client role reads the fee view'; end if;
   foreach v_fn in array array['public.hr_bench_tax_settle(uuid,integer,public.player_state,jsonb,jsonb)', 'public.hr_bench_tax_view(uuid,integer)',
                               'public.hr_bench_tax_keep(uuid,integer)', 'public.hr_bench_tax_mg(text)', 'public.hr_bench_tax_due_mg(uuid,integer,text)',
                               'public.hr_apply(uuid,integer,bigint,uuid,jsonb)'] loop

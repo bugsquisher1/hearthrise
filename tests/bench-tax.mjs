@@ -213,10 +213,11 @@ async function arms(db, tick, setActivity, opts) {
     ['hr_bench_tax_view', 'select public.hr_bench_tax_view($1::uuid, 0)', [f]],
     ['hr_bench_tax_due_mg', "select public.hr_bench_tax_due_mg($1::uuid, 0, 'x')", [f]],
     ['hr_bench_tax_rates', 'select count(*) from public.hr_bench_tax_rates where $1::uuid is not null', [f]],
+    ['hr_bench_tax_fees', 'select count(*) from public.hr_bench_tax_fees where $1::uuid is not null', [f]],
   ]) {
     try { await as(db, f, sql, params); } catch (e) { refused.push(name); }
   }
-  arm('T-FORGED', fa.purse === va.purse && fa.carry === va.carry && refused.length === 4,
+  arm('T-FORGED', fa.purse === va.purse && fa.carry === va.carry && refused.length === 5,
     `a forged fee, gold, rate, flag, count and carry in the request charged the same ${want} g; a client role reaches neither door nor table`,
     `forged values moved the fee or a door is open: ${js({ fa, va, refused })}`);
 
@@ -328,6 +329,7 @@ async function arms(db, tick, setActivity, opts) {
     const w = { kind: 'artisan', id: hat.id, skill: 'smithing', row: hat };
     const low = cs(3, 0, { iron_bar: 40, copper_bar: 2 });
     const none = cs(0, 0, {});
+    const recap = F.benchStopRecapOf(low, () => 'Iron Bar');
     const words = [F.feeRowWords(low, w), F.feeFullWords(low, w), F.feeHeadWords(low, 'smithing'), F.feeBlock(low, w), F.feeBlock(none, w), F.feeBlock(cs(500, 0, {}), w), F.benchEndWords(low, () => 'Iron Bar')];
     const goodWords = words[0] === 'The public bench takes about 10 gold a craft.'
       && words[1] === 'The public bench takes about 10 gold a craft. A forge in your house takes none.'
@@ -335,7 +337,9 @@ async function arms(db, tick, setActivity, opts) {
       && /Sell your 40 Iron Bar at the shop, or gather something: gathering is free\./.test(words[3]) && /wants 9 gold/.test(words[3])
       && /Gather something and sell it: gathering is free\./.test(words[4]) && words[5] === ''
       && /Iron Bar stopped after 4: out of gold for the bench fee\. 3 gold paid/.test(words[6]) && !/_|bench_tax/.test(words.join(' '))
-      && F.feeWords(450) === 'about 1 gold every 2 crafts' && F.feeWords(3000) === '3 gold a craft';
+      && F.feeWords(450) === 'about 1 gold every 2 crafts' && F.feeWords(3000) === '3 gold a craft'
+      && F.benchPaidWords(low, IRON.id, Date.parse('2026-11-01T00:00:00Z')) === '3 gold to the public bench'
+      && !!recap && recap.kind === 'away' && recap.id.startsWith('bench-gold:') && recap.text === words[6];
     arm('T-WORDS', goodWords, 'the row, the start screen, the refusal and the end line say the server\'s numbers in plain words and name the stack to sell',
       `the words: ${js(words)}`);
   }
@@ -367,7 +371,7 @@ const JS_MUTANTS = [
 /* On the migration: caught when its own §5 refuses the file, or by the arm on the chain it built. */
 const SQL_MUTANTS = [
   { id: 'room_ignored', arm: 'T-HOUSE', expect: /bench-tax §5\(g\)/, why: 'owning the room takes nothing off',
-    edits: [["  select case when exists (select 1 from public.hr_bench_tax_rates r\n", "  select case when false and exists (select 1 from public.hr_bench_tax_rates r\n"]] },
+    edits: [["  return (select case when exists (select 1 from public.hr_bench_tax_rates r\n", "  return (select case when false and exists (select 1 from public.hr_bench_tax_rates r\n"]] },
   { id: 'keep_ignored', arm: 'T-KEEP', expect: /bench-tax §5\(f\)/, why: 'the fee takes what the hero set to keep',
     edits: [["    if v_fee > 0 then v_keep := public.hr_bench_tax_keep(p_user, p_slot); end if;\n", "    v_keep := 0;\n"]] },
   { id: 'kept_key', arm: 'T-RACE', expect: /bench-tax §5\((b|f)\)/, why: 'a refused window keeps its key, so the re-read replays the refusal for a day',
@@ -379,7 +383,7 @@ const SQL_MUTANTS = [
   { id: 'wrong_kind', arm: 'T-LEDGER', expect: /bench-tax §5\(e\)/, why: 'the tax files as town work, no sink line',
     edits: [["when p_kind = ''craft'' then ''bench_tax''", "when p_kind = ''craft'' then ''town_work''"]] },
   { id: 'no_cheap_line', arm: 'T-FREE', why: 'the cheap goods line is not read: Copper Bars are charged',
-    edits: [["select case when r.permille::bigint * v.unit * r.qty < r.free_under_mg then 0 else", "select case when false then 0 else"]] },
+    edits: [["         case when r.permille::bigint * v.unit * r.qty < r.free_under_mg then 0::bigint else", "         case when false then 0::bigint else"]] },
   { id: 'carry_lost', arm: 'T-LEDGER', expect: /bench-tax §5\(d\)/, why: 'the carry is not written back',
     edits: [["           bench_tax_carry_mg = coalesce((v_tax->>'carry')::int, bench_tax_carry_mg),\n", "           bench_tax_carry_mg = bench_tax_carry_mg,\n"]] },
 ];

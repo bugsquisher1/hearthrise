@@ -98,6 +98,8 @@ export const ADDITIVE_MAP = Object.freeze(['xp', 'items']);
 export const ABSOLUTE = Object.freeze([
   'accrued_to', 'hp', 'fight', 'activity',
   'ammo_carry', 'tool_carry', 'active_left',
+  /* the work bench tax's count (2027-02-19-bench-tax.sql): an artisan window is one engine call and is never folded (tick-artisan.js). */
+  'bench_tax',
 ]);
 export const APPEND = Object.freeze(['deaths', 'progress', 'hearthfind']);
 /* ABSOLUTE PER KEY: a map whose every entry is a checkpoint, folded "last

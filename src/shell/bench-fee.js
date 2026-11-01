@@ -38,8 +38,8 @@ export function feeHeadWords(cs, skill) {
   const t = benchTaxOf(cs);
   const r = t && t.rooms[skill];
   if (!r) return '';
-  if (r.free) return 'Your ' + r.room + ' does this work, so no bench fee.';
-  return 'The public bench takes ' + (r.permille / 10) + '% of what each job makes sells for at the shop. A ' + r.room + ' in your house takes none.';
+  if (r.free) return 'No bench fee: you have a ' + r.room + ' in your house.';
+  return 'The public bench takes ' + (r.permille / 10) + '% of what you make, at shop prices. A ' + r.room + ' in your house takes none.';
 }
 
 /** The live tax this hero's next run of `w` would owe, from the server's numbers, or null. */
@@ -79,7 +79,7 @@ export function feeBlock(cs, w) {
   const tax = rowTax(cs, w);
   if (!tax || canPayNext(tax)) return '';
   const t = benchTaxOf(cs);
-  const kept = t && t.keep > 0 ? ' and you keep ' + whole(t.keep) : '';
+  const kept = t && t.keep > 0 ? ' and keep ' + whole(t.keep) : '';
   return 'The public bench wants ' + whole(dueNext(tax)) + ' gold for this. You have ' + whole(tax.purse) + kept + '. ' + payWords(cs);
 }
 

@@ -8,7 +8,7 @@
 //   node tests/artisan-tick.mjs            the guard (the whole replayed chain, the shipped runTick)
 //   node tests/artisan-tick.mjs --mutate   every planted defect (edge copy or SQL) must turn its arm red
 //
-// mutant-anchors: supabase/migrations/2027-02-10-artisan-tick.sql, supabase/migrations/2027-02-11-bag-over-cap.sql, supabase/functions/hr-accrue/tick-artisan.js, supabase/functions/hr-accrue/tick.js, supabase/functions/hr-accrue/tick-shadow.js
+// mutant-anchors: supabase/migrations/2027-02-10-artisan-tick.sql, supabase/migrations/2027-02-11-bag-over-cap.sql, supabase/migrations/2027-02-20-tick-fuse-load.sql, supabase/functions/hr-accrue/tick-artisan.js, supabase/functions/hr-accrue/tick.js, supabase/functions/hr-accrue/tick-shadow.js
 //
 // Every hero here is created through hr_create_hero and then put on a bench the
 // way the settle writes it (the pointer, the bag); NONE has a heartbeat, a
@@ -29,6 +29,11 @@
 //   A-ONCE     a second fire over the spent hero pays nothing and journals nothing.
 //   A-OVERCAP  a bag one stack over its cap (a hunt came home) still burns bones, on the tick's door and the
 //              owner's own stop (2027-02-11-bag-over-cap.sql; live bf18bd7f:0 wedged 9.7 h on 10-30).
+//   A-FUSE     600 heroes who worked a bench and left, and who gathered and left, each still holding an owned row:
+//              a new bench hero is enrolled and paid by the tick (2027-02-20-tick-fuse-load.sql; the fuse counted
+//              rows nothing ever released).
+//   A-FUSE-GATHER  the same for a new gatherer of an account outside the old 10 % bucket, past the old fuse of 20.
+//   A-FUSE-HOLDS   the fuse still bites on real load: with the channel at max_owned, the next fresh hero waits.
 //
 // Exit: 0 green · 1 red · 2 harness.
 // ════════════════════════════════════════════════════════════════════════
@@ -43,6 +48,9 @@ const CONTROL = Boolean(process.env.HR_MUTANT_CONTROL);
 const FN = 'supabase/functions/hr-accrue';
 const MIG = '2027-02-10-artisan-tick.sql';
 const RECIPE = 'fuel_bones';
+const GATHER = 'normal_tree';
+const FUSE = '2027-02-20-tick-fuse-load.sql';
+const FUSE_LOCK = ["     <> '7cd2e9f8f1635fbb08e536714a77aa38' then", '     is null then'];
 const COLORS = '{"head": 13, "body": 5, "legs": 3, "feet": 0}';
 
 let seq = 0;
@@ -218,6 +226,64 @@ async function arms(db, tick, setActivity) {
   arm('A-OVERCAP', overTick && overOwner,
     `a bag at cap + 1 (${ot.stacks} of ${ot.cap}) burns bones on the tick's door (${otb.bones - ota.bones}, one row) and on the owner's own stop (${oob.bones - ooa.bones})`,
     `an over-cap bag wedged the bench: ${js({ tick: { stacks: ot.stacks, cap: ot.cap, otb, ota, rows: otRows.length, fire: of1 }, owner: { stacks: oo.stacks, oob, ooa, stop: oStop && (oStop.body || oStop) } }).slice(0, 700)}`);
+
+  /* ── A-FUSE (2027-02-20-tick-fuse-load.sql): rows that hold no load hold no slot, on both channels. The filler is
+        more than any dial, so the count of rows alone would read 'full'. Last in this function: every arm above runs
+        under a fuse with room whatever the mutant, and a re-run of the arms finds the filler already there. ── */
+  await db.query(`insert into auth.users (id)
+                  select ('000000c1-0000-4000-8000-0000fe' || lpad(to_hex(g), 6, '0'))::uuid from generate_series(1, 600) g
+                  on conflict (id) do nothing`);
+  await db.query(`insert into public.player_state (user_id, slot, version, accrued_to, active_kind, active_id, active_since)
+                  select ('000000c1-0000-4000-8000-0000fe' || lpad(to_hex(g), 6, '0'))::uuid, 0, 1,
+                         now() - interval '1 hour', 'idle', null, now() - interval '1 hour'
+                    from generate_series(1, 600) g on conflict (user_id, slot) do nothing`);
+  await db.query(`insert into public.hr_tick_ownership (user_id, slot, channel, owned)
+                  select ('000000c1-0000-4000-8000-0000fe' || lpad(to_hex(g), 6, '0'))::uuid, 0, c, true
+                    from generate_series(1, 600) g cross join unnest(array['artisan', 'gather']) c
+                  on conflict (user_id, slot, channel) do nothing`);
+  const fb = await hearthHero(db, 1000);
+  const fbb = await stateOf(db, fb);
+  const fbFire = await fire(db, tick, [fb]);
+  const fba = await stateOf(db, fb);
+  const fbRows = await craftRows(db, fb);
+  arm('A-FUSE', fba.bones < fbb.bones && Number(fba.xp) > Number(fbb.xp) && fbRows.length === 1 && fba.active_kind === 'artisan',
+    `600 owned rows of heroes who left hold no slot: a new bench hero is enrolled and paid (${fbb.bones - fba.bones} bones, one row)`,
+    `a new bench hero went unticked past the rows nothing releases: ${js({ fbb, fba, rows: fbRows.length, fire: fbFire }).slice(0, 500)}`);
+
+  /* The gatherer: an account outside the old 10 % bucket, browser closed, fresh. */
+  let gu = nextUid();
+  while (await one(db, 'select public.hr_tick_cohort_bucket($1::uuid) < 100', [gu])) gu = nextUid();
+  await db.query('insert into auth.users (id) values ($1) on conflict (id) do nothing', [gu]);
+  await db.query("insert into public.profiles (id, display_name) values ($1, $2) on conflict (id) do update set display_name = excluded.display_name", [gu, 'Woodsman ' + seq]);
+  const gh = await as(db, gu, 'select public.hr_create_hero(0, $1, $2::jsonb, $3::uuid)',
+    ['Woodsman' + String.fromCharCode(97 + (seq % 26)) + String.fromCharCode(97 + Math.floor(seq / 26) % 26), COLORS, idem()]);
+  if (!gh || gh.ok !== true) throw Object.assign(new Error('gatherer hr_create_hero refused: ' + js(gh)), { harness: true });
+  await db.query(`update public.player_state set active_kind = 'gather', active_id = $2, active_since = now(), accrued_to = now(), last_seen_at = null
+                   where user_id = $1 and slot = 0`, [gu, GATHER]);
+  await db.query('select public.hr_tick_enrol(200)');
+  await db.query(`update public.player_state set active_since = active_since - interval '10 minutes', accrued_to = accrued_to - interval '10 minutes'
+                   where user_id = $1 and slot = 0`, [gu]);
+  await db.query(`update public.hr_return_anchor set real_return_at = real_return_at - interval '10 minutes' where user_id = $1 and slot = 0`, [gu]);
+  const gOwned = await one(db, "select count(*)::int from public.hr_tick_ownership where user_id = $1 and slot = 0 and channel = 'gather' and owned", [gu]);
+  const gMark = await one(db, 'select accrued_to from public.player_state where user_id = $1 and slot = 0', [gu]);
+  const gFire = await fire(db, tick, [gu]);
+  const gMark2 = await one(db, 'select accrued_to from public.player_state where user_id = $1 and slot = 0', [gu]);
+  const gRows = (await db.query("select meta from public.player_ledger where user_id = $1 and slot = 0 and kind = 'gather' order by id", [gu])).rows.map((r) => r.meta);
+  arm('A-FUSE-GATHER', gOwned === 1 && gRows.length === 1 && gRows[0].src === 'tick' && Date.parse(gMark2) > Date.parse(gMark),
+    `a gatherer outside the old 10 % bucket, past the old fuse of 20, is enrolled and settled by the tick (one row, watermark +${Date.parse(gMark2) - Date.parse(gMark)} ms)`,
+    `an absent gatherer went unticked: ${js({ gOwned, gRows, gMark, gMark2, fire: gFire }).slice(0, 500)}`);
+
+  /* ── A-FUSE-HOLDS: the dial is still a fuse: at max_owned heroes on the channel the next fresh hero waits. ── */
+  const coh0 = (await db.query("select max_owned from public.hr_tick_cohort where channel = 'artisan'")).rows[0].max_owned;
+  const load = await one(db, `select count(*)::int from public.hr_tick_ownership o join public.player_state ps using (user_id, slot)
+                              where o.channel = 'artisan' and o.owned and ps.active_kind = 'artisan' and ps.accrued_to > now() - interval '24 hours'`);
+  await db.query("update public.hr_tick_cohort set max_owned = $1 where channel = 'artisan'", [load]);
+  const full = await hearthHero(db, 10, 0);
+  const fullOwned = await one(db, "select count(*)::int from public.hr_tick_ownership where user_id = $1 and slot = 0 and channel = 'artisan'", [full]);
+  await db.query("update public.hr_tick_cohort set max_owned = $1 where channel = 'artisan'", [coh0]);
+  arm('A-FUSE-HOLDS', load >= 1 && fullOwned === 0,
+    `at max_owned (${load} heroes on the channel) the next fresh hero is not enrolled`,
+    `the fuse no longer bites on real load: ${js({ load, fullOwned })}`);
   return red;
 }
 
@@ -231,6 +297,8 @@ async function prepare(db) {
   await db.query("insert into public.hr_flags (key, enabled, note) values ('town_presence', true, 'artisan-tick') on conflict (key) do update set enabled = true");
   /* the replay lands the tick DISABLED (production runs it); the channels and arm are the migration's */
   await db.query('update public.hr_tick_config set enabled = true where id');
+  /* gather is armed on production by its own excluded file; a rebuilt database comes back with it disarmed */
+  await db.query("update public.hr_tick_config set armed_channels = (select array_agg(distinct x) from unnest(armed_channels || 'gather'::text) x) where id");
 }
 
 const JS_MUTANTS = [
@@ -261,6 +329,23 @@ const SQL_MUTANTS = [
     expect: /hr_tick_enrolment_channel_ck/,
     edits: [["    alter table public.hr_tick_enrolment add constraint hr_tick_enrolment_channel_ck\n      check (channel in ('gather', 'artisan'));",
              "    alter table public.hr_tick_enrolment add constraint hr_tick_enrolment_channel_ck\n      check (channel in ('gather', 'artisan_x'));"]] },
+  /* 2027-02-20-tick-fuse-load.sql: the file's own §4 is neutered with each (its md5 lock and the check that would
+     refuse the defect first), so the ARM on the chain is the judge, not the lock. */
+  { id: 'fuse_counts_rows', arm: 'A-FUSE', file: FUSE, why: 'the fuse counts rows again: every hero who ever worked here holds a slot for good',
+    edits: [[`      from public.hr_tick_ownership o
+      join public.player_state ps on ps.user_id = o.user_id and ps.slot = o.slot
+     where o.channel = v_c.channel and o.owned
+       and ps.active_kind = o.channel
+       and public.hr_tick_admit(true, ps.accrued_to, null) = 'admit';`,
+      `      from public.hr_tick_ownership o
+     where o.channel = v_c.channel and o.owned;`], FUSE_LOCK,
+      ["        raise exception 'tick-fuse-load §4 k3 (%)", "        raise notice 'tick-fuse-load §4 k3 (%)"]] },
+  { id: 'gather_dial_left', arm: 'A-FUSE-GATHER', file: FUSE, why: 'gather stays at stage 1: 10 % of accounts, fused at 20',
+    edits: [[" where channel = 'gather' and permille = 100 and max_owned = 20;", ' where false;'],
+      ["  if exists (select 1 from public.hr_tick_cohort where channel = 'gather' and permille = 100 and max_owned = 20)\n     or exists", '  if exists']] },
+  { id: 'no_fuse', arm: 'A-FUSE-HOLDS', file: FUSE, why: 'the fuse stops biting at all',
+    edits: [['      v_room := least(v_c.max_owned - v_have, v_limit);', '      v_room := v_limit;'], FUSE_LOCK,
+      ["        raise exception 'tick-fuse-load §4 k4 (%)", "        raise notice 'tick-fuse-load §4 k4 (%)"]] },
   /* 2027-02-11-bag-over-cap.sql: the old absolute test (its §2 v3 refuses the file). */
   { id: 'over_cap_wedges', arm: 'A-OVERCAP', file: '2027-02-11-bag-over-cap.sql', expect: /bag-over-cap §2 v3/,
     why: 'an over-cap bag refuses every item delta (the wedge, live bf18bd7f:0)',

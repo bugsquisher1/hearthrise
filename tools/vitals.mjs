@@ -361,7 +361,13 @@ function armedLagVerdict(row) {
   const stuck = Number(row?.stuck);
   if (!Number.isFinite(judged) || !Number.isFinite(stuck)) return { verdict: 'UNREAD', why: 'no count' };
   if (!(judged >= 1)) return { verdict: 'NO VERDICT', why: 'no owned character on the armed channel' };
-  if (stuck >= 1) return { verdict: 'STUCK', why: `${stuck} of ${judged} armed character(s) > 15 min behind with no tick payment in 15 min` };
+  // PAST THE TICK'S 24 h FENCE (hr_tick_admit, 2026-10-06; lane/c-beta-server, live bf18bd7f:0): the roster no longer
+  // serves it and the fence would refuse it, so "stuck" is not something the tick can fix, and it stays that way until
+  // the owner's own accrue pays it. It reads FENCED and sets no exit code. The 15 min to 24 h before it read STUCK: that
+  // is when a wedge can be caught. A character STILL inside the fence and unpaid is always STUCK, whoever else is fenced.
+  const fenced = Math.min(stuck, Number(row?.fenced) || 0);
+  if (fenced >= 1 && stuck === fenced) return { verdict: 'FENCED', why: `${fenced} of ${judged} armed character(s) past the tick's 24 h fence, unpaid: owed, their owner's return settles them` };
+  if (stuck >= 1) return { verdict: 'STUCK', why: `${stuck - fenced} of ${judged} armed character(s) > 15 min behind with no tick payment in 15 min${fenced ? ` (+${fenced} past the 24 h fence)` : ''}` };
   return { verdict: 'OK', why: `${judged} armed character(s), none stuck` };
 }
 // CLOSED MODE'S FIRST LAYER (Security, closed-mode review R3): while the game
@@ -429,6 +435,14 @@ select a.ch as channel,
                             where h.user_id = o.user_id and h.slot = o.slot
                               -- ...whose mark has REACHED the horizon (within one flush)
                               and ps.accrued_to + make_interval(secs => a.flush) > h.horizon_at)) as stuck,
+       -- ...of those, past the roster's own admission (hr_tick_admit armed: raw accrued_to inside 24 h): owner-owned now.
+       count(ps.user_id) filter (
+         where ps.accrued_to <= now() - interval '24 hours'
+           and not exists (select 1 from public.hr_tick_horizon_log hz
+                             join public.hr_return_anchor rb
+                               on rb.user_id = hz.user_id and rb.slot = hz.slot and rb.real_return_at = hz.anchor_at
+                            where hz.user_id = o.user_id and hz.slot = o.slot
+                              and ps.accrued_to + make_interval(secs => a.flush) > hz.horizon_at)) as fenced,
        coalesce(floor(max(extract(epoch from (now() - ps.accrued_to)))), 0) as worst_s,
        coalesce(floor(percentile_cont(0.95) within group (order by extract(epoch from (now() - ps.accrued_to)))), 0) as p95_s
   from (select distinct x as ch, coalesce(cfg.flush_seconds, 90) as flush
@@ -672,6 +686,10 @@ async function selftest() {
     t('L3 the counts as the endpoint returns them (strings) -> STUCK', LV({ judged: '3', stuck: '1' }), 'STUCK');
     t('L4 nobody armed-owned -> NO VERDICT, never STUCK', LV({ judged: 0, stuck: 0 }), 'NO VERDICT');
     t('L5 no counts -> UNREAD, never OK', LV({}), 'UNREAD');
+    t('L6 every stuck character past the 24 h fence -> FENCED, the tick cannot move them', LV({ judged: 3, stuck: 1, fenced: 1 }), 'FENCED');
+    t('L7 one fenced and one inside the fence, unpaid -> STUCK: the fence excuses only itself', LV({ judged: 3, stuck: 2, fenced: 1 }), 'STUCK');
+    t('L8 the counts as the endpoint returns them (strings) -> FENCED', LV({ judged: '1', stuck: '1', fenced: '1' }), 'FENCED');
+    t('L9 a stuck character and no fenced count -> STUCK, never excused by a missing column', LV({ judged: 1, stuck: 1 }), 'STUCK');
     // Closed mode's first layer (Security R3).
     const CV = (row) => L.closedGateVerdict(row).verdict;
     const HOOK = 'pgrst.db_pre_request=public.hr_access_check';
@@ -717,6 +735,8 @@ async function selftest() {
     { name: 'partyStaleTolerated', find: 'if (stale > 0) return', repl: 'if (stale > 1) return' },
     { name: 'partyStaleUnreadIsOk', find: "if (!Number.isFinite(stale)) return { verdict: 'UNREAD', why: 'no count' };", repl: '' },
     { name: 'lagOneStuckTolerated', find: 'if (stuck >= 1) return', repl: 'if (stuck >= 2) return' },
+    { name: 'lagFencedHidesLive', find: 'if (fenced >= 1 && stuck === fenced) return', repl: 'if (fenced >= 1) return' },
+    { name: 'lagFencedIsStuck', find: 'if (fenced >= 1 && stuck === fenced) return', repl: 'if (false) return' },
     { name: 'lagNobodyIsOk', find: "if (!(judged >= 1)) return { verdict: 'NO VERDICT'", repl: "if (false) return { verdict: 'NO VERDICT'" },
     { name: 'closedHookIgnored', find: "if (hook !== 'pgrst.db_pre_request=public.hr_access_check') {", repl: 'if (false) {' },
     { name: 'closedAnyHookIsOk', find: "if (hook !== 'pgrst.db_pre_request=public.hr_access_check') {", repl: 'if (hook === null) {' },

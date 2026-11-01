@@ -21,13 +21,13 @@
 // the stamina rested since. And markBack records the hunt the player came back to (residue `coach.back`), so the coach's
 // "just now" cards stand aside and no card opens over it (hunt-tutorial.js fresh_hunt, launcher.js restsNow).
 // ════════════════════════════════════════════════════════════════════════
-import { levelOf } from '../session/character-sections.js?v=0.2.78';
-import { huntOf, analyzerOf, serverNowOf, staminaOf } from '../session/hunt-sections.js?v=0.2.78';
-import { nameOf } from '../session/item-sections.js?v=0.2.78';
-import { huntName } from '../session/party-sections.js?v=0.2.78';
-import { charLevelFromXp } from '../core/xp.js?v=0.2.78';
-import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.78';
-import { whole } from '../render/format.js?v=0.2.78';
+import { levelOf } from '../session/character-sections.js?v=0.2.79';
+import { huntOf, analyzerOf, serverNowOf, staminaOf } from '../session/hunt-sections.js?v=0.2.79';
+import { nameOf } from '../session/item-sections.js?v=0.2.79';
+import { huntName } from '../session/party-sections.js?v=0.2.79';
+import { charLevelFromXp } from '../core/xp.js?v=0.2.79';
+import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.79';
+import { whole } from '../render/format.js?v=0.2.79';
 
 /* Less time away than this is a reload or a quick look, not an absence. */
 export const AWAY_MIN_MS = 10 * 60 * 1000;

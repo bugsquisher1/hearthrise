@@ -12,13 +12,13 @@
 // sends an intent or writes a number.
 // ════════════════════════════════════════════════════════════════════════
 
-import { worldViewOf } from './world-view.js?v=0.2.78';
-import { mountShell } from '../shell/shell.js?v=0.2.78';
-import { logFor } from '../hunt-view/combat-log.js?v=0.2.78';
-import { pickHunt } from '../shell/windows/hunts.js?v=0.2.78';
-import { worldTargetOf } from '../shell/menu-providers.js?v=0.2.78';
-import { TAP_WINDOWS } from '../data/world/stations.js?v=0.2.78';
-import { connection, loadingWords } from '../net/connection.js?v=0.2.78';
+import { worldViewOf } from './world-view.js?v=0.2.79';
+import { mountShell } from '../shell/shell.js?v=0.2.79';
+import { logFor } from '../hunt-view/combat-log.js?v=0.2.79';
+import { pickHunt } from '../shell/windows/hunts.js?v=0.2.79';
+import { worldTargetOf } from '../shell/menu-providers.js?v=0.2.79';
+import { TAP_WINDOWS } from '../data/world/stations.js?v=0.2.79';
+import { connection, loadingWords } from '../net/connection.js?v=0.2.79';
 
 /* The windows a town keeper or station opens (a tapped prop's `window`), and nothing else. */
 const KEEPER_WINDOWS = new Set(TAP_WINDOWS);
@@ -97,7 +97,7 @@ export async function mountWorldPane(host, character, o) {
 
   let runtime = null;
   try {
-    const { bootWorld } = await import('../world/world-boot.js?v=0.2.78');
+    const { bootWorld } = await import('../world/world-boot.js?v=0.2.79');
     const town = opts.account && typeof opts.account.townOf === 'function' ? opts.account.townOf(character.slot) : null;
     runtime = await bootWorld(pane, { view, character, emit, town, peers: opts.peers });
     runtime.sync();

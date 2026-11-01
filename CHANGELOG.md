@@ -5,6 +5,26 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.79 — 2026-11-01 (Straight Answers)
+
+**Tamsin pays what her board says.** A piece your hero already found or wears no longer changes her reward. A held task shows what it pays, and the prep screen says where it counts, so a hunt on the wrong ground won't surprise you.
+
+**Coming back.** The away line tells you how much stamina is left or how long ago the hunt ended, and the end card shows your stamina now. Before you go, you always see how long your hero will last.
+
+**Level warnings tell the truth.** A hunt above your level now says what it really costs: more XP, harder hits, and in weak armor you can spend more on food than you earn, or die. The Hunts window also says bigger pulls pay more once your heroes can hold them.
+
+**Benches stop when a hunt ends.** A hunt ending on its own no longer restarts a bench job, so your loot won't get burned or crafted without you asking. Gathering still carries on.
+
+**The Weighhouse adds up.** The sell sheet shows what you get for the whole stack, listings read a full 7 days, and notices say what you received.
+
+**Less to read.** Fewer coach cards before your second hunt, and the next one to buy is named at its real price. Warnings for no arrows and no weapon are clearer, and a run of small wording slips are fixed.
+
+**On a phone.** Coach cards are smaller, Leave and Disband stay on the sheet, Disband asks first, a tapped item no longer covers its buttons, sign-up and the sell sheet fit the screen, and you can invite to a party by name.
+
+**Lighter on your machine.** A still town stops redrawing the screen and asks the server for less, and a reload makes fewer calls.
+
+**Fixed:** reloading no longer brings back the hunt bar after a hunt has ended.
+
 ## v0.2.78 — 2026-10-31 (The Weighhouse)
 
 **The Weighhouse.** A market for every player, kept by Aldous Pell (M). List from your bag or storage, browse by category or search, and buy from other players, all anonymously. A hero needs Level 10 to trade; below that you can still look around.

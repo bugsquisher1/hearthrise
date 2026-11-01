@@ -337,7 +337,7 @@ async function arms(db, tick, setActivity, opts) {
       && /Sell your 40 Iron Bar at the shop, or gather something: gathering is free\./.test(words[3]) && /wants 9 gold/.test(words[3])
       && /Gather something and sell it: gathering is free\./.test(words[4]) && words[5] === ''
       && /Iron Bar stopped after 4: out of gold for the bench fee\. 3 gold paid/.test(words[6]) && !/_|bench_tax/.test(words.join(' '))
-      && F.feeWords(450) === 'about 1 gold every 2 crafts' && F.feeWords(3000) === '3 gold a craft'
+      && F.feeWords(450) === 'about 1 gold every 2 crafts' && F.feeWords(3000) === '3 gold a craft' && F.feeWords(900) === 'about 1 gold a craft'
       && F.benchPaidWords(low, IRON.id, Date.parse('2026-11-01T00:00:00Z')) === '3 gold to the public bench'
       && !!recap && recap.kind === 'away' && recap.id.startsWith('bench-gold:') && recap.text === words[6];
     arm('T-WORDS', goodWords, 'the row, the start screen, the refusal and the end line say the server\'s numbers in plain words and name the stack to sell',

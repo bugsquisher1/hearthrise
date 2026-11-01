@@ -17,7 +17,7 @@ const roomWords = (t, skill) => (t && t.rooms[skill] ? t.rooms[skill].room : nul
 export function feeWords(mg) {
   if (mg >= 1000) return (mg % 1000 === 0 ? '' : 'about ') + whole(Math.round(mg / 1000)) + ' gold a craft';
   const every = Math.max(1, Math.round(1000 / mg));
-  return 'about 1 gold every ' + whole(every) + ' crafts';
+  return every === 1 ? 'about 1 gold a craft' : 'about 1 gold every ' + whole(every) + ' crafts';
 }
 
 /** The recipe row's line, or '' when the job takes no fee. */

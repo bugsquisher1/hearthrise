@@ -776,7 +776,7 @@ const cases = {
     const town = steps.find((s) => s.id === 'save_setup').facts;
     const two = { roster: [{ slot: 0, level: 9, name: 'Corliss', open: true, hunting: false }, { slot: 2, level: 1, name: 'Bree', open: true, hunting: false }], slotsOwned: 2, playLimit: 4 };
     const pair = say(R({ ...town, ...two }));
-    if (!pair || pair.id !== 'party_own' || !pair.text.includes('Bree\'s tab and choose Invite to party') || !pair.hooks.includes('.char-tab[data-slot="2"]')) return 'the party card reads ' + JSON.stringify(pair && { text: pair.text, hooks: pair.hooks });
+    if (!pair || pair.id !== 'party_own' || !pair.text.includes('Right-click Bree\'s tab (on a phone: Heroes, then Invite) and choose Invite to party') || !pair.hooks.includes('.char-tab[data-slot="2"]')) return 'the party card reads ' + JSON.stringify(pair && { text: pair.text, hooks: pair.hooks });
     if ((say(R({ ...town, ...two, partied: true })) || {}).id === 'party_own') return 'a hero who has hunted in a party is asked to make one';
     const up = say(R({ ...town, upgrades: ['bronze_platebody'] }));
     if (!up || up.id !== 'equip_upgrades' || !up.text.startsWith('You found Bronze Platebody.')) return 'the upgrade card reads ' + JSON.stringify(up && up.text);

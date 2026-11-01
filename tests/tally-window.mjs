@@ -400,10 +400,10 @@ async function checks(overrides, shots) {
         st = await settle(page, (x) => x.an && x.an.bottom > 700);
         /* The Tally drags by its title without opening her window, and sits where it was dropped */
         const t0 = await steadyBox(page, 'tally');
-        await dragBy(page, '[data-hs-widget="tally"] .hs-tally-open', 1180 - t0.left, 150 - t0.top);
+        await dragBy(page, '[data-hs-widget="tally"] .hs-tally-open', 1100 - t0.left, 150 - t0.top);   // clear of the right edge's clamp at any font's width (" · Not here" reads 259 px on Linux)
         st = await settle(page, (x) => x.tally && x.tally.moved);
         const tallyAt = st.tally;
-        if (!(tallyAt && tallyAt.moved && Math.abs(tallyAt.left - 1180) <= 2 && Math.abs(tallyAt.top - 150) <= 2)) fails.push('TW-11 the tally did not move where its title was dropped: ' + JSON.stringify(tallyAt));
+        if (!(tallyAt && tallyAt.moved && Math.abs(tallyAt.left - 1100) <= 2 && Math.abs(tallyAt.top - 150) <= 2)) fails.push('TW-11 the tally did not move where its title was dropped: ' + JSON.stringify(tallyAt));
         await page.waitForTimeout(300);
         if (await page.$('[data-hs-win="tally"]')) fails.push('TW-11 dragging the tally by its title opened her window');
         /* Put back (HUD layout) returns the analyzer to the top-right, across the moved tally's column: the tally, moved,

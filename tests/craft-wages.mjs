@@ -17,6 +17,8 @@
 //             pays more than selling its bars
 //   W-ROOM    a cooked fish's bid sits under the store's price for the same heal, so a cook can undercut the store on the Weighhouse
 //   W-USE     Bronze Arrows, Coarse Whetstones and Chalked Runes stay priced at nothing: made for your own use
+//   W-BENCH   a house bench is a long goal (Tyler 2026-11-01): each bench room's first rung costs at least a week's money, rungs climb,
+//             and the shop row and the ladder agree
 //
 //   node tests/craft-wages.mjs            the shipped data
 //   node tests/craft-wages.mjs --mutate   each arm driven red by a planted defect on the live objects
@@ -28,6 +30,8 @@ import { ITEMS } from '../src/data/items.js';
 import { TREES, ROCKS, FISH_SPOTS } from '../src/data/gathering.js';
 import { ARTISAN_RECIPES, recipeCategory } from '../src/data/recipes.js';
 import { BASIC_SUPPLIES } from '../src/data/supply-basics.js';
+import { ROOM_RUNGS } from '../src/data/homestead-tiers.js';
+import { SHOP_OFFERS } from '../src/data/shops.js';
 import { recipeInputs } from '../src/core/artisan.js';
 import { pacedActionMs } from '../src/core/pacing.js';
 import { vendorPriceOf } from '../supabase/functions/hr-accrue/catalogue.js';
@@ -50,6 +54,9 @@ const SELF_USE = Object.freeze(['bronze_arrows', 'coarse_whetstone', 'chalked_ea
   'chalked_ice_rune', 'chalked_poison_rune', 'chalked_rupture_rune']);
 
 const bid = (id) => vendorPriceOf(ITEMS, id);
+/* The rooms that free their skill from the public bench's tax, and the least their first rung may cost: about 17 h of hunting at the
+   10-31 pace for the Kitchen, 31 h for the Forge and the Workshop (the priority board's 2026-11-01 bench table). */
+const BENCH_ROOMS = Object.freeze({ kitchen: 40000, forge: 75000, workshop: 75000, library: 60000 });
 
 /* The first node a gathered item comes from: the row a player meets it on. */
 function gatherIndex() {
@@ -132,6 +139,16 @@ export function check() {
     if (store && bid(r.output) >= store.price) fails.push(`W-ROOM ${r.output}: the shop bids ${bid(r.output)} g, the store sells ${store.n} (${store.heals} HP) at ${store.price} g: no cook can list under the store`);
   }
   for (const id of SELF_USE) if (bid(id) !== 0) fails.push(`W-USE ${id}: the shop bids ${bid(id)} g; it is made for your own use (the recipe says so)`);
+  for (const [room, least] of Object.entries(BENCH_ROOMS)) {
+    const rungs = ROOM_RUNGS[room];
+    if (rungs[0].cost.gold < least) fails.push(`W-BENCH ${room}: the first rung costs ${rungs[0].cost.gold} g, under ${least} g`);
+    rungs.forEach((r, i) => {
+      if (i && r.cost.gold <= rungs[i - 1].cost.gold) fails.push(`W-BENCH ${room} rung ${i + 1} costs no more than the one below it`);
+      const offer = SHOP_OFFERS.find((o) => o.id === 'room.' + room + '.' + (i + 1));
+      const gold = offer && offer.cost.find((c) => c.id === 'gold');
+      if (!gold || gold.amount !== r.cost.gold) fails.push(`W-BENCH ${room} rung ${i + 1}: the shop row says ${gold && gold.amount}, the ladder ${r.cost.gold}`);
+    });
+  }
   /* a recipe still files itself (the guard reads rows the bench shows) */
   if (!recipeCategory('smithing', B.iron_hatchets, ITEMS)) fails.push('W-CHAIN harness: Iron Hatchets has no bench category');
   return fails;
@@ -162,6 +179,9 @@ function mutate() {
   run('Cooked Herring bid over the store\'s Salted Shrimp', 'W-ROOM', () => setField('cooked_herring', 'v', 14));
   run('Bronze Arrows priced', 'W-USE', () => setField('bronze_arrows', 'v', 1));
   run('Chalked Runes priced', 'W-USE', () => setField('chalked_earth_rune', 'v', 1));
+  const rung = (room, i, gold) => { const c = ROOM_RUNGS[room][i].cost; const was = c.gold; try { c.gold = gold; } catch { /* frozen below */ } return () => { c.gold = was; }; };
+  run('the Forge back at 800 g', 'W-BENCH', () => rung('forge', 0, 800));
+  run('a Kitchen rung cheaper than the one below it', 'W-BENCH', () => rung('kitchen', 2, 50000));
   let bad = 0;
   for (const [name, hit] of results) { console.log(`  ${hit ? 'CAUGHT ' : 'MISSED '} ${name}`); if (!hit) bad++; }
   const after = check();

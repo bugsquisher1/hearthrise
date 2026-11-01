@@ -2,7 +2,7 @@
 // ════════════════════════════════════════════════════════════════════════
 // tools/qa/craft-economy.mjs — WHAT A SKILL PAYS, MEASURED: REAL SETTLE, REAL SALE, ON THE LOCAL WORLD.
 //
-//   node tools/qa/craft-economy.mjs --out FILE [--max-req 60] [--samples 2] [--hours 2] [--hunts] [--careers] [--away] [--chains] [--walk] [--market]
+//   node tools/qa/craft-economy.mjs --out FILE [--max-req 60] [--samples 2] [--hours 2] [--hunts] [--careers] [--away] [--chains] [--walk] [--rooms] [--market]
 //
 // On tools/qa/local-world.mjs (the replayed chain, the real hr-accrue, nothing leaves the machine). Two accounts play each
 // row through the verbs a player's client sends: set_activity starts it, town time passes (world.wait), set_activity idle
@@ -14,6 +14,7 @@
 //   --hunts  in-band grounds, 2 h each, the Level's kit: coin, loot sold, store bill, gold/h
 //   --chains   one hero, both halves, whole cycles played: gold over every hour it took
 //   --walk     a fresh hero's first forged weapon, no fixture: what it holds at each step
+//   --rooms    the deeds and the first bench rooms: refused one gold short, sold at the price
 //   --market   the Weighhouse's floor played: one under it refused, one at it listed, bought by the other account, the seller paid
 // Levels, stock and kit are LOCAL fixtures, written straight to this in-memory database (party-soak's way); production has none of it.
 // mutant-anchors: none — a manual tool, not a CI guard
@@ -23,6 +24,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { TREES, ROCKS, FISH_SPOTS } from '../../src/data/gathering.js';
 import { ARTISAN_RECIPES } from '../../src/data/recipes.js';
 import { ITEMS } from '../../src/data/items.js';
+import { SHOP_OFFERS } from '../../src/data/shops.js';
 import { recipeInputs } from '../../src/core/artisan.js';
 import { pacedActionMs } from '../../src/core/pacing.js';
 import { charXpForLevel, skillXpForLevel, skillLevelFromXp } from '../../src/core/xp.js';
@@ -361,6 +363,32 @@ if (has('--walk')) {
   hours += 1 / 60;
   await note('Forge Iron Hatchets, Make 1: ' + (forged.body && forged.body.ok === false ? JSON.stringify(forged.body) : 'accepted'));
   report.walk = walk;
+}
+
+// ── THE HOUSE BENCH ──────────────────────────────────────────────────────
+/* The real verb at the real price: the deeds in order, the room refused short of its gold, sold at it. Gold and materials are local fixtures. */
+if (has('--rooms')) {
+  const a = await account('roomera');
+  report.rooms = [];
+  const fund = async (gold, items) => {
+    await q(`insert into public.account_wallet (user_id, gold) values ($1, $2) on conflict (user_id) do update set gold = $2`, [a.uid, gold]);
+    for (const [id, n] of Object.entries(items)) await stock(a, id, n);
+  };
+  const costOf = (id) => {
+    const o = SHOP_OFFERS.find((x) => x.id === id);
+    return { gold: o.cost.find((c) => c.id === 'gold').amount, items: Object.fromEntries(o.cost.filter((c) => c.kind === 'item').map((c) => [c.id, c.amount])) };
+  };
+  for (const id of ['property.homestead', 'property.farmstead', 'room.kitchen.1', 'room.forge.1', 'room.workshop.1', 'room.garden.1']) {
+    const c = costOf(id);
+    await newDay(a);
+    await fund(c.gold - 1, c.items);
+    const short = await edge(a, 'unlock_buy', { offer: id });
+    await fund(c.gold, c.items);
+    const paid = await edge(a, 'unlock_buy', { offer: id });
+    const row = { id, gold: c.gold, items: c.items, shortRefused: (short.body && short.body.error) || short.status, bought: paid.status === 200 && paid.body && paid.body.ok !== false, left: await purse(a), detail: paid.body && paid.body.ok === false ? paid.body : undefined };
+    report.rooms.push(row);
+    log(`room ${JSON.stringify(row)}`);
+  }
 }
 
 // ── THE WEIGHHOUSE ───────────────────────────────────────────────────────

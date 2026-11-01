@@ -1191,7 +1191,7 @@ async function run(mutate) {
     const multi = (await db.query(
       "select * from public.hr_unlock_offers where refusal is null and unlock_id='room:kitchen' "
       + 'and jsonb_array_length(to_jsonb(array(select jsonb_object_keys(items)))) >= 3 '
-      + 'order by value limit 1')).rows[0];
+      + 'and value >= 2 order by value limit 1')).rows[0];  // a rung with a rung below it to stand on
     ok(multi, 'U16: no kitchen rung costs three item lines — the arm cannot run');
 
     // Put UID2 one rung below it, with the blueprint if one is needed.

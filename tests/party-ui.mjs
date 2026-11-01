@@ -142,6 +142,7 @@ async function load(base, gen = 0) {
     SM: await import(u('src/hunt-view/summary-model.js')),
     PD: await import(u('src/data/party.js')),
     FR: await import(u('src/shell/windows/friends.js')),
+    PW: await import(u('src/data/party-words.js')),
   };
 }
 
@@ -861,11 +862,16 @@ async function pureRules(M, base) {
     if (why('party_member_left', 'Bramwell', 'no_such_reason') !== 'Bramwell left the hunt, so Wrenna came home too.') return 'an unknown reason reads ' + why('party_member_left', 'Bramwell', 'no_such_reason');
     if (M.SM.reasonWords({ reason: 'party_member_left', by: 'Bramwell', why: 'stamina' }, 'Wrenna') !== 'Bramwell ran out of stamina, so Wrenna came home too.') return 'the summary reads ' + M.SM.reasonWords({ reason: 'party_member_left', by: 'Bramwell', why: 'stamina' }, 'Wrenna');
     if (M.SM.endedSessionOf({ read: (k) => (k === 'hunt' ? { session_id: 's', ended: true, session: { id: 's', end_reason: 'party_member_left', end_by: 'Bramwell', end_by_why: 'stamina', ended_at: '2026-10-17T12:30:00Z' } } : null) }).why !== 'stamina') return 'the ended session drops end_by_why';
-    /* (3) THE NOTICES, one line each, once, on the server's id. */
+    /* (3) THE NOTICES: every kind's words; then one line, once, on the server's id. One notice in the centre at a time, since the mutant
+       "an alert fires on every read" recurses through setResidue, and two lines rotating in `seen` never settle: it would hang, not go red. */
+    for (const [kind, who, want] of [['declined', 'Wrenna', 'Wrenna said no to your party invite.'], ['removed', 'Bramwell', 'Bramwell removed Tyler from the party.'],
+      ['disbanded', 'Bramwell', 'Bramwell closed the party.'], ['left', 'Solace', 'Solace left the party.'], ['dropped', 'Solace', 'Solace was away too long and lost their party seat.'], ['no_such_kind', 'X', '']]) {
+      const got = M.PW.noticeWords({ kind, who }, { name: 'Tyler' });
+      if (got !== want) return kind + ' reads ' + JSON.stringify(got);
+    }
     const srv = fakeServer();
     const id = (n) => '22222222-0000-4000-8000-00000000000' + n;
-    srv.env[0].party_notices = [{ id: id(1), kind: 'declined', who: 'Wrenna' }, { id: id(2), kind: 'removed', who: 'Bramwell' }, { id: id(3), kind: 'disbanded', who: 'Bramwell' }, { id: id(4), kind: 'left', who: 'Solace' },
-      { id: id(5), kind: 'dropped', who: 'Solace' }, { id: id(6), kind: 'ground_warn', who: 'Bramwell', hunt: 'mosslight_glade' }, { id: id(7), kind: 'no_such_kind', who: 'X' }];
+    srv.env[0].party_notices = [{ id: id(6), kind: 'ground_warn', who: 'Bramwell', hunt: 'mosslight_glade' }, { id: id(7), kind: 'no_such_kind', who: 'X' }];
     /* In town: the hero's last hunt is over (a warned ground speaks of the next one). */
     const open = clone(srv.env[0].hunt);
     srv.env[0].hunt.ended = true;
@@ -874,19 +880,16 @@ async function pureRules(M, base) {
     const centre = M.AL.createAlertCenter(acc);
     const cs = (await acc.open(0)).session;
     const lines = () => centre.list().filter((a) => a.kind === 'party' || a.kind === 'partywarn');
-    const said = lines().map((a) => a.text);
-    for (const want of ['Wrenna said no to your party invite.', 'Bramwell removed Tyler from the party.', 'Bramwell closed the party.', 'Solace left the party.', 'Solace was away too long and lost their party seat.']) {
-      if (!said.includes(want)) return 'no line ' + JSON.stringify(want) + ' in ' + JSON.stringify(said);
-    }
     const warnLine = lines().find((a) => a.kind === 'partywarn');
     if (!warnLine || !/^Bramwell wants to take the party to Mosslight Glade, above Tyler’s level: /.test(warnLine.text)) return 'the ground warning reads ' + JSON.stringify(warnLine);
-    if (lines().length !== 6) return 'an unknown kind raised a line: ' + JSON.stringify(said);
+    if (lines().length !== 1) return 'an unknown kind raised a line: ' + JSON.stringify(lines().map((a) => a.text));
     await cs.load();
-    if (lines().length !== 6) return 'a re-read repeated a notice: ' + lines().length;
+    if (lines().length !== 1) return 'a re-read repeated a notice: ' + lines().length;
     /* The leader went: the warned ground is over once a hunt runs (the scan retires it). */
     srv.env[0].hunt = Object.assign(open, { session_id: '5d1c0f2e-0000-4000-8000-0000000000bb' });
     await cs.load();
     if (centre.list().some((a) => a.kind === 'partywarn' && !a.session)) return 'the warned ground stayed up over a running hunt';
+    srv.env[0].party_notices = [];
     /* (4) A FRIEND'S STAMINA, before it sends anyone home; gone with the hunt it was raised in. */
     const hunting = srv.env[0].party.members.find((m) => m.seat !== srv.env[0].party.self_seat);
     if (!srv.env[0].hunt || srv.env[0].hunt.ended) return 'HARNESS: the fixture hunt is over';
@@ -1202,10 +1205,18 @@ async function pageRules(overrides, shots) {
         if (w1.length !== 1 || w1[0].body.p_hunt !== 'millrace_sewer' || sent(s, 'hr_hunt_party_start').length !== started0) fails.push('UI-TRUTH [' + tag + '] the first press sent warn ' + JSON.stringify(w1.map((c) => c.body)) + ', starts ' + (sent(s, 'hr_hunt_party_start').length - started0));
         const warnSaid = await page.evaluate((q) => [document.querySelector(q + '.hh-intent-msg').textContent, document.querySelector(q + '.hw-hunt-warn').textContent, document.querySelector(q + '.hw-hunt-detail [data-hs-act="enter"]').textContent], W);
         if (!/^Mira \(Level 3\) is under this ground’s Level \d+\..*They have been told\./.test(warnSaid[0]) || !/^Mira \(Level 3\) is under/.test(warnSaid[1]) || warnSaid[2] !== 'Start anyway') fails.push('UI-TRUTH [' + tag + '] the warning reads ' + JSON.stringify(warnSaid));
+        /* Someone sits down under the floor after that warning: this press tells them too, and still starts nothing. */
+        const late = Object.assign(clone(mira), { seat: 2, unit: null, name: 'Oren', level: 3 });
+        s.env[0].party.members.push(late);
+        await pushEnvelope(page, s, 0);
+        await page.click(go);
+        await page.waitForTimeout(500);
+        if (sent(s, 'hr_hunt_party_warn').length !== warned0 + 2 || sent(s, 'hr_hunt_party_start').length !== started0) fails.push('UI-TRUTH [' + tag + '] a seat new since the warning walked in untold: warns ' + (sent(s, 'hr_hunt_party_warn').length - warned0) + ', starts ' + (sent(s, 'hr_hunt_party_start').length - started0));
         s.startReplies.push({ ok: false, error: 'not_ready', seats: [{ seat: 1, name: 'Mira', error: 'away' }] });
         await page.click(go);
         await page.waitForTimeout(500);
-        if (sent(s, 'hr_hunt_party_start').length !== started0 + 1 || sent(s, 'hr_hunt_party_warn').length !== warned0 + 1) fails.push('UI-TRUTH [' + tag + '] the second press did not start, once');
+        if (sent(s, 'hr_hunt_party_start').length !== started0 + 1 || sent(s, 'hr_hunt_party_warn').length !== warned0 + 2) fails.push('UI-TRUTH [' + tag + '] the armed press did not start, once');
+        s.env[0].party.members.pop();
         mira.level = hadLevel;
         await pushEnvelope(page, s, 0);
       }
@@ -1397,9 +1408,10 @@ const PURE_MUTANTS = [
   ['not ready names nobody', 'src/shell/intent-words.js', "    return 'Nobody went in: ' + seats.map((x) => x.name + ' ' + (x.error === 'hunt_open' && x.hunt && HUNT_INDEX[x.hunt]\n      ? 'is still hunting in ' + HUNT_INDEX[x.hunt].name : SEAT_WORDS[x.error] || 'is not ready')).join('; ') + '.';", "    return 'Not everyone in the party is ready.';"],
 ];
 const PAGE_MUTANTS = [
-  ['the leader\'s Start walks a seat under the floor in with no word (UI-TRUTH)', 'src/shell/windows/hunts.js', 'if (low.under.length && !low.far && sc.warned !== hunt) {', 'if (false) {'],
+  ['the leader\'s Start walks a seat under the floor in with no word (UI-TRUTH)', 'src/shell/windows/hunts.js', 'if (low.under.length && !low.far && sc.warned !== warnKey(hunt, low.under)) {', 'if (false) {'],
+  ['a seat that sits down after the warning is never told (UI-TRUTH)', 'src/shell/windows/hunts.js', "const warnKey = (hunt, seats) => hunt + ':' + seats.map((s) => s.seat).join();", "const warnKey = (hunt) => hunt;"],
   ['the warning is said and the seat is never told (UI-TRUTH)', 'src/shell/windows/hunts.js', '() => warnPartyGround(ctx.account, cs, hunt)', '() => Promise.resolve({ ok: true })'],
-  ['the button never says Start anyway (UI-TRUTH)', 'src/shell/windows/hunts.js', "(sc.warned === r.hunt && under.length ? 'Start anyway' : 'Start with party')", "'Start with party'"],
+  ['the button never says Start anyway (UI-TRUTH)', 'src/shell/windows/hunts.js', "(under.length && sc.warned === warnKey(r.hunt, under) ? 'Start anyway' : 'Start with party')", "'Start with party'"],
   ['Start with party stays on while in flight', 'src/shell/windows/hunts.js', "for (const b of det.querySelectorAll('.hw-hd-foot button, .hw-density button')) prop(b, 'disabled', sc.pending || !!now);", "for (const b of det.querySelectorAll('.hw-hd-foot button, .hw-density button')) prop(b, 'disabled', !!now);"],
   ['a member may press Start', 'src/shell/windows/hunts.js', '  if (follower) prop(enter, \'disabled\', true);\n', ''],
   ['the strip tab is no menu target', 'src/app/character-strip.js', '  markPlayer(b, uid ? { id: uid, name: x.name, slot: x.slot } : null);', '  markPlayer(b, null);'],

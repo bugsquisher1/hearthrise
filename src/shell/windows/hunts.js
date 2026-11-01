@@ -89,6 +89,9 @@ function levelOf(cs) {
 
 const groundOf = (hunt) => Object.values(HUNT_GROUNDS).find((x) => x.hunt === hunt) || null;
 
+/* What a leader's warning covered: this ground and these seats. Someone who sits down under the floor afterwards has not been told. */
+const warnKey = (hunt, seats) => hunt + ':' + seats.map((s) => s.seat).join();
+
 /* The server's pick on this ground (`picks`: { [hunt]: n }, no key = 0, as built) as the ground would spawn it,
    and the most the ground allows for `size`; null = unknown (no section, or no ground). */
 function densityOf(picks, hunt, size) {
@@ -293,7 +296,7 @@ function patchPage(det, ctx, sc, v) {
   });
   const enter = det.querySelector('.hw-hunt-enter');
   attr(enter, 'data-hunt', r.hunt);
-  text(enter, party && !follower ? (sc.warned === r.hunt && under.length ? 'Start anyway' : 'Start with party') : 'Enter');
+  text(enter, party && !follower ? (under.length && sc.warned === warnKey(r.hunt, under) ? 'Start anyway' : 'Start with party') : 'Enter');
   /* Enter and the pull step (Go as, Find a party and Bring are patchGo's: off for a member too). */
   for (const b of det.querySelectorAll('.hw-hd-foot button, .hw-density button')) prop(b, 'disabled', sc.pending || !!now);
   if (follower) prop(enter, 'disabled', true);
@@ -382,9 +385,9 @@ renderHunts.act = function actHunts(ctx, body, action, ev, t) {
        so far under that the server would refuse the start skips this: that refusal names it (panel 2026-11-01, designer's list). */
     const row = huntRows().find((x) => x.hunt === hunt);
     const low = row ? seatsUnder(row, lead) : { under: [], far: false };
-    if (low.under.length && !low.far && sc.warned !== hunt) {
+    if (low.under.length && !low.far && sc.warned !== warnKey(hunt, low.under)) {
       runIntent(sc, repaint, () => warnPartyGround(ctx.account, cs, hunt), 'Telling your party…',
-        () => underWords(row, low.under) + ' They have been told. Press Start anyway to go.', cs).then(() => { sc.warned = hunt; repaint(); });
+        () => underWords(row, low.under) + ' They have been told. Press Start anyway to go.', cs).then(() => { sc.warned = warnKey(hunt, low.under); repaint(); });
       return true;
     }
     sc.warned = null;
